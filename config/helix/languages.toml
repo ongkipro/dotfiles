@@ -1,0 +1,12 @@
+# Helix language servers — Python pakai pyright (autocomplete/hover/go-to-def) + ruff (lint/format)
+[language-server.pyright]
+command = "pyright-langserver"
+args = ["--stdio"]
+
+[language-server.ruff]
+command = "ruff"
+args = ["server"]
+
+[[language]]
+name = "python"
+language-servers = ["pyright", "ruff"]

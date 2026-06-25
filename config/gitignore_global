@@ -1,0 +1,18 @@
+# OS cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+# Editor / IDE temp
+*.swp
+*.swo
+*~
+.idea/
+*.sublime-workspace
+# direnv
+.direnv/
+# Env / secrets (jaring pengaman — jangan sampai ke-commit)
+.env
+.env.local
+.env.*.local
+# Log
+*.log

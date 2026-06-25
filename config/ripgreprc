@@ -1,0 +1,11 @@
+# ripgrep config — akurat & cepat
+--smart-case
+--hidden
+--glob=!.git/*
+--max-columns=200
+--max-columns-preview
+--colors=line:fg:yellow
+--colors=match:fg:black
+--colors=match:bg:yellow
+--colors=path:fg:green
+--colors=path:style:bold

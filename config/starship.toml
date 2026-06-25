@@ -1,0 +1,46 @@
+# starship — plain, jelas di font apapun (tanpa Nerd Font)
+add_newline = true
+command_timeout = 1000
+
+format = """
+$directory$git_branch$git_status$cmd_duration
+$character"""
+
+[character]
+success_symbol = "[>](bold green)"
+error_symbol = "[>](bold red)"
+
+[directory]
+truncation_length = 3
+truncate_to_repo = true
+style = "bold cyan"
+
+[git_branch]
+symbol = ""
+format = "[on ](dimmed)[$branch]($style) "
+style = "bold purple"
+
+[git_status]
+style = "bold yellow"
+format = '([\[$all_status$ahead_behind\]]($style) )'
+ahead = "^${count}"
+behind = "v${count}"
+diverged = "^${ahead_count}v${behind_count}"
+conflicted = "x${count}"
+untracked = "?${count}"
+modified = "*${count}"
+staged = "+${count}"
+stashed = "s${count}"
+renamed = "r${count}"
+deleted = "-${count}"
+
+[cmd_duration]
+min_time = 2000
+format = "[took $duration]($style) "
+style = "bold yellow"
+
+[nodejs]
+disabled = true
+
+[python]
+disabled = true
