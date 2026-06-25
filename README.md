@@ -18,7 +18,7 @@ install.sh             # tempatkan config + tambah blok bashrc (idempotent)
 
 ## Pakai di device baru
 ```bash
-git clone <url-repo> ~/dotfiles
+git clone https://github.com/ongki5758/dotfiles ~/dotfiles
 cd ~/dotfiles
 bash install.sh          # tempatkan config + patch ~/.bashrc
 # lalu ikuti "Langkah berikutnya" yang dicetak install.sh (install tool via mise/npm/pipx + git config)
