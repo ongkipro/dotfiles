@@ -14,6 +14,7 @@ For project-specific overrides, also respect repo `AGENTS.md` files if present.
 
 When a task involves Shopify app development, Shopify CLI, Shopify GraphQL, Hydrogen, Functions, Liquid theme code, app/extension TOML validation, or Shopify extensions:
 
+0. Consult the repo map FIRST: `/home/fantastico/Documents/shopify-ai-development-repos.md` (theme→horizon/dawn+theme-tools; app→@shopify/cli+app templates+shopify-app-js; extension→ui-extensions+function-examples). Do NOT clone Shopify repos unless explicitly asked; prefer official Shopify repos/docs over guesses.
 1. Read `/home/fantastico/.ai/shopify-ai-toolkit/README.md`
 2. Read `/home/fantastico/.ai/shopify-ai-toolkit/TRIGGERS.md`
 3. Read `/home/fantastico/.ai/shopify-ai-toolkit/DECISIONS.md`

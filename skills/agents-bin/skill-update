@@ -11,6 +11,7 @@ TARGET_BASES=(
   "$HOME/.claude/skills"
   "$HOME/.codex/skills"
   "$HOME/.gemini/skills"
+  "$HOME/.pi/agent/skills"
 )
 
 mkdir -p "$HOME/.agents/bin" "$HOME/.agents/repos" "$LOCAL_SKILLS_DIR"
