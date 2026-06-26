@@ -187,7 +187,7 @@ alias grep='grep --color=auto'
 # --- akses cepat: alias & fungsi ---
 alias g='git'
 command -v lazygit >/dev/null && alias lg='lazygit'
-alias devnotes='bat ~/dev-setup.md 2>/dev/null || cat ~/dev-setup.md'   # panduan ringkas
+alias devnotes='bat ~/Documents/dev-setup.md 2>/dev/null || cat ~/Documents/dev-setup.md'   # panduan ringkas
 alias devdoc='bat ~/Documents/linux-dev-setup.md 2>/dev/null || cat ~/Documents/linux-dev-setup.md'  # dokumen lengkap/reproduksi
 if command -v eza >/dev/null; then
   alias ll='eza -la --git --group-directories-first --time-style=relative'
@@ -200,3 +200,9 @@ fkill(){ local pid; pid=$(ps -eo pid,comm,%cpu,%mem --sort=-%cpu | sed 1d | fzf 
 # starship: prompt informatif (git branch/status, exit code, durasi, runtime per-folder)
 command -v starship >/dev/null && eval "$(starship init bash)"
 # <<< dev-tools setup (claude) <<<
+
+PATH="/home/fantastico/perl5/bin${PATH:+:${PATH}}"; export PATH;
+PERL5LIB="/home/fantastico/perl5/lib/perl5${PERL5LIB:+:${PERL5LIB}}"; export PERL5LIB;
+PERL_LOCAL_LIB_ROOT="/home/fantastico/perl5${PERL_LOCAL_LIB_ROOT:+:${PERL_LOCAL_LIB_ROOT}}"; export PERL_LOCAL_LIB_ROOT;
+PERL_MB_OPT="--install_base \"/home/fantastico/perl5\""; export PERL_MB_OPT;
+PERL_MM_OPT="INSTALL_BASE=/home/fantastico/perl5"; export PERL_MM_OPT;

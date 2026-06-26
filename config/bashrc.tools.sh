@@ -44,7 +44,7 @@ alias grep='grep --color=auto'
 # --- akses cepat: alias & fungsi ---
 alias g='git'
 command -v lazygit >/dev/null && alias lg='lazygit'
-alias devnotes='bat ~/dev-setup.md 2>/dev/null || cat ~/dev-setup.md'   # panduan ringkas
+alias devnotes='bat ~/Documents/dev-setup.md 2>/dev/null || cat ~/Documents/dev-setup.md'   # panduan ringkas
 alias devdoc='bat ~/Documents/linux-dev-setup.md 2>/dev/null || cat ~/Documents/linux-dev-setup.md'  # dokumen lengkap/reproduksi
 if command -v eza >/dev/null; then
   alias ll='eza -la --git --group-directories-first --time-style=relative'
