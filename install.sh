@@ -3,21 +3,24 @@
 set -euo pipefail
 DOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "==> Menempatkan file config..."
-mkdir -p ~/.config/helix
-backup() { [ -f "$1" ] && cp "$1" "$1.bak.$(date +%s 2>/dev/null || echo old)" 2>/dev/null || true; }
-
-backup ~/.config/starship.toml;        cp "$DOT/config/starship.toml"        ~/.config/starship.toml
-backup ~/.ripgreprc;                   cp "$DOT/config/ripgreprc"            ~/.ripgreprc
-backup ~/.config/helix/languages.toml; cp "$DOT/config/helix/languages.toml" ~/.config/helix/languages.toml
-backup ~/.gitignore_global;            cp "$DOT/config/gitignore_global"     ~/.gitignore_global
-echo "   starship.toml, .ripgreprc, helix/languages.toml, .gitignore_global -> terpasang"
-
-# Memori bersama AI CLI (satu sumber -> symlink ke semua tool)
-mkdir -p ~/.config/ai ~/.local/bin
-cp -r "$DOT/config/ai/." ~/.config/ai/        # AGENTS.md + README.md + memory/*.md
-cp "$DOT/bin/ai-memory-link" ~/.local/bin/ai-memory-link && chmod +x ~/.local/bin/ai-memory-link
-~/.local/bin/ai-memory-link                   # symlink ke semua AI CLI (claude/codex/pi/gemini/antigravity)
+echo "==> Symlink config & memori (file asli di repo -> edit = repo, no drift)..."
+mkdir -p ~/.config/helix ~/.local/bin ~/.agents
+# link <src-di-repo> <tujuan-live>: backup file asli, lalu symlink ke repo
+link() {
+  local src="$1" dst="$2"
+  mkdir -p "$(dirname "$dst")"
+  if [ -e "$dst" ] && [ ! -L "$dst" ]; then cp -r "$dst" "$dst.bak.$(date +%s 2>/dev/null || echo old)" 2>/dev/null || true; fi
+  rm -rf "$dst"; ln -s "$src" "$dst"; echo "   $dst -> $src"
+}
+link "$DOT/config/ai"                    ~/.config/ai          # memori bersama (+ memory/*.md)
+link "$DOT/config/starship.toml"         ~/.config/starship.toml
+link "$DOT/config/ripgreprc"             ~/.ripgreprc
+link "$DOT/config/helix/languages.toml"  ~/.config/helix/languages.toml
+link "$DOT/config/gitignore_global"      ~/.gitignore_global
+link "$DOT/skills/local"                 ~/.agents/local-skills   # local skills (astro, shopify-listing)
+link "$DOT/bin/ai-memory-link"           ~/.local/bin/ai-memory-link
+link "$DOT/bin/dotpush"                  ~/.local/bin/dotpush
+~/.local/bin/ai-memory-link              # symlink AGENTS.md ke semua AI CLI (claude/codex/pi/gemini/antigravity)
 
 echo "==> Patch ~/.bashrc (blok dev-tools)..."
 if grep -qF ">>> dev-tools setup" ~/.bashrc 2>/dev/null; then
