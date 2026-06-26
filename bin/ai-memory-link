@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Sambungkan memori bersama (~/.config/ai/AGENTS.md) ke SEMUA AI CLI via symlink.
+# Tambah AI baru ke depan: cukup tambahkan path context-file-nya ke array TARGETS.
+set -euo pipefail
+SRC="$HOME/.config/ai/AGENTS.md"
+
+[ -f "$SRC" ] || { echo "ERROR: $SRC tidak ada. Jalankan dari setup dotfiles dulu."; exit 1; }
+
+# Lokasi context-file global tiap AI CLI:
+TARGETS=(
+  "$HOME/AGENTS.md"          # pi.dev, codex, antigravity(agy)  — standar AGENTS.md
+  "$HOME/.claude/CLAUDE.md"  # Claude Code
+  "$HOME/.codex/AGENTS.md"   # Codex
+  "$HOME/.gemini/GEMINI.md"  # Gemini CLI (+ Antigravity fallback)
+  # tambah AI baru di sini, contoh:
+  # "$HOME/.config/<tool>/AGENTS.md"
+)
+
+for t in "${TARGETS[@]}"; do
+  mkdir -p "$(dirname "$t")"
+  # backup kalau ada file asli ber-isi (bukan symlink)
+  if [ -e "$t" ] && [ ! -L "$t" ] && [ -s "$t" ]; then cp "$t" "$t.bak"; fi
+  ln -sf "$SRC" "$t"
+  echo "linked: $t -> $SRC"
+done
+echo "Selesai. Edit memori di ~/.config/ai/ (AGENTS.md + memory/*.md)."
