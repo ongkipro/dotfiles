@@ -5,6 +5,7 @@ REPO_URL="${SKILL_REPO_URL:-https://github.com/jezweb/claude-skills}"
 REPO_DIR="${SKILL_REPO_DIR:-$HOME/.agents/repos/shared-skills}"
 LEGACY_REPO_DIR="$HOME/.agents/repos/claude-skills"
 LOCAL_SKILLS_DIR="${LOCAL_SKILLS_DIR:-$HOME/.agents/local-skills}"
+LOCAL_SKILLS_DIR="$(readlink -f "$LOCAL_SKILLS_DIR")"
 TARGET_BASES=(
   "$HOME/.agents/skills"
   "$HOME/.claude/skills"
