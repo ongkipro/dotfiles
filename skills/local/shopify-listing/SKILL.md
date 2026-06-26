@@ -36,6 +36,9 @@ The user wants to improve product *listings/merchandising data* (not theme code)
 5. **Generate listing copy** — for large catalogs, fan out to subagents (Agent tool), ~15-20 products each, writing JSON to files you then apply. Follow `references/copywriting.md` exactly. Validate (char limits, no brand leak, no CTA) before applying.
 6. **Apply** via `productUpdate` (title, handle, descriptionHtml, seo, tags, productType, **category** taxonomy id).
 7. **Image SEO** — set ALT (`productUpdateMedia`) and rename filenames to `<handle>-N.ext` (`fileUpdate`, needs `write_files`; skip "non-ready" files).
+   - **Alt text pattern**: `[Product Title] - [view/angle/feature]` (max 125 chars). Remove generic `"main product image"` / `"product image N"` suffixes.
+   - Batch per-product: pass all media items in one `productUpdateMedia` call with media array (NOT JSON — use unquoted GraphQL keys `id:` `alt:`). Use `--query-file` to avoid shell escaping issues.
+   - Verify post-update: query `product.media.edges[].node.image.altText`.
 8. **Collections** — `collectionCreate` + `collectionAddProductsV2`, one collection per category. Then make each collection SEO-complete via `collectionUpdate`: keyword-rich `descriptionHtml` (1-2 short paragraphs, no CTA), `seo{title,description}` (same rules as products: keyword-first metaTitle ≤60 no store-suffix; metaDescription ≤155 no CTA), and a **cover image** with `image{src,altText}`.
 9. **Collection cover images** — if an image-generation tool is available (e.g. a connected MCP like Higgsfield `generate_image`), generate a consistent set of clean studio cover images (one representative subject per collection, same background/aspect ratio for grid cohesion), confirm style with the user via a pilot, then attach with `collectionUpdate(image:{src:<generated URL>, altText:"<Collection> – <Store>"})` (Shopify fetches the URL). Skip generation if no such tool; ALT + SEO text still apply.
 10. **Publish** — ensure status `ACTIVE`.
@@ -58,5 +61,22 @@ The user wants to improve product *listings/merchandising data* (not theme code)
 ## References (read on demand)
 - `references/mutations.md` — GraphQL query/mutation cheat-sheet, taxonomy (Google category) lookup + common toy IDs, pagination, image SEO.
 - `references/copywriting.md` — exact copy rules + title/description/meta templates for subagents.
+
+## Image Alt Text Checklist
+
+Every product image must have descriptive alt text. Common default patterns to **fix**:
+- `[Title] main product image` → `[Title] - front view showing [key features]`
+- `[Title] product image N` → `[Title] - [specific view label]`
+
+View labels to rotate: `front view`, `alternate angle view`, `lifestyle in-use shot`, `size reference view`, `feature close-up view`, `packaging view`, `detail view`, `material close-up view`, `top-down view`, `side angle view`.
+
+**Batch update tip**: Use `--query-file` with GraphQL-native syntax (no quoted JSON keys) for safe escaping:
+```graphql
+mutation {
+  productUpdateMedia(productId: "gid://shopify/Product/...", media: [
+    {id: "gid://shopify/MediaImage/...", alt: "Product Title - front view"}
+  ]) { media { id alt } userErrors { field message } }
+}
+```
 
 > This skill encodes a workflow proven on a 125-product catalog. Adapt thresholds/market to the user's store; always confirm market, language, and brand policy in the pilot step.
