@@ -54,6 +54,14 @@ alias ..='cd ..'; alias ...='cd ../..'; alias ....='cd ../../..'
 mkcd(){ mkdir -p -- "$1" && cd -- "$1"; }                                   # bikin folder + masuk
 ff(){ local f; f=$(fzf --preview 'bat -n --color=always {} 2>/dev/null || cat {}') && [ -n "$f" ] && ${EDITOR%% *} "$f"; }  # cari file -> buka di editor
 fkill(){ local pid; pid=$(ps -eo pid,comm,%cpu,%mem --sort=-%cpu | sed 1d | fzf -m --header='pilih proses (TAB=multi)' | awk '{print $1}'); [ -n "$pid" ] && echo "$pid" | xargs -r kill "${1:--15}"; }  # kill proses via fzf
+# pi.dev: auto-muat memori bersama dari ~/.config/ai/ (route folder; ~/AGENTS.md tdk perlu)
+pi() {
+  local mem="$HOME/.config/ai/AGENTS.md"
+  case "${1:-}" in
+    update|install|uninstall|remove|list) command pi "$@" ;;
+    *) if [ -f "$mem" ]; then command pi --append-system-prompt "$mem" "$@"; else command pi "$@"; fi ;;
+  esac
+}
 # starship: prompt informatif (git branch/status, exit code, durasi, runtime per-folder)
 command -v starship >/dev/null && eval "$(starship init bash)"
 # <<< dev-tools setup (claude) <<<
