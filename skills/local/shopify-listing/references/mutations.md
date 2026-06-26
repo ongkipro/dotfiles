@@ -65,7 +65,11 @@ mutation($files:[FileUpdateInput!]!){ fileUpdate(files:$files){ userErrors{ mess
 ```graphql
 mutation($i:CollectionInput!){ collectionCreate(input:$i){ collection{ id handle } userErrors{ message } } }
 mutation($id:ID!,$pids:[ID!]!){ collectionAddProductsV2(id:$id, productIds:$pids){ job{ done } userErrors{ message } } }
+# SEO + cover image (Shopify fetches image.src from the URL). Same SEO rules as products.
+mutation($i:CollectionInput!){ collectionUpdate(input:$i){ collection{ handle image{ url } } userErrors{ field message } } }
+# i: { id, descriptionHtml, seo:{ title, description }, image:{ src:"https://...cover.png", altText:"<Collection> – <Store>" } }
 ```
+Covers: generate a cohesive set with an image-gen MCP (e.g. Higgsfield `generate_image` → `marketing_studio_image`, consistent background + aspect ratio), download to verify, attach via `image.src`. Skip default smart collections (e.g. "Home page"/frontpage).
 
 ## Gotchas
 - Online auth token expires mid-batch → `ACCESS_DENIED` → user re-auths. Make scripts resume-safe.

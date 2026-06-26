@@ -1,6 +1,14 @@
 ---
 name: shopify-listing
-description: Optimize Shopify product listings end-to-end via Shopify CLI (`shopify store execute`) for maximum SEO + conversion. Use when the user wants to clean up / maximize / optimize Shopify product listings, rewrite product titles, descriptions, meta SEO title/description, URL handles/slugs, tags, set the standard product Category (taxonomy = Google category), variant cleanup (remove country/"Ships From" variants, keep US, rename variant option values), product image ALT text and SEO filenames, build/assign collections, and publish. Triggers include English and Indonesian phrases like "optimize shopify listing", "maksimalkan listing produk", "rapikan produk shopify", "edit judul/deskripsi/meta SEO", "rapikan varian / hapus varian negara", "buat collection / isi category", "scan all products", "alt image / rename file image SEO". Works on ANY store via its myshopify domain. NOT for theme/Liquid code, app/extension dev, or checkout — use the official shopify-plugin skills for those.
+description: >-
+  Optimize Shopify product listings end-to-end via Shopify CLI for SEO + conversion.
+  Use to rewrite titles, descriptions, meta SEO, URL handles, tags, set product
+  category (Google taxonomy), cleanup variants (remove country/Ships From), image
+  ALT text & SEO filenames, build/assign collections, and publish. Triggers:
+  optimize shopify listing, maksimalkan listing produk, rapikan produk shopify,
+  edit judul/deskripsi/meta SEO, rapikan varian, buat collection, collection SEO,
+  scan all products, alt image SEO. Works on any store via myshopify domain. NOT
+  for theme/Liquid code or app/extension dev — use official shopify-plugin skills.
 ---
 
 # Shopify Listing Optimizer
@@ -28,9 +36,10 @@ The user wants to improve product *listings/merchandising data* (not theme code)
 5. **Generate listing copy** — for large catalogs, fan out to subagents (Agent tool), ~15-20 products each, writing JSON to files you then apply. Follow `references/copywriting.md` exactly. Validate (char limits, no brand leak, no CTA) before applying.
 6. **Apply** via `productUpdate` (title, handle, descriptionHtml, seo, tags, productType, **category** taxonomy id).
 7. **Image SEO** — set ALT (`productUpdateMedia`) and rename filenames to `<handle>-N.ext` (`fileUpdate`, needs `write_files`; skip "non-ready" files).
-8. **Collections** — `collectionCreate` + `collectionAddProductsV2`, one collection per category.
-9. **Publish** — ensure status `ACTIVE`.
-10. **Log** — append what changed to a Markdown edit-log (the user often keeps one under `~/Documents/Shopify/<Store>/`).
+8. **Collections** — `collectionCreate` + `collectionAddProductsV2`, one collection per category. Then make each collection SEO-complete via `collectionUpdate`: keyword-rich `descriptionHtml` (1-2 short paragraphs, no CTA), `seo{title,description}` (same rules as products: keyword-first metaTitle ≤60 no store-suffix; metaDescription ≤155 no CTA), and a **cover image** with `image{src,altText}`.
+9. **Collection cover images** — if an image-generation tool is available (e.g. a connected MCP like Higgsfield `generate_image`), generate a consistent set of clean studio cover images (one representative subject per collection, same background/aspect ratio for grid cohesion), confirm style with the user via a pilot, then attach with `collectionUpdate(image:{src:<generated URL>, altText:"<Collection> – <Store>"})` (Shopify fetches the URL). Skip generation if no such tool; ALT + SEO text still apply.
+10. **Publish** — ensure status `ACTIVE`.
+11. **Log** — append what changed to a Markdown edit-log (the user often keeps one under `~/Documents/Shopify/<Store>/`).
 
 ## Hard rules (non-negotiable)
 - **No brand names** in title/metaTitle/tags/imageAlt unless the user opts in — use generic terms. **No** origin ("Mainland China") or "Brand Name: NONE" anywhere.

@@ -10,3 +10,5 @@
 - path: `/home/fantastico/Projects/pixsgo`
 - stack: Astro, TailwindCSS, Shopify Storefront API, Cloudflare Workers / Wrangler
 - catatan: Rebranded to "Play & Go" (Toys & Hobbies). Visual guidelines are Playful, Minimalist, Modern, and Fun. Avoid retro arcade, console hacking, or brutalist boxes. Ensure senior accessibility (font >= 16px, labels on icons).
+- Rethemed all pages and layout components (Header, Footer, 404, FAQ, cart, filter sidebar) to sand borders (`border-border`) and soft rounded elements, eliminating all retro slate/gray borders and brutalist shadows.
+- Updated `getStaticPaths` in `src/pages/products/[handle].astro` to combine live Shopify handles with mock fallback handles, resolving the isolated scope build constraint in Astro and preventing 404 errors on internal fallback links.
