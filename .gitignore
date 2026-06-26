@@ -8,13 +8,15 @@ id_ed25519*
 .env
 .env.*
 .dev.vars
-auth.json
-**/auth.json
+*auth*.json
+**/*auth*.json
+*credential*.json
 *.credentials.json
 .credentials.json
-credentials.json
 oauth_creds*.json
 *.token
+*_secret*
+.secrets/
 
 # === OS / junk / backup ===
 .DS_Store
