@@ -1,0 +1,27 @@
+# === Credentials / secrets — JANGAN PERNAH commit ===
+*.key
+*.pem
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+.env
+.env.*
+.dev.vars
+auth.json
+**/auth.json
+*.credentials.json
+.credentials.json
+credentials.json
+oauth_creds*.json
+*.token
+
+# === OS / junk / backup ===
+.DS_Store
+Thumbs.db
+*.bak
+*.bak.*
+*.swp
+*~
+__pycache__/
+node_modules/
