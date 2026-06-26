@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SKILL_NAME="${1:-}"
+LOCAL_SKILLS_DIR="${LOCAL_SKILLS_DIR:-$HOME/.agents/local-skills}"
+TARGET_DIR="$LOCAL_SKILLS_DIR/$SKILL_NAME"
+
+if [ -z "$SKILL_NAME" ]; then
+  echo "Usage: skill-remove <skill-name>" >&2
+  exit 1
+fi
+
+if [ ! -d "$TARGET_DIR" ]; then
+  echo "Local skill not found: $SKILL_NAME" >&2
+  exit 1
+fi
+
+rm -rf "$TARGET_DIR"
+"$HOME/.agents/bin/skill-update" >/dev/null
+
+echo "Removed: $TARGET_DIR"
+echo "Unlinked from: pi, Claude CLI, Codex CLI, Antigravity CLI"

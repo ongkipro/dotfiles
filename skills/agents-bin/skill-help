@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+cat <<'EOF'
+Skill commands
+
+  skill-update             Update shared repo skills and sync all links
+  skill-sync               Alias of skill-update
+  skill-new <name>         Create one new local skill for all CLIs
+  skill-list               Show repo skills and local skills
+  skill-open <name>        Open a skill in your editor
+  skill-remove <name>      Remove a local skill from all CLIs
+
+Locations
+
+  Repo skills:   ~/.agents/repos/shared-skills
+  Local skills:  ~/.agents/local-skills
+  Linked into:   ~/.agents/skills ~/.claude/skills ~/.codex/skills ~/.gemini/skills
+EOF

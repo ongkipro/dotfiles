@@ -1,0 +1,9 @@
+#!/bin/bash
+# Clipboard wrapper: Wayland-first, fallback ke X11
+if command -v wl-copy >/dev/null 2>&1 && [ -n "$WAYLAND_DISPLAY" ]; then
+    exec wl-copy
+elif command -v xclip >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
+    exec xclip -selection clipboard -in
+elif command -v xsel >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
+    exec xsel -ib
+fi

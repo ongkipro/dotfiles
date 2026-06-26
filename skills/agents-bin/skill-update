@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_URL="${SKILL_REPO_URL:-https://github.com/jezweb/claude-skills}"
+REPO_DIR="${SKILL_REPO_DIR:-$HOME/.agents/repos/shared-skills}"
+LEGACY_REPO_DIR="$HOME/.agents/repos/claude-skills"
+LOCAL_SKILLS_DIR="${LOCAL_SKILLS_DIR:-$HOME/.agents/local-skills}"
+TARGET_BASES=(
+  "$HOME/.agents/skills"
+  "$HOME/.claude/skills"
+  "$HOME/.codex/skills"
+  "$HOME/.gemini/skills"
+)
+
+mkdir -p "$HOME/.agents/bin" "$HOME/.agents/repos" "$LOCAL_SKILLS_DIR"
+
+if [ ! -e "$REPO_DIR" ] && [ -d "$LEGACY_REPO_DIR/.git" ]; then
+  mkdir -p "$(dirname "$REPO_DIR")"
+  mv "$LEGACY_REPO_DIR" "$REPO_DIR"
+fi
+
+if [ -d "$REPO_DIR/.git" ]; then
+  git -C "$REPO_DIR" fetch --depth 1 origin
+  current_branch=$(git -C "$REPO_DIR" rev-parse --abbrev-ref HEAD)
+  git -C "$REPO_DIR" reset --hard "origin/$current_branch"
+  git -C "$REPO_DIR" clean -fd
+else
+  rm -rf "$REPO_DIR"
+  git clone --depth 1 "$REPO_URL" "$REPO_DIR" >/dev/null
+fi
+
+mapfile -t REPO_SKILLS < <(find "$REPO_DIR/plugins" -type f -name SKILL.md -printf '%h\n' | sort)
+mapfile -t LOCAL_SKILLS < <(find "$LOCAL_SKILLS_DIR" -mindepth 1 -maxdepth 2 -type f -name SKILL.md -printf '%h\n' | sort)
+
+if [ ${#REPO_SKILLS[@]} -eq 0 ] && [ ${#LOCAL_SKILLS[@]} -eq 0 ]; then
+  echo "No skills found" >&2
+  exit 1
+fi
+
+backup_conflict() {
+  local path="$1"
+  if [ -L "$path" ] || [ ! -e "$path" ]; then
+    return 0
+  fi
+  local backup="${path}.backup.$(date +%s)"
+  mv "$path" "$backup"
+  echo "Backed up existing path: $path -> $backup"
+}
+
+clean_managed_links() {
+  local base="$1"
+  find "$base" -maxdepth 1 -mindepth 1 -type l | while read -r link; do
+    target=$(readlink -f "$link" || true)
+    case "$target" in
+      "$REPO_DIR"/*|"$LOCAL_SKILLS_DIR"/*)
+        rm -f "$link"
+        ;;
+    esac
+  done
+}
+
+link_skills() {
+  local base="$1"
+  shift
+  local count=0
+  for skill_dir in "$@"; do
+    [ -n "$skill_dir" ] || continue
+    skill_name=$(basename "$skill_dir")
+    target="$base/$skill_name"
+    backup_conflict "$target"
+    ln -sfn "$skill_dir" "$target"
+    count=$((count + 1))
+  done
+  echo "$count"
+}
+
+for base in "${TARGET_BASES[@]}"; do
+  mkdir -p "$base"
+  clean_managed_links "$base"
+  repo_count=$(link_skills "$base" "${REPO_SKILLS[@]}")
+  local_count=$(link_skills "$base" "${LOCAL_SKILLS[@]}")
+  echo "$base: linked repo=$repo_count local=$local_count"
+done
+
+echo "Repo: $REPO_DIR"
+echo "Source: $REPO_URL"
+echo "Local skills: $LOCAL_SKILLS_DIR"
+echo "Repo skill count: ${#REPO_SKILLS[@]}"
+echo "Local skill count: ${#LOCAL_SKILLS[@]}"

@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+#
+# akun — multi-account launcher for Claude Code (lightweight).
+#
+# Each account gets its own isolated config dir (CLAUDE_CONFIG_DIR), so several
+# accounts can be logged in AT THE SAME TIME and run in parallel. Accounts live
+# under ~/.claude-accounts/<name>.
+#
+# To stay light, heavy account-agnostic assets (plugins, ~394MB) are SHARED via
+# symlink to ~/.claude instead of being duplicated per account. Auth, history,
+# projects and sessions stay isolated per account.
+#
+# Usage:
+#   akun                      Interactive menu: pick an account -> launch it here
+#   akun <name> [claude-args] Launch Claude Code on account <name> (this terminal)
+#   akun open [name]          Open account in a NEW tmux window (no name = list)
+#   akun list                 List accounts + login status
+#   akun rm <name>            Delete an account's config dir
+
+set -euo pipefail
+
+BASE="$HOME/.claude-accounts"
+SHARED="$HOME/.claude"
+SHARE=(plugins)          # account-agnostic, heavy -> symlink instead of copy
+
+mkdir -p "$BASE"; chmod 700 "$BASE"
+
+err()  { printf '\033[31m✗ %s\033[0m\n' "$*" >&2; }
+ok()   { printf '\033[32m✓ %s\033[0m\n' "$*"; }
+dim()  { printf '\033[2m%s\033[0m\n' "$*"; }
+
+# Pure-bash subscription read (no python spawn).
+subtype() {
+  local f="$BASE/$1/.credentials.json" t
+  [ -f "$f" ] || { echo "(belum login)"; return; }
+  t=$(grep -o '"subscriptionType":"[^"]*"' "$f" 2>/dev/null | head -1)
+  t=${t#*:\"}; t=${t%\"}
+  echo "${t:-?}"
+}
+
+accounts() { shopt -s nullglob; local d; for d in "$BASE"/*/; do basename "$d"; done; }
+
+# Create account dir (if needed) and wire up shared symlinks to keep it light.
+ensure_account() {
+  local name="$1" d="$BASE/$name" s
+  mkdir -p "$d"; chmod 700 "$d"
+  for s in "${SHARE[@]}"; do
+    if [ -d "$SHARED/$s" ] && [ ! -e "$d/$s" ]; then
+      ln -s "$SHARED/$s" "$d/$s"
+    fi
+  done
+}
+
+launch() {  # launch <name> [extra claude args...]
+  local name="$1"; shift || true
+  ensure_account "$name"
+  export CLAUDE_CONFIG_DIR="$BASE/$name"
+  ok "Akun aktif: $name  [$(subtype "$name")]   (config: $CLAUDE_CONFIG_DIR)"
+  [ -f "$BASE/$name/.credentials.json" ] || dim "Belum login — ketik /login di dalam Claude untuk akun ini."
+  exec claude "$@"
+}
+
+cmd="${1:-}"
+
+case "$cmd" in
+  list|ls)
+    found=0
+    while read -r n; do
+      [ -z "$n" ] && continue; found=1
+      printf '  %-16s %s\n' "$n" "$(subtype "$n")"
+    done < <(accounts)
+    [ "$found" = 1 ] || dim "Belum ada akun. Jalankan: akun open <nama>"
+    ;;
+
+  open)
+    name="${2:-}"
+    if [ -z "$name" ]; then "$0" list; dim "Pakai: /akun <nama>  atau  akun open <nama>"; exit 0; fi
+    ensure_account "$name"
+    if [ -n "${TMUX:-}" ]; then
+      tmux new-window -n "claude:$name" "exec akun $name"
+      ok "Window tmux baru 'claude:$name' dibuka. Pindah: Ctrl-b n  (daftar: Ctrl-b w)."
+    else
+      err "Tidak di dalam tmux. Buka terminal baru lalu jalankan:  akun $name"; exit 1
+    fi
+    ;;
+
+  rm|remove)
+    name="${2:-}"
+    [ -n "$name" ] || { err "usage: akun rm <nama>"; exit 1; }
+    [ -d "$BASE/$name" ] || { err "Akun '$name' tidak ada."; exit 1; }
+    rm -rf "${BASE:?}/$name"; ok "Akun '$name' dihapus."
+    ;;
+
+  ""|menu)
+    mapfile -t names < <(accounts)
+    if [ "${#names[@]}" -eq 0 ]; then
+      dim "Belum ada akun. Membuat 'kerja' dan 'personal'."
+      names=(kerja personal); ensure_account kerja; ensure_account personal
+    fi
+    echo "Pilih akun untuk dijalankan:"
+    select choice in "${names[@]}"; do
+      [ -n "${choice:-}" ] && launch "$choice"
+      echo "Pilihan tidak valid."
+    done
+    ;;
+
+  -h|help|--help)
+    sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
+    ;;
+
+  *)
+    name="$cmd"; shift; launch "$name" "$@"
+    ;;
+esac

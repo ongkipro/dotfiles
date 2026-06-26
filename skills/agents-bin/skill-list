@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_DIR="${SKILL_REPO_DIR:-$HOME/.agents/repos/shared-skills}"
+LOCAL_SKILLS_DIR="${LOCAL_SKILLS_DIR:-$HOME/.agents/local-skills}"
+
+printf 'Repo skills\n' 
+if [ -d "$REPO_DIR/plugins" ]; then
+  find "$REPO_DIR/plugins" -type f -name SKILL.md -printf '%h\n' | xargs -r -n1 basename | sort | sed 's/^/  - /'
+else
+  echo '  (none)'
+fi
+
+printf '\nLocal skills\n'
+if [ -d "$LOCAL_SKILLS_DIR" ]; then
+  find "$LOCAL_SKILLS_DIR" -mindepth 1 -maxdepth 2 -type f -name SKILL.md -printf '%h\n' | xargs -r -n1 basename | sort | sed 's/^/  - /'
+else
+  echo '  (none)'
+fi

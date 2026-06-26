@@ -1,0 +1,57 @@
+[credential "https://github.com"]
+	helper = 
+	helper = !/usr/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = 
+	helper = !/usr/bin/gh auth git-credential
+[user]
+	name = fantastico
+	email = bang.joe90@gmail.com
+[init]
+	defaultBranch = main
+[pull]
+	rebase = true
+[core]
+	editor = hx
+	pager = delta
+	excludesfile = /home/fantastico/.gitignore_global
+[push]
+	autoSetupRemote = true
+	default = simple
+[fetch]
+	prune = true
+	writeCommitGraph = true
+[diff]
+	colorMoved = default
+	algorithm = histogram
+[alias]
+	st = status -sb
+	co = checkout
+	br = branch
+	lg = log --graph --oneline --decorate --all -20
+	last = log -1 HEAD --stat
+	undo = reset --soft HEAD~1
+	amend = commit --amend --no-edit
+[interactive]
+	diffFilter = delta --color-only
+[delta]
+	navigate = true
+	line-numbers = true
+[merge]
+	conflictStyle = zdiff3
+[rerere]
+	enabled = true
+	autoupdate = true
+[column]
+	ui = auto
+[branch]
+	sort = -committerdate
+[tag]
+	sort = -version:refname
+[commit]
+	verbose = true
+[help]
+	autocorrect = prompt
+[rebase]
+	autosquash = true
+	autostash = true

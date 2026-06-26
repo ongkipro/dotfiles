@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LOCAL_SKILLS_DIR="${LOCAL_SKILLS_DIR:-$HOME/.agents/local-skills}"
+SKILL_NAME="${1:-}"
+
+usage() {
+  echo "Usage: skill-new <skill-name>"
+  echo "Example: skill-new seo-audit"
+}
+
+if [ -z "$SKILL_NAME" ]; then
+  usage
+  exit 1
+fi
+
+if ! [[ "$SKILL_NAME" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+  echo "Invalid skill name: $SKILL_NAME" >&2
+  echo "Use lowercase letters, numbers, and hyphens only." >&2
+  exit 1
+fi
+
+SKILL_DIR="$LOCAL_SKILLS_DIR/$SKILL_NAME"
+SKILL_FILE="$SKILL_DIR/SKILL.md"
+
+if [ -e "$SKILL_DIR" ]; then
+  echo "Skill already exists: $SKILL_DIR" >&2
+  exit 1
+fi
+
+mkdir -p "$SKILL_DIR/references" "$SKILL_DIR/scripts" "$SKILL_DIR/assets"
+
+cat > "$SKILL_FILE" <<EOF
+---
+name: $SKILL_NAME
+description: Describe what $SKILL_NAME does and exactly when the agent should use it.
+---
+
+# $SKILL_NAME
+
+## Purpose
+
+Describe the workflow this skill handles.
+
+## When to use
+
+- Use when...
+- Also use when...
+
+## Steps
+
+1. Inspect the relevant files or inputs.
+2. Apply the workflow for this skill.
+3. Validate the result.
+
+## References
+
+Add deeper docs under ./references and link them here when needed.
+
+## Scripts
+
+Put helper scripts in ./scripts and call them with relative paths.
+EOF
+
+"$HOME/.agents/bin/skill-update" >/dev/null
+
+echo "Created: $SKILL_DIR"
+echo "Main file: $SKILL_FILE"
+echo "Shared to: pi, Claude CLI, Codex CLI, Antigravity CLI"

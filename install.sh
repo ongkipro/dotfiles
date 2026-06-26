@@ -18,9 +18,17 @@ link "$DOT/config/ripgreprc"             ~/.ripgreprc
 link "$DOT/config/helix/languages.toml"  ~/.config/helix/languages.toml
 link "$DOT/config/gitignore_global"      ~/.gitignore_global
 link "$DOT/skills/local"                 ~/.agents/local-skills   # local skills (astro, shopify-listing)
+link "$DOT/config/tmux.conf"             ~/.tmux.conf
+link "$DOT/home/profile"                 ~/.profile
+link "$DOT/config/codex-instructions.md" ~/.codex/instructions.md
 link "$DOT/bin/ai-memory-link"           ~/.local/bin/ai-memory-link
 link "$DOT/bin/dotpush"                  ~/.local/bin/dotpush
+for s in akun claude-kerja claude-personal tmux-clip; do link "$DOT/bin/$s" ~/.local/bin/$s; done
 ~/.local/bin/ai-memory-link              # symlink AGENTS.md ke semua AI CLI (claude/codex/pi/gemini/antigravity)
+
+# Snapshot (reference, TIDAK di-symlink — mesin-spesifik / ditulis tool):
+#   home/bashrc.snapshot, home/gitconfig, config/mise-config.toml, config/vscode-settings.json, skills/agents-bin/
+#   -> di-refresh otomatis tiap 'dotpush'. Restore manual bila perlu di device baru.
 
 echo "==> Patch ~/.bashrc (blok dev-tools)..."
 if grep -qF ">>> dev-tools setup" ~/.bashrc 2>/dev/null; then

@@ -3,6 +3,11 @@
 # Pakai: dotpush ["pesan commit"]
 set -euo pipefail
 cd ~/dotfiles
+# refresh snapshot config yang ditulis tool / mesin-spesifik (biar selalu current)
+cp -f ~/.gitconfig                      home/gitconfig              2>/dev/null || true
+cp -f ~/.config/mise/config.toml        config/mise-config.toml     2>/dev/null || true
+cp -f ~/.bashrc                         home/bashrc.snapshot        2>/dev/null || true
+cp -f ~/.config/Code/User/settings.json config/vscode-settings.json 2>/dev/null || true
 git add -A
 if git diff --cached --quiet; then
   echo "Tidak ada perubahan untuk di-push."
