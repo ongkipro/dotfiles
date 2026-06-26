@@ -1,28 +1,27 @@
-# Environment & Working Agreement — global context for ALL AI CLIs
-> Dibaca oleh pi, codex, Claude Code, dll (via symlink). RINGKAS — ke-load tiap sesi.
-> Detail lengkap: `~/Documents/linux-dev-setup.md` (perintah: `devdoc`). Skill bersama: `~/.agents/skills/`.
+# Environment & Working Agreement — global context untuk SEMUA AI CLI
+> Dibaca pi/codex/Claude Code (via symlink). RINGKAS — ke-load tiap sesi.
+> User: fantastico (Indonesia — boleh Bahasa Indonesia). Mesin: Ubuntu 26.04, bash, terminal-first.
 
-## Mesin & user
-- Ubuntu 26.04, bash, **terminal-first**. User: fantastico (Indonesia — boleh balas Bahasa Indonesia).
-- Prinsip: ringan, cepat, terminal-first. VSCode OPSIONAL (tidak wajib buat coding).
+## Aturan inti (selalu berlaku)
+- Tool sudah lengkap via mise/npm/pipx — JANGAN install ulang; cek dulu sebelum pasang.
+- Install baru: `mise use -g` (CLI), `npm i -g` (node), `pipx` (python) — TANPA sudo. `sudo` HANYA paket sistem (apt/snap).
+- Editor terminal: helix (`hx`). Git: lazygit (`lg`). Tool native: rg/fd/eza/bat. JANGAN dorong VSCode.
+- Preview web: dev server di terminal + buka Chromium ke localhost.
 
-## Toolchain (SUDAH terpasang — jangan install ulang)
-- CLI via **mise** (user-local, TANPA sudo): fzf, fd, bat, delta, lazygit, zoxide, eza, yq(v4), ripgrep, ruff, starship, helix, tealdeer, direnv.
-- Editor: **helix (`hx`)** + LSP (ts/js/html/css/tailwind/yaml/bash/python via pyright+ruff). `EDITOR=hx`.
-- Git: lazygit (`lg`), delta pager, alias lengkap, global gitignore. Node via nvm (lazy-load); pnpm.
-- AI/dev CLI: claude-code, pi, codex, 9router, shopify CLI, wrangler, playwright, agent-browser.
+## Memori — BACA & TULIS sendiri
+Detail & fakta tersimpan terpisah di `~/.config/ai/memory/`:
+- `environment.md` — toolchain & cara install
+- `workflow.md` — konvensi kerja
+- `preferences.md` — preferensi user
+- `projects.md` — fakta tiap project
 
-## Aturan install (PENTING)
-- Tool CLI / bahasa baru → `mise use -g <nama>` (TANPA sudo). Update semua: `mise up`.
-- Tool Node → `npm i -g`. App Python → `pipx install`.
-- `sudo` HANYA untuk paket sistem (apt/snap). Default: no-sudo.
+ATURAN MEMORI (ikuti ini):
+1. Sebelum kerja, BACA file memori yang relevan (mis. `projects.md` saat masuk folder project).
+2. Kalau menemukan fakta baru yang DURABLE (berlaku lintas sesi, bukan sekali pakai), APPEND sebagai bullet ringkas ke file paling cocok. Buat file topik baru di `memory/` kalau perlu.
+3. Jangan duplikat fakta yang sudah ada; perbarui kalau berubah; hapus kalau salah.
+4. JANGAN simpan rahasia/credential/token di memori.
+5. Setelah update memori penting, ingatkan user commit ke `~/dotfiles` (atau lakukan bila diminta).
 
-## pi.dev / 9router
-- pi route lewat 9router lokal (`http://localhost:20128/v1`, jalan sebagai tray app).
-- Default model bisa berganti — cek `~/.pi/agent/settings.json` (jangan asumsikan).
-
-## Konvensi kerja
-- Pakai tool terminal-native: `rg` (bukan grep), `fd` (bukan find), `eza` (bukan ls), `bat` (bukan cat).
-- JANGAN sarankan install ulang tool di atas. JANGAN dorong pakai VSCode.
-- Dotfiles ter-backup: github.com/ongki5758/dotfiles (private). Update config → commit ke ~/dotfiles.
-- Preview web: jalankan dev server di terminal, buka Chromium ke localhost.
+## Referensi
+- Panduan lengkap setup: `~/Documents/linux-dev-setup.md` (perintah: `devdoc`).
+- Skill / cara-melakukan: `~/.agents/skills/`. Dotfiles backup: github.com/ongki5758/dotfiles (private).

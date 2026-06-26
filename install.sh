@@ -16,8 +16,7 @@ echo "   starship.toml, .ripgreprc, helix/languages.toml, .gitignore_global -> t
 # Memori bersama AI CLI (satu sumber -> symlink ke semua tool)
 mkdir -p ~/.config/ai ~/.claude ~/.codex
 [ -s ~/.claude/CLAUDE.md ] && [ ! -L ~/.claude/CLAUDE.md ] && cp ~/.claude/CLAUDE.md ~/.claude/CLAUDE.md.bak
-cp "$DOT/config/ai/AGENTS.md" ~/.config/ai/AGENTS.md
-[ -f "$DOT/config/ai/README.md" ] && cp "$DOT/config/ai/README.md" ~/.config/ai/README.md
+cp -r "$DOT/config/ai/." ~/.config/ai/    # AGENTS.md + README.md + memory/*.md
 ln -sf ~/.config/ai/AGENTS.md ~/AGENTS.md
 ln -sf ~/.config/ai/AGENTS.md ~/.claude/CLAUDE.md
 ln -sf ~/.config/ai/AGENTS.md ~/.codex/AGENTS.md
