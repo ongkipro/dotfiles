@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO_DIR="${SKILL_REPO_DIR:-$HOME/.agents/repos/shared-skills}"
 LOCAL_SKILLS_DIR="${LOCAL_SKILLS_DIR:-$HOME/.agents/local-skills}"
+LOCAL_SKILLS_DIR="$(readlink -f "$LOCAL_SKILLS_DIR")"
 
 printf 'Repo skills\n' 
 if [ -d "$REPO_DIR/plugins" ]; then

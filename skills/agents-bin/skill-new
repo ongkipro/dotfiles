@@ -2,6 +2,7 @@
 set -euo pipefail
 
 LOCAL_SKILLS_DIR="${LOCAL_SKILLS_DIR:-$HOME/.agents/local-skills}"
+LOCAL_SKILLS_DIR="$(readlink -f "$LOCAL_SKILLS_DIR")"
 SKILL_NAME="${1:-}"
 
 usage() {
@@ -66,4 +67,4 @@ EOF
 
 echo "Created: $SKILL_DIR"
 echo "Main file: $SKILL_FILE"
-echo "Shared to: pi, Claude CLI, Codex CLI, Antigravity CLI"
+echo "Shared to: ~/.agents/skills, Claude CLI, Codex CLI, and Antigravity/Gemini CLI"
