@@ -20,6 +20,47 @@ curl $NINEROUTER_URL/v1/models/image | jq '.data[].id'
 curl "$NINEROUTER_URL/v1/models/info?id=openai/dall-e-3"
 ```
 
+## Auto Model Selection
+
+Before generating, discover available models (`curl $NINEROUTER_URL/v1/models/image | jq '.data[].id'`),
+then pick automatically based on task:
+
+| Task | 1st Choice | 2nd Choice (fallback) | Why |
+|---|---|---|---|
+| **Text on image** (poster, OG, infographic, UI mockup) | `openai/gpt-image-2` | `openai/dall-e-3` | Only GPT Image 2 renders readable text reliably |
+| **Transparent icon / logo** | `openai/gpt-image-1.5` | — | Only GPT Image 1.5 supports RGBA alpha |
+| **Photorealistic scene** (client work, stock photo quality) | `gemini/gemini-3-pro-image-preview` | `gemini/gemini-3.1-flash-image-preview` | Gemini Pro: best depth & style consistency |
+| **Multi-reference compositing** (product + lifestyle background) | `openai/gpt-image-2` | — | Handles lighting, scale, perspective across refs |
+| **Batch variations** (style exploration, A/B options) | `openai/gpt-image-2` | `minimax/image-01` | GPT: 10 variants/request; MiniMax: 9 variants/request |
+| **General purpose** (illustration, concept art, social media, decorative) | `minimax/image-01` | `gemini/gemini-3.1-flash-image-preview` | MiniMax: 1/10 cost, 9/req, solid prompt adherence |
+| **Quick draft / iterasi cepat** | `minimax/image-01` | `gemini/gemini-3.1-flash-image-preview` | Murah + batch 9, ideal buat eksplorasi ide |
+| **Budget workhorse** (bulk generation, placeholder images) | `minimax/image-01` | `stability-ai/*` or `huggingface/*` | Termurah, kualitas cukup untuk draft/placeholder |
+
+### MiniMax image-01 highlights
+
+- **~1/10 cost** of comparable models — ideal for bulk/budget work
+- **Batch up to 9** images per request (vs Gemini: 1, GPT: 10)
+- **Strong prompt adherence** — heritage from Hailuo video AI
+- **Good photorealism** for characters, objects, lighting, environments
+- **Flexible aspect ratios**: 16:9, 4:3, 3:2, 2:3, 3:4, 9:16, 21:9
+- **No text rendering** — use GPT Image 2 for any image containing readable text
+- **No transparency** — use GPT Image 1.5 for PNG icons/logos
+- Model ID: `minimax/image-01`
+
+### Decision flowchart
+
+```
+Does image need readable text?
+├─ YES → openai/gpt-image-2 (or dall-e-3 as fallback)
+└─ NO → Does image need transparent background?
+         ├─ YES → openai/gpt-image-1.5
+         └─ NO → Is this photorealistic client work?
+                  ├─ YES → gemini/gemini-3-pro-image-preview
+                  └─ NO → Use minimax/image-01 (budget + fast + batch)
+```
+
+> **Tip**: If the primary model returns 503 ("All accounts unavailable"), fall back to the 2nd choice automatically. 9Router combos (e.g. `image-combo`) may already handle this for you — check with `/v1/models/image`.
+
 ## Endpoint
 
 `POST $NINEROUTER_URL/v1/images/generations`

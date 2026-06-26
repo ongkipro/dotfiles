@@ -11,7 +11,7 @@ TARGETS=(
   "$HOME/AGENTS.md"          # pi.dev, codex, antigravity(agy)  — standar AGENTS.md
   "$HOME/.claude/CLAUDE.md"  # Claude Code
   "$HOME/.codex/AGENTS.md"   # Codex
-  "$HOME/.gemini/GEMINI.md"  # Gemini CLI (+ Antigravity fallback)
+  "$HOME/.gemini/GEMINI.md"  # Antigravity (agy) — stack Gemini; tidak ada Gemini CLI standalone
   # tambah AI baru di sini, contoh:
   # "$HOME/.config/<tool>/AGENTS.md"
 )

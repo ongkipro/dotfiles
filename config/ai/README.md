@@ -18,7 +18,7 @@ memory/          ← detail dipecah per topik (dibaca on-demand)
 | `~/AGENTS.md`         | pi.dev, Codex, Antigravity(agy) |
 | `~/.claude/CLAUDE.md` | Claude Code |
 | `~/.codex/AGENTS.md`  | Codex |
-| `~/.gemini/GEMINI.md` | Gemini CLI (+ Antigravity) |
+| `~/.gemini/GEMINI.md` | Antigravity (agy) — stack Gemini |
 
 **Symlink dikelola oleh `ai-memory-link`** (di `~/.local/bin/`). Nambah AI baru ke depan: tambahkan path-nya ke array `TARGETS` di script itu, lalu jalankan `ai-memory-link`.
 
