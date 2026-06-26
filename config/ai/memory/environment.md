@@ -4,7 +4,7 @@
 ## Tool terpasang (JANGAN install ulang)
 - mise (no-sudo): fzf, fd, bat, delta, lazygit, zoxide, eza, yq(v4), ripgrep, ruff, starship, helix, tealdeer, direnv.
 - Editor: helix (`hx`) + LSP: typescript-language-server, vscode-langservers-extracted (html/css/json/eslint), @tailwindcss/language-server, yaml, bash, pyright + ruff (python), pylsp. `EDITOR=hx`.
-- npm -g: claude-code, pi, codex, 9router, shopify CLI, wrangler, playwright, agent-browser, pnpm.
+- npm -g: claude-code, pi, codex, 9router, shopify CLI (`shopify` v4.3.0 at last check), wrangler, playwright, agent-browser, pnpm.
 - Node via nvm (lazy-load). Git + delta pager + alias + `~/.gitignore_global`.
 
 ## Cara install (kapan sudo)
