@@ -13,6 +13,16 @@ backup ~/.config/helix/languages.toml; cp "$DOT/config/helix/languages.toml" ~/.
 backup ~/.gitignore_global;            cp "$DOT/config/gitignore_global"     ~/.gitignore_global
 echo "   starship.toml, .ripgreprc, helix/languages.toml, .gitignore_global -> terpasang"
 
+# Memori bersama AI CLI (satu sumber -> symlink ke semua tool)
+mkdir -p ~/.config/ai ~/.claude ~/.codex
+[ -s ~/.claude/CLAUDE.md ] && [ ! -L ~/.claude/CLAUDE.md ] && cp ~/.claude/CLAUDE.md ~/.claude/CLAUDE.md.bak
+cp "$DOT/config/ai/AGENTS.md" ~/.config/ai/AGENTS.md
+[ -f "$DOT/config/ai/README.md" ] && cp "$DOT/config/ai/README.md" ~/.config/ai/README.md
+ln -sf ~/.config/ai/AGENTS.md ~/AGENTS.md
+ln -sf ~/.config/ai/AGENTS.md ~/.claude/CLAUDE.md
+ln -sf ~/.config/ai/AGENTS.md ~/.codex/AGENTS.md
+echo "   AGENTS.md (memori bersama) -> ~/AGENTS.md, ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md"
+
 echo "==> Patch ~/.bashrc (blok dev-tools)..."
 if grep -qF ">>> dev-tools setup" ~/.bashrc 2>/dev/null; then
   echo "   blok sudah ada -> dilewati"
