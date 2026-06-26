@@ -1,5 +1,7 @@
 # Shopify AI Toolkit Router
 
+> Repo map (sumber kebenaran): `~/Documents/shopify-ai-development-repos.md` — consult this first for theme/app/extension/Liquid repo choices.
+
 Shared local router for Shopify development work.
 
 ## Why this exists
