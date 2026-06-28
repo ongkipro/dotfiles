@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Scan dotfiles for obvious secrets before commit/push.
+# Conservative guard: catches common tokens/keys, with allowlist for docs/config examples.
+set -euo pipefail
+
+REPO="${1:-$HOME/dotfiles}"
+cd "$REPO"
+
+if ! command -v git >/dev/null 2>&1; then
+  echo "ERROR: git not found." >&2
+  exit 1
+fi
+
+# Keep this intentionally broad. False positives are cheaper than leaked secrets.
+PATTERN='(BEGIN (RSA|OPENSSH|DSA|EC|PGP) PRIVATE KEY|ghp_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]+|glpat-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|API[_-]?KEY[=: ]|ACCESS[_-]?TOKEN[=: ]|AUTH[_-]?TOKEN[=: ]|SECRET[=: ]|PASSWORD[=: ]|PRIVATE[_-]?KEY[=: ])'
+
+# Exclude files that are intentionally documenting the scanner itself.
+if git grep -nEI "$PATTERN" -- \
+  ':(exclude).git/**' \
+  ':(exclude).gitignore' \
+  ':(exclude)config/gitignore_global' \
+  ':(exclude)bin/security-check' \
+  ':(exclude)docs/security.md' \
+  ':(exclude).gitleaks.toml' >/tmp/dotfiles-secret-scan.$$ 2>/dev/null; then
+  echo "Potential secret detected. Review before commit/push:" >&2
+  cat /tmp/dotfiles-secret-scan.$$ >&2
+  rm -f /tmp/dotfiles-secret-scan.$$
+  exit 1
+fi
+
+rm -f /tmp/dotfiles-secret-scan.$$ 2>/dev/null || true
+echo "security-check: no obvious secrets found."
