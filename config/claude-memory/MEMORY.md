@@ -1,0 +1,12 @@
+- [Shopify dev repo map](shopify-dev-repo-map.md) — official Shopify repos/plugins for theme/app/Liquid/functions (full-scan 1202 repos); full doc in ~/Documents/shopify-ai-development-repos.md
+- [Panna Coffee work project](panna-coffee-work-project.md) — "project akun kerja" = local Shopify theme prototype, not the Kelola workspace
+- [Pixs&Go rebrand to Play & Go](pixsgo-rebrand-play-and-go.md) — pixsgo.com is now Toys & Hobbies "Play & Go" (name stays Pixs&Go); offline game players + toys for kids
+- [Pix&Go Shopify store](pixsgo-shopify-store.md) — store 2mpt3p-xv (cart.pixsgo.com), 125 toys; CLI auth scopes; listing log in ~/Documents/Shopify/PixsGo/
+- [Pix&Go categories = real collections](pixsgo-categories-from-producttype.md) — storefront categories are the 9 real Shopify collections (getCategories in shopify.ts); blog journal lives in code (src/lib/journal.ts), admin token has no content scope
+- [pi.dev via 9router](pi-9router-setup.md) — pi routes through local 9router; default model toggles (read settings.json); configs in ~/.pi/agent/; pi has no auto-memory (uses AGENTS.md/CLAUDE.md context files)
+- [Playwright / browser setup](playwright-browser-setup.md) — agent-browser 0.30.1 + Playwright 1.61.1 global; prefer system Chrome via channel; install-deps optional (needs sudo)
+- [Pixs&Go layout width](pixsgo-layout-width.md) — content capped 1200px, body 1920px; Tailwind v4 needs bracket arbitrary values (max-w-[1200px] not max-w-1200px)
+- [Dev toolchain via mise](dev-toolchain-mise.md) — CLI tools (fzf/fd/bat/delta/lazygit/zoxide/eza/yq/direnv) via mise, no sudo; nvm lazy-loaded; git+delta configured
+- [PetCue Shopify site](petcue-shopify-site.md) — petcue.co Astro site + Shopify yn80fb-mb; blog publish flow (cache:fetch regenerates blog-*-50.json), 45 articles, plain-HTML + "- Petcue" SEO suffix
+- [Local skills registry](local-skills-registry.md) — 18 local skills di ~/dotfiles/skills/local/ ter-link semua CLI; termasuk shadcn-ui fork, prd-taskbreaker, mermaid-diagram, openapi-spec, supabase-stack
+- [Toko online builder](toko-online-builder.md) — rencana jasa template toko online: Astro+CF (storefront) + Next.js+Vercel (admin) + Supabase; 1 client 1 deploy, gratis s/d 2 client, tampilan sekelas Shopify

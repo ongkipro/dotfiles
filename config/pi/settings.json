@@ -1,0 +1,18 @@
+{
+  "lastChangelogVersion": "0.80.2",
+  "defaultProvider": "9router",
+  "defaultModel": "cx/gpt-5.5",
+  "defaultThinkingLevel": "medium",
+  "theme": "garuda-gold",
+  "quietStartup": true,
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 22000,
+    "keepRecentTokens": 6000
+  },
+  "packages": [
+    "../extensions/compact-free",
+    "npm:pi-web-access",
+    "npm:pi-agent-browser-native"
+  ]
+}
