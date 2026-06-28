@@ -15,3 +15,4 @@
 ## pi.dev / 9router
 - pi route lewat 9router lokal (`http://localhost:20128/v1`, jalan sebagai tray app).
 - Default model bisa berganti — cek `~/.pi/agent/settings.json`, jangan asumsikan.
+- Claude account launcher: `claude` and `claude-personal` default to personal account via `akun personal`; `claude-kerja` uses isolated `~/.claude-accounts/kerja` for bang.joe90@gmail.com. Wrappers live in `~/dotfiles/bin/` symlinked to `~/.local/bin/`.

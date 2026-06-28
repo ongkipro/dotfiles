@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Default Claude account: personal.
+exec akun personal "$@"

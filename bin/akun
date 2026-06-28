@@ -57,7 +57,14 @@ launch() {  # launch <name> [extra claude args...]
   export CLAUDE_CONFIG_DIR="$BASE/$name"
   ok "Akun aktif: $name  [$(subtype "$name")]   (config: $CLAUDE_CONFIG_DIR)"
   [ -f "$BASE/$name/.credentials.json" ] || dim "Belum login — ketik /login di dalam Claude untuk akun ini."
-  exec claude "$@"
+
+  # Use the real Claude Code binary, not ~/.local/bin/claude wrapper, to avoid recursion.
+  local real_claude="${CLAUDE_REAL_BIN:-}"
+  if [ -z "$real_claude" ]; then
+    real_claude=$(find "$HOME/.nvm/versions/node" -path '*/bin/claude' -type l -o -path '*/bin/claude' -type f 2>/dev/null | sort -V | tail -1)
+  fi
+  [ -n "$real_claude" ] || { err "Claude binary tidak ditemukan. Cek: npm i -g @anthropic-ai/claude-code"; exit 1; }
+  exec "$real_claude" "$@"
 }
 
 cmd="${1:-}"
