@@ -1,70 +1,95 @@
-# GitHub Profile README Draft for `ongkipro/ongkipro`
+# GitHub Profile README for `ongkipro/ongkipro`
 
-> Create a public repository named `ongkipro` under the `ongkipro` account, then place this content in `README.md`.
+> Buat repo publik `ongkipro/ongkipro`. File ini jadi `README.md` di repo tersebut.
+> Repo profil GitHub: nama repo = username → otomatis tampil di halaman profil.
 
 ---
 
-# Ongki A Febriananda
+<div align="center">
 
-**AI-native ecommerce systems · Shopify/headless development · SEO automation · digital growth infrastructure**
-
-I build practical systems at the intersection of software development, ecommerce, SEO, paid ads, affiliate marketing, and AI-assisted automation.
-
-## Focus
-
-- Shopify and headless ecommerce systems
-- Astro + Tailwind SEO-first frontends
-- Next.js admin/client dashboards
-- Cloudflare deployment and edge workflows
-- Meta Ads, Google Ads, tracking, attribution, and conversion systems
-- German affiliate SEO and AI productivity content systems
-- AI terminal workflow, dotfiles, local skills, and reusable operating systems
-
-## Current directions
-
-### Personal AI Operating System
-A terminal-first dotfiles and AI memory system for consistent work across Claude Code, Codex, Gemini/Antigravity, Pi.dev, and other AI CLI tools.
-
-### Indonesia Commerce Infrastructure
-A platform direction combining store infrastructure, tracking, dynamic forms, COD controls, dashboards, and client/admin workflows for Indonesian ecommerce operators.
-
-### KIHeute
-A German AI productivity content brand focused on practical AI for office workers and small business owners.
-
-### Headless Shopify & SEO Stores
-Astro-powered storefronts, Shopify checkout, SEO-friendly content architecture, conversion-focused landing pages, and scalable product/category systems.
-
-## Technical stack
-
-```txt
-Frontend:   Astro · Tailwind · Next.js · React · TypeScript
-Commerce:   Shopify · Liquid · Storefront API · Checkout flows
-Backend:    Supabase/PostgreSQL · Cloudflare Workers · VPS workflows
-Terminal:   Ubuntu/Linux · tmux · Helix · mise · lazygit
-AI CLI:      Claude Code · Codex · Gemini/Antigravity · Pi.dev · ChatGPT
-Marketing:  Meta Ads · Google Ads · SEO · CRO · affiliate systems
+```
+╔══════════════════════════════════════════════════════╗
+║  █▀█ █▄░█ █▀▀ █▄▀ █   █ █▀█ █▀█ █▀█               ║
+║  █▄█ █░▀█ █▄█ █░█ █▄▄ █ █▀▀ █▀▄ █▄█               ║
+╚══════════════════════════════════════════════════════╝
 ```
 
-## Working principles
+[![Ubuntu](https://img.shields.io/badge/Ubuntu-26.04-E95420?style=flat-square&logo=ubuntu&logoColor=white)](https://ubuntu.com)
+[![Astro](https://img.shields.io/badge/Astro-5-FF5D01?style=flat-square&logo=astro&logoColor=white)](https://astro.build)
+[![Shopify](https://img.shields.io/badge/Shopify-Headless-7AB55C?style=flat-square&logo=shopify&logoColor=white)](https://shopify.dev)
+[![Cloudflare](https://img.shields.io/badge/Cloudflare-Workers-F38020?style=flat-square&logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/workers/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase&logoColor=white)](https://supabase.com)
+[![Claude](https://img.shields.io/badge/AI-Claude_Code_·_Codex_·_Pi.dev-d97706?style=flat-square)](https://claude.ai)
 
-- Build reusable systems, not one-off assets.
-- Own the customer, data, tracking, and content layer where possible.
-- Validate distribution before overbuilding platforms.
-- Prefer simple, maintainable architecture over clever complexity.
-- Use AI as an execution amplifier, not as a replacement for strategy.
+</div>
 
-## Featured repos to pin
+---
 
-Recommended pinned repos:
+**AI-native ecommerce systems builder. Shopify/headless. SEO automation. Digital growth infrastructure.**
 
-1. `dotfiles` — AI-native Linux dev environment and Personal Intelligence OS.
-2. `ongki.pro` — personal brand/portfolio site.
-3. `Jasa-Website-v2` or the cleanest website-service repo after cleanup.
-4. Best Shopify/headless ecommerce repo.
-5. Best affiliate/SEO/content system repo.
-6. Best Cloudflare/Astro production project.
+I build practical, repeatable systems at the intersection of software development, ecommerce, SEO, paid ads, affiliate marketing, and AI-assisted automation — all shipped from a Linux terminal.
 
-## Contact
+---
 
-- GitHub: `@ongkipro`
-- Personal brand: `ongki.pro`
+## 🧰 What I build
+
+| Category | Stack | Output |
+|---|---|---|
+| **Headless Shopify** | Astro + Tailwind + Storefront API | SEO-first storefronts, landing pages, product/category systems |
+| **Dashboards** | Next.js + shadcn/ui + Supabase | Super admin, client portals, data-heavy workflows |
+| **Affiliate engines** | Astro + SEO + programmatic pages | German-market content, tools directories, comparison portals |
+| **AI operating systems** | Dotfiles + cross-CLI memory + skills | Repeatable AI-assisted dev workflow across Claude, Codex, Gemini, Pi |
+| **Ecommerce infra** | Tracking · Forms · COD · Attribution | Meta Ads / Google Ads funnel automation |
+
+---
+
+## 🚀 Active projects
+
+- **[KIHeute](https://kiheute.de)** — German AI productivity brand. Practical AI for office workers and small business owners.
+- **Indonesia Commerce Portal** — Platform concept combining store infrastructure, dynamic forms, tracking, and admin workflows for Indonesian ecommerce operators.
+- **Personal AI OS** — Dotfiles, shared memory, and local skills system powering consistent work across all AI CLIs.
+- **German affiliate engine** — Digistore24, Amazon DE, SaaS/tools comparison content. Pinterest · Medium · YouTube distribution.
+
+---
+
+## ⚡ Stack
+
+```
+Frontend     Astro · Next.js · React · TypeScript · Tailwind · shadcn/ui
+Commerce     Shopify · Liquid · Storefront API · Headless
+Backend      Supabase/PostgreSQL · Cloudflare Workers · D1/R2/KV · VPS
+Terminal     Ubuntu 26.04 · bash · tmux · Helix 25 · mise · lazygit · rg · fd · zoxide · bat
+Runtime      Node 24 · pnpm · Python · Cloudflare Wrangler
+AI           Claude Code · Codex · Gemini CLI · Pi.dev · 9Router · ChatGPT
+Marketing    Meta Ads · Google Ads · SEO · CRO · Affiliate · Attribution
+```
+
+---
+
+## 🧠 How I work
+
+```
+1. Architect the system         — not just the task
+2. Validate distribution first   — before overbuilding
+3. Build reusable assets         — SOPs, templates, prompts, skills
+4. Optimise for delegation       — interns, admins, AI agents
+5. Ship from the terminal        — tmux, Helix, lazygit, CLI-first
+```
+
+**I don't just write code.** I design systems that can be operated by teams, scaled across markets, and amplified by AI.
+
+---
+
+## 🔗 Connect
+
+- **GitHub** — [@ongkipro](https://github.com/ongkipro)
+- **Web** — [ongki.pro](https://ongki.pro)
+- **Dotfiles** — [ongkipro/dotfiles](https://github.com/ongkipro/dotfiles) (private)
+
+---
+
+<div align="center">
+
+*"Tools are meant to disappear. Only the work remains."*
+
+</div>

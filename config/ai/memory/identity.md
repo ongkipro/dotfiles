@@ -6,7 +6,7 @@
 - GitHub username utama: `ongkipro`.
 - Personal brand/domain: `ongki.pro`.
 - Dotfiles repo: `github.com/ongkipro/dotfiles` (private).
-- Nama lengkap/legal identity: belum dikonfirmasi sebagai fakta tetap; jangan tebak dari username/domain.
+- Nama lengkap/legal identity: Ongki A Febriananda (dikonfirmasi via GitHub profile README draft).
 
 ## Bahasa & gaya komunikasi
 - Penjelasan utama: Bahasa Indonesia santai.

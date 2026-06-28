@@ -5,7 +5,7 @@
 Approximate current scoring:
 
 | Area | Score | Notes |
-|---|---:|---|
+|------|------:|-------|
 | Account identity | 85 | `ongkipro` is strong and aligned with `ongki.pro`. |
 | Portfolio clarity | 60 | Many repos exist, but the visitor journey is not yet curated. |
 | Naming consistency | 55 | Duplicate/versioned repo names reduce professional perception. |
@@ -14,7 +14,6 @@ Approximate current scoring:
 | Repo hygiene | 60 | Needs archive/rename/pin strategy. |
 
 Overall current account score: **72/100**.
-
 Target after cleanup: **90-94/100**.
 
 ## Main problem
@@ -137,13 +136,12 @@ Every serious public repo should have:
 
 Improve `dotfiles` until it represents the core operating system:
 
-- add `doctor.sh`
-- run `security-check` before push
-- add gitleaks/pre-commit option
-- add memory graph `index.yaml`
+- run `security-check` before commit
+- add gitleaks pre-commit hook (optional)
+- add a `doctor.sh` that validates symlinks, skills YAML, and tool availability
+- add memory index showing all memory files and their roles
 - remove personal email references unless needed
-- replace stale `ongki5758` references with `ongkipro`
-- add architecture diagram
+- add architecture diagram (AI CLI → memory → skills → dotfiles flow)
 - document AI CLI memory routing
 
 ## Priority 7 — Public/private policy
@@ -199,7 +197,7 @@ Terminal-first AI workflow designer.
 ## Scoring target
 
 | Area | Current | Target |
-|---|---:|---:|
+|------|---------|--------|
 | Account identity | 85 | 95 |
 | Portfolio clarity | 60 | 92 |
 | Naming consistency | 55 | 90 |
