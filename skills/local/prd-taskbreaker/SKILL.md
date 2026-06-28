@@ -1,6 +1,6 @@
 ---
 name: prd-taskbreaker
-description: Ubah ide atau permintaan fitur menjadi PRD ringkas lalu pecah menjadi task bernomor yang siap dikerjakan AI coding agent. Gunakan saat memulai fitur baru, project baru, atau saat perlu planning terstruktur sebelum coding. Triggers: 'buat PRD', 'pecah jadi task', 'planning fitur', 'task breakdown', 'prd', 'taskbreaker', 'breakdown tasks', 'create tasks', 'write prd'.
+description: 'Ubah ide atau permintaan fitur menjadi PRD ringkas lalu pecah menjadi task bernomor yang siap dikerjakan AI coding agent. Gunakan saat memulai fitur baru, project baru, atau saat perlu planning terstruktur sebelum coding. Triggers: ''buat PRD'', ''pecah jadi task'', ''planning fitur'', ''task breakdown'', ''prd'', ''taskbreaker'', ''breakdown tasks'', ''create tasks'', ''write prd''.'
 ---
 
 # PRD Taskbreaker

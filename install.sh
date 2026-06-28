@@ -23,7 +23,7 @@ link "$DOT/home/profile"                 ~/.profile
 link "$DOT/config/codex-instructions.md" ~/.codex/instructions.md
 link "$DOT/bin/ai-memory-link"           ~/.local/bin/ai-memory-link
 link "$DOT/bin/dotpush"                  ~/.local/bin/dotpush
-for s in akun claude-kerja claude-personal tmux-clip; do link "$DOT/bin/$s" ~/.local/bin/$s; done
+for s in akun claude-kerja claude-personal tmux-clip security-check; do link "$DOT/bin/$s" ~/.local/bin/$s; done
 ~/.local/bin/ai-memory-link              # symlink AGENTS.md ke semua AI CLI (claude/codex/pi/gemini/antigravity)
 
 # Snapshot (reference, TIDAK di-symlink — mesin-spesifik / ditulis tool):

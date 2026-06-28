@@ -1,6 +1,6 @@
 ---
 name: openapi-spec
-description: Generate, review, dan validasi OpenAPI 3.1 spec (YAML/JSON) dari deskripsi endpoint, codebase, atau route yang ada. Output siap dipakai Redoc, Swagger UI, atau Hono/tRPC code-gen. Gunakan saat mendokumentasikan REST API, membuat API contract sebelum coding, atau mereview API yang sudah ada. Triggers: 'buat openapi', 'api spec', 'dokumentasi api', 'swagger', 'openapi', 'api contract', 'api docs', 'generate spec'.
+description: 'Generate, review, dan validasi OpenAPI 3.1 spec (YAML/JSON) dari deskripsi endpoint, codebase, atau route yang ada. Output siap dipakai Redoc, Swagger UI, atau Hono/tRPC code-gen. Gunakan saat mendokumentasikan REST API, membuat API contract sebelum coding, atau mereview API yang sudah ada. Triggers: ''buat openapi'', ''api spec'', ''dokumentasi api'', ''swagger'', ''openapi'', ''api contract'', ''api docs'', ''generate spec''.'
 ---
 
 # OpenAPI Spec

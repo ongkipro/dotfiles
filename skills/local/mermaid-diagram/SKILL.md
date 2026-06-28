@@ -1,6 +1,6 @@
 ---
 name: mermaid-diagram
-description: Generate diagram Mermaid dari deskripsi, codebase, atau skema yang diberikan. Output berupa blok kode Mermaid yang langsung render di GitHub, GitLab, Notion, dan Claude. Tidak perlu install tool. Gunakan untuk flowchart, ERD, sequence diagram, C4 context, class diagram, dan gantt. Triggers: 'buat diagram', 'flowchart', 'ERD', 'sequence diagram', 'mermaid', 'diagram alur', 'visualisasi', 'database diagram', 'class diagram', 'C4'.
+description: 'Generate diagram Mermaid dari deskripsi, codebase, atau skema yang diberikan. Output berupa blok kode Mermaid yang langsung render di GitHub, GitLab, Notion, dan Claude. Tidak perlu install tool. Gunakan untuk flowchart, ERD, sequence diagram, C4 context, class diagram, dan gantt. Triggers: ''buat diagram'', ''flowchart'', ''ERD'', ''sequence diagram'', ''mermaid'', ''diagram alur'', ''visualisasi'', ''database diagram'', ''class diagram'', ''C4''.'
 ---
 
 # Mermaid Diagram

@@ -1,6 +1,6 @@
 ---
 name: supabase-stack
-description: Setup dan develop dengan Supabase — auth, database (PostgreSQL), storage, realtime, dan edge functions. Mendukung cloud Supabase dan self-hosted di VPS via Docker. Gunakan untuk project dengan backend serius, multi-user, realtime features, atau yang butuh auth lengkap tanpa reinvent the wheel. Triggers: 'supabase', 'setup supabase', 'auth supabase', 'supabase docker', 'self-hosted supabase', 'supabase schema', 'rls', 'row level security', 'supabase storage'.
+description: 'Setup dan develop dengan Supabase — auth, database (PostgreSQL), storage, realtime, dan edge functions. Mendukung cloud Supabase dan self-hosted di VPS via Docker. Gunakan untuk project dengan backend serius, multi-user, realtime features, atau yang butuh auth lengkap tanpa reinvent the wheel. Triggers: ''supabase'', ''setup supabase'', ''auth supabase'', ''supabase docker'', ''self-hosted supabase'', ''supabase schema'', ''rls'', ''row level security'', ''supabase storage''.'
 ---
 
 # Supabase Stack

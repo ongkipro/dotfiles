@@ -3,7 +3,7 @@
 > Format: `## <nama project>` lalu bullet fakta penting (path, stack, catatan, jangan-lupa).
 
 ## dotfiles
-- `~/dotfiles` → backup semua config, repo private `github.com/ongki5758/dotfiles`.
+- `~/dotfiles` → backup semua config, repo private `github.com/ongkipro/dotfiles`.
 - `install.sh` untuk setup device baru (idempotent).
 
 ## pixsgo
