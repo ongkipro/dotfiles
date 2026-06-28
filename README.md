@@ -1,44 +1,180 @@
-# dotfiles — Linux Dev Terminal (monorepo)
+# ░█▀▄░█▀█░▀█▀░█▀▀░▀█▀░█░░░█▀▀░█▀▀
+# ░█░█░█░█░░█░░█▀▀░░█░░█░░░█▀▀░▀▀█
+# ░▀▀░░▀▀▀░░▀░░▀░░░▀▀▀░▀▀▀░▀▀▀░▀▀▀
 
-Backup & sync **config + memori AI + local-skills** (terminal-first, no-sudo via mise).
-Model: **symlink** — file asli ada di repo ini, lokasi live (`~/.config/...`) cuma symlink ke sini. Jadi **edit = langsung di repo** → tinggal `dotpush`.
+<div align="center">
 
-## Isi
 ```
-config/
-  bashrc.tools.sh      # blok mise + dev-tools untuk ~/.bashrc (di-append, bukan symlink)
-  starship.toml        # prompt           -> ~/.config/starship.toml
-  ripgreprc            # ripgrep          -> ~/.ripgreprc
-  gitignore_global     # global gitignore -> ~/.gitignore_global
-  helix/languages.toml # LSP helix        -> ~/.config/helix/languages.toml
-  ai/                  # MEMORI bersama   -> ~/.config/ai
-    AGENTS.md            index + aturan + protokol auto-write
-    memory/*.md          environment, workflow, preferences, projects
-skills/
-  local/               # local-skills     -> ~/.agents/local-skills (astro, shopify-listing)
-bin/
-  ai-memory-link       # symlink AGENTS.md ke semua AI CLI -> ~/.local/bin/
-  dotpush              # commit & push 1 perintah          -> ~/.local/bin/
-docs/                  # runbook lengkap + panduan ringkas
-install.sh             # symlink semua + patch ~/.bashrc (idempotent)
+██████╗  ██████╗ ████████╗███████╗██╗██╗     ███████╗███████╗
+██╔══██╗██╔═══██╗╚══██╔══╝██╔════╝██║██║     ██╔════╝██╔════╝
+██║  ██║██║   ██║   ██║   █████╗  ██║██║     █████╗  ███████╗
+██║  ██║██║   ██║   ██║   ██╔══╝  ██║██║     ██╔══╝  ╚════██║
+██████╔╝╚██████╔╝   ██║   ██║     ██║███████╗███████╗███████║
+╚═════╝  ╚═════╝    ╚═╝   ╚═╝     ╚═╝╚══════╝╚══════╝╚══════╝
 ```
 
-## Device baru
+**Terminal-first dev environment. AI-native. Zero bloat.**
+
+[![Ubuntu](https://img.shields.io/badge/Ubuntu-26.04-E95420?style=flat-square&logo=ubuntu&logoColor=white)](https://ubuntu.com)
+[![Shell](https://img.shields.io/badge/Shell-bash-4EAA25?style=flat-square&logo=gnu-bash&logoColor=white)](https://www.gnu.org/software/bash/)
+[![Helix](https://img.shields.io/badge/Editor-Helix-7D5E9C?style=flat-square)](https://helix-editor.com)
+[![mise](https://img.shields.io/badge/Tools-mise-FF6B6B?style=flat-square)](https://mise.jdx.dev)
+[![Private](https://img.shields.io/badge/Repo-Private-555?style=flat-square&logo=github)](https://github.com/ongkipro/dotfiles)
+
+*by [ongki.pro](https://ongki.pro)*
+
+</div>
+
+---
+
+## ⚡ Stack
+
+```
+AI CLIs   →  Claude Code · Pi.dev · Codex · Gemini · Antigravity
+Editor    →  Helix (hx)
+Terminal  →  tmux · starship · zsh/bash
+Git       →  lazygit (lg) · delta (diff) · gh (GitHub CLI)
+Tools     →  rg · fd · eza · bat · fzf · zoxide · yq · direnv
+Runtime   →  mise (Node/Python/Go) · nvm (lazy) · pnpm · pipx
+Deploy    →  Vercel CLI · Wrangler (Cloudflare) · gh
+```
+
+---
+
+## 📁 Struktur
+
+```
+dotfiles/
+│
+├── 📂 skills/local/           # Local AI skills → semua CLI
+│   ├── shadcn-ui/             # shadcn/ui + charts + sidebar + blocks
+│   ├── prd-taskbreaker/       # Ide → PRD → numbered tasks
+│   ├── mermaid-diagram/       # Flowchart, ERD, Sequence, C4
+│   ├── openapi-spec/          # OpenAPI 3.1 YAML generator
+│   ├── supabase-stack/        # Auth + DB + Storage + self-hosted VPS
+│   ├── astro-development/     # End-to-end Astro dev
+│   ├── shopify-*/             # Shopify toolkit + listing
+│   └── 9router-*/             # AI gateway skills (chat/image/tts/stt)
+│
+├── 📂 config/
+│   ├── ai/
+│   │   ├── AGENTS.md          # Cross-CLI context + protocol
+│   │   └── memory/            # Shared AI memory (env/workflow/projects)
+│   │       ├── environment.md
+│   │       ├── workflow.md
+│   │       ├── preferences.md
+│   │       ├── projects.md
+│   │       └── shopify.md
+│   ├── claude-memory/         # Claude Code auto-memory backup
+│   │   ├── MEMORY.md          # Index
+│   │   ├── toko-online-builder.md
+│   │   ├── local-skills-registry.md
+│   │   └── ...project memories
+│   ├── pi/
+│   │   └── settings.json      # Pi.dev: provider=9router, theme=garuda-gold
+│   ├── 9router/
+│   │   ├── aliases.json       # Model aliases
+│   │   └── runtime-package.json
+│   ├── helix/
+│   │   └── languages.toml     # LSP config
+│   ├── bashrc.tools.sh        # mise + dev aliases
+│   ├── starship.toml          # Prompt (plain, no Nerd Font)
+│   ├── tmux.conf              # Terminal multiplexer
+│   ├── gitignore_global       # Global git ignores
+│   └── ripgreprc              # rg config
+│
+├── 📂 bin/
+│   ├── ai-memory-link         # Symlink AGENTS.md ke semua AI CLI
+│   ├── dotpush                # git add + commit + push 1 perintah
+│   └── akun                   # Claude account switcher
+│
+├── 📂 docs/
+│   ├── linux-dev-setup.md     # Setup lengkap dari nol
+│   ├── dev-setup.md           # Ringkasan cepat
+│   └── shopify-ai-development-repos.md
+│
+└── install.sh                 # Idempotent setup — device baru siap dalam menit
+```
+
+---
+
+## 🚀 Device Baru
+
 ```bash
-git clone https://github.com/ongki5758/dotfiles ~/dotfiles
+git clone https://github.com/ongkipro/dotfiles ~/dotfiles
 cd ~/dotfiles && bash install.sh
-# lalu install tool (mise/npm/pipx) + git config — lihat "Langkah berikutnya" / docs/linux-dev-setup.md
 source ~/.bashrc
 ```
 
-## Update sehari-hari
-Edit apa pun (config / `~/.config/ai/memory/*.md` / skill) → karena symlink, langsung kena repo → cukup:
-```bash
-dotpush                 # commit + push otomatis
-dotpush "pesan custom"  # dengan pesan sendiri
-```
-Tarik di device lain: `cd ~/dotfiles && git pull` (symlink bikin langsung aktif).
+Install.sh akan:
+- Symlink semua config ke lokasi yang benar
+- Setup cross-CLI memory (`~/.config/ai/`)
+- Link local skills ke agents/claude/codex/gemini/pi
+- Register bin scripts ke `~/.local/bin/`
 
-## Catatan
-- Memori (apa yang benar) di `config/ai/`. Skill (cara melakukan) di `skills/local/` + shared-skills upstream (`~/.agents/repos`, ditarik via `skill-sync`, bukan bagian repo ini).
-- `ai-memory-link` menyambungkan memori ke: pi, codex, Claude Code, Gemini, Antigravity. Nambah AI baru = tambah path di script itu.
+---
+
+## 🤖 AI Skills System
+
+Skills ter-link ke **semua AI CLI** sekaligus via `skill-update`:
+
+```
+~/.agents/skills/    ← Agents
+~/.claude/skills/    ← Claude Code
+~/.codex/skills/     ← Codex
+~/.gemini/skills/    ← Gemini
+~/.pi/agent/skills/  ← Pi.dev
+```
+
+```bash
+skill-update          # sync repo + re-link semua skills
+skill-new <nama>      # buat skill baru
+skill-list            # list semua skill aktif
+```
+
+**18 local skills** + **63 shared skills** dari [jezweb/claude-skills](https://github.com/jezweb/claude-skills).
+
+---
+
+## 🧠 Memory System
+
+Dua lapis memory:
+
+| Layer | Path | Dipakai oleh |
+|---|---|---|
+| Cross-CLI | `~/.config/ai/memory/*.md` | Semua AI CLI via symlink |
+| Claude auto | `~/.claude-accounts/.../memory/` | Claude Code only |
+
+Memory di-backup ke `config/ai/memory/` (cross-CLI) dan `config/claude-memory/` (Claude).
+
+---
+
+## 📅 Update Sehari-hari
+
+```bash
+dotpush                    # commit + push semua perubahan
+dotpush "pesan custom"     # dengan pesan commit sendiri
+
+# Di device lain
+cd ~/dotfiles && git pull  # symlink langsung aktif
+```
+
+---
+
+## 🔐 Yang Tidak Di-commit
+
+```
+Pi:      auth.json · models.json (ada API key) · trust.json · sessions/
+9router: auth/ · jwt-secret · machine-id · tunnel/
+Claude:  .claude-accounts/*/auth (token)
+```
+
+---
+
+<div align="center">
+
+**[ongki.pro](https://ongki.pro)** · [@ongkipro](https://github.com/ongkipro)
+
+*"Tools are meant to disappear. Only the work remains."*
+
+</div>
