@@ -6,6 +6,8 @@
 - Pakai tool modern: `rg` (bukan grep), `fd` (bukan find), `eza` (bukan ls), `bat` (bukan cat), `z` zoxide (bukan cd manual).
 - Git: commit cepat lewat lazygit; backup = push ke remote; JANGAN auto-commit (anti-pattern).
 - Dotfiles sync: saat ada update di GitHub (`ongkipro/dotfiles`), pull dan deploy ke lokal (terutama memory `~/.config/ai/memory/`). Sebaliknya, saat ada perubahan lokal di `~/dotfiles` yang perlu disimpan, commit + push ke GitHub. Pastikan presisi — jangan rusak pola yang ada.
+- `dotpush ["pesan"]` = jalur push standar: aktifkan driver → refresh snapshot mesin → security-check → commit → **fetch+merge remote dulu (anti-divergen)** → push. Konflik non-snapshot → berhenti minta resolusi manual. `dotsync` = varian granular (status/commit/push/pull/sync/doctor).
+- File snapshot mesin-spesifik (`home/gitconfig`, `home/bashrc.snapshot`, `home/zshrc.snapshot`, `config/mise-config.toml`, `config/vscode-settings.json`) ditandai `merge=ours` di `.gitattributes` → saat sync selalu pertahankan versi mesin lokal (butuh `git config merge.ours.driver true`, di-set otomatis oleh dotpush + install scripts).
 - VSCode opsional, bukan keharusan — jangan disarankan kecuali diminta.
 - Shopify dev routing: official Shopify AI Toolkit/plugin tersedia di Claude (`~/.claude/plugins/marketplaces/shopify-ai-toolkit`, v1.4.1) dan Codex cache. Local router skill `shopify-ai-toolkit-router` ter-link di semua CLI via `skill-update` dan menunjuk ke repo map `~/Documents/shopify-ai-development-repos.md` (symlink → `~/dotfiles/docs/`). Jangan clone repo pendukung Shopify (dawn/horizon/hydrogen/cli/liquid/theme-liquid-docs) sebagai skill duplikat; cukup reference link kecuali diminta inspect/base.
 
