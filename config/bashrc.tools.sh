@@ -1,3 +1,5 @@
+# ⚠️ DEPRECATED — gunakan config/shell-tools.sh (cross-platform bash+zsh, Ubuntu+macOS)
+# File ini dipertahankan untuk backward compatibility saja.
 # mise: tool manager user-local (no sudo)
 if command -v mise >/dev/null; then
   export PATH="$HOME/.local/share/mise/shims:$PATH"  # tool kebaca di script / non-interaktif (VSCode task, bash -c)

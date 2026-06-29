@@ -7,8 +7,9 @@
 
 **Terminal-first dev environment. AI-native. Zero bloat.**
 
+[![macOS](https://img.shields.io/badge/macOS-26-000000?style=flat-square&logo=apple&logoColor=white)](https://apple.com)
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-26.04-E95420?style=flat-square&logo=ubuntu&logoColor=white)](https://ubuntu.com)
-[![Shell](https://img.shields.io/badge/Shell-bash-4EAA25?style=flat-square&logo=gnu-bash&logoColor=white)](https://www.gnu.org/software/bash/)
+[![Shell](https://img.shields.io/badge/Shell-zsh_|_bash-4EAA25?style=flat-square&logo=gnu-bash&logoColor=white)](https://www.gnu.org/software/bash/)
 [![Helix](https://img.shields.io/badge/Editor-Helix-7D5E9C?style=flat-square)](https://helix-editor.com)
 [![mise](https://img.shields.io/badge/Tools-mise-FF6B6B?style=flat-square)](https://mise.jdx.dev)
 [![Private](https://img.shields.io/badge/Repo-Private-555?style=flat-square&logo=github)](https://github.com/ongkipro/dotfiles)
@@ -69,7 +70,7 @@ dotfiles/
 │   │   └── runtime-package.json
 │   ├── helix/
 │   │   └── languages.toml     # LSP config
-│   ├── bashrc.tools.sh        # mise + dev aliases
+│   ├── shell-tools.sh         # Cross-platform dev tools (bash + zsh, Ubuntu + macOS)
 │   ├── starship.toml          # Prompt (plain, no Nerd Font)
 │   ├── tmux.conf              # Terminal multiplexer
 │   ├── gitignore_global       # Global git ignores
@@ -95,10 +96,10 @@ dotfiles/
 ```bash
 git clone https://github.com/ongkipro/dotfiles ~/dotfiles
 cd ~/dotfiles && bash install.sh
-source ~/.bashrc
+source ~/.zshrc   # atau ~/.bashrc (auto-terdeteksi)
 ```
 
-Install.sh akan:
+Install.sh akan (auto-deteksi zsh/bash):
 - Symlink semua config ke lokasi yang benar
 - Setup cross-CLI memory (`~/.config/ai/`)
 - Link local skills ke agents/claude/codex/gemini/pi

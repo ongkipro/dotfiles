@@ -1,3 +1,5 @@
+# >>> dev-tools setup (ongkipro/dotfiles) >>>  (marker — jangan hapus baris ini)
+
 # === mise =============================
 eval "$(~/.local/bin/mise activate bash)"
 

@@ -16,6 +16,11 @@ Detail & fakta tersimpan terpisah di `~/.config/ai/memory/`:
 - `workflow.md` — konvensi kerja
 - `preferences.md` — preferensi user
 - `projects.md` — fakta tiap project
+- `business.md` — arah bisnis & strategic filters
+- `skills.md` — capability map & calibration rules
+- `shopify.md` — Shopify development reference
+- `decisions.md` — keputusan teknis yang sudah dibuat
+- `goals.md` — target jangka pendek/panjang
 
 ATURAN MEMORI (ikuti ini):
 1. Sebelum kerja, BACA file memori yang relevan (mis. `projects.md` saat masuk folder project).

@@ -1,3 +1,4 @@
+# >>> dev-tools setup (ongkipro/dotfiles) >>>  (marker — jangan hapus baris ini)
 # === PATH =============================
 . "$HOME/.local/bin/env"  # hermes
 export PATH="$HOME/.pi/agent/bin:$HOME/.npm-global/bin:/opt/homebrew/bin:$HOME/bin:$HOME/.local/bin:$PATH"

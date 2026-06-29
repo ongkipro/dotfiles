@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/opt/homebrew/bin/bash
 set -euo pipefail
 
 REPO_URL="${SKILL_REPO_URL:-https://github.com/jezweb/claude-skills}"
@@ -31,8 +31,10 @@ else
   git clone --depth 1 "$REPO_URL" "$REPO_DIR" >/dev/null
 fi
 
-mapfile -t REPO_SKILLS < <(find "$REPO_DIR/plugins" -type f -name SKILL.md -printf '%h\n' | sort)
-mapfile -t LOCAL_SKILLS < <(find "$LOCAL_SKILLS_DIR" -mindepth 1 -maxdepth 2 -type f -name SKILL.md -printf '%h\n' | sort)
+REPO_SKILLS=()
+while IFS= read -r d; do REPO_SKILLS+=("$d"); done < <(find "$REPO_DIR/plugins" -type f -name SKILL.md -exec dirname {} \; 2>/dev/null | sort -u)
+LOCAL_SKILLS=()
+while IFS= read -r d; do LOCAL_SKILLS+=("$d"); done < <(find "$LOCAL_SKILLS_DIR" -mindepth 1 -maxdepth 2 -type f -name SKILL.md -exec dirname {} \; 2>/dev/null | sort -u)
 
 if [ ${#REPO_SKILLS[@]} -eq 0 ] && [ ${#LOCAL_SKILLS[@]} -eq 0 ]; then
   echo "No skills found" >&2
