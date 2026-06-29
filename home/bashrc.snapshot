@@ -39,7 +39,7 @@ command -v lazygit >/dev/null && alias lg='lazygit'
 alias ..='cd ..'; alias ...='cd ../..'; alias ....='cd ../../..'
 mkcd(){ mkdir -p -- "$1" && cd -- "$1"; }
 ff(){ local f; f=$(fzf --preview 'bat -n --color=always {} 2>/dev/null || cat {}') && [ -n "$f" ] && ${EDITOR%% *} "$f"; }
-fkill(){ local pid; pid=$(ps -eo pid,comm,%cpu,%mem --sort=-%cpu | sed 1d | fzf -m --header='pilih proses (TAB=multi)' | awk '{print $1}'); [ -n "$pid" ] && echo "$pid" | xargs -r kill "${1:--15}"; }
+fkill(){ local pid; pid=$(ps -eo pid,comm,%cpu,%mem | sed 1d | sort -rnk3 | fzf -m --header='pilih proses (TAB=multi)' | awk '{print $1}'); [ -n "$pid" ] && echo "$pid" | xargs -r kill "${1:--15}"; }
 
 # === pi.dev memory ====================
 pi() {

@@ -1,5 +1,4 @@
 {
-    "gitlens.ai.model": "vscode",
-    "gitlens.ai.vscode.model": "copilot:gpt-4o-mini",
-    "workbench.statusBar.visible": false
+    "window.newWindowProfile": "Default",
+    "livePreview.notifyOnOpenLooseFile": false
 }
