@@ -8,6 +8,11 @@
 - Homebrew (system): rg (ripgrep), gh (GitHub CLI), tmux, pnpm.
 - Git + delta diff pager + `~/.gitignore_global`.
 
+## tmux (bagian wajib bootstrap dotfiles)
+- Setup tmux full di-handle `bin/tmux-setup` (idempotent, cross-platform): install binary (apt/dnf/pacman/zypper di Linux, brew di macOS) + clipboard tool (wl-clipboard/xclip di Linux; pbcopy bawaan macOS) + link `~/.tmux.conf` & `~/.local/bin/tmux-clip` + clone TPM + install plugin.
+- Dipanggil otomatis dari `install.sh` dan `install-macos.sh`. Bisa juga dijalankan manual: `tmux-setup`.
+- Prefix `Ctrl+a`. Plugin: tmux-sensible, tmux-yank, resurrect, continuum, catppuccin (mocha). Clipboard via `bin/tmux-clip`. Reload: prefix+r. Update plugin: prefix+I.
+
 ## Cara install (kapan sudo)
 - CLI / runtime → `mise use -g <nama>` (no sudo); update `mise up`; hapus `mise rm <nama>`.
 - Tool Node → `npm i -g <paket>`. App Python → `pipx install <paket>`.

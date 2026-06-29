@@ -30,7 +30,7 @@ link "$DOT/config/codex-instructions.md" "$HOME/.codex/instructions.md"
 link "$DOT/bin/ai-memory-link"           "$HOME/.local/bin/ai-memory-link"
 link "$DOT/bin/dotsync"                  "$HOME/.local/bin/dotsync"
 link "$DOT/bin/dotpush"                  "$HOME/.local/bin/dotpush"
-for s in akun claude-kerja claude-personal tmux-clip security-check; do
+for s in akun claude-kerja claude-personal tmux-clip tmux-setup security-check; do
   [ -e "$DOT/bin/$s" ] && link "$DOT/bin/$s" "$HOME/.local/bin/$s"
 done
 
@@ -44,6 +44,9 @@ done
 
 say "==> Link AGENTS.md ke CLI yang ada..."
 "$HOME/.local/bin/ai-memory-link"
+
+say "==> Setup tmux (install binary + clipboard + TPM + plugin)..."
+"$DOT/bin/tmux-setup"
 
 say "==> Patch ~/.zshrc dan ~/.bashrc (tanpa overwrite total)..."
 ensure_line 'source "$HOME/dotfiles/config/zshrc.tools.sh"' "$HOME/.zshrc"

@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# tmux-setup: install + konfigurasi tmux LENGKAP dari nol.
+# Cakupan: binary tmux, clipboard tool, link tmux.conf + tmux-clip, TPM, plugin.
+# Idempotent (aman dijalankan ulang) & cross-platform (macOS + Linux).
+# Bagian WAJIB bootstrap dotfiles — dipanggil dari install.sh & install-macos.sh.
+set -euo pipefail
+
+DOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+say()  { printf '==> %s\n' "$*"; }
+have() { command -v "$1" >/dev/null 2>&1; }
+
+OS="$(uname -s)"
+SUDO=""
+if [ "$(id -u)" -ne 0 ] && have sudo; then SUDO="sudo"; fi
+
+# ── 1) Binary tmux ────────────────────────────────────────────────────────────
+if have tmux; then
+  say "tmux sudah ada: $(tmux -V)"
+else
+  say "Install tmux..."
+  case "$OS" in
+    Darwin)
+      have brew || { echo "ERROR: Homebrew belum ada. Install dulu: https://brew.sh"; exit 1; }
+      brew install tmux ;;
+    Linux)
+      if   have apt-get; then $SUDO apt-get update -qq && $SUDO apt-get install -y tmux
+      elif have dnf;     then $SUDO dnf install -y tmux
+      elif have pacman;  then $SUDO pacman -S --noconfirm tmux
+      elif have zypper;  then $SUDO zypper install -y tmux
+      else echo "ERROR: package manager tak dikenal — install tmux manual."; exit 1; fi ;;
+    *) echo "ERROR: OS '$OS' tak didukung."; exit 1 ;;
+  esac
+  say "tmux terpasang: $(tmux -V)"
+fi
+
+# ── 2) Clipboard tool (dipakai bin/tmux-clip) ─────────────────────────────────
+# macOS: pbcopy bawaan. Linux: butuh wl-clipboard (Wayland) atau xclip/xsel (X11).
+if [ "$OS" = "Linux" ] && ! have wl-copy && ! have xclip && ! have xsel; then
+  say "Install clipboard tool (wl-clipboard + xclip)..."
+  if   have apt-get; then $SUDO apt-get install -y wl-clipboard xclip || true
+  elif have dnf;     then $SUDO dnf install -y wl-clipboard xclip || true
+  elif have pacman;  then $SUDO pacman -S --noconfirm wl-clipboard xclip || true
+  elif have zypper;  then $SUDO zypper install -y wl-clipboard xclip || true
+  fi
+fi
+
+# ── 3) Link config (tmux.conf) + helper (tmux-clip) ───────────────────────────
+mkdir -p "$HOME/.local/bin"
+link_to_repo() {
+  local src="$1" dst="$2"
+  if [ -L "$dst" ] && [ "$(readlink "$dst" 2>/dev/null)" = "$src" ]; then return 0; fi
+  if [ -e "$dst" ] && [ ! -L "$dst" ]; then
+    cp -R "$dst" "$dst.bak.$(date +%s 2>/dev/null || echo old)" 2>/dev/null || true
+  fi
+  ln -sfn "$src" "$dst"; say "link $dst -> $src"
+}
+link_to_repo "$DOT/config/tmux.conf" "$HOME/.tmux.conf"
+link_to_repo "$DOT/bin/tmux-clip"    "$HOME/.local/bin/tmux-clip"
+
+# ── 4) TPM (Tmux Plugin Manager) ──────────────────────────────────────────────
+TPM_DIR="$HOME/.tmux/plugins/tpm"
+if [ ! -d "$TPM_DIR" ]; then
+  say "Clone TPM..."
+  git clone -q https://github.com/tmux-plugins/tpm "$TPM_DIR"
+else
+  say "TPM sudah ada — update..."
+  git -C "$TPM_DIR" pull -q --ff-only 2>/dev/null || true
+fi
+
+# ── 5) Install/aktifkan plugin (non-interaktif) ───────────────────────────────
+say "Install plugin tmux (tmux-sensible, yank, resurrect, continuum, catppuccin)..."
+"$TPM_DIR/bin/install_plugins" >/dev/null 2>&1 || true
+
+# ── 6) Reload kalau ada server tmux yang jalan ────────────────────────────────
+if tmux info >/dev/null 2>&1; then
+  tmux source-file "$HOME/.tmux.conf" >/dev/null 2>&1 || true
+  say "Server tmux aktif → config di-reload."
+fi
+
+say "tmux SIAP. Mulai sesi: 'tmux'. Di dalam tmux: prefix (Ctrl+a) lalu r = reload, I = update plugin."
