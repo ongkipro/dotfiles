@@ -16,3 +16,16 @@
 - SEO research reference: `~/Documents/seo-research-google/`. Gunakan sebelum SEO tasks; jangan klaim secret Google algorithm knowledge.
 - Pi settings.json loads skills dari: `~/.pi/agent/skills/` (skill-update), `~/.gemini/config/skills/`, `~/.pi/agent/vendor/Shopify-AI-Toolkit/skills/`.
 - Toolkits reference: `~/.ai/cloudflare-worker-toolkit/` dan `~/.ai/shopify-ai-toolkit/` (symlink → `~/dotfiles/ai-toolkits/`).
+
+## AI Artifacts Routing (Workspace Global)
+- Untuk dokumen/output AI yang dibuat **di luar direktori project aktif** (seperti draft PRD, UML/Mermaid diagram, tulisan konten, hasil scrape web, dll.), wajib ditaruh di folder workspace terstruktur:
+  - **Base Path**: `~/Documents/ai-artifacts/`
+  - **Sub-folders**:
+    - `prd/` (PRD, task breakdown)
+    - `uml/` (Flowchart, Mermaid markup)
+    - `scrapes/` (Scraped markdown/HTML)
+    - `content/` (Copywriting, blog posts, ads)
+    - `research/` (Market/SEO research, competitor analysis)
+    - `general/` (Random drafts, ideation notes)
+  - **Konvensi Penamaan**: `[YYYY-MM-DD]-[kategori]-[nama-topik].md` (contoh: `2026-06-29-prd-dropship-tracker.md`).
+- Selalu infokan ke user path file yang disimpan di workspace ini pada respon akhir.
