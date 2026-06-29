@@ -1,12 +1,8 @@
-[credential "https://github.com"]
-	helper = 
-	helper = !/usr/bin/gh auth git-credential
-[credential "https://gist.github.com"]
-	helper = 
-	helper = !/usr/bin/gh auth git-credential
 [user]
-	name = fantastico
-	email = bang.joe90@gmail.com
+	name = ongkipro
+	email = ongkipro@users.noreply.github.com
+[credential]
+	helper = osxkeychain
 [init]
 	defaultBranch = main
 [pull]
@@ -14,7 +10,7 @@
 [core]
 	editor = hx
 	pager = delta
-	excludesfile = /home/fantastico/.gitignore_global
+	excludesfile = /Users/feriromansyah/.gitignore_global
 [push]
 	autoSetupRemote = true
 	default = simple

@@ -6,6 +6,7 @@ cd ~/dotfiles
 # refresh snapshot config yang ditulis tool / mesin-spesifik (biar selalu current)
 cp -f ~/.gitconfig                      home/gitconfig              2>/dev/null || true
 cp -f ~/.config/mise/config.toml        config/mise-config.toml     2>/dev/null || true
+cp -f ~/.zshrc                          home/zshrc.snapshot         2>/dev/null || true
 cp -f ~/.bashrc                         home/bashrc.snapshot        2>/dev/null || true
 cp -f ~/.config/Code/User/settings.json config/vscode-settings.json 2>/dev/null || true
 git add -A
@@ -16,4 +17,4 @@ fi
 git -c core.pager=cat status --short
 git commit -q -m "${1:-update: $(date '+%Y-%m-%d %H:%M' 2>/dev/null || echo sync)}"
 git push -q
-echo "✓ dotfiles ter-push ke github.com/ongki5758/dotfiles"
+echo "✓ dotfiles ter-push ke github.com/ongkipro/dotfiles"

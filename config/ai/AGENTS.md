@@ -1,16 +1,18 @@
 # Environment & Working Agreement — global context untuk SEMUA AI CLI
 > Dibaca pi/codex/Claude Code (via symlink). RINGKAS — ke-load tiap sesi.
-> User: fantastico (Indonesia — boleh Bahasa Indonesia). Mesin: Ubuntu 26.04, bash, terminal-first.
+> User: Paduka Ongki / ongkipro (Indonesia — boleh Bahasa Indonesia). Mesin: macOS 26 (Darwin arm64), zsh, terminal-first.
 
 ## Aturan inti (selalu berlaku)
 - Tool sudah lengkap via mise/npm/pipx — JANGAN install ulang; cek dulu sebelum pasang.
-- Install baru: `mise use -g` (CLI), `npm i -g` (node), `pipx` (python) — TANPA sudo. `sudo` HANYA paket sistem (apt/snap).
+- Install baru: `mise use -g` (CLI), `npm i -g` (node), `pipx` (python), `brew install` (system tools). `sudo` HANYA untuk hal sistem.
 - Editor terminal: helix (`hx`). Git: lazygit (`lg`). Tool native: rg/fd/eza/bat. JANGAN dorong VSCode.
 - Preview web: dev server di terminal + buka Chromium ke localhost.
 
 ## Memori — BACA & TULIS sendiri
 Detail & fakta tersimpan terpisah di `~/.config/ai/memory/`:
+- `identity.md` — identitas & profil
 - `environment.md` — toolchain & cara install
+- `development.md` — konvensi development
 - `workflow.md` — konvensi kerja
 - `preferences.md` — preferensi user
 - `projects.md` — fakta tiap project
@@ -23,5 +25,4 @@ ATURAN MEMORI (ikuti ini):
 5. Setelah update memori penting, ingatkan user commit ke `~/dotfiles` (atau lakukan bila diminta).
 
 ## Referensi
-- Panduan lengkap setup: `~/Documents/linux-dev-setup.md` (perintah: `devdoc`).
-- Skill / cara-melakukan: `~/.agents/skills/`. Dotfiles backup: github.com/ongki5758/dotfiles (private).
+- Dotfiles backup: github.com/ongkipro/dotfiles (private).

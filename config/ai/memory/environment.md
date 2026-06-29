@@ -3,16 +3,21 @@
 
 ## Tool terpasang (JANGAN install ulang)
 - mise (no-sudo): fzf, fd, bat, delta, lazygit, zoxide, eza, yq(v4), ripgrep, ruff, starship, helix, tealdeer, direnv.
-- Editor: helix (`hx`) + LSP: typescript-language-server, vscode-langservers-extracted (html/css/json/eslint), @tailwindcss/language-server, yaml, bash, pyright + ruff (python), pylsp. `EDITOR=hx`.
-- npm -g: claude-code, pi, codex, 9router, shopify CLI (`shopify` v4.3.0 at last check), wrangler, playwright, agent-browser, pnpm.
-- Node via nvm (lazy-load). Git + delta pager + alias + `~/.gitignore_global`.
+- Editor: helix (`hx`). `EDITOR=hx`.
+- npm -g: pi, 9router, pnpm. Node via system/mise.
+- Homebrew (system): rg (ripgrep), gh (GitHub CLI), tmux, pnpm.
+- Git + delta diff pager + `~/.gitignore_global`.
 
 ## Cara install (kapan sudo)
-- CLI / bahasa → `mise use -g <nama>` (no sudo); update `mise up`; hapus `mise rm <nama>`.
+- CLI / runtime → `mise use -g <nama>` (no sudo); update `mise up`; hapus `mise rm <nama>`.
 - Tool Node → `npm i -g <paket>`. App Python → `pipx install <paket>`.
-- Paket sistem/lib → `sudo apt install`. App GUI besar → `sudo snap install`. (sudo = admin, minta password.)
+- System tools → `brew install <nama>`. GUI apps → `brew install --cask <nama>`.
+- `sudo` HANYA untuk file sistem (jarang dibutuhkan di macOS).
 
-## pi.dev / 9router
-- pi route lewat 9router lokal (`http://localhost:20128/v1`, jalan sebagai tray app).
-- Default model bisa berganti — cek `~/.pi/agent/settings.json`, jangan asumsikan.
-- Claude account launcher: `claude` and `claude-personal` default to personal account via `akun personal`; `claude-kerja` uses isolated `~/.claude-accounts/kerja` for bang.joe90@gmail.com. Wrappers live in `~/dotfiles/bin/` symlinked to `~/.local/bin/`.
+## pi.dev
+- pi pakai provider rbq97ts (cek `~/.pi/agent/settings.json` untuk default model).
+- AGENTS.md di-load via wrapper `pi()` di shell config.
+- Memori bersama di `~/.config/ai/` (AGENTS.md + memory/*.md).
+
+## 9router
+- 9router terinstall via npm global (`~/.npm-global/bin/9router`).
