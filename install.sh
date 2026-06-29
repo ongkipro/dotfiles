@@ -4,7 +4,7 @@ set -euo pipefail
 DOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "==> Symlink config & memori (file asli di repo -> edit = repo, no drift)..."
-mkdir -p ~/.config/helix ~/.local/bin ~/.agents
+mkdir -p ~/.config/helix ~/.local/bin ~/.agents ~/.agents/bin
 # link <src-di-repo> <tujuan-live>: backup file asli, lalu symlink ke repo
 link() {
   local src="$1" dst="$2"
@@ -19,6 +19,8 @@ link "$DOT/config/helix/languages.toml"  ~/.config/helix/languages.toml
 link "$DOT/config/gitignore_global"      ~/.gitignore_global
 link "$DOT/skills/local"                 ~/.agents/local-skills   # local skills (astro, shopify-listing)
 link "$DOT/config/tmux.conf"             ~/.tmux.conf
+for s in skill-help skill-list skill-new skill-open skill-remove skill-update sync-jezweb-claude-skills.sh; do link "$DOT/skills/agents-bin/$s" ~/.agents/bin/$s; done
+ln -sfn ~/.agents/bin/sync-jezweb-claude-skills.sh ~/.agents/bin/skill-sync
 link "$DOT/home/profile"                 ~/.profile
 link "$DOT/config/codex-instructions.md" ~/.codex/instructions.md
 link "$DOT/bin/ai-memory-link"           ~/.local/bin/ai-memory-link

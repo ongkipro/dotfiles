@@ -73,6 +73,22 @@ Template approval:
 
 > Ada perubahan durable di dotfiles/shared memory. Mau saya buat commit lokal dulu? Push bisa menyusul setelah kamu review.
 
+## macOS bootstrap
+
+Sekarang tersedia:
+
+```bash
+bash ~/dotfiles/install-macos.sh
+source ~/.zshrc
+~/.agents/bin/skill-update
+```
+
+Tujuannya bukan menyamai penuh workstation Linux, tapi cukup untuk:
+- shared memory
+- skill linking lintas CLI
+- `dotsync` / `dotpush`
+- shell hook dasar zsh
+
 ## Scheduler opsional
 
 Kalau nanti mau otomatis ringan:

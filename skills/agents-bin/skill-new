@@ -2,8 +2,14 @@
 set -euo pipefail
 
 LOCAL_SKILLS_DIR="${LOCAL_SKILLS_DIR:-$HOME/.agents/local-skills}"
-LOCAL_SKILLS_DIR="$(readlink -f "$LOCAL_SKILLS_DIR")"
 SKILL_NAME="${1:-}"
+
+realpath_portable() {
+  python3 - "$1" <<'PY'
+import os, sys
+print(os.path.realpath(sys.argv[1]))
+PY
+}
 
 usage() {
   echo "Usage: skill-new <skill-name>"
@@ -21,6 +27,7 @@ if ! [[ "$SKILL_NAME" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
   exit 1
 fi
 
+LOCAL_SKILLS_DIR="$(realpath_portable "$LOCAL_SKILLS_DIR")"
 SKILL_DIR="$LOCAL_SKILLS_DIR/$SKILL_NAME"
 SKILL_FILE="$SKILL_DIR/SKILL.md"
 
@@ -67,4 +74,4 @@ EOF
 
 echo "Created: $SKILL_DIR"
 echo "Main file: $SKILL_FILE"
-echo "Shared to: ~/.agents/skills, Claude CLI, Codex CLI, and Antigravity/Gemini CLI"
+echo "Shared to: ~/.agents/skills, ~/.claude/skills, ~/.codex/skills, ~/.gemini/skills, ~/.pi/agent/skills"

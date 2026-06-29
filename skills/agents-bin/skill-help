@@ -13,5 +13,5 @@ Locations
 
   Repo skills:   ~/.agents/repos/shared-skills
   Local skills:  ~/.agents/local-skills
-  Linked into:   ~/.agents/skills ~/.claude/skills ~/.codex/skills ~/.gemini/skills
+  Linked into:   ~/.agents/skills ~/.claude/skills ~/.codex/skills ~/.gemini/skills ~/.pi/agent/skills
 EOF

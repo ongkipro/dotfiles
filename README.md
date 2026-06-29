@@ -26,6 +26,7 @@
 | Area | Linux | macOS |
 |---|---|---|
 | Main bootstrap (`install.sh`) | ✅ Primary target | ⚠️ Partial / adapt as needed |
+| macOS bootstrap (`install-macos.sh`) | — | ✅ Available |
 | Shared AI memory (`config/ai`) | ✅ | ✅ |
 | Semi-auto sync (`dotsync`) | ✅ | ✅ |
 | Skills/docs/config as repo source of truth | ✅ | ✅ |
@@ -50,6 +51,7 @@ Deploy    →  Vercel CLI · Wrangler (Cloudflare) · gh
 - **Sinkron lintas device** via Git, terutama antara workstation Linux dan device macOS.
 - **Konsisten lintas AI CLI**: Claude Code, Pi.dev, Codex, Gemini, Antigravity.
 - **Semi-auto sync**, bukan auto-commit liar.
+- **Bootstrap ringan macOS** untuk memory + skills + sync.
 
 ---
 
@@ -107,7 +109,8 @@ dotfiles/
 │   ├── dev-setup.md           # Ringkasan cepat
 │   └── shopify-ai-development-repos.md
 │
-└── install.sh                 # Idempotent setup — device baru siap dalam menit
+├── install.sh                 # Bootstrap utama Linux
+└── install-macos.sh           # Bootstrap ringan macOS (memory + skills + sync)
 ```
 
 ---
@@ -130,24 +133,25 @@ Install.sh akan:
 
 ### macOS
 
-Untuk sekarang, anggap macOS sebagai **sync consumer / secondary workstation**.
-
-Quick start minimal:
+Bootstrap ringan untuk macOS sekarang sudah ada:
 
 ```bash
 git clone https://github.com/ongkipro/dotfiles ~/dotfiles
 cd ~/dotfiles
-chmod +x bin/dotsync
-./bin/dotsync doctor
+bash install-macos.sh
+source ~/.zshrc
 ```
 
-Lalu:
-- pakai `config/ai/` sebagai shared memory source
-- pakai `dotsync` untuk commit/pull/push perubahan penting
-- adapt symlink/bootstrap seperlunya (karena `install.sh` masih Linux-first)
-- bila shell utama macOS = `zsh`, itu aman untuk flow sync; bootstrap shell penuh belum dipaksa sama repo ini
+Yang di-setup:
+- shared memory (`~/.config/ai/`)
+- `dotsync`, `dotpush`, `ai-memory-link`
+- local skills + `skill-*` commands
+- symlink AGENTS.md ke CLI yang ada
+- shell hook `zsh` untuk workflow terminal
 
-Kalau nanti mau full parity, target berikutnya adalah `install-macos.sh` atau bootstrap wrapper yang auto-detect OS.
+Catatan:
+- ini fokus ke memory + skills + sync
+- bootstrap mesin penuh masih lebih matang di Linux
 
 ---
 
@@ -226,6 +230,7 @@ Flow harian yang disarankan:
 - Mode default = **semi-auto**, aman untuk terminal Linux **dan** macOS.
 - Gunakan `bin/dotsync` untuk flow review singkat sebelum commit/push.
 - Bootstrap penuh masih Linux-first; sync layer-nya sudah cross-platform.
+- macOS sudah punya `install-macos.sh` untuk memory + skills + sync dasar.
 - Default aman: **commit lokal dulu, push setelah yakin**.
 - Detail arsitektur: [docs/ai-memory-sync.md](docs/ai-memory-sync.md)
 

@@ -3,18 +3,35 @@ set -euo pipefail
 
 REPO_DIR="${SKILL_REPO_DIR:-$HOME/.agents/repos/shared-skills}"
 LOCAL_SKILLS_DIR="${LOCAL_SKILLS_DIR:-$HOME/.agents/local-skills}"
-LOCAL_SKILLS_DIR="$(readlink -f "$LOCAL_SKILLS_DIR")"
 
-printf 'Repo skills\n' 
+realpath_portable() {
+  python3 - "$1" <<'PY'
+import os, sys
+print(os.path.realpath(sys.argv[1]))
+PY
+}
+
+list_skill_names() {
+  local root="$1"
+  [ -d "$root" ] || return 0
+  find "$root" -type f -name SKILL.md -exec dirname {} \; | sort -u | while IFS= read -r dir; do
+    [ -n "$dir" ] || continue
+    printf '  - %s\n' "$(basename "$dir")"
+  done
+}
+
+LOCAL_SKILLS_DIR="$(realpath_portable "$LOCAL_SKILLS_DIR")"
+
+printf 'Repo skills\n'
 if [ -d "$REPO_DIR/plugins" ]; then
-  find "$REPO_DIR/plugins" -type f -name SKILL.md -printf '%h\n' | xargs -r -n1 basename | sort | sed 's/^/  - /'
+  list_skill_names "$REPO_DIR/plugins"
 else
   echo '  (none)'
 fi
 
 printf '\nLocal skills\n'
 if [ -d "$LOCAL_SKILLS_DIR" ]; then
-  find "$LOCAL_SKILLS_DIR" -mindepth 1 -maxdepth 2 -type f -name SKILL.md -printf '%h\n' | xargs -r -n1 basename | sort | sed 's/^/  - /'
+  list_skill_names "$LOCAL_SKILLS_DIR"
 else
   echo '  (none)'
 fi

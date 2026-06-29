@@ -5,7 +5,6 @@ REPO_URL="${SKILL_REPO_URL:-https://github.com/jezweb/claude-skills}"
 REPO_DIR="${SKILL_REPO_DIR:-$HOME/.agents/repos/shared-skills}"
 LEGACY_REPO_DIR="$HOME/.agents/repos/claude-skills"
 LOCAL_SKILLS_DIR="${LOCAL_SKILLS_DIR:-$HOME/.agents/local-skills}"
-LOCAL_SKILLS_DIR="$(readlink -f "$LOCAL_SKILLS_DIR")"
 TARGET_BASES=(
   "$HOME/.agents/skills"
   "$HOME/.claude/skills"
@@ -13,7 +12,33 @@ TARGET_BASES=(
   "$HOME/.gemini/skills"
   "$HOME/.pi/agent/skills"
 )
+REPO_SKILLS=()
+LOCAL_SKILLS=()
 
+realpath_portable() {
+  python3 - "$1" <<'PY'
+import os, sys
+print(os.path.realpath(sys.argv[1]))
+PY
+}
+
+collect_skill_dirs() {
+  local root="$1"
+  if [ ! -d "$root" ]; then
+    return 0
+  fi
+  find "$root" -type f -name SKILL.md -exec dirname {} \; | sort -u
+}
+
+append_skills() {
+  local array_name="$1" dir="$2" line
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    eval "$array_name+=(\"\$line\")"
+  done < <(collect_skill_dirs "$dir")
+}
+
+LOCAL_SKILLS_DIR="$(realpath_portable "$LOCAL_SKILLS_DIR")"
 mkdir -p "$HOME/.agents/bin" "$HOME/.agents/repos" "$LOCAL_SKILLS_DIR"
 
 if [ ! -e "$REPO_DIR" ] && [ -d "$LEGACY_REPO_DIR/.git" ]; then
@@ -31,8 +56,8 @@ else
   git clone --depth 1 "$REPO_URL" "$REPO_DIR" >/dev/null
 fi
 
-mapfile -t REPO_SKILLS < <(find "$REPO_DIR/plugins" -type f -name SKILL.md -printf '%h\n' | sort)
-mapfile -t LOCAL_SKILLS < <(find "$LOCAL_SKILLS_DIR" -mindepth 1 -maxdepth 2 -type f -name SKILL.md -printf '%h\n' | sort)
+append_skills REPO_SKILLS "$REPO_DIR/plugins"
+append_skills LOCAL_SKILLS "$LOCAL_SKILLS_DIR"
 
 if [ ${#REPO_SKILLS[@]} -eq 0 ] && [ ${#LOCAL_SKILLS[@]} -eq 0 ]; then
   echo "No skills found" >&2
@@ -50,21 +75,22 @@ backup_conflict() {
 }
 
 clean_managed_links() {
-  local base="$1"
-  find "$base" -maxdepth 1 -mindepth 1 -type l | while read -r link; do
-    target=$(readlink -f "$link" || true)
+  local base="$1" link target
+  [ -d "$base" ] || return 0
+  while IFS= read -r link; do
+    target="$(realpath_portable "$link" 2>/dev/null || true)"
     case "$target" in
       "$REPO_DIR"/*|"$LOCAL_SKILLS_DIR"/*)
         rm -f "$link"
         ;;
     esac
-  done
+  done < <(find "$base" -maxdepth 1 -mindepth 1 -type l)
 }
 
 link_skills() {
   local base="$1"
   shift
-  local count=0
+  local count=0 skill_dir skill_name target
   for skill_dir in "$@"; do
     [ -n "$skill_dir" ] || continue
     skill_name=$(basename "$skill_dir")
