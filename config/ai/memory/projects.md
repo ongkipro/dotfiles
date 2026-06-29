@@ -26,3 +26,7 @@
 - API `src/pages/api/submit-lead.ts` POST → buat order Scalev v2 (`/v2/order`) + Meta CAPI Purchase. Uji curl: UA mengandung "curl" mem-bypass submit_token. Tanpa creds → `STORE_CONFIG_MISSING`; creds invalid → `UPSTREAM_ERROR` 401 (pipa terbukti tersambung).
 - Rate limiter `ORDER_SUBMIT_LIMITER` dideklarasi di `wrangler.jsonc` (`ratelimits`, limit 8/60s), diakses via `locals.runtime.env` di `src/middleware.ts` (bukan globalThis).
 - Script live ada di `public/scripts/` (di-load via `/scripts/...`). Duplikat stale di `src/scripts/` sudah dihapus — jangan dibuat lagi.
+
+## pesantrentholabie (pesantrentholabie.com)
+- stack: HTML5, Tailwind CSS (via CDN), Lucide Icons, Google Fonts
+- catatan: Landing page Pondok Pesantren THOLABIE CIBS (Malang) yang menawarkan beasiswa penuh D3 di Politeknik Kota Malang. Dikembangkan oleh ongki.pro.
