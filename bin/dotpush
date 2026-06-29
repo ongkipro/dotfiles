@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # Commit & push semua perubahan dotfiles (config + memori + skill) dalam 1 perintah.
-# Pakai: dotpush ["pesan commit"]
+# Aman lintas-mesin: auto-sync dgn remote dulu (snapshot mesin → merge 'ours'),
+# scan secret sebelum commit. Pakai: dotpush ["pesan commit"]
 set -euo pipefail
 cd ~/dotfiles
-# refresh snapshot config yang ditulis tool / mesin-spesifik (biar selalu current)
+
+# Aktifkan driver merge 'ours' (dipakai .gitattributes utk file snapshot mesin). Idempotent.
+git config merge.ours.driver true
+
+# Refresh snapshot config yang ditulis tool / mesin-spesifik (biar selalu current).
 cp -f ~/.gitconfig                      home/gitconfig              2>/dev/null || true
 cp -f ~/.config/mise/config.toml        config/mise-config.toml     2>/dev/null || true
 cp -f ~/.zshrc                          home/zshrc.snapshot         2>/dev/null || true
@@ -12,12 +17,40 @@ cp -f ~/.bashrc                         home/bashrc.snapshot        2>/dev/null 
 for vs in "$HOME/Library/Application Support/Code/User/settings.json" ~/.config/Code/User/settings.json; do
   [ -f "$vs" ] && { cp -f "$vs" config/vscode-settings.json; break; }
 done
+
+# Scan secret SEBELUM commit — batalkan kalau ada temuan.
+if [ -x ./bin/security-check ]; then
+  ./bin/security-check >/dev/null || { echo "✗ security-check menemukan kemungkinan secret — dibatalkan."; ./bin/security-check; exit 1; }
+fi
+
 git add -A
 if git diff --cached --quiet; then
-  echo "Tidak ada perubahan untuk di-push."
+  echo "Tidak ada perubahan lokal untuk di-commit."
+else
+  git -c core.pager=cat status --short
+  git commit -q -m "${1:-update: $(date '+%Y-%m-%d %H:%M' 2>/dev/null || echo sync)}"
+fi
+
+# Auto-sync dgn remote dulu agar push tak ditolak (snapshot mesin auto-'ours' via .gitattributes).
+git fetch -q origin
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+if git rev-parse --verify -q "origin/$BRANCH" >/dev/null; then
+  if [ -n "$(git rev-list "HEAD..origin/$BRANCH" 2>/dev/null)" ]; then
+    echo "↓ Remote ada commit baru — sync (merge) dulu..."
+    if ! git merge --no-edit "origin/$BRANCH"; then
+      echo "✗ Konflik non-snapshot saat sync. Selesaikan manual:"
+      git -c core.pager=cat diff --name-only --diff-filter=U
+      echo "  lalu: git commit && dotpush"
+      exit 1
+    fi
+  fi
+fi
+
+# Tak ada yg perlu di-push? (mis. cuma sync tanpa commit lokal & sudah sejajar)
+if [ -z "$(git rev-list "origin/$BRANCH..HEAD" 2>/dev/null)" ]; then
+  echo "Sudah sinkron dgn remote — tidak ada yang di-push."
   exit 0
 fi
-git -c core.pager=cat status --short
-git commit -q -m "${1:-update: $(date '+%Y-%m-%d %H:%M' 2>/dev/null || echo sync)}"
+
 git push -q
 echo "✓ dotfiles ter-push ke github.com/ongkipro/dotfiles"

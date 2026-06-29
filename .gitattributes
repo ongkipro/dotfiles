@@ -1,0 +1,9 @@
+# File SNAPSHOT mesin-spesifik: saat sync antar-mesin (merge/rebase) selalu
+# PERTAHANKAN versi mesin lokal — hindari konflik manual berulang.
+# Butuh driver aktif sekali per-clone: `git config merge.ours.driver true`
+# (dotpush & install.sh/install-macos.sh mengaktifkannya otomatis).
+home/gitconfig            merge=ours
+home/bashrc.snapshot      merge=ours
+home/zshrc.snapshot       merge=ours
+config/mise-config.toml   merge=ours
+config/vscode-settings.json merge=ours

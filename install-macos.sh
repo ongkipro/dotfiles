@@ -3,6 +3,9 @@
 set -euo pipefail
 DOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Aktifkan driver merge 'ours' utk file snapshot mesin (lihat .gitattributes) — anti-konflik lintas-mesin.
+git -C "$DOT" config merge.ours.driver true 2>/dev/null || true
+
 say() { printf '%s\n' "$*"; }
 link() {
   local src="$1" dst="$2"

@@ -4,6 +4,9 @@
 set -euo pipefail
 DOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Aktifkan driver merge 'ours' utk file snapshot mesin (lihat .gitattributes) — anti-konflik lintas-mesin.
+git -C "$DOT" config merge.ours.driver true 2>/dev/null || true
+
 # Deteksi shell & rc file
 SHELL_RC=""
 if [ -n "${ZSH_VERSION:-}" ] || echo "$SHELL" | grep -q zsh; then
