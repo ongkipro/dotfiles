@@ -1,7 +1,20 @@
 #!/usr/bin/env bash
-# Tempatkan config dotfiles + patch ~/.bashrc. Idempotent (aman dijalankan ulang).
+# Tempatkan config dotfiles + patch shell rc. Idempotent (aman dijalankan ulang).
+# Support: bash + zsh, Ubuntu + macOS.
 set -euo pipefail
 DOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Deteksi shell & rc file
+SHELL_RC=""
+if [ -n "${ZSH_VERSION:-}" ] || echo "$SHELL" | grep -q zsh; then
+  SHELL_RC="$HOME/.zshrc"
+elif [ -n "${BASH_VERSION:-}" ] || echo "$SHELL" | grep -q bash; then
+  SHELL_RC="$HOME/.bashrc"
+else
+  SHELL_RC="$HOME/.bashrc"  # fallback
+fi
+
+echo "==> Shell terdeteksi: $SHELL_RC"
 
 echo "==> Symlink config & memori (file asli di repo -> edit = repo, no drift)..."
 mkdir -p ~/.config/helix ~/.local/bin ~/.agents ~/.agents/bin
@@ -30,15 +43,16 @@ for s in akun claude-kerja claude-personal tmux-clip security-check; do link "$D
 ~/.local/bin/ai-memory-link              # symlink AGENTS.md ke semua AI CLI (claude/codex/pi/gemini/antigravity)
 
 # Snapshot (reference, TIDAK di-symlink — mesin-spesifik / ditulis tool):
-#   home/bashrc.snapshot, home/gitconfig, config/mise-config.toml, config/vscode-settings.json, skills/agents-bin/
+#   home/bashrc.snapshot, home/zshrc.snapshot, home/gitconfig, config/mise-config.toml, config/vscode-settings.json, skills/agents-bin/
 #   -> di-refresh otomatis tiap 'dotpush'. Restore manual bila perlu di device baru.
 
-echo "==> Patch ~/.bashrc (blok dev-tools)..."
-if grep -qF ">>> dev-tools setup" ~/.bashrc 2>/dev/null; then
+echo "==> Patch $SHELL_RC (blok dev-tools)..."
+MARKER=">>> dev-tools setup (ongkipro/dotfiles)"
+if grep -qF "$MARKER" "$SHELL_RC" 2>/dev/null; then
   echo "   blok sudah ada -> dilewati"
 else
-  { echo ""; cat "$DOT/config/bashrc.tools.sh"; } >> ~/.bashrc
-  echo "   blok ditambahkan ke ~/.bashrc"
+  { echo ""; cat "$DOT/config/shell-tools.sh"; } >> "$SHELL_RC"
+  echo "   blok ditambahkan ke $SHELL_RC"
 fi
 
 cat <<'EOF'
@@ -59,7 +73,7 @@ cat <<'EOF'
 
   4) Git config: jalankan perintah di docs/linux-dev-setup.md (Bagian 2.6)
 
-  5) source ~/.bashrc   (atau buka terminal baru)
+  5) source "$SHELL_RC"   (atau buka terminal baru)
 
 Runbook lengkap: docs/linux-dev-setup.md
 EOF

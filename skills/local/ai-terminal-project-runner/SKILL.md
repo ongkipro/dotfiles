@@ -58,7 +58,7 @@ When uncertain, choose the safer mode and ask.
 
 Use this skill to route, not to replace domain skills.
 
-- Cloudflare Workers, Wrangler, Hono, D1, KV, R2, Durable Objects, Queues, bindings, `wrangler.jsonc/toml`, deploy-to-Cloudflare intents → use `cloudflare-worker-toolkit` and relevant Pi Cloudflare skills (`cloudflare`, `wrangler`, `workers-best-practices`, `durable-objects`, etc.). Read `/home/fantastico/.ai/cloudflare-worker-toolkit/` docs before architecture decisions.
+- Cloudflare Workers, Wrangler, Hono, D1, KV, R2, Durable Objects, Queues, bindings, `wrangler.jsonc/toml`, deploy-to-Cloudflare intents → use `cloudflare-worker-toolkit` and relevant Pi Cloudflare skills (`cloudflare`, `wrangler`, `workers-best-practices`, `durable-objects`, etc.). Read `~/.ai/cloudflare-worker-toolkit/` docs before architecture decisions.
 - Astro sites/apps, pages/components, content collections, Tailwind in Astro, static/server rendering, SEO/content sites → use `astro-development`.
 - Shopify app/dev work, Shopify CLI app flows, extensions, Hydrogen, Functions, Liquid theme code, Admin/Storefront GraphQL, `shopify.app.toml`, `shopify.extension.toml` → use `shopify-ai-toolkit-router` or official Shopify plugin when active.
 - Shopify store operations/listings/content/products → use `shopify-listing`, `shopify-products`, `shopify-content`, or `shopify-setup`; do not route listing/content work to app-dev tooling.
@@ -78,6 +78,7 @@ Use this skill to route, not to replace domain skills.
 - Never install before checking `command -v`, `package.json`, lockfiles, and existing docs.
 - Install policy: CLI/language tools via `mise use -g`, Node globals via `npm i -g`, Python apps via `pipx`; `sudo` only for system packages and only with approval.
 - Do not auto-commit. User prefers lazygit (`lg`) for commits.
+- **AI Artifacts Routing**: Save any files generated outside active projects (PRD, UML, web scrapes, copywriting content, research notes) to `~/Documents/ai-artifacts/` under the appropriate category (`prd/`, `uml/`, `scrapes/`, `content/`, `research/`, `general/`) with naming convention `[YYYY-MM-DD]-[kategori]-[nama-topik].md`.
 
 ## Stop and approval gates
 

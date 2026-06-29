@@ -6,8 +6,12 @@ cd ~/dotfiles
 # refresh snapshot config yang ditulis tool / mesin-spesifik (biar selalu current)
 cp -f ~/.gitconfig                      home/gitconfig              2>/dev/null || true
 cp -f ~/.config/mise/config.toml        config/mise-config.toml     2>/dev/null || true
+cp -f ~/.zshrc                          home/zshrc.snapshot         2>/dev/null || true
 cp -f ~/.bashrc                         home/bashrc.snapshot        2>/dev/null || true
-cp -f ~/.config/Code/User/settings.json config/vscode-settings.json 2>/dev/null || true
+# VSCode settings: Linux (~/.config/...) vs macOS (~/Library/Application Support/...)
+for vs in "$HOME/Library/Application Support/Code/User/settings.json" ~/.config/Code/User/settings.json; do
+  [ -f "$vs" ] && { cp -f "$vs" config/vscode-settings.json; break; }
+done
 git add -A
 if git diff --cached --quiet; then
   echo "Tidak ada perubahan untuk di-push."

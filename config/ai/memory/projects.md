@@ -27,6 +27,8 @@
 - Rate limiter `ORDER_SUBMIT_LIMITER` dideklarasi di `wrangler.jsonc` (`ratelimits`, limit 8/60s), diakses via `locals.runtime.env` di `src/middleware.ts` (bukan globalThis).
 - Script live ada di `public/scripts/` (di-load via `/scripts/...`). Duplikat stale di `src/scripts/` sudah dihapus — jangan dibuat lagi.
 
-## pesantrentholabie (pesantrentholabie.com)
-- stack: HTML5, Tailwind CSS (via CDN), Lucide Icons, Google Fonts
-- catatan: Landing page Pondok Pesantren THOLABIE CIBS (Malang) yang menawarkan beasiswa penuh D3 di Politeknik Kota Malang. Dikembangkan oleh ongki.pro.
+## pesantren-tholabie (pesantrentholabie.com) — Pondok Pesantren THOLABIE CIBS (Malang)
+- Site live sekarang: HTML5, Tailwind CSS (via CDN), Lucide Icons, Google Fonts. Landing page; menawarkan beasiswa penuh D3 di Politeknik Kota Malang. Dikembangkan oleh ongki.pro.
+- Rencana rebuild company profile: `~/Projects/pesantren-tholabie-compro` — stack Astro + TailwindCSS + Lucide Icons. Niche: Islamic modern tech education. Fokus: green-gold design system, high-conversion landing (WhatsApp CTAs), integrasi beasiswa D3 Politeknik Malang, highlight kurikulum digital skills.
+- Scraped content: `~/Documents/ai-artifacts/scrapes/2026-06-29-scrape-pesantrentholabie.md`.
+- PRD & Rebuild Plan: `~/Documents/ai-artifacts/prd/2026-06-29-prd-pesantren-tholabie-compro.md`.
