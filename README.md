@@ -7,6 +7,8 @@
 
 **Terminal-first dev environment. AI-native. Zero bloat.**
 
+**Linux-first bootstrap. macOS-ready shared memory sync.**
+
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-26.04-E95420?style=flat-square&logo=ubuntu&logoColor=white)](https://ubuntu.com)
 [![Shell](https://img.shields.io/badge/Shell-bash-4EAA25?style=flat-square&logo=gnu-bash&logoColor=white)](https://www.gnu.org/software/bash/)
 [![Helix](https://img.shields.io/badge/Editor-Helix-7D5E9C?style=flat-square)](https://helix-editor.com)
@@ -19,6 +21,17 @@
 
 ---
 
+## 🖥️ Platform support
+
+| Area | Linux | macOS |
+|---|---|---|
+| Main bootstrap (`install.sh`) | ✅ Primary target | ⚠️ Partial / adapt as needed |
+| Shared AI memory (`config/ai`) | ✅ | ✅ |
+| Semi-auto sync (`dotsync`) | ✅ | ✅ |
+| Skills/docs/config as repo source of truth | ✅ | ✅ |
+
+> Repo ini **Linux-first** untuk setup mesin utama, tapi **memory + sync flow** sudah dirapikan supaya enak dipakai lintas Linux/macOS.
+
 ## ⚡ Stack
 
 ```
@@ -30,6 +43,13 @@ Tools     →  rg · fd · eza · bat · fzf · zoxide · yq · direnv
 Runtime   →  mise (Node/Python/Go) · nvm (lazy) · pnpm · pipx
 Deploy    →  Vercel CLI · Wrangler (Cloudflare) · gh
 ```
+
+## 🎯 Tujuan repo ini
+
+- **Source of truth** untuk shared AI memory, skill references, dan config terminal utama.
+- **Sinkron lintas device** via Git, terutama antara workstation Linux dan device macOS.
+- **Konsisten lintas AI CLI**: Claude Code, Pi.dev, Codex, Gemini, Antigravity.
+- **Semi-auto sync**, bukan auto-commit liar.
 
 ---
 
@@ -77,10 +97,12 @@ dotfiles/
 │
 ├── 📂 bin/
 │   ├── ai-memory-link         # Symlink AGENTS.md ke semua AI CLI
-│   ├── dotpush                # git add + commit + push 1 perintah
+│   ├── dotsync                # Semi-auto sync lintas Linux/macOS
+│   ├── dotpush                # Fast-path manual commit + push
 │   └── akun                   # Claude account switcher
 │
 ├── 📂 docs/
+│   ├── ai-memory-sync.md      # Shared memory + sync flow Linux/macOS
 │   ├── linux-dev-setup.md     # Setup lengkap dari nol
 │   ├── dev-setup.md           # Ringkasan cepat
 │   └── shopify-ai-development-repos.md
@@ -91,6 +113,8 @@ dotfiles/
 ---
 
 ## 🚀 Device Baru
+
+### Linux / Ubuntu
 
 ```bash
 git clone https://github.com/ongkipro/dotfiles ~/dotfiles
@@ -103,6 +127,27 @@ Install.sh akan:
 - Setup cross-CLI memory (`~/.config/ai/`)
 - Link local skills ke agents/claude/codex/gemini/pi
 - Register bin scripts ke `~/.local/bin/`
+
+### macOS
+
+Untuk sekarang, anggap macOS sebagai **sync consumer / secondary workstation**.
+
+Quick start minimal:
+
+```bash
+git clone https://github.com/ongkipro/dotfiles ~/dotfiles
+cd ~/dotfiles
+chmod +x bin/dotsync
+./bin/dotsync doctor
+```
+
+Lalu:
+- pakai `config/ai/` sebagai shared memory source
+- pakai `dotsync` untuk commit/pull/push perubahan penting
+- adapt symlink/bootstrap seperlunya (karena `install.sh` masih Linux-first)
+- bila shell utama macOS = `zsh`, itu aman untuk flow sync; bootstrap shell penuh belum dipaksa sama repo ini
+
+Kalau nanti mau full parity, target berikutnya adalah `install-macos.sh` atau bootstrap wrapper yang auto-detect OS.
 
 ---
 
@@ -139,21 +184,55 @@ Dua lapis memory:
 
 Memory di-backup ke `config/ai/memory/` (cross-CLI) dan `config/claude-memory/` (Claude).
 
+File paling penting:
+- `config/ai/AGENTS.md` → aturan ringkas yang ke-load tiap sesi
+- `config/ai/memory/environment.md` → toolchain & install rules
+- `config/ai/memory/workflow.md` → workflow dan guardrails
+- `config/ai/memory/preferences.md` → preferensi user
+- `config/ai/memory/projects.md` → fakta durable per project
+
 ---
 
 ## 📅 Update Sehari-hari
 
 ```bash
-dotpush                    # commit + push semua perubahan
-dotpush "pesan custom"     # dengan pesan commit sendiri
+dotsync status                   # lihat perubahan
+dotsync sync                     # review -> commit -> push opsional
+dotsync commit "memory: sync"   # commit lokal saja
+dotsync push                     # push commit yang sudah siap
 
 # Di device lain
-cd ~/dotfiles && git pull  # symlink langsung aktif
+dotsync pull                     # ff-only pull, config langsung aktif
+dotsync doctor                   # cek setup sync cepat
 ```
+
+Fast path lama masih ada:
+
+```bash
+dotpush                          # commit + push langsung (manual, tanpa review semi-auto)
+```
+
+Flow harian yang disarankan:
+1. Edit memory/config penting.
+2. Jalankan `dotsync status`.
+3. Jalankan `dotsync sync`.
+4. Di device lain, jalankan `dotsync pull`.
 
 ---
 
+## 🔄 Multi-device memory sync
+
+- Repo `~/dotfiles` = source of truth untuk shared memory + AI config.
+- Mode default = **semi-auto**, aman untuk terminal Linux **dan** macOS.
+- Gunakan `bin/dotsync` untuk flow review singkat sebelum commit/push.
+- Bootstrap penuh masih Linux-first; sync layer-nya sudah cross-platform.
+- Default aman: **commit lokal dulu, push setelah yakin**.
+- Detail arsitektur: [docs/ai-memory-sync.md](docs/ai-memory-sync.md)
+
 ## 🔐 Yang Tidak Di-commit
+
+Jangan commit secrets, tokens, credential, session, cache, atau artefak sementara.
+
 
 ```
 Pi:      auth.json · models.json (ada API key) · trust.json · sessions/

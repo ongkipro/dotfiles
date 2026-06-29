@@ -24,6 +24,7 @@ memory/          ← detail dipecah per topik (dibaca on-demand)
 
 **Edit memori:** ubah file di sini → otomatis kebaca semua tool.
 **Auto-write:** AGENTS.md menyuruh AI menambah fakta baru sendiri ke `memory/*.md` (best-effort).
+**Sync harian:** pakai `dotsync sync` untuk review → commit → push opsional; cocok untuk Linux dan macOS.
 
 Memori = *apa yang benar* (di sini). Skill = *cara melakukan* (`~/.agents/skills/`, kelola via `skill-*`).
-Ter-backup di dotfiles (`~/dotfiles`).
+Ter-backup di dotfiles (`~/dotfiles`). Lihat juga `docs/ai-memory-sync.md`.

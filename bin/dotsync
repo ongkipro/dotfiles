@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+# Semi-auto dotfiles sync for Linux + macOS.
+# Usage:
+#   dotsync status
+#   dotsync commit [message]
+#   dotsync push
+#   dotsync pull
+#   dotsync sync [message]
+#   dotsync doctor
+# Options:
+#   --yes   Skip confirmation prompts for the current command.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOTFILES_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+AUTO_YES=0
+
+if [ "${1:-}" = "--yes" ]; then
+  AUTO_YES=1
+  shift
+fi
+
+COMMAND="${1:-sync}"
+if [ "$#" -gt 0 ]; then
+  shift
+fi
+MESSAGE="${*:-}"
+
+cd "$DOTFILES_ROOT"
+
+say() { printf '%s\n' "$*"; }
+err() { printf 'ERROR: %s\n' "$*" >&2; }
+now() { date '+%Y-%m-%d %H:%M' 2>/dev/null || date; }
+platform() {
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    Darwin) echo macOS ;;
+    Linux) echo Linux ;;
+    *) echo Unknown ;;
+  esac
+}
+copy_if_exists() {
+  local src="$1" dst="$2"
+  [ -e "$src" ] || return 0
+  mkdir -p "$(dirname "$dst")"
+  cp -f "$src" "$dst"
+}
+refresh_snapshots() {
+  copy_if_exists "$HOME/.gitconfig" "$DOTFILES_ROOT/home/gitconfig"
+  copy_if_exists "$HOME/.config/mise/config.toml" "$DOTFILES_ROOT/config/mise-config.toml"
+  copy_if_exists "$HOME/.bashrc" "$DOTFILES_ROOT/home/bashrc.snapshot"
+  copy_if_exists "$HOME/.zshrc" "$DOTFILES_ROOT/home/zshrc.snapshot"
+  copy_if_exists "$HOME/.config/Code/User/settings.json" "$DOTFILES_ROOT/config/vscode-settings.json"
+  copy_if_exists "$HOME/Library/Application Support/Code/User/settings.json" "$DOTFILES_ROOT/config/vscode-settings.json"
+}
+require_git_repo() {
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
+    err "Bukan git repo: $DOTFILES_ROOT"
+    exit 1
+  }
+}
+confirm() {
+  local prompt="$1"
+  if [ "$AUTO_YES" -eq 1 ]; then
+    return 0
+  fi
+  if [ ! -t 0 ]; then
+    return 1
+  fi
+  printf '%s [y/N] ' "$prompt"
+  read -r answer
+  case "$answer" in
+    y|Y|yes|YES) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+print_status() {
+  git -c core.pager=cat status --short --branch
+}
+show_staged_preview() {
+  say ""
+  say "Staged preview:"
+  git -c core.pager=cat diff --cached --stat
+}
+ensure_clean_for_pull() {
+  if ! git diff --quiet || ! git diff --cached --quiet; then
+    err "Working tree belum bersih. Commit/stash dulu sebelum pull."
+    print_status
+    exit 1
+  fi
+}
+cmd_status() {
+  require_git_repo
+  say "dotfiles: $DOTFILES_ROOT"
+  say "platform: $(platform)"
+  print_status
+}
+cmd_commit() {
+  require_git_repo
+  refresh_snapshots
+  git add -A
+  if git diff --cached --quiet; then
+    say "Tidak ada perubahan untuk di-commit."
+    exit 0
+  fi
+  print_status
+  show_staged_preview
+  if ! confirm "Commit perubahan dotfiles ini?"; then
+    say "Batal commit."
+    exit 1
+  fi
+  git commit -m "${MESSAGE:-sync: $(now)}"
+  say "✓ Commit selesai"
+}
+cmd_push() {
+  require_git_repo
+  print_status
+  if ! confirm "Push branch ini ke origin?"; then
+    say "Batal push."
+    exit 1
+  fi
+  git push
+  say "✓ Push selesai"
+}
+cmd_pull() {
+  require_git_repo
+  ensure_clean_for_pull
+  if ! confirm "Pull update terbaru (ff-only) dari origin?"; then
+    say "Batal pull."
+    exit 1
+  fi
+  git pull --ff-only
+  say "✓ Pull selesai"
+}
+cmd_sync() {
+  cmd_commit
+  if confirm "Lanjut push ke origin?"; then
+    git push
+    say "✓ Sync selesai"
+  else
+    say "Commit lokal sudah dibuat. Push dilewati."
+  fi
+}
+cmd_doctor() {
+  require_git_repo
+  say "dotfiles: $DOTFILES_ROOT"
+  say "platform: $(platform)"
+  say "remote: $(git remote get-url origin 2>/dev/null || echo '(tidak ada origin)')"
+  say ""
+  say "Shared memory targets:"
+  for target in \
+    "$HOME/.config/ai" \
+    "$HOME/.claude/CLAUDE.md" \
+    "$HOME/.codex/AGENTS.md" \
+    "$HOME/.gemini/GEMINI.md"
+  do
+    if [ -L "$target" ] || [ -e "$target" ]; then
+      say "- OK  $target"
+    else
+      say "- MISS $target"
+    fi
+  done
+  say ""
+  print_status
+}
+
+case "$COMMAND" in
+  status) cmd_status ;;
+  commit) cmd_commit ;;
+  push) cmd_push ;;
+  pull) cmd_pull ;;
+  sync) cmd_sync ;;
+  doctor) cmd_doctor ;;
+  help|-h|--help)
+    sed -n '1,12p' "$0"
+    ;;
+  *)
+    err "Perintah tidak dikenal: $COMMAND"
+    exit 1
+    ;;
+esac

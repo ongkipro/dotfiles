@@ -5,6 +5,7 @@
 ## dotfiles
 - `~/dotfiles` → backup semua config, repo private `github.com/ongkipro/dotfiles`.
 - `install.sh` untuk setup device baru (idempotent).
+- `bin/dotsync` = helper semi-auto sync lintas Linux/macOS untuk review → commit → push opsional pada shared memory/config.
 
 ## pixsgo
 - path: `/home/fantastico/Projects/pixsgo`

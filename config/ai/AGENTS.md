@@ -20,8 +20,8 @@ ATURAN MEMORI (ikuti ini):
 2. Kalau menemukan fakta baru yang DURABLE (berlaku lintas sesi, bukan sekali pakai), APPEND sebagai bullet ringkas ke file paling cocok. Buat file topik baru di `memory/` kalau perlu.
 3. Jangan duplikat fakta yang sudah ada; perbarui kalau berubah; hapus kalau salah.
 4. JANGAN simpan rahasia/credential/token di memori.
-5. Setelah update memori penting, ingatkan user commit ke `~/dotfiles` (atau lakukan bila diminta).
+5. Setelah update memori penting, ingatkan user sync `~/dotfiles` via `dotsync sync` (atau lakukan bila diminta).
 
 ## Referensi
 - Panduan lengkap setup: `~/Documents/linux-dev-setup.md` (perintah: `devdoc`).
-- Skill / cara-melakukan: `~/.agents/skills/`. Dotfiles backup: github.com/ongki5758/dotfiles (private).
+- Skill / cara-melakukan: `~/.agents/skills/`. Dotfiles backup: github.com/ongkipro/dotfiles (private).

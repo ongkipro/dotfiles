@@ -5,8 +5,8 @@
 	helper = 
 	helper = !/usr/bin/gh auth git-credential
 [user]
-	name = fantastico
-	email = bang.joe90@gmail.com
+	name = ongkipro
+	email = 82156528+ongkipro@users.noreply.github.com
 [init]
 	defaultBranch = main
 [pull]
