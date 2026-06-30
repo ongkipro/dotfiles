@@ -15,8 +15,9 @@
 [![Helix](https://img.shields.io/badge/Editor-Helix-7D5E9C?style=flat-square)](https://helix-editor.com)
 [![mise](https://img.shields.io/badge/Tools-mise-FF6B6B?style=flat-square)](https://mise.jdx.dev)
 [![Private](https://img.shields.io/badge/Repo-Private-555?style=flat-square&logo=github)](https://github.com/ongkipro/dotfiles)
+[![AI Skills](https://img.shields.io/badge/AI%20Skills-SEO_|_Shopify_|_Astro_|_Cloudflare-0ea5e9?style=flat-square)](#-ai-skills-system)
 
-*by [ongki.pro](https://ongki.pro)*
+*Designed, maintained, and curated by [Ongki Pro](https://ongki.pro).*
 
 </div>
 
@@ -62,6 +63,7 @@ Deploy    →  Vercel CLI · Wrangler (Cloudflare) · gh
 dotfiles/
 │
 ├── 📂 skills/local/           # Local AI skills → semua CLI
+│   ├── seo-website-builder/   # Multi-engine SEO OS: Google/Bing/Yandex/Pinterest/AI search
 │   ├── shadcn-ui/             # shadcn/ui + charts + sidebar + blocks
 │   ├── prd-taskbreaker/       # Ide → PRD → numbered tasks
 │   ├── mermaid-diagram/       # Flowchart, ERD, Sequence, C4
@@ -174,7 +176,38 @@ skill-new <nama>      # buat skill baru
 skill-list            # list semua skill aktif
 ```
 
-**18 local skills** + **63 shared skills** dari [jezweb/claude-skills](https://github.com/jezweb/claude-skills).
+**27 local skills** + **63 shared skills** dari [jezweb/claude-skills](https://github.com/jezweb/claude-skills).
+
+### Featured local skill: `seo-website-builder`
+
+`seo-website-builder` adalah SEO operating system lintas mesin pencari untuk build, audit, dan maintenance website modern.
+
+Cakupan utama:
+
+- Technical SEO, metadata, canonical/noindex, sitemap, robots.txt
+- Schema/JSON-LD untuk LocalBusiness, Product, Article, FAQ, Breadcrumb
+- Astro/static SEO, Shopify/ecommerce SEO, local business SEO
+- Internal linking, information architecture, programmatic SEO quality control
+- Multi-engine intelligence: Google, Bing, Yandex, Pinterest, dan AI-search surfaces
+- Algorithm update workflow berbasis sumber resmi/tepercaya
+
+Struktur skill:
+
+```txt
+skills/local/seo-website-builder/
+├── SKILL.md
+└── references/
+    ├── COMPACT_SKILL_REFERENCES.md
+    ├── PLAYBOOK.md
+    ├── ASTRO_SEO_PLAYBOOK.md
+    ├── SHOPIFY_SEO_PLAYBOOK.md
+    ├── LOCAL_BUSINESS_SEO_PLAYBOOK.md
+    ├── SEARCH_ENGINE_ALGORITHM_BRIEF.md
+    ├── SEARCH_ENGINE_SOURCE_INDEX.md
+    └── ALGORITHM_UPDATE_LOG.md
+```
+
+Dokumen riset besar tetap disimpan sebagai archive lokal di `~/Documents/SEO`, sedangkan repo ini membawa versi compact yang siap dipakai skill.
 
 ---
 
@@ -235,9 +268,20 @@ Flow harian yang disarankan:
 - Default aman: **commit lokal dulu, push setelah yakin**.
 - Detail arsitektur: [docs/ai-memory-sync.md](docs/ai-memory-sync.md)
 
+## 🪪 Credits & public credentials
+
+**Curator / Developer:** [Ongki Pro](https://ongki.pro)  
+**GitHub:** [@ongkipro](https://github.com/ongkipro)  
+**Email:** [get@ongki.pro](mailto:get@ongki.pro)  
+**Workflow:** terminal-first, AI-native, Helix/tmux/mise/dotfiles-driven.
+
+Local skills in this repo are curated for practical client/project work across Astro, Shopify, Cloudflare, Supabase, SEO, and AI gateway workflows.
+
+> Public note: credentials here mean authorship/contact credentials only. Secrets, tokens, auth sessions, API keys, and private credentials must never be committed.
+
 ## 🔐 Yang Tidak Di-commit
 
-Jangan commit secrets, tokens, credential, session, cache, atau artefak sementara.
+Jangan commit secrets, tokens, private credentials, session, cache, atau artefak sementara.
 
 
 ```

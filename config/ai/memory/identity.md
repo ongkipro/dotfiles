@@ -5,6 +5,7 @@
 - Preferred name / sapaan: Paduka Ongki.
 - GitHub username utama: `ongkipro`.
 - Personal brand/domain: `ongki.pro`.
+- Email utama: `get@ongki.pro`.
 - Dotfiles repo: `github.com/ongkipro/dotfiles` (private).
 - Nama lengkap/legal identity: Ongki A Febriananda (dikonfirmasi via GitHub profile README draft).
 
