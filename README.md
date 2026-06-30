@@ -182,6 +182,8 @@ skill-list            # list semua skill aktif
 
 `seo-website-builder` adalah SEO operating system lintas mesin pencari untuk build, audit, dan maintenance website modern.
 
+Public standalone repo: [ongkipro/seo-website-builder-skill](https://github.com/ongkipro/seo-website-builder-skill)
+
 Cakupan utama:
 
 - Technical SEO, metadata, canonical/noindex, sitemap, robots.txt

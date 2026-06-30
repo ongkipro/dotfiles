@@ -113,3 +113,4 @@
 
 ## SEO Knowledge Base
 - Path: `/home/fantastico/Documents/SEO` — SEO Website Builder Skill/SEO OS canonical research/archive base. On 2026-06-30 created active local skill `seo-website-builder` at `/home/fantastico/dotfiles/skills/local/seo-website-builder` and synced via `skill-update` to pi/agents/claude/codex/gemini. Skill uses compact references copied from Documents/SEO; original 100+ SEO OS export remains in Documents for deep reference. Existing skills mined into the playbooks: `seo-local-business`, `shopify-listing`, and `astro-development`. Multi-engine docs cover Google/Bing/Yandex/Pinterest/AI search using official/trusted sources.
+- Public standalone SEO skill repo created: `https://github.com/ongkipro/seo-website-builder-skill` (public). Source path: `/home/fantastico/Projects/seo-website-builder-skill`. Dotfiles remain private; public repo contains sanitized `seo-website-builder` Agent Skill only.
