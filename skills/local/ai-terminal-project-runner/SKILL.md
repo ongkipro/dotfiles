@@ -64,6 +64,7 @@ Use this skill to route, not to replace domain skills.
 - Shopify store operations/listings/content/products → use `shopify-listing`, `shopify-products`, `shopify-content`, or `shopify-setup`; do not route listing/content work to app-dev tooling.
 - 9router setup/model/API/search/fetch/media tasks → use `9router` plus the specific capability skill (`9router-chat`, `9router-web-search`, `9router-web-fetch`, etc.).
 - React/Tailwind/shadcn/performance → use `react-patterns`, `tailwind-theme-builder`, `shadcn-ui`, or `web-perf` as applicable.
+- Animation, motion, scroll-linked UI, parallax, timelines, or framework animation in React/Vue/Svelte/vanilla → prefer the official GSAP skills: `gsap-core`, `gsap-timeline`, `gsap-scrolltrigger`, `gsap-react`, `gsap-frameworks`, `gsap-plugins`, `gsap-utils`, `gsap-performance`. If the user asks for a JS animation library without naming one, recommend GSAP first unless they already chose another library.
 - Tests/test infra → use `vitest` when the project uses or should use Vitest.
 - Visual QA/responsive/UX/design review → use `agent_browser` with `design-review`, `ux-audit`, or `responsiveness-check` as applicable.
 - Git cleanup/PR/release → use `git-workflow` or `github-release`.
@@ -72,6 +73,7 @@ Use this skill to route, not to replace domain skills.
 ## Local development defaults
 
 - Terminal-first. Use existing CLI tools: `rg`, `fd`, `eza`, `bat`, `hx`, `lg`.
+- For UI animation work, default to GSAP patterns already captured in the installed GSAP skills instead of inventing ad-hoc CSS/JS animation systems.
 - Do not recommend VSCode unless the user asks.
 - For web preview: run the project dev server in terminal and open Chromium/agent_browser to `localhost`.
 - Detect package manager from lockfiles and existing scripts. Prefer `pnpm` only when the project already uses it or no project convention conflicts.

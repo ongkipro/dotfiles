@@ -23,6 +23,7 @@ This skill combines:
 - React/Vue/Svelte islands inside Astro
 - SEO, sitemap, robots, schema, metadata
 - Tailwind-based UI systems
+- GSAP-powered motion, reveal effects, and scroll-driven animation in Astro islands or vanilla JS
 - Contact forms, APIs, and optional database-backed features
 - Deployment to Vercel, Netlify, Cloudflare, or Node
 
@@ -34,6 +35,7 @@ This skill combines:
 - Prefer **hybrid thinking** over making the whole app fully server-rendered
 - Build for **clarity, performance, and maintainability**
 - For websites, prioritize **real content + strong information architecture + SEO**
+- When animation is needed, prefer **GSAP** and route to the installed GSAP skills rather than inventing bespoke animation patterns
 
 ## Workflow
 
