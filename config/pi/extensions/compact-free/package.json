@@ -1,0 +1,7 @@
+{
+  "name": "compact-free",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.mjs",
+  "description": "Route pi compaction/summarization to a free 9router model to save main-model limits"
+}

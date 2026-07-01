@@ -1,7 +1,7 @@
 {
-  "lastChangelogVersion": "0.80.2",
+  "lastChangelogVersion": "0.80.3",
   "defaultProvider": "9router",
-  "defaultModel": "cx/gpt-5.5",
+  "defaultModel": "ocg/deepseek-v4-pro",
   "defaultThinkingLevel": "medium",
   "theme": "garuda-gold",
   "quietStartup": true,
