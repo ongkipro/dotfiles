@@ -95,6 +95,9 @@ dotfiles/
 │   ├── 9router/
 │   │   ├── aliases.json       # Model aliases
 │   │   └── runtime-package.json
+│   ├── systemd/
+│   │   └── user/
+│   │       └── 9router.service # 9router daemon (auto-start + restart)
 │   ├── helix/
 │   │   └── languages.toml     # LSP config
 │   ├── shell-tools.sh         # Cross-platform dev tools (bash + zsh, Ubuntu + macOS)
