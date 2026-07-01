@@ -88,7 +88,10 @@ dotfiles/
 │   │   ├── local-skills-registry.md
 │   │   └── ...project memories
 │   ├── pi/
-│   │   └── settings.json      # Pi.dev: provider=9router, theme=garuda-gold
+│   │   ├── settings.json      # Pi.dev: provider=9router, theme=garuda-gold
+│   │   ├── README.md           # Restore instructions
+│   │   └── extensions/
+│   │       └── compact-free/   # Compaction pakai model gratis (hemat limit)
 │   ├── 9router/
 │   │   ├── aliases.json       # Model aliases
 │   │   └── runtime-package.json
