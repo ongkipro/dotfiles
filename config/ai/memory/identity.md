@@ -9,6 +9,12 @@
 - Dotfiles repo: `github.com/ongkipro/dotfiles` (private).
 - Nama lengkap/legal identity: Ongki A Febriananda (dikonfirmasi via GitHub profile README draft).
 
+## Bio reusable
+- Short ID bio: Paduka Ongki adalah full-stack web developer dan digital marketer yang fokus pada Shopify, ecommerce, SEO, Meta Ads, automation, dan AI-native workflow.
+- Short EN bio: Ongki is a full-stack web developer and digital marketer focused on Shopify, ecommerce, SEO, Meta Ads, automation, and AI-native workflows.
+- Public positioning: builder of systems, not just websites — combines development, growth, operations, and automation into reusable business assets.
+- Credential framing preference: tampilkan capability/stack/track record lebih dulu; hindari framing generik seperti "jasa" bila konteksnya profil profesional atau README.
+
 ## Bahasa & gaya komunikasi
 - Penjelasan utama: Bahasa Indonesia santai.
 - Output teknis: English untuk prompt, code, PRD, SOP, framework, ads, SEO, website, AI system.
@@ -20,6 +26,7 @@
 - Fokus utama: international dropshipping, Shopify, ecommerce, Meta Ads, Google Ads, SEO, affiliate marketing, AI agent, automation, product research, UI/UX, landing page, dan web platform.
 - Pola kerja: system builder, framework thinker, reusable asset builder, SOP-oriented, automation-first, terminal-first.
 - Sering membangun sistem untuk dijalankan oleh tim, anak magang, admin, client, atau AI agent.
+- Kombinasi utama yang membedakan: technical build + growth execution + workflow automation + SEO/conversion thinking dalam satu orang.
 
 ## Skill & domain kuat
 - Development: Linux/Ubuntu, terminal workflow, Astro, Shopify/headless Shopify, Next.js, Supabase/PostgreSQL discussion, Cloudflare, VPS, Git, tmux, Helix, CLI workflow.

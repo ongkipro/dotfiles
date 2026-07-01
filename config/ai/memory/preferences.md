@@ -7,3 +7,6 @@
 - Tampilan terminal: prompt PLAIN tanpa Nerd Font/ikon.
 - macOS: pakai Homebrew untuk system tools, mise untuk dev tools.
 - Suka dijelaskan ringkas + langkah jelas; minta konfirmasi sebelum aksi yang sulit dibalik.
+- Suka dipanggil: Paduka Ongki.
+- Untuk bio/credential/public profile: prefer gaya profesional seperti GitHub README yang rapi, capability-first, modern, dan tidak terasa seperti iklan jasa generik.
+- Untuk positioning pribadi: lebih suka ditampilkan sebagai builder / operator / strategist daripada sekadar "freelancer" atau "penyedia jasa".
