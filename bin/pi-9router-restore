@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
+PI_AGENT_DIR="$HOME/.pi/agent"
+PI_EXT_DIR="$HOME/.pi/extensions/compact-free"
+SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
+SERVICE_PATH="$SYSTEMD_USER_DIR/9router.service"
+
+NODE_BIN="$(command -v node || true)"
+ROUTER_BIN="$(command -v 9router || true)"
+
+if [[ -z "$NODE_BIN" ]]; then
+  echo "✗ node tidak ditemukan di PATH"
+  exit 1
+fi
+
+if [[ -z "$ROUTER_BIN" ]]; then
+  echo "✗ 9router tidak ditemukan di PATH"
+  echo "  install dulu: npm i -g 9router"
+  exit 1
+fi
+
+ROUTER_CLI="$(readlink -f "$ROUTER_BIN" 2>/dev/null || python3 - <<'PY'
+import os, sys
+print(os.path.realpath(sys.argv[1]))
+PY
+"$ROUTER_BIN")"
+
+mkdir -p "$PI_AGENT_DIR" "$PI_EXT_DIR" "$SYSTEMD_USER_DIR"
+
+cp "$DOTFILES_DIR/config/pi/settings.json" "$PI_AGENT_DIR/settings.json"
+cp "$DOTFILES_DIR/config/pi/extensions/compact-free/"* "$PI_EXT_DIR/"
+
+cat > "$SERVICE_PATH" <<EOF
+[Unit]
+Description=9Router AI Gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=$NODE_BIN $ROUTER_CLI --host 127.0.0.1 --no-browser --skip-update
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=NODE_ENV=production
+Environment=HOME=%h
+WorkingDirectory=%h
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=default.target
+EOF
+
+systemctl --user daemon-reload
+systemctl --user enable 9router.service >/dev/null
+systemctl --user restart 9router.service
+sleep 2
+
+echo "✓ settings.json restored -> $PI_AGENT_DIR/settings.json"
+echo "✓ compact-free restored -> $PI_EXT_DIR"
+echo "✓ 9router.service generated -> $SERVICE_PATH"
+
+if curl -fsS http://127.0.0.1:20128/api/health >/dev/null 2>&1; then
+  echo "✓ 9router healthy on http://127.0.0.1:20128"
+else
+  echo "⚠ 9router service started, tapi health check gagal"
+  echo "  cek: journalctl --user -u 9router.service -n 50 --no-pager"
+fi
+
+echo
+echo "Catatan penting:"
+echo "- models.json TIDAK di-restore karena berisi API key 9router"
+echo "- pastikan ~/.pi/agent/models.json sudah ada dan valid"

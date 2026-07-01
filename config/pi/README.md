@@ -17,10 +17,16 @@
 ## Restore
 
 ```bash
-# Settings
-cp dotfiles/config/pi/settings.json ~/.pi/agent/settings.json
+# Full restore (recommended)
+~/dotfiles/bin/pi-9router-restore
 
-# Compact-free extension
+# Manual restore
+cp dotfiles/config/pi/settings.json ~/.pi/agent/settings.json
 mkdir -p ~/.pi/extensions/compact-free
 cp dotfiles/config/pi/extensions/compact-free/* ~/.pi/extensions/compact-free/
 ```
+
+## Notes
+
+- `models.json` tetap manual karena berisi API key 9router.
+- `pi-9router-restore` akan generate `~/.config/systemd/user/9router.service` pakai path `node` + `9router` yang aktif di mesin saat itu, lalu enable + restart servicenya.

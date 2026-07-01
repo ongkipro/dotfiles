@@ -110,6 +110,7 @@ dotfiles/
 │   ├── ai-memory-link         # Symlink AGENTS.md ke semua AI CLI
 │   ├── dotsync                # Semi-auto sync lintas Linux/macOS
 │   ├── dotpush                # Fast-path manual commit + push
+│   ├── pi-9router-restore     # Restore pi + compact-free + 9router.service
 │   └── akun                   # Claude account switcher
 │
 ├── 📂 docs/

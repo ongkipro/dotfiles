@@ -20,10 +20,10 @@
 - `sudo` HANYA untuk file sistem (jarang dibutuhkan di macOS).
 
 ## pi.dev / 9router
-- pi route lewat 9router lokal (`http://localhost:20128/v1`, jalan sebagai tray app).
+- pi route lewat 9router lokal (`http://localhost:20128/v1`), sekarang jalan sebagai **systemd user service** `9router.service` (auto-start + auto-restart), bind local-only `127.0.0.1`.
 - pi pakai provider rbq97ts; default model bisa berganti — cek `~/.pi/agent/settings.json`, jangan asumsikan.
 - AGENTS.md di-load via wrapper `pi()` di shell config. Memori bersama di `~/.config/ai/` (AGENTS.md + memory/*.md).
-- 9router terinstall via npm global (`~/.npm-global/bin/9router`).
+- 9router terinstall via npm global; restore helper ada di `~/dotfiles/bin/pi-9router-restore` untuk generate service dari path `node` + `9router` aktif di mesin.
 - Claude account launcher: `claude` and `claude-personal` default to personal account via `akun personal`; `claude-kerja` uses isolated `~/.claude-accounts/kerja` for bang.joe90@gmail.com. Wrappers live in `~/dotfiles/bin/` symlinked to `~/.local/bin/`.
 
 ## Isolasi 9router (policy: 9router HANYA untuk pi.dev)
