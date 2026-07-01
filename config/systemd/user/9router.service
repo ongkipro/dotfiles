@@ -5,15 +5,17 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=%h/.nvm/versions/node/v24.16.0/bin/node %h/.nvm/versions/node/v24.16.0/lib/node_modules/9router/cli.js --host 127.0.0.1 --no-browser --skip-update
+WorkingDirectory=/home/fantastico/.nvm/versions/node/v24.16.0/lib/node_modules/9router/app
+Environment=NODE_ENV=production
+Environment=HOME=%h
+Environment=PORT=20128
+Environment=HOSTNAME=127.0.0.1
+Environment=NODE_PATH=/home/fantastico/.9router/runtime/node_modules:/home/fantastico/.nvm/versions/node/v24.16.0/lib/node_modules/9router/app/node_modules
+ExecStart=/home/fantastico/.nvm/versions/node/v24.16.0/bin/node /home/fantastico/.nvm/versions/node/v24.16.0/lib/node_modules/9router/app/custom-server.js
 Restart=always
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
-Environment=NODE_ENV=production
-Environment=HOME=%h
-WorkingDirectory=%h
-
 NoNewPrivileges=yes
 PrivateTmp=yes
 

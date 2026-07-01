@@ -26,6 +26,10 @@ import os, sys
 print(os.path.realpath(sys.argv[1]))
 PY
 "$ROUTER_BIN")"
+APP_DIR="$(dirname "$ROUTER_CLI")/app"
+RUNTIME_NM="$HOME/.9router/runtime/node_modules"
+BUNDLED_NM="$APP_DIR/node_modules"
+NODE_PATH_COMBINED="$RUNTIME_NM:$BUNDLED_NM"
 
 mkdir -p "$PI_AGENT_DIR" "$PI_EXT_DIR" "$SYSTEMD_USER_DIR"
 
@@ -40,14 +44,17 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=$NODE_BIN $ROUTER_CLI --host 127.0.0.1 --no-browser --skip-update
+WorkingDirectory=$APP_DIR
+Environment=NODE_ENV=production
+Environment=HOME=%h
+Environment=PORT=20128
+Environment=HOSTNAME=127.0.0.1
+Environment=NODE_PATH=$NODE_PATH_COMBINED
+ExecStart=$NODE_BIN $APP_DIR/custom-server.js
 Restart=always
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
-Environment=NODE_ENV=production
-Environment=HOME=%h
-WorkingDirectory=%h
 NoNewPrivileges=yes
 PrivateTmp=yes
 
@@ -63,6 +70,7 @@ sleep 2
 echo "✓ settings.json restored -> $PI_AGENT_DIR/settings.json"
 echo "✓ compact-free restored -> $PI_EXT_DIR"
 echo "✓ 9router.service generated -> $SERVICE_PATH"
+echo "✓ daemon uses custom-server.js (no tray-mode)"
 
 if curl -fsS http://127.0.0.1:20128/api/health >/dev/null 2>&1; then
   echo "✓ 9router healthy on http://127.0.0.1:20128"
