@@ -1,7 +1,7 @@
 /**
- * Welcome Screen Extension — Garuda Gold
+ * Welcome Screen Extension — $ Logo
  *
- * Compact Garuda-themed welcome header for pi.dev.
+ * Compact welcome header for pi.dev.
  * Shows model, session, skill count, shortcuts.
  * Hot-reload safe: ~/.pi/agent/extensions/welcome-screen.ts
  */
@@ -17,22 +17,18 @@ function bold(theme: Theme, text: string): string {
 	try { return theme.bold(text); } catch { return text; }
 }
 
-// ── Garuda Mascot ─────────────────────────────────────────────────────
-function garudaLines(theme: Theme): string[] {
+// ── $ Logo ──────────────────────────────────────────────────────────
+function logoLines(theme: Theme): string[] {
 	const G = (t: string) => paint(theme, "accent", t);
 	const D = (t: string) => paint(theme, "dim", t);
-	const T = (t: string) => paint(theme, "text", t);
 
 	return [
 		"",
-		`${D("        ▄▄▄▄▄▄▄▄▄▄▄▄        ")}`,
-		`${D("      ▄▀")}${G("██████████████")}${D("▀▄      ")}`,
-		`${D("     ▐")}${G("██")}${T("▐█▌")}${G("████████")}${T("▐█▌")}${G("██")}${D("▌     ")}`,
-		`${D("     ▐")}${G("█")}${T("▐███▌")}${G("█")}${T("▄▀▀▀▀▄")}${G("█")}${T("▐███▌")}${G("█")}${D("▌     ")}`,
-		`${D("     ▐")}${G("█")}${T("▐███▌")}${D("▀▄  ▄▀")}${G("█")}${T("▐███▌")}${G("█")}${D("▌     ")}`,
-		`${D("     ▐")}${G("████████████████")}${D("▌     ")}`,
-		`${D("      ▀▄")}${G("████████████")}${D("▄▀      ")}`,
-		`${D("        ▀▀▀▀▀▀▀▀▀▀▀▀        ")}`,
+		`${D("   ╭───────╮")}`,
+		`${D("   │")}${G("  ╔═╗  ")}${D("│")}`,
+		`${D("   │")}${G("  ║$║  ")}${D("│")}   ${D("exp $1B")}`,
+		`${D("   │")}${G("  ╚═╝  ")}${D("│")}`,
+		`${D("   ╰───────╯")}`,
 		"",
 	];
 }
@@ -71,35 +67,43 @@ function shortcuts(theme: Theme, width: number): string[] {
 		"",
 		`  ${K("/model")} ${M("ganti model")}${S}${K("Ctrl+L")} ${M("picker")}${S}${K("Shift+Tab")} ${M("thinking")}${S}${K("/skills")} ${M("list skill")}`,
 		`  ${K("/new")} ${M("sesi baru")}${S}${K("/resume")} ${M("lanjut")}${S}${K("/tree")} ${M("history")}${S}${K("Esc Esc")} ${M("navigasi")}`,
-		`  ${K("!cmd")} ${M("bash")}${S}${K("@file")} ${M("sisip file")}${S}${K("Ctrl+V")} ${M("paste gambar")}${S}${K("welcome-off")} ${M("sembunyi")}`,
+		`  ${K("!cmd")} ${M("bash")}${S}${K("@file")} ${M("sisip file")}${S}${K("Ctrl+V")} ${M("paste gambar")}${S}${K("/welcome-off")} ${M("off")}`,
 		"",
 	];
 }
 
+// ── Count skills (safe fallback) ──────────────────────────────────────
+async function countSkills(): Promise<number> {
+	try {
+		const { readdirSync } = await import("node:fs");
+		const { join } = await import("node:path");
+		const skillsDir = join(import.meta.dirname ?? "", "..", "skills");
+		return readdirSync(skillsDir).filter(f => !f.startsWith(".") && !f.includes(".backup.")).length;
+	} catch {
+		return 108;
+	}
+}
+
+// ── Build header renderer ─────────────────────────────────────────────
+async function buildHeader(ctx: ExtensionContext) {
+	const skillCount = await countSkills();
+	return (_tui: never, theme: Theme) => ({
+		render(width: number): string[] {
+			return [
+				...logoLines(theme),
+				...statsRow(theme, ctx, skillCount),
+				...shortcuts(theme, width),
+			];
+		},
+		invalidate() {},
+	});
+}
+
+// ── Extension ─────────────────────────────────────────────────────────
 export default function (pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => {
 		if (ctx.mode !== "tui") return;
-
-		// Count active skills
-		let skillCount = 0;
-		try {
-			const { readdirSync } = await import("node:fs");
-			const { join } = await import("node:path");
-			const skillsDir = join(import.meta.dirname ?? "", "..", "skills");
-			skillCount = readdirSync(skillsDir).filter(f => !f.startsWith(".") && !f.includes(".backup.")).length;
-		} catch { skillCount = 92; }
-
-		ctx.ui.setHeader((_tui, theme) => ({
-			render(width: number): string[] {
-				return [
-					...garudaLines(theme),
-					...statsRow(theme, ctx, skillCount),
-					...shortcuts(theme, width),
-				];
-			},
-			invalidate() {},
-		}));
-
+		ctx.ui.setHeader(await buildHeader(ctx));
 		ctx.ui.setWidget("skills-overview", undefined);
 	});
 
@@ -107,34 +111,16 @@ export default function (pi: ExtensionAPI) {
 		description: "Restore pi's built-in header for this session",
 		handler: async (_args, ctx) => {
 			ctx.ui.setHeader(undefined);
-			ctx.ui.notify("Welcome screen disabled for this session", "info");
+			ctx.ui.notify("Welcome screen disabled", "info");
 		},
 	});
 
 	pi.registerCommand("welcome-on", {
-		description: "Re-enable the Garuda welcome header",
+		description: "Re-enable the welcome header",
 		handler: async (_args, ctx) => {
 			if (ctx.mode !== "tui") return;
-
-			let skillCount = 0;
-			try {
-				const { readdirSync } = await import("node:fs");
-				const { join } = await import("node:path");
-				const skillsDir = join(import.meta.dirname ?? "", "..", "skills");
-				skillCount = readdirSync(skillsDir).filter(f => !f.startsWith(".") && !f.includes(".backup.")).length;
-			} catch { skillCount = 92; }
-
-			ctx.ui.setHeader((_tui, theme) => ({
-				render(width: number): string[] {
-					return [
-						...garudaLines(theme),
-						...statsRow(theme, ctx, skillCount),
-						...shortcuts(theme, width),
-					];
-				},
-				invalidate() {},
-			}));
-			ctx.ui.notify("Garuda welcome screen enabled", "info");
+			ctx.ui.setHeader(await buildHeader(ctx));
+			ctx.ui.notify("Welcome screen enabled", "info");
 		},
 	});
 }
