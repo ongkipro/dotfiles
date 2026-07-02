@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+battery_macos() {
+  pmset -g batt 2>/dev/null | awk -F'; *' 'NR==2 {gsub(/^ /, "", $1); print $1}'
+}
+
+battery_linux_sysfs() {
+  local bat_dir
+  bat_dir="$(find /sys/class/power_supply -maxdepth 1 -type d -name 'BAT*' 2>/dev/null | head -n 1 || true)"
+  [ -n "$bat_dir" ] || return 1
+  local cap status
+  cap="$(cat "$bat_dir/capacity" 2>/dev/null || true)"
+  status="$(cat "$bat_dir/status" 2>/dev/null || true)"
+  [ -n "$cap" ] || return 1
+  if [ -n "$status" ]; then
+    printf '%s %s%%\n' "$status" "$cap"
+  else
+    printf '%s%%\n' "$cap"
+  fi
+}
+
+battery_linux_upower() {
+  command -v upower >/dev/null 2>&1 || return 1
+  local dev
+  dev="$(upower -e 2>/dev/null | grep -m1 battery || true)"
+  [ -n "$dev" ] || return 1
+  upower -i "$dev" 2>/dev/null | awk -F': *' '
+    /^  state/ {state=$2}
+    /^  percentage/ {pct=$2}
+    END {
+      if (pct != "") {
+        if (state != "") printf "%s %s\n", state, pct;
+        else print pct;
+      }
+    }
+  '
+}
+
+case "$(uname -s)" in
+  Darwin) battery_macos || true ;;
+  Linux) battery_linux_sysfs || battery_linux_upower || true ;;
+  *) true ;;
+esac

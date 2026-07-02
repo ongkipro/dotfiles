@@ -44,7 +44,7 @@ if [ "$OS" = "Linux" ] && ! have wl-copy && ! have xclip && ! have xsel; then
   fi
 fi
 
-# ── 3) Link config (tmux.conf) + helper (tmux-clip) ───────────────────────────
+# ── 3) Link config + helpers ─────────────────────────────────────────────────
 mkdir -p "$HOME/.local/bin"
 link_to_repo() {
   local src="$1" dst="$2"
@@ -54,8 +54,9 @@ link_to_repo() {
   fi
   ln -sfn "$src" "$dst"; say "link $dst -> $src"
 }
-link_to_repo "$DOT/config/tmux.conf" "$HOME/.tmux.conf"
-link_to_repo "$DOT/bin/tmux-clip"    "$HOME/.local/bin/tmux-clip"
+link_to_repo "$DOT/config/tmux.conf"  "$HOME/.tmux.conf"
+link_to_repo "$DOT/bin/tmux-clip"     "$HOME/.local/bin/tmux-clip"
+link_to_repo "$DOT/bin/tmux-battery"  "$HOME/.local/bin/tmux-battery"
 
 # ── 4) TPM (Tmux Plugin Manager) ──────────────────────────────────────────────
 TPM_DIR="$HOME/.tmux/plugins/tpm"
@@ -68,8 +69,9 @@ else
 fi
 
 # ── 5) Install/aktifkan plugin (non-interaktif) ───────────────────────────────
-say "Install plugin tmux (tmux-sensible, yank, resurrect, continuum, catppuccin)..."
+say "Install/update plugin tmux (sensible, yank, resurrect, continuum, prefix-highlight, open)..."
 "$TPM_DIR/bin/install_plugins" >/dev/null 2>&1 || true
+"$TPM_DIR/bin/clean_plugins"   >/dev/null 2>&1 || true
 
 # ── 6) Reload kalau ada server tmux yang jalan ────────────────────────────────
 if tmux info >/dev/null 2>&1; then

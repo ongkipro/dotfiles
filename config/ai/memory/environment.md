@@ -12,9 +12,9 @@
 - Git + delta diff pager + `~/.gitignore_global`.
 
 ## tmux (bagian wajib bootstrap dotfiles)
-- Setup tmux full di-handle `bin/tmux-setup` (idempotent, cross-platform): brew install tmux (macOS) + pbcopy (bawaan macOS) + link `~/.tmux.conf` & `~/.local/bin/tmux-clip` + clone TPM + install plugin.
-- Dipanggil otomatis dari `install-macos.sh`. Bisa juga dijalankan manual: `tmux-setup`.
-- Prefix `Ctrl+a`. Plugin: tmux-sensible, tmux-yank, resurrect, continuum, catppuccin (mocha), vim-tmux-navigator. Clipboard via `bin/tmux-clip`. Reload: prefix+r. Update plugin: prefix+I.
+- Setup tmux full di-handle `bin/tmux-setup` (idempotent, cross-platform): install binary (apt/dnf/pacman/zypper di Linux, brew di macOS) + clipboard tool (wl-clipboard/xclip di Linux; pbcopy bawaan macOS) + link `~/.tmux.conf`, `~/.local/bin/tmux-clip`, dan `~/.local/bin/tmux-battery` + clone TPM + install/clean plugin.
+- Dipanggil otomatis dari `install.sh` dan `install-macos.sh`. Bisa juga dijalankan manual: `tmux-setup`.
+- Prefix `Ctrl+a`. Theme: plain-font friendly Catppuccin-inspired palette (tanpa ketergantungan Nerd Font). Plugin: tmux-sensible, tmux-yank, resurrect, continuum, prefix-highlight, tmux-open. Clipboard via `bin/tmux-clip`, battery/status helper via `bin/tmux-battery`. Reload: prefix+r. Update plugin: prefix+U / install plugin baru: prefix+I. Save session: prefix+S. Restore: prefix+R.
 
 ## Cara install (kapan sudo)
 - CLI / runtime → `mise use -g <nama>` (no sudo); update `mise up`; hapus `mise rm <nama>`.

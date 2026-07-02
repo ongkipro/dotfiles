@@ -40,7 +40,7 @@
 ```
 AI CLIs   →  Claude Code · Pi.dev · Codex · Gemini · Antigravity
 Editor    →  Helix (hx)
-Terminal  →  tmux · starship · zsh/bash
+Terminal  →  tmux (Ctrl+a, resurrect/continuum/yank/open) · starship · zsh/bash
 Git       →  lazygit (lg) · delta (diff) · gh (GitHub CLI)
 Tools     →  rg · fd · eza · bat · fzf · zoxide · yq · direnv
 Runtime   →  mise (Node/Python/Go) · nvm (lazy) · pnpm · pipx
@@ -113,7 +113,10 @@ dotfiles/
 │   ├── dotsync                # Semi-auto sync lintas Linux/macOS
 │   ├── dotpush                # Fast-path manual commit + push
 │   ├── pi-9router-restore     # Restore pi + compact-free + 9router.service
-│   └── akun                   # Claude account switcher
+│   ├── akun                   # Claude account switcher
+│   ├── tmux-setup             # Install + link + TPM/plugin bootstrap (Linux/macOS)
+│   ├── tmux-clip              # Cross-platform clipboard bridge for tmux
+│   └── tmux-battery           # Cross-platform battery helper for tmux status bar
 │
 ├── 📂 docs/
 │   ├── ai-memory-sync.md      # Shared memory + sync flow Linux/macOS

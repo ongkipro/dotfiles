@@ -28,6 +28,6 @@ Ubuntu 26.04, bash, terminal-first AI CLI workflow (claude/pi/codex via nvm node
 
 **Terminal polish:** NO Nerd Font — user found Nerd Font caused letter-spread/spacing in their terminal; reverted ptyxis + VSCode to default Monospace and removed the font. `~/.config/starship.toml` is **plain mode** (text symbols only, no glyphs: dir + git branch/status + cmd_duration; node/python disabled). `~/.ripgreprc` (smart-case, hidden, exclude .git) via `RIPGREP_CONFIG_PATH`. bashrc block sets FZF (fd source + bat/eza preview), aliases (g, lg=lazygit, ll/la eza WITHOUT --icons, ../...), funcs (mkcd, ff, fkill), BAT_THEME=ansi, EDITOR=code. **Don't reintroduce Nerd-Font icons unless user asks — they prefer plain/no-icon.**
 
-**tmux:** already fully configured by user — `~/.tmux.conf` (158 lines) + TPM + plugins (sensible/resurrect/continuum/yank). Don't touch unless asked.
+**tmux:** fully managed from `~/dotfiles/config/tmux.conf` + `bin/tmux-setup` + TPM. Current stack: prefix `Ctrl+a`, plain-font-friendly Catppuccin-inspired theme, plugins `tmux-sensible`, `tmux-yank`, `tmux-resurrect`, `tmux-continuum`, `tmux-prefix-highlight`, `tmux-open`, helpers `tmux-clip` + `tmux-battery`. Keep cross-platform (Linux/macOS) compatibility.
 
 If recommending a CLI tool, prefer `mise use -g <tool>` (no sudo) over apt. See [[pi-9router-setup]] for the pi/9router side.

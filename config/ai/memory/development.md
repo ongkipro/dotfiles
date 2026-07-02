@@ -19,6 +19,7 @@
 ### Admin/client dashboards
 - Preferred: Next.js + React + TypeScript + Tailwind + shadcn/ui.
 - Good for: super admin, client portal, SaaS dashboard, forms, auth, data-heavy UI.
+- For multi-report dashboards: use a central data registry (index.ts mapping slugs → data modules) and props-based reusable report components.
 - Keep public SEO frontend separate when needed.
 
 ### Shopify
