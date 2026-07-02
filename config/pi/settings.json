@@ -17,7 +17,6 @@
   ],
   "skills": [
     "/Users/feriromansyah/.pi/agent/skills",
-    "/Users/feriromansyah/.gemini/config/skills",
     "/Users/feriromansyah/.pi/agent/vendor/Shopify-AI-Toolkit/skills"
   ]
 }
