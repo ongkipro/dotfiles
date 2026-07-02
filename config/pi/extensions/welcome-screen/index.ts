@@ -1,8 +1,7 @@
 /**
- * Welcome Screen Extension — $ Logo
+ * Welcome Screen Extension — Bismillah Opening
  *
- * Compact welcome header for pi.dev.
- * Shows model, session, skill count, shortcuts.
+ * Opening header for pi.dev: Bismillah, salam, model info, shortcuts.
  * Hot-reload safe: ~/.pi/agent/extensions/welcome-screen.ts
  */
 
@@ -17,30 +16,45 @@ function bold(theme: Theme, text: string): string {
 	try { return theme.bold(text); } catch { return text; }
 }
 
-// ── $1B Logo (besar) ──────────────────────────────────────────────────
-function logoLines(theme: Theme): string[] {
+// ── Bismillah Opening ─────────────────────────────────────────────────
+function bismillah(theme: Theme): string[] {
 	const G = (t: string) => paint(theme, "accent", t);
 	const D = (t: string) => paint(theme, "dim", t);
+	const M = (t: string) => paint(theme, "muted", t);
 
 	return [
 		"",
-		`${G("   ▄████████████████████▄   ")}`,
-		`${G("   ██                  ██   ")}`,
-		`${G("   ██")}${D("  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄  ")}${G("██   ")}`,
-		`${G("   ██")}${D("  █▌──────────▐█  ")}${G("██   ")}`,
-		`${G("   ██")}${D("  █▌")}${G("   ╔═══╗   ")}${D("▐█  ")}${G("██   ")}`,
-		`${G("   ██")}${D("  █▌")}${G("   ║ \$ ║   ")}${D("▐█  ")}${G("██   ")}  ${D("— exp —")}`,
-		`${G("   ██")}${D("  █▌")}${G("   ║1B ║   ")}${D("▐█  ")}${G("██   ")}`,
-		`${G("   ██")}${D("  █▌")}${G("   ╚═══╝   ")}${D("▐█  ")}${G("██   ")}`,
-		`${G("   ██")}${D("  █▌──────────▐█  ")}${G("██   ")}`,
-		`${G("   ██")}${D("  ▀▀▀▀▀▀▀▀▀▀▀▀▀▀  ")}${G("██   ")}`,
-		`${G("   ██                  ██   ")}`,
-		`${G("   ▀████████████████████▀   ")}`,
+		`${G("  بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ")}    ${D("Bismillāhi r-raḥmāni r-raḥīm")}`,
+		`${D("  ─────────────────────────────────────────────────────────")}`,
+		`${M("  Dengan nama Allah Yang Maha Pengasih, Maha Penyayang.")}`,
 		"",
 	];
 }
 
-// ── Stats row: model · session · skills · version ────────────────────
+// ── Salam ─────────────────────────────────────────────────────────────
+function salam(theme: Theme): string[] {
+	const G = (t: string) => paint(theme, "accent", t);
+	const T = (t: string) => paint(theme, "text", t);
+	const D = (t: string) => paint(theme, "dim", t);
+
+	return [
+		`  ${G("ٱلسَّلَامُ عَلَيْكُمْ")}  ${D("—")}  ${T("Assalamu'alaikum, Paduka Ongki.")}`,
+		"",
+	];
+}
+
+// ── Dzikir / Pengingat ────────────────────────────────────────────────
+function dzikir(theme: Theme): string[] {
+	const D = (t: string) => paint(theme, "dim", t);
+	const M = (t: string) => paint(theme, "muted", t);
+
+	return [
+		`  ${D("لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِٱللَّهِ")}  ${M("— Tiada daya & kekuatan kecuali dengan Allah.")}`,
+		"",
+	];
+}
+
+// ── Stats: model · session · skills · version ─────────────────────────
 function statsRow(theme: Theme, ctx: ExtensionContext, skillCount: number): string[] {
 	const A = (t: string) => paint(theme, "accent", t);
 	const D = (t: string) => paint(theme, "dim", t);
@@ -53,6 +67,18 @@ function statsRow(theme: Theme, ctx: ExtensionContext, skillCount: number): stri
 	return [
 		`  ${A("◆")} ${T(model)}`,
 		`  ${D("◈")} ${M("session")} ${T(leaf)}  ${D("◈")} ${M("skills")} ${T(`${skillCount}`)}  ${D("◈")} ${M("pi")} ${T(`v${VERSION}`)}`,
+		"",
+	];
+}
+
+// ── Prinsip Kerja ─────────────────────────────────────────────────────
+function prinsip(theme: Theme): string[] {
+	const A = (t: string) => paint(theme, "accent", t);
+	const M = (t: string) => paint(theme, "muted", t);
+
+	return [
+		`  ${A("▸")} ${M("bismillah")}    ${A("▸")} ${M("presisi")}    ${A("▸")} ${M("tenang")}    ${A("▸")} ${M("tawakal")}`,
+		"",
 	];
 }
 
@@ -64,22 +90,18 @@ function shortcuts(theme: Theme, width: number): string[] {
 
 	if (width < 80) {
 		return [
-			"",
 			`  ${K("/model")}${M("model")}${S}${K("/new")}${M("baru")}${S}${K("/skills")}${M("skill")}${S}${K("!cmd")}${M("bash")}`,
-			"",
 		];
 	}
 
 	return [
-		"",
 		`  ${K("/model")} ${M("ganti model")}${S}${K("Ctrl+L")} ${M("picker")}${S}${K("Shift+Tab")} ${M("thinking")}${S}${K("/skills")} ${M("list skill")}`,
 		`  ${K("/new")} ${M("sesi baru")}${S}${K("/resume")} ${M("lanjut")}${S}${K("/tree")} ${M("history")}${S}${K("Esc Esc")} ${M("navigasi")}`,
 		`  ${K("!cmd")} ${M("bash")}${S}${K("@file")} ${M("sisip file")}${S}${K("Ctrl+V")} ${M("paste gambar")}${S}${K("/welcome-off")} ${M("off")}`,
-		"",
 	];
 }
 
-// ── Count skills (safe fallback) ──────────────────────────────────────
+// ── Count skills ──────────────────────────────────────────────────────
 async function countSkills(): Promise<number> {
 	try {
 		const { readdirSync } = await import("node:fs");
@@ -97,8 +119,11 @@ async function buildHeader(ctx: ExtensionContext) {
 	return (_tui: never, theme: Theme) => ({
 		render(width: number): string[] {
 			return [
-				...logoLines(theme),
+				...bismillah(theme),
+				...salam(theme),
+				...dzikir(theme),
 				...statsRow(theme, ctx, skillCount),
+				...prinsip(theme),
 				...shortcuts(theme, width),
 			];
 		},
