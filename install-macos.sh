@@ -34,7 +34,7 @@ link "$DOT/bin/ai-memory-link"           "$HOME/.local/bin/ai-memory-link"
 link "$DOT/bin/dotsync"                  "$HOME/.local/bin/dotsync"
 link "$DOT/bin/dotpush"                  "$HOME/.local/bin/dotpush"
 link "$DOT/bin/project-init"             "$HOME/.local/bin/project-init"
-for s in akun claude-kerja claude-personal tmux-clip tmux-setup security-check; do
+for s in akun claude-kerja claude-personal tmux-clip tmux-setup tmux-battery security-check 9router-start; do
   [ -e "$DOT/bin/$s" ] && link "$DOT/bin/$s" "$HOME/.local/bin/$s"
 done
 
@@ -70,7 +70,15 @@ for tool in $MISE_TOOLS; do
   fi
 done
 
-say "==> Setup git config (bila belum ada)..."
+say "==> Setup 9router (AI gateway for pi.dev)..."
+if command -v 9router >/dev/null 2>&1; then
+  say "   9router sudah ada: $(9router --version 2>&1 | head -1)"
+else
+  say "   Install 9router via npm..."
+  npm i -g 9router && say "   9router ✓ terinstall"
+fi
+# Restore pi settings + 9router launchd service
+"$DOT/bin/pi-9router-restore"
 if [ ! -f "$HOME/.gitconfig" ]; then
   cat > "$HOME/.gitconfig" <<GITEOF
 [user]

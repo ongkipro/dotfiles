@@ -31,12 +31,17 @@
 - System tools macOS → `brew install <nama>`.
 - `sudo` HANYA untuk file sistem (jarang dibutuhkan).
 
-## pi.dev
-- macOS: pi pakai provider `opencode-go`, default model `deepseek-v4-pro`. Settings di `~/.pi/agent/settings.json`.
-- Linux: pi route lewat 9router lokal (`http://localhost:20128/v1`), provider `9router`.
-- AGENTS.md di-load via symlink ke semua CLI. Memori bersama di `~/.config/ai/` (AGENTS.md + memory/*.md).
+## pi.dev + 9router (AI Gateway)
+- **Linux & macOS**: pi route lewat 9router lokal (`http://127.0.0.1:20128/v1`), provider `9router`, model default `ocg/deepseek-v4-pro`.
+- Settings pi di `~/.pi/agent/settings.json`. Source of truth di `dotfiles/config/pi/settings.json`.
+- 9router = OpenAI-compatible gateway lokal. Pi adalah **satu-satunya CLI** yang pakai 9router.
+- Claude Code, Codex, AGY = TIDAK BOLEH pakai 9router; masing-masing pakai native API sendiri.
+- macOS: 9router jalan sebagai background process (via `tmux` session atau launchd). Tidak ada systemd.
+- Linux: 9router jalan via systemd user service (`systemctl --user`).
 - Pi wrapper di shell rc auto-load AGENTS.md via `--append-system-prompt` flag.
+- Extension `compact-free`: compaction pi pakai model gratis via 9router (hemat limit model utama).
 - Claude account launcher: `claude` dan `claude-personal` → `akun personal`; `claude-kerja` → `akun kerja`.
+- AGENTS.md di-load via symlink ke semua CLI. Memori bersama di `~/.config/ai/` (AGENTS.md + memory/*.md).
 
 ## Folder structure
 ```

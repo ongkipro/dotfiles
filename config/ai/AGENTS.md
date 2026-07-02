@@ -8,6 +8,30 @@
 - Editor terminal: helix (`hx`). Git: lazygit (`lg`). Tool native: rg/fd/eza/bat. JANGAN dorong VSCode.
 - Preview web: dev server di terminal + buka Chromium ke localhost.
 
+## AI CLI Connection Map
+```
+┌──────────┐    Native API    ┌──────────┐
+│  Claude  │ ───────────────→ │ Anthropic │
+└──────────┘                  └──────────┘
+┌──────────┐    Native API    ┌──────────┐
+│  Codex   │ ───────────────→ │ OpenAI    │
+└──────────┘                  └──────────┘
+┌──────────┐    Native API    ┌──────────┐
+│  AGY     │ ───────────────→ │ Gemini    │
+└──────────┘                  └──────────┘
+┌──────────┐  9router (local) ┌──────────┐   upstream  ┌──────────────┐
+│  pi.dev  │ ───────────────→ │ 9router  │ ──────────→ │ multi-provider│
+│          │ 127.0.0.1:20128  │ gateway  │  fallback   │ (OCG/Codex/   │
+└──────────┘                  └──────────┘             │  MiniMax/...) │
+                                                       └──────────────┘
+```
+- **pi.dev** = satu-satunya CLI yang route lewat 9router (OpenAI-compatible gateway lokal).
+- **Claude Code** = native Anthropic API (akun personal/kerja via wrapper `claude`/`claude-kerja`).
+- **Codex** = native OpenAI API.
+- **AGY (Antigravity)** = native Gemini API.
+- **9router TIDAK BOLEH** dipakai sebagai provider oleh Claude Code, Codex, atau AGY.
+- Semua CLI baca AGENTS.md yang sama via symlink. Semua skill di-share via `skill-update`.
+
 ## Memori — BACA & TULIS sendiri
 Detail & fakta tersimpan terpisah di `~/.config/ai/memory/`:
 - `identity.md` — identitas & profil
