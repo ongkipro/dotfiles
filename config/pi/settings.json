@@ -1,12 +1,6 @@
 {
   "lastChangelogVersion": "0.80.3",
-<<<<<<< Updated upstream
-  "defaultProvider": "9router-fantastico",
-||||||| Stash base
   "defaultProvider": "9router",
-=======
-  "defaultProvider": "rbq97ts",
->>>>>>> Stashed changes
   "defaultModel": "ocg/deepseek-v4-pro",
   "defaultThinkingLevel": "medium",
   "theme": "garuda-gold",
