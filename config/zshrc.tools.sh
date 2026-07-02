@@ -1,3 +1,7 @@
+# PATH: local bin + agents bin
+[[ ":$PATH:" != *":$HOME/.local/bin:"* ]] && export PATH="$HOME/.local/bin:$PATH"
+[[ ":$PATH:" != *":$HOME/.agents/bin:"* ]] && export PATH="$HOME/.agents/bin:$PATH"
+
 # mise: tool manager user-local (no sudo)
 if command -v mise >/dev/null; then
   export PATH="$HOME/.local/share/mise/shims:$PATH"

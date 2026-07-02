@@ -51,9 +51,30 @@ say "==> Link AGENTS.md ke CLI yang ada..."
 say "==> Setup tmux (install binary + clipboard + TPM + plugin)..."
 "$DOT/bin/tmux-setup"
 
+say "==> Install mise (tool manager)..."
+if command -v mise >/dev/null 2>&1; then
+  say "   mise sudah ada: $(mise --version 2>&1 | head -1)"
+else
+  curl -fsSL https://mise.run | sh
+fi
+eval "$($HOME/.local/bin/mise activate bash 2>/dev/null || $HOME/.local/bin/mise activate zsh 2>/dev/null || true)"
+
+say "==> Install essential tools via mise..."
+MISE_TOOLS="starship direnv lazygit helix"
+for tool in $MISE_TOOLS; do
+  if mise which "$tool" >/dev/null 2>&1; then
+    say "   $tool sudah ada"
+  else
+    mise use -g "$tool" && say "   $tool ✓ terinstall"
+  fi
+done
+
 say "==> Patch ~/.zshrc dan ~/.bashrc (tanpa overwrite total)..."
+ensure_line 'eval "$(/Users/ongki/.local/bin/mise activate zsh)"' "$HOME/.zshrc"
 ensure_line 'source "$HOME/dotfiles/config/zshrc.tools.sh"' "$HOME/.zshrc"
 ensure_line 'source "$HOME/dotfiles/config/bashrc.tools.sh"' "$HOME/.bashrc"
+# Pastikan ~/.local/bin dan ~/.agents/bin ada di PATH
+ensure_line 'export PATH="$HOME/.local/bin:$HOME/.agents/bin:$PATH"' "$HOME/.zshrc"
 
 cat <<'EOF'
 

@@ -1,5 +1,10 @@
 # ⚠️ DEPRECATED — gunakan config/shell-tools.sh (cross-platform bash+zsh, Ubuntu+macOS)
 # File ini dipertahankan untuk backward compatibility saja.
+
+# PATH: local bin + agents bin
+[[ ":$PATH:" != *":$HOME/.local/bin:"* ]] && export PATH="$HOME/.local/bin:$PATH"
+[[ ":$PATH:" != *":$HOME/.agents/bin:"* ]] && export PATH="$HOME/.agents/bin:$PATH"
+
 # mise: tool manager user-local (no sudo)
 if command -v mise >/dev/null; then
   export PATH="$HOME/.local/share/mise/shims:$PATH"  # tool kebaca di script / non-interaktif (VSCode task, bash -c)
