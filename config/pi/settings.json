@@ -14,5 +14,10 @@
     "../extensions/compact-free",
     "npm:pi-web-access",
     "npm:pi-agent-browser-native"
+  ],
+  "skills": [
+    "/Users/feriromansyah/.pi/agent/skills",
+    "/Users/feriromansyah/.gemini/config/skills",
+    "/Users/feriromansyah/.pi/agent/vendor/Shopify-AI-Toolkit/skills"
   ]
 }
