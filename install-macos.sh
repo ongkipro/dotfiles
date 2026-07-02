@@ -69,8 +69,32 @@ for tool in $MISE_TOOLS; do
   fi
 done
 
+say "==> Setup git config (bila belum ada)..."
+if [ ! -f "$HOME/.gitconfig" ]; then
+  cat > "$HOME/.gitconfig" <<GITEOF
+[user]
+    name = Ongki Pro
+    email = get@ongki.pro
+[core]
+    excludesfile = $DOT/config/gitignore_global
+    autocrlf = input
+[init]
+    defaultBranch = main
+[push]
+    autoSetupRemote = true
+[pull]
+    rebase = true
+[color]
+    ui = auto
+GITEOF
+  say "   ~/.gitconfig dibuat"
+else
+  say "   ~/.gitconfig sudah ada — pastikan excludesfile = $DOT/config/gitignore_global"
+fi
+
 say "==> Patch ~/.zshrc dan ~/.bashrc (tanpa overwrite total)..."
-ensure_line 'eval "$(/Users/ongki/.local/bin/mise activate zsh)"' "$HOME/.zshrc"
+# Gunakan single-quote agar $HOME tetap dinamis di .zshrc (portabel antar user/mesin)
+ensure_line 'eval "$($HOME/.local/bin/mise activate zsh)"' "$HOME/.zshrc"
 ensure_line 'source "$HOME/dotfiles/config/zshrc.tools.sh"' "$HOME/.zshrc"
 ensure_line 'source "$HOME/dotfiles/config/bashrc.tools.sh"' "$HOME/.bashrc"
 # Pastikan ~/.local/bin dan ~/.agents/bin ada di PATH

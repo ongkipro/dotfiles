@@ -2,7 +2,31 @@
 set -euo pipefail
 
 battery_macos() {
-  pmset -g batt 2>/dev/null | awk -F'; *' 'NR==2 {gsub(/^ /, "", $1); print $1}'
+  # Output: "🔋 85%" (discharging) / "⚡ 80%" (charging) / "🔌 100%" (charged)
+  local batt_info pct status
+  batt_info="$(pmset -g batt 2>/dev/null)"
+  [ -z "$batt_info" ] && return
+
+  # Cek AC vs Battery
+  if echo "$batt_info" | grep -q "Now drawing from 'AC Power'"; then
+    # Sedang charging atau full
+    pct="$(echo "$batt_info" | grep -oE '[0-9]+%' | head -1)"
+    if echo "$batt_info" | grep -q 'charging'; then
+      printf '⚡ %s' "$pct"
+    else
+      printf '🔌 %s' "$pct"
+    fi
+  else
+    # Battery power
+    pct="$(echo "$batt_info" | grep -oE '[0-9]+%' | head -1)"
+    # Estimasi waktu
+    local remaining="$(echo "$batt_info" | grep -oE '[0-9]+:[0-9]+ remaining' | head -1)"
+    if [ -n "$remaining" ]; then
+      printf '🔋 %s (%s)' "$pct" "${remaining% remaining}"
+    else
+      printf '🔋 %s' "$pct"
+    fi
+  fi
 }
 
 battery_linux_sysfs() {
