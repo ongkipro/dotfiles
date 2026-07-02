@@ -34,3 +34,4 @@
 - codex DILEPAS dari 9router (29 Jun 2026): `model_provider`/blok `[model_providers.9router]` di `~/.codex/config.toml` di-comment; codex balik ke OpenAI native (punya OPENAI_API_KEY + login ChatGPT di ~/.codex/auth.json). Uncomment utk pulihkan.
 - Claude Code TIDAK boleh lewat 9router: jalankan `claude` biasa (jangan via launcher/menu 9router yg menyuntik proxy+CA per-proses). Tak ada env/proxy global — kebocoran hanya jika diluncurkan lewat 9router. Model `cc/claude-*` yg muncul di selector = MITM 9router & tak punya rute upstream (error "may not exist").
 - gemini sudah bersih (tak pernah nunjuk 9router).
+- Pi global extension `~/.pi/agent/extensions/welcome-screen.ts` customises the TUI header with a Garuda welcome screen; use `theme.fg(color, text)` (not curried) when editing pi TUI themes/extensions.
