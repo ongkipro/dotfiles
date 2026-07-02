@@ -1,20 +1,101 @@
 {
-  "_comment": "Template models.json — ganti baseUrl sesuai 9router instance aktif. API key di auth.json.",
+  "_comment": "Template models.json \u2014 ganti baseUrl sesuai 9router instance aktif. API key di auth.json.",
   "providers": {
-    "9router": {
+    "9router-fantastico": {
       "baseUrl": "https://YOUR_TUNNEL.abc-tunnel.us/v1",
       "api": "openai-completions",
       "name": "9Router Tunnel",
       "models": [
-        { "id": "ocg/deepseek-v4-pro",  "name": "DeepSeek V4 Pro",  "contextWindow": 1000000, "maxTokens": 384000, "reasoning": true, "input": ["text"] },
-        { "id": "ocg/deepseek-v4-flash", "name": "DeepSeek V4 Flash", "contextWindow": 1000000, "maxTokens": 384000, "reasoning": true, "input": ["text"] },
-        { "id": "ocg/glm-5.2",           "name": "GLM 5.2",           "contextWindow": 1000000, "maxTokens": 131000, "reasoning": true, "input": ["text"] },
-        { "id": "ocg/qwen3.7-max",       "name": "Qwen 3.7 Max",      "contextWindow": 1000000, "maxTokens": 65536,  "reasoning": true, "input": ["text"] },
-        { "id": "ocg/minimax-m3",        "name": "MiniMax M3",         "contextWindow": 1000000, "maxTokens": 131000, "reasoning": true, "input": ["text"] },
-        { "id": "ocg/kimi-k2.7-code",    "name": "Kimi K2.7 Code",     "contextWindow": 262000, "maxTokens": 262000, "reasoning": true, "input": ["text"] },
-        { "id": "minimax/MiniMax-M2.5",   "name": "MiniMax M2.5",       "contextWindow": 1000000, "maxTokens": 384000, "reasoning": true, "input": ["text"] },
-        { "id": "cx/gpt-5.4-mini",       "name": "GPT 5.4 Mini (Codex)","contextWindow": 200000, "maxTokens": 128000, "reasoning": true, "input": ["text"] },
-        { "id": "cx/gpt-5.4",            "name": "GPT 5.4 (Codex)",     "contextWindow": 200000, "maxTokens": 128000, "reasoning": true, "input": ["text"] }
+        {
+          "id": "ocg/deepseek-v4-pro",
+          "name": "DeepSeek V4 Pro",
+          "contextWindow": 1000000,
+          "maxTokens": 384000,
+          "reasoning": true,
+          "input": [
+            "text"
+          ]
+        },
+        {
+          "id": "ocg/deepseek-v4-flash",
+          "name": "DeepSeek V4 Flash",
+          "contextWindow": 1000000,
+          "maxTokens": 384000,
+          "reasoning": true,
+          "input": [
+            "text"
+          ]
+        },
+        {
+          "id": "ocg/glm-5.2",
+          "name": "GLM 5.2",
+          "contextWindow": 1000000,
+          "maxTokens": 131000,
+          "reasoning": true,
+          "input": [
+            "text"
+          ]
+        },
+        {
+          "id": "ocg/qwen3.7-max",
+          "name": "Qwen 3.7 Max",
+          "contextWindow": 1000000,
+          "maxTokens": 65536,
+          "reasoning": true,
+          "input": [
+            "text"
+          ]
+        },
+        {
+          "id": "ocg/minimax-m3",
+          "name": "MiniMax M3",
+          "contextWindow": 1000000,
+          "maxTokens": 131000,
+          "reasoning": true,
+          "input": [
+            "text"
+          ]
+        },
+        {
+          "id": "ocg/kimi-k2.7-code",
+          "name": "Kimi K2.7 Code",
+          "contextWindow": 262000,
+          "maxTokens": 262000,
+          "reasoning": true,
+          "input": [
+            "text"
+          ]
+        },
+        {
+          "id": "minimax/MiniMax-M2.5",
+          "name": "MiniMax M2.5",
+          "contextWindow": 1000000,
+          "maxTokens": 384000,
+          "reasoning": true,
+          "input": [
+            "text"
+          ]
+        },
+        {
+          "id": "cx/gpt-5.4-mini",
+          "name": "GPT 5.4 Mini (Codex)",
+          "contextWindow": 200000,
+          "maxTokens": 128000,
+          "reasoning": true,
+          "input": [
+            "text"
+          ]
+        },
+        {
+          "id": "cx/gpt-5.4",
+          "name": "GPT 5.4 (Codex)",
+          "contextWindow": 200000,
+          "maxTokens": 128000,
+          "reasoning": true,
+          "input": [
+            "text"
+          ]
+        }
       ]
     }
   }

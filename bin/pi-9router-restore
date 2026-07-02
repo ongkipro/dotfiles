@@ -38,14 +38,14 @@ fi
 # ── 1.6) Ensure 9router entry in auth.json (needed for pi to show 9router models) ──
 AUTH_FILE="$PI_AGENT_DIR/auth.json"
 if [ -f "$AUTH_FILE" ]; then
-  if ! grep -q '"9router"' "$AUTH_FILE" 2>/dev/null; then
+  if ! grep -q '"9router-fantastico"' "$AUTH_FILE" 2>/dev/null; then
     say "Menambahkan 9router ke auth.json (localhost trust)..."
     python3 -c "
 import json
 with open('$AUTH_FILE') as f:
     auth = json.load(f)
-if '9router' not in auth:
-    auth['9router'] = {'type': 'api_key', 'key': '9router-local'}
+if '9router-fantastico' not in auth:
+    auth['9router-fantastico'] = {'type': 'api_key', 'key': '9router-local'}
     with open('$AUTH_FILE', 'w') as f:
         json.dump(auth, f, indent=2)
     print('✓ 9router entry added')

@@ -22,9 +22,9 @@ import { convertToLlm, serializeConversation } from "@earendil-works/pi-coding-a
 
 // Daftar model compaction, dicoba berurutan
 const COMPACT_MODELS = [
-  { provider: "9router", id: "oc/deepseek-v4-flash-free" },
-  { provider: "9router", id: "minimax/MiniMax-M2.5" },
-  { provider: "9router", id: "cx/gpt-5.4-mini" },
+  { provider: "9router-fantastico", id: "oc/deepseek-v4-flash-free" },
+  { provider: "9router-fantastico", id: "minimax/MiniMax-M2.5" },
+  { provider: "9router-fantastico", id: "cx/gpt-5.4-mini" },
 ];
 
 const LOG_PATH = join(homedir(), ".pi", "compact-free.log");

@@ -1,6 +1,6 @@
 {
   "lastChangelogVersion": "0.80.3",
-  "defaultProvider": "9router",
+  "defaultProvider": "9router-fantastico",
   "defaultModel": "ocg/deepseek-v4-pro",
   "defaultThinkingLevel": "medium",
   "theme": "garuda-gold",
