@@ -27,14 +27,13 @@ Semua project development: web app, SaaS, Shopify, bot, dll.
 ### `~/Documents/` — Dokumen
 Hanya file dokumentasi, bukan source code:
 
-| Folder | Isi |
-|---|---|
-| `prd/` | PRD, task breakdown, planning |
-| `catatan/` | Draft, ide, catatan bebas |
-| `riset/` | Market research, SEO, kompetitor |
-| `konten/` | Copywriting, blog, ads, script |
-| `memori ai/` | AI memory system |
+```
+olah/           ← semua dokumen kerja
+  ├── prd/        PRD, task, planning
+  ├── catatan/    Draft, ide, catatan
+  ├── riset/      Research, SEO, kompetitor
+  └── konten/     Copywriting, blog, ads
+memori ai/      ← AI memory
+```
 
 **Nama file:** `YYYY-MM-DD - judul.md`
-
-> Mulai 2 Juli 2026. Simple, flat, gak banyak nested folder.
