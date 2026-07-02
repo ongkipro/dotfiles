@@ -1,10 +1,10 @@
 {
-  "_comment": "Template models.json \u2014 ganti baseUrl sesuai 9router instance aktif. API key di auth.json.",
+  "_comment": "Template models.json \u2014 9router-fantastico (tunnel) + 9router (lokal). Ganti baseUrl & API key di auth.json.",
   "providers": {
     "9router-fantastico": {
       "baseUrl": "https://YOUR_TUNNEL.abc-tunnel.us/v1",
       "api": "openai-completions",
-      "name": "9Router Tunnel",
+      "name": "9Router Fantastico",
       "models": [
         {
           "id": "ocg/deepseek-v4-pro",
@@ -78,7 +78,7 @@
         },
         {
           "id": "cx/gpt-5.4-mini",
-          "name": "GPT 5.4 Mini (Codex)",
+          "name": "GPT 5.4 Mini",
           "contextWindow": 200000,
           "maxTokens": 128000,
           "reasoning": true,
@@ -88,7 +88,74 @@
         },
         {
           "id": "cx/gpt-5.4",
-          "name": "GPT 5.4 (Codex)",
+          "name": "GPT 5.4",
+          "contextWindow": 200000,
+          "maxTokens": 128000,
+          "reasoning": true,
+          "input": [
+            "text"
+          ]
+        }
+      ]
+    },
+    "9router": {
+      "baseUrl": "http://127.0.0.1:20128/v1",
+      "api": "openai-completions",
+      "name": "9Router Lokal",
+      "models": [
+        {
+          "id": "opencode-go/deepseek-v4-pro",
+          "name": "DeepSeek V4 Pro",
+          "contextWindow": 1000000,
+          "maxTokens": 384000,
+          "reasoning": true,
+          "input": [
+            "text"
+          ]
+        },
+        {
+          "id": "opencode-go/deepseek-v4-flash",
+          "name": "DeepSeek V4 Flash",
+          "contextWindow": 1000000,
+          "maxTokens": 384000,
+          "reasoning": true,
+          "input": [
+            "text"
+          ]
+        },
+        {
+          "id": "oc/deepseek-v4-flash-free",
+          "name": "DeepSeek V4 Flash Free",
+          "contextWindow": 1000000,
+          "maxTokens": 384000,
+          "reasoning": true,
+          "input": [
+            "text"
+          ]
+        },
+        {
+          "id": "deepseek/deepseek-v4-pro",
+          "name": "DeepSeek V4 Pro (native)",
+          "contextWindow": 1000000,
+          "maxTokens": 384000,
+          "reasoning": true,
+          "input": [
+            "text"
+          ]
+        },
+        {
+          "id": "anthropic/claude-sonnet-4-20250514",
+          "name": "Claude Sonnet 4",
+          "contextWindow": 200000,
+          "maxTokens": 64000,
+          "reasoning": true,
+          "input": [
+            "text"
+          ]
+        },
+        {
+          "id": "openai/gpt-5.4",
+          "name": "GPT 5.4",
           "contextWindow": 200000,
           "maxTokens": 128000,
           "reasoning": true,
