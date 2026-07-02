@@ -1,4 +1,6 @@
-# Helix language servers — Python pakai pyright (autocomplete/hover/go-to-def) + ruff (lint/format)
+# Helix language servers — auto-detected from PATH + explicit config
+# Run `hx --health` to check LSP status
+
 [language-server.pyright]
 command = "pyright-langserver"
 args = ["--stdio"]
@@ -7,6 +9,56 @@ args = ["--stdio"]
 command = "ruff"
 args = ["server"]
 
+[language-server.typescript]
+command = "typescript-language-server"
+args = ["--stdio"]
+
+[language-server.tailwindcss]
+command = "tailwindcss-language-server"
+args = ["--stdio"]
+
+[language-server.yaml]
+command = "yaml-language-server"
+args = ["--stdio"]
+
+[language-server.bash]
+command = "bash-language-server"
+args = ["start"]
+
+# --- Languages ---
+
 [[language]]
 name = "python"
 language-servers = ["pyright", "ruff"]
+
+[[language]]
+name = "typescript"
+language-servers = ["typescript", "tailwindcss"]
+
+[[language]]
+name = "tsx"
+language-servers = ["typescript", "tailwindcss"]
+
+[[language]]
+name = "javascript"
+language-servers = ["typescript", "tailwindcss"]
+
+[[language]]
+name = "json"
+language-servers = ["typescript"]
+
+[[language]]
+name = "html"
+language-servers = ["typescript", "tailwindcss"]
+
+[[language]]
+name = "css"
+language-servers = ["typescript", "tailwindcss"]
+
+[[language]]
+name = "yaml"
+language-servers = ["yaml"]
+
+[[language]]
+name = "bash"
+language-servers = ["bash"]
