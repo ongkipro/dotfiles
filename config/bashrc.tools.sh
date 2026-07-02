@@ -2,12 +2,16 @@
 # Main bashrc already handles: fzf, zoxide, eza, bat, EDITOR, PATH
 # >>> dotfiles-tools (ongkipro/dotfiles) >>>
 
-# --- pi.dev: auto-load shared AI memory ---
+# --- pi.dev: auto-load shared AI memory + welcome banner ---
 pi() {
   local mem="$HOME/.config/ai/AGENTS.md"
+  local welcome="$HOME/.config/ai/welcome.txt"
   case "${1:-}" in
     update|install|uninstall|remove|list) command pi "$@" ;;
-    *) if [ -f "$mem" ]; then command pi --append-system-prompt "$mem" "$@"; else command pi "$@"; fi ;;
+    *)
+      [ -f "$welcome" ] && cat "$welcome"
+      if [ -f "$mem" ]; then command pi --append-system-prompt "$mem" "$@"; else command pi "$@"; fi
+      ;;
   esac
 }
 
