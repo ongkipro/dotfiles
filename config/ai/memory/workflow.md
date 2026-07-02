@@ -19,15 +19,34 @@
 - Pi settings.json loads skills dari: `~/.pi/agent/skills/` (skill-update), `~/.gemini/config/skills/`, `~/.pi/agent/vendor/Shopify-AI-Toolkit/skills/`.
 - Toolkits reference: `~/.ai/cloudflare-worker-toolkit/` dan `~/.ai/shopify-ai-toolkit/` (symlink → `~/dotfiles/ai-toolkits/`).
 
+## Struktur Folder — Konvensi Baru
+
+### `~/Projects/` — Semua Project Development
+- **Web app, SaaS, Shopify, Astro, Next.js, Cloudflare Workers, bot, dsb.**
+- Setiap project punya folder sendiri: `~/Projects/<nama-project>/`
+- Di dalamnya: source code, config, package.json, .git, node_modules.
+- Project aktif = di-root `~/Projects/`. Project archived/tidak aktif = hapus atau pindah ke storage external.
+
+### `~/Documents/` — Dokumentasi & AI Artifacts
+- **Hanya untuk file dokumentasi**: PRD, UML, markdown, research, konten, scrape.
+- **Tidak untuk source code project.**
+- Struktur:
+  - `ai-artifacts/` — Output AI (PRD, UML, content, research, scrapes, general)
+    - `prd/` — PRD & task breakdown
+    - `uml/` — Flowchart, Mermaid, diagram
+    - `scrapes/` — Scraped markdown/HTML
+    - `content/` — Copywriting, blog, ads
+    - `research/` — Market/SEO/competitor research
+    - `general/` — Draft, ideation
+  - `memori ai/` — AI memory system (session, dashboard, changelog)
+  - `shopify-ai-development-repos.md` — Symlink ke dotfiles
+- **Konvensi Penamaan**: `[YYYY-MM-DD]-[kategori]-[nama-topik].md` (contoh: `2026-07-02-prd-dropship-tracker.md`)
+
 ## AI Artifacts Routing (Workspace Global)
 - Untuk dokumen/output AI yang dibuat **di luar direktori project aktif** (seperti draft PRD, UML/Mermaid diagram, tulisan konten, hasil scrape web, dll.), wajib ditaruh di folder workspace terstruktur:
   - **Base Path**: `~/Documents/ai-artifacts/`
-  - **Sub-folders**:
-    - `prd/` (PRD, task breakdown)
-    - `uml/` (Flowchart, Mermaid markup)
-    - `scrapes/` (Scraped markdown/HTML)
-    - `content/` (Copywriting, blog posts, ads)
-    - `research/` (Market/SEO research, competitor analysis)
-    - `general/` (Random drafts, ideation notes)
-  - **Konvensi Penamaan**: `[YYYY-MM-DD]-[kategori]-[nama-topik].md` (contoh: `2026-06-29-prd-dropship-tracker.md`).
-- Selalu infokan ke user path file yang disimpan di workspace ini pada respon akhir.
+  - **Sub-folders**: `prd/` `uml/` `scrapes/` `content/` `research/` `general/`
+  - **Konvensi Penamaan**: `[YYYY-MM-DD]-[kategori]-[nama-topik].md` (contoh: `2026-07-02-prd-dropship-tracker.md`).
+- Untuk source code / project development: SELALU di `~/Projects/<nama-project>/`.
+- Selalu infokan ke user path file yang disimpan pada respon akhir.
+- Mulai 2 Juli 2026: folder bersih, project baru semua masuk `~/Projects/`, dokumen masuk `~/Documents/`.
