@@ -100,6 +100,8 @@ dotfiles/
 │   │       └── 9router.service # 9router daemon (auto-start + restart)
 │   ├── helix/
 │   │   └── languages.toml     # LSP config
+│   ├── btop/
+│   │   └── btop.conf          # System monitor tuned for this Linux workflow
 │   ├── shell-tools.sh         # Cross-platform dev tools (bash + zsh, Ubuntu + macOS)
 │   ├── starship.toml          # Prompt (plain, no Nerd Font)
 │   ├── tmux.conf              # Terminal multiplexer
