@@ -25,6 +25,36 @@ else
   warn "dotfiles/config/pi/settings.json tidak ditemukan"
 fi
 
+# ── 1.5) Restore models.json (9router provider definition) ──────────────────
+if [ -f "$DOTFILES_DIR/config/pi/models.template.json" ]; then
+  if [ ! -f "$PI_AGENT_DIR/models.json" ]; then
+    cp "$DOTFILES_DIR/config/pi/models.template.json" "$PI_AGENT_DIR/models.json"
+    say "models.json restored (9router provider + 7 models)"
+  else
+    say "models.json sudah ada — skip (jangan overwrite custom models)"
+  fi
+fi
+
+# ── 1.6) Ensure 9router entry in auth.json (needed for pi to show 9router models) ──
+AUTH_FILE="$PI_AGENT_DIR/auth.json"
+if [ -f "$AUTH_FILE" ]; then
+  if ! grep -q '"9router"' "$AUTH_FILE" 2>/dev/null; then
+    say "Menambahkan 9router ke auth.json (localhost trust)..."
+    python3 -c "
+import json
+with open('$AUTH_FILE') as f:
+    auth = json.load(f)
+if '9router' not in auth:
+    auth['9router'] = {'type': 'api_key', 'key': '9router-local'}
+    with open('$AUTH_FILE', 'w') as f:
+        json.dump(auth, f, indent=2)
+    print('✓ 9router entry added')
+" 2>/dev/null || warn "Gagal update auth.json — tambahkan manual"
+  else
+    say "9router sudah ada di auth.json"
+  fi
+fi
+
 # ── 2) Restore compact-free extension ────────────────────────────────────────
 if [ -d "$DOTFILES_DIR/config/pi/extensions/compact-free" ]; then
   cp "$DOTFILES_DIR/config/pi/extensions/compact-free/"* "$PI_EXT_DIR/"
