@@ -24,16 +24,17 @@
 ### `~/Projects/` — Koding
 Semua project development: web app, SaaS, Shopify, bot, dll.
 
-### `~/Documents/` — Dokumen
-Hanya file dokumentasi, bukan source code:
+### `~/Documents/work/` — Dokumen kerja
 
 ```
-olah/           ← semua dokumen kerja
+work/
   ├── prd/        PRD, task, planning
   ├── catatan/    Draft, ide, catatan
   ├── riset/      Research, SEO, kompetitor
   └── konten/     Copywriting, blog, ads
-memori ai/      ← AI memory
 ```
 
 **Nama file:** `YYYY-MM-DD - judul.md`
+
+### `~/dotfiles/memori-ai/` — AI Memory
+Memori sistem AI (session, dashboard, changelog). Diakses via `memai` command.
