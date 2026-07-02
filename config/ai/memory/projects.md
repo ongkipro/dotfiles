@@ -17,6 +17,11 @@
 - `install-macos.sh` = bootstrap ringan macOS.
 - `bin/dotsync` = helper semi-auto sync lintas Linux/macOS.
 
+### toko-online (macOS dev)
+- Path: `~/Projects/toko-online`
+- Stack: Astro (minimal starter), TypeScript.
+- Status: Fresh from `npm create astro@latest -- --template minimal`. Belum ada PRD/spec.
+
 ## Linux — Projects (referensi dari mesin utama)
 
 ### pixsgo (Play & Go)
