@@ -1,17 +1,20 @@
 # Memori: Environment — toolchain & install
 > Bagian dari memori bersama. Perbarui kalau ada perubahan tool/setup.
+> Mesin: macOS 26 (Darwin arm64), MacBook Air M1 8GB.
 
 ## Tool terpasang (JANGAN install ulang)
-- mise (no-sudo): fzf, fd, bat, delta, lazygit, zoxide, eza, yq(v4), ripgrep, ruff, starship, helix, tealdeer, direnv.
+- mise (no-sudo): fzf, fd, bat, delta, lazygit, zoxide, eza, yq(v4), ripgrep, ruff, starship, helix, tealdeer, direnv, qsv.
 - Editor: helix (`hx`). `EDITOR=hx`.
-- npm -g: pi, 9router, pnpm. Node via system/mise.
-- Homebrew (system): rg (ripgrep), gh (GitHub CLI), tmux, pnpm.
+- npm -g: pi, 9router, pnpm, typescript-language-server, vscode-langservers-extracted, @tailwindcss/language-server, yaml-language-server, bash-language-server, pyright.
+- pipx: python-lsp-server (pylsp).
+- Homebrew (system): gh, tmux, pnpm, chromium, pipx.
+- Browser: Chromium (`brew install chromium`), Google Chrome.
 - Git + delta diff pager + `~/.gitignore_global`.
 
 ## tmux (bagian wajib bootstrap dotfiles)
-- Setup tmux full di-handle `bin/tmux-setup` (idempotent, cross-platform): install binary (apt/dnf/pacman/zypper di Linux, brew di macOS) + clipboard tool (wl-clipboard/xclip di Linux; pbcopy bawaan macOS) + link `~/.tmux.conf` & `~/.local/bin/tmux-clip` + clone TPM + install plugin.
-- Dipanggil otomatis dari `install.sh` dan `install-macos.sh`. Bisa juga dijalankan manual: `tmux-setup`.
-- Prefix `Ctrl+a`. Plugin: tmux-sensible, tmux-yank, resurrect, continuum, catppuccin (mocha). Clipboard via `bin/tmux-clip`. Reload: prefix+r. Update plugin: prefix+I.
+- Setup tmux full di-handle `bin/tmux-setup` (idempotent, cross-platform): brew install tmux (macOS) + pbcopy (bawaan macOS) + link `~/.tmux.conf` & `~/.local/bin/tmux-clip` + clone TPM + install plugin.
+- Dipanggil otomatis dari `install-macos.sh`. Bisa juga dijalankan manual: `tmux-setup`.
+- Prefix `Ctrl+a`. Plugin: tmux-sensible, tmux-yank, resurrect, continuum, catppuccin (mocha), vim-tmux-navigator. Clipboard via `bin/tmux-clip`. Reload: prefix+r. Update plugin: prefix+I.
 
 ## Cara install (kapan sudo)
 - CLI / runtime → `mise use -g <nama>` (no sudo); update `mise up`; hapus `mise rm <nama>`.
@@ -20,11 +23,11 @@
 - `sudo` HANYA untuk file sistem (jarang dibutuhkan di macOS).
 
 ## pi.dev / 9router
-- pi route lewat 9router lokal (`http://localhost:20128/v1`), sekarang jalan sebagai **systemd user service** `9router.service` (auto-start + auto-restart), bind local-only `127.0.0.1`.
-- pi pakai provider rbq97ts; default model bisa berganti — cek `~/.pi/agent/settings.json`, jangan asumsikan.
-- AGENTS.md di-load via wrapper `pi()` di shell config. Memori bersama di `~/.config/ai/` (AGENTS.md + memory/*.md).
-- 9router terinstall via npm global; restore helper ada di `~/dotfiles/bin/pi-9router-restore` untuk generate service dari path `node` + `9router` aktif di mesin.
-- Claude account launcher: `claude` and `claude-personal` default to personal account via `akun personal`; `claude-kerja` uses isolated `~/.claude-accounts/kerja` for bang.joe90@gmail.com. Wrappers live in `~/dotfiles/bin/` symlinked to `~/.local/bin/`.
+- pi route lewat 9router lokal (`http://localhost:20128/v1`), jalan sebagai **launchd agent** `com.9router.autostart` (auto-start on login), bind local-only `127.0.0.1`, port 20128.
+- pi pakai provider `9router` (internal ID: rbq97ts); default model `ocg/deepseek-v4-pro`. Cek `~/.pi/agent/settings.json` (symlink → dotfiles).
+- AGENTS.md di-load via symlink ke semua CLI. Memori bersama di `~/.config/ai/` (AGENTS.md + memory/*.md).
+- 9router terinstall via npm global; launchd plist di `~/Library/LaunchAgents/com.9router.autostart.plist`.
+- Claude account launcher: `claude` dan `claude-personal` default ke personal account via `akun personal`; `claude-kerja` pakai isolated `~/.claude-accounts/kerja`. Wrappers di `~/dotfiles/bin/` symlinked ke `~/.local/bin/`.
 
 ## Isolasi 9router (policy: 9router HANYA untuk pi.dev)
 - 9router (localhost:20128, MITM + cloudflare tunnel) khusus dipakai pi.dev via `~/.pi/agent/models.json`.
