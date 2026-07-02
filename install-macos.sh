@@ -33,6 +33,7 @@ link "$DOT/config/codex-instructions.md" "$HOME/.codex/instructions.md"
 link "$DOT/bin/ai-memory-link"           "$HOME/.local/bin/ai-memory-link"
 link "$DOT/bin/dotsync"                  "$HOME/.local/bin/dotsync"
 link "$DOT/bin/dotpush"                  "$HOME/.local/bin/dotpush"
+link "$DOT/bin/project-init"             "$HOME/.local/bin/project-init"
 for s in akun claude-kerja claude-personal tmux-clip tmux-setup security-check; do
   [ -e "$DOT/bin/$s" ] && link "$DOT/bin/$s" "$HOME/.local/bin/$s"
 done
@@ -91,6 +92,12 @@ GITEOF
 else
   say "   ~/.gitconfig sudah ada — pastikan excludesfile = $DOT/config/gitignore_global"
 fi
+
+say "==> Create work folder structure..."
+mkdir -p "$HOME/Documents/work/"{prd,research,content,notes}
+mkdir -p "$HOME/Projects"
+say "   ~/Documents/work/{prd,research,content,notes}"
+say "   ~/Projects/"
 
 say "==> Patch ~/.zshrc dan ~/.bashrc (tanpa overwrite total)..."
 # Gunakan single-quote agar $HOME tetap dinamis di .zshrc (portabel antar user/mesin)

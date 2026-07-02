@@ -8,7 +8,7 @@
 - Source code, config, node_modules, .git semua di dalam folder project.
 - Dokumentasi (PRD, UML, konten, research) → `~/Documents/ai-artifacts/<kategori>/`.
 - Memori AI → `~/Documents/memori ai/`.
-- Mesin utama: Linux (`/home/fantastico/`). macOS (`/Users/feriromansyah/`) = device kedua untuk mobile/sync.
+- Mesin utama: Linux. macOS = device kedua untuk mobile/sync.
 
 ## macOS — Projects Aktif
 
