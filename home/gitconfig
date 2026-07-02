@@ -1,57 +1,56 @@
-[credential "https://github.com"]
-	helper = 
-	helper = !/opt/homebrew/bin/gh auth git-credential
-[credential "https://gist.github.com"]
-	helper = 
-	helper = !/opt/homebrew/bin/gh auth git-credential
 [user]
-	name = ongkipro
-	email = 82156528+ongkipro@users.noreply.github.com
-[init]
-	defaultBranch = main
-[pull]
-	rebase = true
+    name = Ongki Pro
+    email = get@ongki.pro
 [core]
-	editor = hx
-	pager = delta
-	excludesfile = /Users/feriromansyah/.gitignore_global
+    excludesfile = ~/.gitignore_global
+    autocrlf = input
+    editor = hx
+    pager = delta
+[init]
+    defaultBranch = main
 [push]
-	autoSetupRemote = true
-	default = simple
+    autoSetupRemote = true
+    default = simple
 [fetch]
-	prune = true
-	writeCommitGraph = true
+    prune = true
+    writeCommitGraph = true
 [diff]
-	colorMoved = default
-	algorithm = histogram
-[alias]
-	st = status -sb
-	co = checkout
-	br = branch
-	lg = log --graph --oneline --decorate --all -20
-	last = log -1 HEAD --stat
-	undo = reset --soft HEAD~1
-	amend = commit --amend --no-edit
+    colorMoved = default
+    algorithm = histogram
 [interactive]
-	diffFilter = delta --color-only
+    diffFilter = delta --color-only
 [delta]
-	navigate = true
-	line-numbers = true
+    navigate = true
+    line-numbers = true
 [merge]
-	conflictStyle = zdiff3
+    conflictStyle = zdiff3
 [rerere]
-	enabled = true
-	autoupdate = true
+    enabled = true
+    autoupdate = true
 [column]
-	ui = auto
+    ui = auto
 [branch]
-	sort = -committerdate
+    sort = -committerdate
 [tag]
-	sort = -version:refname
+    sort = -version:refname
 [commit]
-	verbose = true
+    verbose = true
 [help]
-	autocorrect = prompt
+    autocorrect = prompt
 [rebase]
-	autosquash = true
-	autostash = true
+    autosquash = true
+    autostash = true
+[alias]
+    st = status -sb
+    co = checkout
+    br = branch
+    lg = log --oneline --graph --decorate --all -20
+    last = log -1 HEAD --stat
+    undo = reset --soft HEAD~1
+    amend = commit --amend --no-edit
+    unstage = reset HEAD --
+    diffstat = diff --stat
+[color]
+    ui = auto
+[pull]
+    rebase = true
