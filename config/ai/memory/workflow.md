@@ -24,17 +24,30 @@
 ### `~/Projects/` — Koding
 Semua project development: web app, SaaS, Shopify, bot, dll.
 
-### `~/Documents/work/` — Dokumen kerja
+## Auto-Routing — AI CLI langsung tahu taruh di mana
 
-```
-work/
-  ├── prd/        PRD, task, planning
-  ├── catatan/    Draft, ide, catatan
-  ├── riset/      Research, SEO, kompetitor
-  └── konten/     Copywriting, blog, ads
-```
+**Tanpa diperintah**, AI harus auto-save ke folder ini:
+
+| Output | Path |
+|---|---|
+| PRD, task breakdown, planning | `~/Documents/work/prd/` |
+| Research, SEO, competitor analysis | `~/Documents/work/research/` |
+| Copywriting, blog, ads, script | `~/Documents/work/content/` |
+| Draft, ide, catatan bebas | `~/Documents/work/notes/` |
+| Source code project | `~/Projects/<nama>/` |
 
 **Nama file:** `YYYY-MM-DD - judul.md`
 
-### `~/dotfiles/memori-ai/` — AI Memory
-Memori sistem AI (session, dashboard, changelog). Diakses via `memai` command.
+**Rule:** JANGAN taruh file di `~/Documents/` langsung. Selalu masuk subfolder `work/`. AI harus infokan path file di akhir respons.
+
+```
+~/Documents/
+└── work/
+    ├── prd/          ← planning & spec
+    ├── research/     ← riset & analisis
+    ├── content/      ← tulisan & copy
+    └── notes/        ← draft & ide
+
+~/Projects/           ← source code
+~/dotfiles/memori-ai/ ← AI memory system
+```
