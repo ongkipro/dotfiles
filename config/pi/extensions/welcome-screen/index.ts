@@ -1,7 +1,7 @@
 /**
  * Welcome Screen Extension — Bismillah Opening
  *
- * Opening header for pi.dev: Bismillah, salam, model info, shortcuts.
+ * Opening header for pi.dev: Salam + dzikir + prinsip + welcome.
  * Hot-reload safe: ~/.pi/agent/extensions/welcome-screen.ts
  */
 
@@ -15,89 +15,80 @@ function paint(theme: Theme, color: string, text: string): string {
 function bold(theme: Theme, text: string): string {
 	try { return theme.bold(text); } catch { return text; }
 }
+function line(char: string, theme: Theme, color = "dim"): string {
+	return paint(theme, color, char.repeat(60));
+}
 
-// ── Bismillah Opening ─────────────────────────────────────────────────
-function bismillah(theme: Theme): string[] {
-	const G = (t: string) => paint(theme, "accent", t);
+// ── Header: BISMILLAH + dzikir Al-Kahfi 39 ──────────────────────────
+function header(theme: Theme): string[] {
+	const A = (t: string) => paint(theme, "accent", bold(theme, t));
 	const D = (t: string) => paint(theme, "dim", t);
-	const M = (t: string) => paint(theme, "muted", t);
+	const T = (t: string) => paint(theme, "text", t);
 
 	return [
 		"",
-		`${G("  بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ")}    ${D("Bismillāhi r-raḥmāni r-raḥīm")}`,
-		`${D("  ─────────────────────────────────────────────────────────")}`,
-		`${M("  Dengan nama Allah Yang Maha Pengasih, Maha Penyayang.")}`,
+		`  ${A("BISMILLAH")}`,
+		"",
+		`  ${A("Maa syaa-allaah, laa quwwata")}`,
+		`  ${A("illaa billaah")}`,
+		"",
+		`  ${T(`"Apa yang Allah kehendaki,`)}`,
+		`  ${T("tiada daya & kekuatan")}`,
+		`  ${T(`kecuali dengan-Nya"`)}`,
+		`  ${D("— QS. Al-Kahfi: 39")}`,
+		"",
+		`  ${line("─", theme)}`,
 		"",
 	];
 }
 
-// ── Salam ─────────────────────────────────────────────────────────────
-function salam(theme: Theme): string[] {
-	const G = (t: string) => paint(theme, "accent", t);
+// ── Renungan ──────────────────────────────────────────────────────────
+function renungan(theme: Theme): string[] {
+	const T = (t: string) => paint(theme, "text", t);
+	const A = (t: string) => paint(theme, "accent", bold(theme, t));
+
+	return [
+		`  ${T("Tools, AI, otomatisasi")} ${A("—")} ${T("hanyalah sebab.")}`,
+		`  ${T("Yang menuntaskan:")} ${A("izin Allah")}${T(",")}`,
+		`  ${T("bukan RAM atau 9router.")}`,
+		"",
+	];
+}
+
+// ── Prinsip kerja ────────────────────────────────────────────────────
+function prinsip(theme: Theme): string[] {
+	const A = (t: string) => paint(theme, "accent", bold(theme, t));
+	const M = (t: string) => paint(theme, "muted", t);
+
+	return [
+		`  ${A("▸")} ${A("bismillah")}  ${M(":")} ${M("niatkan ibadah lewat kode")}`,
+		`  ${A("▸")} ${A("presisi")}     ${M(":")} ${M("tiap baris, maksimal")}`,
+		`  ${A("▸")} ${A("tenang")}       ${M(":")} ${M("hasil di tangan-Nya")}`,
+		"",
+		`  ${line("─", theme)}`,
+		"",
+	];
+}
+
+// ── Welcome back ──────────────────────────────────────────────────────
+function welcome(theme: Theme, ctx: ExtensionContext, skillCount: number): string[] {
+	const A = (t: string) => paint(theme, "accent", bold(theme, t));
 	const T = (t: string) => paint(theme, "text", t);
 	const D = (t: string) => paint(theme, "dim", t);
-
-	return [
-		`  ${G("ٱلسَّلَامُ عَلَيْكُمْ")}  ${D("—")}  ${T("Assalamu'alaikum, Paduka Ongki.")}`,
-		"",
-	];
-}
-
-// ── Dzikir / Pengingat ────────────────────────────────────────────────
-function dzikir(theme: Theme): string[] {
-	const D = (t: string) => paint(theme, "dim", t);
 	const M = (t: string) => paint(theme, "muted", t);
-
-	return [
-		`  ${D("لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِٱللَّهِ")}  ${M("— Tiada daya & kekuatan kecuali dengan Allah.")}`,
-		"",
-	];
-}
-
-// ── Stats: model · session · skills · version ─────────────────────────
-function statsRow(theme: Theme, ctx: ExtensionContext, skillCount: number): string[] {
-	const A = (t: string) => paint(theme, "accent", t);
-	const D = (t: string) => paint(theme, "dim", t);
-	const M = (t: string) => paint(theme, "muted", t);
-	const T = (t: string) => paint(theme, "text", t);
 
 	const model = ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : "—";
 	const leaf = ctx.sessionManager.getLeafId?.()?.slice(0, 8) ?? "—";
 
 	return [
-		`  ${A("◆")} ${T(model)}`,
+		`  ${T("Welcome back,")}`,
+		`  ${A("Paduka Ongki")}`,
+		"",
+		`  ${D("◈")} ${M("model")} ${T(model)}`,
 		`  ${D("◈")} ${M("session")} ${T(leaf)}  ${D("◈")} ${M("skills")} ${T(`${skillCount}`)}  ${D("◈")} ${M("pi")} ${T(`v${VERSION}`)}`,
 		"",
-	];
-}
-
-// ── Prinsip Kerja ─────────────────────────────────────────────────────
-function prinsip(theme: Theme): string[] {
-	const A = (t: string) => paint(theme, "accent", t);
-	const M = (t: string) => paint(theme, "muted", t);
-
-	return [
-		`  ${A("▸")} ${M("bismillah")}    ${A("▸")} ${M("presisi")}    ${A("▸")} ${M("tenang")}    ${A("▸")} ${M("tawakal")}`,
+		`  ${A("▶")} ${A("PRESS START")} ${M("/model · /new · /skills · !cmd · /welcome-off")}`,
 		"",
-	];
-}
-
-// ── Shortcuts ─────────────────────────────────────────────────────────
-function shortcuts(theme: Theme, width: number): string[] {
-	const K = (k: string) => paint(theme, "accent", bold(theme, k));
-	const M = (d: string) => paint(theme, "muted", d);
-	const S = paint(theme, "dim", " · ");
-
-	if (width < 80) {
-		return [
-			`  ${K("/model")}${M("model")}${S}${K("/new")}${M("baru")}${S}${K("/skills")}${M("skill")}${S}${K("!cmd")}${M("bash")}`,
-		];
-	}
-
-	return [
-		`  ${K("/model")} ${M("ganti model")}${S}${K("Ctrl+L")} ${M("picker")}${S}${K("Shift+Tab")} ${M("thinking")}${S}${K("/skills")} ${M("list skill")}`,
-		`  ${K("/new")} ${M("sesi baru")}${S}${K("/resume")} ${M("lanjut")}${S}${K("/tree")} ${M("history")}${S}${K("Esc Esc")} ${M("navigasi")}`,
-		`  ${K("!cmd")} ${M("bash")}${S}${K("@file")} ${M("sisip file")}${S}${K("Ctrl+V")} ${M("paste gambar")}${S}${K("/welcome-off")} ${M("off")}`,
 	];
 }
 
@@ -117,14 +108,12 @@ async function countSkills(): Promise<number> {
 async function buildHeader(ctx: ExtensionContext) {
 	const skillCount = await countSkills();
 	return (_tui: never, theme: Theme) => ({
-		render(width: number): string[] {
+		render(_width: number): string[] {
 			return [
-				...bismillah(theme),
-				...salam(theme),
-				...dzikir(theme),
-				...statsRow(theme, ctx, skillCount),
+				...header(theme),
+				...renungan(theme),
 				...prinsip(theme),
-				...shortcuts(theme, width),
+				...welcome(theme, ctx, skillCount),
 			];
 		},
 		invalidate() {},

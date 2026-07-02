@@ -20,6 +20,18 @@
 - tmux stack di dotfiles memakai prefix `Ctrl+a`, theme plain-font-friendly Catppuccin-inspired, dan plugin: tmux-sensible, tmux-yank, resurrect, continuum, prefix-highlight, tmux-open. Setup di-handle `bin/tmux-setup`; helper battery lintas macOS/Linux ada di `bin/tmux-battery`.
 - GSAP skills resmi dari `greensock/gsap-skills` telah di-vendor ke `~/dotfiles/skills/local/` sebagai: `gsap-core`, `gsap-frameworks`, `gsap-performance`, `gsap-plugins`, `gsap-react`, `gsap-scrolltrigger`, `gsap-timeline`, `gsap-utils`, lalu disebarkan lintas CLI via `skill-update`.
 
+### social-dashboard (macOS dev)
+- Path: `~/Projects/social-dashboard`
+- Stack: Next.js 16 + shadcn/ui v4 (Base UI) + Tailwind v4 + Recharts + Minimax AI + better-auth + PostgreSQL 16 + Drizzle ORM.
+- Deskripsi: SaaS dashboard social media automation — posting ke Threads, Instagram, Facebook, Pinterest, Twitter.
+- DB: 8 tabel (user, session, account, verification, social_account, post, template, generated_content) di `postflow` DB.
+- 19 route: auth pages, dashboard analytics, accounts CRUD, AI content generator, calendar real-data, posts CRUD, settings, OAuth callbacks, cron API.
+- Auth: better-auth v1.6 — email/password signup/login, forgot/reset password, email verification ready.
+- Platform API clients: Meta (FB/IG/Threads), Twitter v2, Pinterest v5 — OAuth + publishing functions.
+- Server Actions: 15 actions (CRUD posts/accounts/templates, AI content save, analytics, scheduled posting, password reset).
+- Status: Production-ready MVP. 1 user test (ongki@postflow.dev). Daftar di /register.
+- Docs: `~/Documents/ai-artifacts/social-dashboard/` (PRD, API).
+
 ### toko-online (macOS dev)
 - Path: `~/Projects/toko-online`
 - Stack: Astro (minimal starter), TypeScript.
