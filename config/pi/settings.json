@@ -1,6 +1,6 @@
 {
   "lastChangelogVersion": "0.80.3",
-  "defaultProvider": "rbq97ts",
+  "defaultProvider": "9router",
   "defaultModel": "ocg/deepseek-v4-pro",
   "defaultThinkingLevel": "medium",
   "theme": "garuda-gold",
