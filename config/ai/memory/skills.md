@@ -42,3 +42,12 @@
 - For strategic questions, start with biggest weakness or bottleneck when material.
 - For technical questions, give concrete architecture, file structure, command flow, and risk notes.
 - For business ideas, check market, margin, compliance, distribution, data/tracking, and execution capacity.
+
+## Local-only installations (macOS-specific, NOT in dotfiles sync)
+- **Ponytail** (DietrichGebert/ponytail) — coding minimalism skill + extension. Installed on this Mac only.
+  - Source: `~/.pi/agent/external/ponytail` (clone)
+  - Symlinks: `~/.pi/agent/skills/ponytail{,-audit,-debt,-gain,-help,-review}` + `~/.pi/agent/extensions/ponytail`
+  - **Why local-only:** eksperimen pribadi, tidak mau propagate ke Linux main via dotfiles sync.
+  - **How to update later:** `cd ~/.pi/agent/external/ponytail && git pull` (symlink tetap valid).
+  - **Aman dari `skill-update`:** symlink target di `~/.pi/agent/external/` (luar `$REPO_DIR` & `$LOCAL_SKILLS_DIR`).
+- **Konvensi umum:** skill/extension yang "coba-coba" atau "pribadi" → install ke `~/.pi/agent/external/<nama>/` + symlink manual. Skill yang sudah "approved/default" → taruh di `~/dotfiles/skills/local/` agar ter-sync via `skill-update`.
