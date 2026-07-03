@@ -4,9 +4,17 @@
 
 ## Files
 
-- `settings.json` — provider (9router), model default, theme, compaction, packages
-- `models.template.json` — 9router provider definition + 7 curated models (no secrets)
+- `settings.json` — provider (9router), model default, theme, compaction, packages, **pi-image-gen** (generate gambar via 9router lokal+remote; key & tunnel URL tersanitasi jadi placeholder env)
+- `models.template.json` — 9router provider definition + curated models (no secrets)
 - `extensions/compact-free/` — extension untuk compaction pakai model gratis
+
+### Env var (pi-image-gen provider remote)
+
+Blok `pi-image-gen` di `settings.json` pakai placeholder — set sebelum pakai remote:
+
+- `NINEROUTER_KEY` — API key 9router lokal (fallback `noauth`).
+- `NINEROUTER_REMOTE_KEY` — API key 9router-fantastico (tunnel). JANGAN commit.
+- `YOUR_TUNNEL.abc-tunnel.us` — ganti dengan hostname tunnel aktif saat restore.
 
 ## Tidak di-backup (secret)
 
