@@ -10,6 +10,7 @@ This manifest maps the important files in the `seo-website-builder` skill so age
 | `COMPACT_SKILL_REFERENCES.md` | Compact default reference for fast use |
 | `PLAYBOOK.md` | Daily operational SEO workflow |
 | `PAGE_COMPLETENESS_FORMULA.md` | Complete page audit formula: title, description, canonical, robots, headings, images, links, schema, sitemap |
+| `SITEMAP_SUBMISSION.md` | Sitemap discovery + search-engine notification: robots `Sitemap:`, GSC/Bing submit, IndexNow (Bing/Yandex/partners), Google no-ping, on-publish auto-notify |
 | `OUTPUT_TEMPLATES.md` | Audit/build/schema/metadata/change-log templates |
 | `SEARCH_ENGINE_ALGORITHM_BRIEF.md` | Multi-engine algorithm/discovery model |
 | `SEARCH_ENGINE_SOURCE_INDEX.md` | Official/trusted source index |

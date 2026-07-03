@@ -179,6 +179,18 @@ Rules:
 - Exclude noindex/private/search/filter pages.
 - Use true `lastModified`, not generation time, when possible.
 - Reference sitemap in robots.
+- For dynamic content, generate from the DB (`export const dynamic = "force-dynamic"`
+  or `revalidate`) and honor feature flags / `published` status / home-duplicate slugs.
+
+### Notifying engines (do NOT use the old ping URLs)
+
+`google.com/ping` and `bing.com/ping` are deprecated. Use:
+- **Discovery:** robots.txt `Sitemap:` + submit once in Search Console & Bing Webmaster.
+- **Instant push on publish/update/delete:** **IndexNow** (covers Bing, Yandex, and
+  partners in one call; Google is not a participant — rely on crawl + GSC).
+
+See [Sitemap Submission](SITEMAP_SUBMISSION.md) for the full playbook + a Next.js
+server-action snippet to auto-fire IndexNow on publish.
 
 ## Structured data in Next.js
 

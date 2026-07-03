@@ -2,6 +2,25 @@
 
 Track changes to `/home/fantastico/Documents/SEO` before it becomes an active skill.
 
+## 2026-07-04 — Sitemap submission / search-engine notification playbook
+
+### Added
+
+- `SITEMAP_SUBMISSION.md` — modern sitemap ping/notify playbook. Documents that
+  Google (`google.com/ping`) and Bing anonymous sitemap ping are **deprecated**;
+  the correct approach is robots `Sitemap:` + Search Console/Bing Webmaster for
+  discovery and **IndexNow** (Bing, Yandex, Seznam, Naver, Yep, DuckDuckGo) for
+  instant on-publish notification. Google = no ping (crawl + GSC; Indexing API
+  only for JobPosting/BroadcastEvent). Includes a Next.js on-publish IndexNow
+  snippet and a QA checklist.
+
+### Changed
+
+- `SKILL.md` — added task-table row routing to `SITEMAP_SUBMISSION.md`.
+- `NEXTJS_SEO_PLAYBOOK.md` — sitemap section now warns against deprecated ping
+  URLs and links the submission playbook; notes dynamic-from-DB generation.
+- `REFERENCE_MANIFEST.md` — registered the new reference.
+
 ## 2026-06-30 — Skill-ready documentation pack created
 
 ### Added

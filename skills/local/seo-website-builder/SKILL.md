@@ -34,6 +34,7 @@ Prefer official search engine/platform documentation and existing project data. 
 | Shopify product/collection/listing/feed | [Shopify SEO Playbook](references/SHOPIFY_SEO_PLAYBOOK.md) |
 | Local/service business | [Local Business SEO Playbook](references/LOCAL_BUSINESS_SEO_PLAYBOOK.md) |
 | Algorithm/update review | [Search Engine Algorithm Brief](references/SEARCH_ENGINE_ALGORITHM_BRIEF.md), [Source Index](references/SEARCH_ENGINE_SOURCE_INDEX.md), [Algorithm Update Log](references/ALGORITHM_UPDATE_LOG.md) |
+| Sitemap submission / ping / IndexNow / notify engines on publish | [Sitemap Submission](references/SITEMAP_SUBMISSION.md) |
 | Complete page audit / title-description-schema checklist | [Page Completeness Formula](references/PAGE_COMPLETENESS_FORMULA.md) |
 | Audit/build/schema templates | [Output Templates](references/OUTPUT_TEMPLATES.md) |
 | Deep routing/reference map | [Reference Manifest](references/REFERENCE_MANIFEST.md) |
