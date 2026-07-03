@@ -103,3 +103,16 @@
 - Brand: HOME LOOK — premium architectural fittings (pine green, warm sand, muted brass)
 - GitHub: `ongkipro/homelook` (private)
 - Catatan: Clone dari homeimprovement (RIVA HOME), brand diganti ke HOME LOOK.
+
+### volumecms (macOS dev)
+- Path: `~/projects/volumecms`
+- Stack: Next.js 16 (App Router) + TS + Tailwind v4 + shadcn (Base UI) + GSAP + Drizzle ORM + PostgreSQL + better-auth. Deploy target Vercel.
+- CMS ala WordPress + SaaS dashboard: Posts, Pages, Products (katalog → CTA WhatsApp wa.me), Categories, Tags, Media Library (image/video), Banners, Menu builder, Site Settings, Users. Frontend publik: landing/sales page (hero GSAP), katalog+filter kategori, detail produk+tombol WA, blog, halaman dinamis `/[slug]`, SEO (sitemap/robots/metadata Next), dark mode, floating WhatsApp.
+- DB: 16 tabel (auth user/session/account/verification + categories/tags/media/posts/posts_tags/pages/products/products_tags/banners/menus/menu_items/settings). `settings` = key/value JSON (key 'site' → SiteSettings di lib/settings.ts).
+- Auth: better-auth email/password, role admin/editor/author. Seed admin: admin@volumecms.test / password123 (via `pnpm db:seed`). createUser hindari signUpEmail (pakai auth.$context.password.hash + insert account) supaya tak menimpa sesi admin.
+- Storage adapter lib/storage.ts: STORAGE_DRIVER=local (dev, /public/uploads) / blob (Vercel Blob). Upload POST /api/upload, list GET /api/media.
+- Konvensi Base UI (shadcn v4): pakai `render={<Link/>}` BUKAN `asChild`; native `<select>` via NativeSelect (components/admin/form-fields); Switch pakai checked/onCheckedChange bukan register.
+- Next 16: proteksi admin di `src/proxy.ts` (konvensi baru, bukan middleware) export fn `proxy`; db client lazy-proxy di db/index.ts biar `next build` tanpa DB tak crash; semua page admin/site `force-dynamic`.
+- Pola CRUD: server actions di lib/actions/<entity>.ts ('use server', zod, requireUser/requireAdmin, ensureUniqueSlug, revalidatePath, return {ok, error?, id?}); form client react-hook-form; list pakai shadcn Table + DeleteButton(action.bind).
+- Status 3 Juli 2026: kode LENGKAP, `tsc` 0 error, `next build` sukses (30 route). BLOCKER: butuh DATABASE_URL Neon/Vercel Postgres utk `pnpm db:push && pnpm db:seed && pnpm dev`. Belum migrate/seed/run.
+- `~/projects/nextpress` = prototipe awal konsep ini (storage JSON), digantikan volumecms.
