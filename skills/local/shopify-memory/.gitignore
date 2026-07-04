@@ -1,0 +1,6 @@
+# Auto-generated index cache — do not commit
+references/stores-index.md
+references/stores-index.json
+__pycache__/
+*.pyc
+.DS_Store
