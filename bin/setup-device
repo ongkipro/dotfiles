@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# setup-device — recreate this device's symlinks + memory + tools from a clean state.
+#
+# Usage:
+#   setup-device               # full setup (assumes ~/dotfiles exists)
+#   setup-device --dry-run     # show what would be done
+#
+# Idempotent. Safe to re-run. Symlinks → ~/dotfiles (source of truth).
+# For machine-local files (NOT synced), reads ~/.config/ai-local/.
+set -euo pipefail
+
+DRY_RUN=0
+[ "${1:-}" = "--dry-run" ] && DRY_RUN=1
+
+DOT="${DOTFILES_DIR:-$HOME/dotfiles}"
+
+# ── Sanity check ─────────────────────────────────────────────────────────────
+[ -d "$DOT" ] || { echo "ERROR: $DOT not found. Clone first: gh repo clone ongkipro/dotfiles ~/dotfiles" >&2; exit 1; }
+
+run() {
+  if [ "$DRY_RUN" -eq 1 ]; then
+    printf '  [dry-run] %s\n' "$*"
+  else
+    "$@"
+  fi
+}
+
+say() { printf '==> %s\n' "$*"; }
+
+# ── 1) Directory structure ───────────────────────────────────────────────────
+say "Create directory structure..."
+for d in ~/.config/ai-local ~/.config/ai ~/.config/claude-memory \
+         ~/.pi/agent/skills ~/.agents/local-skills ~/.local/bin \
+         ~/.ai ~/Documents/work/content/images ~/Documents/work/{prd,research,content,notes,seo} \
+         ~/Documents/Shopify ~/Projects; do
+  run mkdir -p "$d"
+done
+
+# ── 2) Symlinks to dotfiles ─────────────────────────────────────────────────
+say "Symlink dotfiles → device..."
+# Use the snapshot if available (precise), otherwise fallback to known list
+SNAPSHOT="$HOME/.config/ai-local/symlinks.txt"
+if [ -f "$SNAPSHOT" ] && [ "$DRY_RUN" -eq 0 ]; then
+  while IFS='|' read -r link target; do
+    [ -z "$link" ] && continue
+    [[ "$link" == \#* ]] && continue
+    run mkdir -p "$(dirname "$link")"
+    [ -e "$link" ] && [ ! -L "$link" ] && run mv "$link" "${link}.bak.$(date +%s)"
+    run ln -sfn "$target" "$link"
+  done < "$SNAPSHOT"
+else
+  # Fallback: known good list for this device
+  declare -a LINKS=(
+    "$DOT/config/ai|$HOME/.config/ai"
+    "$DOT/config/starship.toml|$HOME/.config/starship.toml"
+    "$DOT/config/ripgreprc|$HOME/.ripgreprc"
+    "$DOT/config/gitignore_global|$HOME/.gitignore_global"
+    "$DOT/config/tmux.conf|$HOME/.tmux.conf"
+    "$DOT/ai-toolkits/shopify-ai-toolkit|$HOME/.ai/shopify-ai-toolkit"
+    "$DOT/docs/shopify-ai-development-repos.md|$HOME/Documents/shopify-ai-development-repos.md"
+    "$DOT/skills/local/shopify-memory|$HOME/.pi/agent/skills/shopify-memory"
+    "$DOT/skills/local/shopify-listing|$HOME/.pi/agent/skills/shopify-listing"
+    "$DOT/skills/local/shopify-ai-toolkit-router|$HOME/.pi/agent/skills/shopify-ai-toolkit-router"
+    "$DOT/skills/local/seo-website-builder|$HOME/.pi/agent/skills/seo-website-builder"
+    "$DOT/skills/local/content|$HOME/.pi/agent/skills/content"
+    "$DOT/skills/local/copywriting|$HOME/.pi/agent/skills/copywriting"
+    "$DOT/bin/ai-memory-link|$HOME/.local/bin/ai-memory-link"
+    "$DOT/bin/dotpush|$HOME/.local/bin/dotpush"
+    "$DOT/bin/dotsync|$HOME/.local/bin/dotsync"
+    "$DOT/bin/tmux-clip|$HOME/.local/bin/tmux-clip"
+    "$DOT/bin/tmux-battery|$HOME/.local/bin/tmux-battery"
+    "$DOT/bin/shopify-content-helper|$HOME/.local/bin/shopify-content-helper"
+    "$DOT/skills/local/shopify-memory/scripts/scan.sh|$HOME/.local/bin/shopify-scan"
+  )
+  for entry in "${LINKS[@]}"; do
+    target="${entry%%|*}"; link="${entry##*|}"
+    run mkdir -p "$(dirname "$link")"
+    [ -e "$link" ] && [ ! -L "$link" ] && run mv "$link" "${link}.bak.$(date +%s)"
+    run ln -sfn "$target" "$link"
+  done
+fi
+
+# ── 3) claude-memory project memories ───────────────────────────────────────
+say "Symlink Shopify project memories → ~/.config/claude-memory/..."
+for f in shopify-dev-repo-map.md petcue-shopify-site.md pixsgo-shopify-store.md local-skills-registry.md; do
+  [ -f "$DOT/config/claude-memory/$f" ] && run ln -sfn "$DOT/config/claude-memory/$f" "$HOME/.config/claude-memory/$f"
+done
+
+# ── 4) Permissions ──────────────────────────────────────────────────────────
+say "Make scripts executable..."
+run chmod +x "$DOT"/bin/* "$DOT"/skills/local/shopify-memory/scripts/scan.sh 2>/dev/null || true
+
+# ── 5) Cross-CLI memory linker ──────────────────────────────────────────────
+say "Link AGENTS.md → all AI CLI..."
+[ -x "$HOME/.local/bin/ai-memory-link" ] && run "$HOME/.local/bin/ai-memory-link"
+
+# ── 6) Install user-local tools (if missing) ────────────────────────────────
+say "Check user-local tools..."
+# gh
+if ! command -v gh >/dev/null; then
+  GH_VER=$(curl -fsSL https://api.github.com/repos/cli/cli/releases/latest 2>/dev/null | grep tag_name | head -1 | sed 's/.*"v\?\([^"]*\)".*/\1/')
+  run curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VER}/gh_${GH_VER}_linux_amd64.tar.gz" | tar -xz -C /tmp
+  run mv /tmp/gh_${GH_VER}_linux_amd64/bin/gh "$HOME/.local/bin/gh"
+fi
+# shopify CLI (npm)
+if ! command -v shopify >/dev/null; then
+  run npm install -g @shopify/cli@latest
+fi
+
+# ── 7) Shell rc ──────────────────────────────────────────────────────────────
+say "Patch ~/.bashrc with dev-tools + wsl-tools blocks..."
+for marker in ">>> dev-tools setup" ">>> WSL optimizations"; do
+  if ! grep -qF "$marker" "$HOME/.bashrc" 2>/dev/null; then
+    case "$marker" in
+      *dev-tools*)   run bash -c "echo '' >> ~/.bashrc && echo '# >>> $marker (ongkipro/dotfiles) >>>' >> ~/.bashrc && cat $DOT/config/shell-tools.sh >> ~/.bashrc && echo '# <<< $marker (ongkipro/dotfiles) <<<' >> ~/.bashrc" ;;
+      *WSL*)         [ -f "$DOT/config/wsl-tools.sh" ] && grep -qi microsoft /proc/version 2>/dev/null && run bash -c "echo '' >> ~/.bashrc && echo '# >>> $marker (ongki/dotfiles) >>>' >> ~/.bashrc && cat $DOT/config/wsl-tools.sh >> ~/.bashrc && echo '# <<< $marker (ongki/dotfiles) <<<' >> ~/.bashrc" ;;
+    esac
+  fi
+done
+
+# ── 8) Pi extension: pi-image-gen ───────────────────────────────────────────
+say "Install pi extension: @amaster.ai/pi-image-gen..."
+if command -v pi >/dev/null && ! pi list 2>/dev/null | grep -q pi-image-gen; then
+  run pi install npm:@amaster.ai/pi-image-gen
+fi
+
+# ── 9) Summary ──────────────────────────────────────────────────────────────
+say "✓ setup-device complete"
+[ -x "$HOME/.local/bin/wsl-info" ] && "$HOME/.local/bin/wsl-info" | head -20
+
+echo ""
+echo "Manual steps remaining:"
+echo "  1) From Windows PowerShell: wsl --shutdown   (apply .wslconfig)"
+echo "  2) sudo ~/.local/bin/wsl-sudo-setup          (boost inotify)"
+echo "  3) Set image-gen API key in ~/.bashrc:"
+echo "       export GEMINI_API_KEY=...     # or OPENAI_API_KEY / DASHSCOPE_API_KEY / OPENROUTER_API_KEY"
+echo "  4) shopify auth login --store <store>.myshopify.com   (browser OAuth)"

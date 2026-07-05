@@ -70,11 +70,20 @@ fkill(){ local pid; pid=$(ps -eo pid,comm,%cpu,%mem | sed 1d | sort -rnk3 | fzf 
 pi() {
   local mem="$HOME/.config/ai/AGENTS.md"
   local welcome="$HOME/.config/ai/welcome.txt"
+  local local_mem="$HOME/.config/ai-local/device.md"
   case "${1:-}" in
     update|install|uninstall|remove|list) command pi "$@" ;;
     *)
       [ -f "$welcome" ] && cat "$welcome"
-      if [ -f "$mem" ]; then command pi --append-system-prompt "$mem" "$@"; else command pi "$@"; fi
+      # Build --append-system-prompt args: shared memory + device-local memory
+      local -a args=()
+      [ -f "$mem" ]       && args+=(--append-system-prompt "$mem")
+      [ -f "$local_mem" ] && args+=(--append-system-prompt "$local_mem")
+      if [ ${#args[@]} -gt 0 ]; then
+        command pi "${args[@]}" "$@"
+      else
+        command pi "$@"
+      fi
       ;;
   esac
 }
@@ -144,3 +153,6 @@ shopify-full-audit() {
   echo "=== Strict char-limit check ==="
   shopify-content-helper seo-check "$url"
 }
+
+# --- Device bootstrap (restore this device's setup from a snapshot) ---
+[ -x "$HOME/.local/bin/setup-device" ] && alias setup='setup-device'
