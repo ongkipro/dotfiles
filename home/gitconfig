@@ -7,8 +7,6 @@
 [user]
 	email = jinadaonet@users.noreply.github.com
 	name = jinadaonet
-[credential]
-	helper = /mnt/c/Program\\ Files/Git/mingw64/bin/git-credential-manager.exe
 [core]
 	autocrlf = input
 	fileMode = false
@@ -21,3 +19,5 @@
 	line-numbers = true
 	side-by-side = true
 	syntax-theme = ansi
+[credential]
+	helper = !/home/ongki/.local/bin/gh auth git-credential

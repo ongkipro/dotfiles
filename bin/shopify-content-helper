@@ -1,0 +1,262 @@
+#!/usr/bin/env bash
+# Shopify Content Helper - SEO + content + feed utilities
+# Subcommands:
+#   seo-audit <url>              Quick SEO audit (title, meta, canonical, h1, og)
+#   seo-check <url>              Strict character-limit checks (warn at limits)
+#   sitemap-entry <url> <date>   Print a single <url>...</url> block
+#   sitemap-merge <dir>          Merge all .xml files in dir into one sitemap index
+#   meta-gen <keyword>           Generate SEO title/description templates from a keyword
+#   brief <keyword>              Generate a content brief skeleton (H2s, FAQs, schema)
+#   rss-feed <blog-handle>       Print RSS 2.0 feed skeleton for a Shopify blog
+#   schema-product               Print Product/Offer JSON-LD template
+#   schema-article               Print BlogPosting JSON-LD template
+#   schema-faq                   Print FAQPage JSON-LD template
+#   image-to-webp <file> [w]     Convert to WebP (default width 1200, quality 85)
+#   image-alt-pattern <title>    Generate ALT text from title + view label
+set -euo pipefail
+
+usage() {
+  sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+  exit 1
+}
+
+cmd="${1:-}"
+shift || true
+case "$cmd" in
+  seo-audit)
+    url="${1:?usage: shopify-content-helper seo-audit <url>}"
+    echo "→ Auditing $url"
+    echo
+    for sel in \
+      'title|<title>[^<]+</title>' \
+      'meta desc|<meta name="description" content="[^"]+"' \
+      'canonical|<link rel="canonical" href="[^"]+"' \
+      'robots|<meta name="robots" content="[^"]+"' \
+      'og:title|<meta property="og:title" content="[^"]+"' \
+      'og:image|<meta property="og:image" content="[^"]+"' \
+      'h1s|<h1[^>]*>[^<]+</h1>' \
+      'jsonld|<script type="application/ld\+json">[^<]+</script>' ; do
+      label="${sel%%|*}"; pat="${sel#*|}"
+      echo "[$label]"
+      curl -sL --max-time 15 "$url" 2>/dev/null | grep -oE "$pat" | head -3 | sed 's/^/  /'
+      echo
+    done
+    ;;
+
+  seo-check)
+    # Strict char-count warnings
+    url="${1:?usage: shopify-content-helper seo-check <url>}"
+    echo "→ Strict SEO check: $url"
+    html=$(curl -sL --max-time 15 "$url" 2>/dev/null)
+    title=$(echo "$html" | grep -oE '<title>[^<]+</title>' | head -1 | sed 's@</\?title>@@g')
+    meta=$(echo "$html" | grep -oE '<meta name="description" content="[^"]+"' | head -1 | sed -E 's@.*content="([^"]+)".*@\1@')
+    h1=$(echo "$html" | grep -oE '<h1[^>]*>[^<]+</h1>' | head -1 | sed 's@</\?h1[^>]*>@@g')
+
+    [ -n "$title" ] && {
+      tl=${#title}
+      if   [ "$tl" -gt 65 ]; then echo "  ✗ title length: $tl (>65, will truncate)"
+      elif [ "$tl" -lt 30 ]; then echo "  ⚠ title length: $tl (<30, too short)"
+      else echo "  ✓ title length: $tl"; fi
+    } || echo "  ✗ NO title found"
+    [ -n "$meta" ] && {
+      ml=${#meta}
+      if   [ "$ml" -gt 160 ]; then echo "  ✗ meta length: $ml (>160, will truncate)"
+      elif [ "$ml" -lt 70 ];  then echo "  ⚠ meta length: $ml (<70, too short)"
+      else echo "  ✓ meta length: $ml"; fi
+    } || echo "  ✗ NO meta description"
+    [ -n "$h1" ] && echo "  ✓ H1: $h1" || echo "  ✗ NO H1"
+    echo
+    echo "Page size: $(echo -n "$html" | wc -c) bytes"
+    ;;
+
+  sitemap-entry)
+    url="$1"; lastmod="${2:-$(date +%Y-%m-%d)}"; changefreq="${3:-weekly}"; priority="${4:-0.7}"
+    printf '  <url>\n    <loc>%s</loc>\n    <lastmod>%s</lastmod>\n    <changefreq>%s</changefreq>\n    <priority>%s</priority>\n  </url>\n' "$url" "$lastmod" "$changefreq" "$priority"
+    ;;
+
+  sitemap-merge)
+    # Build a sitemap index from multiple sitemap files in a directory
+    dir="${1:?usage: shopify-content-helper sitemap-merge <dir-with-sitemap-files>}"
+    base="${2:-https://example.com}"
+    echo '<?xml version="1.0" encoding="UTF-8"?>'
+    echo '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+    for f in "$dir"/*.xml; do
+      [ -f "$f" ] || continue
+      lm=$(stat -c %y "$f" | cut -d' ' -f1)
+      name=$(basename "$f")
+      printf '  <sitemap>\n    <loc>%s/sitemaps/%s</loc>\n    <lastmod>%s</lastmod>\n  </sitemap>\n' "$base" "$name" "$lm"
+    done
+    echo '</sitemapindex>'
+    ;;
+
+  meta-gen)
+    # Generate SEO title + meta templates for a keyword
+    keyword="$1"
+    echo "→ Meta templates for keyword: $keyword"
+    echo
+    echo "[SEO Title templates (≤60 chars)]"
+    echo "  1. ${keyword^} – Buy Online at [Brand]"
+    echo "  2. ${keyword^} | Free Shipping & Best Price"
+    echo "  3. Best ${keyword^} for [Use Case] – [Brand]"
+    echo
+    echo "[Meta Description templates (≤155 chars)]"
+    echo "  1. Shop ${keyword} at [Brand]. Free shipping, easy returns. Discover top-rated [${keyword}] with detailed specs and customer reviews."
+    echo "  2. Looking for ${keyword}? Find the best selection at [Brand]. Compare prices, read reviews, and order online today."
+    echo
+    ;;
+
+  brief)
+    # Content brief skeleton
+    keyword="$1"
+    cat <<EOF
+# Content Brief: ${keyword^}
+
+## Search intent
+- Primary: [informational | commercial | transactional | navigational]
+- Secondary: [list 2-3 long-tail variants]
+
+## Audience
+- Persona: [who is searching, what they need]
+- Pain points: [3-5]
+- Questions they ask: [3-5]
+
+## H2 / H3 outline
+1. What is ${keyword}? (definition)
+2. Why ${keyword} matters (benefits, use cases)
+3. How to choose ${keyword} (criteria, comparison)
+4. ${keyword^} vs [alternative] (comparison table)
+5. FAQ about ${keyword}
+6. Conclusion + CTA-free next step
+
+## Target keywords
+- Primary: ${keyword}
+- Long-tail: [list 5-10 from autocomplete]
+- LSI: [list 8-15 related entities]
+
+## On-page SEO targets
+- Title ≤60: [draft]
+- Meta ≤155: [draft]
+- H1 = primary keyword (natural)
+- Word count: [800-1500 for guide, 2000+ for pillar]
+- Internal links: [3-5 from/to relevant pages]
+- External links: [2-3 trusted sources]
+
+## Media
+- Hero image: [concept + alt text]
+- 2-3 supporting images with descriptive alt
+- 1 diagram or comparison table
+
+## Schema.org
+- Article or BlogPosting
+- FAQPage (if FAQ section)
+- BreadcrumbList
+
+## Conversion (if commercial)
+- CTA placement: [where + format]
+- Trust signals: [reviews, badges, shipping]
+- Lead magnet: [optional]
+EOF
+    ;;
+
+  rss-feed)
+    handle="${1:-news}"
+    cat <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>[Store Name] – [${handle}] Blog</title>
+    <link>https://[store-domain]/blogs/${handle}</link>
+    <atom:link href="https://[store-domain]/blogs/${handle}.feed.xml" rel="self" type="application/rss+xml" />
+    <description>[Store Name] – Latest articles in ${handle}.</description>
+    <language>en-us</language>
+    <lastBuildDate>$(date -u +%a, %d %b %Y %H:%M:%S +0000)</lastBuildDate>
+    <!-- Add <item> per article: title, link, description, pubDate, guid -->
+  </channel>
+</rss>
+EOF
+    ;;
+
+  schema-product)
+    cat <<'EOF'
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "[Product Title]",
+  "image": ["[primary image URL]", "[alt image URL]"],
+  "description": "[Product description, ≤500 chars]",
+  "sku": "[SKU]",
+  "gtin13": "[optional GTIN]",
+  "brand": { "@type": "Brand", "name": "[Brand]" },
+  "offers": {
+    "@type": "Offer",
+    "url": "[Product URL]",
+    "priceCurrency": "USD",
+    "price": "[49.00]",
+    "availability": "https://schema.org/InStock",
+    "itemCondition": "https://schema.org/NewCondition"
+  }
+}
+EOF
+    ;;
+
+  schema-article)
+    cat <<'EOF'
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "[Article Title ≤110 chars]",
+  "image": ["[Hero image URL]"],
+  "datePublished": "[ISO 8601: 2026-07-05T08:00:00Z]",
+  "dateModified": "[ISO 8601]",
+  "author": { "@type": "Person", "name": "[Author Name]" },
+  "publisher": {
+    "@type": "Organization",
+    "name": "[Publisher]",
+    "logo": { "@type": "ImageObject", "url": "[logo URL]" }
+  },
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "[Article URL]" },
+  "description": "[Meta description ≤155]"
+}
+EOF
+    ;;
+
+  schema-faq)
+    cat <<'EOF'
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "[Question 1]",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "[Answer 1, plain text]"
+      }
+    }
+  ]
+}
+EOF
+    ;;
+
+  image-to-webp)
+    src="${1:?usage: shopify-content-helper image-to-webp <file> [width]}"
+    width="${2:-1200}"
+    command -v magick >/dev/null && CONV=magick || CONV=convert
+    out="${src%.*}.webp"
+    "$CONV" "$src" -resize "${width}x>" -quality 85 -define webp:method=6 "$out" \
+      && echo "✓ $out ($(du -h "$out" | cut -f1))" \
+      || { echo "✗ failed"; exit 1; }
+    ;;
+
+  image-alt-pattern)
+    title="$1"
+    view="${2:-front view}"
+    alt="${title} - ${view}"
+    [ "${#alt}" -gt 125 ] && alt="${alt:0:122}..."
+    echo "$alt"
+    ;;
+
+  ""|help|-h|--help) usage ;;
+  *) echo "Unknown subcommand: $cmd"; usage ;;
+esac

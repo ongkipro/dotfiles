@@ -83,3 +83,64 @@ pi() {
 command -v starship >/dev/null && eval "$(starship init "$(_shell_name)")"
 
 # <<< dev-tools setup (ongkipro/dotfiles) <<<
+
+# --- ImageMagick v7: use 'magick' (the actual command name now) ---
+command -v magick >/dev/null && alias convert='magick'
+command -v magick >/dev/null && alias mogrify='magick mogrify'
+command -v magick >/dev/null && alias identify='magick identify'
+
+# --- Shopify content/SEO shortcuts ---
+# SEO audit (run inside a project)
+shopify-seo-audit() {
+  local url="${1:?usage: shopify-seo-audit <store-url>}"
+  echo "→ Auditing $url ..."
+  echo ""
+  echo "[title]"
+  curl -sL "$url" | grep -oE '<title>[^<]+</title>' | head -1
+  echo ""
+  echo "[meta description]"
+  curl -sL "$url" | grep -oE '<meta name="description" content="[^"]+"' | head -1
+  echo ""
+  echo "[canonical]"
+  curl -sL "$url" | grep -oE '<link rel="canonical" href="[^"]+"' | head -1
+  echo ""
+  echo "[h1]"
+  curl -sL "$url" | grep -oE '<h1[^>]*>[^<]+</h1>' | head -3
+  echo ""
+  echo "[og:image]"
+  curl -sL "$url" | grep -oE '<meta property="og:image" content="[^"]+"' | head -1
+}
+
+# Convert images to WebP (Shopify CDN serves better when WebP available)
+shopify-webp() {
+  local src="${1:?usage: shopify-webp <image> [width]}"
+  local width="${2:-1200}"
+  local out="${src%.*}.webp"
+  magick "$src" -resize "${width}x>" -quality 85 -define webp:method=6 "$out" \
+    && echo "✓ $out ($(du -h "$out" | cut -f1))" \
+    || echo "✗ failed"
+}
+
+# Generate sitemap entry stub for a Shopify page
+shopify-sitemap-entry() {
+  local url="$1" lastmod="$2" changefreq="${3:-weekly}" priority="${4:-0.7}"
+  printf '  <url>\n    <loc>%s</loc>\n    <lastmod>%s</lastmod>\n    <changefreq>%s</changefreq>\n    <priority>%s</priority>\n  </url>\n' \
+    "$url" "$lastmod" "$changefreq" "$priority"
+}
+
+# Open Shopify store admin in browser
+alias shopi-admin='powershell.exe -NoProfile -Command "Start-Process https://${SHOPIFY_STORE:-<your-store>}.myshopify.com/admin"'
+
+
+# --- Shopify content/SEO helper (comprehensive tool) ---
+[ -x "$HOME/.local/bin/shopify-content-helper" ] && alias sch='shopify-content-helper'
+
+# --- One-shot audit: full SEO + content + schema check for a URL ---
+shopify-full-audit() {
+  local url="${1:?usage: shopify-full-audit <url>}"
+  echo "=== Full SEO + content audit for: $url ==="
+  echo
+  shopify-content-helper seo-audit "$url"
+  echo "=== Strict char-limit check ==="
+  shopify-content-helper seo-check "$url"
+}
