@@ -116,111 +116,11 @@ if ! shopt -oq posix; then
   fi
 fi
 
-
-# Added by Antigravity CLI installer
-export PATH="/home/fantastico/.local/bin:$PATH"
-
 export NVM_DIR="$HOME/.nvm"
-# Lazy-load nvm: PATH ke node + global bin (claude/pi/codex) langsung tersedia,
-# tapi nvm.sh yang berat baru di-source saat 'nvm' beneran dipanggil.
-for _nbin in "$NVM_DIR"/versions/node/*/bin; do [ -d "$_nbin" ] && PATH="$_nbin:$PATH"; done; unset _nbin
-nvm() { unset -f nvm; [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"; [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"; nvm "$@"; }
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
-# Disable default Shopify AI Toolkit telemetry unless explicitly overridden
-export OPT_OUT_INSTRUMENTATION="${OPT_OUT_INSTRUMENTATION:-true}"
-
-# --- claude account switcher ---
-# `claude personal` / `claude kerja` -> switch akun (login tersimpan per akun).
-# `claude` + argumen lain -> jalan seperti biasa.
-claude() {
-  if [ -n "${1:-}" ] && [ -d "$HOME/.claude-accounts/$1" ]; then
-    akun "$@"
-  else
-    command claude "$@"
-  fi
-}
-# --- end claude account switcher ---
-
-# mise: tool manager user-local (no sudo)
-if command -v mise >/dev/null; then
-  export PATH="$HOME/.local/share/mise/shims:$PATH"  # tool kebaca di script / non-interaktif (VSCode task, bash -c)
-  eval "$(mise activate bash)"                        # interaktif: versi per-direktori
-fi
-# >>> dev-tools setup (claude) >>>
-# Ubuntu memasang fd sebagai 'fdfind' dan bat sebagai 'batcat'
-command -v fdfind >/dev/null && alias fd='fdfind'
-command -v batcat >/dev/null && alias bat='batcat'
-# eza sebagai pengganti ls
-if command -v eza >/dev/null; then
-  alias ls='eza --group-directories-first'
-  alias ll='eza -la --git --group-directories-first'
-  alias lt='eza --tree --level=2'
-fi
-# zoxide: smart cd  ->  pakai 'z <nama>'
-command -v zoxide >/dev/null && eval "$(zoxide init bash)"
-# fzf: Ctrl-R (history), Ctrl-T (file), Alt-C (cd)
-command -v fzf >/dev/null && eval "$(fzf --bash)" 2>/dev/null
-# direnv: auto-load .envrc per project
-command -v direnv >/dev/null && eval "$(direnv hook bash)"
-# bat sebagai pager man (warna) — prefer 'bat' (mise), fallback 'batcat' (apt)
-if command -v bat >/dev/null; then export MANPAGER="sh -c 'col -bx | bat -l man -p'"
-elif command -v batcat >/dev/null; then export MANPAGER="sh -c 'col -bx | batcat -l man -p'"; fi
-# --- akurat & cepat: ripgrep config ---
-[ -f ~/.ripgreprc ] && export RIPGREP_CONFIG_PATH="$HOME/.ripgreprc"
-# --- fzf: cepat (fd) + preview jelas (bat/eza) ---
-if command -v fzf >/dev/null; then
-  if command -v fd >/dev/null; then
-    export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
-    export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
-    export FZF_ALT_C_COMMAND='fd --type d --hidden --follow --exclude .git'
-  fi
-  export FZF_DEFAULT_OPTS="--height 45% --layout=reverse --border=rounded --info=inline"
-  command -v bat >/dev/null && export FZF_CTRL_T_OPTS="--preview 'bat -n --color=always --line-range :300 {}' --preview-window=right,60%"
-  command -v eza >/dev/null && export FZF_ALT_C_OPTS="--preview 'eza --tree --level=2 --color=always {}'"
-fi
-# --- tampilan & editor ---
-command -v bat >/dev/null && export BAT_THEME="ansi"
-if command -v hx >/dev/null; then export EDITOR="hx"; elif command -v vim >/dev/null; then export EDITOR="vim"; else export EDITOR="nano"; fi
-export VISUAL="$EDITOR"
-export PAGER="less"; export LESS="-FRX"
-alias grep='grep --color=auto'
-# --- akses cepat: alias & fungsi ---
-alias g='git'
-command -v lazygit >/dev/null && alias lg='lazygit'
-alias devnotes='bat ~/Documents/dev-setup.md 2>/dev/null || cat ~/Documents/dev-setup.md'   # panduan ringkas
-alias devdoc='bat ~/Documents/linux-dev-setup.md 2>/dev/null || cat ~/Documents/linux-dev-setup.md'  # dokumen lengkap/reproduksi
-if command -v eza >/dev/null; then
-  alias ll='eza -la --git --group-directories-first --time-style=relative'
-  alias la='eza -a --group-directories-first'
-fi
-alias ..='cd ..'; alias ...='cd ../..'; alias ....='cd ../../..'
-mkcd(){ mkdir -p -- "$1" && cd -- "$1"; }                                   # bikin folder + masuk
-ff(){ local f; f=$(fzf --preview 'bat -n --color=always {} 2>/dev/null || cat {}') && [ -n "$f" ] && ${EDITOR%% *} "$f"; }  # cari file -> buka di editor
-fkill(){ local pid; pid=$(ps -eo pid,comm,%cpu,%mem --sort=-%cpu | sed 1d | fzf -m --header='pilih proses (TAB=multi)' | awk '{print $1}'); [ -n "$pid" ] && echo "$pid" | xargs -r kill "${1:--15}"; }  # kill proses via fzf
-# pi.dev: auto-muat memori bersama dari ~/.config/ai/ (route folder; ~/AGENTS.md tdk perlu)
-# 🪙 REWARD counter: +$1M USD setiap buka pi
-__pi_reward_show() {
-  local f="$HOME/.pi/agent/reward_counter"
-  local amt=1000000000
-  [ -f "$f" ] && amt=$(cat "$f")
-  # +$1,000,000 every open
-  amt=$((amt + 1000000))
-  echo "$amt" > "$f"
-  LC_NUMERIC="en_US.UTF-8" printf '\033[1;33m◆  REWARD   \033[1;32m$%'\''.2f USD\033[0m\n' "$amt"
-}
-pi() {
-  local mem="$HOME/.config/ai/AGENTS.md"
-  case "${1:-}" in
-    update|install|uninstall|remove|list) command pi "$@" ;;
-    *) __pi_reward_show; if [ -f "$mem" ]; then command pi --append-system-prompt "$mem" "$@"; else command pi "$@"; fi ;;
-  esac
-}
-# starship: prompt informatif (git branch/status, exit code, durasi, runtime per-folder)
-command -v starship >/dev/null && eval "$(starship init bash)"
-# <<< dev-tools setup (claude) <<<
-
-PATH="/home/fantastico/perl5/bin${PATH:+:${PATH}}"; export PATH;
-PERL5LIB="/home/fantastico/perl5/lib/perl5${PERL5LIB:+:${PERL5LIB}}"; export PERL5LIB;
-PERL_LOCAL_LIB_ROOT="/home/fantastico/perl5${PERL_LOCAL_LIB_ROOT:+:${PERL_LOCAL_LIB_ROOT}}"; export PERL_LOCAL_LIB_ROOT;
-PERL_MB_OPT="--install_base \"/home/fantastico/perl5\""; export PERL_MB_OPT;
-PERL_MM_OPT="INSTALL_BASE=/home/fantastico/perl5"; export PERL_MM_OPT;
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Clipboard wrapper: cross-platform (macOS + Wayland + X11)
-# Auto-deteksi: pbcopy (macOS) > wl-copy (Wayland) > xclip/xsel (X11)
+# Clipboard wrapper: cross-platform (macOS + Wayland + X11 + WSL)
+# Auto-deteksi: pbcopy (macOS) > wl-copy (Wayland) > xclip/xsel (X11) > clip.exe (WSL)
 if command -v pbcopy >/dev/null 2>&1; then
     exec pbcopy                          # macOS
 elif command -v wl-copy >/dev/null 2>&1 && [ -n "${WAYLAND_DISPLAY:-}" ]; then
@@ -9,4 +9,7 @@ elif command -v xclip >/dev/null 2>&1 && [ -n "${DISPLAY:-}" ]; then
     exec xclip -selection clipboard -in  # Linux X11
 elif command -v xsel >/dev/null 2>&1 && [ -n "${DISPLAY:-}" ]; then
     exec xsel -ib                        # Linux X11 (fallback)
+elif command -v clip.exe >/dev/null 2>&1; then
+    # WSL: forward to Windows clipboard via clip.exe
+    exec clip.exe
 fi
