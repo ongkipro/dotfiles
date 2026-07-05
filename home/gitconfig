@@ -7,3 +7,17 @@
 [user]
 	email = jinadaonet@users.noreply.github.com
 	name = jinadaonet
+[credential]
+	helper = /mnt/c/Program\\ Files/Git/mingw64/bin/git-credential-manager.exe
+[core]
+	autocrlf = input
+	fileMode = false
+	quotePath = false
+	pager = delta
+[init]
+	defaultBranch = main
+[delta]
+	navigate = true
+	line-numbers = true
+	side-by-side = true
+	syntax-theme = ansi

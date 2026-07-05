@@ -55,10 +55,21 @@ echo "==> Setup tmux (install binary + clipboard + TPM + plugin)..."
 echo "==> Patch $SHELL_RC (blok dev-tools)..."
 MARKER=">>> dev-tools setup (ongkipro/dotfiles)"
 if grep -qF "$MARKER" "$SHELL_RC" 2>/dev/null; then
-  echo "   blok sudah ada -> dilewati"
+  echo "   blok dev-tools sudah ada -> dilewati"
 else
   { echo ""; cat "$DOT/config/shell-tools.sh"; } >> "$SHELL_RC"
-  echo "   blok ditambahkan ke $SHELL_RC"
+  echo "   blok dev-tools ditambahkan ke $SHELL_RC"
+fi
+
+# WSL2-specific block (only added when running inside WSL)
+if grep -qi 'microsoft' /proc/version 2>/dev/null; then
+  WSL_MARKER=">>> WSL optimizations (ongki/dotfiles)"
+  if grep -qF "$WSL_MARKER" "$SHELL_RC" 2>/dev/null; then
+    echo "   blok WSL sudah ada -> dilewati"
+  else
+    { echo ""; cat "$DOT/config/wsl-tools.sh"; } >> "$SHELL_RC"
+    echo "   blok WSL ditambahkan ke $SHELL_RC"
+  fi
 fi
 
 cat <<'EOF'
