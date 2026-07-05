@@ -1,0 +1,32 @@
+# WSL2 configuration template — applies to ALL distros on this Windows host
+# Edit at: C:\Users\<you>\.wslconfig  (Windows-side, NOT in WSL filesystem)
+# Apply (from Windows PowerShell, NOT inside this WSL):
+#   wsl --shutdown
+# then re-open Ubuntu.
+
+[wsl2]
+# Memory: rule of thumb — give WSL ~50-60% of total RAM (leave enough for Windows + apps).
+# Examples:
+#   8GB RAM total  → memory=4GB  (this file's default for 7.6GB machine)
+#   16GB RAM total → memory=8GB
+#   32GB RAM total → memory=16GB
+memory=4GB
+# CPUs: ~half of physical cores
+processors=6
+# Swap: auto-growable up to 4GB
+swap=2GB
+swapFile=D:\\wsl-swap.vhdx
+# Forward localhost ports (needed for `shopify theme dev`, `npm run dev`, Astro, etc.)
+localhostForwarding=true
+# Enable WSLg (run Linux GUI apps from WSL)
+guiApplications=true
+
+[experimental]
+# Reclaim cached memory gradually when idle (returns RAM to Windows)
+autoMemoryReclaim=gradual
+# Sparse VHD — only uses disk for actually-written data (saves space on the WSL vhdx)
+sparseVhd=true
+# Use Windows DNS resolver for faster DNS lookups (Windows knows the network)
+dnsTunneling=true
+# Better file system perf for /mnt/c access (still keep big projects on Linux fs)
+useWindowsPathCache=true
