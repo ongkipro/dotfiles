@@ -24,7 +24,9 @@ function bold(theme: Theme, text: string): string {
 
 // ── Cursor state (blinking █) ────────────────────────────────────────
 let cursorOn = true;
-setInterval(() => { cursorOn = !cursorOn; }, 650);
+const cursorTimer = setInterval(() => { cursorOn = !cursorOn; }, 650);
+// unref: jangan tahan event loop — tanpa ini `pi -p "..."` (non-interaktif) hang selamanya
+(cursorTimer as { unref?: () => void }).unref?.();
 
 // ── Section 1: Rocket + BISMILLAH ────────────────────────────────────
 function header(theme: Theme): string[] {
