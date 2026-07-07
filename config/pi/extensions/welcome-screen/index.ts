@@ -6,7 +6,7 @@
  *   - B I S M I L L A H (spaced)
  *   - Al-Kahfi 39 dzikir
  *   - 3 prinsip kerja
- *   - ╔══╗ PRESS START box + blinking cursor
+ *   - ╔══╗ PRESS START box + stable cursor
  *
  * No meta info (model/session/skills/pi version) — clean & playful.
  * Hot-reload safe: ~/.pi/agent/extensions/welcome-screen.ts
@@ -22,11 +22,9 @@ function bold(theme: Theme, text: string): string {
 	try { return theme.bold(text); } catch { return text; }
 }
 
-// ── Cursor state (blinking █) ────────────────────────────────────────
-let cursorOn = true;
-const cursorTimer = setInterval(() => { cursorOn = !cursorOn; }, 650);
-// unref: jangan tahan event loop — tanpa ini `pi -p "..."` (non-interaktif) hang selamanya
-(cursorTimer as { unref?: () => void }).unref?.();
+// ── Cursor: statis (bukan blinking) ──────────────────────────────────
+// Tanpa setInterval: tidak ada re-render 650ms (sumber layar kedip saat
+// reasoning) dan tidak ada timer yang menahan event loop di `pi -p`.
 
 // ── Section 1: Rocket + BISMILLAH ────────────────────────────────────
 function header(theme: Theme): string[] {
@@ -85,13 +83,12 @@ function prinsip(theme: Theme): string[] {
 	];
 }
 
-// ── Section 4: ╔══╗ PRESS START box + cursor ─────────────────────────
+// ── Section 4: ╔══╗ PRESS START box + stable cursor ──────────────────
 function box(theme: Theme): string[] {
 	const A = (t: string) => paint(theme, "accent", bold(theme, t));
 	const T = (t: string) => paint(theme, "text", t);
-	const D = (t: string) => paint(theme, "dim", t);
 
-	const cursor = cursorOn ? A("█") : D(" ");
+	const cursor = A("█");
 
 	return [
 		`          ${A("╔══════════════════════════╗")}`,
