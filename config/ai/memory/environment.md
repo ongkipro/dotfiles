@@ -1,55 +1,58 @@
 # Memori: Environment — toolchain & install
 > Bagian dari memori bersama. Perbarui kalau ada perubahan tool/setup.
-> Mesin utama: Linux (Ubuntu). macOS 26 (Darwin arm64, MacBook Air M1 8GB) = device kedua.
+> Mesin: macOS 26 (Darwin arm64), MacBook Air M1 8GB.
 
-## Tool terpasang macOS (JANGAN install ulang)
-- mise (no-sudo): starship, direnv, lazygit, helix.
-- Homebrew (system): gh, tmux, fzf, fd, bat, eza, zoxide, ripgrep, zsh-autosuggestions, zsh-syntax-highlighting.
+## Tool terpasang (JANGAN install ulang)
+- mise (no-sudo): fzf, fd, bat, delta, lazygit, zoxide, eza, yq(v4), ripgrep, ruff, starship, helix, tealdeer, direnv, qsv.
 - Editor: helix (`hx`). `EDITOR=hx`.
-- npm -g (via nvm): pi.
-- Browser: Google Chrome.
-- Git + `~/.gitignore_global`.
-
-## Tool Linux (mesin utama, referensi)
-- mise: fzf, fd, bat, delta, lazygit, zoxide, eza, yq, ripgrep, ruff, starship, helix, tealdeer, direnv.
 - npm -g: pi, 9router, pnpm, typescript-language-server, vscode-langservers-extracted, @tailwindcss/language-server, yaml-language-server, bash-language-server, pyright.
 - pipx: python-lsp-server (pylsp).
+- Homebrew (system): gh, tmux, pnpm, chromium, pipx.
+- Browser: Chromium (`brew install chromium`), Google Chrome.
+- Git + delta diff pager + `~/.gitignore_global`.
 
 ## tmux (bagian wajib bootstrap dotfiles)
-- Setup tmux full di-handle `bin/tmux-setup` (idempotent, cross-platform).
-- Dipanggil otomatis dari `install.sh` dan `install-macos.sh`.
-- Prefix `Ctrl+a`. Theme: Catppuccin-inspired palette (tanpa Nerd Font).
-- Plugin: tmux-sensible, tmux-yank, resurrect, continuum, prefix-highlight, tmux-open.
-- Clipboard via `bin/tmux-clip` (pbcopy di macOS, wl-copy/xclip di Linux).
-- Battery indicator via `bin/tmux-battery`.
-- Reload: `prefix+r`. Plugin: `prefix+I` (install), `prefix+U` (update).
-- Session: `prefix+S` (save), `prefix+R` (restore).
+- Setup tmux full di-handle `bin/tmux-setup` (idempotent, cross-platform): install binary (apt/dnf/pacman/zypper di Linux, brew di macOS) + clipboard tool (wl-clipboard/xclip di Linux; pbcopy bawaan macOS) + link `~/.tmux.conf`, `~/.local/bin/tmux-clip`, dan `~/.local/bin/tmux-battery` + clone TPM + install/clean plugin.
+- Dipanggil otomatis dari `install.sh` dan `install-macos.sh`. Bisa juga dijalankan manual: `tmux-setup`.
+- Prefix `Ctrl+a`. Theme: plain-font friendly Catppuccin-inspired palette (tanpa ketergantungan Nerd Font). Plugin: tmux-sensible, tmux-yank, resurrect, continuum, prefix-highlight, tmux-open. Clipboard via `bin/tmux-clip`, battery/status helper via `bin/tmux-battery`. Reload: prefix+r. Update plugin: prefix+U / install plugin baru: prefix+I. Save session: prefix+S. Restore: prefix+R.
 
 ## Cara install (kapan sudo)
-- CLI / runtime → `mise use -g <nama>` (no sudo).
+- CLI / runtime → `mise use -g <nama>` (no sudo); update `mise up`; hapus `mise rm <nama>`.
 - Tool Node → `npm i -g <paket>`. App Python → `pipx install <paket>`.
-- System tools macOS → `brew install <nama>`.
-- `sudo` HANYA untuk file sistem (jarang dibutuhkan).
+- System tools → `brew install <nama>`. GUI apps → `brew install --cask <nama>`.
+- `sudo` HANYA untuk file sistem (jarang dibutuhkan di macOS).
 
-## pi.dev + 9router (AI Gateway)
-- **Linux & macOS**: pi route lewat 9router lokal (`http://127.0.0.1:20128/v1`), provider `9router`, model default `ocg/deepseek-v4-pro`.
-- Settings pi di `~/.pi/agent/settings.json`. Source of truth di `dotfiles/config/pi/settings.json`.
-- 9router = OpenAI-compatible gateway lokal. Pi adalah **satu-satunya CLI** yang pakai 9router.
-- Claude Code, Codex, AGY = TIDAK BOLEH pakai 9router; masing-masing pakai native API sendiri.
-- macOS: 9router jalan sebagai background process (via `tmux` session atau launchd). Tidak ada systemd.
-- Linux: 9router jalan via systemd user service (`systemctl --user`).
-- Pi wrapper di shell rc auto-load AGENTS.md via `--append-system-prompt` flag.
-- Extension `compact-free`: compaction pi pakai model gratis via 9router (hemat limit model utama).
-- Claude account launcher: `claude` dan `claude-personal` → `akun personal`; `claude-kerja` → `akun kerja`.
-- AGENTS.md di-load via symlink ke semua CLI. Memori bersama di `~/.config/ai/` (AGENTS.md + memory/*.md).
+## pi.dev / 9router
+- pi route lewat 9router lokal (`http://localhost:20128/v1`), jalan sebagai **launchd agent** `com.9router.autostart` (auto-start on login), bind local-only `127.0.0.1`, port 20128.
+- pi pakai provider `9router` (internal ID: rbq97ts); default model `ocg/deepseek-v4-pro`. Cek `~/.pi/agent/settings.json` (symlink → dotfiles).
+- AGENTS.md di-load via symlink ke semua CLI. Memori bersama di `~/.config/ai/` (AGENTS.md + memory/*.md). Memori AI system di `~/dotfiles/memori-ai/`.
+- 9router terinstall via npm global; launchd plist di `~/Library/LaunchAgents/com.9router.autostart.plist`.
+- Claude account launcher: `claude` dan `claude-personal` default ke personal account via `akun personal`; `claude-kerja` pakai isolated `~/.claude-accounts/kerja`. Wrappers di `~/dotfiles/bin/` symlinked ke `~/.local/bin/`.
 
-## Folder structure
-```
-~/Projects/              ← source code (capital P)
-~/Documents/work/        ← AI-generated output
-  ├── prd/               ← planning & spec
-  ├── research/          ← riset & analisis
-  ├── content/           ← tulisan & copy
-  └── notes/             ← draft & ide
-~/dotfiles/              ← config & memory source of truth
-```
+## Isolasi 9router (policy: 9router HANYA untuk pi.dev)
+- 9router (localhost:20128, MITM + cloudflare tunnel) khusus dipakai pi.dev via `~/.pi/agent/models.json`.
+- codex DILEPAS dari 9router (29 Jun 2026): `model_provider`/blok `[model_providers.9router]` di `~/.codex/config.toml` di-comment; codex balik ke OpenAI native (punya OPENAI_API_KEY + login ChatGPT di ~/.codex/auth.json). Uncomment utk pulihkan.
+- Claude Code TIDAK boleh lewat 9router: jalankan `claude` biasa (jangan via launcher/menu 9router yg menyuntik proxy+CA per-proses). Tak ada env/proxy global — kebocoran hanya jika diluncurkan lewat 9router. Model `cc/claude-*` yg muncul di selector = MITM 9router & tak punya rute upstream (error "may not exist").
+- gemini sudah bersih (tak pernah nunjuk 9router).
+- Pi global extension `~/.pi/agent/extensions/welcome-screen.ts` customises the TUI header with a Garuda welcome screen; use `theme.fg(color, text)` (not curried) when editing pi TUI themes/extensions.
+
+## Mesin user (multi-machine, clarifikasi 2026-07-07)
+- Memory `~/.config/ai/` di-sync via dotfiles ke BEBERAPA mesin — fakta OS/toolchain harus menyebut mesin yg relevan.
+- Mac `feriromansyah` (MacBook Air M1 8GB, macOS 26 Darwin arm64): editor helix, mise/npm/pipx; 9router autostart via **launchd** `com.9router.autostart` (headless custom-server.js, 127.0.0.1:20128).
+- Linux `fantastico` (Ubuntu 7.0.0-27-generic, x86_64, hostname "Fantastico"): editor helix (languages.toml symlink → dotfiles), mise/npm/pipx; 9router autostart via **systemd --user** `~/.config/systemd/user/9router.service` (headless custom-server.js, 127.0.0.1:20128, Restart=always, enabled default.target). Linger belum di-enable (perlu `sudo loginctl enable-linger $USER` agar jalan tanpa login aktif).
+- Saat kasih instruksi OS-specific (launchd vs systemd, brew vs apt, dsb), SELALU cek mesin dulu (`uname -a`).
+
+## Setup pi/9router per mesin (disinkronkan via dotfiles)
+- pi pakai provider `9router` (internal ID `rbq97ts`), default model **`cx/gpt-5.4-mini`** (awas: `ocg/deepseek-v4-pro` yg lama sudah TIDAK ada di 9router — prefix `ocg/` itu provider NATIVE pi, bukan 9router). Kalau butuh model 9router lain: `curl localhost:20128/v1/models`.
+- `~/.pi/agent/settings.json` symlink → `~/dotfiles/config/pi/settings.json`. NOTE: file ini machine-coupled (skills array pernah salah isi path `/Users/feriromansyah/...`); dotfiles versi sudah dibersihkan (skills array di-drop, defaultModel diperbaiki).
+- `~/.pi/extensions/compact-free/` symlink → `~/dotfiles/config/pi/extensions/compact-free/`. Compaction pakai provider NATIVE pi (opencode-go/minimax/openai-codex, auth di `~/.pi/agent/auth.json`) — BUKAN 9router. Policy: 9router HANYA untuk chat utama pi.
+- `~/.pi/agent/extensions/welcome-screen.ts` symlink → `~/dotfiles/config/pi/extensions/welcome-screen/index.ts` (single-file auto-load, isi welcome header Garuda Gold).
+- `~/.9router/aliases.json` + `~/.9router/runtime/package.json` symlink → `~/dotfiles/config/9router/`.
+- `models.json` TIDAK di-dotfiles (berisi API key 9router). `auth.json` TIDAK di-dotfiles (oauth token). Backup = lokal saja.
+
+## Setup pi/9router di linux `fantastico` (2026-07-07)
+- `~/.pi/agent/settings.json` symlink → `~/dotfiles/config/pi/settings.json` (sama dengan mac; default `opencode-go/minimax-m3`, theme `dark`).
+- `~/.pi/extensions/compact-free/` symlink → `~/dotfiles/config/pi/extensions/compact-free/` (ladder 5 model gratis, mayoritas via 9router).
+- `~/.pi/agent/extensions/welcome-screen.ts` symlink → `~/dotfiles/config/pi/extensions/welcome-screen/index.ts`.
+- 9router autostart: **systemd --user** `~/.config/systemd/user/9router.service` (headless `custom-server.js`, bind `127.0.0.1:20128`, `Restart=always`, `WantedBy=default.target`). Generate via `~/dotfiles/bin/pi-9router-restore` (linux). mac → launchd `com.9router.autostart`.
+- `~/.9router/{aliases.json,runtime/package.json}` symlink → `~/dotfiles/config/9router/`. `models.json` + `auth.json` TIDAK di-dotfiles (secret).

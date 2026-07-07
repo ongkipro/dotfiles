@@ -55,16 +55,30 @@
 - Do not treat conflicting Human Design/personality readings as final facts without verification.
 - Prefer separating facts, assumptions, opinions, and unknowns when uncertainty matters.
 
-## Product / deployment decisions
+## AI tooling decisions (diperbarui 2026-07-07)
 
-### VolumCMS multi-client deployment (model "CMS jasa website")
-- Status: active decision (5 Juli 2026). Berlaku untuk VolumCMS dan produk CMS compro/katalog sejenis.
-- Konteks: dijual sebagai JASA WEBSITE (bikin situs klien), BUKAN SaaS multi-tenant. Domain diurus manual sendiri. Pixel/analytics belum perlu.
-- Keputusan inti: **1 GitHub repo → banyak Vercel Project (semua import repo yang sama) → tiap klien punya 1 Neon DB + 1 Blob store + env sendiri.** JANGAN 1 repo/1 Vercel per klien.
-  - Yang beda per klien = ENV saja: `DATABASE_URL` (Neon), `BLOB_READ_WRITE_TOKEN`, `NEXT_PUBLIC_APP_URL` (domain), `BETTER_AUTH_SECRET`/`URL`. Kode 100% identik.
-  - Bisa karena semua konten & branding VolumCMS ada di DB (tabel `settings` + posts/products/pages), bukan di kode.
-- Deploy coupling: semua Vercel klien menarik dari SATU branch → 1 push = SEMUA klien re-deploy (1 bug bisa kena semua). Mitigasi WAJIB: klien track branch stabil **`release`**; ngoding di `main`/feature, merge ke `release` hanya setelah teruji.
-- Skala: cocok belasan–puluhan klien. Multi-tenant beneran (1 DB + `tenant_id` + 1 Vercel) = overkill & risiko bocor antar klien; baru worth kalau ratusan klien.
-- UI/UX "beda per klien" lewat SISTEM, bukan kode terpisah (analogi WordPress: 1 software, beda tema+warna+konten). 4 level: (1) branding — logo/`primaryColor` token/foto/konten dari DB (SUDAH ada; ganti 1 warna → seluruh situs ikut, nol coding); (2) theme tokens — font/radius/densitas (tambah field settings); (3) template/layout preset A/B/C (pilih via settings, semua preset ada di kode); (4) custom 100% dari nol = keluar sistem, hindari.
-- Gap yang harus disiapkan sebelum jual: (a) seed "fresh install" minimal (1 admin + settings kosong, bukan konten demo PT Volume) atau wizard setup; (b) migration-runner yang loop semua `DATABASE_URL` klien saat schema berubah; (c) white-label literal ("Dibuat dengan VolumCMS" di footer + favicon `icon.svg`) jadi settings-driven / opsi sembunyikan credit.
-- Provisioning klien baru (~5–10 mnt, bisa di-script via Vercel + Neon API): buat Neon DB + Blob → buat Vercel project (import repo) → isi env → `drizzle-kit migrate` → seed admin → arahkan domain.
+### pi default model
+- Sebelumnya: `ocg/deepseek-v4-pro` (provider 9router) — prefix `ocg/` adalah provider NATIVE pi, bukan 9router → kombinasi tidak valid; model juga sudah hilang dari 9router.
+- Sekarang: `cx/gpt-5.4-mini` (provider 9router) — model reasoning mini/hemat, konsisten dengan 9router route. Ganti via `/model` di TUI atau edit `defaultModel` di settings.json.
+
+### 9router autostart per OS
+- Linux (systemd --user): `~/.config/systemd/user/9router.service`, headless `custom-server.js`, bind 127.0.0.1:20128, Restart=always, enabled default.target. Jangan jalankan manual tray (`9router --tray`) bareng service — bentrok port.
+- macOS (launchd): `~/Library/LaunchAgents/com.9router.autostart.plist`, headless custom-server.js, bind 127.0.0.1:20128, RunAtLoad + KeepAlive.
+
+### Dotfiles-coupled vs machine-coupled config
+- Dotfiles-coupled (aman di-sync lintas mesin): `settings.json` (field machine-coupled HARUS di-drop/parameterize), `extensions/*`, `9router/aliases.json`, `9router/runtime-package.json`, `helix/languages.toml`.
+- Machine-coupled (JANGAN di-dotfiles mentah-mentah): `~/.pi/agent/models.json` (API key + model availability varies), `~/.pi/agent/auth.json` (oauth token), `~/.pi/agent/sessions/` (history), `~/.9router/{auth,jwt-secret,machine-id,tunnel/}`.
+- Pelajaran: `skills` array di settings.json pernah hardcode `/Users/feriromansyah/...` — salah mesin. Solusi: pakai auto-discovery pi (skills di `~/.pi/agent/skills/`) dan JANGAN hardcode absolute path orang lain.
+
+## AI tooling decisions (linux setup, 2026-07-07)
+
+### pi default (per dotfiles, kedua mesin)
+- Provider `opencode-go` (native pi), model `minimax-m3`, thinking `high`, theme `dark`. Extension `pi-image-gen` untuk image-gen (lewat 9router). Ganti model via `/model`.
+
+### 9router autostart per OS
+- Linux: **systemd --user** `~/.config/systemd/user/9router.service`, headless `custom-server.js`, `127.0.0.1:20128`, `Restart=always`.
+- macOS: **launchd** `~/Library/LaunchAgents/com.9router.autostart.plist`, RunAtLoad + KeepAlive.
+- JANGAN jalankan `9router --tray` manual bareng service (bentrok port 20128).
+
+### Pitfall: prefix `ocg/` ≠ 9router
+- `ocg/` adalah prefix provider NATIVE pi (opencode-go), BUKAN 9router. Jangan set `defaultModel: "ocg/..."` saat `defaultProvider: "9router"` — kombinasi invalid. Model `ocg/*` diakses via provider `opencode-go`.
