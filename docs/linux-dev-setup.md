@@ -376,3 +376,41 @@ npm run dev                # jalanin dev server (vite/next/shopify/wrangler)
 claude / pi / codex        # AI bantu coding
 ```
 Preview = Chromium + localhost. Commit = lazygit/git (editor di terminal). VSCode hanya kalau benar-benar perlu.
+
+---
+
+## 9. TROUBLESHOOTING: pi.dev / TUI kedip2 (flicker) di Linux
+
+**Gejala:** pi.dev (atau claude/nvim) kedip2 pas reasoning/streaming — **hanya di Linux**, di Mac aman.
+
+**Akar masalah:** TUI streaming bungkus tiap frame pakai marker *synchronized output* (DECSET 2026)
+biar terminal ganti layar sekaligus (atomic). tmux cuma nerusin marker itu kalau terminal
+luar dideklarasi sync-capable. Kalau tidak → frame separuh bocor ke layar → kedip. Fix dasarnya
+sudah ada di `config/tmux.conf`: `set -as terminal-features ",*:sync"` (guard `%if version >= 3.4`).
+
+**Terapkan / refresh:**
+```bash
+cd ~/dotfiles && git pull
+tmux kill-server        # WAJIB restart penuh — 'source-file' tak refresh cache term-features
+```
+
+**Cek apakah sync sudah aktif** (di dalam tmux, pane terpasang):
+```bash
+tmux display-message -p '#{version} | #{client_termfeatures}'
+# fitur 'sync' harus muncul di daftar. Kalau tidak → naik tangga di bawah.
+```
+
+### Tangga eskalasi kalau MASIH kedip
+
+| # | Cek | Perbaikan |
+|---|-----|-----------|
+| 1 | `tmux -V` < 3.4 ? | Upgrade tmux. Ubuntu 22.04 = 3.2a (fitur `sync` di-skip). 24.04 = 3.4 OK. Atau build statis/nightly. |
+| 2 | Terminal support 2026 ? | Pakai kitty / ghostty / wezterm / foot / alacritty ≥0.13. `xterm`/gnome-terminal jadul tak support. |
+| 3 | Terminal advertise 2026 tapi buggy (artefak makin parah) ? | Sempitkan sync ke TERM yg bagus saja, mis. `set -as terminal-features ",xterm-ghostty:sync"` (ganti wildcard `*`). |
+| 4 | Kedip periodik tiap ~5 dtk (bukan pas streaming) ? | Status bar redraw. Naikkan `set -g status-interval 15` di tmux.conf. |
+| 5 | Semua di atas mentok | Jalanin `pi` **di luar tmux** (terminal langsung) — sync ditangani terminal native, tanpa lapisan tmux. |
+
+**Verifikasi cepat "tmux vs bukan":** keluar dari tmux, jalanin `pi` langsung di terminal.
+- Kalau **tidak kedip** → masalah di lapisan tmux (fokus baris 1–3).
+- Kalau **tetap kedip** → terminal luar tak support 2026 (baris 2) atau isu di pi.dev sendiri
+  (cek `pi --help` untuk opsi render, dan versi pi terbaru).
