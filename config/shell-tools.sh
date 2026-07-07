@@ -4,6 +4,10 @@
 
 _shell_name() { basename "${SHELL:-/bin/bash}"; }
 
+# --- PATH: bin scripts (dotfiles + skills) ---
+case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$PATH";; esac
+case ":$PATH:" in *":$HOME/.agents/bin:"*) ;; *) export PATH="$HOME/.agents/bin:$PATH";; esac
+
 # --- mise: tool manager (no sudo) ---
 if command -v mise >/dev/null; then
   export PATH="$HOME/.local/share/mise/shims:$PATH"

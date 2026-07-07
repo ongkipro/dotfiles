@@ -75,8 +75,8 @@ APP_DIR="$(dirname "$ROUTER_CLI")/app"
 RUNTIME_NM="$HOME/.9router/runtime/node_modules"
 BUNDLED_NM="$APP_DIR/node_modules"
 NODE_PATH_COMBINED="$RUNTIME_NM:$BUNDLED_NM"
-PORT="${9ROUTER_PORT:-20128}"
-HOST="${9ROUTER_HOST:-127.0.0.1}"
+PORT="${NINEROUTER_PORT:-20128}"
+HOST="${NINEROUTER_HOST:-127.0.0.1}"
 
 mkdir -p "$HOME/.9router/logs"
 
