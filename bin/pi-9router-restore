@@ -97,6 +97,10 @@ if [ -f "$DOTFILES_DIR/config/9router/runtime-package.json" ]; then
   cp "$DOTFILES_DIR/config/9router/runtime-package.json" "$HOME/.9router/runtime/package.json"
   say "9router runtime package restored"
 fi
+if [ -f "$DOTFILES_DIR/config/9router/pi-extra-models.json" ]; then
+  cp "$DOTFILES_DIR/config/9router/pi-extra-models.json" "$HOME/.9router/pi-extra-models.json"
+  say "9router pi-extra-models restored (pinned models untuk pi /model)"
+fi
 
 # ── 3) Setup 9router service ─────────────────────────────────────────────────
 if [ -z "$NODE_BIN" ] || [ -z "$ROUTER_BIN" ]; then

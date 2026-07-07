@@ -1,0 +1,9 @@
+{
+  "_comment": "Model pinned untuk pi /model (provider 9router lokal) — model yang bisa di-chat via 9router tapi TIDAK muncul di /v1/models (free/opencode routing). Di-merge oleh bin/pi-9router-sync.js. Restore: copy ke ~/.9router/pi-extra-models.json",
+  "models": [
+    { "id": "oc/mimo-v2.5-free", "name": "MiMo v2.5 Free", "input": ["text", "image"] },
+    { "id": "oc/deepseek-v4-flash-free", "name": "DeepSeek V4 Flash Free", "reasoning": true },
+    { "id": "oc/nemotron-3-ultra-free", "name": "Nemotron 3 Ultra Free", "reasoning": true },
+    { "id": "oc/big-pickle", "name": "Big Pickle" }
+  ]
+}

@@ -12,6 +12,7 @@ const initSqlJs = require(path.join(HOME, '.9router/runtime/node_modules/sql.js'
 const dbPath = path.join(HOME, '.9router/db/data.sqlite');
 const secretPath = path.join(HOME, '.9router/auth/cli-secret');
 const modelsPath = path.join(HOME, '.pi/agent/models.json');
+const extraModelsPath = path.join(HOME, '.9router/pi-extra-models.json');
 
 const providerPrefixMap = {
   'gemini-cli': ['gc'],
@@ -100,6 +101,17 @@ async function main() {
       return allowedPrefixes.has(prefix);
     })
     .map(modelMeta);
+
+  // Pinned models: bisa di-chat via 9router tapi tidak muncul di /v1/models
+  // (free/opencode routing). Lihat ~/.9router/pi-extra-models.json.
+  const extras = readJson(extraModelsPath, { models: [] }).models || [];
+  const seen = new Set(selectedModels.map(m => m.id));
+  for (const extra of extras) {
+    if (extra && extra.id && !seen.has(extra.id)) {
+      selectedModels.push(extra);
+      seen.add(extra.id);
+    }
+  }
 
   const cfg = readJson(modelsPath, { providers: {} });
   if (!cfg.providers) cfg.providers = {};
