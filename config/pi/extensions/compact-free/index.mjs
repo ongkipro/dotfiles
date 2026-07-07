@@ -5,12 +5,14 @@
  * MURAH/GRATIS via 9router, supaya tidak menghabiskan limit model utama
  * (mis. GPT-5.4 / Claude sub). Kerja utama tetap di model yang sedang dipakai.
  *
- * Urutan model compaction (5 backup, dicoba berurutan, pakai yang pertama berhasil):
- *   1. 9router/oc/north-mini-code-free    (free, cepat, bagus buat ringkasan)
- *   2. minimax/MiniMax-M3                 (backup #2: pi.dev provider minimax)
- *   3. 9router/mmf/mimo-auto              (free auto)
- *   4. 9router/oc/nemotron-3-ultra-free   (free, general purpose)
- *   5. 9router/oc/deepseek-v4-flash-free  (free, reasoning)
+ * Urutan model compaction (free duluan, paid murah sebagai backstop; dicoba
+ * berurutan, pakai yang pertama berhasil):
+ *   1. 9router/oc/north-mini-code-free    (free, cepat — skip otomatis kalau upstream down)
+ *   2. 9router/oc/nemotron-3-ultra-free   (free, general purpose)
+ *   3. 9router/oc/deepseek-v4-flash-free  (free, reasoning)
+ *   4. minimax/MiniMax-M3                 (pi.dev provider minimax — murah, backstop andal)
+ *   5. opencode-go/mimo-v2.5              (pi.dev provider opencode-go — last resort)
+ * (mmf/mimo-auto dibuang: upstream error 441 permanen)
  * Kalau semua gagal -> fallback ke compaction default (pakai model utama).
  *
  * Log breadcrumb: ~/.pi/compact-free.log
@@ -25,10 +27,10 @@ import { convertToLlm, serializeConversation } from "@earendil-works/pi-coding-a
 // Daftar model compaction, dicoba berurutan
 const COMPACT_MODELS = [
   { provider: "9router", id: "oc/north-mini-code-free" },
-  { provider: "minimax", id: "minimax/MiniMax-M3" },
-  { provider: "9router", id: "mmf/mimo-auto" },
   { provider: "9router", id: "oc/nemotron-3-ultra-free" },
   { provider: "9router", id: "oc/deepseek-v4-flash-free" },
+  { provider: "minimax", id: "MiniMax-M3" },
+  { provider: "opencode-go", id: "mimo-v2.5" },
 ];
 
 const LOG_PATH = join(homedir(), ".pi", "compact-free.log");
