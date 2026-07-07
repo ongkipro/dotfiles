@@ -88,10 +88,11 @@ dotfiles/
 │   │   ├── local-skills-registry.md
 │   │   └── ...project memories
 │   ├── pi/
-│   │   ├── settings.json      # Pi.dev: provider=9router, theme=garuda-gold
+│   │   ├── settings.json      # Pi.dev: provider=9router, model=cx/gpt-5.4, theme=dark
 │   │   ├── README.md           # Restore instructions
 │   │   └── extensions/
-│   │       └── compact-free/   # Compaction pakai model gratis (hemat limit)
+│   │       ├── compact-free/    # Compaction pakai model gratis (hemat limit)
+│   │       └── welcome-screen/  # Header arcade "PRESS START" (cursor statis, anti-flicker)
 │   ├── 9router/
 │   │   ├── aliases.json       # Model aliases
 │   │   └── runtime-package.json
@@ -188,7 +189,7 @@ skill-new <nama>      # buat skill baru
 skill-list            # list semua skill aktif
 ```
 
-**27 local skills** + **63 shared skills** dari [jezweb/claude-skills](https://github.com/jezweb/claude-skills).
+**30 local skills** + **shared skills** dari [jezweb/claude-skills](https://github.com/jezweb/claude-skills).
 
 ### Featured local skill: `seo-website-builder`
 
@@ -229,12 +230,14 @@ Dokumen riset besar tetap disimpan sebagai archive lokal di `~/Documents/SEO`, s
 
 Dua lapis memory:
 
-| Layer | Path | Dipakai oleh |
-|---|---|---|
-| Cross-CLI | `~/.config/ai/memory/*.md` | Semua AI CLI via symlink |
-| Claude auto | `~/.claude-accounts/.../memory/` | Claude Code only |
+| Layer | Path | Dipakai oleh | Synced? |
+|---|---|---|---|
+| Cross-CLI | `~/.config/ai/memory/*.md` | Semua AI CLI via symlink | ✅ repo |
+| Claude auto | `~/.claude-accounts/.../memory/` | Claude Code only | ✅ backup |
+| Device-local | `~/.config/ai-local/` (`device.md`, `secrets.env`) | Semua AI CLI (load setelah shared) | ❌ mesin ini saja |
 
 Memory di-backup ke `config/ai/memory/` (cross-CLI) dan `config/claude-memory/` (Claude).
+Fakta khusus-mesin + secret **tidak** masuk repo — taruh di `~/.config/ai-local/` (device-local).
 
 File paling penting:
 - `config/ai/AGENTS.md` → aturan ringkas yang ke-load tiap sesi
@@ -299,10 +302,14 @@ Jangan commit secrets, tokens, private credentials, session, cache, atau artefak
 
 
 ```
-Pi:      auth.json · models.json (ada API key) · trust.json · sessions/
-9router: auth/ · jwt-secret · machine-id · tunnel/
-Claude:  .claude-accounts/*/auth (token)
+Pi:       auth.json · models.json · trust.json · sessions/
+9router:  auth/ · jwt-secret · machine-id · db/ · tunnel/
+Claude:   .claude-accounts/*/auth (token)
+Device:   ~/.config/ai-local/secrets.env (perm 600, di-source ~/.bashrc)
 ```
+
+API key **tidak** hard-coded lagi: `models.json`/`settings.json` mereferensikan
+env var (mis. `${NINEROUTER_KEY}`); nilainya hanya ada di `ai-local/secrets.env`.
 
 ---
 
