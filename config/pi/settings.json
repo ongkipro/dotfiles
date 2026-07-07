@@ -3,7 +3,7 @@
   "defaultProvider": "opencode-go",
   "defaultModel": "minimax-m3",
   "defaultThinkingLevel": "high",
-  "theme": "garuda-gold",
+  "theme": "dark",
   "quietStartup": true,
   "compaction": {
     "enabled": true,
