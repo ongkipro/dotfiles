@@ -7,6 +7,17 @@
 - `settings.json` — provider (9router), model default, theme, compaction, packages, **pi-image-gen** (generate gambar via 9router lokal+remote; key & tunnel URL tersanitasi jadi placeholder env)
 - `models.template.json` — 9router provider definition + curated models (no secrets)
 - `extensions/compact-free/` — extension untuk compaction pakai model gratis
+- `extensions/welcome-screen/` — Ongki v2 PRESS START header (di-restore sebagai flat file `~/.pi/agent/extensions/welcome-screen.ts`, auto-load)
+
+### Auto-sync models (Linux)
+
+`bin/pi-9router-sync.js` + systemd unit `pi-9router-sync.service` (di-generate oleh
+`pi-9router-restore`) menyinkronkan model dari provider **aktif** di 9router ke
+`~/.pi/agent/models.json` tiap login. Jalankan manual:
+
+```bash
+systemctl --user start pi-9router-sync.service
+```
 
 ### Env var (pi-image-gen provider remote)
 

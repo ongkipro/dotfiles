@@ -63,6 +63,20 @@ else
   warn "compact-free extension tidak ditemukan di dotfiles"
 fi
 
+# ── 2.5) Restore welcome-screen extension (auto-load flat file) ──────────────
+if [ -f "$DOTFILES_DIR/config/pi/extensions/welcome-screen/index.ts" ]; then
+  mkdir -p "$PI_AGENT_DIR/extensions"
+  cp "$DOTFILES_DIR/config/pi/extensions/welcome-screen/index.ts" "$PI_AGENT_DIR/extensions/welcome-screen.ts"
+  say "welcome-screen extension restored → ~/.pi/agent/extensions/welcome-screen.ts"
+fi
+
+# ── 2.6) Link pi-9router-sync.js (dipakai service auto-sync models) ──────────
+if [ -f "$DOTFILES_DIR/bin/pi-9router-sync.js" ]; then
+  mkdir -p "$HOME/.local/bin"
+  ln -sfn "$DOTFILES_DIR/bin/pi-9router-sync.js" "$HOME/.local/bin/pi-9router-sync.js"
+  say "pi-9router-sync.js linked → ~/.local/bin/"
+fi
+
 # ── 3) Setup 9router service ─────────────────────────────────────────────────
 if [ -z "$NODE_BIN" ] || [ -z "$ROUTER_BIN" ]; then
   warn "node atau 9router tidak ditemukan — skip service setup."
@@ -166,6 +180,24 @@ SERVICEEOF
     systemctl --user enable 9router.service >/dev/null
     systemctl --user restart 9router.service
     say "9router systemd service generated → $SERVICE_PATH"
+
+    # ── pi-9router-sync: oneshot sync models 9router → pi models.json ───
+    SYNC_SERVICE_PATH="$SYSTEMD_USER_DIR/pi-9router-sync.service"
+    cat > "$SYNC_SERVICE_PATH" <<SYNCEOF
+[Unit]
+Description=Sync active 9router models into pi models.json
+After=network-online.target 9router.service
+
+[Service]
+Type=oneshot
+ExecStart=$NODE_BIN $HOME/.local/bin/pi-9router-sync.js
+
+[Install]
+WantedBy=default.target
+SYNCEOF
+    systemctl --user daemon-reload
+    systemctl --user enable pi-9router-sync.service >/dev/null
+    say "pi-9router-sync service generated → $SYNC_SERVICE_PATH"
     ;;
 esac
 
