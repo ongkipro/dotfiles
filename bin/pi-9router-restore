@@ -20,7 +20,17 @@ mkdir -p "$PI_AGENT_DIR" "$PI_EXT_DIR"
 
 if [ -f "$DOTFILES_DIR/config/pi/settings.json" ]; then
   cp "$DOTFILES_DIR/config/pi/settings.json" "$PI_AGENT_DIR/settings.json"
-  say "pi settings.json restored (provider=9router, model=ocg/deepseek-v4-pro)"
+  SETTINGS_SUMMARY="$(python3 - <<'PY'
+import json, os
+p=os.path.expanduser('~/dotfiles/config/pi/settings.json')
+try:
+    s=json.load(open(p))
+    print(f"provider={s.get('defaultProvider','?')}, model={s.get('defaultModel','?')}, thinking={s.get('defaultThinkingLevel','?')}, theme={s.get('theme','?')}")
+except Exception:
+    print('provider=?, model=?, thinking=?, theme=?')
+PY
+)"
+  say "pi settings.json restored ($SETTINGS_SUMMARY)"
 else
   warn "dotfiles/config/pi/settings.json tidak ditemukan"
 fi
@@ -75,6 +85,17 @@ if [ -f "$DOTFILES_DIR/bin/pi-9router-sync.js" ]; then
   mkdir -p "$HOME/.local/bin"
   ln -sfn "$DOTFILES_DIR/bin/pi-9router-sync.js" "$HOME/.local/bin/pi-9router-sync.js"
   say "pi-9router-sync.js linked → ~/.local/bin/"
+fi
+
+# ── 2.7) Restore 9router shared config (non-secret) ──────────────────────────
+mkdir -p "$HOME/.9router/runtime"
+if [ -f "$DOTFILES_DIR/config/9router/aliases.json" ]; then
+  cp "$DOTFILES_DIR/config/9router/aliases.json" "$HOME/.9router/aliases.json"
+  say "9router aliases restored"
+fi
+if [ -f "$DOTFILES_DIR/config/9router/runtime-package.json" ]; then
+  cp "$DOTFILES_DIR/config/9router/runtime-package.json" "$HOME/.9router/runtime/package.json"
+  say "9router runtime package restored"
 fi
 
 # ── 3) Setup 9router service ─────────────────────────────────────────────────
@@ -207,6 +228,10 @@ sleep 2
 HEALTH_URL="http://${HOST}:${PORT}/api/health"
 if curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
   say "✓ 9router healthy on $HEALTH_URL"
+  if [ "$OS" = "Linux" ] && systemctl --user list-unit-files 2>/dev/null | grep -q '^pi-9router-sync.service'; then
+    systemctl --user start pi-9router-sync.service >/dev/null 2>&1 || warn "pi-9router-sync gagal jalan; cek journalctl --user -u pi-9router-sync.service"
+    say "pi-9router-sync triggered"
+  fi
 else
   warn "9router service started, tapi health check gagal"
   case "$OS" in
@@ -217,6 +242,7 @@ fi
 
 echo ""
 say "Catatan penting:"
-say "- models.json TIDAK di-restore karena berisi API key 9router"
-say "- pastikan ~/.pi/agent/models.json sudah ada dan valid"
-say "- jalankan '9router-start status' untuk cek status kapan saja"
+say "- settings.json + compact-free + welcome-screen + 9router shared config sudah di-restore dari dotfiles"
+say "- models.template.json hanya di-copy menjadi models.json kalau models.json belum ada (aman, tanpa secret)"
+say "- auth.json, models.json existing, sessions/, dan secret 9router tetap manual / device-local"
+say "- jalankan '9router-start status' atau systemctl/launchctl sesuai OS untuk cek status kapan saja"

@@ -4,7 +4,7 @@
 
 ## Files
 
-- `settings.json` — provider (9router), model default, theme, compaction, packages, **pi-image-gen** (generate gambar via 9router lokal+remote; key & tunnel URL tersanitasi jadi placeholder env)
+- `settings.json` — source of truth config pi: default provider/model/theme/thinking, packages, **pi-image-gen** (gambar via 9router lokal+remote; key & tunnel URL tersanitasi jadi placeholder env)
 - `models.template.json` — 9router provider definition + curated models (no secrets)
 - `extensions/compact-free/` — extension untuk compaction pakai model gratis
 - `extensions/welcome-screen/` — Ongki v2 PRESS START header (di-restore sebagai flat file `~/.pi/agent/extensions/welcome-screen.ts`, auto-load)
@@ -43,8 +43,11 @@ Blok `pi-image-gen` di `settings.json` pakai placeholder — set sebelum pakai r
 # Manual restore
 cp dotfiles/config/pi/settings.json ~/.pi/agent/settings.json
 cp dotfiles/config/pi/models.template.json ~/.pi/agent/models.json  # hanya kalau belum ada
-mkdir -p ~/.pi/extensions/compact-free
+mkdir -p ~/.pi/extensions/compact-free ~/.pi/agent/extensions
 cp dotfiles/config/pi/extensions/compact-free/* ~/.pi/extensions/compact-free/
+cp dotfiles/config/pi/extensions/welcome-screen/index.ts ~/.pi/agent/extensions/welcome-screen.ts
+cp dotfiles/config/9router/aliases.json ~/.9router/aliases.json
+cp dotfiles/config/9router/runtime-package.json ~/.9router/runtime/package.json
 ```
 
 ## 9router Provider Connections
@@ -57,6 +60,7 @@ Tanpa ini, 9router hanya bisa list model tapi tidak bisa chat.
 
 ## Notes
 
-- `models.template.json` = template aman tanpa API key. Copy jadi `models.json` untuk pakai.
-- `auth.json` di-manage manual karena berisi API keys asli.
-- `pi-9router-restore` akan generate launchd (macOS) atau systemd (Linux) service untuk 9router.
+- `models.template.json` = template aman tanpa API key. Script restore hanya copy ke `models.json` kalau file itu belum ada.
+- `auth.json` di-manage manual karena berisi API keys / oauth token asli.
+- `settings.json` adalah source of truth. Nilai default saat ini ikuti isi file tersebut (jangan hardcode di docs/script).
+- `pi-9router-restore` akan restore pi config + shared 9router config, lalu generate launchd (macOS) atau systemd (Linux) service untuk 9router.
