@@ -56,3 +56,10 @@
 - `~/.pi/agent/extensions/welcome-screen.ts` symlink → `~/dotfiles/config/pi/extensions/welcome-screen/index.ts`.
 - 9router autostart: **systemd --user** `~/.config/systemd/user/9router.service` (headless `custom-server.js`, bind `127.0.0.1:20128`, `Restart=always`, `WantedBy=default.target`). Generate via `~/dotfiles/bin/pi-9router-restore` (linux). mac → launchd `com.9router.autostart`.
 - `~/.9router/{aliases.json,runtime/package.json}` symlink → `~/dotfiles/config/9router/`. `models.json` + `auth.json` TIDAK di-dotfiles (secret).
+
+## TokoΦ — server dev (Vultr) + Coolify (2026-07-09, mesin linux `fantastico`)
+- **VPS dev**: Vultr, IP **45.76.146.40**, region **Singapore (sgp)**, plan `vhp-8c-16gb-amd` (8 vCPU/16GB/350GB NVMe, ~$96/mo — **ditutup kredit $305 berlaku 1 BULAN**). Ubuntu 24.04. ⚠️ **Destroy/migrasi sebelum kredit expiry** biar tak kena charge.
+- **SSH**: key-only, `ssh -i ~/.ssh/tokophi_dev root@45.76.146.40` (private key lokal di fantastico; Vultr ssh-key id `c4d746ce-…`). UFW aktif: 22/80/443/8000/6001/6002.
+- **Coolify** v4.1.2 di server (dashboard `http://45.76.146.40:8000`, admin `ongkiardiansyah@gmail.com`, registrasi publik OFF). Docker diinstall otomatis oleh installer Coolify. Server type = Localhost/"This Machine".
+- **vultr-cli** terpasang di `~/.local/bin/vultr-cli` (fantastico); auth di `~/.vultr-cli.yaml` (api-key, chmod 600, NOT di dotfiles). Skill baru: `~/dotfiles/skills/local/vultr/`.
+- **Rencana 2-fase**: dev=Vultr SG (kredit) → prod=Hetzner SG. Migrasi murah (Coolify+git+pg_dump+Cloudflare ganti IP origin). Domain `tokophi.com` sudah di Cloudflare (DNS belum di-point).
