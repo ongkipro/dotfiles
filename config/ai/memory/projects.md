@@ -167,6 +167,7 @@
 - Folder = koleksi: `journal/` (`YYYY-MM-DD.md`), `tasks/`, `projects/`, `memory/`, `skills/`, `sessions/`, `summaries/`. **Baca `AGENTS.md` repo dulu** — frontmatter dipaksa zod (`src/content.config.ts`), format salah = **build gagal**. Jalankan `pnpm build` sebelum commit; push memicu deploy.
 - Ini sering kali "memori" yang dimaksud user, bukan `~/.config/ai/memory` atau memori CLI. Ketiganya bisa desinkron.
 - **Gotcha:** wikilink `[[x]]` cuma resolve ke koleksi `memory/` (`src/pages/kamus/[...id].astro` hanya `getCollection("memory")`). Link ke `projects/`/`tasks/` (`[[dotfiles]]`, `[[tokophi]]`) mati — bug lama.
+- **JEBAKAN rename project:** `projects:` (journal/sessions/summaries) & `project:` (tasks) di frontmatter adalah **kunci indeks**, harus sama persis dengan `name:` di `projects/*.md`. Rename tanpa ganti frontmatter → riwayat project jadi yatim, **diam-diam, build tetap hijau**. Kena 2026-07-10 saat rename Indostore→TokoΦ.
 
 ## volumform (macOS dev — DR-funnel SaaS)
 - `~/Projects/volumform` → repo private `github.com/ongkipro/volumform` (dibuat 2026-07-10; sebelumnya cuma lokal, tanpa remote). Monorepo `apps/{admin,superadmin,edge}` + `packages/db` (Drizzle). Front-end sudah di-split: super admin (platform) vs client admin (merchant) sebagai dua SPA.
