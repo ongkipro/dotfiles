@@ -159,3 +159,18 @@
 - **Integrasi**: KiriminAja (shipping) + AutoLaris (payment VA/QRIS) — platform-managed, **white-label** (brand provider disembunyikan dari client, hanya super-admin lihat). COD ada. Keys di `.env.local` (gitignored). Security: rate-limit endpoint publik + guard callback bayar (shared-secret + idempotent).
 - **Hosting (2026-07-09)**: DEV di **Vultr Singapore** (server 45.76.146.40 + Coolify — lihat environment.md) → PROD **Hetzner Singapore** nanti. Edge Cloudflare, origin Traefik/Coolify (skip HAProxy). Domain `tokophi.com` di Cloudflare (DNS belum di-point). Market prioritas: Indonesia dulu (MY/SG masa depan).
 - **Sesi 2026-07-09 (deploy)**: bikin infra Docker untuk Coolify — `apps/*/Dockerfile` (build context=root, Next `next start` + storefront SSG build-at-start lalu `serve`), `.dockerignore`, `docker-compose.coolify.yml` (postgres+migrate+3 app). Build admin di Docker sukses (fix: DATABASE_URL dummy saat build karena `@tokophi/db` throw). Deploy via Coolify **Docker Compose** build pack (Nixpacks gagal utk workspace monorepo). Skill `vultr` ditambahkan ke dotfiles.
+- **Sesi 2026-07-10**: compose naik jadi 7 service (+`cron`, +`backup`) & 3 volume (`tokophi-pgdata/uploads/backups`). Backup Postgres harian `pg_dump -Fc` simpan-7, healthcheck lewat cron. Data persist lintas redeploy (seed idempoten). Fitur: media library + konversi WebP server-side (cap 2MB), store-builder drag-drop + brand colour (ADR 0009), support ticket 2-sisi, manual invoice/payment reminder. **Gotcha:** `next start` TIDAK melayani file yang ditulis ke `public/uploads` setelah build → disajikan via route `/api/uploads/[name]`.
+- **Nama lama = `indostore`** (rebrand 2026-07-08). Repo `github.com/ongkipro/indostore` masih ada tapi **DORMAN** — jangan dipakai/di-push; 94 commit-nya sudah ada di history `tokophi`. Catatan lama yang menyebut "Indostore" = project yang sama.
+
+## kamus (almanak / memori kedua — kamus.ongki.pro)
+- Repo private `github.com/ongkipro/kamus`, clone macOS di `~/Projects/kamus`. Astro merender markdown di root repo jadi dashboard; live di `kamus.ongki.pro` (di-gate Cloudflare Access → anonim dapat 401).
+- Folder = koleksi: `journal/` (`YYYY-MM-DD.md`), `tasks/`, `projects/`, `memory/`, `skills/`, `sessions/`, `summaries/`. **Baca `AGENTS.md` repo dulu** — frontmatter dipaksa zod (`src/content.config.ts`), format salah = **build gagal**. Jalankan `pnpm build` sebelum commit; push memicu deploy.
+- Ini sering kali "memori" yang dimaksud user, bukan `~/.config/ai/memory` atau memori CLI. Ketiganya bisa desinkron.
+- **Gotcha:** wikilink `[[x]]` cuma resolve ke koleksi `memory/` (`src/pages/kamus/[...id].astro` hanya `getCollection("memory")`). Link ke `projects/`/`tasks/` (`[[dotfiles]]`, `[[tokophi]]`) mati — bug lama.
+
+## volumform (macOS dev — DR-funnel SaaS)
+- `~/Projects/volumform` → repo private `github.com/ongkipro/volumform` (dibuat 2026-07-10; sebelumnya cuma lokal, tanpa remote). Monorepo `apps/{admin,superadmin,edge}` + `packages/db` (Drizzle). Front-end sudah di-split: super admin (platform) vs client admin (merchant) sebagai dua SPA.
+
+## nextpress — DIARSIPKAN (jangan dilanjutkan)
+- Prototipe CMS ala WordPress (Next.js 16 + shadcn + GSAP), ditinggalkan 2026-07-03. **Digantikan total oleh `volumecms`** — konsep sama, ditulis ulang dari nol, history tidak berhubungan (root commit beda).
+- Repo `github.com/ongkipro/nextpress` privat + **archived** (read-only) pada 2026-07-10 sekadar arsip. Folder lokal `~/Projects/nextpress` boleh dihapus kapan saja.
