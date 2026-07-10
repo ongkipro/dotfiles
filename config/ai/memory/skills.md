@@ -28,8 +28,18 @@
 - Preferred monetization direction: tools directory, comparison/review content, AI productivity content, office/home-office products, SEO/product research portals.
 - Previously preferred tools-directory approach over broad portal/search-engine approach for affiliate software/tools.
 
+## Skill plumbing (sumber tunggal + 5 konsumen)
+- **Sumber tunggal:** `~/dotfiles/skills/local/` (42 skill) + repo jezweb `~/.agents/repos/shared-skills/plugins/**` (62 skill) = 104 skill.
+- **Lima konsumen** (semuanya symlink, TIDAK boleh direktori asli): `~/.claude/skills`, `~/.pi/agent/skills`, `~/.agents/skills`, `~/.codex/skills`, `~/.gemini/skills`.
+- **`skill-update` adalah satu-satunya cara sinkronisasi.** Dia fetch + `reset --hard` repo jezweb, hapus symlink terkelola, lalu relink kelima base. Pastikan repo jezweb bersih sebelum menjalankan — perubahan lokal di sana akan hilang.
+- **`git pull` dotfiles TIDAK membuat symlink.** Skill baru dari device lain (mis. `vultr`) hanya muncul sebagai file; wajib `skill-update` setelah pull agar terlihat oleh CLI.
+- **Jangan pakai `claude plugin install`** untuk skill yang ingin dipakai lintas-CLI — itu hanya mendaftarkan ke Claude Code dan menciptakan sumber keempat. Skill = direktori berisi `SKILL.md` di `dotfiles/skills/local/`.
+- Kalau `skill-update` mencetak `Backed up existing path: ... -> *.backup.<ts>`, artinya ada direktori asli (duplikat) yang menghalangi symlink. Bandingkan dengan versi dotfiles; kalau identik, hapus backup-nya.
+- Riwayat: 2026-07-10 sebelas skill (`cloudflare`, `wrangler`, `agents-sdk`, `durable-objects`, `workers-best-practices`, `sandbox-sdk`, `cloudflare-email-service`, `cloudflare-one`, `cloudflare-one-migrations`, `web-perf`, `turnstile-spin`) masih berupa direktori asli terduplikasi di beberapa konsumen dan tidak ter-sync antar-device; sudah dipindah ke dotfiles. `content`, `copywriting`, `shopify-memory` ada di dotfiles tapi tidak pernah ter-symlink sehingga tidak bisa dipanggil.
+
 ## AI workflow
 - Tools in active scope: ChatGPT, Claude Code, Codex, Gemini/Antigravity, Pi.dev, 9Router, local skills, AI terminal project runner.
+- Skill (`SKILL.md`) dibagikan ke kelima CLI di atas — bukan cuma claude/pi. Memory dibagikan terpisah lewat `~/.config/ai/` (symlink ke `dotfiles/config/ai/`).
 - Goal: standardized AI terminal workflow with shared memory, skills, project context, and repeatable execution rules.
 - AI should help as critical thinking partner, architect, implementer, auditor, and workflow designer.
 
