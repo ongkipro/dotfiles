@@ -28,13 +28,14 @@ mkdir -p "$HOME/.config" "$HOME/.local/bin" "$HOME/.agents/bin"
 link "$DOT/config/ai"                    "$HOME/.config/ai"
 link "$DOT/config/starship.toml"         "$HOME/.config/starship.toml"
 link "$DOT/config/ripgreprc"             "$HOME/.ripgreprc"
+link "$DOT/config/helix/languages.toml"  "$HOME/.config/helix/languages.toml"
 link "$DOT/config/gitignore_global"      "$HOME/.gitignore_global"
 link "$DOT/config/codex-instructions.md" "$HOME/.codex/instructions.md"
 link "$DOT/bin/ai-memory-link"           "$HOME/.local/bin/ai-memory-link"
 link "$DOT/bin/dotsync"                  "$HOME/.local/bin/dotsync"
 link "$DOT/bin/dotpush"                  "$HOME/.local/bin/dotpush"
 link "$DOT/bin/project-init"             "$HOME/.local/bin/project-init"
-for s in akun claude-kerja claude-personal tmux-clip tmux-setup tmux-battery security-check 9router-start; do
+for s in akun claude-kerja claude-personal tmux-clip tmux-setup tmux-battery security-check 9router-start pi-9router-restore; do
   [ -e "$DOT/bin/$s" ] && link "$DOT/bin/$s" "$HOME/.local/bin/$s"
 done
 
