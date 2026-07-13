@@ -39,7 +39,7 @@
 ## Mesin user (multi-machine, clarifikasi 2026-07-07)
 - Memory `~/.config/ai/` di-sync via dotfiles ke BEBERAPA mesin — fakta OS/toolchain harus menyebut mesin yg relevan.
 - Mac `feriromansyah` (MacBook Air M1 8GB, macOS 26 Darwin arm64): editor helix, mise/npm/pipx; 9router autostart via **launchd** `com.9router.autostart` (headless custom-server.js, 127.0.0.1:20128).
-- Linux `fantastico` (Ubuntu 7.0.0-27-generic, x86_64, hostname "Fantastico"): editor helix (languages.toml symlink → dotfiles), mise/npm/pipx; 9router autostart via **systemd --user** `~/.config/systemd/user/9router.service` (headless custom-server.js, 127.0.0.1:20128, Restart=always, enabled default.target). Linger belum di-enable (perlu `sudo loginctl enable-linger $USER` agar jalan tanpa login aktif).
+- Linux `fantastico` (Ubuntu 7.0.0-27-generic, x86_64, hostname "Fantastico"): editor helix (languages.toml symlink → dotfiles), mise/npm/pipx; 9router autostart via **systemd --user** `~/.config/systemd/user/9router.service` (headless custom-server.js, 127.0.0.1:20128, Restart=always, enabled default.target). Linger **SUDAH aktif** (2026-07-13, `Linger=yes`) — 9router jalan tanpa login aktif.
 - Saat kasih instruksi OS-specific (launchd vs systemd, brew vs apt, dsb), SELALU cek mesin dulu (`uname -a`).
 
 ## Setup pi/9router per mesin (disinkronkan via dotfiles)
@@ -61,5 +61,31 @@
 - **VPS dev**: Vultr, IP **45.76.146.40**, region **Singapore (sgp)**, plan `vhp-8c-16gb-amd` (8 vCPU/16GB/350GB NVMe, ~$96/mo — **ditutup kredit $305 berlaku 1 BULAN**). Ubuntu 24.04. ⚠️ **Destroy/migrasi sebelum kredit expiry** biar tak kena charge.
 - **SSH**: key-only, `ssh -i ~/.ssh/tokophi_dev root@45.76.146.40` (private key lokal di fantastico; Vultr ssh-key id `c4d746ce-…`). UFW aktif: 22/80/443/8000/6001/6002.
 - **Coolify** v4.1.2 di server (dashboard `http://45.76.146.40:8000`, admin `ongkiardiansyah@gmail.com`, registrasi publik OFF). Docker diinstall otomatis oleh installer Coolify. Server type = Localhost/"This Machine".
-- **vultr-cli** terpasang di `~/.local/bin/vultr-cli` (fantastico); auth di `~/.vultr-cli.yaml` (api-key, chmod 600, NOT di dotfiles). Skill baru: `~/dotfiles/skills/local/vultr/`.
+- **vultr-cli** (2026-07-13 diperbarui): sekarang via **mise** (`vultr-cli@3.10.0`, shim di `~/.local/share/mise/shims/vultr-cli`) — binary lama di `~/.local/bin/` sudah hilang. Auth `~/.vultr-cli.yaml` **JUGA hilang → perlu re-input API key** (chmod 600, NOT di dotfiles). Skill: `~/dotfiles/skills/local/vultr/`.
 - **Rencana 2-fase**: dev=Vultr SG (kredit) → prod=Hetzner SG. Migrasi murah (Coolify+git+pg_dump+Cloudflare ganti IP origin). Domain `tokophi.com` sudah di Cloudflare (DNS belum di-point).
+
+## AI CLI — status terverifikasi (2026-07-13, `fantastico`)
+- **Terpasang & jalan**: `claude` (2.1.207, login OK), `codex` (0.144.1, **BELUM login** — tak ada `~/.codex/auth.json`), `pi` (0.80.6), `agy` (Antigravity 1.1.1).
+- **Gemini CLI: SENGAJA DIHAPUS (2026-07-13)** — keputusan user: stack Gemini dipakai lewat **Antigravity (`agy`)**, bukan `gemini` CLI. Paket `@google/gemini-cli` sudah `npm uninstall -g`. **JANGAN install ulang.**
+- ⚠️ **`~/.gemini/` TETAP DIPERTAHANKAN** meski `gemini` CLI dihapus — isinya `GEMINI.md` (symlink → `~/.config/ai/AGENTS.md`, target `ai-memory-link`) yang dibaca **Antigravity**. Menghapus `~/.gemini` = merusak agy. Isi sekarang hanya `GEMINI.md` + `projects.json` (folder `antigravity-cli/` & `oauth_creds.json` sudah tidak ada).
+- **agy**: binary asli bernama `~/.local/bin/antigravity` (ELF 173MB). Symlink `agy` sempat hilang, sudah dibuat ulang (`agy -> antigravity`). Config Antigravity di `~/.antigravity/{AGENTS.md,ANTIGRAVITY.md}`.
+- **9router**: systemd user service `9router.service` aktif di **127.0.0.1:20128** (bukan 9000). Policy tetap: 9router HANYA untuk pi.dev via `~/.pi/agent/models.json`.
+- ⚠️ **`~/.pi/agent/models.json` provider `9router-fantastico` masih placeholder** `https://YOUR_TUNNEL.abc-tunnel.us/v1` — belum diisi URL tunnel asli; provider `9router` lokal (127.0.0.1:20128) sudah benar.
+- **Claude Code**: MCP lokal `chrome-devtools` (pakai `/usr/bin/chromium-browser`) untuk skill `web-perf`. Allowlist permission read-only + deny-rule secret ada di `~/.claude/settings.json`.
+- **Supabase CLI sengaja TIDAK dipasang** — stack DB = PostgreSQL + Drizzle ORM + better-auth, self-host via Coolify di Vultr. Supabase tidak dipakai; jangan install kecuali ada project yang benar-benar butuh.
+
+## Fix & tool baru di `fantastico` (2026-07-13)
+- **`pi-9router-sync.service` DULU GAGAL tiap boot** (`9router is not installed or initialized`). Sebab: script mensyaratkan `~/.9router/auth/cli-secret`, padahal **9router 0.5.30 tidak lagi membuat dir `auth/`** (sekarang `~/.9router/jwt-secret`). Endpoint lokal `127.0.0.1:20128` **tidak memeriksa Authorization** (445 model terambil tanpa header). FIX: `~/dotfiles/bin/pi-9router-sync.js` — syarat `secretPath` dilepas, fallback `apiKey='noauth'`. Service sekarang `success`.
+- Script hanya sync provider yang **AKTIF** di DB 9router → saat ini pi dapat 4 model (`oc/*` free). Mau lebih banyak: aktifkan provider di dashboard 9router (`localhost:20128`).
+- **pi default = provider NATIVE `minimax` / model `MiniMax-M3`** (auth di `~/.pi/agent/auth.json`), BUKAN via 9router. Ini valid — jangan "diperbaiki".
+- ⚠️ Tunnel `9router-fantastico` **MATI**: `https://rbq97ts.abc-tunnel.us/v1` balas **HTTP 530** (Cloudflare: tunnel not connected). `baseUrl` di `~/.pi/agent/models.json` masih placeholder `YOUR_TUNNEL` — perlu URL tunnel asli dari user.
+- **Tool baru (terverifikasi)**: `psql`/`pg_dump`/`pg_restore` **18.4** via apt (client 18 boleh dump server PG16 — aman; sebaliknya TIDAK), `lm-sensors` (coretemp loaded; CPU ~53°C, GPU ~45°C idle), `wrangler` 4.110.0, `@shopify/cli` 4.4.0, `uv` (mise), `vultr-cli` 3.10.0 (mise).
+- **Hardware `cuan`/fantastico**: Intel i7-8650U (4c/8t), RAM 14GB (~12GB free), swap 4GB (0 terpakai, no OOM), NVMe 233GB (8% used). GPU DUAL: Intel UHD 620 (`i915`) + **NVIDIA MX150 2GB (driver 580.159.03, `nvidia_drm` aktif)**. MX150 terlalu kecil utk LLM lokal — beban AI tetap ke cloud.
+
+## 9router DINONAKTIFKAN (2026-07-13, `fantastico`) — bukan dihapus
+- Keputusan user: 9router "tidak perlu" untuk sekarang. **Service di-stop + disable** (`9router.service` & `pi-9router-sync.service` → `enabled=disabled`, port 20128 mati). RAM 119MB bebas.
+- **TIDAK dihapus** karena masih punya 3 dependent: (1) `pi-image-gen` (baseUrl `127.0.0.1:20128`), (2) extension pi `compact-free` (6 referensi), (3) project di `projects.md:31` yang route AI teks+image lewat 9router (`src/lib/ai/nine*`).
+- **`~/.9router/` UTUH (68MB)** — `db/data.sqlite` berisi **API key provider upstream** dan folder `backups/` KOSONG. Jangan `rm -rf` tanpa export dulu; key-nya tidak bisa dipulihkan.
+- Paket npm `9router@0.5.30` masih terpasang (tidak di-uninstall).
+- **Hidupkan lagi**: `systemctl --user enable --now 9router.service` (+ `pi-9router-sync.service` kalau mau auto-sync model pi).
+- Konsekuensi saat OFF: pi image-gen & compaction via 9router GAGAL. Chat utama pi tetap jalan (default = provider NATIVE `minimax`/`MiniMax-M3`, tak lewat 9router).

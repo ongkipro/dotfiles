@@ -1,6 +1,7 @@
 # Shared Memory — Cross-CLI Conventions
 
-> Loaded into: claude/codex/gemini (symlink), pi (via `pi()` wrapper).
+> Loaded into: claude / codex / antigravity(`agy`) via symlink, pi (via `pi()` wrapper).
+> Stack AI CLI resmi = **claude, codex, pi, agy**. Gemini CLI sudah dihapus (2026-07-13) — stack Gemini dipakai lewat Antigravity. Jangan install `@google/gemini-cli` lagi.
 > **Device-local** notes: `~/.config/ai-local/device.md` (loaded AFTER this file in pi).
 
 ## Operating profile
