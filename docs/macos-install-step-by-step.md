@@ -130,6 +130,18 @@ Installer menaruh binary di **`~/.local/bin/agy`**, tanpa butuh runtime lain (bu
 Login: jalankan `agy`, ia menuntun lewat browser.
 Perintah berguna: `agy update`, `agy models`, `agy changelog`.
 
+> ### ⚠️ Installer `agy` MENGOTORI `~/.profile` (dan shell rc)
+> Ia menambahkan `export PATH="/home/<user>/.local/bin:$PATH"` — **hardcode home path**.
+> Karena `~/.profile` adalah **symlink ke repo dotfiles**, baris itu ikut ter-commit dan
+> **patah lintas-OS** (`/home/...` vs `/Users/...`). Dotfiles ini sudah menangani
+> `~/.local/bin` secara portabel, jadi baris itu redundan.
+>
+> **Setelah install `agy`, bersihkan:**
+> ```bash
+> cd ~/dotfiles && git checkout home/profile
+> sed -i '' '/^# Added by Antigravity CLI installer$/,+1d' ~/.zshrc   # macOS sed butuh ''
+> ```
+
 Language server (opsional, buat helix):
 
 ```bash

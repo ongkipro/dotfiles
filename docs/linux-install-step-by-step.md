@@ -131,6 +131,28 @@ tidak butuh Node). Login: cukup jalankan `agy`, ia akan menuntun lewat browser.
 Perintah berguna: `agy update` (update CLI), `agy models` (daftar model),
 `agy changelog`.
 
+> ### ⚠️ Installer `agy` MENGOTORI `~/.profile` dan `~/.bashrc`
+> Ia menambahkan baris ini ke **dua** file:
+> ```
+> # Added by Antigravity CLI installer
+> export PATH="/home/<user>/.local/bin:$PATH"
+> ```
+> Dua masalah:
+> 1. **Redundan** — `~/.profile` dan `~/.bashrc` bawaan dotfiles ini **sudah** menangani
+>    `~/.local/bin` (bahkan dengan guard idempotent). Baris baru itu duplikat murni.
+> 2. **Hardcode home path** (`/home/ongki`) — dan `~/.profile` adalah **symlink ke repo
+>    dotfiles**. Jadi baris itu ikut ter-commit dan akan **patah di Mac** (home-nya
+>    `/Users/...`).
+>
+> **Setelah install `agy`, selalu bersihkan:**
+> ```bash
+> cd ~/dotfiles && git checkout home/profile      # buang baris yang nyasar ke repo
+> sed -i '/^# Added by Antigravity CLI installer$/,+1d' ~/.bashrc
+> bash -n ~/.bashrc                               # pastikan tak rusak
+> ```
+> (Kalau `~/.local/bin` belum ada di PATH-mu sama sekali, biarkan baris itu — tapi di
+> dotfiles ini sudah ada, jadi aman dibuang.)
+
 > **Catatan sejarah di mesin `cuan`:** binary lama bernama `~/.local/bin/antigravity`
 > dengan symlink `agy` → binary. Symlink itu pernah **hilang diam-diam** sementara
 > binary-nya utuh, sehingga perintah `agy` seolah lenyap. Kalau menemui itu lagi:
