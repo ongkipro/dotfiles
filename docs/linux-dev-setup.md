@@ -407,8 +407,29 @@ tmux display-message -p '#{version} | #{client_termfeatures}'
 | 1 | `tmux -V` < 3.4 ? | Upgrade tmux. Ubuntu 22.04 = 3.2a (fitur `sync` di-skip). 24.04 = 3.4 OK. Atau build statis/nightly. |
 | 2 | Terminal support 2026 ? | Pakai kitty / ghostty / wezterm / foot / alacritty ≥0.13. `xterm`/gnome-terminal jadul tak support. |
 | 3 | Terminal advertise 2026 tapi buggy (artefak makin parah) ? | Sempitkan sync ke TERM yg bagus saja, mis. `set -as terminal-features ",xterm-ghostty:sync"` (ganti wildcard `*`). |
-| 4 | Kedip periodik tiap ~5 dtk (bukan pas streaming) ? | Status bar redraw. Naikkan `set -g status-interval 15` di tmux.conf. |
+| 4 | Kedip periodik tiap ~5 dtk (bukan pas streaming) ? | Status bar redraw. Naikkan `status-interval` — **TAPI baca jebakan di bawah**, set-nya harus SETELAH TPM. |
 | 5 | Semua di atas mentok | Jalanin `pi` **di luar tmux** (terminal langsung) — sync ditangani terminal native, tanpa lapisan tmux. |
+
+### ⚠️ JEBAKAN: `status-interval` selalu balik ke 5 (tmux-sensible)
+
+**Gejala:** sudah tulis `set -g status-interval 15` di `tmux.conf`, tapi
+`tmux show -gv status-interval` tetap **5**.
+
+**Sebabnya:** plugin **tmux-sensible** memaksa `status-interval 5`, tapi hanya kalau
+nilainya masih sama dengan **default tmux — dan default tmux itu justru 15**. Jadi menulis
+`15` malah bikin sensible mengira kita tak mengubah apa pun, lalu menimpanya.
+
+**Perbaikannya:** set **SETELAH** baris `run '~/.tmux/plugins/tpm/tpm'` (plugin dimuat di
+situ, jadi apa pun setelahnya menang). Sudah diterapkan di `config/tmux.conf`.
+
+```bash
+tmux source-file ~/.tmux.conf
+tmux show -gv status-interval    # harus 15
+```
+
+**Kenapa ini bikin kedip:** `status-right` mem-fork `tmux-battery` (~28ms) tiap interval.
+Di 5 detik = 12 fork/menit → redraw periodik. Di 15 detik = 4 fork/menit.
+Ini **terpisah** dari flicker saat streaming (yang ditangani `*:sync`).
 
 **Verifikasi cepat "tmux vs bukan":** keluar dari tmux, jalanin `pi` langsung di terminal.
 - Kalau **tidak kedip** → masalah di lapisan tmux (fokus baris 1–3).
