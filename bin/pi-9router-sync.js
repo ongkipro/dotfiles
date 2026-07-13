@@ -81,11 +81,14 @@ function modelMeta(id) {
 }
 
 async function main() {
-  if (!fs.existsSync(dbPath) || !fs.existsSync(secretPath)) {
+  if (!fs.existsSync(dbPath)) {
     throw new Error('9router is not installed or initialized');
   }
 
-  const apiKey = fs.readFileSync(secretPath, 'utf8').trim();
+  // 9router 0.5.x tak lagi menulis auth/cli-secret; endpoint lokal 20128 tak cek Authorization.
+  const apiKey = fs.existsSync(secretPath)
+    ? fs.readFileSync(secretPath, 'utf8').trim()
+    : 'noauth';
   const activeProviders = await getActiveProviders();
   const payload = await fetchModels(apiKey);
   const ids = (payload.data || []).map(m => m.id).sort();

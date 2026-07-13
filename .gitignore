@@ -27,3 +27,7 @@ Thumbs.db
 *~
 __pycache__/
 node_modules/
+
+# gh CLI: hosts.yml berisi oauth token — config.yml aman, hosts.yml TIDAK
+config/gh/hosts.yml
+hosts.yml
