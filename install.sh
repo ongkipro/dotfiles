@@ -31,6 +31,7 @@ link() {
 link "$DOT/config/ai"                    ~/.config/ai          # memori bersama (+ memory/*.md)
 link "$DOT/config/starship.toml"         ~/.config/starship.toml
 link "$DOT/config/ripgreprc"             ~/.ripgreprc
+link "$DOT/config/helix/config.toml"     ~/.config/helix/config.toml
 link "$DOT/config/helix/languages.toml"  ~/.config/helix/languages.toml
 link "$DOT/config/gitignore_global"      ~/.gitignore_global
 link "$DOT/skills/local"                 ~/.agents/local-skills   # local skills (astro, shopify-listing)

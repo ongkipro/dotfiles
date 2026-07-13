@@ -52,6 +52,7 @@
 | skills | `~/.agents/local-skills` | ✅ ok |
 | mise toolchain | `~/.config/mise/config.toml` | ✅ ok |
 | starship | `~/.config/starship.toml` | ✅ ok |
+| helix | `~/.config/helix/config.toml` | ✅ ok |
 | lazygit | `~/.config/lazygit/config.yml` | ✅ ok |
 | gh cli | `~/.config/gh/config.yml` | ✅ ok |
 | tmux | `~/.tmux.conf` | ✅ ok |
