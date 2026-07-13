@@ -61,6 +61,54 @@ Akibatnya — dan ini yang bikin enak:
 > Ini pernah terjadi ke lazygit. Makanya `device-register` sekarang ikut mengecek
 > status tiap symlink (lihat tabel di file device).
 
+### Tree: bagian laptop mana yang terhubung ke dotfiles?
+
+Kotak kiri = laptopmu. Kotak kanan = repo ini. Panah = symlink.
+
+```
+LAPTOP (~/)                              DOTFILES (~/dotfiles/)
+│
+├── .config/
+│   ├── ai/ ─────────────────────────→  config/ai/            ← MEMORI AI (inti)
+│   ├── mise/config.toml ────────────→  config/mise-config.toml  ← daftar tool
+│   ├── starship.toml ───────────────→  config/starship.toml
+│   ├── helix/config.toml ───────────→  config/helix/config.toml
+│   ├── helix/languages.toml ────────→  config/helix/languages.toml
+│   ├── lazygit/config.yml ──────────→  config/lazygit/config.yml
+│   ├── gh/config.yml ───────────────→  config/gh/config.yml
+│   │
+│   ├── gh/hosts.yml ................  ✗ LOKAL — berisi token GitHub
+│   └── ai-local/device.md .........   ✗ LOKAL — IP server, catatan mesin
+│
+├── .agents/local-skills/ ───────────→  skills/local/         ← SKILL AI
+│
+├── .claude/CLAUDE.md ───────┐
+├── .codex/AGENTS.md ────────┤
+├── .antigravity/AGENTS.md ──┼────────→  config/ai/AGENTS.md   ← 4 AI, 1 memori
+└── .gemini/GEMINI.md ───────┘             (dibuat `ai-memory-link`)
+    (.gemini = milik agy, BUKAN gemini-cli)
+
+├── .tmux.conf ─────────────────────→  config/tmux.conf
+├── .gitignore_global ──────────────→  config/gitignore_global
+├── .ripgreprc ─────────────────────→  config/ripgreprc
+├── .profile ───────────────────────→  home/profile
+├── .local/bin/{dotsync,device-register,…} ─→  bin/
+│
+├── .ssh/ .........................  ✗ LOKAL — 🔒 KEY SSH TIDAK PERNAH KE REPO
+├── .bashrc .......................  ✗ LOKAL — di-patch, cuma di-snapshot ke repo
+└── .9router/ .....................  ✗ LOKAL — DB berisi API key provider
+
+pi.dev: tidak pakai symlink — memori dimuat lewat wrapper pi() di ~/.bashrc
+```
+
+> 🔒 **SSH tidak akan pernah masuk dotfiles.** Key bersifat per-device dan rahasia.
+> `.gitignore` memblokir `.ssh/`, `id_ed25519*`, `id_rsa*`, `known_hosts*`,
+> `authorized_keys*` — sudah diuji: `git check-ignore` menolaknya. Butuh key di device
+> baru? **Bikin key baru** di sana lalu daftarkan ke GitHub/server. Jangan copy key lama.
+
+Mau lihat status tree ini di device tertentu (mana yang ✅ / mana yang ❌ putus)?
+Buka [`devices/<hostname>.md`](devices/) — tabel **Symlink dotfiles**.
+
 ### Isinya apa saja?
 
 | Folder | Isi | Di-symlink ke |
@@ -133,15 +181,32 @@ saling menimpa.**
 
 ## 🖥️ Platform support
 
+**Pakai script yang sesuai OS-mu:**
+
+| Device | Jalankan | Kenapa |
+|---|---|---|
+| 🐧 Linux | `bash install.sh` | bootstrap utama |
+| 🍎 macOS | `bash install-macos.sh` | **jangan** pakai `install.sh` — lihat bawah |
+
+`install.sh` **tidak akan crash** di macOS (ia sudah deteksi zsh/bash, dan tidak memanggil
+`apt` maupun `systemd`). Masalahnya ia **tidak lengkap** — empat hal ini dilewatkan:
+
+| Yang dilewatkan `install.sh` di Mac | Ada di `install-macos.sh` |
+|---|---|
+| Install mise + toolchain-nya | ✅ |
+| 9router sebagai service **launchd** (bukan systemd) | ✅ |
+| Bikin `~/.gitconfig` kalau belum ada | ✅ |
+| Patch `~/.zshrc` (mise activate, PATH, shell tools) | ✅ |
+
 | Area | Linux | macOS |
 |---|---|---|
-| Main bootstrap (`install.sh`) | ✅ Primary target | ⚠️ Partial / adapt as needed |
-| macOS bootstrap (`install-macos.sh`) | — | ✅ Available |
-| Shared AI memory (`config/ai`) | ✅ | ✅ |
-| Semi-auto sync (`dotsync`) | ✅ | ✅ |
-| Skills/docs/config as repo source of truth | ✅ | ✅ |
+| Memori AI bersama (`config/ai`) | ✅ | ✅ |
+| Skills | ✅ | ✅ |
+| Sync (`dotsync`) | ✅ | ✅ |
+| Device registry (`device-register`) | ✅ | ✅ |
 
-> Repo ini **Linux-first** untuk setup mesin utama, tapi **memory + sync flow** sudah dirapikan supaya enak dipakai lintas Linux/macOS.
+> Repo ini **Linux-first** untuk setup mesin utama, tapi memori, skill, dan sync sudah
+> jalan penuh di kedua OS.
 
 ## 🗂️ Device Registry — dotfiles ini dipakai di mana saja?
 

@@ -1,10 +1,21 @@
+# === SSH — TIDAK PERNAH masuk dotfiles. Titik. ===
+# Key SSH bersifat per-device & rahasia. Backup key JANGAN di repo (walau privat):
+# repo bisa ter-clone, ter-mirror, atau tak sengaja jadi publik.
+.ssh/
+**/.ssh/
+id_rsa*
+id_ed25519*
+id_ecdsa*
+id_dsa*
+*.ppk
+known_hosts*
+authorized_keys*
+
 # === Credentials / secrets — JANGAN PERNAH commit ===
 *.key
 *.pem
 *.p12
 *.pfx
-id_rsa*
-id_ed25519*
 .env
 .env.*
 .dev.vars

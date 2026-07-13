@@ -189,12 +189,32 @@ claude                 # login lewat browser saat pertama jalan
 codex login
 ```
 
-Set identitas git (samakan dengan akun GitHub-mu):
+Identitas git sudah ikut dotfiles (`ongkipro` + email GitHub-noreply, sama di semua
+device). Cek saja:
 
 ```bash
-git config --global user.name  "<nama>"
-git config --global user.email "<email-yang-sama-dengan-GitHub>"
+git config --get user.email     # harus: <id>+ongkipro@users.noreply.github.com
 ```
+
+> ⚠️ **Awas config LOKAL repo.** `git config --local` **selalu menang** atas global.
+> Kalau commit di suatu repo keluar dengan identitas aneh, cek:
+> ```bash
+> git config --local --get user.email      # kosongkan: git config --local --unset user.email
+> ```
+
+### 5.3 SSH — bikin key BARU, jangan copy key lama
+
+🔒 **Key SSH tidak pernah ada di dotfiles** (diblokir `.gitignore`). Di device baru,
+**buat key baru**, jangan menyalin key dari device lain:
+
+```bash
+ssh-keygen -t ed25519 -C "device-baru"
+gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname)"
+```
+
+Alasannya: satu key = satu device. Kalau laptop hilang, cukup cabut key **device itu**
+di GitHub/server, tanpa mengganggu device lain. Kalau key dipakai bersama, satu laptop
+hilang = semua device harus ganti key.
 
 ### 5.2 Verifikasi
 
