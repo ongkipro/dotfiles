@@ -116,6 +116,10 @@ check_link() {
   fi
 }
 check_link "$HOME/.config/ai"                "memori bersama"
+check_link "$HOME/.claude/CLAUDE.md"         "memori → claude"
+check_link "$HOME/.codex/AGENTS.md"          "memori → codex"
+check_link "$HOME/.antigravity/AGENTS.md"    "memori → agy"
+check_link "$HOME/.gemini/GEMINI.md"         "memori → agy (gemini stack)"
 check_link "$HOME/.agents/local-skills"      "skills"
 check_link "$HOME/.config/mise/config.toml"  "mise toolchain"
 check_link "$HOME/.config/starship.toml"     "starship"

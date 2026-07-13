@@ -49,6 +49,10 @@
 | Apa | Path | Status |
 |---|---|---|
 | memori bersama | `~/.config/ai` | ✅ ok |
+| memori → claude | `~/.claude/CLAUDE.md` | ✅ ok |
+| memori → codex | `~/.codex/AGENTS.md` | ✅ ok |
+| memori → agy | `~/.antigravity/AGENTS.md` | ✅ ok |
+| memori → agy (gemini stack) | `~/.gemini/GEMINI.md` | ✅ ok |
 | skills | `~/.agents/local-skills` | ✅ ok |
 | mise toolchain | `~/.config/mise/config.toml` | ✅ ok |
 | starship | `~/.config/starship.toml` | ✅ ok |

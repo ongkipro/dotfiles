@@ -8,9 +8,11 @@ SRC="$HOME/.config/ai/AGENTS.md"
 
 # Lokasi context-file global tiap AI CLI:
 TARGETS=(
-  "$HOME/.claude/CLAUDE.md"  # Claude Code (global)
-  "$HOME/.codex/AGENTS.md"   # Codex (global)
-  "$HOME/.gemini/GEMINI.md"  # Antigravity (agy) — stack Gemini
+  "$HOME/.claude/CLAUDE.md"       # Claude Code (global)
+  "$HOME/.codex/AGENTS.md"        # Codex (global)
+  "$HOME/.antigravity/AGENTS.md"  # Antigravity (agy) — context file UTAMA
+  "$HOME/.gemini/GEMINI.md"       # Antigravity (agy) — stack Gemini. ~/.gemini/ MILIK agy,
+                                  # bukan gemini-cli (yang sudah dihapus). Jangan buang.
   # pi.dev: TIDAK pakai ~/AGENTS.md — di-load via wrapper pi() di ~/.bashrc
   #         (command pi --append-system-prompt ~/.config/ai/AGENTS.md)
   # tambah AI baru di sini, contoh:
