@@ -168,10 +168,55 @@ Tabel **Symlink dotfiles** di tiap file device adalah alat diagnosa: symlink put
 muncul sebagai ❌ (persis begini `~/.config/lazygit/config.yml` ketahuan menunjuk ke
 direktori yang tak pernah ada — lazygit diam-diam jalan pakai config default).
 
+## 🐧 Linux baru di-install? Mulai dari sini
+
+Urutannya **tidak boleh dibalik** — tiap tahap dipakai tahap berikutnya:
+
+```
+1. Dasar OS  →  2. Runtime  →  3. AI CLI  →  4. Dotfiles  →  5. Login & Cek
+   (apt)         (nvm+mise)     (npm)         (install.sh)     (verifikasi)
+                                                   ↑
+                             di sinilah AI "dikasih otak": memori + skill
+```
+
+```bash
+# 1 — Dasar OS (butuh sudo)
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y build-essential curl git unzip ca-certificates gnupg apt-transport-https
+sudo apt install -y gh tmux btop jq duf 7zip chromium-browser postgresql-client
+
+# 2 — Runtime (node lewat nvm; mise buat sisanya)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
+source ~/.bashrc && nvm install --lts
+curl -fsSL https://mise.run | sh
+echo 'eval "$(~/.local/bin/mise activate bash)"' >> ~/.bashrc && source ~/.bashrc
+
+# 3 — AI CLI (dipasang SEBELUM dotfiles, biar langsung dapat memori di tahap 4)
+npm i -g @anthropic-ai/claude-code @openai/codex @earendil-works/pi-coding-agent
+
+# 4 — Dotfiles: symlink config + sambungkan memori & skill ke semua AI CLI
+git clone https://github.com/ongkipro/dotfiles ~/dotfiles
+cd ~/dotfiles && bash install.sh && source ~/.bashrc
+mise install
+
+# 5 — Login & verifikasi
+gh auth login && gh auth setup-git   # tanpa setup-git, `git push` GAGAL
+codex login
+device-register && dotsync doctor
+```
+
+> ⚠️ **`node` jangan dipasang lewat mise.** Shim mise lebih awal di `PATH` daripada
+> nvm, jadi node mise akan menggeser node nvm — padahal `claude`/`codex`/`pi` adalah
+> npm global di bawah nvm, dan native module (`better-sqlite3`) bisa pecah karena beda
+> ABI. Makanya `node` sengaja tidak ada di `config/mise-config.toml`.
+
+📖 **Versi lengkap + troubleshooting:** [`docs/linux-install-step-by-step.md`](docs/linux-install-step-by-step.md)
+(termasuk Antigravity/`agy`, docker, `lm-sensors`, dan daftar gejala-vs-penyebab).
+
 ## ⚡ Stack
 
 ```
-AI CLIs   →  Claude Code · Pi.dev · Codex · Gemini · Antigravity
+AI CLIs   →  Claude Code · Pi.dev · Codex · Antigravity (`agy`)
 Editor    →  Helix (hx)
 Terminal  →  tmux (Ctrl+a, resurrect/continuum/yank/open) · starship · zsh/bash
 Git       →  lazygit (lg) · delta (diff) · gh (GitHub CLI)
@@ -184,7 +229,7 @@ Deploy    →  Vercel CLI · Wrangler (Cloudflare) · gh
 
 - **Source of truth** untuk shared AI memory, skill references, dan config terminal utama.
 - **Sinkron lintas device** via Git, terutama antara workstation Linux dan device macOS.
-- **Konsisten lintas AI CLI**: Claude Code, Pi.dev, Codex, Gemini, Antigravity.
+- **Konsisten lintas AI CLI**: Claude Code, Pi.dev, Codex, Antigravity (`agy`). Gemini CLI sudah dihapus — stack Gemini dipakai lewat Antigravity.
 - **Semi-auto sync**, bukan auto-commit liar.
 - **Bootstrap ringan macOS** untuk memory + skills + sync.
 
@@ -233,6 +278,7 @@ dotfiles/
 │   │   └── user/
 │   │       └── 9router.service # 9router daemon (auto-start + restart)
 │   ├── helix/
+│   │   ├── config.toml        # Editor (relative number, soft-wrap, C-s = save)
 │   │   └── languages.toml     # LSP config
 │   ├── btop/
 │   │   └── btop.conf          # System monitor tuned for this Linux workflow
@@ -262,7 +308,8 @@ dotfiles/
 │
 ├── 📂 docs/
 │   ├── ai-memory-sync.md      # Shared memory + sync flow Linux/macOS
-│   ├── linux-dev-setup.md     # Setup lengkap dari nol
+│   ├── linux-install-step-by-step.md  # ⭐ Ubuntu baru → tool → AI → dotfiles (urut)
+│   ├── linux-dev-setup.md     # Runbook lengkap + filosofi
 │   ├── dev-setup.md           # Ringkasan cepat
 │   └── shopify-ai-development-repos.md
 │
