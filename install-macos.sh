@@ -92,8 +92,10 @@ fi
 if [ ! -f "$HOME/.gitconfig" ]; then
   cat > "$HOME/.gitconfig" <<GITEOF
 [user]
-    name = Ongki Pro
-    email = get@ongki.pro
+    # Identitas SAMA di semua device (Linux + Mac). Pakai GitHub noreply supaya email
+    # asli tidak pernah bocor ke riwayat commit — dan commit tetap terhitung ke profil.
+    name = ongkipro
+    email = 82156528+ongkipro@users.noreply.github.com
 [core]
     excludesfile = $DOT/config/gitignore_global
     autocrlf = input
