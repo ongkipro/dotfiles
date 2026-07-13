@@ -96,3 +96,11 @@
 - **`~/.config/mise/config.toml` kini SYMLINK ke `dotfiles/config/mise-config.toml`** → `mise use -g <tool>` otomatis tercatat di dotfiles (sudah diuji: mise menulis TEMBUS symlink, tidak merusaknya). `node` sengaja TIDAK di config bersama (bentrok nvm vs shim mise).
 - ⚠️ **`git config credential.helper` sempat menunjuk `/home/ongki/.local/bin/gh` yang TIDAK ADA** → semua `git push` gagal (`could not read Username`). gh yang benar ada di `/usr/bin/gh`. Diperbaiki dengan `gh auth setup-git`. Kalau push gagal lagi dengan pesan serupa, jalankan itu.
 - **Device lain (Mac) AKTIF push ke repo ini.** Selalu `git pull --rebase` sebelum push. Konflik nyata pernah terjadi di `install-macos.sh` (Mac tambah `pi-9router-restore`, linux tambah `device-register`) — resolusinya GABUNG, jangan pilih salah satu.
+
+## Identitas git — SATU untuk semua device (2026-07-13)
+- **Patokan: `ongkipro <82156528+ongkipro@users.noreply.github.com>`** (GitHub noreply — email asli tak pernah masuk riwayat commit, tapi commit tetap terhitung ke profil). ID `82156528` diambil dari `gh api user`, bukan tebakan.
+- Sebelumnya ada **4 identitas** beredar: global `ongkiardiansyah@gmail.com`, `install-macos.sh` hardcode `get@ongki.pro`, akun GitHub `ongkipro`, dan — yang paling menipu — **config LOKAL repo dotfiles** `Ongki Pro <[email protected]>`. Config lokal SELALU menang atas global, jadi commit dari mesin ini ter-atribusi ke identitas yang tak disengaja.
+- Override lokal di `~/dotfiles` sudah DICABUT (`git config --local --unset user.name/user.email`) → ikut global. `install-macos.sh` juga sudah diseragamkan.
+- ⚠️ **Commit lama (sebelum 2026-07-13) tetap membawa email lama** — tidak di-rewrite (sudah ter-push; rewrite = destruktif).
+- ⚠️ **Cek repo lain**: `git config --local --get user.email` di tiap repo. Kalau ada override serupa, cabut juga.
+- **`credential.helper` = `!gh auth git-credential`** (TANPA path absolut — supaya jalan di Linux `/usr/bin/gh` maupun Mac `/opt/homebrew/bin/gh`). Kalau `git push` gagal "could not read Username": jalankan `gh auth setup-git`.
