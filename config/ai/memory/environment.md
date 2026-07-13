@@ -89,3 +89,10 @@
 - Paket npm `9router@0.5.30` masih terpasang (tidak di-uninstall).
 - **Hidupkan lagi**: `systemctl --user enable --now 9router.service` (+ `pi-9router-sync.service` kalau mau auto-sync model pi).
 - Konsekuensi saat OFF: pi image-gen & compaction via 9router GAGAL. Chat utama pi tetap jalan (default = provider NATIVE `minimax`/`MiniMax-M3`, tak lewat 9router).
+
+## Device registry + git credential (2026-07-13)
+- **`devices/` di dotfiles = registry lintas-device.** Satu file per mesin (`devices/<hostname>.md`): merek/model, CPU, RAM, GPU, disk, AI CLI, toolchain, dan **status tiap symlink dotfiles**. Indeks: `devices/README.md`. Generate/refresh: `device-register` (idempotent, `--dry-run` tersedia; dipanggil otomatis oleh install.sh/install-macos.sh, non-fatal).
+- Mesin linux utama: hostname **`cuan`** (BUKAN "fantastico" — itu julukan lama di memory). **Lenovo ThinkPad T480** (`20L6S3ED00`), i7-8650U 4c/8t, RAM **14.9 GB**, NVMe 233GB, GPU Intel UHD 620 + NVIDIA MX150 2GB.
+- **`~/.config/mise/config.toml` kini SYMLINK ke `dotfiles/config/mise-config.toml`** → `mise use -g <tool>` otomatis tercatat di dotfiles (sudah diuji: mise menulis TEMBUS symlink, tidak merusaknya). `node` sengaja TIDAK di config bersama (bentrok nvm vs shim mise).
+- ⚠️ **`git config credential.helper` sempat menunjuk `/home/ongki/.local/bin/gh` yang TIDAK ADA** → semua `git push` gagal (`could not read Username`). gh yang benar ada di `/usr/bin/gh`. Diperbaiki dengan `gh auth setup-git`. Kalau push gagal lagi dengan pesan serupa, jalankan itu.
+- **Device lain (Mac) AKTIF push ke repo ini.** Selalu `git pull --rebase` sebelum push. Konflik nyata pernah terjadi di `install-macos.sh` (Mac tambah `pi-9router-restore`, linux tambah `device-register`) — resolusinya GABUNG, jangan pilih salah satu.
