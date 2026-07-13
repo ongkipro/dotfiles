@@ -104,3 +104,11 @@
 - ⚠️ **Commit lama (sebelum 2026-07-13) tetap membawa email lama** — tidak di-rewrite (sudah ter-push; rewrite = destruktif).
 - ⚠️ **Cek repo lain**: `git config --local --get user.email` di tiap repo. Kalau ada override serupa, cabut juga.
 - **`credential.helper` = `!gh auth git-credential`** (TANPA path absolut — supaya jalan di Linux `/usr/bin/gh` maupun Mac `/opt/homebrew/bin/gh`). Kalau `git push` gagal "could not read Username": jalankan `gh auth setup-git`.
+
+## Antigravity (`agy`) — cara install RESMI (2026-07-13, diverifikasi)
+- **Installer resmi**: `curl -fsSL https://antigravity.google/cli/install.sh | bash` → lalu `agy install` (konfigurasi PATH + shell). Docs: https://antigravity.google/docs/cli-getting-started
+- Diverifikasi langsung: URL balas **HTTP 200**, isinya script bash asli ("Antigravity CLI - Unix Bootstrapper Script"), `TARGET_DIR="$HOME/.local/bin"`, `BINARY_PATH="$TARGET_DIR/agy"`.
+- **Bukan paket npm**, tidak butuh Node. Binary flat native, langsung bernama `agy`.
+- Subcommand: `agy install` · `agy update` · `agy models` · `agy agents` · `agy plugin` · `agy changelog`. **Tidak ada `agy login`** — auth jalan saat `agy` pertama dijalankan (lewat browser).
+- ⚠️ **Di mesin `cuan` layout-nya BEDA (instalasi lama)**: binary bernama `~/.local/bin/antigravity` + symlink `agy` → binary. Symlink itu pernah hilang diam-diam (binary utuh, perintah `agy` seolah lenyap). Perbaikan: `ln -sfn ~/.local/bin/antigravity ~/.local/bin/agy`. Instalasi baru lewat installer resmi tak punya masalah ini.
+- Antigravity **menggantikan Gemini CLI** (yang sudah dihapus dari mesin ini).

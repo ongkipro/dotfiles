@@ -117,13 +117,18 @@ daftarnya ikut dotfiles dan terpasang di Tahap 4.
 npm i -g @anthropic-ai/claude-code @openai/codex @earendil-works/pi-coding-agent
 ```
 
-**Antigravity (`agy`)** — bukan paket npm. Ambil binary-nya dari sumber resmi
-Antigravity (**jangan tebak URL-nya**), taruh di `~/.local/bin/antigravity`, lalu:
+**Antigravity (`agy`)** — bukan paket npm, punya installer sendiri. Perintahnya **sama
+persis dengan Linux** ([dokumen resmi](https://antigravity.google/docs/cli-getting-started)):
 
 ```bash
-ln -sfn ~/.local/bin/antigravity ~/.local/bin/agy
+curl -fsSL https://antigravity.google/cli/install.sh | bash
+agy install      # konfigurasi PATH + shell
 agy --version
 ```
+
+Installer menaruh binary di **`~/.local/bin/agy`**, tanpa butuh runtime lain (bukan Node).
+Login: jalankan `agy`, ia menuntun lewat browser.
+Perintah berguna: `agy update`, `agy models`, `agy changelog`.
 
 Language server (opsional, buat helix):
 

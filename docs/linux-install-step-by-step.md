@@ -116,17 +116,29 @@ npm i -g @anthropic-ai/claude-code @openai/codex @earendil-works/pi-coding-agent
 | Codex | `@openai/codex` | `codex` |
 | pi.dev | `@earendil-works/pi-coding-agent` | `pi` |
 
-**Antigravity (`agy`)** — bukan paket npm. Binary-nya berdiri sendiri dan ditaruh di
-`~/.local/bin/antigravity`, lalu dibuatkan symlink:
+**Antigravity (`agy`)** — bukan paket npm, punya installer sendiri
+([dokumen resmi](https://antigravity.google/docs/cli-getting-started)):
 
 ```bash
-ln -sfn ~/.local/bin/antigravity ~/.local/bin/agy
+curl -fsSL https://antigravity.google/cli/install.sh | bash
+agy install      # konfigurasi PATH + shell
 agy --version
 ```
 
-> Ambil binary-nya dari sumber resmi Antigravity — **jangan** ditebak URL-nya.
-> Symlink `agy` inilah yang dulu pernah hilang diam-diam sementara binary-nya utuh,
-> sehingga perintah `agy` seolah lenyap.
+Installer resmi menaruh binary langsung di **`~/.local/bin/agy`** (tanpa runtime lain —
+tidak butuh Node). Login: cukup jalankan `agy`, ia akan menuntun lewat browser.
+
+Perintah berguna: `agy update` (update CLI), `agy models` (daftar model),
+`agy changelog`.
+
+> **Catatan sejarah di mesin `cuan`:** binary lama bernama `~/.local/bin/antigravity`
+> dengan symlink `agy` → binary. Symlink itu pernah **hilang diam-diam** sementara
+> binary-nya utuh, sehingga perintah `agy` seolah lenyap. Kalau menemui itu lagi:
+> ```bash
+> ln -sfn ~/.local/bin/antigravity ~/.local/bin/agy
+> ```
+> Instalasi baru lewat installer resmi tidak punya masalah ini (binary langsung
+> bernama `agy`).
 
 Language server (opsional, buat helix):
 
