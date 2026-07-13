@@ -49,7 +49,9 @@ for s in akun claude-kerja claude-personal tmux-clip tmux-setup security-check 9
 ~/.local/bin/ai-memory-link              # symlink AGENTS.md ke semua AI CLI (claude/codex/pi/agy)
 
 echo "==> Daftarkan device ini ke registry (devices/<hostname>.md)..."
-"$DOT/bin/device-register"
+# Non-fatal: registry cuma dokumentasi. Jangan sampai bootstrap device baru gagal
+# total hanya karena probe hardware bermasalah (install.sh pakai `set -e`).
+"$DOT/bin/device-register" || echo "   ⚠️  device-register gagal — lanjut. Jalankan manual nanti."
 
 echo "==> Setup tmux (install binary + clipboard + TPM + plugin)..."
 "$DOT/bin/tmux-setup"

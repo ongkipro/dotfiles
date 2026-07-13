@@ -23,6 +23,114 @@
 
 ---
 
+## 📖 Repo ini apa, sih? (baca ini dulu)
+
+**Singkatnya: ini "otak cadangan" dari semua komputer saya.**
+
+Saya punya beberapa device (laptop Linux, Mac, dan seterusnya). Tanpa repo ini, tiap
+device jadi pulau sendiri: tool beda-beda, setelan beda-beda, dan AI di device A tidak
+tahu apa yang sudah saya kerjakan di device B. Repo ini menyatukannya.
+
+### Apa gunanya?
+
+| Masalah | Yang repo ini lakukan |
+|---|---|
+| Laptop rusak / beli baru → setup ulang dari nol berhari-hari | `git clone` + `./install.sh` → tool, setelan, dan memori AI kembali |
+| Tiap device setelannya beda-beda dan lama-lama menyimpang | Semua device menunjuk ke **satu sumber kebenaran** (repo ini) |
+| AI CLI (Claude/Codex/pi/agy) tak saling tahu konteks | Semua membaca **satu file memori bersama** |
+| Lupa device mana saja yang dipakai, spek-nya apa | [`devices/`](devices/) — registry otomatis |
+
+### Cara kerjanya: symlink, bukan copy-paste
+
+Ini kunci yang paling penting untuk dipahami. Repo ini **tidak menyalin** file ke
+tempatnya. Ia membuat **symlink** — semacam "jalan pintas" yang menunjuk balik ke repo.
+
+```
+~/.config/ai  ───(symlink)──→  ~/dotfiles/config/ai
+   ^ yang dibaca AI              ^ yang tersimpan di Git
+```
+
+Akibatnya — dan ini yang bikin enak:
+
+- Saya edit memori AI lewat `~/.config/ai/...` → yang **berubah adalah file di repo**.
+- Jadi tidak ada langkah "jangan lupa copy ke dotfiles". Tidak ada drift diam-diam.
+- Cukup `git commit` + `git push`, device lain tinggal `git pull`.
+
+> ⚠️ Kelemahan symlink: kalau target di repo dihapus/dipindah, symlink-nya jadi
+> **putus** dan diam saja — program jalan pakai setelan default tanpa memberi tahu.
+> Ini pernah terjadi ke lazygit. Makanya `device-register` sekarang ikut mengecek
+> status tiap symlink (lihat tabel di file device).
+
+### Isinya apa saja?
+
+| Folder | Isi | Di-symlink ke |
+|---|---|---|
+| `config/ai/` | **Memori bersama** semua AI CLI (fakta environment, project, preferensi) | `~/.config/ai` |
+| `skills/local/` | **Skill AI** (SEO, Shopify, Astro, Cloudflare, dll) | `~/.agents/local-skills` |
+| `config/mise-config.toml` | Daftar tool terminal (fzf, ripgrep, helix, delta…) | `~/.config/mise/config.toml` |
+| `config/` lainnya | starship, tmux, lazygit, gh, helix, btop, ripgrep | masing-masing |
+| `bin/` | Script bantu (`dotsync`, `device-register`, dll) | `~/.local/bin/` |
+| `devices/` | **Registry device** — spek tiap mesin + status symlink-nya | (tidak di-link; catatan saja) |
+| `docs/` | Catatan setup panjang | — |
+
+### "Log"-nya di mana?
+
+Repo ini **tidak** menyimpan log aplikasi. Yang ada tiga jenis rekaman:
+
+1. **Riwayat Git** — `git log` = catatan setiap perubahan setelan, lengkap dengan
+   alasannya di pesan commit. Ini log yang sebenarnya.
+2. **`devices/<hostname>.md`** — snapshot kondisi tiap mesin (spek + status symlink),
+   di-refresh dengan `device-register`.
+3. **`config/ai/memory/*.md`** — memori AI: fakta yang harus diingat lintas sesi &
+   lintas device (bukan log, tapi pengetahuan).
+
+### Alur harian
+
+```bash
+dotsync status     # ada yang berubah?
+dotsync sync       # commit + push sekaligus
+dotsync pull       # tarik perubahan dari device lain
+device-register    # perbarui catatan device ini (setelah ganti hardware / pasang CLI baru)
+```
+
+### Yang TIDAK pernah masuk repo
+
+Repo ini privat, tapi **tetap** tidak boleh menyimpan rahasia — kalau bocor sekali,
+selamanya bocor:
+
+- API key, token, `*auth*.json`, `.env`, private key SSH → diblokir `.gitignore`
+- `~/.config/gh/hosts.yml` (token GitHub) — hanya `config.yml` yang ikut
+- Fakta pribadi per-mesin (IP server, key) → simpan di `~/.config/ai-local/device.md`
+  yang **sengaja tidak di-sync**
+
+Cek kapan saja dengan `security-check`.
+
+### ⚠️ Sekali saja: saat pertama menjalankan installer di device LAMA
+
+`install.sh` / `install-macos.sh` mengganti file config asli dengan symlink ke repo.
+File aslinya **di-backup** dulu ke `<file>.bak.<timestamp>` (tidak hilang, dan
+`*.bak*` sudah di-gitignore) — tapi setelan lamanya **tidak aktif lagi**.
+
+Yang paling perlu dicek: **`~/.config/mise/config.toml`**. Kalau device itu punya tool
+yang belum ada di daftar bersama, tool itu jadi tak terdeklarasi. Cara aman:
+
+```bash
+diff ~/.config/mise/config.toml ~/.config/mise/config.toml.bak.*   # apa yang hilang?
+mise use -g <tool-yang-hilang>                                     # deklarasikan ulang
+```
+
+Karena `~/.config/mise/config.toml` adalah symlink ke repo, `mise use -g` langsung
+menuliskannya ke dotfiles — otomatis ikut ter-sync ke device lain. **Terhubung, bukan
+saling menimpa.**
+
+> Catatan: `node` **sengaja tidak** dideklarasikan di mise bersama. Di Linux `cuan`,
+> node dikelola **nvm**, dan shim mise berada lebih awal di `PATH` — kalau mise ikut
+> memasang node, ia menggeser node nvm, sehingga npm global (`claude`, `codex`, `pi`)
+> jalan di atas node yang salah dan native module (`better-sqlite3`) bisa pecah.
+> Node biar diurus per-device.
+
+---
+
 ## 🖥️ Platform support
 
 | Area | Linux | macOS |
@@ -128,14 +236,22 @@ dotfiles/
 │   │   └── languages.toml     # LSP config
 │   ├── btop/
 │   │   └── btop.conf          # System monitor tuned for this Linux workflow
+│   ├── lazygit/config.yml     # lazygit + delta (side-by-side OFF: panel diff sempit)
+│   ├── gh/config.yml          # GitHub CLI (alias `co`). hosts.yml TIDAK ikut — ada token
+│   ├── mise-config.toml       # Toolchain bersama. DI-SYMLINK: `mise use -g` nulis ke sini
 │   ├── shell-tools.sh         # Cross-platform dev tools (bash + zsh, Ubuntu + macOS)
 │   ├── starship.toml          # Prompt (plain, no Nerd Font)
 │   ├── tmux.conf              # Terminal multiplexer
 │   ├── gitignore_global       # Global git ignores
 │   └── ripgreprc              # rg config
 │
+├── 📂 devices/                # Registry device (auto-generate, jangan edit manual)
+│   ├── README.md              # Tabel indeks semua mesin
+│   └── cuan.md                # ThinkPad T480 — spek + status symlink
+│
 ├── 📂 bin/
 │   ├── ai-memory-link         # Symlink AGENTS.md ke semua AI CLI
+│   ├── device-register        # Rekam device ini ke devices/ (spek + status symlink)
 │   ├── dotsync                # Semi-auto sync lintas Linux/macOS
 │   ├── dotpush                # Fast-path manual commit + push
 │   ├── pi-9router-restore     # Restore pi + compact-free + 9router.service

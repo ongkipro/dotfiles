@@ -31,37 +31,62 @@ have() { command -v "$1" >/dev/null 2>&1; }
 ver()  { have "$1" && "$1" --version 2>/dev/null | head -1 | tr -d '\r' || echo "-"; }
 
 # ── Deteksi OS ───────────────────────────────────────────────────────────────
+# Semua probe dibungkus `|| true` / fallback: device lain boleh saja tak punya
+# lspci/lscpu/DMI (VM, container, minimal install) — script tetap harus lulus.
 case "$(uname -s)" in
   Darwin)
-    OS_NAME="macOS $(sw_vers -productVersion 2>/dev/null)"
+    OS_NAME="macOS $(sw_vers -productVersion 2>/dev/null || echo '?')"
     KERNEL="$(uname -r)"
     ARCH="$(uname -m)"
-    CPU="$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo '-')"
-    CORES="$(sysctl -n hw.ncpu 2>/dev/null || echo '-')"
-    RAM_GB="$(( $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1024 / 1024 / 1024 ))"
-    GPU="$(system_profiler SPDisplaysDataType 2>/dev/null | awk -F': ' '/Chipset Model/{printf "%s; ", $2}' | sed 's/; $//')"
-    DISK="$(df -h / 2>/dev/null | awk 'NR==2{print $2" total, "$4" free ("$5" used)"}')"
+    CPU="$(sysctl -n machdep.cpu.brand_string 2>/dev/null || true)"
+    CORES="$(sysctl -n hw.ncpu 2>/dev/null || true)"
+    MEM_BYTES="$(sysctl -n hw.memsize 2>/dev/null || echo 0)"
+    RAM_GB="$(awk -v b="$MEM_BYTES" 'BEGIN{ if (b>0) printf "%.1f", b/1073741824; }' 2>/dev/null || true)"
+    GPU="$(system_profiler SPDisplaysDataType 2>/dev/null | awk -F': ' '/Chipset Model/{printf "%s + ", $2}' | sed 's/ + $//' || true)"
+    VENDOR="Apple"
+    MODEL="$(sysctl -n hw.model 2>/dev/null || true)"   # mis. Mac14,2
+    FORM="laptop"
+    case "$MODEL" in Macmini*|iMac*|MacPro*|MacStudio*) FORM="desktop" ;; esac
     SERVICE_MGR="launchd"
     PKG_MGR="brew"
     ;;
   Linux)
-    OS_NAME="$(. /etc/os-release 2>/dev/null && echo "$PRETTY_NAME" || echo 'Linux')"
+    OS_NAME="$( (. /etc/os-release 2>/dev/null && printf '%s' "$PRETTY_NAME") || echo 'Linux' )"
     KERNEL="$(uname -r)"
     ARCH="$(uname -m)"
-    CPU="$(lscpu 2>/dev/null | awk -F': +' '/^Model name/{print $2; exit}')"
-    CORES="$(nproc 2>/dev/null || echo '-')"
-    RAM_GB="$(free -g 2>/dev/null | awk '/^Mem:/{print $2}')"
-    GPU="$(lspci 2>/dev/null | grep -iE 'vga|3d controller' | sed 's/.*: //' | paste -sd'|' - | sed 's/|/ + /g')"
-    DISK="$(df -h / 2>/dev/null | awk 'NR==2{print $2" total, "$4" free ("$5" used)"}')"
+    CPU="$(lscpu 2>/dev/null | awk -F': +' '/^Model name/{print $2; exit}' || true)"
+    CORES="$(nproc 2>/dev/null || true)"
+    # /proc/meminfo lebih akurat dari `free -g` (yang membulatkan ke bawah).
+    RAM_GB="$(awk '/^MemTotal:/{printf "%.1f", $2/1048576}' /proc/meminfo 2>/dev/null || true)"
+    GPU="$(lspci 2>/dev/null | grep -iE 'vga|3d controller' | sed 's/.*: //' | paste -sd'|' - | sed 's/|/ + /g' || true)"
+    DMI=/sys/class/dmi/id
+    VENDOR="$(cat $DMI/sys_vendor 2>/dev/null || true)"
+    # product_version biasanya nama pasaran ("ThinkPad T480"); product_name = kode MTM.
+    MODEL="$(cat $DMI/product_version 2>/dev/null || true)"
+    [ -n "$MODEL" ] || MODEL="$(cat $DMI/product_name 2>/dev/null || true)"
+    MTM="$(cat $DMI/product_name 2>/dev/null || true)"
+    [ "$MTM" = "$MODEL" ] && MTM=""
+    # chassis_type: 8/9/10/11/14 = portable/laptop/notebook/sub-notebook
+    case "$(cat $DMI/chassis_type 2>/dev/null || true)" in
+      8|9|10|11|14) FORM="laptop" ;;
+      3|4|5|6|7|13|15|16) FORM="desktop" ;;
+      *) FORM="" ;;
+    esac
     SERVICE_MGR="systemd --user"
     PKG_MGR="apt"
     ;;
   *) echo "ERROR: OS tidak didukung: $(uname -s)" >&2; exit 1 ;;
 esac
 
-[ -n "${CPU:-}" ] || CPU="-"
-[ -n "${GPU:-}" ] || GPU="-"
-[ "${RAM_GB:-0}" -gt 0 ] 2>/dev/null || RAM_GB="?"
+# Fallback seragam — jangan pernah biarkan sel tabel kosong.
+: "${CPU:=-}"; : "${GPU:=-}"; : "${CORES:=-}"; : "${VENDOR:=-}"; : "${MODEL:=-}"; : "${MTM:=}"; : "${FORM:=}"
+: "${RAM_GB:=?}"
+DISK="$(df -h / 2>/dev/null | awk 'NR==2{print $2" total, "$4" free ("$5" used)"}' || true)"
+: "${DISK:=-}"
+
+DEVICE_LABEL="$VENDOR $MODEL"
+[ -n "$MTM" ] && DEVICE_LABEL="$DEVICE_LABEL (\`$MTM\`)"
+[ -n "$FORM" ] && DEVICE_LABEL="$DEVICE_LABEL · $FORM"
 
 # ── AI CLI terpasang ─────────────────────────────────────────────────────────
 AI_ROWS=""
@@ -112,6 +137,7 @@ read -r -d '' DOC <<EOF || true
 | | |
 |---|---|
 | Hostname | \`$HOST\` |
+| Device | **$DEVICE_LABEL** |
 | OS | $OS_NAME |
 | Kernel | $KERNEL · $ARCH |
 | Service manager | $SERVICE_MGR |
@@ -159,6 +185,20 @@ fi
 printf '%s\n' "$DOC" > "$OUT"
 echo "✓ ditulis: ${OUT/#$HOME/\~}"
 
+# ── Penjaga anti-timpa ───────────────────────────────────────────────────────
+# devices/<host>.md tak pernah bentrok (satu file per device). Tapi devices/README.md
+# di-GENERATE ULANG dari file yang ADA di disk — kalau repo belum di-pull, entri
+# device lain belum ada, dan indeks jadi kehilangan barisnya. Peringatkan (jangan
+# blokir: device bisa saja offline).
+if git -C "$DOT" rev-parse --git-dir >/dev/null 2>&1; then
+  behind="$(git -C "$DOT" rev-list --count HEAD..@{upstream} 2>/dev/null || echo 0)"
+  if [ "${behind:-0}" -gt 0 ] 2>/dev/null; then
+    echo "⚠️  Repo tertinggal $behind commit dari origin."
+    echo "   Jalankan 'git pull' lalu 'device-register' lagi, supaya indeks tidak"
+    echo "   menghapus baris device lain yang belum ter-pull."
+  fi
+fi
+
 # ── Perbarui indeks devices/README.md ────────────────────────────────────────
 INDEX="$DEVDIR/README.md"
 {
@@ -167,17 +207,14 @@ INDEX="$DEVDIR/README.md"
   echo "Daftar mesin yang memakai dotfiles ini. Dibuat otomatis oleh \`bin/device-register\`."
   echo "Jalankan \`device-register\` di tiap device (juga setelah upgrade hardware/OS)."
   echo
-  echo "| Device | OS | CPU | RAM | Diperbarui |"
-  echo "|---|---|---|---|---|"
+  echo "| Host | Device | OS | CPU | RAM | Diperbarui |"
+  echo "|---|---|---|---|---|---|"
   for f in "$DEVDIR"/*.md; do
     [ "$(basename "$f")" = "README.md" ] && continue
     [ -e "$f" ] || continue
     n="$(basename "$f" .md)"
-    o="$(awk -F'\\| ' '/^\| OS \|/{print $3; exit}' "$f" | sed 's/ |$//')"
-    c="$(awk -F'\\| ' '/^\| CPU \|/{print $3; exit}' "$f" | sed 's/ |$//')"
-    r="$(awk -F'\\| ' '/^\| RAM \|/{print $3; exit}' "$f" | sed 's/ |$//')"
-    d="$(awk '/^> Terakhir diperbarui/{gsub(/[^0-9-]/,"",$0); print; exit}' "$f")"
-    echo "| [\`$n\`]($n.md) | ${o:--} | ${c:--} | ${r:--} | ${d:--} |"
+    row() { awk -F'\\| ' -v k="$1" '$0 ~ "^\\| "k" \\|" {print $3; exit}' "$f" | sed 's/ |$//'; }
+    echo "| [\`$n\`]($n.md) | $(row Device) | $(row OS) | $(row CPU) | $(row RAM) | $(awk '/^> Terakhir diperbarui/{gsub(/[^0-9-]/,"",$0); print; exit}' "$f") |"
   done
 } > "$INDEX"
 echo "✓ indeks diperbarui: ${INDEX/#$HOME/\~}"

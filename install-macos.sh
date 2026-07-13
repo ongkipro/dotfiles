@@ -44,7 +44,8 @@ for s in akun claude-kerja claude-personal tmux-clip tmux-setup tmux-battery sec
 done
 
 say "==> Daftarkan device ini ke registry (devices/<hostname>.md)..."
-"$DOT/bin/device-register"
+# Non-fatal — registry cuma dokumentasi, jangan bikin bootstrap gagal total.
+"$DOT/bin/device-register" || say "   ⚠️  device-register gagal — lanjut. Jalankan manual nanti."
 
 say "==> Link local skills + skill commands..."
 link "$DOT/skills/local"                 "$HOME/.agents/local-skills"

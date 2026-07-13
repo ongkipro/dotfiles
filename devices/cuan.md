@@ -9,6 +9,7 @@
 | | |
 |---|---|
 | Hostname | `cuan` |
+| Device | **LENOVO ThinkPad T480 (`20L6S3ED00`) · laptop** |
 | OS | Ubuntu 26.04 LTS |
 | Kernel | 7.0.0-27-generic · x86_64 |
 | Service manager | systemd --user |
@@ -19,7 +20,7 @@
 | | |
 |---|---|
 | CPU | Intel(R) Core(TM) i7-8650U CPU @ 1.90GHz (8 thread) |
-| RAM | 14 GB |
+| RAM | 14.9 GB |
 | GPU | Intel Corporation Kaby Lake-R GT2 [UHD Graphics 620] (rev 07) + NVIDIA Corporation GP108M [GeForce MX150] (rev a1) |
 | Disk (/) | 233G total, 204G free (8% used) |
 
