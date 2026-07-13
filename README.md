@@ -35,6 +35,31 @@
 
 > Repo ini **Linux-first** untuk setup mesin utama, tapi **memory + sync flow** sudah dirapikan supaya enak dipakai lintas Linux/macOS.
 
+## 🗂️ Device Registry — dotfiles ini dipakai di mana saja?
+
+Lihat **[`devices/`](devices/)** — satu file per mesin (spek CPU/RAM/GPU/disk, OS, AI CLI
+terpasang, dan status tiap symlink dotfiles), plus tabel indeks di
+[`devices/README.md`](devices/README.md).
+
+```bash
+device-register              # rekam/refresh device ini (idempotent)
+device-register --dry-run    # intip hasilnya tanpa menulis
+```
+
+Dijalankan otomatis oleh `install.sh` / `install-macos.sh`. Jalankan ulang setiap
+ganti hardware, upgrade OS, atau pasang AI CLI baru.
+
+**Apa yang di-sync vs tidak:**
+
+| | Di-sync (repo) | Device-local (TIDAK di-sync) |
+|---|---|---|
+| Isi | memori bersama, skills, toolchain mise, config (starship/lazygit/gh/tmux) | IP privat, API key, catatan mesin |
+| Lokasi | `config/ai/`, `skills/local/`, `config/*` | `~/.config/ai-local/device.md` |
+
+Tabel **Symlink dotfiles** di tiap file device adalah alat diagnosa: symlink putus
+muncul sebagai ❌ (persis begini `~/.config/lazygit/config.yml` ketahuan menunjuk ke
+direktori yang tak pernah ada — lazygit diam-diam jalan pakai config default).
+
 ## ⚡ Stack
 
 ```

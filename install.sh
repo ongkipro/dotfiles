@@ -35,6 +35,9 @@ link "$DOT/config/helix/languages.toml"  ~/.config/helix/languages.toml
 link "$DOT/config/gitignore_global"      ~/.gitignore_global
 link "$DOT/skills/local"                 ~/.agents/local-skills   # local skills (astro, shopify-listing)
 link "$DOT/config/tmux.conf"             ~/.tmux.conf
+link "$DOT/config/mise-config.toml"      ~/.config/mise/config.toml  # toolchain bersama; `mise use -g` nulis tembus symlink
+link "$DOT/config/lazygit/config.yml"    ~/.config/lazygit/config.yml
+link "$DOT/config/gh/config.yml"         ~/.config/gh/config.yml     # hosts.yml TIDAK di-link (berisi oauth token)
 for s in skill-help skill-list skill-new skill-open skill-remove skill-update sync-jezweb-claude-skills.sh; do link "$DOT/skills/agents-bin/$s" ~/.agents/bin/$s; done
 ln -sfn ~/.agents/bin/sync-jezweb-claude-skills.sh ~/.agents/bin/skill-sync
 link "$DOT/home/profile"                 ~/.profile
@@ -42,14 +45,19 @@ link "$DOT/config/codex-instructions.md" ~/.codex/instructions.md
 link "$DOT/bin/ai-memory-link"           ~/.local/bin/ai-memory-link
 link "$DOT/bin/dotpush"                  ~/.local/bin/dotpush
 link "$DOT/bin/dotsync"                  ~/.local/bin/dotsync
-for s in akun claude-kerja claude-personal tmux-clip tmux-setup security-check 9router-start pi-9router-restore; do link "$DOT/bin/$s" ~/.local/bin/$s; done
-~/.local/bin/ai-memory-link              # symlink AGENTS.md ke semua AI CLI (claude/codex/pi/gemini/antigravity)
+for s in akun claude-kerja claude-personal tmux-clip tmux-setup security-check 9router-start pi-9router-restore device-register; do link "$DOT/bin/$s" ~/.local/bin/$s; done
+~/.local/bin/ai-memory-link              # symlink AGENTS.md ke semua AI CLI (claude/codex/pi/agy)
+
+echo "==> Daftarkan device ini ke registry (devices/<hostname>.md)..."
+"$DOT/bin/device-register"
 
 echo "==> Setup tmux (install binary + clipboard + TPM + plugin)..."
 "$DOT/bin/tmux-setup"
 
 # Snapshot (reference, TIDAK di-symlink — mesin-spesifik / ditulis tool):
-#   home/bashrc.snapshot, home/zshrc.snapshot, home/gitconfig, config/mise-config.toml, config/vscode-settings.json, skills/agents-bin/
+#   home/bashrc.snapshot, home/zshrc.snapshot, home/gitconfig, config/vscode-settings.json, skills/agents-bin/
+#   (config/mise-config.toml SUDAH di-symlink sejak 2026-07-13 — dulu reference-only, dan itulah
+#    penyebab repo cuma mencatat 4 tool sementara mesin live punya 17.)
 #   -> di-refresh otomatis tiap 'dotpush'. Restore manual bila perlu di device baru.
 
 echo "==> Patch $SHELL_RC (blok dev-tools)..."

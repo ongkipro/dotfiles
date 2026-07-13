@@ -1,18 +1,39 @@
 [tools]
+# Toolchain bersama semua device (Linux + macOS) — mise pilih build per-OS sendiri.
+# File ini di-SYMLINK ke ~/.config/mise/config.toml, jadi `mise use -g <tool>` di
+# device manapun langsung tercatat di dotfiles (tak ada lagi drift diam-diam).
+# Tool khusus satu device: JANGAN taruh di sini, pakai `mise use` di project-level
+# atau catat di ~/.config/ai-local/device.md.
+
+# Core terminal
 fzf = "latest"
-helix = "latest"
 fd = "latest"
 bat = "latest"
-delta = "latest"
-starship = "latest"
-eza = "latest"
 ripgrep = "latest"
-lazygit = "latest"
+eza = "latest"
 zoxide = "latest"
 yq = "latest"
+jq = "latest"
+delta = "latest"
+starship = "latest"
 direnv = "latest"
-pnpm = "latest"
-ruff = "latest"
+lazygit = "latest"
+helix = "latest"
 "aqua:tealdeer-rs/tealdeer" = "latest"
+
+# Runtime & bahasa
+# ⚠️ `node` SENGAJA TIDAK DI SINI. Di linux `cuan`, node dikelola **nvm**, dan shim
+# mise berada LEBIH AWAL di PATH daripada nvm — kalau mise ikut memasang node, ia
+# akan menggeser node nvm. Akibatnya: npm global (claude/codex/pi) jalan di atas
+# node yang salah, dan native module (better-sqlite3 milik 9router) bisa pecah
+# karena beda ABI. Node per-device: nvm di linux; kalau Mac pakai mise, deklarasikan
+# di config mise lokal Mac, bukan di file bersama ini.
+pnpm = "latest"
 uv = "latest"
+ruff = "latest"
+
+# Cloud / deploy
 vultr-cli = "latest"
+
+# Media
+imagemagick = "latest"

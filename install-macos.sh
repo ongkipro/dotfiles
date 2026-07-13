@@ -31,13 +31,20 @@ link "$DOT/config/ripgreprc"             "$HOME/.ripgreprc"
 link "$DOT/config/helix/languages.toml"  "$HOME/.config/helix/languages.toml"
 link "$DOT/config/gitignore_global"      "$HOME/.gitignore_global"
 link "$DOT/config/codex-instructions.md" "$HOME/.codex/instructions.md"
+mkdir -p "$HOME/.config/mise" "$HOME/.config/lazygit" "$HOME/.config/gh"
+link "$DOT/config/mise-config.toml"      "$HOME/.config/mise/config.toml"   # toolchain bersama
+link "$DOT/config/lazygit/config.yml"    "$HOME/.config/lazygit/config.yml"
+link "$DOT/config/gh/config.yml"         "$HOME/.config/gh/config.yml"      # hosts.yml TIDAK di-link (oauth token)
 link "$DOT/bin/ai-memory-link"           "$HOME/.local/bin/ai-memory-link"
 link "$DOT/bin/dotsync"                  "$HOME/.local/bin/dotsync"
 link "$DOT/bin/dotpush"                  "$HOME/.local/bin/dotpush"
 link "$DOT/bin/project-init"             "$HOME/.local/bin/project-init"
-for s in akun claude-kerja claude-personal tmux-clip tmux-setup tmux-battery security-check 9router-start pi-9router-restore; do
+for s in akun claude-kerja claude-personal tmux-clip tmux-setup tmux-battery security-check 9router-start pi-9router-restore device-register; do
   [ -e "$DOT/bin/$s" ] && link "$DOT/bin/$s" "$HOME/.local/bin/$s"
 done
+
+say "==> Daftarkan device ini ke registry (devices/<hostname>.md)..."
+"$DOT/bin/device-register"
 
 say "==> Link local skills + skill commands..."
 link "$DOT/skills/local"                 "$HOME/.agents/local-skills"

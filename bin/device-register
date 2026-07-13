@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+# device-register — rekam device ini ke registry dotfiles (devices/<hostname>.md)
+# dan perbarui tabel indeks di devices/README.md.
+#
+# Usage:
+#   device-register              # tulis/refresh entri device ini
+#   device-register --dry-run    # tampilkan hasil tanpa menulis
+#
+# Idempotent: aman dijalankan ulang, entri device yang sama ditimpa.
+# Lintas-OS: Linux (lscpu/free/lspci) + macOS (sysctl/system_profiler).
+#
+# Yang DIREKAM: identitas mesin, hardware, toolchain, AI CLI, symlink dotfiles.
+# Yang TIDAK DIREKAM: API key, token, IP privat, isi ~/.config/ai-local/.
+set -euo pipefail
+
+DRY_RUN=0
+[ "${1:-}" = "--dry-run" ] && DRY_RUN=1
+
+DOT="${DOTFILES_DIR:-$HOME/dotfiles}"
+[ -d "$DOT" ] || { echo "ERROR: $DOT tidak ada." >&2; exit 1; }
+
+DEVDIR="$DOT/devices"
+mkdir -p "$DEVDIR"
+
+HOST="$(hostname 2>/dev/null | cut -d. -f1)"
+[ -n "$HOST" ] || { echo "ERROR: hostname kosong." >&2; exit 1; }
+OUT="$DEVDIR/$HOST.md"
+TODAY="$(date +%Y-%m-%d)"
+
+have() { command -v "$1" >/dev/null 2>&1; }
+ver()  { have "$1" && "$1" --version 2>/dev/null | head -1 | tr -d '\r' || echo "-"; }
+
+# ── Deteksi OS ───────────────────────────────────────────────────────────────
+case "$(uname -s)" in
+  Darwin)
+    OS_NAME="macOS $(sw_vers -productVersion 2>/dev/null)"
+    KERNEL="$(uname -r)"
+    ARCH="$(uname -m)"
+    CPU="$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo '-')"
+    CORES="$(sysctl -n hw.ncpu 2>/dev/null || echo '-')"
+    RAM_GB="$(( $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1024 / 1024 / 1024 ))"
+    GPU="$(system_profiler SPDisplaysDataType 2>/dev/null | awk -F': ' '/Chipset Model/{printf "%s; ", $2}' | sed 's/; $//')"
+    DISK="$(df -h / 2>/dev/null | awk 'NR==2{print $2" total, "$4" free ("$5" used)"}')"
+    SERVICE_MGR="launchd"
+    PKG_MGR="brew"
+    ;;
+  Linux)
+    OS_NAME="$(. /etc/os-release 2>/dev/null && echo "$PRETTY_NAME" || echo 'Linux')"
+    KERNEL="$(uname -r)"
+    ARCH="$(uname -m)"
+    CPU="$(lscpu 2>/dev/null | awk -F': +' '/^Model name/{print $2; exit}')"
+    CORES="$(nproc 2>/dev/null || echo '-')"
+    RAM_GB="$(free -g 2>/dev/null | awk '/^Mem:/{print $2}')"
+    GPU="$(lspci 2>/dev/null | grep -iE 'vga|3d controller' | sed 's/.*: //' | paste -sd'|' - | sed 's/|/ + /g')"
+    DISK="$(df -h / 2>/dev/null | awk 'NR==2{print $2" total, "$4" free ("$5" used)"}')"
+    SERVICE_MGR="systemd --user"
+    PKG_MGR="apt"
+    ;;
+  *) echo "ERROR: OS tidak didukung: $(uname -s)" >&2; exit 1 ;;
+esac
+
+[ -n "${CPU:-}" ] || CPU="-"
+[ -n "${GPU:-}" ] || GPU="-"
+[ "${RAM_GB:-0}" -gt 0 ] 2>/dev/null || RAM_GB="?"
+
+# ── AI CLI terpasang ─────────────────────────────────────────────────────────
+AI_ROWS=""
+for cli in claude codex pi agy; do
+  if have "$cli"; then
+    AI_ROWS+="| \`$cli\` | terpasang | $(command -v "$cli" | sed "s#$HOME#~#") |"$'\n'
+  else
+    AI_ROWS+="| \`$cli\` | — | — |"$'\n'
+  fi
+done
+
+# ── Symlink dotfiles yang aktif ──────────────────────────────────────────────
+LINK_ROWS=""
+check_link() {
+  local path="$1" label="$2" disp
+  disp="$(echo "$path" | sed "s#$HOME#~#")"
+  if [ -L "$path" ]; then
+    if [ -e "$path" ]; then
+      LINK_ROWS+="| $label | \`$disp\` | ✅ ok |"$'\n'
+    else
+      LINK_ROWS+="| $label | \`$disp\` | ❌ **PUTUS** |"$'\n'
+    fi
+  elif [ -e "$path" ]; then
+    LINK_ROWS+="| $label | \`$disp\` | ⚠️ file lokal (bukan symlink) |"$'\n'
+  else
+    LINK_ROWS+="| $label | \`$disp\` | — belum ada |"$'\n'
+  fi
+}
+check_link "$HOME/.config/ai"                "memori bersama"
+check_link "$HOME/.agents/local-skills"      "skills"
+check_link "$HOME/.config/mise/config.toml"  "mise toolchain"
+check_link "$HOME/.config/starship.toml"     "starship"
+check_link "$HOME/.config/lazygit/config.yml" "lazygit"
+check_link "$HOME/.config/gh/config.yml"     "gh cli"
+check_link "$HOME/.tmux.conf"                "tmux"
+check_link "$HOME/.gitignore_global"         "gitignore global"
+
+# ── Render ───────────────────────────────────────────────────────────────────
+read -r -d '' DOC <<EOF || true
+# Device: \`$HOST\`
+
+> Dibuat otomatis oleh \`bin/device-register\` — **jangan edit manual**, jalankan ulang scriptnya.
+> Terakhir diperbarui: **$TODAY**
+> Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → \`~/.config/ai-local/device.md\`.
+
+## Identitas
+
+| | |
+|---|---|
+| Hostname | \`$HOST\` |
+| OS | $OS_NAME |
+| Kernel | $KERNEL · $ARCH |
+| Service manager | $SERVICE_MGR |
+| Package manager | $PKG_MGR |
+
+## Hardware
+
+| | |
+|---|---|
+| CPU | $CPU ($CORES thread) |
+| RAM | ${RAM_GB} GB |
+| GPU | $GPU |
+| Disk (/) | $DISK |
+
+## AI CLI
+
+| CLI | Status | Path |
+|---|---|---|
+$AI_ROWS
+## Toolchain
+
+| Tool | Versi |
+|---|---|
+| node | $(ver node) |
+| pnpm | $(ver pnpm) |
+| bun | $(ver bun) |
+| python3 | $(ver python3) |
+| mise | $(ver mise) |
+| git | $(ver git) |
+
+## Symlink dotfiles
+
+| Apa | Path | Status |
+|---|---|---|
+$LINK_ROWS
+EOF
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  printf '%s\n' "$DOC"
+  echo
+  echo "[dry-run] akan ditulis ke: $OUT"
+  exit 0
+fi
+
+printf '%s\n' "$DOC" > "$OUT"
+echo "✓ ditulis: ${OUT/#$HOME/\~}"
+
+# ── Perbarui indeks devices/README.md ────────────────────────────────────────
+INDEX="$DEVDIR/README.md"
+{
+  echo "# Device Registry"
+  echo
+  echo "Daftar mesin yang memakai dotfiles ini. Dibuat otomatis oleh \`bin/device-register\`."
+  echo "Jalankan \`device-register\` di tiap device (juga setelah upgrade hardware/OS)."
+  echo
+  echo "| Device | OS | CPU | RAM | Diperbarui |"
+  echo "|---|---|---|---|---|"
+  for f in "$DEVDIR"/*.md; do
+    [ "$(basename "$f")" = "README.md" ] && continue
+    [ -e "$f" ] || continue
+    n="$(basename "$f" .md)"
+    o="$(awk -F'\\| ' '/^\| OS \|/{print $3; exit}' "$f" | sed 's/ |$//')"
+    c="$(awk -F'\\| ' '/^\| CPU \|/{print $3; exit}' "$f" | sed 's/ |$//')"
+    r="$(awk -F'\\| ' '/^\| RAM \|/{print $3; exit}' "$f" | sed 's/ |$//')"
+    d="$(awk '/^> Terakhir diperbarui/{gsub(/[^0-9-]/,"",$0); print; exit}' "$f")"
+    echo "| [\`$n\`]($n.md) | ${o:--} | ${c:--} | ${r:--} | ${d:--} |"
+  done
+} > "$INDEX"
+echo "✓ indeks diperbarui: ${INDEX/#$HOME/\~}"
