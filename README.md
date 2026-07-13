@@ -278,6 +278,27 @@ device-register && dotsync doctor
 📖 **Versi lengkap + troubleshooting:** [`docs/linux-install-step-by-step.md`](docs/linux-install-step-by-step.md)
 (termasuk Antigravity/`agy`, docker, `lm-sensors`, dan daftar gejala-vs-penyebab).
 
+## 🍎 Device lain (Mac / laptop tambahan)?
+
+Alurnya **sama persis**, cuma ganti `apt` → `brew` dan `systemd` → `launchd`:
+
+📖 [`docs/macos-install-step-by-step.md`](docs/macos-install-step-by-step.md)
+
+**Checklist device baru bergabung** (berlaku untuk OS apa pun):
+
+| # | Langkah | Kenapa penting |
+|---|---|---|
+| 1 | Pasang runtime + AI CLI dulu | biar dapat memori begitu dotfiles ter-link |
+| 2 | `git clone` dotfiles → jalankan installer **sesuai OS** | Linux: `install.sh` · Mac: `install-macos.sh` |
+| 3 | `gh auth login` + **`gh auth setup-git`** | tanpa ini `git push` gagal |
+| 4 | **Bikin SSH key BARU** di device itu | 🔒 key tak pernah ikut repo. 1 key = 1 device |
+| 5 | `git pull --rebase` **sebelum** `device-register` | kalau tidak, indeks `devices/` menghapus baris device lain |
+| 6 | `device-register` → `dotsync sync` | device masuk registry, terlihat di semua mesin |
+
+> Yang **menyesuaikan per-device** (jangan diseragamkan): `node` (nvm vs mise),
+> service manager (systemd vs launchd), package manager (apt vs brew), dan isi
+> `~/.config/ai-local/device.md`. Sisanya ikut repo.
+
 ## ⚡ Stack
 
 ```
@@ -374,7 +395,8 @@ dotfiles/
 ├── 📂 docs/
 │   ├── ai-memory-sync.md      # Shared memory + sync flow Linux/macOS
 │   ├── linux-install-step-by-step.md  # ⭐ Ubuntu baru → tool → AI → dotfiles (urut)
-│   ├── linux-dev-setup.md     # Runbook lengkap + filosofi
+│   ├── macos-install-step-by-step.md  # ⭐ Mac baru → brew → AI → dotfiles (urut)
+│   ├── linux-dev-setup.md     # Runbook lengkap + filosofi (+ §9 fix kedip pi.dev)
 │   ├── dev-setup.md           # Ringkasan cepat
 │   └── shopify-ai-development-repos.md
 │
