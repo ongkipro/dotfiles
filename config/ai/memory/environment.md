@@ -59,11 +59,17 @@
 - **Kredit: −$305,00 MASIH UTUH.** Pending charges baru **$12,24** (per 2026-07-14). Sumber: $300 "Account Credit" + $5 Visa, keduanya 2026-07-09.
   - Laju bakar $48/bln → kredit $305 ≈ **~6 bulan runway**, ASALKAN kredit tidak kedaluwarsa.
   - ⚠️ **Tanggal kedaluwarsa kredit TIDAK diekspos API Vultr** (di billing history cuma tercatat `payment / Account Credit`). Klaim lama "berlaku 1 bulan" **belum terverifikasi** — cek manual di dashboard Vultr → Billing. Kalau benar expire ~9 Agt, $305 hangus dan keputusan migrasi jadi mendesak.
-- 🔴🔴 **KUNCI SSH HILANG — SERVER TIDAK BISA DI-SSH DARI `cuan` (2026-07-14).** `ssh root@45.77.33.112` → `Permission denied (publickey)`. Di `~/.ssh` cuma ada `id_ed25519` (kunci "laptop"), dan server menolaknya. Kunci `tokophi_dev` yang dicatat sesi 2026-07-09 **tidak ada** — kemungkinan besar **ikut terhapus saat install ulang Linux**. Vultr TIDAK bisa menyuntik kunci ke instance yang sudah jalan.
-  - **Pintu yang masih ada**: Coolify web UI di `http://45.77.33.112:8000` (hidup, balas HTTP 302 → login; admin `ongkiardiansyah@gmail.com`). Port 22/80/443/8000 semua terbuka. App di `:80` balas 404 (belum ada domain di-point).
-  - Untuk memulihkan SSH: tambah public key baru ke `authorized_keys` lewat **Coolify web terminal** ATAU reset root password lewat **console Vultr** — dua-duanya **MENGUBAH server**, butuh persetujuan user.
-  - 📌 **Pelajaran**: kunci SSH server hanya ada di satu mesin = single point of failure. Simpan public key di beberapa tempat & catat cara pulih; JANGAN pernah taruh private key di dotfiles.
-- 🔴 **BACKUP: MASIH NOL.** Tak ada snapshot, tak ada scheduled backup, tak ada block storage. (`pg_dump` harian yang dicatat di projects.md ada di **DISK YANG SAMA** → itu bukan backup.) Dan sekarang **tak bisa ditarik keluar lewat SSH** karena kuncinya hilang (lihat di atas).
+- ✅ **SSH PULIH (2026-07-14).** Kunci `tokophi_dev` lama HILANG (ikut terhapus saat install ulang Linux di `cuan`) → server sempat tak bisa di-SSH sama sekali. Dipulihkan dengan menempel `~/.ssh/id_ed25519.pub` (kunci "laptop") ke `authorized_keys` server lewat **Coolify web terminal** (Vultr TIDAK bisa menyuntik kunci ke instance yang sudah jalan). Sekarang: `ssh root@45.77.33.112` → tembus.
+  - Coolify web UI `http://45.77.33.112:8000` (admin `ongkiardiansyah@gmail.com`) = **pintu darurat kalau SSH mati lagi**. Port 22/80/443/8000 terbuka. App `:80` → 404 (domain belum di-point).
+  - 📌 **Pelajaran**: kunci SSH server yang cuma ada di SATU mesin = single point of failure, dan install ulang OS melenyapkannya. Private key JANGAN pernah masuk dotfiles; tapi catat cara pulih (lewat Coolify/console provider).
+- ✅ **BACKUP PERTAMA BERHASIL (2026-07-14)** — `~/Documents/work/backups/root_45_77_33_112-<stamp>/`, total ~6 MB. Dibuat & diverifikasi dengan **`vps-pgdump root@45.77.33.112`** (`dotfiles/bin/`).
+  - `tokophi.dump` (984K, 532 objek) — DB aplikasi.
+  - `coolify.dump` (5.1M, 557 objek) — **DB internal Coolify**: definisi app, env, config deploy. Tanpa ini, server hilang = susun ulang seluruh setup deploy dari nol. **Jangan lupakan yang ini.**
+  - `coolify-config.tar.gz` — `docker-compose.yaml` + `.env` stack TokoΦ.
+  - Semua dump **lolos `pg_restore -l`** (bukan klaim, tapi uji). Restore: `pg_restore -d <db> --clean --if-exists <file>.dump`.
+  - 🔒 Backup berisi SECRET → ada di `~/Documents/work/backups/`, **DI LUAR repo**. JANGAN commit.
+  - ⚠️ Backup ini **sekali jalan, manual**. Belum terjadwal. Ulangi sebelum perubahan berisiko, dan pertimbangkan cron.
+  - Stack TokoΦ di server (7 container, semua healthy): postgres, admin, super-admin, storefront, landing, cron, backup. Plus `migrate-*` yang `Exited (0)` = NORMAL (jalan sekali saat deploy, sukses).
 - ☠️ **SNAPSHOT VULTR GAGAL — jangan buang waktu mengulanginya.** Dicoba 2× (2026-07-14): `f9526f57-…` dan `759dc88f-…`. Pola identik: status `pending` 15–30 menit → **lenyap**, `snapshot get` balas `404 Invalid snapshot ID`, `snapshot list` kosong. **API Vultr TIDAK memberi alasan apa pun.** Instance sendiri sehat (`active`/`running`) selama dan sesudahnya.
   - Dugaan (BELUM terverifikasi, jangan ditulis sebagai fakta): batasan akun baru / akun yang jalan di atas kredit promo. Cek notifikasi & tiket di dashboard Vultr.
   - **Rute backup yang benar = tarik data KELUAR dari server** (`pg_dump -Fc` + config Coolify/compose → lokal atau R2). Tidak bergantung pada fitur snapshot Vultr sama sekali.
