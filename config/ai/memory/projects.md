@@ -6,7 +6,9 @@
 
 - `/home/fantastico/...` → user itu **TIDAK ADA** di mesin manapun sekarang. Itu mesin Linux LAMA. Abaikan.
 - **Di `cuan` (Linux, user `ongki`):** belum ada checkout project apa pun per 2026-07-14 — `~/Projects/` kosong. Path `~/Projects/...` di file ini **tidak berlaku di sana**; `git clone` dulu.
-- **Di Mac (`ongkis-MacBook-Air`):** path `~/Projects/<nama>` di file ini **sebagian besar NYATA dan ada** (diverifikasi 2026-07-14). Jangan diabaikan.
+- **Di Mac (`ongkis-MacBook-Air`), per 2026-07-14 sore: HANYA `~/Projects/volumform` yang ter-checkout.** Semua project lain sengaja dihapus dari disk setelah dipastikan utuh di GitHub (bersih-bersih mesin). Path `~/Projects/<lain>` di file ini **tidak ada di Mac** — `git clone` dulu.
+  - Kredensial yang di-gitignore (9 `.env` + sqlite dev) diamankan ke `~/Documents/work/secrets/projects-env-2026-07-14/` (mode 700). **Sesudah clone, salin `.env`-nya balik dari sana** — GitHub tidak menyimpannya.
+  - Dokumen `.md` semua project diarsipkan ke `~/Documents/work/notes/projects-md-archive-2026-07-14/`.
 
 **Sumber kebenaran project = repo GitHub-nya** (`github.com/ongkipro/<nama>`). Kalau memori dan disk bertentangan → **disk menang**, lalu perbaiki memorinya.
 
