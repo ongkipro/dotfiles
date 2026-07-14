@@ -80,11 +80,13 @@ LAPTOP (~/)                              DOTFILES (~/dotfiles/)
 │   ├── gh/hosts.yml ................  ✗ LOKAL — berisi token GitHub
 │   └── ai-local/device.md .........   ✗ LOKAL — IP server, catatan mesin
 │
-├── .agents/local-skills/ ───────────→  skills/local/         ← SKILL AI
+├── .claude/skills/ ─────────┐
+├── .pi/agent/skills/ ───────┼────────→  skills/local/         ← SKILL AI (33)
+├── .agents/local-skills/ ───┘             (symlink SATU-DIREKTORI)
 │
 ├── .claude/CLAUDE.md ───────┐
 ├── .codex/AGENTS.md ────────┤
-├── .antigravity/AGENTS.md ──┼────────→  config/ai/AGENTS.md   ← 4 AI, 1 memori
+├── .antigravity/AGENTS.md ──┼────────→  config/ai/AGENTS.md   ← 4 AI, 1 aturan
 └── .gemini/GEMINI.md ───────┘             (dibuat `ai-memory-link`)
     (.gemini = milik agy, BUKAN gemini-cli)
 
@@ -114,7 +116,7 @@ Buka [`devices/<hostname>.md`](devices/) — tabel **Symlink dotfiles**.
 | Folder | Isi | Di-symlink ke |
 |---|---|---|
 | `config/ai/` | **Memori bersama** semua AI CLI (fakta environment, project, preferensi) | `~/.config/ai` |
-| `skills/local/` | **Skill AI** (SEO, Shopify, Astro, Cloudflare, dll) | `~/.agents/local-skills` |
+| `skills/local/` | **33 skill AI** (SEO, Shopify, Astro, Cloudflare, native-first, dll) | `~/.claude/skills`, `~/.pi/agent/skills` |
 | `config/mise-config.toml` | Daftar tool terminal (fzf, ripgrep, helix, delta…) | `~/.config/mise/config.toml` |
 | `config/` lainnya | starship, tmux, lazygit, gh, helix, btop, ripgrep | masing-masing |
 | `bin/` | Script bantu (`dotsync`, `device-register`, dll) | `~/.local/bin/` |
@@ -299,6 +301,19 @@ Alurnya **sama persis**, cuma ganti `apt` → `brew` dan `systemd` → `launchd`
 > service manager (systemd vs launchd), package manager (apt vs brew), dan isi
 > `~/.config/ai-local/device.md`. Sisanya ikut repo.
 
+## 🧭 Siapa mengerjakan apa (CLI routing)
+
+Empat AI CLI, satu aturan (`AGENTS.md`), satu memori. Bedanya cuma **perannya**:
+
+| CLI | Peran | Skill |
+|---|---|---|
+| **claude** | Development global: arsitektur, konteks panjang, refactor besar, rencana, riset | otomatis |
+| **pi** | All-in-one: kerja harian di terminal — inspeksi, edit, jalankan | otomatis |
+| **codex** | Logic: patch terfokus, code review, debugging, pendapat kedua | `skill-list` → baca file |
+| **agy** | UI/UX + development kecil: visual, preview, artefak, cek cepat | `skill-list` → baca file |
+
+Ini **default**, bukan pagar — kalau satu CLI sudah pegang konteksnya, lanjutkan di situ.
+
 ## ⚡ Stack
 
 ```
@@ -332,10 +347,10 @@ dotfiles/
 │   ├── prd-taskbreaker/       # Ide → PRD → numbered tasks
 │   ├── mermaid-diagram/       # Flowchart, ERD, Sequence, C4
 │   ├── openapi-spec/          # OpenAPI 3.1 YAML generator
-│   ├── supabase-stack/        # Auth + DB + Storage + self-hosted VPS
+│   ├── native-first/          # ⭐ "platform sudah punya ini belum?" (8 stack)
 │   ├── astro-development/     # End-to-end Astro dev
-│   ├── shopify-*/             # Shopify toolkit + listing
-│   └── 9router-*/             # AI gateway skills (chat/image/tts/stt)
+│   ├── shopify-*/             # Shopify listing + memory
+│   └── 9router/               # AI gateway (7 endpoint di references/)
 │
 ├── 📂 config/
 │   ├── ai/
@@ -352,7 +367,7 @@ dotfiles/
 │   │   ├── local-skills-registry.md
 │   │   └── ...project memories
 │   ├── pi/
-│   │   ├── settings.json      # Pi.dev: provider=9router, model=cx/gpt-5.4, theme=dark
+│   │   ├── settings.json      # Pi.dev: provider=minimax, model=MiniMax-M3 (NATIVE, bukan 9router)
 │   │   ├── README.md           # Restore instructions
 │   │   └── extensions/
 │   │       ├── compact-free/    # Compaction pakai model gratis (hemat limit)
@@ -362,7 +377,7 @@ dotfiles/
 │   │   └── runtime-package.json
 │   ├── systemd/
 │   │   └── user/
-│   │       └── 9router.service # 9router daemon (auto-start + restart)
+│   │       └── 9router.service # 9router daemon — SEKARANG DISABLED (sengaja, 2026-07-13)
 │   ├── helix/
 │   │   ├── config.toml        # Editor (relative number, soft-wrap, C-s = save)
 │   │   └── languages.toml     # LSP config
@@ -382,6 +397,10 @@ dotfiles/
 │   └── cuan.md                # ThinkPad T480 — spek + status symlink
 │
 ├── 📂 bin/
+│   ├── ai-doctor              # ⭐ Cek rantai AI ↔ device ↔ memori (jalankan di mesin baru)
+│   ├── security-check         # Scan secret sebelum commit/push (dipanggil dotpush)
+│   ├── security-check-test    # Bait test: buktikan guard-nya masih menangkap secret asli
+│   ├── inspect-project        # Scan cepat struktur project (git, lockfile, framework)
 │   ├── ai-memory-link         # Symlink AGENTS.md ke semua AI CLI
 │   ├── device-register        # Rekam device ini ke devices/ (spek + status symlink)
 │   ├── dotsync                # Semi-auto sync lintas Linux/macOS
@@ -419,7 +438,7 @@ source ~/.zshrc   # atau ~/.bashrc (auto-terdeteksi)
 Install.sh akan (auto-deteksi zsh/bash):
 - Symlink semua config ke lokasi yang benar
 - Setup cross-CLI memory (`~/.config/ai/`)
-- Link local skills ke agents/claude/codex/gemini/pi
+- Link skill (symlink satu-direktori) ke `~/.claude/skills` + `~/.pi/agent/skills`
 - Register bin scripts ke `~/.local/bin/`
 
 ### macOS
@@ -448,23 +467,44 @@ Catatan:
 
 ## 🤖 AI Skills System
 
-Skills ter-link ke **semua AI CLI** sekaligus via `skill-update`:
+**33 skill, satu sumber: `skills/local/`.** Model = **symlink satu-direktori**:
 
 ```
-~/.agents/skills/    ← Agents
-~/.claude/skills/    ← Claude Code
-~/.codex/skills/     ← Codex
-~/.gemini/skills/    ← Gemini
-~/.pi/agent/skills/  ← Pi.dev
+~/.claude/skills       ─┐
+~/.pi/agent/skills     ─┼─→  skills/local/
+~/.agents/local-skills ─┘
 ```
+
+> 🔑 **Sinkron antar-device = `git pull` saja.** Skill baru muncul sendiri, skill yang
+> dihapus hilang sendiri, di semua CLI. Tidak ada langkah "jangan lupa sync".
+> `skill-update` cuma perlu **sekali per mesin baru** (dan sudah dipanggil installer).
 
 ```bash
-skill-update          # sync repo + re-link semua skills
-skill-new <nama>      # buat skill baru
-skill-list            # list semua skill aktif
+skill-list            # nama + kegunaan tiap skill
+skill-open <nama>     # buka SKILL.md
+skill-new <nama>      # bikin skill baru (langsung aktif di semua CLI)
+skill-remove <nama>   # hapus (langsung hilang di semua CLI)
+skill-update          # pasang/perbaiki symlink — sekali per mesin
 ```
 
-**30 local skills** + **shared skills** dari [jezweb/claude-skills](https://github.com/jezweb/claude-skills).
+### Codex & agy tidak punya direktori skill — dan itu tidak apa-apa
+
+Sistem mereka plugin (`plugin.json`), format berbeda; `agy plugin validate` menolak
+`SKILL.md` kita. Membungkus 33 skill jadi plugin = **sumber kedua** + beban sync.
+Ditolak.
+
+Tapi skill itu **cuma markdown**, dan mereka bisa membaca file. Yang mereka tak punya
+cuma auto-discovery — dan itu diganti satu baris di `AGENTS.md` yang **sudah** mereka baca:
+
+> Butuh skill di codex/agy? Jalankan **`skill-list`**, lalu baca
+> `~/dotfiles/skills/local/<nama>/SKILL.md` langsung.
+
+### Skill andalan: `native-first`
+
+Menjawab satu pertanyaan sebelum kamu `npm i` atau bikin abstraksi: **"platform-nya
+sudah punya ini belum?"** Delapan reference — Next/React, Astro, Node/TS, Cloudflare
+Workers, Vercel, Postgres+Drizzle+better-auth, Shopify, self-host (Docker/Coolify/Vultr) —
+plus perintah validasi terkecil per stack.
 
 ### Featured local skill: `seo-website-builder`
 
@@ -497,29 +537,51 @@ skills/local/seo-website-builder/
     └── ALGORITHM_UPDATE_LOG.md
 ```
 
-Dokumen riset besar tetap disimpan sebagai archive lokal di `~/Documents/SEO`, sedangkan repo ini membawa versi compact yang siap dipakai skill.
+> ⚠️ Catatan lama menyebut archive riset di `~/Documents/SEO`. **Folder itu tidak ada di mesin manapun sekarang** — skill ini berdiri sendiri lewat `references/`-nya.
 
 ---
 
-## 🧠 Memory System
+## 🧠 Kontrak: 3 lapis, dipisah menurut *seberapa sering dibayar*
 
-Dua lapis memory:
+Ini inti repo. Kalau cuma baca satu bagian, baca ini.
 
-| Layer | Path | Dipakai oleh | Synced? |
+| Lapis | Lokasi | Kapan dibaca | Aturannya |
 |---|---|---|---|
-| Cross-CLI | `~/.config/ai/memory/*.md` | Semua AI CLI via symlink | ✅ repo |
-| Claude auto | `~/.claude-accounts/.../memory/` | Claude Code only | ✅ backup |
-| Device-local | `~/.config/ai-local/` (`device.md`, `secrets.env`) | Semua AI CLI (load setelah shared) | ❌ mesin ini saja |
+| **1. Aturan** | `config/ai/AGENTS.md` | **SELALU**, tiap request, di 4 CLI | **Jaga kecil** (≤120 baris). Ini satu-satunya biaya yang **dikali empat**. |
+| **2. Memori** | `config/ai/memory/*.md` | saat perlu | Fakta yang bisa dicek dari sumbernya → tulis **sekali** + sertakan cara verifikasinya. |
+| **3. Skill** | `skills/local/` | on-demand | Pengetahuan dalam. **Router murni dilarang.** |
 
-Memory di-backup ke `config/ai/memory/` (cross-CLI) dan `config/claude-memory/` (Claude).
-Fakta khusus-mesin + secret **tidak** masuk repo — taruh di `~/.config/ai-local/` (device-local).
+Tiga hukum yang lahir dari kesalahan nyata di repo ini:
 
-File paling penting:
-- `config/ai/AGENTS.md` → aturan ringkas yang ke-load tiap sesi
-- `config/ai/memory/environment.md` → toolchain & install rules
-- `config/ai/memory/workflow.md` → workflow dan guardrails
-- `config/ai/memory/preferences.md` → preferensi user
-- `config/ai/memory/projects.md` → fakta durable per project
+1. **Kebijakan yang harus selalu berlaku TIDAK BOLEH jadi skill.** Skill cuma menyala
+   kalau model *memilih* memanggilnya — safety gate yang menunggu dipanggil adalah gate
+   yang mati. Karena itu approval gates & disiplin kode ada di `AGENTS.md`.
+2. **Disk/API menang atas memori.** Kalau bertentangan, percayai sumbernya, lalu
+   **perbaiki memorinya**. (Memori pernah menyimpan alarm biaya server yang seluruh
+   angkanya fiktif — servernya bahkan sudah tidak ada.)
+3. **Fakta yang berubah-ubah jangan digandakan.** Status service 9router pernah tersalin
+   ke 6 tempat, lalu keenamnya salah sekaligus begitu service-nya dimatikan. Agent yang
+   membaca kontradiksi akan **menebak**.
+
+**Device-local (TIDAK di-sync):** `~/.config/ai-local/device.md` — IP server, catatan mesin.
+Secret **tidak pernah** masuk repo.
+
+## 🩺 `ai-doctor` — satu perintah, membuktikan rantainya utuh
+
+```bash
+ai-doctor
+```
+
+Memeriksa 8 hal di device manapun: repo & status sync · `AGENTS.md` sampai ke tiap CLI
+yang terpasang · memori · symlink skill · symlink menggantung · security guard (termasuk
+bait test) · CLI mana yang terpasang & sudah login · **memori vs disk** (menandai kalau
+memori kembali menunjuk path yang tidak ada).
+
+`✗ FAIL` = rusak, perbaiki. `! WARN` = jalan, tapi belum lengkap. CLI yang belum
+terpasang dilewati, bukan dianggap error — jadi aman dijalankan di laptop yang masih kosong.
+
+> Jalankan ini **pertama kali** di mesin baru, dan setiap kali ada AI yang berperilaku aneh.
+> Aturan tanpa penegak akan luntur dalam sebulan.
 
 ---
 
