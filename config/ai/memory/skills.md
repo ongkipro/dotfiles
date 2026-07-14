@@ -39,6 +39,13 @@
 - **Digabung:** 7 skill `9router-*` → `9router/references/*.md`. Satu deskripsi di system prompt, bukan delapan.
 - **SENGAJA TIDAK digabung:** `copywriting` vs `content` — ter-faktor benar (rules vs workflow), dan `shopify-listing/references/copywriting.md` itu prompt subagent purpose-built, bukan salinan. Jangan "rapikan" lagi.
 - **Prinsip:** kebijakan yang harus SELALU aktif → `AGENTS.md`. Pengetahuan dalam yang dipanggil sesuai kebutuhan → skill. Router murni → tidak boleh ada.
+
+## Skill `native-first` (baru, 2026-07-14)
+- Menjawab SATU pertanyaan: **"platform-nya sudah punya ini belum?"** — dipanggil sebelum `npm i`, sebelum bikin abstraksi/wrapper, sebelum pilih cara validasi.
+- 8 reference: `next-react`, `astro`, `node-ts`, `cloudflare`, `vercel`, `data` (Postgres+Drizzle+better-auth), `shopify`, `selfhost` (Docker/Coolify/Vultr). Baca SATU sesuai stack, jangan semua.
+- Isinya juga **perintah validasi terkecil per stack** + gotcha yang sudah pernah kita bayar (Nixpacks gagal utk monorepo, `next start` tak melayani `public/uploads`, `@tokophi/db` throw saat build).
+- ⚠️ **PHP/Laravel SENGAJA TIDAK ada** — nol jejak PHP di semua project (2026-07-14). "CMS ala WordPress" (`volumecms`) itu **Next.js**, bukan PHP. Jangan tambah panduan PHP tanpa project PHP nyata.
+- Trigger sengaja SEMPIT (momen keputusan: mau install / mau bikin abstraksi / mau validasi), BUKAN "semua tugas dev" — trigger lebar itu dosa `ai-terminal-project-runner` yang sudah dibuang.
 - **`skill-update` adalah satu-satunya cara sinkronisasi.** Dia fetch + `reset --hard` repo jezweb, hapus symlink terkelola, lalu relink kelima base. Pastikan repo jezweb bersih sebelum menjalankan — perubahan lokal di sana akan hilang.
 - **`git pull` dotfiles TIDAK membuat symlink.** Skill baru dari device lain (mis. `vultr`) hanya muncul sebagai file; wajib `skill-update` setelah pull agar terlihat oleh CLI.
 - **Jangan pakai `claude plugin install`** untuk skill yang ingin dipakai lintas-CLI — itu hanya mendaftarkan ke Claude Code dan menciptakan sumber keempat. Skill = direktori berisi `SKILL.md` di `dotfiles/skills/local/`.

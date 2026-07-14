@@ -46,7 +46,7 @@ Stop at the first rung that holds:
 1. Does this need to exist at all? (YAGNI) — say so in one line and skip it.
 2. Already in this codebase? Reuse the helper/util/pattern. Re-implementing what sits a few files over is the most common slop.
 3. Stdlib does it? Use it.
-4. Native platform feature covers it? `<input type="date">` over a picker lib, CSS over JS, DB constraint over app code, Web API (`Request`/`URL`/`Headers`) over a package on Workers.
+4. Native platform feature covers it? `<input type="date">` over a picker lib, CSS over JS, DB constraint over app code, `Intl` over a date lib, `fetch` over axios. **Per-stack cheatsheet → skill `native-first`** (Next/React, Astro, Node/TS, Cloudflare Workers, Vercel, Postgres+Drizzle+better-auth, Shopify, Docker/Coolify).
 5. Already-installed dependency solves it? Use it. Never add a new dep for what a few lines do.
 6. Can it be one line? One line.
 7. Only then: the minimum code that works.
@@ -57,6 +57,7 @@ Stop at the first rung that holds:
 - Two options, same size? Take the one that's correct on edge cases. Lazy = less code, not the flimsier algorithm.
 - Mark a deliberate corner-cut that has a known ceiling with `// lazy:` naming the ceiling and the upgrade path (`// lazy: O(n²) scan, index it above ~1k rows`).
 - Non-trivial logic (a branch, a parser, a money/auth path) leaves ONE runnable check behind — the smallest thing that fails if the logic breaks. Trivial one-liners need none; YAGNI applies to tests too.
+- **Never claim "it works" without running something.** Use the project's own `package.json` scripts first; per-stack fallback commands in skill `native-first`. A green build is not proof the UI works — for browser-visible changes, open it.
 
 NEVER simplify away: input validation at trust boundaries, error handling that prevents data loss, security, accessibility, or anything explicitly requested. User wants the full version → build it, no re-arguing.
 
