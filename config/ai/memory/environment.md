@@ -31,7 +31,9 @@
 
 - **pi default = provider NATIVE `minimax` / model `MiniMax-M3`**, thinking `high`. TIDAK lewat 9router. Ini VALID — jangan "diperbaiki".
 - ☠️ **Model default lama yang SUDAH MATI — jangan dihidupkan lagi**: `ocg/deepseek-v4-pro`, `cx/gpt-5.4-mini`, `opencode-go/minimax-m3`. Kalau ketemu di catatan lama, itu sampah.
-- **9router MATI sejak 2026-07-13** (stop + disable, disengaja — lihat section "9router DINONAKTIFKAN"). Port 20128 mati. Ini kondisi NORMAL sekarang, bukan bug.
+- **9router MATI di `cuan` sejak 2026-07-13** (stop + disable, disengaja — lihat section "9router DINONAKTIFKAN"). Port 20128 mati **di Linux**. Ini NORMAL, bukan bug.
+  - **Di Mac 9router HIDUP** (diverifikasi 2026-07-14: launchd `com.9router.gateway`, `127.0.0.1:20128`, health 200). Cek per-mesin: Linux `systemctl --user is-enabled 9router.service`, Mac `launchctl list | grep 9router`.
+- ☠️ **JEBAKAN: 9router memasang autostart-nya SENDIRI** (`com.9router.autostart`, mode `--tray`). Job itu **tidak menyetel `HOSTNAME`** → gateway bind ke **`0.0.0.0`**, artinya API key SEMUA provider bisa dipakai siapa pun di WiFi yang sama. Dia juga duplikat dengan `com.9router.gateway` (dua proses rebutan port 20128, request mendarat non-deterministik). Sejak 2026-07-14 `bin/pi-9router-restore` mencabutnya otomatis (dipindah ke `~/.local/share/9router-disabled/`). **Kalau `lsof -nP -iTCP:20128` menunjukkan `*:20128` dan bukan `127.0.0.1:20128`, dia kambuh — jalankan `pi-9router-restore`.**
 - **Policy (tetap berlaku): 9router HANYA untuk pi.dev.** Claude Code, Codex, dan agy TIDAK boleh lewat 9router.
 - Claude Code lewat 9router = BOCOR: launcher 9router menyuntik proxy+CA per-proses. Jalankan `claude` biasa. Model `cc/claude-*` di selector = MITM 9router, tak punya rute upstream (error "may not exist").
 - codex DILEPAS dari 9router (29 Jun 2026): blok `[model_providers.9router]` di `~/.codex/config.toml` di-comment; codex balik ke OpenAI native. Uncomment untuk pulihkan.

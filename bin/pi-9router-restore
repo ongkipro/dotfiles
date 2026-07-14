@@ -122,6 +122,18 @@ mkdir -p "$HOME/.9router/logs"
 case "$OS" in
   Darwin)
     # ── macOS: launchd plist ─────────────────────────────────────────────
+    # ⚠️ 9router memasang autostart-nya SENDIRI (`com.9router.autostart`, mode --tray).
+    # Job itu TIDAK menyetel HOSTNAME → gateway bind ke 0.0.0.0 = API key semua provider
+    # bisa dipakai siapa pun di WiFi yang sama. Dia juga duplikat dengan service di bawah
+    # (dua proses rebutan port 20128). Cabut dulu — disimpan, bukan dihapus.
+    STRAY="$HOME/Library/LaunchAgents/com.9router.autostart.plist"
+    if [ -e "$STRAY" ]; then
+      launchctl bootout "gui/$(id -u)/com.9router.autostart" 2>/dev/null || launchctl unload "$STRAY" 2>/dev/null || true
+      mkdir -p "$HOME/.local/share/9router-disabled"
+      mv -f "$STRAY" "$HOME/.local/share/9router-disabled/" 2>/dev/null || true
+      say "autostart 9router bawaan (bind 0.0.0.0) dicabut → ~/.local/share/9router-disabled/"
+    fi
+
     PLIST="$HOME/Library/LaunchAgents/com.9router.gateway.plist"
 
     cat > "$PLIST" <<PLISTEOF
