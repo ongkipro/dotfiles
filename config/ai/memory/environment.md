@@ -59,8 +59,10 @@
 - **Kredit: −$305,00 MASIH UTUH.** Pending charges baru **$12,24** (per 2026-07-14). Sumber: $300 "Account Credit" + $5 Visa, keduanya 2026-07-09.
   - Laju bakar $48/bln → kredit $305 ≈ **~6 bulan runway**, ASALKAN kredit tidak kedaluwarsa.
   - ⚠️ **Tanggal kedaluwarsa kredit TIDAK diekspos API Vultr** (di billing history cuma tercatat `payment / Account Credit`). Klaim lama "berlaku 1 bulan" **belum terverifikasi** — cek manual di dashboard Vultr → Billing. Kalau benar expire ~9 Agt, $305 hangus dan keputusan migrasi jadi mendesak.
-- **Backup**: sebelum 2026-07-14 **NOL** — tak ada snapshot, tak ada scheduled backup, tak ada block storage. (`pg_dump` harian yang dicatat di projects.md ada di DISK YANG SAMA → bukan backup.)
-  - ✅ Snapshot pertama dibuat 2026-07-14: `f9526f57-53af-4860-ad48-cb73f5444276` ("tokophi-coolify pre-migration").
+- 🔴 **BACKUP: MASIH NOL.** Tak ada snapshot, tak ada scheduled backup, tak ada block storage. (`pg_dump` harian yang dicatat di projects.md ada di **DISK YANG SAMA** → itu bukan backup.)
+- ☠️ **SNAPSHOT VULTR GAGAL — jangan buang waktu mengulanginya.** Dicoba 2× (2026-07-14): `f9526f57-…` dan `759dc88f-…`. Pola identik: status `pending` 15–30 menit → **lenyap**, `snapshot get` balas `404 Invalid snapshot ID`, `snapshot list` kosong. **API Vultr TIDAK memberi alasan apa pun.** Instance sendiri sehat (`active`/`running`) selama dan sesudahnya.
+  - Dugaan (BELUM terverifikasi, jangan ditulis sebagai fakta): batasan akun baru / akun yang jalan di atas kredit promo. Cek notifikasi & tiket di dashboard Vultr.
+  - **Rute backup yang benar = tarik data KELUAR dari server** (`pg_dump -Fc` + config Coolify/compose → lokal atau R2). Tidak bergantung pada fitur snapshot Vultr sama sekali.
 - **Tak ada resource menagih lain**: block storage 0, load balancer 0, reserved IP 0, DNS 0. Jadi $48/bln itu total.
 - **vultr-cli**: v3.10.0 via mise. Auth `~/.vultr-cli.yaml` (chmod 600, di `$HOME` — **JANGAN** di dotfiles, dan **JANGAN** `export VULTR_API_KEY` di `~/.bashrc`: `dotsync refresh_snapshots` menyalin bashrc ke repo). Sudah terpasang & jalan per 2026-07-14. Skill: `dotfiles/skills/local/vultr/`.
 - **Rencana 2-fase**: dev=Vultr SG (kredit) → prod=Hetzner SG. Migrasi murah (Coolify + git + `pg_dump` + ganti IP origin di Cloudflare). Domain `tokophi.com` di Cloudflare, DNS belum di-point.
