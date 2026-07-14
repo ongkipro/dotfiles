@@ -14,7 +14,7 @@
 
 - Editor: helix (`hx`).
 - Shell: bash + mise + starship + zoxide + fzf + eza + fd + bat + ripgrep + delta + lazygit.
-- AI CLI: pi (active), Claude Code, Codex, Gemini — pick per task.
+- AI CLI: pi (active), Claude Code, Codex, Antigravity (`agy`) — pick per task.
 - Memory: shared via `~/.config/ai/memory/*.md` (this file).
 - Device-local: `~/.config/ai-local/*.md` (NOT synced).
 
@@ -30,10 +30,35 @@
 - Memory edits → `~/.config/ai/memory/*.md` (cross-device via dotfiles)
 - Device-only edits → `~/.config/ai-local/*.md` (persists on this machine only)
 
-## Skill loading (pi)
+## Skill loading
 
-- Skills live in `~/.pi/agent/skills/` (symlinked to `~/dotfiles/skills/local/`)
-- Shopify content/SEO priority: `shopify-memory`, `shopify-listing`, `shopify-ai-toolkit-router`, `seo-website-builder`, `content`, `copywriting`
+- Single source: `~/dotfiles/skills/local/`. Symlinked into `~/.claude/skills` and `~/.pi/agent/skills`.
+- Shopify content/SEO priority: `shopify-memory`, `shopify-listing`, `seo-website-builder`, `content`, `copywriting`
+- Shopify dev (theme/app/extension/Hydrogen) → repo map `~/dotfiles/docs/shopify-ai-development-repos.md`. The official Shopify AI Toolkit is NOT installed.
+
+## Code discipline (lazy senior dev)
+
+Lazy = efficient, not careless. The best code is the code never written.
+Understand the problem FIRST (read the task, trace the real flow end to end), then climb the ladder. A small diff you don't understand is a second bug, not laziness.
+
+Stop at the first rung that holds:
+
+1. Does this need to exist at all? (YAGNI) — say so in one line and skip it.
+2. Already in this codebase? Reuse the helper/util/pattern. Re-implementing what sits a few files over is the most common slop.
+3. Stdlib does it? Use it.
+4. Native platform feature covers it? `<input type="date">` over a picker lib, CSS over JS, DB constraint over app code, Web API (`Request`/`URL`/`Headers`) over a package on Workers.
+5. Already-installed dependency solves it? Use it. Never add a new dep for what a few lines do.
+6. Can it be one line? One line.
+7. Only then: the minimum code that works.
+
+- No unrequested abstractions: no interface with one implementation, no factory for one product, no config for a value that never changes.
+- No boilerplate or scaffolding "for later". Deletion over addition. Boring over clever. Fewest files possible.
+- Bug fix = root cause, not symptom. Grep every caller before editing: one guard in the shared function is a smaller diff than one per caller — and patching only the path the ticket names leaves sibling callers broken.
+- Two options, same size? Take the one that's correct on edge cases. Lazy = less code, not the flimsier algorithm.
+- Mark a deliberate corner-cut that has a known ceiling with `// lazy:` naming the ceiling and the upgrade path (`// lazy: O(n²) scan, index it above ~1k rows`).
+- Non-trivial logic (a branch, a parser, a money/auth path) leaves ONE runnable check behind — the smallest thing that fails if the logic breaks. Trivial one-liners need none; YAGNI applies to tests too.
+
+NEVER simplify away: input validation at trust boundaries, error handling that prevents data loss, security, accessibility, or anything explicitly requested. User wants the full version → build it, no re-arguing.
 
 ## Hard rules
 
@@ -41,3 +66,17 @@
 - No "Buy Now" / "Shop Now" / CTA in Shopify descriptions or meta unless asked.
 - Shopify SEO: brand-generic unless user opts in (no third-party brand names in titles/ALT).
 - Confirm before destructive operations (bulk updates, file deletes, force pushes).
+
+## Approval gates — ALWAYS ON
+
+**Permission allowed is not user approval.** Claude, Codex, pi, and agy all run with broad shell permissions. A permitted command is not an approved one. Stop and ask before:
+
+- **Secrets**: `.env` contents, API keys, tokens, passwords, auth sessions, payment/billing/customer data. Detecting secret files is fine (`fd '^\.env' -H -t f`); printing their contents is not. Never write a secret into memory.
+- **Destructive**: `rm -rf`, `git reset --hard`, `git clean -fd`, mass `mv`/`rm`, destructive DB migrations, wiping caches or data that may matter.
+- **System-wide**: `sudo`, apt/snap installs, service changes.
+- **Production / live**: `wrangler deploy`, Shopify theme push, app deploy, DNS changes, publish/release, remote DB writes, bulk Shopify mutations, **VPS destroy/resize**.
+- **Scope creep**: the change grows past the request, or `git status` shows unrelated uncommitted work your task would overlap.
+
+Verify against disk before advising — memory can be stale. When memory and disk disagree, **disk wins**, and fix the memory.
+
+Prefer the smallest safe change, validate with the project's own scripts (`package.json` first), and never auto-commit — user commits via lazygit (`lg`).

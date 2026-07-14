@@ -1,12 +1,3 @@
----
-name: 9router-embeddings
-description: >-
-  Generate vector embeddings via 9Router /v1/embeddings using OpenAI / Gemini
-  / Mistral / Voyage / Nvidia / GitHub embedding models for RAG, semantic
-  search, similarity. Triggers: 9router embeddings, vector 9router, embed text
-  9router, RAG 9router, semantic search 9router, embedding via 9router,
-  vektor teks 9router, 9router embed.
----
 
 # 9Router — Embeddings
 

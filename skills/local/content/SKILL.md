@@ -8,7 +8,7 @@ description: >-
   konten, tulis artikel, blog post, content calendar, social post, landing
   page copy, batch content, kalender konten, artikel SEO. Pairs with
   copywriting (rules), shopify-listing (product copy), seo-website-builder
-  (SEO QA), 9router-image (visuals), and 9router-web-search (research).
+  (SEO QA), 9router (visuals + research).
 ---
 
 # Content Production
@@ -38,7 +38,7 @@ scale. Pairs with `copywriting` (rules + templates) and `shopify-listing` /
 2. **Research** — for any factual claim:
    - Official docs first, then trusted secondary.
    - For SEO-driven pieces: pull related queries from `seo-website-builder` +
-     `9router-web-search`.
+     `9router` (`references/web-search.md`).
    - Do **not** invent specs, prices, dates, or product facts.
 3. **Outline** — produce a numbered outline with:
    - Hook (1 sentence), H2s (3-6), key points per H2, internal link candidates,
@@ -56,7 +56,7 @@ scale. Pairs with `copywriting` (rules + templates) and `shopify-listing` /
    - Internal links resolve to real URLs in the project.
    - H1/H2 hierarchy clean (one H1, logical H2s).
 6. **Image pipeline** — for each visual:
-   - Generate via `9router-image` (default model `ag/gemini-3.1-flash-image`) or
+   - Generate via `9router` (`references/image.md`) (default model `ag/gemini-3.1-flash-image`) or
      use supplied asset.
    - Filename: `<handle-or-slug>-N.<ext>`. ALT: `[Title] - [view/angle/feature]`
      ≤120 chars, no generic "product image N" suffixes.
@@ -94,7 +94,7 @@ scale. Pairs with `copywriting` (rules + templates) and `shopify-listing` /
 2. Outline all pieces first; checkpoint with user.
 3. Draft sequentially; write to files for review.
 4. QA each piece individually.
-5. Generate visuals in parallel (one 9router-image call per piece).
+5. Generate visuals in parallel (one 9router image call per piece).
 6. Publish in publish order, log each.
 
 ### Social batch (per channel, weekly)
@@ -142,6 +142,6 @@ scale. Pairs with `copywriting` (rules + templates) and `shopify-listing` /
 - `copywriting` — exact copy rules + headline/meta/body templates.
 - `shopify-listing` — for product/collection copy and image SEO.
 - `seo-website-builder` — for technical SEO QA + sitemap/IndexNow.
-- `9router-image` — for image generation.
-- `9router-web-search` — for research and source verification.
+- `9router` (`references/image.md`) — for image generation.
+- `9router` (`references/web-search.md`) — for research and source verification.
 - `prd-taskbreaker` — to break a content sprint into numbered tasks.

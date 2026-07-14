@@ -1,12 +1,3 @@
----
-name: 9router-web-fetch
-description: >-
-  Fetch URL → markdown / text / HTML via 9Router /v1/web/fetch using Firecrawl
-  / Jina Reader / Tavily Extract / Exa Contents. Triggers: 9router fetch,
-  scrape url 9router, ekstrak halaman 9router, baca artikel 9router, url to
-  markdown 9router, 9router web fetch, fetch via 9router, ambil konten url
-  9router.
----
 
 # 9Router — Web Fetch
 

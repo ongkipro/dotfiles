@@ -32,8 +32,6 @@ done
 ROOTS=(
   "$HOME/Projects"
   "$HOME/projects"
-  "/home/fantastico/Projects"
-  "/home/fantastico/projects"
 )
 ROOTS+=("${EXTRA_ROOTS[@]}")
 
@@ -168,4 +166,4 @@ else
 fi
 
 [ "$QUIET" -eq 1 ] || say ""
-[ "$QUIET" -eq 1 ] || say "Tip: pair with shopify-listing (ops) or shopify-ai-toolkit-router (dev)."
+[ "$QUIET" -eq 1 ] || say "Tip: pair with shopify-listing (ops); dev/theme/app → docs/shopify-ai-development-repos.md"

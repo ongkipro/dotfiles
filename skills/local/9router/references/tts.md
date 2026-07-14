@@ -1,12 +1,3 @@
----
-name: 9router-tts
-description: >-
-  Text-to-speech via 9Router /v1/audio/speech using OpenAI / ElevenLabs /
-  Deepgram / Edge TTS / Google TTS / Hyperbolic / Inworld voices. Triggers:
-  9router tts, text to speech 9router, suara 9router, voiceover 9router,
-  narasi 9router, baca teks 9router, generate audio 9router, 9router speech,
-  tts via 9router.
----
 
 # 9Router — Text-to-Speech
 

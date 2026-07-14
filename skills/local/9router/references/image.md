@@ -1,12 +1,3 @@
----
-name: 9router-image
-description: >-
-  Generate images via 9Router /v1/images/generations using OpenAI / Gemini
-  Imagen / DALL-E / FLUX / MiniMax / SDWebUI / ComfyUI / Codex models.
-  Triggers: 9router image, generate image 9router, gambar 9router, buat
-  gambar 9router, 9router generations, txt2img 9router, render image 9router,
-  ai picture 9router.
----
 
 # 9Router — Image Generation
 

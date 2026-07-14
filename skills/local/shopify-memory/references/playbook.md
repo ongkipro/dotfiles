@@ -20,7 +20,7 @@ Then route:
 | Task shape | Hand off to |
 |---|---|
 | Rewrite titles/descriptions/meta/collections/ALT/variants | `shopify-listing` |
-| Apps, theme, extension, function, hydrogen, Polaris | `shopify-ai-toolkit-router` |
+| Apps, theme, extension, function, hydrogen, Polaris | `~/dotfiles/docs/shopify-ai-development-repos.md` |
 | SEO-only audit or build | `seo-website-builder` (load `references/SHOPIFY_SEO_PLAYBOOK.md`) |
 | Content/copy only | `copywriting` (and `shopify-listing/references/copywriting.md`) |
 

@@ -1,12 +1,3 @@
----
-name: 9router-stt
-description: >-
-  Speech-to-text via 9Router /v1/audio/transcriptions using OpenAI Whisper /
-  Groq / Gemini / Deepgram / AssemblyAI / NVIDIA / HuggingFace models.
-  Triggers: 9router stt, speech to text 9router, transkrip audio 9router,
-  subtitle 9router, voice to text 9router, 9router transcribe, ubah suara ke
-  teks 9router, stt via 9router.
----
 
 # 9Router — Speech-to-Text
 

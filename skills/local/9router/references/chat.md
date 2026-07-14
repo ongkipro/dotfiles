@@ -1,12 +1,3 @@
----
-name: 9router-chat
-description: >-
-  Chat / code generation via 9Router using OpenAI /v1/chat/completions or
-  Anthropic /v1/messages format with streaming + auto-fallback combos.
-  Triggers: 9router chat, chat via 9router, ask llm 9router, generate code
-  9router, summarize 9router, run prompt 9router, 9router completions,
-  ninerouter chat, tanya ai 9router.
----
 
 # 9Router — Chat
 

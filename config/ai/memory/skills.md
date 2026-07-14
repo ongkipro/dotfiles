@@ -28,9 +28,17 @@
 - Preferred monetization direction: tools directory, comparison/review content, AI productivity content, office/home-office products, SEO/product research portals.
 - Previously preferred tools-directory approach over broad portal/search-engine approach for affiliate software/tools.
 
-## Skill plumbing (sumber tunggal + 5 konsumen)
-- **Sumber tunggal:** `~/dotfiles/skills/local/` (42 skill) + repo jezweb `~/.agents/repos/shared-skills/plugins/**` (62 skill) = 104 skill.
-- **Lima konsumen** (semuanya symlink, TIDAK boleh direktori asli): `~/.claude/skills`, `~/.pi/agent/skills`, `~/.agents/skills`, `~/.codex/skills`, `~/.gemini/skills`.
+## Skill plumbing (sumber tunggal)
+- **Sumber tunggal:** `~/dotfiles/skills/local/` — **33 skill** per 2026-07-14 (dulu 43; lihat "Dedup 2026-07-14" di bawah). Repo jezweb `~/.agents/repos/shared-skills/` **TIDAK ADA di `cuan`** — klaim "104 skill" itu usang.
+- **Konsumen terverifikasi (2026-07-14)**, semuanya symlink → `dotfiles/skills/local`: `~/.claude/skills`, `~/.pi/agent/skills`, `~/.agents/local-skills`.
+- ⚠️ **`~/.gemini/skills` dan `~/.codex/skills` TIDAK ADA.** Gemini CLI sudah dihapus (2026-07-13). Jangan tulis "5 konsumen" lagi.
+
+## Dedup 2026-07-14 — 43 → 33 skill
+- **Dihapus (100% pointer rusak, nol konten):** `cloudflare-worker-toolkit`, `shopify-ai-toolkit-router`. Keduanya menunjuk `/home/fantastico/…` (user yang tak ada) dan ke ~26 skill yang tak pernah ada.
+- **Dihapus:** `ai-terminal-project-runner`. Isinya = (a) default yang sudah dilakukan harness, (b) routing table ke skill hantu, (c) safety gates. **Safety gates-nya DIANGKAT ke `AGENTS.md` → section "Approval gates — ALWAYS ON"**, karena kebijakan wajib tidak boleh bergantung pada model memilih memanggil skill. Script-nya diselamatkan → `dotfiles/bin/inspect-project`.
+- **Digabung:** 7 skill `9router-*` → `9router/references/*.md`. Satu deskripsi di system prompt, bukan delapan.
+- **SENGAJA TIDAK digabung:** `copywriting` vs `content` — ter-faktor benar (rules vs workflow), dan `shopify-listing/references/copywriting.md` itu prompt subagent purpose-built, bukan salinan. Jangan "rapikan" lagi.
+- **Prinsip:** kebijakan yang harus SELALU aktif → `AGENTS.md`. Pengetahuan dalam yang dipanggil sesuai kebutuhan → skill. Router murni → tidak boleh ada.
 - **`skill-update` adalah satu-satunya cara sinkronisasi.** Dia fetch + `reset --hard` repo jezweb, hapus symlink terkelola, lalu relink kelima base. Pastikan repo jezweb bersih sebelum menjalankan — perubahan lokal di sana akan hilang.
 - **`git pull` dotfiles TIDAK membuat symlink.** Skill baru dari device lain (mis. `vultr`) hanya muncul sebagai file; wajib `skill-update` setelah pull agar terlihat oleh CLI.
 - **Jangan pakai `claude plugin install`** untuk skill yang ingin dipakai lintas-CLI — itu hanya mendaftarkan ke Claude Code dan menciptakan sumber keempat. Skill = direktori berisi `SKILL.md` di `dotfiles/skills/local/`.
@@ -38,8 +46,8 @@
 - Riwayat: 2026-07-10 sebelas skill (`cloudflare`, `wrangler`, `agents-sdk`, `durable-objects`, `workers-best-practices`, `sandbox-sdk`, `cloudflare-email-service`, `cloudflare-one`, `cloudflare-one-migrations`, `web-perf`, `turnstile-spin`) masih berupa direktori asli terduplikasi di beberapa konsumen dan tidak ter-sync antar-device; sudah dipindah ke dotfiles. `content`, `copywriting`, `shopify-memory` ada di dotfiles tapi tidak pernah ter-symlink sehingga tidak bisa dipanggil.
 
 ## AI workflow
-- Tools in active scope: ChatGPT, Claude Code, Codex, Gemini/Antigravity, Pi.dev, 9Router, local skills, AI terminal project runner.
-- Skill (`SKILL.md`) dibagikan ke kelima CLI di atas — bukan cuma claude/pi. Memory dibagikan terpisah lewat `~/.config/ai/` (symlink ke `dotfiles/config/ai/`).
+- Tools in active scope: Claude Code, Codex, pi.dev, Antigravity (`agy`), local skills. (9Router ada tapi MATI — lihat environment.md.)
+- Skill (`SKILL.md`) dibagikan lewat symlink; Memory dibagikan terpisah lewat `~/.config/ai/` (symlink ke `dotfiles/config/ai/`).
 - Goal: standardized AI terminal workflow with shared memory, skills, project context, and repeatable execution rules.
 - AI should help as critical thinking partner, architect, implementer, auditor, and workflow designer.
 

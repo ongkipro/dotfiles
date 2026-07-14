@@ -1,12 +1,3 @@
----
-name: 9router-web-search
-description: >-
-  Web search via 9Router /v1/search using Tavily / Exa / Brave / Serper /
-  SearXNG / Google PSE / Linkup / SearchAPI / You.com / Perplexity. Triggers:
-  9router search, web search 9router, cari web 9router, 9router web search,
-  search via 9router, look up 9router, cari artikel 9router, query search
-  9router.
----
 
 # 9Router — Web Search
 

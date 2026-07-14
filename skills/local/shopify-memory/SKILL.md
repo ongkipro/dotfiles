@@ -9,7 +9,7 @@ description: >-
   about <store>/<project>". Triggers: shopify memory, memori shopify, ambil memori
   shopify, shopify project list, store audit, shopify footprint, lintas shopify,
   cross-store context. NOT for execution (listing rewrite, theme code, app dev) —
-  pair with shopify-listing or shopify-ai-toolkit-router for action.
+  pair with shopify-listing for action.
 ---
 
 # Shopify Memory Aggregator
@@ -17,7 +17,7 @@ description: >-
 Single entry point for **cross-project Shopify context**. Reads canonical memory
 plus per-project facts and produces a queryable, up-to-date index. **Does not
 execute** Shopify changes — combine with `shopify-listing` (content/ops) or
-`shopify-ai-toolkit-router` (dev/theme/app/extension).
+the repo map `~/dotfiles/docs/shopify-ai-development-repos.md` (dev/theme/app/extension).
 
 ## When to use
 
@@ -36,7 +36,7 @@ execute** Shopify changes — combine with `shopify-listing` (content/ops) or
 | `~/.config/ai/memory/projects.md` | cross-CLI | Per-project facts (path, stack, status, gotchas) — search for `### <name>` blocks |
 | `~/.config/claude-memory/*.md` | Claude | Auto-memory snapshots per project — search filenames (e.g. `pixsgo-shopify-store.md`, `petcue-shopify-site.md`) |
 | `~/Documents/shopify-ai-development-repos.md` | docs | Repo map (functions, when to use, clone vs link) |
-| `~/.ai/shopify-ai-toolkit/{README,TRIGGERS,DECISIONS,INSTALL_NOTES}.md` | local | Installed AI toolkit notes (if present) |
+| `~/dotfiles/ai-toolkits/shopify-ai-toolkit/{README,TRIGGERS,DECISIONS,INSTALL_NOTES}.md` | local | Installed AI toolkit notes (if present) |
 
 > The first time the skill loads in a session, run `scripts/scan.sh --json` to build
 > a fresh index. Cache the JSON to a session variable; refresh only when the user
@@ -46,7 +46,7 @@ execute** Shopify changes — combine with `shopify-listing` (content/ops) or
 
 1. **Scan** — `~/.agents/local-skills/shopify-memory/scripts/scan.sh [--json] [--project <name>]`.
    - Walks known project roots (`~/Projects/`, `~/Projects/*/`, plus Linux paths from
-     `projects.md` if cross-machine context applies: `/home/fantastico/Projects/...`).
+     `projects.md` if cross-machine context applies).
    - For each project: detect stack markers (`astro.config.mjs`, `package.json`
      deps `astro-shopify-storefront` / `@shopify/cli`, `shopify.app.toml`,
      `theme.liquid`), extract brand name from settings/SEO, count products via
@@ -64,7 +64,7 @@ execute** Shopify changes — combine with `shopify-listing` (content/ops) or
    - Content/listing/ops (titles, descriptions, meta, collections, variants, ALT) →
      hand off to `shopify-listing`.
    - Dev (apps, theme/liquid, extension/function, hydrogen, Polaris, validation) →
-     hand off to `shopify-ai-toolkit-router` (which points at the official repo map
+     hand off to the repo map at `~/dotfiles/docs/shopify-ai-development-repos.md` (which lists the official repos
      and the Shopify Dev MCP when installed).
 5. **Audit** — when the user asks for a full cross-store audit, run scan + grep +
    produce a Markdown report under `~/Documents/Shopify/_audits/<date>.md` and
@@ -81,7 +81,7 @@ execute** Shopify changes — combine with `shopify-listing` (content/ops) or
 - **Brand policy respected**: aggregate but do not leak third-party brand names
   from the user's memory into outputs unless the store actually carries that
   brand (mirror `shopify-listing/references/copywriting.md` hard rule #1).
-- **Cross-machine note**: `projects.md` mixes Linux (`/home/fantastico/...`) and
+- **Cross-machine note**: `projects.md` mixes legacy Linux paths (`/home/fantastico/...`, now dead) and
   macOS (`~/Projects/...`) paths. On Linux, scan only Linux paths; report macOS
   paths as "see macOS machine" if not present locally.
 
@@ -94,7 +94,7 @@ execute** Shopify changes — combine with `shopify-listing` (content/ops) or
 - **Stores (myshopify)**: <count> (<comma-separated list of domains>)
 - **Heads of brand**: <brand>: <store-domain> (<stack>, <status>)
 - **Open gotchas**: <list top 3 from memory>
-- **Next action**: <route to shopify-listing | shopify-ai-toolkit-router | memory edit>
+- **Next action**: <route to shopify-listing | repo map | memory edit>
 ```
 
 ## Operational notes
