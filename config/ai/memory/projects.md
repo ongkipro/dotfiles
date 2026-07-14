@@ -2,16 +2,16 @@
 > Bagian dari memori bersama. Tambah/aktualkan saat kerja di sebuah project.
 > Format: `## <nama project>` lalu bullet fakta penting (path, stack, catatan).
 
-## ⚠️ BACA DULU — soal PATH (diverifikasi 2026-07-14 di `cuan`)
+## ⚠️ BACA DULU — soal PATH (path itu PER-DEVICE, cek disk dulu)
 
-**Semua path lokal di file ini USANG. Jangan percaya, jangan cari.**
+- `/home/fantastico/...` → user itu **TIDAK ADA** di mesin manapun sekarang. Itu mesin Linux LAMA. Abaikan.
+- **Di `cuan` (Linux, user `ongki`), per 2026-07-14: HANYA `~/Projects/kamus` yang ter-checkout** (repo `ongkipro/kamus`, branch `main`) — diverifikasi `ls ~/Projects`. Project lain belum di-clone; path `~/Projects/<lain>` di file ini **tidak berlaku di sana**. (Catatan dari Mac yang bilang `~/Projects/` cuan KOSONG itu **salah** — Mac menebak tentang mesin yang bukan miliknya. Jangan menulis fakta disk mesin lain tanpa mengeceknya.)
+- **Di Mac (`ongkis-MacBook-Air`), per 2026-07-14 sore: HANYA `~/Projects/volumform` yang ter-checkout.** Semua project lain sengaja dihapus dari disk setelah dipastikan utuh di GitHub (bersih-bersih mesin). Path `~/Projects/<lain>` di file ini **tidak ada di Mac** — `git clone` dulu.
+  - Kredensial yang di-gitignore (9 `.env` + sqlite dev) diamankan ke `~/Documents/work/secrets/projects-env-2026-07-14/` (mode 700). **Sesudah clone, salin `.env`-nya balik dari sana** — GitHub tidak menyimpannya.
+  - Dokumen `.md` semua project diarsipkan ke `~/Documents/work/notes/projects-md-archive-2026-07-14/`.
 
-- `/home/fantastico/...` → user itu **TIDAK ADA**. Itu mesin Linux LAMA. Mesin sekarang: user `ongki`, host `cuan`.
-- `~/Projects/...` / `~/projects/...` → itu path di **Mac**, bukan di sini.
-- Di `cuan`, satu-satunya checkout per 2026-07-14 adalah **`~/Projects/kamus`**. Sisanya belum di-clone. Cek fakta, jangan tebak: `ls ~/Projects`.
-
-**Sumber kebenaran project = repo GitHub-nya** (`github.com/ongkipro/<nama>`), bukan path di catatan ini.
-Mau kerja di sebuah project di mesin ini? `git clone` dulu ke **`~/Projects/<nama>/`** (konvensi resmi), baru mulai.
+**Sumber kebenaran project = repo GitHub-nya** (`github.com/ongkipro/<nama>`). Kalau memori dan disk bertentangan → **disk menang**, lalu perbaiki memorinya.
+Mau kerja di sebuah project? `git clone` dulu ke **`~/Projects/<nama>/`** (konvensi resmi), baru mulai. Cek fakta, jangan tebak: `ls ~/Projects`.
 
 ## Konvensi folder
 
@@ -52,10 +52,6 @@ Mau kerja di sebuah project di mesin ini? `git clone` dulu ke **`~/Projects/<nam
 - Status: Full pipeline TERBUKTI jalan lokal (generate AI nyata + gambar → auto-publish demo → job log). Build+lint bersih, TS hijau. Belum deploy. Belum diuji OAuth ke akun sosmed asli (butuh app Meta/Threads/Pinterest + review platform).
 - Catatan lanjut: isi kredensial app Meta/Threads/Pinterest di .env.local untuk uji OAuth asli; provider image 9router opsional (fallback Pollinations sudah jalan); deploy Vercel + Neon + Vercel Cron.
 
-### toko-online (macOS dev)
-- Path: `~/Projects/toko-online`
-- Stack: Astro (minimal starter), TypeScript.
-- Status: Fresh from `npm create astro@latest -- --template minimal`. Belum ada PRD/spec.
 
 ## Linux — Projects (referensi dari mesin utama)
 
@@ -187,6 +183,20 @@ Mau kerja di sebuah project di mesin ini? `git clone` dulu ke **`~/Projects/<nam
 ## volumform (macOS dev — DR-funnel SaaS)
 - `~/Projects/volumform` → repo private `github.com/ongkipro/volumform` (dibuat 2026-07-10; sebelumnya cuma lokal, tanpa remote). Monorepo `apps/{admin,superadmin,edge}` + `packages/db` (Drizzle). Front-end sudah di-split: super admin (platform) vs client admin (merchant) sebagai dua SPA.
 
+## fiverr-clone (macOS dev — GigFlow freelance marketplace)
+- Path: `~/Projects/fiverr-clone` → repo privat `github.com/ongkipro/fiverr-clone` (dibuat 2026-07-11; **remote baru dibuat 2026-07-14** — sebelumnya 33 commit cuma hidup di satu mesin).
+- Stack: Next.js 16 + React 19 + Tailwind v4 + shadcn/ui + Better-Auth + Drizzle ORM + Stripe.
+- Dokumentasi UI/UX: `~/Documents/UIUX/fiverr-clone/` (karena masih prototype)
+- ⚠️ **`.venv` (playwright driver 114 MB) pernah ter-commit** → GitHub menolak push (batas 100 MB/file). Sudah dibuang dari history + masuk `.gitignore`. Jangan taruh virtualenv Python di dalam repo Next.js ini lagi.
+
+## Jebakan repo lokal yang sudah dibereskan (2026-07-14, Mac)
+Sebelum ini, **4 project tak punya cadangan di mana pun**. Semua sudah di-push. Fakta yang tidak terbaca dari kode:
+- **`~/Projects/volumecms-tholabie-fe` itu GIT WORKTREE** dari `volumecms` (branch `tholabie-frontend`), bukan project terpisah. `.git`-nya **file**, bukan direktori — cek `-d .git` akan bilang "bukan repo git" dan itu SALAH. Jangan `git init` di sana. Branch-nya kini sudah ada di remote `volumecms`.
+- **`~/Projects/babyfits` = rebrand dari `homelook`**, tapi remote-nya dulu masih menunjuk `homelook.git` → push = menimpa isi repo homelook. Sekarang punya repo sendiri (`ongkipro/babyfits`); remote lama disimpan sebagai `homelook-upstream`.
+- **`aussiemalaysia` (aktif, Astro+CF+D1) ≠ `aussie-malaysia` (repo lama)** — dua folder, dua project. Yang aktif kini repo `ongkipro/aussiemalaysia`.
+- Arsip dokumen: 278 file `.md` dari semua project → `~/Documents/work/notes/projects-md-archive-2026-07-14/`.
+
 ## nextpress — DIARSIPKAN (jangan dilanjutkan)
 - Prototipe CMS ala WordPress (Next.js 16 + shadcn + GSAP), ditinggalkan 2026-07-03. **Digantikan total oleh `volumecms`** — konsep sama, ditulis ulang dari nol, history tidak berhubungan (root commit beda).
 - Repo `github.com/ongkipro/nextpress` privat + **archived** (read-only) pada 2026-07-10 sekadar arsip. Folder lokal `~/Projects/nextpress` boleh dihapus kapan saja.
+

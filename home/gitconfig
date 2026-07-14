@@ -1,22 +1,22 @@
 [user]
 	name = ongkipro
 	email = 82156528+ongkipro@users.noreply.github.com
-[init]
-	defaultBranch = main
 [core]
-	autocrlf = input
-	fileMode = false
-	quotePath = false
-	pager = delta
-	excludesFile = ~/.gitignore_global
-[delta]
-	navigate = true
-	line-numbers = true
-	side-by-side = true
-	syntax-theme = ansi
-[credential "https://github.com"]
-	helper = 
-	helper = !gh auth git-credential
-[credential "https://gist.github.com"]
-	helper = 
-	helper = !gh auth git-credential
+    excludesfile = /Users/ongki/dotfiles/config/gitignore_global
+    autocrlf = input
+[init]
+    defaultBranch = main
+[push]
+    autoSetupRemote = true
+[pull]
+    rebase = true
+[alias]
+    lg = log --oneline --graph --decorate --all -20
+    st = status -sb
+    ci = commit
+    br = branch
+    co = checkout
+    rb = rebase
+    diffstat = diff --stat
+[color]
+    ui = auto

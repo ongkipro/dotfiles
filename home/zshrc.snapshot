@@ -132,3 +132,8 @@ eval "$($HOME/.local/bin/mise activate zsh)"
 export PATH="$HOME/.local/bin:$HOME/.agents/bin:$PATH"
 
 source "$HOME/dotfiles/config/zshrc.tools.sh"
+
+# agent-browser encryption key (auto-generated)
+export AGENT_BROWSER_ENCRYPTION_KEY="$(cat ~/.agent-browser/.encryption_key 2>/dev/null || openssl rand -hex 32 | tee ~/.agent-browser/.encryption_key)"
+
+if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init zsh)"; fi
