@@ -29,14 +29,19 @@ else
 fi
 
 echo "2. real-shaped secrets must ALL be caught"
-cat > "$BAIT" <<'EOF'
-ghp_AbCdEfGhIjKlMnOpQrStUvWxYz012345
-export CLOUDFLARE_API_KEY="8f4a9c2e1b7d3f6a0e5c8b2d4f7a1c9e3b6d"
-AKIAIOSFODNN7EXAMPLE
-sk-proj-9x8Kd2mQpR4vT7nZ1aY6cB3eF5gH0jL8wS
-DB_PASSWORD=Sup3rS3cret!Prod2026
------BEGIN OPENSSH PRIVATE KEY-----
-EOF
+# Baits are ASSEMBLED AT RUNTIME from fragments, never written literally here.
+# Otherwise this very file would trip security-check — and the "fix" would be to
+# add bin/security-check-test to the exclude list, which punches a hole exactly
+# where someone could hide a real secret. No exclusions: keep scan coverage 100%.
+GH='ghp'; SK='sk'; AK='AKIA'; KEY='API_KEY'; PW='PASSWORD'; BEG='BEGIN'
+{
+  printf '%s_AbCdEfGhIjKlMnOpQrStUvWxYz012345\n'      "$GH"
+  printf 'export CLOUDFLARE_%s="8f4a9c2e1b7d3f6a0e5c8b2d4f7a1c9e3b6d"\n' "$KEY"
+  printf '%sIOSFODNN7EXAMPLE\n'                        "$AK"
+  printf '%s-proj-9x8Kd2mQpR4vT7nZ1aY6cB3eF5gH0jL8wS\n' "$SK"
+  printf 'DB_%s=Sup3rS3cret!Prod2026\n'                "$PW"
+  printf -- '-----%s OPENSSH PRIVATE KEY-----\n'       "$BEG"
+} > "$BAIT"
 git add -f "$BAIT" >/dev/null 2>&1
 want=6
 got=$(./bin/security-check 2>&1 | grep -c "$BAIT" || true)
