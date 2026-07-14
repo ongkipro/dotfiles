@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Bait test for bin/security-check.
+#
+# Why this exists: security-check has a placeholder allowlist so it stops crying
+# wolf over `<your-token>` in vendor docs. A too-loose allowlist is WORSE than a
+# noisy one — it whitelists real secrets while looking green. That already happened
+# once: a bare `"` alternative matched the OPENING quote of `KEY="realsecret"` and
+# silently exempted every quoted secret in the repo.
+#
+# So: this plants real-shaped secrets and asserts every one is caught, then asserts
+# the clean repo passes. Run it after ANY edit to security-check.
+set -euo pipefail
+
+REPO="${1:-$HOME/dotfiles}"
+cd "$REPO"
+BAIT="__security-bait-$$.md"
+fail=0
+
+cleanup() { git rm -f --cached "$BAIT" >/dev/null 2>&1 || true; rm -f "$BAIT"; }
+trap cleanup EXIT
+
+echo "1. clean repo must PASS"
+if ./bin/security-check >/dev/null 2>&1; then
+  echo "   ✓ pass"
+else
+  echo "   ✗ FAIL: clean repo is being flagged (false positives are back)"
+  ./bin/security-check 2>&1 | sed 's/^/     /'
+  fail=1
+fi
+
+echo "2. real-shaped secrets must ALL be caught"
+cat > "$BAIT" <<'EOF'
+ghp_AbCdEfGhIjKlMnOpQrStUvWxYz012345
+export CLOUDFLARE_API_KEY="8f4a9c2e1b7d3f6a0e5c8b2d4f7a1c9e3b6d"
+AKIAIOSFODNN7EXAMPLE
+sk-proj-9x8Kd2mQpR4vT7nZ1aY6cB3eF5gH0jL8wS
+DB_PASSWORD=Sup3rS3cret!Prod2026
+-----BEGIN OPENSSH PRIVATE KEY-----
+EOF
+git add -f "$BAIT" >/dev/null 2>&1
+want=6
+got=$(./bin/security-check 2>&1 | grep -c "$BAIT" || true)
+if [ "$got" -eq "$want" ]; then
+  echo "   ✓ caught $got/$want"
+else
+  echo "   ✗ FAIL: caught only $got/$want — a real secret would slip through:"
+  diff <(./bin/security-check 2>&1 | grep "$BAIT" | sed 's/.*:[0-9]*://') <(cat "$BAIT") \
+    | grep '^>' | sed 's/^> /     MISSED: /'
+  fail=1
+fi
+
+echo
+[ "$fail" -eq 0 ] && echo "security-check-test: OK" || { echo "security-check-test: FAILED"; exit 1; }

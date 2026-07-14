@@ -28,10 +28,32 @@
 - Preferred monetization direction: tools directory, comparison/review content, AI productivity content, office/home-office products, SEO/product research portals.
 - Previously preferred tools-directory approach over broad portal/search-engine approach for affiliate software/tools.
 
-## Skill plumbing (sumber tunggal)
-- **Sumber tunggal:** `~/dotfiles/skills/local/` — **33 skill** per 2026-07-14 (dulu 43; lihat "Dedup 2026-07-14" di bawah). Repo jezweb `~/.agents/repos/shared-skills/` **TIDAK ADA di `cuan`** — klaim "104 skill" itu usang.
-- **Konsumen terverifikasi (2026-07-14)**, semuanya symlink → `dotfiles/skills/local`: `~/.claude/skills`, `~/.pi/agent/skills`, `~/.agents/local-skills`.
-- ⚠️ **`~/.gemini/skills` dan `~/.codex/skills` TIDAK ADA.** Gemini CLI sudah dihapus (2026-07-13). Jangan tulis "5 konsumen" lagi.
+## Skill plumbing — MODEL: symlink SATU-DIREKTORI (2026-07-14)
+
+```
+~/.claude/skills       ─┐
+~/.pi/agent/skills     ─┼─→ ~/dotfiles/skills/local/   (33 skill)
+~/.agents/local-skills ─┘
+```
+
+- **Sumber tunggal:** `~/dotfiles/skills/local/`. Repo jezweb SUDAH DIBUANG (`~/.agents/repos/shared-skills` tak pernah ada di `cuan`; klaim "104 skill" itu usang).
+- 🔑 **SINKRON LINTAS DEVICE = `git pull` SAJA.** Tidak ada langkah tambahan. Skill baru muncul sendiri; skill yang dihapus hilang sendiri — di semua CLI sekaligus. Catatan lama *"`git pull` TIDAK membuat symlink, wajib `skill-update`"* kini **SALAH** — itu berlaku untuk model per-skill yang sudah dibuang.
+- `skill-update` sekarang **cuma dipakai SEKALI per mesin baru** (dan dipanggil otomatis oleh `install.sh` / `install-macos.sh`). Idempoten — aman dijalankan ulang, no-op kalau sudah benar. Perlu lagi hanya kalau pasang CLI baru.
+- `skill-new` / `skill-remove` **tidak lagi perlu sync** — langsung aktif/hilang di semua CLI.
+- ⚠️ `~/.gemini/skills` dan `~/.codex/skills` **TIDAK ADA** dan bukan target. Gemini CLI dihapus 2026-07-13. `skill-update` sengaja MELEWATI CLI yang belum terpasang, bukan membuatkan foldernya.
+
+### ☠️ Bug destruktif yang sudah diperbaiki — jangan dihidupkan lagi
+`skill-update` versi LAMA memakai model **symlink per-skill**. Kalau target (`~/.claude/skills`) ternyata sudah berupa symlink satu-direktori ke sumber, `backup_conflict()` akan **`mv` setiap direktori skill ASLI di dalam dotfiles** jadi `*.backup.<ts>`, lalu bikin symlink yang menunjuk dirinya sendiri → `Too many levels of symbolic links`. **Seluruh 33 skill lenyap.** Sudah direproduksi di sandbox (2026-07-14).
+- Versi baru punya guard keras: **menolak menyentuh path apa pun yang resolve ke DALAM `skills/local`**.
+- Catatan lama *"kalau `skill-update` mencetak `Backed up existing path` itu artinya ada duplikat, hapus saja backup-nya"* → **BERBAHAYA, itu justru bunyi bencananya.** Sudah tidak berlaku.
+
+### Device baru / laptop lain — cukup ini
+```bash
+git clone git@github.com:ongkipro/dotfiles.git ~/dotfiles
+cd ~/dotfiles && ./install.sh        # macOS: ./install-macos.sh
+# selesai — skill, AGENTS.md, memory sudah ter-link ke semua CLI yang terpasang.
+```
+Sesudahnya, update = `git pull` saja. Kalau pasang CLI baru belakangan (mis. baru install Claude Code): `skill-update` sekali.
 
 ## Dedup 2026-07-14 — 43 → 33 skill
 - **Dihapus (100% pointer rusak, nol konten):** `cloudflare-worker-toolkit`, `shopify-ai-toolkit-router`. Keduanya menunjuk `/home/fantastico/…` (user yang tak ada) dan ke ~26 skill yang tak pernah ada.
@@ -46,11 +68,8 @@
 - Isinya juga **perintah validasi terkecil per stack** + gotcha yang sudah pernah kita bayar (Nixpacks gagal utk monorepo, `next start` tak melayani `public/uploads`, `@tokophi/db` throw saat build).
 - ⚠️ **PHP/Laravel SENGAJA TIDAK ada** — nol jejak PHP di semua project (2026-07-14). "CMS ala WordPress" (`volumecms`) itu **Next.js**, bukan PHP. Jangan tambah panduan PHP tanpa project PHP nyata.
 - Trigger sengaja SEMPIT (momen keputusan: mau install / mau bikin abstraksi / mau validasi), BUKAN "semua tugas dev" — trigger lebar itu dosa `ai-terminal-project-runner` yang sudah dibuang.
-- **`skill-update` adalah satu-satunya cara sinkronisasi.** Dia fetch + `reset --hard` repo jezweb, hapus symlink terkelola, lalu relink kelima base. Pastikan repo jezweb bersih sebelum menjalankan — perubahan lokal di sana akan hilang.
-- **`git pull` dotfiles TIDAK membuat symlink.** Skill baru dari device lain (mis. `vultr`) hanya muncul sebagai file; wajib `skill-update` setelah pull agar terlihat oleh CLI.
-- **Jangan pakai `claude plugin install`** untuk skill yang ingin dipakai lintas-CLI — itu hanya mendaftarkan ke Claude Code dan menciptakan sumber keempat. Skill = direktori berisi `SKILL.md` di `dotfiles/skills/local/`.
-- Kalau `skill-update` mencetak `Backed up existing path: ... -> *.backup.<ts>`, artinya ada direktori asli (duplikat) yang menghalangi symlink. Bandingkan dengan versi dotfiles; kalau identik, hapus backup-nya.
-- Riwayat: 2026-07-10 sebelas skill (`cloudflare`, `wrangler`, `agents-sdk`, `durable-objects`, `workers-best-practices`, `sandbox-sdk`, `cloudflare-email-service`, `cloudflare-one`, `cloudflare-one-migrations`, `web-perf`, `turnstile-spin`) masih berupa direktori asli terduplikasi di beberapa konsumen dan tidak ter-sync antar-device; sudah dipindah ke dotfiles. `content`, `copywriting`, `shopify-memory` ada di dotfiles tapi tidak pernah ter-symlink sehingga tidak bisa dipanggil.
+- **Jangan pakai `claude plugin install`** untuk skill yang ingin dipakai lintas-CLI — itu hanya mendaftarkan ke Claude Code dan menciptakan sumber kedua. Skill = direktori berisi `SKILL.md` di `dotfiles/skills/local/`.
+- Riwayat: 2026-07-10 sebelas skill Cloudflare/web-perf masih berupa direktori asli terduplikasi di beberapa konsumen; sudah dipindah ke dotfiles. Sejak model satu-direktori (2026-07-14), duplikasi semacam itu tak bisa terjadi lagi.
 
 ## AI workflow
 - Tools in active scope: Claude Code, Codex, pi.dev, Antigravity (`agy`), local skills. (9Router ada tapi MATI — lihat environment.md.)

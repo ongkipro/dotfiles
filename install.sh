@@ -39,15 +39,15 @@ link "$DOT/config/tmux.conf"             ~/.tmux.conf
 link "$DOT/config/mise-config.toml"      ~/.config/mise/config.toml  # toolchain bersama; `mise use -g` nulis tembus symlink
 link "$DOT/config/lazygit/config.yml"    ~/.config/lazygit/config.yml
 link "$DOT/config/gh/config.yml"         ~/.config/gh/config.yml     # hosts.yml TIDAK di-link (berisi oauth token)
-for s in skill-help skill-list skill-new skill-open skill-remove skill-update sync-jezweb-claude-skills.sh; do link "$DOT/skills/agents-bin/$s" ~/.agents/bin/$s; done
-ln -sfn ~/.agents/bin/sync-jezweb-claude-skills.sh ~/.agents/bin/skill-sync
+for s in skill-help skill-list skill-new skill-open skill-remove skill-update; do link "$DOT/skills/agents-bin/$s" ~/.agents/bin/$s; done
 link "$DOT/home/profile"                 ~/.profile
 link "$DOT/config/codex-instructions.md" ~/.codex/instructions.md
 link "$DOT/bin/ai-memory-link"           ~/.local/bin/ai-memory-link
 link "$DOT/bin/dotpush"                  ~/.local/bin/dotpush
 link "$DOT/bin/dotsync"                  ~/.local/bin/dotsync
-for s in akun claude-kerja claude-personal tmux-clip tmux-setup security-check 9router-start pi-9router-restore device-register; do link "$DOT/bin/$s" ~/.local/bin/$s; done
+for s in akun claude-kerja claude-personal tmux-clip tmux-setup security-check security-check-test inspect-project 9router-start pi-9router-restore device-register; do link "$DOT/bin/$s" ~/.local/bin/$s; done
 ~/.local/bin/ai-memory-link              # symlink AGENTS.md ke semua AI CLI (claude/codex/pi/agy)
+"$DOT/skills/agents-bin/skill-update"    # ~/.claude/skills + ~/.pi/agent/skills -> dotfiles/skills/local (idempoten)
 
 echo "==> Daftarkan device ini ke registry (devices/<hostname>.md)..."
 # Non-fatal: registry cuma dokumentasi. Jangan sampai bootstrap device baru gagal

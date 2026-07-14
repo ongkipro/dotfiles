@@ -49,12 +49,13 @@ say "==> Daftarkan device ini ke registry (devices/<hostname>.md)..."
 "$DOT/bin/device-register" || say "   ⚠️  device-register gagal — lanjut. Jalankan manual nanti."
 
 say "==> Link local skills + skill commands..."
-link "$DOT/skills/local"                 "$HOME/.agents/local-skills"
 mkdir -p "$HOME/.agents/bin"
-for s in skill-help skill-list skill-new skill-open skill-remove skill-update sync-jezweb-claude-skills.sh; do
+for s in skill-help skill-list skill-new skill-open skill-remove skill-update; do
   [ -e "$DOT/skills/agents-bin/$s" ] && link "$DOT/skills/agents-bin/$s" "$HOME/.agents/bin/$s"
 done
-[ -L "$HOME/.agents/bin/sync-jezweb-claude-skills.sh" ] && ln -sfn "$HOME/.agents/bin/sync-jezweb-claude-skills.sh" "$HOME/.agents/bin/skill-sync"
+# Symlink satu-direktori ke SEMUA CLI (~/.claude/skills, ~/.pi/agent/skills, ~/.agents/local-skills).
+# Idempoten; melewati CLI yang belum terpasang. Sesudah ini, `git pull` saja sudah sinkron.
+"$DOT/skills/agents-bin/skill-update"
 
 say "==> Link AGENTS.md ke CLI yang ada..."
 "$HOME/.local/bin/ai-memory-link"
@@ -134,12 +135,14 @@ cat <<'EOF'
 Langkah berikutnya:
   1) buka shell baru, atau jalankan:
        source ~/.zshrc
-  2) sync skills ke semua CLI:
-       ~/.agents/bin/skill-update
-  3) cek sync:
+  2) cek sync:
        dotsync doctor
 
 Catatan:
+- Skill SUDAH ter-link (skill-update dijalankan otomatis di atas).
+  Model = symlink satu-direktori → mulai sekarang `git pull` saja sudah sinkron;
+  skill baru muncul sendiri, skill yang dihapus hilang sendiri. Tidak perlu
+  menjalankan skill-update lagi kecuali pasang CLI baru.
 - Bootstrap ini fokus ke shared memory + sync + local skills.
 - install.sh utama tetap Linux-first.
 EOF

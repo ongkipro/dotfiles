@@ -1,117 +1,79 @@
 #!/usr/bin/env bash
+# Link every AI CLI's skills dir to the ONE source: dotfiles/skills/local.
+#
+# Model: WHOLE-DIRECTORY symlink.
+#   ~/.claude/skills       ─┐
+#   ~/.pi/agent/skills     ─┼─→ dotfiles/skills/local/
+#   ~/.agents/local-skills ─┘
+#
+# Consequence: `git pull` alone syncs skills. A new skill appears, a deleted skill
+# disappears, on every CLI, with zero extra steps. This script only needs to run
+# ONCE per device (install.sh calls it). Running it again is a safe no-op.
+#
+# It replaced a per-skill-symlink version that carried a destructive bug: when a
+# target base was ALREADY a whole-dir symlink into the source, the backup step
+# `mv`-ed every real skill directory inside dotfiles to *.backup.<ts> and left
+# self-referencing symlinks behind ("Too many levels of symbolic links").
+# Hence the hard rule below: NEVER modify anything that resolves inside SRC.
 set -euo pipefail
 
-REPO_URL="${SKILL_REPO_URL:-https://github.com/jezweb/claude-skills}"
-REPO_DIR="${SKILL_REPO_DIR:-$HOME/.agents/repos/shared-skills}"
-LEGACY_REPO_DIR="$HOME/.agents/repos/claude-skills"
-LOCAL_SKILLS_DIR="${LOCAL_SKILLS_DIR:-$HOME/.agents/local-skills}"
-TARGET_BASES=(
-  "$HOME/.agents/skills"
+# Source of truth = this script's own repo, not a guessable $HOME path.
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+SRC="$(cd "$SCRIPT_DIR/../local" && pwd)"
+
+[ -d "$SRC" ] || { echo "ERROR: skill source not found: $SRC" >&2; exit 1; }
+
+# Link only where the CLI actually exists. We do NOT conjure dirs for CLIs that
+# aren't installed — that is how ~/.gemini/skills became a phantom target.
+TARGETS=(
   "$HOME/.claude/skills"
-  "$HOME/.codex/skills"
-  "$HOME/.gemini/skills"
   "$HOME/.pi/agent/skills"
+  "$HOME/.agents/local-skills"
 )
-REPO_SKILLS=()
-LOCAL_SKILLS=()
 
-realpath_portable() {
-  python3 - "$1" <<'PY'
-import os, sys
-print(os.path.realpath(sys.argv[1]))
-PY
-}
+linked=0 skipped=0
 
-collect_skill_dirs() {
-  local root="$1"
-  if [ ! -d "$root" ]; then
-    return 0
+for target in "${TARGETS[@]}"; do
+  parent="$(dirname "$target")"
+
+  # CLI not installed on this device → skip. Not an error.
+  if [ ! -d "$parent" ]; then
+    printf '  skip   %-24s (%s tidak ada — CLI belum terpasang)\n' "${target/#$HOME/\~}" "${parent/#$HOME/\~}"
+    skipped=$((skipped + 1))
+    continue
   fi
-  find "$root" -type f -name SKILL.md -exec dirname {} \; | sort -u
-}
 
-append_skills() {
-  local array_name="$1" dir="$2" line
-  while IFS= read -r line; do
-    [ -n "$line" ] || continue
-    eval "$array_name+=(\"\$line\")"
-  done < <(collect_skill_dirs "$dir")
-}
+  resolved="$(readlink -f "$target" 2>/dev/null || true)"
 
-LOCAL_SKILLS_DIR="$(realpath_portable "$LOCAL_SKILLS_DIR")"
-mkdir -p "$HOME/.agents/bin" "$HOME/.agents/repos" "$LOCAL_SKILLS_DIR"
+  # HARD SAFETY: never touch a path that lives inside the source tree.
+  case "$resolved" in
+    "$SRC"/*)
+      echo "ERROR: $target resolves INSIDE the source ($resolved). Refusing to touch it." >&2
+      exit 1
+      ;;
+  esac
 
-if [ ! -e "$REPO_DIR" ] && [ -d "$LEGACY_REPO_DIR/.git" ]; then
-  mkdir -p "$(dirname "$REPO_DIR")"
-  mv "$LEGACY_REPO_DIR" "$REPO_DIR"
-fi
-
-if [ -d "$REPO_DIR/.git" ]; then
-  git -C "$REPO_DIR" fetch --depth 1 origin
-  current_branch=$(git -C "$REPO_DIR" rev-parse --abbrev-ref HEAD)
-  git -C "$REPO_DIR" reset --hard "origin/$current_branch"
-  git -C "$REPO_DIR" clean -fd
-else
-  rm -rf "$REPO_DIR"
-  git clone --depth 1 "$REPO_URL" "$REPO_DIR" >/dev/null
-fi
-
-append_skills REPO_SKILLS "$REPO_DIR/plugins"
-append_skills LOCAL_SKILLS "$LOCAL_SKILLS_DIR"
-
-if [ ${#REPO_SKILLS[@]} -eq 0 ] && [ ${#LOCAL_SKILLS[@]} -eq 0 ]; then
-  echo "No skills found" >&2
-  exit 1
-fi
-
-backup_conflict() {
-  local path="$1"
-  if [ -L "$path" ] || [ ! -e "$path" ]; then
-    return 0
+  # Already correct → no-op.
+  if [ -L "$target" ] && [ "$resolved" = "$SRC" ]; then
+    printf '  ok     %-24s -> %s\n' "${target/#$HOME/\~}" "${SRC/#$HOME/\~}"
+    continue
   fi
-  local backup="${path}.backup.$(date +%s)"
-  mv "$path" "$backup"
-  echo "Backed up existing path: $path -> $backup"
-}
 
-clean_managed_links() {
-  local base="$1" link target
-  [ -d "$base" ] || return 0
-  while IFS= read -r link; do
-    target="$(realpath_portable "$link" 2>/dev/null || true)"
-    case "$target" in
-      "$REPO_DIR"/*|"$LOCAL_SKILLS_DIR"/*)
-        rm -f "$link"
-        ;;
-    esac
-  done < <(find "$base" -maxdepth 1 -mindepth 1 -type l)
-}
+  # A real directory in the way (per-skill layout from the old script, or a
+  # hand-made dir). Move it aside — never delete, and never inside the source.
+  if [ -e "$target" ] && [ ! -L "$target" ]; then
+    backup="${target}.backup.$(date +%Y%m%d-%H%M%S)"
+    mv "$target" "$backup"
+    echo "  moved  ${target/#$HOME/\~} -> ${backup/#$HOME/\~}  (tidak dihapus)"
+  fi
 
-link_skills() {
-  local base="$1"
-  shift
-  local count=0 skill_dir skill_name target
-  for skill_dir in "$@"; do
-    [ -n "$skill_dir" ] || continue
-    skill_name=$(basename "$skill_dir")
-    target="$base/$skill_name"
-    backup_conflict "$target"
-    ln -sfn "$skill_dir" "$target"
-    count=$((count + 1))
-  done
-  echo "$count"
-}
-
-for base in "${TARGET_BASES[@]}"; do
-  mkdir -p "$base"
-  clean_managed_links "$base"
-  repo_count=$(link_skills "$base" "${REPO_SKILLS[@]}")
-  local_count=$(link_skills "$base" "${LOCAL_SKILLS[@]}")
-  echo "$base: linked repo=$repo_count local=$local_count"
+  ln -sfn "$SRC" "$target"
+  printf '  link   %-24s -> %s\n' "${target/#$HOME/\~}" "${SRC/#$HOME/\~}"
+  linked=$((linked + 1))
 done
 
-echo "Repo: $REPO_DIR"
-echo "Source: $REPO_URL"
-echo "Local skills: $LOCAL_SKILLS_DIR"
-echo "Repo skill count: ${#REPO_SKILLS[@]}"
-echo "Local skill count: ${#LOCAL_SKILLS[@]}"
+count=$(find "$SRC" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')
+echo
+echo "Source : ${SRC/#$HOME/\~}  (${count} skill)"
+echo "Linked : $linked   Skipped: $skipped"
+echo "Sinkron lintas device = 'git pull' saja. skill-update cukup sekali per mesin."

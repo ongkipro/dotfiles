@@ -1,31 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+SRC="$(cd "$SCRIPT_DIR/../local" && pwd)"
 SKILL_NAME="${1:-}"
-LOCAL_SKILLS_DIR="${LOCAL_SKILLS_DIR:-$HOME/.agents/local-skills}"
 
-realpath_portable() {
-  python3 - "$1" <<'PY'
-import os, sys
-print(os.path.realpath(sys.argv[1]))
-PY
-}
+[ -n "$SKILL_NAME" ] || { echo "Usage: skill-remove <skill-name>" >&2; exit 1; }
+DIR="$SRC/$SKILL_NAME"
+[ -d "$DIR" ] || { echo "Skill not found: $SKILL_NAME" >&2; exit 1; }
 
-LOCAL_SKILLS_DIR="$(realpath_portable "$LOCAL_SKILLS_DIR")"
-TARGET_DIR="$LOCAL_SKILLS_DIR/$SKILL_NAME"
+printf 'Hapus skill "%s" (%s file)? [y/N] ' "$SKILL_NAME" "$(find "$DIR" -type f | wc -l | tr -d ' ')"
+read -r ans
+[ "$ans" = "y" ] || { echo "Dibatalkan."; exit 0; }
 
-if [ -z "$SKILL_NAME" ]; then
-  echo "Usage: skill-remove <skill-name>" >&2
-  exit 1
-fi
-
-if [ ! -d "$TARGET_DIR" ]; then
-  echo "Local skill not found: $SKILL_NAME" >&2
-  exit 1
-fi
-
-rm -rf "$TARGET_DIR"
-"$HOME/.agents/bin/skill-update" >/dev/null
-
-echo "Removed: $TARGET_DIR"
-echo "Unlinked from: ~/.agents/skills, ~/.claude/skills, ~/.codex/skills, ~/.gemini/skills, ~/.pi/agent/skills"
+rm -rf "$DIR"
+echo "Dihapus: ${DIR/#$HOME/\~}"
+echo "Sudah hilang di semua CLI (symlink satu-direktori). Jangan lupa commit dotfiles."
