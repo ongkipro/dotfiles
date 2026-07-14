@@ -41,34 +41,53 @@ say "2. Container yang jalan"
 run 'docker ps --format "  {{.Names}}\t{{.Image}}\t{{.Status}}"' | tee "$OUT/containers.txt"
 
 say "3. Cari container Postgres"
-PG=$(run 'docker ps --format "{{.Names}}\t{{.Image}}" | grep -iE "postgres|pgvector" | head -1 | cut -f1' || true)
-if [ -z "$PG" ]; then
-  echo "  ✗ Tidak ada container Postgres yang jalan. Lihat $OUT/containers.txt." >&2
-  echo "  Kalau DB-nya bukan di Docker, dump manual lalu scp keluar." >&2
-  exit 1
-fi
-echo "  ✓ container: $PG"
-
-say "4. Daftar database"
-# Kredensial dibaca DARI DALAM container (env-nya sendiri) — tidak pernah dicetak.
-DBS=$(run "docker exec $PG sh -c 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -tAc \"SELECT datname FROM pg_database WHERE datistemplate=false AND datname<>'\"'\"'postgres'\"'\"';\"'")
-echo "$DBS" | sed 's/^/  - /'
-
-say "5. Dump (custom format, kompresi)"
-for db in $DBS; do
-  [ -n "$db" ] || continue
-  printf '  %-24s ' "$db"
-  run "docker exec $PG sh -c 'pg_dump -Fc -U \"\$POSTGRES_USER\" $db'" > "$OUT/$db.dump"
-  sz=$(du -h "$OUT/$db.dump" | cut -f1)
-  # Verifikasi: dump yang tak bisa dibaca = bukan backup.
-  if pg_restore -l "$OUT/$db.dump" >/dev/null 2>&1; then
-    n=$(pg_restore -l "$OUT/$db.dump" 2>/dev/null | grep -c '^[0-9]' || true)
-    echo "✓ $sz — $n objek, terbaca oleh pg_restore"
+# JANGAN tebak dari nama/image. Coolify menjalankan sidecar `backup-*` yang PAKAI
+# image postgres:16-alpine tapi TIDAK menjalankan server DB — memilihnya bikin
+# psql gagal ("socket ... No such file or directory"). Jadi: tanya tiap kandidat
+# apakah benar-benar MELAYANI Postgres, pakai pg_isready. Kandidat pertama yang
+# menjawab = server DB yang asli.
+PGS=()
+CANDS=$(run 'docker ps --format "{{.Names}}\t{{.Image}}" | grep -iE "postgres|pgvector" | cut -f1' || true)
+for c in $CANDS; do
+  printf '  %-52s ' "$c"
+  if run "docker exec $c sh -c 'pg_isready -U \"\$POSTGRES_USER\" -q'" 2>/dev/null; then
+    echo "✓ melayani Postgres"
+    PGS+=("$c")
   else
-    echo "✗ $sz — RUSAK (pg_restore tak bisa membacanya). JANGAN dianggap backup."
-    exit 1
+    echo "– bukan server DB (lewati)"
   fi
 done
+if [ ${#PGS[@]} -eq 0 ]; then
+  echo "  ✗ Tak ada container yang benar-benar melayani Postgres. Lihat $OUT/containers.txt." >&2
+  exit 1
+fi
+echo "  → ${#PGS[@]} server DB akan di-dump SEMUA."
+
+# Dump SETIAP server Postgres, bukan cuma yang pertama. Di Coolify ada dua yang
+# dua-duanya penting: DB aplikasi, DAN `coolify-db` (definisi app, env, config
+# deploy). Tanpa coolify-db, server yang hilang berarti menyusun ulang seluruh
+# setup deploy dari nol.
+say "4-5. Dump semua database (custom format) + verifikasi"
+FAIL=0
+for PG in "${PGS[@]}"; do
+  echo "  [$PG]"
+  DBS=$(run "docker exec $PG sh -c 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -tAc \"SELECT datname FROM pg_database WHERE datistemplate=false AND datname<>'\"'\"'postgres'\"'\"';\"'" || true)
+  for db in $DBS; do
+    [ -n "$db" ] || continue
+    printf '    %-22s ' "$db"
+    run "docker exec $PG sh -c 'pg_dump -Fc -U \"\$POSTGRES_USER\" $db'" > "$OUT/$db.dump"
+    sz=$(du -h "$OUT/$db.dump" | cut -f1)
+    # Verifikasi: dump yang tak bisa dibaca BUKAN backup. Tak ada "berhasil" palsu.
+    if pg_restore -l "$OUT/$db.dump" >/dev/null 2>&1; then
+      n=$(pg_restore -l "$OUT/$db.dump" 2>/dev/null | grep -c '^[0-9]' || true)
+      echo "✓ $sz — $n objek, terbaca pg_restore"
+    else
+      echo "✗ $sz — RUSAK. JANGAN dianggap backup."
+      rm -f "$OUT/$db.dump"; FAIL=1
+    fi
+  done
+done
+[ $FAIL -eq 0 ] || { echo "  ✗ ada dump yang rusak — backup TIDAK lengkap." >&2; exit 1; }
 
 say "6. Config stack (compose + Coolify), tanpa isi .env"
 run 'find /data/coolify -maxdepth 3 -name "docker-compose*.y*ml" 2>/dev/null | head -20' > "$OUT/compose-files.txt" || true

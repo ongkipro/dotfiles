@@ -8,7 +8,7 @@
 
 - `/home/fantastico/...` → user itu **TIDAK ADA**. Itu mesin Linux LAMA. Mesin sekarang: user `ongki`, host `cuan`.
 - `~/Projects/...` / `~/projects/...` → itu path di **Mac**, bukan di sini.
-- Di `cuan` **BELUM ADA checkout project apa pun** (2026-07-14). `~/Projects/` sudah dibuat tapi kosong.
+- Di `cuan`, satu-satunya checkout per 2026-07-14 adalah **`~/Projects/kamus`**. Sisanya belum di-clone. Cek fakta, jangan tebak: `ls ~/Projects`.
 
 **Sumber kebenaran project = repo GitHub-nya** (`github.com/ongkipro/<nama>`), bukan path di catatan ini.
 Mau kerja di sebuah project di mesin ini? `git clone` dulu ke **`~/Projects/<nama>/`** (konvensi resmi), baru mulai.
