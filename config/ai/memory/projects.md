@@ -181,9 +181,17 @@
 - `~/Projects/volumform` → repo private `github.com/ongkipro/volumform` (dibuat 2026-07-10; sebelumnya cuma lokal, tanpa remote). Monorepo `apps/{admin,superadmin,edge}` + `packages/db` (Drizzle). Front-end sudah di-split: super admin (platform) vs client admin (merchant) sebagai dua SPA.
 
 ## fiverr-clone (macOS dev — GigFlow freelance marketplace)
-- Path: `~/Projects/fiverr-clone` (dibuat 2026-07-11).
+- Path: `~/Projects/fiverr-clone` → repo privat `github.com/ongkipro/fiverr-clone` (dibuat 2026-07-11; **remote baru dibuat 2026-07-14** — sebelumnya 33 commit cuma hidup di satu mesin).
 - Stack: Next.js 16 + React 19 + Tailwind v4 + shadcn/ui + Better-Auth + Drizzle ORM + Stripe.
 - Dokumentasi UI/UX: `~/Documents/UIUX/fiverr-clone/` (karena masih prototype)
+- ⚠️ **`.venv` (playwright driver 114 MB) pernah ter-commit** → GitHub menolak push (batas 100 MB/file). Sudah dibuang dari history + masuk `.gitignore`. Jangan taruh virtualenv Python di dalam repo Next.js ini lagi.
+
+## Jebakan repo lokal yang sudah dibereskan (2026-07-14, Mac)
+Sebelum ini, **4 project tak punya cadangan di mana pun**. Semua sudah di-push. Fakta yang tidak terbaca dari kode:
+- **`~/Projects/volumecms-tholabie-fe` itu GIT WORKTREE** dari `volumecms` (branch `tholabie-frontend`), bukan project terpisah. `.git`-nya **file**, bukan direktori — cek `-d .git` akan bilang "bukan repo git" dan itu SALAH. Jangan `git init` di sana. Branch-nya kini sudah ada di remote `volumecms`.
+- **`~/Projects/babyfits` = rebrand dari `homelook`**, tapi remote-nya dulu masih menunjuk `homelook.git` → push = menimpa isi repo homelook. Sekarang punya repo sendiri (`ongkipro/babyfits`); remote lama disimpan sebagai `homelook-upstream`.
+- **`aussiemalaysia` (aktif, Astro+CF+D1) ≠ `aussie-malaysia` (repo lama)** — dua folder, dua project. Yang aktif kini repo `ongkipro/aussiemalaysia`.
+- Arsip dokumen: 278 file `.md` dari semua project → `~/Documents/work/notes/projects-md-archive-2026-07-14/`.
 
 ## nextpress — DIARSIPKAN (jangan dilanjutkan)
 - Prototipe CMS ala WordPress (Next.js 16 + shadcn + GSAP), ditinggalkan 2026-07-03. **Digantikan total oleh `volumecms`** — konsep sama, ditulis ulang dari nol, history tidak berhubungan (root commit beda).
