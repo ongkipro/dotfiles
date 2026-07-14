@@ -128,6 +128,31 @@ for c in claude codex pi agy; do
   fi
 done
 
+# ── 8. Memory drift ───────────────────────────────────────────────────────────
+# Enforces the Layer-2 rule: a fact checkable from disk gets written ONCE, with its
+# verify command. The way that rule rots is dead paths piling up. So: flag any path
+# memory still points at that does not exist. Lines that explicitly WARN about a
+# dead path are the fix, not the bug — skip those.
+hdr "8. Memori vs disk (aturan: disk menang)"
+if [ -d "$AI/memory" ]; then
+  drift=0
+  # path → why it's dead
+  while IFS='|' read -r pat note; do
+    hits=$(grep -rn -- "$pat" "$AI/memory" "$AI/AGENTS.md" 2>/dev/null \
+      | grep -viE "TIDAK ADA|USANG|SALAH|BUKAN|jangan|dead|⚠️|BACA DULU" | wc -l | tr -d ' ')
+    if [ "$hits" -gt 0 ]; then
+      wrn "memori masih menunjuk $note ($hits baris) — pat: $pat"
+      drift=1
+    fi
+  done <<'PATS'
+/home/fantastico|user yang TIDAK ADA
+~/.ai/|direktori yang tidak ada
+.gemini/skills|Gemini CLI sudah dihapus
+Documents/memori ai|folder yang tidak ada
+PATS
+  [ $drift -eq 0 ] && ok "tidak ada path mati yang dirujuk memori"
+fi
+
 # ── Verdict ───────────────────────────────────────────────────────────────────
 printf '\n────────────────────────────────────────\n'
 if [ $fail -eq 0 ] && [ $warn -eq 0 ]; then

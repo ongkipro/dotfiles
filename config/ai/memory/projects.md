@@ -2,12 +2,22 @@
 > Bagian dari memori bersama. Tambah/aktualkan saat kerja di sebuah project.
 > Format: `## <nama project>` lalu bullet fakta penting (path, stack, catatan).
 
-## Konvensi Baru (2 Juli 2026)
+## ⚠️ BACA DULU — soal PATH (diverifikasi 2026-07-14 di `cuan`)
 
-- **Semua project development → `~/Projects/<nama-project>/`**
-- Source code, config, node_modules, .git semua di dalam folder project.
-- Dokumentasi (PRD, UML, konten, research) → `~/Documents/ai-artifacts/<kategori>/`.
-- Memori AI → `~/Documents/memori ai/`.
+**Semua path lokal di file ini USANG. Jangan percaya, jangan cari.**
+
+- `/home/fantastico/...` → user itu **TIDAK ADA**. Itu mesin Linux LAMA. Mesin sekarang: user `ongki`, host `cuan`.
+- `~/Projects/...` / `~/projects/...` → itu path di **Mac**, bukan di sini.
+- Di `cuan` **BELUM ADA checkout project apa pun** (2026-07-14). `~/Projects/` sudah dibuat tapi kosong.
+
+**Sumber kebenaran project = repo GitHub-nya** (`github.com/ongkipro/<nama>`), bukan path di catatan ini.
+Mau kerja di sebuah project di mesin ini? `git clone` dulu ke **`~/Projects/<nama>/`** (konvensi resmi), baru mulai.
+
+## Konvensi folder
+
+- **Source code → `~/Projects/<nama-project>/`** (semua di dalam: config, node_modules, .git).
+- Output AI (PRD, research, konten, catatan) → `~/Documents/work/{prd,research,content,notes}/`.
+- Memori AI → **`~/.config/ai/memory/`** (symlink → dotfiles). Catatan lama yang menyebut `~/Documents/memori ai/` atau `~/dotfiles/memori-ai/` **SALAH** — dua-duanya tidak ada.
 - Mesin utama: Linux. macOS = device kedua untuk mobile/sync.
 
 ## macOS — Projects Aktif
@@ -49,36 +59,32 @@
 
 ## Linux — Projects (referensi dari mesin utama)
 
-### pixsgo (Play & Go)
-- Path: `/home/fantastico/Projects/pixsgo`
-- Stack: Astro, TailwindCSS, Shopify Storefront API, Cloudflare Workers.
-- Catatan: Toys & Hobbies store. Playful, Minimalist, Modern. Senior accessibility (font >= 16px).
 
 ### pesantren-tholabie (pesantrentholabie.com)
-- Path: `/home/fantastico/Projects/pesantren-tholabie-compro`
+- Repo: `github.com/ongkipro/pesantren-tholabie-compro` (belum di-clone di `cuan`)
 - Stack: Astro, TailwindCSS, Lucide Icons, TypeScript.
 - Pondok Pesantren THOLABIE CIBS Malang. Makkah & Madinah Theme (hijau, hitam, emas).
 - 6 halaman: Beranda, Tentang, Beasiswa, Asrama, Kurikulum, Kontak & FAQ.
 
 ### aussie-malaysia (aussiesawit.my)
-- Path: `/home/fantastico/projects/aussie-malaysia`
+- Repo: `github.com/ongkipro/aussie-malaysia` (belum di-clone di `cuan`)
 - Stack: Astro 6 + Cloudflare Workers. API Scalev + Meta CAPI.
 - Fertilizer e-commerce untuk Malaysia.
 
 ### petanisejahtera (petanisejahtera.com)
-- Path: `/home/fantastico/projects/petanisejahtera`
+- Repo: `github.com/ongkipro/petanisejahtera` (belum di-clone di `cuan`)
 - Stack: Astro + Cloudflare Workers. Dynamic sitemap, BreadcrumbList schema.
 
 ### mahad-nurul-haromain-lin-nisa
-- Path: `/home/fantastico/projects/mahad-nurul-haromain-lin-nisa-compro`
+- Repo: `github.com/ongkipro/mahad-nurul-haromain-lin-nisa-compro` (belum di-clone di `cuan`)
 - Stack: Astro, Tailwind v4, TypeScript, Lucide. Website pesantren putri.
 
 ## SEO Knowledge Base
-- Path: `/home/fantastico/Documents/SEO` — SEO Website Builder Skill/SEO OS canonical research/archive base. On 2026-06-30 created active local skill `seo-website-builder` at `/home/fantastico/dotfiles/skills/local/seo-website-builder` and synced via `skill-update` to pi/agents/claude/codex/gemini. Skill uses compact references copied from Documents/SEO; original 100+ SEO OS export remains in Documents for deep reference. Existing skills mined into the playbooks: `seo-local-business`, `shopify-listing`, and `astro-development`. Multi-engine docs cover Google/Bing/Yandex/Pinterest/AI search using official/trusted sources.
-- Public standalone SEO skill repo created: `https://github.com/ongkipro/seo-website-builder-skill` (public). Source path: `/home/fantastico/Projects/seo-website-builder-skill`. Dotfiles remain private; public repo contains sanitized `seo-website-builder` Agent Skill only.
+- ⚠️ Arsip riset SEO lama (`Documents/SEO`) TIDAK ADA di mesin manapun sekarang. Skill `seo-website-builder` berdiri sendiri lewat `references/`-nya. On 2026-06-30 created active local skill `seo-website-builder` at `~/dotfiles/skills/local/seo-website-builder` and synced via `skill-update` to pi/agents/claude/codex/gemini. Skill uses compact references copied from Documents/SEO; original 100+ SEO OS export remains in Documents for deep reference. Existing skills mined into the playbooks: `seo-local-business`, `shopify-listing`, and `astro-development`. Multi-engine docs cover Google/Bing/Yandex/Pinterest/AI search using official/trusted sources.
+- Public standalone SEO skill repo created: `https://github.com/ongkipro/seo-website-builder-skill` (public). Dotfiles remain private; public repo contains sanitized `seo-website-builder` Agent Skill only.
 
 ## report-petani-next (Next.js 16 SaaS Dashboard, report.petanisejahtera.com)
-- Path: `/home/fantastico/projects/report-petani-next`
+- Repo: `github.com/ongkipro/report-petani-next` (belum di-clone di `cuan`)
 - Stack: Next.js 16 (App Router), shadcn/ui, Tailwind v4, Recharts, Geist font, Vercel deploy
 - Struktur: Dashboard summary `/`, Reports list `/reports`, Monthly report `/reports/[month]`, Plugins `/plugins`, Settings `/settings`
 - Data registry di `src/data/index.ts` — tambah laporan baru: copy file data mei-2026.ts, isi, daftarkan di registry
@@ -88,27 +94,27 @@
 - 18 source files, TypeScript strict, 0 unused deps
 
 ## report-petani-sejahtera (Astro, report.petanisejahtera.com)
-- Path: `/home/fantastico/projects/report-petani-sejahtera`
+- Repo: `github.com/ongkipro/report-petani-sejahtera` (belum di-clone di `cuan`)
 - Stack: Astro, Tailwind v4, shadcn/ui, React islands
 - Catatan: Versi awal dashboard. Next.js version di report-petani-next adalah versi production.
 
 ## petcue (Petcue.co — Astro + Shopify Storefront)
-- Path: `/home/fantastico/projects/petcue`
+- Repo: `github.com/ongkipro/petcue` (belum di-clone di `cuan`)
 - Stack: Astro, Tailwind v4, Shopify Storefront API, Cloudflare Workers
 - Brand: Petcue.co — premium pet travel gear (teal `#007C78`, mint, amber, charcoal)
 - GitHub: `ongkipro/petcue` (private)
 - Catatan: Clone dari pixsgo, rebranded untuk niche pet travel gear.
 
 ## pixsgo (Pixs&Go — Astro + Shopify Storefront, pixsgo.com)
-- Path: `/home/fantastico/projects/pixsgo`
+- Repo: `github.com/ongkipro/pixsgo` (private). Belum di-clone di `cuan`.
 - Stack: Astro, Tailwind v4, Shopify Storefront API, Cloudflare Workers
-- Brand: Pixs&Go / "Play & Go" — screen-free toys (coral, warm cream, soft shadows)
+- Brand: Pixs&Go / "Play & Go" — screen-free toys, Toys & Hobbies (coral, warm cream, soft shadows). Playful, minimalist, modern. Aksesibilitas senior: font ≥16px.
 - GitHub: `ongkipro/pixsgo` (private)
 - 125 products, 9 collections, Judge.me reviews, blog/journal
 - Deploy: Cloudflare Workers, custom domain pixsgo.com
 
 ## homelook (HOME LOOK — Astro + Shopify Storefront, homelook.shop)
-- Path: `/home/fantastico/projects/homelook`
+- Repo: `github.com/ongkipro/homelook` (belum di-clone di `cuan`)
 - Stack: Astro, Tailwind v4, Shopify Storefront API, Cloudflare Workers
 - Brand: HOME LOOK — premium architectural fittings (pine green, warm sand, muted brass)
 - GitHub: `ongkipro/homelook` (private)

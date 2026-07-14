@@ -78,7 +78,7 @@ cd ~/dotfiles && ./install.sh        # macOS: ./install-macos.sh
 Sesudahnya, update = `git pull` saja. Kalau pasang CLI baru belakangan (mis. baru install Claude Code): `skill-update` sekali.
 
 ## Dedup 2026-07-14 — 43 → 33 skill
-- **Dihapus (100% pointer rusak, nol konten):** `cloudflare-worker-toolkit`, `shopify-ai-toolkit-router`. Keduanya menunjuk `/home/fantastico/…` (user yang tak ada) dan ke ~26 skill yang tak pernah ada.
+- **Dihapus (100% pointer rusak, nol konten):** `cloudflare-worker-toolkit`, `shopify-ai-toolkit-router`. Keduanya menunjuk `/home/fantastico/…` — user yang **TIDAK ADA** — dan ke ~26 skill yang tak pernah ada.
 - **Dihapus:** `ai-terminal-project-runner`. Isinya = (a) default yang sudah dilakukan harness, (b) routing table ke skill hantu, (c) safety gates. **Safety gates-nya DIANGKAT ke `AGENTS.md` → section "Approval gates — ALWAYS ON"**, karena kebijakan wajib tidak boleh bergantung pada model memilih memanggil skill. Script-nya diselamatkan → `dotfiles/bin/inspect-project`.
 - **Digabung:** 7 skill `9router-*` → `9router/references/*.md`. Satu deskripsi di system prompt, bukan delapan.
 - **SENGAJA TIDAK digabung:** `copywriting` vs `content` — ter-faktor benar (rules vs workflow), dan `shopify-listing/references/copywriting.md` itu prompt subagent purpose-built, bukan salinan. Jangan "rapikan" lagi.
