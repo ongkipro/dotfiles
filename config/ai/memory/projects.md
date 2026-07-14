@@ -2,16 +2,13 @@
 > Bagian dari memori bersama. Tambah/aktualkan saat kerja di sebuah project.
 > Format: `## <nama project>` lalu bullet fakta penting (path, stack, catatan).
 
-## ⚠️ BACA DULU — soal PATH (diverifikasi 2026-07-14 di `cuan`)
+## ⚠️ BACA DULU — soal PATH (path itu PER-DEVICE, cek disk dulu)
 
-**Semua path lokal di file ini USANG. Jangan percaya, jangan cari.**
+- `/home/fantastico/...` → user itu **TIDAK ADA** di mesin manapun sekarang. Itu mesin Linux LAMA. Abaikan.
+- **Di `cuan` (Linux, user `ongki`):** belum ada checkout project apa pun per 2026-07-14 — `~/Projects/` kosong. Path `~/Projects/...` di file ini **tidak berlaku di sana**; `git clone` dulu.
+- **Di Mac (`ongkis-MacBook-Air`):** path `~/Projects/<nama>` di file ini **sebagian besar NYATA dan ada** (diverifikasi 2026-07-14). Jangan diabaikan.
 
-- `/home/fantastico/...` → user itu **TIDAK ADA**. Itu mesin Linux LAMA. Mesin sekarang: user `ongki`, host `cuan`.
-- `~/Projects/...` / `~/projects/...` → itu path di **Mac**, bukan di sini.
-- Di `cuan` **BELUM ADA checkout project apa pun** (2026-07-14). `~/Projects/` sudah dibuat tapi kosong.
-
-**Sumber kebenaran project = repo GitHub-nya** (`github.com/ongkipro/<nama>`), bukan path di catatan ini.
-Mau kerja di sebuah project di mesin ini? `git clone` dulu ke **`~/Projects/<nama>/`** (konvensi resmi), baru mulai.
+**Sumber kebenaran project = repo GitHub-nya** (`github.com/ongkipro/<nama>`). Kalau memori dan disk bertentangan → **disk menang**, lalu perbaiki memorinya.
 
 ## Konvensi folder
 
@@ -52,10 +49,6 @@ Mau kerja di sebuah project di mesin ini? `git clone` dulu ke **`~/Projects/<nam
 - Status: Full pipeline TERBUKTI jalan lokal (generate AI nyata + gambar → auto-publish demo → job log). Build+lint bersih, TS hijau. Belum deploy. Belum diuji OAuth ke akun sosmed asli (butuh app Meta/Threads/Pinterest + review platform).
 - Catatan lanjut: isi kredensial app Meta/Threads/Pinterest di .env.local untuk uji OAuth asli; provider image 9router opsional (fallback Pollinations sudah jalan); deploy Vercel + Neon + Vercel Cron.
 
-### toko-online (macOS dev)
-- Path: `~/Projects/toko-online`
-- Stack: Astro (minimal starter), TypeScript.
-- Status: Fresh from `npm create astro@latest -- --template minimal`. Belum ada PRD/spec.
 
 ## Linux — Projects (referensi dari mesin utama)
 
@@ -187,6 +180,12 @@ Mau kerja di sebuah project di mesin ini? `git clone` dulu ke **`~/Projects/<nam
 ## volumform (macOS dev — DR-funnel SaaS)
 - `~/Projects/volumform` → repo private `github.com/ongkipro/volumform` (dibuat 2026-07-10; sebelumnya cuma lokal, tanpa remote). Monorepo `apps/{admin,superadmin,edge}` + `packages/db` (Drizzle). Front-end sudah di-split: super admin (platform) vs client admin (merchant) sebagai dua SPA.
 
+## fiverr-clone (macOS dev — GigFlow freelance marketplace)
+- Path: `~/Projects/fiverr-clone` (dibuat 2026-07-11).
+- Stack: Next.js 16 + React 19 + Tailwind v4 + shadcn/ui + Better-Auth + Drizzle ORM + Stripe.
+- Dokumentasi UI/UX: `~/Documents/UIUX/fiverr-clone/` (karena masih prototype)
+
 ## nextpress — DIARSIPKAN (jangan dilanjutkan)
 - Prototipe CMS ala WordPress (Next.js 16 + shadcn + GSAP), ditinggalkan 2026-07-03. **Digantikan total oleh `volumecms`** — konsep sama, ditulis ulang dari nol, history tidak berhubungan (root commit beda).
 - Repo `github.com/ongkipro/nextpress` privat + **archived** (read-only) pada 2026-07-10 sekadar arsip. Folder lokal `~/Projects/nextpress` boleh dihapus kapan saja.
+

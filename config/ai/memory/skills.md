@@ -11,7 +11,7 @@
 - Shopify focus: standard Shopify store, Liquid/theme work, headless storefront, Storefront API, checkout flow, product/category structure, SEO, conversion, tracking.
 - Preferred public frontend: Astro + Tailwind for SEO/static/headless projects.
 - Preferred admin/client dashboard direction: Next.js + React + TypeScript + Tailwind + shadcn/ui when dashboard complexity needs React.
-- Infrastructure interests: Cloudflare Workers/R2/D1/Queues, VPS, Supabase/PostgreSQL, queue systems, scraping, API architecture, multi-domain publishing.
+- Infrastructure interests: Cloudflare Workers/R2/D1/Queues, VPS, PostgreSQL (Drizzle), queue systems, scraping, API architecture, multi-domain publishing. (**Supabase TIDAK dipakai** — CLI sengaja tidak dipasang; lihat development.md.)
 
 ## Marketing & conversion
 - Strong areas: Meta Ads, Google Ads, landing page copywriting, funnel strategy, product research, conversion optimization, tracking/attribution, ecommerce positioning.
@@ -58,11 +58,12 @@ Tiga lapis, dipisah menurut **seberapa sering dibayar**:
 ~/.agents/local-skills ─┘
 ```
 
-- **Sumber tunggal:** `~/dotfiles/skills/local/`. Repo jezweb SUDAH DIBUANG (`~/.agents/repos/shared-skills` tak pernah ada di `cuan`; klaim "104 skill" itu usang).
+- **Sumber tunggal:** `~/dotfiles/skills/local/`. Repo jezweb sudah dilepas dari model ini (klaim "104 skill" itu usang). Di `cuan` `~/.agents/repos/shared-skills` tak pernah ada — tapi **di Mac clone-nya MASIH ADA** (2026-07-14), tinggal sisa, tidak lagi jadi sumber.
 - 🔑 **SINKRON LINTAS DEVICE = `git pull` SAJA.** Tidak ada langkah tambahan. Skill baru muncul sendiri; skill yang dihapus hilang sendiri — di semua CLI sekaligus. Catatan lama *"`git pull` TIDAK membuat symlink, wajib `skill-update`"* kini **SALAH** — itu berlaku untuk model per-skill yang sudah dibuang.
 - `skill-update` sekarang **cuma dipakai SEKALI per mesin baru** (dan dipanggil otomatis oleh `install.sh` / `install-macos.sh`). Idempoten — aman dijalankan ulang, no-op kalau sudah benar. Perlu lagi hanya kalau pasang CLI baru.
 - `skill-new` / `skill-remove` **tidak lagi perlu sync** — langsung aktif/hilang di semua CLI.
-- ⚠️ `~/.gemini/skills` dan `~/.codex/skills` **TIDAK ADA** dan bukan target. Gemini CLI dihapus 2026-07-13. `skill-update` sengaja MELEWATI CLI yang belum terpasang, bukan membuatkan foldernya.
+- ⚠️ `~/.gemini/skills`, `~/.codex/skills`, `~/.agents/skills` **bukan target** dan tidak dipelihara. Gemini CLI dihapus 2026-07-13. `skill-update` sengaja MELEWATI CLI yang belum terpasang, bukan membuatkan foldernya.
+  - Di `cuan` ketiganya memang tidak ada. **Di Mac ketiganya MASIH ADA** sebagai direktori asli berisi 104 symlink per-skill model lama (sebagian mati) — sisa, aman diabaikan, kandidat dibersihkan. Jangan tertukar: **`~/.gemini/` (root) itu home Antigravity (`agy`), JANGAN dihapus** — yang basi hanya subfolder `skills/`-nya.
 
 ### ☠️ Bug destruktif yang sudah diperbaiki — jangan dihidupkan lagi
 `skill-update` versi LAMA memakai model **symlink per-skill**. Kalau target (`~/.claude/skills`) ternyata sudah berupa symlink satu-direktori ke sumber, `backup_conflict()` akan **`mv` setiap direktori skill ASLI di dalam dotfiles** jadi `*.backup.<ts>`, lalu bikin symlink yang menunjuk dirinya sendiri → `Too many levels of symbolic links`. **Seluruh 33 skill lenyap.** Sudah direproduksi di sandbox (2026-07-14).
@@ -110,10 +111,8 @@ Sesudahnya, update = `git pull` saja. Kalau pasang CLI baru belakangan (mis. bar
 - For business ideas, check market, margin, compliance, distribution, data/tracking, and execution capacity.
 
 ## Local-only installations (macOS-specific, NOT in dotfiles sync)
-- **Ponytail** (DietrichGebert/ponytail) — coding minimalism skill + extension. Installed on this Mac only.
-  - Source: `~/.pi/agent/external/ponytail` (clone)
-  - Symlinks: `~/.pi/agent/skills/ponytail{,-audit,-debt,-gain,-help,-review}` + `~/.pi/agent/extensions/ponytail`
-  - **Why local-only:** eksperimen pribadi, tidak mau propagate ke Linux main via dotfiles sync.
-  - **How to update later:** `cd ~/.pi/agent/external/ponytail && git pull` (symlink tetap valid).
-  - **Aman dari `skill-update`:** symlink target di `~/.pi/agent/external/` (luar `$REPO_DIR` & `$LOCAL_SKILLS_DIR`).
+- **Ponytail** (DietrichGebert/ponytail) — coding minimalism. **Sekarang plugin `agy`**, bukan skill pi (diverifikasi 2026-07-14 di Mac): `~/.gemini/config/plugins/ponytail` (bareng `worktrunk`).
+  - Catatan lama yang menyebut clone `~/.pi/agent/external/ponytail` + symlink `~/.pi/agent/skills/ponytail-*` **SALAH** — dua-duanya tidak ada lagi.
+  - **Why local-only:** eksperimen pribadi, tidak di-propagate ke Linux lewat dotfiles sync.
+  - Kelola lewat `agy plugin` (subcommand-nya `plugin`, bukan `extensions`).
 - **Konvensi umum:** skill/extension yang "coba-coba" atau "pribadi" → install ke `~/.pi/agent/external/<nama>/` + symlink manual. Skill yang sudah "approved/default" → taruh di `~/dotfiles/skills/local/` agar ter-sync via `skill-update`.

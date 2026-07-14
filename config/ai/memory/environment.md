@@ -2,7 +2,7 @@
 > Bagian dari memori bersama. Perbarui kalau ada perubahan tool/setup.
 > **MULTI-MACHINE — fakta OS-specific WAJIB menyebut mesinnya. Cek `uname -a` dulu.**
 > - Linux (utama): hostname **`cuan`** — ThinkPad T480, Ubuntu 26.04, kernel 7.0.0. Julukan lama di memory = "fantastico" (mesin yang SAMA).
-> - Mac (kedua): `feriromansyah` — MacBook Air M1 8GB, macOS 26 arm64.
+> - Mac (kedua): hostname **`ongkis-MacBook-Air`** — MacBook Air M1 8GB, macOS 26.5.2 arm64. ("`feriromansyah`" = julukan lama di memori, mesin yang SAMA; `hostname` asli bukan itu.)
 > Instruksi `brew` = MAC SAJA. Di `cuan` pakai mise/apt.
 
 ## Tool terpasang (JANGAN install ulang)
@@ -43,7 +43,7 @@
 
 ## Mesin user (multi-machine)
 - Memory `~/.config/ai/` di-sync via dotfiles ke BEBERAPA mesin — fakta OS/toolchain harus menyebut mesin yg relevan.
-- Mac `feriromansyah` (MacBook Air M1 8GB, macOS 26 Darwin arm64): editor helix, mise/npm/pipx/brew.
+- Mac `ongkis-MacBook-Air` (MacBook Air M1 8GB, macOS 26.5.2 Darwin arm64): editor helix, mise/npm/pipx/brew. Detail lengkap: `devices/ongkis-MacBook-Air.md`.
 - Linux `cuan` (ThinkPad T480, Ubuntu 26.04, kernel 7.0.0, x86_64) — julukan lama "fantastico": editor helix (languages.toml symlink → dotfiles), mise/npm/pipx. TIDAK ada brew.
 - Mekanisme autostart 9router (kalau suatu saat dihidupkan lagi): mac → **launchd** `com.9router.autostart`; linux → **systemd --user** `~/.config/systemd/user/9router.service`. Generate via `dotfiles/bin/pi-9router-restore`. **Sekarang keduanya OFF** — lihat section "9router DINONAKTIFKAN".
 - Saat kasih instruksi OS-specific (launchd vs systemd, brew vs apt, dsb), SELALU cek mesin dulu (`uname -a`).
