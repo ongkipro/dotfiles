@@ -39,6 +39,10 @@ link "$DOT/config/gh/config.yml"         "$HOME/.config/gh/config.yml"      # ho
 link "$DOT/bin/ai-memory-link"           "$HOME/.local/bin/ai-memory-link"
 link "$DOT/bin/dotsync"                  "$HOME/.local/bin/dotsync"
 link "$DOT/bin/dotpush"                  "$HOME/.local/bin/dotpush"
+link "$DOT/bin/ai-doctor"                "$HOME/.local/bin/ai-doctor"        # cek rantai AI↔device↔memori
+link "$DOT/bin/security-check"           "$HOME/.local/bin/security-check"
+link "$DOT/bin/security-check-test"      "$HOME/.local/bin/security-check-test"
+link "$DOT/bin/inspect-project"          "$HOME/.local/bin/inspect-project"
 link "$DOT/bin/project-init"             "$HOME/.local/bin/project-init"
 for s in akun claude-kerja claude-personal tmux-clip tmux-setup tmux-battery security-check 9router-start pi-9router-restore device-register; do
   [ -e "$DOT/bin/$s" ] && link "$DOT/bin/$s" "$HOME/.local/bin/$s"

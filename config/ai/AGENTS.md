@@ -30,11 +30,37 @@
 - Memory edits → `~/.config/ai/memory/*.md` (cross-device via dotfiles)
 - Device-only edits → `~/.config/ai-local/*.md` (persists on this machine only)
 
-## Skill loading
+## CLI routing — siapa mengerjakan apa
 
-- Single source: `~/dotfiles/skills/local/`. Symlinked into `~/.claude/skills` and `~/.pi/agent/skills`.
-- Shopify content/SEO priority: `shopify-memory`, `shopify-listing`, `seo-website-builder`, `content`, `copywriting`
-- Shopify dev (theme/app/extension/Hydrogen) → repo map `~/dotfiles/docs/shopify-ai-development-repos.md`. The official Shopify AI Toolkit is NOT installed.
+| CLI | Peran | Skill |
+|---|---|---|
+| **claude** | Development global: arsitektur, konteks panjang, refactor besar, rencana, riset | auto (`~/.claude/skills`) |
+| **pi** | All-in-one: kerja harian di terminal, inspeksi, edit, jalankan | auto (`~/.pi/agent/skills`) |
+| **codex** | Logic: patch terfokus, code review, debugging, pendapat kedua | baca manual ↓ |
+| **agy** | UI/UX + development kecil: visual, preview, artefak, cek cepat | baca manual ↓ |
+
+Ini pembagian **default**, bukan pagar. Kalau satu CLI sudah memegang konteksnya, lanjutkan di situ.
+
+## Skills — satu sumber, semua CLI
+
+Sumber tunggal: **`~/dotfiles/skills/local/<nama>/SKILL.md`**. Sinkron antar-device = `git pull` saja.
+
+- **claude & pi** menemukannya otomatis (symlink satu-direktori).
+- **codex & agy** TIDAK punya direktori skill — mereka pakai plugin `plugin.json`, format berbeda. **Jangan** dibungkus jadi plugin: itu menciptakan sumber kedua. Skill itu cuma markdown, dan mereka bisa membaca file. Jadi:
+  > Butuh skill di codex/agy? Jalankan **`skill-list`** (nama + kegunaan), lalu **baca** `~/dotfiles/skills/local/<nama>/SKILL.md` langsung.
+
+Prioritas Shopify content/SEO: `shopify-memory`, `shopify-listing`, `seo-website-builder`, `content`, `copywriting`.
+Shopify dev (theme/app/extension/Hydrogen) → repo map `~/dotfiles/docs/shopify-ai-development-repos.md`. Official Shopify AI Toolkit TIDAK terpasang.
+
+## Kontrak dotfiles (penghubung antar-AI, antar-device, memori)
+
+Tiga lapis, dipisah menurut **seberapa sering dibayar**:
+
+1. **Aturan → `~/.config/ai/AGENTS.md`** (file ini). Selalu aktif, di setiap request, di keempat CLI. **Jaga tetap kecil** — ini satu-satunya biaya yang dikali empat. Kebijakan yang harus selalu berlaku (approval gates, disiplin kode) WAJIB di sini, bukan di skill: skill hanya menyala kalau model memilih memanggilnya.
+2. **Memori → `~/.config/ai/memory/*.md`.** Fakta, dibaca saat perlu. **Fakta yang bisa dicek dari disk: tulis SEKALI, sertakan perintah verifikasinya, jangan digandakan.** Kalau memori dan disk bertentangan → **disk menang**, lalu perbaiki memorinya.
+3. **Skill → `~/dotfiles/skills/local/`.** Pengetahuan dalam, on-demand.
+
+Cek kesehatan seluruh rantai di device manapun: **`ai-doctor`**.
 
 ## Code discipline (lazy senior dev)
 

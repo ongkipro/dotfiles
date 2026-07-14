@@ -28,6 +28,28 @@
 - Preferred monetization direction: tools directory, comparison/review content, AI productivity content, office/home-office products, SEO/product research portals.
 - Previously preferred tools-directory approach over broad portal/search-engine approach for affiliate software/tools.
 
+## Dotfiles = penghubung AI ↔ device ↔ memori (kontrak, 2026-07-14)
+
+Tiga lapis, dipisah menurut **seberapa sering dibayar**:
+
+| Lapis | Lokasi | Kapan dibaca | Aturan |
+|---|---|---|---|
+| **1. Aturan** | `~/.config/ai/AGENTS.md` | SELALU, tiap request, di 4 CLI | **Jaga kecil** (target ≤120 baris) — biayanya dikali empat. Kebijakan wajib (approval gates, disiplin kode) HARUS di sini, bukan di skill. |
+| **2. Memori** | `~/.config/ai/memory/*.md` | saat perlu | Fakta yang bisa dicek dari disk → tulis SEKALI + sertakan perintah verifikasinya. **Disk menang atas memori** kalau bertentangan. |
+| **3. Skill** | `~/dotfiles/skills/local/` | on-demand | Pengetahuan dalam. Router murni dilarang. |
+
+**Penyebut terkecil 4 CLI**: semuanya baca `AGENTS.md`, semuanya bisa baca file + jalankan shell. Jadi protokol antar-AI = **AGENTS.md kasih tahu di mana barangnya; sisanya cuma file.** JANGAN pakai sistem plugin per-CLI (bikin sumber kedua).
+
+**Cek kesehatan seluruh rantai di device manapun: `ai-doctor`** (`dotfiles/bin/ai-doctor`). Memeriksa repo, AGENTS.md ke tiap CLI, memori, symlink skill, symlink menggantung, security guard, dan status login CLI. FAIL = rusak, WARN = jalan tapi belum lengkap.
+
+## CLI routing — siapa mengerjakan apa (2026-07-14, dari user)
+- **claude** = development global: arsitektur, konteks panjang, refactor besar, rencana, riset. Skill: OTOMATIS.
+- **pi** = all-in-one: kerja harian di terminal. Skill: OTOMATIS.
+- **codex** = logic: patch terfokus, code review, debugging, pendapat kedua. Skill: baca manual.
+- **agy** = UI/UX + development kecil: visual, preview, artefak. Skill: baca manual.
+- ⚠️ **codex BELUM login di `cuan`** (`~/.codex/auth.json` tak ada) — Linux ini baru diinstall, masih persiapan. Jalankan `codex login` sebelum mengandalkan codex. Bukan bug.
+- **codex & agy tidak punya direktori skill** — sistem mereka plugin (`plugin.json`), format beda. `agy plugin validate` menolak `SKILL.md` kita. **Jangan dibungkus jadi plugin** = sumber kedua + beban sync. Cukup: jalankan `skill-list`, lalu baca `~/dotfiles/skills/local/<nama>/SKILL.md` langsung.
+
 ## Skill plumbing — MODEL: symlink SATU-DIREKTORI (2026-07-14)
 
 ```
