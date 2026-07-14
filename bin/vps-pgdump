@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# vps-pgdump — tarik backup Postgres + config stack KELUAR dari sebuah VPS.
+#
+# Kenapa ada: snapshot Vultr GAGAL SENYAP (2026-07-14, dicoba 2x: pending lalu
+# lenyap, 404, tanpa pesan error). Backup tidak boleh bergantung pada fitur
+# provider yang tidak bisa dipercaya. Ini menarik data KELUAR — jadi jalan di
+# Vultr, Hetzner, atau VPS mana pun yang menjalankan Postgres di Docker.
+#
+# `pg_dump` yang jalan DI DALAM server, disimpan di disk yang sama, BUKAN backup.
+# Kalau instance-nya hilang, dump-nya ikut hilang. Backup harus keluar dari mesinnya.
+#
+# Pakai:
+#   vps-pgdump root@45.77.33.112              # TokoΦ (Coolify @ Vultr)
+#   vps-pgdump root@1.2.3.4 -i ~/.ssh/keyname # kunci non-default
+#
+# Read-only di sisi server: cuma `docker ps` + `pg_dump`. Tidak mengubah apa pun.
+set -euo pipefail
+
+HOST="${1:-}"
+shift || true
+SSH_OPTS=("$@")   # mis. -i ~/.ssh/tokophi_dev
+
+[ -n "$HOST" ] || { echo "Usage: vps-pgdump user@host [ssh-opts...]" >&2; exit 1; }
+
+STAMP=$(date +%Y%m%d-%H%M%S)
+OUT="$HOME/Documents/work/backups/$(echo "$HOST" | tr '@.' '__')-$STAMP"
+mkdir -p "$OUT"
+
+# Backup berisi SECRET (env, kredensial DB). JANGAN pernah masuk repo.
+case "$OUT" in
+  "$HOME/dotfiles"/*) echo "TOLAK: output di dalam dotfiles = risiko secret ter-commit." >&2; exit 1 ;;
+esac
+
+say() { printf '\n\033[1m%s\033[0m\n' "$1"; }
+run() { ssh "${SSH_OPTS[@]}" -o BatchMode=yes -o ConnectTimeout=10 "$HOST" "$@"; }
+
+say "1. Koneksi"
+run 'echo "  ✓ SSH OK — $(hostname), uptime$(uptime -p | sed s/up//)"'
+
+say "2. Container yang jalan"
+run 'docker ps --format "  {{.Names}}\t{{.Image}}\t{{.Status}}"' | tee "$OUT/containers.txt"
+
+say "3. Cari container Postgres"
+PG=$(run 'docker ps --format "{{.Names}}\t{{.Image}}" | grep -iE "postgres|pgvector" | head -1 | cut -f1' || true)
+if [ -z "$PG" ]; then
+  echo "  ✗ Tidak ada container Postgres yang jalan. Lihat $OUT/containers.txt." >&2
+  echo "  Kalau DB-nya bukan di Docker, dump manual lalu scp keluar." >&2
+  exit 1
+fi
+echo "  ✓ container: $PG"
+
+say "4. Daftar database"
+# Kredensial dibaca DARI DALAM container (env-nya sendiri) — tidak pernah dicetak.
+DBS=$(run "docker exec $PG sh -c 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -tAc \"SELECT datname FROM pg_database WHERE datistemplate=false AND datname<>'\"'\"'postgres'\"'\"';\"'")
+echo "$DBS" | sed 's/^/  - /'
+
+say "5. Dump (custom format, kompresi)"
+for db in $DBS; do
+  [ -n "$db" ] || continue
+  printf '  %-24s ' "$db"
+  run "docker exec $PG sh -c 'pg_dump -Fc -U \"\$POSTGRES_USER\" $db'" > "$OUT/$db.dump"
+  sz=$(du -h "$OUT/$db.dump" | cut -f1)
+  # Verifikasi: dump yang tak bisa dibaca = bukan backup.
+  if pg_restore -l "$OUT/$db.dump" >/dev/null 2>&1; then
+    n=$(pg_restore -l "$OUT/$db.dump" 2>/dev/null | grep -c '^[0-9]' || true)
+    echo "✓ $sz — $n objek, terbaca oleh pg_restore"
+  else
+    echo "✗ $sz — RUSAK (pg_restore tak bisa membacanya). JANGAN dianggap backup."
+    exit 1
+  fi
+done
+
+say "6. Config stack (compose + Coolify), tanpa isi .env"
+run 'find /data/coolify -maxdepth 3 -name "docker-compose*.y*ml" 2>/dev/null | head -20' > "$OUT/compose-files.txt" || true
+run 'tar czf - /data/coolify/applications /data/coolify/databases 2>/dev/null' > "$OUT/coolify-config.tar.gz" 2>/dev/null || \
+  echo "  ! /data/coolify tidak terbaca — lewati (dump DB tetap aman)"
+[ -s "$OUT/coolify-config.tar.gz" ] && echo "  ✓ coolify-config.tar.gz ($(du -h "$OUT/coolify-config.tar.gz" | cut -f1))" || rm -f "$OUT/coolify-config.tar.gz"
+
+say "SELESAI"
+echo "  Lokasi : $OUT"
+du -sh "$OUT" | awk '{print "  Ukuran : " $1}'
+echo
+echo "  🔒 Isinya SECRET (kredensial DB, env). JANGAN commit, JANGAN taruh di dotfiles."
+echo "  Restore nanti: pg_restore -d <db> --clean --if-exists <file>.dump"
