@@ -69,6 +69,12 @@
 ### Pitfall: jangan jalankan `9router --tray` bareng service
 - Bentrok port 20128. Pilih salah satu.
 
+### graphify — DITOLAK (2026-07-14), idenya diambil
+- Tool: `Graphify-Labs/graphify` (MIT, Python, tree-sitter → knowledge graph). Repo sehat & aktif; **bukan** soal kualitas.
+- Ditolak karena: (1) korpus kita kekecilan — README-nya sendiri mengaku di ~6 file rasio token ~1x; angka "71.5x" itu korpus campuran 52 file berisi paper+gambar; (2) `graphify install` **menyunting `~/.claude/CLAUDE.md` + `~/.codex/AGENTS.md` in-place** (`install.py`) — itu symlink ke memori bersama di dotfiles, dipakai 4 CLI; (3) pre-1.0, churn tinggi.
+- **Yang diambil:** prinsip "edge menggantung harus kelihatan" (EXTRACTED vs INFERRED). Diterapkan jadi `scripts/lint-links.mjs` di repo kamus — bukan dengan memasang tool-nya.
+- Jangan evaluasi ulang kecuali korpus kita berubah drastis (mis. ratusan file docs/paper jadi satu folder riset).
+
 ### Anti-pattern memory (pelajaran 2026-07-14)
 - **Fakta operasional yang berubah-ubah (status service, default model, versi) jangan disalin ke banyak file.** Pernah terjadi: fakta autostart 9router tersalin 6×, dan SEMUANYA jadi salah begitu service di-disable; default model pi punya 4 jawaban bertentangan di 2 file.
 - Aturan: fakta yang bisa dicek dari disk → tulis SATU kali, sebutkan **perintah verifikasinya**, jangan digandakan. Agent yang baca kontradiksi akan menebak.

@@ -48,13 +48,22 @@
 - Mekanisme autostart 9router (kalau suatu saat dihidupkan lagi): mac → **launchd** `com.9router.autostart`; linux → **systemd --user** `~/.config/systemd/user/9router.service`. Generate via `dotfiles/bin/pi-9router-restore`. **Sekarang keduanya OFF** — lihat section "9router DINONAKTIFKAN".
 - Saat kasih instruksi OS-specific (launchd vs systemd, brew vs apt, dsb), SELALU cek mesin dulu (`uname -a`).
 
-## TokoΦ — server dev (Vultr) + Coolify (2026-07-09, mesin linux `fantastico`)
-- **VPS dev**: Vultr, IP **45.76.146.40**, region **Singapore (sgp)**, plan `vhp-8c-16gb-amd` (8 vCPU/16GB/350GB NVMe, **~$96/bulan**). Ubuntu 24.04.
-- 🔴 **DEADLINE BIAYA: kredit $305 berlaku 1 bulan sejak 2026-07-09 → habis ± 2026-08-09.** Setelah itu ditagih ~$96/bln. **Destroy atau migrasi ke Hetzner SEBELUM tanggal itu.** Blocker: `~/.vultr-cli.yaml` hilang (lihat baris vultr-cli di bawah) → tanpa itu, destroy via CLI tidak bisa; alternatif lewat dashboard Vultr.
-- **SSH**: key-only, `ssh -i ~/.ssh/tokophi_dev root@45.76.146.40` (private key lokal di fantastico; Vultr ssh-key id `c4d746ce-…`). UFW aktif: 22/80/443/8000/6001/6002.
-- **Coolify** v4.1.2 di server (dashboard `http://45.76.146.40:8000`, admin `ongkiardiansyah@gmail.com`, registrasi publik OFF). Docker diinstall otomatis oleh installer Coolify. Server type = Localhost/"This Machine".
-- **vultr-cli** (2026-07-13 diperbarui): sekarang via **mise** (`vultr-cli@3.10.0`, shim di `~/.local/share/mise/shims/vultr-cli`) — binary lama di `~/.local/bin/` sudah hilang. Auth `~/.vultr-cli.yaml` **JUGA hilang → perlu re-input API key** (chmod 600, NOT di dotfiles). Skill: `~/dotfiles/skills/local/vultr/`.
-- **Rencana 2-fase**: dev=Vultr SG (kredit) → prod=Hetzner SG. Migrasi murah (Coolify+git+pg_dump+Cloudflare ganti IP origin). Domain `tokophi.com` sudah di Cloudflare (DNS belum di-point).
+## TokoΦ — server Vultr + Coolify (DIVERIFIKASI LANGSUNG dari API, 2026-07-14)
+> Verifikasi ulang kapan pun: `vultr-cli instance list` · `vultr-cli account info` · `vultr-cli snapshot list`.
+> ☠️ Catatan lama di sini SALAH TOTAL selama berhari-hari (server `45.76.146.40`, 8c/16GB, "$96/bln", "kredit habis 9 Agt"). Semua angka itu **fiktif** — servernya sudah tidak ada. Ini contoh kenapa **disk/API menang atas memori**.
+
+- **SATU-SATUNYA instance**: label **`volumdev`** (namanya menyesatkan — isinya **TokoΦ + Coolify**).
+  - ID `0d341106-34ff-4b5b-8441-9350e1b8ce35` · IP **45.77.33.112** · Singapore (sgp) · Ubuntu 24.04 · dibuat **2026-07-10** · status running.
+  - Plan **`vhp-4c-8gb-amd`** = 4 vCPU / 8 GB / 180 GB → **$48,00/bulan** (BUKAN $96).
+- **Server lama `45.76.146.40` (8c/16GB) SUDAH TIDAK ADA** — kemungkinan di-destroy 2026-07-10 saat `volumdev` dibuat. Kunci SSH `tokophi-dev` (`c4d746ce-…`) masih nyangkut di akun sebagai sisa; kunci aktif = `volumdev` (`6b68411e-…`).
+- **Kredit: −$305,00 MASIH UTUH.** Pending charges baru **$12,24** (per 2026-07-14). Sumber: $300 "Account Credit" + $5 Visa, keduanya 2026-07-09.
+  - Laju bakar $48/bln → kredit $305 ≈ **~6 bulan runway**, ASALKAN kredit tidak kedaluwarsa.
+  - ⚠️ **Tanggal kedaluwarsa kredit TIDAK diekspos API Vultr** (di billing history cuma tercatat `payment / Account Credit`). Klaim lama "berlaku 1 bulan" **belum terverifikasi** — cek manual di dashboard Vultr → Billing. Kalau benar expire ~9 Agt, $305 hangus dan keputusan migrasi jadi mendesak.
+- **Backup**: sebelum 2026-07-14 **NOL** — tak ada snapshot, tak ada scheduled backup, tak ada block storage. (`pg_dump` harian yang dicatat di projects.md ada di DISK YANG SAMA → bukan backup.)
+  - ✅ Snapshot pertama dibuat 2026-07-14: `f9526f57-53af-4860-ad48-cb73f5444276` ("tokophi-coolify pre-migration").
+- **Tak ada resource menagih lain**: block storage 0, load balancer 0, reserved IP 0, DNS 0. Jadi $48/bln itu total.
+- **vultr-cli**: v3.10.0 via mise. Auth `~/.vultr-cli.yaml` (chmod 600, di `$HOME` — **JANGAN** di dotfiles, dan **JANGAN** `export VULTR_API_KEY` di `~/.bashrc`: `dotsync refresh_snapshots` menyalin bashrc ke repo). Sudah terpasang & jalan per 2026-07-14. Skill: `dotfiles/skills/local/vultr/`.
+- **Rencana 2-fase**: dev=Vultr SG (kredit) → prod=Hetzner SG. Migrasi murah (Coolify + git + `pg_dump` + ganti IP origin di Cloudflare). Domain `tokophi.com` di Cloudflare, DNS belum di-point.
 
 ## AI CLI — status terverifikasi (2026-07-13, `fantastico`)
 - **Terpasang & jalan**: `claude` (2.1.207, login OK), `codex` (0.144.1, **BELUM login** — tak ada `~/.codex/auth.json`), `pi` (0.80.6), `agy` (Antigravity 1.1.1).
