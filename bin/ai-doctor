@@ -55,9 +55,11 @@ check_link claude "$HOME/.claude/CLAUDE.md"          "$HOME/.claude"
 check_link codex  "$HOME/.codex/AGENTS.md"           "$HOME/.codex"
 check_link agy    "$HOME/.antigravity/AGENTS.md"     "$HOME/.antigravity"
 if command -v pi >/dev/null 2>&1; then
-  grep -q "config/ai/AGENTS.md" "$HOME/.bashrc" "$HOME/dotfiles/home/bashrc.snapshot" 2>/dev/null \
-    && ok "pi: lewat wrapper pi() di shell rc" \
-    || wrn "pi: wrapper pi() tak menyebut AGENTS.md — cek shell rc"
+  # Wrapper pi() hidup di config/zshrc.tools.sh (di-source dari ~/.zshrc), BUKAN .bashrc.
+  grep -qs "config/ai/AGENTS.md" \
+      "$DOT/config/zshrc.tools.sh" "$HOME/.zshrc" "$HOME/.bashrc" 2>/dev/null \
+    && ok "pi: lewat wrapper pi() (append AGENTS.md)" \
+    || wrn "pi: wrapper pi() tak menyebut AGENTS.md — cek $DOT/config/zshrc.tools.sh"
 fi
 
 # ── 3. Layer 2: memory ────────────────────────────────────────────────────────
@@ -121,6 +123,21 @@ for c in claude codex pi agy; do
     case "$c" in
       codex) [ -f "$HOME/.codex/auth.json" ] && ok "codex: terpasang + login" \
                || wrn "codex: terpasang tapi BELUM LOGIN → jalankan: codex login" ;;
+      claude)
+        # `command -v` cuma lihat symlink launcher — native binary (claude.exe ~240MB)
+        # dipasang lewat postinstall/optional-dep npm & KADANG gagal unduh senyap →
+        # `claude` error "native binary not installed". Uji launch beneran, lalu self-heal.
+        if claude --version >/dev/null 2>&1; then
+          ok "claude: terpasang + native binary OK"
+        else
+          pkg="$(npm root -g 2>/dev/null)/@anthropic-ai/claude-code"
+          if [ -f "$pkg/install.cjs" ] && node "$pkg/install.cjs" >/dev/null 2>&1 \
+               && claude --version >/dev/null 2>&1; then
+            ok "claude: native binary HILANG → diperbaiki via postinstall"
+          else
+            wrn "claude: native binary HILANG → perbaiki: npm i -g @anthropic-ai/claude-code"
+          fi
+        fi ;;
       *)     ok "$c: terpasang" ;;
     esac
   else

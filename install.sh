@@ -49,6 +49,16 @@ for s in akun claude-kerja claude-personal tmux-clip tmux-setup security-check s
 ~/.local/bin/ai-memory-link              # symlink AGENTS.md ke semua AI CLI (claude/codex/pi/agy)
 "$DOT/skills/agents-bin/skill-update"    # ~/.claude/skills + ~/.pi/agent/skills -> dotfiles/skills/local (idempoten)
 
+# Jaminan native binary claude ter-unduh. `npm i -g @anthropic-ai/claude-code` (step 3)
+# menaruh native binary via optional-dep/postinstall yang KADANG gagal senyap → `claude`
+# error "native binary not installed". Kalau launch gagal, jalankan ulang postinstall-nya.
+if command -v claude >/dev/null 2>&1 && ! claude --version >/dev/null 2>&1; then
+  echo "==> claude native binary hilang — menjalankan postinstall..."
+  node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs" \
+    && echo "   claude native binary ✓ diperbaiki" \
+    || echo "   ⚠️  postinstall gagal — perbaiki manual: npm i -g @anthropic-ai/claude-code"
+fi
+
 echo "==> Daftarkan device ini ke registry (devices/<hostname>.md)..."
 # Non-fatal: registry cuma dokumentasi. Jangan sampai bootstrap device baru gagal
 # total hanya karena probe hardware bermasalah (install.sh pakai `set -e`).
