@@ -54,11 +54,11 @@ Tiga lapis, dipisah menurut **seberapa sering dibayar**:
 
 ```
 ~/.claude/skills       ─┐
-~/.pi/agent/skills     ─┼─→ ~/dotfiles/skills/local/   (33 skill)
+~/.pi/agent/skills     ─┼─→ ~/dotfiles/skills/local/   (cek jumlah: `skill-list`)
 ~/.agents/local-skills ─┘
 ```
 
-- **Sumber tunggal:** `~/dotfiles/skills/local/`. Repo jezweb sudah dilepas dari model ini (klaim "104 skill" itu usang). Di `cuan` `~/.agents/repos/shared-skills` tak pernah ada — tapi **di Mac clone-nya MASIH ADA** (2026-07-14), tinggal sisa, tidak lagi jadi sumber.
+- **Sumber tunggal:** `~/dotfiles/skills/local/`. Jumlah aktif selalu cek dengan `skill-list`; jangan simpan angka sebagai fakta tetap. Repo jezweb sudah dilepas dari model ini (klaim "104 skill" itu usang). Di `cuan` `~/.agents/repos/shared-skills` tak pernah ada — tapi **di Mac clone-nya MASIH ADA** (2026-07-14), tinggal sisa, tidak lagi jadi sumber.
 - 🔑 **SINKRON LINTAS DEVICE = `git pull` SAJA.** Tidak ada langkah tambahan. Skill baru muncul sendiri; skill yang dihapus hilang sendiri — di semua CLI sekaligus. Catatan lama *"`git pull` TIDAK membuat symlink, wajib `skill-update`"* kini **SALAH** — itu berlaku untuk model per-skill yang sudah dibuang.
 - `skill-update` sekarang **cuma dipakai SEKALI per mesin baru** (dan dipanggil otomatis oleh `install.sh` / `install-macos.sh`). Idempoten — aman dijalankan ulang, no-op kalau sudah benar. Perlu lagi hanya kalau pasang CLI baru.
 - `skill-new` / `skill-remove` **tidak lagi perlu sync** — langsung aktif/hilang di semua CLI.
@@ -93,6 +93,12 @@ Sesudahnya, update = `git pull` saja. Kalau pasang CLI baru belakangan (mis. bar
 - Trigger sengaja SEMPIT (momen keputusan: mau install / mau bikin abstraksi / mau validasi), BUKAN "semua tugas dev" — trigger lebar itu dosa `ai-terminal-project-runner` yang sudah dibuang.
 - **Jangan pakai `claude plugin install`** untuk skill yang ingin dipakai lintas-CLI — itu hanya mendaftarkan ke Claude Code dan menciptakan sumber kedua. Skill = direktori berisi `SKILL.md` di `dotfiles/skills/local/`.
 - Riwayat: 2026-07-10 sebelas skill Cloudflare/web-perf masih berupa direktori asli terduplikasi di beberapa konsumen; sudah dipindah ke dotfiles. Sejak model satu-direktori (2026-07-14), duplikasi semacam itu tak bisa terjadi lagi.
+
+## Skill `volumx-writer` (2026-07-19)
+- Mesin kualitas lintas-channel untuk create/rewrite/humanize/localize/audit/score dalam bahasa Indonesia atau Inggris. Tanggung jawab utamanya: **preservation ledger**, anti-hallucination, naturalness, brand voice, dan claim integrity.
+- Tetap terpisah dari `content` (workflow produksi/batching/publish) dan `copywriting` (house rules/templates). Untuk Shopify, `shopify-listing` tetap pemilik operasi katalog dan hard rules; `volumx-writer` tidak boleh menambahkan CTA atau third-party brand ke description/meta kecuali user opt in.
+- Sumber awal diaudit dari `/Users/ongki/Downloads/volumx-writer`, lalu disesuaikan dengan kontrak dotfiles. README dan validator bundle tidak dipasang karena bukan knowledge runtime; metadata UI memakai `agents/openai.yaml`, validasi memakai validator standar `skill-creator`.
+- Verifikasi disk: `skill-list | rg 'volumx-writer'`; validasi: `python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py ~/dotfiles/skills/local/volumx-writer`; jalur lintas-agent: `readlink ~/.claude/skills ~/.pi/agent/skills ~/.agents/local-skills`.
 
 ## AI workflow
 - Tools in active scope: Claude Code, Codex, pi.dev, Antigravity (`agy`), local skills. (9Router ada tapi MATI — lihat environment.md.)

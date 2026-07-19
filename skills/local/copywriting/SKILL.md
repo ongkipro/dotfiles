@@ -8,8 +8,9 @@ description: >-
   Triggers: copy rules, headline, meta description, alt text, brand voice,
   product title, listing copy, social caption, blog intro, copywriting rules,
   cara nulis, bikin judul, tulis caption. Pairs with content (workflow),
-  shopify-listing (product ops), seo-website-builder (SEO QA). NOT a content
-  workflow orchestrator — use content for the production pipeline.
+  volumx-writer (preservation + humanization), shopify-listing (product ops),
+  and seo-website-builder (SEO QA). NOT a content workflow orchestrator — use
+  content for the production pipeline.
 ---
 
 # Copywriting — Rules + Templates
@@ -33,6 +34,11 @@ unless the user states otherwise.
 5. **Only verifiable facts** — pull from source data or research; never invent
    piece counts, sizes, materials, prices, dates.
 6. **No fluff** — every sentence must carry information or a benefit.
+
+For rewrites, humanization, localization, regulated copy, or any fact-dense
+source, also run `volumx-writer` so qualifiers, claims, citations, and conditions
+survive the edit. This skill owns house rules and templates; `volumx-writer`
+owns preservation and claim integrity.
 
 ## Char limits (cross-channel)
 
@@ -218,6 +224,7 @@ For 50+ items:
 ## Pair with
 
 - `content` — production workflow + batching + calendar
+- `volumx-writer` — preservation, anti-hallucination, humanization, and scoring
 - `shopify-listing` — applies these rules to Shopify products
 - `seo-website-builder` — SEO QA, schema, sitemap
 - `prd-taskbreaker` — break a copy sprint into numbered tasks
