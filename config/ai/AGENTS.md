@@ -13,7 +13,7 @@
 
 - Editor helix (`hx`), shell bash + mise, alur kerja terminal-first. Toolchain lengkap → `memory/environment.md`.
 - Fakta & konteks → baca `~/.config/ai/memory/*.md` saat perlu. **Kalau memori dan disk bertentangan, disk menang** — lalu perbaiki memorinya. Cek kesehatan rantai: `ai-doctor`.
-- Konteks per-project (status, keputusan, gotcha tiap repo) → `~/.claude/projects/-Users-ongki/memory/`, indeksnya `MEMORY.md`. Ter-sync lewat dotfiles. **Progres kode dibaca dari `STATUS.md`/`BUILD-LOG.md` di repo, bukan dari memori.**
+- Konteks per-project (status, keputusan, gotcha tiap repo) → `~/dotfiles/config/ai/project-memory/`, indeksnya `MEMORY.md`. Claude Code melihatnya sebagai memori project lewat symlink. **Progres kode dibaca dari `STATUS.md`/`BUILD-LOG.md` di repo, bukan dari memori.**
 
 ## Output discipline
 

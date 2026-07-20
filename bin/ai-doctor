@@ -103,7 +103,7 @@ if [ -L "$PMEM" ]; then
     bad "memori project: symlink ada tapi MEMORY.md tidak terbaca — target putus. Cek: ls -la $PMEM"
   fi
 elif [ -d "$PMEM" ]; then
-  bad "memori project: ~/.claude/projects/-Users-ongki/memory adalah direktori ASLI, bukan symlink — tidak ter-sync ke dotfiles. Pindahkan ke $DOT/config/ai/project-memory lalu: ln -sfn $DOT/config/ai/project-memory $PMEM"
+  bad "memori project: ${PMEM/#$HOME/\~} adalah direktori ASLI, bukan symlink — tidak ter-sync ke dotfiles. Cek dulu apakah isinya sudah ada di $DOT/config/ai/project-memory, lalu: ai-memory-link"
 fi
 
 # ── 4. Layer 3: skills ────────────────────────────────────────────────────────
