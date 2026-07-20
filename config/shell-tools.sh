@@ -70,15 +70,15 @@ mkcd(){ mkdir -p -- "$1" && cd -- "$1"; }
 ff(){ local f; f=$(fzf --preview 'bat -n --color=always {} 2>/dev/null || cat {}') && [ -n "$f" ] && ${EDITOR%% *} "$f"; }
 fkill(){ local pid; pid=$(ps -eo pid,comm,%cpu,%mem | sed 1d | sort -rnk3 | fzf -m --header='pilih proses (TAB=multi)' | awk '{print $1}'); [ -n "$pid" ] && echo "$pid" | xargs -r kill "${1:--15}"; }
 
-# --- pi.dev: auto-load shared AI memory + welcome banner ---
+# --- pi.dev: auto-load shared AI memory ---
+# Welcome banner is rendered by the pi extension (~/.pi/agent/extensions/welcome-screen.ts),
+# so the wrapper must NOT also cat welcome.txt — that caused a double banner.
 pi() {
   local mem="$HOME/.config/ai/AGENTS.md"
-  local welcome="$HOME/.config/ai/welcome.txt"
   local local_mem="$HOME/.config/ai-local/device.md"
   case "${1:-}" in
     update|install|uninstall|remove|list) command pi "$@" ;;
     *)
-      [ -f "$welcome" ] && cat "$welcome"
       # Build --append-system-prompt args: shared memory + device-local memory
       local -a args=()
       [ -f "$mem" ]       && args+=(--append-system-prompt "$mem")

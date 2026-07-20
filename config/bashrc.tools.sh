@@ -2,14 +2,14 @@
 # Main bashrc already handles: fzf, zoxide, eza, bat, EDITOR, PATH
 # >>> dotfiles-tools (ongkipro/dotfiles) >>>
 
-# --- pi.dev: auto-load shared AI memory + welcome banner ---
+# --- pi.dev: auto-load shared AI memory ---
+# Welcome banner is rendered by the pi extension (~/.pi/agent/extensions/welcome-screen.ts),
+# so the wrapper must NOT also cat welcome.txt — that caused a double banner.
 pi() {
   local mem="$HOME/.config/ai/AGENTS.md"
-  local welcome="$HOME/.config/ai/welcome.txt"
   case "${1:-}" in
     update|install|uninstall|remove|list) command pi "$@" ;;
     *)
-      [ -f "$welcome" ] && cat "$welcome"
       if [ -f "$mem" ]; then command pi --append-system-prompt "$mem" "$@"; else command pi "$@"; fi
       ;;
   esac
