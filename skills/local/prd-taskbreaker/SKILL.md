@@ -39,7 +39,7 @@ The binding rule: **every task traces back to one requirement, and every require
 
 ## 1. Clarify — this is a gate, not small talk
 
-Don't guess an unclear requirement. Ask first (skip whatever is already obvious from context):
+Ask the user **in Indonesian** (conversation is Indonesian; the artifacts you write stay English). Don't guess an unclear requirement — ask first, skipping whatever is already obvious from context:
 - Stack? (frontend / backend / DB / deploy target) — if the repo already has `AGENTS.md`/`STATUS.md`, read those first, don't re-ask.
 - Who is the user, and what changes for them?
 - Any existing system/DB/integration to connect to?
