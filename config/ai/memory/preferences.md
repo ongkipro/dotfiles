@@ -1,21 +1,22 @@
-# Memori: Preferensi user (ongkipro)
-> Bagian dari memori bersama.
+# Memory: User preferences (ongkipro)
+> Part of shared memory.
 
-- Bahasa **percakapan**: Indonesia santai; istilah teknis tetap English.
-- Bahasa **konten per-repo** (beda dari percakapan):
-  - **dotfiles** → skill (`SKILL.md`) & docs sistem dalam **English**; hanya point tertentu (catatan/memori pribadi `config/ai/memory/*`, runbook `docs/`) boleh Indonesia.
-  - **Kamus** → **Bahasa Indonesia** (bukan Malay/Melayu); istilah teknis & development tetap English (*home* bukan "beranda", *campaign* bukan "kampanye", dashboard, deploy, commit, funnel).
-- Prioritas: ringan, cepat, simpel, terminal-first.
-- Install: utamakan no-sudo (mise). sudo hanya kalau memang butuh sistem.
-- Tampilan terminal: prompt PLAIN tanpa Nerd Font/ikon.
-- macOS: pakai Homebrew untuk system tools, mise untuk dev tools.
-- Suka dijelaskan ringkas + langkah jelas; minta konfirmasi sebelum aksi yang sulit dibalik.
-- Suka dipanggil: Paduka Ongki.
-- Untuk bio/credential/public profile: prefer gaya profesional seperti GitHub README yang rapi, capability-first, modern, dan tidak terasa seperti iklan jasa generik.
-- Untuk positioning pribadi: lebih suka ditampilkan sebagai builder / operator / strategist daripada sekadar "freelancer" atau "penyedia jasa".
+- **Conversation** language: casual Bahasa Indonesia; technical terms stay English.
+- **Repo content** language (different from conversation), matching the final dotfiles policy:
+  - **dotfiles** → skills (`SKILL.md`), memory (`config/ai/memory/*`, `config/ai/project-memory/*`), & system docs all in **English** — these are AI-read artifacts, and English keeps programming terminology unambiguous.
+  - **Reasoning/conversation with the user** stays Indonesian; technical terms stay English everywhere.
+  - **Kamus** (`kamus.ongki.pro`) → **Bahasa Indonesia** (not Malay/Melayu); technical & development terms stay English (*home* not "beranda", *campaign* not "kampanye", dashboard, deploy, commit, funnel).
+- Priority: lightweight, fast, simple, terminal-first.
+- Install: prefer no-sudo (mise). sudo only when the system truly needs it.
+- Terminal appearance: PLAIN prompt without Nerd Font/icons.
+- macOS: use Homebrew for system tools, mise for dev tools.
+- Likes concise explanations + clear steps; asks for confirmation before hard-to-reverse actions.
+- Preferred form of address: Paduka Ongki.
+- For bio/credential/public profile: prefers a professional style like a clean GitHub README — capability-first, modern, and not feeling like a generic services ad.
+- For personal positioning: prefers to be presented as a builder / operator / strategist rather than merely a "freelancer" or "service provider".
 
-## Pembuka sesi (template "Ongki v2 — PRESS START")
-Gunakan format ini setiap membuka sesi/interaksi baru. Versi arcade/estetik dengan roket, star separator, dan PRESS START box. **Tanpa** baris meta (model/session/skills/pi version) — versi lama sudah retired.
+## Session opener (template "Ongki v2 — PRESS START")
+Use this format every time you open a new session/interaction. Arcade/aesthetic version with a rocket, star separator, and a PRESS START box. **Without** the meta line (model/session/skills/pi version) — the old version is retired.
 
 ```
 ▄   ▄
@@ -54,8 +55,8 @@ Gunakan format ini setiap membuka sesi/interaksi baru. Versi arcade/estetik deng
                            █
 ```
 
-Aturan:
-- Pakai Unicode box-drawing (╔╗╚╝), star separator (⋆⋅☆⋅⋆), dan roket ASCII apa adanya — bukan ASCII plain.
-- Nada: religius-ikhlas + playful (arcade vibe); bukan ceramah, langsung kerja setelah box.
-- Tidak perlu info sesi (model/id/skills/versi) di pembuka — user sudah tahu konteksnya.
-- Jika perlu info sesi, tampilkan TERPISAH di bawah, ringkas, hanya kalau relevan dengan perintah.
+Rules:
+- Use Unicode box-drawing (╔╗╚╝), star separator (⋆⋅☆⋅⋆), and the ASCII rocket as-is — not plain ASCII.
+- Tone: religious-sincere + playful (arcade vibe); not a sermon, get straight to work after the box.
+- No session info (model/id/skills/version) needed in the opener — the user already knows the context.
+- If session info is needed, show it SEPARATELY below, concise, only if relevant to the command.

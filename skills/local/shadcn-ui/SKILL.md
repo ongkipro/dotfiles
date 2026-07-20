@@ -1,33 +1,33 @@
 ---
 name: shadcn-ui
-description: 'Pakai shadcn/ui components untuk React/Next.js — fokus ke pemakaian komponen: charts (Recharts), sidebar, blocks, form patterns, data table, dark mode toggle, dan customisasi lewat semantic tokens. Mulai dari nol dengan shadcn init. Triggers: ''shadcn'', ''shadcn/ui'', ''shadcn ui'', ''install component'', ''buat form shadcn'', ''data table'', ''chart recharts'', ''sidebar shadcn'', ''shadcn blocks'', ''dark mode toggle''. Untuk CLI/registry kustom/theming mendalam → skill resmi `vercel:shadcn` (plugin Vercel).'
+description: 'Use shadcn/ui components for React/Next.js — focused on component usage: charts (Recharts), sidebar, blocks, form patterns, data table, dark mode toggle, and customization via semantic tokens. Start from scratch with shadcn init. Triggers: ''shadcn'', ''shadcn/ui'', ''shadcn ui'', ''install component'', ''buat form shadcn'', ''build shadcn form'', ''data table'', ''chart recharts'', ''sidebar shadcn'', ''shadcn blocks'', ''dark mode toggle''. For custom CLI/registry or deep theming → official skill `vercel:shadcn` (Vercel plugin).'
 ---
 
 # shadcn/ui Components
 
-Install dan pakai shadcn/ui components — termasuk charts, sidebar, dan blocks terbaru.
+Install and use shadcn/ui components — including the latest charts, sidebar, and blocks.
 
-**Prerequisite**: Tailwind CSS + CSS variables sudah setup. Kalau belum, jalankan `pnpm dlx shadcn@latest init` (akan setup semuanya otomatis).
+**Prerequisite**: Tailwind CSS + CSS variables already set up. If not, run `pnpm dlx shadcn@latest init` (it sets everything up automatically).
 
-## Init Project Baru
+## Init New Project
 
 ```bash
-# Init shadcn di project yang sudah ada
+# Init shadcn in an existing project
 pnpm dlx shadcn@latest init
 
-# Pilih saat ditanya:
-# Style: Default atau New York
-# Base color: Neutral / Slate / Zinc / dst
-# CSS variables: Yes (wajib untuk dark mode)
+# Choose when prompted:
+# Style: Default or New York
+# Base color: Neutral / Slate / Zinc / etc
+# CSS variables: Yes (required for dark mode)
 ```
 
-Akan membuat: `components.json`, update `tailwind.config.ts`, buat `src/lib/utils.ts` (cn helper), buat `src/components/ui/`.
+It creates: `components.json`, updates `tailwind.config.ts`, creates `src/lib/utils.ts` (cn helper), creates `src/components/ui/`.
 
 ## Installation Order
 
-Install foundation dulu, baru feature components:
+Install the foundation first, then feature components:
 
-### Foundation (install pertama)
+### Foundation (install first)
 
 ```bash
 pnpm dlx shadcn@latest add button
@@ -72,16 +72,16 @@ pnpm dlx shadcn@latest add accordion alert-dialog aspect-ratio
 | Command | `cmdk` |
 | Chart | `recharts` |
 | Calendar | `react-day-picker date-fns` |
-| Sidebar | `@radix-ui/react-slot` (biasanya sudah ikut) |
+| Sidebar | `@radix-ui/react-slot` (usually already included) |
 
 ```bash
-# Install semua sekaligus kalau pakai fitur lengkap
+# Install everything at once if using the full feature set
 pnpm add react-hook-form zod @hookform/resolvers sonner @tanstack/react-table recharts date-fns react-day-picker
 ```
 
-## Charts (Recharts) — Terbaru
+## Charts (Recharts) — Latest
 
-shadcn/ui sekarang punya chart component berbasis Recharts dengan theming otomatis via CSS variables.
+shadcn/ui now has a Recharts-based chart component with automatic theming via CSS variables.
 
 ```bash
 pnpm dlx shadcn@latest add chart
@@ -175,7 +175,7 @@ export function DonutChart() {
 
 ### CSS Variables Chart Colors
 
-Tambahkan ke `globals.css` kalau belum ada:
+Add to `globals.css` if not already present:
 
 ```css
 :root {
@@ -194,9 +194,9 @@ Tambahkan ke `globals.css` kalau belum ada:
 }
 ```
 
-## Sidebar — Terbaru
+## Sidebar — Latest
 
-Sidebar component baru yang kompleks: collapsible, responsive, keyboard-accessible.
+A new, complex sidebar component: collapsible, responsive, keyboard-accessible.
 
 ```bash
 pnpm dlx shadcn@latest add sidebar
@@ -205,7 +205,7 @@ pnpm dlx shadcn@latest add sidebar
 ### Setup Provider
 
 ```tsx
-// app/layout.tsx atau root layout
+// app/layout.tsx or root layout
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
 
@@ -277,23 +277,23 @@ export function AppSidebar() {
 
 ```tsx
 // Collapsible modes
-<Sidebar collapsible="offcanvas"> {/* default: geser keluar */}
-<Sidebar collapsible="icon">     {/* menyusut jadi icon-only */}
-<Sidebar collapsible="none">     {/* selalu terbuka */}
+<Sidebar collapsible="offcanvas"> {/* default: slides out */}
+<Sidebar collapsible="icon">     {/* shrinks to icon-only */}
+<Sidebar collapsible="none">     {/* always open */}
 
 // Side
 <Sidebar side="left">   {/* default */}
 <Sidebar side="right">
 
 // Variant
-<Sidebar variant="sidebar">  {/* default, punya border */}
-<Sidebar variant="floating"> {/* mengambang, rounded */}
-<Sidebar variant="inset">    {/* inset ke dalam konten */}
+<Sidebar variant="sidebar">  {/* default, has a border */}
+<Sidebar variant="floating"> {/* floating, rounded */}
+<Sidebar variant="inset">    {/* inset into the content */}
 ```
 
 ### Keyboard Shortcut Toggle
 
-`SidebarProvider` otomatis daftarkan `Cmd/Ctrl+B` untuk toggle sidebar.
+`SidebarProvider` automatically registers `Cmd/Ctrl+B` to toggle the sidebar.
 
 ```tsx
 // Custom shortcut
@@ -302,31 +302,31 @@ export function AppSidebar() {
 
 ## Blocks
 
-shadcn/ui Blocks adalah pre-built UI sections yang bisa langsung di-copy-paste.
+shadcn/ui Blocks are pre-built UI sections you can copy-paste directly.
 
 ```bash
-# Lihat semua blocks di: https://ui.shadcn.com/blocks
-# Copy kode langsung dari website, atau pakai CLI:
+# See all blocks at: https://ui.shadcn.com/blocks
+# Copy code straight from the website, or use the CLI:
 pnpm dlx shadcn@latest add [block-name]
 ```
 
-### Block Categories yang Tersedia
+### Available Block Categories
 
-| Kategori | Contoh |
+| Category | Example |
 |---|---|
 | Dashboard | Sidebar + stats cards + charts |
 | Authentication | Login, Register, Forgot password |
-| Sidebar | Berbagai layout sidebar |
-| Login | Login forms dengan berbagai layout |
+| Sidebar | Various sidebar layouts |
+| Login | Login forms with various layouts |
 
-### Cara Pakai Blocks
+### How to Use Blocks
 
-1. Buka https://ui.shadcn.com/blocks
-2. Pilih block yang cocok
-3. Klik "Copy" atau install via CLI
-4. Paste ke project, sesuaikan data dan routing
+1. Open https://ui.shadcn.com/blocks
+2. Pick a block that fits
+3. Click "Copy" or install via CLI
+4. Paste into the project, adjust data and routing
 
-Blocks menggunakan component yang sudah kamu install — pastikan semua dependency-nya ada.
+Blocks use components you have already installed — make sure all their dependencies are present.
 
 ## Known Gotchas
 
@@ -341,7 +341,7 @@ const actual = value === "__any__" ? "" : value
 ### React Hook Form — Null Values
 
 ```tsx
-// Jangan spread {...field} langsung ke Input
+// Don't spread {...field} directly onto Input
 <Input
   value={field.value ?? ''}
   onChange={field.onChange}
@@ -354,11 +354,11 @@ const actual = value === "__any__" ? "" : value
 ### Lucide Icons — Tree-Shaking
 
 ```tsx
-// Jangan dynamic import
+// Don't dynamic import
 import * as Icons from 'lucide-react'
-const Icon = Icons[name]  // BREAKS di prod
+const Icon = Icons[name]  // BREAKS in prod
 
-// Pakai explicit map
+// Use an explicit map
 import { Home, Users, Settings, type LucideIcon } from 'lucide-react'
 const ICON_MAP: Record<string, LucideIcon> = { Home, Users, Settings }
 const Icon = ICON_MAP[name]
@@ -367,40 +367,40 @@ const Icon = ICON_MAP[name]
 ### Dialog Width Override
 
 ```tsx
-<DialogContent className="max-w-6xl">       // TIDAK WORKS
-<DialogContent className="sm:max-w-6xl">    // WORKS — harus pakai breakpoint prefix
+<DialogContent className="max-w-6xl">       // DOESN'T WORK
+<DialogContent className="sm:max-w-6xl">    // WORKS — must use a breakpoint prefix
 ```
 
 ### Sidebar + Next.js App Router
 
 ```tsx
-// Tambahkan 'use client' di layout yang pakai SidebarProvider
+// Add 'use client' in the layout that uses SidebarProvider
 'use client'
 import { SidebarProvider } from '@/components/ui/sidebar'
-// SidebarProvider butuh client context (cookies untuk state)
+// SidebarProvider needs client context (cookies for state)
 ```
 
 ### Chart Container Height
 
 ```tsx
-// Selalu set min-h di ChartContainer, bukan di chart itu sendiri
+// Always set min-h on ChartContainer, not on the chart itself
 <ChartContainer className="min-h-[200px] w-full">  // CORRECT
 ```
 
 ## Customising Components
 
 ```tsx
-// Tambah variant di component file (src/components/ui/button.tsx)
+// Add a variant in the component file (src/components/ui/button.tsx)
 const buttonVariants = cva("...", {
   variants: {
     variant: {
       brand: "bg-brand text-brand-foreground hover:bg-brand/90",
-      // tambah di sini
+      // add here
     },
   },
 })
 
-// Selalu pakai semantic tokens, bukan raw color
+// Always use semantic tokens, not raw colors
 <Button className="bg-primary">     // CORRECT
 <Button className="bg-blue-500">    // WRONG
 ```
@@ -430,7 +430,7 @@ pnpm add next-themes
 ```
 
 ```tsx
-// app/layout.tsx — wrap dengan ThemeProvider
+// app/layout.tsx — wrap with ThemeProvider
 import { ThemeProvider } from 'next-themes'
 
 <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
@@ -438,7 +438,7 @@ import { ThemeProvider } from 'next-themes'
 </ThemeProvider>
 ```
 
-## Referensi
+## References
 
-- [Component Catalogue](references/component-catalogue.md) — semua component + install command + props
-- [Recipes](references/recipes.md) — pola lengkap: form, data table, modal CRUD, nav, settings
+- [Component Catalogue](references/component-catalogue.md) — all components + install commands + props
+- [Recipes](references/recipes.md) — complete patterns: form, data table, modal CRUD, nav, settings

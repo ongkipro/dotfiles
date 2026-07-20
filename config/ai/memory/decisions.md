@@ -55,31 +55,31 @@
 - Do not treat conflicting Human Design/personality readings as final facts without verification.
 - Prefer separating facts, assumptions, opinions, and unknowns when uncertainty matters.
 
-## AI tooling decisions (konsolidasi 2026-07-14)
-> Fakta operasional pi/9router (model aktif, status service) ada di **environment.md**, section "pi.dev + 9router". Di sini hanya KEPUTUSAN + pelajaran yang tahan lama.
+## AI tooling decisions (consolidated 2026-07-14)
+> Operational pi/9router facts (active model, service status) are in **environment.md**, section "pi.dev + 9router". Here only DECISIONS + durable lessons.
 
 ### Dotfiles-coupled vs machine-coupled config
-- Dotfiles-coupled (aman di-sync lintas mesin): `settings.json` (field machine-coupled HARUS di-drop/parameterize), `extensions/*`, `9router/aliases.json`, `9router/runtime-package.json`, `helix/languages.toml`.
-- Machine-coupled (JANGAN di-dotfiles mentah-mentah): `~/.pi/agent/models.json` (API key + model availability varies), `~/.pi/agent/auth.json` (oauth token), `~/.pi/agent/sessions/` (history), `~/.9router/{auth,jwt-secret,machine-id,tunnel/}`.
-- Pelajaran: `skills` array di settings.json pernah hardcode `/Users/feriromansyah/...` — salah mesin. Solusi: pakai auto-discovery pi (skills di `~/.pi/agent/skills/`) dan JANGAN hardcode absolute path orang lain.
+- Dotfiles-coupled (safe to sync across machines): `settings.json` (machine-coupled fields MUST be dropped/parameterized), `extensions/*`, `9router/aliases.json`, `9router/runtime-package.json`, `helix/languages.toml`.
+- Machine-coupled (DO NOT put raw in dotfiles): `~/.pi/agent/models.json` (API key + model availability varies), `~/.pi/agent/auth.json` (oauth token), `~/.pi/agent/sessions/` (history), `~/.9router/{auth,jwt-secret,machine-id,tunnel/}`.
+- Lesson: the `skills` array in settings.json once hardcoded `/Users/feriromansyah/...` — wrong machine. Solution: use pi auto-discovery (skills in `~/.pi/agent/skills/`) and DO NOT hardcode someone else's absolute path.
 
-### pi balik lewat 9router (2026-07-20) — pembalikan keputusan lama
-- Keputusan lama "pi default = provider NATIVE `minimax`/`MiniMax-M3`, TIDAK lewat 9router, jangan diperbaiki" **sudah dibatalkan**. Disk sekarang: `defaultProvider: "9router"`, `defaultModel: "cx/gpt-5.4"`.
-- **Alasan pindah TIDAK diketahui** — jangan mengarang. Ini dicatat sebagai kondisi terverifikasi per tanggal di atas, bukan rasional keputusan.
-- Konsekuensi: 9router bukan lagi opsional untuk pi. Kalau gateway mati, chat utama pi ikut mati (dulu tidak). Verifikasi: `jq '.defaultProvider, .defaultModel' ~/.pi/agent/settings.json`.
+### pi back through 9router (2026-07-20) — reversal of an old decision
+- The old decision "pi default = NATIVE provider `minimax`/`MiniMax-M3`, NOT through 9router, do not 'fix' it" **has been cancelled**. Disk now: `defaultProvider: "9router"`, `defaultModel: "cx/gpt-5.4"`.
+- **The reason for the switch is NOT known** — do not make it up. This is recorded as a verified condition as of the date above, not a decision rationale.
+- Consequence: 9router is no longer optional for pi. If the gateway is down, pi's main chat goes down too (previously it didn't). Verify: `jq '.defaultProvider, .defaultModel' ~/.pi/agent/settings.json`.
 
 ### Pitfall: prefix `ocg/` ≠ 9router
-- `ocg/` adalah prefix provider NATIVE pi (opencode-go), BUKAN 9router. Jangan set `defaultModel: "ocg/..."` saat `defaultProvider: "9router"` — kombinasi invalid. Model `ocg/*` diakses via provider `opencode-go`.
+- `ocg/` is a NATIVE pi provider prefix (opencode-go), NOT 9router. Do not set `defaultModel: "ocg/..."` while `defaultProvider: "9router"` — invalid combination. `ocg/*` models are accessed via the `opencode-go` provider.
 
-### Pitfall: jangan jalankan `9router --tray` bareng service
-- Bentrok port 20128. Pilih salah satu.
+### Pitfall: don't run `9router --tray` alongside the service
+- Port 20128 conflict. Pick one.
 
-### graphify — DITOLAK (2026-07-14), idenya diambil
-- Tool: `Graphify-Labs/graphify` (MIT, Python, tree-sitter → knowledge graph). Repo sehat & aktif; **bukan** soal kualitas.
-- Ditolak karena: (1) korpus kita kekecilan — README-nya sendiri mengaku di ~6 file rasio token ~1x; angka "71.5x" itu korpus campuran 52 file berisi paper+gambar; (2) `graphify install` **menyunting `~/.claude/CLAUDE.md` + `~/.codex/AGENTS.md` in-place** (`install.py`) — itu symlink ke memori bersama di dotfiles, dipakai 4 CLI; (3) pre-1.0, churn tinggi.
-- **Yang diambil:** prinsip "edge menggantung harus kelihatan" (EXTRACTED vs INFERRED). Diterapkan jadi `scripts/lint-links.mjs` di repo kamus — bukan dengan memasang tool-nya.
-- Jangan evaluasi ulang kecuali korpus kita berubah drastis (mis. ratusan file docs/paper jadi satu folder riset).
+### graphify — REJECTED (2026-07-14), the idea taken
+- Tool: `Graphify-Labs/graphify` (MIT, Python, tree-sitter → knowledge graph). Repo healthy & active; **not** a quality issue.
+- Rejected because: (1) our corpus is too small — its own README admits ~1x token ratio at ~6 files; the "71.5x" number is a mixed corpus of 52 files with papers+images; (2) `graphify install` **edits `~/.claude/CLAUDE.md` + `~/.codex/AGENTS.md` in-place** (`install.py`) — those are symlinks to shared memory in dotfiles, used by 4 CLIs; (3) pre-1.0, high churn.
+- **What was taken:** the principle "dangling edges must be visible" (EXTRACTED vs INFERRED). Applied as `scripts/lint-links.mjs` in the kamus repo — not by installing the tool.
+- Do not re-evaluate unless our corpus changes drastically (e.g. hundreds of docs/paper files in one research folder).
 
-### Anti-pattern memory (pelajaran 2026-07-14)
-- **Fakta operasional yang berubah-ubah (status service, default model, versi) jangan disalin ke banyak file.** Pernah terjadi: fakta autostart 9router tersalin 6×, dan SEMUANYA jadi salah begitu service di-disable; default model pi punya 4 jawaban bertentangan di 2 file.
-- Aturan: fakta yang bisa dicek dari disk → tulis SATU kali, sebutkan **perintah verifikasinya**, jangan digandakan. Agent yang baca kontradiksi akan menebak.
+### Anti-pattern memory (lesson 2026-07-14)
+- **Operational facts that keep changing (service status, default model, versions) should not be copied into many files.** It happened before: the 9router autostart fact was copied 6×, and ALL of them became wrong the moment the service was disabled; pi's default model had 4 conflicting answers across 2 files.
+- Rule: facts checkable from disk → write ONCE, state the **verification command**, don't duplicate. An agent reading the contradiction will guess.

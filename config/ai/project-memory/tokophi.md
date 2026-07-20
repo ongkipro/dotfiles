@@ -7,21 +7,21 @@ metadata:
   originSessionId: d80df881-dc15-46ed-8d1a-e20e2834efbf
 ---
 
-TokoΦ (`ongkipro/tokophi`, private) — Shopify-style commerce SaaS untuk Indonesia. Monorepo: `apps/{admin,super-admin,storefront}`, `packages/{db,data,lib,ui,sections}`, `specs/`.
+TokoΦ (`ongkipro/tokophi`, private) — Shopify-style commerce SaaS for Indonesia. Monorepo: `apps/{admin,super-admin,storefront}`, `packages/{db,data,lib,ui,sections}`, `specs/`.
 
-Nama lama proyek ini `indostore`; rebrand 2026-07-08. Repo `ongkipro/indostore` **masih ada di GitHub tapi dorman** — jangan dipakai, jangan di-push. Seluruh 94 commit-nya sudah termuat di history `tokophi` (HEAD lama `e95b71f`). Kalau baca catatan lama yang menyebut "Indostore", itu proyek yang sama, bukan proyek terpisah.
+This project's old name was `indostore`; rebranded 2026-07-08. The repo `ongkipro/indostore` **still exists on GitHub but is dormant** — don't use it, don't push to it. All 94 of its commits are already contained in the `tokophi` history (old HEAD `e95b71f`). If you read an old note mentioning "Indostore", that's the same project, not a separate one.
 
-**Tidak ada clone di Mac ini** (diverifikasi 2026-07-20: `~/Projects/tokophi` tidak ada — catatan lama yang menyebut clone 2026-07-10 sudah usang; dev utama di Linux, `git pull` dulu bila di-clone lagi). 32 file `.md` yang di-track git dirancang untuk **di-symlink** (bukan disalin) ke `~/Documents/work/tokophi/` dengan struktur `prd/`, `architecture/`, `decisions/`, `ops/`, `notes/`, `agent-config/` saat repo hadir.
+**No clone on this Mac** (verified 2026-07-20: `~/Projects/tokophi` does not exist — the old note mentioning a clone 2026-07-10 is stale; main dev is on Linux, `git pull` first if it's cloned again). The 32 git-tracked `.md` files are designed to be **symlinked** (not copied) into `~/Documents/work/tokophi/` with the structure `prd/`, `architecture/`, `decisions/`, `ops/`, `notes/`, `agent-config/` when the repo is present.
 
-**Gotcha bisnis/ops yang TIDAK terbaca dari kode** (dipindah dari `projects.md` 2026-07-20):
-- Integrasi **KiriminAja** (shipping) + **AutoLaris** (payment VA/QRIS) — platform-managed & **white-label**: brand provider disembunyikan dari client, hanya super-admin yang lihat. COD ada.
-- **`KIRIMINAJA_ENV` default `sandbox`** (`tdev.kiriminaja.com`) — env yang tak di-set diam-diam bicara ke sandbox; tarif nyata tapi bukan produksi. Ini langkah terakhir sebelum uang sungguhan.
-- **E-wallet (OVO/GoPay/DANA/ShopeePay/LinkAja) + retail MATI karena AutoLaris menolaknya** (`rc=07` di probe langsung), bukan bug. Hanya 6 kanal hidup: QRIS + 5 VA (BCA/Mandiri/BNI/BRI/Permata). Menyalakannya = pembeli pilih metode tak-tertagih → jualan mati di langkah akhir; mengaktifkan = urusan ke AutoLaris, bukan kode.
-- **`npm run audit:responsive -w @tokophi/storefront`** = gerbang responsif (10 rute × 11 lebar 320→1920). Jalankan sebelum klaim "responsif".
-- **Multi-agen satu worktree = kerja hilang** (pernah hilang 2×). Baca `AGENTS.md` repo sebelum coding: jangan `pkill astro/next` (membunuh server agen lain), jangan `git add -A` (pakai pathspec eksplisit), commit sesering mungkin.
+**Business/ops gotchas that are NOT readable from the code** (moved from `projects.md` 2026-07-20):
+- **KiriminAja** (shipping) + **AutoLaris** (payment VA/QRIS) integration — platform-managed & **white-label**: the provider brand is hidden from the client, only the super-admin sees it. COD exists.
+- **`KIRIMINAJA_ENV` defaults to `sandbox`** (`tdev.kiriminaja.com`) — an unset env silently talks to sandbox; real rates but not production. This is the last step before real money.
+- **E-wallet (OVO/GoPay/DANA/ShopeePay/LinkAja) + retail are DEAD because AutoLaris rejects them** (`rc=07` on a direct probe), not a bug. Only 6 channels are live: QRIS + 5 VA (BCA/Mandiri/BNI/BRI/Permata). Turning them on = a buyer picks an uncharged method → the sale dies at the final step; enabling them is a matter for AutoLaris, not the code.
+- **`npm run audit:responsive -w @tokophi/storefront`** = the responsive gate (10 routes × 11 widths 320→1920). Run it before claiming "responsive".
+- **Multiple agents in one worktree = lost work** (lost twice already). Read the repo `AGENTS.md` before coding: don't `pkill astro/next` (it kills another agent's server), don't `git add -A` (use an explicit pathspec), commit as often as possible.
 
-**Why:** file .md itu bagian dari repo — memindahkannya keluar akan merusak repo. Symlink bikin `~/Documents` rapi tanpa duplikat yang bisa basi.
+**Why:** those .md files are part of the repo — moving them out would break the repo. Symlinks keep `~/Documents` tidy without a duplicate that can go stale.
 
-**How to apply:** edit lewat path mana pun sama saja — keduanya file yang sama. Jangan "rapikan" `~/Documents/work/tokophi` dengan menghapus/menimpa; itu menyentuh file repo. Kalau `.md` baru ditambahkan di repo, symlink-nya perlu dibuat manual.
+**How to apply:** editing via either path is the same — they're the same file. Don't "tidy up" `~/Documents/work/tokophi` by deleting/overwriting; that touches repo files. When a new `.md` is added in the repo, its symlink needs to be created manually.
 
-Pengembangan utamanya di mesin lain (Linux) — `git pull` dulu sebelum kerja di Mac. Status per 2026-07-14 (repo WORKLOG): RBAC+RLS jalan, storefront multi-tenant SSR baca DB, COD live end-to-end, dan **keempat surface tayang di `tokophi.com`** (Cloudflare HTTPS) di atas server Vultr Singapore + Coolify (Docker Compose, backup harian). Ini masih infra DEV — **PROD nanti migrasi ke Hetzner Singapore**. Lihat juga [[kamus-almanak]].
+Main development is on another machine (Linux) — `git pull` first before working on the Mac. Status as of 2026-07-14 (repo WORKLOG): RBAC+RLS working, multi-tenant storefront SSR reads the DB, COD live end-to-end, and **all four surfaces are live at `tokophi.com`** (Cloudflare HTTPS) on a Vultr Singapore server + Coolify (Docker Compose, daily backup). This is still DEV infra — **PROD will later migrate to Hetzner Singapore**. See also [[kamus-almanak]].

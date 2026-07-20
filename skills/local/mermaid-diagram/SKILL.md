@@ -1,15 +1,15 @@
 ---
 name: mermaid-diagram
-description: 'Generate diagram Mermaid dari deskripsi, codebase, atau skema yang diberikan. Output berupa blok kode Mermaid yang langsung render di GitHub, GitLab, Notion, dan Claude. Tidak perlu install tool. Gunakan untuk flowchart, ERD, sequence diagram, C4 context, class diagram, dan gantt. Triggers: ''buat diagram'', ''flowchart'', ''ERD'', ''sequence diagram'', ''mermaid'', ''diagram alur'', ''visualisasi'', ''database diagram'', ''class diagram'', ''C4''.'
+description: 'Generate a Mermaid diagram from a description, a codebase, or a given schema. Output is a Mermaid code block that renders directly in GitHub, GitLab, Notion, and Claude. No tool install needed. Use for flowcharts, ERDs, sequence diagrams, C4 context, class diagrams, and gantt. Triggers: ''buat diagram'', ''create diagram'', ''flowchart'', ''ERD'', ''sequence diagram'', ''mermaid'', ''diagram alur'', ''flow diagram'', ''visualisasi'', ''visualization'', ''database diagram'', ''class diagram'', ''C4''.'
 ---
 
 # Mermaid Diagram
 
-Generate diagram teknis sebagai blok Mermaid — langsung render di GitHub, Claude, Notion, GitLab, dan VSCode.
+Generate technical diagrams as Mermaid blocks — they render directly in GitHub, Claude, Notion, GitLab, and VSCode.
 
-## Jenis Diagram
+## Diagram Types
 
-### 1. Flowchart — alur proses / decision tree
+### 1. Flowchart — process flow / decision tree
 ```mermaid
 flowchart TD
     A[Start] --> B{Condition?}
@@ -19,7 +19,7 @@ flowchart TD
     D --> E
 ```
 
-### 2. Sequence Diagram — interaksi antar sistem/komponen
+### 2. Sequence Diagram — interaction between systems/components
 ```mermaid
 sequenceDiagram
     participant U as User
@@ -31,7 +31,7 @@ sequenceDiagram
     API-->>U: JWT token
 ```
 
-### 3. ERD — schema database
+### 3. ERD — database schema
 ```mermaid
 erDiagram
     USERS {
@@ -47,7 +47,7 @@ erDiagram
     USERS ||--o{ ORDERS : "has many"
 ```
 
-### 4. Class Diagram — struktur OOP / TypeScript interfaces
+### 4. Class Diagram — OOP structure / TypeScript interfaces
 ```mermaid
 classDiagram
     class User {
@@ -61,7 +61,7 @@ classDiagram
     Admin --|> User
 ```
 
-### 5. C4 Context — arsitektur sistem level tinggi
+### 5. C4 Context — high-level system architecture
 ```mermaid
 C4Context
     Person(user, "User", "End user")
@@ -71,7 +71,7 @@ C4Context
     Rel(app, email, "Sends via")
 ```
 
-### 6. Gantt — timeline / milestone
+### 6. Gantt — timeline / milestones
 ```mermaid
 gantt
     title Project Timeline
@@ -86,43 +86,43 @@ gantt
 
 ## Workflow
 
-1. Tanya user jenis diagram + konteks (atau infer dari deskripsi)
-2. Generate blok ```mermaid ... ```
-3. Jelaskan singkat apa yang digambarkan
-4. Tawarkan: "Mau tambah node? Ubah layout? Export ke file .md?"
+1. Ask the user for the diagram type + context (or infer it from the description)
+2. Generate a ```mermaid ... ``` block
+3. Briefly explain what it depicts
+4. Offer: "Want to add a node? Change the layout? Export to a .md file?"
 
-## Pilih Diagram yang Tepat
+## Pick the Right Diagram
 
-| Konteks | Diagram |
+| Context | Diagram |
 |---|---|
-| Alur login, checkout, proses | Flowchart |
+| Login, checkout, process flow | Flowchart |
 | API request/response, auth flow | Sequence |
-| Database schema, relasi tabel | ERD |
-| Struktur class, TypeScript types | Class |
-| Arsitektur sistem keseluruhan | C4 Context |
-| Timeline sprint / milestone | Gantt |
+| Database schema, table relations | ERD |
+| Class structure, TypeScript types | Class |
+| Overall system architecture | C4 Context |
+| Sprint timeline / milestones | Gantt |
 
-## Tips Output
+## Output Tips
 
-- Selalu wrap dalam ````mermaid` code block
-- Gunakan label yang jelas dan singkat (max 5 kata per node)
-- Untuk ERD, selalu cantumkan PK dan FK
-- Untuk sequence, gunakan `-->>` untuk response (dashed), `->>` untuk request (solid)
-- Untuk C4, pisahkan internal system vs external
-- Simpan ke file `.md` di docs/ atau root project kalau diminta
+- Always wrap in a ````mermaid` code block
+- Use clear, short labels (max 5 words per node)
+- For ERDs, always include PK and FK
+- For sequences, use `-->>` for responses (dashed), `->>` for requests (solid)
+- For C4, separate internal systems vs external
+- Save to a `.md` file in docs/ or the project root if requested
 
-## Validasi
+## Validation
 
-Mermaid valid jika:
-- Tidak ada spasi di node ID (pakai underscore atau camelCase)
-- Arrow syntax benar (`-->`, `->>`, `-->>`, `--|>`)
-- Keyword tidak bentrok dengan node name (hindari `end`, `class`, dll sebagai ID)
+Mermaid is valid if:
+- No spaces in node IDs (use underscore or camelCase)
+- Arrow syntax is correct (`-->`, `->>`, `-->>`, `--|>`)
+- Keywords don't clash with node names (avoid `end`, `class`, etc. as IDs)
 
-## Install mmdc (opsional, untuk export PNG/SVG)
+## Install mmdc (optional, for PNG/SVG export)
 
 ```bash
 npm i -g @mermaid-js/mermaid-cli
 mmdc -i diagram.md -o diagram.png
 ```
 
-Tanpa mmdc, output teks Mermaid sudah cukup untuk render di GitHub/Claude.
+Without mmdc, the Mermaid text output is enough to render on GitHub/Claude.

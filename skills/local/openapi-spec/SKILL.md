@@ -1,20 +1,20 @@
 ---
 name: openapi-spec
-description: 'Generate, review, dan validasi OpenAPI 3.1 spec (YAML/JSON) dari deskripsi endpoint, codebase, atau route yang ada. Output siap dipakai Redoc, Swagger UI, atau Hono/tRPC code-gen. Gunakan saat mendokumentasikan REST API, membuat API contract sebelum coding, atau mereview API yang sudah ada. Triggers: ''buat openapi'', ''api spec'', ''dokumentasi api'', ''swagger'', ''openapi'', ''api contract'', ''api docs'', ''generate spec''.'
+description: 'Generate, review, and validate an OpenAPI 3.1 spec (YAML/JSON) from an endpoint description, a codebase, or existing routes. Output is ready for Redoc, Swagger UI, or Hono/tRPC code-gen. Use when documenting a REST API, creating an API contract before coding, or reviewing an existing API. Triggers: ''buat openapi'', ''build openapi'', ''api spec'', ''dokumentasi api'', ''api documentation'', ''swagger'', ''openapi'', ''api contract'', ''api docs'', ''generate spec''.'
 ---
 
 # OpenAPI Spec
 
-Generate dan validasi OpenAPI 3.1 spec dari deskripsi atau codebase yang ada.
+Generate and validate an OpenAPI 3.1 spec from a description or an existing codebase.
 
-## Mode
+## Modes
 
-- **`generate`** — buat spec baru dari deskripsi endpoint
-- **`review`** — analisis dan perbaiki spec yang sudah ada
-- **`expand`** — tambah endpoint baru ke spec yang ada
-- **`from-code`** — baca route files dan generate spec dari kode
+- **`generate`** — create a new spec from an endpoint description
+- **`review`** — analyze and fix an existing spec
+- **`expand`** — add new endpoints to an existing spec
+- **`from-code`** — read route files and generate a spec from the code
 
-## Template Dasar (OpenAPI 3.1)
+## Base Template (OpenAPI 3.1)
 
 ```yaml
 openapi: 3.1.0
@@ -22,7 +22,7 @@ info:
   title: [Project Name] API
   version: 1.0.0
   description: |
-    API untuk [deskripsi singkat].
+    API for [short description].
 
 servers:
   - url: https://api.example.com/v1
@@ -130,24 +130,24 @@ components:
             $ref: '#/components/schemas/Error'
 ```
 
-## Panduan Generate Endpoint
+## Endpoint Generation Guide
 
-Untuk setiap endpoint, pastikan ada:
-- `operationId` — camelCase, unik (dipakai code-gen)
-- `tags` — kelompokkan endpoint yang terkait
-- `summary` — satu kalimat pendek
-- `requestBody` dengan schema lengkap (kalau POST/PUT/PATCH)
-- Semua response yang mungkin: 200/201, 400, 401, 403, 404, 500
-- Parameter query/path dengan tipe dan default
+For every endpoint, make sure it has:
+- `operationId` — camelCase, unique (used by code-gen)
+- `tags` — group related endpoints
+- `summary` — one short sentence
+- `requestBody` with a full schema (if POST/PUT/PATCH)
+- All possible responses: 200/201, 400, 401, 403, 404, 500
+- Query/path parameters with type and default
 
-## Aturan Schema yang Baik
+## Rules for Good Schemas
 
 ```yaml
-# Pakai $ref untuk schema yang reused
-# Pakai required[] untuk field mandatory
-# Pakai nullable: true (bukan type: null) untuk optional
-# Pakai enum untuk nilai terbatas
-# Pakai format: date-time, email, uuid untuk string khusus
+# Use $ref for schemas that are reused
+# Use required[] for mandatory fields
+# Use nullable: true (not type: null) for optional
+# Use enum for limited values
+# Use format: date-time, email, uuid for special strings
 
 User:
   type: object
@@ -171,29 +171,29 @@ User:
       nullable: true
 ```
 
-## Validasi
+## Validation
 
 ```bash
-# Lint dengan Redocly (tanpa install global)
+# Lint with Redocly (no global install)
 npx @redocly/cli lint openapi.yaml
 
 # Preview Redoc
 npx @redocly/cli preview-docs openapi.yaml
 
-# Validate dengan swagger-parser
+# Validate with swagger-parser
 npx swagger-parser validate openapi.yaml
 ```
 
-## Integrasi Stack
+## Stack Integration
 
 ### Hono (Cloudflare Workers)
 ```ts
-// Generate types dari spec
+// Generate types from the spec
 npx openapi-typescript openapi.yaml -o src/types/api.d.ts
 ```
 
 ### Next.js / Astro API routes
-Gunakan spec sebagai contract — implementasi endpoint mengacu spec, bukan sebaliknya.
+Use the spec as the contract — the endpoint implementation follows the spec, not the other way around.
 
 ### Redoc static docs
 ```bash
@@ -202,9 +202,9 @@ npx @redocly/cli build-docs openapi.yaml -o docs/api/index.html
 
 ## Output
 
-- Simpan ke `docs/openapi.yaml` atau `openapi.yaml` di root
-- Sertakan semua schema di `components/schemas`
-- Grouping dengan `tags` yang konsisten
-- Kalau besar, pisahkan per domain: `openapi/users.yaml`, `openapi/orders.yaml`, merge dengan `$ref`
+- Save to `docs/openapi.yaml` or `openapi.yaml` at the root
+- Include all schemas under `components/schemas`
+- Group with consistent `tags`
+- If large, split per domain: `openapi/users.yaml`, `openapi/orders.yaml`, merge with `$ref`
 
-Untuk mode **`review`**: kalau spec-nya sudah valid, konsisten, dan lengkap — bilang begitu dan berhenti. Jangan mengarang temuan atau menurunkan preferensi gaya jadi "masalah" biar review kelihatan berguna. Nol perubahan adalah hasil review yang sah.
+For **`review`** mode: if the spec is already valid, consistent, and complete — say so and stop. Don't invent findings or demote style preferences into "problems" to make the review look useful. Zero changes is a valid review outcome.

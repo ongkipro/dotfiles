@@ -1,11 +1,11 @@
-# Memori: Environment — toolchain & install
-> Bagian dari memori bersama. Perbarui kalau ada perubahan tool/setup.
-> **MULTI-MACHINE — fakta OS-specific WAJIB menyebut mesinnya. Cek `uname -a` dulu.**
-> - Linux (utama): hostname **`cuan`** — ThinkPad T480, Ubuntu 26.04, kernel 7.0.0. Julukan lama di memory = "fantastico" (mesin yang SAMA).
-> - Mac (kedua): hostname **`ongkis-MacBook-Air`** — MacBook Air M1 8GB, macOS 26.5.2 arm64. ("`feriromansyah`" = julukan lama di memori, mesin yang SAMA; `hostname` asli bukan itu.)
-> Instruksi `brew` = MAC SAJA. Di `cuan` pakai mise/apt.
+# Memory: Environment — toolchain & install
+> Part of shared memory. Update if a tool/setup changes.
+> **MULTI-MACHINE — OS-specific facts MUST name the machine. Check `uname -a` first.**
+> - Linux (main): hostname **`cuan`** — ThinkPad T480, Ubuntu 26.04, kernel 7.0.0. Old nickname in memory = "fantastico" (the SAME machine).
+> - Mac (secondary): hostname **`ongkis-MacBook-Air`** — MacBook Air M1 8GB, macOS 26.5.2 arm64. ("`feriromansyah`" = old nickname in memory, the SAME machine; the real `hostname` is not that.)
+> `brew` instructions = MAC ONLY. On `cuan` use mise/apt.
 
-## Tool terpasang (JANGAN install ulang)
+## Installed tools (DO NOT reinstall)
 - mise (no-sudo): fzf, fd, bat, delta, lazygit, zoxide, eza, yq(v4), ripgrep, ruff, starship, helix, tealdeer, direnv, qsv.
 - Editor: helix (`hx`). `EDITOR=hx`.
 - npm -g: pi, 9router, pnpm, typescript-language-server, vscode-langservers-extracted, @tailwindcss/language-server, yaml-language-server, bash-language-server, pyright.
@@ -14,117 +14,117 @@
 - Browser: Chromium (`brew install chromium`), Google Chrome.
 - Git + delta diff pager + `~/.gitignore_global`.
 
-## tmux (bagian wajib bootstrap dotfiles)
-- Setup tmux full di-handle `bin/tmux-setup` (idempotent, cross-platform): install binary (apt/dnf/pacman/zypper di Linux, brew di macOS) + clipboard tool (wl-clipboard/xclip di Linux; pbcopy bawaan macOS) + link `~/.tmux.conf`, `~/.local/bin/tmux-clip`, dan `~/.local/bin/tmux-battery` + clone TPM + install/clean plugin.
-- Dipanggil otomatis dari `install.sh` dan `install-macos.sh`. Bisa juga dijalankan manual: `tmux-setup`.
-- Prefix `Ctrl+a`. Theme: plain-font friendly Catppuccin-inspired palette (tanpa ketergantungan Nerd Font). Plugin: tmux-sensible, tmux-yank, resurrect, continuum, prefix-highlight, tmux-open. Clipboard via `bin/tmux-clip`, battery/status helper via `bin/tmux-battery`. Reload: prefix+r. Update plugin: prefix+U / install plugin baru: prefix+I. Save session: prefix+S. Restore: prefix+R.
+## tmux (mandatory part of the dotfiles bootstrap)
+- The full tmux setup is handled by `bin/tmux-setup` (idempotent, cross-platform): installs the binary (apt/dnf/pacman/zypper on Linux, brew on macOS) + a clipboard tool (wl-clipboard/xclip on Linux; built-in pbcopy on macOS) + links `~/.tmux.conf`, `~/.local/bin/tmux-clip`, and `~/.local/bin/tmux-battery` + clones TPM + installs/cleans plugins.
+- Called automatically from `install.sh` and `install-macos.sh`. Can also be run manually: `tmux-setup`.
+- Prefix `Ctrl+a`. Theme: plain-font friendly Catppuccin-inspired palette (no Nerd Font dependency). Plugins: tmux-sensible, tmux-yank, resurrect, continuum, prefix-highlight, tmux-open. Clipboard via `bin/tmux-clip`, battery/status helper via `bin/tmux-battery`. Reload: prefix+r. Update plugins: prefix+U / install new plugin: prefix+I. Save session: prefix+S. Restore: prefix+R.
 
-## Cara install (kapan sudo)
-- CLI / runtime → `mise use -g <nama>` (no sudo); update `mise up`; hapus `mise rm <nama>`.
-- Tool Node → `npm i -g <paket>`. App Python → `pipx install <paket>`.
-- System tools → `brew install <nama>`. GUI apps → `brew install --cask <nama>`.
-- `sudo` HANYA untuk file sistem (jarang dibutuhkan di macOS).
+## How to install (when sudo)
+- CLI / runtime → `mise use -g <name>` (no sudo); update `mise up`; remove `mise rm <name>`.
+- Node tools → `npm i -g <package>`. Python apps → `pipx install <package>`.
+- System tools → `brew install <name>`. GUI apps → `brew install --cask <name>`.
+- `sudo` ONLY for system files (rarely needed on macOS).
 
-## pi.dev + 9router — SATU-SATUNYA sumber kebenaran (2026-07-14)
-> Section ini menggantikan 4 section lama yang saling bertentangan. Kalau ragu: **baca disk, jangan memory.**
-> `~/.pi/agent/settings.json` = kebenaran untuk model. `systemctl --user is-enabled 9router.service` = kebenaran untuk service.
+## pi.dev + 9router — THE SINGLE source of truth (2026-07-14)
+> This section replaces 4 old contradicting sections. When in doubt: **read disk, not memory.**
+> `~/.pi/agent/settings.json` = the truth for the model. `systemctl --user is-enabled 9router.service` = the truth for the service.
 
-- **pi default itu PER-MESIN sekarang — cek disk, jangan tebak.** Cek: `jq '.defaultProvider, .defaultModel' ~/.pi/agent/settings.json`.
-  - `cuan`: **`openai-codex` / `gpt-5.4`** (di-set 2026-07-20, via symlink `config/pi/settings.json` → `~/.pi/agent/settings.json`).
-  - Mac (`ongkis-MacBook-Air`): **`9router` / `cx/gpt-5.4`** per 2026-07-20 disk. `~/.pi/agent/settings.json` di sini file biasa, BUKAN symlink.
-  - **KEPUTUSAN (2026-07-21): `cuan` = master, Mac dibiarkan apa adanya.** cuan yang jadi acuan config; Mac tetap 9router **by design**, JANGAN disamakan/di-symlink ke `openai-codex`. Dua-duanya kondisi disk yang sah — jangan "perbaiki" salah satu ke yang lain.
-  - `9router` tetap tersedia di `~/.pi/agent/models.json` untuk model lokal/opsional di kedua mesin. Catatan lama (default `minimax`/`MiniMax-M3`) **SUDAH TIDAK BERLAKU** di mana pun.
-- ☠️ **Model default lama yang SUDAH MATI — jangan dihidupkan lagi**: `ocg/deepseek-v4-pro`, `cx/gpt-5.4-mini` (perhatikan sufiks `-mini`; yang aktif sekarang `cx/gpt-5.4` **tanpa** `-mini` — prefix `cx/` sendiri tidak bermasalah), `opencode-go/minimax-m3`. Kalau ketemu di catatan lama, itu sampah.
-- **Status 9router itu PER-MESIN — cek, jangan tebak.** Mac: `launchctl list | grep 9router` → per 2026-07-20 **HIDUP** (`com.9router.gateway`, LISTEN `127.0.0.1:20128`). Linux `cuan`: `systemctl --user is-enabled 9router.service` → **MATI** sejak 2026-07-13 (stop + disable, disengaja — lihat section "9router DINONAKTIFKAN"). Mati di `cuan` itu NORMAL, bukan bug.
-- ☠️ **JEBAKAN: 9router memasang autostart-nya SENDIRI** (`com.9router.autostart`, mode `--tray`). Job itu **tidak menyetel `HOSTNAME`** → gateway bind ke **`0.0.0.0`**, artinya API key SEMUA provider bisa dipakai siapa pun di WiFi yang sama. Dia juga duplikat dengan `com.9router.gateway` (dua proses rebutan port 20128, request mendarat non-deterministik). Sejak 2026-07-14 `bin/pi-9router-restore` mencabutnya otomatis (dipindah ke `~/.local/share/9router-disabled/`). **Kalau `lsof -nP -iTCP:20128` menunjukkan `*:20128` dan bukan `127.0.0.1:20128`, dia kambuh — jalankan `pi-9router-restore`.**
-- **Policy (tetap berlaku): 9router HANYA untuk pi.dev.** Claude Code, Codex, dan agy TIDAK boleh lewat 9router.
-- Claude Code lewat 9router = BOCOR: launcher 9router menyuntik proxy+CA per-proses. Jalankan `claude` biasa. Model `cc/claude-*` di selector = MITM 9router, tak punya rute upstream (error "may not exist").
-- codex DILEPAS dari 9router (29 Jun 2026): blok `[model_providers.9router]` di `~/.codex/config.toml` di-comment; codex balik ke OpenAI native. Uncomment untuk pulihkan.
+- **pi default is PER-MACHINE now — check disk, don't guess.** Check: `jq '.defaultProvider, .defaultModel' ~/.pi/agent/settings.json`.
+  - `cuan`: **`openai-codex` / `gpt-5.4`** (set 2026-07-20, via symlink `config/pi/settings.json` → `~/.pi/agent/settings.json`).
+  - Mac (`ongkis-MacBook-Air`): **`9router` / `cx/gpt-5.6-sol`** per 2026-07-21 disk. `~/.pi/agent/settings.json` here is a regular file, NOT a symlink.
+  - **DECISION (2026-07-21): `cuan` = master, Mac left as-is.** cuan is the config reference; Mac stays 9router **by design**, DO NOT unify/symlink it to `openai-codex`. Both are valid disk states — do not "fix" one to match the other.
+  - `9router` remains available in `~/.pi/agent/models.json` for local/optional models on both machines. The old note (default `minimax`/`MiniMax-M3`) **NO LONGER APPLIES** anywhere.
+- ☠️ **Old default models that are DEAD — don't bring them back**: `ocg/deepseek-v4-pro`, `cx/gpt-5.4-mini` (note the `-mini` suffix; the one active now is `cx/gpt-5.4` **without** `-mini` — the `cx/` prefix itself is not a problem), `opencode-go/minimax-m3`. If you find them in old notes, that's junk.
+- **9router status is PER-MACHINE — check, don't guess.** Mac: `launchctl list | grep 9router` → per 2026-07-20 **UP** (`com.9router.gateway`, LISTEN `127.0.0.1:20128`). Linux `cuan`: `systemctl --user is-enabled 9router.service` → **DOWN** since 2026-07-13 (stop + disable, intentional — see the "9router DISABLED" section). Being down on `cuan` is NORMAL, not a bug.
+- ☠️ **TRAP: 9router installs its OWN autostart** (`com.9router.autostart`, `--tray` mode). That job **does not set `HOSTNAME`** → the gateway binds to **`0.0.0.0`**, meaning ALL providers' API keys can be used by anyone on the same WiFi. It also duplicates `com.9router.gateway` (two processes fighting over port 20128, requests land non-deterministically). Since 2026-07-14 `bin/pi-9router-restore` removes it automatically (moved to `~/.local/share/9router-disabled/`). **If `lsof -nP -iTCP:20128` shows `*:20128` and not `127.0.0.1:20128`, it has relapsed — run `pi-9router-restore`.**
+- **Policy (still in force): 9router is ONLY for pi.dev.** Claude Code, Codex, and agy must NOT go through 9router.
+- Claude Code through 9router = LEAK: the 9router launcher injects a proxy+CA per-process. Run `claude` normally. The `cc/claude-*` models in the selector = 9router MITM, they have no upstream route (error "may not exist").
+- codex was DETACHED from 9router (29 Jun 2026): the `[model_providers.9router]` block in `~/.codex/config.toml` is commented out; codex reverts to native OpenAI. Uncomment to restore.
 
-**Symlink pi (via dotfiles):** `~/.pi/agent/settings.json` → `dotfiles/config/pi/settings.json` · `~/.pi/extensions/compact-free/` → `dotfiles/config/pi/extensions/compact-free/` · `~/.pi/agent/extensions/welcome-screen.ts` → `dotfiles/config/pi/extensions/welcome-screen/index.ts` · `~/.9router/{aliases.json,runtime/package.json}` → `dotfiles/config/9router/`.
-**TIDAK di dotfiles (secret):** `models.json` (API key), `auth.json` (oauth token). Backup lokal saja.
-**Editing pi TUI/extension:** pakai `theme.fg(color, text)` — bukan curried.
-**Claude account launcher:** `claude`/`claude-personal` → akun personal; `claude-kerja` → isolated `~/.claude-accounts/kerja`. Wrapper di `dotfiles/bin/` → `~/.local/bin/`.
+**pi symlinks (via dotfiles):** `~/.pi/agent/settings.json` → `dotfiles/config/pi/settings.json` · `~/.pi/extensions/compact-free/` → `dotfiles/config/pi/extensions/compact-free/` · `~/.pi/agent/extensions/welcome-screen.ts` → `dotfiles/config/pi/extensions/welcome-screen/index.ts` · `~/.9router/{aliases.json,runtime/package.json}` → `dotfiles/config/9router/`.
+**NOT in dotfiles (secret):** `models.json` (API key), `auth.json` (oauth token). Local backup only.
+**Editing pi TUI/extension:** use `theme.fg(color, text)` — not curried.
+**Claude account launcher:** `claude`/`claude-personal` → personal account; `claude-kerja` → isolated `~/.claude-accounts/kerja`. Wrappers in `dotfiles/bin/` → `~/.local/bin/`.
 
-## Mesin user (multi-machine)
-- Memory `~/.config/ai/` di-sync via dotfiles ke BEBERAPA mesin — fakta OS/toolchain harus menyebut mesin yg relevan.
-- Identitas + spek tiap mesin: header file ini (ringkas) dan `devices/<hostname>.md` di dotfiles (lengkap). Jangan tulis ulang spek di section lain.
-- Beda toolchain yang perlu diingat: Mac punya brew; `cuan` **TIDAK ada brew** (mise/npm/pipx saja). Di `cuan` helix `languages.toml` symlink → dotfiles.
-- Mekanisme autostart 9router (launchd di mac vs systemd --user di linux) + jebakannya: lihat section "pi.dev + 9router" — jangan digandakan ke sini.
-- Saat kasih instruksi OS-specific (launchd vs systemd, brew vs apt, dsb), SELALU cek mesin dulu (`uname -a`).
+## User machines (multi-machine)
+- Memory `~/.config/ai/` is synced via dotfiles to MULTIPLE machines — OS/toolchain facts must name the relevant machine.
+- Each machine's identity + specs: the header of this file (brief) and `devices/<hostname>.md` in dotfiles (full). Don't rewrite specs in another section.
+- Toolchain differences to remember: Mac has brew; `cuan` **has NO brew** (mise/npm/pipx only). On `cuan` helix `languages.toml` is a symlink → dotfiles.
+- The 9router autostart mechanism (launchd on mac vs systemd --user on linux) + its trap: see the "pi.dev + 9router" section — don't duplicate it here.
+- When giving OS-specific instructions (launchd vs systemd, brew vs apt, etc.), ALWAYS check the machine first (`uname -a`).
 
-## TokoΦ — server Vultr + Coolify (DIVERIFIKASI LANGSUNG dari API, 2026-07-14)
-> Verifikasi ulang kapan pun: `vultr-cli instance list` · `vultr-cli account info` · `vultr-cli snapshot list`.
-> ☠️ Catatan lama di sini SALAH TOTAL selama berhari-hari (server `45.76.146.40`, 8c/16GB, "$96/bln", "kredit habis 9 Agt"). Semua angka itu **fiktif** — servernya sudah tidak ada. Ini contoh kenapa **disk/API menang atas memori**.
+## TokoΦ — Vultr + Coolify server (VERIFIED DIRECTLY from the API, 2026-07-14)
+> Re-verify anytime: `vultr-cli instance list` · `vultr-cli account info` · `vultr-cli snapshot list`.
+> ☠️ The old notes here were COMPLETELY WRONG for days (server `45.76.146.40`, 8c/16GB, "$96/mo", "credit runs out 9 Aug"). All those numbers are **fictional** — that server no longer exists. This is an example of why **disk/API wins over memory**.
 
-- **SATU-SATUNYA instance**: label **`volumdev`** (namanya menyesatkan — isinya **TokoΦ + Coolify**).
-  - ID `0d341106-34ff-4b5b-8441-9350e1b8ce35` · IP **45.77.33.112** · Singapore (sgp) · Ubuntu 24.04 · dibuat **2026-07-10** · status running.
-  - Plan **`vhp-4c-8gb-amd`** = 4 vCPU / 8 GB / 180 GB → **$48,00/bulan** (BUKAN $96).
-- **Server lama `45.76.146.40` (8c/16GB) SUDAH TIDAK ADA** — kemungkinan di-destroy 2026-07-10 saat `volumdev` dibuat. Kunci SSH `tokophi-dev` (`c4d746ce-…`) masih nyangkut di akun sebagai sisa; kunci aktif = `volumdev` (`6b68411e-…`).
-- **Kredit: −$305,00 MASIH UTUH.** Pending charges baru **$12,24** (per 2026-07-14). Sumber: $300 "Account Credit" + $5 Visa, keduanya 2026-07-09.
-  - Laju bakar $48/bln → kredit $305 ≈ **~6 bulan runway**, ASALKAN kredit tidak kedaluwarsa.
-  - ⚠️ **Tanggal kedaluwarsa kredit TIDAK diekspos API Vultr** (di billing history cuma tercatat `payment / Account Credit`). Klaim lama "berlaku 1 bulan" **belum terverifikasi** — cek manual di dashboard Vultr → Billing. Kalau benar expire ~9 Agt, $305 hangus dan keputusan migrasi jadi mendesak.
-- ✅ **SSH PULIH (2026-07-14).** Kunci `tokophi_dev` lama HILANG (ikut terhapus saat install ulang Linux di `cuan`) → server sempat tak bisa di-SSH sama sekali. Dipulihkan dengan menempel `~/.ssh/id_ed25519.pub` (kunci "laptop") ke `authorized_keys` server lewat **Coolify web terminal** (Vultr TIDAK bisa menyuntik kunci ke instance yang sudah jalan). Sekarang: `ssh root@<IP di atas>` → tembus.
-  - Coolify web UI `http://45.77.33.112:8000` (admin `ongkiardiansyah@gmail.com`) = **pintu darurat kalau SSH mati lagi**. Port 22/80/443/8000 terbuka. App `:80` → 404 (domain belum di-point).
-  - 📌 **Pelajaran**: kunci SSH server yang cuma ada di SATU mesin = single point of failure, dan install ulang OS melenyapkannya. Private key JANGAN pernah masuk dotfiles; tapi catat cara pulih (lewat Coolify/console provider).
-- ✅ **BACKUP PERTAMA BERHASIL (2026-07-14, di mesin `cuan`)** — `~/Documents/work/backups/root_<ip>-<stamp>/`, total ~6 MB. ⚠️ Folder ini **ada di `cuan` saja**; di Mac `~/Documents/work/backups/` TIDAK ADA (diverifikasi 2026-07-20). Artinya backup TokoΦ cuma hidup di satu mesin. Dibuat & diverifikasi dengan **`vps-pgdump root@45.77.33.112`** (`dotfiles/bin/`).
-  - `tokophi.dump` (984K, 532 objek) — DB aplikasi.
-  - `coolify.dump` (5.1M, 557 objek) — **DB internal Coolify**: definisi app, env, config deploy. Tanpa ini, server hilang = susun ulang seluruh setup deploy dari nol. **Jangan lupakan yang ini.**
-  - `coolify-config.tar.gz` — `docker-compose.yaml` + `.env` stack TokoΦ.
-  - Semua dump **lolos `pg_restore -l`** (bukan klaim, tapi uji). Restore: `pg_restore -d <db> --clean --if-exists <file>.dump`.
-  - 🔒 Backup berisi SECRET → **DI LUAR repo**. JANGAN commit.
-  - ⚠️ Backup ini **sekali jalan, manual**. Belum terjadwal. Ulangi sebelum perubahan berisiko, dan pertimbangkan cron.
-  - Stack TokoΦ di server (7 container, semua healthy): postgres, admin, super-admin, storefront, landing, cron, backup. Plus `migrate-*` yang `Exited (0)` = NORMAL (jalan sekali saat deploy, sukses).
-- ☠️ **SNAPSHOT VULTR GAGAL — jangan buang waktu mengulanginya.** Dicoba 2× (2026-07-14): `f9526f57-…` dan `759dc88f-…`. Pola identik: status `pending` 15–30 menit → **lenyap**, `snapshot get` balas `404 Invalid snapshot ID`, `snapshot list` kosong. **API Vultr TIDAK memberi alasan apa pun.** Instance sendiri sehat (`active`/`running`) selama dan sesudahnya.
-  - Dugaan (BELUM terverifikasi, jangan ditulis sebagai fakta): batasan akun baru / akun yang jalan di atas kredit promo. Cek notifikasi & tiket di dashboard Vultr.
-  - **Rute backup yang benar = tarik data KELUAR dari server** (`pg_dump -Fc` + config Coolify/compose → lokal atau R2). Tidak bergantung pada fitur snapshot Vultr sama sekali.
-- **Tak ada resource menagih lain**: block storage 0, load balancer 0, reserved IP 0, DNS 0. Jadi $48/bln itu total.
-- **vultr-cli**: v3.10.0 via mise. Auth `~/.vultr-cli.yaml` (chmod 600, di `$HOME` — **JANGAN** di dotfiles, dan **JANGAN** `export VULTR_API_KEY` di `~/.bashrc`: `dotsync refresh_snapshots` menyalin bashrc ke repo). Sudah terpasang & jalan per 2026-07-14. Skill: `dotfiles/skills/local/vultr/`.
-- **Rencana 2-fase**: dev=Vultr SG (kredit) → prod=Hetzner SG. Migrasi murah (Coolify + git + `pg_dump` + ganti IP origin di Cloudflare). Domain `tokophi.com` di Cloudflare, DNS belum di-point.
+- **THE ONLY instance**: label **`volumdev`** (the name is misleading — it actually holds **TokoΦ + Coolify**).
+  - ID `0d341106-34ff-4b5b-8441-9350e1b8ce35` · IP **45.77.33.112** · Singapore (sgp) · Ubuntu 24.04 · created **2026-07-10** · status running.
+  - Plan **`vhp-4c-8gb-amd`** = 4 vCPU / 8 GB / 180 GB → **$48.00/month** (NOT $96).
+- **The old server `45.76.146.40` (8c/16GB) NO LONGER EXISTS** — probably destroyed 2026-07-10 when `volumdev` was created. The SSH key `tokophi-dev` (`c4d746ce-…`) is still stuck in the account as a leftover; the active key = `volumdev` (`6b68411e-…`).
+- **Credit: −$305.00 STILL INTACT.** New pending charges **$12.24** (as of 2026-07-14). Source: $300 "Account Credit" + $5 Visa, both 2026-07-09.
+  - Burn rate $48/mo → $305 credit ≈ **~6 months runway**, PROVIDED the credit doesn't expire.
+  - ⚠️ **The credit expiry date is NOT exposed by the Vultr API** (billing history only records `payment / Account Credit`). The old claim "valid 1 month" is **not yet verified** — check manually in the Vultr dashboard → Billing. If it really does expire ~9 Aug, the $305 is forfeited and the migration decision becomes urgent.
+- ✅ **SSH RECOVERED (2026-07-14).** The old `tokophi_dev` key was LOST (deleted along with the Linux reinstall on `cuan`) → the server briefly couldn't be SSH'd at all. Recovered by pasting `~/.ssh/id_ed25519.pub` (the "laptop" key) into the server's `authorized_keys` via the **Coolify web terminal** (Vultr CANNOT inject a key into a running instance). Now: `ssh root@<IP above>` → gets in.
+  - Coolify web UI `http://45.77.33.112:8000` (admin `ongkiardiansyah@gmail.com`) = **the emergency door if SSH dies again**. Ports 22/80/443/8000 open. App `:80` → 404 (domain not yet pointed).
+  - 📌 **Lesson**: a server SSH key that only exists on ONE machine = single point of failure, and an OS reinstall wipes it. NEVER put a private key in dotfiles; but note the recovery path (via Coolify/provider console).
+- ✅ **FIRST BACKUP SUCCEEDED (2026-07-14, on the `cuan` machine)** — `~/Documents/work/backups/root_<ip>-<stamp>/`, total ~6 MB. ⚠️ This folder **only exists on `cuan`**; on the Mac `~/Documents/work/backups/` DOES NOT EXIST (verified 2026-07-20). Meaning the TokoΦ backup lives on only one machine. Created & verified with **`vps-pgdump root@45.77.33.112`** (`dotfiles/bin/`).
+  - `tokophi.dump` (984K, 532 objects) — the app DB.
+  - `coolify.dump` (5.1M, 557 objects) — **Coolify's internal DB**: app definitions, env, deploy config. Without it, losing the server = rebuild the entire deploy setup from scratch. **Don't forget this one.**
+  - `coolify-config.tar.gz` — the TokoΦ stack's `docker-compose.yaml` + `.env`.
+  - All dumps **pass `pg_restore -l`** (not a claim, a test). Restore: `pg_restore -d <db> --clean --if-exists <file>.dump`.
+  - 🔒 The backup contains SECRETS → **OUTSIDE the repo**. DO NOT commit.
+  - ⚠️ This backup is **one-off, manual**. Not yet scheduled. Repeat before risky changes, and consider a cron.
+  - TokoΦ stack on the server (7 containers, all healthy): postgres, admin, super-admin, storefront, landing, cron, backup. Plus `migrate-*` that `Exited (0)` = NORMAL (runs once at deploy, succeeded).
+- ☠️ **VULTR SNAPSHOT FAILED — don't waste time repeating it.** Tried 2× (2026-07-14): `f9526f57-…` and `759dc88f-…`. Identical pattern: status `pending` 15–30 minutes → **vanishes**, `snapshot get` returns `404 Invalid snapshot ID`, `snapshot list` is empty. **The Vultr API gives no reason whatsoever.** The instance itself is healthy (`active`/`running`) during and after.
+  - Guess (NOT yet verified, don't write it as fact): a new-account restriction / an account running on promo credit. Check notifications & tickets in the Vultr dashboard.
+  - **The correct backup route = pull data OUT of the server** (`pg_dump -Fc` + Coolify/compose config → local or R2). It doesn't depend on the Vultr snapshot feature at all.
+- **No other billing resources**: block storage 0, load balancer 0, reserved IP 0, DNS 0. So $48/mo is the total.
+- **vultr-cli**: v3.10.0 via mise. Auth `~/.vultr-cli.yaml` (chmod 600, in `$HOME` — **NOT** in dotfiles, and **DO NOT** `export VULTR_API_KEY` in `~/.bashrc`: `dotsync refresh_snapshots` copies bashrc into the repo). Already installed & working as of 2026-07-14. Skill: `dotfiles/skills/local/vultr/`.
+- **2-phase plan**: dev=Vultr SG (credit) → prod=Hetzner SG. Migration is cheap (Coolify + git + `pg_dump` + swap the origin IP in Cloudflare). Domain `tokophi.com` is on Cloudflare, DNS not yet pointed.
 
-## AI CLI — status terverifikasi (2026-07-13, `cuan`)
-- **Terpasang**: `claude` (login OK), `codex` (**BELUM login** di `cuan` — tak ada `~/.codex/auth.json`), `pi`, `agy` (Antigravity). **Versi sengaja TIDAK dicatat** — berubah tiap update, angka di memori pasti basi. Cek: `claude --version; codex --version; pi --version; agy --version`.
-- **Gemini CLI: SENGAJA DIHAPUS (2026-07-13)** — keputusan user: stack Gemini dipakai lewat **Antigravity (`agy`)**, bukan `gemini` CLI. Paket `@google/gemini-cli` sudah `npm uninstall -g`. **JANGAN install ulang.**
-- ⚠️ **`~/.gemini/` TETAP DIPERTAHANKAN** meski `gemini` CLI dihapus — isinya `GEMINI.md` (symlink → `~/.config/ai/AGENTS.md`, dibuat `ai-memory-link`) yang dibaca **Antigravity**. **Menghapus `~/.gemini` = merusak agy.** Isi per 2026-07-14: `GEMINI.md`, `projects.json`, `config/`, dan **`antigravity-cli/` (MASIH ADA** — catatan lama yang bilang folder ini sudah hilang itu SALAH).
-- **agy**: binary flat native, namanya **beda per mesin** — di Mac `~/.local/bin/agy` (143M, diverifikasi 2026-07-20; TIDAK ada file `antigravity` di sini), di `cuan` binary ELF hasil installer resmi. Cek: `ls -l ~/.local/bin/ | grep -iE 'agy|antigravity'`. Config Antigravity di `~/.antigravity/{AGENTS.md,ANTIGRAVITY.md}`.
-- **Status 9router**: lihat section "pi.dev + 9router" (per-mesin, satu tempat). Jangan tulis status 9router di sini lagi.
-- ⚠️ **`~/.pi/agent/models.json` provider `9router-fantastico` masih placeholder** `https://YOUR_TUNNEL.abc-tunnel.us/v1` — belum diisi URL tunnel asli, perlu URL dari user. Tunnel `rbq97ts.abc-tunnel.us` MATI: balas **HTTP 530** (Cloudflare: tunnel not connected).
-- **Claude Code**: MCP lokal `chrome-devtools` (pakai `/usr/bin/chromium-browser`) untuk skill `web-perf`. Allowlist permission read-only + deny-rule secret ada di `~/.claude/settings.json`.
-- **Supabase CLI sengaja TIDAK dipasang** (diverifikasi 2026-07-14: `supabase` tidak ada di PATH) — stack DB = PostgreSQL + Drizzle ORM + better-auth, self-host via Coolify. Jangan install kecuali ada project yang benar-benar butuh. Folder `~/.supabase/` **TIDAK ADA di Mac** (diverifikasi 2026-07-20 — catatan lama yang bilang "ADA tapi sisa/kosong" salah untuk mesin ini). Skill `supabase-stack` tetap disimpan untuk referensi, bukan tanda adopsi.
+## AI CLI — verified status (2026-07-13, `cuan`)
+- **Installed**: `claude` (login OK), `codex` (**NOT logged in** on `cuan` — no `~/.codex/auth.json`), `pi`, `agy` (Antigravity). **Versions deliberately NOT recorded** — they change every update, numbers in memory are guaranteed stale. Check: `claude --version; codex --version; pi --version; agy --version`.
+- **Gemini CLI: DELIBERATELY REMOVED (2026-07-13)** — user decision: the Gemini stack is used via **Antigravity (`agy`)**, not the `gemini` CLI. The `@google/gemini-cli` package has been `npm uninstall -g`'d. **DO NOT reinstall it.**
+- ⚠️ **`~/.gemini/` IS STILL KEPT** even though the `gemini` CLI was removed — it holds `GEMINI.md` (symlink → `~/.config/ai/AGENTS.md`, created by `ai-memory-link`) read by **Antigravity**. **Deleting `~/.gemini` = breaking agy.** Contents as of 2026-07-14: `GEMINI.md`, `projects.json`, `config/`, and **`antigravity-cli/` (STILL PRESENT** — the old note saying this folder is gone is WRONG).
+- **agy**: a flat native binary, its name **differs per machine** — on Mac `~/.local/bin/agy` (143M, verified 2026-07-20; there is NO `antigravity` file here), on `cuan` an ELF binary from the official installer. Check: `ls -l ~/.local/bin/ | grep -iE 'agy|antigravity'`. Antigravity config in `~/.antigravity/{AGENTS.md,ANTIGRAVITY.md}`.
+- **9router status**: see the "pi.dev + 9router" section (per-machine, one place). Don't write 9router status here again.
+- ⚠️ **`~/.pi/agent/models.json` provider `9router-fantastico` is still a placeholder** `https://YOUR_TUNNEL.abc-tunnel.us/v1` — not yet filled with the real tunnel URL, needs a URL from the user. Tunnel `rbq97ts.abc-tunnel.us` is DOWN: returns **HTTP 530** (Cloudflare: tunnel not connected).
+- **Claude Code**: local MCP `chrome-devtools` (uses `/usr/bin/chromium-browser`) for the `web-perf` skill. A read-only permission allowlist + a secret deny-rule are in `~/.claude/settings.json`.
+- **Supabase CLI deliberately NOT installed** (verified 2026-07-14: `supabase` not in PATH) — the DB stack = PostgreSQL + Drizzle ORM + better-auth, self-hosted via Coolify. Don't install unless a project truly needs it. The `~/.supabase/` folder **DOES NOT EXIST on Mac** (verified 2026-07-20 — the old note saying "EXISTS but leftover/empty" is wrong for this machine). The `supabase-stack` skill is kept for reference, not a sign of adoption.
 
-## Fix & tool baru di `cuan` (2026-07-13)
-- **`pi-9router-sync.service` DULU GAGAL tiap boot** (`9router is not installed or initialized`). Sebab: script mensyaratkan `~/.9router/auth/cli-secret`, padahal **9router 0.5.30 tidak lagi membuat dir `auth/`** (sekarang `~/.9router/jwt-secret`). Endpoint lokal `127.0.0.1:20128` **tidak memeriksa Authorization** (445 model terambil tanpa header). FIX: `~/dotfiles/bin/pi-9router-sync.js` — syarat `secretPath` dilepas, fallback `apiKey='noauth'`. Service sekarang `success`.
-- Script hanya sync provider yang **AKTIF** di DB 9router → saat ini pi dapat 4 model (`oc/*` free). Mau lebih banyak: aktifkan provider di dashboard 9router (`localhost:20128`).
-- **Tool baru (terverifikasi)**: `psql`/`pg_dump`/`pg_restore` **18.4** via apt (client 18 boleh dump server PG16 — aman; sebaliknya TIDAK), `lm-sensors` (coretemp loaded; CPU ~53°C, GPU ~45°C idle), `wrangler` 4.110.0, `@shopify/cli` 4.4.0, `uv` (mise), `vultr-cli` 3.10.0 (mise).
-- **Hardware `cuan`**: spek lengkap di section "Device registry" — jangan digandakan. Yang penting untuk keputusan AI: swap 4GB tak terpakai (no OOM), dan **GPU MX150 2GB terlalu kecil untuk LLM lokal** → beban AI tetap ke cloud.
+## Fixes & new tools on `cuan` (2026-07-13)
+- **`pi-9router-sync.service` USED TO FAIL every boot** (`9router is not installed or initialized`). Cause: the script required `~/.9router/auth/cli-secret`, but **9router 0.5.30 no longer creates the `auth/` dir** (now `~/.9router/jwt-secret`). The local endpoint `127.0.0.1:20128` **does not check Authorization** (445 models fetched without a header). FIX: `~/dotfiles/bin/pi-9router-sync.js` — the `secretPath` requirement dropped, fallback `apiKey='noauth'`. The service is now `success`.
+- The script only syncs providers that are **ACTIVE** in the 9router DB → currently pi gets 4 models (`oc/*` free). Want more: enable providers in the 9router dashboard (`localhost:20128`).
+- **New tools (verified)**: `psql`/`pg_dump`/`pg_restore` **18.4** via apt (client 18 may dump a PG16 server — safe; the reverse is NOT), `lm-sensors` (coretemp loaded; CPU ~53°C, GPU ~45°C idle), `wrangler` 4.110.0, `@shopify/cli` 4.4.0, `uv` (mise), `vultr-cli` 3.10.0 (mise).
+- **Hardware `cuan`**: full specs in the "Device registry" section — don't duplicate. What matters for AI decisions: 4GB swap unused (no OOM), and **the MX150 2GB GPU is too small for a local LLM** → the AI load stays in the cloud.
 
-## 9router DINONAKTIFKAN di `cuan` (2026-07-13) — bukan dihapus, dan HANYA di mesin itu
-- Keputusan user: 9router "tidak perlu" untuk sekarang. **Service di-stop + disable** (`9router.service` & `pi-9router-sync.service` → `enabled=disabled`, port 20128 mati). RAM 119MB bebas.
-- **TIDAK dihapus** karena masih punya 3 dependent: (1) `pi-image-gen` (baseUrl `127.0.0.1:20128`), (2) extension pi `compact-free` (6 referensi), (3) project di `projects.md:31` yang route AI teks+image lewat 9router (`src/lib/ai/nine*`).
-- **`~/.9router/` UTUH (68MB)** — `db/data.sqlite` berisi **API key provider upstream** dan folder `backups/` KOSONG. Jangan `rm -rf` tanpa export dulu; key-nya tidak bisa dipulihkan.
-- Paket npm `9router@0.5.30` masih terpasang (tidak di-uninstall).
-- **Hidupkan lagi**: `systemctl --user enable --now 9router.service` (+ `pi-9router-sync.service` kalau mau auto-sync model pi).
-- Konsekuensi saat OFF: pi image-gen & compaction via 9router GAGAL. ⚠️ **Sejak 2026-07-20 chat utama pi JUGA ikut mati kalau 9router OFF** — default pi sekarang `9router`/`cx/gpt-5.4`, bukan lagi provider native. Catatan lama "chat utama pi tetap jalan" sudah tidak berlaku.
+## 9router DISABLED on `cuan` (2026-07-13) — not removed, and ONLY on that machine
+- User decision: 9router "not needed" for now. **Service stopped + disabled** (`9router.service` & `pi-9router-sync.service` → `enabled=disabled`, port 20128 dead). 119MB RAM freed.
+- **NOT removed** because it still has 3 dependents: (1) `pi-image-gen` (baseUrl `127.0.0.1:20128`), (2) the pi extension `compact-free` (6 references), (3) the project at `projects.md:31` that routes text+image AI through 9router (`src/lib/ai/nine*`).
+- **`~/.9router/` INTACT (68MB)** — `db/data.sqlite` holds the **upstream provider API keys** and the `backups/` folder is EMPTY. Don't `rm -rf` without exporting first; the keys can't be recovered.
+- The npm package `9router@0.5.30` is still installed (not uninstalled).
+- **Re-enable**: `systemctl --user enable --now 9router.service` (+ `pi-9router-sync.service` if you want pi model auto-sync).
+- Consequence when OFF: pi image-gen & compaction via 9router FAIL. ⚠️ **Since 2026-07-20 pi's main chat ALSO goes down if 9router is OFF** — pi's default is now `9router`/`cx/gpt-5.4`, no longer the native provider. The old note "pi's main chat keeps running" no longer applies.
 
 ## Device registry + git credential (2026-07-13)
-- **`devices/` di dotfiles = registry lintas-device.** Satu file per mesin (`devices/<hostname>.md`): merek/model, CPU, RAM, GPU, disk, AI CLI, toolchain, dan **status tiap symlink dotfiles**. Indeks: `devices/README.md`. Generate/refresh: `device-register` (idempotent, `--dry-run` tersedia; dipanggil otomatis oleh install.sh/install-macos.sh, non-fatal).
-- **Spek `cuan` (satu-satunya tempat di file ini):** **Lenovo ThinkPad T480** (`20L6S3ED00`), i7-8650U 4c/8t, RAM **14.9 GB** (~12GB free), swap 4GB, NVMe 233GB (8% used), GPU DUAL Intel UHD 620 (`i915`) + NVIDIA MX150 2GB (driver 580.159.03, `nvidia_drm` aktif).
-- **`~/.config/mise/config.toml` kini SYMLINK ke `dotfiles/config/mise-config.toml`** → `mise use -g <tool>` otomatis tercatat di dotfiles (sudah diuji: mise menulis TEMBUS symlink, tidak merusaknya). `node` sengaja TIDAK di config bersama (bentrok nvm vs shim mise).
-- **Device lain (Mac) AKTIF push ke repo ini.** Selalu `git pull --rebase` sebelum push. Konflik nyata pernah terjadi di `install-macos.sh` (Mac tambah `pi-9router-restore`, linux tambah `device-register`) — resolusinya GABUNG, jangan pilih salah satu.
+- **`devices/` in dotfiles = the cross-device registry.** One file per machine (`devices/<hostname>.md`): brand/model, CPU, RAM, GPU, disk, AI CLI, toolchain, and **the status of each dotfiles symlink**. Index: `devices/README.md`. Generate/refresh: `device-register` (idempotent, `--dry-run` available; called automatically by install.sh/install-macos.sh, non-fatal).
+- **Specs for `cuan` (the only place in this file):** **Lenovo ThinkPad T480** (`20L6S3ED00`), i7-8650U 4c/8t, RAM **14.9 GB** (~12GB free), 4GB swap, NVMe 233GB (8% used), DUAL GPU Intel UHD 620 (`i915`) + NVIDIA MX150 2GB (driver 580.159.03, `nvidia_drm` active).
+- **`~/.config/mise/config.toml` is now a SYMLINK to `dotfiles/config/mise-config.toml`** → `mise use -g <tool>` is automatically recorded in dotfiles (already tested: mise writes THROUGH the symlink without breaking it). `node` is deliberately NOT in the shared config (nvm vs mise shim conflict).
+- **Another device (Mac) ACTIVELY pushes to this repo.** Always `git pull --rebase` before pushing. A real conflict happened once in `install-macos.sh` (Mac added `pi-9router-restore`, linux added `device-register`) — the resolution is to MERGE, don't pick one.
 
-## Identitas git — SATU untuk semua device (2026-07-13)
-- **Patokan: `ongkipro <82156528+ongkipro@users.noreply.github.com>`** (GitHub noreply — email asli tak pernah masuk riwayat commit, tapi commit tetap terhitung ke profil). ID `82156528` diambil dari `gh api user`, bukan tebakan.
-- Sebelumnya ada **4 identitas** beredar: global `ongkiardiansyah@gmail.com`, `install-macos.sh` hardcode `get@ongki.pro`, akun GitHub `ongkipro`, dan — yang paling menipu — **config LOKAL repo dotfiles** `Ongki Pro <[email protected]>`. Config lokal SELALU menang atas global, jadi commit dari mesin ini ter-atribusi ke identitas yang tak disengaja.
-- Override lokal di `~/dotfiles` sudah DICABUT (`git config --local --unset user.name/user.email`) → ikut global. `install-macos.sh` juga sudah diseragamkan.
-- ⚠️ **Commit lama (sebelum 2026-07-13) tetap membawa email lama** — tidak di-rewrite (sudah ter-push; rewrite = destruktif).
-- ⚠️ **Cek repo lain**: `git config --local --get user.email` di tiap repo. Kalau ada override serupa, cabut juga.
-- **`credential.helper` = `!gh auth git-credential`** (TANPA path absolut — supaya jalan di Linux `/usr/bin/gh` maupun Mac `/opt/homebrew/bin/gh`). Pernah ter-set ke path absolut `/home/ongki/.local/bin/gh` yang TIDAK ADA → semua `git push` gagal `could not read Username`. Kalau push gagal dengan pesan itu: jalankan `gh auth setup-git`.
+## Git identity — ONE for all devices (2026-07-13)
+- **Standard: `ongkipro <82156528+ongkipro@users.noreply.github.com>`** (GitHub noreply — the real email never enters commit history, but commits still count toward the profile). The ID `82156528` comes from `gh api user`, not a guess.
+- Previously there were **4 identities** in circulation: global `ongkiardiansyah@gmail.com`, `install-macos.sh` hardcoding `get@ongki.pro`, the GitHub account `ongkipro`, and — the most deceptive — the dotfiles repo's **LOCAL config** `Ongki Pro <[email protected]>`. Local config ALWAYS wins over global, so commits from this machine were attributed to an unintended identity.
+- The local override in `~/dotfiles` has been REMOVED (`git config --local --unset user.name/user.email`) → it follows global. `install-macos.sh` has also been standardized.
+- ⚠️ **Old commits (before 2026-07-13) still carry the old email** — not rewritten (already pushed; a rewrite = destructive).
+- ⚠️ **Check other repos**: `git config --local --get user.email` in each repo. If there's a similar override, remove it too.
+- **`credential.helper` = `!gh auth git-credential`** (WITHOUT an absolute path — so it works on both Linux `/usr/bin/gh` and Mac `/opt/homebrew/bin/gh`). It was once set to the absolute path `/home/ongki/.local/bin/gh` which DOES NOT EXIST → every `git push` failed with `could not read Username`. If a push fails with that message: run `gh auth setup-git`.
 
-## Antigravity (`agy`) — cara install RESMI (2026-07-13, diverifikasi)
-- **Installer resmi**: `curl -fsSL https://antigravity.google/cli/install.sh | bash` → lalu `agy install` (konfigurasi PATH + shell). Docs: https://antigravity.google/docs/cli-getting-started
-- Diverifikasi langsung: URL balas **HTTP 200**, isinya script bash asli ("Antigravity CLI - Unix Bootstrapper Script"), `TARGET_DIR="$HOME/.local/bin"`, `BINARY_PATH="$TARGET_DIR/agy"`.
-- **Bukan paket npm**, tidak butuh Node. Binary flat native, langsung bernama `agy`.
-- Subcommand: `agy install` · `agy update` · `agy models` · `agy agents` · `agy plugin` · `agy changelog`. **Tidak ada `agy login`** — auth jalan saat `agy` pertama dijalankan (lewat browser).
-- ✅ **Mesin `cuan` sudah di-INSTALL ULANG pakai installer resmi (2026-07-13)**: sekarang `~/.local/bin/agy` = binary ELF asli (173MB), BUKAN symlink lagi. Binary lama `~/.local/bin/antigravity` (166MB) sudah DIHAPUS. Masalah "symlink agy hilang diam-diam" tak bisa terulang.
-- ⚠️ **Installer `agy` MENGOTORI `~/.profile` + `~/.bashrc`**: menambah `export PATH="/home/ongki/.local/bin:$PATH"` (hardcode home path). `~/.profile` itu SYMLINK ke `dotfiles/home/profile` → baris itu ikut ter-commit & PATAH di Mac (`/Users/...`). Dotfiles sudah handle `~/.local/bin` secara portabel (guard idempotent di .bashrc:166). **Setelah tiap install/update agy: `git checkout home/profile` + hapus baris `# Added by Antigravity CLI installer` dari shell rc.**
-- Antigravity **menggantikan Gemini CLI** (yang sudah dihapus dari mesin ini).
+## Antigravity (`agy`) — the OFFICIAL install method (2026-07-13, verified)
+- **Official installer**: `curl -fsSL https://antigravity.google/cli/install.sh | bash` → then `agy install` (configures PATH + shell). Docs: https://antigravity.google/docs/cli-getting-started
+- Verified directly: the URL returns **HTTP 200**, its content is a genuine bash script ("Antigravity CLI - Unix Bootstrapper Script"), `TARGET_DIR="$HOME/.local/bin"`, `BINARY_PATH="$TARGET_DIR/agy"`.
+- **Not an npm package**, needs no Node. A flat native binary, directly named `agy`.
+- Subcommands: `agy install` · `agy update` · `agy models` · `agy agents` · `agy plugin` · `agy changelog`. **There is no `agy login`** — auth runs when `agy` is first launched (via browser).
+- ✅ **The `cuan` machine has been RE-INSTALLED using the official installer (2026-07-13)**: now `~/.local/bin/agy` = the real ELF binary (173MB), NOT a symlink anymore. The old binary `~/.local/bin/antigravity` (166MB) has been DELETED. The "agy symlink silently disappears" problem can't recur.
+- ⚠️ **The `agy` installer POLLUTES `~/.profile` + `~/.bashrc`**: it adds `export PATH="/home/ongki/.local/bin:$PATH"` (hardcoded home path). `~/.profile` is a SYMLINK to `dotfiles/home/profile` → that line gets committed & is BROKEN on Mac (`/Users/...`). Dotfiles already handles `~/.local/bin` portably (idempotent guard at .bashrc:166). **After every agy install/update: `git checkout home/profile` + remove the `# Added by Antigravity CLI installer` line from the shell rc.**
+- Antigravity **replaces the Gemini CLI** (which has been removed from this machine).

@@ -1,40 +1,40 @@
-# Memori: Identity & Profiling
-> Bagian dari memori bersama untuk AI CLI. Simpan hanya fakta durable yang membantu kerja development, bisnis, dan strategi. Jangan simpan credential, token, data sensitif, atau informasi keluarga detail tanpa konfirmasi eksplisit.
+# Memory: Identity & Profiling
+> Part of shared memory for AI CLIs. Store only durable facts that help development, business, and strategy work. Do not store credentials, tokens, sensitive data, or detailed family information without explicit confirmation.
 
-## Identitas kerja
-- Preferred name / sapaan: Paduka Ongki.
-- GitHub username utama: `ongkipro`.
+## Work identity
+- Preferred name / form of address: Paduka Ongki.
+- Main GitHub username: `ongkipro`.
 - Personal brand/domain: `ongki.pro`.
-- Email: kontak/brand `get@ongki.pro` · akun layanan (Vercel/Coolify) `ongkiardiansyah@gmail.com`.
-- ⚠️ **Untuk git commit JANGAN pakai keduanya.** Patokan: `ongkipro <82156528+ongkipro@users.noreply.github.com>` (lihat environment.md). `get@ongki.pro` pernah masuk riwayat commit secara tak sengaja dan sudah dicabut.
+- Email: contact/brand `get@ongki.pro` · service accounts (Vercel/Coolify) `ongkiardiansyah@gmail.com`.
+- ⚠️ **For git commits DO NOT use either of them.** Standard: `ongkipro <82156528+ongkipro@users.noreply.github.com>` (see environment.md). `get@ongki.pro` accidentally ended up in commit history and has been removed.
 - Dotfiles repo: `github.com/ongkipro/dotfiles` (private).
-- Nama lengkap/legal identity: Ongki A Febriananda (dikonfirmasi via GitHub profile README draft).
+- Full/legal identity: Ongki A Febriananda (confirmed via GitHub profile README draft).
 
-## Bio reusable
+## Reusable bio
 - Short ID bio: Paduka Ongki adalah full-stack web developer dan digital marketer yang fokus pada Shopify, ecommerce, SEO, Meta Ads, automation, dan AI-native workflow.
 - Short EN bio: Ongki is a full-stack web developer and digital marketer focused on Shopify, ecommerce, SEO, Meta Ads, automation, and AI-native workflows.
 - Public positioning: builder of systems, not just websites — combines development, growth, operations, and automation into reusable business assets.
-- Credential framing preference: tampilkan capability/stack/track record lebih dulu; hindari framing generik seperti "jasa" bila konteksnya profil profesional atau README.
+- Credential framing preference: show capability/stack/track record first; avoid generic framing like "services" when the context is a professional profile or README.
 
-## Bahasa & gaya komunikasi
-- Penjelasan utama: Bahasa Indonesia santai.
-- Output teknis: English untuk prompt, code, PRD, SOP, framework, ads, SEO, website, AI system.
-- Gaya jawaban yang disukai: kritis, praktis, profit-aware, conversion-aware, SEO-aware, compliance-aware, scalability-aware, dan execution-aware.
-- Jangan otomatis setuju. Uji asumsi, risiko, biaya eksekusi, dan alternatif lebih sederhana.
+## Language & communication style
+- Main explanation: casual Bahasa Indonesia.
+- Technical output: English for prompts, code, PRD, SOP, framework, ads, SEO, website, AI system.
+- Preferred answer style: critical, practical, profit-aware, conversion-aware, SEO-aware, compliance-aware, scalability-aware, and execution-aware.
+- Do not agree automatically. Test assumptions, risks, execution cost, and simpler alternatives.
 
-## Profil profesional
-- Full-stack website development dan full-stack digital marketing.
-- Fokus utama: international dropshipping, Shopify, ecommerce, Meta Ads, Google Ads, SEO, affiliate marketing, AI agent, automation, product research, UI/UX, landing page, dan web platform.
-- Pola kerja: system builder, framework thinker, reusable asset builder, SOP-oriented, automation-first, terminal-first.
-- Sering membangun sistem untuk dijalankan oleh tim, anak magang, admin, client, atau AI agent.
-- Kombinasi utama yang membedakan: technical build + growth execution + workflow automation + SEO/conversion thinking dalam satu orang.
+## Professional profile
+- Full-stack website development and full-stack digital marketing.
+- Main focus: international dropshipping, Shopify, ecommerce, Meta Ads, Google Ads, SEO, affiliate marketing, AI agent, automation, product research, UI/UX, landing page, and web platform.
+- Working pattern: system builder, framework thinker, reusable asset builder, SOP-oriented, automation-first, terminal-first.
+- Frequently builds systems to be operated by a team, interns, admins, clients, or AI agents.
+- Main differentiating combination: technical build + growth execution + workflow automation + SEO/conversion thinking in one person.
 
-## Skill & domain kuat
+## Strong skills & domains
 - Development: Linux/Ubuntu, terminal workflow, Astro, Shopify/headless Shopify, Next.js, PostgreSQL + Drizzle + better-auth, Cloudflare, VPS (Coolify), Git, tmux, Helix, CLI workflow.
 - Ecommerce: Shopify store, Shopify theme, headless storefront, tracking, checkout flow, dropshipping, marketplace-style store.
 - Marketing: Meta Ads, Google Ads, landing page, funnel, conversion rate optimization, tracking/attribution, copywriting.
 - SEO & content: Shopify SEO, Astro/static SEO, Medium SEO, Pinterest SEO, German affiliate SEO, indexing strategy.
-- AI workflow: Claude Code, Codex, pi.dev, Antigravity (`agy`), local skills, AI terminal project execution. (Gemini CLI sudah dihapus 2026-07-13 — stack Gemini lewat Antigravity.)
+- AI workflow: Claude Code, Codex, pi.dev, Antigravity (`agy`), local skills, AI terminal project execution. (Gemini CLI was removed 2026-07-13 — the Gemini stack goes through Antigravity.)
 
 ## Strategic focus
 - Indonesia Commerce / Commerce Portal OS: platform style super admin, client admin, frontend/store/blog; direction resembles Shopify + tracking/form infrastructure for Indonesia.

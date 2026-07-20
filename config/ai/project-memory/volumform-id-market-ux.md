@@ -7,26 +7,26 @@ metadata:
   originSessionId: 49b7b3fa-2042-4904-b100-c5baa31f11dc
 ---
 
-Volumform = multi-tenant SaaS untuk direct-response funnel Indonesia (landing + order form + CRM + Meta tracking + shipping KiriminAja/Mengantar). Repo `~/Projects/volumform` (pnpm monorepo: apps/{admin,superadmin,edge} + packages). Client admin & super admin = 2 SPA terpisah.
+Volumform = multi-tenant SaaS for Indonesian direct-response funnels (landing + order form + CRM + Meta tracking + KiriminAja/Mengantar shipping). Repo `~/Projects/volumform` (pnpm monorepo: apps/{admin,superadmin,edge} + packages). Admin client & super admin = 2 separate SPAs.
 
-Riset pasar (2026-07-09, sumber: Scalev, OrderOnline.id, KiriminAja, Mengantar, Toko Order) menetapkan konvensi UX COD Indonesia yang sudah/akan diterapkan:
-- **WhatsApp = aksi #1** — `lib/wa.ts` + `<WaButton>` sudah ada (wa.me `62…`, template Konfirmasi/Follow-up/Dikirim+resi/COD). Terpasang di Pesanan/Pelanggan/OrderDetail.
-- **Label status Bahasa Indonesia** — `statusLabel` di `lib/format.tsx` (Baru/Dihubungi/Dikonfirmasi/Diproses/Dikirim/Selesai/Batal). Ubah status 1-klik inline di baris Pesanan.
+Market research (2026-07-09, sources: Scalev, OrderOnline.id, KiriminAja, Mengantar, Toko Order) established the Indonesian COD UX conventions that are/will be applied:
+- **WhatsApp = action #1** — `lib/wa.ts` + `<WaButton>` already exist (wa.me `62…`, templates Konfirmasi/Follow-up/Dikirim+resi/COD). Installed on Pesanan/Pelanggan/OrderDetail.
+- **Indonesian status labels** — `statusLabel` in `lib/format.tsx` (Baru/Dihubungi/Dikonfirmasi/Diproses/Dikirim/Selesai/Batal). Change status inline with 1 click on the Pesanan row.
 
-**Sudah dibangun (migrasi 0002, verified live):**
-- **Status Bayar terpisah** (`orders.payment_status` unpaid/paid) — toggle 1-klik; COD **auto-lunas** saat status→delivered (server-side).
-- **Status `retur`** (COD gagal) di enum ORDER_STATUS + tab + dropdown.
-- **Assign order ke CS** — kolom CS + dropdown anggota (admin), filter "Pesanan saya" (`GET /orders?assigned=me`). `PATCH /orders/:id` terima status·paymentStatus·assignedUserId.
+**Already built (migration 0002, verified live):**
+- **Separate payment status** (`orders.payment_status` unpaid/paid) — 1-click toggle; COD **auto-settles** when status→delivered (server-side).
+- **`retur` status** (COD failed) in the ORDER_STATUS enum + tab + dropdown.
+- **Assign an order to CS** — CS column + member dropdown (admin), "Pesanan saya" filter (`GET /orders?assigned=me`). `PATCH /orders/:id` accepts status·paymentStatus·assignedUserId.
 
-**Sudah (migrasi 0003):** Template pesan WA **editable per tenant** (`tenants.wa_templates_json`, Pengaturan → Pesan WA) dengan placeholder `{nama}{order}{total}{items}{resi}{kurir}{toko}`; `lib/wa.ts` = `renderTemplate` + `DEFAULT_WA_TEMPLATES`; `<WaButton>` baca via `useTenant`. PageEditor bisa tambah/hapus section. Super admin Audit → DataTable.
+**Done (migration 0003):** WA message templates **editable per tenant** (`tenants.wa_templates_json`, Pengaturan → Pesan WA) with placeholders `{nama}{order}{total}{items}{resi}{kurir}{toko}`; `lib/wa.ts` = `renderTemplate` + `DEFAULT_WA_TEMPLATES`; `<WaButton>` reads via `useTenant`. PageEditor can add/remove sections. Super admin Audit → DataTable.
 
-**Sudah (migrasi 0004):** `orders.shipping_address` (order manual & funnel simpan alamat; detail fallback dari submission). **Cetak label** thermal 100×150mm (`lib/print-label.ts`, tombol di OrderDetail). Dashboard chip **COD belum lunas** (Rp + jumlah).
+**Done (migration 0004):** `orders.shipping_address` (manual orders & funnel store the address; detail falls back from the submission). **Thermal label print** 100×150mm (`lib/print-label.ts`, button in OrderDetail). Dashboard chip **COD belum lunas** (Rp + count).
 
-**Sudah:** Halaman **Follow-up** (`/followup`) — worklist grup Belum dihubungi/Menunggu konfirmasi/Belum bayar-COD, aksi WA + 1-klik, tanpa scheduler (dari data order). Menu "Follow Up" (WAJIB riset) beres.
+**Done:** **Follow-up** page (`/followup`) — worklist grouped by Belum dihubungi/Menunggu konfirmasi/Belum bayar-COD, WA + 1-click actions, no scheduler (from order data). The "Follow Up" menu (research REQUIRED) is done.
 
-**Deferred (belum dibangun, bernilai tinggi):**
-- Auto follow-up WA **otomatis/terjadwal** (FU1–4 kirim sendiri) — butuh scheduler/queue + WABA (`job_runs` ada, worker belum). Halaman Follow-up manual sudah ada.
-- Settlement/pencairan COD real (tarik dari API KiriminAja/Mengantar), laporan keuangan.
-- Retur belum auto-set payment (retur = barang balik; payment tetap unpaid — sudah benar).
+**Deferred (not built yet, high value):**
+- **Automatic/scheduled** WA auto follow-up (FU1–4 send themselves) — needs a scheduler/queue + WABA (`job_runs` exists, worker doesn't yet). The manual Follow-up page already exists.
+- Real COD settlement/disbursement (pull from the KiriminAja/Mengantar API), financial reports.
+- Retur doesn't auto-set payment yet (retur = goods returned; payment stays unpaid — which is correct).
 
-Aturan: jangan mengarang API shipping — verifikasi ke docs resmi. Rotate token KiriminAja/Mengantar saat deploy.
+Rule: don't invent the shipping API — verify against official docs. Rotate the KiriminAja/Mengantar token on deploy.

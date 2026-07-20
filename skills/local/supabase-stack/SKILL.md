@@ -1,27 +1,27 @@
 ---
 name: supabase-stack
-description: 'Setup dan develop dengan Supabase — auth, database (PostgreSQL), storage, realtime, dan edge functions. Mendukung cloud Supabase dan self-hosted di VPS via Docker. Gunakan untuk project dengan backend serius, multi-user, realtime features, atau yang butuh auth lengkap tanpa reinvent the wheel. Triggers: ''supabase'', ''setup supabase'', ''auth supabase'', ''supabase docker'', ''self-hosted supabase'', ''supabase schema'', ''rls'', ''row level security'', ''supabase storage''. NOT untuk pekerjaan Postgres/Drizzle biasa (house stack) atau Cloudflare D1 — ''rls'' dan ''storage'' di sini berarti fitur bawaan Supabase, bukan RLS Postgres polos atau R2/D1.'
+description: 'Set up and develop with Supabase — auth, database (PostgreSQL), storage, realtime, and edge functions. Supports Supabase cloud and self-hosted on a VPS via Docker. Use for projects with a serious backend, multi-user, realtime features, or that need full auth without reinventing the wheel. Triggers: ''supabase'', ''setup supabase'', ''auth supabase'', ''supabase docker'', ''self-hosted supabase'', ''supabase schema'', ''rls'', ''row level security'', ''supabase storage''. NOT for plain Postgres/Drizzle work (house stack) or Cloudflare D1 — here ''rls'' and ''storage'' mean built-in Supabase features, not plain Postgres RLS or R2/D1.'
 ---
 
 # Supabase Stack
 
-Full-stack backend pakai Supabase: auth, PostgreSQL, storage, realtime, edge functions.
+Full-stack backend using Supabase: auth, PostgreSQL, storage, realtime, edge functions.
 
-## Kapan Pakai Supabase vs Cloudflare D1
+## When to Use Supabase vs Cloudflare D1
 
-| Faktor | Supabase | Cloudflare D1 |
+| Factor | Supabase | Cloudflare D1 |
 |---|---|---|
-| Project skala | Medium–Large | Small–Medium |
-| Auth built-in | ✅ Lengkap | ❌ Perlu DIY |
+| Project scale | Medium–Large | Small–Medium |
+| Auth built-in | ✅ Full | ❌ DIY needed |
 | Database | PostgreSQL (powerful) | SQLite (simple) |
-| Realtime | ✅ Built-in | ❌ Tidak ada |
-| Storage | ✅ S3-compatible | ❌ Tidak ada |
+| Realtime | ✅ Built-in | ❌ None |
+| Storage | ✅ S3-compatible | ❌ None |
 | Deploy target | VPS / Cloud | Cloudflare Edge |
-| Self-host | ✅ Docker di VPS | ❌ CF only |
-| Cost (cloud) | Free tier ada, lalu $25/mo | Per request |
+| Self-host | ✅ Docker on VPS | ❌ CF only |
+| Cost (cloud) | Free tier available, then $25/mo | Per request |
 
-**Pilih Supabase kalau:** auth multi-user, file storage, realtime, atau PostgreSQL features (full-text, JSONB, triggers).
-**Pilih D1 kalau:** edge-first, simple CRUD, Cloudflare Workers ecosystem.
+**Choose Supabase if:** multi-user auth, file storage, realtime, or PostgreSQL features (full-text, JSONB, triggers).
+**Choose D1 if:** edge-first, simple CRUD, Cloudflare Workers ecosystem.
 
 ## Setup: Supabase Cloud
 
@@ -32,10 +32,10 @@ npm i -g supabase
 # Login
 supabase login
 
-# Init project (di root repo)
+# Init project (at the repo root)
 supabase init
 
-# Link ke cloud project
+# Link to a cloud project
 supabase link --project-ref <project-ref>
 
 # Push schema local → cloud
@@ -45,7 +45,7 @@ supabase db push
 supabase db pull
 ```
 
-## Setup: Self-Hosted di VPS (Docker)
+## Setup: Self-Hosted on VPS (Docker)
 
 ```bash
 # Clone official docker setup
@@ -55,7 +55,7 @@ cd supabase/docker
 # Copy env
 cp .env.example .env
 
-# Edit .env — wajib ganti:
+# Edit .env — must change:
 # POSTGRES_PASSWORD, JWT_SECRET, ANON_KEY, SERVICE_ROLE_KEY
 # SITE_URL=https://yourdomain.com
 # API_EXTERNAL_URL=https://api.yourdomain.com
@@ -63,11 +63,11 @@ cp .env.example .env
 # Start
 docker compose up -d
 
-# Akses Studio
-# http://localhost:8000 (atau domain kamu)
+# Access Studio
+# http://localhost:8000 (or your domain)
 ```
 
-### Nginx reverse proxy untuk self-hosted
+### Nginx reverse proxy for self-hosted
 
 ```nginx
 server {
@@ -125,14 +125,14 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 ```
 
-## Row Level Security (RLS) — Pola Umum
+## Row Level Security (RLS) — Common Patterns
 
 ```sql
--- Read: hanya owner
+-- Read: owner only
 create policy "owner read" on orders
   for select using (auth.uid() = user_id);
 
--- Write: hanya owner
+-- Write: owner only
 create policy "owner write" on orders
   for insert with check (auth.uid() = user_id);
 
@@ -145,7 +145,7 @@ create policy "public read" on products
   for select using (true);
 ```
 
-## Auth — Integrasi Client
+## Auth — Client Integration
 
 ### Next.js (App Router)
 
@@ -221,12 +221,12 @@ const { data: { publicUrl } } = supabase.storage
 await supabase.storage.from('avatars').remove([`${userId}/avatar.png`])
 ```
 
-Storage bucket policies mirip RLS — set via dashboard atau SQL.
+Storage bucket policies are similar to RLS — set via the dashboard or SQL.
 
 ## Realtime
 
 ```ts
-// Subscribe ke table changes
+// Subscribe to table changes
 const channel = supabase
   .channel('orders-changes')
   .on('postgres_changes',
@@ -242,7 +242,7 @@ supabase.removeChannel(channel)
 ## Edge Functions
 
 ```bash
-# Buat function
+# Create a function
 supabase functions new send-email
 
 # Deploy
@@ -263,20 +263,20 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 ```
 
-## Checklist Project Baru
+## New Project Checklist
 
-- [ ] Buat project di Supabase (cloud) atau setup Docker (VPS)
-- [ ] Init `supabase/` folder di repo dengan `supabase init`
-- [ ] Buat migration pertama: tabel utama + RLS
-- [ ] Setup auth provider (email, OAuth)
-- [ ] Pasang client library di frontend
-- [ ] Setup middleware untuk session refresh (Next.js / Astro)
-- [ ] Buat storage bucket + policies
-- [ ] Test RLS: pastikan user tidak bisa akses data orang lain
+- [ ] Create a project in Supabase (cloud) or set up Docker (VPS)
+- [ ] Init the `supabase/` folder in the repo with `supabase init`
+- [ ] Create the first migration: main tables + RLS
+- [ ] Set up an auth provider (email, OAuth)
+- [ ] Install the client library in the frontend
+- [ ] Set up middleware for session refresh (Next.js / Astro)
+- [ ] Create a storage bucket + policies
+- [ ] Test RLS: make sure a user cannot access other people's data
 
-## Referensi Cepat
+## Quick Reference
 
 - Docs: supabase.com/docs
 - Self-host: supabase.com/docs/guides/self-hosting/docker
 - RLS guide: supabase.com/docs/guides/database/row-level-security
-- MCP Supabase (kalau pakai): `npx @supabase/mcp-server-supabase@latest`
+- MCP Supabase (if using): `npx @supabase/mcp-server-supabase@latest`

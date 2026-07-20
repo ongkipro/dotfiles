@@ -1,0 +1,581 @@
+#!/usr/bin/env node
+
+/**
+ * ico - Interactive CLI Orchestrator
+ * Coordinates claude, agy, and pi for unified task execution.
+ * Built-in TUI dashboard, auto-resume, Git safety guards, and advanced TMUX 3-pane grid layout.
+ */
+
+const { spawn, execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const readline = require('readline');
+
+// Parse arguments
+const args = process.argv.slice(2);
+const skipPermissions = args.includes('--dangerously-skip-permissions');
+const dryRun = args.includes('--dry-run');
+const prompt = args.filter(a => !a.startsWith('-')).join(' ');
+
+// Locate Git Repository Root
+function getRepoRoot() {
+  let dir = process.cwd();
+  while (dir !== path.parse(dir).root) {
+    if (fs.existsSync(path.join(dir, '.git'))) {
+      return dir;
+    }
+    dir = path.dirname(dir);
+  }
+  return process.cwd();
+}
+
+const repoRoot = getRepoRoot();
+const buildLogPath = path.join(repoRoot, 'BUILD-LOG.md');
+
+// System prompt for decomposing
+const systemPrompt = `
+You are a task decomposer. You break down a user's development request into a series of sub-tasks, routing each task to the most appropriate AI CLI tool based on their specific strengths:
+- "claude": best for large architectural changes, big refactoring, database design, backend logic, schema updates.
+- "agy": best for UI/UX, styling (Tailwind, CSS), layout, visual page structures, Astro/Next.js components.
+- "pi": best for daily terminal commands, running tests, logic verification, minor scripting.
+
+You must return a raw JSON array of task objects. Do not wrap it in markdown blocks. Format:
+[
+  {
+    "id": 1,
+    "agent": "claude" | "agy" | "pi",
+    "task": "Specific description of the sub-task"
+  }
+]
+`;
+
+// Detect project Dev Server command
+function detectDevCommand() {
+  const root = getRepoRoot();
+  const pkgPath = path.join(root, 'package.json');
+  
+  if (fs.existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      if (pkg.scripts) {
+        if (pkg.scripts.dev) {
+          if (fs.existsSync(path.join(root, 'pnpm-lock.yaml'))) return 'pnpm dev';
+          if (fs.existsSync(path.join(root, 'yarn.lock'))) return 'yarn dev';
+          return 'npm run dev';
+        }
+        if (pkg.scripts.start) return 'npm start';
+      }
+    } catch (e) {}
+  }
+  
+  if (fs.existsSync(path.join(root, 'astro.config.mjs')) || fs.existsSync(path.join(root, 'astro.config.js'))) {
+    return 'npx astro dev';
+  }
+  
+  if (fs.existsSync(path.join(root, 'wrangler.toml'))) {
+    return 'npx wrangler dev';
+  }
+  
+  return 'bash'; // Fallback to shell if no dev server detected
+}
+
+// Check if Git repository has uncommitted changes
+function isGitDirty() {
+  try {
+    const status = execSync('git status --porcelain', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+    return status.length > 0;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Global Tmux Pane References
+let mainPaneId = null;
+let aiPaneId = null;
+let devPaneId = null;
+
+// Clean up Tmux layout on abort/exit
+function cleanupTmux() {
+  // Restore cursor on exit
+  process.stdout.write('\x1b[?25h');
+  
+  if (process.env.TMUX) {
+    if (aiPaneId) {
+      try { execSync(`tmux kill-pane -t ${aiPaneId}`, { stdio: 'ignore' }); } catch (e) {}
+      aiPaneId = null;
+    }
+    if (devPaneId) {
+      try { execSync(`tmux kill-pane -t ${devPaneId}`, { stdio: 'ignore' }); } catch (e) {}
+      devPaneId = null;
+    }
+  }
+}
+
+// Exit listeners for graceful cleanup
+process.on('SIGINT', () => {
+  cleanupTmux();
+  console.log('\n\x1b[1;31mAborted by user. Cleanup complete.\x1b[0m');
+  process.exit(130);
+});
+
+process.on('exit', () => {
+  cleanupTmux();
+});
+
+// Setup 3-pane Tmux workspace layout
+function setupTmuxLayout() {
+  if (!process.env.TMUX) return;
+  try {
+    mainPaneId = execSync('tmux display-message -p "#{pane_id}"', { encoding: 'utf8' }).trim();
+    
+    // 1. Split horizontally to create the AI Pane (Right)
+    aiPaneId = execSync(`tmux split-window -h -P -F "#{pane_id}" -t ${mainPaneId} "bash"`, { encoding: 'utf8' }).trim();
+    
+    // 2. Split AI Pane vertically to create the Dev Server Pane (Bottom Right)
+    const devCommand = detectDevCommand();
+    devPaneId = execSync(`tmux split-window -v -P -F "#{pane_id}" -t ${aiPaneId} "${devCommand}"`, { encoding: 'utf8' }).trim();
+    
+    // Return focus back to Dashboard pane
+    execSync(`tmux select-pane -t ${mainPaneId}`);
+  } catch (err) {
+    console.error('Failed to setup Tmux grid layout:', err.message);
+  }
+}
+
+// Perform Decomposing
+async function decompose(userPrompt) {
+  console.log(`\x1b[32m-> Decomposing task via LLM...\x1b[0m`);
+  
+  try {
+    const response = await fetch('http://127.0.0.1:20128/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'oc/deepseek-v4-flash-free',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`9router HTTP ${response.status}`);
+    }
+    
+    const text = await response.text();
+    const cleanText = text.replace(/data:\s*\[DONE\]\s*$/, '').trim();
+    const data = JSON.parse(cleanText);
+    const content = data.choices[0].message.content.trim();
+    const cleanContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(cleanContent);
+  } catch (err) {
+    console.log(`\x1b[33m⚠ 9router local failed (${err.message}). Falling back to claude CLI...\x1b[0m`);
+    return fallbackDecompose(userPrompt);
+  }
+}
+
+// Fallback using claude CLI non-interactively
+function fallbackDecompose(userPrompt) {
+  return new Promise((resolve, reject) => {
+    const fullPrompt = `${systemPrompt}\n\nDecompose this request: "${userPrompt}"`;
+    const claudeArgs = ['-p', fullPrompt, '--dangerously-skip-permissions'];
+    
+    const child = spawn('claude', claudeArgs);
+    let output = '';
+    let errorOutput = '';
+    
+    child.stdout.on('data', data => { output += data.toString(); });
+    child.stderr.on('data', data => { errorOutput += data.toString(); });
+    
+    child.on('close', code => {
+      if (code !== 0) {
+        reject(new Error(`Claude CLI exited with code ${code}. Error output: ${errorOutput || 'None'}. Output: ${output || 'None'}`));
+        return;
+      }
+      try {
+        const cleanContent = output.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(cleanContent);
+        resolve(parsed);
+      } catch (e) {
+        reject(new Error('Failed to parse fallback decomposition output: ' + output));
+      }
+    });
+  });
+}
+
+// Center align string within a given width (ignoring ANSI color codes)
+function centerAlign(str, width) {
+  const cleanStr = str.replace(/\x1b\[[0-9;]*m/g, '');
+  const pad = Math.max(0, Math.floor((width - cleanStr.length) / 2));
+  return ' '.repeat(pad) + str + ' '.repeat(width - cleanStr.length - pad);
+}
+
+// Truncate string to a maximum length
+function truncate(str, maxLength) {
+  if (str.length <= maxLength) return str;
+  return str.substring(0, maxLength - 3) + '...';
+}
+
+// Global spinner and timing state
+let spinnerIdx = 0;
+const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+let taskStartTime = null;
+
+// Render the TUI dashboard on screen (In-place redrawing to prevent flickering)
+function drawDashboard(tasks, activeTaskId, statusText) {
+  const width = 64;
+  const border = '─'.repeat(width - 2);
+  const reset = '\x1b[0m';
+  
+  // Move cursor home to draw in-place (flicker-free)
+  process.stdout.write('\x1b[H');
+  
+  console.log(`\x1b[37m┌${border}┐\x1b[0m`);
+  console.log(`\x1b[37m│\x1b[0m\x1b[1;36m${centerAlign('INTERACTIVE CLI ORCHESTRATOR (ico)', width - 2)}\x1b[0m\x1b[37m│\x1b[0m`);
+  console.log(`\x1b[37m│\x1b[0m\x1b[2m${centerAlign('Conductor for claude, agy, & pi', width - 2)}\x1b[0m\x1b[37m│\x1b[0m`);
+  
+  // Git dirty warning badge
+  if (!dryRun && isGitDirty()) {
+    console.log(`\x1b[37m│\x1b[0m\x1b[1;33m${centerAlign('⚠️  Warning: Git working tree is dirty. Autonomy is active.', width - 2)}\x1b[0m\x1b[37m│\x1b[0m`);
+  } else {
+    console.log(`\x1b[37m│\x1b[0m${' '.repeat(width - 2)}\x1b[37m│\x1b[0m`);
+  }
+  
+  console.log(`\x1b[37m├${border}┤\x1b[0m`);
+  
+  const completed = tasks.filter(t => t.status === 'done').length;
+  const activeAgent = activeTaskId ? tasks.find(t => t.id === activeTaskId)?.agent.toUpperCase() : 'NONE';
+  const statsLine = `Tasks: ${tasks.length} | Completed: ${completed} | Active Agent: ${activeAgent}`;
+  console.log(`\x1b[37m│\x1b[0m\x1b[1m${centerAlign(statsLine, width - 2)}\x1b[0m\x1b[37m│\x1b[0m`);
+  console.log(`\x1b[37m├${border}┤\x1b[0m`);
+  
+  if (tasks.length === 0) {
+    console.log(`\x1b[37m│\x1b[0m\x1b[2m${centerAlign('(No tasks scheduled)', width - 2)}\x1b[0m\x1b[37m│\x1b[0m`);
+  } else {
+    tasks.forEach(t => {
+      let icon = ' ';
+      let color = '';
+      let seconds = undefined;
+      
+      if (t.status === 'done') {
+        icon = '✓';
+        color = '\x1b[32m'; // Green
+      } else if (t.status === 'running') {
+        icon = spinnerFrames[spinnerIdx % spinnerFrames.length];
+        color = '\x1b[1;33m'; // Yellow
+        if (taskStartTime) {
+          seconds = Math.floor((Date.now() - taskStartTime) / 1000);
+        }
+      } else if (t.status === 'failed') {
+        icon = '✗';
+        color = '\x1b[1;31m'; // Red
+      } else {
+        icon = ' ';
+        color = '\x1b[2m'; // Dim
+      }
+      
+      // Formatting row with padding offset to ensure clean borders
+      const elapsedClean = seconds !== undefined ? ` (${seconds}s)` : '';
+      const elapsedColored = seconds !== undefined ? ` \x1b[1;30m(${seconds}s)\x1b[0m` : '';
+      
+      const plain = ` [${icon}] Task #${t.id} [${t.agent.toUpperCase()}]: ${t.task}${elapsedClean}`;
+      const truncatedPlain = truncate(plain, width - 4);
+      const padLen = Math.max(0, width - 2 - truncatedPlain.length);
+      
+      const prefix = ` [${icon}] Task #${t.id} [${t.agent.toUpperCase()}]: `;
+      const maxTaskLen = width - 2 - prefix.length - elapsedClean.length;
+      const truncatedTask = truncate(t.task, maxTaskLen);
+      
+      console.log(`\x1b[37m│\x1b[0m${color}${prefix}${truncatedTask}${reset}${elapsedColored}${' '.repeat(padLen)}\x1b[37m│\x1b[0m`);
+    });
+  }
+  
+  console.log(`\x1b[37m├${border}┤\x1b[0m`);
+  const statusPadded = truncate(statusText, width - 4).padEnd(width - 2, ' ');
+  console.log(`\x1b[37m│\x1b[0m\x1b[1;34m ${statusPadded}\x1b[0m\x1b[37m│\x1b[0m`);
+  console.log(`\x1b[37m└${border}┘\x1b[0m`);
+}
+
+// Write/Rewrite full BUILD-LOG.md file
+function writeBuildLog(tasks) {
+  let buildLogContent = `# BUILD LOG\nGenerated/Resumed by ico on ${new Date().toISOString()}\n\n## Tasks\n`;
+  tasks.forEach(t => {
+    const checkbox = t.status === 'done' ? '[x]' : t.status === 'running' ? '[-]' : '[ ]';
+    buildLogContent += `- ${checkbox} Task #${t.id} [${t.agent}]: ${t.task}\n`;
+  });
+  fs.writeFileSync(buildLogPath, buildLogContent);
+}
+
+// Update task status in memory and BUILD-LOG.md
+function updateTaskStatus(tasks, taskId, status) {
+  const task = tasks.find(t => t.id === taskId);
+  if (task) {
+    task.status = status;
+  }
+  
+  try {
+    if (!fs.existsSync(buildLogPath)) return;
+    let content = fs.readFileSync(buildLogPath, 'utf8');
+    const checkbox = status === 'done' ? '[x]' : status === 'running' ? '[-]' : '[ ]';
+    const regex = new RegExp(`- \\[ [x\\- ] \\] Task #${taskId}`);
+    content = content.replace(regex, `- ${checkbox} Task #${taskId}`);
+    fs.writeFileSync(buildLogPath, content);
+  } catch (err) {
+    console.error(`Failed to update status for Task #${taskId}:`, err.message);
+  }
+}
+
+// Execute agent in standard foreground mode (taking over current terminal)
+function executeAgentTaskForeground(agent, taskDescription) {
+  return new Promise((resolve, reject) => {
+    let command = agent;
+    let cmdArgs = [];
+    
+    const contextPrompt = `Context: Refer to BUILD-LOG.md for overall tasks. You are executing Task: "${taskDescription}". Perform only what is necessary for this task, write any progress back to BUILD-LOG.md if needed.`;
+    
+    if (agent === 'claude') {
+      cmdArgs = ['-p', contextPrompt, '--dangerously-skip-permissions'];
+    } else if (agent === 'agy') {
+      cmdArgs = ['-p', contextPrompt, '--dangerously-skip-permissions'];
+    } else if (agent === 'pi') {
+      cmdArgs = ['--approve', '-p', contextPrompt];
+    }
+    
+    const child = spawn(command, cmdArgs, { stdio: 'inherit' });
+    
+    child.on('close', code => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`Agent ${agent} exited with code ${code}`));
+      }
+    });
+  });
+}
+
+// Execute agent in Persistent Tmux Side Pane (Horizontal split) using Sentinel files
+function executeAgentTaskTmux(agent, taskId, taskDescription) {
+  return new Promise((resolve, reject) => {
+    let command = agent;
+    let cmdArgs = [];
+    
+    const contextPrompt = `Context: Refer to BUILD-LOG.md for overall tasks. You are executing Task: "${taskDescription}". Perform only what is necessary for this task, write any progress back to BUILD-LOG.md if needed.`;
+    
+    if (agent === 'claude') {
+      cmdArgs = ['-p', contextPrompt, '--dangerously-skip-permissions'];
+    } else if (agent === 'agy') {
+      cmdArgs = ['-p', contextPrompt, '--dangerously-skip-permissions'];
+    } else if (agent === 'pi') {
+      cmdArgs = ['--approve', '-p', contextPrompt];
+    }
+    
+    // Generate unique sentinel file path
+    const sentinelId = `ico-sentinel-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const sentinelPath = path.join('/tmp', sentinelId);
+    
+    const escapedArgs = cmdArgs.map(arg => `'${arg.replace(/'/g, "'\\''")}'`).join(' ');
+    
+    const fullCmd = `clear; echo -e '\\x1b[1;36m=== ACTIVE RUN: Task #${taskId} ===\\x1b[0m\\n'; ${command} ${escapedArgs}; echo \\$? > ${sentinelPath}`;
+    
+    try {
+      // Send the keys to execute command in the persistent AI pane
+      execSync(`tmux send-keys -t ${aiPaneId} "${fullCmd.replace(/"/g, '\\"')}" C-m`);
+      
+      // Poll for sentinel file creation
+      const checkInterval = setInterval(() => {
+        if (fs.existsSync(sentinelPath)) {
+          clearInterval(checkInterval);
+          try {
+            const exitCode = parseInt(fs.readFileSync(sentinelPath, 'utf8').trim());
+            fs.unlinkSync(sentinelPath);
+            
+            if (exitCode === 0) {
+              resolve();
+            } else {
+              reject(new Error(`Agent ${agent} exited with code ${exitCode}`));
+            }
+          } catch (err) {
+            reject(err);
+          }
+        }
+      }, 500);
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+// Task execution loop
+async function runTasks(tasks) {
+  writeBuildLog(tasks);
+  
+  const hasPendingTasks = tasks.some(t => t.status !== 'done');
+  if (process.env.TMUX && !dryRun && hasPendingTasks) {
+    setupTmuxLayout();
+  }
+  
+  // Hide cursor on start of build loop
+  process.stdout.write('\x1b[?25l');
+  // Clear screen once on start
+  process.stdout.write('\x1b[2J\x1b[H');
+  
+  for (const t of tasks) {
+    if (t.status === 'done') {
+      continue;
+    }
+    
+    updateTaskStatus(tasks, t.id, 'running');
+    taskStartTime = Date.now();
+    
+    // Set up TUI spinner & timer animation loop
+    let animInterval = setInterval(() => {
+      spinnerIdx++;
+      drawDashboard(tasks, t.id, `Agent [${t.agent.toUpperCase()}] is working...`);
+    }, 150);
+    
+    try {
+      if (process.env.TMUX) {
+        await executeAgentTaskTmux(t.agent, t.id, t.task);
+      } else {
+        // Exit TUI drawing temporarily for foreground terminal takeover
+        clearInterval(animInterval);
+        process.stdout.write('\x1b[?25h'); // restore cursor
+        
+        drawDashboard(tasks, t.id, `Launching active agent: [${t.agent.toUpperCase()}]...`);
+        await new Promise(r => setTimeout(r, 1200));
+        
+        console.clear();
+        console.log(`\x1b[1;36m=== ACTIVE RUN: [${t.agent.toUpperCase()}] executing Task #${t.id} ===\x1b[0m\n`);
+        await executeAgentTaskForeground(t.agent, t.task);
+        
+        // Return to TUI drawing
+        process.stdout.write('\x1b[?25l'); // hide cursor
+        process.stdout.write('\x1b[2J\x1b[H');
+        animInterval = setInterval(() => {
+          spinnerIdx++;
+          drawDashboard(tasks, t.id, `Updating state...`);
+        }, 150);
+      }
+      
+      clearInterval(animInterval);
+      taskStartTime = null;
+      updateTaskStatus(tasks, t.id, 'done');
+      drawDashboard(tasks, null, `Task #${t.id} succeeded.`);
+    } catch (e) {
+      clearInterval(animInterval);
+      taskStartTime = null;
+      updateTaskStatus(tasks, t.id, 'failed');
+      drawDashboard(tasks, null, `Task #${t.id} failed: ${e.message}`);
+      
+      process.exit(1);
+    }
+  }
+  
+  // Successful completion - cleanup side panes
+  cleanupTmux();
+  drawDashboard(tasks, null, '🎉 All tasks completed successfully!');
+}
+
+// Main execution entrypoint for a new task
+async function main(userPrompt) {
+  let rawTasks;
+  try {
+    rawTasks = await decompose(userPrompt);
+  } catch (e) {
+    console.error('\x1b[31mError decomposing task:\x1b[0m', e.message);
+    process.exit(1);
+  }
+  
+  const tasks = rawTasks.map(t => ({ ...t, status: 'pending' }));
+  
+  if (dryRun) {
+    // Clear once and print dry-run dashboard
+    process.stdout.write('\x1b[2J\x1b[H');
+    drawDashboard(tasks, null, 'Dry run complete.');
+    process.exit(0);
+  }
+  
+  await runTasks(tasks);
+}
+
+// Start in interactive TUI prompt input mode
+function startInteractivePrompt() {
+  // Clear screen and draw blank dashboard
+  process.stdout.write('\x1b[2J\x1b[H');
+  drawDashboard([], null, 'Type your task description below and press Enter:');
+  
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+  
+  rl.question('\n\x1b[1;32m? Task: \x1b[0m', (answer) => {
+    rl.close();
+    const cleanAnswer = answer.trim();
+    if (!cleanAnswer) {
+      console.log('No task entered. Exiting.');
+      process.exit(0);
+    }
+    main(cleanAnswer);
+  });
+}
+
+// Check for unfinished tasks in BUILD-LOG.md and prompt to resume
+function checkAndResume(onNewTask) {
+  if (fs.existsSync(buildLogPath)) {
+    try {
+      const content = fs.readFileSync(buildLogPath, 'utf8');
+      const lines = content.split('\n');
+      const taskRegex = /^- \[( |x|-)\] Task #(\d+) \[(\w+)\]: (.*)/;
+      
+      const tasks = [];
+      for (const line of lines) {
+        const match = line.match(taskRegex);
+        if (match) {
+          tasks.push({
+            id: parseInt(match[2]),
+            status: match[1] === 'x' ? 'done' : 'pending',
+            agent: match[3].toLowerCase(),
+            task: match[4].trim()
+          });
+        }
+      }
+      
+      const incomplete = tasks.filter(t => t.status !== 'done');
+      if (tasks.length > 0 && incomplete.length > 0) {
+        // Clear screen and show resume preview
+        process.stdout.write('\x1b[2J\x1b[H');
+        drawDashboard(tasks, null, 'Incomplete build log found. Do you want to resume?');
+        
+        const rl = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout
+        });
+        
+        rl.question('\n\x1b[1;33m? Incomplete tasks found. Resume? [Y/n]: \x1b[0m', (answer) => {
+          rl.close();
+          const cleanAnswer = answer.trim().toLowerCase();
+          if (cleanAnswer === '' || cleanAnswer === 'y' || cleanAnswer === 'yes') {
+            runTasks(tasks);
+          } else {
+            onNewTask();
+          }
+        });
+        return;
+      }
+    } catch (err) {
+      // Fallback to new task
+    }
+  }
+  onNewTask();
+}
+
+// Startup Router
+if (!prompt) {
+  checkAndResume(() => {
+    startInteractivePrompt();
+  });
+} else {
+  main(prompt);
+}

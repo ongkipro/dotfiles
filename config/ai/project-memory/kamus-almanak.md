@@ -7,18 +7,18 @@ metadata:
   originSessionId: 175472a6-0990-4f5a-a737-847321f1963f
 ---
 
-**Kamus** (`ongkipro/kamus`, private → `kamus.ongki.pro`, di-gate Cloudflare Access sehingga anonim dapat 401) adalah **sistem memori kedua** Ongki, terpisah dari memori CLI ini. File markdown di root repo di-render jadi dashboard Astro. **Tidak ada clone di Mac ini** (diverifikasi 2026-07-20: `~/Projects/kamus` tidak ada — catatan lama yang menyebut clone 2026-07-10 sudah usang).
+**Kamus** (`ongkipro/kamus`, private → `kamus.ongki.pro`, gated by Cloudflare Access so anonymous gets 401) is Ongki's **second memory system**, separate from this CLI memory. Markdown files at the repo root are rendered into an Astro dashboard. **No clone on this Mac** (verified 2026-07-20: `~/Projects/kamus` does not exist — the old note mentioning a clone 2026-07-10 is stale).
 
-Folder = koleksi: `journal/` (per hari, `YYYY-MM-DD.md`), `tasks/`, `projects/`, `memory/`, `skills/`, `sessions/`, `summaries/`.
+Folder = collection: `journal/` (per day, `YYYY-MM-DD.md`), `tasks/`, `projects/`, `memory/`, `skills/`, `sessions/`, `summaries/`.
 
-**Why:** kalau update memori Ongki, ini sering kali tempat yang dia maksud — bukan cuma `~/.claude/…/memory` atau `~/.config/ai/memory`. Ketiganya bisa desinkron (kamus sempat 6 hari tertinggal dari rebrand TokoΦ).
+**Why:** when updating Ongki's memory, this is often the place he means — not just `~/.claude/…/memory` or `~/.config/ai/memory`. All three can desync (kamus was once 6 days behind the TokoΦ rebrand).
 
 **How to apply:**
-- **Baca `AGENTS.md` di repo dulu.** Frontmatter dipaksa zod di `src/content.config.ts` — format salah = **build gagal**. Jalankan `pnpm build` sebelum commit.
-- Satu fakta / satu hari / satu task = **satu file**. Bahasa Indonesia.
-- Push memicu deploy (`.github/workflows/deploy.yml`). `AGENTS.md` bilang jangan push otomatis kecuali diminta.
-- Commit **tanpa** trailer `Co-Authored-By` — lihat `memory/no-ai-commit-trailer.md` di repo itu.
-- **Wikilink `[[x]]` lintas-koleksi sudah DIPERBAIKI 2026-07-14** (belum diverifikasi ulang ke disk — repo tak di-clone di Mac; sumber: `projects.md` yang lebih baru dari catatan ini): resolve via `src/lib/links.mjs` (memory→/kamus/, project→/projects/, journal→/journal/, skill→/skills/, task→/tasks#id; sessions/summaries sengaja tak jadi target). Catatan lama yang menyebut `[[projects]]`/`[[tasks]]` masih 404 sudah usang.
-- **JEBAKAN saat rename project:** `projects:` di frontmatter journal/sessions/summaries dan `project:` di tasks adalah **kunci indeks**, bukan teks bebas. `src/pages/projects/[id].astro` memfilter `data.projects.includes(name)` — cocok persis dengan field `name:` di `projects/*.md`. Rename tanpa mengganti frontmatter itu dulu = riwayat yatim & hilang tanpa error — tapi kini **dijaga mesin**: `scripts/lint-links.mjs` (`pnpm lint:links`) menggagalkan `astro build` bila wikilink menggantung atau nama project tak cocok.
+- **Read `AGENTS.md` in the repo first.** Frontmatter is enforced by zod in `src/content.config.ts` — wrong format = **build fails**. Run `pnpm build` before commit.
+- One fact / one day / one task = **one file**. Bahasa Indonesia.
+- Push triggers a deploy (`.github/workflows/deploy.yml`). `AGENTS.md` says don't push automatically unless asked.
+- Commit **without** the `Co-Authored-By` trailer — see `memory/no-ai-commit-trailer.md` in that repo.
+- **Cross-collection wikilinks `[[x]]` were FIXED 2026-07-14** (not re-verified against disk — the repo isn't cloned on the Mac; source: `projects.md`, which is newer than this note): resolved via `src/lib/links.mjs` (memory→/kamus/, project→/projects/, journal→/journal/, skill→/skills/, task→/tasks#id; sessions/summaries are deliberately not targets). The old note saying `[[projects]]`/`[[tasks]]` still 404 is stale.
+- **TRAP when renaming a project:** `projects:` in journal/sessions/summaries frontmatter and `project:` in tasks are **index keys**, not free text. `src/pages/projects/[id].astro` filters `data.projects.includes(name)` — an exact match to the `name:` field in `projects/*.md`. Renaming without first changing that frontmatter = orphaned history that vanishes with no error — but this is now **machine-guarded**: `scripts/lint-links.mjs` (`pnpm lint:links`) fails `astro build` when a wikilink dangles or a project name doesn't match.
 
-Saat mencatat kerjaan, tulis journal hari itu di sini. Terkait [[tokophi]].
+When logging work, write that day's journal here. Related: [[tokophi]].
