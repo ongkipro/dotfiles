@@ -1,7 +1,7 @@
 {
-  "lastChangelogVersion": "0.80.3",
-  "defaultProvider": "9router",
-  "defaultModel": "cx/gpt-5.4",
+  "lastChangelogVersion": "0.80.6",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.4",
   "defaultThinkingLevel": "high",
   "theme": "dark",
   "quietStartup": true,
