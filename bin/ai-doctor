@@ -54,6 +54,21 @@ check_link() { # $1=cli  $2=path  $3=parent-that-must-exist
 check_link claude "$HOME/.claude/CLAUDE.md"          "$HOME/.claude"
 check_link codex  "$HOME/.codex/AGENTS.md"           "$HOME/.codex"
 check_link agy    "$HOME/.antigravity/AGENTS.md"     "$HOME/.antigravity"
+check_link gemini "$HOME/.gemini/GEMINI.md"          "$HOME/.gemini"
+check_link home   "$HOME/AGENTS.md"                  "$HOME"
+# Canary isi. Symlink utuh cuma membuktikan PIPA-nya nyambung, bukan isinya benar.
+# Approval-gate adalah satu-satunya aturan yang kalau terhapus TIDAK menimbulkan
+# gejala apa pun yang bisa diamati: semua CLI tetap jalan, tetap terasa normal,
+# cuma diam-diam berhenti minta konfirmasi sebelum hal destruktif/produksi.
+# Satu frasa saja — canary kedua cuma menambah bising tanpa menambah informasi.
+if [ -f "$SRC" ]; then
+  if grep -qF 'Permission allowed is not user approval' "$SRC"; then
+    ok "canary: aturan approval-gate masih utuh di AGENTS.md"
+  else
+    bad "canary HILANG: frasa 'Permission allowed is not user approval' tidak ada di ~/.config/ai/AGENTS.md — approval gate terhapus, semua CLI berhenti minta konfirmasi TANPA gejala. Pulihkan dari git: git -C $DOT diff config/ai/AGENTS.md"
+  fi
+fi
+
 if command -v pi >/dev/null 2>&1; then
   # Wrapper pi() hidup di config/zshrc.tools.sh (di-source dari ~/.zshrc), BUKAN .bashrc.
   grep -qs "config/ai/AGENTS.md" \
@@ -71,6 +86,24 @@ if [ -d "$AI/memory" ]; then
     || bad "~/.config/ai BUKAN symlink ke dotfiles — memori tidak akan ter-sync antar device!"
 else
   bad "~/.config/ai/memory/ TIDAK ADA"
+fi
+
+# Memori per-project (Claude Code) dipindah ke dotfiles 2026-07-20 lalu di-symlink
+# balik. Kalau symlink ini putus, Claude Code tetap jalan dan tetap terasa normal —
+# ia cuma bikin direktori baru yang kosong, dan konteks project hilang diam-diam.
+# Nama direktori project Claude Code = $HOME dengan '/' → '-'. Di Mac jadi
+# '-Users-ongki', di Linux '-home-<user>'. Turunkan dari $HOME, jangan hardcode,
+# supaya cek ini ikut berlaku di cuan.
+PMEM="$HOME/.claude/projects/$(printf '%s' "$HOME" | tr '/' '-')/memory"
+if [ -L "$PMEM" ]; then
+  if [ -f "$PMEM/MEMORY.md" ]; then
+    n=$(find "$PMEM/" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')
+    ok "memori project: $n file via symlink → $(readlink "$PMEM" | sed "s|$HOME|~|")"
+  else
+    bad "memori project: symlink ada tapi MEMORY.md tidak terbaca — target putus. Cek: ls -la $PMEM"
+  fi
+elif [ -d "$PMEM" ]; then
+  bad "memori project: ~/.claude/projects/-Users-ongki/memory adalah direktori ASLI, bukan symlink — tidak ter-sync ke dotfiles. Pindahkan ke $DOT/config/ai/project-memory lalu: ln -sfn $DOT/config/ai/project-memory $PMEM"
 fi
 
 # ── 4. Layer 3: skills ────────────────────────────────────────────────────────

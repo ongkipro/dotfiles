@@ -131,7 +131,14 @@ async function main() {
   };
 
   fs.mkdirSync(path.dirname(modelsPath), { recursive: true });
-  fs.writeFileSync(modelsPath, JSON.stringify(cfg, null, 2) + '\n');
+  // Tulis atomik: temp di direktori yang SAMA lalu rename (rename dalam satu
+  // filesystem itu atomik). Script ini jalan tanpa pengawasan saat boot — kalau
+  // mati di tengah writeFileSync, models.json tinggal separuh dan pi gagal start
+  // tanpa ada yang melihat. Rename memastikan pi selalu melihat file utuh:
+  // yang lama, atau yang baru.
+  const tmpPath = modelsPath + '.tmp';
+  fs.writeFileSync(tmpPath, JSON.stringify(cfg, null, 2) + '\n');
+  fs.renameSync(tmpPath, modelsPath);
   console.log(JSON.stringify({ activeProviders, modelCount: selectedModels.length }, null, 2));
 }
 

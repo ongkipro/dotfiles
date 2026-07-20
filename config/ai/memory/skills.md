@@ -58,15 +58,15 @@ Tiga lapis, dipisah menurut **seberapa sering dibayar**:
 ~/.agents/local-skills ─┘
 ```
 
-- **Sumber tunggal:** `~/dotfiles/skills/local/`. Jumlah aktif selalu cek dengan `skill-list`; jangan simpan angka sebagai fakta tetap. Repo jezweb sudah dilepas dari model ini (klaim "104 skill" itu usang). Di `cuan` `~/.agents/repos/shared-skills` tak pernah ada — tapi **di Mac clone-nya MASIH ADA** (2026-07-14), tinggal sisa, tidak lagi jadi sumber.
+- **Sumber tunggal:** `~/dotfiles/skills/local/`. Jumlah aktif selalu cek dengan `skill-list`; jangan simpan angka sebagai fakta tetap. Repo jezweb sudah dilepas dari model ini (klaim "104 skill" itu usang) dan clone `~/.agents/repos/shared-skills` **sudah tidak ada di mesin manapun** (Mac diverifikasi 2026-07-20: `ls ~/.agents/repos/` kosong).
 - 🔑 **SINKRON LINTAS DEVICE = `git pull` SAJA.** Tidak ada langkah tambahan. Skill baru muncul sendiri; skill yang dihapus hilang sendiri — di semua CLI sekaligus. Catatan lama *"`git pull` TIDAK membuat symlink, wajib `skill-update`"* kini **SALAH** — itu berlaku untuk model per-skill yang sudah dibuang.
 - `skill-update` sekarang **cuma dipakai SEKALI per mesin baru** (dan dipanggil otomatis oleh `install.sh` / `install-macos.sh`). Idempoten — aman dijalankan ulang, no-op kalau sudah benar. Perlu lagi hanya kalau pasang CLI baru.
 - `skill-new` / `skill-remove` **tidak lagi perlu sync** — langsung aktif/hilang di semua CLI.
-- ⚠️ `~/.gemini/skills`, `~/.codex/skills`, `~/.agents/skills` **bukan target** dan tidak dipelihara. Gemini CLI dihapus 2026-07-13. `skill-update` sengaja MELEWATI CLI yang belum terpasang, bukan membuatkan foldernya.
-  - Di `cuan` ketiganya memang tidak ada. **Di Mac ketiganya MASIH ADA** sebagai direktori asli berisi 104 symlink per-skill model lama (sebagian mati) — sisa, aman diabaikan, kandidat dibersihkan. Jangan tertukar: **`~/.gemini/` (root) itu home Antigravity (`agy`), JANGAN dihapus** — yang basi hanya subfolder `skills/`-nya.
+- ⚠️ `~/.gemini/skills`, `~/.agents/skills` **bukan target** dan tidak dipelihara. Gemini CLI dihapus 2026-07-13. `skill-update` sengaja MELEWATI CLI yang belum terpasang, bukan membuatkan foldernya. Per 2026-07-20 **kedua folder itu sudah tidak ada** di Mac maupun `cuan` — sisa model per-skill lama sudah bersih. Jangan tertukar: **`~/.gemini/` (root) itu home Antigravity (`agy`), JANGAN dihapus.**
+  - ❗ **`~/.codex/skills` BEDA — MASIH ADA dan AKTIF DIPAKAI.** Isinya `.system/` (mis. `skill-creator`, dipakai validator di section `volumx-writer` di bawah). **JANGAN dihapus.** Ia bukan target `skill-update`, tapi juga bukan sisa basi.
 
 ### ☠️ Bug destruktif yang sudah diperbaiki — jangan dihidupkan lagi
-`skill-update` versi LAMA memakai model **symlink per-skill**. Kalau target (`~/.claude/skills`) ternyata sudah berupa symlink satu-direktori ke sumber, `backup_conflict()` akan **`mv` setiap direktori skill ASLI di dalam dotfiles** jadi `*.backup.<ts>`, lalu bikin symlink yang menunjuk dirinya sendiri → `Too many levels of symbolic links`. **Seluruh 33 skill lenyap.** Sudah direproduksi di sandbox (2026-07-14).
+`skill-update` versi LAMA memakai model **symlink per-skill**. Kalau target (`~/.claude/skills`) ternyata sudah berupa symlink satu-direktori ke sumber, `backup_conflict()` akan **`mv` setiap direktori skill ASLI di dalam dotfiles** jadi `*.backup.<ts>`, lalu bikin symlink yang menunjuk dirinya sendiri → `Too many levels of symbolic links`. **Seluruh skill lenyap.** Sudah direproduksi di sandbox (2026-07-14).
 - Versi baru punya guard keras: **menolak menyentuh path apa pun yang resolve ke DALAM `skills/local`**.
 - Catatan lama *"kalau `skill-update` mencetak `Backed up existing path` itu artinya ada duplikat, hapus saja backup-nya"* → **BERBAHAYA, itu justru bunyi bencananya.** Sudah tidak berlaku.
 
@@ -78,7 +78,8 @@ cd ~/dotfiles && ./install.sh        # macOS: ./install-macos.sh
 ```
 Sesudahnya, update = `git pull` saja. Kalau pasang CLI baru belakangan (mis. baru install Claude Code): `skill-update` sekali.
 
-## Dedup 2026-07-14 — 43 → 33 skill
+## Dedup 2026-07-14 — 43 → 33 skill (ANGKA RIWAYAT, bukan jumlah sekarang)
+> Jumlah sekarang **bukan** 33 — sudah bertambah sejak itu (35 per 2026-07-20). Selalu cek: `ls ~/dotfiles/skills/local | grep -v '^_' | wc -l` atau `skill-list`.
 - **Dihapus (100% pointer rusak, nol konten):** `cloudflare-worker-toolkit`, `shopify-ai-toolkit-router`. Keduanya menunjuk `/home/fantastico/…` — user yang **TIDAK ADA** — dan ke ~26 skill yang tak pernah ada.
 - **Dihapus:** `ai-terminal-project-runner`. Isinya = (a) default yang sudah dilakukan harness, (b) routing table ke skill hantu, (c) safety gates. **Safety gates-nya DIANGKAT ke `AGENTS.md` → section "Approval gates — ALWAYS ON"**, karena kebijakan wajib tidak boleh bergantung pada model memilih memanggil skill. Script-nya diselamatkan → `dotfiles/bin/inspect-project`.
 - **Digabung:** 7 skill `9router-*` → `9router/references/*.md`. Satu deskripsi di system prompt, bukan delapan.
@@ -117,8 +118,9 @@ Sesudahnya, update = `git pull` saja. Kalau pasang CLI baru belakangan (mis. bar
 - For business ideas, check market, margin, compliance, distribution, data/tracking, and execution capacity.
 
 ## Local-only installations (macOS-specific, NOT in dotfiles sync)
-- **Ponytail** (DietrichGebert/ponytail) — coding minimalism. **Sekarang plugin `agy`**, bukan skill pi (diverifikasi 2026-07-14 di Mac): `~/.gemini/config/plugins/ponytail` (bareng `worktrunk`).
-  - Catatan lama yang menyebut clone `~/.pi/agent/external/ponytail` + symlink `~/.pi/agent/skills/ponytail-*` **SALAH** — dua-duanya tidak ada lagi.
-  - **Why local-only:** eksperimen pribadi, tidak di-propagate ke Linux lewat dotfiles sync.
-  - Kelola lewat `agy plugin` (subcommand-nya `plugin`, bukan `extensions`).
+- **Ponytail** (DietrichGebert/ponytail) — **DICABUT 2026-07-20** (`agy plugin uninstall ponytail`). Dulu plugin `agy` v4.8.4 sejak 12 Jul.
+  - **Kenapa dicabut:** ruleset intinya (tangga 7-langkah YAGNI → reuse → stdlib → native → dep → one-liner) sudah ada di `## Code discipline` pada `AGENTS.md` yang auto-load di keempat CLI. Ponytail cuma sumber aturan kedua — dilarang kontrak dotfiles.
+  - Backup: `~/Documents/work/notes/ponytail-v4.8.4-uninstalled-2026-07-20/`. Bedah lengkap: `~/Documents/work/research/ponytail-teardown-2026-07-20.md`.
+  - Reinstall satu perintah kalau perlu: `agy plugin install https://github.com/DietrichGebert/ponytail`.
+  - Plugin `agy` yang tersisa: **`worktrunk` saja** (verifikasi: `agy plugin list`).
 - **Konvensi umum:** skill/extension yang "coba-coba" atau "pribadi" → install ke `~/.pi/agent/external/<nama>/` + symlink manual. Skill yang sudah "approved/default" → taruh di `~/dotfiles/skills/local/` agar ter-sync via `skill-update`.

@@ -51,6 +51,7 @@ The user wants to improve product *listings/merchandising data* (not theme code)
 - Limits: title ≤70, metaTitle ≤60, metaDescription ≤155, handle ≤6 keyword words (unique!).
 - **SKUs of kept variants stay unchanged** (inventory/fulfillment precision).
 - Fix all typos; only use verifiable facts.
+- **A clean product gets left alone.** If the audit finds no real gap — meta present, category set, variants clean, ALT written — report "no changes needed" and write nothing. Never invent a gap or a cosmetic rewrite to justify a batch: every fabricated finding here becomes a destructive, customer-facing mutation on a live catalog.
 
 ## Operational notes
 - Make batch scripts **resume-safe** (log succeeded ids, skip on re-run) — the online token can die mid-batch.

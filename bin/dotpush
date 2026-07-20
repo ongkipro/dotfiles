@@ -18,16 +18,30 @@ for vs in "$HOME/Library/Application Support/Code/User/settings.json" ~/.config/
   [ -f "$vs" ] && { cp -f "$vs" config/vscode-settings.json; break; }
 done
 
-# Scan secret SEBELUM commit — batalkan kalau ada temuan.
-if [ -x ./bin/security-check ]; then
-  ./bin/security-check >/dev/null || { echo "✗ security-check menemukan kemungkinan secret — dibatalkan."; ./bin/security-check; exit 1; }
-fi
-
 git add -A
 if git diff --cached --quiet; then
   echo "Tidak ada perubahan lokal untuk di-commit."
 else
   git -c core.pager=cat status --short
+  echo ""
+  echo "Staged preview:"
+  git -c core.pager=cat diff --cached --stat
+
+  # Scan secret SETELAH `git add -A`, SEBELUM commit.
+  # Urutannya penting: sebelum staging, file baru yang belum ter-track tidak
+  # terlihat oleh scanner sama sekali — jadi ia lolos lalu ikut ter-push.
+  if [ -x ./bin/security-check ]; then
+    if ! ./bin/security-check >/dev/null; then
+      echo ""
+      echo "✗ security-check menemukan kemungkinan secret — commit DIBATALKAN." >&2
+      ./bin/security-check >&2 || true
+      echo "" >&2
+      echo "  Perubahan di atas sudah TER-STAGE (belum di-commit, belum di-push)." >&2
+      echo "  Batalkan staging dengan:  git reset" >&2
+      exit 1
+    fi
+  fi
+
   git commit -q -m "${1:-update: $(date '+%Y-%m-%d %H:%M' 2>/dev/null || echo sync)}"
 fi
 

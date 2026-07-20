@@ -6,7 +6,7 @@
 
 - `/home/fantastico/...` → user itu **TIDAK ADA** di mesin manapun sekarang. Itu mesin Linux LAMA. Abaikan.
 - **Di `cuan` (Linux, user `ongki`), per 2026-07-14: HANYA `~/Projects/kamus` yang ter-checkout** (repo `ongkipro/kamus`, branch `main`) — diverifikasi `ls ~/Projects`. Project lain belum di-clone; path `~/Projects/<lain>` di file ini **tidak berlaku di sana**. (Catatan dari Mac yang bilang `~/Projects/` cuan KOSONG itu **salah** — Mac menebak tentang mesin yang bukan miliknya. Jangan menulis fakta disk mesin lain tanpa mengeceknya.)
-- **Di Mac (`ongkis-MacBook-Air`), per 2026-07-14 sore: HANYA `~/Projects/volumform` yang ter-checkout.** Semua project lain sengaja dihapus dari disk setelah dipastikan utuh di GitHub (bersih-bersih mesin). Path `~/Projects/<lain>` di file ini **tidak ada di Mac** — `git clone` dulu.
+- **Di Mac (`ongkis-MacBook-Air`): isi `~/Projects/` BERUBAH-UBAH — jangan hafalkan daftarnya, jalankan `ls ~/Projects`.** Riwayat: 2026-07-14 sengaja disisakan `volumform` saja (bersih-bersih, sisanya dipastikan utuh di GitHub); sejak itu bertambah lagi (per 2026-07-20: `landing-page`, `petanisejahtera`, `volumform`, `volumup`). Project yang TIDAK muncul di `ls` = belum di-clone → `git clone` dulu.
   - Kredensial yang di-gitignore (9 `.env` + sqlite dev) diamankan ke `~/Documents/work/secrets/projects-env-2026-07-14/` (mode 700). **Sesudah clone, salin `.env`-nya balik dari sana** — GitHub tidak menyimpannya.
   - Dokumen `.md` semua project diarsipkan ke `~/Documents/work/notes/projects-md-archive-2026-07-14/`.
 
@@ -62,14 +62,18 @@ Mau kerja di sebuah project? `git clone` dulu ke **`~/Projects/<nama>/`** (konve
 - Pondok Pesantren THOLABIE CIBS Malang. Makkah & Madinah Theme (hijau, hitam, emas).
 - 6 halaman: Beranda, Tentang, Beasiswa, Asrama, Kurikulum, Kontak & FAQ.
 
-### aussie-malaysia (aussiesawit.my)
-- Repo: `github.com/ongkipro/aussie-malaysia` (belum di-clone di `cuan`)
-- Stack: Astro 6 + Cloudflare Workers. API Scalev + Meta CAPI.
-- Fertilizer e-commerce untuk Malaysia.
+### landing-page (Mac, `~/Projects/landing-page`)
+- Stack: Next.js 16 + React 19 + Drizzle ORM + Cloudflare Worker (`@cloudflare/vite-plugin`, runner `vinext`). `package.json` name = `site-creator-vinext-starter`. Script: `dev`/`build`/`test`/`lint`/`db:generate`.
+- 🚨 **NOL COMMIT dan TIDAK PUNYA REMOTE** (diverifikasi 2026-07-20: `git log` → "does not have any commits yet", `git remote -v` kosong, 19 entri untracked). Semua kerjaan di sini **cuma ada di disk Mac ini** — hilang kalau disk mati atau folder terhapus.
+- Aksi yang belum dilakukan: `git add` + commit pertama, bikin repo `ongkipro/<nama>`, `git remote add origin` + push. Sampai itu dilakukan, jangan jalankan apa pun yang destruktif di folder ini.
+
+### AUSSIE Sawit Malaysia (aussiesawit.my)
+- ⚠️ Entri lama di sini ("API Scalev + Meta CAPI", repo `aussie-malaysia`) **USANG dan SALAH** — sejak 2026-07-08 keputusan v3: **TIADA Scalev sama sekali**, backend order = Cloudflare D1 sendiri.
+- Fakta terkini ada di **`~/.claude/projects/-Users-ongki/memory/aussie-sawit-malaysia.md`** dan `STATUS.md` di dalam repo. Baca itu, jangan duplikasi ke sini.
 
 ### petanisejahtera (petanisejahtera.com)
-- Repo: `github.com/ongkipro/petanisejahtera` (belum di-clone di `cuan`)
-- Stack: Astro + Cloudflare Workers. Dynamic sitemap, BreadcrumbList schema.
+- LP funnel ads COD, Astro + Cloudflare Workers. Repo `github.com/ongkipro/petanisejahtera`, **sudah ter-clone di Mac** (`~/Projects/petanisejahtera`, sejak 2026-07-18).
+- Detail + jebakan: **`~/.claude/projects/-Users-ongki/memory/petanisejahtera.md`**, lalu `DEV_NOTES.md` di dalam repo. `.env` TIDAK ada di arsip secrets.
 
 ### mahad-nurul-haromain-lin-nisa
 - Repo: `github.com/ongkipro/mahad-nurul-haromain-lin-nisa-compro` (belum di-clone di `cuan`)
@@ -117,7 +121,7 @@ Mau kerja di sebuah project? `git clone` dulu ke **`~/Projects/<nama>/`** (konve
 - Catatan: Clone dari homeimprovement (RIVA HOME), brand diganti ke HOME LOOK.
 
 ### volumecms (macOS dev)
-- Path: `~/projects/volumecms`
+- Path: `~/Projects/volumecms` (huruf **P besar** — catatan lama menulis `~/projects/` huruf kecil, itu PATAH di Linux yang case-sensitive)
 - Stack: Next.js 16 (App Router) + TS + Tailwind v4 + shadcn (Base UI) + GSAP + Drizzle ORM + PostgreSQL + better-auth. Deploy target Vercel.
 - CMS ala WordPress + SaaS dashboard: Posts, Pages, Products (katalog → CTA WhatsApp wa.me), Categories, Tags, Media Library (image/video), Banners, Menu builder, Site Settings, Users. Frontend publik: landing/sales page (hero GSAP), katalog+filter kategori, detail produk+tombol WA, blog, halaman dinamis `/[slug]`, SEO (sitemap/robots/metadata Next), dark mode, floating WhatsApp.
 - DB: 16 tabel (auth user/session/account/verification + categories/tags/media/posts/posts_tags/pages/products/products_tags/banners/menus/menu_items/settings). `settings` = key/value JSON (key 'site' → SiteSettings di lib/settings.ts).
@@ -157,7 +161,7 @@ Mau kerja di sebuah project? `git clone` dulu ke **`~/Projects/<nama>/`** (konve
 - **BUG KRITIS jsonb settings (fixed):** JANGAN update kolom `settings.value` (jsonb) via raw postgres.js template `sql\`update settings set value=${obj}\`` / `${JSON.stringify(obj)}::jsonb` — bikin **double-encode → jsonb jadi string/array (korup)**, `value->>'key'` return null, app baca settings default. FIX: pakai **Drizzle** (`updateSiteSettings`) atau `sql.json(obj)`; re-run `db:seed:tholabie` (settings `onConflictDoUpdate`) memperbaiki karena Drizzle nulis jsonb object benar. Cek: `select jsonb_typeof(value)` HARUS `object`. `zod z.coerce.number()` pd field number opsional: string kosong→0→gagal min(); pakai `z.preprocess((v)=> v===""?undefined:Number(v), z.number()...optional())`.
 
 ## TokoΦ (Linux dev — commerce SaaS Indonesia)
-- Path `~/projects/tokophi` (repo private `github.com/ongkipro/tokophi`). Monorepo npm workspaces: `apps/{admin(:3000),super-admin(:3001),storefront(Astro SSG)}` + `packages/{db,lib,ui,data}`. Next.js 16 + Astro 5 + Drizzle + PostgreSQL 16 + RLS/RBAC. Detail arsitektur di repo `CLAUDE.md` + `specs/docs/`.
+- Path `~/Projects/tokophi` (huruf **P besar**; repo private `github.com/ongkipro/tokophi`). Monorepo npm workspaces: `apps/{admin(:3000),super-admin(:3001),storefront(Astro SSG)}` + `packages/{db,lib,ui,data}`. Next.js 16 + Astro 5 + Drizzle + PostgreSQL 16 + RLS/RBAC. Detail arsitektur di repo `CLAUDE.md` + `specs/docs/`.
 - **Integrasi**: KiriminAja (shipping) + AutoLaris (payment VA/QRIS) — platform-managed, **white-label** (brand provider disembunyikan dari client, hanya super-admin lihat). COD ada. Keys di `.env.local` (gitignored). Security: rate-limit endpoint publik + guard callback bayar (shared-secret + idempotent).
 - **Hosting (diverifikasi 2026-07-14 via `vultr-cli`)**: DEV di **Vultr Singapore**, instance label **`volumdev`** (menyesatkan — isinya TokoΦ), IP **45.77.33.112**, plan `vhp-4c-8gb-amd` = **$48/bln**. Coolify di server. → PROD **Hetzner Singapore** nanti. Edge Cloudflare, origin Traefik/Coolify (skip HAProxy). Domain `tokophi.com` di Cloudflare (DNS belum di-point). Market: Indonesia dulu (MY/SG nanti).
   ☠️ **Server `45.76.146.40` yang dicatat sesi 2026-07-09 SUDAH TIDAK ADA.** Detail biaya/kredit/snapshot: **environment.md** (satu tempat saja — jangan digandakan ke sini).
@@ -173,7 +177,7 @@ Mau kerja di sebuah project? `git clone` dulu ke **`~/Projects/<nama>/`** (konve
 - **Nama lama = `indostore`** (rebrand 2026-07-08). Repo `github.com/ongkipro/indostore` masih ada tapi **DORMAN** — jangan dipakai/di-push; 94 commit-nya sudah ada di history `tokophi`. Catatan lama yang menyebut "Indostore" = project yang sama.
 
 ## kamus (almanak / memori kedua — kamus.ongki.pro)
-- Repo private `github.com/ongkipro/kamus`, clone di `~/Projects/kamus` (macOS + Linux `cuan` sejak 2026-07-14). Astro merender markdown di root repo jadi dashboard; live di `kamus.ongki.pro` (di-gate Cloudflare Access → anonim dapat 401).
+- Repo private `github.com/ongkipro/kamus`. **Di Mac TIDAK ter-clone** (diverifikasi 2026-07-20: `~/Projects/kamus` tidak ada) — `git clone` dulu sebelum kerja. Klaim lama "clone di `~/Projects/kamus` (macOS + Linux)" sudah tidak berlaku untuk Mac. Astro merender markdown di root repo jadi dashboard; live di `kamus.ongki.pro` (di-gate Cloudflare Access → anonim dapat 401).
 - Folder = koleksi: `journal/` (`YYYY-MM-DD.md`), `tasks/`, `projects/`, `memory/`, `skills/`, `sessions/`, `summaries/`. **Baca `AGENTS.md` repo dulu** — frontmatter dipaksa zod (`src/content.config.ts`), format salah = **build gagal**. Jalankan `pnpm build` sebelum commit; push memicu deploy.
 - Ini sering kali "memori" yang dimaksud user, bukan `~/.config/ai/memory` atau memori CLI. Ketiganya bisa desinkron.
 - **Wikilink lintas-koleksi (DIPERBAIKI 2026-07-14):** dulu `[[x]]` selalu di-rewrite ke `/kamus/<slug>` padahal cuma `memory/` yang punya halaman di situ → 28 link ke project/task diam-diam 404. Sekarang resolve lewat `src/lib/links.mjs`: memory→`/kamus/`, project→`/projects/`, journal→`/journal/`, skill→`/skills/`, task→`/tasks#<id>`. `sessions/`+`summaries/` sengaja tak bisa jadi target (tak punya rute detail). Renderer (`astro.config.mjs`) & linter WAJIB berbagi `links.mjs` — kalau salah satu bikin salinan aturan sendiri, link rusak balik jadi tak terlihat.

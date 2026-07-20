@@ -14,9 +14,19 @@ set -euo pipefail
 REPO="${1:-$HOME/dotfiles}"
 cd "$REPO"
 BAIT="__security-bait-$$.md"
+BAIT_NEW="__security-bait-new-$$.md"
+BAIT_IDX="__security-bait-index-$$.md"
 fail=0
 
-cleanup() { git rm -f --cached "$BAIT" >/dev/null 2>&1 || true; rm -f "$BAIT"; }
+# Cleanup MUST return the index to exactly how it was found. This test stages
+# files; leaving them staged would dump junk into the user's next commit.
+cleanup() {
+  for b in "$BAIT" "$BAIT_NEW" "$BAIT_IDX"; do
+    git rm -f --cached "$b" >/dev/null 2>&1 || true
+    git reset -q -- "$b" >/dev/null 2>&1 || true
+    rm -f "$b"
+  done
+}
 trap cleanup EXIT
 
 echo "1. clean repo must PASS"
@@ -53,6 +63,41 @@ else
     | grep '^>' | sed 's/^> /     MISSED: /'
   fail=1
 fi
+
+echo "3. a BRAND-NEW file that is staged but was never tracked must be caught"
+# This is the shape dotpush used to let through: it scanned BEFORE `git add -A`,
+# so a file that had never been committed was invisible to the scanner, then got
+# staged and pushed. Same bait fragments — never written literally (see above).
+printf '%s_ZzYyXxWwVvUuTtSsRrQqPpOoNnMm987654\n' "$GH" > "$BAIT_NEW"
+git add "$BAIT_NEW" >/dev/null 2>&1
+# NOTE: capture first. Piping security-check straight into grep trips `pipefail` —
+# the scanner exits 1 on a HIT, which is the success case here.
+out="$(./bin/security-check 2>&1 || true)"
+if printf '%s\n' "$out" | grep -q "$BAIT_NEW"; then
+  echo "   ✓ caught"
+else
+  echo "   ✗ FAIL: a newly staged, never-tracked file is NOT scanned"
+  fail=1
+fi
+git rm -f --cached "$BAIT_NEW" >/dev/null 2>&1 || true
+rm -f "$BAIT_NEW"
+
+echo "4. a secret that exists ONLY in the index must be caught"
+# Staged, then wiped from the working tree. `git commit` would still write the
+# secret, but a working-tree-only scan sees a clean file. This is the case that
+# genuinely requires `git grep --cached`.
+printf '%s-proj-4kQ7mZ2xW9pL5vN8tR3yB6cF1gH0jD7s\n' "$SK" > "$BAIT_IDX"
+git add "$BAIT_IDX" >/dev/null 2>&1
+printf 'nothing to see here\n' > "$BAIT_IDX"   # worktree now clean, index still dirty
+out="$(./bin/security-check 2>&1 || true)"
+if printf '%s\n' "$out" | grep -q "$BAIT_IDX"; then
+  echo "   ✓ caught"
+else
+  echo "   ✗ FAIL: a secret staged then removed from the worktree slips through"
+  fail=1
+fi
+git rm -f --cached "$BAIT_IDX" >/dev/null 2>&1 || true
+rm -f "$BAIT_IDX"
 
 echo
 [ "$fail" -eq 0 ] && echo "security-check-test: OK" || { echo "security-check-test: FAILED"; exit 1; }

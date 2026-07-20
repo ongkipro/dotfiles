@@ -18,6 +18,9 @@ The DB enforces invariants for **every** writer — app code, a migration, a psq
 | a "soft delete" boolean everywhere | a partial index (`WHERE deleted_at IS NULL`) so it stays fast |
 | row-level permission checks in app code | **RLS** when tenants share a table (TokoΦ pattern) |
 | `SELECT *` then filter in JS | filter/aggregate in SQL. Don't ship 10k rows to count them. |
+| a running total / ranking computed in a JS loop | window functions: `SUM(x) OVER (ORDER BY d)`, `RANK() OVER (PARTITION BY tenant ORDER BY total DESC)` |
+| `COUNT(CASE WHEN … END)` piles, or a pivot in app code | `COUNT(*) FILTER (WHERE status = 'paid')` — one scan, reads like the question |
+| `crypto.randomUUID()` passed in on every insert | `DEFAULT gen_random_uuid()` (pgcrypto is built in since PG13) |
 
 ## Drizzle
 

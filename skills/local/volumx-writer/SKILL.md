@@ -1,6 +1,6 @@
 ---
 name: volumx-writer
-description: Create, rewrite, humanize, localize, optimize, audit, or score English and Indonesian writing while preserving meaning, qualifiers, citations, keywords, conversion intent, compliance language, technical accuracy, structure, and brand voice. Use for articles, SEO content, landing pages, ads, emails, social posts, ecommerce copy, founder or investor materials, PRDs, technical docs, API docs, READMEs, prompts, AI-slop removal, tone adaptation, and substantial rewrites where silent claim drift would be costly.
+description: Create, rewrite, humanize, localize, optimize, audit, or score English and Indonesian writing while preserving meaning, qualifiers, citations, keywords, conversion intent, compliance language, technical accuracy, structure, and brand voice. Use for articles, SEO content, landing pages, ads, emails, social posts, ecommerce copy, founder or investor materials, PRDs, technical docs, API docs, READMEs, prompts, AI-slop removal, tone adaptation, and substantial rewrites where silent claim drift would be costly. Use when preserving meaning is the primary constraint — NOT a content workflow orchestrator (content), NOT the copy-rules source (copywriting), NOT for authoring PRDs or API specs from scratch.
 ---
 
 # VolumX Writer

@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# Bait test for skills/agents-bin/skill-update.
+#
+# Why this exists: skill-update carries a HARD SAFETY guard (see its comment
+# block) that refuses to touch any target resolving INSIDE the skill source tree.
+# That guard is not paranoia — it replaces a version that, when a target base was
+# already a whole-dir symlink into the source, `mv`-ed every real skill directory
+# inside dotfiles to *.backup.<ts> and left self-referencing symlinks behind.
+# It already destroyed data once. It had zero tests.
+#
+# So: this plants a target that resolves inside the source and asserts
+# skill-update REFUSES — exits non-zero, and moves nothing.
+#
+# SAFETY: this never runs against the real ~/dotfiles or the real $HOME. It
+# builds a throwaway source tree + a throwaway $HOME under mktemp -d, copies
+# skill-update into the same layout it expects (<dir>/../local), and runs it
+# there. If the guard ever regresses, the damage lands in the temp dir.
+set -euo pipefail
+
+REPO="${1:-$HOME/dotfiles}"
+REAL="$REPO/skills/agents-bin/skill-update"
+fail=0
+
+[ -f "$REAL" ] || { echo "ERROR: skill-update tidak ditemukan di $REAL" >&2; exit 1; }
+
+# pwd -P: on macOS mktemp hands back /var/... while the script's own `readlink -f`
+# resolves it to /private/var/... . Compare physical paths or every assert lies.
+TMP="$(cd "$(mktemp -d "${TMPDIR:-/tmp}/skill-update-test.XXXXXX")" && pwd -P)"
+cleanup() { chmod -R u+w "$TMP" 2>/dev/null || true; rm -rf "$TMP"; }
+trap cleanup EXIT
+
+# Mirror the layout skill-update derives SRC from: <script>/../local
+FAKE_HOME="$TMP/home"
+SRC="$TMP/skills/local"
+mkdir -p "$TMP/skills/agents-bin" "$SRC/demo-skill" "$FAKE_HOME/.claude"
+cp "$REAL" "$TMP/skills/agents-bin/skill-update"
+chmod +x "$TMP/skills/agents-bin/skill-update"
+echo '# demo' > "$SRC/demo-skill/SKILL.md"
+
+run_it() { HOME="$FAKE_HOME" bash "$TMP/skills/agents-bin/skill-update" 2>&1; }
+
+echo "1. healthy target must be linked (baseline: the script still works)"
+out="$(run_it || true)"
+if [ -L "$FAKE_HOME/.claude/skills" ] \
+   && [ "$(readlink "$FAKE_HOME/.claude/skills")" = "$SRC" ]; then
+  echo "   ✓ linked"
+else
+  echo "   ✗ FAIL: skill-update tidak membuat symlink yang benar"
+  printf '%s\n' "$out" | sed 's/^/     /'
+  fail=1
+fi
+
+echo "2. re-run must be a silent no-op (idempotent, and NOT a guard trip)"
+# A whole-dir symlink to SRC itself resolves to SRC, not INSIDE it. The guard
+# must let this through — otherwise the normal second run would start failing.
+out="$(run_it || true)"
+if printf '%s\n' "$out" | grep -q '^  ok  ' \
+   && [ "$(readlink "$FAKE_HOME/.claude/skills")" = "$SRC" ]; then
+  echo "   ✓ no-op"
+else
+  echo "   ✗ FAIL: run kedua bukan no-op — guard salah menangkap kasus normal"
+  printf '%s\n' "$out" | sed 's/^/     /'
+  fail=1
+fi
+
+echo "3. target resolving INSIDE the source must be REFUSED"
+# This is the shape that ate the skills directory: the target points at a path
+# *within* SRC, so the "move it aside" branch would mv a real skill out of the
+# source tree. Guard must abort before reaching that branch.
+rm -f "$FAKE_HOME/.claude/skills"
+ln -sfn "$SRC/demo-skill" "$FAKE_HOME/.claude/skills"
+
+set +e
+out="$(run_it)"
+rc=$?
+set -e
+
+if [ "$rc" -eq 0 ]; then
+  echo "   ✗ FAIL: skill-update EXIT 0 untuk target di dalam source — guard mati"
+  fail=1
+elif ! printf '%s\n' "$out" | grep -q 'Refusing to touch it'; then
+  echo "   ✗ FAIL: exit non-zero tapi bukan karena guard:"
+  printf '%s\n' "$out" | sed 's/^/     /'
+  fail=1
+else
+  echo "   ✓ refused (exit $rc)"
+fi
+
+echo "4. and it must have moved NOTHING inside the source"
+# The actual damage signature of the old bug: skills renamed to *.backup.<ts>.
+if [ -f "$SRC/demo-skill/SKILL.md" ] \
+   && [ -z "$(find "$SRC" "$FAKE_HOME/.claude" -maxdepth 2 -name '*.backup.*' 2>/dev/null)" ]; then
+  echo "   ✓ source utuh"
+else
+  echo "   ✗ FAIL: source tree DIUBAH — bug perusak data itu kembali:"
+  find "$SRC" "$FAKE_HOME/.claude" -maxdepth 2 2>/dev/null | sed 's/^/     /'
+  fail=1
+fi
+
+echo
+[ "$fail" -eq 0 ] && echo "skill-update-test: OK" || { echo "skill-update-test: FAILED"; exit 1; }

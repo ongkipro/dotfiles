@@ -206,3 +206,5 @@ npx @redocly/cli build-docs openapi.yaml -o docs/api/index.html
 - Sertakan semua schema di `components/schemas`
 - Grouping dengan `tags` yang konsisten
 - Kalau besar, pisahkan per domain: `openapi/users.yaml`, `openapi/orders.yaml`, merge dengan `$ref`
+
+Untuk mode **`review`**: kalau spec-nya sudah valid, konsisten, dan lengkap — bilang begitu dan berhenti. Jangan mengarang temuan atau menurunkan preferensi gaya jadi "masalah" biar review kelihatan berguna. Nol perubahan adalah hasil review yang sah.

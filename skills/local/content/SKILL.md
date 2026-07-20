@@ -9,7 +9,9 @@ description: >-
   page copy, batch content, kalender konten, artikel SEO. Pairs with
   copywriting (rules), shopify-listing (product copy), seo-website-builder
   (SEO QA), volumx-writer (preservation + humanization), and 9router (visuals
-  + research).
+  + research). NOT the source of copy rules and NOT for a single asset — use
+  copywriting for char limits, headline patterns, meta, and ALT text; this skill
+  is the multi-asset production pipeline.
 ---
 
 # Content Production

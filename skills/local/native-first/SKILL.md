@@ -31,6 +31,7 @@ Read only the reference for the stack you're in. Don't load them all.
 | Postgres + Drizzle + better-auth | `references/data.md` |
 | Shopify (Liquid / Storefront / CLI) | `references/shopify.md` |
 | Self-host (Docker / Coolify / Vultr) | `references/selfhost.md` |
+| Browser (HTML / CSS / JS — any framework) | `references/browser.md` |
 
 ## The dependency test
 

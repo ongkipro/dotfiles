@@ -30,23 +30,43 @@ PLACEHOLDER='=[[:space:]]*(""|'\'''\''|`?<[^>]*>|["'\''`]?(\$\{?[A-Za-z_]|your[-
 # These are meant to be committed; they authenticate nothing.
 TURNSTILE_TEST='[123]x0{20,}[A-Za-z]{2}'
 
-if git grep -nEI "$PATTERN" -- \
-  ':(exclude).git/**' \
-  ':(exclude).gitignore' \
-  ':(exclude)config/gitignore_global' \
-  ':(exclude)bin/security-check' \
-  ':(exclude)docs/security.md' \
-  ':(exclude).gitleaks.toml' \
-  | grep -vEi "$PLACEHOLDER" \
-  | grep -vE "$TURNSTILE_TEST" \
-  >/tmp/dotfiles-secret-scan.$$ 2>/dev/null; then
-  if [ -s /tmp/dotfiles-secret-scan.$$ ]; then
-    echo "Potential secret detected. Review before commit/push:" >&2
-    cat /tmp/dotfiles-secret-scan.$$ >&2
-    rm -f /tmp/dotfiles-secret-scan.$$
-    exit 1
-  fi
+EXCLUDES=(
+  ':(exclude).git/**'
+  ':(exclude).gitignore'
+  ':(exclude)config/gitignore_global'
+  ':(exclude)bin/security-check'
+  ':(exclude)docs/security.md'
+  ':(exclude).gitleaks.toml'
+)
+
+# Scan the WORKING TREE and the INDEX, then union them.
+#
+# Why both: plain `git grep` reads the working-tree copy of tracked files. It
+# therefore MISSES a secret that lives only in the index — staged, then edited
+# back out of the working tree. That content is exactly what `git commit` would
+# write. `git grep --cached` reads the index and catches it.
+#
+# This does not make the guard noisier: a hit present in both views produces a
+# byte-identical `path:line:content` line, and `sort -u` collapses it. Same file
+# reported once. A noisy guard is a dangerous guard — the union is a superset of
+# what is about to be committed, not a second opinion about the same thing.
+# No flag needed: callers that scan the repo as-is (ai-doctor) get the same
+# answer plus anything already staged, which is strictly more correct.
+TMP="$(mktemp "${TMPDIR:-/tmp}/dotfiles-secret-scan.XXXXXX")"
+trap 'rm -f "$TMP"' EXIT
+
+{
+  git grep -nEI          "$PATTERN" -- "${EXCLUDES[@]}" || true
+  git grep -nEI --cached "$PATTERN" -- "${EXCLUDES[@]}" || true
+} | sort -u \
+  | { grep -vEi "$PLACEHOLDER" || true; } \
+  | { grep -vE  "$TURNSTILE_TEST" || true; } \
+  > "$TMP"
+
+if [ -s "$TMP" ]; then
+  echo "Potential secret detected. Review before commit/push:" >&2
+  cat "$TMP" >&2
+  exit 1
 fi
 
-rm -f /tmp/dotfiles-secret-scan.$$ 2>/dev/null || true
 echo "security-check: no obvious secrets found."

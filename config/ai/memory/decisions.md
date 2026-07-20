@@ -63,6 +63,11 @@
 - Machine-coupled (JANGAN di-dotfiles mentah-mentah): `~/.pi/agent/models.json` (API key + model availability varies), `~/.pi/agent/auth.json` (oauth token), `~/.pi/agent/sessions/` (history), `~/.9router/{auth,jwt-secret,machine-id,tunnel/}`.
 - Pelajaran: `skills` array di settings.json pernah hardcode `/Users/feriromansyah/...` — salah mesin. Solusi: pakai auto-discovery pi (skills di `~/.pi/agent/skills/`) dan JANGAN hardcode absolute path orang lain.
 
+### pi balik lewat 9router (2026-07-20) — pembalikan keputusan lama
+- Keputusan lama "pi default = provider NATIVE `minimax`/`MiniMax-M3`, TIDAK lewat 9router, jangan diperbaiki" **sudah dibatalkan**. Disk sekarang: `defaultProvider: "9router"`, `defaultModel: "cx/gpt-5.4"`.
+- **Alasan pindah TIDAK diketahui** — jangan mengarang. Ini dicatat sebagai kondisi terverifikasi per tanggal di atas, bukan rasional keputusan.
+- Konsekuensi: 9router bukan lagi opsional untuk pi. Kalau gateway mati, chat utama pi ikut mati (dulu tidak). Verifikasi: `jq '.defaultProvider, .defaultModel' ~/.pi/agent/settings.json`.
+
 ### Pitfall: prefix `ocg/` ≠ 9router
 - `ocg/` adalah prefix provider NATIVE pi (opencode-go), BUKAN 9router. Jangan set `defaultModel: "ocg/..."` saat `defaultProvider: "9router"` — kombinasi invalid. Model `ocg/*` diakses via provider `opencode-go`.
 

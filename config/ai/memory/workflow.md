@@ -38,6 +38,8 @@ Semua project development: web app, SaaS, Shopify, bot, dll. (Dibuat 2026-07-14 
 
 **Nama file:** `YYYY-MM-DD - judul.md`
 
+> ⚠️ **`~/Documents/work/notes/` praktis MATI untuk log sesi** (diverifikasi 2026-07-20 di Mac: isinya cuma 2 file, terbaru **2026-07-12**, plus folder arsip `projects-md-archive-2026-07-14/`). Log sesi nyata sekarang hidup di **`BUILD-LOG.md` / `WORKLOG.md` per-repo**, dekat kodenya. Jangan mengira konvensi "tulis catatan sesi ke `notes/`" masih berjalan — untuk pekerjaan yang terikat sebuah repo, tulis di repo itu. `notes/` tinggal untuk draft/ide lepas yang tidak punya repo. Cek: `ls -la ~/Documents/work/notes/`.
+
 **Rule:** JANGAN taruh file di `~/Documents/` langsung. Selalu masuk subfolder `work/`. AI harus infokan path file di akhir respons.
 
 ```

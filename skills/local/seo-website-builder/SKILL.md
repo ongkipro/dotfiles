@@ -6,6 +6,9 @@ description: >-
   sitemap, robots.txt, canonical/noindex decisions, internal linking, Shopify SEO,
   Astro/static SEO, local business SEO, ecommerce SEO, programmatic SEO, Search
   Console diagnosis, SEO QA, multi-engine algorithm updates, and AI-search readiness.
+  Triggers: "audit SEO situs ini", "kenapa halaman ini tidak terindeks", "why did
+  my traffic drop". NOT for writing the copy itself (content, copywriting), editing
+  Shopify product fields (shopify-listing), or Astro code (astro-development).
 ---
 
 # SEO Website Builder
@@ -73,6 +76,8 @@ QA / Validation Checklist
 Measurement Plan
 Risk Notes
 ```
+
+A heading with nothing real under it is allowed to say so — write "No findings on this dimension" and move on. Never manufacture a risk, an assumption, or a critical note to fill the template: a site that already has correct canonicals, clean metadata, and a valid sitemap is in good shape, and saying that plainly is the correct output.
 
 ## Hard Stops
 
