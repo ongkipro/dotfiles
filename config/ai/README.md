@@ -15,10 +15,13 @@ memory/          ← detail dipecah per topik (dibaca on-demand)
 `AGENTS.md` disambungkan (symlink) ke lokasi context-file tiap tool:
 | Symlink | Dibaca oleh |
 |---|---|
-| `~/AGENTS.md`         | pi.dev, Codex, Antigravity(agy) |
 | `~/.claude/CLAUDE.md` | Claude Code |
 | `~/.codex/AGENTS.md`  | Codex |
+| `~/.antigravity/AGENTS.md` | Antigravity (agy) — context file utama |
 | `~/.gemini/GEMINI.md` | Antigravity (agy) — stack Gemini |
+| _(pi.dev)_            | BUKAN symlink — lewat wrapper `pi()` (`--append-system-prompt`) |
+
+**`~/AGENTS.md` sengaja TIDAK ADA.** Keempat CLI sudah punya path khususnya sendiri, dan karena CLI naik dari cwd mencari `AGENTS.md`, file di home membuat aturan yang sama dimuat dua kali di tiap sesi di bawah `~`. Pernah muncul sebagai salinan tak ter-manage lalu rusak diam-diam; `ai-doctor` sekarang memperingatkan kalau ia muncul lagi.
 
 **Symlink dikelola oleh `ai-memory-link`** (di `~/.local/bin/`). Nambah AI baru ke depan: tambahkan path-nya ke array `TARGETS` di script itu, lalu jalankan `ai-memory-link`.
 

@@ -55,7 +55,13 @@ check_link claude "$HOME/.claude/CLAUDE.md"          "$HOME/.claude"
 check_link codex  "$HOME/.codex/AGENTS.md"           "$HOME/.codex"
 check_link agy    "$HOME/.antigravity/AGENTS.md"     "$HOME/.antigravity"
 check_link gemini "$HOME/.gemini/GEMINI.md"          "$HOME/.gemini"
-check_link home   "$HOME/AGENTS.md"                  "$HOME"
+# ~/AGENTS.md harus TIDAK ADA. Ia pernah muncul sebagai salinan tak ter-manage,
+# melenceng 5 hari, lalu rusak kena find-replace (semua "Claude" jadi "Codex")
+# tanpa ada yang tahu. Dan karena CLI naik dari cwd mencari AGENTS.md, file ini
+# membuat aturan yang sama dimuat dua kali di tiap sesi di bawah ~.
+if [ -e "$HOME/AGENTS.md" ] || [ -L "$HOME/AGENTS.md" ]; then
+  wrn "~/AGENTS.md muncul lagi — seharusnya TIDAK ADA (aturan dobel + rawan melenceng). Hapus: rm ~/AGENTS.md"
+fi
 # Canary isi. Symlink utuh cuma membuktikan PIPA-nya nyambung, bukan isinya benar.
 # Approval-gate adalah satu-satunya aturan yang kalau terhapus TIDAK menimbulkan
 # gejala apa pun yang bisa diamati: semua CLI tetap jalan, tetap terasa normal,
