@@ -1,7 +1,10 @@
 # Memori: Preferensi user (ongkipro)
 > Bagian dari memori bersama.
 
-- Bahasa: Indonesia (boleh campur istilah teknis Inggris).
+- Bahasa **percakapan**: Indonesia santai; istilah teknis tetap English.
+- Bahasa **konten per-repo** (beda dari percakapan):
+  - **dotfiles** → skill (`SKILL.md`) & docs sistem dalam **English**; hanya point tertentu (catatan/memori pribadi `config/ai/memory/*`, runbook `docs/`) boleh Indonesia.
+  - **Kamus** → **Bahasa Indonesia** (bukan Malay/Melayu); istilah teknis & development tetap English (*home* bukan "beranda", *campaign* bukan "kampanye", dashboard, deploy, commit, funnel).
 - Prioritas: ringan, cepat, simpel, terminal-first.
 - Install: utamakan no-sudo (mise). sudo hanya kalau memang butuh sistem.
 - Tampilan terminal: prompt PLAIN tanpa Nerd Font/ikon.

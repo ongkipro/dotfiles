@@ -24,4 +24,4 @@ Nama lama proyek ini `indostore`; rebrand 2026-07-08. Repo `ongkipro/indostore` 
 
 **How to apply:** edit lewat path mana pun sama saja — keduanya file yang sama. Jangan "rapikan" `~/Documents/work/tokophi` dengan menghapus/menimpa; itu menyentuh file repo. Kalau `.md` baru ditambahkan di repo, symlink-nya perlu dibuat manual.
 
-Pengembangan utamanya di mesin lain (Linux) — `git pull` dulu sebelum kerja di Mac. Status per 2026-07-10 (223 commit): RBAC+RLS jalan, storefront baca DB sungguhan, DEV ter-deploy di Vultr Singapore + Coolify (Docker Compose, backup harian). PROD nanti Hetzner Singapore. Lihat juga [[kamus-almanak]].
+Pengembangan utamanya di mesin lain (Linux) — `git pull` dulu sebelum kerja di Mac. Status per 2026-07-14 (repo WORKLOG): RBAC+RLS jalan, storefront multi-tenant SSR baca DB, COD live end-to-end, dan **keempat surface tayang di `tokophi.com`** (Cloudflare HTTPS) di atas server Vultr Singapore + Coolify (Docker Compose, backup harian). Ini masih infra DEV — **PROD nanti migrasi ke Hetzner Singapore**. Lihat juga [[kamus-almanak]].
