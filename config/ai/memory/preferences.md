@@ -1,7 +1,7 @@
 # Memori: Preferensi user (ongkipro)
 > Bagian dari memori bersama.
 
-- Bahasa: Indonesia (boleh campur istilah teknis Inggris).
+- Bahasa: Indonesia (baku/santai) — **bukan Malay/Melayu**. Istilah teknis & development tetap **English**: mis. *home* (bukan "beranda"), *campaign* (bukan "kampanye"), dashboard, deploy, commit, funnel, landing page. Berlaku untuk semua project (termasuk UI/label Kamus).
 - Prioritas: ringan, cepat, simpel, terminal-first.
 - Install: utamakan no-sudo (mise). sudo hanya kalau memang butuh sistem.
 - Tampilan terminal: prompt PLAIN tanpa Nerd Font/ikon.
