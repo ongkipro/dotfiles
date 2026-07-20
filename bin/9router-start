@@ -14,6 +14,28 @@ err()  { printf '\033[1;31mx\033[0m %s\n' "$*" >&2; }
 PORT=20128
 HOST=127.0.0.1
 HEALTH_URL="http://${HOST}:${PORT}/api/health"
+AUTOSTART_DESKTOP="$HOME/.config/autostart/9router.desktop"
+
+ensure_linux_systemd_owns_9router() {
+  [ "$(uname -s)" = "Linux" ] || return 0
+  [ -f "$AUTOSTART_DESKTOP" ] || return 0
+  if grep -q '9router/cli\.js --tray' "$AUTOSTART_DESKTOP" 2>/dev/null; then
+    python3 - <<'PY'
+from pathlib import Path
+p = Path.home() / '.config/autostart/9router.desktop'
+text = p.read_text()
+repls = {
+    'Hidden=false': 'Hidden=true',
+    'NoDisplay=false': 'NoDisplay=true',
+    'X-GNOME-Autostart-enabled=true': 'X-GNOME-Autostart-enabled=false',
+}
+for old, new in repls.items():
+    text = text.replace(old, new)
+p.write_text(text)
+PY
+    say "Disabled GNOME tray autostart for 9router (systemd is the source of truth)"
+  fi
+}
 
 cmd_status() {
   if curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
@@ -112,6 +134,7 @@ PLISTEOF
 
     Linux)
       local service_file="$HOME/.config/systemd/user/9router.service"
+      ensure_linux_systemd_owns_9router
       if [ -f "$service_file" ]; then
         systemctl --user daemon-reload
         systemctl --user enable 9router.service 2>/dev/null || true

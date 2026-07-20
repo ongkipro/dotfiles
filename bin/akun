@@ -51,6 +51,38 @@ ensure_account() {
   done
 }
 
+# True only if $1 resolves to the REAL Claude Code CLI (npm/native install layout),
+# never a shell wrapper (avoids recursing back into this launcher). Follows symlinks,
+# so broken/half-written symlinks (e.g. mid auto-update) are rejected.
+is_real_claude() {
+  local rp; rp=$(readlink -f "$1" 2>/dev/null) || return 1
+  [ -x "$rp" ] || return 1
+  case "$rp" in */@anthropic-ai/claude-code/*) return 0 ;; *) return 1 ;; esac
+}
+
+# Locate a runnable Claude Code binary, resilient to the self-update window where the
+# `claude` symlink briefly vanishes but the native `claude.exe` launcher is still present.
+resolve_claude() {
+  local c pick=""
+  # 1) explicit override wins (may point at a non-standard layout).
+  if [ -n "${CLAUDE_REAL_BIN:-}" ] && [ -x "${CLAUDE_REAL_BIN}" ]; then
+    printf '%s\n' "$CLAUDE_REAL_BIN"; return 0
+  fi
+  # 2) nvm installs: highest version whose target actually exists. Match both the
+  #    `claude` symlink AND the native `claude.exe`, so a missing symlink is survivable.
+  while IFS= read -r c; do
+    is_real_claude "$c" && pick="$c"
+  done < <(find "$HOME/.nvm/versions/node" \
+             \( -path '*/bin/claude' -o -path '*/bin/claude.exe' \) 2>/dev/null | sort -V)
+  [ -n "$pick" ] && { printf '%s\n' "$pick"; return 0; }
+  # 3) common global locations + whatever is on PATH (is_real_claude blocks wrappers).
+  for c in "$HOME/.local/bin/claude" /usr/local/bin/claude /opt/homebrew/bin/claude \
+           "$(command -v claude 2>/dev/null || true)"; do
+    [ -n "$c" ] && is_real_claude "$c" && { printf '%s\n' "$c"; return 0; }
+  done
+  return 1
+}
+
 launch() {  # launch <name> [extra claude args...]
   local name="$1"; shift || true
   ensure_account "$name"
@@ -58,12 +90,12 @@ launch() {  # launch <name> [extra claude args...]
   ok "Akun aktif: $name  [$(subtype "$name")]   (config: $CLAUDE_CONFIG_DIR)"
   [ -f "$BASE/$name/.credentials.json" ] || dim "Belum login — ketik /login di dalam Claude untuk akun ini."
 
-  # Use the real Claude Code binary, not ~/.local/bin/claude wrapper, to avoid recursion.
-  local real_claude="${CLAUDE_REAL_BIN:-}"
-  if [ -z "$real_claude" ]; then
-    real_claude=$(find "$HOME/.nvm/versions/node" -path '*/bin/claude' -type l -o -path '*/bin/claude' -type f 2>/dev/null | sort -V | tail -1)
-  fi
-  [ -n "$real_claude" ] || { err "Claude binary tidak ditemukan. Cek: npm i -g @anthropic-ai/claude-code"; exit 1; }
+  local real_claude
+  real_claude=$(resolve_claude) || {
+    err "Claude binary tidak ditemukan (mungkin sedang auto-update — coba lagi)."
+    dim  "Perbaiki: npm i -g @anthropic-ai/claude-code   |   atau set CLAUDE_REAL_BIN=/path/ke/claude"
+    exit 1
+  }
   exec "$real_claude" "$@"
 }
 

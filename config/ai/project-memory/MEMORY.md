@@ -14,3 +14,6 @@
 - [Commit menambah, bukan menimpa](additive-commits-no-history-rewrite.md) — jangan force-push/rewrite history. Identitas commit = noreply, jangan pakai email asli.
 - [Antigravity CLI = `agy`](antigravity-cli-agy.md) — binary `agy`, BUKAN `gemini`; subcommand `plugin` bukan `extensions`. Gemini CLI sengaja tidak dipasang.
 - [worktrunk (`wt`)](worktrunk-worktree-tooling.md) — tooling worktree. Plugin agy butuh binary `brew install worktrunk` dulu, kalau tidak hook-nya error.
+- [JASAWEBSITE.co brand](jasawebsite-co-brand.md) — web agency by VOLUM, 7 layanan, pasar ID+MY, lokasi PRD v4.0.
+- [SF-Theme Shopify store](sf-theme-shopify-store.md) — store `yn80fb-mb`, theme `olivia-16-6-0a` (#186432061760, unpublished); handle permanen buat semua CLI.
+- [PetCue Dawn rebuild](petcue-dawn-rebuild.md) — theme Dawn-based legal (alternatif Olivia berlisensi) untuk store `2mpt3p-xv`, paused mid-build.

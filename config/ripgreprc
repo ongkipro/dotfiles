@@ -2,6 +2,17 @@
 --smart-case
 --hidden
 --glob=!.git/*
+# artefak build/deps — nama telanjang (tanpa slash) = cocok di kedalaman mana pun.
+# Tetap berlaku walau rg dipanggil dengan --no-ignore.
+--glob=!node_modules
+--glob=!.next
+--glob=!.astro
+--glob=!.turbo
+--glob=!.vercel
+--glob=!dist
+--glob=!.cache
+--glob=!package-lock.json
+--glob=!pnpm-lock.yaml
 --max-columns=200
 --max-columns-preview
 --colors=line:fg:yellow
