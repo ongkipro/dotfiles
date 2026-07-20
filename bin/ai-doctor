@@ -155,6 +155,19 @@ else
   wrn "bin/security-check tidak ada"
 fi
 
+# Claude Code settings.json BUKAN symlink (device-local, tidak ikut dotfiles), jadi
+# perlindungan .env tidak otomatis ikut ke device baru. permissions.deny ditegakkan
+# HARD bahkan di bypassPermissions mode (bukan cuma prosa approval-gate). Cek di sini
+# supaya cuan tahu harus menambahkannya — dan supaya reset settings tidak lolos senyap.
+CC_SETTINGS="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
+if command -v claude >/dev/null 2>&1 && [ -f "$CC_SETTINGS" ]; then
+  if grep -qE 'Read\((\*\*/)?\.env' "$CC_SETTINGS" 2>/dev/null; then
+    ok "Claude settings: permissions.deny memblokir baca .env (ditegakkan bahkan di bypass)"
+  else
+    wrn "Claude settings: TIDAK ada permissions.deny untuk .env — agent bisa membaca secret di bypass mode. Tambahkan blok \"permissions\":{\"deny\":[\"Read(.env*)\",\"Read(**/.env*)\",\"Read(.dev.vars*)\",\"Read(~/.ssh/**)\",\"Read(~/.aws/**)\"]} ke $CC_SETTINGS"
+  fi
+fi
+
 # ── 7. CLI + login ────────────────────────────────────────────────────────────
 hdr "7. AI CLI di device ini"
 for c in claude codex pi agy; do
