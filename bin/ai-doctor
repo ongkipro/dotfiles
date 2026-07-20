@@ -1,0 +1,221 @@
+#!/usr/bin/env bash
+# ai-doctor — prove the dotfiles connective tissue is intact ON THIS DEVICE.
+#
+# The dotfiles are the link between: AI CLIs ↔ devices ↔ memory.
+# Three layers, split by how often they're paid for:
+#   1. Rules   → ~/.config/ai/AGENTS.md   (always on, every CLI — keep it small)
+#   2. Memory  → ~/.config/ai/memory/*.md (facts, on demand)
+#   3. Skills  → ~/dotfiles/skills/local/ (deep knowledge, on demand)
+#
+# FAIL = broken, fix it.  WARN = works, but something is missing/pending.
+# Run this first on a new machine, and any time an AI behaves oddly.
+set -uo pipefail
+
+DOT="${DOTFILES_DIR:-$HOME/dotfiles}"
+AI="$HOME/.config/ai"
+fail=0; warn=0
+
+ok()   { printf '  \033[32m✓\033[0m %s\n' "$1"; }
+bad()  { printf '  \033[31m✗\033[0m %s\n' "$1"; fail=$((fail+1)); }
+wrn()  { printf '  \033[33m!\033[0m %s\n' "$1"; warn=$((warn+1)); }
+hdr()  { printf '\n\033[1m%s\033[0m\n' "$1"; }
+
+# ── 1. Repo ───────────────────────────────────────────────────────────────────
+hdr "1. Dotfiles repo"
+if [ -d "$DOT/.git" ]; then
+  branch=$(git -C "$DOT" rev-parse --abbrev-ref HEAD 2>/dev/null)
+  dirty=$(git -C "$DOT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+  ahead=$(git -C "$DOT" rev-list --count '@{u}..HEAD' 2>/dev/null || echo '?')
+  ok "$DOT (branch $branch)"
+  [ "$dirty" -eq 0 ] && ok "working tree bersih" || wrn "$dirty file belum di-commit — jalankan: dotpush \"pesan\""
+  [ "$ahead" = "0" ] && ok "sinkron dengan remote" || wrn "$ahead commit belum di-push — jalankan: dotpush"
+else
+  bad "$DOT bukan git repo. Clone: git clone git@github.com:ongkipro/dotfiles.git ~/dotfiles"
+fi
+
+# ── 2. Layer 1: rules reach every installed CLI ───────────────────────────────
+hdr "2. Aturan (AGENTS.md) — harus sampai ke SEMUA CLI yang terpasang"
+SRC="$AI/AGENTS.md"
+if [ -f "$SRC" ]; then
+  ok "sumber: ~/.config/ai/AGENTS.md ($(wc -l < "$SRC") baris)"
+  [ "$(wc -l < "$SRC")" -le 120 ] || wrn "AGENTS.md >120 baris — ini dibaca TIAP request di 4 CLI. Pindahkan detail ke skill."
+else
+  bad "~/.config/ai/AGENTS.md TIDAK ADA — inti sistem hilang."
+fi
+
+check_link() { # $1=cli  $2=path  $3=parent-that-must-exist
+  if [ ! -d "$3" ]; then wrn "$1: belum terpasang di device ini (lewati)"; return; fi
+  if [ -L "$2" ] && [ "$(readlink -f "$2")" = "$(readlink -f "$SRC")" ]; then
+    ok "$1: $(printf '%s' "${2/#$HOME/\~}") → AGENTS.md"
+  else
+    bad "$1: ${2/#$HOME/\~} TIDAK ter-link ke AGENTS.md. Perbaiki: ai-memory-link"
+  fi
+}
+check_link claude "$HOME/.claude/CLAUDE.md"          "$HOME/.claude"
+check_link codex  "$HOME/.codex/AGENTS.md"           "$HOME/.codex"
+check_link agy    "$HOME/.antigravity/AGENTS.md"     "$HOME/.antigravity"
+check_link gemini "$HOME/.gemini/GEMINI.md"          "$HOME/.gemini"
+# ~/AGENTS.md harus TIDAK ADA. Ia pernah muncul sebagai salinan tak ter-manage,
+# melenceng 5 hari, lalu rusak kena find-replace (semua "Claude" jadi "Codex")
+# tanpa ada yang tahu. Dan karena CLI naik dari cwd mencari AGENTS.md, file ini
+# membuat aturan yang sama dimuat dua kali di tiap sesi di bawah ~.
+if [ -e "$HOME/AGENTS.md" ] || [ -L "$HOME/AGENTS.md" ]; then
+  wrn "~/AGENTS.md muncul lagi — seharusnya TIDAK ADA (aturan dobel + rawan melenceng). Hapus: rm ~/AGENTS.md"
+fi
+# Canary isi. Symlink utuh cuma membuktikan PIPA-nya nyambung, bukan isinya benar.
+# Approval-gate adalah satu-satunya aturan yang kalau terhapus TIDAK menimbulkan
+# gejala apa pun yang bisa diamati: semua CLI tetap jalan, tetap terasa normal,
+# cuma diam-diam berhenti minta konfirmasi sebelum hal destruktif/produksi.
+# Satu frasa saja — canary kedua cuma menambah bising tanpa menambah informasi.
+if [ -f "$SRC" ]; then
+  if grep -qF 'Permission allowed is not user approval' "$SRC"; then
+    ok "canary: aturan approval-gate masih utuh di AGENTS.md"
+  else
+    bad "canary HILANG: frasa 'Permission allowed is not user approval' tidak ada di ~/.config/ai/AGENTS.md — approval gate terhapus, semua CLI berhenti minta konfirmasi TANPA gejala. Pulihkan dari git: git -C $DOT diff config/ai/AGENTS.md"
+  fi
+fi
+
+if command -v pi >/dev/null 2>&1; then
+  # Wrapper pi() hidup di config/zshrc.tools.sh (di-source dari ~/.zshrc), BUKAN .bashrc.
+  grep -qs "config/ai/AGENTS.md" \
+      "$DOT/config/zshrc.tools.sh" "$HOME/.zshrc" "$HOME/.bashrc" 2>/dev/null \
+    && ok "pi: lewat wrapper pi() (append AGENTS.md)" \
+    || wrn "pi: wrapper pi() tak menyebut AGENTS.md — cek $DOT/config/zshrc.tools.sh"
+fi
+
+# ── 3. Layer 2: memory ────────────────────────────────────────────────────────
+hdr "3. Memori"
+if [ -d "$AI/memory" ]; then
+  n=$(find "$AI/memory" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')
+  ok "$n file di ~/.config/ai/memory/"
+  [ -L "$HOME/.config/ai" ] && ok "~/.config/ai → $(readlink "$HOME/.config/ai" | sed "s|$HOME|~|")" \
+    || bad "~/.config/ai BUKAN symlink ke dotfiles — memori tidak akan ter-sync antar device!"
+else
+  bad "~/.config/ai/memory/ TIDAK ADA"
+fi
+
+# Memori per-project (Claude Code) dipindah ke dotfiles 2026-07-20 lalu di-symlink
+# balik. Kalau symlink ini putus, Claude Code tetap jalan dan tetap terasa normal —
+# ia cuma bikin direktori baru yang kosong, dan konteks project hilang diam-diam.
+# Nama direktori project Claude Code = $HOME dengan '/' → '-'. Di Mac jadi
+# '-Users-ongki', di Linux '-home-<user>'. Turunkan dari $HOME, jangan hardcode,
+# supaya cek ini ikut berlaku di cuan.
+PMEM="$HOME/.claude/projects/$(printf '%s' "$HOME" | tr '/' '-')/memory"
+if [ -L "$PMEM" ]; then
+  if [ -f "$PMEM/MEMORY.md" ]; then
+    n=$(find "$PMEM/" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')
+    ok "memori project: $n file via symlink → $(readlink "$PMEM" | sed "s|$HOME|~|")"
+  else
+    bad "memori project: symlink ada tapi MEMORY.md tidak terbaca — target putus. Cek: ls -la $PMEM"
+  fi
+elif [ -d "$PMEM" ]; then
+  bad "memori project: ${PMEM/#$HOME/\~} adalah direktori ASLI, bukan symlink — tidak ter-sync ke dotfiles. Cek dulu apakah isinya sudah ada di $DOT/config/ai/project-memory, lalu: ai-memory-link"
+fi
+
+# ── 4. Layer 3: skills ────────────────────────────────────────────────────────
+hdr "4. Skills — satu sumber, symlink satu-direktori"
+SK="$DOT/skills/local"
+if [ -d "$SK" ]; then
+  n=$(find "$SK" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')
+  ok "sumber: $n skill di ~/dotfiles/skills/local/"
+  for pair in "claude:$HOME/.claude/skills:$HOME/.claude" "pi:$HOME/.pi/agent/skills:$HOME/.pi/agent"; do
+    cli=${pair%%:*}; rest=${pair#*:}; path=${rest%%:*}; parent=${rest#*:}
+    if [ ! -d "$parent" ]; then wrn "$cli: belum terpasang (lewati)"; continue; fi
+    if [ -L "$path" ] && [ "$(readlink -f "$path")" = "$(readlink -f "$SK")" ]; then
+      ok "$cli: ${path/#$HOME/\~} → skills/local ($(ls -1 "$path" | wc -l | tr -d ' ') skill terlihat)"
+    else
+      bad "$cli: ${path/#$HOME/\~} tidak ter-link. Perbaiki: skill-update"
+    fi
+  done
+  ok "codex & agy: tak punya dir skill (by design) — pakai \`skill-list\` lalu baca SKILL.md-nya"
+else
+  bad "$SK TIDAK ADA"
+fi
+
+# ── 5. Dangling symlinks anywhere in the wiring ───────────────────────────────
+hdr "5. Symlink menggantung"
+d=0
+for base in "$HOME/.claude" "$HOME/.codex" "$HOME/.antigravity" "$HOME/.pi/agent" "$HOME/.agents" "$HOME/.agents/bin" "$HOME/.local/bin" "$HOME/.config"; do
+  [ -d "$base" ] || continue
+  while IFS= read -r l; do
+    [ -e "$l" ] || { bad "MATI: ${l/#$HOME/\~} → $(readlink "$l")"; d=1; }
+  done < <(find "$base" -maxdepth 1 -type l 2>/dev/null)
+done
+[ $d -eq 0 ] && ok "tidak ada yang menggantung"
+
+# ── 6. Guards ─────────────────────────────────────────────────────────────────
+hdr "6. Guard"
+if [ -x "$DOT/bin/security-check" ]; then
+  "$DOT/bin/security-check" >/dev/null 2>&1 && ok "security-check: bersih" \
+    || bad "security-check menemukan kemungkinan secret — jalankan: security-check"
+  [ -x "$DOT/bin/security-check-test" ] && { "$DOT/bin/security-check-test" >/dev/null 2>&1 \
+    && ok "security-check-test: guard masih menangkap secret asli" \
+    || bad "security-check-test GAGAL — guard-nya bocor, JANGAN push"; }
+else
+  wrn "bin/security-check tidak ada"
+fi
+
+# ── 7. CLI + login ────────────────────────────────────────────────────────────
+hdr "7. AI CLI di device ini"
+for c in claude codex pi agy; do
+  if command -v "$c" >/dev/null 2>&1; then
+    case "$c" in
+      codex) [ -f "$HOME/.codex/auth.json" ] && ok "codex: terpasang + login" \
+               || wrn "codex: terpasang tapi BELUM LOGIN → jalankan: codex login" ;;
+      claude)
+        # `command -v` cuma lihat symlink launcher — native binary (claude.exe ~240MB)
+        # dipasang lewat postinstall/optional-dep npm & KADANG gagal unduh senyap →
+        # `claude` error "native binary not installed". Uji launch beneran, lalu self-heal.
+        if claude --version >/dev/null 2>&1; then
+          ok "claude: terpasang + native binary OK"
+        else
+          pkg="$(npm root -g 2>/dev/null)/@anthropic-ai/claude-code"
+          if [ -f "$pkg/install.cjs" ] && node "$pkg/install.cjs" >/dev/null 2>&1 \
+               && claude --version >/dev/null 2>&1; then
+            ok "claude: native binary HILANG → diperbaiki via postinstall"
+          else
+            wrn "claude: native binary HILANG → perbaiki: npm i -g @anthropic-ai/claude-code"
+          fi
+        fi ;;
+      *)     ok "$c: terpasang" ;;
+    esac
+  else
+    wrn "$c: belum terpasang di device ini"
+  fi
+done
+
+# ── 8. Memory drift ───────────────────────────────────────────────────────────
+# Enforces the Layer-2 rule: a fact checkable from disk gets written ONCE, with its
+# verify command. The way that rule rots is dead paths piling up. So: flag any path
+# memory still points at that does not exist. Lines that explicitly WARN about a
+# dead path are the fix, not the bug — skip those.
+hdr "8. Memori vs disk (aturan: disk menang)"
+if [ -d "$AI/memory" ]; then
+  drift=0
+  # path → why it's dead
+  while IFS='|' read -r pat note; do
+    hits=$(grep -rn -- "$pat" "$AI/memory" "$AI/AGENTS.md" 2>/dev/null \
+      | grep -viE "TIDAK ADA|USANG|SALAH|BUKAN|jangan|dead|⚠️|BACA DULU" | wc -l | tr -d ' ')
+    if [ "$hits" -gt 0 ]; then
+      wrn "memori masih menunjuk $note ($hits baris) — pat: $pat"
+      drift=1
+    fi
+  done <<'PATS'
+/home/fantastico|user yang TIDAK ADA
+~/.ai/|direktori yang tidak ada
+.gemini/skills|Gemini CLI sudah dihapus
+Documents/memori ai|folder yang tidak ada
+PATS
+  [ $drift -eq 0 ] && ok "tidak ada path mati yang dirujuk memori"
+fi
+
+# ── Verdict ───────────────────────────────────────────────────────────────────
+printf '\n────────────────────────────────────────\n'
+if [ $fail -eq 0 ] && [ $warn -eq 0 ]; then
+  printf '\033[32mSEHAT\033[0m — rantai AI ↔ device ↔ memori utuh.\n'
+elif [ $fail -eq 0 ]; then
+  printf '\033[33mOK dengan %d catatan\033[0m — jalan, tapi ada yang belum lengkap (lihat ! di atas).\n' "$warn"
+else
+  printf '\033[31m%d RUSAK\033[0m, %d catatan — perbaiki yang ✗ dulu.\n' "$fail" "$warn"
+  exit 1
+fi

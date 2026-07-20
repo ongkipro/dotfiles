@@ -1,6 +1,6 @@
 ---
 name: astro-development
-description: End-to-end Astro development skill for building, scaling, reviewing, and shipping Astro sites and apps. Use when creating a new Astro project, adding pages or components, choosing static vs server rendering, setting up content collections, SEO, Tailwind, React islands, forms, APIs, adapters, deployment, or auditing an existing Astro codebase. Also use when the user asks to build a website in Astro without specifying the architecture.
+description: End-to-end Astro development skill for building, scaling, reviewing, and shipping Astro sites and apps. Use when creating a new Astro project, adding pages or components, choosing static vs server rendering, setting up content collections, SEO, Tailwind, React islands, forms, APIs, adapters, deployment, or auditing an existing Astro codebase. Also use when the user asks to build a website in Astro without specifying the architecture. NOT for the standalone question "is there a built-in for this?" (native-first), and NOT for SEO strategy or audits (seo-website-builder).
 ---
 
 # Astro Development

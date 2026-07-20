@@ -1,6 +1,6 @@
 ---
 name: shadcn-ui
-description: 'Install, configure, dan pakai shadcn/ui components untuk React/Next.js. Mencakup component installation, charts (Recharts), sidebar, blocks, form patterns, data table, dark mode, dan customisasi dengan semantic tokens. Gunakan setelah tailwind-theme-builder setup theme infrastructure, atau mulai dari nol dengan shadcn init. Triggers: ''shadcn'', ''shadcn/ui'', ''shadcn ui'', ''install component'', ''buat form shadcn'', ''data table'', ''chart recharts'', ''sidebar shadcn'', ''shadcn blocks'', ''dark mode toggle''.'
+description: 'Pakai shadcn/ui components untuk React/Next.js — fokus ke pemakaian komponen: charts (Recharts), sidebar, blocks, form patterns, data table, dark mode toggle, dan customisasi lewat semantic tokens. Mulai dari nol dengan shadcn init. Triggers: ''shadcn'', ''shadcn/ui'', ''shadcn ui'', ''install component'', ''buat form shadcn'', ''data table'', ''chart recharts'', ''sidebar shadcn'', ''shadcn blocks'', ''dark mode toggle''. Untuk CLI/registry kustom/theming mendalam → skill resmi `vercel:shadcn` (plugin Vercel).'
 ---
 
 # shadcn/ui Components

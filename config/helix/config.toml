@@ -1,0 +1,38 @@
+theme = "default"
+
+[editor]
+line-number = "relative"
+cursorline = true
+color-modes = true          # warna mode (normal/insert/select) di statusline
+bufferline = "multiple"
+true-color = true
+
+[editor.cursor-shape]
+insert = "bar"
+normal = "block"
+select = "underline"
+
+[editor.file-picker]
+hidden = false              # tampilkan file biasa saja; .git dll tetap disembunyikan
+
+[editor.statusline]
+left = ["mode", "spinner", "file-name", "read-only-indicator", "file-modification-indicator"]
+center = []
+right = ["diagnostics", "version-control", "position", "file-encoding", "file-type"]
+
+[editor.lsp]
+display-messages = true
+display-inlay-hints = false # inlay hint bikin ramai; nyalakan per-kebutuhan
+
+[editor.indent-guides]
+render = true
+character = "┊"
+
+[editor.soft-wrap]
+enable = true               # baris panjang dibungkus, tak perlu geser horizontal
+
+[keys.normal]
+# Simpan cepat tanpa mengetik :w
+C-s = ":write"
+# Escape sekaligus batalkan highlight hasil pencarian
+esc = ["collapse_selection", "keep_primary_selection"]

@@ -8,7 +8,10 @@ description: >-
   konten, tulis artikel, blog post, content calendar, social post, landing
   page copy, batch content, kalender konten, artikel SEO. Pairs with
   copywriting (rules), shopify-listing (product copy), seo-website-builder
-  (SEO QA), 9router-image (visuals), and 9router-web-search (research).
+  (SEO QA), volumx-writer (preservation + humanization), and 9router (visuals
+  + research). NOT the source of copy rules and NOT for a single asset — use
+  copywriting for char limits, headline patterns, meta, and ALT text; this skill
+  is the multi-asset production pipeline.
 ---
 
 # Content Production
@@ -38,16 +41,19 @@ scale. Pairs with `copywriting` (rules + templates) and `shopify-listing` /
 2. **Research** — for any factual claim:
    - Official docs first, then trusted secondary.
    - For SEO-driven pieces: pull related queries from `seo-website-builder` +
-     `9router-web-search`.
+     `9router` (`references/web-search.md`).
    - Do **not** invent specs, prices, dates, or product facts.
 3. **Outline** — produce a numbered outline with:
    - Hook (1 sentence), H2s (3-6), key points per H2, internal link candidates,
      meta title/description, suggested image(s) and ALT.
    - For products: title candidates, handle, meta, tags, category, body sections.
-4. **Draft** — write to a file (`/tmp/content/<slug>.md`) so it can be reviewed
+4. **Protect** — for rewrites or constrained source material, use
+   `volumx-writer/references/preservation.md` to ledger claims, qualifiers,
+   keywords, citations, offers, and required formatting before editing.
+5. **Draft** — write to a file (`/tmp/content/<slug>.md`) so it can be reviewed
    in chunks. Apply hard rules from `copywriting` (no CTA, char limits, no
    third-party brand, fix typos, verifiable facts only).
-5. **QA gates** before publish — run **all**:
+6. **QA gates** before publish — run **all**:
    - Char limits (title ≤70, metaTitle ≤60, metaDescription ≤155, handle ≤6 words).
    - No CTA in body or meta (unless explicitly landing page).
    - No third-party brand unless user opted in.
@@ -55,14 +61,15 @@ scale. Pairs with `copywriting` (rules + templates) and `shopify-listing` /
    - ALT text on every image, descriptive and specific.
    - Internal links resolve to real URLs in the project.
    - H1/H2 hierarchy clean (one H1, logical H2s).
-6. **Image pipeline** — for each visual:
-   - Generate via `9router-image` (default model `ag/gemini-3.1-flash-image`) or
+   - Claims, qualifiers, conditions, and citations still match the source.
+7. **Image pipeline** — for each visual:
+   - Generate via `9router` (`references/image.md`) (default model `ag/gemini-3.1-flash-image`) or
      use supplied asset.
    - Filename: `<handle-or-slug>-N.<ext>`. ALT: `[Title] - [view/angle/feature]`
      ≤120 chars, no generic "product image N" suffixes.
    - If image is AI-generated: keep the original, store the public URL (R2/Cloudinary)
      before publishing — see `shopify-listing` step 7 for the Shopify case.
-7. **Publish** — apply per channel:
+8. **Publish** — apply per channel:
    - **Blog**: write Markdown/Astro/MDX; run `seo-website-builder` reference
      `PAGE_COMPLETENESS_FORMULA.md` before deploy.
    - **Product**: hand off to `shopify-listing` (do not bypass its QA gates).
@@ -70,7 +77,7 @@ scale. Pairs with `copywriting` (rules + templates) and `shopify-listing` /
      limits and hashtag policy.
    - **Landing**: copy + design tokens + sections; respect the project's brand
      palette and motion system (GSAP if available).
-8. **Log** — append a 1-line entry to the project's edit-log
+9. **Log** — append a 1-line entry to the project's edit-log
    (`~/Documents/<project>/_log.md` or similar) so memory stays current.
 
 ## Hard rules (apply to ALL channels unless the user explicitly overrides)
@@ -94,7 +101,7 @@ scale. Pairs with `copywriting` (rules + templates) and `shopify-listing` /
 2. Outline all pieces first; checkpoint with user.
 3. Draft sequentially; write to files for review.
 4. QA each piece individually.
-5. Generate visuals in parallel (one 9router-image call per piece).
+5. Generate visuals in parallel (one 9router image call per piece).
 6. Publish in publish order, log each.
 
 ### Social batch (per channel, weekly)
@@ -140,8 +147,9 @@ scale. Pairs with `copywriting` (rules + templates) and `shopify-listing` /
 ## Pair with
 
 - `copywriting` — exact copy rules + headline/meta/body templates.
+- `volumx-writer` — preservation, anti-hallucination, humanization, and scoring.
 - `shopify-listing` — for product/collection copy and image SEO.
 - `seo-website-builder` — for technical SEO QA + sitemap/IndexNow.
-- `9router-image` — for image generation.
-- `9router-web-search` — for research and source verification.
+- `9router` (`references/image.md`) — for image generation.
+- `9router` (`references/web-search.md`) — for research and source verification.
 - `prd-taskbreaker` — to break a content sprint into numbered tasks.

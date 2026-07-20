@@ -28,23 +28,38 @@ mkdir -p "$HOME/.config" "$HOME/.local/bin" "$HOME/.agents/bin"
 link "$DOT/config/ai"                    "$HOME/.config/ai"
 link "$DOT/config/starship.toml"         "$HOME/.config/starship.toml"
 link "$DOT/config/ripgreprc"             "$HOME/.ripgreprc"
+link "$DOT/config/helix/config.toml"     "$HOME/.config/helix/config.toml"
+link "$DOT/config/helix/languages.toml"  "$HOME/.config/helix/languages.toml"
 link "$DOT/config/gitignore_global"      "$HOME/.gitignore_global"
 link "$DOT/config/codex-instructions.md" "$HOME/.codex/instructions.md"
+mkdir -p "$HOME/.config/mise" "$HOME/.config/lazygit" "$HOME/.config/gh"
+link "$DOT/config/mise-config.toml"      "$HOME/.config/mise/config.toml"   # toolchain bersama
+link "$DOT/config/lazygit/config.yml"    "$HOME/.config/lazygit/config.yml"
+link "$DOT/config/gh/config.yml"         "$HOME/.config/gh/config.yml"      # hosts.yml TIDAK di-link (oauth token)
 link "$DOT/bin/ai-memory-link"           "$HOME/.local/bin/ai-memory-link"
 link "$DOT/bin/dotsync"                  "$HOME/.local/bin/dotsync"
 link "$DOT/bin/dotpush"                  "$HOME/.local/bin/dotpush"
+link "$DOT/bin/ai-doctor"                "$HOME/.local/bin/ai-doctor"        # cek rantai AI↔device↔memori
+link "$DOT/bin/security-check"           "$HOME/.local/bin/security-check"
+link "$DOT/bin/security-check-test"      "$HOME/.local/bin/security-check-test"
+link "$DOT/bin/inspect-project"          "$HOME/.local/bin/inspect-project"
 link "$DOT/bin/project-init"             "$HOME/.local/bin/project-init"
-for s in akun claude-kerja claude-personal tmux-clip tmux-setup tmux-battery security-check 9router-start; do
+for s in akun claude-kerja claude-personal tmux-clip tmux-setup tmux-battery security-check 9router-start pi-9router-restore device-register; do
   [ -e "$DOT/bin/$s" ] && link "$DOT/bin/$s" "$HOME/.local/bin/$s"
 done
 
+say "==> Daftarkan device ini ke registry (devices/<hostname>.md)..."
+# Non-fatal — registry cuma dokumentasi, jangan bikin bootstrap gagal total.
+"$DOT/bin/device-register" || say "   ⚠️  device-register gagal — lanjut. Jalankan manual nanti."
+
 say "==> Link local skills + skill commands..."
-link "$DOT/skills/local"                 "$HOME/.agents/local-skills"
 mkdir -p "$HOME/.agents/bin"
-for s in skill-help skill-list skill-new skill-open skill-remove skill-update sync-jezweb-claude-skills.sh; do
+for s in skill-help skill-list skill-new skill-open skill-remove skill-update; do
   [ -e "$DOT/skills/agents-bin/$s" ] && link "$DOT/skills/agents-bin/$s" "$HOME/.agents/bin/$s"
 done
-[ -L "$HOME/.agents/bin/sync-jezweb-claude-skills.sh" ] && ln -sfn "$HOME/.agents/bin/sync-jezweb-claude-skills.sh" "$HOME/.agents/bin/skill-sync"
+# Symlink satu-direktori ke SEMUA CLI (~/.claude/skills, ~/.pi/agent/skills, ~/.agents/local-skills).
+# Idempoten; melewati CLI yang belum terpasang. Sesudah ini, `git pull` saja sudah sinkron.
+"$DOT/skills/agents-bin/skill-update"
 
 say "==> Link AGENTS.md ke CLI yang ada..."
 "$HOME/.local/bin/ai-memory-link"
@@ -82,8 +97,10 @@ fi
 if [ ! -f "$HOME/.gitconfig" ]; then
   cat > "$HOME/.gitconfig" <<GITEOF
 [user]
-    name = Ongki Pro
-    email = get@ongki.pro
+    # Identitas SAMA di semua device (Linux + Mac). Pakai GitHub noreply supaya email
+    # asli tidak pernah bocor ke riwayat commit — dan commit tetap terhitung ke profil.
+    name = ongkipro
+    email = 82156528+ongkipro@users.noreply.github.com
 [core]
     excludesfile = $DOT/config/gitignore_global
     autocrlf = input
@@ -122,12 +139,14 @@ cat <<'EOF'
 Langkah berikutnya:
   1) buka shell baru, atau jalankan:
        source ~/.zshrc
-  2) sync skills ke semua CLI:
-       ~/.agents/bin/skill-update
-  3) cek sync:
+  2) cek sync:
        dotsync doctor
 
 Catatan:
+- Skill SUDAH ter-link (skill-update dijalankan otomatis di atas).
+  Model = symlink satu-direktori → mulai sekarang `git pull` saja sudah sinkron;
+  skill baru muncul sendiri, skill yang dihapus hilang sendiri. Tidak perlu
+  menjalankan skill-update lagi kecuali pasang CLI baru.
 - Bootstrap ini fokus ke shared memory + sync + local skills.
 - install.sh utama tetap Linux-first.
 EOF

@@ -9,20 +9,20 @@
 - `dotpush ["pesan"]` = jalur push standar: aktifkan driver → refresh snapshot mesin → security-check → commit → **fetch+merge remote dulu (anti-divergen)** → push. Konflik non-snapshot → berhenti minta resolusi manual. `dotsync` = varian granular (status/commit/push/pull/sync/doctor).
 - File snapshot mesin-spesifik (`home/gitconfig`, `home/bashrc.snapshot`, `home/zshrc.snapshot`, `config/mise-config.toml`, `config/vscode-settings.json`) ditandai `merge=ours` di `.gitattributes` → saat sync selalu pertahankan versi mesin lokal (butuh `git config merge.ours.driver true`, di-set otomatis oleh dotpush + install scripts).
 - VSCode opsional, bukan keharusan — jangan disarankan kecuali diminta.
-- Shopify dev routing: official Shopify AI Toolkit/plugin tersedia di Claude (`~/.claude/plugins/marketplaces/shopify-ai-toolkit`, v1.4.1) dan Codex cache. Local router skill `shopify-ai-toolkit-router` ter-link di semua CLI via `skill-update` dan menunjuk ke repo map `~/Documents/shopify-ai-development-repos.md` (symlink → `~/dotfiles/docs/`). Jangan clone repo pendukung Shopify (dawn/horizon/hydrogen/cli/liquid/theme-liquid-docs) sebagai skill duplikat; cukup reference link kecuali diminta inspect/base.
+- Shopify dev routing: **official Shopify AI Toolkit BELUM terpasang** di Claude (diverifikasi 2026-07-14 — marketplace yang ada cuma `claude-plugins-official`). Repo map ada di `~/dotfiles/docs/shopify-ai-development-repos.md`. Jangan clone repo pendukung Shopify (dawn/horizon/hydrogen/cli/liquid/theme-liquid-docs) sebagai skill duplikat; cukup reference link kecuali diminta inspect/base.
 
-## ai-terminal-project-runner
-- Meta-skill development di `~/dotfiles/skills/local/ai-terminal-project-runner`, ter-sync ke semua CLI via `skill-update`. Routes development workflows, enforces safety gates, reads memory, includes `scripts/inspect_project.sh`.
-- `skill-*` scripts tersimpan di `~/dotfiles/skills/agents-bin/` dan di-link ke `~/.agents/bin/` + `~/.local/bin/` (PATH). Jalankan `skill-update` untuk sync semua skills (local + shared) ke semua CLI target: `~/.agents/skills`, `~/.claude/skills`, `~/.codex/skills`, `~/.gemini/skills`, `~/.pi/agent/skills`.
+## Skills — plumbing (diverifikasi 2026-07-14)
+- **Satu sumber**: `~/dotfiles/skills/local/`. Konsumen via SYMLINK: `~/.claude/skills` dan `~/.pi/agent/skills` (keduanya → `dotfiles/skills/local`), plus `~/.agents/local-skills`.
+- ⚠️ **`~/.gemini/skills` TIDAK ADA** — Gemini CLI sudah dihapus (2026-07-13). Jangan jadikan target sync lagi. (`~/.gemini/` sendiri TETAP dipertahankan: berisi `GEMINI.md` → AGENTS.md, dibaca Antigravity.)
+- `skill-*` scripts di `~/dotfiles/skills/agents-bin/`, di-link ke `~/.agents/bin/`.
 - Di macOS: `skill-update` perlu bash 5+ (brew) dan BSD `find` compatibility (telah di-patch).
-- SEO research reference: `~/Documents/seo-research-google/`. Gunakan sebelum SEO tasks; jangan klaim secret Google algorithm knowledge.
-- Pi settings.json loads skills dari: `~/.pi/agent/skills/` (skill-update), `~/.gemini/config/skills/`, `~/.pi/agent/vendor/Shopify-AI-Toolkit/skills/`.
-- Toolkits reference: `~/.ai/cloudflare-worker-toolkit/` dan `~/.ai/shopify-ai-toolkit/` (symlink → `~/dotfiles/ai-toolkits/`).
+- SEO: pakai skill `seo-website-builder` (berdiri sendiri, punya `references/` lengkap). ⚠️ Korpus lama `~/Documents/seo-research-google/` dan `~/Documents/SEO/` **TIDAK ADA** — jangan dicari. Jangan klaim secret Google algorithm knowledge.
+- **Toolkit docs (referensi, bukan skill)**: `~/dotfiles/ai-toolkits/{cloudflare-worker-toolkit,shopify-ai-toolkit}/`. ⚠️ Path lama `~/.ai/...` **TIDAK ADA** — jangan dipakai.
 
 ## Struktur Folder
 
 ### `~/Projects/` — Koding
-Semua project development: web app, SaaS, Shopify, bot, dll.
+Semua project development: web app, SaaS, Shopify, bot, dll. (Dibuat 2026-07-14 di `cuan`; sebelumnya konvensi ini ditulis di memory tapi foldernya tidak pernah ada.)
 
 ## Auto-Routing — AI CLI langsung tahu taruh di mana
 
@@ -38,6 +38,8 @@ Semua project development: web app, SaaS, Shopify, bot, dll.
 
 **Nama file:** `YYYY-MM-DD - judul.md`
 
+> ⚠️ **`~/Documents/work/notes/` praktis MATI untuk log sesi** (diverifikasi 2026-07-20 di Mac: isinya cuma 2 file, terbaru **2026-07-12**, plus folder arsip `projects-md-archive-2026-07-14/`). Log sesi nyata sekarang hidup di **`BUILD-LOG.md` / `WORKLOG.md` per-repo**, dekat kodenya. Jangan mengira konvensi "tulis catatan sesi ke `notes/`" masih berjalan — untuk pekerjaan yang terikat sebuah repo, tulis di repo itu. `notes/` tinggal untuk draft/ide lepas yang tidak punya repo. Cek: `ls -la ~/Documents/work/notes/`.
+
 **Rule:** JANGAN taruh file di `~/Documents/` langsung. Selalu masuk subfolder `work/`. AI harus infokan path file di akhir respons.
 
 ```
@@ -48,6 +50,8 @@ Semua project development: web app, SaaS, Shopify, bot, dll.
     ├── content/      ← tulisan & copy
     └── notes/        ← draft & ide
 
-~/Projects/           ← source code
-~/dotfiles/memori-ai/ ← AI memory system
+~/Projects/              ← source code
+~/.config/ai/memory/     ← memory AI (symlink → dotfiles/config/ai/memory)
 ```
+
+> ⚠️ **Memory AI hanya ada di `~/.config/ai/memory/`.** Catatan lama menyebut `~/dotfiles/memori-ai/` (folder KOSONG) dan `~/Documents/memori ai/` (TIDAK ADA) — dua-duanya salah, jangan dipakai.

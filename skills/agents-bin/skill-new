@@ -1,15 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-LOCAL_SKILLS_DIR="${LOCAL_SKILLS_DIR:-$HOME/.agents/local-skills}"
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+LOCAL_SKILLS_DIR="$(cd "$SCRIPT_DIR/../local" && pwd)"
 SKILL_NAME="${1:-}"
-
-realpath_portable() {
-  python3 - "$1" <<'PY'
-import os, sys
-print(os.path.realpath(sys.argv[1]))
-PY
-}
 
 usage() {
   echo "Usage: skill-new <skill-name>"
@@ -27,7 +21,6 @@ if ! [[ "$SKILL_NAME" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
   exit 1
 fi
 
-LOCAL_SKILLS_DIR="$(realpath_portable "$LOCAL_SKILLS_DIR")"
 SKILL_DIR="$LOCAL_SKILLS_DIR/$SKILL_NAME"
 SKILL_FILE="$SKILL_DIR/SKILL.md"
 
@@ -70,8 +63,6 @@ Add deeper docs under ./references and link them here when needed.
 Put helper scripts in ./scripts and call them with relative paths.
 EOF
 
-"$HOME/.agents/bin/skill-update" >/dev/null
-
 echo "Created: $SKILL_DIR"
 echo "Main file: $SKILL_FILE"
-echo "Shared to: ~/.agents/skills, ~/.claude/skills, ~/.codex/skills, ~/.gemini/skills, ~/.pi/agent/skills"
+echo "Langsung aktif di semua CLI (symlink satu-direktori). Jangan lupa commit dotfiles."

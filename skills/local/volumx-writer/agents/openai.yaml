@@ -1,0 +1,6 @@
+interface:
+  display_name: "VolumX Writer"
+  short_description: "Preservation-first writing and validation"
+  default_prompt: "Use $volumx-writer to improve this draft without changing its claims, constraints, or voice."
+policy:
+  allow_implicit_invocation: true

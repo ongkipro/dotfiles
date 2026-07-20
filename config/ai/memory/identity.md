@@ -5,7 +5,8 @@
 - Preferred name / sapaan: Paduka Ongki.
 - GitHub username utama: `ongkipro`.
 - Personal brand/domain: `ongki.pro`.
-- Email utama: `get@ongki.pro`.
+- Email: kontak/brand `get@ongki.pro` · akun layanan (Vercel/Coolify) `ongkiardiansyah@gmail.com`.
+- ⚠️ **Untuk git commit JANGAN pakai keduanya.** Patokan: `ongkipro <82156528+ongkipro@users.noreply.github.com>` (lihat environment.md). `get@ongki.pro` pernah masuk riwayat commit secara tak sengaja dan sudah dicabut.
 - Dotfiles repo: `github.com/ongkipro/dotfiles` (private).
 - Nama lengkap/legal identity: Ongki A Febriananda (dikonfirmasi via GitHub profile README draft).
 
@@ -29,11 +30,11 @@
 - Kombinasi utama yang membedakan: technical build + growth execution + workflow automation + SEO/conversion thinking dalam satu orang.
 
 ## Skill & domain kuat
-- Development: Linux/Ubuntu, terminal workflow, Astro, Shopify/headless Shopify, Next.js, Supabase/PostgreSQL discussion, Cloudflare, VPS, Git, tmux, Helix, CLI workflow.
+- Development: Linux/Ubuntu, terminal workflow, Astro, Shopify/headless Shopify, Next.js, PostgreSQL + Drizzle + better-auth, Cloudflare, VPS (Coolify), Git, tmux, Helix, CLI workflow.
 - Ecommerce: Shopify store, Shopify theme, headless storefront, tracking, checkout flow, dropshipping, marketplace-style store.
 - Marketing: Meta Ads, Google Ads, landing page, funnel, conversion rate optimization, tracking/attribution, copywriting.
 - SEO & content: Shopify SEO, Astro/static SEO, Medium SEO, Pinterest SEO, German affiliate SEO, indexing strategy.
-- AI workflow: ChatGPT, Claude Code, Codex, Gemini/Antigravity, Pi.dev, local skills, AI terminal project execution.
+- AI workflow: Claude Code, Codex, pi.dev, Antigravity (`agy`), local skills, AI terminal project execution. (Gemini CLI sudah dihapus 2026-07-13 — stack Gemini lewat Antigravity.)
 
 ## Strategic focus
 - Indonesia Commerce / Commerce Portal OS: platform style super admin, client admin, frontend/store/blog; direction resembles Shopify + tracking/form infrastructure for Indonesia.

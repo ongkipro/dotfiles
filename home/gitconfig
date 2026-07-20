@@ -1,23 +1,22 @@
-[credential "https://github.com"]
-	helper = 
-	helper = !/home/ongki/.local/bin/gh auth git-credential
-[credential "https://gist.github.com"]
-	helper = 
-	helper = !/home/ongki/.local/bin/gh auth git-credential
 [user]
-	email = jinadaonet@users.noreply.github.com
-	name = jinadaonet
+	name = ongkipro
+	email = 82156528+ongkipro@users.noreply.github.com
+[init]
+	defaultBranch = main
 [core]
 	autocrlf = input
 	fileMode = false
 	quotePath = false
 	pager = delta
-[init]
-	defaultBranch = main
+	excludesFile = ~/.gitignore_global
 [delta]
 	navigate = true
 	line-numbers = true
 	side-by-side = true
 	syntax-theme = ansi
-[credential]
-	helper = !/home/ongki/.local/bin/gh auth git-credential
+[credential "https://github.com"]
+	helper = 
+	helper = !gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = 
+	helper = !gh auth git-credential

@@ -1,35 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+SRC="$(cd "$SCRIPT_DIR/../local" && pwd)"
 SKILL_NAME="${1:-}"
-LOCAL_SKILLS_DIR="${LOCAL_SKILLS_DIR:-$HOME/.agents/local-skills}"
-REPO_DIR="${SKILL_REPO_DIR:-$HOME/.agents/repos/shared-skills}"
 
-realpath_portable() {
-  python3 - "$1" <<'PY'
-import os, sys
-print(os.path.realpath(sys.argv[1]))
-PY
-}
-
-LOCAL_SKILLS_DIR="$(realpath_portable "$LOCAL_SKILLS_DIR")"
-
-if [ -z "$SKILL_NAME" ]; then
-  echo "Usage: skill-open <skill-name>" >&2
-  exit 1
-fi
-
-local_file="$LOCAL_SKILLS_DIR/$SKILL_NAME/SKILL.md"
-repo_file=$(find "$REPO_DIR/plugins" -path "*/skills/$SKILL_NAME/SKILL.md" -print -quit 2>/dev/null || true)
-
-if [ -f "$local_file" ]; then
-  target="$local_file"
-elif [ -n "$repo_file" ] && [ -f "$repo_file" ]; then
-  target="$repo_file"
-else
-  echo "Skill not found: $SKILL_NAME" >&2
-  exit 1
-fi
-
-editor="${VISUAL:-${EDITOR:-vi}}"
-exec "$editor" "$target"
+[ -n "$SKILL_NAME" ] || { echo "Usage: skill-open <skill-name>" >&2; exit 1; }
+f="$SRC/$SKILL_NAME/SKILL.md"
+[ -f "$f" ] || { echo "Skill not found: $SKILL_NAME (lihat: skill-list)" >&2; exit 1; }
+exec "${VISUAL:-${EDITOR:-hx}}" "$f"

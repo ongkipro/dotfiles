@@ -8,20 +8,77 @@ SRC="$HOME/.config/ai/AGENTS.md"
 
 # Lokasi context-file global tiap AI CLI:
 TARGETS=(
-  "$HOME/.claude/CLAUDE.md"  # Claude Code (global)
-  "$HOME/.codex/AGENTS.md"   # Codex (global)
-  "$HOME/.gemini/GEMINI.md"  # Antigravity (agy) — stack Gemini
-  # pi.dev: TIDAK pakai ~/AGENTS.md — di-load via wrapper pi() di ~/.bashrc
-  #         (command pi --append-system-prompt ~/.config/ai/AGENTS.md)
+  "$HOME/.claude/CLAUDE.md"       # Claude Code (global)
+  "$HOME/.codex/AGENTS.md"        # Codex (global)
+  "$HOME/.antigravity/AGENTS.md"  # Antigravity (agy) — context file UTAMA
+  "$HOME/.gemini/GEMINI.md"       # Antigravity (agy) — stack Gemini. ~/.gemini/ MILIK agy,
+                                  # bukan gemini-cli (yang sudah dihapus). Jangan buang.
+  # ~/AGENTS.md SENGAJA TIDAK ADA di sini. Keputusan lama yang sudah diuji
+  # (config/claude-memory/dev-toolchain-mise.md): keempat CLI punya path
+  # khususnya masing-masing, jadi file di home cuma duplikat — dan karena CLI
+  # naik dari cwd mencari AGENTS.md, tiap sesi di bawah ~ akan memuat aturan
+  # yang sama DUA KALI. pi pakai wrapper pi() (--append-system-prompt), bukan
+  # file ini. Jangan ditambahkan lagi; ai-doctor memperingatkan kalau muncul.
   # tambah AI baru di sini, contoh:
   # "$HOME/.config/<tool>/AGENTS.md"
 )
 
 for t in "${TARGETS[@]}"; do
   mkdir -p "$(dirname "$t")"
-  # backup kalau ada file asli ber-isi (bukan symlink)
-  if [ -e "$t" ] && [ ! -L "$t" ] && [ -s "$t" ]; then cp "$t" "$t.bak"; fi
-  ln -sf "$SRC" "$t"
+
+  if [ -L "$t" ]; then
+    # Sudah benar → diam, jangan sentuh. Menjalankan ulang harus selalu no-op.
+    if [ "$(readlink -f "$t" 2>/dev/null)" = "$(readlink -f "$SRC")" ]; then
+      echo "ok:     $t -> $SRC"
+      continue
+    fi
+    # Symlink, tapi menunjuk ke TEMPAT LAIN. Jangan ditimpa diam-diam: kalau ada
+    # sumber memori kedua, menimpanya tanpa bilang apa-apa = kehilangan senyap.
+    echo "WARNING: $t adalah symlink ke: $(readlink "$t")"
+    if [ -e "$t" ] && ! cmp -s "$t" "$SRC"; then
+      bak="$t.bak.$(date +%s)"
+      cp -L "$t" "$bak"          # -L: salin ISI target, bukan symlink-nya
+      echo "         isinya BEDA dari $SRC — disalin dulu ke: $bak"
+    else
+      echo "         isinya sama dengan $SRC — aman diarahkan ulang."
+    fi
+  elif [ -e "$t" ] && [ -s "$t" ]; then
+    # File asli ber-isi (bukan symlink) → backup sebelum diganti.
+    bak="$t.bak.$(date +%s)"
+    cp "$t" "$bak"
+    echo "backup: $t -> $bak"
+  fi
+
+  ln -sfn "$SRC" "$t"
   echo "linked: $t -> $SRC"
 done
+
+# ── Memori per-project (Claude Code) ──────────────────────────────────────────
+# Claude Code menyimpan memori per-project di ~/.claude/projects/<cwd>/memory/,
+# dan <cwd> = $HOME dengan '/' → '-' ('-Users-ongki' di Mac, '-home-<user>' di
+# Linux). Isinya dipindah ke dotfiles 2026-07-20 lalu di-symlink balik supaya
+# ikut ter-sync antar device dan bisa dibaca CLI lain.
+#
+# Kalau symlink ini TIDAK ada, Claude Code tidak error — ia diam-diam bikin
+# direktori kosong baru, dan konteks project hilang tanpa gejala. Karena itu
+# bagian ini idempoten dan aman dijalankan di device yang belum punya.
+PMEM_SRC="$HOME/dotfiles/config/ai/project-memory"
+PMEM_DST="$HOME/.claude/projects/$(printf '%s' "$HOME" | tr '/' '-')/memory"
+
+if [ -d "$PMEM_SRC" ]; then
+  if [ -L "$PMEM_DST" ] && [ "$(readlink -f "$PMEM_DST" 2>/dev/null)" = "$(readlink -f "$PMEM_SRC")" ]; then
+    echo "ok:     $PMEM_DST -> $PMEM_SRC"
+  elif [ -d "$PMEM_DST" ] && [ ! -L "$PMEM_DST" ]; then
+    # Direktori ASLI berisi memori yang belum ter-sync. JANGAN timpa — isinya
+    # bisa jadi konteks project device ini yang belum pernah masuk dotfiles.
+    echo "WARNING: $PMEM_DST adalah direktori asli, bukan symlink."
+    echo "         Isinya belum ter-sync. Pindahkan manual ke $PMEM_SRC (cek dulu"
+    echo "         apakah ada file yang belum ada di sana), lalu jalankan ulang."
+  else
+    mkdir -p "$(dirname "$PMEM_DST")"
+    ln -sfn "$PMEM_SRC" "$PMEM_DST"
+    echo "linked: $PMEM_DST -> $PMEM_SRC"
+  fi
+fi
+
 echo "Selesai. Edit memori di ~/.config/ai/ (AGENTS.md + memory/*.md)."

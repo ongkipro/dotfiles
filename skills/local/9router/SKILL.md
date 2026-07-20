@@ -47,19 +47,25 @@ Response shape:
 ]}
 ```
 
-## Capability skills
+## Status: 9router MATI (sejak 2026-07-13, disengaja)
 
-When the user needs a specific capability, load the relevant skill:
+Service di-`stop`+`disable`; port 20128 tutup. Cek: `systemctl --user is-enabled 9router.service`.
+Hidupkan: `systemctl --user enable --now 9router.service`.
+Konsekuensi saat OFF: pi image-gen & compaction via 9router gagal. **Chat utama pi tetap jalan** (default = provider NATIVE `minimax`/`MiniMax-M3`, tidak lewat 9router).
 
-| Capability | Skill name | Deskripsi |
+## Capabilities
+
+Read the reference file for the endpoint you need — don't load them all:
+
+| Capability | Reference | Endpoint |
 |---|---|---|
-| Chat / code-gen | `9router-chat` | `/v1/chat/completions` + `/v1/messages` |
-| Image generation | `9router-image` | `/v1/images/generations` |
-| Text-to-speech | `9router-tts` | `/v1/audio/speech` |
-| Speech-to-text | `9router-stt` | `/v1/audio/transcriptions` |
-| Embeddings | `9router-embeddings` | `/v1/embeddings` |
-| Web search | `9router-web-search` | `/v1/search` |
-| Web fetch (URL → markdown) | `9router-web-fetch` | `/v1/web/fetch` |
+| Chat / code-gen | `references/chat.md` | `/v1/chat/completions` + `/v1/messages` |
+| Image generation | `references/image.md` | `/v1/images/generations` |
+| Text-to-speech | `references/tts.md` | `/v1/audio/speech` |
+| Speech-to-text | `references/stt.md` | `/v1/audio/transcriptions` |
+| Embeddings | `references/embeddings.md` | `/v1/embeddings` |
+| Web search | `references/web-search.md` | `/v1/search` |
+| Web fetch (URL → markdown) | `references/web-fetch.md` | `/v1/web/fetch` |
 
 ## Errors
 

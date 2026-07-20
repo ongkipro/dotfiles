@@ -55,30 +55,31 @@
 - Do not treat conflicting Human Design/personality readings as final facts without verification.
 - Prefer separating facts, assumptions, opinions, and unknowns when uncertainty matters.
 
-## AI tooling decisions (diperbarui 2026-07-07)
-
-### pi default model
-- Sebelumnya: `ocg/deepseek-v4-pro` (provider 9router) — prefix `ocg/` adalah provider NATIVE pi, bukan 9router → kombinasi tidak valid; model juga sudah hilang dari 9router.
-- Sekarang: `cx/gpt-5.4-mini` (provider 9router) — model reasoning mini/hemat, konsisten dengan 9router route. Ganti via `/model` di TUI atau edit `defaultModel` di settings.json.
-
-### 9router autostart per OS
-- Linux (systemd --user): `~/.config/systemd/user/9router.service`, headless `custom-server.js`, bind 127.0.0.1:20128, Restart=always, enabled default.target. Jangan jalankan manual tray (`9router --tray`) bareng service — bentrok port.
-- macOS (launchd): `~/Library/LaunchAgents/com.9router.autostart.plist`, headless custom-server.js, bind 127.0.0.1:20128, RunAtLoad + KeepAlive.
+## AI tooling decisions (konsolidasi 2026-07-14)
+> Fakta operasional pi/9router (model aktif, status service) ada di **environment.md**, section "pi.dev + 9router". Di sini hanya KEPUTUSAN + pelajaran yang tahan lama.
 
 ### Dotfiles-coupled vs machine-coupled config
 - Dotfiles-coupled (aman di-sync lintas mesin): `settings.json` (field machine-coupled HARUS di-drop/parameterize), `extensions/*`, `9router/aliases.json`, `9router/runtime-package.json`, `helix/languages.toml`.
 - Machine-coupled (JANGAN di-dotfiles mentah-mentah): `~/.pi/agent/models.json` (API key + model availability varies), `~/.pi/agent/auth.json` (oauth token), `~/.pi/agent/sessions/` (history), `~/.9router/{auth,jwt-secret,machine-id,tunnel/}`.
 - Pelajaran: `skills` array di settings.json pernah hardcode `/Users/feriromansyah/...` — salah mesin. Solusi: pakai auto-discovery pi (skills di `~/.pi/agent/skills/`) dan JANGAN hardcode absolute path orang lain.
 
-## AI tooling decisions (linux setup, 2026-07-07)
-
-### pi default (per dotfiles, kedua mesin)
-- Provider `opencode-go` (native pi), model `minimax-m3`, thinking `high`, theme `dark`. Extension `pi-image-gen` untuk image-gen (lewat 9router). Ganti model via `/model`.
-
-### 9router autostart per OS
-- Linux: **systemd --user** `~/.config/systemd/user/9router.service`, headless `custom-server.js`, `127.0.0.1:20128`, `Restart=always`.
-- macOS: **launchd** `~/Library/LaunchAgents/com.9router.autostart.plist`, RunAtLoad + KeepAlive.
-- JANGAN jalankan `9router --tray` manual bareng service (bentrok port 20128).
+### pi balik lewat 9router (2026-07-20) — pembalikan keputusan lama
+- Keputusan lama "pi default = provider NATIVE `minimax`/`MiniMax-M3`, TIDAK lewat 9router, jangan diperbaiki" **sudah dibatalkan**. Disk sekarang: `defaultProvider: "9router"`, `defaultModel: "cx/gpt-5.4"`.
+- **Alasan pindah TIDAK diketahui** — jangan mengarang. Ini dicatat sebagai kondisi terverifikasi per tanggal di atas, bukan rasional keputusan.
+- Konsekuensi: 9router bukan lagi opsional untuk pi. Kalau gateway mati, chat utama pi ikut mati (dulu tidak). Verifikasi: `jq '.defaultProvider, .defaultModel' ~/.pi/agent/settings.json`.
 
 ### Pitfall: prefix `ocg/` ≠ 9router
 - `ocg/` adalah prefix provider NATIVE pi (opencode-go), BUKAN 9router. Jangan set `defaultModel: "ocg/..."` saat `defaultProvider: "9router"` — kombinasi invalid. Model `ocg/*` diakses via provider `opencode-go`.
+
+### Pitfall: jangan jalankan `9router --tray` bareng service
+- Bentrok port 20128. Pilih salah satu.
+
+### graphify — DITOLAK (2026-07-14), idenya diambil
+- Tool: `Graphify-Labs/graphify` (MIT, Python, tree-sitter → knowledge graph). Repo sehat & aktif; **bukan** soal kualitas.
+- Ditolak karena: (1) korpus kita kekecilan — README-nya sendiri mengaku di ~6 file rasio token ~1x; angka "71.5x" itu korpus campuran 52 file berisi paper+gambar; (2) `graphify install` **menyunting `~/.claude/CLAUDE.md` + `~/.codex/AGENTS.md` in-place** (`install.py`) — itu symlink ke memori bersama di dotfiles, dipakai 4 CLI; (3) pre-1.0, churn tinggi.
+- **Yang diambil:** prinsip "edge menggantung harus kelihatan" (EXTRACTED vs INFERRED). Diterapkan jadi `scripts/lint-links.mjs` di repo kamus — bukan dengan memasang tool-nya.
+- Jangan evaluasi ulang kecuali korpus kita berubah drastis (mis. ratusan file docs/paper jadi satu folder riset).
+
+### Anti-pattern memory (pelajaran 2026-07-14)
+- **Fakta operasional yang berubah-ubah (status service, default model, versi) jangan disalin ke banyak file.** Pernah terjadi: fakta autostart 9router tersalin 6×, dan SEMUANYA jadi salah begitu service di-disable; default model pi punya 4 jawaban bertentangan di 2 file.
+- Aturan: fakta yang bisa dicek dari disk → tulis SATU kali, sebutkan **perintah verifikasinya**, jangan digandakan. Agent yang baca kontradiksi akan menebak.

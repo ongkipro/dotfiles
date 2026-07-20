@@ -81,11 +81,14 @@ function modelMeta(id) {
 }
 
 async function main() {
-  if (!fs.existsSync(dbPath) || !fs.existsSync(secretPath)) {
+  if (!fs.existsSync(dbPath)) {
     throw new Error('9router is not installed or initialized');
   }
 
-  const apiKey = fs.readFileSync(secretPath, 'utf8').trim();
+  // 9router 0.5.x tak lagi menulis auth/cli-secret; endpoint lokal 20128 tak cek Authorization.
+  const apiKey = fs.existsSync(secretPath)
+    ? fs.readFileSync(secretPath, 'utf8').trim()
+    : 'noauth';
   const activeProviders = await getActiveProviders();
   const payload = await fetchModels(apiKey);
   const ids = (payload.data || []).map(m => m.id).sort();
@@ -128,7 +131,14 @@ async function main() {
   };
 
   fs.mkdirSync(path.dirname(modelsPath), { recursive: true });
-  fs.writeFileSync(modelsPath, JSON.stringify(cfg, null, 2) + '\n');
+  // Tulis atomik: temp di direktori yang SAMA lalu rename (rename dalam satu
+  // filesystem itu atomik). Script ini jalan tanpa pengawasan saat boot — kalau
+  // mati di tengah writeFileSync, models.json tinggal separuh dan pi gagal start
+  // tanpa ada yang melihat. Rename memastikan pi selalu melihat file utuh:
+  // yang lama, atau yang baru.
+  const tmpPath = modelsPath + '.tmp';
+  fs.writeFileSync(tmpPath, JSON.stringify(cfg, null, 2) + '\n');
+  fs.renameSync(tmpPath, modelsPath);
   console.log(JSON.stringify({ activeProviders, modelCount: selectedModels.length }, null, 2));
 }
 

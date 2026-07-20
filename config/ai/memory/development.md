@@ -29,7 +29,7 @@
 - For custom platform ideas, separate MVP validation from full Shopify-like build.
 
 ### Database/backend
-- Prefer PostgreSQL/Supabase for fast MVP and relational business data.
+- Prefer **PostgreSQL + Drizzle ORM + better-auth**. Hosting: Neon (Vercel) atau self-host via Coolify. ⚠️ **Supabase TIDAK dipakai** dan CLI-nya sengaja tidak dipasang (lihat environment.md) — catatan lama yang menyarankan Supabase sudah dibatalkan.
 - For self-hosted VPS, design backup, migration, monitoring, and security before scaling.
 - Avoid overbuilding microservices before demand is proven.
 

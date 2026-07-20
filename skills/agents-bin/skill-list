@@ -1,37 +1,40 @@
 #!/usr/bin/env bash
+# List every skill: name + what it is for.
+#
+# This is the discovery path for CLIs that have NO skills directory of their own
+# (Codex, agy). A skill is just markdown — they can read it. The only thing they
+# lack is auto-discovery, and this command IS the auto-discovery. Nothing to keep
+# in sync, nothing to drift: it reads the source of truth live, every run.
 set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+SRC="$(cd "$SCRIPT_DIR/../local" && pwd)"
 
-REPO_DIR="${SKILL_REPO_DIR:-$HOME/.agents/repos/shared-skills}"
-LOCAL_SKILLS_DIR="${LOCAL_SKILLS_DIR:-$HOME/.agents/local-skills}"
+n=0
+while IFS= read -r dir; do
+  name="$(basename "$dir")"
+  # Flatten the frontmatter description, keep the first sentence.
+  desc="$(awk '
+    /^description:/ {
+      ind = 1
+      line = $0
+      sub(/^description:[[:space:]]*>?-?[[:space:]]*/, "", line)
+      printf "%s ", line
+      next
+    }
+    ind && /^[a-zA-Z_][a-zA-Z0-9_-]*:/ { exit }
+    ind && /^---[[:space:]]*$/ { exit }
+    ind {
+      line = $0
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+      printf "%s ", line
+    }
+  ' "$dir/SKILL.md" \
+    | sed -E 's/[[:space:]]+/ /g; s/^ //; s/^(.{0,88}[^.]*\.).*/\1/' \
+    | cut -c1-92)"
+  printf '  %-26s %s\n' "$name" "$desc"
+  n=$((n + 1))
+done < <(find "$SRC" -mindepth 2 -maxdepth 2 -name SKILL.md -exec dirname {} \; | sort)
 
-realpath_portable() {
-  python3 - "$1" <<'PY'
-import os, sys
-print(os.path.realpath(sys.argv[1]))
-PY
-}
-
-list_skill_names() {
-  local root="$1"
-  [ -d "$root" ] || return 0
-  find "$root" -type f -name SKILL.md -exec dirname {} \; | sort -u | while IFS= read -r dir; do
-    [ -n "$dir" ] || continue
-    printf '  - %s\n' "$(basename "$dir")"
-  done
-}
-
-LOCAL_SKILLS_DIR="$(realpath_portable "$LOCAL_SKILLS_DIR")"
-
-printf 'Repo skills\n'
-if [ -d "$REPO_DIR/plugins" ]; then
-  list_skill_names "$REPO_DIR/plugins"
-else
-  echo '  (none)'
-fi
-
-printf '\nLocal skills\n'
-if [ -d "$LOCAL_SKILLS_DIR" ]; then
-  list_skill_names "$LOCAL_SKILLS_DIR"
-else
-  echo '  (none)'
-fi
+echo
+echo "$n skill — sumber: ${SRC/#$HOME/\~}"
+echo "Baca penuh: ${SRC/#$HOME/\~}/<nama>/SKILL.md   (atau: skill-open <nama>)"

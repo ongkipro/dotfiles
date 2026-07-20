@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# Bait test for bin/security-check.
+#
+# Why this exists: security-check has a placeholder allowlist so it stops crying
+# wolf over `<your-token>` in vendor docs. A too-loose allowlist is WORSE than a
+# noisy one — it whitelists real secrets while looking green. That already happened
+# once: a bare `"` alternative matched the OPENING quote of `KEY="realsecret"` and
+# silently exempted every quoted secret in the repo.
+#
+# So: this plants real-shaped secrets and asserts every one is caught, then asserts
+# the clean repo passes. Run it after ANY edit to security-check.
+set -euo pipefail
+
+REPO="${1:-$HOME/dotfiles}"
+cd "$REPO"
+BAIT="__security-bait-$$.md"
+BAIT_NEW="__security-bait-new-$$.md"
+BAIT_IDX="__security-bait-index-$$.md"
+fail=0
+
+# Cleanup MUST return the index to exactly how it was found. This test stages
+# files; leaving them staged would dump junk into the user's next commit.
+cleanup() {
+  for b in "$BAIT" "$BAIT_NEW" "$BAIT_IDX"; do
+    git rm -f --cached "$b" >/dev/null 2>&1 || true
+    git reset -q -- "$b" >/dev/null 2>&1 || true
+    rm -f "$b"
+  done
+}
+trap cleanup EXIT
+
+echo "1. clean repo must PASS"
+if ./bin/security-check >/dev/null 2>&1; then
+  echo "   ✓ pass"
+else
+  echo "   ✗ FAIL: clean repo is being flagged (false positives are back)"
+  ./bin/security-check 2>&1 | sed 's/^/     /'
+  fail=1
+fi
+
+echo "2. real-shaped secrets must ALL be caught"
+# Baits are ASSEMBLED AT RUNTIME from fragments, never written literally here.
+# Otherwise this very file would trip security-check — and the "fix" would be to
+# add bin/security-check-test to the exclude list, which punches a hole exactly
+# where someone could hide a real secret. No exclusions: keep scan coverage 100%.
+GH='ghp'; SK='sk'; AK='AKIA'; KEY='API_KEY'; PW='PASSWORD'; BEG='BEGIN'
+{
+  printf '%s_AbCdEfGhIjKlMnOpQrStUvWxYz012345\n'      "$GH"
+  printf 'export CLOUDFLARE_%s="8f4a9c2e1b7d3f6a0e5c8b2d4f7a1c9e3b6d"\n' "$KEY"
+  printf '%sIOSFODNN7EXAMPLE\n'                        "$AK"
+  printf '%s-proj-9x8Kd2mQpR4vT7nZ1aY6cB3eF5gH0jL8wS\n' "$SK"
+  printf 'DB_%s=Sup3rS3cret!Prod2026\n'                "$PW"
+  printf -- '-----%s OPENSSH PRIVATE KEY-----\n'       "$BEG"
+} > "$BAIT"
+git add -f "$BAIT" >/dev/null 2>&1
+want=6
+got=$(./bin/security-check 2>&1 | grep -c "$BAIT" || true)
+if [ "$got" -eq "$want" ]; then
+  echo "   ✓ caught $got/$want"
+else
+  echo "   ✗ FAIL: caught only $got/$want — a real secret would slip through:"
+  diff <(./bin/security-check 2>&1 | grep "$BAIT" | sed 's/.*:[0-9]*://') <(cat "$BAIT") \
+    | grep '^>' | sed 's/^> /     MISSED: /'
+  fail=1
+fi
+
+echo "3. a BRAND-NEW file that is staged but was never tracked must be caught"
+# This is the shape dotpush used to let through: it scanned BEFORE `git add -A`,
+# so a file that had never been committed was invisible to the scanner, then got
+# staged and pushed. Same bait fragments — never written literally (see above).
+printf '%s_ZzYyXxWwVvUuTtSsRrQqPpOoNnMm987654\n' "$GH" > "$BAIT_NEW"
+git add "$BAIT_NEW" >/dev/null 2>&1
+# NOTE: capture first. Piping security-check straight into grep trips `pipefail` —
+# the scanner exits 1 on a HIT, which is the success case here.
+out="$(./bin/security-check 2>&1 || true)"
+if printf '%s\n' "$out" | grep -q "$BAIT_NEW"; then
+  echo "   ✓ caught"
+else
+  echo "   ✗ FAIL: a newly staged, never-tracked file is NOT scanned"
+  fail=1
+fi
+git rm -f --cached "$BAIT_NEW" >/dev/null 2>&1 || true
+rm -f "$BAIT_NEW"
+
+echo "4. a secret that exists ONLY in the index must be caught"
+# Staged, then wiped from the working tree. `git commit` would still write the
+# secret, but a working-tree-only scan sees a clean file. This is the case that
+# genuinely requires `git grep --cached`.
+printf '%s-proj-4kQ7mZ2xW9pL5vN8tR3yB6cF1gH0jD7s\n' "$SK" > "$BAIT_IDX"
+git add "$BAIT_IDX" >/dev/null 2>&1
+printf 'nothing to see here\n' > "$BAIT_IDX"   # worktree now clean, index still dirty
+out="$(./bin/security-check 2>&1 || true)"
+if printf '%s\n' "$out" | grep -q "$BAIT_IDX"; then
+  echo "   ✓ caught"
+else
+  echo "   ✗ FAIL: a secret staged then removed from the worktree slips through"
+  fail=1
+fi
+git rm -f --cached "$BAIT_IDX" >/dev/null 2>&1 || true
+rm -f "$BAIT_IDX"
+
+echo
+[ "$fail" -eq 0 ] && echo "security-check-test: OK" || { echo "security-check-test: FAILED"; exit 1; }

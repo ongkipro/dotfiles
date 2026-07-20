@@ -6,6 +6,9 @@ description: >-
   sitemap, robots.txt, canonical/noindex decisions, internal linking, Shopify SEO,
   Astro/static SEO, local business SEO, ecommerce SEO, programmatic SEO, Search
   Console diagnosis, SEO QA, multi-engine algorithm updates, and AI-search readiness.
+  Triggers: "audit SEO situs ini", "kenapa halaman ini tidak terindeks", "why did
+  my traffic drop". NOT for writing the copy itself (content, copywriting), editing
+  Shopify product fields (shopify-listing), or Astro code (astro-development).
 ---
 
 # SEO Website Builder
@@ -74,6 +77,8 @@ Measurement Plan
 Risk Notes
 ```
 
+A heading with nothing real under it is allowed to say so — write "No findings on this dimension" and move on. Never manufacture a risk, an assumption, or a critical note to fill the template: a site that already has correct canonicals, clean metadata, and a valid sitemap is in good shape, and saying that plainly is the correct output.
+
 ## Hard Stops
 
 Stop and ask/flag if:
@@ -121,4 +126,6 @@ Must label evidence confidence, prefer official sources, avoid secret-algorithm 
 
 ## Promotion / Tests
 
-For validating this skill, see [Test Cases](references/TEST_CASES.md). Keep large original SEO OS exports in `/home/fantastico/Documents/SEO`; load them only when deep research is needed via the manifest.
+For validating this skill, see [Test Cases](references/TEST_CASES.md).
+
+> ⚠️ Catatan lama menyebut korpus "SEO OS exports" di `/home/fantastico/Documents/SEO`. **Direktori itu TIDAK ADA di mesin manapun sekarang** (diverifikasi 2026-07-14). Skill ini berdiri sendiri lewat `references/` — jangan cari korpus itu.

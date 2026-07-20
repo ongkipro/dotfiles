@@ -1,0 +1,4 @@
+source: https://docs.stripe.com/.well-known/skills/stripe-best-practices
+index: https://docs.stripe.com/.well-known/skills/index.json
+vendored: 2026-07-18
+note: Vendored single-source (dotfiles contract: no plugins). Refresh with _refresh-vendored.sh

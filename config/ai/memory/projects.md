@@ -2,12 +2,22 @@
 > Bagian dari memori bersama. Tambah/aktualkan saat kerja di sebuah project.
 > Format: `## <nama project>` lalu bullet fakta penting (path, stack, catatan).
 
-## Konvensi Baru (2 Juli 2026)
+## ⚠️ BACA DULU — soal PATH (path itu PER-DEVICE, cek disk dulu)
 
-- **Semua project development → `~/Projects/<nama-project>/`**
-- Source code, config, node_modules, .git semua di dalam folder project.
-- Dokumentasi (PRD, UML, konten, research) → `~/Documents/ai-artifacts/<kategori>/`.
-- Memori AI → `~/Documents/memori ai/`.
+- `/home/fantastico/...` → user itu **TIDAK ADA** di mesin manapun sekarang. Itu mesin Linux LAMA. Abaikan.
+- **Di `cuan` (Linux, user `ongki`), per 2026-07-14: HANYA `~/Projects/kamus` yang ter-checkout** (repo `ongkipro/kamus`, branch `main`) — diverifikasi `ls ~/Projects`. Project lain belum di-clone; path `~/Projects/<lain>` di file ini **tidak berlaku di sana**. (Catatan dari Mac yang bilang `~/Projects/` cuan KOSONG itu **salah** — Mac menebak tentang mesin yang bukan miliknya. Jangan menulis fakta disk mesin lain tanpa mengeceknya.)
+- **Di Mac (`ongkis-MacBook-Air`): isi `~/Projects/` BERUBAH-UBAH — jangan hafalkan daftarnya, jalankan `ls ~/Projects`.** Riwayat: 2026-07-14 sengaja disisakan `volumform` saja (bersih-bersih, sisanya dipastikan utuh di GitHub); sejak itu bertambah lagi (per 2026-07-20: `landing-page`, `petanisejahtera`, `volumform`, `volumup`). Project yang TIDAK muncul di `ls` = belum di-clone → `git clone` dulu.
+  - Kredensial yang di-gitignore (9 `.env` + sqlite dev) diamankan ke `~/Documents/work/secrets/projects-env-2026-07-14/` (mode 700). **Sesudah clone, salin `.env`-nya balik dari sana** — GitHub tidak menyimpannya.
+  - Dokumen `.md` semua project diarsipkan ke `~/Documents/work/notes/projects-md-archive-2026-07-14/`.
+
+**Sumber kebenaran project = repo GitHub-nya** (`github.com/ongkipro/<nama>`). Kalau memori dan disk bertentangan → **disk menang**, lalu perbaiki memorinya.
+Mau kerja di sebuah project? `git clone` dulu ke **`~/Projects/<nama>/`** (konvensi resmi), baru mulai. Cek fakta, jangan tebak: `ls ~/Projects`.
+
+## Konvensi folder
+
+- **Source code → `~/Projects/<nama-project>/`** (semua di dalam: config, node_modules, .git).
+- Output AI (PRD, research, konten, catatan) → `~/Documents/work/{prd,research,content,notes}/`.
+- Memori AI → **`~/.config/ai/memory/`** (symlink → dotfiles). Catatan lama yang menyebut `~/Documents/memori ai/` atau `~/dotfiles/memori-ai/` **SALAH** — dua-duanya tidak ada.
 - Mesin utama: Linux. macOS = device kedua untuk mobile/sync.
 
 ## macOS — Projects Aktif
@@ -42,43 +52,39 @@
 - Status: Full pipeline TERBUKTI jalan lokal (generate AI nyata + gambar → auto-publish demo → job log). Build+lint bersih, TS hijau. Belum deploy. Belum diuji OAuth ke akun sosmed asli (butuh app Meta/Threads/Pinterest + review platform).
 - Catatan lanjut: isi kredensial app Meta/Threads/Pinterest di .env.local untuk uji OAuth asli; provider image 9router opsional (fallback Pollinations sudah jalan); deploy Vercel + Neon + Vercel Cron.
 
-### toko-online (macOS dev)
-- Path: `~/Projects/toko-online`
-- Stack: Astro (minimal starter), TypeScript.
-- Status: Fresh from `npm create astro@latest -- --template minimal`. Belum ada PRD/spec.
 
 ## Linux — Projects (referensi dari mesin utama)
 
-### pixsgo (Play & Go)
-- Path: `/home/fantastico/Projects/pixsgo`
-- Stack: Astro, TailwindCSS, Shopify Storefront API, Cloudflare Workers.
-- Catatan: Toys & Hobbies store. Playful, Minimalist, Modern. Senior accessibility (font >= 16px).
 
 ### pesantren-tholabie (pesantrentholabie.com)
-- Path: `/home/fantastico/Projects/pesantren-tholabie-compro`
+- Repo: `github.com/ongkipro/pesantren-tholabie-compro` (belum di-clone di `cuan`)
 - Stack: Astro, TailwindCSS, Lucide Icons, TypeScript.
 - Pondok Pesantren THOLABIE CIBS Malang. Makkah & Madinah Theme (hijau, hitam, emas).
 - 6 halaman: Beranda, Tentang, Beasiswa, Asrama, Kurikulum, Kontak & FAQ.
 
-### aussie-malaysia (aussiesawit.my)
-- Path: `/home/fantastico/projects/aussie-malaysia`
-- Stack: Astro 6 + Cloudflare Workers. API Scalev + Meta CAPI.
-- Fertilizer e-commerce untuk Malaysia.
+### landing-page (Mac, `~/Projects/landing-page`)
+- Stack: Next.js 16 + React 19 + Drizzle ORM + Cloudflare Worker (`@cloudflare/vite-plugin`, runner `vinext`). `package.json` name = `site-creator-vinext-starter`. Script: `dev`/`build`/`test`/`lint`/`db:generate`.
+- 🚨 **NOL COMMIT dan TIDAK PUNYA REMOTE** (diverifikasi 2026-07-20: `git log` → "does not have any commits yet", `git remote -v` kosong, 19 entri untracked). Semua kerjaan di sini **cuma ada di disk Mac ini** — hilang kalau disk mati atau folder terhapus.
+- Aksi yang belum dilakukan: `git add` + commit pertama, bikin repo `ongkipro/<nama>`, `git remote add origin` + push. Sampai itu dilakukan, jangan jalankan apa pun yang destruktif di folder ini.
+
+### AUSSIE Sawit Malaysia (aussiesawit.my)
+- ⚠️ Entri lama di sini ("API Scalev + Meta CAPI", repo `aussie-malaysia`) **USANG dan SALAH** — sejak 2026-07-08 keputusan v3: **TIADA Scalev sama sekali**, backend order = Cloudflare D1 sendiri.
+- Fakta terkini ada di **`~/.claude/projects/-Users-ongki/memory/aussie-sawit-malaysia.md`** dan `STATUS.md` di dalam repo. Baca itu, jangan duplikasi ke sini.
 
 ### petanisejahtera (petanisejahtera.com)
-- Path: `/home/fantastico/projects/petanisejahtera`
-- Stack: Astro + Cloudflare Workers. Dynamic sitemap, BreadcrumbList schema.
+- LP funnel ads COD, Astro + Cloudflare Workers. Repo `github.com/ongkipro/petanisejahtera`, **sudah ter-clone di Mac** (`~/Projects/petanisejahtera`, sejak 2026-07-18).
+- Detail + jebakan: **`~/.claude/projects/-Users-ongki/memory/petanisejahtera.md`**, lalu `DEV_NOTES.md` di dalam repo. `.env` TIDAK ada di arsip secrets.
 
 ### mahad-nurul-haromain-lin-nisa
-- Path: `/home/fantastico/projects/mahad-nurul-haromain-lin-nisa-compro`
+- Repo: `github.com/ongkipro/mahad-nurul-haromain-lin-nisa-compro` (belum di-clone di `cuan`)
 - Stack: Astro, Tailwind v4, TypeScript, Lucide. Website pesantren putri.
 
 ## SEO Knowledge Base
-- Path: `/home/fantastico/Documents/SEO` — SEO Website Builder Skill/SEO OS canonical research/archive base. On 2026-06-30 created active local skill `seo-website-builder` at `/home/fantastico/dotfiles/skills/local/seo-website-builder` and synced via `skill-update` to pi/agents/claude/codex/gemini. Skill uses compact references copied from Documents/SEO; original 100+ SEO OS export remains in Documents for deep reference. Existing skills mined into the playbooks: `seo-local-business`, `shopify-listing`, and `astro-development`. Multi-engine docs cover Google/Bing/Yandex/Pinterest/AI search using official/trusted sources.
-- Public standalone SEO skill repo created: `https://github.com/ongkipro/seo-website-builder-skill` (public). Source path: `/home/fantastico/Projects/seo-website-builder-skill`. Dotfiles remain private; public repo contains sanitized `seo-website-builder` Agent Skill only.
+- ⚠️ Arsip riset SEO lama (`Documents/SEO`) TIDAK ADA di mesin manapun sekarang. Skill `seo-website-builder` berdiri sendiri lewat `references/`-nya. On 2026-06-30 created active local skill `seo-website-builder` at `~/dotfiles/skills/local/seo-website-builder` and synced via `skill-update` to pi/agents/claude/codex/gemini. Skill uses compact references copied from Documents/SEO; original 100+ SEO OS export remains in Documents for deep reference. Existing skills mined into the playbooks: `seo-local-business`, `shopify-listing`, and `astro-development`. Multi-engine docs cover Google/Bing/Yandex/Pinterest/AI search using official/trusted sources.
+- Public standalone SEO skill repo created: `https://github.com/ongkipro/seo-website-builder-skill` (public). Dotfiles remain private; public repo contains sanitized `seo-website-builder` Agent Skill only.
 
 ## report-petani-next (Next.js 16 SaaS Dashboard, report.petanisejahtera.com)
-- Path: `/home/fantastico/projects/report-petani-next`
+- Repo: `github.com/ongkipro/report-petani-next` (belum di-clone di `cuan`)
 - Stack: Next.js 16 (App Router), shadcn/ui, Tailwind v4, Recharts, Geist font, Vercel deploy
 - Struktur: Dashboard summary `/`, Reports list `/reports`, Monthly report `/reports/[month]`, Plugins `/plugins`, Settings `/settings`
 - Data registry di `src/data/index.ts` — tambah laporan baru: copy file data mei-2026.ts, isi, daftarkan di registry
@@ -88,34 +94,34 @@
 - 18 source files, TypeScript strict, 0 unused deps
 
 ## report-petani-sejahtera (Astro, report.petanisejahtera.com)
-- Path: `/home/fantastico/projects/report-petani-sejahtera`
+- Repo: `github.com/ongkipro/report-petani-sejahtera` (belum di-clone di `cuan`)
 - Stack: Astro, Tailwind v4, shadcn/ui, React islands
 - Catatan: Versi awal dashboard. Next.js version di report-petani-next adalah versi production.
 
 ## petcue (Petcue.co — Astro + Shopify Storefront)
-- Path: `/home/fantastico/projects/petcue`
+- Repo: `github.com/ongkipro/petcue` (belum di-clone di `cuan`)
 - Stack: Astro, Tailwind v4, Shopify Storefront API, Cloudflare Workers
 - Brand: Petcue.co — premium pet travel gear (teal `#007C78`, mint, amber, charcoal)
 - GitHub: `ongkipro/petcue` (private)
 - Catatan: Clone dari pixsgo, rebranded untuk niche pet travel gear.
 
 ## pixsgo (Pixs&Go — Astro + Shopify Storefront, pixsgo.com)
-- Path: `/home/fantastico/projects/pixsgo`
+- Repo: `github.com/ongkipro/pixsgo` (private). Belum di-clone di `cuan`.
 - Stack: Astro, Tailwind v4, Shopify Storefront API, Cloudflare Workers
-- Brand: Pixs&Go / "Play & Go" — screen-free toys (coral, warm cream, soft shadows)
+- Brand: Pixs&Go / "Play & Go" — screen-free toys, Toys & Hobbies (coral, warm cream, soft shadows). Playful, minimalist, modern. Aksesibilitas senior: font ≥16px.
 - GitHub: `ongkipro/pixsgo` (private)
 - 125 products, 9 collections, Judge.me reviews, blog/journal
 - Deploy: Cloudflare Workers, custom domain pixsgo.com
 
 ## homelook (HOME LOOK — Astro + Shopify Storefront, homelook.shop)
-- Path: `/home/fantastico/projects/homelook`
+- Repo: `github.com/ongkipro/homelook` (belum di-clone di `cuan`)
 - Stack: Astro, Tailwind v4, Shopify Storefront API, Cloudflare Workers
 - Brand: HOME LOOK — premium architectural fittings (pine green, warm sand, muted brass)
 - GitHub: `ongkipro/homelook` (private)
 - Catatan: Clone dari homeimprovement (RIVA HOME), brand diganti ke HOME LOOK.
 
 ### volumecms (macOS dev)
-- Path: `~/projects/volumecms`
+- Path: `~/Projects/volumecms` (huruf **P besar** — catatan lama menulis `~/projects/` huruf kecil, itu PATAH di Linux yang case-sensitive)
 - Stack: Next.js 16 (App Router) + TS + Tailwind v4 + shadcn (Base UI) + GSAP + Drizzle ORM + PostgreSQL + better-auth. Deploy target Vercel.
 - CMS ala WordPress + SaaS dashboard: Posts, Pages, Products (katalog → CTA WhatsApp wa.me), Categories, Tags, Media Library (image/video), Banners, Menu builder, Site Settings, Users. Frontend publik: landing/sales page (hero GSAP), katalog+filter kategori, detail produk+tombol WA, blog, halaman dinamis `/[slug]`, SEO (sitemap/robots/metadata Next), dark mode, floating WhatsApp.
 - DB: 16 tabel (auth user/session/account/verification + categories/tags/media/posts/posts_tags/pages/products/products_tags/banners/menus/menu_items/settings). `settings` = key/value JSON (key 'site' → SiteSettings di lib/settings.ts).
@@ -155,9 +161,10 @@
 - **BUG KRITIS jsonb settings (fixed):** JANGAN update kolom `settings.value` (jsonb) via raw postgres.js template `sql\`update settings set value=${obj}\`` / `${JSON.stringify(obj)}::jsonb` — bikin **double-encode → jsonb jadi string/array (korup)**, `value->>'key'` return null, app baca settings default. FIX: pakai **Drizzle** (`updateSiteSettings`) atau `sql.json(obj)`; re-run `db:seed:tholabie` (settings `onConflictDoUpdate`) memperbaiki karena Drizzle nulis jsonb object benar. Cek: `select jsonb_typeof(value)` HARUS `object`. `zod z.coerce.number()` pd field number opsional: string kosong→0→gagal min(); pakai `z.preprocess((v)=> v===""?undefined:Number(v), z.number()...optional())`.
 
 ## TokoΦ (Linux dev — commerce SaaS Indonesia)
-- Path `~/projects/tokophi` (repo private `github.com/ongkipro/tokophi`). Monorepo npm workspaces: `apps/{admin(:3000),super-admin(:3001),storefront(Astro SSG)}` + `packages/{db,lib,ui,data}`. Next.js 16 + Astro 5 + Drizzle + PostgreSQL 16 + RLS/RBAC. Detail arsitektur di repo `CLAUDE.md` + `specs/docs/`.
+- Path `~/Projects/tokophi` (huruf **P besar**; repo private `github.com/ongkipro/tokophi`). Monorepo npm workspaces: `apps/{admin(:3000),super-admin(:3001),storefront(Astro SSG)}` + `packages/{db,lib,ui,data}`. Next.js 16 + Astro 5 + Drizzle + PostgreSQL 16 + RLS/RBAC. Detail arsitektur di repo `CLAUDE.md` + `specs/docs/`.
 - **Integrasi**: KiriminAja (shipping) + AutoLaris (payment VA/QRIS) — platform-managed, **white-label** (brand provider disembunyikan dari client, hanya super-admin lihat). COD ada. Keys di `.env.local` (gitignored). Security: rate-limit endpoint publik + guard callback bayar (shared-secret + idempotent).
-- **Hosting (2026-07-09)**: DEV di **Vultr Singapore** (server 45.76.146.40 + Coolify — lihat environment.md) → PROD **Hetzner Singapore** nanti. Edge Cloudflare, origin Traefik/Coolify (skip HAProxy). Domain `tokophi.com` di Cloudflare (DNS belum di-point). Market prioritas: Indonesia dulu (MY/SG masa depan).
+- **Hosting (diverifikasi 2026-07-14 via `vultr-cli`)**: DEV di **Vultr Singapore**, instance label **`volumdev`** (menyesatkan — isinya TokoΦ), IP **45.77.33.112**, plan `vhp-4c-8gb-amd` = **$48/bln**. Coolify di server. → PROD **Hetzner Singapore** nanti. Edge Cloudflare, origin Traefik/Coolify (skip HAProxy). Domain `tokophi.com` di Cloudflare (DNS belum di-point). Market: Indonesia dulu (MY/SG nanti).
+  ☠️ **Server `45.76.146.40` yang dicatat sesi 2026-07-09 SUDAH TIDAK ADA.** Detail biaya/kredit/snapshot: **environment.md** (satu tempat saja — jangan digandakan ke sini).
 - **Storefront = surface paling matang (2026-07-14)**. Semua halaman shopper hidup dari DB per-tenant: `/blog` + `/blog/[handle]` + `/halaman/[handle]` (sebelumnya `/blog` PALSU — 4 artikel hardcoded, `href="#"`, tak pernah menyentuh DB; 6 artikel + 6 halaman `terbit` di DB tak bisa dijangkau siapa pun). Nav header kini baca `menus`/`menu_items` milik merchant (dulu hardcoded → editor Navigasi tak berefek apa pun ke toko). Checkout: kecamatan → Kota+Provinsi auto (readonly, tak bisa beda dari district id), **kelurahan → kodepos otomatis** (migrasi `0046`, 78.764 baris; kodepos itu per-KELURAHAN, 17% kecamatan punya >1 — Semarang Tengah ada 11). Tarif ongkir kini **urut termurah & termurah jadi default** (dulu urutan balasan API + auto-check baris pertama → default bisa Rp26.000 padahal ada Rp9.000). Emoji → Lucide di seluruh storefront.
 - **`npm run audit:responsive -w @tokophi/storefront`** = gerbang responsif. Sapu **10 rute × 11 lebar device (320→1920) = 110 kombinasi**, exit non-zero kalau ada horizontal overflow. Bukan hiasan: menemukan 3 kerusakan nyata yang tak terlihat mata (flex-1 di flex-col mengatur TINGGI; grid tanpa template eksplisit = implicit `auto` track yang diukur dari KONTEN sehingga boleh melebihi kontainer; price row no-wrap). **Jalankan ini sebelum klaim "responsif".**
 - **⚠️ iOS Safari men-zoom halaman kalau font-size kontrol < 16px** dan tak pernah zoom balik. Semua input/select/textarea storefront wajib ≥16px di `pointer: coarse`. JANGAN pakai `user-scalable=no` (mematikan pinch-zoom untuk semua orang; iOS mengabaikannya sejak iOS 10).
@@ -166,3 +173,34 @@
 - **⚠️ MULTI-AGEN SATU WORKTREE = kerja hilang.** Beberapa Claude bisa jalan bersamaan di repo ini. Pekerjaan storefront hilang **dua kali** (`git stash -u`, lalu `git reset --hard origin`) — sekali diselamatkan dari dangling stash commit lewat `git fsck --lost-found`. Aturannya ada di repo **`AGENTS.md`** (baca sebelum coding): jangan `pkill -f "astro dev"`/`pkill next` (membunuh server agen lain), jangan `git add -A` (menelan kerja setengah jadi agen lain) — pakai pathspec eksplisit. **Commit sesering mungkin; jangan tinggalkan kerja uncommitted.**
 - **Histori sesi lengkap ada di repo**: `CHANGELOG.md` + `specs/docs/WORKLOG.md` (newest first) + `specs/docs/BACKLOG.md`. Memori ini hanya menyimpan yang TIDAK ada di repo.
 - **Sesi 2026-07-09 (deploy)**: bikin infra Docker untuk Coolify — `apps/*/Dockerfile` (build context=root, Next `next start` + storefront SSG build-at-start lalu `serve`), `.dockerignore`, `docker-compose.coolify.yml` (postgres+migrate+3 app). Build admin di Docker sukses (fix: DATABASE_URL dummy saat build karena `@tokophi/db` throw). Deploy via Coolify **Docker Compose** build pack (Nixpacks gagal utk workspace monorepo). Skill `vultr` ditambahkan ke dotfiles.
+- **Sesi 2026-07-10**: compose naik jadi 7 service (+`cron`, +`backup`) & 3 volume (`tokophi-pgdata/uploads/backups`). Backup Postgres harian `pg_dump -Fc` simpan-7, healthcheck lewat cron. Data persist lintas redeploy (seed idempoten). Fitur: media library + konversi WebP server-side (cap 2MB), store-builder drag-drop + brand colour (ADR 0009), support ticket 2-sisi, manual invoice/payment reminder. **Gotcha:** `next start` TIDAK melayani file yang ditulis ke `public/uploads` setelah build → disajikan via route `/api/uploads/[name]`.
+- **Nama lama = `indostore`** (rebrand 2026-07-08). Repo `github.com/ongkipro/indostore` masih ada tapi **DORMAN** — jangan dipakai/di-push; 94 commit-nya sudah ada di history `tokophi`. Catatan lama yang menyebut "Indostore" = project yang sama.
+
+## kamus (almanak / memori kedua — kamus.ongki.pro)
+- Repo private `github.com/ongkipro/kamus`. **Di Mac TIDAK ter-clone** (diverifikasi 2026-07-20: `~/Projects/kamus` tidak ada) — `git clone` dulu sebelum kerja. Klaim lama "clone di `~/Projects/kamus` (macOS + Linux)" sudah tidak berlaku untuk Mac. Astro merender markdown di root repo jadi dashboard; live di `kamus.ongki.pro` (di-gate Cloudflare Access → anonim dapat 401).
+- Folder = koleksi: `journal/` (`YYYY-MM-DD.md`), `tasks/`, `projects/`, `memory/`, `skills/`, `sessions/`, `summaries/`. **Baca `AGENTS.md` repo dulu** — frontmatter dipaksa zod (`src/content.config.ts`), format salah = **build gagal**. Jalankan `pnpm build` sebelum commit; push memicu deploy.
+- Ini sering kali "memori" yang dimaksud user, bukan `~/.config/ai/memory` atau memori CLI. Ketiganya bisa desinkron.
+- **Wikilink lintas-koleksi (DIPERBAIKI 2026-07-14):** dulu `[[x]]` selalu di-rewrite ke `/kamus/<slug>` padahal cuma `memory/` yang punya halaman di situ → 28 link ke project/task diam-diam 404. Sekarang resolve lewat `src/lib/links.mjs`: memory→`/kamus/`, project→`/projects/`, journal→`/journal/`, skill→`/skills/`, task→`/tasks#<id>`. `sessions/`+`summaries/` sengaja tak bisa jadi target (tak punya rute detail). Renderer (`astro.config.mjs`) & linter WAJIB berbagi `links.mjs` — kalau salah satu bikin salinan aturan sendiri, link rusak balik jadi tak terlihat.
+- **JEBAKAN rename project (kini dijaga mesin):** `projects:` (journal/sessions/summaries) & `project:` (tasks) di frontmatter adalah **kunci indeks**, harus sama persis dengan `name:` di `projects/*.md`. Rename tanpa ganti frontmatter → riwayat project jadi yatim, **diam-diam, build tetap hijau**. Kena 2026-07-10 saat rename Indostore→TokoΦ. Sejak 2026-07-14 `scripts/lint-links.mjs` jalan sebelum `astro build` dan **menggagalkan build** kalau ada wikilink menggantung atau nama project tak cocok. Cek manual: `pnpm lint:links`.
+- Aturan link + skema frontmatter ada di `AGENTS.md` repo — baca sebelum menyetor file.
+
+## volumform (macOS dev — DR-funnel SaaS)
+- `~/Projects/volumform` → repo private `github.com/ongkipro/volumform` (dibuat 2026-07-10; sebelumnya cuma lokal, tanpa remote). Monorepo `apps/{admin,superadmin,edge}` + `packages/db` (Drizzle). Front-end sudah di-split: super admin (platform) vs client admin (merchant) sebagai dua SPA.
+
+## fiverr-clone (macOS dev — GigFlow freelance marketplace)
+- Path: `~/Projects/fiverr-clone` → repo privat `github.com/ongkipro/fiverr-clone` (dibuat 2026-07-11; **remote baru dibuat 2026-07-14** — sebelumnya 33 commit cuma hidup di satu mesin).
+- Stack: Next.js 16 + React 19 + Tailwind v4 + shadcn/ui + Better-Auth + Drizzle ORM + Stripe.
+- Dokumentasi UI/UX: `~/Documents/UIUX/fiverr-clone/` (karena masih prototype)
+- ⚠️ **`.venv` (playwright driver 114 MB) pernah ter-commit** → GitHub menolak push (batas 100 MB/file). Sudah dibuang dari history + masuk `.gitignore`. Jangan taruh virtualenv Python di dalam repo Next.js ini lagi.
+
+## Jebakan repo lokal yang sudah dibereskan (2026-07-14, Mac)
+Sebelum ini, **4 project tak punya cadangan di mana pun**. Semua sudah di-push. Fakta yang tidak terbaca dari kode:
+- **`~/Projects/volumecms-tholabie-fe` itu GIT WORKTREE** dari `volumecms` (branch `tholabie-frontend`), bukan project terpisah. `.git`-nya **file**, bukan direktori — cek `-d .git` akan bilang "bukan repo git" dan itu SALAH. Jangan `git init` di sana. Branch-nya kini sudah ada di remote `volumecms`.
+- **`~/Projects/babyfits` = rebrand dari `homelook`**, tapi remote-nya dulu masih menunjuk `homelook.git` → push = menimpa isi repo homelook. Sekarang punya repo sendiri (`ongkipro/babyfits`); remote lama disimpan sebagai `homelook-upstream`.
+- **`aussiemalaysia` (aktif, Astro+CF+D1) ≠ `aussie-malaysia` (repo lama)** — dua folder, dua project. Yang aktif kini repo `ongkipro/aussiemalaysia`.
+- Arsip dokumen: 278 file `.md` dari semua project → `~/Documents/work/notes/projects-md-archive-2026-07-14/`.
+
+## nextpress — DIARSIPKAN (jangan dilanjutkan)
+- Prototipe CMS ala WordPress (Next.js 16 + shadcn + GSAP), ditinggalkan 2026-07-03. **Digantikan total oleh `volumecms`** — konsep sama, ditulis ulang dari nol, history tidak berhubungan (root commit beda).
+- Repo `github.com/ongkipro/nextpress` privat + **archived** (read-only) pada 2026-07-10 sekadar arsip. Folder lokal `~/Projects/nextpress` boleh dihapus kapan saja.
+

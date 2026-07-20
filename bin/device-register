@@ -1,0 +1,225 @@
+#!/usr/bin/env bash
+# device-register — rekam device ini ke registry dotfiles (devices/<hostname>.md)
+# dan perbarui tabel indeks di devices/README.md.
+#
+# Usage:
+#   device-register              # tulis/refresh entri device ini
+#   device-register --dry-run    # tampilkan hasil tanpa menulis
+#
+# Idempotent: aman dijalankan ulang, entri device yang sama ditimpa.
+# Lintas-OS: Linux (lscpu/free/lspci) + macOS (sysctl/system_profiler).
+#
+# Yang DIREKAM: identitas mesin, hardware, toolchain, AI CLI, symlink dotfiles.
+# Yang TIDAK DIREKAM: API key, token, IP privat, isi ~/.config/ai-local/.
+set -euo pipefail
+
+DRY_RUN=0
+[ "${1:-}" = "--dry-run" ] && DRY_RUN=1
+
+DOT="${DOTFILES_DIR:-$HOME/dotfiles}"
+[ -d "$DOT" ] || { echo "ERROR: $DOT tidak ada." >&2; exit 1; }
+
+DEVDIR="$DOT/devices"
+mkdir -p "$DEVDIR"
+
+HOST="$(hostname 2>/dev/null | cut -d. -f1)"
+[ -n "$HOST" ] || { echo "ERROR: hostname kosong." >&2; exit 1; }
+OUT="$DEVDIR/$HOST.md"
+TODAY="$(date +%Y-%m-%d)"
+
+have() { command -v "$1" >/dev/null 2>&1; }
+ver()  { have "$1" && "$1" --version 2>/dev/null | head -1 | tr -d '\r' || echo "-"; }
+
+# ── Deteksi OS ───────────────────────────────────────────────────────────────
+# Semua probe dibungkus `|| true` / fallback: device lain boleh saja tak punya
+# lspci/lscpu/DMI (VM, container, minimal install) — script tetap harus lulus.
+case "$(uname -s)" in
+  Darwin)
+    OS_NAME="macOS $(sw_vers -productVersion 2>/dev/null || echo '?')"
+    KERNEL="$(uname -r)"
+    ARCH="$(uname -m)"
+    CPU="$(sysctl -n machdep.cpu.brand_string 2>/dev/null || true)"
+    CORES="$(sysctl -n hw.ncpu 2>/dev/null || true)"
+    MEM_BYTES="$(sysctl -n hw.memsize 2>/dev/null || echo 0)"
+    RAM_GB="$(awk -v b="$MEM_BYTES" 'BEGIN{ if (b>0) printf "%.1f", b/1073741824; }' 2>/dev/null || true)"
+    GPU="$(system_profiler SPDisplaysDataType 2>/dev/null | awk -F': ' '/Chipset Model/{printf "%s + ", $2}' | sed 's/ + $//' || true)"
+    VENDOR="Apple"
+    MODEL="$(sysctl -n hw.model 2>/dev/null || true)"   # mis. Mac14,2
+    FORM="laptop"
+    case "$MODEL" in Macmini*|iMac*|MacPro*|MacStudio*) FORM="desktop" ;; esac
+    SERVICE_MGR="launchd"
+    PKG_MGR="brew"
+    ;;
+  Linux)
+    OS_NAME="$( (. /etc/os-release 2>/dev/null && printf '%s' "$PRETTY_NAME") || echo 'Linux' )"
+    KERNEL="$(uname -r)"
+    ARCH="$(uname -m)"
+    CPU="$(lscpu 2>/dev/null | awk -F': +' '/^Model name/{print $2; exit}' || true)"
+    CORES="$(nproc 2>/dev/null || true)"
+    # /proc/meminfo lebih akurat dari `free -g` (yang membulatkan ke bawah).
+    RAM_GB="$(awk '/^MemTotal:/{printf "%.1f", $2/1048576}' /proc/meminfo 2>/dev/null || true)"
+    GPU="$(lspci 2>/dev/null | grep -iE 'vga|3d controller' | sed 's/.*: //' | paste -sd'|' - | sed 's/|/ + /g' || true)"
+    DMI=/sys/class/dmi/id
+    VENDOR="$(cat $DMI/sys_vendor 2>/dev/null || true)"
+    # product_version biasanya nama pasaran ("ThinkPad T480"); product_name = kode MTM.
+    MODEL="$(cat $DMI/product_version 2>/dev/null || true)"
+    [ -n "$MODEL" ] || MODEL="$(cat $DMI/product_name 2>/dev/null || true)"
+    MTM="$(cat $DMI/product_name 2>/dev/null || true)"
+    [ "$MTM" = "$MODEL" ] && MTM=""
+    # chassis_type: 8/9/10/11/14 = portable/laptop/notebook/sub-notebook
+    case "$(cat $DMI/chassis_type 2>/dev/null || true)" in
+      8|9|10|11|14) FORM="laptop" ;;
+      3|4|5|6|7|13|15|16) FORM="desktop" ;;
+      *) FORM="" ;;
+    esac
+    SERVICE_MGR="systemd --user"
+    PKG_MGR="apt"
+    ;;
+  *) echo "ERROR: OS tidak didukung: $(uname -s)" >&2; exit 1 ;;
+esac
+
+# Fallback seragam — jangan pernah biarkan sel tabel kosong.
+: "${CPU:=-}"; : "${GPU:=-}"; : "${CORES:=-}"; : "${VENDOR:=-}"; : "${MODEL:=-}"; : "${MTM:=}"; : "${FORM:=}"
+: "${RAM_GB:=?}"
+DISK="$(df -h / 2>/dev/null | awk 'NR==2{print $2" total, "$4" free ("$5" used)"}' || true)"
+: "${DISK:=-}"
+
+DEVICE_LABEL="$VENDOR $MODEL"
+[ -n "$MTM" ] && DEVICE_LABEL="$DEVICE_LABEL (\`$MTM\`)"
+[ -n "$FORM" ] && DEVICE_LABEL="$DEVICE_LABEL · $FORM"
+
+# ── AI CLI terpasang ─────────────────────────────────────────────────────────
+AI_ROWS=""
+for cli in claude codex pi agy; do
+  if have "$cli"; then
+    AI_ROWS+="| \`$cli\` | terpasang | $(command -v "$cli" | sed "s#$HOME#~#") |"$'\n'
+  else
+    AI_ROWS+="| \`$cli\` | — | — |"$'\n'
+  fi
+done
+
+# ── Symlink dotfiles yang aktif ──────────────────────────────────────────────
+LINK_ROWS=""
+check_link() {
+  local path="$1" label="$2" disp
+  disp="$(echo "$path" | sed "s#$HOME#~#")"
+  if [ -L "$path" ]; then
+    if [ -e "$path" ]; then
+      LINK_ROWS+="| $label | \`$disp\` | ✅ ok |"$'\n'
+    else
+      LINK_ROWS+="| $label | \`$disp\` | ❌ **PUTUS** |"$'\n'
+    fi
+  elif [ -e "$path" ]; then
+    LINK_ROWS+="| $label | \`$disp\` | ⚠️ file lokal (bukan symlink) |"$'\n'
+  else
+    LINK_ROWS+="| $label | \`$disp\` | — belum ada |"$'\n'
+  fi
+}
+check_link "$HOME/.config/ai"                "memori bersama"
+check_link "$HOME/.claude/CLAUDE.md"         "memori → claude"
+check_link "$HOME/.codex/AGENTS.md"          "memori → codex"
+check_link "$HOME/.antigravity/AGENTS.md"    "memori → agy"
+check_link "$HOME/.gemini/GEMINI.md"         "memori → agy (gemini stack)"
+check_link "$HOME/.agents/local-skills"      "skills"
+check_link "$HOME/.config/mise/config.toml"  "mise toolchain"
+check_link "$HOME/.config/starship.toml"     "starship"
+check_link "$HOME/.config/helix/config.toml" "helix"
+check_link "$HOME/.config/lazygit/config.yml" "lazygit"
+check_link "$HOME/.config/gh/config.yml"     "gh cli"
+check_link "$HOME/.tmux.conf"                "tmux"
+check_link "$HOME/.gitignore_global"         "gitignore global"
+
+# ── Render ───────────────────────────────────────────────────────────────────
+read -r -d '' DOC <<EOF || true
+# Device: \`$HOST\`
+
+> Dibuat otomatis oleh \`bin/device-register\` — **jangan edit manual**, jalankan ulang scriptnya.
+> Terakhir diperbarui: **$TODAY**
+> Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → \`~/.config/ai-local/device.md\`.
+
+## Identitas
+
+| | |
+|---|---|
+| Hostname | \`$HOST\` |
+| Device | **$DEVICE_LABEL** |
+| OS | $OS_NAME |
+| Kernel | $KERNEL · $ARCH |
+| Service manager | $SERVICE_MGR |
+| Package manager | $PKG_MGR |
+
+## Hardware
+
+| | |
+|---|---|
+| CPU | $CPU ($CORES thread) |
+| RAM | ${RAM_GB} GB |
+| GPU | $GPU |
+| Disk (/) | $DISK |
+
+## AI CLI
+
+| CLI | Status | Path |
+|---|---|---|
+$AI_ROWS
+## Toolchain
+
+| Tool | Versi |
+|---|---|
+| node | $(ver node) |
+| pnpm | $(ver pnpm) |
+| bun | $(ver bun) |
+| python3 | $(ver python3) |
+| mise | $(ver mise) |
+| git | $(ver git) |
+
+## Symlink dotfiles
+
+| Apa | Path | Status |
+|---|---|---|
+$LINK_ROWS
+EOF
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  printf '%s\n' "$DOC"
+  echo
+  echo "[dry-run] akan ditulis ke: $OUT"
+  exit 0
+fi
+
+printf '%s\n' "$DOC" > "$OUT"
+echo "✓ ditulis: ${OUT/#$HOME/\~}"
+
+# ── Penjaga anti-timpa ───────────────────────────────────────────────────────
+# devices/<host>.md tak pernah bentrok (satu file per device). Tapi devices/README.md
+# di-GENERATE ULANG dari file yang ADA di disk — kalau repo belum di-pull, entri
+# device lain belum ada, dan indeks jadi kehilangan barisnya. Peringatkan (jangan
+# blokir: device bisa saja offline).
+if git -C "$DOT" rev-parse --git-dir >/dev/null 2>&1; then
+  behind="$(git -C "$DOT" rev-list --count HEAD..@{upstream} 2>/dev/null || echo 0)"
+  if [ "${behind:-0}" -gt 0 ] 2>/dev/null; then
+    echo "⚠️  Repo tertinggal $behind commit dari origin."
+    echo "   Jalankan 'git pull' lalu 'device-register' lagi, supaya indeks tidak"
+    echo "   menghapus baris device lain yang belum ter-pull."
+  fi
+fi
+
+# ── Perbarui indeks devices/README.md ────────────────────────────────────────
+INDEX="$DEVDIR/README.md"
+{
+  echo "# Device Registry"
+  echo
+  echo "Daftar mesin yang memakai dotfiles ini. Dibuat otomatis oleh \`bin/device-register\`."
+  echo "Jalankan \`device-register\` di tiap device (juga setelah upgrade hardware/OS)."
+  echo
+  echo "| Host | Device | OS | CPU | RAM | Diperbarui |"
+  echo "|---|---|---|---|---|---|"
+  for f in "$DEVDIR"/*.md; do
+    [ "$(basename "$f")" = "README.md" ] && continue
+    [ -e "$f" ] || continue
+    n="$(basename "$f" .md)"
+    row() { awk -F'\\| ' -v k="$1" '$0 ~ "^\\| "k" \\|" {print $3; exit}' "$f" | sed 's/ |$//'; }
+    echo "| [\`$n\`]($n.md) | $(row Device) | $(row OS) | $(row CPU) | $(row RAM) | $(awk '/^> Terakhir diperbarui/{gsub(/[^0-9-]/,"",$0); print; exit}' "$f") |"
+  done
+} > "$INDEX"
+echo "✓ indeks diperbarui: ${INDEX/#$HOME/\~}"

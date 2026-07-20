@@ -33,7 +33,7 @@ The user wants to improve product *listings/merchandising data* (not theme code)
 2. **Pilot one product** end-to-end, show the user before/after, get approval on style + key decisions (brand generic vs kept, market/language, SKU handling) BEFORE batching. This is a destructive, customer-facing bulk op — checkpoint once.
 3. **Variant cleanup** — remove "Ships From"/country variants (keep the chosen market, default United States), delete the now-redundant option, **keep SKUs exactly as-is**.
 4. **Rename variant values** — turn codes (TG507, MC701…) into real names; identify ambiguous ones by reading each variant's image (`variants.nodes.image.url`). Relabel option `Color`→`Style`/`Design` when values aren't colors.
-5. **Generate listing copy** — for large catalogs, fan out to subagents (Agent tool), ~15-20 products each, writing JSON to files you then apply. Follow `references/copywriting.md` exactly. Validate (char limits, no brand leak, no CTA) before applying.
+5. **Generate listing copy** — for large catalogs, fan out to subagents (Agent tool), ~15-20 products each, writing JSON to files you then apply. Follow `references/copywriting.md` exactly and use `volumx-writer` to preserve source claims, qualifiers, and product facts. Validate (char limits, no brand leak, no CTA, no claim drift) before applying.
 6. **Apply** via `productUpdate` (title, handle, descriptionHtml, seo, tags, productType, **category** taxonomy id).
 7. **Image SEO** — set ALT (`productUpdateMedia`) and rename filenames to `<handle>-N.ext` (`fileUpdate`, needs `write_files`; skip "non-ready" files).
    - **Alt text pattern**: `[Product Title] - [view/angle/feature]` (max 125 chars). Remove generic `"main product image"` / `"product image N"` suffixes.
@@ -51,6 +51,7 @@ The user wants to improve product *listings/merchandising data* (not theme code)
 - Limits: title ≤70, metaTitle ≤60, metaDescription ≤155, handle ≤6 keyword words (unique!).
 - **SKUs of kept variants stay unchanged** (inventory/fulfillment precision).
 - Fix all typos; only use verifiable facts.
+- **A clean product gets left alone.** If the audit finds no real gap — meta present, category set, variants clean, ALT written — report "no changes needed" and write nothing. Never invent a gap or a cosmetic rewrite to justify a batch: every fabricated finding here becomes a destructive, customer-facing mutation on a live catalog.
 
 ## Operational notes
 - Make batch scripts **resume-safe** (log succeeded ids, skip on re-run) — the online token can die mid-batch.
