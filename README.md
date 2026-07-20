@@ -116,7 +116,7 @@ Buka [`devices/<hostname>.md`](devices/) — tabel **Symlink dotfiles**.
 | Folder | Isi | Di-symlink ke |
 |---|---|---|
 | `config/ai/` | **Memori bersama** semua AI CLI (fakta environment, project, preferensi) | `~/.config/ai` |
-| `skills/local/` | **33 skill AI** (SEO, Shopify, Astro, Cloudflare, native-first, dll) | `~/.claude/skills`, `~/.pi/agent/skills` |
+| `skills/local/` | **Skill AI** (SEO, Shopify, Astro, Cloudflare, native-first, dll) | `~/.claude/skills`, `~/.pi/agent/skills` |
 | `config/mise-config.toml` | Daftar tool terminal (fzf, ripgrep, helix, delta…) | `~/.config/mise/config.toml` |
 | `config/` lainnya | starship, tmux, lazygit, gh, helix, btop, ripgrep | masing-masing |
 | `bin/` | Script bantu (`dotsync`, `device-register`, dll) | `~/.local/bin/` |
@@ -467,7 +467,10 @@ Catatan:
 
 ## 🤖 AI Skills System
 
-**33 skill, satu sumber: `skills/local/`.** Model = **symlink satu-direktori**:
+**Satu sumber: `skills/local/`.** Model = **symlink satu-direktori**:
+
+Jumlahnya berubah seiring waktu — jangan ditulis di sini. Hitung dari disk:
+`find ~/dotfiles/skills/local -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l`, atau `skill-list`.
 
 ```
 ~/.claude/skills       ─┐
@@ -490,7 +493,7 @@ skill-update          # pasang/perbaiki symlink — sekali per mesin
 ### Codex & agy tidak punya direktori skill — dan itu tidak apa-apa
 
 Sistem mereka plugin (`plugin.json`), format berbeda; `agy plugin validate` menolak
-`SKILL.md` kita. Membungkus 33 skill jadi plugin = **sumber kedua** + beban sync.
+`SKILL.md` kita. Membungkus seluruh skill jadi plugin = **sumber kedua** + beban sync.
 Ditolak.
 
 Tapi skill itu **cuma markdown**, dan mereka bisa membaca file. Yang mereka tak punya
