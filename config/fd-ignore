@@ -1,0 +1,16 @@
+# Global ignore untuk fd (dipakai lewat ~/.config/fd/ignore).
+# Bikin fd/fzf/AI-CLI skip artefak berat walau dijalankan dengan --no-ignore.
+node_modules/
+.next/
+.astro/
+.turbo/
+.vercel/
+.git/
+dist/
+build/
+.cache/
+target/
+__pycache__/
+.venv/
+venv/
+*.log
