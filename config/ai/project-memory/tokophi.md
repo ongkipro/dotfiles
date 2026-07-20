@@ -11,7 +11,14 @@ TokoΦ (`ongkipro/tokophi`, private) — Shopify-style commerce SaaS untuk Indon
 
 Nama lama proyek ini `indostore`; rebrand 2026-07-08. Repo `ongkipro/indostore` **masih ada di GitHub tapi dorman** — jangan dipakai, jangan di-push. Seluruh 94 commit-nya sudah termuat di history `tokophi` (HEAD lama `e95b71f`). Kalau baca catatan lama yang menyebut "Indostore", itu proyek yang sama, bukan proyek terpisah.
 
-Di Mac ini (2026-07-10) repo di-clone ke `~/Projects/tokophi`. 32 file `.md` yang di-track git **di-symlink** (bukan disalin) ke `~/Documents/work/tokophi/` dengan struktur `prd/`, `architecture/`, `decisions/`, `ops/`, `notes/`, `agent-config/`.
+**Tidak ada clone di Mac ini** (diverifikasi 2026-07-20: `~/Projects/tokophi` tidak ada — catatan lama yang menyebut clone 2026-07-10 sudah usang; dev utama di Linux, `git pull` dulu bila di-clone lagi). 32 file `.md` yang di-track git dirancang untuk **di-symlink** (bukan disalin) ke `~/Documents/work/tokophi/` dengan struktur `prd/`, `architecture/`, `decisions/`, `ops/`, `notes/`, `agent-config/` saat repo hadir.
+
+**Gotcha bisnis/ops yang TIDAK terbaca dari kode** (dipindah dari `projects.md` 2026-07-20):
+- Integrasi **KiriminAja** (shipping) + **AutoLaris** (payment VA/QRIS) — platform-managed & **white-label**: brand provider disembunyikan dari client, hanya super-admin yang lihat. COD ada.
+- **`KIRIMINAJA_ENV` default `sandbox`** (`tdev.kiriminaja.com`) — env yang tak di-set diam-diam bicara ke sandbox; tarif nyata tapi bukan produksi. Ini langkah terakhir sebelum uang sungguhan.
+- **E-wallet (OVO/GoPay/DANA/ShopeePay/LinkAja) + retail MATI karena AutoLaris menolaknya** (`rc=07` di probe langsung), bukan bug. Hanya 6 kanal hidup: QRIS + 5 VA (BCA/Mandiri/BNI/BRI/Permata). Menyalakannya = pembeli pilih metode tak-tertagih → jualan mati di langkah akhir; mengaktifkan = urusan ke AutoLaris, bukan kode.
+- **`npm run audit:responsive -w @tokophi/storefront`** = gerbang responsif (10 rute × 11 lebar 320→1920). Jalankan sebelum klaim "responsif".
+- **Multi-agen satu worktree = kerja hilang** (pernah hilang 2×). Baca `AGENTS.md` repo sebelum coding: jangan `pkill astro/next` (membunuh server agen lain), jangan `git add -A` (pakai pathspec eksplisit), commit sesering mungkin.
 
 **Why:** file .md itu bagian dari repo — memindahkannya keluar akan merusak repo. Symlink bikin `~/Documents` rapi tanpa duplikat yang bisa basi.
 
