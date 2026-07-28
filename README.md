@@ -644,7 +644,7 @@ Jangan commit secrets, tokens, private credentials, session, cache, atau artefak
 ```
 Pi:       auth.json · models.json · trust.json · sessions/
 9router:  auth/ · jwt-secret · machine-id · db/ · tunnel/
-Claude:   .claude-accounts/*/auth (token)
+Claude:   ~/.claude/.credentials.json
 Device:   ~/.config/ai-local/secrets.env (perm 600, di-source ~/.bashrc)
 ```
 

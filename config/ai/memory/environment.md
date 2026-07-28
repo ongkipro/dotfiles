@@ -44,7 +44,7 @@
 **pi symlinks (via dotfiles):** `~/.pi/agent/settings.json` → `dotfiles/config/pi/settings.json` · `~/.pi/extensions/compact-free/` → `dotfiles/config/pi/extensions/compact-free/` · `~/.pi/agent/extensions/welcome-screen.ts` → `dotfiles/config/pi/extensions/welcome-screen/index.ts` · `~/.9router/{aliases.json,runtime/package.json}` → `dotfiles/config/9router/`.
 **NOT in dotfiles (secret):** `models.json` (API key), `auth.json` (oauth token). Local backup only.
 **Editing pi TUI/extension:** use `theme.fg(color, text)` — not curried.
-**Claude account launcher:** `claude`/`claude-personal` → personal account; `claude-kerja` → isolated `~/.claude-accounts/kerja`. Wrappers in `dotfiles/bin/` → `~/.local/bin/`.
+**Claude Code profile:** one native profile at `~/.claude`; run the installed `claude` binary directly. Do not add personal/work launchers or alternate config-directory profiles.
 
 ## User machines (multi-machine)
 - Memory `~/.config/ai/` is synced via dotfiles to MULTIPLE machines — OS/toolchain facts must name the relevant machine.

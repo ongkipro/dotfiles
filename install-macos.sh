@@ -44,7 +44,7 @@ link "$DOT/bin/security-check"           "$HOME/.local/bin/security-check"
 link "$DOT/bin/security-check-test"      "$HOME/.local/bin/security-check-test"
 link "$DOT/bin/inspect-project"          "$HOME/.local/bin/inspect-project"
 link "$DOT/bin/project-init"             "$HOME/.local/bin/project-init"
-for s in akun claude-kerja claude-personal tmux-clip tmux-setup tmux-battery security-check 9router-start pi-9router-restore device-register; do
+for s in tmux-clip tmux-setup tmux-battery security-check 9router-start pi-9router-restore device-register; do
   [ -e "$DOT/bin/$s" ] && link "$DOT/bin/$s" "$HOME/.local/bin/$s"
 done
 

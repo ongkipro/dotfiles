@@ -159,7 +159,7 @@ fi
 # perlindungan .env tidak otomatis ikut ke device baru. permissions.deny ditegakkan
 # HARD bahkan di bypassPermissions mode (bukan cuma prosa approval-gate). Cek di sini
 # supaya cuan tahu harus menambahkannya — dan supaya reset settings tidak lolos senyap.
-CC_SETTINGS="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
+CC_SETTINGS="$HOME/.claude/settings.json"
 if command -v claude >/dev/null 2>&1 && [ -f "$CC_SETTINGS" ]; then
   if grep -qE 'Read\((\*\*/)?\.env' "$CC_SETTINGS" 2>/dev/null; then
     ok "Claude settings: permissions.deny memblokir baca .env (ditegakkan bahkan di bypass)"
