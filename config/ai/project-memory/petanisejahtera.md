@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 2a9362bb-2f37-47c9-b5d4-459342e1cc01
-  modified: 2026-07-18T07:38:53.835Z
+  modified: 2026-07-21T12:54:00.000Z
 ---
 
 E-dagang COD funnel-ads. Repo **`ongkipro/petanisejahtera`** (publik, dibuat 2026-07-17). Astro v6 SSR + adapter Cloudflare Workers, Tailwind v4, ikon Lucide. Order backend = **Scalev API**.
@@ -22,3 +22,5 @@ E-dagang COD funnel-ads. Repo **`ongkipro/petanisejahtera`** (publik, dibuat 202
 **Gotcha:** class Tailwind `red-650`/`slate-450`/`red-350` **tidak valid** (fallback diam-diam) — masih dipakai di `saratoga-padi.astro`. Verifikasi: `rg 'red-650|slate-450' src`.
 
 **Sesi 2026-07-18:** dibuat LP `saratoga-anggrek` (clone `saratoga-padi`, reposisi padi→anggrek high-overclaim, produk fisik sama `productSlug="saratoga"`). Aksen ungu `#6D28D9`. 9 gambar webp digenerate (highsfield). TODO tertunda: infografis, screenshot WA asli, foto testimoni asli — lihat DEV_NOTES changelog. Batas etika: tidak memalsukan foto testimoni ber-badge & screenshot chat. [[volumform-id-market-ux]] pakai konvensi COD ID serupa.
+
+**Durable architecture:** product variants and prices are synchronized from Scalev and must be verified from the repository or provider instead of copied into memory. `BaseLayout.astro` owns the shared `BreadcrumbList` JSON-LD through its `breadcrumbs` property.

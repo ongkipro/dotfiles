@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Regression test for the backup-before-link helpers used by the installers.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/installer-link-test.XXXXXX")"
+trap 'chmod -R u+w "$TMP" 2>/dev/null || true; rm -rf "$TMP"' EXIT
+
+extract_function() {
+  local file="$1" name="$2"
+  awk -v signature="$name() {" '
+    $0 == signature { inside = 1 }
+    inside { print }
+    inside && $0 == "}" { exit }
+  ' "$file"
+}
+
+test_helper() {
+  local file="$1" name="$2"
+  local case_dir="$TMP/$(basename "$file").$name"
+  local function_code
+  function_code="$(extract_function "$file" "$name")"
+  [ -n "$function_code" ] || { echo "missing $name in $file" >&2; return 1; }
+
+  mkdir -p "$case_dir"
+  (
+    say() { :; }
+    eval "$function_code"
+
+    src="$case_dir/source"
+    dst="$case_dir/live/item"
+    mkdir -p "$(dirname "$dst")"
+    printf 'tracked\n' > "$src"
+
+    "$name" "$src" "$dst" >/dev/null
+    [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]
+
+    "$name" "$src" "$dst" >/dev/null
+    [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]
+
+    unlink "$dst"
+    printf 'original\n' > "$dst"
+    "$name" "$src" "$dst" >/dev/null
+    [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]
+    backup="$(find "$(dirname "$dst")" -maxdepth 1 -type f -name 'item.bak.*' -print -quit)"
+    [ -n "$backup" ] && [ "$(cat "$backup")" = "original" ]
+
+    other="$case_dir/other"
+    printf 'other\n' > "$other"
+    unlink "$dst"
+    ln -s "$other" "$dst"
+    "$name" "$src" "$dst" >/dev/null
+    [ "$(readlink "$dst")" = "$src" ] && [ "$(cat "$other")" = "other" ]
+  )
+
+  printf '✓ %s:%s\n' "$(basename "$file")" "$name"
+}
+
+test_helper "$ROOT/install.sh" link
+test_helper "$ROOT/install-macos.sh" link
+test_helper "$ROOT/bin/tmux-setup" link_to_repo
+echo "installer-link-test: OK"

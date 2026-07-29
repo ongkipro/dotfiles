@@ -6,7 +6,7 @@ description: >-
   Shopify-style marketplaces). Aggregates canonical memory files plus per-project
   facts into a single queryable index. Use when starting a new Shopify task,
   onboarding a project, auditing store footprint, or answering "what do we know
-  about <store>/<project>". Triggers: shopify memory, memori shopify, ambil memori
+  about a store or project". Triggers: shopify memory, memori shopify, ambil memori
   shopify, shopify project list, store audit, shopify footprint, lintas shopify,
   cross-store context. NOT for execution (listing rewrite, theme code, app dev) —
   pair with shopify-listing for action.

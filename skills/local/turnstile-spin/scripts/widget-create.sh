@@ -11,7 +11,7 @@
 #   --mode <managed|invisible|non-interactive>  Default: managed
 #
 # Outputs JSON to stdout. Exit 0 on success, 1 on failure. Diagnostics on stderr.
-#   ok:    {"status":"ok","sitekey":"<key>","secret":"<secret>"}
+#   ok:    {"status":"ok","sitekey":"<key>","secret_configuration":"required_by_user"}
 #   error: {"status":"error","code":<code>,"message":"<msg>"}
 #     code 10000 → token lacks Account.Turnstile:Edit
 
@@ -45,8 +45,7 @@ success=$(echo "$body" | (jq -r '.success' 2>/dev/null || python3 -c "import sys
 
 if [ "$success" = "true" ]; then
   sitekey=$(echo "$body" | (jq -r '.result.sitekey' 2>/dev/null || python3 -c "import sys,json; print(json.load(sys.stdin)['result']['sitekey'])"))
-  secret=$(echo "$body" | (jq -r '.result.secret' 2>/dev/null || python3 -c "import sys,json; print(json.load(sys.stdin)['result']['secret'])"))
-  echo "{\"status\":\"ok\",\"sitekey\":\"$sitekey\",\"secret\":\"$secret\"}"
+  echo "{\"status\":\"ok\",\"sitekey\":\"$sitekey\",\"secret_configuration\":\"required_by_user\"}"
   exit 0
 fi
 

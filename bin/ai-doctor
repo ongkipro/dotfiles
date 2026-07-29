@@ -130,7 +130,7 @@ if [ -d "$SK" ]; then
     cli=${pair%%:*}; rest=${pair#*:}; path=${rest%%:*}; parent=${rest#*:}
     if [ ! -d "$parent" ]; then wrn "$cli: belum terpasang (lewati)"; continue; fi
     if [ -L "$path" ] && [ "$(readlink -f "$path")" = "$(readlink -f "$SK")" ]; then
-      ok "$cli: ${path/#$HOME/\~} → skills/local ($(ls -1 "$path" | wc -l | tr -d ' ') skill terlihat)"
+      ok "$cli: ${path/#$HOME/\~} → skills/local ($n skill terlihat)"
     else
       bad "$cli: ${path/#$HOME/\~} tidak ter-link. Perbaiki: skill-update"
     fi

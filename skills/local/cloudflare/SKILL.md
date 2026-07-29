@@ -2,12 +2,6 @@
 name: cloudflare
 description: >-
   Comprehensive Cloudflare platform skill covering Workers, Pages, storage (KV, D1, R2), AI (Workers AI, Vectorize, Agents SDK), feature flags (Flagship), networking (Tunnel, Spectrum), security (WAF, DDoS), and infrastructure-as-code (Terraform, Pulumi). Use as the entry point for Cloudflare work and for product selection. Prefer the specialist skill when one fits: `wrangler` (CLI commands, deploys, bindings), `workers-best-practices` (writing/reviewing Worker code), `durable-objects`, `agents-sdk`, `sandbox-sdk`, `cloudflare-email-service`, `turnstile-spin` (Turnstile setup), `cloudflare-one` (Zero Trust/SASE). Biases towards retrieval from Cloudflare docs over pre-trained knowledge.
-references:
-  - workers
-  - pages
-  - d1
-  - durable-objects
-  - workers-ai
 ---
 
 # Cloudflare Platform Skill

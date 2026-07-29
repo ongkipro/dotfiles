@@ -48,11 +48,16 @@ fi
 mkdir -p "$HOME/.local/bin"
 link_to_repo() {
   local src="$1" dst="$2"
+  local backup
   if [ -L "$dst" ] && [ "$(readlink "$dst" 2>/dev/null)" = "$src" ]; then return 0; fi
-  if [ -e "$dst" ] && [ ! -L "$dst" ]; then
-    cp -R "$dst" "$dst.bak.$(date +%s 2>/dev/null || echo old)" 2>/dev/null || true
+  if [ -L "$dst" ]; then
+    unlink "$dst"
+  elif [ -e "$dst" ]; then
+    backup="$dst.bak.$(date +%Y%m%d-%H%M%S 2>/dev/null || echo old).$$"
+    mv "$dst" "$backup"
+    say "backup $dst -> $backup"
   fi
-  ln -sfn "$src" "$dst"; say "link $dst -> $src"
+  ln -s "$src" "$dst"; say "link $dst -> $src"
 }
 link_to_repo "$DOT/config/tmux.conf"  "$HOME/.tmux.conf"
 link_to_repo "$DOT/bin/tmux-clip"     "$HOME/.local/bin/tmux-clip"

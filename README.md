@@ -233,7 +233,7 @@ The installers link tracked sources into the home directory:
 
 Editing a linked live path therefore edits the repository. Git remains the synchronization and recovery mechanism.
 
-Before replacing an existing regular file or directory, the installer copies it to a timestamped `.bak.*` path. It then replaces the original target with a symlink. Review those backups before deleting them.
+Before replacing an existing regular file or directory, the installer atomically moves it to a timestamped `.bak.*` path. Only after that succeeds does it create the symlink. Review those backups before deleting them.
 
 ## Installation
 
@@ -241,7 +241,7 @@ Before replacing an existing regular file or directory, the installer copies it 
 
 The installers are intentionally opinionated. Depending on the machine, they may:
 
-- replace existing configuration targets with symlinks after creating backups;
+- move existing configuration targets to timestamped backups, then create symlinks;
 - patch shell startup files;
 - download or install user tools;
 - install tmux clipboard dependencies;
@@ -322,8 +322,13 @@ Additional focused checks:
 ```bash
 ai-memory-check
 ai-memory-check --self-test
+ai-memory-check .              # all repository Markdown
 security-check
 security-check-test
+bin/installer-link-test
+bin/skill-remove-test
+bin/skill-update-test
+bin/turnstile-secret-test
 device-register --dry-run
 dotsync doctor
 ```

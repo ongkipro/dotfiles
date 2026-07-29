@@ -9,11 +9,16 @@ git -C "$DOT" config merge.ours.driver true 2>/dev/null || true
 say() { printf '%s\n' "$*"; }
 link() {
   local src="$1" dst="$2"
+  local backup
   mkdir -p "$(dirname "$dst")"
-  if [ -e "$dst" ] && [ ! -L "$dst" ]; then
-    cp -R "$dst" "$dst.bak.$(date +%s 2>/dev/null || echo old)" 2>/dev/null || true
+  if [ -L "$dst" ]; then
+    [ "$(readlink "$dst" 2>/dev/null)" = "$src" ] && { say "   $dst -> $src (sudah benar)"; return 0; }
+    unlink "$dst"
+  elif [ -e "$dst" ]; then
+    backup="$dst.bak.$(date +%Y%m%d-%H%M%S 2>/dev/null || echo old).$$"
+    mv "$dst" "$backup"
+    say "   backup: $dst -> $backup"
   fi
-  rm -rf "$dst"
   ln -s "$src" "$dst"
   say "   $dst -> $src"
 }

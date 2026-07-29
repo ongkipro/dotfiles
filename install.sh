@@ -24,9 +24,18 @@ mkdir -p ~/.config/helix ~/.local/bin ~/.agents ~/.agents/bin
 # link <src-di-repo> <tujuan-live>: backup file asli, lalu symlink ke repo
 link() {
   local src="$1" dst="$2"
+  local backup
   mkdir -p "$(dirname "$dst")"
-  if [ -e "$dst" ] && [ ! -L "$dst" ]; then cp -r "$dst" "$dst.bak.$(date +%s 2>/dev/null || echo old)" 2>/dev/null || true; fi
-  rm -rf "$dst"; ln -s "$src" "$dst"; echo "   $dst -> $src"
+  if [ -L "$dst" ]; then
+    [ "$(readlink "$dst" 2>/dev/null)" = "$src" ] && { echo "   $dst -> $src (sudah benar)"; return 0; }
+    unlink "$dst"
+  elif [ -e "$dst" ]; then
+    backup="$dst.bak.$(date +%Y%m%d-%H%M%S 2>/dev/null || echo old).$$"
+    mv "$dst" "$backup"
+    echo "   backup: $dst -> $backup"
+  fi
+  ln -s "$src" "$dst"
+  echo "   $dst -> $src"
 }
 link "$DOT/config/ai"                    ~/.config/ai          # memori bersama (+ memory/*.md)
 link "$DOT/config/starship.toml"         ~/.config/starship.toml

@@ -6,7 +6,7 @@
 
 - `/home/fantastico/...` → that user **DOES NOT EXIST** on any machine now. That's an OLD Linux machine. Ignore it.
 - **On `cuan` (Linux, user `ongki`), as of 2026-07-14: ONLY `~/Projects/kamus` is checked out** (repo `ongkipro/kamus`, branch `main`) — verified with `ls ~/Projects`. Other projects not yet cloned; the `~/Projects/<other>` paths in this file **don't apply there**. (The note from Mac saying `~/Projects/` on cuan is EMPTY is **wrong** — Mac guessed about a machine that isn't its own. Don't write another machine's disk facts without checking them.)
-- **On Mac (`ongkis-MacBook-Air`): the contents of `~/Projects/` CHANGE — don't memorize the list, run `ls ~/Projects`.** History: 2026-07-14 deliberately left only `volumform` (cleanup, the rest confirmed intact on GitHub); since then it has grown again (as of 2026-07-20: `landing-page`, `petanisejahtera`, `volumform`, `volumup`). A project that does NOT appear in `ls` = not yet cloned → `git clone` first.
+- **On Mac (`ongkis-MacBook-Air`), never rely on a memorized checkout list.** Verify with `find ~/Projects -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort`. A project absent from that output is not checked out on this device.
   - The gitignored credentials (9 `.env` + dev sqlite) were secured to `~/Documents/work/secrets/projects-env-2026-07-14/` (mode 700). **After cloning, copy the `.env` back from there** — GitHub does not store them.
   - The `.md` docs of all projects were archived to `~/Documents/work/notes/projects-md-archive-2026-07-14/`.
 
@@ -87,9 +87,9 @@ Want to work on a project? `git clone` it first into **`~/Projects/<name>/`** (t
 - Repo `github.com/ongkipro/pixsgo` (private, not yet cloned on Mac). Astro + Tailwind v4 + Shopify Storefront API + Cloudflare Workers; deploy CF Workers domain pixsgo.com.
 - Brand: Pixs&Go / "Play & Go" — screen-free toys (coral, warm cream). Playful, minimalist; senior accessibility (font ≥16px). 125 products, 9 collections, Judge.me reviews, blog/journal.
 
-## homelook (HOME LOOK — Astro + Shopify Storefront, homelook.shop)
-- Repo `github.com/ongkipro/homelook` (private, not yet cloned on Mac). Astro + Tailwind v4 + Shopify Storefront API + Cloudflare Workers.
-- Brand: HOME LOOK — premium architectural fittings (pine green, warm sand, muted brass). Cloned from homeimprovement (RIVA HOME). (Rebrand related to `babyfits` → see "Local repo traps" below.)
+## tradecar (TRADE CAR — Astro + Shopify Storefront, tradecar.shop)
+- Repo `github.com/ongkipro/tradecar` is private and is **not checked out on this Mac** (verified 2026-07-29). Clone before use.
+- Stack from the repository `package.json`: Astro 7, Tailwind CSS 4, Shopify Storefront API, and Cloudflare Workers. Brand: premium architectural fittings with pine green, warm sand, and muted brass.
 
 ### volumecms (macOS dev) — multi-tenant CMS PLATFORM
 > Repo `github.com/ongkipro/volumecms` (private) is **NOT cloned on Mac** (`ls ~/Projects` doesn't have it) → this memory is the only local copy of the business/architecture context. Progress & component details can be reconstructed from the repo (README + docs/{PRD,FEATURES,ARCHITECTURE,AGENTS}.md + CHANGELOG); here only the decisions & gotchas that are NOT readable from the code.

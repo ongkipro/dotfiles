@@ -1,20 +1,18 @@
 #!/usr/bin/env bash
-# Deploys the managed siteverify Worker template to the user's account
-# and sets TURNSTILE_SECRET_KEY as a Worker secret.
+# Deploys the managed siteverify Worker template to the user's account.
+# Secret configuration is deliberately left to the user in their own terminal.
 #
 # Reads:
 #   $CLOUDFLARE_API_TOKEN (required)
-#   $WIDGET_SECRET        (required; secret captured from widget-create.sh)
 #
 # Args:
 #   --name <worker-name>   Base name; appends a hash suffix if taken
 #   --deploy-dir <path>    Where to extract the template. Default: /tmp/turnstile-siteverify-deploy
 #
 # Outputs JSON. Exit 0 on success, non-zero on failure.
-#   ok:            {"status":"ok","worker_url":"<url>","worker_name":"<name>"}
+#   ok:            {"status":"ok","worker_url":"<url>","worker_name":"<name>","needs_user_secret":true}
 #   conflict:      {"status":"error","reason":"name_conflict_after_retry"}
 #   deploy_failed: {"status":"error","reason":"deploy_failed"}
-#   set_secret:    {"status":"error","reason":"set_secret_failed","worker_name":"<name>"}
 #   url_parse:     {"status":"error","reason":"url_parse_failed","worker_name":"<name>"}
 
 set -uo pipefail
@@ -30,7 +28,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN must be set}"
-: "${WIDGET_SECRET:?WIDGET_SECRET must be set}"
 
 deploy_log=$(mktemp)
 
@@ -62,25 +59,6 @@ if ! deploy "$NAME"; then
   fi
 fi
 
-# Set the secret. Use `echo` (not `printf '%s'`); wrangler secret put expects
-# newline-terminated stdin; printf without a trailing newline lands an empty
-# secret in the runtime even though wrangler reports success.
-secret_log=$(mktemp)
-set_secret() {
-  echo "$WIDGET_SECRET" | (cd "$DEPLOY_DIR" && npx wrangler secret put TURNSTILE_SECRET_KEY --name "$NAME") >"$secret_log" 2>&1
-}
-
-if ! set_secret; then
-  echo "worker-deploy: failed to set TURNSTILE_SECRET_KEY on $NAME" >&2
-  cat "$secret_log" >&2
-  detail=$(tail -3 "$secret_log" | tr '\n' ' ' | sed 's/"/\\"/g' | head -c 200)
-  rm -f "$deploy_log" "$secret_log"
-  echo "{\"status\":\"error\",\"reason\":\"set_secret_failed\",\"worker_name\":\"$NAME\",\"detail\":\"$detail\"}"
-  exit 1
-fi
-rm -f "$secret_log"
-sleep 5
-
 # Extract the deployed URL. Try workers.dev first, then any https URL in the
 # log that is not the well-known cloudflare.com host (custom domain deploys
 # and Workers for Platforms don't always land at a workers.dev hostname).
@@ -99,4 +77,4 @@ if [ -z "$worker_url" ]; then
   exit 1
 fi
 
-echo "{\"status\":\"ok\",\"worker_url\":\"$worker_url\",\"worker_name\":\"$NAME\"}"
+echo "{\"status\":\"ok\",\"worker_url\":\"$worker_url\",\"worker_name\":\"$NAME\",\"needs_user_secret\":true}"

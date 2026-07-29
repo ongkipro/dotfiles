@@ -5,13 +5,29 @@ SRC="$(cd "$SCRIPT_DIR/../local" && pwd)"
 SKILL_NAME="${1:-}"
 
 [ -n "$SKILL_NAME" ] || { echo "Usage: skill-remove <skill-name>" >&2; exit 1; }
+case "$SKILL_NAME" in
+  *[!a-z0-9-]*)
+    echo "Invalid skill name: use lowercase letters, numbers, and hyphens only." >&2
+    exit 1
+    ;;
+esac
+
 DIR="$SRC/$SKILL_NAME"
 [ -d "$DIR" ] || { echo "Skill not found: $SKILL_NAME" >&2; exit 1; }
+RESOLVED="$(cd "$DIR" && pwd -P)"
+[ "$(dirname "$RESOLVED")" = "$SRC" ] || {
+  echo "Refusing to remove a skill that resolves outside $SRC" >&2
+  exit 1
+}
 
 printf 'Hapus skill "%s" (%s file)? [y/N] ' "$SKILL_NAME" "$(find "$DIR" -type f | wc -l | tr -d ' ')"
 read -r ans
 [ "$ans" = "y" ] || { echo "Dibatalkan."; exit 0; }
 
-rm -rf "$DIR"
-echo "Dihapus: ${DIR/#$HOME/\~}"
+TRASH="$HOME/.local/share/dotfiles-trash/skills"
+DEST="$TRASH/$SKILL_NAME.$(date +%Y%m%d-%H%M%S).$$"
+mkdir -p "$TRASH"
+mv "$DIR" "$DEST"
+echo "Dipindah: ${DIR/#$HOME/\~} -> ${DEST/#$HOME/\~}"
+echo "Pulihkan dengan memindahkan folder itu kembali sebelum commit."
 echo "Sudah hilang di semua CLI (symlink satu-direktori). Jangan lupa commit dotfiles."
