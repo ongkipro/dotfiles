@@ -118,9 +118,10 @@ After that, updating = just `git pull`. If you install a new CLI later (e.g. jus
 - For business ideas, check market, margin, compliance, distribution, data/tracking, and execution capacity.
 
 ## Local-only installations (macOS-specific, NOT in dotfiles sync)
-- **Ponytail** (DietrichGebert/ponytail) — **REMOVED 2026-07-20** (`agy plugin uninstall ponytail`). Was an `agy` plugin v4.8.4 since 12 Jul.
-  - **Why removed:** its core ruleset (the 7-rung ladder YAGNI → reuse → stdlib → native → dep → one-liner) already exists in `## Code discipline` in `AGENTS.md`, which auto-loads across all four CLIs. Ponytail was just a second rules source — forbidden by the dotfiles contract.
-  - Backup: `~/Documents/work/notes/ponytail-v4.8.4-uninstalled-2026-07-20/`. Full teardown: `~/Documents/work/research/ponytail-teardown-2026-07-20.md`.
-  - One-command reinstall if needed: `agy plugin install https://github.com/DietrichGebert/ponytail`.
+- **Ponytail** (DietrichGebert/ponytail) — **REMOVED and re-verified 2026-07-29**. Upstream remains v4.8.4; local `agy plugin list` shows `worktrunk` only.
+  - **Why it stays removed:** its persistent seven-rung ladder already lives in `## Code discipline` in `AGENTS.md`, which auto-loads across all four CLIs. Installing its plugin, hooks, or MCP server would create a second policy source and duplicate prompt injection.
+  - **What was taken:** the distinct one-shot simplification workflow is now the owned `lean-code-review` skill in `~/dotfiles/skills/local/`. It reports evidence-backed deletions and smaller replacements without weakening validation, security, accessibility, or required behavior.
+  - Backup: `~/Documents/work/notes/ponytail-v4.8.4-uninstalled-2026-07-20/`. Earlier teardown: `~/Documents/work/research/ponytail-teardown-2026-07-20.md`. Current combined analysis: `~/Documents/work/research/ponytail-graphify-dotfiles-analysis-2026-07-29.md`.
+  - Do not reinstall the extension or MCP server unless the shared policy architecture changes.
   - Remaining `agy` plugin: **`worktrunk` only** (verify: `agy plugin list`).
 - **General convention:** "experimental" or "personal" skills/extensions → install to `~/.pi/agent/external/<name>/` + manual symlink. Skills that are "approved/default" → put in `~/dotfiles/skills/local/` so they sync via `skill-update`.

@@ -21,4 +21,4 @@ Model yang diekspos `agy models`: Gemini 3.5 Flash, Gemini 3.1 Pro, Claude Sonne
 
 **Keputusan (2026-07-12):** tidak memasang Gemini CLI — sisi Gemini sudah ditutup `agy`, sisi "model apa pun murah" sudah ditutup 9router. CLI kelima = biaya rawat (symlink `ai-memory-link`, `skill-update`) tanpa manfaat baru.
 
-Plugin terpasang: `ponytail` (6 skills + 6 commands), `worktrunk` (2 skills + 1 hook — lihat [[worktrunk-worktree-tooling]]).
+Plugin terpasang: `worktrunk` saja (verify with `agy plugin list`; lihat [[worktrunk-worktree-tooling]]). Ponytail was removed because its persistent rules duplicate shared `AGENTS.md`; the useful review workflow now lives in the owned `lean-code-review` skill.

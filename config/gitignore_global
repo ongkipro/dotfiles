@@ -16,3 +16,6 @@ desktop.ini
 .env.*.local
 # Log
 *.log
+
+# Generated local knowledge-graph output (may contain project structure/paths)
+graphify-out/

@@ -112,6 +112,14 @@ elif [ -d "$PMEM" ]; then
   bad "memori project: ${PMEM/#$HOME/\~} adalah direktori ASLI, bukan symlink — tidak ter-sync ke dotfiles. Cek dulu apakah isinya sudah ada di $DOT/config/ai/project-memory, lalu: ai-memory-link"
 fi
 
+if [ -x "$DOT/bin/ai-memory-check" ]; then
+  "$DOT/bin/ai-memory-check" >/dev/null 2>&1 \
+    && ok "referensi memori: Markdown links + wikilinks utuh" \
+    || bad "referensi memori menggantung/ambigu — jalankan: ai-memory-check"
+else
+  wrn "bin/ai-memory-check tidak ada"
+fi
+
 # ── 4. Layer 3: skills ────────────────────────────────────────────────────────
 hdr "4. Skills — satu sumber, symlink satu-direktori"
 SK="$DOT/skills/local"
@@ -208,7 +216,8 @@ if [ -d "$AI/memory" ]; then
   # path → why it's dead
   while IFS='|' read -r pat note; do
     hits=$(grep -rn -- "$pat" "$AI/memory" "$AI/AGENTS.md" 2>/dev/null \
-      | grep -viE "TIDAK ADA|USANG|SALAH|BUKAN|jangan|dead|⚠️|BACA DULU" | wc -l | tr -d ' ')
+      | grep -viE "TIDAK ADA|DOES NOT EXIST|USANG|STALE|OLD|SALAH|WRONG|BUKAN|jangan|dead|REMOVED|⚠️|BACA DULU" \
+      | wc -l | tr -d ' ')
     if [ "$hits" -gt 0 ]; then
       wrn "memori masih menunjuk $note ($hits baris) — pat: $pat"
       drift=1

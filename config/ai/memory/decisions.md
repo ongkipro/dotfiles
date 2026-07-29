@@ -74,11 +74,13 @@
 ### Pitfall: don't run `9router --tray` alongside the service
 - Port 20128 conflict. Pick one.
 
-### graphify — REJECTED (2026-07-14), the idea taken
-- Tool: `Graphify-Labs/graphify` (MIT, Python, tree-sitter → knowledge graph). Repo healthy & active; **not** a quality issue.
-- Rejected because: (1) our corpus is too small — its own README admits ~1x token ratio at ~6 files; the "71.5x" number is a mixed corpus of 52 files with papers+images; (2) `graphify install` **edits `~/.claude/CLAUDE.md` + `~/.codex/AGENTS.md` in-place** (`install.py`) — those are symlinks to shared memory in dotfiles, used by 4 CLIs; (3) pre-1.0, high churn.
-- **What was taken:** the principle "dangling edges must be visible" (EXTRACTED vs INFERRED). Applied as `scripts/lint-links.mjs` in the kamus repo — not by installing the tool.
-- Do not re-evaluate unless our corpus changes drastically (e.g. hundreds of docs/paper files in one research folder).
+### Graphify — no global install (reviewed 2026-07-29)
+- Tool: `Graphify-Labs/graphify` v0.9.29 (`graphifyy` on PyPI), Apache-2.0, Python 3.10+, tree-sitter plus optional semantic extraction. The repository is active and well tested; this is not a quality rejection.
+- Current installers are platform-selective, so the old claim that one install always edits both Claude and Codex was stale. The conflict remains: the default Claude install appends to `~/.claude/CLAUDE.md`, which is our shared `AGENTS.md` symlink, while `--platform agents` creates a second skill source outside `~/dotfiles/skills/local/`.
+- Our current navigation layer (`MEMORY.md`, project-memory index, `skill-list`, and `rg`) is adequate. A global package, generated graph state, hooks, and another query syntax do not yet earn their maintenance cost.
+- **What was taken:** make missing and ambiguous memory edges visible. `ai-memory-check` now validates relative Markdown links and wikilinks, and `ai-doctor` runs it.
+- Revisit only for a specific large codebase or mixed research corpus where the current index plus `rg` measurably fails. Pilot ad hoc with code-only extraction before considering persistent hooks or an extension; do not install globally by default.
+- Full current analysis: `~/Documents/work/research/ponytail-graphify-dotfiles-analysis-2026-07-29.md`.
 
 ### Anti-pattern memory (lesson 2026-07-14)
 - **Operational facts that keep changing (service status, default model, versions) should not be copied into many files.** It happened before: the 9router autostart fact was copied 6×, and ALL of them became wrong the moment the service was disabled; pi's default model had 4 conflicting answers across 2 files.
