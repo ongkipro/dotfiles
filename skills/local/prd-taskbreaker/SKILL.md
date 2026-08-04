@@ -77,7 +77,7 @@ Testable, numbered, EARS-style (see cheatsheet below). The ID is what tasks trac
 - **REQ-4** (ubiquitous) The system shall log every order-status change.
 
 ## Stack & Constraints
-- Frontend / Backend / DB / Deploy / Constraint. (Don't repeat the global `AGENTS.md` rules.)
+- Frontend / Backend / DB / Deploy / Constraint. (Don't repeat the global `AGENTS.md` rules, but DO explicitly declare UI/UX and Performance standards by invoking the `premium-ui-ux` and `web-perf` skills for frontend features.)
 
 ## Technical Decisions  *(optional — only for the costly-to-reverse ones)*
 ADR-lite, one block per decision. A separate ADR file (`docs/adr/NNNN-*.md`) ONLY for large projects.
