@@ -5,7 +5,19 @@ description: Context-aware development specification and audit for libraries, CL
 
 # Adaptive Development Specification Suite
 
-Use this skill to produce the smallest evidence-backed development documentation set for the repository at hand. It coordinates existing local skills; it does not replace them.
+Produce the smallest evidence-backed specification pack for the repository at hand. Coordinate existing specialist skills instead of duplicating them.
+
+## Token-efficient loading
+
+Do not read every reference or template. Start with this file, inspect repository evidence, then load only the triggered reference:
+
+- context/profile/overlay selection → [context-resolution.md](references/context-resolution.md)
+- artifact activation/ownership → [document-map.md](references/document-map.md)
+- requirement IDs/tasks/evidence or pack audit → [requirements-traceability.md](references/requirements-traceability.md)
+- geography, sector, personal data, AI, commerce, or transfers → [jurisdiction-overlays.md](references/jurisdiction-overlays.md)
+- suite maintenance/release status only → [implementation-tasks.md](references/implementation-tasks.md)
+
+Never load `assets/templates/*`, the source ledger, or maintenance backlog merely to answer a bounded planning question. Use scripts for deterministic selection and validation rather than reproducing their rules in the prompt.
 
 ## Operating contract
 
@@ -22,7 +34,7 @@ Use this skill to produce the smallest evidence-backed development documentation
 
 Inspect project instructions (`AGENTS.md` and equivalents), repository status, package scripts, source layout, existing docs, migrations, API contracts, deployment configuration, and runtime evidence. Check the available shared skills with `skill-list`; read only the relevant specialist `SKILL.md` files.
 
-Record a context file using [context-resolution.md](references/context-resolution.md). Resolve these dimensions separately: product surface, entities/roles, target markets, user/data-subject locations, storage/processing/backup/support locations, processors, sector, commerce/tax/payment, AI role, locales/accessibility, and contractual commitments.
+When selection is not already obvious from repository evidence, read [context-resolution.md](references/context-resolution.md) and record context. Keep product surface, entities, markets/data subjects, processing locations, processors, sector, commerce, AI role, locales/accessibility, and contracts separate.
 
 ### 2. Select depth and overlays
 
@@ -38,7 +50,7 @@ Read [jurisdiction-overlays.md](references/jurisdiction-overlays.md) when geogra
 
 ### 3. Select artifacts and owners
 
-Use [document-map.md](references/document-map.md) and activate only the relevant artifacts. Keep one owner per canonical fact:
+Read [document-map.md](references/document-map.md) only when artifact selection or ownership is in scope. Activate only relevant artifacts and keep one owner per canonical fact:
 
 - PRD owns observable product behavior and NFRs.
 - BRD owns business outcomes, commercial constraints, and applicability goals.
@@ -55,18 +67,18 @@ Use [document-map.md](references/document-map.md) and activate only the relevant
 - Delivery/Migrations owns CI/CD, release, rollback, and schema-change safety.
 - Observability owns telemetry, redaction, alerts, quotas, and rate limits.
 
-Each implementation task has exactly one primary requirement and lists cross-cutting constraints separately. Read [requirements-traceability.md](references/requirements-traceability.md).
+When drafting tasks or auditing a pack, read [requirements-traceability.md](references/requirements-traceability.md). Each task has one primary requirement; list cross-cutting constraints separately.
 
 ### 4. Draft or initialize safely
 
 Use the bundled initializer for a new flat specification pack:
 
 ```bash
-python3 scripts/init-doc-suite.py --profile product --overlay identity,localized-ui --output /path/to/project/docs/spec --dry-run
-python3 scripts/init-doc-suite.py --profile platform --overlay multi-tenant,public-api,cross-border --output /path/to/project/docs/spec
+python3 scripts/init-doc-suite.py --profile product --context-file /path/to/context.json --output /path/to/project/docs/spec --dry-run
+python3 scripts/init-doc-suite.py --profile platform --overlay multi-tenant,public-api --jurisdiction ID,EU --output /path/to/project/docs/spec
 ```
 
-The initializer never overwrites an existing file unless `--update` is passed. It is portable on Linux and macOS with Python 3. Do not use it to infer legal applicability; pass explicit overlays or review its report.
+The initializer always creates `CONTEXT-RECORD.md` and never overwrites an existing file in normal mode. Selection is fact-driven from the optional UTF-8 JSON `--context-file`; `--jurisdiction` and `--sector` create candidate review records, not legal conclusions. `--update` writes proposed sidecars, hashes, and deterministic diffs only; after review, `--update --force` confines manifest paths to the output/sidecar roots, hash-checks established files, creates unique recoverable backups, and applies the reviewed manifest atomically per file. It is portable on supported Python 3 versions on Linux and macOS.
 
 ### 5. Delegate specialist work
 
@@ -83,15 +95,24 @@ If a specialist is unavailable, state the exact capability gap and continue with
 
 ### 6. Validate and report
 
-Run the bundled traceability checker against the generated or existing project pack:
+Validate a project pack with the deterministic checker; use JSON only for automation:
 
 ```bash
 python3 scripts/check-traceability.py /path/to/project/docs/spec
+python3 scripts/check-traceability.py /path/to/project/docs/spec --format json
+```
+
+When maintaining this skill itself, additionally run:
+
+```bash
+python3 -m py_compile scripts/*.py
+python3 scripts/test-suite.py
+python3 scripts/audit-sources.py
 ```
 
 Also run the project's own scripts (`package.json`, Makefile, CI, migration, OpenAPI, or native platform checks) before claiming behavior works. Separate planning truth from runtime proof. Report selected profile/overlays, included and omitted artifacts with reasons, unresolved owners, source freshness, validation commands/results, and remaining legal/security/operational risk.
 
-For post-v1 improvements, read [implementation-tasks.md](references/implementation-tasks.md). Keep P0/P1/P2 status honest: the current package is v1, and a design task is not evidence that its behavior exists.
+Only for suite maintenance or release-status claims, read [implementation-tasks.md](references/implementation-tasks.md). The package may be called `v2 audit-ready` only while its P0 fixtures pass. `Cross-platform validated` additionally requires the repository CI matrix to pass on Ubuntu and macOS; a local run or workflow file alone is not that evidence.
 
 ## Cross-CLI and platform contract
 
@@ -108,4 +129,4 @@ The canonical source is `~/dotfiles/skills/local/development-spec-suite/`.
 - [jurisdiction-overlays.md](references/jurisdiction-overlays.md) — official-source resolver and cross-border/localization rules.
 - [document-map.md](references/document-map.md) — artifact activation and source ownership.
 - [requirements-traceability.md](references/requirements-traceability.md) — IDs, task mapping, and evidence boundary.
-- [implementation-tasks.md](references/implementation-tasks.md) — open validator, jurisdiction, profile, fixture, update-safety, and provenance work.
+- [implementation-tasks.md](references/implementation-tasks.md) — maintenance backlog and release evidence; skip during normal project use.

@@ -18,7 +18,7 @@ This is an engineering applicability aid, not legal, tax, privacy, or certificat
 | Australia | [OAIC Privacy Act](https://www.oaic.gov.au/privacy/privacy-legislation/the-privacy-act) | APP scope, cross-border disclosure, breach, health/credit/state overlays |
 | Japan | [Japan PPC](https://www.ppc.go.jp/en/) | APPI scope, sensitive data, third-party provision, transfers, current reform status |
 
-These are starter sources, not a global law database. For any other territory or sector, use its official regulator, legislature, gazette, or court source.
+These are starter sources, not a global law database. For any other territory or sector, use its official regulator, legislature, gazette, or court source. The offline provenance ledger lives at `assets/sources.json`; run `python3 scripts/audit-sources.py` to flag missing, stale, or superseded records without network credentials or silent requirement changes.
 
 ## Applicability record
 

@@ -11,7 +11,7 @@
 | Legal/audit approver | [Name/role or Not applicable with reason] |
 | Status | Draft / In review / Approved / Superseded |
 | Version / updated | [Version] / [YYYY-MM-DD] |
-| Jurisdictions/frameworks assessed | [TBD after applicability review] |
+| Jurisdictions/frameworks assessed | [TBD owner=Privacy owner; due=before applicability review] |
 | Applies to | [Entities, products, processing, environments] |
 | Required when | Personal/sensitive data, regulated processing, contractual controls, cross-border transfers, or formal assurance obligations apply. |
 
