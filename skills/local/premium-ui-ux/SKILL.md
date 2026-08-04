@@ -1,9 +1,8 @@
 ---
 name: premium-ui-ux
 description: >-
-  Advanced UI/UX architectural intelligence for premium web applications, SaaS admin dashboards, 
-  and cross-border e-commerce. Cures "AI-slop" by enforcing design engineer best practices (Vercel/Linear style), 
-  data-dense charting UX, and cultural design nuances (USA/EU Minimalism vs Asia Maximalism). Includes overrides for Bootstrap and Preline UI.
+  Advanced UI/UX architectural intelligence for premium web applications. Automatically triggers for any frontend, UI, responsive, or design tasks.
+  Triggers: 'bikin ui', 'desain web', 'dashboard responsive', 'bikin tampilan', 'mobile friendly', 'premium design'.
 ---
 
 # premium-ui-ux: Global Design Intelligence & Dashboard Architecture
@@ -110,3 +109,13 @@ A beautiful interface that takes 5 seconds to load is not premium. Premium UI/UX
 - **Technical SEO Architecture:** 
   - Premium UX includes structural perfection: semantic HTML5 tags (`<main>`, `<article>`, `<nav>`), flawless heading hierarchy (one H1), and rich snippets.
   - **Delegation:** For configuring metadata, schema/JSON-LD, robots.txt, or solving indexing drops, immediately invoke the **`seo-website-builder`** skill.
+
+---
+
+## 7. NATIVE "WEB APP" RESPONSIVENESS (All Devices)
+A premium site must feel like a native application across Desktop, Tablet, and Mobile, adapting fluidly to *any* viewport size.
+
+- **The Mobile Safari Zoom Bug:** iOS Safari will automatically zoom into the page if an `<input>`, `<textarea>`, or `<select>` has a font-size smaller than `16px`. **CRITICAL RULE:** Always force `text-base` (16px) on all form inputs on mobile to prevent layout-breaking auto-zoom.
+- **Native Touch Feel:** Disable the blue tap highlight on mobile (`[-webkit-tap-highlight-color:transparent]`). Prevent accidental text selection on UI elements like buttons, tabs, and cards (`select-none`).
+- **Fluid Grids:** Do not rely solely on hard Tailwind breakpoints (`sm:`, `md:`). Use CSS Grid (`grid-cols-[repeat(auto-fit,minmax(250px,1fr))]`) and Flexbox `gap` to create layouts that smoothly resize at *every single pixel width* without snapping awkwardly.
+- **App-like Mobile Nav:** On mobile, prioritize bottom tab navigation bars with frosted glass (`backdrop-blur-md`) for core features, mimicking iOS/Android native patterns, rather than hiding everything inside a top hamburger menu.
