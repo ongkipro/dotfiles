@@ -59,6 +59,21 @@ class SuiteTests(unittest.TestCase):
             args += ["--format", "json"]
         return run(*args, expected=expected)
 
+    def test_skill_progressive_disclosure_contract(self) -> None:
+        text = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        required = (
+            "## Token-efficient loading",
+            "load only the triggered reference",
+            "Never load `assets/templates/*`",
+            "use JSON only for automation",
+            "Only for suite maintenance or release-status claims",
+        )
+        for phrase in required:
+            self.assertIn(phrase, text)
+        self.assertLessEqual(len(text.split()), 1200)
+        self.assertEqual(text.count("references/context-resolution.md"), 2)
+        self.assertEqual(text.count("references/implementation-tasks.md"), 2)
+
     def test_context_record_is_created_once_and_preserved(self) -> None:
         destination = self.root / "pack"
         self.init("product", destination)
