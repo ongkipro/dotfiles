@@ -3,7 +3,7 @@ name: premium-ui-ux
 description: >-
   Advanced UI/UX architectural intelligence for premium web applications, SaaS admin dashboards, 
   and cross-border e-commerce. Cures "AI-slop" by enforcing design engineer best practices (Vercel/Linear style), 
-  data-dense charting UX, and cultural design nuances (USA/EU Minimalism vs Asia Maximalism).
+  data-dense charting UX, and cultural design nuances (USA/EU Minimalism vs Asia Maximalism). Includes overrides for Bootstrap and Preline UI.
 ---
 
 # premium-ui-ux: Global Design Intelligence & Dashboard Architecture
@@ -46,7 +46,31 @@ Dashboards are briefings, not data dumps. Apply Shneiderman’s mantra: *"Overvi
 
 ---
 
-## 3. CROSS-BORDER & GLOBAL MARKET CONTEXT
+## 3. FRAMEWORK & COMPONENT PLAYBOOK (Preline, Bootstrap, shadcn)
+No matter what UI framework is used, you must strip away their "default" look to achieve a premium feel.
+
+### A. Preline UI & Tailwind Templates
+- **The Danger:** Preline UI provides excellent structural Tailwind components, but copy-pasting them directly often results in a "generic template" look.
+- **The Fix:** 
+  - Strip out default hard grays (`border-gray-200`) and replace them with subtle alpha hairlines (`border-white/10` or `border-black/5`).
+  - Upgrade their default toggles and dropdowns with spring-based entrance animations (add `transition-all duration-300 ease-out` and scale transforms).
+  - Modify their default button classes to always include the `:active:scale-[0.97]` press state.
+
+### B. Bootstrap 5+ (The Ultimate Trap)
+- **The Danger:** The "Default Bootstrap Look" (system fonts, basic `#0d6efd` blue, generic shadows) is the absolute enemy of premium design.
+- **The Fix:** 
+  - **SCSS Override is Mandatory:** Never use default Bootstrap classes as-is. Override SCSS variables immediately: change `$primary` to a tailored HSL color, change `$font-family-base` to a premium font (Space Grotesk/Inter), and refine `$box-shadow` to be deep and multi-layered.
+  - **Radius Consistency:** Bootstrap's default rounded corners (`.rounded`) are outdated. Override `$border-radius` to a consistent, modern radius (either perfectly sharp, or a smooth Apple-like `12px` radius).
+
+### C. Component Anatomy (Universal Rules)
+1. **Buttons:** `rounded-full` or `rounded-xl`, subtle inner glow (box-shadow inset), and a hover effect that isn't just a color swap.
+2. **Inputs:** `bg-transparent` with a subtle bottom border, or fully encased with a sleek blurred background. Always place the label *above* the input.
+3. **Navbars:** Sticky, `backdrop-blur-md`, a 1px bottom border, and dynamic hiding on scroll down/showing on scroll up if possible.
+4. **Hero:** Needs 3 elements: A strong typographic statement, a proof-point (logo wall or avatars), and a highly polished primary visual (code snippet, 3D render, or interactive widget).
+
+---
+
+## 4. CROSS-BORDER & GLOBAL MARKET CONTEXT
 You must adjust the UI/UX density and interaction patterns based on the target market. Do not use a universal template.
 
 ### A. Western Markets (USA, EU, UK, Australia)
@@ -63,7 +87,7 @@ You must adjust the UI/UX density and interaction patterns based on the target m
 
 ---
 
-## 4. TYPOGRAPHY, COLOR, AND MOTION
+## 5. TYPOGRAPHY, COLOR, AND MOTION
 - **Fluid Typography:** Use CSS `clamp()` for responsive font sizes (e.g., `text-[clamp(2rem,4vw,3.5rem)]`).
 - **Font Pairing:** Use a geometric sans (*Space Grotesk, Plus Jakarta Sans*) for display/headings with tight tracking (`tracking-tight`). Use a highly legible sans (*Inter, DM Sans*) for body text with relaxed leading (`leading-relaxed`).
 - **Color Systems (HSL/OKLCH):** Always define colors in HSL/OKLCH for programmatic theming.
