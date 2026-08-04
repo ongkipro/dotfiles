@@ -91,6 +91,8 @@ python3 scripts/check-traceability.py /path/to/project/docs/spec
 
 Also run the project's own scripts (`package.json`, Makefile, CI, migration, OpenAPI, or native platform checks) before claiming behavior works. Separate planning truth from runtime proof. Report selected profile/overlays, included and omitted artifacts with reasons, unresolved owners, source freshness, validation commands/results, and remaining legal/security/operational risk.
 
+For post-v1 improvements, read [implementation-tasks.md](references/implementation-tasks.md). Keep P0/P1/P2 status honest: the current package is v1, and a design task is not evidence that its behavior exists.
+
 ## Cross-CLI and platform contract
 
 The canonical source is `~/dotfiles/skills/local/development-spec-suite/`.
@@ -106,3 +108,4 @@ The canonical source is `~/dotfiles/skills/local/development-spec-suite/`.
 - [jurisdiction-overlays.md](references/jurisdiction-overlays.md) — official-source resolver and cross-border/localization rules.
 - [document-map.md](references/document-map.md) — artifact activation and source ownership.
 - [requirements-traceability.md](references/requirements-traceability.md) — IDs, task mapping, and evidence boundary.
+- [implementation-tasks.md](references/implementation-tasks.md) — open validator, jurisdiction, profile, fixture, update-safety, and provenance work.
