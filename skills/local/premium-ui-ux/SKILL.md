@@ -97,3 +97,16 @@ You must adjust the UI/UX density and interaction patterns based on the target m
   - **Press States:** Buttons must mimic physical presses (`active:scale-[0.97]`).
   - **Entrance Stagger:** Never load a page abruptly. Use staggered spring animations (e.g., headline fades in and slides up, followed by subtext, then CTA).
   - **Focus Rings:** Accessible and intentional `focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2`.
+
+---
+
+## 6. THE PREMIUM SPEED & SEO MANDATE
+A beautiful interface that takes 5 seconds to load is not premium. Premium UI/UX mandates passing Core Web Vitals and achieving flawless Technical SEO by default.
+
+- **Speed & Core Web Vitals (LCP, CLS, INP):** 
+  - Complex animations (GSAP), heavy variable fonts, and high-res visuals often destroy LCP and cause CLS. You MUST optimize these (preload hero assets, lazy-load off-screen animations, avoid layout shifts).
+  - **Delegation:** When auditing Google PageSpeed Insights, debugging slow renders, or fixing Web Vitals, immediately invoke the **`web-perf`** skill.
+  
+- **Technical SEO Architecture:** 
+  - Premium UX includes structural perfection: semantic HTML5 tags (`<main>`, `<article>`, `<nav>`), flawless heading hierarchy (one H1), and rich snippets.
+  - **Delegation:** For configuring metadata, schema/JSON-LD, robots.txt, or solving indexing drops, immediately invoke the **`seo-website-builder`** skill.
