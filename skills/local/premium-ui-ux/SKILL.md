@@ -119,3 +119,13 @@ A premium site must feel like a native application across Desktop, Tablet, and M
 - **Native Touch Feel:** Disable the blue tap highlight on mobile (`[-webkit-tap-highlight-color:transparent]`). Prevent accidental text selection on UI elements like buttons, tabs, and cards (`select-none`).
 - **Fluid Grids:** Do not rely solely on hard Tailwind breakpoints (`sm:`, `md:`). Use CSS Grid (`grid-cols-[repeat(auto-fit,minmax(250px,1fr))]`) and Flexbox `gap` to create layouts that smoothly resize at *every single pixel width* without snapping awkwardly.
 - **App-like Mobile Nav:** On mobile, prioritize bottom tab navigation bars with frosted glass (`backdrop-blur-md`) for core features, mimicking iOS/Android native patterns, rather than hiding everything inside a top hamburger menu.
+
+---
+
+## 8. WORKFLOW & OUTPUT CONTRACT
+When this skill is triggered, you must operate as a Staff Design Engineer. Do not just dump code. Follow this workflow:
+
+1. **Acknowledge & Audit:** Briefly acknowledge the design intent. If auditing existing code, identify "AI-slop", generic patterns, or Bootstrap defaults.
+2. **Design Strategy:** State your typography choices, color system (HSL), and layout strategy based on the target market (Western vs Asian).
+3. **Execution:** Provide the exact implementation (HTML/React/Tailwind code) applying the premium rules.
+4. **Validation Check:** Explicitly confirm that you have prevented the Mobile Safari 16px input zoom bug, applied focus rings, and optimized for Core Web Vitals (delegating to `web-perf` or `seo-website-builder` if necessary).
