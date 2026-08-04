@@ -7,6 +7,7 @@
 - `/home/fantastico/...` → that user **DOES NOT EXIST** on any machine now. That's an OLD Linux machine. Ignore it.
 - **On `cuan` (Linux, user `ongki`), as of 2026-07-14: ONLY `~/Projects/kamus` is checked out** (repo `ongkipro/kamus`, branch `main`) — verified with `ls ~/Projects`. Other projects not yet cloned; the `~/Projects/<other>` paths in this file **don't apply there**. (The note from Mac saying `~/Projects/` on cuan is EMPTY is **wrong** — Mac guessed about a machine that isn't its own. Don't write another machine's disk facts without checking them.)
 - **On Mac (`ongkis-MacBook-Air`), never rely on a memorized checkout list.** Verify with `find ~/Projects -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort`. A project absent from that output is not checked out on this device.
+  - `~/Projects/kamus` was cloned and verified on 2026-08-04. Re-check disk before future work.
   - The gitignored credentials (9 `.env` + dev sqlite) were secured to `~/Documents/work/secrets/projects-env-2026-07-14/` (mode 700). **After cloning, copy the `.env` back from there** — GitHub does not store them.
   - The `.md` docs of all projects were archived to `~/Documents/work/notes/projects-md-archive-2026-07-14/`.
 
@@ -28,7 +29,7 @@ Want to work on a project? `git clone` it first into **`~/Projects/<name>/`** (t
 - `bin/dotsync` = a semi-auto helper to sync across Linux/macOS for review → commit → optional push of shared memory/config.
 - `install-macos.sh` = lightweight macOS bootstrap for shared memory, skill linking, and basic workflow sync.
 - The tmux stack in dotfiles uses prefix `Ctrl+a`, a plain-font-friendly Catppuccin-inspired theme, and plugins: tmux-sensible, tmux-yank, resurrect, continuum, prefix-highlight, tmux-open. Setup is handled by `bin/tmux-setup`; the battery helper cross-macOS/Linux is in `bin/tmux-battery`.
-- Official GSAP skills from `greensock/gsap-skills` have been vendored into `~/dotfiles/skills/local/` as: `gsap-core`, `gsap-frameworks`, `gsap-performance`, `gsap-plugins`, `gsap-react`, `gsap-scrolltrigger`, `gsap-timeline`, `gsap-utils`, then distributed across CLIs via `skill-update`.
+- Local skills use the single source `~/dotfiles/skills/local/<name>/SKILL.md`; run `skill-list` for the current registry. Do not preserve stale per-tool copies or assume an older vendored skill set is still active.
 
 > Note: the old repo/project `social-dashboard` has been DELETED (GitHub + fully replaced
 > by `social-autopilot` on 3 July 2026). New GitHub repo: `github.com/ongkipro/social-autopilot` (private).
@@ -115,7 +116,7 @@ Want to work on a project? `git clone` it first into **`~/Projects/<name>/`** (t
 - Indonesia commerce SaaS (`tokophi.com`), monorepo `ongkipro/tokophi`, Next.js 16 + Astro + Drizzle + PostgreSQL 16 + RLS/RBAC. Old name `indostore` (dormant repo, don't use). **No clone on Mac** — main dev on Linux, `git pull` first. Business gotchas (KiriminAja/AutoLaris white-label, e-wallet down `rc=07`, `KIRIMINAJA_ENV=sandbox`, multi-agent-one-worktree) → **`[[tokophi]]`**. Session history in the repo `CHANGELOG.md` + `specs/docs/`.
 
 ## kamus (almanac / second memory) → see [[kamus-almanak]] in project-memory
-- `kamus.ongki.pro` (repo `ongkipro/kamus`, private, gated by Cloudflare Access → anonymous 401). Astro renders the repo root markdown into a dashboard. **No clone on Mac.** Often the "memory" the user means (not `~/.config/ai/memory` or CLI memory); the three can desync. AGENTS.md contract, rename-project trap, wikilink status → **`[[kamus-almanak]]`**.
+- `kamus.ongki.pro` (repo `ongkipro/kamus`, private, anonymous HTTP 401). Astro renders root Markdown into a dashboard. Cloned on Mac at `~/Projects/kamus` on 2026-08-04. Often the "memory" the user means (not `~/.config/ai/memory` or CLI memory); the systems can desync. AGENTS.md contract, security/history warning, rename-project trap, wikilink status, and current deployment status → **`[[kamus-almanak]]`**.
 
 ## volumform → see [[volumform-id-market-ux]] in project-memory
 - Multi-tenant DR-funnel SaaS for Indonesia (COD + CRM + Meta tracking + shipping KiriminAja/Mengantar). Repo `ongkipro/volumform` (created 2026-07-10), `~/Projects/volumform`. Monorepo `apps/{admin,superadmin,edge}` + `packages/db` (Drizzle); the client admin & super admin = 2 separate SPAs.
