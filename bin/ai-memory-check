@@ -154,7 +154,6 @@ const entries = requested.length
   : [
       path.join(repoRoot, "README.md"),
       path.join(repoRoot, "config", "ai"),
-      path.join(repoRoot, "config", "claude-memory"),
     ];
 const files = [...new Set(entries.flatMap(markdownFiles))].sort();
 const result = scan(files);

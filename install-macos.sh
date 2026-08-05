@@ -36,7 +36,6 @@ link "$DOT/config/ripgreprc"             "$HOME/.ripgreprc"
 link "$DOT/config/helix/config.toml"     "$HOME/.config/helix/config.toml"
 link "$DOT/config/helix/languages.toml"  "$HOME/.config/helix/languages.toml"
 link "$DOT/config/gitignore_global"      "$HOME/.gitignore_global"
-link "$DOT/config/codex-instructions.md" "$HOME/.codex/instructions.md"
 mkdir -p "$HOME/.config/mise" "$HOME/.config/lazygit" "$HOME/.config/gh"
 link "$DOT/config/mise-config.toml"      "$HOME/.config/mise/config.toml"   # toolchain bersama
 link "$DOT/config/lazygit/config.yml"    "$HOME/.config/lazygit/config.yml"

@@ -34,9 +34,8 @@ the repo map `~/dotfiles/docs/shopify-ai-development-repos.md` (dev/theme/app/ex
 |---|---|---|
 | `~/.config/ai/memory/shopify.md` | cross-CLI | Global Shopify rules, repo map pointer, MCP/plugin list |
 | `~/.config/ai/memory/projects.md` | cross-CLI | Per-project facts (path, stack, status, gotchas) — search for `### <name>` blocks |
-| `~/.config/claude-memory/*.md` | Claude | Auto-memory snapshots per project — search filenames (e.g. `pixsgo-shopify-store.md`, `petcue-shopify-site.md`) |
-| `~/Documents/shopify-ai-development-repos.md` | docs | Repo map (functions, when to use, clone vs link) |
-| `~/dotfiles/ai-toolkits/shopify-ai-toolkit/{README,TRIGGERS,DECISIONS,INSTALL_NOTES}.md` | local | Installed AI toolkit notes (if present) |
+| `~/.config/ai/project-memory/*.md` | cross-CLI | Current project-specific decisions and gotchas, indexed by `MEMORY.md` |
+| `~/dotfiles/docs/shopify-ai-development-repos.md` | docs | Repo map (functions, when to use, clone vs link) |
 
 > The first time the skill loads in a session, run `scripts/scan.sh --json` to build
 > a fresh index. Cache the JSON to a session variable; refresh only when the user
@@ -75,7 +74,7 @@ the repo map `~/dotfiles/docs/shopify-ai-development-repos.md` (dev/theme/app/ex
 - **Never execute `productUpdate`, theme push, or app deploy** from this skill —
   it is read-only + index. Hand off to the right action skill.
 - **Never overwrite canonical memory** silently. If a fact looks wrong or stale,
-  surface it and propose the edit; let the user (or `dotsync`) push the change.
+   surface it and propose the edit; let the user commit and push the change.
 - **Token-safe**: prefer `scan.sh --json` then read selectively; do not bulk-dump
   memory into the prompt unless the user asks.
 - **Brand policy respected**: aggregate but do not leak third-party brand names

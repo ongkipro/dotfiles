@@ -12,7 +12,7 @@ Common aggregations and the exact moves to make.
 #    Read these in order, stop when the user's task is fully scoped:
 #      ~/.config/ai/memory/shopify.md       (global rules)
 #      ~/.config/ai/memory/projects.md      (search `### <store-or-project>`)
-#      ~/.config/claude-memory/<project>.md (auto-memory snapshot if present)
+#      ~/.config/ai/project-memory/<project>.md (project-specific facts, if present)
 ```
 
 Then route:
@@ -36,7 +36,7 @@ Produce `~/Documents/Shopify/_audits/<date>.md` with:
 
 - Active projects count + names
 - Stores (myshopify domains) + brand head
-- Per-store: latest gotchas from `projects.md` / `claude-memory/`
+- Per-store: latest gotchas from shared and project memory
 - Open conflicts (e.g. two stores with the same handle pattern, brand policy drift)
 - Recommended next action per store
 
@@ -56,8 +56,8 @@ After the project is live (deployed, has a myshopify domain):
 
 1. Append a `### <project>` block to `~/.config/ai/memory/projects.md` with: path,
    stack, brand, store domain, deploy target, status, latest gotcha.
-2. (Optional) Create `~/.config/claude-memory/<project>-shopify-store.md` for a
-   detailed auto-memory snapshot.
+2. If project-specific decisions need durable context, add a focused file under
+   `~/.config/ai/project-memory/` and index it in `MEMORY.md`.
 3. If SEO is in scope, link to the matching `seo-website-builder` playbooks.
 4. Re-run `scan.sh` to confirm the index picks it up.
 
@@ -74,12 +74,12 @@ After the project is live (deployed, has a myshopify domain):
 
 - Prefer `scan.sh --json` then `jq` over dumping the full table.
 - Read `projects.md` with `grep -nE "^### <name>" -A 25` instead of `cat`.
-- Load `claude-memory/<project>.md` only for the project in scope.
+- Load only the matching `project-memory/<project>.md` file.
 - Skip memory files that don't match the active task; never blanket-read all of
   `~/.config/ai/memory/`.
 
 ## 7. When the answer is "I don't know"
 
 If a fact is missing or stale in memory, say so explicitly and propose the
-edit — do not invent. After user confirms, update the canonical file (which is
-symlinked to the dotfiles repo, so `dotsync sync` will commit it later).
+edit — do not invent. After user confirms, update the canonical file. The user
+reviews, commits, and pushes dotfiles explicitly.

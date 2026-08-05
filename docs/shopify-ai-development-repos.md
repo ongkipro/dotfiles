@@ -222,7 +222,7 @@ Dari enumerasi penuh, Shopify punya plugin AI-agent **resmi** — pakai ini, jan
 
 ### Skills to create/update
 - **Pakai yang sudah ada dulu** (Shopify plugin sudah terpasang): `shopify-liquid`, `shopify-hydrogen`, `shopify-functions`, `shopify-custom-data`, `shopify-storefront-graphql`, `shopify-admin`, `shopify-use-shopify-cli`, `shopify-polaris-*`, `shopify-onboarding-dev`. → **Tidak perlu bikin skill baru yang menduplikasi ini.**
-- **Skill custom yang layak dibuat** (tidak di-cover Shopify): "horizon-theme-workflow" pendek = SOP `~/.agents/skills/` yang merangkum alur theme di atas (init Horizon/Skeleton → pola Dawn/Horizon → theme-check → preview Chromium), spesifik ke konvensi mesin user (helix, lazygit, mise).
+- **Skill custom yang layak dibuat** (tidak di-cover Shopify): "horizon-theme-workflow" pendek di `~/dotfiles/skills/local/` yang merangkum alur theme di atas (init Horizon/Skeleton → pola Dawn/Horizon → theme-check → preview Chromium), spesifik ke konvensi mesin user (helix, lazygit, mise).
 
 ### Reference docs to keep
 - Simpan **file ini** sebagai peta utama: `~/Documents/shopify-ai-development-repos.md`.
@@ -230,7 +230,7 @@ Dari enumerasi penuh, Shopify punya plugin AI-agent **resmi** — pakai ini, jan
 - Untuk spec Liquid & API: andalkan **MCP `shopify-dev`** + `theme-liquid-docs` (live), jangan simpan dump.
 
 ### Memory facts ✅ SUDAH DISIMPAN
-Tersimpan ringkas di `~/.config/ai/memory/shopify.md` (lintas-CLI) + auto-memory Claude `shopify-dev-repo-map.md`. Routing skill: `shopify-ai-toolkit-router`. Fakta DURABLE & ringkas (bukan isi besar):
+Tersimpan ringkas di `~/.config/ai/memory/shopify.md` (lintas-CLI). Untuk development routing, gunakan repo map ini dan official documentation langsung; router lama `shopify-ai-toolkit-router` sudah dihapus. Fakta DURABLE & ringkas (bukan isi besar):
 - Theme flagship terbaru = `horizon` (theme blocks); `dawn` = reference matang; `skeleton-theme` = base bersih. `theme-check` (Ruby)/`themekit`/`slate`/`Timber`/`starter-theme` = **deprecated**.
 - Plugin AI resmi: `Shopify-AI-Toolkit` (= Shopify Dev MCP) + `liquid-skills` (LSP) untuk Claude Code; `shop-chat-agent` = template AI storefront.
 - Theme DX modern = `theme-tools` (theme-check + LSP + prettier-plugin-liquid). CLI resmi = `cli` (TS, `@shopify/cli`), bukan `shopify-cli` Ruby (arsip).

@@ -6,7 +6,7 @@
 - Use modern tools: `rg` (not grep), `fd` (not find), `eza` (not ls), `bat` (not cat), `z` zoxide (not manual cd).
 - Git: quick commit via lazygit; backup = push to remote; DO NOT auto-commit (anti-pattern).
 - Dotfiles sync: when there's an update on GitHub (`ongkipro/dotfiles`), pull and deploy locally (especially memory `~/.config/ai/memory/`). Conversely, when there are local changes in `~/dotfiles` that need saving, commit + push to GitHub. Be precise — don't break existing patterns.
-- `dotpush ["message"]` = standard push path: enable driver → refresh machine snapshot → security-check → commit → **fetch+merge remote first (anti-divergence)** → push. Non-snapshot conflict → stops and asks for manual resolution. `dotsync` = granular variant (status/commit/push/pull/sync/doctor).
+- `dotpush ["message"]` = broad explicit fast path: enable driver → refresh machine snapshot → security-check → commit → **fetch+merge remote first (anti-divergence)** → push. Non-snapshot conflict stops for manual resolution. Prefer `lg` for mixed worktrees. `dotsync` with no arguments is read-only `status`; mutating variants require an explicit `commit`, `sync`, `push`, or `pull` verb.
 - Machine-specific snapshot files (`home/gitconfig`, `home/bashrc.snapshot`, `home/zshrc.snapshot`, `config/mise-config.toml`, `config/vscode-settings.json`) are marked `merge=ours` in `.gitattributes` → on sync always keep the local machine's version (needs `git config merge.ours.driver true`, set automatically by dotpush + install scripts).
 - VSCode optional, not mandatory — don't suggest it unless asked.
 - Shopify dev routing: **the official Shopify AI Toolkit is NOT installed** in Claude (verified 2026-07-14 — the only marketplace present is `claude-plugins-official`). The repo map is at `~/dotfiles/docs/shopify-ai-development-repos.md`. Don't clone Shopify support repos (dawn/horizon/hydrogen/cli/liquid/theme-liquid-docs) as duplicate skills; just reference the links unless asked to inspect/base on them.
@@ -17,7 +17,7 @@
 - `skill-*` scripts are in `~/dotfiles/skills/agents-bin/`, linked into `~/.agents/bin/`.
 - On macOS: `skill-update` needs bash 5+ (brew) and BSD `find` compatibility (already patched).
 - SEO: use the `seo-website-builder` skill (self-contained, has a full `references/`). ⚠️ The old corpora `~/Documents/seo-research-google/` and `~/Documents/SEO/` DO NOT EXIST — don't look for them. Don't claim secret Google algorithm knowledge.
-- **Toolkit docs (reference, not skills)**: `~/dotfiles/ai-toolkits/{cloudflare-worker-toolkit,shopify-ai-toolkit}/`. ⚠️ The old path `~/.ai/...` DOES NOT EXIST — don't use it.
+- Cloudflare and Shopify workflows come from active skills plus current official documentation. Do not restore the deleted `ai-toolkits/` router layer or the old `~/.ai/...` paths.
 
 ## Folder structure
 
@@ -54,7 +54,7 @@ All development projects: web app, SaaS, Shopify, bots, etc. (Created 2026-07-14
 ~/.config/ai/memory/     ← memory AI (symlink → dotfiles/config/ai/memory)
 ```
 
-> ⚠️ **AI memory only exists in `~/.config/ai/memory/`.** Old notes mention `~/dotfiles/memori-ai/` (EMPTY folder) and `~/Documents/memori ai/` (DOES NOT EXIST) — both are wrong, don't use them.
+> ⚠️ **AI memory only exists in `~/.config/ai/memory/`.** The legacy `~/dotfiles/memori-ai/` directory was removed; `~/Documents/memori ai/` does not exist. Do not recreate either path.
 
 ## Personal AI Orchestrator (`ico`) Execution Workflow
 

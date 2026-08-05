@@ -161,8 +161,5 @@ shopify-full-audit() {
   shopify-content-helper seo-check "$url"
 }
 
-# --- Device bootstrap (restore this device's setup from a snapshot) ---
-[ -x "$HOME/.local/bin/setup-device" ] && alias setup='setup-device'
-
 # --- Windows debloat (run as admin from Windows PowerShell) ---
 [ -f /mnt/c/Users/Asus/win-debloat.ps1 ] && alias win-debloat='powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\\Users\\Asus\\win-debloat.ps1'

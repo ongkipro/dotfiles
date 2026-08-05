@@ -1,114 +1,95 @@
-# AI Memory Sync — Linux + macOS
+# AI Memory Synchronization
 
-Tujuan: bikin `~/dotfiles` jadi **source of truth** untuk memori bersama, aturan kerja, dan config AI lintas device.
+`~/dotfiles` is the tracked source of truth for shared AI policy, durable memory,
+and owned skills across Linux and macOS.
 
-## Prinsip
+## Sources
 
-- Repo: `github.com/ongkipro/dotfiles`
-- Semua AI boleh **read** memory/config dari repo ini.
-- Perubahan **durable** boleh ditulis ke repo.
-- Sync model: **semi-auto** → review singkat, commit lokal, lalu push opsional.
-- Jangan pernah commit secret, token, credential, session, cache, atau artefak sementara.
+- `config/ai/AGENTS.md` — small policy loaded by every supported AI CLI.
+- `config/ai/memory/` — durable cross-project facts loaded on demand.
+- `config/ai/project-memory/` — project-specific decisions and gotchas.
+- `skills/local/` — the only source for owned skills.
 
-## Struktur utama
+Live configuration is connected to these sources with symlinks. Pulling a
+reviewed Git change therefore updates the consumers immediately.
 
-- `config/ai/AGENTS.md` → context ringkas global
-- `config/ai/memory/*.md` → memory lintas sesi/device
-- `skills/local/` → local skills untuk semua AI CLI
-- `bin/dotsync` → helper sync lintas Linux/macOS
+## Normal workflow
 
-## Flow yang disarankan
-
-### Di device aktif
-1. AI atau user update file penting di `~/dotfiles`
-2. Jalankan `dotsync status`
-3. Jalankan `dotsync sync`
-4. Review staged preview
-5. Konfirmasi commit
-6. Pilih push sekarang atau nanti
-
-### Di device lain
-- Jalankan `dotsync pull`
-- atau `cd ~/dotfiles && git pull --ff-only`
-
-Karena live config memakai symlink ke repo, perubahan yang ter-pull langsung aktif.
-
-## Command utama
+Use Git and Lazygit directly for daily work:
 
 ```bash
-dotsync status              # lihat perubahan
-dotsync commit              # commit lokal dengan konfirmasi
+cd ~/dotfiles
+git status --short --branch
+lg
+```
+
+Stage only the intended files, review the staged diff, commit, and push
+explicitly. A mixed worktree must not use broad staging helpers.
+
+Read-only checks:
+
+```bash
+dotsync                 # defaults to `dotsync status`
+dotsync status
+dotsync doctor
+security-check
+ai-doctor
+```
+
+Broad convenience commands are available only when the entire working tree is
+intentionally in scope:
+
+```bash
 dotsync commit "memory: update workflow"
-dotsync push                # push dengan konfirmasi
-dotsync pull                # pull ff-only dengan konfirmasi
-dotsync sync                # commit lalu tanya push
-dotsync doctor              # cek path penting + status repo
+dotsync sync "memory: update workflow"
+dotpush "memory: update workflow"
 ```
 
-Kalau butuh non-interaktif (mis. dipanggil tool setelah approval eksplisit):
+Both `dotsync commit` and `dotsync sync` stage the whole repository, show a
+preview, and run `security-check` before committing. `dotpush` additionally
+fetches, merges remote changes, and pushes. Do not use these commands on a mixed
+or unexpectedly dirty worktree.
+
+## Another device
+
+Pull only from a clean worktree:
 
 ```bash
-dotsync --yes commit "memory: sync"
-dotsync --yes push
+cd ~/dotfiles
+git pull --ff-only
+ai-doctor
 ```
 
-## Kenapa aman untuk macOS juga?
-
-Script `bin/dotsync`:
-- pakai `bash` portable
-- tidak bergantung pada `systemd`
-- tidak memakai GNU-only flags yang rawan beda di macOS
-- snapshot file yang ada saja (`.bashrc`, `.zshrc`, VS Code settings Linux/macOS)
-
-## Semi-auto policy untuk AI
-
-AI boleh menawarkan sync jika:
-- perubahan durable
-- bukan secret
-- relevan lintas sesi/device
-
-AI **tidak** boleh push diam-diam tanpa approval user.
-
-Template approval:
-
-> Ada perubahan durable di dotfiles/shared memory. Mau saya buat commit lokal dulu? Push bisa menyusul setelah kamu review.
-
-## macOS bootstrap
-
-Sekarang tersedia:
+If the branches diverged, inspect both sides before integrating:
 
 ```bash
-bash ~/dotfiles/install-macos.sh
-source ~/.zshrc
-~/.agents/bin/skill-update
+git fetch origin
+git rev-list --left-right --count HEAD...origin/main
+git log --oneline --graph --decorate HEAD origin/main
 ```
 
-Tujuannya bukan menyamai penuh workstation Linux, tapi cukup untuk:
-- shared memory
-- skill linking lintas CLI
-- `dotsync` / `dotpush`
-- shell hook dasar zsh
+Do not resolve divergence with force push or history rewriting unless explicitly
+requested.
 
-## Scheduler opsional
+## New device
 
-Kalau nanti mau otomatis ringan:
+```bash
+git clone https://github.com/ongkipro/dotfiles.git ~/dotfiles
+cd ~/dotfiles
+bash install.sh          # Linux
+# or: bash install-macos.sh
+ai-doctor
+```
 
-- Linux: `systemd --user` timer atau shell login hook
-- macOS: `launchd` atau shell login hook
+The installers preserve existing regular files as timestamped backups before
+creating symlinks. Review the relevant installer before running it.
 
-Tetap sarankan **auto-pull only** untuk background sync. Auto-commit/push sebaiknya tetap butuh approval.
+## Security boundary
 
-## Guardrails
+Never track secrets, tokens, credentials, authentication state, customer data,
+or private environment files. `security-check` is a guardrail, not a substitute
+for reviewing the staged diff. If a credential is ever committed, revoke or
+rotate it immediately; deleting it in a later commit is insufficient.
 
-Masukkan ke `.gitignore` atau jaga tetap untracked:
-- `.env*`
-- `*auth*.json`
-- token / credential files
-- session folders
-- cache, logs, screenshots, temporary exports
-
-## Rekomendasi operasional
-
-- Default harian: `dotsync sync`
-- Device baru: clone repo, jalankan `install.sh`, lalu `dotsync doctor`
-- Kalau AI update memory penting, commit ke dotfiles di hari yang sama biar device lain tetap sinkron
+Background synchronization, if added later, should be pull-only. Commits and
+pushes remain explicit user actions.

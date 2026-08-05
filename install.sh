@@ -50,7 +50,6 @@ link "$DOT/config/lazygit/config.yml"    ~/.config/lazygit/config.yml
 link "$DOT/config/gh/config.yml"         ~/.config/gh/config.yml     # hosts.yml TIDAK di-link (berisi oauth token)
 for s in skill-help skill-list skill-new skill-open skill-remove skill-update; do link "$DOT/skills/agents-bin/$s" ~/.agents/bin/$s; done
 link "$DOT/home/profile"                 ~/.profile
-link "$DOT/config/codex-instructions.md" ~/.codex/instructions.md
 link "$DOT/bin/ai-memory-link"           ~/.local/bin/ai-memory-link
 link "$DOT/bin/dotpush"                  ~/.local/bin/dotpush
 link "$DOT/bin/dotsync"                  ~/.local/bin/dotsync

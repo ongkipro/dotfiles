@@ -153,7 +153,6 @@ Claude Code uses one native profile at `~/.claude`. There are no personal/work l
 | Always-loaded policy | `config/ai/AGENTS.md` | Stable behavior, approval gates, language rules, and routing. |
 | Shared memory | `config/ai/memory/` | Environment, workflow, preferences, decisions, and cross-project facts. |
 | Project memory | `config/ai/project-memory/` | Project-specific decisions and gotchas, indexed by `MEMORY.md`. |
-| Claude memory backup | `config/claude-memory/` | Selected Claude Code memory retained in Git. |
 | Device-local notes | `~/.config/ai-local/` | Private machine details that must not sync. |
 
 Code progress does not belong in shared memory. Read each project's `STATUS.md`, `BUILD-LOG.md`, or equivalent repository artifact.
@@ -192,12 +191,10 @@ skill-update
 
 ```text
 dotfiles/
-├── ai-toolkits/                 # Shared development playbooks and reference toolkits
 ├── bin/                         # Maintenance, diagnostics, sync, and terminal helpers
 │   └── ai-memory-check          # Broken Markdown link and wikilink detector
 ├── config/
 │   ├── ai/                      # Cross-CLI policy and memory
-│   ├── claude-memory/           # Selected Claude Code memory backup
 │   ├── helix/                   # Editor and language-server configuration
 │   ├── pi/                      # Pi settings and extensions
 │   ├── systemd/user/            # Tracked user-service definitions
