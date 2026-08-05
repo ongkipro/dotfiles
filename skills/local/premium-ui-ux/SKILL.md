@@ -53,7 +53,7 @@ You must adjust the UI/UX density and interaction patterns based on the target m
 - **Design Philosophy:** Minimalism, generous white space, and "cognitive ease".
 - **Interaction:** High autonomy. Users expect linear, streamlined, and uninterrupted paths (e.g., one-click checkout, guest checkout).
 - **Visuals:** Clean, single-purpose interfaces. High trust in institutions means fewer visual "proofs" are needed upfront.
-- **Privacy:** Extremely strict (GDPR compliance, cookie banners are mandatory design elements).
+- **Privacy:** Treat consent UI as an applicability decision, not a universal design requirement. When non-essential storage/tracking or an applicable regime requires consent, design an accessible consent surface without dark patterns; otherwise do not add a banner by default. Route jurisdiction and legal-status claims through `development-spec-suite` and qualified review.
 
 ### B. Asian Markets (Indonesia, China, Japan, SE Asia)
 - **Design Philosophy:** Maximalism and High Information Density. A "busy" interface is often perceived as trustworthy, efficient, and offering value.

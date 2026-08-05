@@ -35,7 +35,11 @@ The binding rule: **every task traces back to one requirement, and every require
 - **`plan`** — technical PLAN from an existing PRD (architectural features)
 - **`tasks`** — break an existing PRD/PLAN into tasks
 - **`full`** *(default)* — clarify → PRD → (plan if needed) → tasks in one run
-- **`update`** — update existing artifacts; keep REQ/task numbering stable
+- **`update`** — update existing artifacts; keep requirement/task numbering stable
+
+### Suite-pack mode
+
+If a `development-spec-suite` pack is active (`CONTEXT-RECORD.md` exists), preserve its schema: product requirements use `PR-*`, quality constraints use `NFR-*`, and task headings use `T-*`. Every task declares exactly one `Primary requirement: PR-*` or `TD-*`; list other IDs under `Constraints`. Follow the pack's ownership/status/evidence fields and validator instead of the standalone `REQ-*` examples below.
 
 ## 1. Clarify — this is a gate, not small talk
 
@@ -178,7 +182,8 @@ Diagrams aren't mandatory — embed one ONLY when it hits these, otherwise it's 
 
 Follow the `AGENTS.md` Output discipline; use `~` only (never hardcode `/Users/...` or `/home/...`):
 - **Draft/iteration** → `~/Documents/work/prd/<slug>/` (PRD.md, PLAN.md).
-- **Final** `PRD.md` + `TASKS.md` (+ `PLAN.md` if any) → **project root**, so they commit to GitHub alongside the code.
+- **Existing development-spec-suite pack** → update its canonical `02-PRD.md`; write `TASKS.md` and optional `PLAN.md` beside it. Detect the pack by `CONTEXT-RECORD.md`; never create a competing root `PRD.md`.
+- **Standalone/default** → final `PRD.md` + `TASKS.md` (+ `PLAN.md` if any) at the **project root**, so they commit with the code.
 - Separate ADRs (if used) → `docs/adr/NNNN-<slug>.md` in the repo.
 
 ## Tips

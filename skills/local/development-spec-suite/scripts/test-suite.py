@@ -67,12 +67,32 @@ class SuiteTests(unittest.TestCase):
             "Never load `assets/templates/*`",
             "use JSON only for automation",
             "Only for suite maintenance or release-status claims",
+            "NOT for a PRD/TASKS-only request",
+            "For a single-artifact request, route directly to the specialist",
+            "generic legal claims never establish applicability",
+            "rather than create a competing source of truth",
         )
         for phrase in required:
             self.assertIn(phrase, text)
         self.assertLessEqual(len(text.split()), 1200)
         self.assertEqual(text.count("references/context-resolution.md"), 2)
         self.assertEqual(text.count("references/implementation-tasks.md"), 2)
+        agent_prompt = (ROOT / "agents" / "openai.yaml").read_text(encoding="utf-8")
+        self.assertIn("multi-document pack", agent_prompt)
+        self.assertIn("delegate specialist-owned artifacts", agent_prompt)
+
+    def test_cross_skill_ownership_contracts(self) -> None:
+        skills_root = ROOT.parent
+        prd = (skills_root / "prd-taskbreaker" / "SKILL.md").read_text(encoding="utf-8")
+        premium_ui = (skills_root / "premium-ui-ux" / "SKILL.md").read_text(encoding="utf-8")
+        document_map = (ROOT / "references" / "document-map.md").read_text(encoding="utf-8")
+        self.assertIn("Detect the pack by `CONTEXT-RECORD.md`", prd)
+        self.assertIn("never create a competing root `PRD.md`", prd)
+        self.assertIn("product requirements use `PR-*`, quality constraints use `NFR-*`", prd)
+        self.assertIn("exactly one `Primary requirement: PR-*` or `TD-*`", prd)
+        self.assertIn("Never maintain both `PRD.md` and `02-PRD.md`", document_map)
+        self.assertIn("not a universal design requirement", premium_ui)
+        self.assertIn("Route jurisdiction and legal-status claims through `development-spec-suite`", premium_ui)
 
     def test_context_record_is_created_once_and_preserved(self) -> None:
         destination = self.root / "pack"
