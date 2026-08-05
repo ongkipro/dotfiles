@@ -7,3 +7,11 @@ home/bashrc.snapshot      merge=ours
 home/zshrc.snapshot       merge=ours
 config/mise-config.toml   merge=ours
 config/vscode-settings.json merge=ours
+# pi settings: isinya SEBAGIAN BESAR bersama (packages, compaction, provider image-gen), jadi
+# jangan di-untrack — tapi tiga fieldnya murni per-mesin dan berubah sendiri:
+# `lastChangelogVersion` (naik tiap `pi update`), `defaultProvider`, `defaultModel`.
+# Tanpa baris ini, ketiganya bentrok tiga-arah di tiap sync (terjadi 2026-08-05: lokal
+# 9router/cx-gpt-5.4 vs remote 9router-fantastico/ag-gemini-3.5-flash-low).
+# ⚠️ Driver `ours` hanya bekerja saat MERGE. Pull yang fast-forward tetap mengambil versi remote —
+# jadi kalau default pi mesin ini berubah sendiri sesudah pull, itu sebabnya, bukan bug pi.
+config/pi/settings.json   merge=ours

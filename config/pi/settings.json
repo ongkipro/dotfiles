@@ -1,7 +1,7 @@
 {
-  "lastChangelogVersion": "0.83.0",
-  "defaultProvider": "9router-fantastico",
-  "defaultModel": "ag/gemini-3.5-flash-low",
+  "lastChangelogVersion": "0.82.1",
+  "defaultProvider": "9router",
+  "defaultModel": "cx/gpt-5.4",
   "defaultThinkingLevel": "high",
   "theme": "dark",
   "quietStartup": true,
