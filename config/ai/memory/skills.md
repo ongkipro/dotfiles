@@ -77,7 +77,20 @@ Three layers, separated by **how often they are paid for**:
   `design-taste`, `development-spec-suite`, `lean-code-review` and `premium-ui-ux` were invisible to
   claude and pi. **After a dotfiles pull that adds or removes a skill, run `skill-update`.**
   Verify: `comm -23 <(ls -1 ~/dotfiles/skills/local | grep -v '^_' | LC_ALL=C sort) <(find ~/.claude/skills -maxdepth 1 -type l -exec basename {} \; | LC_ALL=C sort)` — empty means wired.
-- `skill-update` (it lives in `~/.agents/bin/`, NOT in dotfiles) is idempotent and safe to re-run.
+- 🔴 **THERE ARE TWO DIFFERENT `skill-update` SCRIPTS, AND THEY IMPLEMENT OPPOSITE MODELS.** Know
+  which one you are running before you run it:
+  - `~/dotfiles/skills/agents-bin/skill-update` — **dotfiles' own**, whole-DIRECTORY symlink
+    (`~/.claude/skills` → `skills/local`). Under it, `git pull` really is enough, and jezweb's
+    shared skills are not part of the picture. `install.sh:51` links it into `~/.agents/bin/`.
+  - The **jezweb installer** (`SKILL_REPO_URL=github.com/jezweb/claude-skills`) — per-skill symlinks
+    from BOTH `skills/local` and `~/.agents/repos/shared-skills`.
+  On `cuan` 2026-08-05, `~/.agents/bin/skill-update` is a **real file** holding the jezweb version,
+  shadowing the symlink `install.sh` intends — which is why the census above shows 97 links per dir
+  instead of one directory symlink. Check before running: `head -3 ~/.agents/bin/skill-update`
+  (dotfiles' version says "Link every AI CLI's skills dir to the ONE source").
+  Both are idempotent, and dotfiles' version carries a hard guard against ever touching anything
+  that resolves inside `skills/local` — but they produce DIFFERENT runtime states, so running the
+  other one flips the machine's model (40 skills visible vs 97).
 - `skill-new` / `skill-remove` create or delete the SOURCE; the runtime dirs follow on the next
   `skill-update`.
 - ⚠️ **`skill-update` MAINTAINS FIVE TARGET DIRS AND RECREATES THEM EVERY RUN** — including

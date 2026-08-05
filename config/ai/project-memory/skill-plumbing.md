@@ -24,9 +24,17 @@ commits and five new skills — `admin-dashboard`, `design-taste`, `development-
 `skill-update` ran, because no symlink pointed at them. The old note *"`git pull` alone is enough to
 sync"* described the single-directory model and is **retracted**.
 
-**How to apply:** after a dotfiles pull that adds or removes a skill, run **`skill-update`** (it
-lives in `~/.agents/bin/`, not in dotfiles; idempotent), then `ai-doctor`. Confirm nothing is
-stranded:
+🔴 **The state above is what the JEZWEB installer produces — dotfiles ships a DIFFERENT
+`skill-update` that would replace it.** `install.sh:51` links
+`~/dotfiles/skills/agents-bin/skill-update` into `~/.agents/bin/`, and that version builds a
+whole-DIRECTORY symlink (`~/.claude/skills` → `skills/local`, 40 skills, no jezweb). On `cuan`
+2026-08-05 `~/.agents/bin/skill-update` is a **real file** carrying the jezweb version instead,
+shadowing that link — nobody has decided which model this machine should be on. Identify it first:
+`head -3 ~/.agents/bin/skill-update`. Both are idempotent and dotfiles' one refuses to touch
+anything resolving inside `skills/local`; the difference is the resulting runtime (97 skills vs 40).
+
+**How to apply:** after a dotfiles pull that adds or removes a skill, run **`skill-update`** (the one
+currently installed), then `ai-doctor`. Confirm nothing is stranded:
 
 ```bash
 comm -23 <(ls -1 ~/dotfiles/skills/local | grep -v '^_' | LC_ALL=C sort) \
