@@ -71,13 +71,16 @@ ff(){ local f; f=$(fzf --preview 'bat -n --color=always {} 2>/dev/null || cat {}
 fkill(){ local pid; pid=$(ps -eo pid,comm,%cpu,%mem | sed 1d | sort -rnk3 | fzf -m --header='pilih proses (TAB=multi)' | awk '{print $1}'); [ -n "$pid" ] && echo "$pid" | xargs -r kill "${1:--15}"; }
 
 # --- pi.dev: auto-load shared AI memory ---
-# Welcome banner is rendered by the pi extension (~/.pi/agent/extensions/welcome-screen.ts),
-# so the wrapper must NOT also cat welcome.txt — that caused a double banner.
 pi() {
   local mem="$HOME/.config/ai/AGENTS.md"
   local local_mem="$HOME/.config/ai-local/device.md"
+  local safe_update="$HOME/dotfiles/bin/pi-update-safe"
   case "${1:-}" in
-    update|install|uninstall|remove|list) command pi "$@" ;;
+    update)
+      shift
+      if [ -x "$safe_update" ]; then "$safe_update" "$@"; else command pi update "$@"; fi
+      ;;
+    install|uninstall|remove|list) command pi "$@" ;;
     *)
       # Build --append-system-prompt args: shared memory + device-local memory
       local -a args=()

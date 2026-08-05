@@ -27,6 +27,21 @@ else
   echo "Staged preview:"
   git -c core.pager=cat diff --cached --stat
 
+  ai_changed="$(git diff --cached --name-only -- \
+    config/ai \
+    skills/local \
+    bin/ai-doctor \
+    bin/pi-update-safe \
+    config/bashrc.tools.sh \
+    config/zshrc.tools.sh \
+    config/shell-tools.sh \
+    2>/dev/null || true)"
+  if [ -n "$ai_changed" ]; then
+    echo ""
+    echo "AI plumbing touched:"
+    printf '%s\n' "$ai_changed" | sed 's/^/  - /'
+  fi
+
   # Scan secret SETELAH `git add -A`, SEBELUM commit.
   # Urutannya penting: sebelum staging, file baru yang belum ter-track tidak
   # terlihat oleh scanner sama sekali — jadi ia lolos lalu ikut ter-push.

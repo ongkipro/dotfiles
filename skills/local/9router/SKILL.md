@@ -47,11 +47,23 @@ Response shape:
 ]}
 ```
 
-## Status: 9router MATI (sejak 2026-07-13, disengaja)
+## Status: cek dari disk, jangan hard-code
 
-Service di-`stop`+`disable`; port 20128 tutup. Cek: `systemctl --user is-enabled 9router.service`.
-Hidupkan: `systemctl --user enable --now 9router.service`.
-Konsekuensi saat OFF: pi image-gen & compaction via 9router gagal. **Chat utama pi tetap jalan** (default = provider NATIVE `minimax`/`MiniMax-M3`, tidak lewat 9router).
+Status 9router **per-machine** dan bisa berubah. Cek langsung:
+
+```bash
+systemctl --user is-enabled 9router.service
+systemctl --user is-active 9router.service
+curl http://localhost:20128/api/health
+```
+
+Kalau OFF, hidupkan dengan:
+
+```bash
+systemctl --user enable --now 9router.service
+```
+
+Kalau 9router OFF, fitur pi yang diarahkan ke 9router (mis. model custom di `/model`, image-gen, atau alur lain yang memakai gateway lokal ini) akan gagal. Pi masih bisa jalan lewat provider lain bila dikonfigurasi demikian.
 
 ## Capabilities
 

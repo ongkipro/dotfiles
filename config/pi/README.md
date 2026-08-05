@@ -7,7 +7,6 @@
 - `settings.json` — source of truth config pi: default provider/model/theme/thinking, packages, **pi-image-gen** (gambar via 9router lokal+remote; key & tunnel URL tersanitasi jadi placeholder env)
 - `models.template.json` — 9router provider definition + curated models (no secrets)
 - `extensions/compact-free/` — extension untuk compaction pakai model gratis
-- `extensions/welcome-screen/` — Ongki v2 PRESS START header (di-restore sebagai flat file `~/.pi/agent/extensions/welcome-screen.ts`, auto-load)
 
 ### Auto-sync models (Linux)
 
@@ -45,7 +44,6 @@ cp dotfiles/config/pi/settings.json ~/.pi/agent/settings.json
 cp dotfiles/config/pi/models.template.json ~/.pi/agent/models.json  # hanya kalau belum ada
 mkdir -p ~/.pi/extensions/compact-free ~/.pi/agent/extensions
 cp dotfiles/config/pi/extensions/compact-free/* ~/.pi/extensions/compact-free/
-cp dotfiles/config/pi/extensions/welcome-screen/index.ts ~/.pi/agent/extensions/welcome-screen.ts
 cp dotfiles/config/9router/aliases.json ~/.9router/aliases.json
 cp dotfiles/config/9router/runtime-package.json ~/.9router/runtime/package.json
 ```

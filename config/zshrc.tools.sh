@@ -3,12 +3,15 @@
 # >>> dotfiles-tools (ongkipro/dotfiles) >>>
 
 # --- pi.dev: auto-load shared AI memory ---
-# Welcome banner is rendered by the pi extension (~/.pi/agent/extensions/welcome-screen.ts),
-# so the wrapper must NOT also cat welcome.txt — that caused a double banner.
 pi() {
   local mem="$HOME/.config/ai/AGENTS.md"
+  local safe_update="$HOME/dotfiles/bin/pi-update-safe"
   case "${1:-}" in
-    update|install|uninstall|remove|list) command pi "$@" ;;
+    update)
+      shift
+      if [ -x "$safe_update" ]; then "$safe_update" "$@"; else command pi update "$@"; fi
+      ;;
+    install|uninstall|remove|list) command pi "$@" ;;
     *)
       if [ -f "$mem" ]; then command pi --append-system-prompt "$mem" "$@"; else command pi "$@"; fi
       ;;

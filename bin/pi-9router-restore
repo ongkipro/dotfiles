@@ -126,13 +126,6 @@ else
   warn "compact-free extension tidak ditemukan di dotfiles"
 fi
 
-# ── 2.5) Restore welcome-screen extension (auto-load flat file) ──────────────
-if [ -f "$DOTFILES_DIR/config/pi/extensions/welcome-screen/index.ts" ]; then
-  mkdir -p "$PI_AGENT_DIR/extensions"
-  cp "$DOTFILES_DIR/config/pi/extensions/welcome-screen/index.ts" "$PI_AGENT_DIR/extensions/welcome-screen.ts"
-  say "welcome-screen extension restored → ~/.pi/agent/extensions/welcome-screen.ts"
-fi
-
 # ── 2.6) Link pi-9router-sync.js (dipakai service auto-sync models) ──────────
 if [ -f "$DOTFILES_DIR/bin/pi-9router-sync.js" ]; then
   mkdir -p "$HOME/.local/bin"
@@ -246,6 +239,13 @@ PLISTEOF
 Description=9Router AI Gateway
 After=network-online.target
 Wants=network-online.target
+# GLITCH-FIX 2026-07-28: anti crash-loop
+#   1) ExecStartPre sleep — beri waktu node release port sebelum systemd retry
+#      (EADDRINUSE sebelumnya loop 28K+ kali karena RestartSec=5 lebih cepat
+#      dari waktu node shutdown bersih)
+#   2) StartLimit* — hentikan restart loop setelah 10 crash dalam 5 menit
+StartLimitIntervalSec=300
+StartLimitBurst=10
 
 [Service]
 Type=simple
@@ -255,9 +255,10 @@ Environment=HOME=%h
 Environment=PORT=$PORT
 Environment=HOSTNAME=$HOST
 Environment=NODE_PATH=$NODE_PATH_COMBINED
+ExecStartPre=/bin/sleep 2
 ExecStart=$NODE_BIN $APP_DIR/custom-server.js
 Restart=always
-RestartSec=5
+RestartSec=10
 StandardOutput=journal
 StandardError=journal
 NoNewPrivileges=yes
@@ -278,9 +279,14 @@ SERVICEEOF
 [Unit]
 Description=Sync active 9router models into pi models.json
 After=network-online.target 9router.service
+# GLITCH-FIX 2026-07-28: RemainAfterExit agar unit "considered active" setelah
+#   sukses — dependency (jika ada) akan nunggu, dan kita bisa cek `is-active`.
+#   Tanpa ini: oneshot setelah selesai → inactive → sync tidak pernah jalan
+#   di session berikutnya tanpa manual trigger.
 
 [Service]
 Type=oneshot
+RemainAfterExit=yes
 ExecStart=$NODE_BIN $HOME/.local/bin/pi-9router-sync.js
 
 [Install]
@@ -312,7 +318,7 @@ fi
 
 echo ""
 say "Catatan penting:"
-say "- settings.json + compact-free + welcome-screen + 9router shared config sudah di-restore dari dotfiles"
+say "- settings.json + compact-free + 9router shared config sudah di-restore dari dotfiles"
 say "- models.template.json hanya di-copy menjadi models.json kalau models.json belum ada (aman, tanpa secret)"
 say "- auth.json, models.json existing, sessions/, dan secret 9router tetap manual / device-local"
 say "- jalankan '9router-start status' atau systemctl/launchctl sesuai OS untuk cek status kapan saja"

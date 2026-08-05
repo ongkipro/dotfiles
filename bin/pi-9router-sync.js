@@ -19,6 +19,7 @@ const providerPrefixMap = {
   'antigravity': ['ag'],
   'anthropic': ['anthropic'],
   'openai': ['openai'],
+  'codex': ['cx'],
   'blackbox': ['blackbox'],
   'alicode': ['alicode'],
   'alicode-intl': ['alicode-intl'],
@@ -85,12 +86,14 @@ async function main() {
     throw new Error('9router is not installed or initialized');
   }
 
-  // 9router 0.5.x tak lagi menulis auth/cli-secret; endpoint lokal 20128 tak cek Authorization.
-  const apiKey = fs.existsSync(secretPath)
+  // /v1/models lokal longgar soal auth, tapi chat/completions membutuhkan key yang valid.
+  // Untuk pi, referensikan env var agar models.json tidak menyimpan secret yang bisa stale.
+  const syncApiKey = fs.existsSync(secretPath)
     ? fs.readFileSync(secretPath, 'utf8').trim()
     : 'noauth';
+  const piApiKeyRef = '$NINEROUTER_KEY';
   const activeProviders = await getActiveProviders();
-  const payload = await fetchModels(apiKey);
+  const payload = await fetchModels(syncApiKey);
   const ids = (payload.data || []).map(m => m.id).sort();
 
   const allowedPrefixes = new Set();
@@ -121,7 +124,7 @@ async function main() {
   cfg.providers['9router'] = {
     baseUrl: 'http://localhost:20128/v1',
     api: 'openai-completions',
-    apiKey,
+    apiKey: piApiKeyRef,
     compat: {
       supportsDeveloperRole: false,
       supportsReasoningEffort: false,

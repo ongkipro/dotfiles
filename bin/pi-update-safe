@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+if [ -n "${PI_RUNTIME_SKILL_DIRS:-}" ]; then
+  RUNTIME_SKILL_DIRS="$PI_RUNTIME_SKILL_DIRS"
+elif [ -n "${PI_SKILLS_DIR:-}" ]; then
+  RUNTIME_SKILL_DIRS="$PI_SKILLS_DIR"
+else
+  RUNTIME_SKILL_DIRS="$HOME/.pi/agent/skills:$HOME/.claude/skills"
+fi
+
+PI_ARCHIVE_ROOT="${PI_ARCHIVE_ROOT:-$HOME/.pi/agent/skill-backups}"
+
+run_update() {
+  command pi update "$@"
+}
+
+archive_skill_backups() {
+  local ts archive_dir moved=0 runtime_dir path label target_dir
+  ts="$(date +%Y-%m-%d_%H%M%S)"
+  archive_dir="$PI_ARCHIVE_ROOT/$ts"
+
+  IFS=':' read -r -a dirs <<< "$RUNTIME_SKILL_DIRS"
+  for runtime_dir in "${dirs[@]}"; do
+    [ -d "$runtime_dir" ] || continue
+
+    shopt -s nullglob
+    for path in "$runtime_dir"/*.backup.*; do
+      [ -e "$path" ] || continue
+      if [ "$moved" -eq 0 ]; then
+        mkdir -p "$archive_dir"
+      fi
+      label="$(printf '%s' "${runtime_dir#${HOME}/}" | tr '/' '-')"
+      target_dir="$archive_dir/$label"
+      mkdir -p "$target_dir"
+      mv "$path" "$target_dir/"
+      moved=1
+    done
+    shopt -u nullglob
+  done
+
+  if [ "$moved" -eq 1 ]; then
+    printf '[pi-update-safe] Archived skill backups -> %s\n' "${archive_dir/#$HOME/\~}"
+  fi
+}
+
+lint_skill_frontmatter() {
+  local npm_root pi_pkg runtime_dir text match frontmatter_message
+
+  npm_root="$(npm root -g 2>/dev/null)" || return 0
+  pi_pkg="$npm_root/@earendil-works/pi-coding-agent"
+  [ -d "$pi_pkg" ] || return 0
+
+  PI_PKG_DIR="$pi_pkg" RUNTIME_SKILL_DIRS="$RUNTIME_SKILL_DIRS" node <<'NODE'
+const fs = require('node:fs');
+const path = require('node:path');
+
+const runtimeSkillDirs = (process.env.RUNTIME_SKILL_DIRS || '').split(':').filter(Boolean);
+const piPkgDir = process.env.PI_PKG_DIR;
+let YAML;
+
+try {
+  YAML = require(path.join(piPkgDir, 'node_modules', 'yaml'));
+} catch {
+  process.exit(0);
+}
+
+const problems = [];
+const seen = new Set();
+
+function collectSkillFiles(dir) {
+  const files = [];
+  let entries = [];
+
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return files;
+  }
+
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    let stat;
+
+    try {
+      stat = fs.statSync(full);
+    } catch {
+      continue;
+    }
+
+    if (!stat.isDirectory()) continue;
+
+    const skillFile = path.join(full, 'SKILL.md');
+    if (fs.existsSync(skillFile)) {
+      files.push(skillFile);
+    }
+  }
+
+  return files;
+}
+
+for (const dir of runtimeSkillDirs) {
+  for (const file of collectSkillFiles(dir)) {
+    const realFile = (() => {
+      try {
+        return fs.realpathSync(file);
+      } catch {
+        return file;
+      }
+    })();
+
+    if (seen.has(realFile)) continue;
+    seen.add(realFile);
+
+    let text = '';
+    try {
+      text = fs.readFileSync(realFile, 'utf8');
+    } catch {
+      continue;
+    }
+
+    const match = text.match(/^---\n([\s\S]*?)\n---/);
+    if (!match) continue;
+
+    try {
+      const frontmatter = YAML.parse(match[1]);
+      if (!frontmatter || typeof frontmatter.description !== 'string' || !frontmatter.description.trim()) {
+        problems.push(`${realFile}: missing description`);
+      }
+    } catch (error) {
+      const message = error && error.message ? String(error.message).split('\n')[0] : 'invalid YAML frontmatter';
+      problems.push(`${realFile}: ${message}`);
+    }
+  }
+}
+
+if (problems.length) {
+  console.error('[pi-update-safe] Skill frontmatter warnings:');
+  for (const problem of problems) {
+    const pretty = problem.replace(process.env.HOME || '', '~');
+    console.error(`  - ${pretty}`);
+  }
+}
+NODE
+}
+
+status=0
+run_update "$@" || status=$?
+archive_skill_backups
+lint_skill_frontmatter
+exit "$status"
