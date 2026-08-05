@@ -50,19 +50,45 @@ Three layers, separated by **how often they are paid for**:
 - ⚠️ **codex NOT logged in on `cuan`** (`~/.codex/auth.json` absent) — this Linux box was just installed, still being set up. Run `codex login` before relying on codex. Not a bug.
 - **codex & agy have no skills directory** — their system is plugins (`plugin.json`), a different format. `agy plugin validate` rejects our `SKILL.md`. **Don't wrap them into plugins** = a second source + sync burden. Just: run `skill-list`, then read `~/dotfiles/skills/local/<name>/SKILL.md` directly.
 
-## Skill plumbing — MODEL: SINGLE-DIRECTORY symlink (2026-07-14)
+## Skill plumbing — MODEL: MANAGED RUNTIME DIRECTORIES (measured 2026-08-05, `cuan`)
 
 ```
-~/.claude/skills       ─┐
-~/.pi/agent/skills     ─┼─→ ~/dotfiles/skills/local/   (check count: `skill-list`)
-~/.agents/local-skills ─┘
+~/dotfiles/skills/local/   ← the single source for OUR custom skills
+        ↑ (via ~/.agents/local-skills, a symlink)
+   `skill-update`  ──→  links BOTH sources into every runtime dir:
+                        ~/.claude/skills · ~/.pi/agent/skills
+                        ~/.agents/skills · ~/.codex/skills · ~/.gemini/skills
+        ↓ (the other source)
+~/.agents/repos/shared-skills  ← jezweb/claude-skills, shallow clone, still in use
 ```
 
-- **Single source:** `~/dotfiles/skills/local/`. Always check the active count with `skill-list`; don't store a number as a fixed fact. The jezweb repo has been detached from this model (the "104 skills" claim is stale) and the clone `~/.agents/repos/shared-skills` **no longer exists on any machine** (Mac verified 2026-07-20: `ls ~/.agents/repos/` is empty).
-- 🔑 **CROSS-DEVICE SYNC = `git pull` ONLY.** No extra step. New skills appear on their own; deleted skills disappear on their own — across all CLIs at once. The old note *"`git pull` does NOT create symlinks, `skill-update` is required"* is now **WRONG** — that applied to the per-skill model that has been dropped.
-- `skill-update` is now **only used ONCE per new machine** (and is called automatically by `install.sh` / `install-macos.sh`). Idempotent — safe to re-run, a no-op if already correct. Needed again only if you install a new CLI.
-- `skill-new` / `skill-remove` **no longer need a sync** — they take effect / disappear immediately across all CLIs.
-- ⚠️ `~/.gemini/skills`, `~/.agents/skills` **are not targets** and are not maintained. Gemini CLI was removed 2026-07-13. `skill-update` deliberately SKIPS a CLI that isn't installed rather than creating its folder. As of 2026-07-20 **both folders no longer exist** on Mac or `cuan` — leftovers of the old per-skill model are cleaned up. Don't confuse them: **`~/.gemini/` (root) is Antigravity's (`agy`) home, DO NOT delete it.**
+⚠️ **The three claims this section used to make are all FALSE on disk.** Re-measured 2026-08-05 —
+`ls -ld ~/.claude/skills`, `find ~/.claude/skills -maxdepth 1 -type l | wc -l`, `skill-update`:
+
+- **The runtime dirs are NOT single-directory symlinks.** `~/.claude/skills` and `~/.pi/agent/skills`
+  are ordinary DIRECTORIES holding **97 per-skill symlinks each** (35 → `skills/local`, 62 →
+  `shared-skills`). The per-skill model was never dropped; only our own half is sourced from dotfiles.
+- **`~/.agents/repos/shared-skills` EXISTS and is load-bearing** — 62 of those 97 links point into it,
+  and `skill-update` fetches it from `https://github.com/jezweb/claude-skills` on every run.
+  **Do not delete it**; the "detached / no longer exists on any machine" note was wrong.
+- 🔑 **CROSS-DEVICE SYNC IS NOT `git pull` ALONE.** `git pull` updates the SOURCE; nothing links a
+  NEW skill into the runtime dirs until `skill-update` runs. Measured today: after pulling 22 commits,
+  `skills/local` held 40 skills while the runtime dirs still linked 35 — `admin-dashboard`,
+  `design-taste`, `development-spec-suite`, `lean-code-review` and `premium-ui-ux` were invisible to
+  claude and pi. **After a dotfiles pull that adds or removes a skill, run `skill-update`.**
+  Verify: `comm -23 <(ls -1 ~/dotfiles/skills/local | grep -v '^_' | LC_ALL=C sort) <(find ~/.claude/skills -maxdepth 1 -type l -exec basename {} \; | LC_ALL=C sort)` — empty means wired.
+- `skill-update` (it lives in `~/.agents/bin/`, NOT in dotfiles) is idempotent and safe to re-run.
+- `skill-new` / `skill-remove` create or delete the SOURCE; the runtime dirs follow on the next
+  `skill-update`.
+- ⚠️ **`skill-update` MAINTAINS FIVE TARGET DIRS AND RECREATES THEM EVERY RUN** — including
+  `~/.agents/skills`, `~/.codex/skills` and `~/.gemini/skills` (102 symlinks each, 2026-08-05). The
+  old note that these "no longer exist / are deliberately skipped" describes a state that cannot
+  survive one `skill-update`. They are harmless noise for CLIs that read skills a different way;
+  deleting them is pointless, not dangerous. Don't confuse them: **`~/.gemini/` (root) is
+  Antigravity's (`agy`) home, DO NOT delete it.**
+- After `pi update`, the wrapper routes through `~/dotfiles/bin/pi-update-safe`, which moves any
+  `*.backup.<ts>` folder out of `~/.pi/agent/skills` and `~/.claude/skills` before it can collide
+  with discovery. `ai-doctor` reports both the link census and any backup folder left behind.
   - ❗ **`~/.codex/skills` is DIFFERENT — it STILL EXISTS and is ACTIVELY USED.** It contains `.system/` (e.g. `skill-creator`, used by the validator in the `volumx-writer` section below). **DO NOT delete it.** It's not a `skill-update` target, but it's also not stale leftover.
 
 ### ☠️ A destructive bug that has been fixed — don't bring it back
@@ -76,7 +102,9 @@ git clone git@github.com:ongkipro/dotfiles.git ~/dotfiles
 cd ~/dotfiles && ./install.sh        # macOS: ./install-macos.sh
 # done — skills, AGENTS.md, memory are linked into every installed CLI.
 ```
-After that, updating = just `git pull`. If you install a new CLI later (e.g. just installed Claude Code): `skill-update` once.
+After that, updating = `git pull` **and then `skill-update`** whenever the pull added or removed a
+skill — the pull moves the source, `skill-update` is what the runtime dirs actually read. Same
+command again if you install a new CLI later.
 
 ## Dedup 2026-07-14 — 43 → 33 skills (HISTORICAL NUMBER, not the current count)
 > The current count is **not** 33 — it has grown since then (35 as of 2026-07-20). Always check: `ls ~/dotfiles/skills/local | grep -v '^_' | wc -l` or `skill-list`.
