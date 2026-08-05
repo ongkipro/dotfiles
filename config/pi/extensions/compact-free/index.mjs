@@ -24,9 +24,12 @@ import { complete } from "@earendil-works/pi-ai/compat";
 import { convertToLlm, serializeConversation } from "@earendil-works/pi-coding-agent";
 
 // Daftar model compaction, dicoba berurutan
+// Sync dengan provider names actually configured in ~/.pi/agent/{models.json,auth.json}
+// 9router-fantastico = tunnel Fantastico (cheapest tunnel models)
 const COMPACT_MODELS = [
-  { provider: "9router", id: "oc/deepseek-v4-flash-free" },
-  { provider: "9router", id: "oc/nemotron-3-ultra-free" },
+  { provider: "9router-fantastico", id: "gc/gemini-2.5-flash-lite" },
+  { provider: "9router-fantastico", id: "cx/gpt-5.4-mini" },
+  { provider: "9router-fantastico", id: "ag/gemini-3.5-flash-extra-low" },
   { provider: "minimax", id: "MiniMax-M3" },
   { provider: "opencode-go", id: "mimo-v2.5" },
 ];

@@ -63,10 +63,10 @@
 - Machine-coupled (DO NOT put raw in dotfiles): `~/.pi/agent/models.json` (API key + model availability varies), `~/.pi/agent/auth.json` (oauth token), `~/.pi/agent/sessions/` (history), `~/.9router/{auth,jwt-secret,machine-id,tunnel/}`.
 - Lesson: the `skills` array in settings.json once hardcoded `/Users/feriromansyah/...` — wrong machine. Solution: use pi auto-discovery (skills in `~/.pi/agent/skills/`) and DO NOT hardcode someone else's absolute path.
 
-### pi back through 9router (2026-07-20) — reversal of an old decision
-- The old decision "pi default = NATIVE provider `minimax`/`MiniMax-M3`, NOT through 9router, do not 'fix' it" **has been cancelled**. Disk now: `defaultProvider: "9router"`, `defaultModel: "cx/gpt-5.4"`.
-- **The reason for the switch is NOT known** — do not make it up. This is recorded as a verified condition as of the date above, not a decision rationale.
-- Consequence: 9router is no longer optional for pi. If the gateway is down, pi's main chat goes down too (previously it didn't). Verify: `jq '.defaultProvider, .defaultModel' ~/.pi/agent/settings.json`.
+### Pi provider choice is machine-local (supersedes the 2026-07-20 snapshot)
+- Do not enforce one Pi provider across devices. The old native-MiniMax decision and the later `9router` / `cx/gpt-5.4` snapshot are both historical, not current configuration.
+- Provider choice is intentionally machine-local; verify `jq '.defaultProvider, .defaultModel' ~/.pi/agent/settings.json` and read `environment.md` before troubleshooting.
+- Never invent a rationale for a provider switch that was only observed on disk.
 
 ### Pitfall: prefix `ocg/` ≠ 9router
 - `ocg/` is a NATIVE pi provider prefix (opencode-go), NOT 9router. Do not set `defaultModel: "ocg/..."` while `defaultProvider: "9router"` — invalid combination. `ocg/*` models are accessed via the `opencode-go` provider.
