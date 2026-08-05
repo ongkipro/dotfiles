@@ -3,6 +3,7 @@
 > Checkout state is device-local and changes. On the Mac, verify it with `find ~/Projects -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort`; never infer that an indexed project is locally available. Read code progress from the repository's `STATUS.md`, `BUILD-LOG.md`, `TASKS.md`, or handover file rather than this index.
 
 - [Dealer Hino Official](dealerhinoofficial.md) — `dealerhinoofficial.com` lead generation (Astro 6, Tailwind 4, Cloudflare Workers), private repo `ongkipro/dealerhinoofficial`. Current status is in the repository's `SESSION_HANDOVER.md`.
+- [Dealer Truk Hino](dealertrukhino.md) — live `dealertrukhino.com` product-intent catalogue, private repo `ongkipro/dealertrukhino`. Sister to dealerhinoofficial — never add city pages here; production deploys from `main` with no staging step.
 - [AUSSIE Sawit Malaysia](aussie-sawit-malaysia.md) — COD palm-oil e-commerce MY (Astro/CF Workers/D1). Admin+storefront ready. Repo `ongkipro/aussiemalaysia`; current status is in `STATUS.md` **inside the repo** — don't trust the status in this memory.
 - [Volumform ID-market UX](volumform-id-market-ux.md) — DR-funnel SaaS; Indonesian COD UX conventions + deferred features (payment status, retur, auto-FU). Checked out on the Mac (`~/Projects/volumform`).
 - [Pesantren](pesantren.md) — `pesantren.shop` COD storefront and landing-page system, private repo `ongkipro/pesantren`. Design rules live in the repository's `design-tokens.md`; current blockers and status live in `TASKS.md`.
@@ -12,11 +13,13 @@
 - [dealertrukhino](dealertrukhino.md) — sister site of `dealerhinoofficial.com`, split by search intent (spec/product vs geo). Never re-copy the sister site's content modules; contact NAP still needs separating before launch.
 - [TokoΦ](tokophi.md) — commerce SaaS ID. Repo `ongkipro/tokophi`; the old `indostore` repo is dormant, don't use it. Main dev on another machine — pull first.
 - [Kamus (almanak)](kamus-almanak.md) — `kamus.ongki.pro`, repo `ongkipro/kamus`. Ongki's second memory; markdown → Astro dashboard. Has an `AGENTS.md` contract.
-- [Skill plumbing](skill-plumbing.md) — 38 owned/vendored skills as of 2026-07-29, with `~/dotfiles/skills/local` as the single source linked to Claude and Pi. Codex and Antigravity use `skill-list` plus direct `SKILL.md` reading.
+- [Skill plumbing](skill-plumbing.md) — `~/dotfiles/skills/local` is the single source linked to Claude and Pi. Codex and Antigravity use `skill-list` plus direct `SKILL.md` reading; query the count from disk.
 - [Skill vs memori](skills-vs-memory-boundary.md) — project context STAYS in memory, never turn it into a skill. Skills = reusable across projects.
+- [Pages deployment mode](cloudflare-pages-direct-upload-lock.md) — Direct Upload and Git integration are distinct setup paths; do not improvise with `wrangler pages deploy` when push-to-deploy is required.
+- [`CF_API_TOKEN` membajak wrangler](cf-api-token-hijacks-wrangler.md) — a stale zone-scoped variable can override OAuth and fake 403s; unset both token variables for interactive OAuth checks instead of assigning empty values.
 - [Biasakan git worktree](prefer-git-worktree.md) — work on repos via a separate worktree, don't checkout/commit directly on `main`.
 - [Commit menambah, bukan menimpa](additive-commits-no-history-rewrite.md) — don't force-push/rewrite history. Commit identity = noreply, don't use the real email.
-- [Antigravity CLI = `agy`](antigravity-cli-agy.md) — binary `agy`, NOT `gemini`; subcommand `plugin` not `extensions`. Gemini CLI is deliberately not installed.
+- [Antigravity CLI = `agy`](antigravity-cli-agy.md) — binary `agy`, NOT `gemini`; subcommand `plugin` not `extensions`. Gemini CLI is deliberately not installed. Also: the "⚠ Eligibility Check / profile picture TLS timeout" is cosmetic — restart, don't re-login.
 - [worktrunk (`wt`)](worktrunk-worktree-tooling.md) — worktree tooling. The agy plugin needs the `brew install worktrunk` binary first, otherwise its hook errors.
 - [JASAWEBSITE.co brand](jasawebsite-co-brand.md) — web agency by VOLUM, 7 services, ID+MY market, spec in PRD v4.0.
 - [SF-Theme Shopify store](sf-theme-shopify-store.md) — store `yn80fb-mb`, theme `olivia-16-6-0a` (#186432061760, unpublished); permanent handle for all CLIs.

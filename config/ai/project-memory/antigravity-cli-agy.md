@@ -5,9 +5,12 @@ metadata:
   node_type: memory
   type: reference
   originSessionId: ef4c798a-d351-4318-8a07-3088786a86d4
+  modified: 2026-08-01T06:01:22.631Z
 ---
 
-Antigravity CLI di Mac ini adalah binary **`agy`** (~143 MB, di `~/.local/bin/agy`, v1.1.1). Gemini CLI (`gemini`) TIDAK terinstall — dan sudah diputuskan tidak dipasang.
+Antigravity CLI di Mac ini adalah binary **`agy`** (di `~/.local/bin/agy`; v1.1.8 per 2026-08-01). Gemini CLI (`gemini`) TIDAK terinstall — dan sudah diputuskan tidak dipasang.
+
+**Jebakan: "⚠ Eligibility Check ... failed to get profile picture: TLS handshake timeout" itu KOSMETIK, bukan auth rusak.** Yang gagal cuma cache `peopleInfo` (avatar dari `lh3.googleusercontent.com`), tapi `server_oauth.go` menaikkannya jadi `Validation failed` sehingga terlihat seperti login bermasalah. Cek log `~/.gemini/antigravity-cli/log/cli-*.log`: kalau ada `OAuth: authenticated successfully` + `loadCodeAssist`/`fetchAvailableModels` sukses, sesi tetap sehat dan model tetap jalan. Fix = restart `agy` (bukan re-login, bukan hapus token). Verifikasi cepat: `agy -p "reply with exactly: OK"`. Timeout serupa juga pernah kena endpoint telemetry `play.googleapis.com/log` — pola yang sama, sama-sama transient.
 
 **Jebakan:** perintah yang beredar di internet berbentuk `gemini extensions install <url>`. Itu tidak jalan di sini. `agy` tidak punya subcommand `extensions`. Yang benar:
 
