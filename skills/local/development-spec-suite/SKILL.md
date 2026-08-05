@@ -1,15 +1,15 @@
 ---
 name: development-spec-suite
-description: Context-aware development specification and audit for libraries, CLIs, automation, web/mobile/desktop products, APIs, data/AI systems, SaaS, marketplaces, and regulated platforms. Use when work needs a traceable document pack, architecture/data/IAM/API/security/operations contracts, localization, cross-border or jurisdiction analysis, or a consistency audit across existing specifications.
+description: Context-aware orchestrator for selecting, initializing, and auditing a traceable multi-document development specification pack across product, architecture, data, IAM, API, security, privacy, operations, localization, and jurisdiction concerns. Use when several specification domains must stay consistent or an existing pack needs traceability/applicability audit. NOT for a PRD/TASKS-only request (prd-taskbreaker), a standalone API contract (openapi-spec), a standalone diagram (mermaid-diagram), prose rewriting (volumx-writer), implementation, or a final legal/compliance determination.
 ---
 
 # Adaptive Development Specification Suite
 
-Produce the smallest evidence-backed specification pack for the repository at hand. Coordinate existing specialist skills instead of duplicating them.
+Select and audit the smallest evidence-backed pack; delegate artifact content to specialist skills.
 
 ## Token-efficient loading
 
-Do not read every reference or template. Start with this file, inspect repository evidence, then load only the triggered reference:
+Start here, inspect repository evidence, then load only the triggered reference:
 
 - context/profile/overlay selection → [context-resolution.md](references/context-resolution.md)
 - artifact activation/ownership → [document-map.md](references/document-map.md)
@@ -24,7 +24,7 @@ Never load `assets/templates/*`, the source ledger, or maintenance backlog merel
 - Treat repository code, migrations, OpenAPI, infrastructure, design tokens, runtime configuration, and executed checks as stronger implementation evidence than stale prose.
 - Label every statement as `Observed`, `Decision`, `Assumption`, `Proposal`, `Unknown`, or `Evidence`; never turn an assumption into a fact.
 - Write artifact content in English unless the target repository has an explicit content-language convention. Conversation with the user remains Indonesian; Indonesian product content uses Bahasa Indonesia, not Malay, while approved technical English remains precise.
-- Keep legal, tax, privacy, security, compliance, and certification boundaries explicit. Identify triggers and map engineering controls, but do not make final legal applicability decisions or claim compliance from a document.
+- Keep legal, tax, privacy, security, compliance, and certification boundaries explicit. Identify triggers and map engineering controls, but do not make final legal applicability decisions or claim compliance from a document. Domain/design skills may contribute requirements, but their generic legal claims never establish applicability; record those as `Proposal` or `Unknown` pending official-source and qualified-owner review.
 - Never request, print, copy, or store credentials, tokens, payment data, customer records, authentication sessions, or production secrets.
 - Preserve existing files. Initialize missing files only; require explicit update mode before changing an established pack. Do not commit, push, merge, deploy, publish, or mutate production unless the user explicitly authorizes that action.
 
@@ -34,7 +34,7 @@ Never load `assets/templates/*`, the source ledger, or maintenance backlog merel
 
 Inspect project instructions (`AGENTS.md` and equivalents), repository status, package scripts, source layout, existing docs, migrations, API contracts, deployment configuration, and runtime evidence. Check the available shared skills with `skill-list`; read only the relevant specialist `SKILL.md` files.
 
-When selection is not already obvious from repository evidence, read [context-resolution.md](references/context-resolution.md) and record context. Keep product surface, entities, markets/data subjects, processing locations, processors, sector, commerce, AI role, locales/accessibility, and contracts separate.
+When evidence does not resolve selection, read [context-resolution.md](references/context-resolution.md). Keep product surface, entities, markets/data subjects, processing locations, processors, sector, commerce, AI role, locales/accessibility, and contracts separate.
 
 ### 2. Select depth and overlays
 
@@ -50,7 +50,7 @@ Read [jurisdiction-overlays.md](references/jurisdiction-overlays.md) when geogra
 
 ### 3. Select artifacts and owners
 
-Read [document-map.md](references/document-map.md) only when artifact selection or ownership is in scope. Activate only relevant artifacts and keep one owner per canonical fact:
+For artifact selection or ownership, read [document-map.md](references/document-map.md). Keep one owner per canonical fact:
 
 - PRD owns observable product behavior and NFRs.
 - BRD owns business outcomes, commercial constraints, and applicability goals.
@@ -78,9 +78,11 @@ python3 scripts/init-doc-suite.py --profile product --context-file /path/to/cont
 python3 scripts/init-doc-suite.py --profile platform --overlay multi-tenant,public-api --jurisdiction ID,EU --output /path/to/project/docs/spec
 ```
 
-The initializer always creates `CONTEXT-RECORD.md` and never overwrites an existing file in normal mode. Selection is fact-driven from the optional UTF-8 JSON `--context-file`; `--jurisdiction` and `--sector` create candidate review records, not legal conclusions. `--update` writes proposed sidecars, hashes, and deterministic diffs only; after review, `--update --force` confines manifest paths to the output/sidecar roots, hash-checks established files, creates unique recoverable backups, and applies the reviewed manifest atomically per file. It is portable on supported Python 3 versions on Linux and macOS.
+The initializer creates `CONTEXT-RECORD.md` and never overwrites in normal mode. Selection uses optional UTF-8 JSON; jurisdiction/sector flags create review candidates, not legal conclusions. `--update` writes proposals, hashes, and diffs; reviewed `--update --force` confines paths, hash-checks files, creates unique backups, and applies each file atomically.
 
 ### 5. Delegate specialist work
+
+This suite owns selection, canonical ownership, cross-document consistency, and traceability. A specialist owns the content of its artifact; it must update the selected canonical artifact rather than create a competing source of truth. For a single-artifact request, route directly to the specialist and do not initialize a suite.
 
 Use existing local skills when available:
 
@@ -110,7 +112,7 @@ python3 scripts/test-suite.py
 python3 scripts/audit-sources.py
 ```
 
-Also run the project's own scripts (`package.json`, Makefile, CI, migration, OpenAPI, or native platform checks) before claiming behavior works. Separate planning truth from runtime proof. Report selected profile/overlays, included and omitted artifacts with reasons, unresolved owners, source freshness, validation commands/results, and remaining legal/security/operational risk.
+Run project-native checks before claiming behavior works. Separate planning from runtime proof. Report profile/overlays, included and omitted artifacts with reasons, unresolved owners, source freshness, validation results, and remaining risk.
 
 Only for suite maintenance or release-status claims, read [implementation-tasks.md](references/implementation-tasks.md). The package may be called `v2 audit-ready` only while its P0 fixtures pass. `Cross-platform validated` additionally requires the repository CI matrix to pass on Ubuntu and macOS; a local run or workflow file alone is not that evidence.
 

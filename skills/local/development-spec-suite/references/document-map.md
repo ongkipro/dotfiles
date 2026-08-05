@@ -1,6 +1,6 @@
 # Document Activation and Ownership
 
-Start with `PRD.md` and add only triggered artifacts. `TASKS.md` is produced with `prd-taskbreaker` after requirements/contracts are accepted.
+Start with the pack's `02-PRD.md` and add only triggered artifacts. After requirements/contracts are accepted, `prd-taskbreaker` writes `TASKS.md` beside it. When no suite pack exists, `prd-taskbreaker` keeps its standalone root-level `PRD.md`/`TASKS.md` convention. Never maintain both `PRD.md` and `02-PRD.md` as competing canonical requirements.
 
 | Artifact | Activate when | Canonical owner |
 |---|---|---|

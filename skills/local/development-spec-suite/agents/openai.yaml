@@ -1,4 +1,4 @@
 interface:
   display_name: "Adaptive Development Specs"
-  short_description: "Context-aware specs for global development"
-  default_prompt: "Use $development-spec-suite to inspect repository evidence, load only triggered references, and create or audit the smallest traceable specification pack."
+  short_description: "Select and audit multi-document specification packs"
+  default_prompt: "Use $development-spec-suite to inspect repository evidence, select the smallest traceable multi-document pack, delegate specialist-owned artifacts, and audit cross-document consistency."
