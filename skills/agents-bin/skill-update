@@ -23,18 +23,24 @@ SRC="$(cd "$SCRIPT_DIR/../local" && pwd)"
 
 [ -d "$SRC" ] || { echo "ERROR: skill source not found: $SRC" >&2; exit 1; }
 
-# Link only where the CLI actually exists. We do NOT conjure dirs for CLIs that
-# aren't installed — that is how ~/.gemini/skills became a phantom target.
+# Link where the CLI actually exists or parent dir exists.
 TARGETS=(
   "$HOME/.claude/skills"
   "$HOME/.pi/agent/skills"
   "$HOME/.agents/local-skills"
+  "$HOME/.gemini/skills"
+  "$HOME/.gemini/config/skills"
+  "$HOME/.antigravity/skills"
 )
 
 linked=0 skipped=0
 
 for target in "${TARGETS[@]}"; do
   parent="$(dirname "$target")"
+  # Create parent if gemini/antigravity exists
+  if [ ! -d "$parent" ] && [[ "$parent" == *".gemini"* || "$parent" == *".antigravity"* ]]; then
+    mkdir -p "$parent"
+  fi
 
   # CLI not installed on this device → skip. Not an error.
   if [ ! -d "$parent" ]; then
