@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 8eaa81d9-7e70-4b38-ba51-92a82cbfcdd1
-  modified: 2026-07-23T11:07:27.279Z
+  modified: 2026-08-05
 ---
 
 `pesantren.shop` is a general COD mini-store and landing-page system,
@@ -13,6 +13,7 @@ created from the architecture of [[petanisejahtera]] with fresh Git history.
 
 - Canonical repository: `ongkipro/pesantren` (private), verified on branch
   `main` tracking `origin/main`.
+- The local clone on this Mac was removed on 2026-08-05 during workspace cleanup; clone it again when needed.
 - Stack: Astro 6, Tailwind CSS 4, Cloudflare Workers, and Scalev-backed order
   flows.
 - The product scope is storefront, product pages, and landing pages; the

@@ -12,6 +12,7 @@
 - [Formalin](formalin.md) — VolumX engine monorepo. Canonical repo `irwansyah10/formalin`; the current implementation status lives in `docs/STATUS.md`. Pull before working because development also happens on another machine.
 - [dealertrukhino](dealertrukhino.md) — sister site of `dealerhinoofficial.com`, split by search intent (spec/product vs geo). Never re-copy the sister site's content modules; contact NAP still needs separating before launch.
 - [TokoΦ](tokophi.md) — commerce SaaS ID. Repo `ongkipro/tokophi`; the old `indostore` repo is dormant, don't use it. Main dev on another machine — pull first.
+- [pi-src](pi-src.md) — upstream CLI source repository; keep no permanent local checkout and clone it again when needed.
 - [Kamus (almanak)](kamus-almanak.md) — `kamus.ongki.pro`, repo `ongkipro/kamus`. Ongki's second memory; markdown → Astro dashboard. Has an `AGENTS.md` contract.
 - [Skill plumbing](skill-plumbing.md) — `~/dotfiles/skills/local` is the single source linked to Claude and Pi. Codex and Antigravity use `skill-list` plus direct `SKILL.md` reading; query the count from disk.
 - [Skill vs memori](skills-vs-memory-boundary.md) — project context STAYS in memory, never turn it into a skill. Skills = reusable across projects.

@@ -1,41 +1,51 @@
 ---
 name: dealertrukhino
-description: "dealertrukhino.com is a deliberate sister site to dealerhinoofficial.com — differentiated by search intent, not cosmetics; never re-copy the sister site's content modules."
-metadata: 
+description: "dealertrukhino.com — live product-intent Hino catalogue, deliberately separated from dealerhinoofficial's geographic intent"
+metadata:
   node_type: memory
   type: project
-  originSessionId: 5680614a-78e0-4848-841a-b484494bceed
-  modified: 2026-07-30T14:29:26.952Z
+  originSessionId: c3f8226f-2597-439c-858d-b7cd1ef35d53
+  modified: 2026-08-05
 ---
 
-`~/Projects/dealertrukhino` (repo `ongkipro/dealertrukhino`) is a sister site to
-`~/Projects/dealerhinoofficial` (repo `ongkipro/dealerhinoofficial`, live since before 2026-07-30).
-Both sell Hino trucks for the same salesperson, so they are one business in Google's eyes unless
-kept structurally apart.
+`~/Projects/dealertrukhino` (private repo `ongkipro/dealertrukhino`) is a static
+Astro catalogue and a deliberate sister site to [[dealerhinoofficial]]. Both serve
+the same business, so their search intent, content modules, identity, and visual
+language must remain distinct.
 
-**Positioning split, decided 2026-07-30 (do not blur it):**
-- `dealerhinoofficial.com` = geo intent — "dealer hino [kota]", ~190 city pages. Leave as is.
-- `dealertrukhino.com` = product/spec intent — "harga/spesifikasi [model]", per-variant pages
-  built from `src/data/specs/**` (46 variants), plus a comparison table.
+**Positioning split — do not blur it:**
 
-**Never port these back in.** `location-pages.ts`, `service-pages.ts`, `testimonials.ts`, and
-`gallery.ts` were verbatim copies of the sister site and were deleted on purpose. Also off-limits
-(the sister site's identity): per-city location pages, the sales-person brand page, the karoseri
-icon showcase, the four-pillar after-sales taxonomy, testimonials, gallery, and its homepage FAQ.
-Location coverage here is **province-level only** (`/jangkauan/[provinsi]`, 33 pages) — matching
-the sister site's city-level granularity on identical dealer data is the biggest duplication risk
-available to this project.
+- `dealerhinoofficial.com` owns geographic intent such as "dealer hino [kota]".
+- `dealertrukhino.com` owns product/spec intent such as "harga/spesifikasi [model]",
+  per-variant specifications, comparisons, and buyer education.
 
-Visual identity is also deliberately opposed: trukhino is dark industrial + amber, Geist,
-tight radii; the sister site is light + Hino red, Inter + Plus Jakarta Sans.
+Do not port the sister site's city pages, sales-person brand page, karoseri showcase,
+after-sales taxonomy, testimonials, gallery, or homepage FAQ **verbatim** into this
+project. Earlier duplicate data modules were removed for that reason. The repository
+later added brand-specific testimonials and gallery content; that is compatible with
+the boundary as long as the material remains original. Coverage must stay at province
+level rather than reproducing the sister site's city-level footprint.
 
-**Identity is separated (resolved 2026-07-30):** sales is **Adi Wicaksana**, phone/WA
-**0812-3150-2345**, `sales@dealertrukhino.com`. The sister site uses Elgin Marchlouis and different
-numbers. Social links stay empty until this brand owns its own accounts.
+**Local state on this Mac (2026-08-05):** clone removed from `~/Projects` for clean workspace.
+Pull again from `ongkipro/dealertrukhino` when needed.
 
-`npm run check` (specs parser + build + whole-site validator) must pass before pushing —
-**push to `main` auto-deploys to production** via Cloudflare Pages, with no staging step.
-Full technical reference lives in `DEVELOPMENT.md` in the repo; prefer it over this memory.
+The identity split is deliberate: this site uses Adi Wicaksana,
+`0812-3150-2345`, and `sales@dealertrukhino.com`; the sister site uses a different
+sales identity and contact details. Social links stay empty until this brand owns
+its own accounts. The visual direction is dark industrial with amber, Geist, and
+tight radii; the sister site is light, Hino red, Inter, and Plus Jakarta Sans.
 
-Code progress lives in the repo, not here. See also [[prefer-git-worktree]],
+**Production state, re-verified 2026-08-05:** the domain was registered on
+2026-07-31, uses Cloudflare nameservers, resolves through Cloudflare, and returns
+HTTP 200 at `https://dealertrukhino.com/`. The canonical `site` value in
+`astro.config.mjs` is therefore correct.
+
+The repository's current `DEVELOPMENT.md` says pushes to `main` deploy through
+Cloudflare Pages with no staging step. Run `npm run check` before pushing; it covers
+the specs parser, production build, and whole-site validation. Re-fetch the remote
+immediately before committing because another device also contributes.
+
+Do not infer current page counts, deployment history, or Cloudflare project mode
+from this memory. Read the repository and account state. See
+[[cloudflare-pages-direct-upload-lock]], [[prefer-git-worktree]], and
 [[additive-commits-no-history-rewrite]].

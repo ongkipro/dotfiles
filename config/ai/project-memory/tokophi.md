@@ -25,3 +25,7 @@ This project's old name was `indostore`; rebranded 2026-07-08. The repo `ongkipr
 **How to apply:** editing via either path is the same — they're the same file. Don't "tidy up" `~/Documents/work/tokophi` by deleting/overwriting; that touches repo files. When a new `.md` is added in the repo, its symlink needs to be created manually.
 
 Main development is on another machine (Linux) — `git pull` first before working on the Mac. Status as of 2026-07-14 (repo WORKLOG): RBAC+RLS working, multi-tenant storefront SSR reads the DB, COD live end-to-end, and **all four surfaces are live at `tokophi.com`** (Cloudflare HTTPS) on a Vultr Singapore server + Coolify (Docker Compose, daily backup). This is still DEV infra — **PROD will later migrate to Hetzner Singapore**. See also [[kamus-almanak]].
+
+Operational findings measured on 2026-08-05, including Coolify access behavior, environment parity,
+Compose validation constraints, and local mirror details, are device-specific. Read
+`~/.config/ai-local/tokophi-access.md` and `~/.config/ai-local/coolify-local.md` on the relevant machine.
