@@ -27,7 +27,8 @@ if [ "${1:-}" = "--yes" ]; then
   shift
 fi
 
-COMMAND="${1:-sync}"
+# A bare invocation must stay read-only. Mutating actions require an explicit verb.
+COMMAND="${1:-status}"
 if [ "$#" -gt 0 ]; then
   shift
 fi
@@ -88,6 +89,16 @@ show_staged_preview() {
   say "Staged preview:"
   git -c core.pager=cat diff --cached --stat
 }
+run_security_check() {
+  local scanner="$DOTFILES_ROOT/bin/security-check"
+  [ -x "$scanner" ] || return 0
+  if ! "$scanner" >/dev/null; then
+    err "security-check menemukan kemungkinan secret; commit dibatalkan."
+    "$scanner" >&2 || true
+    err "Perubahan tetap ter-stage untuk direview. Batalkan staging dengan: git reset"
+    return 1
+  fi
+}
 ensure_clean_for_pull() {
   if ! git diff --quiet || ! git diff --cached --quiet; then
     err "Working tree belum bersih. Commit/stash dulu sebelum pull."
@@ -111,6 +122,7 @@ cmd_commit() {
   fi
   print_status
   show_staged_preview
+  run_security_check
   if ! confirm "Commit perubahan dotfiles ini?"; then
     say "Batal commit."
     exit 1

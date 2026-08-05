@@ -16,6 +16,8 @@ cd "$REPO"
 BAIT="__security-bait-$$.md"
 BAIT_NEW="__security-bait-new-$$.md"
 BAIT_IDX="__security-bait-index-$$.md"
+DOTSYNC_TMP=""
+DOCTOR_TMP=""
 fail=0
 
 # Cleanup MUST return the index to exactly how it was found. This test stages
@@ -26,6 +28,8 @@ cleanup() {
     git reset -q -- "$b" >/dev/null 2>&1 || true
     rm -f "$b"
   done
+  [ -z "$DOTSYNC_TMP" ] || rm -rf "$DOTSYNC_TMP"
+  [ -z "$DOCTOR_TMP" ] || rm -rf "$DOCTOR_TMP"
 }
 trap cleanup EXIT
 
@@ -98,6 +102,64 @@ else
 fi
 git rm -f --cached "$BAIT_IDX" >/dev/null 2>&1 || true
 rm -f "$BAIT_IDX"
+
+echo "5. dotsync must refuse to commit a newly staged secret"
+DOTSYNC_TMP="$(mktemp -d "${TMPDIR:-/tmp}/dotsync-security-test.XXXXXX")"
+mkdir -p "$DOTSYNC_TMP/bin" "$DOTSYNC_TMP/home"
+cp ./bin/dotsync ./bin/security-check "$DOTSYNC_TMP/bin/"
+(
+  cd "$DOTSYNC_TMP"
+  git init -q
+  git config user.name test
+  git config user.email test@example.invalid
+  printf 'baseline\n' > README.md
+  git add README.md
+  git commit -qm baseline
+  printf '%s_ZzYyXxWwVvUuTtSsRrQqPpOoNnMm123456\n' "$GH" > leak.txt
+)
+if HOME="$DOTSYNC_TMP/home" "$DOTSYNC_TMP/bin/dotsync" --yes commit test >/dev/null 2>&1; then
+  echo "   ✗ FAIL: dotsync committed a newly staged secret"
+  fail=1
+elif [ "$(git -C "$DOTSYNC_TMP" rev-list --count HEAD)" -eq 1 ]; then
+  echo "   ✓ refused before commit"
+else
+  echo "   ✗ FAIL: dotsync failed only after creating a commit"
+  fail=1
+fi
+
+echo "6. bare dotsync must remain read-only"
+if HOME="$DOTSYNC_TMP/home" "$DOTSYNC_TMP/bin/dotsync" >/dev/null 2>&1 \
+  && [ "$(git -C "$DOTSYNC_TMP" rev-list --count HEAD)" -eq 1 ]; then
+  echo "   ✓ status only"
+else
+  echo "   ✗ FAIL: bare dotsync mutated the repository"
+  fail=1
+fi
+
+echo "7. ai-doctor must compare a branch without upstream to origin/<branch>"
+DOCTOR_TMP="$(mktemp -d "${TMPDIR:-/tmp}/ai-doctor-remote-test.XXXXXX")"
+mkdir -p "$DOCTOR_TMP/repo/bin" "$DOCTOR_TMP/home/.config/ai/memory"
+cp ./bin/ai-doctor "$DOCTOR_TMP/repo/bin/"
+(
+  cd "$DOCTOR_TMP/repo"
+  git init -q
+  git config user.name test
+  git config user.email test@example.invalid
+  git remote add origin .
+  printf 'baseline\n' > README.md
+  git add README.md
+  git commit -qm baseline
+  git branch -M audit
+  git update-ref refs/remotes/origin/audit HEAD
+)
+out="$(HOME="$DOCTOR_TMP/home" DOTFILES_DIR="$DOCTOR_TMP/repo" "$DOCTOR_TMP/repo/bin/ai-doctor" 2>&1 || true)"
+if printf '%s\n' "$out" | grep -qF 'sinkron dengan origin/audit' \
+  && ! printf '%s\n' "$out" | grep -qF '? commit'; then
+  echo "   ✓ origin branch fallback"
+else
+  echo "   ✗ FAIL: ai-doctor cannot compare origin/audit without upstream"
+  fail=1
+fi
 
 echo
 [ "$fail" -eq 0 ] && echo "security-check-test: OK" || { echo "security-check-test: FAILED"; exit 1; }

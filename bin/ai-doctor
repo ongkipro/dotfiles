@@ -25,10 +25,23 @@ hdr "1. Dotfiles repo"
 if [ -d "$DOT/.git" ]; then
   branch=$(git -C "$DOT" rev-parse --abbrev-ref HEAD 2>/dev/null)
   dirty=$(git -C "$DOT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-  ahead=$(git -C "$DOT" rev-list --count '@{u}..HEAD' 2>/dev/null || echo '?')
+  remote_ref=$(git -C "$DOT" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)
+  if [ -z "$remote_ref" ] && git -C "$DOT" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+    remote_ref="origin/$branch"
+  fi
   ok "$DOT (branch $branch)"
-  [ "$dirty" -eq 0 ] && ok "working tree bersih" || wrn "$dirty file belum di-commit — jalankan: dotpush \"pesan\""
-  [ "$ahead" = "0" ] && ok "sinkron dengan remote" || wrn "$ahead commit belum di-push — jalankan: dotpush"
+  [ "$dirty" -eq 0 ] && ok "working tree bersih" || wrn "$dirty file belum di-commit — review dengan: lg"
+  if [ -n "$remote_ref" ]; then
+    read -r ahead behind <<< "$(git -C "$DOT" rev-list --left-right --count "HEAD...$remote_ref")"
+    if [ "$ahead" = "0" ] && [ "$behind" = "0" ]; then
+      ok "sinkron dengan $remote_ref"
+    else
+      [ "$ahead" = "0" ] || wrn "$ahead commit lokal belum ada di $remote_ref"
+      [ "$behind" = "0" ] || wrn "$behind commit $remote_ref belum ada di lokal"
+    fi
+  else
+    wrn "branch belum punya upstream atau origin/$branch"
+  fi
 else
   bad "$DOT bukan git repo. Clone: git clone git@github.com:ongkipro/dotfiles.git ~/dotfiles"
 fi
@@ -54,7 +67,7 @@ check_link() { # $1=cli  $2=path  $3=parent-that-must-exist
 check_link claude "$HOME/.claude/CLAUDE.md"          "$HOME/.claude"
 check_link codex  "$HOME/.codex/AGENTS.md"           "$HOME/.codex"
 check_link agy    "$HOME/.antigravity/AGENTS.md"     "$HOME/.antigravity"
-check_link gemini "$HOME/.gemini/GEMINI.md"          "$HOME/.gemini"
+check_link "agy compatibility (~/.gemini)" "$HOME/.gemini/GEMINI.md" "$HOME/.gemini"
 # ~/AGENTS.md harus TIDAK ADA. Ia pernah muncul sebagai salinan tak ter-manage,
 # melenceng 5 hari, lalu rusak kena find-replace (semua "Claude" jadi "Codex")
 # tanpa ada yang tahu. Dan karena CLI naik dari cwd mencari AGENTS.md, file ini
