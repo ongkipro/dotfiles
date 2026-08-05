@@ -11,16 +11,9 @@ TARGETS=(
   "$HOME/.claude/CLAUDE.md"       # Claude Code (global)
   "$HOME/.codex/AGENTS.md"        # Codex (global)
   "$HOME/.antigravity/AGENTS.md"  # Antigravity (agy) — context file UTAMA
-  "$HOME/.gemini/GEMINI.md"       # Antigravity (agy) — stack Gemini. ~/.gemini/ MILIK agy,
-                                  # bukan gemini-cli (yang sudah dihapus). Jangan buang.
-  # ~/AGENTS.md SENGAJA TIDAK ADA di sini. Keputusan lama yang sudah diuji
-  # (config/claude-memory/dev-toolchain-mise.md): keempat CLI punya path
-  # khususnya masing-masing, jadi file di home cuma duplikat — dan karena CLI
-  # naik dari cwd mencari AGENTS.md, tiap sesi di bawah ~ akan memuat aturan
-  # yang sama DUA KALI. pi pakai wrapper pi() (--append-system-prompt), bukan
-  # file ini. Jangan ditambahkan lagi; ai-doctor memperingatkan kalau muncul.
-  # tambah AI baru di sini, contoh:
-  # "$HOME/.config/<tool>/AGENTS.md"
+  "$HOME/.gemini/GEMINI.md"       # Antigravity (agy) — stack Gemini
+  "$HOME/.gemini/antigravity-cli/AGENTS.md"
+  "$HOME/.gemini/antigravity-cli/GEMINI.md"
 )
 
 for t in "${TARGETS[@]}"; do
