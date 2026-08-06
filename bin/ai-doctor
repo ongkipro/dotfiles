@@ -158,30 +158,46 @@ if [ -d "$SK" ]; then
     if [ ! -d "$parent" ]; then wrn "$cli: belum terpasang (lewati)"; continue; fi
     if [ ! -d "$path" ]; then bad "$cli: ${path/#$HOME/\~} tidak ada. Perbaiki: skill-update"; continue; fi
 
-    total_links=0; local_links=0; shared_links=0
-    while IFS= read -r l; do
-      total_links=$((total_links + 1))
-      tgt=$(readlink -f "$l" 2>/dev/null || true)
-      case "$tgt" in
-        "$SK"/*) local_links=$((local_links + 1)) ;;
-        "$SHARED"/*) shared_links=$((shared_links + 1)) ;;
-      esac
-    done < <(find "$path" -maxdepth 1 -type l 2>/dev/null)
-
-    backups=$(find "$path" -maxdepth 1 -name '*.backup.*' | wc -l | tr -d ' ')
-    shared_note=""
-    [ "$shared_links" -gt 0 ] && shared_note="; $shared_links → shared-skills"
-
-    if [ "$total_links" -gt 0 ] && [ "$local_links" -gt 0 ]; then
-      ok "$cli: ${path/#$HOME/\~} dikelola runtime ($total_links symlink; $local_links → skills/local$shared_note)"
+    # Model baru: path itu sendiri adalah symlink root ke skills/local
+    if [ -L "$path" ]; then
+      root_tgt=$(readlink -f "$path" 2>/dev/null || true)
+      if [ "$root_tgt" = "$(readlink -f "$SK" 2>/dev/null)" ]; then
+        n_skills=$(find -L "$path" -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')
+        ok "$cli: ${path/#$HOME/\~} → skills/local ($n_skills skill)"
+      else
+        bad "$cli: ${path/#$HOME/\~} symlink ke $root_tgt, bukan skills/local. Perbaiki: skill-update"
+      fi
     else
-      bad "$cli: ${path/#$HOME/\~} tidak berisi symlink skill custom ke skills/local. Perbaiki: skill-update"
+      # Model lama: dir berisi per-skill symlinks
+      total_links=0; local_links=0; shared_links=0
+      while IFS= read -r l; do
+        total_links=$((total_links + 1))
+        tgt=$(readlink -f "$l" 2>/dev/null || true)
+        case "$tgt" in
+          "$SK"/*) local_links=$((local_links + 1)) ;;
+          "$SHARED"/*) shared_links=$((shared_links + 1)) ;;
+        esac
+      done < <(find "$path" -maxdepth 1 -type l 2>/dev/null)
+
+      backups_note=""
+      shared_note=""
+      [ "$shared_links" -gt 0 ] && shared_note="; $shared_links → shared-skills"
+
+      if [ "$total_links" -gt 0 ] && [ "$local_links" -gt 0 ]; then
+        ok "$cli: ${path/#$HOME/\~} dikelola runtime ($total_links symlink; $local_links → skills/local$shared_note)"
+      else
+        bad "$cli: ${path/#$HOME/\~} tidak berisi symlink skill custom ke skills/local. Perbaiki: skill-update"
+      fi
     fi
 
-    if [ "$backups" -eq 0 ]; then
-      ok "$cli: tidak ada folder *.backup.* di runtime skills"
-    else
-      wrn "$cli: ada $backups folder backup di ${path/#$HOME/\~} — wrapper update aman kebypass. Rapikan: $DOT/bin/pi-update-safe --help >/dev/null"
+    # Backup folders hanya relevan di model per-skill symlink (old model)
+    if [ ! -L "$path" ]; then
+      backups=$(find "$path" -maxdepth 1 -name '*.backup.*' | wc -l | tr -d ' ')
+      if [ "$backups" -eq 0 ]; then
+        ok "$cli: tidak ada folder *.backup.* di runtime skills"
+      else
+        wrn "$cli: ada $backups folder backup di ${path/#$HOME/\~} — wrapper update aman kebypass. Rapikan: $DOT/bin/pi-update-safe --help >/dev/null"
+      fi
     fi
   done
   ok "codex & agy: tak punya dir skill (by design) — pakai \`skill-list\` lalu baca SKILL.md-nya"
