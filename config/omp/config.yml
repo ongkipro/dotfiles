@@ -1,0 +1,14 @@
+setupVersion: 1
+model: 9router-local/opencode-go/minimax-m2.7
+thinking: high
+smol: 9router-local/opencode-go/minimax-m2.5
+slow: 9router-local/perplexity-agent/anthropic/claude-opus-4-8
+plan: 9router-local/perplexity-agent/openai/gpt-5.5
+compaction: 
+  enabled: true
+  reserveTokens: 22000
+  keepRecentTokens: 6000
+tools: 
+  approvalMode: yolo
+modelRoles: 
+  default: openai-codex/gpt-5.3-codex-spark:high

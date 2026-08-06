@@ -102,7 +102,7 @@
 ## Fixes & new tools on `cuan` (2026-07-13)
 - **`pi-9router-sync.service` USED TO FAIL every boot** (`9router is not installed or initialized`). Cause: the script required `~/.9router/auth/cli-secret`, but **9router 0.5.30 no longer creates the `auth/` dir** (now `~/.9router/jwt-secret`). The local endpoint `127.0.0.1:20128` **does not check Authorization** (445 models fetched without a header). FIX: `~/dotfiles/bin/pi-9router-sync.js` — the `secretPath` requirement dropped, fallback `apiKey='noauth'`. The service is now `success`.
 - The script only syncs providers that are **ACTIVE** in the 9router DB → currently pi gets 4 models (`oc/*` free). Want more: enable providers in the 9router dashboard (`localhost:20128`).
-- **New tools (verified)**: `psql`/`pg_dump`/`pg_restore` **18.4** via apt (client 18 may dump a PG16 server — safe; the reverse is NOT), `lm-sensors` (coretemp loaded; CPU ~53°C, GPU ~45°C idle), `wrangler` 4.110.0, `@shopify/cli` 4.4.0, `uv` (mise), `vultr-cli` 3.10.0 (mise).
+- **PostgreSQL client status changed (disk check 2026-08-07):** `psql` resolves to a mise shim but no PostgreSQL version is configured, so `psql`/`pg_dump`/`pg_restore` are currently unavailable until an explicit mise version is selected. The older claim that client 18.4 was available via apt is stale. Other tools in this section must be rechecked individually before use.
 - **Hardware `cuan`**: full specs in the "Device registry" section — don't duplicate. What matters for AI decisions: 4GB swap unused (no OOM), and **the MX150 2GB GPU is too small for a local LLM** → the AI load stays in the cloud.
 
 ## 9router DISABLED on `cuan` (2026-07-13) — not removed, and ONLY on that machine

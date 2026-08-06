@@ -54,8 +54,10 @@ link "$DOT/bin/ai-memory-link"           ~/.local/bin/ai-memory-link
 link "$DOT/bin/dotpush"                  ~/.local/bin/dotpush
 link "$DOT/bin/dotsync"                  ~/.local/bin/dotsync
 for s in tmux-clip tmux-setup security-check security-check-test inspect-project ai-doctor ai-memory-check vps-pgdump 9router-start pi-9router-restore device-register; do link "$DOT/bin/$s" ~/.local/bin/$s; done
-~/.local/bin/ai-memory-link              # symlink AGENTS.md ke semua AI CLI (claude/codex/pi/agy)
-"$DOT/skills/agents-bin/skill-update"    # ~/.claude/skills + ~/.pi/agent/skills -> dotfiles/skills/local (idempoten)
+link "$DOT/config/omp/config.yml"        ~/.omp/agent/config.yml   # OMP config (model, theme, approval)
+link "$DOT/config/omp/models.yml"        ~/.omp/agent/models.yml   # OMP providers (9router)
+~/.local/bin/ai-memory-link              # symlink AGENTS.md ke semua AI CLI (claude/codex/pi/agy/omp)
+"$DOT/skills/agents-bin/skill-update"    # ~/.claude/skills + ~/.pi/agent/skills + ~/.omp/agent/skills -> dotfiles/skills/local (idempoten)
 
 # Jaminan native binary claude ter-unduh. `npm i -g @anthropic-ai/claude-code` (step 3)
 # menaruh native binary via optional-dep/postinstall yang KADANG gagal senyap → `claude`
