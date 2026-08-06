@@ -1,23 +1,19 @@
 git:
-  paging:
-    colorArg: always
-    # side-by-side dimatikan: panel diff lazygit terlalu sempit, beda dengan `git diff` di terminal penuh.
-    pager: delta --paging=never --side-by-side=false --line-numbers
+  pagers:
+    - colorArg: always
+      # side-by-side dimatikan: panel diff lazygit terlalu sempit, beda dengan `git diff` di terminal penuh.
+      pager: delta --paging=never --side-by-side=false --line-numbers
   commit:
     signOff: false
   autoFetch: true
-
 gui:
   showFileTree: true
   nerdFontsVersion: ""
   scrollHeight: 4
   sidePanelWidth: 0.3
-
 os:
   editPreset: helix
-
 refresher:
   refreshInterval: 10
   fetchInterval: 60
-
 promptToReturnFromSubprocess: false
