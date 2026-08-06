@@ -1,14 +1,24 @@
+# OMP config — audited 2026-08-07
+# Primary: openai-codex (free tier, built-in, no API key needed)
+# Fallback: 9router (when credentials/tunnel are active)
 setupVersion: 1
-model: 9router-local/opencode-go/minimax-m2.7
+
+# Default model — openai-codex free tier (always available)
+model: openai-codex/gpt-5.4
 thinking: high
-smol: 9router-local/opencode-go/minimax-m2.5
-slow: 9router-local/perplexity-agent/anthropic/claude-opus-4-8
-plan: 9router-local/perplexity-agent/openai/gpt-5.5
-compaction: 
+theme: dark
+
+# Role-based model routing
+smol: openai-codex/gpt-5.4-mini
+slow: openai-codex/gpt-5.5
+plan: openai-codex/gpt-5.5
+
+# Compaction
+compaction:
   enabled: true
   reserveTokens: 22000
   keepRecentTokens: 6000
-tools: 
+
+# Tools — no approval prompts
+tools:
   approvalMode: yolo
-modelRoles: 
-  default: openai-codex/gpt-5.3-codex-spark:high
