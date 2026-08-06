@@ -34,11 +34,11 @@ Three layers, separated by **how often they are paid for**:
 
 | Layer | Location | When read | Rule |
 |---|---|---|---|
-| **1. Rules** | `~/.config/ai/AGENTS.md` | ALWAYS, every request, across 4 CLIs | **Keep small** (target ≤120 lines) — its cost is multiplied by four. Mandatory policy (approval gates, code discipline) MUST be here, not in a skill. |
+| **1. Rules** | `~/.config/ai/AGENTS.md` | ALWAYS, every request, across 5 CLIs | **Keep small** (target ≤120 lines) — its cost is multiplied by five. Mandatory policy (approval gates, code discipline) MUST be here, not in a skill. |
 | **2. Memory** | `~/.config/ai/memory/*.md` | when needed | Facts checkable from disk → write ONCE + include the verification command. **Disk wins over memory** when they conflict. |
 | **3. Skills** | `~/dotfiles/skills/local/` | on-demand | Deep knowledge. Pure routers forbidden. |
 
-**Smallest common denominator of the 4 CLIs**: they all read `AGENTS.md`, they can all read files + run a shell. So the inter-AI protocol = **AGENTS.md tells where things are; the rest is just files.** DO NOT use a per-CLI plugin system (creates a second source).
+**Smallest common denominator of the 5 CLIs**: they all read `AGENTS.md`, they can all read files + run a shell. So the inter-AI protocol = **AGENTS.md tells where things are; the rest is just files.** DO NOT use a per-CLI plugin system (creates a second source).
 
 **Check the health of the whole chain on any device: `ai-doctor`** (`dotfiles/bin/ai-doctor`). It checks the repo, AGENTS.md into each CLI, memory, skill symlinks, dangling symlinks, security guard, and CLI login status. FAIL = broken, WARN = works but not yet complete.
 
@@ -47,6 +47,7 @@ Three layers, separated by **how often they are paid for**:
 - **pi** = all-in-one: daily terminal work. Skills: AUTOMATIC.
 - **codex** = logic: focused patches, code review, debugging, second opinion. Skills: read manually.
 - **agy** = UI/UX + small development: visual, preview, artifacts. Skills: read manually.
+- **omp** = native Rust coding agent (omp.sh v17+). All-in-one like pi but faster (native binary). Skills: AUTOMATIC. Config: `~/.omp/agent/` (symlinked to dotfiles).
 - ⚠️ **codex NOT logged in on `cuan`** (`~/.codex/auth.json` absent) — this Linux box was just installed, still being set up. Run `codex login` before relying on codex. Not a bug.
 - **codex & agy have no skills directory** — their system is plugins (`plugin.json`), a different format. `agy plugin validate` rejects our `SKILL.md`. **Don't wrap them into plugins** = a second source + sync burden. Just: run `skill-list`, then read `~/dotfiles/skills/local/<name>/SKILL.md` directly.
 
@@ -143,7 +144,7 @@ command again if you install a new CLI later.
 - Disk verification: `skill-list | rg 'volumx-writer'`; validation: `python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py ~/dotfiles/skills/local/volumx-writer`; cross-agent paths: `readlink ~/.claude/skills ~/.pi/agent/skills ~/.agents/local-skills`.
 
 ## AI workflow
-- Tools in active scope: Claude Code, Codex, pi.dev, Antigravity (`agy`), local skills. (9Router exists but is DOWN — see environment.md.)
+- Tools in active scope: Claude Code, Codex, pi.dev, Antigravity (`agy`), OMP (`omp`), local skills. (9Router exists but is DOWN — see environment.md.)
 - Skills (`SKILL.md`) are shared via symlink; Memory is shared separately via `~/.config/ai/` (symlink to `dotfiles/config/ai/`).
 - Goal: standardized AI terminal workflow with shared memory, skills, project context, and repeatable execution rules.
 - AI should help as critical thinking partner, architect, implementer, auditor, and workflow designer.

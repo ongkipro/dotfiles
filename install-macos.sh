@@ -67,6 +67,8 @@ done
 "$DOT/skills/agents-bin/skill-update"
 
 say "==> Link AGENTS.md ke CLI yang ada..."
+link "$DOT/config/omp/config.yml"        "$HOME/.omp/agent/config.yml"   # OMP config
+link "$DOT/config/omp/models.yml"        "$HOME/.omp/agent/models.yml"   # OMP providers (9router)
 "$HOME/.local/bin/ai-memory-link"
 
 say "==> Setup tmux (install binary + clipboard + TPM + plugin)..."

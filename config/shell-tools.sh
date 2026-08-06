@@ -95,6 +95,16 @@ pi() {
   esac
 }
 
+# --- omp (omp.sh): native Rust coding agent ---
+# AGENTS.md is wired via symlink (~/.omp/AGENTS.md -> AGENTS.md), no --append trick needed.
+# Wrapper only handles update routing.
+omp() {
+  case "${1:-}" in
+    update) shift; curl -fsSL https://omp.sh/install | sh ;; # re-run installer = update
+    *) command omp "$@" ;;
+  esac
+}
+
 # --- starship prompt ---
 command -v starship >/dev/null && eval "$(starship init "$(_shell_name)")"
 

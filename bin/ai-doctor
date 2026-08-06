@@ -51,7 +51,7 @@ hdr "2. Aturan (AGENTS.md) — harus sampai ke SEMUA CLI yang terpasang"
 SRC="$AI/AGENTS.md"
 if [ -f "$SRC" ]; then
   ok "sumber: ~/.config/ai/AGENTS.md ($(wc -l < "$SRC") baris)"
-  [ "$(wc -l < "$SRC")" -le 120 ] || wrn "AGENTS.md >120 baris — ini dibaca TIAP request di 4 CLI. Pindahkan detail ke skill."
+  [ "$(wc -l < "$SRC")" -le 120 ] || wrn "AGENTS.md >120 baris — ini dibaca TIAP request di 5 CLI. Pindahkan detail ke skill."
 else
   bad "~/.config/ai/AGENTS.md TIDAK ADA — inti sistem hilang."
 fi
@@ -68,6 +68,7 @@ check_link claude "$HOME/.claude/CLAUDE.md"          "$HOME/.claude"
 check_link codex  "$HOME/.codex/AGENTS.md"           "$HOME/.codex"
 check_link agy    "$HOME/.antigravity/AGENTS.md"     "$HOME/.antigravity"
 check_link "agy compatibility (~/.gemini)" "$HOME/.gemini/GEMINI.md" "$HOME/.gemini"
+check_link omp    "$HOME/.omp/AGENTS.md"              "$HOME/.omp"
 # ~/AGENTS.md harus TIDAK ADA. Ia pernah muncul sebagai salinan tak ter-manage,
 # melenceng 5 hari, lalu rusak kena find-replace (semua "Claude" jadi "Codex")
 # tanpa ada yang tahu. Dan karena CLI naik dari cwd mencari AGENTS.md, file ini
@@ -153,7 +154,7 @@ SHARED="$HOME/.agents/repos/shared-skills"
 if [ -d "$SK" ]; then
   n=$(find "$SK" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')
   ok "sumber custom: $n skill di ~/dotfiles/skills/local/"
-  for pair in "claude:$HOME/.claude/skills:$HOME/.claude" "pi:$HOME/.pi/agent/skills:$HOME/.pi/agent"; do
+  for pair in "claude:$HOME/.claude/skills:$HOME/.claude" "pi:$HOME/.pi/agent/skills:$HOME/.pi/agent" "omp:$HOME/.omp/agent/skills:$HOME/.omp/agent"; do
     cli=${pair%%:*}; rest=${pair#*:}; path=${rest%%:*}; parent=${rest#*:}
     if [ ! -d "$parent" ]; then wrn "$cli: belum terpasang (lewati)"; continue; fi
     if [ ! -d "$path" ]; then bad "$cli: ${path/#$HOME/\~} tidak ada. Perbaiki: skill-update"; continue; fi

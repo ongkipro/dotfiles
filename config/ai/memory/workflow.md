@@ -1,7 +1,7 @@
 # Memory: Workflow & conventions
 > Part of shared memory.
 
-- Terminal-first: edit `hx`, git `lg` (lazygit), multiplex `tmux`, AI claude/pi/codex.
+- Terminal-first: edit `hx`, git `lg` (lazygit), multiplex `tmux`, AI claude/pi/codex/agy/omp.
 - Web preview: run the dev server (`npm run dev` / `shopify theme dev` / `wrangler dev`) then open Chromium to `localhost:<port>` (auto live-reload).
 - Use modern tools: `rg` (not grep), `fd` (not find), `eza` (not ls), `bat` (not cat), `z` zoxide (not manual cd).
 - Git: quick commit via lazygit; backup = push to remote; DO NOT auto-commit (anti-pattern).
@@ -12,7 +12,7 @@
 - Shopify dev routing: **the official Shopify AI Toolkit is NOT installed** in Claude (verified 2026-07-14 — the only marketplace present is `claude-plugins-official`). The repo map is at `~/dotfiles/docs/shopify-ai-development-repos.md`. Don't clone Shopify support repos (dawn/horizon/hydrogen/cli/liquid/theme-liquid-docs) as duplicate skills; just reference the links unless asked to inspect/base on them.
 
 ## Skills — plumbing (verified 2026-07-14)
-- **Single source**: `~/dotfiles/skills/local/`. Consumers via SYMLINK: `~/.claude/skills` and `~/.pi/agent/skills` (both → `dotfiles/skills/local`), plus `~/.agents/local-skills`.
+- **Single source**: `~/dotfiles/skills/local/`. Consumers via SYMLINK: `~/.claude/skills`, `~/.pi/agent/skills`, and `~/.omp/agent/skills` (all → `dotfiles/skills/local`), plus `~/.agents/local-skills`.
 - ⚠️ **`~/.gemini/skills` DOES NOT EXIST** — Gemini CLI was removed (2026-07-13). Don't make it a sync target again. (`~/.gemini/` itself IS still kept: it contains `GEMINI.md` → AGENTS.md, read by Antigravity.)
 - `skill-*` scripts are in `~/dotfiles/skills/agents-bin/`, linked into `~/.agents/bin/`.
 - On macOS: `skill-update` needs bash 5+ (brew) and BSD `find` compatibility (already patched).
