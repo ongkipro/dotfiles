@@ -31,6 +31,7 @@ TARGETS=(
   "$HOME/.gemini/skills"
   "$HOME/.gemini/config/skills"
   "$HOME/.antigravity/skills"
+  "$HOME/.omp/agent/skills"
 )
 
 linked=0 skipped=0

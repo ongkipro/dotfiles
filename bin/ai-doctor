@@ -249,7 +249,7 @@ fi
 
 # ── 7. CLI + login ────────────────────────────────────────────────────────────
 hdr "7. AI CLI di device ini"
-for c in claude codex pi agy; do
+for c in claude codex pi agy omp; do
   if command -v "$c" >/dev/null 2>&1; then
     case "$c" in
       codex) [ -f "$HOME/.codex/auth.json" ] && ok "codex: terpasang + login" \

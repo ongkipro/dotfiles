@@ -14,6 +14,7 @@ TARGETS=(
   "$HOME/.gemini/GEMINI.md"       # Antigravity (agy) — stack Gemini
   "$HOME/.gemini/antigravity-cli/AGENTS.md"
   "$HOME/.gemini/antigravity-cli/GEMINI.md"
+  "$HOME/.omp/AGENTS.md"          # OMP (omp.sh) — native Rust coding agent
 )
 
 for t in "${TARGETS[@]}"; do

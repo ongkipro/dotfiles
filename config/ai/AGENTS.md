@@ -1,7 +1,7 @@
 # Shared Memory — Cross-CLI Conventions
 
 > Loaded into: claude / codex / antigravity(`agy`) via symlink, pi (via `pi()` wrapper).
-> Stack AI CLI resmi = **claude, codex, pi, agy**. Jangan install `@google/gemini-cli` lagi.
+> Stack AI CLI resmi = **claude, codex, pi, agy, omp**. Jangan install `@google/gemini-cli` lagi.
 
 ## Operating profile
 
