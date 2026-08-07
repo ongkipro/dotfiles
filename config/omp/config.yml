@@ -1,43 +1,43 @@
 setupVersion: 1
-modelRoles:
-  default: openai-codex/gpt-5.3-codex-spark
+modelRoles: 
   smol: google-antigravity/gemini-3.1-flash-lite
   slow: openai-codex/gpt-5.5:high
   plan: openai-codex/gpt-5.5:high
   vision: google-antigravity/gemini-3.1-pro
   tiny: google-antigravity/gemini-3.1-flash-lite
   task: openai-codex/gpt-5.4
-modelProviderOrder:
+  default: google-antigravity/gemini-3.6-flash
+modelProviderOrder: 
   - google-antigravity
   - openai-codex
   - 9router-fantastico
-cycleOrder:
+cycleOrder: 
   - smol
   - default
   - slow
 defaultThinkingLevel: auto
-retry:
+retry: 
   enabled: true
   modelFallback: true
   fallbackRevertPolicy: cooldown-expiry
-  fallbackChains:
-    default:
+  fallbackChains: 
+    default: 
       - google-antigravity/gemini-3.6-flash
       - 9router-fantastico/cx/gpt-5.6-sol
-    smol:
+    smol: 
       - 9router-fantastico/ag/gemini-3.5-flash-extra-low
       - openai-codex/gpt-5.4-mini
-    slow:
+    slow: 
       - 9router-fantastico/cx/gpt-5.5:high
       - google-antigravity/claude-opus-4-6:high
-    plan:
+    plan: 
       - 9router-fantastico/cx/gpt-5.5:high
       - google-antigravity/claude-sonnet-4-6:high
-compaction:
+compaction: 
   enabled: true
   strategy: snapcompact
   midTurnEnabled: true
   autoContinue: true
-tools:
+tools: 
   format: auto
   approvalMode: yolo

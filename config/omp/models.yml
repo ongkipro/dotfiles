@@ -1,13 +1,152 @@
-# OMP custom models — active 9Router tunnel models are discovered at runtime.
 providers:
   9router-fantastico:
-    baseUrl: https://rbq97ts.abc-tunnel.us/v1
-    api: openai-completions
-    apiKey: NINEROUTER_REMOTE_KEY
-    name: 9Router Fantastico (tunnel)
-    compat:
-      supportsDeveloperRole: false
-      supportsReasoningEffort: true
-      maxTokensField: max_tokens
-    discovery:
-      type: openai-models-list
+    baseUrl: "https://rbq97ts.abc-tunnel.us/v1"
+    apiKey: "${NINEROUTER_KEY:-sk-80b58c1e24277547-lbe8jr-3866e8dd}"
+    api: "openai-completions"
+    name: "9Router Fantastico"
+    models:
+      - id: "cx/gpt-5.6-sol"
+        name: "cx/gpt-5.6-sol (Gpt 5.6 Sol)"
+        reasoning: true
+        contextWindow: 372000
+        maxTokens: 128000
+      - id: "cx/gpt-5.6-sol-review"
+        name: "cx/gpt-5.6-sol-review (Gpt 5.6 Sol Review)"
+        reasoning: true
+        contextWindow: 372000
+        maxTokens: 128000
+      - id: "cx/gpt-5.6-terra"
+        name: "cx/gpt-5.6-terra (Gpt 5.6 Terra)"
+        reasoning: true
+        contextWindow: 272000
+        maxTokens: 128000
+      - id: "cx/gpt-5.6-terra-review"
+        name: "cx/gpt-5.6-terra-review (Gpt 5.6 Terra Review)"
+        reasoning: true
+        contextWindow: 272000
+        maxTokens: 128000
+      - id: "cx/gpt-5.6-luna"
+        name: "cx/gpt-5.6-luna (Gpt 5.6 Luna)"
+        reasoning: true
+        contextWindow: 272000
+        maxTokens: 128000
+      - id: "cx/gpt-5.6-luna-review"
+        name: "cx/gpt-5.6-luna-review (Gpt 5.6 Luna Review)"
+        reasoning: true
+        contextWindow: 272000
+        maxTokens: 128000
+      - id: "cx/gpt-5.5"
+        name: "cx/gpt-5.5 (Gpt 5.5)"
+        reasoning: true
+        contextWindow: 400000
+        maxTokens: 128000
+      - id: "cx/gpt-5.4"
+        name: "cx/gpt-5.4 (Gpt 5.4)"
+        reasoning: true
+        contextWindow: 400000
+        maxTokens: 128000
+      - id: "cx/gpt-5.4-mini"
+        name: "cx/gpt-5.4-mini (Gpt 5.4 Mini)"
+        reasoning: true
+        contextWindow: 400000
+        maxTokens: 128000
+      - id: "gc/gemini-3.1-pro-preview"
+        name: "gc/gemini-3.1-pro-preview (Gemini 3.1 Pro Preview)"
+        reasoning: true
+        contextWindow: 1048576
+        maxTokens: 65535
+      - id: "gc/gemini-3-pro-preview"
+        name: "gc/gemini-3-pro-preview (Gemini 3 Pro Preview)"
+        reasoning: true
+        contextWindow: 1048576
+        maxTokens: 65535
+      - id: "gc/gemini-3-flash-preview"
+        name: "gc/gemini-3-flash-preview (Gemini 3 Flash Preview)"
+        reasoning: true
+        contextWindow: 1048576
+        maxTokens: 65536
+      - id: "gc/gemini-3.1-flash-lite-preview"
+        name: "gc/gemini-3.1-flash-lite-preview (Gemini 3.1 Flash Lite Preview)"
+        reasoning: true
+        contextWindow: 1048576
+        maxTokens: 65536
+      - id: "gc/gemini-2.5-pro"
+        name: "gc/gemini-2.5-pro (Gemini 2.5 Pro)"
+        reasoning: true
+        contextWindow: 1048576
+        maxTokens: 65536
+      - id: "gc/gemini-2.5-flash"
+        name: "gc/gemini-2.5-flash (Gemini 2.5 Flash)"
+        reasoning: true
+        contextWindow: 1048576
+        maxTokens: 65536
+      - id: "gc/gemini-2.5-flash-lite"
+        name: "gc/gemini-2.5-flash-lite (Gemini 2.5 Flash Lite)"
+        reasoning: true
+        contextWindow: 1048576
+        maxTokens: 65536
+      - id: "ag/gemini-3.6-flash-high"
+        name: "ag/gemini-3.6-flash-high (Gemini 3.6 Flash High)"
+        reasoning: true
+        contextWindow: 1048576
+        maxTokens: 65536
+      - id: "ag/gemini-3.6-flash-medium"
+        name: "ag/gemini-3.6-flash-medium (Gemini 3.6 Flash Medium)"
+        reasoning: true
+        contextWindow: 1048576
+        maxTokens: 65536
+      - id: "ag/gemini-3.6-flash-low"
+        name: "ag/gemini-3.6-flash-low (Gemini 3.6 Flash Low)"
+        reasoning: true
+        contextWindow: 1048576
+        maxTokens: 65536
+      - id: "ag/gemini-3.5-flash-high"
+        name: "ag/gemini-3.5-flash-high (Gemini 3.5 Flash High)"
+        reasoning: true
+        contextWindow: 1048576
+        maxTokens: 65536
+      - id: "ag/gemini-3-flash-agent"
+        name: "ag/gemini-3-flash-agent (Gemini 3 Flash Agent)"
+        reasoning: true
+        contextWindow: 1048576
+        maxTokens: 65536
+      - id: "ag/gemini-3.5-flash-low"
+        name: "ag/gemini-3.5-flash-low (Gemini 3.5 Flash Low)"
+        reasoning: true
+        contextWindow: 1048576
+        maxTokens: 65536
+      - id: "ag/gemini-3.5-flash-extra-low"
+        name: "ag/gemini-3.5-flash-extra-low (Gemini 3.5 Flash Extra Low)"
+        reasoning: true
+        contextWindow: 1048576
+        maxTokens: 65536
+      - id: "ag/gemini-pro-agent"
+        name: "ag/gemini-pro-agent (Gemini Pro Agent)"
+        reasoning: false
+        contextWindow: 1048576
+        maxTokens: 64000
+      - id: "ag/gemini-3.1-pro-low"
+        name: "ag/gemini-3.1-pro-low (Gemini 3.1 Pro Low)"
+        reasoning: true
+        contextWindow: 1048576
+        maxTokens: 65535
+      - id: "ag/claude-sonnet-4-6"
+        name: "ag/claude-sonnet-4-6 (Claude Sonnet 4 6)"
+        reasoning: true
+        contextWindow: 1000000
+        maxTokens: 128000
+      - id: "ag/claude-opus-4-6-thinking"
+        name: "ag/claude-opus-4-6-thinking (Claude Opus 4 6 Thinking)"
+        reasoning: true
+        contextWindow: 200000
+        maxTokens: 64000
+      - id: "ag/gpt-oss-120b-medium"
+        name: "ag/gpt-oss-120b-medium (Gpt Oss 120b Medium)"
+        reasoning: true
+        contextWindow: 128000
+        maxTokens: 64000
+      - id: "ag/gemini-3-flash"
+        name: "ag/gemini-3-flash (Gemini 3 Flash)"
+        reasoning: true
+        contextWindow: 1048576
+        maxTokens: 65536
