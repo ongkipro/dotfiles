@@ -1,43 +1,13 @@
-# OMP models — 9router integrated (2026-08-07)
-# Local 9router = primary (auto-discovery). Tunnel = fallback when available.
+# OMP custom models — active 9Router tunnel models are discovered at runtime.
 providers:
-  9router-local:
-    baseUrl: http://127.0.0.1:20128/v1
-    api: openai-completions
-    apiKey: ${NINEROUTER_KEY:-noauth}
-    name: 9Router Local
-    discovery:
-      type: openai-models-list
-
   9router-fantastico:
     baseUrl: https://rbq97ts.abc-tunnel.us/v1
     api: openai-completions
-    apiKey: ${NINEROUTER_REMOTE_KEY}
+    apiKey: NINEROUTER_REMOTE_KEY
     name: 9Router Fantastico (tunnel)
     compat:
       supportsDeveloperRole: false
       supportsReasoningEffort: true
       maxTokensField: max_tokens
-    models:
-      # ── OpenAI via CX ──
-      - id: cx/gpt-5.4
-        name: cx__gpt-5.4
-      - id: cx/gpt-5.4-mini
-        name: cx__gpt-5.4-mini
-      - id: cx/gpt-5.5
-        name: cx__gpt-5.5
-      - id: cx/gpt-5.6-luna
-        name: cx__gpt-5.6-luna
-      - id: cx/gpt-5.6-sol
-        name: cx__gpt-5.6-sol
-      - id: cx/gpt-5.6-terra
-        name: cx__gpt-5.6-terra
-      # ── Anthropic + Google via AG ──
-      - id: ag/claude-opus-4-6-thinking
-        name: ag__claude-opus-4-6-thinking
-      - id: ag/claude-sonnet-4-6
-        name: ag__claude-sonnet-4-6
-      - id: ag/gemini-3-flash
-        name: ag__gemini-3-flash
-      - id: ag/gemini-pro-agent
-        name: ag__gemini-pro-agent
+    discovery:
+      type: openai-models-list
