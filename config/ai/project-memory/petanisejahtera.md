@@ -19,8 +19,7 @@ E-dagang COD funnel-ads. Repo **`ongkipro/petanisejahtera`** (publik, dibuat 202
 
 **Pola LP funnel:** `src/pages/<slug>.astro`, `prerender=false`, produk dari `src/data/products.ts`, komponen bersama `GeoIpResolvedForm`/`MetaLandingTracker`/`StickyCTA`/`SocialProof` (POLA GLOBAL — jangan diubah per halaman). Gambar per-LP di `public/images/<slug>/` (webp).
 
-**Gotcha:** class Tailwind `red-650`/`slate-450`/`red-350` **tidak valid** (fallback diam-diam) — masih dipakai di `saratoga-padi.astro`. Verifikasi: `rg 'red-650|slate-450' src`.
+**Status & Token Cleanliness (2026-08-07):** Class Tailwind invalid (`red-650`/`slate-450`/`red-350`) sudah dibersihkan total dari seluruh `src/` (0 matches). Fallback resolver form mode jika provinsi tidak diketahui adalah **`hybrid`** (`src/lib/form-mode.ts`). Typecheck `npm run check` 0 error, unit tests `npm run test` 25/25 passed, build Astro v6 SSR Cloudflare Workers sukses.
 
-**Sesi 2026-07-18:** dibuat LP `saratoga-anggrek` (clone `saratoga-padi`, reposisi padi→anggrek high-overclaim, produk fisik sama `productSlug="saratoga"`). Aksen ungu `#6D28D9`. 9 gambar webp digenerate (highsfield). TODO tertunda: infografis, screenshot WA asli, foto testimoni asli — lihat DEV_NOTES changelog. Batas etika: tidak memalsukan foto testimoni ber-badge & screenshot chat. [[volumform-id-market-ux]] pakai konvensi COD ID serupa.
-
+**Sesi 2026-07-18 s/d 2026-08-01:** dibuat LP `saratoga-anggrek` & `saratoga-anthurium`. Produk fisik sama (`productSlug="saratoga"`). Kebijakan SEO diseragamkan: semua LP `index, follow` & terdaftar di sitemap, kecuali `/404` & `/sitemap` yang `noindex`.
 **Durable architecture:** product variants and prices are synchronized from Scalev and must be verified from the repository or provider instead of copied into memory. `BaseLayout.astro` owns the shared `BreadcrumbList` JSON-LD through its `breadcrumbs` property.

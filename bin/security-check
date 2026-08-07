@@ -24,7 +24,7 @@ PATTERN='(BEGIN (RSA|OPENSSH|DSA|EC|PGP) PRIVATE KEY|ghp_[A-Za-z0-9_]{20,}|githu
 # A bare `"` alternative would match the OPENING quote of a real value (="s3cr3t")
 # and silently whitelist every quoted secret in the repo. That bug was caught by
 # the bait test below — keep that test.
-PLACEHOLDER='=[[:space:]]*(""|'\'''\''|`?<[^>]*>|["'\''`]?(\$\{?[A-Za-z_]|your[-_]|my[-_]|the[-_]|xxx|X{3,}|changeme|change[-_]me|placeholder|example|dummy|sample|redacted|noauth|local-dev|test[-_]|fake|\.\.\.)|$)'
+PLACEHOLDER='=[[:space:]]*(""|'\'''\''|`?<[^>]*>|["'\''`]?(\$\{?[A-Za-z_]|\$\(|your[-_]|my[-_]|the[-_]|xxx|X{3,}|changeme|change[-_]me|placeholder|example|dummy|sample|redacted|noauth|local-dev|test[-_]|fake|\.\.\.)|$)'
 
 # Cloudflare's PUBLIC, documented Turnstile test keys (developers.cloudflare.com/turnstile/troubleshooting/testing/).
 # These are meant to be committed; they authenticate nothing.
