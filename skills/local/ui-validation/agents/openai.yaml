@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI Validation"
+  short_description: "Prove browser-visible changes with minimal checks"
+  default_prompt: "Use $ui-validation to verify this browser-visible change with the smallest reliable evidence."

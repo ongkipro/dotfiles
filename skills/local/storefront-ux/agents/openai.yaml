@@ -1,0 +1,4 @@
+interface:
+  display_name: "Storefront UX"
+  short_description: "Design robust commerce journeys and states"
+  default_prompt: "Use $storefront-ux to audit and specify this commerce journey across discovery, purchase, and post-purchase states."

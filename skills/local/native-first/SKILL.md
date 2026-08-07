@@ -23,7 +23,7 @@ Read only the reference for the stack you're in. Don't load them all.
 
 | Stack | Reference |
 |---|---|
-| Next.js 16 / React | `references/next-react.md` |
+| Next.js App Router / React | `references/next-react.md` |
 | Astro | `references/astro.md` |
 | Node / TypeScript | `references/node-ts.md` |
 | Cloudflare Workers | `references/cloudflare.md` |
@@ -39,8 +39,10 @@ Before `npm i` / `pnpm add`, answer all four. Any "no" → don't install.
 
 1. **Does the runtime already do it?** (`fetch`, `URL`, `Intl`, `crypto`, `structuredClone`, CSS, a DB constraint)
 2. **Does an already-installed dep do it?** Check `package.json` first — you probably have it.
-3. **Is it more than ~30 lines to write?** Below that, a dep costs more than it saves (supply chain, bundle, upgrade tax).
-4. **Is it maintained?** Last release < 12 months, no critical advisories.
+3. **Does it remove enough maintained code to earn its cost?** Line count is a
+   heuristic, not a gate; include bundle, supply-chain, upgrade, and API surface.
+4. **Is it healthy for this project?** Check compatibility, releases,
+   unresolved breakage, security advisories, license, and maintenance signals.
 
 Adding it anyway is a legitimate call — but say in one line what you skipped and why.
 
@@ -51,7 +53,7 @@ Never claim "it works" without running one of these. Prefer the project's own
 
 | Stack | Smallest → fuller |
 |---|---|
-| Next.js | `next lint` → `tsc --noEmit` → `next build` |
+| Next.js | project lint script/configured linter → `tsc --noEmit` → `next build` |
 | Astro | `astro check` → `astro build` |
 | Node/TS | `tsc --noEmit` → `node --test` |
 | Cloudflare Workers | `wrangler types` → `wrangler dev` (hit the route) → `wrangler deploy --dry-run` |
@@ -61,7 +63,8 @@ Never claim "it works" without running one of these. Prefer the project's own
 
 **Browser-visible change?** Run the dev server and actually look — a green build
 is not proof the UI works. Playwright at 390px is the house check for mobile
-overflow: `document.documentElement.scrollWidth === window.innerWidth`.
+overflow: `document.documentElement.scrollWidth === window.innerWidth`. Use
+`ui-validation` to select and report the smallest executable browser evidence.
 
 ## Anti-patterns seen in this codebase's history
 

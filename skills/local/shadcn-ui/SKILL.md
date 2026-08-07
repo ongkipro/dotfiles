@@ -1,13 +1,24 @@
 ---
 name: shadcn-ui
-description: 'Use shadcn/ui components for React/Next.js — focused on component usage: charts (Recharts), sidebar, blocks, form patterns, data table, dark mode toggle, and customization via semantic tokens. Start from scratch with shadcn init. Triggers: ''shadcn'', ''shadcn/ui'', ''shadcn ui'', ''install component'', ''buat form shadcn'', ''build shadcn form'', ''data table'', ''chart recharts'', ''sidebar shadcn'', ''shadcn blocks'', ''dark mode toggle''. For custom CLI/registry or deep theming → official skill `vercel:shadcn` (Vercel plugin).'
+description: 'Use shadcn/ui components in React/Next.js for charts, sidebars, forms, data tables, blocks, dark mode, and semantic-token customization. Inspect and reuse the project setup before adding components. Use for shadcn, install component, shadcn form, data table, Recharts chart, shadcn sidebar, blocks, and dark-mode toggle. For custom registries or deep theming, use an installed official shadcn skill when available; otherwise verify against current official shadcn documentation.'
 ---
 
 # shadcn/ui Components
 
-Install and use shadcn/ui components — including the latest charts, sidebar, and blocks.
+Install and use only the shadcn/ui components required by the accepted screen.
+Inspect `package.json`, `components.json`, and existing `src/components/ui` first;
+reuse what is already present. Before emitting a CLI command or component API,
+verify it against the current official registry because the CLI and copied source
+change over time.
 
-**Prerequisite**: Tailwind CSS + CSS variables already set up. If not, run `pnpm dlx shadcn@latest init` (it sets everything up automatically).
+After a browser-visible component change, use `ui-validation` for the smallest
+viewport, keyboard, state, and accessibility evidence. Component compilation
+alone is not UI proof.
+
+**Prerequisite:** Tailwind CSS and the project's token strategy must already be
+understood. For an accepted new shadcn setup, verify the current CLI help and
+official installation guide before running `pnpm dlx shadcn@latest init`; do
+not assume generated paths or configuration choices.
 
 ## Init New Project
 
@@ -74,12 +85,11 @@ pnpm dlx shadcn@latest add accordion alert-dialog aspect-ratio
 | Calendar | `react-day-picker date-fns` |
 | Sidebar | `@radix-ui/react-slot` (usually already included) |
 
-```bash
-# Install everything at once if using the full feature set
-pnpm add react-hook-form zod @hookform/resolvers sonner @tanstack/react-table recharts date-fns react-day-picker
-```
+Add an external dependency only when the selected component requires it and the
+project does not already provide the capability. Follow `native-first`; never
+install this whole table as a bundle.
 
-## Charts (Recharts) — Latest
+## Charts (Recharts)
 
 shadcn/ui now has a Recharts-based chart component with automatic theming via CSS variables.
 
@@ -194,7 +204,7 @@ Add to `globals.css` if not already present:
 }
 ```
 
-## Sidebar — Latest
+## Sidebar
 
 A new, complex sidebar component: collapsible, responsive, keyboard-accessible.
 
@@ -425,9 +435,9 @@ export function ModeToggle() {
 }
 ```
 
-```bash
-pnpm add next-themes
-```
+If the project does not already provide theme state and `next-themes` is the
+accepted implementation, add it with the project's package manager. Do not run
+the install merely because this example exists.
 
 ```tsx
 // app/layout.tsx — wrap with ThemeProvider

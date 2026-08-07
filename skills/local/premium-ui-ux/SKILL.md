@@ -1,13 +1,20 @@
 ---
 name: premium-ui-ux
 description: >-
-  Advanced UI/UX architectural intelligence for premium web applications. Automatically triggers for any frontend, UI, responsive, or design tasks.
-  Triggers: 'bikin ui', 'desain web', 'dashboard responsive', 'bikin tampilan', 'mobile friendly', 'premium design'.
+  Legacy premium UI checklist retained for migration compatibility. Use only
+  when the user explicitly names premium-ui-ux or when auditing old guidance
+  that depended on it. For new work use design-taste for marketing/storefront
+  visual direction, admin-dashboard for data-dense product UI, storefront-ux
+  for commerce behavior, shadcn-ui for React components, and ui-validation for
+  browser evidence.
 ---
 
-# premium-ui-ux: Global Design Intelligence & Dashboard Architecture
+# premium-ui-ux: Legacy compatibility checklist
 
-This skill is the ultimate UX/UI authority. It activates when designing state-of-the-art web apps, SaaS dashboards, or global cross-border e-commerce platforms. It forces the AI to act as a Staff-Level Design Engineer.
+> Deprecated for new work. This file remains temporarily because older prompts
+> and external runtimes may still name it. Its broad rules are not authoritative;
+> the narrower surface owners in the description take precedence. Do not add new
+> callers. Remove this compatibility skill only after a cross-device caller audit.
 
 ---
 

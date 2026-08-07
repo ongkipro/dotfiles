@@ -84,15 +84,15 @@ class SuiteTests(unittest.TestCase):
     def test_cross_skill_ownership_contracts(self) -> None:
         skills_root = ROOT.parent
         prd = (skills_root / "prd-taskbreaker" / "SKILL.md").read_text(encoding="utf-8")
-        premium_ui = (skills_root / "premium-ui-ux" / "SKILL.md").read_text(encoding="utf-8")
+        suite_skill = (skills_root / "development-spec-suite" / "SKILL.md").read_text(encoding="utf-8")
         document_map = (ROOT / "references" / "document-map.md").read_text(encoding="utf-8")
         self.assertIn("Detect the pack by `CONTEXT-RECORD.md`", prd)
         self.assertIn("never create a competing root `PRD.md`", prd)
         self.assertIn("product requirements use `PR-*`, quality constraints use `NFR-*`", prd)
         self.assertIn("exactly one `Primary requirement: PR-*` or `TD-*`", prd)
         self.assertIn("Never maintain both `PRD.md` and `02-PRD.md`", document_map)
-        self.assertIn("not a universal design requirement", premium_ui)
-        self.assertIn("Route jurisdiction and legal-status claims through `development-spec-suite`", premium_ui)
+        self.assertIn("jurisdiction/sector flags create review candidates, not legal conclusions", suite_skill)
+        self.assertIn("selection, canonical ownership, cross-document consistency, and traceability", suite_skill)
 
     def test_context_record_is_created_once_and_preserved(self) -> None:
         destination = self.root / "pack"

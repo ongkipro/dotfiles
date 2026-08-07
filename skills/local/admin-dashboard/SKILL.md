@@ -1,17 +1,13 @@
 ---
 name: admin-dashboard
 description: >-
-  Concept/UX layer for designing correct admin pages & data-dense dashboards — not how to
-  install components. Answers: which chart fits, layout hierarchy & information architecture,
-  admin breakpoints, how the data table / sidebar / charts go responsive across
-  mobile/tablet/desktop, KPI card anatomy, honest analytics, chart a11y + dark mode, and
-  Astro-island vs Next-SPA + D1 pagination. For component CODE (Recharts, sidebar, data table,
-  blocks, dark-mode toggle, semantic tokens) → delegate to the `shadcn-ui` skill. Triggers:
-  'bikin dashboard admin', 'halaman admin responsive', 'chart apa yang cocok', 'design an admin
-  dashboard', 'which chart fits', 'data-dense dashboard', 'tabel di mobile', 'table on mobile',
-  'layout dashboard', 'KPI card', 'analytics UX', 'admin panel', 'dashboard responsive'. NOT for
-  installing/writing components (shadcn-ui), NOT performance audits (web-perf), NOT marketing
-  copy (content/copywriting).
+  Design the concept, information architecture, responsive behavior, tables,
+  charts, KPI hierarchy, accessibility, and data-loading strategy for admin
+  pages and data-dense dashboards. Use for admin panels, dashboard layouts,
+  analytics UX, chart selection, responsive tables, KPI cards, sidebars, and
+  Astro-vs-React admin decisions. Delegate component code to shadcn-ui,
+  browser evidence to ui-validation, and performance diagnosis to web-perf.
+  Not for marketing pages, copywriting, or installing components.
 ---
 
 # Admin Dashboard — concept & IA
@@ -26,6 +22,7 @@ You're already strong at front-end/landing UI/UX. The blind spot is **admin dash
 | Before adding a new dep/lib/wrapper | skill **`native-first`** |
 | IA / flow / ERD diagram from the dashboard structure | skill **`mermaid-diagram`** |
 | Dashboard slow / heavy chart bundle / render audit | skill **`web-perf`** |
+| Viewport, keyboard, accessibility, state, and visual-regression evidence | skill **`ui-validation`** |
 | Astro specifics (islands, adapter) / CF Workers+D1 | skills **`astro-development`**, **`cloudflare`**, **`wrangler`** |
 
 The rule: **this skill decides WHAT, `shadcn-ui` executes HOW.** Don't duplicate component code here.
@@ -65,14 +62,14 @@ Reference frame: **FT "Visual Vocabulary"** (github.com/Financial-Times/chart-do
 
 Recharts already ships via `shadcn-ui`. **Default is Recharts. Step up only when you hit the wall.**
 
-| Library | When | Verified fact |
+| Library | When | Runtime note |
 |---|---|---|
-| **Recharts** (default) | Standard charts (line/bar/area/pie/scatter), **hundreds–low-thousands of points** | SVG, SSR-friendly. `ResponsiveContainer` needs an explicit size on the server. v3.9.2. |
+| **Recharts** (default) | Standard charts (line/bar/area/pie/scatter), **hundreds–low-thousands of points** | SVG and React-oriented. Verify the installed version and current SSR behavior before relying on a specific API. |
 | **ECharts** + `echarts-for-react` | **Thousands+ points / canvas perf**, exotic charts (heatmap, geo, sankey, candlestick, network), **edge-SSR charts** | `renderToSVGString()` → SVG with no DOM/canvas, runs on **Cloudflare Workers-class**. Tree-shake via `echarts/core`. |
 | **visx** (`@visx/*`) | **Bespoke viz** needing d3-level control, lean bundle | SVG (same node ceiling as Recharts) — you buy control, **not** big-data perf. You assemble axis/legend yourself. |
 
 - **Avoid for React + edge-SSR**: **Chart.js** (canvas, won't SSR on plain Workers) & **Observable Plot** (needs `document`/DOM).
-- **Tremor**: acquired by **Vercel (Jan 2025)**, now a **copy-paste "Tremor Raw"/Blocks (MIT) model on top of Recharts** — harvest its KPI/tracker blocks, don't add the npm `@tremor/react` (frozen at 3.18.7). Not a separate engine, just Recharts.
+- **Tremor or another dashboard kit**: treat it as presentation, not a chart-engine decision. Reuse a block only when it fits the installed stack; verify current maintenance and license before adding a package.
 - The "thousands of points" limit is **architectural (SVG node count), not an official number** — SVG = 1 DOM node per datum, so it janks as node count balloons.
 
 ## 4. Responsive data-dense — concrete patterns (NOT "use a media query")
@@ -123,7 +120,7 @@ Recharts already ships via `shadcn-ui`. **Default is Recharts. Step up only when
 - **Stream slow sections.** `app/…/loading.tsx` = instant route-level skeleton (auto-wraps the page in `<Suspense>`). Per-section: `<Suspense fallback={<Skeleton/>}><SlowChart/></Suspense>` — KPI row, chart, table stream independently, none blocking the others.
 - **Mutations = Server Actions.** `'use server'` fn → invoke from a client component (`<form action>`, `formAction`, or handler). After the write, `revalidatePath`/`revalidateTag` from `next/cache` to refresh the table. Re-check auth *inside* the action (reachable via direct POST).
 - **Heavy chart lib → lazy.** `dynamic(() => import('./chart'), { ssr: false })` for a client-only chart touching `window`/DOM. `ssr:false` is NOT allowed in a Server Component — the `dynamic()` call must live in a `"use client"` file.
-- **Deploy to Cloudflare (2026).** Use `@opennextjs/cloudflare` (OpenNext adapter) on **Workers** — Cloudflare's current recommendation, runs the **Node.js runtime** with full App Router. `@cloudflare/next-on-pages` is **deprecated** (edge-only) — don't start new admins on it. Read a D1 binding with `getCloudflareContext().env.<BINDING>` from `@opennextjs/cloudflare`. Caveat: Next Image optimization + incremental cache need adapter config on Workers (not the default Vercel loader) — budget for it.
+- **Deploy to Cloudflare.** Adapter support and runtime behavior are volatile. Before selecting or upgrading an adapter, read the current `native-first`/Cloudflare references and official adapter documentation; do not preserve a deployment choice here as durable UI guidance.
 - **App Router vs Vite SPA.** Internal admin behind login (no SEO, initial-load not critical): a **Vite + React + React Router SPA** is the honest default — all-client, simplest deploy, existing TanStack Query/Table covers D1. Reach for **Next App Router** when you want server-side fetching (cuts client waterfalls), streamed sections, and co-located Server Actions — at the cost of a heavier Cloudflare deploy. Rule: SPA unless server-render/streaming earns its deploy complexity.
 - **D1/Workers data → tables:**
   - Small (hundreds of rows, fits at once) → **client-side** pagination/sort/filter (TanStack Table default).
@@ -138,8 +135,12 @@ Recharts already ships via `shadcn-ui`. **Default is Recharts. Step up only when
 - **One dashboard shell, reused.** Don't invent a new layout per page.
 - Tailwind Plus/Catalyst = **harvest the concept** (paid); shadcn blocks (free, open) cover the same ground.
 
-## Sources (verified)
+## Sources and freshness boundary
 
-FT Visual Vocabulary (github.com/Financial-Times/chart-doctor) · Datawrapper Academy (pie / zero-baseline / area / stacked) · Shneiderman 1996 "The Eyes Have It" · NN/g (mobile tables, F-pattern, skeleton screens) · TanStack Table/Query/Virtual docs · shadcn/ui (sidebar, data-table, chart, blocks) · Tailwind responsive docs · Material Design 3 window-size-classes · Carbon Design (density) · WCAG 1.4.1/1.4.3 · Okabe-Ito palette · Vercel blog (Tremor acquisition) · Recharts/ECharts/visx/Nivo GitHub + bundlephobia · Astro islands docs.
+FT Visual Vocabulary (github.com/Financial-Times/chart-doctor) · Datawrapper Academy (pie / zero-baseline / area / stacked) · Shneiderman 1996 "The Eyes Have It" · NN/g (mobile tables, F-pattern, skeleton screens) · TanStack Table/Query/Virtual docs · shadcn/ui (sidebar, data-table, chart, blocks) · Tailwind responsive docs · Material Design 3 window-size-classes · Carbon Design (density) · WCAG 1.4.1/1.4.3 · Okabe-Ito palette · Recharts/ECharts/visx GitHub · Astro islands docs · Saleor Dashboard (github.com/saleor/saleor-dashboard) for production admin behavior.
+
+Library APIs, versions, maintenance state, and deployment adapters are volatile.
+Verify them against the project's lockfile and current official upstream before
+implementing. Keep this skill focused on durable UX decisions.
 
 **Unverified / inference:** chart point-count thresholds (architectural, no official number); "≤5 widgets/mobile screen" & the virtualization threshold (community practice, not a standard); "color the delta by desired direction" & granularity labeling (design judgment).

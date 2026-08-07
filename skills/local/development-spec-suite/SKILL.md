@@ -90,7 +90,9 @@ Use existing local skills when available:
 - `mermaid-diagram` for architecture, ERD, data-flow, and sequence diagrams.
 - `openapi-spec` for the machine-readable API contract and compatibility checks.
 - `stripe-best-practices` or the current provider skill for payment-specific behavior.
-- `design-taste`, `shadcn-ui`, or `admin-dashboard` for UI/design-system implementation context.
+- `design-taste` for visual direction, `admin-dashboard` for data-dense product
+  UI, `storefront-ux` for commerce behavior, `shadcn-ui` for React component
+  implementation, and `ui-validation` for executable UI evidence.
 - `native-first`, `security-check`, `web-perf`, and relevant platform/provider skills for implementation validation.
 
 If a specialist is unavailable, state the exact capability gap and continue with a bounded, evidence-labelled draft. Do not copy another skill's instructions into this one.

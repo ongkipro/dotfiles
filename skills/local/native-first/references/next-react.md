@@ -38,6 +38,9 @@
 
 ## Validation
 
-`next lint` → `tsc --noEmit` → `next build`. Then **open the page**. A green build says nothing about whether the UI works.
+Run the project's lint script or configured linter, then `tsc --noEmit` and
+`next build`. Next.js CLI commands vary by installed version, so inspect
+`package.json` and `next --help` rather than assuming `next lint` exists. Then
+**open the page**. A green build says nothing about whether the UI works.
 
 Common build-time trap (hit before on TokoΦ): code that throws at import time (e.g. a `db` module asserting `DATABASE_URL`) breaks `next build` in Docker. Guard the assert, or pass a dummy at build.

@@ -1,21 +1,14 @@
 ---
 name: design-taste
 description: >-
-  Anti-slop design judgment for landing pages, marketing sites, storefront
-  surfaces, portfolios, and redesigns. Declare a design read, set three
-  dials, ship pages that don't look AI-templated. Two modes:
-  Brand/Marketing (taste rules on) and DR/COD Funnel (conversion overrides
-  aesthetics). Astro-first stack. Honors an existing design-context/token
-  spec over its own defaults; emits design-tokens.md on new projects.
-  Triggers: desain landing page, desain LP, layout LP, redesign situs,
-  homepage design, hero section layout, 'kok keliatan AI banget',
-  anti-slop, design review LP, ganti tampilan, portfolio site, storefront
-  design, section layout, design tokens, design context. On 'bikin
-  landing page' briefs, load together with astro-development: this skill
-  leads visual direction, that one leads code. Pairs with
-  astro-development, gsap-*, copywriting, seo-website-builder, shadcn-ui.
-  NOT for admin/dashboard/data-dense UI (admin-dashboard), NOT for
-  writing copy (copywriting/content), NOT a component installer.
+  Direct anti-slop visual judgment for landing pages, marketing sites,
+  storefront shells, portfolios, and redesigns. Use for desain landing page,
+  layout LP, homepage or hero design, storefront design, design review,
+  redesign, design tokens, visual polish, or UI that looks AI-templated. Choose
+  Brand/Marketing or DR/COD Funnel mode and honor existing project tokens over
+  defaults. Pair with astro-development for Astro implementation. Not for
+  admin/data-dense UI (admin-dashboard), commerce behavior (storefront-ux),
+  copywriting, component installation, or browser evidence (ui-validation).
 ---
 
 # design-taste: Anti-Slop Design Judgment (Astro-first, funnel-aware)
@@ -39,6 +32,10 @@ Pick ONE mode. It changes which rules fire.
 
 If a page is both (storefront home that also sells), default Brand mode for
 the shell, Funnel mode for the product/offer blocks.
+
+For product discovery, variants, cart, checkout handoff, customer account,
+inventory conflicts, or commerce analytics contracts, keep the visual direction
+here and load `storefront-ux` for interaction behavior.
 
 Out of scope entirely: admin panels, dashboards, data tables, multi-step
 product UI → use the `admin-dashboard` skill. Say so and stop.
@@ -434,4 +431,6 @@ Funnel mode additionally:
 | React components, charts, forms | `shadcn-ui` |
 | Admin/dashboard/data-dense UI | `admin-dashboard` (this skill stops) |
 | "Is there a built-in for this?" | `native-first` |
+| Storefront discovery, PDP, cart, checkout, account behavior | `storefront-ux` |
+| Browser, viewport, keyboard, a11y, and visual evidence | `ui-validation` |
 | Perf audit of the shipped page | `web-perf` |
