@@ -1,7 +1,7 @@
 # Device: `rich`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-08-05**
+> Terakhir diperbarui: **2026-08-09**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
