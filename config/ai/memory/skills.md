@@ -14,12 +14,12 @@
 - Infrastructure interests: Cloudflare Workers/R2/D1/Queues, VPS, PostgreSQL (Drizzle), queue systems, scraping, API architecture, multi-domain publishing. (**Supabase NOT used** — the CLI is deliberately not installed; see development.md.)
 
 ## Marketing & conversion
-- Strong areas: Meta Ads, Google Ads, landing page copywriting, funnel strategy, product research, conversion optimization, tracking/attribution, ecommerce positioning.
+- Strong areas: Meta Ads, Google Ads, landing page copywriting, funnel strategy, product research, conversion optimization, tracking/attribution, ecommerce positioning. Local skill: `meta-ads-signal-engine` (CAPI v22.0, Pixel, deduplication event_id, identity matching, outbox pattern).
 - Evaluates ideas by profit, execution difficulty, compliance risk, scalability, maintenance cost, and speed to market.
 - Prefers direct, critical analysis over agreeable brainstorming.
 
 ## SEO & content
-- Focus areas: Shopify SEO, Astro/static SEO, German SEO articles, Medium SEO, Pinterest SEO, affiliate SEO, indexing strategy, internal linking, semantic page structure, image optimization.
+- Focus areas: Shopify SEO, Astro/static SEO, German SEO articles, Medium SEO, Pinterest SEO, affiliate SEO, indexing strategy, internal linking, semantic page structure, image optimization, AEO/GEO (Google AI Overviews, ChatGPT Search, Perplexity). Local skill: `ai-traffic-os` (4-layer traffic system, AnswerBox 134–167 words chunking, 2026 crawler matrix, multi-modal schema, dual-path referral tracking).
 - Article preference: dynamic templates that can render guide, comparison, review, and FAQ content while remaining SEO-friendly.
 - Avoid claiming secret Google algorithm knowledge; use evidence labels and source-backed reasoning when current facts matter.
 
