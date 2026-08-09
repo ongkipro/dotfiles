@@ -55,11 +55,3 @@ All development projects: web app, SaaS, Shopify, bots, etc. (Created 2026-07-14
 ```
 
 > ⚠️ **AI memory only exists in `~/.config/ai/memory/`.** The legacy `~/dotfiles/memori-ai/` directory was removed; `~/Documents/memori ai/` does not exist. Do not recreate either path.
-
-## Personal AI Orchestrator (`ico`) Execution Workflow
-
-To ensure fast development without code collision (bentrok), follow these rules:
-1. **Single Execution Scope**: Never run more than one `ico` instance in the same project directory/worktree. To run parallel tasks, use `git worktree` to spawn separate directories.
-2. **Git Cleanliness**: Run `ico` on a clean working tree whenever possible. If the working tree is dirty, commit or stash changes first, or proceed only if you are ready to rollback changes using `git reset --hard` if the AI hallucinates.
-3. **Sequential Hand-off**: `ico` runs tasks sequentially. Each agent updates `BUILD-LOG.md` upon completion. Do not modify files manually in the active worktree while `ico` is executing a task in the side pane.
-4. **Interactive Review**: Review all code changes using `lazygit` (`lg`) after the build loop completes or fails before staging/committing.
