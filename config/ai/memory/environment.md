@@ -31,14 +31,14 @@
 > `~/.pi/agent/settings.json` = the truth for the model. `systemctl --user is-enabled 9router.service` = the truth for the service.
 
 - **pi default is PER-MACHINE now — check disk, don't guess.** Check: `jq '.defaultProvider, .defaultModel' ~/.pi/agent/settings.json`.
-  - `cuan`: **`openai-codex` / `gpt-5.4`** (set 2026-07-20, via symlink `config/pi/settings.json` → `~/.pi/agent/settings.json`).
-  - Mac (`ongkis-MacBook-Air`): **`9router-fantastico` / `cx/gpt-5.6-sol`** as of 2026-08-05 (the default briefly used `cx/gpt-5.4` on 2026-07-29). `~/.pi/agent/settings.json` here is a regular file, NOT a symlink. **Full-tunnel mode:** the local launchd gateway is disabled and port 20128 is closed; Pi uses the authenticated remote provider. Native MiniMax remains available but is not the default.
-  - **DECISION (2026-07-21): `cuan` = master, Mac left as-is.** cuan is the config reference; Mac stays 9router **by design**, DO NOT unify/symlink it to `openai-codex`. Both are valid disk states — do not "fix" one to match the other.
-  - `9router` remains available in `~/.pi/agent/models.json` for local/optional models on both machines. The old note (default `minimax`/`MiniMax-M3`) **NO LONGER APPLIES** anywhere.
+  - Linux `cuan`: **`minimax` / `MiniMax-M3`** as verified 2026-08-10 from the regular `~/.pi/agent/settings.json`.
+  - Mac (`ongkis-MacBook-Air`): **`9router-fantastico` / `cx/gpt-5.6-sol`** as of 2026-08-05. `~/.pi/agent/settings.json` there is a regular file, not a symlink. Full-tunnel mode uses the authenticated remote provider while the local launchd gateway is disabled.
+  - OMP is separate from Pi: Linux OMP defaults to **`9router-fantastico/cx/gpt-5.6-sol`** through the authenticated tunnel; `~/.omp/agent/{config.yml,models.yml}` link to `dotfiles/config/omp/`.
+  - `9router` availability in Pi is machine-local; inspect `~/.pi/agent/models.json` rather than copying another machine's provider set.
 - ☠️ **Old model IDs that are dead — don't bring them back:** `ocg/deepseek-v4-pro` and `opencode-go/minimax-m3`. `cx/gpt-5.4-mini` is available through `9router-fantastico` and is a valid compact fallback, not the default.
-- **9router status is per-machine — check, don't guess.** Mac: `launchctl list | grep 9router` plus `lsof -nP -iTCP:20128 -sTCP:LISTEN`; both show the local gateway down as of 2026-08-05. Linux `cuan`: `systemctl --user is-enabled 9router.service` was disabled intentionally; re-check that machine before relying on it.
+- **9router status is per-machine — check, don't guess.** Linux `cuan` is active+enabled with local health OK as verified 2026-08-10. Mac remains full-tunnel with its local launchd gateway disabled as of 2026-08-05.
 - ☠️ **TRAP: 9router installs its OWN autostart** (`com.9router.autostart`, `--tray` mode). That job **does not set `HOSTNAME`** → the gateway binds to **`0.0.0.0`**, meaning ALL providers' API keys can be used by anyone on the same WiFi. It also duplicates `com.9router.gateway` (two processes fighting over port 20128, requests land non-deterministically). Since 2026-07-14 `bin/pi-9router-restore` removes it automatically (moved to `~/.local/share/9router-disabled/`). **If `lsof -nP -iTCP:20128` shows `*:20128` and not `127.0.0.1:20128`, it has relapsed — run `pi-9router-restore`.**
-- **Policy (still in force): 9router is ONLY for pi.dev.** Claude Code, Codex, and agy must NOT go through 9router.
+- **Routing boundary:** Pi and OMP may use 9router. Native Claude Code, Codex, and agy must not be redirected through it.
 - Claude Code through 9router = LEAK: the 9router launcher injects a proxy+CA per-process. Run `claude` normally. The `cc/claude-*` models in the selector = 9router MITM, they have no upstream route (error "may not exist").
 - codex was DETACHED from 9router (29 Jun 2026): the `[model_providers.9router]` block in `~/.codex/config.toml` is commented out; codex reverts to native OpenAI. Uncomment to restore.
 
@@ -105,13 +105,12 @@
 - **PostgreSQL client status changed (disk check 2026-08-07):** `psql` resolves to a mise shim but no PostgreSQL version is configured, so `psql`/`pg_dump`/`pg_restore` are currently unavailable until an explicit mise version is selected. The older claim that client 18.4 was available via apt is stale. Other tools in this section must be rechecked individually before use.
 - **Hardware `cuan`**: full specs in the "Device registry" section — don't duplicate. What matters for AI decisions: 4GB swap unused (no OOM), and **the MX150 2GB GPU is too small for a local LLM** → the AI load stays in the cloud.
 
-## 9router DISABLED on `cuan` (2026-07-13) — not removed, and ONLY on that machine
-- User decision: 9router "not needed" for now. **Service stopped + disabled** (`9router.service` & `pi-9router-sync.service` → `enabled=disabled`, port 20128 dead). 119MB RAM freed.
-- **NOT removed** because it still has 3 dependents: (1) `pi-image-gen` (baseUrl `127.0.0.1:20128`), (2) the pi extension `compact-free` (6 references), (3) the project at `projects.md:31` that routes text+image AI through 9router (`src/lib/ai/nine*`).
-- **`~/.9router/` INTACT (68MB)** — `db/data.sqlite` holds the **upstream provider API keys** and the `backups/` folder is EMPTY. Don't `rm -rf` without exporting first; the keys can't be recovered.
-- The npm package `9router@0.5.30` is still installed (not uninstalled).
-- **Re-enable**: `systemctl --user enable --now 9router.service` (+ `pi-9router-sync.service` if you want pi model auto-sync).
-- Consequence when the **local** service is off depends on current provider config. On `cuan`, verify `~/.pi/agent/settings.json` and image-provider URLs before assuming chat, image generation, or compaction needs localhost. The Mac full-tunnel setup does not depend on port 20128.
+## 9router current status on `cuan` (verified 2026-08-10)
+- `9router.service` is loaded, active, running, and enabled; `http://localhost:20128/api/health` returns `{"ok":true}`.
+- The authenticated remote tunnel is reachable. OMP custom provider `9router-fantastico` resolves its key from the environment-variable name `NINEROUTER_REMOTE_KEY` in `models.yml`; do not use shell interpolation syntax such as `${NINEROUTER_REMOTE_KEY}` there.
+- `pi-9router-sync.service` is enabled but currently inactive/dead after its oneshot lifecycle; inspect `ExecMainStatus` before treating that as failure.
+- **`~/.9router/` remains sensitive:** `db/data.sqlite` contains upstream provider credentials. Never read, copy, delete, or expose it without explicit approval.
+- Local and remote model routing are separate. Verify Pi settings/models, OMP `models.yml`, service health, and tunnel authentication independently before diagnosing fallback.
 
 ## Device registry + git credential (2026-07-13)
 - **`devices/` in dotfiles = the cross-device registry.** One file per machine (`devices/<hostname>.md`): brand/model, CPU, RAM, GPU, disk, AI CLI, toolchain, and **the status of each dotfiles symlink**. Index: `devices/README.md`. Generate/refresh: `device-register` (idempotent, `--dry-run` available; called automatically by install.sh/install-macos.sh, non-fatal).
