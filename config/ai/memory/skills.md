@@ -14,7 +14,7 @@
 - Infrastructure interests: Cloudflare Workers/R2/D1/Queues, VPS, PostgreSQL (Drizzle), queue systems, scraping, API architecture, multi-domain publishing. (**Supabase NOT used** — the CLI is deliberately not installed; see development.md.)
 
 ## Marketing & conversion
-- Strong areas: Meta Ads, Google Ads, landing page copywriting, funnel strategy, product research, conversion optimization, tracking/attribution, ecommerce positioning. Local skill: `meta-ads-signal-engine` (CAPI v22.0, Pixel, deduplication event_id, identity matching, outbox pattern).
+- Strong areas: Meta Ads, Google Ads, landing page copywriting, funnel strategy, product research, conversion optimization, tracking/attribution, ecommerce positioning. Local skills: `meta-ads-signal-engine` (CAPI v22.0, Pixel, deduplication event_id, outbox pattern) and `google-ads-signal-engine` (Google Tag / GTM, Consent Mode v2, Enhanced Conversions, transaction_id, gclid/gbraid/wbraid, Google Ads API v18+ offline upload).
 - Evaluates ideas by profit, execution difficulty, compliance risk, scalability, maintenance cost, and speed to market.
 - Prefers direct, critical analysis over agreeable brainstorming.
 
