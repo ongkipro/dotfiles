@@ -6,15 +6,25 @@ that better than any checked-in copy, and a copy goes stale silently.
 **Get current truth from the CLI, not from memory:**
 
 ```bash
-shadcn search <term>      # find registry items (`list` is an alias)
-shadcn docs <item>        # canonical docs + example URLs
-shadcn view <item>        # print the ACTUAL current source
-shadcn add <item> --dry-run   # what would be written, and which deps
+shadcn search @shadcn -q <term>   # `list` is an alias
+shadcn docs <item>                # canonical docs + example URLs
+shadcn view <item>                # the ACTUAL current registry item, as JSON
+shadcn add <item> --dry-run       # what would be written, and which deps
 ```
 
-Run these through the project's own binary when `shadcn` is a dependency
-(`npx shadcn …` resolves it) so the version matches the repo. Verified on
-`shadcn@4.16.2`.
+**The `@namespace` is required.** A bare `shadcn search button` fails with
+*"Registry names must start with @"*, and omitting it only works when
+`components.json` declares a `registries` key — most projects here don't.
+
+**Run these inside the project directory.** `docs` and `view` resolve against
+the project's `style`: in a `radix-nova` project `shadcn docs field` returns the
+`/components/radix/field` page, outside any project it returns
+`/components/base/field`. Same command, different answer — and the dependency
+list in `view` shifts with it too.
+
+Prefer the project's own binary when `shadcn` is in its `package.json`, so the
+version matches the repo; otherwise a global install (`command -v shadcn` —
+present on the Linux box at 4.16.2, verify per device).
 
 **Package manager:** detect it from the lockfile. Our projects are mixed — most
 are npm, some pnpm. Never hardcode `pnpm dlx` into a project that uses npm.

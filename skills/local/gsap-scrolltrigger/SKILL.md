@@ -231,16 +231,21 @@ A common pattern: **pin** a section, then as the user scrolls **vertically**, co
 ```javascript
 const scrollingEl = document.querySelector(".horizontal-el");
 // Panel = pinned viewport-sized section. .horizontal-wrap = inner content that moves left.
-const scrollTween = gsap.to(scrollingEl, { 
-  xPercent: () => Max.max(0, window.innerWidth - scrollingEl.offsetWidth), 
+// Distance to travel = how much the inner content overflows the viewport.
+// Negative x moves it left. Guard at 0 so non-overflowing content stays put.
+const distance = () => Math.max(0, scrollingEl.scrollWidth - document.documentElement.clientWidth);
+
+const scrollTween = gsap.to(scrollingEl, {
+  x: () => -distance(),
   ease: "none", // ease: "none" is required
   scrollTrigger: {
     trigger: scrollingEl,
     pin: scrollingEl.parentNode, // wrapper so that we're not animating the pinned element
     start: "top top",
-    end: "+=1000"
+    end: () => "+=" + distance(), // scroll length matches travel; 1:1 feel
+    invalidateOnRefresh: true      // recompute the function values on resize
   }
-}); 
+});
 
 // other tweens that trigger based on horizontal movement should reference the containerAnimation:
 gsap.to(".nested-el-1", {

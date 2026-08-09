@@ -36,17 +36,21 @@ the rest of this skill.
 
 | Field | Why it changes what you write |
 |---|---|
-| `style` | Picks the registry variant. **This decides whether an item even exists** — on `radix-nova`, `add form` writes nothing, while `default` and `new-york-v4` still ship `form.tsx`. Hardcoded classes differ too (`DialogContent` is `sm:max-w-sm` on radix-nova). |
+| `style` | Picks the registry variant. **This decides whether an item even exists** — on `radix-nova`, `add form` writes nothing, while `default` and `new-york-v4` still ship `form.tsx`. Hardcoded classes differ too (`DialogContent` is `sm:max-w-sm` on radix-nova). **Immutable after init.** |
 | `tailwind.config` | Empty string = v4, CSS-first, no JS config. A path means a v3-era project and most of the next section does not apply. |
 | `tailwind.css` | Where the tokens actually live. Do not assume `globals.css` — an Astro project may use `src/styles/global.css`. |
-| `tailwind.cssVariables` | `false` means no semantic tokens; `bg-primary` won't exist and dark mode is not wired the way this skill assumes. |
-| `tailwind.baseColor` | The palette already chosen. Never overwrite an existing `--chart-*` / neutral ramp with the docs' defaults. |
-| `tailwind.prefix` | If non-empty, **every** utility in every snippet here needs that prefix. |
-| `aliases.ui` / `aliases.components` / `aliases.utils` | The real import paths. `@/components/ui` is a default, not a guarantee. |
+| `tailwind.cssVariables` | `false` means no semantic tokens; `bg-primary` won't exist and dark mode is not wired the way this skill assumes. **Immutable after init.** |
+| `tailwind.baseColor` | The palette already chosen. Never overwrite an existing `--chart-*` / neutral ramp with the docs' defaults. **Immutable after init** — a wrong value is a re-init decision, not an edit. |
+| `tailwind.prefix` | Non-empty ⇒ every utility in every snippet here needs it, and **on v4 the form is a colon variant** (`tw:flex`, `tw:hover:bg-primary`), not v3's `tw-flex`. v4's `prefix()` also renames theme variables (`--tw-color-*`), so the `--chart-*` guidance below shifts with it. |
+| `aliases.*` | The real import paths — `ui`, `components`, `utils`, `lib`, `hooks`. `@/components/ui` is a default, not a guarantee. |
 | `iconLibrary` | The project's one icon set. Adding a second violates `design-taste`'s one-library rule. |
-| `rsc` | `false` means no React Server Components — the App Router server/client guidance in `admin-dashboard` does not apply, and `"use client"` is meaningless. |
+| `rsc` | Whether the CLI stamps `"use client"` onto generated client components. `false` ⇒ it does not. In a non-RSC project (Astro, Vite, React Router) that is correct; in a Next App Router repo it means **you** add the directive by hand, and `admin-dashboard`'s server/client rules still apply. |
+| `tsx` | `false` ⇒ `.jsx` output and no TS types; every typed snippet here needs stripping. |
+| `registries` | Extra or private registries. Non-empty ⇒ `add <item>` may resolve outside shadcn's own registry, and nothing in this skill describes that source. Confirm where an item came from before trusting any guidance here. |
 
-Read it before the first command, not after the first failure.
+The real file can also carry keys the docs don't list (`rtl`, `menuColor`,
+`menuAccent` all appear in our projects). Read it before the first command, not
+after the first failure.
 
 ## Official shadcn skill
 
@@ -57,16 +61,21 @@ through the skills.sh protocol:
 npx skills add shadcn/ui      # telemetry is on by default; DISABLE_TELEMETRY=1 to opt out
 ```
 
-It does things a checked-in file cannot: it reads the live `components.json`
-itself, mirrors the current CLI reference, and covers registry authoring plus
-the shadcn MCP server. When it is installed, prefer it for anything
-project-context-dependent, current CLI syntax, or custom-registry work.
+It carries what a hand-maintained file drifts on: the current CLI reference,
+registry authoring, and the shadcn MCP setup. It does **not** read
+`components.json` for you — that is the agent's job either way (section above,
+which stays authoritative; the official skill supersedes this file on CLI
+syntax and registry work, not on the house rules).
 
 **Before installing it, check where it writes.** `~/.claude/skills` is a symlink
-to `~/dotfiles/skills/local`, so an installer targeting that path drops a
-foreign skill inside the single source this repo maintains — exactly the second
-source `CLAUDE.md` forbids. Install it into a project directory, or vendor it
-deliberately with a `.source` file like the other vendored skills.
+to `~/dotfiles/skills/local`, so an installer aimed there drops an unvendored
+third-party directory straight into the tracked dotfiles repo — it pollutes the
+single source rather than sitting beside it. The CLI does not document its
+target path: run it with `--help` first and read the install summary, or install
+from inside a project so it lands in that repo's `.claude/skills`. To put it in
+dotfiles deliberately, vendor it the way `stripe-best-practices` is — a
+`.source` file carrying the upstream raw base URL so `_refresh-vendored.sh` can
+re-fetch it.
 
 This skill stays useful alongside it: it carries the house rules (package
 manager per lockfile, `native-first` discipline), the verified drift traps
@@ -104,24 +113,36 @@ otherwise, and check `components.json` + the main CSS file before writing code.
 ## Commands and package manager
 
 **Use the project's own package manager** — check the lockfile, don't assume.
-Our projects are mixed: most are npm, a few pnpm. When `shadcn` is already a
-dependency (`npx shadcn …`) that pinned version wins over `@latest`, which is
-what you want inside an established repo.
+Our projects are mixed: most are npm, a few pnpm.
+
+Resolution order, and **check rather than assume** — global installs are
+per-device:
+
+1. The project's own binary when `shadcn` is in its `package.json`. Its pinned
+   version wins inside an established repo.
+2. A global install — `command -v shadcn`. Present on the Linux box (4.16.2);
+   verify before relying on it elsewhere.
+3. `npx shadcn@latest`, only to scaffold a project that has neither.
 
 ```bash
-npx shadcn@latest init      # new setup
-npx shadcn add <item>       # existing repo, pinned CLI
+shadcn init                 # new setup (npx shadcn@latest init if not installed)
+shadcn add <item>           # inside the project
 ```
 
 Discovery beats memory — these subcommands did not exist when most shadcn
 examples online were written:
 
 ```bash
-shadcn search <term>          # find registry items
-shadcn docs <item>            # canonical docs + example URLs
-shadcn view <item>            # print the ACTUAL current source
-shadcn add <item> --dry-run   # what would be written, and which deps
+shadcn search @shadcn -q <term>   # `list` is an alias
+shadcn docs <item>                # canonical docs + example URLs
+shadcn view <item>                # the ACTUAL current registry item, as JSON
+shadcn add <item> --dry-run       # what would be written, and which deps
 ```
+
+Two traps: the **`@namespace` is required** (a bare `shadcn search button`
+errors out), and these must be **run inside the project** — `docs` and `view`
+resolve against its `style`, so the same command returns the `radix` page in one
+project and the `base` page in another.
 
 `init` creates `components.json`, `src/lib/utils.ts` (the `cn` helper), and
 `src/components/ui/`, and writes the token block into your main CSS file. On v4

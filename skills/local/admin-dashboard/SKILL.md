@@ -138,16 +138,17 @@ Recharts already ships via `shadcn-ui`. **Default is Recharts. Step up only when
 
 ## 8. Operator surfaces — the screens these businesses actually run
 
-Orders, invoices, finance, tenants, audit, impersonation, chat inbox. These are
-the bulk of a real admin and the most-skipped part of dashboard guidance.
+Orders, tenants, audit, impersonation. These are the bulk of a real admin and
+the most-skipped part of dashboard guidance.
 
 - **Timezone is the likeliest correctness bug.** A "Today" KPI computed in UTC
   against a WIB (UTC+7) operation is wrong for seven hours of every day, and it
   is wrong silently. State the timezone next to every period label, compute
   period boundaries in the operation's timezone, and never let a date filter and
   a KPI disagree about when "today" started.
-- **Currency:** format IDR without decimals, right-align money, and never mix
-  currencies in one column — put the currency in the column header or split the
+- **Currency:** `Intl.NumberFormat` already drops decimals for IDR and keeps
+  them for MYR (verified) — use it rather than hand-formatting. Right-align
+  money, never mix currencies in one column: put it in the header or split the
   column.
 - **Order lifecycle is the primary axis**, not a secondary filter. Define the
   status taxonomy, which statuses are terminal, and where status lives (tab bar
@@ -162,17 +163,20 @@ the bulk of a real admin and the most-skipped part of dashboard guidance.
   switcher. Per-store vs aggregate KPIs must be labelled as such.
   **Impersonation needs a visible, persistent banner with one-click exit** —
   an operator who forgets they are impersonating will act as the customer.
-- **Permissions:** decide hide vs disable vs 403 per action, and never render an
-  action as enabled that will fail server-side. Audit logs are their own table
-  archetype: append-only, no edit, actor + before/after.
+- **Permissions:** **hide** an action the role can never hold; **disable** with
+  a reason tooltip when the role could hold it but this object's state forbids
+  it; **403** only as the server-side backstop. Never render an action as
+  enabled that will fail server-side. Audit logs are their own table archetype:
+  append-only, no edit, actor + before/after.
 - **Destructive and unsaved state:** confirmation names the object; no
-  confirmation for reversible actions; dirty forms get a navigation guard.
-  `storefront-ux` requires "never clear entered data on failure" — the same
-  applies here.
+  confirmation for reversible actions; dirty forms get a navigation guard. §1's
+  no-data-loss rule applies to every operator form.
 - **URL-addressable filters and saved views.** Admin tables need shareable state
   more than storefronts do: "unpaid orders today" should be a link.
-- **New-order arrival:** choose polling interval vs manual refresh deliberately,
-  and never let a background refresh reorder rows under the operator's cursor.
+- **New-order arrival:** poll only where a missed item costs money (order queue,
+  chat inbox) and keep it cheap — 30-60s is the default. Everything else gets a
+  manual refresh plus a "new since you loaded" badge. A background refresh never
+  reorders rows under the operator's cursor.
 - **Export:** export the *filtered* set, not the current page. Decide sync vs
   queued job by size, and say which one happened.
 

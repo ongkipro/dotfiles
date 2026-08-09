@@ -33,21 +33,25 @@ Use only the sections relevant to the task. Treat this as an audit checklist, no
 Applies when the page collects the order itself instead of handing off to a
 hosted checkout: DR/COD landing pages, one-page order forms, quiz funnels. The
 form IS the product here — treat every rule below as a correctness requirement,
-not polish. Visual treatment stays with `design-taste`; field wording stays with
+not polish. Visual treatment stays with `design-taste` (§4.4 label placement, §4.7 the 16px
+input floor). Field labels and error wording have **no owner skill** — write
+them here to the same plain-language standard, and take only tone from
 `copywriting`.
 
-- **Never rename or reorder field `name`/`id`/slug values that analytics,
-  pixels, or the order backend already depend on.** Verify the current contract
+- **Never rename field `name`/`id`/slug values that analytics, pixels, or the
+  order backend already depend on.** (Reordering the DOM is safe for `name`-keyed
+  payloads and unsafe for position-scraping pixels — check which you have.) Verify the current contract
   in the codebase before touching a field; a renamed field is a silently dead
   funnel, not a visible bug.
 - Use native semantics before JavaScript: correct `type`, `inputmode`,
   `autocomplete` (`tel`, `name`, `street-address`, `postal-code`), and a real
   `<label>` bound to each control. Native autofill is the single biggest
   completion win on mobile and it is free.
-- **Accept what users actually type.** Phone and postcode entry varies by
-  habit (leading zero, country prefix, spaces, dashes). Normalize on submit;
-  never block or silently rewrite characters mid-typing, and never reject a
-  valid number because of formatting.
+- **Accept what users actually type.** Phone and postcode entry varies by habit
+  (leading zero, country prefix, spaces, dashes). Normalize on submit **to the
+  shape the existing backend and pixel payloads already receive** — read that
+  contract before choosing it, because changing the normalized form is a funnel
+  change, not a cleanup. Never rewrite characters mid-typing.
 - Validate on blur and on submit, not on every keystroke. On a failed submit,
   move focus to the first invalid field and associate the message with its
   input so it is announced, not merely coloured red.
@@ -55,9 +59,11 @@ not polish. Visual treatment stays with `design-taste`; field wording stays with
   or server error. Re-render the form with values intact and state what to do
   next. Persist in-progress input across accidental navigation where the
   project already has a mechanism for it.
-- **Prevent duplicate orders.** Disable the submit control during the request,
-  and make the write idempotent on the server. Double-tap on a slow mobile
-  connection is the normal case, not the edge case.
+- **Prevent duplicate orders.** Block the second submit with `aria-disabled`
+  plus an ignored handler, or a busy state — not `disabled`, which can drop
+  focus off the button and silence the result announcement. Require an
+  idempotency key on the order write so a retry cannot create a second order.
+  Double-tap on a slow mobile connection is the normal case, not the edge one.
 - Address input follows the market's own administrative hierarchy; do not
   assume one country's model fits another. Where shipping rate or coverage
   lookup is involved, that integration is owned by the courier/aggregator skill

@@ -28,7 +28,7 @@ Pick ONE mode. It changes which rules fire.
 
 | Mode | Signals | Rule set |
 |---|---|---|
-| **Brand / Marketing** | agency site, SaaS landing, portfolio, storefront home, "premium", "clean", brand awareness | All sections apply |
+| **Brand / Marketing** | agency site, SaaS landing, portfolio, storefront home, editorial/blog/docs, "premium", "clean", brand awareness | All sections apply (editorial, docs, and portfolio also get §4.5.1) |
 | **DR / COD Funnel** | LP produk COD, ads funnel, Scalev/order form, "yang penting convert", quiz/geo funnel | Sections apply EXCEPT the overrides in Section 6 |
 
 If a page is both (storefront home that also sells), default Brand mode for
@@ -384,21 +384,35 @@ declaration. Working snippets for Astro, Astro SSR, and React, plus the CSS
 
 ### 4.5.1 Editorial, docs, and portfolio surfaces
 
-§2 assigns these dials but §4.5's density caps are written for marketing
-sections — they do NOT apply to long-form body copy. What applies instead:
+These run in Brand mode. §2 assigns their dials, but §4.5 is written for
+marketing sections, so two of its rules are suspended here: the per-section word
+caps (long-form body copy is the point of the surface), and the ">5 items never
+ships as a hairline `<ul>`" rule — an index of terms, posts, or projects **is** a
+legitimate hairline list, and chunking it into cards is the actual error.
+Everything else in §4.5 still applies, including the copy self-audit.
 
-- **Measure wins over grid.** Body text stays at 60-75ch even when the layout
-  could go wider. A full-bleed column of prose is a readability bug.
-- **Rhythm from one scale.** Space headings asymmetrically — more above than
-  below — so a heading binds to the text it introduces rather than floating
-  between two blocks.
-- **Docs navigation is information architecture, not chrome.** Current location
-  is always visible, and the nav is reachable without scrolling back up. If the
-  tree is deeper than two levels, show only the open branch.
+- **Measure wins over grid.** Keep §4.1's `max-w-[65ch]`; docs may go to 75ch
+  where scanning beats reading. A full-bleed column of prose is a readability
+  bug even when the layout could go wider.
+- **Rhythm from one scale.** Heading space is asymmetric off the §4.1 spacing
+  scale — roughly 2:1 above vs below (`mt-16 mb-8` at H2) — so a heading binds
+  to the text it introduces instead of floating between two blocks.
+- **Body furniture needs designing too**, and it is what actually distinguishes
+  an editorial surface: figure + caption (caption is secondary ink, never
+  centered under a left-aligned column), blockquote (indent or rule, not both),
+  code blocks (own scroll container per §4.7, never the page), tables (header
+  contrast + `overflow-x` wrapper), and footnote or reference rendering.
+- **Docs:** current location always visible, nav reachable without scrolling
+  back up, and only the open branch expanded past two levels. A term or entry
+  page is a dense index, not a marketing section — density comes from §2's DEN
+  dial, not from §4.5's airy defaults. Once it grows a fixed sidebar console and
+  data tables, §1.5 hands it to `admin-dashboard`.
 - **Portfolio: the work is the design.** An index card is one real image, the
-  title, and one line of context — nothing hover-only, because touch has no
-  hover. Case-study detail follows problem → what you did → outcome, with real
-  numbers or none at all (§4.5's copy self-audit applies in full).
+  title, and one line of context, all visible without hover (§4.7). §2 gives
+  portfolio VAR 7 / MOT 6 — spend that on the *index grid* (mixed aspect ratios,
+  offset rows, load-in cascade), not on the card interior, which stays uniform
+  so the work is what varies. Case-study detail follows problem → what you did →
+  outcome, with real numbers or none at all.
 
 ### 4.6 Images
 1. Image-gen tool available → generate section-specific assets at the right
