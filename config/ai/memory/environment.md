@@ -112,6 +112,21 @@
 - **`~/.9router/` remains sensitive:** `db/data.sqlite` contains upstream provider credentials. Never read, copy, delete, or expose it without explicit approval.
 - Local and remote model routing are separate. Verify Pi settings/models, OMP `models.yml`, service health, and tunnel authentication independently before diagnosing fallback.
 
+### ⚠️ The OMP tunnel key chain is load-bearing and only half-tracked (2026-08-10)
+
+OMP's working path is `9router-fantastico` → the tunnel in `config/omp/models.yml`. Verified end to end on 2026-08-10: HTTP 200 in ~2.2s. What it depends on, in order:
+
+1. `~/.bashrc` derives `NINEROUTER_REMOTE_KEY` from `jq -er '."9router-fantastico".key' ~/.pi/agent/auth.json`. **This block is NOT tracked in dotfiles** — `.bashrc` is a local file and does not source `config/bashrc.tools.sh` (`home/bashrc.snapshot` is ~222 lines stale, do not trust it as a copy). **On a reimage or a new device it must be recreated by hand**, or OMP loses the tunnel with no clue why.
+2. It sits below `.bashrc`'s interactive guard, so **only interactive shells get it**. That is fine for typing `omp` in a terminal and cannot be fixed by moving it up: non-interactive bash does not read `.bashrc` at all (`BASH_ENV` unset). A launcher/systemd-launched OMP would need a different mechanism.
+3. `models.yml` stores the **bare variable name** `NINEROUTER_REMOTE_KEY`. Rewriting it as `${NINEROUTER_REMOTE_KEY}` breaks it — that syntax is not expanded there.
+4. Re-authing pi refreshes the key automatically, since `auth.json` is the source.
+
+Verify the chain: `bash -lic '[ -n "$NINEROUTER_REMOTE_KEY" ] && echo ok'`.
+
+**Do not "fix" `models.yml` to point at `http://localhost:20128`.** The local instance has zero provider accounts and zero API keys, so it 401s on chat while still listing 679 catalogue models — it looks healthy and serves nothing. The tunnel reaches a *different*, fully configured 9router.
+
+Still pointing at the empty local instance and therefore broken: `pi-image-gen` (default `gemini-flash`), the Pi provider *named* `9router-remote` (its `${NINEROUTER_REMOTE_URL:-…}` fallback resolves to localhost because that variable is never set), and `bin/ico`'s decompose call. Repointing image-gen at the tunnel also needs new model IDs — the tunnel carries `ag/gemini-3.1-flash-image`, not `gemini/gemini-3.1-flash-image-preview`.
+
 ## Device registry + git credential (2026-07-13)
 - **`devices/` in dotfiles = the cross-device registry.** One file per machine (`devices/<hostname>.md`): brand/model, CPU, RAM, GPU, disk, AI CLI, toolchain, and **the status of each dotfiles symlink**. Index: `devices/README.md`. Generate/refresh: `device-register` (idempotent, `--dry-run` available; called automatically by install.sh/install-macos.sh, non-fatal).
 - **Specs for `cuan` (the only place in this file):** **Lenovo ThinkPad T480** (`20L6S3ED00`), i7-8650U 4c/8t, RAM **14.9 GB** (~12GB free), 4GB swap, NVMe 233GB (8% used), DUAL GPU Intel UHD 620 (`i915`) + NVIDIA MX150 2GB (driver 580.159.03, `nvidia_drm` active).
