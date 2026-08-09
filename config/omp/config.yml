@@ -6,7 +6,7 @@ modelRoles:
   vision: google-antigravity/gemini-3.1-pro
   tiny: google-antigravity/gemini-3.1-flash-lite
   task: openai-codex/gpt-5.4
-  default: google-antigravity/gemini-3.6-flash
+  default: 9router-fantastico/cx/gpt-5.6-sol
 modelProviderOrder: 
   - google-antigravity
   - openai-codex

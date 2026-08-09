@@ -1,7 +1,7 @@
 # Device: `ongkis-MacBook-Air`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-07-14**
+> Terakhir diperbarui: **2026-08-07**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -22,7 +22,7 @@
 | CPU | Apple M1 (8 thread) |
 | RAM | 8.0 GB |
 | GPU | Apple M1 |
-| Disk (/) | 228Gi total, 160Gi free (7% used) |
+| Disk (/) | 228Gi total, 134Gi free (9% used) |
 
 ## AI CLI
 

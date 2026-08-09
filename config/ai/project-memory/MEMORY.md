@@ -20,8 +20,10 @@
 - [`CF_API_TOKEN` membajak wrangler](cf-api-token-hijacks-wrangler.md) — a stale zone-scoped variable can override OAuth and fake 403s; unset both token variables for interactive OAuth checks instead of assigning empty values.
 - [Biasakan git worktree](prefer-git-worktree.md) — work on repos via a separate worktree, don't checkout/commit directly on `main`.
 - [Commit menambah, bukan menimpa](additive-commits-no-history-rewrite.md) — don't force-push/rewrite history. Commit identity = noreply, don't use the real email.
+- [Pemilihan model Claude Code](claude-code-model-selection.md) — the `/model` picker is server-curated per account, not the availability list; unlisted models stay callable by full ID. Settings pin no `model`, so sessions run the default Opus 5.
 - [Antigravity CLI = `agy`](antigravity-cli-agy.md) — binary `agy`, NOT `gemini`; subcommand `plugin` not `extensions`. Gemini CLI is deliberately not installed. Also: the "⚠ Eligibility Check / profile picture TLS timeout" is cosmetic — restart, don't re-login.
 - [worktrunk (`wt`)](worktrunk-worktree-tooling.md) — worktree tooling. The agy plugin needs the `brew install worktrunk` binary first, otherwise its hook errors.
 - [JASAWEBSITE.co brand](jasawebsite-co-brand.md) — web agency by VOLUM, 7 services, ID+MY market, spec in PRD v4.0.
 - [SF-Theme Shopify store](sf-theme-shopify-store.md) — store `yn80fb-mb`, theme `olivia-16-6-0a` (#186432061760, unpublished); permanent handle for all CLIs.
 - [PetCue Dawn rebuild](petcue-dawn-rebuild.md) — legal Dawn-based theme (a licensed Olivia alternative) for store `2mpt3p-xv`, paused mid-build.
+- [Batas permission matcher Claude Code](claude-code-permission-matcher-limits.md) — a denied directory admits no carve-out (extglob negation was tested and fails), and prefix rules cannot see flags; use `ssh -G` and a PreToolUse hook.

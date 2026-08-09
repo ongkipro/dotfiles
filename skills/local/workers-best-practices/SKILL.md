@@ -125,4 +125,3 @@ This skill covers Workers-specific best practices and code review. For related t
 - **Provide evidence.** Reference line numbers, tool output, or docs links.
 - **Focus on what developers will copy.** Workers code in examples and docs gets pasted into production.
 - **Correctness over completeness.** A concise example that works beats a comprehensive one with errors.
-- **No findings is a finding.** A Worker with no floating promises, no global state, and correct bindings is already good — say so and stop. Don't downgrade a nitpick into an "issue" to make the review look productive.
