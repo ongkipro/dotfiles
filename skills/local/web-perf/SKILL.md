@@ -21,14 +21,29 @@ Your knowledge of web performance metrics, thresholds, and tooling APIs may be o
 
 If they exist, run the full workflow below.
 
-If they don't, the `chrome-devtools` MCP server isn't configured. Tell the user, and offer this config:
+If they don't, the `chrome-devtools` MCP server isn't configured on this
+machine. Register it through the CLI rather than hand-editing JSON:
 
-```json
-"chrome-devtools": {
-  "type": "local",
-  "command": ["npx", "-y", "chrome-devtools-mcp@latest"]
-}
+```bash
+npm i -g chrome-devtools-mcp   # persistent binary; no per-launch download
+claude mcp add --scope user chrome-devtools chrome-devtools-mcp -- \
+  --headless --executablePath /usr/bin/google-chrome
 ```
+
+**`--headless` is not optional when you work over SSH.** The server defaults to
+`--headless: false`, so with no `DISPLAY` it tries to open a window that has
+nowhere to go and fails. Verified on the Linux box: headless Chrome renders,
+runs JS, and serves CDP fine through an SSH session with `DISPLAY` empty.
+
+Two other things that bite:
+
+- **Headless defaults to a ~780px viewport.** That silently makes every
+  measurement a narrow-screen measurement. Set the window size (or the MCP's
+  viewport option) before reading anything as a desktop number.
+- To drive a browser you can actually *see* on a machine that has a GUI, start
+  Chrome there with `--remote-debugging-port=9222` and attach with
+  `--browserUrl http://127.0.0.1:9222` instead of launching a private headless
+  one. Useful for visual debugging; unnecessary for pure measurement.
 
 ### Degraded path (no MCP) — do NOT just stop
 
