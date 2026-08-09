@@ -19,7 +19,7 @@
 - Prefers direct, critical analysis over agreeable brainstorming.
 
 ## SEO & content
-- Focus areas: Shopify SEO, Astro/static SEO, German SEO articles, Medium SEO, Pinterest SEO, affiliate SEO, indexing strategy, internal linking, semantic page structure, image optimization, AEO/GEO (Google AI Overviews, ChatGPT Search, Perplexity). Local skill: `ai-traffic-os` (4-layer traffic system, AnswerBox 134–167 words chunking, 2026 crawler matrix, multi-modal schema, dual-path referral tracking).
+- Focus areas: Shopify SEO, Astro/static SEO, German SEO articles, Medium SEO, Pinterest SEO, affiliate SEO, indexing strategy, internal linking, semantic page structure, image optimization, AEO/GEO (Google AI Overviews, ChatGPT Search, Perplexity). Local skills: `ai-traffic-os` (4-layer traffic system, AnswerBox 134–167 words chunking, 2026 crawler matrix, multi-modal schema, dual-path referral tracking) and `automated-traffic-pipeline` (pSEO programmatic engine, IndexNow auto push, 90-day freshness cron, Pinterest/RSS distribution flywheel).
 - Article preference: dynamic templates that can render guide, comparison, review, and FAQ content while remaining SEO-friendly.
 - Avoid claiming secret Google algorithm knowledge; use evidence labels and source-backed reasoning when current facts matter.
 
