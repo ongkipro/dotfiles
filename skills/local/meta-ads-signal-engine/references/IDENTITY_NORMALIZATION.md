@@ -77,3 +77,17 @@ export function normalizeText(text: string): string {
 - `_fbc`: Created when traffic lands with `?fbclid=...`. Format `fb.1.${timestamp}.${fbclid}`.
 - **Cookie Lifetime**: Ensure first-party cookie expiration is set to 90 days.
 - **Pass-through**: Store `_fbp` and `_fbc` in session storage or checkout form state so backend CAPI sends exact matching cookies.
+
+---
+
+## Event Match Quality (EMQ) Target Scorecard
+
+| Target EMQ Rating | Score Range | Parameter Requirements |
+| --- | --- | --- |
+| **Poor** | < 4.0 | IP + User Agent only (Minimal browser matching) |
+| **Fair** | 4.0 – 6.0 | IP + User Agent + `_fbp` + Email OR Phone |
+| **Good** | 6.0 – 8.0 | IP + User Agent + `_fbp` + `_fbc` + Hashed Email + Hashed Phone |
+| **Great / Enterprise** | **8.0 – 9.5+** | IP + User Agent + `_fbp` + `_fbc` + Hashed Email + Hashed Phone + `external_id` + Hashed Name/City/Zip |
+
+### EMQ Engineering Rule:
+Always pass `external_id` (your database `customer_id` or `user_id`) alongside `_fbp` and `_fbc`. First-party `external_id` increases Meta's long-term cross-device attribution capabilities significantly.
