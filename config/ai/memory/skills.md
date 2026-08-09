@@ -140,7 +140,7 @@ command again if you install a new CLI later.
 
 ## Skill `volumx-writer` (2026-07-19)
 - A cross-channel quality engine for create/rewrite/humanize/localize/audit/score in Indonesian or English. Its main responsibilities: **preservation ledger**, anti-hallucination, naturalness, brand voice, and claim integrity.
-- Stays separate from `content` (production/batching/publish workflow) and `copywriting` (house rules/templates). For Shopify, `shopify-listing` remains the owner of catalog operations and hard rules; `volumx-writer` must not add CTAs or third-party brands to descriptions/meta unless the user opts in.
+- Stays separate from `content` (production/batching/publish workflow) and `copywriting` (house rules/templates). For Shopify, `shopify-listing` was the owner of catalog operations and hard rules (skill deactivated 2026-08-10 — see `shopify.md`); `volumx-writer` must not add CTAs or third-party brands to descriptions/meta unless the user opts in.
 - The initial source was audited from `/Users/ongki/Downloads/volumx-writer`, then adapted to the dotfiles contract. The README and validator bundle were not installed because they are not runtime knowledge; UI metadata uses `agents/openai.yaml`, validation uses the standard `skill-creator` validator.
 - Disk verification: `skill-list | rg 'volumx-writer'`; validation: `python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py ~/dotfiles/skills/local/volumx-writer`; cross-agent paths: `readlink ~/.claude/skills ~/.pi/agent/skills ~/.agents/local-skills`.
 

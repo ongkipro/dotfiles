@@ -2,7 +2,7 @@
 
 Highest-frequency stack in this workspace. Two very different modes — don't mix them up:
 
-- **Store ops / listings / SEO** → skill `shopify-listing` (+ `shopify-memory`). Execution lives there.
+- **Store ops / listings / SEO** → the `shopify-listing` and `shopify-memory` skills owned this, and were deactivated 2026-08-10. Restore with `git revert` + `skill-update` before catalog work.
 - **Theme / app / extension code** → this file + repo map `~/dotfiles/docs/shopify-ai-development-repos.md`.
 
 ## Don't build it; Shopify already has it

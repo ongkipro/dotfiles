@@ -7,7 +7,7 @@ description: >-
   and quality gates (no CTA, no brand leak, char limits). Triggers: bikin
   konten, tulis artikel, blog post, content calendar, social post, landing
   page copy, batch content, kalender konten, artikel SEO. Pairs with
-  copywriting (rules), shopify-listing (product copy), seo-website-builder
+  copywriting (rules), seo-website-builder
   (SEO QA), volumx-writer (preservation + humanization), and 9router (visuals
   + research). NOT the source of copy rules and NOT for a single asset — use
   copywriting for char limits, headline patterns, meta, and ALT text; this skill
@@ -17,7 +17,7 @@ description: >-
 # Content Production
 
 Repeatable content workflow that produces clean, on-brand, SEO-ready copy at
-scale. Pairs with `copywriting` (rules + templates) and `shopify-listing` /
+scale. Pairs with `copywriting` (rules + templates) and
 `seo-website-builder` (domain-specific QA).
 
 ## When to use
@@ -34,7 +34,7 @@ scale. Pairs with `copywriting` (rules + templates) and `shopify-listing` /
 1. **Scope** — confirm:
    - Channel (blog / product / social / landing / email).
    - Language and target market (US/EN, ID/EN, DE/DE, etc.).
-   - Brand policy: generic or branded (default = generic per shopify-listing rules).
+   - Brand policy: generic or branded (default = generic per `copywriting` hard rule #1).
    - Voice register (warm/playful, premium/minimalist, technical/precise) — pull
      from `~/.config/ai/memory/identity.md` + `business.md`.
    - Volume and deadline.
@@ -68,11 +68,11 @@ scale. Pairs with `copywriting` (rules + templates) and `shopify-listing` /
    - Filename: `<handle-or-slug>-N.<ext>`. ALT: `[Title] - [view/angle/feature]`
      ≤120 chars, no generic "product image N" suffixes.
    - If image is AI-generated: keep the original, store the public URL (R2/Cloudinary)
-     before publishing — see `shopify-listing` step 7 for the Shopify case.
+     before publishing.
 8. **Publish** — apply per channel:
    - **Blog**: write Markdown/Astro/MDX; run `seo-website-builder` reference
      `PAGE_COMPLETENESS_FORMULA.md` before deploy.
-   - **Product**: hand off to `shopify-listing` (do not bypass its QA gates).
+   - **Product**: apply `copywriting`'s product rules; do not bypass the QA gates.
    - **Social**: use `copywriting` social templates; respect per-platform char
      limits and hashtag policy.
    - **Landing**: copy + design tokens + sections; respect the project's brand
@@ -111,9 +111,14 @@ scale. Pairs with `copywriting` (rules + templates) and `shopify-listing` /
 4. Schedule via the project's social tool (or note publish times).
 
 ### Product batch (large catalog)
-1. Use `shopify-listing` workflow — fan out to subagents, ~15-20 products each.
-2. Each subagent reads `shopify-listing/references/copywriting.md` verbatim.
+1. Fan out to subagents, ~15-20 products each.
+2. Each subagent gets the copy rules verbatim from `copywriting` — char limits,
+   the no-CTA rule, and brand-generic naming are non-negotiable per product.
 3. Validate before apply.
+
+> The `shopify-listing` skill that used to own this workflow (and its
+> purpose-built subagent prompt) was deactivated 2026-08-10. Restore with
+> `git revert` + `skill-update` before running a Shopify catalog batch.
 
 ## Output shape (final hand-off)
 
@@ -148,7 +153,6 @@ scale. Pairs with `copywriting` (rules + templates) and `shopify-listing` /
 
 - `copywriting` — exact copy rules + headline/meta/body templates.
 - `volumx-writer` — preservation, anti-hallucination, humanization, and scoring.
-- `shopify-listing` — for product/collection copy and image SEO.
 - `seo-website-builder` — for technical SEO QA + sitemap/IndexNow.
 - `9router` (`references/image.md`) — for image generation.
 - `9router` (`references/web-search.md`) — for research and source verification.

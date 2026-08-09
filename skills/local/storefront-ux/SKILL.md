@@ -21,7 +21,7 @@ Own the behavior of the commerce journey, including failure and recovery paths. 
 | Need | Use |
 |---|---|
 | Visual hierarchy, art direction, spacing, motion, aesthetic review | `design-taste` |
-| Product, merchandising, SEO, or interface copy | `shopify-listing`, `content`, or `copywriting` |
+| Product, merchandising, SEO, or interface copy | `content` or `copywriting` |
 | Components and implementation syntax | Relevant framework or component skill |
 | Admin and operational dashboards | `admin-dashboard` |
 | Runtime performance diagnosis | `web-perf` |

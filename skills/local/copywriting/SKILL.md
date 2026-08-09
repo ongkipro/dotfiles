@@ -8,8 +8,7 @@ description: >-
   Triggers: copy rules, headline, meta description, alt text, brand voice,
   product title, listing copy, social caption, blog intro, copywriting rules,
   cara nulis, bikin judul, tulis caption. Pairs with content (workflow),
-  volumx-writer (preservation + humanization), shopify-listing (product ops),
-  and seo-website-builder (SEO QA). NOT a content workflow orchestrator — use
+  volumx-writer (preservation + humanization), and seo-website-builder (SEO QA). NOT a content workflow orchestrator — use
   content for the production pipeline.
 ---
 
@@ -225,6 +224,5 @@ For 50+ items:
 
 - `content` — production workflow + batching + calendar
 - `volumx-writer` — preservation, anti-hallucination, humanization, and scoring
-- `shopify-listing` — applies these rules to Shopify products
 - `seo-website-builder` — SEO QA, schema, sitemap
 - `prd-taskbreaker` — break a copy sprint into numbered tasks

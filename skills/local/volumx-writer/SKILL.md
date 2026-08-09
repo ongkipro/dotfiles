@@ -85,7 +85,6 @@ Load only what the task needs:
 
 - Use `content` for production workflow, batching, calendars, publishing, and asset handling.
 - Use `copywriting` for house rules, field limits, and reusable channel templates.
-- Use `shopify-listing` for Shopify catalog operations and mutation safety.
 - Use `seo-website-builder` for technical SEO, schema, indexing, and page-level QA.
 
 When paired, this skill owns meaning preservation, naturalness, and claim integrity; the domain skill owns its operational workflow and platform constraints.

@@ -7,8 +7,8 @@ description: >-
   Astro/static SEO, local business SEO, ecommerce SEO, programmatic SEO, Search
   Console diagnosis, SEO QA, multi-engine algorithm updates, and AI-search readiness (see ai-traffic-os for AEO/GEO).
   Triggers: "audit SEO situs ini", "kenapa halaman ini tidak terindeks", "why did
-  my traffic drop". NOT for writing the copy itself (content, copywriting), editing
-  Shopify product fields (shopify-listing), or Astro code (astro-development).
+  my traffic drop". NOT for writing the copy itself (content, copywriting) or
+  Astro code (astro-development).
 ---
 
 # SEO Website Builder

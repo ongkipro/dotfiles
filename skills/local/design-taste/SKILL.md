@@ -378,9 +378,9 @@ declaration. Working snippets for Astro, Astro SSR, and React, plus the CSS
   wording, char limits, headline patterns, and meta rules come from
   `copywriting` and win on phrasing — **except punctuation bans (§5), which are
   this skill's call on any surface it designs.** Practical consequence: a
-  product title from `copywriting`/`shopify-listing` carrying an en dash is
-  correct in the Shopify admin, and must be substituted when that same string
-  renders on a page this skill owns.
+  product title from `copywriting` carrying an en dash is correct in the store
+  admin, and must be substituted when that same string renders on a page this
+  skill owns.
 
 ### 4.5.1 Editorial, docs, and portfolio surfaces
 
