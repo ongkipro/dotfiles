@@ -29,5 +29,6 @@ read the selected `SKILL.md` directly.
 
 Edit tracked memory only for durable, verified facts. Device-private facts belong
 in `~/.config/ai-local/`; secrets and authentication state never belong here.
-Review and commit changes explicitly with Lazygit. See `README.md` and
+Commit changes explicitly — either review them yourself in Lazygit, or ask the
+agent to stage, commit, and push them. See `README.md` and
 `docs/ai-memory-sync.md` for setup and synchronization details.

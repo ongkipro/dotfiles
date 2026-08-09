@@ -74,4 +74,8 @@ NEVER simplify away: input validation at trust boundaries, error handling that p
 
 Verify against disk before advising — memory can be stale. When memory and disk disagree, **disk wins**, and fix the memory.
 
-Prefer the smallest safe change, validate with the project's own scripts (`package.json` first), and never auto-commit — user commits via lazygit (`lg`).
+Prefer the smallest safe change, and validate with the project's own scripts (`package.json` first).
+
+Git: you may stage, commit, and push when the user asks for it — `git add`, `git commit`, and `git push` are allowlisted in Claude Code, so no permission prompt. Lazygit (`lg`) is a TUI you cannot drive; use plain git from the shell, which reaches the same end state. The user still reviews in `lg` whenever they prefer.
+
+Committing is on request, not reflex — finishing an edit is not a reason to commit it. Unchanged guards: force-push and history rewrite stay off-limits, commit identity is the noreply address, work on a worktree rather than directly on `main`, and pushing to a branch that auto-deploys production still needs the **Production / live** gate above.
