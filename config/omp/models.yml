@@ -1,7 +1,7 @@
 providers:
   9router-fantastico:
     baseUrl: "https://rbq97ts.abc-tunnel.us/v1"
-    apiKey: "${NINEROUTER_KEY:-sk-80b58c1e24277547-lbe8jr-3866e8dd}"
+    apiKey: "${NINEROUTER_KEY}"
     api: "openai-completions"
     name: "9Router Fantastico"
     models:
