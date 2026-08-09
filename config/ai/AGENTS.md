@@ -28,7 +28,7 @@
 
 Pembagian default per-CLI ada di `memory/skills.md` — bukan pagar; kalau satu CLI sudah memegang konteksnya, lanjutkan di situ.
 
-Sumber tunggal skill: **`~/dotfiles/skills/local/<nama>/SKILL.md`**. claude & pi menemukannya otomatis.
+Sumber tunggal skill: **`~/dotfiles/skills/local/<nama>/SKILL.md`**. claude, pi, & omp menemukannya otomatis (dir skill mereka symlink ke sana).
 Butuh skill di codex/agy? Jalankan **`skill-list`**, lalu **baca** `~/dotfiles/skills/local/<nama>/SKILL.md` langsung — jangan dibungkus jadi plugin (itu menciptakan sumber kedua).
 
 ## Code discipline (lazy senior dev)

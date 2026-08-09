@@ -28,10 +28,10 @@ retry:
       - 9router-fantastico/ag/gemini-3.5-flash-extra-low
       - openai-codex/gpt-5.4-mini
     slow: 
-      - 9router-fantastico/cx/gpt-5.5:high
+      - 9router-fantastico/cx/gpt-5.5
       - google-antigravity/claude-opus-4-6:high
     plan: 
-      - 9router-fantastico/cx/gpt-5.5:high
+      - 9router-fantastico/cx/gpt-5.5
       - google-antigravity/claude-sonnet-4-6:high
 compaction: 
   enabled: true
@@ -41,3 +41,5 @@ compaction:
 tools: 
   format: auto
   approvalMode: yolo
+dev: 
+  autoqaConsent: granted

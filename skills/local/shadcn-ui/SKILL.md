@@ -1,15 +1,16 @@
 ---
 name: shadcn-ui
-description: 'Use shadcn/ui components in React/Next.js for charts, sidebars, forms, data tables, blocks, dark mode, and semantic-token customization. Assumes Tailwind v4 (CSS-first config, raw oklch tokens, no hsl() wrapper) unless the repo proves otherwise. Inspect and reuse the project setup before adding components. Use for shadcn, install component, shadcn form, data table, Recharts chart, shadcn sidebar, blocks, and dark-mode toggle. For custom registries or deep theming, use an installed official shadcn skill when available; otherwise verify against current official shadcn documentation. Not for deciding which chart, layout, or screen to build (admin-dashboard, design-taste, storefront-ux), nor for browser evidence (ui-validation).'
+description: 'Use shadcn/ui components in React/Next.js for charts, sidebars, forms, data tables, blocks, dark mode, and semantic-token customization. Assumes Tailwind v4 (CSS-first config, raw oklch tokens, no hsl() wrapper) unless the repo proves otherwise. Inspect and reuse the project setup before adding components. Use for shadcn, install component, shadcn form, data table, Recharts chart, shadcn sidebar, blocks, and dark-mode toggle. Reads components.json first because `style`, `tailwind.config`, aliases, and prefix change what every command produces. shadcn also publishes an official skill (`npx skills add shadcn/ui`) — prefer it for live project context, current CLI syntax, custom registries, and the shadcn MCP; check where it installs first, since ~/.claude/skills symlinks into dotfiles. Not for deciding which chart, layout, or screen to build (admin-dashboard, design-taste, storefront-ux), nor for browser evidence (ui-validation).'
 ---
 
 # shadcn/ui Components
 
 Install and use only the shadcn/ui components required by the accepted screen.
-Inspect `package.json`, `components.json`, and existing `src/components/ui` first;
-reuse what is already present. Before emitting a CLI command or component API,
-verify it against the current official registry because the CLI and copied source
-change over time.
+Read `components.json` (next section), `package.json`, and the existing
+`src/components/ui` before anything else, and reuse what is already there.
+Before emitting a CLI command or component API, verify it against the current
+registry — the CLI, the copied source, and even *which items exist* change over
+time and differ by style.
 
 After a browser-visible component change, use `ui-validation` for the smallest
 viewport, keyboard, state, and accessibility evidence. Component compilation
@@ -26,6 +27,51 @@ Component scaffolding is the deliberate exception — `shadcn` is a code generat
 that copies source into the repo, not a runtime dependency. Prefer the
 project-local binary whenever `shadcn` is already in `package.json`, and never
 extend this exception to anything else.
+
+## Read `components.json` first — it changes the answers
+
+This is not a formality. The same `shadcn add` command produces different files
+in different projects, and every field below silently rewrites the guidance in
+the rest of this skill.
+
+| Field | Why it changes what you write |
+|---|---|
+| `style` | Picks the registry variant. **This decides whether an item even exists** — on `radix-nova`, `add form` writes nothing, while `default` and `new-york-v4` still ship `form.tsx`. Hardcoded classes differ too (`DialogContent` is `sm:max-w-sm` on radix-nova). |
+| `tailwind.config` | Empty string = v4, CSS-first, no JS config. A path means a v3-era project and most of the next section does not apply. |
+| `tailwind.css` | Where the tokens actually live. Do not assume `globals.css` — an Astro project may use `src/styles/global.css`. |
+| `tailwind.cssVariables` | `false` means no semantic tokens; `bg-primary` won't exist and dark mode is not wired the way this skill assumes. |
+| `tailwind.baseColor` | The palette already chosen. Never overwrite an existing `--chart-*` / neutral ramp with the docs' defaults. |
+| `tailwind.prefix` | If non-empty, **every** utility in every snippet here needs that prefix. |
+| `aliases.ui` / `aliases.components` / `aliases.utils` | The real import paths. `@/components/ui` is a default, not a guarantee. |
+| `iconLibrary` | The project's one icon set. Adding a second violates `design-taste`'s one-library rule. |
+| `rsc` | `false` means no React Server Components — the App Router server/client guidance in `admin-dashboard` does not apply, and `"use client"` is meaningless. |
+
+Read it before the first command, not after the first failure.
+
+## Official shadcn skill
+
+shadcn publishes its own agent skill (`ui.shadcn.com/docs/skills`), installed
+through the skills.sh protocol:
+
+```bash
+npx skills add shadcn/ui      # telemetry is on by default; DISABLE_TELEMETRY=1 to opt out
+```
+
+It does things a checked-in file cannot: it reads the live `components.json`
+itself, mirrors the current CLI reference, and covers registry authoring plus
+the shadcn MCP server. When it is installed, prefer it for anything
+project-context-dependent, current CLI syntax, or custom-registry work.
+
+**Before installing it, check where it writes.** `~/.claude/skills` is a symlink
+to `~/dotfiles/skills/local`, so an installer targeting that path drops a
+foreign skill inside the single source this repo maintains — exactly the second
+source `CLAUDE.md` forbids. Install it into a project directory, or vendor it
+deliberately with a `.source` file like the other vendored skills.
+
+This skill stays useful alongside it: it carries the house rules (package
+manager per lockfile, `native-first` discipline), the verified drift traps
+below, and the routing to `admin-dashboard` / `design-taste` / `storefront-ux`
+for decisions that are not shadcn's to make.
 
 ## Tailwind v4 baseline (verified 2026-08-09)
 
