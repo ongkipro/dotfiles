@@ -28,6 +28,48 @@ Use only the sections relevant to the task. Treat this as an audit checklist, no
 - Define empty, loading, stale, merge-after-login, multi-tab conflict, and checkout-return states.
 - Keep cart count semantics consistent: line count versus total quantity must not switch silently.
 
+## Direct order form (COD and single-page funnels)
+
+Applies when the page collects the order itself instead of handing off to a
+hosted checkout: DR/COD landing pages, one-page order forms, quiz funnels. The
+form IS the product here — treat every rule below as a correctness requirement,
+not polish. Visual treatment stays with `design-taste`; field wording stays with
+`copywriting`.
+
+- **Never rename or reorder field `name`/`id`/slug values that analytics,
+  pixels, or the order backend already depend on.** Verify the current contract
+  in the codebase before touching a field; a renamed field is a silently dead
+  funnel, not a visible bug.
+- Use native semantics before JavaScript: correct `type`, `inputmode`,
+  `autocomplete` (`tel`, `name`, `street-address`, `postal-code`), and a real
+  `<label>` bound to each control. Native autofill is the single biggest
+  completion win on mobile and it is free.
+- **Accept what users actually type.** Phone and postcode entry varies by
+  habit (leading zero, country prefix, spaces, dashes). Normalize on submit;
+  never block or silently rewrite characters mid-typing, and never reject a
+  valid number because of formatting.
+- Validate on blur and on submit, not on every keystroke. On a failed submit,
+  move focus to the first invalid field and associate the message with its
+  input so it is announced, not merely coloured red.
+- **Never clear entered data on any failure** — validation, network, session,
+  or server error. Re-render the form with values intact and state what to do
+  next. Persist in-progress input across accidental navigation where the
+  project already has a mechanism for it.
+- **Prevent duplicate orders.** Disable the submit control during the request,
+  and make the write idempotent on the server. Double-tap on a slow mobile
+  connection is the normal case, not the edge case.
+- Address input follows the market's own administrative hierarchy; do not
+  assume one country's model fits another. Where shipping rate or coverage
+  lookup is involved, that integration is owned by the courier/aggregator skill
+  — this file owns only the form's states and recovery.
+- **COD confirmation must not overclaim.** Order submitted is not payment
+  received and not shipment confirmed. State what was recorded, what happens
+  next, and how the buyer is contacted. Show the same truth on screen, in any
+  confirmation message, and in the tracked event.
+- Cover these states explicitly: pristine, partially filled, validating,
+  submitting, duplicate-submit blocked, server rejected, network failed and
+  retryable, succeeded, and already-submitted-on-return.
+
 ## Checkout boundary
 
 - Identify the last storefront-owned action and the first checkout-owned state.

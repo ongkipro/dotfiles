@@ -1,19 +1,29 @@
 # Component Recipes
 
-Pola lengkap siap pakai — copy, sesuaikan data.
+Ready-made patterns — copy, then swap the data. Install with the project's own
+package manager (check the lockfile); `add` pulls its npm deps itself.
 
-## Contact Form
+## Contact Form (Field + React Hook Form)
+
+On the current style (`radix-nova`, verified) `add form` is a no-op: the
+registry item returns no files, so `@/components/ui/form` never appears. Legacy
+styles still ship it, but `field` + RHF `Controller` is the documented path now.
+
+```bash
+shadcn add field input textarea button
+```
 
 ```tsx
-import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { Controller, useForm } from 'react-hook-form'
+import * as z from 'zod'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 
+// zod v3 syntax. On zod v4 these move to top-level: z.email(), etc.
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email'),
@@ -28,7 +38,13 @@ export function ContactForm() {
 
   async function onSubmit(values: z.infer<typeof schema>) {
     try {
-      await fetch('/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) })
+      // fetch does NOT reject on 4xx/5xx — check res.ok or you toast success on failure
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      })
+      if (!res.ok) throw new Error(await res.text())
       toast.success('Message sent!')
       form.reset()
     } catch {
@@ -37,43 +53,59 @@ export function ContactForm() {
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField control={form.control} name="name" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Name</FormLabel>
-            <FormControl><Input value={field.value ?? ''} onChange={field.onChange} onBlur={field.onBlur} name={field.name} ref={field.ref} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-        <FormField control={form.control} name="email" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Email</FormLabel>
-            <FormControl><Input type="email" value={field.value ?? ''} onChange={field.onChange} onBlur={field.onBlur} name={field.name} ref={field.ref} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-        <FormField control={form.control} name="message" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Message</FormLabel>
-            <FormControl><Textarea value={field.value ?? ''} onChange={field.onChange} onBlur={field.onBlur} name={field.name} ref={field.ref} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
+    <form onSubmit={form.handleSubmit(onSubmit)}>
+      <FieldGroup>
+        <Controller
+          name="name"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>Name</FieldLabel>
+              <Input {...field} id={field.name} aria-invalid={fieldState.invalid} />
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+        <Controller
+          name="email"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>Email</FieldLabel>
+              <Input {...field} id={field.name} type="email" aria-invalid={fieldState.invalid} />
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+        <Controller
+          name="message"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>Message</FieldLabel>
+              <Textarea {...field} id={field.name} aria-invalid={fieldState.invalid} />
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
         <Button type="submit" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? 'Sending...' : 'Send'}
         </Button>
-      </form>
-    </Form>
+      </FieldGroup>
+    </form>
   )
 }
 ```
 
+Spreading `{...field}` is correct here — that is what the official example does.
+The only case needing `value={field.value ?? ''}` is a field whose value can be
+`null`/`undefined`, which would flip the input from controlled to uncontrolled.
+
 ## Data Table (Sortable + Filter + Pagination)
 
 ```bash
-pnpm dlx shadcn@latest add table
-pnpm add @tanstack/react-table
+shadcn add table                    # styled <table> wrapper, no npm deps
+<pkg-manager> add @tanstack/react-table   # NOT pulled by the CLI — install it yourself
 ```
 
 ```tsx
@@ -114,11 +146,13 @@ export function DataTable<T>({ columns, data }: { columns: ColumnDef<T>[]; data:
               <TableRow key={hg.id}>
                 {hg.headers.map(h => (
                   <TableHead key={h.id}>
-                    {h.isPlaceholder ? null : (
+                    {h.isPlaceholder ? null : h.column.getCanSort() ? (
                       <Button variant="ghost" size="sm" onClick={h.column.getToggleSortingHandler()} className="-ml-3">
                         {flexRender(h.column.columnDef.header, h.getContext())}
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                       </Button>
+                    ) : (
+                      flexRender(h.column.columnDef.header, h.getContext())
                     )}
                   </TableHead>
                 ))}
@@ -154,6 +188,14 @@ export function DataTable<T>({ columns, data }: { columns: ColumnDef<T>[]; data:
 ```
 
 ## Modal CRUD (Create + Edit)
+
+**Mount it with a `key`.** `useState(item?.name ?? '')` only initialises once, so
+reopening the modal on a different row would keep the previous row's values. The
+one-line fix lives at the call site:
+
+```tsx
+<CrudModal key={editing?.id ?? 'new'} item={editing} open={open} onOpenChange={setOpen} onSave={save} />
+```
 
 ```tsx
 import { useState } from 'react'
@@ -229,7 +271,8 @@ const links = [
 export function Navigation() {
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
-      <div className="container flex h-14 items-center justify-between">
+      {/* Tailwind v4 dropped container's center/padding config — be explicit */}
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         <span className="font-bold">Logo</span>
         <nav className="hidden md:flex items-center gap-6">
           {links.map(l => <a key={l.href} href={l.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">{l.label}</a>)}
@@ -350,8 +393,12 @@ export function StatsCards() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stat.value}</div>
+            {/* Trend colour is a deliberate raw-palette exception: it encodes
+                meaning, not brand. Colour the delta by the DESIRED direction
+                (churn or latency rising is red), and keep the +/- sign so the
+                cue is not colour-only. See admin-dashboard §5. */}
             <p className="text-xs text-muted-foreground mt-1">
-              <span className="text-green-600">{stat.change}</span> from last month
+              <span className="text-emerald-600 dark:text-emerald-400">{stat.change}</span> from last month
             </p>
           </CardContent>
         </Card>
@@ -363,9 +410,11 @@ export function StatsCards() {
 
 ## Date Picker
 
+There is no `date-picker` registry item — `add date-picker` errors out. Compose
+it from Popover + Calendar:
+
 ```bash
-pnpm dlx shadcn@latest add calendar popover button
-pnpm add react-day-picker date-fns
+shadcn add calendar popover button   # pulls react-day-picker itself
 ```
 
 ```tsx
@@ -390,7 +439,8 @@ export function DatePicker() {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
-        <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
+        {/* react-day-picker renamed initialFocus → autoFocus in v9 */}
+        <Calendar mode="single" selected={date} onSelect={setDate} autoFocus />
       </PopoverContent>
     </Popover>
   )
@@ -432,8 +482,10 @@ export function Combobox() {
           <CommandList>
             <CommandEmpty>No results.</CommandEmpty>
             <CommandGroup>
+              {/* onSelect's argument is lowercased by cmdk, so a mixed-case
+                  option value would never match — close over `o` instead. */}
               {options.map(o => (
-                <CommandItem key={o.value} value={o.value} onSelect={(v) => { setValue(v === value ? '' : v); setOpen(false) }}>
+                <CommandItem key={o.value} value={o.value} onSelect={() => { setValue(o.value === value ? '' : o.value); setOpen(false) }}>
                   <Check className={cn('mr-2 h-4 w-4', value === o.value ? 'opacity-100' : 'opacity-0')} />
                   {o.label}
                 </CommandItem>

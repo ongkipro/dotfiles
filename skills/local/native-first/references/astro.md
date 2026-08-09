@@ -36,4 +36,6 @@ Astro's whole premise is *ship no JS by default*. Most "I need a library" instin
 `astro check` (types + template diagnostics) → `astro build`. Then serve `dist/` and look at it.
 
 Mobile overflow is the recurring bug in this codebase's Astro sites — check at 390px:
-`document.documentElement.scrollWidth === window.innerWidth`.
+`document.documentElement.scrollWidth - document.documentElement.clientWidth <= 1`
+(not `window.innerWidth`, which includes the scrollbar gutter and produces false
+positives on desktop).

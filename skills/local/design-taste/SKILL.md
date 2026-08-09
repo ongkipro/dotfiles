@@ -6,7 +6,8 @@ description: >-
   layout LP, homepage or hero design, storefront design, design review,
   redesign, design tokens, visual polish, or UI that looks AI-templated. Choose
   Brand/Marketing or DR/COD Funnel mode and honor existing project tokens over
-  defaults. Pair with astro-development for Astro implementation. Not for
+  defaults. Defaults to a designed light theme (off-white, layered neutrals),
+  with dark shipped only when it is genuinely designed rather than inverted. Pair with astro-development for Astro implementation. Not for
   admin/data-dense UI (admin-dashboard), commerce behavior (storefront-ux),
   copywriting, component installation, or browser evidence (ui-validation).
 ---
@@ -88,19 +89,23 @@ When a project has NO spec yet and you make real design decisions, leave a
 ---
 name: <project>
 description: <one line: accent + canvas + personality in ten words>
-colors: { primary, on-primary, primary-hover, ink, ink-muted, canvas,
-          surface, border, link, status-* as needed }
+theme: { default: light, dark: shipped | out-of-scope,
+         white-temperature: warm | cool, why: <one line> }
+colors: { primary, on-primary, primary-hover, ink, ink-secondary, ink-muted,
+          canvas, surface, raised, border, link, status-* as needed }
 typography: { display: family/size/weight, body: family/size/weight }
 spacing: { base: 4px, scale: [...] }
 radius: { sm, md, pill }   # must match the Shape Lock choice
-shadows: { card, modal }
+shadows: { card, modal }   # only for things that genuinely float
 motion: { duration-base, easing }
 ---
 ## Rationale
-2-4 short paragraphs: why this palette/type for this audience.
+2-4 short paragraphs: why this palette/type for this audience, and why the
+canvas leans warm or cool.
 ## Accessibility notes
 Known contrast ratios and any token that is restricted (e.g. "primary
-fails AA as text on canvas; button fill only").
+fails AA as text on canvas; button fill only"). If dark ships, record the
+pairs that needed re-deriving rather than inverting.
 ```
 
 ## 2. THE THREE DIALS
@@ -185,6 +190,11 @@ Hard rules regardless of rung:
 ### 4.1 Typography
 - Display default: `text-4xl md:text-6xl tracking-tighter`; body
   `text-base leading-relaxed max-w-[65ch]`.
+- Fluid display sizing with `clamp()` when a headline has to survive every width
+  BETWEEN breakpoints: `text-[clamp(2rem,1.5rem+2.5vw,3.5rem)]`. **Always keep a
+  `rem` term in the middle** — a pure-`vw` middle doesn't respond to browser
+  zoom or user font size between the bounds, which puts WCAG 1.4.4 (200%
+  resize) at risk. Hard breakpoint steps stay fine for short headlines.
 - **Hero font scale is planned with the asset:** headline >6 words never
   starts at `text-7xl`. A 4-line hero headline is a font-size error.
 - Inter is discouraged as a reflex; pick Geist, Outfit, Satoshi, Cabinet
@@ -211,14 +221,101 @@ Hard rules regardless of rung:
   forest green+bone+amber, black+tan, cobalt+cream, terracotta+slate,
   olive+brick+paper, monochrome+one pop). Allowed only when the brand
   explicitly owns those colors.
-- No pure `#000` / `#fff`; off-black and off-white.
-- Dark mode: dual-mode by default for consumer-facing pages (pick Tailwind
-  `dark:` OR CSS variables, one strategy per project), WCAG AA contrast in
-  both, brand accent stays recognisable. Exceptions: print-emulating
-  editorial, and DR funnel LPs (single locked theme is fine — see §6).
+- No pure `#000` / `#fff`; off-black and off-white. Define tokens in **OKLCH**,
+  whose lightness is perceptual — an evenly-stepped neutral ladder (§4.2.1)
+  derived in HSL comes out visually uneven. HSL only in a legacy repo already
+  using it, and never `hsl(var(--token))` wrapped around an oklch value
+  (`shadcn-ui`).
 - **Page theme lock:** one theme per page. Sections never flip
   light↔dark mid-scroll (one deliberate full theme-switch device max, and
   only when the brief calls for it).
+- Theme strategy is §4.2.1. One *switching* mechanism per project — a `.dark`
+  class or `data-theme`, never both. Authoring is a separate axis: re-pointing
+  CSS variables under the switch is the default, and `dark:` utilities are for
+  one-off overrides the tokens can't express. Using both axes together is the
+  normal shadcn pattern, not a violation.
+
+### 4.2.1 Light-first theme policy
+
+**Light is the canonical theme.** Design it first and treat it as the source of
+truth: brand assets, screenshots, and print all assume it. Dark is a derived
+mode — optional, and only shipped if it is actually designed.
+
+**Choosing the white.** This is where "clean white" becomes either a real design
+or the single most common AI tell.
+
+- Never `#fff`, and never chroma 0. Commit to a temperature: warm off-white
+  (paper, bone) around hue 60-90 for editorial, craft, food, human brands; cool
+  off-white around hue 220-260 for clinical, technical, fintech. **Keep neutral
+  chroma between roughly 0.003 and 0.012** — below that it is the undecided grey
+  this rule exists to ban, above it reads as a tint rather than a temperature.
+- **Three neutral steps minimum:** canvas → surface → raised (or sunken). One
+  flat white with shadows sprinkled on top to fake depth is the Bootstrap-era
+  tell. Build the hierarchy into the neutrals, not the shadows. Countable: three
+  distinct neutral tokens in the token file.
+- **Hairlines before shadows.** On light UI a 1px low-alpha border separates
+  more cleanly than a drop shadow. Reserve shadow for things that genuinely
+  float above the page: modal, dropdown, sticky bar.
+- **Ink hierarchy, not grey mush.** Two or three ink levels. Primary and
+  secondary ink ≥ 4.5:1 on canvas; muted ink ≥ 4.5:1 whenever it carries body
+  copy. The 3:1 allowance applies only to WCAG 1.4.3 **large text** — ≥ 24px,
+  or ≥ 18.66px **and** bold. 18.66px regular does not qualify. Body copy at
+  `text-gray-400` is a contrast failure wearing a style's clothes.
+- **White needs material** — see §4.6. A page of white, text, and rounded cards
+  reads as generated.
+
+Collision to avoid: clean white + Inter + slate ink + a grid of `rounded-xl`
+shadowed cards is itself an LLM default (§1). White is the canvas, not the
+design.
+
+**Dark mode — ship it only if you will design it.** Half-built dark mode is
+worse than none. When in scope:
+
+- Dark is not inverted light. Re-derive it: use surface lightness for elevation
+  instead of shadow, cut accent chroma so it stops vibrating against a dark
+  ground, and re-check every contrast pair — pairs that pass AA on light
+  routinely fail on dark.
+- Images, logos, and illustrations that assumed a white ground need a dark
+  variant or a container that keeps their own background.
+- Set `color-scheme` per theme so native controls, scrollbars, and date pickers
+  follow. Own it in **one** place: either the CSS rules (`:root` / `.dark`) or a
+  library that manages the inline property on every theme change — `next-themes`
+  does this correctly. What breaks is a hand-written inline `style.colorScheme`
+  stamped once at boot: inline outranks every selector, so the `.dark` rule
+  becomes dead code and native controls freeze in the boot-time scheme.
+- DR/COD funnel LPs: single locked light theme, no toggle (§6).
+
+**Resolution order — strict:**
+
+1. **Stored explicit light/dark choice** (cookie or `localStorage`). Once set it
+   wins; nothing below overrides it. A stored `'system'` is not a choice — it is
+   an instruction to fall through to step 2.
+2. **`prefers-color-scheme`** — the native adaptive signal.
+3. **Light.**
+
+**The toggle is three-state: Light / Dark / System**, System being the default
+position. A two-state switch cannot express "follow my OS", so it strands every
+user whose system already auto-schedules.
+
+**Clock-adaptive theming is opt-in, never a default.** It *replaces* step 2
+rather than stacking on it — never blend clock and `prefers-color-scheme`, they
+will disagree at the boundary. The OS auto-schedule already encodes time and
+location and arrives free via the media query. Device clock only, read
+client-side: IP geolocation costs a round trip, is wrong behind a VPN, and adds
+a privacy surface for a cosmetic feature. The first manual toggle disables it
+permanently for that user.
+
+**No-FOUC is mandatory.** Resolve the theme before first paint — a blocking
+inline script in `<head>`, or server-render the class from a cookie. A dark mode
+that flashes is not finished.
+
+Do not write that script from memory. The naive four-line version has four
+distinct failure modes (blocked storage, unknown stored values, Astro's
+`ClientRouter` wiping the class on navigation, and "System" freezing at boot),
+and on Tailwind v4 a `.dark` class does nothing at all without a `@custom-variant`
+declaration. Working snippets for Astro, Astro SSR, and React, plus the CSS
+`color-scheme` rule and a verification list, are in
+[theme-implementation.md](references/theme-implementation.md).
 
 ### 4.3 Layout
 - **Anti-center bias:** VAR > 4 avoids the centered-hero default; use split,
@@ -256,6 +353,8 @@ Hard rules regardless of rung:
   empty states, inline form errors, `:active` press feedback
   (`scale-[0.98]`).
 - Label above input, error below, no placeholder-as-label. Ever.
+- Every interactive element keeps a visible `focus-visible` ring. `outline:
+  none` without a designed replacement is an accessibility bug, not a style.
 - **Contrast audits are mandatory:** every CTA readable against its
   background (WCAG AA 4.5:1); ghost buttons over photos get a scrim; form
   placeholders/labels/focus rings pass AA too.
@@ -277,7 +376,29 @@ Hard rules regardless of rung:
 - Ownership split with `copywriting`: the word/line caps in this skill are
   LAYOUT budgets (the space the design reserves) and win on layout fit;
   wording, char limits, headline patterns, and meta rules come from
-  `copywriting` and win on phrasing.
+  `copywriting` and win on phrasing — **except punctuation bans (§5), which are
+  this skill's call on any surface it designs.** Practical consequence: a
+  product title from `copywriting`/`shopify-listing` carrying an en dash is
+  correct in the Shopify admin, and must be substituted when that same string
+  renders on a page this skill owns.
+
+### 4.5.1 Editorial, docs, and portfolio surfaces
+
+§2 assigns these dials but §4.5's density caps are written for marketing
+sections — they do NOT apply to long-form body copy. What applies instead:
+
+- **Measure wins over grid.** Body text stays at 60-75ch even when the layout
+  could go wider. A full-bleed column of prose is a readability bug.
+- **Rhythm from one scale.** Space headings asymmetrically — more above than
+  below — so a heading binds to the text it introduces rather than floating
+  between two blocks.
+- **Docs navigation is information architecture, not chrome.** Current location
+  is always visible, and the nav is reachable without scrolling back up. If the
+  tree is deeper than two levels, show only the open branch.
+- **Portfolio: the work is the design.** An index card is one real image, the
+  title, and one line of context — nothing hover-only, because touch has no
+  hover. Case-study detail follows problem → what you did → outcome, with real
+  numbers or none at all (§4.5's copy self-audit applies in full).
 
 ### 4.6 Images
 1. Image-gen tool available → generate section-specific assets at the right
@@ -292,6 +413,30 @@ Hard rules regardless of rung:
 - Logo walls use real SVG logos (Simple Icons / brand assets) or a generated
   monogram for invented brands — not styled text spans. Logos only, no
   category labels under them, working in both themes.
+
+### 4.7 Mobile & touch reality
+
+Device behavior, not taste. §6 lists these as non-overridable in funnel mode.
+
+- **iOS Safari auto-zoom:** any `<input>`, `<textarea>`, or `<select>` whose
+  computed font-size is under 16px makes Safari zoom the page on focus and
+  wreck the layout. Force `text-base` on mobile form controls. On a COD order
+  form this is a conversion bug, not a cosmetic one.
+- Kill the tap flash (`[-webkit-tap-highlight-color:transparent]`) **only where
+  an `:active` state (§4.4) already supplies the feedback** — removing the
+  highlight with nothing behind it is the touch version of `outline: none`.
+- `select-none` on buttons and tabs. On cards, only the chrome — never the
+  price, SKU, or product name, which people legitimately long-press to copy.
+- Touch targets ≥ 44px. Never put a required action behind hover only.
+- **Fluid over snapping:** card and tile grids use
+  `grid-cols-[repeat(auto-fit,minmax(min(100%,<min>),1fr))]` with `gap`, so they
+  resize at every pixel width. The `min(100%,…)` is required — a bare
+  `minmax(<min>,1fr)` forces horizontal scroll on viewports narrower than the
+  min track, i.e. exactly the cheap Android devices §6 targets. Reserve hard
+  breakpoints for real layout changes (split → stack, sidebar → drawer), not
+  for column counts.
+- Bottom tab bars belong to app and storefront shells. Marketing and funnel
+  pages don't get one; their mobile anchor is the sticky CTA (§6).
 
 ## 5. AI TELLS (hard bans unless the brief asks)
 
@@ -346,7 +491,7 @@ this mode:
   banned — lying breaks trust and ad-account health.
 - **Centered, stacked, symmetric layout:** correct here. VAR stays 2-4;
   fancy asymmetry hurts scan-speed on cheap Android devices.
-- Single locked theme (usually light), no dark-mode variant required.
+- Single locked light theme, no toggle, no dark-mode variant (§4.2.1).
 - Emotional/hype register within platform ad-policy limits; testimonial
   blocks may be long if scannable.
 
@@ -359,6 +504,8 @@ this mode:
   zero JS animation libraries, LCP < 2.5s on the hero image, CLS < 0.1
   (reserve image space).
 - All Section 5 AI-tell bans, the em-dash ban, the copy self-audit.
+- All of §4.7 (mobile and touch reality). The 16px input floor is a
+  conversion rule here, not a style one.
 - Never rename form field names / IDs / slugs that tracking (Meta pixel,
   GTM, Scalev) depends on.
 
@@ -388,8 +535,15 @@ Universal:
 - [ ] Design-context / repo tokens checked FIRST and used verbatim if
       present (§1.5); new real decisions written back to design-tokens.md
 - [ ] ZERO em-dash/en-dash-separator in visible copy
-- [ ] One accent color, one neutral family, one radius system, one theme
-      (no mid-page inversion)
+- [ ] One accent color, one neutral family, one radius system, one theme; at
+      most one deliberate full-page theme-switch device, brief-justified (§4.2)
+- [ ] Light default designed, not accepted: stated warm/cool temperature, ≥ 3
+      neutral steps, hairlines over blanket shadows, 2-3 contrast-passing ink
+      levels (§4.2.1) — unless the project spec (§1.5) sets another canonical
+      theme, which wins
+- [ ] Greyscale check: with `filter: grayscale(1)`, section boundaries, primary
+      vs secondary ink, and the primary CTA are still distinguishable by type
+      scale, weight, spacing, or neutral step alone
 - [ ] Every CTA and form element passes WCAG AA contrast; no CTA wraps at
       desktop
 - [ ] Real images per §4.6 — no div fake-screenshots, no text-only page
@@ -399,8 +553,10 @@ Universal:
 - [ ] Copy self-audit done; numbers real or labeled mock
 - [ ] Motion: only transform/opacity, reduced-motion honored, no scroll
       listeners, every animation justified in one sentence
-- [ ] Mobile collapse explicit per multi-column section; `100dvh` not
-      `h-screen`
+- [ ] Mobile collapse specified per multi-column section — either a named
+      breakpoint or a declared `auto-fit` min track (§4.7); `100dvh` not
+      `h-screen`; form inputs ≥ 16px (no iOS zoom); tap targets ≥ 44px;
+      visible focus ring on every interactive element
 - [ ] Loading/empty/error states exist where data renders
 - [ ] Web vitals plausible (LCP < 2.5s, INP < 200ms, CLS < 0.1); validate
       with the project's own scripts, `web-perf` skill for a real audit
@@ -411,8 +567,10 @@ Brand mode additionally:
 - [ ] ≥ 4 layout families per ~8 sections; ≤ 2 consecutive zigzags; no
       split-headers; bento cells = content count with visual variety
 - [ ] One CTA label per intent; quotes ≤ 3 lines
-- [ ] Dark mode designed and eyeballed in both themes (exempt:
-      print-emulating editorial per §4.2)
+- [ ] Dark mode: either genuinely out of scope, or designed (not inverted),
+      eyeballed in both themes, `color-scheme` set, three-state toggle,
+      stored choice beating `prefers-color-scheme`, and no flash before
+      first paint (§4.2.1)
 
 Funnel mode additionally:
 - [ ] Sticky/repeated CTA identical wording; order form fields untouched
@@ -423,6 +581,7 @@ Funnel mode additionally:
 
 | Need | Go to |
 |---|---|
+| Theme switching code (pre-paint script, SSR cookie, `color-scheme`) | [theme-implementation.md](references/theme-implementation.md) |
 | Astro code, islands, content collections | `astro-development` |
 | Pin/scrub scrolltelling code | `gsap-scrolltrigger` + `gsap-core` |
 | Copy limits, headlines, meta, ALT rules | `copywriting` (source of truth) |

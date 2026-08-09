@@ -7,9 +7,12 @@ project compatibility before changing tool-selection guidance.
 |---|---|---|
 | https://github.com/microsoft/playwright | Primary browser automation and screenshot reference | Active, Apache-2.0 |
 | https://github.com/dequelabs/axe-core | Conditional automated accessibility engine | Active, MPL-2.0 |
-| https://github.com/storybookjs/storybook | Optional isolated component and interaction surface | Active, MIT |
-| https://github.com/GoogleChrome/lighthouse-ci | Optional CI budgets | Active, Apache-2.0 |
-| https://github.com/lost-pixel/lost-pixel | Evaluated visual-regression alternative | Archived; do not adopt as a new default |
+
+Storybook, Lighthouse CI, and visual-regression tooling are deliberately absent
+from this ledger: the skill only uses them where a project already ships them,
+so their upstream status is not a decision this skill makes. (One data point if
+the question ever comes up: lost-pixel was archived in April 2026 — do not adopt
+it as a new default.)
 
 Repository activity is evidence about maintenance, not proof that a dependency
 belongs in a project. Inspect the project's existing stack first.

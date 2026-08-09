@@ -1,6 +1,6 @@
 ---
 name: web-perf
-description: Analyzes web performance using Chrome DevTools MCP. Measures Core Web Vitals (LCP, INP, CLS) and supplementary metrics (FCP, TBT, Speed Index), identifies render-blocking resources, network dependency chains, layout shifts, caching issues, and accessibility gaps. Use when asked to audit, profile, debug, or optimize page load performance, Lighthouse scores, or site speed. Biases towards retrieval from current documentation over pre-trained knowledge.
+description: Analyzes web performance, preferring Chrome DevTools MCP when it is configured. Measures Core Web Vitals (LCP, INP, CLS) and supplementary metrics (FCP, TBT, Speed Index), identifies render-blocking resources, network dependency chains, layout shifts, caching issues, and accessibility gaps. Without the MCP it still runs a codebase and static-asset audit via the project's own scripts, and reports which metrics stayed unmeasured rather than stopping. Use when asked to audit, profile, debug, or optimize page load performance, Lighthouse scores, or site speed. Biases towards retrieval from current documentation over pre-trained knowledge.
 ---
 
 # Web Performance Audit
@@ -17,9 +17,11 @@ Your knowledge of web performance metrics, thresholds, and tooling APIs may be o
 
 ## FIRST: Verify MCP Tools Available
 
-**Run this before starting.** Try calling `navigate_page` or `performance_start_trace`. If unavailable, STOP—the chrome-devtools MCP server isn't configured.
+**Run this before starting.** Try calling `navigate_page` or `performance_start_trace`.
 
-Ask the user to add this to their MCP config:
+If they exist, run the full workflow below.
+
+If they don't, the `chrome-devtools` MCP server isn't configured. Tell the user, and offer this config:
 
 ```json
 "chrome-devtools": {
@@ -27,6 +29,36 @@ Ask the user to add this to their MCP config:
   "command": ["npx", "-y", "chrome-devtools-mcp@latest"]
 }
 ```
+
+### Degraded path (no MCP) — do NOT just stop
+
+`design-taste`, `admin-dashboard`, `storefront-ux`, and `ui-validation` all
+delegate performance work here, so a hard stop leaves four skills with a dead
+end. Without the MCP you cannot measure field or lab metrics — say that
+plainly, never estimate a number — but you can still do real work:
+
+1. **Phase 5 (codebase analysis) runs unchanged** and is the highest-value part
+   when you have repo access. Bundle composition, render-blocking patterns,
+   font loading, image formats, and cache headers are all readable from source
+   and config.
+2. **Use the project's own scripts first** (`package.json`): an existing
+   `build`, `analyze`, `lighthouse`, or bundle-visualiser script beats any tool
+   you would add. Build output already reports bundle sizes.
+3. **If a browser can actually be driven** — the project has a working
+   Playwright runner, or a system browser Playwright can point at — hand that
+   work to `ui-validation` ("Performance evidence requested by web-perf" in its
+   §5). It returns raw page-reported numbers: `PerformanceObserver` entries,
+   `performance.getEntriesByType('navigation'|'resource')`, console errors,
+   failed requests. Coarse single-run lab numbers, but real and measured — you
+   interpret them, it does not. Declaring Playwright in `package.json` is not
+   the same as having its browsers installed; check before promising this step.
+4. **Static asset audit** needs no browser: hero image dimensions and format,
+   self-hosted vs remote fonts, `font-display`, missing width/height causing
+   CLS, third-party script tags in `<head>`.
+
+Report exactly which metrics remain **unmeasured** and that closing the gap
+needs the MCP or a Lighthouse run. Never present a codebase inference as a
+measured Core Web Vital.
 
 ## Key Guidelines
 

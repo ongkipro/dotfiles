@@ -125,5 +125,5 @@ ingress:
 ## See Also
 
 - [workers](../workers/) - Workers with Tunnel integration
-- [access](../access/) - Zero Trust access policies
-- [warp](../warp/) - WARP client for private networks
+- Zero Trust access policies and the WARP client are not in this reference set —
+  they belong to the separate `cloudflare-one` skill.

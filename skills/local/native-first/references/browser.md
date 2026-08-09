@@ -51,5 +51,7 @@ Likewise: a rich-text editor, a date-range picker with locale rules, a charting 
 ## Validation
 
 Open it in the browser and interact — a green build proves nothing about `<dialog>`, `:has()`, or a scroll snap.
-Check at 390px: `document.documentElement.scrollWidth === window.innerWidth`.
+Check at 390px: `document.documentElement.scrollWidth - document.documentElement.clientWidth <= 1`
+(compare against `clientWidth`, not `window.innerWidth` — the latter includes
+the scrollbar gutter and reports overflow that isn't there).
 Keyboard-test anything interactive: Tab in, Esc out.

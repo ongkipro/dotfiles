@@ -20,7 +20,7 @@ still fetched on every `skill-update`**; do not delete it).
 
 **Why it matters:** `git pull` in dotfiles moves the SOURCE and nothing else. Today's pull brought 22
 commits and five new skills — `admin-dashboard`, `design-taste`, `development-spec-suite`,
-`lean-code-review`, `premium-ui-ux` — and all five were **invisible to claude and pi** until
+`lean-code-review`, `premium-ui-ux` (deleted 2026-08-09) — and all five were **invisible to claude and pi** until
 `skill-update` ran, because no symlink pointed at them. The old note *"`git pull` alone is enough to
 sync"* described the single-directory model and is **retracted**.
 

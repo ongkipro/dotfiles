@@ -5,7 +5,8 @@ description: >-
   search, product listing and filtering, product detail and variants, cart, checkout handoff,
   customer account, localization, accessibility, performance, and analytics. Use for storefront
   UX specifications, journey audits, edge-state inventories, responsive commerce behavior,
-  conversion-friction diagnosis, or implementation acceptance criteria. Keep decisions
+  conversion-friction diagnosis, direct COD or single-page order form behavior, or
+  implementation acceptance criteria. Keep decisions
   backend-neutral; use the Shopify boundary reference when the project uses Shopify. Not for
   visual styling or aesthetics (design-taste), marketing or product copy (copywriting/content),
   API syntax, component installation, admin dashboards, or browser-based validation execution.
@@ -32,7 +33,7 @@ Keep semantic structure, keyboard behavior, state recovery, performance budgets,
 
 1. **Inspect reality.** Trace routes, navigation, state ownership, data boundaries, current analytics, and existing tests. Verify behavior in the running storefront when implementation is in scope.
 2. **Name the user and job.** State audience, entry point, purchase intent, device constraints, locale, and success event. Separate browsing, considered purchase, repeat purchase, and post-purchase jobs.
-3. **Map the critical path.** Cover discovery → evaluation → configuration → cart → checkout handoff → confirmation/account. Record exits, back-navigation, persistence, and recovery.
+3. **Map the critical path.** Cover discovery → evaluation → configuration → cart → checkout handoff → confirmation/account. For a DR/COD funnel the path collapses to offer → direct order form → confirmation; map that one instead of forcing the full journey onto it. Record exits, back-navigation, persistence, and recovery.
 4. **Inventory states.** For every surface include loading, empty, partial, unavailable, error, stale, offline/retry, authenticated/guest, and permission-sensitive states where applicable.
 5. **Resolve commercial invariants.** Make price, currency, tax/shipping qualification, inventory, variant availability, quantity limits, promotions, and totals internally consistent. Never hide a material price change.
 6. **Design progressive decisions.** Expose the minimum choice needed now; preserve prior choices; make destructive or irreversible transitions explicit; keep checkout boundaries recognizable.

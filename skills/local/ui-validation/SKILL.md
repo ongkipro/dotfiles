@@ -7,11 +7,14 @@ description: >-
   interactions; when asked to open, test, verify, QA, or prove a page in a real
   browser; or before claiming that a frontend change works. Prefer the
   project's existing Playwright setup, check mobile and desktop when layout is
-  affected, exercise keyboard and critical states, and report concrete
+  affected, exercise keyboard and critical states, verify Astro islands actually
+  hydrate, check both themes when theming changes, and report concrete
   evidence. Use axe, Storybook, visual regression, or Lighthouse CI only when
-  the project already uses them or the task specifically warrants them. Not for
-  choosing visual direction (design-taste), dashboard information architecture
-  (admin-dashboard), or performance optimization itself (web-perf).
+  the project already uses them or the task specifically warrants them. Can also
+  collect raw page-reported timings on behalf of web-perf when the
+  chrome-devtools MCP is unavailable. Not for choosing visual direction
+  (design-taste), dashboard information architecture (admin-dashboard), or
+  performance diagnosis itself (web-perf).
 ---
 
 # UI Validation
@@ -27,15 +30,31 @@ Before running or writing anything:
 1. Read repository instructions and the task or diff.
 2. Inspect `package.json` and the lockfile before choosing commands or tools.
 3. Reuse the project's scripts, browser-test setup, fixtures, auth helpers, and
-   conventions. Search for existing Playwright configuration and nearby tests.
+   conventions. Look for a browser layer in **three** shapes, not one — a
+   config-less runner script is the easiest to miss and the easiest to
+   duplicate:
+   - a Playwright config plus a test directory;
+   - a runner script under `scripts/` (grep for `from 'playwright'`,
+     `chromium.launch`) with no config and no test dir;
+   - `package.json` scripts named `verify`, `smoke`, `audit:*`, `check:*`.
+
+   Run the existing harness before writing anything new.
 4. State the smallest user-visible claim that must hold, for example: "A user
    can change quantity on mobile and the cart total updates without overflow."
 5. Identify the affected route, viewport, interaction, and important state.
 
-Do not install a global tool. Do not use `npx`, `pnpm dlx`, or an equivalent
-command that may download a package implicitly. Before proposing a local
-dependency, apply `native-first`; an already-installed runner or available
-browser tool wins.
+Do not install a global tool, and never let a throwaway download supply your
+test runner or your assertions — `npx`/`pnpm dlx` fetching a runner mid-QA means
+you cannot say what you actually ran. Before proposing a local dependency, apply
+`native-first`; an already-installed runner or available browser tool wins.
+
+**Missing browser binaries are a separate case.** Playwright can be declared in
+`package.json` while its browsers were never downloaded, and the run then fails
+with "Executable doesn't exist". Do not silently fetch them. Prefer the system
+browser already on the machine — `channel: 'chrome'`, or an explicit
+`executablePath` — which is also what an existing project config may already do.
+If you do download browsers for an already-declared dependency, that is a
+one-line-noted exception, not a new dependency: say you did it.
 
 ## 2. Choose the smallest evidence
 
@@ -46,6 +65,8 @@ Use the first level that proves the claim:
 | Static copy, color, or spacing | Open affected route at the relevant viewport; inspect the rendered result |
 | Responsive layout | Open at one narrow and one wide viewport; check clipping, overlap, and horizontal overflow |
 | Interaction or form | Perform the critical action; assert the resulting UI and persistence/navigation when relevant |
+| Astro island / hydrated component | Actually interact with it, don't just render it. A missing or wrong `client:*` directive still produces correct-looking HTML that does nothing, and it passes both `astro check` and `astro build`. Confirm no hydration error in the console |
+| Theme-affecting change (tokens, colors, dark mode) | Check both themes, and check that the resolved theme survives a reload without a flash of the wrong one |
 | Loading, empty, error, or disabled state | Trigger the actual state or a deterministic fixture; verify recovery and retained input |
 | Shared component or regression-prone logic | Add or update the nearest focused Playwright test |
 | Accessibility-sensitive control | Exercise keyboard order, focus visibility, accessible name, role, and state |
@@ -56,9 +77,27 @@ browser-visible change.
 
 ## 3. Run the real page
 
-1. Use the project's documented dev or preview script from `package.json`.
-2. Reuse an already-running server when its working tree and configuration
-   match the task. Otherwise start the narrowest local server safely.
+1. Prefer the project's own script, and know what each one actually gives you.
+   `preview` is not a synonym for `dev`:
+   - **Astro + `@astrojs/cloudflare`** — `astro dev` for markup, layout, and
+     interaction. Use the project's `wrangler dev` script when the flow touches
+     D1, KV, sessions, or headers, since that is the only runtime with real
+     worker semantics. `astro preview` serves a prior `astro build` — it is not
+     a dev server, and under the Cloudflare adapter it exits rather than
+     building for you.
+   - **Astro + `@astrojs/node`** — `astro dev`, or `astro build && astro
+     preview` when the output is prerendered.
+   - **Next** — `next dev`; `next build && next start` only when the bug is
+     build-only.
+
+   Never use `wrangler deploy`, a `--remote` flag, or a production URL to
+   obtain evidence.
+2. Reuse a running server only when you can confirm what it serves: match the
+   port against the project's configured port and hit a route that proves the
+   build. Otherwise start your own on a free port. **Never `pkill`, `killall`,
+   or kill by port** — other agents and other sessions share this machine.
+   Terminate only the process group you spawned, including on failure. If the
+   port you need is taken, stop and report the port rather than reclaiming it.
 3. Use the existing Playwright command/config when present. Target the affected
    test or project before running the entire suite.
 4. Navigate through the user-facing route rather than reaching directly into
@@ -69,6 +108,13 @@ Never read secret files or expose credentials to obtain a session. Reuse the
 project's approved test fixture or authenticated state. If access requires a
 secret or external mutation, stop at that boundary and report what remains
 unverified.
+
+**Read a project script's default target before running it.** Audit and smoke
+scripts commonly take the origin as `argv[2]` and fall back to a production URL,
+sometimes with real credentials as default env values — so the very act of
+"reusing the project's script" can log you into a live system. Always pass the
+local origin explicitly. Authenticating against production to gather evidence
+needs the same approval as a live mutation.
 
 ## 4. Check only relevant risk surfaces
 
@@ -83,16 +129,26 @@ desktop viewport. Prefer project-defined devices; otherwise use approximately
 - usable tap targets and readable content;
 - expected responsive transformation, not merely scaled desktop UI.
 
-Use an overflow assertion when appropriate:
+Use an overflow assertion when appropriate. Assert the **delta**, not a bare
+boolean — a boolean failure reads "expected true, received false" and tells you
+nothing about how far off you are or where:
 
 ```js
-expect(await page.evaluate(() =>
-  document.documentElement.scrollWidth <= document.documentElement.clientWidth
-)).toBe(true)
+const overflow = await page.evaluate(() =>
+  document.documentElement.scrollWidth - document.documentElement.clientWidth)
+// viewportSize() is sync but returns null when the browser runs without a fixed
+// viewport — which happens with channel:'chrome'. Guard it or the message throws.
+expect(overflow, `horizontal overflow at ${page.viewportSize()?.width ?? 'unknown'}px`).toBeLessThanOrEqual(1)
 ```
 
-Do not apply this assertion to an intentionally scrollable inner table or
-carousel; assert the page shell and the intended scroll container separately.
+Tolerate 1px for subpixel rounding. Compare against `clientWidth`, never
+`window.innerWidth` — `innerWidth` includes the scrollbar gutter, so that form
+reports phantom overflow on any desktop page with a vertical scrollbar.
+
+When it fails, walk the DOM for the widest offender and name it. Exclude
+`position: fixed` subtrees (off-screen drawers legitimately sit outside the
+viewport) and elements inside an intentional horizontal scroll container; assert
+the page shell and the intended scroll container separately.
 
 ### Interaction and state
 
@@ -115,18 +171,27 @@ behavior, meaningful labels, or correct interaction.
 
 ## 5. Escalate tools only when earned
 
-- **Playwright:** primary browser runner; reuse its existing config, projects,
-  web server, fixtures, and traces.
-- **Storybook:** use when it already exists and isolated component states are
-  the real validation surface. It does not replace the integrated route.
-- **Visual regression:** use existing snapshot infrastructure for stable,
-  deterministic surfaces. Review the image diff; never update baselines merely
-  to make the test green.
-- **Lighthouse CI:** use when the project already has budgets/configuration or
-  the task concerns a measurable performance/accessibility regression. It is
-  not the default correctness check.
+**Playwright** is the primary browser runner: reuse its existing config,
+projects, web server, fixtures, and traces.
 
-Do not introduce these tools preemptively for a one-off change.
+**Storybook, visual-regression snapshots, and Lighthouse CI** are in scope only
+where a project already has them configured — then use them as they stand
+(review image diffs; never refresh a baseline just to go green). Do not
+introduce any of them for a one-off change, and do not promise visual-regression
+evidence for a project that has no snapshot infrastructure.
+
+### Performance evidence requested by `web-perf`
+
+When `web-perf` delegates browser work because the chrome-devtools MCP is not
+configured, this skill collects what the page reports about itself and returns
+**raw numbers without interpreting them**:
+
+- `performance.getEntriesByType('navigation')` and `('resource')`
+- `PerformanceObserver` for `largest-contentful-paint` and `layout-shift`
+- console errors and failed requests
+
+These are single-run lab numbers from a warm local server. Label them that way.
+They are not Core Web Vitals, and diagnosis stays with `web-perf`.
 
 Read [sources.md](references/sources.md) only when refreshing upstream status or
 changing the tool-selection guidance; it is not required during normal UI QA.
@@ -141,6 +206,10 @@ Report:
 - observable result, including console/network findings;
 - saved test, screenshot, trace, or report path when one exists;
 - anything not verified and the exact blocker.
+
+Scale the report to the check. For a single-viewport cosmetic verification, one
+sentence naming the route, the viewport, and what you saw IS the whole report —
+the list above applies when you ran a suite or left an artifact behind.
 
 Say "build/type checks passed" when that is all that ran. Say "browser flow
 passed" only after exercising that flow in a browser. Do not generalize one

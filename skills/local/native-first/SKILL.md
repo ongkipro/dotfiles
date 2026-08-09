@@ -63,8 +63,10 @@ Never claim "it works" without running one of these. Prefer the project's own
 
 **Browser-visible change?** Run the dev server and actually look — a green build
 is not proof the UI works. Playwright at 390px is the house check for mobile
-overflow: `document.documentElement.scrollWidth === window.innerWidth`. Use
-`ui-validation` to select and report the smallest executable browser evidence.
+overflow: compare `scrollWidth` against `clientWidth`, never
+`window.innerWidth`, which includes the scrollbar gutter and reports phantom
+overflow. `ui-validation` owns the full form (delta, 1px tolerance, how to name
+the offending element) — use it to select and report the evidence.
 
 ## Anti-patterns seen in this codebase's history
 

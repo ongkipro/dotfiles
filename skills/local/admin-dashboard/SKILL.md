@@ -5,7 +5,9 @@ description: >-
   charts, KPI hierarchy, accessibility, and data-loading strategy for admin
   pages and data-dense dashboards. Use for admin panels, dashboard layouts,
   analytics UX, chart selection, responsive tables, KPI cards, sidebars, and
-  Astro-vs-React admin decisions. Delegate component code to shadcn-ui,
+  Astro-vs-React admin decisions. Also covers operator surfaces: order
+  lifecycle IA, bulk actions, multi-tenant scope and impersonation, permissions
+  and audit logs, and timezone/currency correctness. Delegate component code to shadcn-ui,
   browser evidence to ui-validation, and performance diagnosis to web-perf.
   Not for marketing pages, copywriting, or installing components.
 ---
@@ -22,6 +24,7 @@ You're already strong at front-end/landing UI/UX. The blind spot is **admin dash
 | Before adding a new dep/lib/wrapper | skill **`native-first`** |
 | IA / flow / ERD diagram from the dashboard structure | skill **`mermaid-diagram`** |
 | Dashboard slow / heavy chart bundle / render audit | skill **`web-perf`** |
+| Chart craft: mark specs, legends, tooltips, sequential/diverging ramps | skill **`dataviz`** when the runtime exposes it — but §6's accessibility floor (colourblind-safe series + a non-colour cue) is not overridable by another palette's defaults |
 | Viewport, keyboard, accessibility, state, and visual-regression evidence | skill **`ui-validation`** |
 | Astro specifics (islands, adapter) / CF Workers+D1 | skills **`astro-development`**, **`cloudflare`**, **`wrangler`** |
 
@@ -38,7 +41,7 @@ Canonical shape (shadcn "dashboard-01"): **sidebar + header → KPI card grid �
 
 ## 2. Chart selection — cheatsheet (the often-missed part)
 
-Reference frame: **FT "Visual Vocabulary"** (github.com/Financial-Times/chart-doctor) — pick the chart from the **relationship you want to show**, not taste.
+Reference frame: **FT "Visual Vocabulary"** (`Financial-Times/chart-doctor/visual-vocabulary/`, dormant since 2024 — a good frame, not living guidance) — pick the chart from the **relationship you want to show**, not taste.
 
 | Goal | Use | Note |
 |---|---|---|
@@ -64,17 +67,18 @@ Recharts already ships via `shadcn-ui`. **Default is Recharts. Step up only when
 
 | Library | When | Runtime note |
 |---|---|---|
-| **Recharts** (default) | Standard charts (line/bar/area/pie/scatter), **hundreds–low-thousands of points** | SVG and React-oriented. Verify the installed version and current SSR behavior before relying on a specific API. |
-| **ECharts** + `echarts-for-react` | **Thousands+ points / canvas perf**, exotic charts (heatmap, geo, sankey, candlestick, network), **edge-SSR charts** | `renderToSVGString()` → SVG with no DOM/canvas, runs on **Cloudflare Workers-class**. Tree-shake via `echarts/core`. |
-| **visx** (`@visx/*`) | **Bespoke viz** needing d3-level control, lean bundle | SVG (same node ceiling as Recharts) — you buy control, **not** big-data perf. You assemble axis/legend yourself. |
+| **Recharts** (default) | Standard charts (line/bar/area/pie/scatter), **hundreds–low-thousands of points** | SVG, **client-only**. SSR has never worked reliably and is still an open upstream design discussion; the package ships no `"use client"` of its own (verified), so charts are simply absent from server-rendered HTML. In App Router **you** must wrap every chart in a `"use client"` leaf. |
+| **ECharts** (raw) | **Thousands+ points / canvas perf**, exotic charts (heatmap, geo, sankey, candlestick, network), **edge-SSR charts** | `renderToSVGString()` is an **instance** method: `echarts.init(null, null, { renderer:'svg', ssr:true, width, height })`. On Workers `compatibility_flags = ["nodejs_compat"]` is **mandatory** — without it `init()` throws `global is not defined`. Tree-shake via `echarts/core` and register only the charts you use — the *full* bundle is ~1.1 MB minified, a tree-shaken one is a fraction of that. |
+| **visx** (`@visx/*`) | **Bespoke viz** needing d3-level control, lean bundle | SVG (same node ceiling as Recharts) — you buy control, **not** big-data perf. You assemble axis/legend yourself. Pin `^4.0.0`; the `next` dist-tag points at an *older* alpha. |
 
+- 🔴 **`echarts-for-react` — do not add.** Unofficial, single-maintainer, and hit by an npm supply-chain compromise on 2026-05-19: versions 3.0.7 / 3.1.7 / 3.2.7 were malicious publishes from a **compromised maintainer account** (the "Mini Shai-Hulud" campaign, which hit hundreds of packages). 3.1.7 and 3.2.7 were deleted, but **3.0.7 still resolves**, and its dependency `size-sensor@1.0.4` is compromised and installable. If a project already depends on it, pin **≤ 3.0.6** and check the lockfile. There is no official React wrapper — the imperative API wraps in ~30 lines of `useEffect` + `echarts.init`, which is the correct move.
 - **Avoid for React + edge-SSR**: **Chart.js** (canvas, won't SSR on plain Workers) & **Observable Plot** (needs `document`/DOM).
 - **Tremor or another dashboard kit**: treat it as presentation, not a chart-engine decision. Reuse a block only when it fits the installed stack; verify current maintenance and license before adding a package.
 - The "thousands of points" limit is **architectural (SVG node count), not an official number** — SVG = 1 DOM node per datum, so it janks as node count balloons.
 
 ## 4. Responsive data-dense — concrete patterns (NOT "use a media query")
 
-**Admin breakpoints** (Tailwind defaults: sm640 / md768 / lg1024 / xl1280 / 2xl1536; aligned with M3 window-size-class):
+**Admin breakpoints** (Tailwind defaults: sm640 / md768 / lg1024 / xl1280 / 2xl1536). These do **not** align with M3 window-size classes (600/840/1200/1600) at any boundary. Consequence for the table below: switching at `md` dumps the whole **600–767px tablet-portrait band** into a mobile drawer, where M3 would give it the icon rail. If tablet portrait matters for this admin, switch the rail at a custom `min-[600px]` instead:
 
 | Width | Mode | Nav | Table |
 |---|---|---|---|
@@ -84,11 +88,11 @@ Recharts already ships via `shadcn-ui`. **Default is Recharts. Step up only when
 
 **Data table on mobile — pick the pattern:**
 - Few columns → **horizontal scroll**, **pin the header + first column** (the label), and show a scroll affordance (peeking column/arrow).
-- Many columns, comparison task → **priority columns** (hide secondary ones) + **expandable row / accordion**. TanStack Table has the official API: `columnVisibility` state, `column.toggleVisibility()`, `enableHiding:false` to pin, render via `getVisibleLeafColumns()`.
+- Many columns, comparison task → **priority columns** (hide secondary ones) + **expandable row / accordion**. TanStack Table has the official API: `columnVisibility` state, `column.toggleVisibility()`, `enableHiding:false` to pin, render via `getVisibleLeafColumns()` (`getHeaderGroups()` is already visibility-aware and needs no variant). **v9 (Aug 2026) changed the shape:** `useReactTable` → `useTable`, and every feature is opt-in via `tableFeatures({...})` — register `columnVisibilityFeature` or those APIs do not exist on the table at all. Row models moved too (`getSortedRowModel()` → `sortedRowModel: createSortedRowModel()`). Check the lockfile before writing either dialect; `@tanstack/react-table/legacy` is a migration bridge, not a target.
 - Transactional list (scan/tap: orders, users, tickets) → **card/stack transform** (each row becomes a label:value card).
 - Need a specific slice, not the whole grid → **filter-first** (narrow before you render).
 
-**Sidebar (shadcn `Sidebar`):** `collapsible="offcanvas|icon|none"`. Desktop full → tablet **icon rail** (`collapsible="icon"`) → mobile auto-becomes a **`Sheet`** (via `isMobile`/`openMobile`, `useSidebar()` hook). Toggle `Cmd/Ctrl+B`.
+**Sidebar:** desktop full → tablet icon rail → mobile drawer. The rail must never hide the current-location indicator — a collapsed sidebar that loses "where am I" is a navigation regression, not a space saving. Prop names and hooks belong to `shadcn-ui`; don't restate them here (§ delegation rule above).
 
 **Charts on narrow screens:** move direct labels → a legend/key on top; reduce data points / the time range; numbered annotations drop below the chart; for in-table trends use a **sparkline**. ~≤5 widgets per mobile screen (practice, not a standard).
 
@@ -106,30 +110,75 @@ Recharts already ships via `shadcn-ui`. **Default is Recharts. Step up only when
 ## 6. A11y & dark-mode charts (brief)
 
 - **Not color alone** to distinguish series (WCAG 1.4.1): add **direct labels / patterns / markers / dashes**.
-- Categorical palette **colorblind-safe**: **Okabe-Ito** (8 colors, e.g. `#E69F00 #56B4E9 #009E73 #F0E442 #0072B2 #D55E00 #CC79A7`). Alternatives: ColorBrewer, Tableau 10.
+- Categorical palette **colorblind-safe**: **Okabe-Ito** (`#E69F00 #56B4E9 #009E73 #F0E442 #0072B2 #D55E00 #CC79A7`). Seed the `--chart-*` tokens with these rather than hardcoding hex at the call site — that is how "don't hardcode hex" and "use an accessible ramp" coexist. Two gotchas: shadcn ships only **5** `--chart-*` slots, so >5 series means adding `--chart-6..8` and re-checking the dark ramp; and Okabe-Ito includes **black** among its eight, which is unusable as a series colour in dark mode — substitute it under `.dark`. shadcn's stock `--chart-*` values are brand colours, not an accessible ramp, so check the project CSS before overwriting. Alternatives: ColorBrewer, Tableau 10.
 - Axis/text contrast follows WCAG 1.4.3 (4.5:1 for normal text).
 - **Dark mode**: map each series to a **`--chart-*`** token (light in `:root`, override in `.dark`) — **don't hardcode hex**. Token syntax: see the `shadcn-ui` skill.
 
-## 7. Stack fit — Astro vs Next, D1 data
+**Palette ownership:** this section is the local source of truth for categorical chart colour. If the runtime also exposes a general `dataviz` skill, use it for craft detail (mark specs, legends, tooltips) but keep the accessibility floor here — colourblind-safe series and a non-colour cue are not negotiable by another palette's defaults.
+
+## 7. Stack fit — Astro vs Next, server data
 
 - **Heavy stateful admin (SPA-like: shared state across components, client routing, live tables, filters talking to each other)** → **React SPA / Next.js**. Astro islands are **isolated by design** — shared state across islands is awkward. Keep **Astro** for **marketing + light admin** (status pages, simple settings). Common split: public Astro + a separate React/Next app for the dense admin.
+- **This is a greenfield decision, not a rewrite mandate.** If a project already ships a working Astro admin, apply the IA, table, chart, and state decisions in this skill *in place*. Propose the split only when cross-island shared state is the demonstrated, current blocker — never because the architecture table above prefers something else. Migrating a shipped admin is its own project with its own approval.
 
 ### If the admin is Next.js App Router (patterns — code details → shadcn-ui)
 
 - **Server/Client boundary.** Pages/layouts are Server Components: fetch D1/API *on the server*, pass results as props. Add `"use client"` ONLY to interactive leaves — sortable/filterable table, hover/zoom chart, forms (need state, handlers, or `window`/`localStorage`). Keep `"use client"` on the smallest leaf (everything a client file imports ships to the browser).
 - **Stream slow sections.** `app/…/loading.tsx` = instant route-level skeleton (auto-wraps the page in `<Suspense>`). Per-section: `<Suspense fallback={<Skeleton/>}><SlowChart/></Suspense>` — KPI row, chart, table stream independently, none blocking the others.
-- **Mutations = Server Actions.** `'use server'` fn → invoke from a client component (`<form action>`, `formAction`, or handler). After the write, `revalidatePath`/`revalidateTag` from `next/cache` to refresh the table. Re-check auth *inside* the action (reachable via direct POST).
+- **Mutations = Server Actions.** `'use server'` fn → invoke from a client component (`<form action>`, `formAction`, or handler). Re-check auth *inside* the action (it is reachable via direct POST). To refresh after the write on **Next 16**: prefer `updateTag(tag)` (Server Actions only, read-your-own-writes — the next request waits for fresh data) or `revalidatePath`. Watch the profile argument: **`revalidateTag(tag, 'max')` is stale-while-revalidate and will show the operator the pre-write table**, while a bare `revalidateTag(tag)` keeps the older immediate behavior. Use `refresh()` for dynamic data cached client-side that `updateTag` won't reach.
 - **Heavy chart lib → lazy.** `dynamic(() => import('./chart'), { ssr: false })` for a client-only chart touching `window`/DOM. `ssr:false` is NOT allowed in a Server Component — the `dynamic()` call must live in a `"use client"` file.
-- **Deploy to Cloudflare.** Adapter support and runtime behavior are volatile. Before selecting or upgrading an adapter, read the current `native-first`/Cloudflare references and official adapter documentation; do not preserve a deployment choice here as durable UI guidance.
-- **App Router vs Vite SPA.** Internal admin behind login (no SEO, initial-load not critical): a **Vite + React + React Router SPA** is the honest default — all-client, simplest deploy, existing TanStack Query/Table covers D1. Reach for **Next App Router** when you want server-side fetching (cuts client waterfalls), streamed sections, and co-located Server Actions — at the cost of a heavier Cloudflare deploy. Rule: SPA unless server-render/streaming earns its deploy complexity.
-- **D1/Workers data → tables:**
-  - Small (hundreds of rows, fits at once) → **client-side** pagination/sort/filter (TanStack Table default).
-  - **Thousands+ in D1 → server-side**: push `LIMIT/OFFSET` (or keyset) + `ORDER BY` + `WHERE` into SQL, `manualPagination:true` (+`manualSorting`/`manualFiltering`), send `rowCount`/`pageCount`. Fetch per-page via **TanStack Query** keyed `[resource,page,sort,filter]`. **Don't ship thousands of rows to the browser.**
-- **Virtualization (TanStack Virtual):** only for **long un-paginated scrolls** (~≥50 meaningful rows, clearly worth it >100; <~30 rows it's overhead). **Not** a replacement for server pagination — never "fetch-all 50k + virtualize".
+- **Deploy: check the repo before assuming.** Admin apps here are containerised (Dockerfile / Coolify) or run a separate API app; Cloudflare is the Astro-site path, not automatically the admin path. Don't reach for an `@opennextjs/cloudflare`-shaped answer without reading the project's Dockerfile and adapter config first.
+- **App Router is the house default**, because that is what the existing admins run — a new admin inherits their auth middleware, Server Action conventions, and deploy. A **Vite + React + React Router SPA** is the exception: justified for a throwaway internal tool with no server-fetch or streaming need, where all-client is genuinely simpler. Do not propose an SPA rewrite of a working App Router admin.
+- **Server-paginated tables** (Postgres via Drizzle/`pg`, or D1 behind the Astro sites):
+  - **Default is Server Component fetch + Server Action mutation + `updateTag`.** Reach for TanStack Query only when a table needs client-owned polling or optimistic state that Server Actions cannot express — and note nothing in the current repos does yet, so "we already have it" is not an argument.
+  - Small (hundreds of rows, fits at once) → client-side pagination/sort/filter.
+  - **Thousands+ → server-side**: push `LIMIT/OFFSET` (or keyset) + `ORDER BY` + `WHERE` into SQL, `manualPagination:true` (+`manualSorting`/`manualFiltering`). Send **either `rowCount` or `pageCount`, not both** — prefer `rowCount` and let the table derive pages; cursor APIs use `pageCount: -1`. `autoResetPageIndex` is disabled automatically under `manualPagination`, so reset `pageIndex` yourself when filters change. **Don't ship thousands of rows to the browser.**
+  - **`COUNT(*)` on a filtered large table is the hidden cost** of showing a total. Past a few hundred thousand rows, offer an approximate count or just `hasNextPage` instead.
+- **Virtualization (TanStack Virtual):** for long un-paginated scrolls. Our house rule is ~≥50 meaningful rows, clearly worth it >100, overhead below ~30 — **no upstream basis, it is a local heuristic**; TanStack explicitly declines to give a row-count threshold. The durable point: **virtualization cuts render cost, not fetch/filter/sort cost**, so it is never a substitute for server pagination. Never "fetch-all 50k + virtualize".
 
-## 8. Solo-dev guardrail — don't over-engineer
+## 8. Operator surfaces — the screens these businesses actually run
 
-- **Don't install Refine** for a handful of custom screens — it's a headless CRUD framework (data-provider + resource) worth it only with **many uniform CRUD resources**. For a bespoke admin, hand-roll TanStack Query hooks over the D1 API. Harvest the **concept** (a thin data-provider interface), skip the framework.
+Orders, invoices, finance, tenants, audit, impersonation, chat inbox. These are
+the bulk of a real admin and the most-skipped part of dashboard guidance.
+
+- **Timezone is the likeliest correctness bug.** A "Today" KPI computed in UTC
+  against a WIB (UTC+7) operation is wrong for seven hours of every day, and it
+  is wrong silently. State the timezone next to every period label, compute
+  period boundaries in the operation's timezone, and never let a date filter and
+  a KPI disagree about when "today" started.
+- **Currency:** format IDR without decimals, right-align money, and never mix
+  currencies in one column — put the currency in the column header or split the
+  column.
+- **Order lifecycle is the primary axis**, not a secondary filter. Define the
+  status taxonomy, which statuses are terminal, and where status lives (tab bar
+  vs filter). **A COD order is not a payment** — the operator view must never
+  imply money received because a row says "confirmed" (`storefront-ux` owns the
+  buyer side of this; this is the operator side).
+- **Row selection and bulk actions:** sticky action bar; be explicit about
+  select-on-page vs select-across-pages (a real trap once server pagination is
+  on); destructive bulk confirmation names the count; report partial failure
+  honestly (`23 of 40 updated`, and which 17 failed).
+- **Multi-tenant scope:** persistent "which store am I in" indicator, not just a
+  switcher. Per-store vs aggregate KPIs must be labelled as such.
+  **Impersonation needs a visible, persistent banner with one-click exit** —
+  an operator who forgets they are impersonating will act as the customer.
+- **Permissions:** decide hide vs disable vs 403 per action, and never render an
+  action as enabled that will fail server-side. Audit logs are their own table
+  archetype: append-only, no edit, actor + before/after.
+- **Destructive and unsaved state:** confirmation names the object; no
+  confirmation for reversible actions; dirty forms get a navigation guard.
+  `storefront-ux` requires "never clear entered data on failure" — the same
+  applies here.
+- **URL-addressable filters and saved views.** Admin tables need shareable state
+  more than storefronts do: "unpaid orders today" should be a link.
+- **New-order arrival:** choose polling interval vs manual refresh deliberately,
+  and never let a background refresh reorder rows under the operator's cursor.
+- **Export:** export the *filtered* set, not the current page. Decide sync vs
+  queued job by size, and say which one happened.
+
+## 9. Solo-dev guardrail — don't over-engineer
+
+- **Don't install Refine** for a handful of custom screens — it's a headless CRUD framework (data-provider + resource) worth it only with **many uniform CRUD resources**. For a bespoke admin, Server Components plus Server Actions already cover it. Harvest the **concept** (a thin data-provider interface), skip the framework.
 - **Don't add a chart lib** beyond Recharts until you truly hit its ceiling (§3).
 - **Don't build custom viz (visx)** when a bar chart already answers the question.
 - **One dashboard shell, reused.** Don't invent a new layout per page.
@@ -143,4 +192,6 @@ Library APIs, versions, maintenance state, and deployment adapters are volatile.
 Verify them against the project's lockfile and current official upstream before
 implementing. Keep this skill focused on durable UX decisions.
 
-**Unverified / inference:** chart point-count thresholds (architectural, no official number); "≤5 widgets/mobile screen" & the virtualization threshold (community practice, not a standard); "color the delta by desired direction" & granularity labeling (design judgment).
+Library APIs verified 2026-08-10 (Recharts SSR status, TanStack Table v9, Next 16 `updateTag`, ECharts-on-Workers, the `echarts-for-react` compromise). These move fast — re-check before implementing.
+
+**Unverified / inference:** chart point-count thresholds (architectural, no official number); "≤5 widgets/mobile screen" and the virtualization row counts (**house rule, no upstream basis** — TanStack declines to give a threshold); "color the delta by desired direction" and granularity labeling (design judgment); §8's operator-surface rules (accumulated practice, not cited standards).

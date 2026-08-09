@@ -75,7 +75,8 @@ Three layers, separated by **how often they are paid for**:
 - 🔑 **CROSS-DEVICE SYNC IS NOT `git pull` ALONE.** `git pull` updates the SOURCE; nothing links a
   NEW skill into the runtime dirs until `skill-update` runs. Measured today: after pulling 22 commits,
   `skills/local` held 40 skills while the runtime dirs still linked 35 — `admin-dashboard`,
-  `design-taste`, `development-spec-suite`, `lean-code-review` and `premium-ui-ux` were invisible to
+  `design-taste`, `development-spec-suite`, `lean-code-review` and `premium-ui-ux` (that last one
+  has since been deleted, 2026-08-09) were invisible to
   claude and pi. **After a dotfiles pull that adds or removes a skill, run `skill-update`.**
   Verify: `comm -23 <(ls -1 ~/dotfiles/skills/local | grep -v '^_' | LC_ALL=C sort) <(find ~/.claude/skills -maxdepth 1 -type l -exec basename {} \; | LC_ALL=C sort)` — empty means wired.
 - 🔴 **THERE ARE TWO DIFFERENT `skill-update` SCRIPTS, AND THEY IMPLEMENT OPPOSITE MODELS.** Know
