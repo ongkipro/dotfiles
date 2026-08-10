@@ -147,6 +147,20 @@ machine-local.
 Do not duplicate model routing inside skills. A capability defines what and how;
 OMP decides which model executes it.
 
+Semantic routing has one owner: [`config/omp/ROUTING.md`](config/omp/ROUTING.md).
+Its executable selectors are kept in `config/omp/config.yml`:
+
+| Work class | OMP role | Current selector |
+|---|---|---|
+| Normal development | `default` | Codex GPT-5.6 Sol, medium reasoning |
+| Complex implementation | `slow` | Codex GPT-5.6 Sol, high reasoning |
+| Architecture-sensitive planning | `plan` | Codex GPT-5.6 Sol, high reasoning |
+| Visual frontend work | `vision` | Gemini/Antigravity |
+| High-value consultation | `advisor` | Claude, high reasoning |
+
+Task size alone does not trigger escalation. Complexity, specialist evidence,
+or a demonstrated blocker does.
+
 ### Shared AI context
 
 The cross-runtime instruction source is:
@@ -255,15 +269,46 @@ Standalone Claude, Codex, Pi, and Antigravity remain useful for direct
 provider-specific work, but switching to one is an explicit context handoff, not
 an OMP subagent dispatch.
 
+### Repository-local project contract
+
+Projects own their current engineering state. `project-init` creates the minimal
+contract inside a repository without overwriting existing files:
+
+```text
+PROJECT/
+├── AGENTS.md
+├── PRD.md
+├── TASKS.md
+├── STATUS.md
+├── BUILD-LOG.md
+└── docs/
+    └── architecture.md
+```
+
+Use `docs/specs/` and `docs/decisions/` only when a real specification or
+costly-to-reverse decision exists. Draft research may remain under
+`~/Documents/work/`; accepted requirements, active tasks, implementation state,
+and architecture travel with the repository.
+
+```bash
+project-init --repo /path/to/existing-project
+project-init <github-repo-name> <category> ["description"]
+```
+
+The sandbox regression check is `bin/project-init-test`.
+
 ## Repository map
 
 ```text
 dotfiles/
-├── bin/                         # Maintenance, diagnostics, sync, and terminal helpers
-│   └── ai-memory-check          # Broken Markdown link and wikilink detector
+├── bin/                         # Maintenance, diagnostics, project, and terminal helpers
+│   ├── ai-doctor                # Read-only AI runtime health report
+│   ├── ai-memory-check          # Markdown link and wikilink validation
+│   └── project-init             # Repository-local development contract
 ├── config/
-│   ├── ai/                      # Cross-CLI policy and memory
-│   ├── omp/                     # OMP model roles, runtime settings, and custom providers
+│   ├── ai/                      # Canonical cross-runtime policy and memory
+│   ├── omp/                     # Routing policy, model roles, runtime settings, providers
+│   ├── templates/               # Repository-local project contract templates
 │   ├── helix/                   # Editor and language-server configuration
 │   ├── pi/                      # Pi settings and extensions
 │   ├── systemd/user/            # Tracked user-service definitions
@@ -276,8 +321,8 @@ dotfiles/
 ├── docs/                        # Detailed setup and operational runbooks
 ├── home/                        # Tracked home-file sources and snapshots
 ├── skills/
-│   ├── agents-bin/              # Skill management commands
-│   └── local/                   # Canonical owned skills
+│   ├── agents-bin/              # Capability management and validation commands
+│   └── local/                   # Canonical owned capabilities
 ├── install.sh                   # Linux-oriented bootstrap
 └── install-macos.sh             # macOS bootstrap
 ```
@@ -432,9 +477,20 @@ dotsync doctor
 security-check
 ```
 
-These commands do not intentionally change tracked repository content, but some
-use temporary files internally; they are not substitutes for a strict
-zero-write audit.
+These inspection commands do not intentionally change tracked repository
+content, but some use temporary files internally; they are not substitutes for
+a strict zero-write audit.
+
+After adding or removing an owned capability, intentionally reconcile Codex and
+any newly installed runtime:
+
+```bash
+skill-update
+ai-doctor
+```
+
+`skill-update` changes managed live symlinks but never copies capability content
+or writes tracked files.
 
 `dotsync commit` and `dotsync sync` are broad convenience commands: they refresh machine snapshots and run `git add -A` before confirmation. Use them only when the entire working tree is intentionally in scope. `dotpush` is an even broader commit-and-push fast path. Neither is appropriate for a mixed or dirty worktree.
 
