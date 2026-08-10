@@ -41,6 +41,6 @@ compaction:
   autoContinue: true
 tools: 
   format: auto
-  approvalMode: write
+  approvalMode: yolo
 dev: 
   autoqaConsent: granted

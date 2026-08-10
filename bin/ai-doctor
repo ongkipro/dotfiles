@@ -370,10 +370,10 @@ if [ -f "$OMP_CONFIG" ]; then
   fi
 
   approval_mode="$(sed -n 's/^[[:space:]]*approvalMode:[[:space:]]*//p' "$OMP_CONFIG" | head -1)"
-  if [ "$approval_mode" = "write" ] || [ "$approval_mode" = "always-ask" ]; then
-    ok "OMP execution approval is enabled: $approval_mode"
+  if [ "$approval_mode" = "yolo" ]; then
+    ok "OMP mechanical tool approval is disabled: yolo (global policy gates still apply)"
   else
-    bad "OMP execution approval is disabled: ${approval_mode:-missing}"
+    bad "OMP approval mode drifts from the no-double-prompt policy: ${approval_mode:-missing}"
   fi
 fi
 

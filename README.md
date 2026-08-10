@@ -161,10 +161,15 @@ Its executable selectors are kept in `config/omp/config.yml`:
 Task size alone does not trigger escalation. Complexity, specialist evidence,
 or a demonstrated blocker does.
 
-OMP uses its native `tools.approvalMode: write`: read and workspace-write tools
-run without prompts, while shell execution requires explicit approval. A session
-can still request a stricter mode. Do not use `--yolo` or `--auto-approve` to
-bypass the global approval gates.
+OMP intentionally uses native `tools.approvalMode: yolo` so its tools and
+subagents do not add a second mechanical approval prompt. OMP talks to model
+providers directly; it does not need dangerous standalone-CLI flags for Codex,
+Claude, Gemini, or other workers.
+
+This setting does **not** waive the approval gates in `config/ai/AGENTS.md`.
+The agent must still obtain explicit user approval before secrets access,
+destructive changes, system-wide operations, production actions, or scope creep.
+A session may request a stricter mechanical mode when useful.
 
 ### Shared AI context
 
