@@ -16,6 +16,8 @@ After a browser-visible component change, use `ui-validation` for the smallest
 viewport, keyboard, state, and accessibility evidence. Component compilation
 alone is not UI proof.
 
+> **For Dashboard architectures (Admin, SaaS):** Refer to `~/.config/ai/memory/shadcn-dashboard-architect.md` for framework-specific setup (Astro vs Next.js vs Vite) and layout shell patterns using `SidebarProvider`.
+
 **Prerequisite:** Tailwind CSS and the project's token strategy must already be
 understood. For an accepted new shadcn setup, verify the current CLI help and
 official installation guide first; do not assume generated paths or
