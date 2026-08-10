@@ -48,12 +48,12 @@ link "$DOT/config/tmux.conf"             ~/.tmux.conf
 link "$DOT/config/mise-config.toml"      ~/.config/mise/config.toml  # toolchain bersama; `mise use -g` nulis tembus symlink
 link "$DOT/config/lazygit/config.yml"    ~/.config/lazygit/config.yml
 link "$DOT/config/gh/config.yml"         ~/.config/gh/config.yml     # hosts.yml TIDAK di-link (berisi oauth token)
-for s in skill-help skill-list skill-new skill-open skill-remove skill-update; do link "$DOT/skills/agents-bin/$s" ~/.agents/bin/$s; done
+for s in skill-help skill-list skill-new skill-open skill-check skill-remove skill-update; do link "$DOT/skills/agents-bin/$s" ~/.agents/bin/$s; done
 link "$DOT/home/profile"                 ~/.profile
 link "$DOT/bin/ai-memory-link"           ~/.local/bin/ai-memory-link
 link "$DOT/bin/dotpush"                  ~/.local/bin/dotpush
 link "$DOT/bin/dotsync"                  ~/.local/bin/dotsync
-for s in tmux-clip tmux-setup security-check security-check-test inspect-project ai-doctor ai-memory-check vps-pgdump 9router-start pi-9router-restore device-register; do link "$DOT/bin/$s" ~/.local/bin/$s; done
+for s in tmux-clip tmux-setup security-check security-check-test skill-check-test inspect-project ai-doctor ai-memory-check vps-pgdump 9router-start pi-9router-restore device-register; do link "$DOT/bin/$s" ~/.local/bin/$s; done
 link "$DOT/config/omp/config.yml"        ~/.omp/agent/config.yml   # OMP config (model, theme, approval)
 link "$DOT/config/omp/models.yml"        ~/.omp/agent/models.yml   # OMP providers (9router)
 ~/.local/bin/ai-memory-link              # symlink AGENTS.md ke semua AI CLI (claude/codex/pi/agy/omp)

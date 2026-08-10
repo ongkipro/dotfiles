@@ -4,6 +4,7 @@ Skill commands
 
   skill-list               Daftar semua skill
   skill-open <name>        Buka SKILL.md di editor
+  skill-check [name]       Validasi satu/semua skill + reference links
   skill-new <name>         Bikin skill baru (langsung aktif di semua CLI)
   skill-remove <name>      Hapus skill (langsung hilang di semua CLI)
   skill-update             Pasang/perbaiki symlink — cukup SEKALI per mesin

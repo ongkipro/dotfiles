@@ -1,12 +1,39 @@
 ---
 name: skill-plumbing
-description: "Custom skills are sourced from ~/dotfiles/skills/local, but the runtime dirs are MANAGED directories of per-skill symlinks — `git pull` alone does not wire a new skill, `skill-update` does"
+description: "Owned skills use ~/dotfiles/skills/local as their single source; skill-update installs whole-directory runtime symlinks and ai-doctor verifies them"
 metadata: 
   node_type: memory
   type: project
   originSessionId: 678a7f8d-f6e5-48ea-a900-2ddb3e7431ff
   modified: 2026-08-05T10:15:00.000Z
 ---
+
+## Current contract
+
+Owned skills live only in `~/dotfiles/skills/local/`. The active
+`~/.agents/bin/skill-update` resolves to the tracked dotfiles implementation and
+installs whole-directory symlinks for supported runtimes. Once installed,
+`git pull` is sufficient. Run `skill-update` only after installing a new CLI or
+when `ai-doctor` reports a broken link.
+
+Codex's `~/.codex/skills` is separate because it contains `.system` built-ins.
+Do not delete it and do not copy owned skills into it. Use `skill-list` plus a
+direct source read for Codex and Antigravity when native discovery is absent.
+
+Verify current state:
+
+```bash
+readlink -f ~/.agents/bin/skill-update
+readlink -f ~/.claude/skills
+skill-list
+ai-doctor
+```
+
+Everything below this point records the superseded 2026-08-05 runtime incident.
+It is historical evidence, not an operating procedure. The executable guard is
+`bin/skill-update-test`.
+
+## Historical incident
 
 Single source for **our own** skills = **`~/dotfiles/skills/local/`** (reached by `skill-update`
 through `~/.agents/local-skills`, a symlink to it). Check the count on disk; any number written here

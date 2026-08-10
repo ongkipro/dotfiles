@@ -1,0 +1,17 @@
+screen: ""
+actor: ""
+primary_job: ""
+object: ""
+scope: ""
+entry_points: []
+decision_information: []
+primary_action: ""
+secondary_actions: []
+dangerous_actions: []
+states: []
+url_state: []
+success_destination: ""
+success_condition: ""
+assumptions: []
+open_decisions: []
+acceptance_criteria: []

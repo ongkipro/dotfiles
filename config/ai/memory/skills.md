@@ -51,7 +51,26 @@ Three layers, separated by **how often they are paid for**:
 - ⚠️ **codex NOT logged in on `cuan`** (`~/.codex/auth.json` absent) — this Linux box was just installed, still being set up. Run `codex login` before relying on codex. Not a bug.
 - **codex & agy have no skills directory** — their system is plugins (`plugin.json`), a different format. `agy plugin validate` rejects our `SKILL.md`. **Don't wrap them into plugins** = a second source + sync burden. Just: run `skill-list`, then read `~/dotfiles/skills/local/<name>/SKILL.md` directly.
 
-## Skill plumbing — MODEL: MANAGED RUNTIME DIRECTORIES (measured 2026-08-05, `cuan`)
+## Skill plumbing — current contract
+
+`~/dotfiles/skills/local/` is the only source for owned skills. The active
+`~/.agents/bin/skill-update` resolves to the tracked dotfiles script and creates
+whole-directory symlinks for supported runtimes. After initial setup, `git pull`
+updates visible skills immediately; run `skill-update` only to install or repair
+links. Verify with `readlink -f ~/.agents/bin/skill-update`, `skill-list`, and
+`ai-doctor`.
+
+Codex keeps `~/.codex/skills/.system` for built-in skills. Do not delete it and
+do not copy owned skills there. Codex and Antigravity can always use
+`skill-list` and read `~/dotfiles/skills/local/<name>/SKILL.md` directly.
+
+The destructive old linker incident is encoded in `bin/skill-update-test`.
+Keep the hard guard; do not preserve the incident as current runtime guidance.
+
+## Skill plumbing history — obsolete measurements from 2026-08-05
+
+The section below is historical evidence only. It describes a replaced jezweb
+per-skill runtime and must not override the current contract above.
 
 ```
 ~/dotfiles/skills/local/   ← the single source for OUR custom skills

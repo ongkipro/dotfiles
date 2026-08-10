@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Validate owned skills without downloading dependencies.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+SRC="${SKILL_SOURCE:-$(cd "$SCRIPT_DIR/../local" && pwd)}"
+requested="${1:-}"
+fail=0
+warn=0
+count=0
+
+bad() { printf '  FAIL  %s\n' "$*"; fail=$((fail + 1)); }
+wrn() { printf '  WARN  %s\n' "$*"; warn=$((warn + 1)); }
+ok()  { printf '  OK    %s\n' "$*"; }
+
+[ -d "$SRC" ] || { echo "ERROR: skill source not found: $SRC" >&2; exit 1; }
+
+if [ -n "$requested" ]; then
+  [ -f "$SRC/$requested/SKILL.md" ] || { echo "ERROR: unknown skill: $requested" >&2; exit 1; }
+  skills=("$SRC/$requested")
+else
+  skills=()
+  while IFS= read -r file; do skills+=("$(dirname "$file")"); done \
+    < <(find "$SRC" -mindepth 2 -maxdepth 2 -name SKILL.md -print | LC_ALL=C sort)
+fi
+
+seen_file="$(mktemp "${TMPDIR:-/tmp}/skill-check-seen.XXXXXX")"
+cleanup() { rm -f "$seen_file"; }
+trap cleanup EXIT
+for dir in "${skills[@]}"; do
+  count=$((count + 1))
+  file="$dir/SKILL.md"
+  folder="$(basename "$dir")"
+  name="$(sed -n '/^---$/,/^---$/s/^name:[[:space:]]*//p' "$file" | head -1 | tr -d '\r')"
+  description="$(sed -n '/^---$/,/^---$/s/^description:[[:space:]]*//p' "$file" | head -1 | tr -d '\r')"
+
+  [ -n "$name" ] || bad "$folder: missing frontmatter name"
+  [ -n "$description" ] || bad "$folder: missing frontmatter description"
+  [ "$name" = "$folder" ] || bad "$folder: name is '$name'"
+  [[ "$folder" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || bad "$folder: invalid folder name"
+  duplicate="$(awk -F '\t' -v key="$name" '$1 == key { print $2; exit }' "$seen_file")"
+  if [ -n "$name" ] && [ -n "$duplicate" ]; then
+    bad "$folder: duplicate name also used by $duplicate"
+  elif [ -n "$name" ]; then
+    printf '%s\t%s\n' "$name" "$folder" >> "$seen_file"
+  fi
+
+  rg -q '\[TODO[^]]*\]|TODO:' "$file" && bad "$folder: unresolved TODO placeholder"
+  lines="$(wc -l < "$file" | tr -d ' ')"
+  [ "$lines" -le 500 ] || wrn "$folder: SKILL.md is $lines lines; split references near 500"
+
+  while IFS= read -r target; do
+    case "$target" in
+      http:*|https:*|mailto:*|\#*|'') continue ;;
+    esac
+    target="${target%%#*}"
+    [ -e "$dir/$target" ] || bad "$folder: broken relative link $target"
+  done < <(rg -o '\]\([^)]+\)' "$file" | sed -E 's/^\]\((.*)\)$/\1/' || true)
+
+  ok "$folder"
+done
+
+printf '\nChecked %d skill(s): %d failure(s), %d warning(s)\n' "$count" "$fail" "$warn"
+[ "$fail" -eq 0 ]

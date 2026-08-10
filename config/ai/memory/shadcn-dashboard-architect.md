@@ -1,5 +1,11 @@
 # Shadcn UI Dashboard Architect Playbook
 
+> **Deprecated capability snapshot. Do not use for implementation.** Current
+> sources are `admin-product-ux` for domain/workflow correctness,
+> `admin-dashboard` for dashboard IA, `shadcn-ui` for component APIs, and
+> `astro-development` for Astro runtime boundaries. This file remains only
+> until its eventual deletion is explicitly approved.
+
 This playbook standardizes how we build Admin, SaaS, and internal dashboards using shadcn/ui across different frameworks. It bridges the gap between generic installation and real-world dashboard scaffolding.
 
 ## 1. Framework Selection Matrix

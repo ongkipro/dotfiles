@@ -154,6 +154,13 @@ SHARED="$HOME/.agents/repos/shared-skills"
 if [ -d "$SK" ]; then
   n=$(find "$SK" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')
   ok "sumber custom: $n skill di ~/dotfiles/skills/local/"
+  if [ -x "$DOT/skills/agents-bin/skill-check" ]; then
+    "$DOT/skills/agents-bin/skill-check" >/dev/null 2>&1 \
+      && ok "skill-check: metadata + relative references valid" \
+      || bad "skill-check gagal — jalankan: skill-check"
+  else
+    wrn "skill-check belum tersedia"
+  fi
   for pair in "claude:$HOME/.claude/skills:$HOME/.claude" "pi:$HOME/.pi/agent/skills:$HOME/.pi/agent" "omp:$HOME/.omp/agent/skills:$HOME/.omp/agent"; do
     cli=${pair%%:*}; rest=${pair#*:}; path=${rest%%:*}; parent=${rest#*:}
     if [ ! -d "$parent" ]; then wrn "$cli: belum terpasang (lewati)"; continue; fi
@@ -201,7 +208,7 @@ if [ -d "$SK" ]; then
       fi
     fi
   done
-  ok "codex & agy: tak punya dir skill (by design) — pakai \`skill-list\` lalu baca SKILL.md-nya"
+  ok "codex & agy: custom skill fallback = \`skill-list\` + baca source langsung (Codex .system tetap terpisah)"
 else
   bad "$SK TIDAK ADA"
 fi

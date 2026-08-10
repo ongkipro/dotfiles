@@ -1,0 +1,4 @@
+interface:
+  display_name: "Admin Product UX"
+  short_description: "Model precise SaaS and admin workflows"
+  default_prompt: "Use $admin-product-ux to model this admin workflow before designing screens."

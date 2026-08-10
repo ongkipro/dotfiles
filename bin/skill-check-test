@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO="${1:-$HOME/dotfiles}"
+CHECK="$REPO/skills/agents-bin/skill-check"
+[ -x "$CHECK" ] || { echo "ERROR: skill-check not executable: $CHECK" >&2; exit 1; }
+
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/skill-check-test.XXXXXX")"
+cleanup() { rm -rf "$TMP"; }
+trap cleanup EXIT
+
+mkdir -p "$TMP/good/references" "$TMP/bad"
+printf '%s\n' '---' 'name: good' 'description: Good fixture.' '---' '' '# Good' '' '[Reference](references/rules.md)' > "$TMP/good/SKILL.md"
+printf '%s\n' '# Rules' > "$TMP/good/references/rules.md"
+printf '%s\n' '---' 'name: wrong-name' 'description: Bad fixture.' '---' '' '# Bad' '' '[Missing](references/missing.md)' > "$TMP/bad/SKILL.md"
+
+SKILL_SOURCE="$TMP" "$CHECK" good >/dev/null
+if SKILL_SOURCE="$TMP" "$CHECK" bad >/dev/null 2>&1; then
+  echo "skill-check-test: FAILED (invalid fixture passed)"
+  exit 1
+fi
+
+echo "skill-check-test: OK"

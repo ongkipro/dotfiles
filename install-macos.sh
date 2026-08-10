@@ -47,6 +47,7 @@ link "$DOT/bin/ai-doctor"                "$HOME/.local/bin/ai-doctor"        # c
 link "$DOT/bin/ai-memory-check"          "$HOME/.local/bin/ai-memory-check"
 link "$DOT/bin/security-check"           "$HOME/.local/bin/security-check"
 link "$DOT/bin/security-check-test"      "$HOME/.local/bin/security-check-test"
+link "$DOT/bin/skill-check-test"         "$HOME/.local/bin/skill-check-test"
 link "$DOT/bin/inspect-project"          "$HOME/.local/bin/inspect-project"
 link "$DOT/bin/project-init"             "$HOME/.local/bin/project-init"
 for s in tmux-clip tmux-setup tmux-battery security-check 9router-start pi-9router-restore device-register; do
@@ -59,7 +60,7 @@ say "==> Daftarkan device ini ke registry (devices/<hostname>.md)..."
 
 say "==> Link local skills + skill commands..."
 mkdir -p "$HOME/.agents/bin"
-for s in skill-help skill-list skill-new skill-open skill-remove skill-update; do
+for s in skill-help skill-list skill-new skill-open skill-check skill-remove skill-update; do
   [ -e "$DOT/skills/agents-bin/$s" ] && link "$DOT/skills/agents-bin/$s" "$HOME/.agents/bin/$s"
 done
 # Symlink satu-direktori ke SEMUA CLI (~/.claude/skills, ~/.pi/agent/skills, ~/.agents/local-skills).

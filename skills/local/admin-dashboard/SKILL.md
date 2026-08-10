@@ -14,12 +14,17 @@ description: >-
 
 # Admin Dashboard — concept & IA
 
+Load `admin-product-ux` first when roles, business objects, lifecycle,
+permissions, task flow, or screen contracts are not already explicit. This
+skill must not invent those product rules while arranging the presentation.
+
 You're already strong at front-end/landing UI/UX. The blind spot is **admin dashboards** (data-dense, responsive, charts, IA). This skill is the **decision** layer — which chart, which layout, which breakpoint. **Components come from other skills.**
 
 ## Delegation — this skill does NOT write component code
 
 | Need | Go to |
 |---|---|
+| Domain objects, lifecycle, roles, permissions, task flows, screen contracts | skill **`admin-product-ux`** |
 | Install/code for Recharts, sidebar, data table, blocks, dark-mode toggle, semantic tokens | skill **`shadcn-ui`** |
 | Before adding a new dep/lib/wrapper | skill **`native-first`** |
 | IA / flow / ERD diagram from the dashboard structure | skill **`mermaid-diagram`** |

@@ -1,0 +1,15 @@
+workflow: ""
+actor: ""
+trigger: ""
+desired_outcome: ""
+frequency: ""
+volume: ""
+failure_cost: ""
+objects: []
+happy_path: []
+exception_paths: []
+transitions: []
+side_effects: []
+audit_events: []
+assumptions: []
+open_decisions: []
