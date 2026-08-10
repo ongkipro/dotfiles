@@ -57,9 +57,30 @@ check_wrapper() {
   printf '✓ %s:omp wrapper\n' "${file#$ROOT/}"
 }
 
+shell_name_code="$(extract_function "$ROOT/config/shell-tools.sh" _shell_name)"
+[ -n "$shell_name_code" ]
+(
+  export SHELL=/bin/zsh
+  unset ZSH_VERSION
+  eval "$shell_name_code"
+  [ "$(_shell_name)" = "bash" ]
+)
+echo "✓ config/shell-tools.sh: detects the running shell"
 
-[ -z "$(bash -c '. "$1"' _ "$ROOT/config/shell-tools.sh")" ]
-echo "✓ config/shell-tools.sh: quiet non-interactive source"
+check_quiet_source() {
+  local shell="$1" login_shell="$2" output
+  if ! output="$(SHELL="$login_shell" "$shell" -c '. "$1"' _ "$ROOT/config/shell-tools.sh" 2>&1)"; then
+    printf '%s\n' "$output" >&2
+    return 1
+  fi
+  [ -z "$output" ] || { printf '%s\n' "$output" >&2; return 1; }
+  printf '✓ config/shell-tools.sh: quiet %s source\n' "$(basename "$shell")"
+}
+
+check_quiet_source bash /bin/zsh
+if command -v zsh >/dev/null 2>&1; then
+  check_quiet_source zsh /bin/bash
+fi
 check_wrapper "$ROOT/config/shell-tools.sh"
 check_wrapper "$ROOT/config/bashrc.tools.sh"
 check_wrapper "$ROOT/config/zshrc.tools.sh"

@@ -2,7 +2,13 @@
 # Auto-deteksi shell. Idempotent (aman di-source berkali-kali).
 # >>> dev-tools setup (ongkipro/dotfiles) >>>
 
-_shell_name() { basename "${SHELL:-/bin/bash}"; }
+_shell_name() {
+  if [ -n "${ZSH_VERSION:-}" ]; then
+    printf '%s\n' zsh
+  else
+    printf '%s\n' bash
+  fi
+}
 
 # --- PATH: bin scripts (dotfiles + skills) ---
 case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$PATH";; esac
@@ -189,5 +195,7 @@ shopify-full-audit() {
 }
 
 # --- Windows debloat (run as admin from Windows PowerShell) ---
-[ -f /mnt/c/Users/Asus/win-debloat.ps1 ] && alias win-debloat='powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\\Users\\Asus\\win-debloat.ps1'
+if [ -f /mnt/c/Users/Asus/win-debloat.ps1 ]; then
+  alias win-debloat='powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\\Users\\Asus\\win-debloat.ps1'
+fi
 # <<< dev-tools setup (ongkipro/dotfiles) <<<
