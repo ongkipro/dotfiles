@@ -1,0 +1,63 @@
+name: Core runtime
+
+on:
+  push:
+    paths:
+      - ".github/workflows/core-runtime.yml"
+      - "bin/**"
+      - "config/ai/**"
+      - "config/omp/**"
+      - "config/pi/**"
+      - "config/9router/**"
+      - "config/shell-tools.sh"
+      - "config/bashrc.tools.sh"
+      - "config/zshrc.tools.sh"
+      - "skills/**"
+      - "install.sh"
+      - "install-macos.sh"
+  pull_request:
+    paths:
+      - ".github/workflows/core-runtime.yml"
+      - "bin/**"
+      - "config/ai/**"
+      - "config/omp/**"
+      - "config/pi/**"
+      - "config/9router/**"
+      - "config/shell-tools.sh"
+      - "config/bashrc.tools.sh"
+      - "config/zshrc.tools.sh"
+      - "skills/**"
+      - "install.sh"
+      - "install-macos.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  self-test:
+    name: Self-test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Run authoritative core suite
+        # The suite uses local fixtures and synthetic credentials only. Turnstile
+        # network calls are replaced by its fixture; no provider login is needed.
+        env:
+          DOTFILES_DIR: ${{ github.workspace }}
+          NINEROUTER_REMOTE_KEY: ""
+          ANTHROPIC_API_KEY: ""
+          OPENAI_API_KEY: ""
+        run: bin/ai-doctor --self-test
+        shell: bash

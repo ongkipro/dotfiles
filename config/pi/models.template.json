@@ -1,8 +1,8 @@
 {
-  "_comment": "Template models.json \u2014 9router-fantastico (tunnel) + 9router (lokal). Ganti baseUrl & API key di auth.json.",
+  "_comment": "Optional Pi provider metadata only. Configure URLs and Pi-local authentication per machine; OMP does not read this file.",
   "providers": {
     "9router-fantastico": {
-      "baseUrl": "https://YOUR_TUNNEL.abc-tunnel.us/v1",
+      "baseUrl": "https://REPLACE_WITH_REMOTE_9ROUTER_HOST/v1",
       "api": "openai-completions",
       "name": "9Router Fantastico",
       "models": [

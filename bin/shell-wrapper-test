@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regression checks for OMP shell wrapper routing and credential scope.
+# Regression fixtures for Bash/Zsh OMP wrapper routing and credential scope.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -15,46 +15,80 @@ extract_function() {
   ' "$file"
 }
 
-mkdir -p "$TMP/home/.pi/agent" "$TMP/bin"
-printf '%s\n' '{"9router-fantastico":{"key":"test-only"}}' > "$TMP/home/.pi/agent/auth.json"
+neutral_secret="fixture-neutral-secret"
+precedence_secret="fixture-precedence-secret"
+legacy_pi_secret="fixture-legacy-pi-secret"
+credential_dir="$TMP/home/.config/ai-local/credentials"
+mkdir -p "$credential_dir" "$TMP/home/.pi/agent" "$TMP/bin"
+printf '%s\n' "$neutral_secret" > "$credential_dir/9router-remote-key"
+printf '%s\n' "{\"9router-fantastico\":{\"key\":\"$legacy_pi_secret\"}}" \
+  > "$TMP/home/.pi/agent/auth.json"
 
 cat > "$TMP/bin/curl" <<'EOF'
 #!/usr/bin/env bash
 [ -z "${FAIL_CURL:-}" ] || exit 22
 printf '%s\n' 'printf "update-dispatch:PASS\\n"'
 EOF
-cat > "$TMP/bin/jq" <<'EOF'
+cat > "$TMP/bin/omp" <<EOF
 #!/usr/bin/env bash
-printf '%s\n' 'test-only'
+case "\${NINEROUTER_REMOTE_KEY-}" in
+  "$neutral_secret") source=neutral ;;
+  "$precedence_secret") source=precedence ;;
+  "$legacy_pi_secret") source=legacy-pi ;;
+  "") source=unset ;;
+  *) source=other ;;
+esac
+printf 'binary:%s:source-%s\\n' "\$*" "\$source"
 EOF
-cat > "$TMP/bin/omp" <<'EOF'
-#!/usr/bin/env bash
-if [ -n "${NINEROUTER_REMOTE_KEY:-}" ]; then
-  printf 'binary:%s:key-set\n' "$*"
-else
-  printf 'binary:%s:key-unset\n' "$*"
-fi
-EOF
-chmod +x "$TMP/bin/curl" "$TMP/bin/jq" "$TMP/bin/omp"
+chmod +x "$TMP/bin/curl" "$TMP/bin/omp"
 
 check_wrapper() {
-  local file="$1" function_code
-  function_code="$(extract_function "$file" omp)"
-  [ -n "$function_code" ] || { echo "missing omp() in $file" >&2; return 1; }
+  local file="$1" shell="$2" function_file output
+  function_file="$TMP/$(basename "$file").omp"
+  extract_function "$file" omp > "$function_file"
+  [ -s "$function_file" ] || { echo "missing omp() in $file" >&2; return 1; }
 
-  (
-    export HOME="$TMP/home"
-    export PATH="$TMP/bin:/usr/bin:/bin"
-    unset NINEROUTER_REMOTE_KEY
-    eval "$function_code"
+  output="$({
+    HOME="$TMP/home" \
+    PATH="$TMP/bin:/usr/bin:/bin" \
+    NEUTRAL_SECRET="$neutral_secret" \
+    PRECEDENCE_SECRET="$precedence_secret" \
+    CREDENTIAL_FILE="$credential_dir/9router-remote-key" \
+      "$shell" -c '
+        set -eu
+        . "$1"
 
-    [ "$(omp hello world)" = "binary:hello world:key-set" ]
-    [ -z "${NINEROUTER_REMOTE_KEY:-}" ]
-    [ "$(omp update)" = "update-dispatch:PASS" ]
-    ! (export FAIL_CURL=1; omp update >/dev/null 2>&1)
-  )
+        unset NINEROUTER_REMOTE_KEY
+        first="$(omp hello world)"
+        [ "$first" = "binary:hello world:source-neutral" ]
+        [ "${NINEROUTER_REMOTE_KEY+x}" != x ]
 
-  printf '✓ %s:omp wrapper\n' "${file#$ROOT/}"
+        export NINEROUTER_REMOTE_KEY="$PRECEDENCE_SECRET"
+        second="$(omp precedence)"
+        [ "$second" = "binary:precedence:source-precedence" ]
+        [ "$NINEROUTER_REMOTE_KEY" = "$PRECEDENCE_SECRET" ]
+
+        unset NINEROUTER_REMOTE_KEY
+        rm -f "$CREDENTIAL_FILE"
+        third="$(omp without-neutral-file)"
+        [ "$third" = "binary:without-neutral-file:source-unset" ]
+        [ "${NINEROUTER_REMOTE_KEY+x}" != x ]
+        printf "%s\\n" "$NEUTRAL_SECRET" > "$CREDENTIAL_FILE"
+
+        [ "$(omp update)" = "update-dispatch:PASS" ]
+        ! (export FAIL_CURL=1; omp update >/dev/null 2>&1)
+
+        printf "%s\\n%s\\n%s\\n" "$first" "$second" "$third"
+      ' _ "$function_file"
+  } 2>&1)"
+
+  case "$output" in
+    *"$neutral_secret"*|*"$precedence_secret"*|*"$legacy_pi_secret"*)
+      echo "credential value escaped wrapper output for $file under $shell" >&2
+      return 1
+      ;;
+  esac
+  printf '✓ %s: omp wrapper under %s\n' "${file#$ROOT/}" "$(basename "$shell")"
 }
 
 shell_name_code="$(extract_function "$ROOT/config/shell-tools.sh" _shell_name)"
@@ -78,10 +112,14 @@ check_quiet_source() {
 }
 
 check_quiet_source bash /bin/zsh
+check_wrapper "$ROOT/config/shell-tools.sh" bash
+check_wrapper "$ROOT/config/bashrc.tools.sh" bash
 if command -v zsh >/dev/null 2>&1; then
   check_quiet_source zsh /bin/bash
+  check_wrapper "$ROOT/config/shell-tools.sh" zsh
+  check_wrapper "$ROOT/config/zshrc.tools.sh" zsh
+else
+  echo "- zsh unavailable: Zsh execution fixtures skipped"
 fi
-check_wrapper "$ROOT/config/shell-tools.sh"
-check_wrapper "$ROOT/config/bashrc.tools.sh"
-check_wrapper "$ROOT/config/zshrc.tools.sh"
+
 echo "shell-wrapper-test: OK"

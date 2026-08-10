@@ -2,23 +2,19 @@
 
 These cases match the assertions in the Turnstile Spin PRD. Run them after editing this skill to confirm an agent loading it can still execute the wizard end-to-end.
 
-## Test 1: Dummy Siteverify returns a structured error
+## Test 1: New-widget creation exposes only safe metadata
 
-Step 10's `validate.sh` sends a deliberately-invalid token directly to `challenges.cloudflare.com/turnstile/v0/siteverify` using the captured secret. The expected response is `success: false` with `error-codes: ["invalid-input-response"]`. Anything else means the secret is wrong or the widget is misconfigured.
+From the dotfiles harness, run:
 
 ```sh
-printf '%s' "$WIDGET_SECRET" |
-  python3 -I -c 'import sys,urllib.parse; print(urllib.parse.urlencode({"secret":sys.stdin.read(),"response":"XXXX.DUMMY.TOKEN.XXXX"}),end="")' |
-  curl --disable --fail --silent --show-error \
-    "https://challenges.cloudflare.com/turnstile/v0/siteverify" \
-    -H "Content-Type: application/x-www-form-urlencoded" \
-    --data-binary @- |
-  jq -e '.success == false and (.["error-codes"] | index("invalid-input-response"))'
+bin/turnstile-secret-test
 ```
+
+The fixture generates a synthetic sentinel at runtime, returns it as the API's one-time widget secret, and separately inspects helper stdout, helper stderr, and the isolated temporary runtime filesystem. The widget helper must return exactly `status`, `sitekey`, and `secret_configuration` metadata without exposing or persisting the sentinel.
 
 Expected exit code: 0.
 
-## Test 2: Metadata matches the sitekey and secret
+## Test 2: Existing-widget guarded metadata matches the sitekey and secret
 
 ```sh
 printf '%s' "$WIDGET_SECRET" |
@@ -57,6 +53,6 @@ Expected exit code: 0. File-oriented rules targets install the hosted `prompt.md
 
 ## Running all cases
 
-The consuming test harness must pass the widget secret through standard input. It must not export it or place it in a command argument.
+The new-widget flow must never request or accept the widget secret; the user configures it directly in the destination secret store. Only the separately confirmed existing-widget recovery flow may pass a retrieved secret through standard input to `validate.sh`; it must never export the value or place it in a command argument.
 
 (`run-all.sh` is not bundled with this skill; the cases above are intended to be wired into the consuming agent's own test harness, or run by hand after a deploy.)

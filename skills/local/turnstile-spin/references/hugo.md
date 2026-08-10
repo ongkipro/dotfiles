@@ -81,7 +81,7 @@ export async function onRequestPost({ request, env }) {
 
 `subscribe` is the stable action for this surface. Preserve an existing custom migration action and compare the returned action to the same value. Siteverify is mandatory for every widget mode, including pre-clearance. Set `TURNSTILE_HOSTNAMES` to the deployment-specific frontend hostnames; a production value must not include `localhost` or `127.0.0.1`.
 
-After the user approves a canonical absolute `WRANGLER_BIN` outside the project, set the secret with `(set +x; printf '%s' "$WIDGET_SECRET" | "$WRANGLER_BIN" pages secret put TURNSTILE_SECRET)` (or use the dashboard's Pages → your project → Settings → Environment variables → Add secret).
+When widget creation returns `secret_configuration: required_by_user`, pause while the user copies the widget secret from the Turnstile dashboard directly into Pages → your project → Settings → Environment variables → Add secret as `TURNSTILE_SECRET`. The agent must not retrieve the value or pass it through Wrangler, chat, environment variables, or files.
 
 **External backend**: any Node/Ruby/Python/Go handler can do the same call. See the [vanilla-html reference](./vanilla-html.md) for non-Cloudflare-specific snippets.
 

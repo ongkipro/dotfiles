@@ -114,12 +114,25 @@ link "$DOT/home/profile"                 ~/.profile
 link "$DOT/bin/ai-memory-link"           ~/.local/bin/ai-memory-link
 link "$DOT/bin/dotpush"                  ~/.local/bin/dotpush
 link "$DOT/bin/dotsync"                  ~/.local/bin/dotsync
-for s in tmux-clip tmux-setup security-check security-check-test skill-check-test skill-update-test installer-link-test shell-wrapper-test inspect-project project-init project-init-test ai-doctor ai-memory-check vps-pgdump 9router-start pi-9router-restore device-register; do link "$DOT/bin/$s" ~/.local/bin/$s; done
+for s in tmux-clip tmux-setup security-check security-check-test skill-check-test skill-update-test installer-link-test shell-wrapper-test inspect-project project-init project-init-test omp-routing-test ai-doctor ai-memory-check vps-pgdump 9router-start 9router-restore 9router-credential-migrate pi-9router-restore device-register; do link "$DOT/bin/$s" ~/.local/bin/$s; done
 link "$DOT/config/omp/config.yml"        ~/.omp/agent/config.yml   # OMP config (model, theme, approval)
 link "$DOT/config/omp/models.yml"        ~/.omp/agent/models.yml   # OMP providers (9router)
 link "$DOT/config/omp/agents"            ~/.omp/agent/agents       # OMP specialist agents (role-routed)
 ~/.local/bin/ai-memory-link              # runtime-native AGENTS.md links (including ~/.omp/agent/AGENTS.md)
 "$DOT/skills/agents-bin/skill-update"    # directory links + Codex per-skill adapter preserving .system
+
+# 9Router and Pi are optional capabilities, not OMP prerequisites. Opt in
+# explicitly; credential migration is always a separate manual command.
+if [ "${DOTFILES_SETUP_PI:-0}" = "1" ]; then
+  command -v pi >/dev/null 2>&1 || { echo "ERROR: DOTFILES_SETUP_PI=1 but pi is not installed." >&2; exit 1; }
+  command -v 9router >/dev/null 2>&1 || { echo "ERROR: DOTFILES_SETUP_PI=1 but 9router is not installed." >&2; exit 1; }
+  "$DOT/bin/pi-9router-restore"
+elif [ "${DOTFILES_SETUP_9ROUTER:-0}" = "1" ]; then
+  command -v 9router >/dev/null 2>&1 || { echo "ERROR: DOTFILES_SETUP_9ROUTER=1 but 9router is not installed." >&2; exit 1; }
+  "$DOT/bin/9router-restore"
+else
+  echo "==> Optional 9Router/Pi restore skipped (set DOTFILES_SETUP_9ROUTER=1 or DOTFILES_SETUP_PI=1 to opt in)."
+fi
 
 # Jaminan native binary claude ter-unduh. `npm i -g @anthropic-ai/claude-code` (step 3)
 # menaruh native binary via optional-dep/postinstall yang KADANG gagal senyap → `claude`

@@ -1,0 +1,318 @@
+#!/usr/bin/env python3
+"""Secret-free structural smoke test for tracked OMP routing and agents."""
+
+import atexit
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+
+ROOT = Path(sys.argv[1] if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent).resolve()
+OMP_DIR = ROOT / "config" / "omp"
+CONFIG_PATH = OMP_DIR / "config.yml"
+MODELS_PATH = OMP_DIR / "models.yml"
+AGENTS_DIR = OMP_DIR / "agents"
+
+
+def fail(message):
+    print("FAIL: " + message, file=sys.stderr)
+    raise SystemExit(1)
+
+
+def run(command, environment=None):
+    return subprocess.run(
+        command,
+        env=environment,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+
+
+def explicit_yaml_paths(source):
+    """Return key paths from the constrained mapping structure in config.yml."""
+    paths = set()
+    parents = []
+    key_pattern = re.compile(r"^(\s*)([A-Za-z][A-Za-z0-9_-]*):(?:\s|$)")
+    for raw_line in source.splitlines():
+        if not raw_line.strip() or raw_line.lstrip().startswith("#"):
+            continue
+        match = key_pattern.match(raw_line)
+        if not match:
+            continue
+        indent = len(match.group(1))
+        key = match.group(2)
+        while parents and parents[-1][0] >= indent:
+            parents.pop()
+        path = tuple([entry[1] for entry in parents] + [key])
+        paths.add(path)
+        parents.append((indent, key))
+    return paths
+
+
+def parse_frontmatter(path):
+    """Parse scalar keys from the deliberately simple agent frontmatter."""
+    lines = path.read_text(encoding="utf-8").splitlines()
+    if not lines or lines[0] != "---":
+        fail("invalid agent frontmatter: " + str(path))
+    metadata = {}
+    closed = False
+    for line in lines[1:]:
+        if line == "---":
+            closed = True
+            break
+        match = re.match(r"^([A-Za-z][A-Za-z0-9_-]*):\s*(.*?)\s*$", line)
+        if not match:
+            continue
+        key, raw_value = match.groups()
+        if len(raw_value) >= 2 and raw_value[0] == raw_value[-1] and raw_value[0] in "\"'":
+            if raw_value[0] == '"':
+                try:
+                    raw_value = json.loads(raw_value)
+                except json.JSONDecodeError as error:
+                    fail("invalid quoted frontmatter in {}: {}".format(path, error))
+            else:
+                raw_value = raw_value[1:-1].replace("''", "'")
+        metadata[key] = raw_value
+    if not closed:
+        fail("unterminated agent frontmatter: " + str(path))
+    return metadata
+
+
+def parse_custom_provider_models(path):
+    """Extract provider -> model-id sets from the constrained models.yml list."""
+    providers = {}
+    current_provider = None
+    in_providers = False
+    in_models = False
+    provider_pattern = re.compile(r"^  ([A-Za-z0-9_-]+):\s*$")
+    model_pattern = re.compile(r'^      - id:\s*["\']?([^"\']+?)["\']?\s*$')
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line == "providers:":
+            in_providers = True
+            continue
+        if not in_providers:
+            continue
+        if line and not line.startswith(" ") and not line.startswith("#"):
+            break
+        provider_match = provider_pattern.match(line)
+        if provider_match:
+            current_provider = provider_match.group(1)
+            providers[current_provider] = set()
+            in_models = False
+            continue
+        if current_provider and line == "    models:":
+            in_models = True
+            continue
+        model_match = model_pattern.match(line) if in_models else None
+        if model_match:
+            providers[current_provider].add(model_match.group(1))
+    return providers
+
+
+def collect_role_references(value, references):
+    if isinstance(value, dict):
+        for child in value.values():
+            collect_role_references(child, references)
+    elif isinstance(value, list):
+        for child in value:
+            collect_role_references(child, references)
+    elif isinstance(value, str) and value.startswith("@"):
+        references.append(value)
+
+
+for required_path, label in (
+    (CONFIG_PATH, "OMP config"),
+    (MODELS_PATH, "OMP provider metadata"),
+    (AGENTS_DIR, "tracked OMP agents"),
+):
+    if not required_path.exists():
+        fail("missing {}: {}".format(label, required_path))
+
+omp = shutil.which("omp")
+if not omp:
+    fail("omp executable is unavailable")
+omp_path = Path(omp)
+if not omp_path.is_absolute() or not os.access(str(omp_path), os.X_OK):
+    fail("omp does not resolve to an absolute executable path: " + omp)
+version_result = run([omp, "--version"])
+if version_result.returncode != 0:
+    fail("omp executable cannot report its version: " + version_result.stderr.strip())
+
+config_source = CONFIG_PATH.read_text(encoding="utf-8")
+explicit_paths = explicit_yaml_paths(config_source)
+required_explicit_paths = {
+    ("async", "enabled"),
+    ("async", "maxJobs"),
+    ("task", "batch"),
+    ("task", "maxConcurrency"),
+    ("task", "showResolvedModelBadge"),
+    ("task", "isolation", "mode"),
+    ("task", "isolation", "apply"),
+    ("task", "isolation", "merge"),
+    ("task", "agentModelOverrides"),
+    ("secrets", "enabled"),
+}
+for path in sorted(required_explicit_paths):
+    if path not in explicit_paths:
+        fail("tracked config must explicitly define " + ".".join(path))
+
+runtime_temporary = tempfile.TemporaryDirectory(prefix="omp-routing-test.")
+atexit.register(runtime_temporary.cleanup)
+runtime_root = Path(runtime_temporary.name) / "agent"
+runtime_root.mkdir()
+for tracked_path in (CONFIG_PATH, MODELS_PATH, AGENTS_DIR):
+    (runtime_root / tracked_path.name).symlink_to(
+        tracked_path, target_is_directory=tracked_path.is_dir()
+    )
+
+runtime_environment = os.environ.copy()
+runtime_environment["PI_CODING_AGENT_DIR"] = str(runtime_root)
+runtime_result = run([omp, "config", "list", "--json"], runtime_environment)
+if runtime_result.returncode != 0:
+    fail("OMP rejected the tracked configuration: " + runtime_result.stderr.strip())
+try:
+    runtime_config = json.loads(runtime_result.stdout)
+except json.JSONDecodeError as error:
+    fail("OMP config inspection did not return valid JSON: " + str(error))
+
+
+def runtime_value(key):
+    entry = runtime_config.get(key)
+    if not isinstance(entry, dict) or "value" not in entry:
+        fail("installed OMP parser does not expose " + key)
+    return entry["value"]
+
+
+expected_settings = {
+    "async.enabled": True,
+    "task.batch": True,
+    "task.showResolvedModelBadge": True,
+    "task.isolation.mode": "auto",
+    "task.isolation.apply": True,
+    "task.isolation.merge": "patch",
+    "secrets.enabled": True,
+}
+for setting, expected in expected_settings.items():
+    if runtime_value(setting) != expected:
+        fail("OMP did not accept {}={!r}".format(setting, expected))
+
+async_jobs = runtime_value("async.maxJobs")
+task_concurrency = runtime_value("task.maxConcurrency")
+if not isinstance(async_jobs, int) or isinstance(async_jobs, bool) or async_jobs <= 0:
+    fail("async.maxJobs must be a positive integer")
+if not isinstance(task_concurrency, int) or isinstance(task_concurrency, bool) or task_concurrency <= 0:
+    fail("task.maxConcurrency must be a positive integer")
+if task_concurrency > async_jobs:
+    fail("task.maxConcurrency must not exceed async.maxJobs")
+
+roles = runtime_value("modelRoles")
+if not isinstance(roles, dict):
+    fail("modelRoles must be a map")
+for role in ("default", "smol", "slow", "plan", "vision", "tiny", "task", "advisor"):
+    selector = roles.get(role)
+    if not isinstance(selector, str) or not selector:
+        fail("missing model role: " + role)
+    if "/" not in selector:
+        fail("model role {} is not a provider/model selector".format(role))
+
+role_references = []
+collect_role_references(runtime_value("task.agentModelOverrides"), role_references)
+for reference in role_references:
+    role = reference[1:]
+    if not role or role not in roles:
+        fail("bad @role reference: " + reference)
+
+cycle_order = runtime_value("cycleOrder")
+if not isinstance(cycle_order, list) or not cycle_order:
+    fail("cycleOrder must be a non-empty list")
+for role in cycle_order:
+    if role not in roles:
+        fail("cycleOrder references missing role: " + str(role))
+
+fallback_chains = runtime_value("retry.fallbackChains")
+if not isinstance(fallback_chains, dict):
+    fail("retry.fallbackChains must be a map")
+for key in fallback_chains:
+    if "/" not in key and "*" not in key and key not in roles:
+        fail("fallback chain references missing role: " + key)
+
+custom_providers = parse_custom_provider_models(MODELS_PATH)
+if not custom_providers:
+    fail("models.yml contains no custom providers")
+for selectors in fallback_chains.values():
+    if not isinstance(selectors, list):
+        fail("each fallback chain must be a list")
+    for selector in selectors:
+        if not isinstance(selector, str) or "/" not in selector:
+            fail("invalid fallback selector: {!r}".format(selector))
+        provider, model_with_effort = selector.split("/", 1)
+        if provider not in custom_providers:
+            continue
+        model_id = model_with_effort.split(":", 1)[0]
+        if model_id not in custom_providers[provider]:
+            fail("custom-provider fallback is absent from models.yml: " + selector)
+
+bundled_directory = Path(runtime_temporary.name) / "bundled-agents"
+bundled_directory.mkdir()
+unpack_result = run(
+    [omp, "agents", "unpack", "--dir", str(bundled_directory), "--force", "--json"]
+)
+if unpack_result.returncode != 0:
+    fail("unable to inspect bundled OMP agents: " + unpack_result.stderr.strip())
+
+available_agents = set()
+for path in sorted(bundled_directory.glob("*.md")):
+    name = parse_frontmatter(path).get("name")
+    if not name:
+        fail("bundled agent has no name: " + str(path))
+    available_agents.add(name)
+if not available_agents:
+    fail("OMP unpack returned no bundled agents")
+
+for required_agent in ("architect", "complex-developer", "debugger"):
+    if not (AGENTS_DIR / (required_agent + ".md")).is_file():
+        fail("missing tracked custom agent: " + required_agent)
+
+overrides = runtime_value("task.agentModelOverrides")
+if not isinstance(overrides, dict) or not overrides:
+    fail("task.agentModelOverrides must be a non-empty map")
+
+for path in sorted(AGENTS_DIR.glob("*.md")):
+    metadata = parse_frontmatter(path)
+    name = metadata.get("name")
+    model = metadata.get("model")
+    if name != path.stem:
+        fail("custom agent name does not match its filename: " + str(path))
+    if not isinstance(model, str) or not model.startswith("@"):
+        fail("custom agent must reference an @role: " + str(path))
+    if model[1:] not in roles:
+        fail("custom agent {} references missing role: {}".format(name, model))
+    if overrides.get(name) != model:
+        fail("custom agent override does not match frontmatter: " + name)
+    available_agents.add(name)
+
+for agent in overrides:
+    if agent not in available_agents:
+        fail("agent override target is neither bundled nor tracked: " + agent)
+
+for installer in (ROOT / "install.sh", ROOT / "install-macos.sh"):
+    if not installer.is_file():
+        fail("missing installer: " + str(installer))
+    source = installer.read_text(encoding="utf-8")
+    if not re.search(r'link "\$DOT/config/omp/agents"\s+.*\.omp/agent/agents', source):
+        fail("installer does not link tracked custom agents: " + str(installer))
+    if "omp-routing-test" not in source:
+        fail("installer does not link omp-routing-test: " + str(installer))
+
+print(
+    "omp-routing-test: OK (roles={}, overrides={}, async={})".format(
+        len(roles), len(overrides), async_jobs
+    )
+)
+runtime_temporary.cleanup()

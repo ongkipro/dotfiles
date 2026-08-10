@@ -34,7 +34,9 @@
 - Ecommerce: Shopify store, Shopify theme, headless storefront, tracking, checkout flow, dropshipping, marketplace-style store.
 - Marketing: Meta Ads, Google Ads, landing page, funnel, conversion rate optimization, tracking/attribution, copywriting.
 - SEO & content: Shopify SEO, Astro/static SEO, Medium SEO, Pinterest SEO, German affiliate SEO, indexing strategy.
-- AI workflow: Claude Code, Codex, pi.dev, Antigravity (`agy`), local skills, AI terminal project execution. (Gemini CLI was removed 2026-07-13 — the Gemini stack goes through Antigravity.)
+- AI workflow: OMP as the primary control plane, with Claude Code, Codex,
+  Antigravity (`agy`), and Pi available only as optional standalone tools; local
+  skills provide the shared capability layer.
 
 ## Strategic focus
 - Indonesia Commerce / Commerce Portal OS: platform style super admin, client admin, frontend/store/blog; direction resembles Shopify + tracking/form infrastructure for Indonesia.

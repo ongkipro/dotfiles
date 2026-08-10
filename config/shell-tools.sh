@@ -101,8 +101,9 @@ pi() {
   esac
 }
 
-# --- omp (omp.sh): native Rust coding agent ---
-# Native user context is linked at ~/.omp/agent/AGENTS.md.
+# --- omp (omp.sh): primary coding control plane ---
+# Native user context is linked at ~/.omp/agent/AGENTS.md. The optional
+# 9Router credential is injected only into this child process.
 omp() {
   case "${1:-}" in
     update)
@@ -110,15 +111,15 @@ omp() {
       (set -o pipefail; curl -fsSL https://omp.sh/install | sh)
       ;;
     *)
-      local auth_file="$HOME/.pi/agent/auth.json"
+      local credential_file="$HOME/.config/ai-local/credentials/9router-remote-key"
       local remote_key=""
 
-      if [ -n "${NINEROUTER_REMOTE_KEY:-}" ]; then
+      if [ "${NINEROUTER_REMOTE_KEY+x}" = x ]; then
         command omp "$@"
         return
       fi
-      if [ -r "$auth_file" ] && command -v jq >/dev/null 2>&1; then
-        remote_key="$(jq -er '."9router-fantastico".key // empty' "$auth_file" 2>/dev/null)" || remote_key=""
+      if [ -r "$credential_file" ]; then
+        IFS= read -r remote_key < "$credential_file" || :
       fi
       if [ -n "$remote_key" ]; then
         NINEROUTER_REMOTE_KEY="$remote_key" command omp "$@"

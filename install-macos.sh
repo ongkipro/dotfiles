@@ -54,7 +54,8 @@ link "$DOT/bin/shell-wrapper-test"       "$HOME/.local/bin/shell-wrapper-test"
 link "$DOT/bin/inspect-project"          "$HOME/.local/bin/inspect-project"
 link "$DOT/bin/project-init"             "$HOME/.local/bin/project-init"
 link "$DOT/bin/project-init-test"        "$HOME/.local/bin/project-init-test"
-for s in tmux-clip tmux-setup tmux-battery security-check 9router-start pi-9router-restore device-register; do
+link "$DOT/bin/omp-routing-test"          "$HOME/.local/bin/omp-routing-test"
+for s in tmux-clip tmux-setup tmux-battery security-check 9router-start 9router-restore 9router-credential-migrate pi-9router-restore device-register; do
   [ -e "$DOT/bin/$s" ] && link "$DOT/bin/$s" "$HOME/.local/bin/$s"
 done
 
@@ -95,15 +96,17 @@ for tool in $MISE_TOOLS; do
   fi
 done
 
-say "==> Setup 9router (AI gateway for pi.dev)..."
-if command -v 9router >/dev/null 2>&1; then
-  say "   9router sudah ada: $(9router --version 2>&1 | head -1)"
+say "==> Optional 9Router/Pi setup..."
+if [ "${DOTFILES_SETUP_PI:-0}" = "1" ]; then
+  command -v pi >/dev/null 2>&1 || { say "ERROR: DOTFILES_SETUP_PI=1 but pi is not installed."; exit 1; }
+  command -v 9router >/dev/null 2>&1 || { say "ERROR: DOTFILES_SETUP_PI=1 but 9router is not installed."; exit 1; }
+  "$DOT/bin/pi-9router-restore"
+elif [ "${DOTFILES_SETUP_9ROUTER:-0}" = "1" ]; then
+  command -v 9router >/dev/null 2>&1 || { say "ERROR: DOTFILES_SETUP_9ROUTER=1 but 9router is not installed."; exit 1; }
+  "$DOT/bin/9router-restore"
 else
-  say "   Install 9router via npm..."
-  npm i -g 9router && say "   9router ✓ terinstall"
+  say "   skipped (set DOTFILES_SETUP_9ROUTER=1 or DOTFILES_SETUP_PI=1 to opt in)"
 fi
-# Restore pi settings + 9router launchd service
-"$DOT/bin/pi-9router-restore"
 if [ ! -f "$HOME/.gitconfig" ]; then
   cat > "$HOME/.gitconfig" <<GITEOF
 [user]

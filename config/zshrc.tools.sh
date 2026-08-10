@@ -26,7 +26,7 @@ alias dotsync='~/.local/bin/dotsync'
 alias dotpush='~/.local/bin/dotpush'
 alias lg='lazygit'
 
-# --- OMP: inject the 9Router tunnel key only into the OMP process ---
+# --- OMP: inject the optional 9Router key only into the OMP child process ---
 omp() {
   if [ "${1:-}" = "update" ]; then
     shift
@@ -34,15 +34,15 @@ omp() {
     return
   fi
 
-  local auth_file="$HOME/.pi/agent/auth.json"
+  local credential_file="$HOME/.config/ai-local/credentials/9router-remote-key"
   local remote_key=""
 
-  if [ -n "${NINEROUTER_REMOTE_KEY:-}" ]; then
+  if [ "${NINEROUTER_REMOTE_KEY+x}" = x ]; then
     command omp "$@"
     return
   fi
-  if [ -r "$auth_file" ] && command -v jq >/dev/null 2>&1; then
-    remote_key="$(jq -er '."9router-fantastico".key // empty' "$auth_file" 2>/dev/null)" || remote_key=""
+  if [ -r "$credential_file" ]; then
+    IFS= read -r remote_key < "$credential_file" || :
   fi
   if [ -n "$remote_key" ]; then
     NINEROUTER_REMOTE_KEY="$remote_key" command omp "$@"

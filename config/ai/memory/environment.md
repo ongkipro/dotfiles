@@ -26,25 +26,33 @@
 - System tools → `brew install <name>`. GUI apps → `brew install --cask <name>`.
 - `sudo` ONLY for system files (rarely needed on macOS).
 
-## pi.dev + 9router — THE SINGLE source of truth (2026-07-14)
-> This section replaces 4 old contradicting sections. When in doubt: **read disk, not memory.**
-> `~/.pi/agent/settings.json` = the truth for the model. `systemctl --user is-enabled 9router.service` = the truth for the service.
+## OMP, optional Pi, and 9Router
+> Runtime installation, active models, provider availability, and service state
+> are machine-local. Verify them from the relevant machine instead of recording
+> a current snapshot here.
 
-- **pi default is PER-MACHINE now — check disk, don't guess.** Check: `jq '.defaultProvider, .defaultModel' ~/.pi/agent/settings.json`.
-  - Linux `cuan`: **`minimax` / `MiniMax-M3`** as verified 2026-08-10 from the regular `~/.pi/agent/settings.json`.
-  - Mac (`ongkis-MacBook-Air`): **`9router-fantastico` / `cx/gpt-5.6-sol`** as of 2026-08-05. `~/.pi/agent/settings.json` there is a regular file, not a symlink. Full-tunnel mode uses the authenticated remote provider while the local launchd gateway is disabled.
-  - OMP is separate from Pi: Linux OMP defaults to **`9router-fantastico/cx/gpt-5.6-sol`** through the authenticated tunnel; `~/.omp/agent/{config.yml,models.yml}` link to `dotfiles/config/omp/`.
-  - `9router` availability in Pi is machine-local; inspect `~/.pi/agent/models.json` rather than copying another machine's provider set.
-- ☠️ **Old model IDs that are dead — don't bring them back:** `ocg/deepseek-v4-pro` and `opencode-go/minimax-m3`. `cx/gpt-5.4-mini` is available through `9router-fantastico` and is a valid compact fallback, not the default.
-- **9router status is per-machine — check, don't guess.** Linux `cuan` is active+enabled with local health OK as verified 2026-08-10. Mac remains full-tunnel with its local launchd gateway disabled as of 2026-08-05.
-- ☠️ **TRAP: 9router installs its OWN autostart** (`com.9router.autostart`, `--tray` mode). That job **does not set `HOSTNAME`** → the gateway binds to **`0.0.0.0`**, meaning ALL providers' API keys can be used by anyone on the same WiFi. It also duplicates `com.9router.gateway` (two processes fighting over port 20128, requests land non-deterministically). Since 2026-07-14 `bin/pi-9router-restore` removes it automatically (moved to `~/.local/share/9router-disabled/`). **If `lsof -nP -iTCP:20128` shows `*:20128` and not `127.0.0.1:20128`, it has relapsed — run `pi-9router-restore`.**
-- **Routing boundary:** Pi and OMP may use 9router. Native Claude Code, Codex, and agy must not be redirected through it.
-- Claude Code through 9router = LEAK: the 9router launcher injects a proxy+CA per-process. Run `claude` normally. The `cc/claude-*` models in the selector = 9router MITM, they have no upstream route (error "may not exist").
-- codex was DETACHED from 9router (29 Jun 2026): the `[model_providers.9router]` block in `~/.codex/config.toml` is commented out; codex reverts to native OpenAI. Uncomment to restore.
-
-**pi symlinks (via dotfiles):** `~/.pi/agent/settings.json` → `dotfiles/config/pi/settings.json` · `~/.pi/extensions/compact-free/` → `dotfiles/config/pi/extensions/compact-free/` · `~/.pi/agent/extensions/welcome-screen.ts` → `dotfiles/config/pi/extensions/welcome-screen/index.ts` · `~/.9router/{aliases.json,runtime/package.json}` → `dotfiles/config/9router/`.
-**NOT in dotfiles (secret):** `models.json` (API key), `auth.json` (oauth token). Local backup only.
-**Editing pi TUI/extension:** use `theme.fg(color, text)` — not curried.
+- OMP is the only primary control plane. Its tracked configuration lives under
+  `config/omp/`; Pi state is not an OMP configuration or credential source.
+- Pi is optional. When it is installed, inspect its own settings and models only
+  for a direct Pi session. Its custom compaction extension is a Pi-only fallback.
+- Generic 9Router config/service restoration is `bin/9router-restore` and does
+  not touch `~/.pi`. `bin/pi-9router-restore` is an explicitly invoked optional
+  adapter that delegates generic gateway setup.
+- The optional remote credential is
+  `~/.config/ai-local/credentials/9router-remote-key`. It is never tracked or
+  globally exported; the `omp()` shell wrapper injects it only into the OMP
+  child when `NINEROUTER_REMOTE_KEY` is not already set.
+- `9router-credential-migrate` may copy a legacy key from Pi auth only when
+  explicitly invoked. It does not print the value, delete the source, or
+  overwrite an existing neutral credential.
+- Image generation belongs to the runtime-neutral `9router` skill/API, not a Pi
+  image package.
+- Check local Linux service state with `systemctl --user is-enabled
+  9router.service`, `systemctl --user is-active 9router.service`, and the local
+  health endpoint. Use the relevant launchd checks on macOS. Do not infer one
+  machine's state from another.
+- Native Claude Code, Codex, and Antigravity remain independent runtimes; do not
+  redirect them through 9Router based on this memory.
 **Claude Code profile:** one native profile at `~/.claude`; run the installed `claude` binary directly. Do not add personal/work launchers or alternate config-directory profiles.
 
 ## User machines (multi-machine)
@@ -83,49 +91,46 @@
 - **vultr-cli**: v3.10.0 via mise. Auth `~/.vultr-cli.yaml` (chmod 600, in `$HOME` — **NOT** in dotfiles, and **DO NOT** `export VULTR_API_KEY` in `~/.bashrc`: `dotsync refresh_snapshots` copies bashrc into the repo). Already installed & working as of 2026-07-14. Skill: `dotfiles/skills/local/vultr/`.
 - **2-phase plan**: dev=Vultr SG (credit) → prod=Hetzner SG. Migration is cheap (Coolify + git + `pg_dump` + swap the origin IP in Cloudflare). Domain `tokophi.com` is on Cloudflare, DNS not yet pointed.
 
-## AI CLI — verified status (2026-07-13, `cuan`)
-- **Installed**: `claude` (login OK), `codex` (**NOT logged in** on `cuan` — no `~/.codex/auth.json`), `pi`, `agy` (Antigravity). **Versions deliberately NOT recorded** — they change every update, numbers in memory are guaranteed stale. Check: `claude --version; codex --version; pi --version; agy --version`.
+## AI CLI availability
+- CLI installation and login state are machine-local. Check `command -v` and
+  each runtime's native status before use. Pi is optional; its absence does not
+  affect OMP.
 - **Gemini CLI: DELIBERATELY REMOVED (2026-07-13)** — user decision: the Gemini stack is used via **Antigravity (`agy`)**, not the `gemini` CLI. The `@google/gemini-cli` package has been `npm uninstall -g`'d. **DO NOT reinstall it.**
 - ⚠️ **`~/.gemini/` IS STILL KEPT** even though the `gemini` CLI was removed — it holds `GEMINI.md` (symlink → `~/.config/ai/AGENTS.md`, created by `ai-memory-link`) read by **Antigravity**. **Deleting `~/.gemini` = breaking agy.** Contents as of 2026-07-14: `GEMINI.md`, `projects.json`, `config/`, and **`antigravity-cli/` (STILL PRESENT** — the old note saying this folder is gone is WRONG).
 - **agy**: a flat native binary, its name **differs per machine** — on Mac `~/.local/bin/agy` (143M, verified 2026-07-20; there is NO `antigravity` file here), on `cuan` an ELF binary from the official installer. Check: `ls -l ~/.local/bin/ | grep -iE 'agy|antigravity'`. Antigravity config in `~/.antigravity/{AGENTS.md,ANTIGRAVITY.md}`.
-- **9router status**: see the "pi.dev + 9router" section (per-machine, one place). Don't write 9router status here again.
-- ✅ **FULL TUNNEL MODE (2026-07-29)** — local 9router service di-stop & disable (`launchctl bootout + disable` of `com.9router.gateway`). Port 20128 free. plist `.plist` masih ada di `~/Library/LaunchAgents/` untuk re-enable nanti.
-  - `~/.pi/agent/models.json` sekarang HANYA `9router-fantastico` provider (25 chat models: 6× `cx/gpt-5.6-{sol,terra,luna}+review`, `cx/gpt-5.5`, `cx/gpt-5.4`, `cx/gpt-5.4-mini`, 7× `gc/gemini-*` (3.1-pro/3-pro/3-flash/3.1-flash-lite/2.5-pro/2.5-flash/2.5-flash-lite), 10× `ag/*` agents (gemini-3-flash/3.5-flash-low/extra-low/pro-agent/3.1-pro-low, claude-sonnet-4-6, claude-opus-4-6-thinking, gpt-oss-120b-medium, gemini-3-flash)).
-  - `9router` provider (lokal) sudah DIHAPUS dari `models.json` + `auth.json`.
-  - `auth.json` keys sekarang: `opencode-go`, `minimax`, `9router-fantastico` (3).
-  - `compact-free` extension: `COMPACT_MODELS` di-update pakai `9router-fantastico` (3 model termurah via tunnel) → `minimax` → `opencode-go` sebagai fallback.
-  - `~/.9router/` (DB + upstream API keys) **TIDAK dihapus** — masih ada, risk-free dibiarkan (tidak jalan). Hapus hanya kalau user eksplisit mau.
-  - pi-image-gen `customProviders.9router` jadi 4 image models dari tunnel: `ag/gemini-3.1-flash-image`, `cx/gpt-5.5-image`, `cx/gpt-5.4-image`, `cx/gpt-5.3-image`. `9router-remote` provider dihapus (duplicate).
+- **9Router status:** use the checks in the OMP/9Router section above; never
+  copy a dated active-model or service snapshot here.
+- Optional Pi provider metadata, credentials, and sync status are independent
+  from OMP. Inspect them only while troubleshooting a direct Pi session.
+- There is no Pi-owned image-generation path in tracked settings. Use the
+  runtime-neutral `9router` skill/API.
 - **Claude Code**: local MCP `chrome-devtools` (uses `/usr/bin/chromium-browser`) for the `web-perf` skill. A read-only permission allowlist + a secret deny-rule are in `~/.claude/settings.json`.
 - **Supabase CLI deliberately NOT installed** (verified 2026-07-14: `supabase` not in PATH) — the DB stack = PostgreSQL + Drizzle ORM + better-auth, self-hosted via Coolify. Don't install unless a project truly needs it. The `~/.supabase/` folder **DOES NOT EXIST on Mac** (verified 2026-07-20 — the old note saying "EXISTS but leftover/empty" is wrong for this machine). The `supabase-stack` skill is kept for reference, not a sign of adoption.
 
 ## Fixes & new tools on `cuan` (2026-07-13)
-- **`pi-9router-sync.service` USED TO FAIL every boot** (`9router is not installed or initialized`). Cause: the script required `~/.9router/auth/cli-secret`, but **9router 0.5.30 no longer creates the `auth/` dir** (now `~/.9router/jwt-secret`). The local endpoint `127.0.0.1:20128` **does not check Authorization** (445 models fetched without a header). FIX: `~/dotfiles/bin/pi-9router-sync.js` — the `secretPath` requirement dropped, fallback `apiKey='noauth'`. The service is now `success`.
-- The script only syncs providers that are **ACTIVE** in the 9router DB → currently pi gets 4 models (`oc/*` free). Want more: enable providers in the 9router dashboard (`localhost:20128`).
+- `pi-9router-sync.service` is an optional Pi adapter. Its provider catalogue and
+  lifecycle are machine-local; inspect the unit and Pi model file before drawing
+  conclusions. Generic 9Router setup must not depend on this unit.
 - **PostgreSQL client status changed (disk check 2026-08-07):** `psql` resolves to a mise shim but no PostgreSQL version is configured, so `psql`/`pg_dump`/`pg_restore` are currently unavailable until an explicit mise version is selected. The older claim that client 18.4 was available via apt is stale. Other tools in this section must be rechecked individually before use.
 - **Hardware `cuan`**: full specs in the "Device registry" section — don't duplicate. What matters for AI decisions: 4GB swap unused (no OOM), and **the MX150 2GB GPU is too small for a local LLM** → the AI load stays in the cloud.
 
-## 9router current status on `cuan` (verified 2026-08-10)
-- `9router.service` is loaded, active, running, and enabled; `http://localhost:20128/api/health` returns `{"ok":true}`.
-- The authenticated remote tunnel is reachable. OMP custom provider `9router-fantastico` resolves its key from the environment-variable name `NINEROUTER_REMOTE_KEY` in `models.yml`; do not use shell interpolation syntax such as `${NINEROUTER_REMOTE_KEY}` there.
-- `pi-9router-sync.service` is enabled but currently inactive/dead after its oneshot lifecycle; inspect `ExecMainStatus` before treating that as failure.
-- **`~/.9router/` remains sensitive:** `db/data.sqlite` contains upstream provider credentials. Never read, copy, delete, or expose it without explicit approval.
-- Local and remote model routing are separate. Verify Pi settings/models, OMP `models.yml`, service health, and tunnel authentication independently before diagnosing fallback.
-
-### The OMP tunnel key chain is load-bearing and process-scoped (verified 2026-08-10)
-
-OMP's working path is `9router-fantastico` → the tunnel in `config/omp/models.yml`. The HTTP path was verified end to end on 2026-08-10. Its local launch chain is:
-
-1. The tracked `omp()` wrapper in `config/shell-tools.sh` reads `."9router-fantastico".key` from Pi's local `~/.pi/agent/auth.json` only while launching OMP.
-2. Linux `~/.bashrc` sources that tracked helper. `home/bashrc.snapshot` stores the source line, not a copied wrapper or credential loader. Unrelated child processes must not inherit `NINEROUTER_REMOTE_KEY`.
-3. `models.yml` stores the **bare variable name** `NINEROUTER_REMOTE_KEY`. Rewriting it as `${NINEROUTER_REMOTE_KEY}` breaks it because that field is not shell-expanded.
-4. Re-authenticating Pi refreshes the local source credential automatically. The credential itself must never enter Git, memory, logs, or diagnostics.
-
-Verify routing and scope with `shell-wrapper-test` and `ai-doctor --self-test`. A clean child shell should report `NINEROUTER_REMOTE_KEY` as unset; OMP receives it only through the wrapper.
-
-**Do not "fix" `models.yml` to point at `http://localhost:20128`.** The local instance has zero provider accounts and zero API keys, so it 401s on chat while still listing 679 catalogue models — it looks healthy and serves nothing. The tunnel reaches a *different*, fully configured 9router.
-
-Still pointing at the empty local instance and therefore broken: `pi-image-gen` (default `gemini-flash`) and the Pi provider *named* `9router-remote` (its `${NINEROUTER_REMOTE_URL:-…}` fallback resolves to localhost because that variable is never set). Repointing image-gen at the tunnel also needs new model IDs — the tunnel carries `ag/gemini-3.1-flash-image`, not `gemini/gemini-3.1-flash-image-preview`. (`bin/ico` was the third dependent; deleted 2026-08-10.)
+## 9Router credential and restore boundary
+- `bin/9router-restore` owns shared config and the platform user service. It
+  contains no Pi paths.
+- `bin/pi-9router-restore` owns optional Pi settings, compaction, and model-sync
+  integration, then delegates generic setup to `9router-restore`.
+- OMP's wrapper reads only
+  `~/.config/ai-local/credentials/9router-remote-key`, and only when
+  `NINEROUTER_REMOTE_KEY` is not already set. The value is scoped to the direct
+  OMP child process.
+- `config/omp/models.yml` expects the environment-variable name chosen by its
+  tracked provider configuration. Consult that file rather than copying a
+  selector or endpoint into memory.
+- Never read or expose credential contents while diagnosing. Use
+  `shell-wrapper-test` for the non-secret fixture contract and the doctor checks
+  maintained by the core OMP setup.
+- `~/.9router/` can contain sensitive gateway state. Never read, copy, delete, or
+  expose its credential-bearing files without explicit approval.
 
 ## Device registry + git credential (2026-07-13)
 - **`devices/` in dotfiles = the cross-device registry.** One file per machine (`devices/<hostname>.md`): brand/model, CPU, RAM, GPU, disk, AI CLI, toolchain, and **the status of each dotfiles symlink**. Index: `devices/README.md`. Generate/refresh: `device-register` (idempotent, `--dry-run` available; called automatically by install.sh/install-macos.sh, non-fatal).

@@ -63,17 +63,30 @@ The user pasted the prompt. You are in a multi-step dialog. Detect what you can,
 
 7. **Insertion plan.** Show the candidate list with `[recommended]` / `[skip by default]` markers; ask the user to confirm (numbers, "all", "recommended", or a list). Assign each chosen surface a stable action such as `signup`, `login`, or `contact`. Actions must be 1–32 characters and contain only letters, numbers, underscores, or hyphens. Show the action-to-handler mapping for confirmation. **[wait for user]** If an existing CAPTCHA was detected, present a migration plan instead (see "Migrating from another CAPTCHA").
 
-8. **Widget creation.** Prefer the approved Wrangler executable when its `turnstile widget` subcommand is available:
+8. **Widget creation.** Run the bundled helper rather than a raw Wrangler or API creation command:
 
    ```sh
-   WRANGLER_WRITE_LOGS=false WRANGLER_LOG=log WRANGLER_LOG_SANITIZE=true \
-     "$WRANGLER_BIN" turnstile widget create "<name>" \
-     --domain <d1> --domain <d2> ... --mode managed --json
+   if ! CREATION_METADATA="$(
+     scripts/widget-create.sh \
+       --account-id "$ACCOUNT_ID" \
+       --name "<name>" \
+       --domains "<d1>,<d2>,..." \
+       --mode managed
+   )"; then
+     unset CREATION_METADATA
+     # Stop. The helper has already emitted a sanitized diagnostic.
+     exit 1
+   fi
+   SITEKEY="$(
+     printf '%s' "$CREATION_METADATA" |
+       jq -er 'select(.status == "ok" and .secret_configuration == "required_by_user") | .sitekey'
+   )"
+   unset CREATION_METADATA
    ```
 
-   In a `set +x` subshell, capture the complete stdout JSON in one shell variable. Parse `SITEKEY` and a non-empty, non-whitespace `WIDGET_SECRET` with `jq`, then unset the response variable. If the approved Wrangler executable is missing or older than the Turnstile subcommand, use the same capture pattern with `scripts/widget-create.sh --account-id <id> --name <name> --domains <list> --mode managed`. Do not fall back after an authentication or API failure. Report only the sitekey. Never print the complete response or write the secret to disk except into the user's own secret store in Step 9.
+   The success contract is exactly non-secret metadata: `{"status":"ok","sitekey":"<sitekey>","secret_configuration":"required_by_user"}`. The helper validates the one-time secret in the API response, discards it in memory, and never emits or persists it. Do not use `wrangler turnstile widget create` or a direct API call as a fallback because their successful response contains the secret. Do not fall back after any helper failure. Report only the sitekey.
 
-9. **Wire the integration.** State the contract: "I'll embed the widget at each chosen surface and add a canonical siteverify call inside its existing handler. The handler will require `success === true`, the expected action, and an approved frontend hostname. The existing handler logic stays the same. The secret lives in your env as `TURNSTILE_SECRET`." Ask "yes" / "show". **[wait for user]** If "show", print unified diffs and ask again. Do NOT propose alternate behavior (mail delivery, custom backends).
+9. **Wire the integration.** State the contract: "I'll embed the widget at each chosen surface and add a canonical siteverify call inside its existing handler. The handler will require `success === true`, the expected action, and an approved frontend hostname. The existing handler logic stays the same. You will configure the secret directly as `TURNSTILE_SECRET`; it never enters the agent process." Ask "yes" / "show". **[wait for user]** If "show", print unified diffs and ask again. Do NOT propose alternate behavior (mail delivery, custom backends).
 
    Canonical server-side siteverify (Node / fetch idiom; adapt to the detected backend):
 
@@ -118,9 +131,9 @@ The user pasted the prompt. You are in a multi-step dialog. Detect what you can,
    // existing handler logic runs here, unchanged
    ```
 
-   Set `TURNSTILE_HOSTNAMES` to the deployment-specific frontend hostnames. A production value must not include `localhost` or `127.0.0.1`. Write the secret into the user's existing secret store (`.env` for Node/Rails/Python, standard `"$WRANGLER_BIN" secret put TURNSTILE_SECRET` for a confirmed existing Worker, or the platform's secret manager). Before writing to any `.env`-style file, run `git check-ignore -q <path>` from within a git working tree; if the file is not ignored (or the project is not under git), stop and ask the user to add it to `.gitignore` or point you at the platform's secret manager. For Workers, resolve the exact name, configuration, and environment, then run `secret list` with the same target arguments immediately before the write. Never inline the secret or ask the user to paste it into chat. For an existing widget, follow the guarded retrieval flow below.
+   Set `TURNSTILE_HOSTNAMES` to the deployment-specific frontend hostnames. A production value must not include `localhost` or `127.0.0.1`. When creation returns `secret_configuration: required_by_user`, pause and direct the user to copy the widget secret from the Turnstile dashboard straight into the deployment's existing secret store, outside chat and outside agent-controlled commands. The agent must not retrieve, accept, pipe, export, or write that secret. Resume only after the user confirms that `TURNSTILE_SECRET` is configured. Keep the destination's existing secret-management conventions; never inline the secret or ask the user to paste it into chat. For an existing widget, follow the guarded retrieval flow below.
 
-10. **Validation.** For a newly created widget, set `EXPECTED_DOMAINS_JSON` to the user-approved JSON array and run `(set +x; printf '%s' "$WIDGET_SECRET" | scripts/validate.sh --sitekey "$SITEKEY" --account-id "$ACCOUNT_ID" --expected-domains "$EXPECTED_DOMAINS_JSON")`, then unset `WIDGET_SECRET`. The validator reads the secret only from standard input and never writes it to disk or command arguments. For an existing widget, the guarded flow validates the retrieved secret before storing it. In both flows, exercise the actual protected backend with a fresh real Turnstile token, verify one successful request, then verify that replaying the token is rejected. If the backend cannot be run, report destination validation as pending and do not claim end-to-end success. **[wait for user if anything fails]**
+10. **Validation.** For a newly created widget, do not run `scripts/validate.sh` or any other command that would expose the user-managed secret to the agent process. After the user confirms that `TURNSTILE_SECRET` is configured in the destination, exercise the actual protected backend with a fresh real Turnstile token, verify one successful request, then verify that replaying the token is rejected. For an existing widget, the guarded flow validates the retrieved secret before storing it. If the backend cannot be run, report destination validation as pending and do not claim end-to-end success. **[wait for user if anything fails]**
 
 11. **Persist skill.** Ask: "Save the Spin skill to `.claude/skills/turnstile-spin/SKILL.md` so I can reuse it on follow-up tasks?" Default yes. **[wait for user]** For an agent that supports directory-based skill bundles, run `scripts/persist-skill.sh --path <bundle-directory>/SKILL.md`. For a file-oriented rules target, install the hosted `prompt.md` directly instead; do not run `persist-skill.sh`.
 

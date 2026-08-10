@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Creates a Turnstile widget without writing credentials or the response to disk.
+# Creates a Turnstile widget and emits only non-secret configuration metadata.
+#
+# Success: {"status":"ok","sitekey":"<sitekey>","secret_configuration":"required_by_user"}
+# Failure: sanitized JSON on stdout and a credential-free diagnostic on stderr.
 
 set +x
 set -uo pipefail
@@ -113,7 +116,15 @@ if not (
     print(json.dumps({"status":"error","code":0,"message":"Cloudflare API returned invalid widget credentials"}))
     raise SystemExit(1)
 
-print(json.dumps({"status":"ok","sitekey":sitekey,"secret":secret}))
+# The API returns the secret once when it creates the widget. Validate that the
+# response is complete, then deliberately discard the secret. The user must
+# configure it directly in their secret store without passing it through the
+# agent process.
+print(json.dumps({
+    "status": "ok",
+    "sitekey": sitekey,
+    "secret_configuration": "required_by_user",
+}, separators=(",", ":")))
 ' "$HTTP_CODE"; then
   unset RESPONSE_BODY
   exit 1

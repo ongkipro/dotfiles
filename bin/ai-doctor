@@ -27,6 +27,97 @@ bad()  { printf '  \033[31m✗\033[0m %s\n' "$1"; fail=$((fail+1)); }
 wrn()  { printf '  \033[33m!\033[0m %s\n' "$1"; warn=$((warn+1)); }
 hdr()  { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
+# Keep the regression suite separate from the device-health report: CI can run
+# repository fixtures without requiring an installed runtime, while the default
+# mode remains a fast, read-only inspection of this device.
+run_self_test_command() {
+  local label="$1" log status
+  shift
+  log="$(mktemp "${TMPDIR:-/tmp}/ai-doctor.XXXXXX")" || {
+    bad "$label: tidak bisa membuat log sementara"
+    return
+  }
+  if "$@" >"$log" 2>&1; then
+    ok "$label: lulus"
+  else
+    status=$?
+    bad "$label: GAGAL (exit $status)"
+    sed 's/^/    /' "$log" >&2
+  fi
+  rm -f "$log"
+}
+
+run_self_test_gate() {
+  local gate="$1" test_script found turnstile_seen
+  case "$gate" in
+    memory-default)
+      run_self_test_command "ai-memory-check (canonical)" "$DOT/bin/ai-memory-check"
+      ;;
+    memory-fixtures)
+      run_self_test_command "ai-memory-check --self-test" "$DOT/bin/ai-memory-check" --self-test
+      ;;
+    memory-repository)
+      run_self_test_command "ai-memory-check (all Markdown)" "$DOT/bin/ai-memory-check" "$DOT"
+      ;;
+    security)
+      run_self_test_command "security-check" "$DOT/bin/security-check" "$DOT"
+      ;;
+    fixture-tests)
+      found=0
+      turnstile_seen=0
+      for test_script in "$DOT"/bin/*-test; do
+        [ -e "$test_script" ] || continue
+        found=1
+        [ "$(basename "$test_script")" = "turnstile-secret-test" ] && turnstile_seen=1
+        if [ -x "$test_script" ]; then
+          run_self_test_command "$(basename "$test_script")" "$test_script" "$DOT"
+        else
+          bad "$(basename "$test_script"): tidak executable"
+        fi
+      done
+      [ "$found" -eq 1 ] || bad "fixture tests: bin/*-test tidak ditemukan"
+      [ "$turnstile_seen" -eq 1 ] || bad "turnstile-secret-test: tidak tersedia"
+      ;;
+    git-guard)
+      test_script="$DOT/config/ai/hooks/git-guard.test.sh"
+      if [ -x "$test_script" ]; then
+        run_self_test_command "git-guard.test.sh" "$test_script"
+      else
+        bad "git-guard.test.sh: tidak executable atau tidak tersedia"
+      fi
+      ;;
+    *)
+      bad "self-test gate tidak dikenal: $gate"
+      ;;
+  esac
+}
+
+if [ "$MODE" = "--self-test" ]; then
+  hdr "Repository self-test"
+  # This is the authoritative gate manifest. Fixture discovery intentionally
+  # includes future bin/*-test additions, including bin/omp-routing-test.
+  SELF_TEST_GATES=(
+    memory-default
+    memory-fixtures
+    memory-repository
+    security
+    fixture-tests
+    git-guard
+  )
+  for gate in "${SELF_TEST_GATES[@]}"; do
+    run_self_test_gate "$gate"
+  done
+
+  printf '\n────────────────────────────────────────\n'
+  if [ "$fail" -eq 0 ]; then
+    printf '\033[32mSELF-TEST LULUS\033[0m — semua gate kritis lulus.\n'
+    exit 0
+  fi
+  printf '\033[31mSELF-TEST GAGAL\033[0m — %d gate gagal.\n' "$fail"
+  exit 1
+fi
+
+
 # ── 1. Repo ───────────────────────────────────────────────────────────────────
 hdr "1. Dotfiles repo"
 if [ -d "$DOT/.git" ]; then
@@ -297,17 +388,6 @@ else
   wrn "bin/security-check tidak ada"
 fi
 
-if [ "$MODE" = "--self-test" ]; then
-  for test_script in "$DOT/bin/security-check-test" "$DOT/bin/skill-check-test" "$DOT/bin/skill-update-test" "$DOT/bin/installer-link-test" "$DOT/bin/shell-wrapper-test" "$DOT/bin/project-init-test"; do
-    if [ -x "$test_script" ]; then
-      "$test_script" "$DOT" >/dev/null 2>&1 \
-        && ok "$(basename "$test_script"): lulus" \
-        || bad "$(basename "$test_script"): GAGAL"
-    else
-      wrn "$(basename "$test_script"): tidak tersedia"
-    fi
-  done
-fi
 
 # Claude Code settings.json BUKAN symlink (device-local, tidak ikut dotfiles), jadi
 # perlindungan .env tidak otomatis ikut ke device baru. permissions.deny ditegakkan
@@ -339,6 +419,7 @@ for c in claude codex pi agy omp; do
         claude --version >/dev/null 2>&1 \
           && ok "claude: terpasang + native binary OK" \
           || wrn "claude: launcher ada tetapi native binary gagal; doctor tidak memperbaiki otomatis" ;;
+      pi)    ok "pi: terpasang (capability opsional, bukan control plane OMP)" ;;
       *)     ok "$c: terpasang" ;;
     esac
   else
@@ -359,38 +440,27 @@ for pair in "config:$OMP_CONFIG:$DOT/config/omp/config.yml" "models:$OMP_MODELS:
   fi
 done
 
-for agent in architect debugger complex-developer; do
+tracked_agents=0
+for tracked_agent in "$DOT"/config/omp/agents/*.md; do
+  [ -e "$tracked_agent" ] || continue
+  tracked_agents=$((tracked_agents + 1))
+  agent="$(basename "$tracked_agent" .md)"
   if [ -f "$HOME/.omp/agent/agents/$agent.md" ]; then
     ok "OMP agent available: $agent"
   else
     bad "OMP agent missing: $HOME/.omp/agent/agents/$agent.md"
   fi
 done
+[ "$tracked_agents" -gt 0 ] || bad "OMP tracked custom agents tidak ditemukan"
 
 if [ -f "$OMP_CONFIG" ]; then
-  default_model="$(sed -n 's/^[[:space:]]*default:[[:space:]]*//p' "$OMP_CONFIG" | head -1)"
-  if [ "$default_model" = "openai-codex/gpt-5.6-sol:medium" ]; then
-    ok "OMP default model matches routing policy: $default_model"
-  elif [ -n "$default_model" ]; then
-    bad "OMP default model drifts from routing policy: $default_model"
+  if grep -qE '^modelRoles:[[:space:]]*$' "$OMP_CONFIG" \
+    && grep -qE '^[[:space:]]+default:[[:space:]]*[^[:space:]]' "$OMP_CONFIG"; then
+    ok "OMP modelRoles menyediakan default selector"
   else
-    bad "OMP default model role missing"
+    bad "OMP modelRoles/default selector tidak lengkap"
   fi
 
-  for required in \
-    "advisor: anthropic/claude-opus-4-8:high" \
-    'designer: "@vision"' \
-    'reviewer: "@advisor"' \
-    'architect: "@advisor"' \
-    'debugger: "@advisor"' \
-    'complex-developer: "@slow"'
-  do
-    if grep -qF "$required" "$OMP_CONFIG"; then
-      ok "OMP routing: $required"
-    else
-      bad "OMP routing entry missing: $required"
-    fi
-  done
   async_enabled="$(awk '
     /^[^[:space:]]/ { if (in_async) exit }
     /^[[:space:]]*async:[[:space:]]*$/ { in_async=1; next }
@@ -400,11 +470,10 @@ if [ -f "$OMP_CONFIG" ]; then
       exit
     }
   ' "$OMP_CONFIG")"
-  if [ "$async_enabled" = "true" ]; then
-    ok "OMP async.enabled matches routing policy: $async_enabled"
-  else
-    bad "OMP async.enabled drifts from routing policy: ${async_enabled:-missing}"
-  fi
+  case "$async_enabled" in
+    true|false) ok "OMP async.enabled valid: $async_enabled" ;;
+    *) bad "OMP async.enabled harus boolean: ${async_enabled:-missing}" ;;
+  esac
 
   async_max_jobs="$(awk '
     /^[^[:space:]]/ { if (in_async) exit }
@@ -415,28 +484,39 @@ if [ -f "$OMP_CONFIG" ]; then
       exit
     }
   ' "$OMP_CONFIG")"
-  if [ "$async_max_jobs" = "8" ]; then
-    ok "OMP async.maxJobs matches routing policy: $async_max_jobs"
-  else
-    bad "OMP async.maxJobs drifts from routing policy: ${async_max_jobs:-missing}"
-  fi
+  case "$async_max_jobs" in
+    ''|*[!0-9]*|0) bad "OMP async.maxJobs harus bilangan bulat positif: ${async_max_jobs:-missing}" ;;
+    *) ok "OMP async.maxJobs valid: $async_max_jobs" ;;
+  esac
 
   approval_mode="$(sed -n 's/^[[:space:]]*approvalMode:[[:space:]]*//p' "$OMP_CONFIG" | head -1)"
-  if [ "$approval_mode" = "yolo" ]; then
-    ok "OMP mechanical tool approval is disabled: yolo (global policy gates still apply)"
+  if [ -n "$approval_mode" ]; then
+    ok "OMP tools.approvalMode tersedia: $approval_mode"
   else
-    bad "OMP approval mode drifts from the no-double-prompt policy: ${approval_mode:-missing}"
+    bad "OMP tools.approvalMode missing"
   fi
 fi
 
+if [ -x "$DOT/bin/omp-routing-test" ]; then
+  ok "OMP routing validator tersedia (dijalankan oleh --self-test)"
+else
+  wrn "bin/omp-routing-test belum tersedia"
+fi
+
+NINEROUTER_KEY_FILE="$HOME/.config/ai-local/credentials/9router-remote-key"
 if [ -n "${NINEROUTER_REMOTE_KEY:-}" ]; then
   ok "OMP provider prerequisite NINEROUTER_REMOTE_KEY is set"
-elif [ -r "$HOME/.pi/agent/auth.json" ] \
-  && command -v jq >/dev/null 2>&1 \
-  && jq -e '."9router-fantastico".key | strings | length > 0' "$HOME/.pi/agent/auth.json" >/dev/null 2>&1; then
-  ok "OMP provider prerequisite is available via the process-scoped shell wrapper"
+elif [ -f "$NINEROUTER_KEY_FILE" ] && [ -r "$NINEROUTER_KEY_FILE" ]; then
+  key_mode="$(stat -c '%a' "$NINEROUTER_KEY_FILE" 2>/dev/null \
+    || stat -f '%Lp' "$NINEROUTER_KEY_FILE" 2>/dev/null \
+    || true)"
+  case "$key_mode" in
+    *00) ok "OMP optional provider key file tersedia dengan permission privat ($key_mode)" ;;
+    '') wrn "OMP optional provider key file tersedia; permission tidak dapat diperiksa" ;;
+    *) wrn "OMP optional provider key file dapat dibaca group/other (mode $key_mode)" ;;
+  esac
 else
-  wrn "OMP provider prerequisite NINEROUTER_REMOTE_KEY is unavailable"
+  wrn "OMP optional provider key unavailable (env atau metadata file lokal)"
 fi
 
 # ── 9. Memory drift ───────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 # OMP Development Routing
 
-This file is the canonical model-routing policy for development work. Skills own methodology; this file selects who executes it. Do not copy model preferences into skills.
+This file is the canonical policy for policy-driven autonomous orchestration and deterministic agent-to-model mappings in development work. Skills own methodology; this file selects who executes it. Do not copy model preferences into skills.
 
 ## Invariants
 
@@ -27,9 +27,9 @@ The executable selectors live in `config.yml`. Provider metadata lives in `model
 
 Task size alone is not an escalation signal. Escalate for reasoning complexity, specialist evidence, or a demonstrated blocker.
 
-## Mandatory automatic orchestration
+## Policy-driven autonomous orchestration
 
-The user starts `omp` and describes the desired outcome. The main worker MUST classify the dominant work, decompose multi-domain requests, and autonomously dispatch each matching typed specialist. Do not wait for the user to name an agent or model. `task.agentModelOverrides` selects each worker model deterministically.
+The user starts `omp` and describes the desired outcome. The main worker MUST apply this policy to classify the dominant work, decompose multi-domain requests, and autonomously dispatch each matching typed specialist. Do not wait for the user to name an agent or model. Classification is a reasoned policy decision, not a deterministic runtime classifier. After an agent is selected, `task.agentModelOverrides` and `modelRoles` mechanically provide its deterministic agent-to-model mapping.
 
 | Detected work | Automatic agent | Role | Model |
 |---|---|---|---|
@@ -42,9 +42,17 @@ The user starts `omp` and describes the desired outcome. The main worker MUST cl
 | Source-verified external library or API research | `librarian` | `slow` | Codex GPT-5.6 Sol High |
 | Read-only repository discovery or strictly mechanical support | `scout` or `sonic` | `smol` | Gemini Flash Lite |
 
-Route by the substance of the task, not keywords or file extensions. Do not delegate ordinary work merely to demonstrate orchestration. When two or more slices are independent, dispatch them together in one task batch so their assigned models run concurrently; define shared contracts before launch and keep dependencies sequential. Each specialist returns its result to the main session, which retains context, integration, conflict resolution, and final verification ownership.
+Browser-visible visual, layout, responsive, accessibility, or UX work MUST route to `designer`/`vision` before the first browser-visible edit. This is a capability trigger, not a reasoning-complexity escalation, so it applies regardless of task size. Pure data, API, or non-visual wiring in a frontend file does not trigger `vision`. If the designer cannot start, surface the failure instead of silently implementing the visual work in the main `default` session.
 
-The tracked specialist definitions live under `config/omp/agents/` and are installed at `~/.omp/agent/agents`.
+Route by the substance of the task, not keywords or file extensions. Do not delegate ordinary work merely to demonstrate orchestration. Dispatch two or more independent slices together in one task batch so they can run concurrently, after defining their shared contract. Keep sequential dependencies ordered: finish a prerequisite before launching work that requires its result. Automatic task isolation may select a copy-on-write, overlay, worktree, or recursive-copy backend; it does not remove the need for explicit, non-overlapping ownership. Every specialist returns a bounded result to the parent OMP session; the parent retains context, integration, conflict resolution, and final verification ownership.
+
+Built-in agents ship with OMP; only repository-specific specialist definitions are tracked under `config/omp/agents/` and installed at `~/.omp/agent/agents`.
+
+The model shown in the main OMP header remains the main context owner's model. The task widget's resolved-model badge identifies the model actually running each specialist; no `designer` task means no visual specialist was dispatched.
+
+### Enforcement boundary
+
+This document governs the main worker's classification and delegation decisions. OMP mechanically enforces configured role resolution, agent overrides, batch shape, concurrency limits, and isolation policy; it does not prove that a policy classification was correct. Autonomous routing also cannot overcome an unavailable executable, missing or expired provider authentication, exhausted quota, provider outage, or a model rejected by the provider. Configured fallbacks are best-effort recovery, not a success guarantee, and terminal provider/auth failures must be surfaced to the user.
 
 ## Capability ownership
 
@@ -75,7 +83,7 @@ OPEN QUESTION
 
 The receiving worker returns analysis or a bounded artifact. OMP retains final integration and verification ownership.
 
-## Deterministic scenarios
+## Routing examples
 
 | Scenario | Route | Reason |
 |---|---|---|
