@@ -14,8 +14,8 @@
 - [TokoΦ](tokophi.md) — commerce SaaS ID. Repo `ongkipro/tokophi`; the old `indostore` repo is dormant, don't use it. Main dev on another machine — pull first.
 - [pi-src](pi-src.md) — upstream CLI source repository; keep no permanent local checkout and clone it again when needed.
 - [Kamus (almanak)](kamus-almanak.md) — `kamus.ongki.pro`, repo `ongkipro/kamus`. Ongki's second memory; markdown → Astro dashboard. Has an `AGENTS.md` contract.
-- [Skill plumbing](skill-plumbing.md) — `~/dotfiles/skills/local` is the single source linked to Claude and Pi. Codex and Antigravity use `skill-list` plus direct `SKILL.md` reading; query the count from disk.
-- [Skill vs memori](skills-vs-memory-boundary.md) — project context STAYS in memory, never turn it into a skill. Skills = reusable across projects.
+- [Skill plumbing](skill-plumbing.md) — `~/dotfiles/skills/local` is the single owned source. Claude, Pi, OMP, and Antigravity use directory links; Codex uses managed per-skill links beside its native `.system` skills.
+- [Skill vs memory](skills-vs-memory-boundary.md) — personal project reference may stay in memory; authoritative project truth stays in the repository; reusable methodology belongs in skills.
 - [Pages deployment mode](cloudflare-pages-direct-upload-lock.md) — Direct Upload and Git integration are distinct setup paths; do not improvise with `wrangler pages deploy` when push-to-deploy is required.
 - [`CF_API_TOKEN` membajak wrangler](cf-api-token-hijacks-wrangler.md) — a stale zone-scoped variable can override OAuth and fake 403s; unset both token variables for interactive OAuth checks instead of assigning empty values.
 - [Biasakan git worktree](prefer-git-worktree.md) — work on repos via a separate worktree, don't checkout/commit directly on `main`.

@@ -22,7 +22,7 @@
 | CPU | Apple M1 (8 thread) |
 | RAM | 8.0 GB |
 | GPU | Apple M1 |
-| Disk (/) | 228Gi total, 131Gi free (9% used) |
+| Disk (/) | 228Gi total, 130Gi free (9% used) |
 
 ## AI CLI
 
@@ -32,6 +32,7 @@
 | `codex` | terpasang | ~/.nvm/versions/node/v24.18.0/bin/codex |
 | `pi` | terpasang | ~/.nvm/versions/node/v24.18.0/bin/pi |
 | `agy` | terpasang | ~/.local/bin/agy |
+| `omp` | terpasang | /opt/homebrew/bin/omp |
 
 ## Toolchain
 
@@ -53,7 +54,14 @@
 | memori → codex | `~/.codex/AGENTS.md` | ✅ ok |
 | memori → agy | `~/.antigravity/AGENTS.md` | ✅ ok |
 | memori → agy (gemini stack) | `~/.gemini/GEMINI.md` | ✅ ok |
-| skills | `~/.agents/local-skills` | ✅ ok |
+| memori → omp | `~/.omp/agent/AGENTS.md` | ✅ ok |
+| skills → shared runtime | `~/.agents/local-skills` | ✅ ok |
+| skills → claude | `~/.claude/skills` | ✅ ok |
+| skills → pi | `~/.pi/agent/skills` | ✅ ok |
+| skills → agy | `~/.gemini/config/skills` | ✅ ok |
+| skills → omp | `~/.omp/agent/skills` | ✅ ok |
+| OMP config | `~/.omp/agent/config.yml` | ✅ ok |
+| OMP models | `~/.omp/agent/models.yml` | ✅ ok |
 | mise toolchain | `~/.config/mise/config.toml` | ✅ ok |
 | starship | `~/.config/starship.toml` | ✅ ok |
 | helix | `~/.config/helix/config.toml` | ✅ ok |

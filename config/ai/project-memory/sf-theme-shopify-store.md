@@ -7,7 +7,7 @@ metadata:
   originSessionId: 552a6bd3-29dd-4de2-87f5-559436b550e8
 ---
 
-The `SF-Theme` project (`/home/fantastico/Projects/SF-Theme`) works on the Shopify theme **olivia-16-6-0a** (#186432061760, unpublished) on store **`yn80fb-mb.myshopify.com`**.
+The `SF-Theme` project (`~/Projects/SF-Theme`) works on the Shopify theme **olivia-16-6-0a** (#186432061760, unpublished) on store **`yn80fb-mb.myshopify.com`**.
 
 `yn80fb-mb` is the permanent store handle — use it for all Shopify CLI commands. `olivia-16-6-0a` is a vanity/theme name and does NOT work as a `--store` value (the CLI returns "not authorized / use the permanent store domain"). The live theme on this store is Dawn (#186434617664).
 

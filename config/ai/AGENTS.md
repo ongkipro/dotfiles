@@ -14,7 +14,7 @@
 
 - Editor helix (`hx`), shell bash + mise, alur kerja terminal-first. Toolchain lengkap → `memory/environment.md`.
 - Fakta & konteks → baca `~/.config/ai/memory/*.md` saat perlu. **Kalau memori dan disk bertentangan, disk menang** — lalu perbaiki memorinya. Cek kesehatan rantai: `ai-doctor`.
-- Konteks per-project (status, keputusan, gotcha tiap repo) → `~/dotfiles/config/ai/project-memory/`, indeksnya `MEMORY.md`. Claude Code melihatnya sebagai memori project lewat symlink. **Progres kode dibaca dari `STATUS.md`/`BUILD-LOG.md` di repo, bukan dari memori.**
+- `~/dotfiles/config/ai/project-memory/` is personal cross-session reference only; it may point to a repository but MUST NOT own current status, technical decisions, requirements, or build truth. Those belong in the repository (`AGENTS.md`, `PRD.md`, `TASKS.md`, `STATUS.md`, `BUILD-LOG.md`, and `docs/`). Claude Code reads this reference context through its project-memory symlink. **Repository disk wins.**
 
 ## Output discipline
 

@@ -136,11 +136,16 @@ say "   ~/Projects/"
 
 say "==> Patch ~/.zshrc dan ~/.bashrc (tanpa overwrite total)..."
 # Gunakan single-quote agar $HOME tetap dinamis di .zshrc (portabel antar user/mesin)
+# Runtime managers and local command dirs must load before tracked shell helpers.
 ensure_line 'eval "$($HOME/.local/bin/mise activate zsh)"' "$HOME/.zshrc"
-ensure_line 'source "$HOME/dotfiles/config/zshrc.tools.sh"' "$HOME/.zshrc"
-ensure_line 'source "$HOME/dotfiles/config/bashrc.tools.sh"' "$HOME/.bashrc"
-# Pastikan ~/.local/bin dan ~/.agents/bin ada di PATH
 ensure_line 'export PATH="$HOME/.local/bin:$HOME/.agents/bin:$PATH"' "$HOME/.zshrc"
+ensure_line 'source "$HOME/dotfiles/config/zshrc.tools.sh"' "$HOME/.zshrc"
+ensure_line 'eval "$($HOME/.local/bin/mise activate bash)"' "$HOME/.bashrc"
+ensure_line 'export NVM_DIR="$HOME/.nvm"' "$HOME/.bashrc"
+ensure_line '[ -s "$(brew --prefix nvm 2>/dev/null)/nvm.sh" ] && source "$(brew --prefix nvm)/nvm.sh"' "$HOME/.bashrc"
+ensure_line 'export PATH="$HOME/.local/bin:$HOME/.agents/bin:$PATH"' "$HOME/.bashrc"
+ensure_line 'source "$HOME/dotfiles/config/bashrc.tools.sh"' "$HOME/.bashrc"
+ensure_line '[ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc"' "$HOME/.bash_profile"
 
 cat <<'EOF'
 

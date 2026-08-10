@@ -161,6 +161,11 @@ Its executable selectors are kept in `config/omp/config.yml`:
 Task size alone does not trigger escalation. Complexity, specialist evidence,
 or a demonstrated blocker does.
 
+OMP uses its native `tools.approvalMode: write`: read and workspace-write tools
+run without prompts, while shell execution requires explicit approval. A session
+can still request a stricter mode. Do not use `--yolo` or `--auto-approve` to
+bypass the global approval gates.
+
 ### Shared AI context
 
 The cross-runtime instruction source is:
@@ -193,7 +198,7 @@ personal/work launchers or alternate config-directory profiles.
 |---|---|---|
 | Always-loaded policy | `config/ai/AGENTS.md` | Universal behavior, approval gates, evidence discipline, and short pointers |
 | Shared memory | `config/ai/memory/` | Environment, workflow, preferences, decisions, and cross-project facts read on demand |
-| Project reference memory | `config/ai/project-memory/` | Project-specific decisions and gotchas, indexed by `MEMORY.md` |
+| Project reference memory | `config/ai/project-memory/` | Personal cross-session pointers and context that do not belong in a repository; never current project truth |
 | Device-local notes | `~/.config/ai-local/` | Private machine details that must not sync |
 
 The project-memory directory is linked to Claude's memory path for sessions
@@ -205,9 +210,10 @@ whose project key is the home directory:
 ```
 
 That is not universal automatic discovery for every project or runtime. Other
-sessions read the tracked memory files when relevant. Current code progress must
-remain in each project's `STATUS.md`, `BUILD-LOG.md`, `TASKS.md`, or equivalent
-repository artifact.
+sessions read the tracked memory files when relevant. Current status, decisions,
+requirements, architecture, tasks, and build evidence belong in the project
+repository (`AGENTS.md`, `PRD.md`, `TASKS.md`, `STATUS.md`, `BUILD-LOG.md`, or
+`docs/`), never in project-memory.
 
 OMP's autonomous memory backend is not enabled in the tracked configuration, so
 it does not currently create a competing long-term memory source.

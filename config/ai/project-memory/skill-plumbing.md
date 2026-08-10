@@ -1,97 +1,40 @@
 ---
 name: skill-plumbing
-description: "Owned skills use ~/dotfiles/skills/local as their single source; skill-update installs whole-directory runtime symlinks and ai-doctor verifies them"
-metadata: 
+description: "Owned skills use one source with runtime-native managed links"
+metadata:
   node_type: memory
   type: project
   originSessionId: 678a7f8d-f6e5-48ea-a900-2ddb3e7431ff
-  modified: 2026-08-05T10:15:00.000Z
+  modified: 2026-08-10T16:47:35.000Z
 ---
 
 ## Current contract
 
-Owned skills live only in `~/dotfiles/skills/local/`. The active
-`~/.agents/bin/skill-update` resolves to the tracked dotfiles implementation and
-installs whole-directory symlinks for supported runtimes. Once installed,
-`git pull` is sufficient. Run `skill-update` only after installing a new CLI or
-when `ai-doctor` reports a broken link.
+Owned skills live only in `~/dotfiles/skills/local/`. Runtime directories contain
+managed links, never copied owned content:
 
-Codex's `~/.codex/skills` is separate because it contains `.system` built-ins.
-Do not delete it and do not copy owned skills into it. Use `skill-list` plus a
-direct source read for Codex and Antigravity when native discovery is absent.
+- Claude: `~/.claude/skills` directory link.
+- Pi: `~/.pi/agent/skills` directory link.
+- OMP: `~/.omp/agent/skills` directory link.
+- Antigravity: `~/.gemini/config/skills` directory link.
+- Codex: real `~/.codex/skills` directory with runtime-owned `.system` skills and
+  one managed link per owned skill beside them.
 
-Verify current state:
+`~/.agents/bin/skill-update` resolves to the tracked implementation at
+`~/dotfiles/skills/agents-bin/skill-update`. It is idempotent, preserves Codex
+`.system`, removes stale managed links, and never fetches external skill sources.
+Run it after adding or removing an owned skill or installing a supported runtime.
+A normal source edit is visible immediately through the existing links.
+
+Verify current state from disk:
 
 ```bash
 readlink -f ~/.agents/bin/skill-update
-readlink -f ~/.claude/skills
+skill-update
 skill-list
-ai-doctor
+ai-doctor --self-test
 ```
 
-Everything below this point records the superseded 2026-08-05 runtime incident.
-It is historical evidence, not an operating procedure. The executable guard is
-`bin/skill-update-test`.
-
-## Historical incident
-
-Single source for **our own** skills = **`~/dotfiles/skills/local/`** (reached by `skill-update`
-through `~/.agents/local-skills`, a symlink to it). Check the count on disk; any number written here
-goes stale — `skill-list`, or `ls -1 ~/dotfiles/skills/local | grep -v '^_' | wc -l`.
-
-**Measured 2026-08-05 on `cuan`, and it contradicts what this file used to say:** `~/.claude/skills`
-and `~/.pi/agent/skills` are **not** single-directory symlinks into dotfiles. They are ordinary
-directories holding **97 per-skill symlinks each — 35 into `skills/local`, 62 into
-`~/.agents/repos/shared-skills`** (the `jezweb/claude-skills` clone, which **still exists and is
-still fetched on every `skill-update`**; do not delete it).
-
-**Why it matters:** `git pull` in dotfiles moves the SOURCE and nothing else. Today's pull brought 22
-commits and five new skills — `admin-dashboard`, `design-taste`, `development-spec-suite`,
-`lean-code-review`, `premium-ui-ux` (deleted 2026-08-09) — and all five were **invisible to claude and pi** until
-`skill-update` ran, because no symlink pointed at them. The old note *"`git pull` alone is enough to
-sync"* described the single-directory model and is **retracted**.
-
-🔴 **The state above is what the JEZWEB installer produces — dotfiles ships a DIFFERENT
-`skill-update` that would replace it.** `install.sh:51` links
-`~/dotfiles/skills/agents-bin/skill-update` into `~/.agents/bin/`, and that version builds a
-whole-DIRECTORY symlink (`~/.claude/skills` → `skills/local`, 40 skills, no jezweb). On `cuan`
-2026-08-05 `~/.agents/bin/skill-update` is a **real file** carrying the jezweb version instead,
-shadowing that link — nobody has decided which model this machine should be on. Identify it first:
-`head -3 ~/.agents/bin/skill-update`. Both are idempotent and dotfiles' one refuses to touch
-anything resolving inside `skills/local`; the difference is the resulting runtime (97 skills vs 40).
-
-**How to apply:** after a dotfiles pull that adds or removes a skill, run **`skill-update`** (the one
-currently installed), then `ai-doctor`. Confirm nothing is stranded:
-
-```bash
-comm -23 <(ls -1 ~/dotfiles/skills/local | grep -v '^_' | LC_ALL=C sort) \
-         <(find ~/.claude/skills -maxdepth 1 -type l -exec basename {} \; | LC_ALL=C sort)
-# empty = every custom skill is wired
-```
-
-⚠️ **`skill-update` maintains FIVE target dirs and recreates them every run** — `~/.agents/skills`,
-`~/.claude/skills`, `~/.codex/skills`, `~/.gemini/skills`, `~/.pi/agent/skills` (102 symlinks each on
-2026-08-05). Any note claiming those folders "are gone" or "are deliberately skipped" cannot survive
-one run. `~/.codex/skills` also keeps its own `.system/` (codex's built-ins). **Don't delete any of
-them, and don't read their existence as drift.**
-
-⚠️ **If `skill-update` prints `Backed up existing path: ... -> *.backup.<ts>`, do NOT assume it is a
-duplicate and delete it.** An old version of that script had a destructive bug where the message
-meant an ENTIRE original skill inside dotfiles had just been moved. Check `~/dotfiles/skills/local/`
-is intact first. (The old note saying "just delete it" was WRONG and has been retracted.) Since the
-pi wrapper routes `pi update` through `~/dotfiles/bin/pi-update-safe`, leftover backup folders are
-archived out of `~/.pi/agent/skills` and `~/.claude/skills` before they can collide with discovery —
-and `ai-doctor` reports any that survive.
-
-Don't turn skills into `codex`/`agy` plugins: neither has a skill directory by design, they just run
-`skill-list` and read `~/dotfiles/skills/local/<name>/SKILL.md` directly.
-
-**Plugin exception (decided 2026-07-20):** the "no plugins" contract in `_refresh-vendored.sh` is NOT
-absolute. Plugins may be used **as long as they're official from the vendor** (official site /
-official GitHub), not self-made. Installed & approved: `vercel@claude-plugins-official` (30 skills) +
-`stripe@claude-plugins-official` (5 skills), both from the `claude-plugins-official` marketplace.
-Check: `cat ~/.claude/plugins/installed_plugins.json`. Consequence: plugins only serve **claude**,
-while skills in dotfiles serve all four CLIs — so don't move local skills into a plugin.
-
-The full contract is in `~/.config/ai/AGENTS.md` + `~/.config/ai/memory/skills.md`. Related:
-[[antigravity-cli-agy]].
+Do not turn owned skills into provider-specific plugins. Official vendor plugins
+may remain runtime-specific integrations, but they are not a second source for
+owned capability methodology.

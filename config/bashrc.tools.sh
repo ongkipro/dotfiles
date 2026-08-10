@@ -26,9 +26,23 @@ alias dotsync='~/.local/bin/dotsync'
 alias dotpush='~/.local/bin/dotpush'
 alias lg='lazygit'
 
-# --- OMP: export the 9Router tunnel key from local auth store ---
-if [ -r "$HOME/.pi/agent/auth.json" ] && command -v jq >/dev/null 2>&1; then
-  export NINEROUTER_REMOTE_KEY="$(jq -er '."9router-fantastico".key // empty' "$HOME/.pi/agent/auth.json" 2>/dev/null)"
-fi
+# --- OMP: inject the 9Router tunnel key only into the OMP process ---
+omp() {
+  local auth_file="$HOME/.pi/agent/auth.json"
+  local remote_key=""
+
+  if [ -n "${NINEROUTER_REMOTE_KEY:-}" ]; then
+    command omp "$@"
+    return
+  fi
+  if [ -r "$auth_file" ] && command -v jq >/dev/null 2>&1; then
+    remote_key="$(jq -er '."9router-fantastico".key // empty' "$auth_file" 2>/dev/null)" || remote_key=""
+  fi
+  if [ -n "$remote_key" ]; then
+    NINEROUTER_REMOTE_KEY="$remote_key" command omp "$@"
+  else
+    command omp "$@"
+  fi
+}
 
 # <<< dotfiles-tools (ongkipro/dotfiles) <<<

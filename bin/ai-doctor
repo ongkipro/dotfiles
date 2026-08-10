@@ -197,7 +197,7 @@ if [ -d "$SK" ]; then
       [ "$shared_links" -gt 0 ] && shared_note="; $shared_links → shared-skills"
 
       if [ "$total_links" -gt 0 ] && [ "$local_links" -gt 0 ]; then
-        ok "$cli: ${path/#$HOME/\~} dikelola runtime ($total_links symlink; $local_links → skills/local$shared_note)"
+        wrn "$cli: ${path/#$HOME/\~} memakai legacy per-skill layout ($total_links symlink; $local_links → skills/local$shared_note). Jalankan: skill-update"
       else
         bad "$cli: ${path/#$HOME/\~} tidak berisi symlink skill custom ke skills/local. Perbaiki: skill-update"
       fi
@@ -333,15 +333,30 @@ done
 
 if [ -f "$OMP_CONFIG" ]; then
   default_model="$(sed -n 's/^[[:space:]]*default:[[:space:]]*//p' "$OMP_CONFIG" | head -1)"
-  [ -n "$default_model" ] \
-    && ok "OMP default model configured: $default_model" \
-    || bad "OMP default model role missing"
+  if [ "$default_model" = "openai-codex/gpt-5.6-sol:medium" ]; then
+    ok "OMP default model matches routing policy: $default_model"
+  elif [ -n "$default_model" ]; then
+    bad "OMP default model drifts from routing policy: $default_model"
+  else
+    bad "OMP default model role missing"
+  fi
+
+  approval_mode="$(sed -n 's/^[[:space:]]*approvalMode:[[:space:]]*//p' "$OMP_CONFIG" | head -1)"
+  if [ "$approval_mode" = "write" ] || [ "$approval_mode" = "always-ask" ]; then
+    ok "OMP execution approval is enabled: $approval_mode"
+  else
+    bad "OMP execution approval is disabled: ${approval_mode:-missing}"
+  fi
 fi
 
 if [ -n "${NINEROUTER_REMOTE_KEY:-}" ]; then
   ok "OMP provider prerequisite NINEROUTER_REMOTE_KEY is set"
+elif [ -r "$HOME/.pi/agent/auth.json" ] \
+  && command -v jq >/dev/null 2>&1 \
+  && jq -e '."9router-fantastico".key | strings | length > 0' "$HOME/.pi/agent/auth.json" >/dev/null 2>&1; then
+  ok "OMP provider prerequisite is available via the process-scoped shell wrapper"
 else
-  wrn "OMP provider prerequisite NINEROUTER_REMOTE_KEY is not set"
+  wrn "OMP provider prerequisite NINEROUTER_REMOTE_KEY is unavailable"
 fi
 
 # ── 9. Memory drift ───────────────────────────────────────────────────────────
@@ -349,8 +364,8 @@ hdr "9. Memori vs disk (aturan: disk menang)"
 if [ -d "$AI/memory" ]; then
   drift=0
   while IFS='|' read -r pat note; do
-    hits=$(grep -rn -- "$pat" "$AI/memory" "$AI/AGENTS.md" 2>/dev/null \
-      | grep -viE "TIDAK ADA|DOES NOT EXIST|USANG|STALE|OLD|SALAH|WRONG|BUKAN|jangan|dead|REMOVED|⚠️|BACA DULU" \
+    hits=$(grep -rn -- "$pat" "$AI/memory" "$AI/project-memory" "$AI/AGENTS.md" 2>/dev/null \
+      | grep -viE "TIDAK ADA|DOES NOT EXIST|USANG|STALE|OLD|SALAH|WRONG|BUKAN|jangan|dead|REMOVED|OBSOLETE|⚠️|BACA DULU" \
       | wc -l | tr -d ' ')
     if [ "$hits" -gt 0 ]; then
       wrn "memori masih menunjuk $note ($hits baris) — pat: $pat"
@@ -360,6 +375,10 @@ if [ -d "$AI/memory" ]; then
 /home/fantastico|user yang TIDAK ADA
 ~/.ai/|direktori yang tidak ada
 Documents/memori ai|folder yang tidak ada
+~/.gemini/skills|obsolete Antigravity skill path
+97 per-skill|obsolete external skill layout
+jezweb|obsolete external skill source
+neither has a skill directory|obsolete manual skill discovery claim
 PATS
   [ $drift -eq 0 ] && ok "tidak ada path mati yang dirujuk memori"
 fi

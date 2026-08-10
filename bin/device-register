@@ -90,7 +90,7 @@ DEVICE_LABEL="$VENDOR $MODEL"
 
 # ── AI CLI terpasang ─────────────────────────────────────────────────────────
 AI_ROWS=""
-for cli in claude codex pi agy; do
+for cli in claude codex pi agy omp; do
   if have "$cli"; then
     AI_ROWS+="| \`$cli\` | terpasang | $(command -v "$cli" | sed "s#$HOME#~#") |"$'\n'
   else
@@ -120,7 +120,14 @@ check_link "$HOME/.claude/CLAUDE.md"         "memori → claude"
 check_link "$HOME/.codex/AGENTS.md"          "memori → codex"
 check_link "$HOME/.antigravity/AGENTS.md"    "memori → agy"
 check_link "$HOME/.gemini/GEMINI.md"         "memori → agy (gemini stack)"
-check_link "$HOME/.agents/local-skills"      "skills"
+check_link "$HOME/.omp/agent/AGENTS.md"       "memori → omp"
+check_link "$HOME/.agents/local-skills"      "skills → shared runtime"
+check_link "$HOME/.claude/skills"            "skills → claude"
+check_link "$HOME/.pi/agent/skills"          "skills → pi"
+check_link "$HOME/.gemini/config/skills"     "skills → agy"
+check_link "$HOME/.omp/agent/skills"         "skills → omp"
+check_link "$HOME/.omp/agent/config.yml"     "OMP config"
+check_link "$HOME/.omp/agent/models.yml"     "OMP models"
 check_link "$HOME/.config/mise/config.toml"  "mise toolchain"
 check_link "$HOME/.config/starship.toml"     "starship"
 check_link "$HOME/.config/helix/config.toml" "helix"
@@ -214,12 +221,12 @@ INDEX="$DEVDIR/README.md"
   echo
   echo "| Host | Device | OS | CPU | RAM | Diperbarui |"
   echo "|---|---|---|---|---|---|"
-  for f in "$DEVDIR"/*.md; do
+  while IFS= read -r f; do
     [ "$(basename "$f")" = "README.md" ] && continue
     [ -e "$f" ] || continue
     n="$(basename "$f" .md)"
     row() { awk -F'\\| ' -v k="$1" '$0 ~ "^\\| "k" \\|" {print $3; exit}' "$f" | sed 's/ |$//'; }
     echo "| [\`$n\`]($n.md) | $(row Device) | $(row OS) | $(row CPU) | $(row RAM) | $(awk '/^> Terakhir diperbarui/{gsub(/[^0-9-]/,"",$0); print; exit}' "$f") |"
-  done
+  done < <(printf '%s\n' "$DEVDIR"/*.md | LC_ALL=C sort -f)
 } > "$INDEX"
 echo "✓ indeks diperbarui: ${INDEX/#$HOME/\~}"
