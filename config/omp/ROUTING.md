@@ -27,20 +27,24 @@ The executable selectors live in `config.yml`. Provider metadata lives in `model
 
 Task size alone is not an escalation signal. Escalate for reasoning complexity, specialist evidence, or a demonstrated blocker.
 
-## Automatic subagent routing
+## Mandatory automatic orchestration
 
-OMP keeps the main session and its accumulated context on the selected session role. It does not switch the main model from keyword heuristics. Instead, the main worker classifies bounded work and dispatches a typed subagent; `task.agentModelOverrides` in `config.yml` then selects the model deterministically:
+The user starts `omp` and describes the desired outcome. The main worker MUST classify the dominant work, decompose multi-domain requests, and autonomously dispatch each matching typed specialist. Do not wait for the user to name an agent or model. `task.agentModelOverrides` selects each worker model deterministically.
 
-| Agent | Role | Intended work |
-|---|---|---|
-| `task` | `task` | Bounded implementation on Codex GPT-5.6 Sol Medium |
-| `scout`, `sonic` | `smol` | Cheap discovery or strictly mechanical support |
-| `designer` | `vision` | UI, UX, and visual frontend work on Gemini 3.1 Pro |
-| `reviewer`, `security-reviewer` | `advisor` | Independent high-value review on Claude Opus 4.8 High |
-| `architect`, `debugger` | `advisor` | Read-only architecture or hard-debugging consultation on Claude Opus 4.8 High |
-| `librarian` | `slow` | Source-verified technical research on Codex GPT-5.6 Sol High |
+| Detected work | Automatic agent | Role | Model |
+|---|---|---|---|
+| Normal, bounded development | none; main session executes | `default` | Codex GPT-5.6 Sol Medium |
+| Complex auth, payments, concurrency, migrations, algorithms, performance, or difficult regressions | `complex-developer` | `slow` | Codex GPT-5.6 Sol High |
+| UI, UX, responsive layout, or browser-visible frontend | `designer` | `vision` | Gemini 3.1 Pro |
+| Architecture-sensitive or costly-to-reverse decision | `architect` | `advisor` | Claude Opus 4.8 High |
+| Hard defect after reproduction or a failed reasonable path | `debugger` | `advisor` | Claude Opus 4.8 High |
+| High-risk correctness or security review | `reviewer` or `security-reviewer` | `advisor` | Claude Opus 4.8 High |
+| Source-verified external library or API research | `librarian` | `slow` | Codex GPT-5.6 Sol High |
+| Read-only repository discovery or strictly mechanical support | `scout` or `sonic` | `smol` | Gemini Flash Lite |
 
-`architect` and `debugger` are tracked under `config/omp/agents/` and installed at `~/.omp/agent/agents`. They return bounded analysis; OMP retains implementation and verification ownership.
+Route by the substance of the task, not keywords or file extensions. Do not delegate ordinary work merely to demonstrate orchestration. When two or more slices are independent, dispatch them together in one task batch so their assigned models run concurrently; define shared contracts before launch and keep dependencies sequential. Each specialist returns its result to the main session, which retains context, integration, conflict resolution, and final verification ownership.
+
+The tracked specialist definitions live under `config/omp/agents/` and are installed at `~/.omp/agent/agents`.
 
 ## Capability ownership
 

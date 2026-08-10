@@ -161,11 +161,14 @@ Its executable selectors are kept in `config/omp/config.yml`:
 Task size alone does not trigger escalation. Complexity, specialist evidence,
 or a demonstrated blocker does.
 
-Typed OMP subagents provide the automatic execution path without moving the
-main session or losing its context. `task.agentModelOverrides` maps
-`designer` to `vision`, review and the tracked `architect`/`debugger` agents to
-`advisor`, bounded implementation to `task`, and discovery support to `smol`.
-The complete policy is in `config/omp/ROUTING.md`.
+Normal use is one command and one outcome:
+
+```bash
+cd ~/Projects/<project>
+omp
+```
+
+OMP classifies and decomposes the request automatically. Independent slices are dispatched together to typed subagents, so Codex, Gemini, and Claude can work concurrently under their configured roles; dependent slices remain sequential. The main Codex session owns context, integrates the results, and performs final verification. `/model` is only a manual override for the main session, not the multi-model orchestration mechanism. The complete routing policy is in `config/omp/ROUTING.md`.
 
 OMP intentionally uses native `tools.approvalMode: yolo` so its tools and
 subagents do not add a second mechanical approval prompt. OMP talks to model

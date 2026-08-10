@@ -26,7 +26,7 @@
 
 ## Runtime routing and capabilities
 
-OMP development routing is canonical in `config/omp/ROUTING.md`. Keep the main session on its context-owning role; route bounded specialist work through typed OMP subagents, whose model mappings are enforced by `task.agentModelOverrides`.
+OMP development routing is canonical in `config/omp/ROUTING.md`. In OMP, the user only states the desired outcome: classify the work, decompose it into independent slices, and autonomously dispatch each slice to the matching typed specialist without waiting for model or agent instructions. Launch independent slices together in one task batch so their assigned models run concurrently; keep dependent work sequential. The main session remains context owner and integrates and verifies every result. Avoid delegation for ordinary work, never invent parallelism, and never ask the user to perform model selection that OMP can resolve itself.
 
 Owned capabilities have one source: **`~/dotfiles/skills/local/<name>/SKILL.md`**. Claude, Pi, OMP, and Antigravity discover the canonical directory automatically. Codex preserves its native `.system` skills and receives per-skill links to the same owned source. `skill-update` reconciles runtime adapters; it never copies methodology.
 

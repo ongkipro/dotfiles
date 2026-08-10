@@ -35,6 +35,9 @@ retry:
     plan:
       - anthropic/claude-opus-4-8:high
       - 9router-fantastico/cx/gpt-5.5
+async:
+  enabled: true
+  maxJobs: 8
 task:
   agentModelOverrides:
     scout: "@smol"
@@ -44,6 +47,7 @@ task:
     security-reviewer: "@advisor"
     librarian: "@slow"
     task: "@task"
+    complex-developer: "@slow"
     architect: "@advisor"
     debugger: "@advisor"
 compaction: 

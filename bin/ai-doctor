@@ -359,7 +359,7 @@ for pair in "config:$OMP_CONFIG:$DOT/config/omp/config.yml" "models:$OMP_MODELS:
   fi
 done
 
-for agent in architect debugger; do
+for agent in architect debugger complex-developer; do
   if [ -f "$HOME/.omp/agent/agents/$agent.md" ]; then
     ok "OMP agent available: $agent"
   else
@@ -382,7 +382,8 @@ if [ -f "$OMP_CONFIG" ]; then
     'designer: "@vision"' \
     'reviewer: "@advisor"' \
     'architect: "@advisor"' \
-    'debugger: "@advisor"'
+    'debugger: "@advisor"' \
+    'complex-developer: "@slow"'
   do
     if grep -qF "$required" "$OMP_CONFIG"; then
       ok "OMP routing: $required"
@@ -390,6 +391,35 @@ if [ -f "$OMP_CONFIG" ]; then
       bad "OMP routing entry missing: $required"
     fi
   done
+  async_enabled="$(awk '
+    /^[^[:space:]]/ { if (in_async) exit }
+    /^[[:space:]]*async:[[:space:]]*$/ { in_async=1; next }
+    in_async && /^[[:space:]]+enabled:[[:space:]]*/ {
+      sub(/^[[:space:]]+enabled:[[:space:]]*/, "")
+      print
+      exit
+    }
+  ' "$OMP_CONFIG")"
+  if [ "$async_enabled" = "true" ]; then
+    ok "OMP async.enabled matches routing policy: $async_enabled"
+  else
+    bad "OMP async.enabled drifts from routing policy: ${async_enabled:-missing}"
+  fi
+
+  async_max_jobs="$(awk '
+    /^[^[:space:]]/ { if (in_async) exit }
+    /^[[:space:]]*async:[[:space:]]*$/ { in_async=1; next }
+    in_async && /^[[:space:]]+maxJobs:[[:space:]]*/ {
+      sub(/^[[:space:]]+maxJobs:[[:space:]]*/, "")
+      print
+      exit
+    }
+  ' "$OMP_CONFIG")"
+  if [ "$async_max_jobs" = "8" ]; then
+    ok "OMP async.maxJobs matches routing policy: $async_max_jobs"
+  else
+    bad "OMP async.maxJobs drifts from routing policy: ${async_max_jobs:-missing}"
+  fi
 
   approval_mode="$(sed -n 's/^[[:space:]]*approvalMode:[[:space:]]*//p' "$OMP_CONFIG" | head -1)"
   if [ "$approval_mode" = "yolo" ]; then
