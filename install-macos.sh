@@ -48,8 +48,10 @@ link "$DOT/bin/ai-memory-check"          "$HOME/.local/bin/ai-memory-check"
 link "$DOT/bin/security-check"           "$HOME/.local/bin/security-check"
 link "$DOT/bin/security-check-test"      "$HOME/.local/bin/security-check-test"
 link "$DOT/bin/skill-check-test"         "$HOME/.local/bin/skill-check-test"
+link "$DOT/bin/skill-update-test"        "$HOME/.local/bin/skill-update-test"
 link "$DOT/bin/inspect-project"          "$HOME/.local/bin/inspect-project"
 link "$DOT/bin/project-init"             "$HOME/.local/bin/project-init"
+link "$DOT/bin/project-init-test"        "$HOME/.local/bin/project-init-test"
 for s in tmux-clip tmux-setup tmux-battery security-check 9router-start pi-9router-restore device-register; do
   [ -e "$DOT/bin/$s" ] && link "$DOT/bin/$s" "$HOME/.local/bin/$s"
 done
@@ -63,8 +65,8 @@ mkdir -p "$HOME/.agents/bin"
 for s in skill-help skill-list skill-new skill-open skill-check skill-remove skill-update; do
   [ -e "$DOT/skills/agents-bin/$s" ] && link "$DOT/skills/agents-bin/$s" "$HOME/.agents/bin/$s"
 done
-# Symlink satu-direktori ke SEMUA CLI (~/.claude/skills, ~/.pi/agent/skills, ~/.agents/local-skills).
-# Idempoten; melewati CLI yang belum terpasang. Sesudah ini, `git pull` saja sudah sinkron.
+# Runtime-native adapters: directory links for Claude/Pi/OMP/Antigravity and
+# per-skill Codex links that preserve ~/.codex/skills/.system.
 "$DOT/skills/agents-bin/skill-update"
 
 say "==> Link AGENTS.md ke CLI yang ada..."
@@ -151,10 +153,9 @@ Langkah berikutnya:
        dotsync doctor
 
 Catatan:
-- Skill SUDAH ter-link (skill-update dijalankan otomatis di atas).
-  Model = symlink satu-direktori → mulai sekarang `git pull` saja sudah sinkron;
-  skill baru muncul sendiri, skill yang dihapus hilang sendiri. Tidak perlu
-  menjalankan skill-update lagi kecuali pasang CLI baru.
+- Skills are linked from one owned source. Directory-link runtimes reflect
+  source changes immediately; run `skill-update` after adding/removing a skill
+  to reconcile Codex, or after installing a new runtime.
 - Bootstrap ini fokus ke shared memory + sync + local skills.
 - install.sh utama tetap Linux-first.
 EOF

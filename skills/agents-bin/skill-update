@@ -1,58 +1,53 @@
 #!/usr/bin/env bash
-# Link every AI CLI's skills dir to the ONE source: dotfiles/skills/local.
-#
-# Model: WHOLE-DIRECTORY symlink.
-#   ~/.claude/skills       ─┐
-#   ~/.pi/agent/skills     ─┼─→ dotfiles/skills/local/
-#   ~/.agents/local-skills ─┘
-#
-# Consequence: `git pull` alone syncs skills. A new skill appears, a deleted skill
-# disappears, on every CLI, with zero extra steps. This script only needs to run
-# ONCE per device (install.sh calls it). Running it again is a safe no-op.
-#
-# It replaced a per-skill-symlink version that carried a destructive bug: when a
-# target base was ALREADY a whole-dir symlink into the source, the backup step
-# `mv`-ed every real skill directory inside dotfiles to *.backup.<ts> and left
-# self-referencing symlinks behind ("Too many levels of symbolic links").
-# Hence the hard rule below: NEVER modify anything that resolves inside SRC.
+# Reconcile owned skills from dotfiles/skills/local into each runtime's native
+# discovery path. Directory links are preferred; Codex is the exception because
+# ~/.codex/skills must retain its runtime-owned .system directory.
 set -euo pipefail
 
-# Source of truth = this script's own repo, not a guessable $HOME path.
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-SRC="$(cd "$SCRIPT_DIR/../local" && pwd)"
+resolve_path() {
+  local path="$1" link hops=0
+  while [ -L "$path" ]; do
+    link="$(readlink "$path")"
+    case "$link" in
+      /*) path="$link" ;;
+      *) path="$(dirname "$path")/$link" ;;
+    esac
+    hops=$((hops + 1))
+    [ "$hops" -le 40 ] || return 1
+  done
+  local dir
+  dir="$(cd -P "$(dirname "$path")" 2>/dev/null && pwd)" || return 1
+  printf '%s/%s\n' "$dir" "$(basename "$path")"
+}
+
+SCRIPT_PATH="$(resolve_path "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+SRC="$(cd "$SCRIPT_DIR/../local" && pwd -P)"
 
 [ -d "$SRC" ] || { echo "ERROR: skill source not found: $SRC" >&2; exit 1; }
 
-# Link where the CLI actually exists or parent dir exists.
-TARGETS=(
+DIRECTORY_TARGETS=(
   "$HOME/.claude/skills"
   "$HOME/.pi/agent/skills"
   "$HOME/.agents/local-skills"
-  "$HOME/.gemini/skills"
   "$HOME/.gemini/config/skills"
-  "$HOME/.antigravity/skills"
   "$HOME/.omp/agent/skills"
 )
 
-linked=0 skipped=0
+linked=0
+skipped=0
 
-for target in "${TARGETS[@]}"; do
+link_directory_target() {
+  local target="$1" parent resolved backup
   parent="$(dirname "$target")"
-  # Create parent if gemini/antigravity exists
-  if [ ! -d "$parent" ] && [[ "$parent" == *".gemini"* || "$parent" == *".antigravity"* ]]; then
-    mkdir -p "$parent"
-  fi
 
-  # CLI not installed on this device → skip. Not an error.
   if [ ! -d "$parent" ]; then
-    printf '  skip   %-24s (%s tidak ada — CLI belum terpasang)\n' "${target/#$HOME/\~}" "${parent/#$HOME/\~}"
+    printf '  skip   %-28s (runtime belum terpasang)\n' "${target/#$HOME/\~}"
     skipped=$((skipped + 1))
-    continue
+    return
   fi
 
-  resolved="$(readlink -f "$target" 2>/dev/null || true)"
-
-  # HARD SAFETY: never touch a path that lives inside the source tree.
+  resolved="$(resolve_path "$target" 2>/dev/null || true)"
   case "$resolved" in
     "$SRC"/*)
       echo "ERROR: $target resolves INSIDE the source ($resolved). Refusing to touch it." >&2
@@ -60,27 +55,79 @@ for target in "${TARGETS[@]}"; do
       ;;
   esac
 
-  # Already correct → no-op.
   if [ -L "$target" ] && [ "$resolved" = "$SRC" ]; then
-    printf '  ok     %-24s -> %s\n' "${target/#$HOME/\~}" "${SRC/#$HOME/\~}"
-    continue
+    printf '  ok     %-28s -> %s\n' "${target/#$HOME/\~}" "${SRC/#$HOME/\~}"
+    return
   fi
 
-  # A real directory in the way (per-skill layout from the old script, or a
-  # hand-made dir). Move it aside — never delete, and never inside the source.
   if [ -e "$target" ] && [ ! -L "$target" ]; then
     backup="${target}.backup.$(date +%Y%m%d-%H%M%S)"
     mv "$target" "$backup"
-    echo "  moved  ${target/#$HOME/\~} -> ${backup/#$HOME/\~}  (tidak dihapus)"
+    printf '  moved  %s -> %s (preserved)\n' "${target/#$HOME/\~}" "${backup/#$HOME/\~}"
   fi
 
   ln -sfn "$SRC" "$target"
-  printf '  link   %-24s -> %s\n' "${target/#$HOME/\~}" "${SRC/#$HOME/\~}"
+  printf '  link   %-28s -> %s\n' "${target/#$HOME/\~}" "${SRC/#$HOME/\~}"
   linked=$((linked + 1))
+}
+
+for target in "${DIRECTORY_TARGETS[@]}"; do
+  link_directory_target "$target"
+done
+
+# Codex discovers skills natively under ~/.codex/skills. Keep .system untouched
+# and reconcile only symlinks owned by this script.
+CODEX_ROOT="$HOME/.codex/skills"
+if [ -d "$HOME/.codex" ]; then
+  mkdir -p "$CODEX_ROOT"
+
+  while IFS= read -r link; do
+    raw="$(readlink "$link" 2>/dev/null || true)"
+    case "$raw" in
+      "$SRC"/*)
+        [ -e "$link" ] || {
+          unlink "$link"
+          printf '  unlink %-28s (owned skill removed)\n' "${link/#$HOME/\~}"
+        }
+        ;;
+    esac
+  done < <(find "$CODEX_ROOT" -mindepth 1 -maxdepth 1 -type l)
+
+  while IFS= read -r skill_file; do
+    skill_dir="$(dirname "$skill_file")"
+    name="$(basename "$skill_dir")"
+    target="$CODEX_ROOT/$name"
+    resolved="$(resolve_path "$target" 2>/dev/null || true)"
+
+    if [ -e "$target" ] && [ ! -L "$target" ]; then
+      echo "ERROR: Codex target $target is a real path; refusing to replace it." >&2
+      exit 1
+    fi
+
+    if [ -L "$target" ] && [ "$resolved" = "$skill_dir" ]; then
+      continue
+    fi
+
+    ln -sfn "$skill_dir" "$target"
+    linked=$((linked + 1))
+  done < <(find "$SRC" -mindepth 2 -maxdepth 2 -name SKILL.md | sort)
+
+  printf '  ok     %-28s (%s preserved)\n' "~/.codex/skills" ".system"
+else
+  printf '  skip   %-28s (runtime belum terpasang)\n' "~/.codex/skills"
+  skipped=$((skipped + 1))
+fi
+
+# Remove only obsolete compatibility links that still point exactly at SRC.
+for legacy in "$HOME/.gemini/skills" "$HOME/.antigravity/skills"; do
+  if [ -L "$legacy" ] && [ "$(resolve_path "$legacy" 2>/dev/null || true)" = "$SRC" ]; then
+    unlink "$legacy"
+    printf '  unlink %-28s (obsolete discovery path)\n' "${legacy/#$HOME/\~}"
+  fi
 done
 
 count=$(find "$SRC" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')
 echo
-echo "Source : ${SRC/#$HOME/\~}  (${count} skill)"
-echo "Linked : $linked   Skipped: $skipped"
-echo "Sinkron lintas device = 'git pull' saja. skill-update cukup sekali per mesin."
+echo "Source : ${SRC/#$HOME/\~} ($count skills)"
+echo "Changed: $linked   Skipped: $skipped"
+echo "Future source changes are visible immediately through managed links."

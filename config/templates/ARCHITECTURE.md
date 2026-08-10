@@ -1,75 +1,24 @@
 # Architecture — {{PROJECT_NAME}}
 
-> **Updated:** {{DATE}} | **Stack:** {{STACK}}
+Updated: {{DATE}}
+Expected stack: {{STACK}}
 
-## High-Level Diagram
+## Current system
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Client    │────▶│   CDN/Edge  │────▶│   Backend   │
-└─────────────┘     └─────────────┘     └─────────────┘
-                                                │
-                          ┌─────────────────────┼─────────────────────┐
-                          ▼                     ▼                     ▼
-                   ┌─────────────┐      ┌─────────────┐      ┌─────────────┐
-                   │  Database   │      │    Cache    │      │  Storage    │
-                   └─────────────┘      └─────────────┘      └─────────────┘
-```
+Architecture is not documented yet. Inspect the repository and describe only components and data flows proven by code or runtime configuration.
 
-## Tech Stack
+## Boundaries
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| Frontend | {{FRONTEND}} | {{FRONTEND_PURPOSE}} |
-| Backend | {{BACKEND}} | {{BACKEND_PURPOSE}} |
-| Database | {{DATABASE}} | {{DB_PURPOSE}} |
-| Cache | {{CACHE}} | {{CACHE_PURPOSE}} |
-| Storage | {{STORAGE}} | {{STORAGE_PURPOSE}} |
-| CDN/DNS | {{CDN}} | {{CDN_PURPOSE}} |
-| Deployment | {{DEPLOY}} | {{DEPLOY_PURPOSE}} |
+Record system boundaries, trust boundaries, external integrations, and ownership before adding diagrams.
 
-## Directory Structure
+## Data
 
-```
-{{REPO_NAME}}/
-├── src/
-│   ├── pages/        # Routes
-│   ├── components/   # Reusable UI
-│   ├── lib/          # Utilities
-│   └── styles/       # Global styles
-├── public/           # Static assets
-├── tests/            # Test suites
-└── docs/             # Documentation
-```
+Record authoritative data stores, invariants, migration constraints, and retention requirements when present.
 
-## API Design
+## Decisions
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/{{RESOURCE}}` | GET | {{DESC}} |
-| `/api/{{RESOURCE}}` | POST | {{DESC}} |
-| `/api/{{RESOURCE}}/:id` | PUT | {{DESC}} |
+Costly-to-reverse decisions belong in `docs/decisions/` as ADRs. Create that directory only when the first decision exists.
 
-## Database Schema
+## Verification
 
-### {{TABLE_NAME}}
-
-| Column | Type | Constraints |
-|--------|------|-------------|
-| id | UUID | PK |
-| {{COL_1}} | {{TYPE_1}} | {{CONSTRAINT_1}} |
-| {{COL_2}} | {{TYPE_2}} | {{CONSTRAINT_2}} |
-| created_at | TIMESTAMP | NOT NULL DEFAULT NOW() |
-| updated_at | TIMESTAMP | NOT NULL DEFAULT NOW() |
-
-## Deployment Pipeline
-
-```
-Git Push → GitHub Actions → Build → Deploy to {{PLATFORM}}
-```
-
-## Key Decisions
-
-- {{DECISION_1}}
-- {{DECISION_2}}
-- See [DECISIONS.md](./DECISIONS.md) for full log.
+List the smallest commands or runtime scenarios that prove architectural changes behave as intended.

@@ -1,12 +1,13 @@
 setupVersion: 1
 modelRoles: 
   smol: google-antigravity/gemini-3.1-flash-lite
-  slow: openai-codex/gpt-5.5:high
-  plan: openai-codex/gpt-5.5:high
+  slow: openai-codex/gpt-5.6-sol:high
+  plan: openai-codex/gpt-5.6-sol:high
   vision: google-antigravity/gemini-3.1-pro
   tiny: google-antigravity/gemini-3.1-flash-lite
   task: openai-codex/gpt-5.4
-  default: openai-codex/gpt-5.6-sol
+  default: openai-codex/gpt-5.6-sol:medium
+  advisor: google-antigravity/claude-opus-4-6:high
 modelProviderOrder: 
   - google-antigravity
   - openai-codex

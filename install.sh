@@ -43,7 +43,6 @@ link "$DOT/config/ripgreprc"             ~/.ripgreprc
 link "$DOT/config/helix/config.toml"     ~/.config/helix/config.toml
 link "$DOT/config/helix/languages.toml"  ~/.config/helix/languages.toml
 link "$DOT/config/gitignore_global"      ~/.gitignore_global
-link "$DOT/skills/local"                 ~/.agents/local-skills   # local skills (astro, shopify-listing)
 link "$DOT/config/tmux.conf"             ~/.tmux.conf
 link "$DOT/config/mise-config.toml"      ~/.config/mise/config.toml  # toolchain bersama; `mise use -g` nulis tembus symlink
 link "$DOT/config/lazygit/config.yml"    ~/.config/lazygit/config.yml
@@ -53,11 +52,11 @@ link "$DOT/home/profile"                 ~/.profile
 link "$DOT/bin/ai-memory-link"           ~/.local/bin/ai-memory-link
 link "$DOT/bin/dotpush"                  ~/.local/bin/dotpush
 link "$DOT/bin/dotsync"                  ~/.local/bin/dotsync
-for s in tmux-clip tmux-setup security-check security-check-test skill-check-test inspect-project ai-doctor ai-memory-check vps-pgdump 9router-start pi-9router-restore device-register; do link "$DOT/bin/$s" ~/.local/bin/$s; done
+for s in tmux-clip tmux-setup security-check security-check-test skill-check-test skill-update-test inspect-project project-init project-init-test ai-doctor ai-memory-check vps-pgdump 9router-start pi-9router-restore device-register; do link "$DOT/bin/$s" ~/.local/bin/$s; done
 link "$DOT/config/omp/config.yml"        ~/.omp/agent/config.yml   # OMP config (model, theme, approval)
 link "$DOT/config/omp/models.yml"        ~/.omp/agent/models.yml   # OMP providers (9router)
-~/.local/bin/ai-memory-link              # symlink AGENTS.md ke semua AI CLI (claude/codex/pi/agy/omp)
-"$DOT/skills/agents-bin/skill-update"    # ~/.claude/skills + ~/.pi/agent/skills + ~/.omp/agent/skills -> dotfiles/skills/local (idempoten)
+~/.local/bin/ai-memory-link              # runtime-native AGENTS.md links (including ~/.omp/agent/AGENTS.md)
+"$DOT/skills/agents-bin/skill-update"    # directory links + Codex per-skill adapter preserving .system
 
 # Jaminan native binary claude ter-unduh. `npm i -g @anthropic-ai/claude-code` (step 3)
 # menaruh native binary via optional-dep/postinstall yang KADANG gagal senyap → `claude`

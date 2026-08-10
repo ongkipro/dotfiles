@@ -1,19 +1,26 @@
 #!/usr/bin/env bash
-# ai-doctor — prove the dotfiles connective tissue is intact ON THIS DEVICE.
+# ai-doctor — read-only health report for dotfiles AI runtime wiring.
 #
-# The dotfiles are the link between: AI CLIs ↔ devices ↔ memory.
-# Three layers, split by how often they're paid for:
-#   1. Rules   → ~/.config/ai/AGENTS.md   (always on, every CLI — keep it small)
-#   2. Memory  → ~/.config/ai/memory/*.md (facts, on demand)
-#   3. Skills  → ~/dotfiles/skills/local/ (deep knowledge, on demand)
-#
-# FAIL = broken, fix it.  WARN = works, but something is missing/pending.
-# Run this first on a new machine, and any time an AI behaves oddly.
+# Default mode never repairs links, installs binaries, or runs tests that create
+# temporary files. Use --self-test to run repository regression checks that are
+# isolated under temporary directories.
 set -uo pipefail
 
 DOT="${DOTFILES_DIR:-$HOME/dotfiles}"
 AI="$HOME/.config/ai"
 fail=0; warn=0
+MODE="${1:-}"
+case "$MODE" in
+  ""|--self-test) ;;
+  --help|-h)
+    echo "Usage: ai-doctor [--self-test]"
+    exit 0
+    ;;
+  *)
+    echo "ERROR: unknown option: $MODE" >&2
+    exit 2
+    ;;
+esac
 
 ok()   { printf '  \033[32m✓\033[0m %s\n' "$1"; }
 bad()  { printf '  \033[31m✗\033[0m %s\n' "$1"; fail=$((fail+1)); }
@@ -68,7 +75,7 @@ check_link claude "$HOME/.claude/CLAUDE.md"          "$HOME/.claude"
 check_link codex  "$HOME/.codex/AGENTS.md"           "$HOME/.codex"
 check_link agy    "$HOME/.antigravity/AGENTS.md"     "$HOME/.antigravity"
 check_link "agy compatibility (~/.gemini)" "$HOME/.gemini/GEMINI.md" "$HOME/.gemini"
-check_link omp    "$HOME/.omp/AGENTS.md"              "$HOME/.omp"
+check_link omp    "$HOME/.omp/agent/AGENTS.md"        "$HOME/.omp/agent"
 # ~/AGENTS.md harus TIDAK ADA. Ia pernah muncul sebagai salinan tak ter-manage,
 # melenceng 5 hari, lalu rusak kena find-replace (semua "Claude" jadi "Codex")
 # tanpa ada yang tahu. Dan karena CLI naik dari cwd mencari AGENTS.md, file ini
@@ -155,13 +162,11 @@ if [ -d "$SK" ]; then
   n=$(find "$SK" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')
   ok "sumber custom: $n skill di ~/dotfiles/skills/local/"
   if [ -x "$DOT/skills/agents-bin/skill-check" ]; then
-    "$DOT/skills/agents-bin/skill-check" >/dev/null 2>&1 \
-      && ok "skill-check: metadata + relative references valid" \
-      || bad "skill-check gagal — jalankan: skill-check"
+    ok "skill-check tersedia (jalankan eksplisit atau gunakan ai-doctor --self-test)"
   else
     wrn "skill-check belum tersedia"
   fi
-  for pair in "claude:$HOME/.claude/skills:$HOME/.claude" "pi:$HOME/.pi/agent/skills:$HOME/.pi/agent" "omp:$HOME/.omp/agent/skills:$HOME/.omp/agent"; do
+  for pair in "claude:$HOME/.claude/skills:$HOME/.claude" "pi:$HOME/.pi/agent/skills:$HOME/.pi/agent" "omp:$HOME/.omp/agent/skills:$HOME/.omp/agent" "agy:$HOME/.gemini/config/skills:$HOME/.gemini/config"; do
     cli=${pair%%:*}; rest=${pair#*:}; path=${rest%%:*}; parent=${rest#*:}
     if [ ! -d "$parent" ]; then wrn "$cli: belum terpasang (lewati)"; continue; fi
     if [ ! -d "$path" ]; then bad "$cli: ${path/#$HOME/\~} tidak ada. Perbaiki: skill-update"; continue; fi
@@ -208,7 +213,39 @@ if [ -d "$SK" ]; then
       fi
     fi
   done
-  ok "codex & agy: custom skill fallback = \`skill-list\` + baca source langsung (Codex .system tetap terpisah)"
+
+  CODEX_ROOT="$HOME/.codex/skills"
+  if [ -d "$HOME/.codex" ]; then
+    [ -d "$CODEX_ROOT/.system" ] \
+      && ok "codex: runtime-owned ~/.codex/skills/.system preserved" \
+      || bad "codex: ~/.codex/skills/.system missing"
+    codex_owned=0
+    codex_bad=0
+    while IFS= read -r skill_file; do
+      skill_dir="$(dirname "$skill_file")"
+      name="$(basename "$skill_dir")"
+      target="$CODEX_ROOT/$name"
+      if [ -L "$target" ] && [ "$(readlink -f "$target" 2>/dev/null)" = "$skill_dir" ]; then
+        codex_owned=$((codex_owned + 1))
+      else
+        codex_bad=$((codex_bad + 1))
+      fi
+    done < <(find "$SK" -mindepth 2 -maxdepth 2 -name SKILL.md)
+    [ "$codex_bad" -eq 0 ] \
+      && ok "codex: $codex_owned owned skills visible beside .system" \
+      || bad "codex: $codex_bad owned skills missing/stale. Perbaiki: skill-update"
+  else
+    wrn "codex: belum terpasang (lewati)"
+  fi
+
+  UPDATE_EXPECTED="$DOT/skills/agents-bin/skill-update"
+  UPDATE_ACTUAL="$(command -v skill-update 2>/dev/null || true)"
+  if [ -n "$UPDATE_ACTUAL" ] \
+     && [ "$(readlink -f "$UPDATE_ACTUAL" 2>/dev/null)" = "$(readlink -f "$UPDATE_EXPECTED")" ]; then
+    ok "skill-update PATH → canonical implementation"
+  else
+    bad "skill-update PATH tidak menunjuk $UPDATE_EXPECTED"
+  fi
 else
   bad "$SK TIDAK ADA"
 fi
@@ -216,7 +253,7 @@ fi
 # ── 5. Dangling symlinks anywhere in the wiring ───────────────────────────────
 hdr "5. Symlink menggantung"
 d=0
-for base in "$HOME/.claude" "$HOME/.codex" "$HOME/.antigravity" "$HOME/.pi/agent" "$HOME/.agents" "$HOME/.agents/bin" "$HOME/.local/bin" "$HOME/.config"; do
+for base in "$HOME/.claude" "$HOME/.codex" "$HOME/.antigravity" "$HOME/.gemini/config" "$HOME/.pi/agent" "$HOME/.omp/agent" "$HOME/.agents" "$HOME/.agents/bin" "$HOME/.local/bin" "$HOME/.config"; do
   [ -d "$base" ] || continue
   while IFS= read -r l; do
     [ -e "$l" ] || { bad "MATI: ${l/#$HOME/\~} → $(readlink "$l")"; d=1; }
@@ -227,13 +264,21 @@ done
 # ── 6. Guards ─────────────────────────────────────────────────────────────────
 hdr "6. Guard"
 if [ -x "$DOT/bin/security-check" ]; then
-  "$DOT/bin/security-check" >/dev/null 2>&1 && ok "security-check: bersih" \
-    || bad "security-check menemukan kemungkinan secret — jalankan: security-check"
-  [ -x "$DOT/bin/security-check-test" ] && { "$DOT/bin/security-check-test" >/dev/null 2>&1 \
-    && ok "security-check-test: guard masih menangkap secret asli" \
-    || bad "security-check-test GAGAL — guard-nya bocor, JANGAN push"; }
+  ok "security-check tersedia (jalankan eksplisit; doctor default tetap read-only)"
 else
   wrn "bin/security-check tidak ada"
+fi
+
+if [ "$MODE" = "--self-test" ]; then
+  for test_script in "$DOT/bin/security-check-test" "$DOT/bin/skill-check-test" "$DOT/bin/skill-update-test" "$DOT/bin/project-init-test"; do
+    if [ -x "$test_script" ]; then
+      "$test_script" "$DOT" >/dev/null 2>&1 \
+        && ok "$(basename "$test_script"): lulus" \
+        || bad "$(basename "$test_script"): GAGAL"
+    else
+      wrn "$(basename "$test_script"): tidak tersedia"
+    fi
+  done
 fi
 
 # Claude Code settings.json BUKAN symlink (device-local, tidak ikut dotfiles), jadi
@@ -263,20 +308,9 @@ for c in claude codex pi agy omp; do
       codex) [ -f "$HOME/.codex/auth.json" ] && ok "codex: terpasang + login" \
                || wrn "codex: terpasang tapi BELUM LOGIN → jalankan: codex login" ;;
       claude)
-        # `command -v` cuma lihat symlink launcher — native binary (claude.exe ~240MB)
-        # dipasang lewat postinstall/optional-dep npm & KADANG gagal unduh senyap →
-        # `claude` error "native binary not installed". Uji launch beneran, lalu self-heal.
-        if claude --version >/dev/null 2>&1; then
-          ok "claude: terpasang + native binary OK"
-        else
-          pkg="$(npm root -g 2>/dev/null)/@anthropic-ai/claude-code"
-          if [ -f "$pkg/install.cjs" ] && node "$pkg/install.cjs" >/dev/null 2>&1 \
-               && claude --version >/dev/null 2>&1; then
-            ok "claude: native binary HILANG → diperbaiki via postinstall"
-          else
-            wrn "claude: native binary HILANG → perbaiki: npm i -g @anthropic-ai/claude-code"
-          fi
-        fi ;;
+        claude --version >/dev/null 2>&1 \
+          && ok "claude: terpasang + native binary OK" \
+          || wrn "claude: launcher ada tetapi native binary gagal; doctor tidak memperbaiki otomatis" ;;
       *)     ok "$c: terpasang" ;;
     esac
   else
@@ -284,15 +318,36 @@ for c in claude codex pi agy omp; do
   fi
 done
 
-# ── 8. Memory drift ───────────────────────────────────────────────────────────
-# Enforces the Layer-2 rule: a fact checkable from disk gets written ONCE, with its
-# verify command. The way that rule rots is dead paths piling up. So: flag any path
-# memory still points at that does not exist. Lines that explicitly WARN about a
-# dead path are the fix, not the bug — skip those.
-hdr "8. Memori vs disk (aturan: disk menang)"
+# ── 8. OMP configuration ──────────────────────────────────────────────────────
+hdr "8. OMP"
+OMP_CONFIG="$HOME/.omp/agent/config.yml"
+OMP_MODELS="$HOME/.omp/agent/models.yml"
+for pair in "config:$OMP_CONFIG:$DOT/config/omp/config.yml" "models:$OMP_MODELS:$DOT/config/omp/models.yml"; do
+  label=${pair%%:*}; rest=${pair#*:}; live=${rest%%:*}; tracked=${rest#*:}
+  if [ -L "$live" ] && [ "$(readlink -f "$live" 2>/dev/null)" = "$(readlink -f "$tracked")" ]; then
+    ok "OMP $label → tracked source"
+  else
+    bad "OMP $label tidak ter-link ke $tracked"
+  fi
+done
+
+if [ -f "$OMP_CONFIG" ]; then
+  default_model="$(sed -n 's/^[[:space:]]*default:[[:space:]]*//p' "$OMP_CONFIG" | head -1)"
+  [ -n "$default_model" ] \
+    && ok "OMP default model configured: $default_model" \
+    || bad "OMP default model role missing"
+fi
+
+if [ -n "${NINEROUTER_REMOTE_KEY:-}" ]; then
+  ok "OMP provider prerequisite NINEROUTER_REMOTE_KEY is set"
+else
+  wrn "OMP provider prerequisite NINEROUTER_REMOTE_KEY is not set"
+fi
+
+# ── 9. Memory drift ───────────────────────────────────────────────────────────
+hdr "9. Memori vs disk (aturan: disk menang)"
 if [ -d "$AI/memory" ]; then
   drift=0
-  # path → why it's dead
   while IFS='|' read -r pat note; do
     hits=$(grep -rn -- "$pat" "$AI/memory" "$AI/AGENTS.md" 2>/dev/null \
       | grep -viE "TIDAK ADA|DOES NOT EXIST|USANG|STALE|OLD|SALAH|WRONG|BUKAN|jangan|dead|REMOVED|⚠️|BACA DULU" \
@@ -306,12 +361,6 @@ if [ -d "$AI/memory" ]; then
 ~/.ai/|direktori yang tidak ada
 Documents/memori ai|folder yang tidak ada
 PATS
-# ⚠️ `.gemini/skills` DICORET dari daftar ini 2026-08-05. Pattern itu menganggapnya path mati
-# peninggalan Gemini CLI; disk berkata lain — `skill-update` memelihara LIMA target dir dan
-# membuat ulang `~/.agents/skills`, `~/.codex/skills`, `~/.gemini/skills` setiap kali jalan
-# (102 symlink masing-masing, terukur 2026-08-05). Jadi memori yang menyebutnya justru sedang
-# benar, dan alarm ini menyalahkan tulisan yang akurat. Aturannya tetap: disk menang.
-# (`~/.gemini/` root = home Antigravity, beda barang, tetap jangan dihapus.)
   [ $drift -eq 0 ] && ok "tidak ada path mati yang dirujuk memori"
 fi
 

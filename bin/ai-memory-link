@@ -14,7 +14,7 @@ TARGETS=(
   "$HOME/.gemini/GEMINI.md"       # Antigravity (agy) — stack Gemini
   "$HOME/.gemini/antigravity-cli/AGENTS.md"
   "$HOME/.gemini/antigravity-cli/GEMINI.md"
-  "$HOME/.omp/AGENTS.md"          # OMP (omp.sh) — native Rust coding agent
+  "$HOME/.omp/agent/AGENTS.md"    # OMP native user context path
 )
 
 for t in "${TARGETS[@]}"; do
@@ -47,6 +47,14 @@ for t in "${TARGETS[@]}"; do
   echo "linked: $t -> $SRC"
 done
 
+# Remove the obsolete OMP root link only when it is the managed canonical link.
+OMP_LEGACY="$HOME/.omp/AGENTS.md"
+if [ -L "$OMP_LEGACY" ] \
+   && [ "$(readlink -f "$OMP_LEGACY" 2>/dev/null)" = "$(readlink -f "$SRC")" ]; then
+  unlink "$OMP_LEGACY"
+  echo "removed legacy: $OMP_LEGACY"
+fi
+
 # ── Memori per-project (Claude Code) ──────────────────────────────────────────
 # Claude Code menyimpan memori per-project di ~/.claude/projects/<cwd>/memory/,
 # dan <cwd> = $HOME dengan '/' → '-' ('-Users-ongki' di Mac, '-home-<user>' di
@@ -56,7 +64,7 @@ done
 # Kalau symlink ini TIDAK ada, Claude Code tidak error — ia diam-diam bikin
 # direktori kosong baru, dan konteks project hilang tanpa gejala. Karena itu
 # bagian ini idempoten dan aman dijalankan di device yang belum punya.
-PMEM_SRC="$HOME/dotfiles/config/ai/project-memory"
+PMEM_SRC="$(cd "$(dirname "$SRC")" && pwd -P)/project-memory"
 PMEM_DST="$HOME/.claude/projects/$(printf '%s' "$HOME" | tr '/' '-')/memory"
 
 if [ -d "$PMEM_SRC" ]; then

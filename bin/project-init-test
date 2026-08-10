@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Validate repository-local project contract generation in an isolated directory.
+set -euo pipefail
+
+REPO="${1:-$HOME/dotfiles}"
+SCRIPT="$REPO/bin/project-init"
+[ -x "$SCRIPT" ] || { echo "ERROR: project-init not executable: $SCRIPT" >&2; exit 1; }
+
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/project-init-test.XXXXXX")"
+cleanup() { rm -rf "$TMP"; }
+trap cleanup EXIT
+
+PROJECT="$TMP/sample-project"
+mkdir -p "$PROJECT"
+printf 'user-owned\n' > "$PROJECT/STATUS.md"
+
+"$SCRIPT" --repo "$PROJECT" tools 'Sandbox & validation | project' >/dev/null
+"$SCRIPT" --repo "$PROJECT" tools 'Sandbox & validation | project' >/dev/null
+
+for path in AGENTS.md PRD.md TASKS.md STATUS.md BUILD-LOG.md docs/architecture.md; do
+  [ -f "$PROJECT/$path" ] || { echo "FAIL: missing $path" >&2; exit 1; }
+done
+
+[ "$(cat "$PROJECT/STATUS.md")" = 'user-owned' ] \
+  || { echo 'FAIL: existing STATUS.md was overwritten' >&2; exit 1; }
+
+if grep -Rqs '{{[^}]*}}' "$PROJECT"; then
+  echo 'FAIL: unresolved template placeholder' >&2
+  exit 1
+fi
+
+[ ! -e "$PROJECT/docs/specs" ] && [ ! -e "$PROJECT/docs/decisions" ] \
+  || { echo 'FAIL: speculative empty documentation directories created' >&2; exit 1; }
+
+echo 'project-init-test: OK'

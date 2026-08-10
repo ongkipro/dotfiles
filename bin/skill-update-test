@@ -32,7 +32,8 @@ trap cleanup EXIT
 # Mirror the layout skill-update derives SRC from: <script>/../local
 FAKE_HOME="$TMP/home"
 SRC="$TMP/skills/local"
-mkdir -p "$TMP/skills/agents-bin" "$SRC/demo-skill" "$FAKE_HOME/.claude"
+mkdir -p "$TMP/skills/agents-bin" "$SRC/demo-skill" \
+  "$FAKE_HOME/.claude" "$FAKE_HOME/.codex/skills/.system"
 cp "$REAL" "$TMP/skills/agents-bin/skill-update"
 chmod +x "$TMP/skills/agents-bin/skill-update"
 echo '# demo' > "$SRC/demo-skill/SKILL.md"
@@ -63,7 +64,31 @@ else
   fail=1
 fi
 
-echo "3. target resolving INSIDE the source must be REFUSED"
+echo "3. Codex adapter must preserve .system and expose owned skills"
+if [ -d "$FAKE_HOME/.codex/skills/.system" ] \
+   && [ -L "$FAKE_HOME/.codex/skills/demo-skill" ] \
+   && [ "$(readlink "$FAKE_HOME/.codex/skills/demo-skill")" = "$SRC/demo-skill" ]; then
+  echo "   ✓ Codex native root preserved"
+else
+  echo "   ✗ FAIL: Codex adapter did not preserve .system or link owned skill"
+  fail=1
+fi
+
+echo "4. removed owned skill must disappear from Codex deterministically"
+mv "$SRC/demo-skill" "$SRC/removed-skill"
+out="$(run_it || true)"
+if [ ! -e "$FAKE_HOME/.codex/skills/demo-skill" ] \
+   && [ -L "$FAKE_HOME/.codex/skills/removed-skill" ]; then
+  echo "   ✓ stale owned link removed"
+else
+  echo "   ✗ FAIL: Codex reconciliation left stale state"
+  printf '%s\n' "$out" | sed 's/^/     /'
+  fail=1
+fi
+mv "$SRC/removed-skill" "$SRC/demo-skill"
+run_it >/dev/null
+
+echo "5. target resolving INSIDE the source must be REFUSED"
 # This is the shape that ate the skills directory: the target points at a path
 # *within* SRC, so the "move it aside" branch would mv a real skill out of the
 # source tree. Guard must abort before reaching that branch.
@@ -86,7 +111,7 @@ else
   echo "   ✓ refused (exit $rc)"
 fi
 
-echo "4. and it must have moved NOTHING inside the source"
+echo "6. and it must have moved NOTHING inside the source"
 # The actual damage signature of the old bug: skills renamed to *.backup.<ts>.
 if [ -f "$SRC/demo-skill/SKILL.md" ] \
    && [ -z "$(find "$SRC" "$FAKE_HOME/.claude" -maxdepth 2 -name '*.backup.*' 2>/dev/null)" ]; then

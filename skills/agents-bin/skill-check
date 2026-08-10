@@ -45,7 +45,7 @@ for dir in "${skills[@]}"; do
     printf '%s\t%s\n' "$name" "$folder" >> "$seen_file"
   fi
 
-  rg -q '\[TODO[^]]*\]|TODO:' "$file" && bad "$folder: unresolved TODO placeholder"
+  grep -Eq '\[TODO[^]]*\]|TODO:' "$file" && bad "$folder: unresolved TODO placeholder"
   lines="$(wc -l < "$file" | tr -d ' ')"
   [ "$lines" -le 500 ] || wrn "$folder: SKILL.md is $lines lines; split references near 500"
 
@@ -55,7 +55,7 @@ for dir in "${skills[@]}"; do
     esac
     target="${target%%#*}"
     [ -e "$dir/$target" ] || bad "$folder: broken relative link $target"
-  done < <(rg -o '\]\([^)]+\)' "$file" | sed -E 's/^\]\((.*)\)$/\1/' || true)
+  done < <(grep -Eo '\]\([^)]+\)' "$file" | sed -E 's/^\]\((.*)\)$/\1/' || true)
 
   ok "$folder"
 done

@@ -24,7 +24,7 @@ Maintained by [Ongki Pro](https://ongki.pro).
 
 ## Overview
 
-This private repository is the source of truth for Ongki's development environment across Linux and macOS. It keeps terminal configuration, AI instructions, reusable skills, device records, and bootstrap scripts in one Git history.
+This private repository is the source of truth for Ongki's terminal-first development environment across Linux and macOS. It keeps terminal configuration, shared AI policy and memory, reusable capabilities, OMP configuration, device records, and bootstrap scripts in one Git history.
 
 > [!IMPORTANT]
 > This repository must remain **PRIVATE**. It intentionally excludes credentials, but it still contains personal workflows, device inventory, project context, and operational details that are not intended for public distribution. Never change the GitHub visibility to public.
@@ -39,10 +39,10 @@ It solves four recurring problems:
 
 | Problem | Repository contract |
 |---|---|
-| A new machine takes days to rebuild | Clone the repository, review the installer, run the OS-specific bootstrap, then verify with `ai-doctor`. |
+| A new machine takes days to rebuild | Clone the repository, review the installer, run the OS-specific bootstrap, then verify the resulting links and runtime state. |
 | Machine configuration drifts | Live configuration is symlinked back to tracked files whenever practical. |
-| AI CLIs lose context between devices | Claude, Codex, Pi, and Antigravity read the same shared instruction and memory system. |
-| Reusable AI workflows get duplicated | Owned skills have one canonical source: `skills/local/`. |
+| AI workers lose shared engineering context | OMP and the supported standalone CLIs are wired to one tracked policy source and can read the same memory. |
+| Reusable AI workflows get duplicated | Owned capabilities have one canonical source: `skills/local/`. |
 
 This is a personal operating system, not a generic framework. Paths, Git identity, tool choices, and AI routing reflect Ongki's machines and workflow.
 
@@ -66,10 +66,10 @@ A **dotfiles repository** stores those configurations in Git so they can be revi
 The repository has six practical functions:
 
 1. **Reproduces the environment.** The OS-specific installers connect a new machine to the tracked configuration.
-2. **Keeps machines consistent.** Linux and macOS share the same core memory, skills, editor configuration, and terminal conventions where the platforms allow it.
-3. **Shares AI context.** Claude, Codex, Pi, and Antigravity receive the same durable operating rules and memory.
-4. **Centralizes reusable skills.** A skill is maintained once under `skills/local/` instead of copied into every CLI.
-5. **Diagnoses drift.** `ai-doctor`, `security-check`, and the device registry reveal broken links, stale assumptions, and unsafe content.
+2. **Keeps machines consistent.** Linux and macOS share the same core policy, memory, skills, editor configuration, and terminal conventions where the platforms allow it.
+3. **Shares AI context.** OMP is the primary control plane; supported standalone CLIs are wired to consume the same tracked policy and on-demand memory.
+4. **Centralizes reusable capabilities.** A skill is maintained once under `skills/local/` instead of copied into provider-specific packages.
+5. **Diagnoses drift.** `ai-doctor`, focused checks, and the device registry expose broken links, stale assumptions, and unsafe content.
 6. **Provides recovery history.** Git records what changed and makes intentional rollback possible without relying on undocumented machine state.
 
 It does **not** synchronize secrets, authentication sessions, SSH keys, private environment files, or arbitrary home-directory data.
@@ -125,39 +125,80 @@ Not every file is linked. Device-local state and secrets deliberately remain out
 
 ## Architecture
 
+### OMP control plane
+
+OMP is the primary development control plane. It owns the session, tool runtime,
+task-agent execution, capability discovery, and model selection. OMP talks to
+model providers directly; it does not launch Claude, Codex, or Antigravity CLI
+as subprocess workers.
+
+Tracked OMP configuration is linked into its native agent directory:
+
+```text
+~/.omp/agent/config.yml -> ~/dotfiles/config/omp/config.yml
+~/.omp/agent/models.yml -> ~/dotfiles/config/omp/models.yml
+```
+
+`config.yml` is the authority for model roles, thinking defaults, fallback
+chains, and runtime settings. `models.yml` defines tracked, non-secret custom
+provider metadata. OAuth sessions, API keys, and provider authentication remain
+machine-local.
+
+Do not duplicate model routing inside skills. A capability defines what and how;
+OMP decides which model executes it.
+
 ### Shared AI context
 
-The cross-CLI instruction source is:
+The cross-runtime instruction source is:
 
 ```text
 config/ai/AGENTS.md
 ```
 
-`bin/ai-memory-link` connects it to the context path used by each installed CLI:
+`~/.config/ai` is a symlink to `~/dotfiles/config/ai`. The current context
+adapters are:
 
-```text
-~/.claude/CLAUDE.md
-~/.codex/AGENTS.md
-~/.antigravity/AGENTS.md
-~/.gemini/GEMINI.md
-```
+| Live path or mechanism | Consumer | Current state |
+|---|---|---|
+| `~/.claude/CLAUDE.md` | Claude Code | Linked |
+| `~/.codex/AGENTS.md` | Codex | Linked |
+| `~/.antigravity/AGENTS.md` | Antigravity compatibility path | Linked |
+| `~/.gemini/GEMINI.md` | Antigravity/Gemini compatibility path | Linked; standalone Gemini CLI is not installed |
+| `pi()` shell wrapper | Pi | Appends `~/.config/ai/AGENTS.md` |
+| `~/.omp/agent/AGENTS.md` | OMP native user context | Linked |
 
-Pi receives the same instructions through the shell wrapper in `config/shell-tools.sh`. The `.gemini` directory belongs to Antigravity in this setup; the standalone Gemini CLI is deliberately not part of the supported stack.
+`~/.omp/AGENTS.md` is an obsolete compatibility path. `ai-memory-link` removes
+it only when it is still the managed link to the canonical source.
 
-Claude Code uses one native profile at `~/.claude`. There are no personal/work launchers or alternate config-directory profiles.
+Claude Code uses one native profile at `~/.claude`. There are no tracked
+personal/work launchers or alternate config-directory profiles.
 
 ### Memory layers
 
 | Layer | Location | Purpose |
 |---|---|---|
-| Always-loaded policy | `config/ai/AGENTS.md` | Stable behavior, approval gates, language rules, and routing. |
-| Shared memory | `config/ai/memory/` | Environment, workflow, preferences, decisions, and cross-project facts. |
-| Project memory | `config/ai/project-memory/` | Project-specific decisions and gotchas, indexed by `MEMORY.md`. |
-| Device-local notes | `~/.config/ai-local/` | Private machine details that must not sync. |
+| Always-loaded policy | `config/ai/AGENTS.md` | Universal behavior, approval gates, evidence discipline, and short pointers |
+| Shared memory | `config/ai/memory/` | Environment, workflow, preferences, decisions, and cross-project facts read on demand |
+| Project reference memory | `config/ai/project-memory/` | Project-specific decisions and gotchas, indexed by `MEMORY.md` |
+| Device-local notes | `~/.config/ai-local/` | Private machine details that must not sync |
 
-Code progress does not belong in shared memory. Read each project's `STATUS.md`, `BUILD-LOG.md`, or equivalent repository artifact.
+The project-memory directory is linked to Claude's memory path for sessions
+whose project key is the home directory:
 
-### Skills
+```text
+~/.claude/projects/-home-ongki/memory
+  -> ~/dotfiles/config/ai/project-memory
+```
+
+That is not universal automatic discovery for every project or runtime. Other
+sessions read the tracked memory files when relevant. Current code progress must
+remain in each project's `STATUS.md`, `BUILD-LOG.md`, `TASKS.md`, or equivalent
+repository artifact.
+
+OMP's autonomous memory backend is not enabled in the tracked configuration, so
+it does not currently create a competing long-term memory source.
+
+### Skills and reusable capabilities
 
 Owned skills live in exactly one place:
 
@@ -165,15 +206,22 @@ Owned skills live in exactly one place:
 skills/local/<skill-name>/SKILL.md
 ```
 
-On a configured machine:
+Current runtime adapters:
 
-```text
-~/.claude/skills       ─┐
-~/.pi/agent/skills     ─┼──> ~/dotfiles/skills/local/
-~/.agents/local-skills ─┘
-```
+| Runtime | Live path | Shape | Access |
+|---|---|---|---|
+| OMP | `~/.omp/agent/skills` | Directory symlink | Automatic |
+| Claude | `~/.claude/skills` | Directory symlink | Automatic |
+| Pi | `~/.pi/agent/skills` | Directory symlink | Automatic |
+| Antigravity | `~/.gemini/config/skills` | Directory symlink | Automatic native discovery |
+| Codex | `~/.codex/skills` | Real directory preserving `.system`, plus managed per-skill links | Automatic native discovery |
+| Shared helper | `~/.agents/local-skills` | Directory symlink | Canonical-source convenience path |
 
-Claude and Pi discover the directory automatically. Codex and Antigravity use `skill-list`, then read the relevant `SKILL.md` directly. Skills are not repackaged as per-CLI plugins because that would create another source of truth.
+Codex is the deliberate exception to the whole-directory model: replacing
+`~/.codex/skills` would hide runtime-owned `.system` skills. `skill-update`
+therefore reconciles one link per owned capability and removes only stale links
+that it owns. Obsolete `~/.gemini/skills` and `~/.antigravity/skills` links are
+removed when they point exactly at the canonical source.
 
 Useful commands:
 
@@ -185,7 +233,27 @@ skill-remove <name>
 skill-update
 ```
 
-`skill-update` establishes or repairs the directory symlinks. Once linked, normal cross-device synchronization is just Git.
+The active updater is:
+
+```text
+~/.agents/bin/skill-update
+  -> ~/dotfiles/skills/agents-bin/skill-update
+```
+
+It establishes or repairs runtime adapters and does not fetch an external skill
+repository. Directory-link runtimes follow Git immediately; run `skill-update`
+after adding or removing a skill to reconcile Codex, or after installing a runtime.
+
+### Model and worker boundary
+
+OMP task agents inherit the parent session's discovered skills. Provider/model
+availability depends on machine-local authentication, while role selection lives
+in `config/omp/config.yml`. Inspect that file rather than copying a model table
+into documentation that will drift.
+
+Standalone Claude, Codex, Pi, and Antigravity remain useful for direct
+provider-specific work, but switching to one is an explicit context handoff, not
+an OMP subagent dispatch.
 
 ## Repository map
 
@@ -195,6 +263,7 @@ dotfiles/
 │   └── ai-memory-check          # Broken Markdown link and wikilink detector
 ├── config/
 │   ├── ai/                      # Cross-CLI policy and memory
+│   ├── omp/                     # OMP model roles, runtime settings, and custom providers
 │   ├── helix/                   # Editor and language-server configuration
 │   ├── pi/                      # Pi settings and extensions
 │   ├── systemd/user/            # Tracked user-service definitions
@@ -306,15 +375,21 @@ On a machine that already has development configuration:
 
 ## Verification
 
-`ai-doctor` is the primary integrity check:
+`ai-doctor` is the broad integrity check:
 
 ```bash
 ai-doctor
 ```
 
-It checks the repository, shared context targets, memory paths, memory links, skill links, dangling symlinks, security guards, installed AI CLIs, and selected memory-versus-disk invariants.
+It inspects the repository, native context targets, memory paths, runtime skill
+visibility, canonical updater resolution, OMP configuration, dangling symlinks,
+security controls, installed AI CLIs, and selected memory-versus-disk invariants.
+Default mode is read-only and never repairs or installs anything.
 
-Additional focused checks:
+Use `ai-doctor --self-test` to additionally run regression checks that create
+isolated temporary sandbox files.
+
+Focused checks:
 
 ```bash
 ai-memory-check
@@ -325,12 +400,16 @@ security-check-test
 bin/installer-link-test
 bin/skill-remove-test
 bin/skill-update-test
+bin/project-init-test
 bin/turnstile-secret-test
 device-register --dry-run
 dotsync doctor
 ```
 
-A passing static check does not prove every interactive CLI is authenticated. Test the relevant CLI directly when authentication or runtime behavior matters.
+The `*-test` commands may create disposable files or repositories under a
+temporary directory. A passing static check does not prove interactive
+authentication, provider reachability, or model availability. Exercise only the
+relevant runtime when those claims matter, and never print credential values.
 
 ## Daily workflow
 
@@ -343,15 +422,19 @@ git status --short
 lg
 ```
 
-Stage only the intended files, review the staged diff, commit, and push from Lazygit.
+Use Lazygit for interactive inspection and authorized Git actions. Stage only the intended files, review the staged diff, and commit or push only when the user has approved that specific action. Prefer plain Git for deterministic automation.
 
-Read-only helpers:
+Inspection helpers:
 
 ```bash
 dotsync status
 dotsync doctor
 security-check
 ```
+
+These commands do not intentionally change tracked repository content, but some
+use temporary files internally; they are not substitutes for a strict
+zero-write audit.
 
 `dotsync commit` and `dotsync sync` are broad convenience commands: they refresh machine snapshots and run `git add -A` before confirmation. Use them only when the entire working tree is intentionally in scope. `dotpush` is an even broader commit-and-push fast path. Neither is appropriate for a mixed or dirty worktree.
 
@@ -398,16 +481,26 @@ security-check
 
 If a real secret is ever committed, removing the file in a later commit is insufficient. Revoke or rotate the credential immediately, then handle Git history deliberately.
 
-## Supported AI CLI stack
+## Supported AI runtime stack
 
-| CLI | Default role | Skill access |
+| Runtime | Current role | Owned skill access |
 |---|---|---|
-| Claude Code | Long-context architecture and implementation | Automatic |
-| Pi | Daily terminal inspection, editing, and execution | Automatic |
-| Codex | Focused implementation, debugging, and review | `skill-list` plus direct `SKILL.md` read |
-| Antigravity (`agy`) | UI-oriented work, previews, and smaller development tasks | `skill-list` plus direct `SKILL.md` read |
+| OMP | Primary development control plane and model router | Automatic |
+| Codex / OpenAI inside OMP | Default development model provider | Inherits OMP skills |
+| Antigravity / Gemini inside OMP | Visual, UI, and supporting model provider | Inherits OMP skills |
+| Claude models inside OMP | High-value architecture, debugging, migration, and security consultation through `advisor` | Inherits OMP skills |
+| Claude Code CLI | Standalone provider-specific consultation and long-context work | Automatic |
+| Codex CLI | Standalone focused implementation, debugging, and review | Automatic through managed links beside `.system` |
+| Antigravity (`agy`) CLI | Standalone visual/UI work | Automatic through `~/.gemini/config/skills` |
+| Pi | Supporting terminal runtime and machine-local provider workflows | Automatic |
 
-These are routing defaults, not hard boundaries. Continue in the CLI that already owns the relevant context.
+MiniMax, OpenCode-compatible providers, 9Router, and future model providers are
+execution options rather than capability owners. Exact availability and
+authentication are machine-local. `config/omp/ROUTING.md` owns semantic routing;
+`config/omp/config.yml` owns executable selectors and fallbacks.
+
+Continue in OMP when it already owns the session. Moving to a standalone CLI is
+an explicit handoff and does not automatically transfer conversation state.
 
 ## Toolchain
 
@@ -425,7 +518,7 @@ Editor     Helix
 Terminal   tmux + bash/zsh + Starship
 Git        Git + Lazygit + Delta + GitHub CLI
 Tools      mise-managed user tools
-AI         Claude Code + Pi + Codex + Antigravity
+AI         OMP primary + Claude Code + Pi + Codex + Antigravity
 ```
 
 ## Documentation

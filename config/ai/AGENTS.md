@@ -1,7 +1,7 @@
 # Shared Memory — Cross-CLI Conventions
 
-> Loaded into: claude / codex / antigravity(`agy`) via symlink, pi (via `pi()` wrapper).
-> Stack AI CLI resmi = **claude, codex, pi, agy, omp**. Jangan install `@google/gemini-cli` lagi.
+> Loaded into Claude, Codex, Antigravity, and OMP through runtime-native context paths; Pi receives it through the `pi()` wrapper.
+> Supported standalone AI CLIs: **claude, codex, pi, agy, omp**. Do not install `@google/gemini-cli`; `.gemini` belongs to Antigravity compatibility on this setup.
 
 ## Operating profile
 
@@ -24,12 +24,11 @@
 - Memory edits → `~/.config/ai/memory/*.md` (cross-device via dotfiles)
 - Device-only edits → `~/.config/ai-local/*.md` (persists on this machine only)
 
-## CLI routing & skills
+## Runtime routing and capabilities
 
-Pembagian default per-CLI ada di `memory/skills.md` — bukan pagar; kalau satu CLI sudah memegang konteksnya, lanjutkan di situ.
+OMP development routing is canonical in `config/omp/ROUTING.md`. Keep the current context owner unless a specialist or independent review is justified.
 
-Sumber tunggal skill: **`~/dotfiles/skills/local/<nama>/SKILL.md`**. claude, pi, & omp menemukannya otomatis (dir skill mereka symlink ke sana).
-Butuh skill di codex/agy? Jalankan **`skill-list`**, lalu **baca** `~/dotfiles/skills/local/<nama>/SKILL.md` langsung — jangan dibungkus jadi plugin (itu menciptakan sumber kedua).
+Owned capabilities have one source: **`~/dotfiles/skills/local/<name>/SKILL.md`**. Claude, Pi, OMP, and Antigravity discover the canonical directory automatically. Codex preserves its native `.system` skills and receives per-skill links to the same owned source. `skill-update` reconciles runtime adapters; it never copies methodology.
 
 ## Code discipline (lazy senior dev)
 
