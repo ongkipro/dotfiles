@@ -1,0 +1,4 @@
+interface:
+  display_name: "Storefront Development"
+  short_description: "Build clean adaptive commerce storefronts"
+  default_prompt: "Use $storefront-development to implement this storefront flow with a clean Dawn-inspired baseline."

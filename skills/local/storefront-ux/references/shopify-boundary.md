@@ -31,7 +31,7 @@ here.
 | Lines per `cartLinesAdd` call | **250** — larger carts must batch | verified on shopify.dev |
 | Discount codes per order | 5 product/order + 1 shipping | **unverified** — community-sourced, and a conflicting 25-code figure exists. Confirm before designing around it |
 | Active automatic discounts | 25 | **unverified** |
-| Ajax API bundled section rendering | 5 sections per request | **unverified** |
+| Ajax API bundled section rendering | 5 sections per request | verified on shopify.dev |
 
 A cart approaching these needs designed behavior, not a thrown error: say what
 was not added and why.
@@ -98,6 +98,20 @@ shortcut — it will break on a schedule you don't control.
   recovery path.
 - Verify whether inventory quantity is intentionally exposed before showing a
   number. Truthful availability beats invented stock counts.
+
+## Cart and checkout handoff
+
+- Hosted themes use the locale-aware Ajax Cart API. Headless storefronts use
+  the Storefront Cart API; the Ajax API is not available to custom storefronts.
+- Treat cart totals as estimates when checkout can recalculate shipping, tax,
+  duties, discounts, currency, or inventory.
+- Modern Storefront Cart IDs can contain a secret key used to protect buyer
+  data. Never expose that secret in shareable URLs, public pages, analytics, or
+  logs.
+- Retrieve a current `checkoutUrl` when the buyer is ready to navigate. A stale
+  or locally constructed checkout URL is not an acceptable fallback.
+- Checkout UI extensions run at supported targets with target-specific APIs and
+  Shopify UI components. They are not arbitrary checkout DOM/CSS access.
 
 ## Validation questions
 

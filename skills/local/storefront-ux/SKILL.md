@@ -9,7 +9,8 @@ description: >-
   implementation acceptance criteria. Keep decisions
   backend-neutral; use the Shopify boundary reference when the project uses Shopify. Not for
   visual styling or aesthetics (design-taste), marketing or product copy (copywriting/content),
-  API syntax, component installation, admin dashboards, or browser-based validation execution.
+  API syntax or component installation (storefront-development implements the accepted contract),
+  admin dashboards, or browser-based validation execution.
 ---
 
 # Storefront UX
@@ -20,9 +21,10 @@ Own the behavior of the commerce journey, including failure and recovery paths. 
 
 | Need | Use |
 |---|---|
+| Implement storefront pages, product controls, cart, checkout handoff, or framework boundaries | `storefront-development` |
 | Visual hierarchy, art direction, spacing, motion, aesthetic review | `design-taste` |
 | Product, merchandising, SEO, or interface copy | `content` or `copywriting` |
-| Components and implementation syntax | Relevant framework or component skill |
+| Framework/component API details beyond the storefront boundary | Relevant framework or component skill |
 | Admin and operational dashboards | `admin-dashboard` |
 | Runtime performance diagnosis | `web-perf` |
 | Browser, accessibility, and visual validation execution | `ui-validation` |

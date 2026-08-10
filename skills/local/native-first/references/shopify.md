@@ -11,7 +11,7 @@ Highest-frequency stack in this workspace. Two very different modes — don't mi
 |---|---|
 | a custom "custom fields" table | **Metafields** / **Metaobjects** (native, queryable, editable in admin) |
 | an app to make a section configurable | Liquid **section settings + blocks** — merchant edits it in the theme editor, no app |
-| a custom cart page/state | **Cart Ajax API** (`/cart/add.js`, `/cart.js`) |
+| a custom cart backend | Hosted theme: **Ajax Cart API**; headless: **Storefront Cart API**. Keep one UI cart owner, but do not rebuild commerce rules. |
 | a custom search backend | Shopify's Search & Discovery + predictive search endpoint |
 | a bespoke discount engine | native Discounts, or a **Shopify Function** — not app-side price math |
 | a custom checkout | you can't. **Checkout Extensions** only. (Checkout.liquid is gone on Plus too.) |
@@ -24,7 +24,11 @@ Highest-frequency stack in this workspace. Two very different modes — don't mi
 
 Live on: pixsgo, petcue, homelook, aussie-malaysia, petanisejahtera.
 
-- Storefront API token is **public-scoped** — fine in the client. **Admin API tokens are NOT.** Never let an Admin token reach the browser or a public Worker route.
+- Storefront API supports tokenless access for core catalog/cart operations and
+  public tokens for permitted client queries. Private Storefront and all Admin
+  tokens are secrets. Never let them reach the browser or a public Worker route.
+- Modern Storefront Cart IDs can contain a secret key. Keep it out of shareable
+  URLs, public markup, analytics, and logs; use a server boundary when required.
 - Prefer build-time (SSG) product fetch; go SSR only for cart/search/inventory-sensitive views.
 - Cache Storefront responses at the edge — don't hit the API on every request.
 - Respect rate limits: GraphQL Admin is **cost-based**, not request-count. Read `extensions.cost` in the response and back off.
