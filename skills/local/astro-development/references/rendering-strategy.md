@@ -3,9 +3,10 @@
 ## Default order
 
 1. static
-2. static + islands
-3. static + server routes/server islands
-4. broader server rendering only if really necessary
+2. static + client islands
+3. static output + selected on-demand routes (`prerender = false`)
+4. server islands (`server:defer`) for deferred dynamic fragments
+5. `output: 'server'` only when most routes need request-time rendering
 
 ## Pick static when
 
@@ -33,3 +34,15 @@
 - keep headers, footers, cards, article content, and most sections static
 - hydrate only mobile menus, filters, forms, or truly interactive widgets
 - for public websites, start static and opt into dynamic pieces later
+
+## Do not confuse the two island types
+
+- A client island hydrates browser JavaScript with a `client:*` directive.
+- A server island uses `server:defer`, requires an adapter, and fetches deferred
+  server-rendered HTML. Its props must be serializable.
+- A server island does not make an interactive component; add a client island
+  inside only when browser behavior is also necessary.
+
+`output: 'server'` changes the default prerendering behavior; it does not unlock
+features unavailable to selectively on-demand routes. Under server output,
+mark public static routes with `export const prerender = true`.

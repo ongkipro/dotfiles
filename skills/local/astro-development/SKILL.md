@@ -1,17 +1,13 @@
 ---
 name: astro-development
-description: End-to-end Astro development skill for building, scaling, reviewing, and shipping Astro sites and apps. Use when creating a new Astro project, adding pages or components, choosing static vs server rendering, setting up content collections, SEO, Tailwind, React islands, forms, APIs, adapters, deployment, or auditing an existing Astro codebase. Also use when the user asks to build a website in Astro without specifying the architecture. NOT for the standalone question "is there a built-in for this?" (native-first), NOT for SEO strategy or audits (seo-website-builder), and NOT the lead for visual direction/design judgment of marketing pages (design-taste leads there; this skill leads the code).
+description: End-to-end Astro architecture and implementation for sites and light-to-medium web apps. Use when creating or auditing an Astro project, running Astro CLI commands, adding pages, content collections, React/shadcn islands, Actions, sessions, endpoints, middleware, adapters, Cloudflare Workers deployment, or choosing static versus on-demand rendering. Also use for Astro-based admin dashboards, with admin-dashboard leading UX decisions and shadcn-ui leading component APIs. Not for generic native-feature questions (native-first), SEO strategy/audits (seo-website-builder), or visual direction (design-taste).
 ---
 
 # Astro Development
 
-All-in-one Astro skill for real project delivery.
-
-This skill combines:
-- **Astro framework expertise** for architecture and implementation decisions
-- **Astro builder workflow** for shipping complete websites
-- **SEO/content site patterns** for business and marketing sites
-- **optional skill publishing** notes for teams that want to distribute skills from an Astro site
+Inspect `package.json`, the lockfile, `astro.config.*`, `tsconfig.json`, and the
+route/component tree before proposing commands or architecture. Installed code
+wins over this skill; current official docs win over remembered APIs.
 
 ## Use this skill for
 
@@ -32,7 +28,8 @@ This skill combines:
 - Prefer **Astro first**, minimal JS by default
 - Ship **static HTML** unless interactivity is required
 - Hydrate only the **smallest interactive island**
-- Prefer **hybrid thinking** over making the whole app fully server-rendered
+- Start with static output and opt individual routes into on-demand rendering;
+  use `output: 'server'` only when most routes are dynamic
 - Build for **clarity, performance, and maintainability**
 - For websites, prioritize **real content + strong information architecture + SEO**
 - When animation is needed, follow the `design-taste` motion ladder: CSS-first (transitions, scroll-driven animations), then vanilla JS + IntersectionObserver; reach for **GSAP** (via the installed GSAP skills) only for real pin/scrub/timeline work — never invent bespoke animation patterns
@@ -49,13 +46,45 @@ Decide which lane fits best:
 
 If Astro is a poor fit, say so early.
 
+For an existing repository, do not re-scaffold. Run its own scripts and inspect
+its installed Astro major before using current syntax.
+
+## CLI policy
+
+Do not install a global Astro CLI. Use the project-pinned binary through the
+package manager so commands match the lockfile.
+
+```bash
+# New project; choose the package manager intended for the repo
+npm create astro@latest
+
+# Existing project; prefer package.json scripts
+npm run dev
+npm run build
+npm run preview
+
+# Official integrations modify dependencies and astro.config.*
+npx astro add react
+npx astro add cloudflare
+
+# Smallest static checks
+npx astro sync
+npx astro check
+```
+
+Replace `npm`/`npx` with the lockfile's package manager. Before an unfamiliar
+flag, run the project-pinned `astro --help` or relevant subcommand help. Adding
+an integration mutates source/config: inspect the current official integration
+guide first.
+
 ## 2. Choose rendering strategy
 
 Use this default order:
 
 1. **static** for most pages
-2. **server islands** or selective server routes for dynamic fragments
-3. **server-rendered routes** only where needed
+2. **on-demand routes** for request-time pages or endpoints
+3. **server islands** for deferred personalized fragments when an adapter is installed
+4. **server output** only when most routes need request-time rendering
 
 Rules:
 - If most pages are content and public, keep the project mostly static
@@ -96,6 +125,8 @@ See:
 - [Astro Core Patterns](references/astro-core-patterns.md)
 - [Content Collections](references/content-collections.md)
 - [UI and Islands](references/ui-and-islands.md)
+- [Admin Dashboard Runtime](references/admin-dashboard-runtime.md) when the
+  project combines Astro, React, and shadcn/ui
 
 ## 5. Add SEO and site quality by default
 
@@ -122,6 +153,11 @@ When needed, support:
 - admin utilities
 
 Use dynamic behavior only where it adds value.
+
+Prefer Astro Actions for type-safe UI-to-server mutations and validated form
+input. Keep API endpoints for public protocols, webhooks, machine clients, or
+responses that need explicit HTTP control. Actions are public endpoints: check
+authentication and authorization inside every privileged handler.
 
 See [Dynamic Features](references/dynamic-features.md).
 
@@ -171,6 +207,17 @@ When doing Astro work, aim to produce:
 - correct Astro conventions
 - maintainable folder structure
 - minimal overengineering
+
+## Skill routing
+
+- Load `admin-dashboard` for admin IA, density, tables, KPIs, charts, operator
+  workflows, and responsive behavior.
+- Load `shadcn-ui` for current component/CLI APIs. In an Astro project, run
+  `shadcn info --json`; use the official Astro install guide rather than
+  adapting a Next.js snippet blindly.
+- Load `workers-best-practices` for runtime code and `wrangler` before Wrangler
+  commands. Deployment and remote binding writes retain their approval gates.
+- Load `ui-validation` after browser-visible changes.
 
 ## Optional advanced mode
 

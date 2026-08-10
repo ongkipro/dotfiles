@@ -16,7 +16,8 @@ After a browser-visible component change, use `ui-validation` for the smallest
 viewport, keyboard, state, and accessibility evidence. Component compilation
 alone is not UI proof.
 
-> **For Dashboard architectures (Admin, SaaS):** Refer to `~/.config/ai/memory/shadcn-dashboard-architect.md` for framework-specific setup (Astro vs Next.js vs Vite) and layout shell patterns using `SidebarProvider`.
+For dashboard architecture and information hierarchy, load `admin-dashboard`.
+For Astro ownership and hydration boundaries, also load `astro-development`.
 
 **Prerequisite:** Tailwind CSS and the project's token strategy must already be
 understood. For an accepted new shadcn setup, verify the current CLI help and
@@ -64,10 +65,12 @@ npx skills add shadcn/ui      # telemetry is on by default; DISABLE_TELEMETRY=1 
 ```
 
 It carries what a hand-maintained file drifts on: the current CLI reference,
-registry authoring, and the shadcn MCP setup. It does **not** read
-`components.json` for you — that is the agent's job either way (section above,
-which stays authoritative; the official skill supersedes this file on CLI
-syntax and registry work, not on the house rules).
+registry authoring, and the shadcn MCP setup. On each interaction it runs
+`shadcn info --json`, which resolves `components.json`, the framework, Tailwind
+version, aliases, base and icon libraries, installed components, and file paths.
+The inspection rule above remains authoritative when the official skill is not
+installed or the command fails. The official skill supersedes this file on CLI
+syntax and registry work, not on the house rules.
 
 **Before installing it, check where it writes.** `~/.claude/skills` is a symlink
 to `~/dotfiles/skills/local`, so an installer aimed there drops an unvendored
@@ -145,6 +148,16 @@ Two traps: the **`@namespace` is required** (a bare `shadcn search button`
 errors out), and these must be **run inside the project** — `docs` and `view`
 resolve against its `style`, so the same command returns the `radix` page in one
 project and the `base` page in another.
+
+For an installed project, prefer one machine-readable context command before
+planning components:
+
+```bash
+shadcn info --json
+```
+
+Do not infer framework, aliases, base library, or installed items from folder
+names when this command can resolve them.
 
 `init` creates `components.json`, `src/lib/utils.ts` (the `cn` helper), and
 `src/components/ui/`, and writes the token block into your main CSS file. On v4
@@ -463,6 +476,28 @@ export function AppSidebar() {
 // Custom shortcut
 <SidebarProvider defaultOpen={true}>
 ```
+
+### Astro boundary
+
+shadcn's Astro template installs React because shadcn components are React
+components. Static components such as `Card` can render from an `.astro` page
+without a client directive. Components that need event handlers, context, or
+browser state must live inside a hydrated React root. Keep a context-dependent
+composition together: hydrating `SidebarProvider` while rendering a consumer
+as a separate island creates separate React roots and the context will not
+cross between them.
+
+```astro
+---
+import DashboardShell from '@/components/dashboard-shell'
+---
+
+<DashboardShell client:load />
+```
+
+Use `client:load` for navigation and controls needed immediately. Use
+`client:visible` for independent below-the-fold charts. Do not hydrate
+presentational cards, headings, or tables merely because their source is TSX.
 
 ## Blocks
 

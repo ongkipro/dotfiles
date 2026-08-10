@@ -118,8 +118,17 @@ Recharts already ships via `shadcn-ui`. **Default is Recharts. Step up only when
 
 ## 7. Stack fit — Astro vs Next, server data
 
-- **Heavy stateful admin (SPA-like: shared state across components, client routing, live tables, filters talking to each other)** → **React SPA / Next.js**. Astro islands are **isolated by design** — shared state across islands is awkward. Keep **Astro** for **marketing + light admin** (status pages, simple settings). Common split: public Astro + a separate React/Next app for the dense admin.
+- **Route-oriented admin with bounded interactive regions** → Astro can hold it:
+  server-render the protected route, keep static markup static, and place each
+  coordinated React/shadcn region in one hydrated root. **Pervasive client
+  routing, realtime coordination, or one cross-page interaction graph** → an
+  existing React/Next app or dedicated React app is usually the clearer fit.
+  Astro islands are separate roots; React context does not cross between them,
+  although deliberately chosen external stores can coordinate them. Do not add
+  such a store merely to rescue a boundary that should be one React island.
 - **This is a greenfield decision, not a rewrite mandate.** If a project already ships a working Astro admin, apply the IA, table, chart, and state decisions in this skill *in place*. Propose the split only when cross-island shared state is the demonstrated, current blocker — never because the architecture table above prefers something else. Migrating a shipped admin is its own project with its own approval.
+- For implementation details, load `astro-development` and read its
+  `references/admin-dashboard-runtime.md`; `shadcn-ui` owns component APIs.
 
 ### If the admin is Next.js App Router (patterns — code details → shadcn-ui)
 
