@@ -6,7 +6,7 @@ modelRoles:
   vision: google-antigravity/gemini-3.1-pro
   tiny: google-antigravity/gemini-3.1-flash-lite
   task: openai-codex/gpt-5.4
-  default: openai-codex/gpt-5.6-sol:medium
+  default: google-antigravity/gemini-3.6-flash
   advisor: google-antigravity/claude-opus-4-6:high
 modelProviderOrder: 
   - google-antigravity
