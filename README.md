@@ -155,11 +155,17 @@ Its executable selectors are kept in `config/omp/config.yml`:
 | Normal development | `default` | Codex GPT-5.6 Sol, medium reasoning |
 | Complex implementation | `slow` | Codex GPT-5.6 Sol, high reasoning |
 | Architecture-sensitive planning | `plan` | Codex GPT-5.6 Sol, high reasoning |
-| Visual frontend work | `vision` | Gemini/Antigravity |
-| High-value consultation | `advisor` | Claude, high reasoning |
+| Visual frontend work | `vision` | Gemini 3.1 Pro through Antigravity |
+| High-value consultation | `advisor` | Anthropic Claude Opus 4.8, high reasoning |
 
 Task size alone does not trigger escalation. Complexity, specialist evidence,
 or a demonstrated blocker does.
+
+Typed OMP subagents provide the automatic execution path without moving the
+main session or losing its context. `task.agentModelOverrides` maps
+`designer` to `vision`, review and the tracked `architect`/`debugger` agents to
+`advisor`, bounded implementation to `task`, and discovery support to `smol`.
+The complete policy is in `config/omp/ROUTING.md`.
 
 OMP intentionally uses native `tools.approvalMode: yolo` so its tools and
 subagents do not add a second mechanical approval prompt. OMP talks to model

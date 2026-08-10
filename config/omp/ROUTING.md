@@ -5,10 +5,10 @@ This file is the canonical model-routing policy for development work. Skills own
 ## Invariants
 
 - OMP remains the session and context owner unless a specialist handoff is justified.
-- `default` is Codex GPT-5.6 Sol at medium reasoning.
+- `default` and `task` are Codex GPT-5.6 Sol at medium reasoning.
 - `slow` and `plan` are Codex GPT-5.6 Sol at high reasoning.
-- `vision` is Gemini/Antigravity for browser-visible visual work.
-- `advisor` is Claude at high reasoning for scarce, high-value consultation.
+- `vision` is Gemini 3.1 Pro through Antigravity for browser-visible visual work.
+- `advisor` is Anthropic Claude Opus 4.8 at high reasoning for scarce, high-value consultation.
 - Provider fallback may change transport, but must not change capability methodology.
 - File extensions do not determine routing; classify the work itself.
 
@@ -23,9 +23,24 @@ The executable selectors live in `config.yml`. Provider metadata lives in `model
 | Planning | `plan` | Architecture-sensitive plans where implementation decisions are costly to reverse |
 | Visual frontend | `vision` | Visual hierarchy, responsive layout, component composition, accessibility review, and browser-visible QA |
 | Independent consultation | `advisor` | Architecture review, deep root-cause debugging, major migration review, or security-sensitive second opinion |
-| Mechanical support | `task` or an explicitly available low-cost model | Repetitive, bounded transformations with a stronger review of wide diffs |
+| Mechanical or bounded support | `task` | Repetitive transformations and ordinary delegated implementation, followed by review when the diff is wide |
 
 Task size alone is not an escalation signal. Escalate for reasoning complexity, specialist evidence, or a demonstrated blocker.
+
+## Automatic subagent routing
+
+OMP keeps the main session and its accumulated context on the selected session role. It does not switch the main model from keyword heuristics. Instead, the main worker classifies bounded work and dispatches a typed subagent; `task.agentModelOverrides` in `config.yml` then selects the model deterministically:
+
+| Agent | Role | Intended work |
+|---|---|---|
+| `task` | `task` | Bounded implementation on Codex GPT-5.6 Sol Medium |
+| `scout`, `sonic` | `smol` | Cheap discovery or strictly mechanical support |
+| `designer` | `vision` | UI, UX, and visual frontend work on Gemini 3.1 Pro |
+| `reviewer`, `security-reviewer` | `advisor` | Independent high-value review on Claude Opus 4.8 High |
+| `architect`, `debugger` | `advisor` | Read-only architecture or hard-debugging consultation on Claude Opus 4.8 High |
+| `librarian` | `slow` | Source-verified technical research on Codex GPT-5.6 Sol High |
+
+`architect` and `debugger` are tracked under `config/omp/agents/` and installed at `~/.omp/agent/agents`. They return bounded analysis; OMP retains implementation and verification ownership.
 
 ## Capability ownership
 

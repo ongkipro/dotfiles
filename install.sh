@@ -117,6 +117,7 @@ link "$DOT/bin/dotsync"                  ~/.local/bin/dotsync
 for s in tmux-clip tmux-setup security-check security-check-test skill-check-test skill-update-test installer-link-test shell-wrapper-test inspect-project project-init project-init-test ai-doctor ai-memory-check vps-pgdump 9router-start pi-9router-restore device-register; do link "$DOT/bin/$s" ~/.local/bin/$s; done
 link "$DOT/config/omp/config.yml"        ~/.omp/agent/config.yml   # OMP config (model, theme, approval)
 link "$DOT/config/omp/models.yml"        ~/.omp/agent/models.yml   # OMP providers (9router)
+link "$DOT/config/omp/agents"            ~/.omp/agent/agents       # OMP specialist agents (role-routed)
 ~/.local/bin/ai-memory-link              # runtime-native AGENTS.md links (including ~/.omp/agent/AGENTS.md)
 "$DOT/skills/agents-bin/skill-update"    # directory links + Codex per-skill adapter preserving .system
 

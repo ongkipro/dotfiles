@@ -350,12 +350,20 @@ done
 hdr "8. OMP"
 OMP_CONFIG="$HOME/.omp/agent/config.yml"
 OMP_MODELS="$HOME/.omp/agent/models.yml"
-for pair in "config:$OMP_CONFIG:$DOT/config/omp/config.yml" "models:$OMP_MODELS:$DOT/config/omp/models.yml"; do
+for pair in "config:$OMP_CONFIG:$DOT/config/omp/config.yml" "models:$OMP_MODELS:$DOT/config/omp/models.yml" "agents:$HOME/.omp/agent/agents:$DOT/config/omp/agents"; do
   label=${pair%%:*}; rest=${pair#*:}; live=${rest%%:*}; tracked=${rest#*:}
   if [ -L "$live" ] && [ "$(readlink -f "$live" 2>/dev/null)" = "$(readlink -f "$tracked")" ]; then
     ok "OMP $label → tracked source"
   else
     bad "OMP $label tidak ter-link ke $tracked"
+  fi
+done
+
+for agent in architect debugger; do
+  if [ -f "$HOME/.omp/agent/agents/$agent.md" ]; then
+    ok "OMP agent available: $agent"
+  else
+    bad "OMP agent missing: $HOME/.omp/agent/agents/$agent.md"
   fi
 done
 
@@ -368,6 +376,20 @@ if [ -f "$OMP_CONFIG" ]; then
   else
     bad "OMP default model role missing"
   fi
+
+  for required in \
+    "advisor: anthropic/claude-opus-4-8:high" \
+    'designer: "@vision"' \
+    'reviewer: "@advisor"' \
+    'architect: "@advisor"' \
+    'debugger: "@advisor"'
+  do
+    if grep -qF "$required" "$OMP_CONFIG"; then
+      ok "OMP routing: $required"
+    else
+      bad "OMP routing entry missing: $required"
+    fi
+  done
 
   approval_mode="$(sed -n 's/^[[:space:]]*approvalMode:[[:space:]]*//p' "$OMP_CONFIG" | head -1)"
   if [ "$approval_mode" = "yolo" ]; then
