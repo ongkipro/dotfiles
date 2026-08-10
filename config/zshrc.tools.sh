@@ -19,7 +19,7 @@ pi() {
 }
 
 # --- starship prompt (plain, no Nerd Font) ---
-command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
+[[ -o interactive && -t 1 ]] && command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
 
 # --- dotfiles quick-access ---
 alias dotsync='~/.local/bin/dotsync'
@@ -28,6 +28,12 @@ alias lg='lazygit'
 
 # --- OMP: inject the 9Router tunnel key only into the OMP process ---
 omp() {
+  if [ "${1:-}" = "update" ]; then
+    shift
+    (set -o pipefail; curl -fsSL https://omp.sh/install | sh)
+    return
+  fi
+
   local auth_file="$HOME/.pi/agent/auth.json"
   local remote_key=""
 

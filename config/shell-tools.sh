@@ -96,19 +96,36 @@ pi() {
 }
 
 # --- omp (omp.sh): native Rust coding agent ---
-# AGENTS.md is wired via symlink (~/.omp/AGENTS.md -> AGENTS.md), no --append trick needed.
-# Wrapper only handles update routing.
+# Native user context is linked at ~/.omp/agent/AGENTS.md.
 omp() {
   case "${1:-}" in
-    update) shift; curl -fsSL https://omp.sh/install | sh ;; # re-run installer = update
-    *) command omp "$@" ;;
+    update)
+      shift
+      (set -o pipefail; curl -fsSL https://omp.sh/install | sh)
+      ;;
+    *)
+      local auth_file="$HOME/.pi/agent/auth.json"
+      local remote_key=""
+
+      if [ -n "${NINEROUTER_REMOTE_KEY:-}" ]; then
+        command omp "$@"
+        return
+      fi
+      if [ -r "$auth_file" ] && command -v jq >/dev/null 2>&1; then
+        remote_key="$(jq -er '."9router-fantastico".key // empty' "$auth_file" 2>/dev/null)" || remote_key=""
+      fi
+      if [ -n "$remote_key" ]; then
+        NINEROUTER_REMOTE_KEY="$remote_key" command omp "$@"
+      else
+        command omp "$@"
+      fi
+      ;;
   esac
 }
 
 # --- starship prompt ---
-command -v starship >/dev/null && eval "$(starship init "$(_shell_name)")"
+[[ $- == *i* && -t 1 ]] && command -v starship >/dev/null 2>&1 && eval "$(starship init "$(_shell_name)")"
 
-# <<< dev-tools setup (ongkipro/dotfiles) <<<
 
 # --- ImageMagick v7: use 'magick' (the actual command name now) ---
 command -v magick >/dev/null && alias convert='magick'
@@ -173,3 +190,4 @@ shopify-full-audit() {
 
 # --- Windows debloat (run as admin from Windows PowerShell) ---
 [ -f /mnt/c/Users/Asus/win-debloat.ps1 ] && alias win-debloat='powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\\Users\\Asus\\win-debloat.ps1'
+# <<< dev-tools setup (ongkipro/dotfiles) <<<

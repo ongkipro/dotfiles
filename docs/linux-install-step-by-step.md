@@ -185,8 +185,8 @@ source ~/.bashrc
 1. **Symlink config** ke lokasi live — memori AI (`~/.config/ai`), skills, mise,
    starship, helix, lazygit, gh, tmux, ripgrep.
 2. **Sambungkan memori ke semua AI CLI** — `AGENTS.md` di-link ke `~/.claude/CLAUDE.md`,
-   `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md` (dibaca `agy`). pi memuatnya lewat
-   wrapper `pi()` di `~/.bashrc`.
+   `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md` (dibaca `agy`), dan OMP. Pi memuatnya
+   lewat wrapper `pi()` di tracked `config/shell-tools.sh` yang di-source oleh `~/.bashrc`.
 3. **Daftarkan device ini** ke [`devices/`](../devices/) — spek + status tiap symlink.
 4. Setup tmux (TPM + plugin).
 

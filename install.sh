@@ -37,6 +37,68 @@ link() {
   ln -s "$src" "$dst"
   echo "   $dst -> $src"
 }
+
+# Replace legacy copied shell blocks with one live source line. The timestamped
+# backup preserves any hand edits that were made inside an old managed block.
+ensure_shell_source() {
+  local rc="$1" file="$2" marker="$3" legacy_stop="${4:-}"
+  local source_line start stop backup tmp remove_block=0
+  source_line='source "$HOME/dotfiles/config/'"$file"'"'
+  start="# >>> $marker >>>"
+  stop="# <<< $marker <<<"
+  touch "$rc"
+
+  if grep -qF "$start" "$rc"; then
+    remove_block=1
+    if [ -n "$legacy_stop" ] && grep -qF "$legacy_stop" "$rc"; then
+      stop="$legacy_stop"
+    elif ! grep -qF "$stop" "$rc"; then
+      echo "ERROR: managed shell block in $rc has no closing marker" >&2
+      return 1
+    fi
+  fi
+
+  tmp="$(mktemp "${rc}.tmp.XXXXXX")"
+  if ! awk \
+      -v remove_block="$remove_block" \
+      -v start="$start" \
+      -v stop="$stop" \
+      -v source_line="$source_line" '
+    remove_block && $0 == start { skip = 1; found = 1; next }
+    remove_block && skip && index($0, stop) == 1 { skip = 0; next }
+    skip { next }
+    $0 == source_line {
+      if (!source_seen) print
+      source_seen = 1
+      next
+    }
+    { print }
+    END {
+      if (remove_block && (skip || !found)) exit 2
+      if (!source_seen) {
+        if (NR > 0) print ""
+        print source_line
+      }
+    }
+  ' "$rc" > "$tmp"; then
+    rm -f "$tmp"
+    echo "ERROR: failed to migrate managed shell block in $rc" >&2
+    return 1
+  fi
+
+  if cmp -s "$rc" "$tmp"; then
+    rm -f "$tmp"
+    echo "   $file already sourced once by $rc"
+    return
+  fi
+
+  backup="$(mktemp "${rc}.bak.$(date +%Y%m%d-%H%M%S 2>/dev/null || echo old).XXXXXX")"
+  cp -p "$rc" "$backup"
+  cat "$tmp" > "$rc"
+  rm -f "$tmp"
+  echo "   backup: $rc -> $backup"
+  echo "   source $file normalized in $rc"
+}
 link "$DOT/config/ai"                    ~/.config/ai          # memori bersama (+ memory/*.md)
 link "$DOT/config/starship.toml"         ~/.config/starship.toml
 link "$DOT/config/ripgreprc"             ~/.ripgreprc
@@ -52,7 +114,7 @@ link "$DOT/home/profile"                 ~/.profile
 link "$DOT/bin/ai-memory-link"           ~/.local/bin/ai-memory-link
 link "$DOT/bin/dotpush"                  ~/.local/bin/dotpush
 link "$DOT/bin/dotsync"                  ~/.local/bin/dotsync
-for s in tmux-clip tmux-setup security-check security-check-test skill-check-test skill-update-test inspect-project project-init project-init-test ai-doctor ai-memory-check vps-pgdump 9router-start pi-9router-restore device-register; do link "$DOT/bin/$s" ~/.local/bin/$s; done
+for s in tmux-clip tmux-setup security-check security-check-test skill-check-test skill-update-test installer-link-test shell-wrapper-test inspect-project project-init project-init-test ai-doctor ai-memory-check vps-pgdump 9router-start pi-9router-restore device-register; do link "$DOT/bin/$s" ~/.local/bin/$s; done
 link "$DOT/config/omp/config.yml"        ~/.omp/agent/config.yml   # OMP config (model, theme, approval)
 link "$DOT/config/omp/models.yml"        ~/.omp/agent/models.yml   # OMP providers (9router)
 ~/.local/bin/ai-memory-link              # runtime-native AGENTS.md links (including ~/.omp/agent/AGENTS.md)
@@ -82,23 +144,31 @@ echo "==> Setup tmux (install binary + clipboard + TPM + plugin)..."
 #    penyebab repo cuma mencatat 4 tool sementara mesin live punya 17.)
 #   -> di-refresh otomatis tiap 'dotpush'. Restore manual bila perlu di device baru.
 
-echo "==> Patch $SHELL_RC (blok dev-tools)..."
-MARKER=">>> dev-tools setup (ongkipro/dotfiles)"
-if grep -qF "$MARKER" "$SHELL_RC" 2>/dev/null; then
-  echo "   blok dev-tools sudah ada -> dilewati"
-else
-  { echo ""; cat "$DOT/config/shell-tools.sh"; } >> "$SHELL_RC"
-  echo "   blok dev-tools ditambahkan ke $SHELL_RC"
+echo "==> Wire Linux shell startup to tracked shell tools..."
+ensure_shell_source \
+  "$HOME/.bashrc" \
+  "shell-tools.sh" \
+  "dev-tools setup (ongkipro/dotfiles)" \
+  "[ -f /mnt/c/Users/Asus/win-debloat.ps1 ]"
+if [ "$SHELL_RC" != "$HOME/.bashrc" ]; then
+  ensure_shell_source \
+    "$SHELL_RC" \
+    "shell-tools.sh" \
+    "dev-tools setup (ongkipro/dotfiles)" \
+    "[ -f /mnt/c/Users/Asus/win-debloat.ps1 ]"
 fi
 
-# WSL2-specific block (only added when running inside WSL)
+# WSL2-specific tools stay source-linked too.
 if grep -qi 'microsoft' /proc/version 2>/dev/null; then
-  WSL_MARKER=">>> WSL optimizations (ongki/dotfiles)"
-  if grep -qF "$WSL_MARKER" "$SHELL_RC" 2>/dev/null; then
-    echo "   blok WSL sudah ada -> dilewati"
-  else
-    { echo ""; cat "$DOT/config/wsl-tools.sh"; } >> "$SHELL_RC"
-    echo "   blok WSL ditambahkan ke $SHELL_RC"
+  ensure_shell_source \
+    "$HOME/.bashrc" \
+    "wsl-tools.sh" \
+    "WSL optimizations (ongki/dotfiles)"
+  if [ "$SHELL_RC" != "$HOME/.bashrc" ]; then
+    ensure_shell_source \
+      "$SHELL_RC" \
+      "wsl-tools.sh" \
+      "WSL optimizations (ongki/dotfiles)"
   fi
 fi
 

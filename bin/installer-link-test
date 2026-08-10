@@ -56,7 +56,70 @@ test_helper() {
   printf '✓ %s:%s\n' "$(basename "$file")" "$name"
 }
 
+test_shell_source_migration() {
+  local function_code
+  function_code="$(extract_function "$ROOT/install.sh" ensure_shell_source)"
+  [ -n "$function_code" ] || { echo "missing ensure_shell_source in install.sh" >&2; return 1; }
+
+  (
+    eval "$function_code"
+    rc="$TMP/shell-source.rc"
+    cat > "$rc" <<'EOF'
+before
+# >>> dev-tools setup (ongkipro/dotfiles) >>>
+old managed content
+# <<< dev-tools setup (ongkipro/dotfiles) <<<
+old trailing content
+[ -f /mnt/c/Users/Asus/win-debloat.ps1 ] && alias win-debloat='legacy'
+after
+EOF
+
+    ensure_shell_source \
+      "$rc" \
+      "shell-tools.sh" \
+      "dev-tools setup (ongkipro/dotfiles)" \
+      "[ -f /mnt/c/Users/Asus/win-debloat.ps1 ]" >/dev/null
+
+    source_line='source "$HOME/dotfiles/config/shell-tools.sh"'
+    grep -qxF "before" "$rc"
+    grep -qxF "after" "$rc"
+    grep -qxF "$source_line" "$rc"
+    [ "$(grep -cxF "$source_line" "$rc")" -eq 1 ]
+    ! grep -qF "old managed content" "$rc"
+    ! grep -qF "old trailing content" "$rc"
+    [ "$(find "$TMP" -maxdepth 1 -type f -name 'shell-source.rc.bak.*' | wc -l)" -eq 1 ]
+
+    first="$(cksum "$rc")"
+    ensure_shell_source \
+      "$rc" \
+      "shell-tools.sh" \
+      "dev-tools setup (ongkipro/dotfiles)" \
+      "[ -f /mnt/c/Users/Asus/win-debloat.ps1 ]" >/dev/null
+    [ "$first" = "$(cksum "$rc")" ]
+    [ "$(find "$TMP" -maxdepth 1 -type f -name 'shell-source.rc.bak.*' | wc -l)" -eq 1 ]
+
+    printf '%s\n' "$source_line" >> "$rc"
+    [ "$(grep -cxF "$source_line" "$rc")" -eq 2 ]
+    ensure_shell_source \
+      "$rc" \
+      "shell-tools.sh" \
+      "dev-tools setup (ongkipro/dotfiles)" \
+      "[ -f /mnt/c/Users/Asus/win-debloat.ps1 ]" >/dev/null
+    [ "$(grep -cxF "$source_line" "$rc")" -eq 1 ]
+    [ "$(find "$TMP" -maxdepth 1 -type f -name 'shell-source.rc.bak.*' | wc -l)" -eq 2 ]
+
+    bad="$TMP/malformed-shell.rc"
+    printf 'keep\n# >>> broken block >>>\n' > "$bad"
+    before="$(cksum "$bad")"
+    ! ensure_shell_source "$bad" "broken.sh" "broken block" >/dev/null 2>&1
+    [ "$before" = "$(cksum "$bad")" ]
+  )
+
+  echo "✓ install.sh:ensure_shell_source"
+}
+
 test_helper "$ROOT/install.sh" link
 test_helper "$ROOT/install-macos.sh" link
 test_helper "$ROOT/bin/tmux-setup" link_to_repo
+test_shell_source_migration
 echo "installer-link-test: OK"

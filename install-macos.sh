@@ -49,6 +49,8 @@ link "$DOT/bin/security-check"           "$HOME/.local/bin/security-check"
 link "$DOT/bin/security-check-test"      "$HOME/.local/bin/security-check-test"
 link "$DOT/bin/skill-check-test"         "$HOME/.local/bin/skill-check-test"
 link "$DOT/bin/skill-update-test"        "$HOME/.local/bin/skill-update-test"
+link "$DOT/bin/installer-link-test"      "$HOME/.local/bin/installer-link-test"
+link "$DOT/bin/shell-wrapper-test"       "$HOME/.local/bin/shell-wrapper-test"
 link "$DOT/bin/inspect-project"          "$HOME/.local/bin/inspect-project"
 link "$DOT/bin/project-init"             "$HOME/.local/bin/project-init"
 link "$DOT/bin/project-init-test"        "$HOME/.local/bin/project-init-test"
@@ -56,9 +58,6 @@ for s in tmux-clip tmux-setup tmux-battery security-check 9router-start pi-9rout
   [ -e "$DOT/bin/$s" ] && link "$DOT/bin/$s" "$HOME/.local/bin/$s"
 done
 
-say "==> Daftarkan device ini ke registry (devices/<hostname>.md)..."
-# Non-fatal — registry cuma dokumentasi, jangan bikin bootstrap gagal total.
-"$DOT/bin/device-register" || say "   ⚠️  device-register gagal — lanjut. Jalankan manual nanti."
 
 say "==> Link local skills + skill commands..."
 mkdir -p "$HOME/.agents/bin"
@@ -146,6 +145,10 @@ ensure_line '[ -s "$(brew --prefix nvm 2>/dev/null)/nvm.sh" ] && source "$(brew 
 ensure_line 'export PATH="$HOME/.local/bin:$HOME/.agents/bin:$PATH"' "$HOME/.bashrc"
 ensure_line 'source "$HOME/dotfiles/config/bashrc.tools.sh"' "$HOME/.bashrc"
 ensure_line '[ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc"' "$HOME/.bash_profile"
+
+say "==> Daftarkan final state device ini..."
+# Run after links, tools, providers, and shell startup are configured.
+"$DOT/bin/device-register" || say "   ⚠️  device-register gagal — lanjut. Jalankan manual nanti."
 
 cat <<'EOF'
 

@@ -348,6 +348,19 @@ The installers link tracked sources into the home directory:
 ~/.gitignore_global          -> ~/dotfiles/config/gitignore_global
 ```
 
+Shell startup files are the deliberate exception: they remain device-owned and
+source tracked helpers instead of becoming whole-file symlinks.
+
+```text
+Linux ~/.bashrc       -> source ~/dotfiles/config/shell-tools.sh
+macOS ~/.zshrc        -> source ~/dotfiles/config/zshrc.tools.sh
+macOS ~/.bashrc       -> source ~/dotfiles/config/bashrc.tools.sh
+```
+
+On Linux, `install.sh` backs up and removes the legacy copied dev-tools block
+before adding the single tracked source line. This keeps shell behavior live and
+prevents copied wrappers or credentials from drifting outside Git.
+
 Editing a linked live path therefore edits the repository. Git remains the synchronization and recovery mechanism.
 
 Before replacing an existing regular file or directory, the installer atomically moves it to a timestamped `.bak.*` path. Only after that succeeds does it create the symlink. Review those backups before deleting them.

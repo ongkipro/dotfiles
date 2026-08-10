@@ -117,6 +117,34 @@ if command -v pi >/dev/null 2>&1; then
   fi
 fi
 
+if [ "$(uname -s)" = "Linux" ]; then
+  shell_source='source "$HOME/dotfiles/config/shell-tools.sh"'
+  check_linux_shell_source() {
+    local rc="$1" label count
+    label="${rc/#$HOME/\~}"
+    count="$(grep -cxF "$shell_source" "$rc" 2>/dev/null || true)"
+    if grep -qF '# >>> dev-tools setup (ongkipro/dotfiles) >>>' "$rc" 2>/dev/null; then
+      bad "$label masih memakai copied dev-tools block — jalankan install.sh untuk migrasi"
+    elif [ "$count" -eq 1 ]; then
+      ok "$label → tracked config/shell-tools.sh exactly once"
+    elif [ "$count" -gt 1 ]; then
+      bad "$label men-source config/shell-tools.sh $count kali — jalankan install.sh untuk normalisasi"
+    else
+      bad "$label tidak men-source config/shell-tools.sh — jalankan install.sh"
+    fi
+  }
+  check_linux_shell_source "$HOME/.bashrc"
+  if [ "${SHELL##*/}" = "zsh" ]; then
+    check_linux_shell_source "$HOME/.zshrc"
+  fi
+fi
+
+for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+  if [ -f "$rc" ] && grep -qE '^[[:space:]]*export[[:space:]]+NINEROUTER_REMOTE_KEY=' "$rc"; then
+    bad "${rc/#$HOME/\~} mengekspor NINEROUTER_REMOTE_KEY ke semua child process — gunakan OMP wrapper"
+  fi
+done
+
 # ── 3. Layer 2: memory ────────────────────────────────────────────────────────
 hdr "3. Memori"
 if [ -d "$AI/memory" ]; then
@@ -270,7 +298,7 @@ else
 fi
 
 if [ "$MODE" = "--self-test" ]; then
-  for test_script in "$DOT/bin/security-check-test" "$DOT/bin/skill-check-test" "$DOT/bin/skill-update-test" "$DOT/bin/project-init-test"; do
+  for test_script in "$DOT/bin/security-check-test" "$DOT/bin/skill-check-test" "$DOT/bin/skill-update-test" "$DOT/bin/installer-link-test" "$DOT/bin/shell-wrapper-test" "$DOT/bin/project-init-test"; do
     if [ -x "$test_script" ]; then
       "$test_script" "$DOT" >/dev/null 2>&1 \
         && ok "$(basename "$test_script"): lulus" \

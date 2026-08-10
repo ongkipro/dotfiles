@@ -112,16 +112,16 @@
 - **`~/.9router/` remains sensitive:** `db/data.sqlite` contains upstream provider credentials. Never read, copy, delete, or expose it without explicit approval.
 - Local and remote model routing are separate. Verify Pi settings/models, OMP `models.yml`, service health, and tunnel authentication independently before diagnosing fallback.
 
-### ⚠️ The OMP tunnel key chain is load-bearing and only half-tracked (2026-08-10)
+### The OMP tunnel key chain is load-bearing and process-scoped (verified 2026-08-10)
 
-OMP's working path is `9router-fantastico` → the tunnel in `config/omp/models.yml`. Verified end to end on 2026-08-10: HTTP 200 in ~2.2s. What it depends on, in order:
+OMP's working path is `9router-fantastico` → the tunnel in `config/omp/models.yml`. The HTTP path was verified end to end on 2026-08-10. Its local launch chain is:
 
-1. `~/.bashrc` derives `NINEROUTER_REMOTE_KEY` from `jq -er '."9router-fantastico".key' ~/.pi/agent/auth.json`. `.bashrc` is a local file and is not symlinked, but it **is** captured: `dotpush` copies it to `home/bashrc.snapshot` (a machine-specific reference with a `merge=ours` driver, restored by hand on a new device). So the recovery path exists — it just needs `dotpush` to have run since the block was added. Check with `grep -c NINEROUTER_REMOTE_KEY home/bashrc.snapshot`; a `0` means a reimage would lose the tunnel silently.
-2. It sits below `.bashrc`'s interactive guard, so **only interactive shells get it**. That is fine for typing `omp` in a terminal and cannot be fixed by moving it up: non-interactive bash does not read `.bashrc` at all (`BASH_ENV` unset). A launcher/systemd-launched OMP would need a different mechanism.
-3. `models.yml` stores the **bare variable name** `NINEROUTER_REMOTE_KEY`. Rewriting it as `${NINEROUTER_REMOTE_KEY}` breaks it — that syntax is not expanded there.
-4. Re-authing pi refreshes the key automatically, since `auth.json` is the source.
+1. The tracked `omp()` wrapper in `config/shell-tools.sh` reads `."9router-fantastico".key` from Pi's local `~/.pi/agent/auth.json` only while launching OMP.
+2. Linux `~/.bashrc` sources that tracked helper. `home/bashrc.snapshot` stores the source line, not a copied wrapper or credential loader. Unrelated child processes must not inherit `NINEROUTER_REMOTE_KEY`.
+3. `models.yml` stores the **bare variable name** `NINEROUTER_REMOTE_KEY`. Rewriting it as `${NINEROUTER_REMOTE_KEY}` breaks it because that field is not shell-expanded.
+4. Re-authenticating Pi refreshes the local source credential automatically. The credential itself must never enter Git, memory, logs, or diagnostics.
 
-Verify the chain: `bash -lic '[ -n "$NINEROUTER_REMOTE_KEY" ] && echo ok'`.
+Verify routing and scope with `shell-wrapper-test` and `ai-doctor --self-test`. A clean child shell should report `NINEROUTER_REMOTE_KEY` as unset; OMP receives it only through the wrapper.
 
 **Do not "fix" `models.yml` to point at `http://localhost:20128`.** The local instance has zero provider accounts and zero API keys, so it 401s on chat while still listing 679 catalogue models — it looks healthy and serves nothing. The tunnel reaches a *different*, fully configured 9router.
 
