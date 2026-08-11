@@ -158,13 +158,24 @@ Its executable selectors are kept in `config/omp/config.yml`:
 | Work class | OMP role | Current selector |
 |---|---|---|
 | Normal development | `default` | Codex GPT-5.6 Sol, medium reasoning |
+| Delegated implementation | `task` | Codex GPT-5.6 Sol, medium reasoning |
 | Complex implementation | `slow` | Codex GPT-5.6 Sol, high reasoning |
 | Architecture-sensitive planning | `plan` | Codex GPT-5.6 Sol, high reasoning |
+| Repository discovery and mechanical support | `smol` | Gemini 3.6 Flash, medium reasoning |
 | Visual frontend work | `vision` | Gemini 3.1 Pro through Antigravity |
-| High-value consultation | `advisor` | Anthropic Claude Opus 4.8, high reasoning |
+| Correctness consultation | `advisor` | Anthropic Claude Opus 5, high reasoning |
+| Difficult debugging and security review | `advisor-xhigh` | Anthropic Claude Opus 5, xhigh reasoning |
+| Costly-to-reverse architecture review | `advisor-max` | Anthropic Claude Opus 5, max reasoning |
 
 Task size alone does not trigger escalation. Complexity, specialist evidence,
 or a demonstrated blocker does.
+
+The `scout` and `sonic` agents resolve to `smol`; `reviewer` resolves to
+`advisor`; `debugger` and `security-reviewer` resolve to `advisor-xhigh`; and
+`architect` resolves to `advisor-max`. Opus 5 falls back to Opus 4.8, Codex
+High, and the 9Router Codex route. Gemini 3.6 Flash falls back to its 9Router
+route and then GPT-5.4 Mini. Provider fallback never transfers integration or
+verification ownership away from the main OMP session.
 
 Normal use is one command and one outcome:
 

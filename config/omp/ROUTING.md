@@ -8,7 +8,8 @@ This file is the canonical policy for policy-driven autonomous orchestration and
 - `default` and `task` are Codex GPT-5.6 Sol at medium reasoning.
 - `slow` and `plan` are Codex GPT-5.6 Sol at high reasoning.
 - `vision` is Gemini 3.1 Pro through Antigravity for browser-visible visual work.
-- `advisor` is Anthropic Claude Opus 4.8 at high reasoning for scarce, high-value consultation.
+- `smol` is Gemini 3.6 Flash at medium reasoning for read-only discovery and strictly mechanical support.
+- `advisor`, `advisor-xhigh`, and `advisor-max` map scarce, high-value Anthropic consultation to Claude Opus 5 with task-proportional adaptive thinking.
 - Provider fallback may change transport, but must not change capability methodology.
 - File extensions do not determine routing; classify the work itself.
 
@@ -36,15 +37,18 @@ The user starts `omp` and describes the desired outcome. The main worker MUST ap
 | Normal, bounded development | none; main session executes | `default` | Codex GPT-5.6 Sol Medium |
 | Complex auth, payments, concurrency, migrations, algorithms, performance, or difficult regressions | `complex-developer` | `slow` | Codex GPT-5.6 Sol High |
 | UI, UX, responsive layout, or browser-visible frontend | `designer` | `vision` | Gemini 3.1 Pro |
-| Architecture-sensitive or costly-to-reverse decision | `architect` | `advisor` | Claude Opus 4.8 High |
-| Hard defect after reproduction or a failed reasonable path | `debugger` | `advisor` | Claude Opus 4.8 High |
-| High-risk correctness or security review | `reviewer` or `security-reviewer` | `advisor` | Claude Opus 4.8 High |
+| Architecture-sensitive or costly-to-reverse decision | `architect` | `advisor-max` | Claude Opus 5 Max |
+| Hard defect after reproduction or a failed reasonable path | `debugger` | `advisor-xhigh` | Claude Opus 5 XHigh |
+| High-risk correctness review | `reviewer` | `advisor` | Claude Opus 5 High |
+| Security-sensitive review | `security-reviewer` | `advisor-xhigh` | Claude Opus 5 XHigh |
 | Source-verified external library or API research | `librarian` | `slow` | Codex GPT-5.6 Sol High |
-| Read-only repository discovery or strictly mechanical support | `scout` or `sonic` | `smol` | Gemini Flash Lite |
+| Read-only repository discovery or strictly mechanical support | `scout` or `sonic` | `smol` | Gemini 3.6 Flash Medium |
 
 Browser-visible visual, layout, responsive, accessibility, or UX work MUST route to `designer`/`vision` before the first browser-visible edit. This is a capability trigger, not a reasoning-complexity escalation, so it applies regardless of task size. Pure data, API, or non-visual wiring in a frontend file does not trigger `vision`. If the designer cannot start, surface the failure instead of silently implementing the visual work in the main `default` session.
 
 Route by the substance of the task, not keywords or file extensions. Do not delegate ordinary work merely to demonstrate orchestration. Dispatch two or more independent slices together in one task batch so they can run concurrently, after defining their shared contract. Keep sequential dependencies ordered: finish a prerequisite before launching work that requires its result. Automatic task isolation may select a copy-on-write, overlay, worktree, or recursive-copy backend; it does not remove the need for explicit, non-overlapping ownership. Every specialist returns a bounded result to the parent OMP session; the parent retains context, integration, conflict resolution, and final verification ownership.
+
+Opus 5 uses adaptive thinking by default. Keep `advisor` at `high` for bounded consultation and ordinary review; reserve `advisor-xhigh` for difficult debugging and security-sensitive review, and `advisor-max` for costly-to-reverse architecture decisions. Explicit task scope and delegation limits are required because Opus 5 tends to verify and delegate more readily than Opus 4.8. Model-keyed fallback steps down to Opus 4.8, then Codex High, then the 9Router Codex fallback regardless of which Opus 5 advisor role was selected; fallbacks preserve task ownership and verification requirements.
 
 Built-in agents ship with OMP; only repository-specific specialist definitions are tracked under `config/omp/agents/` and installed at `~/.omp/agent/agents`.
 

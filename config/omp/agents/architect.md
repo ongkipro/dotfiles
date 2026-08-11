@@ -1,7 +1,7 @@
 ---
 name: architect
 description: Independent architecture review for costly-to-reverse system decisions.
-model: "@advisor"
+model: "@advisor-max"
 tools: read, grep, glob, web_search
 ---
 

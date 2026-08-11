@@ -1,7 +1,7 @@
 ---
 name: debugger
 description: Independent root-cause analysis for hard or repeatedly failing defects.
-model: "@advisor"
+model: "@advisor-xhigh"
 tools: read, grep, glob, web_search
 ---
 
