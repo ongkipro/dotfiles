@@ -12,6 +12,7 @@
 - Machine-specific snapshot files (`home/gitconfig`, `home/bashrc.snapshot`, `home/zshrc.snapshot`, `config/mise-config.toml`, `config/vscode-settings.json`) are marked `merge=ours` in `.gitattributes` → on sync always keep the local machine's version (needs `git config merge.ours.driver true`, set automatically by dotpush + install scripts).
 - VSCode optional, not mandatory — don't suggest it unless asked.
 - Shopify dev routing: **the official Shopify AI Toolkit is NOT installed** in Claude (verified 2026-07-14 — the only marketplace present is `claude-plugins-official`). The repo map is at `~/dotfiles/docs/shopify-ai-development-repos.md`. Don't clone Shopify support repos (dawn/horizon/hydrogen/cli/liquid/theme-liquid-docs) as duplicate skills; just reference the links unless asked to inspect/base on them.
+- Kelola exception: after completing any task in the Kelola repository, commit only the files changed for that task, push to `dev`, wait until the dev PM2 restart count increases, then exercise the changed flow on `dev.kelolatim.com`. Never include unrelated worktree changes. Push or merge to `main` only when explicitly requested.
 
 ## Skills — plumbing (verified 2026-07-14)
 - **Single source**: `~/dotfiles/skills/local/`. Consumers via SYMLINK: `~/.claude/skills`, `~/.pi/agent/skills`, and `~/.omp/agent/skills` (all → `dotfiles/skills/local`), plus `~/.agents/local-skills`.
