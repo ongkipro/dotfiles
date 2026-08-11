@@ -436,8 +436,14 @@ class Validator:
             if len(identifiers) != 1:
                 self.add("TASK001", task.path, task.line, f"{task.identifier} must have exactly one primary requirement; found {len(identifiers)}", task.identifier)
                 continue
-            if namespace(identifiers[0]) not in {"DS", "PR", "TD"}:
-                self.add("TASK003", task.path, task.line, f"{task.identifier} primary requirement must be DS-*, PR-*, or TD-*; found {identifiers[0]}", task.identifier)
+            # A primary requirement must ANCHOR — either to the canonical namespaces or to a
+            # requirement actually DECLARED in the corpus. The first hardening hard-coded
+            # {DS, PR, TD} and retroactively flagged ten legitimate tasks in tokophi whose
+            # requirements are declared as SEC-*/DOM-*/DR-*/UX-* sections with full
+            # Status/Owner/Statement/Done-when metadata. Anchoring to a declared requirement IS the
+            # traceability property; the namespace was a proxy for it. Undeclared ids still fail.
+            if namespace(identifiers[0]) not in {"DS", "PR", "TD"} and identifiers[0] not in self.declarations:
+                self.add("TASK003", task.path, task.line, f"{task.identifier} primary requirement must be DS-*/PR-*/TD-* or a declared requirement; found {identifiers[0]}", task.identifier)
                 continue
             primary = identifiers[0]
             primary_to_tasks.setdefault(primary, []).append(task.identifier)
