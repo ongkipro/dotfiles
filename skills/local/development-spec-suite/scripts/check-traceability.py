@@ -8,7 +8,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 NAMESPACES = (
     "BR|PR|NFR|DS|TD|ADR|ARCH|DATA|TEN|IAM|DOM|API|UX|BILL|SEC|PRIV|CTRL|"
@@ -22,6 +22,30 @@ TBD_RE = re.compile(r"\[TBD[^\]]*\]", re.IGNORECASE)
 VALID_TBD_RE = re.compile(r"\[TBD\s+owner=[^;\]]+;\s*due=(?:\d{4}-\d{2}-\d{2}|before [^\]]+)\]", re.IGNORECASE)
 SECRET_RE = re.compile(r"(?:api[_-]?key|access[_-]?token|password|private[_-]?key)\s*[:=]\s*[A-Za-z0-9_/+.-]{16,}", re.I)
 SOURCE_STATES = {"proposed", "adopted", "enacted", "in-force", "superseded", "unknown"}
+CLAIM_STATUSES = {"observed", "decision", "assumption", "proposal", "unknown", "evidence"}
+EVIDENCE_KINDS = {
+    "direct-observation",
+    "external-publication",
+    "calculated-result",
+    "inference",
+    "hypothesis",
+    "human-policy",
+    "none",
+}
+STATUS_EVIDENCE_KINDS = {
+    "observed": {"direct-observation"},
+    "evidence": {"external-publication", "calculated-result"},
+    "proposal": {"inference"},
+    "assumption": {"hypothesis"},
+    "decision": {"human-policy"},
+    "unknown": {"none"},
+}
+STAGES = ("research", "planning", "ready", "verified")
+INPUT_ID_RE = re.compile(r"^INPUT-[A-Z0-9]+(?:-[A-Z0-9]+)*$")
+NON_RUNTIME_EVIDENCE_RE = re.compile(
+    r"(?:^|[/_. -])(?:plan|diagram|example|template|checklist|tasks?|done[- ]when)(?:$|[/_. -])",
+    re.IGNORECASE,
+)
 ARTIFACT_FILENAMES = {
     ("01-BRD.md", "01-BRD.md"), ("02-PRD.md", "02-PRD.md"),
     ("03-TECHNICAL-DESIGN.md", "03-TECHNICAL-DESIGN.md"),
@@ -132,6 +156,15 @@ class Declaration:
     line: int
     metadata: Dict[str, str] = field(default_factory=dict)
     text: str = ""
+    metadata_occurrences: Dict[str, List[str]] = field(default_factory=dict)
+
+
+@dataclass
+class MarketInput:
+    identifier: str
+    path: Path
+    line: int
+    metadata: Dict[str, object]
 
 
 @dataclass
@@ -143,14 +176,18 @@ class Reference:
 
 
 class Validator:
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, stage: Optional[str] = None) -> None:
         self.root = root
+        self.stage = stage
         self.findings: List[Finding] = []
         self.declarations: Dict[str, List[Declaration]] = {}
         self.references: List[Reference] = []
         self.placeholder_ids: Set[str] = set()
+        self.market_inputs: List[MarketInput] = []
+        self.source_ids: Set[str] = set()
         ignored_dirs = {".spec-update", ".spec-backups"}
         self.files: List[Path] = sorted(path for path in root.rglob("*.md") if not ignored_dirs.intersection(path.relative_to(root).parts))
+        self.json_files: List[Path] = sorted(path for path in root.rglob("*.json") if not ignored_dirs.intersection(path.relative_to(root).parts))
         self.file_names = {path.name for path in self.files}
 
     def relative(self, path: Path) -> str:
@@ -226,14 +263,19 @@ class Validator:
                     self.add("MD004", path, row_index + 1, f"table row has {len(cells)} cells; expected {len(headers)}")
                     row_index += 1
                     continue
-                metadata = {normalized[position]: cells[position].strip("` ") for position in range(len(cells))}
+                occurrences: Dict[str, List[str]] = {}
+                for position, cell in enumerate(cells):
+                    occurrences.setdefault(normalized[position], []).append(cell.strip("` "))
+                metadata = {key: values[0] for key, values in occurrences.items()}
                 first = cells[0].strip("` ")
                 if ID_RE.fullmatch(first):
                     identifier = canonical_id(first)
                     placeholder = re.search(r"<[^>]+>|\[[A-Z][A-Z0-9 *-]*\]", lines[row_index])
                     if placeholder:
                         self.placeholder_ids.add(identifier)
-                    self.declare(Declaration(identifier, path, row_index + 1, metadata, lines[row_index]))
+                    self.declare(Declaration(identifier, path, row_index + 1, metadata, lines[row_index], occurrences))
+                elif self.stage and INPUT_ID_RE.fullmatch(first.upper()):
+                    self.market_inputs.append(MarketInput(first.upper(), path, row_index + 1, metadata))
                 row_index += 1
             index = row_index
 
@@ -247,12 +289,15 @@ class Validator:
             end = headings[position + 1][0] if position + 1 < len(headings) else len(lines)
             block = lines[start + 1 : end]
             metadata: Dict[str, str] = {}
+            occurrences: Dict[str, List[str]] = {}
             for line in block:
                 match = re.match(r"^\s*-\s*([^:]+):\s*(.+?)\s*$", line)
                 if match:
                     key = normalize_header(match.group(1))
-                    metadata.setdefault(key, match.group(2).strip())
-            self.declare(Declaration(identifier, path, start + 1, metadata, "\n".join(block)))
+                    value = match.group(2).strip()
+                    metadata.setdefault(key, value)
+                    occurrences.setdefault(key, []).append(value)
+            self.declare(Declaration(identifier, path, start + 1, metadata, "\n".join(block), occurrences))
 
     @staticmethod
     def metadata_value(declaration: Declaration, names: Iterable[str]) -> str:
@@ -261,6 +306,86 @@ class Validator:
             if key in normalized_names or any(name in key for name in normalized_names):
                 return value.strip()
         return ""
+
+    @staticmethod
+    def exact_metadata_value(declaration: Declaration, names: Iterable[str]) -> str:
+        for name in names:
+            value = declaration.metadata.get(normalize_header(name))
+            if value is not None:
+                return value.strip()
+        return ""
+
+    @staticmethod
+    def metadata_values(declaration: Declaration, names: Iterable[str]) -> List[str]:
+        normalized_names = {normalize_header(name) for name in names}
+        values: List[str] = []
+        for key, occurrences in declaration.metadata_occurrences.items():
+            if key in normalized_names:
+                values.extend(value.strip() for value in occurrences)
+        return values
+
+    def scan_stage_json(self) -> None:
+        for path in self.json_files:
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+                self.add("JSON001", path, 1, f"invalid UTF-8 JSON metadata: {exc}")
+                continue
+
+            if isinstance(payload, dict):
+                records = payload.get("records")
+                if isinstance(records, list):
+                    for record in records:
+                        if isinstance(record, dict) and str(record.get("id", "")).upper().startswith("SRC-"):
+                            self.source_ids.add(str(record["id"]).upper())
+                raw_inputs = payload.get("market_inputs", payload.get("market-inputs"))
+                if raw_inputs is None and INPUT_ID_RE.fullmatch(str(payload.get("id", "")).upper()):
+                    raw_inputs = [payload]
+            else:
+                raw_inputs = None
+
+            if not isinstance(raw_inputs, list):
+                continue
+            for record in raw_inputs:
+                if not isinstance(record, dict):
+                    self.add("MKT001", path, 1, "market_inputs entries must be JSON objects")
+                    continue
+                identifier = str(record.get("id", "")).upper()
+                if not INPUT_ID_RE.fullmatch(identifier):
+                    self.add("MKT001", path, 1, f"invalid market input id '{identifier or '<missing>'}'", identifier)
+                    continue
+                metadata = {normalize_header(str(key)): value for key, value in record.items()}
+                self.market_inputs.append(MarketInput(identifier, path, 1, metadata))
+
+    @staticmethod
+    def record_value(record: MarketInput, *names: str) -> object:
+        for name in names:
+            key = normalize_header(name)
+            if key in record.metadata:
+                return record.metadata[key]
+        return ""
+
+    @staticmethod
+    def record_present(record: MarketInput, *names: str) -> bool:
+        value = Validator.record_value(record, *names)
+        return value is not None and value != "" and value != []
+
+    @staticmethod
+    def truthy(value: object) -> bool:
+        return value is True or (isinstance(value, str) and value.strip().lower() in {"1", "true", "yes"})
+
+    @staticmethod
+    def referenced_ids(value: str, prefixes: Set[str]) -> List[str]:
+        return [
+            canonical_id(match.group(0))
+            for match in ID_RE.finditer(value)
+            if namespace(canonical_id(match.group(0))) in prefixes
+        ]
+
+    @staticmethod
+    def iso_date(value: str) -> Optional[str]:
+        match = re.search(r"\b\d{4}-\d{2}-\d{2}\b", value)
+        return match.group(0) if match else None
 
     def validate_declarations(self) -> None:
         for identifier, declarations in sorted(self.declarations.items()):
@@ -275,6 +400,15 @@ class Validator:
             if prefix in OWNER_NAMESPACES and not placeholder_declaration:
                 owner = self.metadata_value(declaration, ("owner", "accountable owner", "system owner", "qualified owner", "engineering owner", "implementation owner", "component owner"))
                 if not owner or owner.lower() in {"unknown", "none", "not recorded", "[role]", "<role>"}:
+                    self.add("OWN001", declaration.path, declaration.line, f"{identifier} has no accountable owner", identifier)
+            if self.stage and not placeholder_declaration:
+                owner_values = self.metadata_values(
+                    declaration,
+                    ("owner", "accountable owner", "system owner", "qualified owner", "engineering owner", "implementation owner", "component owner"),
+                )
+                if len(owner_values) > 1:
+                    self.add("OWN004", declaration.path, declaration.line, f"{identifier} declares multiple canonical owners", identifier)
+                if prefix == "ADR" and not owner_values:
                     self.add("OWN001", declaration.path, declaration.line, f"{identifier} has no accountable owner", identifier)
 
     def validate_references(self) -> None:
@@ -301,6 +435,9 @@ class Validator:
                 identifiers.extend(canonical_id(match.group(0)) for match in ID_RE.finditer(value) if not canonical_id(match.group(0)).startswith("T-"))
             if len(identifiers) != 1:
                 self.add("TASK001", task.path, task.line, f"{task.identifier} must have exactly one primary requirement; found {len(identifiers)}", task.identifier)
+                continue
+            if namespace(identifiers[0]) not in {"DS", "PR", "TD"}:
+                self.add("TASK003", task.path, task.line, f"{task.identifier} primary requirement must be DS-*, PR-*, or TD-*; found {identifiers[0]}", task.identifier)
                 continue
             primary = identifiers[0]
             primary_to_tasks.setdefault(primary, []).append(task.identifier)
@@ -341,6 +478,186 @@ class Validator:
                     if "change history" in context_lower or "superseded" in context_lower:
                         continue
                     self.add("SUP003", reference.path, reference.line, f"active reference points to superseded {identifier}", identifier)
+
+    def validate_claims(self) -> None:
+        for identifier, declarations in sorted(self.declarations.items()):
+            declaration = declarations[0]
+            if namespace(identifier) != "CTX":
+                continue
+            kind = self.exact_metadata_value(declaration, ("evidence kind",)).lower().replace("_", "-")
+            status = self.exact_metadata_value(declaration, ("status",)).lower()
+            if status not in CLAIM_STATUSES:
+                self.add("CLAIM001", declaration.path, declaration.line, f"{identifier} has invalid canonical claim status '{status or '<missing>'}'", identifier)
+                continue
+            if kind and kind not in EVIDENCE_KINDS:
+                self.add("CLAIM002", declaration.path, declaration.line, f"{identifier} has invalid evidence kind '{kind}'", identifier)
+                continue
+            allowed_kinds = STATUS_EVIDENCE_KINDS[status]
+            if allowed_kinds and not kind:
+                self.add("CLAIM002", declaration.path, declaration.line, f"{identifier} status '{status}' requires evidence kind {', '.join(sorted(allowed_kinds))}", identifier)
+            elif kind not in allowed_kinds:
+                self.add("CLAIM003", declaration.path, declaration.line, f"{identifier} status '{status}' is incompatible with evidence kind '{kind}'", identifier)
+
+            source = self.exact_metadata_value(declaration, ("source",))
+            derived = self.exact_metadata_value(declaration, ("derived from", "formula lineage"))
+            if status in {"observed", "evidence"} and not source and not (status == "evidence" and kind == "calculated-result" and derived):
+                self.add("CLAIM004", declaration.path, declaration.line, f"{identifier} fact-status claim has no Source or formula lineage", identifier)
+            elif status in {"proposal", "assumption"} and not source and not derived:
+                self.add("CLAIM004", declaration.path, declaration.line, f"{identifier} has no Source or Derived from provenance", identifier)
+
+            if kind in {"direct-observation", "external-publication"} and source:
+                locator = self.exact_metadata_value(declaration, ("source locator", "locator", "exact path"))
+                excerpt = self.exact_metadata_value(declaration, ("source excerpt", "excerpt"))
+                if not locator:
+                    self.add("CLAIM005", declaration.path, declaration.line, f"{identifier} source has no precise locator", identifier)
+                if not excerpt:
+                    self.add("CLAIM006", declaration.path, declaration.line, f"{identifier} source has no safe excerpt", identifier)
+                source_references = set(re.findall(r"\bSRC-[A-Z0-9]+(?:-[A-Z0-9]+)*\b", source.upper()))
+                if self.source_ids:
+                    for source_id in sorted(source_references - self.source_ids):
+                        self.add("CLAIM007", declaration.path, declaration.line, f"{identifier} references undeclared source ledger record {source_id}", identifier)
+
+    def validate_market_inputs(self) -> None:
+        by_identifier: Dict[str, List[MarketInput]] = {}
+        for record in self.market_inputs:
+            by_identifier.setdefault(record.identifier, []).append(record)
+        for identifier, records in sorted(by_identifier.items()):
+            if len(records) > 1:
+                locations = ", ".join(f"{self.relative(item.path)}:{item.line}" for item in records)
+                for record in records:
+                    self.add("MKT001", record.path, record.line, f"duplicate market input {identifier}; declarations: {locations}", identifier)
+            record = records[0]
+            if self.truthy(self.record_value(record, "example only")):
+                continue
+            for field_name in ("layer", "factor", "boundary", "unit", "period", "geography", "overlap rule"):
+                if not self.record_present(record, field_name):
+                    self.add("MKT002", record.path, record.line, f"{identifier} is missing required market field '{field_name}'", identifier)
+            layer = str(self.record_value(record, "layer")).upper()
+            if layer and layer not in {"TAM", "SAM", "SOM"}:
+                self.add("MKT002", record.path, record.line, f"{identifier} has invalid market layer '{layer}'", identifier)
+            status = str(self.record_value(record, "status")).lower()
+            if status not in CLAIM_STATUSES:
+                self.add("MKT002", record.path, record.line, f"{identifier} has invalid canonical status '{status or '<missing>'}'", identifier)
+            kind = str(self.record_value(record, "evidence kind")).lower().replace("_", "-")
+            if kind and kind not in EVIDENCE_KINDS:
+                self.add("MKT002", record.path, record.line, f"{identifier} has invalid evidence kind '{kind}'", identifier)
+            if status in CLAIM_STATUSES:
+                allowed_kinds = STATUS_EVIDENCE_KINDS[status]
+                if kind not in allowed_kinds:
+                    expected = ", ".join(sorted(allowed_kinds))
+                    self.add("MKT002", record.path, record.line, f"{identifier} status '{status}' requires evidence kind {expected}", identifier)
+            source = self.record_present(record, "source")
+            formula = self.record_present(record, "formula", "formula lineage")
+            if not source and not formula:
+                self.add("MKT003", record.path, record.line, f"{identifier} has no source or formula lineage", identifier)
+
+            conversion = self.record_value(record, "conversion", "currency conversion")
+            if self.truthy(conversion):
+                for field_name in ("currency", "conversion date", "conversion method"):
+                    if not self.record_present(record, field_name):
+                        self.add("MKT004", record.path, record.line, f"{identifier} conversion is missing '{field_name}'", identifier)
+
+            material_forecast = self.record_value(record, "material forecast", "uncertain forecast")
+            if self.truthy(material_forecast):
+                interval = self.record_present(record, "range low") and self.record_present(record, "range high")
+                scenario = self.record_present(record, "scenario", "named scenario")
+                deterministic = self.record_present(record, "deterministic assumption")
+                if not (interval or scenario or deterministic):
+                    self.add("MKT004", record.path, record.line, f"{identifier} material forecast needs an interval, named scenario, or deterministic assumption", identifier)
+
+            formula_text = str(self.record_value(record, "formula", "formula lineage"))
+            bare_som_percentage = self.record_present(record, "tam percentage") or bool(
+                re.search(r"(?:%|percent).*tam|tam.*(?:%|percent)", formula_text, re.IGNORECASE)
+            )
+            if layer == "SOM" and bare_som_percentage and not self.record_present(record, "operational drivers", "named scenario", "scenario"):
+                self.add("MKT005", record.path, record.line, f"{identifier} encodes SOM as an unsupported bare TAM percentage", identifier)
+
+    def validate_activated_ownership(self) -> None:
+        activations: Dict[str, Declaration] = {}
+        for declarations in self.declarations.values():
+            declaration = declarations[0]
+            selected = self.exact_metadata_value(declaration, ("activated artifacts", "selected artifacts", "artifact activation")).lower()
+            if re.search(r"\b(?:diagram|architecture|erd|data[- ]flow|sequence)\b", selected):
+                activations.setdefault("diagram", declaration)
+            if re.search(r"\b(?:openapi|public[- ]api|api[- ]specification|api contract)\b", selected):
+                activations.setdefault("openapi", declaration)
+            if re.search(r"\b(?:security|threat|control)\b", selected):
+                activations.setdefault("security", declaration)
+        declared_by_namespace: Dict[str, List[Declaration]] = {}
+        for identifier, declarations in self.declarations.items():
+            declared_by_namespace.setdefault(namespace(identifier), []).append(declarations[0])
+
+        if "diagram" in activations:
+            diagrams = declared_by_namespace.get("ARCH", []) + declared_by_namespace.get("ADR", [])
+            if not diagrams:
+                item = activations["diagram"]
+                self.add("ACT001", item.path, item.line, "activated diagram has no ARCH-* or ADR-* canonical owner", item.identifier)
+            elif not any(self.exact_metadata_value(item, ("review", "review owner", "reviewed by")) for item in diagrams):
+                item = diagrams[0]
+                self.add("ACT004", item.path, item.line, f"{item.identifier} activated diagram has no review metadata", item.identifier)
+        if "openapi" in activations:
+            api_contracts = declared_by_namespace.get("API", [])
+            if not api_contracts:
+                item = activations["openapi"]
+                self.add("ACT002", item.path, item.line, "activated OpenAPI contract has no API-* canonical owner", item.identifier)
+            elif not any(self.exact_metadata_value(item, ("contract", "openapi", "ref")) for item in api_contracts):
+                item = api_contracts[0]
+                self.add("ACT005", item.path, item.line, f"{item.identifier} activated OpenAPI contract has no preserved contract ref", item.identifier)
+        if "security" in activations and not (declared_by_namespace.get("SEC") or declared_by_namespace.get("CTRL")):
+            item = activations["security"]
+            self.add("ACT003", item.path, item.line, "activated security scope has no SEC-* or CTRL-* canonical owner", item.identifier)
+
+    def validate_runtime_evidence(self) -> None:
+        for identifier, declarations in sorted(self.declarations.items()):
+            if namespace(identifier) != "EVID":
+                continue
+            declaration = declarations[0]
+            ref = self.exact_metadata_value(declaration, ("ref", "evidence ref", "report"))
+            kind = self.exact_metadata_value(declaration, ("evidence kind",)).lower()
+            if (kind and kind != "runtime") or (ref and NON_RUNTIME_EVIDENCE_RE.search(ref)):
+                self.add("EVID002", declaration.path, declaration.line, f"{identifier} presents a planning/non-runtime artifact as EVID", identifier)
+        if self.stage != "verified":
+            return
+
+        for identifier, declarations in sorted(self.declarations.items()):
+            target = declarations[0]
+            if namespace(identifier) in {"TEST", "EVID"}:
+                continue
+            if self.exact_metadata_value(target, ("status",)).lower() != "verified":
+                continue
+            evidence = self.exact_metadata_value(target, ("evidence", "acceptance evidence", "verification evidence"))
+            test_ids = self.referenced_ids(evidence, {"TEST"})
+            evidence_ids = self.referenced_ids(evidence, {"EVID"})
+            if len(test_ids) != 1 or len(evidence_ids) != 1:
+                self.add("STAGE001", target.path, target.line, f"{identifier} verified claim must link exactly one TEST-* and one EVID-*; found {len(test_ids)} TEST and {len(evidence_ids)} EVID", identifier)
+                continue
+            test_id, evidence_id = test_ids[0], evidence_ids[0]
+            if len(self.declarations.get(test_id, [])) != 1 or len(self.declarations.get(evidence_id, [])) != 1:
+                self.add("STAGE002", target.path, target.line, f"{identifier} verified links must resolve to unique {test_id} and {evidence_id} declarations", identifier)
+                continue
+
+            test = self.declarations[test_id][0]
+            observed = self.declarations[evidence_id][0]
+            test_targets = self.referenced_ids(self.exact_metadata_value(test, ("target",)), {"BR", "PR", "NFR", "DS", "TD", "CTX"})
+            evidence_targets = self.referenced_ids(self.exact_metadata_value(observed, ("target",)), {"BR", "PR", "NFR", "DS", "TD", "CTX"})
+            evidence_tests = self.referenced_ids(self.exact_metadata_value(observed, ("test",)), {"TEST"})
+            if test_targets != [identifier] or evidence_targets != [identifier] or evidence_tests != [test_id]:
+                self.add("STAGE003", observed.path, observed.line, f"{evidence_id} target/test linkage does not match {identifier} via {test_id}", evidence_id)
+            test_ref = self.exact_metadata_value(test, ("ref", "test ref", "command"))
+            evidence_ref = self.exact_metadata_value(observed, ("ref", "evidence ref", "report"))
+            if not test_ref or not evidence_ref:
+                self.add("STAGE004", observed.path, observed.line, f"{identifier} TEST/EVID linkage is missing a reproducible ref", evidence_id)
+            outcome = self.exact_metadata_value(observed, ("outcome", "result")).lower()
+            if outcome not in {"pass", "passed", "success", "successful"}:
+                self.add("STAGE005", observed.path, observed.line, f"{evidence_id} has no structurally passing outcome", evidence_id)
+            observed_date = self.iso_date(self.exact_metadata_value(observed, ("observed at", "recorded at", "evidence date", "date")))
+            changed_date = self.iso_date(self.exact_metadata_value(target, ("changed at", "last changed", "change date", "updated at")))
+            if not observed_date or (changed_date and observed_date < changed_date):
+                self.add("STAGE006", observed.path, observed.line, f"{evidence_id} is not structurally fresh for {identifier}", evidence_id)
+            target_ref = self.exact_metadata_value(target, ("target ref", "change ref", "revision"))
+            observed_target_ref = self.exact_metadata_value(observed, ("target ref",))
+            if target_ref and observed_target_ref != target_ref:
+                self.add("STAGE007", observed.path, observed.line, f"{evidence_id} target ref does not match {identifier}", evidence_id)
 
     def validate_context(self) -> None:
         fact_status: Dict[str, str] = {}
@@ -423,6 +740,8 @@ class Validator:
                     self.add("LOC001", declaration.path, declaration.line, f"{identifier} has no TEST-* or EVID-* regional test coverage", identifier)
 
     def run(self) -> List[Finding]:
+        if self.stage:
+            self.scan_stage_json()
         for path in self.files:
             self.scan_file(path)
         self.validate_declarations()
@@ -431,6 +750,12 @@ class Validator:
         self.validate_status_and_evidence()
         self.validate_context()
         self.validate_jurisdiction_transfer_locale()
+        if self.stage:
+            self.validate_claims()
+            self.validate_market_inputs()
+            if self.stage in {"planning", "ready", "verified"}:
+                self.validate_activated_ownership()
+            self.validate_runtime_evidence()
         return sorted(set((item.code, item.path, item.line, item.message, item.identifier) for item in self.findings))
 
 
@@ -438,12 +763,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", type=Path, help="Markdown specification pack root")
     parser.add_argument("--format", choices=("text", "json"), default="text")
+    parser.add_argument("--stage", choices=STAGES, help="opt in to product stage gates")
     args = parser.parse_args()
     root = args.root.expanduser().resolve()
     if not root.is_dir():
         parser.error(f"not a directory: {root}")
 
-    validator = Validator(root)
+    validator = Validator(root, args.stage)
     raw_findings = validator.run()
     findings = [Finding(code, path, line, message, identifier) for code, path, line, message, identifier in raw_findings]
     summary = {

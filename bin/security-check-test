@@ -34,11 +34,11 @@ cleanup() {
 trap cleanup EXIT
 
 echo "1. clean repo must PASS"
-if ./bin/security-check >/dev/null 2>&1; then
+if ./bin/security-check "$REPO" >/dev/null 2>&1; then
   echo "   ✓ pass"
 else
   echo "   ✗ FAIL: clean repo is being flagged (false positives are back)"
-  ./bin/security-check 2>&1 | sed 's/^/     /'
+  ./bin/security-check "$REPO" 2>&1 | sed 's/^/     /'
   fail=1
 fi
 
@@ -58,12 +58,12 @@ GH='ghp'; SK='sk'; AK='AKIA'; KEY='API_KEY'; PW='PASSWORD'; BEG='BEGIN'
 } > "$BAIT"
 git add -f "$BAIT" >/dev/null 2>&1
 want=6
-got=$(./bin/security-check 2>&1 | grep -c "$BAIT" || true)
+got=$(./bin/security-check "$REPO" 2>&1 | grep -c "$BAIT" || true)
 if [ "$got" -eq "$want" ]; then
   echo "   ✓ caught $got/$want"
 else
   echo "   ✗ FAIL: caught only $got/$want — a real secret would slip through:"
-  diff <(./bin/security-check 2>&1 | grep "$BAIT" | sed 's/.*:[0-9]*://') <(cat "$BAIT") \
+  diff <(./bin/security-check "$REPO" 2>&1 | grep "$BAIT" | sed 's/.*:[0-9]*://') <(cat "$BAIT") \
     | grep '^>' | sed 's/^> /     MISSED: /'
   fail=1
 fi
@@ -76,7 +76,7 @@ printf '%s_ZzYyXxWwVvUuTtSsRrQqPpOoNnMm987654\n' "$GH" > "$BAIT_NEW"
 git add "$BAIT_NEW" >/dev/null 2>&1
 # NOTE: capture first. Piping security-check straight into grep trips `pipefail` —
 # the scanner exits 1 on a HIT, which is the success case here.
-out="$(./bin/security-check 2>&1 || true)"
+out="$(./bin/security-check "$REPO" 2>&1 || true)"
 if printf '%s\n' "$out" | grep -q "$BAIT_NEW"; then
   echo "   ✓ caught"
 else
@@ -93,7 +93,7 @@ echo "4. a secret that exists ONLY in the index must be caught"
 printf '%s-proj-4kQ7mZ2xW9pL5vN8tR3yB6cF1gH0jD7s\n' "$SK" > "$BAIT_IDX"
 git add "$BAIT_IDX" >/dev/null 2>&1
 printf 'nothing to see here\n' > "$BAIT_IDX"   # worktree now clean, index still dirty
-out="$(./bin/security-check 2>&1 || true)"
+out="$(./bin/security-check "$REPO" 2>&1 || true)"
 if printf '%s\n' "$out" | grep -q "$BAIT_IDX"; then
   echo "   ✓ caught"
 else

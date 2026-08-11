@@ -56,16 +56,29 @@
 - Prefer separating facts, assumptions, opinions, and unknowns when uncertainty matters.
 
 ## AI tooling decisions (consolidated 2026-07-14)
-> Operational pi/9router facts (active model, service status) are in **environment.md**, section "pi.dev + 9router". Here only DECISIONS + durable lessons.
+> Runtime availability, active models, and service status must be checked on the
+> relevant machine. Do not preserve them here as current facts.
+
+### Control-plane and credential boundaries
+- OMP is the only primary control plane. Pi is an optional standalone fallback
+  with its own custom compaction behavior; OMP must work when Pi is absent.
+- The optional remote 9Router credential lives only at
+  `~/.config/ai-local/credentials/9router-remote-key`. Shell wrappers may inject
+  it into a direct child process, but it must not be globally exported, printed,
+  logged, or read from Pi state.
+- `9router-credential-migrate` is an explicit, non-destructive bridge from a
+  legacy Pi auth entry. It must not overwrite the neutral destination or delete
+  the source.
 
 ### Dotfiles-coupled vs machine-coupled config
-- Dotfiles-coupled (safe to sync across machines): `settings.json` (machine-coupled fields MUST be dropped/parameterized), `extensions/*`, `9router/aliases.json`, `9router/runtime-package.json`, `helix/languages.toml`.
-- Machine-coupled (DO NOT put raw in dotfiles): `~/.pi/agent/models.json` (API key + model availability varies), `~/.pi/agent/auth.json` (oauth token), `~/.pi/agent/sessions/` (history), `~/.9router/{auth,jwt-secret,machine-id,tunnel/}`.
-- Lesson: the `skills` array in settings.json once hardcoded `/Users/feriromansyah/...` — wrong machine. Solution: use pi auto-discovery (skills in `~/.pi/agent/skills/`) and DO NOT hardcode someone else's absolute path.
-
-### Pi provider choice is machine-local (supersedes the 2026-07-20 snapshot)
-- Do not enforce one Pi provider across devices. The old native-MiniMax decision and the later `9router` / `cx/gpt-5.4` snapshot are both historical, not current configuration.
-- Provider choice is intentionally machine-local; verify `jq '.defaultProvider, .defaultModel' ~/.pi/agent/settings.json` and read `environment.md` before troubleshooting.
+- Dotfiles-coupled (safe to sync across machines): non-secret Pi settings and
+  extensions, `9router/aliases.json`, `9router/runtime-package.json`, and
+  `helix/languages.toml`.
+- Machine-coupled (never copy raw into dotfiles): the neutral 9Router credential,
+  `~/.pi/agent/{models.json,auth.json,sessions/}`, and
+  `~/.9router/{auth,jwt-secret,machine-id,tunnel/}`.
+- Pi provider choice is machine-local. Inspect Pi state only when operating the
+  optional Pi CLI; never use it as evidence for OMP routing or credentials.
 - Never invent a rationale for a provider switch that was only observed on disk.
 
 ### Pitfall: prefix `ocg/` ≠ 9router

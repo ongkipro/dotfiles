@@ -1,7 +1,9 @@
 # Memory: Workflow & conventions
 > Part of shared memory.
 
-- Terminal-first: edit `hx`, git `lg` (lazygit), multiplex `tmux`, AI claude/pi/codex/agy/omp.
+- Terminal-first: edit with `hx`, manage Git with `lg`, multiplex with `tmux`,
+  and keep OMP as the primary AI control plane. Claude, Codex, Antigravity, and
+  Pi are optional standalone handoffs.
 - Web preview: run the dev server (`npm run dev` / `shopify theme dev` / `wrangler dev`) then open Chromium to `localhost:<port>` (auto live-reload).
 - Use modern tools: `rg` (not grep), `fd` (not find), `eza` (not ls), `bat` (not cat), `z` zoxide (not manual cd).
 - Git: quick commit via lazygit; backup = push to remote; DO NOT auto-commit (anti-pattern).

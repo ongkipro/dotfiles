@@ -10,7 +10,7 @@ End-to-end setup skill for Cloudflare Turnstile. Loads when an agent is asked to
 | --------------------------------- | ---------------------------------------------------------------------- |
 | `SKILL.md`                        | Main wizard instructions for the agent                                 |
 | `scripts/auth-probe.sh`           | Probes the customer's Cloudflare API token for Turnstile scope         |
-| `scripts/widget-create.sh`        | Creates the Turnstile widget via the Cloudflare API                    |
+| `scripts/widget-create.sh`        | Creates a widget and returns only sitekey plus secret-configuration metadata |
 | `scripts/validate.sh`             | Dummy-siteverify + hostname check at the end of the wizard             |
 | `scripts/persist-skill.sh`        | Installs the canonical skill bundle into the user's repo               |
 | `references/vanilla-html.md`      | Code snippet for static / vanilla HTML projects                        |
@@ -20,6 +20,8 @@ End-to-end setup skill for Cloudflare Turnstile. Loads when an agent is asked to
 | `references/sveltekit.md`         | Code snippet for SvelteKit projects                                    |
 | `references/hugo.md`              | Code snippet for Hugo projects                                         |
 | `tests/validation.md`             | Validation cases matching the assertions in the PRD                    |
+
+`widget-create.sh` deliberately discards the one-time secret from a successful API response. Its success output is limited to `status`, `sitekey`, and `secret_configuration`; the user configures the secret directly in their deployment's secret store.
 
 ## How agents load it
 

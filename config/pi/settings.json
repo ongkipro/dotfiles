@@ -13,51 +13,6 @@
   "packages": [
     "../extensions/compact-free",
     "npm:pi-web-access",
-    "npm:pi-agent-browser-native",
-    "npm:@amaster.ai/pi-image-gen"
-  ],
-  "pi-image-gen": {
-    "defaultModel": "gemini-flash",
-    "outputDir": "~/Documents/work/content/images",
-    "providers": {
-      "openai": {
-        "baseUrl": "http://127.0.0.1:20128/v1",
-        "apiKey": "${NINEROUTER_KEY:-noauth}"
-      }
-    },
-    "customProviders": {
-      "9router": {
-        "api": "openai",
-        "baseUrl": "http://127.0.0.1:20128/v1",
-        "apiKey": "${NINEROUTER_KEY:-noauth}",
-        "name": "9Router Local",
-        "models": [
-          {
-            "id": "gemini/gemini-3-pro-image-preview",
-            "alias": "gemini-jawa-pantai"
-          },
-          {
-            "id": "gemini/gemini-3.1-flash-image-preview",
-            "alias": "gemini-flash"
-          }
-        ]
-      },
-      "9router-remote": {
-        "api": "openai",
-        "baseUrl": "${NINEROUTER_REMOTE_URL:-http://127.0.0.1:20128/v1}",
-        "apiKey": "${NINEROUTER_REMOTE_KEY:-noauth}",
-        "name": "9Router Fantastico (remote)",
-        "models": [
-          {
-            "id": "gemini/gemini-2.5-flash-image",
-            "alias": "gemini-flash-25"
-          },
-          {
-            "id": "gemini/gemini-3.1-flash-image-preview",
-            "alias": "gemini-flash-31"
-          }
-        ]
-      }
-    }
-  }
+    "npm:pi-agent-browser-native"
+  ]
 }

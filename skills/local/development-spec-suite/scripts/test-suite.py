@@ -6,12 +6,14 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
+from typing import Optional
 
 ROOT = Path(__file__).resolve().parents[1]
 INIT = ROOT / "scripts" / "init-doc-suite.py"
@@ -53,10 +55,18 @@ class SuiteTests(unittest.TestCase):
     def init(self, profile: str, destination: Path, *extra: object, expected: int = 0) -> subprocess.CompletedProcess[str]:
         return run(PYTHON, INIT, "--profile", profile, "--output", destination, *extra, expected=expected)
 
-    def check(self, destination: Path, expected: int = 0, json_output: bool = False) -> subprocess.CompletedProcess[str]:
+    def check(
+        self,
+        destination: Path,
+        expected: int = 0,
+        json_output: bool = False,
+        stage: Optional[str] = None,
+    ) -> subprocess.CompletedProcess[str]:
         args: list[object] = [PYTHON, CHECK, destination]
         if json_output:
             args += ["--format", "json"]
+        if stage:
+            args += ["--stage", stage]
         return run(*args, expected=expected)
 
     def test_skill_progressive_disclosure_contract(self) -> None:
@@ -332,6 +342,438 @@ Reference PR-404 and PR-3.
         payload = json.loads(self.check(fixture, expected=1, json_output=True).stdout)
         codes = {item["code"] for item in payload["findings"]}
         self.assertTrue({"ID001", "EVID001", "REF001", "SUP002", "SUP003", "TASK001", "OWN003", "LINK001"} <= codes)
+
+    def test_stage_positive_research_planning_and_ready_packs(self) -> None:
+        research = self.root / "research"
+        research.mkdir()
+        (research / "RESEARCH.md").write_text(
+            """# Research
+
+### CTX-1 — Current export workflow
+- Status: Observed
+- Evidence kind: direct-observation
+- Owner: Product owner
+- Source: repository
+- Source locator: src/export.py:10-24
+- Source excerpt: The export handler writes the selected format.
+- Statement: The current workflow exports one selected format.
+""",
+            encoding="utf-8",
+        )
+        self.check(research, stage="research")
+
+        planning = self.root / "planning"
+        planning.mkdir()
+        planning_text = """# Planning
+
+### PR-1 — Export report
+- Status: Accepted
+- Owner: Product owner
+
+### T-1 — Implement report export
+- Primary requirement: PR-1
+- Done when: `python3 -m unittest tests.test_export` exits 0.
+"""
+        (planning / "PLAN.md").write_text(planning_text, encoding="utf-8")
+        self.check(planning, stage="planning")
+        (planning / "PLAN.md").write_text(
+            planning_text.replace("- Status: Accepted", "- Status: Verified"),
+            encoding="utf-8",
+        )
+        payload = json.loads(self.check(planning, expected=1, json_output=True, stage="verified").stdout)
+        self.assertIn("STAGE001", {item["code"] for item in payload["findings"]})
+
+        ready = self.root / "ready"
+        ready.mkdir()
+        (ready / "SPEC.md").write_text(
+            """# Ready
+
+### PR-1 — Export report
+- Status: Accepted
+- Owner: Product owner
+- Activated artifacts: diagram, OpenAPI, security
+
+### ARCH-1 — Export flow diagram
+- Status: Decision
+- Owner: Architecture owner
+- Review: Architecture owner approved the diagram boundary.
+
+### API-1 — Export API
+- Status: Decision
+- Owner: API owner
+- Contract: contracts/openapi.yaml
+
+### SEC-1 — Export authorization boundary
+- Status: Decision
+- Owner: Security owner
+
+### T-1 — Implement report export
+- Primary requirement: PR-1
+- Done when: `python3 -m unittest tests.test_export` exits 0.
+""",
+            encoding="utf-8",
+        )
+        self.check(ready, stage="ready")
+
+    def test_suite_maintenance_requirement_can_be_primary(self) -> None:
+        fixture = self.root / "suite-maintenance"
+        fixture.mkdir()
+        (fixture / "SPEC.md").write_text(
+            """# Suite maintenance
+
+### DS-REQ-1 — Maintain validator
+- Status: Accepted
+- Owner: Suite maintainer
+
+### T-1 — Update validator
+- Primary requirement: DS-REQ-1
+- Done when: the canonical suite exits 0.
+""",
+            encoding="utf-8",
+        )
+        self.check(fixture, stage="ready")
+
+    def test_stage_option_is_additive_to_legacy_behavior(self) -> None:
+        fixture = self.root / "legacy"
+        fixture.mkdir()
+        (fixture / "SPEC.md").write_text(
+            """# Legacy
+
+### CTX-1 — Legacy context
+- Status: Fact
+- Owner: Product owner
+""",
+            encoding="utf-8",
+        )
+        self.check(fixture)
+        payload = json.loads(self.check(fixture, expected=1, json_output=True, stage="research").stdout)
+        self.assertIn("CLAIM001", {item["code"] for item in payload["findings"]})
+
+    def test_stage_negative_regression_matrix(self) -> None:
+        cases = {
+            "missing-provenance": (
+                "research",
+                "CLAIM004",
+                """### CTX-1 — Proposed segment
+- Status: Proposal
+- Evidence kind: inference
+- Owner: Product owner
+""",
+            ),
+            "invalid-status": (
+                "research",
+                "CLAIM001",
+                """### CTX-1 — Invalid fact
+- Status: Fact
+- Evidence kind: direct-observation
+- Owner: Product owner
+""",
+            ),
+            "invalid-evidence-kind": (
+                "research",
+                "CLAIM002",
+                """### CTX-1 — Invalid kind
+- Status: Observed
+- Evidence kind: web-page
+- Owner: Product owner
+- Source: research ledger
+- Source locator: record 1
+- Source excerpt: Bounded excerpt.
+""",
+            ),
+            "broken-id": (
+                "research",
+                "REF001",
+                "Reference PR-404.\n",
+            ),
+            "duplicate-id": (
+                "research",
+                "ID001",
+                """### PR-1 — First
+- Status: Proposed
+- Owner: Product owner
+
+### PR-1 — Second
+- Status: Proposed
+- Owner: Product owner
+""",
+            ),
+            "no-task-primary": (
+                "ready",
+                "TASK001",
+                """### PR-1 — Requirement
+- Status: Proposed
+- Owner: Product owner
+
+### T-1 — Task
+- Done when: command exits 0.
+""",
+            ),
+            "multiple-task-primary": (
+                "ready",
+                "TASK001",
+                """### PR-1 — First
+- Status: Proposed
+- Owner: Product owner
+
+### PR-2 — Second
+- Status: Proposed
+- Owner: Product owner
+
+### T-1 — Task
+- Primary requirement: PR-1, PR-2
+- Done when: command exits 0.
+""",
+            ),
+            "invalid-task-primary-namespace": (
+                "ready",
+                "TASK003",
+                """### SEC-1 — Security constraint
+- Status: Accepted
+- Owner: Security owner
+
+### T-1 — Task
+- Primary requirement: SEC-1
+- Done when: command exits 0.
+""",
+            ),
+            "fake-evid": (
+                "planning",
+                "EVID002",
+                """### EVID-1 — Planning is not evidence
+- Target: PR-1
+- Test: TEST-1
+- Ref: PLAN.md
+""",
+            ),
+            "stale-evid": (
+                "verified",
+                "STAGE006",
+                """### PR-1 — Verified behavior
+- Status: Verified
+- Owner: Product owner
+- Changed at: 2026-08-11
+- Target ref: export-v2
+- Evidence: TEST-1, EVID-1
+
+### TEST-1 — Exercise behavior
+- Target: PR-1
+- Ref: python3 -m unittest tests.test_export
+
+### EVID-1 — Observed result
+- Target: PR-1
+- Test: TEST-1
+- Ref: reports/export.txt
+- Outcome: Passed
+- Observed at: 2026-08-10
+- Target ref: export-v2
+""",
+            ),
+            "mismatched-evid-target": (
+                "verified",
+                "STAGE003",
+                """### PR-1 — Verified behavior
+- Status: Verified
+- Owner: Product owner
+- Evidence: TEST-1, EVID-1
+
+### PR-2 — Other behavior
+- Status: Proposed
+- Owner: Product owner
+
+### TEST-1 — Exercise behavior
+- Target: PR-1
+- Ref: python3 -m unittest tests.test_export
+
+### EVID-1 — Wrong result
+- Target: PR-2
+- Test: TEST-1
+- Ref: reports/export.txt
+- Outcome: Passed
+- Observed at: 2026-08-11
+""",
+            ),
+            "mismatched-evid-ref": (
+                "verified",
+                "STAGE007",
+                """### PR-1 — Verified behavior
+- Status: Verified
+- Owner: Product owner
+- Target ref: export-v2
+- Evidence: TEST-1, EVID-1
+
+### TEST-1 — Exercise behavior
+- Target: PR-1
+- Ref: python3 -m unittest tests.test_export
+
+### EVID-1 — Wrong revision
+- Target: PR-1
+- Test: TEST-1
+- Ref: reports/export.txt
+- Outcome: Passed
+- Observed at: 2026-08-11
+- Target ref: export-v1
+""",
+            ),
+            "fact-missing-source-link": (
+                "research",
+                "CLAIM004",
+                """### CTX-1 — Unsupported observation
+- Status: Observed
+- Evidence kind: direct-observation
+- Owner: Product owner
+""",
+            ),
+            "source-missing-locator": (
+                "research",
+                "CLAIM005",
+                """### CTX-1 — Unlocated observation
+- Status: Observed
+- Evidence kind: direct-observation
+- Owner: Product owner
+- Source: repository
+- Source excerpt: Bounded excerpt.
+""",
+            ),
+            "source-missing-excerpt": (
+                "research",
+                "CLAIM006",
+                """### CTX-1 — Unquoted observation
+- Status: Observed
+- Evidence kind: direct-observation
+- Owner: Product owner
+- Source: repository
+- Source locator: src/export.py:10
+""",
+            ),
+            "duplicate-owner": (
+                "research",
+                "OWN004",
+                """### CTX-1 — Unknown choice
+- Status: Unknown
+- Evidence kind: none
+- Owner: Product owner
+- Owner: Engineering owner
+""",
+            ),
+            "decision-without-owner": (
+                "planning",
+                "OWN001",
+                """### CTX-1 — Scope choice
+- Status: Decision
+- Evidence kind: human-policy
+""",
+            ),
+            "superseded-dependency": (
+                "ready",
+                "SUP003",
+                """### PR-1 — Old requirement
+- Status: Superseded
+- Owner: Product owner
+- Superseded by: PR-2
+
+### PR-2 — Replacement
+- Status: Proposed
+- Owner: Product owner
+
+### T-1 — Invalid dependency
+- Primary requirement: PR-1
+- Done when: command exits 0.
+""",
+            ),
+            "diagram-owner": (
+                "ready",
+                "ACT001",
+                """### PR-1 — Diagram activation
+- Status: Proposed
+- Owner: Product owner
+- Activated artifacts: diagram
+""",
+            ),
+            "openapi-owner": (
+                "ready",
+                "ACT002",
+                """### PR-1 — API activation
+- Status: Proposed
+- Owner: Product owner
+- Activated artifacts: OpenAPI
+""",
+            ),
+            "security-owner": (
+                "ready",
+                "ACT003",
+                """### PR-1 — Security activation
+- Status: Proposed
+- Owner: Product owner
+- Activated artifacts: security
+""",
+            ),
+        }
+        for name, (stage, expected_code, text) in cases.items():
+            with self.subTest(name=name):
+                fixture = self.root / f"negative-{name}"
+                fixture.mkdir()
+                (fixture / "SPEC.md").write_text(text, encoding="utf-8")
+                payload = json.loads(self.check(fixture, expected=1, json_output=True, stage=stage).stdout)
+                self.assertIn(expected_code, {item["code"] for item in payload["findings"]})
+
+        market_cases = {
+            "missing-market-unit": (
+                "MKT002",
+                {
+                    "id": "INPUT-1",
+                    "layer": "TAM",
+                    "factor": "eligible establishments",
+                    "boundary": "eligible legal establishments",
+                    "period": "2026",
+                    "geography": "ID",
+                    "overlap_rule": "one legal establishment once",
+                    "status": "Evidence",
+                    "evidence_kind": "external-publication",
+                    "source": "official registry",
+                },
+            ),
+            "bare-som-percentage": (
+                "MKT005",
+                {
+                    "id": "INPUT-2",
+                    "layer": "SOM",
+                    "factor": "obtainable revenue",
+                    "boundary": "first-year target accounts",
+                    "unit": "IDR",
+                    "period": "2026",
+                    "geography": "ID",
+                    "overlap_rule": "one account once",
+                    "status": "Evidence",
+                    "evidence_kind": "calculated-result",
+                    "formula": "TAM * 5 percent",
+                },
+            ),
+        }
+        for name, (expected_code, record) in market_cases.items():
+            with self.subTest(name=name):
+                fixture = self.root / f"negative-{name}"
+                fixture.mkdir()
+                (fixture / "market-inputs.json").write_text(
+                    json.dumps({"market_inputs": [record]}),
+                    encoding="utf-8",
+                )
+                payload = json.loads(self.check(fixture, expected=1, json_output=True, stage="research").stdout)
+                self.assertIn(expected_code, {item["code"] for item in payload["findings"]})
+
+        credential = self.root / "negative-credential"
+        credential.mkdir()
+        credential_value = "x" * 20
+        (credential / "SPEC.md").write_text(f"password={credential_value}\n", encoding="utf-8")
+        payload = json.loads(self.check(credential, expected=1, json_output=True, stage="research").stdout)
+        self.assertIn("SEC001", {item["code"] for item in payload["findings"]})
+
+    def test_seeded_suite_failure_hook(self) -> None:
+        self.assertNotEqual(
+            os.environ.get("DEVELOPMENT_SPEC_SUITE_SEED_FAILURE"),
+            "1",
+            "intentional seeded failure for ai-doctor propagation checks",
+        )
 
     def test_active_overlay_requires_trigger_fact_and_artifact(self) -> None:
         fixture = self.root / "overlay"

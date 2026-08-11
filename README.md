@@ -127,10 +127,11 @@ Not every file is linked. Device-local state and secrets deliberately remain out
 
 ### OMP control plane
 
-OMP is the primary development control plane. It owns the session, tool runtime,
-task-agent execution, capability discovery, and model selection. OMP talks to
-model providers directly; it does not launch Claude, Codex, or Antigravity CLI
-as subprocess workers.
+OMP is the only primary development control plane. It owns the session, tool
+runtime, task-agent execution, capability discovery, and model selection. OMP
+talks to model providers directly; standalone Claude, Codex, Antigravity, and Pi
+CLIs are optional handoff targets, not subprocess workers or competing control
+planes.
 
 Tracked OMP configuration is linked into its native agent directory:
 
@@ -142,7 +143,11 @@ Tracked OMP configuration is linked into its native agent directory:
 `config.yml` is the authority for model roles, thinking defaults, fallback
 chains, and runtime settings. `models.yml` defines tracked, non-secret custom
 provider metadata. OAuth sessions, API keys, and provider authentication remain
-machine-local.
+machine-local. The optional remote 9Router key lives at
+`~/.config/ai-local/credentials/9router-remote-key`; the `omp()` wrapper injects
+it only into the OMP child when `NINEROUTER_REMOTE_KEY` is not already set. OMP
+does not read Pi authentication, and a missing key affects only that optional
+provider.
 
 Do not duplicate model routing inside skills. A capability defines what and how;
 OMP decides which model executes it.
@@ -168,7 +173,17 @@ cd ~/Projects/<project>
 omp
 ```
 
-OMP classifies and decomposes the request automatically. Independent slices are dispatched together to typed subagents, so Codex, Gemini, and Claude can work concurrently under their configured roles; dependent slices remain sequential. The main Codex session owns context, integrates the results, and performs final verification. `/model` is only a manual override for the main session, not the multi-model orchestration mechanism. The complete routing policy is in `config/omp/ROUTING.md`.
+OMP performs policy-driven autonomous orchestration with deterministic
+agent-to-model mappings. Matching specialists may run concurrently when their
+work is independent; not every configured agent runs for every request.
+Dependent work remains sequential, and the main session owns integration and
+final verification. Exact routing behavior is owned by
+`config/omp/ROUTING.md`; `/model` remains a manual main-session override.
+
+The model displayed in the main OMP header remains the context owner's model.
+Each task widget shows its resolved specialist model. For UI/UX work, a
+`designer` task with the Gemini/Antigravity badge proves that visual routing
+occurred; no `designer` task means the main session did not dispatch it.
 
 OMP intentionally uses native `tools.approvalMode: yolo` so its tools and
 subagents do not add a second mechanical approval prompt. OMP talks to model
@@ -197,7 +212,7 @@ adapters are:
 | `~/.codex/AGENTS.md` | Codex | Linked |
 | `~/.antigravity/AGENTS.md` | Antigravity compatibility path | Linked |
 | `~/.gemini/GEMINI.md` | Antigravity/Gemini compatibility path | Linked; standalone Gemini CLI is not installed |
-| `pi()` shell wrapper | Pi | Appends `~/.config/ai/AGENTS.md` |
+| `pi()` shell wrapper | Optional Pi CLI | Appends `~/.config/ai/AGENTS.md` when Pi is installed |
 | `~/.omp/agent/AGENTS.md` | OMP native user context | Linked |
 
 `~/.omp/AGENTS.md` is an obsolete compatibility path. `ai-memory-link` removes
@@ -246,7 +261,7 @@ Current runtime adapters:
 |---|---|---|---|
 | OMP | `~/.omp/agent/skills` | Directory symlink | Automatic |
 | Claude | `~/.claude/skills` | Directory symlink | Automatic |
-| Pi | `~/.pi/agent/skills` | Directory symlink | Automatic |
+| Pi (optional) | `~/.pi/agent/skills` | Directory symlink when installed | Automatic |
 | Antigravity | `~/.gemini/config/skills` | Directory symlink | Automatic native discovery |
 | Codex | `~/.codex/skills` | Real directory preserving `.system`, plus managed per-skill links | Automatic native discovery |
 | Shared helper | `~/.agents/local-skills` | Directory symlink | Canonical-source convenience path |
@@ -285,8 +300,9 @@ availability depends on machine-local authentication, while role selection lives
 in `config/omp/config.yml`. Inspect that file rather than copying a model table
 into documentation that will drift.
 
-Standalone Claude, Codex, Pi, and Antigravity remain useful for direct
-provider-specific work, but switching to one is an explicit context handoff, not
+Standalone Claude, Codex, and Antigravity remain useful for direct
+provider-specific work. Pi is an optional supporting fallback with custom
+compaction. Switching to any standalone CLI is an explicit context handoff, not
 an OMP subagent dispatch.
 
 ### Repository-local project contract
@@ -389,8 +405,13 @@ The installers are intentionally opinionated. Depending on the machine, they may
 - patch shell startup files;
 - download or install user tools;
 - install tmux clipboard dependencies;
-- configure Pi's 9router integration;
+- configure the runtime-neutral 9Router service or optional Pi adapter only when explicitly enabled.
 - create device records and work directories.
+
+Both installers skip 9Router and Pi restoration by default. Set
+`DOTFILES_SETUP_9ROUTER=1` for the generic gateway or `DOTFILES_SETUP_PI=1`
+for the optional Pi adapter. Credential migration remains a separate,
+user-invoked `9router-credential-migrate` command.
 
 Review the relevant script before running it:
 
@@ -581,12 +602,15 @@ If a real secret is ever committed, removing the file in a later commit is insuf
 | Claude Code CLI | Standalone provider-specific consultation and long-context work | Automatic |
 | Codex CLI | Standalone focused implementation, debugging, and review | Automatic through managed links beside `.system` |
 | Antigravity (`agy`) CLI | Standalone visual/UI work | Automatic through `~/.gemini/config/skills` |
-| Pi | Supporting terminal runtime and machine-local provider workflows | Automatic |
+| Pi (optional) | Supporting CLI fallback and custom compaction | Automatic when installed |
+| 9Router (optional) | Runtime-neutral gateway API, including image generation | Through the `9router` skill |
 
-MiniMax, OpenCode-compatible providers, 9Router, and future model providers are
-execution options rather than capability owners. Exact availability and
-authentication are machine-local. `config/omp/ROUTING.md` owns semantic routing;
-`config/omp/config.yml` owns executable selectors and fallbacks.
+MiniMax, OpenCode-compatible providers, and future model providers are execution
+options rather than capability owners. The runtime-neutral `9router` skill owns
+the image-generation procedure and calls the gateway API; no Pi extension owns
+that capability. Exact availability and authentication are machine-local.
+`config/omp/ROUTING.md` owns semantic routing; `config/omp/config.yml` owns
+executable selectors and fallbacks.
 
 Continue in OMP when it already owns the session. Moving to a standalone CLI is
 an explicit handoff and does not automatically transfer conversation state.
@@ -607,7 +631,7 @@ Editor     Helix
 Terminal   tmux + bash/zsh + Starship
 Git        Git + Lazygit + Delta + GitHub CLI
 Tools      mise-managed user tools
-AI         OMP primary + Claude Code + Pi + Codex + Antigravity
+AI         OMP primary + optional standalone Claude Code, Codex, Antigravity, and Pi
 ```
 
 ## Documentation

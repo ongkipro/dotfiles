@@ -1,64 +1,66 @@
-# Pi.dev Config Backup
+# Optional Pi Configuration
 
-**Live location**: `~/.pi/agent/`
+Pi is a supporting standalone CLI, not a control plane or an OMP prerequisite.
+OMP remains fully usable when Pi is absent. The tracked Pi configuration keeps a
+small standalone fallback surface and the custom `compact-free` extension.
 
-## Files
+## Tracked files
 
-- `settings.json` — source of truth config pi: default provider/model/theme/thinking, packages, **pi-image-gen** (gambar via 9router lokal+remote; key & tunnel URL tersanitasi jadi placeholder env)
-- `models.template.json` — 9router provider definition + curated models (no secrets)
-- `extensions/compact-free/` — extension untuk compaction pakai model gratis
+- `settings.json` — non-secret Pi defaults and optional packages.
+- `models.template.json` — a non-secret starting point for machine-local Pi
+  provider metadata. It is copied only when `models.json` does not exist.
+- `extensions/compact-free/` — optional Pi-only conversation compaction with a
+  machine-local provider fallback chain.
 
-### Auto-sync models (Linux)
+Image generation is not owned by Pi or a Pi package. Use the runtime-neutral
+`9router` skill and its OpenAI-compatible `/v1/images/generations` API from the
+active runtime.
 
-`bin/pi-9router-sync.js` + systemd unit `pi-9router-sync.service` (di-generate oleh
-`pi-9router-restore`) menyinkronkan model dari provider **aktif** di 9router ke
-`~/.pi/agent/models.json` tiap login. Jalankan manual:
+## Restore boundaries
+
+The generic helper restores shared 9Router config and its user service without
+reading or writing any Pi path:
 
 ```bash
-systemctl --user start pi-9router-sync.service
+~/dotfiles/bin/9router-restore
 ```
 
-### Env var (pi-image-gen provider remote)
-
-Blok `pi-image-gen` di `settings.json` pakai placeholder — set sebelum pakai remote:
-
-- `NINEROUTER_KEY` — API key 9router lokal (fallback `noauth`).
-- `NINEROUTER_REMOTE_KEY` — API key 9router-fantastico (tunnel). JANGAN commit.
-- `YOUR_TUNNEL.abc-tunnel.us` — ganti dengan hostname tunnel aktif saat restore.
-
-## Tidak di-backup (secret)
-
-- `models.json` — berisi API key 9router (kalau pakai hosted 9router)
-- `auth.json` — auth token Pi.dev + API keys untuk opencode-go, minimax, dsb
-- `trust.json` — trusted sessions
-- `sessions/` — history
-
-## Restore
+Only invoke the Pi adapter when Pi support is wanted:
 
 ```bash
-# Full restore (recommended)
 ~/dotfiles/bin/pi-9router-restore
-
-# Manual restore
-cp dotfiles/config/pi/settings.json ~/.pi/agent/settings.json
-cp dotfiles/config/pi/models.template.json ~/.pi/agent/models.json  # hanya kalau belum ada
-mkdir -p ~/.pi/extensions/compact-free ~/.pi/agent/extensions
-cp dotfiles/config/pi/extensions/compact-free/* ~/.pi/extensions/compact-free/
-cp dotfiles/config/9router/aliases.json ~/.9router/aliases.json
-cp dotfiles/config/9router/runtime-package.json ~/.9router/runtime/package.json
 ```
 
-## 9router Provider Connections
+The adapter restores Pi settings, the compaction extension, and optional model
+sync metadata, then delegates generic gateway setup to `9router-restore`. It
+does not make Pi a dependency of OMP and does not overwrite an existing
+`~/.pi/agent/models.json`.
 
-Agar 9router bisa routing ke upstream provider, buka dashboard di:
-  http://127.0.0.1:20128
+## Credentials
 
-Tambahkan **Provider Connections** (API key untuk opencode-go, minimax, dsb).
-Tanpa ini, 9router hanya bisa list model tapi tidak bisa chat.
+These Pi files remain machine-local and must not be committed:
 
-## Notes
+- `~/.pi/agent/auth.json` — Pi provider/OAuth state.
+- `~/.pi/agent/models.json` — machine-local provider availability and metadata.
+- `~/.pi/agent/trust.json` — trusted sessions.
+- `~/.pi/agent/sessions/` — session history.
 
-- `models.template.json` = template aman tanpa API key. Script restore hanya copy ke `models.json` kalau file itu belum ada.
-- `auth.json` di-manage manual karena berisi API keys / oauth token asli.
-- `settings.json` adalah source of truth. Nilai default saat ini ikuti isi file tersebut (jangan hardcode di docs/script).
-- `pi-9router-restore` akan restore pi config + shared 9router config, lalu generate launchd (macOS) atau systemd (Linux) service untuk 9router.
+OMP does not read Pi authentication. Its optional remote 9Router credential lives
+at:
+
+```text
+~/.config/ai-local/credentials/9router-remote-key
+```
+
+To copy an existing `9router-fantastico` key out of legacy Pi auth, explicitly
+run:
+
+```bash
+9router-credential-migrate
+```
+
+The migration refuses to overwrite an existing destination, creates the new file
+with mode `0600`, leaves Pi auth unchanged, and never prints the credential.
+Provider choice, model availability, URLs, authentication, and service status
+are machine-local; inspect the relevant runtime files and service manager rather
+than treating this backup as current runtime state.
