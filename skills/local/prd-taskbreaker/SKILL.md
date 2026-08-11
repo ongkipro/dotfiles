@@ -17,7 +17,7 @@ description: >-
 
 Raw idea → spec-driven PRD → numbered tasks an AI agent can build **without over-engineering**.
 
-The binding rule: **every task traces back to one requirement, and every requirement is testable with a runnable "Done when".** A task with no requirement is YAGNI — cut it. That is the structural brake that stops an agent from adding unrequested features, in line with the lazy-senior-dev discipline in `AGENTS.md`.
+The binding rule: **every task has exactly one primary accepted requirement; any other requirement or quality IDs are constraints.** A task with no primary requirement is YAGNI — cut it. Requirement acceptance criteria, task completion, test procedures, and observed evidence remain separate (see Verification vocabulary).
 
 ## Flow
 
@@ -25,8 +25,8 @@ The binding rule: **every task traces back to one requirement, and every require
 [Idea] → [1. Clarify — GATE, resolve ambiguity first]
        → [2. PRD.md — goals + non-goals + numbered requirements (EARS)]
        → [3. PLAN.md — ONLY if it touches architecture/DB/integration]
-       → [4. TASKS.md — each task → REQ-x, deps, Done-when]
-       → (per task) implement → run its check → commit additively
+       → [4. TASKS.md — each task → one primary requirement, constraints, deps, Done-when]
+       → (per task) implement → run its TEST → record observed EVID → commit additively
 ```
 
 ## Modes
@@ -35,11 +35,21 @@ The binding rule: **every task traces back to one requirement, and every require
 - **`plan`** — technical PLAN from an existing PRD (architectural features)
 - **`tasks`** — break an existing PRD/PLAN into tasks
 - **`full`** *(default)* — clarify → PRD → (plan if needed) → tasks in one run
-- **`update`** — update existing artifacts; keep requirement/task numbering stable
+- **`update`** — update existing artifacts; preserve every accepted requirement and task ID (never renumber or reuse it); append new IDs and explicitly supersede changed accepted items
 
 ### Suite-pack mode
 
-If a `development-spec-suite` pack is active (`CONTEXT-RECORD.md` exists), preserve its schema: product requirements use `PR-*`, quality constraints use `NFR-*`, and task headings use `T-*`. Every task declares exactly one `Primary requirement: PR-*` or `TD-*`; list other IDs under `Constraints`. Follow the pack's ownership/status/evidence fields and validator instead of the standalone `REQ-*` examples below.
+If a `development-spec-suite` pack is active (`CONTEXT-RECORD.md` exists), preserve its schema: product requirements use `PR-*`, quality constraints use `NFR-*`, and task headings use `T-*`. Every product-pack task has exactly one `Primary requirement: PR-*` or `TD-*`, and that requirement must be accepted; the suite's own maintenance tasks may instead use accepted `DS-*`. Follow the pack's ownership, status, TEST, EVID, and validator rules instead of the standalone `REQ-*` examples below.
+
+```markdown
+### T-1 — Create the order endpoint
+Primary requirement: PR-1
+Constraints: PR-2, NFR-1
+Dependencies: None
+Done when: Execute TEST-1 against the local endpoint; its observed result satisfies PR-1's acceptance criteria.
+```
+
+`PR-2` and `NFR-1` affect execution but do not become additional primary requirements. During planning, define `TEST-1` if the pack activates it, but do not create or claim `EVID-*`.
 
 ## 1. Clarify — this is a gate, not small talk
 
@@ -51,6 +61,8 @@ Ask the user **in Indonesian** (conversation is Indonesian; the artifacts you wr
 - What is explicitly **out of scope** (non-goals)?
 
 If an answer would change direction, **stop and ask** — don't write a PRD on top of an assumption.
+
+This skill still owns bounded PRD/PLAN/TASKS when the intended user, outcome, and scope are known. Route to `product-intelligence` **only** when product or business direction itself is genuinely unresolved and needs evidence-led decision work—not for ordinary requirement clarification.
 
 ## 2. PRD format
 
@@ -126,9 +138,24 @@ Endpoints/webhooks/third parties. Internal API → delegate to the openapi-spec 
 What can fail, and the handling (rate limit, retry, fallback).
 ```
 
+## Verification vocabulary
+
+- **Acceptance criterion** — requirement-level observable behavior that decides whether the requirement is satisfied; it is not a command or a result.
+- **Task `Done when`** — the task completion gate: what procedure must be executed and what acceptance criterion its result must satisfy.
+- **TEST procedure** — reproducible setup, action, and assertions. A planning artifact may define it, but cannot claim its outcome.
+- **Runtime EVID** — a fresh observed result recorded only after execution, including target/environment and enough output to support a pass or fail verdict. Never add placeholder or assumed passing EVID during planning.
+
+```markdown
+Acceptance criterion (REQ-1): Given a valid order payload, the API returns 201 and persists status `pending`.
+Done when: Execute TEST-1 against the local endpoint; its observed result satisfies REQ-1's acceptance criterion.
+TEST-1 procedure: Start the app, POST a valid payload, then assert status 201 and query the stored order.
+```
+
+Runtime EVID is intentionally absent from this planning example. Only after execution may an `EVID-*` entry record the actual target, command/request, observed status and stored row, and verdict.
+
 ## 4. Tasks format
 
-`TASKS.md` at project root. Each task is **atomic, context-complete, and traces back to a requirement**.
+`TASKS.md` at project root. Generate tasks only after their primary requirements are accepted. Each task is **atomic, context-complete, and traces to exactly one primary requirement**. Other applicable IDs belong under `Constraints`; dependencies name tasks, not additional primaries.
 
 ```markdown
 # Tasks: [Project Name]
@@ -139,25 +166,35 @@ What can fail, and the handling (rate limit, retry, fallback).
 - Respect `AGENTS.md`: YAGNI, native-first, no unrequested abstractions.
 - 1 task ≈ 1 commit that passes its own check.
 
-## Phase 1: Setup
-- [ ] **T1** — Init [stack]. Output: dev-ready folder structure.
-      → REQ: — · deps: [] · Done when: `pnpm dev` runs without error.
-- [ ] **T2** — DB schema: table `orders(id, status, phone, province)` + migration.
-      → REQ: REQ-1 · deps: [T1] · Done when: `wrangler d1 migrations apply` succeeds; table exists.
+## Phase 1: Data
+- [ ] **T1** — Add the `orders(id, status, phone, province)` table and migration.
+      Primary requirement: REQ-1
+      Constraints: None
+      Dependencies: None
+      Done when: Apply the migration locally and verify the `orders` table has the specified columns.
 
 ## Phase 2: Core
-- [ ] **T3** — POST /api/order endpoint: validate + insert status `pending`.
-      → REQ: REQ-1, REQ-2 · deps: [T2] · Done when: valid payload→201, invalid phone→400.
-
-## Phase 3: Polish & Deploy
-- [ ] **T4** — Deploy to [target] via [method].
-      → REQ: — · deps: [T3] · Done when: live URL responds 200.
+- [ ] **T2** — Add `POST /api/order` to persist a valid order with status `pending`.
+      Primary requirement: REQ-1
+      Constraints: REQ-4
+      Dependencies: T1
+      Done when: Execute TEST-1; the response and stored row satisfy REQ-1's acceptance criterion.
+- [ ] **T3** — Reject an invalid phone number with a user-visible error.
+      Primary requirement: REQ-2
+      Constraints: None
+      Dependencies: T2
+      Done when: Submit an invalid phone number and verify no order is stored and the specified error is shown.
+- [ ] **T4** — Hide COD while the selected province is COD-disabled.
+      Primary requirement: REQ-3
+      Constraints: None
+      Dependencies: T2
+      Done when: Select a COD-disabled province and verify COD is unavailable while other payment options remain unchanged.
 ```
 
 ## Good-task rules
 
-1. **Traceable** — each task names `→ REQ-x`. **A task with no requirement is YAGNI → cut it, or ask why it exists.**
-2. **Runnable DoD** — "Done when" must be something actually run (a command, a test, a UI check), not "finished". Matches the "ONE runnable check" rule in `AGENTS.md`.
+1. **Traceable** — each task names exactly one `Primary requirement: REQ-x` that is accepted. **No primary means YAGNI; multiple primaries mean split the task or choose the single outcome and move cross-cutting IDs to `Constraints`.**
+2. **Runnable DoD** — `Done when` names a procedure to run and the acceptance condition its observed result must meet, not "finished" and not a claim that it already passed.
 3. **Explicit deps** — `deps: [T1, T3]` so ordering and parallelism are clear to the agent.
 4. **Context-complete** — name the concrete file/table/endpoint, not "build something".
 5. **Sized right** — 1 task ≈ one coding session (30–90 min), small enough to review in one sitting. Feels big → split first.

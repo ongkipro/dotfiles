@@ -75,6 +75,10 @@ The destructive historical linker regression is guarded by
 
 ## Capability ownership
 
+- `product-intelligence` owns decision-first synthesis from an uncertain product
+  or business idea into evidence-backed market, product/UX, and specification
+  direction; it hands artifacts to existing specialist owners and stops before
+  implementation without explicit approval.
 - `native-first` owns platform-before-dependency decisions and smallest useful
   validation commands.
 - `development-spec-suite`, `prd-taskbreaker`, `openapi-spec`, and
