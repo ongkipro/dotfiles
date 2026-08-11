@@ -114,6 +114,37 @@ def parse_custom_provider_models(path):
             providers[current_provider].add(model_match.group(1))
     return providers
 
+def parse_scalar_mapping(source, key, header_indent):
+    """Parse one direct scalar mapping from the constrained tracked config."""
+    lines = source.splitlines()
+    header = (" " * header_indent) + key + ":"
+    start = next(
+        (index for index, line in enumerate(lines) if line.rstrip() == header),
+        None,
+    )
+    if start is None:
+        fail("tracked config is missing mapping: " + key)
+    values = {}
+    child_indent = header_indent + 2
+    pattern = re.compile(
+        r"^" + (" " * child_indent) + r"([A-Za-z][A-Za-z0-9_-]*):\s*(\S.*?)\s*$"
+    )
+    for line in lines[start + 1 :]:
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip())
+        if indent <= header_indent:
+            break
+        match = pattern.match(line)
+        if not match:
+            continue
+        child_key, value = match.groups()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = json.loads(value) if value[0] == '"' else value[1:-1]
+        values[child_key] = value
+    return values
+
+
 
 def collect_role_references(value, references):
     if isinstance(value, dict):
@@ -134,16 +165,6 @@ for required_path, label in (
     if not required_path.exists():
         fail("missing {}: {}".format(label, required_path))
 
-omp = shutil.which("omp")
-if not omp:
-    fail("omp executable is unavailable")
-omp_path = Path(omp)
-if not omp_path.is_absolute() or not os.access(str(omp_path), os.X_OK):
-    fail("omp does not resolve to an absolute executable path: " + omp)
-version_result = run([omp, "--version"])
-if version_result.returncode != 0:
-    fail("omp executable cannot report its version: " + version_result.stderr.strip())
-
 config_source = CONFIG_PATH.read_text(encoding="utf-8")
 explicit_paths = explicit_yaml_paths(config_source)
 required_explicit_paths = {
@@ -162,6 +183,59 @@ for path in sorted(required_explicit_paths):
     if path not in explicit_paths:
         fail("tracked config must explicitly define " + ".".join(path))
 
+
+static_roles = parse_scalar_mapping(config_source, "modelRoles", 0)
+required_roles = {"default", "smol", "slow", "plan", "vision", "tiny", "task", "advisor"}
+if not required_roles.issubset(static_roles):
+    fail("tracked config is missing model roles: " + ", ".join(sorted(required_roles - static_roles)))
+for role, selector in static_roles.items():
+    if "/" not in selector:
+        fail("model role {} is not a provider/model selector".format(role))
+
+static_overrides = parse_scalar_mapping(config_source, "agentModelOverrides", 2)
+if not static_overrides:
+    fail("task.agentModelOverrides must be a non-empty map")
+for agent, reference in static_overrides.items():
+    if not reference.startswith("@") or reference[1:] not in static_roles:
+        fail("bad @role reference for {}: {}".format(agent, reference))
+
+for required_agent in ("architect", "complex-developer", "debugger"):
+    if not (AGENTS_DIR / (required_agent + ".md")).is_file():
+        fail("missing tracked custom agent: " + required_agent)
+for path in sorted(AGENTS_DIR.glob("*.md")):
+    metadata = parse_frontmatter(path)
+    name = metadata.get("name")
+    model = metadata.get("model")
+    if name != path.stem:
+        fail("custom agent name does not match its filename: " + str(path))
+    if static_overrides.get(name) != model:
+        fail("custom agent override does not match frontmatter: " + name)
+
+for installer in (ROOT / "install.sh", ROOT / "install-macos.sh"):
+    if not installer.is_file():
+        fail("missing installer: " + str(installer))
+    source = installer.read_text(encoding="utf-8")
+    if not re.search(r'link "\$DOT/config/omp/agents"\s+.*\.omp/agent/agents', source):
+        fail("installer does not link tracked custom agents: " + str(installer))
+    if "omp-routing-test" not in source:
+        fail("installer does not link omp-routing-test: " + str(installer))
+
+omp = shutil.which("omp")
+if not omp:
+    if os.environ.get("CI") == "true":
+        print(
+            "omp-routing-test: OK (static CI; roles={}, overrides={}, runtime=unavailable)".format(
+                len(static_roles), len(static_overrides)
+            )
+        )
+        raise SystemExit(0)
+    fail("omp executable is unavailable")
+omp_path = Path(omp)
+if not omp_path.is_absolute() or not os.access(str(omp_path), os.X_OK):
+    fail("omp does not resolve to an absolute executable path: " + omp)
+version_result = run([omp, "--version"])
+if version_result.returncode != 0:
+    fail("omp executable cannot report its version: " + version_result.stderr.strip())
 runtime_temporary = tempfile.TemporaryDirectory(prefix="omp-routing-test.")
 atexit.register(runtime_temporary.cleanup)
 runtime_root = Path(runtime_temporary.name) / "agent"
