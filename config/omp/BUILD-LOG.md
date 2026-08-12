@@ -61,4 +61,29 @@ A `codex-spark-only.yml` overlay was drafted and then dropped as unnecessary. It
 
 `ROUTING.md` and the repository `README.md` were updated alongside every change above, so neither describes routing that no longer exists. A visual summary of the whole rebuild — evidence, pool diagram, escalation ladder, before-and-after comparison, and the five defects — was written to `~/Documents/work/notes/omp-orchestration-setup-2026-08-12.html`.
 
-**Two facts are unverified on this device** and are carried into `STATUS.md` as the next action: direct Anthropic and Antigravity Gemini 3.1 Pro each served zero calls across the entire history sampled above. Since `config.yml` describes intended routing while availability is device-local, a role pointing at an absent model degrades silently rather than failing loudly.
+**Two facts were unverified on this device** at the time of writing: direct Anthropic and Antigravity Gemini 3.1 Pro each served zero calls across the entire history sampled above. Since `config.yml` describes intended routing while availability is device-local, a role pointing at an absent model degrades silently rather than failing loudly. Closed by the benchmark below.
+
+## 2026-08-12 — Benchmark of the three unproven models
+
+Five of the twelve roles pointed at models with no execution history on this device. Benchmarked with `omp bench --runs 1 --max-tokens 32 --par 1`.
+
+| Model | Roles | Result | TTFT | Throughput |
+|---|---|---|---|---|
+| `anthropic/claude-opus-5` | `advisor-xhigh`, `advisor-max` | Serves | 1239 ms | 17.2 tok/s |
+| `anthropic/claude-sonnet-5` | `advisor` | Serves | 786 ms | 18.7 tok/s |
+| `google-antigravity/gemini-3.1-pro:high` | `vision`, `designer` | Serves | 4840 ms | 102.6 tok/s |
+
+Direct Anthropic is available here, so the advisor tier is genuine rather than a silent degradation to Opus 4.6. Every role now points at a model proven to run on this device.
+
+**The gotcha this exposed.** The first attempt benchmarked `google-antigravity/gemini-3.1-pro` as a bare selector and failed:
+
+```
+Cloud Code Assist API error (400): Budget 0 is invalid.
+This model only works in thinking mode.
+```
+
+Gemini 3.1 Pro rejects a request carrying no thinking budget. A reference that omits its reasoning suffix therefore fails outright at call time — it does not quietly fall back to a default level. The configured routes were never affected, because they specify `:high`, and an audit of all 100 model references across `config.yml` and both overlays confirmed every one carries an explicit suffix. This is now invariant 7 in `STATUS.md`.
+
+The same requirement applies to the rest of the Gemini Pro family, whose supported levels are `low` and `high` only, with no `minimal`. Treat a missing suffix on any of them as a runtime failure waiting to happen, not a stylistic omission.
+
+TTFT is also worth reading carefully here: Gemini 3.1 Pro is by far the fastest at generating tokens yet the slowest to start, because thinking time lands inside time-to-first-token. Sonnet 5 starts in under a second. For interactive lanes, first-token latency is the number that shapes how the session feels.

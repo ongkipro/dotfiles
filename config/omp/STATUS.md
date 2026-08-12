@@ -1,7 +1,7 @@
 # Status — OMP Orchestration
 
 Updated: 2026-08-12
-Status: Configured and verified; two provider availability checks outstanding
+Status: Configured, verified, and benchmarked. No outstanding checks.
 
 ## Current state
 
@@ -25,6 +25,7 @@ Any change to `config.yml` must keep all of these true. The check that verifies 
 4. Every fallback chain changes provider on its first hop.
 5. Every role has a fallback path, whether role-keyed or model-keyed.
 6. No recovery path uses 9Router.
+7. Every model reference carries an explicit reasoning suffix. Gemini 3.1 Pro rejects a request with no thinking budget outright — `Budget 0 is invalid. This model only works in thinking mode.` — so a reference that merely omits its suffix fails at runtime rather than falling back to some default. All 100 references across `config.yml` and both overlays were checked and carry one.
 
 ## Active work
 
@@ -32,21 +33,19 @@ None. The routing rebuild completed 2026-08-12 across five commits, ending at `7
 
 ## Blockers
 
-None blocking, but two provider availability facts are unverified on this device and would degrade routing silently if wrong:
+None. The three models that had never executed on this device were benchmarked on 2026-08-12 and all serve correctly; results are in `BUILD-LOG.md`. Every one of the twelve roles now points at a model proven to run here.
 
-- **Direct Anthropic served zero calls** across the ~70 hours of `stats.db` history. Three advisor roles depend on it. If it is unavailable here, all three degrade to Antigravity Claude Opus 4.6, which stops at `high` reasoning — meaning `advisor-xhigh` and `advisor-max` would return work one tier below what was requested.
-- **Antigravity Gemini 3.1 Pro served zero calls.** It now backs both `vision` and `designer`, so `designer` may never have actually executed.
-
-`config/ai/memory/environment.md` records the general form of this hazard: `config.yml` describes intended routing, while actual model availability is device-local.
+`config/ai/memory/environment.md` records the general hazard this closed: `config.yml` describes intended routing, while actual model availability is device-local. Re-run the benchmark below after any change that introduces a model not already in use.
 
 ## Next verified action
 
+None required. When adding a model to `config.yml`, prove it runs on this device first:
+
 ```bash
-omp bench --model anthropic/claude-opus-5
-omp bench --model google-antigravity/gemini-3.1-pro
+omp bench <provider>/<model>:<effort> --runs 1 --max-tokens 32
 ```
 
-If either is unavailable on this device, record the fact in `BUILD-LOG.md` and re-point the affected roles to a model that is, rather than leaving a route that degrades without notice.
+Always include the reasoning suffix. A bare selector is not a valid test of a configured route and will fail outright on models that require thinking mode.
 
 ## Deliberately not wired
 
