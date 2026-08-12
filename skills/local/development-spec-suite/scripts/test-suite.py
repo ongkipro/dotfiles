@@ -528,12 +528,8 @@ Reference PR-404 and PR-3.
             "invalid-task-primary-namespace": (
                 "ready",
                 "TASK003",
-                """### SEC-1 — Security constraint
-- Status: Accepted
-- Owner: Security owner
-
-### T-1 — Task
-- Primary requirement: SEC-1
+                """### T-1 — Task
+- Primary requirement: SEC-99
 - Done when: command exits 0.
 """,
             ),

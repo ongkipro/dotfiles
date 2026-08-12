@@ -33,6 +33,7 @@
 
 - OMP is the only primary control plane. Its tracked configuration lives under
   `config/omp/`; Pi state is not an OMP configuration or credential source.
+- **Aspirational Routing vs Device Reality:** OMP's `config/omp/config.yml` defines the *ideal* orchestration (e.g., assigning `claude-opus-5:max` for `advisor-max`). However, **actual model availability is device-local**, governed by what is registered in `models.yml` and the provider's active API keys. If a requested model (like Opus 5) is absent on a specific device, OMP degrades to the highest available fallback (e.g., Opus 4.6 or Codex Sol). Do not assume all models in `config.yml` are physically available on every machine.
 - Pi is optional. When it is installed, inspect its own settings and models only
   for a direct Pi session. Its custom compaction extension is a Pi-only fallback.
 - Generic 9Router config/service restoration is `bin/9router-restore` and does
