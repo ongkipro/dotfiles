@@ -75,7 +75,7 @@ task:
     apply: true
     merge: patch
   agentModelOverrides:
-    scout: "@smol"
+    scout: "@research"
     sonic: "@smol"
     designer: "@vision"
     reviewer: "@advisor"

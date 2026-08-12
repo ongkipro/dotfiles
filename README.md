@@ -165,9 +165,9 @@ is the judgment pool, reserved for independent consultation and review.
 | Work class | OMP role | Current selector | Pool |
 |---|---|---|---|
 | Normal development | `default` | Gemini 3.6 Flash, medium reasoning | Antigravity |
-| Repository discovery and mechanical support | `smol` | Gemini 3.1 Flash Lite, medium reasoning | Antigravity |
+| Strictly mechanical updates and data collection | `smol` | Gemini 3.1 Flash Lite, medium reasoning | Antigravity |
 | Internal short-form work | `tiny` | Gemini 3.1 Flash Lite, minimal reasoning | Antigravity |
-| Source-verified library and API research | `research` | Gemini 3.6 Flash, high reasoning | Antigravity |
+| Repository discovery and source-verified research | `research` | Gemini 3.6 Flash, high reasoning | Antigravity |
 | Visual frontend work | `vision`, `designer` | Gemini 3.1 Pro, high reasoning | Antigravity |
 | Architecture-sensitive planning | `plan` | Claude Opus 4.6, high reasoning | Antigravity |
 | Complex implementation | `slow` | Codex GPT-5.6 Sol, high reasoning | Codex |
@@ -185,8 +185,8 @@ compaction ever fires.
 Task size alone does not trigger escalation. Complexity, specialist evidence,
 or a demonstrated blocker does.
 
-The `scout` and `sonic` agents resolve to `smol`; `librarian` resolves to
-`research`; `designer` resolves to `vision`; `task` resolves to `task`;
+The `scout` and `librarian` agents resolve to `research`; `sonic` resolves to
+`smol`; `designer` resolves to `vision`; `task` resolves to `task`;
 `complex-developer` resolves to `slow`; `reviewer` resolves to `advisor`;
 `debugger` and `security-reviewer` resolve to `advisor-xhigh`; and `architect`
 resolves to `advisor-max`. All ten bundled and tracked agents have an explicit
