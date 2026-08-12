@@ -28,46 +28,41 @@ retry:
   fallbackRevertPolicy: cooldown-expiry
   fallbackChains: 
     default:
-      - 9router-fantastico/ag/gemini-3.6-flash-medium
       - openai-codex/gpt-5.4:medium
+      - anthropic/claude-sonnet-4-6:medium
     task:
       - google-antigravity/gemini-3.6-flash:high
-      - 9router-fantastico/cx/gpt-5.6-sol
+      - anthropic/claude-sonnet-4-6:medium
     smol:
-      - 9router-fantastico/gc/gemini-3.1-flash-lite-preview
-      - 9router-fantastico/ag/gemini-3.6-flash-low
+      - openai-codex/gpt-5.4-mini:low
+      - anthropic/claude-haiku-4-5:low
     tiny:
-      - 9router-fantastico/gc/gemini-3.1-flash-lite-preview
-      - 9router-fantastico/ag/gemini-3.6-flash-low
+      - anthropic/claude-haiku-4-5:minimal
+      - openai-codex/gpt-5.4-mini:low
     slow:
       - google-antigravity/claude-opus-4-6:high
-      - 9router-fantastico/cx/gpt-5.6-sol
       - anthropic/claude-opus-4-8:high
     plan:
       - openai-codex/gpt-5.6-sol:high
-      - 9router-fantastico/ag/claude-opus-4-6-thinking
       - anthropic/claude-opus-4-8:high
     vision:
-      - 9router-fantastico/gc/gemini-3.1-pro-preview
-      - 9router-fantastico/ag/gemini-3.1-pro-low
+      - anthropic/claude-sonnet-5:high
+      - openai-codex/gpt-5.4:high
     designer:
-      - 9router-fantastico/gc/gemini-3.1-pro-preview
-      - 9router-fantastico/ag/gemini-3.1-pro-low
+      - anthropic/claude-sonnet-5:high
+      - openai-codex/gpt-5.4:high
     research:
-      - 9router-fantastico/ag/gemini-3.6-flash-high
-      - 9router-fantastico/gc/gemini-3.1-flash-lite-preview
+      - openai-codex/gpt-5.4:high
+      - anthropic/claude-sonnet-4-6:high
     advisor:
       - google-antigravity/claude-sonnet-4-6:high
       - openai-codex/gpt-5.6-sol:high
-      - 9router-fantastico/cx/gpt-5.5
     anthropic/claude-sonnet-5:
       - google-antigravity/claude-sonnet-4-6:high
       - openai-codex/gpt-5.6-sol:high
-      - 9router-fantastico/cx/gpt-5.5
     anthropic/claude-opus-5:
       - google-antigravity/claude-opus-4-6:high
       - openai-codex/gpt-5.6-sol:high
-      - 9router-fantastico/cx/gpt-5.5
 async:
   enabled: true
   maxJobs: 8

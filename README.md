@@ -155,27 +155,50 @@ OMP decides which model executes it.
 Semantic routing has one owner: [`config/omp/ROUTING.md`](config/omp/ROUTING.md).
 Its executable selectors are kept in `config/omp/config.yml`:
 
-| Work class | OMP role | Current selector |
-|---|---|---|
-| Normal development | `default` | Codex GPT-5.6 Sol, medium reasoning |
-| Delegated implementation | `task` | Codex GPT-5.6 Sol, medium reasoning |
-| Complex implementation | `slow` | Codex GPT-5.6 Sol, high reasoning |
-| Architecture-sensitive planning | `plan` | Codex GPT-5.6 Sol, high reasoning |
-| Repository discovery and mechanical support | `smol` | Gemini 3.6 Flash, medium reasoning |
-| Visual frontend work | `vision` | Gemini 3.1 Pro through Antigravity |
-| Correctness consultation | `advisor` | Anthropic Claude Opus 5, high reasoning |
-| Difficult debugging and security review | `advisor-xhigh` | Anthropic Claude Opus 5, xhigh reasoning |
-| Costly-to-reverse architecture review | `advisor-max` | Anthropic Claude Opus 5, max reasoning |
+Routing is organised as three capacity pools, each carrying the work it is
+measurably best at rather than the work that is merely cheapest. Antigravity is
+the volume pool and holds the main session, because the main session accounts
+for the overwhelming majority of all tokens. Codex is the precision pool and
+holds the two lanes where a wrong edit costs the most rework. Direct Anthropic
+is the judgment pool, reserved for independent consultation and review.
+
+| Work class | OMP role | Current selector | Pool |
+|---|---|---|---|
+| Normal development | `default` | Gemini 3.6 Flash, medium reasoning | Antigravity |
+| Repository discovery and mechanical support | `smol` | Gemini 3.1 Flash Lite, medium reasoning | Antigravity |
+| Internal short-form work | `tiny` | Gemini 3.1 Flash Lite, minimal reasoning | Antigravity |
+| Source-verified library and API research | `research` | Gemini 3.6 Flash, high reasoning | Antigravity |
+| Visual frontend work | `vision`, `designer` | Gemini 3.1 Pro, high reasoning | Antigravity |
+| Architecture-sensitive planning | `plan` | Claude Opus 4.6, high reasoning | Antigravity |
+| Complex implementation | `slow` | Codex GPT-5.6 Sol, high reasoning | Codex |
+| Delegated implementation | `task` | Codex GPT-5.6 Sol, medium reasoning | Codex |
+| Correctness consultation | `advisor` | Anthropic Claude Sonnet 5, high reasoning | Anthropic |
+| Difficult debugging and security review | `advisor-xhigh` | Anthropic Claude Opus 5, xhigh reasoning | Anthropic |
+| Costly-to-reverse architecture review | `advisor-max` | Anthropic Claude Opus 5, max reasoning | Anthropic |
+
+Two invariants keep this table safe to change. Every reasoning suffix must be a
+level the selected model actually supports, and every model reachable from any
+role or fallback must have a context window larger than
+`compaction.thresholdTokens`, or a session can exceed that window before
+compaction ever fires.
 
 Task size alone does not trigger escalation. Complexity, specialist evidence,
 or a demonstrated blocker does.
 
-The `scout` and `sonic` agents resolve to `smol`; `reviewer` resolves to
-`advisor`; `debugger` and `security-reviewer` resolve to `advisor-xhigh`; and
-`architect` resolves to `advisor-max`. Opus 5 falls back to Opus 4.8, Codex
-High, and the 9Router Codex route. Gemini 3.6 Flash falls back to its 9Router
-route and then GPT-5.4 Mini. Provider fallback never transfers integration or
-verification ownership away from the main OMP session.
+The `scout` and `sonic` agents resolve to `smol`; `librarian` resolves to
+`research`; `designer` resolves to `vision`; `task` resolves to `task`;
+`complex-developer` resolves to `slow`; `reviewer` resolves to `advisor`;
+`debugger` and `security-reviewer` resolve to `advisor-xhigh`; and `architect`
+resolves to `advisor-max`. All ten bundled and tracked agents have an explicit
+override, so none silently resolves to `default`.
+
+Fallback chains use only the three directly connected providers — Antigravity,
+Codex, and Anthropic — and every chain changes provider on its first hop, since
+falling back within an exhausted pool recovers nothing. 9Router remains
+configured as an optional manual route but carries no recovery path, because a
+tunnelled transport is the wrong thing to depend on precisely when something has
+already failed. Provider fallback never transfers integration or verification
+ownership away from the main OMP session.
 
 Normal use is one command and one outcome:
 
