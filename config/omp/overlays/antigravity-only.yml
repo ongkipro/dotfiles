@@ -1,0 +1,67 @@
+# Single-provider session overlay: Antigravity only.
+#
+#   omp --config ~/dotfiles/config/omp/overlays/antigravity-only.yml
+#
+# Every role resolves to google-antigravity, so specialist agents stay on
+# Antigravity too (they resolve through roles, not through model literals).
+# Recovery stays inside Antigravity on purpose: a session pinned to one provider
+# should fail within that provider rather than silently re-introducing the
+# multi-model routing the operator just opted out of.
+#
+# Note on the advisor tier: Antigravity's Claude Opus 4.6 supports reasoning up
+# to `high` only — no `xhigh`, no `max`. The advisor roles therefore flatten to
+# `high` here. That is a real capability reduction, not a naming detail: a
+# single-provider Antigravity session cannot reproduce the judgment ceiling that
+# direct Anthropic Opus 5 provides.
+modelRoles:
+  default: google-antigravity/gemini-3.6-flash:medium
+  task: google-antigravity/gemini-3.6-flash:high
+  slow: google-antigravity/claude-opus-4-6:high
+  plan: google-antigravity/claude-opus-4-6:high
+  smol: google-antigravity/gemini-3.1-flash-lite:medium
+  tiny: google-antigravity/gemini-3.1-flash-lite:minimal
+  research: google-antigravity/gemini-3.6-flash:high
+  vision: google-antigravity/gemini-3.1-pro:high
+  designer: google-antigravity/gemini-3.1-pro:high
+  advisor: google-antigravity/claude-sonnet-4-6:high
+  advisor-xhigh: google-antigravity/claude-opus-4-6:high
+  advisor-max: google-antigravity/claude-opus-4-6:high
+
+modelProviderOrder:
+  - google-antigravity
+
+retry:
+  enabled: true
+  modelFallback: true
+  fallbackRevertPolicy: cooldown-expiry
+  fallbackChains:
+    default:
+      - google-antigravity/gemini-3.5-flash:medium
+      - google-antigravity/gemini-3-flash:medium
+    task:
+      - google-antigravity/gemini-3.5-flash:high
+      - google-antigravity/gemini-3-flash:high
+    slow:
+      - google-antigravity/claude-sonnet-4-6:high
+      - google-antigravity/gemini-3.1-pro:high
+    plan:
+      - google-antigravity/claude-sonnet-4-6:high
+      - google-antigravity/gemini-3.1-pro:high
+    smol:
+      - google-antigravity/gemini-2.5-flash-lite:medium
+      - google-antigravity/gemini-3.5-flash:low
+    tiny:
+      - google-antigravity/gemini-2.5-flash-lite:minimal
+      - google-antigravity/gemini-3.5-flash:minimal
+    research:
+      - google-antigravity/gemini-3.5-flash:high
+      - google-antigravity/gemini-3.1-pro:high
+    vision:
+      - google-antigravity/gemini-3-pro:high
+      - google-antigravity/gemini-2.5-pro:high
+    designer:
+      - google-antigravity/gemini-3-pro:high
+      - google-antigravity/gemini-2.5-pro:high
+    advisor:
+      - google-antigravity/claude-opus-4-6:high
+      - google-antigravity/claude-sonnet-4-5:high

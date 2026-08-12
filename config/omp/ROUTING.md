@@ -75,6 +75,21 @@ The model shown in the main OMP header remains the main context owner's model. T
 
 This document governs the main worker's classification and delegation decisions. OMP mechanically enforces configured role resolution, agent overrides, batch shape, concurrency limits, and isolation policy; it does not prove that a policy classification was correct. Autonomous routing also cannot overcome an unavailable executable, missing or expired provider authentication, exhausted quota, provider outage, or a model rejected by the provider. Configured fallbacks are best-effort recovery, not a success guarantee, and terminal provider/auth failures must be surfaced to the user.
 
+## Single-provider sessions
+
+Occasionally a session should stay on one provider — to exercise a provider in isolation, to work while another is degraded, or simply to keep one piece of work on a single account. Overriding the main model with `--model` does not achieve this: specialist agents resolve through roles, so they keep their own providers and the session remains multi-model.
+
+Use a config overlay instead, which replaces the whole role table for that run only:
+
+```bash
+omp --config ~/dotfiles/config/omp/overlays/codex-only.yml
+omp --config ~/dotfiles/config/omp/overlays/antigravity-only.yml
+```
+
+Each overlay pins all twelve roles to one provider, so every dispatched specialist follows, and confines recovery to that same provider — a session deliberately pinned to one provider should fail inside it rather than quietly restoring the routing the operator just opted out of. The tracked configuration is untouched; the next plain `omp` is back to normal.
+
+Both overlays honour the same invariants as the main config: supported reasoning levels, context windows above the compaction threshold, and an image-capable model behind `vision` and `designer`. One capability genuinely cannot be preserved: Antigravity's Claude Opus 4.6 stops at `high` reasoning, so an Antigravity-only session has no equivalent to the `xhigh` and `max` advisor tiers that direct Anthropic Opus 5 provides. Treat advisor output from such a session as one tier lower than requested.
+
 ## Capability ownership
 
 Existing capabilities remain the preferred owners:

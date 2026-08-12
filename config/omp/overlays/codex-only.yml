@@ -1,0 +1,67 @@
+# Single-provider session overlay: Codex only.
+#
+#   omp --config ~/dotfiles/config/omp/overlays/codex-only.yml
+#
+# Every role resolves to openai-codex, so specialist agents stay on Codex too
+# (they resolve through roles, not through model literals). Recovery stays
+# inside Codex on purpose: a session pinned to one provider should fail within
+# that provider rather than silently re-introducing the multi-model routing the
+# operator just opted out of.
+#
+# Constraints honoured, same as the main config:
+#   - every context window exceeds compaction.thresholdTokens (140K), which
+#     excludes gpt-5.3-codex-spark at 128K
+#   - every reasoning suffix is a level the model actually supports
+#   - vision/designer use an image-capable model
+modelRoles:
+  default: openai-codex/gpt-5.6-sol:medium
+  task: openai-codex/gpt-5.6-sol:medium
+  slow: openai-codex/gpt-5.6-sol:high
+  plan: openai-codex/gpt-5.6-sol:high
+  smol: openai-codex/gpt-5.4-mini:low
+  tiny: openai-codex/gpt-5.4-mini:low
+  research: openai-codex/gpt-5.4:high
+  vision: openai-codex/gpt-5.4:high
+  designer: openai-codex/gpt-5.4:high
+  advisor: openai-codex/gpt-5.6-sol:high
+  advisor-xhigh: openai-codex/gpt-5.6-sol:xhigh
+  advisor-max: openai-codex/gpt-5.6-sol:max
+
+modelProviderOrder:
+  - openai-codex
+
+retry:
+  enabled: true
+  modelFallback: true
+  fallbackRevertPolicy: cooldown-expiry
+  fallbackChains:
+    default:
+      - openai-codex/gpt-5.6-terra:medium
+      - openai-codex/gpt-5.5:medium
+    task:
+      - openai-codex/gpt-5.6-terra:medium
+      - openai-codex/gpt-5.5:medium
+    slow:
+      - openai-codex/gpt-5.6-terra:high
+      - openai-codex/gpt-5.5:high
+    plan:
+      - openai-codex/gpt-5.6-luna:high
+      - openai-codex/gpt-5.5:high
+    smol:
+      - openai-codex/gpt-5.5:low
+      - openai-codex/gpt-5.4:low
+    tiny:
+      - openai-codex/gpt-5.5:low
+      - openai-codex/gpt-5.4:low
+    research:
+      - openai-codex/gpt-5.5:high
+      - openai-codex/gpt-5.6-sol:high
+    vision:
+      - openai-codex/gpt-5.5:high
+      - openai-codex/gpt-5.6-sol:high
+    designer:
+      - openai-codex/gpt-5.5:high
+      - openai-codex/gpt-5.6-sol:high
+    advisor:
+      - openai-codex/gpt-5.6-luna:high
+      - openai-codex/gpt-5.5:high

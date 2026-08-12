@@ -200,6 +200,18 @@ tunnelled transport is the wrong thing to depend on precisely when something has
 already failed. Provider fallback never transfers integration or verification
 ownership away from the main OMP session.
 
+To keep a single session on one provider, use a config overlay rather than
+`--model`; the latter only changes the main session, while specialist agents
+resolve through roles and stay multi-model:
+
+```bash
+omp --config ~/dotfiles/config/omp/overlays/codex-only.yml
+omp --config ~/dotfiles/config/omp/overlays/antigravity-only.yml
+```
+
+Each overlay pins all twelve roles and their recovery paths to one provider for
+that run only, leaving tracked configuration untouched.
+
 Normal use is one command and one outcome:
 
 ```bash
