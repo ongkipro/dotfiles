@@ -1,18 +1,20 @@
 setupVersion: 1
 modelRoles:
-  smol: google-antigravity/gemini-3.6-flash:medium
+  smol: google-antigravity/gemini-3.1-flash-lite:medium
   slow: openai-codex/gpt-5.6-sol:high
-  plan: openai-codex/gpt-5.6-sol:high
-  vision: google-antigravity/gemini-3.1-pro
-  tiny: google-antigravity/gemini-3.1-flash-lite
+  plan: google-antigravity/claude-opus-4-6:high
+  vision: google-antigravity/gemini-3.1-pro:high
+  designer: google-antigravity/gemini-3.1-pro:high
+  research: google-antigravity/gemini-3.6-flash:high
+  tiny: google-antigravity/gemini-3.1-flash-lite:minimal
   task: openai-codex/gpt-5.6-sol:medium
-  default: openai-codex/gpt-5.6-sol:medium
-  advisor: anthropic/claude-opus-5:high
+  default: google-antigravity/gemini-3.6-flash:medium
+  advisor: anthropic/claude-sonnet-5:high
   advisor-xhigh: anthropic/claude-opus-5:xhigh
   advisor-max: anthropic/claude-opus-5:max
 modelProviderOrder:
-  - openai-codex
   - google-antigravity
+  - openai-codex
   - anthropic
   - 9router-fantastico
 cycleOrder: 
@@ -25,26 +27,45 @@ retry:
   modelFallback: true
   fallbackRevertPolicy: cooldown-expiry
   fallbackChains: 
-    default: 
-      - openai-codex/gpt-5.6-sol
+    default:
+      - 9router-fantastico/ag/gemini-3.6-flash-medium
+      - openai-codex/gpt-5.4:medium
+    task:
+      - google-antigravity/gemini-3.6-flash:high
       - 9router-fantastico/cx/gpt-5.6-sol
-    smol: 
+    smol:
+      - 9router-fantastico/gc/gemini-3.1-flash-lite-preview
       - 9router-fantastico/ag/gemini-3.6-flash-low
-      - openai-codex/gpt-5.4-mini
+    tiny:
+      - 9router-fantastico/gc/gemini-3.1-flash-lite-preview
+      - 9router-fantastico/ag/gemini-3.6-flash-low
     slow:
-      - anthropic/claude-opus-5:high
+      - google-antigravity/claude-opus-4-6:high
+      - 9router-fantastico/cx/gpt-5.6-sol
       - anthropic/claude-opus-4-8:high
-      - 9router-fantastico/cx/gpt-5.5
     plan:
-      - anthropic/claude-opus-5:high
+      - openai-codex/gpt-5.6-sol:high
+      - 9router-fantastico/ag/claude-opus-4-6-thinking
       - anthropic/claude-opus-4-8:high
-      - 9router-fantastico/cx/gpt-5.5
+    vision:
+      - 9router-fantastico/gc/gemini-3.1-pro-preview
+      - 9router-fantastico/ag/gemini-3.1-pro-low
+    designer:
+      - 9router-fantastico/gc/gemini-3.1-pro-preview
+      - 9router-fantastico/ag/gemini-3.1-pro-low
+    research:
+      - 9router-fantastico/ag/gemini-3.6-flash-high
+      - 9router-fantastico/gc/gemini-3.1-flash-lite-preview
     advisor:
-      - anthropic/claude-opus-4-8:high
+      - google-antigravity/claude-sonnet-4-6:high
+      - openai-codex/gpt-5.6-sol:high
+      - 9router-fantastico/cx/gpt-5.5
+    anthropic/claude-sonnet-5:
+      - google-antigravity/claude-sonnet-4-6:high
       - openai-codex/gpt-5.6-sol:high
       - 9router-fantastico/cx/gpt-5.5
     anthropic/claude-opus-5:
-      - anthropic/claude-opus-4-8:high
+      - google-antigravity/claude-opus-4-6:high
       - openai-codex/gpt-5.6-sol:high
       - 9router-fantastico/cx/gpt-5.5
 async:
@@ -64,16 +85,21 @@ task:
     designer: "@vision"
     reviewer: "@advisor"
     security-reviewer: "@advisor-xhigh"
-    librarian: "@slow"
+    librarian: "@research"
     task: "@task"
     complex-developer: "@slow"
     architect: "@advisor-max"
     debugger: "@advisor-xhigh"
-compaction: 
+compaction:
   enabled: true
   strategy: snapcompact
   midTurnEnabled: true
   autoContinue: true
+  thresholdTokens: 140000
+  keepRecentTokens: 40000
+  dropUseless: true
+  idleEnabled: true
+  idleThresholdTokens: 100000
 tools: 
   format: auto
   approvalMode: yolo
