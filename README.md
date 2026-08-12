@@ -153,7 +153,12 @@ Do not duplicate model routing inside skills. A capability defines what and how;
 OMP decides which model executes it.
 
 Semantic routing has one owner: [`config/omp/ROUTING.md`](config/omp/ROUTING.md).
-Its executable selectors are kept in `config/omp/config.yml`:
+Its executable selectors are kept in `config/omp/config.yml`. The current
+configured state, its standing invariants, and the outstanding verification
+actions live in [`config/omp/STATUS.md`](config/omp/STATUS.md); the change
+history and the measured evidence behind each decision live in
+[`config/omp/BUILD-LOG.md`](config/omp/BUILD-LOG.md). Read those before editing
+routing, not this section — this table is a summary and can fall behind.
 
 Routing is organised as three capacity pools, each carrying the work it is
 measurably best at rather than the work that is merely cheapest. Antigravity is
