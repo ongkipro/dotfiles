@@ -87,3 +87,11 @@ Gemini 3.1 Pro rejects a request carrying no thinking budget. A reference that o
 The same requirement applies to the rest of the Gemini Pro family, whose supported levels are `low` and `high` only, with no `minimal`. Treat a missing suffix on any of them as a runtime failure waiting to happen, not a stylistic omission.
 
 TTFT is also worth reading carefully here: Gemini 3.1 Pro is by far the fastest at generating tokens yet the slowest to start, because thinking time lands inside time-to-first-token. Sonnet 5 starts in under a second. For interactive lanes, first-token latency is the number that shapes how the session feels.
+
+## 2026-08-13 — Tracked `writer` agent & high-nuance prose routing
+
+Added a fourth tracked custom agent `writer.md` under `config/omp/agents/` mapped to `writer: "@plan"` (`google-antigravity/claude-opus-4-6:high`).
+
+**The finding:** Long-form prose, PRD synthesis, copy humanization, and brand-voice calibration require nuanced sentence structure and non-robotic flow. Routing these tasks to `default` (`gemini-3.6-flash`) risked AI-slop patterns. Routing prose to Claude Opus 4.6 via `@plan` ensures literary quality while keeping the main coding session fast and budget-efficient on Gemini Flash.
+
+**Verification:** Ran `omp-routing-test` passing `OK (roles=12, overrides=11, async=8)`. Evaluated live `omp config list --json` and verified agent-to-model resolution for all 11 agents.

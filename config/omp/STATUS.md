@@ -1,11 +1,11 @@
 # Status — OMP Orchestration
 
-Updated: 2026-08-12
-Status: Configured, verified, and benchmarked. No outstanding checks.
+Updated: 2026-08-13
+Status: Configured, verified, and benchmarked. Eleven agents tracked & overrides verified.
 
 ## Current state
 
-Routing is organised as three capacity pools across twelve roles and ten agents. `ROUTING.md` owns the policy, `config.yml` owns the executable selectors, and `overlays/` holds single-provider session escapes.
+Routing is organised as three capacity pools across twelve roles and eleven agents. `ROUTING.md` owns the policy, `config.yml` owns the executable selectors, and `overlays/` holds single-provider session escapes.
 
 | Pool | Roles | Purpose |
 |---|---|---|
@@ -13,7 +13,7 @@ Routing is organised as three capacity pools across twelve roles and ten agents.
 | Codex | `slow`, `task` | Precision. The two lanes where a wrong edit costs the most rework. |
 | Anthropic | `advisor`, `advisor-xhigh`, `advisor-max` | Judgment. Independent consultation and review. |
 
-All ten agents — seven bundled, three tracked under `agents/` — have an explicit override, so none silently resolves to `default`.
+All eleven agents — seven bundled, four tracked under `agents/` (`architect`, `complex-developer`, `debugger`, `writer`) — have an explicit override, so none silently resolves to `default`.
 
 ### Standing invariants
 
@@ -29,7 +29,7 @@ Any change to `config.yml` must keep all of these true. The check that verifies 
 
 ## Active work
 
-None. The routing rebuild completed 2026-08-12 across five commits, ending at `704077e`.
+None. The writer agent addition and high-nuance prose routing completed on 2026-08-13 and verified via `omp-routing-test`.
 
 ## Blockers
 

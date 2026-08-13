@@ -90,6 +90,7 @@ task:
     complex-developer: "@slow"
     architect: "@advisor-max"
     debugger: "@advisor-xhigh"
+    writer: "@plan"
 compaction:
   enabled: true
   strategy: snapcompact
