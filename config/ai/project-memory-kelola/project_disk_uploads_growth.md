@@ -16,6 +16,6 @@ metadata:
 **⚠️ The volume is billed separately and shows Expire Date 29 Aug 2026** — if it lapses, ALL uploads disappear. It must be auto-renewed/paid.
 
 **Why:** uploads keep growing; main disk alone (58G) filled in ~2 months.
-**How to apply:** new deploys/backups shouldn't copy uploads. If `/data` fills too, revisit object storage (R2) or retention limits. Disk checks: `df -h / /data`. See [[deploy-command]].
+**How to apply:** new deploys/backups shouldn't copy uploads. If `/data` fills too, revisit object storage (R2) or retention limits. Disk checks: `df -h / /data`. See [[reference_deploy]].
 
 **2026-07-31 incident — deploy DID break the symlink:** 13 upload files had been committed to git BEFORE `.gitignore` got `backend/uploads/`, so `git reset --hard` in deploy.sh removed the symlink and recreated a real `backend/uploads/` containing only tracked files → the 5000+ files on `/data` (incl. SOP onboarding videos) 404'd ("video onboarding tidak bisa dibuka"). Fix: rsync-merge new files into `/data/uploads`, untrack via `git rm -r --cached backend/uploads` (commit 8c4369e), wait for deploy, final rsync + re-symlink (old dir kept at `~/uploads.gitdir-bak-20260731`, delete after confirm). Lesson: a symlinked-away path is only deploy-safe if NOTHING under it is git-tracked — check with `git ls-files <path>`.

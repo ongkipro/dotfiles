@@ -13,6 +13,6 @@ Since 2026-07-29 this project-memory directory is a **symlink into the dotfiles 
 **Why:** user asked (2026-07-29) to combine Kelola skills+memory with the ongkipro/dotfiles "backup brain" system so every device and AI CLI shares it.
 
 **How to apply:**
-- Edits to memory files here land in the dotfiles working tree — commit them via `dotsync` (never push silently; ask first, per [[reference-deploy]]-style standing rules in the dotfiles docs).
-- **Workflow override vs global `~/.claude/CLAUDE.md` (dotfiles AGENTS.md):** the global file says "never auto-commit". In the **kelola repo that rule does NOT apply** — the user gave standing approval to commit + push to main, and push auto-deploys via GH Actions ([[feedback-auto-deploy]]). Kelola conversation language is Indonesian, and memory files here may stay Indonesian (the English-only rule covers dotfiles' own memory/skills).
+- Edits to memory files here land in the dotfiles working tree — commit them via `dotsync` (never push silently; ask first, per [[reference_deploy]]-style standing rules in the dotfiles docs).
+- **Workflow override vs global `~/.claude/CLAUDE.md` (dotfiles AGENTS.md):** the global file says "never auto-commit". In the **kelola repo that rule does NOT apply** — the user gave standing approval to commit + push to main, and push auto-deploys via GH Actions ([[feedback_auto_deploy]]). Kelola conversation language is Indonesian, and memory files here may stay Indonesian (the English-only rule covers dotfiles' own memory/skills).
 - Never write secrets into this memory — it is now a git-synced repo.
