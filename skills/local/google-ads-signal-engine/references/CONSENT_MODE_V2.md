@@ -13,7 +13,40 @@ Google Ads requires **Consent Mode v2** for all web properties to ensure complia
 
 ---
 
-## Sitewide Implementation Snippet (`gtag.js`)
+## Scope the default to the regions that require it
+
+**A blanket global `denied` default is the wrong call for an ID/MY-market advertiser.** The consent requirement is EEA/UK law. If the site has no CMP — which is normal for an Indonesian COD funnel — a global `denied` default means nothing ever grants consent, so the advertiser silently destroys their own conversion signal and Smart Bidding starves, to satisfy a regulation that does not apply to their traffic.
+
+`gtag('consent', 'default', …)` accepts a `region` array. Deny where the law requires it, grant elsewhere:
+
+```html
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+
+  // EEA + UK: denied until a CMP grants.
+  gtag('consent', 'default', {
+    'ad_storage': 'denied',
+    'ad_user_data': 'denied',
+    'ad_personalization': 'denied',
+    'analytics_storage': 'denied',
+    'region': ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IS','IE','IT','LV','LI','LT','LU','MT','NL','NO','PL','PT','RO','SK','SI','ES','SE','GB','CH'],
+    'wait_for_update': 500
+  });
+
+  // Everywhere else (ID, MY, …): granted, no CMP in the path.
+  gtag('consent', 'default', {
+    'ad_storage': 'granted',
+    'ad_user_data': 'granted',
+    'ad_personalization': 'granted',
+    'analytics_storage': 'granted'
+  });
+</script>
+```
+
+Ship a CMP **and** a global `denied` default only when the site genuinely serves EEA traffic. Choosing "deny everywhere" without one is not the safe option — it is an unmonitored outage.
+
+## Global-deny reference (EEA-serving properties with a CMP)
 
 ```html
 <!-- 1. Consent Mode Default Initialization (MUST be placed BEFORE gtag.js loads) -->

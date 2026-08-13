@@ -1,4 +1,4 @@
-# Enhanced Conversions & Google Ads API v18+ Offline Uploads
+# Enhanced Conversions & Google Ads API Offline Uploads
 
 Enhanced Conversions matches website conversion events with Google logged-in accounts using hashed first-party user data (`email`, `phone_number`, `address`).
 
@@ -32,7 +32,7 @@ gtag('event', 'conversion', {
 
 ---
 
-## 2. Server-to-Server Google Ads API Offline Upload (v18+)
+## 2. Server-to-Server Google Ads API Offline Upload
 
 For offline sales, delayed COD confirmations, or CRM lead qualifications, upload conversions directly via the Google Ads API.
 

@@ -13,7 +13,7 @@
 | **Payment Gateway Redirects** | Session stitching via Shopify app DB. | Order DB Session Preservation Pattern. | Persist `_fbp`, `_fbc`, `ttclid`, `gclid` into Order record at `InitiateCheckout`. |
 | **Event Deduplication** | Automated `event_id` payload injection. | Shared `event_id` contract (`order_id` or UUIDv4). | Client `fbq`/`ttq`/`gtag` + Server CAPI payload share identical `event_id`. |
 | **Handling Network Failures** | SaaS retry queue. | Transactional Outbox Pattern (`capi_outbox`). | Async background worker with exponential backoff retries for 5xx/429 status codes. |
-| **Data Privacy & Ownership** | Data passes through 3rd-party SaaS servers. | 100% Direct First-Party Server-to-API transmission. | Zero 3rd party dependency; direct Graph API v22.0, TikTok v1.3, Google Ads API v18+. |
+| **Data Privacy & Ownership** | Data passes through 3rd-party SaaS servers. | 100% Direct First-Party Server-to-API transmission. | Zero 3rd party dependency; direct Graph API, TikTok Events API, Google Ads API. |
 
 ---
 
@@ -57,5 +57,5 @@
 [Payment Webhook / Confirm] ──► Writes payload to `capi_outbox` Table
        │
        ▼
-[Async Worker Queue] ──────────► Sends CAPI v22.0 / TikTok v1.3 / Google Ads API (Exact event_id match)
+[Async Worker Queue] ──────────► Sends CAPI / TikTok / Google Ads API (Exact event_id match)
 ```

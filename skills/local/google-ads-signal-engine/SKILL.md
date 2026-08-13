@@ -3,7 +3,7 @@ name: google-ads-signal-engine
 description: >-
   End-to-end Google Ads Conversion Signal Operating System (Google Tag / gtag.js, GTM, Server-Side GTM / sGTM,
   Enhanced Conversions for Web & API, Consent Mode v2, transaction_id deduplication, Click-IDs gclid/gbraid/wbraid,
-  COD vs Prepaid conversion taxonomy, and Google Ads API v18+ Offline Conversion Uploads).
+  COD vs Prepaid conversion taxonomy, and Google Ads API Offline Conversion Uploads).
   Use when designing, building, auditing, or troubleshooting Google Ads conversion tracking, sitewide tags, Consent Mode v2,
   Enhanced Conversions, target CPA / target ROAS Smart Bidding signals, or offline CRM conversion uploads.
   Triggers: "google ads", "google tag", "gtag", "enhanced conversions", "consent mode v2", "gclid", "gbraid", "wbraid",
@@ -13,6 +13,17 @@ description: >-
 # Google Ads Signal Engine
 
 An engineering operating system for reliable Google Ads conversion measurement, sitewide Google Tag (`gtag.js`) / GTM architecture, Consent Mode v2 compliance, Enhanced Conversions, Click-ID preservation, and offline CRM conversion uploads.
+
+## Verify the API version before writing code
+
+**Never hardcode a Google Ads API version from memory or from these notes.** Google ships a major version roughly quarterly and sunsets older ones on a published schedule; a version written down here rots fast. (These notes said `v18+` while the shipping version was `v25`.)
+
+| Check | Where |
+| --- | --- |
+| Current Google Ads API version + sunset dates | `https://developers.google.com/google-ads/api/docs/release-notes` |
+| gtag / Consent Mode parameters | `https://developers.google.com/tag-platform/gtagjs/reference` |
+
+Pin it once in config, never inline across call sites.
 
 ## Core Philosophy
 
@@ -36,7 +47,7 @@ $$\text{Google Ad Click (gclid, gbraid, wbraid)} \longrightarrow \text{Sitewide 
 | Task | Read |
 | --- | --- |
 | Consent Mode v2 configuration (`ad_storage`, `ad_user_data`, `ad_personalization`) | [Consent Mode v2 Specification](references/CONSENT_MODE_V2.md) |
-| Enhanced Conversions Web setup & Google Ads API v18+ Offline Uploads | [Enhanced Conversions & API](references/ENHANCED_CONVERSIONS.md) |
+| Enhanced Conversions Web setup & Google Ads API Offline Uploads | [Enhanced Conversions & API](references/ENHANCED_CONVERSIONS.md) |
 | `transaction_id` deduplication, dynamic value rules, and count settings | [Transaction ID & Deduplication](references/TRANSACTION_ID_DEDUPLICATION.md) |
 | Preserving `gclid`, `gbraid`, `wbraid` across checkout and CRM funnels | [Click ID Preservation](references/CLICK_ID_PRESERVATION.md) |
 | Google Product Category (`google_product_category`) & PMax AI feed optimization | [Google Product Category Feed](references/GOOGLE_PRODUCT_CATEGORY_FEED.md) |
@@ -53,6 +64,6 @@ $$\text{Google Ad Click (gclid, gbraid, wbraid)} \longrightarrow \text{Sitewide 
 5. **Preserve Click IDs**: Capture `gclid`, `gbraid`, `wbraid` upon landing page entry and pass them through session storage / database orders.
 6. **Conversion Linker**: Run Conversion Linker sitewide across all subdomains and checkout domains.
 7. **Clean Values**: Pass raw numeric `value` (e.g. `549000`) and standard uppercase `currency` (`IDR`, `USD`). Never pass formatted strings like `"Rp 549.000"`.
-8. **Server / Offline Uploads**: Upload delayed COD deliveries or offline CRM sales via Google Ads API v18+ using `transaction_id` or `gclid`.
+8. **Server / Offline Uploads**: Upload delayed COD deliveries or offline CRM sales via the Google Ads API using `transaction_id` or `gclid`. This is the whole reason to capture click IDs at landing — without a stored `gclid`/`gbraid`/`wbraid` a COD sale confirmed days later can never be attributed.
 9. **Separate Analytics**: Keep GA4 engagement events separate from Google Ads conversion bidding goals.
 10. **Reconciliation**: Periodically audit Google Ads reported conversions against backend accounting truth.

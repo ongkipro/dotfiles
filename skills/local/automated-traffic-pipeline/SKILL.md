@@ -33,7 +33,7 @@ An architecture for building self-sustaining, scalable, and automated traffic sy
 │ 4. Multi-Channel         │ Automated RSS syndication & Pinterest 2:3 Pin asset  │
 │    Distribution Flywheel │ generation for cross-channel visual discovery.       │
 ├──────────────────────────┼──────────────────────────────────────────────────────┤
-│ 5. Closed-Loop Revenue   │ Real-time Meta CAPI v22.0 + Google Ads Consent Mode │
+│ 5. Closed-Loop Revenue   │ Real-time Meta CAPI + Google Ads Consent Mode      │
 │    Attribution           │ v2 + Dual-Path AI Referral tracking integration.     │
 └──────────────────────────┴──────────────────────────────────────────────────────┘
 ```

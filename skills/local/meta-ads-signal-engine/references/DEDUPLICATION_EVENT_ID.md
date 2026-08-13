@@ -12,7 +12,7 @@ For Meta to deduplicate a Browser event and a Server CAPI event:
 
 ```text
 BROWSER (Pixel)                     SERVER (CAPI)
-fbq('track', 'Purchase',            POST /v22.0/{pixel_id}/events
+fbq('track', 'Purchase',            POST /{version}/{pixel_id}/events
   { value: 299000, ... },           { "data": [{
   { eventID: 'purchase:ORD_101' }      "event_name": "Purchase",
 )                                      "event_id": "purchase:ORD_101", ... }] }

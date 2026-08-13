@@ -123,7 +123,7 @@ Before launching any e-commerce storefront, landing page, or ad tracking integra
 - [ ] **2. Custom Labels Configured**: Data feed contains `custom_label_0` (Margin) and `custom_label_1` (Velocity).
 - [ ] **3. GTIN / UMKM Fallback**: Valid 13-digit EAN/GTIN populated OR automated `identifier_exists: "no"` contract active.
 - [ ] **4. Title Formula Applied**: Product titles follow `[Brand] + [Target/Gender] + [Product Type] + [Key Attributes] + [Color/Size]`.
-- [ ] **5. Dual-Signal CAPI Active**: Meta CAPI (Graph API v22.0) and TikTok Events API v2 running alongside browser pixels.
+- [ ] **5. Dual-Signal CAPI Active**: Meta CAPI and TikTok Events API running alongside browser pixels, each pinned to a version verified against its changelog.
 - [ ] **6. `event_id` Match Verification**: Browser `event_id` and server `event_id` strings are 100% identical.
 - [ ] **7. Click ID Preservation**: `gclid`, `gbraid`, `wbraid`, `_fbp`, `_fbc`, `ttclid` persisted in HTTP cookies & Order DB rows.
 - [ ] **8. Customer Matching Hashing**: Emails trimmed & lowercased before SHA-256; phone numbers formatted to E.164 without `+` before SHA-256.

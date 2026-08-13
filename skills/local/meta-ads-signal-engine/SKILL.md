@@ -1,7 +1,7 @@
 ---
 name: meta-ads-signal-engine
 description: >-
-  End-to-end Meta Ads Conversion Signal Operating System (Pixel, Conversions API / CAPI Graph API v22.0,
+  End-to-end Meta Ads Conversion Signal Operating System (Pixel, Conversions API / CAPI,
   Deduplication event_id, Advanced Matching, _fbp/_fbc attribution preservation, COD vs Prepaid Purchase
   definitions, and CAPI Event Outbox pattern).
   Use when designing, building, auditing, or troubleshooting Meta Ads conversion tracking, pixel setups, CAPI integrations,
@@ -14,11 +14,30 @@ description: >-
 
 An engineering operating system for reliable Meta Ads conversion tracking, Pixel & Conversions API (CAPI) implementation, deterministic event deduplication, customer matching, and attribution preservation.
 
+## Verify the API version before writing code
+
+**Never hardcode a Graph API version from memory or from these notes.** Meta ships a new version roughly every quarter and retires each one after about two years, so any version written down here is stale the moment it is written.
+
+| Check | Where |
+| --- | --- |
+| Current Graph API version | `https://developers.facebook.com/docs/graph-api/changelog` |
+| Conversions API parameters | `https://developers.facebook.com/docs/marketing-api/conversions-api/parameters` |
+
+Pin the version in **one** exported constant so a bump is a one-line change, never a grep across trackers:
+
+```typescript
+// Verified against the changelog on <date>. Re-check before bumping.
+export const META_GRAPH_API_VERSION = 'v26.0';
+const endpoint = `https://graph.facebook.com/${META_GRAPH_API_VERSION}/${pixelId}/events`;
+```
+
+Reference snippets below are illustrative of *structure*, not of the current version string.
+
 ## Core Philosophy
 
 Tracking quality alone does not guarantee lower Cost Per Acquisition (CPA), but sending **correct, server-authoritative, deduplicated, and matchable conversion signals** ensures Meta's auction algorithms learn from valid business outcomes.
 
-$$\text{Meta Ad Click (_fbp, _fbc)} \longrightarrow \text{Browser Pixel (event_id)} + \text{Server CAPI (v22.0)} \longrightarrow \text{Meta Deduplication Engine}$$
+$$\text{Meta Ad Click (_fbp, _fbc)} \longrightarrow \text{Browser Pixel (event_id)} + \text{Server CAPI} \longrightarrow \text{Meta Deduplication Engine}$$
 
 ---
 
@@ -35,7 +54,7 @@ $$\text{Meta Ad Click (_fbp, _fbc)} \longrightarrow \text{Browser Pixel (event_i
 
 | Task | Read |
 | --- | --- |
-| CAPI Graph API v22.0 Server Sender & Payload structure | [CAPI v22 Sender Pattern](references/CAPI_V22_SENDER.md) |
+| CAPI server sender, payload structure & transactional outbox | [CAPI Sender Pattern](references/CAPI_SENDER.md) |
 | Browser + Server Deduplication & `event_id` rules | [Deduplication & Event ID](references/DEDUPLICATION_EVENT_ID.md) |
 | Customer identity matching, E.164 phone normalization, SHA-256 hashing, `_fbp`/`_fbc` rules | [Identity Normalization](references/IDENTITY_NORMALIZATION.md) |
 | Purchase event taxonomy for Prepaid vs Cash On Delivery (COD) funnels | [COD vs Prepaid Purchase Signals](references/COD_VS_PREPAID_PURCHASE.md) |
@@ -56,3 +75,17 @@ $$\text{Meta Ad Click (_fbp, _fbc)} \longrightarrow \text{Browser Pixel (event_i
 8. **Low Latency**: Dispatch CAPI events immediately upon backend state confirmation.
 9. **Separate Analytics from Signal Layer**: Keep GA4/PostHog UI events separate from Meta Ads optimization events.
 10. **Reconciliation**: Periodically reconcile backend database order totals against Meta reported conversions.
+
+---
+
+## Auditing: the failure modes that pass every test
+
+A CAPI integration can be completely dead while types check, tests pass, the endpoint returns 200, and Meta's dashboard shows events arriving. Check these first — each one has been found in production:
+
+1. **Contract drift between tracker and validator.** Diff the payload the browser actually sends against the keys the server actually reads. A server that reads `custom_data.value` while trackers post `value` flat will happily forward `undefined` for every commerce and matching field, and every layer reports success. **Write the test fixture from the wire payload, never from the API docs** — a docs-shaped fixture validates a contract nobody implements.
+2. **Identifier format assumptions.** Confirm a real ID from the live database passes the validator. A `^\d{5}$` catalog-ID rule against six-digit IDs rejects everything, and a test fixture with a made-up five-digit ID hides it forever.
+3. **Signals collected then dropped.** Grep for `_fbp`/`_fbc` on both legs. Browsers frequently read the cookies correctly while the server type never had fields to carry them.
+4. **Phone normalization mismatch.** See `IDENTITY_NORMALIZATION.md` — `08…` vs `628…` is a guaranteed miss, and it is invisible because a hash always *looks* fine.
+5. **Silently dropped failures.** A bare `fetch` to Meta with no outbox loses conversions on every network blip, 429, or expired token, and nothing anywhere records that it happened.
+
+The reliable check is end-to-end: fire a real event, then confirm the value, `content_ids`, and match keys in Meta's Test Events tool. Do not infer health from HTTP 200.

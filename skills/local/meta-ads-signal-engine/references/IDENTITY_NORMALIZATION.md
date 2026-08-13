@@ -29,8 +29,21 @@ MUST BE NORMALIZED & SHA-256 HASHED:
 
 ## Normalization Implementation (TypeScript)
 
+> **On Cloudflare Workers, Deno, or the browser, use WebCrypto — `node:crypto` needs the `nodejs_compat` flag and is the wrong default on an edge runtime.** Same normalization, async hash:
+>
+> ```typescript
+> export async function sha256Hex(value: string): Promise<string> {
+>   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+>   return Array.from(new Uint8Array(digest))
+>     .map((b) => b.toString(16).padStart(2, '0'))
+>     .join('');
+> }
+> ```
+>
+> Hash the **same normalized string on both legs**. If the browser pixel hashes `08123…` for `ph`/`external_id` while the server hashes `628123…`, the two legs describe two different people and matching quietly halves.
+
 ```typescript
-import { createHash } from 'crypto';
+import { createHash } from 'crypto'; // Node runtimes only
 
 export function sha256Hex(value: string): string {
   return createHash('sha256').update(value).digest('hex');

@@ -1,6 +1,8 @@
-# CAPI Graph API v22.0 Sender & Outbox Pattern
+# CAPI Sender & Outbox Pattern
 
-Meta Conversions API (CAPI) allows server-side transmission of conversion events directly to Meta's servers (`https://graph.facebook.com/v22.0/{pixel_id}/events`).
+Meta Conversions API (CAPI) allows server-side transmission of conversion events directly to Meta's servers (`https://graph.facebook.com/{version}/{pixel_id}/events`).
+
+> Resolve `{version}` from the changelog before coding — see the version block in `SKILL.md`. The `v22.0` strings that used to be baked into this file were four releases stale within eighteen months.
 
 ---
 
@@ -49,7 +51,9 @@ export async function sendCapiEvents({
   testEventCode,
   events
 }: SendCapiParams): Promise<{ success: boolean; data?: any; error?: any }> {
-  const url = `https://graph.facebook.com/v22.0/${pixelId}/events?access_token=${accessToken}`;
+  // Prefer the body or an Authorization header over a query string: URLs land in
+  // access logs, proxies, and error trackers, and this one carries a live token.
+  const url = `https://graph.facebook.com/${META_GRAPH_API_VERSION}/${pixelId}/events?access_token=${accessToken}`;
 
   const body = {
     data: events,
@@ -78,7 +82,36 @@ export async function sendCapiEvents({
 
 ---
 
-## Transactional Event Outbox Schema (PostgreSQL)
+## Transactional Event Outbox — Cloudflare Workers + D1 (house stack)
+
+The Postgres variant below is the reference shape. On the Workers/D1 stack the differences matter, so build it this way instead:
+
+```sql
+CREATE TABLE capi_event_outbox (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  event_id       TEXT NOT NULL UNIQUE,   -- also the replay guard
+  event_name     TEXT NOT NULL,
+  payload        TEXT NOT NULL,          -- JSON string; D1 has no JSONB
+  status         TEXT NOT NULL DEFAULT 'pending',
+  attempts       INTEGER NOT NULL DEFAULT 0,
+  max_attempts   INTEGER NOT NULL DEFAULT 5,
+  last_error     TEXT,
+  next_retry_at  TEXT NOT NULL,          -- ISO 8601; SQLite has no timestamptz
+  created_at     TEXT NOT NULL,
+  updated_at     TEXT NOT NULL
+);
+CREATE INDEX capi_event_outbox_due_idx ON capi_event_outbox (status, next_retry_at);
+```
+
+Three rules that only apply on this stack:
+
+1. **Enqueue with `INSERT OR IGNORE` on `event_id`.** A replayed browser request then costs one no-op write instead of a duplicate conversion — the same guarantee `event_id` gives inside Meta, enforced one layer earlier.
+2. **Drain on traffic, not on cron.** If a framework adapter owns the Worker entrypoint (Astro's Cloudflare adapter does), adding a `scheduled` handler means a custom entry plus `triggers.crons` in every tenant environment. An ads storefront always has traffic, so draining a bounded batch after the response via `ctx.waitUntil` is simpler and needs no new binding. Reach for Queues or Cron Triggers only when traffic is genuinely bursty or the entrypoint is yours.
+3. **Keep the backoff decision a pure function.** `decideRetry(outcome, attempts, maxAttempts)` is then testable without a database or a live Meta — which is the only way this logic ever gets tested at all.
+
+If the ORM does not model indexes or triggers, declare them in the schema file anyway rather than only in a hand-written migration. An invariant the schema cannot see is one a rebuild silently drops.
+
+## Transactional Event Outbox Schema (PostgreSQL reference)
 
 To guarantee zero event loss during network glitches or Meta API rate limits (HTTP 429), use an Outbox queue:
 
