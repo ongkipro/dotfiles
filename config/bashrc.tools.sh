@@ -36,18 +36,30 @@ omp() {
 
   local credential_file="$HOME/.config/ai-local/credentials/9router-remote-key"
   local remote_key=""
+  local overlay_file="$HOME/.config/ai-local/omp-overlay.yml"
+  local -a args=("$@")
+
+  if [ -f "$overlay_file" ]; then
+    case "${1:-}" in
+      acp|agents|auth-broker|auth-gateway|bench|browser-relay|cleanse|commit|completions|compress|config|dry-balance|gallery|gc|grep|grievances|install|join|models|plugin|read|say|search|setup|share|shell|ssh|stats|tiny-models|token|ttsr|update|usage|worktree)
+        ;;
+      *)
+        args=(--config "$overlay_file" "${args[@]}")
+        ;;
+    esac
+  fi
 
   if [ "${NINEROUTER_REMOTE_KEY+x}" = x ]; then
-    command omp "$@"
+    command omp "${args[@]}"
     return
   fi
   if [ -r "$credential_file" ]; then
     IFS= read -r remote_key < "$credential_file" || :
   fi
   if [ -n "$remote_key" ]; then
-    NINEROUTER_REMOTE_KEY="$remote_key" command omp "$@"
+    NINEROUTER_REMOTE_KEY="$remote_key" command omp "${args[@]}"
   else
-    command omp "$@"
+    command omp "${args[@]}"
   fi
 }
 
