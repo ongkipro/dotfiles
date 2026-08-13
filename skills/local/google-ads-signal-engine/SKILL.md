@@ -39,6 +39,7 @@ $$\text{Google Ad Click (gclid, gbraid, wbraid)} \longrightarrow \text{Sitewide 
 | Enhanced Conversions Web setup & Google Ads API v18+ Offline Uploads | [Enhanced Conversions & API](references/ENHANCED_CONVERSIONS.md) |
 | `transaction_id` deduplication, dynamic value rules, and count settings | [Transaction ID & Deduplication](references/TRANSACTION_ID_DEDUPLICATION.md) |
 | Preserving `gclid`, `gbraid`, `wbraid` across checkout and CRM funnels | [Click ID Preservation](references/CLICK_ID_PRESERVATION.md) |
+| Google Product Category (`google_product_category`) & PMax AI feed optimization | [Google Product Category Feed](references/GOOGLE_PRODUCT_CATEGORY_FEED.md) |
 
 ---
 
