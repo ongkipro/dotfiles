@@ -12,19 +12,20 @@ modelRoles:
   task: minimax-code/MiniMax-M3:medium
   plan: minimax-code/MiniMax-M3:high
   
-  # Logic Berat (Precision/Slow Lane) menggunakan OpenCode Go (token murah, reasoning tinggi)
-  slow: opencode-go/deepseek-v4-flash:high
+  # Logic Berat (Precision/Slow Lane) 
+  slow: minimax-code/MiniMax-M3:high
 
   # --- Lane Visual (Image Support) ---
   vision: minimax-code/MiniMax-M3:high
   designer: minimax-code/MiniMax-M3:high
 
   # --- Lane Research & Review ---
-  research: opencode-go/qwen3.7-max:high
+  research: minimax-code/MiniMax-M3:high
   
   # --- Lane Advisor (Independent Judgement) ---
-  # Menggunakan reasoning class tertinggi di ekosistem OpenCode Go
-  advisor: opencode-go/deepseek-v4-pro:high
+  # Advisor standar dialihkan ke Minimax (gratis/unlimited)
+  advisor: minimax-code/MiniMax-M3:high
+  
   advisor-xhigh: opencode-go/deepseek-v4-pro:xhigh
   advisor-max: opencode-go/deepseek-v4-pro:max
 
