@@ -29,7 +29,7 @@ Any change to `config.yml` must keep all of these true. The check that verifies 
 
 ## Active work
 
-None. The writer agent addition and high-nuance prose routing completed on 2026-08-13 and verified via `omp-routing-test`.
+None. The writer agent addition, high-nuance prose routing, and 9Router fallback cleanup completed on 2026-08-13 and verified via `omp-routing-test`.
 
 ## Blockers
 

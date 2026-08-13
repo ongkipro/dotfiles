@@ -95,3 +95,10 @@ Added a fourth tracked custom agent `writer.md` under `config/omp/agents/` mappe
 **The finding:** Long-form prose, PRD synthesis, copy humanization, and brand-voice calibration require nuanced sentence structure and non-robotic flow. Routing these tasks to `default` (`gemini-3.6-flash`) risked AI-slop patterns. Routing prose to Claude Opus 4.6 via `@plan` ensures literary quality while keeping the main coding session fast and budget-efficient on Gemini Flash.
 
 **Verification:** Ran `omp-routing-test` passing `OK (roles=12, overrides=11, async=8)`. Evaluated live `omp config list --json` and verified agent-to-model resolution for all 11 agents.
+## 2026-08-13 — Audit & removal of legacy 9Router entries from fallback chains
+
+Audited `config/omp/config.yml` fallback chains and removed remaining 9Router references across `default`, `task`, `slow`, `plan`, and `anthropic/claude-opus-5`.
+
+**The finding:** Invariant 6 states that no recovery path uses 9Router because a tunnelled transport is unreliable during a provider outage. Cleaning these entries ensures recovery switches immediately to direct provider targets (`openai-codex`, `anthropic`, `google-antigravity`).
+
+**Verification:** Ran `omp-routing-test` passing `OK (roles=12, overrides=11, async=8)`. Evaluated live `omp config list --json` and verified `.retry.fallbackChains` resolution across all roles.
