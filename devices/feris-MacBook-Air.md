@@ -1,7 +1,7 @@
 # Device: `feris-MacBook-Air`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-08-10**
+> Terakhir diperbarui: **2026-08-11**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -22,7 +22,7 @@
 | CPU | Apple M1 (8 thread) |
 | RAM | 8.0 GB |
 | GPU | Apple M1 |
-| Disk (/) | 228Gi total, 66Gi free (16% used) |
+| Disk (/) | 228Gi total, 69Gi free (15% used) |
 
 ## AI CLI
 
@@ -32,6 +32,7 @@
 | `codex` | — | — |
 | `pi` | terpasang | ~/.local/bin/pi |
 | `agy` | terpasang | ~/.local/bin/agy |
+| `omp` | terpasang | ~/.local/bin/omp |
 
 ## Toolchain
 
@@ -53,7 +54,15 @@
 | memori → codex | `~/.codex/AGENTS.md` | ✅ ok |
 | memori → agy | `~/.antigravity/AGENTS.md` | ✅ ok |
 | memori → agy (gemini stack) | `~/.gemini/GEMINI.md` | ✅ ok |
-| skills | `~/.agents/local-skills` | ✅ ok |
+| memori → omp | `~/.omp/agent/AGENTS.md` | ✅ ok |
+| skills → shared runtime | `~/.agents/local-skills` | ✅ ok |
+| skills → claude | `~/.claude/skills` | ✅ ok |
+| skills → pi | `~/.pi/agent/skills` | ✅ ok |
+| skills → agy | `~/.gemini/config/skills` | ✅ ok |
+| skills → omp | `~/.omp/agent/skills` | ✅ ok |
+| OMP config | `~/.omp/agent/config.yml` | ✅ ok |
+| OMP models | `~/.omp/agent/models.yml` | ✅ ok |
+| OMP specialist agents | `~/.omp/agent/agents` | ✅ ok |
 | mise toolchain | `~/.config/mise/config.toml` | ✅ ok |
 | starship | `~/.config/starship.toml` | ✅ ok |
 | helix | `~/.config/helix/config.toml` | ✅ ok |
