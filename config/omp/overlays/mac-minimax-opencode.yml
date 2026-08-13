@@ -1,0 +1,40 @@
+# Overlay OMP Khusus Device (ongkis-MacBook-Air)
+# Tujuan: Development murni menggunakan MiniMax (Native) dan OpenCode Go
+# Tanpa menggunakan Antigravity
+
+modelRoles:
+  # --- Lane Ringan & Cepat ---
+  tiny: minimax-code/MiniMax-M2.5-lightning:low
+  smol: minimax-code/MiniMax-M2.7-highspeed:medium
+
+  # --- Lane Development Utama ---
+  default: minimax-code/MiniMax-M3:medium
+  task: minimax-code/MiniMax-M3:medium
+  plan: minimax-code/MiniMax-M3:high
+  
+  # Logic Berat (Precision/Slow Lane) menggunakan OpenCode Go
+  slow: opencode-go/gpt-5.6-luna:high
+
+  # --- Lane Visual (Image Support) ---
+  vision: minimax-code/MiniMax-M3:high
+  designer: minimax-code/MiniMax-M3:high
+
+  # --- Lane Research & Review ---
+  research: opencode-go/kimi-k3:high
+  
+  # --- Lane Advisor (Independent Judgement) ---
+  # Menggunakan reasoning class tertinggi di ekosistem OpenCode Go
+  advisor: opencode-go/deepseek-v4-pro:high
+  advisor-xhigh: opencode-go/deepseek-v4-pro:xhigh
+  advisor-max: opencode-go/deepseek-v4-pro:max
+
+modelProviderOrder:
+  - minimax-code
+  - opencode-go
+  - openai-codex
+  - anthropic
+
+cycleOrder:
+  - smol
+  - default
+  - slow
