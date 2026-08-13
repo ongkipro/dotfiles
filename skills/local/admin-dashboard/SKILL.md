@@ -20,6 +20,8 @@ skill must not invent those product rules while arranging the presentation.
 
 You're already strong at front-end/landing UI/UX. The blind spot is **admin dashboards** (data-dense, responsive, charts, IA). This skill is the **decision** layer — which chart, which layout, which breakpoint. **Components come from other skills.**
 
+For harvested GitHub production contracts (TanStack Table v9, Refine, Payload CMS, Medusa Admin, Strapi, kbar, Clerk impersonation), load `references/github-admin-patterns.md`.
+For the Next.js 16 + shadcn admin-starter implementation contracts (URL-as-state `useDataTable`, the nuqs server/client parser seam, feature-first `src/features/<feature>/{api,components,schemas,types}`, the multi-palette `data-theme` CSS-variable engine, and TanStack Form multi-step wizards), load `references/next-shadcn-starter-patterns.md`.
 ## Delegation — this skill does NOT write component code
 
 | Need | Go to |

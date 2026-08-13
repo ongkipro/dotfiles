@@ -1,7 +1,7 @@
 ---
 name: storefront-ux
 description: >-
-  Design, audit, or repair end-to-end commerce interaction flows and state behavior across
+  Use when designing, auditing, or repairing end-to-end commerce interaction flows and state behavior across
   search, product listing and filtering, product detail and variants, cart, checkout handoff,
   customer account, localization, accessibility, performance, and analytics. Use for storefront
   UX specifications, journey audits, edge-state inventories, responsive commerce behavior,
@@ -45,7 +45,7 @@ Keep semantic structure, keyboard behavior, state recovery, performance budgets,
 10. **Produce acceptance criteria.** Make each criterion observable and testable across representative viewports, input methods, locales, and failure states.
 
 Read [journeys-and-states.md](references/journeys-and-states.md) for
-surface-specific requirements. Read
+surface-specific requirements. Read [public-frontend-patterns.md](references/public-frontend-patterns.md) for behavioral and state requirements for high-conversion public frontends across e-commerce, travel, and direct-response landing pages. Read
 [shopify-boundary.md](references/shopify-boundary.md) only for Shopify
 storefronts. Read [sources.md](references/sources.md) only when refreshing the
 upstream evidence or changing this skill's scope.

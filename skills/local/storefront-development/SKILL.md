@@ -29,7 +29,7 @@ efficient whitespace, quiet neutral surfaces, consistent borders/radii, and one
 brand accent. Avoid excessive cards, gradients, floating decoration, duplicated
 CTAs, auto-rotating content, and motion without task value.
 
-Read [Dawn-inspired baseline](references/dawn-inspired-baseline.md).
+Read [Dawn-inspired baseline](references/dawn-inspired-baseline.md) and [Next.js Commerce Patterns](references/next-commerce-patterns.md).
 
 ### 2. Render the useful document first
 
@@ -52,6 +52,8 @@ Read [Product, cart, and checkout](references/product-cart-checkout.md).
 Preserve the same behavior contract while changing rendering, mutation, cache,
 and hydration boundaries. Read only the relevant stack section in
 [Framework adaptation](references/framework-adaptation.md).
+
+For advanced Next.js App Router implementations covering Server Actions, optimistic state, and headless URL logic, read [Next.js Commerce Patterns](references/next-commerce-patterns.md).
 
 For Shopify, also read [Shopify boundaries](references/shopify-boundaries.md).
 
