@@ -40,6 +40,7 @@ $$\text{Google Ad Click (gclid, gbraid, wbraid)} \longrightarrow \text{Sitewide 
 | `transaction_id` deduplication, dynamic value rules, and count settings | [Transaction ID & Deduplication](references/TRANSACTION_ID_DEDUPLICATION.md) |
 | Preserving `gclid`, `gbraid`, `wbraid` across checkout and CRM funnels | [Click ID Preservation](references/CLICK_ID_PRESERVATION.md) |
 | Google Product Category (`google_product_category`) & PMax AI feed optimization | [Google Product Category Feed](references/GOOGLE_PRODUCT_CATEGORY_FEED.md) |
+| Master Advertising Taxonomy, Custom Labels, Schema.org & 12-Point System Audit | [Advertising Taxonomy & Feed Audit](references/ADVERTISING_TAXONOMY_AND_FEED_AUDIT.md) |
 
 ---
 
