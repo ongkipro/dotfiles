@@ -48,6 +48,8 @@ agents:
     advisor:
       - google-antigravity/gemini-3.1-pro:high
 async:
+  enabled: true
+  maxJobs: 8
   isolation: 
     mode: auto
     apply: true
