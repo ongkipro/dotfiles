@@ -39,6 +39,7 @@ $$\text{Meta Ad Click (_fbp, _fbc)} \longrightarrow \text{Browser Pixel (event_i
 | Browser + Server Deduplication & `event_id` rules | [Deduplication & Event ID](references/DEDUPLICATION_EVENT_ID.md) |
 | Customer identity matching, E.164 phone normalization, SHA-256 hashing, `_fbp`/`_fbc` rules | [Identity Normalization](references/IDENTITY_NORMALIZATION.md) |
 | Purchase event taxonomy for Prepaid vs Cash On Delivery (COD) funnels | [COD vs Prepaid Purchase Signals](references/COD_VS_PREPAID_PURCHASE.md) |
+| WeTracked.io / Elevar parity & deep attribution engineering | [WeTracked.io Attribution Parity](references/WETRACKED_ATTRIBUTION_PARITY.md) |
 
 ---
 
