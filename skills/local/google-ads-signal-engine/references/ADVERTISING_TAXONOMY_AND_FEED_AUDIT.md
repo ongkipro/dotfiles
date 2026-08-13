@@ -21,7 +21,66 @@
 
 ---
 
-## 2. Schema.org Rich Snippet & AI Search Data Layer (JSON-LD)
+## 2. UMKM Automated GTIN & Identifier Strategy (No Disapproval Guarantee)
+
+For UMKM/early-stage brands without official GS1 registered barcodes, **NEVER fabricate random 13-digit numbers** (Google Merchant Center will flag `invalid_gtin` and suspend the item). Use the automated fallback contract below:
+
+```ts
+// Automated Feed Identifier Resolver for UMKM / Custom Brands
+export interface ProductIdentifierPayload {
+  identifier_exists: 'yes' | 'no';
+  gtin?: string;
+  brand: string;
+  mpn: string;
+}
+
+export function resolveProductIdentifiers(product: {
+  sku: string;
+  brandName?: string;
+  officialGtin?: string;
+}): ProductIdentifierPayload {
+  // 1. Valid GS1 GTIN exists (e.g. 13-digit EAN-13 starting with 899 for ID)
+  if (product.officialGtin && /^\d{13}$/.test(product.officialGtin)) {
+    return {
+      identifier_exists: 'yes',
+      gtin: product.officialGtin,
+      brand: product.brandName || 'Brand',
+      mpn: product.sku
+    };
+  }
+
+  // 2. Automated Fallback for UMKM / Handmade / Custom Products (Safe & Approved)
+  return {
+    identifier_exists: 'no',
+    brand: product.brandName || 'UMKM Brand',
+    mpn: product.sku || `SKU-${Date.now()}`
+  };
+}
+```
+
+### Internal Barcode Generation (EAN-13 Prefix 200–299 for Local POS Scanners)
+For internal store management and POS barcode printing, UMKMs can auto-generate internal EAN-13 numbers starting with prefix `200` to `299` (Restricted Distribution Prefix):
+
+```ts
+// Auto-generate internal EAN-13 with valid Luhn checksum (for POS & Print)
+export function generateInternalEAN13(productId: number): string {
+  const prefix = '200'; // RDN Internal Prefix
+  const payload = prefix + String(productId).padStart(9, '0'); // 12 digits
+  
+  // Calculate Luhn checksum for 13th digit
+  let sum = 0;
+  for (let i = 0; i < 12; i++) {
+    const digit = parseInt(payload[i], 10);
+    sum += (i % 2 === 0) ? digit : digit * 3;
+  }
+  const checkDigit = (10 - (sum % 10)) % 10;
+  return payload + checkDigit;
+}
+```
+
+---
+
+## 3. Schema.org Rich Snippet & AI Search Data Layer (JSON-LD)
 
 ```json
 {
@@ -56,13 +115,13 @@
 
 ---
 
-## 3. 12-Point System Audit Checklist for E-Commerce & Ad Integrations
+## 4. 12-Point System Audit Checklist for E-Commerce & Ad Integrations
 
 Before launching any e-commerce storefront, landing page, or ad tracking integration, perform this mandatory 12-point audit:
 
 - [ ] **1. Taxonomy Completeness**: Every product SKU has explicit `google_product_category` (Numeric ID or full path) mapped to the deepest subcategory.
 - [ ] **2. Custom Labels Configured**: Data feed contains `custom_label_0` (Margin) and `custom_label_1` (Velocity).
-- [ ] **3. GTIN / EAN Barcodes**: Valid 13-digit EAN/GTIN populated for standard brand products.
+- [ ] **3. GTIN / UMKM Fallback**: Valid 13-digit EAN/GTIN populated OR automated `identifier_exists: "no"` contract active.
 - [ ] **4. Title Formula Applied**: Product titles follow `[Brand] + [Target/Gender] + [Product Type] + [Key Attributes] + [Color/Size]`.
 - [ ] **5. Dual-Signal CAPI Active**: Meta CAPI (Graph API v22.0) and TikTok Events API v2 running alongside browser pixels.
 - [ ] **6. `event_id` Match Verification**: Browser `event_id` and server `event_id` strings are 100% identical.
