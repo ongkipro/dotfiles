@@ -175,7 +175,7 @@ is the judgment pool, reserved for independent consultation and review.
 | Internal short-form work | `tiny` | Gemini 3.1 Flash Lite, minimal reasoning | Antigravity |
 | Repository discovery and source-verified research | `research` | Gemini 3.6 Flash, high reasoning | Antigravity |
 | Visual frontend work | `vision`, `designer` | Gemini 3.1 Pro, high reasoning | Antigravity |
-| Architecture-sensitive planning and high-nuance prose | `plan` | Claude Opus 4.6, high reasoning | Antigravity |
+| Architecture-sensitive planning and high-nuance prose | `plan` | Codex GPT-5.6 Sol, high reasoning | Codex |
 | Complex implementation | `slow` | Codex GPT-5.6 Sol, high reasoning | Codex |
 | Delegated implementation | `task` | Codex GPT-5.6 Sol, medium reasoning | Codex |
 | Correctness consultation | `advisor` | Anthropic Claude Sonnet 5, high reasoning | Anthropic |
