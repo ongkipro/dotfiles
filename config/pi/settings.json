@@ -1,7 +1,6 @@
 {
-  "lastChangelogVersion": "0.84.0",
-  "defaultProvider": "minimax",
-  "defaultModel": "MiniMax-M3",
+  "defaultProvider": "9router-fantastico",
+  "defaultModel": "cx/gpt-5.4",
   "defaultThinkingLevel": "high",
   "theme": "dark",
   "quietStartup": true,

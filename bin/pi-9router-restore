@@ -20,17 +20,29 @@ mkdir -p "$PI_AGENT_DIR" "$PI_EXT_DIR"
 
 settings_source="$DOTFILES_DIR/config/pi/settings.json"
 if [ -f "$settings_source" ]; then
-  if [ ! -e "$PI_AGENT_DIR/settings.json" ] || [ ! "$settings_source" -ef "$PI_AGENT_DIR/settings.json" ]; then
-    cp "$settings_source" "$PI_AGENT_DIR/settings.json"
+  # Pi rewrites settings.json during normal use — model switches and
+  # lastChangelogVersion both land here. It must therefore be a machine-local
+  # copy, never a link into the tracked repository, or every model switch dirties
+  # the working tree and syncs one device's preference to all of them.
+  #
+  # The previous guard tested `-ef` and so did the opposite of what it intended:
+  # a symlink pointing at the source *is* the same file, which made the condition
+  # false and preserved the very link it should have replaced. Seed when missing,
+  # de-link when linked, and otherwise leave a real local file untouched.
+  if [ ! -e "$PI_AGENT_DIR/settings.json" ] || [ -L "$PI_AGENT_DIR/settings.json" ]; then
+    cp --remove-destination "$settings_source" "$PI_AGENT_DIR/settings.json"
   fi
-  SETTINGS_SOURCE="$settings_source" python3 - <<'PY'
+  # Report what is actually in place, not what the seed says. A machine-local
+  # file that was kept will differ from the tracked seed, and printing the seed
+  # would claim a state that is not there.
+  SETTINGS_LIVE="$PI_AGENT_DIR/settings.json" python3 - <<'PY'
 import json
 import os
 
-with open(os.environ["SETTINGS_SOURCE"]) as source:
-    settings = json.load(source)
+with open(os.environ["SETTINGS_LIVE"]) as live:
+    settings = json.load(live)
 print(
-    "Pi settings restored "
+    "Pi settings in place "
     f"(provider={settings.get('defaultProvider', '?')}, "
     f"model={settings.get('defaultModel', '?')})"
 )

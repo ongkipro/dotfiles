@@ -6,7 +6,14 @@ small standalone fallback surface and the custom `compact-free` extension.
 
 ## Tracked files
 
-- `settings.json` — non-secret Pi defaults and optional packages.
+- `settings.json` — non-secret Pi defaults and optional packages. This is a
+  **seed for a fresh device, not live state**. Pi rewrites its own settings during
+  normal use — switching models and recording `lastChangelogVersion` both write
+  here — so `pi-9router-restore` copies this file to `~/.pi/agent/settings.json`
+  rather than linking it, and never overwrites an existing local copy. Linking it
+  instead would dirty the working tree on every model switch and push one
+  device's preference to all four. Keep the tracked defaults pointing at a
+  provider `models.template.json` actually defines.
 - `models.template.json` — a non-secret starting point for machine-local Pi
   provider metadata. It is copied only when `models.json` does not exist.
 - `extensions/compact-free/` — optional Pi-only conversation compaction with a
@@ -40,6 +47,8 @@ does not make Pi a dependency of OMP and does not overwrite an existing
 
 These Pi files remain machine-local and must not be committed:
 
+- `~/.pi/agent/settings.json` — the live copy Pi writes to. Must be a real file,
+  never a symlink back into this repository.
 - `~/.pi/agent/auth.json` — Pi provider/OAuth state.
 - `~/.pi/agent/models.json` — machine-local provider availability and metadata.
 - `~/.pi/agent/trust.json` — trusted sessions.
