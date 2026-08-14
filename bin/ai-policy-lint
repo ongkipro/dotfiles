@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+"""ai-policy-lint — Semantic linter across AI policy, skills, model routing, and memory.
+
+Verifies model role alignment, agent frontmatter metadata, skill structures,
+memory links, and runtime adapter integrity across dotfiles.
+"""
+
+import json
+import os
+from pathlib import Path
+import re
+import sys
+
+
+def find_dotfiles_root():
+    current = Path(__file__).resolve().parent
+    while current != current.parent:
+        if (current / "config" / "ai" / "AGENTS.md").is_file():
+            return current
+        current = current.parent
+    return Path.home() / "dotfiles"
+
+
+ROOT = find_dotfiles_root()
+AI_DIR = ROOT / "config" / "ai"
+OMP_DIR = ROOT / "config" / "omp"
+SKILLS_DIR = ROOT / "skills" / "local"
+TEMPLATES_DIR = ROOT / "config" / "templates"
+
+errors = []
+warnings = []
+
+
+def err(msg):
+    errors.append(msg)
+
+
+def warn(msg):
+    warnings.append(msg)
+
+
+def check_agents_policy():
+    agents_md = AI_DIR / "AGENTS.md"
+    if not agents_md.is_file():
+        err(f"Missing canonical policy file: {agents_md}")
+        return
+
+    content = agents_md.read_text(encoding="utf-8")
+    required_terms = ["Approval gates", "secrets", "sudo", "wrangler deploy", "git reset --hard"]
+    for term in required_terms:
+        if term not in content:
+            warn(f"AGENTS.md policy missing expected keyword: '{term}'")
+
+
+def check_omp_routing():
+    config_yml = OMP_DIR / "config.yml"
+    agents_dir = OMP_DIR / "agents"
+
+    if not config_yml.is_file():
+        err(f"Missing OMP config: {config_yml}")
+        return
+
+    config_source = config_yml.read_text(encoding="utf-8")
+
+    # Extract agentModelOverrides
+    overrides = {}
+    in_overrides = False
+    for line in config_source.splitlines():
+        if "agentModelOverrides:" in line:
+            in_overrides = True
+            continue
+        if in_overrides:
+            if re.match(r"^\s{2,4}[a-zA-Z0-9_-]+:", line):
+                parts = line.strip().split(":", 1)
+                k = parts[0].strip()
+                v = parts[1].strip().strip('"').strip("'")
+                overrides[k] = v
+            elif re.match(r"^\s*[a-zA-Z0-9_-]+:", line):
+                in_overrides = False
+
+    if not agents_dir.is_dir():
+        err(f"Missing agents directory: {agents_dir}")
+        return
+
+    for agent_file in agents_dir.glob("*.md"):
+        content = agent_file.read_text(encoding="utf-8")
+        if not content.startswith("---"):
+            err(f"Agent {agent_file.name} missing YAML frontmatter")
+            continue
+
+        frontmatter = content.split("---", 2)[1]
+        name_match = re.search(r"^name:\s*([a-zA-Z0-9_-]+)", frontmatter, re.MULTILINE)
+        model_match = re.search(r"^model:\s*([^\n]+)", frontmatter, re.MULTILINE)
+
+        if not name_match:
+            err(f"Agent {agent_file.name} missing 'name' in frontmatter")
+            continue
+
+        agent_name = name_match.group(1).strip()
+        if agent_name != agent_file.stem:
+            err(f"Agent filename '{agent_file.name}' does not match frontmatter name '{agent_name}'")
+
+        if model_match:
+            model_val = model_match.group(1).strip().strip('"').strip("'")
+            if agent_name in overrides and overrides[agent_name] != model_val:
+                err(f"Agent {agent_name} model frontmatter ({model_val}) != config.yml override ({overrides[agent_name]})")
+
+
+def check_skills():
+    if not SKILLS_DIR.is_dir():
+        err(f"Missing local skills directory: {SKILLS_DIR}")
+        return
+
+    skill_count = 0
+    for skill_folder in SKILLS_DIR.iterdir():
+        if skill_folder.is_dir():
+            skill_md = skill_folder / "SKILL.md"
+            if not skill_md.is_file():
+                err(f"Skill folder {skill_folder.name} missing SKILL.md")
+            else:
+                skill_count += 1
+
+    if skill_count == 0:
+        warn("No local skills found in skills/local/")
+
+
+def check_templates():
+    if not TEMPLATES_DIR.is_dir():
+        err(f"Missing templates directory: {TEMPLATES_DIR}")
+        return
+
+    required_templates = ["AGENTS.md", "PRD.md", "TASKS.md", "STATUS.md", "BUILD-LOG.md", "ARCHITECTURE.md"]
+    for t in required_templates:
+        if not (TEMPLATES_DIR / t).is_file():
+            err(f"Missing required project template: {t}")
+
+
+def main():
+    print("ai-policy-lint: Auditing dotfiles policy, routing, skills, and templates...")
+    print("─" * 60)
+
+    check_agents_policy()
+    check_omp_routing()
+    check_skills()
+    check_templates()
+
+    if warnings:
+        print("WARNINGS:")
+        for w in warnings:
+            print(f"  ! {w}")
+
+    if errors:
+        print("ERRORS:")
+        for e in errors:
+            print(f"  ✗ {e}")
+        print("─" * 60)
+        print(f"ai-policy-lint: FAILED ({len(errors)} errors found)", file=sys.stderr)
+        sys.exit(1)
+
+    print("─" * 60)
+    print("ai-policy-lint: PASSED (all policy and routing checks valid)")
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

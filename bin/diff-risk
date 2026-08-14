@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""diff-risk — Deterministic Git diff risk classifier.
+
+Classifies uncommitted or staged changes into risk levels (R0–R4), flagging
+sensitive paths (auth, payment, migrations, secrets, lockfiles) and recommended model roles.
+"""
+
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+
+SENSITIVE_PATTERNS = [
+    (r"(?:auth|jwt|session|login|oauth|password|token)", "Authentication / Authorization"),
+    (r"(?:payment|stripe|billing|checkout|cart|money|currency|transaction)", "Payment / Financial"),
+    (r"(?:migration|schema|db/|prisma|drizzle|sql)", "Database Schema / Migration"),
+    (r"\.env(?:\..*)?$", "Environment Secrets / Config"),
+    (r"(?:lock|pnpm-lock\.yaml|package-lock\.json|yarn\.lock|Cargo\.lock)", "Dependency Lockfile"),
+    (r"(?:crypto|secret|vault|key|cert)", "Security / Encryption"),
+    (r"(?:docker|terraform|coolify|k8s|nginx|caddy|vultr)", "Infrastructure / Deployment"),
+]
+
+
+def run_git(args, cwd):
+    res = subprocess.run(
+        ["git"] + args,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    if res.returncode != 0:
+        return ""
+    return res.stdout
+
+
+def analyze_diff(repo_path, base_ref=None):
+    # Try staged + unstaged first
+    status_out = run_git(["status", "--porcelain"], repo_path)
+    if not status_out.strip() and not base_ref:
+        # Check against HEAD~1 if working directory is clean
+        base_ref = "HEAD~1"
+
+    if base_ref:
+        diff_out = run_git(["diff", base_ref], repo_path)
+        name_status = run_git(["diff", "--name-status", base_ref], repo_path)
+        stat_out = run_git(["diff", "--stat", base_ref], repo_path)
+    else:
+        diff_out = run_git(["diff", "HEAD"], repo_path)
+        if not diff_out:
+            diff_out = run_git(["diff"], repo_path) + run_git(["diff", "--cached"], repo_path)
+        name_status = run_git(["diff", "--name-status", "HEAD"], repo_path)
+        if not name_status:
+            name_status = run_git(["status", "--porcelain"], repo_path)
+        stat_out = run_git(["diff", "--stat", "HEAD"], repo_path)
+
+    files_changed = []
+    seen = set()
+    for line in (name_status + "\n" + status_out).splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split(maxsplit=1)
+        if len(parts) == 2:
+            status, path = parts[0], parts[1]
+            if path not in seen:
+                seen.add(path)
+                files_changed.append((status, path))
+
+    # Calculate added/deleted lines
+    added_lines = 0
+    deleted_lines = 0
+    for line in diff_out.splitlines():
+        if line.startswith("+") and not line.startswith("+++"):
+            added_lines += 1
+        elif line.startswith("-") and not line.startswith("---"):
+            deleted_lines += 1
+
+    total_line_changes = added_lines + deleted_lines
+
+    # Check sensitive paths
+    flagged_reasons = []
+    for _, path in files_changed:
+        for pattern, label in SENSITIVE_PATTERNS:
+            if re.search(pattern, path, re.IGNORECASE):
+                flagged_reasons.append(f"{label} path modified: {path}")
+
+    # Determine risk level
+    is_doc_only = all(
+        path.endswith((".md", ".txt", ".rst", ".png", ".jpg", ".svg", ".json"))
+        and not any(re.search(p, path, re.IGNORECASE) for p, _ in SENSITIVE_PATTERNS)
+        for _, path in files_changed
+    )
+
+    if not files_changed:
+        risk = "R0"
+        rationale = "No files modified."
+    elif is_doc_only and len(files_changed) <= 5:
+        risk = "R0"
+        rationale = "Documentation, assets, or static text modifications only."
+    elif flagged_reasons and any("Database" in r or "Infrastructure" in r for r in flagged_reasons) and total_line_changes > 300:
+        risk = "R4"
+        rationale = "Costly-to-reverse database migration or infrastructure topology changes with substantial diff."
+    elif flagged_reasons:
+        risk = "R3"
+        rationale = "Correctness-sensitive paths modified (" + ", ".join(set(r.split(":")[0] for r in flagged_reasons)) + ")."
+    elif len(files_changed) > 10 or total_line_changes > 500:
+        risk = "R3"
+        rationale = f"Large diff volume ({len(files_changed)} files, {total_line_changes} lines changed)."
+    elif len(files_changed) > 3 or total_line_changes > 150:
+        risk = "R2"
+        rationale = f"Moderate multi-file diff ({len(files_changed)} files, {total_line_changes} lines changed)."
+    else:
+        risk = "R1"
+        rationale = f"Bounded low-risk implementation ({len(files_changed)} files, {total_line_changes} lines changed)."
+
+    # Execution lane recommendation
+    lane_map = {
+        "R0": ("volume / cheap-dev", "@smol"),
+        "R1": ("volume / cheap-dev", "@task"),
+        "R2": ("precision lane", "@slow"),
+        "R3": ("precision + independent review", "@slow / @advisor-xhigh"),
+        "R4": ("judgment lane / architect review", "@advisor-max / @architect"),
+    }
+    recommended_lane, recommended_role = lane_map.get(risk, ("precision lane", "@slow"))
+
+    return {
+        "risk": risk,
+        "rationale": rationale,
+        "filesCount": len(files_changed),
+        "linesAdded": added_lines,
+        "linesDeleted": deleted_lines,
+        "totalLineChanges": total_line_changes,
+        "flaggedReasons": flagged_reasons,
+        "files": [path for _, path in files_changed],
+        "recommendedLane": recommended_lane,
+        "recommendedRole": recommended_role,
+    }
+
+
+def main():
+    json_mode = "--json" in sys.argv
+    base_ref = None
+    target_dir = Path.cwd()
+    for arg in sys.argv[1:]:
+        if arg.startswith("--"):
+            continue
+        p = Path(arg).resolve()
+        if p.is_dir():
+            target_dir = p
+        else:
+            base_ref = arg
+
+    data = analyze_diff(target_dir, base_ref)
+
+    if json_mode:
+        print(json.dumps(data, indent=2))
+        sys.exit(0)
+
+    print(f"diff-risk: Risk Level {data['risk']}")
+    print("─" * 60)
+    print(f"Rationale:         {data['rationale']}")
+    print(f"Files Modified:    {data['filesCount']}")
+    print(f"Lines Changed:     +{data['linesAdded']} / -{data['linesDeleted']} (total {data['totalLineChanges']})")
+    print(f"Recommended Lane:  {data['recommendedLane']} ({data['recommendedRole']})")
+
+    if data["flaggedReasons"]:
+        print("\nFlagged Risk Factors:")
+        for reason in set(data["flaggedReasons"]):
+            print(f"  ⚠ {reason}")
+
+    if data["files"]:
+        print("\nModified Files:")
+        for f in data["files"][:15]:
+            print(f"  - {f}")
+        if len(data["files"]) > 15:
+            print(f"  ... and {len(data['files']) - 15} more files")
+
+    print("─" * 60)
+
+
+if __name__ == "__main__":
+    main()

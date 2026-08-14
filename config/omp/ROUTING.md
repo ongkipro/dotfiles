@@ -25,6 +25,20 @@ Discovery and mechanical support are deliberately not the same lane, even though
 
 The executable selectors live in `config.yml`. Provider metadata lives in `models.yml`. Machine-local credentials remain outside this repository.
 
+## Risk-Aware Classification Framework (R0–R4)
+
+Every development task is classified by risk to match execution models and verification rules:
+
+| Risk Level | Description & Target Work | Recommended Execution Lane | Deterministic Verification |
+|---|---|---|---|
+| **R0** | Purely mechanical, formatting, typos, documentation (`*.md`), or asset updates. | `volume` (`@smol`) | `ai-policy-lint` / `project-check` |
+| **R1** | Bounded low-risk feature/CRUD edit (<= 3 files, <= 150 lines changed). | `volume` / `cheap-dev` (`@task`) | `project-check` + `diff-risk` |
+| **R2** | Moderate multi-module feature or non-trivial refactor (4–10 files). | `precision` (`@slow`) | `project-check` + `diff-risk` |
+| **R3** | Correctness-sensitive logic: auth/login, payment/billing, DB schema/migrations, secrets, lockfiles. | `precision` + `reviewer` (`@slow` + `@advisor-xhigh`) | `project-check` + `diff-risk` |
+| **R4** | Costly-to-reverse / Critical: Destructive DB migration, security boundary, infrastructure topology. | `judgment` (`@architect` + `@advisor-max`) | Specialist Review + `project-check` |
+
+Use `bin/diff-risk` to verify diff risk automatically after edits. Use `bin/project-check` for deterministic repository verification.
+
 ## Selection policy
 
 | Work | OMP role | Use when |

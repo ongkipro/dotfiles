@@ -55,6 +55,9 @@ link "$DOT/bin/inspect-project"          "$HOME/.local/bin/inspect-project"
 link "$DOT/bin/project-init"             "$HOME/.local/bin/project-init"
 link "$DOT/bin/project-init-test"        "$HOME/.local/bin/project-init-test"
 link "$DOT/bin/omp-routing-test"          "$HOME/.local/bin/omp-routing-test"
+link "$DOT/bin/project-check"           "$HOME/.local/bin/project-check"
+link "$DOT/bin/diff-risk"               "$HOME/.local/bin/diff-risk"
+link "$DOT/bin/ai-policy-lint"          "$HOME/.local/bin/ai-policy-lint"
 for s in tmux-clip tmux-setup tmux-battery security-check 9router-start 9router-restore 9router-credential-migrate pi-9router-restore device-register; do
   [ -e "$DOT/bin/$s" ] && link "$DOT/bin/$s" "$HOME/.local/bin/$s"
 done

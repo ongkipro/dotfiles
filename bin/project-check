@@ -1,0 +1,226 @@
+#!/usr/bin/env python3
+"""project-check — Deterministic, runtime-neutral repository check runner.
+
+Discovers repository project type (Node, Python, Go, Rust, PHP) and executes
+its native verification commands (typecheck, lint, test, build).
+"""
+
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import shutil
+
+
+def say(msg):
+    print(f"→ {msg}")
+
+
+def ok(msg):
+    print(f"  ✓ {msg}")
+
+
+def fail(msg):
+    print(f"  ✗ {msg}")
+
+
+def run_cmd(cmd, cwd=None, env=None):
+    merged_env = os.environ.copy()
+    if env:
+        merged_env.update(env)
+    return subprocess.run(
+        cmd,
+        cwd=cwd,
+        env=merged_env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+
+
+def check_node(repo_path):
+    pkg_json = repo_path / "package.json"
+    if not pkg_json.is_file():
+        return None
+
+    try:
+        data = json.loads(pkg_json.read_text(encoding="utf-8"))
+    except Exception as e:
+        fail(f"Invalid package.json: {e}")
+        return False
+
+    scripts = data.get("scripts", {})
+    if not scripts:
+        say("Node project detected (package.json present, no scripts defined)")
+        return True
+
+    pm = "npm"
+    if (repo_path / "pnpm-lock.yaml").is_file() and shutil.which("pnpm"):
+        pm = "pnpm"
+    elif (repo_path / "bun.lockb").is_file() and shutil.which("bun"):
+        pm = "bun"
+    elif (repo_path / "yarn.lock").is_file() and shutil.which("yarn"):
+        pm = "yarn"
+
+    say(f"Node project detected (package manager: {pm})")
+    all_passed = True
+
+    # Order of execution: typecheck -> lint -> test -> build
+    check_order = ["typecheck", "tsc", "lint", "test", "build"]
+    executed = 0
+
+    for script in check_order:
+        if script in scripts:
+            executed += 1
+            cmd = [pm, "run", script]
+            say(f"Running {pm} run {script}...")
+            res = run_cmd(cmd, cwd=repo_path)
+            if res.returncode == 0:
+                ok(f"{pm} run {script}")
+            else:
+                fail(f"{pm} run {script} (exit {res.returncode})")
+                if res.stdout:
+                    print("--- STDOUT ---")
+                    print(res.stdout[-1000:])
+                if res.stderr:
+                    print("--- STDERR ---")
+                    print(res.stderr[-1000:])
+                all_passed = False
+
+    if executed == 0:
+        say("No standard check scripts (typecheck, lint, test, build) found in package.json")
+
+    return all_passed
+
+
+def check_go(repo_path):
+    if not (repo_path / "go.mod").is_file():
+        return None
+
+    if not shutil.which("go"):
+        fail("go.mod present but 'go' binary not found")
+        return False
+
+    say("Go project detected")
+    all_passed = True
+
+    for cmd_args, label in [
+        (["go", "vet", "./..."], "go vet ./..."),
+        (["go", "test", "./..."], "go test ./..."),
+    ]:
+        say(f"Running {label}...")
+        res = run_cmd(cmd_args, cwd=repo_path)
+        if res.returncode == 0:
+            ok(label)
+        else:
+            fail(f"{label} (exit {res.returncode})")
+            if res.stderr:
+                print(res.stderr[-1000:])
+            all_passed = False
+
+    return all_passed
+
+
+def check_python(repo_path):
+    is_py = (
+        (repo_path / "pyproject.toml").is_file()
+        or (repo_path / "setup.py").is_file()
+        or (repo_path / "requirements.txt").is_file()
+        or any(repo_path.glob("*.py"))
+    )
+    if not is_py:
+        return None
+
+    say("Python project detected")
+    all_passed = True
+    executed = 0
+
+    if shutil.which("ruff"):
+        executed += 1
+        say("Running ruff check...")
+        res = run_cmd(["ruff", "check", "."], cwd=repo_path)
+        if res.returncode == 0:
+            ok("ruff check")
+        else:
+            fail(f"ruff check (exit {res.returncode})")
+            all_passed = False
+
+    if shutil.which("pytest"):
+        executed += 1
+        say("Running pytest...")
+        res = run_cmd(["pytest"], cwd=repo_path)
+        if res.returncode == 0:
+            ok("pytest")
+        else:
+            fail(f"pytest (exit {res.returncode})")
+            all_passed = False
+
+    if executed == 0:
+        say("Python project detected, but ruff/pytest not installed or configured")
+
+    return all_passed
+
+
+def check_rust(repo_path):
+    if not (repo_path / "Cargo.toml").is_file():
+        return None
+
+    if not shutil.which("cargo"):
+        fail("Cargo.toml present but 'cargo' binary not found")
+        return False
+
+    say("Rust project detected")
+    all_passed = True
+
+    for cmd_args, label in [
+        (["cargo", "check"], "cargo check"),
+        (["cargo", "test"], "cargo test"),
+    ]:
+        say(f"Running {label}...")
+        res = run_cmd(cmd_args, cwd=repo_path)
+        if res.returncode == 0:
+            ok(label)
+        else:
+            fail(f"{label} (exit {res.returncode})")
+            if res.stderr:
+                print(res.stderr[-1000:])
+            all_passed = False
+
+    return all_passed
+
+
+def main():
+    target_dir = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path.cwd()
+    if not target_dir.is_dir():
+        print(f"ERROR: Directory not found: {target_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"project-check: Verifying repository at {target_dir}")
+    print("─" * 60)
+
+    checkers = [check_node, check_go, check_python, check_rust]
+    results = []
+
+    for checker in checkers:
+        res = checker(target_dir)
+        if res is not None:
+            results.append(res)
+
+    print("─" * 60)
+    if not results:
+        say("No standard project configuration recognized (Node, Go, Python, Rust)")
+        print("project-check: PASSED (no runnable checks discovered)")
+        sys.exit(0)
+
+    if all(results):
+        print("project-check: PASSED (all discovered checks succeeded)")
+        sys.exit(0)
+    else:
+        print("project-check: FAILED (one or more checks failed)", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
