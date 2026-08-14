@@ -1,17 +1,17 @@
 # Status — OMP Orchestration
 
-Updated: 2026-08-13
-Status: Configured, verified, and benchmarked. Eleven agents tracked & overrides verified.
+Updated: 2026-08-15
+Status: Configured and verified. Eleven agents tracked & overrides verified. `scout` split onto its own role; 9Router promoted from unused to last-resort backup.
 
 ## Current state
 
-Routing is organised as three capacity pools across twelve roles and eleven agents. `ROUTING.md` owns the policy, `config.yml` owns the executable selectors, and `overlays/` holds single-provider session escapes.
+Routing is organised as three capacity pools across thirteen roles and eleven agents. `ROUTING.md` owns the policy, `config.yml` owns the executable selectors, and `overlays/` holds single-provider session escapes.
 
 | Pool | Roles | Purpose |
 |---|---|---|
-| Antigravity | `default`, `plan`, `vision`, `designer`, `research`, `smol`, `tiny` | Volume. Carries the main session and every context-hungry lane. |
-| Codex | `slow`, `task` | Precision. The two lanes where a wrong edit costs the most rework. |
-| Anthropic | `advisor`, `advisor-xhigh`, `advisor-max` | Judgment. Independent consultation and review. |
+| Antigravity | `default`, `vision`, `designer`, `research`, `smol`, `tiny` | Volume. Carries the main session and every context-hungry lane. |
+| Codex | `slow`, `task`, `plan` | Precision. The lanes where a wrong edit costs the most rework. |
+| Anthropic | `advisor`, `advisor-xhigh`, `advisor-max`, `discovery` | Judgment. Independent consultation, review, and the repository map `scout` returns. |
 
 All eleven agents — seven bundled, four tracked under `agents/` (`architect`, `complex-developer`, `debugger`, `writer`) — have an explicit override, so none silently resolves to `default`.
 
@@ -24,16 +24,18 @@ Any change to `config.yml` must keep all of these true. The check that verifies 
 3. Every model reachable from any role or fallback has a context window larger than `compaction.thresholdTokens`.
 4. Every fallback chain changes provider on its first hop.
 5. Every role has a fallback path, whether role-keyed or model-keyed.
-6. No recovery path uses 9Router.
+6. 9Router appears only as the **last** hop of a chain, never earlier and never as a role. Its allowance is small, and its `ag/*` models draw on the same Antigravity account the primary pool already uses, so an early hop would spend the reserve without adding capacity.
 7. Every model reference carries an explicit reasoning suffix. Gemini 3.1 Pro rejects a request with no thinking budget outright — `Budget 0 is invalid. This model only works in thinking mode.` — so a reference that merely omits its suffix fails at runtime rather than falling back to some default. All 100 references across `config.yml` and both overlays were checked and carry one.
 
 ## Active work
 
-None. The writer agent addition, high-nuance prose routing, and 9Router fallback cleanup completed on 2026-08-13 and verified via `omp-routing-test`.
+None. `omp-routing-test` was hardened on 2026-08-15 from a wiring test into a wiring **and capability** test. It now resolves every selector against OMP's model catalog and validates both overlays through OMP's own parser. Twelve fault classes that previously passed green are now rejected; the matrix is in `BUILD-LOG.md`.
+
+One deliberate limitation remains: when `~/.omp/agent/models.db` is absent the capability half cannot run. The test then prints a `WARNING` naming exactly what went unverified rather than reporting a clean pass, and static-CI mode reports `PARTIAL` instead of `OK` for the same reason.
 
 ## Blockers
 
-None. The three models that had never executed on this device were benchmarked on 2026-08-12 and all serve correctly; results are in `BUILD-LOG.md`. Every one of the twelve roles now points at a model proven to run here.
+None. The three models that had never executed on this device were benchmarked on 2026-08-12 and all serve correctly; results are in `BUILD-LOG.md`. Every one of the thirteen roles now points at a model proven to run here, except `discovery` (Claude Sonnet 5), which shares a family with the already-benchmarked advisor lane but has not been benchmarked under this role.
 
 `config/ai/memory/environment.md` records the general hazard this closed: `config.yml` describes intended routing, while actual model availability is device-local. Re-run the benchmark below after any change that introduces a model not already in use.
 
@@ -52,4 +54,4 @@ Always include the reasoning suffix. A bare selector is not a valid test of a co
 - `claude-fable-5` and `claude-mythos-5` are available and spec-comparable to Opus 5, but their tier positioning is unknown here. Not placed on any critical path without a benchmark.
 - `gpt-5.6-terra` and `gpt-5.6-luna` are spec-identical to Sol, which has measured evidence behind it. Not substituted without a comparison.
 - `minimax-code` served 14 calls at zero recorded cost and is otherwise unused.
-- 9Router remains configured as an optional manual route only.
+- 9Router is wired as the final hop of the `slow`, `plan`, and `default` chains only. It is not a role, and it is not an early fallback.

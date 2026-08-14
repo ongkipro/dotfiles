@@ -21,6 +21,7 @@ modelRoles:
   smol: google-antigravity/gemini-3.1-flash-lite:medium
   tiny: google-antigravity/gemini-3.1-flash-lite:minimal
   research: google-antigravity/gemini-3.6-flash:high
+  discovery: google-antigravity/gemini-3.6-flash:high
   vision: google-antigravity/gemini-3.1-pro:high
   designer: google-antigravity/gemini-3.1-pro:high
   advisor: google-antigravity/claude-sonnet-4-6:high
@@ -56,6 +57,9 @@ retry:
     research:
       - google-antigravity/gemini-3.5-flash:high
       - google-antigravity/gemini-3.1-pro:high
+    discovery:
+      - google-antigravity/gemini-3.5-flash:high
+      - google-antigravity/gemini-3.1-pro:high
     vision:
       - google-antigravity/gemini-3-pro:high
       - google-antigravity/gemini-2.5-pro:high
@@ -65,3 +69,10 @@ retry:
     advisor:
       - google-antigravity/claude-opus-4-6:high
       - google-antigravity/claude-sonnet-4-5:high
+    # `advisor-xhigh` and `advisor-max` both resolve to claude-opus-4-6, so a
+    # model-keyed chain covers both without duplicating role entries — the same
+    # trick the tracked config.yml uses for anthropic/claude-opus-5. Without
+    # this the highest-judgment tiers are the only roles with no recovery path.
+    google-antigravity/claude-opus-4-6:
+      - google-antigravity/claude-sonnet-4-6:high
+      - google-antigravity/gemini-3.1-pro:high

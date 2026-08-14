@@ -6,6 +6,7 @@ modelRoles:
   vision: google-antigravity/gemini-3.1-pro:high
   designer: google-antigravity/gemini-3.1-pro:high
   research: google-antigravity/gemini-3.6-flash:high
+  discovery: anthropic/claude-sonnet-5:medium
   tiny: google-antigravity/gemini-3.1-flash-lite:minimal
   task: openai-codex/gpt-5.6-sol:high
   default: google-antigravity/gemini-3.6-flash:medium
@@ -30,6 +31,7 @@ retry:
     default:
       - openai-codex/gpt-5.4:medium
       - anthropic/claude-sonnet-4-6:medium
+      - 9router-fantastico/cx/gpt-5.4:medium
     task:
       - google-antigravity/gemini-3.6-flash:high
       - anthropic/claude-sonnet-4-6:medium
@@ -42,9 +44,11 @@ retry:
     slow:
       - google-antigravity/claude-opus-4-6:high
       - anthropic/claude-opus-4-8:high
+      - 9router-fantastico/cx/gpt-5.6-sol:high
     plan:
-      - openai-codex/gpt-5.6-sol:high
       - anthropic/claude-opus-4-8:high
+      - google-antigravity/claude-opus-4-6:high
+      - 9router-fantastico/cx/gpt-5.6-sol:high
     vision:
       - anthropic/claude-sonnet-5:high
       - openai-codex/gpt-5.4:high
@@ -54,6 +58,9 @@ retry:
     research:
       - openai-codex/gpt-5.4:high
       - anthropic/claude-sonnet-4-6:high
+    discovery:
+      - google-antigravity/gemini-3.6-flash:high
+      - openai-codex/gpt-5.4:high
     advisor:
       - google-antigravity/claude-sonnet-4-6:high
       - openai-codex/gpt-5.6-sol:high
@@ -75,7 +82,7 @@ task:
     apply: true
     merge: patch
   agentModelOverrides:
-    scout: "@research"
+    scout: "@discovery"
     sonic: "@smol"
     designer: "@vision"
     reviewer: "@advisor"

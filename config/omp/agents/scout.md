@@ -7,7 +7,7 @@ tools:
   - glob
   - web_search
   - yield
-model: "@research"
+model: "@discovery"
 thinkingLevel: medium
 output: 
   properties: 

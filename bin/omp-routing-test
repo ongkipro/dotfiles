@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -85,13 +86,21 @@ def parse_frontmatter(path):
 
 
 def parse_custom_provider_models(path):
-    """Extract provider -> model-id sets from the constrained models.yml list."""
+    """Extract provider -> {model-id: declared contextWindow or None} from models.yml.
+
+    The declared window matters because it can disagree with OMP's cached catalog:
+    models.yml states 372000 for `cx/gpt-5.6-sol` while the cache reports 1050000.
+    Callers take the smaller of the two so a generous cache entry cannot mask a
+    model that is really too small for the compaction threshold.
+    """
     providers = {}
     current_provider = None
+    current_model = None
     in_providers = False
     in_models = False
     provider_pattern = re.compile(r"^  ([A-Za-z0-9_-]+):\s*$")
     model_pattern = re.compile(r'^      - id:\s*["\']?([^"\']+?)["\']?\s*$')
+    context_pattern = re.compile(r"^\s+contextWindow:\s*(\d+)\s*$")
     for line in path.read_text(encoding="utf-8").splitlines():
         if line == "providers:":
             in_providers = True
@@ -103,15 +112,23 @@ def parse_custom_provider_models(path):
         provider_match = provider_pattern.match(line)
         if provider_match:
             current_provider = provider_match.group(1)
-            providers[current_provider] = set()
+            providers[current_provider] = {}
+            current_model = None
             in_models = False
             continue
         if current_provider and line == "    models:":
             in_models = True
             continue
-        model_match = model_pattern.match(line) if in_models else None
+        if not in_models:
+            continue
+        model_match = model_pattern.match(line)
         if model_match:
-            providers[current_provider].add(model_match.group(1))
+            current_model = model_match.group(1)
+            providers[current_provider][current_model] = None
+            continue
+        context_match = context_pattern.match(line)
+        if context_match and current_model:
+            providers[current_provider][current_model] = int(context_match.group(1))
     return providers
 
 def parse_scalar_mapping(source, key, header_indent):
@@ -157,6 +174,85 @@ def collect_role_references(value, references):
         references.append(value)
 
 
+CATALOG_PATH = Path.home() / ".omp" / "agent" / "models.db"
+
+
+def load_catalog():
+    """Return {(provider, model_id): {"context": int, "efforts": [str]}} from OMP's cache.
+
+    This is the only source that knows what a model can actually do. Without it the
+    test can prove the routing graph is internally consistent but not that any model
+    in it exists, accepts the reasoning level asked of it, or holds enough context.
+    Returns None when the cache is absent so the caller can say so out loud.
+    """
+    if not CATALOG_PATH.is_file():
+        return None
+    catalog = {}
+    try:
+        connection = sqlite3.connect("file:{}?mode=ro".format(CATALOG_PATH), uri=True)
+        try:
+            rows = connection.execute("SELECT provider_id, models FROM model_cache").fetchall()
+        finally:
+            connection.close()
+    except sqlite3.Error as error:
+        fail("model catalog is unreadable: " + str(error))
+    for provider_id, blob in rows:
+        provider = str(provider_id).split(":", 1)[0]
+        try:
+            entries = json.loads(blob)
+        except (TypeError, json.JSONDecodeError):
+            continue
+        for entry in entries:
+            model_id = entry.get("id")
+            if not model_id:
+                continue
+            thinking = entry.get("thinking") or {}
+            catalog[(provider, model_id)] = {
+                "context": entry.get("contextWindow"),
+                "efforts": thinking.get("efforts") or [],
+            }
+    return catalog or None
+
+
+def split_selector(selector):
+    """Split provider/model:effort. Model ids may themselves contain a slash."""
+    provider, _, remainder = selector.partition("/")
+    model_id, _, effort = remainder.rpartition(":")
+    if not model_id:
+        model_id, effort = remainder, ""
+    return provider, model_id, effort
+
+
+def check_selector(selector, catalog, threshold, where, declared_contexts=None):
+    """Verify one selector against the catalog. Silent when it is sound."""
+    provider, model_id, effort = split_selector(selector)
+    if not provider or not model_id:
+        fail("{}: not a provider/model selector: {!r}".format(where, selector))
+    if not effort:
+        fail("{}: selector carries no reasoning suffix: {}".format(where, selector))
+    entry = catalog.get((provider, model_id))
+    if entry is None:
+        fail("{}: model is absent from the catalog: {}".format(where, selector))
+    efforts = entry["efforts"]
+    if efforts and effort not in efforts:
+        fail(
+            "{}: {} does not support reasoning level {!r} (supports {})".format(
+                where, provider + "/" + model_id, effort, ", ".join(efforts)
+            )
+        )
+    context = entry["context"]
+    declared = (declared_contexts or {}).get(provider, {}).get(model_id)
+    if isinstance(declared, int) and (not isinstance(context, int) or declared < context):
+        # Trust the tracked declaration over a more generous cache entry.
+        context = declared
+    if isinstance(context, int) and context <= threshold:
+        fail(
+            "{}: {} holds {} tokens, at or below compaction.thresholdTokens ({})".format(
+                where, provider + "/" + model_id, context, threshold
+            )
+        )
+
+
 for required_path, label in (
     (CONFIG_PATH, "OMP config"),
     (MODELS_PATH, "OMP provider metadata"),
@@ -178,6 +274,8 @@ required_explicit_paths = {
     ("task", "isolation", "merge"),
     ("task", "agentModelOverrides"),
     ("secrets", "enabled"),
+    ("compaction", "thresholdTokens"),
+    ("retry", "fallbackChains"),
 }
 for path in sorted(required_explicit_paths):
     if path not in explicit_paths:
@@ -224,9 +322,18 @@ omp = shutil.which("omp")
 if not omp:
     if os.environ.get("CI") == "true":
         print(
-            "omp-routing-test: OK (static CI; roles={}, overrides={}, runtime=unavailable)".format(
+            "omp-routing-test: PARTIAL (static CI; roles={}, overrides={})".format(
                 len(static_roles), len(static_overrides)
             )
+        )
+        print(
+            "  omp is not installed, so this run checked file structure and @role wiring only.",
+            file=sys.stderr,
+        )
+        print(
+            "  NOT checked: model existence, reasoning levels, context windows, overlays,"
+            " fallback coverage. Install omp in CI for a full pass.",
+            file=sys.stderr,
         )
         raise SystemExit(0)
     fail("omp executable is unavailable")
@@ -313,15 +420,22 @@ fallback_chains = runtime_value("retry.fallbackChains")
 if not isinstance(fallback_chains, dict):
     fail("retry.fallbackChains must be a map")
 for key in fallback_chains:
-    if "/" not in key and "*" not in key and key not in roles:
-        fail("fallback chain references missing role: " + key)
+    if "*" in key:
+        continue
+    if "/" not in key:
+        if key not in roles:
+            fail("fallback chain references missing role: " + key)
+    elif not any(key.rstrip(":") == selector.rsplit(":", 1)[0] for selector in roles.values()):
+        # A model-keyed chain that matches no configured role model is dead weight:
+        # nothing will ever resolve to it, so a typo here fails silently forever.
+        fail("model-keyed fallback chain matches no configured role model: " + key)
 
 custom_providers = parse_custom_provider_models(MODELS_PATH)
 if not custom_providers:
     fail("models.yml contains no custom providers")
 for selectors in fallback_chains.values():
-    if not isinstance(selectors, list):
-        fail("each fallback chain must be a list")
+    if not isinstance(selectors, list) or not selectors:
+        fail("each fallback chain must be a non-empty list")
     for selector in selectors:
         if not isinstance(selector, str) or "/" not in selector:
             fail("invalid fallback selector: {!r}".format(selector))
@@ -331,6 +445,52 @@ for selectors in fallback_chains.values():
         model_id = model_with_effort.split(":", 1)[0]
         if model_id not in custom_providers[provider]:
             fail("custom-provider fallback is absent from models.yml: " + selector)
+
+# ── Capability validation ────────────────────────────────────────────────────
+# Everything above proves the routing graph refers to itself consistently. None of
+# it proves the models named in that graph exist or can do what is asked of them.
+# That evidence lives in one place only: OMP's own model cache.
+threshold = runtime_value("compaction.thresholdTokens")
+if not isinstance(threshold, int) or isinstance(threshold, bool) or threshold <= 0:
+    fail("compaction.thresholdTokens must be a positive integer")
+
+catalog = load_catalog()
+if catalog is None:
+    print(
+        "omp-routing-test: WARNING — model catalog {} is unavailable, so model existence,"
+        " reasoning levels, and context windows were NOT verified. Run `omp models` once"
+        " on this device to populate it.".format(CATALOG_PATH),
+        file=sys.stderr,
+    )
+else:
+    for role, selector in roles.items():
+        check_selector(selector, catalog, threshold, "role " + role, custom_providers)
+    for key, selectors in fallback_chains.items():
+        for position, selector in enumerate(selectors):
+            check_selector(
+                selector,
+                catalog,
+                threshold,
+                "fallback {}[{}]".format(key, position),
+                custom_providers,
+            )
+
+# Every role needs a recovery path, whether keyed by its own name or by its model.
+# Without this, deleting a chain — or the whole retry block — passes unnoticed.
+for role, selector in roles.items():
+    if role in fallback_chains:
+        first = fallback_chains[role][0]
+        if first == selector:
+            fail(
+                "fallback chain for {} repeats the primary selector, so it recovers"
+                " nothing: {}".format(role, selector)
+            )
+        continue
+    model_key = selector.rsplit(":", 1)[0]
+    if not any(
+        "*" not in key and key.rstrip(":") == model_key for key in fallback_chains
+    ):
+        fail("role has no fallback path, role-keyed or model-keyed: " + role)
 
 bundled_directory = Path(runtime_temporary.name) / "bundled-agents"
 bundled_directory.mkdir()
@@ -375,6 +535,80 @@ for agent in overrides:
     if agent not in available_agents:
         fail("agent override target is neither bundled nor tracked: " + agent)
 
+# An agent may declare its own reasoning level, which then has to be a level the
+# role's model actually exposes. This is what pins `research` to a model offering
+# `minimal`: move the role and librarian breaks, silently, at call time.
+if catalog is not None:
+    for path in sorted(AGENTS_DIR.glob("*.md")):
+        metadata = parse_frontmatter(path)
+        declared = metadata.get("thinkingLevel")
+        if not declared or declared == "auto":
+            continue
+        selector = roles.get(str(metadata.get("model", ""))[1:])
+        if not selector:
+            continue
+        provider, model_id, _ = split_selector(selector)
+        entry = catalog.get((provider, model_id))
+        if entry and entry["efforts"] and declared not in entry["efforts"]:
+            fail(
+                "agent {} declares thinkingLevel {!r} but its role model {} supports {}".format(
+                    metadata.get("name"), declared, provider + "/" + model_id,
+                    ", ".join(entry["efforts"]),
+                )
+            )
+
+# ── Overlays ─────────────────────────────────────────────────────────────────
+# Overlays are half the routing surface and were previously unread: deleting one,
+# or filling it with invalid YAML, passed green. They cannot go through
+# `omp config list --config` because that subcommand rejects the flag, so each is
+# handed to OMP as a config.yml of its own and resolved by the same parser.
+overlays_directory = OMP_DIR / "overlays"
+overlay_count = 0
+for overlay_path in sorted(overlays_directory.glob("*.yml")):
+    overlay_count += 1
+    overlay_root = Path(runtime_temporary.name) / ("overlay-" + overlay_path.stem) / "agent"
+    overlay_root.mkdir(parents=True)
+    (overlay_root / "config.yml").symlink_to(overlay_path)
+    (overlay_root / "models.yml").symlink_to(MODELS_PATH)
+    (overlay_root / "agents").symlink_to(AGENTS_DIR, target_is_directory=True)
+    overlay_environment = os.environ.copy()
+    overlay_environment["PI_CODING_AGENT_DIR"] = str(overlay_root)
+    overlay_result = run([omp, "config", "list", "--json"], overlay_environment)
+    if overlay_result.returncode != 0:
+        fail(
+            "OMP rejected overlay {}: {}".format(
+                overlay_path.name, overlay_result.stderr.strip()
+            )
+        )
+    try:
+        overlay_config = json.loads(overlay_result.stdout)
+    except json.JSONDecodeError as error:
+        fail("overlay {} did not parse: {}".format(overlay_path.name, error))
+    overlay_entry = overlay_config.get("modelRoles")
+    overlay_roles = overlay_entry.get("value") if isinstance(overlay_entry, dict) else None
+    if not isinstance(overlay_roles, dict) or not overlay_roles:
+        fail("overlay defines no model roles: " + overlay_path.name)
+    missing = sorted(set(roles) - set(overlay_roles))
+    if missing:
+        # A role absent from an overlay cannot resolve in a single-provider session,
+        # so any agent mapped to it fails the moment it is dispatched.
+        fail(
+            "overlay {} is missing roles defined in config.yml: {}".format(
+                overlay_path.name, ", ".join(missing)
+            )
+        )
+    if catalog is not None:
+        for role, selector in overlay_roles.items():
+            check_selector(
+                selector,
+                catalog,
+                threshold,
+                "overlay {} role {}".format(overlay_path.name, role),
+                custom_providers,
+            )
+if overlay_count == 0:
+    fail("no overlays found in " + str(overlays_directory))
+
 for installer in (ROOT / "install.sh", ROOT / "install-macos.sh"):
     if not installer.is_file():
         fail("missing installer: " + str(installer))
@@ -385,8 +619,12 @@ for installer in (ROOT / "install.sh", ROOT / "install-macos.sh"):
         fail("installer does not link omp-routing-test: " + str(installer))
 
 print(
-    "omp-routing-test: OK (roles={}, overrides={}, async={})".format(
-        len(roles), len(overrides), async_jobs
+    "omp-routing-test: OK (roles={}, overrides={}, async={}, overlays={}, catalog={})".format(
+        len(roles),
+        len(overrides),
+        async_jobs,
+        overlay_count,
+        "{} models".format(len(catalog)) if catalog else "UNVERIFIED",
     )
 )
 runtime_temporary.cleanup()
