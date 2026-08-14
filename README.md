@@ -5,732 +5,196 @@
 █▄▀ █▄█  █  █▀  █ █▄▄ ██▄ ▄▄█
 ```
 
-# Ongki's Dotfiles
+# Ongki's Dotfiles — AI Engineering Operating System
 
-**A terminal-first, cross-device development environment with shared AI memory and skills.**
+**A terminal-first, cross-device development environment with shared AI memory, deterministic tooling, and risk-aware model routing.**
 
 [![Linux](https://img.shields.io/badge/Linux-supported-FCC624?style=flat-square&logo=linux&logoColor=black)](docs/linux-install-step-by-step.md)
 [![macOS](https://img.shields.io/badge/macOS-supported-000000?style=flat-square&logo=apple&logoColor=white)](docs/macos-install-step-by-step.md)
 [![Shell](https://img.shields.io/badge/Shell-bash_%2B_zsh-4EAA25?style=flat-square&logo=gnubash&logoColor=white)](https://www.gnu.org/software/bash/)
 [![Editor](https://img.shields.io/badge/Editor-Helix-281733?style=flat-square)](https://helix-editor.com/)
 [![Toolchain](https://img.shields.io/badge/Toolchain-mise-FF6B6B?style=flat-square)](https://mise.jdx.dev/)
-[![Repository](https://img.shields.io/badge/Repository-private-555?style=flat-square&logo=github)](https://github.com/ongkipro/dotfiles)
 [![Version](https://img.shields.io/badge/Version-v17.3.4--r3-blue?style=flat-square)](docs/linux-maintenance-log.md)
+[![Repository](https://img.shields.io/badge/Repository-private-555?style=flat-square&logo=github)](https://github.com/ongkipro/dotfiles)
 
-Maintained by [Ongki Pro](https://ongki.pro).
+Maintained by [Ongki Pro](https://ongki.pro)
 
 </div>
 
 ---
 
-## Overview
+## 1. System Version & Release Specifications
 
-This private repository is the source of truth for Ongki's terminal-first development environment across Linux and macOS. It keeps terminal configuration, shared AI policy and memory, reusable capabilities, OMP configuration, device records, and bootstrap scripts in one Git history.
+### Current Version: `v17.3.4-r3`
+- **Release Baseline:** 2026-08-15
+- **Core OMP Engine Version:** `17.3.4`
+- **Engineering Architecture Revision:** `r3` (AI Control Plane + Risk-Aware R0–R4 Routing + Deterministic Verification Suite)
+
+```text
+Dotfiles Release Scheme: v[OMP_VERSION]-r[ENGINEERING_REVISION]
+                      └─ v17.3.4       └─ r3 (Control Plane & Deterministic Tools)
+```
+
+#### Component Version Breakdown:
+
+| System Component | Version / Specification | Role & Capabilities |
+|---|---|---|
+| **OMP Core Engine** | `v17.3.4` | Primary session owner, multi-agent dispatch, and model router |
+| **Bundled Specialists** | 11 Agents (`designer`, `scout`, `task`, `architect`, `slow`, etc.) | Fully synchronized role-routed subagents |
+| **Verification Suite** | `project-check` v1.0 | Native, runtime-neutral test runner (Node, Go, Python, Rust, PHP) |
+| **Risk Classifier** | `diff-risk` v1.0 | Deterministic git diff classifier & path risk detector (R0–R4) |
+| **Policy Linter** | `ai-policy-lint` v1.0 | Semantic linter for policy, routing, skill, & agent frontmatter |
+| **Shared AI Policy** | `config/ai/AGENTS.md` | Single canonical instruction source across OMP, Claude, Codex, Gemini, & Pi |
+| **OS Compatibility** | Ubuntu 24.04 LTS & macOS 14+ | 100% feature & symlink parity across Linux and macOS |
+
+---
+
+## 2. Overview & Philosophy
+
+This private repository is the source of truth for Ongki's terminal-first development environment across Linux and macOS. It manages shell configurations, shared AI policy/memory, reusable capabilities, OMP routing rules, device documentation, and bootstrap scripts in one Git history.
 
 > [!IMPORTANT]
-> This repository must remain **PRIVATE**. It intentionally excludes credentials, but it still contains personal workflows, device inventory, project context, and operational details that are not intended for public distribution. Never change the GitHub visibility to public.
+> This repository must remain **PRIVATE**. It intentionally excludes credentials, but contains personal workflows, device inventory, project context, and operational details. Never change GitHub visibility to public.
 
-Verify the live GitHub setting when needed:
-
-```bash
-gh repo view ongkipro/dotfiles --json visibility,isPrivate
-```
-
-It solves four recurring problems:
-
-| Problem | Repository contract |
-|---|---|
-| A new machine takes days to rebuild | Clone the repository, review the installer, run the OS-specific bootstrap, then verify the resulting links and runtime state. |
-| Machine configuration drifts | Live configuration is symlinked back to tracked files whenever practical. |
-| AI workers lose shared engineering context | OMP and the supported standalone CLIs are wired to one tracked policy source and can read the same memory. |
-| Reusable AI workflows get duplicated | Owned capabilities have one canonical source: `skills/local/`. |
-
-This is a personal operating system, not a generic framework. Paths, Git identity, tool choices, and AI routing reflect Ongki's machines and workflow.
-
-## What are dotfiles?
-
-On Unix-like systems, configuration files traditionally start with a dot, which hides them from ordinary directory listings. Examples include:
+### System Contract:
 
 ```text
-~/.gitconfig
-~/.profile
-~/.config/helix/config.toml
-~/.tmux.conf
+JOB → CHANGE RISK → REQUIRED CAPABILITIES → MODEL CANDIDATES → MEASURED SELECTION
 ```
 
-These files tell command-line tools and desktop applications how to behave: which editor to open, how the shell initializes, which tools are on `PATH`, how Git formats output, and where an AI CLI finds its instructions.
+### Core Architecture Axiom:
+> **"Intelligence in contracts, tools, evidence, and routing — not in every token."**
 
-A **dotfiles repository** stores those configurations in Git so they can be reviewed, versioned, restored, and reused across machines. This repository uses the familiar name broadly: it also manages bootstrap scripts, AI memory, reusable skills, and device documentation that support the same environment.
+1. **60–75% Token Allocation:** Volume/cheap worker models (`@smol`, `@task` via Antigravity Gemini 3.6 Flash / Flash Lite).
+2. **20–30% Token Allocation:** Precision coding models (`@slow`, `@plan` via Codex GPT-5.6 Sol).
+3. **5–10% Token Allocation:** Frontier judgment models (`@advisor-max`, `@architect` via Claude Opus 5).
 
-## What this repository does
+---
 
-The repository has six practical functions:
+## 3. OMP Control Plane & Capacity Pools
 
-1. **Reproduces the environment.** The OS-specific installers connect a new machine to the tracked configuration.
-2. **Keeps machines consistent.** Linux and macOS share the same core policy, memory, skills, editor configuration, and terminal conventions where the platforms allow it.
-3. **Shares AI context.** OMP is the primary control plane; supported standalone CLIs are wired to consume the same tracked policy and on-demand memory.
-4. **Centralizes reusable capabilities.** A skill is maintained once under `skills/local/` instead of copied into provider-specific packages.
-5. **Diagnoses drift.** `ai-doctor`, focused checks, and the device registry expose broken links, stale assumptions, and unsafe content.
-6. **Provides recovery history.** Git records what changed and makes intentional rollback possible without relying on undocumented machine state.
+OMP is the primary development control plane. Semantic routing is owned by [`config/omp/ROUTING.md`](config/omp/ROUTING.md) and executed via [`config/omp/config.yml`](config/omp/config.yml).
 
-It does **not** synchronize secrets, authentication sessions, SSH keys, private environment files, or arbitrary home-directory data.
+### Capacity Pool Allocations:
 
-## How it works
-
-The repository combines three standard mechanisms:
-
-- **Git** stores history and transfers reviewed changes between devices.
-- **Symlinks** make applications read their live configuration directly from the repository.
-- **Bootstrap scripts** create those links and install or connect the supporting tools.
-
-The normal flow is:
-
-```text
-Tracked source in ~/dotfiles
-            │
-            │ installer creates symlink
-            ▼
-Live path such as ~/.tmux.conf
-            │
-            │ tmux reads the linked file
-            ▼
-Application uses the tracked configuration
-            │
-            │ edit + review + commit + push
-            ▼
-GitHub PRIVATE repository
-            │
-            │ git pull on another device
-            ▼
-Other device receives the same configuration
-```
-
-For example:
-
-```text
-~/.tmux.conf -> ~/dotfiles/config/tmux.conf
-```
-
-Editing either path changes the same tracked file. After the change is reviewed and committed, another device can receive it with `git pull --ff-only`. Because its live path is also a symlink, the application immediately sees the updated configuration.
-
-Not every file is linked. Device-local state and secrets deliberately remain outside the repository, while machine inventory is recorded only as sanitized documentation.
-
-## Design principles
-
-1. **One source, linked everywhere.** Edit the tracked source instead of copying configuration between tools.
-2. **Disk wins over memory.** If documentation or AI memory disagrees with the live system, verify the system and correct the stale record.
-3. **Secrets remain local.** Authentication, SSH keys, environment files, tokens, and provider databases never belong in this repository.
-4. **Device-specific state stays device-specific.** Hardware details, private addresses, and local credentials are not shared configuration.
-5. **Native before custom.** Prefer platform features and existing tools before adding dependencies or wrappers.
-6. **No automatic commits.** Review changes and commit intentionally, normally through `lazygit` (`lg`).
-
-## Architecture
-
-### OMP control plane
-
-OMP is the only primary development control plane. It owns the session, tool
-runtime, task-agent execution, capability discovery, and model selection. OMP
-talks to model providers directly; standalone Claude, Codex, Antigravity, and Pi
-CLIs are optional handoff targets, not subprocess workers or competing control
-planes.
-
-Tracked OMP configuration is linked into its native agent directory:
-
-```text
-~/.omp/agent/config.yml -> ~/dotfiles/config/omp/config.yml
-~/.omp/agent/models.yml -> ~/dotfiles/config/omp/models.yml
-```
-
-`config.yml` is the authority for model roles, thinking defaults, fallback
-chains, and runtime settings. `models.yml` defines tracked, non-secret custom
-provider metadata. OAuth sessions, API keys, and provider authentication remain
-machine-local. The optional remote 9Router key lives at
-`~/.config/ai-local/credentials/9router-remote-key`; the `omp()` wrapper injects
-it only into the OMP child when `NINEROUTER_REMOTE_KEY` is not already set. OMP
-does not read Pi authentication, and a missing key affects only that optional
-provider.
-
-Do not duplicate model routing inside skills. A capability defines what and how;
-OMP decides which model executes it.
-
-Semantic routing has one owner: [`config/omp/ROUTING.md`](config/omp/ROUTING.md).
-Its executable selectors are kept in `config/omp/config.yml`. The current
-configured state, its standing invariants, and the outstanding verification
-actions live in [`config/omp/STATUS.md`](config/omp/STATUS.md); the change
-history and the measured evidence behind each decision live in
-[`config/omp/BUILD-LOG.md`](config/omp/BUILD-LOG.md). Read those before editing
-routing, not this section — this table is a summary and can fall behind.
-
-Routing is organised as three capacity pools, each carrying the work it is
-measurably best at rather than the work that is merely cheapest. Antigravity is
-the volume pool and holds the main session, because the main session accounts
-for the overwhelming majority of all tokens. Codex is the precision pool and
-holds the two lanes where a wrong edit costs the most rework. Direct Anthropic
-is the judgment pool, reserved for independent consultation and review.
-
-| Work class | OMP role | Current selector | Pool |
+| Capacity Pool | OMP Role | Current Model Selector | Target Workload |
 |---|---|---|---|
-| Normal development | `default` | Gemini 3.6 Flash, medium reasoning | Antigravity |
-| Strictly mechanical updates and data collection | `smol` | Gemini 3.1 Flash Lite, medium reasoning | Antigravity |
-| Internal short-form work | `tiny` | Gemini 3.1 Flash Lite, minimal reasoning | Antigravity |
-| Repository discovery and source-verified research | `research` | Gemini 3.6 Flash, high reasoning | Antigravity |
-| Visual frontend work | `vision`, `designer` | Gemini 3.1 Pro, high reasoning | Antigravity |
-| Architecture-sensitive planning and high-nuance prose | `plan` | Codex GPT-5.6 Sol, high reasoning | Codex |
-| Complex implementation | `slow` | Codex GPT-5.6 Sol, high reasoning | Codex |
-| Delegated implementation | `task` | Codex GPT-5.6 Sol, medium reasoning | Codex |
-| Correctness consultation | `advisor` | Anthropic Claude Sonnet 5, high reasoning | Anthropic |
-| Difficult debugging and security review | `advisor-xhigh` | Anthropic Claude Opus 5, xhigh reasoning | Anthropic |
-| Costly-to-reverse architecture review | `advisor-max` | Anthropic Claude Opus 5, max reasoning | Anthropic |
+| **Volume Pool** | `default` | Gemini 3.6 Flash (Medium) | Sesi utama, development harian, context ownership |
+| | `smol` / `tiny` | Gemini 3.1 Flash Lite (Medium/Minimal) | Tugas mekanis murni, formatting, data collection ringan |
+| | `research` | Gemini 3.6 Flash (High) | `scout` (repo search) & `librarian` (external API docs) |
+| | `vision` / `designer` | Gemini 3.1 Pro (High) | Visual UI/UX, layout, responsive QA, component review |
+| **Precision Pool** | `slow` | Codex GPT-5.6 Sol (High) | Complex logic, auth, payments, concurrency, refactoring |
+| | `task` | Codex GPT-5.6 Sol (Medium) | Repetitive bounded code transformations & multi-file edits |
+| | `plan` / `writer` | Codex GPT-5.6 Sol (High) | PRD synthesis, spec writing, architecture-sensitive plans |
+| **Judgment Pool** | `advisor` | Claude Sonnet 5 (High) | Architecture consultation & bounded code review |
+| | `advisor-xhigh` | Claude Opus 5 (XHigh) | Deep root-cause debugging (`debugger`) & security review |
+| | `advisor-max` | Claude Opus 5 (Max) | High-impact architecture decisions (`architect`) |
 
-Two invariants keep this table safe to change. Every reasoning suffix must be a
-level the selected model actually supports, and every model reachable from any
-role or fallback must have a context window larger than
-`compaction.thresholdTokens`, or a session can exceed that window before
-compaction ever fires.
+---
 
-Task size alone does not trigger escalation. Complexity, specialist evidence,
-or a demonstrated blocker does.
+## 4. Risk-Aware Classification Matrix (R0–R4)
 
-The `scout` and `librarian` agents resolve to `research`; `sonic` resolves to
-`smol`; `designer` resolves to `vision`; `task` resolves to `task`;
-`complex-developer` resolves to `slow`; `reviewer` resolves to `advisor`;
-`debugger` and `security-reviewer` resolve to `advisor-xhigh`; `architect`
-resolves to `advisor-max`; and `writer` resolves to `plan`. All eleven bundled
-and tracked agents have an explicit override, so none silently resolves to `default`.
+Tasks are classified by risk to enforce execution lanes and verification requirements:
 
-Fallback chains use only the three directly connected providers — Antigravity,
-Codex, and Anthropic — and every chain changes provider on its first hop, since
-falling back within an exhausted pool recovers nothing. 9Router remains
-configured as an optional manual route but carries no recovery path, because a
-tunnelled transport is the wrong thing to depend on precisely when something has
-already failed. Provider fallback never transfers integration or verification
-ownership away from the main OMP session.
-
-To keep a single session on one provider, use a config overlay rather than
-`--model`; the latter only changes the main session, while specialist agents
-resolve through roles and stay multi-model:
-
-```bash
-omp --config ~/dotfiles/config/omp/overlays/codex-only.yml
-omp --config ~/dotfiles/config/omp/overlays/antigravity-only.yml
-```
-
-Each overlay pins all twelve roles and their recovery paths to one provider for
-that run only, leaving tracked configuration untouched.
-
-Normal use is one command and one outcome:
-
-```bash
-cd ~/Projects/<project>
-omp
-```
-
-OMP performs policy-driven autonomous orchestration with deterministic
-agent-to-model mappings. Matching specialists may run concurrently when their
-work is independent; not every configured agent runs for every request.
-Dependent work remains sequential, and the main session owns integration and
-final verification. Exact routing behavior is owned by
-`config/omp/ROUTING.md`; `/model` remains a manual main-session override.
-
-The model displayed in the main OMP header remains the context owner's model.
-Each task widget shows its resolved specialist model. For UI/UX work, a
-`designer` task with the Gemini/Antigravity badge proves that visual routing
-occurred; no `designer` task means the main session did not dispatch it.
-
-OMP intentionally uses native `tools.approvalMode: yolo` so its tools and
-subagents do not add a second mechanical approval prompt. OMP talks to model
-providers directly; it does not need dangerous standalone-CLI flags for Codex,
-Claude, Gemini, or other workers.
-
-This setting does **not** waive the approval gates in `config/ai/AGENTS.md`.
-The agent must still obtain explicit user approval before secrets access,
-destructive changes, system-wide operations, production actions, or scope creep.
-A session may request a stricter mechanical mode when useful.
-
-### Shared AI context
-
-The cross-runtime instruction source is:
-
-```text
-config/ai/AGENTS.md
-```
-
-`~/.config/ai` is a symlink to `~/dotfiles/config/ai`. The current context
-adapters are:
-
-| Live path or mechanism | Consumer | Current state |
-|---|---|---|
-| `~/.claude/CLAUDE.md` | Claude Code | Linked |
-| `~/.codex/AGENTS.md` | Codex | Linked |
-| `~/.antigravity/AGENTS.md` | Antigravity compatibility path | Linked |
-| `~/.gemini/GEMINI.md` | Antigravity/Gemini compatibility path | Linked; standalone Gemini CLI is not installed |
-| `pi()` shell wrapper | Optional Pi CLI | Appends `~/.config/ai/AGENTS.md` when Pi is installed |
-| `~/.omp/agent/AGENTS.md` | OMP native user context | Linked |
-
-`~/.omp/AGENTS.md` is an obsolete compatibility path. `ai-memory-link` removes
-it only when it is still the managed link to the canonical source.
-
-Claude Code uses one native profile at `~/.claude`. There are no tracked
-personal/work launchers or alternate config-directory profiles.
-
-### Memory layers
-
-| Layer | Location | Purpose |
-|---|---|---|
-| Always-loaded policy | `config/ai/AGENTS.md` | Universal behavior, approval gates, evidence discipline, and short pointers |
-| Shared memory | `config/ai/memory/` | Environment, workflow, preferences, decisions, and cross-project facts read on demand |
-| Project reference memory | `config/ai/project-memory/` | Personal cross-session pointers and context that do not belong in a repository; never current project truth |
-| Device-local notes | `~/.config/ai-local/` | Private machine details that must not sync |
-
-The project-memory directory is linked to Claude's memory path for sessions
-whose project key is the home directory:
-
-```text
-~/.claude/projects/-home-ongki/memory
-  -> ~/dotfiles/config/ai/project-memory
-```
-
-That is not universal automatic discovery for every project or runtime. Other
-sessions read the tracked memory files when relevant. Current status, decisions,
-requirements, architecture, tasks, and build evidence belong in the project
-repository (`AGENTS.md`, `PRD.md`, `TASKS.md`, `STATUS.md`, `BUILD-LOG.md`, or
-`docs/`), never in project-memory.
-
-OMP's autonomous memory backend is not enabled in the tracked configuration, so
-it does not currently create a competing long-term memory source.
-
-### Skills and reusable capabilities
-
-Owned skills live in exactly one place:
-
-```text
-skills/local/<skill-name>/SKILL.md
-```
-
-Current runtime adapters:
-
-| Runtime | Live path | Shape | Access |
+| Risk Level | Description & Target Work | Recommended Lane | Verification Standard |
 |---|---|---|---|
-| OMP | `~/.omp/agent/skills` | Directory symlink | Automatic |
-| Claude | `~/.claude/skills` | Directory symlink | Automatic |
-| Pi (optional) | `~/.pi/agent/skills` | Directory symlink when installed | Automatic |
-| Antigravity | `~/.gemini/config/skills` | Directory symlink | Automatic native discovery |
-| Codex | `~/.codex/skills` | Real directory preserving `.system`, plus managed per-skill links | Automatic native discovery |
-| Shared helper | `~/.agents/local-skills` | Directory symlink | Canonical-source convenience path |
+| **`R0`** | Documentation (`*.md`), typos, static assets, formatting | Volume (`@smol`) | `ai-policy-lint` |
+| **`R1`** | Low-risk feature edit (<= 3 files, <= 150 lines changed) | Volume (`@task`) | `project-check` + `diff-risk` |
+| **`R2`** | Moderate feature or non-trivial refactor (4–10 files) | Precision (`@slow`) | `project-check` + `diff-risk` |
+| **`R3`** | Correctness-sensitive: auth, payment, DB schema/migrations, secrets | Precision + Review (`@slow` + `@advisor-xhigh`) | `project-check` + `diff-risk` |
+| **`R4`** | Critical/Architectural: DB wiping, infra topology, core security | Judgment (`@architect` + `@advisor-max`) | Specialist Review + `project-check` |
 
-Codex is the deliberate exception to the whole-directory model: replacing
-`~/.codex/skills` would hide runtime-owned `.system` skills. `skill-update`
-therefore reconciles one link per owned capability and removes only stale links
-that it owns. Obsolete `~/.gemini/skills` and `~/.antigravity/skills` links are
-removed when they point exactly at the canonical source.
+---
 
-Useful commands:
+## 5. Deterministic Engineering Tooling (`bin/`)
 
-```bash
-skill-list
-skill-open <name>
-skill-new <name>
-skill-remove <name>
-skill-update
-```
+The repository includes custom CLI tools in `bin/` (linked to `~/.local/bin/`):
 
-The active updater is:
+1. **`project-check`**: Automatically detects Node (`npm`/`pnpm`/`bun`), Go (`go test`/`go vet`), Python (`pytest`/`ruff`), Rust (`cargo check`), or PHP (`phpunit`) and executes native verification scripts.
+2. **`diff-risk`**: Inspects Git diffs (staged/unstaged), flags sensitive paths (auth, payment, DB, secrets, lockfiles), and outputs risk level (R0–R4) with recommended model roles.
+3. **`ai-policy-lint`**: Verifies consistency across `AGENTS.md`, `ROUTING.md`, `config.yml`, skills, and agent frontmatter definitions.
 
-```text
-~/.agents/bin/skill-update
-  -> ~/dotfiles/skills/agents-bin/skill-update
-```
+---
 
-It establishes or repairs runtime adapters and does not fetch an external skill
-repository. Directory-link runtimes follow Git immediately; run `skill-update`
-after adding or removing a skill to reconcile Codex, or after installing a runtime.
-
-### Model and worker boundary
-
-OMP task agents inherit the parent session's discovered skills. Provider/model
-availability depends on machine-local authentication, while role selection lives
-in `config/omp/config.yml`. Inspect that file rather than copying a model table
-into documentation that will drift.
-
-Standalone Claude, Codex, and Antigravity remain useful for direct
-provider-specific work. Pi is an optional supporting fallback with custom
-compaction. Switching to any standalone CLI is an explicit context handoff, not
-an OMP subagent dispatch.
-
-### Repository-local project contract
-
-Projects own their current engineering state. `project-init` creates the minimal
-contract inside a repository without overwriting existing files:
-
-```text
-PROJECT/
-├── AGENTS.md
-├── PRD.md
-├── TASKS.md
-├── STATUS.md
-├── BUILD-LOG.md
-└── docs/
-    └── architecture.md
-```
-
-Use `docs/specs/` and `docs/decisions/` only when a real specification or
-costly-to-reverse decision exists. Draft research may remain under
-`~/Documents/work/`; accepted requirements, active tasks, implementation state,
-and architecture travel with the repository.
-
-```bash
-project-init --repo /path/to/existing-project
-project-init <github-repo-name> <category> ["description"]
-```
-
-The sandbox regression check is `bin/project-init-test`.
-
-## Repository map
+## 6. System Directory Map
 
 ```text
 dotfiles/
-├── bin/                         # Maintenance, diagnostics, project, risk, and terminal helpers
-│   ├── ai-doctor                # Read-only AI runtime health report
-│   ├── ai-memory-check          # Markdown link and wikilink validation
-│   ├── ai-policy-lint           # Semantic linter for AI policy, routing, skills, and agents
-│   ├── diff-risk                # Deterministic Git diff risk classifier (R0–R4)
-│   ├── project-check            # Runtime-neutral build, test, and lint runner
-│   ├── project-init             # Repository-local development contract
+├── bin/                         # Executable CLI tools & maintenance scripts
+│   ├── ai-doctor                # Read-only AI runtime health check
+│   ├── ai-memory-check          # Markdown link & wikilink validator
+│   ├── ai-policy-lint           # Semantic linter for AI policy & routing
+│   ├── diff-risk                # Git diff risk classifier (R0–R4)
+│   ├── project-check            # Runtime-neutral build/test runner
+│   └── project-init             # Repository-local development contract initializer
 ├── config/
-│   ├── ai/                      # Canonical cross-runtime policy and memory
-│   ├── omp/                     # Routing policy, model roles, runtime settings, providers
-│   ├── templates/               # Repository-local project contract templates
-│   ├── helix/                   # Editor and language-server configuration
-│   ├── pi/                      # Pi settings and extensions
-│   ├── systemd/user/            # Tracked user-service definitions
-│   ├── gh/                      # Non-secret GitHub CLI configuration
-│   ├── lazygit/                 # Lazygit configuration
-│   ├── mise-config.toml         # Shared mise tool declarations
-│   ├── tmux.conf                # tmux configuration
-│   └── shell-tools.sh           # Cross-shell PATH, aliases, and wrappers
-├── devices/                     # Generated device inventory and symlink status
-├── docs/                        # Detailed setup and operational runbooks
-├── home/                        # Tracked home-file sources and snapshots
+│   ├── ai/                      # Canonical cross-runtime policy (AGENTS.md) & shared memory
+│   ├── omp/                     # OMP routing policies, roles, overlays, & config.yml
+│   ├── templates/               # Repository templates (TASKS.md contract, PRD, STATUS)
+│   ├── helix/                   # Helix editor & LSP configuration
+│   ├── mise-config.toml         # Shared terminal toolchain declarations
+│   ├── tmux.conf                # Terminal multiplexer configuration
+│   └── shell-tools.sh           # Cross-shell PATH, aliases, & wrappers
+├── devices/                     # Machine inventory & symlink health reports
+├── docs/                        # Architecture specs, master blueprint, & runbooks
+│   ├── DOTFILES_AI_ENGINEERING_MASTER_BLUEPRINT.md  # Master Architecture Spec
+│   ├── DOTFILES_AI_ENGINEERING_CONTROL_PLANE.md     # Control plane spec
+│   ├── DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md  # Historical audit findings
+│   └── linux-maintenance-log.md                     # Operational maintenance log
 ├── skills/
-│   ├── agents-bin/              # Capability management and validation commands
-│   └── local/                   # Canonical owned capabilities
-├── install.sh                   # Linux-oriented bootstrap
-└── install-macos.sh             # macOS bootstrap
+│   ├── agents-bin/              # Skill management CLI binaries
+│   └── local/                   # Canonical owned capabilities (48 skills)
+├── install.sh                   # Linux bootstrap script
+└── install-macos.sh             # macOS bootstrap script
 ```
 
-The tree is intentionally summarized here. Use `rg --files`, `skill-list`, or the linked runbooks for the current inventory instead of maintaining fragile hand-written counts.
+---
 
-## Live symlink model
+## 7. Installation & Setup
 
-The installers link tracked sources into the home directory:
-
-```text
-~/.config/ai                 -> ~/dotfiles/config/ai
-~/.config/mise/config.toml   -> ~/dotfiles/config/mise-config.toml
-~/.config/helix/config.toml  -> ~/dotfiles/config/helix/config.toml
-~/.config/lazygit/config.yml -> ~/dotfiles/config/lazygit/config.yml
-~/.tmux.conf                 -> ~/dotfiles/config/tmux.conf
-~/.gitignore_global          -> ~/dotfiles/config/gitignore_global
-```
-
-Shell startup files are the deliberate exception: they remain device-owned and
-source tracked helpers instead of becoming whole-file symlinks.
-
-```text
-Linux ~/.bashrc       -> source ~/dotfiles/config/shell-tools.sh
-macOS ~/.zshrc        -> source ~/dotfiles/config/zshrc.tools.sh
-macOS ~/.bashrc       -> source ~/dotfiles/config/bashrc.tools.sh
-```
-
-On Linux, `install.sh` backs up and removes the legacy copied dev-tools block
-before adding the single tracked source line. This keeps shell behavior live and
-prevents copied wrappers or credentials from drifting outside Git.
-
-Editing a linked live path therefore edits the repository. Git remains the synchronization and recovery mechanism.
-
-Before replacing an existing regular file or directory, the installer atomically moves it to a timestamped `.bak.*` path. Only after that succeeds does it create the symlink. Review those backups before deleting them.
-
-## Installation
-
-### Read this first
-
-The installers are intentionally opinionated. Depending on the machine, they may:
-
-- move existing configuration targets to timestamped backups, then create symlinks;
-- patch shell startup files;
-- download or install user tools;
-- install tmux clipboard dependencies;
-- configure the runtime-neutral 9Router service or optional Pi adapter only when explicitly enabled.
-- create device records and work directories.
-
-Both installers skip 9Router and Pi restoration by default. Set
-`DOTFILES_SETUP_9ROUTER=1` for the generic gateway or `DOTFILES_SETUP_PI=1`
-for the optional Pi adapter. Credential migration remains a separate,
-user-invoked `9router-credential-migrate` command.
-
-Review the relevant script before running it:
-
-```bash
-less install.sh
-less install-macos.sh
-```
-
-Do not run either installer from an unrelated clone path. The expected location is `~/dotfiles`.
-
-### Linux
-
-For a complete fresh-machine sequence, use [docs/linux-install-step-by-step.md](docs/linux-install-step-by-step.md).
-
-After Git, the language runtimes, and supported AI CLIs are available:
-
+### Linux:
 ```bash
 git clone https://github.com/ongkipro/dotfiles.git ~/dotfiles
 cd ~/dotfiles
 bash install.sh
 ```
 
-Open a new shell, install the declared mise tools, then verify:
-
-```bash
-mise install
-ai-doctor
-```
-
-Node is deliberately managed per device rather than declared in the shared mise configuration. This avoids moving npm-installed AI CLIs between incompatible Node installations.
-
-### macOS
-
-For the complete sequence, use [docs/macos-install-step-by-step.md](docs/macos-install-step-by-step.md).
-
+### macOS:
 ```bash
 git clone https://github.com/ongkipro/dotfiles.git ~/dotfiles
 cd ~/dotfiles
 bash install-macos.sh
 ```
 
-Open a new shell, then verify:
-
+### Post-Install Verification:
 ```bash
+source ~/.bashrc   # atau source ~/.zshrc di macOS
 ai-doctor
+ai-doctor --self-test
 ```
 
-The macOS installer uses the same shared memory and skill sources but applies macOS-specific shell and service setup.
+---
 
-### Existing machine
+## 8. Documentation Index
 
-On a machine that already has development configuration:
-
-1. Inspect the installer and current targets.
-2. Commit or back up unrelated work.
-3. Run the OS-specific installer.
-4. Compare any generated `.bak.*` files with their new linked targets.
-5. Run `ai-doctor`.
-6. Run `device-register --dry-run`, inspect the output, then run `device-register` if it is correct.
-
-## Verification
-
-`ai-doctor` is the broad integrity check:
-
-```bash
-ai-doctor
-```
-
-It inspects the repository, native context targets, memory paths, runtime skill
-visibility, canonical updater resolution, OMP configuration, dangling symlinks,
-security controls, installed AI CLIs, and selected memory-versus-disk invariants.
-Default mode is read-only and never repairs or installs anything.
-
-Use `ai-doctor --self-test` to additionally run regression checks that create
-isolated temporary sandbox files.
-
-Focused checks:
-
-```bash
-ai-memory-check
-ai-memory-check --self-test
-ai-memory-check .              # all repository Markdown
-security-check
-security-check-test
-bin/installer-link-test
-bin/skill-remove-test
-bin/skill-update-test
-bin/project-init-test
-bin/turnstile-secret-test
-device-register --dry-run
-dotsync doctor
-```
-
-The `*-test` commands may create disposable files or repositories under a
-temporary directory. A passing static check does not prove interactive
-authentication, provider reachability, or model availability. Exercise only the
-relevant runtime when those claims matter, and never print credential values.
-
-## Daily workflow
-
-Preferred manual workflow:
-
-```bash
-cd ~/dotfiles
-git pull --ff-only
-git status --short
-lg
-```
-
-Use Lazygit for interactive inspection and authorized Git actions. Stage only the intended files, review the staged diff, and commit or push only when the user has approved that specific action. Prefer plain Git for deterministic automation.
-
-Inspection helpers:
-
-```bash
-dotsync status
-dotsync doctor
-security-check
-```
-
-These inspection commands do not intentionally change tracked repository
-content, but some use temporary files internally; they are not substitutes for
-a strict zero-write audit.
-
-After adding or removing an owned capability, intentionally reconcile Codex and
-any newly installed runtime:
-
-```bash
-skill-update
-ai-doctor
-```
-
-`skill-update` changes managed live symlinks but never copies capability content
-or writes tracked files.
-
-`dotsync commit` and `dotsync sync` are broad convenience commands: they refresh machine snapshots and run `git add -A` before confirmation. Use them only when the entire working tree is intentionally in scope. `dotpush` is an even broader commit-and-push fast path. Neither is appropriate for a mixed or dirty worktree.
-
-On another device, pull only from a clean worktree:
-
-```bash
-git pull --ff-only
-ai-doctor
-```
-
-## Device registry
-
-[`devices/`](devices/) contains one generated report per registered machine plus an index. Reports include hardware, OS, installed AI CLIs, and tracked symlink health.
-
-```bash
-device-register --dry-run
-device-register
-```
-
-Run it after meaningful hardware, OS, CLI, or symlink changes. Pull the latest repository state first so regenerating the index does not discard another device's newer entry.
-
-Private machine facts such as internal addresses and local secrets belong in `~/.config/ai-local/`, not `devices/`.
-
-## Security boundaries
-
-This repository is private, but private does not mean safe for secrets.
-
-Never commit:
-
-- SSH private keys, `authorized_keys`, or `known_hosts`;
-- `.env`, `.dev.vars`, or credential files;
-- Claude, Codex, Pi, GitHub, Gemini/Antigravity, or 9router authentication state;
-- API keys, access tokens, passwords, customer data, or payment data;
-- device-local secret files.
-
-The `.gitignore` blocks common secret paths and `bin/security-check` scans tracked and staged content for obvious credential patterns. These are guardrails, not a substitute for reviewing the staged diff.
-
-Run before every security-sensitive commit:
-
-```bash
-git diff --cached
-security-check
-```
-
-If a real secret is ever committed, removing the file in a later commit is insufficient. Revoke or rotate the credential immediately, then handle Git history deliberately.
-
-## Supported AI runtime stack
-
-| Runtime | Current role | Owned skill access |
-|---|---|---|
-| OMP | Primary development control plane and model router | Automatic |
-| Codex / OpenAI inside OMP | Default development model provider | Inherits OMP skills |
-| Antigravity / Gemini inside OMP | Visual, UI, and supporting model provider | Inherits OMP skills |
-| Claude models inside OMP | High-value architecture, debugging, migration, and security consultation through `advisor` | Inherits OMP skills |
-| Claude Code CLI | Standalone provider-specific consultation and long-context work | Automatic |
-| Codex CLI | Standalone focused implementation, debugging, and review | Automatic through managed links beside `.system` |
-| Antigravity (`agy`) CLI | Standalone visual/UI work | Automatic through `~/.gemini/config/skills` |
-| Pi (optional) | Supporting CLI fallback and custom compaction | Automatic when installed |
-| 9Router (optional) | Runtime-neutral gateway API, including image generation | Through the `9router` skill |
-
-MiniMax, OpenCode-compatible providers, and future model providers are execution
-options rather than capability owners. The runtime-neutral `9router` skill owns
-the image-generation procedure and calls the gateway API; no Pi extension owns
-that capability. Exact availability and authentication are machine-local.
-`config/omp/ROUTING.md` owns semantic routing; `config/omp/config.yml` owns
-executable selectors and fallbacks.
-
-Continue in OMP when it already owns the session. Moving to a standalone CLI is
-an explicit handoff and does not automatically transfer conversation state.
-
-## Toolchain
-
-The shared mise configuration currently declares terminal tools such as Helix, ripgrep-adjacent search utilities, Lazygit, Delta, Starship, Direnv, Ruff, GitHub CLI, and data-processing helpers. Inspect the authoritative list instead of relying on this summary:
-
-```bash
-sed -n '1,200p' config/mise-config.toml
-mise current
-```
-
-Core workflow:
-
-```text
-Editor     Helix
-Terminal   tmux + bash/zsh + Starship
-Git        Git + Lazygit + Delta + GitHub CLI
-Tools      mise-managed user tools
-AI         OMP primary + optional standalone Claude Code, Codex, Antigravity, and Pi
-```
-
-## Documentation
-
-| Document | Use it for |
+| Document | Purpose |
 |---|---|
+| [Master AI Blueprint](docs/DOTFILES_AI_ENGINEERING_MASTER_BLUEPRINT.md) | **Definitive unified master architecture specification & audit** |
+| [AI Control Plane](docs/DOTFILES_AI_ENGINEERING_CONTROL_PLANE.md) | Architecture blueprint for deterministic AI engineering control plane |
+| [AI Engineering Audit](docs/DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md) | Historical audit findings, risk model (R0–R4), and telemetry |
 | [Linux installation](docs/linux-install-step-by-step.md) | Fresh Linux machine setup and verification |
 | [macOS installation](docs/macos-install-step-by-step.md) | Fresh macOS machine setup and verification |
-| [Linux development runbook](docs/linux-dev-setup.md) | Full Linux toolchain and recovery details |
-| [AI memory sync](docs/ai-memory-sync.md) | Cross-device memory architecture |
-| [Shopify repository map](docs/shopify-ai-development-repos.md) | Shopify development source routing |
-| [Master AI Blueprint](docs/DOTFILES_AI_ENGINEERING_MASTER_BLUEPRINT.md) | Definitive unified master architecture specification & audit |
-| [AI Control Plane](docs/DOTFILES_AI_ENGINEERING_CONTROL_PLANE.md) | Implementation blueprint for deterministic AI engineering control plane |
-| [AI Engineering Audit](docs/DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md) | Telemetry findings, risk model (R0–R4), and optimization roadmap |
-| [Device registry](devices/README.md) | Registered machines and generated reports |
-| [Maintenance Log](docs/linux-maintenance-log.md) | Operational history and system upgrade logs |
+| [Linux dev runbook](docs/linux-dev-setup.md) | Full Linux toolchain and recovery details |
+| [Maintenance Log](docs/linux-maintenance-log.md) | Operational maintenance history and version release log |
 
-When a runbook and the current scripts disagree, the scripts and live system are authoritative. Update the runbook in the same change.
-## Current Version & Release Log
+---
 
-### `v17.3.4-r3` — Baseline: 2026-08-15
-
-Current operational dotfiles version incorporating OMP `v17.3.4` and the AI Engineering Control Plane:
-
-- **OMP Upgrade (`v17.3.4`):** Updated OMP core binary and synchronized 11 specialist agents (`architect`, `complex-developer`, `debugger`, `designer`, `librarian`, `reviewer`, `scout`, `security-reviewer`, `sonic`, `task`, `writer`).
-- **Deterministic CLI Tooling (`bin/`):**
-  - `project-check`: Native, runtime-neutral test & build verification tool (Node, Go, Python, Rust, PHP).
-  - `diff-risk`: Deterministic Git diff risk classifier (R0–R4), path risk detector, and model lane selector.
-  - `ai-policy-lint`: Semantic policy, routing, skill, and agent frontmatter linter.
-- **Risk-Aware Classification (R0–R4):** Formally integrated R0–R4 risk framework into `config/omp/ROUTING.md`.
-- **Rich Task Execution Contract:** Expanded `config/templates/TASKS.md` with requirement traceability, risk classification, bounded scope, and runnable verification commands.
-- **Tracked Architecture Blueprints:** Added `docs/DOTFILES_AI_ENGINEERING_CONTROL_PLANE.md` and `docs/DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md`.
-- **Automated Verification:** 15/15 gates passing in `ai-doctor --self-test` and 21/21 unit tests passing in `git-guard.test.sh`.
-
-
-## Maintenance rules
+## 9. Maintenance Rules
 
 - Keep `config/ai/AGENTS.md` small because every supported AI CLI loads it.
 - Put durable facts in memory and reusable procedures in skills.
-- Do not turn project status into a skill.
-- Do not duplicate changing facts across multiple memory files.
-- Preserve unrelated dirty-tree changes and stage explicit paths.
-- Run the smallest validation that would fail if the change were broken.
-- Do not commit or push unless the user explicitly requests it.
+- Run `ai-doctor --self-test` before pushing major system edits.
+- Never commit credentials, private keys, or `.env` files.
 
 ---
 
