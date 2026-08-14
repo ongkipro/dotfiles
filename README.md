@@ -15,6 +15,7 @@
 [![Editor](https://img.shields.io/badge/Editor-Helix-281733?style=flat-square)](https://helix-editor.com/)
 [![Toolchain](https://img.shields.io/badge/Toolchain-mise-FF6B6B?style=flat-square)](https://mise.jdx.dev/)
 [![Repository](https://img.shields.io/badge/Repository-private-555?style=flat-square&logo=github)](https://github.com/ongkipro/dotfiles)
+[![Version](https://img.shields.io/badge/Version-v17.3.4--r3-blue?style=flat-square)](docs/linux-maintenance-log.md)
 
 Maintained by [Ongki Pro](https://ongki.pro).
 
@@ -694,9 +695,28 @@ AI         OMP primary + optional standalone Claude Code, Codex, Antigravity, an
 | [Linux development runbook](docs/linux-dev-setup.md) | Full Linux toolchain and recovery details |
 | [AI memory sync](docs/ai-memory-sync.md) | Cross-device memory architecture |
 | [Shopify repository map](docs/shopify-ai-development-repos.md) | Shopify development source routing |
+| [AI Control Plane](docs/DOTFILES_AI_ENGINEERING_CONTROL_PLANE.md) | Architecture blueprint for deterministic AI engineering control plane |
+| [AI Engineering Audit](docs/DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md) | System audit, risk model (R0–R4), and optimization roadmap |
 | [Device registry](devices/README.md) | Registered machines and generated reports |
+| [Maintenance Log](docs/linux-maintenance-log.md) | Operational history and system upgrade logs |
 
 When a runbook and the current scripts disagree, the scripts and live system are authoritative. Update the runbook in the same change.
+## Current Version & Release Log
+
+### `v17.3.4-r3` — Baseline: 2026-08-15
+
+Current operational dotfiles version incorporating OMP `v17.3.4` and the AI Engineering Control Plane:
+
+- **OMP Upgrade (`v17.3.4`):** Updated OMP core binary and synchronized 11 specialist agents (`architect`, `complex-developer`, `debugger`, `designer`, `librarian`, `reviewer`, `scout`, `security-reviewer`, `sonic`, `task`, `writer`).
+- **Deterministic CLI Tooling (`bin/`):**
+  - `project-check`: Native, runtime-neutral test & build verification tool (Node, Go, Python, Rust, PHP).
+  - `diff-risk`: Deterministic Git diff risk classifier (R0–R4), path risk detector, and model lane selector.
+  - `ai-policy-lint`: Semantic policy, routing, skill, and agent frontmatter linter.
+- **Risk-Aware Classification (R0–R4):** Formally integrated R0–R4 risk framework into `config/omp/ROUTING.md`.
+- **Rich Task Execution Contract:** Expanded `config/templates/TASKS.md` with requirement traceability, risk classification, bounded scope, and runnable verification commands.
+- **Tracked Architecture Blueprints:** Added `docs/DOTFILES_AI_ENGINEERING_CONTROL_PLANE.md` and `docs/DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md`.
+- **Automated Verification:** 15/15 gates passing in `ai-doctor --self-test` and 21/21 unit tests passing in `git-guard.test.sh`.
+
 
 ## Maintenance rules
 

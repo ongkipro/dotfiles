@@ -105,3 +105,22 @@ sudo reboot
 ```
 
 Docker images, volumes, build cache, system journals, and `libfwupd2` remain untouched.
+## 2026-08-15 — `rich` / `cuan` — OMP v17.3.4 & AI Engineering Control Plane Upgrade
+
+### Scope
+
+- Update OMP binary to `v17.3.4` and unpack full set of 11 specialist agents (`designer`, `librarian`, `reviewer`, `scout`, `security-reviewer`, `sonic`, `task`, `architect`, `complex-developer`, `debugger`, `writer`).
+- Implement deterministic engineering tools: `project-check`, `diff-risk`, `ai-policy-lint`.
+- Upgrade `config/templates/TASKS.md` with rich task execution contract.
+- Formalize Risk-Aware Classification Framework (R0–R4) in `config/omp/ROUTING.md`.
+- Integrate Control Plane and Audit blueprints into `docs/`.
+- Run full system self-tests (`ai-doctor --self-test`, `ai-policy-lint`, `project-check`, `diff-risk`, `security-check`, `git-guard.test.sh`).
+
+### Results
+
+- OMP updated from `17.3.0` to `17.3.4`.
+- All 15 `ai-doctor --self-test` gates: **PASSED**.
+- All 21 `git-guard.test.sh` unit tests: **PASSED**.
+- `ai-policy-lint`: **PASSED** (0 policy/routing errors).
+- All 3 new tools (`project-check`, `diff-risk`, `ai-policy-lint`) linked to `~/.local/bin/`.
+- Changes committed and pushed to `main` (`ongkipro/dotfiles`).
