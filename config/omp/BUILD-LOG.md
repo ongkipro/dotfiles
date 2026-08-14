@@ -192,3 +192,25 @@ Against the tracked configuration: `omp-routing-test: OK (roles=13, overrides=11
 `parse_custom_provider_models` now captures each model's declared `contextWindow` alongside its id, and `check_selector` takes the **smaller** of declared and cached. A generous cache entry can no longer mask a model that is genuinely too small for `compaction.thresholdTokens`.
 
 **Verification:** lowering `cx/gpt-5.6-sol` to 100000 in a scratchpad `models.yml` — while the cache still reported 1050000 — produced `FAIL: fallback slow[2]: 9router-fantastico/cx/gpt-5.6-sol holds 100000 tokens, at or below compaction.thresholdTokens (140000)`. Tracked config remains `OK (roles=13, overrides=11, async=8, overlays=2, catalog=790 models)`; `ai-doctor --self-test` 15/15.
+
+## 2026-08-15 — Tracked agent definitions audited against the bundled roster
+
+Diffed all seven bundled-and-tracked agents against `omp agents unpack` output. Five are load-bearing; two changed nothing.
+
+| Agent | Bundled | Tracked | Verdict |
+|---|---|---|---|
+| `reviewer` | `@slow` | `@advisor` | real — and the most consequential |
+| `security-reviewer` | *(no model)* | `@advisor-xhigh` | real |
+| `librarian` | `@smol` | `@research` | real |
+| `scout` | `@smol` | `@discovery` | real |
+| `designer` | `@designer` | `@vision` | real |
+| `sonic` | `@smol` | `@smol` | **no-op** |
+| `task` | `@task` | `@task` | **no-op** |
+
+**The finding worth remembering:** OMP's bundled `reviewer` runs on `@slow` — Codex. Without the tracked override, the reviewer would be reviewing the same pool that produced the work, and `ROUTING.md`'s claim that "every advisor model is from a different vendor than the workers it reviews" would be false in practice while remaining true on paper. Three others (`librarian`, `scout`) default to `@smol`, i.e. Flash Lite, for jobs that cannot survive a weak model. These overrides are not stylistic.
+
+`sonic.md` and `task.md` were removed. Their tracked copies duplicated the bundled definitions verbatim apart from the YAML shape of `model:` (scalar rather than a single-item list), so they changed nothing while shadowing any future upstream improvement to their directives. `task.agentModelOverrides` pins both deterministically regardless of whether a file exists, and the validator still catches an override naming an agent that is neither bundled nor tracked.
+
+**Not changed: `sonic`'s tool scope.** It holds unrestricted access — `edit`, `write`, `bash` — on the cheapest model in the fleet while carrying the busiest subagent lane, and its own description says "strictly mechanical updates or data collection only" with nothing enforcing "only". That reads like over-privilege, but the bundled definition is byte-identical: this is upstream's design for a mechanical worker, not local drift, and `librarian` and `reviewer` carry `bash` too. Narrowing it would be a local divergence on the highest-volume lane based on a concern that was never demonstrated to cause a failure. Recorded here so the question is not re-litigated from scratch; revisit if a sonic run is ever observed acting outside its brief.
+
+**Verification:** `omp-routing-test: OK (roles=13, overrides=11, async=8, overlays=2, catalog=790 models)` with both files removed. `ai-doctor --self-test` 15/15.

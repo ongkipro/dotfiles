@@ -80,7 +80,17 @@ Claude 5 models use adaptive thinking by default. Keep `advisor` on Sonnet 5 at 
 
 Antigravity serves both the Gemini family and Claude Opus 4.6 here, so an Opus 5 advisor that cannot start degrades to Opus 4.6 on the primary capacity pool rather than leaving the reasoning tier entirely. Advisor roles are the only routes that depend on direct Anthropic access; if that provider is unavailable, expect silent degradation to Opus 4.6 and treat the resulting review as one tier lower than requested.
 
-Built-in agents ship with OMP; only repository-specific specialist definitions are tracked under `config/omp/agents/` and installed at `~/.omp/agent/agents`. The bundled roster is `designer`, `librarian`, `reviewer`, `scout`, `security-reviewer`, `sonic`, and `task`; the tracked specialists are `architect`, `complex-developer`, `debugger`, and `writer`. Every one of the eleven has an entry in `task.agentModelOverrides`, so no agent silently resolves to `default`. Inspect the bundled definitions with `omp agents unpack --dir <tmp>` before assuming what one does.
+Built-in agents ship with OMP; `config/omp/agents/` tracks a definition only where it changes something. The bundled roster is `designer`, `librarian`, `reviewer`, `scout`, `security-reviewer`, `sonic`, and `task`; the tracked specialists are `architect`, `complex-developer`, `debugger`, and `writer`. Five bundled agents are additionally tracked because their bundled model is wrong for this fleet — verified against `omp agents unpack`:
+
+| Agent | Bundled default | Tracked | Why the override matters |
+|---|---|---|---|
+| `reviewer` | `@slow` | `@advisor` | Bundled, the reviewer runs on **Codex — the same pool it reviews**. This override is what makes vendor independence real rather than aspirational. |
+| `security-reviewer` | *(none)* | `@advisor-xhigh` | Bundled declares no model at all. |
+| `librarian` | `@smol` | `@research` | Flash Lite cannot carry evidence-heavy external reading. |
+| `scout` | `@smol` | `@discovery` | A weak model here yields a confident wrong map. |
+| `designer` | `@designer` | `@vision` | Keeps the visual lane on one role name. |
+
+`sonic` and `task` are deliberately **not** tracked: their bundled model already matches this fleet, so a tracked copy would change nothing while shadowing any future upstream improvement to their directives. `task.agentModelOverrides` pins both deterministically regardless. Every one of the eleven agents has an entry there, so no agent silently resolves to `default`. Inspect the bundled definitions with `omp agents unpack --dir <tmp>` before assuming what one does — and before adding a tracked copy, diff against the bundled one to confirm it is doing work.
 
 Bundled definitions carry their own `model` and `thinkingLevel` declarations, and `agentModelOverrides` is what makes routing deterministic on top of them. Two consequences follow. A role named in a bundled definition must exist here even when an override also covers it, which is why `designer` is defined as a role alias beside `vision`. And a role's reasoning suffix must be a level its model actually supports, because an agent may declare its own level independently: `librarian` declares `minimal`, so `research` uses Gemini 3.6 Flash, which supports it, rather than Gemini 3.1 Pro, which offers only `low` and `high`.
 
