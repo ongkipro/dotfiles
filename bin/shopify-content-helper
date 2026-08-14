@@ -20,6 +20,15 @@ usage() {
   exit 1
 }
 
+# Upper-case the first character. `${var^}` would be shorter but needs bash 4.0,
+# and macOS still ships bash 3.2 as /bin/bash — this repository installs there
+# too, so the shorter form dies with "bad substitution" on half the fleet.
+capitalize() {
+  local s="$1"
+  [ -n "$s" ] || return 0
+  printf '%s%s' "$(printf '%s' "${s:0:1}" | tr '[:lower:]' '[:upper:]')" "${s:1}"
+}
+
 cmd="${1:-}"
 shift || true
 case "$cmd" in
@@ -82,7 +91,8 @@ case "$cmd" in
     echo '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
     for f in "$dir"/*.xml; do
       [ -f "$f" ] || continue
-      lm=$(stat -c %y "$f" | cut -d' ' -f1)
+      # `stat -c` is GNU-only; `date -r` yields the same YYYY-MM-DD on BSD too.
+      lm=$(date -r "$f" +%F)
       name=$(basename "$f")
       printf '  <sitemap>\n    <loc>%s/sitemaps/%s</loc>\n    <lastmod>%s</lastmod>\n  </sitemap>\n' "$base" "$name" "$lm"
     done
@@ -95,9 +105,9 @@ case "$cmd" in
     echo "→ Meta templates for keyword: $keyword"
     echo
     echo "[SEO Title templates (≤60 chars)]"
-    echo "  1. ${keyword^} – Buy Online at [Brand]"
-    echo "  2. ${keyword^} | Free Shipping & Best Price"
-    echo "  3. Best ${keyword^} for [Use Case] – [Brand]"
+    echo "  1. $(capitalize "$keyword") – Buy Online at [Brand]"
+    echo "  2. $(capitalize "$keyword") | Free Shipping & Best Price"
+    echo "  3. Best $(capitalize "$keyword") for [Use Case] – [Brand]"
     echo
     echo "[Meta Description templates (≤155 chars)]"
     echo "  1. Shop ${keyword} at [Brand]. Free shipping, easy returns. Discover top-rated [${keyword}] with detailed specs and customer reviews."
@@ -109,7 +119,7 @@ case "$cmd" in
     # Content brief skeleton
     keyword="$1"
     cat <<EOF
-# Content Brief: ${keyword^}
+# Content Brief: $(capitalize "$keyword")
 
 ## Search intent
 - Primary: [informational | commercial | transactional | navigational]
@@ -124,7 +134,7 @@ case "$cmd" in
 1. What is ${keyword}? (definition)
 2. Why ${keyword} matters (benefits, use cases)
 3. How to choose ${keyword} (criteria, comparison)
-4. ${keyword^} vs [alternative] (comparison table)
+4. $(capitalize "$keyword") vs [alternative] (comparison table)
 5. FAQ about ${keyword}
 6. Conclusion + CTA-free next step
 
@@ -169,7 +179,7 @@ EOF
     <atom:link href="https://[store-domain]/blogs/${handle}.feed.xml" rel="self" type="application/rss+xml" />
     <description>[Store Name] – Latest articles in ${handle}.</description>
     <language>en-us</language>
-    <lastBuildDate>$(date -u +%a, %d %b %Y %H:%M:%S +0000)</lastBuildDate>
+    <lastBuildDate>$(date -u '+%a, %d %b %Y %H:%M:%S +0000')</lastBuildDate>
     <!-- Add <item> per article: title, link, description, pubDate, guid -->
   </channel>
 </rss>

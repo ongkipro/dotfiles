@@ -35,24 +35,24 @@ mkdir -p "$HOME/.9router/runtime"
 aliases_source="$DOTFILES_DIR/config/9router/aliases.json"
 aliases_destination="$HOME/.9router/aliases.json"
 if [ -f "$aliases_source" ]; then
-  if [ -e "$aliases_destination" ] && [ "$aliases_source" -ef "$aliases_destination" ]; then
-    say "9Router aliases already use the tracked source"
-  else
-    cp "$aliases_source" "$aliases_destination"
-    say "Restored 9Router aliases"
-  fi
+  # `-ef` is true for a symlink pointing at the source, so the old branch framed
+  # "the destination is a link into the tracked repo" as success and preserved
+  # it. The 9Router service writes to this file; through a link those writes land
+  # in the repository. Remove any link first, then install a real copy.
+  rm -f "$aliases_destination"
+  cp "$aliases_source" "$aliases_destination"
+  say "Restored 9Router aliases"
 else
   warn "Missing config/9router/aliases.json"
 fi
 runtime_source="$DOTFILES_DIR/config/9router/runtime-package.json"
 runtime_destination="$HOME/.9router/runtime/package.json"
 if [ -f "$runtime_source" ]; then
-  if [ -e "$runtime_destination" ] && [ "$runtime_source" -ef "$runtime_destination" ]; then
-    say "9Router runtime manifest already uses the tracked source"
-  else
-    cp "$runtime_source" "$runtime_destination"
-    say "Restored the 9Router runtime package manifest"
-  fi
+  # Same shape as the aliases above, and this destination matters more: `npm`
+  # runs inside ~/.9router/runtime and rewrites package.json.
+  rm -f "$runtime_destination"
+  cp "$runtime_source" "$runtime_destination"
+  say "Restored the 9Router runtime package manifest"
 else
   warn "Missing config/9router/runtime-package.json"
 fi

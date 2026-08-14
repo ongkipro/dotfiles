@@ -8,6 +8,12 @@ guard="$(cd "$(dirname "$0")" && pwd)/git-guard.sh"
 [ -x "$guard" ] || { echo "not executable: $guard" >&2; exit 2; }
 
 # <expected decision><TAB><command>. "allow" means the guard stays silent.
+# No comments inside the block below — the parser reads every line as a case.
+#
+# Keep variant spellings alongside canonical ones. Five bypasses reached
+# production precisely because every case here was canonical: short-flag
+# bundling (-fu), an empty source refspec (:branch), quoting, and a NAME=value
+# prefix each evaded a token-shaped match while the suite stayed green.
 cases=$(cat <<'CASES'
 allow	git push
 allow	git push origin main
@@ -15,6 +21,9 @@ allow	git -C /tmp push
 allow	git commit -m "no amend"
 allow	git log --oneline
 allow	ls -f /tmp
+allow	git push -u origin main
+allow	git push origin main:main
+allow	git push --follow-tags
 deny	git push --force
 deny	git push origin main --force-with-lease
 deny	git push -f origin main
@@ -23,6 +32,12 @@ deny	git -c user.name=x commit --amend
 deny	git commit --amend -m fix
 deny	cd /tmp && git push --force
 deny	(git push --force)
+deny	git push -fu origin main
+deny	git push -qf origin main
+deny	GIT_DIR=.git git push --force
+deny	FOO=1 git commit --amend
+ask	git push origin :feature
+ask	git push origin '+main:main'
 ask	git push origin --delete feature
 ask	git push origin +main:main
 ask	git push --mirror

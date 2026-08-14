@@ -142,7 +142,7 @@ PLISTEOF
         say "9router systemd service restarted"
       else
         warn "systemd service file tidak ditemukan di $service_file"
-        warn "jalankan: ~/dotfiles/bin/pi-9router-restore untuk generate service"
+        warn "jalankan: ~/dotfiles/bin/9router-restore untuk generate service"
       fi
       ;;
   esac

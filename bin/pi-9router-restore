@@ -30,7 +30,12 @@ if [ -f "$settings_source" ]; then
   # false and preserved the very link it should have replaced. Seed when missing,
   # de-link when linked, and otherwise leave a real local file untouched.
   if [ ! -e "$PI_AGENT_DIR/settings.json" ] || [ -L "$PI_AGENT_DIR/settings.json" ]; then
-    cp --remove-destination "$settings_source" "$PI_AGENT_DIR/settings.json"
+    # `rm -f` then copy, rather than `cp --remove-destination`: that flag is GNU
+    # coreutils only and this repository also installs on macOS, where BSD cp
+    # would reject it. Without the removal, cp follows an existing symlink and
+    # writes straight through to the tracked file — the very thing being fixed.
+    rm -f "$PI_AGENT_DIR/settings.json"
+    cp "$settings_source" "$PI_AGENT_DIR/settings.json"
   fi
   # Report what is actually in place, not what the seed says. A machine-local
   # file that was kept will differ from the tracked seed, and printing the seed
@@ -63,9 +68,16 @@ fi
 
 extension_source="$DOTFILES_DIR/config/pi/extensions/compact-free"
 if [ -d "$extension_source" ]; then
-  if [ ! "$extension_source" -ef "$PI_EXT_DIR" ]; then
-    cp -R "$extension_source/." "$PI_EXT_DIR/"
+  # Same reasoning as settings.json above: `-ef` is true for a symlink pointing
+  # at the source, so the old guard skipped the copy and kept the link — while
+  # still reporting "Restored", a claim about work that never happened. Pi writes
+  # into its extension directory (installs, caches, updates), and through a link
+  # those writes land in the tracked repository.
+  if [ -L "$PI_EXT_DIR" ]; then
+    rm -f "$PI_EXT_DIR"
   fi
+  mkdir -p "$PI_EXT_DIR"
+  cp -R "$extension_source/." "$PI_EXT_DIR/"
   say "Restored the optional Pi compact-free extension"
 else
   warn "Missing config/pi/extensions/compact-free"
@@ -81,10 +93,9 @@ fi
 extra_models_source="$DOTFILES_DIR/config/9router/pi-extra-models.json"
 if [ -f "$extra_models_source" ]; then
   mkdir -p "$HOME/.9router"
-  if [ ! -e "$HOME/.9router/pi-extra-models.json" ] \
-    || [ ! "$extra_models_source" -ef "$HOME/.9router/pi-extra-models.json" ]; then
-    cp "$extra_models_source" "$HOME/.9router/pi-extra-models.json"
-  fi
+  # Last of the `-ef` guards: a link here was preserved rather than replaced.
+  rm -f "$HOME/.9router/pi-extra-models.json"
+  cp "$extra_models_source" "$HOME/.9router/pi-extra-models.json"
   say "Restored optional Pi-only model metadata"
 fi
 

@@ -29,6 +29,21 @@ oauth_creds*.json
 *_secret*
 .secrets/
 
+# Credential FILENAMES, not just extensions. The patterns above catch *.key,
+# *.pem, .env and *credential*.json — but not the shapes this repo actually
+# produces or that a stray copy would bring in. dotpush copies ~/.bashrc and
+# ~/.zshrc into the tree and then runs `git add -A`, and security-check only
+# recognises prefixed tokens (ghp_, sk-, AKIA…) or a NAME=value form limited to
+# API_KEY/ACCESS_TOKEN/AUTH_TOKEN/SECRET/PASSWORD/PRIVATE_KEY. An opaque key with
+# no prefix, in a file with no matching extension, would pass both gates.
+*.env
+secrets.env
+*-remote-key
+credentials
+.npmrc
+.netrc
+.git-credentials
+
 # === OS / junk / backup ===
 .DS_Store
 Thumbs.db

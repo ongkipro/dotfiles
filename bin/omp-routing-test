@@ -347,10 +347,16 @@ runtime_temporary = tempfile.TemporaryDirectory(prefix="omp-routing-test.")
 atexit.register(runtime_temporary.cleanup)
 runtime_root = Path(runtime_temporary.name) / "agent"
 runtime_root.mkdir()
+# Copy rather than link. The real `omp` binary is pointed at this directory, and
+# `omp config list --json` is read-only today — but a test must not be one
+# upstream change away from writing into the tracked repository. These files are
+# a few kilobytes; the copy costs nothing and removes the hazard entirely.
 for tracked_path in (CONFIG_PATH, MODELS_PATH, AGENTS_DIR):
-    (runtime_root / tracked_path.name).symlink_to(
-        tracked_path, target_is_directory=tracked_path.is_dir()
-    )
+    destination = runtime_root / tracked_path.name
+    if tracked_path.is_dir():
+        shutil.copytree(tracked_path, destination)
+    else:
+        shutil.copy2(tracked_path, destination)
 
 runtime_environment = os.environ.copy()
 runtime_environment["PI_CODING_AGENT_DIR"] = str(runtime_root)
@@ -568,9 +574,9 @@ for overlay_path in sorted(overlays_directory.glob("*.yml")):
     overlay_count += 1
     overlay_root = Path(runtime_temporary.name) / ("overlay-" + overlay_path.stem) / "agent"
     overlay_root.mkdir(parents=True)
-    (overlay_root / "config.yml").symlink_to(overlay_path)
-    (overlay_root / "models.yml").symlink_to(MODELS_PATH)
-    (overlay_root / "agents").symlink_to(AGENTS_DIR, target_is_directory=True)
+    shutil.copy2(overlay_path, overlay_root / "config.yml")
+    shutil.copy2(MODELS_PATH, overlay_root / "models.yml")
+    shutil.copytree(AGENTS_DIR, overlay_root / "agents")
     overlay_environment = os.environ.copy()
     overlay_environment["PI_CODING_AGENT_DIR"] = str(overlay_root)
     overlay_result = run([omp, "config", "list", "--json"], overlay_environment)

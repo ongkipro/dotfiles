@@ -27,6 +27,21 @@ bad()  { printf '  \033[31m✗\033[0m %s\n' "$1"; fail=$((fail+1)); }
 wrn()  { printf '  \033[33m!\033[0m %s\n' "$1"; warn=$((warn+1)); }
 hdr()  { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
+resolve_path() {
+  local path="$1" link hops=0 dir
+  while [ -L "$path" ]; do
+    link="$(readlink "$path")"
+    case "$link" in
+      /*) path="$link" ;;
+      *) path="$(dirname "$path")/$link" ;;
+    esac
+    hops=$((hops + 1))
+    [ "$hops" -le 40 ] || return 1
+  done
+  dir="$(cd -P "$(dirname "$path")" 2>/dev/null && pwd)" || return 1
+  printf '%s/%s\n' "$dir" "$(basename "$path")"
+}
+
 # Keep the regression suite separate from the device-health report: CI can run
 # repository fixtures without requiring an installed runtime, while the default
 # mode remains a fast, read-only inspection of this device.
@@ -38,7 +53,17 @@ run_self_test_command() {
     return
   }
   if "$@" >"$log" 2>&1; then
-    ok "$label: lulus"
+    # A gate can exit 0 while having skipped most of its work — omp-routing-test
+    # does exactly that when the omp binary is absent, printing PARTIAL and
+    # naming what it could not check. Swallowing the log turned that into a
+    # clean "lulus" in CI, which is how a reduced run became indistinguishable
+    # from a full one. Surface the reason instead of hiding it.
+    if grep -qE '(^|[^A-Za-z])(PARTIAL|WARNING)([^A-Za-z]|$)' "$log"; then
+      wrn "$label: lulus SEBAGIAN — cakupan berkurang:"
+      grep -E '(^|[^A-Za-z])(PARTIAL|WARNING)([^A-Za-z]|$)' "$log" | sed 's/^/    /' >&2
+    else
+      ok "$label: lulus"
+    fi
   else
     status=$?
     bad "$label: GAGAL (exit $status)"
@@ -61,6 +86,9 @@ run_self_test_gate() {
       ;;
     security)
       run_self_test_command "security-check" "$DOT/bin/security-check" "$DOT"
+      ;;
+    policy)
+      run_self_test_command "ai-policy-lint" "$DOT/bin/ai-policy-lint"
       ;;
     fixture-tests)
       found=0
@@ -101,6 +129,7 @@ if [ "$MODE" = "--self-test" ]; then
     memory-fixtures
     memory-repository
     security
+    policy
     fixture-tests
     git-guard
   )
@@ -156,7 +185,7 @@ fi
 
 check_link() { # $1=cli  $2=path  $3=parent-that-must-exist
   if [ ! -d "$3" ]; then wrn "$1: belum terpasang di device ini (lewati)"; return; fi
-  if [ -L "$2" ] && [ "$(readlink -f "$2")" = "$(readlink -f "$SRC")" ]; then
+  if [ -L "$2" ] && [ "$(resolve_path "$2")" = "$(resolve_path "$SRC")" ]; then
     ok "$1: $(printf '%s' "${2/#$HOME/\~}") → AGENTS.md"
   else
     bad "$1: ${2/#$HOME/\~} TIDAK ter-link ke AGENTS.md. Perbaiki: ai-memory-link"
@@ -292,8 +321,8 @@ if [ -d "$SK" ]; then
 
     # Model baru: path itu sendiri adalah symlink root ke skills/local
     if [ -L "$path" ]; then
-      root_tgt=$(readlink -f "$path" 2>/dev/null || true)
-      if [ "$root_tgt" = "$(readlink -f "$SK" 2>/dev/null)" ]; then
+      root_tgt=$(resolve_path "$path" 2>/dev/null || true)
+      if [ "$root_tgt" = "$(resolve_path "$SK" 2>/dev/null)" ]; then
         n_skills=$(find -L "$path" -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')
         ok "$cli: ${path/#$HOME/\~} → skills/local ($n_skills skill)"
       else
@@ -304,7 +333,7 @@ if [ -d "$SK" ]; then
       total_links=0; local_links=0; shared_links=0
       while IFS= read -r l; do
         total_links=$((total_links + 1))
-        tgt=$(readlink -f "$l" 2>/dev/null || true)
+        tgt=$(resolve_path "$l" 2>/dev/null || true)
         case "$tgt" in
           "$SK"/*) local_links=$((local_links + 1)) ;;
           "$SHARED"/*) shared_links=$((shared_links + 1)) ;;
@@ -344,7 +373,7 @@ if [ -d "$SK" ]; then
       skill_dir="$(dirname "$skill_file")"
       name="$(basename "$skill_dir")"
       target="$CODEX_ROOT/$name"
-      if [ -L "$target" ] && [ "$(readlink -f "$target" 2>/dev/null)" = "$skill_dir" ]; then
+      if [ -L "$target" ] && [ "$(resolve_path "$target" 2>/dev/null)" = "$skill_dir" ]; then
         codex_owned=$((codex_owned + 1))
       else
         codex_bad=$((codex_bad + 1))
@@ -360,7 +389,7 @@ if [ -d "$SK" ]; then
   UPDATE_EXPECTED="$DOT/skills/agents-bin/skill-update"
   UPDATE_ACTUAL="$(command -v skill-update 2>/dev/null || true)"
   if [ -n "$UPDATE_ACTUAL" ] \
-     && [ "$(readlink -f "$UPDATE_ACTUAL" 2>/dev/null)" = "$(readlink -f "$UPDATE_EXPECTED")" ]; then
+     && [ "$(resolve_path "$UPDATE_ACTUAL" 2>/dev/null)" = "$(resolve_path "$UPDATE_EXPECTED")" ]; then
     ok "skill-update PATH → canonical implementation"
   else
     bad "skill-update PATH tidak menunjuk $UPDATE_EXPECTED"
@@ -433,7 +462,7 @@ OMP_CONFIG="$HOME/.omp/agent/config.yml"
 OMP_MODELS="$HOME/.omp/agent/models.yml"
 for pair in "config:$OMP_CONFIG:$DOT/config/omp/config.yml" "models:$OMP_MODELS:$DOT/config/omp/models.yml" "agents:$HOME/.omp/agent/agents:$DOT/config/omp/agents"; do
   label=${pair%%:*}; rest=${pair#*:}; live=${rest%%:*}; tracked=${rest#*:}
-  if [ -L "$live" ] && [ "$(readlink -f "$live" 2>/dev/null)" = "$(readlink -f "$tracked")" ]; then
+  if [ -L "$live" ] && [ "$(resolve_path "$live" 2>/dev/null)" = "$(resolve_path "$tracked")" ]; then
     ok "OMP $label → tracked source"
   else
     bad "OMP $label tidak ter-link ke $tracked"

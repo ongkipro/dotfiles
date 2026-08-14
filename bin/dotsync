@@ -49,6 +49,12 @@ platform() {
 copy_if_exists() {
   local src="$1" dst="$2"
   [ -e "$src" ] || return 0
+  # Some of these "snapshots" are symlinked live by install.sh — mise config is
+  # one — so source and destination are the same inode. `cp` refuses that with
+  # exit 1, and under `set -euo pipefail` it kills the whole run before `git add`
+  # ever happens. A symlinked file needs no snapshot refresh anyway: it is
+  # already the tracked file. This is the one place `-ef` is the right test.
+  [ "$src" -ef "$dst" ] && return 0
   mkdir -p "$(dirname "$dst")"
   cp -f "$src" "$dst"
 }
@@ -92,9 +98,12 @@ show_staged_preview() {
 run_security_check() {
   local scanner="$DOTFILES_ROOT/bin/security-check"
   [ -x "$scanner" ] || return 0
-  if ! "$scanner" >/dev/null; then
+  # Pass the repository explicitly. Without an argument security-check falls back
+  # to $HOME/dotfiles, so a worktree or a second clone would be committed after
+  # scanning a different tree entirely.
+  if ! "$scanner" "$DOTFILES_ROOT" >/dev/null; then
     err "security-check menemukan kemungkinan secret; commit dibatalkan."
-    "$scanner" >&2 || true
+    "$scanner" "$DOTFILES_ROOT" >&2 || true
     err "Perubahan tetap ter-stage untuk direview. Batalkan staging dengan: git reset"
     return 1
   fi

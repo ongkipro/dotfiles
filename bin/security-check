@@ -11,6 +11,17 @@ if ! command -v git >/dev/null 2>&1; then
   exit 1
 fi
 
+# Fail loudly when there is nothing to scan. The two `git grep … || true` calls
+# below absorb git's exit 1 ("no match"), but they absorb fatal errors just as
+# happily — a non-repository, a corrupt index, a bad pathspec. Without this
+# guard the scan never runs and the script still prints "no obvious secrets
+# found" and exits 0, which is the worst possible failure mode for a secret
+# gate: green because it looked nowhere.
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "ERROR: $REPO is not a git work tree; refusing to report a clean scan." >&2
+  exit 1
+fi
+
 # Keep this intentionally broad. False positives are cheaper than leaked secrets.
 PATTERN='(BEGIN (RSA|OPENSSH|DSA|EC|PGP) PRIVATE KEY|ghp_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]+|glpat-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|API[_-]?KEY[[:space:]]*=[[:space:]]*[^.`[:space:]]|ACCESS[_-]?TOKEN[[:space:]]*=[[:space:]]*[^.`[:space:]]|AUTH[_-]?TOKEN[[:space:]]*=[[:space:]]*[^.`[:space:]]|SECRET[[:space:]]*=[[:space:]]*[^.`[:space:]]|PASSWORD[[:space:]]*=[[:space:]]*[^.`[:space:]]|PRIVATE[_-]?KEY[[:space:]]*=[[:space:]]*[^.`[:space:]])'
 
@@ -35,7 +46,6 @@ EXCLUDES=(
   ':(exclude).gitignore'
   ':(exclude)config/gitignore_global'
   ':(exclude)bin/security-check'
-  ':(exclude)docs/security.md'
   ':(exclude).gitleaks.toml'
 )
 

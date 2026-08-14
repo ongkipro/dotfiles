@@ -6,6 +6,7 @@ delta = "latest"
 lazygit = "latest"
 zoxide = "latest"
 eza = "latest"
+jq = "latest"   # git-guard reads the hook payload with it; python3 is the fallback
 yq = "latest"
 fzf = "latest"
 direnv = "latest"
