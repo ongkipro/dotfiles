@@ -65,7 +65,7 @@ NEVER simplify away: input validation at trust boundaries, error handling that p
 
 ## Approval gates — ALWAYS ON
 
-**Permission allowed is not user approval.** Claude, Codex, pi, and agy all run with broad shell permissions. A permitted command is not an approved one. Stop and ask before:
+**Permission allowed is not user approval.** Claude, Codex, pi, agy, and omp all run with broad shell permissions — omp widest of all, because `tools.approvalMode: yolo` is a deliberate choice (see `config/omp/ROUTING.md`) and it prompts for nothing. These gates are behavioural, not mechanical: the fewer prompts a runtime raises, the more the obligation rests here. A permitted command is not an approved one. Stop and ask before:
 
 - **Secrets**: `.env` contents, API keys, tokens, passwords, auth sessions, payment/billing/customer data. Detecting secret files is fine (`fd '^\.env' -H -t f`); printing their contents is not. Never write a secret into memory.
 - **Destructive**: `rm -rf`, `git reset --hard`, `git clean -fd`, mass `mv`/`rm`, destructive DB migrations, wiping caches or data that may matter.

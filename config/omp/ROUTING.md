@@ -102,6 +102,18 @@ The model shown in the main OMP header remains the main context owner's model. T
 
 This document governs the main worker's classification and delegation decisions. OMP mechanically enforces configured role resolution, agent overrides, batch shape, concurrency limits, and isolation policy; it does not prove that a policy classification was correct. Autonomous routing also cannot overcome an unavailable executable, missing or expired provider authentication, exhausted quota, provider outage, or a model rejected by the provider. Configured fallbacks are best-effort recovery, not a success guarantee, and terminal provider/auth failures must be surfaced to the user.
 
+### `approvalMode: yolo` — chosen, not drifted
+
+`config.yml` sets `tools.approvalMode: yolo` and `dev.autoqaConsent: granted`. OMP therefore prompts for **nothing**: no confirmation before a destructive command, a production deploy, or a system change. This is deliberate. Autonomous orchestration dispatching up to eight concurrent specialists cannot pause on each one for a human keystroke without ceasing to be autonomous, and a prompt answered reflexively teaches nothing anyway.
+
+What that buys has to be paid for elsewhere, so be explicit about where the boundary actually lives:
+
+- **`AGENTS.md`'s approval gates are the boundary.** They are behavioural obligations on the worker, not settings OMP enforces. Under `yolo` they are the *only* thing standing between a classification mistake and a destroyed database. "Permission allowed is not user approval" is not a slogan here; it is the entire mechanism.
+- **One mechanical backstop exists, and it covers Git only.** `config/ai/hooks/git-guard.sh` runs as a Claude Code `PreToolUse` hook and denies force-push, `--amend`, and forced or empty refspecs regardless of `approvalMode`. Nothing equivalent guards `rm -rf`, `sudo`, `wrangler deploy`, or remote database writes — and the hook is wired in `~/.claude/settings.json`, which is machine-local and untracked, so it protects Claude Code sessions on a machine where someone wired it, not OMP subagents and not a fresh clone.
+- **Delegated work inherits the mode.** A specialist spawned by `task` runs under the same `yolo`, so an eight-way fan-out is eight workers with no prompts. Bound a `task` assignment explicitly; that bound is the substitute for the prompt.
+
+If this trade stops being wanted, the change is one line — but change it deliberately, and update this section rather than letting the config and the documentation disagree again.
+
 ## Single-provider sessions
 
 Occasionally a session should stay on one provider — to exercise a provider in isolation, to work while another is degraded, or simply to keep one piece of work on a single account. Overriding the main model with `--model` does not achieve this: specialist agents resolve through roles, so they keep their own providers and the session remains multi-model.
