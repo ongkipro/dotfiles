@@ -2,12 +2,12 @@ setupVersion: 1
 modelRoles:
   smol: google-antigravity/gemini-3.1-flash-lite:medium
   slow: openai-codex/gpt-5.6-sol:high
-  plan: google-antigravity/claude-opus-4-6:high
+  plan: openai-codex/gpt-5.6-sol:high
   vision: google-antigravity/gemini-3.1-pro:high
   designer: google-antigravity/gemini-3.1-pro:high
   research: google-antigravity/gemini-3.6-flash:high
   tiny: google-antigravity/gemini-3.1-flash-lite:minimal
-  task: openai-codex/gpt-5.6-sol:medium
+  task: openai-codex/gpt-5.6-sol:high
   default: google-antigravity/gemini-3.6-flash:medium
   advisor: anthropic/claude-sonnet-5:high
   advisor-xhigh: anthropic/claude-opus-5:xhigh
