@@ -1,13 +1,10 @@
 #!/usr/bin/env bash
 # List every skill: name + what it is for.
 #
-# This is the discovery path for CLIs that have NO skills directory of their own
-# (Codex, agy). A skill is just markdown — they can read it. The only thing they
-# lack is auto-discovery, and this command IS the auto-discovery. Nothing to keep
-# in sync, nothing to drift: it reads the source of truth live, every run.
+# Human-readable view of the canonical registry. Runtime discovery is managed by
+# skill-update; this command reads the source of truth directly and never drifts.
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-SRC="$(cd "$SCRIPT_DIR/../local" && pwd)"
+SRC="${SKILL_SOURCE:-$HOME/dotfiles/skills/local}"
 
 n=0
 while IFS= read -r dir; do

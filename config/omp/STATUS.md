@@ -1,7 +1,9 @@
 # Status — OMP Orchestration
 
 Updated: 2026-08-15
-Status: Configured and verified. Eleven agents tracked & overrides verified. `scout` split onto its own role; 9Router promoted from unused to last-resort backup.
+Status: Configured and verified. Eleven agents resolved, nine directive files
+tracked, and all model overrides verified. `scout` has its own role; 9Router is
+last-resort recovery only.
 
 ## Current state
 
@@ -13,7 +15,11 @@ Routing is organised as three capacity pools across thirteen roles and eleven ag
 | Codex | `slow`, `task`, `plan` | Precision. The lanes where a wrong edit costs the most rework. |
 | Anthropic | `advisor`, `advisor-xhigh`, `advisor-max`, `discovery` | Judgment. Independent consultation, review, and the repository map `scout` returns. |
 
-All eleven agents — seven bundled, four tracked under `agents/` (`architect`, `complex-developer`, `debugger`, `writer`) — have an explicit override, so none silently resolves to `default`.
+All eleven agents — seven bundled and four custom agents under `agents/`
+(`architect`, `complex-developer`, `debugger`, `writer`) — have an explicit
+override, so none silently resolves to `default`. Five bundled agents also have
+tracked directive overrides where the upstream default does not match this
+fleet; `ROUTING.md` records that distinction.
 
 ### Standing invariants
 
@@ -35,7 +41,10 @@ One deliberate limitation remains: when `~/.omp/agent/models.db` is absent the c
 
 ## Blockers
 
-None. The three models that had never executed on this device were benchmarked on 2026-08-12 and all serve correctly; results are in `BUILD-LOG.md`. Every one of the thirteen roles now points at a model proven to run here, except `discovery` (Claude Sonnet 5), which shares a family with the already-benchmarked advisor lane but has not been benchmarked under this role.
+None. Every primary role selector, including `discovery`, and every unique
+fallback/overlay selector was exercised successfully on this device on
+2026-08-15. Catalog validation remains the deterministic gate; live serving is
+device- and provider-dependent and must be rechecked after selector changes.
 
 `config/ai/memory/environment.md` records the general hazard this closed: `config.yml` describes intended routing, while actual model availability is device-local. Re-run the benchmark below after any change that introduces a model not already in use.
 
@@ -55,3 +64,4 @@ Always include the reasoning suffix. A bare selector is not a valid test of a co
 - `gpt-5.6-terra` and `gpt-5.6-luna` are spec-identical to Sol, which has measured evidence behind it. Not substituted without a comparison.
 - `minimax-code` served 14 calls at zero recorded cost and is otherwise unused.
 - 9Router is wired as the final hop of the `slow`, `plan`, and `default` chains only. It is not a role, and it is not an early fallback.
+- `tools.approvalMode: yolo` is a kept decision, not drift. OMP prompts for nothing; `AGENTS.md`'s approval gates carry the boundary behaviourally, and `git-guard.sh` is the only mechanical backstop — Git-only, and wired in an untracked machine-local file. `ROUTING.md` records the full trade under "Enforcement boundary".

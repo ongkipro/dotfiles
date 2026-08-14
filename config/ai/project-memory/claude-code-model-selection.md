@@ -21,6 +21,6 @@ Absence from the picker is a de-emphasis signal worth heeding: Opus 5 costs the 
 
 **Dead ends:** the picker cannot be extended. `modelOverrides` in the settings schema is an enterprise managed-settings remap (`Record<string,string>`), not a way to add rows.
 
-Discover valid IDs by grepping the binary at `$(dirname $(readlink -f $(which claude)))/claude.exe` — but prefer verifying with a `-p` call, since a string in the binary does not prove entitlement.
+Discover valid IDs by grepping the binary at `$(dirname "$(realpath "$(command -v claude)")")/claude.exe` — but prefer verifying with a `-p` call, since a string in the binary does not prove entitlement.
 
 Ongki tried pinning Opus 4.8 on 2026-08-05, then reverted the same day once the pricing/capability comparison showed no upside — `~/.claude/settings.json` carries **no** `model` key, so sessions use the default `claude-opus-5[1m]`.

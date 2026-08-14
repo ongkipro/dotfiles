@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Regression test for machine-local Pi settings seeding.
+set -euo pipefail
+
+ROOT="${1:-$HOME/dotfiles}"
+RESTORE="$ROOT/bin/pi-9router-restore"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/pi-9router-restore-test.XXXXXX")"
+cleanup() { chmod -R u+w "$TMP" 2>/dev/null || true; rm -rf "$TMP"; }
+trap cleanup EXIT
+
+FAKE_HOME="$TMP/home"
+FAKE_DOT="$TMP/dotfiles"
+FAKE_BIN="$TMP/bin"
+mkdir -p "$FAKE_HOME" "$FAKE_DOT/config/pi" "$FAKE_DOT/bin" "$FAKE_BIN"
+printf '%s\n' '{"defaultProvider":"fixture","defaultModel":"safe"}' > "$FAKE_DOT/config/pi/settings.json"
+printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "$FAKE_DOT/bin/9router-restore"
+chmod +x "$FAKE_DOT/bin/9router-restore"
+printf '%s\n' '#!/usr/bin/env bash' 'printf "Darwin\n"' > "$FAKE_BIN/uname"
+chmod +x "$FAKE_BIN/uname"
+
+run_restore() {
+  HOME="$FAKE_HOME" DOTFILES_DIR="$FAKE_DOT" PATH="$FAKE_BIN:$PATH" bash "$RESTORE" >/dev/null 2>&1
+}
+
+run_restore
+[ -f "$FAKE_HOME/.pi/agent/settings.json" ] && [ ! -L "$FAKE_HOME/.pi/agent/settings.json" ]
+
+printf '%s\n' '{"defaultProvider":"local","defaultModel":"preserve"}' > "$FAKE_HOME/.pi/agent/settings.json"
+run_restore
+grep -q '"defaultProvider":"local"' "$FAKE_HOME/.pi/agent/settings.json"
+
+rm -f "$FAKE_HOME/.pi/agent/settings.json"
+ln -s "$FAKE_DOT/config/pi/settings.json" "$FAKE_HOME/.pi/agent/settings.json"
+source_before="$(cksum "$FAKE_DOT/config/pi/settings.json")"
+run_restore
+[ -f "$FAKE_HOME/.pi/agent/settings.json" ] && [ ! -L "$FAKE_HOME/.pi/agent/settings.json" ]
+[ "$source_before" = "$(cksum "$FAKE_DOT/config/pi/settings.json")" ]
+
+echo "pi-9router-restore-test: OK"

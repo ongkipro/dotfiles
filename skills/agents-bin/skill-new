@@ -1,19 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-LOCAL_SKILLS_DIR="$(cd "$SCRIPT_DIR/../local" && pwd)"
+LOCAL_SKILLS_DIR="${SKILL_SOURCE:-$HOME/dotfiles/skills/local}"
 SKILL_NAME="${1:-}"
+SKILL_DESCRIPTION="${2:-}"
 
 usage() {
-  echo "Usage: skill-new <skill-name>"
-  echo "Example: skill-new seo-audit"
+  echo 'Usage: skill-new <skill-name> "what it does and exactly when to use it"'
+  echo 'Example: skill-new seo-audit "Audit technical SEO when asked to diagnose indexing or ranking issues."'
 }
 
 if [ -z "$SKILL_NAME" ]; then
   usage
   exit 1
 fi
+
+if [ -z "$SKILL_DESCRIPTION" ]; then
+  echo "A trigger-ready description is required; incomplete skills must not enter the live registry." >&2
+  usage >&2
+  exit 1
+fi
+case "$SKILL_DESCRIPTION" in
+  *$'\n'*)
+    echo "Skill description must be one line; put detailed guidance in SKILL.md." >&2
+    exit 1
+    ;;
+esac
 
 if ! [[ "$SKILL_NAME" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
   echo "Invalid skill name: $SKILL_NAME" >&2
@@ -29,12 +41,13 @@ if [ -e "$SKILL_DIR" ]; then
   exit 1
 fi
 
-mkdir -p "$SKILL_DIR/references" "$SKILL_DIR/scripts" "$SKILL_DIR/assets"
+mkdir -p "$SKILL_DIR"
 
 cat > "$SKILL_FILE" <<EOF
 ---
 name: $SKILL_NAME
-description: Describe what $SKILL_NAME does and exactly when the agent should use it.
+description: >-
+  $SKILL_DESCRIPTION
 ---
 
 # $SKILL_NAME
@@ -43,24 +56,12 @@ description: Describe what $SKILL_NAME does and exactly when the agent should us
 
 Describe the workflow this skill handles.
 
-## When to use
-
-- Use when...
-- Also use when...
-
 ## Steps
 
 1. Inspect the relevant files or inputs.
 2. Apply the workflow for this skill.
 3. Validate the result.
 
-## References
-
-Add deeper docs under ./references and link them here when needed.
-
-## Scripts
-
-Put helper scripts in ./scripts and call them with relative paths.
 EOF
 
 echo "Created: $SKILL_DIR"

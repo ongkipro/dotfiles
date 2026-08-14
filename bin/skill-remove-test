@@ -12,13 +12,15 @@ printf '%s\n' '# Demo' > "$TMP/repo/skills/local/demo/SKILL.md"
 mkdir -p "$TMP/repo/outside"
 printf '%s\n' 'keep' > "$TMP/repo/outside/marker"
 
-if HOME="$TMP/home" "$TMP/repo/skills/agents-bin/skill-remove" ../outside >/dev/null 2>&1; then
+if HOME="$TMP/home" SKILL_SOURCE="$TMP/repo/skills/local" \
+  "$TMP/repo/skills/agents-bin/skill-remove" ../outside >/dev/null 2>&1; then
   echo "skill-remove-test: traversal was accepted" >&2
   exit 1
 fi
 [ "$(cat "$TMP/repo/outside/marker")" = "keep" ]
 
-printf 'y\n' | HOME="$TMP/home" "$TMP/repo/skills/agents-bin/skill-remove" demo >/dev/null
+printf 'y\n' | HOME="$TMP/home" SKILL_SOURCE="$TMP/repo/skills/local" \
+  "$TMP/repo/skills/agents-bin/skill-remove" demo >/dev/null
 [ ! -e "$TMP/repo/skills/local/demo" ]
 restored="$(find "$TMP/home/.local/share/dotfiles-trash/skills" -mindepth 1 -maxdepth 1 -type d -name 'demo.*' -print -quit)"
 [ -n "$restored" ] && [ -f "$restored/SKILL.md" ]

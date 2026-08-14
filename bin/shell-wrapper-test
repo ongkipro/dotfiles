@@ -113,11 +113,13 @@ check_quiet_source() {
 
 check_quiet_source bash /bin/zsh
 check_wrapper "$ROOT/config/shell-tools.sh" bash
-check_wrapper "$ROOT/config/bashrc.tools.sh" bash
+grep -qxF 'source "$HOME/dotfiles/config/shell-tools.sh"' "$ROOT/config/bashrc.tools.sh"
+echo "✓ config/bashrc.tools.sh: delegates to the canonical cross-shell source"
 if command -v zsh >/dev/null 2>&1; then
   check_quiet_source zsh /bin/bash
   check_wrapper "$ROOT/config/shell-tools.sh" zsh
-  check_wrapper "$ROOT/config/zshrc.tools.sh" zsh
+  grep -qxF 'source "$HOME/dotfiles/config/shell-tools.sh"' "$ROOT/config/zshrc.tools.sh"
+  echo "✓ config/zshrc.tools.sh: delegates to the canonical cross-shell source"
 else
   echo "- zsh unavailable: Zsh execution fixtures skipped"
 fi

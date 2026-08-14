@@ -74,7 +74,7 @@ command -v lazygit >/dev/null && alias lg='lazygit'
 alias ..='cd ..'; alias ...='cd ../..'; alias ....='cd ../../..'
 mkcd(){ mkdir -p -- "$1" && cd -- "$1"; }
 ff(){ local f; f=$(fzf --preview 'bat -n --color=always {} 2>/dev/null || cat {}') && [ -n "$f" ] && ${EDITOR%% *} "$f"; }
-fkill(){ local pid; pid=$(ps -eo pid,comm,%cpu,%mem | sed 1d | sort -rnk3 | fzf -m --header='pilih proses (TAB=multi)' | awk '{print $1}'); [ -n "$pid" ] && echo "$pid" | xargs -r kill "${1:--15}"; }
+fkill(){ local pid signal="${1:--15}"; pid=$(ps -eo pid,comm,%cpu,%mem | sed 1d | sort -rnk3 | fzf -m --header='pilih proses (TAB=multi)' | awk '{print $1}'); [ -n "$pid" ] && printf '%s\n' "$pid" | while IFS= read -r selected; do [ -n "$selected" ] && kill "$signal" "$selected"; done; }
 
 # --- pi.dev: auto-load shared AI memory ---
 pi() {
@@ -141,6 +141,16 @@ omp() {
       ;;
   esac
 }
+
+# OMP generates completions from live command metadata, so new upstream
+# subcommands do not require a hand-maintained completion file.
+if [[ $- == *i* ]] && command -v omp >/dev/null 2>&1; then
+  if [ -n "${ZSH_VERSION:-}" ]; then
+    eval "$(command omp completions zsh 2>/dev/null)"
+  else
+    eval "$(command omp completions bash 2>/dev/null)"
+  fi
+fi
 
 # --- starship prompt ---
 [[ $- == *i* && -t 1 ]] && command -v starship >/dev/null 2>&1 && eval "$(starship init "$(_shell_name)")"

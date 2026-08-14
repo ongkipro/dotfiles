@@ -1,48 +1,58 @@
-# Setup OMP Khusus Mac (ongkis-MacBook-Air)
+# Device OMP Overlay — ongkis-MacBook-Air
 
-> **Status:** Catatan Backup / Referensi
-> File ini sengaja dibuat agar konfigurasi khusus Mac ini (Minimax + OpenCode Go) ikut ter-backup ke GitHub, tanpa menabrak konfigurasi default global di perangkat lain.
+> **Status:** Backup/reference only. Disk is authoritative.
+> This records the intended device-local MiniMax + OpenCode Go overlay without
+> replacing the shared routing configuration on other machines.
 
-Mesin Mac ini (`ongkis-MacBook-Air`) memiliki keistimewaan login akun Minimax yang **unlimited**. Oleh karena itu, otak OMP di mesin ini secara khusus diganti (*override*) menggunakan *local overlay*.
+The Mac can use a device-local overlay when its provider accounts offer a better
+capacity pool than the shared default. Availability, quota, and login state are
+runtime facts; verify them on the Mac instead of trusting this backup.
 
-## Cara Kerja
-Fungsi `omp()` di `shell-tools.sh` / `zshrc.tools.sh` telah diatur agar mengecek keberadaan file rahasia di:
+## Runtime contract
+
+The canonical `omp()` wrapper in `config/shell-tools.sh` checks for a
+device-local, non-secret configuration file at:
 `~/.config/ai-local/omp-overlay.yml`
 
-Jika file tersebut ada, OMP akan membacanya untuk menggantikan Antigravity, **khusus untuk sesi chat utama**. (Perintah seperti `omp models` atau `omp agents` akan tetap menggunakan default global agar tidak *crash*).
+When present, normal sessions receive it through `--config`. Administrative
+subcommands such as `omp models` and `omp agents` deliberately bypass it. Keep
+credentials in runtime auth or approved machine-local credential storage, never
+inside the YAML or this memory file.
 
-## Backup Konfigurasi Overlay
-Jika suatu saat mesin Mac ini di-reset atau di-install ulang, cukup *copy-paste* blok YAML di bawah ini, dan simpan kembali ke `~/.config/ai-local/omp-overlay.yml`.
+## Reference overlay
+
+After restoring this reference, validate every selector against the Mac model
+catalog and run a live smoke test before relying on it.
 
 ```yaml
-# Overlay OMP Khusus Device (ongkis-MacBook-Air)
-# Tujuan: Development murni menggunakan MiniMax (Native) dan OpenCode Go
+# Device-local OMP overlay (ongkis-MacBook-Air)
+# Purpose: use native MiniMax and OpenCode Go capacity on this device
 
 modelRoles:
-  # --- Lane Ringan & Cepat ---
+  # Fast, low-cost lane
   tiny: minimax-code/MiniMax-M2.5-lightning:low
   smol: minimax-code/MiniMax-M2.7-highspeed:medium
 
-  # --- Lane Development Utama ---
+  # Primary development lane
   default: minimax-code/MiniMax-M3:medium
   task: minimax-code/MiniMax-M3:medium
   plan: minimax-code/MiniMax-M3:high
   
-  # Logic Berat (Precision/Slow Lane) 
+  # Precision lane
   slow: minimax-code/MiniMax-M3:high
 
-  # --- Lane Visual (Image Support) ---
+  # Visual lane
   vision: minimax-code/MiniMax-M3:high
   designer: minimax-code/MiniMax-M3:high
 
-  # --- Lane Research & Review ---
+  # Research and discovery lanes
   research: minimax-code/MiniMax-M3:high
+  discovery: minimax-code/MiniMax-M3:high
   
-  # --- Lane Advisor (Independent Judgement) ---
-  # Advisor standar dialihkan ke Minimax (gratis/unlimited)
+  # Independent judgment lanes
   advisor: minimax-code/MiniMax-M3:high
   
-  # Tetap menggunakan ekosistem OpenCode Go untuk level nalar absolut
+  # Reserve OpenCode Go for the highest reasoning tiers
   advisor-xhigh: opencode-go/deepseek-v4-pro:xhigh
   advisor-max: opencode-go/deepseek-v4-pro:max
 
@@ -58,5 +68,5 @@ cycleOrder:
   - slow
 ```
 
-**Kredensial yang dibutuhkan:**
-Pastikan `MINIMAX_API_KEY` dan `OPENCODE_API_KEY` juga sudah dimasukkan ke dalam `~/.config/ai-local/secrets.env`.
+Do not record credential values or assume a particular credential file here.
+Use each provider's supported runtime authentication and verify it locally.

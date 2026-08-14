@@ -9,14 +9,19 @@ TMP="$(mktemp -d "${TMPDIR:-/tmp}/skill-check-test.XXXXXX")"
 cleanup() { rm -rf "$TMP"; }
 trap cleanup EXIT
 
-mkdir -p "$TMP/good/references" "$TMP/bad"
-printf '%s\n' '---' 'name: good' 'description: Good fixture.' '---' '' '# Good' '' '[Reference](references/rules.md)' > "$TMP/good/SKILL.md"
+mkdir -p "$TMP/good/references" "$TMP/bad" "$TMP/placeholder"
+printf '%s\n' '---' 'name: good' 'description: >-' '  Good folded fixture.' '  Use when validating multiline metadata.' '---' '' '# Good' '' '[Reference](references/rules.md)' > "$TMP/good/SKILL.md"
 printf '%s\n' '# Rules' > "$TMP/good/references/rules.md"
 printf '%s\n' '---' 'name: wrong-name' 'description: Bad fixture.' '---' '' '# Bad' '' '[Missing](references/missing.md)' > "$TMP/bad/SKILL.md"
+printf '%s\n' '---' 'name: placeholder' 'description: Describe what this skill does.' '---' '' '# Placeholder' > "$TMP/placeholder/SKILL.md"
 
 SKILL_SOURCE="$TMP" "$CHECK" good >/dev/null
 if SKILL_SOURCE="$TMP" "$CHECK" bad >/dev/null 2>&1; then
   echo "skill-check-test: FAILED (invalid fixture passed)"
+  exit 1
+fi
+if SKILL_SOURCE="$TMP" "$CHECK" placeholder >/dev/null 2>&1; then
+  echo "skill-check-test: FAILED (placeholder description passed)"
   exit 1
 fi
 

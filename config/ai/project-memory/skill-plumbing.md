@@ -29,7 +29,7 @@ A normal source edit is visible immediately through the existing links.
 Verify current state from disk:
 
 ```bash
-readlink -f ~/.agents/bin/skill-update
+realpath ~/.agents/bin/skill-update
 skill-update
 skill-list
 ai-doctor --self-test

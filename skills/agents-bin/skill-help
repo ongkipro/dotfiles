@@ -5,7 +5,7 @@ Skill commands
   skill-list               Daftar semua skill
   skill-open <name>        Buka SKILL.md di editor
   skill-check [name]       Validasi satu/semua skill + reference links
-  skill-new <name>         Bikin skill baru (langsung aktif di semua CLI)
+  skill-new <name> <desc>  Bikin skill baru dengan trigger description
   skill-remove <name>      Hapus skill (langsung hilang di semua CLI)
   skill-update             Pasang/perbaiki symlink — cukup SEKALI per mesin
 
@@ -13,7 +13,12 @@ Model: satu sumber, symlink satu-direktori.
 
   ~/.claude/skills       ─┐
   ~/.pi/agent/skills     ─┼─→ ~/dotfiles/skills/local/
-  ~/.agents/local-skills ─┘
+  ~/.agents/local-skills ─┤
+  ~/.gemini/config/skills ─┤
+  ~/.omp/agent/skills    ──┘
+
+  Codex keeps ~/.codex/skills/.system and receives one managed link per owned
+  skill beside it.
 
 Sinkron antar-device = `git pull` saja. Tidak ada langkah tambahan:
 skill baru muncul sendiri, skill yang dihapus hilang sendiri.

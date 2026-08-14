@@ -2,16 +2,40 @@
 # Validate owned skills without downloading dependencies.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-SRC="${SKILL_SOURCE:-$(cd "$SCRIPT_DIR/../local" && pwd)}"
+SRC="${SKILL_SOURCE:-$HOME/dotfiles/skills/local}"
 requested="${1:-}"
 fail=0
 warn=0
 count=0
+description_chars=0
 
 bad() { printf '  FAIL  %s\n' "$*"; fail=$((fail + 1)); }
 wrn() { printf '  WARN  %s\n' "$*"; warn=$((warn + 1)); }
 ok()  { printf '  OK    %s\n' "$*"; }
+
+frontmatter_value() {
+  local key="$1" file="$2"
+  awk -v key="$key" '
+    NR == 1 { if ($0 != "---") exit 2; in_frontmatter = 1; next }
+    in_frontmatter && $0 == "---" { exit }
+    in_frontmatter && $0 ~ ("^" key ":[[:space:]]*") {
+      value = $0
+      sub("^" key ":[[:space:]]*", "", value)
+      if (value ~ /^[>|][-+]?[[:space:]]*$/) { block = 1; next }
+      gsub(/^['\''\"]|['\''\"]$/, "", value)
+      print value
+      exit
+    }
+    block {
+      if ($0 !~ /^[[:space:]]+/) exit
+      value = $0
+      sub(/^[[:space:]]+/, "", value)
+      if (length(value)) printf "%s%s", separator, value
+      separator = " "
+    }
+    END { if (block) print "" }
+  ' "$file"
+}
 
 [ -d "$SRC" ] || { echo "ERROR: skill source not found: $SRC" >&2; exit 1; }
 
@@ -31,11 +55,15 @@ for dir in "${skills[@]}"; do
   count=$((count + 1))
   file="$dir/SKILL.md"
   folder="$(basename "$dir")"
-  name="$(sed -n '/^---$/,/^---$/s/^name:[[:space:]]*//p' "$file" | head -1 | tr -d '\r')"
-  description="$(sed -n '/^---$/,/^---$/s/^description:[[:space:]]*//p' "$file" | head -1 | tr -d '\r')"
+  name="$(frontmatter_value name "$file" | tr -d '\r')"
+  description="$(frontmatter_value description "$file" | tr -d '\r')"
+  description_chars=$((description_chars + ${#description}))
 
   [ -n "$name" ] || bad "$folder: missing frontmatter name"
   [ -n "$description" ] || bad "$folder: missing frontmatter description"
+  case "$description" in
+    Describe\ what*|Describe\ exactly*|TODO*) bad "$folder: placeholder description is still active" ;;
+  esac
   [ "$name" = "$folder" ] || bad "$folder: name is '$name'"
   [[ "$folder" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || bad "$folder: invalid folder name"
   duplicate="$(awk -F '\t' -v key="$name" '$1 == key { print $2; exit }' "$seen_file")"
@@ -61,4 +89,7 @@ for dir in "${skills[@]}"; do
 done
 
 printf '\nChecked %d skill(s): %d failure(s), %d warning(s)\n' "$count" "$fail" "$warn"
+if [ -z "$requested" ]; then
+  printf 'Discovery metadata: %d description characters; hosts may truncate the initial registry, so keep each key use case front-loaded.\n' "$description_chars"
+fi
 [ "$fail" -eq 0 ]

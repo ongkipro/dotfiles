@@ -23,8 +23,8 @@ fail=0
 
 [ -f "$REAL" ] || { echo "ERROR: skill-update tidak ditemukan di $REAL" >&2; exit 1; }
 
-# pwd -P: on macOS mktemp hands back /var/... while the script's own `readlink -f`
-# resolves it to /private/var/... . Compare physical paths or every assert lies.
+# pwd -P: on macOS mktemp may return /var/... while physical resolution uses
+# /private/var/... . Compare physical paths or every assert lies.
 TMP="$(cd "$(mktemp -d "${TMPDIR:-/tmp}/skill-update-test.XXXXXX")" && pwd -P)"
 cleanup() { chmod -R u+w "$TMP" 2>/dev/null || true; rm -rf "$TMP"; }
 trap cleanup EXIT

@@ -9,7 +9,9 @@
 - mise (no-sudo): fzf, fd, bat, delta, lazygit, zoxide, eza, yq(v4), ripgrep, ruff, starship, helix, tealdeer, direnv, qsv.
 - Editor: helix (`hx`). `EDITOR=hx`.
 - npm -g: pi, 9router, pnpm, typescript-language-server, vscode-langservers-extracted, @tailwindcss/language-server, yaml-language-server, bash-language-server, pyright.
-- Native binary: omp v17.2.10 (`~/.local/bin/omp`, installed via `curl -fsSL https://omp.sh/install | sh`).
+- Native OMP binary at `~/.local/bin/omp`; resolve the current version with
+  `omp --version` because runtime versions are machine-local and change faster
+  than shared memory.
 - pipx: python-lsp-server (pylsp).
 - Homebrew (system): gh, tmux, pnpm, chromium, pipx.
 - Browser: Chromium (`brew install chromium`), Google Chrome.
