@@ -695,8 +695,9 @@ AI         OMP primary + optional standalone Claude Code, Codex, Antigravity, an
 | [Linux development runbook](docs/linux-dev-setup.md) | Full Linux toolchain and recovery details |
 | [AI memory sync](docs/ai-memory-sync.md) | Cross-device memory architecture |
 | [Shopify repository map](docs/shopify-ai-development-repos.md) | Shopify development source routing |
-| [AI Control Plane](docs/DOTFILES_AI_ENGINEERING_CONTROL_PLANE.md) | Architecture blueprint for deterministic AI engineering control plane |
-| [AI Engineering Audit](docs/DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md) | System audit, risk model (R0–R4), and optimization roadmap |
+| [Master AI Blueprint](docs/DOTFILES_AI_ENGINEERING_MASTER_BLUEPRINT.md) | Definitive unified master architecture specification & audit |
+| [AI Control Plane](docs/DOTFILES_AI_ENGINEERING_CONTROL_PLANE.md) | Implementation blueprint for deterministic AI engineering control plane |
+| [AI Engineering Audit](docs/DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md) | Telemetry findings, risk model (R0–R4), and optimization roadmap |
 | [Device registry](devices/README.md) | Registered machines and generated reports |
 | [Maintenance Log](docs/linux-maintenance-log.md) | Operational history and system upgrade logs |
 
