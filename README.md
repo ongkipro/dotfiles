@@ -49,17 +49,59 @@ Dotfiles Release Scheme: v[OMP_VERSION]-r[ENGINEERING_REVISION]
 
 ---
 
-## 2. Overview & Philosophy
+## 2. Overview & Architecture Topology
 
 This private repository is the source of truth for Ongki's terminal-first development environment across Linux and macOS. It manages shell configurations, shared AI policy/memory, reusable capabilities, OMP routing rules, device documentation, and bootstrap scripts in one Git history.
 
 > [!IMPORTANT]
 > This repository must remain **PRIVATE**. It intentionally excludes credentials, but contains personal workflows, device inventory, project context, and operational details. Never change GitHub visibility to public.
 
-### System Contract:
+### System Architecture & Control Plane Flow:
 
-```text
-JOB → CHANGE RISK → REQUIRED CAPABILITIES → MODEL CANDIDATES → MEASURED SELECTION
+```mermaid
+flowchart TD
+    subgraph Developer Workspace
+        Dev[User / Main OMP Session]
+    end
+
+    subgraph Deterministic Control Plane
+        Classifier[bin/diff-risk Classifier]
+        Linter[bin/ai-policy-lint]
+        Contract[Task Contract: TASKS.md]
+    end
+
+    subgraph Three Capacity Pools
+        subgraph Volume Pool
+            GFlash[Antigravity: Gemini 3.6 Flash / Lite]
+            AgentsVol[sonic, scout, librarian, designer]
+        end
+        subgraph Precision Pool
+            GPT56[Codex: GPT-5.6 Sol]
+            AgentsPrec[task, complex-developer, writer]
+        end
+        subgraph Judgment Pool
+            Opus5[Anthropic: Claude Opus 5 / Sonnet 5]
+            AgentsJudg[reviewer, debugger, security, architect]
+        end
+    end
+
+    subgraph Deterministic Verification Engine
+        Runner[bin/project-check Engine]
+        GitGuard[git-guard PreToolUse Hook]
+    end
+
+    Dev --> Contract
+    Contract --> Classifier
+    Classifier -->|Risk R0-R1| Volume Pool
+    Classifier -->|Risk R2-R3| Precision Pool
+    Classifier -->|Risk R4| Judgment Pool
+    
+    Volume Pool --> Runner
+    Precision Pool --> Runner
+    Judgment Pool --> Runner
+    
+    Runner -->|Pass: Exit Code 0| GitGuard
+    GitGuard -->|Approved| Commit[Git Commit & Push]
 ```
 
 ### Core Architecture Axiom:
@@ -74,6 +116,43 @@ JOB → CHANGE RISK → REQUIRED CAPABILITIES → MODEL CANDIDATES → MEASURED 
 ## 3. OMP Control Plane & Capacity Pools
 
 OMP is the primary development control plane. Semantic routing is owned by [`config/omp/ROUTING.md`](config/omp/ROUTING.md) and executed via [`config/omp/config.yml`](config/omp/config.yml).
+
+### Subagent & Model Routing Topology:
+
+```mermaid
+graph LR
+    subgraph OMP Roles
+        r_default[default]
+        r_smol[smol / tiny]
+        r_research[research]
+        r_vision[vision / designer]
+        r_slow[slow]
+        r_task[task]
+        r_plan[plan / writer]
+        r_advisor[advisor]
+        r_advisorX[advisor-xhigh]
+        r_advisorMax[advisor-max]
+    end
+
+    subgraph Capacity Pools
+        Antigravity[Antigravity: Gemini 3.6 Flash / Lite / 3.1 Pro]
+        Codex[Codex: GPT-5.6 Sol High/Med]
+        Anthropic[Anthropic: Claude Sonnet 5 & Opus 5]
+    end
+
+    r_default ==> Antigravity
+    r_smol ==> Antigravity
+    r_research ==> Antigravity
+    r_vision ==> Antigravity
+    
+    r_slow ==> Codex
+    r_task ==> Codex
+    r_plan ==> Codex
+    
+    r_advisor ==> Anthropic
+    r_advisorX ==> Anthropic
+    r_advisorMax ==> Anthropic
+```
 
 ### Capacity Pool Allocations:
 
@@ -96,6 +175,26 @@ OMP is the primary development control plane. Semantic routing is owned by [`con
 
 Tasks are classified by risk to enforce execution lanes and verification requirements:
 
+```mermaid
+stateDiagram-v2
+    [*] --> R0_Negligible: Typo / Docs / Formatting
+    [*] --> R1_Low: Feature Edit (<= 3 files, <= 150 lines)
+    [*] --> R2_Moderate: Non-trivial Refactor (4-10 files)
+    [*] --> R3_Sensitive: Auth / Payment / DB Schema / Secrets
+    [*] --> R4_Critical: DB Wipe / Infra / Core Security
+
+    R0_Negligible --> Volume_Lane: @smol + ai-policy-lint
+    R1_Low --> Volume_Lane: @task + project-check
+    R2_Moderate --> Precision_Lane: @slow + project-check
+    R3_Sensitive --> Precision_Review: @slow + @advisor-xhigh
+    R4_Critical --> Judgment_Lane: @architect + @advisor-max
+
+    Volume_Lane --> Complete
+    Precision_Lane --> Complete
+    Precision_Review --> Complete
+    Judgment_Lane --> Complete
+```
+
 | Risk Level | Description & Target Work | Recommended Lane | Verification Standard |
 |---|---|---|---|
 | **`R0`** | Documentation (`*.md`), typos, static assets, formatting | Volume (`@smol`) | `ai-policy-lint` |
@@ -116,7 +215,37 @@ The repository includes custom CLI tools in `bin/` (linked to `~/.local/bin/`):
 
 ---
 
-## 6. System Directory Map
+## 6. Live Symlink Architecture & System Directory Map
+
+### Cross-Platform Symlink Mapping (Linux & macOS Parity):
+
+```mermaid
+flowchart LR
+    subgraph Tracked Dotfiles Repository
+        T_AI[~/dotfiles/config/ai/AGENTS.md]
+        T_OMP[~/dotfiles/config/omp/]
+        T_BIN[~/dotfiles/bin/]
+        T_SKILLS[~/dotfiles/skills/local/]
+    end
+
+    subgraph Live System Symlinks
+        L_AI[~/.config/ai/AGENTS.md]
+        L_OMP[~/.omp/agent/config.yml]
+        L_BIN[~/.local/bin/project-check]
+        L_CLAUDE[~/.claude/CLAUDE.md]
+        L_CODEX[~/.codex/skills/]
+        L_AGY[~/.gemini/config/skills/]
+    end
+
+    T_AI ==>|Symlink| L_AI
+    T_AI ==>|Symlink| L_CLAUDE
+    T_OMP ==>|Symlink| L_OMP
+    T_BIN ==>|Symlink| L_BIN
+    T_SKILLS ==>|Directory Symlink| L_CODEX
+    T_SKILLS ==>|Directory Symlink| L_AGY
+```
+
+### Repository Directory Map:
 
 ```text
 dotfiles/
