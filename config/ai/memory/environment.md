@@ -52,6 +52,18 @@
   9router.service`, `systemctl --user is-active 9router.service`, and the local
   health endpoint. Use the relevant launchd checks on macOS. Do not infer one
   machine's state from another.
+- **Local and remote 9Router are two different instances, and a healthy local one
+  may still serve nothing.** The local gateway federates models from the CLIs
+  already logged in on that machine, so `/v1/models` can list hundreds while its
+  own `apiKeys` table is empty — and an empty key table means
+  `/v1/chat/completions` answers `401` to every caller, including the CLI secret
+  at `~/.9router/auth/cli-secret`. `systemctl is-active`, `/api/health` returning
+  `{"ok":true}`, and a long `/v1/models` list are therefore **not** evidence that
+  9Router can serve a request. Probe `/v1/chat/completions` when that is the
+  question. The remote host in `config/omp/models.yml` is a separate instance with
+  its own curated catalog and its own key; that catalog is what `models.yml`
+  describes, which is why the tracked `baseUrl` is the remote and not localhost.
+  Do not "fix" it to localhost.
 - Native Claude Code, Codex, and Antigravity remain independent runtimes; do not
   redirect them through 9Router based on this memory.
 **Claude Code profile:** one native profile at `~/.claude`; run the installed `claude` binary directly. Do not add personal/work launchers or alternate config-directory profiles.
