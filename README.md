@@ -389,10 +389,13 @@ The sandbox regression check is `bin/project-init-test`.
 
 ```text
 dotfiles/
-├── bin/                         # Maintenance, diagnostics, project, and terminal helpers
+├── bin/                         # Maintenance, diagnostics, project, risk, and terminal helpers
 │   ├── ai-doctor                # Read-only AI runtime health report
 │   ├── ai-memory-check          # Markdown link and wikilink validation
-│   └── project-init             # Repository-local development contract
+│   ├── ai-policy-lint           # Semantic linter for AI policy, routing, skills, and agents
+│   ├── diff-risk                # Deterministic Git diff risk classifier (R0–R4)
+│   ├── project-check            # Runtime-neutral build, test, and lint runner
+│   ├── project-init             # Repository-local development contract
 ├── config/
 │   ├── ai/                      # Canonical cross-runtime policy and memory
 │   ├── omp/                     # Routing policy, model roles, runtime settings, providers
