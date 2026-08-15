@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
-PC="$ROOT/bin/project-check"; PG="$ROOT/bin/production-gate"; TMP="$(mktemp -d "${TMPDIR:-/tmp}/delivery-gate-test.XXXXXX")"; trap 'rm -rf "$TMP"' EXIT
+PC="$ROOT/bin/project-check"; PG="$ROOT/bin/production-gate"; DL="$ROOT/bin/delivery-ledger"; TMP="$(mktemp -d "${TMPDIR:-/tmp}/delivery-gate-test.XXXXXX")"; trap 'rm -rf "$TMP"' EXIT
 fail(){ echo "FAIL: $*" >&2; exit 1; }
 
 mkdir -p "$TMP/unknown"
@@ -33,8 +33,6 @@ cat > STATUS.md <<'EOF'
 State: INTEGRATING
 Review-Risk: R1
 Independent-Review: PENDING
-Smoke-URL: TBD
-Smoke-Contains: TBD
 EOF
 cat > RELEASE.md <<EOF
 # Release Manifest
@@ -48,8 +46,11 @@ Backup-Proof: NOT_REQUIRED
 Status: READY
 EOF
 git add . && git commit -qm release
+python3 "$DL" --repo . init >/dev/null
+git add .delivery && git commit -qm ledger
 "$PC" --full . >/dev/null || fail "node fixture should verify"
 "$PG" . >"$TMP/prod.log" 2>&1 || { cat "$TMP/prod.log" >&2; fail "production fixture should pass"; }
+grep -q 'delivery_ledger' "$TMP/prod.log" || fail "delivery ledger gate missing"
 grep -q 'PRODUCTION_GATE=PRODUCTION_READY' "$TMP/prod.log" || fail "production-ready result missing"
 
 python3 - <<'PY'

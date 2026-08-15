@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """delivery-ledger — repository-local execution evidence and resume ledger.
 
-STATUS.md remains the workflow-state authority. This tool records observations,
-run evidence, verification results, and immutable release snapshots.
+STATUS.md remains the workflow-state authority. The ledger is evidence/projection,
+not a second state machine. Run events are append-only and hash-chained; release
+snapshots are immutable and self-hashed.
 
 Commands:
   init
@@ -17,6 +18,7 @@ Commands:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -38,8 +40,20 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def canonical(data: dict) -> str:
+    return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
+def digest(data: dict) -> str:
+    return hashlib.sha256(canonical(data).encode("utf-8")).hexdigest()
+
+
+def git_result(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["git", *args], cwd=repo, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+
+
 def git(repo: Path, *args: str) -> str | None:
-    r = subprocess.run(["git", *args], cwd=repo, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+    r = git_result(repo, *args)
     return r.stdout.strip() if r.returncode == 0 else None
 
 
@@ -66,12 +80,59 @@ def atomic_json(path: Path, data: dict) -> None:
             os.unlink(tmp)
 
 
+def read_events(path: Path) -> list[dict]:
+    events = []
+    for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not raw.strip():
+            continue
+        try:
+            event = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"{path.name}:{lineno}: invalid JSON: {exc}") from exc
+        if not isinstance(event, dict):
+            raise ValueError(f"{path.name}:{lineno}: event must be an object")
+        events.append(event)
+    return events
+
+
 def append_event(path: Path, event: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    previous = None
+    if path.is_file() and path.stat().st_size:
+        existing = read_events(path)
+        previous = existing[-1].get("eventHash") if existing else None
+    event["prevEventHash"] = previous
+    unsigned = dict(event)
+    unsigned.pop("eventHash", None)
+    event["eventHash"] = digest(unsigned)
     with path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
+        f.write(canonical(event) + "\n")
         f.flush()
         os.fsync(f.fileno())
+
+
+def verify_run(path: Path) -> list[str]:
+    problems = []
+    try:
+        events = read_events(path)
+    except ValueError as exc:
+        return [str(exc)]
+    expected_run = path.stem
+    previous = None
+    for index, event in enumerate(events, start=1):
+        if event.get("runId") != expected_run:
+            problems.append(f"{path.name}:{index}: runId mismatch")
+        if event.get("prevEventHash") != previous:
+            problems.append(f"{path.name}:{index}: broken previous-event hash")
+        supplied = event.get("eventHash")
+        unsigned = dict(event); unsigned.pop("eventHash", None)
+        calculated = digest(unsigned)
+        if supplied != calculated:
+            problems.append(f"{path.name}:{index}: event hash mismatch")
+        previous = supplied
+    if not events:
+        problems.append(f"{path.name}: empty run evidence")
+    return problems
 
 
 def paths(repo: Path):
@@ -158,12 +219,7 @@ def cmd_start(repo: Path, a) -> int:
     event = event_base(repo, "run_started", run_id)
     event.update({"task": a.task, "requirement": a.requirement, "risk": a.risk, "worker": a.worker, "model": a.model})
     append_event(runs / f"{run_id}.jsonl", event)
-    data["activeRun"] = run_id
-    data["activeTask"] = a.task
-    data["requirement"] = a.requirement
-    data["risk"] = a.risk
-    data["worker"] = a.worker
-    data["model"] = a.model
+    data.update({"activeRun": run_id, "activeTask": a.task, "requirement": a.requirement, "risk": a.risk, "worker": a.worker, "model": a.model})
     save_current(repo, data)
     print(f"delivery-ledger: STARTED {run_id}")
     return OK
@@ -237,9 +293,37 @@ def cmd_snapshot(repo: Path, a) -> int:
         "release": fields,
         "ledger": data,
     }
+    snapshot["snapshotHash"] = digest(snapshot)
     atomic_json(target, snapshot)
     print(f"delivery-ledger: SNAPSHOT {target}")
     return OK
+
+
+def head_relation(repo: Path, observed: str | None, actual: str | None) -> str:
+    if not observed or not actual:
+        return "unknown"
+    if observed == actual:
+        return "same"
+    r = git_result(repo, "merge-base", "--is-ancestor", observed, actual)
+    if r.returncode == 0:
+        return "descendant"
+    if r.returncode == 1:
+        return "diverged"
+    return "unknown"
+
+
+def verify_snapshot(path: Path) -> list[str]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return [f"{path.name}: invalid snapshot: {exc}"]
+    supplied = data.get("snapshotHash")
+    unsigned = dict(data); unsigned.pop("snapshotHash", None)
+    if supplied != digest(unsigned):
+        return [f"{path.name}: snapshot hash mismatch"]
+    if data.get("releaseId") != path.stem:
+        return [f"{path.name}: releaseId mismatch"]
+    return []
 
 
 def inspect(repo: Path) -> tuple[dict | None, list[str]]:
@@ -251,13 +335,21 @@ def inspect(repo: Path) -> tuple[dict | None, list[str]]:
     actual_state, actual_head = state(repo), git(repo, "rev-parse", "HEAD")
     if data.get("observedState") != actual_state:
         problems.append(f"state drift: ledger={data.get('observedState')} STATUS.md={actual_state}")
-    if data.get("observedHead") != actual_head:
-        problems.append(f"HEAD drift: ledger={data.get('observedHead')} git={actual_head}")
+    relation = head_relation(repo, data.get("observedHead"), actual_head)
+    if relation == "diverged":
+        problems.append(f"history drift: observed HEAD {data.get('observedHead')} is not an ancestor of {actual_head}")
+    elif relation == "unknown" and data.get("observedHead") != actual_head:
+        problems.append("HEAD relationship could not be verified")
+    _, _, runs, releases = paths(repo)
+    if runs.is_dir():
+        for path in sorted(runs.glob("RUN-*.jsonl")):
+            problems.extend(verify_run(path))
     run_id = data.get("activeRun")
-    if run_id:
-        _, _, runs, _ = paths(repo)
-        if not (runs / f"{run_id}.jsonl").is_file():
-            problems.append(f"active run evidence missing: {run_id}")
+    if run_id and not (runs / f"{run_id}.jsonl").is_file():
+        problems.append(f"active run evidence missing: {run_id}")
+    if releases.is_dir():
+        for path in sorted(releases.glob("*.json")):
+            problems.extend(verify_snapshot(path))
     return data, problems
 
 
@@ -271,12 +363,10 @@ def cmd_status(repo: Path, as_json: bool, verify: bool) -> int:
         if data:
             print(f"  activeRun={data.get('activeRun')}")
             print(f"  state={data.get('observedState')}")
-            print(f"  head={data.get('observedHead')}")
+            print(f"  observedHead={data.get('observedHead')}")
         for problem in problems:
             print(f"  - {problem}")
-    if verify and problems:
-        return UNVERIFIED
-    return OK
+    return UNVERIFIED if verify and problems else OK
 
 
 def main() -> int:

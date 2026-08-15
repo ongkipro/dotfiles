@@ -3,7 +3,8 @@
 
 Requires committed release content, valid RELEASE.md, full project verification,
 security scan, release-boundary diff risk, migration risk, rollback readiness,
-and independent review for effective R3/R4 releases. Never deploys.
+delivery-ledger integrity, and independent review for effective R3/R4 releases.
+Never deploys.
 
 Exit codes: 0 PRODUCTION_READY, 1 BLOCKED, 2 UNVERIFIED.
 """
@@ -71,9 +72,10 @@ def main()->int:
     def add(name,status,detail):results[name]={"status":status,"detail":detail}
 
     s,d=clean_tree(repo);add("clean_tree",s,d)
-    pc,sc=locate("project-check"),locate("security-check")
+    pc,sc,dl=locate("project-check"),locate("security-check"),locate("delivery-ledger")
     s,d=command_gate([pc,"--full",str(repo)],repo) if pc else ("UNVERIFIED","project-check unavailable");add("project_check",s,d)
     s,d=command_gate([sc,str(repo)],repo) if sc else ("UNVERIFIED","security-check unavailable");add("security",s,d)
+    s,d=command_gate([dl,"--repo",str(repo),"verify","--json"],repo) if dl else ("UNVERIFIED","delivery-ledger unavailable");add("delivery_ledger",s,d)
     s,d=tasks_gate(repo);add("tasks",s,d)
     s,d=state_gate(repo);add("state",s,d)
 

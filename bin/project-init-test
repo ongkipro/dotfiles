@@ -4,7 +4,9 @@ set -euo pipefail
 
 REPO="${1:-$HOME/dotfiles}"
 SCRIPT="$REPO/bin/project-init"
+DL="$REPO/bin/delivery-ledger"
 [ -x "$SCRIPT" ] || { echo "ERROR: project-init not executable: $SCRIPT" >&2; exit 1; }
+[ -f "$DL" ] || { echo "ERROR: delivery-ledger missing: $DL" >&2; exit 1; }
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/project-init-test.XXXXXX")"
 cleanup() { rm -rf "$TMP"; }
@@ -17,7 +19,7 @@ printf 'user-owned\n' > "$PROJECT/STATUS.md"
 "$SCRIPT" --repo "$PROJECT" tools 'Sandbox & validation | project' >/dev/null
 "$SCRIPT" --repo "$PROJECT" tools 'Sandbox & validation | project' >/dev/null
 
-for path in AGENTS.md PRD.md TASKS.md STATUS.md RELEASE.md OBSERVABILITY.md BUILD-LOG.md docs/architecture.md; do
+for path in AGENTS.md PRD.md TASKS.md STATUS.md RELEASE.md OBSERVABILITY.md BUILD-LOG.md docs/architecture.md .delivery/current.json; do
   [ -f "$PROJECT/$path" ] || { echo "FAIL: missing $path" >&2; exit 1; }
 done
 
@@ -34,5 +36,9 @@ fi
 
 grep -q '^Probe: app|' "$PROJECT/OBSERVABILITY.md" \
   || { echo 'FAIL: observability contract missing app probe' >&2; exit 1; }
+grep -q '"statusAuthority": "STATUS.md"' "$PROJECT/.delivery/current.json" \
+  || { echo 'FAIL: ledger authority contract missing' >&2; exit 1; }
+python3 "$DL" --repo "$PROJECT" verify >/dev/null \
+  || { echo 'FAIL: initialized delivery ledger did not verify' >&2; exit 1; }
 
 echo 'project-init-test: OK'

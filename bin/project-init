@@ -53,13 +53,16 @@ OBSERVABILITY|OBSERVABILITY.md
 BUILD-LOG|BUILD-LOG.md
 ARCHITECTURE|docs/architecture.md
 FILES
+  [ -f "$DOT/bin/delivery-ledger" ] || die "delivery-ledger missing: $DOT/bin/delivery-ledger"
+  python3 "$DOT/bin/delivery-ledger" --repo "$repo_dir" init >/dev/null || die "delivery-ledger init failed"
+  say "initialized .delivery execution ledger"
   say "Repository-local development contract ready: $repo_dir"
   say "Create docs/specs/ and docs/decisions/ only when the project needs them."
 }
 
 find_repo(){ local repo="$1" d; for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do [ -d "$root" ] || continue; while IFS= read -r d; do [ "$(basename "$d")" = "$repo" ] && { printf '%s\n' "$d"; return 0; }; done < <(find "$root" -mindepth 1 -maxdepth 2 -type d); done; return 1; }
 clone_repo(){ local repo="$1" category="$2" target="$PROJECTS_DIR/$category/$repo"; if [ -d "$target/.git" ]; then say "repository already exists: $target"; else mkdir -p "$(dirname "$target")"; say "cloning $GITHUB_USER/$repo → $target"; gh repo clone "$GITHUB_USER/$repo" "$target" || die "clone failed; no project files were overwritten"; fi; }
-cmd_list(){ local root d; for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do [ -d "$root" ] || continue; while IFS= read -r d; do [ -d "$d/.git" ] || continue; if [ -f "$d/STATUS.md" ] && [ -f "$d/RELEASE.md" ] && [ -f "$d/OBSERVABILITY.md" ]; then printf 'contract  %s\n' "$d"; else printf 'missing   %s\n' "$d"; fi; done < <(find "$root" -mindepth 2 -maxdepth 2 -type d); done; [ -d "$LEGACY_DOCS_DIR" ] && printf 'Legacy external docs preserved at %s\n' "$LEGACY_DOCS_DIR"; }
+cmd_list(){ local root d; for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do [ -d "$root" ] || continue; while IFS= read -r d; do [ -d "$d/.git" ] || continue; if [ -f "$d/STATUS.md" ] && [ -f "$d/RELEASE.md" ] && [ -f "$d/OBSERVABILITY.md" ] && [ -f "$d/.delivery/current.json" ]; then printf 'contract  %s\n' "$d"; else printf 'missing   %s\n' "$d"; fi; done < <(find "$root" -mindepth 2 -maxdepth 2 -type d); done; [ -d "$LEGACY_DOCS_DIR" ] && printf 'Legacy external docs preserved at %s\n' "$LEGACY_DOCS_DIR"; }
 cmd_sync(){ local root d; for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do [ -d "$root" ] || continue; while IFS= read -r d; do [ -d "$d/.git" ] || continue; git -C "$d" pull --ff-only || warn "pull failed: $d"; done < <(find "$root" -mindepth 2 -maxdepth 2 -type d); done; }
 usage(){ cat <<'USAGE'
 Usage:
@@ -70,8 +73,8 @@ Usage:
   project-init --sync
 
 New projects receive AGENTS.md, PRD.md, TASKS.md, STATUS.md, RELEASE.md,
-OBSERVABILITY.md, BUILD-LOG.md, and docs/architecture.md. Existing files are
-never overwritten.
+OBSERVABILITY.md, BUILD-LOG.md, docs/architecture.md, and an initialized
+.delivery execution ledger. Existing files are never overwritten.
 USAGE
 }
 

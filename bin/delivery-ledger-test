@@ -41,6 +41,8 @@ python3 "$DL" --repo "$REPO" checkpoint --note verified >/dev/null
 
 grep -q '"type":"verification"' "$RUN_FILE" || fail "verification event missing"
 grep -q '"type":"checkpoint"' "$RUN_FILE" || fail "checkpoint event missing"
+grep -q '"eventHash"' "$RUN_FILE" || fail "event hash missing"
+python3 "$DL" --repo "$REPO" verify >/dev/null || fail "hash chain should verify"
 
 python3 - <<'PY'
 from pathlib import Path
@@ -54,6 +56,9 @@ set -e
 python3 "$DL" --repo "$REPO" checkpoint --note state-synced >/dev/null
 python3 "$DL" --repo "$REPO" verify >/dev/null || fail "checkpoint should resolve state drift"
 
+git add STATUS.md .delivery && git commit -qm checkpoint
+python3 "$DL" --repo "$REPO" verify >/dev/null || fail "descendant HEAD should remain valid"
+
 python3 "$DL" --repo "$REPO" finish --result PASS --detail done >/dev/null
 python3 - <<'PY'
 import json
@@ -63,12 +68,39 @@ assert data['activeRun'] is None
 assert data['lastRun']['result']=='PASS'
 PY
 
+cp "$RUN_FILE" "$TMP/run.backup"
+python3 - "$RUN_FILE" <<'PY'
+from pathlib import Path
+import sys
+p=Path(sys.argv[1]); s=p.read_text(); p.write_text(s.replace('project-check','project-checX',1))
+PY
+set +e
+python3 "$DL" --repo "$REPO" verify >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 2 ] || fail "tampered run chain should be UNVERIFIED"
+cp "$TMP/run.backup" "$RUN_FILE"
+
 python3 "$DL" --repo "$REPO" snapshot-release --release-id REL-TEST-001 >/dev/null
-[ -f "$REPO/.delivery/releases/REL-TEST-001.json" ] || fail "release snapshot missing"
+SNAP="$REPO/.delivery/releases/REL-TEST-001.json"
+[ -f "$SNAP" ] || fail "release snapshot missing"
+grep -q 'snapshotHash' "$SNAP" || fail "snapshot hash missing"
+python3 "$DL" --repo "$REPO" verify >/dev/null || fail "snapshot should verify"
 set +e
 python3 "$DL" --repo "$REPO" snapshot-release --release-id REL-TEST-001 >/dev/null 2>&1
 rc=$?
 set -e
 [ "$rc" -eq 1 ] || fail "release snapshot must be immutable"
+
+python3 - "$SNAP" <<'PY'
+from pathlib import Path
+import sys
+p=Path(sys.argv[1]); s=p.read_text(); p.write_text(s.replace('production','productioX',1))
+PY
+set +e
+python3 "$DL" --repo "$REPO" verify >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 2 ] || fail "tampered release snapshot should be UNVERIFIED"
 
 echo 'delivery-ledger-test: PASS'
