@@ -6,8 +6,8 @@ INTEGRATING to PRODUCTION_READY / AWAITING_DEPLOY_APPROVAL.
 
 Effective risk = max(release risk, deterministic diff risk, review risk).
 Release-Risk must describe only the current release scope, not historical tasks.
-Release-Base must identify the last deployed/accepted commit so diff-risk can
-classify the full release delta instead of only HEAD~1.
+Release-Base must identify the last deployed/accepted commit, must be an ancestor
+of HEAD, and lets diff-risk classify the full release delta instead of HEAD~1.
 
 Exit codes:
   0 PRODUCTION_READY
@@ -98,12 +98,18 @@ def release_base_gate(repo: Path) -> tuple[str, str, str | None]:
     res = run(["git", "rev-parse", "--verify", f"{base}^{{commit}}"], repo)
     if res.returncode != 0:
         return "FAIL", f"Release-Base is not a valid commit: {base}", None
+    resolved = res.stdout.strip()
     head = run(["git", "rev-parse", "HEAD^{commit}"], repo)
     if head.returncode != 0:
         return "UNVERIFIED", "HEAD is not a valid commit", None
-    if res.stdout.strip() == head.stdout.strip():
+    if resolved == head.stdout.strip():
         return "UNVERIFIED", "Release-Base equals HEAD; no release delta can be proven", None
-    return "PASS", f"Release-Base={res.stdout.strip()}", res.stdout.strip()
+    ancestor = run(["git", "merge-base", "--is-ancestor", resolved, "HEAD"], repo)
+    if ancestor.returncode == 1:
+        return "FAIL", f"Release-Base is not an ancestor of HEAD: {resolved}", None
+    if ancestor.returncode != 0:
+        return "UNVERIFIED", ancestor.stderr.strip() or "Could not verify Release-Base ancestry", None
+    return "PASS", f"Release-Base={resolved}", resolved
 
 
 def release_risk_gate(repo: Path) -> tuple[str, str | None]:
