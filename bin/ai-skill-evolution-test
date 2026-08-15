@@ -14,11 +14,11 @@ python3 - "$REPO" <<'PY'
 import hashlib,json,sys
 from pathlib import Path
 r=Path(sys.argv[1])
-def dig(d): return hashlib.sha256(json.dump(d,sort_keys=True,separators=(',',':'),ensure_ascii=True).encode()).hexdigest()
+def dig(d): return hashlib.sha256(json.dumps(d,sort_keys=True,separators=(',',':'),ensure_ascii=True).encode()).hexdigest()
 for i,result in enumerate(['PASS','PASS','PASS','PASS','FAIL'],1):
- d={'schemaVersion':1,'runId':f'RUN-s{i}','recordedAt':'2026-08-15T00:00:00Z','skillsUsed':['retry-discipline','result':result,'risk':'R1','model':'m','worker':'coder','head':'abc','verificationFailed':result!='PASS'};d['usageHash']=dig(d);json.dump(d,open(r/'.delivery'/'skill-usage'/f'RUN-s{i}.json','w'),indent=2,sort_keys=True)
+ d={'schemaVersion':1,'runId':f'RUN-s{i}','recordedAt':'2026-08-15T00:00:00Z','skillsUsed':['retry-discipline'],'result':result,'risk':'R1','model':'m','worker':'coder','head':'abc','verificationFailed':result!='PASS'};d['usageHash']=dig(d);json.dump(d,open(r/'.delivery'/'skill-usage'/f'RUN-s{i}.json','w'),indent=2,sort_keys=True)
 for i in range(1,4):
- d={'schemaVersion':1,'runId':f'RUN-m{i}','capturedAt':'2026-08-15T00:00:00Z','scope':'methodology','recommendedDestination':'skill','reusabilityScore':90,'lesson':{'title':'Retry boundary discipline','symptom':'Retries hid deterministic failure','rootCause':'Retry logic lived outside owning integration boundary','invariant':'Keep retry behavior at the owning integration boundary and preserve deterministic failure evidence','fix':'Move retry logic into the integration adapter','check':'Run regression and inspect first failur'},'provenance':{}};d['signalHash']=dig(d);json.dump(d,open(r/'.delivery'/'learning'/f'RUN-m{i}.json','w'),indent=2,sort_keys=True)
+ d={'schemaVersion':1,'runId':f'RUN-m{i}','capturedAt':'2026-08-15T00:00:00Z','scope':'methodology','recommendedDestination':'skill','reusabilityScore':90,'lesson':{'title':'Retry boundary discipline','symptom':'Retries hid deterministic failure','rootCause':'Retry logic lived outside owning integration boundary','invariant':'Keep retry behavior at the owning integration boundary and preserve deterministic failure evidence','fix':'Move retry logic into the integration adapter','check':'Run regression and inspect first failure'},'provenance':{}};d['signalHash']=dig(d);json.dump(d,open(r/'.delivery'/'learning'/f'RUN-m{i}.json','w'),indent=2,sort_keys=True)
 PY
 python3 "$ROOT/bin/ai-skill-evolution" --repo "$REPO" --dotfiles "$DOT" --min-samples 5 --min-pattern 3 --json > "$TMP/o.json"
 python3 - "$TMP/o.json" <<'PY'
