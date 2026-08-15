@@ -5,11 +5,11 @@ modelRoles:
   plan: openai-codex/gpt-5.6-sol:high
   vision: google-antigravity/gemini-3.1-pro:high
   designer: google-antigravity/gemini-3.1-pro:high
-  research: google-antigravity/gemini-3.6-flash:high
+  research: google-antigravity/gemini-3.7-flash:high
   discovery: anthropic/claude-sonnet-5:medium
   tiny: google-antigravity/gemini-3.1-flash-lite:minimal
   task: openai-codex/gpt-5.6-sol:high
-  default: google-antigravity/gemini-3.6-flash:medium
+  default: google-antigravity/gemini-3.7-flash:medium
   advisor: anthropic/claude-sonnet-5:high
   advisor-xhigh: anthropic/claude-opus-5:xhigh
   advisor-max: anthropic/claude-opus-5:max
@@ -33,7 +33,7 @@ retry:
       - anthropic/claude-sonnet-4-6:medium
       - 9router-fantastico/cx/gpt-5.4:medium
     task:
-      - google-antigravity/gemini-3.6-flash:high
+      - google-antigravity/gemini-3.7-flash:high
       - anthropic/claude-sonnet-4-6:medium
     smol:
       - openai-codex/gpt-5.4-mini:low
@@ -59,7 +59,7 @@ retry:
       - openai-codex/gpt-5.4:high
       - anthropic/claude-sonnet-4-6:high
     discovery:
-      - google-antigravity/gemini-3.6-flash:high
+      - google-antigravity/gemini-3.7-flash:high
       - openai-codex/gpt-5.4:high
     advisor:
       - google-antigravity/claude-sonnet-4-6:high
@@ -83,7 +83,7 @@ task:
     merge: patch
   agentModelOverrides:
     scout: "@discovery"
-    sonic: "@smol"
+    sonic: "@default"
     designer: "@vision"
     reviewer: "@advisor"
     security-reviewer: "@advisor-xhigh"

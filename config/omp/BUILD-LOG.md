@@ -213,4 +213,14 @@ Diffed all seven bundled-and-tracked agents against `omp agents unpack` output. 
 
 **Not changed: `sonic`'s tool scope.** It holds unrestricted access — `edit`, `write`, `bash` — on the cheapest model in the fleet while carrying the busiest subagent lane, and its own description says "strictly mechanical updates or data collection only" with nothing enforcing "only". That reads like over-privilege, but the bundled definition is byte-identical: this is upstream's design for a mechanical worker, not local drift, and `librarian` and `reviewer` carry `bash` too. Narrowing it would be a local divergence on the highest-volume lane based on a concern that was never demonstrated to cause a failure. Recorded here so the question is not re-litigated from scratch; revisit if a sonic run is ever observed acting outside its brief.
 
-**Verification:** `omp-routing-test: OK (roles=13, overrides=11, async=8, overlays=2, catalog=790 models)` with both files removed. `ai-doctor --self-test` 15/15.
+## 2026-08-15 — Upgrade default volume roles to Gemini 3.7 Flash
+
+`gemini-3.7-flash` was verified available in `agy models` and cataloged in OMP (`google-antigravity/gemini-3.7-flash`). Live serving benchmark passed cleanly (`omp bench google-antigravity/gemini-3.7-flash:medium` TTFT 2.8s, 160 tok/s).
+
+**What changed:**
+
+* `models.yml`: Added `ag/gemini-3.7-flash-high`, `ag/gemini-3.7-flash-medium`, and `ag/gemini-3.7-flash-low` to the 9Router metadata catalog.
+* `config.yml`: Upgraded `default` to `google-antigravity/gemini-3.7-flash:medium` and `research` to `google-antigravity/gemini-3.7-flash:high`. Updated `task` and `discovery` fallback chains to use Gemini 3.7 Flash. Mapped subagent `sonic` to `@default` (`google-antigravity/gemini-3.7-flash:medium`).
+* `overlays/antigravity-only.yml`: Upgraded `default`, `task`, `research`, and `discovery` roles to Gemini 3.7 Flash. Cascaded 3.6 Flash down into the fallback chains.
+
+**Verification:** `omp-routing-test` passing `OK (roles=13, overrides=11, async=8, overlays=2, catalog=790 models)`. `ai-doctor` 100% sound.

@@ -9,10 +9,10 @@ This file is the canonical policy for policy-driven autonomous orchestration and
   - **Antigravity** is the volume pool and the largest allowance. It carries the main session and every context-hungry lane: ordinary development, discovery, source research, visual work, and planning judgment.
 - **Codex** is the execution & precision pool. Powered by **GPT-5.6 Sol**, it owns all delegated implementation (`task`), reasoning-intensive code (`slow`), complex developer jobs (`complex-developer`), and architecture planning (`plan` / `writer`).
 - **Direct Anthropic** is the judgment pool and the scarcest. It is reserved for Claude 5 consultation, security audits, and advisor reviews.
-- `default` is Gemini 3.6 Flash at medium reasoning through Antigravity. Ordinary main session development is the volume pool by default.
+- `default` is Gemini 3.7 Flash at medium reasoning through Antigravity. Ordinary main session development is the volume pool by default.
 - `slow`, `task`, and `plan` are **Codex GPT-5.6 Sol** at high reasoning, ensuring maximum code precision, spec writing accuracy, and minimal tool-call error rates across all subagent tasks.
 - `vision` is Gemini 3.1 Pro at high reasoning through Antigravity for browser-visible visual work.
-- `research` is Gemini 3.6 Flash at high reasoning through Antigravity, chosen for its million-token context during evidence-heavy reading rather than for reasoning escalation. It serves `librarian`, reading external library and API sources. `librarian` grounds its answers through a required structured output of verbatim excerpts, paths, and line ranges, so evidence discipline comes from that contract rather than from model tier. Two hard constraints pin this role to Antigravity: `librarian` declares `thinkingLevel: minimal`, which among the other pools only Anthropic Claude Haiku 4.5 supports and no Codex model supports at all, and Haiku's 200K window is a fifth of what evidence-heavy external reading needs.
+- `research` is Gemini 3.7 Flash at high reasoning through Antigravity, chosen for its million-token context during evidence-heavy reading rather than for reasoning escalation. It serves `librarian`, reading external library and API sources. `librarian` grounds its answers through a required structured output of verbatim excerpts, paths, and line ranges, so evidence discipline comes from that contract rather than from model tier. Two hard constraints pin this role to Antigravity: `librarian` declares `thinkingLevel: minimal`, which among the other pools only Anthropic Claude Haiku 4.5 supports and no Codex model supports at all, and Haiku's 200K window is a fifth of what evidence-heavy external reading needs.
 - `discovery` is Claude Sonnet 5 at medium reasoning through direct Anthropic, and serves `scout`, reading this repository. It was split out of `research` because the two jobs share a shape but not a failure profile. `librarian` returns verbatim excerpts a reader can check; `scout` returns an interpreted map the parent session acts on without re-reading the source, so a confident wrong map propagates silently into every downstream decision. Sonnet 5 keeps the million-token window that repository-wide reading needs, supports the `medium` level `scout` declares, and comes from a different vendor than the Codex and Antigravity workers whose output the map describes.
 - `smol` is Gemini 3.1 Flash Lite for strictly mechanical support, keeping a genuine cost step below `default`. `tiny` is the same model at minimal reasoning for internal short-form work.
 
@@ -61,16 +61,16 @@ The user starts `omp` and describes the desired outcome. The main worker MUST ap
 
 | Detected work | Automatic agent | Role | Model |
 |---|---|---|---|
-| Normal, bounded development | none; main session executes | `default` | Antigravity Gemini 3.6 Flash Medium |
+| Normal, bounded development | none; main session executes | `default` | Antigravity Gemini 3.7 Flash Medium |
 | Complex auth, payments, concurrency, migrations, algorithms, performance, or difficult regressions | `complex-developer` | `slow` | Codex GPT-5.6 Sol High |
 | UI, UX, responsive layout, or browser-visible frontend | `designer` | `vision` | Antigravity Gemini 3.1 Pro High |
 | Architecture-sensitive or costly-to-reverse decision | `architect` | `advisor-max` | Claude Opus 5 Max |
 | Hard defect after reproduction or a failed reasonable path | `debugger` | `advisor-xhigh` | Claude Opus 5 XHigh |
 | High-risk correctness review | `reviewer` | `advisor` | Claude Sonnet 5 High |
 | Security-sensitive review | `security-reviewer` | `advisor-xhigh` | Claude Opus 5 XHigh |
-| Source-verified external library or API research | `librarian` | `research` | Antigravity Gemini 3.6 Flash High |
+| Source-verified external library or API research | `librarian` | `research` | Antigravity Gemini 3.7 Flash High |
 | Read-only repository discovery feeding a decision | `scout` | `discovery` | Anthropic Claude Sonnet 5 Medium |
-| Strictly mechanical updates or data collection | `sonic` | `smol` | Antigravity Gemini 3.1 Flash Lite |
+| Strictly mechanical updates or data collection | `sonic` | `default` | Antigravity Gemini 3.7 Flash Medium |
 | High-nuance prose, PRD synthesis, copy humanization, or brand-voice content | `writer` | `plan` | Codex GPT-5.6 Sol High |
 Browser-visible visual, layout, responsive, accessibility, or UX work MUST route to `designer`/`vision` before the first browser-visible edit. This is a capability trigger, not a reasoning-complexity escalation, so it applies regardless of task size. Pure data, API, or non-visual wiring in a frontend file does not trigger `vision`. If the designer cannot start, surface the failure instead of silently implementing the visual work in the main `default` session.
 
