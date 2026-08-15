@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+"""Immutable skill-attribution evidence for finished delivery runs."""
+from __future__ import annotations
+import argparse, hashlib, json, os, re, tempfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+SAFE = re.compile(r'^[A-Za-z0-9._-]+$')
+def now(): return datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00','Z')
+def canonical(d): return json.dumps(d,sort_keys=True,separators=(',',':'),ensure_ascii=True)
+def digest(d): return hashlib.sha256(canonical(d).encode()).hexdigest()
+def atomic(path,data):
+    path.parent.mkdir(parents=True,exist_ok=True); fd,tmp=tempfile.mkstemp(prefix='.'+path.name+'.',dir=path.parent)
+    try:
+      with os.fdopen(fd,'w',encoding='utf-8') as f: json.dump(data,f,indent=2,sort_keys=True); f.write('\n'); f.flush(); os.fsync(f.fileno())
+      os.replace(tmp,path)
+    finally:
+      if os.path.exists(tmp): os.unlink(tmp)
+def events(path):
+    out=[]; prev=None
+    for no,raw in enumerate(path.read_text(encoding='utf-8').splitlines(),1):
+      if not raw.strip(): continue
+      e=json.loads(raw)
+      if e.get('runId')!=path.stem: raise ValueError(f'{path.name}:{no}: runId mismatch')
+      if e.get('prevEventHash')!=prev: raise ValueError(f'{path.name}:{no}: broken hash chain')
+      supplied=e.get('eventHash'); u=dict(e); u.pop('eventHash',None)
+      if supplied!=digest(u): raise ValueError(f'{path.name}:{no}: event hash mismatch')
+      prev=supplied; out.append(e)
+    if not out: raise ValueError(f'{path.name}: empty run')
+    return out
+def inspect_run(repo,run):
+    p=repo/'.delivery'/'runs'/f'{run}.jsonl'
+    if not p.is_file(): raise ValueError(f'run missing: {run}')
+    ev=events(p); start=next((x for x in ev if x.get('type')=='run_started'),None); finish=next((x for x in reversed(ev) if x.get('type')=='run_finished'),None)
+    if not start or not finish: raise ValueError('skill attribution requires a finished run')
+    checks=[x for x in ev if x.get('type')=='verification']
+    return start,finish,checks
+def record(repo,a):
+    if not SAFE.fullmatch(a.run): raise ValueError('invalid run id')
+    skills=sorted(set(a.skill or []))
+    if not skills or any(not SAFE.fullmatch(x) for x in skills): raise ValueError('at least one safe --skill is required')
+    start,finish,checks=inspect_run(repo,a.run); target=repo/'.delivery'/'skill-usage'/f'{a.run}.json'
+    if target.exists(): raise ValueError('skill usage already exists; attribution is immutable')
+    data={'schemaVersion':1,'runId':a.run,'recordedAt':now(),'skillsUsed':skills,'result':finish.get('result'),'risk':start.get('risk'),'model':start.get('model'),'worker':start.get('worker'),'head':finish.get('head'),'verificationFailed':any(x.get('status')!='PASS' for x in checks)}
+    data['usageHash']=digest(data); atomic(target,data); print(f'delivery-skill-usage: RECORDED {target}')
+def verify(repo,as_json):
+    root=repo/'.delivery'/'skill-usage'; problems=[]; n=0
+    if root.is_dir():
+      for p in sorted(root.glob('RUN-*.json')):
+        n+=1
+        try:
+          d=json.loads(p.read_text()); supplied=d.get('usageHash'); u=dict(d);u.pop('usageHash',None)
+          if supplied!=digest(u): problems.append(f'{p.name}: usage hash mismatch')
+          if d.get('runId')!=p.stem: problems.append(f'{p.name}: runId mismatch')
+          start,finish,checks=inspect_run(repo,p.stem)
+          if d.get('result')!=finish.get('result'): problems.append(f'{p.name}: result mismatch')
+        except Exception as e: problems.append(f'{p.name}: {e}')
+    payload={'result':'VERIFIED' if not problems else 'UNVERIFIED','records':n,'problems':problems}
+    print(json.dumps(payload,indent=2) if as_json else 'delivery-skill-usage: '+payload['result']+''.join(f'\n  - {x}' for x in problems)); return 0 if not problems else 2
+def main():
+    p=argparse.ArgumentParser(); p.add_argument('--repo',default='.'); sub=p.add_subparsers(dest='cmd',required=True)
+    r=sub.add_parser('record'); r.add_argument('--run',required=True); r.add_argument('--skill',action='append',required=True)
+    v=sub.add_parser('verify'); v.add_argument('--json',action='store_true'); a=p.parse_args(); repo=Path(a.repo).resolve()
+    try:
+      if a.cmd=='record': record(repo,a); return 0
+      return verify(repo,a.json)
+    except (ValueError,OSError,json.JSONDecodeError) as e: print(f'delivery-skill-usage: ERROR: {e}',file=__import__('sys').stderr); return 1
+if __name__=='__main__': raise SystemExit(main())

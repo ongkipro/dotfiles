@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""Advisory skill evolution from delivery attribution and recurring methodology lessons."""
+from __future__ import annotations
+import argparse, hashlib, json, re, subprocess
+from collections import defaultdict
+from pathlib import Path
+TOKEN=re.compile(r'[a-z0-9][a-z0-9_.+/-]*'); STOP={'a','an','and','are','as','at','be','by','for','from','in','is','it','of','on','or','that','the','this','to','with','when','where','which','will'}
+def canonical(d): return json.dumps(d,sort_keys=True,separators=(',',':'),ensure_ascii=True)
+def digest(d): return hashlib.sha256(canonical(d).encode()).hexdigest()
+def toks(s): return {x for x in TOKEN.findall(s.lower().replace('-',' ')) if x not in STOP and len(x)>1}
+def sim(a,b):
+    a,b=toks(a),toks(b); return len(a&b)/len(a|b) if a and b else 0.0
+def read_json_verified(path,hash_key):
+    d=json.loads(path.read_text()); supplied=d.get(hash_key); u=dict(d);u.pop(hash_key,None)
+    if supplied!=digest(u): raise ValueError(f'{path}: hash mismatch')
+    return d
+def existing_skills(dot):
+    out=[]; root=dot/'skills'/'local'
+    if root.is_dir():
+      for p in sorted(root.glob('*/SKILL.md')):
+        try: out.append((p.parent.name,p.read_text(encoding='utf-8',errors='replace')))
+        except OSError: pass
+    return out
+def method_text(d):
+    l=d.get('lesson',{}); return ' '.join(str(l.get(k,'')) for k in ('title','rootCause','invariant','fix'))
+def collect(repos):
+    usages=[]; methods=[]; problems=[]
+    for repo in repos:
+      su=repo/'.delivery'/'skill-usage'
+      if su.is_dir():
+        for p in sorted(su.glob('RUN-*.json')):
+          try:
+            d=read_json_verified(p,'usageHash'); d['_repo']=str(repo); usages.append(d)
+          except Exception as e: problems.append(str(e))
+      lr=repo/'.delivery'/'learning'
+      if lr.is_dir():
+        for p in sorted(lr.glob('RUN-*.json')):
+          try:
+            d=read_json_verified(p,'signalHash')
+            if d.get('scope')=='methodology': d['_repo']=str(repo); methods.append(d)
+          except Exception as e: problems.append(str(e))
+    return usages,methods,problems
+def clusters(methods,threshold):
+    groups=[]
+    for d in methods:
+      text=method_text(d); best=None; score=0
+      for g in groups:
+        s=max(sim(text,method_text(x)) for x in g)
+        if s>score: best,score=g,s
+      if best is not None and score>=threshold: best.append(d)
+      else: groups.append([d])
+    return groups
+def main():
+    p=argparse.ArgumentParser(); p.add_argument('--repo',action='append'); p.add_argument('--repos-root'); p.add_argument('--dotfiles'); p.add_argument('--min-samples',type=int,default=5); p.add_argument('--min-pattern',type=int,default=3); p.add_argument('--cluster-threshold',type=float,default=.35); p.add_argument('--skill-match-threshold',type=float,default=.20); p.add_argument('--json',action='store_true')
+    a=p.parse_args(); dot=Path(a.dotfiles or Path(__file__).resolve().parent.parent).resolve(); repos=[Path(x).resolve() for x in (a.repo or [])]
+    if a.repos_root:
+      root=Path(a.repos_root).expanduser().resolve(); repos += [x for x in root.iterdir() if x.is_dir() and (x/'.delivery').is_dir()]
+    if not repos: repos=[Path('.').resolve()]
+    try:
+      usages,methods,problems=collect(repos); stats={}
+      grouped=defaultdict(list)
+      for u in usages:
+        for skill in u.get('skillsUsed',[]): grouped[skill].append(u)
+      for skill,rows in sorted(grouped.items()):
+        n=len(rows); passed=sum(x.get('result')=='PASS' for x in rows); vf=sum(bool(x.get('verificationFailed')) for x in rows)
+        if n<a.min_samples: status='INSUFFICIENT_DATA'
+        elif passed/n<.8 or vf/n>.2: status='REVIEW_WEAK_EVIDENCE'
+        else: status='STABLE'
+        stats[skill]={'samples':n,'pass':passed,'fail':sum(x.get('result')=='FAIL' for x in rows),'blocked':sum(x.get('result')=='BLOCKED' for x in rows),'successRate':round(passed/n,4),'verificationFailureRate':round(vf/n,4),'status':status}
+      skills=existing_skills(dot); patterns=[]
+      for idx,g in enumerate(clusters(methods,a.cluster_threshold),1):
+        text=' '.join(method_text(x) for x in g); best_name=None; best=.0
+        for name,body in skills:
+          s=sim(text,body)
+          if s>best: best_name,best=name,s
+        if len(g)<a.min_pattern: rec='INSUFFICIENT_PATTERN'
+        elif best_name and best>=a.skill_match_threshold: rec='IMPROVE_EXISTING_SKILL'
+        else: rec='CREATE_SKILL_CANDIDATE'
+        patterns.append({'patternId':f'PATTERN-{idx:03d}','samples':len(g),'runs':[x.get('runId') for x in g],'closestSkill':best_name,'skillSimilarity':round(best,4),'recommendation':rec,'representative':g[0].get('lesson',{}).get('title')})
+      payload={'repos':[str(x) for x in repos],'skillEvidence':stats,'methodologyPatterns':patterns,'problems':problems}
+      if a.json: print(json.dumps(payload,indent=2))
+      else:
+        print(f"ai-skill-evolution: skills={len(stats)} methodology-patterns={len(patterns)}")
+        for name,s in stats.items(): print(f"  skill {name}: n={s['samples']} success={s['successRate']:.2f} verify-fail={s['verificationFailureRate']:.2f} -> {s['status']}")
+        for x in patterns:
+          if x['recommendation']!='INSUFFICIENT_PATTERN': print(f"  {x['patternId']} n={x['samples']} -> {x['recommendation']} {x['closestSkill'] or ''}")
+      return 2 if problems else 0
+    except (OSError,ValueError,json.JSONDecodeError) as e: print(f'ai-skill-evolution: ERROR: {e}',file=__import__('sys').stderr); return 1
+if __name__=='__main__': raise SystemExit(main())

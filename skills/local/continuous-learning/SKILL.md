@@ -72,6 +72,31 @@ Use `ai-memory-lifecycle` to review retention only after enough telemetry has ac
 
 Lifecycle recommendations are advisory. Never auto-delete, auto-archive, or rewrite memory from usage counts. A memory can be important even when rarely retrieved.
 
+## Skill attribution and evolution
+
+When one or more reusable skills materially influenced a finished delivery run, record immutable attribution with:
+
+`delivery-skill-usage --repo <repo> record --run <RUN-ID> --skill <skill-name> [--skill <skill-name> ...]`
+
+Record attribution for PASS, FAIL, and BLOCKED finished runs so future effectiveness reports are not success-only. Do not attribute skills that were merely available but not materially used.
+
+Use `ai-skill-evolution` only as an advisory report. It combines:
+
+- finished-run skill attribution to calculate sample count, success rate, and verification-failure rate;
+- recurring `methodology` learning signals to detect reusable patterns;
+- current `skills/local/*/SKILL.md` content to decide whether a recurring pattern overlaps an existing owner.
+
+Interpret recommendations conservatively:
+
+- `INSUFFICIENT_DATA`: collect more real runs; do not conclude the skill is good or bad.
+- `STABLE`: observed evidence is acceptable; this does not prove causality.
+- `REVIEW_WEAK_EVIDENCE`: inspect failures and methodology before changing or removing the skill.
+- `IMPROVE_EXISTING_SKILL`: prefer extending the closest existing methodology owner.
+- `CREATE_SKILL_CANDIDATE`: create a new skill only after reviewing concrete examples and ownership boundaries.
+- `INSUFFICIENT_PATTERN`: do not promote a one-off lesson into a skill.
+
+Never auto-delete, auto-disable, auto-rewrite, or auto-create a skill solely from aggregate statistics or lexical similarity.
+
 ## Learning evolution
 
 Use this progression:
