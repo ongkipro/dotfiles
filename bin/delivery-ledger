@@ -1,0 +1,308 @@
+#!/usr/bin/env python3
+"""delivery-ledger — repository-local execution evidence and resume ledger.
+
+STATUS.md remains the workflow-state authority. This tool records observations,
+run evidence, verification results, and immutable release snapshots.
+
+Commands:
+  init
+  start --task TASK-001 --requirement REQ-001 --risk R1 [--worker name] [--model name]
+  record --check name --status PASS|FAIL|UNVERIFIED [--detail text]
+  checkpoint [--note text]
+  finish --result PASS|FAIL|BLOCKED [--detail text]
+  snapshot-release --release-id REL-...
+  status [--json]
+  verify [--json]
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import tempfile
+from datetime import datetime, timezone
+from uuid import uuid4
+
+OK, FAILED, UNVERIFIED = 0, 1, 2
+RISK = {f"R{i}" for i in range(5)}
+CHECK_STATUS = {"PASS", "FAIL", "UNVERIFIED"}
+RUN_RESULT = {"PASS", "FAIL", "BLOCKED"}
+SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def git(repo: Path, *args: str) -> str | None:
+    r = subprocess.run(["git", *args], cwd=repo, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def state(repo: Path) -> str | None:
+    p = repo / "STATUS.md"
+    if not p.is_file():
+        return None
+    m = re.search(r"(?im)^State:\s*([A-Z_]+)\s*$", p.read_text(encoding="utf-8", errors="replace"))
+    return m.group(1) if m else None
+
+
+def atomic_json(path: Path, data: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, sort_keys=True)
+            f.write("\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
+def append_event(path: Path, event: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+
+
+def paths(repo: Path):
+    root = repo / ".delivery"
+    return root, root / "current.json", root / "runs", root / "releases"
+
+
+def initial(repo: Path) -> dict:
+    return {
+        "schemaVersion": 1,
+        "project": repo.name,
+        "statusAuthority": "STATUS.md",
+        "activeRun": None,
+        "observedState": state(repo),
+        "observedHead": git(repo, "rev-parse", "HEAD"),
+        "updatedAt": now(),
+    }
+
+
+def load_current(repo: Path) -> dict:
+    _, current, _, _ = paths(repo)
+    if not current.is_file():
+        raise FileNotFoundError(".delivery/current.json missing; run delivery-ledger init")
+    data = json.loads(current.read_text(encoding="utf-8"))
+    if data.get("schemaVersion") != 1 or data.get("statusAuthority") != "STATUS.md":
+        raise ValueError("unsupported or invalid delivery ledger schema")
+    return data
+
+
+def save_current(repo: Path, data: dict) -> None:
+    _, current, _, _ = paths(repo)
+    data["observedState"] = state(repo)
+    data["observedHead"] = git(repo, "rev-parse", "HEAD")
+    data["updatedAt"] = now()
+    atomic_json(current, data)
+
+
+def event_base(repo: Path, kind: str, run_id: str | None) -> dict:
+    return {
+        "eventId": uuid4().hex,
+        "time": now(),
+        "type": kind,
+        "runId": run_id,
+        "state": state(repo),
+        "head": git(repo, "rev-parse", "HEAD"),
+    }
+
+
+def require_id(value: str, label: str) -> None:
+    if not SAFE_ID.fullmatch(value):
+        raise ValueError(f"invalid {label}: use letters, numbers, dot, underscore, or dash")
+
+
+def cmd_init(repo: Path) -> int:
+    root, current, runs, releases = paths(repo)
+    root.mkdir(exist_ok=True); runs.mkdir(exist_ok=True); releases.mkdir(exist_ok=True)
+    if not current.exists():
+        atomic_json(current, initial(repo))
+    print(f"delivery-ledger: READY ({current})")
+    return OK
+
+
+def active(repo: Path) -> tuple[dict, str, Path]:
+    data = load_current(repo)
+    run_id = data.get("activeRun")
+    if not run_id:
+        raise ValueError("no active run")
+    _, _, runs, _ = paths(repo)
+    run_path = runs / f"{run_id}.jsonl"
+    if not run_path.is_file():
+        raise ValueError(f"active run evidence missing: {run_path.name}")
+    return data, run_id, run_path
+
+
+def cmd_start(repo: Path, a) -> int:
+    data = load_current(repo)
+    if data.get("activeRun"):
+        raise ValueError(f"run already active: {data['activeRun']}")
+    if a.risk not in RISK:
+        raise ValueError("risk must be R0-R4")
+    require_id(a.task, "task"); require_id(a.requirement, "requirement")
+    run_id = datetime.now(timezone.utc).strftime("RUN-%Y%m%dT%H%M%SZ-") + uuid4().hex[:8]
+    _, _, runs, _ = paths(repo)
+    event = event_base(repo, "run_started", run_id)
+    event.update({"task": a.task, "requirement": a.requirement, "risk": a.risk, "worker": a.worker, "model": a.model})
+    append_event(runs / f"{run_id}.jsonl", event)
+    data["activeRun"] = run_id
+    data["activeTask"] = a.task
+    data["requirement"] = a.requirement
+    data["risk"] = a.risk
+    data["worker"] = a.worker
+    data["model"] = a.model
+    save_current(repo, data)
+    print(f"delivery-ledger: STARTED {run_id}")
+    return OK
+
+
+def cmd_record(repo: Path, a) -> int:
+    data, run_id, run_path = active(repo)
+    if a.status not in CHECK_STATUS:
+        raise ValueError("check status must be PASS, FAIL, or UNVERIFIED")
+    e = event_base(repo, "verification", run_id)
+    e.update({"check": a.check, "status": a.status, "detail": a.detail})
+    append_event(run_path, e); save_current(repo, data)
+    print(f"delivery-ledger: RECORDED {a.check}={a.status}")
+    return OK
+
+
+def cmd_checkpoint(repo: Path, a) -> int:
+    data = load_current(repo); run_id = data.get("activeRun")
+    e = event_base(repo, "checkpoint", run_id); e["note"] = a.note
+    if run_id:
+        _, _, runs, _ = paths(repo); append_event(runs / f"{run_id}.jsonl", e)
+    data["lastCheckpoint"] = e
+    save_current(repo, data)
+    print("delivery-ledger: CHECKPOINTED")
+    return OK
+
+
+def cmd_finish(repo: Path, a) -> int:
+    if a.result not in RUN_RESULT:
+        raise ValueError("result must be PASS, FAIL, or BLOCKED")
+    data, run_id, run_path = active(repo)
+    e = event_base(repo, "run_finished", run_id); e.update({"result": a.result, "detail": a.detail})
+    append_event(run_path, e)
+    data["lastRun"] = {"runId": run_id, "result": a.result, "finishedAt": e["time"]}
+    for key in ("activeRun", "activeTask", "requirement", "risk", "worker", "model"):
+        data.pop(key, None)
+    data["activeRun"] = None
+    save_current(repo, data)
+    print(f"delivery-ledger: FINISHED {run_id} result={a.result}")
+    return OK
+
+
+def release_fields(repo: Path) -> dict:
+    p = repo / "RELEASE.md"
+    if not p.is_file():
+        raise ValueError("RELEASE.md missing")
+    text = p.read_text(encoding="utf-8", errors="replace")
+    fields = {}
+    for name in ("Release-ID", "Base", "Environment", "Declared-Risk", "Rollback-Ref", "Backup-Proof", "Status"):
+        m = re.search(rf"(?im)^{re.escape(name)}:\s*(.+?)\s*$", text)
+        fields[name] = m.group(1).strip() if m else None
+    return fields
+
+
+def cmd_snapshot(repo: Path, a) -> int:
+    require_id(a.release_id, "release id")
+    data = load_current(repo)
+    fields = release_fields(repo)
+    if fields.get("Release-ID") != a.release_id:
+        raise ValueError(f"release id mismatch: RELEASE.md has {fields.get('Release-ID')!r}")
+    _, _, _, releases = paths(repo)
+    target = releases / f"{a.release_id}.json"
+    if target.exists():
+        raise ValueError("release snapshot already exists; snapshots are immutable")
+    snapshot = {
+        "schemaVersion": 1,
+        "releaseId": a.release_id,
+        "capturedAt": now(),
+        "head": git(repo, "rev-parse", "HEAD"),
+        "state": state(repo),
+        "release": fields,
+        "ledger": data,
+    }
+    atomic_json(target, snapshot)
+    print(f"delivery-ledger: SNAPSHOT {target}")
+    return OK
+
+
+def inspect(repo: Path) -> tuple[dict | None, list[str]]:
+    problems = []
+    try:
+        data = load_current(repo)
+    except Exception as exc:
+        return None, [str(exc)]
+    actual_state, actual_head = state(repo), git(repo, "rev-parse", "HEAD")
+    if data.get("observedState") != actual_state:
+        problems.append(f"state drift: ledger={data.get('observedState')} STATUS.md={actual_state}")
+    if data.get("observedHead") != actual_head:
+        problems.append(f"HEAD drift: ledger={data.get('observedHead')} git={actual_head}")
+    run_id = data.get("activeRun")
+    if run_id:
+        _, _, runs, _ = paths(repo)
+        if not (runs / f"{run_id}.jsonl").is_file():
+            problems.append(f"active run evidence missing: {run_id}")
+    return data, problems
+
+
+def cmd_status(repo: Path, as_json: bool, verify: bool) -> int:
+    data, problems = inspect(repo)
+    payload = {"result": "VERIFIED" if not problems else "DRIFT", "current": data, "problems": problems}
+    if as_json:
+        print(json.dumps(payload, indent=2))
+    else:
+        print(f"delivery-ledger: {payload['result']}")
+        if data:
+            print(f"  activeRun={data.get('activeRun')}")
+            print(f"  state={data.get('observedState')}")
+            print(f"  head={data.get('observedHead')}")
+        for problem in problems:
+            print(f"  - {problem}")
+    if verify and problems:
+        return UNVERIFIED
+    return OK
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(); p.add_argument("--repo", default=".")
+    sub = p.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("init")
+    s=sub.add_parser("start"); s.add_argument("--task",required=True); s.add_argument("--requirement",required=True); s.add_argument("--risk",required=True); s.add_argument("--worker",default="unknown"); s.add_argument("--model",default="unknown")
+    r=sub.add_parser("record"); r.add_argument("--check",required=True); r.add_argument("--status",required=True); r.add_argument("--detail",default="")
+    c=sub.add_parser("checkpoint"); c.add_argument("--note",default="")
+    f=sub.add_parser("finish"); f.add_argument("--result",required=True); f.add_argument("--detail",default="")
+    x=sub.add_parser("snapshot-release"); x.add_argument("--release-id",required=True)
+    for name in ("status","verify"):
+        q=sub.add_parser(name); q.add_argument("--json",action="store_true")
+    a=p.parse_args(); repo=Path(a.repo).resolve()
+    if not repo.is_dir(): print(f"delivery-ledger: ERROR: repo not found: {repo}",file=sys.stderr); return FAILED
+    try:
+        if a.cmd=="init": return cmd_init(repo)
+        if a.cmd=="start": return cmd_start(repo,a)
+        if a.cmd=="record": return cmd_record(repo,a)
+        if a.cmd=="checkpoint": return cmd_checkpoint(repo,a)
+        if a.cmd=="finish": return cmd_finish(repo,a)
+        if a.cmd=="snapshot-release": return cmd_snapshot(repo,a)
+        if a.cmd=="status": return cmd_status(repo,a.json,False)
+        if a.cmd=="verify": return cmd_status(repo,a.json,True)
+    except (ValueError, FileNotFoundError, json.JSONDecodeError) as exc:
+        print(f"delivery-ledger: ERROR: {exc}",file=sys.stderr); return FAILED
+    return FAILED
+
+if __name__ == "__main__": raise SystemExit(main())
