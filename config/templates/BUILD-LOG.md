@@ -5,4 +5,8 @@ Record only durable implementation changes, validation evidence, and gotchas tha
 ## {{DATE}} — Development contract initialized
 
 - Added repository-local project context files.
-- No product or runtime behavior changed.
+- Bootstrap source state: {{GENERATED_STATE}}.
+- Selected stack: `{{STACK}}`; database: `{{DATABASE}}`; authentication:
+  `{{AUTH}}`; deployment target: `{{DEPLOY}}`.
+- Capability selections are not operational claims. Their implementation and
+  verification remain future requirement-linked work.

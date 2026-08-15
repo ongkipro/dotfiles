@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# project-init — clone a project and create its repository-local AI development contract.
+# project-init — repository contract initializer and stack-aware native bootstrap.
 set -euo pipefail
 
 if command -v realpath >/dev/null 2>&1; then
@@ -18,7 +18,7 @@ GITHUB_USER="${GITHUB_USER:-ongkipro}"
 
 say(){ printf '→ %s\n' "$*"; }
 warn(){ printf 'WARNING: %s\n' "$*" >&2; }
-die(){ printf 'ERROR: %s\n' "$1" >&2; exit 1; }
+die(){ printf 'ERROR: %s\n' "$1" >&2; exit "${2:-1}"; }
 now(){ date '+%Y-%m-%d'; }
 
 replace(){
@@ -34,14 +34,16 @@ replace(){
 stack_for(){ case "$1" in ecommerce) echo "Astro / Shopify / Payment";; agriculture) echo "Web App / Dashboard";; education) echo "Astro / Static Site";; agency) echo "Astro / Three.js / Portfolio";; affiliate) echo "Astro / Cloudflare / SEO";; automotive) echo "Website / Dealer";; payment) echo "API / Documentation";; web-builder) echo "Astro / Template";; tools) echo "Development tools";; *) echo "TBD";; esac; }
 
 render_contract(){
-  local repo_dir="$1" repo="$2" category="$3" desc="${4:-Project: $2}" stack
-  stack="$(stack_for "$category")"; [ -d "$repo_dir" ] || die "project directory not found: $repo_dir"; mkdir -p "$repo_dir/docs"
+  local repo_dir="$1" repo="$2" category="$3" desc="${4:-Project: $2}"
+  local stack="${5:-$(stack_for "$category")}" database="${6:-not selected}" auth="${7:-not selected}" deploy="${8:-not selected}" generated="${9:-repository contract only}"
+  [ -d "$repo_dir" ] || die "project directory not found: $repo_dir"
+  mkdir -p "$repo_dir/docs"
   while IFS='|' read -r template relative; do
     local src="$TEMPLATES/$template.md" dst="$repo_dir/$relative"
     [ -f "$src" ] || die "template missing: $src"
     if [ -e "$dst" ]; then say "$relative exists — preserved"; continue; fi
     mkdir -p "$(dirname "$dst")"; cp "$src" "$dst"
-    replace "$dst" "PROJECT_NAME=$repo" "REPO_NAME=$repo" "STATUS=Active" "STACK=$stack" "STARTED=$(now)" "UPDATED=$(now)" "DATE=$(now)" "DESCRIPTION=$desc" "CATEGORY=$category" "PROD_URL=TBD" "STAGING_URL=TBD" "LOCAL_URL=TBD"
+    replace "$dst" "PROJECT_NAME=$repo" "REPO_NAME=$repo" "STATUS=Active" "STACK=$stack" "DATABASE=$database" "AUTH=$auth" "DEPLOY=$deploy" "GENERATED_STATE=$generated" "STARTED=$(now)" "UPDATED=$(now)" "DATE=$(now)" "DESCRIPTION=$desc" "CATEGORY=$category" "PROD_URL=TBD" "STAGING_URL=TBD" "LOCAL_URL=TBD"
     say "created $relative"
   done <<'FILES'
 AGENTS|AGENTS.md
@@ -64,27 +66,219 @@ find_repo(){ local repo="$1" d; for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DI
 clone_repo(){ local repo="$1" category="$2" target="$PROJECTS_DIR/$category/$repo"; if [ -d "$target/.git" ]; then say "repository already exists: $target"; else mkdir -p "$(dirname "$target")"; say "cloning $GITHUB_USER/$repo → $target"; gh repo clone "$GITHUB_USER/$repo" "$target" || die "clone failed; no project files were overwritten"; fi; }
 cmd_list(){ local root d; for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do [ -d "$root" ] || continue; while IFS= read -r d; do [ -d "$d/.git" ] || continue; if [ -f "$d/STATUS.md" ] && [ -f "$d/RELEASE.md" ] && [ -f "$d/OBSERVABILITY.md" ] && [ -f "$d/.delivery/current.json" ]; then printf 'contract  %s\n' "$d"; else printf 'missing   %s\n' "$d"; fi; done < <(find "$root" -mindepth 2 -maxdepth 2 -type d); done; [ -d "$LEGACY_DOCS_DIR" ] && printf 'Legacy external docs preserved at %s\n' "$LEGACY_DOCS_DIR"; }
 cmd_sync(){ local root d; for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do [ -d "$root" ] || continue; while IFS= read -r d; do [ -d "$d/.git" ] || continue; git -C "$d" pull --ff-only || warn "pull failed: $d"; done < <(find "$root" -mindepth 2 -maxdepth 2 -type d); done; }
+
 usage(){ cat <<'USAGE'
 Usage:
   project-init <repo-name> <category> [description]
   project-init --repo <path> [category] [description]
   project-init --gen <repo-name>
+  project-init <name> --stack <profile> [options]
+  project-init --repo <path> --stack existing-repository [options]
   project-init --list
   project-init --sync
 
-New projects receive AGENTS.md, PRD.md, TASKS.md, STATUS.md, RELEASE.md,
-OBSERVABILITY.md, BUILD-LOG.md, docs/architecture.md, and an initialized
-.delivery execution ledger. Existing files are never overwritten.
+Stack-aware options:
+  --stack nextjs|astro|cloudflare-worker|existing-repository
+  --database none|postgres       Selected architecture decision; no database is provisioned
+  --auth none|better-auth        Selected architecture decision; no auth secret is created
+  --deploy none|coolify|cloudflare
+                                 Selected target; never deploys or creates remote resources
+  --package-manager npm|pnpm
+  --plan                         Resolve and print the plan without filesystem writes or installs
+  --no-install                   Skip dependency installation (unsupported by cloudflare-worker)
+  -h, --help
+
+New projects use an official native generator, then receive AGENTS.md, PRD.md,
+TASKS.md, STATUS.md, RELEASE.md, OBSERVABILITY.md, BUILD-LOG.md,
+docs/architecture.md, and an initialized .delivery ledger. Existing files are
+never overwritten. Auth, database, and deploy selections become explicit
+decisions and future tasks until executable evidence proves them operational.
 USAGE
 }
 
+has_stack_option(){
+  local arg
+  for arg in "$@"; do
+    case "$arg" in --stack|--database|--auth|--deploy|--package-manager|--plan|--no-install) return 0;; esac
+  done
+  return 1
+}
+
+print_command(){ printf '  '; printf '%q ' "$@"; printf '\n'; }
+
+cleanup_partial(){
+  local target="$1" expected="$2"
+  if [ "$target" = "$expected" ] && [ -d "$target" ] && [ ! -L "$target" ]; then
+    rm -rf -- "$target"
+    warn "removed partial generated directory: $target"
+  else
+    warn "partial output was retained because its path could not be proven safe: $target"
+  fi
+}
+
+bootstrap(){
+  local name="" repo_arg="" stack="" database="none" auth="none" deploy="none" pm="npm"
+  local plan=0 no_install=0 explicit_pm=0 target parent description generator_label stack_label
+  local source_check="native-generator" source_detail
+  local -a args=("$@") generator=() checks=()
+  local i=0
+
+  if [ "${args[0]:-}" = "--repo" ]; then
+    [ -n "${args[1]:-}" ] || die "--repo requires a path"
+    repo_arg="${args[1]}"; i=2
+  else
+    name="${args[0]:-}"; [ -n "$name" ] || die "project name is required"; i=1
+  fi
+
+  while [ "$i" -lt "${#args[@]}" ]; do
+    case "${args[$i]}" in
+      --stack|--database|--auth|--deploy|--package-manager)
+        [ "$((i + 1))" -lt "${#args[@]}" ] || die "${args[$i]} requires a value"
+        case "${args[$i]}" in
+          --stack) stack="${args[$((i + 1))]}";;
+          --database) database="${args[$((i + 1))]}";;
+          --auth) auth="${args[$((i + 1))]}";;
+          --deploy) deploy="${args[$((i + 1))]}";;
+          --package-manager) pm="${args[$((i + 1))]}"; explicit_pm=1;;
+        esac
+        i=$((i + 2));;
+      --plan) plan=1; i=$((i + 1));;
+      --no-install) no_install=1; i=$((i + 1));;
+      -h|--help) usage; return 0;;
+      *) die "unknown stack-aware option: ${args[$i]}";;
+    esac
+  done
+
+  [ -n "$stack" ] || die "--stack is required for stack-aware bootstrap"
+  case "$pm" in npm|pnpm) :;; *) die "unsupported package manager: $pm (supported: npm, pnpm)";; esac
+  case "$database" in none|postgres) :;; *) die "unsupported database: $database";; esac
+  case "$auth" in none|better-auth) :;; *) die "unsupported auth: $auth";; esac
+  case "$deploy" in none|coolify|cloudflare) :;; *) die "unsupported deploy target: $deploy";; esac
+
+  case "$stack" in
+    nextjs)
+      [ -z "$repo_arg" ] || die "nextjs creates a new project; use a name, not --repo"
+      stack_label="Next.js (App Router, TypeScript)"
+      [ "$deploy" = "none" ] || [ "$deploy" = "coolify" ] || die "nextjs supports deploy=none|coolify"
+      if [ "$auth" = "better-auth" ] && [ "$database" != "postgres" ]; then die "better-auth requires --database postgres in the validated nextjs profile"; fi
+      if [ "$pm" = "npm" ]; then
+        generator=(npm exec --yes create-next-app@latest -- "$name" --ts --tailwind --eslint --app --src-dir --empty --yes --disable-git --use-npm)
+      else
+        generator=(pnpm dlx create-next-app@latest "$name" --ts --tailwind --eslint --app --src-dir --empty --yes --disable-git --use-pnpm)
+      fi
+      [ "$no_install" -eq 0 ] || generator+=(--skip-install)
+      generator_label="create-next-app@latest";;
+    astro)
+      [ -z "$repo_arg" ] || die "astro creates a new project; use a name, not --repo"
+      stack_label="Astro (minimal TypeScript template)"
+      [ "$database" = "none" ] || die "astro profile supports database=none only"
+      [ "$auth" = "none" ] || die "astro profile supports auth=none only"
+      [ "$deploy" = "none" ] || [ "$deploy" = "coolify" ] || die "astro supports deploy=none|coolify"
+      if [ "$pm" = "npm" ]; then generator=(npm exec --yes create-astro@latest -- "$name" --template minimal --yes --no-git --no-ai); else generator=(pnpm dlx create-astro@latest "$name" --template minimal --yes --no-git --no-ai); fi
+      if [ "$no_install" -eq 1 ]; then generator+=(--no-install); else generator+=(--install); fi
+      generator_label="create-astro@latest";;
+    cloudflare-worker)
+      [ -z "$repo_arg" ] || die "cloudflare-worker creates a new project; use a name, not --repo"
+      stack_label="Cloudflare Worker (TypeScript hello-world)"
+      [ "$database" = "none" ] || die "cloudflare-worker profile supports database=none only"
+      [ "$auth" = "none" ] || die "cloudflare-worker profile supports auth=none only"
+      [ "$deploy" = "none" ] || [ "$deploy" = "cloudflare" ] || die "cloudflare-worker supports deploy=none|cloudflare"
+      [ "$no_install" -eq 0 ] || die "cloudflare-worker does not support --no-install because create-cloudflare has no verified skip-install option"
+      if [ "$pm" = "npm" ]; then generator=(npm exec --yes create-cloudflare@latest -- "$name" --type hello-world --lang ts --no-deploy --no-git --no-open --no-agents --accept-defaults); else generator=(pnpm dlx create-cloudflare@latest "$name" --type hello-world --lang ts --no-deploy --no-git --no-open --no-agents --accept-defaults); fi
+      generator_label="create-cloudflare@latest";;
+    existing-repository)
+      [ -n "$repo_arg" ] || die "existing-repository requires --repo <path>"
+      [ "$database" = "none" ] && [ "$auth" = "none" ] && [ "$deploy" = "none" ] || die "existing-repository accepts only database=none, auth=none, deploy=none; record project-specific decisions in the repository"
+      target="$(cd "$repo_arg" 2>/dev/null && pwd -P)" || die "project directory not found: $repo_arg"
+      [ -d "$target/.git" ] || git -C "$target" rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "existing-repository requires a Git worktree: $target"
+      name="$(basename "$target")"; stack_label="Existing repository (detected by project-check)"; generator_label="none"
+      source_check="repository-source"
+      if [ -f "$target/pnpm-lock.yaml" ]; then
+        [ "$explicit_pm" -eq 0 ] || [ "$pm" = "pnpm" ] || die "--package-manager $pm conflicts with pnpm-lock.yaml"
+        pm="pnpm"
+      elif [ "$explicit_pm" -eq 0 ]; then pm="npm"; fi;;
+    *) die "unsupported stack: $stack (supported: nextjs, astro, cloudflare-worker, existing-repository)";;
+  esac
+
+  if [ "$stack" != "existing-repository" ]; then
+    [[ "$name" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || die "invalid project name: use lowercase letters and numbers separated by single dashes"
+    parent="$PROJECTS_DIR"; target="$parent/$name"
+    [ ! -e "$target" ] || die "destination already exists; refusing to scaffold: $target"
+  fi
+  checks=("$DOT/bin/project-check" --full "$target")
+
+  if [ "$plan" -eq 1 ]; then
+    printf 'Stack-Aware Project Bootstrap plan\n'
+    printf '  Project: %s\n  Target: %s\n  Stack: %s\n  Package manager: %s\n' "$name" "$target" "$stack_label" "$pm"
+    printf '  Database decision: %s\n  Auth decision: %s\n  Deploy target: %s\n  Install dependencies: %s\n' "$database" "$auth" "$deploy" "$([ "$no_install" -eq 1 ] && echo no || echo yes)"
+    printf '  Generator: %s\n' "$generator_label"
+    if [ "${#generator[@]}" -gt 0 ]; then printf '  Generator command:\n'; print_command "${generator[@]}"; fi
+    printf '  Repository contract: AGENTS.md, PRD.md, TASKS.md, STATUS.md, RELEASE.md, OBSERVABILITY.md, BUILD-LOG.md, docs/architecture.md, .delivery/\n'
+    printf '  Verification command:\n'; print_command "${checks[@]}"
+    printf '  Capability state: selected decisions only; implementation remains unverified until its repository tasks and checks pass.\n'
+    return 0
+  fi
+
+  command -v "$pm" >/dev/null 2>&1 || die "package manager not found in PATH: $pm"
+  command -v git >/dev/null 2>&1 || die "git not found in PATH"
+  [ -x "$DOT/bin/project-check" ] || die "project-check missing or not executable: $DOT/bin/project-check"
+  [ -f "$DOT/bin/delivery-ledger" ] || die "delivery-ledger missing: $DOT/bin/delivery-ledger"
+
+  if [ "$stack" != "existing-repository" ]; then
+    mkdir -p "$parent"
+    say "running verified native generator: $generator_label"
+    if ! (cd "$parent" && "${generator[@]}"); then
+      cleanup_partial "$target" "$parent/$name"
+      die "native generator failed; retry after resolving its reported error"
+    fi
+    [ -d "$target" ] || die "native generator reported success but did not create: $target"
+    if ! git -C "$target" init -q; then
+      cleanup_partial "$target" "$parent/$name"
+      die "Git initialization failed; partial project was removed"
+    fi
+  fi
+
+  description="Native $stack baseline. Database=$database; auth=$auth; deploy=$deploy. Selected capabilities are decisions, not operational claims."
+  if ! (render_contract "$target" "$name" "$stack" "$description" "$stack_label" "$database" "$auth" "$deploy" "native generator: $generator_label"); then
+    [ "$stack" = "existing-repository" ] || cleanup_partial "$target" "$parent/$name"
+    die "repository contract initialization failed"
+  fi
+
+  python3 "$DOT/bin/delivery-ledger" --repo "$target" start --task TASK-BOOTSTRAP --requirement REQ-BOOTSTRAP --risk R1 --worker project-init --model project-init >/dev/null
+  if [ "$source_check" = "native-generator" ]; then source_detail="$generator_label completed; capability selections remain pending tasks"; else source_detail="existing Git worktree accepted; source files were preserved"; fi
+  python3 "$DOT/bin/delivery-ledger" --repo "$target" record --check "$source_check" --status PASS --detail "$source_detail" >/dev/null
+
+  if [ "$no_install" -eq 1 ]; then
+    python3 "$DOT/bin/delivery-ledger" --repo "$target" record --check project-check --status UNVERIFIED --detail "dependency installation disabled by --no-install" >/dev/null
+    python3 "$DOT/bin/delivery-ledger" --repo "$target" finish --result BLOCKED --detail "install dependencies, then run project-check --full" >/dev/null
+    warn "bootstrap created but verification is BLOCKED because installation was disabled"
+    return 2
+  fi
+
+  local verify_rc=0 status result detail
+  "$DOT/bin/project-check" --full "$target" || verify_rc=$?
+  case "$verify_rc" in
+    0) status=PASS; result=PASS; detail="project-native checks passed";;
+    2) status=UNVERIFIED; result=BLOCKED; detail="no adequate runnable project-native checks were discovered";;
+    *) status=FAIL; result=FAIL; detail="project-native verification failed with exit $verify_rc";;
+  esac
+  python3 "$DOT/bin/delivery-ledger" --repo "$target" record --check project-check --status "$status" --detail "$detail" >/dev/null
+  python3 "$DOT/bin/delivery-ledger" --repo "$target" finish --result "$result" --detail "$detail" >/dev/null
+  [ "$verify_rc" -eq 0 ] || { warn "project retained with $status evidence for recovery: $target"; return "$verify_rc"; }
+  say "bootstrap VERIFIED: $target"
+}
+
 COMMAND="${1:-}"
-case "$COMMAND" in
-  --list|-l) cmd_list;;
-  --sync|-s) cmd_sync;;
-  --repo) [ -n "${2:-}" ] || die "Usage: project-init --repo <path> [category] [description]"; repo_dir="$(cd "$2" 2>/dev/null && pwd -P)" || die "project directory not found: $2"; render_contract "$repo_dir" "$(basename "$repo_dir")" "${3:-other}" "${4:-}";;
-  --gen|-g) [ -n "${2:-}" ] || die "Usage: project-init --gen <repo-name>"; repo_dir="$(find_repo "$2")" || die "repository not found under $PROJECTS_DIR or $LEGACY_PROJECTS_DIR"; render_contract "$repo_dir" "$2" "other" "";;
-  --help|-h) usage;;
-  "") usage;;
-  *) repo="$COMMAND"; category="${2:-other}"; desc="${3:-}"; clone_repo "$repo" "$category"; repo_dir="$PROJECTS_DIR/$category/$repo"; render_contract "$repo_dir" "$repo" "$category" "$desc";;
-esac
+if has_stack_option "$@"; then
+  bootstrap "$@"
+else
+  case "$COMMAND" in
+    --list|-l) cmd_list;;
+    --sync|-s) cmd_sync;;
+    --repo) [ -n "${2:-}" ] || die "Usage: project-init --repo <path> [category] [description]"; repo_dir="$(cd "$2" 2>/dev/null && pwd -P)" || die "project directory not found: $2"; render_contract "$repo_dir" "$(basename "$repo_dir")" "${3:-other}" "${4:-}";;
+    --gen|-g) [ -n "${2:-}" ] || die "Usage: project-init --gen <repo-name>"; repo_dir="$(find_repo "$2")" || die "repository not found under $PROJECTS_DIR or $LEGACY_PROJECTS_DIR"; render_contract "$repo_dir" "$2" "other" "";;
+    --help|-h) usage;;
+    "") usage;;
+    *) repo="$COMMAND"; category="${2:-other}"; desc="${3:-}"; clone_repo "$repo" "$category"; repo_dir="$PROJECTS_DIR/$category/$repo"; render_contract "$repo_dir" "$repo" "$category" "$desc";;
+  esac
+fi

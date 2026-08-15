@@ -3,6 +3,18 @@
 Updated: {{DATE}}
 Expected stack: {{STACK}}
 
+## Selected capabilities
+
+| Capability | Decision | Proven operational |
+|---|---|---|
+| Database | `{{DATABASE}}` | No |
+| Authentication | `{{AUTH}}` | No |
+| Deployment target | `{{DEPLOY}}` | No |
+
+Bootstrap source state: {{GENERATED_STATE}}. These selections constrain future
+architecture work but do not create services, credentials, schemas, or remote
+resources.
+
 ## Current system
 
 Architecture is not documented yet. Inspect the repository and describe only components and data flows proven by code or runtime configuration.

@@ -42,6 +42,7 @@ Dotfiles Release Scheme: v[OMP_VERSION]-r[ENGINEERING_REVISION]
 | **OMP Core Engine** | `v17.3.4` | Primary session owner, multi-agent dispatch, and model router |
 | **Bundled Specialists** | 11 Agents (`designer`, `scout`, `task`, `architect`, `slow`, etc.) | Fully synchronized role-routed subagents |
 | **Verification Suite** | `project-check` v1.0 | Native, runtime-neutral test runner (Node, Go, Python, Rust, PHP) |
+| **Project Bootstrap** | `project-init` | Stack-aware native scaffolding, repository contract, and initial delivery evidence |
 | **Risk Classifier** | `diff-risk` v1.0 | Deterministic git diff classifier & path risk detector (R0–R4) |
 | **Policy Linter** | `ai-policy-lint` v1.0 | Semantic linter for policy, routing, skill, & agent frontmatter |
 | **Shared AI Policy** | `config/ai/AGENTS.md` | Single canonical instruction source across OMP, Claude, Codex, Gemini, & Pi |
@@ -255,7 +256,7 @@ dotfiles/
 │   ├── ai-policy-lint           # Semantic linter for AI policy & routing
 │   ├── diff-risk                # Git diff risk classifier (R0–R4)
 │   ├── project-check            # Runtime-neutral build/test runner
-│   └── project-init             # Repository-local development contract initializer
+│   └── project-init             # Stack-aware native project bootstrap and contract initializer
 ├── config/
 │   ├── ai/                      # Canonical cross-runtime policy (AGENTS.md) & shared memory
 │   ├── omp/                     # OMP routing policies, roles, overlays, & config.yml
@@ -314,6 +315,7 @@ ai-doctor --self-test
 | [Linux installation](docs/linux-install-step-by-step.md) | Fresh Linux machine setup and verification |
 | [macOS installation](docs/macos-install-step-by-step.md) | Fresh macOS machine setup and verification |
 | [Linux dev runbook](docs/linux-dev-setup.md) | Full Linux toolchain and recovery details |
+| [Stack-Aware Project Bootstrap](docs/project-init.md) | Supported profiles, capability matrix, safety, and verification semantics |
 | [Maintenance Log](docs/linux-maintenance-log.md) | Operational maintenance history and version release log |
 
 ---

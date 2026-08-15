@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Validate repository-local project contract generation in an isolated directory.
+# Deterministic regression coverage for legacy and stack-aware project-init.
 set -euo pipefail
 
 REPO="${1:-$HOME/dotfiles}"
@@ -12,33 +12,163 @@ TMP="$(mktemp -d "${TMPDIR:-/tmp}/project-init-test.XXXXXX")"
 cleanup() { rm -rf "$TMP"; }
 trap cleanup EXIT
 
-PROJECT="$TMP/sample-project"
-mkdir -p "$PROJECT"
-printf 'user-owned\n' > "$PROJECT/STATUS.md"
+fail(){ echo "FAIL: $*" >&2; exit 1; }
+expect_rc(){
+  local expected="$1"; shift; local actual=0
+  "$@" >/dev/null 2>&1 || actual=$?
+  [ "$actual" -eq "$expected" ] || fail "expected exit $expected, got $actual: $*"
+}
 
-"$SCRIPT" --repo "$PROJECT" tools 'Sandbox & validation | project' >/dev/null
-"$SCRIPT" --repo "$PROJECT" tools 'Sandbox & validation | project' >/dev/null
+FAKE_BIN="$TMP/fake-bin"
+mkdir -p "$FAKE_BIN"
+cat > "$FAKE_BIN/npm" <<'FAKE'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${1:-}" = run ]; then
+  [ "${MOCK_VERIFY_FAIL:-0}" != 1 ] || exit 8
+  exit 0
+fi
+if [ "${1:-}" = exec ]; then
+  name=""; seen=0
+  for arg in "$@"; do
+    if [ "$seen" -eq 1 ]; then name="$arg"; break; fi
+    [ "$arg" != -- ] || seen=1
+  done
+  [ -n "$name" ] || exit 64
+  mkdir -p "$name/src"
+  if [ "${MOCK_GENERATOR_FAIL:-0}" = 1 ]; then printf 'partial\n' > "$name/partial.txt"; exit 42; fi
+  printf '{"scripts":{"lint":"fake","build":"fake"}}\n' > "$name/package.json"
+  printf 'generator-owned\n' > "$name/AGENTS.md"
+  printf 'source\n' > "$name/src/index.ts"
+  exit 0
+fi
+exit 64
+FAKE
+cat > "$FAKE_BIN/pnpm" <<'FAKE'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${1:-}" = run ]; then
+  [ "${MOCK_VERIFY_FAIL:-0}" != 1 ] || exit 8
+  exit 0
+fi
+if [ "${1:-}" = dlx ]; then
+  name="${3:-}"; [ -n "$name" ] || exit 64
+  mkdir -p "$name/src"
+  if [ "${MOCK_GENERATOR_FAIL:-0}" = 1 ]; then printf 'partial\n' > "$name/partial.txt"; exit 42; fi
+  printf '{"scripts":{"lint":"fake","build":"fake"}}\n' > "$name/package.json"
+  printf 'generator-owned\n' > "$name/AGENTS.md"
+  printf 'lockfileVersion: 9\n' > "$name/pnpm-lock.yaml"
+  printf 'source\n' > "$name/src/index.ts"
+  exit 0
+fi
+exit 64
+FAKE
+chmod +x "$FAKE_BIN/npm" "$FAKE_BIN/pnpm"
+export PATH="$FAKE_BIN:$PATH"
 
+# Legacy --repo invocation remains idempotent and preserves owned files.
+LEGACY="$TMP/legacy project"
+mkdir -p "$LEGACY"
+printf 'user-owned\n' > "$LEGACY/STATUS.md"
+"$SCRIPT" --repo "$LEGACY" tools 'Sandbox & validation | project' >/dev/null
+"$SCRIPT" --repo "$LEGACY" tools 'Sandbox & validation | project' >/dev/null
 for path in AGENTS.md PRD.md TASKS.md STATUS.md RELEASE.md OBSERVABILITY.md BUILD-LOG.md docs/architecture.md .delivery/current.json; do
-  [ -f "$PROJECT/$path" ] || { echo "FAIL: missing $path" >&2; exit 1; }
+  [ -f "$LEGACY/$path" ] || fail "legacy invocation missing $path"
+done
+[ "$(cat "$LEGACY/STATUS.md")" = 'user-owned' ] || fail 'legacy invocation overwrote STATUS.md'
+
+# Help and parsing expose the supported option contract.
+HELP="$TMP/help.txt"
+"$SCRIPT" --help > "$HELP"
+for option in --stack --database --auth --deploy --package-manager --plan --no-install; do
+  grep -q -- "$option" "$HELP" || fail "help missing $option"
 done
 
-[ "$(cat "$PROJECT/STATUS.md")" = 'user-owned' ] \
-  || { echo 'FAIL: existing STATUS.md was overwritten' >&2; exit 1; }
+# --plan resolves every profile and performs zero writes, even under a spaced parent path.
+PLAN_ROOT="$TMP/projects with spaces"
+for profile in nextjs astro cloudflare-worker; do
+  output="$(PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" "${profile}-app" --stack "$profile" --plan)"
+  printf '%s' "$output" | grep -q "Stack-Aware Project Bootstrap plan" || fail "plan missing for $profile"
+  [ ! -e "$PLAN_ROOT" ] || fail "--plan wrote to filesystem for $profile"
+done
+EXISTING_PLAN="$TMP/existing plan"
+mkdir -p "$EXISTING_PLAN"
+git -C "$EXISTING_PLAN" init -q
+PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" --repo "$EXISTING_PLAN" --stack existing-repository --plan >/dev/null
+[ ! -e "$EXISTING_PLAN/.delivery" ] || fail 'existing-repository --plan wrote .delivery'
 
-if grep -Rqs '{{[^}]*}}' "$PROJECT"; then
-  echo 'FAIL: unresolved template placeholder' >&2
-  exit 1
-fi
+# Parse and validate the intended composed Next.js decision set.
+plan="$(PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" composed --stack nextjs --database postgres --auth better-auth --deploy coolify --package-manager pnpm --plan)"
+printf '%s' "$plan" | grep -q 'Package manager: pnpm' || fail 'package manager not resolved'
+printf '%s' "$plan" | grep -q 'Database decision: postgres' || fail 'database not resolved'
+printf '%s' "$plan" | grep -q 'Auth decision: better-auth' || fail 'auth not resolved'
+printf '%s' "$plan" | grep -q 'Deploy target: coolify' || fail 'deploy target not resolved'
 
-[ ! -e "$PROJECT/docs/specs" ] && [ ! -e "$PROJECT/docs/decisions" ] \
-  || { echo 'FAIL: speculative empty documentation directories created' >&2; exit 1; }
+# Invalid input and combinations fail before mutation.
+expect_rc 1 env PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" bad --stack unsupported
+expect_rc 1 env PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" bad --stack nextjs --auth better-auth
+expect_rc 1 env PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" bad --stack astro --database postgres
+expect_rc 1 env PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" bad --stack cloudflare-worker --no-install
+expect_rc 1 env PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" bad --stack nextjs --package-manager yarn
+expect_rc 1 env PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" 'bad name' --stack nextjs
+[ ! -e "$PLAN_ROOT" ] || fail 'invalid combination mutated filesystem'
 
-grep -q '^Probe: app|' "$PROJECT/OBSERVABILITY.md" \
-  || { echo 'FAIL: observability contract missing app probe' >&2; exit 1; }
-grep -q '"statusAuthority": "STATUS.md"' "$PROJECT/.delivery/current.json" \
-  || { echo 'FAIL: ledger authority contract missing' >&2; exit 1; }
-python3 "$DL" --repo "$PROJECT" verify >/dev/null \
-  || { echo 'FAIL: initialized delivery ledger did not verify' >&2; exit 1; }
+# A pre-existing destination is never entered or overwritten.
+mkdir -p "$PLAN_ROOT/occupied"
+printf 'keep\n' > "$PLAN_ROOT/occupied/source.txt"
+expect_rc 1 env PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" occupied --stack nextjs
+[ "$(cat "$PLAN_ROOT/occupied/source.txt")" = keep ] || fail 'existing destination was modified'
+
+# Native generator failure cleans only its newly-created partial destination.
+expect_rc 1 env PROJECTS_DIR="$PLAN_ROOT" MOCK_GENERATOR_FAIL=1 "$SCRIPT" generator-fail --stack nextjs
+[ ! -e "$PLAN_ROOT/generator-fail" ] || fail 'partial generator output was not cleaned'
+[ -f "$PLAN_ROOT/occupied/source.txt" ] || fail 'cleanup escaped the failed target'
+
+# A successful generation under a path containing spaces creates docs and verified evidence.
+PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" verified-app --stack nextjs --database postgres --auth better-auth --deploy coolify >/dev/null
+GENERATED="$PLAN_ROOT/verified-app"
+[ -d "$GENERATED/.git" ] || fail 'generated project is not a local Git repository'
+[ "$(cat "$GENERATED/AGENTS.md")" = generator-owned ] || fail 'generator-owned AGENTS.md was overwritten'
+for path in PRD.md TASKS.md STATUS.md RELEASE.md OBSERVABILITY.md BUILD-LOG.md docs/architecture.md .delivery/current.json; do
+  [ -f "$GENERATED/$path" ] || fail "generated project missing $path"
+done
+grep -q '`postgres`' "$GENERATED/PRD.md" || fail 'database placeholder was not resolved'
+grep -q '`better-auth`' "$GENERATED/docs/architecture.md" || fail 'auth placeholder was not resolved'
+grep -q '`coolify`' "$GENERATED/BUILD-LOG.md" || fail 'deploy placeholder was not resolved'
+grep -q 'Bootstrap decision queue' "$GENERATED/TASKS.md" || fail 'capability decision queue missing'
+grep -Rqs '{{[^}]*}}' "$GENERATED" && fail 'unresolved generated document placeholder'
+grep -Rqs '"status":"PASS"' "$GENERATED/.delivery/runs" || fail 'PASS verification evidence missing'
+python3 "$DL" --repo "$GENERATED" verify >/dev/null || fail 'generated delivery ledger failed verification'
+
+# Verification failure retains the project and records FAIL evidence for recovery.
+expect_rc 1 env PROJECTS_DIR="$PLAN_ROOT" MOCK_VERIFY_FAIL=1 "$SCRIPT" verify-fail --stack astro --package-manager pnpm
+[ -f "$PLAN_ROOT/verify-fail/package.json" ] || fail 'verification failure removed recoverable project'
+[ -f "$PLAN_ROOT/verify-fail/pnpm-lock.yaml" ] || fail 'pnpm generator path was not used'
+grep -Rqs '"status":"FAIL"' "$PLAN_ROOT/verify-fail/.delivery/runs" || fail 'FAIL verification evidence missing'
+python3 "$DL" --repo "$PLAN_ROOT/verify-fail" verify >/dev/null || fail 'failed-run ledger integrity is invalid'
+
+# Cloudflare profile invokes its safe no-deploy generator path and verifies normally.
+PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" edge-app --stack cloudflare-worker --deploy cloudflare >/dev/null
+grep -Rqs '"status":"PASS"' "$PLAN_ROOT/edge-app/.delivery/runs" || fail 'cloudflare-worker PASS evidence missing'
+
+# --no-install creates the baseline but truthfully records BLOCKED/UNVERIFIED.
+expect_rc 2 env PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" no-install --stack astro --no-install
+grep -Rqs '"status":"UNVERIFIED"' "$PLAN_ROOT/no-install/.delivery/runs" || fail 'UNVERIFIED evidence missing'
+grep -Rqs '"result":"BLOCKED"' "$PLAN_ROOT/no-install/.delivery/runs" || fail 'BLOCKED result missing'
+
+# Existing-repository mode is explicit, non-destructive, and safely idempotent.
+EXISTING="$TMP/existing repository"
+mkdir -p "$EXISTING"
+git -C "$EXISTING" init -q
+printf '{"scripts":{"lint":"fake"}}\n' > "$EXISTING/package.json"
+printf 'owned\n' > "$EXISTING/PRD.md"
+"$SCRIPT" --repo "$EXISTING" --stack existing-repository >/dev/null
+"$SCRIPT" --repo "$EXISTING" --stack existing-repository >/dev/null
+[ "$(cat "$EXISTING/PRD.md")" = owned ] || fail 'existing-repository overwrote PRD.md'
+python3 "$DL" --repo "$EXISTING" verify >/dev/null || fail 'existing-repository ledger failed verification'
+
+[ ! -e "$GENERATED/docs/specs" ] && [ ! -e "$GENERATED/docs/decisions" ] || fail 'speculative documentation directories created'
+grep -q '^Probe: app|' "$GENERATED/OBSERVABILITY.md" || fail 'observability app probe missing'
+grep -q '"statusAuthority": "STATUS.md"' "$GENERATED/.delivery/current.json" || fail 'ledger authority contract missing'
 
 echo 'project-init-test: OK'

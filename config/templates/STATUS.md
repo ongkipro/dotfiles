@@ -22,6 +22,10 @@ Use `BLOCKED` only as an interruption state. Record the blocker and exact state 
 
 Repository-local development contract initialized. No implementation claim is recorded until verified against the repository.
 
+Bootstrap evidence: {{GENERATED_STATE}}. Selected stack: `{{STACK}}`.
+Database `{{DATABASE}}`, authentication `{{AUTH}}`, and deployment target
+`{{DEPLOY}}` are decisions only until their future tasks pass executable checks.
+
 ## Active work
 
 No active implementation task is recorded.

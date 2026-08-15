@@ -25,6 +25,20 @@ No task is in progress.
 
 No implementation task has been accepted.
 
+### Bootstrap decision queue
+
+| Capability | Selected decision | Implementation state |
+|---|---|---|
+| Database | `{{DATABASE}}` | Decision only; not proven operational |
+| Authentication | `{{AUTH}}` | Decision only; not proven operational |
+| Deployment | `{{DEPLOY}}` | Decision only; not proven operational |
+
+Before implementing any selected database, authentication, or deployment
+capability, create a requirement-linked task that defines its schema or trust
+boundary, secret provisioning outside the repository, rollback path, and an
+executable verification command. A selection in the bootstrap is not proof that
+the capability is operational.
+
 ## Done
 
 No completed task is recorded.
