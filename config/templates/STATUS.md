@@ -5,8 +5,6 @@ Status: {{STATUS}}
 State: PLANNED
 Review-Risk: R0
 Independent-Review: PENDING
-Smoke-URL: TBD
-Smoke-Contains: TBD
 
 ## Delivery state machine
 
@@ -18,7 +16,7 @@ Use `BLOCKED` only as an interruption state. Record the blocker and exact state 
 
 `RELEASE.md` owns release-specific truth: release ID, base, declared risk, rollback reference/command, backup proof, and readiness status. `Review-Risk` is the highest semantic risk found during review. `production-gate` computes effective release risk as max(`RELEASE.md` Declared-Risk, deterministic `diff-risk`, `Review-Risk`). R3/R4 require `Independent-Review: PASS`.
 
-After deployment, transition to `SMOKE_TESTING` and run `release-check`. Only a passing smoke check may transition the release to `VERIFIED`.
+`OBSERVABILITY.md` owns post-deploy verification probes. After deployment, transition to `SMOKE_TESTING` and run `release-check`. Every configured observability probe must pass before transition to `VERIFIED`.
 
 ## Current state
 
