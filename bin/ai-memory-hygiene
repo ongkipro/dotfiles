@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ai-memory-hygiene — deterministic advisory checks for tracked AI memory."""
+"""ai-memory-hygiene - deterministic quality checks for tracked AI memory."""
 from __future__ import annotations
 
 import argparse
@@ -13,6 +13,13 @@ import sys
 OK, FAILED = 0, 1
 DATE_RE = re.compile(r"\b(20\d{2})-(\d{2})-(\d{2})\b")
 LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+\.md)(?:#[^)]+)?\)")
+TOKEN_RE = re.compile(r"[a-z0-9][a-z0-9_.+/-]*")
+NEGATION_RE = re.compile(r"\b(?:do not|don't|must not|never|not|disabled|removed|forbid(?:den)?)\b", re.I)
+STOP = {
+    "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "in", "is", "it",
+    "of", "on", "or", "that", "the", "this", "to", "with", "when", "where", "which", "will",
+    "do", "dont", "must", "never", "not",
+}
 
 
 def root_dir() -> Path:
@@ -27,10 +34,12 @@ def load_policy(root: Path) -> dict:
     return data
 
 
-def issue(kind: str, severity: str, path: Path, detail: str, line: int | None = None) -> dict:
+def issue(kind: str, severity: str, path: Path, detail: str, line: int | None = None, related: Path | None = None) -> dict:
     out = {"kind": kind, "severity": severity, "path": str(path), "detail": detail}
     if line is not None:
         out["line"] = line
+    if related is not None:
+        out["relatedPath"] = str(related)
     return out
 
 
@@ -43,15 +52,55 @@ def tracked_memory(root: Path) -> list[Path]:
     return files
 
 
+def visible_units(path: Path, min_tokens: int) -> list[tuple[int, str, set[str], bool]]:
+    units = []
+    in_fence = False
+    in_frontmatter = False
+    for no, raw in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+        line = raw.strip()
+        if no == 1 and line == "---":
+            in_frontmatter = True
+            continue
+        if in_frontmatter:
+            if line == "---":
+                in_frontmatter = False
+            continue
+        if line.startswith("```") or line.startswith("~~~"):
+            in_fence = not in_fence
+            continue
+        if in_fence or not line or line.startswith("#"):
+            continue
+        cleaned = re.sub(r"^[-*+>]\s*", "", line)
+        cleaned = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", cleaned)
+        cleaned = re.sub(r"`([^`]*)`", r"\1", cleaned)
+        token_source = cleaned.lower().replace("-", " ")
+        tokens = {t for t in TOKEN_RE.findall(token_source) if t not in STOP and len(t) > 1}
+        if len(tokens) >= min_tokens:
+            units.append((no, cleaned, tokens, bool(NEGATION_RE.search(cleaned))))
+    return units
+
+
+def jaccard(a: set[str], b: set[str]) -> float:
+    if not a or not b:
+        return 0.0
+    return len(a & b) / len(a | b)
+
+
 def check_size(root: Path, path: Path, policy: dict) -> list[dict]:
-    rel = path.relative_to(root).as_posix()
+    try:
+        rel = path.relative_to(root).as_posix()
+    except ValueError:
+        return []
     limit = policy["sharedMaxBytes"] if rel.startswith("config/ai/memory/") else policy["projectMaxBytes"]
     size = path.stat().st_size
     return [issue("OVERSIZE", "WARN", path, f"{size} bytes exceeds advisory limit {limit}")] if size > limit else []
 
 
 def check_scope(root: Path, path: Path, policy: dict) -> list[dict]:
-    rel = path.relative_to(root).as_posix()
+    try:
+        rel = path.relative_to(root).as_posix()
+    except ValueError:
+        return []
     if not rel.startswith("config/ai/memory/"):
         return []
     name = path.name.lower()
@@ -62,17 +111,32 @@ def check_scope(root: Path, path: Path, policy: dict) -> list[dict]:
 
 
 def check_volatile(root: Path, path: Path, policy: dict) -> list[dict]:
-    rel = path.relative_to(root).as_posix()
+    try:
+        rel = path.relative_to(root).as_posix()
+    except ValueError:
+        return []
     if not rel.startswith("config/ai/project-memory/"):
         return []
-    text = path.read_text(encoding="utf-8", errors="replace")
     regexes = [re.compile(p, re.I) for p in policy.get("volatilePatterns", [])]
     out = []
-    for no, line in enumerate(text.splitlines(), 1):
-        for rx in regexes:
-            if rx.search(line):
-                out.append(issue("VOLATILE_PROJECT_STATE", "WARN", path, "operational/current state belongs in repository STATUS/TASKS/.delivery, not durable project memory", no))
-                break
+    for no, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+        if any(rx.search(line) for rx in regexes):
+            out.append(issue("VOLATILE_PROJECT_STATE", "WARN", path, "operational/current state belongs in repository STATUS/TASKS/.delivery, not durable project memory", no))
+    return out
+
+
+def check_authority(root: Path, path: Path, policy: dict) -> list[dict]:
+    try:
+        rel = path.relative_to(root).as_posix()
+    except ValueError:
+        return []
+    if not rel.startswith("config/ai/project-memory/"):
+        return []
+    regexes = [re.compile(p, re.I) for p in policy.get("authorityClaimPatterns", [])]
+    out = []
+    for no, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+        if any(rx.search(line) for rx in regexes):
+            out.append(issue("AUTHORITY_CLAIM", "WARN", path, "project memory must remain advisory; repository contracts and execution evidence own current truth", no))
     return out
 
 
@@ -100,8 +164,7 @@ def check_duplicate_index(root: Path, policy: dict) -> list[dict]:
         path = root / rel
         if not path.is_file():
             continue
-        targets = []
-        target_lines = {}
+        targets, target_lines = [], {}
         for no, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
             for _label, target in LINK_RE.findall(line):
                 key = Path(target).name.lower()
@@ -113,20 +176,49 @@ def check_duplicate_index(root: Path, policy: dict) -> list[dict]:
     return out
 
 
-def scan(root: Path, policy: dict, today: date) -> list[dict]:
+def check_semantic_pairs(files: list[Path], policy: dict, candidate: Path | None) -> list[dict]:
+    min_tokens = int(policy.get("semanticMinTokens", 8))
+    duplicate_threshold = float(policy.get("semanticDuplicateThreshold", 0.82))
+    conflict_threshold = float(policy.get("conflictThreshold", 0.78))
+    max_pairs = int(policy.get("maxSemanticFindings", 50))
+    units = {p: visible_units(p, min_tokens) for p in files}
     out = []
-    for path in tracked_memory(root):
+    paths = sorted(files, key=str)
+    for i, left in enumerate(paths):
+        for right in paths[i + 1:]:
+            if candidate is not None and candidate not in {left, right}:
+                continue
+            for lno, _ltext, ltokens, lneg in units[left]:
+                for rno, rtext, rtokens, rneg in units[right]:
+                    sim = jaccard(ltokens, rtokens)
+                    if sim >= duplicate_threshold and lneg == rneg:
+                        out.append(issue("SEMANTIC_DUPLICATE", "WARN", left, f"similarity {sim:.2f} with {right}:{rno}: {rtext[:120]}", lno, right))
+                    elif sim >= conflict_threshold and lneg != rneg:
+                        out.append(issue("MEMORY_CONFLICT", "WARN", left, f"opposite polarity with similarity {sim:.2f} at {right}:{rno}: {rtext[:120]}", lno, right))
+                    if len(out) >= max_pairs:
+                        return out
+    return out
+
+
+def scan(root: Path, policy: dict, today: date, candidate: Path | None = None) -> list[dict]:
+    tracked = tracked_memory(root)
+    out = []
+    for path in tracked:
         out.extend(check_size(root, path, policy))
         out.extend(check_scope(root, path, policy))
         out.extend(check_volatile(root, path, policy))
+        out.extend(check_authority(root, path, policy))
         out.extend(check_stale_dates(path, policy, today))
     out.extend(check_duplicate_index(root, policy))
-    return sorted(out, key=lambda x: (x["severity"], x["kind"], x["path"], x.get("line", 0)))
+    comparison = tracked + ([candidate] if candidate is not None else [])
+    out.extend(check_semantic_pairs(comparison, policy, candidate))
+    return sorted(out, key=lambda x: (x["severity"], x["kind"], x["path"], x.get("line", 0), x.get("relatedPath", "")))
 
 
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--root")
+    p.add_argument("--candidate", help="untracked lesson candidate to compare against tracked memory")
     p.add_argument("--strict", action="store_true", help="exit 1 when warnings exist")
     p.add_argument("--json", action="store_true")
     p.add_argument("--today", help="YYYY-MM-DD, for deterministic tests")
@@ -135,8 +227,11 @@ def main() -> int:
         root = Path(a.root).resolve() if a.root else root_dir()
         policy = load_policy(root)
         today = datetime.strptime(a.today, "%Y-%m-%d").date() if a.today else datetime.now(timezone.utc).date()
-        issues = scan(root, policy, today)
-        result = {"status": "WARN" if issues else "PASS", "issues": issues, "counts": dict(Counter(x["kind"] for x in issues))}
+        candidate = Path(a.candidate).expanduser().resolve() if a.candidate else None
+        if candidate is not None and (not candidate.is_file() or candidate.suffix.lower() != ".md"):
+            raise ValueError("candidate must be an existing Markdown file")
+        issues = scan(root, policy, today, candidate)
+        result = {"status": "WARN" if issues else "PASS", "candidate": str(candidate) if candidate else None, "issues": issues, "counts": dict(Counter(x["kind"] for x in issues))}
         if a.json:
             print(json.dumps(result, indent=2))
         else:

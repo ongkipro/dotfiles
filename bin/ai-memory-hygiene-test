@@ -13,7 +13,12 @@ cat > "$TMP/config/ai/memory-hygiene.json" <<'EOF'
   "sharedMaxBytes":100,
   "projectMaxBytes":1000,
   "staleDays":30,
+  "semanticMinTokens":6,
+  "semanticDuplicateThreshold":0.80,
+  "conflictThreshold":0.75,
+  "maxSemanticFindings":20,
   "volatilePatterns":["\\bCI (?:is )?green\\b","\\bnext:\\s","\\bchecked out on\\b"],
+  "authorityClaimPatterns":["\\bthis memory is the source of truth\\b"],
   "sharedForbiddenPrefixes":["device-"],
   "indexFiles":["config/ai/project-memory/MEMORY.md"]
 }
@@ -29,6 +34,13 @@ PY
 cat > "$TMP/config/ai/project-memory/foo.md" <<'EOF'
 CI is green
 next: deploy
+This memory is the source of truth for project execution and current implementation status.
+Use repository disk as authoritative project truth before making implementation decisions.
+Never install Gemini CLI because Antigravity owns the Gemini-compatible runtime on this setup.
+EOF
+cat > "$TMP/config/ai/project-memory/bar.md" <<'EOF'
+Always use repository disk as authoritative project truth before making implementation decisions.
+Install Gemini CLI because Antigravity owns the Gemini compatible runtime on this setup.
 EOF
 cat > "$TMP/config/ai/project-memory/MEMORY.md" <<'EOF'
 - [Foo](foo.md)
@@ -39,18 +51,25 @@ python3 - "$TMP/out.json" <<'PY'
 import json,sys
 p=json.load(open(sys.argv[1]))
 kinds={x['kind'] for x in p['issues']}
-assert 'SCOPE_VIOLATION' in kinds
-assert 'OVERSIZE' in kinds
-assert 'VOLATILE_PROJECT_STATE' in kinds
-assert 'STALE_DATED_CLAIM' in kinds
-assert 'DUPLICATE_INDEX_ENTRY' in kinds
+for expected in ['SCOPE_VIOLATION','OVERSIZE','VOLATILE_PROJECT_STATE','STALE_DATED_CLAIM','DUPLICATE_INDEX_ENTRY','AUTHORITY_CLAIM','SEMANTIC_DUPLICATE','MEMORY_CONFLICT']:
+    assert expected in kinds, (expected,kinds)
 assert p['status']=='WARN'
+PY
+cat > "$TMP/candidate.md" <<'EOF'
+Use repository disk as authoritative project truth before making implementation decisions in every coding session.
+EOF
+python3 "$TMP/bin/ai-memory-hygiene" --root "$TMP" --candidate "$TMP/candidate.md" --today 2026-08-15 --json > "$TMP/candidate.json"
+python3 - "$TMP/candidate.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1]))
+assert p['candidate']
+assert any(x['kind']=='SEMANTIC_DUPLICATE' and (x['path'].endswith('candidate.md') or x.get('relatedPath','').endswith('candidate.md')) for x in p['issues'])
 PY
 if python3 "$TMP/bin/ai-memory-hygiene" --root "$TMP" --today 2026-08-15 --strict >/dev/null 2>&1; then
   echo 'FAIL: strict mode should fail on warnings' >&2
   exit 1
 fi
-rm -f "$TMP/config/ai/memory/device-mac.md" "$TMP/config/ai/memory/large.md" "$TMP/config/ai/project-memory/foo.md"
+rm -f "$TMP/config/ai/memory/device-mac.md" "$TMP/config/ai/memory/large.md" "$TMP/config/ai/project-memory/foo.md" "$TMP/config/ai/project-memory/bar.md"
 cat > "$TMP/config/ai/project-memory/MEMORY.md" <<'EOF'
 # Memory Index
 EOF

@@ -3,6 +3,10 @@
   "sharedMaxBytes": 12000,
   "projectMaxBytes": 20000,
   "staleDays": 90,
+  "semanticMinTokens": 8,
+  "semanticDuplicateThreshold": 0.82,
+  "conflictThreshold": 0.78,
+  "maxSemanticFindings": 50,
   "volatilePatterns": [
     "\\bCI (?:is )?green\\b",
     "\\bcurrent status\\b",
@@ -12,6 +16,12 @@
     "\\bchecked out on\\b",
     "\\bbranch [`']?(?:main|dev|master)[`']?\\b",
     "\\bcurrently (?:on|at|blocked|working)\\b"
+  ],
+  "authorityClaimPatterns": [
+    "\\b(?:this )?memory (?:is|owns|contains) (?:the )?(?:source of truth|authoritative|canonical status)\\b",
+    "\\bsource of truth (?:is|lives in) (?:this )?memory\\b",
+    "\\bresume from (?:this )?memory\\b",
+    "\\bcurrent implementation status (?:is|lives) (?:here|in this memory)\\b"
   ],
   "sharedForbiddenPrefixes": ["device-"],
   "indexFiles": ["config/ai/project-memory/MEMORY.md"]
