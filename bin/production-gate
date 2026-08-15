@@ -4,6 +4,8 @@
 This command never deploys. It proves whether a repository may transition from
 INTEGRATING to PRODUCTION_READY / AWAITING_DEPLOY_APPROVAL.
 
+Effective risk = max(declared task risk, deterministic diff risk, review risk).
+
 Exit codes:
   0 PRODUCTION_READY
   1 BLOCKED
@@ -14,6 +16,7 @@ import argparse, json, re, shutil, subprocess, sys
 from pathlib import Path
 
 READY, BLOCKED, UNVERIFIED = 0, 1, 2
+RISK_ORDER = {"R0": 0, "R1": 1, "R2": 2, "R3": 3, "R4": 4}
 
 
 def run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -22,8 +25,7 @@ def run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
 
 def locate(name: str) -> str | None:
     found = shutil.which(name)
-    if found:
-        return found
+    if found: return found
     local = Path(__file__).resolve().parent / name
     return str(local) if local.is_file() else None
 
@@ -31,118 +33,111 @@ def locate(name: str) -> str | None:
 def command_gate(cmd: list[str], repo: Path) -> tuple[str, str]:
     res = run(cmd, repo)
     out = (res.stdout + "\n" + res.stderr).strip()
-    if res.returncode == 0:
-        return "PASS", out
-    if res.returncode == 2:
-        return "UNVERIFIED", out
+    if res.returncode == 0: return "PASS", out
+    if res.returncode == 2: return "UNVERIFIED", out
     return "FAIL", out
 
 
 def tasks_gate(repo: Path) -> tuple[str, str]:
     path = repo / "TASKS.md"
-    if not path.is_file():
-        return "UNVERIFIED", "TASKS.md is missing"
+    if not path.is_file(): return "UNVERIFIED", "TASKS.md is missing"
     text = path.read_text(encoding="utf-8", errors="replace")
     for heading in ("In progress", "Pending"):
         section = re.search(rf"(?ims)^##\s+{re.escape(heading)}\s*$([\s\S]*?)(?=^##\s+|\Z)", text)
-        if not section:
-            return "UNVERIFIED", f"TASKS.md has no '{heading}' section"
-        body = section.group(1)
-        unfinished = re.search(r"(?im)^\s*(?:###\s+TASK-|[-*]\s*\[\s\]|[-*]\s+TASK-)", body)
-        if unfinished:
+        if not section: return "UNVERIFIED", f"TASKS.md has no '{heading}' section"
+        if re.search(r"(?im)^\s*(?:###\s+TASK-|[-*]\s*\[\s\]|[-*]\s+TASK-)", section.group(1)):
             return "FAIL", f"{heading} still contains unfinished work"
     return "PASS", "No unfinished task entries found"
 
 
 def state_gate(repo: Path) -> tuple[str, str]:
     path = repo / "STATUS.md"
-    if not path.is_file():
-        return "UNVERIFIED", "STATUS.md is missing"
+    if not path.is_file(): return "UNVERIFIED", "STATUS.md is missing"
     text = path.read_text(encoding="utf-8", errors="replace")
     match = re.search(r"(?im)^State:\s*([A-Z_]+)\s*$", text)
-    if not match:
-        return "UNVERIFIED", "STATUS.md has no machine-readable State field"
+    if not match: return "UNVERIFIED", "STATUS.md has no machine-readable State field"
     state = match.group(1)
     allowed = {"INTEGRATING", "PRODUCTION_READY", "AWAITING_DEPLOY_APPROVAL", "DEPLOYED", "SMOKE_TESTING", "VERIFIED"}
-    if state not in allowed:
-        return "FAIL", f"State={state}; finish implementation/review before production gating"
+    if state not in allowed: return "FAIL", f"State={state}; finish implementation/review before production gating"
     return "PASS", f"State={state}"
 
 
-def review_gate(repo: Path, risk: str) -> tuple[str, str]:
+def declared_risk(repo: Path) -> tuple[str, str | None]:
+    path = repo / "TASKS.md"
+    if not path.is_file(): return "UNVERIFIED", None
+    values = re.findall(r"(?im)^\s*-?\s*\*\*Risk Level:\*\*\s*(R[0-4])\b", path.read_text(encoding="utf-8", errors="replace"))
+    if not values: return "UNVERIFIED", None
+    return "PASS", max(values, key=lambda r: RISK_ORDER[r])
+
+
+def review_risk(repo: Path) -> tuple[str, str | None]:
     path = repo / "STATUS.md"
-    if risk not in {"R3", "R4"}:
-        return "PASS", f"Risk={risk}; independent strong review not mandatory"
-    if not path.is_file():
-        return "UNVERIFIED", "STATUS.md missing; cannot prove independent review"
-    text = path.read_text(encoding="utf-8", errors="replace")
-    review = re.search(r"(?im)^Independent-Review:\s*(PASS|FAIL|PENDING)\s*$", text)
-    if not review:
-        return "UNVERIFIED", f"Risk={risk}; STATUS.md must record Independent-Review: PASS"
-    if review.group(1) != "PASS":
-        return "FAIL", f"Risk={risk}; Independent-Review={review.group(1)}"
-    return "PASS", f"Risk={risk}; Independent-Review=PASS"
+    if not path.is_file(): return "UNVERIFIED", None
+    match = re.search(r"(?im)^Review-Risk:\s*(R[0-4])\s*$", path.read_text(encoding="utf-8", errors="replace"))
+    if not match: return "UNVERIFIED", None
+    return "PASS", match.group(1)
 
 
-def risk_gate(repo: Path) -> tuple[str, str, str | None]:
+def diff_risk(repo: Path) -> tuple[str, str | None, str]:
     binary = locate("diff-risk")
-    if not binary:
-        return "UNVERIFIED", "diff-risk unavailable", None
+    if not binary: return "UNVERIFIED", None, "diff-risk unavailable"
     res = run([binary, "--json", str(repo)], repo)
-    if res.returncode != 0:
-        return "FAIL", (res.stdout + res.stderr).strip(), None
-    try:
-        data = json.loads(res.stdout)
-    except Exception:
-        return "UNVERIFIED", "diff-risk did not return valid JSON", None
+    if res.returncode != 0: return "FAIL", None, (res.stdout + res.stderr).strip()
+    try: data = json.loads(res.stdout)
+    except Exception: return "UNVERIFIED", None, "diff-risk did not return valid JSON"
     risk = data.get("risk")
-    if risk not in {"R0", "R1", "R2", "R3", "R4"}:
-        return "UNVERIFIED", f"Unknown diff-risk result: {risk}", None
-    return "PASS", f"diff-risk={risk}", risk
+    if risk not in RISK_ORDER: return "UNVERIFIED", None, f"Unknown diff-risk result: {risk}"
+    return "PASS", risk, f"diff-risk={risk}"
+
+
+def independent_review_gate(repo: Path, effective_risk: str) -> tuple[str, str]:
+    if effective_risk not in {"R3", "R4"}: return "PASS", f"Effective-Risk={effective_risk}; independent strong review not mandatory"
+    path = repo / "STATUS.md"
+    if not path.is_file(): return "UNVERIFIED", "STATUS.md missing; cannot prove independent review"
+    match = re.search(r"(?im)^Independent-Review:\s*(PASS|FAIL|PENDING)\s*$", path.read_text(encoding="utf-8", errors="replace"))
+    if not match: return "UNVERIFIED", f"Effective-Risk={effective_risk}; record Independent-Review: PASS"
+    if match.group(1) != "PASS": return "FAIL", f"Effective-Risk={effective_risk}; Independent-Review={match.group(1)}"
+    return "PASS", f"Effective-Risk={effective_risk}; Independent-Review=PASS"
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("directory", nargs="?", default=".")
-    parser.add_argument("--json", action="store_true")
-    args = parser.parse_args()
+    parser = argparse.ArgumentParser(); parser.add_argument("directory", nargs="?", default="."); parser.add_argument("--json", action="store_true"); args = parser.parse_args()
     repo = Path(args.directory).resolve()
-    if not repo.is_dir():
-        print(f"ERROR: Directory not found: {repo}", file=sys.stderr)
-        return BLOCKED
+    if not repo.is_dir(): print(f"ERROR: Directory not found: {repo}", file=sys.stderr); return BLOCKED
 
     results: dict[str, dict[str, str]] = {}
-    project_check, security_check = locate("project-check"), locate("security-check")
+    pc, sc = locate("project-check"), locate("security-check")
+    s, d = command_gate([pc, "--full", str(repo)], repo) if pc else ("UNVERIFIED", "project-check unavailable"); results["project_check"] = {"status": s, "detail": d}
+    s, d = command_gate([sc, str(repo)], repo) if sc else ("UNVERIFIED", "security-check unavailable"); results["security"] = {"status": s, "detail": d}
+    s, d = tasks_gate(repo); results["tasks"] = {"status": s, "detail": d}
+    s, d = state_gate(repo); results["state"] = {"status": s, "detail": d}
 
-    status, detail = command_gate([project_check, "--full", str(repo)], repo) if project_check else ("UNVERIFIED", "project-check unavailable")
-    results["project_check"] = {"status": status, "detail": detail}
-    status, detail = command_gate([security_check, str(repo)], repo) if security_check else ("UNVERIFIED", "security-check unavailable")
-    results["security"] = {"status": status, "detail": detail}
+    declared_status, declared = declared_risk(repo)
+    results["declared_risk"] = {"status": declared_status, "detail": f"declared={declared}" if declared else "No declared task risk found"}
+    review_status, reviewed = review_risk(repo)
+    results["review_risk"] = {"status": review_status, "detail": f"review={reviewed}" if reviewed else "STATUS.md has no Review-Risk"}
+    diff_status, diffed, detail = diff_risk(repo)
+    results["diff_risk"] = {"status": diff_status, "detail": detail}
 
-    status, detail = tasks_gate(repo); results["tasks"] = {"status": status, "detail": detail}
-    status, detail = state_gate(repo); results["state"] = {"status": status, "detail": detail}
-    status, detail, risk = risk_gate(repo); results["risk"] = {"status": status, "detail": detail}
-    if risk:
-        status, detail = review_gate(repo, risk)
-        results["independent_review"] = {"status": status, "detail": detail}
+    risks = [r for r in (declared, reviewed, diffed) if r in RISK_ORDER]
+    effective = max(risks, key=lambda r: RISK_ORDER[r]) if risks else None
+    if effective:
+        results["effective_risk"] = {"status": "PASS", "detail": f"Effective-Risk={effective}"}
+        s, d = independent_review_gate(repo, effective); results["independent_review"] = {"status": s, "detail": d}
+    else:
+        results["effective_risk"] = {"status": "UNVERIFIED", "detail": "No reliable risk inputs available"}
 
     statuses = [item["status"] for item in results.values()]
     final = "BLOCKED" if "FAIL" in statuses else "UNVERIFIED" if "UNVERIFIED" in statuses else "PRODUCTION_READY"
-
-    if args.json:
-        print(json.dumps({"result": final, "gates": results}, indent=2))
+    payload = {"result": final, "effectiveRisk": effective, "gates": results}
+    if args.json: print(json.dumps(payload, indent=2))
     else:
-        print("production-gate")
-        print("-" * 60)
+        print("production-gate\n" + "-" * 60)
         for name, item in results.items():
             print(f"{name:20} {item['status']}")
-            if item["detail"]:
-                print(f"  {item['detail'].splitlines()[-1]}")
-        print("-" * 60)
-        print(f"PRODUCTION_GATE={final}")
-
+            if item["detail"]: print(f"  {item['detail'].splitlines()[-1]}")
+        print("-" * 60 + f"\nPRODUCTION_GATE={final}")
     return READY if final == "PRODUCTION_READY" else UNVERIFIED if final == "UNVERIFIED" else BLOCKED
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+if __name__ == "__main__": raise SystemExit(main())

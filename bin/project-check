@@ -12,173 +12,104 @@ Modes:
   --ui           require a runnable UI/E2E check in addition to full checks
   --security     require security-check in addition to full checks
 """
-
 from __future__ import annotations
-
-import argparse
-import json
-import os
+import argparse, json, os, shutil, subprocess, sys
 from pathlib import Path
-import shutil
-import subprocess
-import sys
 
-VERIFIED = 0
-FAILED = 1
-UNVERIFIED = 2
+VERIFIED, FAILED, UNVERIFIED = 0, 1, 2
 
 
-def say(msg: str) -> None:
-    print(f"-> {msg}")
-
-
-def ok(msg: str) -> None:
-    print(f"  OK {msg}")
-
-
-def fail(msg: str) -> None:
-    print(f"  FAIL {msg}")
+def say(msg: str) -> None: print(f"-> {msg}")
+def ok(msg: str) -> None: print(f"  OK {msg}")
+def fail(msg: str) -> None: print(f"  FAIL {msg}")
 
 
 def run_cmd(cmd: list[str], cwd: Path) -> bool:
-    res = subprocess.run(
-        cmd,
-        cwd=cwd,
-        env=os.environ.copy(),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        check=False,
-    )
+    res = subprocess.run(cmd, cwd=cwd, env=os.environ.copy(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
     if res.returncode == 0:
-        ok(" ".join(cmd))
-        return True
+        ok(" ".join(cmd)); return True
     fail(f"{' '.join(cmd)} (exit {res.returncode})")
-    if res.stdout:
-        print("--- STDOUT ---")
-        print(res.stdout[-2000:])
-    if res.stderr:
-        print("--- STDERR ---")
-        print(res.stderr[-2000:])
+    if res.stdout: print("--- STDOUT ---\n" + res.stdout[-2000:])
+    if res.stderr: print("--- STDERR ---\n" + res.stderr[-2000:])
     return False
 
 
 def node_pm(repo: Path) -> str | None:
-    candidates = []
-    if (repo / "pnpm-lock.yaml").is_file():
-        candidates.append("pnpm")
-    if (repo / "bun.lock").is_file() or (repo / "bun.lockb").is_file():
-        candidates.append("bun")
-    if (repo / "yarn.lock").is_file():
-        candidates.append("yarn")
+    candidates: list[str] = []
+    if (repo / "pnpm-lock.yaml").is_file(): candidates.append("pnpm")
+    if (repo / "bun.lock").is_file() or (repo / "bun.lockb").is_file(): candidates.append("bun")
+    if (repo / "yarn.lock").is_file(): candidates.append("yarn")
     candidates.append("npm")
     return next((pm for pm in candidates if shutil.which(pm)), None)
 
 
 def check_node(repo: Path, mode: str) -> tuple[int, int, bool]:
     pkg = repo / "package.json"
-    if not pkg.is_file():
-        return 0, 0, False
+    if not pkg.is_file(): return 0, 0, False
     try:
         data = json.loads(pkg.read_text(encoding="utf-8"))
     except Exception as exc:
-        fail(f"Invalid package.json: {exc}")
-        return 1, 1, True
-
+        fail(f"Invalid package.json: {exc}"); return 1, 0, True
     pm = node_pm(repo)
     if not pm:
-        fail("Node project detected but no supported package manager is available")
-        return 1, 1, True
-
+        fail("Node project detected but no supported package manager is available"); return 1, 0, True
     scripts = data.get("scripts") or {}
     say(f"Node project detected (package manager: {pm})")
-
-    standard = ["typecheck", "tsc", "lint", "test"]
-    if mode != "changed":
-        standard.append("build")
-    ui_candidates = ["test:e2e", "e2e", "test:ui", "playwright"]
-
-    selected: list[str] = []
-    for name in standard:
-        if name in scripts and name not in selected:
-            selected.append(name)
+    names = [name for name in ["typecheck", "tsc", "lint", "test"] if name in scripts]
+    if mode != "changed" and "build" in scripts: names.append("build")
+    missing_ui = False
     if mode == "ui":
-        ui_script = next((name for name in ui_candidates if name in scripts), None)
-        if ui_script:
-            selected.append(ui_script)
+        ui = next((name for name in ["test:e2e", "e2e", "test:ui", "playwright"] if name in scripts), None)
+        if ui: names.append(ui)
         else:
             say("UI mode requested but no E2E/UI script was discovered")
-            return len(selected), 0, True
-
-    passed = 0
-    for script in selected:
-        if run_cmd([pm, "run", script], repo):
-            passed += 1
-
-    return len(selected), passed, True
+            missing_ui = True
+    passed = sum(1 for name in names if run_cmd([pm, "run", name], repo))
+    return len(names) + (1 if missing_ui else 0), passed, True
 
 
 def check_python(repo: Path, mode: str) -> tuple[int, int, bool]:
-    is_py = any([
-        (repo / "pyproject.toml").is_file(),
-        (repo / "setup.py").is_file(),
-        (repo / "requirements.txt").is_file(),
-        any(repo.glob("*.py")),
-    ])
-    if not is_py:
-        return 0, 0, False
+    is_py = (repo / "pyproject.toml").is_file() or (repo / "setup.py").is_file() or (repo / "requirements.txt").is_file() or any(repo.glob("*.py"))
+    if not is_py: return 0, 0, False
     say("Python project detected")
     commands: list[list[str]] = []
-    if shutil.which("ruff"):
-        commands.append(["ruff", "check", "."])
-    if shutil.which("pytest"):
-        commands.append(["pytest"])
+    if shutil.which("ruff"): commands.append(["ruff", "check", "."])
+    if shutil.which("pytest"): commands.append(["pytest"])
     passed = sum(1 for cmd in commands if run_cmd(cmd, repo))
     return len(commands), passed, True
 
 
 def check_go(repo: Path, mode: str) -> tuple[int, int, bool]:
-    if not (repo / "go.mod").is_file():
-        return 0, 0, False
+    if not (repo / "go.mod").is_file(): return 0, 0, False
     say("Go project detected")
     if not shutil.which("go"):
-        fail("go.mod present but go binary not found")
-        return 1, 0, True
+        fail("go.mod present but go binary not found"); return 1, 0, True
     commands = [["go", "vet", "./..."], ["go", "test", "./..."]]
-    passed = sum(1 for cmd in commands if run_cmd(cmd, repo))
-    return len(commands), passed, True
+    return len(commands), sum(1 for cmd in commands if run_cmd(cmd, repo)), True
 
 
 def check_rust(repo: Path, mode: str) -> tuple[int, int, bool]:
-    if not (repo / "Cargo.toml").is_file():
-        return 0, 0, False
+    if not (repo / "Cargo.toml").is_file(): return 0, 0, False
     say("Rust project detected")
     if not shutil.which("cargo"):
-        fail("Cargo.toml present but cargo binary not found")
-        return 1, 0, True
+        fail("Cargo.toml present but cargo binary not found"); return 1, 0, True
     commands = [["cargo", "check"], ["cargo", "test"]]
-    passed = sum(1 for cmd in commands if run_cmd(cmd, repo))
-    return len(commands), passed, True
+    return len(commands), sum(1 for cmd in commands if run_cmd(cmd, repo)), True
 
 
 def check_php(repo: Path, mode: str) -> tuple[int, int, bool]:
-    composer_json = repo / "composer.json"
-    if not composer_json.is_file():
-        return 0, 0, False
+    composer = repo / "composer.json"
+    if not composer.is_file(): return 0, 0, False
     say("PHP/Composer project detected")
     if not shutil.which("composer"):
-        fail("composer.json present but composer binary not found")
-        return 1, 0, True
+        fail("composer.json present but composer binary not found"); return 1, 0, True
     try:
-        data = json.loads(composer_json.read_text(encoding="utf-8"))
+        data = json.loads(composer.read_text(encoding="utf-8"))
     except Exception as exc:
-        fail(f"Invalid composer.json: {exc}")
-        return 1, 0, True
+        fail(f"Invalid composer.json: {exc}"); return 1, 0, True
     scripts = data.get("scripts") or {}
-    names = [name for name in ["lint", "analyse", "analyze", "test"] if name in scripts]
-    commands = [["composer", "run-script", name] for name in names]
-    passed = sum(1 for cmd in commands if run_cmd(cmd, repo))
-    return len(commands), passed, True
+    commands = [["composer", "run-script", name] for name in ["lint", "analyse", "analyze", "test"] if name in scripts]
+    return len(commands), sum(1 for cmd in commands if run_cmd(cmd, repo)), True
 
 
 def security_gate(repo: Path) -> tuple[int, int]:
@@ -187,9 +118,8 @@ def security_gate(repo: Path) -> tuple[int, int]:
         local = Path(__file__).resolve().parent / "security-check"
         binary = str(local) if local.is_file() else None
     if not binary:
-        say("Security mode requested but security-check is unavailable")
-        return 0, 0
-    return (1, 1 if run_cmd([binary, str(repo)], repo) else 0)
+        say("Security mode requested but security-check is unavailable"); return 0, 0
+    return 1, 1 if run_cmd([binary, str(repo)], repo) else 0
 
 
 def main() -> int:
@@ -201,40 +131,23 @@ def main() -> int:
     modes.add_argument("--security", action="store_true")
     parser.add_argument("directory", nargs="?", default=".")
     args = parser.parse_args()
-
     repo = Path(args.directory).resolve()
     if not repo.is_dir():
-        print(f"ERROR: Directory not found: {repo}", file=sys.stderr)
-        return FAILED
-
+        print(f"ERROR: Directory not found: {repo}", file=sys.stderr); return FAILED
     mode = "changed" if args.changed else "ui" if args.ui else "security" if args.security else "full"
-    print(f"project-check: {mode} verification at {repo}")
-    print("-" * 60)
-
-    total = passed = 0
-    recognized = False
+    print(f"project-check: {mode} verification at {repo}\n" + "-" * 60)
+    total = passed = 0; recognized = False
     for checker in [check_node, check_python, check_go, check_rust, check_php]:
-        count, good, seen = checker(repo, mode)
-        total += count
-        passed += good
-        recognized = recognized or seen
-
+        count, good, seen = checker(repo, mode); total += count; passed += good; recognized = recognized or seen
     if mode == "security":
-        count, good = security_gate(repo)
-        total += count
-        passed += good
-
+        count, good = security_gate(repo); total += count; passed += good
     print("-" * 60)
     if total == 0:
         reason = "project recognized but no adequate runnable checks discovered" if recognized else "no supported project configuration recognized"
-        print(f"project-check: UNVERIFIED ({reason})")
-        return UNVERIFIED
+        print(f"project-check: UNVERIFIED ({reason})"); return UNVERIFIED
     if passed != total:
-        print(f"project-check: FAILED ({passed}/{total} checks passed)", file=sys.stderr)
-        return FAILED
-    print(f"project-check: VERIFIED ({passed}/{total} checks passed)")
-    return VERIFIED
+        print(f"project-check: FAILED ({passed}/{total} checks passed)", file=sys.stderr); return FAILED
+    print(f"project-check: VERIFIED ({passed}/{total} checks passed)"); return VERIFIED
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+if __name__ == "__main__": raise SystemExit(main())
