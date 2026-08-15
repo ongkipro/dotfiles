@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+"""delivery-benchmark — evidence-driven delivery telemetry and routing advice.
+
+Metrics are immutable sidecars under .delivery/metrics/<runId>.json. Reports are
+advisory only: they never rewrite routing policy. Reliability is prioritized over
+cost, and recommendations require a minimum sample size.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import sys
+
+OK, FAILED, UNVERIFIED = 0, 1, 2
+RISKS = {f"R{i}" for i in range(5)}
+
+
+def canonical(data: dict) -> str:
+    return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
+def digest(data: dict) -> str:
+    return hashlib.sha256(canonical(data).encode()).hexdigest()
+
+
+def read_events(path: Path) -> list[dict]:
+    events=[]; previous=None
+    for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(),1):
+        if not raw.strip(): continue
+        try: event=json.loads(raw)
+        except json.JSONDecodeError as exc: raise ValueError(f"{path.name}:{lineno}: invalid JSON: {exc}") from exc
+        if event.get("runId") != path.stem: raise ValueError(f"{path.name}:{lineno}: runId mismatch")
+        if event.get("prevEventHash") != previous: raise ValueError(f"{path.name}:{lineno}: broken hash chain")
+        supplied=event.get("eventHash"); unsigned=dict(event); unsigned.pop("eventHash",None)
+        if supplied != digest(unsigned): raise ValueError(f"{path.name}:{lineno}: event hash mismatch")
+        previous=supplied; events.append(event)
+    if not events: raise ValueError(f"{path.name}: empty run")
+    return events
+
+
+def load_metric(path: Path) -> dict:
+    data=json.loads(path.read_text(encoding="utf-8")); supplied=data.get("metricHash")
+    unsigned=dict(data); unsigned.pop("metricHash",None)
+    if supplied != digest(unsigned): raise ValueError(f"{path.name}: metric hash mismatch")
+    if data.get("runId") != path.stem: raise ValueError(f"{path.name}: runId mismatch")
+    return data
+
+
+def completed_run(repo: Path, run_id: str) -> list[dict]:
+    path=repo/".delivery"/"runs"/f"{run_id}.jsonl"
+    if not path.is_file(): raise ValueError(f"run evidence missing: {run_id}")
+    events=read_events(path)
+    if not any(e.get("type")=="run_finished" for e in events): raise ValueError("metrics require a finished run")
+    return events
+
+
+def nonneg(value, name, integer=False):
+    try: number=int(value) if integer else float(value)
+    except Exception as exc: raise ValueError(f"{name} must be numeric") from exc
+    if number < 0: raise ValueError(f"{name} must be non-negative")
+    return number
+
+
+def record(repo: Path, a) -> int:
+    completed_run(repo,a.run)
+    metrics=repo/".delivery"/"metrics"; metrics.mkdir(parents=True,exist_ok=True)
+    target=metrics/f"{a.run}.json"
+    if target.exists(): raise ValueError("run metrics already exist; metrics are immutable")
+    data={
+        "schemaVersion":1,"runId":a.run,
+        "durationSeconds":nonneg(a.duration_sec,"duration-sec"),
+        "inputTokens":nonneg(a.input_tokens,"input-tokens",True),
+        "outputTokens":nonneg(a.output_tokens,"output-tokens",True),
+        "costUsd":nonneg(a.cost_usd,"cost-usd"),
+        "repairAttempts":nonneg(a.repair_attempts,"repair-attempts",True),
+        "humanCorrections":nonneg(a.human_corrections,"human-corrections",True),
+        "escalated":a.escalated=="yes",
+    }
+    data["metricHash"]=digest(data)
+    target.write_text(json.dumps(data,indent=2,sort_keys=True)+"\n",encoding="utf-8")
+    print(f"delivery-benchmark: RECORDED {target}")
+    return OK
+
+
+def collect(repo: Path) -> tuple[list[dict], list[str]]:
+    rows=[]; problems=[]; runs=repo/".delivery"/"runs"; metrics=repo/".delivery"/"metrics"
+    if not runs.is_dir(): return [],[".delivery/runs missing"]
+    for path in sorted(runs.glob("RUN-*.jsonl")):
+        try: events=read_events(path)
+        except ValueError as exc: problems.append(str(exc)); continue
+        start=next((e for e in events if e.get("type")=="run_started"),None)
+        finish=next((e for e in reversed(events) if e.get("type")=="run_finished"),None)
+        if not start or not finish: continue
+        row={
+            "runId":path.stem,"risk":start.get("risk"),"model":start.get("model") or "unknown","worker":start.get("worker") or "unknown",
+            "result":finish.get("result"),"verificationFailed":any(e.get("type")=="verification" and e.get("status") in {"FAIL","UNVERIFIED"} for e in events),
+        }
+        mp=metrics/f"{path.stem}.json"
+        if mp.is_file():
+            try: row["metrics"]=load_metric(mp)
+            except (ValueError,json.JSONDecodeError) as exc: problems.append(str(exc))
+        rows.append(row)
+    return rows,problems
+
+
+def aggregate(rows: list[dict]) -> list[dict]:
+    groups={}
+    for row in rows:
+        key=(row.get("risk"),row.get("model"),row.get("worker")); g=groups.setdefault(key,[]); g.append(row)
+    result=[]
+    for (risk,model,worker),items in sorted(groups.items(),key=lambda kv:str(kv[0])):
+        n=len(items); passed=sum(r["result"]=="PASS" for r in items); failed=sum(r["result"]=="FAIL" for r in items); blocked=sum(r["result"]=="BLOCKED" for r in items)
+        vf=sum(bool(r["verificationFailed"]) for r in items); mr=[r["metrics"] for r in items if "metrics" in r]
+        total_cost=sum(m["costUsd"] for m in mr); total_repairs=sum(m["repairAttempts"] for m in mr); total_human=sum(m["humanCorrections"] for m in mr); escalated=sum(bool(m["escalated"]) for m in mr)
+        result.append({
+            "risk":risk,"model":model,"worker":worker,"samples":n,"pass":passed,"fail":failed,"blocked":blocked,
+            "successRate":round(passed/n,4),"verificationFailureRate":round(vf/n,4),"metricsCoverage":round(len(mr)/n,4),
+            "costUsdTotal":round(total_cost,6),"costPerSuccess":round(total_cost/passed,6) if passed and len(mr)==n else None,
+            "avgRepairAttempts":round(total_repairs/len(mr),3) if mr else None,
+            "humanCorrectionRate":round(sum(m["humanCorrections"]>0 for m in mr)/len(mr),4) if mr else None,
+            "escalationRate":round(escalated/len(mr),4) if mr else None,
+        })
+    return result
+
+
+def recommendations(groups: list[dict], min_samples: int, reliability: float) -> dict:
+    out={}
+    for risk in sorted(RISKS):
+        candidates=[g for g in groups if g["risk"]==risk and g["samples"]>=min_samples]
+        if not candidates:
+            out[risk]={"status":"INSUFFICIENT_DATA","minSamples":min_samples}; continue
+        if risk in {"R3","R4"}:
+            out[risk]={"status":"REVIEW_ONLY","reason":"high-risk routing must not auto-downgrade from benchmark data","candidates":len(candidates)}; continue
+        reliable=[g for g in candidates if g["successRate"]>=reliability]
+        if not reliable:
+            best=max(candidates,key=lambda g:(g["successRate"],-g["verificationFailureRate"],g["samples"]))
+            out[risk]={"status":"NO_RELIABLE_CANDIDATE","bestObserved":best["model"],"successRate":best["successRate"]}; continue
+        with_cost=[g for g in reliable if g["costPerSuccess"] is not None]
+        best=min(with_cost,key=lambda g:(g["costPerSuccess"],-g["successRate"])) if with_cost else max(reliable,key=lambda g:(g["successRate"],-g["verificationFailureRate"],g["samples"]))
+        out[risk]={"status":"PREFER","model":best["model"],"worker":best["worker"],"successRate":best["successRate"],"costPerSuccess":best["costPerSuccess"],"samples":best["samples"]}
+    return out
+
+
+def report(repo: Path, a) -> int:
+    rows,problems=collect(repo); groups=aggregate(rows)
+    if a.risk: groups=[g for g in groups if g["risk"]==a.risk]
+    payload={"result":"UNVERIFIED" if problems else "VERIFIED","groups":groups,"recommendations":recommendations(groups,a.min_samples,a.reliability),"problems":problems}
+    if a.json: print(json.dumps(payload,indent=2))
+    else:
+        print("delivery-benchmark")
+        print("-"*72)
+        for g in groups:
+            cps="n/a" if g["costPerSuccess"] is None else f"${g['costPerSuccess']:.4f}"
+            print(f"{g['risk'] or '?':3} {g['model'][:28]:28} n={g['samples']:3} success={g['successRate']:.1%} cost/success={cps}")
+        print("-"*72)
+        for risk,rec in payload["recommendations"].items(): print(f"{risk}: {rec['status']}"+(f" {rec.get('model')}" if rec.get('model') else ""))
+        for problem in problems: print(f"WARN: {problem}")
+    return UNVERIFIED if problems else OK
+
+
+def main()->int:
+    p=argparse.ArgumentParser();p.add_argument("--repo",default=".");sub=p.add_subparsers(dest="cmd",required=True)
+    r=sub.add_parser("record");r.add_argument("--run",required=True);r.add_argument("--duration-sec",required=True);r.add_argument("--input-tokens",default="0");r.add_argument("--output-tokens",default="0");r.add_argument("--cost-usd",default="0");r.add_argument("--repair-attempts",default="0");r.add_argument("--human-corrections",default="0");r.add_argument("--escalated",choices=["yes","no"],default="no")
+    q=sub.add_parser("report");q.add_argument("--risk",choices=sorted(RISKS));q.add_argument("--min-samples",type=int,default=10);q.add_argument("--reliability",type=float,default=.90);q.add_argument("--json",action="store_true")
+    a=p.parse_args();repo=Path(a.repo).resolve()
+    if not repo.is_dir(): print(f"delivery-benchmark: ERROR: repo not found: {repo}",file=sys.stderr);return FAILED
+    try:
+        if a.cmd=="record": return record(repo,a)
+        if a.cmd=="report": return report(repo,a)
+    except (ValueError,json.JSONDecodeError,OSError) as exc:
+        print(f"delivery-benchmark: ERROR: {exc}",file=sys.stderr);return FAILED
+    return FAILED
+
+if __name__=="__main__": raise SystemExit(main())

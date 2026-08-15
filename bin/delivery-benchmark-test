@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+DL="$ROOT/bin/delivery-ledger"
+DB="$ROOT/bin/delivery-benchmark"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/delivery-benchmark-test.XXXXXX")"
+trap 'rm -rf "$TMP"' EXIT
+fail(){ echo "FAIL: $*" >&2; exit 1; }
+
+REPO="$TMP/repo"; mkdir -p "$REPO"; cd "$REPO"
+git init -q; git config user.email test@example.invalid; git config user.name test
+cat > STATUS.md <<'EOF'
+# Status
+State: PLANNED
+EOF
+git add STATUS.md && git commit -qm baseline
+python3 "$DL" --repo . init >/dev/null
+
+record_run(){
+  model="$1" result="$2" cost="$3" repairs="$4" human="$5" escalated="$6"
+  python3 "$DL" --repo . start --task TASK-001 --requirement REQ-001 --risk R1 --worker task --model "$model" >/dev/null
+  python3 "$DL" --repo . record --check project-check --status PASS >/dev/null
+  python3 "$DL" --repo . finish --result "$result" >/dev/null
+  run_id="$(python3 - <<'PY'
+import json
+print(json.load(open('.delivery/current.json'))['lastRun']['runId'])
+PY
+)"
+  python3 "$DB" --repo . record --run "$run_id" --duration-sec 10 --input-tokens 100 --output-tokens 20 --cost-usd "$cost" --repair-attempts "$repairs" --human-corrections "$human" --escalated "$escalated" >/dev/null
+  LAST_RUN="$run_id"
+}
+
+for _ in 1 2 3 4 5 6 7 8 9 10; do record_run model-a PASS 0.10 0 0 no; done
+FIRST_METRIC="$REPO/.delivery/metrics/$LAST_RUN.json"
+for _ in 1 2 3 4 5 6 7 8; do record_run model-b PASS 0.02 1 0 yes; done
+for _ in 1 2; do record_run model-b FAIL 0.02 2 1 yes; done
+
+python3 "$DB" --repo . report --risk R1 --min-samples 10 --reliability 0.90 --json > "$TMP/report.json"
+python3 - "$TMP/report.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1]))
+groups={g['model']:g for g in p['groups']}
+assert groups['model-a']['samples']==10
+assert groups['model-a']['successRate']==1.0
+assert groups['model-a']['costPerSuccess']==0.1
+assert groups['model-b']['successRate']==0.8
+rec=p['recommendations']['R1']
+assert rec['status']=='PREFER'
+assert rec['model']=='model-a'
+PY
+
+set +e
+python3 "$DB" --repo . record --run "$LAST_RUN" --duration-sec 1 >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 1 ] || fail "metrics must be immutable"
+
+cp "$FIRST_METRIC" "$TMP/metric.backup"
+python3 - "$FIRST_METRIC" <<'PY'
+from pathlib import Path
+import sys
+p=Path(sys.argv[1]); p.write_text(p.read_text().replace('0.1','0.9',1))
+PY
+set +e
+python3 "$DB" --repo . report --json >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 2 ] || fail "tampered metric should make report UNVERIFIED"
+cp "$TMP/metric.backup" "$FIRST_METRIC"
+
+echo 'delivery-benchmark-test: PASS'
