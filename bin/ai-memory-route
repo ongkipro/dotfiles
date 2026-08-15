@@ -1,0 +1,192 @@
+#!/usr/bin/env python3
+"""ai-memory-route — deterministic scoped memory selector.
+
+Selects the smallest useful set of memory files for a user request. It does not
+load file contents into the model and does not mutate memory. Repository truth
+and .delivery evidence remain authoritative over returned references.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import sys
+
+OK, FAILED = 0, 1
+
+
+def norm(text: str) -> str:
+    return re.sub(r"\s+", " ", text.lower()).strip()
+
+
+def repo_root() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
+def load_manifest(root: Path) -> dict:
+    path = root / "config" / "ai" / "memory-router.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"invalid memory router manifest: {exc}") from exc
+    if data.get("schemaVersion") != 1:
+        raise ValueError("unsupported memory router schema")
+    return data
+
+
+def score(query: str, item: dict) -> int:
+    q = norm(query)
+    hits = 0
+    for trigger in item.get("triggers", []):
+        t = norm(trigger)
+        if t and t in q:
+            hits += max(1, len(t.split()))
+    return hits * 1000 + int(item.get("priority", 0)) if hits else 0
+
+
+def project_from_repo(repo: Path | None, manifest: dict) -> str | None:
+    if not repo:
+        return None
+    name = repo.name.lower()
+    if name in manifest.get("projects", {}):
+        return name
+    try:
+        import subprocess
+        r = subprocess.run(["git", "remote", "get-url", "origin"], cwd=repo, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=False)
+        if r.returncode == 0:
+            remote = r.stdout.strip().rstrip("/").removesuffix(".git")
+            base = remote.rsplit("/", 1)[-1].lower()
+            if base in manifest.get("projects", {}):
+                return base
+    except Exception:
+        pass
+    return None
+
+
+def execution_refs(repo: Path | None) -> list[dict]:
+    if not repo:
+        return []
+    refs = []
+    for rel, priority in [
+        ("STATUS.md", 100),
+        ("TASKS.md", 95),
+        (".delivery/current.json", 95),
+        ("BUILD-LOG.md", 70),
+    ]:
+        p = repo / rel
+        if p.exists():
+            refs.append({"path": str(p), "scope": "execution", "priority": priority, "reason": "repository execution truth"})
+    return refs
+
+
+def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None, project: str | None, max_files: int, max_bytes: int) -> dict:
+    candidates: list[dict] = []
+    reasons = []
+
+    if scope in {"auto", "execution"} and repo:
+        exec_keywords = ("current", "status", "resume", "continue", "task", "next", "blocker", "release", "deploy", "verify", "implementation")
+        if scope == "execution" or any(k in norm(query) for k in exec_keywords):
+            candidates.extend(execution_refs(repo))
+            reasons.append("execution scope selected from repository-local truth")
+
+    selected_project = project or project_from_repo(repo, manifest)
+    if scope in {"auto", "project"} and selected_project:
+        rel = manifest.get("projects", {}).get(selected_project.lower())
+        if rel:
+            p = root / rel
+            if p.exists():
+                candidates.append({"path": str(p), "scope": "project", "priority": 90, "reason": f"project={selected_project}"})
+                reasons.append(f"project reference matched {selected_project}")
+
+    if scope in {"auto", "shared"}:
+        for item in manifest.get("shared", []):
+            s = score(query, item)
+            if s:
+                p = root / item["path"]
+                if p.exists():
+                    candidates.append({"path": str(p), "scope": "shared", "priority": s, "reason": "trigger match"})
+
+    if scope in {"auto", "lesson"}:
+        for item in manifest.get("lessons", []):
+            s = score(query, item)
+            if s:
+                p = root / item["path"]
+                if p.exists():
+                    candidates.append({"path": str(p), "scope": "lesson", "priority": s, "reason": "historical lesson trigger"})
+
+    # Exact duplicates removed, higher-priority form retained.
+    by_path = {}
+    for item in candidates:
+        old = by_path.get(item["path"])
+        if old is None or item["priority"] > old["priority"]:
+            by_path[item["path"]] = item
+    ordered = sorted(by_path.values(), key=lambda x: (-x["priority"], x["path"]))
+
+    selected = []
+    used = 0
+    for item in ordered:
+        try:
+            size = os.path.getsize(item["path"])
+        except OSError:
+            continue
+        if len(selected) >= max_files:
+            break
+        if selected and used + size > max_bytes:
+            continue
+        item = dict(item)
+        item["bytes"] = size
+        selected.append(item)
+        used += size
+
+    return {
+        "needed": bool(selected),
+        "scope": scope,
+        "project": selected_project,
+        "files": selected,
+        "budget": {"maxFiles": max_files, "maxBytes": max_bytes, "usedBytes": used},
+        "reason": reasons or ["no memory trigger matched; execute without memory"],
+    }
+
+
+def main() -> int:
+    p = argparse.ArgumentParser()
+    p.add_argument("query")
+    p.add_argument("--scope", choices=["auto", "shared", "project", "execution", "lesson"], default="auto")
+    p.add_argument("--repo")
+    p.add_argument("--project")
+    p.add_argument("--max-files", type=int)
+    p.add_argument("--max-bytes", type=int)
+    p.add_argument("--json", action="store_true")
+    a = p.parse_args()
+    try:
+        root = repo_root(); manifest = load_manifest(root)
+        defaults = manifest.get("defaults", {})
+        mf = a.max_files or int(defaults.get("maxFiles", 3))
+        mb = a.max_bytes or int(defaults.get("maxBytes", 12000))
+        if mf < 1 or mb < 1:
+            raise ValueError("memory budget must be positive")
+        repo = Path(a.repo).expanduser().resolve() if a.repo else None
+        if repo and not repo.is_dir():
+            raise ValueError(f"repo not found: {repo}")
+        result = select(root, manifest, a.query, a.scope, repo, a.project, mf, mb)
+        if a.json:
+            print(json.dumps(result, indent=2))
+        elif not result["needed"]:
+            print("ai-memory-route: NONE")
+            print("  execute without loading memory")
+        else:
+            print(f"ai-memory-route: {len(result['files'])} file(s), {result['budget']['usedBytes']} bytes")
+            for item in result["files"]:
+                try: path = str(Path(item["path"]).relative_to(root))
+                except ValueError: path = item["path"]
+                print(f"  {item['scope']:9} {path} ({item['bytes']} bytes)")
+        return OK
+    except (ValueError, OSError) as exc:
+        print(f"ai-memory-route: ERROR: {exc}", file=sys.stderr)
+        return FAILED
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+ROUTER="$ROOT/bin/ai-memory-route"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/ai-memory-route-test.XXXXXX")"
+trap 'rm -rf "$TMP"' EXIT
+fail(){ echo "FAIL: $*" >&2; exit 1; }
+
+python3 "$ROUTER" 'format and tone preference' --json > "$TMP/shared.json"
+python3 - "$TMP/shared.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1]))
+assert p['needed'] is True
+assert any(x['path'].endswith('preferences.md') for x in p['files'])
+assert len(p['files']) <= 3
+assert p['budget']['usedBytes'] <= p['budget']['maxBytes'] or len(p['files']) == 1
+PY
+
+python3 "$ROUTER" 'completely unrelated ephemeral arithmetic' --json > "$TMP/none.json"
+python3 - "$TMP/none.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1]))
+assert p['needed'] is False
+assert p['files'] == []
+PY
+
+REPO="$TMP/volumup"; mkdir -p "$REPO/.delivery"
+cat > "$REPO/STATUS.md" <<'EOF'
+State: IMPLEMENTING
+EOF
+cat > "$REPO/TASKS.md" <<'EOF'
+# Tasks
+EOF
+cat > "$REPO/.delivery/current.json" <<'EOF'
+{"schemaVersion":1}
+EOF
+python3 "$ROUTER" 'continue current task and tell me next blocker' --repo "$REPO" --project volumup --json > "$TMP/project.json"
+python3 - "$TMP/project.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1]))
+scopes={x['scope'] for x in p['files']}
+assert 'execution' in scopes
+assert p['project']=='volumup'
+PY
+
+echo 'ai-memory-route-test: PASS'
