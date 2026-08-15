@@ -302,6 +302,26 @@ else
   wrn "bin/ai-memory-check tidak ada"
 fi
 
+if [ -x "$DOT/bin/ai-learn" ]; then
+  LEARN_ACTUAL="$(command -v ai-learn 2>/dev/null || true)"
+  if [ -n "$LEARN_ACTUAL" ] \
+     && [ "$(resolve_path "$LEARN_ACTUAL" 2>/dev/null)" = "$(resolve_path "$DOT/bin/ai-learn")" ]; then
+    ok "ai-learn PATH → canonical capture → review → promote"
+  else
+    bad "ai-learn PATH tidak menunjuk $DOT/bin/ai-learn — jalankan installer"
+  fi
+  LEARN_INBOX="${AI_MEMORY_INBOX_DIR:-$HOME/.config/ai-local/memory-inbox}"
+  pending=0
+  if [ -d "$LEARN_INBOX" ]; then
+    pending=$(find "$LEARN_INBOX" -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
+  fi
+  [ "$pending" -eq 0 ] \
+    && ok "lesson inbox bersih — tidak ada candidate menunggu review" \
+    || wrn "$pending lesson candidate menunggu review — jalankan: ai-learn list"
+else
+  bad "bin/ai-learn tidak ada atau tidak executable"
+fi
+
 # ── 4. Layer 3: skills ────────────────────────────────────────────────────────
 hdr "4. Skills — source custom + runtime dirs managed"
 SK="$DOT/skills/local"

@@ -45,6 +45,8 @@ link "$DOT/bin/dotsync"                  "$HOME/.local/bin/dotsync"
 link "$DOT/bin/dotpush"                  "$HOME/.local/bin/dotpush"
 link "$DOT/bin/ai-doctor"                "$HOME/.local/bin/ai-doctor"        # cek rantai AI↔device↔memori
 link "$DOT/bin/ai-memory-check"          "$HOME/.local/bin/ai-memory-check"
+link "$DOT/bin/ai-learn"                 "$HOME/.local/bin/ai-learn"
+link "$DOT/bin/ai-learn-test"            "$HOME/.local/bin/ai-learn-test"
 link "$DOT/bin/security-check"           "$HOME/.local/bin/security-check"
 link "$DOT/bin/security-check-test"      "$HOME/.local/bin/security-check-test"
 link "$DOT/bin/skill-check-test"         "$HOME/.local/bin/skill-check-test"

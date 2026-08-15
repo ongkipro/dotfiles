@@ -1,0 +1,186 @@
+#!/usr/bin/env bash
+# ai-learn — capture reviewed lesson candidates without ingesting session logs.
+set -euo pipefail
+
+DOT="${DOTFILES_DIR:-$HOME/dotfiles}"
+INBOX="${AI_MEMORY_INBOX_DIR:-$HOME/.config/ai-local/memory-inbox}"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  ai-learn capture --title TEXT --symptom TEXT --root-cause TEXT \
+    --invariant TEXT --fix TEXT --check TEXT [--scope shared|project] \
+    [--project NAME] [--repo PATH]
+  ai-learn list
+  ai-learn show CANDIDATE
+  ai-learn promote CANDIDATE --target shared:FILE|project:FILE --yes
+
+Capture writes a device-local candidate. Promotion is the only operation that
+changes tracked memory; it requires explicit --yes and never commits or pushes.
+EOF
+}
+
+die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+
+safe_name() {
+  case "$1" in
+    ""|*[!A-Za-z0-9._-]*) return 1 ;;
+  esac
+}
+
+candidate_path() {
+  local requested="$1" resolved resolved_dir inbox_resolved
+  case "$requested" in
+    */*) resolved="$(cd "$(dirname "$requested")" 2>/dev/null && pwd -P)/$(basename "$requested")" ;;
+    *) resolved="$INBOX/$requested" ;;
+  esac
+  [ -f "$resolved" ] || die "candidate not found: $requested"
+  [ ! -L "$resolved" ] || die "candidate must not be a symlink"
+  inbox_resolved="$(cd "$INBOX" 2>/dev/null && pwd -P)"
+  resolved_dir="$(cd "$(dirname "$resolved")" 2>/dev/null && pwd -P)"
+  [ "$resolved_dir" = "$inbox_resolved" ] \
+    || die "candidate must be a pending .md file directly inside $INBOX"
+  case "$resolved" in *.md) printf '%s\n' "$resolved" ;; *) die "candidate must be a .md file" ;; esac
+}
+
+reject_sensitive_text() {
+  local value="$1"
+  # Guard obvious credential forms. It intentionally errs on the safe side;
+  # summarize the invariant without copying tokens, payloads, or raw logs.
+  if printf '%s\n' "$value" | grep -Eqi \
+    '(BEGIN[[:space:]][A-Z ]*PRIVATE KEY|(^|[^[:alnum:]_])(password|passwd|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*[^[:space:]]+|(^|[^[:alnum:]_])(ghp_|github_pat_|glpat-|xox[baprs]-|AKIA|AIza|sk-proj-)[[:alnum:]_-]{8,})'; then
+    die "candidate looks like it contains a secret; summarize without credentials or raw logs"
+  fi
+}
+
+capture() {
+  local title="" symptom="" root_cause="" invariant="" fix="" check=""
+  local scope="shared" project="" repo="" now slug path tmp field
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --title|--symptom|--root-cause|--invariant|--fix|--check|--scope|--project|--repo)
+        [ "$#" -ge 2 ] || die "$1 requires a value"
+        case "$1" in
+          --title) title="$2" ;; --symptom) symptom="$2" ;;
+          --root-cause) root_cause="$2" ;; --invariant) invariant="$2" ;;
+          --fix) fix="$2" ;; --check) check="$2" ;; --scope) scope="$2" ;;
+          --project) project="$2" ;; --repo) repo="$2" ;;
+        esac
+        shift 2
+        ;;
+      --help|-h) usage; exit 0 ;;
+      *) die "unknown capture option: $1" ;;
+    esac
+  done
+  for field in title symptom root_cause invariant fix check; do
+    [ -n "${!field}" ] || die "--${field//_/-} is required"
+  done
+  case "$scope" in shared|project) ;; *) die "--scope must be shared or project" ;; esac
+  [ "$scope" = "shared" ] || [ -n "$project" ] || die "--project is required for project scope"
+  [ -z "$project" ] || safe_name "$project" || die "--project accepts only letters, numbers, dot, underscore, and hyphen"
+  case "$repo" in *$'\n'*|*$'\r'*) die "--repo must be a single line" ;; esac
+  for field in "$title" "$symptom" "$root_cause" "$invariant" "$fix" "$check" "$repo"; do
+    reject_sensitive_text "$field"
+  done
+
+  mkdir -p "$INBOX"
+  chmod 700 "$INBOX"
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  slug="$(printf '%s' "$title" | tr '[:upper:]' '[:lower:]' | tr -cs '[:alnum:]' '-' | sed 's/^-//;s/-$//' | cut -c1-48)"
+  [ -n "$slug" ] || slug="lesson"
+  path="$INBOX/${now//[:]/}-${slug}.md"
+  [ ! -e "$path" ] || path="${path%.md}-$$.md"
+  tmp="$(mktemp "$INBOX/.capture.XXXXXX")"
+  chmod 600 "$tmp"
+  {
+    printf '%s\n' '---'
+    printf 'status: candidate\ncreated_at: %s\nscope: %s\n' "$now" "$scope"
+    [ -z "$project" ] || printf 'project: %s\n' "$project"
+    [ -z "$repo" ] || printf 'repository: %s\n' "$repo"
+    printf '%s\n\n' '---'
+    printf '## Lesson: %s\n\n### Symptom\n%s\n\n' "$title" "$symptom"
+    printf '### Root cause\n%s\n\n### Durable invariant\n%s\n\n' "$root_cause" "$invariant"
+    printf '### Fix\n%s\n\n### Regression check\n%s\n' "$fix" "$check"
+  } >"$tmp"
+  mv "$tmp" "$path"
+  printf 'Captured candidate: %s\nReview it with: ai-learn show %s\n' "$path" "$(basename "$path")"
+}
+
+list_candidates() {
+  local found=0 path
+  [ -d "$INBOX" ] || { printf 'No pending lesson candidates.\n'; return; }
+  while IFS= read -r path; do
+    found=1
+    printf '%s\n' "$(basename "$path")"
+  done < <(find "$INBOX" -maxdepth 1 -type f -name '*.md' -print | LC_ALL=C sort)
+  [ "$found" -eq 1 ] || printf 'No pending lesson candidates.\n'
+}
+
+show_candidate() {
+  local candidate
+  [ "$#" -eq 1 ] || die "show requires exactly one candidate"
+  candidate="$(candidate_path "$1")"
+  sed -n '1,240p' "$candidate"
+}
+
+promote() {
+  local requested="" target="" confirmed=0 candidate kind name target_path
+  local target_dir tmp promoted_dir promoted_path
+  [ "$#" -gt 0 ] || die "promote requires a candidate"
+  requested="$1"; shift
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --target) [ "$#" -ge 2 ] || die "--target requires a value"; target="$2"; shift 2 ;;
+      --yes) confirmed=1; shift ;;
+      --help|-h) usage; exit 0 ;;
+      *) die "unknown promote option: $1" ;;
+    esac
+  done
+  [ "$confirmed" -eq 1 ] || die "promotion changes tracked memory; review with show, then repeat with --yes"
+  [ -n "$target" ] || die "--target is required"
+  candidate="$(candidate_path "$requested")"
+  reject_sensitive_text "$(cat "$candidate")"
+  kind="${target%%:*}"; name="${target#*:}"
+  [ "$kind" != "$target" ] || die "target must be shared:FILE or project:FILE"
+  name="${name%.md}"
+  safe_name "$name" || die "target filename accepts only letters, numbers, dot, underscore, and hyphen"
+  case "$kind" in
+    shared) target_path="$DOT/config/ai/memory/$name.md" ;;
+    project) target_path="$DOT/config/ai/project-memory/$name.md" ;;
+    *) die "target must be shared:FILE or project:FILE" ;;
+  esac
+  [ -f "$target_path" ] || die "canonical target does not exist: $target_path"
+  [ -x "$DOT/bin/ai-memory-check" ] || die "ai-memory-check is unavailable"
+
+  promoted_dir="$INBOX/promoted"
+  mkdir -p "$promoted_dir"
+  chmod 700 "$promoted_dir"
+  promoted_path="$promoted_dir/$(basename "$candidate")"
+  [ ! -e "$promoted_path" ] || die "promoted archive already exists: $promoted_path"
+  target_dir="$(dirname "$target_path")"
+  tmp="$(mktemp "$target_dir/.ai-learn.XXXXXX.md")"
+  trap 'rm -f "${tmp:-}"' EXIT
+  cp -p "$target_path" "$tmp"
+  {
+    printf '\n\n---\n\n'
+    awk 'BEGIN { separators=0 } /^---$/ { separators++; next } separators >= 2 { print }' "$candidate"
+    printf '\n> Promoted from a reviewed local candidate on %s.\n' "$(date -u +%Y-%m-%d)"
+  } >>"$tmp"
+  "$DOT/bin/ai-memory-check" "$tmp" >/dev/null
+  mv "$tmp" "$target_path"
+  trap - EXIT
+  mv "$candidate" "$promoted_path"
+  printf 'Promoted to: %s\nArchived candidate: %s\nNo Git action was performed.\n' "$target_path" "$promoted_path"
+}
+
+command_name="${1:-}"
+[ -n "$command_name" ] || { usage; exit 2; }
+shift
+case "$command_name" in
+  capture) capture "$@" ;;
+  list) [ "$#" -eq 0 ] || die "list accepts no arguments"; list_candidates ;;
+  show) show_candidate "$@" ;;
+  promote) promote "$@" ;;
+  --help|-h|help) usage ;;
+  *) die "unknown command: $command_name" ;;
+esac

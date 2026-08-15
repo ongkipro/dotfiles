@@ -54,6 +54,7 @@ Stop at the first rung that holds:
 - Mark a deliberate corner-cut that has a known ceiling with `// lazy:` naming the ceiling and the upgrade path (`// lazy: O(n²) scan, index it above ~1k rows`).
 - Non-trivial logic (a branch, a parser, a money/auth path) leaves ONE runnable check behind — the smallest thing that fails if the logic breaks. Trivial one-liners need none; YAGNI applies to tests too.
 - **Never claim "it works" without running something.** Use the project's own `package.json` scripts first; per-stack cheatsheet + fallback validation commands in skill `native-first`. A green build is not proof the UI works — for browser-visible changes, open it.
+- After a verified non-trivial fix, run `ai-learn capture` when the lesson is durable, reusable, and not already encoded by a repository test or document. Capture the symptom, root cause, invariant, fix, and runnable check in English; never copy raw logs, secrets, customer data, changing project status, or an unverified diagnosis. Capture creates a device-local candidate only. Review it before `ai-learn promote ... --yes` updates tracked shared or project memory; promotion never authorizes a commit or push.
 
 NEVER simplify away: input validation at trust boundaries, error handling that prevents data loss, security, accessibility, or anything explicitly requested. User wants the full version → build it, no re-arguing.
 

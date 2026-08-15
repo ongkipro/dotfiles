@@ -11,7 +11,7 @@ TokoΦ (`ongkipro/tokophi`, private) — Shopify-style commerce SaaS for Indones
 
 This project's old name was `indostore`; rebranded 2026-07-08. The repo `ongkipro/indostore` **still exists on GitHub but is dormant** — don't use it, don't push to it. All 94 of its commits are already contained in the `tokophi` history (old HEAD `e95b71f`). If you read an old note mentioning "Indostore", that's the same project, not a separate one.
 
-**No clone on this Mac** (verified 2026-07-20: `~/Projects/tokophi` does not exist — the old note mentioning a clone 2026-07-10 is stale; main dev is on Linux, `git pull` first if it's cloned again). The 32 git-tracked `.md` files are designed to be **symlinked** (not copied) into `~/Documents/work/tokophi/` with the structure `prd/`, `architecture/`, `decisions/`, `ops/`, `notes/`, `agent-config/` when the repo is present.
+The repository may not exist on every device. Inspect local disk and Git before acting; do not infer clone state, branch freshness, or deployment status from this reference memory. Git-tracked `.md` files may be **symlinked** (not copied) into `~/Documents/work/tokophi/` with the structure `prd/`, `architecture/`, `decisions/`, `ops/`, `notes/`, `agent-config/` when the repo is present.
 
 **Business/ops gotchas that are NOT readable from the code** (moved from `projects.md` 2026-07-20):
 - **KiriminAja** (shipping) + **AutoLaris** (payment VA/QRIS) integration — platform-managed & **white-label**: the provider brand is hidden from the client, only the super-admin sees it. COD exists.
@@ -24,7 +24,7 @@ This project's old name was `indostore`; rebranded 2026-07-08. The repo `ongkipr
 
 **How to apply:** editing via either path is the same — they're the same file. Don't "tidy up" `~/Documents/work/tokophi` by deleting/overwriting; that touches repo files. When a new `.md` is added in the repo, its symlink needs to be created manually.
 
-Main development is on another machine (Linux) — `git pull` first before working on the Mac. Status as of 2026-07-14 (repo WORKLOG): RBAC+RLS working, multi-tenant storefront SSR reads the DB, COD live end-to-end, and **all four surfaces are live at `tokophi.com`** (Cloudflare HTTPS) on a Vultr Singapore server + Coolify (Docker Compose, daily backup). This is still DEV infra — **PROD will later migrate to Hetzner Singapore**. See also [[kamus-almanak]].
+Current implementation, deployment, infrastructure, and migration status belong in the repository and live systems, not here. Read the repository's `AGENTS.md`, status documents, and disk state before working. See also [[kamus-almanak]].
 
 Operational findings measured on 2026-08-05, including Coolify access behavior, environment parity,
 Compose validation constraints, and local mirror details, are device-specific. Read

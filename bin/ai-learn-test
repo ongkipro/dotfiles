@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SOURCE_DOT="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/ai-learn-test.XXXXXX")"
+trap 'rm -rf "$TEST_ROOT"' EXIT
+
+export HOME="$TEST_ROOT/home"
+export DOTFILES_DIR="$TEST_ROOT/dotfiles"
+export AI_MEMORY_INBOX_DIR="$HOME/.config/ai-local/memory-inbox"
+mkdir -p "$DOTFILES_DIR/bin" "$DOTFILES_DIR/config/ai/memory" "$DOTFILES_DIR/config/ai/project-memory"
+cp "$SOURCE_DOT/bin/ai-learn" "$SOURCE_DOT/bin/ai-memory-check" "$DOTFILES_DIR/bin/"
+chmod +x "$DOTFILES_DIR/bin/ai-learn" "$DOTFILES_DIR/bin/ai-memory-check"
+printf '# Workflow\n' >"$DOTFILES_DIR/config/ai/memory/workflow.md"
+printf '# Project\n' >"$DOTFILES_DIR/config/ai/project-memory/example.md"
+
+learn="$DOTFILES_DIR/bin/ai-learn"
+capture_args=(
+  capture
+  --title "Preserve the source body during partial edits"
+  --symptom "Saving metadata replaced the existing body."
+  --root-cause "The read model omitted body while the write model replaced every field."
+  --invariant "A full-replace form must load every persisted field it writes."
+  --fix "Return body from the read model and seed the editor from that value."
+  --check "Edit metadata and assert that the stored body remains byte-identical."
+  --scope project
+  --project example
+  --repo /tmp/example
+)
+
+"$learn" "${capture_args[@]}" >/dev/null
+candidate="$(find "$AI_MEMORY_INBOX_DIR" -maxdepth 1 -type f -name '*.md' -print -quit)"
+[ -n "$candidate" ] || { echo "FAIL: capture did not create a candidate" >&2; exit 1; }
+[ "$(stat -c '%a' "$AI_MEMORY_INBOX_DIR" 2>/dev/null || stat -f '%Lp' "$AI_MEMORY_INBOX_DIR")" = "700" ] \
+  || { echo "FAIL: inbox permissions are not 700" >&2; exit 1; }
+[ "$(stat -c '%a' "$candidate" 2>/dev/null || stat -f '%Lp' "$candidate")" = "600" ] \
+  || { echo "FAIL: candidate permissions are not 600" >&2; exit 1; }
+grep -qF '### Durable invariant' "$candidate"
+"$learn" list | grep -qF "$(basename "$candidate")"
+"$learn" show "$(basename "$candidate")" | grep -qF 'A full-replace form'
+
+before_count="$(find "$AI_MEMORY_INBOX_DIR" -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')"
+if "$learn" capture --title incomplete >/dev/null 2>&1; then
+  echo "FAIL: incomplete capture succeeded" >&2
+  exit 1
+fi
+[ "$(find "$AI_MEMORY_INBOX_DIR" -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')" = "$before_count" ]
+
+secret_label="api_key"
+secret_value="example-value-that-must-not-be-stored"
+if "$learn" capture \
+  --title "Do not store credentials" --symptom "$secret_label=$secret_value" \
+  --root-cause "Unsafe copying" --invariant "Secrets stay outside memory" \
+  --fix "Summarize only" --check "Scan the candidate" >/dev/null 2>&1; then
+  echo "FAIL: secret-like capture succeeded" >&2
+  exit 1
+fi
+
+before="$(cat "$DOTFILES_DIR/config/ai/project-memory/example.md")"
+before_mode="$(stat -c '%a' "$DOTFILES_DIR/config/ai/project-memory/example.md" 2>/dev/null || stat -f '%Lp' "$DOTFILES_DIR/config/ai/project-memory/example.md")"
+if "$learn" promote "$(basename "$candidate")" --target project:example >/dev/null 2>&1; then
+  echo "FAIL: promotion without --yes succeeded" >&2
+  exit 1
+fi
+[ "$(cat "$DOTFILES_DIR/config/ai/project-memory/example.md")" = "$before" ]
+if "$learn" promote "$(basename "$candidate")" --target project:../example --yes >/dev/null 2>&1; then
+  echo "FAIL: path traversal target succeeded" >&2
+  exit 1
+fi
+
+ln -s "$candidate" "$AI_MEMORY_INBOX_DIR/symlink.md"
+if "$learn" show symlink.md >/dev/null 2>&1; then
+  echo "FAIL: symlink candidate was accepted" >&2
+  exit 1
+fi
+rm "$AI_MEMORY_INBOX_DIR/symlink.md"
+
+printf '\n%s=%s\n' "$secret_label" "$secret_value" >>"$candidate"
+if "$learn" promote "$(basename "$candidate")" --target project:example --yes >/dev/null 2>&1; then
+  echo "FAIL: manually inserted secret-like content was promoted" >&2
+  exit 1
+fi
+sed -i.bak '$d' "$candidate"
+rm "$candidate.bak"
+
+"$learn" promote "$(basename "$candidate")" --target project:example --yes >/dev/null
+grep -qF 'A full-replace form must load every persisted field it writes.' \
+  "$DOTFILES_DIR/config/ai/project-memory/example.md"
+[ ! -f "$candidate" ]
+[ -f "$AI_MEMORY_INBOX_DIR/promoted/$(basename "$candidate")" ]
+[ "$(stat -c '%a' "$DOTFILES_DIR/config/ai/project-memory/example.md" 2>/dev/null || stat -f '%Lp' "$DOTFILES_DIR/config/ai/project-memory/example.md")" = "$before_mode" ] \
+  || { echo "FAIL: promotion changed canonical file permissions" >&2; exit 1; }
+"$DOTFILES_DIR/bin/ai-memory-check" "$DOTFILES_DIR/config/ai/project-memory/example.md" >/dev/null
+
+echo "PASS: ai-learn capture and reviewed promotion"

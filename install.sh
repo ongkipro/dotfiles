@@ -114,7 +114,7 @@ link "$DOT/home/profile"                 ~/.profile
 link "$DOT/bin/ai-memory-link"           ~/.local/bin/ai-memory-link
 link "$DOT/bin/dotpush"                  ~/.local/bin/dotpush
 link "$DOT/bin/dotsync"                  ~/.local/bin/dotsync
-for s in tmux-clip tmux-setup security-check security-check-test skill-check-test skill-update-test installer-link-test shell-wrapper-test inspect-project project-init project-init-test omp-routing-test project-check diff-risk ai-policy-lint ai-doctor ai-memory-check vps-pgdump 9router-start 9router-restore 9router-credential-migrate pi-9router-restore device-register shopify-content-helper; do link "$DOT/bin/$s" ~/.local/bin/$s; done
+for s in tmux-clip tmux-setup security-check security-check-test skill-check-test skill-update-test installer-link-test shell-wrapper-test inspect-project project-init project-init-test omp-routing-test project-check diff-risk ai-policy-lint ai-doctor ai-memory-check ai-learn ai-learn-test vps-pgdump 9router-start 9router-restore 9router-credential-migrate pi-9router-restore device-register shopify-content-helper; do link "$DOT/bin/$s" ~/.local/bin/$s; done
 link "$DOT/config/omp/config.yml"        ~/.omp/agent/config.yml   # OMP config (model, theme, approval)
 link "$DOT/config/omp/models.yml"        ~/.omp/agent/models.yml   # OMP providers (9router)
 link "$DOT/config/omp/agents"            ~/.omp/agent/agents       # OMP specialist agents (role-routed)

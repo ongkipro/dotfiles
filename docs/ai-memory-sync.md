@@ -13,6 +13,36 @@ and owned skills across Linux and macOS.
 Live configuration is connected to these sources with symlinks. Pulling a
 reviewed Git change therefore updates the consumers immediately.
 
+## Capture is local; canonical memory is reviewed
+
+The shared system auto-loads policy but does not silently rewrite canonical
+memory. Every CLI receives an instruction to capture a durable lesson after a
+verified non-trivial fix when the lesson is not already preserved by repository
+tests or documentation:
+
+```bash
+ai-learn capture --title TEXT --symptom TEXT --root-cause TEXT \
+  --invariant TEXT --fix TEXT --check TEXT \
+  --scope shared
+```
+
+Candidates stay device-local in `~/.config/ai-local/memory-inbox/`. They must be
+short English summaries, never raw sessions, logs, credentials, customer data,
+changing status, or speculative diagnoses. Review and promote an accepted
+candidate into an existing canonical file:
+
+```bash
+ai-learn list
+ai-learn show CANDIDATE.md
+ai-learn promote CANDIDATE.md --target shared:workflow --yes
+# or: --target project:tokophi
+```
+
+Promotion runs the memory reference checker and archives the candidate locally.
+It never stages, commits, pushes, or grants permission for those Git actions.
+`ai-doctor` reports pending candidates so the review queue cannot become
+invisible.
+
 ## Normal workflow
 
 Use Git and Lazygit directly for daily work:
@@ -91,5 +121,6 @@ or private environment files. `security-check` is a guardrail, not a substitute
 for reviewing the staged diff. If a credential is ever committed, revoke or
 rotate it immediately; deleting it in a later commit is insufficient.
 
-Background synchronization, if added later, should be pull-only. Commits and
-pushes remain explicit user actions.
+Background synchronization, if added later, should be pull-only. Candidate
+capture may happen during an AI session, but canonical promotion, commits, and
+pushes remain explicit reviewed actions.

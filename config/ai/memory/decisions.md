@@ -92,6 +92,7 @@
 - Current installers are platform-selective, so the old claim that one install always edits both Claude and Codex was stale. The conflict remains: the default Claude install appends to `~/.claude/CLAUDE.md`, which is our shared `AGENTS.md` symlink, while `--platform agents` creates a second skill source outside `~/dotfiles/skills/local/`.
 - Our current navigation layer (`MEMORY.md`, project-memory index, `skill-list`, and `rg`) is adequate. A global package, generated graph state, hooks, and another query syntax do not yet earn their maintenance cost.
 - **What was taken:** make missing and ambiguous memory edges visible. `ai-memory-check` now validates relative Markdown links and wikilinks, and `ai-doctor` runs it.
+- **Reviewed lesson inbox (2026-08-15):** `ai-learn` adds a small capture → review → promote loop without a daemon, session-log ingestion, generated graph, or automatic Git mutation. Candidates are device-local; only explicit promotion updates canonical memory. `ai-doctor` exposes pending review work.
 - Revisit only for a specific large codebase or mixed research corpus where the current index plus `rg` measurably fails. Pilot ad hoc with code-only extraction before considering persistent hooks or an extension; do not install globally by default.
 - Full current analysis: `~/Documents/work/research/ponytail-graphify-dotfiles-analysis-2026-07-29.md`.
 
