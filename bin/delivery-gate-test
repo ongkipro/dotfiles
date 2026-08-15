@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+PC="$ROOT/bin/project-check"
+PG="$ROOT/bin/production-gate"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/delivery-gate-test.XXXXXX")"
+trap 'rm -rf "$TMP"' EXIT
+
+fail() { echo "FAIL: $*" >&2; exit 1; }
+
+# 1) Unknown repo must be UNVERIFIED, never false-green.
+mkdir -p "$TMP/unknown"
+set +e
+"$PC" "$TMP/unknown" >"$TMP/unknown.log" 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 2 ] || { cat "$TMP/unknown.log" >&2; fail "unknown project should exit 2"; }
+grep -q 'project-check: UNVERIFIED' "$TMP/unknown.log" || fail "missing UNVERIFIED output"
+
+# 2) Node repo with runnable checks must verify.
+mkdir -p "$TMP/node"
+cat >"$TMP/node/package.json" <<'JSON'
+{"scripts":{"test":"node -e \"process.exit(0)\"","build":"node -e \"process.exit(0)\""}}
+JSON
+"$PC" --full "$TMP/node" >"$TMP/node.log" 2>&1 || { cat "$TMP/node.log" >&2; fail "node fixture should verify"; }
+grep -q 'project-check: VERIFIED' "$TMP/node.log" || fail "missing VERIFIED output"
+
+# 3) Production gate should pass only with runnable verification + complete tasks + integrating state.
+cd "$TMP/node"
+git init -q
+git config user.email test@example.invalid
+git config user.name test
+cat > TASKS.md <<'EOF'
+# Tasks
+## In progress
+No task is in progress.
+## Pending
+No implementation task has been accepted.
+## Done
+### TASK-001
+Completed.
+EOF
+cat > STATUS.md <<'EOF'
+# Status
+State: INTEGRATING
+Independent-Review: PENDING
+EOF
+git add .
+git commit -qm fixture
+"$PG" "$TMP/node" >"$TMP/prod.log" 2>&1 || { cat "$TMP/prod.log" >&2; fail "production fixture should pass"; }
+grep -q 'PRODUCTION_GATE=PRODUCTION_READY' "$TMP/prod.log" || fail "missing production-ready result"
+
+echo "delivery-gate-test: PASS"

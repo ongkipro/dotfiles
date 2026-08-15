@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""production-gate — deterministic production-readiness aggregator.
+
+This command never deploys. It proves whether a repository may transition from
+INTEGRATING to PRODUCTION_READY / AWAITING_DEPLOY_APPROVAL.
+
+Exit codes:
+  0 PRODUCTION_READY
+  1 BLOCKED
+  2 UNVERIFIED
+"""
+from __future__ import annotations
+import argparse, json, re, shutil, subprocess, sys
+from pathlib import Path
+
+READY, BLOCKED, UNVERIFIED = 0, 1, 2
+
+
+def run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+
+
+def locate(name: str) -> str | None:
+    found = shutil.which(name)
+    if found:
+        return found
+    local = Path(__file__).resolve().parent / name
+    return str(local) if local.is_file() else None
+
+
+def command_gate(cmd: list[str], repo: Path) -> tuple[str, str]:
+    res = run(cmd, repo)
+    out = (res.stdout + "\n" + res.stderr).strip()
+    if res.returncode == 0:
+        return "PASS", out
+    if res.returncode == 2:
+        return "UNVERIFIED", out
+    return "FAIL", out
+
+
+def tasks_gate(repo: Path) -> tuple[str, str]:
+    path = repo / "TASKS.md"
+    if not path.is_file():
+        return "UNVERIFIED", "TASKS.md is missing"
+    text = path.read_text(encoding="utf-8", errors="replace")
+    for heading in ("In progress", "Pending"):
+        section = re.search(rf"(?ims)^##\s+{re.escape(heading)}\s*$([\s\S]*?)(?=^##\s+|\Z)", text)
+        if not section:
+            return "UNVERIFIED", f"TASKS.md has no '{heading}' section"
+        body = section.group(1)
+        unfinished = re.search(r"(?im)^\s*(?:###\s+TASK-|[-*]\s*\[\s\]|[-*]\s+TASK-)", body)
+        if unfinished:
+            return "FAIL", f"{heading} still contains unfinished work"
+    return "PASS", "No unfinished task entries found"
+
+
+def state_gate(repo: Path) -> tuple[str, str]:
+    path = repo / "STATUS.md"
+    if not path.is_file():
+        return "UNVERIFIED", "STATUS.md is missing"
+    text = path.read_text(encoding="utf-8", errors="replace")
+    match = re.search(r"(?im)^State:\s*([A-Z_]+)\s*$", text)
+    if not match:
+        return "UNVERIFIED", "STATUS.md has no machine-readable State field"
+    state = match.group(1)
+    allowed = {"INTEGRATING", "PRODUCTION_READY", "AWAITING_DEPLOY_APPROVAL", "DEPLOYED", "SMOKE_TESTING", "VERIFIED"}
+    if state not in allowed:
+        return "FAIL", f"State={state}; finish implementation/review before production gating"
+    return "PASS", f"State={state}"
+
+
+def review_gate(repo: Path, risk: str) -> tuple[str, str]:
+    path = repo / "STATUS.md"
+    if risk not in {"R3", "R4"}:
+        return "PASS", f"Risk={risk}; independent strong review not mandatory"
+    if not path.is_file():
+        return "UNVERIFIED", "STATUS.md missing; cannot prove independent review"
+    text = path.read_text(encoding="utf-8", errors="replace")
+    review = re.search(r"(?im)^Independent-Review:\s*(PASS|FAIL|PENDING)\s*$", text)
+    if not review:
+        return "UNVERIFIED", f"Risk={risk}; STATUS.md must record Independent-Review: PASS"
+    if review.group(1) != "PASS":
+        return "FAIL", f"Risk={risk}; Independent-Review={review.group(1)}"
+    return "PASS", f"Risk={risk}; Independent-Review=PASS"
+
+
+def risk_gate(repo: Path) -> tuple[str, str, str | None]:
+    binary = locate("diff-risk")
+    if not binary:
+        return "UNVERIFIED", "diff-risk unavailable", None
+    res = run([binary, "--json", str(repo)], repo)
+    if res.returncode != 0:
+        return "FAIL", (res.stdout + res.stderr).strip(), None
+    try:
+        data = json.loads(res.stdout)
+    except Exception:
+        return "UNVERIFIED", "diff-risk did not return valid JSON", None
+    risk = data.get("risk")
+    if risk not in {"R0", "R1", "R2", "R3", "R4"}:
+        return "UNVERIFIED", f"Unknown diff-risk result: {risk}", None
+    return "PASS", f"diff-risk={risk}", risk
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("directory", nargs="?", default=".")
+    parser.add_argument("--json", action="store_true")
+    args = parser.parse_args()
+    repo = Path(args.directory).resolve()
+    if not repo.is_dir():
+        print(f"ERROR: Directory not found: {repo}", file=sys.stderr)
+        return BLOCKED
+
+    results: dict[str, dict[str, str]] = {}
+    project_check, security_check = locate("project-check"), locate("security-check")
+
+    status, detail = command_gate([project_check, "--full", str(repo)], repo) if project_check else ("UNVERIFIED", "project-check unavailable")
+    results["project_check"] = {"status": status, "detail": detail}
+    status, detail = command_gate([security_check, str(repo)], repo) if security_check else ("UNVERIFIED", "security-check unavailable")
+    results["security"] = {"status": status, "detail": detail}
+
+    status, detail = tasks_gate(repo); results["tasks"] = {"status": status, "detail": detail}
+    status, detail = state_gate(repo); results["state"] = {"status": status, "detail": detail}
+    status, detail, risk = risk_gate(repo); results["risk"] = {"status": status, "detail": detail}
+    if risk:
+        status, detail = review_gate(repo, risk)
+        results["independent_review"] = {"status": status, "detail": detail}
+
+    statuses = [item["status"] for item in results.values()]
+    final = "BLOCKED" if "FAIL" in statuses else "UNVERIFIED" if "UNVERIFIED" in statuses else "PRODUCTION_READY"
+
+    if args.json:
+        print(json.dumps({"result": final, "gates": results}, indent=2))
+    else:
+        print("production-gate")
+        print("-" * 60)
+        for name, item in results.items():
+            print(f"{name:20} {item['status']}")
+            if item["detail"]:
+                print(f"  {item['detail'].splitlines()[-1]}")
+        print("-" * 60)
+        print(f"PRODUCTION_GATE={final}")
+
+    return READY if final == "PRODUCTION_READY" else UNVERIFIED if final == "UNVERIFIED" else BLOCKED
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

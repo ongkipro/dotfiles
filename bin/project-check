@@ -1,226 +1,240 @@
 #!/usr/bin/env python3
-"""project-check — Deterministic, runtime-neutral repository check runner.
+"""project-check — deterministic repository verification with explicit semantics.
 
-Discovers repository project type (Node, Python, Go, Rust, PHP) and executes
-its native verification commands (typecheck, lint, test, build).
+Exit codes:
+  0 VERIFIED     runnable checks were discovered and all passed
+  1 FAILED       at least one discovered check failed
+  2 UNVERIFIED   no adequate runnable verification was discovered
+
+Modes:
+  --changed      fast checks for iterative work (skip production build)
+  --full         full project-native verification (default)
+  --ui           require a runnable UI/E2E check in addition to full checks
+  --security     require security-check in addition to full checks
 """
 
+from __future__ import annotations
+
+import argparse
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
-import shutil
+
+VERIFIED = 0
+FAILED = 1
+UNVERIFIED = 2
 
 
-def say(msg):
-    print(f"→ {msg}")
+def say(msg: str) -> None:
+    print(f"-> {msg}")
 
 
-def ok(msg):
-    print(f"  ✓ {msg}")
+def ok(msg: str) -> None:
+    print(f"  OK {msg}")
 
 
-def fail(msg):
-    print(f"  ✗ {msg}")
+def fail(msg: str) -> None:
+    print(f"  FAIL {msg}")
 
 
-def run_cmd(cmd, cwd=None, env=None):
-    merged_env = os.environ.copy()
-    if env:
-        merged_env.update(env)
-    return subprocess.run(
+def run_cmd(cmd: list[str], cwd: Path) -> bool:
+    res = subprocess.run(
         cmd,
         cwd=cwd,
-        env=merged_env,
+        env=os.environ.copy(),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
         check=False,
     )
-
-
-def check_node(repo_path):
-    pkg_json = repo_path / "package.json"
-    if not pkg_json.is_file():
-        return None
-
-    try:
-        data = json.loads(pkg_json.read_text(encoding="utf-8"))
-    except Exception as e:
-        fail(f"Invalid package.json: {e}")
-        return False
-
-    scripts = data.get("scripts", {})
-    if not scripts:
-        say("Node project detected (package.json present, no scripts defined)")
+    if res.returncode == 0:
+        ok(" ".join(cmd))
         return True
+    fail(f"{' '.join(cmd)} (exit {res.returncode})")
+    if res.stdout:
+        print("--- STDOUT ---")
+        print(res.stdout[-2000:])
+    if res.stderr:
+        print("--- STDERR ---")
+        print(res.stderr[-2000:])
+    return False
 
-    pm = "npm"
-    if (repo_path / "pnpm-lock.yaml").is_file() and shutil.which("pnpm"):
-        pm = "pnpm"
-    elif (repo_path / "bun.lockb").is_file() and shutil.which("bun"):
-        pm = "bun"
-    elif (repo_path / "yarn.lock").is_file() and shutil.which("yarn"):
-        pm = "yarn"
 
+def node_pm(repo: Path) -> str | None:
+    candidates = []
+    if (repo / "pnpm-lock.yaml").is_file():
+        candidates.append("pnpm")
+    if (repo / "bun.lock").is_file() or (repo / "bun.lockb").is_file():
+        candidates.append("bun")
+    if (repo / "yarn.lock").is_file():
+        candidates.append("yarn")
+    candidates.append("npm")
+    return next((pm for pm in candidates if shutil.which(pm)), None)
+
+
+def check_node(repo: Path, mode: str) -> tuple[int, int, bool]:
+    pkg = repo / "package.json"
+    if not pkg.is_file():
+        return 0, 0, False
+    try:
+        data = json.loads(pkg.read_text(encoding="utf-8"))
+    except Exception as exc:
+        fail(f"Invalid package.json: {exc}")
+        return 1, 1, True
+
+    pm = node_pm(repo)
+    if not pm:
+        fail("Node project detected but no supported package manager is available")
+        return 1, 1, True
+
+    scripts = data.get("scripts") or {}
     say(f"Node project detected (package manager: {pm})")
-    all_passed = True
 
-    # Order of execution: typecheck -> lint -> test -> build
-    check_order = ["typecheck", "tsc", "lint", "test", "build"]
-    executed = 0
+    standard = ["typecheck", "tsc", "lint", "test"]
+    if mode != "changed":
+        standard.append("build")
+    ui_candidates = ["test:e2e", "e2e", "test:ui", "playwright"]
 
-    for script in check_order:
-        if script in scripts:
-            executed += 1
-            cmd = [pm, "run", script]
-            say(f"Running {pm} run {script}...")
-            res = run_cmd(cmd, cwd=repo_path)
-            if res.returncode == 0:
-                ok(f"{pm} run {script}")
-            else:
-                fail(f"{pm} run {script} (exit {res.returncode})")
-                if res.stdout:
-                    print("--- STDOUT ---")
-                    print(res.stdout[-1000:])
-                if res.stderr:
-                    print("--- STDERR ---")
-                    print(res.stderr[-1000:])
-                all_passed = False
-
-    if executed == 0:
-        say("No standard check scripts (typecheck, lint, test, build) found in package.json")
-
-    return all_passed
-
-
-def check_go(repo_path):
-    if not (repo_path / "go.mod").is_file():
-        return None
-
-    if not shutil.which("go"):
-        fail("go.mod present but 'go' binary not found")
-        return False
-
-    say("Go project detected")
-    all_passed = True
-
-    for cmd_args, label in [
-        (["go", "vet", "./..."], "go vet ./..."),
-        (["go", "test", "./..."], "go test ./..."),
-    ]:
-        say(f"Running {label}...")
-        res = run_cmd(cmd_args, cwd=repo_path)
-        if res.returncode == 0:
-            ok(label)
+    selected: list[str] = []
+    for name in standard:
+        if name in scripts and name not in selected:
+            selected.append(name)
+    if mode == "ui":
+        ui_script = next((name for name in ui_candidates if name in scripts), None)
+        if ui_script:
+            selected.append(ui_script)
         else:
-            fail(f"{label} (exit {res.returncode})")
-            if res.stderr:
-                print(res.stderr[-1000:])
-            all_passed = False
+            say("UI mode requested but no E2E/UI script was discovered")
+            return len(selected), 0, True
 
-    return all_passed
+    passed = 0
+    for script in selected:
+        if run_cmd([pm, "run", script], repo):
+            passed += 1
+
+    return len(selected), passed, True
 
 
-def check_python(repo_path):
-    is_py = (
-        (repo_path / "pyproject.toml").is_file()
-        or (repo_path / "setup.py").is_file()
-        or (repo_path / "requirements.txt").is_file()
-        or any(repo_path.glob("*.py"))
-    )
+def check_python(repo: Path, mode: str) -> tuple[int, int, bool]:
+    is_py = any([
+        (repo / "pyproject.toml").is_file(),
+        (repo / "setup.py").is_file(),
+        (repo / "requirements.txt").is_file(),
+        any(repo.glob("*.py")),
+    ])
     if not is_py:
-        return None
-
+        return 0, 0, False
     say("Python project detected")
-    all_passed = True
-    executed = 0
-
+    commands: list[list[str]] = []
     if shutil.which("ruff"):
-        executed += 1
-        say("Running ruff check...")
-        res = run_cmd(["ruff", "check", "."], cwd=repo_path)
-        if res.returncode == 0:
-            ok("ruff check")
-        else:
-            fail(f"ruff check (exit {res.returncode})")
-            all_passed = False
-
+        commands.append(["ruff", "check", "."])
     if shutil.which("pytest"):
-        executed += 1
-        say("Running pytest...")
-        res = run_cmd(["pytest"], cwd=repo_path)
-        if res.returncode == 0:
-            ok("pytest")
-        else:
-            fail(f"pytest (exit {res.returncode})")
-            all_passed = False
-
-    if executed == 0:
-        say("Python project detected, but ruff/pytest not installed or configured")
-
-    return all_passed
+        commands.append(["pytest"])
+    passed = sum(1 for cmd in commands if run_cmd(cmd, repo))
+    return len(commands), passed, True
 
 
-def check_rust(repo_path):
-    if not (repo_path / "Cargo.toml").is_file():
-        return None
+def check_go(repo: Path, mode: str) -> tuple[int, int, bool]:
+    if not (repo / "go.mod").is_file():
+        return 0, 0, False
+    say("Go project detected")
+    if not shutil.which("go"):
+        fail("go.mod present but go binary not found")
+        return 1, 0, True
+    commands = [["go", "vet", "./..."], ["go", "test", "./..."]]
+    passed = sum(1 for cmd in commands if run_cmd(cmd, repo))
+    return len(commands), passed, True
 
-    if not shutil.which("cargo"):
-        fail("Cargo.toml present but 'cargo' binary not found")
-        return False
 
+def check_rust(repo: Path, mode: str) -> tuple[int, int, bool]:
+    if not (repo / "Cargo.toml").is_file():
+        return 0, 0, False
     say("Rust project detected")
-    all_passed = True
-
-    for cmd_args, label in [
-        (["cargo", "check"], "cargo check"),
-        (["cargo", "test"], "cargo test"),
-    ]:
-        say(f"Running {label}...")
-        res = run_cmd(cmd_args, cwd=repo_path)
-        if res.returncode == 0:
-            ok(label)
-        else:
-            fail(f"{label} (exit {res.returncode})")
-            if res.stderr:
-                print(res.stderr[-1000:])
-            all_passed = False
-
-    return all_passed
+    if not shutil.which("cargo"):
+        fail("Cargo.toml present but cargo binary not found")
+        return 1, 0, True
+    commands = [["cargo", "check"], ["cargo", "test"]]
+    passed = sum(1 for cmd in commands if run_cmd(cmd, repo))
+    return len(commands), passed, True
 
 
-def main():
-    target_dir = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path.cwd()
-    if not target_dir.is_dir():
-        print(f"ERROR: Directory not found: {target_dir}", file=sys.stderr)
-        sys.exit(1)
+def check_php(repo: Path, mode: str) -> tuple[int, int, bool]:
+    composer_json = repo / "composer.json"
+    if not composer_json.is_file():
+        return 0, 0, False
+    say("PHP/Composer project detected")
+    if not shutil.which("composer"):
+        fail("composer.json present but composer binary not found")
+        return 1, 0, True
+    try:
+        data = json.loads(composer_json.read_text(encoding="utf-8"))
+    except Exception as exc:
+        fail(f"Invalid composer.json: {exc}")
+        return 1, 0, True
+    scripts = data.get("scripts") or {}
+    names = [name for name in ["lint", "analyse", "analyze", "test"] if name in scripts]
+    commands = [["composer", "run-script", name] for name in names]
+    passed = sum(1 for cmd in commands if run_cmd(cmd, repo))
+    return len(commands), passed, True
 
-    print(f"project-check: Verifying repository at {target_dir}")
-    print("─" * 60)
 
-    checkers = [check_node, check_go, check_python, check_rust]
-    results = []
+def security_gate(repo: Path) -> tuple[int, int]:
+    binary = shutil.which("security-check")
+    if not binary:
+        local = Path(__file__).resolve().parent / "security-check"
+        binary = str(local) if local.is_file() else None
+    if not binary:
+        say("Security mode requested but security-check is unavailable")
+        return 0, 0
+    return (1, 1 if run_cmd([binary, str(repo)], repo) else 0)
 
-    for checker in checkers:
-        res = checker(target_dir)
-        if res is not None:
-            results.append(res)
 
-    print("─" * 60)
-    if not results:
-        say("No standard project configuration recognized (Node, Go, Python, Rust)")
-        print("project-check: PASSED (no runnable checks discovered)")
-        sys.exit(0)
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--changed", action="store_true")
+    modes.add_argument("--full", action="store_true")
+    modes.add_argument("--ui", action="store_true")
+    modes.add_argument("--security", action="store_true")
+    parser.add_argument("directory", nargs="?", default=".")
+    args = parser.parse_args()
 
-    if all(results):
-        print("project-check: PASSED (all discovered checks succeeded)")
-        sys.exit(0)
-    else:
-        print("project-check: FAILED (one or more checks failed)", file=sys.stderr)
-        sys.exit(1)
+    repo = Path(args.directory).resolve()
+    if not repo.is_dir():
+        print(f"ERROR: Directory not found: {repo}", file=sys.stderr)
+        return FAILED
+
+    mode = "changed" if args.changed else "ui" if args.ui else "security" if args.security else "full"
+    print(f"project-check: {mode} verification at {repo}")
+    print("-" * 60)
+
+    total = passed = 0
+    recognized = False
+    for checker in [check_node, check_python, check_go, check_rust, check_php]:
+        count, good, seen = checker(repo, mode)
+        total += count
+        passed += good
+        recognized = recognized or seen
+
+    if mode == "security":
+        count, good = security_gate(repo)
+        total += count
+        passed += good
+
+    print("-" * 60)
+    if total == 0:
+        reason = "project recognized but no adequate runnable checks discovered" if recognized else "no supported project configuration recognized"
+        print(f"project-check: UNVERIFIED ({reason})")
+        return UNVERIFIED
+    if passed != total:
+        print(f"project-check: FAILED ({passed}/{total} checks passed)", file=sys.stderr)
+        return FAILED
+    print(f"project-check: VERIFIED ({passed}/{total} checks passed)")
+    return VERIFIED
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
