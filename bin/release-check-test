@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+RC="$ROOT/bin/release-check"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/release-check-test.XXXXXX")"
+trap 'kill "${SERVER_PID:-}" 2>/dev/null || true; rm -rf "$TMP"' EXIT
+fail() { echo "FAIL: $*" >&2; exit 1; }
+
+mkdir -p "$TMP/www" "$TMP/repo"
+printf '<html><body>release-marker</body></html>\n' > "$TMP/www/index.html"
+PORT="$(python3 - <<'PY'
+import socket
+s=socket.socket(); s.bind(('127.0.0.1',0)); print(s.getsockname()[1]); s.close()
+PY
+)"
+python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$TMP/www" >"$TMP/server.log" 2>&1 &
+SERVER_PID=$!
+python3 - <<PY
+import socket,time
+for _ in range(50):
+    try:
+        with socket.create_connection(('127.0.0.1',$PORT), timeout=.1): break
+    except OSError: time.sleep(.05)
+else: raise SystemExit(1)
+PY
+
+cat > "$TMP/repo/STATUS.md" <<EOF
+# Status
+State: DEPLOYED
+Smoke-URL: http://127.0.0.1:$PORT/
+Smoke-Contains: release-marker
+EOF
+"$RC" "$TMP/repo" >"$TMP/pass.log" || { cat "$TMP/pass.log" >&2; fail "smoke success should verify"; }
+grep -q 'release-check: VERIFIED' "$TMP/pass.log" || fail "verified output missing"
+
+sed 's/release-marker/missing-marker/' "$TMP/repo/STATUS.md" > "$TMP/repo/STATUS.tmp" && mv "$TMP/repo/STATUS.tmp" "$TMP/repo/STATUS.md"
+set +e
+"$RC" "$TMP/repo" >"$TMP/fail.log" 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 1 ] || { cat "$TMP/fail.log" >&2; fail "missing marker should fail"; }
+
+sed -i.bak 's/State: DEPLOYED/State: INTEGRATING/' "$TMP/repo/STATUS.md" && rm -f "$TMP/repo/STATUS.md.bak"
+set +e
+"$RC" "$TMP/repo" >"$TMP/unverified.log" 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 2 ] || { cat "$TMP/unverified.log" >&2; fail "invalid state should be unverified"; }
+
+echo "release-check-test: PASS"

@@ -1,124 +1,153 @@
 #!/usr/bin/env python3
-"""diff-risk — Deterministic Git diff risk classifier.
+"""diff-risk — deterministic Git diff risk classifier.
 
-Classifies uncommitted or staged changes into risk levels (R0–R4), flagging
-sensitive paths (auth, payment, migrations, secrets, lockfiles) and recommended model roles.
+Classifies the current change set into R0-R4. When --base is supplied, the
+change set is everything from that commit to the current working tree, plus
+untracked files. Invalid repositories or refs fail closed.
+
+Exit codes:
+  0 classification produced
+  1 invalid repository/ref or Git failure
 """
+from __future__ import annotations
 
+import argparse
 import json
-import os
 from pathlib import Path
 import re
 import subprocess
 import sys
 
+RISK_ORDER = {"R0": 0, "R1": 1, "R2": 2, "R3": 3, "R4": 4}
 
-SENSITIVE_PATTERNS = [
-    (r"(?:auth|jwt|session|login|oauth|password|token)", "Authentication / Authorization"),
-    (r"(?:payment|stripe|billing|checkout|cart|money|currency|transaction)", "Payment / Financial"),
-    (r"(?:migration|schema|db/|prisma|drizzle|sql)", "Database Schema / Migration"),
-    (r"\.env(?:\..*)?$", "Environment Secrets / Config"),
-    (r"(?:lock|pnpm-lock\.yaml|package-lock\.json|yarn\.lock|Cargo\.lock)", "Dependency Lockfile"),
-    (r"(?:crypto|secret|vault|key|cert)", "Security / Encryption"),
-    (r"(?:docker|terraform|coolify|k8s|nginx|caddy|vultr)", "Infrastructure / Deployment"),
+PATH_RULES = [
+    (r"(?:^|/)(?:auth|oauth|sessions?|login|passwords?|permissions?|rbac|acl)(?:/|\.|$)|(?:jwt|token)", "Authentication / Authorization", "R3"),
+    (r"(?:payment|stripe|billing|checkout|money|currency|transaction)", "Payment / Financial", "R3"),
+    (r"(?:^|/)(?:migrations?|schema)(?:/|\.|$)|(?:prisma|drizzle)|\.sql$", "Database Schema / Migration", "R3"),
+    (r"(?:^|/)\.env(?:\..*)?$|(?:secret|vault|private[_-]?key|cert)", "Secrets / Cryptography", "R4"),
+    (r"(?:^|/)(?:package\.json|pyproject\.toml|go\.mod|Cargo\.toml|composer\.json)$", "Dependency / Build Manifest", "R2"),
+    (r"(?:^|/)(?:pnpm-lock\.yaml|package-lock\.json|yarn\.lock|bun\.lockb?|Cargo\.lock|composer\.lock)$", "Dependency Lockfile", "R2"),
+    (r"(?:^|/)\.github/workflows/|(?:docker|terraform|coolify|k8s|kubernetes|nginx|caddy|vultr)", "CI / Infrastructure / Deployment", "R3"),
 ]
 
+DOC_EXTENSIONS = {".md", ".txt", ".rst", ".png", ".jpg", ".jpeg", ".svg", ".webp", ".gif"}
 
-def run_git(args, cwd):
-    res = subprocess.run(
-        ["git"] + args,
-        cwd=cwd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        check=False,
+
+def git(args: list[str], cwd: Path, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args], cwd=cwd, input=stdin, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, text=True, check=False,
     )
+
+
+def require_git_repo(repo: Path) -> None:
+    res = git(["rev-parse", "--is-inside-work-tree"], repo)
+    if res.returncode != 0 or res.stdout.strip() != "true":
+        raise RuntimeError(f"{repo} is not a Git work tree")
+
+
+def resolve_commit(repo: Path, ref: str) -> str:
+    res = git(["rev-parse", "--verify", f"{ref}^{{commit}}"], repo)
     if res.returncode != 0:
-        return ""
-    return res.stdout
+        raise RuntimeError(f"invalid base ref: {ref}")
+    return res.stdout.strip()
 
 
-def analyze_diff(repo_path, base_ref=None):
-    # Try staged + unstaged first
-    status_out = run_git(["status", "--porcelain"], repo_path)
-    if not status_out.strip() and not base_ref:
-        # Check against HEAD~1 if working directory is clean
-        base_ref = "HEAD~1"
+def head_exists(repo: Path) -> bool:
+    return git(["rev-parse", "--verify", "HEAD^{commit}"], repo).returncode == 0
 
-    if base_ref:
-        diff_out = run_git(["diff", base_ref], repo_path)
-        name_status = run_git(["diff", "--name-status", base_ref], repo_path)
-        stat_out = run_git(["diff", "--stat", base_ref], repo_path)
-    else:
-        diff_out = run_git(["diff", "HEAD"], repo_path)
-        if not diff_out:
-            diff_out = run_git(["diff"], repo_path) + run_git(["diff", "--cached"], repo_path)
-        name_status = run_git(["diff", "--name-status", "HEAD"], repo_path)
-        if not name_status:
-            name_status = run_git(["status", "--porcelain"], repo_path)
-        stat_out = run_git(["diff", "--stat", "HEAD"], repo_path)
 
-    files_changed = []
-    seen = set()
-    for line in (name_status + "\n" + status_out).splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        parts = line.split(maxsplit=1)
-        if len(parts) == 2:
-            status, path = parts[0], parts[1]
-            if path not in seen:
-                seen.add(path)
-                files_changed.append((status, path))
+def empty_tree(repo: Path) -> str:
+    res = git(["hash-object", "-t", "tree", "--stdin"], repo, "")
+    if res.returncode != 0:
+        raise RuntimeError(res.stderr.strip() or "could not create empty-tree hash")
+    return res.stdout.strip()
 
-    # Calculate added/deleted lines
-    added_lines = 0
-    deleted_lines = 0
-    for line in diff_out.splitlines():
+
+def lines_from_diff(diff_text: str) -> tuple[int, int]:
+    added = deleted = 0
+    for line in diff_text.splitlines():
         if line.startswith("+") and not line.startswith("+++"):
-            added_lines += 1
+            added += 1
         elif line.startswith("-") and not line.startswith("---"):
-            deleted_lines += 1
+            deleted += 1
+    return added, deleted
 
-    total_line_changes = added_lines + deleted_lines
 
-    # Check sensitive paths
-    flagged_reasons = []
-    for _, path in files_changed:
-        for pattern, label in SENSITIVE_PATTERNS:
-            if re.search(pattern, path, re.IGNORECASE):
-                flagged_reasons.append(f"{label} path modified: {path}")
+def analyze_diff(repo: Path, base_ref: str | None = None) -> dict:
+    require_git_repo(repo)
+    has_head = head_exists(repo)
+    status = git(["status", "--porcelain"], repo)
+    if status.returncode != 0:
+        raise RuntimeError(status.stderr.strip() or "git status failed")
+    dirty = bool(status.stdout.strip())
 
-    # Determine risk level
-    is_doc_only = all(
-        path.endswith((".md", ".txt", ".rst", ".png", ".jpg", ".svg", ".json"))
-        and not any(re.search(p, path, re.IGNORECASE) for p, _ in SENSITIVE_PATTERNS)
-        for _, path in files_changed
-    )
+    base = None
+    if base_ref:
+        base = resolve_commit(repo, base_ref)
+    elif not dirty:
+        if has_head and git(["rev-parse", "--verify", "HEAD~1^{commit}"], repo).returncode == 0:
+            base = resolve_commit(repo, "HEAD~1")
+        elif has_head:
+            base = empty_tree(repo)
 
-    if not files_changed:
-        risk = "R0"
-        rationale = "No files modified."
-    elif is_doc_only and len(files_changed) <= 5:
-        risk = "R0"
-        rationale = "Documentation, assets, or static text modifications only."
-    elif flagged_reasons and any("Database" in r or "Infrastructure" in r for r in flagged_reasons) and total_line_changes > 300:
-        risk = "R4"
-        rationale = "Costly-to-reverse database migration or infrastructure topology changes with substantial diff."
-    elif flagged_reasons:
-        risk = "R3"
-        rationale = "Correctness-sensitive paths modified (" + ", ".join(set(r.split(":")[0] for r in flagged_reasons)) + ")."
-    elif len(files_changed) > 10 or total_line_changes > 500:
-        risk = "R3"
-        rationale = f"Large diff volume ({len(files_changed)} files, {total_line_changes} lines changed)."
-    elif len(files_changed) > 3 or total_line_changes > 150:
-        risk = "R2"
-        rationale = f"Moderate multi-file diff ({len(files_changed)} files, {total_line_changes} lines changed)."
+    if base:
+        diff = git(["diff", "--no-ext-diff", "--no-textconv", base], repo)
+        names = git(["diff", "--name-only", "--no-ext-diff", base], repo)
+    elif has_head:
+        diff = git(["diff", "--no-ext-diff", "--no-textconv", "HEAD"], repo)
+        names = git(["diff", "--name-only", "--no-ext-diff", "HEAD"], repo)
     else:
-        risk = "R1"
-        rationale = f"Bounded low-risk implementation ({len(files_changed)} files, {total_line_changes} lines changed)."
+        diff = subprocess.CompletedProcess([], 0, "", "")
+        names = subprocess.CompletedProcess([], 0, "", "")
 
-    # Execution lane recommendation
+    if diff.returncode not in (0, 1):
+        raise RuntimeError(diff.stderr.strip() or "git diff failed")
+    if names.returncode != 0:
+        raise RuntimeError(names.stderr.strip() or "git diff --name-only failed")
+
+    untracked = git(["ls-files", "--others", "--exclude-standard"], repo)
+    if untracked.returncode != 0:
+        raise RuntimeError(untracked.stderr.strip() or "git ls-files failed")
+
+    files = []
+    seen = set()
+    for path in [*names.stdout.splitlines(), *untracked.stdout.splitlines()]:
+        path = path.strip()
+        if path and path not in seen:
+            seen.add(path)
+            files.append(path)
+
+    added, deleted = lines_from_diff(diff.stdout)
+    total = added + deleted
+
+    flagged: list[dict[str, str]] = []
+    path_risk = "R0"
+    for path in files:
+        for pattern, label, minimum in PATH_RULES:
+            if re.search(pattern, path, re.IGNORECASE):
+                flagged.append({"path": path, "reason": label, "minimumRisk": minimum})
+                if RISK_ORDER[minimum] > RISK_ORDER[path_risk]:
+                    path_risk = minimum
+
+    doc_only = bool(files) and all(Path(path).suffix.lower() in DOC_EXTENSIONS for path in files)
+
+    if not files:
+        size_risk, rationale = "R0", "No changed or untracked files detected."
+    elif doc_only and len(files) <= 5 and path_risk == "R0":
+        size_risk, rationale = "R0", "Small documentation or static-asset change set."
+    elif len(files) > 10 or total > 500:
+        size_risk, rationale = "R3", f"Large change set ({len(files)} files, {total} tracked line changes)."
+    elif len(files) > 3 or total > 150:
+        size_risk, rationale = "R2", f"Moderate change set ({len(files)} files, {total} tracked line changes)."
+    else:
+        size_risk, rationale = "R1", f"Bounded change set ({len(files)} files, {total} tracked line changes)."
+
+    risk = max((size_risk, path_risk), key=lambda value: RISK_ORDER[value])
+    if path_risk != "R0" and RISK_ORDER[path_risk] >= RISK_ORDER[size_risk]:
+        labels = sorted({entry["reason"] for entry in flagged if entry["minimumRisk"] == path_risk})
+        rationale = f"Sensitive path class requires at least {path_risk}: {', '.join(labels)}."
+
     lane_map = {
         "R0": ("volume / cheap-dev", "@smol"),
         "R1": ("volume / cheap-dev", "@task"),
@@ -126,62 +155,66 @@ def analyze_diff(repo_path, base_ref=None):
         "R3": ("precision + independent review", "@slow / @advisor-xhigh"),
         "R4": ("judgment lane / architect review", "@advisor-max / @architect"),
     }
-    recommended_lane, recommended_role = lane_map.get(risk, ("precision lane", "@slow"))
+    lane, role = lane_map[risk]
 
     return {
-        "risk": risk,
-        "rationale": rationale,
-        "filesCount": len(files_changed),
-        "linesAdded": added_lines,
-        "linesDeleted": deleted_lines,
-        "totalLineChanges": total_line_changes,
-        "flaggedReasons": flagged_reasons,
-        "files": [path for _, path in files_changed],
-        "recommendedLane": recommended_lane,
-        "recommendedRole": recommended_role,
+        "risk": risk, "rationale": rationale, "baseRef": base_ref,
+        "resolvedBase": base, "dirtyWorkingTree": dirty,
+        "filesCount": len(files), "linesAdded": added, "linesDeleted": deleted,
+        "totalLineChanges": total, "flaggedReasons": flagged, "files": files,
+        "recommendedLane": lane, "recommendedRole": role,
     }
 
 
-def main():
-    json_mode = "--json" in sys.argv
-    base_ref = None
-    target_dir = Path.cwd()
-    for arg in sys.argv[1:]:
-        if arg.startswith("--"):
-            continue
-        p = Path(arg).resolve()
-        if p.is_dir():
-            target_dir = p
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--json", action="store_true")
+    parser.add_argument("--base", dest="base_ref")
+    parser.add_argument("target", nargs="?", default=".")
+    parser.add_argument("legacy_base", nargs="?")
+    args = parser.parse_args()
+
+    target = Path(args.target).expanduser()
+    base_ref = args.base_ref or args.legacy_base
+    if not target.is_dir() and args.target != "." and not args.legacy_base and not args.base_ref:
+        base_ref = args.target
+        target = Path.cwd()
+
+    repo = target.resolve()
+    try:
+        data = analyze_diff(repo, base_ref)
+    except Exception as exc:
+        if args.json:
+            print(json.dumps({"error": str(exc)}))
         else:
-            base_ref = arg
+            print(f"diff-risk: ERROR: {exc}", file=sys.stderr)
+        return 1
 
-    data = analyze_diff(target_dir, base_ref)
-
-    if json_mode:
+    if args.json:
         print(json.dumps(data, indent=2))
-        sys.exit(0)
+        return 0
 
     print(f"diff-risk: Risk Level {data['risk']}")
-    print("─" * 60)
+    print("-" * 60)
     print(f"Rationale:         {data['rationale']}")
+    print(f"Base:              {data['baseRef'] or '(auto)'}")
+    print(f"Working tree:      {'dirty' if data['dirtyWorkingTree'] else 'clean'}")
     print(f"Files Modified:    {data['filesCount']}")
-    print(f"Lines Changed:     +{data['linesAdded']} / -{data['linesDeleted']} (total {data['totalLineChanges']})")
+    print(f"Lines Changed:     +{data['linesAdded']} / -{data['linesDeleted']} (tracked total {data['totalLineChanges']})")
     print(f"Recommended Lane:  {data['recommendedLane']} ({data['recommendedRole']})")
-
     if data["flaggedReasons"]:
         print("\nFlagged Risk Factors:")
-        for reason in set(data["flaggedReasons"]):
-            print(f"  ⚠ {reason}")
-
+        for entry in data["flaggedReasons"]:
+            print(f"  - {entry['minimumRisk']} {entry['reason']}: {entry['path']}")
     if data["files"]:
         print("\nModified Files:")
-        for f in data["files"][:15]:
-            print(f"  - {f}")
+        for path in data["files"][:15]:
+            print(f"  - {path}")
         if len(data["files"]) > 15:
             print(f"  ... and {len(data['files']) - 15} more files")
-
-    print("─" * 60)
+    print("-" * 60)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

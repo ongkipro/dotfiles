@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+DR="$ROOT/bin/diff-risk"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/diff-risk-test.XXXXXX")"
+trap 'rm -rf "$TMP"' EXIT
+fail() { echo "FAIL: $*" >&2; exit 1; }
+
+cd "$TMP"
+git init -q
+git config user.email test@example.invalid
+git config user.name test
+printf 'base\n' > README.md
+git add . && git commit -qm base
+BASE="$(git rev-parse HEAD)"
+
+mkdir -p .github/workflows
+printf 'name: ci\n' > .github/workflows/ci.yml
+printf '{"scripts":{"test":"node -e \"process.exit(0)\""}}\n' > package.json
+git add . && git commit -qm release
+
+"$DR" --json --base "$BASE" "$TMP" > out.json
+python3 - <<'PY'
+import json
+with open('out.json') as f: data=json.load(f)
+assert data['risk'] == 'R3', data
+assert any(x['reason']=='CI / Infrastructure / Deployment' for x in data['flaggedReasons']), data
+PY
+
+set +e
+"$DR" --json --base does-not-exist "$TMP" > bad.json
+rc=$?
+set -e
+[ "$rc" -eq 1 ] || fail "invalid base must fail closed"
+grep -q 'invalid base ref' bad.json || fail "invalid base error missing"
+
+printf 'secret-ish local file\n' > untracked.txt
+"$DR" --json --base "$BASE" "$TMP" > dirty.json
+python3 - <<'PY'
+import json
+with open('dirty.json') as f: data=json.load(f)
+assert data['dirtyWorkingTree'] is True, data
+assert 'untracked.txt' in data['files'], data
+PY
+
+echo "diff-risk-test: PASS"

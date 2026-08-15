@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""release-check — post-deploy smoke verification.
+
+Reads STATUS.md fields:
+  State: DEPLOYED or SMOKE_TESTING
+  Smoke-URL: https://...
+  Smoke-Contains: optional stable response marker (TBD disables marker check)
+
+Exit codes:
+  0 VERIFIED smoke check passed
+  1 FAILED
+  2 UNVERIFIED (missing/invalid evidence)
+"""
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+import re
+import sys
+import urllib.error
+import urllib.request
+
+VERIFIED, FAILED, UNVERIFIED = 0, 1, 2
+
+
+def field(text: str, name: str) -> str | None:
+    match = re.search(rf"(?im)^{re.escape(name)}:\s*(.+?)\s*$", text)
+    return match.group(1).strip() if match else None
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("directory", nargs="?", default=".")
+    parser.add_argument("--timeout", type=float, default=10.0)
+    args = parser.parse_args()
+
+    repo = Path(args.directory).resolve()
+    status_file = repo / "STATUS.md"
+    if not status_file.is_file():
+        print("release-check: UNVERIFIED (STATUS.md missing)")
+        return UNVERIFIED
+
+    text = status_file.read_text(encoding="utf-8", errors="replace")
+    state = field(text, "State")
+    if state not in {"DEPLOYED", "SMOKE_TESTING"}:
+        print(f"release-check: UNVERIFIED (State={state or 'missing'}; expected DEPLOYED or SMOKE_TESTING)")
+        return UNVERIFIED
+
+    url = field(text, "Smoke-URL")
+    if not url or url in {"TBD", "UNSET", "NONE"} or not re.match(r"^https?://", url):
+        print("release-check: UNVERIFIED (valid Smoke-URL required)")
+        return UNVERIFIED
+
+    marker = field(text, "Smoke-Contains")
+    marker = None if not marker or marker in {"TBD", "UNSET", "NONE"} else marker
+
+    request = urllib.request.Request(url, headers={"User-Agent": "dotfiles-release-check/1"})
+    try:
+        with urllib.request.urlopen(request, timeout=args.timeout) as response:
+            status = response.getcode()
+            body = response.read(1024 * 1024).decode("utf-8", errors="replace")
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        print(f"release-check: FAILED ({exc})")
+        return FAILED
+
+    if status < 200 or status >= 400:
+        print(f"release-check: FAILED (HTTP {status})")
+        return FAILED
+    if marker and marker not in body:
+        print(f"release-check: FAILED (Smoke-Contains marker not found: {marker!r})")
+        return FAILED
+
+    print(f"release-check: VERIFIED (HTTP {status}{'; marker matched' if marker else ''})")
+    return VERIFIED
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
