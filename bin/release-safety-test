@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"; TMP="$(mktemp -d "${TMPDIR:-/tmp}/release-safety-test.XXXXXX")"; trap 'rm -rf "$TMP"' EXIT
+fail(){ echo "FAIL: $*" >&2; exit 1; }
+cd "$TMP"; git init -q; git config user.email test@example.invalid; git config user.name test
+printf 'baseline\n' > app.txt; git add .; git commit -qm baseline; BASE="$(git rev-parse HEAD)"
+mkdir -p db/migrations; cat > db/migrations/001_add.sql <<'SQL'
+ALTER TABLE users ADD COLUMN nickname TEXT;
+SQL
+cat > RELEASE.md <<EOF
+# Release Manifest
+Release-ID: REL-TEST-001
+Base: $BASE
+Environment: production
+Declared-Risk: R2
+Rollback-Ref: $BASE
+Rollback-Command: git checkout $BASE -- .
+Backup-Proof: NOT_REQUIRED
+Status: READY
+EOF
+git add .; git commit -qm additive
+"$ROOT/bin/release-manifest" --json . | grep -q '"status": "VALID"' || fail 'manifest should validate'
+"$ROOT/bin/migration-risk" --json --base "$BASE" . | grep -q '"risk": "M1"' || fail 'additive migration should be M1'
+"$ROOT/bin/rollback-check" --json --migration-risk M1 . | grep -q '"status": "PASS"' || fail 'M1 rollback should pass'
+cat > db/migrations/002_drop.sql <<'SQL'
+DROP TABLE users;
+SQL
+git add .; git commit -qm destructive
+"$ROOT/bin/migration-risk" --json --base "$BASE" . | grep -q '"risk": "M3"' || fail 'DROP TABLE should be M3'
+set +e; "$ROOT/bin/rollback-check" --migration-risk M3 . >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail 'M3 without backup proof should block'
+python3 - <<'PY'
+from pathlib import Path
+p=Path('RELEASE.md'); p.write_text(p.read_text().replace('Backup-Proof: NOT_REQUIRED','Backup-Proof: backup://verified/test'))
+PY
+"$ROOT/bin/rollback-check" --migration-risk M3 . >/dev/null || fail 'M3 with backup proof should pass'
+echo 'release-safety-test: PASS'

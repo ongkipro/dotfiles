@@ -16,144 +16,51 @@ LEGACY_PROJECTS_DIR="$HOME/projects"
 LEGACY_DOCS_DIR="$HOME/Documents/projects"
 GITHUB_USER="${GITHUB_USER:-ongkipro}"
 
-say()  { printf '→ %s\n' "$*"; }
-warn() { printf 'WARNING: %s\n' "$*" >&2; }
-die()  { printf 'ERROR: %s\n' "$1" >&2; exit 1; }
-now()  { date '+%Y-%m-%d'; }
+say(){ printf '→ %s\n' "$*"; }
+warn(){ printf 'WARNING: %s\n' "$*" >&2; }
+die(){ printf 'ERROR: %s\n' "$1" >&2; exit 1; }
+now(){ date '+%Y-%m-%d'; }
 
-replace() {
-  local file="$1"
-  shift
-  local tmp="$file.tmp.$$"
-  cp "$file" "$tmp"
+replace(){
+  local file="$1"; shift; local tmp="$file.tmp.$$"; cp "$file" "$tmp"
   for pair in "$@"; do
     local key="${pair%%=*}" val="${pair#*=}"
-    val="${val//\\/\\\\}"
-    val="${val//&/\\&}"
-    val="${val//|/\\|}"
-    if [[ "${OSTYPE:-}" == "darwin"* ]]; then
-      sed -i '' "s|{{${key}}}|${val}|g" "$tmp"
-    else
-      sed -i "s|{{${key}}}|${val}|g" "$tmp"
-    fi
+    val="${val//\\/\\\\}"; val="${val//&/\\&}"; val="${val//|/\\|}"
+    if [[ "${OSTYPE:-}" == "darwin"* ]]; then sed -i '' "s|{{${key}}}|${val}|g" "$tmp"; else sed -i "s|{{${key}}}|${val}|g" "$tmp"; fi
   done
   mv "$tmp" "$file"
 }
 
-stack_for() {
-  case "$1" in
-    ecommerce) echo "Astro / Shopify / Payment" ;;
-    agriculture) echo "Web App / Dashboard" ;;
-    education) echo "Astro / Static Site" ;;
-    agency) echo "Astro / Three.js / Portfolio" ;;
-    affiliate) echo "Astro / Cloudflare / SEO" ;;
-    automotive) echo "Website / Dealer" ;;
-    payment) echo "API / Documentation" ;;
-    web-builder) echo "Astro / Template" ;;
-    tools) echo "Development tools" ;;
-    *) echo "TBD" ;;
-  esac
-}
+stack_for(){ case "$1" in ecommerce) echo "Astro / Shopify / Payment";; agriculture) echo "Web App / Dashboard";; education) echo "Astro / Static Site";; agency) echo "Astro / Three.js / Portfolio";; affiliate) echo "Astro / Cloudflare / SEO";; automotive) echo "Website / Dealer";; payment) echo "API / Documentation";; web-builder) echo "Astro / Template";; tools) echo "Development tools";; *) echo "TBD";; esac; }
 
-render_contract() {
-  local repo_dir="$1" repo="$2" category="$3" desc="${4:-Project: $2}"
-  local stack
-  stack="$(stack_for "$category")"
-
-  [ -d "$repo_dir" ] || die "project directory not found: $repo_dir"
-  mkdir -p "$repo_dir/docs"
-
+render_contract(){
+  local repo_dir="$1" repo="$2" category="$3" desc="${4:-Project: $2}" stack
+  stack="$(stack_for "$category")"; [ -d "$repo_dir" ] || die "project directory not found: $repo_dir"; mkdir -p "$repo_dir/docs"
   while IFS='|' read -r template relative; do
-    local src="$TEMPLATES/$template.md"
-    local dst="$repo_dir/$relative"
+    local src="$TEMPLATES/$template.md" dst="$repo_dir/$relative"
     [ -f "$src" ] || die "template missing: $src"
-    if [ -e "$dst" ]; then
-      say "$relative exists — preserved"
-      continue
-    fi
-    mkdir -p "$(dirname "$dst")"
-    cp "$src" "$dst"
-    replace "$dst" \
-      "PROJECT_NAME=$repo" \
-      "REPO_NAME=$repo" \
-      "STATUS=Active" \
-      "STACK=$stack" \
-      "STARTED=$(now)" \
-      "UPDATED=$(now)" \
-      "DATE=$(now)" \
-      "DESCRIPTION=$desc" \
-      "CATEGORY=$category" \
-      "PROD_URL=TBD" \
-      "STAGING_URL=TBD" \
-      "LOCAL_URL=TBD"
+    if [ -e "$dst" ]; then say "$relative exists — preserved"; continue; fi
+    mkdir -p "$(dirname "$dst")"; cp "$src" "$dst"
+    replace "$dst" "PROJECT_NAME=$repo" "REPO_NAME=$repo" "STATUS=Active" "STACK=$stack" "STARTED=$(now)" "UPDATED=$(now)" "DATE=$(now)" "DESCRIPTION=$desc" "CATEGORY=$category" "PROD_URL=TBD" "STAGING_URL=TBD" "LOCAL_URL=TBD"
     say "created $relative"
   done <<'FILES'
 AGENTS|AGENTS.md
 PRD|PRD.md
 TASKS|TASKS.md
 STATUS|STATUS.md
+RELEASE|RELEASE.md
 BUILD-LOG|BUILD-LOG.md
 ARCHITECTURE|docs/architecture.md
 FILES
-
   say "Repository-local development contract ready: $repo_dir"
   say "Create docs/specs/ and docs/decisions/ only when the project needs them."
 }
 
-find_repo() {
-  local repo="$1" d
-  for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do
-    [ -d "$root" ] || continue
-    while IFS= read -r d; do
-      [ "$(basename "$d")" = "$repo" ] && { printf '%s\n' "$d"; return 0; }
-    done < <(find "$root" -mindepth 1 -maxdepth 2 -type d)
-  done
-  return 1
-}
-
-clone_repo() {
-  local repo="$1" category="$2"
-  local target="$PROJECTS_DIR/$category/$repo"
-  if [ -d "$target/.git" ]; then
-    say "repository already exists: $target"
-  else
-    mkdir -p "$(dirname "$target")"
-    say "cloning $GITHUB_USER/$repo → $target"
-    gh repo clone "$GITHUB_USER/$repo" "$target" \
-      || die "clone failed; no project files were overwritten"
-  fi
-}
-
-cmd_list() {
-  local root d
-  for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do
-    [ -d "$root" ] || continue
-    while IFS= read -r d; do
-      [ -d "$d/.git" ] || continue
-      if [ -f "$d/STATUS.md" ]; then
-        printf 'contract  %s\n' "$d"
-      else
-        printf 'missing   %s\n' "$d"
-      fi
-    done < <(find "$root" -mindepth 2 -maxdepth 2 -type d)
-  done
-  [ -d "$LEGACY_DOCS_DIR" ] \
-    && printf 'Legacy external docs preserved at %s\n' "$LEGACY_DOCS_DIR"
-}
-
-cmd_sync() {
-  local root d
-  for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do
-    [ -d "$root" ] || continue
-    while IFS= read -r d; do
-      [ -d "$d/.git" ] || continue
-      git -C "$d" pull --ff-only || warn "pull failed: $d"
-    done < <(find "$root" -mindepth 2 -maxdepth 2 -type d)
-  done
-}
-
-usage() {
-  cat <<'USAGE'
+find_repo(){ local repo="$1" d; for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do [ -d "$root" ] || continue; while IFS= read -r d; do [ "$(basename "$d")" = "$repo" ] && { printf '%s\n' "$d"; return 0; }; done < <(find "$root" -mindepth 1 -maxdepth 2 -type d); done; return 1; }
+clone_repo(){ local repo="$1" category="$2" target="$PROJECTS_DIR/$category/$repo"; if [ -d "$target/.git" ]; then say "repository already exists: $target"; else mkdir -p "$(dirname "$target")"; say "cloning $GITHUB_USER/$repo → $target"; gh repo clone "$GITHUB_USER/$repo" "$target" || die "clone failed; no project files were overwritten"; fi; }
+cmd_list(){ local root d; for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do [ -d "$root" ] || continue; while IFS= read -r d; do [ -d "$d/.git" ] || continue; if [ -f "$d/STATUS.md" ] && [ -f "$d/RELEASE.md" ]; then printf 'contract  %s\n' "$d"; else printf 'missing   %s\n' "$d"; fi; done < <(find "$root" -mindepth 2 -maxdepth 2 -type d); done; [ -d "$LEGACY_DOCS_DIR" ] && printf 'Legacy external docs preserved at %s\n' "$LEGACY_DOCS_DIR"; }
+cmd_sync(){ local root d; for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do [ -d "$root" ] || continue; while IFS= read -r d; do [ -d "$d/.git" ] || continue; git -C "$d" pull --ff-only || warn "pull failed: $d"; done < <(find "$root" -mindepth 2 -maxdepth 2 -type d); done; }
+usage(){ cat <<'USAGE'
 Usage:
   project-init <repo-name> <category> [description]
   project-init --repo <path> [category] [description]
@@ -161,41 +68,18 @@ Usage:
   project-init --list
   project-init --sync
 
-New projects receive AGENTS.md, PRD.md, TASKS.md, STATUS.md, BUILD-LOG.md,
-and docs/architecture.md inside the repository. Existing files are never overwritten.
+New projects receive AGENTS.md, PRD.md, TASKS.md, STATUS.md, RELEASE.md,
+BUILD-LOG.md, and docs/architecture.md. Existing files are never overwritten.
 USAGE
 }
 
 COMMAND="${1:-}"
 case "$COMMAND" in
-  --list|-l)
-    cmd_list
-    ;;
-  --sync|-s)
-    cmd_sync
-    ;;
-  --repo)
-    [ -n "${2:-}" ] || die "Usage: project-init --repo <path> [category] [description]"
-    repo_dir="$(cd "$2" 2>/dev/null && pwd -P)" || die "project directory not found: $2"
-    render_contract "$repo_dir" "$(basename "$repo_dir")" "${3:-other}" "${4:-}"
-    ;;
-  --gen|-g)
-    [ -n "${2:-}" ] || die "Usage: project-init --gen <repo-name>"
-    repo_dir="$(find_repo "$2")" || die "repository not found under $PROJECTS_DIR or $LEGACY_PROJECTS_DIR"
-    render_contract "$repo_dir" "$2" "other" ""
-    ;;
-  --help|-h)
-    usage
-    ;;
-  "")
-    usage
-    ;;
-  *)
-    repo="$COMMAND"
-    category="${2:-other}"
-    desc="${3:-}"
-    clone_repo "$repo" "$category"
-    repo_dir="$PROJECTS_DIR/$category/$repo"
-    render_contract "$repo_dir" "$repo" "$category" "$desc"
-    ;;
+  --list|-l) cmd_list;;
+  --sync|-s) cmd_sync;;
+  --repo) [ -n "${2:-}" ] || die "Usage: project-init --repo <path> [category] [description]"; repo_dir="$(cd "$2" 2>/dev/null && pwd -P)" || die "project directory not found: $2"; render_contract "$repo_dir" "$(basename "$repo_dir")" "${3:-other}" "${4:-}";;
+  --gen|-g) [ -n "${2:-}" ] || die "Usage: project-init --gen <repo-name>"; repo_dir="$(find_repo "$2")" || die "repository not found under $PROJECTS_DIR or $LEGACY_PROJECTS_DIR"; render_contract "$repo_dir" "$2" "other" "";;
+  --help|-h) usage;;
+  "") usage;;
+  *) repo="$COMMAND"; category="${2:-other}"; desc="${3:-}"; clone_repo "$repo" "$category"; repo_dir="$PROJECTS_DIR/$category/$repo"; render_contract "$repo_dir" "$repo" "$category" "$desc";;
 esac

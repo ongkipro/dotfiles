@@ -1,213 +1,117 @@
 #!/usr/bin/env python3
-"""production-gate — deterministic production-readiness aggregator.
+"""production-gate — deterministic pre-deploy release readiness aggregator.
 
-This command never deploys. It proves whether a repository may transition from
-INTEGRATING to PRODUCTION_READY / AWAITING_DEPLOY_APPROVAL.
+Requires committed release content, valid RELEASE.md, full project verification,
+security scan, release-boundary diff risk, migration risk, rollback readiness,
+and independent review for effective R3/R4 releases. Never deploys.
 
-Effective risk = max(release risk, deterministic diff risk, review risk).
-Release-Risk must describe only the current release scope, not historical tasks.
-Release-Base must identify the last deployed/accepted commit, must be an ancestor
-of HEAD, and lets diff-risk classify the full release delta instead of HEAD~1.
-
-Exit codes:
-  0 PRODUCTION_READY
-  1 BLOCKED
-  2 UNVERIFIED
+Exit codes: 0 PRODUCTION_READY, 1 BLOCKED, 2 UNVERIFIED.
 """
 from __future__ import annotations
-import argparse
-import json
+import argparse, json, re, shutil, subprocess, sys
 from pathlib import Path
-import re
-import shutil
-import subprocess
-import sys
 
-READY, BLOCKED, UNVERIFIED = 0, 1, 2
-RISK_ORDER = {"R0": 0, "R1": 1, "R2": 2, "R3": 3, "R4": 4}
+READY,BLOCKED,UNVERIFIED=0,1,2
+RISK_ORDER={f"R{i}":i for i in range(5)}
 
-
-def run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
-
-
-def locate(name: str) -> str | None:
-    found = shutil.which(name)
-    if found:
-        return found
-    local = Path(__file__).resolve().parent / name
+def run(cmd,cwd): return subprocess.run(cmd,cwd=cwd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,check=False)
+def locate(name):
+    found=shutil.which(name)
+    if found:return found
+    local=Path(__file__).resolve().parent/name
     return str(local) if local.is_file() else None
 
+def status_field(repo,name):
+    p=repo/"STATUS.md"
+    if not p.is_file():return None
+    m=re.search(rf"(?im)^{re.escape(name)}:\s*(.+?)\s*$",p.read_text(encoding="utf-8",errors="replace"))
+    return m.group(1).strip() if m else None
 
-def command_gate(cmd: list[str], repo: Path) -> tuple[str, str]:
-    res = run(cmd, repo)
-    out = (res.stdout + "\n" + res.stderr).strip()
-    if res.returncode == 0:
-        return "PASS", out
-    if res.returncode == 2:
-        return "UNVERIFIED", out
-    return "FAIL", out
+def command_gate(cmd,repo):
+    r=run(cmd,repo); out=(r.stdout+"\n"+r.stderr).strip()
+    return ("PASS" if r.returncode==0 else "UNVERIFIED" if r.returncode==2 else "FAIL",out)
 
+def clean_tree(repo):
+    r=run(["git","status","--porcelain"],repo)
+    if r.returncode!=0:return "UNVERIFIED",r.stderr.strip() or "git status failed"
+    if r.stdout.strip():return "FAIL","Working tree is not clean"
+    return "PASS","Working tree clean"
 
-def clean_tree_gate(repo: Path) -> tuple[str, str]:
-    res = run(["git", "status", "--porcelain"], repo)
-    if res.returncode != 0:
-        return "UNVERIFIED", res.stderr.strip() or "git status failed"
-    if res.stdout.strip():
-        return "FAIL", "Working tree is not clean; production readiness must be evaluated on committed release content"
-    return "PASS", "Working tree clean"
+def tasks_gate(repo):
+    p=repo/"TASKS.md"
+    if not p.is_file():return "UNVERIFIED","TASKS.md missing"
+    text=p.read_text(encoding="utf-8",errors="replace")
+    for heading in ("In progress","Pending"):
+        sec=re.search(rf"(?ims)^##\s+{re.escape(heading)}\s*$([\s\S]*?)(?=^##\s+|\Z)",text)
+        if not sec:return "UNVERIFIED",f"TASKS.md missing {heading} section"
+        if re.search(r"(?im)^\s*(?:###\s+TASK-|[-*]\s*\[\s\]|[-*]\s+TASK-)",sec.group(1)):return "FAIL",f"{heading} contains unfinished work"
+    return "PASS","No unfinished task entries"
 
+def state_gate(repo):
+    state=status_field(repo,"State")
+    if not state:return "UNVERIFIED","STATUS.md missing State"
+    if state not in {"INTEGRATING","PRODUCTION_READY","AWAITING_DEPLOY_APPROVAL"}:return "FAIL",f"State={state}; pre-deploy gate not valid"
+    return "PASS",f"State={state}"
 
-def tasks_gate(repo: Path) -> tuple[str, str]:
-    path = repo / "TASKS.md"
-    if not path.is_file():
-        return "UNVERIFIED", "TASKS.md is missing"
-    text = path.read_text(encoding="utf-8", errors="replace")
-    for heading in ("In progress", "Pending"):
-        section = re.search(rf"(?ims)^##\s+{re.escape(heading)}\s*$([\s\S]*?)(?=^##\s+|\Z)", text)
-        if not section:
-            return "UNVERIFIED", f"TASKS.md has no '{heading}' section"
-        if re.search(r"(?im)^\s*(?:###\s+TASK-|[-*]\s*\[\s\]|[-*]\s+TASK-)", section.group(1)):
-            return "FAIL", f"{heading} still contains unfinished work"
-    return "PASS", "No unfinished task entries found"
+def json_tool(name,args,repo):
+    binary=locate(name)
+    if not binary:return "UNVERIFIED",None,f"{name} unavailable"
+    r=run([binary,"--json",*args,str(repo)],repo)
+    try:data=json.loads(r.stdout) if r.stdout.strip() else None
+    except Exception:return "UNVERIFIED",None,f"{name} returned invalid JSON"
+    if r.returncode==0:return "PASS",data,"ok"
+    if r.returncode==2:return "UNVERIFIED",data,(r.stderr or r.stdout).strip()
+    return "FAIL",data,(r.stderr or r.stdout).strip()
 
+def main()->int:
+    p=argparse.ArgumentParser();p.add_argument("directory",nargs="?",default=".");p.add_argument("--json",action="store_true");a=p.parse_args()
+    repo=Path(a.directory).resolve()
+    if not repo.is_dir():print(f"ERROR: Directory not found: {repo}",file=sys.stderr);return BLOCKED
+    results={}
+    def add(name,status,detail):results[name]={"status":status,"detail":detail}
 
-def status_field(repo: Path, name: str) -> str | None:
-    path = repo / "STATUS.md"
-    if not path.is_file():
-        return None
-    text = path.read_text(encoding="utf-8", errors="replace")
-    match = re.search(rf"(?im)^{re.escape(name)}:\s*(.+?)\s*$", text)
-    return match.group(1).strip() if match else None
+    s,d=clean_tree(repo);add("clean_tree",s,d)
+    pc,sc=locate("project-check"),locate("security-check")
+    s,d=command_gate([pc,"--full",str(repo)],repo) if pc else ("UNVERIFIED","project-check unavailable");add("project_check",s,d)
+    s,d=command_gate([sc,str(repo)],repo) if sc else ("UNVERIFIED","security-check unavailable");add("security",s,d)
+    s,d=tasks_gate(repo);add("tasks",s,d)
+    s,d=state_gate(repo);add("state",s,d)
 
+    ms,manifest,mdetail=json_tool("release-manifest",[],repo);add("release_manifest",ms,mdetail)
+    fields=manifest.get("fields",{}) if isinstance(manifest,dict) else {}
+    base=fields.get("Base"); declared=fields.get("Declared-Risk")
 
-def state_gate(repo: Path) -> tuple[str, str]:
-    state = status_field(repo, "State")
-    if not state:
-        return "UNVERIFIED", "STATUS.md has no machine-readable State field"
-    allowed = {"INTEGRATING", "PRODUCTION_READY", "AWAITING_DEPLOY_APPROVAL"}
-    if state not in allowed:
-        return "FAIL", f"State={state}; production-gate is only valid before deployment"
-    return "PASS", f"State={state}"
+    ds,diffdata,ddetail=json_tool("diff-risk",["--base",base],repo) if base else ("UNVERIFIED",None,"release Base unavailable")
+    diff_risk=diffdata.get("risk") if isinstance(diffdata,dict) else None
+    add("diff_risk",ds,f"diff-risk={diff_risk}" if diff_risk else ddetail)
 
+    mig_status,migdata,migdetail=json_tool("migration-risk",["--base",base],repo) if base else ("UNVERIFIED",None,"release Base unavailable")
+    migration=migdata.get("risk") if isinstance(migdata,dict) else None
+    add("migration_risk",mig_status,f"migration-risk={migration}" if migration else migdetail)
 
-def release_base_gate(repo: Path) -> tuple[str, str, str | None]:
-    base = status_field(repo, "Release-Base")
-    if not base or base in {"UNSET", "TBD", "NONE"}:
-        return "UNVERIFIED", "Set Release-Base to the last deployed/accepted commit", None
-    res = run(["git", "rev-parse", "--verify", f"{base}^{{commit}}"], repo)
-    if res.returncode != 0:
-        return "FAIL", f"Release-Base is not a valid commit: {base}", None
-    resolved = res.stdout.strip()
-    head = run(["git", "rev-parse", "HEAD^{commit}"], repo)
-    if head.returncode != 0:
-        return "UNVERIFIED", "HEAD is not a valid commit", None
-    if resolved == head.stdout.strip():
-        return "UNVERIFIED", "Release-Base equals HEAD; no release delta can be proven", None
-    ancestor = run(["git", "merge-base", "--is-ancestor", resolved, "HEAD"], repo)
-    if ancestor.returncode == 1:
-        return "FAIL", f"Release-Base is not an ancestor of HEAD: {resolved}", None
-    if ancestor.returncode != 0:
-        return "UNVERIFIED", ancestor.stderr.strip() or "Could not verify Release-Base ancestry", None
-    return "PASS", f"Release-Base={resolved}", resolved
+    rb_status,rbdata,rbdetail=json_tool("rollback-check",["--migration-risk",migration or "M0"],repo)
+    add("rollback",rb_status,"Rollback evidence valid" if rb_status=="PASS" else rbdetail)
 
+    review=status_field(repo,"Review-Risk")
+    add("review_risk","PASS" if review in RISK_ORDER else "UNVERIFIED",f"review={review}" if review else "STATUS.md missing Review-Risk")
+    risks=[r for r in (declared,diff_risk,review) if r in RISK_ORDER]
+    effective=max(risks,key=lambda r:RISK_ORDER[r]) if risks else None
+    add("effective_risk","PASS" if effective else "UNVERIFIED",f"Effective-Risk={effective}" if effective else "No reliable risk inputs")
+    if effective in {"R3","R4"}:
+        ir=status_field(repo,"Independent-Review")
+        add("independent_review","PASS" if ir=="PASS" else "FAIL" if ir in {"FAIL","PENDING"} else "UNVERIFIED",f"Independent-Review={ir}")
+    elif effective:add("independent_review","PASS",f"Effective-Risk={effective}; independent review not mandatory")
 
-def release_risk_gate(repo: Path) -> tuple[str, str | None]:
-    risk = status_field(repo, "Release-Risk")
-    if risk not in RISK_ORDER:
-        return "UNVERIFIED", None
-    return "PASS", risk
-
-
-def review_risk_gate(repo: Path) -> tuple[str, str | None]:
-    risk = status_field(repo, "Review-Risk")
-    if risk not in RISK_ORDER:
-        return "UNVERIFIED", None
-    return "PASS", risk
-
-
-def diff_risk(repo: Path, base: str) -> tuple[str, str | None, str]:
-    binary = locate("diff-risk")
-    if not binary:
-        return "UNVERIFIED", None, "diff-risk unavailable"
-    res = run([binary, "--json", "--base", base, str(repo)], repo)
-    if res.returncode != 0:
-        return "FAIL", None, (res.stdout + res.stderr).strip()
-    try:
-        data = json.loads(res.stdout)
-    except Exception:
-        return "UNVERIFIED", None, "diff-risk did not return valid JSON"
-    risk = data.get("risk")
-    if risk not in RISK_ORDER:
-        return "UNVERIFIED", None, f"Unknown diff-risk result: {risk}"
-    return "PASS", risk, f"diff-risk={risk}; base={base}"
-
-
-def independent_review_gate(repo: Path, effective_risk: str) -> tuple[str, str]:
-    if effective_risk not in {"R3", "R4"}:
-        return "PASS", f"Effective-Risk={effective_risk}; independent strong review not mandatory"
-    review = status_field(repo, "Independent-Review")
-    if review not in {"PASS", "FAIL", "PENDING"}:
-        return "UNVERIFIED", f"Effective-Risk={effective_risk}; record Independent-Review: PASS"
-    if review != "PASS":
-        return "FAIL", f"Effective-Risk={effective_risk}; Independent-Review={review}"
-    return "PASS", f"Effective-Risk={effective_risk}; Independent-Review=PASS"
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("directory", nargs="?", default=".")
-    parser.add_argument("--json", action="store_true")
-    args = parser.parse_args()
-    repo = Path(args.directory).resolve()
-    if not repo.is_dir():
-        print(f"ERROR: Directory not found: {repo}", file=sys.stderr)
-        return BLOCKED
-
-    results: dict[str, dict[str, str]] = {}
-    pc, sc = locate("project-check"), locate("security-check")
-
-    s, d = clean_tree_gate(repo); results["clean_tree"] = {"status": s, "detail": d}
-    s, d = command_gate([pc, "--full", str(repo)], repo) if pc else ("UNVERIFIED", "project-check unavailable"); results["project_check"] = {"status": s, "detail": d}
-    s, d = command_gate([sc, str(repo)], repo) if sc else ("UNVERIFIED", "security-check unavailable"); results["security"] = {"status": s, "detail": d}
-    s, d = tasks_gate(repo); results["tasks"] = {"status": s, "detail": d}
-    s, d = state_gate(repo); results["state"] = {"status": s, "detail": d}
-
-    base_status, base_detail, base = release_base_gate(repo)
-    results["release_base"] = {"status": base_status, "detail": base_detail}
-
-    release_status, release_risk = release_risk_gate(repo)
-    results["release_risk"] = {"status": release_status, "detail": f"release={release_risk}" if release_risk else "STATUS.md has no valid Release-Risk"}
-    review_status, review_risk = review_risk_gate(repo)
-    results["review_risk"] = {"status": review_status, "detail": f"review={review_risk}" if review_risk else "STATUS.md has no valid Review-Risk"}
-
-    diff_status, diffed, detail = diff_risk(repo, base) if base else ("UNVERIFIED", None, "Release-Base unavailable")
-    results["diff_risk"] = {"status": diff_status, "detail": detail}
-
-    risks = [r for r in (release_risk, review_risk, diffed) if r in RISK_ORDER]
-    effective = max(risks, key=lambda r: RISK_ORDER[r]) if risks else None
-    if effective:
-        results["effective_risk"] = {"status": "PASS", "detail": f"Effective-Risk={effective}"}
-        s, d = independent_review_gate(repo, effective); results["independent_review"] = {"status": s, "detail": d}
+    statuses=[v["status"] for v in results.values()]
+    final="BLOCKED" if "FAIL" in statuses else "UNVERIFIED" if "UNVERIFIED" in statuses else "PRODUCTION_READY"
+    payload={"result":final,"effectiveRisk":effective,"migrationRisk":migration,"releaseBase":base,"gates":results}
+    if a.json:print(json.dumps(payload,indent=2))
     else:
-        results["effective_risk"] = {"status": "UNVERIFIED", "detail": "No reliable release risk inputs available"}
-
-    statuses = [item["status"] for item in results.values()]
-    final = "BLOCKED" if "FAIL" in statuses else "UNVERIFIED" if "UNVERIFIED" in statuses else "PRODUCTION_READY"
-    payload = {"result": final, "effectiveRisk": effective, "releaseBase": base, "gates": results}
-
-    if args.json:
-        print(json.dumps(payload, indent=2))
-    else:
-        print("production-gate\n" + "-" * 60)
-        for name, item in results.items():
+        print("production-gate\n"+"-"*60)
+        for name,item in results.items():
             print(f"{name:20} {item['status']}")
-            if item["detail"]:
-                print(f"  {item['detail'].splitlines()[-1]}")
-        print("-" * 60 + f"\nPRODUCTION_GATE={final}")
+            if item["detail"]:print(f"  {str(item['detail']).splitlines()[-1]}")
+        print("-"*60+f"\nPRODUCTION_GATE={final}")
+    return READY if final=="PRODUCTION_READY" else UNVERIFIED if final=="UNVERIFIED" else BLOCKED
 
-    return READY if final == "PRODUCTION_READY" else UNVERIFIED if final == "UNVERIFIED" else BLOCKED
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+if __name__=="__main__":raise SystemExit(main())

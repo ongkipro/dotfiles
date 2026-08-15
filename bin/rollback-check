@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""rollback-check — verify rollback evidence for the current release."""
+from __future__ import annotations
+import argparse, json, re, subprocess, sys
+from pathlib import Path
+
+UNSET={"","UNSET","TBD","NONE"}
+
+def git(args,cwd): return subprocess.run(["git",*args],cwd=cwd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,check=False)
+
+def field(text,name):
+    m=re.search(rf"(?im)^{re.escape(name)}:\s*(.+?)\s*$",text); return m.group(1).strip() if m else None
+
+def main()->int:
+    p=argparse.ArgumentParser(); p.add_argument("--migration-risk", default="M0"); p.add_argument("--json",action="store_true"); p.add_argument("directory",nargs="?",default="."); a=p.parse_args()
+    repo=Path(a.directory).resolve(); path=repo/"RELEASE.md"; errors=[]
+    data={"status":"BLOCKED","migrationRisk":a.migration_risk,"errors":errors}
+    if not path.is_file(): errors.append("RELEASE.md missing")
+    else:
+        text=path.read_text(encoding="utf-8",errors="replace")
+        ref=field(text,"Rollback-Ref") or ""; cmd=field(text,"Rollback-Command") or ""; backup=field(text,"Backup-Proof") or ""
+        data.update({"rollbackRef":ref,"rollbackCommand":cmd,"backupProof":backup})
+        if ref in UNSET: errors.append("Rollback-Ref is unset")
+        else:
+            vr=git(["rev-parse","--verify",f"{ref}^{{commit}}"],repo)
+            if vr.returncode!=0: errors.append("Rollback-Ref is not a valid commit")
+            else:
+                anc=git(["merge-base","--is-ancestor",vr.stdout.strip(),"HEAD"],repo)
+                if anc.returncode!=0: errors.append("Rollback-Ref is not an ancestor of HEAD")
+        if cmd in UNSET: errors.append("Rollback-Command is unset")
+        if a.migration_risk in {"M3","M4"} and backup in UNSET|{"NOT_REQUIRED"}: errors.append("M3/M4 migration requires Backup-Proof evidence")
+    if not errors: data["status"]="PASS"
+    if a.json: print(json.dumps(data,indent=2))
+    else:
+        print(f"rollback-check: {data['status']}")
+        for e in errors: print(f"  - {e}")
+    return 0 if data["status"]=="PASS" else 1
+
+if __name__=="__main__": raise SystemExit(main())

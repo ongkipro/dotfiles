@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+"""migration-risk — classify database/schema release risk from Base..HEAD.
+
+M0 no schema/migration change
+M1 additive schema only
+M2 additive schema with data backfill/update
+M3 destructive or compatibility-sensitive migration
+M4 explicit data-loss / irreversible operation
+"""
+from __future__ import annotations
+import argparse, json, re, subprocess, sys
+from pathlib import Path
+
+ORDER = {f"M{i}": i for i in range(5)}
+MIGRATION_PATH = re.compile(r"(?:^|/)(?:migrations?|schema)(?:/|\.|$)|(?:prisma|drizzle)|\.sql$", re.I)
+M4 = re.compile(r"\b(?:DROP\s+(?:DATABASE|SCHEMA)|TRUNCATE\b|DELETE\s+FROM\s+\S+\s*;)", re.I)
+M3 = re.compile(r"\b(?:DROP\s+(?:TABLE|COLUMN|INDEX)|RENAME\s+(?:TABLE|COLUMN)|ALTER\s+COLUMN|ALTER\s+TABLE[^;]*\bDROP\b|SET\s+NOT\s+NULL|TYPE\s+\w+)", re.I)
+M2 = re.compile(r"\b(?:UPDATE\s+\S+\s+SET|INSERT\s+INTO)\b", re.I)
+M1 = re.compile(r"\b(?:CREATE\s+(?:TABLE|INDEX)|ADD\s+COLUMN|ALTER\s+TABLE[^;]*\bADD\b)\b", re.I)
+
+
+def git(args, cwd):
+    return subprocess.run(["git", *args], cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+
+
+def classify(repo: Path, base: str) -> dict:
+    verify = git(["rev-parse", "--verify", f"{base}^{{commit}}"], repo)
+    if verify.returncode != 0: raise RuntimeError("invalid base commit")
+    anc = git(["merge-base", "--is-ancestor", verify.stdout.strip(), "HEAD"], repo)
+    if anc.returncode != 0: raise RuntimeError("base is not an ancestor of HEAD")
+    names = git(["diff", "--name-only", verify.stdout.strip(), "HEAD"], repo)
+    patch = git(["diff", "--no-ext-diff", "--no-textconv", verify.stdout.strip(), "HEAD"], repo)
+    if names.returncode != 0 or patch.returncode not in (0, 1): raise RuntimeError("git diff failed")
+    migration_files = [p for p in names.stdout.splitlines() if MIGRATION_PATH.search(p)]
+    if not migration_files:
+        return {"risk":"M0","reason":"No migration/schema files changed","files":[]}
+    text = patch.stdout
+    risk = "M1"; reason = "Additive or unclassified migration/schema change"
+    if M4.search(text): risk, reason = "M4", "Explicit irreversible/data-loss operation detected"
+    elif M3.search(text): risk, reason = "M3", "Destructive or compatibility-sensitive migration detected"
+    elif M2.search(text): risk, reason = "M2", "Data backfill/update detected in migration release"
+    elif M1.search(text): risk, reason = "M1", "Additive schema migration detected"
+    return {"risk":risk,"reason":reason,"files":migration_files}
+
+
+def main() -> int:
+    p=argparse.ArgumentParser(); p.add_argument("--base", required=True); p.add_argument("--json", action="store_true"); p.add_argument("directory", nargs="?", default="."); a=p.parse_args()
+    repo=Path(a.directory).resolve()
+    try: data=classify(repo,a.base)
+    except Exception as exc:
+        if a.json: print(json.dumps({"error":str(exc)}))
+        else: print(f"migration-risk: ERROR: {exc}", file=sys.stderr)
+        return 1
+    if a.json: print(json.dumps(data, indent=2))
+    else:
+        print(f"migration-risk: {data['risk']}")
+        print(f"  {data['reason']}")
+        for f in data["files"]: print(f"  - {f}")
+    return 0
+
+if __name__ == "__main__": raise SystemExit(main())

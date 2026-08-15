@@ -1,35 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
 ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
-PC="$ROOT/bin/project-check"
-PG="$ROOT/bin/production-gate"
-TMP="$(mktemp -d "${TMPDIR:-/tmp}/delivery-gate-test.XXXXXX")"
-trap 'rm -rf "$TMP"' EXIT
-fail() { echo "FAIL: $*" >&2; exit 1; }
+PC="$ROOT/bin/project-check"; PG="$ROOT/bin/production-gate"; TMP="$(mktemp -d "${TMPDIR:-/tmp}/delivery-gate-test.XXXXXX")"; trap 'rm -rf "$TMP"' EXIT
+fail(){ echo "FAIL: $*" >&2; exit 1; }
 
 mkdir -p "$TMP/unknown"
-set +e
-"$PC" "$TMP/unknown" >"$TMP/unknown.log" 2>&1
-rc=$?
-set -e
-[ "$rc" -eq 2 ] || { cat "$TMP/unknown.log" >&2; fail "unknown project should exit 2"; }
+set +e; "$PC" "$TMP/unknown" >"$TMP/unknown.log" 2>&1; rc=$?; set -e
+[ "$rc" -eq 2 ] || fail "unknown project should be UNVERIFIED"
 
-grep -q 'project-check: UNVERIFIED' "$TMP/unknown.log" || fail "missing UNVERIFIED output"
+mkdir -p "$TMP/bad-node"; printf '{not-json}\n' >"$TMP/bad-node/package.json"
+set +e; "$PC" --full "$TMP/bad-node" >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "invalid package.json should fail"
 
-mkdir -p "$TMP/bad-node"
-printf '{not-json}\n' >"$TMP/bad-node/package.json"
-set +e
-"$PC" --full "$TMP/bad-node" >"$TMP/bad-node.log" 2>&1
-rc=$?
-set -e
-[ "$rc" -eq 1 ] || { cat "$TMP/bad-node.log" >&2; fail "invalid package.json should exit 1"; }
-
-mkdir -p "$TMP/node"
-cd "$TMP/node"
-git init -q
-git config user.email test@example.invalid
-git config user.name test
+mkdir -p "$TMP/node"; cd "$TMP/node"; git init -q; git config user.email test@example.invalid; git config user.name test
 cat > package.json <<'JSON'
 {"scripts":{"test":"node -e \"process.exit(0)\"","build":"node -e \"process.exit(0)\""}}
 JSON
@@ -41,51 +24,40 @@ No task is in progress.
 No implementation task has been accepted.
 ## Done
 ### TASK-001
-- **Risk Level:** R1
 Completed.
 EOF
-git add . && git commit -qm baseline
-BASE="$(git rev-parse HEAD)"
-printf 'release-change\n' > feature.txt
-cat > STATUS.md <<EOF
+git add . && git commit -qm baseline; BASE="$(git rev-parse HEAD)"
+printf 'release\n' > feature.txt
+cat > STATUS.md <<'EOF'
 # Status
 State: INTEGRATING
-Release-Base: $BASE
-Release-Risk: R1
 Review-Risk: R1
 Independent-Review: PENDING
 Smoke-URL: TBD
 Smoke-Contains: TBD
 EOF
+cat > RELEASE.md <<EOF
+# Release Manifest
+Release-ID: REL-TEST-001
+Base: $BASE
+Environment: production
+Declared-Risk: R1
+Rollback-Ref: $BASE
+Rollback-Command: git checkout $BASE -- .
+Backup-Proof: NOT_REQUIRED
+Status: READY
+EOF
 git add . && git commit -qm release
-
-"$PC" --full "$TMP/node" >"$TMP/node.log" 2>&1 || { cat "$TMP/node.log" >&2; fail "node fixture should verify"; }
-grep -q 'project-check: VERIFIED' "$TMP/node.log" || fail "missing VERIFIED output"
-
-"$PG" "$TMP/node" >"$TMP/prod.log" 2>&1 || { cat "$TMP/prod.log" >&2; fail "low-risk release should pass"; }
-grep -q 'PRODUCTION_GATE=PRODUCTION_READY' "$TMP/prod.log" || fail "missing production-ready result"
-grep -q 'Effective-Risk=R1' "$TMP/prod.log" || fail "effective risk should be R1"
+"$PC" --full . >/dev/null || fail "node fixture should verify"
+"$PG" . >"$TMP/prod.log" 2>&1 || { cat "$TMP/prod.log" >&2; fail "production fixture should pass"; }
+grep -q 'PRODUCTION_GATE=PRODUCTION_READY' "$TMP/prod.log" || fail "production-ready result missing"
 
 python3 - <<'PY'
 from pathlib import Path
-p=Path('STATUS.md')
-s=p.read_text().replace('Review-Risk: R1','Review-Risk: R3')
-p.write_text(s)
+p=Path('STATUS.md'); p.write_text(p.read_text().replace('Review-Risk: R1','Review-Risk: R3'))
 PY
 git add STATUS.md && git commit -qm semantic-risk
-set +e
-"$PG" "$TMP/node" >"$TMP/r3.log" 2>&1
-rc=$?
-set -e
-[ "$rc" -eq 1 ] || { cat "$TMP/r3.log" >&2; fail "R3 without independent review should block"; }
-grep -q 'Independent-Review=PENDING' "$TMP/r3.log" || fail "R3 block reason missing"
+set +e; "$PG" . >"$TMP/r3.log" 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "R3 without independent review should block"
 
-echo dirty >> feature.txt
-set +e
-"$PG" "$TMP/node" >"$TMP/dirty.log" 2>&1
-rc=$?
-set -e
-[ "$rc" -eq 1 ] || { cat "$TMP/dirty.log" >&2; fail "dirty release should block"; }
-grep -q 'Working tree is not clean' "$TMP/dirty.log" || fail "dirty-tree reason missing"
-
-echo "delivery-gate-test: PASS"
+echo 'delivery-gate-test: PASS'

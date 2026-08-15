@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""release-manifest — validate repository-local RELEASE.md.
+
+Exit codes:
+  0 VALID
+  1 INVALID
+  2 UNVERIFIED / missing required evidence
+"""
+from __future__ import annotations
+import argparse, json, re, subprocess, sys
+from pathlib import Path
+
+REQUIRED = ["Release-ID", "Base", "Environment", "Declared-Risk", "Rollback-Ref", "Rollback-Command", "Backup-Proof", "Status"]
+RISK = {f"R{i}" for i in range(5)}
+UNSET = {"", "UNSET", "TBD", "NONE"}
+
+
+def git(args, cwd):
+    return subprocess.run(["git", *args], cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+
+
+def fields(path: Path) -> dict[str, str]:
+    text = path.read_text(encoding="utf-8", errors="replace")
+    out = {}
+    for name in REQUIRED:
+        m = re.search(rf"(?im)^{re.escape(name)}:\s*(.+?)\s*$", text)
+        if m:
+            out[name] = m.group(1).strip()
+    return out
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(); p.add_argument("directory", nargs="?", default="."); p.add_argument("--json", action="store_true"); a = p.parse_args()
+    repo = Path(a.directory).resolve(); manifest = repo / "RELEASE.md"
+    result = {"status": "INVALID", "fields": {}, "errors": []}
+    if not repo.is_dir():
+        result["errors"].append("repository directory missing")
+    elif not manifest.is_file():
+        result["status"] = "UNVERIFIED"; result["errors"].append("RELEASE.md missing")
+    else:
+        data = fields(manifest); result["fields"] = data
+        missing = [name for name in REQUIRED if name not in data]
+        if missing: result["errors"].append("missing fields: " + ", ".join(missing))
+        if data.get("Release-ID", "") in UNSET: result["errors"].append("Release-ID is unset")
+        if data.get("Declared-Risk") not in RISK: result["errors"].append("Declared-Risk must be R0-R4")
+        if data.get("Status") != "READY": result["errors"].append("Status must be READY")
+        base = data.get("Base", "")
+        if base in UNSET:
+            result["errors"].append("Base is unset")
+        else:
+            resolved = git(["rev-parse", "--verify", f"{base}^{{commit}}"], repo)
+            if resolved.returncode != 0: result["errors"].append("Base is not a valid commit")
+            else:
+                anc = git(["merge-base", "--is-ancestor", resolved.stdout.strip(), "HEAD"], repo)
+                if anc.returncode == 1: result["errors"].append("Base is not an ancestor of HEAD")
+                elif anc.returncode != 0: result["errors"].append("could not verify Base ancestry")
+                elif git(["rev-parse", "HEAD^{commit}"], repo).stdout.strip() == resolved.stdout.strip(): result["errors"].append("Base equals HEAD; release delta is empty")
+        rb = data.get("Rollback-Ref", "")
+        if rb in UNSET: result["errors"].append("Rollback-Ref is unset")
+        elif git(["rev-parse", "--verify", f"{rb}^{{commit}}"], repo).returncode != 0: result["errors"].append("Rollback-Ref is not a valid commit")
+        if data.get("Rollback-Command", "") in UNSET: result["errors"].append("Rollback-Command is unset")
+        if not result["errors"]: result["status"] = "VALID"
+        elif any("missing" in e or "unset" in e for e in result["errors"]): result["status"] = "UNVERIFIED"
+    if a.json: print(json.dumps(result, indent=2))
+    else:
+        print(f"release-manifest: {result['status']}")
+        for e in result["errors"]: print(f"  - {e}")
+    return 0 if result["status"] == "VALID" else 2 if result["status"] == "UNVERIFIED" else 1
+
+if __name__ == "__main__": raise SystemExit(main())
