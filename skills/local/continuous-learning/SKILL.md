@@ -12,8 +12,8 @@ Treat repository contracts, executable behavior, and `.delivery` evidence as aut
 ## Before execution
 
 1. Decide whether memory is materially needed. Do not load memory for self-contained tasks.
-2. Run `ai-memory-route "<request>" --repo <repo> --json` when a repository exists; omit `--repo` otherwise.
-3. Load only returned files and respect the retrieval budget.
+2. Run `ai-memory-access "<request>" --repo <repo> --json` when a repository exists; omit `--repo` otherwise. This delegates selection to `ai-memory-route` and records only a query hash plus selected durable-memory paths in device-local telemetry.
+3. Load only returned files and respect the retrieval budget. Never persist raw user prompts or memory contents in usage telemetry.
 4. For resume/current status/next blocker, prefer `STATUS.md`, `TASKS.md`, `.delivery/current.json`, and current code over cross-session memory.
 5. If memory conflicts with repository/evidence, use repository/evidence and treat the memory as stale.
 
@@ -59,6 +59,18 @@ Scores are review aids, not truth. Never auto-delete, auto-merge, auto-promote, 
    - repeatable methodology -> owning skill/reference;
    - temporary or redundant information -> discard.
 7. Use `ai-learn promote ... --yes` only after review. Promotion never authorizes Git commit or push.
+
+## Memory lifecycle
+
+Use `ai-memory-lifecycle` to review retention only after enough telemetry has accumulated.
+
+- `ACTIVE`: retain.
+- `LOW_USE`: retain-review; low frequency alone is not deletion evidence.
+- `COLD`: archive-review only after the configured inactivity window.
+- `NEVER_USED`: archive-review only after the minimum observation window.
+- `merge-review`: semantic duplicate plus lower observed use; manually choose the canonical owner.
+
+Lifecycle recommendations are advisory. Never auto-delete, auto-archive, or rewrite memory from usage counts. A memory can be important even when rarely retrieved.
 
 ## Learning evolution
 

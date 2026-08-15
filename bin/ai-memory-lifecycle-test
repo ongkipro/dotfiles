@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/ai-memory-lifecycle-test.XXXXXX")"; trap 'rm -rf "$TMP"' EXIT
+DOT="$TMP/dot"; TEL="$TMP/tel"; mkdir -p "$DOT/config/ai/memory" "$DOT/config/ai/project-memory" "$TEL"
+echo 'durable preference content long enough for memory lifecycle testing' > "$DOT/config/ai/memory/active.md"
+echo 'unused durable memory content long enough for lifecycle archive review' > "$DOT/config/ai/memory/unused.md"
+cat > "$TEL/meta.json" <<'EOF'
+{"schemaVersion":1,"startedAt":"2026-01-01T00:00:00Z"}
+EOF
+for d in 01 02 03 04 05; do printf '%s\n' "{\"schemaVersion\":1,\"time\":\"2026-08-$d"'T00:00:00Z'"\",\"selected\":[{\"path\":\"config/ai/memory/active.md\",\"scope\":\"shared\",\"bytes\":10}]}" >> "$TEL/events.jsonl"; done
+python3 "$ROOT/bin/ai-memory-lifecycle" --dotfiles "$DOT" --telemetry-dir "$TEL" --today 2026-08-15 --json > "$TMP/out.json"
+python3 - "$TMP/out.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1])); rows={x['path']:x for x in p['files']}; assert rows['config/ai/memory/active.md']['status']=='ACTIVE'; assert rows['config/ai/memory/unused.md']['status']=='NEVER_USED'; assert rows['config/ai/memory/unused.md']['recommendation']=='archive-review'
+PY
+echo 'ai-memory-lifecycle-test: PASS'
