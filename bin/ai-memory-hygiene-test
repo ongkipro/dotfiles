@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+CHECK="$ROOT/bin/ai-memory-hygiene"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/ai-memory-hygiene-test.XXXXXX")"
+trap 'rm -rf "$TMP"' EXIT
+
+mkdir -p "$TMP/config/ai/memory" "$TMP/config/ai/project-memory" "$TMP/bin"
+cp "$CHECK" "$TMP/bin/ai-memory-hygiene"
+cat > "$TMP/config/ai/memory-hygiene.json" <<'EOF'
+{
+  "schemaVersion":1,
+  "sharedMaxBytes":100,
+  "projectMaxBytes":1000,
+  "staleDays":30,
+  "volatilePatterns":["\\bCI (?:is )?green\\b","\\bnext:\\s","\\bchecked out on\\b"],
+  "sharedForbiddenPrefixes":["device-"],
+  "indexFiles":["config/ai/project-memory/MEMORY.md"]
+}
+EOF
+cat > "$TMP/config/ai/memory/device-mac.md" <<'EOF'
+verified 2026-01-01 installed runtime
+EOF
+python3 - <<'PY' "$TMP/config/ai/memory/large.md"
+from pathlib import Path
+import sys
+Path(sys.argv[1]).write_text('x'*150, encoding='utf-8')
+PY
+cat > "$TMP/config/ai/project-memory/foo.md" <<'EOF'
+CI is green
+next: deploy
+EOF
+cat > "$TMP/config/ai/project-memory/MEMORY.md" <<'EOF'
+- [Foo](foo.md)
+- [Foo again](foo.md)
+EOF
+python3 "$TMP/bin/ai-memory-hygiene" --root "$TMP" --today 2026-08-15 --json > "$TMP/out.json"
+python3 - "$TMP/out.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1]))
+kinds={x['kind'] for x in p['issues']}
+assert 'SCOPE_VIOLATION' in kinds
+assert 'OVERSIZE' in kinds
+assert 'VOLATILE_PROJECT_STATE' in kinds
+assert 'STALE_DATED_CLAIM' in kinds
+assert 'DUPLICATE_INDEX_ENTRY' in kinds
+assert p['status']=='WARN'
+PY
+if python3 "$TMP/bin/ai-memory-hygiene" --root "$TMP" --today 2026-08-15 --strict >/dev/null 2>&1; then
+  echo 'FAIL: strict mode should fail on warnings' >&2
+  exit 1
+fi
+rm -f "$TMP/config/ai/memory/device-mac.md" "$TMP/config/ai/memory/large.md" "$TMP/config/ai/project-memory/foo.md"
+cat > "$TMP/config/ai/project-memory/MEMORY.md" <<'EOF'
+# Memory Index
+EOF
+python3 "$TMP/bin/ai-memory-hygiene" --root "$TMP" --today 2026-08-15 --strict >/dev/null
+echo 'ai-memory-hygiene-test: PASS'

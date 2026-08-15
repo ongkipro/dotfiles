@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "sharedMaxBytes": 12000,
+  "projectMaxBytes": 20000,
+  "staleDays": 90,
+  "volatilePatterns": [
+    "\\bCI (?:is )?green\\b",
+    "\\bcurrent status\\b",
+    "\\bcurrent blocker(?:s)?\\b",
+    "\\bnext:\\s",
+    "\\bresume here\\b",
+    "\\bchecked out on\\b",
+    "\\bbranch [`']?(?:main|dev|master)[`']?\\b",
+    "\\bcurrently (?:on|at|blocked|working)\\b"
+  ],
+  "sharedForbiddenPrefixes": ["device-"],
+  "indexFiles": ["config/ai/project-memory/MEMORY.md"]
+}

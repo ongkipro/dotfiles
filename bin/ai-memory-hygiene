@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+"""ai-memory-hygiene — deterministic advisory checks for tracked AI memory."""
+from __future__ import annotations
+
+import argparse
+from collections import Counter
+from datetime import date, datetime, timezone
+import json
+from pathlib import Path
+import re
+import sys
+
+OK, FAILED = 0, 1
+DATE_RE = re.compile(r"\b(20\d{2})-(\d{2})-(\d{2})\b")
+LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+\.md)(?:#[^)]+)?\)")
+
+
+def root_dir() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
+def load_policy(root: Path) -> dict:
+    path = root / "config/ai/memory-hygiene.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("schemaVersion") != 1:
+        raise ValueError("unsupported memory hygiene schema")
+    return data
+
+
+def issue(kind: str, severity: str, path: Path, detail: str, line: int | None = None) -> dict:
+    out = {"kind": kind, "severity": severity, "path": str(path), "detail": detail}
+    if line is not None:
+        out["line"] = line
+    return out
+
+
+def tracked_memory(root: Path) -> list[Path]:
+    files = []
+    for rel in ("config/ai/memory", "config/ai/project-memory"):
+        base = root / rel
+        if base.is_dir():
+            files.extend(sorted(p for p in base.rglob("*.md") if p.is_file()))
+    return files
+
+
+def check_size(root: Path, path: Path, policy: dict) -> list[dict]:
+    rel = path.relative_to(root).as_posix()
+    limit = policy["sharedMaxBytes"] if rel.startswith("config/ai/memory/") else policy["projectMaxBytes"]
+    size = path.stat().st_size
+    return [issue("OVERSIZE", "WARN", path, f"{size} bytes exceeds advisory limit {limit}")] if size > limit else []
+
+
+def check_scope(root: Path, path: Path, policy: dict) -> list[dict]:
+    rel = path.relative_to(root).as_posix()
+    if not rel.startswith("config/ai/memory/"):
+        return []
+    name = path.name.lower()
+    for prefix in policy.get("sharedForbiddenPrefixes", []):
+        if name.startswith(prefix.lower()):
+            return [issue("SCOPE_VIOLATION", "WARN", path, "device-specific memory belongs in ai-local or generated inventory")]
+    return []
+
+
+def check_volatile(root: Path, path: Path, policy: dict) -> list[dict]:
+    rel = path.relative_to(root).as_posix()
+    if not rel.startswith("config/ai/project-memory/"):
+        return []
+    text = path.read_text(encoding="utf-8", errors="replace")
+    regexes = [re.compile(p, re.I) for p in policy.get("volatilePatterns", [])]
+    out = []
+    for no, line in enumerate(text.splitlines(), 1):
+        for rx in regexes:
+            if rx.search(line):
+                out.append(issue("VOLATILE_PROJECT_STATE", "WARN", path, "operational/current state belongs in repository STATUS/TASKS/.delivery, not durable project memory", no))
+                break
+    return out
+
+
+def check_stale_dates(path: Path, policy: dict, today: date) -> list[dict]:
+    cutoff = policy.get("staleDays", 90)
+    out = []
+    for no, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+        low = line.lower()
+        if not any(word in low for word in ("verified", "currently", "current", "checked out", "installed", "removed", "created")):
+            continue
+        for y, m, d in DATE_RE.findall(line):
+            try:
+                seen = date(int(y), int(m), int(d))
+            except ValueError:
+                continue
+            age = (today - seen).days
+            if age > cutoff:
+                out.append(issue("STALE_DATED_CLAIM", "WARN", path, f"dated operational claim is {age} days old; re-verify or reduce to a timeless invariant", no))
+    return out
+
+
+def check_duplicate_index(root: Path, policy: dict) -> list[dict]:
+    out = []
+    for rel in policy.get("indexFiles", []):
+        path = root / rel
+        if not path.is_file():
+            continue
+        targets = []
+        target_lines = {}
+        for no, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            for _label, target in LINK_RE.findall(line):
+                key = Path(target).name.lower()
+                targets.append(key)
+                target_lines.setdefault(key, []).append(no)
+        for key, count in Counter(targets).items():
+            if count > 1:
+                out.append(issue("DUPLICATE_INDEX_ENTRY", "WARN", path, f"{key} is referenced {count} times at lines {target_lines[key]}"))
+    return out
+
+
+def scan(root: Path, policy: dict, today: date) -> list[dict]:
+    out = []
+    for path in tracked_memory(root):
+        out.extend(check_size(root, path, policy))
+        out.extend(check_scope(root, path, policy))
+        out.extend(check_volatile(root, path, policy))
+        out.extend(check_stale_dates(path, policy, today))
+    out.extend(check_duplicate_index(root, policy))
+    return sorted(out, key=lambda x: (x["severity"], x["kind"], x["path"], x.get("line", 0)))
+
+
+def main() -> int:
+    p = argparse.ArgumentParser()
+    p.add_argument("--root")
+    p.add_argument("--strict", action="store_true", help="exit 1 when warnings exist")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--today", help="YYYY-MM-DD, for deterministic tests")
+    a = p.parse_args()
+    try:
+        root = Path(a.root).resolve() if a.root else root_dir()
+        policy = load_policy(root)
+        today = datetime.strptime(a.today, "%Y-%m-%d").date() if a.today else datetime.now(timezone.utc).date()
+        issues = scan(root, policy, today)
+        result = {"status": "WARN" if issues else "PASS", "issues": issues, "counts": dict(Counter(x["kind"] for x in issues))}
+        if a.json:
+            print(json.dumps(result, indent=2))
+        else:
+            for item in issues:
+                line = f":{item['line']}" if "line" in item else ""
+                try:
+                    rel = Path(item["path"]).relative_to(root)
+                except ValueError:
+                    rel = Path(item["path"])
+                print(f"{item['severity']} {item['kind']} {rel}{line}: {item['detail']}")
+            print(f"ai-memory-hygiene: {result['status']} ({len(issues)} issue(s))")
+        return FAILED if a.strict and issues else OK
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"ai-memory-hygiene: ERROR: {exc}", file=sys.stderr)
+        return FAILED
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
