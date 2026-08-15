@@ -1,67 +1,73 @@
 ---
 name: continuous-learning
-description: Route user requests to the smallest relevant memory scope, protect memory quality, and capture durable verified lessons after meaningful work. Use when an AI coding/development session may benefit from identity/preferences, project reference, current execution state, or prior engineering lessons; before promoting memory candidates; and after verified non-trivial work when a reusable lesson should become reviewed memory or reusable skill methodology. Never treat memory as repository truth and never promote unverified session narration automatically.
+description: Route user requests to the smallest relevant memory scope, protect memory quality, and convert verified delivery evidence into reviewed reusable learning. Use when a coding/development session may benefit from identity/preferences, project reference, current execution state, or prior engineering lessons; after verified non-trivial work when a reusable lesson should be captured; and before promoting a memory candidate or evolving reusable methodology into a skill. Never treat memory as repository truth and never auto-promote unverified session narration.
 ---
 
 # Continuous Learning
 
 ## Core contract
 
-Treat memory as advisory context, never as authority. Repository disk, accepted project contracts, executable behavior, and `.delivery` evidence outrank memory.
+Treat repository contracts, executable behavior, and `.delivery` evidence as authority. Treat memory as advisory context. Treat skills as reusable methodology.
 
 ## Before execution
 
 1. Decide whether memory is materially needed. Do not load memory for self-contained tasks.
-2. Run `ai-memory-route "<user request>" --repo <repo> --json` when a repository exists; omit `--repo` otherwise.
-3. Load only the returned files. Respect the router budget; do not expand to neighboring memory files unless selected evidence is insufficient.
-4. For resume/current status/next blocker, prefer repository `STATUS.md`, `TASKS.md`, `.delivery/current.json`, and relevant code over cross-session memory.
-5. If selected memory conflicts with repository disk or verified evidence, use disk/evidence and treat the memory as stale.
+2. Run `ai-memory-route "<request>" --repo <repo> --json` when a repository exists; omit `--repo` otherwise.
+3. Load only returned files and respect the retrieval budget.
+4. For resume/current status/next blocker, prefer `STATUS.md`, `TASKS.md`, `.delivery/current.json`, and current code over cross-session memory.
+5. If memory conflicts with repository/evidence, use repository/evidence and treat the memory as stale.
 
 ## After verified work
 
-Capture a lesson only when all are true:
+Capture a learning signal only when the result is non-trivial, reusable, and machine-verified.
 
-- the work is non-trivial;
-- the result has executable verification evidence;
-- the lesson is reusable beyond the immediate transcript;
-- it is not already encoded adequately by a repository test, contract, or existing skill/reference;
-- it contains no secret, customer data, volatile status, hidden reasoning, or raw logs.
+1. Complete verification and finish the delivery run with `PASS`.
+2. Record a structured immutable learning signal with `delivery-learning record --repo <repo> --run <RUN-ID> ...`.
+3. Choose the narrowest scope:
+   - `project`: stable project/domain constraint or recurring project-specific lesson;
+   - `shared`: durable cross-project preference or engineering invariant;
+   - `methodology`: repeatable workflow or technique that should evolve into a skill/reference.
+4. Never copy secrets, customer data, raw logs, hidden reasoning, volatile status, or speculative root causes into the signal.
 
-Prefer `ai-learn capture` for the candidate. Keep candidate scope narrow:
+`delivery-learning` must refuse runs that are unfinished, non-PASS, have no verification, or contain FAIL/UNVERIFIED verification events.
 
-- `project`: stable project/domain constraint or project-specific recurring lesson;
-- `shared`: durable preference, workflow invariant, or cross-project engineering lesson.
+## Automatic candidate harvest
+
+Run `ai-memory-harvest --repo <repo> --run <RUN-ID>` or `--all` after a verified learning signal exists.
+
+The harvester must:
+
+- verify the learning sidecar and source run before use;
+- create only a local candidate, never tracked memory;
+- preserve provenance: run, head, task, requirement, risk, worker/model, and verification checks;
+- compute advisory novelty and reusability scores;
+- recommend `memory`, `project-memory`, `skill`, `discard-or-merge`, or `review-conflict`;
+- remain idempotent for the same run.
+
+Scores are review aids, not truth. Never auto-delete, auto-merge, auto-promote, or rewrite policy from a score.
 
 ## Before promotion
 
-1. Review the candidate content and its verification evidence.
-2. Run `ai-memory-hygiene --candidate <candidate.md>` so the candidate is compared directly against tracked memory.
-3. Resolve `SEMANTIC_DUPLICATE`, `MEMORY_CONFLICT`, `AUTHORITY_CLAIM`, volatile-state, scope, stale-claim, or oversize findings instead of copying them forward.
-4. If a candidate conflicts with repository truth, discard or rewrite the candidate from verified evidence; never rewrite repository truth to satisfy memory.
-5. Decide whether the lesson belongs in memory at all. Reusable methodology with a repeatable workflow belongs in the owning skill/reference.
-6. Use `ai-learn promote ... --yes` only after the candidate survives this review. Promotion never authorizes Git commit or push.
+1. Review the candidate and provenance.
+2. Run `ai-memory-hygiene --candidate <candidate.md>`.
+3. Resolve `MEMORY_CONFLICT` against repository/evidence or explicit user direction before promotion.
+4. For `SEMANTIC_DUPLICATE`, prefer the existing canonical owner and merge deliberately rather than append another copy.
+5. Reject authority claims that make memory outrank repository truth.
+6. Decide the durable owner:
+   - facts/preferences/stable constraints -> memory;
+   - project-specific stable reference -> project memory;
+   - repeatable methodology -> owning skill/reference;
+   - temporary or redundant information -> discard.
+7. Use `ai-learn promote ... --yes` only after review. Promotion never authorizes Git commit or push.
 
-`ai-memory-hygiene` is advisory by default. Use `--strict` only in deterministic validation/CI contexts where warnings are intentionally treated as failures.
+## Learning evolution
 
-## Memory versus skill
+Use this progression:
 
-Promote facts, preferences, stable constraints, and durable project reference to memory. Promote reusable methodology with a clear trigger, repeatable workflow, and deterministic checks to the owning skill or a skill reference instead of duplicating it in memory.
+`observation -> verified lesson -> recurring pattern -> methodology -> skill -> deterministic automation`
 
-## Conflict rules
-
-- `SEMANTIC_DUPLICATE`: prefer the existing canonical owner; merge only genuinely new detail.
-- `MEMORY_CONFLICT`: stop promotion until the conflicting statements are resolved against repository/evidence or an explicit user decision.
-- `AUTHORITY_CLAIM`: move current truth to repository contracts/evidence and keep memory advisory.
-- Do not use semantic similarity as proof that two statements are identical; it is a review signal, not an autonomous merge instruction.
-
-## Learning loop
-
-Use this order:
-
-`request -> scoped retrieval -> execution -> verification -> lesson candidate -> candidate hygiene -> classify memory|skill|discard -> reviewed promotion`
-
-Do not bypass verification or hygiene because a lesson sounds plausible.
+Do not promote a one-off fix into a new skill. Prefer improving an existing owner skill when the methodology overlaps.
 
 ## Anti-patterns
 
-Do not capture every successful task. Do not store current branch, next task, CI-green claims, temporary provider state, or implementation progress in cross-session memory. Do not load all project memories because one project was mentioned. Do not auto-edit routing, policy, or permanent memory from a single lesson. Do not auto-merge or auto-delete memory solely from similarity scores.
+Do not capture every successful task. Do not store current branch, next task, CI-green claims, temporary provider state, or implementation progress in durable memory. Do not infer root cause from raw logs when no verified structured lesson exists. Do not load all memories because one project is mentioned. Do not let an LLM own workflow state or permanent truth.

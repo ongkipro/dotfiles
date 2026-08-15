@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+import argparse, hashlib, json, os, re, tempfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+SAFE_ID = re.compile(r'^[A-Za-z0-9._-]+$')
+SCOPES = {'project','shared','methodology'}
+
+def now(): return datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00','Z')
+def canonical(d): return json.dumps(d, sort_keys=True, separators=(',',':'), ensure_ascii=True)
+def digest(d): return hashlib.sha256(canonical(d).encode()).hexdigest()
+
+def atomic_json(path: Path, data: dict):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd,tmp=tempfile.mkstemp(prefix='.'+path.name+'.',dir=path.parent)
+    try:
+        with os.fdopen(fd,'w',encoding='utf-8') as f:
+            json.dump(data,f,indent=2,sort_keys=True); f.write('\n'); f.flush(); os.fsync(f.fileno())
+        os.replace(tmp,path)
+    finally:
+        if os.path.exists(tmp): os.unlink(tmp)
+
+def read_events(path: Path):
+    events=[]; prev=None
+    for no,raw in enumerate(path.read_text(encoding='utf-8').splitlines(),1):
+        if not raw.strip(): continue
+        e=json.loads(raw)
+        if e.get('runId') != path.stem: raise ValueError(f'{path.name}:{no}: runId mismatch')
+        if e.get('prevEventHash') != prev: raise ValueError(f'{path.name}:{no}: broken hash chain')
+        supplied=e.get('eventHash'); unsigned=dict(e); unsigned.pop('eventHash',None)
+        if supplied != digest(unsigned): raise ValueError(f'{path.name}:{no}: event hash mismatch')
+        prev=supplied; events.append(e)
+    if not events: raise ValueError(f'{path.name}: empty run evidence')
+    return events
+
+def require_run(repo: Path, run_id: str):
+    if not SAFE_ID.fullmatch(run_id): raise ValueError('invalid run id')
+    path=repo/'.delivery'/'runs'/f'{run_id}.jsonl'
+    if not path.is_file(): raise ValueError(f'run evidence missing: {run_id}')
+    ev=read_events(path)
+    start=next((x for x in ev if x.get('type')=='run_started'),None)
+    finish=next((x for x in reversed(ev) if x.get('type')=='run_finished'),None)
+    if not start or not finish: raise ValueError('learning requires a finished run')
+    if finish.get('result') != 'PASS': raise ValueError('learning requires run result PASS')
+    checks=[x for x in ev if x.get('type')=='verification']
+    if not checks: raise ValueError('learning requires at least one verification event')
+    bad=[x for x in checks if x.get('status') != 'PASS']
+    if bad: raise ValueError('learning requires all verification events PASS')
+    return start, finish, checks
+
+def score(scope: str, invariant: str, checks: list[dict]):
+    base={'project':60,'shared':75,'methodology':85}[scope]
+    if len(checks) >= 2: base += 5
+    if len(invariant.strip()) >= 60: base += 5
+    return min(base,100)
+
+def destination(scope: str): return {'project':'project-memory','shared':'memory','methodology':'skill'}[scope]
+
+def record(repo: Path, a):
+    if a.scope not in SCOPES: raise ValueError('scope must be project, shared, or methodology')
+    for name in ('title','symptom','root_cause','invariant','fix','check'):
+        if not getattr(a,name).strip(): raise ValueError(f'--{name.replace("_","-")} is required')
+    start,finish,checks=require_run(repo,a.run)
+    root=repo/'.delivery'/'learning'; target=root/f'{a.run}.json'
+    if target.exists(): raise ValueError('learning signal already exists; signals are immutable')
+    data={
+      'schemaVersion':1,'runId':a.run,'capturedAt':now(),'scope':a.scope,
+      'recommendedDestination':destination(a.scope),'reusabilityScore':score(a.scope,a.invariant,checks),
+      'lesson':{'title':a.title,'symptom':a.symptom,'rootCause':a.root_cause,'invariant':a.invariant,'fix':a.fix,'check':a.check},
+      'provenance':{
+        'task':start.get('task'),'requirement':start.get('requirement'),'risk':start.get('risk'),
+        'worker':start.get('worker'),'model':start.get('model'),'sourceHead':finish.get('head'),
+        'finishedAt':finish.get('time'),
+        'verification':[{'check':x.get('check'),'status':x.get('status'),'detail':x.get('detail')} for x in checks]
+      }
+    }
+    data['signalHash']=digest(data)
+    atomic_json(target,data)
+    print(f'delivery-learning: RECORDED {target}')
+
+def verify(repo: Path, as_json: bool):
+    root=repo/'.delivery'/'learning'; problems=[]; count=0
+    if root.is_dir():
+      for p in sorted(root.glob('RUN-*.json')):
+        count+=1
+        try:
+          d=json.loads(p.read_text(encoding='utf-8')); supplied=d.get('signalHash'); u=dict(d);u.pop('signalHash',None)
+          if supplied != digest(u): problems.append(f'{p.name}: signal hash mismatch')
+          if d.get('runId') != p.stem: problems.append(f'{p.name}: runId mismatch')
+          require_run(repo,p.stem)
+        except Exception as e: problems.append(f'{p.name}: {e}')
+    payload={'result':'VERIFIED' if not problems else 'UNVERIFIED','signals':count,'problems':problems}
+    print(json.dumps(payload,indent=2) if as_json else ('delivery-learning: '+payload['result'] + ''.join(f'\n  - {x}' for x in problems)))
+    return 0 if not problems else 2
+
+def main():
+    p=argparse.ArgumentParser(); p.add_argument('--repo',default='.')
+    sub=p.add_subparsers(dest='cmd',required=True)
+    r=sub.add_parser('record'); r.add_argument('--run',required=True); r.add_argument('--scope',required=True,choices=sorted(SCOPES))
+    for x in ('title','symptom','root-cause','invariant','fix','check'): r.add_argument('--'+x,required=True,dest=x.replace('-','_'))
+    v=sub.add_parser('verify'); v.add_argument('--json',action='store_true')
+    a=p.parse_args(); repo=Path(a.repo).resolve()
+    try:
+      if a.cmd=='record': record(repo,a); return 0
+      return verify(repo,a.json)
+    except (ValueError,OSError,json.JSONDecodeError) as e:
+      print(f'delivery-learning: ERROR: {e}',file=__import__('sys').stderr); return 1
+if __name__=='__main__': raise SystemExit(main())

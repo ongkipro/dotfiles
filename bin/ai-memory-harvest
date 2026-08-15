@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+import argparse, hashlib, json, os, re, subprocess
+from pathlib import Path
+
+TOKEN_RE=re.compile(r'[a-z0-9][a-z0-9_.+/-]*')
+STOP={'a','an','and','are','as','at','be','by','for','from','in','is','it','of','on','or','that','the','this','to','with','when','where','which','will'}
+
+def canonical(d): return json.dumps(d,sort_keys=True,separators=(',',':'),ensure_ascii=True)
+def digest(d): return hashlib.sha256(canonical(d).encode()).hexdigest()
+def tokens(s): return {x for x in TOKEN_RE.findall(s.lower().replace('-',' ')) if x not in STOP and len(x)>1}
+def sim(a,b):
+    a,b=tokens(a),tokens(b)
+    return len(a&b)/len(a|b) if a and b else 0.0
+
+def load_signal(repo: Path, run: str):
+    p=repo/'.delivery'/'learning'/f'{run}.json'
+    if not p.is_file(): raise ValueError(f'learning signal missing: {run}')
+    d=json.loads(p.read_text(encoding='utf-8')); supplied=d.get('signalHash'); u=dict(d);u.pop('signalHash',None)
+    if supplied != digest(u): raise ValueError('learning signal hash mismatch')
+    return d
+
+def latest_run(repo: Path):
+    files=sorted((repo/'.delivery'/'learning').glob('RUN-*.json')) if (repo/'.delivery'/'learning').is_dir() else []
+    if not files: raise ValueError('no learning signals found')
+    return files[-1].stem
+
+def memory_units(dot: Path):
+    out=[]
+    for rel in ('config/ai/memory','config/ai/project-memory'):
+      root=dot/rel
+      if root.is_dir():
+        for p in root.rglob('*.md'):
+          try:
+            for line in p.read_text(encoding='utf-8',errors='replace').splitlines():
+              line=line.strip()
+              if line and not line.startswith('#') and len(tokens(line)) >= 5: out.append((p,line))
+          except OSError: pass
+    return out
+
+def novelty(dot: Path, lesson: dict):
+    seeds=[str(lesson.get(k,'')) for k in ('title','rootCause','invariant','fix') if str(lesson.get(k,'')).strip()]
+    best=0.0; best_path=None
+    for p,text in memory_units(dot):
+      for seed in seeds:
+        s=sim(seed,text)
+        if s>best: best,best_path=s,p
+    return max(0,round((1-best)*100)),best,best_path
+
+def render(signal: dict, novelty_score: int, maxsim: float, related: Path|None, recommendation: str):
+    l=signal['lesson']; p=signal['provenance']; checks=p.get('verification') or []
+    lines=['---','status: candidate',f"scope: {signal['scope']}",f"source_run: {signal['runId']}",f"source_head: {p.get('sourceHead') or ''}",f"source_task: {p.get('task') or ''}",f"source_requirement: {p.get('requirement') or ''}",f"risk: {p.get('risk') or ''}",f"worker: {p.get('worker') or ''}",f"model: {p.get('model') or ''}",f"reusability_score: {signal['reusabilityScore']}",f"novelty_score: {novelty_score}",f"recommended_destination: {recommendation}",'---','',f"## Lesson: {l['title']}",'','### Symptom',l['symptom'],'','### Root cause',l['rootCause'],'','### Durable invariant',l['invariant'],'','### Fix',l['fix'],'','### Regression check',l['check'],'','### Provenance',f"- Run: `{signal['runId']}`",f"- Head: `{p.get('sourceHead') or 'unknown'}`",f"- Task: `{p.get('task') or 'unknown'}`",f"- Requirement: `{p.get('requirement') or 'unknown'}`",f"- Finished: `{p.get('finishedAt') or 'unknown'}`",'- Verification:']
+    for c in checks: lines.append(f"  - `{c.get('check')}` = `{c.get('status')}`")
+    lines += ['', '### Novelty', f'- Score: `{novelty_score}/100`', f'- Maximum lexical similarity: `{maxsim:.2f}`']
+    if related: lines.append(f'- Closest memory: `{related}`')
+    return '\n'.join(lines)+'\n'
+
+def classify(signal: dict, novelty_score: int):
+    if novelty_score < 20: return 'discard-or-merge'
+    return signal.get('recommendedDestination') or {'project':'project-memory','shared':'memory','methodology':'skill'}.get(signal.get('scope'),'review')
+
+def main():
+    p=argparse.ArgumentParser(); p.add_argument('--repo',default='.'); p.add_argument('--run'); p.add_argument('--all',action='store_true'); p.add_argument('--inbox'); p.add_argument('--dotfiles'); p.add_argument('--json',action='store_true')
+    a=p.parse_args(); repo=Path(a.repo).resolve(); dot=Path(a.dotfiles or os.environ.get('DOTFILES_DIR',Path(__file__).resolve().parent.parent)).resolve(); inbox=Path(a.inbox or os.environ.get('AI_MEMORY_INBOX_DIR',Path.home()/'.config/ai-local/memory-inbox')).expanduser().resolve()
+    try:
+      verifier=dot/'bin'/'delivery-learning'
+      if verifier.is_file():
+        vr=subprocess.run(['python3',str(verifier),'--repo',str(repo),'verify','--json'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,check=False)
+        if vr.returncode != 0: raise ValueError('delivery learning evidence is not verified')
+      if a.all:
+        runs=[x.stem for x in sorted((repo/'.delivery'/'learning').glob('RUN-*.json'))]
+      else: runs=[a.run or latest_run(repo)]
+      if not runs: raise ValueError('no learning signals found')
+      inbox.mkdir(parents=True,exist_ok=True); os.chmod(inbox,0o700); results=[]
+      hygiene=dot/'bin'/'ai-memory-hygiene'
+      for run in runs:
+        signal=load_signal(repo,run); ns,ms,related=novelty(dot,signal['lesson']); recommendation=classify(signal,ns)
+        target=inbox/f'learning-{run}.md'; created=False
+        if not target.exists():
+          target.write_text(render(signal,ns,ms,related,recommendation),encoding='utf-8'); os.chmod(target,0o600); created=True
+        hygiene_result=None
+        if hygiene.is_file():
+          r=subprocess.run(['python3',str(hygiene),'--candidate',str(target),'--json'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,check=False)
+          if r.returncode in (0,1):
+            try: hygiene_result=json.loads(r.stdout)
+            except json.JSONDecodeError: pass
+        kinds={x.get('kind') for x in (hygiene_result or {}).get('issues',[])}
+        if 'MEMORY_CONFLICT' in kinds: recommendation='review-conflict'
+        elif 'SEMANTIC_DUPLICATE' in kinds: recommendation='discard-or-merge'
+        results.append({'runId':run,'candidate':str(target),'created':created,'noveltyScore':ns,'reusabilityScore':signal['reusabilityScore'],'recommendation':recommendation,'hygieneKinds':sorted(x for x in kinds if x)})
+      if a.json: print(json.dumps({'results':results},indent=2))
+      else:
+        for x in results: print(f"ai-memory-harvest: {'CREATED' if x['created'] else 'EXISTS'} {x['candidate']} novelty={x['noveltyScore']} reuse={x['reusabilityScore']} -> {x['recommendation']}")
+      return 0
+    except (ValueError,OSError,json.JSONDecodeError) as e:
+      print(f'ai-memory-harvest: ERROR: {e}',file=__import__('sys').stderr); return 1
+if __name__=='__main__': raise SystemExit(main())
