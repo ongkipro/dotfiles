@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "note": "Canonical Claude Code hook wiring for this dotfiles control plane. ~/.claude/settings.json is device-local and holds device-only keys (model, theme, permissions), so it is not symlinked. `ai-hooks-install` merges these entries into it idempotently and touches nothing else; `ai-hooks-install --check` reports drift without writing. Wiring used to be hand-maintained, which meant a fresh device had git-guard.sh on disk and no hook invoking it, while ai-doctor still reported green because it only ran the guard's test script.",
+  "hooks": [
+    {
+      "id": "git-guard",
+      "event": "PreToolUse",
+      "match": "(?:exec|bash|sh)\\s[^\\n]*git\\-guard\\.sh|git\\-guard\\.sh[\\s\\S]*\\bexec\\b",
+      "why": "Safety control. The permissions allowlist is a prefix matcher and cannot see flags, so `Bash(git push:*)` waves through --force, --mirror, --delete, and forced refspecs. This hook restores that boundary mechanically. Fails closed.",
+      "entry": {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "g=\"$HOME/dotfiles/config/ai/hooks/git-guard.sh\"; [ -x \"$g\" ] && exec \"$g\" || exit 0",
+            "if": "Bash(git *)",
+            "timeout": 10
+          }
+        ]
+      }
+    },
+    {
+      "id": "memory-usage",
+      "event": "UserPromptSubmit",
+      "match": "(?:exec|bash|sh)\\s[^\\n]*memory\\-usage\\.sh|memory\\-usage\\.sh[\\s\\S]*\\bexec\\b",
+      "why": "Observability. Feeds ai-memory-access so ai-memory-lifecycle has real usage data to give retention advice from. Records selected memory paths and byte counts only \u2014 never the prompt, never a hash of it, never file contents. Fails open: any error exits 0 silently and the turn is unaffected.",
+      "entry": {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "h=\"$HOME/dotfiles/config/ai/hooks/memory-usage.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0",
+            "timeout": 10
+          }
+        ]
+      }
+    }
+  ]
+}

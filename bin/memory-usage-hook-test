@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# Regression check for config/ai/hooks/memory-usage.sh — the UserPromptSubmit
+# hook. Run it after touching the hook:
+#   ./bin/memory-usage-hook-test
+#
+# The hook runs on EVERY user prompt and receives arbitrary user text, so the
+# properties that matter are: it never blocks, it never leaks tool internals
+# into the turn, it never treats prompt text as flags, and it never writes
+# outside its telemetry directory. Telemetry is redirected into a sandbox here,
+# so the real ~/.config/ai-local/memory-usage is untouched.
+set -uo pipefail
+
+DOT="$(cd "$(dirname "$0")/.." && pwd)"
+HOOK="$DOT/config/ai/hooks/memory-usage.sh"
+[ -x "$HOOK" ] || { echo "not executable: $HOOK" >&2; exit 2; }
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+fail() { echo "FAIL: $*" >&2; exit 1; }
+
+# Feed a prompt and capture stdout. AI_MEMORY_USAGE_DIR keeps telemetry in the
+# sandbox; ai-memory-access reads it from the environment.
+feed() {
+  printf '%s' "$1" | AI_MEMORY_USAGE_DIR="$TMP/telemetry" "$HOOK" 2>"$TMP/err"
+}
+payload() { python3 -c 'import json,sys;print(json.dumps({"prompt":sys.argv[1]}))' "$1"; }
+
+# --- never exits non-zero, whatever it is given ------------------------------
+for p in '' 'hello' '-h' '--help' '--telemetry-dir=/tmp/should-not-exist' '{"malformed'; do
+  feed "$(payload "$p" 2>/dev/null || printf '%s' "$p")" >/dev/null
+  rc=$?
+  [ "$rc" -eq 0 ] || fail "hook exited $rc on prompt: $p (it must always fail open)"
+done
+feed '' >/dev/null || fail "hook must exit 0 on an empty payload"
+feed 'not json at all' >/dev/null || fail "hook must exit 0 on a non-JSON payload"
+
+# --- a flag-shaped prompt must not leak tool internals into the turn ---------
+# `-h` once matched argparse's help flag and dumped the whole usage block into
+# stdout, i.e. straight into the conversation.
+for p in '-h' '--help'; do
+  out="$(feed "$(payload "$p")")"
+  case "$out" in
+    *usage:*|*"optional arguments"*|*options:*)
+      fail "prompt '$p' leaked argparse usage into hook stdout: $out" ;;
+  esac
+done
+
+# --- a flag-shaped prompt must not steer the tool ----------------------------
+feed "$(payload '--telemetry-dir=/tmp/should-not-exist')" >/dev/null
+[ ! -e /tmp/should-not-exist ] || fail "a prompt redirected telemetry outside the sandbox"
+
+# --- routing still works, including for a prompt that starts with a dash -----
+out="$(feed "$(payload 'what are my preferences')")"
+case "$out" in *preferences.md*) ;; *) fail "an ordinary prompt no longer routes: $out" ;; esac
+out="$(feed "$(payload '-x what are my preferences')")"
+case "$out" in *preferences.md*) ;; *) fail "a dash-prefixed prompt lost routing: $out" ;; esac
+
+# --- telemetry lands in the sandbox and records no prompt text ---------------
+events="$TMP/telemetry/events.jsonl"
+[ -s "$events" ] || fail "no telemetry was recorded in the sandbox"
+grep -qi 'preferences.md' "$events" || fail "telemetry did not record the selected memory path"
+grep -qi 'what are my preferences' "$events" \
+  && fail "PROMPT TEXT was written to telemetry — it must record paths and byte counts only"
+
+# --- a large prompt completes promptly and does not hang ---------------------
+# Build the payload in-process; passing 200KB through argv hits ARG_MAX and
+# would be testing the test harness rather than the hook.
+python3 -c 'import json,sys;sys.stdout.write(json.dumps({"prompt":"preference "*20000}))' > "$TMP/big.json"
+start=$(date +%s)
+AI_MEMORY_USAGE_DIR="$TMP/telemetry" "$HOOK" < "$TMP/big.json" >/dev/null 2>&1 \
+  || fail "hook failed on a very large prompt"
+[ $(( $(date +%s) - start )) -le 15 ] || fail "hook took too long on a large prompt"
+
+echo "memory-usage-hook-test: PASS"

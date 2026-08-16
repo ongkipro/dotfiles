@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# Regression check for ai-hooks-install. Run it after touching the installer or
+# config/ai/claude-hooks.json:
+#   ./bin/ai-hooks-install-test
+# Exits non-zero on the first behaviour change. Self-contained: every settings
+# file is written inside a mktemp sandbox, and the real ~/.claude/settings.json
+# is never read or written.
+set -uo pipefail
+
+DOT="$(cd "$(dirname "$0")/.." && pwd)"
+INSTALL="$DOT/bin/ai-hooks-install"
+[ -x "$INSTALL" ] || { echo "not executable: $INSTALL" >&2; exit 2; }
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+fail() { echo "FAIL: $*" >&2; exit 1; }
+
+settings() { printf '%s' "$1" > "$TMP/settings.json"; }
+run() { "$INSTALL" --settings "$TMP/settings.json" --dotfiles "$DOT" "$@" 2>"$TMP/err"; }
+jq_get() { python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print($1)" "$TMP/settings.json"; }
+
+# The manifest is the contract; if it stops parsing nothing below is meaningful.
+python3 -m json.tool "$DOT/config/ai/claude-hooks.json" >/dev/null \
+  || fail "config/ai/claude-hooks.json is not valid JSON"
+
+# --- missing file is created, not an error -----------------------------------
+rm -f "$TMP/settings.json"
+run >/dev/null || fail "install into a missing settings file should succeed"
+[ -f "$TMP/settings.json" ] || fail "settings file was not created"
+[ "$(jq_get "d['hooks']['PreToolUse'][0]['hooks'][0]['command'].count('git-guard.sh')")" = "1" ] \
+  || fail "git-guard hook not installed into a fresh settings file"
+[ "$(jq_get "d['hooks']['UserPromptSubmit'][0]['hooks'][0]['command'].count('memory-usage.sh')")" = "1" ] \
+  || fail "memory-usage hook not installed into a fresh settings file"
+
+# --- idempotency: a second run changes nothing -------------------------------
+cp "$TMP/settings.json" "$TMP/first.json"
+run >/dev/null || fail "second run should succeed"
+cmp -s "$TMP/settings.json" "$TMP/first.json" || fail "second run rewrote the file; install is not idempotent"
+
+# --- device-local keys survive ------------------------------------------------
+settings '{"model":"opus[1m]","theme":"auto","permissions":{"allow":["Bash(git add:*)"]}}'
+run >/dev/null || fail "install alongside device-local keys should succeed"
+[ "$(jq_get "d['model']")" = "opus[1m]" ] || fail "device-local 'model' key was lost"
+[ "$(jq_get "d['theme']")" = "auto" ] || fail "device-local 'theme' key was lost"
+[ "$(jq_get "d['permissions']['allow'][0]")" = "Bash(git add:*)" ] || fail "device-local permissions were lost"
+
+# --- an unrelated hook on the same event is preserved, not clobbered ----------
+settings '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"echo unrelated"}]}]}}'
+run >/dev/null || fail "install alongside an unrelated hook should succeed"
+[ "$(jq_get "d['hooks']['PreToolUse'][0]['hooks'][0]['command']")" = "echo unrelated" ] \
+  || fail "an unrelated PreToolUse hook was clobbered"
+[ "$(jq_get "len(d['hooks']['PreToolUse'])")" = "2" ] || fail "canonical hook was not appended beside the unrelated one"
+
+# --- a MENTION is not an INVOCATION ------------------------------------------
+# This exact shape once produced "all canonical hooks wired", exit 0, with the
+# force-push guard entirely absent — the failure this tool exists to prevent,
+# reproduced by the tool itself. Matching is on invocation shape, not substring.
+settings '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"echo see config/ai/hooks/git-guard.sh for details"}]}]}}'
+run --check >/dev/null && fail "a command that merely MENTIONS git-guard.sh was accepted as wired"
+grep -q 'git-guard' "$TMP/err" || fail "--check did not name git-guard as missing when only a mention was present"
+run >/dev/null || fail "install beside a mention should succeed"
+[ "$(jq_get "len(d['hooks']['PreToolUse'])")" = "2" ] || fail "canonical hook was not appended beside the mention"
+run --check >/dev/null || fail "--check should pass once the real hook is installed"
+
+# --- a hand-tuned copy is left alone without --force, replaced with it --------
+settings '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"exec $HOME/dotfiles/config/ai/hooks/git-guard.sh","timeout":99}]}]}}'
+run >/dev/null || fail "install over a hand-tuned hook should succeed"
+[ "$(jq_get "d['hooks']['PreToolUse'][0]['hooks'][0]['timeout']")" = "99" ] \
+  || fail "a hand-tuned timeout was overwritten without --force"
+run --force >/dev/null || fail "--force run should succeed"
+[ "$(jq_get "d['hooks']['PreToolUse'][0]['hooks'][0]['timeout']")" = "10" ] \
+  || fail "--force did not restore the canonical entry"
+
+# --- --check reports drift and writes nothing --------------------------------
+settings '{"model":"opus[1m]"}'
+cp "$TMP/settings.json" "$TMP/before.json"
+run --check >/dev/null && fail "--check should exit non-zero when hooks are missing"
+cmp -s "$TMP/settings.json" "$TMP/before.json" || fail "--check wrote to the settings file"
+grep -q 'NOT wired' "$TMP/err" || fail "--check did not name the missing hooks on stderr"
+run >/dev/null || fail "install after --check should succeed"
+run --check >/dev/null || fail "--check should exit zero once hooks are wired"
+
+# --- unparseable settings must never be overwritten --------------------------
+settings '{"model": "opus", oops'
+cp "$TMP/settings.json" "$TMP/before.json"
+run >/dev/null && fail "install should refuse an unparseable settings file"
+cmp -s "$TMP/settings.json" "$TMP/before.json" \
+  || fail "an unparseable settings file was overwritten — device config would be destroyed"
+
+# --- a hostile 'hooks' shape is refused rather than replaced -----------------
+settings '{"hooks":"not-an-object"}'
+cp "$TMP/settings.json" "$TMP/before.json"
+run >/dev/null && fail "install should refuse a non-object 'hooks' key"
+cmp -s "$TMP/settings.json" "$TMP/before.json" || fail "a non-object 'hooks' key was overwritten"
+
+# --- a backup is taken before the first modifying write ----------------------
+settings '{"model":"opus[1m]"}'
+run >/dev/null || fail "install should succeed"
+[ -f "$TMP/settings.json.bak" ] || fail "no backup was written before modifying an existing file"
+grep -q 'opus\[1m\]' "$TMP/settings.json.bak" || fail "backup does not contain the original content"
+
+echo "ai-hooks-install-test: PASS"

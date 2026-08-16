@@ -457,6 +457,21 @@ if command -v claude >/dev/null 2>&1 && [ -f "$CC_SETTINGS" ]; then
   fi
 fi
 
+# Hook WIRING, bukan cuma hook-nya ada. Sampai 2026-08-16 doctor hanya menjalankan
+# git-guard.test.sh — itu membuktikan skripnya benar, BUKAN bahwa ada entri di
+# settings.json yang memanggilnya. Device baru dapat git-guard.sh dari clone dotfiles
+# lalu tetap hijau di sini walau hook-nya tidak pernah terpasang: alarm yang menguji
+# benda yang salah, persis pola yang sama dengan cek .env di atas.
+# settings.json device-local (ada `model`, `theme`, plugin), jadi tidak bisa di-symlink —
+# `ai-hooks-install` yang merekonsiliasi entri dari config/ai/claude-hooks.json.
+if command -v claude >/dev/null 2>&1 && [ -x "$DOT/bin/ai-hooks-install" ]; then
+  if hook_out="$(CLAUDE_SETTINGS="$CC_SETTINGS" "$DOT/bin/ai-hooks-install" --check --dotfiles "$DOT" 2>&1)"; then
+    ok "Claude hooks: semua hook canonical terpasang di $CC_SETTINGS"
+  else
+    wrn "Claude hooks: ada yang BELUM terpasang — perbaiki dengan: ai-hooks-install. Detail: $(printf '%s' "$hook_out" | tr '\n' ' ')"
+  fi
+fi
+
 # ── 7. CLI + login ────────────────────────────────────────────────────────────
 hdr "7. AI CLI di device ini"
 for c in claude codex pi agy omp; do
