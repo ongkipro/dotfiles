@@ -27,6 +27,9 @@ retry:
   modelFallback: true
   fallbackRevertPolicy: cooldown-expiry
   fallbackChains:
+    # Normal routes span all three direct providers. Advisor and discovery keep
+    # Codex for the final availability hop only; that hop is not independent review.
+    # 9Router remains an explicit reserve in models.yml, never a normal fallback.
     default:
       - google-antigravity/gemini-3.7-flash:medium
       - anthropic/claude-sonnet-4-6:medium

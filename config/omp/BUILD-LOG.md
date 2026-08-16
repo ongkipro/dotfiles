@@ -316,3 +316,74 @@ belongs to the 9Router transport variant `cx/gpt-5.6-sol`; the model `default`
 actually resolves to is `openai-codex/gpt-5.6-sol`, whose live catalog window is
 272000. The conclusion is unchanged — 140000 against 272000 is still a 51%
 margin, so compaction fires well before the window — but the number was wrong.
+
+## 2026-08-16 — Fallback independence and reserve semantics reconciled
+
+The routing audit found a contract gap rather than a broken selector: the
+validator protected advisor and discovery **primaries** from the Codex execution
+pool, but said nothing about their fallback hops. Both routes intentionally end
+on Codex after direct Anthropic and Antigravity have failed. That last hop is
+kept for availability, but it cannot produce independent review or discovery.
+Leaving the prose absolute while the executable chain was conditional made a
+normal fallback look like an invariant violation.
+
+The accepted base-route contract is now explicit and structural:
+
+- every normal route spans Antigravity, Codex, and Anthropic exactly once across
+  its primary and first two fallback hops;
+- `advisor*` and `discovery` use a primary outside the Codex execution pool and
+  keep their first recovery hop outside Codex;
+- Codex may appear for those independent lanes only as the final
+  availability-over-independence hop, and output from that hop must not be
+  represented as independent;
+- 9Router remains outside `modelProviderOrder`, roles, and fallback chains. Its
+  provider definition is retained only for explicit operator selection.
+
+The 9Router decision is based on routing structure, not claimed availability.
+Its `ag/*` routes consume the same Antigravity capacity already represented by a
+direct pool, while every 9Router call adds a transport and failure mode. The
+three direct providers already supply the required normal-route diversity, so a
+silent 9Router hop adds no structural recovery value. Retaining its provider
+definition preserves an explicit reserve without asserting that a gateway,
+credential, account, or listed model works on a particular device.
+
+`omp-routing-test` now parses the tracked fallback graph before invoking OMP, so
+static-CI mode also rejects provider collapse, an early Codex hop in an
+independent lane, a normal-path 9Router selector, or removal of the explicit
+reserve definition. `ROUTING.md`'s stale Gemini 3.6 description of `research`
+was corrected to the Gemini 3.7 selector already present in `config.yml`.
+`STATUS.md` no longer promotes one device's catalog or serving observations into
+shared availability truth.
+
+No test, catalog probe, or serving probe was run for this reconciliation; the
+audit assignment required integration validation to run once after all slices
+land.
+
+## 2026-08-17 — Policy contradictions and overlay capability gaps closed
+
+The routing policy now classifies R0–R2 by semantic complexity and invariants,
+not file extension or diff size. PRD and high-nuance prose remain owned by
+`writer` / `plan`. R3 correctness review resolves to `reviewer` / `advisor`;
+security-sensitive review resolves to `security-reviewer` /
+`advisor-xhigh`. The stale GPT-5.4 overflow statement was replaced with the
+actual `default` recovery chain: Antigravity Gemini 3.7 Flash, then direct
+Anthropic Claude Sonnet 4.6. The Codex-only overlay comment now names the
+current Gemini 3.7 research model.
+
+`omp-routing-test` now applies one fallback-graph validator to the base config
+and every overlay. Single-provider overlays must expose a non-empty fallback
+map, keep every primary and fallback on their sole configured provider, use
+catalog-valid selectors above the compaction threshold, provide recovery for
+every role, and avoid repeating a primary as the first fallback. Visual
+primaries and every fallback reachable from `vision` or `designer` must
+advertise image input in the live model catalog; missing modality metadata
+fails that visual route.
+
+The integrated validator passed with 13 roles, 11 overrides, eight async jobs,
+two overlays, and 1,414 catalog models. Ten isolated mutations then proved
+rejection of a missing overlay retry block, missing model-keyed recovery,
+foreign provider, repeated primary, unsupported effort, nonexistent model,
+sub-threshold context, and text-only visual primary and fallback. A text-only
+non-visual primary remained accepted, proving the image guard is scoped to the
+visual roles. No provider serving probe was run; shared status does not claim
+device-specific availability.

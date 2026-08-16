@@ -88,10 +88,9 @@ def parse_frontmatter(path):
 def parse_custom_provider_models(path):
     """Extract provider -> {model-id: declared contextWindow or None} from models.yml.
 
-    The declared window matters because it can disagree with OMP's cached catalog:
-    models.yml states 372000 for `cx/gpt-5.6-sol` while the cache reports 1050000.
-    Callers take the smaller of the two so a generous cache entry cannot mask a
-    model that is really too small for the compaction threshold.
+    Callers take the smaller of the tracked declaration and a device-local
+    catalog entry so a generous cache cannot mask a model that is too small for
+    the compaction threshold.
     """
     providers = {}
     current_provider = None
@@ -162,6 +161,85 @@ def parse_scalar_mapping(source, key, header_indent):
     return values
 
 
+def parse_list_mapping(source, key, header_indent):
+    """Parse one mapping of scalar keys to scalar lists from tracked YAML."""
+    lines = source.splitlines()
+    header = (" " * header_indent) + key + ":"
+    start = next(
+        (index for index, line in enumerate(lines) if line.rstrip() == header),
+        None,
+    )
+    if start is None:
+        fail("tracked config is missing mapping: " + key)
+    values = {}
+    current_key = None
+    child_indent = header_indent + 2
+    key_pattern = re.compile(
+        r"^" + (" " * child_indent) + r"([^:#][^:]*):\s*$"
+    )
+    item_pattern = re.compile(
+        r"^" + (" " * (child_indent + 2)) + r"-\s+(\S.*?)\s*$"
+    )
+    for line in lines[start + 1 :]:
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip())
+        if indent <= header_indent:
+            break
+        key_match = key_pattern.match(line)
+        if key_match:
+            current_key = key_match.group(1)
+            values[current_key] = []
+            continue
+        item_match = item_pattern.match(line)
+        if item_match and current_key is not None:
+            values[current_key].append(item_match.group(1))
+    return values
+
+
+def parse_scalar_list(source, key, header_indent):
+    """Parse one scalar list from the constrained tracked config."""
+    lines = source.splitlines()
+    header = (" " * header_indent) + key + ":"
+    start = next(
+        (index for index, line in enumerate(lines) if line.rstrip() == header),
+        None,
+    )
+    if start is None:
+        fail("tracked config is missing list: " + key)
+    values = []
+    item_pattern = re.compile(
+        r"^" + (" " * (header_indent + 2)) + r"-\s+(\S.*?)\s*$"
+    )
+    for line in lines[start + 1 :]:
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip())
+        if indent <= header_indent:
+            break
+        match = item_pattern.match(line)
+        if match:
+            values.append(match.group(1))
+    return values
+
+
+def provider_of(selector):
+    return str(selector).split("/", 1)[0]
+
+
+def fallback_for(role, selector, fallback_chains):
+    """Resolve the role-keyed or model-keyed recovery chain for one role."""
+    if role in fallback_chains:
+        return fallback_chains[role]
+    model_key = selector.rsplit(":", 1)[0]
+    matches = [
+        values
+        for key, values in fallback_chains.items()
+        if "*" not in key and key.rstrip(":") == model_key
+    ]
+    return matches[0] if matches else None
+
+
 
 def collect_role_references(value, references):
     if isinstance(value, dict):
@@ -178,12 +256,13 @@ CATALOG_PATH = Path.home() / ".omp" / "agent" / "models.db"
 
 
 def load_catalog():
-    """Return {(provider, model_id): {"context": int, "efforts": [str]}} from OMP's cache.
+    """Return model capability metadata from OMP's authoritative cache.
 
-    This is the only source that knows what a model can actually do. Without it the
-    test can prove the routing graph is internally consistent but not that any model
-    in it exists, accepts the reasoning level asked of it, or holds enough context.
-    Returns None when the cache is absent so the caller can say so out loud.
+    Each entry contains ``context``, ``efforts``, and the authoritative ``input``
+    modality list. Without this cache the test can prove that the routing graph
+    is internally consistent but not that its selectors have the capabilities
+    they claim. Returns None when the cache is absent so the caller can say so
+    out loud.
     """
     if not CATALOG_PATH.is_file():
         return None
@@ -210,6 +289,7 @@ def load_catalog():
             catalog[(provider, model_id)] = {
                 "context": entry.get("contextWindow"),
                 "efforts": thinking.get("efforts") or [],
+                "input": entry.get("input"),
             }
     return catalog or None
 
@@ -223,34 +303,172 @@ def split_selector(selector):
     return provider, model_id, effort
 
 
-def check_selector(selector, catalog, threshold, where, declared_contexts=None):
+def check_selector(
+    selector,
+    catalog,
+    threshold,
+    where,
+    declared_contexts=None,
+    required_inputs=None,
+):
     """Verify one selector against the catalog. Silent when it is sound."""
+    if not isinstance(selector, str):
+        fail("{}: not a provider/model selector: {!r}".format(where, selector))
     provider, model_id, effort = split_selector(selector)
     if not provider or not model_id:
         fail("{}: not a provider/model selector: {!r}".format(where, selector))
     if not effort:
         fail("{}: selector carries no reasoning suffix: {}".format(where, selector))
+    if catalog is None:
+        return
     entry = catalog.get((provider, model_id))
     if entry is None:
         fail("{}: model is absent from the catalog: {}".format(where, selector))
     efforts = entry["efforts"]
-    if efforts and effort not in efforts:
-        fail(
-            "{}: {} does not support reasoning level {!r} (supports {})".format(
-                where, provider + "/" + model_id, effort, ", ".join(efforts)
-            )
+    if efforts:
+        efforts_valid = isinstance(efforts, list) and all(
+            isinstance(item, str) for item in efforts
         )
+        if not efforts_valid:
+            fail("{}: {} has invalid reasoning-level metadata".format(where, provider + "/" + model_id))
+        if effort not in efforts:
+            fail(
+                "{}: {} does not support reasoning level {!r} (supports {})".format(
+                    where, provider + "/" + model_id, effort, ", ".join(efforts)
+                )
+            )
     context = entry["context"]
     declared = (declared_contexts or {}).get(provider, {}).get(model_id)
     if isinstance(declared, int) and (not isinstance(context, int) or declared < context):
         # Trust the tracked declaration over a more generous cache entry.
         context = declared
-    if isinstance(context, int) and context <= threshold:
+    if not isinstance(context, int) or isinstance(context, bool):
+        fail("{}: {} has no context-window metadata".format(where, provider + "/" + model_id))
+    if context <= threshold:
         fail(
             "{}: {} holds {} tokens, at or below compaction.thresholdTokens ({})".format(
                 where, provider + "/" + model_id, context, threshold
             )
         )
+    required_inputs = set(required_inputs or ())
+    if required_inputs:
+        inputs = entry["input"]
+        if not isinstance(inputs, list):
+            fail(
+                "{}: {} has no authoritative input-modality metadata; required {}".format(
+                    where, provider + "/" + model_id, ", ".join(sorted(required_inputs))
+                )
+            )
+        missing = {modality for modality in required_inputs if modality not in inputs}
+        if missing:
+            fail(
+                "{}: {} lacks required input modality {}".format(
+                    where, provider + "/" + model_id, ", ".join(sorted(missing))
+                )
+            )
+
+
+def validate_routing_graph(
+    context,
+    roles,
+    fallback_chains,
+    provider_order,
+    catalog,
+    threshold,
+    declared_contexts=None,
+):
+    """Validate selectors and recovery coverage shared by base and overlays."""
+    if not isinstance(roles, dict) or not roles:
+        fail("{} modelRoles must be a non-empty map".format(context))
+    if (
+        not isinstance(provider_order, list)
+        or not provider_order
+        or any(not isinstance(provider, str) or not provider for provider in provider_order)
+    ):
+        fail("{} modelProviderOrder must be a non-empty provider list".format(context))
+    allowed_providers = set(provider_order)
+    for role, selector in roles.items():
+        where = "{} role {}".format(context, role)
+        check_selector(
+            selector,
+            catalog,
+            threshold,
+            where,
+            declared_contexts,
+            required_inputs={"image"} if role in {"vision", "designer"} else None,
+        )
+        if provider_of(selector) not in allowed_providers:
+            fail(
+                "{}: primary provider {!r} is absent from modelProviderOrder {}".format(
+                    where, provider_of(selector), provider_order
+                )
+            )
+
+    if not isinstance(fallback_chains, dict) or not fallback_chains:
+        fail("{} retry.fallbackChains must be a non-empty map".format(context))
+    for key, selectors in fallback_chains.items():
+        if not isinstance(key, str) or not key:
+            fail("{} fallback chain has an invalid key: {!r}".format(context, key))
+        if key in roles:
+            matching_roles = [key]
+        else:
+            model_key = key[:-1] if key.endswith(":") else key
+            key_provider, separator, key_model = model_key.partition("/")
+            if "*" in key or not separator or not key_provider or not key_model:
+                fail(
+                    "{} fallback chain key is neither a configured role nor a model key: {}".format(
+                        context, key
+                    )
+                )
+            matching_roles = [
+                role
+                for role, selector in roles.items()
+                if selector.rsplit(":", 1)[0] == model_key
+            ]
+            if not matching_roles:
+                fail(
+                    "{} model-keyed fallback chain {} matches no configured role model".format(
+                        context, key
+                    )
+                )
+        if not isinstance(selectors, list) or not selectors:
+            fail("{} fallback {} must be a non-empty selector list".format(context, key))
+        required_inputs = (
+            {"image"}
+            if any(role in {"vision", "designer"} for role in matching_roles)
+            else None
+        )
+        for position, selector in enumerate(selectors):
+            where = "{} fallback {}[{}]".format(context, key, position)
+            check_selector(
+                selector,
+                catalog,
+                threshold,
+                where,
+                declared_contexts,
+                required_inputs=required_inputs,
+            )
+            if provider_of(selector) not in allowed_providers:
+                fail(
+                    "{}: provider {!r} is absent from modelProviderOrder {}".format(
+                        where, provider_of(selector), provider_order
+                    )
+                )
+
+    for role, selector in roles.items():
+        chain = fallback_for(role, selector, fallback_chains)
+        if chain is None:
+            fail(
+                "{} role {} has no fallback path, role-keyed or model-keyed".format(
+                    context, role
+                )
+            )
+        if chain[0] == selector:
+            fail(
+                "{} fallback for role {} repeats its primary selector: {}".format(
+                    context, role, selector
+                )
+            )
 
 
 for required_path, label in (
@@ -285,10 +503,82 @@ for path in sorted(required_explicit_paths):
 static_roles = parse_scalar_mapping(config_source, "modelRoles", 0)
 required_roles = {"default", "smol", "slow", "plan", "vision", "tiny", "task", "advisor"}
 if not required_roles.issubset(static_roles):
-    fail("tracked config is missing model roles: " + ", ".join(sorted(required_roles - static_roles)))
+    fail(
+        "base tracked config is missing model roles: "
+        + ", ".join(sorted(required_roles - static_roles))
+    )
+
+static_provider_order = parse_scalar_list(config_source, "modelProviderOrder", 0)
+direct_providers = {"google-antigravity", "openai-codex", "anthropic"}
+if set(static_provider_order) != direct_providers or len(static_provider_order) != len(direct_providers):
+    fail(
+        "base modelProviderOrder must contain exactly the three direct providers {}: {}".format(
+            sorted(direct_providers), static_provider_order
+        )
+    )
+
+static_fallback_chains = parse_list_mapping(config_source, "fallbackChains", 2)
+validate_routing_graph(
+    "base",
+    static_roles,
+    static_fallback_chains,
+    static_provider_order,
+    None,
+    None,
+)
+
+# Every normal route starts in one pool and can recover through the other two.
+# This is provider diversity, not a claim that any provider is available on a
+# particular device.
 for role, selector in static_roles.items():
-    if "/" not in selector:
-        fail("model role {} is not a provider/model selector".format(role))
+    chain = fallback_for(role, selector, static_fallback_chains)
+    route_providers = [provider_of(selector)] + [provider_of(item) for item in chain[:2]]
+    if len(chain) < 2 or set(route_providers) != direct_providers:
+        fail(
+            "base route '{}' must span each direct provider once across its primary and first two "
+            "fallback hops; got {}".format(role, route_providers)
+        )
+
+# Advisor and discovery primaries must be independent from the execution pool.
+# Their first fallback keeps that independence; the execution provider is
+# accepted only as the final availability-over-independence recovery hop.
+execution_roles = [role for role in ("default", "task", "slow", "plan") if role in static_roles]
+execution_providers = {provider_of(static_roles[role]) for role in execution_roles}
+independent_roles = [
+    role for role in static_roles if role.startswith("advisor") or role == "discovery"
+]
+for role in independent_roles:
+    selector = static_roles[role]
+    chain = fallback_for(role, selector, static_fallback_chains)
+    if provider_of(selector) in execution_providers:
+        fail(
+            "independent role '{}' shares its primary provider with execution roles {}".format(
+                role, execution_roles
+            )
+        )
+    if provider_of(chain[0]) in execution_providers:
+        fail(
+            "independent role '{}' falls back to an execution provider before the final hop".format(
+                role
+            )
+        )
+    execution_hops = [
+        index for index, item in enumerate(chain) if provider_of(item) in execution_providers
+    ]
+    if execution_hops and execution_hops != [len(chain) - 1]:
+        fail(
+            "independent role '{}' may use an execution provider only as its final "
+            "availability fallback".format(role)
+        )
+
+custom_providers = parse_custom_provider_models(MODELS_PATH)
+if not custom_providers:
+    fail("models.yml contains no custom providers")
+if not any(provider.startswith("9router") for provider in custom_providers):
+    fail(
+        "models.yml must retain an explicit 9Router reserve provider while normal routing "
+        "keeps it out of roles and fallback chains"
+    )
 
 static_overrides = parse_scalar_mapping(config_source, "agentModelOverrides", 2)
 if not static_overrides:
@@ -333,12 +623,13 @@ if not omp:
             )
         )
         print(
-            "  omp is not installed, so this run checked file structure and @role wiring only.",
+            "  omp is not installed, so this run checked file structure, @role wiring,"
+            " and shared routing invariants only.",
             file=sys.stderr,
         )
         print(
-            "  NOT checked: model existence, reasoning levels, context windows, overlays,"
-            " fallback coverage. Install omp in CI for a full pass.",
+            "  NOT checked: model existence, reasoning levels, context windows, input"
+            " modalities, or overlays. Install omp in CI for a full pass.",
             file=sys.stderr,
         )
         raise SystemExit(0)
@@ -375,10 +666,10 @@ except json.JSONDecodeError as error:
     fail("OMP config inspection did not return valid JSON: " + str(error))
 
 
-def runtime_value(key):
-    entry = runtime_config.get(key)
+def runtime_value(key, source=None, where="base OMP parser"):
+    entry = (runtime_config if source is None else source).get(key)
     if not isinstance(entry, dict) or "value" not in entry:
-        fail("installed OMP parser does not expose " + key)
+        fail("{} does not expose {}".format(where, key))
     return entry["value"]
 
 
@@ -406,13 +697,11 @@ if task_concurrency > async_jobs:
 
 roles = runtime_value("modelRoles")
 if not isinstance(roles, dict):
-    fail("modelRoles must be a map")
+    fail("base modelRoles must be a map")
 for role in ("default", "smol", "slow", "plan", "vision", "tiny", "task", "advisor"):
     selector = roles.get(role)
     if not isinstance(selector, str) or not selector:
-        fail("missing model role: " + role)
-    if "/" not in selector:
-        fail("model role {} is not a provider/model selector".format(role))
+        fail("base config is missing model role: " + role)
 
 role_references = []
 collect_role_references(runtime_value("task.agentModelOverrides"), role_references)
@@ -452,18 +741,13 @@ OVERLAY_HINT = ("If a device wants one provider, use an overlay "
                 "(omp --config config/omp/overlays/<name>.yml) rather than editing the shared base.")
 
 
-def provider_of(selector):
-    return str(selector).split("/", 1)[0]
-
-
 provider_order = runtime_value("modelProviderOrder")
 if not isinstance(provider_order, list) or not provider_order:
     fail("modelProviderOrder must be a non-empty list")
 
-# Scoped to the lanes an advisor actually reviews. ROUTING.md grounds vendor
-# independence in "the Antigravity and Codex workers it reviews" — mechanical
-# support is not that, so a cheap utility model sharing the advisor vendor is
-# legitimate and must not be rejected.
+# This runtime check mirrors primary-selector independence. The static checks
+# above additionally enforce first-hop independence and confine an
+# availability-over-independence execution-provider hop to the final position.
 worker_roles = [r for r in ("default", "task", "slow", "plan") if r in roles]
 worker_providers = {provider_of(roles[r]) for r in worker_roles}
 for role in [r for r in roles if r.startswith("advisor") or r == "discovery"]:
@@ -493,40 +777,8 @@ if len(role_providers) < 3:
         + OVERLAY_HINT
     )
 
-reserve = [pr for pr in provider_order if pr.startswith("9router")]
-if reserve and provider_order[-1] not in reserve:
-    fail("9Router must be last in modelProviderOrder — ROUTING.md calls it the reserve and "
-         "\"deliberately the least-preferred hop\". Current order: {}. ".format(provider_order) + OVERLAY_HINT)
 
 fallback_chains = runtime_value("retry.fallbackChains")
-if not isinstance(fallback_chains, dict):
-    fail("retry.fallbackChains must be a map")
-for key in fallback_chains:
-    if "*" in key:
-        continue
-    if "/" not in key:
-        if key not in roles:
-            fail("fallback chain references missing role: " + key)
-    elif not any(key.rstrip(":") == selector.rsplit(":", 1)[0] for selector in roles.values()):
-        # A model-keyed chain that matches no configured role model is dead weight:
-        # nothing will ever resolve to it, so a typo here fails silently forever.
-        fail("model-keyed fallback chain matches no configured role model: " + key)
-
-custom_providers = parse_custom_provider_models(MODELS_PATH)
-if not custom_providers:
-    fail("models.yml contains no custom providers")
-for selectors in fallback_chains.values():
-    if not isinstance(selectors, list) or not selectors:
-        fail("each fallback chain must be a non-empty list")
-    for selector in selectors:
-        if not isinstance(selector, str) or "/" not in selector:
-            fail("invalid fallback selector: {!r}".format(selector))
-        provider, model_with_effort = selector.split("/", 1)
-        if provider not in custom_providers:
-            continue
-        model_id = model_with_effort.split(":", 1)[0]
-        if model_id not in custom_providers[provider]:
-            fail("custom-provider fallback is absent from models.yml: " + selector)
 
 # ── Capability validation ────────────────────────────────────────────────────
 # Everything above proves the routing graph refers to itself consistently. None of
@@ -540,39 +792,21 @@ catalog = load_catalog()
 if catalog is None:
     print(
         "omp-routing-test: WARNING — model catalog {} is unavailable, so model existence,"
-        " reasoning levels, and context windows were NOT verified. Run `omp models` once"
-        " on this device to populate it.".format(CATALOG_PATH),
+        " reasoning levels, context windows, and input modalities were NOT verified. Run"
+        " `omp models` once on this device to populate it.".format(CATALOG_PATH),
         file=sys.stderr,
     )
-else:
-    for role, selector in roles.items():
-        check_selector(selector, catalog, threshold, "role " + role, custom_providers)
-    for key, selectors in fallback_chains.items():
-        for position, selector in enumerate(selectors):
-            check_selector(
-                selector,
-                catalog,
-                threshold,
-                "fallback {}[{}]".format(key, position),
-                custom_providers,
-            )
 
-# Every role needs a recovery path, whether keyed by its own name or by its model.
-# Without this, deleting a chain — or the whole retry block — passes unnoticed.
-for role, selector in roles.items():
-    if role in fallback_chains:
-        first = fallback_chains[role][0]
-        if first == selector:
-            fail(
-                "fallback chain for {} repeats the primary selector, so it recovers"
-                " nothing: {}".format(role, selector)
-            )
-        continue
-    model_key = selector.rsplit(":", 1)[0]
-    if not any(
-        "*" not in key and key.rstrip(":") == model_key for key in fallback_chains
-    ):
-        fail("role has no fallback path, role-keyed or model-keyed: " + role)
+validate_routing_graph(
+    "base",
+    roles,
+    fallback_chains,
+    provider_order,
+    catalog,
+    threshold,
+    custom_providers,
+)
+
 
 bundled_directory = Path(runtime_temporary.name) / "bundled-agents"
 bundled_directory.mkdir()
@@ -666,28 +900,45 @@ for overlay_path in sorted(overlays_directory.glob("*.yml")):
         overlay_config = json.loads(overlay_result.stdout)
     except json.JSONDecodeError as error:
         fail("overlay {} did not parse: {}".format(overlay_path.name, error))
-    overlay_entry = overlay_config.get("modelRoles")
-    overlay_roles = overlay_entry.get("value") if isinstance(overlay_entry, dict) else None
+    overlay_context = "overlay {}".format(overlay_path.name)
+    overlay_roles = runtime_value("modelRoles", overlay_config, overlay_context)
     if not isinstance(overlay_roles, dict) or not overlay_roles:
-        fail("overlay defines no model roles: " + overlay_path.name)
+        fail("{} defines no model roles".format(overlay_context))
     missing = sorted(set(roles) - set(overlay_roles))
     if missing:
         # A role absent from an overlay cannot resolve in a single-provider session,
         # so any agent mapped to it fails the moment it is dispatched.
         fail(
-            "overlay {} is missing roles defined in config.yml: {}".format(
-                overlay_path.name, ", ".join(missing)
+            "{} is missing roles defined in config.yml: {}".format(
+                overlay_context, ", ".join(missing)
             )
         )
-    if catalog is not None:
-        for role, selector in overlay_roles.items():
-            check_selector(
-                selector,
-                catalog,
-                threshold,
-                "overlay {} role {}".format(overlay_path.name, role),
-                custom_providers,
+    overlay_provider_order = runtime_value(
+        "modelProviderOrder", overlay_config, overlay_context
+    )
+    if (
+        not isinstance(overlay_provider_order, list)
+        or len(overlay_provider_order) != 1
+        or not isinstance(overlay_provider_order[0], str)
+        or not overlay_provider_order[0]
+    ):
+        fail(
+            "{} modelProviderOrder must contain exactly one provider: {}".format(
+                overlay_context, overlay_provider_order
             )
+        )
+    overlay_fallback_chains = runtime_value(
+        "retry.fallbackChains", overlay_config, overlay_context
+    )
+    validate_routing_graph(
+        overlay_context,
+        overlay_roles,
+        overlay_fallback_chains,
+        overlay_provider_order,
+        catalog,
+        threshold,
+        custom_providers,
+    )
 if overlay_count == 0:
     fail("no overlays found in " + str(overlays_directory))
 
