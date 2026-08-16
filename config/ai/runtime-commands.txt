@@ -58,6 +58,8 @@ release-safety-test
 rollback-check
 rollback-check-test
 security-check
+secrets-env
+secrets-env-test
 security-check-test
 shell-wrapper-test
 shopify-content-helper
