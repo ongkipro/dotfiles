@@ -13,6 +13,7 @@
 - [TravelOS](travelos.md) — AI-native travel platform (discovery + planner + affiliate), reset from a Commerce OS prototype 2026-08-11. Private repo `ongkipro/travelos`, checkout `~/Projects/TravelOS`; canonical spec pack + `STATUS.md`/`BUILD-LOG.md` live in the repo root — read those, not this memory.
 - [Formalin](formalin.md) — VolumX engine monorepo. Canonical repo `irwansyah10/formalin`; the current implementation status lives in `docs/STATUS.md`. Pull before working because development also happens on another machine.
 - [TokoΦ](tokophi.md) — commerce SaaS ID. Repo `ongkipro/tokophi`; the old `indostore` repo is dormant, don't use it. Main dev on another machine — pull first.
+- [Linux `rich` maintenance](linux-rich-maintenance.md) — boot and service failure cases for the OptiPlex desktop, plus the host facts that decide whether a fix is safe there. `cuan` is a different machine with its own file.
 - [pi-src](pi-src.md) — upstream CLI source repository; keep no permanent local checkout and clone it again when needed.
 - [Kamus (almanak)](kamus-almanak.md) — `kamus.ongki.pro`, repo `ongkipro/kamus`. Ongki's second memory; markdown → Astro dashboard. Has an `AGENTS.md` contract.
 - [Skill plumbing](skill-plumbing.md) — `~/dotfiles/skills/local` is the single owned source. Claude, Pi, OMP, and Antigravity use directory links; Codex uses managed per-skill links beside its native `.system` skills.

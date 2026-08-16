@@ -62,10 +62,16 @@ function buildBasenameIndex(files) {
   return index;
 }
 
-function scan(files) {
+// `indexFiles` is what a `[[wikilink]]` may resolve against; `files` is what
+// gets reported on. They differ when a caller checks one file: a link's validity
+// depends on the whole corpus, not on which paths happened to be passed. Before
+// this split, checking a single file resolved wikilinks against only that file,
+// so every link failed — which meant `ai-learn promote` could never promote into
+// any memory file containing one. Latent until promotion was actually used.
+function scan(files, indexFiles = files) {
   const issues = [];
   let checked = 0;
-  const basenameIndex = buildBasenameIndex(files);
+  const basenameIndex = buildBasenameIndex(indexFiles);
 
   for (const file of files) {
     const lines = visibleLines(fs.readFileSync(file, "utf8"));
@@ -156,7 +162,11 @@ const entries = requested.length
       path.join(repoRoot, "config", "ai"),
     ];
 const files = [...new Set(entries.flatMap(markdownFiles))].sort();
-const result = scan(files);
+const corpus = [
+  path.join(repoRoot, "README.md"),
+  path.join(repoRoot, "config", "ai"),
+].flatMap(markdownFiles);
+const result = scan(files, [...new Set([...corpus, ...files])].sort());
 
 for (const issue of result.issues) {
   const source = path.relative(repoRoot, issue.file) || issue.file;

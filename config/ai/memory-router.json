@@ -47,6 +47,7 @@
     {"path": "config/ai/project-memory/claude-code-model-selection.md", "priority": 70, "triggers": ["claude model", "model picker"]},
     {"path": "config/ai/project-memory/antigravity-cli-agy.md", "priority": 70, "triggers": ["antigravity", "agy", "gemini cli"]},
     {"path": "config/ai/project-memory/worktrunk-worktree-tooling.md", "priority": 70, "triggers": ["worktrunk", "worktree", "wt"]},
-    {"path": "config/ai/project-memory/linux-cuan-maintenance.md", "priority": 60, "triggers": ["maintenance", "cleanup", "disk full", "update cli", "tmp cleanup"]}
+    {"path": "config/ai/project-memory/linux-cuan-maintenance.md", "priority": 60, "triggers": ["maintenance", "cleanup", "disk full", "update cli", "tmp cleanup"]},
+    {"path": "config/ai/project-memory/linux-rich-maintenance.md", "priority": 60, "triggers": ["plymouth", "boot", "systemd", "is-system-running", "grub", "splash", "rich"]}
   ]
 }
