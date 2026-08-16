@@ -6,6 +6,7 @@ memory links, project templates, and policy canaries across dotfiles.
 """
 
 from pathlib import Path
+import os
 import subprocess
 import sys
 
@@ -48,14 +49,17 @@ def check_agents_policy():
             warn(f"AGENTS.md policy missing expected keyword: '{term}'")
 
 
-def run_canonical_gate(label, command):
+def run_canonical_gate(label, command, extra_env=None):
     try:
+        environment = os.environ.copy()
+        environment.update(extra_env or {})
         result = subprocess.run(
             [str(part) for part in command],
             cwd=ROOT,
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            env=environment,
             check=False,
         )
     except OSError as error:
@@ -75,7 +79,7 @@ def check_templates():
         err(f"Missing templates directory: {TEMPLATES_DIR}")
         return
 
-    required_templates = ["AGENTS.md", "PRD.md", "TASKS.md", "STATUS.md", "BUILD-LOG.md", "ARCHITECTURE.md"]
+    required_templates = ["AGENTS.md", "PRD.md", "TASKS.md", "STATUS.md", "BUILD-LOG.md", "ARCHITECTURE.md", "DECISIONS.md", "RELEASE.md", "OBSERVABILITY.md"]
     for t in required_templates:
         if not (TEMPLATES_DIR / t).is_file():
             err(f"Missing required project template: {t}")
@@ -87,8 +91,9 @@ def main():
 
     check_agents_policy()
     run_canonical_gate("OMP routing", [ROOT / "bin" / "omp-routing-test", ROOT])
-    run_canonical_gate("owned skills", [ROOT / "skills" / "agents-bin" / "skill-check"])
+    run_canonical_gate("owned skills", [ROOT / "skills" / "agents-bin" / "skill-check"], {"SKILL_SOURCE": str(ROOT / "skills" / "local")})
     run_canonical_gate("memory and Markdown links", [ROOT / "bin" / "ai-memory-check", ROOT])
+    run_canonical_gate("memory hygiene regression", [ROOT / "bin" / "ai-memory-hygiene-test", ROOT])
     check_templates()
 
     if warnings:

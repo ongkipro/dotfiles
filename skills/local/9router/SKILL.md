@@ -47,9 +47,9 @@ Response shape:
 ]}
 ```
 
-## Status: cek dari disk, jangan hard-code
+## Status: read it from disk, never hard-code it
 
-Status 9router **per-machine** dan bisa berubah. Cek langsung:
+9router status is **per-machine** and changes. Check it directly:
 
 ```bash
 systemctl --user is-enabled 9router.service
@@ -57,13 +57,15 @@ systemctl --user is-active 9router.service
 curl http://localhost:20128/api/health
 ```
 
-Kalau OFF, hidupkan dengan:
+If it is off, start it with:
 
 ```bash
 systemctl --user enable --now 9router.service
 ```
 
-Kalau 9router OFF, fitur pi yang diarahkan ke 9router (mis. model custom di `/model`, image-gen, atau alur lain yang memakai gateway lokal ini) akan gagal. Pi masih bisa jalan lewat provider lain bila dikonfigurasi demikian.
+While 9router is off, any pi feature routed through it — custom models in
+`/model`, image generation, and other flows that depend on this local gateway —
+will fail. Pi still runs through other providers when configured that way.
 
 ## Capabilities
 

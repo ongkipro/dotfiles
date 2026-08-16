@@ -1,0 +1,17 @@
+upstream: https://raw.githubusercontent.com/greensock/gsap-skills/main/skills/gsap-scrolltrigger/SKILL.md
+verified: 2026-08-16
+reason: upstream has a real bug — local fixes it
+note: Line 235 of upstream reads:
+  xPercent: () => Max.max(0, window.innerWidth - scrollingEl.offsetWidth),
+  `Max` is not a JS global; this throws ReferenceError at runtime. Local
+  (SKILL.md line ~236) fixes it to Math.max, reframes the calc as
+  scrollWidth - clientWidth (the actual horizontal overflow, guarded at 0),
+  makes `end` track that same distance instead of a fixed "+=1000", and adds
+  invalidateOnRefresh: true so the computed values re-run on resize.
+  Diffed 2026-08-16: upstream 296 lines, local 301 lines, this is the only
+  functional divergence.
+would_lose_if_wired: wiring .source would overwrite the working fork with
+  upstream's broken Max.max(...) snippet on the next refresh.
+to_vendor: report the bug to greensock/gsap-skills; once upstream ships
+  Math.max (or equivalent), re-diff and wire .source if the rest still
+  matches.

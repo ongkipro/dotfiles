@@ -62,11 +62,14 @@ def main():
       for u in usages:
         for skill in u.get('skillsUsed',[]): grouped[skill].append(u)
       for skill,rows in sorted(grouped.items()):
-        n=len(rows); passed=sum(x.get('result')=='PASS' for x in rows); vf=sum(bool(x.get('verificationFailed')) for x in rows)
-        if n<a.min_samples: status='INSUFFICIENT_DATA'
-        elif passed/n<.8 or vf/n>.2: status='REVIEW_WEAK_EVIDENCE'
+        n=len(rows); evaluated=[x for x in rows if x.get('result') in {'PASS','FAIL'}]; evaluated_n=len(evaluated)
+        passed=sum(x.get('result')=='PASS' for x in evaluated); vf=sum(bool(x.get('verificationFailed')) for x in evaluated)
+        success_rate=passed/evaluated_n if evaluated_n else 0.0
+        verification_failure_rate=vf/evaluated_n if evaluated_n else 0.0
+        if evaluated_n<a.min_samples: status='INSUFFICIENT_DATA'
+        elif success_rate<.8 or verification_failure_rate>.2: status='REVIEW_WEAK_EVIDENCE'
         else: status='STABLE'
-        stats[skill]={'samples':n,'pass':passed,'fail':sum(x.get('result')=='FAIL' for x in rows),'blocked':sum(x.get('result')=='BLOCKED' for x in rows),'successRate':round(passed/n,4),'verificationFailureRate':round(vf/n,4),'status':status}
+        stats[skill]={'samples':n,'evaluatedSamples':evaluated_n,'pass':passed,'fail':sum(x.get('result')=='FAIL' for x in rows),'blocked':sum(x.get('result')=='BLOCKED' for x in rows),'successRate':round(success_rate,4),'verificationFailureRate':round(verification_failure_rate,4),'status':status}
       skills=existing_skills(dot); patterns=[]
       for idx,g in enumerate(clusters(methods,a.cluster_threshold),1):
         text=' '.join(method_text(x) for x in g); best_name=None; best=.0

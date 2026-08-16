@@ -5,6 +5,8 @@ description: >-
   Content Freshness Crons, Visual Asset & RSS Syndication Flywheels, and Closed-Loop Revenue Attribution).
   Use when architecting, building, or auditing websites designed to generate recurring organic, AI search,
   and referral traffic automatically at scale.
+  This skill owns the generation, indexing, and syndication pipeline; use seo-website-builder for the
+  template, indexation, and canonical strategy of the pSEO page set itself, and ai-traffic-os for AEO/GEO.
   Triggers: "automated traffic", "traffic engine", "programmatic seo", "pseo", "auto indexing pipeline",
   "traffic flywheel", "content automation", "automated traffic pipeline".
 ---

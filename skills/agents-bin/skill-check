@@ -9,9 +9,50 @@ warn=0
 count=0
 description_chars=0
 
+DESCRIPTION_MAX=1024
+
 bad() { printf '  FAIL  %s\n' "$*"; fail=$((fail + 1)); }
 wrn() { printf '  WARN  %s\n' "$*"; warn=$((warn + 1)); }
 ok()  { printf '  OK    %s\n' "$*"; }
+
+yaml_available=0
+if command -v python3 >/dev/null 2>&1 && python3 -c "import yaml" >/dev/null 2>&1; then
+  yaml_available=1
+fi
+
+# Parse a SKILL.md's frontmatter (between the first two '---' lines) with
+# PyYAML and report a parse error on stdout, exit 1, if it is invalid.
+# Exits 0 (silently) when there is no frontmatter to validate here — the
+# awk-based checks already enforce that a leading '---' block exists.
+frontmatter_yaml_error() {
+  python3 - "$1" <<'PYEOF'
+import sys
+import yaml
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as f:
+    lines = f.readlines()
+
+if not lines or lines[0].rstrip("\n") != "---":
+    sys.exit(0)
+
+end = None
+for i in range(1, len(lines)):
+    if lines[i].rstrip("\n") == "---":
+        end = i
+        break
+if end is None:
+    sys.exit(0)
+
+frontmatter = "".join(lines[1:end])
+try:
+    yaml.safe_load(frontmatter)
+except yaml.YAMLError as exc:
+    print(str(exc).replace("\n", " "))
+    sys.exit(1)
+sys.exit(0)
+PYEOF
+}
 
 frontmatter_value() {
   local key="$1" file="$2"
@@ -39,6 +80,12 @@ frontmatter_value() {
 
 [ -d "$SRC" ] || { echo "ERROR: skill source not found: $SRC" >&2; exit 1; }
 
+if [ "$yaml_available" -eq 1 ]; then
+  echo "YAML frontmatter validation: python3 + PyYAML available; parsing each frontmatter block strictly."
+else
+  echo "YAML frontmatter validation: python3 or its yaml module is unavailable; degrading to the awk line-scan only. Install PyYAML (pip install pyyaml) to catch frontmatter a strict YAML parser would reject."
+fi
+
 if [ -n "$requested" ]; then
   [ -f "$SRC/$requested/SKILL.md" ] || { echo "ERROR: unknown skill: $requested" >&2; exit 1; }
   skills=("$SRC/$requested")
@@ -53,6 +100,7 @@ cleanup() { rm -f "$seen_file"; }
 trap cleanup EXIT
 for dir in "${skills[@]}"; do
   count=$((count + 1))
+  fail_before=$fail
   file="$dir/SKILL.md"
   folder="$(basename "$dir")"
   name="$(frontmatter_value name "$file" | tr -d '\r')"
@@ -64,6 +112,11 @@ for dir in "${skills[@]}"; do
   case "$description" in
     Describe\ what*|Describe\ exactly*|TODO*) bad "$folder: placeholder description is still active" ;;
   esac
+  [ "${#description}" -le "$DESCRIPTION_MAX" ] || wrn "$folder: description is ${#description} characters; guideline is ~$DESCRIPTION_MAX"
+
+  if [ "$yaml_available" -eq 1 ]; then
+    yaml_err="$(frontmatter_yaml_error "$file")" || bad "$folder: frontmatter is not valid YAML: $yaml_err"
+  fi
   [ "$name" = "$folder" ] || bad "$folder: name is '$name'"
   [[ "$folder" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || bad "$folder: invalid folder name"
   duplicate="$(awk -F '\t' -v key="$name" '$1 == key { print $2; exit }' "$seen_file")"
@@ -85,7 +138,7 @@ for dir in "${skills[@]}"; do
     [ -e "$dir/$target" ] || bad "$folder: broken relative link $target"
   done < <(grep -Eo '\]\([^)]+\)' "$file" | sed -E 's/^\]\((.*)\)$/\1/' || true)
 
-  ok "$folder"
+  [ "$fail" -eq "$fail_before" ] && ok "$folder"
 done
 
 printf '\nChecked %d skill(s): %d failure(s), %d warning(s)\n' "$count" "$fail" "$warn"

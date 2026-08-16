@@ -1,0 +1,4 @@
+source: https://raw.githubusercontent.com/greensock/gsap-skills/main/skills/gsap-performance
+vendored: 2026-08-16
+note: Vendored single-source (dotfiles contract: no plugins). Refresh with _refresh-vendored.sh
+note: Verified byte-identical to upstream on 2026-08-16.

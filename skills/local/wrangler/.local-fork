@@ -1,0 +1,25 @@
+upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/wrangler/SKILL.md
+verified: 2026-08-16
+reason: content is NOT a different generation — it is upstream's exact
+  content, split into two files. TASKS.md's characterization is wrong; see
+  correction below.
+note: Measured 2026-08-16: local SKILL.md 291 lines, upstream SKILL.md 922
+  lines — the raw numbers TASKS.md cited are correct. But diffed line 1-281
+  of both files: byte-identical. Upstream's remaining lines 282-922 (the KV/
+  R2/D1/Vectorize/Hyperdrive/Workers AI/Queues/etc CLI reference) are
+  byte-identical to local's references/bindings-cli-reference.md (648
+  lines), minus a 7-line header local adds: "Extracted from SKILL.md for
+  token economy." So this is a deliberate local restructuring for token
+  economy (matching this repo's references/ convention used by other
+  skills), not drift and not an older/newer upstream generation.
+would_lose_if_wired: _refresh-vendored.sh fetches base/<rel> per local file.
+  For SKILL.md that pulls upstream's full 922-line monolith back in,
+  destroying the split. For references/bindings-cli-reference.md, base/
+  references/bindings-cli-reference.md does not exist upstream (upstream
+  has no references/ dir) — refresh reports a fetch failure and leaves that
+  file orphaned, stale, and duplicating content now also reinlined into
+  SKILL.md.
+to_vendor: _refresh-vendored.sh would need to support a file-split (one
+  upstream file mapped across N local files) before this can be marked
+  vendored; until then, re-splitting after each manual upstream check is a
+  human step.

@@ -3,6 +3,9 @@ set -euo pipefail
 SRC="${SKILL_SOURCE:-$HOME/dotfiles/skills/local}"
 SKILL_NAME="${1:-}"
 
+[ -d "$SRC" ] || { echo "Skill source not found: $SRC" >&2; exit 1; }
+SRC="$(cd "$SRC" && pwd -P)"
+
 [ -n "$SKILL_NAME" ] || { echo "Usage: skill-remove <skill-name>" >&2; exit 1; }
 case "$SKILL_NAME" in
   *[!a-z0-9-]*)

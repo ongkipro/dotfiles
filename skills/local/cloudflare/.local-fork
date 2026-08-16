@@ -1,0 +1,21 @@
+upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/cloudflare/SKILL.md
+verified: 2026-08-16
+reason: deliberate local edit to the frontmatter description, not drift
+note: Full diff 2026-08-16 — both files 248 lines, single-line difference on
+  the `description:` frontmatter field. Upstream ends "...Use for any
+  Cloudflare development task. Biases towards retrieval..." Local replaces
+  that clause with a sibling-routing sentence: "Use as the default entry
+  point for Cloudflare work and for anything spanning several products.
+  Prefer the narrower sibling when the task sits squarely inside one of
+  them — workers-best-practices for reviewing or authoring Worker code,
+  wrangler for CLI and wrangler.jsonc, durable-objects for stateful
+  coordination, agents-sdk for stateful agents and Workflows, sandbox-sdk
+  for sandboxed code execution, cloudflare-email-service for email,
+  cloudflare-one for Zero Trust and SASE." This is AUDIT-H-04's fix so
+  Claude routes to the narrower sibling skill instead of always loading
+  this one. Body content otherwise matches upstream exactly.
+would_lose_if_wired: refresh would silently drop the sibling-routing clause
+  and reintroduce the routing ambiguity AUDIT-H-04 fixed.
+to_vendor: either get the routing clause merged into cloudflare/skills
+  upstream, or accept losing it and re-adding it as a permanent local
+  patch step in the refresh script (not currently supported).
