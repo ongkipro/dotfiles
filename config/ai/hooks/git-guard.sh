@@ -90,7 +90,21 @@ while IFS= read -r seg; do
   git_sub() { # <subcommand> — true when the segment actually invokes it
     # A `NAME=value` prefix is still a git invocation: `GIT_DIR=.git git push
     # --force` ran unguarded before this alternative existed.
-    has "^(([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*|sudo|env|command|nice|time)[[:space:]]+)*git([[:space:]]+-[^[:space:]]+)*[[:space:]]+$1([[:space:]]|\$)"
+    #
+    # `git` may also arrive by path: `/usr/bin/git push --force` matched nothing
+    # while the token-shaped rule required `git` at the start of the segment.
+    # The optional group must end in `/`, so `mygit` still does not match.
+    # A leading `\` (`\git push --force`, the idiom for bypassing an alias) is
+    # also allowed through the same branch. `$(which git) push --force` is still
+    # NOT covered — the subshell stripper leaves `which git) push`, which is the
+    # same class of hole as the `bash -c` wrapper disclosed in the header.
+    #
+    # Note: the PreToolUse `if:` condition in ~/.claude/settings.json is
+    # `Bash(git *)`, so a path-prefixed invocation does not reach this hook at
+    # all on that wiring — it falls through to the ordinary permission prompt
+    # instead, because it misses the `Bash(git push:*)` allowlist too. This
+    # branch keeps the guard correct wherever it does run.
+    has "^(([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*|sudo|env|command|nice|time)[[:space:]]+)*\\\\?([^[:space:]]*/)?git([[:space:]]+-[^[:space:]]+)*[[:space:]]+$1([[:space:]]|\$)"
   }
 
   if git_sub push; then
@@ -102,8 +116,26 @@ while IFS= read -r seg; do
       decide ask 'git push --mirror/--prune can delete remote refs.'
     has '(^|[[:space:]])(--delete|-d)([=[:space:]]|$)' &&
       decide ask 'This deletes a remote branch.'
+    # A refspec may force without naming a destination: `git push origin +main`
+    # is a force update, and requiring the trailing colon meant it matched
+    # nothing here *and* satisfied the `Bash(git push:*)` allowlist, so it ran
+    # with no prompt at all.
+    #
+    # The colon form is unambiguous and always checked. The bare form is not:
+    # quotes are stripped above, so free text carried by an option — say
+    # `-o merge_request.title="Draft: +1 fix"` — looks exactly like a `+ref`
+    # argument and was being flagged. Skip the bare form when the segment
+    # carries a free-text option, and rely on the colon form there. That trades
+    # a contrived evasion (`git push -o x origin +main`) for not crying wolf on
+    # ordinary pushes, which is the right way round for a guard that is only
+    # useful if its prompts still mean something.
+    free_text_opt='(^|[[:space:]])(-o|--push-option|-m|--message)([=[:space:]]|$)'
     has '[[:space:]]\+[^[:space:]]+:' &&
       decide ask 'A refspec starting with + is a forced update.'
+    if ! has "$free_text_opt"; then
+      has '[[:space:]]\+[^[:space:]]+' &&
+        decide ask 'A refspec starting with + is a forced update.'
+    fi
     # `git push origin :feature` deletes the remote branch and was matched by
     # nothing: the rule above only looked for a leading +.
     has '[[:space:]]:[^[:space:]]+' &&

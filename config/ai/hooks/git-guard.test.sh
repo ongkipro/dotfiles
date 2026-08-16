@@ -41,6 +41,23 @@ ask	git push origin '+main:main'
 ask	git push origin --delete feature
 ask	git push origin +main:main
 ask	git push --mirror
+ask	git push origin +main
+ask	git push origin +refs/heads/main
+deny	/usr/bin/git push --force
+deny	/usr/bin/git commit --amend
+deny	./git push -f origin main
+deny	\git push --force
+deny	\git commit --amend
+deny	GIT_DIR=.git /usr/bin/git push --force
+allow	/usr/bin/git push origin main
+allow	mygit push --force
+allow	git push -o ci.variable=X=+1 origin main
+allow	git push -o merge_request.title=Draft: +1 fix origin main
+allow	git push origin main -o skip +ci
+allow	git push origin main -m Bump version +1
+allow	git push origin release/1.0+build.5
+allow	git push git+ssh://host/repo main
+ask	git push -o some.opt=x origin +main:main
 CASES
 )
 
