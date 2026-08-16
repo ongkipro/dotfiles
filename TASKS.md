@@ -74,6 +74,57 @@ No task is in progress.
 - **Verification:** `bin/installer-link-test`, `bin/shell-wrapper-test`, and `ai-doctor` all pass on that Mac.
 - **Escalation Condition:** any rc file gains a duplicate line on the second run.
 
+#### Run sheet — read before executing (prepared 2026-08-16 from Linux)
+
+Copy-paste, in order:
+
+```sh
+cd ~/dotfiles && git pull
+git status --short          # must be clean BEFORE, so afterwards is attributable
+./install-macos.sh 2>&1 | tee /tmp/macos-install-1.log
+./install-macos.sh 2>&1 | tee /tmp/macos-install-2.log
+bin/installer-link-test && bin/shell-wrapper-test && ai-doctor
+grep -c 'source "$HOME/dotfiles/config/zshrc.tools.sh"' ~/.zshrc   # must print 1
+grep -c 'source "$HOME/dotfiles/config/bashrc.tools.sh"' ~/.bashrc # must print 1
+grep -c 'backup:' /tmp/macos-install-2.log                         # expect 0
+git status --short          # see "expected dirt" below
+```
+
+**The second run is the whole test.** Both rc greps must print exactly `1`, and
+run 2 must report no backups — `ensure_line` only backs up when it is about to
+append, so a backup on run 2 means it appended again and idempotency is broken.
+
+**Expected dirt afterwards, which is not drift.** The installer legitimately
+writes into the tracked repo in up to three places, verified by reading the
+scripts:
+
+1. `devices/<hostname>.md` and `devices/README.md` — `bin/device-register`
+   writes the registry. Expected; commit it.
+2. `config/mise-config.toml` — `~/.config/mise/config.toml` is a **symlink to
+   this tracked file**, so `mise use -g <tool>` writes straight through into the
+   repo. That is the design (one shared toolchain), but it means a Mac missing
+   starship/direnv/lazygit/helix will modify a tracked file as a side effect of
+   installing them. Review that diff before committing — it is a shared file and
+   the Linux boxes read it too.
+3. Nothing else should appear. Anything else is a real finding.
+
+**It installs software.** `bin/tmux-setup` runs `brew install tmux`, and the
+mise branch runs `mise use -g` for four tools. That is a system-wide action —
+fine here because it is the point of the task, but do not run this on a Mac
+where that is unwelcome. 9Router/Pi setup stays skipped unless
+`DOTFILES_SETUP_9ROUTER=1` or `DOTFILES_SETUP_PI=1` is set; leave both unset.
+
+**Already checked from Linux so you do not have to:** `install-macos.sh` links
+one fewer thing than `install.sh` — `config/tmux.conf` and `home/profile`.
+`tmux.conf` is a false alarm: `bin/tmux-setup`, which the macOS script calls,
+links it itself. `home/profile` is `~/.profile`, a Linux login file; the macOS
+script wires `~/.bash_profile` instead. Neither is a gap.
+
+**The macOS-specific risk is BSD vs GNU**, since this path has never executed:
+`date +%Y%m%d-%H%M%S`, `mktemp` with a template, `readlink`, `cp -p`, and
+`grep -Fqx` all appear in `link()` and `ensure_line()`. If run 1 fails, that is
+the first place to look.
+
 ---
 
 ## Done
