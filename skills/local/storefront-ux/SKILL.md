@@ -24,6 +24,7 @@ Own the behavior of the commerce journey, including failure and recovery paths. 
 | Implement storefront pages, product controls, cart, checkout handoff, or framework boundaries | `storefront-development` |
 | Visual hierarchy, art direction, spacing, motion, aesthetic review | `design-taste` |
 | Product, merchandising, SEO, or interface copy | `content` or `copywriting` |
+| AnswerBox passages, crawler guidance, or AEO/GEO evidence | `ai-traffic-os` |
 | Framework/component API details beyond the storefront boundary | Relevant framework or component skill |
 | Admin and operational dashboards | `admin-dashboard` |
 | Runtime performance diagnosis | `web-perf` |

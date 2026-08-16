@@ -1,8 +1,6 @@
 # Canonical commands linked into ~/.local/bin by every supported installer.
 # Keep one command per line. Entries must exist as executable files under bin/.
 9router-credential-migrate
-9router-restore
-9router-start
 ai-doctor
 ai-hooks-install
 ai-hooks-install-test

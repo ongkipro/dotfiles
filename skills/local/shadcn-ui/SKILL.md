@@ -127,8 +127,8 @@ per-device:
 
 1. The project's own binary when `shadcn` is in its `package.json`. Its pinned
    version wins inside an established repo.
-2. A global install — `command -v shadcn`. Present on the Linux box (4.16.2);
-   verify before relying on it elsewhere.
+2. A global install when `command -v shadcn` succeeds; verify its version before
+   relying on it.
 3. `npx shadcn@latest`, only to scaffold a project that has neither.
 
 ```bash

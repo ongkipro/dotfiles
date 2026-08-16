@@ -92,7 +92,7 @@ For Indonesian product content, use Bahasa Indonesia rather than Malay and prese
 
 | Decision ID | Decision | Alternatives | Rationale | Consequence | Status |
 |---|---|---|---|---|---|
-| ADR-[N] | [Decision] | [Options] | [Evidence] | [Trade-off] | Proposed/Accepted |
+| ADR-NNNN | [Decision] | [Options] | [Evidence] | [Trade-off] | Proposed/Accepted |
 
 | Risk | Trigger | Impact | Mitigation | Owner | Evidence |
 |---|---|---|---|---|---|

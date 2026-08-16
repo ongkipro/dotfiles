@@ -1,0 +1,365 @@
+#!/usr/bin/env bash
+# Validate the effective OMP config produced by tracked config + device overlay.
+#
+# What this proves:
+#  - resolved provider/model roles point to models that exist in OMP's current
+#    runtime catalog and that survive the compaction threshold;
+#  - if a role declares a fallback chain, the chain's first hop changes
+#    provider (multi-provider routing invariant);
+#  - image-required lanes (vision, designer) refuse to land on a text-only
+#    model at any step of the chain;
+#  - if a role's primary reasoning level is xhigh or max, the chain contains
+#    at least one selector that supports that level — escalation, not silent
+#    downgrade, is the only path when the primary host is degraded;
+#  - any tracked overlay template under `config/omp/overlays/` parses cleanly
+#    through OMP's loader (catches typos in shipped templates).
+#
+# What this does NOT prove:
+#  - whether the model is reachable, authenticated, in-budget, or throttled
+#    by its provider — that is a runtime property, recovered by `omp`-driven
+#    sessions themselves.
+#
+# Optional environment overrides:
+#   OMP_EFFECTIVE_PROVIDERS=csv          exact provider order expected for the
+#                                        active device overlay. By default the
+#                                        test reads modelProviderOrder from the
+#                                        overlay itself and proves OMP resolved
+#                                        the same order.
+#   OMP_TRACKED_OVERLAY_DIR=path         directory of overlay templates to
+#                                        validate (defaults to dotfiles'
+#                                        config/omp/overlays).
+#
+# Per-overlay override: an overlay may declare these at its top level:
+#   __test_providers__:           csv   provider set to expect
+#   __test_require_cross_host__:  bool  if false, first fallback may stay on
+#                                       the same provider (single-provider
+#                                       session overlays opt into this)
+#   __test_require_providers__:   bool  if false, skip live catalog validation
+#                                       (useful when the device cannot auth
+#                                       the overlay's primary provider)
+set -euo pipefail
+
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+while [ -L "$SCRIPT_PATH" ]; do
+  script_dir="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+  link_target="$(readlink "$SCRIPT_PATH")"
+  case "$link_target" in
+    /*) SCRIPT_PATH="$link_target" ;;
+    *)  SCRIPT_PATH="$script_dir/$link_target" ;;
+  esac
+done
+ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
+
+for command_name in omp yq jq; do
+  command -v "$command_name" >/dev/null 2>&1 || {
+    echo "FAIL: required command is unavailable: $command_name" >&2
+    exit 1
+  }
+done
+
+expected_providers="${OMP_EFFECTIVE_PROVIDERS:-}"
+expected_providers="${expected_providers// /}"
+
+TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/omp-effective-routing-test.XXXXXX")"
+trap 'rm -rf "$TEST_ROOT"' EXIT
+
+LABEL=""
+ROLES=""
+FALLBACKS=""
+OVERRIDES=""
+THRESHOLD=""
+EXPECTED_PROVIDERS=""
+require_cross_host=true
+skip_catalog_check=false
+
+effort_rank() {
+  case "$1" in
+    minimal) printf '0' ;;
+    low)     printf '1' ;;
+    medium)  printf '2' ;;
+    high)    printf '3' ;;
+    xhigh)   printf '4' ;;
+    max)     printf '5' ;;
+    *)       printf '?' ;;
+  esac
+}
+
+catalog_file() {
+  local provider="$1"
+  if [ -s "$TEST_ROOT/${LABEL}-${provider}.json" ]; then
+    printf '%s/%s-%s.json\n' "$TEST_ROOT" "$LABEL" "$provider"
+  else
+    return 1
+  fi
+}
+
+check_chain_effort_floor() {
+  local role="$1" primary_effort="$2" chain_efforts="$3"
+  local effort rank target_rank max_rank=-1 chain_text
+  case "$primary_effort" in
+    xhigh|max)
+      target_rank="$(effort_rank "$primary_effort")"
+      while IFS= read -r effort; do
+        [ -z "$effort" ] && continue
+        rank="$(effort_rank "$effort")"
+        [ "$rank" != "?" ] || {
+          echo "FAIL[$LABEL]: role $role fallback uses an unknown effort: $effort" >&2
+          return 1
+        }
+        if [ "$rank" -gt "$max_rank" ]; then
+          max_rank="$rank"
+        fi
+      done <<<"$chain_efforts"
+      if [ "$max_rank" -lt "$target_rank" ]; then
+        chain_text="$(printf '%s\n' "$chain_efforts" | sort -u | paste -sd, -)"
+        echo "FAIL[$LABEL]: role $role primary uses $primary_effort but no fallback supports that level (chain efforts: $chain_text)" >&2
+        return 1
+      fi
+      ;;
+  esac
+}
+
+check_selector_shape() {
+  local selector="$1"
+  [[ "$selector" =~ ^([^/]+)/([^:]+):(minimal|low|medium|high|xhigh|max)$ ]] || {
+    echo "FAIL[$LABEL]: selector lacks an explicit supported effort: $selector" >&2
+    return 1
+  }
+}
+
+check_selector() {
+  local selector="$1" require_image="${2:-false}" provider model effort catalog context
+  [[ "$selector" =~ ^([^/]+)/([^:]+):(minimal|low|medium|high|xhigh|max)$ ]] || {
+    echo "FAIL[$LABEL]: selector lacks an explicit supported effort: $selector" >&2
+    return 1
+  }
+  provider="${BASH_REMATCH[1]}"
+  model="${BASH_REMATCH[2]}"
+  effort="${BASH_REMATCH[3]}"
+  catalog="$(catalog_file "$provider")" || {
+    echo "FAIL[$LABEL]: provider $provider has no live OMP catalog (provider unreachable or unconfigured on this host): $selector" >&2
+    return 1
+  }
+  jq -e --arg model "$model" '.models[] | select(.id == $model)' "$catalog" >/dev/null || {
+    echo "FAIL[$LABEL]: model is absent from the live $provider catalog: $selector" >&2
+    return 1
+  }
+  jq -e --arg model "$model" '.models[] | select(.id == $model) | .thinking | index("'"$effort"'")' \
+    "$catalog" >/dev/null || {
+    echo "FAIL[$LABEL]: $selector reasoning effort \"$effort\" is not in the model's supported effort list" >&2
+    return 1
+  }
+  context="$(jq -r --arg model "$model" '.models[] | select(.id == $model) | .contextWindow' "$catalog")"
+  [ "$context" != "null" ] && [ "$context" -gt "$THRESHOLD" ] || {
+    echo "FAIL[$LABEL]: $selector context window ($context) does not exceed compaction threshold ($THRESHOLD)" >&2
+    return 1
+  }
+  if [ "$require_image" = true ]; then
+    jq -e --arg model "$model" '.models[] | select(.id == $model) | .input | index("image")' \
+      "$catalog" >/dev/null || {
+      echo "FAIL[$LABEL]: $selector is text-only but the lane requires image input" >&2
+      return 1
+    }
+  fi
+}
+
+apply_overlay_meta() {
+  local overlay_path="$1"
+  local meta_providers meta_cross_host_raw meta_require_providers_raw
+  meta_providers="$(yq -r '.["__test_providers__"]' "$overlay_path" 2>/dev/null || echo "")"
+  meta_cross_host_raw="$(yq -r '.["__test_require_cross_host__"]' "$overlay_path" 2>/dev/null || echo unset)"
+  meta_require_providers_raw="$(yq -r '.["__test_require_providers__"]' "$overlay_path" 2>/dev/null || echo unset)"
+  if [ -n "$meta_providers" ] && [ "$meta_providers" != "null" ]; then
+    EXPECTED_PROVIDERS="$meta_providers"
+  fi
+  case "$meta_cross_host_raw" in
+    false)     require_cross_host=false ;;
+    *)         ;;
+  esac
+  case "$meta_require_providers_raw" in
+    false)     skip_catalog_check=true ;;
+    *)         ;;
+  esac
+}
+
+run_overlay_check() {
+  local overlay_path="$1" label="$2" structural_only="${3:-false}"
+  LABEL="$label"
+  EXPECTED_PROVIDERS="$expected_providers"
+  require_cross_host=true
+  skip_catalog_check=false
+  local agent_root resolved_json declared_providers overlay_providers validate_catalog
+  agent_root="$TEST_ROOT/${LABEL}-agent"
+  resolved_json="$TEST_ROOT/${LABEL}-resolved.json"
+  rm -rf "$agent_root"
+  mkdir -p "$agent_root"
+
+  if [ -f "$overlay_path" ]; then
+    if ! yq eval-all 'select(fileIndex == 0) * select(fileIndex == 1)' \
+        "$ROOT/config/omp/config.yml" "$overlay_path" > "$agent_root/config.yml"; then
+      echo "FAIL[$LABEL]: yq merge of tracked config + overlay failed" >&2
+      return 1
+    fi
+    if [ "$structural_only" = true ]; then
+      EXPECTED_PROVIDERS=""
+    fi
+    apply_overlay_meta "$overlay_path"
+    if [ -z "$EXPECTED_PROVIDERS" ]; then
+      overlay_providers="$(yq -r '.modelProviderOrder | join(",")' "$overlay_path")"
+      [ -n "$overlay_providers" ] && [ "$overlay_providers" != "null" ] || {
+        echo "FAIL[$LABEL]: overlay does not declare modelProviderOrder" >&2
+        return 1
+      }
+      EXPECTED_PROVIDERS="$overlay_providers"
+    fi
+    case "$EXPECTED_PROVIDERS" in
+      *,*) ;;
+      *) require_cross_host=false ;;
+    esac
+  else
+    cp "$ROOT/config/omp/config.yml" "$agent_root/config.yml"
+  fi
+  ln -s "$ROOT/config/omp/models.yml" "$agent_root/models.yml"
+  ln -s "$ROOT/config/omp/agents" "$agent_root/agents"
+
+  if ! PI_CODING_AGENT_DIR="$agent_root" command omp config list --json \
+      > "$resolved_json"; then
+    echo "FAIL[$LABEL]: omp config list --json failed under isolated agent dir" >&2
+    return 1
+  fi
+
+  ROLES="$(jq -c '.["modelRoles"].value' "$resolved_json")"
+  FALLBACKS="$(jq -c '.["retry.fallbackChains"].value' "$resolved_json")"
+  OVERRIDES="$(jq -c '.["task.agentModelOverrides"].value' "$resolved_json")"
+  declared_providers="$(jq -c '.["modelProviderOrder"].value' "$resolved_json")"
+  THRESHOLD="$(jq -r '.["compaction.thresholdTokens"].value' "$resolved_json")"
+
+  jq -cn --arg expected "$EXPECTED_PROVIDERS" '$expected|split(",")' > "$TEST_ROOT/${LABEL}-expected.json"
+  [ "$declared_providers" = "$(cat "$TEST_ROOT/${LABEL}-expected.json")" ] || {
+    echo "FAIL[$LABEL]: effective provider order must equal [${EXPECTED_PROVIDERS}]" >&2
+    echo "           got: $declared_providers" >&2
+    return 1
+  }
+  [ "$(jq 'length' <<<"$ROLES")" -eq 13 ] || {
+    echo "FAIL[$LABEL]: effective routing must define all 13 roles" >&2
+    return 1
+  }
+  [ "$(jq 'length' <<<"$OVERRIDES")" -eq 11 ] || {
+    echo "FAIL[$LABEL]: effective routing must define all 11 agent overrides" >&2
+    return 1
+  }
+
+  validate_catalog=true
+  if [ "$structural_only" = true ] || [ "$skip_catalog_check" = true ]; then
+    validate_catalog=false
+  fi
+
+  if [ "$validate_catalog" = true ]; then
+    # Build the union of providers to fetch catalogs for: declared order ∪ every
+    # provider referenced in any role selector or fallback chain entry.
+    local providers_to_catalog
+    providers_to_catalog="$(jq -r '.[]' <<<"$declared_providers")"
+    for selector in $(jq -r '.[]' <<<"$ROLES"); do
+      local p="${selector%%/*}"
+      providers_to_catalog="$(printf '%s\n%s\n' "$providers_to_catalog" "$p" | sort -u)"
+    done
+    for chain in $(jq -r 'keys[]' <<<"$FALLBACKS"); do
+      for selector in $(jq -r --arg k "$chain" 'if has($k) then .[$k][] else empty end' <<<"$FALLBACKS"); do
+        local p="${selector%%/*}"
+        providers_to_catalog="$(printf '%s\n%s\n' "$providers_to_catalog" "$p" | sort -u)"
+      done
+    done
+
+    while IFS= read -r provider; do
+      local catalog="$TEST_ROOT/${LABEL}-${provider}.json"
+      if command omp models "$provider" --json > "$catalog" 2>/dev/null; then
+        if ! jq -e '.models' "$catalog" >/dev/null 2>&1; then
+          : > "$catalog"
+        fi
+      else
+        : > "$catalog"
+      fi
+    done <<<"$providers_to_catalog"
+  fi
+
+  local role primary require_image primary_effort primary_provider chain first_fallback
+  local chain_efforts selector
+  while IFS= read -r role; do
+    primary="$(jq -r --arg role "$role" '.[$role]' <<<"$ROLES")"
+    require_image=false
+    case "$role" in vision|designer) require_image=true ;; esac
+    if [ "$validate_catalog" = true ]; then
+      check_selector "$primary" "$require_image" || return 1
+    else
+      check_selector_shape "$primary" || return 1
+    fi
+
+    primary_effort="${primary##*:}"
+    primary_provider="${primary%%/*}"
+
+    chain="$(jq -c --arg role "$role" '.[$role] // []' <<<"$FALLBACKS")"
+    if [ "$(jq 'length' <<<"$chain")" -gt 0 ]; then
+      first_fallback="$(jq -r '.[0]' <<<"$chain")"
+      if [ "$require_cross_host" = true ]; then
+        [ "${first_fallback%%/*}" != "$primary_provider" ] || {
+          echo "FAIL[$LABEL]: first fallback does not change provider for role: $role (stayed on $primary_provider)" >&2
+          return 1
+        }
+      fi
+
+      chain_efforts=""
+      while IFS= read -r selector; do
+        if [ "$validate_catalog" = true ]; then
+          check_selector "$selector" "$require_image" || return 1
+        else
+          check_selector_shape "$selector" || return 1
+        fi
+        [ -z "$chain_efforts" ] || chain_efforts+=$'\n'
+        chain_efforts+="${selector##*:}"
+      done <<< "$(jq -r '.[]' <<<"$chain")"
+      check_chain_effort_floor "$role" "$primary_effort" "$chain_efforts" || return 1
+    fi
+  done < <(jq -r 'keys[]' <<<"$ROLES")
+
+  local reference ref_role
+  while IFS= read -r reference; do
+    ref_role="${reference#@}"
+    jq -e --arg role "$ref_role" 'has($role)' <<<"$ROLES" >/dev/null || {
+      echo "FAIL[$LABEL]: agent override references a missing effective role: $reference" >&2
+      return 1
+    }
+  done < <(jq -r '.[]' <<<"$OVERRIDES")
+  if [ "$validate_catalog" = false ]; then
+    echo "omp-effective-routing-test: $LABEL OK (structural)"
+  fi
+}
+
+tracked_overlay_dir="${OMP_TRACKED_OVERLAY_DIR:-$ROOT/config/omp/overlays}"
+
+# 1. Active device overlay (full validation: this is what the device actually runs).
+device_overlay="$HOME/.config/ai-local/omp-overlay.yml"
+target="$(readlink "$device_overlay" 2>/dev/null || echo "$device_overlay")"
+if [ -f "$device_overlay" ] || [ -L "$device_overlay" ]; then
+  if run_overlay_check "$device_overlay" "device" false; then
+    echo "omp-effective-routing-test: device OK (overlay=$(basename "$target"))"
+  else
+    exit 1
+  fi
+else
+  echo "omp-effective-routing-test: SKIP device (no overlay at $device_overlay)"
+fi
+
+# 2. Tracked overlay templates (structural only — this device may not
+#    authenticate every provider an overlay references; the structural shape
+#    is what reviewers can check from the tracked file alone).
+if [ -d "$tracked_overlay_dir" ]; then
+  for overlay in "$tracked_overlay_dir"/*.yml; do
+    [ -e "$overlay" ] || continue
+    label="tracked-$(basename "${overlay%.yml}")"
+    if ! run_overlay_check "$overlay" "$label" true; then
+      exit 1
+    fi
+  done
+fi
+
+echo "omp-effective-routing-test: OK (roles=13, overrides=11, device+tracked-overlays, image-locked=vision+designer, xhigh-locked=advisor-xhigh, max-locked=advisor-max)"

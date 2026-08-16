@@ -18,6 +18,16 @@ function markdownFiles(entry) {
   );
 }
 
+function canonicalMarkdownFiles(entries) {
+  return [
+    ...new Set(
+      entries
+        .flatMap(markdownFiles)
+        .map((file) => fs.realpathSync(file)),
+    ),
+  ].sort();
+}
+
 function visibleLines(markdown) {
   let fence = null;
   return markdown.split(/\r?\n/).map((line) => {
@@ -135,12 +145,16 @@ function selfTest() {
         "[external](https://example.com)",
       ].join("\n"),
     );
-    let result = scan(markdownFiles(temp));
+    let result = scan(canonicalMarkdownFiles([temp]));
     assert.equal(result.issues.length, 0);
     assert.equal(result.checked, 2);
 
+    const alias = path.join(temp, "memory-alias");
+    fs.symlinkSync(path.join(temp, "memory"), alias, "dir");
+    assert.equal(canonicalMarkdownFiles([path.join(temp, "memory"), alias]).length, 2);
+
     fs.writeFileSync(path.join(temp, "memory", "bad.md"), "[broken](missing.md)\n");
-    result = scan(markdownFiles(temp));
+    result = scan(canonicalMarkdownFiles([temp]));
     assert.equal(result.issues.length, 1);
     assert.equal(result.issues[0].reason, "missing Markdown target");
     console.log("ai-memory-check --self-test: OK");
@@ -161,12 +175,12 @@ const entries = requested.length
       path.join(repoRoot, "README.md"),
       path.join(repoRoot, "config", "ai"),
     ];
-const files = [...new Set(entries.flatMap(markdownFiles))].sort();
-const corpus = [
+const files = canonicalMarkdownFiles(entries);
+const corpus = canonicalMarkdownFiles([
   path.join(repoRoot, "README.md"),
   path.join(repoRoot, "config", "ai"),
-].flatMap(markdownFiles);
-const result = scan(files, [...new Set([...corpus, ...files])].sort());
+]);
+const result = scan(files, canonicalMarkdownFiles([...corpus, ...files]));
 
 for (const issue of result.issues) {
   const source = path.relative(repoRoot, issue.file) || issue.file;

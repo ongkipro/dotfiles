@@ -13,6 +13,9 @@ Google and AI search engines penalize thin, programmatic doorway pages. Every ge
 - **Interactive Component / Calculator**: A lightweight calculator or diagnostic tool.
 - **Unique FAQs**: Contextual Q&A specific to the page's exact data row.
 
+
+`ai-traffic-os` owns the AnswerBox component's passage structure, quantitative guidance, and AEO/GEO evidence. This pipeline may place the component in generated pages, but it must consume that skill's current contract rather than defining or copying it here.
+
 ---
 
 ## 2. Astro Dynamic Route Implementation (`src/pages/[topic]/[slug].astro`)

@@ -1,5 +1,12 @@
 # Dotfiles AI Engineering System — Comprehensive Audit & Improvement Roadmap
 
+> [!CAUTION]
+> **Immutable historical baseline; superseded for current-state decisions.**
+> Preserve the body as evidence of the 2026-08-14 audit. It does not own live
+> work or runtime state. Use [`../TASKS.md`](../TASKS.md) for task state, current
+> disk and executable checks for behavior, and `config/omp/config.yml` plus
+> `config/omp/STATUS.md` for current routing.
+
 **Repository:** `ongkipro/dotfiles`  
 **Audit date:** 2026-08-14  
 **Scope:** Terminal-first AI development, OMP orchestration, full-stack/backend/frontend/admin dashboard development, architecture, long-running tasks, cheap-model utilization, reliability, verification, context economics, and model escalation.

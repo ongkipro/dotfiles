@@ -92,7 +92,7 @@ Testable, numbered, EARS-style (see cheatsheet below). The ID is what tasks trac
 - Frontend / Backend / DB / Deploy / Constraint. (Don't repeat the global `AGENTS.md` rules. For frontend features, select the actual surface owner: `design-taste` for marketing/storefront visual direction or `admin-dashboard` for data-dense product UI; use `ui-validation` for executable browser evidence and `web-perf` for performance diagnosis.)
 
 ## Technical Decisions  *(optional — only for the costly-to-reverse ones)*
-ADR-lite, one block per decision. A separate ADR file (`docs/adr/NNNN-*.md`) ONLY for large projects.
+ADR-lite, one block per decision. For a costly-to-reverse decision that needs a full standalone record, delegate to `adr-record`; it owns sequential allocation and the canonical `docs/adr/ADR-NNNN-<slug>.md` filename.
 - **Decision:** use Cloudflare D1, not Postgres.
   **Why:** storefront is read-heavy, edge-local, free on the Workers tier.
   **Consequence:** no `pg`-only features; migrations are manual via wrangler.
@@ -214,14 +214,15 @@ Diagrams aren't mandatory — embed one ONLY when it hits these, otherwise it's 
 - **Any diagram** → `mermaid-diagram` (native render on GitHub & Claude, no install).
 - **Internal API contract** → `openapi-spec` (OpenAPI 3.1, ready for Hono/tRPC code-gen).
 - **Rewriting / cleaning up / translating an existing PRD** → `volumx-writer` (meaning-preserving). This skill authors from scratch, it does not rewrite.
+- **Full standalone architecture decision** → `adr-record`. Keep ADR-lite here only for a small local decision; do not invent a second filename convention.
 
 ## Output Files (portable — Mac & Linux `cuan`)
 
-Follow the `AGENTS.md` Output discipline; use `~` only (never hardcode `/Users/...` or `/home/...`):
-- **Draft/iteration** → `~/Documents/work/prd/<slug>/` (PRD.md, PLAN.md).
-- **Existing development-spec-suite pack** → update its canonical `02-PRD.md`; write `TASKS.md` and optional `PLAN.md` beside it. Detect the pack by `CONTEXT-RECORD.md`; never create a competing root `PRD.md`.
-- **Standalone/default** → final `PRD.md` + `TASKS.md` (+ `PLAN.md` if any) at the **project root**, so they commit with the code.
-- Separate ADRs (if used) → `docs/adr/NNNN-<slug>.md` in the repo.
+Follow the `AGENTS.md` pre-development staging and repository authority contract; use `~` only (never hardcode `/Users/...` or `/home/...`):
+- **No `~/Projects/<slug>/` yet** → draft and keep the accepted artifacts in `~/Documents/work/prd/<slug>/` (`PRD.md`, optional `PLAN.md`, `TASKS.md` once accepted). This staging is mandatory, not a final destination — never write directly into a project directory that does not exist yet. Once development is explicitly authorized, `project-init --from-docs ~/Documents/work/prd/<slug>/` (with `--stack <profile>` for a new project or `--repo <path> --stack existing-repository` for one that already exists) copies the staged files into `~/Projects/<slug>/`; the source stays in place as a non-authoritative snapshot, and a divergent existing destination file is never silently overwritten.
+- **Feature inside an already-existing repo** → write `PRD.md` + `TASKS.md` (+ `PLAN.md` if any) directly at the **project root**, so they commit with the code. The repository copy is canonical the moment it exists.
+- **Existing development-spec-suite pack** → update its canonical `docs/spec/02-PRD.md`; write `TASKS.md` (+ optional `PLAN.md`) at the **project root** as the canonical execution queue, never beside `02-PRD.md`. Detect the pack by `CONTEXT-RECORD.md`; never create a competing root `PRD.md` — a `project-init`-generated one stays only an entrypoint/link to `docs/spec/02-PRD.md`.
+- Separate ADRs (if used) → allocate through `adr-record` and save as `docs/adr/ADR-NNNN-<slug>.md` in the repo, or in the pre-repository `~/Documents/work/prd/<slug>/` staging directory before promotion.
 
 ## Tips
 

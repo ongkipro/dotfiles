@@ -74,16 +74,18 @@ rateLimit: {
 
 ### Per-Endpoint Rules
 
-Sensitive endpoints default to 3 requests per 10 seconds (`/sign-in`, `/sign-up`, `/change-password`, `/change-email`). Override:
+Built-in special rules are path-specific: `/sign-in`, `/sign-up`, `/change-password`, and `/change-email` are limited to 3 requests per 10 seconds, while reset-request paths including `/forget-password` are limited to 3 per 60 seconds. Better Auth also exposes `POST /reset-password`, but its current special-rule list does not tighten that path beyond the global limiter. **House rule:** configure `/reset-password` explicitly, and list `/forget-password` explicitly when the deployment must not rely on built-in defaults. Sources: [rate-limiter rules](https://github.com/better-auth/better-auth/blob/main/packages/better-auth/src/api/rate-limiter/index.ts) and [password routes](https://github.com/better-auth/better-auth/blob/main/packages/better-auth/src/api/routes/password.ts).
 
 ```ts
 rateLimit: {
   customRules: {
-    "/api/auth/sign-in/email": {
+    "/sign-in/email": {
       window: 60, // 1 minute window
       max: 5, // 5 attempts
     },
-    "/api/auth/some-safe-endpoint": false, // Disable rate limiting
+    "/forget-password": { window: 60, max: 3 },
+    "/reset-password": { window: 60, max: 3 }, // House rule
+    "/some-safe-endpoint": false, // Disable rate limiting
   },
 }
 ```

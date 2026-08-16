@@ -24,7 +24,7 @@ Modern Node absorbed most of the classic dependency list. If a tutorial tells yo
 
 ## Still worth installing (don't be dogmatic)
 
-`zod` (runtime validation at trust boundaries — this is rung 1 "explicitly needed", not bloat), a real DB driver, `hono` **if** you need a router with middleware, `sharp` for image processing.
+`zod` (runtime validation at trust boundaries — this is rung 1 "explicitly needed", not bloat), a real DB driver, `sharp` for image processing. **House ownership:** [`cloudflare.md`](cloudflare.md) is the single owner of the Hono recommendation and threshold; apply that entry to web-standard Node handlers too.
 
 ## TypeScript discipline
 

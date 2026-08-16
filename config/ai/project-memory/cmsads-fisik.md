@@ -1,6 +1,6 @@
 # CMSAds (fisik)
 
-Cross-session reference only. Current status, decisions, requirements, and build truth live in the repository — **repository disk wins**.
+Cross-session reference only. Decisions, requirements, execution state, and build truth live in the repository — **repository disk wins**.
 
 ## What it is
 

@@ -5,7 +5,14 @@ CHECK="$ROOT/bin/ai-memory-hygiene"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/ai-memory-hygiene-test.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 
-mkdir -p "$TMP/config/ai/memory" "$TMP/config/ai/project-memory" "$TMP/bin"
+python3 - "$ROOT/config/ai/memory-hygiene.json" <<'PY'
+import json,sys
+indexes=json.load(open(sys.argv[1]))['indexFiles']
+assert 'config/ai/project-memory/MEMORY.md' in indexes
+assert 'config/ai/project-memory-kelola/MEMORY.md' in indexes
+PY
+
+mkdir -p "$TMP/config/ai/memory" "$TMP/config/ai/project-memory" "$TMP/config/ai/project-memory-kelola" "$TMP/bin"
 cp "$CHECK" "$TMP/bin/ai-memory-hygiene"
 cat > "$TMP/config/ai/memory-hygiene.json" <<'EOF'
 {
@@ -20,7 +27,7 @@ cat > "$TMP/config/ai/memory-hygiene.json" <<'EOF'
   "volatilePatterns":["\\bCI (?:is )?green\\b","\\bnext:\\s","\\bchecked out on\\b"],
   "authorityClaimPatterns":["\\bthis memory is the source of truth\\b"],
   "sharedForbiddenPrefixes":["device-"],
-  "indexFiles":["config/ai/project-memory/MEMORY.md"]
+  "indexFiles":["config/ai/project-memory/MEMORY.md","config/ai/project-memory-kelola/MEMORY.md"]
 }
 EOF
 cat > "$TMP/config/ai/memory/device-mac.md" <<'EOF'
@@ -46,6 +53,10 @@ cat > "$TMP/config/ai/project-memory/MEMORY.md" <<'EOF'
 - [Foo](foo.md)
 - [Foo again](foo.md)
 EOF
+cat > "$TMP/config/ai/project-memory-kelola/MEMORY.md" <<'EOF'
+- [Kelola](project.md)
+- [Kelola again](project.md)
+EOF
 python3 "$TMP/bin/ai-memory-hygiene" --root "$TMP" --today 2026-08-15 --json > "$TMP/out.json"
 python3 - "$TMP/out.json" <<'PY'
 import json,sys
@@ -53,6 +64,7 @@ p=json.load(open(sys.argv[1]))
 kinds={x['kind'] for x in p['issues']}
 for expected in ['SCOPE_VIOLATION','OVERSIZE','VOLATILE_PROJECT_STATE','STALE_DATED_CLAIM','DUPLICATE_INDEX_ENTRY','AUTHORITY_CLAIM','SEMANTIC_DUPLICATE','MEMORY_CONFLICT']:
     assert expected in kinds, (expected,kinds)
+assert any(x['kind']=='DUPLICATE_INDEX_ENTRY' and x['path'].endswith('project-memory-kelola/MEMORY.md') for x in p['issues'])
 assert p['status']=='WARN'
 PY
 cat > "$TMP/candidate.md" <<'EOF'
@@ -72,6 +84,9 @@ fi
 rm -f "$TMP/config/ai/memory/device-mac.md" "$TMP/config/ai/memory/large.md" "$TMP/config/ai/project-memory/foo.md" "$TMP/config/ai/project-memory/bar.md"
 cat > "$TMP/config/ai/project-memory/MEMORY.md" <<'EOF'
 # Memory Index
+EOF
+cat > "$TMP/config/ai/project-memory-kelola/MEMORY.md" <<'EOF'
+# Kelola Memory Index
 EOF
 python3 "$TMP/bin/ai-memory-hygiene" --root "$TMP" --today 2026-08-15 --strict >/dev/null
 echo 'ai-memory-hygiene-test: PASS'

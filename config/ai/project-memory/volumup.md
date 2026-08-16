@@ -1,39 +1,24 @@
 ---
 name: volumup
-description: "Volumup — multi-store US dropship commerce. CODE EXISTS + far along: ~/Projects/volumup (single worktree, branch main), repo ongkipro/volumup. Resume from repo STATUS.md 'RESUME HERE'."
-metadata: 
+description: "Volumup business and legal reference; repository contracts own product execution"
+metadata:
   node_type: memory
   type: project
   originSessionId: cfd5903c-8fda-431d-bd6a-71b30a64c845
 ---
 
-**Volumup** — self-owned multi-store e-commerce backend. AliExpress **US-warehouse** dropshipping to
-**US** consumers, paid ads, **niche** focus, bespoke Astro storefront per brand. Design docs (39 md):
-`~/Documents/work/prd/volumup/`.
+# Volumup
 
-**⚠️ Any older "no code yet" note is WRONG.** As of 2026-07-20 there is a large, tested codebase at
-**`~/Projects/volumup/`** (SINGLE worktree, branch `main` — consolidated 2026-07-20; the old
-`volumup-phase1` / `volumup-phase3` worktrees + `phase1`/`phase3-api` branches were merged away, phase3's
-WIP archived to `docs/archive/phase3-wip.patch`). Pushed to **`github.com/ongkipro/volumup`** (private).
-CI green. **Trust the repo over this memory — disk wins.**
-In-repo sources of truth: **`STATUS.md`** (has a "▶ RESUME HERE" block), `docs/ROADMAP.md` (open backlog),
-`docs/ARCHITECTURE.md` + `docs/adr/`, `BUILD-LOG.md` (session-by-session), `AGENTS.md` (conventions).
+> Advisory context only. Inspect `ongkipro/volumup` and its `AGENTS.md`,
+> `STATUS.md`, `TASKS.md`, `BUILD-LOG.md`, architecture, and ADRs before doing
+> implementation work. Verify the checkout path on the active device.
 
-**Built + tested, credential-free:** full Stripe payment loop (checkout→webhook→paid/refund/dispute),
-per-store admin RBAC (store=organization), the admin API + worker jobs (prune, refund-failsafe,
-expire-orders, ingest), PayPal adapter (code-only), the Ingest pipeline (link→DS→US-warehouse→AI→DRAFT),
-and the whole admin SPA on the real API with login+2FA auth wiring. Three adversarial reviews (money
-path, worker/admin, auth) fully closed. Run it: throwaway Postgres `:5433` → `pnpm db:seed` → `pnpm dev`
-(api :3000 + worker + admin :5173); `INGEST_DEV_MOCK=1` for an ingest demo.
-
-**Now (2026-07-20):** admin + superadmin + storefront all sign in and work in a real browser; the
-superadmin cockpit is 100% on live data (all 7 screens). **Next task (per STATUS RESUME): in-app store
-provisioning** (superadmin "Add store" — no external credential needed, reuse CLI `provision.ts`).
-**Credential-gated** (external input needed): live Stripe (pk_/rk_test_), PayPal sandbox, R2 backup
-bucket, the AliExpress DS signed-call client. Dev gotcha: the DB-backed test suite TRUNCATES `volumup_dev`
-— re-run `pnpm db:seed && pnpm db:seed:admin` after any full test run. Stack: Hono API + Node worker (one
-codebase, NOT Next.js — ADR-011) · React 19/Vite + Astro SSR storefronts · Postgres+Drizzle · Better Auth
-1.6 · pg-boss · Vultr+Coolify+Cloudflare.
+- Product boundary: self-owned multi-store ecommerce for US consumers, using
+  US-warehouse dropshipping and print-on-demand fulfillment.
+- Historical planning drafts may exist under
+  `~/Documents/work/prd/volumup/`; repository-owned contracts outrank them.
+- Runtime stack, feature completion, branches, test state, credentials,
+  deployment, and the execution queue are deliberately not recorded here.
 
 ---
 **Durable business/legal context (NOT in the repo — the part worth remembering):**

@@ -11,7 +11,7 @@ Dokumen ini adalah **peta keputusan**: saat AI terminal mengerjakan task Shopify
 Prinsip:
 - **Reference link** = baca via web/`gh api` saat butuh, jangan simpan lokal.
 - **Clone (read-only, sekali)** = hanya untuk repo yang sering jadi base/contoh kode nyata (Dawn, Skeleton, app templates) — clone ke folder *reference* terpisah, bukan ke project.
-- Banyak kebutuhan sudah dijawab oleh **Shopify skills** yang sudah terpasang di Claude Code (`shopify-liquid`, `shopify-hydrogen`, `shopify-functions`, dll) + **MCP `shopify-dev`** → sering tidak perlu repo sama sekali.
+- Some needs may be covered by Shopify skills or MCP capabilities from an external plugin. Check current runtime discovery first; this document does not prove that any particular skill or MCP is installed.
 
 ---
 
@@ -30,7 +30,7 @@ Prinsip:
 | UI / Checkout / Admin / POS extension | `ui-extensions`, `function-examples`, `example-checkout--*` | Definisi API extension + contoh nyata | Reference link |
 | Hydrogen / headless storefront | `hydrogen`, `hydrogen-demo-store` | Framework + full demo store | Reference / clone demo |
 | Storefront tanpa Hydrogen | `storefront-api-examples`, `js-buy-sdk` | Contoh Storefront API mentah | Reference link |
-| UI admin app (Polaris) | gunakan skill `shopify-polaris-app-home` | `polaris-react` sudah **deprecated** | Jangan clone |
+| UI admin app (Polaris) | use current Shopify documentation or a relevant skill actually discovered by the runtime | `polaris-react` sudah **deprecated** | Jangan clone |
 | Lint/format/validate theme | `theme-tools` (theme-check, LSP, prettier) | DX theme resmi (monorepo aktif) | Reference link |
 | Belajar / contoh kode | `function-examples`, `example-app--qr-code--remix`, `storefront-api-learning-kit`, `graphql-design-tutorial` | Pola konkret tanpa harus clone semua | Reference link |
 | CLI (alat utama) | `cli` (TS) | CLI resmi modern (`@shopify/cli`) | Install via npm |
@@ -50,7 +50,7 @@ Enam titik rujukan inti — selebihnya turunan:
 
 Plus jalur AI/non-repo yang sering paling cepat:
 - **`Shopify/Shopify-AI-Toolkit`** — plugin Shopify Dev MCP resmi untuk Claude Code/Cursor/Gemini (docs + schema + validasi anti-halusinasi). **Ini sumber MCP `shopify-dev`.**
-- **Shopify skills** (sudah terpasang) + **MCP `shopify-dev`** untuk cari docs live.
+- Use Shopify skills or the `shopify-dev` MCP only when current runtime discovery exposes that capability; otherwise read the official documentation directly.
 
 ---
 
@@ -94,8 +94,8 @@ Alur yang disarankan untuk AI terminal saat develop theme (Horizon/Dawn-based):
 
 1. **Mulai**: scaffold via `shopify theme init` (pakai `cli`) → atau clone `horizon`/`skeleton-theme`/`dawn` ke folder reference. Theme baru: mulai dari **Horizon** (theme blocks) atau **Skeleton**.
 2. **Pola kode**: saat butuh contoh section/snippet/`{% schema %}`/JSON template → buka padanannya di **Dawn** (pola matang) atau **Horizon** (pola theme-blocks terbaru), read-only.
-3. **Liquid correctness**: cek filter/objek di **theme-liquid-docs** atau MCP `shopify-dev`; aktifkan skill `shopify-liquid`.
-4. **Custom data**: kalau ada metafield/metaobject → skill `shopify-custom-data` dulu.
+3. **Liquid correctness**: check filters and objects in **theme-liquid-docs**, or use the `shopify-dev` MCP / a Liquid skill only when runtime discovery exposes it.
+4. **Custom data**: for metafields and metaobjects, use the official documentation or a custom-data skill only when runtime discovery exposes it.
 5. **Validasi**: jalankan **theme-check** (dari `theme-tools`) via `shopify theme check`; format dengan `prettier-plugin-liquid`.
 6. **Preview**: `shopify theme dev` → buka Chromium ke localhost (sesuai working agreement).
 7. **AI assist**: pasang `liquid-skills` plugin agar Claude Code punya LSP + skill Liquid native.
@@ -143,7 +143,7 @@ Alur yang disarankan untuk AI terminal saat develop theme (Horizon/Dawn-based):
 | example-checkout--* | github.com/Shopify (banyak) | Contoh checkout UI extension spesifik (custom field, banner, validation) | Pola checkout extension konkret | Reference link | useful |
 | theme-extension-getting-started | https://github.com/Shopify/theme-extension-getting-started | Boilerplate theme app extension | App block utk theme | Reference link | useful |
 
-> Untuk authoring: gunakan skill `shopify-functions`, `shopify-polaris-checkout-extensions`, `shopify-polaris-admin-extensions`, `shopify-pos-ui` yang sudah terpasang.
+> For authoring, use the official documentation and CLI or a Functions/extension skill actually discovered by the runtime. External plugin skill names are not an installation contract for this repository.
 
 ---
 
@@ -158,7 +158,7 @@ Alur yang disarankan untuk AI terminal saat develop theme (Horizon/Dawn-based):
 | js-buy-sdk | https://github.com/Shopify/js-buy-sdk | SDK ecommerce ringan (produk, cart, checkout) | Embed commerce ke web biasa | Reference link | optional |
 | hydrogen-react | https://github.com/Shopify/hydrogen-react | Komponen/util storefront (deprecated, lebur ke hydrogen) | Hanya legacy | Reference link | optional |
 
-> **Deprecated:** `hydrogen-v1` (arsip konsep lama). Untuk Hydrogen, **wajib pakai skill `shopify-hydrogen`** (cookbook resmi) — jangan Storefront GraphQL manual saat "Hydrogen" disebut.
+> **Deprecated:** `hydrogen-v1` is an archived legacy concept. For Hydrogen, use the official Hydrogen documentation and, when runtime discovery exposes one, the applicable Hydrogen skill; do not assume a particular skill is installed.
 
 ---
 
@@ -170,7 +170,7 @@ Alur yang disarankan untuk AI terminal saat develop theme (Horizon/Dawn-based):
 | polaris-tokens | https://github.com/Shopify/polaris-tokens | Design tokens Polaris | Deprecated/maintenance | optional |
 | polaris-viz | https://github.com/Shopify/polaris-viz | Komponen data-viz | Deprecated | optional |
 
-> Polaris di GitHub sebagian besar **deprecated**. Untuk UI admin app, **gunakan skill `shopify-polaris-app-home`** (+ admin/checkout/customer-account/pos extension skills). Jangan clone repo Polaris.
+> Most Polaris repositories on GitHub are **deprecated**. For admin app UI, use current Shopify documentation or a relevant skill discovered by the runtime. Do not clone the Polaris repositories.
 
 ---
 
@@ -184,7 +184,7 @@ Alur yang disarankan untuk AI terminal saat develop theme (Horizon/Dawn-based):
 | shopify-function-test-helpers | https://github.com/Shopify/shopify-function-test-helpers | Helper test wasm-level Function | Unit test Function | Reference link | optional |
 | graphql-codegen | https://github.com/Shopify/graphql-codegen | Codegen tipe TS dari operasi GraphQL | Typed Admin/Storefront query | Reference link | useful |
 
-> Liquid LSP juga tersedia native di Claude Code via plugin `liquid-skills` (`liquid-lsp`). Untuk helix, arahkan LSP ke `@shopify/cli`/`theme-tools`.
+> Liquid LSP may be available in Claude Code through the `liquid-skills` plugin. Use it only when runtime discovery exposes the plugin; for Helix, point the LSP at `@shopify/cli` / `theme-tools`.
 
 ---
 
@@ -206,7 +206,7 @@ Bukan untuk di-clone — buka saat butuh contoh konkret atau belajar pola. Defau
 | liquid-docs-code-samples | https://github.com/Shopify/liquid-docs-code-samples | Sample kode dari tutorial Liquid shopify.dev | Cocokkan contoh dengan docs Liquid | optional |
 | example-mobile--storefront--* | https://github.com/Shopify (react-native/swift/kotlin) | Contoh storefront mobile native | Storefront app mobile | optional |
 
-> Rujukan docs utama tetap **shopify.dev** (via MCP `shopify-dev`) + skill Shopify terpasang — repo di atas hanya untuk contoh kode konkret.
+> The primary documentation source remains **shopify.dev**. Use the `shopify-dev` MCP or Shopify skills only when runtime discovery exposes those capabilities; the repositories above are for concrete code examples.
 
 ---
 
@@ -216,18 +216,18 @@ Bukan untuk di-clone — buka saat butuh contoh konkret atau belajar pola. Defau
 Dari enumerasi penuh, Shopify punya plugin AI-agent **resmi** — pakai ini, jangan reinvent:
 - **`Shopify/Shopify-AI-Toolkit`** (marketplace `shopify-ai-toolkit`) — Shopify Dev MCP: docs, schema API, validasi anti-halusinasi, + `store execute`. Untuk Claude Code:
   `/plugin marketplace add Shopify/shopify-ai-toolkit` → `/plugin install shopify-plugin@shopify-ai-toolkit`.
-  (Inilah kemungkinan besar sumber MCP `shopify-dev` + Shopify skills yang sudah kamu punya.)
+  When runtime discovery exposes the plugin, this is the source of its Shopify MCP and skill capabilities.
 - **`Shopify/liquid-skills`** — LSP + skill Liquid native: `/plugin marketplace add Shopify/liquid-skills` → install `liquid-lsp@liquid-skills` + `liquid-skills@liquid-skills` (butuh `@shopify/cli`).
 - **`Shopify/shop-chat-agent`** — template app AI chat storefront berbasis Storefront MCP (rujukan kalau bikin agent belanja).
 
-### Skills to create/update
-- **Pakai yang sudah ada dulu** (Shopify plugin sudah terpasang): `shopify-liquid`, `shopify-hydrogen`, `shopify-functions`, `shopify-custom-data`, `shopify-storefront-graphql`, `shopify-admin`, `shopify-use-shopify-cli`, `shopify-polaris-*`, `shopify-onboarding-dev`. → **Tidak perlu bikin skill baru yang menduplikasi ini.**
-- **Skill custom yang layak dibuat** (tidak di-cover Shopify): "horizon-theme-workflow" pendek di `~/dotfiles/skills/local/` yang merangkum alur theme di atas (init Horizon/Skeleton → pola Dawn/Horizon → theme-check → preview Chromium), spesifik ke konvensi mesin user (helix, lazygit, mise).
+### Skill discovery and extension
+- **Check runtime discovery first.** Names such as `shopify-liquid`, `shopify-hydrogen`, `shopify-functions`, `shopify-custom-data`, `shopify-storefront-graphql`, `shopify-admin`, `shopify-use-shopify-cli`, `shopify-polaris-*`, and `shopify-onboarding-dev` belong to external plugin capabilities and are not guaranteed to be installed by this repository.
+- **A custom skill is worth considering only when the capability is genuinely absent:** a short `horizon-theme-workflow` under `~/dotfiles/skills/local/` could summarize this machine's theme flow (initialize Horizon/Skeleton → consult Dawn/Horizon patterns → theme-check → preview in Chromium).
 
 ### Reference docs to keep
-- Simpan **file ini** sebagai peta utama: `~/Documents/shopify-ai-development-repos.md`.
+- Keep **this tracked file** as the primary map: `docs/shopify-ai-development-repos.md`. Do not maintain a second copy under `~/Documents`.
 - Saat butuh kode pola, **clone read-only sekali** ke folder reference (mis. `~/Documents/Shopify/_reference/`): `dawn`, `skeleton-theme`. Jangan clone ke project. (Catatan: user punya hard-rule no `git clone` di task ini — clone hanya kalau user mengizinkan eksplisit nanti.)
-- Untuk spec Liquid & API: andalkan **MCP `shopify-dev`** + `theme-liquid-docs` (live), jangan simpan dump.
+- For Liquid and API specifications, use live `theme-liquid-docs` and the `shopify-dev` MCP only when runtime discovery exposes it; do not store a dump.
 
 ### Memory facts ✅ SUDAH DISIMPAN
 Tersimpan ringkas di `~/.config/ai/memory/shopify.md` (lintas-CLI). Untuk development routing, gunakan repo map ini dan official documentation langsung; router lama `shopify-ai-toolkit-router` sudah dihapus. Fakta DURABLE & ringkas (bukan isi besar):
@@ -236,7 +236,7 @@ Tersimpan ringkas di `~/.config/ai/memory/shopify.md` (lintas-CLI). Untuk develo
 - Theme DX modern = `theme-tools` (theme-check + LSP + prettier-plugin-liquid). CLI resmi = `cli` (TS, `@shopify/cli`), bukan `shopify-cli` Ruby (arsip).
 - App scaffold default = `shopify-app-template-remix`; lib Node = `shopify-app-js` + `shopify-api-js`.
 - Functions = `function-examples` + `shopify-function-javascript/-rust` + `function-runner`. Extensions API = `ui-extensions`.
-- Polaris GitHub deprecated → pakai skill `shopify-polaris-app-home`.
+- Polaris repositories are deprecated → use current Shopify documentation or a relevant Polaris skill discovered by the runtime.
 - AI Liquid support = plugin `Shopify/liquid-skills` (LSP + skills) untuk Claude Code.
 
 ### Memory facts NOT to save
@@ -326,11 +326,11 @@ Tersimpan ringkas di `~/.config/ai/memory/shopify.md` (lintas-CLI). Untuk develo
 
 0. **AI terminal dulu:** pasang `Shopify-AI-Toolkit` (Shopify Dev MCP) + `liquid-skills` plugin di Claude Code — ini fondasi docs/schema/validasi anti-halusinasi untuk semua task di bawah.
 1. **Theme:** untuk theme baru mulai dari `horizon` (theme blocks) atau `skeleton-theme`; pakai `dawn` sebagai sumber pola matang. Clone read-only ketiganya sebagai reference; validasi pakai `theme-tools` (`shopify theme check`); cek Liquid via `theme-liquid-docs`/MCP `shopify-dev`.
-2. **App:** scaffold dari `shopify-app-template-remix`; pakai `shopify-app-js` + `shopify-api-js`; semua lewat CLI resmi `cli` (`@shopify/cli`). UI admin → skill `shopify-polaris-app-home`, **bukan** repo Polaris (deprecated).
-3. **Functions/Extensions:** rujuk `function-examples` + `ui-extensions`; authoring via skill `shopify-functions`/`shopify-polaris-*`.
-4. **Hydrogen:** repo `hydrogen` + `hydrogen-demo-store`, tapi selalu lewat skill `shopify-hydrogen`.
-5. **Yang TIDAK perlu di-download:** semua repo Liquid-tooling (cukup ref link), Polaris (deprecated), repo infra Ruby/Go Shopify, dan repo arsip (`theme-check`, `themekit`, `slate`, `Timber`, `hydrogen-v1`, `shopify-cli` Ruby).
-6. **Andalkan dulu skill + MCP yang sudah terpasang** sebelum buka repo — lebih cepat & selalu up-to-date.
+2. **App:** scaffold from `shopify-app-template-remix`; use `shopify-app-js` + `shopify-api-js`; route everything through the official `cli` (`@shopify/cli`). For admin UI, use current Shopify documentation or a relevant skill discovered by the runtime, **not** the deprecated Polaris repository.
+3. **Functions/Extensions:** consult `function-examples` + `ui-extensions`; use an authoring skill only when runtime discovery exposes it.
+4. **Hydrogen:** consult `hydrogen` + `hydrogen-demo-store`; use a Hydrogen skill only when runtime discovery exposes it.
+5. **Do not download:** the Liquid tooling repositories (reference links are enough), Polaris (deprecated), Shopify's internal Ruby/Go infrastructure repositories, or archived repositories (`theme-check`, `themekit`, `slate`, `Timber`, `hydrogen-v1`, and the Ruby `shopify-cli`).
+6. **Prefer capabilities actually exposed by runtime discovery** before opening a repository; use official documentation when they are unavailable.
 
 ---
 

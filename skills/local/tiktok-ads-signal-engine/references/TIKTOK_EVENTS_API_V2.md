@@ -4,10 +4,20 @@
 
 ---
 
-## 1. Endpoint & Authentication
+## 1. Endpoint, Version, and Authentication
 
-- **Endpoint**: `POST https://business-api.tiktok.com/open_api/v1.3/event/track/`
-- **Headers**:
+Audit baseline: TikTok Marketing API `v1.3` matched the official server-events documentation on 2026-08-16. This is point-in-time provenance, not an evergreen "latest" claim. Re-check [TikTok's official Marketing API documentation](https://ads.tiktok.com/marketing_api/docs) and changelog before implementation or any version change.
+
+```typescript
+export const TIKTOK_MARKETING_API_VERSION = "v1.3";
+export const TIKTOK_EVENTS_TRACK_URL =
+  `https://business-api.tiktok.com/open_api/${TIKTOK_MARKETING_API_VERSION}/event/track/`;
+```
+
+Use `TIKTOK_EVENTS_TRACK_URL` everywhere rather than repeating the versioned URL.
+
+- **Method:** `POST`
+- **Headers:**
   - `Content-Type: application/json`
   - `Access-Token: <TIKTOK_PIXEL_ACCESS_TOKEN>`
 

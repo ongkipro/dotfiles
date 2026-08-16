@@ -1,11 +1,19 @@
 ---
 name: mermaid-diagram
-description: 'Generate a Mermaid diagram from a description, a codebase, or a given schema. Output is a Mermaid code block that renders directly in GitHub, GitLab, Notion, and Claude. No tool install needed. Use for flowcharts, ERDs, sequence diagrams, C4 context, class diagrams, and gantt. Triggers: ''buat diagram'', ''create diagram'', ''flowchart'', ''ERD'', ''sequence diagram'', ''mermaid'', ''diagram alur'', ''flow diagram'', ''visualisasi'', ''visualization'', ''database diagram'', ''class diagram'', ''C4''.'
+description: 'Generate a Mermaid diagram from a description, codebase, or schema. Output a Mermaid code block for supported Markdown renderers. Use for flowcharts, ERDs, sequence diagrams, C4 context, class diagrams, gantt, pie charts, mindmaps, git graphs, and quadrant charts. Triggers: ''buat diagram'', ''create diagram'', ''flowchart'', ''ERD'', ''sequence diagram'', ''mermaid'', ''diagram alur'', ''flow diagram'', ''visualisasi'', ''visualization'', ''database diagram'', ''class diagram'', ''pie chart'', ''mindmap'', ''git graph'', ''quadrant chart'', ''C4''.'
 ---
 
 # Mermaid Diagram
 
 Generate technical diagrams as Mermaid blocks — they render directly in GitHub, Claude, Notion, GitLab, and VSCode.
+
+## Syntax Provenance
+
+The examples target Mermaid v11.x and were reviewed against the canonical [mermaid-js/mermaid](https://github.com/mermaid-js/mermaid) syntax on 2026-08-16. This is a baseline, not an evergreen version claim: the target repository's installed Mermaid package or host renderer wins. Check that renderer before using recently added diagram types, and do not silently rewrite a project's established syntax for a different major version.
+
+## Ownership Boundary
+
+This skill owns diagram-type selection and valid Mermaid syntax. It does not invent architecture decisions, database relationships, API behavior, task dates, or business facts; derive those from the repository or the owning specification skill. Use `development-spec-suite` or `prd-taskbreaker` for artifact decisions, `openapi-spec` for API contracts, and `adr-record` for full architecture decisions.
 
 ## Diagram Types
 
@@ -84,6 +92,52 @@ gantt
     Deploy          :2025-01-29, 3d
 ```
 
+### 7. Pie — category share
+```mermaid
+pie showData
+    title Support Requests by Channel
+    "Email" : 48
+    "Chat" : 32
+    "Phone" : 20
+```
+
+### 8. Mindmap — concept or scope breakdown
+```mermaid
+mindmap
+  root((Release))
+    Product
+      Requirements
+      UX
+    Engineering
+      API
+      Data
+```
+
+### 9. Git Graph — branch and release history
+```mermaid
+gitGraph
+    commit id: "baseline"
+    branch feature
+    checkout feature
+    commit id: "feature"
+    checkout main
+    merge feature
+```
+
+### 10. Quadrant Chart — prioritization
+```mermaid
+quadrantChart
+    title Initiative Priorities
+    x-axis Low effort --> High effort
+    y-axis Low impact --> High impact
+    quadrant-1 Strategic
+    quadrant-2 Quick wins
+    quadrant-3 Defer
+    quadrant-4 Reconsider
+    Search fixes: [0.25, 0.80]
+    Platform rewrite: [0.85, 0.70]
+```
+
 ## Workflow
 
 1. Ask the user for the diagram type + context (or infer it from the description)
@@ -101,6 +155,10 @@ gantt
 | Class structure, TypeScript types | Class |
 | Overall system architecture | C4 Context |
 | Sprint timeline / milestones | Gantt |
+| Category share / composition | Pie |
+| Brainstorming / scope hierarchy | Mindmap |
+| Branching and merge history | Git Graph |
+| Effort-impact prioritization | Quadrant Chart |
 
 ## Output Tips
 

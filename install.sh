@@ -42,7 +42,7 @@ link() {
 # backup preserves any hand edits that were made inside an old managed block.
 ensure_shell_source() {
   local rc="$1" file="$2" marker="$3" legacy_stop="${4:-}"
-  local source_line start stop backup tmp remove_block=0
+  local source_line start stop backup tmp remove_block=0 remove_mise=0
   source_line='source "$HOME/dotfiles/config/'"$file"'"'
   start="# >>> $marker >>>"
   stop="# <<< $marker <<<"
@@ -57,16 +57,22 @@ ensure_shell_source() {
       return 1
     fi
   fi
+  if grep -Eq '^[[:space:]]*eval[[:space:]]+"\$\([^)]*mise[[:space:]]+activate[[:space:]]+(bash|zsh)[^)]*\)"[[:space:]]*$' "$rc"; then
+    remove_mise=1
+  fi
+
 
   tmp="$(mktemp "${rc}.tmp.XXXXXX")"
   if ! awk \
       -v remove_block="$remove_block" \
+      -v remove_mise="$remove_mise" \
       -v start="$start" \
       -v stop="$stop" \
       -v source_line="$source_line" '
     remove_block && $0 == start { skip = 1; found = 1; next }
     remove_block && skip && index($0, stop) == 1 { skip = 0; next }
     skip { next }
+    remove_mise && $0 ~ /^[[:space:]]*eval[[:space:]]+"\$\([^)]*mise[[:space:]]+activate[[:space:]]+(bash|zsh)[^)]*\)"[[:space:]]*$/ { next }
     $0 == source_line {
       if (!source_seen) print
       source_seen = 1
@@ -97,6 +103,7 @@ ensure_shell_source() {
   cat "$tmp" > "$rc"
   rm -f "$tmp"
   echo "   backup: $rc -> $backup"
+  [ "$remove_mise" -eq 0 ] || echo "   legacy standalone mise activation removed from $rc"
   echo "   source $file normalized in $rc"
 }
 link "$DOT/config/ai"                    ~/.config/ai          # memori bersama (+ memory/*.md)
@@ -116,23 +123,21 @@ while IFS= read -r s; do
   [ -x "$DOT/bin/$s" ] || { echo "ERROR: runtime command is missing or not executable: $s" >&2; exit 1; }
   link "$DOT/bin/$s" ~/.local/bin/$s
 done < "$DOT/config/ai/runtime-commands.txt"
+echo "==> Wire canonical Claude Code hooks..."
+"$HOME/.local/bin/ai-hooks-install"
 link "$DOT/config/omp/config.yml"        ~/.omp/agent/config.yml   # OMP config (model, theme, approval)
 link "$DOT/config/omp/models.yml"        ~/.omp/agent/models.yml   # OMP providers (9router)
 link "$DOT/config/omp/agents"            ~/.omp/agent/agents       # OMP specialist agents (role-routed)
 ~/.local/bin/ai-memory-link              # runtime-native AGENTS.md links (including ~/.omp/agent/AGENTS.md)
 "$DOT/skills/agents-bin/skill-update"    # directory links + Codex per-skill adapter preserving .system
 
-# 9Router and Pi are optional capabilities, not OMP prerequisites. Opt in
-# explicitly; credential migration is always a separate manual command.
+# Pi's remote 9Router adapter is optional and does not require a local gateway.
+# Credential migration remains a separate manual command.
 if [ "${DOTFILES_SETUP_PI:-0}" = "1" ]; then
   command -v pi >/dev/null 2>&1 || { echo "ERROR: DOTFILES_SETUP_PI=1 but pi is not installed." >&2; exit 1; }
-  command -v 9router >/dev/null 2>&1 || { echo "ERROR: DOTFILES_SETUP_PI=1 but 9router is not installed." >&2; exit 1; }
   "$DOT/bin/pi-9router-restore"
-elif [ "${DOTFILES_SETUP_9ROUTER:-0}" = "1" ]; then
-  command -v 9router >/dev/null 2>&1 || { echo "ERROR: DOTFILES_SETUP_9ROUTER=1 but 9router is not installed." >&2; exit 1; }
-  "$DOT/bin/9router-restore"
 else
-  echo "==> Optional 9Router/Pi restore skipped (set DOTFILES_SETUP_9ROUTER=1 or DOTFILES_SETUP_PI=1 to opt in)."
+  echo "==> Optional Pi/remote-9Router restore skipped (set DOTFILES_SETUP_PI=1 to opt in)."
 fi
 
 # Jaminan native binary claude ter-unduh. `npm i -g @anthropic-ai/claude-code` (step 3)
@@ -187,25 +192,26 @@ if grep -qi 'microsoft' /proc/version 2>/dev/null; then
   fi
 fi
 
-cat <<'EOF'
+cat <<EOF
 
 ==> Config terpasang. Langkah berikutnya (sekali, NO-SUDO):
 
   1) Install mise (kalau belum):
        curl -fsSL https://mise.run | sh
 
-  2) Tool CLI:
-       mise use -g fzf fd bat delta lazygit zoxide eza yq direnv starship helix ruff
-       mise use -g "aqua:tealdeer-rs/tealdeer"
+  2) Muat shell startup yang baru dinormalisasi:
+       source "$SHELL_RC"   (atau buka terminal baru)
 
-  3) Language server (autocomplete Helix):
-       npm i -g typescript-language-server vscode-langservers-extracted \
+  3) Pasang Node dan seluruh toolchain dari config mise yang dilacak:
+       mise install
+
+  4) Language server (autocomplete Helix):
+       npm i -g typescript-language-server vscode-langservers-extracted \\
                 @tailwindcss/language-server yaml-language-server bash-language-server pyright
        pipx install python-lsp-server
 
-  4) Git config: jalankan perintah di docs/linux-dev-setup.md (Bagian 2.6)
+  5) Git identity: ikuti "Login & Verifikasi" di:
+       docs/linux-install-step-by-step.md
 
-  5) source "$SHELL_RC"   (atau buka terminal baru)
-
-Runbook lengkap: docs/linux-dev-setup.md
+Runbook lengkap: docs/linux-install-step-by-step.md
 EOF

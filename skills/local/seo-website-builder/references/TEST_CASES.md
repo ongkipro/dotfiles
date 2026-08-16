@@ -1,8 +1,8 @@
 # SEO Skill Test Cases
 
-Purpose: validate the SEO documentation pack before converting it into an active skill.
+Purpose: validate the active SEO skill before changing its routing, evidence, or output contract.
 
-Last updated: 2026-06-30
+Last updated: 2026-08-16
 
 ## How To Use
 
@@ -282,9 +282,9 @@ Fixes needed:
 - ...
 ```
 
-## Conversion Gate
+## Regression Gate
 
-The pack is ready to become an active skill only after:
+A contract change is ready only after:
 
 - at least 3 test cases pass
 - one test covers local business

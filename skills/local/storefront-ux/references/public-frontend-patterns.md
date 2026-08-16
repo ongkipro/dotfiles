@@ -57,9 +57,8 @@ This reference defines the behavioral and state requirements for high-conversion
 - **Instant Recalculation:** Sliders or toggles (e.g., Monthly vs. Annual) must instantly update the displayed price without a page reload.
 - **Value Visualization:** As the user adjusts the calculator, dynamically update the listed benefits to reinforce the value of higher tiers.
 
-### AEO/GEO Passage Optimization (AI Search)
-- **Answer Box Targeting:** Structure high-value information (FAQs, pricing tiers, core features) in clear, chunked passages (134–167 words) with direct, factual phrasing. 
-- **Semantic HTML:** Use `<dl>`, `<ul>`, and hierarchical `<h2>`/`<h3>` tags to make the structure explicitly readable to AI crawlers.
+### AEO/GEO Handoff
+`ai-traffic-os` exclusively owns AnswerBox passage structure, passage-length guidance, crawler semantics, and AEO/GEO evidence. Load that skill for AI-search work; this UX reference owns only the interaction behavior and states around the rendered content and must not restate its quantitative rules.
 
 ### Micro-animations & Social Proof
 - **Trust Indicators:** Load social proof bands (logos, reviews) progressively. If reviews are fetched asynchronously, reserve the layout space to prevent Cumulative Layout Shift (CLS).

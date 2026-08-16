@@ -219,7 +219,7 @@ These error codes are for the **Workers binding** (thrown as Error objects with 
 | `E_VALIDATION_ERROR` | Invalid payload | Check email format, required fields |
 | `E_FIELD_MISSING` | Required field missing | Add `to`, `from`, or `subject` |
 | `E_TOO_MANY_RECIPIENTS` | Combined to/cc/bcc exceeds 50 | Split into multiple sends |
-| `E_SENDER_NOT_VERIFIED` | Domain not onboarded | Run `wrangler email sending enable yourdomain.com` or onboard in Dashboard |
+| `E_SENDER_NOT_VERIFIED` | Domain not onboarded | Onboard the domain in **Compute > Email Service > Email Sending** |
 | `E_RECIPIENT_NOT_ALLOWED` | Recipient not in allowed list | Add to `allowed_destination_addresses` |
 | `E_RECIPIENT_SUPPRESSED` | Address bounced or reported spam | Remove from your list; check suppression list in Dashboard |
 | `E_SENDER_DOMAIN_NOT_AVAILABLE` | Domain not available for sending | Complete domain onboarding |

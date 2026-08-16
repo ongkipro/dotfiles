@@ -1,4 +1,6 @@
 source: https://docs.stripe.com/.well-known/skills/stripe-best-practices
 index: https://docs.stripe.com/.well-known/skills/index.json
-vendored: 2026-07-18
-note: Vendored single-source (dotfiles contract: no plugins). Refresh with _refresh-vendored.sh
+vendored: 2026-08-16
+note: Refreshed from every file listed by the official hosted index on 2026-08-16.
+note: Upstream base retained for provenance; .local-fork records one corrected link.
+note: _refresh-vendored.sh preserves this managed fork without fetching or writing.

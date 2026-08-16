@@ -1,0 +1,6 @@
+upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/cloudflare-email-service
+verified: 2026-08-16
+scope: directory
+reason: Current upstream omits the Email Sending public Beta and Workers Paid prerequisites and documents CLI/MCP operations that are not present in the current official command references.
+would_lose_if_wired: A byte-for-byte refresh would restore the wrong launch timeline, hide account eligibility requirements, and reintroduce fabricated email command trees across SKILL.md and references.
+to_vendor: Reconcile against current Cloudflare Email Service docs and Wrangler help. Remove this marker only after upstream carries equivalent prerequisite, retrieval-first, and no-invented-command safeguards in every affected file.

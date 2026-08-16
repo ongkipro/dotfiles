@@ -39,6 +39,24 @@ project-init --repo "$HOME/Projects/existing app" \
   --stack existing-repository
 ```
 
+Promote accepted planning artifacts while creating a new repository, or into an
+explicit existing Git worktree:
+
+```bash
+project-init my-app \
+  --stack astro \
+  --from-docs "$HOME/Documents/work/prd/my-app"
+
+project-init --repo "$HOME/Projects/existing app" \
+  --stack existing-repository \
+  --from-docs "$HOME/Documents/work/prd/existing app"
+```
+
+`--from-docs` copies the accepted artifacts and never deletes the staging
+directory. After promotion, the repository copies are canonical. The
+`~/Documents/work/prd/<slug>/` copy remains a non-authoritative planning
+snapshot.
+
 Inspect a fully resolved plan without creating directories, installing packages,
 or changing an existing repository:
 
@@ -51,29 +69,80 @@ project-init my-app \
   --plan
 ```
 
+When `--from-docs` is present, the plan also prints every resolved source and
+destination path. Suite plans additionally report the generated root `PRD.md`
+index to `docs/spec/02-PRD.md`. Planning validates the stage and conflicts but
+does not create the project directory, copy files, initialize `.delivery`, or
+modify the source. Paths containing spaces are preserved as single paths.
+
 ## Generated contract
 
-After native scaffolding succeeds, missing contract files are created:
+After native scaffolding succeeds, missing contract files are created at the
+repository root:
 
 ```text
+README.md
 AGENTS.md
-PRD.md
-TASKS.md
+PRD.md        # suite packs use an index to docs/spec/02-PRD.md
+TASKS.md      # canonical repository execution queue
 STATUS.md
+DECISIONS.md
 RELEASE.md
 OBSERVABILITY.md
 BUILD-LOG.md
-docs/architecture.md
+ARCHITECTURE.md
 .delivery/
 ```
 
 Files that already exist are preserved byte-for-byte. Framework-owned source
 layout remains untouched. `existing-repository` requires an explicit `--repo`
-path to a Git worktree and adds only missing contract files.
+path to a Git worktree. Without `--from-docs`, it adds only missing contract
+files.
+
+## Planning artifact promotion
+
+A standalone planning stage accepts at least one of these artifacts:
+
+```text
+PRD.md
+PLAN.md
+TASKS.md
+docs/adr/ADR-NNNN-<slug>.md
+```
+
+Root documents retain those paths in the repository, and ADRs retain their
+`docs/adr/` paths. `PLAN.md` is optional. A stage with a root
+`CONTEXT-RECORD.md` is instead treated as a development-spec-suite pack and
+must also contain a regular root `02-PRD.md`. Specification artifacts retain
+their relative layout beneath `docs/spec/`, including
+`docs/spec/CONTEXT-RECORD.md` and the canonical
+`docs/spec/02-PRD.md`. Staged root `TASKS.md` and `PLAN.md` are promoted only to
+the repository root; no duplicate execution documents are created under
+`docs/spec/`.
+
+For a suite pack, `project-init` creates root `PRD.md` as a small index to
+`docs/spec/02-PRD.md`; it never generates a competing requirements template.
+An existing byte-equivalent index is idempotent. Any other existing root
+`PRD.md` is a divergent conflict and rejects promotion before the pack or
+repository contract is written. Root `TASKS.md` remains the sole canonical
+execution queue. When the suite pack contains root `TASKS.md` or `PLAN.md`, each
+is promoted to the repository root; otherwise the normal repository queue is
+generated there.
+
+The stage must be a real directory, not a symlink. Promotion does not follow
+symlinked files or directories. Standalone stages reject files outside the
+accepted layout, and every stage must contain at least one accepted regular
+file. Before copying, all destination paths are checked together: identical
+files are preserved, while any divergent file, symlink, or non-file destination
+rejects promotion without overwriting it. Imported standalone documents,
+accepted or generated root `TASKS.md`, and the generated suite PRD index are
+therefore preserved when the remaining repository contract is rendered.
 
 ## Safety and evidence
 
 - All combinations are validated before generation.
+- A `--from-docs` stage and its supported layout are validated before a native
+  generator can mutate the project tree.
 - A new stack refuses an existing destination, including an empty directory.
 - Generators run with Git initialization, deployment, browser opening, and AI
   file generation disabled where the native CLI exposes those controls.

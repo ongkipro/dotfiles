@@ -46,18 +46,11 @@ When a mise-managed tool was replaced:
 - restart the terminal or OMP session if the parent process predates the update;
 - check both `which <tool>` and `<tool> --version`.
 
-## Case: 9Router package updates require service verification
+## Case: 9Router topology
 
-9Router is a running user service, not only a CLI package. After an npm update:
-
-```bash
-systemctl --user restart 9router.service
-systemctl --user is-active 9router.service
-curl -fsS --retry 10 --retry-connrefused --retry-delay 1 \
-  http://localhost:20128/api/health
-```
-
-An immediate health request can race startup even when systemd already reports `active`; retry connection refusal briefly rather than treating the first failure as a broken installation.
+Remote/local topology and credential boundaries are owned by
+[`environment-ai-runtimes.md`](../memory/environment-ai-runtimes.md). Follow
+that shared contract during device maintenance instead of duplicating it here.
 
 ## Case: Docker cleanup is a separate approval scope
 

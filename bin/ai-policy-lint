@@ -71,7 +71,11 @@ def run_canonical_gate(label, command, extra_env=None):
         detail = result.stdout.strip() or f"exit {result.returncode}"
         err(f"{label} failed:\n{detail}")
     else:
-        summary = next((line for line in reversed(result.stdout.splitlines()) if line.strip()), "OK")
+        lines = result.stdout.splitlines()
+        for line in lines:
+            if any(token in line.upper() for token in ("WARNING", "PARTIAL")):
+                print(f"  {label}: {line}")
+        summary = next((line for line in reversed(lines) if line.strip()), "OK")
         print(f"  OK  {label}: {summary}")
 
 

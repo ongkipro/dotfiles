@@ -96,6 +96,68 @@ grep -qF 'A full-replace form must load every persisted field it writes.' \
   || { echo "FAIL: promotion changed canonical file permissions" >&2; exit 1; }
 "$DOTFILES_DIR/bin/ai-memory-check" "$DOTFILES_DIR/config/ai/project-memory/example.md" >/dev/null
 
+# Two approved candidates targeting one file must both survive. The checker
+# wrapper creates a deterministic overlap at the old copy/check/move window.
+printf '# Concurrent promotions\n' >"$DOTFILES_DIR/config/ai/project-memory/concurrent.md"
+cat >"$AI_MEMORY_INBOX_DIR/concurrent-alpha.md" <<'EOF'
+---
+status: candidate
+---
+
+## Lesson: Preserve amber updates
+
+The amber writer retains every reviewed invariant while updating canonical memory.
+EOF
+cat >"$AI_MEMORY_INBOX_DIR/concurrent-beta.md" <<'EOF'
+---
+status: candidate
+---
+
+## Lesson: Preserve cobalt updates
+
+The cobalt writer retains every approved constraint while updating canonical memory.
+EOF
+mv "$DOTFILES_DIR/bin/ai-memory-check" "$DOTFILES_DIR/bin/ai-memory-check.real"
+cat >"$DOTFILES_DIR/bin/ai-memory-check" <<'PY'
+#!/usr/bin/env python3
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+
+barrier_value = os.environ.get("AI_LEARN_TEST_BARRIER_DIR")
+if barrier_value and Path(sys.argv[1]).name.startswith(".ai-learn."):
+    barrier = Path(barrier_value)
+    barrier.mkdir(parents=True, exist_ok=True)
+    (barrier / f"writer-{os.getpid()}").touch()
+    deadline = time.monotonic() + 2
+    while len(list(barrier.glob("writer-*"))) < 2 and time.monotonic() < deadline:
+        time.sleep(0.01)
+real = Path(__file__).with_name("ai-memory-check.real")
+raise SystemExit(subprocess.run([str(real), *sys.argv[1:]], check=False).returncode)
+PY
+chmod +x "$DOTFILES_DIR/bin/ai-memory-check"
+export AI_LEARN_TEST_BARRIER_DIR="$TEST_ROOT/promotion-barrier"
+"$learn" promote concurrent-alpha.md --target project:concurrent --yes >"$TEST_ROOT/alpha.log" 2>&1 &
+alpha_pid=$!
+"$learn" promote concurrent-beta.md --target project:concurrent --yes >"$TEST_ROOT/beta.log" 2>&1 &
+beta_pid=$!
+set +e
+wait "$alpha_pid"; alpha_rc=$?
+wait "$beta_pid"; beta_rc=$?
+set -e
+if [ "$alpha_rc" -ne 0 ] || [ "$beta_rc" -ne 0 ]; then
+  cat "$TEST_ROOT/alpha.log" "$TEST_ROOT/beta.log" >&2
+  echo "FAIL: concurrent promotions did not both succeed" >&2
+  exit 1
+fi
+grep -qF 'amber writer retains every reviewed invariant' "$DOTFILES_DIR/config/ai/project-memory/concurrent.md"
+grep -qF 'cobalt writer retains every approved constraint' "$DOTFILES_DIR/config/ai/project-memory/concurrent.md"
+mv "$DOTFILES_DIR/bin/ai-memory-check.real" "$DOTFILES_DIR/bin/ai-memory-check"
+unset AI_LEARN_TEST_BARRIER_DIR
+
+
 # --- the hygiene gate must actually reject, not merely be wired ---------------
 # Promotion is the only path that mutates tracked, committed memory. Before
 # 2026-08-16 it ran no hygiene at all, so volatile state entered permanent

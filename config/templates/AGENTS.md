@@ -12,15 +12,22 @@ This file contains repository-specific rules only. Global safety, Git, secret-ha
 
 ## Sources of truth
 
-- Accepted product behavior: `PRD.md`
-- Executable work queue: `TASKS.md`
+- Accepted product behavior: `PRD.md`; for a specification-suite project it is
+  only the entrypoint to canonical `docs/spec/02-PRD.md`
+- Sole executable work queue: `TASKS.md`
 - Current implementation handoff and semantic review state: `STATUS.md`
 - Accepted technical and product constraints: `DECISIONS.md`
+- Accepted implementation design when present: `PLAN.md`
+- Full architecture decisions when present: `docs/adr/ADR-NNNN-<slug>.md`; `DECISIONS.md` remains the canonical index
 - Current release boundary, declared release risk, rollback evidence: `RELEASE.md`
 - Post-deploy runtime health contract: `OBSERVABILITY.md`
 - Execution evidence and resume projection: `.delivery/`
 - Durable implementation notes: `BUILD-LOG.md`
 - Architecture and trust boundaries: `ARCHITECTURE.md`
+
+When design and implementation diverge, `ARCHITECTURE.md` records what the code
+actually does and therefore outranks a pre-implementation `PLAN.md`. Update the
+plan or supersede its decision rather than leaving two current claims.
 
 `STATUS.md` is the only workflow-state authority. `.delivery/current.json` is a projection/evidence index and must never override `STATUS.md`. Do not hand-edit `.delivery/runs/*.jsonl` or `.delivery/releases/*.json`; their integrity is verified by hash chains/self-hashes. Use `delivery-ledger` to start runs, record verification, checkpoint handoffs, finish runs, and snapshot releases.
 

@@ -1,0 +1,19 @@
+upstream: https://raw.githubusercontent.com/greensock/gsap-skills/main/skills/gsap-frameworks/SKILL.md
+verified: 2026-08-16
+scope: directory
+reason: upstream has two vendoring defects and one TypeScript error; local fixes them
+note: The upstream skill refers to repository-root examples as `examples/vue/`
+  and `examples/nuxt/`. Those relative paths are dead inside this vendored skill
+  directory, so local links directly to the canonical upstream example URLs:
+  https://github.com/greensock/gsap-skills/tree/main/examples/vue
+  https://github.com/greensock/gsap-skills/tree/main/examples/nuxt
+note: The upstream Nuxt composable declares `type Plugins` twice in one module.
+  Local removes the first declaration and its otherwise unreferenced PLUGINS
+  array; pluginMap is the single runtime and type source for the lazy loader.
+would_lose_if_wired: an ordinary byte-for-byte refresh would restore the dead
+  local paths and duplicate TypeScript identifier.
+refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is
+  present, before any fetch or write.
+to_vendor: keep the local fixes until the canonical upstream source fixes both
+  findings. No external publication was performed by this task.
+recheck: 2026-08-16 — both findings remain in the canonical upstream URL above.

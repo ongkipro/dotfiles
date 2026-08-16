@@ -23,6 +23,10 @@ End-to-end setup skill for Cloudflare Turnstile. Loads when an agent is asked to
 
 `widget-create.sh` deliberately discards the one-time secret from a successful API response. Its success output is limited to `status`, `sitekey`, and `secret_configuration`; the user configures the secret directly in their deployment's secret store.
 
+## Existing-backend boundary
+
+Spin adds Siteverify only to a server-side handler that already processes the protected request. It does not deploy a Worker, Pages Function, proxy, sidecar, or form backend. `scripts/worker-deploy.sh` and `templates/worker/` are historical upstream artifacts retained in this bundle but excluded from the supported helper set; the script fails closed and must not be invoked by the wizard.
+
 ## How agents load it
 
 Agents that load skill bundles from `github.com/cloudflare/skills` will pick this up automatically. For agents that load skills out of a local directory, clone the bundle once and symlink it:

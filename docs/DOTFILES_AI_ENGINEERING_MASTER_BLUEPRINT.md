@@ -1,5 +1,12 @@
 # Dotfiles AI Engineering — Master Architecture Blueprint & Audit Specification
 
+> [!CAUTION]
+> **Immutable historical baseline; superseded for current-state decisions.**
+> Preserve the body as the 2026-08-15 blueprint snapshot; “Definitive” below is
+> historical. Use [`../TASKS.md`](../TASKS.md) for live work, current disk and
+> executable checks for behavior, and `config/omp/config.yml` plus
+> `config/omp/STATUS.md` for current routing.
+
 **Repository:** `ongkipro/dotfiles`  
 **Document Status:** Definitive Unified Master Architecture Specification  
 **Baseline Date:** 2026-08-15  

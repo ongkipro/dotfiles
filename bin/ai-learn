@@ -125,7 +125,7 @@ show_candidate() {
 
 promote() {
   local requested="" target="" confirmed=0 candidate kind name target_path
-  local target_dir tmp probe promoted_dir promoted_path
+  local target_dir probe promoted_dir promoted_path lock_dir promotion_date
   [ "$#" -gt 0 ] || die "promote requires a candidate"
   requested="$1"; shift
   while [ "$#" -gt 0 ]; do
@@ -171,8 +171,8 @@ promote() {
   # The corpus carries pre-existing warnings; blocking on those would make every
   # promotion impossible and get the gate routed around instead of fixed.
   [ -x "$DOT/bin/ai-memory-hygiene" ] || die "ai-memory-hygiene is unavailable; refusing to mutate tracked memory without it"
-  probe="$(mktemp "$target_dir/.ai-learn-probe.XXXXXX.md")"
-  trap 'rm -f "${probe:-}" "${tmp:-}"' EXIT
+  probe="$(python3 -c 'import os, sys, tempfile; fd, name = tempfile.mkstemp(prefix=".ai-learn-probe.", suffix=".md", dir=sys.argv[1]); os.close(fd); print(name)' "$target_dir")"
+  trap 'rm -f "${probe:-}"' EXIT
   awk 'BEGIN { separators=0 } /^---$/ { separators++; next } separators >= 2 { print }' "$candidate" >"$probe"
   if ! "$DOT/bin/ai-memory-hygiene" --candidate "$probe" --strict >/dev/null 2>&1; then
     printf 'ai-learn: hygiene rejected this candidate. Nothing was written to tracked memory.\n\n' >&2
@@ -189,15 +189,71 @@ promote() {
   chmod 700 "$promoted_dir"
   promoted_path="$promoted_dir/$(basename "$candidate")"
   [ ! -e "$promoted_path" ] || die "promoted archive already exists: $promoted_path"
-  tmp="$(mktemp "$target_dir/.ai-learn.XXXXXX.md")"
-  cp -p "$target_path" "$tmp"
-  {
-    printf '\n\n---\n\n'
-    awk 'BEGIN { separators=0 } /^---$/ { separators++; next } separators >= 2 { print }' "$candidate"
-    printf '\n> Promoted from a reviewed local candidate on %s.\n' "$(date -u +%Y-%m-%d)"
-  } >>"$tmp"
-  "$DOT/bin/ai-memory-check" "$tmp" >/dev/null
-  mv "$tmp" "$target_path"; tmp=""
+
+  # Lock the entire per-target read/check/replace sequence. Distinct reviewed
+  # candidates may be promoted concurrently, and an unlocked copy-then-move
+  # lets the later writer silently discard the earlier approved lesson.
+  lock_dir="$INBOX/.promotion-locks"
+  mkdir -p "$lock_dir"
+  chmod 700 "$lock_dir"
+  promotion_date="$(date -u +%Y-%m-%d)"
+  python3 - "$target_path" "$candidate" "$DOT/bin/ai-memory-check" "$lock_dir" "$promotion_date" <<'PY'
+from __future__ import annotations
+
+import fcntl
+import hashlib
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+
+target = Path(sys.argv[1])
+candidate = Path(sys.argv[2])
+checker = Path(sys.argv[3])
+lock_dir = Path(sys.argv[4])
+promotion_date = sys.argv[5]
+lock_name = hashlib.sha256(str(target.resolve()).encode("utf-8")).hexdigest() + ".lock"
+lock_path = lock_dir / lock_name
+
+def candidate_body(path: Path) -> str:
+    separators = 0
+    body = []
+    for line in path.read_text(encoding="utf-8").splitlines(keepends=True):
+        if line.rstrip("\r\n") == "---":
+            separators += 1
+            continue
+        if separators >= 2:
+            body.append(line)
+    return "".join(body)
+
+try:
+    with lock_path.open("a+", encoding="utf-8") as lock:
+        os.chmod(lock_path, 0o600)
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        fd, tmp_name = tempfile.mkstemp(prefix=".ai-learn.", suffix=".md", dir=target.parent)
+        os.close(fd)
+        tmp = Path(tmp_name)
+        try:
+            shutil.copy2(target, tmp)
+            with tmp.open("a", encoding="utf-8") as merged:
+                merged.write("\n\n---\n\n")
+                merged.write(candidate_body(candidate))
+                merged.write(f"\n> Promoted from a reviewed local candidate on {promotion_date}.\n")
+                merged.flush()
+                os.fsync(merged.fileno())
+            checked = subprocess.run([str(checker), str(tmp)], stdout=subprocess.DEVNULL, check=False)
+            if checked.returncode != 0:
+                raise RuntimeError("ai-memory-check rejected merged memory")
+            os.replace(tmp, target)
+        finally:
+            if tmp.exists():
+                tmp.unlink()
+except (OSError, RuntimeError) as exc:
+    print(f"ai-learn: ERROR: promotion merge failed: {exc}", file=sys.stderr)
+    raise SystemExit(1)
+PY
   trap - EXIT
   mv "$candidate" "$promoted_path"
   printf 'Promoted to: %s\nArchived candidate: %s\nNo Git action was performed.\n' "$target_path" "$promoted_path"

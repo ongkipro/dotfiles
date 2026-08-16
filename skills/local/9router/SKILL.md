@@ -21,9 +21,9 @@ export NINEROUTER_URL="http://localhost:20128"      # or VPS / tunnel URL
 export NINEROUTER_KEY="sk-..."                      # from Dashboard → Keys (only if requireApiKey=true)
 ```
 
-All requests: `${NINEROUTER_URL}/v1/...` with header `Authorization: Bearer ${NINEROUTER_KEY}` (omit if auth disabled).
+Capability and model requests use `${NINEROUTER_URL}/v1/...` with header `Authorization: Bearer ${NINEROUTER_KEY}` (omit if auth disabled).
 
-Verify: `curl $NINEROUTER_URL/api/health` → `{"ok":true}`
+Health is the intentional unversioned exception: `curl $NINEROUTER_URL/api/health` → `{"ok":true}`.
 
 ## Discover models
 

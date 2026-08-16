@@ -28,6 +28,7 @@
     "device-"
   ],
   "indexFiles": [
-    "config/ai/project-memory/MEMORY.md"
+    "config/ai/project-memory/MEMORY.md",
+    "config/ai/project-memory-kelola/MEMORY.md"
   ]
 }

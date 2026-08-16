@@ -25,23 +25,19 @@ active runtime.
 
 ## Restore boundaries
 
-The generic helper restores shared 9Router config and its user service without
-reading or writing any Pi path:
+There is no local 9Router gateway in the supported setup. Tracked OMP and Pi
+providers target the authenticated remote tunnel.
 
-```bash
-~/dotfiles/bin/9router-restore
-```
-
-Only invoke the Pi adapter when Pi support is wanted:
+Invoke the Pi adapter only when Pi support is wanted:
 
 ```bash
 ~/dotfiles/bin/pi-9router-restore
 ```
 
-The adapter restores Pi settings, the compaction extension, and optional model
-sync metadata, then delegates generic gateway setup to `9router-restore`. It
-does not make Pi a dependency of OMP and does not overwrite an existing
-`~/.pi/agent/models.json`.
+The adapter restores Pi settings and the compaction extension, installs the
+remote-catalog sync helper, and leaves existing machine-local settings intact.
+It does not install or start a local gateway and does not make Pi an OMP
+prerequisite.
 
 ## Credentials
 

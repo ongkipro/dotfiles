@@ -1,0 +1,16 @@
+upstream: https://docs.stripe.com/.well-known/skills/stripe-best-practices
+index: https://docs.stripe.com/.well-known/skills/index.json
+verified: 2026-08-16
+scope: directory
+reason: official hosted tax reference contains a malformed undefined Markdown target
+note: references/tax.md remediation step 1 links back to its own
+  `## Choosing a product tax code` section. The hosted source emitted
+  `undefined#choosing-a-product-tax-code`; local uses the valid same-document
+  target `#choosing-a-product-tax-code`.
+would_lose_if_wired: an unguarded byte-for-byte refresh would restore the
+  malformed target and fail repository Markdown-link validation.
+refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is
+  present, before any fetch or write.
+to_vendor: remove this ledger only after the official hosted tax reference uses
+  a valid target and every indexed file is re-verified. No external publication
+  was performed by this task.

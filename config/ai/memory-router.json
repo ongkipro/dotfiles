@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "defaults": {"maxFiles": 3, "maxBytes": 12000, "freshnessDays": 90},
+  "defaults": {"maxFiles": 3, "maxBytes": 12000},
   "shared": [
     {"path": "config/ai/memory/identity.md", "priority": 100, "triggers": ["identity", "who am i", "role", "profile", "ongki", "irwan"]},
     {"path": "config/ai/memory/preferences.md", "priority": 95, "triggers": ["preference", "prefer", "style", "tone", "how i like", "format"]},
@@ -10,20 +10,26 @@
     {"path": "config/ai/memory/decisions.md", "priority": 78, "triggers": ["decision", "rationale", "why did we", "tradeoff", "assumption", "superseded"]},
     {"path": "config/ai/memory/workflow.md", "priority": 75, "triggers": ["workflow", "terminal", "folder", "git", "worktree", "process"]},
     {"path": "config/ai/memory/skills.md", "priority": 70, "triggers": ["skill", "capability", "specialist", "methodology"]},
-    {"path": "config/ai/memory/long-task-system.md", "priority": 70, "triggers": ["long task", "debug", "resume", "handoff", "security", "checkpoint"]},
+    {"path": "config/ai/memory/long-task-system.md", "priority": 70, "triggers": ["long task", "resume", "handoff", "checkpoint", "durable state"]},
+    {"path": "config/ai/memory/long-task-debugging.md", "priority": 72, "triggers": ["debug", "root cause", "dap", "debug adapter", "lsp navigation", "ai-doctor"]},
+    {"path": "config/ai/memory/long-task-efficiency.md", "priority": 69, "triggers": ["progressive disclosure", "token optimization", "prompt optimization", "minimal diff", "small diff"]},
+    {"path": "config/ai/memory/long-task-security.md", "priority": 74, "triggers": ["security", "secret isolation", "deny rule", "git guard", "non-destructive safety", "approval gate"]},
     {"path": "config/ai/memory/projects.md", "priority": 68, "triggers": ["project list", "which project", "repo path", "checked out", "portfolio"]},
+    {"path": "config/ai/memory/projects-platforms.md", "priority": 67, "triggers": ["social-autopilot", "volumecms", "volumform", "nextpress", "adsbookcms", "permatamall"]},
+    {"path": "config/ai/memory/projects-sites.md", "priority": 67, "triggers": ["pesantren-tholabie", "landing-page", "aussie sawit", "petanisejahtera", "mahad-nurul-haromain", "report-petani", "petcue", "pixsgo", "tradecar", "tokophi", "kamus", "fiverr-clone", "babyfits", "homelook"]},
     {"path": "config/ai/memory/shopify.md", "priority": 60, "triggers": ["shopify", "liquid", "shopify theme", "product listing", "dawn theme", "horizon theme", "shopify storefront"]},
-    {"path": "config/ai/memory/environment.md", "priority": 40, "triggers": ["environment", "installed", "binary", "machine", "runtime"]},
-    {"path": "config/ai/memory/device-mac-omp.md", "priority": 35, "triggers": ["mac", "macbook", "macos", "device overlay", "minimax", "opencode"]}
+    {"path": "config/ai/memory/environment.md", "priority": 40, "triggers": ["environment", "installed", "binary", "machine", "toolchain", "package manager", "tmux setup"]},
+    {"path": "config/ai/memory/environment-ai-runtimes.md", "priority": 65, "triggers": ["9router", "omp model", "omp runtime", "pi runtime", "antigravity", "agy", "gemini cli", "ai cli", "remote gateway"]},
+    {"path": "config/ai/memory/environment-devices-git.md", "priority": 55, "triggers": ["device registry", "multi-machine", "cross-device", "git identity", "credential helper", "ongkipro email", "cuan specs"]}
   ],
   "projects": {
     "volumup": "config/ai/project-memory/volumup.md",
     "travelos": "config/ai/project-memory/travelos.md",
     "aussiemalaysia": "config/ai/project-memory/aussie-sawit-malaysia.md",
+    "aussie-sawit-malaysia": "config/ai/project-memory/aussie-sawit-malaysia.md",
     "dealerhinoofficial": "config/ai/project-memory/dealerhinoofficial.md",
     "dealertrukhino": "config/ai/project-memory/dealertrukhino.md",
     "petanisejahtera": "config/ai/project-memory/petanisejahtera.md",
-    "pesantren": "config/ai/project-memory/pesantren.md",
     "tokophi": "config/ai/project-memory/tokophi.md",
     "formalin": "config/ai/project-memory/formalin.md",
     "kamus": "config/ai/project-memory/kamus-almanak.md",
@@ -48,6 +54,7 @@
     {"path": "config/ai/project-memory/antigravity-cli-agy.md", "priority": 70, "triggers": ["antigravity", "agy", "gemini cli"]},
     {"path": "config/ai/project-memory/worktrunk-worktree-tooling.md", "priority": 70, "triggers": ["worktrunk", "worktree", "wt"]},
     {"path": "config/ai/project-memory/linux-cuan-maintenance.md", "priority": 60, "triggers": ["maintenance", "cleanup", "disk full", "update cli", "tmp cleanup"]},
+    {"path": "config/ai/project-memory/tokophi-infrastructure-2026-07.md", "priority": 65, "triggers": ["tokophi vultr", "volumdev", "tokophi backup", "tokophi coolify", "vultr snapshot failed", "tokophi ssh recovery"]},
     {"path": "config/ai/project-memory/linux-rich-maintenance.md", "priority": 60, "triggers": ["plymouth", "boot", "systemd", "is-system-running", "grub", "splash", "rich"]}
   ]
 }

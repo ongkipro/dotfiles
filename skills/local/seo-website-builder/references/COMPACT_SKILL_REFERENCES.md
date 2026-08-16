@@ -215,4 +215,4 @@ Reject schema spam.
 
 ## Promotion Rule
 
-Do not convert into active skill until `TEST_CASES.md` and `PROMOTION_CHECKLIST.md` pass.
+Before changing this active skill's contract, run the applicable scenarios and use the conversion/regression gate in `TEST_CASES.md`. That file is the sole gate; no separate promotion checklist exists.

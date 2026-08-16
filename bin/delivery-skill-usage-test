@@ -14,6 +14,31 @@ add({**b,'eventId':'1','time':'2026-08-15T00:00:00Z','type':'run_started','task'
 add({**b,'eventId':'2','time':'2026-08-15T00:01:00Z','type':'verification','check':'unit','status':'PASS','detail':'ok'})
 add({**b,'eventId':'3','time':'2026-08-15T00:02:00Z','type':'run_finished','result':'PASS','detail':'done'})
 PY
+
+# The immutable writer itself is synchronized so this fails deterministically
+# with replace semantics: both writers would report success for one pathname.
+python3 - "$ROOT/bin/delivery-skill-usage" "$TMP/exclusive.json" <<'PY'
+import json,multiprocessing,runpy,sys
+write=runpy.run_path(sys.argv[1])['atomic']; target=sys.argv[2]
+ctx=multiprocessing.get_context('fork'); barrier=ctx.Barrier(2); results=ctx.Queue()
+def worker(name):
+    barrier.wait()
+    try:
+        write(__import__('pathlib').Path(target),{'writer':name})
+        results.put(('created',name))
+    except ValueError as exc:
+        results.put(('rejected',str(exc)))
+workers=[ctx.Process(target=worker,args=(name,)) for name in ('alpha','beta')]
+for process in workers: process.start()
+for process in workers: process.join(5)
+assert all(process.exitcode == 0 for process in workers), [process.exitcode for process in workers]
+out=[results.get(timeout=1) for _ in workers]
+assert [status for status,_ in out].count('created') == 1, out
+assert [status for status,_ in out].count('rejected') == 1, out
+assert 'immutable' in next(detail for status,detail in out if status == 'rejected')
+assert json.load(open(target))['writer'] in {'alpha','beta'}
+PY
+
 "$ROOT/bin/delivery-skill-usage" --repo "$REPO" record --run RUN-test --skill cloudflare --skill native-first
 python3 "$ROOT/bin/delivery-skill-usage" --repo "$REPO" verify --json > "$TMP/o.json"
 python3 - "$TMP/o.json" "$REPO/.delivery/skill-usage/RUN-test.json" <<'PY'

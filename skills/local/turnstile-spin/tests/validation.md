@@ -51,6 +51,18 @@ test -f .claude/skills/turnstile-spin/SKILL.md \
 
 Expected exit code: 0. File-oriented rules targets install the hosted `prompt.md` directly instead of using `persist-skill.sh`.
 
+## Test 6: Existing-backend boundary fails closed
+
+For a pure-static fixture with no server-side handler or provider hook, the wizard must stop before widget creation and must not propose or deploy a Worker, Pages Function, proxy, sidecar, or new form backend.
+
+The retained historical deployment helper must fail without resolving packages, reading credentials, copying a template, or contacting Cloudflare:
+
+```sh
+scripts/worker-deploy.sh
+```
+
+Expected exit code: 2. Expected JSON reason: `extra_infrastructure_out_of_scope`.
+
 ## Running all cases
 
 The new-widget flow must never request or accept the widget secret; the user configures it directly in the destination secret store. Only the separately confirmed existing-widget recovery flow may pass a retrieved secret through standard input to `validate.sh`; it must never export the value or place it in a command argument.

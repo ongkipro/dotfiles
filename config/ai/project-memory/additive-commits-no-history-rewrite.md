@@ -11,6 +11,6 @@ Ongki asked for commits "to add, not overwrite" (2026-07-14). Meaning: commit + 
 
 **Why:** existing history is treated as a record; overwriting it erases the trail and can collide with another device's work (dotfiles are used across machines, and in TokoΦ work was once lost because of `reset --hard`).
 
-**How to apply:** for dotfiles use `dotpush "message"` — it merges with the remote first, never force. If there's a problem in an old commit (e.g. 73 `volumecms` commits that already used the real gmail email), **fix it going forward** (change the config so the next commits are correct) and report the remaining problem — don't resolve it with a rewrite unless the user asks explicitly.
+**How to apply:** for dotfiles use `dotpush "message"` — it merges with the remote first, never force. If pushed commits used a private email, **fix it going forward** and report the remaining historical exposure; do not rewrite history unless the user asks explicitly.
 
-Commit identity on all devices = `ongkipro <82156528+ongkipro@users.noreply.github.com>`. Never use the real email (`get@ongki.pro`, `ongkiardiansyah@gmail.com`) in git config. Related: [[prefer-git-worktree]].
+Commit identity on all devices = `ongkipro <82156528+ongkipro@users.noreply.github.com>`. Never use a brand-contact or private service email in git config. Related: [[prefer-git-worktree]].

@@ -329,18 +329,18 @@ export default {
 };
 ```
 
-## Development Commands
+## Runtime Inspection
+
+Retrieve the current [Wrangler command reference](https://developers.cloudflare.com/workers/wrangler/commands/workers/) and use the project's installed Wrangler binary.
 
 ```bash
-# Local development
-wrangler dev
+# Exercise requests and inspect console/exception output locally.
+npx wrangler dev
 
-# Deploy
-wrangler deploy
-
-# Tail logs
-wrangler tail
-
-# List DOs
-wrangler d1 execute DB --command "SELECT * FROM _cf_DO"
+# Stream logs for a deployed Worker that invokes the Durable Object.
+npx wrangler tail <WORKER_NAME>
 ```
+
+Wrangler does not expose a general command that lists every live Durable Object instance. `wrangler d1 execute` inspects a D1 database, not Durable Object storage, and `_cf_DO` is not a documented D1 table.
+
+For a known SQLite-backed object, use [Durable Objects Data Studio](https://developers.cloudflare.com/durable-objects/observability/data-studio/) in the Cloudflare dashboard to inspect its storage. Keep the business key-to-object-name/ID mapping in the application when operators need lookup; object IDs derived from names are not reversible. Use Workers logs, metrics, and application-owned diagnostics for discovery rather than inventing a CLI listing command.

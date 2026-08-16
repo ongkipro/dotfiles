@@ -1,9 +1,0 @@
-{
-  "_comment": "Optional models pinned for Pi /model when the local 9Router catalogue omits free/OpenCode routes. Installed only by bin/pi-9router-restore.",
-  "models": [
-    { "id": "oc/mimo-v2.5-free", "name": "MiMo v2.5 Free", "input": ["text", "image"] },
-    { "id": "oc/deepseek-v4-flash-free", "name": "DeepSeek V4 Flash Free", "reasoning": true },
-    { "id": "oc/nemotron-3-ultra-free", "name": "Nemotron 3 Ultra Free", "reasoning": true },
-    { "id": "oc/big-pickle", "name": "Big Pickle" }
-  ]
-}

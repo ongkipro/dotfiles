@@ -51,7 +51,7 @@
 
 ## Memory governance decisions
 - Do not store credentials, API keys, auth tokens, private keys, or raw secrets.
-- Do not store family/children biodata in GitHub memory unless user explicitly confirms exact details to store.
+- Privacy and personal-profile retention constraints are owned by `identity.md`.
 - Do not treat conflicting Human Design/personality readings as final facts without verification.
 - Prefer separating facts, assumptions, opinions, and unknowns when uncertainty matters.
 
@@ -71,12 +71,10 @@
   the source.
 
 ### Dotfiles-coupled vs machine-coupled config
-- Dotfiles-coupled (safe to sync across machines): non-secret Pi settings and
-  extensions, `9router/aliases.json`, `9router/runtime-package.json`, and
-  `helix/languages.toml`.
-- Machine-coupled (never copy raw into dotfiles): the neutral 9Router credential,
-  `~/.pi/agent/{models.json,auth.json,sessions/}`, and
-  `~/.9router/{auth,jwt-secret,machine-id,tunnel/}`.
+- Dotfiles-coupled (safe to sync across machines): non-secret Pi settings,
+  extensions, remote provider templates, and `helix/languages.toml`.
+- Machine-coupled (never copy raw into dotfiles): the neutral remote 9Router
+  credential and `~/.pi/agent/{models.json,auth.json,sessions/}`.
 - Pi provider choice is machine-local. Inspect Pi state only when operating the
   optional Pi CLI; never use it as evidence for OMP routing or credentials.
 - Never invent a rationale for a provider switch that was only observed on disk.
@@ -84,8 +82,6 @@
 ### Pitfall: prefix `ocg/` ≠ 9router
 - `ocg/` is a NATIVE pi provider prefix (opencode-go), NOT 9router. Do not set `defaultModel: "ocg/..."` while `defaultProvider: "9router"` — invalid combination. `ocg/*` models are accessed via the `opencode-go` provider.
 
-### Pitfall: don't run `9router --tray` alongside the service
-- Port 20128 conflict. Pick one.
 
 ### Graphify — no global install (reviewed 2026-07-29)
 - Tool: `Graphify-Labs/graphify` v0.9.29 (`graphifyy` on PyPI), Apache-2.0, Python 3.10+, tree-sitter plus optional semantic extraction. The repository is active and well tested; this is not a quality rejection.

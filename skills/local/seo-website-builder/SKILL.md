@@ -132,4 +132,4 @@ Must label evidence confidence, prefer official sources, avoid secret-algorithm 
 
 For validating this skill, see [Test Cases](references/TEST_CASES.md).
 
-> ⚠️ Catatan lama menyebut korpus "SEO OS exports" di `/home/fantastico/Documents/SEO`. **Direktori itu TIDAK ADA di mesin manapun sekarang** (diverifikasi 2026-07-14). Skill ini berdiri sendiri lewat `references/` — jangan cari korpus itu.
+> Historical notes mention an "SEO OS exports" corpus at `/home/fantastico/Documents/SEO`. That directory no longer exists on any managed machine (checked 2026-07-14). This skill is self-contained in `references/`; do not search for the retired corpus.

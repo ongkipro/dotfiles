@@ -1,15 +1,3 @@
-# 1. DESIGN READ (one line, before any code)
+# 1. Design Read (Compatibility Pointer)
 
-State: **"Reading this as: <page kind> for <audience>, <mode>, with a <vibe>
-language, leaning toward <aesthetic family / system>."**
-
-- Read signals: page kind, vibe words the user used, reference URLs or
-  screenshots, audience, existing brand assets, quiet constraints
-  (trust-first commerce, regulated, accessibility-first). Constraints
-  OVERRIDE aesthetic preference.
-- Ambiguous brief → ask exactly ONE clarifying question. Confident → declare
-  the read and proceed.
-- **Anti-default discipline:** never default to AI-purple gradients, centered
-  hero over dark mesh, three equal feature cards, glassmorphism everywhere,
-  Inter + slate-900. These are the LLM defaults; reach past them
-  deliberately.
+This retained path is navigation-only and contains no independent design rules. Use Section 1 of [design-taste](../SKILL.md) for the canonical design-read contract.

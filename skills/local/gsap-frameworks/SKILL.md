@@ -20,7 +20,7 @@ Apply when writing or reviewing GSAP code in Vue (or Nuxt), Svelte (or SvelteKit
 
 ## Vue 3 (Composition API)
 
-See `examples/vue/` for a runnable Vite + Vue 3 project demonstrating these patterns.
+See the [official Vue example](https://github.com/greensock/gsap-skills/tree/main/examples/vue) for a runnable Vite + Vue 3 project demonstrating these patterns.
 
 Use **onMounted** to run GSAP after the component is in the DOM. Use **onUnmounted** to clean up.
 
@@ -91,7 +91,7 @@ onUnmounted(() => {
 
 ## Nuxt 4
 
-> See `examples/nuxt/` for a runnable Nuxt 4 project with plugin registration, lazy loading, and SSR-safe patterns.
+> See the [official Nuxt example](https://github.com/greensock/gsap-skills/tree/main/examples/nuxt) for a runnable Nuxt 4 project with plugin registration, lazy loading, and SSR-safe patterns.
 
 Use a **reusable composable** to register GSAP Plugins and also to lazy load Plugins that are not extensively used in your application:
 
@@ -99,35 +99,6 @@ Use a **reusable composable** to register GSAP Plugins and also to lazy load Plu
 // composables/useGSAP.ts
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-
-const PLUGINS = [
-  "CSSRulePlugin",
-  "CustomBounce",
-  "CustomEase",
-  "CustomWiggle",
-  "Draggable",
-  "DrawSVGPlugin",
-  "EaselPlugin",
-  "EasePack",
-  "Flip",
-  "GSDevTools",
-  "InertiaPlugin",
-  "MorphSVGPlugin",
-  "MotionPathHelper",
-  "MotionPathPlugin",
-  "Observer",
-  "Physics2DPlugin",
-  "PhysicsPropsPlugin",
-  "PixiPlugin",
-  "ScrambleTextPlugin",
-  "ScrollSmoother",
-  "ScrollToPlugin",
-  "ScrollTrigger",
-  "SplitText",
-  "TextPlugin",
-] as const;
-
-type Plugins = (typeof PLUGINS)[number];
 
 // In order to dynamically load all the GSAP plugins
 const pluginMap = {

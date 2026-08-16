@@ -8,9 +8,17 @@ import json
 print(json.dumps({'needed':True,'project':None,'files':[{'path':'$DOT/config/ai/memory/preferences.md','scope':'shared','bytes':2}],'budget':{'maxFiles':3,'maxBytes':12000,'usedBytes':2},'reason':['test']}))
 EOF
 chmod +x "$DOT/bin/ai-memory-route"
+python3 "$ROOT/bin/ai-memory-access" --help >"$TMP/help.txt"
+python3 - "$TMP/help.txt" "$TMP/help-normalized.txt" <<'PY'
+from pathlib import Path
+import sys
+Path(sys.argv[2]).write_text(' '.join(Path(sys.argv[1]).read_text().split()), encoding='utf-8')
+PY
+grep -qF 'selected durable-memory path, scope, and byte count' "$TMP/help-normalized.txt"
+grep -qF 'never stores query text, query hashes, or memory content' "$TMP/help-normalized.txt"
 python3 "$ROOT/bin/ai-memory-access" 'my preferred tone' --dotfiles "$DOT" --telemetry-dir "$TEL" --json >/dev/null
 python3 - "$TEL/meta.json" "$TEL/events.jsonl" <<'PY'
 import json,sys
-m=json.load(open(sys.argv[1])); e=json.loads(open(sys.argv[2]).read()); assert m['schemaVersion']==1; assert e['selected'][0]['path']=='config/ai/memory/preferences.md'; assert 'queryHash' not in e; assert 'query' not in e
+m=json.load(open(sys.argv[1])); e=json.loads(open(sys.argv[2]).read()); assert m['schemaVersion']==1; assert m['privacy']=='selected durable-memory paths only; query text, query hashes, and memory content are not stored'; assert e['selected'][0]['path']=='config/ai/memory/preferences.md'; assert 'queryHash' not in e; assert 'query' not in e
 PY
 echo 'ai-memory-access-test: PASS'

@@ -115,13 +115,62 @@ check_quiet_source bash /bin/zsh
 check_wrapper "$ROOT/config/shell-tools.sh" bash
 grep -qxF 'source "$HOME/dotfiles/config/shell-tools.sh"' "$ROOT/config/bashrc.tools.sh"
 echo "✓ config/bashrc.tools.sh: delegates to the canonical cross-shell source"
+mise_activation_count="$(
+  grep -cF 'eval "$(mise activate "$(_shell_name)")"' "$ROOT/config/shell-tools.sh" || true
+)"
+[ "$mise_activation_count" -eq 1 ] || {
+  echo "config/shell-tools.sh must be the single tracked mise activation owner" >&2
+  exit 1
+}
+echo "✓ config/shell-tools.sh: single tracked mise activation owner"
+
+linux_installer_fn="$TMP/install.ensure_shell_source"
+linux_rc="$TMP/bashrc"
+extract_function "$ROOT/install.sh" ensure_shell_source > "$linux_installer_fn"
+printf '%s\n' \
+  'export KEEP_ME=1' \
+  'eval "$(~/.local/bin/mise activate bash)"' \
+  > "$linux_rc"
+(
+  # shellcheck source=/dev/null
+  source "$linux_installer_fn"
+  ensure_shell_source "$linux_rc" "shell-tools.sh" "dev-tools setup (ongkipro/dotfiles)" >/dev/null
+)
+if grep -qF 'mise activate' "$linux_rc"; then
+  echo "install.sh left a standalone mise activation in migrated bashrc" >&2
+  exit 1
+fi
+grep -qxF 'export KEEP_ME=1' "$linux_rc"
+grep -qxF 'source "$HOME/dotfiles/config/shell-tools.sh"' "$linux_rc"
+echo "✓ install.sh: migrates standalone mise activation to the tracked source"
+
+mac_installer_fn="$TMP/install-macos.ensure_line"
+mac_rc="$TMP/zshrc"
+extract_function "$ROOT/install-macos.sh" ensure_line > "$mac_installer_fn"
+printf '%s\n' \
+  'export KEEP_ME=1' \
+  'eval "$($HOME/.local/bin/mise activate zsh)"' \
+  > "$mac_rc"
+(
+  say() { :; }
+  # shellcheck source=/dev/null
+  source "$mac_installer_fn"
+  ensure_line 'source "$HOME/dotfiles/config/zshrc.tools.sh"' "$mac_rc"
+)
+if grep -qF 'mise activate' "$mac_rc"; then
+  echo "install-macos.sh left a standalone mise activation in migrated zshrc" >&2
+  exit 1
+fi
+grep -qxF 'export KEEP_ME=1' "$mac_rc"
+grep -qxF 'source "$HOME/dotfiles/config/zshrc.tools.sh"' "$mac_rc"
+echo "✓ install-macos.sh: migrates standalone mise activation to the tracked source"
 if command -v zsh >/dev/null 2>&1; then
   check_quiet_source zsh /bin/bash
   check_wrapper "$ROOT/config/shell-tools.sh" zsh
   grep -qxF 'source "$HOME/dotfiles/config/shell-tools.sh"' "$ROOT/config/zshrc.tools.sh"
   echo "✓ config/zshrc.tools.sh: delegates to the canonical cross-shell source"
 else
-  echo "- zsh unavailable: Zsh execution fixtures skipped"
+  echo "WARNING: PARTIAL shell-wrapper-test: zsh unavailable; Zsh execution fixtures skipped"
 fi
 
 echo "shell-wrapper-test: OK"

@@ -65,23 +65,62 @@ link_to_repo "$DOT/bin/tmux-battery"  "$HOME/.local/bin/tmux-battery"
 
 # ── 4) TPM (Tmux Plugin Manager) ──────────────────────────────────────────────
 TPM_DIR="$HOME/.tmux/plugins/tpm"
-if [ ! -d "$TPM_DIR" ]; then
-  say "Clone TPM..."
-  git clone -q https://github.com/tmux-plugins/tpm "$TPM_DIR"
-else
-  say "TPM sudah ada — update..."
-  git -C "$TPM_DIR" pull -q --ff-only 2>/dev/null || true
+TPM_COMMIT="e261deb1b47614eed3400089ce7197dc68acc4eb"
+TPM_READY=0
+if [ ! -d "$TPM_DIR/.git" ]; then
+  if [ -e "$TPM_DIR" ]; then
+    echo "WARNING: TPM path ada tetapi bukan Git checkout; plugin dilewati: $TPM_DIR" >&2
+  else
+    say "Clone TPM..."
+    if ! git clone -q https://github.com/tmux-plugins/tpm "$TPM_DIR"; then
+      echo "WARNING: TPM tidak dapat di-clone; bootstrap tmux lanjut tanpa plugin." >&2
+    fi
+  fi
+fi
+
+if [ -d "$TPM_DIR/.git" ]; then
+  TPM_HEAD=""
+  if TPM_HEAD="$(git -C "$TPM_DIR" rev-parse HEAD 2>/dev/null)" &&
+     [ "$TPM_HEAD" = "$TPM_COMMIT" ]; then
+    TPM_READY=1
+  else
+    if ! git -C "$TPM_DIR" cat-file -e "$TPM_COMMIT^{commit}" 2>/dev/null; then
+      say "Fetch TPM pin $TPM_COMMIT..."
+      if ! git -C "$TPM_DIR" fetch -q origin "$TPM_COMMIT"; then
+        echo "WARNING: TPM pin tidak dapat diambil; checkout yang belum terverifikasi tidak akan dijalankan." >&2
+      fi
+    fi
+    if git -C "$TPM_DIR" cat-file -e "$TPM_COMMIT^{commit}" 2>/dev/null; then
+      if git -C "$TPM_DIR" checkout -q --detach "$TPM_COMMIT"; then
+        TPM_READY=1
+      else
+        echo "WARNING: TPM pin tersedia tetapi checkout gagal; plugin dilewati." >&2
+      fi
+    fi
+  fi
 fi
 
 # ── 5) Install/aktifkan plugin (non-interaktif) ───────────────────────────────
-say "Install/update plugin tmux (sensible, yank, resurrect, continuum, prefix-highlight, open)..."
-"$TPM_DIR/bin/install_plugins" >/dev/null 2>&1 || true
-"$TPM_DIR/bin/clean_plugins"   >/dev/null 2>&1 || true
+if [ "$TPM_READY" -eq 1 ]; then
+  say "TPM pinned: $TPM_COMMIT"
+  say "Install/update plugin tmux (sensible, yank, resurrect, continuum, prefix-highlight, open)..."
+  if ! "$TPM_DIR/bin/install_plugins"; then
+    echo "WARNING: TPM plugin install/update gagal; lihat output di atas." >&2
+  fi
+  if ! "$TPM_DIR/bin/clean_plugins"; then
+    echo "WARNING: TPM plugin cleanup gagal; lihat output di atas." >&2
+  fi
+else
+  echo "WARNING: TPM pin tidak siap; bootstrap tmux lanjut dan plugin dilewati." >&2
+fi
 
 # ── 6) Reload kalau ada server tmux yang jalan ────────────────────────────────
 if tmux info >/dev/null 2>&1; then
-  tmux source-file "$HOME/.tmux.conf" >/dev/null 2>&1 || true
-  say "Server tmux aktif → config di-reload."
+  if tmux source-file "$HOME/.tmux.conf"; then
+    say "Server tmux aktif → config di-reload."
+  else
+    echo "WARNING: config tmux gagal di-reload; server tetap berjalan." >&2
+  fi
 fi
 
 say "tmux SIAP. Mulai sesi: 'tmux'. Di dalam tmux: prefix (Ctrl+a) lalu r = reload, I = update plugin."

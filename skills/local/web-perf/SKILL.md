@@ -89,11 +89,13 @@ measured Core Web Vital.
 | Task | Tool Call |
 |------|-----------|
 | Load page | `navigate_page(url: "...")` |
+| Set lab profile | `emulate(networkConditions: "Slow 4G", cpuThrottlingRate: 4, viewport: "390x844x2,mobile,touch")` |
 | Start trace | `performance_start_trace(autoStop: true, reload: true)` |
 | Analyze insight | `performance_analyze_insight(insightSetId: "...", insightName: "...")` |
 | List requests | `list_network_requests(resourceTypes: ["Script", "Stylesheet", ...])` |
 | Request details | `get_network_request(reqid: <id>)` |
-| A11y snapshot | `take_snapshot(verbose: true)` |
+| A11y tree snapshot | `take_snapshot(verbose: true)` |
+| Complementary accessibility/SEO/best-practices audit | `lighthouse_audit(mode: "navigation", device: "mobile")` |
 
 ## Workflow
 
@@ -101,26 +103,36 @@ Copy this checklist to track progress:
 
 ```
 Audit Progress:
-- [ ] Phase 1: Performance trace (navigate + record)
+- [ ] Phase 1: Explicit lab profile + performance trace (emulate + navigate + record)
 - [ ] Phase 2: Core Web Vitals analysis (includes CLS culprits)
 - [ ] Phase 3: Network analysis
-- [ ] Phase 4: Accessibility snapshot
+- [ ] Phase 4: Accessibility snapshot + complementary Lighthouse audit
 - [ ] Phase 5: Codebase analysis (skip if third-party site)
 ```
 
 ### Phase 1: Performance Trace
 
-1. Navigate to the target URL:
+1. Set and record an explicit lab profile before navigating. A representative constrained-mobile profile is:
+   ```
+   emulate(
+     networkConditions: "Slow 4G",
+     cpuThrottlingRate: 4,
+     viewport: "390x844x2,mobile,touch"
+   )
+   ```
+   This is a reproducible house scenario, not a claim of exact Lighthouse or field equivalence. Use a different profile when the audience evidence requires it, but report the chosen CPU, network, viewport, mobile, and touch settings. If throttling is intentionally omitted, label every result **unthrottled best-case lab data**.
+
+2. Navigate to the target URL after emulation is active:
    ```
    navigate_page(url: "<target-url>")
    ```
 
-2. Start a performance trace with reload to capture cold-load metrics:
+3. Start a performance trace with reload to capture cold-load metrics:
    ```
    performance_start_trace(autoStop: true, reload: true)
    ```
 
-3. Wait for trace completion, then retrieve results.
+4. Wait for trace completion, then retrieve results. Keep the same profile for comparison runs.
 
 **Troubleshooting:**
 - If trace returns empty or fails, verify the page loaded correctly with `navigate_page` first
@@ -183,6 +195,13 @@ Take an accessibility tree snapshot:
 ```
 take_snapshot(verbose: true)
 ```
+
+Run the complementary Lighthouse audit for accessibility, SEO, and best practices:
+```
+lighthouse_audit(mode: "navigation", device: "mobile")
+```
+
+This tool explicitly excludes performance; the trace remains the performance authority. Treat Lighthouse as a broad automated screen, not proof of keyboard behavior or cross-viewport accessibility. Route those interaction claims to `ui-validation`.
 
 **Flag high-level gaps:**
 - Missing or duplicate ARIA IDs

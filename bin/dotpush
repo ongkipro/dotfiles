@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 # Commit & push semua perubahan dotfiles (config + memori + skill) dalam 1 perintah.
 # Aman lintas-mesin: auto-sync dgn remote dulu (snapshot mesin → merge 'ours'),
-# scan secret sebelum commit. Pakai: dotpush ["pesan commit"]
+# scan secret sebelum commit. Pakai: dotpush [--yes] ["pesan commit"]
 set -euo pipefail
+
+AUTO_YES=0
+if [ "${1:-}" = "--yes" ]; then
+  AUTO_YES=1
+  shift
+fi
+MESSAGE="${1:-update: $(date '+%Y-%m-%d %H:%M' 2>/dev/null || echo sync)}"
+
 cd ~/dotfiles
 
 # Aktifkan driver merge 'ours' (dipakai .gitattributes utk file snapshot mesin). Idempotent.
@@ -45,19 +53,42 @@ else
   # Scan secret SETELAH `git add -A`, SEBELUM commit.
   # Urutannya penting: sebelum staging, file baru yang belum ter-track tidak
   # terlihat oleh scanner sama sekali — jadi ia lolos lalu ikut ter-push.
-  if [ -x ./bin/security-check ]; then
-    if ! ./bin/security-check >/dev/null; then
-      echo ""
-      echo "✗ security-check menemukan kemungkinan secret — commit DIBATALKAN." >&2
-      ./bin/security-check >&2 || true
-      echo "" >&2
-      echo "  Perubahan di atas sudah TER-STAGE (belum di-commit, belum di-push)." >&2
-      echo "  Batalkan staging dengan:  git reset" >&2
-      exit 1
-    fi
+  scanner=./bin/security-check
+  if [ ! -x "$scanner" ]; then
+    echo "✗ security-check tidak ada atau tidak executable; commit DIBATALKAN." >&2
+    echo "  Perubahan tetap ter-stage untuk direview. Batalkan staging dengan: git reset" >&2
+    exit 1
+  fi
+  if ! scan_output="$("$scanner" "$PWD" 2>&1)"; then
+    echo "✗ security-check menemukan kemungkinan secret atau gagal memindai — commit DIBATALKAN." >&2
+    printf '%s\n' "$scan_output" >&2
+    echo "  Perubahan tetap ter-stage untuk direview. Batalkan staging dengan: git reset" >&2
+    exit 1
   fi
 
-  git commit -q -m "${1:-update: $(date '+%Y-%m-%d %H:%M' 2>/dev/null || echo sync)}"
+  machine_snapshots="$(git diff --cached --name-only -- \
+    home/gitconfig \
+    config/mise-config.toml \
+    home/zshrc.snapshot \
+    home/bashrc.snapshot \
+    config/vscode-settings.json)"
+  if [ -n "$machine_snapshots" ] && [ "$AUTO_YES" -ne 1 ]; then
+    echo ""
+    echo "Snapshot yang disalin dari mesin ini ikut ter-stage:"
+    printf '%s\n' "$machine_snapshots" | sed 's/^/  - /'
+    if [ ! -t 0 ]; then
+      echo "✗ Konfirmasi diperlukan; jalankan ulang dengan --yes setelah mereview staged diff." >&2
+      exit 1
+    fi
+    printf 'Commit snapshot mesin di atas? [y/N] '
+    read -r answer
+    case "$answer" in
+      y|Y|yes|YES) ;;
+      *) echo "Commit dibatalkan; perubahan tetap ter-stage."; exit 1 ;;
+    esac
+  fi
+
+  git commit -q -m "$MESSAGE"
 fi
 
 # Auto-sync dgn remote dulu agar push tak ditolak (snapshot mesin auto-'ours' via .gitattributes).

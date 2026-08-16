@@ -1,5 +1,12 @@
 # Dotfiles AI Engineering Control Plane
 
+> [!CAUTION]
+> **Immutable historical baseline; superseded for current-state decisions.**
+> Preserve the body as the 2026-08-15 architecture and roadmap snapshot; labels
+> such as “Final” below are historical. Use [`../TASKS.md`](../TASKS.md) for live
+> work, current disk and executable checks for behavior, and
+> `config/omp/config.yml` plus `config/omp/STATUS.md` for current routing.
+
 **Repository:** `ongkipro/dotfiles`
 
 **Document status:** Final architecture and implementation roadmap

@@ -1,6 +1,6 @@
 ---
 name: dealerhinoofficial
-description: "dealerhinoofficial.com — Hino truck dealer lead-gen site (Astro 6 + Tailwind 4, Cloudflare Workers assets), checked out on the Mac since 2026-07-24"
+description: "dealerhinoofficial.com — Hino truck dealer lead-generation project; verify repository state on the active device"
 metadata:
   node_type: memory
   type: project
@@ -11,7 +11,7 @@ metadata:
 Hino truck dealer lead-generation site for the Indonesian market.
 
 - Canonical repository: `ongkipro/dealerhinoofficial` (private).
-- Mac checkout on this machine has been removed as part of cleanup. Clone when needed; branch `main` tracks `origin/main`.
+- Verify the checkout on the active device and inspect its remote tracking before work.
 - Verified stack: Astro 6.4, Tailwind CSS 4, and Cloudflare Workers static assets.
 - The build needs no private environment file; the repository contains `.env.example`.
 - Read `SESSION_HANDOVER.md` in the repository for current work and deployment status. Do not copy that changing status into memory.

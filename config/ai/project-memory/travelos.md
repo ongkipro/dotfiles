@@ -1,6 +1,6 @@
 # TravelOS
 
-Cross-session reference only. Current status, decisions, requirements, and build truth live in the repository — **repository disk wins**.
+TravelOS memory supplies orientation only; repository specifications, decisions, task state, and executable evidence are authoritative.
 
 ## What it is
 

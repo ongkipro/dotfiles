@@ -4,17 +4,18 @@ split_of: SKILL.md
 part: SKILL.md trim-tail 10
 part: references/bindings-cli-reference.md trim-head 7
 
-# Upstream ships one 922-line SKILL.md. We store the same bytes as two files,
-# following this repo's references/ convention so a wrangler question does not
-# drag 900 lines into context. Nothing of upstream is dropped:
+# This metadata records the deliberate split made from the 922-line upstream
+# monolith verified earlier on 2026-08-16:
 #
-#   upstream 1..281    == SKILL.md 1..281
-#   upstream 282..922  == references/bindings-cli-reference.md 8..648
+#   former upstream 1..281    == SKILL.md 1..281, before the local wording fix
+#   former upstream 282..922  == references/bindings-cli-reference.md 8..648
 #
-# The two trims are our own additions and nothing else — a 10-line pointer stub
-# at the end of SKILL.md, and a 7-line header on the reference file.
+# The two trims are local additions: a 10-line pointer stub at the end of
+# SKILL.md and a 7-line header on the reference file. Upstream later replaced
+# that monolith at the same canonical URL, while the local copy also corrected
+# its stale `wrangler dev --remote` wording. The adjacent .local-fork ledger now
+# takes precedence so refresh preserves both the split and that correction.
 #
-# Because the layouts differ, refresh verifies this skill instead of fetching
-# it: it reassembles the parts and compares them to upstream. Re-splitting is an
-# editorial call, so when upstream changes the script reports and stops rather
-# than guessing where to cut.
+# If the fork is retired, re-check the current upstream layout before enabling
+# split verification again; these historical part boundaries must not be
+# assumed to match a future monolith.

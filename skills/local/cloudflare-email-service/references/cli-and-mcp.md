@@ -1,116 +1,53 @@
-# CLI, MCP, and Project Setup
+# CLI, Tool, and Project Setup
 
-Manage Cloudflare Email Service from the command line and coding agents.
+Cloudflare Email Service has a REST API and Workers bindings, but resource names do not imply matching Wrangler or MCP commands. Never fabricate a command tree from an API path.
 
-For full CLI reference, run `npx wrangler email --help`. For Dashboard setup, see the [getting started docs](https://developers.cloudflare.com/email-service/get-started/).
+## Source-of-truth order
 
-## Wrangler Email Commands
+1. Retrieve [Email Service setup](https://developers.cloudflare.com/email-service/get-started/send-emails/) and the current [Wrangler command reference](https://developers.cloudflare.com/workers/wrangler/).
+2. Use the project's installed Wrangler binary and inspect its top-level `--help`. Only use an email subcommand if that exact binary lists it.
+3. For MCP or another coding-agent tool, inspect the connected server's live tool/resource schema. Do not assume generic `search`, `execute`, `cloudflare.request`, quota, or send-email operations exist.
+4. When no documented CLI/tool operation exists, use the Cloudflare dashboard for onboarding or the documented REST API for sending.
 
-```
-wrangler email routing
-├── enable/disable   <domain>          # Toggle email routing
-├── dns get          <domain>          # Show required DNS records
-├── rules list/create/update/delete    # Manage routing rules
-└── addresses list/create/delete       # Destination addresses (account-scoped)
+## Account and domain prerequisites
 
-wrangler email sending
-├── enable/disable   <domain>          # Toggle email sending
-├── dns get          <domain>          # Show sending DNS records (SPF, DKIM)
-├── send             --from --to ...   # Send an email (builder flags)
-└── send-raw         --from --to ...   # Send a raw MIME email
-```
+Email Sending is currently public Beta on the Workers Paid plan and requires Cloudflare DNS. Re-check those facts on the [product page](https://developers.cloudflare.com/email-service/) before setup.
 
-## Domain Setup
+In the dashboard:
 
-### Via Dashboard
+1. Go to **Compute > Email Service > Email Sending**.
+2. Select **Onboard Domain** and choose a domain from the Cloudflare account.
+3. Review the bounce MX plus SPF, DKIM, and DMARC records Cloudflare will add.
+4. Wait for onboarding to complete before sending from that domain.
 
-1. Navigate to **Compute & AI** > **Email Service** > **Email Sending** (or **Email Routing**)
-2. Select **Onboard Domain** > choose domain > **Add records and onboard**
+Do not replace this flow with an undocumented `wrangler email sending enable` or `dns get` command.
 
-This auto-adds SPF (TXT) and DKIM (CNAME/TXT) records. DNS usually propagates within 5-15 minutes.
+## Workers local development
 
-### Via CLI
-
-```bash
-npx wrangler email sending enable yourdomain.com
-npx wrangler email sending dns get yourdomain.com   # Verify records
-```
-
-## Local Development
-
-Add `"remote": true` to send real emails during `wrangler dev`:
+The current setup guide uses a remote binding so local `wrangler dev` can call the real Email Service:
 
 ```jsonc
-{ "send_email": [{ "name": "EMAIL", "remote": true }] }
+{
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "remote": true
+    }
+  ]
+}
 ```
+
+Run the project's installed Wrangler command. For an npm project whose local dependency exposes Wrangler:
 
 ```bash
 npx wrangler dev
 ```
 
-Emails are actually sent — use test addresses you control. Remove `"remote": true` before deploying.
+Remote development sends real email. Use addresses you control, preserve service errors, and do not treat a local invocation as a mock.
 
-## Cloudflare MCP Server
+## Sending from an external backend or agent
 
-If you have the [Cloudflare MCP server](https://github.com/cloudflare/mcp) (`https://mcp.cloudflare.com/mcp`) configured, you can manage Email Service through its `search` and `execute` tools.
-
-Use `search` to find email sending endpoints:
-
-```javascript
-// search tool — find all email sending API endpoints
-async () => {
-  const results = [];
-  for (const [path, methods] of Object.entries(spec.paths)) {
-    if (path.includes('email/sending')) {
-      for (const [method, op] of Object.entries(methods)) {
-        results.push({ method: method.toUpperCase(), path, summary: op.summary });
-      }
-    }
-  }
-  return results;
-}
-```
-
-Then use `execute` to call them — for example, checking sending limits or sending an email:
-
-```javascript
-// execute tool — check sending quota
-async () => {
-  return cloudflare.request({
-    method: "GET",
-    path: `/accounts/${accountId}/email/sending/limits`
-  });
-}
-
-// execute tool — send an email
-async () => {
-  return cloudflare.request({
-    method: "POST",
-    path: `/accounts/${accountId}/email/sending/send`,
-    body: {
-      to: "user@example.com",
-      from: { address: "notifications@yourdomain.com", name: "My App" },
-      subject: "Deployment Complete",
-      html: "<h1>Deployed!</h1>",
-      text: "Deployed!"
-    }
-  });
-}
-```
-
-GraphQL analytics queries also work through `execute` — see [deliverability.md](deliverability.md#graphql-analytics-api) for query examples. Note that email analytics are **zone-level** datasets (`emailSendingAdaptiveGroups`, `emailSendingAdaptive`) queried under `viewer > zones`, and require the **Analytics Read** token permission.
-
-## Sending from CLI / Agents
-
-```bash
-npx wrangler email sending send \
-  --from "agent@yourdomain.com" \
-  --to "developer@company.com" \
-  --subject "Deployment Complete" \
-  --text "Your Worker was deployed successfully."
-```
-
-Or via REST API:
+Use the documented REST endpoint when the current CLI or connected tool does not expose sending:
 
 ```bash
 curl "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/email/sending/send" \
@@ -118,8 +55,14 @@ curl "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ema
   --header "Content-Type: application/json" \
   --data '{
     "to": "developer@company.com",
-    "from": {"address": "agent@yourdomain.com", "name": "Build Agent"},
+    "from": "agent@yourdomain.com",
     "subject": "Deployment Complete",
     "text": "Your Worker was deployed successfully."
   }'
 ```
+
+The token must have the permission documented by the current API reference, and the sender domain must be onboarded on the same account. Keep the token in a secret store or environment; never print it or paste it into source.
+
+## Tool failure
+
+If help output or a live MCP schema does not contain the requested operation, stop and say the operation is unavailable through that tool version. Do not substitute a plausible command. Offer the dashboard or the current REST/SMTP path documented by Cloudflare.

@@ -17,7 +17,7 @@ export default {
 } satisfies ExportedHandler<Env>;
 ```
 
-Set up routing rules in **Dashboard** > **Compute & AI** > **Email Service** > **Email Routing** > **Routing Rules**, or via `wrangler email routing rules create`.
+Set up routing rules in **Dashboard** > **Compute** > **Email Service** > **Email Routing** > **Routing Rules**. Use a CLI or API only when the installed tool's help or current official docs exposes the exact operation.
 
 ## ForwardableEmailMessage
 
@@ -44,7 +44,7 @@ await message.forward("team@company.com", new Headers({
 }));
 ```
 
-Destination must be verified first (Dashboard or `wrangler email routing addresses create`).
+Destination addresses must be verified in the Email Routing dashboard before forwarding.
 
 ### Reject
 

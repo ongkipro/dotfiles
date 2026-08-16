@@ -174,7 +174,7 @@ wrangler dev --env staging
 # Force local-only (disable remote bindings)
 wrangler dev --local
 
-# Remote mode - runs on Cloudflare edge (legacy)
+# Remote resources - develops against data stored on Cloudflare's network
 wrangler dev --remote
 
 # Custom port

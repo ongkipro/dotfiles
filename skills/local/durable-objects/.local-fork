@@ -1,0 +1,6 @@
+upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/durable-objects
+verified: 2026-08-16
+scope: directory
+reason: Current upstream presents a D1 query against an undocumented _cf_DO table as a Durable Object listing command.
+would_lose_if_wired: A byte-for-byte refresh would reintroduce a fabricated inspection command and hide the supported Workers log and Data Studio paths.
+to_vendor: Remove this marker only after upstream replaces the D1 command with current Wrangler tail and Durable Objects Data Studio guidance or an equivalent official inspection contract.

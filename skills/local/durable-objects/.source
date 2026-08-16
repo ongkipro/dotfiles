@@ -1,4 +1,4 @@
 source: https://raw.githubusercontent.com/cloudflare/skills/main/skills/durable-objects
 vendored: 2026-08-16
-note: Vendored single-source (dotfiles contract: no plugins). Refresh with _refresh-vendored.sh
-note: Verified byte-identical to upstream on 2026-08-16.
+note: Local factual fork as of 2026-08-16; see .local-fork. Preserve until upstream
+  removes the fabricated D1-based Durable Object listing command.

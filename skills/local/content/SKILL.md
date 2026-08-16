@@ -54,7 +54,7 @@ scale. Pairs with `copywriting` (rules + templates) and
    in chunks. Apply hard rules from `copywriting` (no CTA, char limits, no
    third-party brand, fix typos, verifiable facts only).
 6. **QA gates** before publish — run **all**:
-   - Char limits (title ≤70, metaTitle ≤60, metaDescription ≤155, handle ≤6 words).
+   - Load and apply the complete cross-channel field-limit table from `copywriting`; do not maintain a partial copy here.
    - No CTA in body or meta (unless explicitly landing page).
    - No third-party brand unless user opted in.
    - No invented specs / prices / dates.
@@ -63,10 +63,9 @@ scale. Pairs with `copywriting` (rules + templates) and
    - H1/H2 hierarchy clean (one H1, logical H2s).
    - Claims, qualifiers, conditions, and citations still match the source.
 7. **Image pipeline** — for each visual:
-   - Generate via `9router` (`references/image.md`) (default model `ag/gemini-3.1-flash-image`) or
+   - Generate via `9router` (`references/image.md`), selecting the current image model from that skill's use-case matrix rather than pinning a model ID here, or
      use supplied asset.
-   - Filename: `<handle-or-slug>-N.<ext>`. ALT: `[Title] - [view/angle/feature]`
-     ≤120 chars, no generic "product image N" suffixes.
+   - Filename: `<handle-or-slug>-N.<ext>`. Write ALT text with `copywriting`'s canonical pattern and current limit.
    - If image is AI-generated: keep the original, store the public URL (R2/Cloudinary)
      before publishing.
 8. **Publish** — apply per channel:
@@ -85,8 +84,7 @@ scale. Pairs with `copywriting` (rules + templates) and
 - **No CTA** in blog/article/product body. CTA bands belong only on landing pages
   or shop product pages, and even then must be user-approved.
 - **No third-party brand names** unless user opts in. Generic praise only.
-- **Char limits per field** — title 70, metaTitle 60, metaDescription 155, handle
-  ≤6 keyword words, ALT 125.
+- **Field and ALT limits** — load the canonical cross-channel table from `copywriting`; that skill is the only owner of the numeric limits and qualifiers.
 - **No invented facts** — pull from source data or research; if uncertain, ask.
 - **Fix ALL typos** — run a final spell pass.
 - **One H1 per page**. No skipped heading levels.
@@ -112,8 +110,7 @@ scale. Pairs with `copywriting` (rules + templates) and
 
 ### Product batch (large catalog)
 1. Fan out to subagents, ~15-20 products each.
-2. Each subagent gets the copy rules verbatim from `copywriting` — char limits,
-   the no-CTA rule, and brand-generic naming are non-negotiable per product.
+2. Each subagent loads the current rules directly from `copywriting`; never paste a second copy of its limits into the batch prompt or this skill.
 3. Validate before apply.
 
 > The `shopify-listing` skill that used to own this workflow (and its

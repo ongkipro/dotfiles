@@ -1,5 +1,11 @@
 # GitHub Account Cleanup & Portfolio Plan
 
+> [!IMPORTANT]
+> This plan does not authorize a visibility change for `ongkipro/dotfiles`.
+> The dotfiles repository must remain private; publish only separate, sanitized
+> portfolio material that contains no dotfiles history, memory, device inventory,
+> or operational policy.
+
 ## Current assessment
 
 Approximate current scoring:
@@ -44,9 +50,9 @@ This will become the front door of the GitHub account.
 
 Recommended pinned repo categories:
 
-1. **AI Operating System**
-   - `dotfiles`
-   - Purpose: flagship technical repo.
+1. **AI operating-system case study**
+   - Use a separate, sanitized public case study or demo; do not publish or pin
+     `dotfiles`.
 
 2. **Personal brand**
    - `ongki.pro`
@@ -132,9 +138,9 @@ Every serious public repo should have:
 ## Lessons learned
 ```
 
-## Priority 6 — Dotfiles as flagship repo
+## Priority 6 — Maintain dotfiles as the private engineering kernel
 
-Improve `dotfiles` until it represents the core operating system:
+Improve `dotfiles` for internal reliability:
 
 - run `security-check` before commit
 - add gitleaks pre-commit hook (optional)
@@ -152,6 +158,7 @@ Keep private:
 - client projects with private business data
 - unfinished experiments that reveal poor quality
 - AI memory with sensitive personal/client details
+- this `dotfiles` repository, regardless of sanitization
 
 Make public:
 
@@ -159,7 +166,6 @@ Make public:
 - reusable tools
 - sanitized templates
 - educational examples
-- dotfiles only if secrets are fully removed and memory is sanitized
 
 ## Final target positioning
 

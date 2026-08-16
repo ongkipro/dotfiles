@@ -19,14 +19,18 @@ Backup-Proof: NOT_REQUIRED
 Status: READY
 EOF
 git add .; git commit -qm additive
-"$ROOT/bin/release-manifest" --json . | grep -q '"status": "VALID"' || fail 'manifest should validate'
-"$ROOT/bin/migration-risk" --json --base "$BASE" . | grep -q '"risk": "M1"' || fail 'additive migration should be M1'
-"$ROOT/bin/rollback-check" --json --migration-risk M1 . | grep -q '"status": "PASS"' || fail 'M1 rollback should pass'
+output="$("$ROOT/bin/release-manifest" --json .)" || fail 'manifest command failed'
+grep -q '"status": "VALID"' <<<"$output" || fail 'manifest should validate'
+output="$("$ROOT/bin/migration-risk" --json --base "$BASE" .)" || fail 'additive migration classification failed'
+grep -q '"risk": "M1"' <<<"$output" || fail 'additive migration should be M1'
+output="$("$ROOT/bin/rollback-check" --json --migration-risk M1 .)" || fail 'M1 rollback check failed'
+grep -q '"status": "PASS"' <<<"$output" || fail 'M1 rollback should pass'
 cat > db/migrations/002_drop.sql <<'SQL'
 DROP TABLE users;
 SQL
 git add .; git commit -qm destructive
-"$ROOT/bin/migration-risk" --json --base "$BASE" . | grep -q '"risk": "M3"' || fail 'DROP TABLE should be M3'
+output="$("$ROOT/bin/migration-risk" --json --base "$BASE" .)" || fail 'destructive migration classification failed'
+grep -q '"risk": "M3"' <<<"$output" || fail 'DROP TABLE should be M3'
 set +e; "$ROOT/bin/rollback-check" --migration-risk M3 . >/dev/null 2>&1; rc=$?; set -e
 [ "$rc" -eq 1 ] || fail 'M3 without backup proof should block'
 python3 - <<'PY'
@@ -40,7 +44,8 @@ ALTER TABLE customers RENAME TO accounts;
 DROP VIEW customer_summary;
 SQL
 git add .; git commit -qm compatibility-sensitive
-"$ROOT/bin/migration-risk" --json --base "$BASE" . | grep -q '"risk": "M3"' || fail 'PostgreSQL RENAME TO and DROP VIEW should be M3'
+output="$("$ROOT/bin/migration-risk" --json --base "$BASE" .)" || fail 'compatibility migration classification failed'
+grep -q '"risk": "M3"' <<<"$output" || fail 'PostgreSQL RENAME TO and DROP VIEW should be M3'
 
 python3 - <<'PY'
 from pathlib import Path

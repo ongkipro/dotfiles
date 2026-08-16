@@ -1,8 +1,8 @@
-# Dual-Path AI Referral Tracking & PostgreSQL Event Ingestion
+# AI Referral Tracking & PostgreSQL Event Ingestion
 
-Over 60% of AI referral traffic loses its HTTP Referrer header due to in-app browsers and privacy features. To accurately attribute AI traffic, use a **Dual-Path Engine (Referrer + UTM Fallback + SessionStorage)**.
+Use observed HTTP referrers and explicit campaign parameters as separate attribution signals. `sessionStorage` can preserve a source already observed during the same browser session; it cannot recover a source when neither a referrer nor a campaign parameter was present. Label such traffic `unknown` rather than assigning an AI source.
 
----
+The examples below are a local analytics pattern, not a vendor-reported recovery guarantee. Apply consent, retention, minimization, and access-control requirements before collecting referrers or user-agent data.
 
 ## 1. Client-Side Tracker (`referral-tracker.ts`)
 

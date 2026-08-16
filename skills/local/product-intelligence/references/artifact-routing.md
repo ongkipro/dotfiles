@@ -22,7 +22,8 @@ Prepare only low-cost seams for high-probability changes. Record speculative abs
 2. **Artifact gate:** the owner accepts the proposed profile/route, fact-triggered overlays, included artifacts, omitted-artifact rationale, canonical owners, and brownfield delta.
 3. **Readiness gate:** accepted requirements, decisions, activated contracts, dependencies, tasks, acceptance criteria, and unresolved blockers are traceable; structural checks and separate semantic contradiction/coverage review are complete.
 4. **Implementation gate:** explicit approval is required before implementation or repository/runtime mutation. Research or planning approval is not enough.
-5. **Proof gate:** after implementation, only executed scoped `TEST-*` with fresh `EVID-*` supports a verified behavior claim.
+5. **Proof gate:** after implementation, only fresh, scoped evidence from executed verification supports a verified behavior claim.
+   `TEST-*`/`EVID-*` is the product-intelligence/development-spec-suite naming convention, not a schema imposed on specialist skills. A downstream specialist's own scoped verification evidence (for example, `ui-validation` screenshot evidence) satisfies this gate; link or map that evidence when reconciling the canonical artifacts.
 
 Without implementation approval, stop after returning the reviewed specification route and remaining owned gates.
 

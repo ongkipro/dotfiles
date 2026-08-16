@@ -256,13 +256,13 @@ CATALOG_PATH = Path.home() / ".omp" / "agent" / "models.db"
 
 
 def load_catalog():
-    """Return model capability metadata from OMP's authoritative cache.
+    """Return capability metadata for providers present in OMP's local cache.
 
     Each entry contains ``context``, ``efforts``, and the authoritative ``input``
-    modality list. Without this cache the test can prove that the routing graph
-    is internally consistent but not that its selectors have the capabilities
-    they claim. Returns None when the cache is absent so the caller can say so
-    out loud.
+    modality list. Provider-backed catalogs can be absent on a device that uses
+    an overlay and has no authentication for that provider. Returns None when
+    the cache itself is absent; callers separately report configured providers
+    that could not be verified on this device.
     """
     if not CATALOG_PATH.is_file():
         return None
@@ -302,6 +302,8 @@ def split_selector(selector):
         model_id, effort = remainder, ""
     return provider, model_id, effort
 
+unverified_catalog_providers = set()
+
 
 def check_selector(
     selector,
@@ -323,6 +325,17 @@ def check_selector(
         return
     entry = catalog.get((provider, model_id))
     if entry is None:
+        catalog_providers = {key[0] for key in catalog}
+        if provider not in catalog_providers:
+            if provider not in unverified_catalog_providers:
+                print(
+                    "omp-routing-test: WARNING — provider {!r} is absent from this device's "
+                    "model catalog; its configured selectors were structurally checked but "
+                    "their model capabilities were NOT verified.".format(provider),
+                    file=sys.stderr,
+                )
+                unverified_catalog_providers.add(provider)
+            return
         fail("{}: model is absent from the catalog: {}".format(where, selector))
     efforts = entry["efforts"]
     if efforts:
@@ -579,6 +592,9 @@ if not any(provider.startswith("9router") for provider in custom_providers):
         "models.yml must retain an explicit 9Router reserve provider while normal routing "
         "keeps it out of roles and fallback chains"
     )
+models_source = MODELS_PATH.read_text(encoding="utf-8")
+if "127.0.0.1:20128" in models_source or "localhost:20128" in models_source:
+    fail("models.yml must use the remote 9Router reserve, not a local gateway")
 
 static_overrides = parse_scalar_mapping(config_source, "agentModelOverrides", 2)
 if not static_overrides:

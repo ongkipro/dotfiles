@@ -16,7 +16,7 @@
 
 **Inputs:** accepted `PR-*`/`NFR-*`, current code/runtime evidence, `ARCH-*`, `DATA-*`, `TEN-*`, `IAM-*`, `DOM-*`, security and operations constraints.
 **Outputs:** accepted `TD-*` decisions, `ADR-*` records, flow contracts, delivery/migration approach, risks, and runnable validation plan.
-**ID namespaces:** `TD-<number>` for design requirements/decisions and `ADR-<number>` for architectural decisions. Preserve IDs and supersession links.
+**ID namespaces:** `TD-<number>` for design requirements/decisions and sequential `ADR-NNNN` for architectural decisions with standalone records. Preserve IDs and supersession links.
 
 ## 1. Design Summary
 

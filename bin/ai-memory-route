@@ -213,6 +213,10 @@ def main() -> int:
                 try: path = str(Path(item["path"]).relative_to(root))
                 except ValueError: path = item["path"]
                 print(f"  {item['scope']:9} {path} ({item['bytes']} bytes)")
+        if not a.json:
+            for reason in result["reason"]:
+                if reason.startswith("UNROUTABLE "):
+                    print(f"  WARNING {reason}")
         return OK
     except (ValueError, OSError) as exc:
         print(f"ai-memory-route: ERROR: {exc}", file=sys.stderr)

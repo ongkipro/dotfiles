@@ -1,0 +1,18 @@
+upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/wrangler/SKILL.md
+verified: 2026-08-16
+scope: directory
+reason: preserve the manual token-economy split and correct upstream remote-mode wording
+note: Upstream is one monolithic SKILL.md. Local stores its CLI reference in
+  references/bindings-cli-reference.md as declared by .source. The split itself
+  was already supported by _refresh-vendored.sh before this finding was fixed.
+note: Upstream still labels `wrangler dev --remote` as running on the edge and
+  "(legacy)". Current Cloudflare command documentation defines `--remote` as
+  developing against remote resources and data stored on Cloudflare's network;
+  local removes the stale legacy label and uses that documented wording.
+would_lose_if_wired: split verification now sees the intentional wording change,
+  while an ordinary refresh would both restore the stale label and collapse the
+  manual split.
+refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is
+  present, before split verification or any fetch/write.
+to_vendor: remove this ledger only after upstream corrects the remote-mode line,
+  then re-verify the existing split metadata against the new monolith.

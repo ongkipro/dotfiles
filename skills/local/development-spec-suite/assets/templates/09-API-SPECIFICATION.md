@@ -93,7 +93,7 @@ Record actual decisions:
 
 | Decision ID | Decision | Alternatives | Rationale | Consequence | Status |
 |---|---|---|---|---|---|
-| ADR-[N] | [Decision] | [Options] | [Evidence] | [Trade-off] | Proposed/Accepted |
+| ADR-NNNN | [Decision] | [Options] | [Evidence] | [Trade-off] | Proposed/Accepted |
 
 ## Risks
 

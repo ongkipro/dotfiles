@@ -24,7 +24,18 @@ def append_jsonl(path: Path, data: dict):
     os.chmod(path,0o600)
 
 def main():
-    p=argparse.ArgumentParser(); p.add_argument('query'); p.add_argument('--repo'); p.add_argument('--project'); p.add_argument('--scope',choices=['auto','shared','project','execution','lesson'],default='auto'); p.add_argument('--max-files',type=int); p.add_argument('--max-bytes',type=int); p.add_argument('--telemetry-dir'); p.add_argument('--dotfiles'); p.add_argument('--json',action='store_true')
+    p=argparse.ArgumentParser(
+        description='Route memory and record device-local usage telemetry. Telemetry stores the project and selected durable-memory path, scope, and byte count; it never stores query text, query hashes, or memory content.'
+    )
+    p.add_argument('query',help='routing query passed to ai-memory-route but not retained in telemetry')
+    p.add_argument('--repo')
+    p.add_argument('--project')
+    p.add_argument('--scope',choices=['auto','shared','project','execution','lesson'],default='auto')
+    p.add_argument('--max-files',type=int)
+    p.add_argument('--max-bytes',type=int)
+    p.add_argument('--telemetry-dir')
+    p.add_argument('--dotfiles')
+    p.add_argument('--json',action='store_true')
     a=p.parse_args(); dot=Path(a.dotfiles or os.environ.get('DOTFILES_DIR',Path(__file__).resolve().parent.parent)).resolve(); router=dot/'bin'/'ai-memory-route'
     telemetry=Path(a.telemetry_dir or os.environ.get('AI_MEMORY_USAGE_DIR',Path.home()/'.config/ai-local/memory-usage')).expanduser().resolve()
     try:
@@ -38,7 +49,7 @@ def main():
         result=json.loads(r.stdout)
         telemetry.mkdir(parents=True,exist_ok=True); os.chmod(telemetry,0o700)
         meta=telemetry/'meta.json'
-        if not meta.exists(): atomic_json(meta,{'schemaVersion':1,'startedAt':now(),'privacy':'selected durable-memory paths only; prompts, prompt hashes, and memory content are not stored'})
+        if not meta.exists(): atomic_json(meta,{'schemaVersion':1,'startedAt':now(),'privacy':'selected durable-memory paths only; query text, query hashes, and memory content are not stored'})
         selected=[]
         for item in result.get('files',[]):
             if item.get('scope') not in {'shared','project','lesson'}: continue

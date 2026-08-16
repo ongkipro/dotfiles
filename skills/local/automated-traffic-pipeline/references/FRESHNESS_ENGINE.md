@@ -1,49 +1,45 @@
 # Freshness & Maintenance Engine Architecture
 
-Search engines (Google, Bing) and AI search recommenders (Google AI Overviews, Perplexity) prioritize content updated within the **last 90 days**.
+No search engine publishes a universal content-age threshold. This reference uses **90 days only as a configurable house heuristic** for selecting review candidates; it is directional, not an official ranking rule. Choose a cadence from source volatility and observed performance. Google explicitly says sitemap `<lastmod>` should reflect the last significant page update, not an artificial timestamp ([Google sitemap guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap#lastmod)).
 
 ---
 
 ## 1. Automated Freshness Strategy
 
-1. **Dynamic `<lastmod>` Timestamp**: Ensure the XML sitemap updates `<lastmod>` only when meaningful content changes.
+1. **Accurate `<lastmod>` Timestamp**: Update sitemap `<lastmod>` only after meaningful content changes.
 2. **Automated Cron Data Refresh**: Run scheduled background tasks (e.g. Cloudflare Scheduled Triggers / GitHub Actions) to refresh market prices, stock stats, or annual figures.
 3. **Semantic Time Tags**: Use `<time datetime="YYYY-MM-DD">` elements on article layouts.
 
 ---
 
-## 2. Cloudflare Worker Cron Trigger Example (`scheduled.ts`)
+## 2. Cloudflare Worker Candidate Scanner (`scheduled.ts`)
 
 ```typescript
+interface Env {
+  DB: D1Database;
+  CONTENT_REFRESH_DAYS: string;
+}
+
 export default {
-  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
-    console.log(`[CRON-FRESHNESS] Executing daily content freshness engine at ${new Date().toISOString()}`);
+  async scheduled(_event: ScheduledEvent, env: Env) {
+    const refreshDays = Number.parseInt(env.CONTENT_REFRESH_DAYS, 10);
+    if (!Number.isInteger(refreshDays) || refreshDays < 1) {
+      throw new Error("CONTENT_REFRESH_DAYS must be a positive integer");
+    }
 
-    // 1. Fetch outdated topics (> 90 days since last refresh)
-    const outdated = await env.DB.prepare(
-      `SELECT id, slug, url FROM pages WHERE updated_at < DATE('now', '-90 days') LIMIT 10`
-    ).all();
+    const staleModifier = `-${refreshDays} days`;
+    const candidates = await env.DB.prepare(
+      `SELECT id, slug, url FROM pages
+       WHERE updated_at < DATE('now', ?)
+       ORDER BY updated_at ASC
+       LIMIT 10`
+    ).bind(staleModifier).all();
 
-    if (!outdated.results.length) return;
-
-    for (const page of outdated.results) {
-      // Update page timestamp & refresh key metrics
-      await env.DB.prepare(
-        `UPDATE pages SET updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-      ).bind(page.id).run();
-
-      // Trigger IndexNow to inform engines of updated content
-      await fetch("https://api.indexnow.org/indexnow", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          host: env.SITE_HOST,
-          key: env.INDEXNOW_KEY,
-          keyLocation: `https://${env.SITE_HOST}/${env.INDEXNOW_KEY}.txt`,
-          urlList: [page.url]
-        })
-      });
+    for (const page of candidates.results) {
+      console.log(`[FRESHNESS-CANDIDATE] Review ${page.url}`);
     }
   }
 };
 ```
+
+This scanner selects review candidates; it deliberately does not bump `updated_at`. The content job must re-check the source and change material facts first. Only then record the real update time, regenerate sitemap/`llms.txt`, and notify eligible indexing services. A timestamp-only rewrite is not a freshness update.

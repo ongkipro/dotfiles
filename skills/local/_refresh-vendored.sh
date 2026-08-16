@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Refresh vendored Agent Skills (single-source dotfiles contract: no plugins).
 #
-# Any skill dir under ~/dotfiles/skills/local/<name>/ that contains a `.source`
-# file is treated as vendored-from-upstream. This re-fetches every file already
-# present in that dir from its recorded `source:` base, byte-for-byte, and warns
-# if upstream's index now lists files we don't have (drift).
+# Any skill dir under ~/dotfiles/skills/local/<name>/ that contains a
+# `.local-fork` ledger is a managed fork. Refresh reports and preserves the
+# entire directory without fetching or writing. Otherwise, a `.source` file
+# marks a vendored upstream: every existing file is re-fetched byte-for-byte,
+# with index drift reported when the source provides an index.
 #
-# A skill whose `.source` declares `split_of:` is handled differently — see
+# A skill whose `.source` declares `split_of:` is also handled specially — see
 # "Split skills" below. Those are verified, never overwritten.
 #
 # Usage:
@@ -95,6 +96,10 @@ verify_split() {
 
 refresh_one() {
   local dir="$1" name; name="$(basename "$dir")"
+  if [ -f "$dir/.local-fork" ]; then
+    echo "skip $name (managed local fork)"
+    return 0
+  fi
   [ -f "$dir/.source" ] || { echo "skip $name (no .source — not vendored)"; return 0; }
 
   local base index split_of
@@ -142,7 +147,11 @@ refresh_one() {
 if [ "${1:-}" != "" ]; then
   refresh_one "$ROOT/$1"
 else
-  for d in "$ROOT"/*/; do [ -f "$d/.source" ] && refresh_one "${d%/}"; done
+  for d in "$ROOT"/*/; do
+    if [ -f "$d/.source" ] || [ -f "$d/.local-fork" ]; then
+      refresh_one "${d%/}"
+    fi
+  done
 fi
 
 echo

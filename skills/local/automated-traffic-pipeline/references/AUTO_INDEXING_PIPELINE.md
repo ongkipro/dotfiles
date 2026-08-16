@@ -18,9 +18,12 @@ IndexNow API                  Update sitemap.xml
 (Bing, Yandex, Seznam,         & public/llms.txt
  Naver, Yep, DuckDuckGo)               │
                                        ▼
-                             Google Search Console /
-                             Indexing API (if eligible)
+                             Google Search discovery via
+                             sitemap/Search Console; Indexing API
+                             only for eligible page types
 ```
+
+Google's Indexing API is restricted to pages containing `JobPosting` or `BroadcastEvent` (inside `VideoObject`) structured data. Do not send general articles, product pages, or pSEO pages to it; use accurate sitemap `<lastmod>` and ordinary crawl discovery for Google, plus IndexNow for participating engines. Re-check the [official eligibility documentation](https://developers.google.com/search/apis/indexing-api/v3/using-api) before implementing an Indexing API branch.
 
 ---
 

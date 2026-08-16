@@ -136,7 +136,14 @@ test_runtime_command_manifest() {
   done
   grep -qF 'runtime-commands.txt' "$ROOT/install.sh"
   grep -qF 'runtime-commands.txt' "$ROOT/install-macos.sh"
-  echo "✓ runtime command manifest"
+
+  # The hook reconciler is idempotence-tested by ai-hooks-install-test. Both
+  # platform installers must actually deliver that reconciler after linking the
+  # runtime command manifest, rather than leaving fresh devices prose-only.
+  grep -qxF "ai-hooks-install" "$manifest"
+  grep -qF '"$HOME/.local/bin/ai-hooks-install"' "$ROOT/install.sh"
+  grep -qF '"$HOME/.local/bin/ai-hooks-install"' "$ROOT/install-macos.sh"
+  echo "✓ runtime command manifest and hook wiring"
 }
 
 test_helper "$ROOT/install.sh" link

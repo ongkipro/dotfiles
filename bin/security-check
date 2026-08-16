@@ -22,20 +22,32 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   exit 1
 fi
 
-# Keep this intentionally broad. False positives are cheaper than leaked secrets.
-PATTERN='(BEGIN (RSA|OPENSSH|DSA|EC|PGP) PRIVATE KEY|ghp_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]+|glpat-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|API[_-]?KEY[[:space:]]*=[[:space:]]*[^.`[:space:]]|ACCESS[_-]?TOKEN[[:space:]]*=[[:space:]]*[^.`[:space:]]|AUTH[_-]?TOKEN[[:space:]]*=[[:space:]]*[^.`[:space:]]|SECRET[[:space:]]*=[[:space:]]*[^.`[:space:]]|PASSWORD[[:space:]]*=[[:space:]]*[^.`[:space:]]|PRIVATE[_-]?KEY[[:space:]]*=[[:space:]]*[^.`[:space:]])'
+# Keep this intentionally broad. False positives are cheaper than leaked secrets,
+# but match credential-name families rather than every variable containing words
+# such as TOKEN or SECRET. Prefixes are naturally allowed because git grep is not
+# anchored: AWS_SECRET_ACCESS_KEY matches the SECRET_ACCESS_KEY suffix.
+ASSIGNMENT_NAME='(API[_-]?(KEY|TOKEN)|ACCESS[_-]?(KEY|TOKEN)|AUTH[_-]?TOKEN|SECRET([_-]?(ACCESS[_-]?KEY|KEY|TOKEN))?|GITHUB[_-]?TOKEN|NPM[_-]?(AUTH[_-]?)?TOKEN|PASSWORD|PRIVATE[_-]?KEY)'
+PRECISE_PATTERN='(BEGIN (RSA|OPENSSH|DSA|EC|PGP) PRIVATE KEY|ghp_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]+|glpat-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35})'
+ASSIGNMENT_PATTERN="${ASSIGNMENT_NAME}[[:space:]]*=[[:space:]]*[^.\`[:space:]]"
 
 # Placeholders — an assignment whose VALUE is obviously not a real secret.
-# High-entropy patterns above (ghp_, sk-, AKIA, AIza, PRIVATE KEY) are NEVER filtered:
-# they are precise enough that a match is a real leak. Only the broad NAME=value
-# heuristics (SECRET=, API_KEY=, PASSWORD=…) get this second pass.
+# Precise token/private-key matches use a separate stream and NEVER pass through
+# this allowlist. Otherwise an attacker could append `API_KEY=placeholder` (or a
+# public Turnstile test key) to a real token line and suppress the precise hit.
 #
 # A noisy guard is a dangerous guard — people learn to bypass it. Keep it quiet AND strict.
 # CAREFUL: an empty-value alternative must be spelled "" / '' explicitly.
-# A bare `"` alternative would match the OPENING quote of a real value (="s3cr3t")
-# and silently whitelist every quoted secret in the repo. That bug was caught by
-# the bait test below — keep that test.
-PLACEHOLDER='=[[:space:]]*(""|'\'''\''|`?<[^>]*>|["'\''`]?(\$\{?[A-Za-z_]|\$\(|your[-_]|my[-_]|the[-_]|xxx|X{3,}|changeme|change[-_]me|placeholder|example|dummy|sample|redacted|noauth|local-dev|test[-_]|fake|\.\.\.)|$)'
+# A bare `"` alternative would match the OPENING quote of `KEY="realsecret"`
+# and silently whitelist every quoted secret in the repo. Do not add a bare `$`
+# alternative either: it matches the padding `=` at the end of base64 values.
+PLACEHOLDER='=[[:space:]]*(""|'\'''\''|`?<[^>]*>|["'\''`]?(\$\{?[A-Za-z_]|\$\(|your[-_]|my[-_]|the[-_]|xxx|X{3,}|changeme|change[-_]me|placeholder|example|dummy|sample|redacted|noauth|local-dev|test[-_]|fake|\.\.\.))'
+# Exact documentation/test values require an explicit safe boundary: end of
+# line, a Markdown code/table wrapper, a shell continuation, or a comment.
+# Keep this separate from PLACEHOLDER: unanchored `token` or `test` would
+# suppress real values that merely begin with those words.
+SAFE_DOC_VALUE="=[[:space:]]*['\"]?((token|test)|(local|dev)-[A-Za-z0-9_-]*(secret|token|key)[A-Za-z0-9_-]*)['\"]?\`?[[:space:]]*(\\\\|\\|.*|#.*|//.*)?$"
+# An environment reference contains a variable name, not its runtime value.
+SAFE_ENV_REFERENCE='=[[:space:]]*process\.env\.'
 
 # Cloudflare's PUBLIC, documented Turnstile test keys (developers.cloudflare.com/turnstile/troubleshooting/testing/).
 # These are meant to be committed; they authenticate nothing.
@@ -62,15 +74,33 @@ EXCLUDES=(
 # what is about to be committed, not a second opinion about the same thing.
 # No flag needed: callers that scan the repo as-is (ai-doctor) get the same
 # answer plus anything already staged, which is strictly more correct.
+# The report file contains locations only. A security gate must never echo the
+# credential it is protecting into CI logs, terminals, or captured diagnostics.
+umask 077
 TMP="$(mktemp "${TMPDIR:-/tmp}/dotfiles-secret-scan.XXXXXX")"
 trap 'rm -f "$TMP"' EXIT
 
 {
-  git grep -nEI          "$PATTERN" -- "${EXCLUDES[@]}" || true
-  git grep -nEI --cached "$PATTERN" -- "${EXCLUDES[@]}" || true
+  # Precise signatures are never allowlisted.
+  git grep -nEI          "$PRECISE_PATTERN" -- "${EXCLUDES[@]}" || true
+  git grep -nEI --cached "$PRECISE_PATTERN" -- "${EXCLUDES[@]}" || true
+
+  # Only broad NAME=value heuristics receive placeholder/test-key filtering.
+  {
+    git grep -nEI          "$ASSIGNMENT_PATTERN" -- "${EXCLUDES[@]}" || true
+    git grep -nEI --cached "$ASSIGNMENT_PATTERN" -- "${EXCLUDES[@]}" || true
+  } | sort -u \
+    | { grep -vEi "$PLACEHOLDER" || true; } \
+    | { grep -vEi "$SAFE_DOC_VALUE" || true; } \
+    | { grep -vEi "$SAFE_ENV_REFERENCE" || true; } \
+    | { grep -vE  "$TURNSTILE_TEST" || true; }
 } | sort -u \
-  | { grep -vEi "$PLACEHOLDER" || true; } \
-  | { grep -vE  "$TURNSTILE_TEST" || true; } \
+  | awk 'match($0, /:[0-9]+:/) {
+      print substr($0, 1, RSTART + RLENGTH - 2) ": potential secret"
+      next
+    }
+    { print "potential secret (location unavailable)" }' \
+  | sort -u \
   > "$TMP"
 
 if [ -s "$TMP" ]; then

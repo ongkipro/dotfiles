@@ -5,28 +5,29 @@ description: Send and receive transactional emails with Cloudflare Email Service
 
 # Cloudflare Email Service
 
-Your knowledge of the Cloudflare Email Service, Email Routing or Email Sending may be outdated. **Prefer retrieval over pre-training** for any Cloudflare Email Service task.
+Cloudflare Email Service changes quickly. **Retrieve current Cloudflare documentation before every implementation** and let the live docs/API schema override this convenience guide.
 
-Cloudflare Email Service lets you send transactional emails and route incoming emails, all within the Cloudflare platform. Your knowledge of this product may be outdated — it launched in 2025 and is evolving rapidly. **Prefer retrieval over pre-training** for any Email Service task.
+Email Sending entered public Beta on April 16, 2026. Cloudflare's current product page marks outbound Email Sending as Beta and available on the Workers Paid plan. Email Routing is the inbound-routing capability. Re-check status, plan entitlement, limits, and API shape at task time; do not infer general availability from the presence of a binding or REST endpoint.
 
-**If there is any discrepancy between this skill and the sources below, always trust the original source.** The Cloudflare docs, REST API spec, `@cloudflare/workers-types`, and Agents SDK repo are the source of truth. This skill is a convenience guide — it may lag behind the latest changes. When in doubt, retrieve from the sources below and use what they say.
+## Retrieval sources
 
-## Retrieval Sources
+| Source | Use for |
+| --- | --- |
+| [Email Service product page](https://developers.cloudflare.com/email-service/) | Current Beta/plan status and capability index |
+| [Email Sending setup](https://developers.cloudflare.com/email-service/get-started/send-emails/) | Cloudflare DNS requirement, domain onboarding, current binding/REST/SMTP examples |
+| [Email Sending REST API](https://developers.cloudflare.com/email-service/api/send-emails/rest-api/) | Endpoint, request/response shape, errors, links to the live OpenAPI schema |
+| [Email Sending public Beta changelog](https://developers.cloudflare.com/changelog/post/2026-04-16-email-sending-public-beta/) | Public Beta timeline |
+| Installed Wrangler `--help` and [Wrangler docs](https://developers.cloudflare.com/workers/wrangler/) | Commands actually available in the user's installed CLI |
+| [`@cloudflare/workers-types`](https://www.npmjs.com/package/@cloudflare/workers-types) or generated Wrangler types | Current Workers binding signatures |
 
-| Source | How to retrieve | Use for |
-|--------|----------------|---------|
-| Cloudflare docs | `cloudflare-docs` search tool or URL `https://developers.cloudflare.com/email-service/` | API reference, limits, pricing, latest features |
-| REST API spec | `https://developers.cloudflare.com/api/resources/email_sending` | OpenAPI spec for the Email Sending REST API |
-| Workers types | `https://www.npmjs.com/package/@cloudflare/workers-types` | Type signatures, binding shapes |
-| Agents SDK docs | Fetch `docs/email.md` from `https://github.com/cloudflare/agents/tree/main/docs` | Email handling in Agents SDK |
+## First: check prerequisites
 
-## FIRST: Check Prerequisites
+Before writing email code:
 
-Before writing any email code, verify the basics are in place:
-
-1. **Domain onboarded?** Run `npx wrangler email sending list` to see which domains have email sending enabled. If the domain isn't listed, run `npx wrangler email sending enable userdomain.com` or see [cli-and-mcp.md](references/cli-and-mcp.md) for full setup instructions.
-2. **Binding configured?** Look for `send_email` in `wrangler.jsonc` (for Workers)
-3. **postal-mime installed?** Run `npm ls postal-mime` (only needed for receiving/parsing emails)
+1. Retrieve the product and setup pages above. Confirm Email Sending is still available to the account's plan and region/status; currently it is Beta on Workers Paid.
+2. Confirm the sending domain uses Cloudflare DNS and is onboarded at **Compute > Email Service > Email Sending** in the Cloudflare dashboard. Domain onboarding adds the documented bounce MX and SPF, DKIM, and DMARC records.
+3. For a Worker, confirm a `send_email` binding exists and use the project's installed Wrangler version. Do not invent `wrangler email sending ...` commands: inspect that binary's `--help` and current official command reference first.
+4. Install or reuse `postal-mime` only when the receiving flow actually parses raw MIME.
 
 ## What Do You Need?
 
@@ -35,16 +36,15 @@ Start here. Find your situation, then follow the link for full details.
 | I want to... | Path | Reference |
 |--------------|------|-----------|
 | **Send emails from a Cloudflare Worker** | Workers binding (no API keys needed) | [sending.md](references/sending.md) |
-| **Send emails from an AI agent built with [Cloudflare Agents SDK](https://developers.cloudflare.com/agents/)** | `onEmail()` + `replyToEmail()` in Agent class | [sending.md](references/sending.md) |
-| **Send emails from an external app or agent** (Node.js, Go, Python, etc.) | REST API with Bearer token | [rest-api.md](references/rest-api.md) |
-| **Send emails from a coding agent** (Claude Code, Cursor, Copilot, etc.) | MCP tools, wrangler CLI, or REST API | [cli-and-mcp.md](references/cli-and-mcp.md) |
+| **Send emails from an external backend** (Node.js, Go, Python, etc.) | REST API with a scoped bearer token | [rest-api.md](references/rest-api.md) |
+| **Send emails from a coding agent** | REST API or an installed, documented tool whose live schema exposes Email Service | [cli-and-mcp.md](references/cli-and-mcp.md) |
 | **Receive and process incoming emails** (Email Routing) | Workers `email()` handler | [routing.md](references/routing.md) |
-| **Set up Email Sending or Email Routing** | `wrangler email sending enable` / `wrangler email routing enable`, or Dashboard | [cli-and-mcp.md](references/cli-and-mcp.md) |
+| **Onboard Email Sending or Email Routing** | Cloudflare dashboard; use CLI/API only when current official docs or live tool schema exposes the operation | [cli-and-mcp.md](references/cli-and-mcp.md) |
 | **Improve deliverability, avoid spam folders** | Authentication, content, compliance | [deliverability.md](references/deliverability.md) |
 
 ## Quick Start — Workers Binding
 
-Add the binding to `wrangler.jsonc`, then call `env.EMAIL.send()`. The `from` domain must be onboarded via `npx wrangler email sending enable yourdomain.com`.
+After dashboard onboarding, add the binding to `wrangler.jsonc`, then call `env.EMAIL.send()`.
 
 ```jsonc
 // wrangler.jsonc
@@ -54,38 +54,37 @@ Add the binding to `wrangler.jsonc`, then call `env.EMAIL.send()`. The `from` do
 ```typescript
 const response = await env.EMAIL.send({
   to: "user@example.com",
-  from: { email: "welcome@yourdomain.com", name: "My App" },
+  from: "welcome@yourdomain.com",
   subject: "Welcome!",
   html: "<h1>Welcome!</h1>",
   text: "Welcome!",
 });
+
+console.log(response.messageId);
 ```
 
-The binding is recommended for Workers — no API keys needed. If a user specifically requests the REST API from within a Worker (e.g., they already have an API token workflow), that works too — see [rest-api.md](references/rest-api.md).
+The binding is recommended for Workers and returns a `messageId`. It does not require an Email Sending REST API token. If the user specifically requests the REST API from a Worker, follow the current REST API documentation instead.
 
 See [sending.md](references/sending.md) for the full API, batch sends, attachments, custom headers, restricted bindings, and Agents SDK integration.
 
 ## Quick Start — REST API
 
-For apps outside Workers, or within Workers if the user explicitly requests it. Key differences from the Workers binding:
+For backends outside Workers, retrieve the current REST guide and linked OpenAPI schema. The current endpoint is `POST https://api.cloudflare.com/client/v4/accounts/{account_id}/email/sending/send`, authenticated by a scoped Cloudflare API token. The documented minimal `from` value is an onboarded email-address string. A successful REST response groups recipients under `delivered`, `permanent_bounces`, and `queued`; it does not return the Workers binding's `messageId`.
 
-- Endpoint: `POST https://api.cloudflare.com/client/v4/accounts/{account_id}/email/sending/send`
-- `from` object uses `address` (not `email`): `{ "address": "...", "name": "..." }`
-- `replyTo` is `reply_to` (snake_case)
-- Response returns `{ delivered: [], permanent_bounces: [], queued: [] }` (not `messageId`)
+Do not carry Workers-only binding types into a REST request. Use the live REST schema for named addresses, `reply_to`, attachments, custom headers, and limits.
 
-See [rest-api.md](references/rest-api.md) for curl examples, response format, and error handling.
+See [rest-api.md](references/rest-api.md) for examples and error handling.
 
 ## Common Mistakes
 
 | Mistake | Why It Happens | Fix |
 |---------|---------------|-----|
 | Forgetting `send_email` binding in wrangler config | Email Service uses a binding, not an API key | Add `"send_email": [{ "name": "EMAIL" }]` to wrangler.jsonc |
-| Sending from an unverified domain | Domain must be onboarded onto Email Sending before first send | Run `wrangler email sending enable yourdomain.com` or onboard in Dashboard |
+| Sending from a domain that is not onboarded | Email Sending requires a domain configured in the dashboard | Onboard the Cloudflare DNS domain under **Compute > Email Service > Email Sending** |
 | Reading `message.raw` twice in email handler | The raw stream is single-use — second read returns empty | Buffer first: `const raw = await new Response(message.raw).arrayBuffer()` |
 | Missing `text` field (HTML only) | Some email clients only show plain text; also helps spam scores | Always include both `html` and `text` versions |
 | Using email for marketing/bulk sends | Email Service is for transactional email only | Use a dedicated marketing email platform for newsletters and campaigns |
-| Forwarding to unverified destinations | `message.forward()` only works with verified addresses | Run `wrangler email routing addresses create user@gmail.com` or add in Dashboard |
+| Forwarding to an unverified destination | `message.forward()` only works with verified addresses | Verify the destination in the Email Routing dashboard |
 | Testing with fake addresses | Bounces from non-existent addresses hurt sender reputation | Use real addresses you control during development |
 | Hardcoding API tokens in source code | Tokens in code get committed and leaked | Use environment variables or Cloudflare secrets |
 | Ignoring the `from` domain requirement | The `from` address must use a domain onboarded to Email Service | Verify the domain first, then send from `anything@that-domain.com` |

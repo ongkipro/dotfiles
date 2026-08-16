@@ -1,5 +1,6 @@
 upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/cloudflare/SKILL.md
 verified: 2026-08-16
+scope: directory
 reason: deliberate local edit to the frontmatter description, not drift
 note: Full diff 2026-08-16 — both files 248 lines, single-line difference on
   the `description:` frontmatter field. Upstream ends "...Use for any
@@ -15,11 +16,14 @@ note: Full diff 2026-08-16 — both files 248 lines, single-line difference on
   cloudflare-one for Zero Trust and SASE." This is AUDIT-H-04's fix so
   Claude routes to the narrower sibling skill instead of always loading
   this one. Body content otherwise matches upstream exactly.
-would_lose_if_wired: refresh would silently drop the sibling-routing clause
-  and reintroduce the routing ambiguity AUDIT-H-04 fixed.
-to_vendor: either get the routing clause merged into cloudflare/skills
-  upstream, or accept losing it and re-adding it as a permanent local
-  patch step in the refresh script (not currently supported).
+would_lose_if_wired: an unguarded byte-for-byte refresh would drop the
+  sibling-routing clause and reintroduce the ambiguity AUDIT-H-04 fixed.
+refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is
+  present, before any fetch or write.
+to_vendor: accepted as a permanent managed fork on 2026-08-17. Keep the local
+  routing clause because discovery correctness outranks byte-identical vendoring.
+  Re-evaluate only if upstream adopts an equivalent narrow-skill boundary; no
+  external publication is required.
 
 updated: 2026-08-16 — the clause named `sandbox-sdk`, which upstream retired.
   It now names `sandbox-next` / `sandbox-stable`. Worth noting for the vendoring

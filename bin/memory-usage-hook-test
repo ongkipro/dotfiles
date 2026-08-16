@@ -17,12 +17,21 @@ HOOK="$DOT/config/ai/hooks/memory-usage.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
+# Give the hook an isolated HOME whose installed-path candidate is the exact
+# repository binary under test. A real ~/.local/bin from another checkout must
+# never influence this fixture.
+mkdir -p "$TMP/home/.local/bin"
+ln -s "$DOT/bin/ai-memory-access" "$TMP/home/.local/bin/ai-memory-access"
+
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-# Feed a prompt and capture stdout. AI_MEMORY_USAGE_DIR keeps telemetry in the
-# sandbox; ai-memory-access reads it from the environment.
+# Feed a prompt and capture stdout. HOME injects the exact ai-memory-access under
+# test; AI_MEMORY_USAGE_DIR keeps telemetry in the sandbox.
 feed() {
-  printf '%s' "$1" | AI_MEMORY_USAGE_DIR="$TMP/telemetry" "$HOOK" 2>"$TMP/err"
+  printf '%s' "$1" | \
+    HOME="$TMP/home" \
+    AI_MEMORY_USAGE_DIR="$TMP/telemetry" \
+    "$HOOK" 2>"$TMP/err"
 }
 payload() { python3 -c 'import json,sys;print(json.dumps({"prompt":sys.argv[1]}))' "$1"; }
 
@@ -68,7 +77,8 @@ grep -qi 'what are my preferences' "$events" \
 # would be testing the test harness rather than the hook.
 python3 -c 'import json,sys;sys.stdout.write(json.dumps({"prompt":"preference "*20000}))' > "$TMP/big.json"
 start=$(date +%s)
-AI_MEMORY_USAGE_DIR="$TMP/telemetry" "$HOOK" < "$TMP/big.json" >/dev/null 2>&1 \
+HOME="$TMP/home" AI_MEMORY_USAGE_DIR="$TMP/telemetry" \
+  "$HOOK" < "$TMP/big.json" >/dev/null 2>&1 \
   || fail "hook failed on a very large prompt"
 [ $(( $(date +%s) - start )) -le 15 ] || fail "hook took too long on a large prompt"
 

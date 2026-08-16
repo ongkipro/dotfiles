@@ -53,9 +53,25 @@ Plan naming: `vhp-*` = High Performance (AMD, NVMe), `vhf-*` = High Frequency (I
 ssh root@<IP> 'export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a; \
   apt-get update -y && apt-get upgrade -y -o Dpkg::Options::="--force-confold"; \
   curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash'
-# UFW (allow SSH FIRST): 22, 80, 443, 8000 (dashboard), 6001/6002 (realtime)
+# Host-service allowlist only; Docker-published ports can bypass UFW (see below).
 ssh root@<IP> 'for p in 22 80 443 8000 6001 6002; do ufw allow $p/tcp; done; ufw --force enable'
 ```
+
+**Network boundary (official guidance):** Docker diverts published-container
+traffic before it reaches UFW's `INPUT`/`OUTPUT` chains, so UFW alone is not an
+effective container-port boundary. Attach a Vultr Firewall group and allow TCP
+22, 80, and 443, plus 8000 (dashboard), 6001 (real-time), and 6002 (terminal)
+only while accessing Coolify directly by IP. After a custom domain works
+through Coolify's integrated Traefik/Caddy proxy, close 8000, 6001, and 6002 at
+the Vultr Firewall and use 80/443. Keep UFW as defense in depth for host
+services. If a provider firewall is unavailable, Coolify documents
+`ufw-docker` as the advanced self-hosted fallback; do not disable Docker's
+firewall-rule generation, which Docker says is likely to break container
+networking.
+
+Official sources: [Docker and UFW](https://docs.docker.com/engine/network/packet-filtering-firewalls/#docker-and-ufw),
+[Coolify firewall ports and closure strategy](https://coolify.io/docs/knowledge-base/server/firewall),
+and [Vultr Firewall rules](https://docs.vultr.com/products/network/firewall-groups/management/rules).
 - Coolify installer **also installs Docker** (steps 1-8) — do NOT install Docker separately.
 - Dashboard: `http://<IP>:8000` → **register the first admin immediately** (first registrant = owner).
 - Server type on onboarding = **"This Machine" / Localhost** for a single-server setup.

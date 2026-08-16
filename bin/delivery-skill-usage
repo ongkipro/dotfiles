@@ -13,7 +13,8 @@ def atomic(path,data):
     path.parent.mkdir(parents=True,exist_ok=True); fd,tmp=tempfile.mkstemp(prefix='.'+path.name+'.',dir=path.parent)
     try:
       with os.fdopen(fd,'w',encoding='utf-8') as f: json.dump(data,f,indent=2,sort_keys=True); f.write('\n'); f.flush(); os.fsync(f.fileno())
-      os.replace(tmp,path)
+      try: os.link(tmp,path)
+      except FileExistsError as exc: raise ValueError('skill usage already exists; attribution is immutable') from exc
     finally:
       if os.path.exists(tmp): os.unlink(tmp)
 def events(path):
@@ -40,7 +41,6 @@ def record(repo,a):
     skills=sorted(set(a.skill or []))
     if not skills or any(not SAFE.fullmatch(x) for x in skills): raise ValueError('at least one safe --skill is required')
     start,finish,checks=inspect_run(repo,a.run); target=repo/'.delivery'/'skill-usage'/f'{a.run}.json'
-    if target.exists(): raise ValueError('skill usage already exists; attribution is immutable')
     data={'schemaVersion':1,'runId':a.run,'recordedAt':now(),'skillsUsed':skills,'result':finish.get('result'),'risk':start.get('risk'),'job':start.get('job'),'capability':start.get('capability'),'model':start.get('model'),'provider':start.get('provider'),'reasoningEffort':start.get('reasoningEffort'),'worker':start.get('worker'),'head':finish.get('head'),'verificationFailed':any(x.get('status')!='PASS' for x in checks)}
     data['usageHash']=digest(data); atomic(target,data); print(f'delivery-skill-usage: RECORDED {target}')
 def verify(repo,as_json):

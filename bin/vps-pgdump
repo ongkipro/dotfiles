@@ -16,8 +16,13 @@
 # Read-only di sisi server: cuma `docker ps` + `pg_dump`. Tidak mengubah apa pun.
 set -euo pipefail
 
+# Dumps and stack configuration contain database credentials. Apply the private
+# creation mask before creating the output directory or any file within it.
+umask 077
+
 HOST="${1:-}"
 shift || true
+SSH_OPTS_COUNT=$#
 SSH_OPTS=("$@")   # mis. -i ~/.ssh/tokophi_dev
 
 [ -n "$HOST" ] || { echo "Usage: vps-pgdump user@host [ssh-opts...]" >&2; exit 1; }
@@ -32,7 +37,15 @@ case "$OUT" in
 esac
 
 say() { printf '\n\033[1m%s\033[0m\n' "$1"; }
-run() { ssh "${SSH_OPTS[@]}" -o BatchMode=yes -o ConnectTimeout=10 "$HOST" "$@"; }
+run() {
+  # Bash 3.2 + nounset cannot safely expand an empty array. Keep the zero-option
+  # branch expansion-free while preserving caller options before fixed options.
+  if [ "$SSH_OPTS_COUNT" -eq 0 ]; then
+    ssh -o BatchMode=yes -o ConnectTimeout=10 "$HOST" "$@"
+  else
+    ssh "${SSH_OPTS[@]}" -o BatchMode=yes -o ConnectTimeout=10 "$HOST" "$@"
+  fi
+}
 
 say "1. Koneksi"
 run 'echo "  ✓ SSH OK — $(hostname), uptime$(uptime -p | sed s/up//)"'
@@ -68,7 +81,13 @@ echo "  → ${#PGS[@]} server DB akan di-dump SEMUA."
 # deploy). Tanpa coolify-db, server yang hilang berarti menyusun ulang seluruh
 # setup deploy dari nol.
 say "4-5. Dump semua database (custom format) + verifikasi"
+PG_RESTORE_AVAILABLE=1
+if ! command -v pg_restore >/dev/null 2>&1; then
+  PG_RESTORE_AVAILABLE=0
+  echo "  ! pg_restore lokal tidak tersedia — dump akan disimpan tetapi ditandai BELUM TERVERIFIKASI."
+fi
 FAIL=0
+UNVERIFIED=0
 for PG in "${PGS[@]}"; do
   echo "  [$PG]"
   DBS=$(run "docker exec $PG sh -c 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -tAc \"SELECT datname FROM pg_database WHERE datistemplate=false AND datname<>'\"'\"'postgres'\"'\"';\"'" || true)
@@ -77,17 +96,23 @@ for PG in "${PGS[@]}"; do
     printf '    %-22s ' "$db"
     run "docker exec $PG sh -c 'pg_dump -Fc -U \"\$POSTGRES_USER\" $db'" > "$OUT/$db.dump"
     sz=$(du -h "$OUT/$db.dump" | cut -f1)
-    # Verifikasi: dump yang tak bisa dibaca BUKAN backup. Tak ada "berhasil" palsu.
-    if pg_restore -l "$OUT/$db.dump" >/dev/null 2>&1; then
+    # Missing verification tooling is not evidence of corruption. Keep the dump
+    # and label it unverified; delete only when a real pg_restore check rejects it.
+    if [ "$PG_RESTORE_AVAILABLE" -eq 0 ]; then
+      echo "! $sz — DISIMPAN, BELUM TERVERIFIKASI (pg_restore lokal tidak ada)"
+      UNVERIFIED=1
+    elif pg_restore -l "$OUT/$db.dump" >/dev/null 2>&1; then
       n=$(pg_restore -l "$OUT/$db.dump" 2>/dev/null | grep -c '^[0-9]' || true)
       echo "✓ $sz — $n objek, terbaca pg_restore"
     else
-      echo "✗ $sz — RUSAK. JANGAN dianggap backup."
+      echo "✗ $sz — RUSAK menurut pg_restore. JANGAN dianggap backup."
       rm -f "$OUT/$db.dump"; FAIL=1
     fi
   done
 done
 [ $FAIL -eq 0 ] || { echo "  ✗ ada dump yang rusak — backup TIDAK lengkap." >&2; exit 1; }
+[ "$UNVERIFIED" -eq 0 ] \
+  || echo "  ! Satu atau lebih dump dipertahankan tetapi integritasnya BELUM TERVERIFIKASI."
 
 say "6. Config stack (compose + Coolify), tanpa isi .env"
 run 'find /data/coolify -maxdepth 3 -name "docker-compose*.y*ml" 2>/dev/null | head -20' > "$OUT/compose-files.txt" || true

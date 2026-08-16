@@ -47,6 +47,50 @@ EOF
 }
 mk_upstream; mk_split_skill
 
+# A managed fork keeps `.source` for provenance, but its directory-level
+# `.local-fork` ledger must take precedence over every fetch/write path.
+mkdir -p "$UP/fork/references" "$SAND/fork/references"
+printf 'new upstream content\n' > "$UP/fork/SKILL.md"
+printf 'new upstream reference\n' > "$UP/fork/references/ref.md"
+printf 'intentional local fork\n' > "$SAND/fork/SKILL.md"
+printf 'intentional local reference\n' > "$SAND/fork/references/ref.md"
+cat > "$SAND/fork/.source" <<EOF
+source: file://$UP/fork
+vendored: 2000-01-01
+split_of: SKILL.md
+part: SKILL.md
+EOF
+cat > "$SAND/fork/.local-fork" <<EOF
+upstream: file://$UP/fork
+verified: 2000-01-01
+scope: directory
+reason: fixture for managed local fork preservation
+EOF
+
+# A ledger-only fork is also included in a full sweep, so older documented
+# forks cannot silently disappear from refresh reporting.
+mkdir -p "$SAND/ledger-only"
+printf 'intentional local fork\n' > "$SAND/ledger-only/SKILL.md"
+printf 'upstream: file://%s/fork\nscope: directory\n' "$UP" \
+  > "$SAND/ledger-only/.local-fork"
+
+# --- managed local forks are reported and never fetched or overwritten -------
+out="$(run fork)" || fail "a managed local fork should exit 0; got: $out"
+case "$out" in
+  *"skip fork (managed local fork)"*) ;;
+  *) fail "managed fork was not reported: $out" ;;
+esac
+case "$out" in
+  *"split verified"*|*"fetch failed"*|*"no longer reassemble"*)
+    fail 'managed-fork guard did not take precedence over split handling' ;;
+esac
+[ "$(cat "$SAND/fork/SKILL.md")" = "intentional local fork" ] \
+  || fail 'refresh overwrote a managed local fork'
+[ "$(cat "$SAND/fork/references/ref.md")" = "intentional local reference" ] \
+  || fail 'refresh overwrote a reference inside a managed local fork'
+grep -q '^vendored: 2000-01-01' "$SAND/fork/.source" \
+  || fail 'managed fork vendored date changed despite skipped refresh'
+
 # --- a split skill that still reassembles is verified, and left alone ---------
 before_skill="$(cat "$SAND/split/SKILL.md")"
 before_ref="$(cat "$SAND/split/references/ref.md")"
@@ -90,10 +134,12 @@ esac
 mv "$TMP/stashed-ref.md" "$SAND/split/references/ref.md"
 
 # --- trims larger than the file are refused, not silently clamped ------------
-sed -i 's/^part: SKILL.md trim-tail 2$/part: SKILL.md trim-tail 999/' "$SAND/split/.source"
+sed -i.bak 's/^part: SKILL.md trim-tail 2$/part: SKILL.md trim-tail 999/' "$SAND/split/.source"
+rm -f "$SAND/split/.source.bak"
 out="$(run split)" && fail 'an over-large trim must exit non-zero'
 case "$out" in *"trims exceed the file"*) ;; *) fail "wrong message: $out" ;; esac
-sed -i 's/^part: SKILL.md trim-tail 999$/part: SKILL.md trim-tail 2/' "$SAND/split/.source"
+sed -i.bak 's/^part: SKILL.md trim-tail 999$/part: SKILL.md trim-tail 2/' "$SAND/split/.source"
+rm -f "$SAND/split/.source.bak"
 run split >/dev/null || fail 'fixture did not restore to a passing state'
 
 # --- the ordinary (non-split) path still fetches and overwrites --------------
@@ -111,15 +157,20 @@ grep -q "^vendored: $(date +%Y-%m-%d)" "$SAND/plain/.source" \
   || fail 'the plain path stopped stamping the vendored date on change'
 
 # --- an unchanged plain skill is a no-op, date untouched ---------------------
-sed -i "s/^vendored: .*/vendored: 2000-01-01/" "$SAND/plain/.source"
+sed -i.bak "s/^vendored: .*/vendored: 2000-01-01/" "$SAND/plain/.source"
+rm -f "$SAND/plain/.source.bak"
 run plain >/dev/null || fail 'a second plain refresh should exit 0'
 grep -q '^vendored: 2000-01-01' "$SAND/plain/.source" \
   || fail 'the vendored date advanced on an unchanged plain skill'
 
-# --- a full sweep reports both kinds and fails if any split diverged ---------
+# --- a full sweep reports every path and fails if any split diverged ----------
 out="$(run)" || fail "a clean full sweep should exit 0; got: $out"
 case "$out" in *split*) ;; *) fail 'full sweep skipped the split skill' ;; esac
 case "$out" in *plain*) ;; *) fail 'full sweep skipped the plain skill' ;; esac
+case "$out" in
+  *"skip fork (managed local fork)"*"skip ledger-only (managed local fork)"*) ;;
+  *) fail 'full sweep skipped a managed-fork ledger' ;;
+esac
 echo "upstream drifted again" >> "$UP/split/SKILL.md"
 run >/dev/null && fail 'a full sweep must exit non-zero when a split skill diverged'
 

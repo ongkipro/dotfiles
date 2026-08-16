@@ -38,12 +38,12 @@ Any change to `config.yml` must keep all of these true:
 ## Active work
 
 The shared fallback and reserve contract is reconciled. `omp-routing-test`
-checks role and override wiring, three-provider route structure,
-independent-lane fallback placement, and the 9Router reserve boundary without
-relying on a device catalog. When OMP and its catalog are present, it also
-validates selectors, reasoning levels, context windows, visual input
-capabilities, agents, and each overlay's provider-confined fallback graph
-through OMP's parser.
+checks the tracked base graph, while `omp-effective-routing-test` resolves the
+active device overlay and structurally validates every tracked overlay template.
+Together they cover role and override wiring, provider confinement,
+independent-lane fallback placement, the 9Router reserve boundary, fallback
+effort floors, and visual input capability. Live selector, context-window, and
+modality claims are made only when that device exposes the relevant catalog.
 
 ## Blockers
 

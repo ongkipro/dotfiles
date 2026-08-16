@@ -1,5 +1,14 @@
 # Dotfiles Repository Audit
 
+> [!CAUTION]
+> **Immutable historical audit; superseded for current-state decisions.**
+> Preserve the body as evidence for its named baseline and remediation
+> worktree. “Open,” “resolved,” and working-tree statements below are not live
+> task state. Use [`../TASKS.md`](../TASKS.md) for current work, disk plus
+> executable checks for current behavior, and
+> [`config/omp/config.yml`](../config/omp/config.yml) plus
+> [`config/omp/STATUS.md`](../config/omp/STATUS.md) for current routing.
+
 **Audit date:** 2026-08-15; refreshed 2026-08-16 after pulling 22 commits
 **Repository:** `ongkipro/dotfiles`
 **Branch inspected:** `main` at `90dd935` plus the uncommitted remediation working tree

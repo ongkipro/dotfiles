@@ -14,21 +14,26 @@ set -euo pipefail
 REPO="${1:-$HOME/dotfiles}"
 cd "$REPO"
 BAIT="__security-bait-$$.md"
+BAIT_SAFE="__security-safe-$$.md"
 BAIT_NEW="__security-bait-new-$$.md"
 BAIT_IDX="__security-bait-index-$$.md"
 DOTSYNC_TMP=""
+DOTSYNC_REMOTE=""
+DOTPUSH_TMP=""
 DOCTOR_TMP=""
 fail=0
 
 # Cleanup MUST return the index to exactly how it was found. This test stages
 # files; leaving them staged would dump junk into the user's next commit.
 cleanup() {
-  for b in "$BAIT" "$BAIT_NEW" "$BAIT_IDX"; do
+  for b in "$BAIT" "$BAIT_SAFE" "$BAIT_NEW" "$BAIT_IDX"; do
     git rm -f --cached "$b" >/dev/null 2>&1 || true
     git reset -q -- "$b" >/dev/null 2>&1 || true
     rm -f "$b"
   done
   [ -z "$DOTSYNC_TMP" ] || rm -rf "$DOTSYNC_TMP"
+  [ -z "$DOTSYNC_REMOTE" ] || rm -rf "$DOTSYNC_REMOTE"
+  [ -z "$DOTPUSH_TMP" ] || rm -rf "$DOTPUSH_TMP"
   [ -z "$DOCTOR_TMP" ] || rm -rf "$DOCTOR_TMP"
 }
 trap cleanup EXIT
@@ -41,13 +46,42 @@ else
   ./bin/security-check "$REPO" 2>&1 | sed 's/^/     /'
   fail=1
 fi
+echo "2. credential-adjacent documentation forms must not create broad false positives"
+cat > "$BAIT_SAFE" <<'EOF'
+TOKEN_COUNT=42
+API_KEY_NAME=primary
+PASSWORD_POLICY=strict
+SECRETARY_EMAIL=person@example.invalid
+CLOUDFLARE_API_TOKEN='token'
+SECRET_KEY="local-secret-key"
+API_TOKEN="dev-token-123"
+CLOUDFLARE_API_TOKEN=test \
+const SECRET_KEY = process.env.NODE_ENV === 'production'
+| Linux/macOS | `export CLOUDFLARE_API_TOKEN='token'` |
+| PowerShell | `$env:CLOUDFLARE_API_TOKEN = 'token'` |
+| Windows CMD | `set CLOUDFLARE_API_TOKEN=token` |
+EOF
+git add -f "$BAIT_SAFE" >/dev/null 2>&1
+if ./bin/security-check "$REPO" >/dev/null 2>&1; then
+  echo "   ✓ pass"
+else
+  echo "   ✗ FAIL: credential-name matching flagged a documented placeholder/reference"
+  fail=1
+fi
+git rm -f --cached "$BAIT_SAFE" >/dev/null 2>&1 || true
+rm -f "$BAIT_SAFE"
 
-echo "2. real-shaped secrets must ALL be caught"
+echo "3. real-shaped secrets and credential assignments must ALL be caught"
 # Baits are ASSEMBLED AT RUNTIME from fragments, never written literally here.
 # Otherwise this very file would trip security-check — and the "fix" would be to
 # add bin/security-check-test to the exclude list, which punches a hole exactly
 # where someone could hide a real secret. No exclusions: keep scan coverage 100%.
 GH='ghp'; SK='sk'; AK='AKIA'; KEY='API_KEY'; PW='PASSWORD'; BEG='BEGIN'
+SECRET_ACCESS_KEY_NAME='SECRET_ACCESS_KEY'
+API_TOKEN_NAME='API_TOKEN'
+SECRET_KEY_NAME='SECRET_KEY'
+GITHUB_TOKEN_NAME='GITHUB_TOKEN'
+NPM_TOKEN_NAME='NPM_TOKEN'
 {
   printf '%s_AbCdEfGhIjKlMnOpQrStUvWxYz012345\n'      "$GH"
   printf 'export CLOUDFLARE_%s="8f4a9c2e1b7d3f6a0e5c8b2d4f7a1c9e3b6d"\n' "$KEY"
@@ -55,20 +89,36 @@ GH='ghp'; SK='sk'; AK='AKIA'; KEY='API_KEY'; PW='PASSWORD'; BEG='BEGIN'
   printf '%s-proj-9x8Kd2mQpR4vT7nZ1aY6cB3eF5gH0jL8wS\n' "$SK"
   printf 'DB_%s=Sup3rS3cret!Prod2026\n'                "$PW"
   printf -- '-----%s OPENSSH PRIVATE KEY-----\n'       "$BEG"
+  printf 'AWS_%s=aws-v1-7d3f9a2c\n'                    "$SECRET_ACCESS_KEY_NAME"
+  printf 'CLOUDFLARE_%s=cf-v1-4b8e2d6a\n'              "$API_TOKEN_NAME"
+  printf 'TURNSTILE_%s=ts-v1-9c5f1a7d\n'               "$SECRET_KEY_NAME"
+  printf '%s=github-v1-3e7a9c2f\n'                     "$GITHUB_TOKEN_NAME"
+  printf '%s=npm-v1-6d2b8f4a\n'                        "$NPM_TOKEN_NAME"
+  # Base64 padding must not be mistaken for an empty placeholder assignment.
+  printf 'SERVICE_%s=YWJjZGVmZ2hpamtsbW5vcA==\n'         "$KEY"
+  # Precise signatures remain findings even beside assignment allowlist bait.
+  printf '%s_QrStUvWxYz012345AbCdEfGhIjKlMnOp API_%s=placeholder\n' "$GH" "$KEY"
+  printf '%s-proj-2mQ8vT4nZ7aY1cB6eF3gH9jL5wS0kD TURNSTILE_%s=1x0000000000000000000000000000000AA\n' "$SK" "$SECRET_KEY_NAME"
 } > "$BAIT"
 git add -f "$BAIT" >/dev/null 2>&1
-want=6
-got=$(./bin/security-check "$REPO" 2>&1 | grep -c "$BAIT" || true)
+want=14
+out="$(./bin/security-check "$REPO" 2>&1 || true)"
+got=$(printf '%s\n' "$out" | grep -c "$BAIT" || true)
 if [ "$got" -eq "$want" ]; then
-  echo "   ✓ caught $got/$want"
+  echo "   ✓ caught $got/$want without printing values"
 else
-  echo "   ✗ FAIL: caught only $got/$want — a real secret would slip through:"
-  diff <(./bin/security-check "$REPO" 2>&1 | grep "$BAIT" | sed 's/.*:[0-9]*://') <(cat "$BAIT") \
-    | grep '^>' | sed 's/^> /     MISSED: /'
+  echo "   ✗ FAIL: caught only $got/$want — a real secret would slip through"
   fail=1
 fi
+while IFS= read -r bait_line; do
+  if printf '%s\n' "$out" | grep -Fq -- "$bait_line"; then
+    echo "   ✗ FAIL: scanner printed a protected value instead of only its location"
+    fail=1
+    break
+  fi
+done < "$BAIT"
 
-echo "3. a BRAND-NEW file that is staged but was never tracked must be caught"
+echo "4. a BRAND-NEW file that is staged but was never tracked must be caught"
 # This is the shape dotpush used to let through: it scanned BEFORE `git add -A`,
 # so a file that had never been committed was invisible to the scanner, then got
 # staged and pushed. Same bait fragments — never written literally (see above).
@@ -86,7 +136,7 @@ fi
 git rm -f --cached "$BAIT_NEW" >/dev/null 2>&1 || true
 rm -f "$BAIT_NEW"
 
-echo "4. a secret that exists ONLY in the index must be caught"
+echo "5. a secret that exists ONLY in the index must be caught"
 # Staged, then wiped from the working tree. `git commit` would still write the
 # secret, but a working-tree-only scan sees a clean file. This is the case that
 # genuinely requires `git grep --cached`.
@@ -103,8 +153,10 @@ fi
 git rm -f --cached "$BAIT_IDX" >/dev/null 2>&1 || true
 rm -f "$BAIT_IDX"
 
-echo "5. dotsync must refuse to commit a newly staged secret"
+echo "6. dotsync must refuse to commit a newly staged secret"
 DOTSYNC_TMP="$(mktemp -d "${TMPDIR:-/tmp}/dotsync-security-test.XXXXXX")"
+DOTSYNC_REMOTE="$(mktemp -d "${TMPDIR:-/tmp}/dotsync-security-remote.XXXXXX")"
+git init -q --bare "$DOTSYNC_REMOTE"
 mkdir -p "$DOTSYNC_TMP/bin" "$DOTSYNC_TMP/home"
 cp ./bin/dotsync ./bin/security-check "$DOTSYNC_TMP/bin/"
 (
@@ -112,9 +164,11 @@ cp ./bin/dotsync ./bin/security-check "$DOTSYNC_TMP/bin/"
   git init -q
   git config user.name test
   git config user.email test@example.invalid
+  git remote add origin "$DOTSYNC_REMOTE"
   printf 'baseline\n' > README.md
-  git add README.md
+  git add .
   git commit -qm baseline
+  git push -qu origin HEAD
   printf '%s_ZzYyXxWwVvUuTtSsRrQqPpOoNnMm123456\n' "$GH" > leak.txt
 )
 if HOME="$DOTSYNC_TMP/home" "$DOTSYNC_TMP/bin/dotsync" --yes commit test >/dev/null 2>&1; then
@@ -127,7 +181,20 @@ else
   fail=1
 fi
 
-echo "6. bare dotsync must remain read-only"
+echo "7. dotsync must fail closed when security-check is unavailable"
+rm -f "$DOTSYNC_TMP/leak.txt" "$DOTSYNC_TMP/bin/security-check"
+git -C "$DOTSYNC_TMP" reset -q
+printf 'harmless change\n' > "$DOTSYNC_TMP/change.txt"
+out="$(HOME="$DOTSYNC_TMP/home" "$DOTSYNC_TMP/bin/dotsync" --yes commit test 2>&1 || true)"
+if printf '%s\n' "$out" | grep -qF 'security-check' \
+  && [ "$(git -C "$DOTSYNC_TMP" rev-list --count HEAD)" -eq 1 ]; then
+  echo "   ✓ missing scanner refused before commit"
+else
+  echo "   ✗ FAIL: dotsync did not fail closed when security-check was unavailable"
+  fail=1
+fi
+
+echo "8. bare dotsync must remain read-only"
 if HOME="$DOTSYNC_TMP/home" "$DOTSYNC_TMP/bin/dotsync" >/dev/null 2>&1 \
   && [ "$(git -C "$DOTSYNC_TMP" rev-list --count HEAD)" -eq 1 ]; then
   echo "   ✓ status only"
@@ -136,7 +203,65 @@ else
   fail=1
 fi
 
-echo "7. ai-doctor must compare a branch without upstream to origin/<branch>"
+echo "9. dotsync sync must push an already-committed clean local branch"
+rm -f "$DOTSYNC_TMP/change.txt"
+cp ./bin/security-check "$DOTSYNC_TMP/bin/security-check"
+git -C "$DOTSYNC_TMP" reset -q
+printf 'local commit awaiting push\n' > "$DOTSYNC_TMP/ahead.txt"
+git -C "$DOTSYNC_TMP" add ahead.txt bin/security-check
+git -C "$DOTSYNC_TMP" commit -qm ahead
+branch="$(git -C "$DOTSYNC_TMP" rev-parse --abbrev-ref HEAD)"
+if HOME="$DOTSYNC_TMP/home" "$DOTSYNC_TMP/bin/dotsync" --yes sync >/dev/null 2>&1 \
+  && [ "$(git -C "$DOTSYNC_TMP" rev-parse HEAD)" = "$(git --git-dir="$DOTSYNC_REMOTE" rev-parse "refs/heads/$branch")" ]; then
+  echo "   ✓ clean local commit pushed"
+else
+  echo "   ✗ FAIL: sync exited after the clean commit phase without pushing"
+  fail=1
+fi
+
+echo "10. dotpush must confirm machine snapshots and fail closed without its scanner"
+DOTPUSH_TMP="$(mktemp -d "${TMPDIR:-/tmp}/dotpush-security-test.XXXXXX")"
+mkdir -p "$DOTPUSH_TMP/home/dotfiles/bin" "$DOTPUSH_TMP/home/dotfiles/home"
+cp ./bin/dotpush ./bin/security-check "$DOTPUSH_TMP/home/dotfiles/bin/"
+git init -q --bare "$DOTPUSH_TMP/origin.git"
+(
+  cd "$DOTPUSH_TMP/home/dotfiles"
+  git init -q
+  git config user.name test
+  git config user.email test@example.invalid
+  git remote add origin "$DOTPUSH_TMP/origin.git"
+  printf 'tracked baseline\n' > home/gitconfig
+  git add .
+  git commit -qm baseline
+  git push -qu origin HEAD
+)
+printf '[user]\nname = synthetic-device\n' > "$DOTPUSH_TMP/home/.gitconfig"
+if HOME="$DOTPUSH_TMP/home" "$DOTPUSH_TMP/home/dotfiles/bin/dotpush" fixture </dev/null >/dev/null 2>&1; then
+  echo "   ✗ FAIL: dotpush committed a machine snapshot without confirmation"
+  fail=1
+elif [ "$(git -C "$DOTPUSH_TMP/home/dotfiles" rev-list --count HEAD)" -ne 1 ]; then
+  echo "   ✗ FAIL: dotpush asked too late, after creating a commit"
+  fail=1
+elif HOME="$DOTPUSH_TMP/home" "$DOTPUSH_TMP/home/dotfiles/bin/dotpush" --yes fixture </dev/null >/dev/null 2>&1 \
+  && [ "$(git -C "$DOTPUSH_TMP/home/dotfiles" rev-list --count HEAD)" -eq 2 ]; then
+  echo "   ✓ noninteractive confirmation refused; --yes committed and pushed"
+else
+  echo "   ✗ FAIL: dotpush --yes did not provide the deliberate automation path"
+  fail=1
+fi
+
+rm -f "$DOTPUSH_TMP/home/dotfiles/bin/security-check"
+printf '[user]\nname = second-device\n' > "$DOTPUSH_TMP/home/.gitconfig"
+out="$(HOME="$DOTPUSH_TMP/home" "$DOTPUSH_TMP/home/dotfiles/bin/dotpush" --yes fixture </dev/null 2>&1 || true)"
+if printf '%s\n' "$out" | grep -qF 'security-check' \
+  && [ "$(git -C "$DOTPUSH_TMP/home/dotfiles" rev-list --count HEAD)" -eq 2 ]; then
+  echo "   ✓ missing scanner refused before commit"
+else
+  echo "   ✗ FAIL: dotpush did not fail closed when security-check was unavailable"
+  fail=1
+fi
+
+echo "11. ai-doctor must compare a branch without upstream to origin/<branch>"
 DOCTOR_TMP="$(mktemp -d "${TMPDIR:-/tmp}/ai-doctor-remote-test.XXXXXX")"
 mkdir -p "$DOCTOR_TMP/repo/bin" "$DOCTOR_TMP/home/.config/ai/memory"
 cp ./bin/ai-doctor "$DOCTOR_TMP/repo/bin/"

@@ -1,86 +1,122 @@
-const { chromium } = require('playwright-extra');
-const stealth = require('puppeteer-extra-plugin-stealth')();
-chromium.use(stealth);
+'use strict';
+
+function emit(payload) {
+    process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+}
+
+function fail(errorCode, error, details = {}) {
+    emit({
+        success: false,
+        source: 'meta_ad_library_api',
+        error_code: errorCode,
+        error,
+        ...details,
+    });
+    process.exitCode = errorCode === 'invalid_configuration' || errorCode === 'invalid_arguments' ? 2 : 1;
+}
 
 async function run() {
-    const keyword = process.argv[2] || "tas wanita";
-    const country = process.argv[3] || "ID";
-    const url = `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=${country}&q=${encodeURIComponent(keyword)}&sort_data[direction]=desc&sort_data[mode]=relevancy_monthly_grouped`;
+    const keyword = process.argv[2];
+    const country = process.argv[3];
+    const accessToken = process.env.META_ACCESS_TOKEN;
+    const apiVersion = process.env.META_GRAPH_API_VERSION;
+    const adType = process.env.META_AD_TYPE || 'ALL';
+    const maxResults = Number(process.env.META_AD_MAX_RESULTS || '25');
 
-    const browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext({
-        viewport: { width: 1920, height: 1080 },
-        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-    });
-    
-    const page = await context.newPage();
+    if (!keyword || keyword.length > 100 || !/^[A-Z]{2}$/.test(country || '')) {
+        fail('invalid_arguments', 'Usage: scout.js <keyword up to 100 characters> <two-letter uppercase country code>');
+        return;
+    }
+    if (!accessToken || !/^v\d+\.\d+$/.test(apiVersion || '')) {
+        fail(
+            'invalid_configuration',
+            'Set META_ACCESS_TOKEN from an existing secret store and META_GRAPH_API_VERSION after checking the current Meta Graph API reference.',
+        );
+        return;
+    }
+    if (!['ALL', 'EMPLOYMENT_ADS', 'FINANCIAL_PRODUCTS_AND_SERVICES_ADS', 'HOUSING_ADS', 'POLITICAL_AND_ISSUE_ADS'].includes(adType)) {
+        fail('invalid_configuration', 'META_AD_TYPE is not a documented Ads Archive ad_type value.');
+        return;
+    }
+    if (!Number.isInteger(maxResults) || maxResults < 1 || maxResults > 100) {
+        fail('invalid_configuration', 'META_AD_MAX_RESULTS must be an integer from 1 through 100.');
+        return;
+    }
+
+    const fields = [
+        'id',
+        'ad_creation_time',
+        'ad_delivery_start_time',
+        'ad_delivery_stop_time',
+        'ad_snapshot_url',
+        'page_id',
+        'page_name',
+        'ad_creative_bodies',
+        'ad_creative_link_captions',
+        'ad_creative_link_descriptions',
+        'ad_creative_link_titles',
+        'publisher_platforms',
+    ];
+    const endpoint = new URL(`https://graph.facebook.com/${apiVersion}/ads_archive`);
+    endpoint.searchParams.set('search_terms', keyword);
+    endpoint.searchParams.set('ad_reached_countries', JSON.stringify([country]));
+    endpoint.searchParams.set('ad_type', adType);
+    endpoint.searchParams.set('ad_active_status', 'ALL');
+    endpoint.searchParams.set('fields', fields.join(','));
+    endpoint.searchParams.set('limit', String(Math.min(100, maxResults)));
+
+    const data = [];
+    let after;
+    let hasMore = false;
 
     try {
-        await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
-        await page.waitForTimeout(8000); 
-
-        const adsData = await page.evaluate(() => {
-            // Find all divs containing 'Library ID:'
-            const cards = Array.from(document.querySelectorAll('div')).filter(el => {
-                const text = el.innerText || '';
-                return text.includes('Library ID:') && text.includes('Sponsored') && text.length < 5000;
+        do {
+            if (after) {
+                endpoint.searchParams.set('after', after);
+            }
+            const response = await fetch(endpoint, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+                signal: AbortSignal.timeout(30_000),
             });
-            
-            // Deduplicate by text content
-            const uniqueCards = [];
-            const seenTexts = new Set();
-            for(let c of cards) {
-                if(!seenTexts.has(c.innerText)) {
-                    uniqueCards.push(c);
-                    seenTexts.add(c.innerText);
-                }
+            const body = await response.json().catch(() => null);
+
+            if (!response.ok || !body || !Array.isArray(body.data)) {
+                const apiError = body?.error;
+                fail('meta_api_request_failed', apiError?.message || `Meta API returned HTTP ${response.status}.`, {
+                    http_status: response.status,
+                    api_error: apiError ? {
+                        type: apiError.type,
+                        code: apiError.code,
+                        error_subcode: apiError.error_subcode,
+                        is_transient: apiError.is_transient,
+                    } : undefined,
+                });
+                return;
             }
 
-            return uniqueCards.slice(0, 10).map(c => {
-                const lines = c.innerText.split('\n').filter(t => t.trim().length > 0 && t !== '​');
-                
-                // Parse Advertiser Name (Usually the line before 'Sponsored')
-                let advertiser = "Unknown";
-                const sponsoredIndex = lines.findIndex(l => l.includes('Sponsored'));
-                if (sponsoredIndex > 0) {
-                    advertiser = lines[sponsoredIndex - 1];
-                }
-                
-                // Parse Copywriting (Everything after 'Sponsored')
-                let copywriting = "";
-                if (sponsoredIndex !== -1 && sponsoredIndex + 1 < lines.length) {
-                    copywriting = lines.slice(sponsoredIndex + 1).join('\n\n');
-                }
+            data.push(...body.data.slice(0, maxResults - data.length));
+            after = body.paging?.cursors?.after;
+            hasMore = Boolean(after);
+        } while (data.length < maxResults && after);
 
-                // Parse Start Date
-                let startDate = "Unknown";
-                const libIdIndex = lines.findIndex(l => l.includes('Library ID:'));
-                if (libIdIndex !== -1 && libIdIndex + 1 < lines.length) {
-                    // Date is usually the next line: "Started running on X" or "X - Y"
-                    startDate = lines[libIdIndex + 1].split('-')[0].trim();
-                }
-
-                return {
-                    advertiser: advertiser,
-                    start_date: startDate,
-                    raw_copywriting: copywriting,
-                    ad_url: `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=ID&q=${encodeURIComponent(advertiser)}&search_type=keyword_unordered&media_type=all`
-                };
-            }).filter(ad => ad.raw_copywriting.length > 10); // Hanya ambil yang ada copywritingnya
+        emit({
+            success: true,
+            source: 'meta_ad_library_api',
+            retrieved_at: new Date().toISOString(),
+            api_version: apiVersion,
+            filters: {
+                search_terms: keyword,
+                ad_reached_countries: [country],
+                ad_type: adType,
+                ad_active_status: 'ALL',
+            },
+            count: data.length,
+            truncated: data.length === maxResults && hasMore,
+            data,
         });
-
-        console.log(JSON.stringify({ 
-            success: true, 
-            target: keyword,
-            country: country,
-            count: adsData.length, 
-            data: adsData 
-        }, null, 2));
-
     } catch (error) {
-        console.log(JSON.stringify({ success: false, error: error.message }, null, 2));
-    } finally {
-        await browser.close();
+        fail('meta_api_request_failed', error instanceof Error ? error.message : String(error));
     }
 }
+
 run();

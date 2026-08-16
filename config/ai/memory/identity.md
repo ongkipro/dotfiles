@@ -5,7 +5,7 @@
 - Preferred name / form of address: Paduka Ongki.
 - Main GitHub username: `ongkipro`.
 - Personal brand/domain: `ongki.pro`.
-- Email: contact/brand `get@ongki.pro` · service accounts (Vercel/Coolify) `ongkiardiansyah@gmail.com`.
+- Email: public contact/brand `get@ongki.pro`. Service-account addresses are machine-local facts and are not tracked here.
 - ⚠️ **For git commits DO NOT use either of them.** Standard: `ongkipro <82156528+ongkipro@users.noreply.github.com>` (see environment.md). `get@ongki.pro` accidentally ended up in commit history and has been removed.
 - Dotfiles repo: `github.com/ongkipro/dotfiles` (private).
 - Full/legal identity: Ongki A Febriananda (confirmed via GitHub profile README draft).

@@ -16,6 +16,11 @@ LEGACY_PROJECTS_DIR="$HOME/projects"
 LEGACY_DOCS_DIR="$HOME/Documents/projects"
 GITHUB_USER="${GITHUB_USER:-ongkipro}"
 
+PROMOTION_SOURCES=()
+PROMOTION_DESTINATIONS=()
+PROMOTION_LAYOUT=""
+PROMOTION_STAGE=""
+
 say(){ printf '→ %s\n' "$*"; }
 warn(){ printf 'WARNING: %s\n' "$*" >&2; }
 die(){ printf 'ERROR: %s\n' "$1" >&2; exit "${2:-1}"; }
@@ -75,6 +80,7 @@ Usage:
   project-init --gen <repo-name>
   project-init <name> --stack <profile> [options]
   project-init --repo <path> --stack existing-repository [options]
+  project-init <name> --stack <profile> --from-docs <stage-dir> [options]
   project-init --list
   project-init --sync
 
@@ -85,6 +91,7 @@ Stack-aware options:
   --deploy none|coolify|cloudflare
                                  Selected target; never deploys or creates remote resources
   --package-manager npm|pnpm
+  --from-docs <stage-dir>        Promote an accepted planning stage into the repository
   --plan                         Resolve and print the plan without filesystem writes or installs
   --no-install                   Skip dependency installation (unsupported by cloudflare-worker)
   -h, --help
@@ -92,16 +99,19 @@ Stack-aware options:
 New projects use an official native generator, then receive README.md,
 AGENTS.md, PRD.md, TASKS.md, STATUS.md, DECISIONS.md, RELEASE.md,
 OBSERVABILITY.md, BUILD-LOG.md, ARCHITECTURE.md, and an initialized
-.delivery ledger. Existing files are never
-overwritten. Auth, database, and deploy selections become explicit decisions and
-future tasks until executable evidence proves them operational.
+.delivery ledger. Existing files are never overwritten. With --from-docs,
+accepted planning artifacts are copied into the repository before its contract
+is rendered; repository copies then become canonical and the source remains a
+non-authoritative snapshot. Auth, database, and deploy selections become
+explicit decisions and future tasks until executable evidence proves them
+operational.
 USAGE
 }
 
 has_stack_option(){
   local arg
   for arg in "$@"; do
-    case "$arg" in --stack|--database|--auth|--deploy|--package-manager|--plan|--no-install) return 0;; esac
+    case "$arg" in --stack|--database|--auth|--deploy|--package-manager|--from-docs|--plan|--no-install) return 0;; esac
   done
   return 1
 }
@@ -118,8 +128,159 @@ cleanup_partial(){
   fi
 }
 
+suite_prd_pointer(){
+  cat <<'POINTER'
+# Product Requirements
+
+The canonical product requirements are maintained in [`docs/spec/02-PRD.md`](docs/spec/02-PRD.md).
+POINTER
+}
+
+prepare_docs_promotion(){
+  local requested="$1" target="$2" entry relative
+  local -a ordered=()
+  PROMOTION_SOURCES=()
+  PROMOTION_DESTINATIONS=()
+  PROMOTION_LAYOUT=""
+  PROMOTION_STAGE=""
+
+  [ -n "$requested" ] || return 0
+  while [ "$requested" != "/" ] && [ "${requested%/}" != "$requested" ]; do
+    requested="${requested%/}"
+  done
+  [ ! -L "$requested" ] || die "planning stage must not be a symlink: $requested"
+  PROMOTION_STAGE="$(cd "$requested" 2>/dev/null && pwd -P)" || die "planning stage directory not found: $requested"
+  [ -d "$PROMOTION_STAGE" ] || die "planning stage is not a directory: $requested"
+
+  while IFS= read -r entry; do
+    relative="${entry#"$PROMOTION_STAGE"/}"
+    [ ! -L "$entry" ] || die "planning stage contains a symlink: $relative"
+    if [ -d "$entry" ]; then
+      if [ ! -f "$PROMOTION_STAGE/CONTEXT-RECORD.md" ]; then
+        case "$relative" in docs|docs/adr) :;; *) die "unsupported standalone planning directory: $relative";; esac
+      fi
+    elif [ ! -f "$entry" ]; then
+      die "planning stage contains an unsupported file type: $relative"
+    elif [ ! -f "$PROMOTION_STAGE/CONTEXT-RECORD.md" ]; then
+      case "$relative" in
+        PRD.md|PLAN.md|TASKS.md|docs/adr/ADR-[0-9][0-9][0-9][0-9]-*.md) :;;
+        *) die "unsupported standalone planning artifact: $relative";;
+      esac
+    fi
+  done < <(find "$PROMOTION_STAGE" -mindepth 1 -print)
+
+  if [ -f "$PROMOTION_STAGE/CONTEXT-RECORD.md" ]; then
+    [ ! -L "$PROMOTION_STAGE/CONTEXT-RECORD.md" ] || die "CONTEXT-RECORD.md must not be a symlink"
+    [ -f "$PROMOTION_STAGE/02-PRD.md" ] && [ ! -L "$PROMOTION_STAGE/02-PRD.md" ] || die "suite planning stage requires a regular 02-PRD.md"
+    PROMOTION_LAYOUT="suite-pack"
+    while IFS= read -r entry; do
+      ordered[${#ordered[@]}]="$entry"
+    done < <(find "$PROMOTION_STAGE" -type f -print | LC_ALL=C sort)
+    for entry in "${ordered[@]}"; do
+      relative="${entry#"$PROMOTION_STAGE"/}"
+      PROMOTION_SOURCES[${#PROMOTION_SOURCES[@]}]="$entry"
+      case "$relative" in
+        TASKS.md|PLAN.md) PROMOTION_DESTINATIONS[${#PROMOTION_DESTINATIONS[@]}]="$target/$relative";;
+        *) PROMOTION_DESTINATIONS[${#PROMOTION_DESTINATIONS[@]}]="$target/docs/spec/$relative";;
+      esac
+    done
+  else
+    PROMOTION_LAYOUT="standalone"
+    for relative in PRD.md PLAN.md TASKS.md; do
+      if [ -f "$PROMOTION_STAGE/$relative" ]; then
+        PROMOTION_SOURCES[${#PROMOTION_SOURCES[@]}]="$PROMOTION_STAGE/$relative"
+        PROMOTION_DESTINATIONS[${#PROMOTION_DESTINATIONS[@]}]="$target/$relative"
+      fi
+    done
+    ordered=()
+    if [ -d "$PROMOTION_STAGE/docs/adr" ]; then
+      while IFS= read -r entry; do
+        ordered[${#ordered[@]}]="$entry"
+      done < <(find "$PROMOTION_STAGE/docs/adr" -type f -print | LC_ALL=C sort)
+      for entry in "${ordered[@]}"; do
+        relative="${entry#"$PROMOTION_STAGE"/}"
+        PROMOTION_SOURCES[${#PROMOTION_SOURCES[@]}]="$entry"
+        PROMOTION_DESTINATIONS[${#PROMOTION_DESTINATIONS[@]}]="$target/$relative"
+      done
+    fi
+  fi
+
+  [ "${#PROMOTION_SOURCES[@]}" -gt 0 ] || die "planning stage contains no accepted artifacts: $PROMOTION_STAGE"
+}
+
+validate_suite_prd_pointer(){
+  local target="$1" destination="$1/PRD.md"
+  [ "$PROMOTION_LAYOUT" = "suite-pack" ] || return 0
+  [ ! -L "$destination" ] || die "refusing symlink destination: $destination"
+  if [ -e "$destination" ]; then
+    [ -f "$destination" ] || die "suite PRD index destination is not a regular file: $destination"
+    cmp -s <(suite_prd_pointer) "$destination" || die "refusing divergent root PRD.md; suite projects require an index to docs/spec/02-PRD.md"
+  fi
+}
+
+validate_promotion_destinations(){
+  local target="$1" index source destination parent next
+  validate_suite_prd_pointer "$target"
+  for ((index=0; index<${#PROMOTION_SOURCES[@]}; index++)); do
+    source="${PROMOTION_SOURCES[$index]}"
+    destination="${PROMOTION_DESTINATIONS[$index]}"
+    [ -f "$source" ] && [ ! -L "$source" ] || die "planning artifact is no longer a regular file: $source"
+
+    [ ! -L "$destination" ] || die "refusing symlink destination: $destination"
+    parent="$(dirname "$destination")"
+    while [ "$parent" != "$target" ]; do
+      [ ! -L "$parent" ] || die "refusing symlink destination directory: $parent"
+      next="$(dirname "$parent")"
+      [ "$next" != "$parent" ] || die "promotion destination escaped project: $destination"
+      parent="$next"
+    done
+
+    if [ -e "$destination" ]; then
+      [ -f "$destination" ] || die "promotion destination is not a regular file: $destination"
+      cmp -s "$source" "$destination" || die "refusing to overwrite divergent project file: $destination"
+    fi
+  done
+}
+
+print_promotion_plan(){
+  local target="$1" index
+  [ "${#PROMOTION_SOURCES[@]}" -gt 0 ] || return 0
+  printf '  Planning source: %s\n  Planning layout: %s\n  Promotion mapping:\n' "$PROMOTION_STAGE" "$PROMOTION_LAYOUT"
+  for ((index=0; index<${#PROMOTION_SOURCES[@]}; index++)); do
+    printf '    %s -> %s\n' "${PROMOTION_SOURCES[$index]}" "${PROMOTION_DESTINATIONS[$index]}"
+  done
+  if [ "$PROMOTION_LAYOUT" = "suite-pack" ]; then
+    printf '  Generated repository index: %s/PRD.md -> docs/spec/02-PRD.md\n' "$target"
+  fi
+  printf '  Authority after promotion: repository copies are canonical; the planning source remains a non-authoritative snapshot.\n'
+}
+
+promote_docs(){
+  local target="$1" index source destination relative
+  [ "${#PROMOTION_SOURCES[@]}" -gt 0 ] || return 0
+  validate_promotion_destinations "$target"
+  for ((index=0; index<${#PROMOTION_SOURCES[@]}; index++)); do
+    source="${PROMOTION_SOURCES[$index]}"
+    destination="${PROMOTION_DESTINATIONS[$index]}"
+    relative="${destination#"$target"/}"
+    if [ -e "$destination" ]; then
+      say "$relative exists identically — preserved"
+      continue
+    fi
+    mkdir -p "$(dirname "$destination")"
+    cp "$source" "$destination"
+    say "promoted $relative"
+  done
+  if [ "$PROMOTION_LAYOUT" = "suite-pack" ] && [ ! -e "$target/PRD.md" ]; then
+    suite_prd_pointer > "$target/PRD.md"
+    say "created PRD.md index to docs/spec/02-PRD.md"
+  fi
+  say "Repository copies are now canonical: $target"
+  say "Planning source remains a non-authoritative snapshot: $PROMOTION_STAGE"
+}
+
 bootstrap(){
-  local name="" repo_arg="" stack="" database="none" auth="none" deploy="none" pm="npm"
+  local name="" repo_arg="" stack="" database="none" auth="none" deploy="none" pm="npm" from_docs=""
   local plan=0 no_install=0 explicit_pm=0 target parent description generator_label stack_label
   local source_check="native-generator" source_detail
   local -a args=("$@") generator=() checks=()
@@ -134,7 +295,7 @@ bootstrap(){
 
   while [ "$i" -lt "${#args[@]}" ]; do
     case "${args[$i]}" in
-      --stack|--database|--auth|--deploy|--package-manager)
+      --stack|--database|--auth|--deploy|--package-manager|--from-docs)
         [ "$((i + 1))" -lt "${#args[@]}" ] || die "${args[$i]} requires a value"
         case "${args[$i]}" in
           --stack) stack="${args[$((i + 1))]}";;
@@ -142,6 +303,7 @@ bootstrap(){
           --auth) auth="${args[$((i + 1))]}";;
           --deploy) deploy="${args[$((i + 1))]}";;
           --package-manager) pm="${args[$((i + 1))]}"; explicit_pm=1;;
+          --from-docs) from_docs="${args[$((i + 1))]}";;
         esac
         i=$((i + 2));;
       --plan) plan=1; i=$((i + 1));;
@@ -205,8 +367,10 @@ bootstrap(){
   if [ "$stack" != "existing-repository" ]; then
     [[ "$name" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || die "invalid project name: use lowercase letters and numbers separated by single dashes"
     parent="$PROJECTS_DIR"; target="$parent/$name"
-    [ ! -e "$target" ] || die "destination already exists; refusing to scaffold: $target"
+    { [ ! -e "$target" ] && [ ! -L "$target" ]; } || die "destination already exists; refusing to scaffold: $target"
   fi
+  prepare_docs_promotion "$from_docs" "$target"
+  validate_promotion_destinations "$target"
   checks=("$DOT/bin/project-check" --full "$target")
 
   if [ "$plan" -eq 1 ]; then
@@ -216,6 +380,7 @@ bootstrap(){
     printf '  Generator: %s\n' "$generator_label"
     if [ "${#generator[@]}" -gt 0 ]; then printf '  Generator command:\n'; print_command "${generator[@]}"; fi
     printf '  Repository contract: README.md, AGENTS.md, PRD.md, TASKS.md, STATUS.md, DECISIONS.md, RELEASE.md, OBSERVABILITY.md, BUILD-LOG.md, ARCHITECTURE.md, .delivery/\n'
+    print_promotion_plan "$target"
     printf '  Verification command:\n'; print_command "${checks[@]}"
     printf '  Capability state: selected decisions only; implementation remains unverified until its repository tasks and checks pass.\n'
     return 0
@@ -240,6 +405,13 @@ bootstrap(){
     fi
   fi
 
+  if [ "${#PROMOTION_SOURCES[@]}" -gt 0 ]; then
+    if ! (promote_docs "$target"); then
+      [ "$stack" = "existing-repository" ] || cleanup_partial "$target" "$parent/$name"
+      die "planning artifact promotion failed"
+    fi
+  fi
+
   description="Native $stack baseline. Database=$database; auth=$auth; deploy=$deploy. Selected capabilities are decisions, not operational claims."
   if ! (render_contract "$target" "$name" "$stack" "$description" "$stack_label" "$database" "$auth" "$deploy" "native generator: $generator_label"); then
     [ "$stack" = "existing-repository" ] || cleanup_partial "$target" "$parent/$name"
@@ -248,6 +420,9 @@ bootstrap(){
 
   python3 "$DOT/bin/delivery-ledger" --repo "$target" start --task TASK-BOOTSTRAP --requirement REQ-BOOTSTRAP --risk R1 --worker project-init --model project-init >/dev/null
   if [ "$source_check" = "native-generator" ]; then source_detail="$generator_label completed; capability selections remain pending tasks"; else source_detail="existing Git worktree accepted; source files were preserved"; fi
+  if [ "${#PROMOTION_SOURCES[@]}" -gt 0 ]; then
+    source_detail="$source_detail; repository planning copies are canonical and $PROMOTION_STAGE remains a non-authoritative snapshot"
+  fi
   python3 "$DOT/bin/delivery-ledger" --repo "$target" record --check "$source_check" --status PASS --detail "$source_detail" >/dev/null
 
   if [ "$no_install" -eq 1 ]; then

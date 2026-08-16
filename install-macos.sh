@@ -23,9 +23,26 @@ link() {
   say "   $dst -> $src"
 }
 ensure_line() {
-  local line="$1" file="$2" backup
+  local line="$1" file="$2" backup tmp
   touch "$file"
-  if grep -Fqx "$line" "$file" 2>/dev/null; then
+  tmp="$(mktemp "${file}.tmp.XXXXXX")"
+  awk -v source_line="$line" '
+    /^[[:space:]]*eval[[:space:]]+"\$\([^)]*mise[[:space:]]+activate[[:space:]]+(bash|zsh)[^)]*\)"[[:space:]]*$/ { next }
+    $0 == source_line {
+      if (!source_seen) print
+      source_seen = 1
+      next
+    }
+    { print }
+    END {
+      if (!source_seen) {
+        if (NR > 0) print ""
+        print source_line
+      }
+    }
+  ' "$file" > "$tmp"
+  if cmp -s "$file" "$tmp"; then
+    rm -f "$tmp"
     return 0
   fi
   if [ -s "$file" ]; then
@@ -33,7 +50,9 @@ ensure_line() {
     cp -p "$file" "$backup"
     say "   backup: $file -> $backup"
   fi
-  printf '\n%s\n' "$line" >> "$file"
+  cat "$tmp" > "$file"
+  rm -f "$tmp"
+  say "   tracked shell source normalized in $file"
 }
 
 say "==> Symlink shared memory, config penting, dan scripts..."
@@ -53,6 +72,8 @@ while IFS= read -r s; do
   [ -x "$DOT/bin/$s" ] || { echo "ERROR: runtime command is missing or not executable: $s" >&2; exit 1; }
   link "$DOT/bin/$s" "$HOME/.local/bin/$s"
 done < "$DOT/config/ai/runtime-commands.txt"
+say "==> Wire canonical Claude Code hooks..."
+"$HOME/.local/bin/ai-hooks-install"
 
 
 say "==> Link local skills + skill commands..."
@@ -73,38 +94,29 @@ link "$DOT/config/omp/agents"            "$HOME/.omp/agent/agents"     # OMP spe
 say "==> Setup tmux (install binary + clipboard + TPM + plugin)..."
 "$DOT/bin/tmux-setup"
 
-say "==> Install mise (tool manager)..."
+say "==> Install tracked mise toolchain..."
+if ! command -v mise >/dev/null 2>&1 && [ -x "$HOME/.local/bin/mise" ]; then
+  export PATH="$HOME/.local/bin:$PATH"
+fi
 if command -v mise >/dev/null 2>&1; then
   say "   mise sudah ada: $(mise --version 2>&1 | head -1)"
-  eval "$($HOME/.local/bin/mise activate bash 2>/dev/null || $HOME/.local/bin/mise activate zsh 2>/dev/null || true)"
-
-  say "==> Install essential tools via mise..."
-  MISE_TOOLS="starship direnv lazygit helix"
-  for tool in $MISE_TOOLS; do
-    if mise which "$tool" >/dev/null 2>&1; then
-      say "   $tool sudah ada"
-    else
-      mise use -g "$tool" && say "   $tool ✓ terinstall"
-    fi
-  done
+  mise install
+  say "   Node dan seluruh toolchain dari config/mise-config.toml ✓ terinstall"
 else
   cat <<'EOF'
    mise belum ada. Skrip ini tidak menjalankan remote script otomatis — install manual:
        curl -fsSL https://mise.run | sh
-   Lalu jalankan ulang install-macos.sh untuk lanjut instal starship/direnv/lazygit/helix via mise.
+   Lalu jalankan ulang install-macos.sh untuk memasang Node dan seluruh toolchain
+   dari config/mise-config.toml.
 EOF
 fi
 
-say "==> Optional 9Router/Pi setup..."
+say "==> Optional Pi/remote-9Router setup..."
 if [ "${DOTFILES_SETUP_PI:-0}" = "1" ]; then
   command -v pi >/dev/null 2>&1 || { say "ERROR: DOTFILES_SETUP_PI=1 but pi is not installed."; exit 1; }
-  command -v 9router >/dev/null 2>&1 || { say "ERROR: DOTFILES_SETUP_PI=1 but 9router is not installed."; exit 1; }
   "$DOT/bin/pi-9router-restore"
-elif [ "${DOTFILES_SETUP_9ROUTER:-0}" = "1" ]; then
-  command -v 9router >/dev/null 2>&1 || { say "ERROR: DOTFILES_SETUP_9ROUTER=1 but 9router is not installed."; exit 1; }
-  "$DOT/bin/9router-restore"
 else
-  say "   skipped (set DOTFILES_SETUP_9ROUTER=1 or DOTFILES_SETUP_PI=1 to opt in)"
+  say "   skipped (set DOTFILES_SETUP_PI=1 to opt in)"
 fi
 if [ ! -f "$HOME/.gitconfig" ]; then
   cat > "$HOME/.gitconfig" <<GITEOF

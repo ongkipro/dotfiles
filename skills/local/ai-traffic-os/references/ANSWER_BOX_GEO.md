@@ -1,17 +1,18 @@
-# AnswerBox & GEO Passage Extraction Standards
+# AnswerBox Editorial Pattern
 
-Generative Engines (Gemini in Google AI Overviews, OpenAI in ChatGPT Search, Perplexity) extract self-contained text blocks to answer user queries directly.
+An answer box is a local presentation pattern for making visible content clear to people. It is not vendor-recognized schema and does not create citation eligibility by itself. Google documents no extra technical requirement for AI Overviews or AI Mode beyond normal Search eligibility.
 
-## 2026 Passage Chunking Rules
+## Editorial guidance
 
-1. **Target Word Density**: **134–167 words** per direct answer paragraph.
-2. **First-Sentence Directness**: The first sentence under an H2/H3 header MUST answer the core question directly.
-3. **No Pronoun Ambiguity**: Avoid vague references like *"as mentioned earlier"* or *"in the previous section"*. The passage must be 100% self-contained if extracted out of context.
-4. **Data Attributes**: Include `data-citation-unit="true"` and `data-answer-body="true"` to signal structured passage boundaries to AI parsers.
+1. Answer the heading's question promptly, in as many words as accuracy requires.
+2. Keep necessary nouns, qualifiers, units, dates, and scope in the same section so it remains understandable when linked directly.
+3. Avoid vague references such as "as mentioned earlier" when a precise referent is inexpensive.
+4. Use semantic HTML and descriptive headings for accessibility and normal document structure.
+5. Treat custom `data-*` attributes as application hooks only; no cited vendor source here recognizes them as ranking or citation signals.
 
----
+Source: [Google, AI features and your website](https://developers.google.com/search/docs/appearance/ai-features). Retrieve the current page before turning this editorial pattern into vendor-specific guidance.
 
-## Astro Implementation: `AnswerBox.astro`
+## Astro implementation: `AnswerBox.astro`
 
 ```astro
 ---
@@ -40,15 +41,12 @@ const {
 <section
   class="answer-box my-6 rounded-xl border border-blue-200 bg-blue-50/60 p-6 dark:border-blue-900/50 dark:bg-blue-950/20"
   aria-labelledby="direct-answer-heading"
-  data-citation-unit="true"
-  data-entity={topicEntity}
 >
   <h2 id="direct-answer-heading" class="text-xl font-bold text-gray-900 dark:text-gray-100">
     {question}
   </h2>
 
-  <!-- Direct Answer Paragraph: 134–167 words self-contained answer for LLM parsers -->
-  <p class="mt-3 text-base leading-relaxed text-gray-800 dark:text-gray-200" data-answer-body="true">
+  <p class="mt-3 text-base leading-relaxed text-gray-800 dark:text-gray-200">
     {answer}
   </p>
 

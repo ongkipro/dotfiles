@@ -1,18 +1,8 @@
 {
   "name": "meta-ads-scout",
   "version": "1.0.0",
-  "description": "",
+  "description": "Official Meta Ad Library API client for bounded competitor-ad research",
   "main": "scout.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "playwright": "^1.62.1",
-    "playwright-extra": "^4.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
-  }
+  "type": "commonjs"
 }

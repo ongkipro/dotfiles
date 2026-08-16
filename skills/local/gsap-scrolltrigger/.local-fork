@@ -1,5 +1,6 @@
 upstream: https://raw.githubusercontent.com/greensock/gsap-skills/main/skills/gsap-scrolltrigger/SKILL.md
 verified: 2026-08-16
+scope: directory
 reason: upstream has a real bug — local fixes it
 note: Line 235 of upstream reads:
   xPercent: () => Max.max(0, window.innerWidth - scrollingEl.offsetWidth),
@@ -10,12 +11,14 @@ note: Line 235 of upstream reads:
   invalidateOnRefresh: true so the computed values re-run on resize.
   Diffed 2026-08-16: upstream 296 lines, local 301 lines, this is the only
   functional divergence.
-would_lose_if_wired: wiring .source would overwrite the working fork with
-  upstream's broken Max.max(...) snippet on the next refresh.
+would_lose_if_wired: an unguarded byte-for-byte refresh would overwrite the
+  working fork with upstream's broken Max.max(...) recipe.
+refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is
+  present, before any fetch or write.
 
-reported: 2026-08-16 — https://github.com/greensock/gsap-skills/issues/18
-  Filed as ongkipro. No duplicate existed; issue #15 concerns refreshPriority
-  in the same skill, not this snippet.
+external_status: https://github.com/greensock/gsap-skills/issues/18 was observed
+  open on 2026-08-16, filed by ongkipro with this defect and replacement.
+  This task performed no external write or publication.
 
   Filing surfaced a point the earlier draft had missed, and it is the reason
   the local fork rewrites the snippet rather than patching one word: correcting
@@ -29,9 +32,10 @@ reported: 2026-08-16 — https://github.com/greensock/gsap-skills/issues/18
   closing the defect, and re-wiring .source on that basis would still lose the
   working recipe.
 
-to_vendor: watch issue #18. Wire .source only when upstream's snippet actually
-  moves the element — a `Math.max` typo fix alone is NOT sufficient (see
-  above). Confirm with a re-diff, not with the issue being closed.
+to_vendor: watch https://github.com/greensock/gsap-skills/issues/18. Remove the
+  fork only when upstream's snippet actually moves the element — a `Math.max`
+  typo fix alone is NOT sufficient (see above). Confirm with a re-diff, not
+  merely with the issue being closed.
 
 recheck: 2026-08-16 — still present upstream at line 235.
     curl -s https://raw.githubusercontent.com/greensock/gsap-skills/main/skills/gsap-scrolltrigger/SKILL.md | grep -n 'Max\.max'

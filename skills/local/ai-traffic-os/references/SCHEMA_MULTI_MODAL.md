@@ -1,8 +1,8 @@
 # Multi-Modal & Authority Schemas (JSON-LD)
 
-Google AI Mode & Overviews give **+156% to +317% selection lift** to content that pairs clear text with structured multi-modal data (`ImageObject`, `VideoObject` with transcripts).
+Use structured data only when it accurately describes visible page content and the target search feature supports it. Google recommends useful text with high-quality images or video where applicable and requires structured data to match visible content; it does not publish a guaranteed AI Overview or AI Mode selection lift for the schemas below.
 
----
+Sources: [Google AI features and your website](https://developers.google.com/search/docs/appearance/ai-features) and [Google structured data policies](https://developers.google.com/search/docs/appearance/structured-data/sd-policies). Retrieve the current feature-specific documentation before selecting required or recommended properties.
 
 ## 1. ImageObject Schema Generator
 

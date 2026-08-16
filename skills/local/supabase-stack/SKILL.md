@@ -147,10 +147,29 @@ create policy "public read" on products
 
 ## Auth — Client Integration
 
-### Next.js (App Router)
+Retrieve the current [Supabase SSR client guide](https://supabase.com/docs/guides/auth/server-side/creating-a-client) and the framework's current request-boundary docs before implementation. `@supabase/ssr` and framework cookie APIs evolve; do not copy an old auth-helper or middleware snippet from memory.
+
+### Next.js App Router
+
+Install `@supabase/supabase-js` and `@supabase/ssr` with the project's existing package manager. Use the current publishable key names:
 
 ```bash
-npm i @supabase/supabase-js @supabase/ssr
+NEXT_PUBLIC_SUPABASE_URL=supabase_project_url
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=supabase_publishable_key
+```
+
+Create both clients under `lib/supabase`:
+
+```ts
+// lib/supabase/client.ts
+import { createBrowserClient } from '@supabase/ssr'
+
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+  )
+}
 ```
 
 ```ts
@@ -158,50 +177,64 @@ npm i @supabase/supabase-js @supabase/ssr
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-export function createClient() {
-  const cookieStore = cookies()
+export async function createClient() {
+  const cookieStore = await cookies()
+
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll(), setAll: (c) => c.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) } }
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll(),
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options))
+          } catch {
+            // Server Components cannot write cookies. The request Proxy refreshes them.
+          }
+        },
+      },
+    },
   )
 }
 ```
 
+Then follow the official guide's request-boundary pattern for the project's installed Next.js version rather than maintaining a second snapshot here. Current Next.js documentation uses `proxy.ts`; older supported releases may still use `middleware.ts`. Its session helper must:
+
+1. create a request-scoped server client;
+2. mirror refreshed cookies onto both the request and response;
+3. preserve each cookie's `options` when applying the `setAll` callback;
+4. call `supabase.auth.getClaims()` immediately after client creation; and
+5. return that same response object, with a matcher that excludes static assets.
+
+Use `getClaims()` to authorize server pages and data. Use `getUser()` when an up-to-date Auth user record is required. Use `getSession()` only when raw session tokens are needed; never trust its embedded user object for server authorization because cookie-backed storage is user-controlled.
+
 ### Astro
 
+The following is a browser-only public client, not SSR auth:
+
 ```ts
-// src/lib/supabase.ts
 import { createClient } from '@supabase/supabase-js'
 
 export const supabase = createClient(
   import.meta.env.PUBLIC_SUPABASE_URL,
-  import.meta.env.PUBLIC_SUPABASE_ANON_KEY
+  import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 )
 ```
 
+For cookie-backed Astro auth, enable on-demand rendering and retrieve the current Astro section of the [Supabase SSR guide](https://supabase.com/docs/guides/auth/server-side/creating-a-client). Use `createServerClient`, request cookies, and a request-time authorization check; do not reuse the browser client on the server.
+
 ### Auth flows
 
+Browser sign-up, password sign-in, OAuth, and sign-out use the current `supabase.auth` methods. On the server:
+
 ```ts
-// Sign up
-const { data, error } = await supabase.auth.signUp({
-  email, password,
-  options: { data: { username } }
-})
-
-// Sign in
-const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-
-// OAuth (Google, GitHub)
-await supabase.auth.signInWithOAuth({ provider: 'google',
-  options: { redirectTo: `${origin}/auth/callback` }
-})
-
-// Sign out
-await supabase.auth.signOut()
-
-// Get session (server)
-const { data: { session } } = await supabase.auth.getSession()
+const supabase = await createClient()
+const { data: { claims }, error } = await supabase.auth.getClaims()
+if (error || !claims) {
+  // reject or redirect before reading protected data
+}
 ```
 
 ## Storage
@@ -257,7 +290,7 @@ supabase functions serve
 ```env
 # Client-side (public)
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 
 # Server-side only (private)
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
@@ -270,7 +303,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - [ ] Create the first migration: main tables + RLS
 - [ ] Set up an auth provider (email, OAuth)
 - [ ] Install the client library in the frontend
-- [ ] Set up middleware for session refresh (Next.js / Astro)
+- [ ] Set up the current request boundary for cookie refresh and authorization (`proxy.ts` on current Next.js; request middleware on Astro)
 - [ ] Create a storage bucket + policies
 - [ ] Test RLS: make sure a user cannot access other people's data
 

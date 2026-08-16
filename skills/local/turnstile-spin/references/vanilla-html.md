@@ -142,11 +142,7 @@ For an AJAX flow, replace the native form and API script with explicit rendering
 
 ## No backend?
 
-If your project is pure-static (no server-side handler — just HTML served from a CDN), Spin doesn't apply. Siteverify is server-side by design. Options:
-
-- Add a Cloudflare Pages Function (`functions/api/subscribe.js`) to host the siteverify call.
-- Deploy a tiny Cloudflare Worker that does siteverify against your existing form host.
-- Use a third-party form host that exposes a server-side webhook where you can wire siteverify.
+If the project is pure static and no existing server-side handler or form-provider hook can call Siteverify, stop: Spin does not apply. Do not create a Pages Function, Worker, proxy, sidecar, or third-party form integration as part of this skill. Explain that Turnstile cannot be securely validated in browser-only code and leave the project unchanged.
 
 ## Substitutions
 

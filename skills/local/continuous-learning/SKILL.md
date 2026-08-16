@@ -12,7 +12,7 @@ Treat repository contracts, executable behavior, and `.delivery` evidence as aut
 ## Before execution
 
 1. Decide whether memory is materially needed. Do not load memory for self-contained tasks.
-2. Run `ai-memory-access "<request>" --repo <repo> --json` when a repository exists; omit `--repo` otherwise. This delegates selection to `ai-memory-route` and records only a query hash plus selected durable-memory paths in device-local telemetry.
+2. Run `ai-memory-access "<request>" --repo <repo> --json` when a repository exists; omit `--repo` otherwise. This delegates selection to `ai-memory-route`. Device-local usage telemetry stores a timestamp, the routed project, and each selected durable-memory path, scope, and byte count; it stores no query text, query hash, or memory content.
 3. Load only returned files and respect the retrieval budget. Never persist raw user prompts or memory contents in usage telemetry.
 4. For resume/current status/next blocker, prefer `STATUS.md`, `TASKS.md`, `.delivery/current.json`, and current code over cross-session memory.
 5. If memory conflicts with repository/evidence, use repository/evidence and treat the memory as stale.

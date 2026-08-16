@@ -9,6 +9,7 @@ DL="$REPO/bin/delivery-ledger"
 [ -f "$DL" ] || { echo "ERROR: delivery-ledger missing: $DL" >&2; exit 1; }
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/project-init-test.XXXXXX")"
+TMP="$(cd "$(dirname "$TMP")" && pwd -P)/$(basename "$TMP")"
 cleanup() { rm -rf "$TMP"; }
 trap cleanup EXIT
 
@@ -29,6 +30,7 @@ if [ "${1:-}" = run ]; then
   exit 0
 fi
 if [ "${1:-}" = exec ]; then
+  [ -z "${MOCK_GENERATOR_LOG:-}" ] || printf 'invoked\n' >> "$MOCK_GENERATOR_LOG"
   name=""; seen=0
   for arg in "$@"; do
     if [ "$seen" -eq 1 ]; then name="$arg"; break; fi
@@ -52,6 +54,7 @@ if [ "${1:-}" = run ]; then
   exit 0
 fi
 if [ "${1:-}" = dlx ]; then
+  [ -z "${MOCK_GENERATOR_LOG:-}" ] || printf 'invoked\n' >> "$MOCK_GENERATOR_LOG"
   name="${3:-}"; [ -n "$name" ] || exit 64
   mkdir -p "$name/src"
   if [ "${MOCK_GENERATOR_FAIL:-0}" = 1 ]; then printf 'partial\n' > "$name/partial.txt"; exit 42; fi
@@ -80,7 +83,7 @@ done
 # Help and parsing expose the supported option contract.
 HELP="$TMP/help.txt"
 "$SCRIPT" --help > "$HELP"
-for option in --stack --database --auth --deploy --package-manager --plan --no-install; do
+for option in --stack --database --auth --deploy --package-manager --from-docs --plan --no-install; do
   grep -q -- "$option" "$HELP" || fail "help missing $option"
 done
 
@@ -88,7 +91,7 @@ done
 PLAN_ROOT="$TMP/projects with spaces"
 for profile in nextjs astro cloudflare-worker; do
   output="$(PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" "${profile}-app" --stack "$profile" --plan)"
-  printf '%s' "$output" | grep -q "Stack-Aware Project Bootstrap plan" || fail "plan missing for $profile"
+  grep -q "Stack-Aware Project Bootstrap plan" <<<"$output" || fail "plan missing for $profile"
   [ ! -e "$PLAN_ROOT" ] || fail "--plan wrote to filesystem for $profile"
 done
 EXISTING_PLAN="$TMP/existing plan"
@@ -99,10 +102,10 @@ PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" --repo "$EXISTING_PLAN" --stack existing-rep
 
 # Parse and validate the intended composed Next.js decision set.
 plan="$(PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" composed --stack nextjs --database postgres --auth better-auth --deploy coolify --package-manager pnpm --plan)"
-printf '%s' "$plan" | grep -q 'Package manager: pnpm' || fail 'package manager not resolved'
-printf '%s' "$plan" | grep -q 'Database decision: postgres' || fail 'database not resolved'
-printf '%s' "$plan" | grep -q 'Auth decision: better-auth' || fail 'auth not resolved'
-printf '%s' "$plan" | grep -q 'Deploy target: coolify' || fail 'deploy target not resolved'
+grep -q 'Package manager: pnpm' <<<"$plan" || fail 'package manager not resolved'
+grep -q 'Database decision: postgres' <<<"$plan" || fail 'database not resolved'
+grep -q 'Auth decision: better-auth' <<<"$plan" || fail 'auth not resolved'
+grep -q 'Deploy target: coolify' <<<"$plan" || fail 'deploy target not resolved'
 
 # Invalid input and combinations fail before mutation.
 expect_rc 1 env PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" bad --stack unsupported
@@ -167,9 +170,129 @@ printf 'owned\n' > "$EXISTING/PRD.md"
 [ "$(cat "$EXISTING/PRD.md")" = owned ] || fail 'existing-repository overwrote PRD.md'
 python3 "$DL" --repo "$EXISTING" verify >/dev/null || fail 'existing-repository ledger failed verification'
 
+# Standalone planning artifacts promote from spaced paths, preserve ADR placement,
+# and remain byte-identical on a second invocation.
+STANDALONE_STAGE="$TMP/Documents/work/prd/planned app"
+mkdir -p "$STANDALONE_STAGE/docs/adr"
+printf '# Accepted PRD\n' > "$STANDALONE_STAGE/PRD.md"
+printf '# Accepted plan\n' > "$STANDALONE_STAGE/PLAN.md"
+printf '# Accepted tasks\n' > "$STANDALONE_STAGE/TASKS.md"
+printf '# Accepted decision\n' > "$STANDALONE_STAGE/docs/adr/ADR-0001-initial-direction.md"
+STANDALONE_REPO="$TMP/promoted standalone repository"
+mkdir -p "$STANDALONE_REPO"
+git -C "$STANDALONE_REPO" init -q
+printf '{"scripts":{"lint":"fake"}}\n' > "$STANDALONE_REPO/package.json"
+"$SCRIPT" --repo "$STANDALONE_REPO" --stack existing-repository --from-docs "$STANDALONE_STAGE" >/dev/null
+for path in PRD.md PLAN.md TASKS.md docs/adr/ADR-0001-initial-direction.md; do
+  cmp -s "$STANDALONE_STAGE/$path" "$STANDALONE_REPO/$path" || fail "standalone promotion misplaced or changed $path"
+done
+grep -Rqs 'repository planning copies are canonical' "$STANDALONE_REPO/.delivery/runs" || fail 'promotion authority was not recorded in generated evidence'
+standalone_before="$(cksum "$STANDALONE_REPO/PRD.md" "$STANDALONE_REPO/PLAN.md" "$STANDALONE_REPO/TASKS.md" "$STANDALONE_REPO/docs/adr/ADR-0001-initial-direction.md")"
+"$SCRIPT" --repo "$STANDALONE_REPO" --stack existing-repository --from-docs "$STANDALONE_STAGE" >/dev/null
+standalone_after="$(cksum "$STANDALONE_REPO/PRD.md" "$STANDALONE_REPO/PLAN.md" "$STANDALONE_REPO/TASKS.md" "$STANDALONE_REPO/docs/adr/ADR-0001-initial-direction.md")"
+[ "$standalone_before" = "$standalone_after" ] || fail 'identical standalone promotion was not idempotent'
+
+# A suite pack is detected by CONTEXT-RECORD.md and preserved beneath docs/spec.
+SUITE_STAGE="$TMP/Documents/work/prd/suite pack"
+mkdir -p "$SUITE_STAGE/nested section"
+printf '# Context record\n' > "$SUITE_STAGE/CONTEXT-RECORD.md"
+printf '# Suite PRD\n' > "$SUITE_STAGE/02-PRD.md"
+printf '# Suite-local task snapshot\n' > "$SUITE_STAGE/TASKS.md"
+printf '# Accepted implementation plan\n' > "$SUITE_STAGE/PLAN.md"
+printf '# Nested evidence\n' > "$SUITE_STAGE/nested section/EVIDENCE.md"
+SUITE_REPO="$TMP/promoted suite repository"
+mkdir -p "$SUITE_REPO"
+git -C "$SUITE_REPO" init -q
+printf '{"scripts":{"lint":"fake"}}\n' > "$SUITE_REPO/package.json"
+"$SCRIPT" --repo "$SUITE_REPO" --stack existing-repository --from-docs "$SUITE_STAGE" >/dev/null
+for path in CONTEXT-RECORD.md 02-PRD.md 'nested section/EVIDENCE.md'; do
+  cmp -s "$SUITE_STAGE/$path" "$SUITE_REPO/docs/spec/$path" || fail "suite promotion misplaced or changed $path"
+done
+[ ! -e "$SUITE_REPO/docs/spec/TASKS.md" ] && [ ! -e "$SUITE_REPO/docs/spec/PLAN.md" ] || fail 'suite execution documents gained competing docs/spec copies'
+[ ! -e "$SUITE_REPO/CONTEXT-RECORD.md" ] && [ ! -e "$SUITE_REPO/02-PRD.md" ] || fail 'suite pack leaked into the project root'
+SUITE_POINTER_EXPECTED="$TMP/expected-suite-pointer.md"
+cat > "$SUITE_POINTER_EXPECTED" <<'EXPECTED'
+# Product Requirements
+
+The canonical product requirements are maintained in [`docs/spec/02-PRD.md`](docs/spec/02-PRD.md).
+EXPECTED
+cmp -s "$SUITE_POINTER_EXPECTED" "$SUITE_REPO/PRD.md" || fail 'suite root PRD is not the canonical docs/spec index'
+cmp -s "$SUITE_STAGE/TASKS.md" "$SUITE_REPO/TASKS.md" || fail 'accepted suite TASKS.md did not become the root execution queue'
+cmp -s "$SUITE_STAGE/PLAN.md" "$SUITE_REPO/PLAN.md" || fail 'accepted suite PLAN.md did not become the root implementation plan'
+for path in README.md AGENTS.md PRD.md TASKS.md STATUS.md DECISIONS.md RELEASE.md OBSERVABILITY.md BUILD-LOG.md ARCHITECTURE.md .delivery/current.json; do
+  [ -f "$SUITE_REPO/$path" ] || fail "suite promotion did not retain the complete repository contract: $path"
+done
+suite_before="$(cksum "$SUITE_REPO/PRD.md" "$SUITE_REPO/PLAN.md" "$SUITE_REPO/TASKS.md" "$SUITE_REPO/docs/spec/CONTEXT-RECORD.md" "$SUITE_REPO/docs/spec/02-PRD.md")"
+"$SCRIPT" --repo "$SUITE_REPO" --stack existing-repository --from-docs "$SUITE_STAGE" >/dev/null
+suite_after="$(cksum "$SUITE_REPO/PRD.md" "$SUITE_REPO/PLAN.md" "$SUITE_REPO/TASKS.md" "$SUITE_REPO/docs/spec/CONTEXT-RECORD.md" "$SUITE_REPO/docs/spec/02-PRD.md")"
+[ "$suite_before" = "$suite_after" ] || fail 'identical suite promotion and root PRD index were not idempotent'
+
+# Divergent project files reject the whole promotion before contract generation
+# or any accepted sibling artifact is copied.
+CONFLICT_STAGE="$TMP/conflicting stage"
+CONFLICT_REPO="$TMP/conflicting repository"
+mkdir -p "$CONFLICT_STAGE" "$CONFLICT_REPO"
+printf 'staged PRD\n' > "$CONFLICT_STAGE/PRD.md"
+printf 'staged tasks\n' > "$CONFLICT_STAGE/TASKS.md"
+git -C "$CONFLICT_REPO" init -q
+printf '{"scripts":{"lint":"fake"}}\n' > "$CONFLICT_REPO/package.json"
+printf 'repository PRD\n' > "$CONFLICT_REPO/PRD.md"
+expect_rc 1 "$SCRIPT" --repo "$CONFLICT_REPO" --stack existing-repository --from-docs "$CONFLICT_STAGE"
+[ "$(cat "$CONFLICT_REPO/PRD.md")" = 'repository PRD' ] || fail 'divergent repository PRD was overwritten'
+[ ! -e "$CONFLICT_REPO/TASKS.md" ] || fail 'conflicting promotion copied a sibling artifact before rejecting'
+[ ! -e "$CONFLICT_REPO/README.md" ] || fail 'conflicting promotion mutated the repository contract before rejecting'
+
+# Suite promotion rejects a competing root PRD before copying the pack or
+# generating any other repository contract file.
+SUITE_CONFLICT_REPO="$TMP/conflicting suite repository"
+mkdir -p "$SUITE_CONFLICT_REPO"
+git -C "$SUITE_CONFLICT_REPO" init -q
+printf '{"scripts":{"lint":"fake"}}\n' > "$SUITE_CONFLICT_REPO/package.json"
+printf 'competing root requirements\n' > "$SUITE_CONFLICT_REPO/PRD.md"
+expect_rc 1 "$SCRIPT" --repo "$SUITE_CONFLICT_REPO" --stack existing-repository --from-docs "$SUITE_STAGE"
+[ "$(cat "$SUITE_CONFLICT_REPO/PRD.md")" = 'competing root requirements' ] || fail 'suite promotion overwrote a divergent root PRD'
+[ ! -e "$SUITE_CONFLICT_REPO/docs/spec" ] || fail 'suite promotion copied pack files before rejecting the root PRD conflict'
+[ ! -e "$SUITE_CONFLICT_REPO/README.md" ] || fail 'suite root PRD conflict mutated the repository contract before rejecting'
+
+# --plan prints exact source/destination mappings without touching either tree.
+PROMOTION_PLAN_ROOT="$TMP/planned projects with spaces"
+plan_stage_paths_before="$(find "$STANDALONE_STAGE" -mindepth 1 -print | LC_ALL=C sort)"
+plan_stage_bytes_before="$(cksum "$STANDALONE_STAGE/PRD.md" "$STANDALONE_STAGE/PLAN.md" "$STANDALONE_STAGE/TASKS.md" "$STANDALONE_STAGE/docs/adr/ADR-0001-initial-direction.md")"
+promotion_plan="$(PROJECTS_DIR="$PROMOTION_PLAN_ROOT" "$SCRIPT" planned-docs --stack astro --from-docs "$STANDALONE_STAGE" --plan)"
+for path in PRD.md PLAN.md TASKS.md docs/adr/ADR-0001-initial-direction.md; do
+  grep -Fq -- "$STANDALONE_STAGE/$path -> $PROMOTION_PLAN_ROOT/planned-docs/$path" <<<"$promotion_plan" || fail "promotion plan omitted the source/destination mapping for $path"
+done
+grep -Fq -- 'repository copies are canonical' <<<"$promotion_plan" || fail 'promotion plan omitted the post-promotion authority'
+[ ! -e "$PROMOTION_PLAN_ROOT" ] || fail 'promotion --plan wrote to the project tree'
+plan_stage_paths_after="$(find "$STANDALONE_STAGE" -mindepth 1 -print | LC_ALL=C sort)"
+plan_stage_bytes_after="$(cksum "$STANDALONE_STAGE/PRD.md" "$STANDALONE_STAGE/PLAN.md" "$STANDALONE_STAGE/TASKS.md" "$STANDALONE_STAGE/docs/adr/ADR-0001-initial-direction.md")"
+[ "$plan_stage_paths_before" = "$plan_stage_paths_after" ] || fail 'promotion --plan changed the source stage layout'
+[ "$plan_stage_bytes_before" = "$plan_stage_bytes_after" ] || fail 'promotion --plan modified a source artifact'
+
+# Empty, unsupported, and symlinked stages fail before invoking a generator.
+EMPTY_STAGE="$TMP/empty stage"
+UNSUPPORTED_STAGE="$TMP/unsupported stage"
+SYMLINK_STAGE="$TMP/symlink stage"
+SYMLINK_DIR_STAGE="$TMP/symlinked stage directory"
+MISSING_SUITE_STAGE="$TMP/suite missing PRD"
+mkdir -p "$EMPTY_STAGE" "$UNSUPPORTED_STAGE" "$SYMLINK_STAGE" "$MISSING_SUITE_STAGE"
+printf 'unsupported\n' > "$UNSUPPORTED_STAGE/NOTES.md"
+printf 'outside\n' > "$TMP/outside-prd.md"
+printf '# Context without product requirements\n' > "$MISSING_SUITE_STAGE/CONTEXT-RECORD.md"
+ln -s "$TMP/outside-prd.md" "$SYMLINK_STAGE/PRD.md"
+ln -s "$STANDALONE_STAGE" "$SYMLINK_DIR_STAGE"
+for invalid_stage in "$EMPTY_STAGE" "$UNSUPPORTED_STAGE" "$SYMLINK_STAGE" "$SYMLINK_DIR_STAGE/" "$MISSING_SUITE_STAGE"; do
+  generator_log="$TMP/generator-$(basename "$invalid_stage").log"
+  expect_rc 1 env PROJECTS_DIR="$TMP/invalid projects" MOCK_GENERATOR_LOG="$generator_log" "$SCRIPT" invalid-docs --stack nextjs --from-docs "$invalid_stage"
+  [ ! -e "$generator_log" ] || fail "invalid stage invoked the generator: $invalid_stage"
+  [ ! -e "$TMP/invalid projects/invalid-docs" ] || fail "invalid stage created a project: $invalid_stage"
+done
+
 [ ! -e "$GENERATED/docs/specs" ] && [ ! -e "$GENERATED/docs/decisions" ] || fail 'speculative documentation directories created'
 grep -q '^Probe: app|' "$GENERATED/OBSERVABILITY.md" || fail 'observability app probe missing'
 grep -q '"statusAuthority": "STATUS.md"' "$GENERATED/.delivery/current.json" || fail 'ledger authority contract missing'
 grep -q '^# Decision Register' "$GENERATED/DECISIONS.md" || fail 'decision register missing'
+grep -q 'Sole executable work queue: `TASKS.md`' "$STANDALONE_REPO/AGENTS.md" || fail 'project authority omitted the sole root task queue'
+grep -q 'docs/adr/ADR-NNNN-<slug>.md' "$STANDALONE_REPO/AGENTS.md" || fail 'project authority omitted full ADR documents'
 
 echo 'project-init-test: OK'

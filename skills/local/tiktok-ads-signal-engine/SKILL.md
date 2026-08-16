@@ -40,6 +40,13 @@ $$\text{TikTok Ad Click (ttclid)} \longrightarrow \text{Browser Pixel (event_id)
 | TikTok Events API v2 Server Sender & Payload structure | [TikTok Events API v2 Sender](references/TIKTOK_EVENTS_API_V2.md) |
 | Multi-Platform Product Taxonomy, Custom Labels & 12-Point Audit Checklist | Load `skills/local/google-ads-signal-engine/references/ADVERTISING_TAXONOMY_AND_FEED_AUDIT.md` |
 
+
+## API Version Boundary
+
+`Events API v2` is the product/payload contract; its `/open_api/<marketing-api-version>/` endpoint segment is versioned separately. The exact endpoint and its dated provenance live only in [TIKTOK_EVENTS_API_V2.md](references/TIKTOK_EVENTS_API_V2.md).
+
+Before writing or changing sender code, verify the current server-events endpoint in TikTok's [official Marketing API documentation](https://ads.tiktok.com/marketing_api/docs) and changelog. Pin the verified segment in the reference's single `TIKTOK_MARKETING_API_VERSION` constant, record the verification date, and exercise TikTok's test/sandbox flow. Never infer a new version from the product name or silently bump a deployed integration.
+
 ---
 
 ## Checklist: 8 Commandments of TikTok Signal Architecture

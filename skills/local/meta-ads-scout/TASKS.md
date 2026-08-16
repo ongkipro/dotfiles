@@ -1,22 +1,19 @@
-# TASKS: Meta Ads Scout
+# Meta Ads Scout Status
 
-Project: Meta Ads Scout (Terminal AI Plugin)
+Project: Meta Ads Scout
 Path: `~/dotfiles/skills/local/meta-ads-scout`
 
-## Phase 1: Environment Setup
-- [ ] 1.1 Inisialisasi Project Node.js (`npm init -y`).
-- [ ] 1.2 Install dependency utama (`playwright`, `playwright-extra`, `puppeteer-extra-plugin-stealth`).
+## Implemented contract
 
-## Phase 2: Core Script Development
-- [ ] 2.1 Buat file `scout.js`.
-- [ ] 2.2 Tulis logika *Headless Browser* menggunakan `playwright-extra` dan injeksi *Stealth Plugin*.
-- [ ] 2.3 Implementasi penerimaan argumen CLI (Keyword & Country Code).
+- [x] Official Meta Ad Library API is the first programmatic path.
+- [x] Graph API version and coverage are retrieved from current Meta documentation; the caller supplies the verified version rather than relying on a brittle pin.
+- [x] General-commercial research outside current API coverage falls back to ordinary manual Ad Library review, not automation.
+- [x] `scout.js` uses the official `/ads_archive` API, cursor pagination, bounded results, and structured API errors.
+- [x] Browser collection, stealth behavior, CAPTCHA bypass, and raw-page debug behavior are disabled.
+- [x] CLI output remains complete JSON on both success and failure and does not expose the token or paging URL.
 
-## Phase 3: DOM Extraction & Failsafe
-- [ ] 3.1 Tulis fungsi `page.evaluate()` untuk mengekstrak isi teks (*innerText*) dari komponen kartu iklan.
-- [ ] 3.2 Buat *Failsafe/Fallback* jika DOM Facebook berubah kelasnya (ekstrak raw body).
-- [ ] 3.3 Format *Standard Output* wajib JSON utuh agar tidak menyebabkan *Parsing Error* di sistem OMP.
+## Runtime evidence
 
-## Phase 4: Testing & Verification
-- [ ] 4.1 Jalankan skrip dengan *keyword* "Skincare Pria".
-- [ ] 4.2 Verifikasi bahwa skrip berhasil memotong *loading* layar dan tidak terkena blokir Meta.
+- [ ] Exercise `scout.js` against the official API with a user-owned eligible app and token when such credentials are available.
+
+Do not mark runtime evidence complete based on a DOM-only smoke test, a fake token, or user consent to scrape. Preserve the API response/error, retrieval date, current documentation/version check, filters, and coverage limits as evidence.

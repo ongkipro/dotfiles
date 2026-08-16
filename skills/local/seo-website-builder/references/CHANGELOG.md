@@ -1,6 +1,11 @@
 # SEO Documentation Pack Changelog
 
-Track changes to `/home/fantastico/Documents/SEO` before it becomes an active skill.
+This file records the retired `/home/fantastico/Documents/SEO` source pack and subsequent changes to the active skill.
+
+## 2026-08-16 — Active-skill governance correction
+
+- The canonical active skill now lives in this directory; older entries below describe its retired source pack and are historical, not current inventory.
+- Removed the stale `PROMOTION_CHECKLIST.md` dependency. `TEST_CASES.md` owns the current conversion/regression gate.
 
 ## 2026-07-04 — Sitemap submission / search-engine notification playbook
 
@@ -86,14 +91,14 @@ Track changes to `/home/fantastico/Documents/SEO` before it becomes an active sk
 
 - `COMPACT_SKILL_REFERENCES.md`
 - `TEST_CASES.md`
-- `PROMOTION_CHECKLIST.md`
+- `PROMOTION_CHECKLIST.md` *(historical source-pack file; not retained in the active skill)*
 - `CHANGELOG.md`
 
 ### Changed
 
 - Prepared compact load reference to reduce future skill context usage.
 - Added test cases for local business, Astro, Shopify, ecommerce category, existing audit, algorithm review, Pinterest, and programmatic SEO.
-- Added promotion checklist so conversion into a skill is controlled and reversible.
+- Added a source-pack promotion checklist; the active skill later consolidated this gate into `TEST_CASES.md`.
 
 ### Status
 

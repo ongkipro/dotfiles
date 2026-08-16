@@ -97,7 +97,10 @@ show_staged_preview() {
 }
 run_security_check() {
   local scanner="$DOTFILES_ROOT/bin/security-check"
-  [ -x "$scanner" ] || return 0
+  if [ ! -x "$scanner" ]; then
+    err "security-check tidak ada atau tidak executable: $scanner; menolak commit tanpa pemindaian."
+    return 1
+  fi
   # Pass the repository explicitly. Without an argument security-check falls back
   # to $HOME/dotfiles, so a worktree or a second clone would be committed after
   # scanning a different tree entirely.
@@ -127,7 +130,7 @@ cmd_commit() {
   git add -A
   if git diff --cached --quiet; then
     say "Tidak ada perubahan untuk di-commit."
-    exit 0
+    return 0
   fi
   print_status
   show_staged_preview

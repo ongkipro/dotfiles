@@ -107,7 +107,7 @@ For each step link executable commands/runbooks without embedding secrets. Defin
 
 | Decision ID | Decision | Alternatives | Rationale | Consequence | Status |
 |---|---|---|---|---|---|
-| ADR-[N] | [Decision] | [Options] | [Evidence] | [Trade-off] | Proposed/Accepted |
+| ADR-NNNN | [Decision] | [Options] | [Evidence] | [Trade-off] | Proposed/Accepted |
 
 | Risk | Trigger | Impact | Mitigation | Owner | Residual risk |
 |---|---|---|---|---|---|

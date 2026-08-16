@@ -1,9 +1,21 @@
 #!/usr/bin/env bash
-# Regression test for machine-local Pi settings seeding.
+# Regression test for machine-local Pi seeding and the remote-only 9Router boundary.
 set -euo pipefail
 
 ROOT="${1:-$HOME/dotfiles}"
 RESTORE="$ROOT/bin/pi-9router-restore"
+python3 - "$ROOT/config/pi/models.template.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as source:
+    providers = json.load(source)["providers"]
+if set(providers) != {"9router-fantastico"}:
+    raise SystemExit("Pi model template must contain only the remote 9Router provider")
+if providers["9router-fantastico"]["baseUrl"] != "https://rbq97ts.abc-tunnel.us/v1":
+    raise SystemExit("Pi remote 9Router endpoint drifted")
+PY
+node --check "$ROOT/bin/pi-9router-sync.js"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/pi-9router-restore-test.XXXXXX")"
 cleanup() { chmod -R u+w "$TMP" 2>/dev/null || true; rm -rf "$TMP"; }
 trap cleanup EXIT
@@ -13,8 +25,7 @@ FAKE_DOT="$TMP/dotfiles"
 FAKE_BIN="$TMP/bin"
 mkdir -p "$FAKE_HOME" "$FAKE_DOT/config/pi" "$FAKE_DOT/bin" "$FAKE_BIN"
 printf '%s\n' '{"defaultProvider":"fixture","defaultModel":"safe"}' > "$FAKE_DOT/config/pi/settings.json"
-printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "$FAKE_DOT/bin/9router-restore"
-chmod +x "$FAKE_DOT/bin/9router-restore"
+printf '%s\n' '{"providers":{"9router-fantastico":{"baseUrl":"https://rbq97ts.abc-tunnel.us/v1"}}}' > "$FAKE_DOT/config/pi/models.template.json"
 printf '%s\n' '#!/usr/bin/env bash' 'printf "Darwin\n"' > "$FAKE_BIN/uname"
 chmod +x "$FAKE_BIN/uname"
 
@@ -24,6 +35,7 @@ run_restore() {
 
 run_restore
 [ -f "$FAKE_HOME/.pi/agent/settings.json" ] && [ ! -L "$FAKE_HOME/.pi/agent/settings.json" ]
+grep -q 'https://rbq97ts.abc-tunnel.us/v1' "$FAKE_HOME/.pi/agent/models.json"
 
 printf '%s\n' '{"defaultProvider":"local","defaultModel":"preserve"}' > "$FAKE_HOME/.pi/agent/settings.json"
 run_restore

@@ -6,6 +6,14 @@ TMP="$(mktemp -d "${TMPDIR:-/tmp}/ai-memory-route-test.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 fail(){ echo "FAIL: $*" >&2; exit 1; }
 
+python3 - "$ROOT/config/ai/memory-router.json" <<'PY'
+import json,sys
+defaults=json.load(open(sys.argv[1]))['defaults']
+assert defaults['maxFiles']==3 and defaults['maxBytes']==12000, defaults
+assert 'freshnessDays' not in defaults, defaults
+PY
+
+
 python3 "$ROUTER" 'format and tone preference' --json > "$TMP/shared.json"
 python3 - "$TMP/shared.json" <<'PY'
 import json,sys
@@ -44,11 +52,25 @@ python3 - "$TMP/token-boundary.json" <<'PY'
 import json,sys
 p=json.load(open(sys.argv[1])); assert not any(x['path'].endswith('workflow.md') for x in p['files'])
 PY
-python3 "$ROUTER" 'installed environment runtime' --max-bytes 1000 --json > "$TMP/budget.json"
+BUDGET_ROOT="$TMP/budget-dotfiles"
+mkdir -p "$BUDGET_ROOT/bin" "$BUDGET_ROOT/config/ai/memory"
+cp "$ROUTER" "$BUDGET_ROOT/bin/ai-memory-route"
+cat >"$BUDGET_ROOT/config/ai/memory-router.json" <<'EOF'
+{"schemaVersion":1,"defaults":{"maxFiles":3,"maxBytes":1000},"shared":[{"path":"config/ai/memory/environment.md","priority":40,"triggers":["environment"]}],"projects":{},"lessons":[]}
+EOF
+python3 - "$BUDGET_ROOT/config/ai/memory/environment.md" <<'PY'
+from pathlib import Path
+import sys
+Path(sys.argv[1]).write_bytes(b'x' * 1500)
+PY
+python3 "$BUDGET_ROOT/bin/ai-memory-route" 'environment' --json > "$TMP/budget.json"
 python3 - "$TMP/budget.json" <<'PY'
 import json,sys
-p=json.load(open(sys.argv[1])); assert p['budget']['usedBytes'] <= 1000
+p=json.load(open(sys.argv[1])); assert p['budget']['usedBytes'] == 0
+assert any(x.startswith('UNROUTABLE environment.md ') for x in p['reason']), p['reason']
 PY
+python3 "$BUDGET_ROOT/bin/ai-memory-route" 'environment' >"$TMP/budget.txt"
+grep -qF 'WARNING UNROUTABLE environment.md' "$TMP/budget.txt"
 python3 "$ROUTER" 'continue current task and tell me next blocker' --repo "$REPO" --project volumup --json > "$TMP/project.json"
 python3 - "$TMP/project.json" <<'PY'
 import json,sys

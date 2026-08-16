@@ -70,7 +70,7 @@ Data-dense operator views must decouple state management from presentation:
 ### 4.2 Impersonation & Operator Safety
 - **Visual Callout:** Render a high-visibility persistent top banner during impersonation sessions (`Impersonating User: john@example.com`).
 - **One-Click Exit:** Provide an un-authenticated, server-validated exit button (`POST /api/auth/impersonate/exit`) to immediately revoke delegated tokens.
-- **Expiry Bounds:** Strictly bound impersonation tokens to maximum 30-minute durations with 10-minute inactivity timeouts.
+- **Expiry Bounds:** **[House rule]** Cap impersonation tokens at 30 minutes. Retain or tighten Clerk's documented default 10-minute inactivity timeout ([Clerk — User impersonation](https://clerk.com/docs/guides/users/impersonation)); the 30-minute absolute maximum is local policy, not a Clerk default.
 
 ---
 

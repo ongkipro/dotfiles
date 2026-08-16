@@ -467,3 +467,12 @@ Funnel mode additionally:
 | Storefront discovery, PDP, cart, checkout, account behavior | `storefront-ux` |
 | Browser, viewport, keyboard, a11y, and visual evidence | `ui-validation` |
 | Perf audit of the shipped page | `web-perf` |
+
+## Reference ownership
+
+- [theme-implementation.md](references/theme-implementation.md) and [surface-and-mode-rules.md](references/surface-and-mode-rules.md) are the canonical extracted implementation and surface references.
+- [public-experience-patterns.md](references/public-experience-patterns.md) is an optional visual-only lens; it delegates commerce behavior to `storefront-ux` and implementation to `storefront-development`.
+- [rationale.md](references/rationale.md) and [accessibility-notes.md](references/accessibility-notes.md) are optional project-record templates. Copy them into the target project; do not store project facts in this skill.
+- The retained numbered paths are compatibility pointers, not independent rule sources: [0](references/0-mode-detection-before-anything-else.md), [1](references/1-design-read-one-line-before-any-code.md), [1.5](references/1-5-design-context-precedence-tokens-beat-taste.md), [2](references/2-the-three-dials.md), [3](references/3-stack-defaults-astro-first-differs-from-the-original-on-purpose.md), [4](references/4-design-directives-bias-correction.md), [5](references/5-ai-tells-hard-bans-unless-the-brief-asks.md), [6](references/6-dr-cod-funnel-mode-overrides.md), [7](references/7-redesign-protocol.md), [8](references/8-pre-flight-check-run-before-delivering-any-fail-not-done.md), and [9](references/9-pairing-map.md).
+
+Do not add rules to a compatibility pointer. Change the canonical section or extracted reference it names so this skill retains one source of truth.

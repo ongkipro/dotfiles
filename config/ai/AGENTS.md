@@ -23,7 +23,13 @@ Three things can produce a "PRD" and two can produce an "architecture" document.
 1. **The repository already has it.** Extend the existing file. A second `PRD.md` under a different name is a split source of truth, which is the failure this whole contract exists to prevent.
 2. **A feature inside an existing repo** → skill `prd-taskbreaker` → root `PRD.md` + `TASKS.md`. This is the default and covers most work.
 3. **A new product or system spanning several specification domains** — data model, tenant isolation, IAM, billing, compliance, SLA — → skill `development-spec-suite` and its numbered pack. Reach for it because the domains genuinely apply, not because the project feels large.
-4. **`config/templates/`** produces neither. It is the delivery-contract scaffold `project-init` renders into a repo; its `PRD.md` is a placeholder for (2), and its `ARCHITECTURE.md` records the shape actually built, not the product specification. When both exist, `04-SYSTEM-ARCHITECTURE.md` is the design and `ARCHITECTURE.md` is the record; the record wins on what the code does.
+4. **`config/templates/`** produces neither. It is the delivery-contract scaffold `project-init` renders into a repo; its `PRD.md` is a placeholder for (2), or an entrypoint/link to `docs/spec/02-PRD.md` when a suite pack (3) is active — never a competing PRD. Its `ARCHITECTURE.md` records the shape actually built, not the product specification: when both exist, `04-SYSTEM-ARCHITECTURE.md` is the design and `ARCHITECTURE.md` is the record, and the record wins on what the code does. Root `TASKS.md` stays the sole canonical execution queue in every case, standalone or suite — it is never duplicated beside `02-PRD.md`.
+
+### Pre-development staging and repository authority
+
+Before `~/Projects/<slug>/` exists, every accepted planning artifact — standalone `PRD.md`/`PLAN.md`/`TASKS.md`, `docs/adr/ADR-NNNN-<slug>.md`, or a `development-spec-suite` pack (detected by `CONTEXT-RECORD.md`) — is drafted under `~/Documents/work/prd/<slug>/`. This staging is mandatory, not optional: no skill or agent writes a planning artifact directly into a project directory that does not exist yet, and the staged copy is never treated as authoritative on its own.
+
+Coding starts only after explicit development authorization. `project-init --from-docs ~/Documents/work/prd/<slug>/` — combined with `--stack <profile>` for a new project or `--repo <path> --stack existing-repository` for one that already exists — then copies the accepted staged artifacts into `~/Projects/<slug>/`: standalone files land at the project root and `docs/adr/`; a suite pack (detected the same way, by `CONTEXT-RECORD.md`) lands under `docs/spec/`. The source stays in place as a retained, non-authoritative snapshot; a divergent existing destination file fails the copy instead of being silently overwritten, and an identical destination file is a safe no-op. From that point the repository copy is canonical; never re-consult the `~/Documents/` copy as the source of truth once promotion has happened.
 
 ### What another device may change here
 
@@ -44,9 +50,9 @@ Device-only facts belong in `~/.config/ai-local/` or the generated
 
 ## Output discipline
 
-- Save AI-generated output to `~/Documents/work/{prd,research,content,notes}/` — draft, riset, dan backup **sebelum** development
-- **Pengecualian: `PRD.md` + `TASKS.md` final → root project**, biar ikut ter-commit ke GitHub bersama kodenya
-- Source code → `~/Projects/<name>/`
+- Save AI-generated research/content/notes to `~/Documents/work/{research,content,notes}/` — draft dan backup, bukan source of truth.
+- Planning artifacts (PRD, PLAN, TASKS, ADR, suite pack) follow the pre-development staging contract above — draft under `~/Documents/work/prd/<slug>/` **sebelum** `~/Projects/<slug>/` ada; committed `PRD.md` + `TASKS.md` (+ `PLAN.md`, `docs/adr/`, `docs/spec/`) at the **project root** once the repository exists, biar ikut ter-commit ke GitHub bersama kodenya.
+- Source code → `~/Projects/<slug>/`
 - Memory edits → `~/.config/ai/memory/*.md` (cross-device via dotfiles)
 - Device-only edits → `~/.config/ai-local/*.md` (persists on this machine only)
 

@@ -90,7 +90,7 @@ Define detection, severity, escalation, containment, evidence preservation, noti
 
 | Decision ID | Decision | Alternatives | Rationale | Consequence | Status |
 |---|---|---|---|---|---|
-| ADR-[N] | [Decision] | [Options] | [Evidence] | [Trade-off] | Proposed/Accepted |
+| ADR-NNNN | [Decision] | [Options] | [Evidence] | [Trade-off] | Proposed/Accepted |
 
 | Exception | Requirements | Business justification | Compensating controls | Risk owner | Expiry | Approval |
 |---|---|---|---|---|---|---|

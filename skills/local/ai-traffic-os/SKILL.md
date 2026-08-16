@@ -1,64 +1,64 @@
 ---
 name: ai-traffic-os
 description: >-
-  End-to-end AI Traffic Architecture (AEO, GEO, AI Search & Google AI Overviews Optimization).
-  Use when designing, building, or auditing websites for AI search engines (Google AI Overviews,
-  ChatGPT Search, Perplexity, Claude Web Search), structuring 4-layer traffic systems
-  (Discovery, Knowledge, Authority, Conversion), implementing self-contained AnswerBox passage
-  chunking (134–167 words), configuring 2026 Dual-Crawler robots.txt matrix, multi-modal
-  JSON-LD schemas (ImageObject/VideoObject), and dual-path AI referral tracking with PostgreSQL ingestion.
-  Triggers: "ai traffic", "geo optimization", "answerbox", "google ai overviews", "chatgpt search",
-  "perplexity seo", "ai search optimization", "traffic architecture", "ai traffic os".
+  End-to-end AI traffic architecture for search and answer engines. Use when designing or auditing
+  crawl controls, helpful answer content, structured media, and AI referral measurement. Requires
+  live vendor-documentation checks for crawler identities and keeps search/citation, user-triggered
+  retrieval, and model-training controls distinct. Triggers: "ai traffic", "geo optimization",
+  "answerbox", "google ai overviews", "chatgpt search", "perplexity seo", "ai search optimization",
+  "traffic architecture", "ai traffic os".
 ---
 
 # AI Traffic OS
 
-An end-to-end Operating System and Architecture for optimizing web properties across traditional Search Engines (Google, Bing) and AI Recommendation Engines (Google AI Overviews / Gemini, ChatGPT Search, Perplexity, Claude Web Search).
+Design discoverable, source-backed web content without inventing a special ranking formula for generative answers. Google states that AI Overviews and AI Mode use the same foundational SEO requirements as Google Search and have no additional technical requirements. Other vendors publish their own bot controls and may change them independently.
 
-## Core Philosophy
+## Evidence policy
 
-Shift from the legacy model (*Keyword → Article → Ranking → Click*) to the **AI Discovery Model**:
+Before recommending crawler rules or vendor-specific markup:
 
-$$\text{User Intent} \longrightarrow \text{AI / Search Discovery} \longrightarrow \text{Primary Source Citation} \longrightarrow \text{Knowledge Page} \longrightarrow \text{Conversion}$$
+1. Retrieve the vendor's current official crawler documentation.
+2. Record the retrieval date and the exact user-agent token.
+3. Separate documented behavior from local editorial or analytics heuristics.
+4. Never promise citation, ranking, traffic lift, or attribution recovery. Vendor eligibility is not a guarantee of selection.
+5. Treat `llms.txt`, custom `data-*` attributes, passage length, and answer-box styling as optional publishing conventions unless a target vendor's current official documentation says otherwise.
 
-Make your website a **verifiable, citation-worthy primary source** rather than generic rewritten content.
+Primary starting points:
 
----
+- [Google: AI features and your website](https://developers.google.com/search/docs/appearance/ai-features)
+- [Google common crawlers](https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers)
+- [OpenAI crawlers](https://platform.openai.com/docs/bots)
+- [Anthropic crawler controls](https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler)
+- [Perplexity crawlers](https://docs.perplexity.ai/guides/bots)
+- [Applebot](https://support.apple.com/en-us/119829)
 
-## The Four-Layer Traffic Architecture
+## Four-layer architecture
 
-1. **Layer 1 — Discovery Engine**:
-   - Technical crawlability, sitemaps (`sitemap-index.xml`), `llms.txt`, and 2026 Dual-Crawler `robots.txt` configuration.
-   - See [Crawler Matrix 2026](references/CRAWLER_MATRIX_2026.md).
+1. **Discovery**
+   - Crawlability, canonical URLs, sitemaps, internal links, CDN/WAF behavior, and purpose-specific robots controls.
+   - See [Crawler Purpose Matrix](references/CRAWLER_MATRIX_2026.md).
+2. **Knowledge**
+   - Clear information architecture, descriptive headings, self-contained explanations, and source links.
+   - See [AnswerBox Editorial Pattern](references/ANSWER_BOX_GEO.md).
+3. **Authority**
+   - First-party evidence, named authorship where relevant, visible publication/update context, and structured data that matches visible content.
+   - See [Multi-Modal and Authority Schemas](references/SCHEMA_MULTI_MODAL.md).
+4. **Conversion and measurement**
+   - Useful post-click paths plus conservative first-party analytics. Preserve observed referrers and campaign parameters without inferring a source that was not observed.
+   - See [AI Referral Tracking](references/AI_REFERRAL_TRACKING.md).
 
-2. **Layer 2 — Knowledge Engine**:
-   - Structured entity taxonomy, Topic Hubs, semantic HTML (`<article>`, `<section>`, `<aside>`), and 134–167 word `AnswerBox` components.
-   - See [AnswerBox & GEO Passage Extraction](references/ANSWER_BOX_GEO.md).
+## Operating sequence
 
-3. **Layer 3 — Authority Engine**:
-   - *Information Gain* strategy: original research, verified data sets, `Source.astro` component, expert author entities, and multi-modal schemas (`ImageObject`, `VideoObject`).
-   - See [Multi-Modal & Authority Schemas](references/SCHEMA_MULTI_MODAL.md).
+```text
+1. Audit crawlability, indexing eligibility, and preview controls
+2. Retrieve current crawler identities and classify each by documented purpose
+3. Apply the site's copyright, privacy, and business policy per purpose
+4. Improve visible, people-first content and internal discovery
+5. Add only structured data supported by the page's actual content
+6. Validate structured data and crawler access with vendor-supported tools
+7. Measure observed visits and conversions; label unknown attribution as unknown
+```
 
-4. **Layer 4 — Conversion Engine**:
-   - Commercial query mapping, comparison page architecture, lead capture (WhatsApp/Email/Checkout), and Dual-Path AI Referral Attribution Tracking with PostgreSQL ingestion.
-   - See [AI Referral Tracking & Attribution](references/AI_REFERRAL_TRACKING.md).
+## Google-specific boundary
 
----
-
-## When to Load References
-
-| Task | Read |
-| --- | --- |
-| Robots.txt, AI Bot configuration (Search vs Training) | [Crawler Matrix 2026](references/CRAWLER_MATRIX_2026.md) |
-| AnswerBox component design & LLM Passage Chunking (134–167 words) | [AnswerBox & GEO Passage Extraction](references/ANSWER_BOX_GEO.md) |
-| Multi-modal JSON-LD schemas (Images, VideoObject with transcripts) | [Multi-Modal & Authority Schemas](references/SCHEMA_MULTI_MODAL.md) |
-| Client tracking script, UTM fallback, Postgres event logging | [AI Referral Tracking & Attribution](references/AI_REFERRAL_TRACKING.md) |
-
----
-
-## 2026 Generative Engine Optimization (GEO) Key Factors
-
-- **Semantic Completeness (#1 Factor)**: 40%–47% of Google AI Overview citations come from pages ranking outside the top 5 organic positions. Passages that stand alone with complete context (134–167 words) win citations over domain authority alone.
-- **Direct Answer Placement**: Core answers MUST be in the first 1–2 sentences under an H2/H3 header.
-- **Data Attributes**: Use `data-citation-unit="true"` and `data-answer-body="true"` on direct answer blocks to facilitate LLM parsing.
-- **Dual-Path Referral Attribution**: Track AI traffic through HTTP Referrer + UTM parameters (`utm_source=chatgpt`, `ref_ai=perplexity`) + `sessionStorage` to recover >60% stripped referrer traffic.
+Google documents `Googlebot` as the control for Search, including AI features in Search. `Google-Extended` is a separate product token for controls in certain Gemini and Vertex AI systems and does not affect inclusion or ranking in Google Search. Do not block `Googlebot` while claiming Google AI Overview eligibility. Use snippet controls such as `nosnippet`, `data-nosnippet`, or `max-snippet` when the policy goal is limiting Search previews rather than blocking indexing.

@@ -87,6 +87,11 @@ Repository contracts are `AGENTS.md`, `PRD.md`, `TASKS.md`, `STATUS.md`,
 model, provider, reasoning effort, and verification. AI output and memory remain
 advisory; repository state and executable evidence are authoritative.
 
+Before `~/Projects/<slug>/` exists, planning artifacts stage under
+`~/Documents/work/prd/<slug>/`; `project-init --from-docs` promotes the accepted
+set into the new repository, which becomes canonical from that point (see
+[`config/ai/AGENTS.md`](config/ai/AGENTS.md)).
+
 ### Cross-CLI policy paths
 
 | Runtime | Live policy path or mechanism |
@@ -103,12 +108,13 @@ repository does not install or support the standalone Google Gemini CLI.
 
 ## OMP routing
 
-[`config/omp/ROUTING.md`](config/omp/ROUTING.md) owns routing policy;
-[`config/omp/config.yml`](config/omp/config.yml) owns executable selectors.
-Provider metadata is in [`config/omp/models.yml`](config/omp/models.yml), and
-[`config/omp/STATUS.md`](config/omp/STATUS.md) records verified routing evidence.
-Selectors are operational configuration and can change independently of this
-README. Run `omp-routing-test` after any routing or model change; do not copy
+[`config/omp/config.yml`](config/omp/config.yml) owns executable routing
+selectors, and [`config/omp/STATUS.md`](config/omp/STATUS.md) records current
+verification evidence. [`config/omp/ROUTING.md`](config/omp/ROUTING.md) owns
+routing policy, while [`config/omp/BUILD-LOG.md`](config/omp/BUILD-LOG.md)
+preserves durable rationale. Read the configuration and status directly before
+making a current-route claim; selectors can change independently of this
+README. Run `omp-routing-test` after any routing or model change, and do not copy
 selector details into skills or general documentation.
 
 ## Memory and learning
@@ -163,9 +169,9 @@ current truth.
 
 The command manifest at `config/ai/runtime-commands.txt` is shared by the Linux
 and macOS installers. Installer completeness and the hygiene contract have
-dedicated regression fixtures. The current implementation review and remaining
-remote-CI caveat are recorded in the
-[repository audit](docs/DOTFILES_REPOSITORY_AUDIT_2026-08-15.md).
+dedicated regression fixtures. Historical implementation evidence is preserved
+in the [repository audit](docs/DOTFILES_REPOSITORY_AUDIT_2026-08-15.md); current
+behavior must be established from disk and executable checks.
 
 ## Delivery and release evidence
 
@@ -289,19 +295,20 @@ The authoritative local gate is:
 bin/ai-doctor --self-test
 ```
 
-It validates canonical memory, all Markdown references, secret scanning,
+It validates canonical memory, Markdown references, secret scanning,
 cross-runtime policy, discovered fixture tests, OMP routing, and the Git guard.
 GitHub Actions is configured to run the core suite on Linux and macOS, while the
-development specification skill has an additional Python-version matrix. The
-full local fixture suite passes in the reviewed working tree. GitHub jobs for the
-base commit were blocked before execution by the account payment/spending-limit
-state, so cross-platform evidence still requires a successful run after these
-changes are committed.
+development specification skill has an additional Python-version matrix.
+Treat local command output and the applicable GitHub Actions run as the evidence
+for a particular revision; do not carry a past pass, failure, or hosted-runner
+blocker forward as current status.
 
 ## Documentation authority
 
 | Document | Purpose |
 |---|---|
+| [`README.md`](README.md) | Current repository scope and authority index |
+| [`TASKS.md`](TASKS.md) | Sole live owner of open, in-progress, and completed repository work |
 | [`config/ai/AGENTS.md`](config/ai/AGENTS.md) | Always-loaded cross-CLI operating policy |
 | [`config/templates/AGENTS.md`](config/templates/AGENTS.md) | Repository-local authority and delivery contract map |
 | [`config/templates/STATUS.md`](config/templates/STATUS.md) | Workflow state and review contract |
@@ -309,17 +316,17 @@ changes are committed.
 | [`config/templates/RELEASE.md`](config/templates/RELEASE.md) | Release boundary, declared risk, rollback, and backup evidence |
 | [`config/templates/OBSERVABILITY.md`](config/templates/OBSERVABILITY.md) | Post-deploy probe contract |
 | [`skills/local/continuous-learning/SKILL.md`](skills/local/continuous-learning/SKILL.md) | Evidence-backed learning and promotion methodology |
+| [`config/omp/config.yml`](config/omp/config.yml) + [`config/omp/STATUS.md`](config/omp/STATUS.md) | Current OMP selectors and verified routing state |
 | [`config/omp/ROUTING.md`](config/omp/ROUTING.md) | Canonical OMP routing policy |
-| [`config/omp/STATUS.md`](config/omp/STATUS.md) | Current OMP verification state |
 | [`config/omp/BUILD-LOG.md`](config/omp/BUILD-LOG.md) | Durable routing changes and evidence |
 | [`docs/linux-dev-setup.md`](docs/linux-dev-setup.md) | Linux authority map and recovery runbook |
 | [`docs/ai-memory-sync.md`](docs/ai-memory-sync.md) | Memory capture, promotion, and synchronization |
 | [`docs/project-init.md`](docs/project-init.md) | Stack-aware project bootstrap: generators, contract rendering, and evidence |
 | [`devices/README.md`](devices/README.md) | Generated device registry |
-| [`docs/DOTFILES_AI_ENGINEERING_CONTROL_PLANE.md`](docs/DOTFILES_AI_ENGINEERING_CONTROL_PLANE.md) | Architecture and roadmap baseline; verify implementation claims against disk |
-| [`docs/DOTFILES_AI_ENGINEERING_MASTER_BLUEPRINT.md`](docs/DOTFILES_AI_ENGINEERING_MASTER_BLUEPRINT.md) | Condensed architecture summary; verify implementation claims against disk |
-| [`docs/DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md`](docs/DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md) | Historical audit baseline, not current runtime truth |
-| [`docs/DOTFILES_REPOSITORY_AUDIT_2026-08-15.md`](docs/DOTFILES_REPOSITORY_AUDIT_2026-08-15.md) | Newest audit; per-finding resolved/open status is the living remediation record |
+| [`docs/DOTFILES_AI_ENGINEERING_CONTROL_PLANE.md`](docs/DOTFILES_AI_ENGINEERING_CONTROL_PLANE.md) | Immutable, superseded architecture and roadmap baseline |
+| [`docs/DOTFILES_AI_ENGINEERING_MASTER_BLUEPRINT.md`](docs/DOTFILES_AI_ENGINEERING_MASTER_BLUEPRINT.md) | Immutable, superseded condensed architecture baseline |
+| [`docs/DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md`](docs/DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md) | Immutable historical audit baseline |
+| [`docs/DOTFILES_REPOSITORY_AUDIT_2026-08-15.md`](docs/DOTFILES_REPOSITORY_AUDIT_2026-08-15.md) | Immutable historical audit and remediation snapshot |
 
 ## Change workflow
 

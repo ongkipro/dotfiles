@@ -95,7 +95,7 @@ Document customer support actions, approval levels, audit events, safe replay to
 
 | Decision ID | Decision | Alternatives | Rationale | Consequence | Status |
 |---|---|---|---|---|---|
-| ADR-[N] | [Decision] | [Options] | [Evidence] | [Trade-off] | Proposed/Accepted |
+| ADR-NNNN | [Decision] | [Options] | [Evidence] | [Trade-off] | Proposed/Accepted |
 
 | Risk | Trigger | Impact | Mitigation | Owner | Residual risk |
 |---|---|---|---|---|---|

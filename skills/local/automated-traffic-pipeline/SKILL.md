@@ -30,7 +30,7 @@ An architecture for building self-sustaining, scalable, and automated traffic sy
 │    (Push Pipeline)       │ Google Search Console API on publish/update events.  │
 ├──────────────────────────┼──────────────────────────────────────────────────────┤
 │ 3. Freshness Engine      │ Cron-based scheduled updates for <lastmod>, data     │
-│    (Content Maintenance) │ points, and pricing to satisfy 90-day freshness rules│
+│    (Content Maintenance) │ points, and pricing on an evidence-based cadence.     │
 ├──────────────────────────┼──────────────────────────────────────────────────────┤
 │ 4. Multi-Channel         │ Automated RSS syndication & Pinterest 2:3 Pin asset  │
 │    Distribution Flywheel │ generation for cross-channel visual discovery.       │
@@ -57,6 +57,6 @@ An architecture for building self-sustaining, scalable, and automated traffic sy
 
 1. **Information Gain Rule**: Every programmatically generated page MUST contain unique data points, custom comparisons, calculations, or localized facts. NEVER generate copy-paste templated pages with only city/keyword replacement (doorway page penalty).
 2. **Instant Push on Publish**: Whenever a new page is generated or updated, automatically trigger the IndexNow API call (`api.indexnow.org`) and update `sitemap-index.xml` and `llms.txt`.
-3. **90-Day Freshness Rule**: Search engines and AI recommendation engines prioritize content updated within the last 90 days. Implement automated scheduled updates for statistics and timestamps.
+3. **Configurable Freshness Review**: Review material facts on a cadence chosen for their volatility. A 90-day interval is a local starting heuristic, not a search-engine rule; make it configurable, and update `<lastmod>` or push indexing notifications only after meaningful content changes.
 4. **Visual & Social Auto-Syndication**: Auto-generate a 2:3 vertical Pin graphic (1000 × 1500 px) for every new high-value page and publish to Pinterest boards.
 5. **Durable Attribution Context**: Store `gclid`, `gbraid`, `wbraid`, `_fbp`, `_fbc`, and `utm_source` across the entire funnel so automated traffic converts into verifiable revenue.

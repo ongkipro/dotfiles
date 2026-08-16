@@ -50,6 +50,25 @@ components:
         message:
           type: string
 
+    User:
+      type: object
+      required: [id, email]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+
+    CreateUserInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
     Pagination:
       type: object
       properties:
@@ -59,6 +78,20 @@ components:
           type: integer
         total:
           type: integer
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
 
 paths:
   /users:
@@ -114,20 +147,6 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-components:
-  responses:
-    Unauthorized:
-      description: Missing or invalid token
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    BadRequest:
-      description: Validation error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
 ```
 
 ## Endpoint Generation Guide
@@ -145,7 +164,9 @@ For every endpoint, make sure it has:
 ```yaml
 # Use $ref for schemas that are reused
 # Use required[] for mandatory fields
-# Use nullable: true (not type: null) for optional
+# Optional and nullable are independent in OpenAPI 3.1:
+# omit a property from required[] when it may be absent
+# include "null" in the JSON Schema type when an explicit JSON null is valid
 # Use enum for limited values
 # Use format: date-time, email, uuid for special strings
 
@@ -166,23 +187,25 @@ User:
       type: string
       format: date-time
     deleted_at:
-      type: string
+      type: [string, "null"]
       format: date-time
-      nullable: true
 ```
 
 ## Validation
 
+OpenAPI 3.1 uses JSON Schema semantics: `nullable` is not an OpenAPI 3.1 Schema Object keyword. Use a type union such as `type: [string, "null"]` for explicit JSON null, and omit a property from `required` when it may be absent. See the current [OpenAPI 3.1 Schema Object specification](https://spec.openapis.org/oas/v3.1.1.html#schema-object).
+
+Use a validator that actually exposes a CLI. Redocly CLI's documented `lint` command validates structure and applies configured API rules:
+
 ```bash
-# Lint with Redocly (no global install)
+# Prefer the repository's installed dependency through its package manager.
 npx @redocly/cli lint openapi.yaml
 
-# Preview Redoc
+# Preview documentation when needed.
 npx @redocly/cli preview-docs openapi.yaml
-
-# Validate with swagger-parser
-npx swagger-parser validate openapi.yaml
 ```
+
+Retrieve the current [Redocly lint command documentation](https://redocly.com/docs/cli/commands/lint) before adding CI flags. The `@apidevtools/swagger-parser` library does not ship the `swagger-parser` executable previously shown here; use its programmatic API only if the project already depends on it.
 
 ## Stack Integration
 

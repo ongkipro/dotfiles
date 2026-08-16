@@ -41,15 +41,15 @@ All development projects: web app, SaaS, Shopify, bots, etc. (Created 2026-07-14
 
 ## Auto-Routing — the AI CLI knows where to put things
 
-**Without being told**, the AI should auto-save to these folders:
+**Without being told**, the AI should auto-save to these folders. This table is a personal routing preference, not a competing source of truth: `config/ai/AGENTS.md` owns the binding lifecycle contract — pre-development staging under `~/Documents/work/prd/<slug>/` is mandatory before `~/Projects/<slug>/` exists, `project-init --from-docs` promotes the accepted set into the repository, and the repository copy is canonical from that point. Never treat a `~/Documents/` copy as authoritative after promotion.
 
 | Output | Path |
 |---|---|
-| PRD, task breakdown, planning | `~/Documents/work/prd/` |
+| PRD, task breakdown, planning | `~/Documents/work/prd/<slug>/` |
 | Research, SEO, competitor analysis | `~/Documents/work/research/` |
 | Copywriting, blog, ads, script | `~/Documents/work/content/` |
 | Draft, ideas, free-form notes | `~/Documents/work/notes/` |
-| Project source code | `~/Projects/<name>/` |
+| Project source code | `~/Projects/<slug>/` |
 
 **Filename:** `YYYY-MM-DD - title.md`
 

@@ -387,3 +387,86 @@ sub-threshold context, and text-only visual primary and fallback. A text-only
 non-visual primary remained accepted, proving the image guard is scoped to the
 visual roles. No provider serving probe was run; shared status does not claim
 device-specific availability.
+
+## 2026-08-17 — Cross-device catalog validation distinguishes absence from defects
+
+The full repository suite was executed on a real Darwin host through an isolated
+repository fixture. That device intentionally runs the MiniMax overlay and has
+no local direct `openai-codex` or `anthropic` catalog. The old validator treated
+an unavailable provider as proof that every selector under it was invalid, so a
+sound shared base failed on a device whose active overlay never selects those
+providers.
+
+`omp-routing-test` now preserves the strict boundary: if a provider exists in
+the local catalog, an unknown model, unsupported effort, insufficient context,
+or missing image capability still fails. If the entire provider is unavailable,
+the test emits one explicit `WARNING`, performs the structural graph checks, and
+makes no capability claim for that provider. This is reported by `ai-doctor` as
+partial coverage rather than a false critical failure.
+
+The repeated Mac `ai-doctor --self-test` passed every critical gate. OMP parsed
+the active device overlay and exposed live catalogs for `minimax-code`,
+`opencode-go`, and `9router-fantastico`; the broader catalog also included
+`google-antigravity`. No paid inference or credential probe was run.
+
+## 2026-08-17 — 9Router cut over to the remote tunnel only
+
+The tracked OMP provider had drifted from its authenticated tunnel back to
+`127.0.0.1:20128`, even though its declared `cx/*` catalog did not exist on the
+local gateway. Normal OMP routing did not select that reserve provider, which
+hid the mismatch.
+
+OMP and optional Pi now target `https://rbq97ts.abc-tunnel.us/v1`. Pi's catalog
+sync reads the machine-local remote credential, preserves known model metadata,
+updates only `9router-fantastico`, and removes the obsolete local provider.
+Installers no longer install, restore, or require a local 9Router package or
+service. The local restore/start scripts and tracked runtime manifests were
+removed rather than retained as dead compatibility paths.
+
+## 2026-08-17 — Planning artifacts, macOS portability, and effective routing
+
+`project-init --from-docs` now enforces a two-step planning lifecycle. Drafts
+remain under `~/Documents/work/prd/<slug>/`; promotion copies only accepted
+artifacts into the target repository. Standalone packs promote `PRD.md`,
+`PLAN.md`, `TASKS.md`, and ADRs to their canonical root paths. Specification
+suites retain their full `docs/spec/` layout, promote the accepted execution
+queue to root `TASKS.md`, and expose the suite PRD through an idempotent root
+`PRD.md` pointer instead of creating a second product specification. `--plan`
+prints exact source/destination mappings without mutating either tree.
+
+The lifecycle fixture now canonicalizes the temporary directory after `mktemp`,
+because macOS reports `/var/...` while `TMPDIR` commonly contains the
+`/var` → `/private/var` symlink. This keeps exact promotion-plan assertions
+portable without weakening them. The full isolated `ai-doctor --self-test`
+passes on Linux and on a real Mac; the Mac run reports unavailable direct
+providers as partial catalog coverage, not as selector defects.
+
+`bin/omp-effective-routing-test` was adopted as a canonical repository gate.
+`omp-routing-test` continues to validate the tracked base routing graph;
+the effective test independently resolves the device overlay, validates its
+live provider catalogs, and structurally validates every tracked overlay
+template. Its provider scan now unions actual provider IDs rather than a
+serialized JSON array. The real Mac `minimax-hosted.yml` overlay passes with
+13 roles, 11 agent overrides, visual capability locks, and the `xhigh`/`max`
+advisor effort floors intact.
+
+## 2026-08-17 — Final adversarial validator and memory closure
+
+Final review found that the first effective-routing implementation did not
+actually enforce the fallback effort floor for multi-entry chains: shell word
+splitting collapsed the list into one invalid token. Tracked overlays also took
+a structural path that skipped selector-shape and effort-floor checks entirely.
+The validator now consumes one selector or effort per line, always checks
+selector shape and advisor recovery effort, and limits live-catalog checks to
+devices that can supply the relevant provider catalog.
+
+A negative fixture replacing the `advisor-xhigh` fallback with a `high`-only
+selector now fails with the intended effort-floor error. The valid effective
+overlay passes on Linux and the real Mac. The full `ai-doctor --self-test`
+passes every critical gate on both hosts; Mac catalog gaps for unavailable
+direct providers remain explicit partial coverage.
+
+Final memory hygiene removed volatile execution snapshots and tracked demo
+credentials from project reference memory, preserved repository authority
+pointers, and reduced semantic duplication to zero. The strict hygiene command
+passes with zero issues.
