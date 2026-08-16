@@ -9,8 +9,9 @@ note: Full diff 2026-08-16 — both files 248 lines, single-line difference on
   Prefer the narrower sibling when the task sits squarely inside one of
   them — workers-best-practices for reviewing or authoring Worker code,
   wrangler for CLI and wrangler.jsonc, durable-objects for stateful
-  coordination, agents-sdk for stateful agents and Workflows, sandbox-sdk
-  for sandboxed code execution, cloudflare-email-service for email,
+  coordination, agents-sdk for stateful agents and Workflows, sandbox-next
+  or sandbox-stable for sandboxed code execution, cloudflare-email-service
+  for email,
   cloudflare-one for Zero Trust and SASE." This is AUDIT-H-04's fix so
   Claude routes to the narrower sibling skill instead of always loading
   this one. Body content otherwise matches upstream exactly.
@@ -19,3 +20,10 @@ would_lose_if_wired: refresh would silently drop the sibling-routing clause
 to_vendor: either get the routing clause merged into cloudflare/skills
   upstream, or accept losing it and re-adding it as a permanent local
   patch step in the refresh script (not currently supported).
+
+updated: 2026-08-16 — the clause named `sandbox-sdk`, which upstream retired.
+  It now names `sandbox-next` / `sandbox-stable`. Worth noting for the vendoring
+  decision: upstream's own successor skills route between each other in their
+  descriptions the same way ("Not for X, use Y"), which is the pattern this
+  fork adds by hand. That is evidence the clause would be accepted upstream
+  rather than rejected as a local preference.

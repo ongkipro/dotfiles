@@ -1,0 +1,5 @@
+source: https://raw.githubusercontent.com/cloudflare/skills/main/skills/sandbox-stable
+vendored: 2026-08-16
+note: Vendored single-source (dotfiles contract: no plugins). Refresh with _refresh-vendored.sh
+note: Adopted 2026-08-16 when upstream retired sandbox-sdk and split it into a
+  next/stable pair gated on the installed @cloudflare/sandbox npm tag.
