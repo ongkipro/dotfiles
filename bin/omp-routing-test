@@ -428,6 +428,49 @@ for role in cycle_order:
     if role not in roles:
         fail("cycleOrder references missing role: " + str(role))
 
+# ── Structural invariants the shared base config must keep ────────────────────
+#
+# A device once pushed its own single-provider preference into the shared
+# config.yml instead of using an overlay, flattening ten of the thirteen roles
+# onto one vendor and dropping `anthropic` from the provider order. Nothing
+# caught it: every selector was still individually valid, so this test passed
+# while the routing design was gone.
+#
+# These assert the design, not a model list. Swapping a model is fine; collapsing
+# the structure is not. A device that wants one provider already has
+# `config/omp/overlays/*.yml` and `omp --config <overlay>` for exactly that.
+OVERLAY_HINT = ("If a device wants one provider, use an overlay "
+                "(omp --config config/omp/overlays/<name>.yml) rather than editing the shared base.")
+
+
+def provider_of(selector):
+    return str(selector).split("/", 1)[0]
+
+
+provider_order = runtime_value("modelProviderOrder")
+if not isinstance(provider_order, list) or not provider_order:
+    fail("modelProviderOrder must be a non-empty list")
+
+worker_roles = [r for r in ("default", "task", "slow", "plan", "smol", "tiny") if r in roles]
+worker_providers = {provider_of(roles[r]) for r in worker_roles}
+for role in [r for r in roles if r.startswith("advisor") or r == "discovery"]:
+    if provider_of(roles[role]) in worker_providers:
+        fail(
+            "vendor independence lost: '{}' resolves to provider '{}', which also runs the worker "
+            "roles {}. A review lane sharing a vendor with the work it reviews is not independent. "
+            .format(role, provider_of(roles[role]), sorted(worker_providers)) + OVERLAY_HINT
+        )
+
+for role, selector in roles.items():
+    if provider_of(selector) not in provider_order:
+        fail("role '{}' uses provider '{}', absent from modelProviderOrder {} — recovery cannot "
+             "reach it. ".format(role, provider_of(selector), provider_order) + OVERLAY_HINT)
+
+reserve = [pr for pr in provider_order if pr.startswith("9router")]
+if reserve and provider_order[-1] not in reserve:
+    fail("9Router must be last in modelProviderOrder — ROUTING.md calls it the reserve and "
+         "\"deliberately the least-preferred hop\". Current order: {}. ".format(provider_order) + OVERLAY_HINT)
+
 fallback_chains = runtime_value("retry.fallbackChains")
 if not isinstance(fallback_chains, dict):
     fail("retry.fallbackChains must be a map")

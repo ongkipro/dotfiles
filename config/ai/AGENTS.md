@@ -25,6 +25,32 @@ Three things can produce a "PRD" and two can produce an "architecture" document.
 3. **A new product or system spanning several specification domains** — data model, tenant isolation, IAM, billing, compliance, SLA — → skill `development-spec-suite` and its numbered pack. Reach for it because the domains genuinely apply, not because the project feels large.
 4. **`config/templates/`** produces neither. It is the delivery-contract scaffold `project-init` renders into a repo; its `PRD.md` is a placeholder for (2), and its `ARCHITECTURE.md` records the shape actually built, not the product specification. When both exist, `04-SYSTEM-ARCHITECTURE.md` is the design and `ARCHITECTURE.md` is the record; the record wins on what the code does.
 
+### What another device may change here
+
+This repository is shared across five machines. A device may **add** to it —
+memory, skills, its own `devices/<host>.md` entry, a lesson. A device must not
+**restructure** it: OMP routing, installers, shell tooling, and the contract
+templates are the shared setup, and a preference that suits one machine is not a
+change to that setup.
+
+This is not hypothetical. On 2026-08-16 a device pushed its own single-provider
+preference into `config/omp/config.yml` rather than using an overlay. Ten of the
+thirteen roles collapsed onto one vendor, the whole advisor tier lost the vendor
+independence that makes a review worth anything, `anthropic` disappeared from
+`modelProviderOrder` while roles still pointed at it, and `cycleOrder` vanished.
+Every individual selector was still valid, so nothing failed until a fallback
+happened to name a model this machine's catalog did not hold.
+
+`bin/omp-routing-test` now asserts the structure, not the model list: an advisor
+role may not share a provider with the worker roles it reviews, every role's
+provider must appear in `modelProviderOrder`, and 9Router must stay last because
+it is the reserve. Swapping a model is fine. Collapsing the design fails.
+
+**When one machine wants different models, the mechanism already exists**:
+`config/omp/overlays/*.yml`, used as `omp --config ~/dotfiles/config/omp/overlays/<name>.yml`.
+Device-only facts belong in `~/.config/ai-local/` or the generated
+`devices/<host>.md`, never in the shared base.
+
 ## Output discipline
 
 - Save AI-generated output to `~/Documents/work/{prd,research,content,notes}/` — draft, riset, dan backup **sebelum** development

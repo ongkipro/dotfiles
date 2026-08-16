@@ -1,72 +1,87 @@
 setupVersion: 1
-modelRoles: 
-  smol: google-antigravity/gemini-3.1-flash-lite:medium
-  slow: google-antigravity/gemini-3.1-pro:high
-  plan: google-antigravity/gemini-3.1-pro:high
+modelRoles:
+  smol: google-antigravity/gemini-3.7-flash:medium
+  slow: openai-codex/gpt-5.6-sol:high
+  plan: openai-codex/gpt-5.6-sol:high
   vision: google-antigravity/gemini-3.1-pro:high
   designer: google-antigravity/gemini-3.1-pro:high
   research: google-antigravity/gemini-3.7-flash:high
-  discovery: google-antigravity/claude-sonnet-4-6:medium
+  discovery: anthropic/claude-sonnet-5:medium
   tiny: google-antigravity/gemini-3.1-flash-lite:minimal
-  task: google-antigravity/gemini-3.1-pro:high
-  default: google-antigravity/gemini-3.7-flash:medium
-  advisor: google-antigravity/gemini-3.1-pro:high
-  advisor-xhigh: google-antigravity/gemini-3.1-pro:high
-  advisor-max: google-antigravity/gemini-3.1-pro:high
-modelProviderOrder: 
+  task: openai-codex/gpt-5.6-sol:high
+  default: openai-codex/gpt-5.6-sol:high
+  advisor: anthropic/claude-sonnet-5:high
+  advisor-xhigh: anthropic/claude-opus-5:xhigh
+  advisor-max: anthropic/claude-opus-5:max
+modelProviderOrder:
   - google-antigravity
-  - 9router-fantastico
   - openai-codex
-retry: 
+  - anthropic
+  - 9router-fantastico
+cycleOrder:
+  - smol
+  - default
+  - slow
+defaultThinkingLevel: auto
+retry:
   enabled: true
   modelFallback: true
   fallbackRevertPolicy: cooldown-expiry
-  fallbackChains: 
-    default: 
-      - google-antigravity/gemini-3.1-pro:high
-      - 9router-fantastico/opencode-go/deepseek-v4-pro:high
-      - 9router-fantastico/opencode-go/minimax-m3:medium
-    task: 
+  fallbackChains:
+    default:
+      - google-antigravity/gemini-3.7-flash:medium
+      - anthropic/claude-sonnet-4-6:medium
+      - 9router-fantastico/cx/gpt-5.4:medium
+    task:
       - google-antigravity/gemini-3.7-flash:high
-      - 9router-fantastico/opencode-go/deepseek-v4-pro:high
-      - 9router-fantastico/opencode-go/kimi-k2.7-code:medium
-    smol: 
-      - google-antigravity/gemini-3.6-flash:low
-    tiny: 
-      - google-antigravity/gemini-3.5-flash:minimal
-    slow: 
+      - anthropic/claude-sonnet-4-6:medium
+    smol:
+      - openai-codex/gpt-5.4-mini:low
+      - anthropic/claude-haiku-4-5:low
+    tiny:
+      - anthropic/claude-haiku-4-5:minimal
+      - openai-codex/gpt-5.4-mini:low
+    slow:
+      - google-antigravity/claude-opus-4-6:high
+      - anthropic/claude-opus-4-8:high
+      - 9router-fantastico/cx/gpt-5.6-sol:high
+    plan:
+      - anthropic/claude-opus-4-8:high
+      - google-antigravity/claude-opus-4-6:high
+      - 9router-fantastico/cx/gpt-5.6-sol:high
+    vision:
+      - anthropic/claude-sonnet-5:high
+      - openai-codex/gpt-5.4:high
+    designer:
+      - anthropic/claude-sonnet-5:high
+      - openai-codex/gpt-5.4:high
+    research:
+      - openai-codex/gpt-5.4:high
+      - anthropic/claude-sonnet-4-6:high
+    discovery:
       - google-antigravity/gemini-3.7-flash:high
-      - 9router-fantastico/opencode-go/deepseek-v4-pro:high
-      - 9router-fantastico/minimax/MiniMax-M3:high
-    plan: 
-      - google-antigravity/gemini-3.7-flash:high
-      - 9router-fantastico/opencode-go/deepseek-v4-pro:high
-    vision: 
-      - google-antigravity/gemini-3.7-flash:high
-    designer: 
-      - google-antigravity/gemini-3.7-flash:high
-    research: 
-      - google-antigravity/gemini-3.6-flash:high
-    discovery: 
-      - google-antigravity/gemini-3.7-flash:high
-    advisor: 
-      - google-antigravity/gemini-3.7-flash:high
-    advisor-xhigh: 
-      - google-antigravity/gemini-3.7-flash:high
-    advisor-max: 
-      - google-antigravity/gemini-3.7-flash:high
-async: 
+      - openai-codex/gpt-5.4:high
+    advisor:
+      - google-antigravity/claude-sonnet-4-6:high
+      - openai-codex/gpt-5.6-sol:high
+    anthropic/claude-sonnet-5:
+      - google-antigravity/claude-sonnet-4-6:high
+      - openai-codex/gpt-5.6-sol:high
+    anthropic/claude-opus-5:
+      - google-antigravity/claude-opus-4-6:high
+      - openai-codex/gpt-5.6-sol:high
+async:
   enabled: true
   maxJobs: 8
-task: 
+task:
   batch: true
   maxConcurrency: 8
   showResolvedModelBadge: true
-  isolation: 
+  isolation:
     mode: auto
     apply: true
     merge: patch
-  agentModelOverrides: 
+  agentModelOverrides:
     scout: "@discovery"
     sonic: "@smol"
     designer: "@vision"
@@ -78,20 +93,20 @@ task:
     architect: "@advisor-max"
     debugger: "@advisor-xhigh"
     writer: "@plan"
-compaction: 
+compaction:
   enabled: true
   strategy: snapcompact
   midTurnEnabled: true
   autoContinue: true
-  thresholdTokens: 120000
+  thresholdTokens: 140000
   keepRecentTokens: 40000
   dropUseless: true
   idleEnabled: true
   idleThresholdTokens: 100000
-tools: 
+tools:
   format: auto
   approvalMode: yolo
-secrets: 
+secrets:
   enabled: true
-dev: 
+dev:
   autoqaConsent: granted
