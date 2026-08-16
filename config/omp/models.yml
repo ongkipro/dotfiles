@@ -88,21 +88,6 @@ providers:
         reasoning: true
         contextWindow: 1048576
         maxTokens: 65536
-      - id: "ag/gemini-3.7-flash-high"
-        name: "ag/gemini-3.7-flash-high (Gemini 3.7 Flash High)"
-        reasoning: true
-        contextWindow: 1048576
-        maxTokens: 65536
-      - id: "ag/gemini-3.7-flash-medium"
-        name: "ag/gemini-3.7-flash-medium (Gemini 3.7 Flash Medium)"
-        reasoning: true
-        contextWindow: 1048576
-        maxTokens: 65536
-      - id: "ag/gemini-3.7-flash-low"
-        name: "ag/gemini-3.7-flash-low (Gemini 3.7 Flash Low)"
-        reasoning: true
-        contextWindow: 1048576
-        maxTokens: 65536
       - id: "ag/gemini-3.6-flash-high"
         name: "ag/gemini-3.6-flash-high (Gemini 3.6 Flash High)"
         reasoning: true

@@ -17,7 +17,6 @@ modelProviderOrder:
   - google-antigravity
   - openai-codex
   - anthropic
-  - 9router-fantastico
 cycleOrder:
   - smol
   - default
@@ -31,7 +30,6 @@ retry:
     default:
       - google-antigravity/gemini-3.7-flash:medium
       - anthropic/claude-sonnet-4-6:medium
-      - 9router-fantastico/cx/gpt-5.4:medium
     task:
       - google-antigravity/gemini-3.7-flash:high
       - anthropic/claude-sonnet-4-6:medium
@@ -44,11 +42,9 @@ retry:
     slow:
       - google-antigravity/claude-opus-4-6:high
       - anthropic/claude-opus-4-8:high
-      - 9router-fantastico/cx/gpt-5.6-sol:high
     plan:
       - anthropic/claude-opus-4-8:high
       - google-antigravity/claude-opus-4-6:high
-      - 9router-fantastico/cx/gpt-5.6-sol:high
     vision:
       - anthropic/claude-sonnet-5:high
       - openai-codex/gpt-5.4:high
