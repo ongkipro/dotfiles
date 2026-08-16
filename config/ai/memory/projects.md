@@ -137,3 +137,12 @@ Before this, **4 projects had no backup anywhere**. All have been pushed. Facts 
 ## nextpress — ARCHIVED (do not continue)
 - WordPress-style CMS prototype (Next.js 16 + shadcn + GSAP), abandoned 2026-07-03. **Fully replaced by `volumecms`** — same concept, rewritten from scratch, unrelated history (different root commit).
 - Repo `github.com/ongkipro/nextpress` private + **archived** (read-only) on 2026-07-10 merely as an archive. The local folder `~/Projects/nextpress` can be deleted anytime.
+
+## adsbookcms
+
+- Path `~/Projects/adsbookcms` · repo `ongkipro/adsbookcms` (private). **Verify on disk before assuming it is checked out on this device.**
+- The product: a WordPress-style installable CMS for Cloudflare — **1 installer = 1 Worker**, single tenant, no tenant abstraction in code. Astro SSR + React islands + D1 + KV + R2 + Workers AI.
+- Split from `~/Projects/permatamall` (live `permatamall.shop`) in 2026-08. They are **separate repos, same engine**. Permata Mall content inside AdsBookCMS is deliberate demo data — replaceable, not to be deleted.
+- **Repo documents are authoritative, not this file.** `AGENTS.md` §2 owns the document map; `ARCHITECTURE.md` §10 owns the gap register; `TASKS.md` owns the queue; `DECISIONS.md` owns the ADRs. Never record status or technical decisions here.
+- `main` history was re-founded on an orphan root (ADR-012) to drop former merchants' photography from git objects. **Check `git ls-remote` before pushing** — the remote may still carry pre-rewrite history awaiting a force-push, and a plain push will be rejected as non-fast-forward with no common ancestor.
+- Ad signal work here is governed by the `meta-ads-signal-engine` and `google-ads-signal-engine` skills, notably the catalog-identity contract.

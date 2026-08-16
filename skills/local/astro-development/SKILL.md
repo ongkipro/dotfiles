@@ -159,6 +159,39 @@ input. Keep API endpoints for public protocols, webhooks, machine clients, or
 responses that need explicit HTTP control. Actions are public endpoints: check
 authentication and authorization inside every privileged handler.
 
+### Middleware authorization: read `context.url`, never `context.request.url`
+
+Astro routes on a **normalized** pathname — it percent-decodes in a loop and
+collapses duplicate slashes — and exposes that value as `context.url` /
+`Astro.url`. It leaves `context.request` holding the raw bytes the client sent.
+
+Any middleware that classifies a request from `new URL(context.request.url)`
+therefore judges one path while Astro serves another. Measured on a real Worker,
+with no session cookie:
+
+```
+GET  /api/admin/settings    -> 401
+GET  //api/admin/settings   -> 200, full provider settings
+GET  /%61dmin/orders        -> 200
+PUT  //api/admin/settings   -> 200 from a cross-site origin
+```
+
+The gate itself was a correct default-deny allowlist. It was simply never
+reached: `startsWith('/api/admin/')` is false for `//api/admin/...`, so the
+session check, the role check, the CSRF origin check and the password-rotation
+gate were all skipped together. Astro ships
+`collapseDuplicateLeadingSlashes` with the comment "prevents middleware
+authorization bypass when the URL starts with `//`" — upstream treats this shape
+as reachable in the wild.
+
+Two follow-ons worth pinning:
+
+- A test harness that builds a context must supply `url` itself. Supplying only
+  `request` is how this passes CI: the handler reads `undefined.pathname` or,
+  worse, silently classifies nothing as private.
+- `pathname.startsWith('/admin')` also claims `/admin-sale` and `/administrasi`.
+  Match `=== '/admin' || startsWith('/admin/')`.
+
 See [Dynamic Features](references/dynamic-features.md).
 
 ## 7. Ship and validate

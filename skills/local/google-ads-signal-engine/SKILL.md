@@ -67,3 +67,22 @@ $$\text{Google Ad Click (gclid, gbraid, wbraid)} \longrightarrow \text{Sitewide 
 8. **Server / Offline Uploads**: Upload delayed COD deliveries or offline CRM sales via the Google Ads API using `transaction_id` or `gclid`. This is the whole reason to capture click IDs at landing — without a stored `gclid`/`gbraid`/`wbraid` a COD sale confirmed days later can never be attributed.
 9. **Separate Analytics**: Keep GA4 engagement events separate from Google Ads conversion bidding goals.
 10. **Reconciliation**: Periodically audit Google Ads reported conversions against backend accounting truth.
+
+---
+
+## Catalog identity
+
+`id` in a Merchant Center feed is 1–50 characters of alphanumerics, underscores
+and dashes. There is **no minimum length and no digits-only rule**; any code
+enforcing one invented it. The binding rules are that an id is stable forever,
+never reused — even for a deleted product — and identical to what the conversion
+and remarketing tags send.
+
+Grouped variants need more than a shared `item_group_id`: Google requires them to
+be distinguishable by `color`, `size`, `material` or `pattern`. A group submitted
+without one is a common outright disapproval, and it will not surface as an error
+in your own tests.
+
+Derivation, grain, and the verification method are shared with Meta and are
+documented once, in `meta-ads-signal-engine` → "Catalog identity: the id that
+must match". Do not restate them here.
