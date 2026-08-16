@@ -72,7 +72,7 @@ mkdir -p "$LEGACY"
 printf 'user-owned\n' > "$LEGACY/STATUS.md"
 "$SCRIPT" --repo "$LEGACY" tools 'Sandbox & validation | project' >/dev/null
 "$SCRIPT" --repo "$LEGACY" tools 'Sandbox & validation | project' >/dev/null
-for path in AGENTS.md PRD.md TASKS.md STATUS.md DECISIONS.md RELEASE.md OBSERVABILITY.md BUILD-LOG.md ARCHITECTURE.md .delivery/current.json; do
+for path in README.md AGENTS.md PRD.md TASKS.md STATUS.md DECISIONS.md RELEASE.md OBSERVABILITY.md BUILD-LOG.md ARCHITECTURE.md .delivery/current.json; do
   [ -f "$LEGACY/$path" ] || fail "legacy invocation missing $path"
 done
 [ "$(cat "$LEGACY/STATUS.md")" = 'user-owned' ] || fail 'legacy invocation overwrote STATUS.md'

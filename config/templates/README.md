@@ -9,13 +9,18 @@
 
 ## Quick Links
 
-- 📋 [PRD](./PRD.md) — Product Requirements
-- 🏗️ [Architecture](./ARCHITECTURE.md) — Technical design
-- 🔄 [Flow](./FLOW.md) — User & system flows
-- 📐 [Specs](./SPECS.md) — Technical specifications
-- ✅ [Tasks](./TASKS.md) — Task tracking
-- 📝 [Decisions](./DECISIONS.md) — Key decisions log
-- 🗒️ [Notes](./NOTES.md) — Working notes
+Every document below is created by `project-init` and is authoritative for its
+own subject. Do not restate one inside another.
+
+- 📋 [PRD](./PRD.md) — accepted requirements
+- ✅ [Tasks](./TASKS.md) — execution contract, one task per requirement
+- 📊 [Status](./STATUS.md) — current workflow state and review contract
+- 🏗️ [Architecture](./ARCHITECTURE.md) — the shape actually built
+- 📝 [Decisions](./DECISIONS.md) — accepted decisions and their supersession trail
+- 🚀 [Release](./RELEASE.md) — release boundary, declared risk, rollback evidence
+- 📡 [Observability](./OBSERVABILITY.md) — post-deploy probe contract
+- 📜 [Build log](./BUILD-LOG.md) — durable history
+- 🤖 [Agents](./AGENTS.md) — repository-local authority map for AI CLIs
 
 ## Quickstart
 
@@ -27,9 +32,8 @@ cd {{REPO_NAME}}
 
 ## Key Features
 
-- {{FEATURE_1}}
-- {{FEATURE_2}}
-- {{FEATURE_3}}
+<!-- TODO: list what this actually does, once it does something. A feature list
+     written before the feature exists is a promise, not documentation. -->
 
 ## Environment
 

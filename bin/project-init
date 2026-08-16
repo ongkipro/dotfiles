@@ -45,6 +45,7 @@ render_contract(){
     replace "$dst" "PROJECT_NAME=$repo" "REPO_NAME=$repo" "STATUS=Active" "STACK=$stack" "DATABASE=$database" "AUTH=$auth" "DEPLOY=$deploy" "GENERATED_STATE=$generated" "STARTED=$(now)" "UPDATED=$(now)" "DATE=$(now)" "DESCRIPTION=$desc" "CATEGORY=$category" "PROD_URL=TBD" "STAGING_URL=TBD" "LOCAL_URL=TBD"
     say "created $relative"
   done <<'FILES'
+README|README.md
 AGENTS|AGENTS.md
 PRD|PRD.md
 TASKS|TASKS.md
@@ -88,9 +89,10 @@ Stack-aware options:
   --no-install                   Skip dependency installation (unsupported by cloudflare-worker)
   -h, --help
 
-New projects use an official native generator, then receive AGENTS.md, PRD.md,
-TASKS.md, STATUS.md, DECISIONS.md, RELEASE.md, OBSERVABILITY.md, BUILD-LOG.md,
-ARCHITECTURE.md, and an initialized .delivery ledger. Existing files are never
+New projects use an official native generator, then receive README.md,
+AGENTS.md, PRD.md, TASKS.md, STATUS.md, DECISIONS.md, RELEASE.md,
+OBSERVABILITY.md, BUILD-LOG.md, ARCHITECTURE.md, and an initialized
+.delivery ledger. Existing files are never
 overwritten. Auth, database, and deploy selections become explicit decisions and
 future tasks until executable evidence proves them operational.
 USAGE
@@ -213,7 +215,7 @@ bootstrap(){
     printf '  Database decision: %s\n  Auth decision: %s\n  Deploy target: %s\n  Install dependencies: %s\n' "$database" "$auth" "$deploy" "$([ "$no_install" -eq 1 ] && echo no || echo yes)"
     printf '  Generator: %s\n' "$generator_label"
     if [ "${#generator[@]}" -gt 0 ]; then printf '  Generator command:\n'; print_command "${generator[@]}"; fi
-    printf '  Repository contract: AGENTS.md, PRD.md, TASKS.md, STATUS.md, DECISIONS.md, RELEASE.md, OBSERVABILITY.md, BUILD-LOG.md, ARCHITECTURE.md, .delivery/\n'
+    printf '  Repository contract: README.md, AGENTS.md, PRD.md, TASKS.md, STATUS.md, DECISIONS.md, RELEASE.md, OBSERVABILITY.md, BUILD-LOG.md, ARCHITECTURE.md, .delivery/\n'
     printf '  Verification command:\n'; print_command "${checks[@]}"
     printf '  Capability state: selected decisions only; implementation remains unverified until its repository tasks and checks pass.\n'
     return 0
