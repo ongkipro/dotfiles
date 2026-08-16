@@ -34,4 +34,29 @@ from pathlib import Path
 p=Path('RELEASE.md'); p.write_text(p.read_text().replace('Backup-Proof: NOT_REQUIRED','Backup-Proof: backup://verified/test'))
 PY
 "$ROOT/bin/rollback-check" --migration-risk M3 . >/dev/null || fail 'M3 with backup proof should pass'
+
+cat > db/migrations/003_rename.sql <<'SQL'
+ALTER TABLE customers RENAME TO accounts;
+DROP VIEW customer_summary;
+SQL
+git add .; git commit -qm compatibility-sensitive
+"$ROOT/bin/migration-risk" --json --base "$BASE" . | grep -q '"risk": "M3"' || fail 'PostgreSQL RENAME TO and DROP VIEW should be M3'
+
+python3 - <<'PY'
+from pathlib import Path
+p=Path('RELEASE.md')
+s=p.read_text().replace('Rollback-Command: git checkout', 'Rollback-Command: true # git checkout')
+p.write_text(s)
+PY
+set +e; "$ROOT/bin/rollback-check" --migration-risk M3 . >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail 'assertion-only rollback command should block'
+python3 - <<'PY'
+from pathlib import Path
+p=Path('RELEASE.md')
+s=p.read_text().replace('Rollback-Command: true # git checkout', 'Rollback-Command: git checkout')
+s=s.replace('Backup-Proof: backup://verified/test', 'Backup-Proof: trust-me')
+p.write_text(s)
+PY
+set +e; "$ROOT/bin/rollback-check" --migration-risk M3 . >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail 'unstructured backup assertion should block'
 echo 'release-safety-test: PASS'

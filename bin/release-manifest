@@ -12,6 +12,7 @@ from pathlib import Path
 
 REQUIRED = ["Release-ID", "Base", "Environment", "Declared-Risk", "Rollback-Ref", "Rollback-Command", "Backup-Proof", "Status"]
 RISK = {f"R{i}" for i in range(5)}
+ENVIRONMENTS = {"development", "staging", "production"}
 UNSET = {"", "UNSET", "TBD", "NONE"}
 
 
@@ -43,6 +44,7 @@ def main() -> int:
         if missing: result["errors"].append("missing fields: " + ", ".join(missing))
         if data.get("Release-ID", "") in UNSET: result["errors"].append("Release-ID is unset")
         if data.get("Declared-Risk") not in RISK: result["errors"].append("Declared-Risk must be R0-R4")
+        if data.get("Environment") not in ENVIRONMENTS: result["errors"].append("Environment must be development, staging, or production")
         if data.get("Status") != "READY": result["errors"].append("Status must be READY")
         base = data.get("Base", "")
         if base in UNSET:

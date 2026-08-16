@@ -25,4 +25,19 @@ import json,sys
 out=json.load(open(sys.argv[1])); d=json.load(open(sys.argv[2])); assert out['result']=='VERIFIED'; assert d['recommendedDestination']=='skill'; assert d['reusabilityScore']>=90; assert d['provenance']['task']=='TASK-1'; assert len(d['provenance']['verification'])==2
 PY
 if "$ROOT/bin/delivery-learning" --repo "$REPO" record --run RUN-test --scope shared --title x --symptom x --root-cause x --invariant x --fix x --check x >/dev/null 2>&1; then echo 'FAIL duplicate immutable signal' >&2; exit 1; fi
+set +e
+"$ROOT/bin/delivery-learning" --repo "$REPO" record --run RUN-test --scope shared --title x --symptom 'api_key=secret-value-123' --root-cause x --invariant x --fix x --check x >"$TMP/sensitive.log" 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 1 ] && grep -q 'contains a secret' "$TMP/sensitive.log" || { echo 'FAIL sensitive learning input was not rejected explicitly' >&2; exit 1; }
+
+cp "$REPO/.delivery/learning/RUN-test.json" "$TMP/signal.backup"
+python3 - "$REPO/.delivery/learning/RUN-test.json" <<'PY'
+import hashlib,json,sys
+p=sys.argv[1]; d=json.load(open(p)); d['provenance']['sourceHead']='forged'; d.pop('signalHash')
+d['signalHash']=hashlib.sha256(json.dumps(d,sort_keys=True,separators=(',',':'),ensure_ascii=True).encode()).hexdigest(); json.dump(d,open(p,'w'),indent=2,sort_keys=True)
+PY
+set +e; "$ROOT/bin/delivery-learning" --repo "$REPO" verify >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 2 ] || { echo 'FAIL recomputed self-hash must not replace source provenance' >&2; exit 1; }
+cp "$TMP/signal.backup" "$REPO/.delivery/learning/RUN-test.json"
 echo 'delivery-learning-test: PASS'

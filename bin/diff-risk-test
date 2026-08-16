@@ -35,12 +35,19 @@ set -e
 grep -q 'invalid base ref' bad.json || fail "invalid base error missing"
 
 printf 'secret-ish local file\n' > untracked.txt
+python3 - <<'PY'
+from pathlib import Path
+Path('large-untracked.txt').write_text('line\n'*200)
+Path('.env.example').write_text('EXAMPLE_ONLY=1\n')
+PY
 "$DR" --json --base "$BASE" "$TMP" > dirty.json
 python3 - <<'PY'
 import json
 with open('dirty.json') as f: data=json.load(f)
 assert data['dirtyWorkingTree'] is True, data
 assert 'untracked.txt' in data['files'], data
+assert data['untrackedLines'] >= 202, data
+assert not any(x['path']=='.env.example' and x['minimumRisk']=='R4' for x in data['flaggedReasons']), data
 PY
 
 echo "diff-risk-test: PASS"

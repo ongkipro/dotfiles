@@ -21,10 +21,14 @@ import sys
 RISK_ORDER = {"R0": 0, "R1": 1, "R2": 2, "R3": 3, "R4": 4}
 
 PATH_RULES = [
-    (r"(?:^|/)(?:auth|oauth|sessions?|login|passwords?|permissions?|rbac|acl)(?:/|\.|$)|(?:jwt|token)", "Authentication / Authorization", "R3"),
+    # Separator must include `-` and `_`, not just `/` and `.`. The conventional
+    # file names are `auth-service.ts`, `auth_guard.py`, `session-manager.ts`,
+    # `login-controller.js` — none of which matched, so real auth changes fell
+    # through to the line-count band instead of the R3 floor they are owed.
+    (r"(?:^|/)(?:auth|authn|authz|authentication|authorization|oauth|sessions?|login|passwords?|permissions?|rbac|acl)(?:[-_/.]|$)|(?:jwt|token)", "Authentication / Authorization", "R3"),
     (r"(?:payment|stripe|billing|checkout|money|currency|transaction)", "Payment / Financial", "R3"),
     (r"(?:^|/)(?:migrations?|schema)(?:/|\.|$)|(?:prisma|drizzle)|\.sql$", "Database Schema / Migration", "R3"),
-    (r"(?:^|/)\.env(?:\..*)?$|(?:secret|vault|private[_-]?key|cert)", "Secrets / Cryptography", "R4"),
+    (r"(?:^|/)\.env(?:\.(?!(?:example|sample|template)(?:$|\.))[^/]+)?$|(?:secret|vault|private[_-]?key|cert)", "Secrets / Cryptography", "R4"),
     (r"(?:^|/)(?:package\.json|pyproject\.toml|go\.mod|Cargo\.toml|composer\.json)$", "Dependency / Build Manifest", "R2"),
     (r"(?:^|/)(?:pnpm-lock\.yaml|package-lock\.json|yarn\.lock|bun\.lockb?|Cargo\.lock|composer\.lock)$", "Dependency Lockfile", "R2"),
     (r"(?:^|/)\.github/workflows/|(?:docker|terraform|coolify|k8s|kubernetes|nginx|caddy|vultr)", "CI / Infrastructure / Deployment", "R3"),
@@ -119,7 +123,17 @@ def analyze_diff(repo: Path, base_ref: str | None = None) -> dict:
             files.append(path)
 
     added, deleted = lines_from_diff(diff.stdout)
-    total = added + deleted
+    untracked_lines = untracked_bytes = 0
+    for rel in untracked.stdout.splitlines():
+        path = repo / rel
+        try:
+            raw = path.read_bytes()
+        except OSError:
+            continue
+        untracked_bytes += len(raw)
+        if len(raw) <= 1024 * 1024 and b"\0" not in raw:
+            untracked_lines += len(raw.splitlines())
+    total = added + deleted + untracked_lines
 
     flagged: list[dict[str, str]] = []
     path_risk = "R0"
@@ -161,6 +175,7 @@ def analyze_diff(repo: Path, base_ref: str | None = None) -> dict:
         "risk": risk, "rationale": rationale, "baseRef": base_ref,
         "resolvedBase": base, "dirtyWorkingTree": dirty,
         "filesCount": len(files), "linesAdded": added, "linesDeleted": deleted,
+        "untrackedLines": untracked_lines, "untrackedBytes": untracked_bytes,
         "totalLineChanges": total, "flaggedReasons": flagged, "files": files,
         "recommendedLane": lane, "recommendedRole": role,
     }

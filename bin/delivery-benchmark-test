@@ -55,6 +55,24 @@ rc=$?
 set -e
 [ "$rc" -eq 1 ] || fail "metrics must be immutable"
 
+set +e
+python3 "$DB" --repo . record --run "$LAST_RUN" --duration-sec NaN >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 1 ] || fail "non-finite metrics must be rejected"
+
+python3 "$DL" --repo . start --task TASK-NAN --requirement REQ-NAN --risk R1 --worker task --model model-a >/dev/null
+python3 "$DL" --repo . record --check project-check --status PASS >/dev/null
+python3 "$DL" --repo . finish --result PASS >/dev/null
+NAN_RUN="$(python3 - <<'PY'
+import json
+print(json.load(open('.delivery/current.json'))['lastRun']['runId'])
+PY
+)"
+set +e; python3 "$DB" --repo . record --run "$NAN_RUN" --duration-sec NaN >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "non-finite metrics must be rejected before persistence"
+[ ! -e "$REPO/.delivery/metrics/$NAN_RUN.json" ] || fail "invalid metric must not be persisted"
+
 cp "$FIRST_METRIC" "$TMP/metric.backup"
 python3 - "$FIRST_METRIC" <<'PY'
 from pathlib import Path

@@ -34,15 +34,18 @@ Probe: app|http://127.0.0.1:$PORT/|200|release-marker|5000
 Probe: database|http://127.0.0.1:$PORT/|200-299|database=ok|5000
 Probe: background-jobs|http://127.0.0.1:$PORT/|200-299|workers=ok|5000
 Probe: critical-errors|http://127.0.0.1:$PORT/|200-299|critical_errors=0|5000
+Probe: expected-not-found|http://127.0.0.1:$PORT/missing|404|TBD|5000
 EOF
 
-"$RC" --json "$TMP/repo" >"$TMP/pass.json" || { cat "$TMP/pass.json" >&2; fail "all probes should verify"; }
+set +e; "$RC" --json "$TMP/repo" >"$TMP/private.json" 2>&1; rc=$?; set -e
+[ "$rc" -eq 2 ] || fail "private probe target should require explicit local override"
+"$RC" --allow-private --json "$TMP/repo" >"$TMP/pass.json" || { cat "$TMP/pass.json" >&2; fail "all probes should verify"; }
 grep -q '"result": "VERIFIED"' "$TMP/pass.json" || fail "VERIFIED result missing"
 grep -q '"name": "database"' "$TMP/pass.json" || fail "database probe missing"
 grep -q '"name": "background-jobs"' "$TMP/pass.json" || fail "background-jobs probe missing"
 
 sed 's/critical_errors=0/critical_errors=9/' "$TMP/repo/OBSERVABILITY.md" > "$TMP/repo/OBSERVABILITY.tmp" && mv "$TMP/repo/OBSERVABILITY.tmp" "$TMP/repo/OBSERVABILITY.md"
-set +e; "$RC" --json "$TMP/repo" >"$TMP/fail.json" 2>&1; rc=$?; set -e
+set +e; "$RC" --allow-private --json "$TMP/repo" >"$TMP/fail.json" 2>&1; rc=$?; set -e
 [ "$rc" -eq 1 ] || { cat "$TMP/fail.json" >&2; fail "marker mismatch should fail"; }
 grep -q '"result": "FAILED"' "$TMP/fail.json" || fail "FAILED result missing"
 
@@ -50,14 +53,14 @@ cat > "$TMP/repo/OBSERVABILITY.md" <<'EOF'
 # Observability Contract
 Probe: broken|TBD|200-299|TBD|1000
 EOF
-set +e; "$RC" --json "$TMP/repo" >"$TMP/unverified.json" 2>&1; rc=$?; set -e
+set +e; "$RC" --allow-private --json "$TMP/repo" >"$TMP/unverified.json" 2>&1; rc=$?; set -e
 [ "$rc" -eq 2 ] || { cat "$TMP/unverified.json" >&2; fail "invalid probe contract should be UNVERIFIED"; }
 
 cat > "$TMP/repo/STATUS.md" <<'EOF'
 # Status
 State: INTEGRATING
 EOF
-set +e; "$RC" --json "$TMP/repo" >"$TMP/state.json" 2>&1; rc=$?; set -e
+set +e; "$RC" --allow-private --json "$TMP/repo" >"$TMP/state.json" 2>&1; rc=$?; set -e
 [ "$rc" -eq 2 ] || { cat "$TMP/state.json" >&2; fail "pre-deploy state should be UNVERIFIED"; }
 
 echo 'release-check-test: PASS'

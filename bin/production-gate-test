@@ -1,0 +1,193 @@
+#!/usr/bin/env bash
+# production-gate-test — direct coverage for the safety-critical checks in
+# bin/production-gate that delivery-gate-test only exercises indirectly:
+#   - Independent-Reviewer must differ from Primary-Worker
+#   - Independent-Review-Head ancestry / tamper detection
+#   - post-check clean-tree recheck (HEAD must not move during the run)
+set -euo pipefail
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+PG="$ROOT/bin/production-gate"; DL="$ROOT/bin/delivery-ledger"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/production-gate-test.XXXXXX")"; trap 'rm -rf "$TMP"' EXIT
+fail(){ echo "FAIL: $*" >&2; exit 1; }
+
+# assert_gate FILE GATE EXPECTED_STATUS [DETAIL_SUBSTRING]
+assert_gate() {
+  python3 - "$1" "$2" "$3" "${4:-}" <<'PY'
+import json, sys
+path, gate, expected, substr = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+data = json.load(open(path))
+g = data["gates"].get(gate)
+if g is None:
+    print(f"MISSING gate {gate!r} in {path}"); sys.exit(1)
+if g["status"] != expected:
+    print(f"gate {gate} status={g['status']!r} expected {expected!r} detail={g.get('detail')!r}"); sys.exit(1)
+if substr and substr not in str(g.get("detail", "")):
+    print(f"gate {gate} detail missing substring {substr!r}: {g.get('detail')!r}"); sys.exit(1)
+PY
+}
+
+REPO="$TMP/repo"
+mkdir -p "$REPO"; cd "$REPO"
+git init -q; git config user.email test@example.invalid; git config user.name test
+
+# --- C1: baseline (release Base) ---
+cat > package.json <<'JSON'
+{"scripts":{"test":"node -e \"process.exit(0)\"","build":"node -e \"process.exit(0)\""}}
+JSON
+cat > TASKS.md <<'EOF'
+# Tasks
+## In progress
+No task is in progress.
+## Pending
+No implementation task has been accepted.
+## Done
+### TASK-001
+Completed.
+EOF
+git add . && git commit -qm baseline
+BASE="$(git rev-parse HEAD)"
+
+# --- C2a/C2b: release content + ledger init (this is what gets reviewed) ---
+printf 'release\n' > feature.txt
+cat > RELEASE.md <<EOF
+# Release Manifest
+Release-ID: REL-TEST-001
+Base: $BASE
+Environment: production
+Declared-Risk: R3
+Rollback-Ref: $BASE
+Rollback-Command: git checkout $BASE -- .
+Backup-Proof: NOT_REQUIRED
+Status: READY
+EOF
+cat > STATUS.md <<'EOF'
+# Status
+State: INTEGRATING
+Review-Risk: R3
+Independent-Review: PENDING
+Independent-Reviewer: UNSET
+Primary-Worker: worker-a
+Independent-Review-Head: UNSET
+EOF
+git add . && git commit -qm release
+python3 "$DL" --repo . init >/dev/null
+git add .delivery && git commit -qm ledger
+REVIEW_HEAD="$(git rev-parse HEAD)"
+
+# --- C3: reviewer records approval against REVIEW_HEAD (STATUS.md only) ---
+cat > STATUS.md <<EOF
+# Status
+State: INTEGRATING
+Review-Risk: R3
+Independent-Review: PASS
+Independent-Reviewer: reviewer-a
+Primary-Worker: worker-a
+Independent-Review-Head: $REVIEW_HEAD
+EOF
+git add STATUS.md && git commit -qm review
+
+# =====================================================================
+# Test 1 (positive baseline): valid reviewer/head config must PASS both
+# independent_review and clean_tree_after_checks. This is the accepting
+# fixture each later violating fixture is compared against.
+# =====================================================================
+"$PG" --json . >"$TMP/base.json" 2>"$TMP/base.err" || true
+assert_gate "$TMP/base.json" independent_review PASS "reviewer=reviewer-a head=$REVIEW_HEAD" \
+  || fail "valid reviewer/head config should PASS independent_review"
+assert_gate "$TMP/base.json" clean_tree_after_checks PASS "" \
+  || fail "unmodified run should PASS clean_tree_after_checks"
+
+# =====================================================================
+# Test 2: Independent-Reviewer == Primary-Worker must BLOCK.
+# Catches: a reviewer field that is merely copied from Primary-Worker,
+# i.e. self-review masquerading as independent review.
+# =====================================================================
+cat > STATUS.md <<EOF
+# Status
+State: INTEGRATING
+Review-Risk: R3
+Independent-Review: PASS
+Independent-Reviewer: worker-a
+Primary-Worker: worker-a
+Independent-Review-Head: $REVIEW_HEAD
+EOF
+set +e; "$PG" --json . >"$TMP/samewk.json" 2>"$TMP/samewk.err"; rc=$?; set -e
+assert_gate "$TMP/samewk.json" independent_review FAIL "reviewer must differ from Primary-Worker" \
+  || fail "reviewer==Primary-Worker should FAIL independent_review"
+[ "$rc" -eq 1 ] || fail "self-reviewed release should BLOCK (rc=$rc)"
+git checkout -q -- STATUS.md
+
+# =====================================================================
+# Test 3: Independent-Review-Head that does not resolve to a commit
+# must BLOCK. Catches a fabricated/typo'd review-head reference.
+# =====================================================================
+cat > STATUS.md <<'EOF'
+# Status
+State: INTEGRATING
+Review-Risk: R3
+Independent-Review: PASS
+Independent-Reviewer: reviewer-a
+Primary-Worker: worker-a
+Independent-Review-Head: not-a-real-commit
+EOF
+"$PG" --json . >"$TMP/badhead.json" 2>"$TMP/badhead.err" || true
+assert_gate "$TMP/badhead.json" independent_review FAIL "Independent-Review-Head is invalid" \
+  || fail "unresolvable Independent-Review-Head should FAIL independent_review"
+git checkout -q -- STATUS.md
+
+# =====================================================================
+# Test 4: Independent-Review-Head that is a real commit but NOT an
+# ancestor of HEAD must BLOCK. Catches a reviewer pointing at content
+# from an unrelated/foreign history (e.g. copy-pasted from another repo).
+# =====================================================================
+ORPHAN="$(git commit-tree "$(git rev-parse HEAD^{tree})" -m orphan)"
+cat > STATUS.md <<EOF
+# Status
+State: INTEGRATING
+Review-Risk: R3
+Independent-Review: PASS
+Independent-Reviewer: reviewer-a
+Primary-Worker: worker-a
+Independent-Review-Head: $ORPHAN
+EOF
+"$PG" --json . >"$TMP/notanc.json" 2>"$TMP/notanc.err" || true
+assert_gate "$TMP/notanc.json" independent_review FAIL "is not an ancestor of HEAD" \
+  || fail "non-ancestor Independent-Review-Head should FAIL independent_review"
+git checkout -q -- STATUS.md
+
+# =====================================================================
+# Test 5: release content changed AFTER the reviewed head must BLOCK,
+# even though STATUS.md-only changes are allowed. Catches a tampered
+# release where code shipped after sign-off was never actually reviewed.
+# =====================================================================
+printf 'tampered-after-review\n' >> feature.txt
+git add feature.txt && git commit -qm post-review-change
+"$PG" --json . >"$TMP/tamper-content.json" 2>"$TMP/tamper-content.err" || true
+assert_gate "$TMP/tamper-content.json" independent_review FAIL "feature.txt" \
+  || fail "release content changed after review should FAIL independent_review"
+
+# =====================================================================
+# Test 6: HEAD must not move while production checks are running.
+# Catches a compromised/misbehaving tool invoked mid-gate (here: a fake
+# project-check that commits) silently re-pointing HEAD during the run.
+# Run against a fresh copy so the tamper commit doesn't affect other tests.
+# =====================================================================
+REPO_TAMPER="$TMP/repo-tamper"
+cp -r "$REPO" "$REPO_TAMPER"
+mkdir -p "$TMP/fakebin"
+cat > "$TMP/fakebin/project-check" <<'SH'
+#!/usr/bin/env bash
+repo="${@: -1}"
+git -C "$repo" commit --allow-empty -qm tamper-mid-check
+exit 0
+SH
+chmod +x "$TMP/fakebin/project-check"
+set +e
+PATH="$TMP/fakebin:$PATH" "$PG" --json "$REPO_TAMPER" >"$TMP/tampered-head.json" 2>"$TMP/tampered-head.err"
+rc=$?
+set -e
+assert_gate "$TMP/tampered-head.json" clean_tree_after_checks FAIL "HEAD changed while production checks were running" \
+  || fail "HEAD moving mid-run should FAIL clean_tree_after_checks"
+[ "$rc" -eq 1 ] || fail "HEAD moving mid-run should BLOCK (rc=$rc)"
+
+echo 'production-gate-test: PASS'

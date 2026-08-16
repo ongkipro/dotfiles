@@ -1,34 +1,15 @@
-# Decisions Log — {{PROJECT_NAME}}
+# Decision Register — {{PROJECT_NAME}}
 
-> Track key technical & product decisions with context and rationale.
+Updated: {{DATE}}
 
----
+Record accepted decisions that materially constrain product behavior,
+architecture, security, data, operations, or delivery. Repository evidence must
+support each decision; AI output alone is not evidence.
 
-## {{DECISION_ID}}-01: {{DECISION_TITLE}}
+| ID | Status | Decision | Drivers | Evidence | Supersedes |
+|---|---|---|---|---|---|
+| — | — | No decision recorded yet | — | — | — |
 
-- **Date:** {{DATE}}
-- **Status:** Proposed / Accepted / Deprecated / Superseded
-- **Context:** {{CONTEXT}}
-- **Options Considered:**
-  1. {{OPTION_1}} — {{PRO_CON_1}}
-  2. {{OPTION_2}} — {{PRO_CON_2}}
-- **Decision:** {{DECISION}}
-- **Rationale:** {{RATIONALE}}
-- **Consequences:** {{CONSEQUENCES}}
-
----
-
-## Template
-
-```markdown
-## D-XXX: Title
-- **Date:** YYYY-MM-DD
-- **Status:** Proposed | Accepted | Deprecated | Superseded
-- **Context:** ...
-- **Options:**
-  1. ...
-  2. ...
-- **Decision:** ...
-- **Rationale:** ...
-- **Consequences:** ...
-```
+Use stable IDs such as `DEC-001`. When a decision needs detailed alternatives or
+consequences, add a repository-owned ADR and link it from this register. Never
+rewrite history silently: mark the old decision superseded and add the new one.

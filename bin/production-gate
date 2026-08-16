@@ -14,6 +14,7 @@ from pathlib import Path
 
 READY,BLOCKED,UNVERIFIED=0,1,2
 RISK_ORDER={f"R{i}":i for i in range(5)}
+UNSET={None,"","UNSET","TBD","NONE"}
 
 def run(cmd,cwd): return subprocess.run(cmd,cwd=cwd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,check=False)
 def locate(name):
@@ -37,6 +38,10 @@ def clean_tree(repo):
     if r.returncode!=0:return "UNVERIFIED",r.stderr.strip() or "git status failed"
     if r.stdout.strip():return "FAIL","Working tree is not clean"
     return "PASS","Working tree clean"
+
+def head(repo):
+    r=run(["git","rev-parse","HEAD^{commit}"],repo)
+    return r.stdout.strip() if r.returncode==0 else None
 
 def tasks_gate(repo):
     p=repo/"TASKS.md"
@@ -68,7 +73,7 @@ def main()->int:
     p=argparse.ArgumentParser();p.add_argument("directory",nargs="?",default=".");p.add_argument("--json",action="store_true");a=p.parse_args()
     repo=Path(a.directory).resolve()
     if not repo.is_dir():print(f"ERROR: Directory not found: {repo}",file=sys.stderr);return BLOCKED
-    results={}
+    results={}; initial_head=head(repo)
     def add(name,status,detail):results[name]={"status":status,"detail":detail}
 
     s,d=clean_tree(repo);add("clean_tree",s,d)
@@ -82,6 +87,8 @@ def main()->int:
     ms,manifest,mdetail=json_tool("release-manifest",[],repo);add("release_manifest",ms,mdetail)
     fields=manifest.get("fields",{}) if isinstance(manifest,dict) else {}
     base=fields.get("Base"); declared=fields.get("Declared-Risk")
+    environment=fields.get("Environment")
+    add("release_environment","PASS" if environment=="production" else "FAIL" if environment else "UNVERIFIED",f"Environment={environment}" if environment else "Release environment unavailable")
 
     ds,diffdata,ddetail=json_tool("diff-risk",["--base",base],repo) if base else ("UNVERIFIED",None,"release Base unavailable")
     diff_risk=diffdata.get("risk") if isinstance(diffdata,dict) else None
@@ -101,9 +108,36 @@ def main()->int:
     add("effective_risk","PASS" if effective else "UNVERIFIED",f"Effective-Risk={effective}" if effective else "No reliable risk inputs")
     if effective in {"R3","R4"}:
         ir=status_field(repo,"Independent-Review")
-        add("independent_review","PASS" if ir=="PASS" else "FAIL" if ir in {"FAIL","PENDING"} else "UNVERIFIED",f"Independent-Review={ir}")
+        reviewer=status_field(repo,"Independent-Reviewer")
+        review_head=status_field(repo,"Independent-Review-Head")
+        primary=status_field(repo,"Primary-Worker")
+        review_errors=[]
+        if ir!="PASS": review_errors.append(f"Independent-Review={ir or 'missing'}")
+        if reviewer in UNSET: review_errors.append("Independent-Reviewer missing")
+        # Case- and space-insensitive: these are self-declared names, so "Ongki"
+        # and "ongki" are one person satisfying an independence check by typing
+        # two different strings. The gate cannot bind identity — nothing here is
+        # signed — but it should at least not be defeated by the shift key.
+        if primary not in UNSET and reviewer.strip().casefold().replace(" ", "") == primary.strip().casefold().replace(" ", ""):
+            review_errors.append("reviewer must differ from Primary-Worker")
+        if review_head in UNSET: review_errors.append("Independent-Review-Head missing")
+        else:
+            resolved=run(["git","rev-parse","--verify",f"{review_head}^{{commit}}"],repo)
+            if resolved.returncode!=0: review_errors.append("Independent-Review-Head is invalid")
+            else:
+                reviewed=resolved.stdout.strip(); ancestor=run(["git","merge-base","--is-ancestor",reviewed,"HEAD"],repo)
+                if ancestor.returncode!=0: review_errors.append("Independent-Review-Head is not an ancestor of HEAD")
+                else:
+                    changed=run(["git","diff","--name-only",reviewed,"HEAD"],repo)
+                    allowed={"STATUS.md"}
+                    unexpected=[x for x in changed.stdout.splitlines() if x and x not in allowed and not x.startswith(".delivery/reviews/")]
+                    if unexpected: review_errors.append("release content changed after review: "+", ".join(unexpected[:5]))
+        add("independent_review","FAIL" if review_errors else "PASS","; ".join(review_errors) if review_errors else f"reviewer={reviewer} head={review_head}")
     elif effective:add("independent_review","PASS",f"Effective-Risk={effective}; independent review not mandatory")
 
+    final_clean,final_clean_detail=clean_tree(repo)
+    if initial_head!=head(repo): final_clean,final_clean_detail="FAIL","HEAD changed while production checks were running"
+    add("clean_tree_after_checks",final_clean,final_clean_detail)
     statuses=[v["status"] for v in results.values()]
     final="BLOCKED" if "FAIL" in statuses else "UNVERIFIED" if "UNVERIFIED" in statuses else "PRODUCTION_READY"
     payload={"result":final,"effectiveRisk":effective,"migrationRisk":migration,"releaseBase":base,"gates":results}

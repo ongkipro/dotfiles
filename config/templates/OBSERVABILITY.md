@@ -3,10 +3,15 @@
 Updated: {{DATE}}
 Status: REQUIRED
 
-# Probe format:
-# Probe: <name>|<url>|<expected-status>|<contains-or-TBD>|<max-latency-ms>
-# expected-status may be an exact code (200) or inclusive range (200-299).
-# Every configured probe is mandatory. Use stable, non-secret endpoints only.
+Probe format:
+
+```text
+Probe: <name>|<url>|<expected-status>|<contains-or-TBD>|<max-latency-ms>
+```
+
+The expected status may be an exact code (`200`) or an inclusive range
+(`200-299`). Every configured probe is mandatory. Use stable, non-secret public
+endpoints only; private-network probes require an explicit local-test override.
 
 Probe: app|{{PROD_URL}}|200-399|TBD|2000
 Probe: health|TBD|200-299|TBD|1000

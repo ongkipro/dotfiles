@@ -5,6 +5,8 @@ import argparse, json, re, subprocess, sys
 from pathlib import Path
 
 UNSET={"","UNSET","TBD","NONE"}
+COMMAND_RE=re.compile(r"^(?:git|docker|kubectl|wrangler|npm|pnpm|yarn|bun|bash|sh|\./|/)[^\r\n]*$",re.I)
+BACKUP_RE=re.compile(r"^(?:backup|snapshot|artifact|s3|r2|gs)://[A-Za-z0-9][A-Za-z0-9._/@:+-]{5,}$",re.I)
 
 def git(args,cwd): return subprocess.run(["git",*args],cwd=cwd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,check=False)
 
@@ -27,8 +29,12 @@ def main()->int:
             else:
                 anc=git(["merge-base","--is-ancestor",vr.stdout.strip(),"HEAD"],repo)
                 if anc.returncode!=0: errors.append("Rollback-Ref is not an ancestor of HEAD")
+                elif vr.stdout.strip()==(git(["rev-parse","HEAD"],repo).stdout.strip()): errors.append("Rollback-Ref must identify a commit before HEAD")
         if cmd in UNSET: errors.append("Rollback-Command is unset")
-        if a.migration_risk in {"M3","M4"} and backup in UNSET|{"NOT_REQUIRED"}: errors.append("M3/M4 migration requires Backup-Proof evidence")
+        elif not COMMAND_RE.fullmatch(cmd): errors.append("Rollback-Command must be an explicit supported command, not an assertion")
+        if a.migration_risk in {"M3","M4"}:
+            if backup in UNSET|{"NOT_REQUIRED"}: errors.append("M3/M4 migration requires Backup-Proof evidence")
+            elif not BACKUP_RE.fullmatch(backup): errors.append("Backup-Proof must be a structured backup, snapshot, or artifact reference")
     if not errors: data["status"]="PASS"
     if a.json: print(json.dumps(data,indent=2))
     else:

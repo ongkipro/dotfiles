@@ -10,7 +10,10 @@ Every implementation task must trace to one accepted requirement, declare its ri
 ### TASK-001: [Short Task Title]
 - **Requirement:** REQ-001 (from PRD.md)
 - **Risk Level:** R1 (R0=negligible, R1=low/bounded, R2=moderate, R3=correctness/sensitive, R4=architecture/critical)
-- **Execution Class:** volume / cheap-dev (or precision / judgment)
+- **Job:** implementation (or review, research, migration, release)
+- **Capability:** [Owning skill or specialist capability]
+- **Execution Class:** volume / precision / judgment
+- **Model / Provider / Reasoning:** [Resolved route; do not ask the user when orchestration owns selection]
 - **Scope:** [Exact files or components to touch]
 - **Non-Scope:** [Explicitly untouched paths or systems]
 - **Verification:** `project-check` or `npm test -- path/to/test.ts`

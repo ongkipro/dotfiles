@@ -72,7 +72,7 @@ mkdir -p "$LEGACY"
 printf 'user-owned\n' > "$LEGACY/STATUS.md"
 "$SCRIPT" --repo "$LEGACY" tools 'Sandbox & validation | project' >/dev/null
 "$SCRIPT" --repo "$LEGACY" tools 'Sandbox & validation | project' >/dev/null
-for path in AGENTS.md PRD.md TASKS.md STATUS.md RELEASE.md OBSERVABILITY.md BUILD-LOG.md docs/architecture.md .delivery/current.json; do
+for path in AGENTS.md PRD.md TASKS.md STATUS.md DECISIONS.md RELEASE.md OBSERVABILITY.md BUILD-LOG.md ARCHITECTURE.md .delivery/current.json; do
   [ -f "$LEGACY/$path" ] || fail "legacy invocation missing $path"
 done
 [ "$(cat "$LEGACY/STATUS.md")" = 'user-owned' ] || fail 'legacy invocation overwrote STATUS.md'
@@ -129,11 +129,11 @@ PROJECTS_DIR="$PLAN_ROOT" "$SCRIPT" verified-app --stack nextjs --database postg
 GENERATED="$PLAN_ROOT/verified-app"
 [ -d "$GENERATED/.git" ] || fail 'generated project is not a local Git repository'
 [ "$(cat "$GENERATED/AGENTS.md")" = generator-owned ] || fail 'generator-owned AGENTS.md was overwritten'
-for path in PRD.md TASKS.md STATUS.md RELEASE.md OBSERVABILITY.md BUILD-LOG.md docs/architecture.md .delivery/current.json; do
+for path in PRD.md TASKS.md STATUS.md DECISIONS.md RELEASE.md OBSERVABILITY.md BUILD-LOG.md ARCHITECTURE.md .delivery/current.json; do
   [ -f "$GENERATED/$path" ] || fail "generated project missing $path"
 done
 grep -q '`postgres`' "$GENERATED/PRD.md" || fail 'database placeholder was not resolved'
-grep -q '`better-auth`' "$GENERATED/docs/architecture.md" || fail 'auth placeholder was not resolved'
+grep -q '`better-auth`' "$GENERATED/ARCHITECTURE.md" || fail 'auth placeholder was not resolved'
 grep -q '`coolify`' "$GENERATED/BUILD-LOG.md" || fail 'deploy placeholder was not resolved'
 grep -q 'Bootstrap decision queue' "$GENERATED/TASKS.md" || fail 'capability decision queue missing'
 grep -Rqs '{{[^}]*}}' "$GENERATED" && fail 'unresolved generated document placeholder'
@@ -170,5 +170,6 @@ python3 "$DL" --repo "$EXISTING" verify >/dev/null || fail 'existing-repository 
 [ ! -e "$GENERATED/docs/specs" ] && [ ! -e "$GENERATED/docs/decisions" ] || fail 'speculative documentation directories created'
 grep -q '^Probe: app|' "$GENERATED/OBSERVABILITY.md" || fail 'observability app probe missing'
 grep -q '"statusAuthority": "STATUS.md"' "$GENERATED/.delivery/current.json" || fail 'ledger authority contract missing'
+grep -q '^# Decision Register' "$GENERATED/DECISIONS.md" || fail 'decision register missing'
 
 echo 'project-init-test: OK'

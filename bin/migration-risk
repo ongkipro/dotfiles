@@ -14,7 +14,16 @@ from pathlib import Path
 ORDER = {f"M{i}": i for i in range(5)}
 MIGRATION_PATH = re.compile(r"(?:^|/)(?:migrations?|schema)(?:/|\.|$)|(?:prisma|drizzle)|\.sql$", re.I)
 M4 = re.compile(r"\b(?:DROP\s+(?:DATABASE|SCHEMA)|TRUNCATE\b|DELETE\s+FROM\s+\S+\s*;)", re.I)
-M3 = re.compile(r"\b(?:DROP\s+(?:TABLE|COLUMN|INDEX)|RENAME\s+(?:TABLE|COLUMN)|ALTER\s+COLUMN|ALTER\s+TABLE[^;]*\bDROP\b|SET\s+NOT\s+NULL|TYPE\s+\w+)", re.I)
+M3 = re.compile(
+    r"\b(?:"
+    r"DROP\s+(?:TABLE|COLUMN|INDEX|TYPE|VIEW|CONSTRAINT)|"
+    r"RENAME\s+(?:TABLE|COLUMN)|"
+    r"ALTER\s+TABLE\s+\S+\s+RENAME\s+TO|"
+    r"ALTER\s+COLUMN|ALTER\s+TABLE[^;]*\bDROP\b|"
+    r"SET\s+NOT\s+NULL|ALTER\s+TABLE[^;]*\bTYPE\b"
+    r")",
+    re.I,
+)
 M2 = re.compile(r"\b(?:UPDATE\s+\S+\s+SET|INSERT\s+INTO)\b", re.I)
 M1 = re.compile(r"\b(?:CREATE\s+(?:TABLE|INDEX)|ADD\s+COLUMN|ALTER\s+TABLE[^;]*\bADD\b)\b", re.I)
 
@@ -29,12 +38,18 @@ def classify(repo: Path, base: str) -> dict:
     anc = git(["merge-base", "--is-ancestor", verify.stdout.strip(), "HEAD"], repo)
     if anc.returncode != 0: raise RuntimeError("base is not an ancestor of HEAD")
     names = git(["diff", "--name-only", verify.stdout.strip(), "HEAD"], repo)
-    patch = git(["diff", "--no-ext-diff", "--no-textconv", verify.stdout.strip(), "HEAD"], repo)
-    if names.returncode != 0 or patch.returncode not in (0, 1): raise RuntimeError("git diff failed")
+    if names.returncode != 0: raise RuntimeError("git diff failed")
     migration_files = [p for p in names.stdout.splitlines() if MIGRATION_PATH.search(p)]
     if not migration_files:
         return {"risk":"M0","reason":"No migration/schema files changed","files":[]}
-    text = patch.stdout
+    patch = git(["diff", "--no-ext-diff", "--no-textconv", "--unified=0", verify.stdout.strip(), "HEAD", "--", *migration_files], repo)
+    if patch.returncode not in (0, 1): raise RuntimeError("git diff failed")
+    # Classify only newly introduced content. Removed SQL and context from other
+    # files must not escalate the current release.
+    text = "\n".join(
+        line[1:] for line in patch.stdout.splitlines()
+        if line.startswith("+") and not line.startswith("+++")
+    )
     risk = "M1"; reason = "Additive or unclassified migration/schema change"
     if M4.search(text): risk, reason = "M4", "Explicit irreversible/data-loss operation detected"
     elif M3.search(text): risk, reason = "M3", "Destructive or compatibility-sensitive migration detected"

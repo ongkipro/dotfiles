@@ -41,7 +41,7 @@ def record(repo,a):
     if not skills or any(not SAFE.fullmatch(x) for x in skills): raise ValueError('at least one safe --skill is required')
     start,finish,checks=inspect_run(repo,a.run); target=repo/'.delivery'/'skill-usage'/f'{a.run}.json'
     if target.exists(): raise ValueError('skill usage already exists; attribution is immutable')
-    data={'schemaVersion':1,'runId':a.run,'recordedAt':now(),'skillsUsed':skills,'result':finish.get('result'),'risk':start.get('risk'),'model':start.get('model'),'worker':start.get('worker'),'head':finish.get('head'),'verificationFailed':any(x.get('status')!='PASS' for x in checks)}
+    data={'schemaVersion':1,'runId':a.run,'recordedAt':now(),'skillsUsed':skills,'result':finish.get('result'),'risk':start.get('risk'),'job':start.get('job'),'capability':start.get('capability'),'model':start.get('model'),'provider':start.get('provider'),'reasoningEffort':start.get('reasoningEffort'),'worker':start.get('worker'),'head':finish.get('head'),'verificationFailed':any(x.get('status')!='PASS' for x in checks)}
     data['usageHash']=digest(data); atomic(target,data); print(f'delivery-skill-usage: RECORDED {target}')
 def verify(repo,as_json):
     root=repo/'.delivery'/'skill-usage'; problems=[]; n=0
@@ -54,6 +54,9 @@ def verify(repo,as_json):
           if d.get('runId')!=p.stem: problems.append(f'{p.name}: runId mismatch')
           start,finish,checks=inspect_run(repo,p.stem)
           if d.get('result')!=finish.get('result'): problems.append(f'{p.name}: result mismatch')
+          expected={'risk':start.get('risk'),'job':start.get('job'),'capability':start.get('capability'),'model':start.get('model'),'provider':start.get('provider'),'reasoningEffort':start.get('reasoningEffort'),'worker':start.get('worker'),'head':finish.get('head'),'verificationFailed':any(x.get('status')!='PASS' for x in checks)}
+          for field,value in expected.items():
+            if d.get(field)!=value: problems.append(f'{p.name}: {field} mismatch')
         except Exception as e: problems.append(f'{p.name}: {e}')
     payload={'result':'VERIFIED' if not problems else 'UNVERIFIED','records':n,'problems':problems}
     print(json.dumps(payload,indent=2) if as_json else 'delivery-skill-usage: '+payload['result']+''.join(f'\n  - {x}' for x in problems)); return 0 if not problems else 2

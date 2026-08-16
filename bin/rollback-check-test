@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# rollback-check-test — direct coverage for bin/rollback-check's rollback-evidence
+# requirements and failure modes that release-safety-test does not exercise
+# (release-safety-test already covers M1 pass, M3 without/with backup proof,
+# assertion-only commands, and unstructured backup assertions).
+set -euo pipefail
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+RC="$ROOT/bin/rollback-check"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/rollback-check-test.XXXXXX")"; trap 'rm -rf "$TMP"' EXIT
+fail(){ echo "FAIL: $*" >&2; exit 1; }
+
+REPO="$TMP/repo"; mkdir -p "$REPO"; cd "$REPO"
+git init -q; git config user.email test@example.invalid; git config user.name test
+printf 'baseline\n' > app.txt; git add .; git commit -qm baseline
+BASE="$(git rev-parse HEAD)"
+printf 'second\n' >> app.txt; git add .; git commit -qm second
+HEAD_SHA="$(git rev-parse HEAD)"
+
+write_release() {
+  # write_release REF CMD BACKUP
+  cat > RELEASE.md <<EOF
+# Release Manifest
+Release-ID: REL-TEST-001
+Base: $BASE
+Environment: production
+Declared-Risk: R1
+Rollback-Ref: $1
+Rollback-Command: $2
+Backup-Proof: $3
+Status: READY
+EOF
+}
+
+# =====================================================================
+# Positive baseline: valid ref (ancestor, before HEAD) + valid command
+# must PASS. Every negative case below is a single-field mutation of
+# this exact fixture, proving each check bites in isolation.
+# =====================================================================
+write_release "$BASE" "git checkout $BASE -- ." "NOT_REQUIRED"
+"$RC" . >/dev/null || fail "valid rollback evidence should PASS"
+
+# =====================================================================
+# Case: RELEASE.md missing entirely must BLOCK with that exact reason.
+# Catches: rollback-check being pointed at a directory with no release
+# manifest at all (not just an empty/invalid one).
+# =====================================================================
+NOREL="$TMP/no-release"; mkdir -p "$NOREL"
+set +e; "$RC" --json "$NOREL" >"$TMP/norel.json" 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "missing RELEASE.md should BLOCK (rc=$rc)"
+grep -q 'RELEASE.md missing' "$TMP/norel.json" || fail "missing RELEASE.md reason not reported"
+
+# =====================================================================
+# Case: Rollback-Ref unset must BLOCK. Catches a release shipped with
+# no rollback target at all.
+# =====================================================================
+write_release "UNSET" "git checkout $BASE -- ." "NOT_REQUIRED"
+set +e; "$RC" --json . >"$TMP/refunset.json" 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "unset Rollback-Ref should BLOCK (rc=$rc)"
+grep -q 'Rollback-Ref is unset' "$TMP/refunset.json" || fail "unset Rollback-Ref reason not reported"
+
+# =====================================================================
+# Case: Rollback-Ref that does not resolve to a commit must BLOCK.
+# Catches a typo'd/fabricated rollback reference.
+# =====================================================================
+write_release "not-a-real-commit" "git checkout $BASE -- ." "NOT_REQUIRED"
+set +e; "$RC" --json . >"$TMP/refbad.json" 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "invalid Rollback-Ref should BLOCK (rc=$rc)"
+grep -q 'Rollback-Ref is not a valid commit' "$TMP/refbad.json" || fail "invalid Rollback-Ref reason not reported"
+
+# =====================================================================
+# Case: Rollback-Ref resolves but is NOT an ancestor of HEAD must BLOCK.
+# Catches a rollback target from unrelated/foreign history that would
+# not actually be reachable by rolling HEAD back.
+# =====================================================================
+ORPHAN="$(git commit-tree "$(git rev-parse HEAD^{tree})" -m orphan)"
+write_release "$ORPHAN" "git checkout $BASE -- ." "NOT_REQUIRED"
+set +e; "$RC" --json . >"$TMP/refnotanc.json" 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "non-ancestor Rollback-Ref should BLOCK (rc=$rc)"
+grep -q 'Rollback-Ref is not an ancestor of HEAD' "$TMP/refnotanc.json" || fail "non-ancestor Rollback-Ref reason not reported"
+
+# =====================================================================
+# Case: Rollback-Ref equal to HEAD must BLOCK. Catches a rollback target
+# that would roll back to nothing (no prior state to restore).
+# =====================================================================
+write_release "$HEAD_SHA" "git checkout $BASE -- ." "NOT_REQUIRED"
+set +e; "$RC" --json . >"$TMP/refhead.json" 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "Rollback-Ref==HEAD should BLOCK (rc=$rc)"
+grep -q 'Rollback-Ref must identify a commit before HEAD' "$TMP/refhead.json" || fail "Rollback-Ref==HEAD reason not reported"
+
+# =====================================================================
+# Case: Rollback-Command unset must BLOCK. Catches a release with a
+# valid rollback target but no documented way to execute the rollback.
+# =====================================================================
+write_release "$BASE" "UNSET" "NOT_REQUIRED"
+set +e; "$RC" --json . >"$TMP/cmdunset.json" 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "unset Rollback-Command should BLOCK (rc=$rc)"
+grep -q 'Rollback-Command is unset' "$TMP/cmdunset.json" || fail "unset Rollback-Command reason not reported"
+
+# Re-confirm the positive baseline still passes after all mutations
+# (proves none of the negative cases above corrupted shared repo state).
+write_release "$BASE" "git checkout $BASE -- ." "NOT_REQUIRED"
+"$RC" . >/dev/null || fail "valid rollback evidence should still PASS after negative cases"
+
+echo 'rollback-check-test: PASS'

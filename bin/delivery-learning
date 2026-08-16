@@ -6,6 +6,12 @@ from pathlib import Path
 
 SAFE_ID = re.compile(r'^[A-Za-z0-9._-]+$')
 SCOPES = {'project','shared','methodology'}
+SENSITIVE_RE = re.compile(
+    r'(BEGIN\s+[A-Z ]*PRIVATE KEY|'
+    r'(?:^|[^A-Za-z0-9_])(?:password|passwd|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret)\s*[:=]\s*\S+|'
+    r'(?:^|[^A-Za-z0-9_])(?:ghp_|github_pat_|glpat-|xox[baprs]-|AKIA|AIza|sk-proj-)[A-Za-z0-9_-]{8,})',
+    re.I,
+)
 
 def now(): return datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00','Z')
 def canonical(d): return json.dumps(d, sort_keys=True, separators=(',',':'), ensure_ascii=True)
@@ -49,6 +55,18 @@ def require_run(repo: Path, run_id: str):
     if bad: raise ValueError('learning requires all verification events PASS')
     return start, finish, checks
 
+def verify_signal_against_run(repo: Path, data: dict):
+    start,finish,checks=require_run(repo,data.get('runId',''))
+    provenance=data.get('provenance') or {}
+    expected={
+      'task':start.get('task'),'requirement':start.get('requirement'),'risk':start.get('risk'),
+      'job':start.get('job'),'capability':start.get('capability'),'worker':start.get('worker'),'model':start.get('model'),'provider':start.get('provider'),'reasoningEffort':start.get('reasoningEffort'),'sourceHead':finish.get('head'),
+      'finishedAt':finish.get('time'),
+      'verification':[{'check':x.get('check'),'status':x.get('status'),'detail':x.get('detail')} for x in checks]
+    }
+    for field,value in expected.items():
+        if provenance.get(field) != value: raise ValueError(f'learning provenance {field} does not match source run evidence')
+
 def score(scope: str, invariant: str, checks: list[dict]):
     base={'project':60,'shared':75,'methodology':85}[scope]
     if len(checks) >= 2: base += 5
@@ -57,10 +75,15 @@ def score(scope: str, invariant: str, checks: list[dict]):
 
 def destination(scope: str): return {'project':'project-memory','shared':'memory','methodology':'skill'}[scope]
 
+def reject_sensitive(values):
+    if any(SENSITIVE_RE.search(value) for value in values):
+        raise ValueError('learning signal looks like it contains a secret; summarize without credentials or raw logs')
+
 def record(repo: Path, a):
     if a.scope not in SCOPES: raise ValueError('scope must be project, shared, or methodology')
     for name in ('title','symptom','root_cause','invariant','fix','check'):
         if not getattr(a,name).strip(): raise ValueError(f'--{name.replace("_","-")} is required')
+    reject_sensitive([getattr(a,name) for name in ('title','symptom','root_cause','invariant','fix','check')])
     start,finish,checks=require_run(repo,a.run)
     root=repo/'.delivery'/'learning'; target=root/f'{a.run}.json'
     if target.exists(): raise ValueError('learning signal already exists; signals are immutable')
@@ -70,7 +93,7 @@ def record(repo: Path, a):
       'lesson':{'title':a.title,'symptom':a.symptom,'rootCause':a.root_cause,'invariant':a.invariant,'fix':a.fix,'check':a.check},
       'provenance':{
         'task':start.get('task'),'requirement':start.get('requirement'),'risk':start.get('risk'),
-        'worker':start.get('worker'),'model':start.get('model'),'sourceHead':finish.get('head'),
+        'job':start.get('job'),'capability':start.get('capability'),'worker':start.get('worker'),'model':start.get('model'),'provider':start.get('provider'),'reasoningEffort':start.get('reasoningEffort'),'sourceHead':finish.get('head'),
         'finishedAt':finish.get('time'),
         'verification':[{'check':x.get('check'),'status':x.get('status'),'detail':x.get('detail')} for x in checks]
       }
@@ -88,7 +111,7 @@ def verify(repo: Path, as_json: bool):
           d=json.loads(p.read_text(encoding='utf-8')); supplied=d.get('signalHash'); u=dict(d);u.pop('signalHash',None)
           if supplied != digest(u): problems.append(f'{p.name}: signal hash mismatch')
           if d.get('runId') != p.stem: problems.append(f'{p.name}: runId mismatch')
-          require_run(repo,p.stem)
+          verify_signal_against_run(repo,d)
         except Exception as e: problems.append(f'{p.name}: {e}')
     payload={'result':'VERIFIED' if not problems else 'UNVERIFIED','signals':count,'problems':problems}
     print(json.dumps(payload,indent=2) if as_json else ('delivery-learning: '+payload['result'] + ''.join(f'\n  - {x}' for x in problems)))

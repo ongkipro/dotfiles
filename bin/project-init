@@ -37,7 +37,6 @@ render_contract(){
   local repo_dir="$1" repo="$2" category="$3" desc="${4:-Project: $2}"
   local stack="${5:-$(stack_for "$category")}" database="${6:-not selected}" auth="${7:-not selected}" deploy="${8:-not selected}" generated="${9:-repository contract only}"
   [ -d "$repo_dir" ] || die "project directory not found: $repo_dir"
-  mkdir -p "$repo_dir/docs"
   while IFS='|' read -r template relative; do
     local src="$TEMPLATES/$template.md" dst="$repo_dir/$relative"
     [ -f "$src" ] || die "template missing: $src"
@@ -50,21 +49,22 @@ AGENTS|AGENTS.md
 PRD|PRD.md
 TASKS|TASKS.md
 STATUS|STATUS.md
+DECISIONS|DECISIONS.md
 RELEASE|RELEASE.md
 OBSERVABILITY|OBSERVABILITY.md
 BUILD-LOG|BUILD-LOG.md
-ARCHITECTURE|docs/architecture.md
+ARCHITECTURE|ARCHITECTURE.md
 FILES
   [ -f "$DOT/bin/delivery-ledger" ] || die "delivery-ledger missing: $DOT/bin/delivery-ledger"
   python3 "$DOT/bin/delivery-ledger" --repo "$repo_dir" init >/dev/null || die "delivery-ledger init failed"
   say "initialized .delivery execution ledger"
   say "Repository-local development contract ready: $repo_dir"
-  say "Create docs/specs/ and docs/decisions/ only when the project needs them."
+  say "Create detailed specs or ADR files only when the project needs them."
 }
 
 find_repo(){ local repo="$1" d; for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do [ -d "$root" ] || continue; while IFS= read -r d; do [ "$(basename "$d")" = "$repo" ] && { printf '%s\n' "$d"; return 0; }; done < <(find "$root" -mindepth 1 -maxdepth 2 -type d); done; return 1; }
 clone_repo(){ local repo="$1" category="$2" target="$PROJECTS_DIR/$category/$repo"; if [ -d "$target/.git" ]; then say "repository already exists: $target"; else mkdir -p "$(dirname "$target")"; say "cloning $GITHUB_USER/$repo → $target"; gh repo clone "$GITHUB_USER/$repo" "$target" || die "clone failed; no project files were overwritten"; fi; }
-cmd_list(){ local root d; for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do [ -d "$root" ] || continue; while IFS= read -r d; do [ -d "$d/.git" ] || continue; if [ -f "$d/STATUS.md" ] && [ -f "$d/RELEASE.md" ] && [ -f "$d/OBSERVABILITY.md" ] && [ -f "$d/.delivery/current.json" ]; then printf 'contract  %s\n' "$d"; else printf 'missing   %s\n' "$d"; fi; done < <(find "$root" -mindepth 2 -maxdepth 2 -type d); done; [ -d "$LEGACY_DOCS_DIR" ] && printf 'Legacy external docs preserved at %s\n' "$LEGACY_DOCS_DIR"; }
+cmd_list(){ local root d; for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do [ -d "$root" ] || continue; while IFS= read -r d; do [ -d "$d/.git" ] || continue; if [ -f "$d/STATUS.md" ] && [ -f "$d/DECISIONS.md" ] && [ -f "$d/ARCHITECTURE.md" ] && [ -f "$d/RELEASE.md" ] && [ -f "$d/OBSERVABILITY.md" ] && [ -f "$d/.delivery/current.json" ]; then printf 'contract  %s\n' "$d"; else printf 'missing   %s\n' "$d"; fi; done < <(find "$root" -mindepth 2 -maxdepth 2 -type d); done; [ -d "$LEGACY_DOCS_DIR" ] && printf 'Legacy external docs preserved at %s\n' "$LEGACY_DOCS_DIR"; }
 cmd_sync(){ local root d; for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do [ -d "$root" ] || continue; while IFS= read -r d; do [ -d "$d/.git" ] || continue; git -C "$d" pull --ff-only || warn "pull failed: $d"; done < <(find "$root" -mindepth 2 -maxdepth 2 -type d); done; }
 
 usage(){ cat <<'USAGE'
@@ -89,10 +89,10 @@ Stack-aware options:
   -h, --help
 
 New projects use an official native generator, then receive AGENTS.md, PRD.md,
-TASKS.md, STATUS.md, RELEASE.md, OBSERVABILITY.md, BUILD-LOG.md,
-docs/architecture.md, and an initialized .delivery ledger. Existing files are
-never overwritten. Auth, database, and deploy selections become explicit
-decisions and future tasks until executable evidence proves them operational.
+TASKS.md, STATUS.md, DECISIONS.md, RELEASE.md, OBSERVABILITY.md, BUILD-LOG.md,
+ARCHITECTURE.md, and an initialized .delivery ledger. Existing files are never
+overwritten. Auth, database, and deploy selections become explicit decisions and
+future tasks until executable evidence proves them operational.
 USAGE
 }
 
@@ -213,7 +213,7 @@ bootstrap(){
     printf '  Database decision: %s\n  Auth decision: %s\n  Deploy target: %s\n  Install dependencies: %s\n' "$database" "$auth" "$deploy" "$([ "$no_install" -eq 1 ] && echo no || echo yes)"
     printf '  Generator: %s\n' "$generator_label"
     if [ "${#generator[@]}" -gt 0 ]; then printf '  Generator command:\n'; print_command "${generator[@]}"; fi
-    printf '  Repository contract: AGENTS.md, PRD.md, TASKS.md, STATUS.md, RELEASE.md, OBSERVABILITY.md, BUILD-LOG.md, docs/architecture.md, .delivery/\n'
+    printf '  Repository contract: AGENTS.md, PRD.md, TASKS.md, STATUS.md, DECISIONS.md, RELEASE.md, OBSERVABILITY.md, BUILD-LOG.md, ARCHITECTURE.md, .delivery/\n'
     printf '  Verification command:\n'; print_command "${checks[@]}"
     printf '  Capability state: selected decisions only; implementation remains unverified until its repository tasks and checks pass.\n'
     return 0

@@ -10,8 +10,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
+import os
 from pathlib import Path
 import sys
+import tempfile
 
 OK, FAILED, UNVERIFIED = 0, 1, 2
 RISKS = {f"R{i}" for i in range(5)}
@@ -59,8 +62,20 @@ def completed_run(repo: Path, run_id: str) -> list[dict]:
 def nonneg(value, name, integer=False):
     try: number=int(value) if integer else float(value)
     except Exception as exc: raise ValueError(f"{name} must be numeric") from exc
+    if not integer and not math.isfinite(number): raise ValueError(f"{name} must be finite")
     if number < 0: raise ValueError(f"{name} must be non-negative")
     return number
+
+
+def atomic_create_json(path: Path, data: dict) -> None:
+    fd,tmp=tempfile.mkstemp(prefix=f".{path.name}.",dir=path.parent)
+    try:
+        with os.fdopen(fd,"w",encoding="utf-8") as f:
+            json.dump(data,f,indent=2,sort_keys=True,allow_nan=False); f.write("\n"); f.flush(); os.fsync(f.fileno())
+        try: os.link(tmp,path)
+        except FileExistsError as exc: raise ValueError("run metrics already exist; metrics are immutable") from exc
+    finally:
+        if os.path.exists(tmp): os.unlink(tmp)
 
 
 def record(repo: Path, a) -> int:
@@ -79,7 +94,7 @@ def record(repo: Path, a) -> int:
         "escalated":a.escalated=="yes",
     }
     data["metricHash"]=digest(data)
-    target.write_text(json.dumps(data,indent=2,sort_keys=True)+"\n",encoding="utf-8")
+    atomic_create_json(target,data)
     print(f"delivery-benchmark: RECORDED {target}")
     return OK
 
@@ -94,9 +109,10 @@ def collect(repo: Path) -> tuple[list[dict], list[str]]:
         finish=next((e for e in reversed(events) if e.get("type")=="run_finished"),None)
         if not start or not finish: continue
         row={
-            "runId":path.stem,"risk":start.get("risk"),"model":start.get("model") or "unknown","worker":start.get("worker") or "unknown",
+            "runId":path.stem,"risk":start.get("risk"),"job":start.get("job") or "unknown","capability":start.get("capability") or "unattributed","model":start.get("model") or "unknown","provider":start.get("provider") or "unknown","reasoningEffort":start.get("reasoningEffort") or "unknown","worker":start.get("worker") or "unknown",
             "result":finish.get("result"),"verificationFailed":any(e.get("type")=="verification" and e.get("status") in {"FAIL","UNVERIFIED"} for e in events),
         }
+        row["acceptedOutcome"]=row["result"]=="PASS" and not row["verificationFailed"]
         mp=metrics/f"{path.stem}.json"
         if mp.is_file():
             try: row["metrics"]=load_metric(mp)
@@ -108,15 +124,16 @@ def collect(repo: Path) -> tuple[list[dict], list[str]]:
 def aggregate(rows: list[dict]) -> list[dict]:
     groups={}
     for row in rows:
-        key=(row.get("risk"),row.get("model"),row.get("worker")); g=groups.setdefault(key,[]); g.append(row)
+        key=(row.get("risk"),row.get("job"),row.get("capability"),row.get("model"),row.get("provider"),row.get("reasoningEffort"),row.get("worker")); g=groups.setdefault(key,[]); g.append(row)
     result=[]
-    for (risk,model,worker),items in sorted(groups.items(),key=lambda kv:str(kv[0])):
+    for (risk,job,capability,model,provider,reasoning_effort,worker),items in sorted(groups.items(),key=lambda kv:str(kv[0])):
         n=len(items); passed=sum(r["result"]=="PASS" for r in items); failed=sum(r["result"]=="FAIL" for r in items); blocked=sum(r["result"]=="BLOCKED" for r in items)
         vf=sum(bool(r["verificationFailed"]) for r in items); mr=[r["metrics"] for r in items if "metrics" in r]
         total_cost=sum(m["costUsd"] for m in mr); total_repairs=sum(m["repairAttempts"] for m in mr); total_human=sum(m["humanCorrections"] for m in mr); escalated=sum(bool(m["escalated"]) for m in mr)
         result.append({
-            "risk":risk,"model":model,"worker":worker,"samples":n,"pass":passed,"fail":failed,"blocked":blocked,
+            "risk":risk,"job":job,"capability":capability,"model":model,"provider":provider,"reasoningEffort":reasoning_effort,"worker":worker,"samples":n,"pass":passed,"fail":failed,"blocked":blocked,
             "successRate":round(passed/n,4),"verificationFailureRate":round(vf/n,4),"metricsCoverage":round(len(mr)/n,4),
+            "acceptedOutcomeRate":round(sum(bool(item['acceptedOutcome']) for item in items)/n,4),
             "costUsdTotal":round(total_cost,6),"costPerSuccess":round(total_cost/passed,6) if passed and len(mr)==n else None,
             "avgRepairAttempts":round(total_repairs/len(mr),3) if mr else None,
             "humanCorrectionRate":round(sum(m["humanCorrections"]>0 for m in mr)/len(mr),4) if mr else None,

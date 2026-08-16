@@ -33,7 +33,7 @@ python3 "$DL" --repo "$REPO" init >/dev/null
 [ -f "$REPO/.delivery/current.json" ] || fail "current.json missing"
 python3 "$DL" --repo "$REPO" verify >/dev/null || fail "fresh ledger should verify"
 
-python3 "$DL" --repo "$REPO" start --task TASK-001 --requirement REQ-001 --risk R1 --worker task --model test-model >/dev/null
+python3 "$DL" --repo "$REPO" start --task TASK-001 --requirement REQ-001 --risk R1 --job implementation --capability native-first --worker task --model test-model --provider test-provider --reasoning-effort high >/dev/null
 RUN_FILE="$(find "$REPO/.delivery/runs" -type f -name 'RUN-*.jsonl' | head -n 1)"
 [ -n "$RUN_FILE" ] || fail "run evidence missing"
 python3 "$DL" --repo "$REPO" record --check project-check --status PASS --detail ok >/dev/null
@@ -42,6 +42,9 @@ python3 "$DL" --repo "$REPO" checkpoint --note verified >/dev/null
 grep -q '"type":"verification"' "$RUN_FILE" || fail "verification event missing"
 grep -q '"type":"checkpoint"' "$RUN_FILE" || fail "checkpoint event missing"
 grep -q '"eventHash"' "$RUN_FILE" || fail "event hash missing"
+grep -q '"capability":"native-first"' "$RUN_FILE" || fail "capability evidence missing"
+grep -q '"provider":"test-provider"' "$RUN_FILE" || fail "provider evidence missing"
+grep -q '"reasoningEffort":"high"' "$RUN_FILE" || fail "reasoning effort evidence missing"
 python3 "$DL" --repo "$REPO" verify >/dev/null || fail "hash chain should verify"
 
 python3 - <<'PY'
@@ -68,6 +71,16 @@ assert data['activeRun'] is None
 assert data['lastRun']['result']=='PASS'
 PY
 
+python3 "$DL" --repo "$REPO" start --task TASK-002 --requirement REQ-002 --risk R1 --worker task --model test-model >/dev/null
+python3 "$DL" --repo "$REPO" record --check regression --status FAIL --detail broken >/dev/null
+set +e
+python3 "$DL" --repo "$REPO" finish --result PASS --detail invalid >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 1 ] || fail "PASS must be rejected after failed verification"
+python3 "$DL" --repo "$REPO" finish --result FAIL --detail verified-failure >/dev/null
+python3 "$DL" --repo "$REPO" verify >/dev/null || fail "failed run with honest result should verify"
+
 cp "$RUN_FILE" "$TMP/run.backup"
 python3 - "$RUN_FILE" <<'PY'
 from pathlib import Path
@@ -85,6 +98,7 @@ python3 "$DL" --repo "$REPO" snapshot-release --release-id REL-TEST-001 >/dev/nu
 SNAP="$REPO/.delivery/releases/REL-TEST-001.json"
 [ -f "$SNAP" ] || fail "release snapshot missing"
 grep -q 'snapshotHash' "$SNAP" || fail "snapshot hash missing"
+grep -q 'Rollback-Command' "$SNAP" || fail "rollback command missing from release snapshot"
 python3 "$DL" --repo "$REPO" verify >/dev/null || fail "snapshot should verify"
 set +e
 python3 "$DL" --repo "$REPO" snapshot-release --release-id REL-TEST-001 >/dev/null 2>&1

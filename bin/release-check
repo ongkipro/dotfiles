@@ -15,16 +15,42 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 from pathlib import Path
 import re
+import socket
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 VERIFIED, FAILED, UNVERIFIED = 0, 1, 2
 DISABLED = {"", "TBD", "UNSET", "NONE"}
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def validate_url(url: str, allow_private: bool) -> str | None:
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return "valid http(s) URL required"
+    if parsed.username or parsed.password:
+        return "URL credentials are not allowed"
+    try:
+        addresses = {item[4][0] for item in socket.getaddrinfo(parsed.hostname, parsed.port or (443 if parsed.scheme == "https" else 80), type=socket.SOCK_STREAM)}
+    except socket.gaierror as exc:
+        return f"host resolution failed: {exc}"
+    if not allow_private:
+        for address in addresses:
+            ip = ipaddress.ip_address(address)
+            if not ip.is_global:
+                return f"non-public probe target is blocked: {address}"
+    return None
 
 
 def field(text: str, name: str) -> str | None:
@@ -81,11 +107,15 @@ def parse_probes(path: Path) -> tuple[list[dict], list[str]]:
 
 def run_probe(probe: dict, timeout: float) -> dict:
     request = urllib.request.Request(probe["url"], headers={"User-Agent": "dotfiles-release-check/2"})
+    opener = urllib.request.build_opener(NoRedirect)
     start = time.monotonic()
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with opener.open(request, timeout=timeout) as response:
             status = response.getcode()
             body = response.read(1024 * 1024).decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as exc:
+        status = exc.code
+        body = exc.read(1024 * 1024).decode("utf-8", errors="replace")
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         return {**probe, "status": "FAIL", "detail": str(exc)}
     latency_ms = round((time.monotonic() - start) * 1000)
@@ -102,6 +132,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("directory", nargs="?", default=".")
     parser.add_argument("--timeout", type=float, default=10.0)
+    parser.add_argument("--allow-private", action="store_true", help="allow loopback/private probes for explicit local testing")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
@@ -119,6 +150,10 @@ def main() -> int:
         return UNVERIFIED
 
     probes, errors = parse_probes(repo / "OBSERVABILITY.md")
+    for probe in probes:
+        problem = validate_url(probe["url"], args.allow_private)
+        if problem:
+            errors.append(f"probe {probe['name'] or '?'}: {problem}")
     if errors:
         payload = {"result": "UNVERIFIED", "reason": "; ".join(errors), "probes": probes}
         print(json.dumps(payload, indent=2) if args.json else f"release-check: UNVERIFIED ({payload['reason']})")

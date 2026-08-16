@@ -29,7 +29,8 @@ Record authoritative data stores, invariants, migration constraints, and retenti
 
 ## Decisions
 
-Costly-to-reverse decisions belong in `docs/decisions/` as ADRs. Create that directory only when the first decision exists.
+Record accepted constraints in `DECISIONS.md`. Costly-to-reverse decisions may
+also have detailed ADRs; create that directory only when the first ADR exists.
 
 ## Verification
 

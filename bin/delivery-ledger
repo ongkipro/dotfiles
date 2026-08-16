@@ -7,7 +7,7 @@ snapshots are immutable and self-hashed.
 
 Commands:
   init
-  start --task TASK-001 --requirement REQ-001 --risk R1 [--worker name] [--model name]
+  start --task TASK-001 --requirement REQ-001 --risk R1 [routing evidence]
   record --check name --status PASS|FAIL|UNVERIFIED [--detail text]
   checkpoint [--note text]
   finish --result PASS|FAIL|BLOCKED [--detail text]
@@ -18,6 +18,8 @@ Commands:
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
+import fcntl
 import hashlib
 import json
 import os
@@ -80,6 +82,18 @@ def atomic_json(path: Path, data: dict) -> None:
             os.unlink(tmp)
 
 
+@contextmanager
+def ledger_lock(repo: Path):
+    lock_path = repo / ".delivery" / "ledger.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+", encoding="utf-8") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+
 def read_events(path: Path) -> list[dict]:
     events = []
     for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
@@ -132,6 +146,21 @@ def verify_run(path: Path) -> list[str]:
         previous = supplied
     if not events:
         problems.append(f"{path.name}: empty run evidence")
+        return problems
+    starts = [index for index, event in enumerate(events) if event.get("type") == "run_started"]
+    finishes = [index for index, event in enumerate(events) if event.get("type") == "run_finished"]
+    if starts != [0]:
+        problems.append(f"{path.name}: run must contain exactly one initial run_started event")
+    if len(finishes) > 1 or (finishes and finishes[0] != len(events) - 1):
+        problems.append(f"{path.name}: run_finished must occur once and be the final event")
+    if finishes:
+        finish = events[finishes[0]]
+        checks = [event for event in events[:finishes[0]] if event.get("type") == "verification"]
+        if finish.get("result") == "PASS":
+            if not checks:
+                problems.append(f"{path.name}: PASS requires at least one verification event")
+            elif any(check.get("status") != "PASS" for check in checks):
+                problems.append(f"{path.name}: PASS cannot follow FAIL or UNVERIFIED verification")
     return problems
 
 
@@ -217,9 +246,9 @@ def cmd_start(repo: Path, a) -> int:
     run_id = datetime.now(timezone.utc).strftime("RUN-%Y%m%dT%H%M%SZ-") + uuid4().hex[:8]
     _, _, runs, _ = paths(repo)
     event = event_base(repo, "run_started", run_id)
-    event.update({"task": a.task, "requirement": a.requirement, "risk": a.risk, "worker": a.worker, "model": a.model})
+    event.update({"task": a.task, "requirement": a.requirement, "risk": a.risk, "job": a.job, "capability": a.capability, "worker": a.worker, "model": a.model, "provider": a.provider, "reasoningEffort": a.reasoning_effort})
     append_event(runs / f"{run_id}.jsonl", event)
-    data.update({"activeRun": run_id, "activeTask": a.task, "requirement": a.requirement, "risk": a.risk, "worker": a.worker, "model": a.model})
+    data.update({"activeRun": run_id, "activeTask": a.task, "requirement": a.requirement, "risk": a.risk, "job": a.job, "capability": a.capability, "worker": a.worker, "model": a.model, "provider": a.provider, "reasoningEffort": a.reasoning_effort})
     save_current(repo, data)
     print(f"delivery-ledger: STARTED {run_id}")
     return OK
@@ -251,10 +280,17 @@ def cmd_finish(repo: Path, a) -> int:
     if a.result not in RUN_RESULT:
         raise ValueError("result must be PASS, FAIL, or BLOCKED")
     data, run_id, run_path = active(repo)
+    events = read_events(run_path)
+    checks = [event for event in events if event.get("type") == "verification"]
+    if a.result == "PASS":
+        if not checks:
+            raise ValueError("PASS requires at least one verification event")
+        if any(check.get("status") != "PASS" for check in checks):
+            raise ValueError("PASS cannot follow FAIL or UNVERIFIED verification")
     e = event_base(repo, "run_finished", run_id); e.update({"result": a.result, "detail": a.detail})
     append_event(run_path, e)
     data["lastRun"] = {"runId": run_id, "result": a.result, "finishedAt": e["time"]}
-    for key in ("activeRun", "activeTask", "requirement", "risk", "worker", "model"):
+    for key in ("activeRun", "activeTask", "requirement", "risk", "job", "capability", "worker", "model", "provider", "reasoningEffort"):
         data.pop(key, None)
     data["activeRun"] = None
     save_current(repo, data)
@@ -268,7 +304,7 @@ def release_fields(repo: Path) -> dict:
         raise ValueError("RELEASE.md missing")
     text = p.read_text(encoding="utf-8", errors="replace")
     fields = {}
-    for name in ("Release-ID", "Base", "Environment", "Declared-Risk", "Rollback-Ref", "Backup-Proof", "Status"):
+    for name in ("Release-ID", "Base", "Environment", "Declared-Risk", "Rollback-Ref", "Rollback-Command", "Backup-Proof", "Status"):
         m = re.search(rf"(?im)^{re.escape(name)}:\s*(.+?)\s*$", text)
         fields[name] = m.group(1).strip() if m else None
     return fields
@@ -373,7 +409,7 @@ def main() -> int:
     p = argparse.ArgumentParser(); p.add_argument("--repo", default=".")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init")
-    s=sub.add_parser("start"); s.add_argument("--task",required=True); s.add_argument("--requirement",required=True); s.add_argument("--risk",required=True); s.add_argument("--worker",default="unknown"); s.add_argument("--model",default="unknown")
+    s=sub.add_parser("start"); s.add_argument("--task",required=True); s.add_argument("--requirement",required=True); s.add_argument("--risk",required=True); s.add_argument("--job",default="implementation"); s.add_argument("--capability",default="unattributed"); s.add_argument("--worker",default="unknown"); s.add_argument("--model",default="unknown"); s.add_argument("--provider",default="unknown"); s.add_argument("--reasoning-effort",default="unknown")
     r=sub.add_parser("record"); r.add_argument("--check",required=True); r.add_argument("--status",required=True); r.add_argument("--detail",default="")
     c=sub.add_parser("checkpoint"); c.add_argument("--note",default="")
     f=sub.add_parser("finish"); f.add_argument("--result",required=True); f.add_argument("--detail",default="")
@@ -383,12 +419,14 @@ def main() -> int:
     a=p.parse_args(); repo=Path(a.repo).resolve()
     if not repo.is_dir(): print(f"delivery-ledger: ERROR: repo not found: {repo}",file=sys.stderr); return FAILED
     try:
-        if a.cmd=="init": return cmd_init(repo)
-        if a.cmd=="start": return cmd_start(repo,a)
-        if a.cmd=="record": return cmd_record(repo,a)
-        if a.cmd=="checkpoint": return cmd_checkpoint(repo,a)
-        if a.cmd=="finish": return cmd_finish(repo,a)
-        if a.cmd=="snapshot-release": return cmd_snapshot(repo,a)
+        if a.cmd in {"init","start","record","checkpoint","finish","snapshot-release"}:
+            with ledger_lock(repo):
+                if a.cmd=="init": return cmd_init(repo)
+                if a.cmd=="start": return cmd_start(repo,a)
+                if a.cmd=="record": return cmd_record(repo,a)
+                if a.cmd=="checkpoint": return cmd_checkpoint(repo,a)
+                if a.cmd=="finish": return cmd_finish(repo,a)
+                if a.cmd=="snapshot-release": return cmd_snapshot(repo,a)
         if a.cmd=="status": return cmd_status(repo,a.json,False)
         if a.cmd=="verify": return cmd_status(repo,a.json,True)
     except (ValueError, FileNotFoundError, json.JSONDecodeError) as exc:

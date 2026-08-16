@@ -21,4 +21,14 @@ import json,sys
 x=json.load(open(sys.argv[1]));d=json.load(open(sys.argv[2]));assert x['result']=='VERIFIED';assert d['skillsUsed']==['cloudflare','native-first'];assert d['result']=='PASS';assert d['verificationFailed'] is False
 PY
 if "$ROOT/bin/delivery-skill-usage" --repo "$REPO" record --run RUN-test --skill cloudflare >/dev/null 2>&1; then echo FAIL >&2;exit 1;fi
+USAGE="$REPO/.delivery/skill-usage/RUN-test.json"
+cp "$USAGE" "$TMP/usage.backup"
+python3 - "$USAGE" <<'PY'
+import hashlib,json,sys
+p=sys.argv[1]; d=json.load(open(p)); d['worker']='forged'; d.pop('usageHash')
+d['usageHash']=hashlib.sha256(json.dumps(d,sort_keys=True,separators=(',',':'),ensure_ascii=True).encode()).hexdigest(); json.dump(d,open(p,'w'),indent=2,sort_keys=True)
+PY
+set +e; "$ROOT/bin/delivery-skill-usage" --repo "$REPO" verify >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 2 ] || { echo 'recomputed usage self-hash must not replace source provenance' >&2; exit 1; }
+cp "$TMP/usage.backup" "$USAGE"
 echo 'delivery-skill-usage-test: PASS'

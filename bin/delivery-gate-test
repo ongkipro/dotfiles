@@ -12,6 +12,19 @@ mkdir -p "$TMP/bad-node"; printf '{not-json}\n' >"$TMP/bad-node/package.json"
 set +e; "$PC" --full "$TMP/bad-node" >/dev/null 2>&1; rc=$?; set -e
 [ "$rc" -eq 1 ] || fail "invalid package.json should fail"
 
+mkdir -p "$TMP/mixed" "$TMP/fake-bin"
+cat > "$TMP/mixed/package.json" <<'JSON'
+{"scripts":{"test":"node -e \"process.exit(0)\""}}
+JSON
+printf '{}\n' > "$TMP/mixed/composer.json"
+cat > "$TMP/fake-bin/composer" <<'SH'
+#!/usr/bin/env sh
+exit 0
+SH
+chmod +x "$TMP/fake-bin/composer"
+set +e; PATH="$TMP/fake-bin:$PATH" "$PC" --full "$TMP/mixed" >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 2 ] || fail "multi-stack project with an unverified stack should be UNVERIFIED"
+
 mkdir -p "$TMP/node"; cd "$TMP/node"; git init -q; git config user.email test@example.invalid; git config user.name test
 cat > package.json <<'JSON'
 {"scripts":{"test":"node -e \"process.exit(0)\"","build":"node -e \"process.exit(0)\""}}

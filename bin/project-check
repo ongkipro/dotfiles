@@ -35,12 +35,14 @@ def run_cmd(cmd: list[str], cwd: Path) -> bool:
 
 
 def node_pm(repo: Path) -> str | None:
-    candidates: list[str] = []
-    if (repo / "pnpm-lock.yaml").is_file(): candidates.append("pnpm")
-    if (repo / "bun.lock").is_file() or (repo / "bun.lockb").is_file(): candidates.append("bun")
-    if (repo / "yarn.lock").is_file(): candidates.append("yarn")
-    candidates.append("npm")
-    return next((pm for pm in candidates if shutil.which(pm)), None)
+    locked = None
+    if (repo / "pnpm-lock.yaml").is_file(): locked = "pnpm"
+    elif (repo / "bun.lock").is_file() or (repo / "bun.lockb").is_file(): locked = "bun"
+    elif (repo / "yarn.lock").is_file(): locked = "yarn"
+    elif (repo / "package-lock.json").is_file(): locked = "npm"
+    if locked:
+        return locked if shutil.which(locked) else None
+    return "npm" if shutil.which("npm") else None
 
 
 def check_node(repo: Path, mode: str) -> tuple[int, int, bool]:
@@ -136,12 +138,17 @@ def main() -> int:
         print(f"ERROR: Directory not found: {repo}", file=sys.stderr); return FAILED
     mode = "changed" if args.changed else "ui" if args.ui else "security" if args.security else "full"
     print(f"project-check: {mode} verification at {repo}\n" + "-" * 60)
-    total = passed = 0; recognized = False
+    total = passed = 0; recognized = False; uncovered = False
     for checker in [check_node, check_python, check_go, check_rust, check_php]:
         count, good, seen = checker(repo, mode); total += count; passed += good; recognized = recognized or seen
+        if seen and count == 0:
+            uncovered = True
+            fail(f"{checker.__name__.removeprefix('check_').title()} stack has no runnable verification")
     if mode == "security":
         count, good = security_gate(repo); total += count; passed += good
     print("-" * 60)
+    if uncovered:
+        print("project-check: UNVERIFIED (at least one detected stack has no runnable verification)"); return UNVERIFIED
     if total == 0:
         reason = "project recognized but no adequate runnable checks discovered" if recognized else "no supported project configuration recognized"
         print(f"project-check: UNVERIFIED ({reason})"); return UNVERIFIED
