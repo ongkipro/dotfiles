@@ -67,3 +67,26 @@ Before recommending a technical path, evaluate:
 7. Conversion impact.
 8. Team/intern operability.
 9. AI-agent operability.
+
+
+---
+
+
+## Lesson: Runtime query parameters in statically built Astro pages
+
+### Symptom
+A thank-you page built successfully but ignored orderNumber, vaNumber, and qrUrl query parameters in the deployed static output.
+
+### Root cause
+The Astro frontmatter read Astro.request.url during static generation, so the generated HTML captured build-time request state instead of browser navigation state.
+
+### Durable invariant
+Runtime query-dependent UI in an Astro static output must parse validated parameters in the browser or use an explicitly server-rendered route.
+
+### Fix
+Render safe empty placeholders and populate them with a small validated browser script using textContent and typed DOM properties.
+
+### Regression check
+Build the static site, serve dist with astro preview, then open /thank-you?orderNumber=ORD-UI-001 in a real browser and assert the order number is visible.
+
+> Promoted from a reviewed local candidate on 2026-08-16.
