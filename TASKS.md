@@ -49,8 +49,8 @@ No task is in progress.
 ## Pending
 
 
-### TASK-005: Decide the four unvendorable skills
-- **Requirement:** AUDIT-H-03 (residual). 14 of 51 skills now carry `.source` and refresh cleanly. Four do not; each now carries a `.local-fork` file recording why, so the reason survives the next session. What remains is the decision itself.
+### TASK-005: Decide the four unvendorable skills — 3 of 4 resolved
+- **Requirement:** AUDIT-H-03 (residual). **17 of 54 skills now carry `.source`.** Of the four that did not, three are closed: `gsap-scrolltrigger` reported upstream and kept as a fork on purpose, `wrangler` vendored once the refresh script learned split skills, `sandbox-sdk` retired for upstream's successors. **Only `cloudflare` is still open, and it is genuinely the user's call** — everything else was tooling or research that could be resolved without one.
 - **Risk Level:** R1
 - **Job:** review
 - **Execution Class:** judgment
