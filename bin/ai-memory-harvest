@@ -27,7 +27,7 @@ def latest_run(repo: Path):
 
 def memory_units(dot: Path):
     out=[]
-    for rel in ('config/ai/memory','config/ai/project-memory'):
+    for rel in ('config/ai/memory','config/ai/project-memory','config/ai/project-memory-kelola'):
       root=dot/rel
       if root.is_dir():
         for p in root.rglob('*.md'):
@@ -64,9 +64,9 @@ def main():
     a=p.parse_args(); repo=Path(a.repo).resolve(); dot=Path(a.dotfiles or os.environ.get('DOTFILES_DIR',Path(__file__).resolve().parent.parent)).resolve(); inbox=Path(a.inbox or os.environ.get('AI_MEMORY_INBOX_DIR',Path.home()/'.config/ai-local/memory-inbox')).expanduser().resolve()
     try:
       verifier=dot/'bin'/'delivery-learning'
-      if verifier.is_file():
-        vr=subprocess.run(['python3',str(verifier),'--repo',str(repo),'verify','--json'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,check=False)
-        if vr.returncode != 0: raise ValueError('delivery learning evidence is not verified')
+      if not verifier.is_file(): raise ValueError('delivery-learning verifier is unavailable')
+      vr=subprocess.run(['python3',str(verifier),'--repo',str(repo),'verify','--json'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,check=False)
+      if vr.returncode != 0: raise ValueError('delivery learning evidence is not verified')
       if a.all:
         runs=[x.stem for x in sorted((repo/'.delivery'/'learning').glob('RUN-*.json'))]
       else: runs=[a.run or latest_run(repo)]

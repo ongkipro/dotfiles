@@ -1,9 +1,9 @@
 # Shopify Development
 
-- 🔴 **`shopify-listing` dan `shopify-memory` DINONAKTIFKAN 2026-08-10** atas permintaan user — Shopify sedang dorman, diaktifkan lagi pas butuh. Keduanya masih utuh di git. Cara balikin: `git -C ~/dotfiles revert <sha>` (atau `git checkout <sha>^ -- skills/local/shopify-listing skills/local/shopify-memory`) lalu `skill-update`. **Sebelum kerja katalog/listing Shopify, aktifkan dulu** — jangan bikin ulang skill-nya dari nol.
-- **Prioritas skill untuk Shopify content/SEO** (dipindah dari `AGENTS.md`, 2026-07-20): `shopify-memory`, `shopify-listing` (keduanya dinonaktifkan — lihat di atas), `seo-website-builder`, `content`, `copywriting`. Verifikasi: `skill-list`.
-- Repo map lengkap & actionable: **`~/dotfiles/docs/shopify-ai-development-repos.md`** (peta repo, fungsi, kapan dipakai, clone vs link). Path lama `~/Documents/shopify-ai-development-repos.md` TIDAK ADA.
-- ⚠️ Skill `shopify-ai-toolkit-router` **SUDAH DIHAPUS (2026-07-14)** — isinya 100% pointer ke 10 skill yang tidak pernah ada. Untuk kerja dev Shopify, baca repo map di atas langsung.
+- 🔴 **`shopify-listing` and `shopify-memory` were DISABLED on 2026-08-10** at the user's request — Shopify is dormant and they are re-enabled when needed. Both are still intact in git. To restore: `git -C ~/dotfiles revert <sha>` (or `git checkout <sha>^ -- skills/local/shopify-listing skills/local/shopify-memory`) then `skill-update`. **Re-enable them before doing any Shopify catalog/listing work** — do not rebuild the skills from scratch.
+- **Skill priority for Shopify content/SEO** (moved out of `AGENTS.md`, 2026-07-20): `shopify-memory`, `shopify-listing` (both currently disabled — see above), `seo-website-builder`, `content`, `copywriting`. Verify with: `skill-list`.
+- Complete, actionable repo map: **`~/dotfiles/docs/shopify-ai-development-repos.md`** (repo map, purpose, when to use, clone vs link). The old path `~/Documents/shopify-ai-development-repos.md` DOES NOT EXIST.
+- ⚠️ The `shopify-ai-toolkit-router` skill **WAS DELETED (2026-07-14)** — its contents were 100% pointers to 10 skills that never existed. For Shopify dev work, read the repo map above directly.
 - Theme dev: prefer `horizon`/`dawn` + `theme-tools` (theme-check) + `theme-liquid-docs`. App: CLI `@shopify/cli` + `shopify-app-template-remix` + `shopify-app-js`. Extension: `ui-extensions` + `function-examples`.
-- Plugin AI resmi: `Shopify-AI-Toolkit` (= sumber MCP `shopify-dev`) + `liquid-skills`.
-- JANGAN clone repo org Shopify kecuali benar-benar perlu inspect source / base dari template/theme — selebihnya cukup reference link.
+- Official AI plugin: `Shopify-AI-Toolkit` (= the source of the `shopify-dev` MCP) + `liquid-skills`.
+- DO NOT clone Shopify org repos unless genuinely inspecting source or basing work on a template/theme — a reference link is enough otherwise.

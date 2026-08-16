@@ -41,7 +41,16 @@ def score(query: str, item: dict) -> int:
     hits = 0
     for trigger in item.get("triggers", []):
         t = norm(trigger)
-        if t and t in q:
+        # Allow the trigger to match its own plural. Word-boundary matching was
+        # added to stop `mac` matching inside `machine`, but the trailing
+        # lookahead also blocked the form people actually type: with triggers
+        # written in the singular, "what are my preferences" scored zero against
+        # preferences.md, and `decisions`, `skills`, and `goals` all missed their
+        # own files the same way. `(?:e?s)?` covers goal/goals and box/boxes
+        # without reopening the substring hole — `prefer` still does not match
+        # `preference`, because that is not the trigger plus a plural suffix.
+        pattern = r"(?<![a-z0-9_])" + re.escape(t).replace(r"\ ", r"\s+") + r"(?:e?s)?(?![a-z0-9_])"
+        if t and re.search(pattern, q):
             hits += max(1, len(t.split()))
     return hits * 1000 + int(item.get("priority", 0)) if hits else 0
 
@@ -92,7 +101,14 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
             reasons.append("execution scope selected from repository-local truth")
 
     selected_project = project or project_from_repo(repo, manifest)
-    if scope in {"auto", "project"} and selected_project:
+    project_query = norm(query)
+    project_needed = bool(
+        project
+        or scope == "project"
+        or (selected_project and re.search(rf"(?<![a-z0-9_]){re.escape(selected_project)}(?![a-z0-9_])", project_query))
+        or any(phrase in project_query for phrase in ("project memory", "project reference", "known issue", "prior lesson", "gotcha", "stable constraint"))
+    )
+    if scope in {"auto", "project"} and selected_project and project_needed:
         rel = manifest.get("projects", {}).get(selected_project.lower())
         if rel:
             p = root / rel
@@ -107,6 +123,7 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
                 p = root / item["path"]
                 if p.exists():
                     candidates.append({"path": str(p), "scope": "shared", "priority": s, "reason": "trigger match"})
+                    reasons.append(f"shared memory trigger matched {Path(item['path']).name}")
 
     if scope in {"auto", "lesson"}:
         for item in manifest.get("lessons", []):
@@ -115,6 +132,7 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
                 p = root / item["path"]
                 if p.exists():
                     candidates.append({"path": str(p), "scope": "lesson", "priority": s, "reason": "historical lesson trigger"})
+                    reasons.append(f"historical lesson trigger matched {Path(item['path']).name}")
 
     # Exact duplicates removed, higher-priority form retained.
     by_path = {}
@@ -125,6 +143,7 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
     ordered = sorted(by_path.values(), key=lambda x: (-x["priority"], x["path"]))
 
     selected = []
+    dropped = []
     used = 0
     for item in ordered:
         try:
@@ -133,12 +152,24 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
             continue
         if len(selected) >= max_files:
             break
-        if selected and used + size > max_bytes:
+        if used + size > max_bytes:
+            # A file bigger than the whole budget can never be selected, in any
+            # query, ever — and this used to happen in silence while `reason`
+            # still said the trigger matched. Four memory files were in that
+            # state on 2026-08-16, including environment.md and projects.md, so
+            # the router reported a match and returned nothing. Name the drop.
+            dropped.append((Path(item["path"]).name, size))
             continue
         item = dict(item)
         item["bytes"] = size
         selected.append(item)
         used += size
+
+    for name, size in dropped:
+        if size > max_bytes:
+            reasons.append(f"UNROUTABLE {name} is {size}B, larger than the {max_bytes}B budget — split it or it can never be selected")
+        else:
+            reasons.append(f"dropped {name} ({size}B): would exceed the remaining byte budget")
 
     return {
         "needed": bool(selected),

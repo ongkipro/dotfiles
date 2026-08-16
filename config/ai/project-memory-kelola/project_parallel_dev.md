@@ -12,6 +12,6 @@ The user actively develops in a parallel session/checkout of the same repo. Thei
 **Implications / how to work:**
 - Before committing, run `git status` + `git log --oneline -6` to see what already landed. Don't assume your working tree is the only source of changes.
 - Some files I "edit" may show no `git diff` because the content already exists in HEAD — that's fine, not an error. Verify with `git show HEAD:<file> | grep ...` if unsure.
-- `git reset --hard origin/main` in deploy.sh means ONLY pushed commits deploy. Always commit+push my remaining diff before deploying so my work isn't wiped.
+- Deployment scripts may replace the checkout, so preserve authorized work in a reviewed commit before an approved deployment. This observation does not grant commit, push, or deploy authority.
 - System reminders saying a file was "modified by the user or a linter" are this parallel work — take them into account, don't revert.
 - See [[feedback_deploy_collision]] for the related ENOTEMPTY/node_modules corruption from concurrent deploys.

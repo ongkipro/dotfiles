@@ -7,6 +7,13 @@ metadata:
   originSessionId: d2cef24f-0101-4c93-bca6-42346c57db35
 ---
 
+> **Authority: the repository, not this file.** Read
+> `~/Projects/aussie-malaysia/STATUS.md` first — it owns current status, open
+> work, and build truth. Everything below is a **dated session log kept for
+> orientation only**; the "RESUME HERE", verification, and fix-status notes in it
+> record what was true on their stated date and must never be read as the current
+> state. If this file and the repository disagree, the repository wins.
+
 Project **AUSSIE Sawit Malaysia** (`aussiesawit.my`) — landing + COD checkout for palm-tree treatment (Ganoderma/yellowing trees). Product: `Baja Aussie` (Scalev id `406629`), variants 500ml (RM93) & 1 Liter (RM170).
 
 - Repo: `ongkipro/aussie-malaysia` (GitHub, private). Local clone: `~/Projects/aussie-malaysia` (created 2026-07-08).

@@ -10,7 +10,7 @@ from pathlib import Path
 def parse_time(s): return datetime.fromisoformat(s.replace('Z','+00:00'))
 def tracked(dot: Path):
     out=[]
-    for rel in ('config/ai/memory','config/ai/project-memory'):
+    for rel in ('config/ai/memory','config/ai/project-memory','config/ai/project-memory-kelola'):
         root=dot/rel
         if root.is_dir(): out += sorted(p for p in root.rglob('*.md') if p.is_file())
     return out
@@ -52,7 +52,7 @@ def main():
                 elif age is not None and age>=a.cold_days: status='COLD'; recommendation='archive-review'
                 elif uses>=5 and (age is None or age<30): status='ACTIVE'; recommendation='retain'
                 else: status='LOW_USE'; recommendation='retain-review'
-            rows.append({'path':rel,'uses':uses,'lastUsed':lu.isoformat().replace('+00:00','Z') if lu else None,'ageDays':age,'status':status,'recommendation':recommendation})
+            rows.append({'path':rel,'uses':uses,'lastUsed':lu.isoformat().replace('+00:00','Z') if lu else None,'ageDays':age,'status':status,'recommendation':recommendation,'evidenceScope':'device-local-routed-access-only'})
         # Duplicate-aware merge review. Only advisory; choose lower-use side when hygiene identifies a pair.
         hygiene=dot/'bin'/'ai-memory-hygiene'
         if hygiene.is_file():
@@ -70,7 +70,7 @@ def main():
                             if by[loser]['recommendation']!='archive-review': by[loser]['recommendation']='merge-review'
                             by[loser]['duplicateWith']=rr if loser==l else l
                 except json.JSONDecodeError: pass
-        payload={'observationStartedAt':started.isoformat().replace('+00:00','Z') if started else None,'observationDays':observed_days,'files':rows,'counts':dict(Counter(x['status'] for x in rows))}
+        payload={'observationStartedAt':started.isoformat().replace('+00:00','Z') if started else None,'observationDays':observed_days,'evidenceScope':'device-local-routed-access-only','files':rows,'counts':dict(Counter(x['status'] for x in rows))}
         if a.json: print(json.dumps(payload,indent=2))
         else:
             print(f"ai-memory-lifecycle: observation={observed_days}d files={len(rows)}")

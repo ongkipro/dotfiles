@@ -1,6 +1,6 @@
 ---
 name: antigravity-cli-agy
-description: "Antigravity CLI di Mac = binary `agy` (bukan `gemini`); subcommand-nya `plugin`, bukan `extensions`"
+description: "The Antigravity CLI on the Mac is the `agy` binary (not `gemini`); its subcommand is `plugin`, not `extensions`"
 metadata: 
   node_type: memory
   type: reference
@@ -8,20 +8,20 @@ metadata:
   modified: 2026-08-01T06:01:22.631Z
 ---
 
-Antigravity CLI di Mac ini adalah binary **`agy`** (di `~/.local/bin/agy`; v1.1.8 per 2026-08-01). Gemini CLI (`gemini`) TIDAK terinstall — dan sudah diputuskan tidak dipasang.
+The Antigravity CLI on this Mac is the **`agy`** binary (at `~/.local/bin/agy`; v1.1.8 as of 2026-08-01). The Gemini CLI (`gemini`) is NOT installed — and the decision was made not to install it.
 
-**Jebakan: "⚠ Eligibility Check ... failed to get profile picture: TLS handshake timeout" itu KOSMETIK, bukan auth rusak.** Yang gagal cuma cache `peopleInfo` (avatar dari `lh3.googleusercontent.com`), tapi `server_oauth.go` menaikkannya jadi `Validation failed` sehingga terlihat seperti login bermasalah. Cek log `~/.gemini/antigravity-cli/log/cli-*.log`: kalau ada `OAuth: authenticated successfully` + `loadCodeAssist`/`fetchAvailableModels` sukses, sesi tetap sehat dan model tetap jalan. Fix = restart `agy` (bukan re-login, bukan hapus token). Verifikasi cepat: `agy -p "reply with exactly: OK"`. Timeout serupa juga pernah kena endpoint telemetry `play.googleapis.com/log` — pola yang sama, sama-sama transient.
+**Trap: "⚠ Eligibility Check ... failed to get profile picture: TLS handshake timeout" is COSMETIC, not broken auth.** All that fails is the `peopleInfo` cache (the avatar from `lh3.googleusercontent.com`), but `server_oauth.go` escalates it to `Validation failed`, which makes it look like a login problem. Check the log at `~/.gemini/antigravity-cli/log/cli-*.log`: if it shows `OAuth: authenticated successfully` plus successful `loadCodeAssist`/`fetchAvailableModels`, the session is healthy and models still work. The fix is to restart `agy` — not to re-login, and not to delete the token. Quick verification: `agy -p "reply with exactly: OK"`. A similar timeout has also hit the `play.googleapis.com/log` telemetry endpoint — same pattern, equally transient.
 
-**Jebakan:** perintah yang beredar di internet berbentuk `gemini extensions install <url>`. Itu tidak jalan di sini. `agy` tidak punya subcommand `extensions`. Yang benar:
+**Trap:** the command circulating on the internet is `gemini extensions install <url>`. That does not work here. `agy` has no `extensions` subcommand. The correct form is:
 
-    agy plugin install <github-url>     # bisa langsung URL repo
+    agy plugin install <github-url>     # accepts a repo URL directly
     agy plugin list / uninstall / disable
-    agy plugin import [gemini|claude]   # serap ekosistem tetangga
+    agy plugin import [gemini|claude]   # absorb the neighbouring ecosystems
 
-`agy` menelan repo ber-`gemini-extension.json` maupun `.claude-plugin/` — itu sebabnya Gemini CLI jadi mubazir. State (conversation, log) disimpan di `~/.gemini/antigravity-cli/`, jadi folder `~/.gemini` ada meski Gemini CLI tidak terpasang.
+`agy` ingests repos carrying either `gemini-extension.json` or `.claude-plugin/` — which is why the Gemini CLI is redundant. State (conversations, logs) lives in `~/.gemini/antigravity-cli/`, so the `~/.gemini` folder exists even though the Gemini CLI is not installed.
 
-Model yang diekspos `agy models`: Gemini 3.5 Flash, Gemini 3.1 Pro, Claude Sonnet 4.6, Claude Opus 4.6, GPT-OSS 120B.
+Models exposed by `agy models`: Gemini 3.5 Flash, Gemini 3.1 Pro, Claude Sonnet 4.6, Claude Opus 4.6, GPT-OSS 120B.
 
-**Keputusan (2026-07-12):** tidak memasang Gemini CLI — sisi Gemini sudah ditutup `agy`, sisi "model apa pun murah" sudah ditutup 9router. CLI kelima = biaya rawat (symlink `ai-memory-link`, `skill-update`) tanpa manfaat baru.
+**Decision (2026-07-12):** do not install the Gemini CLI — `agy` already covers the Gemini side, and 9router already covers the "any cheap model" side. A fifth CLI would be maintenance cost (`ai-memory-link` symlinks, `skill-update`) with no new benefit.
 
-Plugin terpasang: `worktrunk` saja (verify with `agy plugin list`; lihat [[worktrunk-worktree-tooling]]). Ponytail was removed because its persistent rules duplicate shared `AGENTS.md`; the useful review workflow now lives in the owned `lean-code-review` skill.
+Installed plugins: `worktrunk` only (verify with `agy plugin list`; see [[worktrunk-worktree-tooling]]). Ponytail was removed because its persistent rules duplicate shared `AGENTS.md`; the useful review workflow now lives in the owned `lean-code-review` skill.

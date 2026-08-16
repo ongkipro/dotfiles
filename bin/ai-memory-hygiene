@@ -45,11 +45,15 @@ def issue(kind: str, severity: str, path: Path, detail: str, line: int | None = 
 
 def tracked_memory(root: Path) -> list[Path]:
     files = []
-    for rel in ("config/ai/memory", "config/ai/project-memory"):
+    for rel in ("config/ai/memory", "config/ai/project-memory", "config/ai/project-memory-kelola"):
         base = root / rel
         if base.is_dir():
             files.extend(sorted(p for p in base.rglob("*.md") if p.is_file()))
     return files
+
+
+def is_project_memory(rel: str) -> bool:
+    return rel.startswith(("config/ai/project-memory/", "config/ai/project-memory-kelola/"))
 
 
 def visible_units(path: Path, min_tokens: int) -> list[tuple[int, str, set[str], bool]]:
@@ -80,10 +84,13 @@ def visible_units(path: Path, min_tokens: int) -> list[tuple[int, str, set[str],
     return units
 
 
-def jaccard(a: set[str], b: set[str]) -> float:
+def token_similarity(a: set[str], b: set[str]) -> float:
     if not a or not b:
         return 0.0
-    return len(a & b) / len(a | b)
+    shared = len(a & b)
+    # A durable sentence with a short qualifier is still a duplicate. Jaccard
+    # alone penalizes the qualifier enough to miss that common capture shape.
+    return max(shared / len(a | b), shared / min(len(a), len(b)))
 
 
 def check_size(root: Path, path: Path, policy: dict) -> list[dict]:
@@ -93,7 +100,18 @@ def check_size(root: Path, path: Path, policy: dict) -> list[dict]:
         return []
     limit = policy["sharedMaxBytes"] if rel.startswith("config/ai/memory/") else policy["projectMaxBytes"]
     size = path.stat().st_size
-    return [issue("OVERSIZE", "WARN", path, f"{size} bytes exceeds advisory limit {limit}")] if size > limit else []
+    if size <= limit:
+        return []
+    # Not merely "large". The router drops any single file bigger than its whole
+    # byte budget and returns nothing, while still reporting that the trigger
+    # matched — so an oversize file is silently unroutable, not degraded. Say
+    # that, because "exceeds advisory limit" reads as cosmetic and four files
+    # sat in this state unnoticed.
+    routable_limit = policy.get("routerMaxBytes", limit)
+    detail = f"{size} bytes exceeds advisory limit {limit}"
+    if size > routable_limit:
+        detail += f"; larger than the router budget ({routable_limit}B) so this file can NEVER be selected — split it"
+    return [issue("OVERSIZE", "WARN", path, detail)]
 
 
 def check_scope(root: Path, path: Path, policy: dict) -> list[dict]:
@@ -115,7 +133,7 @@ def check_volatile(root: Path, path: Path, policy: dict) -> list[dict]:
         rel = path.relative_to(root).as_posix()
     except ValueError:
         return []
-    if not rel.startswith("config/ai/project-memory/"):
+    if not is_project_memory(rel):
         return []
     regexes = [re.compile(p, re.I) for p in policy.get("volatilePatterns", [])]
     out = []
@@ -130,7 +148,7 @@ def check_authority(root: Path, path: Path, policy: dict) -> list[dict]:
         rel = path.relative_to(root).as_posix()
     except ValueError:
         return []
-    if not rel.startswith("config/ai/project-memory/"):
+    if not is_project_memory(rel):
         return []
     regexes = [re.compile(p, re.I) for p in policy.get("authorityClaimPatterns", [])]
     out = []
@@ -190,7 +208,7 @@ def check_semantic_pairs(files: list[Path], policy: dict, candidate: Path | None
                 continue
             for lno, _ltext, ltokens, lneg in units[left]:
                 for rno, rtext, rtokens, rneg in units[right]:
-                    sim = jaccard(ltokens, rtokens)
+                    sim = token_similarity(ltokens, rtokens)
                     if sim >= duplicate_threshold and lneg == rneg:
                         out.append(issue("SEMANTIC_DUPLICATE", "WARN", left, f"similarity {sim:.2f} with {right}:{rno}: {rtext[:120]}", lno, right))
                     elif sim >= conflict_threshold and lneg != rneg:

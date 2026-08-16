@@ -1,16 +1,14 @@
 ---
-name: local-backup-setup
-description: Mac pulls kelola DB dumps + full uploads mirror 3x daily via launchd com.kelola.backup-fetch; log ~/kelola-backups/fetch.log
-metadata: 
-  node_type: memory
-  type: reference
-  originSessionId: 4f4914ea-7c75-4398-b8ed-ea2a10af6730
+name: Backup verification boundary
+description: Keep backup topology and credentials device-local; retain only verification invariants here.
+type: reference
 ---
 
-Backup lokal kelola di Mac user (setup 2026-07-29):
+Backup schedules, destinations, hostnames, key locations, retention counts, and
+logs are device-local or repository operational state and must not be stored in
+tracked shared memory.
 
-- **Script:** `kelola/scripts/backup-fetch.sh` (di repo, commit ea8ed50). Dua bagian: (1) pull dump DB `kelola-*.sql.gz.gpg` dari server `~/kelola-backups` (retensi lokal 30 file, `--all` untuk backfill); (2) **mirror uploads** `rsync -a` dari `server:/data/uploads/` → `~/kelola-backups/uploads/` — TANPA `--delete` (file terhapus di server tetap tersimpan lokal).
-- **Jadwal:** launchd `~/Library/LaunchAgents/com.kelola.backup-fetch.plist`, label `com.kelola.backup-fetch`, jam **09:00 / 13:00 / 21:00** (3× supaya tak bolong saat Mac tidur; script idempoten).
-- **Log:** `~/kelola-backups/fetch.log`. Server-side: cron `30 3 * * *` menjalankan `kelola/deploy/backup.sh` (pg_dump → gzip → GPG ke pubkey; private key di Mac user).
-- **Gotcha:** rsync Mac = **openrsync** (protokol 29) — opsi modern (`--info=…`) tidak dikenal → sync gagal; pakai flag klasik saja (fix di commit 9a065a0). Error "cannot ssh (need passwordless key)" di log bisa berarti server yang bermasalah (2026-07-28/29 penyebabnya disk server 100% penuh, bukan kunci). Key `~/.ssh/id_ed25519` tanpa passphrase, batch mode OK.
-- Mirror uploads = pengaman utama kalau volume `/data` (billing bulanan, expire 29 Aug 2026) lapse — lihat [[project_disk_uploads_growth]].
+Stable invariant: a backup is evidence only after restoreability is tested.
+Verify database decryption and restore in an isolated environment, verify object
+counts or checksums for uploaded assets, and record only a non-sensitive artifact
+reference in release evidence.

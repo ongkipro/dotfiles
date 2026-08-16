@@ -11,6 +11,6 @@ chmod +x "$DOT/bin/ai-memory-route"
 python3 "$ROOT/bin/ai-memory-access" 'my preferred tone' --dotfiles "$DOT" --telemetry-dir "$TEL" --json >/dev/null
 python3 - "$TEL/meta.json" "$TEL/events.jsonl" <<'PY'
 import json,sys
-m=json.load(open(sys.argv[1])); e=json.loads(open(sys.argv[2]).read()); assert m['schemaVersion']==1; assert e['selected'][0]['path']=='config/ai/memory/preferences.md'; assert len(e['queryHash'])==64; assert 'query' not in e
+m=json.load(open(sys.argv[1])); e=json.loads(open(sys.argv[2]).read()); assert m['schemaVersion']==1; assert e['selected'][0]['path']=='config/ai/memory/preferences.md'; assert 'queryHash' not in e; assert 'query' not in e
 PY
 echo 'ai-memory-access-test: PASS'

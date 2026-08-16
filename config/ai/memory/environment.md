@@ -1,12 +1,23 @@
 # Memory: Environment — toolchain & install
 > Part of shared memory. Update if a tool/setup changes.
 > **MULTI-MACHINE — OS-specific facts MUST name the machine. Check `uname -a` first.**
-> - Linux (main): hostname **`cuan`** — ThinkPad T480, Ubuntu 26.04, kernel 7.0.0. Old nickname in memory = "fantastico" (the SAME machine).
+> `devices/` is the generated registry and outranks this list; if a machine is
+> registered there but missing here, `devices/` wins.
+> - Linux (laptop): hostname **`cuan`** — ThinkPad T480, Ubuntu 26.04, kernel 7.0.0. Old nickname in memory = "fantastico" (the SAME machine).
+> - Linux (desktop): hostname **`rich`** — Dell OptiPlex 7050, Ubuntu 24.04.4 LTS, kernel 7.0.0. Registered 2026-08-15.
 > - Mac (secondary): hostname **`ongkis-MacBook-Air`** — MacBook Air M1 8GB, macOS 26.5.2 arm64. ("`feriromansyah`" = old nickname in memory, the SAME machine; the real `hostname` is not that.)
-> `brew` instructions = MAC ONLY. On `cuan` use mise/apt.
+> `brew` instructions = MAC ONLY. On `cuan` and `rich` use mise/apt.
 
 ## Installed tools (DO NOT reinstall)
-- mise (no-sudo): fzf, fd, bat, delta, lazygit, zoxide, eza, yq(v4), ripgrep, ruff, starship, helix, tealdeer, direnv, qsv.
+- mise (no-sudo), per `config/mise-config.toml`: fzf, fd, bat, delta, lazygit, zoxide, eza, yq(v4), ruff, starship, helix, tealdeer, direnv, qsv, gh, jq, node.
+- **ripgrep is NOT installed** and is not declared in `config/mise-config.toml`.
+  Verified on `rich` 2026-08-16: `rg` resolves in an AI CLI session only because
+  Claude Code injects a shell function and pi ships its own binary at
+  `~/.pi/agent/bin/rg`; in a clean shell `command -v rg` returns nothing. Any
+  script or non-AI tool that calls `rg` will fail. `config/ripgreprc` is linked
+  to `~/.ripgreprc` regardless, so the config outlives the missing binary.
+- `jq` is declared in mise but reports `(missing)` on `rich`; git-guard works
+  because the system `/usr/bin/jq` exists. python3 is the declared fallback.
 - Editor: helix (`hx`). `EDITOR=hx`.
 - npm -g: pi, 9router, pnpm, typescript-language-server, vscode-langservers-extracted, @tailwindcss/language-server, yaml-language-server, bash-language-server, pyright.
 - Native OMP binary at `~/.local/bin/omp`; resolve the current version with

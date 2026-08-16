@@ -1,17 +1,22 @@
-- [Auto-deploy after push](feedback_auto_deploy.md) — push to main auto-deploys via GH Actions; do NOT also SSH-deploy manually (redundant, risks collision)
-- [Deploy command](reference_deploy.md) — single SSH command that runs deploy.sh on the production server
-- [Repliz integration location](project_repliz_integration_location.md) — social credential setup now in Settings → Integrasi, calendar page is display-only
-- [base-ui Store crash](feedback_baseui_store_crash.md) — base-ui Menu/Popover crashes "Store is not defined" in prod when re-rendered via refetch; use custom dropdown for fetch-triggering controls
-- [Tatacuan API response shape](reference_tatacuan_api.md) — real summary/ads fields + the netProfit "biaya lain" residual quirk
-- [Deploy collision recovery](feedback_deploy_collision.md) — parallel deploys corrupt node_modules → backend 502; clear npm cache + clean reinstall, ensure single deployer
-- [Deploy nginx patch abort](feedback_deploy_nginx_patch.md) — nginx header patch exit 2 under set -e killed deploy before PM2 restart; now non-fatal
-- [Parallel dev](project_parallel_dev.md) — user commits/pushes in parallel; check git status + origin before committing, some edits already in HEAD
-- [MCP provider fit](project_mcp_provider_fit.md) — Kelola MCP client = 1 static header + Streamable HTTP; Zapier fits, Pipedream doesn't (needs OAuth+5 headers)
-- [Recurrence dup cleanup](project_recurrence_dup_cleanup.md) — 2026-06-19 neutralized 116 forked templates + deleted 134 dup copies in Aussie's; prod backup tables _bkp_*_20260619 to delete after user confirms
-- [Notif workspace backfill](project_notif_workspace_backfill.md) — notification got workspace_id (scoped Inbox); 2026-06-25 backfilled prod (9482 filled); backup table _bkp_notif_nullws_20260625 to delete after confirm
-- [npm install needs sandbox disabled](feedback_npm_install_sandbox.md) — npm install fails ENOTFOUND unless run with dangerouslyDisableSandbox; verify pkg landed (don't trust exit code through `tail`)
-- [Agent space scope model](reference_agent_space_scope.md) — accessScope/scopeSpaceIds + chokepoint scopedSpaceIds; otoritatif, multiple/all admin-only, legacy null preserved
-- [Telegram bot pool](reference_telegram_bot_pool.md) — stok token (superadmin) + claim instan; @username tak bisa diubah, hanya nama tampilan (setMyName)
-- [Disk uploads growth](project_disk_uploads_growth.md) — uploads 24G dipindah ke volume 60G /data (symlink); volume expire 29 Aug 2026 wajib diperpanjang
-- [Dotfiles memory sync](project_dotfiles_memory_sync.md) — memory ini symlink ke ~/dotfiles (repo ongkipro/dotfiles); kelola BOLEH auto-commit+push (override global CLAUDE.md); skill kelola-deploy = runbook lintas-CLI
-- [Local backup setup](reference_local_backup.md) — Mac tarik dump DB + mirror uploads 3x sehari (launchd com.kelola.backup-fetch); log ~/kelola-backups/fetch.log
+# Kelola Project Memory
+
+Advisory stable references only. The Kelola repository owns execution state,
+requirements, implementation truth, operations, and release authority.
+
+- [Single deploy owner](feedback_auto_deploy.md) — use the repository-owned workflow and never run concurrent deploy paths.
+- [Deployment boundary](reference_deploy.md) — current production truth and recovery commands belong in the Kelola repository.
+- [Repliz integration location](project_repliz_integration_location.md) — stable product navigation reference.
+- [Base UI store crash](feedback_baseui_store_crash.md) — avoid the known rerender failure path in fetch-triggering controls.
+- [Tatacuan API shape](reference_tatacuan_api.md) — integration response-shape reference.
+- [Deploy collision](feedback_deploy_collision.md) — serialize dependency and build mutations.
+- [Deploy patch failure](feedback_deploy_nginx_patch.md) — non-critical optional patches must not abort core recovery.
+- [Parallel development](project_parallel_dev.md) — inspect worktree and origin state before attributing changes.
+- [MCP provider fit](project_mcp_provider_fit.md) — match provider authentication and transport requirements.
+- [Recurrence cleanup](project_recurrence_dup_cleanup.md) — close the creation race before deterministic, tenant-scoped cleanup.
+- [Notification tenant backfill](project_notif_workspace_backfill.md) — enforce tenant scope at write/read boundaries and classify legacy orphans.
+- [Package install evidence](feedback_npm_install_sandbox.md) — verify the installed artifact rather than trusting piped exit output.
+- [Agent space scope](reference_agent_space_scope.md) — enforce access scope at a shared authorization chokepoint.
+- [Telegram bot pool](reference_telegram_bot_pool.md) — integration capability and ownership constraint.
+- [Upload storage boundary](project_disk_uploads_growth.md) — keep uploads outside deploy-managed source paths and verify durability.
+- [Kelola memory ownership](project_dotfiles_memory_sync.md) — advisory context only; canonical policy and repository evidence retain authority.
+- [Backup verification boundary](reference_local_backup.md) — keep topology device-local and require restore evidence.

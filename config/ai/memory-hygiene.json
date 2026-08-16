@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "sharedMaxBytes": 12000,
   "projectMaxBytes": 20000,
+  "routerMaxBytes": 12000,
   "staleDays": 90,
   "semanticMinTokens": 8,
   "semanticDuplicateThreshold": 0.82,
@@ -23,6 +24,10 @@
     "\\bresume from (?:this )?memory\\b",
     "\\bcurrent implementation status (?:is|lives) (?:here|in this memory)\\b"
   ],
-  "sharedForbiddenPrefixes": ["device-"],
-  "indexFiles": ["config/ai/project-memory/MEMORY.md"]
+  "sharedForbiddenPrefixes": [
+    "device-"
+  ],
+  "indexFiles": [
+    "config/ai/project-memory/MEMORY.md"
+  ]
 }

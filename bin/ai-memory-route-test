@@ -13,7 +13,7 @@ p=json.load(open(sys.argv[1]))
 assert p['needed'] is True
 assert any(x['path'].endswith('preferences.md') for x in p['files'])
 assert len(p['files']) <= 3
-assert p['budget']['usedBytes'] <= p['budget']['maxBytes'] or len(p['files']) == 1
+assert p['budget']['usedBytes'] <= p['budget']['maxBytes']
 PY
 
 python3 "$ROUTER" 'completely unrelated ephemeral arithmetic' --json > "$TMP/none.json"
@@ -34,6 +34,21 @@ EOF
 cat > "$REPO/.delivery/current.json" <<'EOF'
 {"schemaVersion":1}
 EOF
+python3 "$ROUTER" 'what is 2 + 2?' --repo "$REPO" --json > "$TMP/self-contained.json"
+python3 - "$TMP/self-contained.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1])); assert p['needed'] is False; assert p['files']==[]
+PY
+python3 "$ROUTER" 'digital painting techniques' --json > "$TMP/token-boundary.json"
+python3 - "$TMP/token-boundary.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1])); assert not any(x['path'].endswith('workflow.md') for x in p['files'])
+PY
+python3 "$ROUTER" 'installed environment runtime' --max-bytes 1000 --json > "$TMP/budget.json"
+python3 - "$TMP/budget.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1])); assert p['budget']['usedBytes'] <= 1000
+PY
 python3 "$ROUTER" 'continue current task and tell me next blocker' --repo "$REPO" --project volumup --json > "$TMP/project.json"
 python3 - "$TMP/project.json" <<'PY'
 import json,sys
@@ -41,6 +56,12 @@ p=json.load(open(sys.argv[1]))
 scopes={x['scope'] for x in p['files']}
 assert 'execution' in scopes
 assert p['project']=='volumup'
+PY
+KEL_REPO="$TMP/kelola"; mkdir -p "$KEL_REPO"
+python3 "$ROUTER" 'load stable Kelola project reference' --repo "$KEL_REPO" --project kelola --json > "$TMP/kelola.json"
+python3 - "$TMP/kelola.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1])); assert any(x['path'].endswith('project-memory-kelola/MEMORY.md') for x in p['files'])
 PY
 
 echo 'ai-memory-route-test: PASS'

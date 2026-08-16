@@ -3,7 +3,8 @@ set -euo pipefail
 ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/ai-memory-harvest-test.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
-REPO="$TMP/repo"; DOT="$TMP/dot"; INBOX="$TMP/inbox"; mkdir -p "$REPO/.delivery/learning" "$DOT/config/ai/memory" "$DOT/config/ai/project-memory" "$DOT/bin"
+REPO="$TMP/repo"; DOT="$TMP/dot"; INBOX="$TMP/inbox"; mkdir -p "$REPO/.delivery/learning" "$REPO/.delivery/runs" "$DOT/config/ai/memory" "$DOT/config/ai/project-memory" "$DOT/bin"
+cp "$ROOT/bin/delivery-learning" "$DOT/bin/delivery-learning"
 cat > "$DOT/config/ai/memory/existing.md" <<'EOF'
 Prefer small deterministic changes and verify the owning boundary before adding retries.
 EOF
@@ -12,6 +13,20 @@ import hashlib,json,sys
 p=sys.argv[1]
 d={'schemaVersion':1,'runId':'RUN-test','capturedAt':'2026-08-15T00:00:00Z','scope':'methodology','recommendedDestination':'skill','reusabilityScore':95,'lesson':{'title':'Retry boundary discipline','symptom':'Retries obscured the first failure.','rootCause':'Retry logic was outside the owning integration boundary.','invariant':'Keep retry behavior at the owning integration boundary and retain deterministic failure evidence.','fix':'Move retries to the integration adapter.','check':'Run the regression and inspect the first failure.'},'provenance':{'task':'TASK-1','requirement':'REQ-1','risk':'R1','worker':'coder','model':'model-a','sourceHead':'abc123','finishedAt':'2026-08-15T00:03:00Z','verification':[{'check':'unit','status':'PASS','detail':'ok'}]}}
 d['signalHash']=hashlib.sha256(json.dumps(d,sort_keys=True,separators=(',',':'),ensure_ascii=True).encode()).hexdigest(); json.dump(d,open(p,'w'),indent=2,sort_keys=True)
+PY
+python3 - "$REPO/.delivery/runs/RUN-test.jsonl" <<'PY'
+import hashlib,json,sys
+events=[
+ {'schemaVersion':1,'eventId':'1','time':'2026-08-15T00:00:00Z','type':'run_started','runId':'RUN-test','state':'IMPLEMENTING','head':'abc123','task':'TASK-1','requirement':'REQ-1','risk':'R1','worker':'coder','model':'model-a'},
+ {'schemaVersion':1,'eventId':'2','time':'2026-08-15T00:02:00Z','type':'verification','runId':'RUN-test','state':'VERIFYING','head':'abc123','check':'unit','status':'PASS','detail':'ok'},
+ {'schemaVersion':1,'eventId':'3','time':'2026-08-15T00:03:00Z','type':'run_finished','runId':'RUN-test','state':'DONE','head':'abc123','result':'PASS','detail':'done'},
+]
+previous=None
+with open(sys.argv[1],'w') as f:
+ for event in events:
+  event['prevEventHash']=previous
+  event['eventHash']=hashlib.sha256(json.dumps(event,sort_keys=True,separators=(',',':'),ensure_ascii=True).encode()).hexdigest()
+  previous=event['eventHash']; f.write(json.dumps(event,sort_keys=True,separators=(',',':'))+'\n')
 PY
 python3 "$ROOT/bin/ai-memory-harvest" --repo "$REPO" --run RUN-test --dotfiles "$DOT" --inbox "$INBOX" --json > "$TMP/out.json"
 python3 - "$TMP/out.json" "$INBOX/learning-RUN-test.md" <<'PY'
@@ -23,4 +38,10 @@ python3 - "$TMP/out2.json" <<'PY'
 import json,sys
 assert json.load(open(sys.argv[1]))['results'][0]['created'] is False
 PY
+rm "$DOT/bin/delivery-learning"
+set +e
+python3 "$ROOT/bin/ai-memory-harvest" --repo "$REPO" --run RUN-test --dotfiles "$DOT" --inbox "$INBOX" >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 1 ] || { echo 'harvest must fail when source verifier is unavailable' >&2; exit 1; }
 echo 'ai-memory-harvest-test: PASS'

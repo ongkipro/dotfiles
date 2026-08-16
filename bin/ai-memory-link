@@ -100,21 +100,4 @@ link_pmem() {
 link_pmem "$HOME/dotfiles/config/ai/project-memory" \
           "$HOME/.claude/projects/$(printf '%s' "$HOME" | tr '/' '-')/memory"
 
-# ── Memori per-REPO (Claude Code) ─────────────────────────────────────────────
-# Sama seperti di atas, tapi untuk repo tertentu (bukan sesi $HOME). Format map:
-#   "<subdir di config/ai>|<path repo relatif $HOME>"
-# Nama folder project Claude Code = path absolut repo dengan semua karakter
-# non-alfanumerik jadi '-'. Device yang tidak punya repo-nya otomatis di-skip;
-# kalau repo di-clone ke path lain di device lain, tambahkan barisnya di sini.
-REPO_MEMS=(
-  "project-memory-kelola|my app/Kelola Hris & Manajemen Kerja/kelola"
-)
-for entry in "${REPO_MEMS[@]}"; do
-  sub="${entry%%|*}"; rel="${entry#*|}"
-  repo="$HOME/$rel"
-  [ -d "$repo" ] || continue
-  proj="$(printf '%s' "$repo" | sed 's/[^A-Za-z0-9]/-/g')"
-  link_pmem "$HOME/dotfiles/config/ai/$sub" "$HOME/.claude/projects/$proj/memory"
-done
-
 echo "Selesai. Edit memori di ~/.config/ai/ (AGENTS.md + memory/*.md)."

@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """ai-memory-access - route memory and record privacy-minimal local usage telemetry."""
 from __future__ import annotations
-import argparse, hashlib, json, os, subprocess, sys, tempfile
+import argparse, json, os, subprocess, sys, tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 
 def now(): return datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00','Z')
-def qhash(q: str): return hashlib.sha256(' '.join(q.lower().split()).encode()).hexdigest()
-
 def atomic_json(path: Path, data: dict):
     path.parent.mkdir(parents=True, exist_ok=True)
     fd,tmp=tempfile.mkstemp(prefix='.'+path.name+'.',dir=path.parent)
@@ -40,7 +38,7 @@ def main():
         result=json.loads(r.stdout)
         telemetry.mkdir(parents=True,exist_ok=True); os.chmod(telemetry,0o700)
         meta=telemetry/'meta.json'
-        if not meta.exists(): atomic_json(meta,{'schemaVersion':1,'startedAt':now(),'privacy':'query hash + selected memory paths only; raw prompts and memory content are not stored'})
+        if not meta.exists(): atomic_json(meta,{'schemaVersion':1,'startedAt':now(),'privacy':'selected durable-memory paths only; prompts, prompt hashes, and memory content are not stored'})
         selected=[]
         for item in result.get('files',[]):
             if item.get('scope') not in {'shared','project','lesson'}: continue
@@ -48,7 +46,7 @@ def main():
             try: rel=path.relative_to(dot).as_posix()
             except ValueError: continue
             selected.append({'path':rel,'scope':item.get('scope'),'bytes':item.get('bytes')})
-        append_jsonl(telemetry/'events.jsonl',{'schemaVersion':1,'time':now(),'queryHash':qhash(a.query),'project':result.get('project'),'selected':selected})
+        append_jsonl(telemetry/'events.jsonl',{'schemaVersion':1,'time':now(),'project':result.get('project'),'selected':selected})
         if a.json: print(json.dumps(result,indent=2))
         elif not result.get('needed'): print('ai-memory-access: NONE')
         else:
