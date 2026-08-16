@@ -16,6 +16,7 @@ modelRoles:
 modelProviderOrder: 
   - google-antigravity
   - 9router-fantastico
+  - openai-codex
 retry: 
   enabled: true
   modelFallback: true
