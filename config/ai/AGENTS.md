@@ -13,7 +13,7 @@
 ## Tool preference (terminal-first)
 
 - Editor helix (`hx`), shell bash + mise, alur kerja terminal-first. Toolchain lengkap → `memory/environment.md`.
-- Fakta & konteks → baca `~/.config/ai/memory/*.md` saat perlu. **Kalau memori dan disk bertentangan, disk menang** — lalu perbaiki memorinya. Cek kesehatan rantai: `ai-doctor`.
+- Fakta & konteks → baca `~/.config/ai/memory/*.md` saat perlu. Verify against disk before advising: memory can be stale, and **kalau memori dan disk bertentangan, disk menang** — lalu perbaiki memorinya. Cek kesehatan rantai: `ai-doctor`.
 - `~/dotfiles/config/ai/project-memory/` is personal cross-session reference only; it may point to a repository but MUST NOT own current status, technical decisions, requirements, architecture, or build truth. Those belong in repository-owned `AGENTS.md`, `PRD.md`, `TASKS.md`, `STATUS.md`, `BUILD-LOG.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `OBSERVABILITY.md`, and `RELEASE.md`. Claude Code reads this reference context through its project-memory symlink. **Repository disk wins.**
 
 ### Which document system — three producers, one order
@@ -27,24 +27,15 @@ Three things can produce a "PRD" and two can produce an "architecture" document.
 
 ### What another device may change here
 
-This repository is shared across five machines. A device may **add** to it —
-memory, skills, its own `devices/<host>.md` entry, a lesson. A device must not
-**restructure** it: OMP routing, installers, shell tooling, and the contract
-templates are the shared setup, and a preference that suits one machine is not a
-change to that setup.
+This repository is shared across every machine registered in `devices/`. A
+device may **add** to it — memory, skills, its own `devices/<host>.md` entry, a
+lesson. A device must not **restructure** it: OMP routing, installers, shell
+tooling, and the contract templates are the shared setup, and a preference that
+suits one machine is not a change to that setup.
 
-This is not hypothetical. On 2026-08-16 a device pushed its own single-provider
-preference into `config/omp/config.yml` rather than using an overlay. Ten of the
-thirteen roles collapsed onto one vendor, the whole advisor tier lost the vendor
-independence that makes a review worth anything, `anthropic` disappeared from
-`modelProviderOrder` while roles still pointed at it, and `cycleOrder` vanished.
-Every individual selector was still valid, so nothing failed until a fallback
-happened to name a model this machine's catalog did not hold.
-
-`bin/omp-routing-test` now asserts the structure, not the model list: an advisor
-role may not share a provider with the worker roles it reviews, every role's
-provider must appear in `modelProviderOrder`, and 9Router must stay last because
-it is the reserve. Swapping a model is fine. Collapsing the design fails.
+This has already happened once. `bin/omp-routing-test` now asserts structure
+rather than model names, because every individual selector stayed valid while
+the design was dismantled — case in `config/omp/BUILD-LOG.md`, 2026-08-16.
 
 **When one machine wants different models, the mechanism already exists**:
 `config/omp/overlays/*.yml`, used as `omp --config ~/dotfiles/config/omp/overlays/<name>.yml`.
@@ -112,8 +103,6 @@ NEVER simplify away: input validation at trust boundaries, error handling that p
 - **System-wide**: `sudo`, apt/snap installs, service changes.
 - **Production / live**: `wrangler deploy`, Shopify theme push, app deploy, DNS changes, publish/release, remote DB writes, bulk Shopify mutations, **VPS destroy/resize**.
 - **Scope creep**: the change grows past the request, or `git status` shows unrelated uncommitted work your task would overlap.
-
-Verify against disk before advising — memory can be stale. When memory and disk disagree, **disk wins**, and fix the memory.
 
 Prefer the smallest safe change, and validate with the project's own scripts (`package.json` first).
 

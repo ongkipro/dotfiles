@@ -225,6 +225,45 @@ Diffed all seven bundled-and-tracked agents against `omp agents unpack` output. 
 
 **Verification:** `omp-routing-test` passing `OK (roles=13, overrides=11, async=8, overlays=2, catalog=790 models)`. `ai-doctor` 100% sound.
 
+## 2026-08-16 — A foreign device collapsed the routing design, and the test now defends it
+
+Recorded here because it is the incident the "do not restructure" rule in
+`config/ai/AGENTS.md` exists for, and a rule without its case is easy to talk
+past.
+
+A device pushed its own single-provider preference straight into
+`config/omp/config.yml` instead of using an overlay. Ten of the thirteen roles
+collapsed onto one vendor. The whole advisor tier lost the vendor independence
+that is the entire reason a review is worth anything — a reviewer drawn from the
+same pool as the worker reviews its own blind spots. `anthropic` disappeared
+from `modelProviderOrder` while roles still pointed at it, and `cycleOrder`
+vanished.
+
+**Why nothing caught it:** every individual selector was still valid. The config
+parsed, the roles resolved, `omp` ran. Nothing failed until a fallback happened
+to name a model this machine's catalog did not hold. A validator that checks
+"does each model exist" cannot see a design being dismantled one valid line at a
+time.
+
+**What `bin/omp-routing-test` asserts now** — structure, not a model list:
+
+- an advisor role may not share a provider with the worker roles it reviews
+- every role's provider must appear in `modelProviderOrder`
+- the role set must span at least three providers
+- required keys are checked against the **tracked file**, not OMP's resolved
+  runtime config, because reading the runtime value let a deleted
+  `defaultThinkingLevel` pass on the strength of OMP's own default
+
+Swapping a model is fine. Collapsing the design fails.
+
+The mechanism for a machine that wants different models already existed and was
+not used: `config/omp/overlays/*.yml`, invoked as
+`omp --config ~/dotfiles/config/omp/overlays/<name>.yml`.
+
+> A `9router` clause was part of this guard when written — it had to stay last in
+> `modelProviderOrder` as the reserve. 9Router was removed from routing entirely
+> later the same day, so that assertion is now conditional on its presence.
+
 ## 2026-08-16 — Main session moves to Codex; the Codex escalation ladder collapses
 
 Accepted the pending `config.yml` change after review. Decision criterion given by
