@@ -125,7 +125,7 @@ show_candidate() {
 
 promote() {
   local requested="" target="" confirmed=0 candidate kind name target_path
-  local target_dir tmp promoted_dir promoted_path
+  local target_dir tmp probe promoted_dir promoted_path
   [ "$#" -gt 0 ] || die "promote requires a candidate"
   requested="$1"; shift
   while [ "$#" -gt 0 ]; do
@@ -151,15 +151,45 @@ promote() {
   esac
   [ -f "$target_path" ] || die "canonical target does not exist: $target_path"
   [ -x "$DOT/bin/ai-memory-check" ] || die "ai-memory-check is unavailable"
+  target_dir="$(dirname "$target_path")"
+
+  # Hygiene is a gate here, not a suggestion. Promotion is the only path in this
+  # repository that mutates tracked, committed memory, and until 2026-08-16 it
+  # ran reject_sensitive_text and ai-memory-check and nothing else — so volatile
+  # state, a scope violation, an authority conflict, a semantic duplicate, or an
+  # oversize file entered permanent memory whenever the human skipped the manual
+  # hygiene step. A control that depends on remembering is not a control.
+  #
+  # What is checked is the candidate's OWN new text, staged at the destination —
+  # not the merged result. Checking the merge is tempting and wrong: it contains
+  # the target's existing content, so every line reports similarity 1.00 against
+  # the target itself and the real finding drowns in self-duplication. Staged at
+  # the destination path, the shared-vs-project rules still resolve correctly and
+  # the semantic comparison runs against the whole corpus.
+  #
+  # `--strict` with `--candidate` fails on issues attributed to this file only.
+  # The corpus carries pre-existing warnings; blocking on those would make every
+  # promotion impossible and get the gate routed around instead of fixed.
+  [ -x "$DOT/bin/ai-memory-hygiene" ] || die "ai-memory-hygiene is unavailable; refusing to mutate tracked memory without it"
+  probe="$(mktemp "$target_dir/.ai-learn-probe.XXXXXX.md")"
+  trap 'rm -f "${probe:-}" "${tmp:-}"' EXIT
+  awk 'BEGIN { separators=0 } /^---$/ { separators++; next } separators >= 2 { print }' "$candidate" >"$probe"
+  if ! "$DOT/bin/ai-memory-hygiene" --candidate "$probe" --strict >/dev/null 2>&1; then
+    printf 'ai-learn: hygiene rejected this candidate. Nothing was written to tracked memory.\n\n' >&2
+    "$DOT/bin/ai-memory-hygiene" --candidate "$probe" 2>&1 \
+      | { grep -F "$(basename "$probe")" || true; } \
+      | sed -e "s#[^ ]*$(basename "$probe")#<candidate>#g" -e "s#$DOT/##g" >&2
+    printf '\nFix the candidate, or drop it. Retry when it is clean.\n' >&2
+    exit 1
+  fi
+  rm -f "$probe"; probe=""
 
   promoted_dir="$INBOX/promoted"
   mkdir -p "$promoted_dir"
   chmod 700 "$promoted_dir"
   promoted_path="$promoted_dir/$(basename "$candidate")"
   [ ! -e "$promoted_path" ] || die "promoted archive already exists: $promoted_path"
-  target_dir="$(dirname "$target_path")"
   tmp="$(mktemp "$target_dir/.ai-learn.XXXXXX.md")"
-  trap 'rm -f "${tmp:-}"' EXIT
   cp -p "$target_path" "$tmp"
   {
     printf '\n\n---\n\n'
@@ -167,7 +197,7 @@ promote() {
     printf '\n> Promoted from a reviewed local candidate on %s.\n' "$(date -u +%Y-%m-%d)"
   } >>"$tmp"
   "$DOT/bin/ai-memory-check" "$tmp" >/dev/null
-  mv "$tmp" "$target_path"
+  mv "$tmp" "$target_path"; tmp=""
   trap - EXIT
   mv "$candidate" "$promoted_path"
   printf 'Promoted to: %s\nArchived candidate: %s\nNo Git action was performed.\n' "$target_path" "$promoted_path"

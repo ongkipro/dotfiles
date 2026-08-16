@@ -6,6 +6,7 @@ memory links, project templates, and policy canaries across dotfiles.
 """
 
 from pathlib import Path
+import json
 import os
 import subprocess
 import sys
@@ -74,6 +75,43 @@ def run_canonical_gate(label, command, extra_env=None):
         print(f"  OK  {label}: {summary}")
 
 
+def report_memory_hygiene():
+    """Report hygiene findings against the real corpus, not just its regression test.
+
+    Until 2026-08-16 the only hygiene invocation anywhere in CI was
+    ai-memory-hygiene-test, which runs against synthetic fixtures. Nothing ever
+    ran the tool over the memory that actually ships, so live findings had zero
+    automated visibility — twenty-five of them had accumulated unseen.
+
+    This is advisory on purpose. The corpus carries pre-existing warnings, and
+    failing the lint on them would turn a green build red for debt nobody is
+    being asked to pay in this change. It reports the count and the kinds so the
+    number is in front of someone; the hard gate lives in `ai-learn promote`,
+    where new memory actually enters.
+    """
+    tool = ROOT / "bin" / "ai-memory-hygiene"
+    if not os.access(tool, os.X_OK):
+        print("  WARN  memory hygiene: ai-memory-hygiene is not executable")
+        return
+    result = subprocess.run([str(tool), "--root", str(ROOT), "--json"],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+    if result.returncode != 0:
+        print(f"  WARN  memory hygiene: tool failed: {result.stderr.strip()[:120]}")
+        return
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        print("  WARN  memory hygiene: unreadable JSON output")
+        return
+    issues = data.get("issues", [])
+    if not issues:
+        print("  OK  memory hygiene corpus: clean")
+        return
+    kinds = ", ".join(f"{k}x{v}" for k, v in sorted(data.get("counts", {}).items()))
+    print(f"  note  memory hygiene corpus: {len(issues)} advisory finding(s) — {kinds}")
+    print("        run `ai-memory-hygiene` for detail; promotion is gated separately")
+
+
 def check_templates():
     if not TEMPLATES_DIR.is_dir():
         err(f"Missing templates directory: {TEMPLATES_DIR}")
@@ -94,6 +132,7 @@ def main():
     run_canonical_gate("owned skills", [ROOT / "skills" / "agents-bin" / "skill-check"], {"SKILL_SOURCE": str(ROOT / "skills" / "local")})
     run_canonical_gate("memory and Markdown links", [ROOT / "bin" / "ai-memory-check", ROOT])
     run_canonical_gate("memory hygiene regression", [ROOT / "bin" / "ai-memory-hygiene-test", ROOT])
+    report_memory_hygiene()
     check_templates()
 
     if warnings:

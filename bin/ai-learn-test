@@ -9,8 +9,12 @@ export HOME="$TEST_ROOT/home"
 export DOTFILES_DIR="$TEST_ROOT/dotfiles"
 export AI_MEMORY_INBOX_DIR="$HOME/.config/ai-local/memory-inbox"
 mkdir -p "$DOTFILES_DIR/bin" "$DOTFILES_DIR/config/ai/memory" "$DOTFILES_DIR/config/ai/project-memory"
-cp "$SOURCE_DOT/bin/ai-learn" "$SOURCE_DOT/bin/ai-memory-check" "$DOTFILES_DIR/bin/"
-chmod +x "$DOTFILES_DIR/bin/ai-learn" "$DOTFILES_DIR/bin/ai-memory-check"
+# ai-memory-hygiene is a hard dependency of promote: it gates the only path
+# that mutates tracked memory. The fixture carries it, and its policy, so the
+# gate is exercised here rather than stubbed away.
+cp "$SOURCE_DOT/bin/ai-learn" "$SOURCE_DOT/bin/ai-memory-check" "$SOURCE_DOT/bin/ai-memory-hygiene" "$DOTFILES_DIR/bin/"
+chmod +x "$DOTFILES_DIR/bin/ai-learn" "$DOTFILES_DIR/bin/ai-memory-check" "$DOTFILES_DIR/bin/ai-memory-hygiene"
+cp "$SOURCE_DOT/config/ai/memory-hygiene.json" "$DOTFILES_DIR/config/ai/"
 printf '# Workflow\n' >"$DOTFILES_DIR/config/ai/memory/workflow.md"
 printf '# Project\n' >"$DOTFILES_DIR/config/ai/project-memory/example.md"
 
@@ -91,5 +95,29 @@ grep -qF 'A full-replace form must load every persisted field it writes.' \
 [ "$(stat -c '%a' "$DOTFILES_DIR/config/ai/project-memory/example.md" 2>/dev/null || stat -f '%Lp' "$DOTFILES_DIR/config/ai/project-memory/example.md")" = "$before_mode" ] \
   || { echo "FAIL: promotion changed canonical file permissions" >&2; exit 1; }
 "$DOTFILES_DIR/bin/ai-memory-check" "$DOTFILES_DIR/config/ai/project-memory/example.md" >/dev/null
+
+# --- the hygiene gate must actually reject, not merely be wired ---------------
+# Promotion is the only path that mutates tracked, committed memory. Before
+# 2026-08-16 it ran no hygiene at all, so volatile state entered permanent
+# memory whenever the manual step was skipped. These cases prove the gate bites.
+dirty="$AI_MEMORY_INBOX_DIR/dirty-candidate.md"
+printf -- '---\nstatus: candidate\n---\n\n## Lesson: probe\n\nCurrently the deploy is blocked. Resume here after lunch.\n' >"$dirty"
+target_before="$(cat "$DOTFILES_DIR/config/ai/project-memory/example.md")"
+if "$learn" promote dirty-candidate.md --target project:example --yes >/dev/null 2>&1; then
+  echo "FAIL: hygiene gate accepted a candidate carrying volatile project state" >&2; exit 1
+fi
+[ "$(cat "$DOTFILES_DIR/config/ai/project-memory/example.md")" = "$target_before" ] \
+  || { echo "FAIL: a rejected promotion still mutated tracked memory" >&2; exit 1; }
+[ -f "$dirty" ] || { echo "FAIL: a rejected candidate was archived instead of left pending" >&2; exit 1; }
+[ -z "$(find "$DOTFILES_DIR/config/ai/project-memory" -name '.ai-learn*' -print -quit)" ] \
+  || { echo "FAIL: a rejected promotion left a staging temp behind" >&2; exit 1; }
+
+# A missing hygiene binary must stop the promotion, not silently skip the gate.
+mv "$DOTFILES_DIR/bin/ai-memory-hygiene" "$DOTFILES_DIR/bin/ai-memory-hygiene.off"
+printf -- '---\nstatus: candidate\n---\n\n## Lesson: bounded ceiling\n\nA bounded retry ceiling beats an unbounded one.\n' >"$AI_MEMORY_INBOX_DIR/nogate.md"
+if "$learn" promote nogate.md --target project:example --yes >/dev/null 2>&1; then
+  echo "FAIL: promotion proceeded with ai-memory-hygiene absent" >&2; exit 1
+fi
+mv "$DOTFILES_DIR/bin/ai-memory-hygiene.off" "$DOTFILES_DIR/bin/ai-memory-hygiene"
 
 echo "PASS: ai-learn capture and reviewed promotion"

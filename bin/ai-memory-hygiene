@@ -48,7 +48,15 @@ def tracked_memory(root: Path) -> list[Path]:
     for rel in ("config/ai/memory", "config/ai/project-memory", "config/ai/project-memory-kelola"):
         base = root / rel
         if base.is_dir():
-            files.extend(sorted(p for p in base.rglob("*.md") if p.is_file()))
+            # Skip dot-prefixed files. pathlib's glob matches them where shell
+            # globbing does not, so a staging temp written into a memory
+            # directory was being read back as tracked memory — which made a
+            # candidate compare against itself and against its own merge temp,
+            # and every promotion looked like a duplicate of something.
+            files.extend(sorted(
+                p for p in base.rglob("*.md")
+                if p.is_file() and not p.name.startswith(".")
+            ))
     return files
 
 
@@ -228,6 +236,25 @@ def scan(root: Path, policy: dict, today: date, candidate: Path | None = None) -
         out.extend(check_authority(root, path, policy))
         out.extend(check_stale_dates(path, policy, today))
     out.extend(check_duplicate_index(root, policy))
+
+    # Run the per-file checks on the candidate too, not only the semantic
+    # comparison. Until 2026-08-16 `--candidate` fed check_semantic_pairs and
+    # nothing else, so a candidate's own oversize, scope violation, volatile
+    # state, authority conflict, and stale dates were never examined — the one
+    # thing a pre-write gate most needs to catch.
+    #
+    # These checks resolve shared-vs-project rules from the path, and each
+    # returns [] when the path is outside `root`. A caller that wants the
+    # candidate evaluated must therefore hand over a path at its intended
+    # destination: `ai-learn promote` passes the merged file it has already
+    # staged inside the target directory.
+    if candidate is not None:
+        out.extend(check_size(root, candidate, policy))
+        out.extend(check_scope(root, candidate, policy))
+        out.extend(check_volatile(root, candidate, policy))
+        out.extend(check_authority(root, candidate, policy))
+        out.extend(check_stale_dates(candidate, policy, today))
+
     comparison = tracked + ([candidate] if candidate is not None else [])
     out.extend(check_semantic_pairs(comparison, policy, candidate))
     return sorted(out, key=lambda x: (x["severity"], x["kind"], x["path"], x.get("line", 0), x.get("relatedPath", "")))
@@ -249,7 +276,16 @@ def main() -> int:
         if candidate is not None and (not candidate.is_file() or candidate.suffix.lower() != ".md"):
             raise ValueError("candidate must be an existing Markdown file")
         issues = scan(root, policy, today, candidate)
-        result = {"status": "WARN" if issues else "PASS", "candidate": str(candidate) if candidate else None, "issues": issues, "counts": dict(Counter(x["kind"] for x in issues))}
+        # A gate must judge what the caller is about to do, not the debt it
+        # inherited. The tracked corpus carries pre-existing warnings; if
+        # --strict counted those, every promote would be blocked forever for
+        # reasons unrelated to the candidate, and the gate would simply be
+        # routed around. With --candidate, --strict keys on issues attributed
+        # to the candidate itself.
+        blocking = [x for x in issues if x["path"] == str(candidate)] if candidate else issues
+        result = {"status": "WARN" if issues else "PASS", "candidate": str(candidate) if candidate else None,
+                  "candidateIssues": len(blocking) if candidate else None,
+                  "issues": issues, "counts": dict(Counter(x["kind"] for x in issues))}
         if a.json:
             print(json.dumps(result, indent=2))
         else:
@@ -261,7 +297,7 @@ def main() -> int:
                     rel = Path(item["path"])
                 print(f"{item['severity']} {item['kind']} {rel}{line}: {item['detail']}")
             print(f"ai-memory-hygiene: {result['status']} ({len(issues)} issue(s))")
-        return FAILED if a.strict and issues else OK
+        return FAILED if a.strict and blocking else OK
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"ai-memory-hygiene: ERROR: {exc}", file=sys.stderr)
         return FAILED
