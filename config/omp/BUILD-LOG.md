@@ -266,8 +266,14 @@ Also corrected in ROUTING.md: the capacity-pool paragraph still said Antigravity
 longer describes anything — `@task` is precision now, not a cheap tier.
 
 Compaction is unchanged and matters more here, not less: `thresholdTokens` 140000
-against Codex's declared 372000 window means compaction actually fires, which is
+against Codex's 272000 window means compaction actually fires, which is
 precisely what did not happen under Gemini's million-token window.
 
 Validation: `omp-routing-test` OK (roles=13, overrides=11, async=8, overlays=2,
 catalog=790 models); `ai-policy-lint` PASSED.
+
+**Correction 2026-08-16:** this entry first cited a 372000 window. That figure
+belongs to the 9Router transport variant `cx/gpt-5.6-sol`; the model `default`
+actually resolves to is `openai-codex/gpt-5.6-sol`, whose live catalog window is
+272000. The conclusion is unchanged — 140000 against 272000 is still a 51%
+margin, so compaction fires well before the window — but the number was wrong.

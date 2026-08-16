@@ -144,12 +144,27 @@ omp() {
 
 # OMP generates completions from live command metadata, so new upstream
 # subcommands do not require a hand-maintained completion file.
+# `omp completions` costs about a second of pure CPU per call — measured 0.97s on
+# `rich`, which made it the single largest contributor to a ~3s interactive shell
+# start once a duplicated bashrc block was running it twice. Cache the output and
+# key it on the binary's mtime, so the cost is paid once per omp upgrade instead
+# of on every shell. Everything here fails open: a missing or stale cache costs
+# completions, never a working shell.
 if [[ $- == *i* ]] && command -v omp >/dev/null 2>&1; then
-  if [ -n "${ZSH_VERSION:-}" ]; then
-    eval "$(command omp completions zsh 2>/dev/null)"
-  else
-    eval "$(command omp completions bash 2>/dev/null)"
+  _omp_shell=bash
+  [ -n "${ZSH_VERSION:-}" ] && _omp_shell=zsh
+  _omp_bin="$(command -v omp)"
+  _omp_cache="${XDG_CACHE_HOME:-$HOME/.cache}/omp-completions.$_omp_shell"
+  if [ ! -s "$_omp_cache" ] || [ "$_omp_bin" -nt "$_omp_cache" ]; then
+    mkdir -p "$(dirname "$_omp_cache")" 2>/dev/null
+    if command omp completions "$_omp_shell" >"$_omp_cache.tmp" 2>/dev/null; then
+      mv "$_omp_cache.tmp" "$_omp_cache"
+    else
+      rm -f "$_omp_cache.tmp"
+    fi
   fi
+  [ -s "$_omp_cache" ] && source "$_omp_cache"
+  unset _omp_shell _omp_bin _omp_cache
 fi
 
 # --- starship prompt ---

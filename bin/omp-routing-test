@@ -421,6 +421,15 @@ for reference in role_references:
     if not role or role not in roles:
         fail("bad @role reference: " + reference)
 
+# Read the tracked file, not the runtime view. `runtime_value` returns OMP's
+# resolved config, so a field deleted from config.yml comes back as OMP's own
+# default and the removal is invisible — which is exactly how this one was
+# dropped without anything noticing.
+for required_key in ("defaultThinkingLevel", "cycleOrder", "modelProviderOrder"):
+    if not re.search(r"^{}\s*:".format(re.escape(required_key)), config_source, re.M):
+        fail("{} is missing from the tracked config.yml — it was silently dropped once "
+             "before, and OMP's own default hides the loss at runtime".format(required_key))
+
 cycle_order = runtime_value("cycleOrder")
 if not isinstance(cycle_order, list) or not cycle_order:
     fail("cycleOrder must be a non-empty list")
@@ -451,7 +460,11 @@ provider_order = runtime_value("modelProviderOrder")
 if not isinstance(provider_order, list) or not provider_order:
     fail("modelProviderOrder must be a non-empty list")
 
-worker_roles = [r for r in ("default", "task", "slow", "plan", "smol", "tiny") if r in roles]
+# Scoped to the lanes an advisor actually reviews. ROUTING.md grounds vendor
+# independence in "the Antigravity and Codex workers it reviews" — mechanical
+# support is not that, so a cheap utility model sharing the advisor vendor is
+# legitimate and must not be rejected.
+worker_roles = [r for r in ("default", "task", "slow", "plan") if r in roles]
 worker_providers = {provider_of(roles[r]) for r in worker_roles}
 for role in [r for r in roles if r.startswith("advisor") or r == "discovery"]:
     if provider_of(roles[role]) in worker_providers:
@@ -465,6 +478,20 @@ for role, selector in roles.items():
     if provider_of(selector) not in provider_order:
         fail("role '{}' uses provider '{}', absent from modelProviderOrder {} — recovery cannot "
              "reach it. ".format(role, provider_of(selector), provider_order) + OVERLAY_HINT)
+
+# Three capacity pools is the design, not a preference. Concentrating one tier on
+# one vendor is a deliberate choice — `default`/`task`/`slow`/`plan` all sit on
+# Codex today, by decision. Concentrating *everything* is the collapse this test
+# exists to catch, and checking the advisor tier alone did not catch it: a config
+# with every worker on one vendor and one anthropic advisor still passed.
+role_providers = {provider_of(sel) for sel in roles.values()}
+if len(role_providers) < 3:
+    fail(
+        "the role set spans only {} provider(s) {} — ROUTING.md's design is three capacity "
+        "pools (volume, precision, judgment) and collapsing them loses the recovery and "
+        "independence the split exists for. ".format(len(role_providers), sorted(role_providers))
+        + OVERLAY_HINT
+    )
 
 reserve = [pr for pr in provider_order if pr.startswith("9router")]
 if reserve and provider_order[-1] not in reserve:

@@ -11,8 +11,8 @@ Routing is organised as three capacity pools across thirteen roles and eleven ag
 
 | Pool | Roles | Purpose |
 |---|---|---|
-| Antigravity | `default`, `vision`, `designer`, `research`, `smol`, `tiny` | Volume. Carries the main session and every context-hungry lane. |
-| Codex | `slow`, `task`, `plan` | Precision. The lanes where a wrong edit costs the most rework. |
+| Antigravity | `vision`, `designer`, `research`, `smol`, `tiny` | Volume. Carries every context-hungry lane: visual work, source research, mechanical support. |
+| Codex | `default`, `slow`, `task`, `plan` | Precision, and since 2026-08-16 the main session too. The lanes where a wrong edit costs the most rework. |
 | Anthropic | `advisor`, `advisor-xhigh`, `advisor-max`, `discovery` | Judgment. Independent consultation, review, and the repository map `scout` returns. |
 
 All eleven agents — seven bundled and four custom agents under `agents/`

@@ -139,13 +139,18 @@ say "   ~/Projects/"
 say "==> Patch ~/.zshrc dan ~/.bashrc (tanpa overwrite total)..."
 # Gunakan single-quote agar $HOME tetap dinamis di .zshrc (portabel antar user/mesin)
 # Runtime managers and local command dirs must load before tracked shell helpers.
-ensure_line 'eval "$($HOME/.local/bin/mise activate zsh)"' "$HOME/.zshrc"
-ensure_line 'export PATH="$HOME/.local/bin:$HOME/.agents/bin:$PATH"' "$HOME/.zshrc"
+# One line per rc file, and it is the tracked entry point. Everything the removed
+# lines did, `config/shell-tools.sh` already does and does better: it activates
+# mise, and it guards each PATH entry with a `case ":$PATH:"` test so re-sourcing
+# cannot duplicate it.
+#
+# Writing them here as well is what produced a ~3s interactive shell on `rich`:
+# these lines landed in a `~/.bashrc` that install.sh had already wired, so
+# shell-tools.sh was sourced twice and `omp completions` — about a second of CPU
+# per call — ran twice on every prompt. The nvm lines were dead on arrival there
+# too: nvm was retired 2026-07-27, and `brew --prefix nvm` is a subshell that can
+# only fail on Linux.
 ensure_line 'source "$HOME/dotfiles/config/zshrc.tools.sh"' "$HOME/.zshrc"
-ensure_line 'eval "$($HOME/.local/bin/mise activate bash)"' "$HOME/.bashrc"
-ensure_line 'export NVM_DIR="$HOME/.nvm"' "$HOME/.bashrc"
-ensure_line '[ -s "$(brew --prefix nvm 2>/dev/null)/nvm.sh" ] && source "$(brew --prefix nvm)/nvm.sh"' "$HOME/.bashrc"
-ensure_line 'export PATH="$HOME/.local/bin:$HOME/.agents/bin:$PATH"' "$HOME/.bashrc"
 ensure_line 'source "$HOME/dotfiles/config/bashrc.tools.sh"' "$HOME/.bashrc"
 ensure_line '[ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc"' "$HOME/.bash_profile"
 
