@@ -1,10 +1,12 @@
 providers:
   9router-fantastico:
-    baseUrl: "https://rbq97ts.abc-tunnel.us/v1"
+    baseUrl: "http://127.0.0.1:20128/v1"
     apiKey: "NINEROUTER_REMOTE_KEY"
     authHeader: true
     api: "openai-completions"
     name: "9Router Fantastico"
+    discovery:
+      type: "openai-models-list"
     models:
       - id: "cx/gpt-5.6-sol"
         name: "cx/gpt-5.6-sol (Gpt 5.6 Sol)"

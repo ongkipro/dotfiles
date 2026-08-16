@@ -1,7 +1,7 @@
 # Device: `feris-MacBook-Air`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-08-11**
+> Terakhir diperbarui: **2026-08-16**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -22,7 +22,7 @@
 | CPU | Apple M1 (8 thread) |
 | RAM | 8.0 GB |
 | GPU | Apple M1 |
-| Disk (/) | 228Gi total, 69Gi free (15% used) |
+| Disk (/) | 228Gi total, 65Gi free (16% used) |
 
 ## AI CLI
 
