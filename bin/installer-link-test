@@ -118,8 +118,30 @@ EOF
   echo "✓ install.sh:ensure_shell_source"
 }
 
+test_runtime_command_manifest() {
+  local manifest="$ROOT/config/ai/runtime-commands.txt" command_name
+  [ -f "$manifest" ] || { echo "missing runtime command manifest" >&2; return 1; }
+  while IFS= read -r command_name; do
+    case "$command_name" in ""|\#*) continue ;; esac
+    [ -x "$ROOT/bin/$command_name" ] || {
+      echo "manifest command is missing or not executable: $command_name" >&2
+      return 1
+    }
+  done < "$manifest"
+  for command_name in ai-memory-access ai-memory-harvest ai-memory-hygiene ai-memory-lifecycle ai-memory-route ai-skill-evolution delivery-benchmark delivery-learning delivery-ledger delivery-skill-usage migration-risk production-gate release-check release-manifest rollback-check; do
+    grep -qxF "$command_name" "$manifest" || {
+      echo "public command missing from manifest: $command_name" >&2
+      return 1
+    }
+  done
+  grep -qF 'runtime-commands.txt' "$ROOT/install.sh"
+  grep -qF 'runtime-commands.txt' "$ROOT/install-macos.sh"
+  echo "✓ runtime command manifest"
+}
+
 test_helper "$ROOT/install.sh" link
 test_helper "$ROOT/install-macos.sh" link
 test_helper "$ROOT/bin/tmux-setup" link_to_repo
 test_shell_source_migration
+test_runtime_command_manifest
 echo "installer-link-test: OK"

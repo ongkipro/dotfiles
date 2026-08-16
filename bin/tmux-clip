@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # Clipboard wrapper: cross-platform (macOS + Wayland + X11 + WSL)
 # Auto-deteksi: pbcopy (macOS) > wl-copy (Wayland) > xclip/xsel (X11) > clip.exe (WSL)
+#
+# Falling off the end of the detection chain used to exit 0 with stdin silently
+# discarded, so a failed copy looked exactly like a successful one. Exit non-zero
+# and say which backend is missing instead.
+set -euo pipefail
 if command -v pbcopy >/dev/null 2>&1; then
     exec pbcopy                          # macOS
 elif command -v wl-copy >/dev/null 2>&1 && [ -n "${WAYLAND_DISPLAY:-}" ]; then
@@ -12,4 +17,7 @@ elif command -v xsel >/dev/null 2>&1 && [ -n "${DISPLAY:-}" ]; then
 elif command -v clip.exe >/dev/null 2>&1; then
     # WSL: forward to Windows clipboard via clip.exe
     exec clip.exe
+else
+    echo "tmux-clip: no clipboard backend found (tried pbcopy, wl-copy, xclip, xsel, clip.exe)" >&2
+    exit 1
 fi

@@ -39,4 +39,4 @@ jobs:
       - name: Run portable fixtures
         run: python3 scripts/test-suite.py
       - name: Audit source ledger
-        run: python3 scripts/audit-sources.py --as-of 2026-08-04
+        run: python3 scripts/audit-sources.py

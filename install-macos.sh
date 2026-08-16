@@ -23,9 +23,17 @@ link() {
   say "   $dst -> $src"
 }
 ensure_line() {
-  local line="$1" file="$2"
+  local line="$1" file="$2" backup
   touch "$file"
-  grep -Fqx "$line" "$file" 2>/dev/null || printf '\n%s\n' "$line" >> "$file"
+  if grep -Fqx "$line" "$file" 2>/dev/null; then
+    return 0
+  fi
+  if [ -s "$file" ]; then
+    backup="$(mktemp "${file}.bak.$(date +%Y%m%d-%H%M%S 2>/dev/null || echo old).XXXXXX")"
+    cp -p "$file" "$backup"
+    say "   backup: $file -> $backup"
+  fi
+  printf '\n%s\n' "$line" >> "$file"
 }
 
 say "==> Symlink shared memory, config penting, dan scripts..."
@@ -40,29 +48,11 @@ mkdir -p "$HOME/.config/mise" "$HOME/.config/lazygit" "$HOME/.config/gh"
 link "$DOT/config/mise-config.toml"      "$HOME/.config/mise/config.toml"   # toolchain bersama
 link "$DOT/config/lazygit/config.yml"    "$HOME/.config/lazygit/config.yml"
 link "$DOT/config/gh/config.yml"         "$HOME/.config/gh/config.yml"      # hosts.yml TIDAK di-link (oauth token)
-link "$DOT/bin/ai-memory-link"           "$HOME/.local/bin/ai-memory-link"
-link "$DOT/bin/dotsync"                  "$HOME/.local/bin/dotsync"
-link "$DOT/bin/dotpush"                  "$HOME/.local/bin/dotpush"
-link "$DOT/bin/ai-doctor"                "$HOME/.local/bin/ai-doctor"        # cek rantai AI↔device↔memori
-link "$DOT/bin/ai-memory-check"          "$HOME/.local/bin/ai-memory-check"
-link "$DOT/bin/ai-learn"                 "$HOME/.local/bin/ai-learn"
-link "$DOT/bin/ai-learn-test"            "$HOME/.local/bin/ai-learn-test"
-link "$DOT/bin/security-check"           "$HOME/.local/bin/security-check"
-link "$DOT/bin/security-check-test"      "$HOME/.local/bin/security-check-test"
-link "$DOT/bin/skill-check-test"         "$HOME/.local/bin/skill-check-test"
-link "$DOT/bin/skill-update-test"        "$HOME/.local/bin/skill-update-test"
-link "$DOT/bin/installer-link-test"      "$HOME/.local/bin/installer-link-test"
-link "$DOT/bin/shell-wrapper-test"       "$HOME/.local/bin/shell-wrapper-test"
-link "$DOT/bin/inspect-project"          "$HOME/.local/bin/inspect-project"
-link "$DOT/bin/project-init"             "$HOME/.local/bin/project-init"
-link "$DOT/bin/project-init-test"        "$HOME/.local/bin/project-init-test"
-link "$DOT/bin/omp-routing-test"          "$HOME/.local/bin/omp-routing-test"
-link "$DOT/bin/project-check"           "$HOME/.local/bin/project-check"
-link "$DOT/bin/diff-risk"               "$HOME/.local/bin/diff-risk"
-link "$DOT/bin/ai-policy-lint"          "$HOME/.local/bin/ai-policy-lint"
-for s in tmux-clip tmux-setup tmux-battery security-check 9router-start 9router-restore 9router-credential-migrate pi-9router-restore device-register shopify-content-helper; do
-  [ -e "$DOT/bin/$s" ] && link "$DOT/bin/$s" "$HOME/.local/bin/$s"
-done
+while IFS= read -r s; do
+  case "$s" in ""|\#*) continue ;; esac
+  [ -x "$DOT/bin/$s" ] || { echo "ERROR: runtime command is missing or not executable: $s" >&2; exit 1; }
+  link "$DOT/bin/$s" "$HOME/.local/bin/$s"
+done < "$DOT/config/ai/runtime-commands.txt"
 
 
 say "==> Link local skills + skill commands..."
@@ -86,20 +76,24 @@ say "==> Setup tmux (install binary + clipboard + TPM + plugin)..."
 say "==> Install mise (tool manager)..."
 if command -v mise >/dev/null 2>&1; then
   say "   mise sudah ada: $(mise --version 2>&1 | head -1)"
-else
-  curl -fsSL https://mise.run | sh
-fi
-eval "$($HOME/.local/bin/mise activate bash 2>/dev/null || $HOME/.local/bin/mise activate zsh 2>/dev/null || true)"
+  eval "$($HOME/.local/bin/mise activate bash 2>/dev/null || $HOME/.local/bin/mise activate zsh 2>/dev/null || true)"
 
-say "==> Install essential tools via mise..."
-MISE_TOOLS="starship direnv lazygit helix"
-for tool in $MISE_TOOLS; do
-  if mise which "$tool" >/dev/null 2>&1; then
-    say "   $tool sudah ada"
-  else
-    mise use -g "$tool" && say "   $tool ✓ terinstall"
-  fi
-done
+  say "==> Install essential tools via mise..."
+  MISE_TOOLS="starship direnv lazygit helix"
+  for tool in $MISE_TOOLS; do
+    if mise which "$tool" >/dev/null 2>&1; then
+      say "   $tool sudah ada"
+    else
+      mise use -g "$tool" && say "   $tool ✓ terinstall"
+    fi
+  done
+else
+  cat <<'EOF'
+   mise belum ada. Skrip ini tidak menjalankan remote script otomatis — install manual:
+       curl -fsSL https://mise.run | sh
+   Lalu jalankan ulang install-macos.sh untuk lanjut instal starship/direnv/lazygit/helix via mise.
+EOF
+fi
 
 say "==> Optional 9Router/Pi setup..."
 if [ "${DOTFILES_SETUP_PI:-0}" = "1" ]; then

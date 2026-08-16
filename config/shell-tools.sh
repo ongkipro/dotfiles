@@ -16,7 +16,7 @@ case ":$PATH:" in *":$HOME/.agents/bin:"*) ;; *) export PATH="$HOME/.agents/bin:
 
 # --- mise: tool manager (no sudo) ---
 if command -v mise >/dev/null; then
-  export PATH="$HOME/.local/share/mise/shims:$PATH"
+  case ":$PATH:" in *":$HOME/.local/share/mise/shims:"*) ;; *) export PATH="$HOME/.local/share/mise/shims:$PATH";; esac
   eval "$(mise activate "$(_shell_name)")"
 fi
 
