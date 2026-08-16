@@ -9,7 +9,7 @@ modelRoles:
   discovery: google-antigravity/claude-sonnet-4-6:medium
   tiny: google-antigravity/gemini-3.1-flash-lite:minimal
   task: google-antigravity/gemini-3.1-pro:high
-  default: google-antigravity/gemini-3.5-flash:medium
+  default: google-antigravity/gemini-3.7-flash:medium
   advisor: google-antigravity/gemini-3.1-pro:high
   advisor-xhigh: google-antigravity/gemini-3.1-pro:high
   advisor-max: google-antigravity/gemini-3.1-pro:high
@@ -47,7 +47,7 @@ retry:
       - google-antigravity/gemini-3.7-flash:high
     research: 
       - google-antigravity/gemini-3.6-flash:high
-    discovery:
+    discovery: 
       - google-antigravity/gemini-3.7-flash:high
     advisor: 
       - google-antigravity/gemini-3.7-flash:high
@@ -58,7 +58,7 @@ retry:
 async: 
   enabled: true
   maxJobs: 8
-task:
+task: 
   batch: true
   maxConcurrency: 8
   showResolvedModelBadge: true
