@@ -15,3 +15,56 @@ would_lose_if_wired: wiring .source would overwrite the working fork with
 to_vendor: report the bug to greensock/gsap-skills; once upstream ships
   Math.max (or equivalent), re-diff and wire .source if the rest still
   matches.
+
+recheck: 2026-08-16 — still present upstream at line 235. Re-run this check
+  before filing, in case it lands in the meantime:
+    curl -s https://raw.githubusercontent.com/greensock/gsap-skills/main/skills/gsap-scrolltrigger/SKILL.md | grep -n 'Max\.max'
+
+--- ready to file at github.com/greensock/gsap-skills, unsent ---
+
+Title: gsap-scrolltrigger: horizontal scroll snippet calls `Max.max`, which
+       throws ReferenceError
+
+Body:
+`skills/gsap-scrolltrigger/SKILL.md` line 235 reads:
+
+    xPercent: () => Max.max(0, window.innerWidth - scrollingEl.offsetWidth),
+
+`Max` is not a JavaScript global. Anyone copying this snippet gets
+`Uncaught ReferenceError: Max is not defined` the moment the tween evaluates
+its function value — so the documented horizontal-scroll recipe cannot run as
+written. `Math.max` is presumably intended.
+
+While fixing the typo, two nearby things are worth correcting in the same
+snippet, since a reader who hits the ReferenceError will be editing these lines
+anyway:
+
+1. The travel distance is computed from `window.innerWidth -
+   scrollingEl.offsetWidth`. The distance the content actually needs to move is
+   its own overflow, `scrollWidth - clientWidth`. Guarding at 0 also stops
+   non-overflowing content from moving at all.
+
+2. `end: "+=1000"` is a fixed scroll length that does not match the travel
+   distance, so the pin runs long or short depending on content width. Deriving
+   `end` from the same distance function gives a 1:1 feel, and
+   `invalidateOnRefresh: true` makes both function values recompute on resize.
+
+Suggested:
+
+    const distance = () =>
+      Math.max(0, scrollingEl.scrollWidth - document.documentElement.clientWidth);
+
+    const scrollTween = gsap.to(scrollingEl, {
+      x: () => -distance(),
+      ease: "none",
+      scrollTrigger: {
+        trigger: scrollingEl,
+        pin: scrollingEl.parentNode,
+        start: "top top",
+        end: () => "+=" + distance(),
+        invalidateOnRefresh: true,
+      },
+    });
+
+Only the `Max.max` typo is a defect; items 1 and 2 are quality suggestions and
+can be dropped if you would rather keep the change minimal.
