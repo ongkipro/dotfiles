@@ -19,9 +19,14 @@ JOB → CHANGE RISK → REQUIRED CAPABILITIES → MODEL CANDIDATES → MEASURED 
 > **"Intelligence in contracts, tools, evidence, and routing — not in every token."**
 
 Instead of relying on expensive frontier LLMs for routine tasks, the system shifts intelligence into deterministic engineering infrastructure:
-- **60–75% of execution tokens:** Volume/cheap worker models (`@smol`, `@task` via Antigravity Gemini 3.6 Flash / Flash Lite).
-- **20–30% of execution tokens:** Precision coding models (`@slow` via Codex GPT-5.6 Sol).
-- **5–10% of execution tokens:** Frontier judgment models (`@advisor-max`, `@architect` via Claude Opus 5).
+- **Bounded, mechanical, and high-volume lanes:** `@smol`, `@tiny` via Antigravity Gemini 3.7 Flash / 3.1 Flash Lite.
+- **The main session and every delegated implementation lane:** `@default`, `@task`, `@slow`, `@plan` via Codex GPT-5.6 Sol.
+- **Frontier judgment, kept scarce:** `@advisor`, `@advisor-xhigh`, `@advisor-max`, `@architect` via Claude Sonnet 5 / Opus 5.
+
+> The earlier 60–75 / 20–30 / 5–10 token split described the arrangement before
+> 2026-08-16, when the main session ran on the volume pool. Since the main session
+> is 97.7% of tokens and now runs on Codex, that split inverts. Do not quote
+> percentages from this document; measure them from `~/.omp/stats.db` instead.
 
 ---
 
@@ -40,13 +45,29 @@ The leverage point is not raw output token pricing, but **cost per successfully 
 
 ## 3. Capacity Pools & Specialist Taxonomy
 
-OMP manages twelve explicit model roles across three capacity pools:
+OMP manages thirteen explicit model roles across three capacity pools. The
+authoritative list is `config/omp/config.yml`; verify against it before quoting
+this table.
 
 | Capacity Pool | Roles | Primary Responsibility | Primary Model Provider |
 |---|---|---|---|
-| **Volume Pool** | `default`, `research`, `vision`, `designer`, `smol`, `tiny` | Main session context ownership, broad research, visual QA, mechanical data collection | Antigravity (Gemini 3.6 Flash / 3.1 Pro) |
-| **Precision Pool** | `task`, `slow`, `plan` | Delegated implementation, complex reasoning, algorithms, architecture planning | Codex (GPT-5.6 Sol) |
-| **Judgment Pool** | `advisor`, `advisor-xhigh`, `advisor-max` | Independent consultation, deep debugging, security audits, high-impact review | Anthropic (Claude Sonnet 5 / Opus 5) |
+| **Volume Pool** | `research`, `vision`, `designer`, `smol`, `tiny` | Main session context ownership, broad research, visual QA, mechanical data collection | Antigravity (Gemini 3.7 Flash / 3.1 Pro / 3.1 Flash Lite) |
+| **Precision Pool** | `default`, `task`, `slow`, `plan` | Delegated implementation, complex reasoning, algorithms, architecture planning | Codex (GPT-5.6 Sol) |
+| **Judgment Pool** | `discovery`, `advisor`, `advisor-xhigh`, `advisor-max` | Read-only repository discovery feeding a decision (`scout`), independent consultation, deep debugging, security audits, high-impact review | Anthropic (Claude Sonnet 5 / Opus 5) |
+
+> **`default` sits in the Precision Pool by decision, 2026-08-16.** It moved from
+> Antigravity Gemini 3.7 Flash to Codex GPT-5.6 Sol High so that ordinary full-stack
+> development runs on the model with the lowest measured tool-call error rate; `smol`
+> rose to Gemini 3.7 Flash so mechanical work did not regress. One consequence to
+> keep in mind: `default`, `task`, `slow`, and `plan` are now the same model at the
+> same tier, so escalation within Codex buys nothing — escalate cross-vendor to the
+> advisor lane instead. Rationale and evidence: `config/omp/BUILD-LOG.md`. Read
+> `config/omp/config.yml` — never this table — for the live answer.
+
+`discovery` was split out of `research` because the two share a shape but not a
+failure profile: `librarian` returns verbatim excerpts a reader can check, while
+`scout` returns an interpreted map the parent session acts on without re-reading
+the source. See `config/omp/ROUTING.md` for the full rationale.
 
 ---
 
@@ -56,8 +77,8 @@ Every task is classified by risk level to select execution lanes and verificatio
 
 | Risk Level | Work Characterization | Execution Lane | Deterministic Verification |
 |---|---|---|---|
-| **`R0`** | Documentation (`*.md`), typo fixes, static assets, pure mechanical updates. | Volume / Cheap-dev (`@smol`) | `ai-policy-lint` / `project-check` |
-| **`R1`** | Bounded low-risk feature/CRUD edit (<= 3 files, <= 150 lines changed). | Volume / Cheap-dev (`@task`) | `project-check` + `diff-risk` |
+| **`R0`** | Documentation (`*.md`), typo fixes, static assets, pure mechanical updates. | Volume (`@smol`) | `ai-policy-lint` / `project-check` |
+| **`R1`** | Bounded low-risk feature/CRUD edit (<= 3 files, <= 150 lines changed). | Precision (`@task`) | `project-check` + `diff-risk` |
 | **`R2`** | Moderate multi-module feature or non-trivial refactor (4–10 files). | Precision Lane (`@slow`) | `project-check` + `diff-risk` |
 | **`R3`** | Correctness-sensitive logic: auth/login, payment/billing, DB schema/migrations, secrets, lockfiles. | Precision + Independent Review (`@slow` + `@advisor-xhigh`) | `project-check` + `diff-risk` |
 | **`R4`** | Costly-to-reverse / Critical: Destructive DB migration, security boundary, infrastructure topology. | Judgment Lane (`@architect` + `@advisor-max`) | Specialist Review + `project-check` |
@@ -82,7 +103,7 @@ Every project task in `config/templates/TASKS.md` follows an explicit execution 
 ### TASK-001: [Short Task Title]
 - **Requirement:** REQ-001 (from PRD.md)
 - **Risk Level:** R1 (R0=negligible, R1=low/bounded, R2=moderate, R3=correctness/sensitive, R4=architecture/critical)
-- **Execution Class:** volume / cheap-dev (or precision / judgment)
+- **Execution Class:** volume / precision / judgment
 - **Scope:** [Exact files or components to touch]
 - **Non-Scope:** [Explicitly untouched paths or systems]
 - **Verification:** `project-check` or `npm test -- path/to/test.ts`
@@ -107,7 +128,9 @@ Every project task in `config/templates/TASKS.md` follows an explicit execution 
 ## 8. Definition of Done & Verification Summary
 
 The dotfiles operating system is verified through continuous self-testing:
-- `ai-doctor --self-test` (15/15 gates passing).
-- `git-guard.test.sh` (21/21 unit tests passing).
-- `ai-policy-lint` (0 errors).
-- `project-check` & `diff-risk` (100% operational across Linux & macOS).
+- `ai-doctor --self-test`, `ai-policy-lint` (0 errors), and `security-check`.
+- 31 regression suites: 30 under `bin/*-test` plus `config/ai/hooks/git-guard.test.sh` (47 guard cases).
+- `project-check` & `diff-risk` operational on Linux; the macOS installer path is
+  correct by review but has not been executed on a Mac (see `TASKS.md`, TASK-007).
+
+Counts here go stale quickly. Run the suites rather than trusting this list.

@@ -309,13 +309,19 @@ for path in sorted(AGENTS_DIR.glob("*.md")):
     if static_overrides.get(name) != model:
         fail("custom agent override does not match frontmatter: " + name)
 
+runtime_manifest = ROOT / "config/ai/runtime-commands.txt"
+runtime_commands = set(
+    line.strip() for line in runtime_manifest.read_text(encoding="utf-8").splitlines()
+    if line.strip() and not line.lstrip().startswith("#")
+) if runtime_manifest.is_file() else set()
+
 for installer in (ROOT / "install.sh", ROOT / "install-macos.sh"):
     if not installer.is_file():
         fail("missing installer: " + str(installer))
     source = installer.read_text(encoding="utf-8")
     if not re.search(r'link "\$DOT/config/omp/agents"\s+.*\.omp/agent/agents', source):
         fail("installer does not link tracked custom agents: " + str(installer))
-    if "omp-routing-test" not in source:
+    if "runtime-commands.txt" not in source or "omp-routing-test" not in runtime_commands:
         fail("installer does not link omp-routing-test: " + str(installer))
 
 omp = shutil.which("omp")
@@ -621,7 +627,7 @@ for installer in (ROOT / "install.sh", ROOT / "install-macos.sh"):
     source = installer.read_text(encoding="utf-8")
     if not re.search(r'link "\$DOT/config/omp/agents"\s+.*\.omp/agent/agents', source):
         fail("installer does not link tracked custom agents: " + str(installer))
-    if "omp-routing-test" not in source:
+    if "runtime-commands.txt" not in source or "omp-routing-test" not in runtime_commands:
         fail("installer does not link omp-routing-test: " + str(installer))
 
 print(

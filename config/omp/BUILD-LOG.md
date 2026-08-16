@@ -224,3 +224,50 @@ Diffed all seven bundled-and-tracked agents against `omp agents unpack` output. 
 * `overlays/antigravity-only.yml`: Upgraded `default`, `task`, `research`, and `discovery` roles to Gemini 3.7 Flash. Cascaded 3.6 Flash down into the fallback chains.
 
 **Verification:** `omp-routing-test` passing `OK (roles=13, overrides=11, async=8, overlays=2, catalog=790 models)`. `ai-doctor` 100% sound.
+
+## 2026-08-16 — Main session moves to Codex; the Codex escalation ladder collapses
+
+Accepted the pending `config.yml` change after review. Decision criterion given by
+the owner: precision for full-stack development, not allowance conservation.
+
+- `default`: `google-antigravity/gemini-3.7-flash:medium` → `openai-codex/gpt-5.6-sol:high`
+- `smol`: `gemini-3.1-flash-lite:medium` → `gemini-3.7-flash:medium`
+- `sonic` agent: `@default` → `@smol`
+- `default` fallback #1: `openai-codex/gpt-5.4:medium` → `google-antigravity/gemini-3.7-flash:medium`
+
+Read together these are one move, not four: `default` and its own fallback trade
+places, mechanical work is pushed off the main lane onto `smol`, and `smol` is
+raised so that mechanical work does not regress in the move.
+
+**The 2026-08-12 evidence baseline supports this on its own terms.** That measurement
+found `gpt-5.6-sol` had the lowest tool-call error rate at 5.2% and the leanest loop
+at 1.00 tool calls per turn, against 7.8% for `gemini-3.6-flash`. Cost per call was
+$0.0953 versus $0.0845 — roughly 13% more per call for roughly a third fewer tool-call
+errors, because Gemini's cheaper per-token rate was cancelled by a context its
+million-token window never compacted. For the highest-frequency lane on this setup,
+that trade is the right way round.
+
+Two consequences worth stating rather than discovering later:
+
+1. **The main session is 97.7% of tokens** per that same baseline, so this is the
+   largest possible change to allowance pressure. It is deliberate. `default` falls
+   back to Gemini 3.7 Flash, so exhausting the Codex allowance degrades routing to
+   the previous arrangement rather than failing.
+2. **`default`, `task`, `slow`, and `plan` now resolve to the identical model at the
+   identical reasoning level.** Escalating `default` → `slow` changes the routing
+   label and nothing else. ROUTING.md previously promised that escalation as "a
+   normal and expected move"; that text was wrong the moment this landed and has
+   been rewritten. Real escalation is now cross-vendor to the advisor lane, which is
+   a different model from a different vendor. The four roles still differ by who
+   runs them and under what contract, which is what the ledger attributes on.
+
+Also corrected in ROUTING.md: the capacity-pool paragraph still said Antigravity
+"carries the main session", and the R1 row still named `cheap-dev`, a lane that no
+longer describes anything — `@task` is precision now, not a cheap tier.
+
+Compaction is unchanged and matters more here, not less: `thresholdTokens` 140000
+against Codex's declared 372000 window means compaction actually fires, which is
+precisely what did not happen under Gemini's million-token window.
+
+Validation: `omp-routing-test` OK (roles=13, overrides=11, async=8, overlays=2,
+catalog=790 models); `ai-policy-lint` PASSED.

@@ -1,6 +1,6 @@
 setupVersion: 1
 modelRoles:
-  smol: google-antigravity/gemini-3.1-flash-lite:medium
+  smol: google-antigravity/gemini-3.7-flash:medium
   slow: openai-codex/gpt-5.6-sol:high
   plan: openai-codex/gpt-5.6-sol:high
   vision: google-antigravity/gemini-3.1-pro:high
@@ -9,7 +9,7 @@ modelRoles:
   discovery: anthropic/claude-sonnet-5:medium
   tiny: google-antigravity/gemini-3.1-flash-lite:minimal
   task: openai-codex/gpt-5.6-sol:high
-  default: google-antigravity/gemini-3.7-flash:medium
+  default: openai-codex/gpt-5.6-sol:high
   advisor: anthropic/claude-sonnet-5:high
   advisor-xhigh: anthropic/claude-opus-5:xhigh
   advisor-max: anthropic/claude-opus-5:max
@@ -18,18 +18,18 @@ modelProviderOrder:
   - openai-codex
   - anthropic
   - 9router-fantastico
-cycleOrder: 
+cycleOrder:
   - smol
   - default
   - slow
 defaultThinkingLevel: auto
-retry: 
+retry:
   enabled: true
   modelFallback: true
   fallbackRevertPolicy: cooldown-expiry
-  fallbackChains: 
+  fallbackChains:
     default:
-      - openai-codex/gpt-5.4:medium
+      - google-antigravity/gemini-3.7-flash:medium
       - anthropic/claude-sonnet-4-6:medium
       - 9router-fantastico/cx/gpt-5.4:medium
     task:
@@ -83,7 +83,7 @@ task:
     merge: patch
   agentModelOverrides:
     scout: "@discovery"
-    sonic: "@default"
+    sonic: "@smol"
     designer: "@vision"
     reviewer: "@advisor"
     security-reviewer: "@advisor-xhigh"
@@ -103,10 +103,10 @@ compaction:
   dropUseless: true
   idleEnabled: true
   idleThresholdTokens: 100000
-tools: 
+tools:
   format: auto
   approvalMode: yolo
 secrets:
   enabled: true
-dev: 
+dev:
   autoqaConsent: granted

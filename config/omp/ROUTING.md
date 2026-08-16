@@ -6,15 +6,15 @@ This file is the canonical policy for policy-driven autonomous orchestration and
 
 - OMP remains the session and context owner unless a specialist handoff is justified.
 - Three capacity pools carry three different jobs, matched to what each is measurably best at rather than to a single cheapest-provider rule:
-  - **Antigravity** is the volume pool and the largest allowance. It carries the main session and every context-hungry lane: ordinary development, discovery, source research, visual work, and planning judgment.
-- **Codex** is the execution & precision pool. Powered by **GPT-5.6 Sol**, it owns all delegated implementation (`task`), reasoning-intensive code (`slow`), complex developer jobs (`complex-developer`), and architecture planning (`plan` / `writer`).
+  - **Antigravity** is the volume pool and the largest allowance. It carries every context-hungry lane: source research, visual work, and mechanical support.
+- **Codex** is the execution & precision pool, and since 2026-08-16 it also carries the main session. Powered by **GPT-5.6 Sol**, it owns ordinary main-session development (`default`), all delegated implementation (`task`), reasoning-intensive code (`slow`), complex developer jobs (`complex-developer`), and architecture planning (`plan` / `writer`). The main session was moved here deliberately: full-stack development is the highest-frequency work on this setup, and a wrong turn in it costs more than the allowance it saves. `default` falls back to Antigravity Gemini 3.7 Flash, so exhausting the Codex allowance degrades routing to the previous arrangement instead of failing.
 - **Direct Anthropic** is the judgment pool and the scarcest. It is reserved for Claude 5 consultation, security audits, and advisor reviews.
-- `default` is Gemini 3.7 Flash at medium reasoning through Antigravity. Ordinary main session development is the volume pool by default.
+- `default` is Codex GPT-5.6 Sol at high reasoning. Ordinary main session development uses Codex for maximum precision.
 - `slow`, `task`, and `plan` are **Codex GPT-5.6 Sol** at high reasoning, ensuring maximum code precision, spec writing accuracy, and minimal tool-call error rates across all subagent tasks.
 - `vision` is Gemini 3.1 Pro at high reasoning through Antigravity for browser-visible visual work.
 - `research` is Gemini 3.7 Flash at high reasoning through Antigravity, chosen for its million-token context during evidence-heavy reading rather than for reasoning escalation. It serves `librarian`, reading external library and API sources. `librarian` grounds its answers through a required structured output of verbatim excerpts, paths, and line ranges, so evidence discipline comes from that contract rather than from model tier. Two hard constraints pin this role to Antigravity: `librarian` declares `thinkingLevel: minimal`, which among the other pools only Anthropic Claude Haiku 4.5 supports and no Codex model supports at all, and Haiku's 200K window is a fifth of what evidence-heavy external reading needs.
 - `discovery` is Claude Sonnet 5 at medium reasoning through direct Anthropic, and serves `scout`, reading this repository. It was split out of `research` because the two jobs share a shape but not a failure profile. `librarian` returns verbatim excerpts a reader can check; `scout` returns an interpreted map the parent session acts on without re-reading the source, so a confident wrong map propagates silently into every downstream decision. Sonnet 5 keeps the million-token window that repository-wide reading needs, supports the `medium` level `scout` declares, and comes from a different vendor than the Codex and Antigravity workers whose output the map describes.
-- `smol` is Gemini 3.1 Flash Lite for strictly mechanical support, keeping a genuine cost step below `default`. `tiny` is the same model at minimal reasoning for internal short-form work.
+- `smol` is Gemini 3.7 Flash at medium reasoning through Antigravity for mechanical support and high-speed subagents. `tiny` is Gemini 3.1 Flash Lite at minimal reasoning for internal short-form work.
 
 Discovery and mechanical support are deliberately not the same lane, even though both are cheap and read-only. `scout` produces the compressed map the main session then makes decisions from, so a weak model there does not merely waste a call — it yields a confident, wrong map that the parent trusts, which is worse than no map at all. `sonic` only performs mechanical updates and data collection, where that failure mode does not exist. Routing them together would optimise the wrong thing.
 - The advisor lane is tiered by model as well as by reasoning level, because consultation volume is not uniform. `advisor` is Claude Sonnet 5 at high for ordinary review and bounded consultation; `advisor-xhigh` and `advisor-max` are Claude Opus 5 for difficult debugging, security-sensitive review, and costly-to-reverse architecture. Independence, not tier, is what makes a review valuable here: every advisor model is from a different vendor than the Antigravity and Codex workers it reviews.
@@ -33,7 +33,7 @@ Every development task is classified by risk to match execution models and verif
 | Risk Level | Description & Target Work | Recommended Execution Lane | Deterministic Verification |
 |---|---|---|---|
 | **R0** | Purely mechanical, formatting, typos, documentation (`*.md`), or asset updates. | `volume` (`@smol`) | `ai-policy-lint` / `project-check` |
-| **R1** | Bounded low-risk feature/CRUD edit (<= 3 files, <= 150 lines changed). | `volume` / `cheap-dev` (`@task`) | `project-check` + `diff-risk` |
+| **R1** | Bounded low-risk feature/CRUD edit (<= 3 files, <= 150 lines changed). | `precision` (`@task`) | `project-check` + `diff-risk` |
 | **R2** | Moderate multi-module feature or non-trivial refactor (4–10 files). | `precision` (`@slow`) | `project-check` + `diff-risk` |
 | **R3** | Correctness-sensitive logic: auth/login, payment/billing, DB schema/migrations, secrets, lockfiles. | `precision` + `reviewer` (`@slow` + `@advisor-xhigh`) | `project-check` + `diff-risk` |
 | **R4** | Costly-to-reverse / Critical: Destructive DB migration, security boundary, infrastructure topology. | `judgment` (`@architect` + `@advisor-max`) | Specialist Review + `project-check` |
@@ -53,7 +53,9 @@ Use `bin/diff-risk` to verify diff risk automatically after edits. Use `bin/proj
 
 Task size alone is not an escalation signal. Escalate for reasoning complexity, specialist evidence, or a demonstrated blocker.
 
-Because `default` is now the cheap lane, escalation to `slow` is a normal and expected move rather than an exception. Escalate as soon as ordinary development shows reasoning strain — repeated failed edits, thrashing tool calls, or a defect that survives one reasonable attempt — instead of persisting at `default` to save cost. Cost discipline comes from a low base rate and a bounded context, not from refusing to escalate.
+**There is no longer an escalation ladder inside Codex.** Since `default` moved to GPT-5.6 Sol on 2026-08-16, `default`, `task`, `slow`, and `plan` resolve to the identical model at the identical reasoning level — so moving from `default` to `slow` changes the routing label and nothing else. The four roles now differ by *who runs them and under what contract*, not by capability: `default` is the main session, `task` is delegated implementation, `slow` is the reasoning-intensive lane, `plan` is architecture and prose. Keep using the right name so the ledger and benchmark attribute work correctly, but do not expect a capability gain from the switch.
+
+Real escalation is therefore **cross-vendor, not cross-tier**. When ordinary development shows reasoning strain — repeated failed edits, thrashing tool calls, or a defect that survives one reasonable attempt — the move that buys something is to the advisor lane (`advisor`, then `advisor-xhigh` or `advisor-max`), which is a different vendor and a genuinely different model. Escalating within Codex will not fix a Codex-shaped failure. Cost discipline comes from a bounded context and from not escalating reflexively, not from persisting at a tier that no longer exists.
 
 ## Policy-driven autonomous orchestration
 
@@ -61,7 +63,7 @@ The user starts `omp` and describes the desired outcome. The main worker MUST ap
 
 | Detected work | Automatic agent | Role | Model |
 |---|---|---|---|
-| Normal, bounded development | none; main session executes | `default` | Antigravity Gemini 3.7 Flash Medium |
+| Normal, bounded development | none; main session executes | `default` | Codex GPT-5.6 Sol High |
 | Complex auth, payments, concurrency, migrations, algorithms, performance, or difficult regressions | `complex-developer` | `slow` | Codex GPT-5.6 Sol High |
 | UI, UX, responsive layout, or browser-visible frontend | `designer` | `vision` | Antigravity Gemini 3.1 Pro High |
 | Architecture-sensitive or costly-to-reverse decision | `architect` | `advisor-max` | Claude Opus 5 Max |
@@ -70,7 +72,7 @@ The user starts `omp` and describes the desired outcome. The main worker MUST ap
 | Security-sensitive review | `security-reviewer` | `advisor-xhigh` | Claude Opus 5 XHigh |
 | Source-verified external library or API research | `librarian` | `research` | Antigravity Gemini 3.7 Flash High |
 | Read-only repository discovery feeding a decision | `scout` | `discovery` | Anthropic Claude Sonnet 5 Medium |
-| Strictly mechanical updates or data collection | `sonic` | `default` | Antigravity Gemini 3.7 Flash Medium |
+| Strictly mechanical updates or data collection | `sonic` | `smol` | Antigravity Gemini 3.7 Flash Medium |
 | High-nuance prose, PRD synthesis, copy humanization, or brand-voice content | `writer` | `plan` | Codex GPT-5.6 Sol High |
 Browser-visible visual, layout, responsive, accessibility, or UX work MUST route to `designer`/`vision` before the first browser-visible edit. This is a capability trigger, not a reasoning-complexity escalation, so it applies regardless of task size. Pure data, API, or non-visual wiring in a frontend file does not trigger `vision`. If the designer cannot start, surface the failure instead of silently implementing the visual work in the main `default` session.
 
