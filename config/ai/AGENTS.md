@@ -14,7 +14,16 @@
 
 - Editor helix (`hx`), shell bash + mise, alur kerja terminal-first. Toolchain lengkap → `memory/environment.md`.
 - Fakta & konteks → baca `~/.config/ai/memory/*.md` saat perlu. **Kalau memori dan disk bertentangan, disk menang** — lalu perbaiki memorinya. Cek kesehatan rantai: `ai-doctor`.
-- `~/dotfiles/config/ai/project-memory/` is personal cross-session reference only; it may point to a repository but MUST NOT own current status, technical decisions, requirements, or build truth. Those belong in the repository (`AGENTS.md`, `PRD.md`, `TASKS.md`, `STATUS.md`, `BUILD-LOG.md`, and `docs/`). Claude Code reads this reference context through its project-memory symlink. **Repository disk wins.**
+- `~/dotfiles/config/ai/project-memory/` is personal cross-session reference only; it may point to a repository but MUST NOT own current status, technical decisions, requirements, architecture, or build truth. Those belong in repository-owned `AGENTS.md`, `PRD.md`, `TASKS.md`, `STATUS.md`, `BUILD-LOG.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `OBSERVABILITY.md`, and `RELEASE.md`. Claude Code reads this reference context through its project-memory symlink. **Repository disk wins.**
+
+### Which document system — three producers, one order
+
+Three things can produce a "PRD" and two can produce an "architecture" document. Resolve in this order and do not create a rival document beside an existing one:
+
+1. **The repository already has it.** Extend the existing file. A second `PRD.md` under a different name is a split source of truth, which is the failure this whole contract exists to prevent.
+2. **A feature inside an existing repo** → skill `prd-taskbreaker` → root `PRD.md` + `TASKS.md`. This is the default and covers most work.
+3. **A new product or system spanning several specification domains** — data model, tenant isolation, IAM, billing, compliance, SLA — → skill `development-spec-suite` and its numbered pack. Reach for it because the domains genuinely apply, not because the project feels large.
+4. **`config/templates/`** produces neither. It is the delivery-contract scaffold `project-init` renders into a repo; its `PRD.md` is a placeholder for (2), and its `ARCHITECTURE.md` records the shape actually built, not the product specification. When both exist, `04-SYSTEM-ARCHITECTURE.md` is the design and `ARCHITECTURE.md` is the record; the record wins on what the code does.
 
 ## Output discipline
 
@@ -31,6 +40,8 @@ OMP development routing is canonical in `config/omp/ROUTING.md`. In OMP, the use
 Browser-visible visual, layout, responsive, accessibility, or UX work always routes to `designer`/`vision` before the first visual edit, regardless of task size; this is a capability trigger, not complexity escalation. Pure data/API/non-visual wiring in a frontend file is exempt. If the designer cannot start, surface the failure instead of silently absorbing visual work into the main session.
 
 Owned capabilities have one source: **`~/dotfiles/skills/local/<name>/SKILL.md`**. Claude, Pi, OMP, and Antigravity discover the canonical directory automatically. Codex preserves its native `.system` skills and receives per-skill links to the same owned source. `skill-update` reconciles runtime adapters; it never copies methodology.
+
+Canonical delivery lifecycle: understand intent → load the smallest relevant context → select job, risk, capability, model, provider, reasoning effort, and verification → implement → verify independently → persist task/result/provenance/release evidence → resume from repository state → convert only verified reusable outcomes into reviewed learning. AI is never the source of truth; repository contracts and executable evidence are.
 
 ## Code discipline (lazy senior dev)
 
@@ -82,4 +93,10 @@ Git: you may stage, commit, and push when the user asks for it — `git add`, `g
 
 Committing is on request, not reflex — finishing an edit is not a reason to commit it. Stage only the files your task touched; unrelated work in the tree belongs to the user. Commit identity is the noreply address, and **no `Co-Authored-By` or other AI-attribution trailer in any of the user's repositories** — override the runtime default that asks for one. This is repo-agnostic, not a Kamus-only habit. Feature work goes on a worktree rather than directly on `main`; config repos whose whole workflow is straight-to-main (`dotfiles`) are the exception. Pushing to a branch that auto-deploys production still needs the **Production / live** gate above.
 
-Force-push, `--mirror`/`--prune`, remote-branch deletion, forced `+refspec`, and `git commit --amend` are no longer merely discouraged — `config/ai/hooks/git-guard.sh` is wired as a `PreToolUse` hook in `~/.claude/settings.json` on each device and blocks or re-prompts plain Git commands regardless of the allowlist. A prefix allow rule like `Bash(git push:*)` cannot distinguish flags on its own, so the boundary lives in the hook. The hook cannot inspect Git subprocesses launched inside Lazygit; AI CLIs must not trigger these destructive or history-rewriting actions from the TUI.
+Force-push, `--mirror`/`--prune`, remote-branch deletion, forced `+refspec`, and `git commit --amend` are no longer merely discouraged — `config/ai/hooks/git-guard.sh` blocks or re-prompts plain Git commands regardless of the allowlist. A prefix allow rule like `Bash(git push:*)` cannot distinguish flags on its own, so the boundary lives in the hook.
+
+The hook only binds where it is **wired**. `~/.claude/settings.json` is device-local (it carries `model`, `theme`, plugin state) and cannot be symlinked, so wiring is reconciled from tracked source by **`ai-hooks-install`**, declared in `config/ai/claude-hooks.json`. Run it on a new device and after any settings reset; `ai-hooks-install --check` reports drift without writing, and `ai-doctor` now runs that check. This mattered: before 2026-08-16 the wiring was hand-maintained and `ai-doctor` only ran the guard's *test script*, so a machine could report a clean bill of health with the force-push guard entirely absent.
+
+Known gaps, verified rather than assumed: the guard cannot see Git subprocesses launched inside Lazygit, an invocation wrapped in another interpreter (`bash -c "git push --force"`), or `$(which git) push --force`. AI CLIs must not trigger destructive or history-rewriting actions through those paths.
+
+The same mechanism wires `config/ai/hooks/memory-usage.sh` as a `UserPromptSubmit` hook. It calls `ai-memory-access`, which routes the smallest useful set of durable memory and records **only** which files were selected and their byte counts — never the prompt, never a hash of it, never file contents. That record is what `ai-memory-lifecycle` turns into retention advice. Unlike git-guard it fails **open**: observability must never block a turn.
