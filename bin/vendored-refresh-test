@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# Regression check for skills/local/_refresh-vendored.sh.
+#
+#   ./bin/vendored-refresh-test
+#
+# Offline by construction: every fixture lives in a mktemp sandbox and each
+# `.source` points at a `file://` URL there, so nothing here reaches the network
+# and no real skill is touched. The script is copied into the sandbox because it
+# derives its own root from $BASH_SOURCE and refreshes every sibling directory.
+set -uo pipefail
+
+DOT="$(cd "$(dirname "$0")/.." && pwd)"
+SRC="$DOT/skills/local/_refresh-vendored.sh"
+[ -x "$SRC" ] || { echo "not executable: $SRC" >&2; exit 2; }
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+SAND="$TMP/local"; UP="$TMP/upstream"
+mkdir -p "$SAND" "$UP"
+cp "$SRC" "$SAND/_refresh-vendored.sh"
+
+fail() { echo "FAIL: $*" >&2; exit 1; }
+run() { (cd "$SAND" && ./_refresh-vendored.sh "$@" 2>&1); }
+
+# --- fixtures ----------------------------------------------------------------
+# A 12-line upstream monolith, stored locally as two parts with our own
+# additions around them: a 2-line pointer stub after part one, a 3-line header
+# before part two. Reassembling must reproduce the monolith exactly.
+mk_upstream() {
+  mkdir -p "$UP/split"
+  { for i in $(seq 1 8); do echo "upstream body line $i"; done
+    for i in $(seq 9 12); do echo "reference line $i"; done; } > "$UP/split/SKILL.md"
+}
+mk_split_skill() {
+  local d="$SAND/split"; mkdir -p "$d/references"
+  { for i in $(seq 1 8); do echo "upstream body line $i"; done
+    echo "local pointer stub"; echo "see references/ref.md"; } > "$d/SKILL.md"
+  { echo "# Local header"; echo ""; echo "Extracted for token economy."
+    for i in $(seq 9 12); do echo "reference line $i"; done; } > "$d/references/ref.md"
+  cat > "$d/.source" <<EOF
+source: file://$UP/split
+vendored: 2000-01-01
+split_of: SKILL.md
+part: SKILL.md trim-tail 2
+part: references/ref.md trim-head 3
+EOF
+}
+mk_upstream; mk_split_skill
+
+# --- a split skill that still reassembles is verified, and left alone ---------
+before_skill="$(cat "$SAND/split/SKILL.md")"
+before_ref="$(cat "$SAND/split/references/ref.md")"
+out="$(run split)" || fail "a matching split skill should exit 0; got: $out"
+case "$out" in *"split verified"*) ;; *) fail "no verification line: $out" ;; esac
+[ "$(cat "$SAND/split/SKILL.md")" = "$before_skill" ] \
+  || fail 'refresh rewrote SKILL.md of a split skill'
+[ "$(cat "$SAND/split/references/ref.md")" = "$before_ref" ] \
+  || fail 'refresh rewrote the reference part of a split skill'
+# The monolith must never be fetched into a part path, and the part path must
+# never be requested upstream (it does not exist there).
+[ ! -f "$SAND/split/SKILL.md.tmp" ] || fail 'split path left a .tmp behind'
+grep -q 'fetch failed' <<<"$out" && fail 'split path tried to fetch a part URL'
+
+# --- when upstream changes, it reports and still does not write --------------
+echo "upstream added a line" >> "$UP/split/SKILL.md"
+out="$(run split)" && fail 'a diverged split skill must exit non-zero'
+case "$out" in *"no longer reassemble"*) ;; *) fail "no divergence message: $out" ;; esac
+case "$out" in *"re-split by hand"*) ;; *) fail 'divergence message gives no next step' ;; esac
+[ "$(cat "$SAND/split/SKILL.md")" = "$before_skill" ] \
+  || fail 'a diverged split skill had its files overwritten — the whole point'
+[ "$(cat "$SAND/split/references/ref.md")" = "$before_ref" ] \
+  || fail 'a diverged split skill had its reference overwritten'
+# The stale `vendored:` date must NOT advance while the skill is out of sync.
+grep -q '^vendored: 2000-01-01' "$SAND/split/.source" \
+  || fail 'vendored date advanced despite unresolved divergence'
+mk_upstream  # restore
+
+# --- a declared part that is missing fails loudly ----------------------------
+mv "$SAND/split/references/ref.md" "$TMP/stashed-ref.md"
+out="$(run split)" && fail 'a missing declared part must exit non-zero'
+case "$out" in *"declared part is missing"*) ;; *) fail "wrong message: $out" ;; esac
+# It must stop there. Falling through would compare a knowingly-incomplete
+# reassembly and print a second, misleading "upstream changed" diagnosis on top
+# of the real cause — sending the reader off to re-split against upstream when
+# what actually happened is that a local file went missing.
+case "$out" in
+  *"no longer reassemble"*)
+    fail 'a missing part also reported upstream divergence; it must stop at the real cause' ;;
+esac
+mv "$TMP/stashed-ref.md" "$SAND/split/references/ref.md"
+
+# --- trims larger than the file are refused, not silently clamped ------------
+sed -i 's/^part: SKILL.md trim-tail 2$/part: SKILL.md trim-tail 999/' "$SAND/split/.source"
+out="$(run split)" && fail 'an over-large trim must exit non-zero'
+case "$out" in *"trims exceed the file"*) ;; *) fail "wrong message: $out" ;; esac
+sed -i 's/^part: SKILL.md trim-tail 999$/part: SKILL.md trim-tail 2/' "$SAND/split/.source"
+run split >/dev/null || fail 'fixture did not restore to a passing state'
+
+# --- the ordinary (non-split) path still fetches and overwrites --------------
+mkdir -p "$UP/plain" "$SAND/plain"
+printf 'new upstream content\n' > "$UP/plain/SKILL.md"
+printf 'stale local content\n'  > "$SAND/plain/SKILL.md"
+cat > "$SAND/plain/.source" <<EOF
+source: file://$UP/plain
+vendored: 2000-01-01
+EOF
+out="$(run plain)" || fail "the plain path should exit 0; got: $out"
+[ "$(cat "$SAND/plain/SKILL.md")" = "new upstream content" ] \
+  || fail 'the plain path stopped overwriting from upstream'
+grep -q "^vendored: $(date +%Y-%m-%d)" "$SAND/plain/.source" \
+  || fail 'the plain path stopped stamping the vendored date on change'
+
+# --- an unchanged plain skill is a no-op, date untouched ---------------------
+sed -i "s/^vendored: .*/vendored: 2000-01-01/" "$SAND/plain/.source"
+run plain >/dev/null || fail 'a second plain refresh should exit 0'
+grep -q '^vendored: 2000-01-01' "$SAND/plain/.source" \
+  || fail 'the vendored date advanced on an unchanged plain skill'
+
+# --- a full sweep reports both kinds and fails if any split diverged ---------
+out="$(run)" || fail "a clean full sweep should exit 0; got: $out"
+case "$out" in *split*) ;; *) fail 'full sweep skipped the split skill' ;; esac
+case "$out" in *plain*) ;; *) fail 'full sweep skipped the plain skill' ;; esac
+echo "upstream drifted again" >> "$UP/split/SKILL.md"
+run >/dev/null && fail 'a full sweep must exit non-zero when a split skill diverged'
+
+echo 'vendored-refresh-test: PASS'
