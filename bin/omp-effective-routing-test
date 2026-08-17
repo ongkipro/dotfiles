@@ -352,6 +352,25 @@ run_overlay_check() {
 
 tracked_overlay_dir="${OMP_TRACKED_OVERLAY_DIR:-$ROOT/config/omp/overlays}"
 
+check_global_config_probe() {
+  local omp_command="$1" label="$2" resolved_threshold
+  global_config_probe=ok
+  if ! "$omp_command" --config "$probe_overlay" config list --json \
+      > "$TEST_ROOT/${label}.json" 2> "$TEST_ROOT/${label}.err"; then
+    if grep -q "Unknown option '--config'" "$TEST_ROOT/${label}.err"; then
+      global_config_probe=partial
+      return 0
+    fi
+    echo "FAIL: unexpected global --config probe error: $(cat "$TEST_ROOT/${label}.err")" >&2
+    return 1
+  fi
+  resolved_threshold="$(jq -r '.["compaction.thresholdTokens"].value // empty' "$TEST_ROOT/${label}.json")"
+  [ "$resolved_threshold" = 31001 ] || {
+    echo "FAIL: global --config exited successfully but ignored the overlay sentinel (expected 31001, got ${resolved_threshold:-missing})" >&2
+    return 1
+  }
+}
+
 # 1. Active device overlay (full validation: this is what the device actually runs).
 device_overlay="$HOME/.config/ai-local/omp-overlay.yml"
 target="$(readlink "$device_overlay" 2>/dev/null || echo "$device_overlay")"
@@ -378,22 +397,34 @@ if [ -d "$tracked_overlay_dir" ]; then
   done
 fi
 
-# OMP 17.3.5 advertises --config as a global flag, but the config subcommand
-# owns a separate parser and rejects it. Keep this visible until upstream QA
-# closes the defect; the models probe above is still a real runtime loader.
-probe_overlay="$(find "$tracked_overlay_dir" -maxdepth 1 -type f -name '*.yml' -print -quit 2>/dev/null || true)"
-if [ -n "$probe_overlay" ] && ! command omp --config "$probe_overlay" config list --json \
-    > "$TEST_ROOT/global-config.json" 2> "$TEST_ROOT/global-config.err"; then
-  if grep -q "Unknown option '--config'" "$TEST_ROOT/global-config.err"; then
-    global_config_probe=partial
-  else
-    echo "FAIL: unexpected global --config probe error: $(cat "$TEST_ROOT/global-config.err")" >&2
-    exit 1
-  fi
+# OMP advertises --config as a global flag. Exercise that exact public boundary
+# with a sentinel value: exit 0 alone is insufficient if the overlay is ignored.
+probe_overlay="$TEST_ROOT/global-config-overlay.yml"
+cat > "$probe_overlay" <<'YAML'
+compaction:
+  thresholdTokens: 31001
+YAML
+cat > "$TEST_ROOT/omp-applies-overlay" <<'SH'
+#!/bin/sh
+printf '%s\n' '{"compaction.thresholdTokens":{"value":31001}}'
+SH
+cat > "$TEST_ROOT/omp-ignores-overlay" <<'SH'
+#!/bin/sh
+printf '%s\n' '{"compaction.thresholdTokens":{"value":30000}}'
+SH
+chmod +x "$TEST_ROOT/omp-applies-overlay" "$TEST_ROOT/omp-ignores-overlay"
+check_global_config_probe "$TEST_ROOT/omp-applies-overlay" "semantic-accept" || {
+  echo "FAIL: global --config semantic acceptance fixture failed" >&2
+  exit 1
+}
+if check_global_config_probe "$TEST_ROOT/omp-ignores-overlay" "semantic-reject" >/dev/null 2>&1; then
+  echo "FAIL: global --config semantic guard accepted an ignored overlay" >&2
+  exit 1
 fi
+check_global_config_probe "$(command -v omp)" "global-config" || exit 1
 
 if [ "$global_config_probe" = partial ]; then
-  echo "omp-effective-routing-test: PARTIAL (--config runtime loading passed via 'models'; global flag remains rejected by 'config' in OMP 17.3.5)"
+  echo "omp-effective-routing-test: PARTIAL (--config runtime loading passed via 'models'; the installed OMP runtime still rejects the documented global flag for 'config')"
 else
   echo "omp-effective-routing-test: OK (roles=13, overrides=11, device+tracked-overlays, image-locked=vision+designer, xhigh-locked=advisor-xhigh, max-locked=advisor-max)"
 fi

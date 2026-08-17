@@ -8,6 +8,7 @@ zoxide = "latest"
 eza = "latest"
 jq = "latest"   # git-guard reads the hook payload with it; python3 is the fallback
 yq = "latest"
+actionlint = "1.7.12" # pinned: workflow syntax/expression checks must be reproducible across devices and CI
 fzf = "latest"
 direnv = "latest"
 starship = "latest"

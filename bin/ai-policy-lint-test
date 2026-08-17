@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Mutation-backed regression for the actionlint policy gate.
+set -euo pipefail
+
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/ai-policy-lint-test.XXXXXX")"
+trap 'rm -rf "$TMP"' EXIT
+fail(){ echo "FAIL: $*" >&2; exit 1; }
+
+command -v actionlint >/dev/null 2>&1 || fail "actionlint is unavailable"
+
+cat > "$TMP/invalid.yml" <<'YAML'
+name: Invalid fixture
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    invalid-key: true
+    steps: []
+YAML
+if actionlint "$TMP/invalid.yml" >"$TMP/invalid.log" 2>&1; then
+  fail "actionlint accepted an invalid workflow fixture"
+fi
+
+mkdir -p "$TMP/bin"
+cat > "$TMP/bin/actionlint" <<'SH'
+#!/bin/sh
+echo "deliberate-actionlint-failure"
+exit 23
+SH
+chmod +x "$TMP/bin/actionlint"
+
+set +e
+PATH="$TMP/bin:$PATH" "$ROOT/bin/ai-policy-lint" >"$TMP/policy.log" 2>&1
+status=$?
+set -e
+[ "$status" -eq 1 ] || {
+  cat "$TMP/policy.log" >&2
+  fail "ai-policy-lint did not fail when actionlint failed"
+}
+grep -qF "deliberate-actionlint-failure" "$TMP/policy.log" || fail "actionlint output was not preserved"
+grep -qF "GitHub workflows failed" "$TMP/policy.log" || fail "actionlint failure lost its policy-gate owner"
+
+echo "ai-policy-lint-test: PASS"

@@ -19,6 +19,7 @@ ai-memory-link
 ai-memory-route
 ai-memory-route-test
 ai-policy-lint
+ai-policy-lint-test
 ai-skill-evolution
 ai-skill-evolution-test
 delivery-benchmark

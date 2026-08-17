@@ -20,7 +20,22 @@ not run concurrently even when their file globs are disjoint.
 
 ## In progress
 
-No task is in progress.
+### TASK-017: Make workflow and OMP overlay evidence executable
+- **Requirement:** AUDIT-CI-02 — local and hosted validation must reject invalid GitHub workflows, while OMP global-overlay evidence must prove the runtime applied the overlay rather than merely parsing YAML or exiting zero.
+- **Risk Level:** R3
+- **Job:** implementation
+- **Capability:** `github-actions`, `testing-engineering`, `native-first`, `lean-code-review`
+- **Execution Class:** judgment
+- **Model / Provider / Reasoning:** Current Codex route; model routing is unchanged.
+- **Change Surface:** `.github/workflows/core-runtime.yml`, `config/mise-config.toml`, `config/ai/runtime-commands.txt`, `bin/ai-policy-lint`, `bin/ai-policy-lint-test`, `bin/omp-effective-routing-test`, `config/omp/STATUS.md`, `TASKS.md`
+- **Protected Surface:** `.github/workflows/**`, `config/omp/**`
+- **Accepted Invariants:** actionlint is version- and checksum-pinned; every supported device receives it through mise; `ai-policy-lint` fails when workflow validation is missing or invalid; OMP global `--config` must change a sentinel value before it can report full verification; the known upstream rejection remains explicit `PARTIAL`.
+- **Shared Owner:** `repository-ci`, `omp-runtime-evidence`
+- **Regression Checks:** `actionlint`, `bin/ai-policy-lint-test`, `bin/ai-policy-lint`, `bin/omp-effective-routing-test`, `bin/installer-link-test`, `bin/ai-doctor --self-test`, hosted Ubuntu/macOS Core runtime.
+- **Reopen Conditions:** workflow syntax can bypass local policy lint, an unverified actionlint binary executes, or OMP reports full verification without proving overlay semantics.
+- **Non-Scope:** model/provider routing changes, OMP upstream implementation, production, billing, new orchestration, or a second workflow-lint subsystem.
+- **Verification:** Linux actionlint 1.7.12, its checksum-pinned CI installer fixture, mutation-backed policy/OMP guards, installer integration, and the authoritative repository self-test pass locally. Hosted Ubuntu/macOS verification follows the push; any failure reopens this task.
+- **Escalation Condition:** any requirement to weaken an existing CI gate, expose credentials, or overlap pre-existing user work.
 
 ## Done
 

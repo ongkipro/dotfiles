@@ -55,8 +55,9 @@ missing executable or catalog produces `PARTIAL`/`WARNING`; neither is a clean
 verification.
 
 OMP 17.3.5 still rejects the documented global `--config` flag for the `config`
-subcommand. Automated OMP QA owns that parser defect; local overlay validation
-reports it as `PARTIAL` until the installed runtime is fixed.
+subcommand. Automated OMP QA owns that parser defect. The regression probe uses
+a sentinel value and reports `PARTIAL` until the installed runtime both accepts
+the flag and proves that it applied the overlay; an exit-zero no-op is a failure.
 
 ## Next verified action
 

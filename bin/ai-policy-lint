@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """ai-policy-lint — Structural linter for the tracked AI control plane.
 
-Verifies model role alignment, agent frontmatter metadata, skill structures,
-memory links, project templates, and policy canaries across dotfiles.
+Verifies GitHub workflows, model role alignment, agent frontmatter metadata,
+skill structures, memory links, project templates, and policy canaries across
+dotfiles.
 """
 
 from pathlib import Path
@@ -157,6 +158,7 @@ def main():
     print("─" * 60)
 
     check_agents_policy()
+    run_canonical_gate("GitHub workflows", ["actionlint"])
     run_canonical_gate("OMP routing", [ROOT / "bin" / "omp-routing-test", ROOT])
     run_canonical_gate("owned skills", [ROOT / "skills" / "agents-bin" / "skill-check"], {"SKILL_SOURCE": str(ROOT / "skills" / "local")})
     run_canonical_gate("memory and Markdown links", [ROOT / "bin" / "ai-memory-check", ROOT])
