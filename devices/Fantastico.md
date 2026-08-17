@@ -22,7 +22,7 @@
 | CPU | Intel(R) Core(TM) i7-8650U CPU @ 1.90GHz (8 thread) |
 | RAM | 15.5 GB |
 | GPU | Intel Corporation Kaby Lake-R GT2 [UHD Graphics 620] (rev 07) |
-| Disk (/) | 233G total, 142G free (36% used) |
+| Disk (/) | 233G total, 142G free (37% used) |
 
 ## AI CLI
 

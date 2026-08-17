@@ -19,10 +19,10 @@
 ### Admin/client dashboards
 - Default component system: shadcn/ui for React-capable admin and client
   dashboards, with TypeScript, Tailwind, semantic HTML, and project tokens.
-- Preferred integrated full-admin runtime: Next.js App Router. Use Vite + React
-  when an existing API owns auth/data and an all-client app is simpler; use
-  Astro + React for route-oriented admin surfaces with bounded interactivity.
-  Do not hydrate static Astro markup merely to reproduce shadcn presentation.
+- Runtime choice between Next.js App Router, Vite + React, and Astro + React is
+  owned by [Decision Memory](decisions.md) → "Admin/client dashboard direction",
+  with the reason and the tradeoff. Read it there; do not restate it here.
+- Do not hydrate static Astro markup merely to reproduce shadcn presentation.
 - For multi-report dashboards: use a central data registry (index.ts mapping slugs → data modules) and props-based reusable report components.
 - Keep public SEO frontend separate when needed.
 
