@@ -346,6 +346,26 @@ blocker forward as current status.
 
 ## Change workflow
 
+### Shared setup vs device preference
+
+This repository is shared across every machine registered in `devices/`. A device
+may **add** to it — memory, skills, its own `devices/<host>.md` entry, a lesson. A
+device must not **restructure** it: OMP routing, installers, shell tooling, and the
+contract templates are the shared setup, and a preference that suits one machine is
+not a change to that setup.
+
+This has already happened once. `bin/omp-routing-test` now asserts structure rather
+than model names, because every individual selector stayed valid while the design
+was dismantled — case in `config/omp/BUILD-LOG.md`, 2026-08-16.
+
+**When one machine wants different models, the mechanism already exists**:
+`config/omp/overlays/*.yml`, used as
+`omp --config ~/dotfiles/config/omp/overlays/<name>.yml`. Device-only facts belong
+in `~/.config/ai-local/` or the generated `devices/<host>.md`, never in the shared
+base.
+
+### Steps
+
 1. Inspect disk and trace every affected caller.
 2. Make the smallest change that preserves safety and portability.
 3. Run the narrowest relevant test, then `ai-doctor --self-test` for control-plane changes.

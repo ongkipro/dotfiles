@@ -31,22 +31,7 @@ Before `~/Projects/<slug>/` exists, every accepted planning artifact — standal
 
 Coding starts only after explicit development authorization. `project-init --from-docs ~/Documents/work/prd/<slug>/` — combined with `--stack <profile>` for a new project or `--repo <path> --stack existing-repository` for one that already exists — then copies the accepted staged artifacts into `~/Projects/<slug>/`: standalone files land at the project root and `docs/adr/`; a suite pack (detected the same way, by `CONTEXT-RECORD.md`) lands under `docs/spec/`. The source stays in place as a retained, non-authoritative snapshot; a divergent existing destination file fails the copy instead of being silently overwritten, and an identical destination file is a safe no-op. From that point the repository copy is canonical; never re-consult the `~/Documents/` copy as the source of truth once promotion has happened.
 
-### What another device may change here
-
-This repository is shared across every machine registered in `devices/`. A
-device may **add** to it — memory, skills, its own `devices/<host>.md` entry, a
-lesson. A device must not **restructure** it: OMP routing, installers, shell
-tooling, and the contract templates are the shared setup, and a preference that
-suits one machine is not a change to that setup.
-
-This has already happened once. `bin/omp-routing-test` now asserts structure
-rather than model names, because every individual selector stayed valid while
-the design was dismantled — case in `config/omp/BUILD-LOG.md`, 2026-08-16.
-
-**When one machine wants different models, the mechanism already exists**:
-`config/omp/overlays/*.yml`, used as `omp --config ~/dotfiles/config/omp/overlays/<name>.yml`.
-Device-only facts belong in `~/.config/ai-local/` or the generated
-`devices/<host>.md`, never in the shared base.
+- dotfiles is shared by every device in `devices/`: a device may **add** (memory, skills, its own `devices/<host>.md`, a lesson) but must not **restructure** OMP routing, installers, shell tooling, or the contract templates. Device-only facts go to `~/.config/ai-local/`; different models go to `config/omp/overlays/*.yml`. Read `README.md` → "Shared setup vs device preference" before changing shared setup — it records the time this was violated.
 
 ## Output discipline
 
@@ -64,11 +49,7 @@ Browser-visible visual, layout, responsive, accessibility, or UX work always rou
 
 Owned capabilities have one source: **`~/dotfiles/skills/local/<name>/SKILL.md`**. Claude, Pi, OMP, and Antigravity discover the canonical directory automatically. Codex preserves its native `.system` skills and receives per-skill links to the same owned source. `skill-update` reconciles runtime adapters; it never copies methodology.
 
-Implementation that spans multiple application layers routes through
-`full-stack-development`. That skill owns orchestration and contract alignment;
-`testing-engineering`, `postgres-drizzle`, `application-security`,
-`nextjs-development`, `observability-engineering`, `github-actions`, and the
-existing stack/UI skills retain their specialist implementation ownership.
+Implementation that spans multiple application layers routes through `full-stack-development`. That skill owns orchestration and contract alignment; `testing-engineering`, `postgres-drizzle`, `application-security`, `nextjs-development`, `observability-engineering`, `github-actions`, and the existing stack/UI skills retain their specialist implementation ownership.
 
 Canonical delivery lifecycle: understand intent → load the smallest relevant context → select job, risk, capability, model, provider, reasoning effort, and verification → implement → verify independently → persist task/result/provenance/release evidence → resume from repository state → convert only verified reusable outcomes into reviewed learning. AI is never the source of truth; repository contracts and executable evidence are.
 
