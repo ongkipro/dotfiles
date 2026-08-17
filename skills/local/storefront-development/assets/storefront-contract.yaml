@@ -1,19 +1,42 @@
-storefront: ""
-commerce_backend: ""
-framework: ""
-rendering_strategy: ""
-primary_market: ""
-currency_locale_context: ""
-cart_owner: ""
-cart_persistence: ""
-checkout_boundary: ""
-pages: []
-product_selection_states: []
-cart_mutations: []
-enhancements: []
-accessibility_evidence: []
-responsive_evidence: []
-performance_budgets: []
-analytics_events: []
-assumptions: []
+storefront:
+  kind: "" # catalog | marketplace | direct-order | subscription | other
+  commerce_backend: ""
+  framework: ""
+  rendering_strategy: ""
+  primary_market: ""
+  locale_currency_tax_context: ""
+  primary_buyer_job: ""
+  primary_success_condition: ""
+  merchandising_intent: ""
+  visual_mode: "" # design-taste Storefront/Commerce or DR/COD
+  design_context: ""
+  authorities:
+    product: ""
+    price: ""
+    availability: ""
+    fulfilment: ""
+    cart: ""
+    checkout: ""
+    order_confirmation: ""
+    analytics: ""
+  pages: []
+  product_selection_states: []
+  price_claims: [] # compare-at, saving, discount, tax/price basis
+  trust_claims: [] # rating, delivery, returns, guarantee, stock pressure
+  cart_mutations: []
+  checkout_boundary: ""
+  accelerated_checkout: ""
+  responsive_transformations: []
+  critical_states: []
+  enhancements:
+    - name: ""
+      prerequisite: ""
+      fallback: ""
+      loading_error_keyboard_behavior: ""
+  accessibility_evidence: []
+  responsive_evidence: []
+  performance_budgets: []
+  analytics_events: []
+  executable_evidence: []
+  assumptions: []
 open_decisions: []

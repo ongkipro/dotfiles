@@ -17,9 +17,14 @@
 
 ### Admin/client dashboard direction
 - Status: active preference.
-- Decision: Next.js + React + TypeScript + Tailwind + shadcn/ui is preferred for admin panel and client dashboard when interaction complexity is high.
-- Reason: component ecosystem, dashboard patterns, stateful UI, auth/admin flows.
-- Tradeoff: heavier than Astro for public SEO pages.
+- Decision: shadcn/ui is the preferred component source for React-capable admin
+  and client dashboards. Next.js App Router remains the preferred integrated
+  full-admin runtime; Vite + React fits API-backed client apps, and Astro +
+  React fits route-oriented admin surfaces with bounded interactivity.
+- Reason: consistent accessible components and dashboard patterns without
+  making one rendering model mandatory across every project.
+- Tradeoff: React component consistency must not create unnecessary hydration;
+  static Astro regions stay semantic server-rendered markup.
 
 ### Shopify development direction
 - Status: active preference.

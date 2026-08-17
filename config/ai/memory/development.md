@@ -17,8 +17,12 @@
 - Deployment direction: Cloudflare Pages/Workers when suitable.
 
 ### Admin/client dashboards
-- Preferred: Next.js + React + TypeScript + Tailwind + shadcn/ui.
-- Good for: super admin, client portal, SaaS dashboard, forms, auth, data-heavy UI.
+- Default component system: shadcn/ui for React-capable admin and client
+  dashboards, with TypeScript, Tailwind, semantic HTML, and project tokens.
+- Preferred integrated full-admin runtime: Next.js App Router. Use Vite + React
+  when an existing API owns auth/data and an all-client app is simpler; use
+  Astro + React for route-oriented admin surfaces with bounded interactivity.
+  Do not hydrate static Astro markup merely to reproduce shadcn presentation.
 - For multi-report dashboards: use a central data registry (index.ts mapping slugs → data modules) and props-based reusable report components.
 - Keep public SEO frontend separate when needed.
 

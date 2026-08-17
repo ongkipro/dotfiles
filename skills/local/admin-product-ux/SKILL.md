@@ -67,8 +67,10 @@ Read [Screen and interaction contracts](references/screen-and-interaction-contra
 
 Keep roles, lifecycle, permissions, and screen states framework-neutral. Then
 map rendering, hydration, data ownership, mutations, and navigation to the
-installed stack. Read [Framework and visual system](references/framework-and-visual-system.md)
-for Astro, Vite/React, Next.js, and the two-theme blue/indigo admin baseline.
+installed stack. Read
+[Framework and visual system](references/framework-and-visual-system.md) for
+Astro, Vite/React, Next.js, the shadcn component boundary, and the clean-light
+admin baseline.
 
 ### 7. Review completeness
 
@@ -93,11 +95,14 @@ spec filename unless the user accepts that repository convention.
 After product correctness is established:
 
 - use `admin-dashboard` for hierarchy, tables, KPI/chart decisions, responsive
-  behavior, and operator presentation
-- use `design-taste` for visual direction
-- use `astro-development` or the installed framework for runtime boundaries
-- use `shadcn-ui` for component APIs and installation
-- use `ui-validation` for browser evidence
+  behavior, density, and the clean-light operator presentation
+- use the installed framework skill for rendering, hydration, data, mutation,
+  caching, and deployment boundaries
+- use `shadcn-ui` for the component plan, composition, registry source, tokens,
+  and component-level runtime cost
+- use `native-first` before adding a dependency or abstraction
+- use `ui-validation` for browser evidence and `web-perf` for measured
+  performance diagnosis
 
 Do not duplicate those skills here. This skill owns the product workflow and
 interaction contract they consume.

@@ -3,35 +3,62 @@
 Keep the product contract framework-neutral. Inspect the installed stack before
 mapping it to runtime behavior.
 
+## Component system boundary
+
+For React-capable admin surfaces, shadcn/ui is the default component source
+after the workflow and screen contracts are accepted. It is not a universal
+render layer: semantic browser behavior remains underneath, and static Astro
+markup should not be hydrated only to reproduce a Card, Badge, heading, or
+read-only table. Existing `components.json`, project tokens, and copied source
+always win.
+
+Use
+[Admin component system](../../shadcn-ui/references/admin-component-system.md)
+for component mapping, responsive composition, client-boundary cost, and the
+browser acceptance gate.
+
 ## Framework adaptation
 
-### Astro
+### Astro + React
 
 Use for route-oriented admin surfaces with bounded interactive regions. Render
-protected data on the server and hydrate the smallest useful island. Keep React
-providers and their consumers in one island because context does not cross
-separate roots. Use URL state for shareable filters. Load `astro-development`
-for Actions, adapters, and Cloudflare boundaries.
+protected data on the server and hydrate the smallest useful coordinated
+region. Keep React providers and consumers in one island because context does
+not cross roots. Keep static presentation in Astro/HTML with the same semantic
+tokens. Use URL state for shareable filters. Load `astro-development` for
+Actions, hydration directives, adapters, and Cloudflare boundaries.
 
-### Vite + React
+### Vite + React or React Router
 
 Use for client-heavy internal tools where an API already owns auth and data.
-Keep server authorization in the API. Prefer route loaders/actions or the
-installed data layer before adding another client cache. Define loading,
-mutation, conflict, and offline/network failure states explicitly.
+Keep server authorization in the API. Prefer installed route loaders/actions
+and data primitives before adding another client cache. Split by route and keep
+heavy charts or editors out of unrelated initial bundles. Define loading,
+mutation, conflict, session-expiry, and offline/network failure states where
+they affect the job.
 
 ### Next.js App Router
 
-Fetch protected data in Server Components and keep client boundaries small.
-Authorize again inside every Server Action or route handler. Stream independent
-regions when latency warrants it. Do not move a component client-side merely to
-reuse a hook when a serializable prop preserves the boundary.
+Use for an integrated full admin whose protected data, auth, mutations, and
+routing live in one application. Fetch protected data in Server Components and
+keep client boundaries small. Authorize again inside every Server Action or
+Route Handler. Stream independent regions when measured latency warrants it.
+Do not move a component client-side merely to reuse a hook when a serializable
+prop preserves the boundary.
 
-### Other stacks
+### Other React-capable stacks
 
-Apply the same contract: server-enforced permissions, URL-addressable views,
-explicit async states, and one owner for each piece of state. Reuse native
-platform behavior and installed conventions before adding libraries.
+Apply the same contract to official shadcn templates and established React
+runtimes: server-enforced permissions, URL-addressable views, explicit async
+states, one owner for each piece of state, and minimal client scope. Verify
+current framework and registry support before implementation.
+
+### Non-React stacks
+
+Use the stack's native component system. A third-party port may borrow shadcn's
+visual language, but it is not official shadcn/ui and must not be treated as
+API-compatible. Preserve the product and visual contract without forcing React
+into the runtime.
 
 ## Clean-light CMS/admin baseline
 

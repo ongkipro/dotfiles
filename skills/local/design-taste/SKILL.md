@@ -2,14 +2,16 @@
 name: design-taste
 description: >-
   Direct anti-slop visual judgment for landing pages, marketing sites,
-  storefront shells, portfolios, and redesigns. Use for desain landing page,
-  layout LP, homepage or hero design, storefront design, design review,
-  redesign, design tokens, visual polish, or UI that looks AI-templated. Choose
-  Brand/Marketing or DR/COD Funnel mode and honor existing project tokens over
-  defaults. Defaults to a designed light theme (off-white, layered neutrals),
-  with dark shipped only when it is genuinely designed rather than inverted. Pair with astro-development for Astro implementation. Not for
-  admin/data-dense UI (admin-dashboard), commerce behavior (storefront-ux),
-  copywriting, component installation, or browser evidence (ui-validation).
+  customer-facing storefronts, portfolios, and redesigns. Use for desain
+  landing page, layout LP, homepage or hero design, storefront/PLP/PDP/cart
+  design, design review, redesign, design tokens, visual polish, or UI that
+  looks AI-templated. Choose Brand/Marketing, Storefront/Commerce, or DR/COD
+  Funnel mode and honor existing project tokens over defaults. Defaults to a
+  designed light theme (off-white, layered neutrals), with dark shipped only
+  when it is genuinely designed rather than inverted. Pair with the installed
+  framework skill for implementation. Not for admin/data-dense UI
+  (admin-dashboard), commerce behavior (storefront-ux), copywriting, component
+  installation, or browser evidence (ui-validation).
 ---
 
 # design-taste: Anti-Slop Design Judgment (Astro-first, funnel-aware)
@@ -24,22 +26,27 @@ first, then pull only what fits.
 
 ## 0. MODE DETECTION (before anything else)
 
-Pick ONE mode. It changes which rules fire.
+Pick ONE primary mode per surface. It changes which rules fire.
 
 | Mode | Signals | Rule set |
 |---|---|---|
-| **Brand / Marketing** | agency site, SaaS landing, portfolio, storefront home, editorial/blog/docs, "premium", "clean", brand awareness | All sections apply (editorial, docs, and portfolio also get §4.5.1) |
+| **Brand / Marketing** | agency site, SaaS landing, campaign/editorial page, portfolio, brand awareness | All sections apply (editorial, docs, and portfolio also get §4.5.1) |
+| **Storefront / Commerce** | store home, collection/PLP, search, PDP, cart, account, merchandising shell | Universal rules plus the storefront visual lens; product decisions outrank campaign composition |
 | **DR / COD Funnel** | LP produk COD, ads funnel, Scalev/order form, "yang penting convert", quiz/geo funnel | Sections apply EXCEPT the overrides in Section 6 |
 
-If a page is both (storefront home that also sells), default Brand mode for
-the shell, Funnel mode for the product/offer blocks.
+For hybrid pages, assign mode per region without mixing their priorities. A
+storefront home uses Storefront mode for navigation, discovery, product cards,
+and cart entry; a campaign story inside it may use Brand mode. A single-offer
+COD page uses Funnel mode even when it resembles a PDP.
 
-For product discovery, variants, cart, checkout handoff, customer account,
-inventory conflicts, or commerce analytics contracts, keep the visual direction
-here and load `storefront-ux` for interaction behavior.
+For Storefront mode, read
+[public-experience-patterns.md](references/public-experience-patterns.md).
+Load `storefront-ux` for discovery, variants, cart, checkout, account, state,
+and analytics behavior, then `storefront-development` for implementation.
 
-Out of scope entirely: admin panels, dashboards, data tables, multi-step
-product UI → use the `admin-dashboard` skill. Say so and stop.
+Out of scope entirely: admin panels, operator dashboards, data tables, and
+back-office product management. Use `admin-dashboard` for those. A customer
+product configurator remains Storefront mode and belongs to `storefront-ux`.
 
 ## 1. DESIGN READ (one line, before any code)
 
@@ -116,7 +123,8 @@ pairs that needed re-deriving rather than inverting.
 | Use case | VAR | MOT | DEN |
 |---|---|---|---|
 | DR / COD funnel LP (ID/MY market) | 3 | 2 | 5 |
-| Storefront / e-commerce marketing | 5 | 4 | 4 |
+| Storefront / commerce task surfaces | 4 | 3 | 5 |
+| Storefront campaign/editorial region | 5 | 4 | 4 |
 | SaaS landing (volumform/volumup class) | 7 | 5 | 4 |
 | Agency / creative (jasawebsite class) | 8 | 7 | 3 |
 | Portfolio | 7 | 6 | 3 |
@@ -400,8 +408,8 @@ with:
 
 ## 8. PRE-FLIGHT CHECK (run before delivering; any fail = not done)
 
-Hybrid pages (§0) apply the Brand vs Funnel checks per block, by that
-block's mode.
+Hybrid pages (§0) apply the relevant Brand, Storefront, or Funnel checks to each
+block by its declared mode.
 
 Universal:
 - [ ] Mode + design read declared; dials stated and reasoned
@@ -433,6 +441,19 @@ Universal:
 - [ ] Loading/empty/error states exist where data renders
 - [ ] Web vitals plausible (LCP < 2.5s, INP < 200ms, CLS < 0.1); validate
       with the project's own scripts, `web-perf` skill for a real audit
+
+Storefront mode additionally:
+- [ ] PLP cards remain comparable at realistic title, image, price, badge,
+      and availability lengths; merchandising tiles do not break discovery
+- [ ] PDP media, identity, price, options, availability, fulfilment, trust,
+      and purchase action form one legible decision sequence on desktop and
+      mobile
+- [ ] Selected, unavailable, sold-out, pending, error, sale, and base-price
+      states remain distinct without color alone or layout shift
+- [ ] Sticky purchase controls, quick add, drawers, swatches, and galleries
+      are used only when their prerequisites and accessible fallback survive
+- [ ] Checkout handoff and accelerated checkout look distinct from Add to cart;
+      no visual treatment implies payment or order completion early
 
 Brand mode additionally:
 - [ ] Hero: ≤ 2-line headline, ≤ 20-word subtext, CTA above fold, ≤ 4 text
@@ -471,7 +492,7 @@ Funnel mode additionally:
 ## Reference ownership
 
 - [theme-implementation.md](references/theme-implementation.md) and [surface-and-mode-rules.md](references/surface-and-mode-rules.md) are the canonical extracted implementation and surface references.
-- [public-experience-patterns.md](references/public-experience-patterns.md) is an optional visual-only lens; it delegates commerce behavior to `storefront-ux` and implementation to `storefront-development`.
+- [public-experience-patterns.md](references/public-experience-patterns.md) is the canonical Storefront/Commerce visual lens; it delegates commerce behavior to `storefront-ux` and implementation to `storefront-development`.
 - [rationale.md](references/rationale.md) and [accessibility-notes.md](references/accessibility-notes.md) are optional project-record templates. Copy them into the target project; do not store project facts in this skill.
 - The retained numbered paths are compatibility pointers, not independent rule sources: [0](references/0-mode-detection-before-anything-else.md), [1](references/1-design-read-one-line-before-any-code.md), [1.5](references/1-5-design-context-precedence-tokens-beat-taste.md), [2](references/2-the-three-dials.md), [3](references/3-stack-defaults-astro-first-differs-from-the-original-on-purpose.md), [4](references/4-design-directives-bias-correction.md), [5](references/5-ai-tells-hard-bans-unless-the-brief-asks.md), [6](references/6-dr-cod-funnel-mode-overrides.md), [7](references/7-redesign-protocol.md), [8](references/8-pre-flight-check-run-before-delivering-any-fail-not-done.md), and [9](references/9-pairing-map.md).
 

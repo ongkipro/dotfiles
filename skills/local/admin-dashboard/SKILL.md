@@ -18,7 +18,8 @@ Load `admin-product-ux` first when roles, business objects, lifecycle,
 permissions, task flow, or screen contracts are not already explicit. This
 skill must not invent those product rules while arranging the presentation.
 
-You're already strong at front-end/landing UI/UX. The blind spot is **admin dashboards** (data-dense, responsive, charts, IA). This skill is the **decision** layer — which chart, which layout, which breakpoint. **Components come from other skills.**
+This skill is the decision layer: which screen shape, chart, layout, responsive
+transformation, and density. Components come from their implementation owner.
 
 For harvested GitHub production contracts (TanStack Table v9, Refine, Payload CMS, Medusa Admin, Strapi, kbar, Clerk impersonation), load `references/github-admin-patterns.md`.
 For the Next.js 16 + shadcn admin-starter implementation contracts (URL-as-state `useDataTable`, the nuqs server/client parser seam, feature-first `src/features/<feature>/{api,components,schemas,types}`, the multi-palette `data-theme` CSS-variable engine, and TanStack Form multi-step wizards), load `references/next-shadcn-starter-patterns.md`.
@@ -28,7 +29,7 @@ For the fallback clean-light visual design system and standalone HTML/CSS fixtur
 | Need | Go to |
 |---|---|
 | Domain objects, lifecycle, roles, permissions, task flows, screen contracts | skill **`admin-product-ux`** |
-| Install/code for Recharts, sidebar, data table, blocks, dark-mode toggle, semantic tokens | skill **`shadcn-ui`** |
+| Map/code Sidebar, Chart, Data Table, forms, overlays, blocks, themes, and semantic tokens | skill **`shadcn-ui`** |
 | Before adding a new dep/lib/wrapper | skill **`native-first`** |
 | IA / flow / ERD diagram from the dashboard structure | skill **`mermaid-diagram`** |
 | Dashboard slow / heavy chart bundle / render audit | skill **`web-perf`** |
@@ -38,9 +39,20 @@ For the fallback clean-light visual design system and standalone HTML/CSS fixtur
 
 The rule: **this skill decides WHAT, `shadcn-ui` executes HOW.** Don't duplicate component code here.
 
-## 1. Dashboard shell — the required hierarchy
+For React-capable admin surfaces, shadcn/ui is the default implementation
+system after this skill accepts the presentation. That does not make React a
+universal render layer: native semantics remain authoritative, and static Astro
+presentation stays unhydrated. The cross-framework mapping lives in
+`shadcn-ui`'s `references/admin-component-system.md`.
 
-Canonical shape (shadcn "dashboard-01"): **sidebar + header → KPI card grid → trend charts → detail data table** (top→bottom). Binding principle: **Shneiderman's mantra** — *"Overview first, zoom and filter, then details-on-demand"* (Shneiderman, IEEE VL 1996). Summary first, filter, then drill down.
+## 1. Analytics dashboard shell
+
+For an analytics dashboard, the canonical shape is **sidebar + header → KPI
+summary → trend charts → detail data table** (top to bottom). Binding principle:
+Shneiderman's mantra — *\"Overview first, zoom and filter, then
+details-on-demand\"* (Shneiderman, IEEE VL 1996). An order queue, approval inbox,
+settings area, or list-detail workflow follows its primary job instead; do not
+force KPI cards or charts onto every admin home.
 
 - **KPI cards top-left** — users scan top-left first; put the most important metric there.
 - **F/Z-patterns are text-reading behavior, NOT a layout template** (NN/g F-pattern is from text eye-tracking, 2006). For a dashboard you deliberately **fight** the F-pattern with strong visual hierarchy (KPI size/color/position) so the eye lands on the priority metric instead of sweeping.
@@ -124,7 +136,7 @@ Recharts already ships via `shadcn-ui`. **Default is Recharts. Step up only when
 
 **Palette ownership:** this section is the local source of truth for categorical chart colour. If the runtime also exposes a general `dataviz` skill, use it for craft detail (mark specs, legends, tooltips) but keep the accessibility floor here — colourblind-safe series and a non-colour cue are not negotiable by another palette's defaults.
 
-## 7. Stack fit — Astro vs Next, server data
+## 7. Stack fit — Astro, Vite, Next, and server data
 
 - **Route-oriented admin with bounded interactive regions** → Astro can hold it:
   server-render the protected route, keep static markup static, and place each
@@ -138,6 +150,20 @@ Recharts already ships via `shadcn-ui`. **Default is Recharts. Step up only when
 - For implementation details, load `astro-development` and read its
   `references/admin-dashboard-runtime.md`; `shadcn-ui` owns component APIs.
 
+### If the admin is Vite + React or React Router
+
+- Use it when an existing API owns authentication and protected data and an
+  all-client application is the simpler runtime, not merely for throwaway work.
+- Keep authorization in the API. Reuse installed route loaders/actions and data
+  primitives before adding a second client cache.
+- Split by route and lazy-load heavy charts, editors, and rare settings flows;
+  an all-client runtime is not permission to place the whole admin in one
+  initial bundle.
+- Define session expiry, network failure, mutation conflict, and background
+  refresh behavior explicitly. Keep shareable table state in the URL.
+- TanStack Query or another client cache is earned by client-owned polling,
+  optimistic coordination, or repeated server state—not installed by default.
+
 ### If the admin is Next.js App Router (patterns — code details → shadcn-ui)
 
 - **Server/Client boundary.** Pages/layouts are Server Components: fetch D1/API *on the server*, pass results as props. Add `"use client"` ONLY to interactive leaves — sortable/filterable table, hover/zoom chart, forms (need state, handlers, or `window`/`localStorage`). Keep `"use client"` on the smallest leaf (everything a client file imports ships to the browser).
@@ -145,7 +171,12 @@ Recharts already ships via `shadcn-ui`. **Default is Recharts. Step up only when
 - **Mutations = Server Actions.** `'use server'` fn → invoke from a client component (`<form action>`, `formAction`, or handler). Re-check auth *inside* the action (it is reachable via direct POST). To refresh after the write on **Next 16**: prefer `updateTag(tag)` (Server Actions only, read-your-own-writes — the next request waits for fresh data) or `revalidatePath`. Watch the profile argument: **`revalidateTag(tag, 'max')` is stale-while-revalidate and will show the operator the pre-write table**, while a bare `revalidateTag(tag)` keeps the older immediate behavior. Use `refresh()` for dynamic data cached client-side that `updateTag` won't reach.
 - **Heavy chart lib → lazy.** `dynamic(() => import('./chart'), { ssr: false })` for a client-only chart touching `window`/DOM. `ssr:false` is NOT allowed in a Server Component — the `dynamic()` call must live in a `"use client"` file.
 - **Deploy: check the repo before assuming.** Admin apps here are containerised (Dockerfile / Coolify) or run a separate API app; Cloudflare is the Astro-site path, not automatically the admin path. Don't reach for an `@opennextjs/cloudflare`-shaped answer without reading the project's Dockerfile and adapter config first.
-- **App Router is the house default**, because that is what the existing admins run — a new admin inherits their auth middleware, Server Action conventions, and deploy. A **Vite + React + React Router SPA** is the exception: justified for a throwaway internal tool with no server-fetch or streaming need, where all-client is genuinely simpler. Do not propose an SPA rewrite of a working App Router admin.
+- **App Router is the house default for an integrated full admin**, because the
+  existing admins can reuse its auth middleware, Server Action conventions, and
+  deployment path. This preference does not override project evidence: an
+  API-backed client application can fit Vite/React, and a route-oriented admin
+  with bounded interactivity can fit Astro. Never rewrite a working admin just
+  to satisfy the default.
 - **Server-paginated tables** (Postgres via Drizzle/`pg`, or D1 behind the Astro sites):
   - **Default is Server Component fetch + Server Action mutation + `updateTag`.** Reach for TanStack Query only when a table needs client-owned polling or optimistic state that Server Actions cannot express — and note nothing in the current repos does yet, so "we already have it" is not an argument.
   - Small (hundreds of rows, fits at once) → client-side pagination/sort/filter.

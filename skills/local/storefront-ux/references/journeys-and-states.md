@@ -1,108 +1,197 @@
-# Commerce journeys and states
+# Commerce Journeys and States
 
-Use only the sections relevant to the task. Treat this as an audit checklist, not a mandate to add every feature.
+Use only the sections relevant to the accepted journey. This is a contract
+checklist, not a mandate to add every feature.
 
 ## Discovery: search, PLP, and collections
 
-- Make the query, result count, applied filters, sort, and correction/expansion behavior clear.
-- Preserve filters and scroll/list position across product-detail visits when feasible.
-- Put active filters in removable controls; provide clear-all; distinguish zero results from load failure.
-- Choose pagination, load-more, or continuous loading from the browsing task. Preserve URL/history and provide an accessible route to the footer.
-- Define no-query, no-result, partial-result, stale-price, and unavailable-product behavior.
-- Keep product cards comparable: identity, representative price, availability signal, and option context must mean the same thing across cards.
+- Make the query, result count, applied filters, sort, correction/expansion,
+  and active market context clear.
+- Preserve filters and list/scroll position across product-detail visits when
+  feasible.
+- Put active filters in removable controls; provide clear-all; distinguish zero
+  results from load failure.
+- A merchandising tile must be distinguishable from a product and must not
+  corrupt result counts, keyboard order, filtering, or responsive flow.
+- Choose pagination, load-more, or continuous loading from the browsing task.
+  Preserve URL/history and provide an accessible route to the footer.
+- Define no-query, no-result, partial-result, stale-price, changed-market,
+  unavailable-product, and slow/error behavior.
+- Product cards remain comparable: identity, representative price basis,
+  availability signal, rating basis when present, and option context mean the
+  same thing across cards.
 
 ## Evaluation: PDP and variants
 
-- Keep product identity, price basis, availability, option selection, quantity, fulfillment promise, and primary action mutually consistent.
-- Model selection states explicitly: no selection, partial selection, valid available combination, valid sold-out combination, invalid/nonexistent combination, and data failure.
-- Preserve selections during gallery use, disclosure expansion, and validation. Link or restore the selected variant when supported.
-- Update price, media, identifier, inventory, fulfillment, and action label atomically enough to avoid mixed states.
-- Avoid false urgency and unsupported scarcity. State preorder, backorder, made-to-order, subscription, and final-sale consequences before commitment.
-- Make media keyboard-operable, zoom-safe, captioned where needed, and non-blocking for the decision controls.
+- Keep identity, current price and basis, selected options, availability,
+  fulfilment promise, returns/commitment information, and primary action
+  mutually consistent.
+- Treat compare-at/reference price, savings, rating aggregate, delivery
+  estimate, guarantee, and stock pressure as claims. Show each only when backed
+  by the accepted data contract and place it with the decision it supports.
+- Model option combinations explicitly. Selecting one option may invalidate
+  another; explain and recover rather than silently resetting a valid choice.
+- Distinguish selected, available, unavailable, sold out, nonexistent,
+  backordered/preorder, pending, and unknown.
+- Variant deep links resolve to a valid explicit state or explain the fallback.
+  Never silently mutate the URL to conceal an invalid selection.
+- Media selection follows the chosen variant where data supports it. Gallery,
+  zoom, video, or model controls retain explicit keyboard-accessible controls;
+  swipe and hover are enhancements.
+- Quantity respects minimum, maximum, increment, inventory, and purchasing-rule
+  constraints owned by the backend.
+- A sticky purchase action is optional and may appear only when it preserves
+  selected product/variant and price context, errors, zoom/reflow, and access
+  to material purchase information.
+- Add to cart, accelerated Buy now, preorder, and notify-me are distinct actions
+  with distinct consequences.
 
 ## Cart
 
-- Support quantity change, removal with recovery when practical, option review, and navigation back to the product.
-- Show pending recalculation and the confirmed result. Explain rejected quantities, sold-out lines, promotion changes, and price changes at line level.
-- Separate subtotal from shipping, taxes, duties, discounts, store credit, and final total when those values are not yet known.
-- Define empty, loading, stale, merge-after-login, multi-tab conflict, and checkout-return states.
-- Keep cart count semantics consistent: line count versus total quantity must not switch silently.
+- Make the cart authoritative but revisable. Reconcile server changes rather
+  than optimistically presenting stale totals as confirmed.
+- Address cart lines by their backend line identity, not by product identity,
+  because option, property, plan, or bundle context may distinguish otherwise
+  similar lines.
+- Separate item subtotal from shipping, taxes, duties, discounts, store credit,
+  and final total when those values are not yet known.
+- Define empty, loading, stale, merge-after-login, multi-tab conflict,
+  partial-failure, and checkout-return states.
+- Keep successful line mutations when another line fails; identify the failed
+  line, retained state, and retry path.
+- Define where discount codes are entered; preserve rejected-code context and
+  explain incompatibility without losing valid cart state.
+- Treat the cart drawer as a bounded fast-edit preview and the cart page as a
+  longer review surface. Either may be omitted if the accepted journey remains
+  complete; never mandate a drawer by aesthetic default.
+- Recommendations cannot precede unresolved cart errors or displace quantity,
+  removal, line price, discounts, subtotal, and checkout.
 
-## Direct order form (COD and single-page funnels)
+### Cart acceptance examples
 
-Applies when the page collects the order itself instead of handing off to a
-hosted checkout: DR/COD landing pages, one-page order forms, quiz funnels. The
-form IS the product here — treat every rule below as a correctness requirement,
-not polish. Visual treatment stays with `design-taste` (§4.4 label placement, §4.7 the 16px
-input floor). Field labels and error wording have **no owner skill** — write
-them here to the same plain-language standard, and take only tone from
-`copywriting`.
+- Given a quantity update races with a price refresh, when responses arrive out
+  of order, stale data cannot overwrite the latest authoritative state.
+- Given a partial line failure, successful lines remain committed and the failed
+  line carries a recoverable error.
+- Given market or currency context changes, stale prices are never presented as
+  checkout-authoritative totals.
+- Given the cart renders during a pending mutation, geometry remains stable and
+  checkout cannot submit an unconfirmed total.
 
-- **Never rename field `name`/`id`/slug values that analytics, pixels, or the
-  order backend already depend on.** (Reordering the DOM is safe for `name`-keyed
-  payloads and unsafe for position-scraping pixels — check which you have.) Verify the current contract
-  in the codebase before touching a field; a renamed field is a silently dead
-  funnel, not a visible bug.
-- Use native semantics before JavaScript: correct `type`, `inputmode`,
-  `autocomplete` (`tel`, `name`, `street-address`, `postal-code`), and a real
-  `<label>` bound to each control. Native autofill is the single biggest
-  completion win on mobile and it is free.
-- **Accept what users actually type.** Phone and postcode entry varies by habit
-  (leading zero, country prefix, spaces, dashes). Normalize on submit **to the
-  shape the existing backend and pixel payloads already receive** — read that
-  contract before choosing it, because changing the normalized form is a funnel
-  change, not a cleanup. Never rewrite characters mid-typing.
-- Validate on blur and on submit, not on every keystroke. On a failed submit,
-  move focus to the first invalid field and associate the message with its
-  input so it is announced, not merely coloured red.
-- **Never clear entered data on any failure** — validation, network, session,
-  or server error. Re-render the form with values intact and state what to do
-  next. Persist in-progress input across accidental navigation where the
-  project already has a mechanism for it.
-- **Prevent duplicate orders.** Block the second submit with `aria-disabled`
-  plus an ignored handler, or a busy state — not `disabled`, which can drop
-  focus off the button and silence the result announcement. Require an
-  idempotency key on the order write so a retry cannot create a second order.
-  Double-tap on a slow mobile connection is the normal case, not the edge one.
-- Address input follows the market's own administrative hierarchy; do not
-  assume one country's model fits another. Where shipping rate or coverage
-  lookup is involved, that integration is owned by the courier/aggregator skill
-  — this file owns only the form's states and recovery.
-- **COD confirmation must not overclaim.** Order submitted is not payment
-  received and not shipment confirmed. State what was recorded, what happens
-  next, and how the buyer is contacted. Show the same truth on screen, in any
-  confirmation message, and in the tracked event.
-- Cover these states explicitly: pristine, partially filled, validating,
-  submitting, duplicate-submit blocked, server rejected, network failed and
-  retryable, succeeded, and already-submitted-on-return.
+## Direct order form: COD and single-page funnels
 
-## Checkout boundary
+- Treat the direct order form as its own purchase boundary; do not force a
+  catalogue cart pattern onto it.
+- Keep offer identity, selected variant, quantity, destination, shipping,
+  COD/prepaid choice, total, consent, submission, and confirmation consistent.
+- Never rename field `name`, `id`, or slug values used by integrations without
+  migrating every consumer.
+- Derive area and shipping coverage from an authoritative source. Do not assume
+  one country's address or fulfilment model fits another.
+- Show area lookup, shipping quote, order creation, duplicate submission,
+  unknown outcome, and confirmation states separately.
+- On a failed submit, retain safe field values, focus the first invalid field,
+  associate each error with its control, and never emit purchase success.
+- Do not invent urgency or allow client-calculated totals to override the
+  authoritative order result.
 
-- Identify the last storefront-owned action and the first checkout-owned state.
-- Prevent duplicate submission; retain a recoverable cart if redirect or checkout creation fails.
-- Communicate domain/context changes and supported return paths without claiming an order exists early.
-- Pass only verified price, line, market, customer, and attribution state. Never put sensitive data in URLs or analytics payloads.
-- Cover authentication challenges, address/payment errors, inventory revalidation, abandonment, cancellation, and confirmed completion even when the platform owns their UI.
+## Checkout handoff
 
-## Account and post-purchase
+- State who owns checkout: hosted platform, embedded SDK, redirect, or local
+  application.
+- Preserve cart identity, market/currency context, attribution where consent
+  allows, and a safe return path.
+- Distinguish checkout initiated, checkout loaded, payment pending, payment
+  failed, order confirmed, order creation delayed, and unknown outcome.
+- Never emit purchase success from add-to-cart, redirect attempt, payment intent
+  creation, or an unverified client callback.
+- If checkout is platform-hosted, do not promise DOM, CSS, field,
+  authentication, payment-method, or extension placement control that the
+  platform does not expose.
+- Test guest and returning users, narrow and wide viewports, physical and
+  digital goods, discounted orders, pickup and shipping when supported, and
+  failure/retry paths.
 
-- Separate identity/authentication state from cart state; preserve both through sign-in and sign-out according to verified policy.
-- Provide recovery for expired links, failed verification, locked accounts, and sessions that expire mid-task.
-- For orders, expose status, items, totals, fulfillment/tracking, address, and available actions without promising unsupported cancellation or return behavior.
-- Avoid exposing personal order data through cache, logs, analytics, shared URLs, or public error messages.
+## Customer account, reorder, and localization
 
-## Localization and markets
+- Preserve guest purchase lookup and recovery when the platform allows it.
+- Reorder starts a new availability and price evaluation; it does not clone an
+  old total as current truth.
+- Separate order placed, paid, fulfilled, delivered, cancelled, refunded,
+  returned, and disputed states.
+- Keep market, locale, currency, tax presentation, units, address format,
+  payment availability, and shipping destination as separate dimensions.
+- Persist locale/market intentionally; never use IP or browser language as an
+  irreversible decision.
 
-- Treat language, currency, market, shipping destination, and tax/duty context as related but distinct state.
-- Explain consequences before a market change clears a cart, changes catalog eligibility, or reprices lines.
-- Use locale-aware formatting and correct reading direction. Allow user override when automatic detection is uncertain.
-- Test long translations, pluralization, address/name variation, currencies with different minor units, and unavailable cross-market products.
+## Responsive behavior
 
-## Cross-cutting acceptance probes
+Specify transformations per region:
 
-- Keyboard-only and screen-reader users can complete the same critical journey.
-- Back, forward, refresh, deep links, and a second tab do not corrupt or silently discard meaningful state.
-- Slow, failed, duplicated, and out-of-order requests resolve predictably.
-- Core decisions remain possible at narrow width, 200% zoom, reduced motion, and without hover.
-- Essential identity, price, availability, and primary controls arrive before optional media and recommendations.
-- Consent denial or tracker failure does not block buying; events never contain payment credentials or unnecessary personal data.
+- navigation utility → labelled menu/search/account/cart controls;
+- filter sidebar → bounded sheet or disclosure with active count and clear-all;
+- product grid → fewer columns without changing comparison semantics;
+- PDP media and purchase regions → one coherent decision sequence;
+- cart table → labelled line-item groups rather than clipped columns;
+- sticky purchase or checkout bars → safe-area-aware controls that do not cover
+  validation, chat, consent, or platform UI.
+
+At minimum test 320 CSS px narrow phone, 1280 CSS px desktop, 200% zoom,
+translation expansion, long product titles, missing media, sale and sold-out
+states, many options, and cart errors.
+
+## Accessibility
+
+- Use semantic landmarks, headings, lists, buttons, links, labels, and native
+  controls before custom widgets.
+- Keep DOM reading order aligned with visual order; never use CSS order to make
+  a materially different keyboard path.
+- Provide visible focus, at least 44px touch targets, and text equivalents for
+  swatches, icon controls, and media navigation.
+- Announce result count, availability, cart count, total, and mutation errors
+  when they change asynchronously. Do not announce every keystroke.
+- On dialog, drawer, or sheet close, return focus to the invoking control.
+- Support text resize, zoom/reflow, reduced motion, and contrast without
+  clipping essential product or checkout information.
+
+## Performance
+
+- Prioritize the likely LCP product or merchandising image with correct
+  intrinsic geometry; lazy-load secondary media.
+- Reserve geometry for prices, badges, selectors, cart lines, errors, and
+  recommendations to limit layout shift.
+- Avoid shipping a framework runtime for static merchandising alone.
+- Defer reviews, recommendations, tracking, chat, and rich media behind the
+  product identity, current price, availability, and primary decision path.
+- Measure the affected route with browser/network evidence. A build or source
+  audit cannot establish Core Web Vitals.
+
+## Analytics contract
+
+For each event define:
+
+- business meaning and user outcome;
+- authoritative trigger and owner;
+- stable identifiers and market/currency context;
+- consent behavior and prohibited personal/payment data;
+- deduplication identity;
+- expected failure/unknown behavior;
+- browser and backend validation route.
+
+Keep `view_item`, option selection, add-to-cart, cart update, checkout
+initiation, and purchase confirmation semantically distinct. Purchase should be
+server-authoritative or reconciled against a trusted commerce result.
+
+## Delivery gate
+
+Before accepting a storefront UX contract:
+
+- the primary journey and success condition are explicit;
+- price, availability, fulfilment, cart, checkout, and analytics each have one
+  authority;
+- loading, empty, error, pending, conflict, recovery, and success states exist;
+- desktop and narrow-screen transformations are named;
+- keyboard, focus, announcement, zoom/reflow, and contrast behavior is testable;
+- every commercial claim has an evidence source;
+- acceptance criteria fail on plausible stale, racing, partial, or unknown
+  outcomes.

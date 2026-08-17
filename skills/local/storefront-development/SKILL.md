@@ -1,6 +1,17 @@
 ---
 name: storefront-development
-description: Build, refactor, or review customer-facing ecommerce storefronts with a clean, restrained, product-first baseline inspired by Shopify Dawn's HTML-first and progressive-enhancement approach. Use for home, collection/PLP, search, product/PDP, variant selection, add-to-cart, cart drawer/page, checkout handoff, account, localization, merchandising sections, responsive behavior, semantic HTML, performance, and implementation across Shopify Liquid themes, Astro, Next.js, Vite/React, Hydrogen, or another web stack. Use storefront-ux for journey/state decisions and this skill for implementation architecture, UI composition, commerce state, and validation. Verify current platform APIs before coding; hosted Shopify themes, headless Shopify, and non-Shopify commerce have different cart and checkout boundaries.
+description: >-
+  Build, refactor, or review customer-facing ecommerce storefronts with a clean,
+  restrained, product-first baseline informed by Shopify Dawn's HTML-first and
+  progressive-enhancement approach. Use for home, collection/PLP, search,
+  product/PDP, variants, add-to-cart, cart drawer/page, checkout handoff,
+  account, localization, merchandising, responsive behavior, semantic HTML,
+  performance, and implementation across Shopify Liquid, Astro, Next.js,
+  Vite/React, Hydrogen, or another web stack. Use storefront-ux for journey and
+  state decisions, design-taste for visual direction, and this skill for
+  implementation architecture, UI composition, commerce state, and validation.
+  Verify current platform APIs before coding; hosted Shopify, headless Shopify,
+  and non-Shopify commerce have different cart and checkout boundaries.
 ---
 
 # Storefront Development
@@ -11,25 +22,28 @@ visual template to clone blindly.
 
 ## First inspect
 
-Read the repository instructions, package/lock files, routes, data contracts,
-existing design tokens, cart ownership, checkout provider, analytics, and tests.
-For Shopify, determine hosted Liquid theme versus headless Storefront API before
-writing any cart code. Never mix their APIs.
+Read repository instructions, package/lock files, routes, data contracts,
+existing design tokens, page composition, cart ownership, checkout provider,
+analytics, and tests. For Shopify, determine hosted Liquid theme versus
+headless Storefront API before writing cart code. Never mix their APIs.
 
 Load `storefront-ux` when journey, edge states, or commercial rules are not
-already specified. Load `design-taste` only after product hierarchy is correct.
+already accepted. For any visual implementation, load `design-taste`
+Storefront/Commerce mode after the contract and before the first visual edit.
 
 ## Build ladder
 
-### 1. Establish the clean baseline
+### 1. Establish the product-first baseline
 
-Start with product identity, imagery, price, variant/availability, fulfilment
-context, and one clear purchase action. Use restrained typography, generous but
-efficient whitespace, quiet neutral surfaces, consistent borders/radii, and one
-brand accent. Avoid excessive cards, gradients, floating decoration, duplicated
-CTAs, auto-rotating content, and motion without task value.
+Start from the accepted product decision path: find and compare; identify and
+evaluate; choose a purchasable configuration; review the cart; enter checkout.
+Use restrained typography, efficient whitespace, quiet neutral surfaces,
+stable media geometry, consistent borders/radii, and one brand accent. Avoid
+card soup, decorative gradients, duplicated CTAs, auto-rotating content,
+generic trust-badge rows, and motion without task value.
 
-Read [Dawn-inspired baseline](references/dawn-inspired-baseline.md) and [Next.js Commerce Patterns](references/next-commerce-patterns.md).
+Read [Dawn-inspired baseline](references/dawn-inspired-baseline.md) for durable
+HTML/progressive-enhancement patterns and [Next.js Commerce Patterns](references/next-commerce-patterns.md) only for that stack.
 
 ### 2. Render the useful document first
 
@@ -57,12 +71,20 @@ For advanced Next.js App Router implementations covering Server Actions, optimis
 
 For Shopify, also read [Shopify boundaries](references/shopify-boundaries.md).
 
+Use `shadcn-ui` only when the selected React stack already supports it and its
+primitives fit the accepted component map. Do not introduce React hydration so
+static Shopify Liquid or Astro merchandising can look like shadcn. Shopify
+checkout UI extensions use Polaris web components, not storefront shadcn
+components.
+
 ### 5. Enhance deliberately
 
 Add quick add, cart drawer, recommendations, sticky purchase controls, filters,
 predictive search, media zoom, personalization, or animation only when the base
-journey already works and the enhancement has explicit empty/error/loading and
-keyboard behavior. Do not let enhancement duplicate commerce state.
+journey already works and the enhancement has explicit prerequisites,
+empty/error/loading behavior, accessible controls, narrow-screen
+transformation, and fallback. Do not let an enhancement duplicate commerce
+state or hide required product decisions.
 
 ### 6. Validate the journey
 
@@ -80,9 +102,11 @@ cart mutations, empty/populated cart, and checkout handoff. Read
 - Announce async cart count, subtotal, availability, and errors to assistive
   technology without stealing focus.
 - Preserve selection and input after a recoverable error.
-- Show price changes, discounts, quantity limits, and estimated-versus-final
-  totals honestly.
+- Show price changes, legitimate compare-at/reference pricing, discounts,
+  quantity limits, and estimated-versus-final totals honestly.
 - Keep cart lines editable and recover from stale inventory at cart/checkout.
+- Place delivery, returns, ratings, and guarantee evidence with the decision it
+  supports; never synthesize stock pressure or generic security-badge rows.
 - Treat accelerated Buy now as a different path that may bypass cart review;
   never label it as equivalent to Add to cart.
 - Navigate to checkout only with a current backend-provided checkout target.
@@ -91,30 +115,32 @@ cart mutations, empty/populated cart, and checkout handoff. Read
 
 ## Visual baseline versus brand layer
 
-Make the baseline light, calm, and product-led. A dark storefront is optional,
-not a default requirement: add it only when the brand and product media are
-designed for both themes. If used, define complete semantic token pairs and
-validate product photography, logos, badges, focus, disabled, error, and payment
-marks in both. Preserve existing project tokens; do not paste Dawn or another
-store's exact palette.
+Implement the accepted `design-taste` Storefront/Commerce direction; do not
+derive a brand from Dawn or this skill. The fallback baseline is light, calm,
+and product-led. Dark is optional: ship it only when brand tokens and product
+media are designed for both themes. Define complete semantic token pairs and
+validate photography, logos, price, badges, focus, disabled, error, cart, and
+payment marks in each theme. Preserve project tokens; never paste another
+store's palette or composition.
 
 ## Output
 
 For architecture or audit work, return the smallest useful artifact. For a full
-implementation plan, complete `assets/storefront-contract.yaml` with page
-surfaces, commerce owner, cart/checkout boundary, enhancement plan, budgets,
-and executable evidence. Save drafts under `~/Documents/work/prd/`; source code
-belongs in the project.
+implementation plan, complete `assets/storefront-contract.yaml` with the
+primary journey, product/price/availability authorities, page surfaces,
+responsive transformations, cart and checkout boundary, enhancement
+prerequisites, budgets, analytics, and executable browser evidence. Follow the
+repository planning-document convention; source code belongs in the project.
 
 ## Ownership boundaries
 
-- `storefront-ux`: buyer journey, state requirements, conversion correctness
-- `storefront-development`: implementation, composition, commerce state wiring
-- `design-taste`: brand expression and aesthetic judgment
+- `storefront-ux`: buyer journey, state requirements, and conversion correctness
+- `storefront-development`: implementation, composition, and commerce-state wiring
+- `design-taste`: Storefront/Commerce hierarchy, art direction, and visual judgment
 - `native-first`: platform capability before dependencies
-- `seo-website-builder`: indexation, metadata, schema, internal linking
+- `seo-website-builder`: indexation, metadata, schema, and internal linking
 - `ui-validation`: running-browser proof
-- `web-perf`: diagnosis when performance evidence fails
+- `web-perf`: measured diagnosis when performance evidence fails
 
 Do not turn this skill into copied API documentation. Current platform APIs and
 checkout capability must be retrieved from official sources at implementation

@@ -10,7 +10,11 @@
 - Web stack focus: Astro, Tailwind, Shopify/headless Shopify, Next.js for admin/client dashboards when needed, Cloudflare Workers, VPS, Git, Linux terminal workflow.
 - Shopify focus: standard Shopify store, Liquid/theme work, headless storefront, Storefront API, checkout flow, product/category structure, SEO, conversion, tracking.
 - Preferred public frontend: Astro + Tailwind for SEO/static/headless projects.
-- Preferred admin/client dashboard direction: Next.js + React + TypeScript + Tailwind + shadcn/ui when dashboard complexity needs React.
+- Preferred admin/client dashboard direction: shadcn/ui is the default
+  component source on React-capable stacks. Prefer Next.js App Router for an
+  integrated full admin, Vite + React for an API-backed client app, and Astro +
+  React for route-oriented bounded interactivity; preserve semantic HTML and
+  minimal hydration.
 - Infrastructure interests: Cloudflare Workers/R2/D1/Queues, VPS, PostgreSQL (Drizzle), queue systems, scraping, API architecture, multi-domain publishing. (**Supabase NOT used** — the CLI is deliberately not installed; see development.md.)
 
 ## Marketing & conversion
