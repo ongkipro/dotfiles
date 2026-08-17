@@ -30,14 +30,18 @@ PY
 )"
 python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$TMP/www" >"$TMP/server.log" 2>&1 &
 SERVER_PID=$!
-python3 - <<PY
+if ! python3 - <<PY
 import socket,time
-for _ in range(50):
+for _ in range(200):
     try:
         with socket.create_connection(('127.0.0.1',$PORT), timeout=.1): break
     except OSError: time.sleep(.05)
 else: raise SystemExit(1)
 PY
+then
+  cat "$TMP/server.log" >&2
+  fail "fixture server did not become ready"
+fi
 
 cat > "$TMP/repo/STATUS.md" <<'EOF'
 # Status
