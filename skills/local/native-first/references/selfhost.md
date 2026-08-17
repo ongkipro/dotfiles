@@ -30,7 +30,7 @@ House setup (TokoΦ): Coolify on a VPS, Docker Compose build pack, Postgres in a
 A VPS bills whether or not you use it. **Record the credit expiry and the monthly rate in memory when you create a server**, not later.
 
 > **Live example, re-measured 2026-08-05** (the previous version of this note was stale on all four
-> counts, and it is worth knowing how): TokoΦ runs **one** Vultr instance — `45.77.33.112`
+> counts, and it is worth knowing how): TokoΦ runs **one** Vultr instance — `<coolify-vps>` (address in `~/.config/ai-local/project-credentials.md`)
 > (`volumdev`), plan **`vhp-4c-8gb-amd`**, Singapore, created 2026-07-10, **$48.00/mo**.
 > Credit remaining **$262.54**, pending charges **$8.08** → runway **~5,5 months, i.e. ~mid-January
 > 2027**. `vultr-cli` is installed and `~/.vultr-cli.yaml` is present; `vultr-cli instance list` works.

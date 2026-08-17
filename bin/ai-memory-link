@@ -97,7 +97,17 @@ link_pmem() {
   fi
 }
 
-link_pmem "$HOME/dotfiles/config/ai/project-memory" \
-          "$HOME/.claude/projects/$(printf '%s' "$HOME" | tr '/' '-')/memory"
+# Every account under ~/.claude-accounts/ is its own CLAUDE_CONFIG_DIR with its
+# own projects/ tree, and the account switcher points Claude at one of them. This
+# linked only ~/.claude, so on a device using an account the live memory
+# directory was never the linked one: Claude wrote into a real directory that no
+# device ever saw. Found 2026-08-17 with 40 unsynced files in it — the same shape
+# of gap ai-hooks-install had. Link every config directory that exists.
+project_slug="$(printf '%s' "$HOME" | tr '/' '-')"
+for cfg in "$HOME/.claude" "$HOME"/.claude-accounts/*/; do
+  [ -d "$cfg" ] || continue
+  link_pmem "$HOME/dotfiles/config/ai/project-memory" \
+            "${cfg%/}/projects/$project_slug/memory"
+done
 
 echo "Selesai. Edit memori di ~/.config/ai/ (AGENTS.md + memory/*.md)."

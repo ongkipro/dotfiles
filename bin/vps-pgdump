@@ -10,7 +10,9 @@
 # Kalau instance-nya hilang, dump-nya ikut hilang. Backup harus keluar dari mesinnya.
 #
 # Pakai:
-#   vps-pgdump root@45.77.33.112              # TokoΦ (Coolify @ Vultr)
+#   vps-pgdump root@<host>                    # TokoΦ (Coolify @ Vultr); the
+#                                             # address is device-local, in
+#                                             # ~/.config/ai-local/project-credentials.md
 #   vps-pgdump root@1.2.3.4 -i ~/.ssh/keyname # kunci non-default
 #
 # Read-only di sisi server: cuma `docker ps` + `pg_dump`. Tidak mengubah apa pun.
