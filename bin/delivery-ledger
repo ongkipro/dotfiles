@@ -7,7 +7,10 @@ snapshots are immutable and self-hashed.
 
 Commands:
   init
-  start --task TASK-001 --requirement REQ-001 --risk R1 [routing evidence]
+  start --task TASK-001 --requirement REQ-001 --risk R1 --allow 'src/cart/**'
+  expand-scope --path path --reason reason --required-by criterion --risk R3 --verification test-name
+  check-boundary [--json]
+  review-boundary --reviewer reviewer-id
   record --check name --status PASS|FAIL|UNVERIFIED [--detail text]
   checkpoint [--note text]
   finish --result PASS|FAIL|BLOCKED [--detail text]
@@ -25,6 +28,7 @@ import json
 import os
 from pathlib import Path
 import re
+import stat
 import subprocess
 import sys
 import tempfile
@@ -33,9 +37,11 @@ from uuid import uuid4
 
 OK, FAILED, UNVERIFIED = 0, 1, 2
 RISK = {f"R{i}" for i in range(5)}
+RISK_ORDER = {f"R{i}": i for i in range(5)}
 CHECK_STATUS = {"PASS", "FAIL", "UNVERIFIED"}
 RUN_RESULT = {"PASS", "FAIL", "BLOCKED"}
 SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
+GENERIC_EXPANSION_REASONS = {"cleanup", "refactor", "while here", "better architecture"}
 
 
 def now() -> str:
@@ -57,6 +63,115 @@ def git_result(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
 def git(repo: Path, *args: str) -> str | None:
     r = git_result(repo, *args)
     return r.stdout.strip() if r.returncode == 0 else None
+
+
+def git_bytes(repo: Path, *args: str, input_bytes: bytes | None = None) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(
+        ["git", *args], cwd=repo, input=input_bytes, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, check=False,
+    )
+
+
+def base_head(repo: Path) -> str | None:
+    return git(repo, "rev-parse", "--verify", "HEAD^{commit}")
+
+
+def decode_path(raw: bytes) -> str:
+    return raw.decode("utf-8", errors="surrogateescape")
+
+
+def dirty_paths(repo: Path) -> list[str]:
+    """Return tracked and untracked dirty paths, preserving both sides of renames."""
+    diff_args = ["diff", "--name-status", "-z", "--no-ext-diff", "--no-textconv"]
+    if base_head(repo):
+        diff_args.append("HEAD")
+    else:
+        diff_args.append("--cached")
+    changed = git_bytes(repo, *diff_args)
+    if changed.returncode != 0:
+        raise ValueError(changed.stderr.decode(errors="replace").strip() or "could not inspect tracked changes")
+    fields = changed.stdout.split(b"\0")
+    if fields and fields[-1] == b"":
+        fields.pop()
+    paths: set[str] = set()
+    i = 0
+    while i < len(fields):
+        status_code = decode_path(fields[i]); i += 1
+        count = 2 if status_code[:1] in {"R", "C"} else 1
+        if i + count > len(fields):
+            raise ValueError("malformed git name-status output")
+        for raw in fields[i:i + count]:
+            paths.add(decode_path(raw))
+        i += count
+    untracked = git_bytes(repo, "ls-files", "--others", "--exclude-standard", "-z")
+    if untracked.returncode != 0:
+        raise ValueError(untracked.stderr.decode(errors="replace").strip() or "could not inspect untracked paths")
+    paths.update(decode_path(raw) for raw in untracked.stdout.split(b"\0") if raw)
+    return sorted(path for path in paths if path != ".delivery" and not path.startswith(".delivery/"))
+
+
+def fingerprint(repo: Path, relative: str) -> dict:
+    path = repo / relative
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return {"kind": "missing"}
+    mode = stat.S_IMODE(info.st_mode)
+    if stat.S_ISLNK(info.st_mode):
+        raw = os.fsencode(os.readlink(path)); kind = "symlink"
+    elif stat.S_ISREG(info.st_mode):
+        h = hashlib.sha256()
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                h.update(chunk)
+        return {"kind": "file", "mode": mode, "sha256": h.hexdigest(), "bytes": info.st_size}
+    else:
+        return {"kind": "unknown", "mode": mode}
+    return {"kind": kind, "mode": mode, "sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)}
+
+
+def snapshot_dirty(repo: Path) -> list[dict]:
+    return [{"path": path, "fingerprint": fingerprint(repo, path)} for path in dirty_paths(repo)]
+
+
+def validate_pattern(pattern: str) -> str:
+    if not pattern or pattern.startswith("/") or "\\" in pattern:
+        raise ValueError(f"invalid boundary pattern: {pattern!r}")
+    parts = pattern.split("/")
+    if any(part in {"", ".", ".."} for part in parts):
+        raise ValueError(f"invalid boundary pattern: {pattern!r}")
+    return pattern
+
+
+def glob_regex(pattern: str) -> re.Pattern[str]:
+    pattern = validate_pattern(pattern)
+    out = ""
+    i = 0
+    while i < len(pattern):
+        char = pattern[i]
+        if char == "*":
+            if i + 1 < len(pattern) and pattern[i + 1] == "*":
+                i += 1
+                if i + 1 < len(pattern) and pattern[i + 1] == "/":
+                    i += 1; out += "(?:.*/)?"
+                else:
+                    out += ".*"
+            else:
+                out += "[^/]*"
+        elif char == "?":
+            out += "[^/]"
+        else:
+            out += re.escape(char)
+        i += 1
+    return re.compile(f"^{out}$")
+
+
+def matches(path: str, patterns: list[str]) -> bool:
+    return any(glob_regex(pattern).fullmatch(path) for pattern in patterns)
+
+
+def risk_max(*values: str) -> str:
+    return max(values, key=lambda value: RISK_ORDER[value])
 
 
 def state(repo: Path) -> str | None:
@@ -161,6 +276,20 @@ def verify_run(path: Path) -> list[str]:
                 problems.append(f"{path.name}: PASS requires at least one verification event")
             elif any(check.get("status") != "PASS" for check in checks):
                 problems.append(f"{path.name}: PASS cannot follow FAIL or UNVERIFIED verification")
+            start = events[0] if events else {}
+            if start.get("boundary"):
+                boundary_checks = [event for event in events[:finishes[0]] if event.get("type") == "boundary_check"]
+                if not boundary_checks:
+                    problems.append(f"{path.name}: bounded PASS requires boundary_check evidence")
+                else:
+                    latest = boundary_checks[-1]
+                    bound = finish.get("boundary") or {}
+                    if bound.get("boundaryCheckEventHash") != latest.get("eventHash") or bound.get("surfaceDigest") != latest.get("surfaceDigest"):
+                        problems.append(f"{path.name}: finished boundary evidence does not bind the latest check")
+                    if latest.get("result") == "FAIL":
+                        problems.append(f"{path.name}: PASS cannot follow failed boundary check")
+                    if latest.get("result") == "REVIEW_REQUIRED" and not any(event.get("type") == "boundary_review" and event.get("boundaryCheckEventHash") == latest.get("eventHash") and event.get("status") == "APPROVED" for event in events[:finishes[0]]):
+                        problems.append(f"{path.name}: review-required boundary lacks approval")
     return problems
 
 
@@ -243,10 +372,33 @@ def cmd_start(repo: Path, a) -> int:
     if a.risk not in RISK:
         raise ValueError("risk must be R0-R4")
     require_id(a.task, "task"); require_id(a.requirement, "requirement")
+    allowed = [validate_pattern(pattern) for pattern in a.allow]
+    protected = [validate_pattern(pattern) for pattern in a.protect]
+    accepted_dirty_patterns = [validate_pattern(pattern) for pattern in a.accept_dirty]
+    if a.protected_risk not in RISK:
+        raise ValueError("protected risk must be R0-R4")
+    if a.risk != "R0" and not allowed:
+        raise ValueError("R1-R4 runs require at least one --allow change-surface pattern")
+    baseline = snapshot_dirty(repo)
+    overlaps = [entry["path"] for entry in baseline if matches(entry["path"], allowed)]
+    unaccepted = [path for path in overlaps if not matches(path, accepted_dirty_patterns)]
+    if unaccepted:
+        raise ValueError("allowed surface overlaps pre-existing dirty work; review it or repeat --accept-dirty for: " + ", ".join(unaccepted))
+    boundary = None
+    if allowed:
+        boundary = {
+            "schemaVersion": 1,
+            "baseHead": base_head(repo),
+            "preexistingDirty": baseline,
+            "allowedPaths": allowed,
+            "protectedPaths": [{"pattern": pattern, "minimumRisk": a.protected_risk} for pattern in protected],
+            "acceptedDirtyPaths": sorted(overlaps),
+            "declaredRisk": a.risk,
+        }
     run_id = datetime.now(timezone.utc).strftime("RUN-%Y%m%dT%H%M%SZ-") + uuid4().hex[:8]
     _, _, runs, _ = paths(repo)
     event = event_base(repo, "run_started", run_id)
-    event.update({"task": a.task, "requirement": a.requirement, "risk": a.risk, "job": a.job, "capability": a.capability, "worker": a.worker, "model": a.model, "provider": a.provider, "reasoningEffort": a.reasoning_effort})
+    event.update({"task": a.task, "requirement": a.requirement, "risk": a.risk, "job": a.job, "capability": a.capability, "worker": a.worker, "model": a.model, "provider": a.provider, "reasoningEffort": a.reasoning_effort, "boundary": boundary})
     append_event(runs / f"{run_id}.jsonl", event)
     data.update({"activeRun": run_id, "activeTask": a.task, "requirement": a.requirement, "risk": a.risk, "job": a.job, "capability": a.capability, "worker": a.worker, "model": a.model, "provider": a.provider, "reasoningEffort": a.reasoning_effort})
     save_current(repo, data)
@@ -276,18 +428,256 @@ def cmd_checkpoint(repo: Path, a) -> int:
     return OK
 
 
+def run_start(events: list[dict]) -> dict:
+    starts = [event for event in events if event.get("type") == "run_started"]
+    if len(starts) != 1:
+        raise ValueError("run boundary requires exactly one run_started event")
+    return starts[0]
+
+
+def task_path_risk(repo: Path, paths: list[str]) -> dict:
+    if not paths:
+        return {"risk": "R0", "flaggedReasons": [], "files": [], "classificationMode": "explicit-paths"}
+    command = [sys.executable, str(Path(__file__).with_name("diff-risk")), "--json"]
+    for path in paths:
+        command.append(f"--path={path}")
+    command.append(str(repo))
+    result = subprocess.run(command, cwd=repo, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+    if result.returncode != 0:
+        raise ValueError(result.stderr.strip() or "diff-risk failed for task-owned paths")
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise ValueError("diff-risk returned invalid JSON") from exc
+
+
+def expansion_for(path: str, expansions: list[dict]) -> dict | None:
+    for event in reversed(expansions):
+        if matches(path, [event["path"]]):
+            return event
+    return None
+
+
+def evaluate_boundary(repo: Path, events: list[dict]) -> dict:
+    start = run_start(events)
+    boundary = start.get("boundary")
+    if not boundary:
+        raise ValueError("active run has no task change boundary")
+    current_head = base_head(repo)
+    current_entries = snapshot_dirty(repo)
+    current = {entry["path"]: entry["fingerprint"] for entry in current_entries}
+    baseline_entries = boundary.get("preexistingDirty")
+    if not isinstance(baseline_entries, list):
+        raise ValueError("invalid boundary baseline")
+    baseline = {entry["path"]: entry["fingerprint"] for entry in baseline_entries}
+    allowed = boundary.get("allowedPaths") or []
+    protected_rules = boundary.get("protectedPaths") or []
+    accepted_dirty = set(boundary.get("acceptedDirtyPaths") or [])
+    expansions = [event for event in events if event.get("type") == "scope_expansion"]
+    verifications = [event for event in events if event.get("type") == "verification"]
+    checks_by_name: dict[str, list[str]] = {}
+    for event in verifications:
+        checks_by_name.setdefault(str(event.get("check")), []).append(str(event.get("status")))
+
+    changes = []
+    preexisting_unchanged = []
+    touched_preexisting = []
+    unknown = []
+    protected = []
+    out_of_scope = []
+    for path in sorted(set(current) | set(baseline)):
+        before = baseline.get(path)
+        after = current[path] if path in current else fingerprint(repo, path)
+        if path in baseline and before == after:
+            preexisting_unchanged.append(path)
+            continue
+        is_preexisting = path in baseline
+        is_allowed = matches(path, allowed)
+        matching_protected = [rule for rule in protected_rules if matches(path, [rule["pattern"]])]
+        is_unknown = after.get("kind") == "unknown"
+        classification = "PREEXISTING" if is_preexisting else "UNKNOWN" if is_unknown else "PROTECTED" if matching_protected else "ALLOWED" if is_allowed else "OUT_OF_SCOPE"
+        entry = {"path": path, "classification": classification, "before": before, "after": after}
+        changes.append(entry)
+        if is_preexisting:
+            touched_preexisting.append(path)
+        if is_unknown:
+            unknown.append(path)
+        if matching_protected:
+            protected.append(path)
+        if not is_allowed:
+            out_of_scope.append(path)
+
+    task_paths = [entry["path"] for entry in changes]
+    risk_data = task_path_risk(repo, task_paths)
+    protected_risk = "R0"
+    for path in protected:
+        for rule in protected_rules:
+            if matches(path, [rule["pattern"]]):
+                protected_risk = risk_max(protected_risk, rule["minimumRisk"])
+    effective_risk = risk_max(boundary["declaredRisk"], risk_data["risk"], protected_risk)
+
+    unexplained = []
+    used_expansions = []
+    missing_verification = []
+    for path in out_of_scope:
+        expansion = expansion_for(path, expansions)
+        if not expansion:
+            unexplained.append(path)
+            continue
+        used_expansions.append(expansion)
+        effective_risk = risk_max(effective_risk, expansion["risk"])
+        for check in expansion["verification"]:
+            statuses = checks_by_name.get(check, [])
+            if not statuses or any(status != "PASS" for status in statuses):
+                missing_verification.append({"path": path, "check": check})
+
+    head_moved = current_head != boundary.get("baseHead")
+    unaccepted_touched = [path for path in touched_preexisting if path not in accepted_dirty]
+    review_reasons = []
+    if used_expansions:
+        review_reasons.append("accepted scope expansion")
+    if protected:
+        review_reasons.append("protected surface touched")
+    if touched_preexisting:
+        review_reasons.append("accepted pre-existing dirty path changed")
+    if RISK_ORDER[effective_risk] >= RISK_ORDER["R3"]:
+        review_reasons.append("effective risk requires independent review")
+    if RISK_ORDER[effective_risk] > RISK_ORDER[boundary["declaredRisk"]]:
+        review_reasons.append("risk escalated above declared floor")
+
+    failures = []
+    if head_moved:
+        failures.append("repository HEAD moved after baseline capture")
+    if unknown:
+        failures.append("unknown filesystem object changed")
+    if unaccepted_touched:
+        failures.append("pre-existing user work changed without accepted overlap")
+    if unexplained:
+        failures.append("unexplained out-of-scope changes")
+    if missing_verification:
+        failures.append("scope expansion lacks required passing verification")
+    result = "FAIL" if failures else "REVIEW_REQUIRED" if review_reasons else "PASS"
+    surface = {
+        "head": current_head,
+        "currentDirty": current_entries,
+        "taskOwnedChanges": changes,
+    }
+    return {
+        "result": result,
+        "baseHead": boundary.get("baseHead"),
+        "currentHead": current_head,
+        "preexistingDirty": sorted(baseline),
+        "preexistingUnchanged": preexisting_unchanged,
+        "taskOwnedChanges": changes,
+        "outOfScope": out_of_scope,
+        "unexplainedOutOfScope": unexplained,
+        "protected": protected,
+        "touchedPreexisting": touched_preexisting,
+        "unknown": unknown,
+        "acceptedExpansions": sorted({event["path"] for event in used_expansions}),
+        "missingVerification": missing_verification,
+        "declaredRisk": boundary["declaredRisk"],
+        "diffRisk": risk_data["risk"],
+        "protectedRisk": protected_risk,
+        "effectiveRisk": effective_risk,
+        "riskFindings": risk_data.get("flaggedReasons", []),
+        "reviewReasons": sorted(set(review_reasons)),
+        "failures": failures,
+        "surfaceDigest": digest(surface),
+    }
+
+
+def cmd_expand_scope(repo: Path, a) -> int:
+    data, run_id, run_path = active(repo)
+    start = run_start(read_events(run_path))
+    path = validate_pattern(a.path)
+    reason = " ".join(a.reason.lower().split())
+    if len(reason) < 12 or reason in GENERIC_EXPANSION_REASONS:
+        raise ValueError("scope expansion reason must name the requirement dependency, not cleanup/refactor prose")
+    if not a.required_by.strip():
+        raise ValueError("scope expansion requires --required-by")
+    if not any(identifier and identifier in a.required_by for identifier in (start.get("task"), start.get("requirement"))):
+        raise ValueError("--required-by must name the active task or requirement")
+    if a.risk not in RISK:
+        raise ValueError("scope expansion risk must be R0-R4")
+    if not a.verification:
+        raise ValueError("scope expansion requires at least one --verification check name")
+    for check in a.verification:
+        require_id(check, "verification check")
+    event = event_base(repo, "scope_expansion", run_id)
+    event.update({"path": path, "reason": a.reason.strip(), "requiredBy": a.required_by.strip(), "risk": a.risk, "verification": sorted(set(a.verification))})
+    append_event(run_path, event); save_current(repo, data)
+    print(f"delivery-ledger: SCOPE EXPANDED {path}")
+    return OK
+
+
+def cmd_check_boundary(repo: Path, as_json: bool) -> int:
+    data, run_id, run_path = active(repo)
+    report = evaluate_boundary(repo, read_events(run_path))
+    event = event_base(repo, "boundary_check", run_id)
+    event.update(report)
+    append_event(run_path, event); save_current(repo, data)
+    if as_json:
+        print(json.dumps(report, indent=2))
+    else:
+        print(f"delivery-ledger: BOUNDARY {report['result']} effectiveRisk={report['effectiveRisk']}")
+        for failure in report["failures"]:
+            print(f"  - {failure}")
+        for reason in report["reviewReasons"]:
+            print(f"  - review: {reason}")
+    return FAILED if report["result"] == "FAIL" else UNVERIFIED if report["result"] == "REVIEW_REQUIRED" else OK
+
+
+def cmd_review_boundary(repo: Path, a) -> int:
+    require_id(a.reviewer, "reviewer")
+    data, run_id, run_path = active(repo)
+    events = read_events(run_path)
+    start = run_start(events)
+    if a.reviewer in {"unknown", start.get("worker")}:
+        raise ValueError("boundary reviewer must be identified and independent from the worker")
+    checks = [event for event in events if event.get("type") == "boundary_check"]
+    if not checks or checks[-1].get("result") != "REVIEW_REQUIRED":
+        raise ValueError("latest boundary check is not REVIEW_REQUIRED")
+    current = evaluate_boundary(repo, events)
+    latest = checks[-1]
+    if current["result"] != "REVIEW_REQUIRED" or current["surfaceDigest"] != latest.get("surfaceDigest"):
+        raise ValueError("change surface moved after boundary check; run check-boundary again")
+    event = event_base(repo, "boundary_review", run_id)
+    event.update({"reviewer": a.reviewer, "boundaryCheckEventHash": latest["eventHash"], "surfaceDigest": current["surfaceDigest"], "effectiveRisk": current["effectiveRisk"], "status": "APPROVED"})
+    append_event(run_path, event); save_current(repo, data)
+    print(f"delivery-ledger: BOUNDARY APPROVED reviewer={a.reviewer}")
+    return OK
+
+
 def cmd_finish(repo: Path, a) -> int:
     if a.result not in RUN_RESULT:
         raise ValueError("result must be PASS, FAIL, or BLOCKED")
     data, run_id, run_path = active(repo)
     events = read_events(run_path)
     checks = [event for event in events if event.get("type") == "verification"]
+    boundary_evidence = None
     if a.result == "PASS":
         if not checks:
             raise ValueError("PASS requires at least one verification event")
         if any(check.get("status") != "PASS" for check in checks):
             raise ValueError("PASS cannot follow FAIL or UNVERIFIED verification")
-    e = event_base(repo, "run_finished", run_id); e.update({"result": a.result, "detail": a.detail})
+        start = run_start(events)
+        if start.get("boundary"):
+            report = evaluate_boundary(repo, events)
+            boundary_checks = [event for event in events if event.get("type") == "boundary_check"]
+            if not boundary_checks:
+                raise ValueError("PASS requires a final check-boundary event")
+            latest = boundary_checks[-1]
+            if latest.get("surfaceDigest") != report["surfaceDigest"] or latest.get("result") != report["result"]:
+                raise ValueError("change surface moved after boundary check")
+            if report["result"] == "FAIL":
+                raise ValueError("PASS denied by task change boundary")
+            if report["result"] == "REVIEW_REQUIRED":
+                reviews = [event for event in events if event.get("type") == "boundary_review" and event.get("boundaryCheckEventHash") == latest.get("eventHash") and event.get("status") == "APPROVED"]
+                if not reviews:
+                    raise ValueError("PASS requires approved boundary review")
+            boundary_evidence = {"result": report["result"], "effectiveRisk": report["effectiveRisk"], "surfaceDigest": report["surfaceDigest"], "boundaryCheckEventHash": latest.get("eventHash")}
+    e = event_base(repo, "run_finished", run_id); e.update({"result": a.result, "detail": a.detail, "boundary": boundary_evidence})
     append_event(run_path, e)
     data["lastRun"] = {"runId": run_id, "result": a.result, "finishedAt": e["time"]}
     for key in ("activeRun", "activeTask", "requirement", "risk", "job", "capability", "worker", "model", "provider", "reasoningEffort"):
@@ -409,8 +799,11 @@ def main() -> int:
     p = argparse.ArgumentParser(); p.add_argument("--repo", default=".")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init")
-    s=sub.add_parser("start"); s.add_argument("--task",required=True); s.add_argument("--requirement",required=True); s.add_argument("--risk",required=True); s.add_argument("--job",default="implementation"); s.add_argument("--capability",default="unattributed"); s.add_argument("--worker",default="unknown"); s.add_argument("--model",default="unknown"); s.add_argument("--provider",default="unknown"); s.add_argument("--reasoning-effort",default="unknown")
+    s=sub.add_parser("start"); s.add_argument("--task",required=True); s.add_argument("--requirement",required=True); s.add_argument("--risk",required=True); s.add_argument("--job",default="implementation"); s.add_argument("--capability",default="unattributed"); s.add_argument("--worker",default="unknown"); s.add_argument("--model",default="unknown"); s.add_argument("--provider",default="unknown"); s.add_argument("--reasoning-effort",default="unknown"); s.add_argument("--allow",action="append",default=[]); s.add_argument("--protect",action="append",default=[]); s.add_argument("--protected-risk",default="R3"); s.add_argument("--accept-dirty",action="append",default=[])
     r=sub.add_parser("record"); r.add_argument("--check",required=True); r.add_argument("--status",required=True); r.add_argument("--detail",default="")
+    e=sub.add_parser("expand-scope"); e.add_argument("--path",required=True); e.add_argument("--reason",required=True); e.add_argument("--required-by",required=True); e.add_argument("--risk",required=True); e.add_argument("--verification",action="append",default=[])
+    b=sub.add_parser("check-boundary"); b.add_argument("--json",action="store_true")
+    v=sub.add_parser("review-boundary"); v.add_argument("--reviewer",required=True)
     c=sub.add_parser("checkpoint"); c.add_argument("--note",default="")
     f=sub.add_parser("finish"); f.add_argument("--result",required=True); f.add_argument("--detail",default="")
     x=sub.add_parser("snapshot-release"); x.add_argument("--release-id",required=True)
@@ -419,17 +812,20 @@ def main() -> int:
     a=p.parse_args(); repo=Path(a.repo).resolve()
     if not repo.is_dir(): print(f"delivery-ledger: ERROR: repo not found: {repo}",file=sys.stderr); return FAILED
     try:
-        if a.cmd in {"init","start","record","checkpoint","finish","snapshot-release"}:
+        if a.cmd in {"init","start","record","expand-scope","check-boundary","review-boundary","checkpoint","finish","snapshot-release"}:
             with ledger_lock(repo):
                 if a.cmd=="init": return cmd_init(repo)
                 if a.cmd=="start": return cmd_start(repo,a)
                 if a.cmd=="record": return cmd_record(repo,a)
+                if a.cmd=="expand-scope": return cmd_expand_scope(repo,a)
+                if a.cmd=="check-boundary": return cmd_check_boundary(repo,a.json)
+                if a.cmd=="review-boundary": return cmd_review_boundary(repo,a)
                 if a.cmd=="checkpoint": return cmd_checkpoint(repo,a)
                 if a.cmd=="finish": return cmd_finish(repo,a)
                 if a.cmd=="snapshot-release": return cmd_snapshot(repo,a)
         if a.cmd=="status": return cmd_status(repo,a.json,False)
         if a.cmd=="verify": return cmd_status(repo,a.json,True)
-    except (ValueError, FileNotFoundError, json.JSONDecodeError) as exc:
+    except (ValueError, FileNotFoundError, json.JSONDecodeError, OSError) as exc:
         print(f"delivery-ledger: ERROR: {exc}",file=sys.stderr); return FAILED
     return FAILED
 

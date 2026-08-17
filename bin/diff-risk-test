@@ -50,4 +50,15 @@ assert data['untrackedLines'] >= 202, data
 assert not any(x['path']=='.env.example' and x['minimumRisk']=='R4' for x in data['flaggedReasons']), data
 PY
 
+"$DR" --json --path src/cart/item.ts --path src/auth/session.ts --path wrangler.toml "$TMP" > explicit.json
+python3 - <<'PY'
+import json
+with open('explicit.json') as f: data=json.load(f)
+assert data['classificationMode'] == 'explicit-paths', data
+assert data['risk'] == 'R3', data
+assert data['files'] == ['src/auth/session.ts', 'src/cart/item.ts', 'wrangler.toml'], data
+assert any(x['path']=='src/auth/session.ts' and x['reason']=='Authentication / Authorization' for x in data['flaggedReasons']), data
+assert any(x['path']=='wrangler.toml' and x['reason']=='CI / Infrastructure / Deployment' for x in data['flaggedReasons']), data
+PY
+
 echo "diff-risk-test: PASS"

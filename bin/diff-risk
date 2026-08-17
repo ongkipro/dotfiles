@@ -31,7 +31,7 @@ PATH_RULES = [
     (r"(?:^|/)\.env(?:\.(?!(?:example|sample|template)(?:$|\.))[^/]+)?$|(?:secret|vault|private[_-]?key|cert)", "Secrets / Cryptography", "R4"),
     (r"(?:^|/)(?:package\.json|pyproject\.toml|go\.mod|Cargo\.toml|composer\.json)$", "Dependency / Build Manifest", "R2"),
     (r"(?:^|/)(?:pnpm-lock\.yaml|package-lock\.json|yarn\.lock|bun\.lockb?|Cargo\.lock|composer\.lock)$", "Dependency Lockfile", "R2"),
-    (r"(?:^|/)\.github/workflows/|(?:docker|terraform|coolify|k8s|kubernetes|nginx|caddy|vultr)", "CI / Infrastructure / Deployment", "R3"),
+    (r"(?:^|/)(?:\.github/workflows/|(?:deploy(?:ment)?|dns|infrastructure|infra)(?:[-_/.]|$)|release(?:[-_.](?:config|workflow)|/))|(?:docker|terraform|coolify|k8s|kubernetes|nginx|caddy|vultr|wrangler)", "CI / Infrastructure / Deployment", "R3"),
 ]
 
 DOC_EXTENSIONS = {".md", ".txt", ".rst", ".png", ".jpg", ".jpeg", ".svg", ".webp", ".gif"}
@@ -76,6 +76,54 @@ def lines_from_diff(diff_text: str) -> tuple[int, int]:
         elif line.startswith("-") and not line.startswith("---"):
             deleted += 1
     return added, deleted
+
+
+def path_findings(files: list[str]) -> tuple[str, list[dict[str, str]]]:
+    """Return the canonical sensitive-path floor for an explicit file set."""
+    flagged: list[dict[str, str]] = []
+    path_risk = "R0"
+    for path in files:
+        for pattern, label, minimum in PATH_RULES:
+            if re.search(pattern, path, re.IGNORECASE):
+                flagged.append({"path": path, "reason": label, "minimumRisk": minimum})
+                if RISK_ORDER[minimum] > RISK_ORDER[path_risk]:
+                    path_risk = minimum
+    return path_risk, flagged
+
+
+def analyze_paths(files: list[str]) -> dict:
+    """Classify task-owned paths when a dirty baseline makes whole-tree diff unsafe."""
+    files = sorted(dict.fromkeys(files))
+    path_risk, flagged = path_findings(files)
+    if not files:
+        size_risk, rationale = "R0", "No task-owned paths supplied."
+    elif len(files) > 10:
+        size_risk, rationale = "R3", f"Large explicit change surface ({len(files)} files)."
+    elif len(files) > 3:
+        size_risk, rationale = "R2", f"Moderate explicit change surface ({len(files)} files)."
+    else:
+        size_risk, rationale = "R1", f"Bounded explicit change surface ({len(files)} files)."
+    risk = max((size_risk, path_risk), key=lambda value: RISK_ORDER[value])
+    if path_risk != "R0" and RISK_ORDER[path_risk] >= RISK_ORDER[size_risk]:
+        labels = sorted({entry["reason"] for entry in flagged if entry["minimumRisk"] == path_risk})
+        rationale = f"Sensitive path class requires at least {path_risk}: {', '.join(labels)}."
+    lane_map = {
+        "R0": ("volume / cheap-dev", "@smol"),
+        "R1": ("volume / cheap-dev", "@task"),
+        "R2": ("precision lane", "@slow"),
+        "R3": ("precision + independent review", "@slow / @advisor-xhigh"),
+        "R4": ("judgment lane / architect review", "@advisor-max / @architect"),
+    }
+    lane, role = lane_map[risk]
+    return {
+        "risk": risk, "rationale": rationale, "baseRef": None,
+        "resolvedBase": None, "dirtyWorkingTree": None,
+        "filesCount": len(files), "linesAdded": None, "linesDeleted": None,
+        "untrackedLines": None, "untrackedBytes": None,
+        "totalLineChanges": None, "flaggedReasons": flagged, "files": files,
+        "classificationMode": "explicit-paths",
+        "recommendedLane": lane, "recommendedRole": role,
+    }
 
 
 def analyze_diff(repo: Path, base_ref: str | None = None) -> dict:
@@ -135,14 +183,7 @@ def analyze_diff(repo: Path, base_ref: str | None = None) -> dict:
             untracked_lines += len(raw.splitlines())
     total = added + deleted + untracked_lines
 
-    flagged: list[dict[str, str]] = []
-    path_risk = "R0"
-    for path in files:
-        for pattern, label, minimum in PATH_RULES:
-            if re.search(pattern, path, re.IGNORECASE):
-                flagged.append({"path": path, "reason": label, "minimumRisk": minimum})
-                if RISK_ORDER[minimum] > RISK_ORDER[path_risk]:
-                    path_risk = minimum
+    path_risk, flagged = path_findings(files)
 
     doc_only = bool(files) and all(Path(path).suffix.lower() in DOC_EXTENSIONS for path in files)
 
@@ -185,6 +226,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--base", dest="base_ref")
+    parser.add_argument("--path", dest="explicit_paths", action="append", default=[])
     parser.add_argument("target", nargs="?", default=".")
     parser.add_argument("legacy_base", nargs="?")
     args = parser.parse_args()
@@ -197,7 +239,8 @@ def main() -> int:
 
     repo = target.resolve()
     try:
-        data = analyze_diff(repo, base_ref)
+        require_git_repo(repo)
+        data = analyze_paths(args.explicit_paths) if args.explicit_paths else analyze_diff(repo, base_ref)
     except Exception as exc:
         if args.json:
             print(json.dumps({"error": str(exc)}))

@@ -33,7 +33,7 @@ python3 "$DL" --repo "$REPO" init >/dev/null
 [ -f "$REPO/.delivery/current.json" ] || fail "current.json missing"
 python3 "$DL" --repo "$REPO" verify >/dev/null || fail "fresh ledger should verify"
 
-python3 "$DL" --repo "$REPO" start --task TASK-001 --requirement REQ-001 --risk R1 --job implementation --capability native-first --worker task --model test-model --provider test-provider --reasoning-effort high >/dev/null
+python3 "$DL" --repo "$REPO" start --task TASK-001 --requirement REQ-001 --risk R0 --job implementation --capability native-first --worker task --model test-model --provider test-provider --reasoning-effort high >/dev/null
 RUN_FILE="$(find "$REPO/.delivery/runs" -type f -name 'RUN-*.jsonl' | head -n 1)"
 [ -n "$RUN_FILE" ] || fail "run evidence missing"
 python3 "$DL" --repo "$REPO" record --check project-check --status PASS --detail ok >/dev/null
@@ -71,7 +71,7 @@ assert data['activeRun'] is None
 assert data['lastRun']['result']=='PASS'
 PY
 
-python3 "$DL" --repo "$REPO" start --task TASK-002 --requirement REQ-002 --risk R1 --worker task --model test-model >/dev/null
+python3 "$DL" --repo "$REPO" start --task TASK-002 --requirement REQ-002 --risk R0 --worker task --model test-model >/dev/null
 python3 "$DL" --repo "$REPO" record --check regression --status FAIL --detail broken >/dev/null
 set +e
 python3 "$DL" --repo "$REPO" finish --result PASS --detail invalid >/dev/null 2>&1
@@ -116,5 +116,150 @@ python3 "$DL" --repo "$REPO" verify >/dev/null 2>&1
 rc=$?
 set -e
 [ "$rc" -eq 2 ] || fail "tampered release snapshot should be UNVERIFIED"
+
+make_boundary_repo(){
+  local name="$1" target
+  target="$TMP/$name"
+  mkdir -p "$target/src" "$target/auth" "$target/docs"
+  git -C "$target" init -q
+  git -C "$target" config user.email test@example.invalid
+  git -C "$target" config user.name test
+  printf '# Status\nState: PLANNED\n' > "$target/STATUS.md"
+  printf 'feature base\n' > "$target/src/feature.txt"
+  printf 'user base\n' > "$target/user.txt"
+  printf 'session base\n' > "$target/auth/session.txt"
+  printf 'old\n' > "$target/docs/old.txt"
+  git -C "$target" add . && git -C "$target" commit -qm baseline
+  python3 "$DL" --repo "$target" init >/dev/null
+  printf '%s\n' "$target"
+}
+
+# Clean repository plus an allowed change passes and can finish.
+B1="$(make_boundary_repo boundary-allowed)"
+python3 "$DL" --repo "$B1" start --task TASK-B1 --requirement REQ-B1 --risk R1 --worker developer --model test --allow 'src/**' >/dev/null
+printf 'task change\n' >> "$B1/src/feature.txt"
+python3 "$DL" --repo "$B1" record --check unit --status PASS >/dev/null
+python3 "$DL" --repo "$B1" check-boundary --json > "$TMP/b1.json"
+python3 - "$TMP/b1.json" <<'PY'
+import json,sys
+d=json.load(open(sys.argv[1])); assert d['result']=='PASS',d; assert d['taskOwnedChanges'][0]['classification']=='ALLOWED',d
+PY
+python3 "$DL" --repo "$B1" finish --result PASS >/dev/null
+
+# An unrelated change fails, denies PASS, and does not reset or clean user work.
+B2="$(make_boundary_repo boundary-outside)"
+python3 "$DL" --repo "$B2" start --task TASK-B2 --requirement REQ-B2 --risk R1 --worker developer --model test --allow 'src/**' >/dev/null
+printf 'must remain\n' >> "$B2/user.txt"
+python3 "$DL" --repo "$B2" record --check unit --status PASS >/dev/null
+set +e; python3 "$DL" --repo "$B2" check-boundary --json > "$TMP/b2.json"; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "unexplained out-of-scope change must fail"
+grep -q 'must remain' "$B2/user.txt" || fail "boundary check modified user work"
+set +e; python3 "$DL" --repo "$B2" finish --result PASS >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "PASS must be denied after boundary failure"
+python3 "$DL" --repo "$B2" finish --result FAIL >/dev/null
+
+# Unrelated pre-existing dirty work remains distinguishable and untouched.
+B3="$(make_boundary_repo boundary-dirty-unrelated)"
+printf 'pre-existing\n' >> "$B3/user.txt"
+python3 "$DL" --repo "$B3" start --task TASK-B3 --requirement REQ-B3 --risk R1 --worker developer --model test --allow 'src/**' >/dev/null
+printf 'task\n' >> "$B3/src/feature.txt"
+python3 "$DL" --repo "$B3" record --check unit --status PASS >/dev/null
+python3 "$DL" --repo "$B3" check-boundary --json > "$TMP/b3.json"
+python3 - "$TMP/b3.json" <<'PY'
+import json,sys
+d=json.load(open(sys.argv[1])); assert d['result']=='PASS',d; assert d['preexistingUnchanged']==['user.txt'],d; assert [x['path'] for x in d['taskOwnedChanges']]==['src/feature.txt'],d
+PY
+python3 "$DL" --repo "$B3" finish --result PASS >/dev/null
+
+# Dirty overlap blocks by default; explicit continuation stays detectable and review-gated.
+B4="$(make_boundary_repo boundary-dirty-overlap)"
+printf 'pre-existing\n' >> "$B4/src/feature.txt"
+set +e; python3 "$DL" --repo "$B4" start --task TASK-B4 --requirement REQ-B4 --risk R1 --worker developer --model test --allow 'src/**' >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "dirty overlap must block start"
+python3 "$DL" --repo "$B4" start --task TASK-B4 --requirement REQ-B4 --risk R1 --worker developer --model test --allow 'src/**' --accept-dirty 'src/feature.txt' >/dev/null
+printf 'task continuation\n' >> "$B4/src/feature.txt"
+python3 "$DL" --repo "$B4" record --check unit --status PASS >/dev/null
+set +e; python3 "$DL" --repo "$B4" check-boundary --json > "$TMP/b4.json"; rc=$?; set -e
+[ "$rc" -eq 2 ] || fail "changed accepted dirty overlap must require review"
+grep -q '"classification": "PREEXISTING"' "$TMP/b4.json" || fail "touched pre-existing path was not classified"
+python3 "$DL" --repo "$B4" review-boundary --reviewer independent-reviewer >/dev/null
+python3 "$DL" --repo "$B4" finish --result PASS >/dev/null
+
+# Globs handle nested, deleted, untracked, renamed, spaced, and Unicode paths.
+B5="$(make_boundary_repo boundary-paths)"
+python3 "$DL" --repo "$B5" start --task TASK-B5 --requirement REQ-B5 --risk R2 --worker developer --model test --allow 'src/**' --allow 'docs/**' --allow 'space dir/**' >/dev/null
+mkdir -p "$B5/src/deep/cart" "$B5/space dir"
+printf 'nested\n' > "$B5/src/deep/cart/cart1.txt"
+printf 'unicode\n' > "$B5/space dir/fitur-ä.txt"
+git -C "$B5" mv docs/old.txt docs/new.txt
+rm "$B5/src/feature.txt"
+python3 "$DL" --repo "$B5" record --check path-test --status PASS >/dev/null
+python3 "$DL" --repo "$B5" check-boundary --json > "$TMP/b5.json"
+python3 - "$TMP/b5.json" <<'PY'
+import json,sys
+d=json.load(open(sys.argv[1])); paths={x['path'] for x in d['taskOwnedChanges']}; assert {'src/deep/cart/cart1.txt','space dir/fitur-ä.txt','docs/old.txt','docs/new.txt','src/feature.txt'} <= paths,d; assert all(x['classification']=='ALLOWED' for x in d['taskOwnedChanges']),d
+PY
+python3 "$DL" --repo "$B5" finish --result PASS >/dev/null
+
+# A protected path raises effective risk and requires independent review.
+B6="$(make_boundary_repo boundary-protected)"
+python3 "$DL" --repo "$B6" start --task TASK-B6 --requirement REQ-B6 --risk R1 --worker developer --model test --allow 'auth/**' --protect 'auth/**' --protected-risk R3 >/dev/null
+printf 'security change\n' >> "$B6/auth/session.txt"
+python3 "$DL" --repo "$B6" record --check auth-regression --status PASS >/dev/null
+set +e; python3 "$DL" --repo "$B6" check-boundary --json > "$TMP/b6.json"; rc=$?; set -e
+[ "$rc" -eq 2 ] || fail "protected path must require review"
+python3 - "$TMP/b6.json" <<'PY'
+import json,sys
+d=json.load(open(sys.argv[1])); assert d['effectiveRisk']=='R3',d; assert d['protected']==['auth/session.txt'],d
+PY
+python3 "$DL" --repo "$B6" review-boundary --reviewer security-reviewer >/dev/null
+python3 "$DL" --repo "$B6" finish --result PASS >/dev/null
+
+# A requirement-linked expansion fails until its named verification passes.
+B7="$(make_boundary_repo boundary-expansion)"
+python3 "$DL" --repo "$B7" start --task TASK-B7 --requirement REQ-B7 --risk R1 --worker developer --model test --allow 'src/**' >/dev/null
+printf 'shared dependency\n' >> "$B7/auth/session.txt"
+set +e; python3 "$DL" --repo "$B7" expand-scope --path 'auth/session.txt' --reason cleanup --required-by 'REQ-B7 criterion 4' --risk R3 --verification auth-regression >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "generic scope expansion reason must be rejected"
+python3 "$DL" --repo "$B7" expand-scope --path 'auth/session.txt' --reason 'REQ-B7 criterion 4 calls the shared session boundary' --required-by 'REQ-B7 criterion 4' --risk R3 --verification auth-regression >/dev/null
+python3 "$DL" --repo "$B7" record --check unit --status PASS >/dev/null
+set +e; python3 "$DL" --repo "$B7" check-boundary >/dev/null; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "expansion without required verification must fail"
+python3 "$DL" --repo "$B7" record --check auth-regression --status PASS >/dev/null
+set +e; python3 "$DL" --repo "$B7" check-boundary --json > "$TMP/b7.json"; rc=$?; set -e
+[ "$rc" -eq 2 ] || fail "verified scope expansion must require review"
+python3 "$DL" --repo "$B7" review-boundary --reviewer integration-reviewer >/dev/null
+python3 "$DL" --repo "$B7" finish --result PASS >/dev/null
+
+# Unexpected HEAD movement invalidates the captured baseline.
+B12="$(make_boundary_repo boundary-head-move)"
+python3 "$DL" --repo "$B12" start --task TASK-B12 --requirement REQ-B12 --risk R1 --worker developer --model test --allow 'src/**' >/dev/null
+printf 'commit during task\n' >> "$B12/src/feature.txt"
+git -C "$B12" add src/feature.txt && git -C "$B12" commit -qm unexpected-head-move
+python3 "$DL" --repo "$B12" record --check unit --status PASS >/dev/null
+set +e; python3 "$DL" --repo "$B12" check-boundary --json > "$TMP/b12.json"; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "HEAD movement must fail the boundary"
+grep -q 'repository HEAD moved' "$TMP/b12.json" || fail "HEAD movement reason missing"
+python3 "$DL" --repo "$B12" finish --result FAIL >/dev/null
+
+# Pattern matching is case-sensitive and portable across Linux/macOS Python.
+B14="$(make_boundary_repo boundary-case)"
+printf 'case\n' > "$B14/Case.txt"
+python3 "$DL" --repo "$B14" start --task TASK-B14 --requirement REQ-B14 --risk R1 --worker developer --model test --allow 'case.txt' >/dev/null
+printf 'changed\n' >> "$B14/Case.txt"
+python3 "$DL" --repo "$B14" record --check portability --status PASS >/dev/null
+set +e; python3 "$DL" --repo "$B14" check-boundary >/dev/null; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "boundary patterns must remain case-sensitive"
+python3 "$DL" --repo "$B14" finish --result FAIL >/dev/null
+
+# Mutation proof: neutralizing the unexplained-scope guard lets the negative fixture escape.
+MUT="$TMP/mutant"; mkdir -p "$MUT"
+sed '0,/if unexplained:/s//if False:/' "$DL" > "$MUT/delivery-ledger"
+cp "$ROOT/bin/diff-risk" "$MUT/diff-risk"
+BM="$(make_boundary_repo boundary-mutation)"
+python3 "$MUT/delivery-ledger" --repo "$BM" start --task TASK-BM --requirement REQ-BM --risk R1 --worker developer --model test --allow 'src/**' >/dev/null
+printf 'escaped\n' >> "$BM/user.txt"
+python3 "$MUT/delivery-ledger" --repo "$BM" record --check unit --status PASS >/dev/null
+python3 "$MUT/delivery-ledger" --repo "$BM" check-boundary >/dev/null || fail "mutation probe did not neutralize the expected guard"
 
 echo 'delivery-ledger-test: PASS'

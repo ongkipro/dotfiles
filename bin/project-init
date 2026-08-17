@@ -418,7 +418,7 @@ bootstrap(){
     die "repository contract initialization failed"
   fi
 
-  python3 "$DOT/bin/delivery-ledger" --repo "$target" start --task TASK-BOOTSTRAP --requirement REQ-BOOTSTRAP --risk R1 --worker project-init --model project-init >/dev/null
+  python3 "$DOT/bin/delivery-ledger" --repo "$target" start --task TASK-BOOTSTRAP --requirement REQ-BOOTSTRAP --risk R1 --worker project-init --model project-init --allow '**' --accept-dirty '**' >/dev/null
   if [ "$source_check" = "native-generator" ]; then source_detail="$generator_label completed; capability selections remain pending tasks"; else source_detail="existing Git worktree accepted; source files were preserved"; fi
   if [ "${#PROMOTION_SOURCES[@]}" -gt 0 ]; then
     source_detail="$source_detail; repository planning copies are canonical and $PROMOTION_STAGE remains a non-authoritative snapshot"
@@ -440,6 +440,10 @@ bootstrap(){
     *) status=FAIL; result=FAIL; detail="project-native verification failed with exit $verify_rc";;
   esac
   python3 "$DOT/bin/delivery-ledger" --repo "$target" record --check project-check --status "$status" --detail "$detail" >/dev/null
+  if [ "$result" = PASS ] && ! python3 "$DOT/bin/delivery-ledger" --repo "$target" check-boundary >/dev/null; then
+    verify_rc=1; status=FAIL; result=FAIL; detail="task change boundary rejected bootstrap changes"
+    python3 "$DOT/bin/delivery-ledger" --repo "$target" record --check task-boundary --status FAIL --detail "$detail" >/dev/null
+  fi
   python3 "$DOT/bin/delivery-ledger" --repo "$target" finish --result "$result" --detail "$detail" >/dev/null
   [ "$verify_rc" -eq 0 ] || { warn "project retained with $status evidence for recovery: $target"; return "$verify_rc"; }
   say "bootstrap VERIFIED: $target"

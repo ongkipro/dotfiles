@@ -158,6 +158,10 @@ therefore preserved when the remaining repository contract is rendered.
   A normal verification failure records `FAIL` and exits `1`.
 - `.delivery/runs/` records native generation and initial verification results;
   `STATUS.md` remains the workflow-state authority.
+- Bootstrap delivery runs capture the generated worktree as an accepted baseline
+  and check that verification did not silently add files outside it. Subsequent
+  R1-R4 tasks must declare their own narrower change surfaces as documented in
+  [Task Change Boundary](task-change-boundary.md).
 
 ## Adding a profile
 

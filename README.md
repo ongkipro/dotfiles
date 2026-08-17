@@ -203,8 +203,12 @@ These gates do not grant deployment authority. Production and destructive
 actions still require explicit approval, and `STATUS.md` remains the workflow
 state authority.
 
-`delivery-ledger` binds task, requirement, route, verification, result, and
-provenance. `delivery-benchmark` aggregates accepted outcomes, model/worker,
+`delivery-ledger` binds task, requirement, route, baseline HEAD, pre-existing
+dirty work, declared and actual change surfaces, effective risk, verification,
+review, result, and provenance. R1-R4 runs cannot finish `PASS` with a missing,
+stale, failed, or unreviewed task boundary. The canonical contract and examples
+are in [Task Change Boundary](docs/task-change-boundary.md).
+`delivery-benchmark` aggregates accepted outcomes, model/worker,
 risk, duration, tokens, cost, repairs, and verification failures. Its routing
 recommendations are evidence summaries—not automatic policy changes.
 
@@ -338,6 +342,7 @@ blocker forward as current status.
 | [`docs/linux-dev-setup.md`](docs/linux-dev-setup.md) | Linux authority map and recovery runbook |
 | [`docs/ai-memory-sync.md`](docs/ai-memory-sync.md) | Memory capture, promotion, and synchronization |
 | [`docs/project-init.md`](docs/project-init.md) | Stack-aware project bootstrap: generators, contract rendering, and evidence |
+| [`docs/task-change-boundary.md`](docs/task-change-boundary.md) | Canonical baseline, change-surface, risk-escalation, review, and completion-gate contract |
 | [`devices/README.md`](devices/README.md) | Generated device registry |
 | [`docs/DOTFILES_AI_ENGINEERING_CONTROL_PLANE.md`](docs/DOTFILES_AI_ENGINEERING_CONTROL_PLANE.md) | Immutable, superseded architecture and roadmap baseline |
 | [`docs/DOTFILES_AI_ENGINEERING_MASTER_BLUEPRINT.md`](docs/DOTFILES_AI_ENGINEERING_MASTER_BLUEPRINT.md) | Immutable, superseded condensed architecture baseline |

@@ -31,11 +31,17 @@ fixtures determine whether the implementation still satisfies its contract.
 - **Capability:** [Owning skill or specialist capability]
 - **Execution Class:** volume / precision / judgment
 - **Model / Provider / Reasoning:** [Resolved route]
-- **Scope:** [Exact files or components to touch]
+- **Change Surface:** [Exact repository-relative paths/globs passed to the delivery boundary]
+- **Protected Surface:** [Optional higher-risk paths/globs; use `None` when no protected surface applies]
 - **Non-Scope:** [Explicitly untouched paths or systems]
 - **Verification:** [Runnable check]
 - **Escalation Condition:** [When to stop and ask]
 ```
+
+R0 documentation/mechanical work may infer one obvious requested file. R1 must
+remain explicitly or safely inferably bounded. R2 requires an explicit affected
+surface. R3/R4 require an explicit change surface, protected surfaces where
+applicable, and independent review evidence.
 
 ---
 
@@ -78,6 +84,8 @@ No task is in progress.
 ---
 
 ## Done
+- **TASK-014 / AUDIT-BOUNDARY-01 — deterministic task change boundaries.** `delivery-ledger` now captures base HEAD plus content fingerprints for pre-existing tracked and untracked work, requires an allowed surface for R1-R4 runs, classifies the final task-owned surface, rejects unexpected HEAD movement and unexplained scope, and binds `PASS` to a current boundary check. Requirement-linked expansion records carry risk and named verification; protected, expanded, touched-dirty, escalated, and R3/R4 surfaces require an independently identified reviewer. `diff-risk` remains the sole sensitive-path classifier through its explicit task-path mode, and `project-init` records a bounded bootstrap run without claiming pre-existing files as task work. The behavioral matrix covers allowed/forbidden paths, dirty overlap, globs, protected escalation, justified and unjustified expansion, delete/new/rename, HEAD movement, portability-sensitive paths, preservation of user work, and a mutation that proves the unexplained-scope guard is non-vacuous. Linux focused tests and the complete `ai-doctor --self-test` gate pass; macOS execution and hosted CI were not run for this uncommitted change, with hosted Actions still externally blocked by TASK-013.
+
 - **2026-08-17 final remediation verification.** The original 53-skill audit baseline is fully reconciled; retiring `sandbox-sdk` in favor of `sandbox-stable` plus `sandbox-next` leaves 54 canonical skills. Final adversarial review found and closed two validator defects: fallback effort lists were word-split into a single invalid token, and tracked-overlay structural mode bypassed selector and effort checks. A negative overlay mutation now fails when an `xhigh` advisor has only `high` recovery, while valid Linux and real-Mac overlays pass. Shared/project memory was reduced to advisory repository pointers, accidental demo credentials were removed from tracked memory, and `ai-memory-hygiene --strict` reports zero issues. The complete `ai-doctor --self-test` passes every critical gate on Linux and in an isolated real-Mac fixture; Mac-only missing direct-provider catalogs remain explicit partial coverage rather than false failures.
 
 - **TASK-011 / AUDIT-DEV-01 — effective routing reconciliation.** `bin/omp-effective-routing-test` is now the canonical complement to `bin/omp-routing-test`: the canonical gate validates the tracked base graph, while the effective gate validates the resolved device overlay and every tracked overlay template. The provider-union scan now reads provider IDs rather than serialized JSON, and tracked overlays derive their expected provider order from their own declaration. The declared `yq` tool was synchronized on `ongkis-MacBook-Air`; Linux structural validation and the Mac `minimax-hosted.yml` live-catalog run both pass.

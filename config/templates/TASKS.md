@@ -14,11 +14,17 @@ Every implementation task must trace to one accepted requirement, declare its ri
 - **Capability:** [Owning skill or specialist capability]
 - **Execution Class:** volume / precision / judgment
 - **Model / Provider / Reasoning:** [Resolved route; do not ask the user when orchestration owns selection]
-- **Scope:** [Exact files or components to touch]
+- **Change Surface:** [Exact repository-relative paths/globs passed to `delivery-ledger start --allow`]
+- **Protected Surface:** [Optional higher-risk paths/globs passed with `--protect`; otherwise `None`]
 - **Non-Scope:** [Explicitly untouched paths or systems]
 - **Verification:** `project-check` or `npm test -- path/to/test.ts`
 - **Escalation Condition:** Fail verification after 1 repair attempt, or require auth/payment/migration contract changes.
 ```
+
+R0 documentation/mechanical work may infer one obvious requested file. R1 must
+remain explicitly or safely inferably bounded. R2 requires an explicit affected
+surface. R3/R4 require an explicit change surface, protected surfaces where
+applicable, and independent review evidence.
 
 ## In progress
 

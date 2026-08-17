@@ -53,6 +53,13 @@ Implementation that spans multiple application layers routes through `full-stack
 
 Canonical delivery lifecycle: understand intent → load the smallest relevant context → select job, risk, capability, model, provider, reasoning effort, and verification → implement → verify independently → persist task/result/provenance/release evidence → resume from repository state → convert only verified reusable outcomes into reviewed learning. AI is never the source of truth; repository contracts and executable evidence are.
 
+For repositories using `delivery-ledger`, every R1-R4 run must capture its base
+HEAD and pre-existing dirty paths, declare its allowed change surface, and pass
+the final task boundary before `DONE`. Unexplained out-of-scope, protected,
+higher-risk, or touched user changes must fail or require explicit expansion,
+verification, and independent review. Canonical mechanics and limitations:
+`~/dotfiles/docs/task-change-boundary.md`.
+
 ## Code discipline (lazy senior dev)
 
 Lazy = efficient, not careless. The best code is the code never written.

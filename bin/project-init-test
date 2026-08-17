@@ -294,5 +294,7 @@ grep -q '"statusAuthority": "STATUS.md"' "$GENERATED/.delivery/current.json" || 
 grep -q '^# Decision Register' "$GENERATED/DECISIONS.md" || fail 'decision register missing'
 grep -q 'Sole executable work queue: `TASKS.md`' "$STANDALONE_REPO/AGENTS.md" || fail 'project authority omitted the sole root task queue'
 grep -q 'docs/adr/ADR-NNNN-<slug>.md' "$STANDALONE_REPO/AGENTS.md" || fail 'project authority omitted full ADR documents'
+grep -q 'current passing or independently approved boundary result' "$STANDALONE_REPO/AGENTS.md" || fail 'project authority omitted the task boundary completion gate'
+grep -q '\*\*Change Surface:\*\*' "$GENERATED/TASKS.md" || fail 'task contract omitted the deterministic change surface'
 
 echo 'project-init-test: OK'
