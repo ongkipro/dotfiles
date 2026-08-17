@@ -1,7 +1,7 @@
 # Device: `rich`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-08-15**
+> Terakhir diperbarui: **2026-08-17**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -22,7 +22,7 @@
 | CPU | Intel(R) Core(TM) i7-7700T CPU @ 2.90GHz (8 thread) |
 | RAM | 31.2 GB |
 | GPU | Intel Corporation HD Graphics 630 (rev 04) |
-| Disk (/) | 218G total, 130G free (38% used) |
+| Disk (/) | 218G total, 157G free (25% used) |
 
 ## AI CLI
 
@@ -39,10 +39,10 @@
 | Tool | Versi |
 |---|---|
 | node | v24.18.0 |
-| pnpm | 11.17.0 |
-| bun | - |
+| pnpm | 11.22.0 |
+| bun | 1.3.14 |
 | python3 | Python 3.12.3 |
-| mise | 2026.8.2 linux-x64 (2026-08-05) |
+| mise | 2026.8.6 linux-x64 (2026-08-14) |
 | git | git version 2.43.0 |
 
 ## Symlink dotfiles
