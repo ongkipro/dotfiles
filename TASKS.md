@@ -20,6 +20,10 @@ not run concurrently even when their file globs are disjoint.
 
 ## In progress
 
+No task is in progress.
+
+## Done
+
 ### TASK-017: Make workflow and OMP overlay evidence executable
 - **Requirement:** AUDIT-CI-02 — local and hosted validation must reject invalid GitHub workflows, while OMP global-overlay evidence must prove the runtime applied the overlay rather than merely parsing YAML or exiting zero.
 - **Risk Level:** R3
@@ -34,10 +38,8 @@ not run concurrently even when their file globs are disjoint.
 - **Regression Checks:** `actionlint`, `bin/ai-policy-lint-test`, `bin/ai-policy-lint`, `bin/omp-effective-routing-test`, `bin/installer-link-test`, `bin/ai-doctor --self-test`, hosted Ubuntu/macOS Core runtime.
 - **Reopen Conditions:** workflow syntax can bypass local policy lint, an unverified actionlint binary executes, or OMP reports full verification without proving overlay semantics.
 - **Non-Scope:** model/provider routing changes, OMP upstream implementation, production, billing, new orchestration, or a second workflow-lint subsystem.
-- **Verification:** Linux actionlint 1.7.12, its checksum-pinned CI installer fixture, mutation-backed policy/OMP guards, installer integration, and the authoritative repository self-test pass locally. Hosted Ubuntu/macOS verification follows the push; any failure reopens this task.
+- **Verification:** Linux actionlint 1.7.12, its checksum-pinned CI installer fixture, mutation-backed policy/OMP guards, installer integration, and the authoritative repository self-test pass locally. Hosted Core runtime run `32045480144` passed the pinned installer, actionlint gate, and full suite on Ubuntu and macOS.
 - **Escalation Condition:** any requirement to weaken an existing CI gate, expose credentials, or overlap pre-existing user work.
-
-## Done
 
 ### TASK-016: Preserve bulk-bootstrap failure semantics
 - **Requirement:** AUDIT-CTRL-01 — bulk bootstrap must not report success when a repository failed verification or was skipped for dirty user work.
