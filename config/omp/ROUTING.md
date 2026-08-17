@@ -119,6 +119,20 @@ What that buys has to be paid for elsewhere, so be explicit about where the boun
 
 If this trade stops being wanted, the change is one line — but change it deliberately, and update this section rather than letting the config and the documentation disagree again.
 
+### MCP admission gate
+
+An MCP server enlarges both the capability surface and the trust boundary; its availability is not admission. Before enabling one in tracked configuration or as a global default:
+
+- Require a capability gap that native OMP tools or an installed deterministic CLI cannot already fill. A natural-language wrapper around an equivalent native operation is convenience, not a gap.
+- Keep project-specific servers project-scoped. Global admission requires a universal, frequently used capability.
+- Pin the server version or source revision. Do not admit a floating `latest` dependency.
+- Inventory every exposed tool as read-only, source-writing, destructive, networked, or secret-bearing. Expose only the minimum set; a server that cannot disable unneeded mutators must not be enabled globally under `approvalMode: yolo`.
+- Prefer stdio or loopback transport. Non-loopback transport requires authentication, and credentials remain outside the repository.
+- Reject nested-agent or nested-LLM tools unless they provide a proven capability that OMP routing cannot supply and their provider, cost, and data boundary are explicit.
+- Require a bounded pilot, a health check, and a clean removal path before promotion. Do not make supporting services always-on until measured use justifies them.
+
+This gate decides whether a capability enters the runtime. `AGENTS.md` approval gates still govern every admitted tool invocation, and native OMP editing and verification remain the default when they provide equal capability.
+
 ## Single-provider sessions
 
 Occasionally a session should stay on one provider — to exercise a provider in isolation, to work while another is degraded, or simply to keep one piece of work on a single account. Overriding the main model with `--model` does not achieve this: specialist agents resolve through roles, so they keep their own providers and the session remains multi-model.

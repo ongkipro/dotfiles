@@ -22,6 +22,12 @@ cycleOrder:
   - default
   - slow
 defaultThinkingLevel: auto
+display:
+  # Static working state avoids high-frequency full-frame repaint through tmux/SSH.
+  shimmer: disabled
+tui:
+  # The animated OSC title is an independent redraw loop while OMP is working.
+  titleState: false
 retry:
   enabled: true
   modelFallback: true

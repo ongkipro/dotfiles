@@ -470,3 +470,38 @@ Final memory hygiene removed volatile execution snapshots and tracked demo
 credentials from project reference memory, preserved repository authority
 pointers, and reduced semantic duplication to zero. The strict hygiene command
 passes with zero issues.
+
+## 2026-08-17 — Static OMP work indicators prevent remote terminal flicker
+
+A live Ghostty → SSH → tmux 3.4 session reproduced severe redraw load while
+four OMP 17.3.5 panes were working. Three-second samples reached 61% and 37%
+CPU in two OMP processes while the tmux server held 22%; tmux synchronized
+updates were already enabled and Ghostty exposed the `Sync` capability.
+
+The active defaults still animated both the working-message shimmer and the
+terminal-title state. The tracked base configuration now sets
+`display.shimmer: disabled` and `tui.titleState: false`. Smooth streaming stays
+enabled: it is demand-driven output, unlike the two independent animation
+loops. Existing OMP processes retain their startup configuration and must be
+restarted before this change takes effect.
+
+A fresh managed OMP process loaded both effective values. Its five-second idle
+sample averaged 2.8% CPU; a real one-turn work-state sample averaged 0.6% CPU,
+then returned to the prompt. `omp-routing-test` also passed with 13 roles,
+11 overrides, two overlays, and 790 catalog models.
+
+## 2026-08-17 — MCP admission gate
+
+`ROUTING.md` now treats MCP enablement as capability admission rather than a
+convenience decision. A server must fill a gap left by native tools or an
+installed deterministic CLI, remain project-scoped unless its value is
+universal, pin its source, minimize its exposed tool set, and declare its
+transport, authentication, nested-LLM boundary, health check, and removal path.
+
+Under `approvalMode: yolo`, a server that cannot disable unneeded source-writing
+or destructive tools is not eligible for global admission. This policy does not
+replace the invocation-level approval gates in `AGENTS.md`. No MCP server or
+supporting service was installed or enabled by this change.
+
+`omp-routing-test` passes with 13 roles, 11 overrides, two overlays, and 790
+catalog models.
