@@ -6,6 +6,7 @@ const os = require("node:os");
 const path = require("node:path");
 
 const repoRoot = path.resolve(path.dirname(fs.realpathSync(__filename)), "..");
+const ignoredDirectories = new Set([".git", "node_modules"]);
 
 function markdownFiles(entry) {
   if (!fs.existsSync(entry)) return [];
@@ -13,9 +14,10 @@ function markdownFiles(entry) {
   if (stat.isFile()) return entry.endsWith(".md") ? [entry] : [];
   if (!stat.isDirectory()) return [];
 
-  return fs.readdirSync(entry, { withFileTypes: true }).flatMap((item) =>
-    markdownFiles(path.join(entry, item.name)),
-  );
+  return fs.readdirSync(entry, { withFileTypes: true }).flatMap((item) => {
+    if (item.isDirectory() && ignoredDirectories.has(item.name)) return [];
+    return markdownFiles(path.join(entry, item.name));
+  });
 }
 
 function canonicalMarkdownFiles(entries) {
@@ -144,6 +146,11 @@ function selfTest() {
         "```",
         "[external](https://example.com)",
       ].join("\n"),
+    );
+    fs.mkdirSync(path.join(temp, "node_modules"));
+    fs.writeFileSync(
+      path.join(temp, "node_modules", "dependency.md"),
+      "[dependency-owned broken link](missing.md)\n",
     );
     let result = scan(canonicalMarkdownFiles([temp]));
     assert.equal(result.issues.length, 0);
