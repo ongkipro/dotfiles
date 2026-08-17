@@ -39,8 +39,8 @@
   `~/Projects/adsbookcms`.
 - Product boundary: installable, single-tenant Cloudflare CMS. One install
   maps to one Worker; do not introduce an in-application tenant abstraction.
-- `permatamall` is a separate repository using the same engine. Its content in
-  AdsBookCMS is deliberate replaceable demo data.
+- `permatamall` is a separate reference-install repository derived from this product. It may contain merchant-specific data, styling, deployment policy, and historical claims that must be re-verified before reuse.
+- AdsBookCMS ships no merchant catalog or demo dataset by default (ADR-016); never copy Permatamall content, credentials, assets, or live-install policy into the product repository.
 - Repository `AGENTS.md`, `ARCHITECTURE.md`, `TASKS.md`, and `DECISIONS.md`
   own implementation, gaps, execution state, and history.
 - Ad signal work routes to `meta-ads-signal-engine` and
