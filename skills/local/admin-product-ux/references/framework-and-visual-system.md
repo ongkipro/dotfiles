@@ -33,28 +33,16 @@ Apply the same contract: server-enforced permissions, URL-addressable views,
 explicit async states, and one owner for each piece of state. Reuse native
 platform behavior and installed conventions before adding libraries.
 
-## Two-theme admin baseline
+## Clean-light CMS/admin baseline
 
-Use light and dark as deliberately designed peers. Default to light unless the
-project already records another preference; expose Light, Dark, and System when
-user choice exists. Prevent first-paint flash through the framework's accepted
-theme mechanism.
+When a project lacks an established visual system, default to the **clean-light CMS/admin visual baseline** rather than a heavy two-theme or heavily branded default. Existing project tokens always win, but this is the fallback for new operator surfaces.
 
-Use neutral surfaces with one blue/indigo brand axis, following the measured
-TokoPhi Seller pattern without treating its exact project tokens as universal:
+Dark mode is not part of this baseline unless explicitly requested. Do not build a dark mode speculatively.
 
-- light: near-white background/card, dark neutral text, subtle neutral border
-- dark: dark neutral background, slightly raised cards, low-alpha borders
-- primary/ring/sidebar active state: one blue/indigo hue
-- semantic states: emerald success, amber warning, red destructive, blue info
-- never use the brand color to mean success or danger
-- chart series require non-color cues and a reviewed categorical palette
+- **Surfaces:** White (`#ffffff`) or near-white (`#fcfcfc`) backgrounds, clean un-tinted neutrals for borders (`#e5e5e5`) and text (`#171717`, `#525252`).
+- **Accent:** One restrained accent color (e.g., a subdued blue/indigo or slate) used strictly for focus rings, active selection, and primary actions.
+- **Semantic status:** Pure emerald for success, amber for warning, red for destructive, blue for info. Never use the brand/accent color for semantic state.
+- **Hierarchy:** Establish hierarchy through typography (weight, size), layout density, and subtle 1px borders.
+- **Anti-slop:** No gradients, no glassmorphism, no oversized border radii, no excessive drop shadows, no rainbow charts, no generic bento/KPI card grids, and no emoji icons.
 
-For a new Tailwind v4 + shadcn setup, a reasonable starting accent is TokoPhi's
-verified blue-indigo family: approximately `oklch(0.515 0.23 277)` in light and
-`oklch(0.62 0.20 277)` in dark. Treat these as starting points, not a mandate.
-Read existing CSS and `components.json` before editing; preserve project tokens.
-
-Test both themes for text, focus, disabled, hover, selected, chart, badge,
-skeleton, empty, error, and destructive states. A token block alone is not dark
-mode completion; use `ui-validation` in the browser.
+For exact tokens, spacing, and a functional standalone HTML reference of this baseline, see [`clean-light-cms-baseline.md`](../../admin-dashboard/references/clean-light-cms-baseline.md) and the visual fixture at `../../admin-dashboard/assets/clean-light-cms/index.html`.

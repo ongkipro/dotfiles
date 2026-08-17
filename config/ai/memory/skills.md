@@ -83,6 +83,28 @@ The destructive historical linker regression is guarded by
   validation commands.
 - `development-spec-suite`, `prd-taskbreaker`, `openapi-spec`, and
   `mermaid-diagram` own specification artifacts at their declared boundaries.
+- `full-stack-development` owns multi-layer implementation orchestration,
+  cross-layer contract alignment, approval gates, and end-to-end evidence. It
+  does not implement specialist domains itself.
+- `testing-engineering` owns automated behavioral test strategy and changed-
+  contract regression evidence; `ui-validation` retains browser-visible proof
+  and `web-perf` retains performance diagnosis.
+- `postgres-drizzle` owns plain PostgreSQL and Drizzle schema, query, migration,
+  transaction, concurrency, and tenant-boundary engineering. `supabase-stack`
+  retains Supabase-managed Auth, Storage, Realtime, RLS, and Edge Functions.
+- `application-security` owns cross-stack application threat modeling, trust
+  boundaries, authorization, validation, SSRF, injection, secrets, supply-chain
+  review, and security verification. Narrow platform and product security skills
+  retain their own implementation details.
+- `nextjs-development` owns retrieval-first Next.js App Router architecture and
+  implementation; it does not own visual design, test strategy, AppSec,
+  observability design, or deployment infrastructure.
+- `observability-engineering` owns cross-service logs, metrics, traces,
+  correlation, SLI/SLO/error-budget design, alerting, telemetry privacy, and
+  bounded smoke proof.
+- `github-actions` owns GitHub Actions workflow architecture, permissions,
+  untrusted-input boundaries, reuse, caching, artifacts, OIDC, release gates,
+  and hosted-run evidence.
 - `admin-product-ux`, `admin-dashboard`, `design-taste`, `storefront-ux`,
   `shadcn-ui`, and `ui-validation` own distinct product, visual, component, and
   browser-validation responsibilities.

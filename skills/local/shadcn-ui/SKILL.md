@@ -19,7 +19,7 @@ alone is not UI proof.
 For dashboard architecture and information hierarchy, load `admin-dashboard`.
 For Astro ownership and hydration boundaries, also load `astro-development`.
 For SaaS/CRM workflow, permissions, screen contracts, framework adaptation, and
-the reusable light/dark blue-indigo admin baseline, load `admin-product-ux`.
+the reusable clean-light CMS/admin visual baseline, load `admin-product-ux`.
 
 **Prerequisite:** Tailwind CSS and the project's token strategy must already be
 understood. For an accepted new shadcn setup, verify the current CLI help and

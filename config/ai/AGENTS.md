@@ -64,6 +64,12 @@ Browser-visible visual, layout, responsive, accessibility, or UX work always rou
 
 Owned capabilities have one source: **`~/dotfiles/skills/local/<name>/SKILL.md`**. Claude, Pi, OMP, and Antigravity discover the canonical directory automatically. Codex preserves its native `.system` skills and receives per-skill links to the same owned source. `skill-update` reconciles runtime adapters; it never copies methodology.
 
+Implementation that spans multiple application layers routes through
+`full-stack-development`. That skill owns orchestration and contract alignment;
+`testing-engineering`, `postgres-drizzle`, `application-security`,
+`nextjs-development`, `observability-engineering`, `github-actions`, and the
+existing stack/UI skills retain their specialist implementation ownership.
+
 Canonical delivery lifecycle: understand intent → load the smallest relevant context → select job, risk, capability, model, provider, reasoning effort, and verification → implement → verify independently → persist task/result/provenance/release evidence → resume from repository state → convert only verified reusable outcomes into reviewed learning. AI is never the source of truth; repository contracts and executable evidence are.
 
 ## Code discipline (lazy senior dev)

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Systems | Dotfiles Internal Preview</title>
+    <meta name="description" content="Policy, memory, skills, delivery, tooling, and memory promotion.">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <div class="layout">
+        <header class="site-header">
+            <div class="header-inner">
+                <a href="index.html" class="logo">
+                    <svg class="logo-icon" viewBox="0 0 24 24"><path d="M4 4h16v16H4z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 9l3 3-3 3M13 15h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    DOTFILES
+                </a>
+                <nav class="desktop-nav" aria-label="Main Navigation">
+                    <a href="index.html" class="nav-link">Overview</a>
+                    <a href="architecture.html" class="nav-link">Architecture</a>
+                    <a href="systems.html" class="nav-link active" aria-current="page">Systems</a>
+                    <a href="operations.html" class="nav-link">Operations</a>
+                </nav>
+                <button class="mobile-menu-btn" aria-expanded="false" aria-controls="mobile-nav" aria-label="Toggle navigation menu">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+            </div>
+            <nav id="mobile-nav" class="mobile-nav" aria-label="Mobile Navigation">
+                <a href="index.html" class="nav-link">Overview</a>
+                <a href="architecture.html" class="nav-link">Architecture</a>
+                <a href="systems.html" class="nav-link active" aria-current="page">Systems</a>
+                <a href="operations.html" class="nav-link">Operations</a>
+            </nav>
+        </header>
+
+        <main id="main-content" class="main-content">
+            <p class="eyebrow">Shared control plane</p>
+            <h1>Internal Systems</h1>
+            <p class="lede">Policy, memory, skills, commands, and delivery evidence are connected, but deliberately not merged. Each subsystem has a narrow responsibility and a canonical path.</p>
+
+            <section aria-labelledby="context-title">
+                <h2 id="context-title">Policy, truth, and memory</h2>
+                <div class="table-scroll" role="region" aria-label="Context ownership table" tabindex="0">
+                    <table>
+                        <thead><tr><th>Layer</th><th>Canonical location</th><th>Rule</th></tr></thead>
+                        <tbody>
+                            <tr><td>Mandatory policy</td><td><code>config/ai/AGENTS.md</code></td><td>Always loaded through the verified path for each runtime.</td></tr>
+                            <tr><td>Current project truth</td><td>Target repository contracts</td><td>Requirements, status, decisions, and release state stay with the project.</td></tr>
+                            <tr><td>Shared memory</td><td><code>config/ai/memory/</code></td><td>Durable cross-project facts; loaded only when relevant.</td></tr>
+                            <tr><td>Project-reference memory</td><td><code>config/ai/project-memory/</code></td><td>Durable references and gotchas; never current project status.</td></tr>
+                            <tr><td>Candidate inbox</td><td><code>~/.config/ai-local/memory-inbox/</code></td><td>Device-local review queue; never synchronized as canonical truth.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="system-map" aria-label="Reviewed learning promotion flow">
+                    <div class="map-row">
+                        <div class="map-node">Verified non-trivial outcome</div><div class="map-edge"></div>
+                        <div class="map-node">Device-local candidate</div><div class="map-edge"></div>
+                        <div class="map-node">Human review</div><div class="map-edge"></div>
+                        <div class="map-node core">Existing memory file</div>
+                    </div>
+                </div>
+                <p>Promotion validates and updates an existing memory target. It never stages, commits, pushes, or promotes raw logs, secrets, customer data, changing status, or speculative diagnoses.</p>
+            </section>
+
+            <section aria-labelledby="skills-title">
+                <h2 id="skills-title">Canonical skill distribution</h2>
+                <p><code>skills/local/</code> is the only source for the 61 owned capabilities. Skills contain reusable methodology and ownership boundaries; they do not pin volatile model choices.</p>
+                <div class="table-scroll" role="region" aria-label="Skill distribution adapters" tabindex="0">
+                    <table>
+                        <thead><tr><th>Consumer</th><th>Adapter behavior</th></tr></thead>
+                        <tbody>
+                            <tr><td>Claude Code, Pi, OMP</td><td>Directory links point directly to the canonical skill source.</td></tr>
+                            <tr><td>Antigravity</td><td>Its compatibility discovery path points to the same canonical source.</td></tr>
+                            <tr><td>Codex</td><td>Its native directory is preserved; owned capabilities are linked beside <code>.system</code>.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p><code>skill-update</code> reconciles runtime adapters after a capability is added or removed. It does not fetch external repositories or copy methodology.</p>
+            </section>
+
+            <section aria-labelledby="commands-title">
+                <h2 id="commands-title">Executable command layer</h2>
+                <p>The shared manifest declares 69 executable entries linked from <code>bin/</code> into <code>~/.local/bin</code> by both installers. The command surface is grouped by outcome:</p>
+                <div class="command-groups">
+                    <article><h3>Health &amp; policy</h3><p><code>ai-doctor</code>, <code>ai-policy-lint</code>, <code>omp-routing-test</code>, <code>security-check</code></p></article>
+                    <article><h3>Project delivery</h3><p><code>project-init</code>, <code>project-check</code>, <code>delivery-ledger</code>, <code>production-gate</code>, <code>release-check</code></p></article>
+                    <article><h3>Learning</h3><p><code>ai-memory-access</code>, <code>ai-learn</code>, <code>delivery-learning</code>, <code>ai-memory-harvest</code>, <code>ai-skill-evolution</code></p></article>
+                    <article><h3>Environment</h3><p><code>dotsync</code>, <code>skill-update</code>, <code>device-register</code>, <code>secrets-env</code>, <code>tmux-setup</code></p></article>
+                </div>
+            </section>
+
+            <section aria-labelledby="delivery-title">
+                <h2 id="delivery-title">Repository contracts and delivery evidence</h2>
+                <p>New projects receive explicit authorities for requirements, task state, decisions, architecture, build history, observability, and release readiness. The append-only <code>.delivery/</code> ledger binds a run to its task, requirement, resolved route, verification, result, and provenance.</p>
+                <pre><code>project-check
+  -> delivery-ledger verification
+  -> migration / rollback checks
+  -> production-gate
+  -> explicit deploy approval
+  -> release-check</code></pre>
+                <p>Passing a gate records evidence; it does not grant production authority. <code>STATUS.md</code> remains the live workflow-state owner, and deployment still requires explicit approval.</p>
+            </section>
+
+            <p class="source-note">Canonical sources: <a href="../../config/ai/memory/skills.md">skills.md</a>, <a href="../../docs/ai-memory-sync.md">ai-memory-sync.md</a>, <a href="../../config/ai/runtime-commands.txt">runtime-commands.txt</a>, and <a href="../../README.md">README.md</a>.</p>
+        </main>
+
+        <footer class="site-footer">
+            <p>Dotfiles Internal Systems Preview <span class="year-badge"></span></p>
+            <p><a href="../../config/ai/memory/skills.md">skills.md</a> | <a href="../../docs/ai-memory-sync.md">ai-memory-sync.md</a></p>
+        </footer>
+    </div>
+    <script src="site.js"></script>
+</body>
+</html>

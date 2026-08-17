@@ -62,6 +62,10 @@ flowchart LR
 The shared kernel stays runtime-neutral. OMP adds orchestration and model
 routing, while standalone CLIs consume the same policy and owned skills.
 
+Browse the static multipage system preview at
+[`docs/preview/index.html`](docs/preview/index.html): overview, architecture,
+internal systems, and operations.
+
 ### Canonical operating lifecycle
 
 ```mermaid
@@ -91,6 +95,18 @@ Before `~/Projects/<slug>/` exists, planning artifacts stage under
 `~/Documents/work/prd/<slug>/`; `project-init --from-docs` promotes the accepted
 set into the new repository, which becomes canonical from that point (see
 [`config/ai/AGENTS.md`](config/ai/AGENTS.md)).
+
+### Full-stack delivery workflow
+
+`skills/local/full-stack-development/` owns orchestration when accepted work
+crosses multiple application layers. It inspects repository truth, selects only
+the required specialists, aligns UI/API/data/IAM/telemetry contracts, preserves
+approval gates, and requires end-to-end executable evidence. Specialist work
+remains with `testing-engineering`, `postgres-drizzle`,
+`application-security`, `nextjs-development`,
+`observability-engineering`, `github-actions`, and the existing stack, UI, and
+commerce skills. This keeps “full stack” as a workflow, not a generic skill that
+duplicates every implementation recipe.
 
 ### Cross-CLI policy paths
 
