@@ -23,7 +23,10 @@ Usage:
   ai-hooks-install              install or repair missing hooks
   ai-hooks-install --check      report drift, write nothing, non-zero if missing
   ai-hooks-install --force      replace matching entries with the canonical form
-  ai-hooks-install --settings P operate on P instead of ~/.claude/settings.json
+  ai-hooks-install --settings P operate on P instead of the default settings file
+
+The default target follows $CLAUDE_SETTINGS, then $CLAUDE_CONFIG_DIR/settings.json
+(what the account switcher sets), then ~/.claude/settings.json.
 """
 import argparse
 import json
@@ -111,8 +114,15 @@ def main() -> int:
     dotfiles = Path(
         args.dotfiles or os.environ.get("DOTFILES_DIR", Path(__file__).resolve().parent.parent)
     ).resolve()
+    # CLAUDE_CONFIG_DIR relocates the whole config directory (the account switcher
+    # points it at ~/.claude-accounts/<name>). Wiring ~/.claude/settings.json while
+    # Claude reads an account settings file is the silent-absent-guard failure this
+    # script exists to prevent, so honour it before falling back.
+    default_settings = Path(
+        os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude")
+    ).expanduser() / "settings.json"
     settings_path = Path(
-        args.settings or os.environ.get("CLAUDE_SETTINGS", Path.home() / ".claude" / "settings.json")
+        args.settings or os.environ.get("CLAUDE_SETTINGS", default_settings)
     ).expanduser()
 
     try:

@@ -97,7 +97,8 @@ Use existing local skills when available:
 - `design-taste` for visual direction, `admin-dashboard` for data-dense product
   UI, `storefront-ux` for commerce behavior, `shadcn-ui` for React component
   implementation, and `ui-validation` for executable UI evidence.
-- `native-first`, `security-check`, `web-perf`, and relevant platform/provider skills for implementation validation.
+- `native-first`, `web-perf`, `lean-code-review`, and relevant platform/provider skills for implementation validation.
+  ⚠️ **No local security-validation skill exists** — this list previously named a `security-check` that did not exist. Treat it as a gap; a diff-level security pass is host-specific.
 
 If a specialist is unavailable, state the capability gap and continue with a bounded, evidence-labelled draft; do not copy another skill's instructions into this one.
 

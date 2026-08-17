@@ -29,7 +29,22 @@ House setup (TokoΦ): Coolify on a VPS, Docker Compose build pack, Postgres in a
 
 A VPS bills whether or not you use it. **Record the credit expiry and the monthly rate in memory when you create a server**, not later.
 
-> 🔴 Live example: TokoΦ dev VPS (Vultr `45.76.146.40`, `vhp-8c-16gb-amd`) — **~$96/mo**, credit ends **± 2026-08-09**. Destroy or migrate to Hetzner before that. Blocker: `~/.vultr-cli.yaml` is missing → CLI destroy won't work; use the Vultr dashboard.
+> **Live example, re-measured 2026-08-05** (the previous version of this note was stale on all four
+> counts, and it is worth knowing how): TokoΦ runs **one** Vultr instance — `45.77.33.112`
+> (`volumdev`), plan **`vhp-4c-8gb-amd`**, Singapore, created 2026-07-10, **$48.00/mo**.
+> Credit remaining **$262.54**, pending charges **$8.08** → runway **~5,5 months, i.e. ~mid-January
+> 2027**. `vultr-cli` is installed and `~/.vultr-cli.yaml` is present; `vultr-cli instance list` works.
+>
+> ⚠️ What this note used to say, and why each part was wrong — the stale-alarm failure mode:
+> `45.76.146.40` (that box was **deleted**; `DEPLOY.md` says so) · `vhp-8c-16gb-amd` **~$96/mo**
+> (double the real plan) · credit ends **± 2026-08-09** (off by ~5 months) · "`~/.vultr-cli.yaml` is
+> missing → CLI destroy won't work" (it is there and it works). Acting on it in August 2026 would have
+> raised a three-day emergency and argued for a Hetzner migration that nothing required.
+>
+> 🔴 **So: read this note, then VERIFY it before acting.** `AGENTS.md` — when memory and disk
+> disagree, disk wins, then fix the memory. A cost note is memory; the account is disk:
+> `vultr-cli instance list` and `vultr-cli account info` (Vultr shows credit as a **negative**
+> BALANCE). Re-stamp this paragraph with the date you measured it.
 
 Plan of record: dev = Vultr SG (on credit) → prod = Hetzner SG. Migration is cheap (Coolify + git + `pg_dump` + repoint the Cloudflare origin IP).
 

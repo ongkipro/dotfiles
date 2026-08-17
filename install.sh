@@ -123,11 +123,33 @@ while IFS= read -r s; do
   [ -x "$DOT/bin/$s" ] || { echo "ERROR: runtime command is missing or not executable: $s" >&2; exit 1; }
   link "$DOT/bin/$s" ~/.local/bin/$s
 done < "$DOT/config/ai/runtime-commands.txt"
+
+# A command dropped from the manifest leaves its link behind on every device that
+# once installed it. Prune links pointing into this repo's bin/ that no longer resolve.
+for dst in ~/.local/bin/*; do
+  [ -L "$dst" ] || continue
+  target="$(readlink "$dst")"
+  case "$target" in "$DOT/bin/"*) [ -e "$target" ] || { unlink "$dst"; echo "   pruned stale command link: $dst"; } ;; esac
+done
+
 echo "==> Wire canonical Claude Code hooks..."
-"$HOME/.local/bin/ai-hooks-install"
+# Each account under ~/.claude-accounts/ is a separate CLAUDE_CONFIG_DIR with its
+# own settings.json. Wiring only ~/.claude leaves the guard absent on whichever
+# account is actually in use, so wire every config dir that exists.
+for cfg in "$HOME/.claude" "$HOME"/.claude-accounts/*/; do
+  [ -d "$cfg" ] || continue
+  "$HOME/.local/bin/ai-hooks-install" --settings "${cfg%/}/settings.json"
+done
 link "$DOT/config/omp/config.yml"        ~/.omp/agent/config.yml   # OMP config (model, theme, approval)
 link "$DOT/config/omp/models.yml"        ~/.omp/agent/models.yml   # OMP providers (9router)
 link "$DOT/config/omp/agents"            ~/.omp/agent/agents       # OMP specialist agents (role-routed)
+
+# `config/codex-instructions.md` has been removed from the repo. Clean up the
+# legacy symlink so ai-doctor does not flag a dangling path on upgraded devices.
+if [ -L "$HOME/.codex/instructions.md" ] && [ "$(readlink "$HOME/.codex/instructions.md" 2>/dev/null)" = "$DOT/config/codex-instructions.md" ]; then
+  unlink "$HOME/.codex/instructions.md"
+  echo "   removed legacy ~/.codex/instructions.md symlink"
+fi
 ~/.local/bin/ai-memory-link              # runtime-native AGENTS.md links (including ~/.omp/agent/AGENTS.md)
 "$DOT/skills/agents-bin/skill-update"    # directory links + Codex per-skill adapter preserving .system
 

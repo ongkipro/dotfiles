@@ -44,7 +44,7 @@ Purpose: Keep implementation status, runnable evidence, and remaining release ga
 - Status: Verified
 - Owner: Development Specification Suite maintainer
 - Statement: On every relevant change, the same dependency-free test suite shall run on supported Python versions on Ubuntu and macOS.
-- Evidence: EVID-CI-1 (`.github/workflows/development-spec-suite.yml`; GitHub Actions run `30941439300` passed Ubuntu/macOS on Python 3.9/3.12 for commit `bccc7d2`)
+- Evidence: EVID-CI-1 (`.github/workflows/development-spec-suite.yml`; GitHub Actions run `30966928304` passed Ubuntu/macOS on Python 3.9/3.12 for commit `53d71fd`)
 
 ### DS-REQ-20 — Recoverable reviewed updates
 - Status: Verified locally
@@ -125,7 +125,7 @@ flowchart LR
 
 ### [x] T19 — Prove portable fixtures on Linux and macOS CI
 
-- State: Verified by GitHub Actions run `30941439300` on commit `bccc7d2`; local suite also passes on macOS Python 3.9.6.
+- State: Verified by GitHub Actions run `30966928304` on commit `53d71fd`; local suite also passes on macOS Python 3.9.6.
 - Primary requirement: DS-REQ-19.
 - Constraints: Python standard library only; no Homebrew, user-specific path, GNU-only flag, or shell extension.
 - Dependencies: T18.
@@ -137,8 +137,8 @@ flowchart LR
   - Ubuntu Python 3.12: passed;
   - macOS Python 3.9: passed;
   - macOS Python 3.12: passed;
-  - run: `https://github.com/ongkipro/dotfiles/actions/runs/30941439300`.
-- Done when: all jobs in `.github/workflows/development-spec-suite.yml` pass on Ubuntu and macOS; satisfied by run `30941439300`.
+  - run: `https://github.com/ongkipro/dotfiles/actions/runs/30966928304`.
+- Done when: all jobs in `.github/workflows/development-spec-suite.yml` pass on Ubuntu and macOS; satisfied by run `30966928304`.
 
 ### [x] T20 — Make established-pack updates recoverable and reviewable
 
@@ -187,7 +187,13 @@ python3 scripts/check-traceability.py /path/to/docs/spec --format json
 ## Completion Gate
 
 - `v2 audit-ready`: allowed only while T15–T18 fixtures pass. This describes structural tooling readiness, not readiness for a specific regulated project and not legal/audit compliance.
-- `cross-platform validated`: allowed while T19’s Ubuntu/macOS matrix remains green; proven by run `30941439300`.
+- `cross-platform validated`: allowed while T19’s Ubuntu/macOS matrix remains green; proven by run `30966928304`.
+  ⚠️ **RE-PIN THIS ID WHENEVER THE SUITE CHANGES.** It previously cited run `30941439300`, which tested commit
+  `bccc7d2` — three commits before the code on disk, one of them `53d71fd` "enforce specification ownership
+  boundaries". The code was green the whole time, but the citation had stopped proving it. `SKILL.md` §117 says a
+  workflow file alone is not evidence; by the same rule, a run that predates the code is not evidence either.
+  Verify with `gh run list --workflow=development-spec-suite.yml` and cite the newest green run whose `headSha`
+  matches `git log -1 --format=%h -- skills/local/development-spec-suite`.
 - `recoverable update mode`: allowed while T20’s hash, backup, and interruption fixture passes.
 - `offline provenance audit`: allowed while T21’s ledger fixture passes.
 - Reopen any task immediately when its fixture fails, its behavior diverges from these requirements, or a supported-platform CI job regresses.
