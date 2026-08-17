@@ -50,12 +50,20 @@ while [ -L "$SCRIPT_PATH" ]; do
 done
 ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
 
-for command_name in omp yq jq; do
+for command_name in yq jq; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "FAIL: required command is unavailable: $command_name" >&2
     exit 1
   }
 done
+if ! command -v omp >/dev/null 2>&1; then
+  if [ "${CI:-}" = true ]; then
+    echo "omp-effective-routing-test: PARTIAL (static CI; omp unavailable, runtime overlay loading skipped)"
+    exit 0
+  fi
+  echo "FAIL: required command is unavailable: omp" >&2
+  exit 1
+fi
 
 expected_providers="${OMP_EFFECTIVE_PROVIDERS:-}"
 expected_providers="${expected_providers// /}"

@@ -69,18 +69,24 @@ FILES
 }
 
 discover_repos(){
-  local root marker repo physical
-  declare -A seen=()
-  for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do
-    [ -d "$root" ] || continue
-    while IFS= read -r -d '' marker; do
-      repo="${marker%/.git}"
-      physical="$(cd "$repo" && pwd -P)" || continue
-      [ -n "${seen[$physical]:-}" ] && continue
-      seen[$physical]=1
-      printf '%s\0' "$physical"
-    done < <(find "$root" -name .git -print0 -prune)
-  done
+  python3 - "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR" <<'PY'
+import os
+import sys
+
+seen = set()
+for root in sys.argv[1:]:
+    if not os.path.isdir(root):
+        continue
+    for directory, children, files in os.walk(root):
+        if ".git" not in children and ".git" not in files:
+            continue
+        physical = os.path.realpath(directory)
+        if physical not in seen:
+            seen.add(physical)
+            sys.stdout.buffer.write(os.fsencode(physical) + b"\0")
+        if ".git" in children:
+            children.remove(".git")
+PY
 }
 find_repo(){ local repo="$1" d; while IFS= read -r -d '' d; do [ "$(basename "$d")" = "$repo" ] && { printf '%s\n' "$d"; return 0; }; done < <(discover_repos); return 1; }
 clone_repo(){ local repo="$1" category="$2" target="$PROJECTS_DIR/$category/$repo"; if [ -d "$target/.git" ]; then say "repository already exists: $target"; else mkdir -p "$(dirname "$target")"; say "cloning $GITHUB_USER/$repo → $target"; gh repo clone "$GITHUB_USER/$repo" "$target" || die "clone failed; no project files were overwritten"; fi; }
