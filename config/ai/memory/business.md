@@ -31,7 +31,7 @@
 
 ### 4. Shopify/headless stores
 - Active or repeated themes: Shopify standard stores, Shopify theme development, headless Shopify, Astro storefronts, product/category SEO, landing pages, conversion, tracking.
-- Example project contexts discussed: Pixsgo/Play & Go, Petcue, Panna Coffee, Shopify service pitch deck, advertiser service pitch deck.
+- Example project contexts discussed: Pixsgo/Play & Go, Petcue, Shopify service pitch deck, advertiser service pitch deck.
 
 ### 5. AI business content/asset creation
 - Direction discussed: AI Marketing Asset Creator / AI Business Content Creator, especially service assets for local businesses or ecommerce brands.

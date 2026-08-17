@@ -3,14 +3,6 @@
 > Advisory portfolio map. Load this file only for the named platform; inspect
 > its repository contracts and executable state before implementation.
 
-## social-autopilot — brand: Volum
-
-- Repository: `ongkipro/social-autopilot`; expected checkout:
-  `~/Projects/social-autopilot`.
-- Product boundary: autopilot-first social publishing for Facebook, Instagram,
-  Threads, and Pinterest; Twitter is intentionally excluded.
-- Authentication details, test accounts, runtime models, provider fallbacks,
-  deployment state, and implementation contracts belong in the repository.
 
 ## volumecms
 
@@ -21,17 +13,6 @@
   database rather than query-level tenancy.
 - Repository documentation owns themes, RBAC, quotas, feature flags,
   provisioning, credentials, deployment topology, and operational gotchas.
-- `nextpress` was the superseded prototype; do not continue it as the active
-  product.
-
-## volumform
-
-- Repository: `ongkipro/volumform`; expected checkout:
-  `~/Projects/volumform`.
-- Product boundary: Indonesian multi-tenant direct-response funnel SaaS for
-  COD, CRM, conversion signals, and shipping.
-- Detailed UX reference: project-memory
-  [`volumform-id-market-ux.md`](../project-memory/volumform-id-market-ux.md).
 
 ## adsbookcms
 

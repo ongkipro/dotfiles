@@ -31,9 +31,6 @@ Want to work on a project? `git clone` it first into **`~/Projects/<name>/`** (t
 - The tmux stack in dotfiles uses prefix `Ctrl+a`, a plain-font-friendly Catppuccin-inspired theme, and plugins: tmux-sensible, tmux-yank, resurrect, continuum, prefix-highlight, tmux-open. Setup is handled by `bin/tmux-setup`; the battery helper cross-macOS/Linux is in `bin/tmux-battery`.
 - Local skills use the single source `~/dotfiles/skills/local/<name>/SKILL.md`; run `skill-list` for the current registry. Do not preserve stale per-tool copies or assume an older vendored skill set is still active.
 
-> Note: the old repo/project `social-dashboard` has been DELETED (GitHub + fully replaced
-> by `social-autopilot` on 3 July 2026). New GitHub repo: `github.com/ongkipro/social-autopilot` (private).
-
 ## Project reference indexes
 
 This file owns only checkout/path conventions and the dotfiles project summary. Load a narrower portfolio reference for project-specific facts:
