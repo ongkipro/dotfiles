@@ -15,4 +15,6 @@ helix = "latest"
 ruff = "latest"
 qsv = "latest"
 gh = "latest"
+marksman = "latest"   # Helix LSP for Markdown — PRD, TASKS, memory, and spec packs are all Markdown
+taplo = "latest"      # Helix LSP for TOML — mise, Helix, and wrangler configs
 node = "24.18.0"
