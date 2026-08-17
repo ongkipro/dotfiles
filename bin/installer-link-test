@@ -123,7 +123,126 @@ EOF
 
   echo "✓ install.sh:ensure_shell_source"
 }
+test_macos_shell_source_migration() {
+  local function_code
+  function_code="$(extract_function "$ROOT/install-macos.sh" ensure_shell_source)"
+  [ -n "$function_code" ] || { echo "missing ensure_shell_source in install-macos.sh" >&2; return 1; }
 
+  (
+    eval "$function_code"
+    say() { :; }
+    rc="$TMP/macos-zshrc"
+    cat > "$rc" <<'EOF'
+# >>> dev-tools setup (ongkipro/dotfiles) >>>  (marker — legacy suffix)
+legacy managed content
+command -v starship >/dev/null && eval "$(starship init zsh)"
+source "$HOME/dotfiles/config/zshrc.tools.sh"
+command -v omp >/dev/null 2>&1 && eval "$(omp completions zsh)"
+eval "$($HOME/.local/bin/mise activate zsh)"
+export PATH="$HOME/.local/bin:$HOME/.agents/bin:$PATH"
+# user setup
+export KEEP_ME=yes
+EOF
+
+    ensure_shell_source \
+      "$rc" \
+      "zshrc.tools.sh" \
+      "dev-tools setup (ongkipro/dotfiles)" \
+      'command -v starship >/dev/null && eval "$(starship init zsh)"' >/dev/null
+
+    source_line='source "$HOME/dotfiles/config/zshrc.tools.sh"'
+    [ "$(grep -cxF "$source_line" "$rc")" -eq 1 ]
+    grep -qxF "# user setup" "$rc"
+    grep -qxF "export KEEP_ME=yes" "$rc"
+    ! grep -qF "legacy managed content" "$rc"
+    ! grep -qF "omp completions zsh" "$rc"
+    ! grep -qF "mise activate zsh" "$rc"
+    [ "$(find "$TMP" -maxdepth 1 -type f -name 'macos-zshrc.bak.*' | wc -l)" -eq 1 ]
+
+    first="$(cksum "$rc")"
+    ensure_shell_source \
+      "$rc" \
+      "zshrc.tools.sh" \
+      "dev-tools setup (ongkipro/dotfiles)" \
+      'command -v starship >/dev/null && eval "$(starship init zsh)"' >/dev/null
+    [ "$first" = "$(cksum "$rc")" ]
+    [ "$(find "$TMP" -maxdepth 1 -type f -name 'macos-zshrc.bak.*' | wc -l)" -eq 1 ]
+  )
+
+  echo "✓ install-macos.sh:ensure_shell_source"
+}
+
+test_mise_tool_check() {
+  local function_code
+  function_code="$(extract_function "$ROOT/install-macos.sh" ensure_mise_tool)"
+  [ -n "$function_code" ] || { echo "missing ensure_mise_tool in install-macos.sh" >&2; return 1; }
+
+  (
+    eval "$function_code"
+    action=""
+    say() { :; }
+    mise() {
+      case "$1" in
+        which) [ "$2" = "hx" ] ;;
+        use) action="$*" ;;
+      esac
+    }
+
+    ensure_mise_tool helix hx >/dev/null
+    [ -z "$action" ]
+    ensure_mise_tool starship starship >/dev/null
+    [ "$action" = "use -g starship" ]
+  )
+
+  echo "✓ install-macos.sh:ensure_mise_tool"
+}
+test_mise_absent_branch() {
+  local function_code output empty_path
+  function_code="$(extract_function "$ROOT/install-macos.sh" install_mise_tools)"
+  [ -n "$function_code" ] || { echo "missing install_mise_tools in install-macos.sh" >&2; return 1; }
+
+  empty_path="$TMP/no-mise-bin"
+  mkdir -p "$empty_path"
+  (
+    eval "$function_code"
+    say() { :; }
+    ensure_mise_tool() { echo "ensure_mise_tool must not run without mise" >&2; return 1; }
+    output="$(PATH="$empty_path" install_mise_tools)"
+    grep -qF 'mise belum ada' <<< "$output"
+    grep -qF 'curl -fsSL https://mise.run | sh' <<< "$output"
+  )
+
+  echo "✓ install-macos.sh:mise-absent"
+}
+test_mise_discovered_path() {
+  local function_code fake_bin log
+  function_code="$(extract_function "$ROOT/install-macos.sh" install_mise_tools)"
+  [ -n "$function_code" ] || { echo "missing install_mise_tools in install-macos.sh" >&2; return 1; }
+
+  fake_bin="$TMP/discovered mise bin"
+  log="$TMP/discovered-mise.log"
+  mkdir -p "$fake_bin" "$TMP/discovered mise home"
+  cat > "$fake_bin/mise" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$log"
+case "\${1:-}" in
+  --version) printf '%s\n' 'mise test-version' ;;
+  activate) : ;;
+esac
+EOF
+  chmod +x "$fake_bin/mise"
+
+  (
+    eval "$function_code"
+    say() { :; }
+    ensure_mise_tool() { :; }
+    HOME="$TMP/discovered mise home" PATH="$fake_bin:/usr/bin:/bin" install_mise_tools
+  )
+
+  grep -qxF -- '--version' "$log"
+  grep -qxF 'activate bash' "$log"
+  echo "✓ install-macos.sh:mise-discovered-path"
+}
 test_runtime_command_manifest() {
   local manifest="$ROOT/config/ai/runtime-commands.txt" command_name
   [ -f "$manifest" ] || { echo "missing runtime command manifest" >&2; return 1; }
@@ -149,6 +268,9 @@ test_runtime_command_manifest() {
   grep -qxF "ai-hooks-install" "$manifest"
   grep -qF '"$HOME/.local/bin/ai-hooks-install"' "$ROOT/install.sh"
   grep -qF '"$HOME/.local/bin/ai-hooks-install"' "$ROOT/install-macos.sh"
+  # Upgrades must prune commands removed from the manifest on both platforms.
+  grep -qF 'pruned stale command link' "$ROOT/install.sh"
+  grep -qF 'pruned stale command link' "$ROOT/install-macos.sh"
   echo "✓ runtime command manifest and hook wiring"
 }
 
@@ -156,5 +278,9 @@ test_helper "$ROOT/install.sh" link
 test_helper "$ROOT/install-macos.sh" link
 test_helper "$ROOT/bin/tmux-setup" link_to_repo
 test_shell_source_migration
+test_macos_shell_source_migration
+test_mise_tool_check
+test_mise_absent_branch
+test_mise_discovered_path
 test_runtime_command_manifest
 echo "installer-link-test: OK"

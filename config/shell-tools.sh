@@ -20,6 +20,13 @@ if command -v mise >/dev/null; then
   eval "$(mise activate "$(_shell_name)")"
 fi
 
+# --- zsh completion system ---
+# Completion scripts call compdef; initialize it before user-specific completion
+# files loaded later in ~/.zshrc. Guarding compdef keeps re-sourcing cheap.
+if [[ $- == *i* ]] && [ -n "${ZSH_VERSION:-}" ] && ! command -v compdef >/dev/null 2>&1; then
+  autoload -Uz compinit && compinit
+fi
+
 # --- eza: modern ls ---
 if command -v eza >/dev/null; then
   alias ls='eza --group-directories-first'

@@ -22,6 +22,75 @@ link() {
   ln -s "$src" "$dst"
   say "   $dst -> $src"
 }
+ensure_shell_source() {
+  local rc="$1" file="$2" marker="$3" legacy_stop="$4"
+  local source_line start backup tmp remove_block=0
+  source_line='source "$HOME/dotfiles/config/'"$file"'"'
+  start="# >>> $marker >>>"
+  touch "$rc"
+  grep -qF "$start" "$rc" && remove_block=1
+
+  tmp="$(mktemp "${rc}.tmp.XXXXXX")"
+  if ! awk \
+      -v remove_block="$remove_block" \
+      -v start="$start" \
+      -v stop="$legacy_stop" \
+      -v source_line="$source_line" '
+    BEGIN { print source_line }
+    function generated_duplicate(line) {
+      return line == "command -v omp >/dev/null 2>&1 && eval \"$(omp completions bash)\"" ||
+             line == "command -v omp >/dev/null 2>&1 && eval \"$(omp completions zsh)\"" ||
+             line == "eval \"$($HOME/.local/bin/mise activate bash)\"" ||
+             line == "eval \"$($HOME/.local/bin/mise activate zsh)\"" ||
+             line == "export NVM_DIR=\"$HOME/.nvm\"" ||
+             line == "[ -s \"$(brew --prefix nvm 2>/dev/null)/nvm.sh\" ] && source \"$(brew --prefix nvm)/nvm.sh\"" ||
+             line == "export PATH=\"$HOME/.local/bin:$HOME/.agents/bin:$PATH\""
+    }
+    remove_block && index($0, start) == 1 { skip = 1; found = 1; next }
+    remove_block && skip && $0 == stop { skip = 0; next }
+    skip { next }
+    generated_duplicate($0) { next }
+    $0 == source_line { next }
+    { print }
+  ' "$rc" > "$tmp"; then
+    rm -f "$tmp"
+    say "ERROR: failed to migrate managed shell block in $rc"
+    return 1
+  fi
+
+  if cmp -s "$rc" "$tmp"; then
+    rm -f "$tmp"
+    say "   $file already sourced once by $rc"
+    return
+  fi
+
+  backup="$(mktemp "${rc}.bak.$(date +%Y%m%d-%H%M%S 2>/dev/null || echo old).XXXXXX")"
+  cp -p "$rc" "$backup"
+  cat "$tmp" > "$rc"
+  rm -f "$tmp"
+  say "   backup: $rc -> $backup"
+  say "   source $file normalized in $rc"
+}
+
+install_mise_tools() {
+  local mise_bin
+  if mise_bin="$(command -v mise 2>/dev/null)"; then
+    say "   mise sudah ada: $("$mise_bin" --version 2>&1 | head -1)"
+    eval "$("$mise_bin" activate bash 2>/dev/null || "$mise_bin" activate zsh 2>/dev/null || true)"
+
+    say "==> Install essential tools via mise..."
+    local spec
+    for spec in "starship:starship" "direnv:direnv" "lazygit:lazygit" "helix:hx"; do
+      ensure_mise_tool "${spec%%:*}" "${spec#*:}"
+    done
+  else
+    printf '%s\n' \
+      '   mise belum ada. Skrip ini tidak menjalankan remote script otomatis — install manual:' \
+      '       curl -fsSL https://mise.run | sh' \
+      '   Lalu jalankan ulang install-macos.sh untuk lanjut instal starship/direnv/lazygit/helix via mise.'
+  fi
+}
+
 ensure_line() {
   local line="$1" file="$2" backup tmp
   touch "$file"
@@ -54,6 +123,14 @@ ensure_line() {
   rm -f "$tmp"
   say "   tracked shell source normalized in $file"
 }
+ensure_mise_tool() {
+  local tool="$1" executable="${2:-$1}"
+  if mise which "$executable" >/dev/null 2>&1; then
+    say "   $tool sudah ada"
+  else
+    mise use -g "$tool" && say "   $tool ✓ terinstall"
+  fi
+}
 
 say "==> Symlink shared memory, config penting, dan scripts..."
 mkdir -p "$HOME/.config" "$HOME/.local/bin" "$HOME/.agents/bin"
@@ -72,6 +149,16 @@ while IFS= read -r s; do
   [ -x "$DOT/bin/$s" ] || { echo "ERROR: runtime command is missing or not executable: $s" >&2; exit 1; }
   link "$DOT/bin/$s" "$HOME/.local/bin/$s"
 done < "$DOT/config/ai/runtime-commands.txt"
+
+# Commands removed from the manifest must not leave dead links on upgraded Macs.
+# Only prune broken links that point into this repository's bin directory.
+for dst in "$HOME/.local/bin"/*; do
+  [ -L "$dst" ] || continue
+  target="$(readlink "$dst")"
+  case "$target" in
+    "$DOT/bin/"*) [ -e "$target" ] || { unlink "$dst"; say "   pruned stale command link: $dst"; } ;;
+  esac
+done
 say "==> Wire canonical Claude Code hooks..."
 "$HOME/.local/bin/ai-hooks-install"
 
@@ -149,21 +236,19 @@ say "   ~/Documents/work/{prd,research,content,notes}"
 say "   ~/Projects/"
 
 say "==> Patch ~/.zshrc dan ~/.bashrc (tanpa overwrite total)..."
-# Gunakan single-quote agar $HOME tetap dinamis di .zshrc (portabel antar user/mesin)
-# Runtime managers and local command dirs must load before tracked shell helpers.
-# One line per rc file, and it is the tracked entry point. Everything the removed
-# lines did, `config/shell-tools.sh` already does and does better: it activates
-# mise, and it guards each PATH entry with a `case ":$PATH:"` test so re-sourcing
-# cannot duplicate it.
-#
-# Writing them here as well is what produced a ~3s interactive shell on `rich`:
-# these lines landed in a `~/.bashrc` that install.sh had already wired, so
-# shell-tools.sh was sourced twice and `omp completions` — about a second of CPU
-# per call — ran twice on every prompt. The nvm lines were dead on arrival there
-# too: nvm was retired 2026-07-27, and `brew --prefix nvm` is a subshell that can
-# only fail on Linux.
-ensure_line 'source "$HOME/dotfiles/config/zshrc.tools.sh"' "$HOME/.zshrc"
-ensure_line 'source "$HOME/dotfiles/config/bashrc.tools.sh"' "$HOME/.bashrc"
+# Replace the copied legacy setup block with one tracked source. Exact trailing
+# lines generated by older macOS installers are removed in the same backed-up
+# rewrite; unrelated user setup after the old block is preserved.
+ensure_shell_source \
+  "$HOME/.zshrc" \
+  "zshrc.tools.sh" \
+  "dev-tools setup (ongkipro/dotfiles)" \
+  'command -v starship >/dev/null && eval "$(starship init zsh)"'
+ensure_shell_source \
+  "$HOME/.bashrc" \
+  "bashrc.tools.sh" \
+  "dev-tools setup (ongkipro/dotfiles)" \
+  'command -v starship >/dev/null && eval "$(starship init bash)"'
 ensure_line '[ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc"' "$HOME/.bash_profile"
 
 say "==> Daftarkan final state device ini..."
