@@ -5,7 +5,7 @@
 > registered there but missing here, `devices/` wins.
 > - Linux (laptop): hostname **`cuan`** — ThinkPad T480, Ubuntu 26.04, kernel 7.0.0. Old nickname in memory = "fantastico" (the SAME machine).
 > - Linux (desktop): hostname **`rich`** — Dell OptiPlex 7050, Ubuntu 24.04.4 LTS, kernel 7.0.0. Registered 2026-08-15.
-> - Mac (secondary): hostname **`ongkis-MacBook-Air`** — MacBook Air M1 8GB, macOS 26.5.2 arm64. ("`feriromansyah`" = old nickname in memory, the SAME machine; the real `hostname` is not that.)
+> - Mac (secondary): hostname **`feris-MacBook-Air`** — MacBook Air M1 8GB, macOS 26.5.1 arm64. This is the same `MacBookAir10,1` previously registered as **`ongkis-MacBook-Air`**; the generated `devices/` registry records both names and is authoritative for current device facts.
 > `brew` instructions = MAC ONLY. On `cuan` and `rich` use mise/apt.
 
 ## Installed tools (DO NOT reinstall)
