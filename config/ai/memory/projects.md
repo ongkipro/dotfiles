@@ -4,7 +4,7 @@
 
 ## ⚠️ READ FIRST — about PATHS (paths are PER-DEVICE, check disk first)
 
-- `/home/fantastico/...` → that user **DOES NOT EXIST** on any machine now. That's an OLD Linux machine. Ignore it.
+- `/home/fantastico/...` → user `fantastico` on the device `Fantastico` (ThinkPad X280, Ubuntu 26.04), registered 2026-08-15. This line used to say the user did not exist anywhere and should be ignored; that was true until the device joined, and acting on it now would mean discarding the paths of a live machine. Check `devices/` before deciding a path is dead.
 - **On `cuan` (Linux, user `ongki`), as of 2026-07-14: ONLY `~/Projects/kamus` is checked out** (repo `ongkipro/kamus`, branch `main`) — verified with `ls ~/Projects`. Other projects not yet cloned; the `~/Projects/<other>` paths in this file **don't apply there**. (The note from Mac saying `~/Projects/` on cuan is EMPTY is **wrong** — Mac guessed about a machine that isn't its own. Don't write another machine's disk facts without checking them.)
 - **On Mac (`ongkis-MacBook-Air`), never rely on a memorized checkout list.** Verify with `find ~/Projects -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort`. A project absent from that output is not checked out on this device.
   - `~/Projects/kamus` was cloned and verified on 2026-08-04. Re-check disk before future work.

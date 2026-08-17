@@ -29,8 +29,8 @@ PROGRESS (as of 2026-06-25):
   hard brutalist shadows + terminal badges; rounded-2xl cards, pill buttons, pastel chips; Footer = peach.
 - DONE: width boundary — all non-hero home sections are cream (no full-width colored bands), content
   capped at max-w-1200px; ONLY the hero is full-bleed (per user request "jangan full width kecuali hero").
-- DONE: Judge.me tokens fixed (was 401). New tokens in .env: JUDGEME_PRIVATE_API_TOKEN=FKclh5MN1KVcI9Di8bCnOmDW8Z0
-  (server reviews) + PUBLIC_JUDGEME_PUBLIC_API_TOKEN=6EajElsOPHXXA3IXQa9NqYrYTzo (widget, hardcoded in
+- DONE: Judge.me tokens fixed (was 401). New tokens in .env: `JUDGEME_PRIVATE_API_TOKEN` (value redacted — see `~/.config/ai-local/project-credentials.md`)
+  (server reviews) + `PUBLIC_JUDGEME_PUBLIC_API_TOKEN` (value redacted — same file) (widget, hardcoded in
   Layout.astro jdgmSettings). Reviews API verified HTTP 200. Shop domain 2mpt3p-xv.myshopify.com.
 - Dev server runs via `astro dev --background --port 4322`.
 

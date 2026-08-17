@@ -595,8 +595,12 @@ if [ -d "$AI/memory" ]; then
       wrn "memori masih menunjuk $note ($hits baris) — pat: $pat"
       drift=1
     fi
+  # `/home/fantastico` was on this list as a dead user. The device `Fantastico`
+  # (ThinkPad X280) joined devices/ on 2026-08-15, so the pattern now flags a
+  # live machine's own paths as drift — the check inverted into the error it
+  # exists to catch. A drift pattern is a claim about disk: retire it when disk
+  # changes, and confirm against devices/ before adding a per-user path here.
   done <<'PATS'
-/home/fantastico|user yang TIDAK ADA
 ~/.ai/|direktori yang tidak ada
 Documents/memori ai|folder yang tidak ada
 ~/.gemini/skills|obsolete Antigravity skill path

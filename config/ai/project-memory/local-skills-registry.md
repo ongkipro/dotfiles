@@ -49,14 +49,14 @@ lagi membuktikan klaimnya. Perbaikan: ganti id run di 5 baris tersebut.
 ## Cara update
 
 ```bash
-skill-update   # sync skill dari repo jezweb + re-link local
+skill-update   # re-link direktori skill ke tiap runtime (tidak menarik dari upstream mana pun)
 skill-list     # list semua skill (dipakai codex/agy untuk menemukan skill)
 skill-new      # buat skill baru
 ai-doctor      # cek kesehatan rantai symlink
 ```
 
 **Why:** local override repo — skill custom di `~/dotfiles/skills/local/` tidak ketimpa saat
-`skill-update` menarik update jezweb.
+`skill-update` hanya merekonsiliasi link runtime — upstream jezweb dan `skill-sync` sudah tidak ada di disk (dicek 2026-08-17).
 
 **How to apply:** sebelum bikin skill baru, cek direktori ini + `skill-list`. Sebelum mengklaim sebuah
 skill "sudah beres", jalankan gerbang miliknya sendiri — jangan membaca deskripsinya. Lihat juga
