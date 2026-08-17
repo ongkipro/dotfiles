@@ -21,6 +21,18 @@ set -u
 # wedged filesystem or a slow disk must not be felt by the user.
 TIMEOUT_SECONDS=5
 
+# Bound EVERY external command, not just the router. Until 2026-08-17 the two
+# JSON readers ran unbounded, which made the promise above conditional on them:
+# on a device where jq resolves through a version-manager shim, a shim that
+# cannot find its installation falls back to the network and stalls for tens of
+# seconds. This hook runs on every prompt in five CLIs, so that is a stalled
+# turn. memory-usage-hook-test reproduces it — it isolates HOME, which is
+# exactly what strands such a shim.
+TIMEOUT_BIN=$(command -v timeout 2>/dev/null) || TIMEOUT_BIN=""
+bounded() {
+  if [ -n "$TIMEOUT_BIN" ]; then "$TIMEOUT_BIN" "$TIMEOUT_SECONDS" "$@"; else "$@"; fi
+}
+
 payload=$(cat) || exit 0
 [ -n "$payload" ] || exit 0
 
@@ -32,10 +44,10 @@ access="$HOME/.local/bin/ai-memory-access"
 # pattern git-guard uses, minus the fail-closed branch.
 prompt=""
 if command -v jq >/dev/null 2>&1; then
-  prompt=$(printf '%s' "$payload" | jq -r '.prompt // ""' 2>/dev/null) || prompt=""
+  prompt=$(printf '%s' "$payload" | bounded jq -r '.prompt // ""' 2>/dev/null) || prompt=""
 fi
 if [ -z "$prompt" ] && command -v python3 >/dev/null 2>&1; then
-  prompt=$(printf '%s' "$payload" | python3 -c 'import json,sys
+  prompt=$(printf '%s' "$payload" | bounded python3 -c 'import json,sys
 try: print(json.load(sys.stdin).get("prompt","") or "")
 except Exception: pass' 2>/dev/null) || prompt=""
 fi
@@ -61,18 +73,10 @@ if [ -n "$cwd" ] && command -v git >/dev/null 2>&1; then
   repo=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null) || repo=""
 fi
 
-if command -v timeout >/dev/null 2>&1; then
-  if [ -n "$repo" ]; then
-    timeout "$TIMEOUT_SECONDS" "$access" "$prompt" --repo "$repo" 2>/dev/null || exit 0
-  else
-    timeout "$TIMEOUT_SECONDS" "$access" "$prompt" 2>/dev/null || exit 0
-  fi
+if [ -n "$repo" ]; then
+  bounded "$access" "$prompt" --repo "$repo" 2>/dev/null || exit 0
 else
-  if [ -n "$repo" ]; then
-    "$access" "$prompt" --repo "$repo" 2>/dev/null || exit 0
-  else
-    "$access" "$prompt" 2>/dev/null || exit 0
-  fi
+  bounded "$access" "$prompt" 2>/dev/null || exit 0
 fi
 
 exit 0

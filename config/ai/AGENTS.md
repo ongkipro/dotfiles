@@ -31,7 +31,7 @@ Before `~/Projects/<slug>/` exists, every accepted planning artifact — standal
 
 Coding starts only after explicit development authorization. `project-init --from-docs ~/Documents/work/prd/<slug>/` — combined with `--stack <profile>` for a new project or `--repo <path> --stack existing-repository` for one that already exists — then copies the accepted staged artifacts into `~/Projects/<slug>/`: standalone files land at the project root and `docs/adr/`; a suite pack (detected the same way, by `CONTEXT-RECORD.md`) lands under `docs/spec/`. The source stays in place as a retained, non-authoritative snapshot; a divergent existing destination file fails the copy instead of being silently overwritten, and an identical destination file is a safe no-op. From that point the repository copy is canonical; never re-consult the `~/Documents/` copy as the source of truth once promotion has happened.
 
-- dotfiles is shared by every device in `devices/`: a device may **add** (memory, skills, its own `devices/<host>.md`, a lesson) but must not **restructure** OMP routing, installers, shell tooling, or the contract templates. Device-only facts go to `~/.config/ai-local/`; different models go to `config/omp/overlays/*.yml`. Read `README.md` → "Shared setup vs device preference" before changing shared setup — it records the time this was violated.
+- dotfiles is shared by every device in `devices/`: a device may **add** (memory, skills, its own `devices/<host>.md`, a lesson) but must not **restructure** OMP routing, installers, shell tooling, or the contract templates. Device-only facts go to `~/.config/ai-local/`; different models go to `config/omp/overlays/*.yml`. This was violated once: `bin/omp-routing-test` now asserts structure rather than model names, because every selector stayed valid while the design was dismantled — case in `docs/archive/OMP_BUILD_LOG_THROUGH_2026-08-17.md`, 2026-08-16.
 
 ## Output discipline
 
@@ -89,6 +89,7 @@ NEVER simplify away: input validation at trust boundaries, error handling that p
 ## Hard rules
 
 - Never invent API names, repo URLs, or specific facts. Verify against official sources.
+- **`ongkipro/dotfiles` is a PUBLIC repository as of 2026-08-17.** Credentials were never tracked and stay in `~/.config/ai-local/`, but everything committed here is published the moment it is pushed — and a later deletion does not unpublish it. Keep server addresses, account balances or credit, hardware serials, and client names out of new commits to this repository; those belong in `~/.config/ai-local/`.
 - No "Buy Now" / "Shop Now" / CTA in Shopify descriptions or meta unless asked.
 - Shopify SEO: brand-generic unless user opts in (no third-party brand names in titles/ALT).
 
