@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - ".github/workflows/core-runtime.yml"
+      - "TASKS.md"
       - "bin/**"
       - "config/ai/**"
       - "config/templates/**"
@@ -13,11 +14,14 @@ on:
       - "config/bashrc.tools.sh"
       - "config/zshrc.tools.sh"
       - "skills/**"
+      - "docs/task-change-boundary.md"
+      - "docs/project-init.md"
       - "install.sh"
       - "install-macos.sh"
   pull_request:
     paths:
       - ".github/workflows/core-runtime.yml"
+      - "TASKS.md"
       - "bin/**"
       - "config/ai/**"
       - "config/templates/**"
@@ -27,6 +31,8 @@ on:
       - "config/bashrc.tools.sh"
       - "config/zshrc.tools.sh"
       - "skills/**"
+      - "docs/task-change-boundary.md"
+      - "docs/project-init.md"
       - "install.sh"
       - "install-macos.sh"
   workflow_dispatch:

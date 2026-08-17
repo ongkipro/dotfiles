@@ -80,6 +80,22 @@ def decode_path(raw: bytes) -> str:
     return raw.decode("utf-8", errors="surrogateescape")
 
 
+def name_status_paths(raw: bytes) -> set[str]:
+    fields = raw.split(b"\0")
+    if fields and fields[-1] == b"":
+        fields.pop()
+    paths: set[str] = set()
+    i = 0
+    while i < len(fields):
+        status_code = decode_path(fields[i]); i += 1
+        count = 2 if status_code[:1] in {"R", "C"} else 1
+        if i + count > len(fields):
+            raise ValueError("malformed git name-status output")
+        paths.update(decode_path(value) for value in fields[i:i + count])
+        i += count
+    return paths
+
+
 def dirty_paths(repo: Path) -> list[str]:
     """Return tracked and untracked dirty paths, preserving both sides of renames."""
     diff_args = ["diff", "--name-status", "-z", "--no-ext-diff", "--no-textconv"]
@@ -90,19 +106,7 @@ def dirty_paths(repo: Path) -> list[str]:
     changed = git_bytes(repo, *diff_args)
     if changed.returncode != 0:
         raise ValueError(changed.stderr.decode(errors="replace").strip() or "could not inspect tracked changes")
-    fields = changed.stdout.split(b"\0")
-    if fields and fields[-1] == b"":
-        fields.pop()
-    paths: set[str] = set()
-    i = 0
-    while i < len(fields):
-        status_code = decode_path(fields[i]); i += 1
-        count = 2 if status_code[:1] in {"R", "C"} else 1
-        if i + count > len(fields):
-            raise ValueError("malformed git name-status output")
-        for raw in fields[i:i + count]:
-            paths.add(decode_path(raw))
-        i += count
+    paths = name_status_paths(changed.stdout)
     untracked = git_bytes(repo, "ls-files", "--others", "--exclude-standard", "-z")
     if untracked.returncode != 0:
         raise ValueError(untracked.stderr.decode(errors="replace").strip() or "could not inspect untracked paths")
@@ -347,6 +351,13 @@ def require_id(value: str, label: str) -> None:
 def cmd_init(repo: Path) -> int:
     root, current, runs, releases = paths(repo)
     root.mkdir(exist_ok=True); runs.mkdir(exist_ok=True); releases.mkdir(exist_ok=True)
+    ignore = root / ".gitignore"
+    if not ignore.exists():
+        try:
+            with ignore.open("x", encoding="utf-8") as stream:
+                stream.write("ledger.lock\n")
+        except FileExistsError:
+            pass
     if not current.exists():
         atomic_json(current, initial(repo))
     print(f"delivery-ledger: READY ({current})")
@@ -433,6 +444,156 @@ def run_start(events: list[dict]) -> dict:
     if len(starts) != 1:
         raise ValueError("run boundary requires exactly one run_started event")
     return starts[0]
+
+
+def child_runs(events: list[dict]) -> dict[str, dict]:
+    """Derive child state from the parent's immutable event stream."""
+    children: dict[str, dict] = {}
+    for event in events:
+        child = event.get("child")
+        if event.get("type") == "child_started":
+            if child in children:
+                raise ValueError(f"duplicate child run: {child}")
+            children[child] = {"start": event, "checks": [], "finish": None, "integration": None}
+        elif child in children and event.get("type") == "child_verification":
+            children[child]["checks"].append(event)
+        elif child in children and event.get("type") == "child_finished":
+            children[child]["finish"] = event
+        elif child in children and event.get("type") == "child_integrated":
+            children[child]["integration"] = event
+    return children
+
+
+def patch_paths(repo: Path, patch: Path) -> list[str]:
+    """Ask Git for patch paths through an isolated temporary index."""
+    fd, index_name = tempfile.mkstemp(prefix="delivery-patch-index.")
+    os.close(fd); os.unlink(index_name)
+    environment = os.environ.copy(); environment["GIT_INDEX_FILE"] = index_name
+    try:
+        for command in (["git", "read-tree", "HEAD"], ["git", "apply", "--cached", str(patch)]):
+            result = subprocess.run(command, cwd=repo, env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+            if result.returncode != 0:
+                raise ValueError(result.stderr.decode(errors="replace").strip() or "patch cannot be inspected against base HEAD")
+        changed = subprocess.run(
+            ["git", "diff", "--cached", "--name-status", "-z", "--no-ext-diff", "--no-textconv", "HEAD"],
+            cwd=repo, env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+        )
+        if changed.returncode != 0:
+            raise ValueError(changed.stderr.decode(errors="replace").strip() or "could not inspect patch paths")
+        paths = sorted(validate_pattern(path) for path in name_status_paths(changed.stdout))
+        if not paths:
+            raise ValueError("patch contains no Git changes")
+        return paths
+    finally:
+        for suffix in ("", ".lock"):
+            try:
+                os.unlink(index_name + suffix)
+            except FileNotFoundError:
+                pass
+
+
+def cmd_start_child(repo: Path, a) -> int:
+    require_id(a.child, "child id"); require_id(a.task, "task")
+    if a.risk not in RISK:
+        raise ValueError("risk must be R0-R4")
+    allowed = [validate_pattern(value) for value in a.allow]
+    if not allowed:
+        raise ValueError("child run requires at least one --allow boundary")
+    owners = sorted(set(value.strip() for value in a.owner if value.strip()))
+    invariants = sorted(set(value.strip() for value in a.invariant if value.strip()))
+    if not owners or not invariants:
+        raise ValueError("child run requires --owner and --invariant evidence")
+    data, run_id, run_path = active(repo)
+    children = child_runs(read_events(run_path))
+    if a.child in children:
+        raise ValueError(f"child already exists: {a.child}")
+    for child, child_state in children.items():
+        if child_state["integration"] is None:
+            overlap = sorted(set(owners) & set(child_state["start"]["owners"]))
+            if overlap:
+                raise ValueError(f"semantic owner overlap with active child {child}: {', '.join(overlap)}")
+    event = event_base(repo, "child_started", run_id)
+    event.update({"child": a.child, "task": a.task, "risk": a.risk, "allowedPaths": allowed, "owners": owners, "acceptedInvariants": invariants})
+    append_event(run_path, event); save_current(repo, data)
+    print(f"delivery-ledger: CHILD STARTED {a.child}")
+    return OK
+
+
+def cmd_record_child(repo: Path, a) -> int:
+    require_id(a.child, "child id"); require_id(a.check, "check")
+    if a.status not in CHECK_STATUS:
+        raise ValueError("check status must be PASS, FAIL, or UNVERIFIED")
+    data, run_id, run_path = active(repo)
+    children = child_runs(read_events(run_path))
+    if a.child not in children or children[a.child]["finish"] is not None:
+        raise ValueError("child is missing or already finished")
+    event = event_base(repo, "child_verification", run_id)
+    event.update({"child": a.child, "check": a.check, "status": a.status, "detail": a.detail})
+    append_event(run_path, event); save_current(repo, data)
+    print(f"delivery-ledger: CHILD RECORDED {a.child} {a.check}={a.status}")
+    return OK
+
+
+def cmd_finish_child(repo: Path, a) -> int:
+    require_id(a.child, "child id")
+    if a.result not in RUN_RESULT:
+        raise ValueError("result must be PASS, FAIL, or BLOCKED")
+    data, run_id, run_path = active(repo)
+    children = child_runs(read_events(run_path)); child = children.get(a.child)
+    if not child or child["finish"] is not None:
+        raise ValueError("child is missing or already finished")
+    event = event_base(repo, "child_finished", run_id)
+    event.update({"child": a.child, "result": a.result, "detail": a.detail})
+    if a.result == "PASS":
+        if not child["checks"] or any(check["status"] != "PASS" for check in child["checks"]):
+            raise ValueError("child PASS requires only passing verification evidence")
+        patch = Path(a.patch).expanduser().resolve() if a.patch else None
+        if not patch or not patch.is_file():
+            raise ValueError("child PASS requires --patch")
+        paths = patch_paths(repo, patch)
+        unexplained = [path for path in paths if not matches(path, child["start"]["allowedPaths"])]
+        if unexplained:
+            raise ValueError("child patch escapes its boundary: " + ", ".join(unexplained))
+        event.update({"patchSha256": hashlib.sha256(patch.read_bytes()).hexdigest(), "patchPaths": paths})
+    append_event(run_path, event); save_current(repo, data)
+    print(f"delivery-ledger: CHILD FINISHED {a.child} result={a.result}")
+    return OK
+
+
+def cmd_integrate_child(repo: Path, a) -> int:
+    require_id(a.child, "child id")
+    data, run_id, run_path = active(repo)
+    events = read_events(run_path); children = child_runs(events); child = children.get(a.child)
+    if not child or not child["finish"] or child["finish"]["result"] != "PASS":
+        raise ValueError("only a successfully finished child can be integrated")
+    if child["integration"] is not None:
+        raise ValueError("child is already integrated")
+    unfinished = sorted(name for name, item in children.items() if item["finish"] is None)
+    if unfinished:
+        raise ValueError("all parallel children must finish before parent integration: " + ", ".join(unfinished))
+    patch = Path(a.patch).expanduser().resolve()
+    if not patch.is_file() or hashlib.sha256(patch.read_bytes()).hexdigest() != child["finish"].get("patchSha256"):
+        raise ValueError("patch is missing or differs from finished child evidence")
+    if patch_paths(repo, patch) != child["finish"].get("patchPaths"):
+        raise ValueError("patch path evidence changed")
+    integrated_paths = {path for item in children.values() if item["integration"] for path in item["integration"]["patchPaths"]}
+    overlap = sorted(integrated_paths & set(child["finish"]["patchPaths"]))
+    if overlap:
+        raise ValueError("child patch overlaps an already integrated patch: " + ", ".join(overlap))
+    dirty_overlap = sorted(set(dirty_paths(repo)) & set(child["finish"]["patchPaths"]))
+    if dirty_overlap:
+        raise ValueError("child patch would overlap current parent work: " + ", ".join(dirty_overlap))
+    check = subprocess.run(["git", "apply", "--check", str(patch)], cwd=repo, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if check.returncode != 0:
+        raise ValueError("child patch does not apply cleanly: " + check.stderr.strip())
+    applied = subprocess.run(["git", "apply", str(patch)], cwd=repo, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if applied.returncode != 0:
+        raise ValueError("child patch integration failed: " + applied.stderr.strip())
+    event = event_base(repo, "child_integrated", run_id)
+    event.update({"child": a.child, "patchSha256": child["finish"]["patchSha256"], "patchPaths": child["finish"]["patchPaths"]})
+    append_event(run_path, event); save_current(repo, data)
+    print(f"delivery-ledger: CHILD INTEGRATED {a.child}")
+    return OK
 
 
 def task_path_risk(repo: Path, paths: list[str]) -> dict:
@@ -552,7 +713,7 @@ def evaluate_boundary(repo: Path, events: list[dict]) -> dict:
         failures.append("unknown filesystem object changed")
     if unaccepted_touched:
         failures.append("pre-existing user work changed without accepted overlap")
-    if unexplained:
+    if unexplained:  # unexplained-scope guard
         failures.append("unexplained out-of-scope changes")
     if missing_verification:
         failures.append("scope expansion lacks required passing verification")
@@ -657,6 +818,10 @@ def cmd_finish(repo: Path, a) -> int:
     checks = [event for event in events if event.get("type") == "verification"]
     boundary_evidence = None
     if a.result == "PASS":
+        children = child_runs(events)
+        incomplete = sorted(name for name, child in children.items() if child["finish"] is None or child["finish"].get("result") != "PASS" or child["integration"] is None)
+        if incomplete:
+            raise ValueError("PASS requires every child to finish successfully and be integrated: " + ", ".join(incomplete))
         if not checks:
             raise ValueError("PASS requires at least one verification event")
         if any(check.get("status") != "PASS" for check in checks):
@@ -800,6 +965,10 @@ def main() -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init")
     s=sub.add_parser("start"); s.add_argument("--task",required=True); s.add_argument("--requirement",required=True); s.add_argument("--risk",required=True); s.add_argument("--job",default="implementation"); s.add_argument("--capability",default="unattributed"); s.add_argument("--worker",default="unknown"); s.add_argument("--model",default="unknown"); s.add_argument("--provider",default="unknown"); s.add_argument("--reasoning-effort",default="unknown"); s.add_argument("--allow",action="append",default=[]); s.add_argument("--protect",action="append",default=[]); s.add_argument("--protected-risk",default="R3"); s.add_argument("--accept-dirty",action="append",default=[])
+    sc=sub.add_parser("start-child"); sc.add_argument("--child",required=True); sc.add_argument("--task",required=True); sc.add_argument("--risk",required=True); sc.add_argument("--allow",action="append",default=[]); sc.add_argument("--owner",action="append",default=[]); sc.add_argument("--invariant",action="append",default=[])
+    rc=sub.add_parser("record-child"); rc.add_argument("--child",required=True); rc.add_argument("--check",required=True); rc.add_argument("--status",required=True); rc.add_argument("--detail",default="")
+    fc=sub.add_parser("finish-child"); fc.add_argument("--child",required=True); fc.add_argument("--result",required=True); fc.add_argument("--patch"); fc.add_argument("--detail",default="")
+    ic=sub.add_parser("integrate-child"); ic.add_argument("--child",required=True); ic.add_argument("--patch",required=True)
     r=sub.add_parser("record"); r.add_argument("--check",required=True); r.add_argument("--status",required=True); r.add_argument("--detail",default="")
     e=sub.add_parser("expand-scope"); e.add_argument("--path",required=True); e.add_argument("--reason",required=True); e.add_argument("--required-by",required=True); e.add_argument("--risk",required=True); e.add_argument("--verification",action="append",default=[])
     b=sub.add_parser("check-boundary"); b.add_argument("--json",action="store_true")
@@ -812,10 +981,14 @@ def main() -> int:
     a=p.parse_args(); repo=Path(a.repo).resolve()
     if not repo.is_dir(): print(f"delivery-ledger: ERROR: repo not found: {repo}",file=sys.stderr); return FAILED
     try:
-        if a.cmd in {"init","start","record","expand-scope","check-boundary","review-boundary","checkpoint","finish","snapshot-release"}:
+        if a.cmd in {"init","start","start-child","record-child","finish-child","integrate-child","record","expand-scope","check-boundary","review-boundary","checkpoint","finish","snapshot-release"}:
             with ledger_lock(repo):
                 if a.cmd=="init": return cmd_init(repo)
                 if a.cmd=="start": return cmd_start(repo,a)
+                if a.cmd=="start-child": return cmd_start_child(repo,a)
+                if a.cmd=="record-child": return cmd_record_child(repo,a)
+                if a.cmd=="finish-child": return cmd_finish_child(repo,a)
+                if a.cmd=="integrate-child": return cmd_integrate_child(repo,a)
                 if a.cmd=="record": return cmd_record(repo,a)
                 if a.cmd=="expand-scope": return cmd_expand_scope(repo,a)
                 if a.cmd=="check-boundary": return cmd_check_boundary(repo,a.json)

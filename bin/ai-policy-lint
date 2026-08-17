@@ -126,6 +126,31 @@ def check_templates():
         if not (TEMPLATES_DIR / t).is_file():
             err(f"Missing required project template: {t}")
 
+    task_fields = (
+        "Change Surface", "Protected Surface", "Accepted Invariants",
+        "Shared Owner", "Regression Checks", "Reopen Conditions",
+    )
+    for task_file in (ROOT / "TASKS.md", TEMPLATES_DIR / "TASKS.md"):
+        if not task_file.is_file():
+            err(f"Missing task contract: {task_file}")
+            continue
+        content = task_file.read_text(encoding="utf-8")
+        for field in task_fields:
+            if f"**{field}:**" not in content:
+                err(f"{task_file.relative_to(ROOT)} missing task boundary field: {field}")
+
+
+def check_hot_context():
+    limit = 12 * 1024
+    for relative in ("TASKS.md", "config/omp/BUILD-LOG.md"):
+        path = ROOT / relative
+        if not path.is_file():
+            err(f"Missing hot-context owner: {relative}")
+            continue
+        size = path.stat().st_size
+        if size > limit:
+            err(f"Hot-context budget exceeded: {relative} is {size} bytes (limit {limit}); archive history before adding more")
+
 
 def main():
     print("ai-policy-lint: Auditing dotfiles policy, routing, skills, and templates...")
@@ -138,6 +163,7 @@ def main():
     run_canonical_gate("memory hygiene regression", [ROOT / "bin" / "ai-memory-hygiene-test", ROOT])
     report_memory_hygiene()
     check_templates()
+    check_hot_context()
 
     if warnings:
         print("WARNINGS:")

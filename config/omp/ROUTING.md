@@ -109,13 +109,13 @@ This document governs the main worker's classification and delegation decisions.
 
 ### `approvalMode: yolo` — chosen, not drifted
 
-`config.yml` sets `tools.approvalMode: yolo` and `dev.autoqaConsent: granted`. OMP therefore prompts for **nothing**: no confirmation before a destructive command, a production deploy, or a system change. This is deliberate. Autonomous orchestration dispatching up to eight concurrent specialists cannot pause on each one for a human keystroke without ceasing to be autonomous, and a prompt answered reflexively teaches nothing anyway.
+`config.yml` keeps `tools.approvalMode: yolo` and `dev.autoqaConsent: granted` for uninterrupted terminal work. Ordered `bash.patterns` now deny known destructive Git, recursive-delete, privilege, and deployment forms before execution. This mechanical floor is deliberately narrow; permission is still not user approval.
 
 What that buys has to be paid for elsewhere, so be explicit about where the boundary actually lives:
 
-- **`AGENTS.md`'s approval gates are the boundary.** They are behavioural obligations on the worker, not settings OMP enforces. Under `yolo` they are the *only* thing standing between a classification mistake and a destroyed database. "Permission allowed is not user approval" is not a slogan here; it is the entire mechanism.
-- **One mechanical backstop exists, and it covers Git only.** `config/ai/hooks/git-guard.sh` runs as a Claude Code `PreToolUse` hook and denies force-push, `--amend`, and forced or empty refspecs regardless of `approvalMode`. Nothing equivalent guards `rm -rf`, `sudo`, `wrangler deploy`, or remote database writes — and the hook is wired in `~/.claude/settings.json`, which is machine-local and untracked, so it protects Claude Code sessions on a machine where someone wired it, not OMP subagents and not a fresh clone.
-- **Delegated work inherits the mode.** A specialist spawned by `task` runs under the same `yolo`, so an eight-way fan-out is eight workers with no prompts. Bound a `task` assignment explicitly; that bound is the substitute for the prompt.
+- **`AGENTS.md` remains the approval contract.** The OMP deny list blocks known command shapes; it cannot infer secrets, production intent, or every wrapper spelling.
+- **Two mechanical backstops cover different runtimes.** OMP `bash.patterns` applies to parent and child Bash calls. `config/ai/hooks/git-guard.sh` provides deeper Git argument checks where the Claude hook is wired. Both retain documented subprocess ceilings.
+- **Delegated work is bounded mechanically.** `task.isolation.apply` is false, recursion depth is one, and child LSP is enabled. Each child declares a file boundary, accepted invariants, and semantic owners in `delivery-ledger`; active children sharing an owner are rejected. After every child finishes, the parent applies each digest-bound patch sequentially and runs integration regression checks.
 
 If this trade stops being wanted, the change is one line — but change it deliberately, and update this section rather than letting the config and the documentation disagree again.
 
@@ -147,6 +147,11 @@ omp --config ~/dotfiles/config/omp/overlays/antigravity-only.yml
 Each overlay pins all thirteen roles to one provider, so every dispatched specialist follows, and confines recovery to that same provider — a session deliberately pinned to one provider should fail inside it rather than quietly restoring the routing the operator just opted out of. The tracked configuration is untouched; the next plain `omp` is back to normal.
 
 Both overlays honour the same invariants as the main config: supported reasoning levels, context windows above the compaction threshold, and an image-capable model behind `vision` and `designer`. One capability genuinely cannot be preserved: Antigravity's Claude Opus 4.6 stops at `high` reasoning, so an Antigravity-only session has no equivalent to the `xhigh` and `max` advisor tiers that direct Anthropic Opus 5 provides. Treat advisor output from such a session as one tier lower than requested.
+
+`omp-effective-routing-test` invokes OMP's own `models --config` loader before
+its structural checks. OMP 17.3.5 still rejects the same documented global flag
+when it precedes `config list`; that upstream parser defect is reported as
+`PARTIAL`, not hidden by the test's YAML merge.
 
 ## Capability ownership
 

@@ -68,10 +68,54 @@ FILES
   say "Create detailed specs or ADR files only when the project needs them."
 }
 
-find_repo(){ local repo="$1" d; for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do [ -d "$root" ] || continue; while IFS= read -r d; do [ "$(basename "$d")" = "$repo" ] && { printf '%s\n' "$d"; return 0; }; done < <(find "$root" -mindepth 1 -maxdepth 2 -type d); done; return 1; }
+discover_repos(){
+  local root marker repo physical
+  declare -A seen=()
+  for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do
+    [ -d "$root" ] || continue
+    while IFS= read -r -d '' marker; do
+      repo="${marker%/.git}"
+      physical="$(cd "$repo" && pwd -P)" || continue
+      [ -n "${seen[$physical]:-}" ] && continue
+      seen[$physical]=1
+      printf '%s\0' "$physical"
+    done < <(find "$root" -name .git -print0 -prune)
+  done
+}
+find_repo(){ local repo="$1" d; while IFS= read -r -d '' d; do [ "$(basename "$d")" = "$repo" ] && { printf '%s\n' "$d"; return 0; }; done < <(discover_repos); return 1; }
 clone_repo(){ local repo="$1" category="$2" target="$PROJECTS_DIR/$category/$repo"; if [ -d "$target/.git" ]; then say "repository already exists: $target"; else mkdir -p "$(dirname "$target")"; say "cloning $GITHUB_USER/$repo → $target"; gh repo clone "$GITHUB_USER/$repo" "$target" || die "clone failed; no project files were overwritten"; fi; }
-cmd_list(){ local root d; for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do [ -d "$root" ] || continue; while IFS= read -r d; do [ -d "$d/.git" ] || continue; if [ -f "$d/STATUS.md" ] && [ -f "$d/DECISIONS.md" ] && [ -f "$d/ARCHITECTURE.md" ] && [ -f "$d/RELEASE.md" ] && [ -f "$d/OBSERVABILITY.md" ] && [ -f "$d/.delivery/current.json" ]; then printf 'contract  %s\n' "$d"; else printf 'missing   %s\n' "$d"; fi; done < <(find "$root" -mindepth 2 -maxdepth 2 -type d); done; [ -d "$LEGACY_DOCS_DIR" ] && printf 'Legacy external docs preserved at %s\n' "$LEGACY_DOCS_DIR"; }
-cmd_sync(){ local root d; for root in "$PROJECTS_DIR" "$LEGACY_PROJECTS_DIR"; do [ -d "$root" ] || continue; while IFS= read -r d; do [ -d "$d/.git" ] || continue; git -C "$d" pull --ff-only || warn "pull failed: $d"; done < <(find "$root" -mindepth 2 -maxdepth 2 -type d); done; }
+has_contract(){ local d="$1" f; for f in AGENTS.md PRD.md TASKS.md STATUS.md DECISIONS.md ARCHITECTURE.md RELEASE.md OBSERVABILITY.md BUILD-LOG.md .delivery/current.json; do [ -f "$d/$f" ] || return 1; done; }
+cmd_list(){ local d; while IFS= read -r -d '' d; do if has_contract "$d"; then printf 'contract  %s\n' "$d"; else printf 'missing   %s\n' "$d"; fi; done < <(discover_repos); [ ! -d "$LEGACY_DOCS_DIR" ] || printf 'Legacy external docs preserved at %s\n' "$LEGACY_DOCS_DIR"; return 0; }
+cmd_sync(){
+  local d counts ahead behind
+  while IFS= read -r -d '' d; do
+    if [ -n "$(git -C "$d" status --porcelain)" ]; then warn "sync skipped dirty repository: $d"; continue; fi
+    git -C "$d" symbolic-ref -q HEAD >/dev/null || { warn "sync skipped detached HEAD: $d"; continue; }
+    git -C "$d" rev-parse --verify '@{upstream}' >/dev/null 2>&1 || { warn "sync skipped repository without upstream: $d"; continue; }
+    git -C "$d" fetch --quiet || { warn "fetch failed: $d"; continue; }
+    counts="$(git -C "$d" rev-list --left-right --count 'HEAD...@{upstream}')" || { warn "could not compare upstream: $d"; continue; }
+    read -r ahead behind <<<"$counts"
+    if [ "$ahead" -gt 0 ]; then warn "sync skipped local/diverged commits: $d"; continue; fi
+    if [ "$behind" -eq 0 ]; then say "sync current: $d"; continue; fi
+    git -C "$d" merge --ff-only '@{upstream}' >/dev/null && say "sync fast-forwarded: $d" || warn "fast-forward failed: $d"
+  done < <(discover_repos)
+  return 0
+}
+cmd_bootstrap_existing(){
+  local apply="${1:-}" d child_rc result=0
+  while IFS= read -r -d '' d; do
+    has_contract "$d" && { say "bootstrap current: $d"; continue; }
+    if [ "$apply" != "--apply" ]; then printf 'would-bootstrap  %s\n' "$d"; continue; fi
+    if [ -n "$(git -C "$d" status --porcelain)" ]; then warn "bootstrap skipped dirty repository: $d"; [ "$result" -ne 0 ] || result=2; continue; fi
+    if "$0" --repo "$d" --stack existing-repository; then
+      :
+    else
+      child_rc=$?; warn "bootstrap failed: $d"
+      if [ "$child_rc" -eq 1 ]; then result=1; elif [ "$result" -eq 0 ]; then result=2; fi
+    fi
+  done < <(discover_repos)
+  return "$result"
+}
 
 usage(){ cat <<'USAGE'
 Usage:
@@ -83,6 +127,7 @@ Usage:
   project-init <name> --stack <profile> --from-docs <stage-dir> [options]
   project-init --list
   project-init --sync
+  project-init --bootstrap-existing [--apply]
 
 Stack-aware options:
   --stack nextjs|astro|cloudflare-worker|existing-repository
@@ -456,6 +501,7 @@ else
   case "$COMMAND" in
     --list|-l) cmd_list;;
     --sync|-s) cmd_sync;;
+    --bootstrap-existing) case "${2:-}" in ""|--apply) cmd_bootstrap_existing "${2:-}";; *) die "Usage: project-init --bootstrap-existing [--apply]";; esac;;
     --repo) [ -n "${2:-}" ] || die "Usage: project-init --repo <path> [category] [description]"; repo_dir="$(cd "$2" 2>/dev/null && pwd -P)" || die "project directory not found: $2"; render_contract "$repo_dir" "$(basename "$repo_dir")" "${3:-other}" "${4:-}";;
     --gen|-g) [ -n "${2:-}" ] || die "Usage: project-init --gen <repo-name>"; repo_dir="$(find_repo "$2")" || die "repository not found under $PROJECTS_DIR or $LEGACY_PROJECTS_DIR"; render_contract "$repo_dir" "$2" "other" "";;
     --help|-h) usage;;

@@ -499,10 +499,13 @@ required_explicit_paths = {
     ("async", "maxJobs"),
     ("task", "batch"),
     ("task", "maxConcurrency"),
+    ("task", "maxRecursionDepth"),
+    ("task", "enableLsp"),
     ("task", "showResolvedModelBadge"),
     ("task", "isolation", "mode"),
     ("task", "isolation", "apply"),
     ("task", "isolation", "merge"),
+    ("bash", "patterns"),
     ("task", "agentModelOverrides"),
     ("secrets", "enabled"),
     ("compaction", "thresholdTokens"),
@@ -692,15 +695,47 @@ def runtime_value(key, source=None, where="base OMP parser"):
 expected_settings = {
     "async.enabled": True,
     "task.batch": True,
+    "task.maxRecursionDepth": 1,
+    "task.enableLsp": True,
     "task.showResolvedModelBadge": True,
     "task.isolation.mode": "auto",
-    "task.isolation.apply": True,
+    "task.isolation.apply": False,
     "task.isolation.merge": "patch",
     "secrets.enabled": True,
 }
 for setting, expected in expected_settings.items():
     if runtime_value(setting) != expected:
         fail("OMP did not accept {}={!r}".format(setting, expected))
+
+dangerous_bash_patterns = runtime_value("bash.patterns")
+required_denials = {
+    "*git push --force*", "*git push -f *", "*git reset --hard*",
+    "*git push -f", "*git clean -f*", "*git commit --amend*",
+    "*rm -rf *", "*sudo *", "*wrangler deploy*", "*shopify theme push*",
+}
+if not isinstance(dangerous_bash_patterns, list):
+    fail("bash.patterns must be a list")
+
+
+def missing_required_denials(patterns):
+    actual = {
+        rule.get("match") for rule in patterns
+        if isinstance(rule, dict) and rule.get("approval") == "deny"
+    }
+    return required_denials - actual
+
+
+missing_denials = missing_required_denials(dangerous_bash_patterns)
+if missing_denials:
+    fail("OMP yolo requires tracked bash deny rules: " + ", ".join(sorted(missing_denials)))
+# In-process mutation proof: removing one accepted rule must activate the same
+# gate. This keeps the assertion from becoming a vacuous schema check.
+mutant_patterns = [
+    rule for rule in dangerous_bash_patterns
+    if not (isinstance(rule, dict) and rule.get("match") == "*git reset --hard*")
+]
+if "*git reset --hard*" not in missing_required_denials(mutant_patterns):
+    fail("bash deny-rule mutation probe did not activate the guard")
 
 async_jobs = runtime_value("async.maxJobs")
 task_concurrency = runtime_value("task.maxConcurrency")

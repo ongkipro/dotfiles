@@ -62,6 +62,7 @@ expected_providers="${expected_providers// /}"
 
 TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/omp-effective-routing-test.XXXXXX")"
 trap 'rm -rf "$TEST_ROOT"' EXIT
+global_config_probe=ok
 
 LABEL=""
 ROLES=""
@@ -195,6 +196,13 @@ run_overlay_check() {
   mkdir -p "$agent_root"
 
   if [ -f "$overlay_path" ]; then
+    # Exercise OMP's documented overlay flag before doing the deeper structural
+    # merge. This catches CLI parser regressions that a yq merge cannot see.
+    if ! command omp models --config "$overlay_path" --json \
+        > "$TEST_ROOT/${LABEL}-omp-models.json" 2> "$TEST_ROOT/${LABEL}-omp-models.err"; then
+      echo "FAIL[$LABEL]: OMP rejected --config overlay loading: $(cat "$TEST_ROOT/${LABEL}-omp-models.err")" >&2
+      return 1
+    fi
     if ! yq eval-all 'select(fileIndex == 0) * select(fileIndex == 1)' \
         "$ROOT/config/omp/config.yml" "$overlay_path" > "$agent_root/config.yml"; then
       echo "FAIL[$LABEL]: yq merge of tracked config + overlay failed" >&2
@@ -362,4 +370,22 @@ if [ -d "$tracked_overlay_dir" ]; then
   done
 fi
 
-echo "omp-effective-routing-test: OK (roles=13, overrides=11, device+tracked-overlays, image-locked=vision+designer, xhigh-locked=advisor-xhigh, max-locked=advisor-max)"
+# OMP 17.3.5 advertises --config as a global flag, but the config subcommand
+# owns a separate parser and rejects it. Keep this visible until upstream QA
+# closes the defect; the models probe above is still a real runtime loader.
+probe_overlay="$(find "$tracked_overlay_dir" -maxdepth 1 -type f -name '*.yml' -print -quit 2>/dev/null || true)"
+if [ -n "$probe_overlay" ] && ! command omp --config "$probe_overlay" config list --json \
+    > "$TEST_ROOT/global-config.json" 2> "$TEST_ROOT/global-config.err"; then
+  if grep -q "Unknown option '--config'" "$TEST_ROOT/global-config.err"; then
+    global_config_probe=partial
+  else
+    echo "FAIL: unexpected global --config probe error: $(cat "$TEST_ROOT/global-config.err")" >&2
+    exit 1
+  fi
+fi
+
+if [ "$global_config_probe" = partial ]; then
+  echo "omp-effective-routing-test: PARTIAL (--config runtime loading passed via 'models'; global flag remains rejected by 'config' in OMP 17.3.5)"
+else
+  echo "omp-effective-routing-test: OK (roles=13, overrides=11, device+tracked-overlays, image-locked=vision+designer, xhigh-locked=advisor-xhigh, max-locked=advisor-max)"
+fi

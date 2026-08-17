@@ -16,6 +16,10 @@ Every implementation task must trace to one accepted requirement, declare its ri
 - **Model / Provider / Reasoning:** [Resolved route; do not ask the user when orchestration owns selection]
 - **Change Surface:** [Exact repository-relative paths/globs passed to `delivery-ledger start --allow`]
 - **Protected Surface:** [Optional higher-risk paths/globs passed with `--protect`; otherwise `None`]
+- **Accepted Invariants:** [Observable behavior that must remain true]
+- **Shared Owner:** [Semantic owner(s) used to detect cross-worker overlap]
+- **Regression Checks:** [Named executable checks required before integration]
+- **Reopen Conditions:** [Evidence that invalidates Done and reopens the task]
 - **Non-Scope:** [Explicitly untouched paths or systems]
 - **Verification:** `project-check` or `npm test -- path/to/test.ts`
 - **Escalation Condition:** Fail verification after 1 repair attempt, or require auth/payment/migration contract changes.

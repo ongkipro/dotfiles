@@ -1,0 +1,14 @@
+{
+  "activeRun": null,
+  "lastRun": {
+    "finishedAt": "2026-08-17T13:19:25Z",
+    "result": "PASS",
+    "runId": "RUN-20260817T131535Z-a1c27494"
+  },
+  "observedHead": "17021c1ad1e8a1c2584a8ecb5f486348eda7d89d",
+  "observedState": null,
+  "project": "dotfiles",
+  "schemaVersion": 1,
+  "statusAuthority": "STATUS.md",
+  "updatedAt": "2026-08-17T13:19:25Z"
+}

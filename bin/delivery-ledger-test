@@ -31,6 +31,7 @@ git add STATUS.md RELEASE.md && git commit -qm baseline
 
 python3 "$DL" --repo "$REPO" init >/dev/null
 [ -f "$REPO/.delivery/current.json" ] || fail "current.json missing"
+[ "$(cat "$REPO/.delivery/.gitignore")" = 'ledger.lock' ] || fail "ledger lock ignore missing"
 python3 "$DL" --repo "$REPO" verify >/dev/null || fail "fresh ledger should verify"
 
 python3 "$DL" --repo "$REPO" start --task TASK-001 --requirement REQ-001 --risk R0 --job implementation --capability native-first --worker task --model test-model --provider test-provider --reasoning-effort high >/dev/null
@@ -252,9 +253,45 @@ set +e; python3 "$DL" --repo "$B14" check-boundary >/dev/null; rc=$?; set -e
 [ "$rc" -eq 1 ] || fail "boundary patterns must remain case-sensitive"
 python3 "$DL" --repo "$B14" finish --result FAIL >/dev/null
 
+# Parallel child evidence is executable: semantic owners cannot overlap, no
+# patch integrates while a child is active, and the parent applies finished
+# patches one at a time from immutable digest/path evidence.
+BC="$(make_boundary_repo boundary-children)"
+printf 'second base\n' > "$BC/src/second.txt"
+git -C "$BC" add src/second.txt && git -C "$BC" commit -qm child-baseline
+python3 "$DL" --repo "$BC" start --task TASK-BC --requirement REQ-BC --risk R2 --worker parent --model test --allow 'src/**' >/dev/null
+git clone -q "$BC" "$TMP/child-a"; git clone -q "$BC" "$TMP/child-b"
+printf 'child a\n' >> "$TMP/child-a/src/feature.txt"
+git -C "$TMP/child-b" mv src/second.txt 'src/fitur-ä.txt'
+printf 'child b\n' >> "$TMP/child-b/src/fitur-ä.txt"
+git -C "$TMP/child-a" diff --binary > "$TMP/child-a.patch"
+git -C "$TMP/child-b" diff HEAD --binary > "$TMP/child-b.patch"
+python3 "$DL" --repo "$BC" start-child --child child-a --task TASK-BC-A --risk R1 --allow 'src/feature.txt' --owner identity-session --invariant 'feature behavior remains observable' >/dev/null
+set +e; python3 "$DL" --repo "$BC" start-child --child collision --task TASK-BC-C --risk R1 --allow 'src/second.txt' --owner identity-session --invariant 'different path, same semantic owner' >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "semantic owner overlap must reject disjoint-path children"
+python3 "$DL" --repo "$BC" start-child --child child-b --task TASK-BC-B --risk R1 --allow 'src/**' --owner pricing-copy --invariant 'second behavior remains observable' >/dev/null
+python3 "$DL" --repo "$BC" record-child --child child-a --check regression-a --status PASS >/dev/null
+python3 "$DL" --repo "$BC" finish-child --child child-a --result PASS --patch "$TMP/child-a.patch" >/dev/null
+set +e; python3 "$DL" --repo "$BC" integrate-child --child child-a --patch "$TMP/child-a.patch" >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "integration must wait until every parallel child finishes"
+python3 "$DL" --repo "$BC" record-child --child child-b --check regression-b --status PASS >/dev/null
+python3 "$DL" --repo "$BC" finish-child --child child-b --result PASS --patch "$TMP/child-b.patch" >/dev/null
+printf 'parent work\n' >> "$BC/src/feature.txt"
+set +e; python3 "$DL" --repo "$BC" integrate-child --child child-a --patch "$TMP/child-a.patch" >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "child integration must not overlap current parent work"
+printf 'feature base\n' > "$BC/src/feature.txt"
+python3 "$DL" --repo "$BC" integrate-child --child child-a --patch "$TMP/child-a.patch" >/dev/null
+python3 "$DL" --repo "$BC" integrate-child --child child-b --patch "$TMP/child-b.patch" >/dev/null
+grep -q 'child a' "$BC/src/feature.txt" || fail "first child patch was not applied"
+grep -q 'child b' "$BC/src/fitur-ä.txt" || fail "renamed Unicode child patch was not applied"
+[ ! -e "$BC/src/second.txt" ] || fail "child rename retained the old path"
+python3 "$DL" --repo "$BC" record --check integration-regression --status PASS >/dev/null
+python3 "$DL" --repo "$BC" check-boundary >/dev/null
+python3 "$DL" --repo "$BC" finish --result PASS >/dev/null
+
 # Mutation proof: neutralizing the unexplained-scope guard lets the negative fixture escape.
 MUT="$TMP/mutant"; mkdir -p "$MUT"
-sed '0,/if unexplained:/s//if False:/' "$DL" > "$MUT/delivery-ledger"
+sed 's/if unexplained:  # unexplained-scope guard/if False:  # unexplained-scope guard/' "$DL" > "$MUT/delivery-ledger"
 cp "$ROOT/bin/diff-risk" "$MUT/diff-risk"
 BM="$(make_boundary_repo boundary-mutation)"
 python3 "$MUT/delivery-ledger" --repo "$BM" start --task TASK-BM --requirement REQ-BM --risk R1 --worker developer --model test --allow 'src/**' >/dev/null

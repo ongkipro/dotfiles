@@ -288,6 +288,53 @@ for invalid_stage in "$EMPTY_STAGE" "$UNSUPPORTED_STAGE" "$SYMLINK_STAGE" "$SYML
   [ ! -e "$TMP/invalid projects/invalid-docs" ] || fail "invalid stage created a project: $invalid_stage"
 done
 
+# Repository inventory is depth-independent, deduplicated by physical path,
+# and bootstrap is a read-only preview unless --apply is explicit.
+INVENTORY="$TMP/inventory"
+ROOT_REPO="$INVENTORY/root-repo"
+DEEP_REPO="$INVENTORY/team/deeper/deep-repo"
+DIRTY_REPO="$INVENTORY/dirty-repo"
+mkdir -p "$ROOT_REPO" "$DEEP_REPO" "$DIRTY_REPO"
+git -C "$ROOT_REPO" init -q; git -C "$DEEP_REPO" init -q; git -C "$DIRTY_REPO" init -q
+printf '{"scripts":{"lint":"fake"}}\n' > "$ROOT_REPO/package.json"
+printf '{"scripts":{"lint":"fake"}}\n' > "$DEEP_REPO/package.json"
+printf '{"scripts":{"lint":"fake"}}\n' > "$DIRTY_REPO/package.json"
+git -C "$ROOT_REPO" add .; git -C "$ROOT_REPO" -c user.email=test@example.invalid -c user.name=test commit -qm baseline
+git -C "$DEEP_REPO" add .; git -C "$DEEP_REPO" -c user.email=test@example.invalid -c user.name=test commit -qm baseline
+git -C "$DIRTY_REPO" add .; git -C "$DIRTY_REPO" -c user.email=test@example.invalid -c user.name=test commit -qm baseline
+printf 'user work\n' >> "$DIRTY_REPO/package.json"
+inventory="$(PROJECTS_DIR="$INVENTORY" LEGACY_PROJECTS_DIR="$INVENTORY" "$SCRIPT" --list)"
+[ "$(grep -Fc "$ROOT_REPO" <<<"$inventory")" -eq 1 ] || fail '--list missed or duplicated a root repository'
+[ "$(grep -Fc "$DEEP_REPO" <<<"$inventory")" -eq 1 ] || fail '--list missed or duplicated a deep repository'
+preview="$(PROJECTS_DIR="$INVENTORY" LEGACY_PROJECTS_DIR="$TMP/no-legacy" "$SCRIPT" --bootstrap-existing)"
+grep -Fq "would-bootstrap  $ROOT_REPO" <<<"$preview" || fail 'bootstrap preview omitted missing repository'
+[ ! -e "$ROOT_REPO/AGENTS.md" ] || fail 'bootstrap preview wrote contract files'
+expect_rc 2 env PROJECTS_DIR="$INVENTORY" LEGACY_PROJECTS_DIR="$TMP/no-legacy" "$SCRIPT" --bootstrap-existing --apply
+has_bootstrap_files=1
+for path in AGENTS.md PRD.md TASKS.md STATUS.md .delivery/current.json; do [ -f "$ROOT_REPO/$path" ] || has_bootstrap_files=0; done
+[ "$has_bootstrap_files" -eq 1 ] || fail 'explicit existing-repository bootstrap did not create the contract'
+[ ! -e "$DIRTY_REPO/AGENTS.md" ] || fail 'existing-repository bootstrap modified dirty user work'
+FAILED_INVENTORY="$TMP/failed-inventory"; FAILED_REPO="$FAILED_INVENTORY/failing-repo"
+mkdir -p "$FAILED_REPO"; git -C "$FAILED_REPO" init -q
+printf '{"scripts":{"lint":"fake"}}\n' > "$FAILED_REPO/package.json"
+git -C "$FAILED_REPO" add .; git -C "$FAILED_REPO" -c user.email=test@example.invalid -c user.name=test commit -qm baseline
+expect_rc 1 env PROJECTS_DIR="$FAILED_INVENTORY" LEGACY_PROJECTS_DIR="$TMP/no-legacy" MOCK_VERIFY_FAIL=1 "$SCRIPT" --bootstrap-existing --apply
+grep -q '"result": "FAIL"' "$FAILED_REPO/.delivery/current.json" || fail 'failed bulk bootstrap did not retain FAIL evidence'
+
+# Sync updates only a clean behind branch; dirty repositories are preserved.
+REMOTE="$TMP/sync-remote.git"; SEED="$TMP/sync-seed"; SYNC_ROOT="$TMP/sync-projects"
+git init -q --bare "$REMOTE"; git clone -q "$REMOTE" "$SEED"
+git -C "$SEED" config user.email test@example.invalid; git -C "$SEED" config user.name test
+printf 'one\n' > "$SEED/file.txt"; git -C "$SEED" add .; git -C "$SEED" commit -qm one; git -C "$SEED" push -q origin HEAD
+mkdir -p "$SYNC_ROOT"; git clone -q "$REMOTE" "$SYNC_ROOT/clean"; git clone -q "$REMOTE" "$SYNC_ROOT/dirty"
+printf 'two\n' >> "$SEED/file.txt"; git -C "$SEED" commit -qam two; git -C "$SEED" push -q origin HEAD
+printf 'user work\n' >> "$SYNC_ROOT/dirty/file.txt"
+PROJECTS_DIR="$SYNC_ROOT" LEGACY_PROJECTS_DIR="$TMP/no-legacy" "$SCRIPT" --sync >/dev/null 2>"$TMP/sync.err"
+grep -Fq "sync skipped dirty repository: $SYNC_ROOT/dirty" "$TMP/sync.err" || fail '--sync did not report the preserved dirty repository'
+grep -q '^two$' "$SYNC_ROOT/clean/file.txt" || fail '--sync did not fast-forward a clean behind repository'
+grep -q 'user work' "$SYNC_ROOT/dirty/file.txt" || fail '--sync modified dirty user work'
+[ "$(git -C "$SYNC_ROOT/dirty" rev-parse HEAD)" != "$(git -C "$SEED" rev-parse HEAD)" ] || fail '--sync advanced a dirty repository'
+
 [ ! -e "$GENERATED/docs/specs" ] && [ ! -e "$GENERATED/docs/decisions" ] || fail 'speculative documentation directories created'
 grep -q '^Probe: app|' "$GENERATED/OBSERVABILITY.md" || fail 'observability app probe missing'
 grep -q '"statusAuthority": "STATUS.md"' "$GENERATED/.delivery/current.json" || fail 'ledger authority contract missing'
@@ -296,5 +343,8 @@ grep -q 'Sole executable work queue: `TASKS.md`' "$STANDALONE_REPO/AGENTS.md" ||
 grep -q 'docs/adr/ADR-NNNN-<slug>.md' "$STANDALONE_REPO/AGENTS.md" || fail 'project authority omitted full ADR documents'
 grep -q 'current passing or independently approved boundary result' "$STANDALONE_REPO/AGENTS.md" || fail 'project authority omitted the task boundary completion gate'
 grep -q '\*\*Change Surface:\*\*' "$GENERATED/TASKS.md" || fail 'task contract omitted the deterministic change surface'
+for field in 'Accepted Invariants' 'Shared Owner' 'Regression Checks' 'Reopen Conditions'; do
+  grep -q "\*\*$field:\*\*" "$GENERATED/TASKS.md" || fail "task contract omitted $field"
+done
 
 echo 'project-init-test: OK'

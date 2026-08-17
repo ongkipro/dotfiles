@@ -39,7 +39,8 @@ Any change to `config.yml` must keep all of these true:
 
 The shared fallback and reserve contract is reconciled. `omp-routing-test`
 checks the tracked base graph, while `omp-effective-routing-test` resolves the
-active device overlay and structurally validates every tracked overlay template.
+active device overlay, loads every tracked template through OMP's real
+`models --config` path, and then validates its resolved structure.
 Together they cover role and override wiring, provider confinement,
 independent-lane fallback placement, the 9Router reserve boundary, fallback
 effort floors, and visual input capability. Live selector, context-window, and
@@ -53,6 +54,10 @@ That result belongs in device-local evidence, not as a permanent claim here. A
 missing executable or catalog produces `PARTIAL`/`WARNING`; neither is a clean
 verification.
 
+OMP 17.3.5 still rejects the documented global `--config` flag for the `config`
+subcommand. Automated OMP QA owns that parser defect; local overlay validation
+reports it as `PARTIAL` until the installed runtime is fixed.
+
 ## Next verified action
 
 After installing or updating OMP on any device, run `omp-routing-test` and
@@ -64,4 +69,5 @@ do not turn it into permanent cross-device availability truth.
 ## Deliberately not wired
 
 - 9Router is absent from `modelProviderOrder`, roles, and fallback chains. Direct providers already supply the normal route's three pools; 9Router adds another transport and its `ag/*` routes reuse Antigravity capacity. Its `models.yml` definition is retained only for deliberate operator selection and does not imply that the gateway or any listed model is available.
-- `tools.approvalMode: yolo` is a kept decision, not drift. OMP prompts for nothing; `AGENTS.md`'s approval gates carry the boundary behaviourally, and `git-guard.sh` is the only mechanical backstop — Git-only, and wired in an untracked machine-local file. `ROUTING.md` records the full trade under "Enforcement boundary".
+- `tools.approvalMode: yolo` is retained behind ordered OMP `bash.patterns` deny rules. `AGENTS.md` still owns approval intent; the deny list is a mechanical floor, and `git-guard.sh` adds deeper Git checks where the Claude hook is wired.
+- Parallel task isolation never auto-applies child patches. Recursion is one level, child LSP is enabled, and `delivery-ledger` requires semantic-owner boundaries plus parent-controlled sequential integration.

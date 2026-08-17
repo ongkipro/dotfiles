@@ -110,6 +110,34 @@ The reviewer identifier must differ from the run's worker. A review binds to the
 latest boundary event and surface digest. Any later worktree change invalidates
 it and requires another check and review.
 
+## Parallel child runs
+
+The parent run remains the single evidence owner. Each isolated worker is added
+with `start-child`, including its allowed paths, accepted invariant, and
+semantic owner. Two active children cannot share an owner even when their path
+globs are disjoint; this catches semantic overlap such as two files modifying
+the same session or pricing invariant.
+
+```bash
+delivery-ledger --repo . start-child \
+  --child cart-api --task TASK-123-A --risk R2 \
+  --allow 'src/cart/**' --owner cart-pricing \
+  --invariant 'totals use the accepted pricing rule'
+delivery-ledger --repo . record-child \
+  --child cart-api --check cart-regression --status PASS
+delivery-ledger --repo . finish-child \
+  --child cart-api --result PASS --patch /tmp/cart-api.patch
+delivery-ledger --repo . integrate-child \
+  --child cart-api --patch /tmp/cart-api.patch
+```
+
+A passing child needs passing checks and a patch whose paths fit its boundary.
+The ledger records its digest and paths. Integration is denied while any child
+is unfinished, if evidence changed, if a prior integrated patch owns the same
+path, or if `git apply --check` fails. The parent applies finished patches one
+at a time; parent `PASS` is denied until every child is successfully integrated.
+No child patch is auto-applied by OMP.
+
 ## Result and exit semantics
 
 | Result | Exit | Meaning |

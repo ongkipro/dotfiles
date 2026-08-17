@@ -184,4 +184,14 @@ project-init --repo /path/to/repository category "Description"
 project-init --gen repository-name
 project-init --list
 project-init --sync
+project-init --bootstrap-existing
+project-init --bootstrap-existing --apply
 ```
+
+`--list` discovers Git worktrees at any depth below both project roots and
+deduplicates physical paths. `--sync` preserves dirty, detached, untracked, and
+locally-ahead/diverged repositories; it fetches and fast-forwards only a clean
+behind branch with an upstream. `--bootstrap-existing` is a read-only inventory
+by default. `--apply` adds missing contracts only to clean repositories and
+runs each repository's native verification; dirty repositories are reported
+and skipped without stash/reset/clean behavior.
