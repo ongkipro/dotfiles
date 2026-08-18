@@ -146,6 +146,46 @@ def validate_pattern(pattern: str) -> str:
         raise ValueError(f"invalid boundary pattern: {pattern!r}")
     return pattern
 
+OWNER = re.compile(r"^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+$")
+
+
+def child_boundary(pattern: str) -> dict:
+    """Normalize a child boundary to an exact path or terminal subtree."""
+    pattern = validate_pattern(pattern)
+    if pattern.endswith("/**"):
+        root = pattern[:-3]
+        if not root or any(token in root for token in "*?[]"):
+            raise ValueError(f"parallel child boundary must be an exact path or terminal subtree: {pattern!r}")
+        return {"kind": "subtree", "root": root, "pattern": pattern}
+    if any(token in pattern for token in "*?[]"):
+        raise ValueError(f"parallel child boundary must be an exact path or terminal subtree: {pattern!r}")
+    return {"kind": "exact", "root": pattern, "pattern": pattern}
+
+
+def child_boundaries_overlap(left: dict, right: dict) -> bool:
+    if left["kind"] == right["kind"] == "exact":
+        return left["root"] == right["root"]
+    if left["kind"] == "subtree" and right["kind"] == "subtree":
+        return left["root"] == right["root"] or left["root"].startswith(right["root"] + "/") or right["root"].startswith(left["root"] + "/")
+    subtree, exact = (left, right) if left["kind"] == "subtree" else (right, left)
+    return exact["root"].startswith(subtree["root"] + "/")
+
+
+def canonical_owner(value: str) -> str:
+    owner = value.strip()
+    if not OWNER.fullmatch(owner):
+        raise ValueError(f"invalid canonical owner: {value!r}")
+    return owner
+
+
+def owners_overlap(left: str, right: str) -> bool:
+    return left == right or left.startswith(right + ".") or right.startswith(left + ".")
+
+
+def boundary_touches_pattern(boundary: dict, pattern: str) -> bool:
+    if boundary["kind"] == "exact":
+        return matches(boundary["root"], [pattern])
+    return matches(boundary["root"], [pattern]) or matches(boundary["root"] + "/.delivery-ledger-probe", [pattern])
 
 def glob_regex(pattern: str) -> re.Pattern[str]:
     pattern = validate_pattern(pattern)
@@ -278,8 +318,12 @@ def verify_run(path: Path) -> list[str]:
         if finish.get("result") == "PASS":
             if not checks:
                 problems.append(f"{path.name}: PASS requires at least one verification event")
-            elif any(check.get("status") != "PASS" for check in checks):
-                problems.append(f"{path.name}: PASS cannot follow FAIL or UNVERIFIED verification")
+            elif any(
+                check.get("status") == "FAIL"
+                or (check.get("status") == "UNVERIFIED" and not check.get("detail", "").lower().startswith("pre-existing"))
+                for check in checks
+            ):
+                problems.append(f"{path.name}: PASS cannot follow FAIL or UNVERIFIED verification unless the UNVERIFIED check is explicitly pre-existing")
             start = events[0] if events else {}
             if start.get("boundary"):
                 boundary_checks = [event for event in events[:finishes[0]] if event.get("type") == "boundary_check"]
@@ -384,6 +428,7 @@ def cmd_start(repo: Path, a) -> int:
         raise ValueError("risk must be R0-R4")
     require_id(a.task, "task"); require_id(a.requirement, "requirement")
     allowed = [validate_pattern(pattern) for pattern in a.allow]
+    owners = sorted(set(canonical_owner(value) for value in a.owner if value.strip()))
     protected = [validate_pattern(pattern) for pattern in a.protect]
     accepted_dirty_patterns = [validate_pattern(pattern) for pattern in a.accept_dirty]
     if a.protected_risk not in RISK:
@@ -409,7 +454,7 @@ def cmd_start(repo: Path, a) -> int:
     run_id = datetime.now(timezone.utc).strftime("RUN-%Y%m%dT%H%M%SZ-") + uuid4().hex[:8]
     _, _, runs, _ = paths(repo)
     event = event_base(repo, "run_started", run_id)
-    event.update({"task": a.task, "requirement": a.requirement, "risk": a.risk, "job": a.job, "capability": a.capability, "worker": a.worker, "model": a.model, "provider": a.provider, "reasoningEffort": a.reasoning_effort, "boundary": boundary})
+    event.update({"task": a.task, "requirement": a.requirement, "risk": a.risk, "job": a.job, "capability": a.capability, "worker": a.worker, "model": a.model, "provider": a.provider, "reasoningEffort": a.reasoning_effort, "owners": owners, "boundary": boundary})
     append_event(runs / f"{run_id}.jsonl", event)
     data.update({"activeRun": run_id, "activeTask": a.task, "requirement": a.requirement, "risk": a.risk, "job": a.job, "capability": a.capability, "worker": a.worker, "model": a.model, "provider": a.provider, "reasoningEffort": a.reasoning_effort})
     save_current(repo, data)
@@ -491,29 +536,81 @@ def patch_paths(repo: Path, patch: Path) -> list[str]:
             except FileNotFoundError:
                 pass
 
+def cmd_claim_owner(repo: Path, a) -> int:
+    owners = sorted(set(canonical_owner(value) for value in a.owner if value.strip()))
+    if not owners:
+        raise ValueError("parent owner claim requires --owner")
+    data, run_id, run_path = active(repo)
+    children = child_runs(read_events(run_path))
+    active_owners = [
+        owner for child in children.values() if child["integration"] is None
+        for owner in child["start"]["owners"]
+    ]
+    for owner in owners:
+        if any(owners_overlap(owner, child_owner) for child_owner in active_owners):
+            raise ValueError(f"semantic owner overlap with active child: {owner}")
+    event = event_base(repo, "parent_owner_claimed", run_id)
+    event["owners"] = owners
+    append_event(run_path, event); save_current(repo, data)
+    print("delivery-ledger: PARENT OWNER CLAIMED")
+    return OK
+
 
 def cmd_start_child(repo: Path, a) -> int:
     require_id(a.child, "child id"); require_id(a.task, "task")
     if a.risk not in RISK:
         raise ValueError("risk must be R0-R4")
-    allowed = [validate_pattern(value) for value in a.allow]
-    if not allowed:
+    boundaries = [child_boundary(value) for value in a.allow]
+    if not boundaries:
         raise ValueError("child run requires at least one --allow boundary")
-    owners = sorted(set(value.strip() for value in a.owner if value.strip()))
+    owners = sorted(set(canonical_owner(value) for value in a.owner if value.strip()))
     invariants = sorted(set(value.strip() for value in a.invariant if value.strip()))
     if not owners or not invariants:
         raise ValueError("child run requires --owner and --invariant evidence")
     data, run_id, run_path = active(repo)
-    children = child_runs(read_events(run_path))
+    events = read_events(run_path)
+    children = child_runs(events)
     if a.child in children:
         raise ValueError(f"child already exists: {a.child}")
+    dependencies = sorted(set(a.depends_on))
+    for dependency in dependencies:
+        require_id(dependency, "child dependency")
+        item = children.get(dependency)
+        if not item:
+            raise ValueError(f"unknown child dependency: {dependency}")
+        if not item["finish"] or item["finish"]["result"] != "PASS" or item["integration"] is None:
+            raise ValueError(f"child dependency is not successfully integrated: {dependency}")
+    parent_owners = list(run_start(events).get("owners") or [])
+    parent_owners.extend(
+        owner for event in events if event.get("type") == "parent_owner_claimed"
+        for owner in event.get("owners", [])
+    )
+    for owner in owners:
+        if any(owners_overlap(owner, parent_owner) for parent_owner in parent_owners):
+            raise ValueError(f"semantic owner overlap with parent: {owner}")
     for child, child_state in children.items():
-        if child_state["integration"] is None:
-            overlap = sorted(set(owners) & set(child_state["start"]["owners"]))
-            if overlap:
-                raise ValueError(f"semantic owner overlap with active child {child}: {', '.join(overlap)}")
+        if child_state["integration"] is not None:
+            continue
+        for boundary in boundaries:
+            if any(child_boundaries_overlap(boundary, prior) for prior in child_state["start"]["boundaries"]):
+                raise ValueError(f"path boundary overlap with active child {child}: {boundary['pattern']}")
+        for owner in owners:
+            if any(owners_overlap(owner, prior) for prior in child_state["start"]["owners"]):
+                raise ValueError(f"semantic owner overlap with active child {child}: {owner}")
+    for boundary in boundaries:
+        parent_overlap = [
+            path for path in dirty_paths(repo)
+            if (boundary["kind"] == "exact" and path == boundary["root"])
+            or (boundary["kind"] == "subtree" and path.startswith(boundary["root"] + "/"))
+        ]
+        if parent_overlap:
+            raise ValueError("child boundary overlaps current parent work: " + ", ".join(parent_overlap))
+    parent_boundary = run_start(events).get("boundary") or {}
+    for rule in parent_boundary.get("protectedPaths", []):
+        if any(boundary_touches_pattern(boundary, rule["pattern"]) for boundary in boundaries) and RISK_ORDER[a.risk] < RISK_ORDER[rule["minimumRisk"]]:
+            raise ValueError(f"child risk {a.risk} is insufficient for protected boundary {rule['pattern']}")
     event = event_base(repo, "child_started", run_id)
-    event.update({"child": a.child, "task": a.task, "risk": a.risk, "allowedPaths": allowed, "owners": owners, "acceptedInvariants": invariants})
+    event.update({"child": a.child, "task": a.task, "risk": a.risk, "allowedPaths": [boundary["pattern"] for boundary in boundaries], "boundaries": boundaries, "owners": owners, "dependencies": dependencies, "acceptedInvariants": invariants})
     append_event(run_path, event); save_current(repo, data)
     print(f"delivery-ledger: CHILD STARTED {a.child}")
     return OK
@@ -824,8 +921,13 @@ def cmd_finish(repo: Path, a) -> int:
             raise ValueError("PASS requires every child to finish successfully and be integrated: " + ", ".join(incomplete))
         if not checks:
             raise ValueError("PASS requires at least one verification event")
-        if any(check.get("status") != "PASS" for check in checks):
-            raise ValueError("PASS cannot follow FAIL or UNVERIFIED verification")
+        blocking_checks = [
+            check for check in checks
+            if check.get("status") == "FAIL"
+            or (check.get("status") == "UNVERIFIED" and not check.get("detail", "").lower().startswith("pre-existing"))
+        ]
+        if blocking_checks:
+            raise ValueError("PASS cannot follow FAIL or UNVERIFIED verification unless the UNVERIFIED check is explicitly pre-existing")
         start = run_start(events)
         if start.get("boundary"):
             report = evaluate_boundary(repo, events)
@@ -964,8 +1066,9 @@ def main() -> int:
     p = argparse.ArgumentParser(); p.add_argument("--repo", default=".")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init")
-    s=sub.add_parser("start"); s.add_argument("--task",required=True); s.add_argument("--requirement",required=True); s.add_argument("--risk",required=True); s.add_argument("--job",default="implementation"); s.add_argument("--capability",default="unattributed"); s.add_argument("--worker",default="unknown"); s.add_argument("--model",default="unknown"); s.add_argument("--provider",default="unknown"); s.add_argument("--reasoning-effort",default="unknown"); s.add_argument("--allow",action="append",default=[]); s.add_argument("--protect",action="append",default=[]); s.add_argument("--protected-risk",default="R3"); s.add_argument("--accept-dirty",action="append",default=[])
-    sc=sub.add_parser("start-child"); sc.add_argument("--child",required=True); sc.add_argument("--task",required=True); sc.add_argument("--risk",required=True); sc.add_argument("--allow",action="append",default=[]); sc.add_argument("--owner",action="append",default=[]); sc.add_argument("--invariant",action="append",default=[])
+    s=sub.add_parser("start"); s.add_argument("--task",required=True); s.add_argument("--requirement",required=True); s.add_argument("--risk",required=True); s.add_argument("--job",default="implementation"); s.add_argument("--capability",default="unattributed"); s.add_argument("--worker",default="unknown"); s.add_argument("--model",default="unknown"); s.add_argument("--provider",default="unknown"); s.add_argument("--reasoning-effort",default="unknown"); s.add_argument("--allow",action="append",default=[]); s.add_argument("--owner",action="append",default=[]); s.add_argument("--protect",action="append",default=[]); s.add_argument("--protected-risk",default="R3"); s.add_argument("--accept-dirty",action="append",default=[])
+    sc=sub.add_parser("start-child"); sc.add_argument("--child",required=True); sc.add_argument("--task",required=True); sc.add_argument("--risk",required=True); sc.add_argument("--allow",action="append",default=[]); sc.add_argument("--owner",action="append",default=[]); sc.add_argument("--invariant",action="append",default=[]); sc.add_argument("--depends-on",action="append",default=[])
+    po=sub.add_parser("claim-owner"); po.add_argument("--owner",action="append",default=[])
     rc=sub.add_parser("record-child"); rc.add_argument("--child",required=True); rc.add_argument("--check",required=True); rc.add_argument("--status",required=True); rc.add_argument("--detail",default="")
     fc=sub.add_parser("finish-child"); fc.add_argument("--child",required=True); fc.add_argument("--result",required=True); fc.add_argument("--patch"); fc.add_argument("--detail",default="")
     ic=sub.add_parser("integrate-child"); ic.add_argument("--child",required=True); ic.add_argument("--patch",required=True)
@@ -981,10 +1084,11 @@ def main() -> int:
     a=p.parse_args(); repo=Path(a.repo).resolve()
     if not repo.is_dir(): print(f"delivery-ledger: ERROR: repo not found: {repo}",file=sys.stderr); return FAILED
     try:
-        if a.cmd in {"init","start","start-child","record-child","finish-child","integrate-child","record","expand-scope","check-boundary","review-boundary","checkpoint","finish","snapshot-release"}:
+        if a.cmd in {"init","start","claim-owner","start-child","record-child","finish-child","integrate-child","record","expand-scope","check-boundary","review-boundary","checkpoint","finish","snapshot-release"}:
             with ledger_lock(repo):
                 if a.cmd=="init": return cmd_init(repo)
                 if a.cmd=="start": return cmd_start(repo,a)
+                if a.cmd=="claim-owner": return cmd_claim_owner(repo,a)
                 if a.cmd=="start-child": return cmd_start_child(repo,a)
                 if a.cmd=="record-child": return cmd_record_child(repo,a)
                 if a.cmd=="finish-child": return cmd_finish_child(repo,a)

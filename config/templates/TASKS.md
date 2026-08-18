@@ -14,15 +14,23 @@ Every implementation task must trace to one accepted requirement, declare its ri
 - **Capability:** [Owning skill or specialist capability]
 - **Execution Class:** volume / precision / judgment
 - **Model / Provider / Reasoning:** [Resolved route; do not ask the user when orchestration owns selection]
-- **Change Surface:** [Exact repository-relative paths/globs passed to `delivery-ledger start --allow`]
-- **Protected Surface:** [Optional higher-risk paths/globs passed with `--protect`; otherwise `None`]
+- **Allowed Paths:** [Exact repository-relative paths; only exact paths or `subtree/**` for parallel work]
+- **Protected Paths:** [Optional higher-risk paths; otherwise `None`]
+- **Canonical Contract Owners:** [Owner names as `<domain>.<contract>[.<subcontract>]`]
+- **Change Surface:** [Compatibility alias for Allowed Paths]
+- **Protected Surface:** [Compatibility alias for Protected Paths]
+- **Shared Owner:** [Compatibility alias for Canonical Contract Owners]
 - **Accepted Invariants:** [Observable behavior that must remain true]
-- **Shared Owner:** [Semantic owner(s) used to detect cross-worker overlap]
+- **Producers:** [State/API/event producers or `None`]
+- **Consumers:** [State/API/event consumers or `None`]
+- **Depends On:** [Prior integrated task/child or `None`]
 - **Regression Checks:** [Named executable checks required before integration]
+- **Runtime Evidence:** [Browser, CLI, or service scenario; `None` only when inapplicable]
 - **Reopen Conditions:** [Evidence that invalidates Done and reopens the task]
+- **Rollback/Migration State:** [Rollback boundary or `Not applicable`]
 - **Non-Scope:** [Explicitly untouched paths or systems]
 - **Verification:** `project-check` or `npm test -- path/to/test.ts`
-- **Escalation Condition:** Fail verification after 1 repair attempt, or require auth/payment/migration contract changes.
+- **Escalation Conditions:** Fail verification after one repair attempt, or require auth/payment/migration contract changes.
 ```
 
 R0 documentation/mechanical work may infer one obvious requested file. R1 must

@@ -754,6 +754,22 @@ for role in ("default", "smol", "slow", "plan", "vision", "tiny", "task", "advis
     if not isinstance(selector, str) or not selector:
         fail("base config is missing model role: " + role)
 
+expected_role_selectors = {
+    "default": "openai-codex/gpt-5.6-terra:medium",
+    "task": "openai-codex/gpt-5.6-terra:medium",
+    "slow": "openai-codex/gpt-5.6-sol:high",
+    "plan": "openai-codex/gpt-5.6-terra:high",
+    "tiny": "google-antigravity/gemini-3.7-flash:medium",
+    "smol": "google-antigravity/gemini-3.7-flash:medium",
+    "research": "google-antigravity/gemini-3.7-flash:minimal",
+    "discovery": "google-antigravity/gemini-3.7-flash:high",
+}
+for role, selector in expected_role_selectors.items():
+    if roles.get(role) != selector:
+        fail(f"base role {role} must resolve to {selector}, got {roles.get(role)!r}")
+if runtime_value("async.maxJobs") != 4 or runtime_value("task.maxConcurrency") != 3:
+    fail("base concurrency must resolve to async.maxJobs=4 and task.maxConcurrency=3")
+
 role_references = []
 collect_role_references(runtime_value("task.agentModelOverrides"), role_references)
 for reference in role_references:
@@ -857,6 +873,9 @@ validate_routing_graph(
     threshold,
     custom_providers,
 )
+for selector in list(roles.values()) + [item for chain in fallback_chains.values() for item in chain]:
+    if "flash-lite" in selector.lower():
+        fail("reachable base routing selector uses Gemini Flash Lite: " + selector)
 
 
 bundled_directory = Path(runtime_temporary.name) / "bundled-agents"
@@ -990,6 +1009,9 @@ for overlay_path in sorted(overlays_directory.glob("*.yml")):
         threshold,
         custom_providers,
     )
+    for selector in list(overlay_roles.values()) + [item for chain in overlay_fallback_chains.values() for item in chain]:
+        if "flash-lite" in selector.lower():
+            fail("{} reaches Gemini Flash Lite: {}".format(overlay_context, selector))
 if overlay_count == 0:
     fail("no overlays found in " + str(overlays_directory))
 

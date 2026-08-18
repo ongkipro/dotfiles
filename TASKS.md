@@ -20,9 +20,27 @@ not run concurrently even when their file globs are disjoint.
 
 ## In progress
 
-No task is in progress.
 
 ## Done
+### TASK-017: Remediate OMP routing and parallel collision controls
+- **Requirement:** REQ-OMP-ROUTING-COLLISION
+- **Risk Level:** R3
+- **Job:** implementation
+- **Capability:** `full-stack-development`, `application-security`, `testing-engineering`
+- **Execution Class:** precision
+- **Allowed Paths:** `config/omp/**`, `bin/delivery-ledger`, `bin/delivery-ledger-test`, `bin/omp-routing-test`, `bin/omp-effective-routing-test`, `config/templates/TASKS.md`, `docs/task-change-boundary.md`, `TASKS.md`
+- **Protected Paths:** `config/omp/**`, `bin/delivery-ledger`
+- **Producers:** OMP role resolution and delivery-ledger child lifecycle.
+- **Consumers:** parent orchestrator and isolated child workers.
+- **Depends On:** none.
+- **Runtime Evidence:** OMP parser and live model catalog.
+- **Reopen Conditions:** selector drift, a reachable Lite path, or a pre-dispatch collision bypass.
+- **Rollback/Migration State:** declarative routing change; restore only with fresh catalog evidence.
+- **Canonical Contract Owners:** `operations.routing`, `operations.delivery-ledger`
+- **Accepted Invariants:** no reachable Gemini Flash Lite route; three-worker implementation ceiling; child paths and hierarchical owners cannot collide; parent applies immutable verified patches sequentially.
+- **Regression Checks:** `bin/omp-routing-test`, `bin/omp-effective-routing-test`, `bin/delivery-ledger-test`
+- **Non-Scope:** provider credentials, catalog records, production, deployment, commits.
+- **Escalation Conditions:** absent catalog capability, boundary overlap, or failed collision regression.
 
 ### TASK-017: Make workflow and OMP overlay evidence executable
 - **Requirement:** AUDIT-CI-02 — local and hosted validation must reject invalid GitHub workflows, while OMP global-overlay evidence must prove the runtime applied the overlay rather than merely parsing YAML or exiting zero.

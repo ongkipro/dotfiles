@@ -19,8 +19,8 @@ modelRoles:
   slow: google-antigravity/claude-opus-4-6:high
   plan: google-antigravity/claude-opus-4-6:high
   smol: google-antigravity/gemini-3.7-flash:medium
-  tiny: google-antigravity/gemini-3.1-flash-lite:minimal
-  research: google-antigravity/gemini-3.7-flash:high
+  tiny: google-antigravity/gemini-3.7-flash:medium
+  research: google-antigravity/gemini-3.7-flash:minimal
   discovery: google-antigravity/gemini-3.7-flash:high
   vision: google-antigravity/gemini-3.1-pro:high
   designer: google-antigravity/gemini-3.1-pro:high
@@ -49,11 +49,11 @@ retry:
       - google-antigravity/claude-sonnet-4-6:high
       - google-antigravity/gemini-3.1-pro:high
     smol:
-      - google-antigravity/gemini-2.5-flash-lite:medium
+      - google-antigravity/gemini-3.6-flash:medium
       - google-antigravity/gemini-3.5-flash:low
     tiny:
-      - google-antigravity/gemini-2.5-flash-lite:minimal
-      - google-antigravity/gemini-3.5-flash:minimal
+      - google-antigravity/gemini-3.6-flash:medium
+      - google-antigravity/gemini-3.5-flash:low
     research:
       - google-antigravity/gemini-3.6-flash:high
       - google-antigravity/gemini-3.1-pro:high

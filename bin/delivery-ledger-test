@@ -266,10 +266,10 @@ git -C "$TMP/child-b" mv src/second.txt 'src/fitur-ä.txt'
 printf 'child b\n' >> "$TMP/child-b/src/fitur-ä.txt"
 git -C "$TMP/child-a" diff --binary > "$TMP/child-a.patch"
 git -C "$TMP/child-b" diff HEAD --binary > "$TMP/child-b.patch"
-python3 "$DL" --repo "$BC" start-child --child child-a --task TASK-BC-A --risk R1 --allow 'src/feature.txt' --owner identity-session --invariant 'feature behavior remains observable' >/dev/null
-set +e; python3 "$DL" --repo "$BC" start-child --child collision --task TASK-BC-C --risk R1 --allow 'src/second.txt' --owner identity-session --invariant 'different path, same semantic owner' >/dev/null 2>&1; rc=$?; set -e
+python3 "$DL" --repo "$BC" start-child --child child-a --task TASK-BC-A --risk R1 --allow 'src/feature.txt' --owner identity.session --invariant 'feature behavior remains observable' >/dev/null
+set +e; python3 "$DL" --repo "$BC" start-child --child collision --task TASK-BC-C --risk R1 --allow 'src/second.txt' --owner identity.session --invariant 'different path, same semantic owner' >/dev/null 2>&1; rc=$?; set -e
 [ "$rc" -eq 1 ] || fail "semantic owner overlap must reject disjoint-path children"
-python3 "$DL" --repo "$BC" start-child --child child-b --task TASK-BC-B --risk R1 --allow 'src/**' --owner pricing-copy --invariant 'second behavior remains observable' >/dev/null
+python3 "$DL" --repo "$BC" start-child --child child-b --task TASK-BC-B --risk R1 --allow 'src/second.txt' --allow 'src/fitur-ä.txt' --owner commerce.pricing --invariant 'second behavior remains observable' >/dev/null
 python3 "$DL" --repo "$BC" record-child --child child-a --check regression-a --status PASS >/dev/null
 python3 "$DL" --repo "$BC" finish-child --child child-a --result PASS --patch "$TMP/child-a.patch" >/dev/null
 set +e; python3 "$DL" --repo "$BC" integrate-child --child child-a --patch "$TMP/child-a.patch" >/dev/null 2>&1; rc=$?; set -e
