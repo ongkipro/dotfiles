@@ -9,7 +9,7 @@ This file is the canonical policy for policy-driven autonomous orchestration and
   - **Antigravity** is the volume pool and the largest allowance. It carries every context-hungry lane: source research, visual work, and mechanical support.
 - **Codex** is the execution & precision pool, and since 2026-08-16 it also carries the main session. Powered by **GPT-5.6 Sol**, it owns ordinary main-session development (`default`), all delegated implementation (`task`), reasoning-intensive code (`slow`), complex developer jobs (`complex-developer`), and architecture planning (`plan` / `writer`). The main session was moved here deliberately: full-stack development is the highest-frequency work on this setup, and a wrong turn in it costs more than the allowance it saves. `default` falls back to Antigravity Gemini 3.7 Flash, so exhausting the Codex allowance degrades routing to the previous arrangement instead of failing.
 - **Direct Anthropic** is the judgment pool and the scarcest. It is reserved for Claude 5 consultation, security audits, and advisor reviews.
-- `default` is Codex GPT-5.6 Sol at high reasoning. Ordinary main session development uses Codex for maximum precision.
+- `default` is Codex GPT-5.6 Sol at medium reasoning. The main session keeps the strongest coding model while avoiding high-reasoning latency on every ordinary turn; correctness-sensitive work still routes to the high-reasoning `slow`, `task`, or `plan` lanes.
 - `slow`, `task`, and `plan` are **Codex GPT-5.6 Sol** at high reasoning, ensuring maximum code precision, spec writing accuracy, and minimal tool-call error rates across all subagent tasks.
 - `vision` is Gemini 3.1 Pro at high reasoning through Antigravity for browser-visible visual work.
 - `research` is Gemini 3.7 Flash at high reasoning through Antigravity, chosen for its million-token context during evidence-heavy reading rather than for reasoning escalation. It serves `librarian`, reading external library and API sources. `librarian` grounds its answers through a required structured output of verbatim excerpts, paths, and line ranges, so evidence discipline comes from that contract rather than from model tier. Two hard constraints pin this role to Antigravity: `librarian` declares `thinkingLevel: minimal`, which among the other pools only Anthropic Claude Haiku 4.5 supports and no Codex model supports at all, and Haiku's 200K window is a fifth of what evidence-heavy external reading needs.
@@ -56,9 +56,9 @@ Use `bin/diff-risk` to verify diff risk automatically after edits. Use `bin/proj
 
 Task size alone is not an escalation signal. Escalate for reasoning complexity, specialist evidence, or a demonstrated blocker.
 
-**There is no longer an escalation ladder inside Codex.** Since `default` moved to GPT-5.6 Sol on 2026-08-16, `default`, `task`, `slow`, and `plan` resolve to the identical model at the identical reasoning level — so moving from `default` to `slow` changes the routing label and nothing else. The four roles now differ by *who runs them and under what contract*, not by capability: `default` is the main session, `task` is delegated implementation, `slow` is the reasoning-intensive lane, `plan` is architecture and prose. Keep using the right name so the ledger and benchmark attribute work correctly, but do not expect a capability gain from the switch.
+Codex has a deliberate effort ladder: `default` uses GPT-5.6 Sol at medium reasoning for the main session, while `task`, `slow`, and `plan` use the same model at high reasoning for delegated implementation, reasoning-intensive development, architecture, and prose. Moving from `default` to `slow` now buys additional reasoning effort without changing provider or model family. Use that lane for the work categories above, not as a reflexive retry for a bounded task.
 
-Real escalation is therefore **cross-vendor, not cross-tier**. When ordinary development shows reasoning strain — repeated failed edits, thrashing tool calls, or a defect that survives one reasonable attempt — the move that buys something is to the advisor lane (`advisor`, then `advisor-xhigh` or `advisor-max`), which is a different vendor and a genuinely different model. Escalating within Codex will not fix a Codex-shaped failure. Cost discipline comes from a bounded context and from not escalating reflexively, not from persisting at a tier that no longer exists.
+Cross-vendor escalation remains the stronger response to model-shaped failure. When ordinary development shows repeated failed edits, thrashing tool calls, or a defect that survives one reasonable attempt, consult the advisor lane (`advisor`, then `advisor-xhigh` or `advisor-max`) for genuinely independent judgment rather than repeatedly increasing effort inside Codex.
 
 ## Policy-driven autonomous orchestration
 
@@ -66,7 +66,7 @@ The user starts `omp` and describes the desired outcome. The main worker MUST ap
 
 | Detected work | Automatic agent | Role | Model |
 |---|---|---|---|
-| Normal, bounded development | none; main session executes | `default` | Codex GPT-5.6 Sol High |
+| Normal, bounded development | none; main session executes | `default` | Codex GPT-5.6 Sol Medium |
 | Complex auth, payments, concurrency, migrations, algorithms, performance, or difficult regressions | `complex-developer` | `slow` | Codex GPT-5.6 Sol High |
 | UI, UX, responsive layout, or browser-visible frontend | `designer` | `vision` | Antigravity Gemini 3.1 Pro High |
 | Architecture-sensitive or costly-to-reverse decision | `architect` | `advisor-max` | Claude Opus 5 Max |
