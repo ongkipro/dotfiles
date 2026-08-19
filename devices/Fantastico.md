@@ -1,7 +1,7 @@
 # Device: `Fantastico`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-08-17**
+> Terakhir diperbarui: **2026-08-19**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -22,7 +22,7 @@
 | CPU | Intel(R) Core(TM) i7-8650U CPU @ 1.90GHz (8 thread) |
 | RAM | 15.5 GB |
 | GPU | Intel Corporation Kaby Lake-R GT2 [UHD Graphics 620] (rev 07) |
-| Disk (/) | 233G total, 141G free (37% used) |
+| Disk (/) | 233G total, 139G free (38% used) |
 
 ## AI CLI
 

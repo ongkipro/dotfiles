@@ -24,7 +24,7 @@ Want to work on a project? `git clone` it first into **`~/Projects/<name>/`** (t
 ## macOS — Active Projects
 
 ### dotfiles
-- `~/dotfiles` → backup of all config, private repo `github.com/ongkipro/dotfiles`.
+- `~/dotfiles` → backup of all config, repo `github.com/ongkipro/dotfiles` — **public since 2026-08-17**; keep server addresses, credentials, and client names out of new commits (see `config/ai/AGENTS.md`).
 - `install.sh` for new-device setup (idempotent).
 - `bin/dotsync` = a semi-auto helper to sync across Linux/macOS for review → commit → optional push of shared memory/config.
 - `install-macos.sh` = lightweight macOS bootstrap for shared memory, skill linking, and basic workflow sync.

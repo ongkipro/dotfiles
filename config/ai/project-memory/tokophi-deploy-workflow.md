@@ -36,4 +36,3 @@ TokoΦ (`~/projects/tokophi`) ship path — verified 2026-07-23 by shipping the 
 
 Related: [[coolify-vps-dev]] [[tokophi-project]] [[tokophi-market-and-hosting]]
 
-> `<coolify-vps>` is redacted — see [[coolify-vps-dev]] for what it stands for.
