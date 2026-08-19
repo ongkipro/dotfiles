@@ -8,6 +8,12 @@
 # that provider rather than silently re-introducing the multi-model routing the
 # operator just opted out of.
 #
+# The role split mirrors the tracked config rather than flattening it: Terra at
+# medium owns ordinary development (`default`, `task`) and Terra at high owns
+# planning, while Sol at high stays reserved for complex, high-risk work
+# (`slow`) and the advisor tiers. Recovery inverts that pair inside Codex, so a
+# degraded Terra falls to Sol rather than leaving the pool.
+#
 # Constraints honoured, same as the main config:
 #   - every context window exceeds compaction.thresholdTokens (140K), which
 #     excludes gpt-5.3-codex-spark at 128K
@@ -25,10 +31,10 @@
 # Treat librarian output from a Codex-only session as costing more than usual,
 # not as less trustworthy.
 modelRoles:
-  default: openai-codex/gpt-5.6-sol:medium
-  task: openai-codex/gpt-5.6-sol:medium
+  default: openai-codex/gpt-5.6-terra:medium
+  task: openai-codex/gpt-5.6-terra:medium
   slow: openai-codex/gpt-5.6-sol:high
-  plan: openai-codex/gpt-5.6-sol:high
+  plan: openai-codex/gpt-5.6-terra:high
   smol: openai-codex/gpt-5.4-mini:low
   tiny: openai-codex/gpt-5.4-mini:low
   research: openai-codex/gpt-5.4:high
@@ -48,10 +54,10 @@ retry:
   fallbackRevertPolicy: cooldown-expiry
   fallbackChains:
     default:
-      - openai-codex/gpt-5.6-terra:medium
+      - openai-codex/gpt-5.6-sol:medium
       - openai-codex/gpt-5.5:medium
     task:
-      - openai-codex/gpt-5.6-terra:medium
+      - openai-codex/gpt-5.6-sol:medium
       - openai-codex/gpt-5.5:medium
     slow:
       - openai-codex/gpt-5.6-terra:high

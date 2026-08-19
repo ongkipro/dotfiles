@@ -31,6 +31,7 @@ Every implementation task must trace to one accepted requirement, declare its ri
 - **Non-Scope:** [Explicitly untouched paths or systems]
 - **Verification:** `project-check` or `npm test -- path/to/test.ts`
 - **Escalation Conditions:** Fail verification after one repair attempt, or require auth/payment/migration contract changes.
+- **Escalation Condition:** [Compatibility alias for Escalation Conditions; singular in some older tasks]
 ```
 
 R0 documentation/mechanical work may infer one obvious requested file. R1 must

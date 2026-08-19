@@ -114,6 +114,62 @@ def check_php(repo: Path, mode: str) -> tuple[int, int, bool]:
     return len(commands), sum(1 for cmd in commands if run_cmd(cmd, repo)), True
 
 
+# The exact nine documents `project-init`'s `render_contract` scaffolds,
+# mirrored from that script's own `has_contract()` marker — not reinvented.
+CONTRACT_DOCUMENTS = [
+    "AGENTS.md", "PRD.md", "TASKS.md", "STATUS.md", "DECISIONS.md",
+    "RELEASE.md", "OBSERVABILITY.md", "BUILD-LOG.md", "ARCHITECTURE.md",
+]
+
+
+def report_delivery_contract(repo: Path) -> None:
+    """Report delivery-contract document drift. Advisory only — never gates PASS/FAIL/UNVERIFIED.
+
+    This deliberately does not contribute to the runnable-check tally, for two
+    reasons found by review rather than assumed:
+
+    Counting document *existence* as a passed "runnable check" let a repo with
+    nine empty Markdown files and no code at all report `VERIFIED`, which is a
+    false positive `project-check`'s own contract ("runnable checks were
+    discovered and all passed") does not permit.
+
+    And gating on it produced false `FAILED` results in ordinary, correct
+    situations: `.delivery/current.json` is untracked by git, so it is absent
+    from any fresh clone or `git worktree` even for a fully compliant project,
+    and a real, adopted-in-good-faith repository frequently carries only a
+    subset of the nine documents (verified against every locally checked-out
+    project with an `AGENTS.md`; roughly half had partial adoption). Neither
+    shape is a defect worth blocking a build over — see `report_memory_hygiene`
+    in `ai-policy-lint` for the same call on the same tradeoff.
+    """
+    if not (repo / "AGENTS.md").is_file():  # contract-opt-in guard
+        return
+    missing = [name for name in CONTRACT_DOCUMENTS if not (repo / name).is_file()]
+    ledger_missing = not (repo / ".delivery" / "current.json").is_file()
+    if not missing and not ledger_missing:
+        ok("delivery contract: all nine documents and .delivery/current.json present")
+        return
+    if missing:
+        print(f"  note  delivery contract: missing document(s): {', '.join(missing)}")
+    if ledger_missing:
+        print("  note  delivery contract: missing .delivery/current.json (untracked by git; run `delivery-ledger init` if this repo should have one)")
+
+
+def check_shopify(repo: Path, mode: str) -> tuple[int, int, bool]:
+    """Validate a Shopify theme with Theme Check, the CLI's own static analyzer.
+
+    `layout/theme.liquid` and `config/settings_schema.json` are the two files
+    every Shopify theme ships and nothing else does; either is a safe marker.
+    """
+    is_theme = (repo / "layout" / "theme.liquid").is_file() or (repo / "config" / "settings_schema.json").is_file()
+    if not is_theme:
+        return 0, 0, False
+    say("Shopify theme detected")
+    if not shutil.which("shopify"):
+        fail("Shopify theme detected but the shopify CLI is not available"); return 1, 0, True
+    return 1, 1 if run_cmd(["shopify", "theme", "check"], repo) else 0, True
+
+
 def security_gate(repo: Path) -> tuple[int, int]:
     binary = shutil.which("security-check")
     if not binary:
@@ -139,13 +195,14 @@ def main() -> int:
     mode = "changed" if args.changed else "ui" if args.ui else "security" if args.security else "full"
     print(f"project-check: {mode} verification at {repo}\n" + "-" * 60)
     total = passed = 0; recognized = False; uncovered = False
-    for checker in [check_node, check_python, check_go, check_rust, check_php]:
+    for checker in [check_node, check_python, check_go, check_rust, check_php, check_shopify]:
         count, good, seen = checker(repo, mode); total += count; passed += good; recognized = recognized or seen
         if seen and count == 0:
             uncovered = True
             fail(f"{checker.__name__.removeprefix('check_').title()} stack has no runnable verification")
     if mode == "security":
         count, good = security_gate(repo); total += count; passed += good
+    report_delivery_contract(repo)
     print("-" * 60)
     if uncovered:
         print("project-check: UNVERIFIED (at least one detected stack has no runnable verification)"); return UNVERIFIED

@@ -61,4 +61,25 @@ assert any(x['path']=='src/auth/session.ts' and x['reason']=='Authentication / A
 assert any(x['path']=='wrangler.toml' and x['reason']=='CI / Infrastructure / Deployment' for x in data['flaggedReasons']), data
 PY
 
+# Browser-visible UI paths are flagged informationally, at R0, so the signal
+# surfaces without competing with auth/payment/schema for the risk floor. The
+# `/api/` exclusion must hold for both the directory branch and the bare
+# extension branch — a TSX file under an api/ path is still non-visual wiring.
+"$DR" --json \
+  --path src/components/Hero.tsx \
+  --path src/pages/api/webhook.ts \
+  --path pages/api/foo.tsx \
+  --path src/app/api/route.tsx \
+  "$TMP" > ui.json
+python3 - <<'PY'
+import json
+with open('ui.json') as f: data=json.load(f)
+assert data['risk'] == 'R2', data
+ui = [x for x in data['flaggedReasons'] if x['reason'] == 'Browser-Visible UI / Frontend']
+assert {x['path'] for x in ui} == {'src/components/Hero.tsx'}, ui
+assert all(x['minimumRisk'] == 'R0' for x in ui), ui
+excluded = {'src/pages/api/webhook.ts', 'pages/api/foo.tsx', 'src/app/api/route.tsx'}
+assert not any(x['path'] in excluded for x in ui), ui
+PY
+
 echo "diff-risk-test: PASS"

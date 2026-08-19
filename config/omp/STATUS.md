@@ -1,6 +1,6 @@
 # Status — OMP Orchestration
 
-Updated: 2026-08-17
+Updated: 2026-08-19
 Status: Shared routing is configured and structurally guarded. End-to-end
 runtime readiness remains unverified in shared status because OMP version,
 catalog, credentials, quota, and provider availability are device-local.
@@ -11,9 +11,9 @@ Routing is organised as three capacity pools across thirteen roles and eleven ag
 
 | Pool | Roles | Purpose |
 |---|---|---|
-| Antigravity | `vision`, `designer`, `research`, `smol`, `tiny` | Volume. Carries every context-hungry lane: visual work, source research, mechanical support. |
+| Antigravity | `vision`, `designer`, `research`, `discovery`, `smol`, `tiny` | Volume. Carries every context-hungry lane: visual work, source research, the repository map `scout` returns, and mechanical support. |
 | Codex | `default`, `slow`, `task`, `plan` | Precision, and since 2026-08-16 the main session too. The lanes where a wrong edit costs the most rework. |
-| Anthropic | `advisor`, `advisor-xhigh`, `advisor-max`, `discovery` | Judgment. Independent consultation, review, and the repository map `scout` returns. |
+| Anthropic | `advisor`, `advisor-xhigh`, `advisor-max` | Judgment. Independent consultation and review. |
 
 All eleven agents — seven bundled and four custom agents under `agents/`
 (`architect`, `complex-developer`, `debugger`, `writer`) — have an explicit

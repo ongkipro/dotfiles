@@ -32,6 +32,16 @@ PATH_RULES = [
     (r"(?:^|/)(?:package\.json|pyproject\.toml|go\.mod|Cargo\.toml|composer\.json)$", "Dependency / Build Manifest", "R2"),
     (r"(?:^|/)(?:pnpm-lock\.yaml|package-lock\.json|yarn\.lock|bun\.lockb?|Cargo\.lock|composer\.lock)$", "Dependency Lockfile", "R2"),
     (r"(?:^|/)(?:\.github/workflows/|(?:deploy(?:ment)?|dns|infrastructure|infra)(?:[-_/.]|$)|release(?:[-_.](?:config|workflow)|/))|(?:docker|terraform|coolify|k8s|kubernetes|nginx|caddy|vultr|wrangler)", "CI / Infrastructure / Deployment", "R3"),
+    # `minimumRisk` R0 is deliberate: this class is a capability/verification
+    # signal, not a correctness-severity one. A Hero.tsx edit is not inherently
+    # riskier than average code, so it must not compete with auth/payment/schema
+    # for the risk floor — it only has to surface so Runtime Evidence and a
+    # browser check are not skipped for a change nothing else flagged. The
+    # `/api/` exclusion matches ROUTING.md: "Pure data/API/non-visual wiring in
+    # a frontend file is exempt." It has to gate the whole alternation, not just
+    # the directory branch: an exclusion scoped only to the directory list still
+    # let `pages/api/foo.tsx` through via the bare extension match.
+    (r"^(?!.*(?:^|/)api/)(?:.*\.(?:tsx|jsx|vue|svelte|astro|liquid)$|.*(?:^|/)(?:components|pages|app|views|sections|snippets)/)", "Browser-Visible UI / Frontend", "R0"),
 ]
 
 DOC_EXTENSIONS = {".md", ".txt", ".rst", ".png", ".jpg", ".jpeg", ".svg", ".webp", ".gif"}

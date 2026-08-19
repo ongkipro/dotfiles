@@ -37,6 +37,9 @@ delivery-ledger --repo . start \
   --requirement REQ-4 \
   --risk R1 \
   --worker cart-developer \
+  --model openai-codex/gpt-5.6-terra \
+  --provider openai-codex \
+  --reasoning-effort medium \
   --allow 'src/cart/**' \
   --allow 'src/components/cart/**' \
   --protect 'src/auth/**' \
@@ -102,12 +105,24 @@ require independent review:
 delivery-ledger --repo . record --check auth-regression --status PASS
 delivery-ledger --repo . record --check cart-integration --status PASS
 delivery-ledger --repo . check-boundary       # exit 2: REVIEW_REQUIRED
-delivery-ledger --repo . review-boundary --reviewer security-reviewer
+delivery-ledger --repo . review-boundary \
+  --reviewer security-reviewer \
+  --reviewer-model claude-opus-5 \
+  --reviewer-provider anthropic \
+  --reviewer-reasoning xhigh
 delivery-ledger --repo . finish --result PASS
 ```
 
-The reviewer identifier must differ from the run's worker. A review binds to the
-latest boundary event and surface digest. Any later worktree change invalidates
+Every R1-R4 run must declare a resolved route. `--model`, `--provider`, and
+`--reasoning-effort` may not be `unknown`; a metric that genuinely does not
+exist — a deterministic script has no model route — is recorded as
+`unavailable: <reason>` so the gap is stated rather than invented.
+
+The reviewer identifier must differ from the run's worker, and where policy
+requires independent review the reviewer's model or provider must differ from
+the implementer's too. Identities and routes are compared case- and
+whitespace-insensitively, so re-casing a name is not a second reviewer. A review
+binds to the latest boundary event and surface digest. Any later worktree change invalidates
 it and requires another check and review.
 
 ## Parallel child runs
@@ -121,7 +136,7 @@ the same session or pricing invariant.
 ```bash
 delivery-ledger --repo . start-child \
   --child cart-api --task TASK-123-A --risk R2 \
-  --allow 'src/cart/**' --owner cart-pricing \
+  --allow 'src/cart/**' --owner commerce.pricing \
   --invariant 'totals use the accepted pricing rule'
 delivery-ledger --repo . record-child \
   --child cart-api --check cart-regression --status PASS

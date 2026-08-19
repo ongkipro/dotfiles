@@ -54,7 +54,7 @@ Use `bin/diff-risk` to verify diff risk automatically after edits. Use `bin/proj
 
 Task size alone is not an escalation signal. Escalate for reasoning complexity, specialist evidence, or a demonstrated blocker.
 
-Codex has a deliberate effort ladder: `default` uses GPT-5.6 Sol at medium reasoning for the main session, while `task`, `slow`, and `plan` use the same model at high reasoning for delegated implementation, reasoning-intensive development, architecture, and prose. Moving from `default` to `slow` now buys additional reasoning effort without changing provider or model family. Use that lane for the work categories above, not as a reflexive retry for a bounded task.
+Codex has a deliberate ladder across two models: `default` and `task` use GPT-5.6 Terra at medium reasoning for the main session and delegated implementation, `plan` uses Terra at high for architecture and prose, and `slow` uses GPT-5.6 Sol at high for reasoning-intensive development. Moving from `default` to `slow` therefore buys both a stronger model and more effort without leaving the Codex pool. Use that lane for the work categories above, not as a reflexive retry for a bounded task.
 
 Cross-vendor escalation remains the stronger response to model-shaped failure. When ordinary development shows repeated failed edits, thrashing tool calls, or a defect that survives one reasonable attempt, consult the advisor lane (`advisor`, then `advisor-xhigh` or `advisor-max`) for genuinely independent judgment rather than repeatedly increasing effort inside Codex.
 
@@ -64,17 +64,17 @@ The user starts `omp` and describes the desired outcome. The main worker MUST ap
 
 | Detected work | Automatic agent | Role | Model |
 |---|---|---|---|
-| Normal, bounded development | none; main session executes | `default` | Codex GPT-5.6 Sol Medium |
+| Normal, bounded development | none; main session executes | `default` | Codex GPT-5.6 Terra Medium |
 | Complex auth, payments, concurrency, migrations, algorithms, performance, or difficult regressions | `complex-developer` | `slow` | Codex GPT-5.6 Sol High |
 | UI, UX, responsive layout, or browser-visible frontend | `designer` | `vision` | Antigravity Gemini 3.1 Pro High |
 | Architecture-sensitive or costly-to-reverse decision | `architect` | `advisor-max` | Claude Opus 5 Max |
 | Hard defect after reproduction or a failed reasonable path | `debugger` | `advisor-xhigh` | Claude Opus 5 XHigh |
 | High-risk correctness review | `reviewer` | `advisor` | Claude Sonnet 5 High |
 | Security-sensitive review | `security-reviewer` | `advisor-xhigh` | Claude Opus 5 XHigh |
-| Source-verified external library or API research | `librarian` | `research` | Antigravity Gemini 3.7 Flash High |
-| Read-only repository discovery feeding a decision | `scout` | `discovery` | Anthropic Claude Sonnet 5 Medium |
+| Source-verified external library or API research | `librarian` | `research` | Antigravity Gemini 3.7 Flash Minimal |
+| Read-only repository discovery feeding a decision | `scout` | `discovery` | Antigravity Gemini 3.7 Flash High |
 | Strictly mechanical updates or data collection | `sonic` | `smol` | Antigravity Gemini 3.7 Flash Medium |
-| High-nuance prose, PRD synthesis, copy humanization, or brand-voice content | `writer` | `plan` | Codex GPT-5.6 Sol High |
+| High-nuance prose, PRD synthesis, copy humanization, or brand-voice content | `writer` | `plan` | Codex GPT-5.6 Terra High |
 Browser-visible visual, layout, responsive, accessibility, or UX work MUST route to `designer`/`vision` before the first browser-visible edit. This is a capability trigger, not a reasoning-complexity escalation, so it applies regardless of task size. Pure data, API, or non-visual wiring in a frontend file does not trigger `vision`. If the designer cannot start, surface the failure instead of silently implementing the visual work in the main `default` session.
 
 Route by the substance of the task, not keywords or file extensions. Do not delegate ordinary work merely to demonstrate orchestration. Dispatch two or more independent slices together in one task batch so they can run concurrently, after defining their shared contract. Keep sequential dependencies ordered: finish a prerequisite before launching work that requires its result. Automatic task isolation may select a copy-on-write, overlay, worktree, or recursive-copy backend; it does not remove the need for explicit, non-overlapping ownership. Every specialist returns a bounded result to the parent OMP session; the parent retains context, integration, conflict resolution, and final verification ownership.
@@ -89,7 +89,7 @@ Built-in agents ship with OMP; `config/omp/agents/` tracks a definition only whe
 |---|---|---|---|
 | `reviewer` | `@slow` | `@advisor` | Bundled, the reviewer runs on **Codex — the same pool it reviews**. This override is what makes vendor independence real rather than aspirational. |
 | `security-reviewer` | *(none)* | `@advisor-xhigh` | Bundled declares no model at all. |
-| `librarian` | `@smol` | `@research` | Flash Lite cannot carry evidence-heavy external reading. |
+| `librarian` | `@smol` | `@research` | Bundled, evidence-heavy external reading shares the mechanical-support role and cannot be retargeted without moving `sonic` too. |
 | `scout` | `@smol` | `@discovery` | A weak model here yields a confident wrong map. |
 | `designer` | `@designer` | `@vision` | Keeps the visual lane on one role name. |
 
@@ -97,7 +97,7 @@ Built-in agents ship with OMP; `config/omp/agents/` tracks a definition only whe
 
 Bundled definitions carry their own `model` and `thinkingLevel` declarations, and `agentModelOverrides` is what makes routing deterministic on top of them. Two consequences follow. A role named in a bundled definition must exist here even when an override also covers it, which is why `designer` is defined as a role alias beside `vision`. And a role's reasoning suffix must be a level its model actually supports, because an agent may declare its own level independently: `librarian` declares `minimal`, so `research` uses Gemini 3.7 Flash, which supports it, rather than Gemini 3.1 Pro, which offers only `low` and `high`.
 
-Two bundled agents can spawn further agents: `reviewer` may spawn `scout`, and `task` may spawn any agent. Combined with a concurrency limit of eight, a single delegated task can therefore expand into a wider fleet than the dispatching decision implies. Give `task` an explicitly bounded assignment, and treat nested spawning as delegation the parent still owns and must verify.
+Two bundled agents can spawn further agents: `reviewer` may spawn `scout`, and `task` may spawn any agent. Combined with a concurrency limit of three, a single delegated task can therefore expand into a wider fleet than the dispatching decision implies. Give `task` an explicitly bounded assignment, and treat nested spawning as delegation the parent still owns and must verify.
 
 The model shown in the main OMP header remains the main context owner's model. The task widget's resolved-model badge identifies the model actually running each specialist; no `designer` task means no visual specialist was dispatched.
 

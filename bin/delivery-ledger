@@ -168,7 +168,55 @@ def child_boundaries_overlap(left: dict, right: dict) -> bool:
     if left["kind"] == "subtree" and right["kind"] == "subtree":
         return left["root"] == right["root"] or left["root"].startswith(right["root"] + "/") or right["root"].startswith(left["root"] + "/")
     subtree, exact = (left, right) if left["kind"] == "subtree" else (right, left)
-    return exact["root"].startswith(subtree["root"] + "/")
+    # `src/auth` and `src/auth/**` are the same surface: the exact path is the
+    # subtree root itself, so equality collides just as containment does.
+    return exact["root"] == subtree["root"] or exact["root"].startswith(subtree["root"] + "/")  # subtree-root guard
+
+
+UNRESOLVED_PROVENANCE = {"", "unknown", "none", "n/a"}
+UNAVAILABLE_PREFIX = "unavailable:"
+
+
+def provenance_key(value: str | None) -> str:
+    """Fold a route or identity to its comparison form.
+
+    Independence is decided by string equality, so the comparison must not be
+    fooled by presentation. `Developer` is the same person as `developer`, and
+    `impl-model ` is the same model as `impl-model`; comparing them raw let a
+    worker approve its own R3 change by retyping its name in a different case.
+    """
+    return (value or "").strip().casefold()
+
+
+def ascii_provenance(value: str | None, label: str) -> None:
+    """Reject a non-ASCII identity or route value.
+
+    Case and whitespace folding cannot see a homoglyph: `develοper` with a Greek
+    omicron survives casefold as a different string, which is enough to pass the
+    self-review check and to smuggle a look-alike `unknown` past the provenance
+    guard. Confusable tables are not in the standard library, and these fields
+    are machine names rather than prose, so the whole class is closed by
+    refusing non-ASCII here.
+    """
+    if not (value or "").strip().isascii():  # ascii-provenance guard
+        raise ValueError(f"{label} must be ASCII; a look-alike character is not a second identity: {value!r}")
+
+
+def resolved_provenance(value: str | None) -> bool:
+    """Routing provenance is evidence; `unknown` is the absence of it.
+
+    A metric that genuinely does not exist — a deterministic script has no model
+    route — is recorded as `unavailable: <reason>`. That is a statement someone
+    made and can be argued with; `unknown` is a field nobody filled in. Refusing
+    the second while accepting the first is what stops the guard from pushing
+    callers into inventing a plausible route.
+    """
+    if not value:
+        return False
+    normalized = value.strip().lower()
+    if normalized.startswith(UNAVAILABLE_PREFIX):
+        return bool(normalized[len(UNAVAILABLE_PREFIX):].strip())
+    return normalized not in UNRESOLVED_PROVENANCE
 
 
 def canonical_owner(value: str) -> str:
@@ -338,6 +386,25 @@ def verify_run(path: Path) -> list[str]:
                         problems.append(f"{path.name}: PASS cannot follow failed boundary check")
                     if latest.get("result") == "REVIEW_REQUIRED" and not any(event.get("type") == "boundary_review" and event.get("boundaryCheckEventHash") == latest.get("eventHash") and event.get("status") == "APPROVED" for event in events[:finishes[0]]):
                         problems.append(f"{path.name}: review-required boundary lacks approval")
+    # Reviews recorded before the provenance contract existed carry no evidence
+    # digest. They stay valid history: the chain still covers them, and `finish`
+    # separately refuses a PASS unless some approval has an intact digest, so a
+    # stripped digest cannot buy anything going forward.
+    run_head = events[0]
+    for index, event in enumerate(events, start=1):
+        if event.get("type") != "boundary_review" or "reviewEvidenceDigest" not in event:
+            continue
+        if event.get("reviewEvidenceDigest") != review_evidence_digest(event):
+            problems.append(f"{path.name}:{index}: boundary review evidence digest does not match its recorded fields")
+        identity = ("reviewer", "reviewerModel", "reviewerProvider", "reviewerReasoningEffort")
+        if any(not resolved_provenance(event.get(key)) for key in identity):
+            problems.append(f"{path.name}:{index}: boundary review carries unknown reviewer provenance")
+        if any(not str(event.get(key) or "").isascii() for key in identity):
+            problems.append(f"{path.name}:{index}: boundary review carries a non-ASCII reviewer identity or route")
+        if provenance_key(event.get("reviewer")) == provenance_key(run_head.get("worker")):
+            problems.append(f"{path.name}:{index}: boundary review was performed by the implementer")
+        if RISK_ORDER.get(str(event.get("effectiveRisk")), 0) >= RISK_ORDER["R3"] and provenance_key(event.get("reviewerModel")) == provenance_key(run_head.get("model")) and provenance_key(event.get("reviewerProvider")) == provenance_key(run_head.get("provider")):
+            problems.append(f"{path.name}:{index}: boundary review reused the implementer route where independence is required")
     return problems
 
 
@@ -435,6 +502,18 @@ def cmd_start(repo: Path, a) -> int:
         raise ValueError("protected risk must be R0-R4")
     if a.risk != "R0" and not allowed:
         raise ValueError("R1-R4 runs require at least one --allow change-surface pattern")
+    for label, value in (("worker", a.worker), ("model", a.model), ("provider", a.provider), ("reasoningEffort", a.reasoning_effort)):
+        ascii_provenance(value, label)
+    if a.risk != "R0":  # routing-provenance guard
+        unresolved = [
+            label for label, value in (("model", a.model), ("provider", a.provider), ("reasoningEffort", a.reasoning_effort))
+            if not resolved_provenance(value)
+        ]
+        if unresolved:
+            raise ValueError(
+                "R1-R4 runs require resolved routing provenance; record the real route or stop: "
+                + ", ".join(f"{label}=unknown" for label in unresolved)
+            )
     baseline = snapshot_dirty(repo)
     overlaps = [entry["path"] for entry in baseline if matches(entry["path"], allowed)]
     unaccepted = [path for path in overlaps if not matches(path, accepted_dirty_patterns)]
@@ -560,6 +639,18 @@ def cmd_start_child(repo: Path, a) -> int:
     require_id(a.child, "child id"); require_id(a.task, "task")
     if a.risk not in RISK:
         raise ValueError("risk must be R0-R4")
+    for label, value in (("model", a.model), ("provider", a.provider), ("reasoningEffort", a.reasoning_effort)):
+        ascii_provenance(value, label)
+    if a.risk != "R0":  # child-routing-provenance guard
+        unresolved = [
+            label for label, value in (("model", a.model), ("provider", a.provider), ("reasoningEffort", a.reasoning_effort))
+            if not resolved_provenance(value)
+        ]
+        if unresolved:
+            raise ValueError(
+                "R1-R4 child runs require resolved routing provenance; record the real route or stop: "
+                + ", ".join(f"{label}=unknown" for label in unresolved)
+            )
     boundaries = [child_boundary(value) for value in a.allow]
     if not boundaries:
         raise ValueError("child run requires at least one --allow boundary")
@@ -610,7 +701,7 @@ def cmd_start_child(repo: Path, a) -> int:
         if any(boundary_touches_pattern(boundary, rule["pattern"]) for boundary in boundaries) and RISK_ORDER[a.risk] < RISK_ORDER[rule["minimumRisk"]]:
             raise ValueError(f"child risk {a.risk} is insufficient for protected boundary {rule['pattern']}")
     event = event_base(repo, "child_started", run_id)
-    event.update({"child": a.child, "task": a.task, "risk": a.risk, "allowedPaths": [boundary["pattern"] for boundary in boundaries], "boundaries": boundaries, "owners": owners, "dependencies": dependencies, "acceptedInvariants": invariants})
+    event.update({"child": a.child, "task": a.task, "risk": a.risk, "model": a.model, "provider": a.provider, "reasoningEffort": a.reasoning_effort, "allowedPaths": [boundary["pattern"] for boundary in boundaries], "boundaries": boundaries, "owners": owners, "dependencies": dependencies, "acceptedInvariants": invariants})
     append_event(run_path, event); save_current(repo, data)
     print(f"delivery-ledger: CHILD STARTED {a.child}")
     return OK
@@ -886,13 +977,37 @@ def cmd_check_boundary(repo: Path, as_json: bool) -> int:
     return FAILED if report["result"] == "FAIL" else UNVERIFIED if report["result"] == "REVIEW_REQUIRED" else OK
 
 
+REVIEW_EVIDENCE_KEYS = (
+    "boundaryCheckEventHash", "surfaceDigest", "effectiveRisk",
+    "reviewer", "reviewerModel", "reviewerProvider", "reviewerReasoningEffort",
+    "implementerWorker", "implementerModel", "implementerProvider",
+)
+
+
+def review_evidence_digest(event: dict) -> str:
+    return digest({key: event.get(key) for key in REVIEW_EVIDENCE_KEYS})
+
+
 def cmd_review_boundary(repo: Path, a) -> int:
     require_id(a.reviewer, "reviewer")
     data, run_id, run_path = active(repo)
     events = read_events(run_path)
     start = run_start(events)
-    if a.reviewer in {"unknown", start.get("worker")}:
-        raise ValueError("boundary reviewer must be identified and independent from the worker")
+    reviewer = {
+        "reviewer": a.reviewer,
+        "reviewerModel": a.reviewer_model,
+        "reviewerProvider": a.reviewer_provider,
+        "reviewerReasoningEffort": a.reviewer_reasoning,
+    }
+    for label, value in reviewer.items():
+        ascii_provenance(value, label)
+    unresolved = sorted(label for label, value in reviewer.items() if not resolved_provenance(value))
+    if unresolved:
+        raise ValueError(
+            "independent review requires resolved reviewer provenance; unknown: " + ", ".join(unresolved)
+        )
+    if provenance_key(a.reviewer) == provenance_key(start.get("worker")):
+        raise ValueError("boundary reviewer must be independent from the worker")
     checks = [event for event in events if event.get("type") == "boundary_check"]
     if not checks or checks[-1].get("result") != "REVIEW_REQUIRED":
         raise ValueError("latest boundary check is not REVIEW_REQUIRED")
@@ -900,8 +1015,26 @@ def cmd_review_boundary(repo: Path, a) -> int:
     latest = checks[-1]
     if current["result"] != "REVIEW_REQUIRED" or current["surfaceDigest"] != latest.get("surfaceDigest"):
         raise ValueError("change surface moved after boundary check; run check-boundary again")
+    # A different reviewer *label* on the implementer's own route is self-review.
+    # Where policy demands independence, the route itself has to differ.
+    if RISK_ORDER[current["effectiveRisk"]] >= RISK_ORDER["R3"]:  # review-independence guard
+        if provenance_key(a.reviewer_model) == provenance_key(start.get("model")) and provenance_key(a.reviewer_provider) == provenance_key(start.get("provider")):
+            raise ValueError(
+                "independent review at {} requires a reviewer model or provider different from the implementer route "
+                "{}/{}".format(current["effectiveRisk"], start.get("provider"), start.get("model"))
+            )
     event = event_base(repo, "boundary_review", run_id)
-    event.update({"reviewer": a.reviewer, "boundaryCheckEventHash": latest["eventHash"], "surfaceDigest": current["surfaceDigest"], "effectiveRisk": current["effectiveRisk"], "status": "APPROVED"})
+    event.update(reviewer)
+    event.update({
+        "boundaryCheckEventHash": latest["eventHash"],
+        "surfaceDigest": current["surfaceDigest"],
+        "effectiveRisk": current["effectiveRisk"],
+        "implementerWorker": start.get("worker"),
+        "implementerModel": start.get("model"),
+        "implementerProvider": start.get("provider"),
+        "status": "APPROVED",
+    })
+    event["reviewEvidenceDigest"] = review_evidence_digest(event)
     append_event(run_path, event); save_current(repo, data)
     print(f"delivery-ledger: BOUNDARY APPROVED reviewer={a.reviewer}")
     return OK
@@ -943,6 +1076,8 @@ def cmd_finish(repo: Path, a) -> int:
                 reviews = [event for event in events if event.get("type") == "boundary_review" and event.get("boundaryCheckEventHash") == latest.get("eventHash") and event.get("status") == "APPROVED"]
                 if not reviews:
                     raise ValueError("PASS requires approved boundary review")
+                if not any(event.get("reviewEvidenceDigest") == review_evidence_digest(event) for event in reviews):
+                    raise ValueError("PASS requires approved boundary review with intact reviewer evidence")
             boundary_evidence = {"result": report["result"], "effectiveRisk": report["effectiveRisk"], "surfaceDigest": report["surfaceDigest"], "boundaryCheckEventHash": latest.get("eventHash")}
     e = event_base(repo, "run_finished", run_id); e.update({"result": a.result, "detail": a.detail, "boundary": boundary_evidence})
     append_event(run_path, e)
@@ -1067,7 +1202,7 @@ def main() -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init")
     s=sub.add_parser("start"); s.add_argument("--task",required=True); s.add_argument("--requirement",required=True); s.add_argument("--risk",required=True); s.add_argument("--job",default="implementation"); s.add_argument("--capability",default="unattributed"); s.add_argument("--worker",default="unknown"); s.add_argument("--model",default="unknown"); s.add_argument("--provider",default="unknown"); s.add_argument("--reasoning-effort",default="unknown"); s.add_argument("--allow",action="append",default=[]); s.add_argument("--owner",action="append",default=[]); s.add_argument("--protect",action="append",default=[]); s.add_argument("--protected-risk",default="R3"); s.add_argument("--accept-dirty",action="append",default=[])
-    sc=sub.add_parser("start-child"); sc.add_argument("--child",required=True); sc.add_argument("--task",required=True); sc.add_argument("--risk",required=True); sc.add_argument("--allow",action="append",default=[]); sc.add_argument("--owner",action="append",default=[]); sc.add_argument("--invariant",action="append",default=[]); sc.add_argument("--depends-on",action="append",default=[])
+    sc=sub.add_parser("start-child"); sc.add_argument("--child",required=True); sc.add_argument("--task",required=True); sc.add_argument("--risk",required=True); sc.add_argument("--model",default="unknown"); sc.add_argument("--provider",default="unknown"); sc.add_argument("--reasoning-effort",default="unknown"); sc.add_argument("--allow",action="append",default=[]); sc.add_argument("--owner",action="append",default=[]); sc.add_argument("--invariant",action="append",default=[]); sc.add_argument("--depends-on",action="append",default=[])
     po=sub.add_parser("claim-owner"); po.add_argument("--owner",action="append",default=[])
     rc=sub.add_parser("record-child"); rc.add_argument("--child",required=True); rc.add_argument("--check",required=True); rc.add_argument("--status",required=True); rc.add_argument("--detail",default="")
     fc=sub.add_parser("finish-child"); fc.add_argument("--child",required=True); fc.add_argument("--result",required=True); fc.add_argument("--patch"); fc.add_argument("--detail",default="")
@@ -1075,7 +1210,7 @@ def main() -> int:
     r=sub.add_parser("record"); r.add_argument("--check",required=True); r.add_argument("--status",required=True); r.add_argument("--detail",default="")
     e=sub.add_parser("expand-scope"); e.add_argument("--path",required=True); e.add_argument("--reason",required=True); e.add_argument("--required-by",required=True); e.add_argument("--risk",required=True); e.add_argument("--verification",action="append",default=[])
     b=sub.add_parser("check-boundary"); b.add_argument("--json",action="store_true")
-    v=sub.add_parser("review-boundary"); v.add_argument("--reviewer",required=True)
+    v=sub.add_parser("review-boundary"); v.add_argument("--reviewer",required=True); v.add_argument("--reviewer-model",required=True); v.add_argument("--reviewer-provider",required=True); v.add_argument("--reviewer-reasoning",required=True)
     c=sub.add_parser("checkpoint"); c.add_argument("--note",default="")
     f=sub.add_parser("finish"); f.add_argument("--result",required=True); f.add_argument("--detail",default="")
     x=sub.add_parser("snapshot-release"); x.add_argument("--release-id",required=True)

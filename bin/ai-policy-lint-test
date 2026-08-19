@@ -41,4 +41,172 @@ set -e
 grep -qF "deliberate-actionlint-failure" "$TMP/policy.log" || fail "actionlint output was not preserved"
 grep -qF "GitHub workflows failed" "$TMP/policy.log" || fail "actionlint failure lost its policy-gate owner"
 
+
+# ── Task execution contract ─────────────────────────────────────────────────
+# The contract rules run against fixtures through ai-policy-lint's own
+# --task-contracts entry point, so this exercises the shipped code path rather
+# than a copy of the rules.
+LINT="$ROOT/bin/ai-policy-lint"
+contracts(){ "$LINT" --task-contracts "$@"; }
+
+"$LINT" --task-contracts "$ROOT/TASKS.md" "$ROOT/config/templates/TASKS.md" >"$TMP/contracts.log" 2>&1 || {
+  cat "$TMP/contracts.log" >&2
+  fail "tracked task contracts must satisfy the lint"
+}
+
+good_task(){
+  cat <<'MD'
+## Done
+### TASK-900: Well-formed implementation task
+- **Requirement:** REQ-900
+- **Risk Level:** R3
+- **Allowed Paths:** `src/**`
+- **Protected Paths:** `src/auth/**`
+- **Canonical Contract Owners:** `identity.session`
+- **Accepted Invariants:** session rotation stays observable
+- **Depends On:** None
+- **Regression Checks:** `npm test`
+- **Reopen Conditions:** rotation regression reproduces
+- **Non-Scope:** billing
+- **Escalation Conditions:** verification fails twice
+MD
+}
+
+good_task > "$TMP/good.md"
+contracts "$TMP/good.md" >/dev/null || fail "a complete R3 task must pass the contract lint"
+
+reject_contract(){
+  local label="$1" file="$2" expected="$3"
+  set +e
+  contracts "$file" > "$TMP/contract.log" 2>&1
+  local rc=$?
+  set -e
+  [ "$rc" -eq 1 ] || { cat "$TMP/contract.log" >&2; fail "task contract lint accepted: $label"; }
+  grep -qF "$expected" "$TMP/contract.log" || {
+    cat "$TMP/contract.log" >&2
+    fail "task contract lint lost its reason for: $label"
+  }
+}
+
+good_task | grep -v '^- \*\*Non-Scope' > "$TMP/no-scope.md"
+reject_contract "missing Non-Scope" "$TMP/no-scope.md" "missing required field: Non-Scope"
+
+good_task | grep -v '^- \*\*Canonical Contract Owners' > "$TMP/no-owner.md"
+reject_contract "missing owner" "$TMP/no-owner.md" "Canonical Contract Owners or Shared Owner"
+
+good_task | grep -v '^- \*\*Reopen Conditions' > "$TMP/no-reopen.md"
+reject_contract "missing Reopen Conditions" "$TMP/no-reopen.md" "missing required field: Reopen Conditions"
+
+good_task | grep -v '^- \*\*Protected Paths' > "$TMP/no-protected.md"
+reject_contract "R3 without protected surface" "$TMP/no-protected.md" "is R3 and must declare"
+
+good_task | sed 's/^- \*\*Depends On:\*\* None/- **Depends On:**/' > "$TMP/empty-conditional.md"
+reject_contract "empty conditional field" "$TMP/empty-conditional.md" "declares Depends On with no value"
+
+good_task | sed 's/^- \*\*Risk Level:\*\* R3/- **Risk Level:** high/' > "$TMP/no-risk.md"
+reject_contract "unparsable risk level" "$TMP/no-risk.md" "no parsable Risk Level"
+
+{ good_task; good_task | tail -n +2; } > "$TMP/duplicate.md"
+reject_contract "duplicate task ID" "$TMP/duplicate.md" "duplicate task ID TASK-900"
+
+# A fenced contract template is documentation, not a declared task.
+{ printf '## Template\n\n```markdown\n'; good_task | tail -n +2 | grep -v '^- \*\*Non-Scope'; printf '```\n'; } > "$TMP/fenced.md"
+contracts "$TMP/fenced.md" >/dev/null || fail "a fenced task template must not be linted as a declared task"
+
+# An unclosed fence must be reported, not silently swallow every task below it.
+{ printf '## Notes\n\n```\nstray\n'; good_task | tail -n +2 | grep -v '^- \*\*Non-Scope'; } > "$TMP/unclosed.md"
+reject_contract "unclosed code fence" "$TMP/unclosed.md" "unclosed code fence"
+
+# A task heading without the usual colon is still a task, not an invisible one.
+good_task | sed 's/^### TASK-900: Well-formed implementation task/### TASK-900 — Well-formed implementation task/' \
+  | grep -v '^- \*\*Non-Scope' > "$TMP/no-colon.md"
+reject_contract "task heading without a colon" "$TMP/no-colon.md" "missing required field: Non-Scope"
+
+# Markdown fences may be tildes, and an unclosed one hides just as much.
+{ printf '## Notes\n\n~~~\nstray\n'; good_task | tail -n +2 | grep -v '^- \*\*Non-Scope'; } > "$TMP/unclosed-tilde.md"
+reject_contract "unclosed tilde fence" "$TMP/unclosed-tilde.md" "unclosed code fence"
+{ printf '## Template\n\n~~~markdown\n'; good_task | tail -n +2 | grep -v '^- \*\*Non-Scope'; printf '~~~\n'; } > "$TMP/fenced-tilde.md"
+contracts "$TMP/fenced-tilde.md" >/dev/null || fail "a tilde-fenced task template must not be linted as a declared task"
+
+MUT_FENCE="$TMP/mutant-fence-ai-policy-lint"
+sed 's/    if fence_opened_at is not None:  # unbalanced-fence guard/    if False:  # unbalanced-fence guard/' "$LINT" > "$MUT_FENCE"
+python3 "$MUT_FENCE" --task-contracts "$TMP/unclosed.md" >/dev/null \
+  || fail "mutation probe did not neutralize the unbalanced-fence guard"
+
+# Mutation proof: without the required-field loop the negative fixture passes.
+MUT_LINT="$TMP/mutant-ai-policy-lint"
+sed 's/for names in REQUIRED_TASK_FIELDS:  # required-field guard/for names in ():  # required-field guard/' "$LINT" > "$MUT_LINT"
+chmod +x "$MUT_LINT"
+python3 "$MUT_LINT" --task-contracts "$TMP/no-scope.md" >/dev/null \
+  || fail "mutation probe did not neutralize the required-field guard"
+
+# The template doc-presence check must be *derived* from REQUIRED_TASK_FIELDS,
+# not a second hand-maintained list — otherwise a field added to one silently
+# stops being required in the other. It also applies ONLY to
+# config/templates/TASKS.md, never to root TASKS.md (a live task archiving the
+# one entry that happened to use a given alias must not fail the lint over
+# vocabulary root TASKS.md never promised to keep saying). Exercise
+# check_templates() in isolation against a template that documents nothing,
+# and confirm every current required-field obligation — including aliases and
+# the newly-added Reopen Conditions — is what it demands, with EXACT field-name
+# matching so "Escalation Conditions" cannot stand in for "Escalation
+# Condition" (a prior version of this probe used substring matching and could
+# not have caught that exact regression).
+python3 - "$LINT" <<'PY'
+import importlib.util
+from importlib.machinery import SourceFileLoader
+import pathlib
+import sys
+import tempfile
+
+loader = SourceFileLoader("ai_policy_lint_probe", sys.argv[1])
+spec = importlib.util.spec_from_loader(loader.name, loader)
+mod = importlib.util.module_from_spec(spec)
+loader.exec_module(mod)
+
+MARKER = " missing task boundary field: "
+
+with tempfile.TemporaryDirectory() as raw:
+    tmp = pathlib.Path(raw)
+    root = tmp / "root"
+    templates = root / "config" / "templates"
+    templates.mkdir(parents=True)
+    (root / "TASKS.md").write_text("no fields here\n")
+    (templates / "TASKS.md").write_text("no fields here\n")
+    mod.ROOT, mod.TEMPLATES_DIR = root, templates
+    mod.errors, mod.warnings = [], []
+    mod.check_templates()
+    # Attribute each error to its emitting file, not just its field name — a
+    # prior version of this probe pooled field names across both files, so it
+    # could not tell "the template was field-checked" from "root TASKS.md was
+    # field-checked too", and its file-scoping assertion matched a label
+    # ("root/TASKS.md ...") the code never actually emits, so it could never
+    # fail even when the regression it names was reintroduced.
+    by_file = {}
+    for e in mod.errors:
+        if MARKER not in e:
+            continue
+        label, field = e.split(MARKER, 1)
+        by_file.setdefault(label, set()).add(field)
+    template_label = str((templates / "TASKS.md").relative_to(root))
+    root_label = str((root / "TASKS.md").relative_to(root))
+    reported = by_file.get(template_label, set())
+    expected = {name for names in mod.REQUIRED_TASK_FIELDS for name in names} | set(mod.PROTECTED_TASK_FIELD)
+    missing = expected - reported
+    assert not missing, f"check_templates did not derive from REQUIRED_TASK_FIELDS for: {missing}"
+    assert "Reopen Conditions" in reported, "the newly-required field was not propagated to the template check"
+    # Every alias spelling matters, not just the primary name: a template that
+    # documents only "Allowed Paths" and never "Change Surface" must still fail.
+    # Exact-match, so "Escalation Conditions" cannot satisfy "Escalation Condition".
+    for alias in ("Change Surface", "Protected Surface", "Shared Owner", "Escalation Condition"):
+        assert alias in reported, f"alias spelling {alias!r} was dropped from the template check"
+    # Root TASKS.md's content must never be field-checked by this function —
+    # only its existence. A root TASKS.md missing every field must not report
+    # any "missing task boundary field" error attributed to it.
+    assert root_label not in by_file, f"check_templates must not field-check root TASKS.md, but reported: {by_file.get(root_label)}"
+print("template-binding probe: OK")
+PY
+
+echo "ai-policy-lint-test: task contracts PASS"
+
 echo "ai-policy-lint-test: PASS"

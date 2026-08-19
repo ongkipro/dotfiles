@@ -18,7 +18,7 @@ python3 "$DL" --repo . init >/dev/null
 
 record_run(){
   model="$1" result="$2" cost="$3" repairs="$4" human="$5" escalated="$6"
-  python3 "$DL" --repo . start --task TASK-001 --requirement REQ-001 --risk R1 --worker task --model "$model" --allow 'benchmark-fixture/**' >/dev/null
+  python3 "$DL" --repo . start --task TASK-001 --requirement REQ-001 --risk R1 --worker task --provider bench-provider --reasoning-effort high --model "$model" --allow 'benchmark-fixture/**' >/dev/null
   python3 "$DL" --repo . record --check project-check --status PASS >/dev/null
   python3 "$DL" --repo . check-boundary >/dev/null
   python3 "$DL" --repo . finish --result "$result" >/dev/null
@@ -62,7 +62,7 @@ rc=$?
 set -e
 [ "$rc" -eq 1 ] || fail "non-finite metrics must be rejected"
 
-python3 "$DL" --repo . start --task TASK-NAN --requirement REQ-NAN --risk R1 --worker task --model model-a --allow 'benchmark-fixture/**' >/dev/null
+python3 "$DL" --repo . start --task TASK-NAN --requirement REQ-NAN --risk R1 --worker task --provider bench-provider --reasoning-effort high --model model-a --allow 'benchmark-fixture/**' >/dev/null
 python3 "$DL" --repo . record --check project-check --status PASS >/dev/null
 python3 "$DL" --repo . check-boundary >/dev/null
 python3 "$DL" --repo . finish --result PASS >/dev/null

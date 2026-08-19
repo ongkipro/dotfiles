@@ -1,6 +1,8 @@
 # Tasks — dotfiles
 
-Updated: 2026-08-17
+Snapshot cutoff: 2026-08-17. Filename and this line stay fixed at that date —
+entries closed afterward are appended under `## Done` with their own closure
+date stated inline, most recently 2026-08-19.
 
 Every implementation task traces to one accepted requirement, declares its risk
 class, defines explicit boundaries, and includes a runnable completion check.
@@ -52,6 +54,12 @@ applicable, and independent review evidence.
 ## In progress
 
 ### TASK-015: Harden OMP task integration and repository contracts
+
+> **Superseded.** This block is the in-progress state as of this file's own
+> 2026-08-17 snapshot. TASK-015 closed 2026-08-19 — see its closure record
+> under `## Done` below. Kept verbatim as the historical planning record; do
+> not treat it as current status.
+
 - **Requirement:** AUDIT-CTRL-01 — parallel AI work must preserve semantic ownership, executable evidence, bounded integration, and a compact authoritative context without changing the accepted model-routing graph.
 - **Risk Level:** R4
 - **Job:** implementation
@@ -103,6 +111,8 @@ applicable, and independent review evidence.
 ---
 
 ## Done
+- **TASK-016 / AUDIT-CTRL-01 — preserve bulk-bootstrap failure semantics (R3, closed 2026-08-18).** `bin/project-init`'s bulk bootstrap no longer reports success when a repository failed verification or was skipped for dirty user work: an all-complete run exits 0, any failure exits 1, and a safe dirty/blocked skip exits 2 while leaving dirty files untouched. Linux fixtures proved all three exit paths and dirty-file preservation; `ai-doctor --self-test` passed every critical gate.
+- **TASK-015 / AUDIT-CTRL-01 — harden OMP task integration and repository contracts (R4, closed 2026-08-19).** Parallel AI work now preserves semantic ownership, executable evidence, bounded integration, and compact authoritative context without changing the accepted model-routing graph: no automatic isolated-patch apply, recursion capped at one level, child LSP enabled, the parent integrates verified patches sequentially only after every child finishes, and routing selectors were left unchanged. `bin/omp-routing-test`, `bin/omp-effective-routing-test`, `bin/delivery-ledger-test`, `bin/project-init-test`, `bin/ai-policy-lint`, and `ai-doctor --self-test` all passed on Linux; macOS and hosted CI were not run. Overlay loading through OMP's `models --config` path passed; OMP 17.3.5's global-flag rejection on `config` remained explicit `PARTIAL`. Existing-repository bootstrap completed for four clean repositories, skipped four dirty repositories without touching them, and retained one pre-existing `accuflow` lint failure as honest `FAIL` evidence rather than silently passing over it.
 - **TASK-014 / AUDIT-BOUNDARY-01 — deterministic task change boundaries.** `delivery-ledger` now captures base HEAD plus content fingerprints for pre-existing tracked and untracked work, requires an allowed surface for R1-R4 runs, classifies the final task-owned surface, rejects unexpected HEAD movement and unexplained scope, and binds `PASS` to a current boundary check. Requirement-linked expansion records carry risk and named verification; protected, expanded, touched-dirty, escalated, and R3/R4 surfaces require an independently identified reviewer. `diff-risk` remains the sole sensitive-path classifier through its explicit task-path mode, and `project-init` records a bounded bootstrap run without claiming pre-existing files as task work. The behavioral matrix covers allowed/forbidden paths, dirty overlap, globs, protected escalation, justified and unjustified expansion, delete/new/rename, HEAD movement, portability-sensitive paths, preservation of user work, and a mutation that proves the unexplained-scope guard is non-vacuous. Linux focused tests and the complete `ai-doctor --self-test` gate pass; macOS execution and hosted CI were not run for this uncommitted change, with hosted Actions still externally blocked by TASK-013.
 
 - **2026-08-17 final remediation verification.** The original 53-skill audit baseline is fully reconciled; retiring `sandbox-sdk` in favor of `sandbox-stable` plus `sandbox-next` leaves 54 canonical skills. Final adversarial review found and closed two validator defects: fallback effort lists were word-split into a single invalid token, and tracked-overlay structural mode bypassed selector and effort checks. A negative overlay mutation now fails when an `xhigh` advisor has only `high` recovery, while valid Linux and real-Mac overlays pass. Shared/project memory was reduced to advisory repository pointers, accidental demo credentials were removed from tracked memory, and `ai-memory-hygiene --strict` reports zero issues. The complete `ai-doctor --self-test` passes every critical gate on Linux and in an isolated real-Mac fixture; Mac-only missing direct-provider catalogs remain explicit partial coverage rather than false failures.

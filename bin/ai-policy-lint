@@ -9,6 +9,7 @@ dotfiles.
 from pathlib import Path
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -127,18 +128,178 @@ def check_templates():
         if not (TEMPLATES_DIR / t).is_file():
             err(f"Missing required project template: {t}")
 
-    task_fields = (
-        "Change Surface", "Protected Surface", "Accepted Invariants",
-        "Shared Owner", "Regression Checks", "Reopen Conditions",
-    )
+    # Derived from the same obligations `check_task_contracts` enforces per task,
+    # not a second hand-maintained list — a field added to REQUIRED_TASK_FIELDS
+    # now automatically has to be documented in the template too, closing the
+    # gap where the two could silently drift apart. Every alias spelling is
+    # checked, not just the first: taking only the primary name silently
+    # stopped requiring "Change Surface" / "Protected Surface" / "Shared Owner"
+    # to appear anywhere, even though `check_task_contracts` still accepts a
+    # task written with those spellings.
+    #
+    # This teaching-completeness check applies ONLY to the template, not to
+    # root TASKS.md. Root TASKS.md's actual task entries are already validated
+    # per-task, per-field by `check_task_contracts` below, which correctly
+    # accepts any listed spelling. Requiring every alias to additionally appear
+    # SOMEWHERE in the whole live document would create a trap this repo's own
+    # archival pattern walks straight into: archiving the one remaining task
+    # that happens to use a given alias spelling (exactly what this task did
+    # to TASK-015/TASK-016) would fail the lint on an otherwise-correct
+    # repository for a reason with nothing to do with that change.
     for task_file in (ROOT / "TASKS.md", TEMPLATES_DIR / "TASKS.md"):
         if not task_file.is_file():
             err(f"Missing task contract: {task_file}")
-            continue
-        content = task_file.read_text(encoding="utf-8")
-        for field in task_fields:
+
+    template_fields = [name for names in (*REQUIRED_TASK_FIELDS, PROTECTED_TASK_FIELD) for name in names]
+    template_tasks_file = TEMPLATES_DIR / "TASKS.md"
+    if template_tasks_file.is_file():
+        content = template_tasks_file.read_text(encoding="utf-8")
+        for field in template_fields:
             if f"**{field}:**" not in content:
-                err(f"{task_file.relative_to(ROOT)} missing task boundary field: {field}")
+                err(f"{template_tasks_file.relative_to(ROOT)} missing task boundary field: {field}")
+
+
+# ── Task execution contract ──────────────────────────────────────────────────
+# `check_templates` only proves the field *names* appear somewhere in the file,
+# which a single fenced template satisfies for every task beneath it. These
+# checks read each declared task instead, so an R1-R4 task that silently drops
+# its boundary, owner, or escalation contract fails here.
+
+TASK_HEADING = re.compile(r"^###\s+(TASK-[A-Za-z0-9._-]+)\b")
+TASK_FIELD = re.compile(r"^-\s+\*\*(.+?):\*\*\s*(.*)$")
+RISK_VALUE = re.compile(r"^R([0-4])\b")
+
+# Each entry is one contract obligation; any listed spelling satisfies it.
+# "Change Surface", "Protected Surface", and "Shared Owner" are the compatibility
+# aliases config/templates/TASKS.md documents. "Regression Checks" and
+# "Verification" are grouped because the obligation is one runnable completion
+# check under either heading, not because the template calls them aliases.
+REQUIRED_TASK_FIELDS = (
+    ("Requirement",),
+    ("Risk Level",),
+    ("Allowed Paths", "Change Surface"),
+    ("Canonical Contract Owners", "Shared Owner"),
+    ("Accepted Invariants",),
+    ("Regression Checks", "Verification"),
+    ("Reopen Conditions",),
+    ("Non-Scope",),
+    ("Escalation Conditions", "Escalation Condition"),
+)
+PROTECTED_TASK_FIELD = ("Protected Paths", "Protected Surface")
+# Conditional: required only where it applies, but never allowed to be empty.
+CONDITIONAL_TASK_FIELDS = (
+    ("Depends On",),
+    PROTECTED_TASK_FIELD,
+    ("Runtime Evidence",),
+    ("Rollback/Migration State",),
+    ("Producers",),
+    ("Consumers",),
+)
+
+
+def parse_task_contracts(text):
+    """Return (tasks, unbalanced_fence_line), ignoring fenced templates.
+
+    An odd number of fences would otherwise swallow every task after it and the
+    file would lint clean by having been mostly unread, so the caller is told.
+    """
+    tasks = []
+    fence_opened_at = None
+    fenced = False
+    current = None
+    for number, line in enumerate(text.splitlines(), start=1):
+        if line.lstrip().startswith(("```", "~~~")):
+            fence_opened_at = None if fenced else number
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        heading = TASK_HEADING.match(line)
+        if heading:
+            current = (heading.group(1), number, {})
+            tasks.append(current)
+            continue
+        if current is None:
+            continue
+        if line.startswith("#"):
+            current = None
+            continue
+        field = TASK_FIELD.match(line)
+        if field:
+            current[2][field.group(1).strip()] = field.group(2).strip()
+    return tasks, fence_opened_at
+
+
+def lint_task_contracts(label, text):
+    """Return a list of contract violations for one TASKS.md body."""
+    problems = []
+    seen = {}
+    tasks, fence_opened_at = parse_task_contracts(text)
+    if fence_opened_at is not None:  # unbalanced-fence guard
+        problems.append(
+            "{}:{}: unclosed code fence; every task below it is invisible to the "
+            "contract lint".format(label, fence_opened_at)
+        )
+    for task_id, number, fields in tasks:
+        if task_id in seen:
+            problems.append(
+                "{}:{}: duplicate task ID {} (first declared at line {}); "
+                "delivery evidence cannot be matched to a repeated ID".format(
+                    label, number, task_id, seen[task_id]
+                )
+            )
+        else:
+            seen[task_id] = number
+
+        def value_of(names):
+            for name in names:
+                if name in fields:
+                    return fields[name]
+            return None
+
+        risk = value_of(("Risk Level",)) or ""
+        match = RISK_VALUE.match(risk)
+        if not match:
+            problems.append("{}:{}: {} has no parsable Risk Level".format(label, number, task_id))
+            continue
+        if int(match.group(1)) == 0:
+            continue
+        for names in REQUIRED_TASK_FIELDS:  # required-field guard
+            value = value_of(names)
+            if value is None:
+                problems.append(
+                    "{}:{}: {} is missing required field: {}".format(
+                        label, number, task_id, " or ".join(names)
+                    )
+                )
+            elif not value:
+                problems.append(
+                    "{}:{}: {} declares an empty {}".format(label, number, task_id, names[0])
+                )
+        if int(match.group(1)) >= 3 and value_of(PROTECTED_TASK_FIELD) is None:
+            problems.append(
+                "{}:{}: {} is R{} and must declare {}".format(
+                    label, number, task_id, match.group(1), " or ".join(PROTECTED_TASK_FIELD)
+                )
+            )
+        for names in CONDITIONAL_TASK_FIELDS:
+            for name in names:
+                if name in fields and not fields[name]:
+                    problems.append(
+                        "{}:{}: {} declares {} with no value; state it or omit it".format(
+                            label, number, task_id, name
+                        )
+                    )
+    return problems
+
+
+def check_task_contracts():
+    for task_file in (ROOT / "TASKS.md", TEMPLATES_DIR / "TASKS.md"):
+        if not task_file.is_file():
+            continue
+        label = str(task_file.relative_to(ROOT))
+        for problem in lint_task_contracts(label, task_file.read_text(encoding="utf-8")):
+            err(problem)
 
 
 def check_hot_context():
@@ -165,6 +326,7 @@ def main():
     run_canonical_gate("memory hygiene regression", [ROOT / "bin" / "ai-memory-hygiene-test", ROOT])
     report_memory_hygiene()
     check_templates()
+    check_task_contracts()
     check_hot_context()
 
     if warnings:
@@ -186,4 +348,13 @@ def main():
 
 
 if __name__ == "__main__":
+    # Narrow entry point so the task-contract rules can be exercised against
+    # fixtures without standing up a whole fake dotfiles root. Same code path.
+    if len(sys.argv) > 2 and sys.argv[1] == "--task-contracts":
+        findings = []
+        for name in sys.argv[2:]:
+            findings.extend(lint_task_contracts(name, Path(name).read_text(encoding="utf-8")))
+        for finding in findings:
+            print(finding)
+        sys.exit(1 if findings else 0)
     main()

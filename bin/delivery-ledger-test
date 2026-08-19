@@ -137,7 +137,7 @@ make_boundary_repo(){
 
 # Clean repository plus an allowed change passes and can finish.
 B1="$(make_boundary_repo boundary-allowed)"
-python3 "$DL" --repo "$B1" start --task TASK-B1 --requirement REQ-B1 --risk R1 --worker developer --model test --allow 'src/**' >/dev/null
+python3 "$DL" --repo "$B1" start --task TASK-B1 --requirement REQ-B1 --risk R1 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'src/**' >/dev/null
 printf 'task change\n' >> "$B1/src/feature.txt"
 python3 "$DL" --repo "$B1" record --check unit --status PASS >/dev/null
 python3 "$DL" --repo "$B1" check-boundary --json > "$TMP/b1.json"
@@ -149,7 +149,7 @@ python3 "$DL" --repo "$B1" finish --result PASS >/dev/null
 
 # An unrelated change fails, denies PASS, and does not reset or clean user work.
 B2="$(make_boundary_repo boundary-outside)"
-python3 "$DL" --repo "$B2" start --task TASK-B2 --requirement REQ-B2 --risk R1 --worker developer --model test --allow 'src/**' >/dev/null
+python3 "$DL" --repo "$B2" start --task TASK-B2 --requirement REQ-B2 --risk R1 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'src/**' >/dev/null
 printf 'must remain\n' >> "$B2/user.txt"
 python3 "$DL" --repo "$B2" record --check unit --status PASS >/dev/null
 set +e; python3 "$DL" --repo "$B2" check-boundary --json > "$TMP/b2.json"; rc=$?; set -e
@@ -162,7 +162,7 @@ python3 "$DL" --repo "$B2" finish --result FAIL >/dev/null
 # Unrelated pre-existing dirty work remains distinguishable and untouched.
 B3="$(make_boundary_repo boundary-dirty-unrelated)"
 printf 'pre-existing\n' >> "$B3/user.txt"
-python3 "$DL" --repo "$B3" start --task TASK-B3 --requirement REQ-B3 --risk R1 --worker developer --model test --allow 'src/**' >/dev/null
+python3 "$DL" --repo "$B3" start --task TASK-B3 --requirement REQ-B3 --risk R1 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'src/**' >/dev/null
 printf 'task\n' >> "$B3/src/feature.txt"
 python3 "$DL" --repo "$B3" record --check unit --status PASS >/dev/null
 python3 "$DL" --repo "$B3" check-boundary --json > "$TMP/b3.json"
@@ -175,20 +175,33 @@ python3 "$DL" --repo "$B3" finish --result PASS >/dev/null
 # Dirty overlap blocks by default; explicit continuation stays detectable and review-gated.
 B4="$(make_boundary_repo boundary-dirty-overlap)"
 printf 'pre-existing\n' >> "$B4/src/feature.txt"
-set +e; python3 "$DL" --repo "$B4" start --task TASK-B4 --requirement REQ-B4 --risk R1 --worker developer --model test --allow 'src/**' >/dev/null 2>&1; rc=$?; set -e
+set +e; python3 "$DL" --repo "$B4" start --task TASK-B4 --requirement REQ-B4 --risk R1 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'src/**' >/dev/null 2>&1; rc=$?; set -e
 [ "$rc" -eq 1 ] || fail "dirty overlap must block start"
-python3 "$DL" --repo "$B4" start --task TASK-B4 --requirement REQ-B4 --risk R1 --worker developer --model test --allow 'src/**' --accept-dirty 'src/feature.txt' >/dev/null
+python3 "$DL" --repo "$B4" start --task TASK-B4 --requirement REQ-B4 --risk R1 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'src/**' --accept-dirty 'src/feature.txt' >/dev/null
 printf 'task continuation\n' >> "$B4/src/feature.txt"
 python3 "$DL" --repo "$B4" record --check unit --status PASS >/dev/null
 set +e; python3 "$DL" --repo "$B4" check-boundary --json > "$TMP/b4.json"; rc=$?; set -e
 [ "$rc" -eq 2 ] || fail "changed accepted dirty overlap must require review"
 grep -q '"classification": "PREEXISTING"' "$TMP/b4.json" || fail "touched pre-existing path was not classified"
-python3 "$DL" --repo "$B4" review-boundary --reviewer independent-reviewer >/dev/null
+python3 "$DL" --repo "$B4" review-boundary --reviewer independent-reviewer --reviewer-model review-model --reviewer-provider review-provider --reviewer-reasoning high >/dev/null
 python3 "$DL" --repo "$B4" finish --result PASS >/dev/null
+
+# Child runs at R1-R4 must carry resolved routing provenance too — the
+# parent's guard means nothing if the paralleled worker's route is unrecorded.
+BCP="$(make_boundary_repo boundary-child-provenance)"
+python3 "$DL" --repo "$BCP" start --task TASK-BCP --requirement REQ-BCP --risk R2 --worker parent --model p --provider p --reasoning-effort high --allow 'src/**' >/dev/null
+set +e
+python3 "$DL" --repo "$BCP" start-child --child unresolved --task T --risk R1 --allow 'src/feature.txt' --owner one.k --invariant i >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 1 ] || fail "an R1-R4 child run must reject unresolved routing provenance"
+python3 "$DL" --repo "$BCP" start-child --child resolved --task T --risk R1 --model child-model --provider child-provider --reasoning-effort medium --allow 'src/feature.txt' --owner one.k --invariant i >/dev/null \
+  || fail "a resolved child route must be accepted"
+python3 "$DL" --repo "$BCP" finish --result BLOCKED >/dev/null
 
 # Globs handle nested, deleted, untracked, renamed, spaced, and Unicode paths.
 B5="$(make_boundary_repo boundary-paths)"
-python3 "$DL" --repo "$B5" start --task TASK-B5 --requirement REQ-B5 --risk R2 --worker developer --model test --allow 'src/**' --allow 'docs/**' --allow 'space dir/**' >/dev/null
+python3 "$DL" --repo "$B5" start --task TASK-B5 --requirement REQ-B5 --risk R2 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'src/**' --allow 'docs/**' --allow 'space dir/**' >/dev/null
 mkdir -p "$B5/src/deep/cart" "$B5/space dir"
 printf 'nested\n' > "$B5/src/deep/cart/cart1.txt"
 printf 'unicode\n' > "$B5/space dir/fitur-ä.txt"
@@ -204,7 +217,7 @@ python3 "$DL" --repo "$B5" finish --result PASS >/dev/null
 
 # A protected path raises effective risk and requires independent review.
 B6="$(make_boundary_repo boundary-protected)"
-python3 "$DL" --repo "$B6" start --task TASK-B6 --requirement REQ-B6 --risk R1 --worker developer --model test --allow 'auth/**' --protect 'auth/**' --protected-risk R3 >/dev/null
+python3 "$DL" --repo "$B6" start --task TASK-B6 --requirement REQ-B6 --risk R1 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'auth/**' --protect 'auth/**' --protected-risk R3 >/dev/null
 printf 'security change\n' >> "$B6/auth/session.txt"
 python3 "$DL" --repo "$B6" record --check auth-regression --status PASS >/dev/null
 set +e; python3 "$DL" --repo "$B6" check-boundary --json > "$TMP/b6.json"; rc=$?; set -e
@@ -213,12 +226,12 @@ python3 - "$TMP/b6.json" <<'PY'
 import json,sys
 d=json.load(open(sys.argv[1])); assert d['effectiveRisk']=='R3',d; assert d['protected']==['auth/session.txt'],d
 PY
-python3 "$DL" --repo "$B6" review-boundary --reviewer security-reviewer >/dev/null
+python3 "$DL" --repo "$B6" review-boundary --reviewer security-reviewer --reviewer-model review-model --reviewer-provider review-provider --reviewer-reasoning high >/dev/null
 python3 "$DL" --repo "$B6" finish --result PASS >/dev/null
 
 # A requirement-linked expansion fails until its named verification passes.
 B7="$(make_boundary_repo boundary-expansion)"
-python3 "$DL" --repo "$B7" start --task TASK-B7 --requirement REQ-B7 --risk R1 --worker developer --model test --allow 'src/**' >/dev/null
+python3 "$DL" --repo "$B7" start --task TASK-B7 --requirement REQ-B7 --risk R1 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'src/**' >/dev/null
 printf 'shared dependency\n' >> "$B7/auth/session.txt"
 set +e; python3 "$DL" --repo "$B7" expand-scope --path 'auth/session.txt' --reason cleanup --required-by 'REQ-B7 criterion 4' --risk R3 --verification auth-regression >/dev/null 2>&1; rc=$?; set -e
 [ "$rc" -eq 1 ] || fail "generic scope expansion reason must be rejected"
@@ -229,12 +242,12 @@ set +e; python3 "$DL" --repo "$B7" check-boundary >/dev/null; rc=$?; set -e
 python3 "$DL" --repo "$B7" record --check auth-regression --status PASS >/dev/null
 set +e; python3 "$DL" --repo "$B7" check-boundary --json > "$TMP/b7.json"; rc=$?; set -e
 [ "$rc" -eq 2 ] || fail "verified scope expansion must require review"
-python3 "$DL" --repo "$B7" review-boundary --reviewer integration-reviewer >/dev/null
+python3 "$DL" --repo "$B7" review-boundary --reviewer integration-reviewer --reviewer-model review-model --reviewer-provider review-provider --reviewer-reasoning high >/dev/null
 python3 "$DL" --repo "$B7" finish --result PASS >/dev/null
 
 # Unexpected HEAD movement invalidates the captured baseline.
 B12="$(make_boundary_repo boundary-head-move)"
-python3 "$DL" --repo "$B12" start --task TASK-B12 --requirement REQ-B12 --risk R1 --worker developer --model test --allow 'src/**' >/dev/null
+python3 "$DL" --repo "$B12" start --task TASK-B12 --requirement REQ-B12 --risk R1 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'src/**' >/dev/null
 printf 'commit during task\n' >> "$B12/src/feature.txt"
 git -C "$B12" add src/feature.txt && git -C "$B12" commit -qm unexpected-head-move
 python3 "$DL" --repo "$B12" record --check unit --status PASS >/dev/null
@@ -246,7 +259,7 @@ python3 "$DL" --repo "$B12" finish --result FAIL >/dev/null
 # Pattern matching is case-sensitive and portable across Linux/macOS Python.
 B14="$(make_boundary_repo boundary-case)"
 printf 'case\n' > "$B14/Case.txt"
-python3 "$DL" --repo "$B14" start --task TASK-B14 --requirement REQ-B14 --risk R1 --worker developer --model test --allow 'case.txt' >/dev/null
+python3 "$DL" --repo "$B14" start --task TASK-B14 --requirement REQ-B14 --risk R1 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'case.txt' >/dev/null
 printf 'changed\n' >> "$B14/Case.txt"
 python3 "$DL" --repo "$B14" record --check portability --status PASS >/dev/null
 set +e; python3 "$DL" --repo "$B14" check-boundary >/dev/null; rc=$?; set -e
@@ -259,17 +272,17 @@ python3 "$DL" --repo "$B14" finish --result FAIL >/dev/null
 BC="$(make_boundary_repo boundary-children)"
 printf 'second base\n' > "$BC/src/second.txt"
 git -C "$BC" add src/second.txt && git -C "$BC" commit -qm child-baseline
-python3 "$DL" --repo "$BC" start --task TASK-BC --requirement REQ-BC --risk R2 --worker parent --model test --allow 'src/**' >/dev/null
+python3 "$DL" --repo "$BC" start --task TASK-BC --requirement REQ-BC --risk R2 --worker parent --model test --provider test-provider --reasoning-effort high --allow 'src/**' >/dev/null
 git clone -q "$BC" "$TMP/child-a"; git clone -q "$BC" "$TMP/child-b"
 printf 'child a\n' >> "$TMP/child-a/src/feature.txt"
 git -C "$TMP/child-b" mv src/second.txt 'src/fitur-ä.txt'
 printf 'child b\n' >> "$TMP/child-b/src/fitur-ä.txt"
 git -C "$TMP/child-a" diff --binary > "$TMP/child-a.patch"
 git -C "$TMP/child-b" diff HEAD --binary > "$TMP/child-b.patch"
-python3 "$DL" --repo "$BC" start-child --child child-a --task TASK-BC-A --risk R1 --allow 'src/feature.txt' --owner identity.session --invariant 'feature behavior remains observable' >/dev/null
-set +e; python3 "$DL" --repo "$BC" start-child --child collision --task TASK-BC-C --risk R1 --allow 'src/second.txt' --owner identity.session --invariant 'different path, same semantic owner' >/dev/null 2>&1; rc=$?; set -e
+python3 "$DL" --repo "$BC" start-child --child child-a --task TASK-BC-A --risk R1 --model child-model --provider child-provider --reasoning-effort medium --allow 'src/feature.txt' --owner identity.session --invariant 'feature behavior remains observable' >/dev/null
+set +e; python3 "$DL" --repo "$BC" start-child --child collision --task TASK-BC-C --risk R1 --model child-model --provider child-provider --reasoning-effort medium --allow 'src/second.txt' --owner identity.session --invariant 'different path, same semantic owner' >/dev/null 2>&1; rc=$?; set -e
 [ "$rc" -eq 1 ] || fail "semantic owner overlap must reject disjoint-path children"
-python3 "$DL" --repo "$BC" start-child --child child-b --task TASK-BC-B --risk R1 --allow 'src/second.txt' --allow 'src/fitur-ä.txt' --owner commerce.pricing --invariant 'second behavior remains observable' >/dev/null
+python3 "$DL" --repo "$BC" start-child --child child-b --task TASK-BC-B --risk R1 --model child-model --provider child-provider --reasoning-effort medium --allow 'src/second.txt' --allow 'src/fitur-ä.txt' --owner commerce.pricing --invariant 'second behavior remains observable' >/dev/null
 python3 "$DL" --repo "$BC" record-child --child child-a --check regression-a --status PASS >/dev/null
 python3 "$DL" --repo "$BC" finish-child --child child-a --result PASS --patch "$TMP/child-a.patch" >/dev/null
 set +e; python3 "$DL" --repo "$BC" integrate-child --child child-a --patch "$TMP/child-a.patch" >/dev/null 2>&1; rc=$?; set -e
@@ -289,14 +302,230 @@ python3 "$DL" --repo "$BC" record --check integration-regression --status PASS >
 python3 "$DL" --repo "$BC" check-boundary >/dev/null
 python3 "$DL" --repo "$BC" finish --result PASS >/dev/null
 
+# Routing provenance is required evidence for every R1-R4 run; R0 stays inferable.
+BP="$(make_boundary_repo boundary-provenance)"
+for missing in "--model unknown --provider p --reasoning-effort high" "--model m --provider unknown --reasoning-effort high" "--model m --provider p --reasoning-effort unknown" "--model m --provider p"; do
+  set +e
+  # shellcheck disable=SC2086
+  python3 "$DL" --repo "$BP" start --task TASK-BP --requirement REQ-BP --risk R1 --worker developer $missing --allow 'src/**' >/dev/null 2>&1
+  rc=$?
+  set -e
+  [ "$rc" -eq 1 ] || fail "R1 start must reject unresolved routing provenance: $missing"
+done
+set +e
+python3 "$DL" --repo "$BP" start --task TASK-BP --requirement REQ-BP --risk R1 --worker developer --model m --provider 'unavailable:' --reasoning-effort high --allow 'src/**' >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 1 ] || fail "an unavailable marker with no reason must be rejected"
+python3 "$DL" --repo "$BP" start --task TASK-BP0 --requirement REQ-BP --risk R0 --worker developer >/dev/null
+python3 "$DL" --repo "$BP" finish --result BLOCKED >/dev/null
+
+# A metric that genuinely does not exist is recorded, not invented.
+python3 "$DL" --repo "$BP" start --task TASK-BPU --requirement REQ-BP --risk R1 --worker script --model bootstrap-script --provider 'unavailable: deterministic script, no model route' --reasoning-effort 'unavailable: deterministic script, no model route' --allow 'src/**' >/dev/null \
+  || fail "an unavailable metric with a stated reason must be accepted"
+python3 "$DL" --repo "$BP" finish --result BLOCKED >/dev/null
+
+# Case folding cannot see a look-alike character, so identity and route values
+# are ASCII-only. OMICRON below is a Greek omicron, not the Latin letter.
+OMICRON="$(printf '\316\277')"
+BU="$(make_boundary_repo boundary-homoglyph)"
+reject_start(){
+  local label="$1"; shift
+  set +e
+  python3 "$DL" --repo "$BU" start --task TASK-BU --requirement REQ-BU --risk R1 --allow 'src/**' "$@" >/dev/null 2>&1
+  local rc=$?
+  set -e
+  [ "$rc" -eq 1 ] || fail "a non-ASCII identity or route must be rejected: $label"
+}
+reject_start "worker homoglyph" --worker "devel${OMICRON}per" --model m --provider p --reasoning-effort high
+reject_start "provider homoglyph" --worker w --model m --provider "unkn${OMICRON}wn" --reasoning-effort high
+reject_start "model homoglyph" --worker w --model "m${OMICRON}del" --provider p --reasoning-effort high
+
+python3 "$DL" --repo "$BU" start --task TASK-BU --requirement REQ-BU --risk R1 --worker developer --model impl-model --provider impl-provider --reasoning-effort high --allow 'auth/**' --protect 'auth/**' --protected-risk R3 >/dev/null
+printf 'security change\n' >> "$BU/auth/session.txt"
+python3 "$DL" --repo "$BU" record --check auth-regression --status PASS >/dev/null
+python3 "$DL" --repo "$BU" check-boundary >/dev/null 2>&1 || true
+set +e
+python3 "$DL" --repo "$BU" review-boundary --reviewer other --reviewer-model "impl-m${OMICRON}del" --reviewer-provider impl-provider --reviewer-reasoning high >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 1 ] || fail "a look-alike reviewer route must be rejected"
+python3 "$DL" --repo "$BU" finish --result BLOCKED >/dev/null
+
+# Pre-dispatch collision matrix: every rejected shape below must be refused
+# before a child worker starts, not repaired after two workers have collided.
+COL="$(make_boundary_repo boundary-collisions)"
+mkdir -p "$COL/src/auth"
+printf 'token base\n' > "$COL/src/auth/token.txt"
+git -C "$COL" add src/auth/token.txt && git -C "$COL" commit -qm collision-baseline
+python3 "$DL" --repo "$COL" start --task TASK-COL --requirement REQ-COL --risk R2 --worker parent --model test --provider test-provider --reasoning-effort high --allow 'src/**' --allow 'docs/**' --allow 'auth/**' --allow 'other/**' --protect 'auth/**' --protected-risk R3 >/dev/null
+python3 "$DL" --repo "$COL" start-child --child alpha --task TASK-COL-A --risk R1 --model child-model --provider child-provider --reasoning-effort medium --allow 'src/auth' --owner identity.session --invariant 'auth surface stays observable' >/dev/null
+python3 "$DL" --repo "$COL" start-child --child gamma --task TASK-COL-G --risk R1 --model child-model --provider child-provider --reasoning-effort medium --allow 'docs/**' --owner content.docs --invariant 'docs surface stays observable' >/dev/null
+
+reject_child(){
+  local label="$1"; shift
+  set +e
+  python3 "$DL" --repo "$COL" start-child --model child-model --provider child-provider --reasoning-effort medium "$@" >/dev/null 2>&1
+  local rc=$?
+  set -e
+  [ "$rc" -eq 1 ] || fail "pre-dispatch collision not rejected: $label"
+}
+
+reject_child "exact/exact overlap" --child c1 --task T --risk R1 --allow 'src/auth' --owner one.a --invariant i
+reject_child "exact root equals subtree root" --child c2 --task T --risk R1 --allow 'src/auth/**' --owner one.b --invariant i
+reject_child "exact path inside subtree" --child c3 --task T --risk R1 --allow 'docs/old.txt' --owner one.c --invariant i
+reject_child "nested subtree overlap" --child c4 --task T --risk R1 --allow 'docs/deep/**' --owner one.d --invariant i
+reject_child "subtree root equals exact path" --child c5 --task T --risk R1 --allow 'docs' --owner one.e --invariant i
+reject_child "ambiguous parallel glob" --child c6 --task T --risk R1 --allow 'src/*.txt' --owner one.f --invariant i
+reject_child "hierarchical semantic owner overlap" --child c7 --task T --risk R1 --allow 'other/**' --owner identity.session.token --invariant i
+reject_child "insufficient risk for protected path" --child c8 --task T --risk R1 --allow 'auth/**' --owner one.g --invariant i
+reject_child "unknown dependency" --child c9 --task T --risk R1 --allow 'other/**' --owner one.h --invariant i --depends-on nosuch
+reject_child "unintegrated dependency" --child c10 --task T --risk R1 --allow 'other/**' --owner one.i --invariant i --depends-on alpha
+
+python3 "$DL" --repo "$COL" claim-owner --owner commerce.pricing >/dev/null
+reject_child "parent/child semantic owner overlap" --child c11 --task T --risk R1 --allow 'other/**' --owner commerce.pricing.tax --invariant i
+
+printf 'parent edit\n' >> "$COL/src/feature.txt"
+reject_child "parent dirty-path overlap" --child c12 --task T --risk R1 --allow 'src/feature.txt' --owner one.j --invariant i
+grep -q 'parent edit' "$COL/src/feature.txt" || fail "collision rejection modified parent work"
+python3 "$DL" --repo "$COL" finish --result BLOCKED >/dev/null
+
+# Independent review must prove a different reviewer route, not a different label.
+REV="$(make_boundary_repo boundary-review-independence)"
+python3 "$DL" --repo "$REV" start --task TASK-REV --requirement REQ-REV --risk R1 --worker developer --model impl-model --provider impl-provider --reasoning-effort high --allow 'auth/**' --protect 'auth/**' --protected-risk R3 >/dev/null
+printf 'security change\n' >> "$REV/auth/session.txt"
+python3 "$DL" --repo "$REV" record --check auth-regression --status PASS >/dev/null
+set +e; python3 "$DL" --repo "$REV" check-boundary >/dev/null; rc=$?; set -e
+[ "$rc" -eq 2 ] || fail "protected surface must require independent review"
+
+reject_review(){
+  local label="$1"; shift
+  set +e
+  python3 "$DL" --repo "$REV" review-boundary "$@" >/dev/null 2>&1
+  local rc=$?
+  set -e
+  [ "$rc" -eq 1 ] || fail "review independence not enforced: $label"
+}
+
+reject_review "unknown reviewer model" --reviewer other-reviewer --reviewer-model unknown --reviewer-provider rev-provider --reviewer-reasoning high
+reject_review "unknown reviewer provider" --reviewer other-reviewer --reviewer-model rev-model --reviewer-provider unknown --reviewer-reasoning high
+reject_review "unknown reviewer reasoning" --reviewer other-reviewer --reviewer-model rev-model --reviewer-provider rev-provider --reviewer-reasoning unknown
+reject_review "self-review under the implementer identity" --reviewer developer --reviewer-model rev-model --reviewer-provider rev-provider --reviewer-reasoning high
+reject_review "self-review behind a different label" --reviewer other-reviewer --reviewer-model impl-model --reviewer-provider impl-provider --reviewer-reasoning high
+# Independence is decided by string equality, so presentation must not defeat it.
+reject_review "self-review behind a re-cased identity" --reviewer Developer --reviewer-model rev-model --reviewer-provider rev-provider --reviewer-reasoning high
+reject_review "implementer route behind trailing whitespace" --reviewer other-reviewer --reviewer-model 'impl-model ' --reviewer-provider impl-provider --reviewer-reasoning high
+reject_review "implementer route behind different casing" --reviewer other-reviewer --reviewer-model IMPL-MODEL --reviewer-provider Impl-Provider --reviewer-reasoning high
+set +e; python3 "$DL" --repo "$REV" finish --result PASS >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "PASS must be denied while review-required boundary is unapproved"
+
+printf 'late edit\n' >> "$REV/auth/session.txt"
+reject_review "stale reviewed surface digest" --reviewer other-reviewer --reviewer-model rev-model --reviewer-provider rev-provider --reviewer-reasoning high
+python3 "$DL" --repo "$REV" check-boundary >/dev/null 2>&1 || true
+python3 "$DL" --repo "$REV" review-boundary --reviewer other-reviewer --reviewer-model rev-model --reviewer-provider impl-provider --reviewer-reasoning high >/dev/null
+grep -q '"reviewEvidenceDigest"' "$REV/.delivery/runs"/*.jsonl || fail "review evidence digest was not recorded"
+
+printf 'unreviewed change\n' >> "$REV/auth/session.txt"
+set +e; python3 "$DL" --repo "$REV" finish --result PASS >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "approval must not survive an unreviewed change"
+
+# Modified review evidence is rejected even when the event hash is recomputed.
+REV_RUN="$(find "$REV/.delivery/runs" -type f -name 'RUN-*.jsonl' | head -n 1)"
+cp "$REV_RUN" "$TMP/rev.backup"
+python3 - "$REV_RUN" <<'PY'
+import hashlib, json, sys
+from pathlib import Path
+path = Path(sys.argv[1])
+lines = path.read_text().splitlines()
+event = json.loads(lines[-1])
+assert event["type"] == "boundary_review", event["type"]
+event["reviewEvidenceDigest"] = "0" * 64
+unsigned = dict(event); unsigned.pop("eventHash", None)
+canonical = lambda data: json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+event["eventHash"] = hashlib.sha256(canonical(unsigned).encode()).hexdigest()
+lines[-1] = canonical(event)
+path.write_text("\n".join(lines) + "\n")
+PY
+set +e; python3 "$DL" --repo "$REV" verify > "$TMP/rev-verify.log" 2>&1; rc=$?; set -e
+[ "$rc" -eq 2 ] || fail "forged review evidence digest must be UNVERIFIED"
+grep -q 'review evidence digest' "$TMP/rev-verify.log" || fail "forged review evidence lost its reason"
+cp "$TMP/rev.backup" "$REV_RUN"
+python3 "$DL" --repo "$REV" finish --result FAIL >/dev/null
+
 # Mutation proof: neutralizing the unexplained-scope guard lets the negative fixture escape.
 MUT="$TMP/mutant"; mkdir -p "$MUT"
 sed 's/if unexplained:  # unexplained-scope guard/if False:  # unexplained-scope guard/' "$DL" > "$MUT/delivery-ledger"
 cp "$ROOT/bin/diff-risk" "$MUT/diff-risk"
 BM="$(make_boundary_repo boundary-mutation)"
-python3 "$MUT/delivery-ledger" --repo "$BM" start --task TASK-BM --requirement REQ-BM --risk R1 --worker developer --model test --allow 'src/**' >/dev/null
+python3 "$MUT/delivery-ledger" --repo "$BM" start --task TASK-BM --requirement REQ-BM --risk R1 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'src/**' >/dev/null
 printf 'escaped\n' >> "$BM/user.txt"
 python3 "$MUT/delivery-ledger" --repo "$BM" record --check unit --status PASS >/dev/null
 python3 "$MUT/delivery-ledger" --repo "$BM" check-boundary >/dev/null || fail "mutation probe did not neutralize the expected guard"
+
+# Mutation proofs: each new guard, neutralized one at a time, lets its own
+# negative fixture through. Without these the assertions above could pass for
+# reasons unrelated to the guard they are named after.
+make_mutant(){
+  local dir="$TMP/$1" marker="$2" replacement="$3"
+  mkdir -p "$dir"
+  python3 - "$DL" "$dir/delivery-ledger" "$marker" "$replacement" <<'PY'
+import sys
+from pathlib import Path
+source, target, marker, replacement = sys.argv[1:5]
+lines = Path(source).read_text().splitlines()
+hits = [index for index, line in enumerate(lines) if marker in line]
+assert len(hits) == 1, (marker, hits)
+line = lines[hits[0]]
+lines[hits[0]] = " " * (len(line) - len(line.lstrip())) + replacement
+Path(target).write_text("\n".join(lines) + "\n")
+PY
+  cp "$ROOT/bin/diff-risk" "$dir/diff-risk"
+  printf '%s\n' "$dir/delivery-ledger"
+}
+
+M_SUB="$(make_mutant mutant-subtree '# subtree-root guard' 'return exact["root"].startswith(subtree["root"] + "/")  # subtree-root guard')"
+BS="$(make_boundary_repo boundary-subtree-mutation)"
+mkdir -p "$BS/src/auth"
+printf 'token\n' > "$BS/src/auth/token.txt"
+git -C "$BS" add src/auth/token.txt && git -C "$BS" commit -qm subtree-baseline
+python3 "$M_SUB" --repo "$BS" start --task TASK-BS --requirement REQ-BS --risk R2 --worker parent --model test --provider test-provider --reasoning-effort high --allow 'src/**' >/dev/null
+python3 "$M_SUB" --repo "$BS" start-child --child one --task T --risk R1 --model child-model --provider child-provider --reasoning-effort medium --allow 'src/auth' --owner one.a --invariant i >/dev/null
+python3 "$M_SUB" --repo "$BS" start-child --child two --task T --risk R1 --model child-model --provider child-provider --reasoning-effort medium --allow 'src/auth/**' --owner one.b --invariant i >/dev/null \
+  || fail "mutation probe did not neutralize the subtree-root collision guard"
+
+M_PROV="$(make_mutant mutant-provenance '# routing-provenance guard' 'if False:  # routing-provenance guard')"
+BPM="$(make_boundary_repo boundary-provenance-mutation)"
+python3 "$M_PROV" --repo "$BPM" start --task TASK-BPM --requirement REQ-BPM --risk R1 --worker developer --model unknown --provider unknown --reasoning-effort unknown --allow 'src/**' >/dev/null \
+  || fail "mutation probe did not neutralize the routing-provenance guard"
+
+M_ASCII="$(make_mutant mutant-ascii '# ascii-provenance guard' 'if False:  # ascii-provenance guard')"
+BAM="$(make_boundary_repo boundary-ascii-mutation)"
+python3 "$M_ASCII" --repo "$BAM" start --task TASK-BAM --requirement REQ-BAM --risk R1 --worker "devel${OMICRON}per" --model m --provider p --reasoning-effort high --allow 'src/**' >/dev/null \
+  || fail "mutation probe did not neutralize the ASCII provenance guard"
+
+M_CHILD="$(make_mutant mutant-child-provenance '# child-routing-provenance guard' 'if False:  # child-routing-provenance guard')"
+BCM="$(make_boundary_repo boundary-child-provenance-mutation)"
+python3 "$M_CHILD" --repo "$BCM" start --task TASK-BCM --requirement REQ-BCM --risk R2 --worker parent --model p --provider p --reasoning-effort high --allow 'src/**' >/dev/null
+python3 "$M_CHILD" --repo "$BCM" start-child --child unresolved --task T --risk R1 --allow 'src/feature.txt' --owner one.m --invariant i >/dev/null \
+  || fail "mutation probe did not neutralize the child-routing-provenance guard"
+
+M_KEY="$(make_mutant mutant-provenance-key 'return (value or "").strip().casefold()' 'return value or ""')"
+BKM="$(make_boundary_repo boundary-normalization-mutation)"
+python3 "$M_KEY" --repo "$BKM" start --task TASK-BKM --requirement REQ-BKM --risk R1 --worker developer --model impl-model --provider impl-provider --reasoning-effort high --allow 'auth/**' --protect 'auth/**' --protected-risk R3 >/dev/null
+printf 'security change\n' >> "$BKM/auth/session.txt"
+python3 "$M_KEY" --repo "$BKM" record --check auth-regression --status PASS >/dev/null
+python3 "$M_KEY" --repo "$BKM" check-boundary >/dev/null 2>&1 || true
+python3 "$M_KEY" --repo "$BKM" review-boundary --reviewer Developer --reviewer-model 'impl-model ' --reviewer-provider IMPL-PROVIDER --reviewer-reasoning high >/dev/null \
+  || fail "mutation probe did not neutralize the identity/route normalizer"
+
+M_REV="$(make_mutant mutant-review '# review-independence guard' 'if False:  # review-independence guard')"
+BRM="$(make_boundary_repo boundary-review-mutation)"
+python3 "$M_REV" --repo "$BRM" start --task TASK-BRM --requirement REQ-BRM --risk R1 --worker developer --model impl-model --provider impl-provider --reasoning-effort high --allow 'auth/**' --protect 'auth/**' --protected-risk R3 >/dev/null
+printf 'security change\n' >> "$BRM/auth/session.txt"
+python3 "$M_REV" --repo "$BRM" record --check auth-regression --status PASS >/dev/null
+python3 "$M_REV" --repo "$BRM" check-boundary >/dev/null 2>&1 || true
+python3 "$M_REV" --repo "$BRM" review-boundary --reviewer other-reviewer --reviewer-model impl-model --reviewer-provider impl-provider --reviewer-reasoning high >/dev/null \
+  || fail "mutation probe did not neutralize the review-independence guard"
+
 
 echo 'delivery-ledger-test: PASS'

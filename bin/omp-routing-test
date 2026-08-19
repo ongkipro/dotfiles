@@ -948,6 +948,20 @@ if catalog is not None:
 # or filling it with invalid YAML, passed green. They cannot go through
 # `omp config list --config` because that subcommand rejects the flag, so each is
 # handed to OMP as a config.yml of its own and resolved by the same parser.
+#
+# A single-provider overlay may reduce capability, but it must not quietly
+# re-decide which model owns ordinary development. codex-only.yml previously
+# flattened `default`/`task` onto Sol — the model the tracked config reserves
+# for complex, high-risk work — so an operator opting into one provider also
+# opted into a different execution policy without saying so.
+OVERLAY_ROLE_EXPECTATIONS = {
+    "codex-only.yml": {
+        "default": "openai-codex/gpt-5.6-terra:medium",
+        "task": "openai-codex/gpt-5.6-terra:medium",
+        "slow": "openai-codex/gpt-5.6-sol:high",
+        "plan": "openai-codex/gpt-5.6-terra:high",
+    },
+}
 overlays_directory = OMP_DIR / "overlays"
 overlay_count = 0
 for overlay_path in sorted(overlays_directory.glob("*.yml")):
@@ -1012,6 +1026,13 @@ for overlay_path in sorted(overlays_directory.glob("*.yml")):
     for selector in list(overlay_roles.values()) + [item for chain in overlay_fallback_chains.values() for item in chain]:
         if "flash-lite" in selector.lower():
             fail("{} reaches Gemini Flash Lite: {}".format(overlay_context, selector))
+    for role, selector in OVERLAY_ROLE_EXPECTATIONS.get(overlay_path.name, {}).items():
+        if overlay_roles.get(role) != selector:
+            fail(
+                "{} role {} must resolve to {}, got {!r}".format(
+                    overlay_context, role, selector, overlay_roles.get(role)
+                )
+            )
 if overlay_count == 0:
     fail("no overlays found in " + str(overlays_directory))
 

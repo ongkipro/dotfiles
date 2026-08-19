@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+PC="$ROOT/bin/project-check"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/project-check-test.XXXXXX")"
+trap 'rm -rf "$TMP"' EXIT
+fail() { echo "FAIL: $*" >&2; exit 1; }
+
+expect_exit() {
+  local label="$1" expected="$2"; shift 2
+  set +e
+  "$@" > "$TMP/out.log" 2>&1
+  local rc=$?
+  set -e
+  [ "$rc" -eq "$expected" ] || {
+    cat "$TMP/out.log" >&2
+    fail "$label: expected exit $expected, got $rc"
+  }
+}
+
+# An empty repository recognizes nothing: UNVERIFIED, not a false PASS.
+EMPTY="$TMP/empty"; mkdir -p "$EMPTY"
+git -C "$EMPTY" init -q
+expect_exit "empty repo" 2 python3 "$PC" --full "$EMPTY"
+command grep -q "no supported project configuration recognized" "$TMP/out.log" \
+  || fail "empty repo did not explain why it is UNVERIFIED"
+
+if command -v npm >/dev/null 2>&1; then
+  NODE_OK="$TMP/node-ok"; mkdir -p "$NODE_OK"
+  cat > "$NODE_OK/package.json" <<'JSON'
+{"scripts":{"test":"node -e \"process.exit(0)\""}}
+JSON
+  expect_exit "passing node project" 0 python3 "$PC" --full "$NODE_OK"
+  command grep -q "VERIFIED" "$TMP/out.log" || fail "passing node project did not report VERIFIED"
+
+  NODE_BAD="$TMP/node-bad"; mkdir -p "$NODE_BAD"
+  cat > "$NODE_BAD/package.json" <<'JSON'
+{"scripts":{"test":"node -e \"process.exit(1)\""}}
+JSON
+  expect_exit "failing node project" 1 python3 "$PC" --full "$NODE_BAD"
+else
+  echo "project-check-test: SKIP node fixtures (npm unavailable)"
+fi
+
+# The delivery contract report only activates when AGENTS.md exists, and it is
+# advisory only: it must never turn a docs-only repo VERIFIED (there is no
+# runnable check to have passed) and must never turn an otherwise-passing repo
+# FAILED just because some of the nine documents are missing — a fresh clone
+# or `git worktree` never carries the untracked `.delivery/current.json`, and
+# real partial adoption is common and not a build-blocking defect.
+CONTRACT_DOCS=(AGENTS.md PRD.md TASKS.md STATUS.md DECISIONS.md RELEASE.md OBSERVABILITY.md BUILD-LOG.md ARCHITECTURE.md)
+
+# A complete contract with no code at all must stay UNVERIFIED, not VERIFIED —
+# document existence is not a runnable check.
+CONTRACT_DOCS_ONLY="$TMP/contract-docs-only"; mkdir -p "$CONTRACT_DOCS_ONLY/.delivery"
+for doc in "${CONTRACT_DOCS[@]}"; do printf '# %s\n' "$doc" > "$CONTRACT_DOCS_ONLY/$doc"; done
+printf '{}' > "$CONTRACT_DOCS_ONLY/.delivery/current.json"
+expect_exit "complete delivery contract alone is not verification" 2 python3 "$PC" --full "$CONTRACT_DOCS_ONLY"
+command grep -q "all nine documents and .delivery/current.json present" "$TMP/out.log" \
+  || fail "complete delivery contract did not report its OK note"
+
+if command -v npm >/dev/null 2>&1; then
+  # A complete contract alongside a real passing check reports VERIFIED, with
+  # the contract note present but not counted toward the check tally.
+  CONTRACT_OK="$TMP/contract-ok"; mkdir -p "$CONTRACT_OK/.delivery"
+  for doc in "${CONTRACT_DOCS[@]}"; do printf '# %s\n' "$doc" > "$CONTRACT_OK/$doc"; done
+  printf '{}' > "$CONTRACT_OK/.delivery/current.json"
+  cat > "$CONTRACT_OK/package.json" <<'JSON'
+{"scripts":{"test":"node -e \"process.exit(0)\""}}
+JSON
+  expect_exit "complete contract plus a real check verifies" 0 python3 "$PC" --full "$CONTRACT_OK"
+  command grep -q "VERIFIED (1/1 checks passed)" "$TMP/out.log" \
+    || fail "the delivery contract note must not inflate the check tally"
+
+  # Missing contract documents must not turn an otherwise-passing repo FAILED.
+  CONTRACT_MISSING="$TMP/contract-missing"; mkdir -p "$CONTRACT_MISSING"
+  for doc in "${CONTRACT_DOCS[@]}"; do [ "$doc" = "ARCHITECTURE.md" ] && continue; printf '# %s\n' "$doc" > "$CONTRACT_MISSING/$doc"; done
+  cat > "$CONTRACT_MISSING/package.json" <<'JSON'
+{"scripts":{"test":"node -e \"process.exit(0)\""}}
+JSON
+  expect_exit "incomplete delivery contract does not block a passing repo" 0 python3 "$PC" --full "$CONTRACT_MISSING"
+  command grep -q "missing document(s): ARCHITECTURE.md" "$TMP/out.log" \
+    || fail "incomplete delivery contract did not name the missing document"
+  command grep -q "missing .delivery/current.json" "$TMP/out.log" \
+    || fail "incomplete delivery contract did not flag the missing ledger"
+else
+  echo "project-check-test: SKIP delivery-contract-plus-code fixtures (npm unavailable)"
+fi
+
+# A repo that never opted into the contract (no AGENTS.md at all) gets no note.
+NO_CONTRACT="$TMP/no-contract"; mkdir -p "$NO_CONTRACT"
+printf '# PRD\n' > "$NO_CONTRACT/PRD.md"
+expect_exit "no AGENTS.md means no contract obligation" 2 python3 "$PC" --full "$NO_CONTRACT"
+if command grep -q "delivery contract" "$TMP/out.log"; then
+  fail "a repo without AGENTS.md should not be held to the contract at all"
+fi
+
+# Regression fixture: a repo that merely keeps a plain TASKS.md as a to-do
+# list — no AGENTS.md, no other contract document — must not be held to the
+# full nine-document contract. This is the exact shape delivery-gate-test's
+# own fixture uses, and TASKS.md alone was the opt-in marker until it wasn't.
+TASKS_ONLY="$TMP/tasks-only"; mkdir -p "$TASKS_ONLY"
+printf '# Tasks\n## Done\n### TASK-001\nDone.\n' > "$TASKS_ONLY/TASKS.md"
+expect_exit "TASKS.md alone is not a contract opt-in" 2 python3 "$PC" --full "$TASKS_ONLY"
+if command grep -q "delivery contract" "$TMP/out.log"; then
+  fail "a bare TASKS.md must not trigger the full delivery-contract check"
+fi
+
+# Regression fixture: a fresh clone or worktree of a real, fully-adopted repo
+# never carries the untracked .delivery/current.json, and real projects often
+# adopt only some of the nine documents. Neither shape may print a FAIL line.
+PARTIAL="$TMP/partial-adoption"; mkdir -p "$PARTIAL"
+printf '# AGENTS\n' > "$PARTIAL/AGENTS.md"
+expect_exit "partial adoption is not a build failure" 2 python3 "$PC" --full "$PARTIAL"
+if command grep -q '^  FAIL' "$TMP/out.log"; then
+  cat "$TMP/out.log" >&2
+  fail "partial delivery-contract adoption must not print a FAIL line"
+fi
+
+# Mutation proof: without the opt-in gate, an ordinary repo with no AGENTS.md
+# gets held to the contract it never adopted.
+MUT="$TMP/mutant-project-check"
+sed 's/    if not (repo \/ "AGENTS.md").is_file():  # contract-opt-in guard/    if False:  # contract-opt-in guard/' "$PC" > "$MUT"
+set +e
+python3 "$MUT" --full "$NO_CONTRACT" > "$TMP/mutant.log" 2>&1
+set -e
+command grep -q "delivery contract" "$TMP/mutant.log" \
+  || fail "mutation probe did not neutralize the contract opt-in guard"
+
+if command -v shopify >/dev/null 2>&1; then
+  THEME_OK="$TMP/theme-ok"; mkdir -p "$THEME_OK/layout" "$THEME_OK/config"
+  cat > "$THEME_OK/layout/theme.liquid" <<'LIQUID'
+<!doctype html>
+<html>
+<head>{{ content_for_header }}<title>{{ shop.name }}</title></head>
+<body>{{ content_for_layout }}</body>
+</html>
+LIQUID
+  printf '[]' > "$THEME_OK/config/settings_schema.json"
+  expect_exit "clean shopify theme" 0 python3 "$PC" --full "$THEME_OK"
+  command grep -q "VERIFIED" "$TMP/out.log" || fail "clean shopify theme did not report VERIFIED"
+
+  THEME_BAD="$TMP/theme-bad"; mkdir -p "$THEME_BAD/layout" "$THEME_BAD/config"
+  printf '<html><title>{{ shop.name }}</title></html>\n' > "$THEME_BAD/layout/theme.liquid"
+  printf '{}' > "$THEME_BAD/config/settings_schema.json"
+  expect_exit "shopify theme with offenses" 1 python3 "$PC" --full "$THEME_BAD"
+
+  # Detected but the CLI is unreachable: a curated PATH proves this deterministically
+  # rather than depending on whether shopify happens to be installed on the runner.
+  NOSHOP="$TMP/no-shopify-bin"; mkdir -p "$NOSHOP"
+  ln -s "$(command -v python3)" "$NOSHOP/python3"
+  THEME_NOBIN="$TMP/theme-nobin"; mkdir -p "$THEME_NOBIN/layout" "$THEME_NOBIN/config"
+  cp "$THEME_OK/layout/theme.liquid" "$THEME_NOBIN/layout/theme.liquid"
+  cp "$THEME_OK/config/settings_schema.json" "$THEME_NOBIN/config/settings_schema.json"
+  set +e
+  PATH="$NOSHOP" python3 "$PC" --full "$THEME_NOBIN" > "$TMP/nobin.log" 2>&1
+  rc=$?
+  set -e
+  [ "$rc" -eq 1 ] || { cat "$TMP/nobin.log" >&2; fail "a detected theme with no shopify CLI must FAIL, not silently pass"; }
+  command grep -q "shopify CLI is not available" "$TMP/nobin.log" \
+    || fail "missing-CLI case lost its reason"
+else
+  echo "project-check-test: SKIP shopify fixtures (shopify CLI unavailable)"
+fi
+
+echo "project-check-test: PASS"
