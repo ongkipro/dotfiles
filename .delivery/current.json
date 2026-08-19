@@ -1,14 +1,25 @@
 {
   "activeRun": null,
-  "lastRun": {
-    "finishedAt": "2026-08-18T09:06:03Z",
-    "result": "PASS",
-    "runId": "RUN-20260818T085852Z-dc09a68d"
+  "lastCheckpoint": {
+    "eventHash": "d219f66e09ac2b99b7afe4eca5af71c6f5d1282d61c5cad9626fa828a238797e",
+    "eventId": "91c250ed5103426095336bcfb91cc47e",
+    "head": "fb2da00d16b8642ab1932ad8d3574589a9bbf599",
+    "note": "Retracted two scope_expansion records (config/ai/runtime-commands.txt, docs/task-change-boundary.md): both reverted after discovering the target file carried unaccepted pre-existing dirty work from an earlier task; neither appears in the final surface. Follow-up tasks TASK-021/TASK-022 recorded in TASKS.md.",
+    "prevEventHash": "4839c6d589f99d0623812182a6a4577d53e3411f01b0dcfd239e4dc08fafbde6",
+    "runId": "RUN-20260819T044647Z-b46c4b2a",
+    "state": null,
+    "time": "2026-08-19T05:48:07Z",
+    "type": "checkpoint"
   },
-  "observedHead": "085ff324a6afa506ccdb956c3f934dd7c477a99e",
+  "lastRun": {
+    "finishedAt": "2026-08-19T08:24:02Z",
+    "result": "PASS",
+    "runId": "RUN-20260819T081340Z-03c4116a"
+  },
+  "observedHead": "fb2da00d16b8642ab1932ad8d3574589a9bbf599",
   "observedState": null,
   "project": "dotfiles",
   "schemaVersion": 1,
   "statusAuthority": "STATUS.md",
-  "updatedAt": "2026-08-18T09:06:03Z"
+  "updatedAt": "2026-08-19T08:24:02Z"
 }

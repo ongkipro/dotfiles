@@ -162,9 +162,43 @@ else
   echo "==> Optional Pi/remote-9Router restore skipped (set DOTFILES_SETUP_PI=1 to opt in)."
 fi
 
-# Jaminan native binary claude ter-unduh. `npm i -g @anthropic-ai/claude-code` (step 3)
-# menaruh native binary via optional-dep/postinstall yang KADANG gagal senyap → `claude`
-# error "native binary not installed". Kalau launch gagal, jalankan ulang postinstall-nya.
+# Jaminan native binary claude ter-unduh. `npm i -g @anthropic-ai/claude-code` (step 4,
+# lihat docs/linux-install-step-by-step.md) menaruh native binary via optional-dep/
+# postinstall — dan `install.cjs`-nya (postinstall itu sendiri) bisa DIBLOKIR npm 12+:
+# default barunya menolak semua install-script kecuali di-allowlist eksplisit ("N package
+# had install scripts blocked because they are not covered by allowScripts"), bukan cuma
+# gagal jaringan/optional-dep senyap seperti dugaan awal. Verified 2026-08-19: `npm install
+# --global @anthropic-ai/claude-code@2.1.235` ter-log sukses (exit 0) tapi native binary-nya
+# tetap stub, persis karena warning ini.
+# Preventif: allowlist paket ini sekali di scope user (idempotent, gabung dengan entri lain
+# yang mungkin sudah ada — bukan menimpa; baca dari `--location=user` secara eksplisit,
+# bukan nilai gabungan efektif, supaya `.npmrc` proyek di cwd lain tidak ikut kebaca/ketulis)
+# supaya setiap `npm install -g` berikutnya — manual atau ter-trigger otomatis oleh CLI-nya
+# sendiri — benar-benar menjalankan postinstall-nya, bukan cuma reaktif memperbaiki sesudah
+# rusak. TIDAK BISA jalan di sini di bootstrap paling pertama — npm baru ada setelah `mise
+# install` (step 3, manual, sesudah skrip ini selesai) — makanya peringatan yang sama juga
+# ada di docs/linux-install-step-by-step.md SEBELUM baris `npm i -g` step 4. Tetap berguna
+# untuk device yang sudah lengkap dan menjalankan ulang install.sh (idempotent by design).
+if command -v npm >/dev/null 2>&1; then
+  allowed="$(npm config get allow-scripts --location=user 2>/dev/null || true)"
+  case ",$allowed," in
+    *,@anthropic-ai/claude-code,*) ;;
+    *)
+      new_allowed="@anthropic-ai/claude-code"
+      [ -n "$allowed" ] && [ "$allowed" != "undefined" ] && new_allowed="$allowed,$new_allowed"
+      npm config set "allow-scripts=$new_allowed" --location=user \
+        && echo "==> npm allow-scripts: @anthropic-ai/claude-code ✓ diizinkan (cegah native binary hilang lagi)" \
+        || echo "   ⚠️  gagal set npm allow-scripts — perbaiki manual: npm config set allow-scripts=@anthropic-ai/claude-code --location=user"
+      ;;
+  esac
+else
+  echo "==> npm belum ada (belum 'mise install') — allow-scripts belum bisa diset otomatis."
+  echo "    Setelah 'mise install', sebelum 'npm i -g @anthropic-ai/claude-code' (step 4):"
+  echo "      npm config set allow-scripts=@anthropic-ai/claude-code --location=user"
+fi
+
+# Reaktif: kalau native binary tetap hilang saat ini (mis. sebelum allowlist di atas
+# terpasang), perbaiki langsung dengan menjalankan ulang postinstall-nya.
 if command -v claude >/dev/null 2>&1 && ! claude --version >/dev/null 2>&1; then
   echo "==> claude native binary hilang — menjalankan postinstall..."
   node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs" \

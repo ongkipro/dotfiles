@@ -136,6 +136,20 @@ node -v && npm -v
 
 ## Tahap 4 — AI CLI
 
+> ### ⚠️ npm 12+: `allowScripts` bisa menolak native binary Claude Code secara senyap
+> Kalau `claude` error `"Error: claude native binary not installed."` — bukan gagal jaringan.
+> npm 12+ memblokir SEMUA install-script (termasuk postinstall `@anthropic-ai/claude-code`
+> yang menaruh native binary-nya) kecuali di-allowlist eksplisit, dan ini kena setiap kali
+> paket ter-upgrade (manual maupun ter-trigger otomatis oleh CLI-nya sendiri) — bukan cuma
+> sekali di instalasi awal. `install-macos.sh` (Tahap 3, yang sudah menjalankan `mise
+> install` di baris sebelumnya) sudah mengurus allowlist ini otomatis SEBELUM `npm i -g` di
+> bawah. Kalau menjalankan manual di luar urutan itu, jalankan baris pertama dulu:
+> ```bash
+> npm config set allow-scripts=@anthropic-ai/claude-code --location=user
+> npm i -g @anthropic-ai/claude-code @openai/codex @earendil-works/pi-coding-agent
+> node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs"   # perbaiki kalau sudah kadung rusak
+> ```
+
 ```bash
 npm i -g @anthropic-ai/claude-code @openai/codex @earendil-works/pi-coding-agent
 ```
@@ -277,4 +291,5 @@ git pull --rebase && device-register && dotsync sync "device: daftarkan Mac"
 | Config (lazygit/helix) seperti tak berlaku | **symlink putus** — cek `device-register`, cari ❌. Symlink putus TIDAK bersuara |
 | `psql`/`pg_dump` not found | `brew link --force libpq` belum dijalankan |
 | npm global hilang setelah ganti runtime | runtime tidak sesuai config — cek `mise which node`, lalu jalankan `mise install` |
+| `claude` → *"native binary not installed"* | npm 12+ blokir postinstall-nya (`allowScripts`), bukan gagal jaringan — kena tiap kali paket ter-upgrade, bukan cuma sekali. `install-macos.sh` sudah mengurus (allowlist + perbaikan reaktif); manual: `npm config set allow-scripts=@anthropic-ai/claude-code --location=user && node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs"` |
 | Baris device lain hilang dari `devices/README.md` | `device-register` dijalankan sebelum `git pull` |

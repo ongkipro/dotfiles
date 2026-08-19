@@ -135,6 +135,20 @@ node -v && npm -v
 
 ## Tahap 4 — AI CLI
 
+> ### ⚠️ Jalankan ini SEBELUM `npm i -g` di bawah — npm 12+ bisa menolak native binary Claude Code secara senyap
+> Kalau `claude` error `"Error: claude native binary not installed."` — bukan gagal jaringan.
+> npm 12+ memblokir SEMUA install-script (termasuk postinstall `@anthropic-ai/claude-code`
+> yang menaruh native binary-nya) kecuali di-allowlist eksplisit, dan ini kena setiap kali
+> paket ter-upgrade (manual maupun ter-trigger otomatis oleh CLI-nya sendiri) — bukan cuma
+> sekali di instalasi awal. `install.sh` (Tahap 3) sudah mengurus allowlist ini otomatis
+> KALAU `npm` sudah ada saat itu; di bootstrap pertama `npm` baru muncul setelah `mise
+> install`, jadi jalankan baris pertama di bawah secara manual dulu:
+> ```bash
+> npm config set allow-scripts=@anthropic-ai/claude-code --location=user
+> npm i -g @anthropic-ai/claude-code @openai/codex @earendil-works/pi-coding-agent
+> node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs"   # perbaiki kalau sudah kadung rusak
+> ```
+
 ```bash
 npm i -g @anthropic-ai/claude-code @openai/codex @earendil-works/pi-coding-agent
 ```
@@ -295,5 +309,6 @@ device-register && dotsync doctor
 | Perintah `agy` tidak ditemukan | symlink `agy` hilang, binary `antigravity` masih ada → `ln -sfn ~/.local/bin/antigravity ~/.local/bin/agy` |
 | Config (lazygit/helix/dll) seperti tidak berlaku | **symlink putus** — cek `device-register`, cari ❌. Symlink putus TIDAK bersuara |
 | `docker` selalu minta sudo | belum masuk grup → `sudo usermod -aG docker $USER`, lalu logout–login |
+| `claude` → *"native binary not installed"* | npm 12+ blokir postinstall-nya (`allowScripts`), bukan gagal jaringan — kena tiap kali paket ter-upgrade, bukan cuma sekali. `install.sh` sudah mengurus (allowlist + perbaikan reaktif); manual: `npm config set allow-scripts=@anthropic-ai/claude-code --location=user && node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs"` |
 | npm global hilang setelah ganti runtime | runtime tidak sesuai config — cek `mise which node`, lalu jalankan `mise install` |
 | helix mengabaikan config | `hx --health` → cari *"Configuration file malformed"* |

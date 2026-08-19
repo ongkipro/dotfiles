@@ -1,0 +1,278 @@
+#!/usr/bin/env python3
+"""Report stale dotfiles command references in owned SKILL.md files.
+
+Findings are advisory and exit zero. An unreadable canonical command surface
+exits two because a report built from no authority would be a false success.
+"""
+
+from __future__ import annotations
+
+import argparse
+from collections import Counter
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import sys
+
+
+FENCE_RE = re.compile(r"^```([^\n]*)\n(.*?)^```[ \t]*$", re.MULTILINE | re.DOTALL)
+INLINE_RE = re.compile(r"(?<!`)`([^`\n]+)`(?!`)")
+SHELL_LANGUAGES = {"", "bash", "console", "sh", "shell", "terminal", "zsh"}
+SEGMENT_RE = re.compile(r"(?:&&|\|\||[;|])")
+COMMAND_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
+SHELL_WRAPPERS = {"command", "env", "exec", "nohup", "sudo", "time"}
+SHELL_KEYWORDS = {"do", "elif", "else", "for", "if", "then", "until", "while"}
+INTERPRETERS = {"bash", "node", "python", "python3", "sh", "zsh"}
+
+
+class SurfaceError(RuntimeError):
+    """The canonical surface cannot support a trustworthy report."""
+
+
+def find_root() -> Path:
+    current = Path(__file__).resolve().parent
+    while current != current.parent:
+        if (current / "config" / "ai" / "runtime-commands.txt").is_file():
+            return current
+        current = current.parent
+    return Path.home() / "dotfiles"
+
+
+def executable_names(directory: Path) -> set[str]:
+    if not directory.is_dir():
+        return set()
+    return {
+        path.name
+        for path in directory.iterdir()
+        if path.is_file() and os.access(path, os.X_OK)
+    }
+
+
+def load_manifest(path: Path) -> set[str]:
+    if not path.is_file():
+        raise SurfaceError(f"canonical command manifest is missing: {path}")
+    try:
+        commands = {
+            line.strip()
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        }
+    except OSError as error:
+        raise SurfaceError(f"cannot read canonical command manifest: {error}") from error
+    if not commands:
+        raise SurfaceError(f"canonical command manifest is empty: {path}")
+    return commands
+
+
+def load_skills(directory: Path) -> list[Path]:
+    if not directory.is_dir():
+        raise SurfaceError(f"owned skill directory is missing: {directory}")
+    skills = sorted(directory.glob("*/SKILL.md"))
+    if not skills:
+        raise SurfaceError(f"owned skill directory contains no SKILL.md files: {directory}")
+    return skills
+
+
+def frontmatter_name(text: str) -> str | None:
+    match = re.search(r"^name:\s*([^\s]+)\s*$", text, re.MULTILINE)
+    return match.group(1) if match else None
+
+
+def normalize_command(token: str) -> tuple[str, bool] | None:
+    token = token.strip().strip("\"'")
+    if not token:
+        return None
+    path_reference = token.startswith(("./bin/", "bin/")) or "/bin/" in token
+    name = token.rsplit("/", 1)[-1] if path_reference else token
+    if not COMMAND_RE.fullmatch(name):
+        return None
+    return name, path_reference
+
+
+def first_command(segment: str) -> tuple[str, bool] | None:
+    segment = re.sub(r"^\s*(?:\$|>)\s*", "", segment).strip()
+    if not segment or segment.startswith("#"):
+        return None
+    try:
+        parts = shlex.split(segment, comments=True, posix=True)
+    except ValueError:
+        return None
+    if not parts:
+        return None
+
+    index = 0
+    while index < len(parts) and parts[index] in SHELL_KEYWORDS:
+        index += 1
+    while index < len(parts) and "=" in parts[index] and not parts[index].startswith(("-", "=")):
+        index += 1
+    while index < len(parts) and parts[index] in SHELL_WRAPPERS:
+        index += 1
+        while index < len(parts) and (
+            parts[index].startswith("-")
+            or ("=" in parts[index] and not parts[index].startswith("="))
+        ):
+            index += 1
+    if index >= len(parts):
+        return None
+
+    command = normalize_command(parts[index])
+    if command and command[0] in INTERPRETERS and index + 1 < len(parts):
+        script = normalize_command(parts[index + 1])
+        if script and script[1]:
+            return script
+    return command
+
+
+def command_regions(text: str) -> list[tuple[str, bool, int, str]]:
+    regions: list[tuple[str, bool, int, str]] = []
+    masked = list(text)
+
+    for match in FENCE_RE.finditer(text):
+        language = match.group(1).strip().lower().split(maxsplit=1)[0] if match.group(1).strip() else ""
+        if language in SHELL_LANGUAGES:
+            first_line = text.count("\n", 0, match.start(2)) + 1
+            for offset, line in enumerate(match.group(2).splitlines()):
+                for segment in SEGMENT_RE.split(line):
+                    command = first_command(segment)
+                    if command:
+                        regions.append((*command, first_line + offset, "shell"))
+        for index in range(match.start(), match.end()):
+            masked[index] = " "
+
+    masked_text = "".join(masked)
+    for match in INLINE_RE.finditer(masked_text):
+        content = match.group(1).strip()
+        command = first_command(content)
+        if not command:
+            continue
+        # A lone unknown code token is commonly a skill, package, or document
+        # name. Require command syntax or a bin/ path before classifying it.
+        if len(content.split()) == 1 and not command[1]:
+            continue
+        line = text.count("\n", 0, match.start()) + 1
+        regions.append((*command, line, "inline"))
+
+    return regions
+
+
+def audit(root: Path) -> dict[str, object]:
+    manifest = load_manifest(root / "config" / "ai" / "runtime-commands.txt")
+    skills = load_skills(root / "skills" / "local")
+    bin_commands = executable_names(root / "bin")
+    agent_commands = executable_names(root / "skills" / "agents-bin")
+    valid_bare = manifest | agent_commands
+    executable_surface = bin_commands | agent_commands
+
+    texts: dict[Path, str] = {}
+    skill_names: set[str] = set()
+    for path in skills:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError as error:
+            raise SurfaceError(f"cannot read owned skill {path}: {error}") from error
+        texts[path] = text
+        name = frontmatter_name(text)
+        if name:
+            skill_names.add(name)
+
+    families = Counter(
+        name.split("-", 1)[0]
+        for name in manifest | executable_surface
+        if "-" in name
+    )
+    owned_families = {name for name, count in families.items() if count >= 2}
+    findings: list[dict[str, object]] = []
+    seen: set[tuple[str, int, str, str]] = set()
+
+    for path, text in texts.items():
+        relative = path.relative_to(root).as_posix()
+        for command, path_reference, line, source in command_regions(text):
+            if command in skill_names:
+                continue
+            family = command.split("-", 1)[0]
+            if path_reference:
+                if command in executable_surface or family not in owned_families:
+                    continue
+                kind = "missing"
+            else:
+                if command in valid_bare or family not in owned_families:
+                    continue
+                kind = "unregistered" if command in bin_commands else "missing"
+
+            key = (relative, line, command, kind)
+            if key in seen:
+                continue
+            seen.add(key)
+            findings.append(
+                {
+                    "path": relative,
+                    "line": line,
+                    "command": command,
+                    "kind": kind,
+                    "source": source,
+                }
+            )
+
+    findings.sort(key=lambda finding: (str(finding["path"]), int(finding["line"]), str(finding["command"])))
+    return {
+        "status": "CLEAN" if not findings else "REPORT",
+        "reportOnly": True,
+        "skillsScanned": len(skills),
+        "commandsRegistered": len(manifest),
+        "findings": findings,
+    }
+
+
+def render(report: dict[str, object]) -> None:
+    findings = report["findings"]
+    if not isinstance(findings, list):
+        raise SurfaceError("internal report shape is invalid")
+    if not findings:
+        print(
+            "skill-surface-check: CLEAN "
+            f"({report['skillsScanned']} skills, 0 stale command references)"
+        )
+        return
+
+    print(f"skill-surface-check: REPORT ({len(findings)} possible stale command reference(s))")
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        explanation = (
+            "exists under bin/ but is absent from runtime-commands.txt"
+            if finding["kind"] == "unregistered"
+            else "is absent from the owned executable command surface"
+        )
+        print(f"  - {finding['path']}:{finding['line']}: `{finding['command']}` {explanation}")
+    print("  report-only: findings do not fail policy or CI")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Report stale dotfiles command references in owned skills without enforcing them."
+    )
+    parser.add_argument("root", nargs="?", type=Path, help="dotfiles root (defaults to the script's repository)")
+    parser.add_argument("--json", action="store_true", help="emit a machine-readable report")
+    args = parser.parse_args()
+    root = (args.root or find_root()).expanduser().resolve()
+
+    try:
+        report = audit(root)
+    except SurfaceError as error:
+        if args.json:
+            print(json.dumps({"status": "ERROR", "reportOnly": True, "error": str(error)}, indent=2))
+        else:
+            print(f"skill-surface-check: ERROR: {error}", file=sys.stderr)
+        return 2
+
+    if args.json:
+        print(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        render(report)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

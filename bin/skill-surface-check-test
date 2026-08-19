@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/skill-surface-check-test.XXXXXX")"
+trap 'rm -rf "$TMP"' EXIT
+FIXTURE="$TMP/dotfiles"
+
+mkdir -p \
+  "$FIXTURE/config/ai" \
+  "$FIXTURE/bin" \
+  "$FIXTURE/skills/agents-bin" \
+  "$FIXTURE/skills/local/good" \
+  "$FIXTURE/skills/local/ai-traffic-os"
+
+cat > "$FIXTURE/config/ai/runtime-commands.txt" <<'EOF'
+# fixture command surface
+ai-doctor
+ai-memory-check
+EOF
+
+for command in ai-doctor ai-memory-check ai-local-helper; do
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$FIXTURE/bin/$command"
+  chmod +x "$FIXTURE/bin/$command"
+done
+printf '#!/usr/bin/env bash\nexit 0\n' > "$FIXTURE/skills/agents-bin/skill-update"
+chmod +x "$FIXTURE/skills/agents-bin/skill-update"
+
+cat > "$FIXTURE/skills/local/good/SKILL.md" <<'EOF'
+---
+name: good
+---
+
+Use `ai-memory-check --self-test` when memory references change. `ai-package` is
+an example package name, not a command.
+
+```bash
+ai-doctor --self-test
+git status
+"$ROOT/bin/ai-local-helper" --check
+skill-update --help
+```
+EOF
+
+cat > "$FIXTURE/skills/local/ai-traffic-os/SKILL.md" <<'EOF'
+---
+name: ai-traffic-os
+---
+
+The `ai-traffic-os` skill name is not a runtime command.
+EOF
+
+"$ROOT/bin/skill-surface-check" "$FIXTURE" --json > "$TMP/clean.json"
+python3 - "$TMP/clean.json" <<'PY'
+import json, sys
+report = json.load(open(sys.argv[1], encoding="utf-8"))
+assert report["status"] == "CLEAN", report
+assert report["reportOnly"] is True, report
+assert report["skillsScanned"] == 2, report
+assert report["findings"] == [], report
+PY
+
+cat >> "$FIXTURE/skills/local/good/SKILL.md" <<'EOF'
+
+Run `ai-retired-command --check` while diagnosing old installations.
+
+```shell
+ai-removed --check
+ai-local-helper --check
+"$ROOT/bin/ai-path-gone" --check
+```
+EOF
+
+# Findings are advisory: the checker must still exit zero.
+"$ROOT/bin/skill-surface-check" "$FIXTURE" --json > "$TMP/report.json"
+python3 - "$TMP/report.json" <<'PY'
+import json, sys
+report = json.load(open(sys.argv[1], encoding="utf-8"))
+assert report["status"] == "REPORT", report
+assert report["reportOnly"] is True, report
+actual = {(item["command"], item["kind"], item["source"]) for item in report["findings"]}
+expected = {
+    ("ai-retired-command", "missing", "inline"),
+    ("ai-removed", "missing", "shell"),
+    ("ai-local-helper", "unregistered", "shell"),
+    ("ai-path-gone", "missing", "shell"),
+}
+assert actual == expected, (actual, expected)
+assert all(item["path"] == "skills/local/good/SKILL.md" for item in report["findings"])
+assert all(isinstance(item["line"], int) and item["line"] > 0 for item in report["findings"])
+PY
+
+mv "$FIXTURE/config/ai/runtime-commands.txt" "$TMP/runtime-commands.saved"
+set +e
+"$ROOT/bin/skill-surface-check" "$FIXTURE" --json > "$TMP/missing.json"
+missing_status=$?
+set -e
+[ "$missing_status" -eq 2 ] || {
+  echo "missing manifest must exit 2, got $missing_status" >&2
+  exit 1
+}
+python3 - "$TMP/missing.json" <<'PY'
+import json, sys
+report = json.load(open(sys.argv[1], encoding="utf-8"))
+assert report["status"] == "ERROR", report
+assert "manifest is missing" in report["error"], report
+PY
+
+: > "$FIXTURE/config/ai/runtime-commands.txt"
+set +e
+"$ROOT/bin/skill-surface-check" "$FIXTURE" --json > "$TMP/empty.json"
+empty_status=$?
+set -e
+[ "$empty_status" -eq 2 ] || {
+  echo "empty manifest must exit 2, got $empty_status" >&2
+  exit 1
+}
+python3 - "$TMP/empty.json" <<'PY'
+import json, sys
+report = json.load(open(sys.argv[1], encoding="utf-8"))
+assert report["status"] == "ERROR", report
+assert "manifest is empty" in report["error"], report
+PY
+
+echo "skill-surface-check-test: PASS"

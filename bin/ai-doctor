@@ -334,6 +334,18 @@ if [ -d "$SK" ]; then
   else
     wrn "skill-check belum tersedia"
   fi
+  if [ -x "$DOT/bin/skill-surface-check" ]; then
+    if surface_out="$("$DOT/bin/skill-surface-check" "$DOT" 2>&1)"; then
+      case "$surface_out" in
+        *"skill-surface-check: CLEAN"*) ok "$surface_out" ;;
+        *) wrn "$(printf '%s' "$surface_out" | tr '\n' ' ')" ;;
+      esac
+    else
+      wrn "skill-surface-check gagal membuat laporan: $(printf '%s' "$surface_out" | tr '\n' ' ')"
+    fi
+  else
+    wrn "skill-surface-check belum tersedia"
+  fi
   for pair in "claude:$HOME/.claude/skills:$HOME/.claude" "pi:$HOME/.pi/agent/skills:$HOME/.pi/agent" "omp:$HOME/.omp/agent/skills:$HOME/.omp/agent" "agy:$HOME/.gemini/config/skills:$HOME/.gemini/config"; do
     cli=${pair%%:*}; rest=${pair#*:}; path=${rest%%:*}; parent=${rest#*:}
     if [ ! -d "$parent" ]; then wrn "$cli: belum terpasang (lewati)"; continue; fi
@@ -480,9 +492,36 @@ for c in claude codex pi agy omp; do
       codex) [ -f "$HOME/.codex/auth.json" ] && ok "codex: terpasang + login" \
                || wrn "codex: terpasang tapi BELUM LOGIN → jalankan: codex login" ;;
       claude)
-        claude --version >/dev/null 2>&1 \
-          && ok "claude: terpasang + native binary OK" \
-          || wrn "claude: launcher ada tetapi native binary gagal; doctor tidak memperbaiki otomatis" ;;
+        # `claude --version` OK sekarang tidak berarti aman ke depan: npm 12+ memblokir
+        # postinstall-nya (allowScripts) kecuali di-allowlist, dan blokir itu kena LAGI
+        # tiap kali paket ter-upgrade — termasuk upgrade yang ter-trigger otomatis oleh
+        # CLI-nya sendiri, bukan cuma sekali di instalasi awal. install.sh/install-macos.sh
+        # sudah mengatur allowlist ini; device yang di-bootstrap sebelum perbaikan itu ada
+        # tidak dapat allowlist-nya walau native binary-nya kebetulan masih utuh sekarang.
+        if claude --version >/dev/null 2>&1; then
+          if command -v npm >/dev/null 2>&1; then
+            # `--location=user` baca eksplisit apa yang tertulis di ~/.npmrc, bukan nilai
+            # gabungan efektif — .npmrc proyek di cwd lain bisa menyembunyikan entri user.
+            allowed="$(npm config get allow-scripts --location=user 2>/dev/null || true)"
+            # ignore-scripts=true (efektif, dari layer manapun) MEMBATALKAN allow-scripts
+            # sepenuhnya — allowlist di atas jadi percuma kalau ini aktif.
+            ignore_scripts="$(npm config get ignore-scripts 2>/dev/null || true)"
+            case ",$allowed," in
+              *,@anthropic-ai/claude-code,*)
+                if [ "$ignore_scripts" = "true" ]; then
+                  wrn "claude: npm allow-scripts terpasang tapi npm ignore-scripts=true MEMBATALKANNYA — postinstall tetap tidak akan jalan. Perbaiki: npm config delete ignore-scripts (atau set false)"
+                else
+                  ok "claude: terpasang + native binary OK + npm allow-scripts terpasang"
+                fi ;;
+              *)
+                wrn "claude: native binary OK sekarang, tapi npm allow-scripts BELUM mengizinkan @anthropic-ai/claude-code — upgrade berikutnya (manual atau otomatis) berisiko memblokir postinstall-nya lagi. Perbaiki: npm config set allow-scripts=@anthropic-ai/claude-code --location=user" ;;
+            esac
+          else
+            ok "claude: terpasang + native binary OK"
+          fi
+        else
+          wrn "claude: launcher ada tetapi native binary gagal; doctor tidak memperbaiki otomatis. Perbaiki: node \"\$(npm root -g)/@anthropic-ai/claude-code/install.cjs\""
+        fi ;;
       pi)    ok "pi: terpasang (capability opsional, bukan control plane OMP)" ;;
       *)     ok "$c: terpasang" ;;
     esac
