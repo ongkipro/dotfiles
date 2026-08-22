@@ -25,7 +25,10 @@ visual template to clone blindly.
 Read repository instructions, package/lock files, routes, data contracts,
 existing design tokens, page composition, cart ownership, checkout provider,
 analytics, and tests. For Shopify, determine hosted Liquid theme versus
-headless Storefront API before writing cart code. Never mix their APIs.
+headless Storefront API before writing cart code. Never mix their APIs. For a
+headless architecture, migration, API/token/cache/account/analytics boundary,
+load `headless-shopify` first; this skill then owns the page and UI
+implementation within that accepted contract.
 
 Load `storefront-ux` when journey, edge states, or commercial rules are not
 already accepted. For any visual implementation, load `design-taste`
@@ -136,6 +139,7 @@ repository planning-document convention; source code belongs in the project.
 
 - `storefront-ux`: buyer journey, state requirements, and conversion correctness
 - `storefront-development`: implementation, composition, and commerce-state wiring
+- `headless-shopify`: Shopify headless architecture, runtime/data boundary, and delivery contract
 - `design-taste`: Storefront/Commerce hierarchy, art direction, and visual judgment
 - `native-first`: platform capability before dependencies
 - `seo-website-builder`: indexation, metadata, schema, and internal linking

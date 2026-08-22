@@ -76,6 +76,10 @@ as platform contracts, not generic frontend behavior. Use `design-taste`
 Storefront/Commerce mode for visual hierarchy. Generic landing-page patterns
 must not specify product discovery or purchase decisions.
 
+For a headless Shopify decision, architecture, migration, or API/cache/token/
+account boundary, load `headless-shopify`. Keep this skill responsible for the
+buyer journey and observable state requirements, not the runtime design.
+
 ## Decision rules
 
 - Preserve state when users move between list and detail, change locale,
