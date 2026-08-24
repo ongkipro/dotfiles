@@ -6,7 +6,7 @@
     {"path": "config/ai/memory/preferences.md", "priority": 95, "triggers": ["preference", "prefer", "style", "tone", "how i like", "format"]},
     {"path": "config/ai/memory/goals.md", "priority": 90, "triggers": ["goal", "future", "roadmap", "direction", "target"]},
     {"path": "config/ai/memory/business.md", "priority": 85, "triggers": ["business", "market", "ecommerce", "dropshipping", "marketing"]},
-    {"path": "config/ai/memory/development.md", "priority": 80, "triggers": ["development", "stack", "coding", "architecture", "web", "software", "astro", "react", "nextjs", "next.js", "cloudflare", "workers", "drizzle", "supabase", "tailwind", "prerender", "ssr"]},
+    {"path": "config/ai/memory/development.md", "priority": 80, "triggers": ["development", "stack", "coding", "architecture", "web", "software", "astro", "react", "nextjs", "next.js", "cloudflare", "workers", "drizzle", "supabase", "tailwind", "prerender", "ssr", "css", "layer", "flexbox", "grid"]},
     {"path": "config/ai/memory/decisions.md", "priority": 78, "triggers": ["decision", "rationale", "why did we", "tradeoff", "assumption", "superseded"]},
     {"path": "config/ai/memory/workflow.md", "priority": 75, "triggers": ["workflow", "terminal", "folder", "git", "worktree", "process"]},
     {"path": "config/ai/memory/skills.md", "priority": 70, "triggers": ["skill", "capability", "specialist", "methodology"]},
