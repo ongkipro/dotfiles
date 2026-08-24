@@ -94,3 +94,72 @@ Render safe empty placeholders and populate them with a small validated browser 
 Build the static site, serve dist with astro preview, then open /thank-you?orderNumber=ORD-UI-001 in a real browser and assert the order number is visible.
 
 > Promoted from a reviewed local candidate on 2026-08-16.
+
+
+---
+
+
+## Lesson: Showing an element with style.display='flex' resizes its children
+
+### Symptom
+Homepage product cards were inconsistent: some rendered narrower and shorter than the rest, and only while their lazy images had not loaded yet.
+
+### Root cause
+The catalog filter revealed a card by writing card.style.display='flex'. That made the grid cell a flex container, so the child <article> became a flex item sized to max-content instead of filling the cell. A loaded image pins max-content to the cell width and masks this; a loading=lazy image that has not arrived contributes no width, so the article collapsed onto its title text and the aspect-square image box carried that into the height.
+
+### Durable invariant
+Toggling visibility must not change an element's display type. Use a class that only sets display:none, never write a concrete display value to show an element, because the value chosen also decides how its children are sized.
+
+### Fix
+Replace card.style.display='flex'/'none' with card.classList.toggle('hidden', !show), and drop the matching inline style from the server render, so no inline display is ever written and the cell keeps its grid sizing.
+
+### Regression check
+With the grid rendered and lazy images still unloaded, every card wrapper and its inner article must measure the same width and height: new Set(cards.map(c => c.querySelector('article').getBoundingClientRect().width)).size === 1
+
+> Promoted from a reviewed local candidate on 2026-08-24.
+
+
+---
+
+
+## Lesson: An unlayered CSS rule outranks every Tailwind utility
+
+### Symptom
+A Tailwind utility placed on an element had no effect: btn-primary text-xs still rendered 14px, and btn-primary bg-emerald-700 stayed slate. The workaround in the codebase was !important on the utilities.
+
+### Root cause
+The project stylesheet defined its component classes outside any @layer, while Tailwind v4 puts utilities inside @layer utilities. An unlayered declaration wins over every layered one regardless of specificity, so the utility could never apply. Reasoning about this as a specificity contest gives the wrong answer; only the built bundle's layer order settles it.
+
+### Durable invariant
+In a Tailwind v4 codebase every project stylesheet rule must sit inside an @layer. Layer order decides across layers, not specificity, so an unlayered rule silently outranks utilities. Reaching for !important on a utility is the symptom of this, not the fix.
+
+### Fix
+Wrap the component rules in @layer components and delete the !important workarounds at the call sites.
+
+### Regression check
+Put a conflicting utility on the component class and assert the computed value comes from the utility: getComputedStyle(el).fontSize === '12px' for class="btn-primary text-xs".
+
+> Promoted from a reviewed local candidate on 2026-08-24.
+
+
+---
+
+
+## Lesson: A bundler-resolved import can be unreachable from node --test
+
+### Symptom
+One lib module could not be tested at all: node --experimental-strip-types --test failed with ERR_MODULE_NOT_FOUND on './env', while the app built and ran normally.
+
+### Root cause
+Vite resolves extensionless relative specifiers; Node's type-stripping test runner does not. A module importing './env' instead of './env.ts' therefore works everywhere the bundler runs and is invisible to the test suite. Ten more modules had the same defect, hidden because nothing had tried to import them under Node.
+
+### Durable invariant
+Where tests run under node --experimental-strip-types, every relative import in testable source must carry its explicit .ts extension. A green build proves bundler resolution, never testability — a module the test runner cannot import is untested no matter how many tests exist.
+
+### Fix
+Give every relative import in the tested source tree its explicit extension, applied across the whole directory rather than only the module that surfaced the error.
+
+### Regression check
+npm test must actually import each lib module; a bare relative specifier fails immediately with ERR_MODULE_NOT_FOUND rather than being silently skipped.
+
+> Promoted from a reviewed local candidate on 2026-08-24.
