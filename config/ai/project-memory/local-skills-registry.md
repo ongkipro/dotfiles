@@ -1,6 +1,6 @@
 ---
 name: local-skills-registry
-description: Daftar skill lokal di ~/dotfiles/skills/local/ yang ter-link ke semua AI CLI (claude/codex/agy/pi). Cek ini sebelum menyarankan install tool atau membuat skill baru agar tidak duplikat.
+description: Owned skills live in ~/dotfiles/skills/local/ and are reconciled into supported AI runtimes by skill-update
 metadata:
   node_type: memory
   type: project
@@ -10,10 +10,10 @@ metadata:
 
 # Local Skills Registry
 
-Skill lokal tersimpan di `~/dotfiles/skills/local/` dan di-symlink ke semua CLI via `skill-update`.
-
-**Total per 2026-08-05: 41 direktori skill** (hitung ulang dari disk; catatan lama "30 per 2026-07-05"
-sudah usang). Angka ini bergerak — **selalu `ls ~/dotfiles/skills/local/` sebelum mengutipnya**.
+Owned skills are stored in `~/dotfiles/skills/local/` and linked into supported
+runtimes by `skill-update`. The count is intentionally not stored here because
+it changes; use `skill-list` or inspect the canonical directory before quoting
+inventory.
 
 ## ⚠️ TIDAK ADA skill tokophi, dan itu memang benar
 

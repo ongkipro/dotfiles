@@ -60,17 +60,18 @@
 - Do not treat conflicting Human Design/personality readings as final facts without verification.
 - Prefer separating facts, assumptions, opinions, and unknowns when uncertainty matters.
 
-## AI tooling decisions (consolidated 2026-07-14)
+## AI tooling decisions (updated 2026-08-24)
 > Runtime availability, active models, and service status must be checked on the
 > relevant machine. Do not preserve them here as current facts.
 
-### Control-plane and credential boundaries
-- OMP is the only primary control plane. Pi is an optional standalone fallback
-  with its own custom compaction behavior; OMP must work when Pi is absent.
-- The optional remote 9Router credential lives only at
-  `~/.config/ai-local/credentials/9router-remote-key`. Shell wrappers may inject
-  it into a direct child process, but it must not be globally exported, printed,
-  logged, or read from Pi state.
+### Runtime and credential boundaries
+- OMP uses its upstream-native command, configuration, agents, model/provider
+  catalog, routing, updates, workspace behavior, authentication, and session
+  state. Dotfiles supplies only shared context and owned skills; it must not
+  wrap OMP or install runtime configuration. Pi remains optional and independent.
+- The optional remote 9Router credential is machine-local. Dotfiles must not
+  inject it into OMP, globally export it, print it, log it, or infer it from Pi
+  state during normal setup.
 - `9router-credential-migrate` is an explicit, non-destructive bridge from a
   legacy Pi auth entry. It must not overwrite the neutral destination or delete
   the source.
@@ -82,6 +83,8 @@
   credential and `~/.pi/agent/{models.json,auth.json,sessions/}`.
 - Pi provider choice is machine-local. Inspect Pi state only when operating the
   optional Pi CLI; never use it as evidence for OMP routing or credentials.
+- OMP provider choice, authentication, and active models are native
+  machine-local state; verify them through OMP instead of dotfiles memory.
 - Never invent a rationale for a provider switch that was only observed on disk.
 
 ### Pitfall: prefix `ocg/` ≠ 9router

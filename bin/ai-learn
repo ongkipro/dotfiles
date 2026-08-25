@@ -13,10 +13,12 @@ Usage:
     [--project NAME] [--repo PATH]
   ai-learn list
   ai-learn show CANDIDATE
+  ai-learn reject CANDIDATE --reason TEXT --yes
   ai-learn promote CANDIDATE --target shared:FILE|project:FILE --yes
 
-Capture writes a device-local candidate. Promotion is the only operation that
-changes tracked memory; it requires explicit --yes and never commits or pushes.
+Capture writes a device-local candidate. Rejection archives it locally with the
+review reason. Promotion is the only operation that changes tracked memory;
+both reviewed outcomes require explicit --yes and never commit or push.
 EOF
 }
 
@@ -121,6 +123,43 @@ show_candidate() {
   [ "$#" -eq 1 ] || die "show requires exactly one candidate"
   candidate="$(candidate_path "$1")"
   sed -n '1,240p' "$candidate"
+}
+
+reject_candidate() {
+  local requested="" reason="" confirmed=0 candidate rejected_dir rejected_path tmp
+  [ "$#" -gt 0 ] || die "reject requires a candidate"
+  requested="$1"; shift
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --reason) [ "$#" -ge 2 ] || die "--reason requires a value"; reason="$2"; shift 2 ;;
+      --yes) confirmed=1; shift ;;
+      --help|-h) usage; exit 0 ;;
+      *) die "unknown reject option: $1" ;;
+    esac
+  done
+  [ "$confirmed" -eq 1 ] || die "rejection changes candidate state; review with show, then repeat with --yes"
+  [ -n "$reason" ] || die "--reason is required"
+  case "$reason" in *$'\n'*|*$'\r'*) die "--reason must be a single line" ;; esac
+  reject_sensitive_text "$reason"
+  candidate="$(candidate_path "$requested")"
+  rejected_dir="$INBOX/rejected"
+  mkdir -p "$rejected_dir"
+  chmod 700 "$rejected_dir"
+  rejected_path="$rejected_dir/$(basename "$candidate")"
+  [ ! -e "$rejected_path" ] || die "rejected archive already exists: $rejected_path"
+  tmp="$(mktemp "$rejected_dir/.reject.XXXXXX")"
+  chmod 600 "$tmp"
+  awk '
+    BEGIN { frontmatter = 0 }
+    NR == 1 && $0 == "---" { frontmatter = 1; print; next }
+    frontmatter && /^status:[[:space:]]*/ { print "status: rejected"; next }
+    frontmatter && $0 == "---" { frontmatter = 0 }
+    { print }
+  ' "$candidate" >"$tmp"
+  printf '\n\n### Review outcome\nRejected: %s\n' "$reason" >>"$tmp"
+  mv "$tmp" "$rejected_path"
+  unlink "$candidate"
+  printf 'Rejected and archived: %s\nNo tracked memory or Git state was changed.\n' "$rejected_path"
 }
 
 promote() {
@@ -266,6 +305,7 @@ case "$command_name" in
   capture) capture "$@" ;;
   list) [ "$#" -eq 0 ] || die "list accepts no arguments"; list_candidates ;;
   show) show_candidate "$@" ;;
+  reject) reject_candidate "$@" ;;
   promote) promote "$@" ;;
   --help|-h|help) usage ;;
   *) die "unknown command: $command_name" ;;

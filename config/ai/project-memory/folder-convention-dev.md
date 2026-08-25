@@ -1,17 +1,20 @@
 ---
 name: folder-convention-dev
-description: Where specs/docs vs project code live on this machine
+description: Canonical staging and repository locations for development work
 metadata: 
   node_type: memory
   type: feedback
   originSessionId: 06f57980-704a-4ea8-b91d-0bb76c175aa4
 ---
 
-User's folder convention (keep tidy):
-- `~/projects/` = **project output / actual built code** only.
-- `~/Documents/Development/` = **specs, docs, planning** repos (the thinking, not the build output).
+Canonical locations:
 
-**Why:** separate concept/spec from code output so `~/projects` stays clean.
-**How to apply:** put spec/documentation repos under `~/Documents/Development/`; reserve `~/projects/` for the implementation that gets built.
+- `~/Projects/<slug>/` contains an existing project's source code and
+  repository-owned contracts.
+- `~/Documents/work/prd/<slug>/` contains accepted planning artifacts only
+  before the repository exists or before they are promoted with `project-init`.
+- `~/Documents/work/{research,content,notes}/` contains non-authoritative drafts
+  and working material.
 
-Current: the **affiliate-portal-specs** repo (Medium-style affiliate publishing platform spec, GitHub ongkipro/affiliate-portal-specs) lives at `~/Documents/Development/affiliate-portal-specs`. Its implementation repo (`affiliate-portal-engine`) would go under `~/projects/` when built. See [[affiliate-portal-specs-project]].
+After promotion, the repository copy is authoritative. Never use an older
+`~/Documents/` snapshot to determine current project status.

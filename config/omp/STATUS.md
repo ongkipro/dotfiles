@@ -1,74 +1,35 @@
-# Status — OMP Orchestration
+# Status — OMP Integration
 
-Updated: 2026-08-19
-Status: Shared routing is configured and structurally guarded. End-to-end
-runtime readiness remains unverified in shared status because OMP version,
-catalog, credentials, quota, and provider availability are device-local.
+Updated: 2026-08-24
+Status: OMP is upstream-native; dotfiles provides shared context and owned
+skills only.
 
-## Current state
+## Active ownership
 
-Routing is organised as three capacity pools across thirteen roles and eleven agents. `ROUTING.md` owns the policy, `config.yml` owns the executable selectors, and `overlays/` holds single-provider session escapes.
+| Surface | Owner |
+|---|---|
+| `~/.omp/agent/config.yml` and profiles | OMP |
+| Models, providers, fallbacks, bundled agents, and task concurrency | OMP |
+| Auth, sessions, cache, updates, and workspace behavior | OMP |
+| `~/.omp/agent/AGENTS.md` | dotfiles shared memory |
+| `~/.omp/agent/skills` | dotfiles owned skills |
+| Project MCP configuration | each repository |
+| User MCP configuration | OMP native path; currently absent |
 
-| Pool | Roles | Purpose |
-|---|---|---|
-| Antigravity | `vision`, `designer`, `research`, `discovery`, `smol`, `tiny` | Volume. Carries every context-hungry lane: visual work, source research, the repository map `scout` returns, and mechanical support. |
-| Codex | `default`, `slow`, `task`, `plan` | Precision, and since 2026-08-16 the main session too. The lanes where a wrong edit costs the most rework. |
-| Anthropic | `advisor`, `advisor-xhigh`, `advisor-max` | Judgment. Independent consultation and review. |
+Dotfiles does not wrap the `omp` command, set `PI_CONFIG_FILES`, or install
+`config.yml`, `models.yml`, or `agents/` into OMP's agent directory. Installers
+remove only legacy symlinks that point exactly at this repository and preserve
+all unmanaged or OMP-owned files.
 
-All eleven agents — seven bundled and four custom agents under `agents/`
-(`architect`, `complex-developer`, `debugger`, `writer`) — have an explicit
-override, so none silently resolves to `default`. Five bundled agents also have
-tracked directive overrides where the upstream default does not match this
-fleet; `ROUTING.md` records that distinction.
+## Verification
 
-### Standing invariants
+- `omp-routing-test` guards the ownership boundary and live managed links.
+- `omp-workspace-test` proves shell startup preserves OMP arguments and config
+  discovery.
+- `omp-effective-routing-test` resolves OMP's native settings schema in an
+  isolated agent directory.
+- `installer-link-test` proves migration removes managed legacy links while
+  preserving unmanaged runtime state.
 
-Any change to `config.yml` must keep all of these true:
-
-1. Every agent override resolves to a defined role.
-2. Every model reference carries an explicit reasoning suffix, and device-local capability validation must confirm that the model supports it.
-3. Every model reachable from any role or fallback must have a context window larger than `compaction.thresholdTokens`.
-4. Each normal route spans Antigravity, Codex, and Anthropic exactly once across its primary and first two fallback hops.
-5. The `advisor*` and `discovery` primaries are independent from the Codex execution pool. Their first fallback remains outside Codex; Codex is allowed only as the final availability-over-independence hop, whose output is not independent review or discovery.
-6. Every role has a fallback path, whether role-keyed or model-keyed.
-7. Normal routing uses the three directly connected providers only. 9Router remains defined in `models.yml` as an explicit operator-selected reserve, but no shared role, fallback chain, or `modelProviderOrder` entry may name it.
-8. Every single-provider overlay defines and confines every primary and fallback selector to its sole `modelProviderOrder` provider, with complete recovery coverage.
-9. `vision` and `designer`, including every reachable fallback, advertise image input capability in the live model catalog.
-
-## Active work
-
-The shared fallback and reserve contract is reconciled. `omp-routing-test`
-checks the tracked base graph, while `omp-effective-routing-test` resolves the
-active device overlay, loads every tracked template through OMP's real
-`models --config` path, and then validates its resolved structure.
-Together they cover role and override wiring, provider confinement,
-independent-lane fallback placement, the 9Router reserve boundary, fallback
-effort floors, and visual input capability. Live selector, context-window, and
-modality claims are made only when that device exposes the relevant catalog.
-
-## Blockers
-
-Runtime readiness is unresolved until the target device's installed OMP parser
-and catalog accept the tracked selectors and the required providers serve them.
-That result belongs in device-local evidence, not as a permanent claim here. A
-missing executable or catalog produces `PARTIAL`/`WARNING`; neither is a clean
-verification.
-
-OMP 17.3.5 still rejects the documented global `--config` flag for the `config`
-subcommand. Automated OMP QA owns that parser defect. The regression probe uses
-a sentinel value and reports `PARTIAL` until the installed runtime both accepts
-the flag and proves that it applied the overlay; an exit-zero no-op is a failure.
-
-## Next verified action
-
-After installing or updating OMP on any device, run `omp-routing-test` and
-resolve every reported selector or catalog mismatch through that runtime's
-normal update path. After introducing a selector, perform one bounded serving
-check on the target device. Keep the observed result in device-local evidence;
-do not turn it into permanent cross-device availability truth.
-
-## Deliberately not wired
-
-- 9Router is absent from `modelProviderOrder`, roles, and fallback chains. Direct providers already supply the normal route's three pools; 9Router adds another transport and its `ag/*` routes reuse Antigravity capacity. Its `models.yml` definition is retained only for deliberate operator selection and does not imply that the gateway or any listed model is available.
-- `tools.approvalMode: yolo` is retained behind ordered OMP `bash.patterns` deny rules. `AGENTS.md` still owns approval intent; the deny list is a mechanical floor, and `git-guard.sh` adds deeper Git checks where the Claude hook is wired.
-- Parallel task isolation never auto-applies child patches. Recursion is one level, child LSP is enabled, and `delivery-ledger` requires semantic-owner boundaries plus parent-controlled sequential integration.
+The historical custom routing files remain under this directory temporarily as
+reviewable evidence. They are not active configuration.

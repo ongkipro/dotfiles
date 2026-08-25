@@ -1,6 +1,10 @@
-# OMP Development Routing
+# Retired OMP Development Routing Reference
 
-This file is the canonical policy for policy-driven autonomous orchestration and deterministic agent-to-model mappings in development work. Skills own methodology; this file selects who executes it. Do not copy model preferences into skills.
+This document records the custom routing design retired on 2026-08-24. It is no
+longer runtime policy: OMP now uses its upstream-native configuration, bundled
+agents, models, and provider routing. See `README.md` in this directory for the
+active ownership boundary. The remaining sections are historical reference and
+must not be treated as instructions for a live OMP session.
 
 ## Invariants
 
@@ -97,7 +101,12 @@ Built-in agents ship with OMP; `config/omp/agents/` tracks a definition only whe
 
 Bundled definitions carry their own `model` and `thinkingLevel` declarations, and `agentModelOverrides` is what makes routing deterministic on top of them. Two consequences follow. A role named in a bundled definition must exist here even when an override also covers it, which is why `designer` is defined as a role alias beside `vision`. And a role's reasoning suffix must be a level its model actually supports, because an agent may declare its own level independently: `librarian` declares `minimal`, so `research` uses Gemini 3.7 Flash, which supports it, rather than Gemini 3.1 Pro, which offers only `low` and `high`.
 
-Two bundled agents can spawn further agents: `reviewer` may spawn `scout`, and `task` may spawn any agent. Combined with a concurrency limit of three, a single delegated task can therefore expand into a wider fleet than the dispatching decision implies. Give `task` an explicitly bounded assignment, and treat nested spawning as delegation the parent still owns and must verify.
+The tracked `reviewer` removes its bundled `scout` spawn so independent review
+cannot silently widen into a second semantic owner. The bundled `task` agent
+can still spawn other agents, but `task.maxRecursionDepth: 1` prevents any child
+from starting grandchildren. Give every delegated task an explicitly bounded
+assignment, and treat all child work as delegation the parent still owns and
+must verify.
 
 The model shown in the main OMP header remains the main context owner's model. The task widget's resolved-model badge identifies the model actually running each specialist; no `designer` task means no visual specialist was dispatched.
 
@@ -138,18 +147,20 @@ Occasionally a session should stay on one provider — to exercise a provider in
 Use a config overlay instead, which replaces the whole role table for that run only:
 
 ```bash
-omp --config ~/dotfiles/config/omp/overlays/codex-only.yml
-omp --config ~/dotfiles/config/omp/overlays/antigravity-only.yml
+PI_CONFIG_FILES=~/dotfiles/config/omp/config.yml:~/dotfiles/config/omp/overlays/codex-only.yml omp
+PI_CONFIG_FILES=~/dotfiles/config/omp/config.yml:~/dotfiles/config/omp/overlays/antigravity-only.yml omp
 ```
 
 Each overlay pins all thirteen roles to one provider, so every dispatched specialist follows, and confines recovery to that same provider — a session deliberately pinned to one provider should fail inside it rather than quietly restoring the routing the operator just opted out of. The tracked configuration is untouched; the next plain `omp` is back to normal.
 
 Both overlays honour the same invariants as the main config: supported reasoning levels, context windows above the compaction threshold, and an image-capable model behind `vision` and `designer`. One capability genuinely cannot be preserved: Antigravity's Claude Opus 4.6 stops at `high` reasoning, so an Antigravity-only session has no equivalent to the `xhigh` and `max` advisor tiers that direct Anthropic Opus 5 provides. Treat advisor output from such a session as one tier lower than requested.
 
-`omp-effective-routing-test` invokes OMP's own `models --config` loader before
-its structural checks. OMP 17.3.5 still rejects the same documented global flag
-when it precedes `config list`; that upstream parser defect is reported as
-`PARTIAL`, not hidden by the test's YAML merge.
+`omp-effective-routing-test` invokes OMP's own loader through
+`PI_CONFIG_FILES` before its structural checks. This is the canonical
+multi-file composition path because it applies consistently to interactive and
+subcommand execution. The former global `--config` parser discrepancy is
+therefore no longer part of the local runtime contract; the test now fails on
+any ignored composition instead of hiding it behind a YAML-only merge.
 
 ## Capability ownership
 

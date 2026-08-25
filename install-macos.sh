@@ -22,6 +22,21 @@ link() {
   ln -s "$src" "$dst"
   say "   $dst -> $src"
 }
+
+# OMP owns its runtime configuration, model catalog, and bundled agents.
+# Remove only links created by older dotfiles installers; preserve every
+# unmanaged file or link for the user and for OMP itself.
+retire_omp_overrides() {
+  local name live tracked
+  for name in config.yml models.yml agents; do
+    live="$HOME/.omp/agent/$name"
+    tracked="$DOT/config/omp/$name"
+    if [ -L "$live" ] && [ "$(readlink "$live" 2>/dev/null)" = "$tracked" ]; then
+      unlink "$live"
+      say "   removed legacy OMP override: $live"
+    fi
+  done
+}
 ensure_shell_source() {
   local rc="$1" file="$2" marker="$3" legacy_stop="$4"
   local source_line start backup tmp remove_block=0
@@ -173,9 +188,7 @@ done
 "$DOT/skills/agents-bin/skill-update"
 
 say "==> Link AGENTS.md ke CLI yang ada..."
-link "$DOT/config/omp/config.yml"        "$HOME/.omp/agent/config.yml"   # OMP config
-link "$DOT/config/omp/models.yml"        "$HOME/.omp/agent/models.yml"   # OMP providers (9router)
-link "$DOT/config/omp/agents"            "$HOME/.omp/agent/agents"     # OMP specialist agents (role-routed)
+retire_omp_overrides
 "$HOME/.local/bin/ai-memory-link"
 
 say "==> Setup tmux (install binary + clipboard + TPM + plugin)..."

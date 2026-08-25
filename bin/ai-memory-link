@@ -70,31 +70,43 @@ if [ -L "$OMP_LEGACY" ] \
   echo "removed legacy: $OMP_LEGACY"
 fi
 
-# ── Memori per-project (Claude Code) ──────────────────────────────────────────
-# Claude Code menyimpan memori per-project di ~/.claude/projects/<cwd>/memory/,
-# dan <cwd> = $HOME dengan '/' → '-' ('-Users-ongki' di Mac, '-home-<user>' di
-# Linux). Isinya dipindah ke dotfiles 2026-07-20 lalu di-symlink balik supaya
-# ikut ter-sync antar device dan bisa dibaca CLI lain.
-#
-# Kalau symlink ini TIDAK ada, Claude Code tidak error — ia diam-diam bikin
-# direktori kosong baru, dan konteks project hilang tanpa gejala. Karena itu
-# bagian ini idempoten dan aman dijalankan di device yang belum punya.
-link_pmem() {
-  local src="$1" dst="$2"
-  [ -d "$src" ] || return 0
-  if [ -L "$dst" ] && [ "$(resolve_path "$dst" 2>/dev/null)" = "$(resolve_path "$src")" ]; then
-    echo "ok:     $dst -> $src"
-  elif [ -d "$dst" ] && [ ! -L "$dst" ]; then
-    # Direktori ASLI berisi memori yang belum ter-sync. JANGAN timpa — isinya
-    # bisa jadi konteks project device ini yang belum pernah masuk dotfiles.
-    echo "WARNING: $dst adalah direktori asli, bukan symlink."
-    echo "         Isinya belum ter-sync. Pindahkan manual ke $src (cek dulu"
-    echo "         apakah ada file yang belum ada di sana), lalu jalankan ulang."
-  else
-    mkdir -p "$(dirname "$dst")"
-    ln -sfn "$src" "$dst"
-    echo "linked: $dst -> $src"
+# ── Claude home-workspace bootstrap ───────────────────────────────────────────
+# Claude Code writes auto-memory into its project memory directory. Pointing the
+# $HOME entry at tracked dotfiles therefore lets an unrelated terminal append
+# project facts directly to the shared bootstrap. Install a device-local,
+# read-only copy instead: tracked source remains review-only, while attempted
+# ambient writes fail closed.
+install_home_bootstrap() {
+  local src_file="$1" dst="$2" runtime="$3" current=""
+  [ -f "$src_file" ] || return 0
+
+  if [ -d "$dst" ] && [ ! -L "$dst" ]; then
+    echo "WARNING: $dst is an unmanaged directory; inspect it before migration."
+    return 0
   fi
+  if [ -L "$dst" ]; then
+    current="$(resolve_path "$dst" 2>/dev/null || true)"
+    if [ "$current" != "$(resolve_path "$runtime" 2>/dev/null || printf '%s' "$runtime")" ] \
+       && [ "$current" != "$(resolve_path "$(dirname "$src_file")" 2>/dev/null || true)" ]; then
+      echo "WARNING: $dst points to an unmanaged target; refusing to replace it."
+      return 0
+    fi
+    unlink "$dst"
+  elif [ -e "$dst" ]; then
+    echo "WARNING: $dst is an unmanaged file; refusing to replace it."
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$dst")" "$runtime"
+  chmod 700 "$runtime"
+  if find "$runtime" -mindepth 1 -maxdepth 1 ! -name MEMORY.md -print -quit | grep -q .; then
+    echo "WARNING: $runtime contains unexpected files; refusing to expose it."
+    return 0
+  fi
+  install -m 400 "$src_file" "$runtime/MEMORY.md"
+  chmod 500 "$runtime"
+  ln -s "$runtime" "$dst"
+  echo "linked read-only bootstrap: $dst -> $runtime"
 }
 
 # Every account under ~/.claude-accounts/ is its own CLAUDE_CONFIG_DIR with its
@@ -106,8 +118,11 @@ link_pmem() {
 project_slug="$(printf '%s' "$HOME" | tr '/' '-')"
 for cfg in "$HOME/.claude" "$HOME"/.claude-accounts/*/; do
   [ -d "$cfg" ] || continue
-  link_pmem "$HOME/dotfiles/config/ai/project-memory" \
-            "${cfg%/}/projects/$project_slug/memory"
+  cfg_key="$(printf '%s' "${cfg%/}" | tr '/ ' '--')"
+  install_home_bootstrap \
+    "$HOME/dotfiles/config/ai/claude-home-memory/MEMORY.md" \
+    "${cfg%/}/projects/$project_slug/memory" \
+    "$HOME/.config/ai-local/claude-home-bootstrap/$cfg_key"
 done
 
 echo "Selesai. Edit memori di ~/.config/ai/ (AGENTS.md + memory/*.md)."

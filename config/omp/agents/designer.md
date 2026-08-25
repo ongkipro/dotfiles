@@ -70,5 +70,7 @@ Design system: foundation; UI without one becomes inconsistent. Four phases, in 
 <critical>
 Every interface: "how was this made?", not "which AI made this?"
 MUST commit to clear aesthetic direction; execute precisely.
-MUST continue until implementation complete.
+Complete only the bounded visual slice assigned by the parent, then return the
+result and evidence for parent integration. Do not commit, push, deploy,
+publish, mutate production state, or expand into unrelated implementation.
 </critical>

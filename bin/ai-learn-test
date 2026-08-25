@@ -43,6 +43,25 @@ grep -qF '### Durable invariant' "$candidate"
 "$learn" list | grep -qF "$(basename "$candidate")"
 "$learn" show "$(basename "$candidate")" | grep -qF 'A full-replace form'
 
+rejected="$AI_MEMORY_INBOX_DIR/rejected-candidate.md"
+cat >"$rejected" <<'EOF'
+---
+status: candidate
+---
+
+## Lesson: Keep implementation status in the repository
+EOF
+chmod 600 "$rejected"
+if "$learn" reject rejected-candidate.md --reason "Repository test owns this invariant" >/dev/null 2>&1; then
+  echo "FAIL: rejection without --yes succeeded" >&2
+  exit 1
+fi
+"$learn" reject rejected-candidate.md --reason "Repository test owns this invariant" --yes >/dev/null
+[ ! -f "$rejected" ]
+[ -f "$AI_MEMORY_INBOX_DIR/rejected/rejected-candidate.md" ]
+grep -qF 'status: rejected' "$AI_MEMORY_INBOX_DIR/rejected/rejected-candidate.md"
+grep -qF 'Rejected: Repository test owns this invariant' "$AI_MEMORY_INBOX_DIR/rejected/rejected-candidate.md"
+
 before_count="$(find "$AI_MEMORY_INBOX_DIR" -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')"
 if "$learn" capture --title incomplete >/dev/null 2>&1; then
   echo "FAIL: incomplete capture succeeded" >&2

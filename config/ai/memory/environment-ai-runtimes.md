@@ -7,25 +7,28 @@
 > are machine-local. Verify them from the relevant machine instead of recording
 > a current snapshot here.
 
-- OMP is the only primary control plane. Its tracked configuration lives under
-  `config/omp/`; Pi state is not an OMP configuration or credential source.
-- **Aspirational Routing vs Device Reality:** OMP's `config/omp/config.yml` defines the *ideal* orchestration (e.g., assigning `claude-opus-5:max` for `advisor-max`). However, **actual model availability is device-local**, governed by what is registered in `models.yml` and the provider's active API keys. If a requested model (like Opus 5) is absent on a specific device, OMP degrades to the highest available fallback (e.g., Opus 4.6 or Codex Sol). Do not assume all models in `config.yml` are physically available on every machine.
+- OMP is an upstream-native runtime. Its command, configuration, bundled agents,
+  provider catalog, routing, updates, workspace behavior, authentication, and
+  session state are not installed or overridden by dotfiles.
+- Dotfiles supplies OMP only with shared context through
+  `~/.omp/agent/AGENTS.md` and owned skills through `~/.omp/agent/skills`.
+  Verify active models and providers using OMP's native commands on the device.
 - Pi is optional. When it is installed, inspect its own settings and models only
   for a direct Pi session. Its custom compaction extension is a Pi-only fallback.
 - `bin/pi-9router-restore` is an explicitly invoked optional adapter for Pi
   settings, compaction, and remote-catalog sync. It does not install or start a
   local gateway.
-- The optional remote credential is
-  `~/.config/ai-local/credentials/9router-remote-key`. It is never tracked or
-  globally exported; the `omp()` shell wrapper injects it only into the OMP
-  child when `NINEROUTER_REMOTE_KEY` is not already set.
+- The optional remote 9Router credential is machine-local and used only by the
+  explicitly invoked Pi/9Router helpers that require it. Dotfiles does not
+  inject it into OMP.
 - `9router-credential-migrate` may copy a legacy key from Pi auth only when
   explicitly invoked. It does not print the value, delete the source, or
   overwrite an existing neutral credential.
 - Image generation belongs to the runtime-neutral `9router` skill/API, not a Pi
   image package.
-- 9Router is remote-only in the supported dotfiles topology. OMP and optional Pi
-  target the authenticated tunnel declared in their tracked provider configs.
+- 9Router is remote-only in the supported dotfiles topology. Optional Pi and
+  runtime-neutral 9Router helpers may target that service; OMP provider choices
+  remain native and machine-local.
 - A local `9router` npm package, `9router.service`, port 20128 gateway, local
   provider database, and local model-sync dependency are deliberately absent.
   Do not reinstall or recreate them as part of generic setup.
@@ -43,8 +46,8 @@
 - **Gemini CLI: DELIBERATELY REMOVED (2026-07-13)** — user decision: the Gemini stack is used via **Antigravity (`agy`)**, not the `gemini` CLI. The `@google/gemini-cli` package has been `npm uninstall -g`'d. **DO NOT reinstall it.**
 - ⚠️ **`~/.gemini/` IS STILL KEPT** even though the `gemini` CLI was removed — it holds `GEMINI.md` (symlink → `~/.config/ai/AGENTS.md`, created by `ai-memory-link`) read by **Antigravity**. **Deleting `~/.gemini` = breaking agy.** Contents as of 2026-07-14: `GEMINI.md`, `projects.json`, `config/`, and **`antigravity-cli/` (STILL PRESENT** — the old note saying this folder is gone is WRONG).
 - **agy**: a flat native binary, its name **differs per machine** — on Mac `~/.local/bin/agy` (143M, verified 2026-07-20; there is NO `antigravity` file here), on `cuan` an ELF binary from the official installer. Check: `ls -l ~/.local/bin/ | grep -iE 'agy|antigravity'`. Antigravity config in `~/.antigravity/{AGENTS.md,ANTIGRAVITY.md}`.
-- **9Router status:** verify the remote tunnel using the checks in the
-  OMP/9Router section above; there is no supported local service.
+- **9Router status:** verify the remote tunnel only when operating an optional
+  Pi/9Router integration; there is no supported local service.
 - Optional Pi provider metadata, credentials, and sync status are independent
   from OMP. Inspect them only while troubleshooting a direct Pi session.
 - There is no Pi-owned image-generation path in tracked settings. Use the
@@ -62,18 +65,13 @@
 ## 9Router credential and restore boundary
 - `bin/pi-9router-restore` owns optional Pi settings, compaction, and
   remote-catalog sync integration. It does not install a gateway.
-- OMP and Pi provider configs target the remote tunnel; localhost is not a
-  supported 9Router endpoint in this setup.
-- OMP's wrapper reads only
-  `~/.config/ai-local/credentials/9router-remote-key`, and only when
-  `NINEROUTER_REMOTE_KEY` is not already set. The value is scoped to the direct
-  OMP child process.
-- `config/omp/models.yml` expects the environment-variable name chosen by its
-  tracked provider configuration. Consult that file rather than copying a
-  selector or endpoint into memory.
+- Optional Pi and runtime-neutral 9Router helpers may target the remote tunnel;
+  localhost is not a supported 9Router endpoint in this setup.
+- OMP has no dotfiles-owned 9Router provider, model catalog, credential
+  injection, or shell wrapper. Configure and authenticate OMP only through its
+  native machine-local mechanisms.
 - Never read or expose credential contents while diagnosing. Use
-  `shell-wrapper-test` for the non-secret fixture contract and the doctor checks
-  maintained by the core OMP setup.
+  non-secret health checks and the relevant helper's fixture tests.
 - Legacy `~/.9router/` state is not part of the supported runtime topology and
   must not be restored from backups.
 

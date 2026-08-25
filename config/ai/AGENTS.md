@@ -31,7 +31,11 @@ Before `~/Projects/<slug>/` exists, every accepted planning artifact — standal
 
 Coding starts only after explicit development authorization. `project-init --from-docs ~/Documents/work/prd/<slug>/` — combined with `--stack <profile>` for a new project or `--repo <path> --stack existing-repository` for one that already exists — then copies the accepted staged artifacts into `~/Projects/<slug>/`: standalone files land at the project root and `docs/adr/`; a suite pack (detected the same way, by `CONTEXT-RECORD.md`) lands under `docs/spec/`. The source stays in place as a retained, non-authoritative snapshot; a divergent existing destination file fails the copy instead of being silently overwritten, and an identical destination file is a safe no-op. From that point the repository copy is canonical; never re-consult the `~/Documents/` copy as the source of truth once promotion has happened.
 
-- dotfiles is shared by every device in `devices/`: a device may **add** (memory, skills, its own `devices/<host>.md`, a lesson) but must not **restructure** OMP routing, installers, shell tooling, or the contract templates. Device-only facts go to `~/.config/ai-local/`; different models go to `config/omp/overlays/*.yml`. This was violated once: `bin/omp-routing-test` now asserts structure rather than model names, because every selector stayed valid while the design was dismantled — case in `docs/archive/OMP_BUILD_LOG_THROUGH_2026-08-17.md`, 2026-08-16.
+- dotfiles is shared by every device in `devices/`: a device may **add** memory,
+  owned skills, its own `devices/<host>.md`, or a reviewed lesson, but it must
+  not install OMP runtime settings, model catalogs, agent definitions, or
+  provider routing. OMP owns those through its native user/profile paths.
+  Device-only facts go to `~/.config/ai-local/`.
 
 ## Output discipline
 
@@ -43,8 +47,20 @@ Coding starts only after explicit development authorization. `project-init --fro
 
 ## Runtime routing and capabilities
 
-OMP development routing is canonical in `config/omp/ROUTING.md`. In OMP, the user only states the desired outcome: classify the work, decompose it into independent slices, and autonomously dispatch each slice to the matching typed specialist without waiting for model or agent instructions. Launch independent slices together in one task batch so their assigned models run concurrently; keep dependent work sequential. The main session remains context owner: isolated workers never auto-apply, active children may not share a semantic owner, and the parent integrates digest-bound patches one at a time only after every child finishes, then verifies the combined result. Avoid delegation for ordinary work, never invent parallelism, and never ask the user to perform model selection that OMP can resolve itself. Executable mechanics live in `delivery-ledger`; detailed routing policy lives in `config/omp/ROUTING.md`.
+OMP uses its upstream-native command, configuration discovery, bundled agents,
+model catalog, provider routing, update channel, and workspace behavior.
+Dotfiles must not wrap `omp`, inject `PI_CONFIG_FILES`, or link
+`config.yml`, `models.yml`, or `agents/` into `~/.omp/agent/`. Dotfiles supplies
+only the shared `AGENTS.md` context and owned skill directory. A shared user MCP
+file may be added later at OMP's native `~/.omp/agent/mcp.json` path only when a
+real secret-free cross-device configuration exists; project MCP configuration
+belongs to the repository.
 
+Use OMP's installed defaults for task decomposition, agents, models,
+concurrency, fallbacks, and update behavior. Avoid delegation for ordinary
+work, never invent parallelism, and keep the main session responsible for final
+integration and verification. Repositories using `delivery-ledger` still apply
+its task-boundary contract independently of which OMP model or agent executes.
 Browser-visible visual, layout, responsive, accessibility, or UX work always routes to `designer`/`vision` before the first visual edit, regardless of task size; this is a capability trigger, not complexity escalation. Pure data/API/non-visual wiring in a frontend file is exempt. If the designer cannot start, surface the failure instead of silently absorbing visual work into the main session.
 
 Owned capabilities have one source: **`~/dotfiles/skills/local/<name>/SKILL.md`**. Claude, Pi, OMP, and Antigravity discover the canonical directory automatically. Codex preserves its native `.system` skills and receives per-skill links to the same owned source. `skill-update` reconciles runtime adapters; it never copies methodology.
@@ -89,13 +105,17 @@ NEVER simplify away: input validation at trust boundaries, error handling that p
 ## Hard rules
 
 - Never invent API names, repo URLs, or specific facts. Verify against official sources.
-- **`ongkipro/dotfiles` is a PUBLIC repository as of 2026-08-17.** Credentials were never tracked and stay in `~/.config/ai-local/`, but everything committed here is published the moment it is pushed — and a later deletion does not unpublish it. Keep server addresses, account balances or credit, hardware serials, and client names out of new commits to this repository; those belong in `~/.config/ai-local/`.
+- **`ongkipro/dotfiles` is PRIVATE as of 2026-08-23, but it was previously public.** Privacy does not retract historical exposure and is not a secrets boundary. Credentials stay in `~/.config/ai-local/`; keep server addresses, account balances or credit, hardware serials, and client names out of commits to this repository.
 - No "Buy Now" / "Shop Now" / CTA in Shopify descriptions or meta unless asked.
 - Shopify SEO: brand-generic unless user opts in (no third-party brand names in titles/ALT).
 
 ## Approval gates — ALWAYS ON
 
-**Permission allowed is not user approval.** Claude, Codex, pi, agy, and omp all run with broad shell permissions — omp widest of all, because `tools.approvalMode: yolo` is a deliberate choice (see `config/omp/ROUTING.md`) and it prompts for nothing. These gates are behavioural, not mechanical: the fewer prompts a runtime raises, the more the obligation rests here. A permitted command is not an approved one. Stop and ask before:
+**Permission allowed is not user approval.** Claude, Codex, pi, agy, and omp may
+run with broad shell permissions; each runtime owns its native approval mode.
+These gates are behavioural, not mechanical: the fewer prompts a runtime
+raises, the more the obligation rests here. A permitted command is not an
+approved one. Stop and ask before:
 
 - **Secrets**: `.env` contents, API keys, tokens, passwords, auth sessions, payment/billing/customer data. Detecting secret files is fine (`fd '^\.env' -H -t f`); printing their contents is not. Never write a secret into memory.
   Development credentials are consolidated in `~/.config/ai-local/secrets.env` (0600, outside every repository) and read through **`secrets-env`** — `list` for names, `get` for one value, `run -- <cmd>` to inject into a single child, `check` to audit. Never `source` that file: it puts every secret into the environment of everything launched for the rest of the session. Never let a secret value reach a shell that interprets it — `run` hands values to `env` as literal argv precisely because a value containing `$` or backticks would otherwise expand or execute.

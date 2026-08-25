@@ -10,7 +10,7 @@ metadata:
 
 COD funnel-ads ecommerce. Repo **`ongkipro/petanisejahtera`** (public, created 2026-07-17). Astro v6 SSR with the Cloudflare Workers adapter, Tailwind v4, Lucide icons. Order backend = **Scalev API**.
 
-**Checkout & env (2026-07-18):** cloned to `~/Projects/petanisejahtera` (so the Mac now has `volumform` **and** this one). **There is no `.env` in the secrets archive** `projects-env-2026-07-14/` — the project was created after that snapshot. Templates: `.env.example` + `.dev.vars.example` (Scalev keys, FB Pixel/CAPI, GTM). Running locally without keys renders fine but the order form is dead. `npm run dev` → :4321.
+**Checkout & env (2026-07-18):** cloned to `~/Projects/petanisejahtera`. **There is no `.env` in the secrets archive** `projects-env-2026-07-14/` — the project was created after that snapshot. Templates: `.env.example` + `.dev.vars.example` (Scalev keys, FB Pixel/CAPI, GTM). Running locally without keys renders fine but the order form is dead. `npm run dev` → :4321.
 
 **Sources of truth inside the repo (do not memorize these, read the files):**
 - `DEV_NOTES.md` = development index + changelog + how to add a landing page + image/colour/icon conventions. **Read this first** at the start of any session.

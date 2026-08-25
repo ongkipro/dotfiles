@@ -21,7 +21,7 @@ built to last, 1-year US warranty + US support, gift-ready. Voice: warm, plain-E
 5 category names used site-wide: Offline Game Players, Fidget & Sensory Toys, Puzzles & Magic Cubes,
 Plush & Soft Toys, Outdoor & Active Play.
 
-PROGRESS (as of 2026-06-25):
+HISTORICAL SNAPSHOT (2026-06-25; never use as current execution status):
 - DONE: full copy rebrand across all pages/components (Layout SEO, Header, Footer, homepage, ~20 pages,
   policies, filters).
 - DONE: HOMEPAGE visual redesign to "Warm & Playful" (Lovevery/Yoto) — warm palette tokens in
@@ -34,7 +34,7 @@ PROGRESS (as of 2026-06-25):
   Layout.astro jdgmSettings). Reviews API verified HTTP 200. Shop domain 2mpt3p-xv.myshopify.com.
 - Dev server runs via `astro dev --background --port 4322`.
 
-NEXT / STILL OPEN (resume here):
+OPEN ITEMS RECORDED AT THAT TIME (verify against repository-owned status before acting):
 1. Apply the same warm "Play & Go" visual + width-boundary to the OTHER 19 pages (shop, about, sale, faq,
    contact, sustainability, safety-checklist, 404, collections, products, blogs, policies). They still use
    old dot-grid/Neo-Brutalist styling. Reuse spec: /scratchpad/warm-spec.md pattern.

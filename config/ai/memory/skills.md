@@ -34,9 +34,9 @@
 
 ## AI development system contract
 
-The canonical routing policy is `~/dotfiles/config/omp/ROUTING.md`. OMP owns
-session orchestration and model selection. Skills own provider-neutral
-methodology. Models remain replaceable workers.
+OMP owns session orchestration and model selection through its upstream-native
+runtime configuration. Dotfiles does not define OMP routing. Skills own
+provider-neutral methodology, and models remain replaceable workers.
 
 Three layers are separated by ownership:
 

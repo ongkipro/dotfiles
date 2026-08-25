@@ -7,7 +7,9 @@ metadata:
   originSessionId: 0c64c809-05f4-4dad-808b-69ea887649ce
 ---
 
-**PetCue** = pet supplies store. Shopify store **yn80fb-mb.myshopify.com** (**248 products** as of 2026-06-29, up from 98), custom **Astro** site at `~/projects/petcue` deployed to **petcue.co / www.petcue.co** on Cloudflare Workers (`npx wrangler deploy`, manual, no CI; article URLs 307-redirect to trailing-slash → 200). Repo remote: **github.com/ongkipro/petcue** (branch `main`). There is also a Shopify theme at `~/projects/petcue-theme`. Local optimization docs/CSV in `~/Documents/Shopify/yn80fb-mb - PetCue.co/` (sync_data.sh, products_master.csv, OPTIMIZATION_GUIDE.md) — same toolkit pattern as PixsGo.
+**Snapshot dated 2026-06-29.** PetCue is a pet-supplies Shopify store with an
+Astro storefront. All observations below require fresh repository and platform
+evidence before use.
 
 **Blog architecture (DIFFERENT from PixsGo):** site reads Shopify blog cache `src/lib/cache/blog-<handle>-50.json` + flat `articles-{100,250}.json`. **`npm run cache:fetch` DOES regenerate these from Shopify** (unlike PixsGo where it skips blog caches). So adding blog articles = clean flow: (1) publish to Shopify via `shopify store execute --allow-mutations` with `articleCreate` (image via `image.url` external URL → Shopify CDN; SEO via metafields `global.title_tag`/`description_tag`; `isPublished:true` needs `publishDate` NOT in the future), (2) `npm run cache:fetch`, (3) `npm run build`, (4) `npx wrangler deploy`. No manual cache edits, no local webp needed (cache stores Shopify CDN urls). Article HTML is **plain `<p>`/`<h2>`/`<ul>`/`<li>`/`<strong>` (NO css classes)**. SEO titles use a **"- Petcue"** brand suffix and ":" / "-" (never "|"). Author "PetCue Team". `feed.ts getAllArticles` sorts newest-first by publishedAt.
 

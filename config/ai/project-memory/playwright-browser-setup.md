@@ -21,3 +21,12 @@ Browser automation for pi.dev + general CLI use, set up 2026-06-25. See [[pi-9ro
 - Bundled chromium (fallback): `chromium.launch({ headless: true })`.
 
 **install-deps:** `playwright install-deps` reports 59 missing libs (CJK/Thai fonts, gstreamer, video codecs) but these are OPTIONAL — bundled chromium still launches & renders pages without them. Only needed for CJK-font screenshots or in-page audio/video. Requires sudo PASSWORD (passwordless sudo NOT available here), so Claude can't run it; user must: `sudo env PATH=$PATH playwright install-deps chromium`. Not done as of 2026-06-25.
+
+**Correction 2026-08-19 (verified on this Linux box, `rich`):** there is no
+global `playwright` module here — `npm ls -g` lists `chrome-devtools-mcp` but no
+playwright, and `require('playwright')` from the global root fails. The browsers
+are cached, though: `~/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome`.
+To drive a page, install `playwright-core` in a scratch directory and pass that
+binary as `executablePath`. `chrome-devtools-mcp` refuses to attach whenever
+another Chrome already holds `~/.cache/chrome-devtools-mcp/chrome-profile`, which
+is the normal state when a browser is open.

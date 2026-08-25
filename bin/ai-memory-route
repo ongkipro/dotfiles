@@ -67,11 +67,11 @@ def project_from_repo(repo: Path | None, manifest: dict) -> str | None:
         if r.returncode == 0:
             remote = r.stdout.strip().rstrip("/").removesuffix(".git")
             base = remote.rsplit("/", 1)[-1].lower()
-            if base in manifest.get("projects", {}):
+            if base:
                 return base
     except Exception:
         pass
-    return None
+    return name
 
 
 def execution_refs(repo: Path | None) -> list[dict]:

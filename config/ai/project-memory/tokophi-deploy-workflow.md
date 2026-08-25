@@ -1,6 +1,6 @@
 ---
 name: tokophi-deploy-workflow
-description: TokoΦ deploy = Coolify auto-build on merge to origin/main; local main is a stale fork — never push it; monitor deploy via docker image sha on the VPS
+description: TokoΦ deploy = Coolify auto-build on merge to origin/main; work via worktrees off origin/main; monitor deploy via docker image sha on the VPS
 metadata: 
   node_type: memory
   type: project
@@ -8,9 +8,9 @@ metadata:
   modified: 2026-08-11T19:21:44.656Z
 ---
 
-TokoΦ (`~/projects/tokophi`) ship path — verified 2026-07-23 by shipping the admin produk read-back + char-limit fix (PR #49, merge `aebd7189d`).
+TokoΦ (`~/Projects/tokophi`) ship path — verified 2026-07-23 by shipping the admin produk read-back + char-limit fix (PR #49, merge `aebd7189d`).
 
-**Local `main` is a STALE FORK — never push it.** It sits ~30 ahead / **276 behind** `origin/main`: it was branched ~2026-07-14 and origin moved on via GitHub PRs (many agent worktrees under `.claude/worktrees/`). Pushing it = rejected, or force = destroys others' merged work. Work built on local main is on a stale base and half of it may already be on origin under different hashes ("duplicate foundation" trap — e.g. `duplicateProduct` + bulk actions were already on origin, better).
+**Local `main` was reconciled with `origin/main` on 2026-08-22** (merge `1b0988b`); the old "~30 ahead / 276 behind stale fork" state no longer holds — re-check with `git rev-list --left-right --count main...origin/main` before trusting any claim here. Still **do not push `main` directly**: origin/main only advances through GitHub PRs, and local `main` carries unpushed doc merges. The "duplicate foundation" trap remains real — before re-applying local work, check whether origin already has it under different hashes (e.g. `duplicateProduct` + bulk actions were already on origin, better).
 
 **Correct flow:** `git fetch` → new worktree off `origin/main` (`git worktree add .claude/worktrees/<name> -b <branch> origin/main`) → `npm install` in it (deps drift from local; workspace `@tokophi/*` symlinks make reusing local node_modules wrong) → re-apply the change onto origin's current files (don't cherry-pick stale commits) → `npm run build` (the real gate; `next build` runs tsc+lint, passes despite the pre-existing `set-state-in-effect` lint error on the handle-sync effect) → push branch → `gh pr create --base main` → merge → cleanup worktree+branch.
 
@@ -20,7 +20,8 @@ TokoΦ (`~/projects/tokophi`) ship path — verified 2026-07-23 by shipping the 
 
 **Re-verified 2026-08-01 shipping PR #129 (merge `2399ea5`, 7 change sets in one integration branch). Four corrections to the above and to `DEPLOY.md`:**
 - **Build is 8–10 min, not ~5** (measured: 8m28s / 9m57s / 7m57s / 8m36s / 8m32s). Two overlapping merges of the same commit took **14m36s and 20m47s**.
-- **`~/.coolify_token` DOES NOT EXIST** — that is *why* the API 401s. `DEPLOY.md` claims the file is there. There is no scripted rollback path; rollback = `git revert` + push + webhook ≈ 8–10 min.
+- **Coolify API 401s, and a missing token file is NOT the reason** (re-checked 2026-08-22). `DEPLOY.md` claims `~/.coolify_token` is there; it is not, but a token *does* live in `secrets-env` as `COOLIFY_TOKEN` (+ `COOLIFY_BASE_URL`). It is well-formed Sanctum shape (51 chars, `id|hash`) and still returns `{"message":"Unauthenticated."}` on `/api/v1/version` and `/api/v1/applications` — so it is revoked, or scoped to a team/user that no longer matches. The host itself is fine (`GET /` → 302 in ~0.16 s). Both stored values carry **literal single quotes**, so strip them (`${VAR//\'/}`) before use or curl builds a broken URL. The `coolify` CLI (1.6.2 at `~/.local/bin/coolify`) only has a `cloud` context pointing at `app.coolify.io` — it is not wired to this self-host, and pointing it there would hit the same 401. Working path stays `ssh tokophi-vps` + `docker exec coolify php artisan tinker`. There is no scripted rollback path; rollback = `git revert` + push + webhook ≈ 8–10 min.
+- **`vultr-cli` works** (v3.10.0, key in `~/.vultr-cli.yaml`, no `VULTR_API_KEY` env needed): the box is instance `volumdev` / `0d341106-34ff-4b5b-8441-9350e1b8ce35`, Ubuntu 24.04, sgp, 4 vCPU / 8 GB / 180 GB — the only instance on the account.
 - 🔴 **`application_deployment_queues` is SHARED across Coolify apps on this box — Formalin is app id `2`.** Querying it unfiltered (as `DEPLOY.md`'s snippet does) shows *Formalin's* builds as if they were TokoΦ's. **Always `where application_id = '1'`** — it's a `varchar`, so `= 1` errors.
 - **Require 4/4 surfaces on the new sha TWICE in a row** — Coolify swaps services one at a time, so a single 4/4 poll can be a false green. `app.`/`rich.` answering **307** is healthy (middleware → `/login`); demanding 200 there is a permanently-red check.
 

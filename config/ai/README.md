@@ -5,9 +5,15 @@ durable memory.
 
 ```text
 AGENTS.md       Always-loaded policy kept deliberately small
+claude-home-memory/ Minimal bootstrap loaded only for Claude sessions at $HOME
 memory/         Cross-project facts loaded on demand
 project-memory/ Project-specific decisions and gotchas, indexed by MEMORY.md
 ```
+
+Claude's `$HOME` project entry links to a device-local, read-only copy of
+`claude-home-memory/MEMORY.md`. This prevents Claude auto-memory from writing
+unrelated project facts into tracked dotfiles. Project memory is selected on
+demand by `ai-memory-access`; it is never exposed as one ambient directory.
 
 `ai-memory-link` connects `AGENTS.md` to the native context path of each
 supported CLI:
@@ -18,14 +24,23 @@ supported CLI:
 | `~/.codex/AGENTS.md` | Codex |
 | `~/.antigravity/AGENTS.md` | Antigravity (`agy`) |
 | `~/.gemini/GEMINI.md` | Antigravity compatibility path, not Gemini CLI |
+| `~/.omp/agent/AGENTS.md` | OMP native user context |
 
 Pi receives the same file through the `pi()` shell wrapper. `~/AGENTS.md` must
 remain absent because it would duplicate the same policy for sessions below the
 home directory.
 
-Owned skills live only in `~/dotfiles/skills/local/`. Claude and Pi discover the
-shared directory through symlinks; Codex and Antigravity use `skill-list` and
-read the selected `SKILL.md` directly.
+Owned skills live only in `~/dotfiles/skills/local/`. `skill-update` reconciles
+the runtime-native discovery adapters, including OMP's
+`~/.omp/agent/skills` link; Codex keeps its built-in `.system` skills alongside
+per-skill links to the owned source.
+
+OMP otherwise stays upstream-native. Dotfiles does not install its
+`config.yml`, `models.yml`, or `agents/`, does not wrap the `omp` command, and
+does not inject `PI_CONFIG_FILES`. OMP owns user settings, auth, sessions,
+bundled agents, models, routing, and updates. User-level MCP may be synchronized
+later through OMP's native `~/.omp/agent/mcp.json` only when a real secret-free
+shared configuration exists; project MCP remains repository-owned.
 
 Edit tracked memory only for durable, verified facts. Device-private facts belong
 in `~/.config/ai-local/`; secrets and authentication state never belong here.

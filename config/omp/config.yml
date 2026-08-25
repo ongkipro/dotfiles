@@ -1,4 +1,6 @@
-setupVersion: 1
+# RETIRED: historical routing snapshot; installers and shell startup do not load
+# this file. OMP owns ~/.omp/agent/config.yml through its native runtime.
+setupVersion: 2
 modelRoles:
   smol: google-antigravity/gemini-3.7-flash:medium
   slow: openai-codex/gpt-5.6-sol:high
@@ -94,7 +96,6 @@ task:
     writer: "@plan"
 compaction:
   enabled: true
-  strategy: snapcompact
   midTurnEnabled: true
   autoContinue: true
   thresholdTokens: 140000
@@ -102,6 +103,10 @@ compaction:
   dropUseless: true
   idleEnabled: true
   idleThresholdTokens: 100000
+  methodOrder:
+    - snapcompact
+    - remote
+    - soft
 tools:
   format: auto
   approvalMode: yolo

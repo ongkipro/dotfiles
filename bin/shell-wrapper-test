@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regression fixtures for Bash/Zsh OMP wrapper routing and credential scope.
+# Regression fixtures for cross-shell setup and transparent OMP execution.
 set -euo pipefail
 
 SOURCE="${BASH_SOURCE[0]}"
@@ -10,7 +10,7 @@ while [ -L "$SOURCE" ]; do
 done
 ROOT="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/shell-wrapper-test.XXXXXX")"
-trap 'rm -rf "$TMP"' EXIT
+trap 'find "$TMP" -depth -delete 2>/dev/null || true' EXIT
 
 extract_function() {
   local file="$1" name="$2"
@@ -21,80 +21,40 @@ extract_function() {
   ' "$file"
 }
 
-neutral_secret="fixture-neutral-secret"
 precedence_secret="fixture-precedence-secret"
-legacy_pi_secret="fixture-legacy-pi-secret"
-credential_dir="$TMP/home/.config/ai-local/credentials"
-mkdir -p "$credential_dir" "$TMP/home/.pi/agent" "$TMP/bin"
-printf '%s\n' "$neutral_secret" > "$credential_dir/9router-remote-key"
-printf '%s\n' "{\"9router-fantastico\":{\"key\":\"$legacy_pi_secret\"}}" \
-  > "$TMP/home/.pi/agent/auth.json"
-
-cat > "$TMP/bin/curl" <<'EOF'
-#!/usr/bin/env bash
-[ -z "${FAIL_CURL:-}" ] || exit 22
-printf '%s\n' 'printf "update-dispatch:PASS\\n"'
-EOF
+mkdir -p "$TMP/home/.local/bin" "$TMP/bin"
 cat > "$TMP/bin/omp" <<EOF
 #!/usr/bin/env bash
 case "\${NINEROUTER_REMOTE_KEY-}" in
-  "$neutral_secret") source=neutral ;;
   "$precedence_secret") source=precedence ;;
-  "$legacy_pi_secret") source=legacy-pi ;;
   "") source=unset ;;
   *) source=other ;;
 esac
-printf 'binary:%s:source-%s\\n' "\$*" "\$source"
+printf 'binary:%s:source-%s:config-%s\\n' \
+  "\$*" "\$source" "\${PI_CONFIG_FILES-unset}"
 EOF
-chmod +x "$TMP/bin/curl" "$TMP/bin/omp"
+chmod +x "$TMP/bin/omp"
+ln -s "$TMP/bin/omp" "$TMP/home/.local/bin/omp"
 
-check_wrapper() {
-  local file="$1" shell="$2" function_file output
-  function_file="$TMP/$(basename "$file").omp"
-  extract_function "$file" omp > "$function_file"
-  [ -s "$function_file" ] || { echo "missing omp() in $file" >&2; return 1; }
-
-  output="$({
-    HOME="$TMP/home" \
-    PATH="$TMP/bin:/usr/bin:/bin" \
-    NEUTRAL_SECRET="$neutral_secret" \
-    PRECEDENCE_SECRET="$precedence_secret" \
-    CREDENTIAL_FILE="$credential_dir/9router-remote-key" \
+check_native_omp() {
+  local file="$1" shell="$2" output
+  output="$(
+    HOME="$TMP/home" PATH="$TMP/bin:/usr/bin:/bin" PRECEDENCE_SECRET="$precedence_secret" \
       "$shell" -c '
         set -eu
         . "$1"
-
-        unset NINEROUTER_REMOTE_KEY
-        first="$(omp hello world)"
-        [ "$first" = "binary:hello world:source-neutral" ]
-        [ "${NINEROUTER_REMOTE_KEY+x}" != x ]
-
-        export NINEROUTER_REMOTE_KEY="$PRECEDENCE_SECRET"
-        second="$(omp precedence)"
-        [ "$second" = "binary:precedence:source-precedence" ]
-        [ "$NINEROUTER_REMOTE_KEY" = "$PRECEDENCE_SECRET" ]
-
-        unset NINEROUTER_REMOTE_KEY
-        rm -f "$CREDENTIAL_FILE"
-        third="$(omp without-neutral-file)"
-        [ "$third" = "binary:without-neutral-file:source-unset" ]
-        [ "${NINEROUTER_REMOTE_KEY+x}" != x ]
-        printf "%s\\n" "$NEUTRAL_SECRET" > "$CREDENTIAL_FILE"
-
-        [ "$(omp update)" = "update-dispatch:PASS" ]
-        ! (export FAIL_CURL=1; omp update >/dev/null 2>&1)
-
-        printf "%s\\n%s\\n%s\\n" "$first" "$second" "$third"
-      ' _ "$function_file"
-  } 2>&1)"
-
-  case "$output" in
-    *"$neutral_secret"*|*"$precedence_secret"*|*"$legacy_pi_secret"*)
-      echo "credential value escaped wrapper output for $file under $shell" >&2
-      return 1
-      ;;
-  esac
-  printf '✓ %s: omp wrapper under %s\n' "${file#$ROOT/}" "$(basename "$shell")"
+        unset NINEROUTER_REMOTE_KEY PI_CONFIG_FILES
+        [ "$(omp hello world)" = "binary:hello world:source-unset:config-unset" ]
+        NINEROUTER_REMOTE_KEY="$PRECEDENCE_SECRET" PI_CONFIG_FILES=/explicit/config.yml \
+          omp passthrough
+      ' _ "$file"
+  )"
+  [ "$output" = "binary:passthrough:source-precedence:config-/explicit/config.yml" ] || {
+    printf '%s\n' "$output" >&2
+    return 1
+  }
+  printf '✓ %s: omp remains an upstream-native command under %s\n' \
+    "${file#$ROOT/}" "$(basename "$shell")"
 }
 
 shell_name_code="$(extract_function "$ROOT/config/shell-tools.sh" _shell_name)"
@@ -118,7 +78,7 @@ check_quiet_source() {
 }
 
 check_quiet_source bash /bin/zsh
-check_wrapper "$ROOT/config/shell-tools.sh" bash
+check_native_omp "$ROOT/config/shell-tools.sh" bash
 grep -qxF 'source "$HOME/dotfiles/config/shell-tools.sh"' "$ROOT/config/bashrc.tools.sh"
 echo "✓ config/bashrc.tools.sh: delegates to the canonical cross-shell source"
 mise_activation_count="$(
@@ -172,11 +132,11 @@ grep -qxF 'source "$HOME/dotfiles/config/zshrc.tools.sh"' "$mac_rc"
 echo "✓ install-macos.sh: migrates standalone mise activation to the tracked source"
 if command -v zsh >/dev/null 2>&1; then
   check_quiet_source zsh /bin/bash
-  check_wrapper "$ROOT/config/shell-tools.sh" zsh
+  check_native_omp "$ROOT/config/shell-tools.sh" zsh
   grep -qxF 'source "$HOME/dotfiles/config/shell-tools.sh"' "$ROOT/config/zshrc.tools.sh"
   echo "✓ config/zshrc.tools.sh: delegates to the canonical cross-shell source"
 else
-  echo "WARNING: PARTIAL shell-wrapper-test: zsh unavailable; Zsh execution fixtures skipped"
+  echo "SKIP: optional Zsh execution fixture is not applicable on this device"
 fi
 
 echo "shell-wrapper-test: OK"

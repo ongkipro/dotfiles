@@ -4,11 +4,12 @@
 > **Immutable historical baseline; superseded for current-state decisions.**
 > Preserve the body as the 2026-08-15 blueprint snapshot; “Definitive” below is
 > historical. Use [`../TASKS.md`](../TASKS.md) for live work, current disk and
-> executable checks for behavior, and `config/omp/config.yml` plus
-> `config/omp/STATUS.md` for current routing.
+> executable checks for behavior. OMP now owns routing and provider state in its
+> upstream-native runtime; `config/omp/STATUS.md` records the current ownership
+> boundary, while the other `config/omp/` files are retired evidence.
 
 **Repository:** `ongkipro/dotfiles`  
-**Document Status:** Definitive Unified Master Architecture Specification  
+**Document Status:** Historical unified architecture snapshot
 **Baseline Date:** 2026-08-15  
 **Scope:** OMP Orchestration, Multi-Provider Capacity Pools, Risk-Aware Model Routing (R0–R4), Deterministic Verification Tooling, Task Execution Contracts, Prompt-Injection Security Boundaries, and Cross-Platform (Linux/macOS) Parity.
 
@@ -127,7 +128,9 @@ Every project task in `config/templates/TASKS.md` follows an explicit execution 
 - **Approval Gates:** Always-on for system-wide `sudo`, production deploys (`wrangler deploy`, Shopify theme push), and secret access.
 
 ### macOS & Linux Parity:
-- Both operating systems share **identical policy sources** (`config/ai/AGENTS.md`), **identical skill capabilities** (`skills/local/`), and **identical OMP routing** (`config/omp/`).
+- Both operating systems share **identical policy sources** (`config/ai/AGENTS.md`)
+  and **identical skill capabilities** (`skills/local/`). Each device keeps its
+  OMP runtime configuration and routing native and machine-local.
 - `install-macos.sh` provides macOS-native symlinking (`~/.zshrc` support, Homebrew/Mise PATH resolution, BSD vs GNU `sed` safety, and `merge.ours` snapshot protection).
 
 ---

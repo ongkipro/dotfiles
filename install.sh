@@ -38,6 +38,21 @@ link() {
   echo "   $dst -> $src"
 }
 
+# OMP owns its runtime configuration, model catalog, and bundled agents.
+# Remove only links created by older dotfiles installers; preserve every
+# unmanaged file or link for the user and for OMP itself.
+retire_omp_overrides() {
+  local name live tracked
+  for name in config.yml models.yml agents; do
+    live="$HOME/.omp/agent/$name"
+    tracked="$DOT/config/omp/$name"
+    if [ -L "$live" ] && [ "$(readlink "$live" 2>/dev/null)" = "$tracked" ]; then
+      unlink "$live"
+      echo "   removed legacy OMP override: $live"
+    fi
+  done
+}
+
 # Replace legacy copied shell blocks with one live source line. The timestamped
 # backup preserves any hand edits that were made inside an old managed block.
 ensure_shell_source() {
@@ -140,9 +155,7 @@ for cfg in "$HOME/.claude" "$HOME"/.claude-accounts/*/; do
   [ -d "$cfg" ] || continue
   "$HOME/.local/bin/ai-hooks-install" --settings "${cfg%/}/settings.json"
 done
-link "$DOT/config/omp/config.yml"        ~/.omp/agent/config.yml   # OMP config (model, theme, approval)
-link "$DOT/config/omp/models.yml"        ~/.omp/agent/models.yml   # OMP providers (9router)
-link "$DOT/config/omp/agents"            ~/.omp/agent/agents       # OMP specialist agents (role-routed)
+retire_omp_overrides
 
 # `config/codex-instructions.md` has been removed from the repo. Clean up the
 # legacy symlink so ai-doctor does not flag a dangling path on upgraded devices.

@@ -1,25 +1,25 @@
 {
   "activeRun": null,
   "lastCheckpoint": {
-    "eventHash": "d219f66e09ac2b99b7afe4eca5af71c6f5d1282d61c5cad9626fa828a238797e",
-    "eventId": "91c250ed5103426095336bcfb91cc47e",
-    "head": "fb2da00d16b8642ab1932ad8d3574589a9bbf599",
-    "note": "Retracted two scope_expansion records (config/ai/runtime-commands.txt, docs/task-change-boundary.md): both reverted after discovering the target file carried unaccepted pre-existing dirty work from an earlier task; neither appears in the final surface. Follow-up tasks TASK-021/TASK-022 recorded in TASKS.md.",
-    "prevEventHash": "4839c6d589f99d0623812182a6a4577d53e3411f01b0dcfd239e4dc08fafbde6",
-    "runId": "RUN-20260819T044647Z-b46c4b2a",
+    "eventHash": "87e94d9005e001c1c89027dcf40eeacfd574ef9dd3410d64b7e5694b2da39e15",
+    "eventId": "f04335793fbf4720b29ac5c8da993a6a",
+    "head": "9ce34cb4461fa6a03a783eac5fadeaf53109bac2",
+    "note": "OMP 18 update, immutable config layering, and all regression gates pass. Boundary is REVIEW_REQUIRED because accepted pre-existing and protected OMP paths changed. Anthropic selectors are intact but provider auth is absent in both OMP 17.4.0 and 18.0.3; awaiting explicit approval for external Anthropic login/auth-session write and independent reviewer dispatch.",
+    "prevEventHash": "afb2f0b1a82533d21d9084376887d8b923f0c431a89fea06137f7669a102f416",
+    "runId": "RUN-20260823T122624Z-f80710a8",
     "state": null,
-    "time": "2026-08-19T05:48:07Z",
+    "time": "2026-08-23T12:38:29Z",
     "type": "checkpoint"
   },
   "lastRun": {
-    "finishedAt": "2026-08-19T08:24:02Z",
-    "result": "PASS",
-    "runId": "RUN-20260819T081340Z-03c4116a"
+    "finishedAt": "2026-08-24T16:38:05Z",
+    "result": "BLOCKED",
+    "runId": "RUN-20260824T162540Z-2020118b"
   },
-  "observedHead": "fb2da00d16b8642ab1932ad8d3574589a9bbf599",
+  "observedHead": "0b5cfa1c1bc932aeae38135f886e25a849a2aad5",
   "observedState": null,
   "project": "dotfiles",
   "schemaVersion": 1,
   "statusAuthority": "STATUS.md",
-  "updatedAt": "2026-08-19T08:24:02Z"
+  "updatedAt": "2026-08-24T16:38:05Z"
 }

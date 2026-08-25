@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SOURCE_DOT="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/ai-memory-link-test.XXXXXX")"
+trap 'find "$TEST_ROOT" -depth -mindepth 1 -delete 2>/dev/null || true; rmdir "$TEST_ROOT" 2>/dev/null || true' EXIT
+
+export HOME="$TEST_ROOT/home"
+export DOTFILES_DIR="$TEST_ROOT/dotfiles"
+mkdir -p "$DOTFILES_DIR/bin" "$DOTFILES_DIR/config/ai/claude-home-memory" \
+  "$HOME/.claude/projects/-home-test" "$HOME/.config"
+cp "$SOURCE_DOT/bin/ai-memory-link" "$DOTFILES_DIR/bin/"
+chmod +x "$DOTFILES_DIR/bin/ai-memory-link"
+printf '%s\n' '# Policy fixture' >"$DOTFILES_DIR/config/ai/AGENTS.md"
+printf '%s\n' '# Home bootstrap fixture' >"$DOTFILES_DIR/config/ai/claude-home-memory/MEMORY.md"
+ln -s "$DOTFILES_DIR" "$HOME/dotfiles"
+ln -s "$DOTFILES_DIR/config/ai" "$HOME/.config/ai"
+
+# Match the HOME-derived project slug used by the implementation.
+project_slug="$(printf '%s' "$HOME" | tr '/' '-')"
+legacy="$HOME/.claude/projects/$project_slug/memory"
+mkdir -p "$(dirname "$legacy")"
+ln -s "$DOTFILES_DIR/config/ai/claude-home-memory" "$legacy"
+
+"$DOTFILES_DIR/bin/ai-memory-link" >/dev/null
+runtime="$(readlink "$legacy")"
+[[ "$runtime" == "$HOME/.config/ai-local/claude-home-bootstrap/"* ]]
+[[ "$(stat -c '%a' "$runtime")" = 500 ]]
+[[ "$(stat -c '%a' "$runtime/MEMORY.md")" = 400 ]]
+cmp -s "$DOTFILES_DIR/config/ai/claude-home-memory/MEMORY.md" "$runtime/MEMORY.md"
+[[ "$(find "$runtime" -maxdepth 1 -type f | wc -l | tr -d ' ')" = 1 ]]
+if touch "$runtime/ambient-project-memory.md" 2>/dev/null; then
+  echo 'FAIL: Claude home bootstrap accepted an ambient write' >&2
+  exit 1
+fi
+
+"$DOTFILES_DIR/bin/ai-memory-link" >/dev/null
+cmp -s "$DOTFILES_DIR/config/ai/claude-home-memory/MEMORY.md" "$runtime/MEMORY.md"
+echo 'PASS: Claude home memory is a device-local read-only bootstrap'

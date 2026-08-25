@@ -10,7 +10,7 @@ while [ -L "$SOURCE" ]; do
 done
 ROOT="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/installer-link-test.XXXXXX")"
-trap 'chmod -R u+w "$TMP" 2>/dev/null || true; rm -rf "$TMP"' EXIT
+trap 'chmod -R u+w "$TMP" 2>/dev/null || true; find "$TMP" -depth -delete 2>/dev/null || true' EXIT
 
 extract_function() {
   local file="$1" name="$2"
@@ -243,6 +243,46 @@ EOF
   grep -qxF 'activate bash' "$log"
   echo "✓ install-macos.sh:mise-discovered-path"
 }
+
+test_retire_omp_overrides() {
+  local file="$1" function_code case_dir name live tracked other
+  function_code="$(extract_function "$file" retire_omp_overrides)"
+  [ -n "$function_code" ] || { echo "missing retire_omp_overrides in $file" >&2; return 1; }
+  case_dir="$TMP/$(basename "$file").omp-native"
+  mkdir -p "$case_dir/home/.omp/agent" "$case_dir/dotfiles/config/omp"
+
+  (
+    HOME="$case_dir/home"
+    DOT="$case_dir/dotfiles"
+    say() { :; }
+    eval "$function_code"
+
+    for name in config.yml models.yml agents; do
+      tracked="$DOT/config/omp/$name"
+      live="$HOME/.omp/agent/$name"
+      mkdir -p "$(dirname "$tracked")"
+      : > "$tracked"
+      ln -s "$tracked" "$live"
+    done
+    retire_omp_overrides >/dev/null
+    for name in config.yml models.yml agents; do
+      [ ! -e "$HOME/.omp/agent/$name" ] && [ ! -L "$HOME/.omp/agent/$name" ]
+    done
+
+    printf 'runtime-owned\n' > "$HOME/.omp/agent/config.yml"
+    other="$case_dir/unmanaged-models.yml"
+    printf 'unmanaged\n' > "$other"
+    ln -s "$other" "$HOME/.omp/agent/models.yml"
+    mkdir "$HOME/.omp/agent/agents"
+    retire_omp_overrides >/dev/null
+    [ "$(cat "$HOME/.omp/agent/config.yml")" = runtime-owned ]
+    [ "$(readlink "$HOME/.omp/agent/models.yml")" = "$other" ]
+    [ -d "$HOME/.omp/agent/agents" ]
+  )
+
+  printf '✓ %s:retire_omp_overrides\n' "$(basename "$file")"
+}
+
 test_runtime_command_manifest() {
   local manifest="$ROOT/config/ai/runtime-commands.txt" command_name
   [ -f "$manifest" ] || { echo "missing runtime command manifest" >&2; return 1; }
@@ -261,6 +301,12 @@ test_runtime_command_manifest() {
   done
   grep -qF 'runtime-commands.txt' "$ROOT/install.sh"
   grep -qF 'runtime-commands.txt' "$ROOT/install-macos.sh"
+  for installer in "$ROOT/install.sh" "$ROOT/install-macos.sh"; do
+    ! grep -qF 'link "$DOT/config/omp/config.yml"' "$installer"
+    ! grep -qF 'link "$DOT/config/omp/models.yml"' "$installer"
+    ! grep -qF 'link "$DOT/config/omp/agents"' "$installer"
+    grep -qF 'retire_omp_overrides' "$installer"
+  done
 
   # The hook reconciler is idempotence-tested by ai-hooks-install-test. Both
   # platform installers must actually deliver that reconciler after linking the
@@ -282,5 +328,7 @@ test_macos_shell_source_migration
 test_mise_tool_check
 test_mise_absent_branch
 test_mise_discovered_path
+test_retire_omp_overrides "$ROOT/install.sh"
+test_retire_omp_overrides "$ROOT/install-macos.sh"
 test_runtime_command_manifest
 echo "installer-link-test: OK"

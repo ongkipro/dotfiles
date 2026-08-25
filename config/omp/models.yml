@@ -193,3 +193,4 @@ providers:
         reasoning: true
         contextWindow: 128000
         maxTokens: 8192
+# RETIRED: historical provider snapshot; OMP now owns its native model catalog.

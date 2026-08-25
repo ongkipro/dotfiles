@@ -6,9 +6,16 @@ and owned skills across Linux and macOS.
 ## Sources
 
 - `config/ai/AGENTS.md` — small policy loaded by every supported AI CLI.
+- `config/ai/claude-home-memory/` — source for the minimal bootstrap copied into
+  a device-local, read-only Claude `$HOME` memory directory; it must never
+  expose the full project-memory tree or accept auto-memory writes.
 - `config/ai/memory/` — durable cross-project facts loaded on demand.
 - `config/ai/project-memory/` — project-specific decisions and gotchas.
 - `skills/local/` — the only source for owned skills.
+
+Repository identity and memory selection are separate concerns. Every Git
+repository has a stable identity derived from its canonical remote or directory
+name, while a project-memory document is loaded only when the manifest maps one.
 
 Live configuration is connected to these sources with symlinks. Pulling a
 reviewed Git change therefore updates the consumers immediately.

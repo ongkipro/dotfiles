@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+SELF="$(readlink -f "$0" 2>/dev/null || realpath "$0")"
+ROOT="${1:-$(cd "$(dirname "$SELF")/.." && pwd)}"
 ROUTER="$ROOT/bin/ai-memory-route"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/ai-memory-route-test.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
@@ -33,6 +34,18 @@ assert p['files'] == []
 PY
 
 REPO="$TMP/volumup"; mkdir -p "$REPO/.delivery"
+
+IDENTITY_REPO="$TMP/unmapped-local-name"
+mkdir -p "$IDENTITY_REPO"
+git -C "$IDENTITY_REPO" init -q
+git -C "$IDENTITY_REPO" remote add origin git@github.com:example/stable-repo-id.git
+python3 "$ROUTER" 'project reference' --repo "$IDENTITY_REPO" --json > "$TMP/identity.json"
+python3 - "$TMP/identity.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1]))
+assert p['project'] == 'stable-repo-id', p
+assert not any(x['scope'] == 'project' for x in p['files']), p
+PY
 cat > "$REPO/STATUS.md" <<'EOF'
 State: IMPLEMENTING
 EOF

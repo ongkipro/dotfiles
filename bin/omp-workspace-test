@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Prove that sourcing dotfiles does not alter OMP arguments or config discovery.
+set -euo pipefail
+
+SELF="$(readlink -f "$0" 2>/dev/null || realpath "$0")"
+ROOT="${1:-$(cd "$(dirname "$SELF")/.." && pwd)}"
+fixture="$(mktemp -d "${TMPDIR:-/tmp}/omp-native-test.XXXXXX")"
+trap 'find "$fixture" -depth -delete 2>/dev/null || true' EXIT
+
+test_home="$fixture/home"
+mkdir -p "$test_home/.local/bin" "$fixture/repo/packages/app"
+git -C "$fixture/repo" init -q
+
+cat > "$test_home/.local/bin/omp" <<'SH'
+#!/usr/bin/env bash
+printf 'config=%s\n' "${PI_CONFIG_FILES-unset}"
+printf 'arg=%s\n' "$@"
+SH
+chmod +x "$test_home/.local/bin/omp"
+
+output="$(
+  cd "$fixture/repo/packages/app"
+  HOME="$test_home" PATH="/usr/bin:/bin" bash -c '
+    set -eu
+    . "$1"
+    unset PI_CONFIG_FILES
+    omp --print "scope test"
+  ' _ "$ROOT/config/shell-tools.sh"
+)"
+
+grep -Fxq 'config=unset' <<<"$output" || {
+  echo 'FAIL: dotfiles injected PI_CONFIG_FILES into upstream OMP' >&2
+  exit 1
+}
+grep -Fxq 'arg=--print' <<<"$output"
+grep -Fxq 'arg=scope test' <<<"$output"
+if grep -Fxq 'arg=--cwd' <<<"$output"; then
+  echo 'FAIL: dotfiles rewrote the upstream OMP workspace arguments' >&2
+  exit 1
+fi
+
+explicit="$(
+  HOME="$test_home" PATH="/usr/bin:/bin" PI_CONFIG_FILES=/explicit/config.yml \
+    bash -c '. "$1"; omp --version' _ "$ROOT/config/shell-tools.sh"
+)"
+grep -Fxq 'config=/explicit/config.yml' <<<"$explicit" || {
+  echo 'FAIL: dotfiles did not preserve an explicit caller-owned config' >&2
+  exit 1
+}
+
+echo 'omp-workspace-test: OK (upstream arguments and config discovery preserved)'

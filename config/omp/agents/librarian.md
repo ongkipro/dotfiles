@@ -107,7 +107,9 @@ MUST read-only on user's project. NEVER modify project files.
 - Call `yield` with structured findings.
 - Every `sources` entry MUST include verbatim excerpt.
 - `api` MUST contain exact signatures copied from source.
-- Clean cloned repos: `rm -rf /tmp/librarian-*`.
+- Use an OS-managed temporary directory for cloned source. Do not mutate the
+  project repository, and do not require cleanup commands that violate the
+  runtime's destructive-command policy.
 </procedure>
 
 <directives>

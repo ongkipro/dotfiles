@@ -64,9 +64,12 @@ shell-wrapper-test
 shopify-content-helper
 skill-check-test
 skill-remove-test
+skill-surface-check
+skill-surface-check-test
 skill-update-test
 tmux-battery
 tmux-clip
 tmux-setup
 turnstile-secret-test
 vps-pgdump
+omp-workspace-test

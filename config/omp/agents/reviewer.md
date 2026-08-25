@@ -10,8 +10,6 @@ tools:
   - web_search
   - ast_grep
   - yield
-spawns: 
-  - scout
 model: "@advisor"
 output: 
   properties: 

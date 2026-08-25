@@ -7,7 +7,8 @@ metadata:
   originSessionId: 141f5761-052b-461f-80c0-3fa48660fd3c
 ---
 
-Pix&Go Shopify store = `2mpt3p-xv.myshopify.com` (storefront https://cart.pixsgo.com). Toys & Hobbies catalog, **221 products (217 ACTIVE, 4 off-niche DRAFT)** as of 2026-06-29, US market / USD. Original 125 = 3D wooden puzzles, model kits, brain-teasers, marble runs, fidget/sensory toys. +96 added 2026-06-29 = building blocks (Mould King/MOC), reborn/BJD dolls, hand puppets, play kitchens, inflatables, plush, art/drawing (Robotime/Rokr-style dropship imports).
+**Snapshot dated 2026-06-29.** Catalog and publication observations below
+require fresh repository and Shopify evidence before use.
 
 **Optimizing NEW products (repeatable SOP, scripts in `~/Documents/Shopify/PixsGo/`):** `bash sync_data.sh` (pulls all → `.products_full.json` + CSV; new=unoptimized = `seo.title==null` / no tags) → `classify.py` (group→`.batches/`) → 10 parallel subagents write copy to `.out/*.json` per STYLE-GUIDE → `variant_cleanup.py` (del non-US variants + Ships From/junk Color opts, SKU-safe, resume-safe) → `apply.py` (productUpdate+ALT, handle auto-dedup, resume-safe via `.apply.log`) → `create_collections.py` / `add_collections.py`. All via Shopify CLI `store execute --allow-mutations`.
 
@@ -15,7 +16,11 @@ Work via **Shopify CLI**: `shopify store execute --store 2mpt3p-xv.myshopify.com
 
 On 2026-06-26 did a full listing optimization (variant country-cleanup → US-only keeping SKUs, rewritten titles/descriptions/meta/handles, tags, taxonomy category, image ALT + SEO filenames, variant renaming via image vision, 9 collections). Brand kept **generic** (no Robotime/Rokr in titles) per user choice.
 
-**Frontend** = Astro project `~/Projects/pixsgo/` (Cloudflare Workers SSR; git repo → GitHub `ongki5758/pixsgo` PRIVATE, branch `main`; `.env` gitignored). Deploy: `npm run build && npx wrangler deploy` (worker name `pixsgo`, domains pixsgo.com + www). gh authed as `ongki5758`. Pulls Shopify via Storefront API into a build-time cache under `src/lib/cache/` — refresh with `npm run cache:fetch` then `npm run build`; cache bundled via `import.meta.glob`. Product URLs `/products/<handle>`, collections `/collections/<handle>`. Old pet-era product URLs 301 → `/shop` via `public/_redirects`; `www` 301→apex (working). Same store (`2mpt3p-xv`).
+**Storefront architecture snapshot:** Astro on Cloudflare Workers SSR, backed by
+Shopify Storefront API data cached under `src/lib/cache/`. Product routes use
+`/products/<handle>`, collection routes use `/collections/<handle>`, and legacy
+pet-era routes were recorded in `public/_redirects`. Verify build, release, Git,
+domain, and platform details in their authoritative systems.
 
 **Frontend features (2026-06-26):** product tag pages `/shop/<tag>` (tags with ≥3 products, getStaticPaths — keep helpers INSIDE getStaticPaths, Astro runs it isolated); **feeds**: `/rss.xml` (blog) + `/feed.xml` (product catalog, Google `g:` format → submit to Pinterest/Google/Meta/TikTok, no Shopify-connect needed, refresh = cache:fetch+deploy); hero images optimized to WebP. **Deploy is flaky** ("doUpload" error) → retry, and ALWAYS `curl` the live site after deploy (a failed/partial deploy 404s everything). Build must produce `dist/client/index.html` before deploying.
 

@@ -261,7 +261,7 @@ fi
 
 for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
   if [ -f "$rc" ] && grep -qE '^[[:space:]]*export[[:space:]]+NINEROUTER_REMOTE_KEY=' "$rc"; then
-    bad "${rc/#$HOME/\~} mengekspor NINEROUTER_REMOTE_KEY ke semua child process — gunakan OMP wrapper"
+    bad "${rc/#$HOME/\~} mengekspor NINEROUTER_REMOTE_KEY ke semua child process — gunakan auth native runtime atau helper yang scope-nya satu child"
   fi
 done
 
@@ -276,23 +276,36 @@ else
   bad "~/.config/ai/memory/ TIDAK ADA"
 fi
 
-# Memori per-project (Claude Code) dipindah ke dotfiles 2026-07-20 lalu di-symlink
-# balik. Kalau symlink ini putus, Claude Code tetap jalan dan tetap terasa normal —
-# ia cuma bikin direktori baru yang kosong, dan konteks project hilang diam-diam.
+# Claude's home-scoped project entry receives only a small bootstrap. Loading the
+# entire project-memory directory here leaks unrelated project context into every
+# terminal started from $HOME.
 # Nama direktori project Claude Code = $HOME dengan '/' → '-'. Di Mac jadi
 # '-Users-ongki', di Linux '-home-<user>'. Turunkan dari $HOME, jangan hardcode,
 # supaya cek ini ikut berlaku di cuan.
-PMEM="$HOME/.claude/projects/$(printf '%s' "$HOME" | tr '/' '-')/memory"
-if [ -L "$PMEM" ]; then
-  if [ -f "$PMEM/MEMORY.md" ]; then
+PMEM_SOURCE="$DOT/config/ai/claude-home-memory/MEMORY.md"
+project_slug="$(printf '%s' "$HOME" | tr '/' '-')"
+for cfg in "$HOME/.claude" "$HOME"/.claude-accounts/*/; do
+  [ -d "$cfg" ] || continue
+  cfg="${cfg%/}"
+  cfg_key="$(printf '%s' "$cfg" | tr '/ ' '--')"
+  PMEM="$cfg/projects/$project_slug/memory"
+  PMEM_EXPECTED="$HOME/.config/ai-local/claude-home-bootstrap/$cfg_key"
+  if [ -L "$PMEM" ] \
+     && [ "$(resolve_path "$PMEM" 2>/dev/null)" = "$(resolve_path "$PMEM_EXPECTED" 2>/dev/null)" ] \
+     && [ -f "$PMEM/MEMORY.md" ] \
+     && cmp -s "$PMEM_SOURCE" "$PMEM/MEMORY.md"; then
     n=$(find "$PMEM/" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')
-    ok "memori project: $n file via symlink → $(readlink "$PMEM" | sed "s|$HOME|~|")"
+    dir_mode="$(stat -c '%a' "$PMEM_EXPECTED" 2>/dev/null || stat -f '%Lp' "$PMEM_EXPECTED")"
+    file_mode="$(stat -c '%a' "$PMEM/MEMORY.md" 2>/dev/null || stat -f '%Lp' "$PMEM/MEMORY.md")"
+    if [ "$n" -eq 1 ] && [ "$dir_mode" = 500 ] && [ "$file_mode" = 400 ]; then
+      ok "Claude home memory ($cfg): device-local read-only bootstrap"
+    else
+      bad "Claude home memory ($cfg) must contain one mode-400 file in a mode-500 directory"
+    fi
   else
-    bad "memori project: symlink ada tapi MEMORY.md tidak terbaca — target putus. Cek: ls -la $PMEM"
+    bad "Claude home memory ($cfg) is not the managed read-only bootstrap — run: ai-memory-link"
   fi
-elif [ -d "$PMEM" ]; then
-  bad "memori project: ${PMEM/#$HOME/\~} adalah direktori ASLI, bukan symlink — tidak ter-sync ke dotfiles. Cek dulu apakah isinya sudah ada di $DOT/config/ai/project-memory, lalu: ai-memory-link"
-fi
+done
 
 if [ -x "$DOT/bin/ai-memory-check" ]; then
   "$DOT/bin/ai-memory-check" >/dev/null 2>&1 \
@@ -532,94 +545,35 @@ done
 
 # ── 8. OMP configuration ──────────────────────────────────────────────────────
 hdr "8. OMP"
-OMP_CONFIG="$HOME/.omp/agent/config.yml"
-OMP_MODELS="$HOME/.omp/agent/models.yml"
-for pair in "config:$OMP_CONFIG:$DOT/config/omp/config.yml" "models:$OMP_MODELS:$DOT/config/omp/models.yml" "agents:$HOME/.omp/agent/agents:$DOT/config/omp/agents"; do
-  label=${pair%%:*}; rest=${pair#*:}; live=${rest%%:*}; tracked=${rest#*:}
-  if [ -L "$live" ] && [ "$(resolve_path "$live" 2>/dev/null)" = "$(resolve_path "$tracked")" ]; then
-    ok "OMP $label → tracked source"
+for name in config.yml models.yml agents; do
+  live="$HOME/.omp/agent/$name"
+  tracked="$DOT/config/omp/$name"
+  if [ -L "$live" ] && [ "$(readlink "$live" 2>/dev/null)" = "$tracked" ]; then
+    bad "OMP $name masih memakai legacy dotfiles override — jalankan installer migration"
   else
-    bad "OMP $label tidak ter-link ke $tracked"
+    ok "OMP $name dimiliki runtime/upstream"
   fi
 done
 
-tracked_agents=0
-for tracked_agent in "$DOT"/config/omp/agents/*.md; do
-  [ -e "$tracked_agent" ] || continue
-  tracked_agents=$((tracked_agents + 1))
-  agent="$(basename "$tracked_agent" .md)"
-  if [ -f "$HOME/.omp/agent/agents/$agent.md" ]; then
-    ok "OMP agent available: $agent"
-  else
-    bad "OMP agent missing: $HOME/.omp/agent/agents/$agent.md"
-  fi
-done
-[ "$tracked_agents" -gt 0 ] || bad "OMP tracked custom agents tidak ditemukan"
-
-if [ -f "$OMP_CONFIG" ]; then
-  if grep -qE '^modelRoles:[[:space:]]*$' "$OMP_CONFIG" \
-    && grep -qE '^[[:space:]]+default:[[:space:]]*[^[:space:]]' "$OMP_CONFIG"; then
-    ok "OMP modelRoles menyediakan default selector"
-  else
-    bad "OMP modelRoles/default selector tidak lengkap"
-  fi
-
-  async_enabled="$(awk '
-    /^[^[:space:]]/ { if (in_async) exit }
-    /^[[:space:]]*async:[[:space:]]*$/ { in_async=1; next }
-    in_async && /^[[:space:]]+enabled:[[:space:]]*/ {
-      sub(/^[[:space:]]+enabled:[[:space:]]*/, "")
-      print
-      exit
-    }
-  ' "$OMP_CONFIG")"
-  case "$async_enabled" in
-    true|false) ok "OMP async.enabled valid: $async_enabled" ;;
-    *) bad "OMP async.enabled harus boolean: ${async_enabled:-missing}" ;;
-  esac
-
-  async_max_jobs="$(awk '
-    /^[^[:space:]]/ { if (in_async) exit }
-    /^[[:space:]]*async:[[:space:]]*$/ { in_async=1; next }
-    in_async && /^[[:space:]]+maxJobs:[[:space:]]*/ {
-      sub(/^[[:space:]]+maxJobs:[[:space:]]*/, "")
-      print
-      exit
-    }
-  ' "$OMP_CONFIG")"
-  case "$async_max_jobs" in
-    ''|*[!0-9]*|0) bad "OMP async.maxJobs harus bilangan bulat positif: ${async_max_jobs:-missing}" ;;
-    *) ok "OMP async.maxJobs valid: $async_max_jobs" ;;
-  esac
-
-  approval_mode="$(sed -n 's/^[[:space:]]*approvalMode:[[:space:]]*//p' "$OMP_CONFIG" | head -1)"
-  if [ -n "$approval_mode" ]; then
-    ok "OMP tools.approvalMode tersedia: $approval_mode"
-  else
-    bad "OMP tools.approvalMode missing"
-  fi
+if grep -qE '^[[:space:]]*(function[[:space:]]+)?omp[[:space:]]*\(\)' "$DOT/config/shell-tools.sh" \
+   || grep -q 'PI_CONFIG_FILES' "$DOT/config/shell-tools.sh"; then
+  bad "shell-tools masih mengubah command atau config discovery OMP"
+else
+  ok "OMP command dan config discovery tetap upstream-native"
 fi
 
-if [ -x "$DOT/bin/omp-routing-test" ]; then
-  ok "OMP routing validator tersedia (dijalankan oleh --self-test)"
+if command -v omp-routing-test >/dev/null 2>&1 \
+   && command -v omp-effective-routing-test >/dev/null 2>&1 \
+   && command -v omp-workspace-test >/dev/null 2>&1; then
+  ok "OMP native-boundary regression tests tersedia di PATH"
 else
-  wrn "bin/omp-routing-test belum tersedia"
+  bad "OMP native-boundary regression tests belum lengkap di PATH — jalankan installer"
 fi
 
-NINEROUTER_KEY_FILE="$HOME/.config/ai-local/credentials/9router-remote-key"
-if [ -n "${NINEROUTER_REMOTE_KEY:-}" ]; then
-  ok "OMP provider prerequisite NINEROUTER_REMOTE_KEY is set"
-elif [ -f "$NINEROUTER_KEY_FILE" ] && [ -r "$NINEROUTER_KEY_FILE" ]; then
-  key_mode="$(stat -c '%a' "$NINEROUTER_KEY_FILE" 2>/dev/null \
-    || stat -f '%Lp' "$NINEROUTER_KEY_FILE" 2>/dev/null \
-    || true)"
-  case "$key_mode" in
-    *00) ok "OMP optional provider key file tersedia dengan permission privat ($key_mode)" ;;
-    '') wrn "OMP optional provider key file tersedia; permission tidak dapat diperiksa" ;;
-    *) wrn "OMP optional provider key file dapat dibaca group/other (mode $key_mode)" ;;
-  esac
+if [ -e "$HOME/.omp/agent/mcp.json" ] || [ -L "$HOME/.omp/agent/mcp.json" ]; then
+  ok "OMP user MCP config tersedia dan tetap dikelola melalui native path"
 else
-  wrn "OMP optional provider key unavailable (env atau metadata file lokal)"
+  ok "OMP memakai native/project MCP discovery; shared user MCP belum dikonfigurasi"
 fi
 
 # ── 9. Memory drift ───────────────────────────────────────────────────────────

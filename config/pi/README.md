@@ -25,8 +25,9 @@ active runtime.
 
 ## Restore boundaries
 
-There is no local 9Router gateway in the supported setup. Tracked OMP and Pi
-providers target the authenticated remote tunnel.
+There is no local 9Router gateway in the supported setup. The optional Pi
+adapter may target the authenticated remote tunnel. OMP is independent and uses
+its upstream-native provider configuration.
 
 Invoke the Pi adapter only when Pi support is wanted:
 
@@ -50,8 +51,9 @@ These Pi files remain machine-local and must not be committed:
 - `~/.pi/agent/trust.json` — trusted sessions.
 - `~/.pi/agent/sessions/` — session history.
 
-OMP does not read Pi authentication. Its optional remote 9Router credential lives
-at:
+OMP does not read Pi authentication, and dotfiles does not inject a Pi or
+9Router credential into OMP. The optional credential used by Pi/9Router helpers
+lives at:
 
 ```text
 ~/.config/ai-local/credentials/9router-remote-key

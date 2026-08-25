@@ -108,47 +108,6 @@ pi() {
   esac
 }
 
-# --- omp (omp.sh): primary coding control plane ---
-# Native user context is linked at ~/.omp/agent/AGENTS.md. The optional
-# 9Router credential is injected only into this child process.
-omp() {
-  case "${1:-}" in
-    update)
-      shift
-      (set -o pipefail; curl -fsSL https://omp.sh/install | sh)
-      ;;
-    *)
-      local credential_file="$HOME/.config/ai-local/credentials/9router-remote-key"
-      local remote_key=""
-      local overlay_file="$HOME/.config/ai-local/omp-overlay.yml"
-      local -a args=("$@")
-
-      if [ -f "$overlay_file" ]; then
-        case "${1:-}" in
-          acp|agents|auth-broker|auth-gateway|bench|browser-relay|cleanse|commit|completions|compress|config|dry-balance|gallery|gc|grep|grievances|install|join|models|plugin|read|say|search|setup|share|shell|ssh|stats|tiny-models|token|ttsr|update|usage|worktree)
-            ;;
-          *)
-            args=(--config "$overlay_file" "${args[@]}")
-            ;;
-        esac
-      fi
-
-      if [ "${NINEROUTER_REMOTE_KEY+x}" = x ]; then
-        command omp "${args[@]}"
-        return
-      fi
-      if [ -r "$credential_file" ]; then
-        IFS= read -r remote_key < "$credential_file" || :
-      fi
-      if [ -n "$remote_key" ]; then
-        NINEROUTER_REMOTE_KEY="$remote_key" command omp "${args[@]}"
-      else
-        command omp "${args[@]}"
-      fi
-      ;;
-  esac
-}
-
 # OMP generates completions from live command metadata, so new upstream
 # subcommands do not require a hand-maintained completion file.
 # `omp completions` costs about a second of pure CPU per call — measured 0.97s on

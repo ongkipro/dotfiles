@@ -21,8 +21,8 @@ When sources disagree, use this order:
 | WSL-only tools | `config/wsl-tools.sh` | Sourced by `~/.bashrc` on WSL |
 | Shared AI policy and memory | `config/ai/` | `~/.config/ai` symlink |
 | Owned AI capabilities | `skills/local/` | Runtime links reconciled by `skill-update` |
-| OMP behavior | `config/omp/config.yml` | `~/.omp/agent/config.yml` symlink |
-| OMP providers | `config/omp/models.yml` | `~/.omp/agent/models.yml` symlink |
+| OMP shared context | `config/ai/AGENTS.md` | `~/.omp/agent/AGENTS.md` symlink |
+| OMP owned skills | `skills/local/` | `~/.omp/agent/skills` symlink |
 | Tool versions | `config/mise-config.toml` | `~/.config/mise/config.toml` symlink |
 | Terminal prompt | `config/starship.toml` | `~/.config/starship.toml` symlink |
 | Helix | `config/helix/` | Links under `~/.config/helix/` |
@@ -61,9 +61,12 @@ source "$HOME/dotfiles/config/wsl-tools.sh"
 
 The installer migrates the old `dev-tools setup (ongkipro/dotfiles)` copied block to this live-source model and preserves a timestamped `~/.bashrc.bak.*` copy first. Re-running the installer is idempotent: it must not duplicate source lines or rewrite an already-correct file.
 
-`config/shell-tools.sh` owns PATH setup, aliases, mise activation, Pi context loading, OMP update routing, OMP credential scoping, and the interactive Starship prompt. Shell UI initialization is TTY-gated so `bash -lc` remains quiet and suitable for automation.
+`config/shell-tools.sh` owns PATH setup, aliases, mise activation, Pi context loading, and the interactive Starship prompt. It does not wrap OMP or inject OMP configuration or credentials. Shell UI initialization is TTY-gated so `bash -lc` remains quiet and suitable for automation.
 
-The 9Router credential is read from Pi's local auth store only while launching OMP. It must not be exported from `~/.bashrc` or inherited by unrelated child processes.
+OMP owns its native command, configuration, agents, providers, routing, updates,
+workspace behavior, authentication, and session state. The installer only links
+shared context and owned skills into OMP. A 9Router credential must not be
+exported from `~/.bashrc` or inherited by unrelated child processes.
 
 ## Tool lifecycle
 

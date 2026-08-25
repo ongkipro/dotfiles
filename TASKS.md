@@ -1,6 +1,6 @@
 # Tasks — dotfiles
 
-Updated: 2026-08-19
+Updated: 2026-08-24
 
 This is the sole executable queue. Historical detail through TASK-016 is
 archived in `docs/archive/DOTFILES_TASKS_THROUGH_2026-08-17.md`. Repository
@@ -20,89 +20,39 @@ not run concurrently even when their file globs are disjoint.
 
 ## In progress
 
+### TASK-024: Restore upstream-native OMP ownership
+- **Requirement:** REQ-OMP-UPSTREAM-DEFAULT
+- **Risk Level:** R2
+- **Job:** implementation
+- **Capability:** `testing-engineering`
+- **Execution Class:** precision
+- **Model / Provider / Reasoning:** root-codex, codex-runtime, openai, adaptive.
+- **Allowed Paths:** `config/shell-tools.sh`, `install.sh`, `install-macos.sh`, `bin/{ai-doctor,installer-link-test,shell-wrapper-test,omp-workspace-test,omp-routing-test,omp-effective-routing-test}`, `config/ai/{AGENTS.md,README.md,runtime-commands.txt,memory/skills.md,memory/environment-ai-runtimes.md,memory/decisions.md}`, `config/pi/README.md`, `config/omp/**`, `docs/{linux-dev-setup.md,DOTFILES_AI_ENGINEERING_MASTER_BLUEPRINT.md,DOTFILES_AI_ENGINEERING_CONTROL_PLANE.md}`, `TASKS.md`
+- **Protected Paths:** `config/ai/AGENTS.md`, `config/shell-tools.sh`
+- **Canonical Contract Owners:** `operations.omp-native-runtime`, `operations.shared-context`, `operations.omp-regression`
+- **Producers:** installers, shared context/skill adapters, and OMP boundary checks.
+- **Consumers:** native OMP sessions, fresh-device installs, and repository health checks.
+- **Depends On:** TASK-023 (superseded by this task).
+- **Runtime Evidence:** native OMP 18.0.4; no dotfiles `PI_CONFIG_FILES`; no live links to retired `config/omp/{config.yml,models.yml,agents}`; effective native `modelRoles` is empty.
+- **Accepted Invariants:** OMP owns its command, runtime config, agents, model/provider catalog, routing, updates, workspace behavior, authentication, and session state; dotfiles supplies OMP only with shared `AGENTS.md` context and owned skills; installers retire only exact legacy dotfiles links and preserve native files; no credential is read or changed; shared MCP remains deferred until a concrete secret-free configuration exists.
+- **Regression Checks:** `bin/shell-wrapper-test`, `bin/omp-workspace-test`, `bin/omp-routing-test`, `bin/omp-effective-routing-test`, `bin/installer-link-test`, `bin/ai-policy-lint`, `bin/ai-doctor --self-test`, `git diff --check`
+- **Reopen Conditions:** a shell wrapper or `PI_CONFIG_FILES` injection returns, an installer links tracked OMP runtime state, a live runtime path points into retired `config/omp/` state, or memory/docs again claim dotfiles owns OMP routing.
+- **Rollback/Migration State:** exact legacy OMP model/agent links are retired; native config, auth, sessions, cache, and unmanaged files are preserved. Retired tracked routing files remain historical evidence and are not loaded.
+- **Non-Scope:** Anthropic login, credential inspection or migration, creating MCP configuration without a concrete requirement, deleting historical evidence, production, commits, and pushes.
+- **Verification:** focused OMP, installer, shell, memory, and skill checks pass;
+  `ai-policy-lint`, `ai-doctor --self-test`, and `git diff --check` pass; live
+  OMP 18.0.4 matches a pristine native profile except for OMP's own
+  `setupVersion` onboarding marker. The final boundary is `REVIEW_REQUIRED`
+  because protected and accepted pre-existing paths were changed.
+- **Escalation Conditions:** native OMP differs from a pristine upstream config, or final boundary review is required for the protected/pre-existing change surface.
+
 
 ## Done
-### TASK-020: Close delivery-contract, routing, and task-scale gaps
-- **Requirement:** REQ-DELIVERY-CONTRACT-GAPS
-- **Risk Level:** R3
-- **Job:** implementation
-- **Capability:** `full-stack-development`, `testing-engineering`, `native-first`
-- **Execution Class:** precision
-- **Model / Provider / Reasoning:** anthropic/claude-sonnet-5, anthropic, high.
-- **Allowed Paths:** `bin/{delivery-ledger,delivery-ledger-test,diff-risk,diff-risk-test,project-check,project-check-test,ai-policy-lint,ai-policy-lint-test}`, `config/templates/TASKS.md`, `docs/archive/DOTFILES_TASKS_THROUGH_2026-08-17.md`, `TASKS.md`
-- **Protected Paths:** `bin/delivery-ledger`, `bin/project-check`
-- **Canonical Contract Owners:** `operations.delivery-ledger`, `operations.project-check`, `operations.diff-risk`, `operations.policy-lint`
-- **Producers:** boundary and review evidence.
-- **Consumers:** parent orchestrator, independent reviewer, `production-gate` (via `project-check`).
-- **Depends On:** TASK-018 (integrated).
-- **Runtime Evidence:** live `npm`/`shopify` toolchains, real local project repositories.
-- **Accepted Invariants:** `start-child` at R1-R4 carries the same resolved-provenance guard as `start`; `diff-risk` surfaces browser-visible UI paths at `minimumRisk` R0, informational only; `project-check`'s delivery-contract report never contributes to its PASS/FAIL/UNVERIFIED tally; `ai-policy-lint`'s template field check derives from the same list its per-task lint enforces.
-- **Regression Checks:** `bin/delivery-ledger-test`, `bin/diff-risk-test`, `bin/project-check-test`, `bin/ai-policy-lint-test`, `bin/ai-policy-lint`, `bin/delivery-gate-test`, `bin/installer-link-test`, `bin/ai-doctor --self-test`
-- **Reopen Conditions:** a docs-only repo reporting VERIFIED, a partially-adopted or worktree-checked-out repo reporting FAILED on contract-document absence alone, an R1-R4 child run accepting unresolved provenance, or documented template fields drifting from the enforced set again.
-- **Rollback/Migration State:** additive checks and documentation; revert restores the narrower prior coverage.
-- **Non-Scope:** OMP routing selectors, production, deployment, commits, hosted CI.
-- **Verification:** every named check passes locally on Linux; independent review (Opus, then Sonnet on a separate route) found and confirmed fixed: a false-VERIFIED on doc-only repos, false-FAILED on partial/worktree adoption, a self-contradictory archive entry, and an `/api/`-bypass in the UI risk pattern.
-- **Escalation Conditions:** a live catalog rejecting a required selector, or overlap with pre-existing user work.
-- **Deferred:** see TASK-021 and TASK-022 under `## Pending` — both reverted mid-run over unaccepted pre-existing dirty overlap on the target file, not skipped by oversight.
 
-### TASK-019: Remediate OMP routing and parallel collision controls
-- **Requirement:** REQ-OMP-ROUTING-COLLISION
-- **Risk Level:** R3
-- **Job:** implementation
-- **Capability:** `full-stack-development`, `application-security`, `testing-engineering`
-- **Execution Class:** precision
-- **Allowed Paths:** `config/omp/**`, `bin/delivery-ledger`, `bin/delivery-ledger-test`, `bin/omp-routing-test`, `bin/omp-effective-routing-test`, `config/templates/TASKS.md`, `docs/task-change-boundary.md`, `TASKS.md`
-- **Protected Paths:** `config/omp/**`, `bin/delivery-ledger`
-- **Producers:** OMP role resolution and delivery-ledger child lifecycle.
-- **Consumers:** parent orchestrator and isolated child workers.
-- **Depends On:** none.
-- **Runtime Evidence:** OMP parser and live model catalog.
-- **Reopen Conditions:** selector drift, a reachable Lite path, or a pre-dispatch collision bypass.
-- **Rollback/Migration State:** declarative routing change; restore only with fresh catalog evidence.
-- **Canonical Contract Owners:** `operations.routing`, `operations.delivery-ledger`
-- **Accepted Invariants:** no reachable Gemini Flash Lite route; three-worker implementation ceiling; child paths and hierarchical owners cannot collide; parent applies immutable verified patches sequentially.
-- **Regression Checks:** `bin/omp-routing-test`, `bin/omp-effective-routing-test`, `bin/delivery-ledger-test`
-- **Non-Scope:** provider credentials, catalog records, production, deployment, commits.
-- **Escalation Conditions:** absent catalog capability, boundary overlap, or failed collision regression.
+Completed task contracts through TASK-023 are archived in:
 
-### TASK-018: Audit and repair routing, collision, and review-independence controls
-- **Requirement:** REQ-OMP-AUDIT-REPAIR
-- **Risk Level:** R3
-- **Job:** implementation
-- **Capability:** `full-stack-development`, `application-security`, `testing-engineering`
-- **Execution Class:** precision
-- **Model / Provider / Reasoning:** anthropic/claude-opus-5, anthropic, high.
-- **Allowed Paths:** `bin/{delivery-ledger,delivery-ledger-test,ai-policy-lint,ai-policy-lint-test,omp-routing-test,project-init,delivery-benchmark-test}`, `config/omp/{ROUTING.md,STATUS.md,overlays/codex-only.yml}`, `docs/task-change-boundary.md`, `TASKS.md`
-- **Protected Paths:** `config/omp/**`, `bin/delivery-ledger`, `bin/project-init`
-- **Canonical Contract Owners:** `operations.routing`, `operations.delivery-ledger`, `operations.policy-lint`, `operations.task-contract`
-- **Producers:** boundary and review evidence.
-- **Consumers:** parent orchestrator, independent reviewer, and `ai-policy-lint`.
-- **Depends On:** TASK-019 (integrated).
-- **Runtime Evidence:** live OMP model catalog and the installed OMP config parser.
-- **Accepted Invariants:** an exact path and its own `**` subtree collide before dispatch; R1-R4 runs carry resolved routing provenance; independent review records reviewer identity, model, provider, reasoning, and an evidence digest bound to the latest boundary check, compared case- and whitespace-insensitively; approval cannot survive an unreviewed change; documented pools match executable selectors.
-- **Regression Checks:** `bin/delivery-ledger-test`, `bin/omp-routing-test`, `bin/omp-effective-routing-test`, `bin/ai-policy-lint-test`, `bin/ai-policy-lint`, `bin/diff-risk-test`, `bin/project-init-test`, `bin/delivery-benchmark-test`, `bin/ai-doctor --self-test`
-- **Reopen Conditions:** a collision shape passing pre-dispatch, an `unknown`-provenance R1-R4 run, an approval surviving a later edit, or documented routing diverging from `config.yml`.
-- **Rollback/Migration State:** additive guards and documentation; revert restores the weaker checks.
-- **Non-Scope:** provider credentials, `.delivery` history, production, deployment, commits, and hosted CI.
-- **Verification:** every named check and `ai-doctor --self-test` pass locally on Linux; `omp-effective-routing-test` stays `PARTIAL` on the known OMP `--config` parser defect. A metric with no real value is recorded as `unavailable: <reason>`, never as `unknown`.
-- **Escalation Conditions:** a live catalog rejecting a required selector, a fix collapsing provider diversity, or overlap with pre-existing user work.
-
-### TASK-017: Make workflow and OMP overlay evidence executable
-- **Requirement:** AUDIT-CI-02 — local and hosted validation must reject invalid GitHub workflows, while OMP global-overlay evidence must prove the runtime applied the overlay rather than merely parsing YAML or exiting zero.
-- **Risk Level:** R3
-- **Job:** implementation
-- **Capability:** `github-actions`, `testing-engineering`, `native-first`, `lean-code-review`
-- **Execution Class:** judgment
-- **Model / Provider / Reasoning:** Current Codex route; model routing is unchanged.
-- **Change Surface:** `.github/workflows/core-runtime.yml`, `config/mise-config.toml`, `config/ai/runtime-commands.txt`, `bin/ai-policy-lint`, `bin/ai-policy-lint-test`, `bin/omp-effective-routing-test`, `config/omp/STATUS.md`, `TASKS.md`
-- **Protected Surface:** `.github/workflows/**`, `config/omp/**`
-- **Accepted Invariants:** actionlint is version- and checksum-pinned; every supported device receives it through mise; `ai-policy-lint` fails when workflow validation is missing or invalid; OMP global `--config` must change a sentinel value before it can report full verification; the known upstream rejection remains explicit `PARTIAL`.
-- **Shared Owner:** `repository-ci`, `omp-runtime-evidence`
-- **Regression Checks:** `actionlint`, `bin/ai-policy-lint-test`, `bin/ai-policy-lint`, `bin/omp-effective-routing-test`, `bin/installer-link-test`, `bin/ai-doctor --self-test`, hosted Ubuntu/macOS Core runtime.
-- **Reopen Conditions:** workflow syntax can bypass local policy lint, an unverified actionlint binary executes, or OMP reports full verification without proving overlay semantics.
-- **Non-Scope:** model/provider routing changes, OMP upstream implementation, production, billing, new orchestration, or a second workflow-lint subsystem.
-- **Verification:** Linux actionlint 1.7.12, its checksum-pinned CI installer fixture, mutation-backed policy/OMP guards, installer integration, and the authoritative repository self-test pass locally. Hosted Core runtime run `32045480144` passed the pinned installer, actionlint gate, and full suite on Ubuntu and macOS.
-- **Escalation Condition:** any requirement to weaken an existing CI gate, expose credentials, or overlap pre-existing user work.
+- `docs/archive/DOTFILES_TASKS_THROUGH_2026-08-17.md`
+- `docs/archive/DOTFILES_TASKS_2026-08-18_THROUGH_2026-08-23.md`
 
 ## Pending
 
