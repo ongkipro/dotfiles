@@ -43,3 +43,20 @@ export default {
 ```
 
 This scanner selects review candidates; it deliberately does not bump `updated_at`. The content job must re-check the source and change material facts first. Only then record the real update time, regenerate sitemap/`llms.txt`, and notify eligible indexing services. A timestamp-only rewrite is not a freshness update.
+
+---
+
+## 3. Content Decay Triage Protocol (GSC QoQ Analysis)
+
+When auditing traffic decay using Google Search Console export data comparing two periods (e.g. Current Quarter vs Previous Quarter), classify URLs with **≥ 20% traffic drop** into the three-way triage matrix:
+
+| Observed Signal | Root Diagnosis | Prescribed Action |
+|---|---|---|
+| **Drop ≥ 20%, Rank 4–15, High Impressions** | Content is still indexed and visible, but losing clicks due to outdated dates, stale stats, or weak CTR titles. | **Refresh:** Update title hook, inject current-year verified stats, add a direct AnswerBox section, and update sitemap `<lastmod>`. |
+| **Drop ≥ 20%, Multiple URLs ranking for same query** | Keyword cannibalization splitting authority between two or more posts. | **Consolidate:** Merge unique insights into the primary pillar URL, remove duplicate post, and set `301 Permanent Redirect`. |
+| **Drop ≥ 20%, Rank > 30, Zero Impressions** | Dead search intent, deprecated tech, or zero remaining search demand. | **Prune:** Set `noindex` or `410 Gone` to protect site-wide crawl budget and content density. |
+
+A ≥20% QoQ drop is a review trigger, not automatic authorization to rewrite,
+redirect, noindex, or return `410`. Confirm query intent, the canonical URL,
+indexed state, conversions, links, and relevant business owner before a
+destructive consolidation or pruning action.

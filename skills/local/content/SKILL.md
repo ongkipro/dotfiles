@@ -53,15 +53,24 @@ scale. Pairs with `copywriting` (rules + templates) and
 5. **Draft** — write to a file (`/tmp/content/<slug>.md`) so it can be reviewed
    in chunks. Apply hard rules from `copywriting` (no CTA, char limits, no
    third-party brand, fix typos, verifiable facts only).
-6. **QA gates** before publish — run **all**:
-   - Load and apply the complete cross-channel field-limit table from `copywriting`; do not maintain a partial copy here.
-   - No CTA in body or meta (unless explicitly landing page).
-   - No third-party brand unless user opted in.
-   - No invented specs / prices / dates.
-   - ALT text on every image, descriptive and specific.
-   - Internal links resolve to real URLs in the project.
-   - H1/H2 hierarchy clean (one H1, logical H2s).
-   - Claims, qualifiers, conditions, and citations still match the source.
+6. **QA gates (Delivery verification)** before publish — run **all**:
+   - **P0 Blockers (Immediate Reject):**
+     - Any fabricated or unsourced numeric claim/stat (every material number must cite a real source).
+     - Title bait-and-switch (H1 and body must fulfill the headline promise).
+     - Broken links (404/SSRF) or broken local/CDN image references.
+     - Unapproved CTA in body or meta (unless explicitly a landing page or buy-box).
+     - Third-party brand names present without user opt-in.
+   - **P1 Ship Blockers (Must fix before final publish):**
+     - Intent invisible in first 5 seconds (missing Key Takeaways / TL;DR summary at the top).
+     - H2 contract broken (subtopic promise not delivered in opening 100 words of the section).
+     - Monotonous wall of text (missing TOC on >1500 words; missing comparison table/list for dense data).
+     - Field and ALT limits exceeded (cross-channel table from `copywriting`).
+     - Image ALT missing or using generic filler ("image of", "picture of").
+     - H1/H2 hierarchy broken (more than one H1, or skipped heading levels).
+   - **P2 Polish & Editorial Checks:**
+     - Second-order AI slop (metronomic 3-clause rhythm, question-cadence H2s, hedge stacking `may/often/typically`).
+     - Duplicate trailing `## Sources` block when citations are already inline (`volumx-writer/references/synthesis-contract.md`).
+     - JSON-LD schema `wordCount` matches actual body word count within ±5%.
 7. **Image pipeline** — for each visual:
    - Generate via `9router` (`references/image.md`), selecting the current image model from that skill's use-case matrix rather than pinning a model ID here, or
      use supplied asset.

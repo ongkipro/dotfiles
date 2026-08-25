@@ -40,6 +40,32 @@ $$\text{Google Ad Click (gclid, gbraid, wbraid)} \longrightarrow \text{Sitewide 
 3. **Who performed it?** — First-party customer matching via Enhanced Conversions (`email`, `phone_number`, address).
 4. **Where did the click originate?** — Preserved click identifiers (`gclid`, `gbraid`, `wbraid`) across sessions and subdomains.
 
+## Configuration contract before code
+
+Freeze the ownership of every Google conversion action before adding a tag:
+
+| Concern | Contract |
+| --- | --- |
+| Direct Google tag | One valid `AW-…` tag ID plus one conversion label; both or neither |
+| GTM | May own GA4/dataLayer handling, but must not fire the same Google Ads conversion action as the direct tag |
+| `transaction_id` | Stable backend order identity; never blank, browser-minted, or a payment-provider attempt ID |
+| Enhanced conversions | Real first-party data only; consent and account setup are prerequisites |
+| Consent Mode | Actual policy by jurisdiction and CMP behavior, initialized before `config` or `event` |
+
+Do not make direct Google Ads and GTM mutually exclusive merely because both are
+configured: GTM may legitimately consume ecommerce events for GA4. The invariant
+is narrower—exactly one owner fires each Google Ads conversion action. Two paths
+to the same `send_to` double-count while every local tag check appears healthy.
+
+Environment fallback is configuration, not a bypass. Validate its `AW-…` ID and
+label with the same atomic rule as dashboard settings; disable a malformed pair
+rather than emitting a broken `send_to`.
+
+Never use a synthetic payment-provider email, unavailable identity field, or an
+empty-string hash for enhanced conversions.
+
+---
+
 ---
 
 ## Skill Reference Manifest
@@ -58,15 +84,31 @@ $$\text{Google Ad Click (gclid, gbraid, wbraid)} \longrightarrow \text{Sitewide 
 ## Checklist: 10 Commandments of Google Signal Architecture
 
 1. **Primary vs Secondary Goals**: Set only real revenue events (`Purchase`, confirmed `Lead`) as **Primary** conversion actions for bidding.
-2. **Consent Mode v2**: Initialize `ad_storage`, `ad_user_data`, `ad_personalization`, and `analytics_storage` to `denied` by default, updating to `granted` upon CMP banner accept.
-3. **Unique `transaction_id`**: Always pass `transaction_id` matching your backend `order_id` to prevent duplicate purchase counting.
-4. **Enhanced Conversions**: Set `user_data` with customer email and phone (E.164 format) for all conversion actions.
+2. **Consent Mode v2**: Set defaults before `config` or `event`; scope them to the jurisdictions where the actual consent banner and policy apply, then update on the user's stored choice. Do not grant or deny globally by reflex.
+3. **Unique `transaction_id`**: Always pass a non-empty canonical backend order ID for Purchase; omit the field for events that do not have one rather than sending an empty string.
+4. **Enhanced Conversions**: Send only real first-party data, using the Google-account method selected in Ads and the applicable consent state. Normalize/hash phone as `+` E.164 and email according to Google's current rules.
 5. **Preserve Click IDs**: Capture `gclid`, `gbraid`, `wbraid` upon landing page entry and pass them through session storage / database orders.
-6. **Conversion Linker**: Run Conversion Linker sitewide across all subdomains and checkout domains.
+6. **Conversion ownership**: A direct Google tag or GTM owns a given Google Ads conversion action, never both.
 7. **Clean Values**: Pass raw numeric `value` (e.g. `549000`) and standard uppercase `currency` (`IDR`, `USD`). Never pass formatted strings like `"Rp 549.000"`.
-8. **Server / Offline Uploads**: Upload delayed COD deliveries or offline CRM sales via the Google Ads API using `transaction_id` or `gclid`. This is the whole reason to capture click IDs at landing — without a stored `gclid`/`gbraid`/`wbraid` a COD sale confirmed days later can never be attributed.
+8. **Server / Offline Uploads**: Upload delayed COD deliveries or offline CRM sales only when the Google Ads API contract, conversion action, click identity, and timestamp are known. A stored click ID makes this possible; it does not authorize a made-up offline conversion.
 9. **Separate Analytics**: Keep GA4 engagement events separate from Google Ads conversion bidding goals.
 10. **Reconciliation**: Periodically audit Google Ads reported conversions against backend accounting truth.
+
+## Verification evidence ladder
+
+Keep these outcomes separate:
+
+| Layer | Proves | Does not prove |
+| --- | --- | --- |
+| Unit/contract test | Valid destination pair, numeric value, `transaction_id` presence, click-ID persistence | Google received a conversion |
+| Browser smoke | Consent command order, tag bootstrap, direct event wiring | Google Ads processed or deduplicated it |
+| Google Tag Assistant / conversion diagnostics | Tag implementation and destination diagnostics | Incremental business impact |
+| Google Ads reporting | Recorded conversions and enhanced-conversion status | Correct revenue or causality |
+| Reconciliation / approved experiment | Backend-to-Ads completeness and business impact | A universal CPA or ROAS uplift |
+
+Enhanced conversions require the advertiser to enable the corresponding Google
+Ads setting and accept applicable customer-data terms. A correct browser payload
+can still be discarded when that account-side prerequisite is absent.
 
 ---
 

@@ -6,8 +6,13 @@ Passing a unique `transaction_id` prevents Google Ads from counting duplicate pu
 
 ## `transaction_id` Invariant
 
-- Must match your database `order_id` (e.g. `ORD-2026-9901`).
-- Must be passed in both Web tags (`gtag.js` / GTM) and Offline CAPI uploads so Google Ads deduplicates web vs offline reports.
+- Must be a stable canonical backend order identifier (for example, a persisted
+  order number), not a browser UUID, numeric row ID, or payment-attempt ID.
+- Must be non-empty whenever a Purchase event exists. Omit it for event types
+  with no transaction rather than sending `""`.
+- Must agree across every path deliberately reporting the same conversion. A
+  direct Google tag and GTM must not both fire one Google Ads conversion action;
+  `transaction_id` is deduplication support, not permission to duplicate.
 
 ```javascript
 gtag('event', 'conversion', {

@@ -66,3 +66,22 @@ const {
   )}
 </section>
 ```
+
+---
+
+## AI Citation Readiness Factors (AEO / GEO Evaluation)
+
+
+This is an internal editorial heuristic, not a published ranking formula for
+any answer engine. Score evidence and extractability, then validate the actual
+page's crawlability and observed referral/search data.
+When evaluating or drafting passages for answer engines (AI Overviews, Perplexity, ChatGPT Search):
+
+| Signal Factor | Weight | Evaluation Criteria |
+|---|---|---|
+| **Source Fidelity** | 25% | Inline markdown links `[Source](url)`, exact visible titles, zero unsourced numeric claims. |
+| **Heading & Purpose Directness** | 20% | Direct answer delivered in the first 100 words of the H2/H1 section; clear entity naming. |
+| **Passage Independence** | 20% | Section can be extracted and understood stand-alone without holding previous multi-section context. |
+| **Structured Data & Author Entity** | 15% | Valid JSON-LD `Article`/`BlogPosting` schema with named `Person` author and `Organization`. |
+| **Crawl & Preview Eligibility** | 10% | Valid robots controls without accidental `nosnippet` or crawler blocks on discovery agents. |
+| **Multi-Modal Evidence** | 10% | Data tables, structured comparison rows, and descriptive image ALT text. |

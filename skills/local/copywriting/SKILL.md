@@ -98,9 +98,18 @@ End after the specs table.
 ```
 [Hook — 1 sentence with primary keyword]
 [Context — why this matters now]
+
+> [!NOTE] Key Takeaways (Visibility of Intent)
+> - [Bullet 1 — core takeaway]
+> - [Bullet 2 — actionable finding or number]
+> - [Bullet 3 — primary conclusion]
+
 ## [H2 — first subtopic]
-[Body — 2-4 short paragraphs]
+[Direct answer / contract fulfillment — state the core point in first 100 words]
+[Supporting body — 2-4 focused paragraphs, concrete examples, or comparison table]
+
 ## [H2 — second subtopic]
+[Direct answer / contract fulfillment]
 …
 ## FAQ (optional)
 [3-5 Q&As using real queries]

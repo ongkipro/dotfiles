@@ -66,6 +66,7 @@ Load only what the task needs:
 
 - Meaning and constraints: `references/preservation.md`
 - Hallucination and claim safety: `references/anti-hallucination.md`
+- Research synthesis contract: `references/synthesis-contract.md`
 - Humanization and AI-slop removal: `references/human-writing.md`
 - Indonesian: `references/indonesian.md`
 - English: `references/english.md`

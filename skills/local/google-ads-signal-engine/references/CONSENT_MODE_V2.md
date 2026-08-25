@@ -1,6 +1,6 @@
 # Consent Mode v2 Specification & Implementation
 
-Google Ads requires **Consent Mode v2** for all web properties to ensure compliance with privacy laws (GDPR/EEA) and enable **modeled conversions** for Smart Bidding algorithms when users decline cookies.
+Consent Mode v2 is a Google tag mechanism for reflecting an advertiser's consent policy; it does not itself determine legal compliance or authorize a global default. Defaults and updates must match the jurisdictions served, the actual consent experience, and applicable legal advice.
 
 ---
 
@@ -44,7 +44,7 @@ Google Ads requires **Consent Mode v2** for all web properties to ensure complia
 </script>
 ```
 
-Ship a CMP **and** a global `denied` default only when the site genuinely serves EEA traffic. Choosing "deny everywhere" without one is not the safe option — it is an unmonitored outage.
+Use a regional default only when the region list, consent experience, and legal policy are reviewed together. A global `denied` default without a CMP can be an unmonitored measurement outage; a global `granted` default without a policy can be an unauthorized data-sharing path.
 
 ## Global-deny reference (EEA-serving properties with a CMP)
 

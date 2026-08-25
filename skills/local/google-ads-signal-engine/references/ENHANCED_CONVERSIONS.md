@@ -2,11 +2,25 @@
 
 Enhanced Conversions matches website conversion events with Google logged-in accounts using hashed first-party user data (`email`, `phone_number`, `address`).
 
+Before sending any user data, the advertiser MUST enable the selected enhanced
+conversion method in Google Ads, accept the applicable customer-data terms, and
+ensure the applicable consent state permits it. A browser payload that is
+correctly normalized can still be ignored when the account-side method or terms
+are not configured.
+
+> **Current account-side change:** Google Ads combined Enhanced Conversions for
+> Web and Leads into one setting from April 2026. Verify the current account UI
+> and selected data source before implementing; a browser implementation and an
+> API implementation chosen in incompatible account settings can be ignored.
+
 ---
 
 ## 1. Web Implementation (`gtag.js`)
 
-In web browser implementations, `gtag.js` automatically handles SHA-256 hashing client-side when raw strings are passed to `user_data`.
+In web browser implementations, send either raw values for Google to normalize
+and hash or pre-hashed SHA-256 values in the documented field names; never mix a
+raw value with its `sha256_*` key. Use real first-party data only and omit fields
+that are unavailable or synthetic.
 
 ```javascript
 // Set user_data before or alongside conversion event

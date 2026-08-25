@@ -40,7 +40,11 @@ MUST BE NORMALIZED & SHA-256 HASHED:
 > }
 > ```
 >
-> Hash the **same normalized string on both legs**. If the browser pixel hashes `08123…` for `ph`/`external_id` while the server hashes `628123…`, the two legs describe two different people and matching quietly halves.
+> Hash the **same normalized source value on both legs**. A browser and server
+> that hash different source values describe different people even when both
+> hashes look valid. This is especially dangerous for phone normalization and
+> `external_id`; they are separate identifiers and must not silently collapse
+> into one permanent phone-derived hash.
 
 ```typescript
 import { createHash } from 'crypto'; // Node runtimes only
@@ -84,23 +88,47 @@ export function normalizeText(text: string): string {
 
 ---
 
-## `_fbp` and `_fbc` Cookie Rules
+## First-party browser identity
 
-- `_fbp`: Format `fb.1.${timestamp}.${randomNumber}`. Read directly from document cookies.
-- `_fbc`: Created when traffic lands with `?fbclid=...`. Format `fb.1.${timestamp}.${fbclid}`.
-- **Cookie Lifetime**: Ensure first-party cookie expiration is set to 90 days.
-- **Pass-through**: Store `_fbp` and `_fbc` in session storage or checkout form state so backend CAPI sends exact matching cookies.
+`_fbp` and `_fbc` are Meta-issued/browser attribution identifiers. Preserve them
+raw, do not put them in URLs or logs, and read the latest same-origin cookie at
+the server boundary whenever possible.
+
+- `_fbp`: Meta's browser ID. The Pixel mints it.
+- `_fbc`: Meta's click ID. Capture a valid `fbclid` landing as
+  `fb.<subdomain_index>.<creation_time>.<fbclid>` before the Pixel loads.
+- Both: retain only for a deliberate first-party lifetime, then refresh from the
+  current browser state; never hash them.
+
+`external_id` is different: it belongs to the advertiser. Prefer an immutable
+customer ID. If the flow has no account, mint a random first-party visitor ID
+with Web Crypto, validate it server-side, retain it for a deliberate lifetime,
+and SHA-256 hash it on both Pixel and CAPI. Never accept it from a URL, use an
+order number, or send it raw to Meta. A phone-derived fallback may preserve an
+upgrade path, but must be replaced by the durable advertiser identity.
+
+## Email and absent fields
+
+Hash a real email only after trim and lowercase. Never reuse a synthetic payment
+provider email as customer identity. Omit an unavailable field entirely: an
+empty-string hash, fabricated identity, or broad low-signal field set is worse
+than no match key.
 
 ---
 
-## Event Match Quality (EMQ) Target Scorecard
+## Event Match Quality evidence
 
-| Target EMQ Rating | Score Range | Parameter Requirements |
-| --- | --- | --- |
-| **Poor** | < 4.0 | IP + User Agent only (Minimal browser matching) |
-| **Fair** | 4.0 – 6.0 | IP + User Agent + `_fbp` + Email OR Phone |
-| **Good** | 6.0 – 8.0 | IP + User Agent + `_fbp` + `_fbc` + Hashed Email + Hashed Phone |
-| **Great / Enterprise** | **8.0 – 9.5+** | IP + User Agent + `_fbp` + `_fbc` + Hashed Email + Hashed Phone + `external_id` + Hashed Name/City/Zip |
+EMQ is an Events Manager score from 1 to 10, not a threshold table that code can
+guarantee. Do not promise an EMQ range, conversion uplift, CPA improvement, or
+ROAS outcome from parameter coverage alone.
 
-### EMQ Engineering Rule:
-Always pass `external_id` (your database `customer_id` or `user_id`) alongside `_fbp` and `_fbc`. First-party `external_id` increases Meta's long-term cross-device attribution capabilities significantly.
+Measure separately:
+
+1. browser emission and server ingress;
+2. CAPI acceptance and event freshness;
+3. browser/server deduplication key coverage and overlap;
+4. EMQ per event in Events Manager;
+5. business impact through a reconciliation, lift study, or approved experiment.
+
+Local tests and browser smoke can prove payload construction and identity parity.
+They cannot prove Meta acceptance, matching, attribution, or campaign impact.
