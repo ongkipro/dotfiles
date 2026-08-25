@@ -1,6 +1,6 @@
 # Tasks — dotfiles
 
-Updated: 2026-08-24
+Updated: 2026-08-26
 
 This is the sole executable queue. Historical detail through TASK-016 is
 archived in `docs/archive/DOTFILES_TASKS_THROUGH_2026-08-17.md`. Repository
@@ -33,16 +33,16 @@ not run concurrently even when their file globs are disjoint.
 - **Producers:** installers, shared context/skill adapters, and OMP boundary checks.
 - **Consumers:** native OMP sessions, fresh-device installs, and repository health checks.
 - **Depends On:** TASK-023 (superseded by this task).
-- **Runtime Evidence:** native OMP 18.0.4; no dotfiles `PI_CONFIG_FILES`; no live links to retired `config/omp/{config.yml,models.yml,agents}`; effective native `modelRoles` is empty.
-- **Accepted Invariants:** OMP owns its command, runtime config, agents, model/provider catalog, routing, updates, workspace behavior, authentication, and session state; dotfiles supplies OMP only with shared `AGENTS.md` context and owned skills; installers retire only exact legacy dotfiles links and preserve native files; no credential is read or changed; shared MCP remains deferred until a concrete secret-free configuration exists.
+- **Runtime Evidence:** native OMP 18.0.5; no dotfiles `PI_CONFIG_FILES`; no live links to retired `config/omp/{config.yml,models.yml,agents}`; fourteen device-local roles and twenty-five fallbacks resolve against the refreshed live catalog with zero selector/effort errors; Claude Opus 4.6 High and Sonnet 4.6 High serving probes pass through Antigravity; direct Anthropic remains in provider precedence but is not placed in an active fallback while its catalog is unavailable; OMP's separate native memory backend is off while shared memory and the reviewed `ai-learn` lifecycle remain available through dotfiles.
+- **Accepted Invariants:** OMP owns its command, runtime config, agents, model/provider catalog, routing, updates, workspace behavior, authentication, and session state; dotfiles supplies OMP with shared `AGENTS.md` context and owned skills; durable cross-device memory is curated only under `~/.config/ai/memory/`, and verified reusable outcomes from OMP may enter it only through reviewed `ai-learn` promotion; installers retire only exact legacy dotfiles links and preserve native files; no credential is read or changed; shared MCP remains deferred until a concrete secret-free configuration exists.
 - **Regression Checks:** `bin/shell-wrapper-test`, `bin/omp-workspace-test`, `bin/omp-routing-test`, `bin/omp-effective-routing-test`, `bin/installer-link-test`, `bin/ai-policy-lint`, `bin/ai-doctor --self-test`, `git diff --check`
 - **Reopen Conditions:** a shell wrapper or `PI_CONFIG_FILES` injection returns, an installer links tracked OMP runtime state, a live runtime path points into retired `config/omp/` state, or memory/docs again claim dotfiles owns OMP routing.
 - **Rollback/Migration State:** exact legacy OMP model/agent links are retired; native config, auth, sessions, cache, and unmanaged files are preserved. Retired tracked routing files remain historical evidence and are not loaded.
 - **Non-Scope:** Anthropic login, credential inspection or migration, creating MCP configuration without a concrete requirement, deleting historical evidence, production, commits, and pushes.
 - **Verification:** focused OMP, installer, shell, memory, and skill checks pass;
   `ai-policy-lint`, `ai-doctor --self-test`, and `git diff --check` pass; live
-  OMP 18.0.4 matches a pristine native profile except for OMP's own
-  `setupVersion` onboarding marker. The final boundary is `REVIEW_REQUIRED`
+  OMP 18.0.5 preserves upstream-native ownership while allowing native,
+  device-local role configuration. The final boundary is `REVIEW_REQUIRED`
   because protected and accepted pre-existing paths were changed.
 - **Escalation Conditions:** native OMP differs from a pristine upstream config, or final boundary review is required for the protected/pre-existing change surface.
 
