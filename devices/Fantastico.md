@@ -1,7 +1,7 @@
 # Device: `Fantastico`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-08-19**
+> Terakhir diperbarui: **2026-08-26**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -22,7 +22,7 @@
 | CPU | Intel(R) Core(TM) i7-8650U CPU @ 1.90GHz (8 thread) |
 | RAM | 15.5 GB |
 | GPU | Intel Corporation Kaby Lake-R GT2 [UHD Graphics 620] (rev 07) |
-| Disk (/) | 233G total, 139G free (38% used) |
+| Disk (/) | 233G total, 120G free (46% used) |
 
 ## AI CLI
 
@@ -60,9 +60,9 @@
 | skills → pi | `~/.pi/agent/skills` | ✅ ok |
 | skills → agy | `~/.gemini/config/skills` | ✅ ok |
 | skills → omp | `~/.omp/agent/skills` | ✅ ok |
-| OMP config | `~/.omp/agent/config.yml` | ✅ ok |
-| OMP models | `~/.omp/agent/models.yml` | ✅ ok |
-| OMP specialist agents | `~/.omp/agent/agents` | ✅ ok |
+| OMP config | `~/.omp/agent/config.yml` | — belum ada |
+| OMP models | `~/.omp/agent/models.yml` | — belum ada |
+| OMP specialist agents | `~/.omp/agent/agents` | — belum ada |
 | mise toolchain | `~/.config/mise/config.toml` | ✅ ok |
 | starship | `~/.config/starship.toml` | ✅ ok |
 | helix | `~/.config/helix/config.toml` | ✅ ok |
