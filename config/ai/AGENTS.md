@@ -31,11 +31,7 @@ Before `~/Projects/<slug>/` exists, every accepted planning artifact — standal
 
 Coding starts only after explicit development authorization. `project-init --from-docs ~/Documents/work/prd/<slug>/` — combined with `--stack <profile>` for a new project or `--repo <path> --stack existing-repository` for one that already exists — then copies the accepted staged artifacts into `~/Projects/<slug>/`: standalone files land at the project root and `docs/adr/`; a suite pack (detected the same way, by `CONTEXT-RECORD.md`) lands under `docs/spec/`. The source stays in place as a retained, non-authoritative snapshot; a divergent existing destination file fails the copy instead of being silently overwritten, and an identical destination file is a safe no-op. From that point the repository copy is canonical; never re-consult the `~/Documents/` copy as the source of truth once promotion has happened.
 
-- dotfiles is shared by every device in `devices/`: a device may **add** memory,
-  owned skills, its own `devices/<host>.md`, or a reviewed lesson, but it must
-  not install OMP runtime settings, model catalogs, agent definitions, or
-  provider routing. OMP owns those through its native user/profile paths.
-  Device-only facts go to `~/.config/ai-local/`.
+- dotfiles is shared by every device in `devices/`: a device may **add** memory, owned skills, its own `devices/<host>.md`, or a reviewed lesson, but it must not install OMP runtime settings, model catalogs, agent definitions, or provider routing. OMP owns those through its native user/profile paths. Device-only facts go to `~/.config/ai-local/`.
 
 ## Output discipline
 
@@ -47,20 +43,9 @@ Coding starts only after explicit development authorization. `project-init --fro
 
 ## Runtime routing and capabilities
 
-OMP uses its upstream-native command, configuration discovery, bundled agents,
-model catalog, provider routing, update channel, and workspace behavior.
-Dotfiles must not wrap `omp`, inject `PI_CONFIG_FILES`, or link
-`config.yml`, `models.yml`, or `agents/` into `~/.omp/agent/`. Dotfiles supplies
-only the shared `AGENTS.md` context and owned skill directory. A shared user MCP
-file may be added later at OMP's native `~/.omp/agent/mcp.json` path only when a
-real secret-free cross-device configuration exists; project MCP configuration
-belongs to the repository.
+OMP uses its upstream-native command, configuration discovery, bundled agents, model catalog, provider routing, update channel, and workspace behavior. Dotfiles must not wrap `omp`, inject `PI_CONFIG_FILES`, or link `config.yml`, `models.yml`, or `agents/` into `~/.omp/agent/`. Dotfiles supplies only the shared `AGENTS.md` context and owned skill directory. A shared user MCP file may be added later at OMP's native `~/.omp/agent/mcp.json` path only when a real secret-free cross-device configuration exists; project MCP configuration belongs to the repository.
 
-Use OMP's installed defaults for task decomposition, agents, models,
-concurrency, fallbacks, and update behavior. Avoid delegation for ordinary
-work, never invent parallelism, and keep the main session responsible for final
-integration and verification. Repositories using `delivery-ledger` still apply
-its task-boundary contract independently of which OMP model or agent executes.
+Use OMP's installed defaults for task decomposition, agents, models, concurrency, fallbacks, and update behavior. Avoid delegation for ordinary work, never invent parallelism, and keep the main session responsible for final integration and verification. Repositories using `delivery-ledger` still apply its task-boundary contract independently of which OMP model or agent executes.
 Browser-visible visual, layout, responsive, accessibility, or UX work always routes to `designer`/`vision` before the first visual edit, regardless of task size; this is a capability trigger, not complexity escalation. Pure data/API/non-visual wiring in a frontend file is exempt. If the designer cannot start, surface the failure instead of silently absorbing visual work into the main session.
 
 Owned capabilities have one source: **`~/dotfiles/skills/local/<name>/SKILL.md`**. Claude, Pi, OMP, and Antigravity discover the canonical directory automatically. Codex preserves its native `.system` skills and receives per-skill links to the same owned source. `skill-update` reconciles runtime adapters; it never copies methodology.
@@ -69,12 +54,7 @@ Implementation that spans multiple application layers routes through `full-stack
 
 Canonical delivery lifecycle: understand intent → load the smallest relevant context → select job, risk, capability, model, provider, reasoning effort, and verification → implement → verify independently → persist task/result/provenance/release evidence → resume from repository state → convert only verified reusable outcomes into reviewed learning. AI is never the source of truth; repository contracts and executable evidence are.
 
-For repositories using `delivery-ledger`, every R1-R4 run must capture its base
-HEAD and pre-existing dirty paths, declare its allowed change surface, and pass
-the final task boundary before `DONE`. Unexplained out-of-scope, protected,
-higher-risk, or touched user changes must fail or require explicit expansion,
-verification, and independent review. Canonical mechanics and limitations:
-`~/dotfiles/docs/task-change-boundary.md`.
+For repositories using `delivery-ledger`, every R1-R4 run must capture its base HEAD and pre-existing dirty paths, declare its allowed change surface, and pass the final task boundary before `DONE`. Unexplained out-of-scope, protected, higher-risk, or touched user changes must fail or require explicit expansion, verification, and independent review. Canonical mechanics and limitations: `~/dotfiles/docs/task-change-boundary.md`.
 
 ## Code discipline (lazy senior dev)
 
@@ -105,17 +85,13 @@ NEVER simplify away: input validation at trust boundaries, error handling that p
 ## Hard rules
 
 - Never invent API names, repo URLs, or specific facts. Verify against official sources.
-- **`ongkipro/dotfiles` visibility toggles — verify, don't trust a written claim of it.** Set back to **private** 2026-08-27 (owner instruction); was public 2026-08-17→08-27, and briefly private 2026-08-23 with no commit recording either flip. Going private has a real cost here: GitHub Actions loses its free-unlimited-minutes status and reverts to the ~2,000 min/month quota — the exhaustion of which is what made this repository public in the first place (billing block, 2026-08-15→08-19, see `docs/archive/`). Watch for CI silently going unfunded again. Visibility is never a secrets boundary regardless of its current value — going private does not retract historical exposure from the public window, and going public is permanent the moment something is pushed. Verify with `gh api repos/ongkipro/dotfiles --jq .visibility` before trusting this line. Credentials stay in `~/.config/ai-local/`; keep server addresses, account balances or credit, hardware serials, and client names out of commits to this repository.
+- **`ongkipro/dotfiles` visibility toggles and is not a secrets boundary — verify with `gh api repos/ongkipro/dotfiles --jq .visibility` before trusting a claim of it, including this one.** History, the CI-funding cost of private, and what to keep out of commits regardless: `docs/repo-visibility.md`.
 - No "Buy Now" / "Shop Now" / CTA in Shopify descriptions or meta unless asked.
 - Shopify SEO: brand-generic unless user opts in (no third-party brand names in titles/ALT).
 
 ## Approval gates — ALWAYS ON
 
-**Permission allowed is not user approval.** Claude, Codex, pi, agy, and omp may
-run with broad shell permissions; each runtime owns its native approval mode.
-These gates are behavioural, not mechanical: the fewer prompts a runtime
-raises, the more the obligation rests here. A permitted command is not an
-approved one. Stop and ask before:
+**Permission allowed is not user approval.** Claude, Codex, pi, agy, and omp may run with broad shell permissions; each runtime owns its native approval mode. These gates are behavioural, not mechanical: the fewer prompts a runtime raises, the more the obligation rests here. A permitted command is not an approved one. Stop and ask before:
 
 - **Secrets**: `.env` contents, API keys, tokens, passwords, auth sessions, payment/billing/customer data. Detecting secret files is fine (`fd '^\.env' -H -t f`); printing their contents is not. Never write a secret into memory.
   Development credentials are consolidated in `~/.config/ai-local/secrets.env` (0600, outside every repository) and read through **`secrets-env`** — `list` for names, `get` for one value, `run -- <cmd>` to inject into a single child, `check` to audit. Never `source` that file: it puts every secret into the environment of everything launched for the rest of the session. Never let a secret value reach a shell that interprets it — `run` hands values to `env` as literal argv precisely because a value containing `$` or backticks would otherwise expand or execute.
