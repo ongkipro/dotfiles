@@ -37,6 +37,29 @@ what `npm ls -g` reported. Found and fixed 2026-08-19: killed the orphan tree
 `127.0.0.1:20128` only (was `0.0.0.0`), no cloudflared process, `/v1/chat/completions`
 verified with a real completion.
 
+**2026-08-27 — SAME INCIDENT RECURRED, and the 2026-08-19 fix note was wrong
+about the cause.** Found again: `9router.service` `failed`, port bound to
+`0.0.0.0`, a `cloudflared` quick tunnel running publicly — identical shape,
+started 2026-08-25 21:49, two days before this was caught. The 2026-08-19 entry
+assumed a human re-ran `setsid nohup 9router --tray ...`; nobody did. The real
+trigger is **`~/.config/autostart/9router.desktop`**, an XDG autostart entry
+(`X-GNOME-Autostart-enabled=true`, `Exec=... cli.js --tray --skip-update`) that
+launches tray mode on every desktop login — a mechanism no AI session's memory
+note can reach, since the desktop session manager never reads it. This is why a
+purely procedural fix ("don't type this command") could not hold: the trigger
+was never a typed command.
+
+**Actual fix: disabled the autostart entry.** Copied to
+`~/.config/ai-local/9router.desktop.disabled-2026-08-27` (in case the tray icon
+was wanted for a reason not yet known) and removed from `~/.config/autostart/`.
+Re-killed the orphan tree, `systemctl --user reset-failed && restart
+9router.service`, re-verified `127.0.0.1`-only + no `cloudflared` + a real
+completion. **If this recurs a third time, check `~/.config/autostart/` and any
+other per-user XDG/systemd autostart path again before assuming a human cause**
+— the failure mode here was trusting a plausible narrative (someone ran a
+command) over checking what actually launched the process (`ps -o ppid`,
+`lstart`, then trace the parent to its origin).
+
 **The fix is procedural, not just a restart: `systemctl --user ...` (see
 `skills/local/9router/SKILL.md`) is the ONLY sane way to run this now.** The
 `setsid nohup 9router --tray ...` command in the two entries below is what

@@ -49,12 +49,16 @@ Response shape:
 
 ## Status: read it from disk, never hard-code it
 
-9router status is **per-machine** and changes. Check it directly:
+9router status is **per-machine** and changes. Check it directly — and a
+passing health check alone does NOT prove the systemd-managed instance is what
+answered it (see the incident below), so verify the bind address too:
 
 ```bash
 systemctl --user is-enabled 9router.service
 systemctl --user is-active 9router.service
 curl http://localhost:20128/api/health
+ss -ltnp | grep 20128        # must show 127.0.0.1:20128, never 0.0.0.0:20128
+pgrep -fa cloudflared        # must be empty — no process, no output at all
 ```
 
 If it is off, start it with:
@@ -62,6 +66,23 @@ If it is off, start it with:
 ```bash
 systemctl --user enable --now 9router.service
 ```
+
+If the port shows `0.0.0.0` or a `cloudflared` process exists, something other
+than `9router.service` is serving it. Trace the real launcher before trusting
+the health check:
+
+```bash
+fuser 20128/tcp                                  # PID actually bound
+ps -o pid,ppid,lstart,cmd -p <pid>               # when/how it started
+ps -o pid,ppid,lstart,cmd -p <its ppid>          # its parent, repeat to the root
+```
+
+Twice on this device the root was `~/.config/autostart/9router.desktop`, an
+XDG autostart entry launching `cli.js --tray` on every desktop login —
+independent of any shell history or AI-session memory, so a procedural
+"don't run that command" fix does not hold if this is the cause. Check
+`ls ~/.config/autostart/` for a 9router entry before assuming a human restarted
+it manually.
 
 While 9router is off, any pi feature routed through it — custom models in
 `/model`, image generation, and other flows that depend on this local gateway —
