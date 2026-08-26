@@ -41,7 +41,9 @@ inspect-project
 installer-link-test
 memory-usage-hook-test
 migration-risk
+omp-effective-routing-test
 omp-routing-test
+omp-workspace-test
 pi-9router-restore
 pi-9router-restore-test
 pi-update-safe
@@ -72,4 +74,3 @@ tmux-clip
 tmux-setup
 turnstile-secret-test
 vps-pgdump
-omp-workspace-test
