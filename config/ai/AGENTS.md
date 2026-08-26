@@ -105,7 +105,7 @@ NEVER simplify away: input validation at trust boundaries, error handling that p
 ## Hard rules
 
 - Never invent API names, repo URLs, or specific facts. Verify against official sources.
-- **`ongkipro/dotfiles` is PRIVATE as of 2026-08-23, but it was previously public.** Privacy does not retract historical exposure and is not a secrets boundary. Credentials stay in `~/.config/ai-local/`; keep server addresses, account balances or credit, hardware serials, and client names out of commits to this repository.
+- **`ongkipro/dotfiles` visibility toggles and this file lags it — verify, don't trust this line.** Checked 2026-08-26: `gh api repos/ongkipro/dotfiles --jq .visibility` returns **public**, contradicting the prior claim here of "PRIVATE as of 2026-08-23" with no commit explaining the flip either way. Visibility is not a secrets boundary regardless of its current value — going private never retracts historical exposure, and going public is permanent the moment something is pushed. Credentials stay in `~/.config/ai-local/`; keep server addresses, account balances or credit, hardware serials, and client names out of commits to this repository.
 - No "Buy Now" / "Shop Now" / CTA in Shopify descriptions or meta unless asked.
 - Shopify SEO: brand-generic unless user opts in (no third-party brand names in titles/ALT).
 
