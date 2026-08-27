@@ -1,138 +1,99 @@
-# RETIRED: historical routing snapshot; installers and shell startup do not load
-# this file. OMP owns ~/.omp/agent/config.yml through its native runtime.
+# CROSS-DEVICE REFERENCE: recommended OMP model-role profile.
+#
+# This file is secret-free and executable as an explicit overlay:
+#   omp --config ~/dotfiles/config/omp/config.yml
+#
+# It is not installed, linked, or auto-loaded. OMP continues to own native
+# settings, authentication, sessions, caches, and device-local capacity choices
+# under ~/.omp/agent/.
+providers:
+  webSearchOrder: []
 setupVersion: 2
 modelRoles:
-  smol: google-antigravity/gemini-3.7-flash:medium
+  default: openai-codex/gpt-5.6-terra:medium
+  task: openai-codex/gpt-5.6-terra:medium
   slow: openai-codex/gpt-5.6-sol:high
   plan: openai-codex/gpt-5.6-terra:high
-  vision: google-antigravity/gemini-3.1-pro:high
-  designer: google-antigravity/gemini-3.1-pro:high
-  research: google-antigravity/gemini-3.7-flash:minimal
+  smol: google-antigravity/gemini-3.7-flash:medium
+  tiny: google-antigravity/gemini-3.7-flash:low
+  vision: anthropic/claude-opus-5:high
+  designer: anthropic/claude-opus-5:high
+  commit: openai-codex/gpt-5.6-luna:low
+  title: google-antigravity/gemini-3.7-flash:low
+  research: google-antigravity/gemini-3.7-flash:medium
   discovery: google-antigravity/gemini-3.7-flash:high
-  tiny: google-antigravity/gemini-3.7-flash:medium
-  task: openai-codex/gpt-5.6-terra:medium
-  default: openai-codex/gpt-5.6-terra:medium
   advisor: anthropic/claude-sonnet-5:high
   advisor-xhigh: anthropic/claude-opus-5:xhigh
   advisor-max: anthropic/claude-opus-5:max
+defaultThinkingLevel: auto
+dev:
+  autoqaConsent: granted
 modelProviderOrder:
+  - anthropic
   - google-antigravity
   - openai-codex
-  - anthropic
 cycleOrder:
   - smol
   - default
   - slow
-defaultThinkingLevel: auto
-display:
-  shimmer: disabled
-tui:
-  titleState: false
 retry:
-  enabled: true
-  modelFallback: true
-  fallbackRevertPolicy: cooldown-expiry
   fallbackChains:
     default:
-      - google-antigravity/gemini-3.7-flash:medium
-      - anthropic/claude-sonnet-4-6:medium
+      - google-antigravity/gemini-3.7-flash:high
+      - anthropic/claude-sonnet-5:medium
     task:
       - google-antigravity/gemini-3.7-flash:high
-      - anthropic/claude-sonnet-4-6:medium
-    smol:
-      - openai-codex/gpt-5.4-mini:low
-      - anthropic/claude-haiku-4-5:low
-    tiny:
-      - anthropic/claude-haiku-4-5:minimal
-      - openai-codex/gpt-5.4-mini:low
+      - anthropic/claude-sonnet-5:medium
     slow:
       - google-antigravity/claude-opus-4-6:high
-      - anthropic/claude-opus-4-8:high
+      - anthropic/claude-opus-5:high
     plan:
-      - anthropic/claude-opus-4-8:high
       - google-antigravity/claude-opus-4-6:high
+      - anthropic/claude-opus-5:high
+    smol:
+      - openai-codex/gpt-5.6-luna:low
+      - anthropic/claude-haiku-4-5:low
+    tiny:
+      - openai-codex/gpt-5.6-luna:low
+      - anthropic/claude-haiku-4-5:minimal
     vision:
-      - anthropic/claude-sonnet-5:high
-      - openai-codex/gpt-5.4:high
+      - google-antigravity/gemini-3.7-flash:high
+      - openai-codex/gpt-5.6-sol:high
     designer:
-      - anthropic/claude-sonnet-5:high
-      - openai-codex/gpt-5.4:high
+      - google-antigravity/gemini-3.7-flash:high
+      - openai-codex/gpt-5.6-sol:high
+    commit:
+      - google-antigravity/gemini-3.7-flash:low
+      - anthropic/claude-haiku-4-5:low
+    title:
+      - openai-codex/gpt-5.6-luna:low
+      - anthropic/claude-haiku-4-5:minimal
     research:
-      - openai-codex/gpt-5.4:high
-      - anthropic/claude-sonnet-4-6:high
+      - openai-codex/gpt-5.6-terra:medium
+      - anthropic/claude-sonnet-5:medium
     discovery:
       - anthropic/claude-sonnet-5:high
       - openai-codex/gpt-5.6-terra:medium
     advisor:
       - google-antigravity/claude-sonnet-4-6:high
       - openai-codex/gpt-5.6-sol:high
-    anthropic/claude-opus-5:
+    advisor-xhigh:
       - google-antigravity/claude-opus-4-6:high
-      - openai-codex/gpt-5.6-sol:high
-async:
-  enabled: true
-  maxJobs: 4
+      - openai-codex/gpt-5.6-sol:xhigh
+    advisor-max:
+      - google-antigravity/claude-opus-4-6:high
+      - openai-codex/gpt-5.6-sol:max
 task:
-  batch: true
-  maxConcurrency: 3
-  maxRecursionDepth: 1
-  enableLsp: true
-  showResolvedModelBadge: true
-  isolation:
-    mode: auto
-    apply: false
-    merge: patch
   agentModelOverrides:
-    scout: "@discovery"
-    sonic: "@smol"
     designer: "@vision"
-    reviewer: "@advisor"
-    security-reviewer: "@advisor-xhigh"
     librarian: "@research"
+    reviewer: "@advisor"
+    scout: "@discovery"
+    security-reviewer: "@advisor-xhigh"
+    sonic: "@smol"
     task: "@task"
-    complex-developer: "@slow"
-    architect: "@advisor-max"
-    debugger: "@advisor-xhigh"
-    writer: "@plan"
-compaction:
-  enabled: true
-  midTurnEnabled: true
-  autoContinue: true
-  thresholdTokens: 140000
-  keepRecentTokens: 40000
-  dropUseless: true
-  idleEnabled: true
-  idleThresholdTokens: 100000
-  methodOrder:
-    - snapcompact
-    - remote
-    - soft
-tools:
-  format: auto
-  approvalMode: yolo
-bash:
-  patterns:
-    - match: "*git push --force*"
-      approval: deny
-    - match: "*git push -f *"
-      approval: deny
-    - match: "*git push -f"
-      approval: deny
-    - match: "*git reset --hard*"
-      approval: deny
-    - match: "*git clean -f*"
-      approval: deny
-    - match: "*git commit --amend*"
-      approval: deny
-    - match: "*rm -rf *"
-      approval: deny
-    - match: "*sudo *"
-      approval: deny
-    - match: "*wrangler deploy*"
-      approval: deny
-    - match: "*shopify theme push*"
-      approval: deny
-secrets:
-  enabled: true
-dev:
-  autoqaConsent: granted
+memory:
+  backend: "off"
+memories:
+  maxRolloutsPerStartup: 64
+  stage1Concurrency: 8

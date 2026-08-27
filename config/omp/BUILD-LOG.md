@@ -9,9 +9,10 @@ evidence. Full history through the start of TASK-015 is retained in
 ## Current architecture
 
 - OMP owns routing and runtime behavior through its native user/profile paths.
-- Dotfiles does not provide a baseline config, model catalog, provider order,
-  fallback graph, agent override, or runtime overlay.
-- `config/omp/config.yml`, `models.yml`, `agents/`, and `overlays/` are retired
+- Dotfiles provides one secret-free recommended role graph in
+  `config/omp/config.yml`; it is an explicit reference overlay, not installed
+  runtime state.
+- `models.yml`, `agents/`, `overlays/`, and the old routing prose remain retired
   historical evidence and are not loaded by installers or shell startup.
 - Device-local provider and model choices stay in native OMP state and are not
   treated as cross-device facts.
@@ -19,8 +20,22 @@ evidence. Full history through the start of TASK-015 is retained in
   cannot auto-apply, and is integrated one verified patch at a time.
 - `delivery-ledger` owns executable parent/child evidence and semantic-owner boundaries.
 - `omp-routing-test` validates the native ownership boundary;
-  `omp-effective-routing-test` proves an isolated upstream profile resolves the
-  expected native schema.
+  `omp-effective-routing-test` proves both an isolated upstream profile and the
+  explicit reference resolve through OMP's native loader.
+
+## 2026-08-27 cross-device default reference
+
+- Promoted the validated device role graph into the secret-free
+  `config/omp/config.yml` reference without restoring installer links, command
+  wrappers, `PI_CONFIG_FILES`, shared authentication, or shared session state.
+- Kept Codex Terra/Sol as the normal and complex development lanes, Gemini 3.7
+  Flash as the high-volume support lane, and direct Anthropic Claude 5 as the
+  independent judgment lane.
+- Set `vision` and `designer` to Claude Opus 5 High by explicit user choice.
+- Kept `smol` on Gemini 3.7 Flash Medium, `discovery` on Flash High, and
+  `research` on Flash Medium, with cross-provider fallbacks.
+- Limited deterministic agent overrides to the seven agents bundled by OMP
+  18.0.6; no retired custom agent definition was restored.
 
 ## 2026-08-26 runtime maintenance
 

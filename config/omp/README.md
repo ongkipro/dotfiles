@@ -1,12 +1,20 @@
-# Retired OMP Overrides
+# OMP Native Runtime and Default Reference
 
-OMP uses its upstream-native runtime configuration as of 2026-08-24.
+OMP uses its upstream-native runtime configuration. Dotfiles does not install,
+link, or auto-load runtime settings.
 
-Files in this directory are retained only as historical design evidence. They
-must never be copied into a native OMP profile or used as a setup baseline.
-Installers do not link them,
-`config/shell-tools.sh` does not inject them, and `ai-doctor` treats any live
-link from `~/.omp/agent/{config.yml,models.yml,agents}` back here as drift.
+[`config.yml`](config.yml) is the canonical secret-free cross-device reference
+for the recommended model roles, fallbacks, and bundled-agent mapping. Load it
+explicitly for a session when the device has the required providers:
+
+```bash
+omp --config ~/dotfiles/config/omp/config.yml
+```
+
+The remaining custom model catalog, agent definitions, routing prose, and
+overlays are retained as historical design evidence. Installers do not link
+them, `config/shell-tools.sh` does not inject them, and `ai-doctor` treats a
+live link from `~/.omp/agent/{config.yml,models.yml,agents}` back here as drift.
 
 Dotfiles continues to provide OMP with:
 
@@ -32,7 +40,7 @@ and workspace behavior. No shared MCP file exists today. If one is introduced,
 it must be secret-free, use OMP's native `~/.omp/agent/mcp.json` path, and keep
 project-specific MCP configuration in the project repository.
 
-Device-local provider selection is applied with OMP's native configuration or
-a one-shot `--config` overlay and is deliberately not recorded here. This keeps
-connected accounts and temporary capacity choices out of the cross-device
-repository.
+The reference records selectors, not connected-account state. Authentication,
+quota, provider health, profiles, sessions, and temporary capacity choices stay
+device-local. A device may use OMP's native configuration or the explicit
+reference overlay without making runtime state repository-owned.

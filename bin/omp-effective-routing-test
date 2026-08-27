@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# Smoke-test OMP's own defaults in an isolated agent directory.
+# Smoke-test OMP's own defaults and the explicit dotfiles reference in isolated
+# agent directories. The reference is never installed or auto-loaded.
 set -euo pipefail
+
+SELF="$(readlink -f "$0" 2>/dev/null || realpath "$0")"
+ROOT="${1:-$(cd "$(dirname "$SELF")/.." && pwd)}"
 
 if ! command -v omp >/dev/null 2>&1; then
   echo 'omp-effective-routing-test: SKIP (omp unavailable)'
@@ -28,4 +32,62 @@ jq -e '
   exit 1
 }
 
-echo 'omp-effective-routing-test: OK (isolated upstream-native settings resolve)'
+env -u OMP_RUNTIME_LEGACY_OVERLAY \
+  PI_CONFIG_FILES="$ROOT/config/omp/config.yml" \
+  PI_CODING_AGENT_DIR="$fixture/reference-agent" \
+  "$(command -v omp)" config list --json > "$fixture/reference.json"
+
+env -u OMP_RUNTIME_LEGACY_OVERLAY \
+  PI_CONFIG_FILES="$ROOT/config/omp/config.yml" \
+  PI_CODING_AGENT_DIR="$fixture/reference-agent" \
+  "$(command -v omp)" models --json > "$fixture/models.json"
+
+jq -e '
+  .modelRoles.value as $roles |
+  .["retry.fallbackChains"].value as $fallbacks |
+  .["task.agentModelOverrides"].value as $agents |
+  ($roles | length) == 15 and
+  ($fallbacks | length) == 15 and
+  ($agents | length) == 7 and
+  $roles.default == "openai-codex/gpt-5.6-terra:medium" and
+  $roles.slow == "openai-codex/gpt-5.6-sol:high" and
+  $roles.smol == "google-antigravity/gemini-3.7-flash:medium" and
+  $roles.vision == "anthropic/claude-opus-5:high" and
+  $roles.designer == "anthropic/claude-opus-5:high" and
+  $roles.advisor == "anthropic/claude-sonnet-5:high" and
+  $roles["advisor-xhigh"] == "anthropic/claude-opus-5:xhigh" and
+  $roles["advisor-max"] == "anthropic/claude-opus-5:max" and
+  $agents == {
+    "designer":"@vision",
+    "librarian":"@research",
+    "reviewer":"@advisor",
+    "scout":"@discovery",
+    "security-reviewer":"@advisor-xhigh",
+    "sonic":"@smol",
+    "task":"@task"
+  }
+' "$fixture/reference.json" >/dev/null || {
+  echo 'FAIL: cross-device OMP reference did not resolve its canonical role graph' >&2
+  exit 1
+}
+
+jq -n --slurpfile c "$fixture/reference.json" --slurpfile m "$fixture/models.json" '
+  def refs:
+    ($c[0].modelRoles.value | to_entries[] | .value),
+    ($c[0]["retry.fallbackChains"].value | to_entries[].value[]);
+  [refs |
+    capture("^(?<provider>[^/]+)/(?<id>.+):(?<effort>[^:]+)$") as $ref |
+    ([$m[0].models[] | select(.provider == $ref.provider and .id == $ref.id)][0]) as $model |
+    select(
+      ($model == null) or
+      (($model.thinking // []) as $levels |
+        ($levels | length) > 0 and ($levels | index($ref.effort) | not))
+    ) |
+    $ref
+  ] | length == 0
+' >/dev/null || {
+  echo 'FAIL: cross-device OMP reference contains an unknown model or thinking level' >&2
+  exit 1
+}
+
+echo 'omp-effective-routing-test: OK (upstream defaults + cross-device reference resolve)'

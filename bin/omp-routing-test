@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Guard the upstream-native OMP boundary. Dotfiles may add context and skills,
-# but must not own runtime settings, models, agents, or provider routing.
+# Guard the upstream-native OMP boundary. Dotfiles may add context, skills, and
+# an explicit reference overlay, but must not install or auto-load runtime state.
 set -euo pipefail
 
 SELF="$(readlink -f "$0" 2>/dev/null || realpath "$0")"
@@ -37,9 +37,9 @@ for target in config.yml models.yml agents; do
   live="$HOME/.omp/agent/$target"
   tracked="$ROOT/config/omp/$target"
   if [ -L "$live" ] && [ "$(readlink "$live" 2>/dev/null)" = "$tracked" ]; then
-    echo "FAIL: live OMP $target still points to the retired dotfiles override" >&2
+    echo "FAIL: live OMP $target points to a dotfiles reference or retired override" >&2
     exit 1
   fi
 done
 
-echo 'omp-routing-test: OK (upstream config/models/agents; shared memory+skills only)'
+echo 'omp-routing-test: OK (native runtime; explicit reference + shared memory/skills)'

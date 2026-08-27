@@ -38,9 +38,11 @@ per-skill links to the owned source.
 OMP otherwise stays upstream-native. Dotfiles does not install its
 `config.yml`, `models.yml`, or `agents/`, does not wrap the `omp` command, and
 does not inject `PI_CONFIG_FILES`. OMP owns user settings, auth, sessions,
-bundled agents, models, routing, and updates. User-level MCP may be synchronized
-later through OMP's native `~/.omp/agent/mcp.json` only when a real secret-free
-shared configuration exists; project MCP remains repository-owned.
+bundled agents, models, routing, and updates. A secret-free recommended role
+graph is tracked at `config/omp/config.yml` for explicit cross-device reference;
+it is never installed or auto-loaded. User-level MCP may be synchronized later
+through OMP's native `~/.omp/agent/mcp.json` only when a real secret-free shared
+configuration exists; project MCP remains repository-owned.
 
 Edit tracked memory only for durable, verified facts. Device-private facts belong
 in `~/.config/ai-local/`; secrets and authentication state never belong here.
