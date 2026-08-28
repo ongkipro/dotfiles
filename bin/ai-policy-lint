@@ -51,6 +51,20 @@ def check_agents_policy():
         if term not in content:
             warn(f"AGENTS.md policy missing expected keyword: '{term}'")
 
+    goal_contract = {
+        "goal section": "### OMP autonomous repository goals",
+        "canonical task queue": "`TASKS.md` is the canonical execution",
+        "development lane": "`task` / Sol:",
+        "visual lane": "`designer` / Opus:",
+        "review lane": "`reviewer` / Opus:",
+        "security lane": "`security-reviewer` / Opus XHigh:",
+        "approval boundary": "Approval gates remain load-bearing.",
+        "git authority": "Committing and pushing remain explicit user actions",
+    }
+    for label, anchor in goal_contract.items():
+        if anchor not in content:
+            err(f"AGENTS.md autonomous-goal contract missing {label}: '{anchor}'")
+
 
 def run_canonical_gate(label, command, extra_env=None):
     try:

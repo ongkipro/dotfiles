@@ -1,0 +1,20 @@
+{
+  "capability": "continuous-learning",
+  "head": "cb0960f5a2c6917b4b9404bcd4424dd761b8f633",
+  "job": "release",
+  "model": "gpt-5.6-sol",
+  "provider": "openai",
+  "reasoningEffort": "high",
+  "recordedAt": "2026-08-28T08:38:38Z",
+  "result": "PASS",
+  "risk": "R3",
+  "runId": "RUN-20260828T082512Z-7c996ba6",
+  "schemaVersion": 1,
+  "skillsUsed": [
+    "continuous-learning",
+    "native-first"
+  ],
+  "usageHash": "39b978948d76431d0291f63b37454379a42e33c48be1b9d0244ef5b25ce87259",
+  "verificationFailed": false,
+  "worker": "root-codex"
+}

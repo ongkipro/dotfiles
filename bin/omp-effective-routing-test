@@ -15,6 +15,24 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 0
 fi
 
+omp_version="$("$(command -v omp)" --version | sed -nE 's#^omp/([0-9]+\.[0-9]+\.[0-9]+).*#\1#p')"
+if [[ -z "$omp_version" ]]; then
+  echo 'FAIL: OMP returned an unrecognized version string' >&2
+  exit 1
+fi
+awk -F. '
+  {
+    split("18.0.9", minimum, ".")
+    if (($1 + 0) > minimum[1] ||
+        (($1 + 0) == minimum[1] && ($2 + 0) > minimum[2]) ||
+        (($1 + 0) == minimum[1] && ($2 + 0) == minimum[2] && ($3 + 0) >= minimum[3])) exit 0
+    exit 1
+  }
+' <<<"$omp_version" || {
+  echo "omp-effective-routing-test: SKIP (OMP $omp_version is older than required 18.0.9)"
+  exit 0
+}
+
 fixture="$(mktemp -d "${TMPDIR:-/tmp}/omp-upstream-defaults.XXXXXX")"
 trap 'find "$fixture" -depth -delete 2>/dev/null || true' EXIT
 mkdir -p "$fixture/agent"
@@ -50,13 +68,45 @@ jq -e '
   ($fallbacks | length) == 15 and
   ($agents | length) == 7 and
   $roles.default == "openai-codex/gpt-5.6-terra:medium" and
+  $roles.task == "openai-codex/gpt-5.6-sol:high" and
   $roles.slow == "openai-codex/gpt-5.6-sol:high" and
+  $roles.plan == "anthropic/claude-fable-5:high" and
+  $roles.orchestrator == "anthropic/claude-fable-5:high" and
   $roles.smol == "google-antigravity/gemini-3.7-flash:medium" and
+  $roles.tiny == "google-antigravity/gemini-3.7-flash:low" and
   $roles.vision == "anthropic/claude-opus-5:high" and
   $roles.designer == "anthropic/claude-opus-5:high" and
-  $roles.advisor == "anthropic/claude-sonnet-5:high" and
+  $roles.commit == "openai-codex/gpt-5.6-luna:low" and
+  $roles.title == "google-antigravity/gemini-3.7-flash:low" and
+  $roles.research == "openai-codex/gpt-5.6-terra:medium" and
+  $roles.discovery == "openai-codex/gpt-5.6-terra:medium" and
+  $roles.advisor == "anthropic/claude-opus-5:high" and
   $roles["advisor-xhigh"] == "anthropic/claude-opus-5:xhigh" and
-  $roles["advisor-max"] == "anthropic/claude-opus-5:max" and
+  ($roles | has("advisor-max") | not) and
+  ($fallbacks | has("advisor-max") | not) and
+  ([$roles | to_entries[] | select(.value | contains("claude-fable-5")) | .key] | sort) == ["orchestrator", "plan"] and
+  ([$roles | to_entries[] | select(.value | contains("gemini-3.7-flash")) | .key] | sort) == ["smol", "tiny", "title"] and
+  ([$fallbacks | to_entries[].value[] | select(contains("claude-fable-5"))] | length) == 0 and
+  ([$fallbacks | to_entries[] | select(any(.value[]; contains("gemini-3.7-flash"))) | .key] | sort) == ["commit"] and
+  .["advisor.enabled"].value == false and
+  .["prewalk.enabled"].value == false and
+  .["goal.enabled"].value == true and
+  .["goal.statusInFooter"].value == true and
+  .["goal.continuationModes"].value == ["interactive"] and
+  .["todo.enabled"].value == true and
+  .["todo.reminders"].value == true and
+  .["todo.eager"].value == "preferred" and
+  .["task.eager"].value == "preferred" and
+  .["task.batch"].value == true and
+  .["task.enableEffort"].value == true and
+  .["task.showResolvedModelBadge"].value == true and
+  .["task.isolation.mode"].value == "auto" and
+  .["task.isolation.apply"].value == false and
+  .["task.maxConcurrency"].value == 4 and
+  .["task.maxRecursionDepth"].value == 1 and
+  .["task.softRequestBudget"].value == 80 and
+  .["task.enableLsp"].value == true and
+  .["task.prewalk"].value == false and
   $agents == {
     "designer":"@vision",
     "librarian":"@research",
@@ -65,7 +115,12 @@ jq -e '
     "security-reviewer":"@advisor-xhigh",
     "sonic":"@smol",
     "task":"@task"
-  }
+  } and
+  $agents.reviewer == "@advisor" and
+  $roles.advisor == "anthropic/claude-opus-5:high" and
+  $agents["security-reviewer"] == "@advisor-xhigh" and
+  $roles["advisor-xhigh"] == "anthropic/claude-opus-5:xhigh" and
+  ([$agents[] | select(. == "@advisor-max")] | length) == 0
 ' "$fixture/reference.json" >/dev/null || {
   echo 'FAIL: cross-device OMP reference did not resolve its canonical role graph' >&2
   exit 1
@@ -75,18 +130,29 @@ jq -n --slurpfile c "$fixture/reference.json" --slurpfile m "$fixture/models.jso
   def refs:
     ($c[0].modelRoles.value | to_entries[] | .value),
     ($c[0]["retry.fallbackChains"].value | to_entries[].value[]);
-  [refs |
-    capture("^(?<provider>[^/]+)/(?<id>.+):(?<effort>[^:]+)$") as $ref |
-    ([$m[0].models[] | select(.provider == $ref.provider and .id == $ref.id)][0]) as $model |
-    select(
-      ($model == null) or
-      (($model.thinking // []) as $levels |
-        ($levels | length) > 0 and ($levels | index($ref.effort) | not))
-    ) |
-    $ref
-  ] | length == 0
+  def visual_refs:
+    $c[0].modelRoles.value.vision,
+    $c[0].modelRoles.value.designer,
+    $c[0]["retry.fallbackChains"].value.vision[],
+    $c[0]["retry.fallbackChains"].value.designer[];
+  ([refs |
+      capture("^(?<provider>[^/]+)/(?<id>.+):(?<effort>[^:]+)$") as $ref |
+      ([$m[0].models[] | select(.provider == $ref.provider and .id == $ref.id)][0]) as $model |
+      select(
+        ($model == null) or
+        (($model.thinking // []) as $levels |
+          ($levels | length) > 0 and ($levels | index($ref.effort) | not))
+      ) |
+      $ref
+    ] | length == 0) and
+  ([visual_refs |
+      capture("^(?<provider>[^/]+)/(?<id>.+):(?<effort>[^:]+)$") as $ref |
+      ([$m[0].models[] | select(.provider == $ref.provider and .id == $ref.id)][0]) as $model |
+      select(($model == null) or (($model.input // []) | index("image") | not)) |
+      $ref
+    ] | length == 0)
 ' >/dev/null || {
-  echo 'FAIL: cross-device OMP reference contains an unknown model or thinking level' >&2
+  echo 'FAIL: OMP reference contains an unknown selector, thinking level, or non-visual vision fallback' >&2
   exit 1
 }
 

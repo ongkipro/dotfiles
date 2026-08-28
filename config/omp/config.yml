@@ -11,20 +11,20 @@ providers:
 setupVersion: 2
 modelRoles:
   default: openai-codex/gpt-5.6-terra:medium
-  task: openai-codex/gpt-5.6-terra:medium
+  task: openai-codex/gpt-5.6-sol:high
   slow: openai-codex/gpt-5.6-sol:high
-  plan: openai-codex/gpt-5.6-terra:high
+  plan: anthropic/claude-fable-5:high
+  orchestrator: anthropic/claude-fable-5:high
   smol: google-antigravity/gemini-3.7-flash:medium
   tiny: google-antigravity/gemini-3.7-flash:low
   vision: anthropic/claude-opus-5:high
   designer: anthropic/claude-opus-5:high
   commit: openai-codex/gpt-5.6-luna:low
   title: google-antigravity/gemini-3.7-flash:low
-  research: google-antigravity/gemini-3.7-flash:medium
-  discovery: google-antigravity/gemini-3.7-flash:high
-  advisor: anthropic/claude-sonnet-5:high
+  research: openai-codex/gpt-5.6-terra:medium
+  discovery: openai-codex/gpt-5.6-terra:medium
+  advisor: anthropic/claude-opus-5:high
   advisor-xhigh: anthropic/claude-opus-5:xhigh
-  advisor-max: anthropic/claude-opus-5:max
 defaultThinkingLevel: auto
 dev:
   autoqaConsent: granted
@@ -39,17 +39,20 @@ cycleOrder:
 retry:
   fallbackChains:
     default:
-      - google-antigravity/gemini-3.7-flash:high
-      - anthropic/claude-sonnet-5:medium
+      - openai-codex/gpt-5.6-sol:medium
+      - anthropic/claude-opus-5:medium
     task:
-      - google-antigravity/gemini-3.7-flash:high
-      - anthropic/claude-sonnet-5:medium
+      - anthropic/claude-opus-5:high
+      - openai-codex/gpt-5.6-terra:high
     slow:
-      - google-antigravity/claude-opus-4-6:high
       - anthropic/claude-opus-5:high
+      - openai-codex/gpt-5.6-terra:max
     plan:
-      - google-antigravity/claude-opus-4-6:high
-      - anthropic/claude-opus-5:high
+      - anthropic/claude-opus-5:xhigh
+      - openai-codex/gpt-5.6-sol:xhigh
+    orchestrator:
+      - anthropic/claude-opus-5:xhigh
+      - openai-codex/gpt-5.6-sol:xhigh
     smol:
       - openai-codex/gpt-5.6-luna:low
       - anthropic/claude-haiku-4-5:low
@@ -57,11 +60,11 @@ retry:
       - openai-codex/gpt-5.6-luna:low
       - anthropic/claude-haiku-4-5:minimal
     vision:
-      - google-antigravity/gemini-3.7-flash:high
       - openai-codex/gpt-5.6-sol:high
+      - openai-codex/gpt-5.6-terra:high
     designer:
-      - google-antigravity/gemini-3.7-flash:high
       - openai-codex/gpt-5.6-sol:high
+      - openai-codex/gpt-5.6-terra:high
     commit:
       - google-antigravity/gemini-3.7-flash:low
       - anthropic/claude-haiku-4-5:low
@@ -69,21 +72,43 @@ retry:
       - openai-codex/gpt-5.6-luna:low
       - anthropic/claude-haiku-4-5:minimal
     research:
-      - openai-codex/gpt-5.6-terra:medium
-      - anthropic/claude-sonnet-5:medium
+      - openai-codex/gpt-5.6-sol:medium
+      - anthropic/claude-opus-5:medium
     discovery:
-      - anthropic/claude-sonnet-5:high
-      - openai-codex/gpt-5.6-terra:medium
+      - openai-codex/gpt-5.6-sol:medium
+      - anthropic/claude-opus-5:medium
     advisor:
-      - google-antigravity/claude-sonnet-4-6:high
       - openai-codex/gpt-5.6-sol:high
+      - openai-codex/gpt-5.6-terra:high
     advisor-xhigh:
-      - google-antigravity/claude-opus-4-6:high
       - openai-codex/gpt-5.6-sol:xhigh
-    advisor-max:
-      - google-antigravity/claude-opus-4-6:high
-      - openai-codex/gpt-5.6-sol:max
+      - openai-codex/gpt-5.6-terra:max
+advisor:
+  enabled: false
+prewalk:
+  enabled: false
+goal:
+  enabled: true
+  statusInFooter: true
+  continuationModes:
+    - interactive
+todo:
+  enabled: true
+  reminders: true
+  eager: preferred
 task:
+  eager: preferred
+  batch: true
+  enableEffort: true
+  showResolvedModelBadge: true
+  isolation:
+    mode: auto
+    apply: false
+  maxConcurrency: 4
+  maxRecursionDepth: 1
+  softRequestBudget: 80
+  enableLsp: true
+  prewalk: false
   agentModelOverrides:
     designer: "@vision"
     librarian: "@research"

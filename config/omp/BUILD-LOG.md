@@ -1,6 +1,6 @@
 # OMP Build Log
 
-Updated: 2026-08-26
+Updated: 2026-08-28
 
 This hot log contains only current OMP operating decisions and reproducible
 evidence. Full history through the start of TASK-015 is retained in
@@ -22,6 +22,73 @@ evidence. Full history through the start of TASK-015 is retained in
 - `omp-routing-test` validates the native ownership boundary;
   `omp-effective-routing-test` proves both an isolated upstream profile and the
   explicit reference resolve through OMP's native loader.
+
+## 2026-08-28 OMP 18.0.9 and autonomous goals
+
+- Updated the native Linux binary from OMP 18.0.8 to 18.0.9 through
+  `omp update`; the updater verified the downloaded release checksum before
+  replacing the executable.
+- Re-verified after update that native configuration still matches the tracked
+  secret-free reference semantically, `~/.omp/agent/AGENTS.md` still resolves
+  to the shared dotfiles context, and `~/.omp/agent/skills` still resolves to
+  the canonical owned-skill directory.
+- Kept Terra Medium as the cost-aware default parent. Fable High is the native
+  `plan` role; `orchestrator` is an explicit selectable alias for hard sessions,
+  not an automatically dispatched bundled role. OMP cannot dynamically replace
+  a running parent model from the task tool.
+- Enabled native interactive Goal Mode continuation, visible goal status,
+  preferred todo/task orchestration nudges, batch task dispatch, per-task
+  effort control, and resolved-model badges. Child work remains isolated,
+  cannot auto-apply, is capped at concurrency four and recursion depth one,
+  and receives a soft eighty-request budget.
+- Added an always-loaded OMP goal contract to shared context: an explicit goal
+  in a repository with `TASKS.md` must route bounded work through bundled
+  agents, integrate one isolated result at a time, run repository verification,
+  require Opus review for non-trivial cross-module R2 work, and require
+  independent Opus/security review plus delivery-ledger approval for R3/R4.
+  Human approval gates remain mandatory.
+- Confirmed live serving on OMP 18.0.9 for both the Terra default lane
+  (`TERRA_OK`) and the explicit Fable escalation lane (`FABLE_OK`). Direct
+  Anthropic authentication already existed; this task did not inspect, create,
+  migrate, or change credentials.
+- Confirmed with JSON-mode probes that `--model @orchestrator` resolves to
+  `anthropic/claude-fable-5` and `--model @advisor` resolves to
+  `anthropic/claude-opus-5` even while the passive advisor runtime is disabled.
+  The aliases are selectable routing capabilities; they are not evidence of an
+  automatic parent-model switch or a continuously running advisor.
+- Kept `advisor.enabled` off because the passive advisor runtime would invoke a
+  separate model after each turn. This does not disable bundled reviewer agents:
+  `reviewer` resolves through `@advisor` to Opus 5 High and
+  `security-reviewer` resolves through `@advisor-xhigh` to Opus 5 XHigh.
+- Re-applied the repository-native Linux installer after the final audit. Shared
+  context, owned skills, runtime commands, Claude hooks, shell startup, and tmux
+  integration reconciled successfully; the refreshed device inventory records
+  that OMP configuration remains a native local file rather than a dotfiles
+  symlink.
+- The deploy exposed a pre-existing tmux portability warning: Ubuntu's tmux 3.4
+  does not support `extended-keys-format`, which upstream added in 3.5. Because
+  `csi-u` is already the newer versions' default, the redundant option was
+  removed while `extended-keys` remains enabled everywhere.
+
+## 2026-08-28 capability-tier orchestration
+
+- Restricted Gemini 3.7 Flash to the lightweight `smol`, `tiny`, and `title`
+  roles; only the bundled `sonic` agent inherits that lane.
+- Kept GPT-5.6 Terra Medium as the normal interactive, research, and discovery
+  model. Generic delegated implementation and the `slow` lane now use GPT-5.6
+  Sol High.
+- Assigned Claude Opus 5 to vision, design, review, and high-risk review.
+  Fable 5 High is limited to the `plan` and custom `orchestrator` roles; it is
+  not a worker, advisor, or fallback for either role class.
+- Disabled the passive main-session advisor to avoid continuous duplicate model
+  usage. Disabled both main/task prewalk so execution cannot silently hand off
+  from Fable, Sol, or Opus to the Gemini `smol` lane.
+- Bounded native task fan-out with automatic isolation, no automatic patch
+  application, concurrency four, recursion depth one, and LSP enabled.
+- Applied the same secret-free graph to the native device config by explicit
+  user request without linking or auto-loading the tracked reference. OMP
+  18.0.8 parsed both files, all fifteen unique selectors resolved, and a
+  no-session/no-tools Fable High serving probe returned `FABLE_OK`.
 
 ## 2026-08-27 cross-device default reference
 
