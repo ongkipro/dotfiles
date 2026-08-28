@@ -55,14 +55,6 @@
 - Favor semantic HTML, accessibility, responsive layout, and SEO-friendly structure.
 - Keep UI components composable and design tokens consistent.
 
-## Commerce catalog identity
-- For a CMS, commerce portal, storefront, or product platform, define one immutable external catalog ID for every sellable product or variant. Prefer a digit-only value with at least five digits unless an existing platform contract requires another format.
-- Treat the catalog ID as a string at API, feed, browser-event, and persistence boundaries even when it contains only digits. Never coerce it through JavaScript `number`, strip leading characters, derive it from a mutable slug/SKU, recycle it, or change it after publication.
-- Keep the external catalog ID separate from the database primary key. Internal keys may remain opaque; the catalog ID must have a unique constraint and a collision-safe server-side generator. In a multi-tenant platform, prefer platform-global uniqueness so shared/default advertising accounts cannot collide.
-- Reuse the exact serialized value across storefront/headless responses, order-item snapshots, Meta catalog `id`/retailer identity, Meta Pixel and Conversions API `content_ids` or `contents[].id`, Google Merchant `id` and XML `<g:id>`, and Merchant API `offerId`.
-- For variants, every sellable variant receives its own catalog ID. The parent product catalog ID is the group identity (`item_group_id` or equivalent), while events and order items use the purchased variant ID. A product without variants uses its product catalog ID as the sellable item ID.
-- `<g:id>` is the Google XML namespace element name, not a separate GID identifier type. GTIN, MPN, SKU, database primary key, and catalog ID are distinct concepts and must not be substituted for one another without a verified provider rule.
-
 ## AI terminal rules
 - Do not suggest VSCode as default; Helix/terminal-first is the default preference.
 - Use `rg`, `fd`, `bat`, `eza`, `tmux`, `lazygit`, `mise`, and existing CLI stack when applicable.
