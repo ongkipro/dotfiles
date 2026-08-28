@@ -30,6 +30,11 @@
 # belongs here as a documented reduction rather than as an edit to the agent.
 # Treat librarian output from a Codex-only session as costing more than usual,
 # not as less trustworthy.
+__test_require_cross_host__: false
+
+__test_providers__: openai-codex
+
+__test_require_providers__: false
 modelRoles:
   default: openai-codex/gpt-5.6-terra:medium
   task: openai-codex/gpt-5.6-terra:medium

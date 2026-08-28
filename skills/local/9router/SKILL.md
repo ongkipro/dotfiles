@@ -17,10 +17,9 @@ Local/remote AI gateway exposing OpenAI-compatible REST. One key, many providers
 ## Setup
 
 ```bash
-export NINEROUTER_URL="http://localhost:20128"      # or VPS / tunnel URL
-export NINEROUTER_KEY="sk-..."                      # from Dashboard → Keys (only if requireApiKey=true)
+export NINEROUTER_URL="https://rbq97ts.abc-tunnel.us"   # or machine-configured tunnel URL
+export NINEROUTER_KEY="sk-..."                         # from Dashboard / credentials
 ```
-
 Capability and model requests use `${NINEROUTER_URL}/v1/...` with header `Authorization: Bearer ${NINEROUTER_KEY}` (omit if auth disabled).
 
 Health is the intentional unversioned exception: `curl $NINEROUTER_URL/api/health` → `{"ok":true}`.
@@ -47,7 +46,7 @@ Response shape:
 ]}
 ```
 
-## Status: read it from disk, never hard-code it
+## Status & Health Verification
 
 9router status is **per-machine** and changes. Check it directly — and a
 passing health check alone does NOT prove the systemd-managed instance is what
@@ -61,10 +60,12 @@ ss -ltnp | grep 20128        # must show 127.0.0.1:20128, never 0.0.0.0:20128
 pgrep -fa cloudflared        # must be empty — no process, no output at all
 ```
 
-If it is off, start it with:
+Should return `{"ok":true}`.
+
+Test chat completion or models with authorization:
 
 ```bash
-systemctl --user enable --now 9router.service
+curl -s -H "Authorization: Bearer ${NINEROUTER_KEY}" "${NINEROUTER_URL:-https://rbq97ts.abc-tunnel.us}/v1/models"
 ```
 
 If the port shows `0.0.0.0` or a `cloudflared` process exists, something other

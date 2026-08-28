@@ -58,3 +58,11 @@ logs/
 # gh CLI: hosts.yml berisi oauth token — config.yml aman, hosts.yml TIDAK
 config/gh/hosts.yml
 hosts.yml
+
+# === OMP Runtime DBs & Sessions ===
+config/omp/*.db
+config/omp/*.db-shm
+config/omp/*.db-wal
+config/omp/agents/
+config/omp/terminal-sessions/
+config/omp/last-changelog-version

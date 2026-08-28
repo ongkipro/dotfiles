@@ -1,7 +1,7 @@
 # Device: `ongkis-MacBook-Air`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-08-10**
+> Terakhir diperbarui: **2026-08-26**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -28,11 +28,11 @@
 
 | CLI | Status | Path |
 |---|---|---|
-| `claude` | terpasang | ~/.nvm/versions/node/v24.18.0/bin/claude |
-| `codex` | terpasang | ~/.nvm/versions/node/v24.18.0/bin/codex |
+| `claude` | terpasang | ~/.local/share/mise/installs/node/24.18.0/bin/claude |
+| `codex` | terpasang | ~/.local/share/mise/installs/node/24.18.0/bin/codex |
 | `pi` | terpasang | ~/.nvm/versions/node/v24.18.0/bin/pi |
 | `agy` | terpasang | ~/.local/bin/agy |
-| `omp` | terpasang | /opt/homebrew/bin/omp |
+| `omp` | terpasang | ~/.bun/bin/omp |
 
 ## Toolchain
 
@@ -60,8 +60,9 @@
 | skills → pi | `~/.pi/agent/skills` | ✅ ok |
 | skills → agy | `~/.gemini/config/skills` | ✅ ok |
 | skills → omp | `~/.omp/agent/skills` | ✅ ok |
-| OMP config | `~/.omp/agent/config.yml` | ✅ ok |
-| OMP models | `~/.omp/agent/models.yml` | ✅ ok |
+| OMP config | `~/.omp/agent/config.yml` | ⚠️ file lokal (bukan symlink) |
+| OMP models | `~/.omp/agent/models.yml` | ⚠️ file lokal (bukan symlink) |
+| OMP specialist agents | `~/.omp/agent/agents` | — belum ada |
 | mise toolchain | `~/.config/mise/config.toml` | ✅ ok |
 | starship | `~/.config/starship.toml` | ✅ ok |
 | helix | `~/.config/helix/config.toml` | ✅ ok |

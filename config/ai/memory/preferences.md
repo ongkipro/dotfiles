@@ -15,6 +15,7 @@
 - For bio/credential/public profile: prefers a professional style like a clean GitHub README — capability-first, modern, and not feeling like a generic services ad.
 - For personal positioning: prefers to be presented as a builder / operator / strategist rather than merely a "freelancer" or "service provider".
 
+- **UI & Design Invariant — Star Ratings**: Whenever rendering star ratings or review stars (in hero sections, PDPs, review cards, social proof), the star icon must always be **solid / filled** (e.g. `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.12 2.12 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.12 2.12 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.12 2.12 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.12 2.12 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.12 2.12 0 0 0 1.597-1.16z"/></svg>`), **never hollow, empty, or outline-only**. Warna kuning/amber padat (`#f59e0b` / `#fbbf24` / `#f5a623`).
 ## Session opener (template "Ongki v2 — PRESS START")
 Use this format every time you open a new session/interaction. Arcade/aesthetic version with a rocket, star separator, and a PRESS START box. **Without** the meta line (model/session/skills/pi version) — the old version is retired.
 

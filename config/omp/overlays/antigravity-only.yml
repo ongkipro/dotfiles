@@ -13,6 +13,10 @@
 # `high` here. That is a real capability reduction, not a naming detail: a
 # single-provider Antigravity session cannot reproduce the judgment ceiling that
 # direct Anthropic Opus 5 provides.
+__test_require_cross_host__: false
+
+__test_providers__: google-antigravity
+
 modelRoles:
   default: google-antigravity/gemini-3.7-flash:medium
   task: google-antigravity/gemini-3.7-flash:high
@@ -22,8 +26,8 @@ modelRoles:
   tiny: google-antigravity/gemini-3.7-flash:medium
   research: google-antigravity/gemini-3.7-flash:minimal
   discovery: google-antigravity/gemini-3.7-flash:high
-  vision: google-antigravity/gemini-3.1-pro:high
-  designer: google-antigravity/gemini-3.1-pro:high
+  vision: google-antigravity/gemini-3.7-flash:high
+  designer: google-antigravity/gemini-3.7-flash:high
   advisor: google-antigravity/claude-sonnet-4-6:high
   advisor-xhigh: google-antigravity/claude-opus-4-6:high
   advisor-max: google-antigravity/claude-opus-4-6:high
@@ -37,11 +41,11 @@ retry:
   fallbackRevertPolicy: cooldown-expiry
   fallbackChains:
     default:
-      - google-antigravity/gemini-3.6-flash:medium
-      - google-antigravity/gemini-3.5-flash:medium
+      - google-antigravity/gemini-3.1-pro:high
+      - google-antigravity/claude-sonnet-4-6:high
     task:
-      - google-antigravity/gemini-3.6-flash:high
-      - google-antigravity/gemini-3.5-flash:high
+      - google-antigravity/gemini-3.1-pro:high
+      - google-antigravity/claude-sonnet-4-6:high
     slow:
       - google-antigravity/claude-sonnet-4-6:high
       - google-antigravity/gemini-3.1-pro:high
@@ -49,27 +53,26 @@ retry:
       - google-antigravity/claude-sonnet-4-6:high
       - google-antigravity/gemini-3.1-pro:high
     smol:
-      - google-antigravity/gemini-3.6-flash:medium
-      - google-antigravity/gemini-3.5-flash:low
+      - google-antigravity/gemini-3.7-flash:low
+      - google-antigravity/gemini-3.7-flash:minimal
     tiny:
-      - google-antigravity/gemini-3.6-flash:medium
-      - google-antigravity/gemini-3.5-flash:low
+      - google-antigravity/gemini-3.7-flash:low
+      - google-antigravity/gemini-3.7-flash:minimal
     research:
-      - google-antigravity/gemini-3.6-flash:high
+      - google-antigravity/gemini-3.7-flash:high
       - google-antigravity/gemini-3.1-pro:high
     discovery:
-      - google-antigravity/gemini-3.6-flash:high
       - google-antigravity/gemini-3.1-pro:high
+      - google-antigravity/claude-sonnet-4-6:high
     vision:
-      - google-antigravity/gemini-3-pro:high
+      - google-antigravity/claude-sonnet-4-6:high
       - google-antigravity/gemini-2.5-pro:high
     designer:
-      - google-antigravity/gemini-3-pro:high
+      - google-antigravity/claude-sonnet-4-6:high
       - google-antigravity/gemini-2.5-pro:high
     advisor:
       - google-antigravity/claude-opus-4-6:high
       - google-antigravity/claude-sonnet-4-5:high
-    # `advisor-xhigh` and `advisor-max` both resolve to claude-opus-4-6, so a
     # model-keyed chain covers both without duplicating role entries — the same
     # trick the tracked config.yml uses for anthropic/claude-opus-5. Without
     # this the highest-judgment tiers are the only roles with no recovery path.

@@ -1,0 +1,137 @@
+# Device-local OMP routing for MiniMax-hosted dev environments.
+#
+# Use this overlay when the device's primary auth is on `minimax-code` and the
+# device wants to keep 9Router visible only as an explicit fallback tier rather
+# than as a cycle participant. It is the canonical template for the
+# `~/.config/ai-local/omp-overlay.yml` link installed on machines such as
+# `ongkis-MacBook-Air`.
+#
+# Bootstrapping the device overlay (one-time, idempotent):
+#   ln -sfn ~/dotfiles/config/omp/overlays/minimax-hosted.yml \
+#          ~/.config/ai-local/omp-overlay.yml
+#
+# The `omp()` shell wrapper picks that path up automatically. To verify:
+#   bin/omp-effective-routing-test
+#
+# Strategy (3 capacity pools, 3 providers):
+# - Primary      → minimax-code (native MiniMax M-series, best auth)
+# - Cross-host 1 → opencode-go  (Kimi/Minimax/Qwen pool, image-capable)
+# - Cross-host 2 → 9router-fantastico (only in fallback chains; never cycles)
+#
+# Why 9Router stays out of modelProviderOrder:
+#   cycling through it on every lane would burn the portable 9Router quota on
+#   ordinary main-session work. Keeping it out means it is hit only when both
+#   MiniMax AND OpenCode Go are unavailable — the rare case where the bridge
+#   bridge actually has to bridge.
+
+modelRoles:
+  # Mechanical / internal short-form (text only is fine)
+  tiny:    minimax-code/MiniMax-M2.5-lightning:low
+  smol:    minimax-code/MiniMax-M2.7-highspeed:medium
+
+  # Main session + delegated bounded work
+  default: minimax-code/MiniMax-M3:medium
+  task:    minimax-code/MiniMax-M3:medium
+
+  # Reasoning-intensive work
+  slow:    minimax-code/MiniMax-M3:high
+  plan:    minimax-code/MiniMax-M3:high
+
+  # Image-capable visual work — primary is M3 (image-capable); fallbacks must
+  # ALSO be image-capable, never text-only.
+  vision:   minimax-code/MiniMax-M3:high
+  designer: minimax-code/MiniMax-M3:high
+
+  # Evidence-heavy reading
+  research: minimax-code/MiniMax-M3:high
+  # Repository map & discovery (scout)
+  discovery: minimax-code/MiniMax-M3:medium
+
+  # Consultation — primary uses M3:high because MiniMax native has no xhigh.
+  # xhigh / max reasoning are reached only via OpenCode Go or 9Router, which
+  # expose those levels on minimax-m3 (xhigh) or kimi-k3 (max).
+  advisor:       minimax-code/MiniMax-M3:high
+  advisor-xhigh: minimax-code/MiniMax-M3:high
+  advisor-max:   minimax-code/MiniMax-M3:high
+
+modelProviderOrder:
+  - minimax-code
+  - opencode-go
+
+cycleOrder:
+  - smol
+  - default
+  - slow
+
+retry:
+  fallbackChains:
+    # Text-only lanes. MiniMax native is fine for primary + tier-2 self-step-down.
+    tiny:
+      - opencode-go/minimax-m2.5:low
+      - minimax-code/MiniMax-M2.7-highspeed:medium
+    smol:
+      - opencode-go/minimax-m2.7:medium
+      - minimax-code/MiniMax-M2.5-lightning:low
+
+    # Main session + delegated work. Tier-1 switches to OpenCode Go's
+    # minimax-m3 (same model family, different host). Tier-2 swings to
+    # 9Router's cx/gpt-5.6-sol which is image-capable + highest reasoning
+    # span — safe even if the original lane was image-aware.
+    default:
+      - opencode-go/minimax-m3:medium
+      - 9router-fantastico/cx/gpt-5.6-sol:high
+    task:
+      - opencode-go/minimax-m3:medium
+      - 9router-fantastico/cx/gpt-5.6-sol:high
+
+    # Reasoning lanes — same shape: MiniMax → OpenCode native same-model →
+    # 9Router bridge. Keeps code precision predictable.
+    slow:
+      - opencode-go/minimax-m3:high
+      - 9router-fantastico/cx/gpt-5.6-sol:high
+    plan:
+      - opencode-go/minimax-m3:high
+      - 9router-fantastico/cx/gpt-5.6-sol:high
+
+    # Image lanes — every fallback MUST be image-capable. OpenCode Go
+    # kimi-k3:high carries image input; 9Router cx/gpt-5.6-sol is image +
+    # reasoning-rich. Tier-1 explicitly avoids text-only qwen3.7-max /
+    # mimo-v2-pro because losing image capability kills the lane.
+    vision:
+      - opencode-go/kimi-k3:high
+      - 9router-fantastico/cx/gpt-5.6-sol:high
+    designer:
+      - opencode-go/kimi-k3:high
+      - 9router-fantastico/cx/gpt-5.6-sol:high
+
+    # Research — needs long context + evidence discipline. kimi-k3 has a 1M
+    # context window with image input; safer wide-read fallback than a
+    # text-only model that could truncate a long evidence read.
+    research:
+      - opencode-go/kimi-k3:high
+      - 9router-fantastico/cx/gpt-5.6-sol:high
+    discovery:
+      - opencode-go/minimax-m3:medium
+      - 9router-fantastico/cx/gpt-5.6-sol:high
+
+    # Advisor tier-1 uses the image-capable Kimi; tier-2 escalates to
+    # 9Router's image + reasoning-rich GPT-5.6 Sol for a real consultation.
+    advisor:
+      - opencode-go/kimi-k3:high
+      - 9router-fantastico/cx/gpt-5.6-sol:high
+
+    # advisor-xhigh — its primary reasoning level demands xhigh. M3 caps at
+    # high, so a primary failure MUST hand off to a model that supports
+    # xhigh. OpenCode Go minimax-m3 explicitly supports xhigh; 9Router
+    # cx/gpt-5.6-sol also supports xhigh. Both are image-capable so they
+    # do not regress this lane if it carried a screenshot.
+    advisor-xhigh:
+      - opencode-go/minimax-m3:xhigh
+      - 9router-fantastico/cx/gpt-5.6-sol:xhigh
+
+    # advisor-max — needs the rare max effort level. OpenCode Go kimi-k3
+    # supports max; 9Router cx/gpt-5.6-sol also supports max. Image-capable
+    # both, so visual-adjacent escalations still recover.
+    advisor-max:
+      - opencode-go/kimi-k3:max
+      - 9router-fantastico/cx/gpt-5.6-sol:max

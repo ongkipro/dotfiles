@@ -6,8 +6,29 @@ agents, models, and provider routing. See `README.md` in this directory for the
 active ownership boundary. The remaining sections are historical reference and
 must not be treated as instructions for a live OMP session.
 
-## Invariants
+## Portable policy versus effective device routing
 
+The role taxonomy, classification rules, agent ownership, and delegation
+boundaries in this document are portable. Provider/model selectors in the
+tracked `config.yml` are portable defaults, not proof that a provider is usable
+on every machine.
+
+`ongkis-MacBook-Air` currently applies
+`~/.config/ai-local/omp-overlay.yml`, a symlink to the tracked template
+`~/dotfiles/config/omp/overlays/minimax-hosted.yml`. The tracked template
+is the canonical device-overlay source for machines whose primary auth is
+native MiniMax; the symlink is the per-device wiring the `omp()` shell
+wrapper auto-loads. Its effective routing intentionally uses only native
+MiniMax primaries and OpenCode Go recovery; Antigravity, direct Codex,
+direct Anthropic, and 9Router are not active paths on that device. Read
+`STATUS.md` for current evidence and run `omp-effective-routing-test`; do
+not infer effective routing from the portable table below.
+Overlay authors: tracked templates under `config/omp/overlays/` are owned by
+the same reviewer who owns `config.yml` (see `STATUS.md` for the audit
+trail). Each template declares its expected providers at the top via
+`__test_providers__` and may opt into same-provider fallbacks via
+`__test_require_cross_host__: false` when the operator deliberately pins a
+session to one vendor.
 - OMP remains the session and context owner unless a specialist handoff is justified.
 - Three capacity pools carry three different jobs, matched to what each is measurably best at rather than to a single cheapest-provider rule:
   - **Antigravity** is the volume pool and the largest allowance. It carries every context-hungry lane: source research, visual work, and mechanical support.
@@ -66,7 +87,7 @@ Cross-vendor escalation remains the stronger response to model-shaped failure. W
 
 The user starts `omp` and describes the desired outcome. The main worker MUST apply this policy to classify the dominant work, decompose multi-domain requests, and autonomously dispatch each matching typed specialist. Do not wait for the user to name an agent or model. Classification is a reasoned policy decision, not a deterministic runtime classifier. After an agent is selected, `task.agentModelOverrides` and `modelRoles` mechanically provide its deterministic agent-to-model mapping.
 
-| Detected work | Automatic agent | Role | Model |
+| Detected work | Automatic agent | Role | Portable default model |
 |---|---|---|---|
 | Normal, bounded development | none; main session executes | `default` | Codex GPT-5.6 Terra Medium |
 | Complex auth, payments, concurrency, migrations, algorithms, performance, or difficult regressions | `complex-developer` | `slow` | Codex GPT-5.6 Sol High |
