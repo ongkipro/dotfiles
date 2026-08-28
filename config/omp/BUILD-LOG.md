@@ -25,6 +25,10 @@ evidence. Full history through the start of TASK-015 is retained in
 
 ## 2026-08-28 OMP 18.0.9 and autonomous goals
 
+- Kept the always-loaded shared contract below 120 lines by moving the detailed
+  Goal Mode procedure to `config/omp/GOAL-ORCHESTRATION.md`. Explicit repository
+  goals load that playbook on demand; ordinary turns retain only the compact
+  capability, evidence, review, approval, and Git-authority anchors.
 - Updated the native Linux binary from OMP 18.0.8 to 18.0.9 through
   `omp update`; the updater verified the downloaded release checksum before
   replacing the executable.

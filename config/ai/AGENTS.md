@@ -47,55 +47,10 @@ OMP uses its upstream-native command, configuration discovery, bundled agents, m
 
 Use OMP's installed native configuration for task decomposition, bundled agents, models, concurrency, fallbacks, and update behavior. Outside an explicit OMP goal, avoid delegation for ordinary work. Never invent parallelism, and keep the main session responsible for final integration and verification. Repositories using `delivery-ledger` still apply its task-boundary contract independently of which OMP model or agent executes.
 Browser-visible visual, layout, responsive, accessibility, or UX work always routes to `designer`/`vision` before the first visual edit, regardless of task size; this is a capability trigger, not complexity escalation. Pure data/API/non-visual wiring in a frontend file is exempt. If the designer cannot start, surface the failure instead of silently absorbing visual work into the main session.
-
 ### OMP autonomous repository goals
 
-When an OMP user explicitly starts a goal (for example with `/goal`) in a
-repository containing `TASKS.md`, run the complete delivery lifecycle
-autonomously until verified completion or a real approval/blocker boundary:
-
-1. Read the nearest repository `AGENTS.md`, the accepted product/specification
-   source, `TASKS.md`, current status/build evidence, and active delivery-ledger
-   state. The goal is the destination; `TASKS.md` is the canonical execution
-   queue. Never replace either with chat narration or transient OMP task state.
-2. Select the next accepted, unblocked task that advances the goal. Confirm its
-   requirement, risk, allowed/protected surface, dependencies, and runnable
-   completion evidence before editing. Do not silently broaden the goal.
-3. Keep the active parent as conductor: it owns decomposition, routing, context,
-   integration, completion audit, and user communication. Terra is the normal
-   cost-aware parent; Fable is the native `plan` model and `@orchestrator` is an
-   explicit alias for genuinely hard, long-horizon orchestration sessions. OMP
-   does not dynamically replace the parent model from a task spawn, so never
-   pretend that escalation happened.
-   Route bounded work by bundled agent capability:
-   - `sonic` / Gemini: trivial, mechanical, low-judgment work only;
-   - `scout` or `librarian` / Terra: repository discovery and research;
-   - `task` / Sol: all development implementation, tests, refactors, difficult
-     debugging, and database work including schema, queries, migrations,
-     transactions, locking, and PostgreSQL/Drizzle changes;
-   - `designer` / Opus: every browser-visible visual or UX change before edit;
-   - `reviewer` / Opus: independent correctness and architecture review;
-   - `security-reviewer` / Opus XHigh: auth, authorization, payments, migrations,
-     secrets, cryptography, tenant isolation, concurrency, infrastructure, and
-     production-sensitive review.
-4. Delegate only genuinely independent slices. Never run children with a shared
-   semantic owner concurrently. Give each child explicit paths, constraints,
-   acceptance evidence, and non-scope. Treat a child result as a proposal, not
-   completion; inspect and integrate one isolated result at a time.
-5. Run the repository's own verification after integration. R0/R1 may finish
-   with parent verification. Non-trivial cross-module R2 work gets an Opus
-   reviewer. R3/R4 work and every sensitive trigger above require an independent
-   Opus reviewer/security-reviewer plus recorded delivery-ledger boundary
-   approval; `DONE` is forbidden without `PASS` evidence.
-6. Approval gates remain load-bearing. Secret access, destructive operations,
-   system-wide changes, production/live mutations, and material scope expansion
-   stop for explicit user approval even while goal mode is auto-continuing.
-7. Update repository task/build evidence at meaningful boundaries. Complete the
-   OMP goal only after every goal deliverable maps to current repository evidence,
-   relevant tests pass, required review passes, and the final task boundary is
-   clean. Committing and pushing remain explicit user actions, never automatic
-   consequences of Goal Mode. If work remains, continue rather than reporting
-   partial success.
+For an explicit OMP goal in a repository with `TASKS.md`, read `~/dotfiles/config/omp/GOAL-ORCHESTRATION.md` before dispatch. The goal is the destination; `TASKS.md` is the canonical execution queue, and repository evidence decides completion. The parent owns integration and verification; Terra is the normal cost-aware parent, while Fable is the native plan model and `@orchestrator` an explicit hard-session alias, never an automatic parent switch.
+Capability lanes are strict: `sonic` / Gemini handles trivial work; `scout`/`librarian` discovery and research use Terra; `task` / Sol: all development and database implementation; `designer` / Opus: visual work; `reviewer` / Opus: independent correctness review; `security-reviewer` / Opus XHigh: sensitive review. Non-trivial cross-module R2 gets Opus review; R3/R4 and sensitive work require independent Opus review plus delivery-ledger approval. Approval gates remain load-bearing. Committing and pushing remain explicit user actions, never automatic Goal Mode consequences.
 
 Owned capabilities have one source: **`~/dotfiles/skills/local/<name>/SKILL.md`**. Claude, Pi, OMP, and Antigravity discover the canonical directory automatically. Codex preserves its native `.system` skills and receives per-skill links to the same owned source. `skill-update` reconciles runtime adapters; it never copies methodology.
 
