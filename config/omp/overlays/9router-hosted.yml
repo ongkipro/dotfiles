@@ -1,0 +1,83 @@
+# 9Router Fantastico primary (GPT-5.6 Terra & Sol) + Google Antigravity reserve overlay.
+#
+#   omp --config ~/dotfiles/config/omp/overlays/9router-hosted.yml
+#
+# Primary capacity runs on 9Router Fantastico:
+#   - cx/gpt-5.6-terra: default, task, plan, research, discovery (balanced reasoning)
+#   - cx/gpt-5.6-sol: slow, vision, designer, advisor, advisor-xhigh, advisor-max (deep reasoning)
+#   - cx/gpt-5.4-mini: smol, tiny (low-overhead tasks)
+#
+# Google Antigravity serves as the cross-host availability fallback bridge.
+
+__test_providers__: 9router-fantastico,google-antigravity
+
+modelRoles:
+  default: 9router-fantastico/cx/gpt-5.6-terra:medium
+  task: 9router-fantastico/cx/gpt-5.6-terra:medium
+  slow: 9router-fantastico/cx/gpt-5.6-sol:high
+  plan: 9router-fantastico/cx/gpt-5.6-terra:high
+  smol: 9router-fantastico/cx/gpt-5.4-mini:low
+  tiny: 9router-fantastico/cx/gpt-5.4-mini:low
+  research: 9router-fantastico/cx/gpt-5.6-terra:high
+  discovery: 9router-fantastico/cx/gpt-5.6-terra:high
+  vision: 9router-fantastico/cx/gpt-5.6-sol:high
+  designer: 9router-fantastico/cx/gpt-5.6-sol:high
+  advisor: 9router-fantastico/cx/gpt-5.6-sol:high
+  advisor-xhigh: 9router-fantastico/cx/gpt-5.6-sol:xhigh
+  advisor-max: 9router-fantastico/cx/gpt-5.6-sol:max
+
+modelProviderOrder:
+  - 9router-fantastico
+  - google-antigravity
+
+cycleOrder:
+  - smol
+  - default
+  - slow
+
+defaultThinkingLevel: auto
+
+retry:
+  enabled: true
+  modelFallback: true
+  fallbackRevertPolicy: cooldown-expiry
+  fallbackChains:
+    default:
+      - google-antigravity/gemini-3.7-flash:medium
+      - 9router-fantastico/cx/gpt-5.6-sol:medium
+    task:
+      - google-antigravity/gemini-3.7-flash:high
+      - 9router-fantastico/cx/gpt-5.6-sol:medium
+    slow:
+      - google-antigravity/claude-opus-4-6:high
+      - 9router-fantastico/cx/gpt-5.6-terra:high
+    plan:
+      - google-antigravity/claude-opus-4-6:high
+      - 9router-fantastico/cx/gpt-5.6-sol:high
+    smol:
+      - google-antigravity/gemini-3.7-flash:medium
+      - 9router-fantastico/cx/gpt-5.4-mini:low
+    tiny:
+      - google-antigravity/gemini-3.7-flash:medium
+      - 9router-fantastico/cx/gpt-5.4-mini:low
+    research:
+      - google-antigravity/gemini-3.7-flash:high
+      - 9router-fantastico/cx/gpt-5.6-sol:high
+    discovery:
+      - google-antigravity/gemini-3.7-flash:high
+      - 9router-fantastico/cx/gpt-5.6-sol:high
+    vision:
+      - google-antigravity/gemini-3.1-pro:high
+      - 9router-fantastico/cx/gpt-5.6-terra:high
+    designer:
+      - google-antigravity/gemini-3.1-pro:high
+      - 9router-fantastico/cx/gpt-5.6-terra:high
+    advisor:
+      - google-antigravity/claude-sonnet-4-6:high
+      - 9router-fantastico/cx/gpt-5.6-terra:high
+    advisor-xhigh:
+      - google-antigravity/claude-opus-4-6:high
+      - 9router-fantastico/cx/gpt-5.6-terra:xhigh
+    advisor-max:
+      - google-antigravity/claude-opus-4-6:high
+      - 9router-fantastico/cx/gpt-5.6-terra:max
