@@ -1,6 +1,8 @@
 # Development Kit Reference Map
 
-Open only the smallest artifact needed. The worked example does not authorize copying its organizations, approvals, vendors, numbers, legal conclusions, or stack choices.
+Use this as an ownership map for a canonical pack or an explicitly supplied
+worked example. File names describe suite artifacts, not a requirement to
+generate every file. Open only the smallest activated artifact.
 
 | Concern | Reference artifact | Canonical operating owner |
 |---|---|---|
@@ -13,14 +15,14 @@ Open only the smallest artifact needed. The worked example does not authorize co
 | Identity and authorization | `07-IAM-RBAC-ABAC.md` | `application-security`; `better-auth-security` only in a Better Auth project |
 | Hostname and custom-domain routing | `08-DOMAIN-ROUTING.md` | selected platform/framework owner plus `application-security` |
 | REST contract | `09-API-SPECIFICATION.md` | `openapi-spec` |
-| Design tokens and white-label primitives | `10-DESIGN-SYSTEM-WHITELABEL.md` | `shadcn-ui` for component implementation |
+| Design tokens, components, accessibility, brand, and white-label primitives | `10-DESIGN-SYSTEM-WHITELABEL.md` | `design-taste` or `admin-dashboard` for direction; `shadcn-ui` for React implementation |
 | Billing and payments | `11-BILLING-PAYMENTS.md` | exact provider owner; `stripe-best-practices` for Stripe |
 | Security architecture | `12-SECURITY-ARCHITECTURE.md` | `application-security` |
 | Privacy and compliance | `13-COMPLIANCE-PRIVACY.md` | qualified privacy/legal owner; engineering controls via relevant specialist |
 | Reliability and recovery | `14-SLA-DRP.md` | service owner plus `observability-engineering` |
 | CI/CD and migrations | `15-DEVOPS-CICD-MIGRATIONS.md` | `github-actions` for GitHub CI; `postgres-drizzle` for database migration |
 | Telemetry and rate limits | `16-OBSERVABILITY-RATE-LIMITING.md` | `observability-engineering` plus `application-security` |
-| Operator workflow example | `UI-UX-WIREFRAMES-AND-DESIGN-SPEC.md` | `admin-product-ux`, then `admin-dashboard` |
+| User journeys, screen inventory/contracts, states, permissions, responsive transformations, and UX acceptance | `17-UX-FLOWS-SCREEN-CONTRACTS.md` | `admin-product-ux` for admin/CMS; `storefront-ux` for commerce; relevant product owner otherwise |
 | Indonesia worked example and Indonesia/Malaysia applicability | `INDONESIA-MARKET-ENGINEERING-GUIDE.md` plus [adaptive market overlay](market-engineering.md) | qualified domain owner plus current official sources, only for activated concerns |
 | Pack applicability | `CONTEXT-RECORD.md` | `development-spec-suite` |
 | Execution trace | `TASKS.md` | `prd-taskbreaker` for task contracts; repository delivery owner after promotion |

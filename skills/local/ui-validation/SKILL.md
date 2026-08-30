@@ -75,6 +75,21 @@ A screenshot records appearance but does not prove interaction. A build, type
 check, unit test, DOM snapshot, or source inspection alone does not prove a
 browser-visible change.
 
+### Visual critique and revision
+
+For a new surface or material visual change, behavioral checks are necessary
+but not sufficient. Capture the affected narrow and wide views, inspect them
+against the accepted UX and visual-system contract, and critique hierarchy,
+composition, density, alignment, typography, asset quality, state clarity,
+responsive transformation, and obvious AI-template repetition. Record concrete
+discrepancies, revise the implementation, and re-open the affected views. Stop
+when the accepted direction is met or report the remaining limitation.
+
+Do not approve a design because a screenshot exists, and do not update a visual
+baseline merely to bless an unexplained difference. This loop validates an
+accepted direction; it does not choose one. Route unresolved direction back to
+`admin-dashboard` or `design-taste`.
+
 ## 3. Run the real page
 
 1. Prefer the project's own script, and know what each one actually gives you.

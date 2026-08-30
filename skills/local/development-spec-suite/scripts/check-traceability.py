@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 NAMESPACES = (
-    "BR|PR|NFR|DS|TD|ADR|ARCH|DATA|TEN|IAM|DOM|API|UX|BILL|SEC|PRIV|CTRL|"
+    "BR|PR|NFR|DS|TD|ADR|ARCH|DATA|TEN|IAM|DOM|API|UI|UX|BILL|SEC|PRIV|CTRL|"
     "SLI|SLO|DR|DEL|MIG|OBS|RATE|CTX|OVR|JUR|XFER|LOC|TEST|EVID"
 )
 ID_RE = re.compile(rf"\b(?:(?:{NAMESPACES})(?:-[A-Z0-9]+)*-\d+|T-?\d+)\b")
@@ -62,21 +62,23 @@ ARTIFACT_FILENAMES = {
     ("14-SLA-DRP.md", "14-SLA-DRP.md"),
     ("15-DEVOPS-CICD-MIGRATIONS.md", "15-DEVOPS-CICD-MIGRATIONS.md"),
     ("16-OBSERVABILITY-RATE-LIMITING.md", "16-OBSERVABILITY-RATE-LIMITING.md"),
+    ("17-UX-FLOWS-SCREEN-CONTRACTS.md", "17-UX-FLOWS-SCREEN-CONTRACTS.md"),
 }
-OWNER_NAMESPACES = {"CTX", "OVR", "JUR", "XFER", "LOC", "DS", "PR", "NFR", "TD", "ARCH", "DATA", "TEN", "IAM", "DOM", "API", "UX", "BILL", "SEC", "PRIV", "CTRL", "SLI", "SLO", "DR", "DEL", "MIG", "OBS", "RATE"}
+OWNER_NAMESPACES = {"CTX", "OVR", "JUR", "XFER", "LOC", "DS", "PR", "NFR", "TD", "ARCH", "DATA", "TEN", "IAM", "DOM", "API", "UI", "UX", "BILL", "SEC", "PRIV", "CTRL", "SLI", "SLO", "DR", "DEL", "MIG", "OBS", "RATE"}
 OVERLAY_COVERAGE: Dict[str, Tuple[Set[str], Set[str]]] = {
     "multi-tenant": ({"TEN"}, {"06-TENANT-ISOLATION.md"}),
     "identity": ({"IAM"}, {"07-IAM-RBAC-ABAC.md"}),
     "public-api": ({"API"}, {"09-API-SPECIFICATION.md"}),
     "custom-domain": ({"DOM"}, {"08-DOMAIN-ROUTING.md"}),
-    "localized-ui": ({"LOC", "UX"}, {"10-DESIGN-SYSTEM-WHITELABEL.md"}),
+    "localized-ui": ({"LOC", "UI"}, {"10-DESIGN-SYSTEM-WHITELABEL.md"}),
     "commerce": ({"BILL"}, {"11-BILLING-PAYMENTS.md"}),
     "personal-data": ({"PRIV"}, {"13-COMPLIANCE-PRIVACY.md"}),
     "cross-border": ({"XFER", "PRIV"}, {"13-COMPLIANCE-PRIVACY.md"}),
     "regulated-sector": ({"JUR", "PRIV", "SEC"}, {"12-SECURITY-ARCHITECTURE.md", "13-COMPLIANCE-PRIVACY.md"}),
     "ai-system": ({"SEC", "PRIV"}, {"12-SECURITY-ARCHITECTURE.md", "13-COMPLIANCE-PRIVACY.md"}),
     "high-availability": ({"SLO", "DR"}, {"14-SLA-DRP.md"}),
-    "mobile-desktop": ({"TD", "UX"}, {"03-TECHNICAL-DESIGN.md", "10-DESIGN-SYSTEM-WHITELABEL.md"}),
+    "mobile-desktop": ({"TD", "UX"}, {"03-TECHNICAL-DESIGN.md", "17-UX-FLOWS-SCREEN-CONTRACTS.md"}),
+    "product-ui": ({"UI", "UX"}, {"10-DESIGN-SYSTEM-WHITELABEL.md", "17-UX-FLOWS-SCREEN-CONTRACTS.md"}),
     "extension-plugin": ({"TD", "SEC"}, {"03-TECHNICAL-DESIGN.md", "12-SECURITY-ARCHITECTURE.md"}),
     "data-analytics": ({"DATA", "OBS"}, {"05-DATA-MODEL.md", "16-OBSERVABILITY-RATE-LIMITING.md"}),
     "persistence": ({"DATA"}, {"05-DATA-MODEL.md"}),

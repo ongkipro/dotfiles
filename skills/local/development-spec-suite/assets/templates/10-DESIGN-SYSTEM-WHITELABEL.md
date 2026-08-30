@@ -19,7 +19,7 @@
 
 **Inputs:** `PR-*`, `NFR-*`, `IAM-*`, `DOM-*`, `BILL-*`, supported platforms, approved brand assets, and repository component evidence.
 
-**Outputs:** `UX-*` requirements, token and component contracts, white-label capability matrix, accessibility gates, and visual-regression evidence.
+**Outputs:** `UI-*` requirements, token and component contracts, white-label capability matrix, accessibility gates, and visual-regression evidence. User journeys and screen contracts belong in `17-UX-FLOWS-SCREEN-CONTRACTS.md`.
 
 ## Experience Principles and Scope
 
@@ -29,12 +29,30 @@
 
 In scope: [surfaces/components/themes]. Out of scope: [explicit exclusions]. Supported viewport, input, locale, and assistive-technology matrix: [TBD from evidence].
 
+## Visual Direction and Market Expression
+
+Reference the accepted audience, market, research, and direction decision in
+`17-UX-FLOWS-SCREEN-CONTRACTS.md`. State whether the visual system is global,
+localized-global, or country-specific, and distinguish stable brand identity
+from localized content or imagery.
+
+| Dimension | Accepted direction | Evidence/source | Token/component/content consequence | Local override boundary |
+|---|---|---|---|---|
+| Brand personality | [Traits expressed through observable choices] | [Decision/evidence] | [Type, shape, imagery, density, motion] | [Allowed variation] |
+| Market expression | [Global/local behavior] | LOC-/UX-[N] | [Content, assets, layout] | [Fallback/review] |
+| Anti-template signature | [Distinctive hierarchy/composition/material] | [Research decision] | [Reusable rule] | [What must remain stable] |
+
+Name the intended visual character concretely enough that another implementer
+can reproduce it. Avoid adjective-only direction such as “modern,” “premium,”
+or “clean”; bind each trait to typography, composition, imagery, density,
+shape, color, motion, or interaction behavior.
+
 ## Requirements
 
 | ID | Requirement | Source | Verification |
 |---|---|---|---|
-| UX-1 | [Testable design-system or accessibility requirement] | PR-/NFR-[N] | [Story/automated/manual test] |
-| UX-2 | [Testable white-label requirement] | BR-/BILL-/DOM-[N] | [Theme isolation test] |
+| UI-1 | [Testable design-system or accessibility requirement] | PR-/NFR-[N] | [Story/automated/manual test] |
+| UI-2 | [Testable white-label requirement] | BR-/BILL-/DOM-[N] | [Theme isolation test] |
 
 ## Token Architecture
 
@@ -103,9 +121,9 @@ For Indonesian product content, use Bahasa Indonesia rather than Malay and prese
 
 | Requirement | Component/token/capability | Constraints | Tests | Task |
 |---|---|---|---|---|
-| UX-[N] | [Reference] | IAM-[N], DOM-[N], BILL-[N], SEC-[N] | UX-T[N] | T[N] |
+| UI-[N] | [Reference] | IAM-[N], DOM-[N], BILL-[N], SEC-[N] | UI-T[N] | T[N] |
 
-- [ ] Every `UX-*` requirement has an observable acceptance test and owner.
+- [ ] Every `UI-*` requirement has an observable acceptance test and owner.
 - [ ] Token schemas, allowed overrides, defaults, and invalid-state behavior are executable or testable.
 - [ ] Keyboard, screen-reader, contrast, zoom/reflow, reduced-motion, and localization checks cover supported surfaces.
 - [ ] Tenant branding cannot inject executable content or access another tenant's assets/configuration.
@@ -116,7 +134,7 @@ For Indonesian product content, use Bahasa Indonesia rather than Malay and prese
 
 ## Cross-Document References
 
-[02-PRD.md](02-PRD.md) · [07-IAM-RBAC-ABAC.md](07-IAM-RBAC-ABAC.md) · [08-DOMAIN-ROUTING.md](08-DOMAIN-ROUTING.md) · [09-API-SPECIFICATION.md](09-API-SPECIFICATION.md) · [11-BILLING-PAYMENTS.md](11-BILLING-PAYMENTS.md) · [12-SECURITY-ARCHITECTURE.md](12-SECURITY-ARCHITECTURE.md) · [13-COMPLIANCE-PRIVACY.md](13-COMPLIANCE-PRIVACY.md)
+[02-PRD.md](02-PRD.md) · [07-IAM-RBAC-ABAC.md](07-IAM-RBAC-ABAC.md) · [08-DOMAIN-ROUTING.md](08-DOMAIN-ROUTING.md) · [09-API-SPECIFICATION.md](09-API-SPECIFICATION.md) · [11-BILLING-PAYMENTS.md](11-BILLING-PAYMENTS.md) · [12-SECURITY-ARCHITECTURE.md](12-SECURITY-ARCHITECTURE.md) · [13-COMPLIANCE-PRIVACY.md](13-COMPLIANCE-PRIVACY.md) · [17-UX-FLOWS-SCREEN-CONTRACTS.md](17-UX-FLOWS-SCREEN-CONTRACTS.md)
 
 ## Open Questions and Change Log
 

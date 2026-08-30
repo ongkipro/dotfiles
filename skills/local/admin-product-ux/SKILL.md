@@ -35,6 +35,9 @@ memory and mockups. Trace at least one real workflow end to end.
 Record the primary actor, job, trigger, frequency, volume, risk, time pressure,
 success condition, and failure cost. Separate daily operations, monitoring,
 configuration, governance, and reporting; do not flatten them into one menu.
+Also record whether behavior is global, localized-global, or country-specific;
+language/locale, device, market, and trust assumptions need evidence and must
+not be smuggled in as fictional personas.
 
 Read [Discovery and domain](references/discovery-and-domain.md).
 
@@ -54,7 +57,18 @@ control.
 
 Read [States and permissions](references/states-and-permissions.md).
 
-### 5. Specify screens
+### 5. Research patterns and choose a direction
+
+For a new multi-screen surface or material redesign, inspect the existing
+product first, then research relevant production products and authoritative
+patterns for the same operator job, scale, and risk. Record what was observed,
+why it transfers, and what must not be copied. If product or interaction
+direction remains open, compare two or three materially different candidates
+and recommend one; if evidence clearly selects one, state the choice and
+rationale without manufacturing alternatives. A bounded change inside an
+accepted workflow may use repository evidence alone.
+
+### 6. Specify screens
 
 Derive navigation and screens from tasks and objects. For each screen, define
 entry points, required information, primary and secondary actions, dangerous
@@ -63,7 +77,11 @@ queue, timeline, wizard, settings, or dashboard based on the job—not habit.
 
 Read [Screen and interaction contracts](references/screen-and-interaction-contracts.md).
 
-### 6. Adapt without changing the product contract
+Use `mermaid-diagram` for an activity/flow, state, sequence, or component
+diagram only when branching, lifecycle, ownership, or system interaction is
+harder to verify in prose. The screen contract remains authoritative.
+
+### 7. Adapt without changing the product contract
 
 Keep roles, lifecycle, permissions, and screen states framework-neutral. Then
 map rendering, hydration, data ownership, mutations, and navigation to the
@@ -72,7 +90,7 @@ installed stack. Read
 Astro, Vite/React, Next.js, the shadcn component boundary, and the clean-light
 admin baseline.
 
-### 7. Review completeness
+### 8. Review completeness
 
 Run [Review rubric](references/review-rubric.md). Do not declare the UX ready
 while a primary job, destructive path, permission boundary, or failure recovery
@@ -87,8 +105,13 @@ system, copy and complete only the needed templates:
 - `assets/state-permission-matrix.csv`
 - `assets/workflow-contract.yaml`
 
-Save drafts under `~/Documents/work/prd/`. Do not create a new final root-level
-spec filename unless the user accepts that repository convention.
+Save pre-repository drafts under `~/Documents/work/prd/`. In an active suite,
+write journeys and screen behavior into
+`docs/spec/17-UX-FLOWS-SCREEN-CONTRACTS.md`; reference reusable visual decisions
+from `docs/spec/10-DESIGN-SYSTEM-WHITELABEL.md`. In a standalone repository,
+extend its accepted UX/design artifact; create `DESIGN.md` only when durable
+cross-screen decisions need an owner and no canonical equivalent exists. Do not
+create a competing root-level spec.
 
 ## Handoff
 

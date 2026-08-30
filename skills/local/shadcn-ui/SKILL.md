@@ -21,6 +21,15 @@ Before emitting a CLI command or component API, verify it against the current
 registry — the CLI, the copied source, and even *which items exist* change over
 time and differ by style.
 
+Do not use a block, registry example, or default component composition to choose
+the product workflow or visual direction. Before component mapping, require an
+accepted screen contract and presentation direction: `admin-product-ux` then
+`admin-dashboard` for admin/CMS, `storefront-ux` plus the accepted storefront
+direction for commerce, or `design-taste` for public/marketing surfaces. When a
+suite is active, consume `UX-*` from
+`17-UX-FLOWS-SCREEN-CONTRACTS.md` and `UI-*` from
+`10-DESIGN-SYSTEM-WHITELABEL.md`.
+
 For an accepted admin screen, shadcn/ui is the house default component source
 when the selected runtime supports React. It is not a universal render layer:
 native semantics remain underneath, and static Astro markup must not be
@@ -264,8 +273,10 @@ registry item: `shadcn add <block>`. Browse them at https://ui.shadcn.com/blocks
 or list them with `shadcn search`. Don't keep a category table here — it goes
 stale, and the CLI already answers the question.
 
-A block is a starting point, not a screen. It arrives with placeholder data and
-generic copy; the IA decision behind it is still `admin-dashboard`'s call.
+A block is implementation material, not a screen or a design direction. It
+arrives with placeholder data, generic copy, and a composition optimized for a
+demo. Map it only after the accepted contract, replace its information
+hierarchy and states, and preserve just the primitives that fit.
 
 ## Known Gotchas
 

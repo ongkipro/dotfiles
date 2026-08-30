@@ -1,6 +1,8 @@
 # Project Accessibility Record Template
 
-This is an optional project-record helper, not a design-rule source. Copy the section below into the target project's `design-tokens.md`; do not record project-specific values in this canonical skill directory.
+This is an optional project-record helper, not a design-rule source. Copy the
+section below into the project's canonical design artifact; do not create a
+parallel token file or record project facts in this skill directory.
 
 ```markdown
 ## Accessibility notes

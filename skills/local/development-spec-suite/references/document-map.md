@@ -20,5 +20,6 @@ Start with the pack's `02-PRD.md` and add only triggered artifacts. After requir
 | SLA/DRP | Critical service, contractual target, material recovery obligation | SLI/SLO/SLA and recovery |
 | Delivery/Migrations | Maintained deployment, infrastructure, release, schema/data change | CI/CD, promotion, rollback, migration |
 | Observability/Rate Limits | Production service, abuse/capacity control, tenant quotas | Telemetry, alerts, quotas, runbooks |
+| UX Flows and Screen Contracts | Maintained product UI, multi-screen workflows, role/state-dependent interactions, or mobile/desktop transformations | Journeys, screen inventory, state/permission visibility, responsive transformations, UX acceptance |
 
 Omitted artifacts require `Not applicable`, reason, owner, and review gate. Keep one source of truth; report divergence instead of duplicating stale values.

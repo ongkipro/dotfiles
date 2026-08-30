@@ -130,7 +130,11 @@ layers.
 4. Exercise trust boundaries and explicit error states, not only the happy path:
    unauthenticated, unauthorized, malformed, conflict, dependency failure,
    timeout, partial persistence, retry, and user recovery where applicable.
-5. Apply the evidence gates below, then reconcile accepted specs and runtime
+5. For browser-visible work, do not make the first visual edit until the
+   proportional research, screen/UX contract, and selected presentation
+   direction are accepted. After implementation, use `ui-validation` for both
+   behavioral proof and a screenshot-based critique/revision pass.
+6. Apply the evidence gates below, then reconcile accepted specs and runtime
    truth, remove scaffolding, and report remaining risk. Do not deploy unless the
    user separately authorizes it.
 
@@ -140,6 +144,12 @@ For new admin or CMS work, the mandatory route is:
 
 `admin-product-ux` -> `admin-dashboard` -> installed framework owner and, when
 applicable, `shadcn-ui` -> `ui-validation`.
+
+For a new surface or material redesign, the first two owners must inspect
+relevant references and record either a justified selection or meaningful
+alternatives before code. Diagram branching/lifecycle/cross-system interaction
+through `mermaid-diagram` only when it improves verification; diagrams do not
+replace screen contracts.
 
 Existing project tokens always win. If none exist, route the accepted screen
 contract through the [admin-dashboard clean-light CMS baseline](../admin-dashboard/references/clean-light-cms-baseline.md).

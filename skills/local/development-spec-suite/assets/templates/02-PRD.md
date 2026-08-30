@@ -98,13 +98,15 @@ Do not use “fast,” “secure,” “scalable,” or “user-friendly” with
 
 ## 10. UX and Content Contract
 
-- Required surfaces/states: `<list or UX-* references>`
+- Required user outcomes and surfaces: `<list or UX-* references>`
 - Accessibility target and evidence: `<standard/level/test>`
 - Localization/content ownership: `<languages, source, fallback>`
-- White-label boundaries: `<UX-* references or Not applicable>`
+- White-label and visual-system boundaries: `<UI-* references or Not applicable>`
 - Destructive/irreversible action safeguards: `<confirmation, recovery, audit>`
 
-Visual tokens and component behavior belong in the Design System; only required user outcomes belong here.
+Journeys and screen behavior belong in UX Flows and Screen Contracts. Visual
+tokens and shared component behavior belong in the Design System; only required
+user outcomes belong here.
 
 ## 11. Data, Analytics, and Privacy Needs
 

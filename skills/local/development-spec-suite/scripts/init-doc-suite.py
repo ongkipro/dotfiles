@@ -41,6 +41,7 @@ ARTIFACTS: Dict[str, Tuple[str, str]] = {
     "high-availability": ("14-SLA-DRP.md", "14-SLA-DRP.md"),
     "delivery": ("15-DEVOPS-CICD-MIGRATIONS.md", "15-DEVOPS-CICD-MIGRATIONS.md"),
     "observability": ("16-OBSERVABILITY-RATE-LIMITING.md", "16-OBSERVABILITY-RATE-LIMITING.md"),
+    "ux-flows": ("17-UX-FLOWS-SCREEN-CONTRACTS.md", "17-UX-FLOWS-SCREEN-CONTRACTS.md"),
 }
 
 OVERLAYS = {
@@ -58,6 +59,7 @@ OVERLAYS = {
     "mobile-desktop",
     "extension-plugin",
     "data-analytics",
+    "product-ui",
 }
 
 # Context capabilities are deliberately smaller facts than product labels.
@@ -73,13 +75,14 @@ CAPABILITY_ARTIFACTS: Dict[str, Set[str]] = {
     "custom-domain": {"custom-domain", "security"},
     "localized-ui": {"localized-ui"},
     "shared-ui": {"localized-ui"},
+    "product-ui": {"localized-ui", "ux-flows"},
     "commerce": {"commerce", "security", "privacy"},
     "personal-data": {"privacy", "security"},
     "cross-border": {"privacy", "security"},
     "regulated-sector": {"brd", "privacy", "security"},
     "ai-system": {"technical-design", "security", "privacy"},
     "high-availability": {"architecture", "high-availability", "delivery", "observability"},
-    "mobile-desktop": {"technical-design", "localized-ui"},
+    "mobile-desktop": {"technical-design", "localized-ui", "ux-flows"},
     "extension-plugin": {"technical-design", "security"},
     "data-analytics": {"data-model", "privacy", "observability"},
     "maintained-deployment": {"delivery"},

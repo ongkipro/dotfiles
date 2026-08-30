@@ -1,6 +1,8 @@
 # Project Design Rationale Template
 
-This is an optional project-record helper, not a design-rule source. Copy the section below into the target project's `design-tokens.md`; do not record project-specific rationale in this canonical skill directory.
+This is an optional project-record helper, not a design-rule source. Copy the
+section below into the project's canonical design artifact; do not create a
+parallel token file or record project facts in this skill directory.
 
 ```markdown
 ## Rationale
@@ -12,4 +14,6 @@ This is an optional project-record helper, not a design-rule source. Copy the se
 - Theme decision: <light/dark scope and warm/cool canvas rationale>
 ```
 
-The precedence and required token fields remain in Section 1.5 of [design-taste](../SKILL.md).
+Artifact ownership and the minimum record live in
+[design-discovery.md](design-discovery.md); precedence remains in Section 1.5
+of [design-taste](../SKILL.md).

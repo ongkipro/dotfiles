@@ -21,6 +21,23 @@ skill must not invent those product rules while arranging the presentation.
 This skill is the decision layer: which screen shape, chart, layout, responsive
 transformation, and density. Components come from their implementation owner.
 
+Before a new dashboard family or material redesign, consume the accepted
+research and direction decision from `admin-product-ux`. If presentation still
+has meaningful alternatives, inspect relevant production operator surfaces and
+authoritative component guidance, compare two or three compositions, and select
+one against the job, information priority, volume, risk, accessibility, and
+responsive transformation. Do not browse for novelty or copy a competitor's
+brand. A settled screen inside an established design system reuses repository
+evidence and skips this discovery pass.
+
+Use local professional comparables when language, workflow, trust, or market
+behavior is local, and mature global products for broader pattern evidence.
+Reject the generic AI admin shell: a card for every region, cards nested inside
+frames, uniformly large radii, ornamental badges, default bento grids, and KPI
+or chart rows without an operator decision. Prefer semantic grouping,
+typographic hierarchy, whitespace, dividers, tables, queues, timelines, and
+split panes according to the job.
+
 For harvested GitHub production contracts (TanStack Table v9, Refine, Payload CMS, Medusa Admin, Strapi, kbar, Clerk impersonation), load `references/github-admin-patterns.md`.
 For the Next.js 16 + shadcn admin-starter implementation contracts (URL-as-state `useDataTable`, the nuqs server/client parser seam, feature-first `src/features/<feature>/{api,components,schemas,types}`, the multi-palette `data-theme` CSS-variable engine, and TanStack Form multi-step wizards), load `references/next-shadcn-starter-patterns.md`.
 For the fallback clean-light visual design system and standalone HTML/CSS fixture (when a project lacks an established theme), load `references/clean-light-cms-baseline.md`.

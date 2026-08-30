@@ -147,7 +147,7 @@ class SuiteTests(unittest.TestCase):
             "component-change", "persistence", "identity", "multi-tenant", "public-api",
             "custom-domain", "localized-ui", "commerce", "personal-data", "cross-border",
             "regulated-sector", "ai-system", "high-availability", "mobile-desktop",
-            "extension-plugin", "data-analytics", "maintained-deployment",
+            "extension-plugin", "data-analytics", "product-ui", "maintained-deployment",
             "production-service", "schema-migration",
         )
         for capability in capabilities:
@@ -156,6 +156,30 @@ class SuiteTests(unittest.TestCase):
                 destination = self.root / f"capability-{capability}"
                 self.init("product", destination, "--context-file", context)
                 self.check(destination)
+
+    def test_product_ui_selects_distinct_ux_and_visual_contracts(self) -> None:
+        context = self.write_json(
+            "product-ui.json",
+            {"owner": "Test owner", "capabilities": {"product-ui": True}},
+        )
+        destination = self.root / "product-ui"
+        self.init("product", destination, "--context-file", context)
+        self.assertEqual(
+            files(destination),
+            {
+                "02-PRD.md",
+                "10-DESIGN-SYSTEM-WHITELABEL.md",
+                "17-UX-FLOWS-SCREEN-CONTRACTS.md",
+                "CONTEXT-RECORD.md",
+            },
+        )
+        design = (destination / "10-DESIGN-SYSTEM-WHITELABEL.md").read_text(encoding="utf-8")
+        ux = (destination / "17-UX-FLOWS-SCREEN-CONTRACTS.md").read_text(encoding="utf-8")
+        self.assertIn("UI-1", design)
+        self.assertNotIn("| UX-1 |", design)
+        self.assertIn("UX-1", ux)
+        self.assertIn("Market, Audience, and Experience Context", ux)
+        self.check(destination)
 
     def test_generated_files_use_repository_safe_permissions(self) -> None:
         destination = self.root / "permissions"
@@ -251,10 +275,10 @@ class SuiteTests(unittest.TestCase):
         all_artifacts = ",".join((
             "brd", "technical-design", "architecture", "data-model", "multi-tenant", "iam",
             "custom-domain", "public-api", "localized-ui", "commerce", "security", "privacy",
-            "high-availability", "delivery", "observability",
+            "high-availability", "delivery", "observability", "ux-flows",
         ))
         self.init("platform", destination, "--overlay", all_artifacts)
-        self.assertEqual(len(files(destination)), 17)
+        self.assertEqual(len(files(destination)), 18)
         self.check(destination)
 
         combinations = (

@@ -1,6 +1,6 @@
 # Implementation Backlog and Release Evidence
 
-Status: v2 audit-ready and cross-platform validated
+Status: v2 audit-ready; cross-platform validation pending
 Baseline: v1 commit `7c45141` / canonical cherry-pick `722ed15`
 Owner: Development Specification Suite maintainers
 Purpose: Keep implementation status, runnable evidence, and remaining release gates honest. A checked task means behavior and fixtures exist on disk; it does not prove a remote CI run, legal conclusion, audit result, certification, deployment, or production behavior.
@@ -58,15 +58,22 @@ Purpose: Keep implementation status, runnable evidence, and remaining release ga
 - Statement: When source provenance is audited, the suite shall distinguish normative authority from workflow inspiration and report incomplete, stale, or superseded records without network credentials or silent requirement changes.
 - Evidence: `scripts/test-suite.py::test_source_audit_is_offline_and_flags_stale_records`
 
+### DS-REQ-22 — Separate UX and visual-system contracts
+- Status: Verified locally
+- Owner: Development Specification Suite maintainer
+- Statement: When `product-ui` is active, the suite shall select distinct UX flow/screen and reusable visual-system artifacts with non-conflicting `UX-*` and `UI-*` ownership.
+- Evidence: `scripts/test-suite.py::test_product_ui_selects_distinct_ux_and_visual_contracts`, `scripts/test-suite.py::test_every_profile_and_capability_generates_a_valid_pack`
+
 ## Dependency Graph
 
 ```mermaid
 flowchart LR
     T15[T15 Context record] --> T16[T16 Structured applicability]
     T15 --> T17[T17 Minimal selection]
+    T17 --> T22[T22 UX and visual contracts]
     T15 --> T18[T18 Validator v2]
     T16 --> T18
-    T17 --> T18
+    T22 --> T18
     T18 --> T19[T19 Linux/macOS CI]
     T18 --> T20[T20 Safe reviewed update]
     T16 --> T21[T21 Source provenance]
@@ -108,14 +115,26 @@ flowchart LR
   - product profile no longer selects architecture/security/operations contracts by name alone;
   - identity, persistence, API, availability, personal data, commerce, localization, deployment, and other facts select independently;
   - `CONTEXT-RECORD.md` records selected and omitted artifacts with reason/owner/review gate.
-- Done when: `python3 scripts/test-suite.py SuiteTests.test_minimal_profiles_and_fact_driven_selection SuiteTests.test_every_profile_and_capability_generates_a_valid_pack SuiteTests.test_full_artifact_pack_and_capability_combinations_validate` exits `0` for exact minimal sets, every supported profile/capability, representative combinations, and the complete 17-file pack.
+- Done when: `python3 scripts/test-suite.py SuiteTests.test_minimal_profiles_and_fact_driven_selection SuiteTests.test_every_profile_and_capability_generates_a_valid_pack SuiteTests.test_full_artifact_pack_and_capability_combinations_validate` exits `0` for exact minimal sets, every supported profile/capability, representative combinations, and the complete 18-file pack.
+
+### [x] T22 — Separate UX behavior from reusable visual-system ownership
+
+- State: Verified locally.
+- Primary requirement: DS-REQ-22.
+- Constraints: one PRD and task queue; research remains evidence-labelled; diagrams and Markdown do not claim runtime proof.
+- Dependencies: T17.
+- Outputs:
+  - `product-ui` selects `17-UX-FLOWS-SCREEN-CONTRACTS.md` and `10-DESIGN-SYSTEM-WHITELABEL.md`;
+  - `UX-*` owns journeys/screens/states/market behavior while `UI-*` owns reusable visual decisions;
+  - validator coverage and cross-links include the new artifact.
+- Done when: `python3 scripts/test-suite.py SuiteTests.test_product_ui_selects_distinct_ux_and_visual_contracts SuiteTests.test_every_profile_and_capability_generates_a_valid_pack` exits `0` and proves exact artifact selection, namespace separation, market context, and pack validity.
 
 ### [x] T18 — Implement traceability and ownership validator v2
 
 - State: Verified locally.
 - Primary requirement: DS-REQ-18.
 - Constraints: stable finding codes; deterministic ordering; no dependency; placeholders/examples must not cause unresolved-reference noise.
-- Dependencies: T15, T16, T17.
+- Dependencies: T15, T16, T22.
 - Outputs:
   - duplicate declaration, unresolved reference, owner/TBD, task-primary, orphan requirement, evidence, supersession, overlay, jurisdiction, transfer, locale, link, fence/table, and credential-like checks;
   - text and machine-readable JSON output.
@@ -164,7 +183,8 @@ flowchart LR
 - Outputs:
   - `assets/sources.json` records URL/authority/path/revision/license/status/effective/retrieved/owner/review/local-use fields;
   - `scripts/audit-sources.py` reports missing, stale, superseded, or malformed records;
-  - explicit record that no external community pattern is intentionally adapted at present.
+  - adopted workflow inspirations remain labelled separately from normative
+    authorities, with community material limited to anecdotal signals.
 - Done when: `python3 scripts/test-suite.py SuiteTests.test_source_audit_is_offline_and_flags_stale_records` exits `0`; `python3 scripts/audit-sources.py --as-of 2026-08-04` passes; and a future as-of date produces `SRC008` without network access.
 
 ## Validation Commands
@@ -186,7 +206,7 @@ python3 scripts/check-traceability.py /path/to/docs/spec --format json
 
 ## Completion Gate
 
-- `v2 audit-ready`: allowed only while T15–T18 fixtures pass. This describes structural tooling readiness, not readiness for a specific regulated project and not legal/audit compliance.
+- `v2 audit-ready`: allowed only while T15–T18 and T22 fixtures pass. This describes structural tooling readiness, not readiness for a specific regulated project and not legal/audit compliance.
 - `cross-platform validated`: **NOT currently claimable.** The gate is allowed only while T19’s Ubuntu/macOS matrix
   is green *for the code on disk*. The last green run is `31575884831` (commit `5fe453e`); the suite changed in
   `e290be3` and GitHub Actions has been blocked at the account billing level since 2026-08-16, so no run has

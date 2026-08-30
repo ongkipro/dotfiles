@@ -1,6 +1,6 @@
 ---
 name: development-spec-suite
-description: Context-aware orchestrator for selecting, initializing, and auditing a traceable multi-document development specification pack across product, architecture, data, IAM, API, security, privacy, operations, localization, and jurisdiction concerns. Use when several specification domains must stay consistent or an existing pack needs traceability/applicability audit. NOT for a PRD/TASKS-only request (prd-taskbreaker), a standalone API contract (openapi-spec), a standalone diagram (mermaid-diagram), prose rewriting (volumx-writer), implementation, or a final legal/compliance determination.
+description: Select, initialize, and audit a traceable multi-document development specification pack across product, architecture, data, IAM, API, security, privacy, operations, UI, localization, and jurisdiction concerns. Use when several specification domains must stay consistent or an existing pack needs traceability/applicability audit. NOT for a PRD/TASKS-only request, a standalone contract/diagram, implementation, or legal conclusions.
 ---
 
 # Adaptive Development Specification Suite
@@ -24,7 +24,10 @@ Never load `assets/templates/*`, the source ledger, or maintenance backlog to an
 - Treat repository code, migrations, OpenAPI, infrastructure, design tokens, runtime configuration, and executed checks as stronger implementation evidence than stale prose.
 - Label every statement as `Observed`, `Decision`, `Assumption`, `Proposal`, `Unknown`, or `Evidence`; never turn an assumption into a fact.
 - Write artifact content in English unless the repository has an explicit content-language convention. Conversation stays Indonesian; Indonesian product content uses Bahasa Indonesia, not Malay, with technical terms kept in English.
-- Keep legal, tax, privacy, security, compliance, and certification boundaries explicit: identify triggers, map engineering controls, and never claim compliance or a final legal applicability decision from a document. Domain/design skills may contribute requirements, but their generic legal claims never establish applicability; record those as `Proposal` or `Unknown` pending official-source and qualified-owner review.
+- Keep legal, tax, privacy, security, compliance, and certification boundaries
+  explicit: generic legal claims never establish applicability. Documents map
+  triggers and controls; final conclusions require current official sources and
+  qualified review.
 - Never request, print, copy, or store credentials, tokens, payment data, customer records, sessions, or production secrets.
 - Preserve existing files. Initialize missing files only; require explicit update mode before changing an established pack. Do not commit, push, merge, deploy, publish, or touch production without explicit user authorization.
 - Before `~/Projects/<slug>/` exists, this skill's pack stages under the mandatory `~/Documents/work/prd/<slug>/` directory (detected by `CONTEXT-RECORD.md`) and is never authoritative alone. `project-init --from-docs` copies the accepted pack into `docs/spec/` once authorized; the repository copy is then canonical.
@@ -45,9 +48,14 @@ Choose the smallest depth profile:
 - `product`: maintained user-facing web/mobile/desktop product or service.
 - `platform`: public/multi-component/multi-tenant/marketplace/critical service.
 
-Activate only evidence-backed overlays: `multi-tenant`, `identity`, `public-api`, `custom-domain`, `localized-ui`, `commerce`, `personal-data`, `cross-border`, `regulated-sector`, `ai-system`, `high-availability`, `mobile-desktop`, `extension-plugin`, and `data-analytics`. `saas` is only a compatibility alias for `platform + multi-tenant + identity` — not billing, domains, or white-labeling.
+Activate only evidence-backed overlays listed in the context-resolution
+reference. `product-ui` means a
+maintained browser flow needing durable journey and visual-system contracts.
+`saas` aliases only `platform + multi-tenant + identity`.
 
-Read [jurisdiction-overlays.md](references/jurisdiction-overlays.md) when geography, sector, personal data, AI, commerce, or cross-border processing is present. Record `JUR-*`, `XFER-*`, and `LOC-*` decisions with source, status, dates, owner, and recheck trigger. Unknown is not equivalent to not applicable.
+Read [jurisdiction-overlays.md](references/jurisdiction-overlays.md) when its
+triggers apply. Record `JUR-*`, `XFER-*`, and `LOC-*` with source, status,
+dates, owner, and recheck trigger. Unknown is not not-applicable.
 
 ### 3. Select artifacts and owners
 
@@ -60,7 +68,10 @@ For artifact selection or ownership, read [document-map.md](references/document-
 - Data Model owns schema, constraints, lifecycle, and migration truth.
 - IAM owns identity and authorization policy.
 - OpenAPI owns machine-readable HTTP contracts via the local `openapi-spec` skill.
-- Design System owns tokens, UI behavior, localization, and accessibility contract.
+- Design System owns reusable visual, component, accessibility, brand, and
+  white-label contracts through `UI-*`.
+- UX Flows owns journeys, screens, states, permission visibility, responsive
+  behavior, content needs, and browser acceptance through `UX-*`.
 - Billing owns plans, entitlements, money/ledger/reconciliation, and provider-account roles.
 - Security owns threats, controls, encryption/key lifecycle, and security evidence.
 - Compliance/Privacy owns applicability, data inventory, rights, retention, transfers, and control mapping.
@@ -81,7 +92,9 @@ python3 scripts/init-doc-suite.py --profile platform --overlay multi-tenant,publ
 
 `project-init --from-docs ~/Documents/work/prd/<slug>/` promotes the accepted pack into `~/Projects/<slug>/docs/spec/` once authorized. For a feature in an already-existing repository, skip staging and pass `--output ~/Projects/<slug>/docs/spec` to the same command directly.
 
-The initializer creates `CONTEXT-RECORD.md` and never overwrites in normal mode. Selection uses optional UTF-8 JSON; jurisdiction/sector flags create review candidates, not legal conclusions. `--update` writes proposals, hashes, and diffs; reviewed `--update --force` confines paths, hash-checks, backs up, and applies atomically.
+The initializer creates `CONTEXT-RECORD.md` and never overwrites normally;
+jurisdiction/sector flags create review candidates, not legal conclusions. `--update`
+previews proposals; reviewed `--update --force` hash-checks and applies safely.
 
 ### 5. Delegate specialist work
 
@@ -94,9 +107,10 @@ Use existing local skills when available:
 - `mermaid-diagram` for architecture, ERD, data-flow, and sequence diagrams.
 - `openapi-spec` for the machine-readable API contract and compatibility checks.
 - `stripe-best-practices` or the current provider skill for payment-specific behavior.
-- `design-taste` for visual direction, `admin-dashboard` for data-dense product
-  UI, `storefront-ux` for commerce behavior, `shadcn-ui` for React component
-  implementation, and `ui-validation` for executable UI evidence.
+- UI route: `admin-product-ux`/`storefront-ux` for behavior,
+  `design-taste`/`admin-dashboard` for presentation, `shadcn-ui` for React
+  implementation, and `ui-validation` for evidence. New or materially
+  redesigned surfaces record proportional research and a direction decision.
 - `native-first`, `web-perf`, `lean-code-review`, `application-security`, and platform/provider skills for implementation validation.
 
 If a specialist is unavailable, state the capability gap and continue with a bounded, evidence-labelled draft; do not copy another skill's instructions into this one.

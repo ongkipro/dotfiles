@@ -54,7 +54,8 @@ State: **"Reading this as: <page kind> for <audience>, <mode>, with a <vibe>
 language, leaning toward <aesthetic family / system>."**
 
 - Read signals: page kind, vibe words the user used, reference URLs or
-  screenshots, audience, existing brand assets, quiet constraints
+  screenshots, evidence-backed audience/job, global versus localized-global
+  versus country-specific market, language/locale, existing brand assets, quiet constraints
   (trust-first commerce, regulated, accessibility-first). Constraints
   OVERRIDE aesthetic preference.
 - Ambiguous brief → ask exactly ONE clarifying question. Confident → declare
@@ -63,6 +64,13 @@ language, leaning toward <aesthetic family / system>."**
   hero over dark mesh, three equal feature cards, glassmorphism everywhere,
   Inter + slate-900. These are the LLM defaults; reach past them
   deliberately.
+
+### Reference research and direction decision
+
+For a new surface or material redesign, read
+[design-discovery.md](references/design-discovery.md) and complete its
+reference, direction, and subject-signature decision before the first visual
+edit. Small changes inside an accepted system use repository evidence alone.
 
 ## 1.5 DESIGN CONTEXT PRECEDENCE (tokens beat taste)
 
@@ -89,31 +97,9 @@ Reading a design-context correctly:
   13px base, fixed sidebar nav), you are in `admin-dashboard` territory:
   keep the tokens, hand the patterns to that skill.
 
-When a project has NO spec yet and you make real design decisions, leave a
-`design-tokens.md` behind in the repo so the next session inherits them:
-
-```markdown
----
-name: <project>
-description: <one line: accent + canvas + personality in ten words>
-theme: { default: light, dark: shipped | out-of-scope,
-         white-temperature: warm | cool, why: <one line> }
-colors: { primary, on-primary, primary-hover, ink, ink-secondary, ink-muted,
-          canvas, surface, raised, border, link, status-* as needed }
-typography: { display: family/size/weight, body: family/size/weight }
-spacing: { base: 4px, scale: [...] }
-radius: { sm, md, pill }   # must match the Shape Lock choice
-shadows: { card, modal }   # only for things that genuinely float
-motion: { duration-base, easing }
----
-## Rationale
-2-4 short paragraphs: why this palette/type for this audience, and why the
-canvas leans warm or cool.
-## Accessibility notes
-Known contrast ratios and any token that is restricted (e.g. "primary
-fails AA as text on canvas; button fill only"). If dark ships, record the
-pairs that needed re-deriving rather than inverting.
-```
+When durable decisions are new, update the canonical design artifact and use
+the minimum record in [design-discovery.md](references/design-discovery.md).
+Never create a parallel token document beside an accepted design artifact.
 
 ## 2. THE THREE DIALS
 
@@ -412,9 +398,12 @@ Hybrid pages (§0) apply the relevant Brand, Storefront, or Funnel checks to eac
 block by its declared mode.
 
 Universal:
-- [ ] Mode + design read declared; dials stated and reasoned
+- [ ] Mode + design read declared; for a new/material redesign, references and
+      the selected direction or real alternatives are recorded before code;
+      dials stated and reasoned
 - [ ] Design-context / repo tokens checked FIRST and used verbatim if
-      present (§1.5); new real decisions written back to design-tokens.md
+      present (§1.5); new durable decisions written to the canonical design
+      artifact, never a competing file
 - [ ] ZERO em-dash/en-dash-separator in visible copy
 - [ ] One accent color, one neutral family, one radius system, one theme; at
       most one deliberate full-page theme-switch device, brief-justified (§4.2)
@@ -492,6 +481,8 @@ Funnel mode additionally:
 ## Reference ownership
 
 - [theme-implementation.md](references/theme-implementation.md) and [surface-and-mode-rules.md](references/surface-and-mode-rules.md) are the canonical extracted implementation and surface references.
+- [design-discovery.md](references/design-discovery.md) owns reference research,
+  direction comparison/selection, subject signature, and the canonical design record.
 - [public-experience-patterns.md](references/public-experience-patterns.md) is the canonical Storefront/Commerce visual lens; it delegates commerce behavior to `storefront-ux` and implementation to `storefront-development`.
 - [rationale.md](references/rationale.md) and [accessibility-notes.md](references/accessibility-notes.md) are optional project-record templates. Copy them into the target project; do not store project facts in this skill.
 - The retained numbered paths are compatibility pointers, not independent rule sources: [0](references/0-mode-detection-before-anything-else.md), [1](references/1-design-read-one-line-before-any-code.md), [1.5](references/1-5-design-context-precedence-tokens-beat-taste.md), [2](references/2-the-three-dials.md), [3](references/3-stack-defaults-astro-first-differs-from-the-original-on-purpose.md), [4](references/4-design-directives-bias-correction.md), [5](references/5-ai-tells-hard-bans-unless-the-brief-asks.md), [6](references/6-dr-cod-funnel-mode-overrides.md), [7](references/7-redesign-protocol.md), [8](references/8-pre-flight-check-run-before-delivering-any-fail-not-done.md), and [9](references/9-pairing-map.md).

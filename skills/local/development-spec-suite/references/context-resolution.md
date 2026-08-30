@@ -87,12 +87,13 @@ Use the smallest fact that explains the contract:
 | `public-api` | API, Architecture, Security, Observability |
 | `custom-domain` | Domain Routing, Security |
 | `shared-ui`, `localized-ui` | Design System |
+| `product-ui` | Design System, UX Flows and Screen Contracts |
 | `commerce` | Billing, Security, Privacy |
 | `personal-data`, `cross-border` | Privacy, Security |
 | `regulated-sector` | BRD, Privacy, Security |
 | `ai-system` | Technical Design, Security, Privacy |
 | `high-availability` | Architecture, SLA/DRP, Delivery, Observability |
-| `mobile-desktop` | Technical Design, Design System |
+| `mobile-desktop` | Technical Design, Design System, UX Flows and Screen Contracts |
 | `extension-plugin` | Technical Design, Security |
 | `data-analytics` | Data Model, Privacy, Observability |
 | `maintained-deployment`, `schema-migration` | Delivery; schema migration also selects Data Model |

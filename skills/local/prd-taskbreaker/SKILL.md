@@ -22,10 +22,13 @@ The binding rule: **every task has exactly one primary accepted requirement; any
 ## Flow
 
 ```
-[Idea] → [1. Clarify — GATE, resolve ambiguity first]
-       → [2. PRD.md — goals + non-goals + numbered requirements (EARS)]
-       → [3. PLAN.md — ONLY if it touches architecture/DB/integration]
-       → [4. TASKS.md — each task → one primary requirement, constraints, deps, Done-when]
+[Idea] → [0. Inspect authority, repository, and existing flow]
+       → [1. Clarify — GATE, resolve material ambiguity]
+       → [2. PRD.md — context + goals + non-goals + numbered requirements]
+       → [3. UX/design handoff — only when browser-visible]
+       → [4. PLAN.md — ONLY if it touches architecture/DB/integration]
+       → [5. Review contract and real alternatives]
+       → [6. TASKS.md — each task → one primary requirement, constraints, deps, Done-when]
        → (per task) implement → run its TEST → record observed EVID → commit additively
 ```
 
@@ -51,11 +54,21 @@ Done when: Execute TEST-1 against the local endpoint; its observed result satisf
 
 `PR-2` and `NFR-1` affect execution but do not become additional primary requirements. During planning, define `TEST-1` if the pack activates it, but do not create or claim `EVID-*`.
 
+## 0. Inspect before clarifying
+
+Read repository instructions, existing PRD/spec/design artifacts, `TASKS.md`,
+status evidence, routes, schemas, APIs, tests, and the affected flow before
+asking questions. Trace the current behavior and reuse established terminology.
+This repository-first phase is mandatory for existing code; do not design a
+feature from the request text alone.
+
 ## 1. Clarify — this is a gate, not small talk
 
 Ask the user **in Indonesian** (conversation is Indonesian; the artifacts you write stay English). Don't guess an unclear requirement — ask first, skipping whatever is already obvious from context:
 - Stack? (frontend / backend / DB / deploy target) — if the repo already has `AGENTS.md`/`STATUS.md`, read those first, don't re-ask.
 - Who is the user, and what changes for them?
+- Is the experience global, localized-global, or country-specific, and which
+  audience/market behavior is observed versus assumed?
 - Any existing system/DB/integration to connect to?
 - Phase priority / deadline?
 - What is explicitly **out of scope** (non-goals)?
@@ -73,6 +86,11 @@ Draft into `~/Documents/work/prd/<slug>/PRD.md` first; the final PRD → project
 
 ## Overview
 One paragraph: what is being built, for whom, why now.
+
+## Product, Audience, and Market Context
+- Primary user/job and evidence status
+- Global, localized-global, or country-specific scope
+- Locale/language, device/input, trust/content behavior, and unresolved assumptions
 
 ## Goals
 - Measurable goal 1
@@ -104,6 +122,23 @@ Embed a ```mermaid``` block (delegate the how-to to the mermaid-diagram skill).
 - [ ] v0.1 MVP: ...
 - [ ] v0.2: ...
 ```
+
+### Browser-visible handoff
+
+The PRD owns user outcomes, not visual taste. For a new UI or material redesign,
+activate `development-kit`'s experience route before tasks are accepted:
+
+- behavior and market context -> the relevant UX owner;
+- professional local/global reference research -> UX/visual owner;
+- suite mode -> `17-UX-FLOWS-SCREEN-CONTRACTS.md` plus
+  `10-DESIGN-SYSTEM-WHITELABEL.md`;
+- standalone mode -> extend the accepted design artifact, or create `DESIGN.md`
+  only when durable cross-screen decisions need an owner and none exists;
+- diagrams -> `mermaid-diagram` only for real branching, lifecycle, sequence,
+  data relationship, or component-boundary value.
+
+Do not generate frontend implementation tasks while the required experience or
+visual direction is unresolved.
 
 ### EARS cheatsheet (Easy Approach to Requirements Syntax)
 Write testable requirements with one of these patterns, not prose like "the system should be good". Use it for things that can actually fail (auth, payments, geo-based forms, webhooks) — **don't** force it on simple copy/UI.
@@ -137,6 +172,25 @@ Endpoints/webhooks/third parties. Internal API → delegate to the openapi-spec 
 ## Risks & Mitigations
 What can fail, and the handling (rate limit, retry, fallback).
 ```
+
+Before accepting a costly-to-reverse technical decision, compare the real
+alternatives found in the repository or current primary documentation. Record
+why the selected option fits and why rejected options do not. Do not manufacture
+alternatives for a decision already fixed by accepted repository evidence.
+
+## Contract review gate
+
+Before generating tasks, review the draft as a decision loop:
+
+1. Every goal has at least one accepted requirement; every requirement supports
+   a goal and has an observable acceptance criterion.
+2. Product/market assumptions are labelled and owned; unresolved direction is
+   routed back to discovery rather than hidden in implementation tasks.
+3. Browser-visible work has its required UX/design handoff; architecture/data/
+   integration work has only the necessary PLAN/contracts.
+4. Conflicts with repository truth, duplicate canonical files, unowned failure
+   paths, or unjustified decisions send the draft back for revision.
+5. Only a reviewed contract proceeds to `TASKS.md`.
 
 ## Verification vocabulary
 
@@ -226,7 +280,9 @@ Follow the `AGENTS.md` pre-development staging and repository authority contract
 
 ## Tips
 
-- A good PRD fits 1–2 pages. Over-speccing up front is guessing; let detail surface during implementation.
+- A bounded PRD is usually short; completeness is measured by resolved
+  decisions and observable requirements, not page count. Multi-domain depth
+  belongs in `development-spec-suite`, not an oversized standalone PRD.
 - Non-goals prevent scope creep as strongly as goals drive it.
 - Each task must be doable without reading the whole PRD — its context is complete in the task itself.
 - Requirements first, then tasks. A task appearing with no requirement is a signal that scope quietly widened.
