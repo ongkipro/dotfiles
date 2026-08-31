@@ -452,7 +452,15 @@ if [ -d "$SK" ]; then
      && [ "$(resolve_path "$UPDATE_ACTUAL" 2>/dev/null)" = "$(resolve_path "$UPDATE_EXPECTED")" ]; then
     ok "skill-update PATH → canonical implementation"
   else
-    bad "skill-update PATH tidak menunjuk $UPDATE_EXPECTED"
+    # "PATH does not point at X" is the wrong diagnosis when nothing is
+    # installed at all — the Mac reported it on 2026-09-01 while
+    # ~/.local/bin/skill-update simply did not exist, sending the reader to
+    # inspect a PATH that was fine.
+    if [ -z "$UPDATE_ACTUAL" ]; then
+      bad "skill-update belum terpasang di PATH (tidak ada di ~/.local/bin) — jalankan installer dotfiles di device ini"
+    else
+      bad "skill-update PATH menunjuk $UPDATE_ACTUAL, bukan $UPDATE_EXPECTED"
+    fi
   fi
 else
   bad "$SK TIDAK ADA"

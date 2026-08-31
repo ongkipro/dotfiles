@@ -75,9 +75,15 @@ def check_agents_policy():
 def run_canonical_gate(label, command, extra_env=None):
     try:
         environment = os.environ.copy()
-        shims = os.path.expanduser("~/.local/share/mise/shims")
-        if os.path.isdir(shims) and shims not in environment.get("PATH", ""):
-            environment["PATH"] = shims + os.pathsep + environment.get("PATH", "")
+        # Prefer the runtime mise actually installed over its shim: a dangling
+        # shim cannot repair itself when GitHub rate-limits mise's version
+        # lookup, which is exactly what the Mac hit on 2026-09-01.
+        import glob
+        extra = sorted(glob.glob(os.path.expanduser("~/.local/share/mise/installs/node/*/bin")))
+        extra.append(os.path.expanduser("~/.local/share/mise/shims"))
+        for d in reversed(extra):
+            if os.path.isdir(d) and d not in environment.get("PATH", ""):
+                environment["PATH"] = d + os.pathsep + environment.get("PATH", "")
         environment.update(extra_env or {})
         result = subprocess.run(
             [str(part) for part in command],

@@ -23,7 +23,17 @@ mkdir -p "$OUT_DIR"
 
 # `omp` and the owned commands are frequently outside a non-interactive PATH,
 # which is a property of the machine and not a failure of the gate.
-export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:/opt/homebrew/bin:/usr/local/bin:$PATH"
+export PATH="$HOME/.local/bin:$HOME/.agents/bin:$HOME/.local/share/mise/shims:/opt/homebrew/bin:/usr/local/bin:$PATH"
+# mise's shim directory is not enough: on 2026-09-01 the Mac's node shim was
+# dangling ("node is not a valid shim") and mise could not repair it because
+# GitHub rate-limited its unauthenticated version lookup at 0/60. The installed
+# runtime was present the whole time. Point at it directly — no shim, no network,
+# no version resolution — and let the shim serve only as the fallback.
+for _nb in "$HOME"/.local/share/mise/installs/node/*/bin; do
+  [ -x "$_nb/node" ] && NODE_BIN="$_nb"
+done
+[ -n "${NODE_BIN:-}" ] && export PATH="$NODE_BIN:$PATH"
+
 
 failures=0
 rows=""
@@ -94,6 +104,11 @@ unlinked="$(cd "$ROOT" && grep -v '^#' config/ai/runtime-commands.txt | grep -v 
   fact "python3" "$(command -v python3 || echo 'NOT FOUND') $(python3 -V 2>&1)"
   fact "sed flavour" "$(sed --version >/dev/null 2>&1 && echo GNU || echo 'BSD (no --version)')"
   fact "unlinked manifest commands" "${unlinked:-none}"
+  # The PATH this run used belongs in the report. On 2026-09-01 a narrow PATH
+  # manufactured two macOS failures for commands that were installed correctly
+  # the whole time — a gate lying about a healthy machine is worse than no gate,
+  # and the only way a reader catches it is seeing what the run could reach.
+  fact "PATH used" "$(printf '%s' "$PATH" | tr ':' ' ')"
   echo
   echo "## Verdict"
   echo

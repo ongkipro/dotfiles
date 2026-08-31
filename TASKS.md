@@ -24,6 +24,20 @@ _None._
 
 ## Recently completed
 
+### TASK-034: A gate that lies about a healthy machine
+- **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/device-verify`, `bin/dev-ready`, `bin/ai-doctor`, `bin/ai-policy-lint`, `TASKS.md`, `docs/device-reports/**`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.device-verification`
+- **Accepted Invariants:** a gate reaches every directory the device installs into, and its report states the PATH it used
+- **Regression Checks:** `dev-ready-test`, `ai-policy-lint`
+- **Runtime Evidence:** macOS reports 184018Z (4 FAIL) -> 185530Z (2 FAIL) -> successor
+- **Reopen Conditions:** a device report blames a command that is in fact installed
+- **Non-Scope:** installing runtimes or repairing mise on any device
+- **Verification:** `bin/device-verify` on both devices
+- **Escalation Conditions:** a device installs into a directory no gate can predict
+
 ### TASK-033: What only macOS could find
 - **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
 - **Risk Level:** R1
