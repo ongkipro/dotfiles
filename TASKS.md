@@ -127,6 +127,11 @@ Completed task contracts through TASK-023 are archived in:
 
 ## Pending
 
+- **TASK-027 / REQ-CROSS-DEVICE-VERIFICATION — verify the 2026-08-31 gates on macOS (R1).** Every gate added or revived that day was written, run, and proven on Linux only. Run **on `ongkis-macbook-air`**, from `~/dotfiles`, and report each result rather than assuming: `bin/ai-doctor`, `bin/ai-doctor --self-test`, `bin/ai-doctor --runtime`, `bin/ai-policy-lint`, `bash bin/delivery-ledger-test`, `bash bin/omp-effective-routing-test`.
+  Known macOS differences to expect rather than debug from scratch: `omp` lives at `/opt/homebrew/bin` and is **not** on a non-interactive shell's `PATH`; the device authenticates Google Antigravity alone and its registry carries no Claude 5 family, so `omp-effective-routing-test` must report unjudged overlay selectors and must **not** demand the Linux role graph; BSD `sed`/`stat`/`date` differ from GNU, which is the most likely source of a false failure in the shell gates.
+  Already done on that device on 2026-08-31 and not to be repeated: `git pull` to `1f7c58c`, all 79 manifest commands linked into `~/.local/bin`, and the blind `vision` fallback (`9router-fantastico/cx/gpt-5.6-sol`, which takes no image) replaced with `google-antigravity/claude-opus-4-6:high` — `omp-runtime-report` there now exits 0. A backup sits at `~/.omp/agent/config.yml.bak-20260831`.
+  Report a failure as a finding, not a fix: a gate that is wrong on macOS is a gate to correct in the repository, not to weaken locally.
+
 - **TASK-012 / AUDIT-MON-01 — measure real skill effectiveness (R0).** Dormant until at least five immutable real delivery records exist for one skill. Then run `ai-skill-evolution --repo <repo> --dotfiles ~/dotfiles --json`; never fabricate or promote synthetic attribution.
 - **TASK-013 / AUDIT-CI-01 — restore hosted GitHub Actions execution (R2).** Human billing owner must remove the external Actions block, then a fresh Ubuntu/macOS matrix must start and conclude normally. AI must not change billing or weaken CI.
 - **TASK-022 / REQ-DELIVERY-CONTRACT-GAPS — wire `project-check-test` into `config/ai/runtime-commands.txt` (R1).** Same deferral reason as TASK-021, same file class. Cosmetic only: `ai-doctor --self-test` already discovers the test via its `bin/*-test` glob.
