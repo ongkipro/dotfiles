@@ -32,6 +32,8 @@ delivery-ledger
 delivery-ledger-test
 delivery-skill-usage
 delivery-skill-usage-test
+dev-ready
+dev-ready-test
 development-spec-suite-test
 device-register
 device-verify

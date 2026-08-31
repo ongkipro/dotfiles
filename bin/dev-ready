@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+# dev-ready — the cheap gate that runs BEFORE autonomous development starts.
+#
+# Every expensive failure this repository has recorded shares one shape: work
+# began before anyone checked whether the machine could finish it. A missing
+# provider, an un-discoverable test command, an uninitialised ledger, or a dirty
+# worktree overlapping the task surface are all knowable in under two seconds,
+# and all of them are discovered mid-run instead — where the cost is a wasted
+# route, a contaminated boundary, or a silent downgrade to a model that cannot
+# do the job.
+#
+# Read-only. It repairs nothing and installs nothing. A blocker here is a
+# precise instruction to the caller, never a reason to proceed anyway.
+#
+# Usage: dev-ready [REPO]   (defaults to the current directory)
+set -uo pipefail
+
+REPO="$(cd "${1:-.}" 2>/dev/null && pwd)" || { echo "dev-ready: no such directory: ${1:-.}"; exit 2; }
+ROOT="${DOTFILES_DIR:-$HOME/dotfiles}"
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+blockers=(); degraded=(); lines=()
+pass()  { lines+=("- $1: PASS${2:+ ($2)}"); }
+soft()  { lines+=("- $1: degraded ($2)"); degraded+=("$1: $2"); }
+skip()  { lines+=("- $1: not required${2:+ ($2)}"); }
+fail()  { lines+=("- $1: BLOCKED ($2)"); blockers+=("$1: $2"); }
+
+git_repo() { git -C "$REPO" rev-parse --show-toplevel 2>/dev/null; }
+
+# 1. repo authority — the repository, not personal memory, must own its truth.
+top="$(git_repo)"
+if [ -z "$top" ]; then
+  fail "repo authority" "not a git repository; repository contracts cannot be owned"
+elif [ "$top" != "$REPO" ]; then
+  fail "repo authority" "$REPO is inside $top, not its root; run from the repository root"
+else
+  # A contract document need not sit at the root: this repository keeps its own
+  # under config/ai/. Ask Git what the repository tracks rather than guessing at
+  # a layout — an empty or contract-less repository still fails, which is the
+  # only property that matters here.
+  owned="$(git -C "$REPO" ls-files 2>/dev/null \
+    | grep -E '(^|/)(AGENTS|PRD|ARCHITECTURE)\.md$|^docs/spec/' | head -3 | tr '\n' ' ')"
+  owned="${owned% }" 
+  if [ -n "$owned" ]; then pass "repo authority" "$owned"
+  else fail "repo authority" "no AGENTS.md, PRD.md, ARCHITECTURE.md or docs/spec; nothing in-repo defines the contract"; fi
+fi
+
+# 2. task queue — a queue with no actionable entry cannot select a next task.
+if [ ! -f "$REPO/TASKS.md" ]; then
+  fail "task queue" "no TASKS.md; there is no canonical execution queue"
+elif ! grep -qE '^#{2,4} +[A-Z]+-[0-9]+' "$REPO/TASKS.md"; then
+  fail "task queue" "TASKS.md has no '### TASK-nnn' entry; nothing is selectable"
+else
+  n="$(grep -cE '^#{2,4} +[A-Z]+-[0-9]+' "$REPO/TASKS.md")"
+  pass "task queue" "$n entries"
+fi
+
+# 3. runtime routing — a role pointing at an unreachable selector is a silent
+#    downgrade waiting to happen, which §22 names explicitly.
+if [ -x "$ROOT/bin/omp-runtime-report" ]; then
+  if out="$("$ROOT/bin/omp-runtime-report" 2>&1)"; then pass "runtime routing"
+  else fail "runtime routing" "$(printf '%s' "$out" | sed 's/\x1b\[[0-9;]*m//g' | grep -m1 -E '✗|ERROR|FAIL' | cut -c1-90)"; fi
+else
+  soft "runtime routing" "omp-runtime-report not installed; routing is unverified"
+fi
+
+# 4. required providers — degraded is a legitimate state; unknown is not.
+if command -v omp >/dev/null 2>&1; then
+  provs="$(omp models --json 2>/dev/null | python3 -c 'import json,sys
+try: print(",".join(sorted({m["provider"] for m in json.load(sys.stdin)["models"]})))
+except Exception: print("")' 2>/dev/null)"
+  if [ -z "$provs" ]; then fail "required providers" "omp is installed but authenticates no provider; every route would fall back"
+  elif [ "$(printf '%s' "$provs" | tr ',' '\n' | wc -l)" -lt 2 ]; then soft "required providers" "only $provs; fallback chains have nowhere to fall"
+  else pass "required providers" "$provs"; fi
+else
+  soft "required providers" "omp not on PATH; routing decisions cannot be resolved here"
+fi
+
+# 5. skills discovery — the routing table is worthless if its cells name skills
+#    that are not installed. ai-policy-lint owns that graph; reuse it.
+if [ -d "$ROOT/skills/local" ]; then
+  n="$(find "$ROOT/skills/local" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l)"
+  if [ "$n" -gt 0 ]; then pass "skills discovery" "$n owned skills"
+  else fail "skills discovery" "$ROOT/skills/local has no SKILL.md; no owned capability is discoverable"; fi
+else
+  fail "skills discovery" "$ROOT/skills/local missing; owned capabilities have no source"
+fi
+
+# 6. delivery ledger — only where the repository opted in. Absent .delivery/ in a
+#    repository that never used it is not a blocker; a broken one is.
+if [ -d "$REPO/.delivery" ]; then
+  # `delivery-ledger status` was the obvious probe and is the wrong one: it exits
+  # 0 on a corrupt current.json, on a truncated run file, and on no runs at all,
+  # so a check built on it can pass but never fail. Parse the evidence instead —
+  # a half-written JSONL line is the failure that actually happens.
+  bad="$(python3 - "$REPO" <<'EOF' 2>&1
+import json, pathlib, sys
+root = pathlib.Path(sys.argv[1]) / ".delivery"
+bad = []
+cur = root / "current.json"
+if cur.exists():
+    try: json.loads(cur.read_text())
+    except Exception: bad.append("current.json")
+for f in sorted(root.rglob("*.jsonl")):
+    try:
+        for n, line in enumerate(f.read_text().splitlines(), 1):
+            if line.strip(): json.loads(line)
+    except Exception: bad.append(f"{f.name}:{n}")
+print(", ".join(bad[:3]))
+EOF
+)"
+  if [ -z "$bad" ]; then pass "delivery ledger" "evidence parses"
+  else fail "delivery ledger" "unparseable evidence ($bad); the chain cannot be read or extended"; fi
+else
+  skip "delivery ledger" "repository does not use it"
+fi
+
+# 7. test commands discovered — "verify it" needs a command that exists. Naming
+#    the file is not enough: package.json with no scripts block verifies nothing.
+cmds=""
+if [ -f "$REPO/package.json" ]; then
+  s="$(python3 -c 'import json,sys
+try: print(",".join(list(json.load(open(sys.argv[1]))["scripts"])[:6]))
+except Exception: print("")' "$REPO/package.json" 2>/dev/null)"
+  [ -n "$s" ] && cmds="package.json: $s"
+fi
+[ -z "$cmds" ] && [ -f "$REPO/Makefile" ] && grep -qE '^(test|check):' "$REPO/Makefile" && cmds="Makefile"
+[ -z "$cmds" ] && [ -f "$REPO/pyproject.toml" ] && cmds="pyproject.toml"
+[ -z "$cmds" ] && ls "$REPO"/bin/*-test >/dev/null 2>&1 && cmds="bin/*-test"
+if [ -n "$cmds" ]; then pass "test commands discovered" "$cmds"
+else fail "test commands discovered" "no package.json scripts, Makefile test target, pyproject, or bin/*-test; nothing can verify a change"; fi
+
+# 8. browser runner — required only when the repository contains browser-visible
+#    surface. Claiming a change works without opening it is the failure this
+#    guards; claiming a browser is needed for a shell repo is noise.
+if git -C "$REPO" ls-files 2>/dev/null | grep -qE '\.(tsx|jsx|vue|svelte|astro|css|scss|html)$'; then
+  # The browser list is overridable so the failure path is testable: PATH cannot
+  # un-find a binary, and a check whose failure branch never runs is not a check.
+  b="$(command -v ${DEV_READY_BROWSERS:-google-chrome chromium chromium-browser} 2>/dev/null | head -1)"
+  if [ -n "$b" ]; then pass "browser runner" "$b"
+  else fail "browser runner" "repository has browser-visible files but no chrome/chromium; visual claims would be unverifiable"; fi
+else
+  skip "browser runner" "no browser-visible files"
+fi
+
+# 9. dirty worktree boundary — pre-existing work is not a blocker, but starting
+#    without knowing it is. The boundary refuses a run whose surface overlaps it.
+if [ -n "$top" ]; then
+  dirty="$(git -C "$REPO" status --porcelain 2>/dev/null | grep -v '^.. \.delivery/' | wc -l)"
+  if [ "$dirty" -eq 0 ]; then pass "dirty worktree boundary" "clean"
+  else soft "dirty worktree boundary" "$dirty path(s) already dirty; declare --accept-dirty or avoid them"; fi
+else
+  lines+=("- dirty worktree boundary: BLOCKED (no git repository)")
+fi
+
+if [ "${#blockers[@]}" -eq 0 ]; then echo "PROJECT READY"; else echo "PROJECT NOT READY"; fi
+printf '%s\n' "${lines[@]}"
+if [ "${#degraded[@]}" -gt 0 ]; then
+  echo
+  echo "Degraded — usable, but route accordingly:"
+  printf '  %s\n' "${degraded[@]}"
+fi
+if [ "${#blockers[@]}" -gt 0 ]; then
+  echo
+  echo "Blockers — resolve or route to a valid fallback. Do not downgrade the task:"
+  printf '  %s\n' "${blockers[@]}"
+  exit 1
+fi
+exit 0

@@ -1,25 +1,25 @@
 {
   "activeRun": null,
   "lastCheckpoint": {
-    "eventHash": "e05c7c7ac56f0e5ab92dcda7cad4f46922a0c09834c50476896ae77ea772be4a",
-    "eventId": "3d61d1c9da844a53a15168d78485e32c",
-    "head": "0133c897f9836aeb3952d1e0e63f6b74e427686c",
-    "note": "Run contaminated the same way as the three before it: the seal check was recorded, FAILED for a real defect (the refusal path unlinked the symlink it was protecting), was fixed, and then re-recorded PASS. Naming it as an expansion witness is therefore refused, correctly \u2014 every recorded status for a witness must be PASS. The fix itself is sound: six consecutive green runs of memory-bootstrap-sealed, plus ai-policy-lint and ai-doctor PASS. Closing BLOCKED rather than renaming the check to dodge the rule. Separate finding for a later run: the rule penalises the ordinary fail-fix-verify loop, which deserves a deliberate decision, not an edit made to unblock the run it is judging.",
-    "prevEventHash": "438c448df6035bc7aaf4267af10e758b9531b635672b3b9ebb3ad5607ad5ad2c",
-    "runId": "RUN-20260831T174740Z-08913957",
+    "eventHash": "73f78bd3d2291bcee95267781864c703fecbbbbae7f461b29b0ce8e1b0f2c64c",
+    "eventId": "ab4f58f321de4408ac8a53d0316bf70c",
+    "head": "46bc7df05695f9e7154228ad056e722a1ce31e75",
+    "note": "Work complete and verified: dev-ready-test 12/12, ai-policy-lint PASS, dev-ready PASS against this repository. Boundary is REVIEW_REQUIRED at effectiveRisk R2 (risk escalation plus an accepted expansion to bin/device-verify \u2014 the fifth under-declared surface today, which is itself the finding). Closing BLOCKED rather than PASS because no independent reviewer with a differing model/provider has run: recording one that did not review would be fabricated attribution. The change ships so macOS can test it; the review remains owed and TASK-031 stays open for it.",
+    "prevEventHash": "618ac36f4d9b1abf6020c8e1076412495e73a3e2cc29ecc495bb4a131799ec57",
+    "runId": "RUN-20260831T175520Z-f787c884",
     "state": null,
-    "time": "2026-08-31T17:54:23Z",
+    "time": "2026-08-31T18:34:58Z",
     "type": "checkpoint"
   },
   "lastRun": {
-    "finishedAt": "2026-08-31T17:54:24Z",
+    "finishedAt": "2026-08-31T18:34:58Z",
     "result": "BLOCKED",
-    "runId": "RUN-20260831T174740Z-08913957"
+    "runId": "RUN-20260831T175520Z-f787c884"
   },
-  "observedHead": "0133c897f9836aeb3952d1e0e63f6b74e427686c",
+  "observedHead": "46bc7df05695f9e7154228ad056e722a1ce31e75",
   "observedState": null,
   "project": "dotfiles",
   "schemaVersion": 1,
   "statusAuthority": "STATUS.md",
-  "updatedAt": "2026-08-31T17:54:24Z"
+  "updatedAt": "2026-08-31T18:34:58Z"
 }

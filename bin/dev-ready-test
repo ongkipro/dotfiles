@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# dev-ready-test — prove every dev-ready check can actually fail.
+#
+# A readiness gate that only ever runs on the machine it was written on is a
+# gate that has been tested once. Each case below constructs the exact repository
+# shape that should trip one check, and asserts that specific line — not the
+# overall verdict, which any single failure would satisfy.
+set -uo pipefail
+ROOT="${DOTFILES_DIR:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+DR="$ROOT/bin/dev-ready"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+fails=0
+
+expect() { # expect <name> <expected-substring> <dir> [env-prefix...]
+  local name="$1" want="$2" dir="$3"; shift 3
+  local out; out="$(env "$@" DOTFILES_DIR="$ROOT" "$DR" "$dir" 2>&1)"
+  if printf '%s' "$out" | grep -qF "$want"; then
+    printf '  ok   %s\n' "$name"
+  else
+    printf '  FAIL %s\n       wanted: %s\n%s\n' "$name" "$want" "$(printf '%s' "$out" | sed 's/^/       /')"
+    fails=$((fails + 1))
+  fi
+}
+
+scaffold() { # a repository that passes everything, as the baseline to break
+  local d="$1"; mkdir -p "$d/bin"
+  git -C "$d" init -q 2>/dev/null || { mkdir -p "$d"; git -C "$d" init -q; }
+  printf 'contract\n' > "$d/AGENTS.md"
+  printf '### TASK-001: something\n' > "$d/TASKS.md"
+  printf '#!/bin/sh\ntrue\n' > "$d/bin/x-test"; chmod +x "$d/bin/x-test"
+  git -C "$d" add -A >/dev/null 2>&1
+  git -C "$d" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
+}
+
+mkdir -p "$TMP/plain"
+expect "non-git directory blocks repo authority" \
+  "repo authority: BLOCKED (not a git repository" "$TMP/plain"
+
+mkdir -p "$TMP/nocontract" && git -C "$TMP/nocontract" init -q
+expect "git repo with no contract document blocks repo authority" \
+  "nothing in-repo defines the contract" "$TMP/nocontract"
+
+scaffold "$TMP/notasks" && rm "$TMP/notasks/TASKS.md"
+expect "missing TASKS.md blocks the task queue" \
+  "no TASKS.md" "$TMP/notasks"
+
+scaffold "$TMP/emptytasks" && printf 'prose only\n' > "$TMP/emptytasks/TASKS.md"
+expect "TASKS.md with no entries blocks the task queue" \
+  "nothing is selectable" "$TMP/emptytasks"
+
+scaffold "$TMP/notests" && rm "$TMP/notests/bin/x-test"
+expect "no discoverable test command blocks verification" \
+  "nothing can verify a change" "$TMP/notests"
+
+scaffold "$TMP/emptyscripts" && rm "$TMP/emptyscripts/bin/x-test" \
+  && printf '{"name":"x"}\n' > "$TMP/emptyscripts/package.json"
+expect "package.json without a scripts block is not a test command" \
+  "nothing can verify a change" "$TMP/emptyscripts"
+
+scaffold "$TMP/visual" && printf 'a{}\n' > "$TMP/visual/a.css" \
+  && git -C "$TMP/visual" add -A >/dev/null 2>&1 \
+  && git -C "$TMP/visual" -c user.email=t@t -c user.name=t commit -qm css >/dev/null 2>&1
+expect "browser-visible files with no browser blocks the browser runner" \
+  "visual claims would be unverifiable" "$TMP/visual" "DEV_READY_BROWSERS=dev-ready-no-such-browser"
+expect "a repository with no browser-visible files does not require a browser" \
+  "browser runner: not required" "$TMP/notasks" "DEV_READY_BROWSERS=dev-ready-no-such-browser"
+
+scaffold "$TMP/badledger" && mkdir -p "$TMP/badledger/.delivery/runs" \
+  && printf '{"a":1}\n{"b":\n' > "$TMP/badledger/.delivery/runs/RUN-x.jsonl"
+expect "an unreadable .delivery chain blocks the ledger" \
+  "the chain cannot be read or extended" "$TMP/badledger"
+
+scaffold "$TMP/good"
+expect "a complete repository is READY" "PROJECT READY" "$TMP/good"
+
+out="$(DOTFILES_DIR="$ROOT" "$DR" "$TMP/good" >/dev/null 2>&1; echo $?)"
+[ "$out" = 0 ] && printf '  ok   READY exits 0\n' \
+  || { printf '  FAIL READY exited %s\n' "$out"; fails=$((fails + 1)); }
+out="$(DOTFILES_DIR="$ROOT" "$DR" "$TMP/plain" >/dev/null 2>&1; echo $?)"
+[ "$out" = 1 ] && printf '  ok   NOT READY exits 1\n' \
+  || { printf '  FAIL NOT READY exited %s\n' "$out"; fails=$((fails + 1)); }
+
+echo
+[ "$fails" -eq 0 ] && { echo "dev-ready-test: all cases hold"; exit 0; }
+echo "dev-ready-test: $fails case(s) failed"; exit 1
