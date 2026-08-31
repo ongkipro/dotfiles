@@ -142,10 +142,12 @@ jq -e '
 }
 
 if [[ "$skip_selector_validation" -eq 0 ]]; then
-# `-e` is load-bearing: without it jq prints `false` and still exits 0, so the
-# `|| { … }` below never ran. That is how a designer selector of `:auto` — a
-# thinking level gemini-3.7-flash does not declare — passed this very check.
-jq -e -n --slurpfile c "$fixture/reference.json" --slurpfile m "$fixture/models.json" '
+# The reference is intentionally portable. A device that does not authenticate
+# every reference provider cannot judge those selectors, but it must still fail
+# for a bad selector, effort, or visual fallback under a provider it does know.
+# `-e` remains load-bearing: a false jq result must fail this shell gate.
+verdict="$(jq -e -n --slurpfile c "$fixture/reference.json" --slurpfile m "$fixture/models.json" '
+  ([$m[0].models[].provider] | unique) as $known |
   def refs:
     ($c[0].modelRoles.value | to_entries[] | .value),
     ($c[0]["retry.fallbackChains"].value | to_entries[].value[]);
@@ -154,26 +156,37 @@ jq -e -n --slurpfile c "$fixture/reference.json" --slurpfile m "$fixture/models.
     $c[0].modelRoles.value.designer,
     $c[0]["retry.fallbackChains"].value.vision[],
     $c[0]["retry.fallbackChains"].value.designer[];
-  ([refs |
-      capture("^(?<provider>[^/]+)/(?<id>.+):(?<effort>[^:]+)$") as $ref |
-      ([$m[0].models[] | select(.provider == $ref.provider and .id == $ref.id)][0]) as $model |
-      select(
-        ($model == null) or
-        (($model.thinking // []) as $levels |
-          ($levels | length) > 0 and ($levels | index($ref.effort) | not))
-      ) |
-      $ref
-    ] | length == 0) and
-  ([visual_refs |
-      capture("^(?<provider>[^/]+)/(?<id>.+):(?<effort>[^:]+)$") as $ref |
-      ([$m[0].models[] | select(.provider == $ref.provider and .id == $ref.id)][0]) as $model |
-      select(($model == null) or (($model.input // []) | index("image") | not)) |
-      $ref
-    ] | length == 0)
-' >/dev/null || {
-  echo 'FAIL: OMP reference contains an unknown selector, thinking level, or non-visual vision fallback' >&2
+  [refs | capture("^(?<provider>[^/]+)/(?<id>.+):(?<effort>[^:]+)$")] as $all |
+  ($all | map(select(.provider as $p | $known | index($p) | not)) | length) as $unjudged |
+  [$all[] | select(.provider as $p | $known | index($p)) |
+    . as $ref |
+    ([$m[0].models[] | select(.provider == $ref.provider and .id == $ref.id)][0]) as $model |
+    select(
+      ($model == null) or
+      (($model.thinking // []) as $levels |
+        ($levels | length) > 0 and ($levels | index($ref.effort) | not))
+    ) | "\($ref.provider)/\($ref.id):\($ref.effort)"
+  ] as $broken |
+  [visual_refs | capture("^(?<provider>[^/]+)/(?<id>.+):(?<effort>[^:]+)$") |
+    select(.provider as $p | $known | index($p)) |
+    . as $ref |
+    ([$m[0].models[] | select(.provider == $ref.provider and .id == $ref.id)][0]) as $model |
+    select(($model == null) or (($model.input // []) | index("image") | not)) |
+    "\($ref.provider)/\($ref.id):\($ref.effort)"
+  ] as $visual_broken |
+  "\($unjudged) \($broken | length) \($visual_broken | length) \(($broken + $visual_broken) | unique | join(","))"
+')" || {
+  echo 'FAIL: could not evaluate the portable OMP reference against the authenticated registry' >&2
   exit 1
 }
+read -r unjudged broken visual_broken detail <<<"${verdict//\"/}"
+if [[ "$broken" -ne 0 || "$visual_broken" -ne 0 ]]; then
+  echo "FAIL: OMP reference names ${broken} unusable selector(s) or ${visual_broken} non-visual visual selector(s) under a provider this device does have: ${detail}" >&2
+  exit 1
+fi
+if [[ "$unjudged" -gt 0 ]]; then
+  echo "omp-effective-routing-test: note reference — ${unjudged} selector(s) unjudged (provider not authenticated here)" >&2
+fi
 fi
 
 # The tracked reference is a recommendation, not a mandate: OMP owns device-local

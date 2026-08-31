@@ -38,12 +38,14 @@ curated cross-CLI lifecycle, not bidirectional raw session synchronization.
   discovery.
 - `omp-effective-routing-test` resolves both OMP's native settings schema and
   the explicit cross-device reference in isolated agent directories, then
-  validates every selector, thinking level, and visual-role image capability
-  against the **ambient** model registry. That last part is deliberately not
-  isolated: an agent directory with no authenticated provider answers with zero
-  models, which — together with a missing `jq -e` — is what left this check
-  unable to fail at all until 2026-08-31. Without an authenticated registry it
-  now prints an explicit SKIP instead of passing quietly.
+  validates selectors, thinking levels, and visual-role image capability under
+  every provider present in the **ambient** model registry. Selectors for a
+  provider the device does not authenticate are reported as `unjudged`, not
+  passed or failed; the portable reference must not force a Mac to have the
+  Linux provider set. That registry check is deliberately not isolated: an
+  isolated agent directory has no provider auth and answers with zero models.
+  Without an authenticated registry the gate prints an explicit SKIP rather
+  than passing quietly.
 - `installer-link-test` proves migration removes managed legacy links while
   preserving unmanaged runtime state.
 - `omp-effective-routing-test` also validates `config/omp/overlays/*.yml`, one
@@ -65,17 +67,13 @@ reviewable evidence. Only `config.yml` is the current executable reference; it
 is not active unless explicitly selected. Device-local state remains in OMP's
 native configuration.
 
-Worth stating plainly, because the sentence above invites the wrong inference:
-on this device the native `~/.omp/agent/config.yml` and the tracked reference
-are **functionally identical** — a diff shows only the reference's header
-comment and an empty-array formatting difference. So the recommended role graph
-is in fact what a plain `omp` resolves here. That is a property of this device
-having been configured to match, not of any linking or wrapping, and nothing
-enforces it staying true. `omp-effective-routing-test` guards the tracked
-reference and does not compare the two files — deliberately. Demanding they
-match would be wrong: the Mac authenticates Google Antigravity alone, its
-registry carries no Claude 5 family at all, and pushing this device's selectors
-there would name models it cannot reach.
+The native `~/.omp/agent/config.yml` is intentionally device-specific and may
+diverge substantially from the tracked reference. `omp-effective-routing-test`
+does not compare the two files: demanding a match would push this Mac, whose
+authenticated registry is Google Antigravity plus its configured reserve path,
+toward direct providers it cannot reach. The gate instead proves both facts
+that matter: each native selector is usable on this device, and each portable
+selector is sound wherever its provider is available.
 
 What every device must satisfy is narrower, and as of 2026-08-31 the test also
 checks **this device's own native config** against **its own registry**: every

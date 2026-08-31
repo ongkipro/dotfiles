@@ -24,6 +24,20 @@ _None._
 
 ## Recently completed
 
+### TASK-032: The portable reference must not demand one device's providers
+- **Requirement:** REQ-PORTABLE-ROUTING
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/omp-effective-routing-test`, `config/omp/STATUS.md`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.routing-validation`
+- **Accepted Invariants:** a selector under a provider the device authenticates is judged; one under an absent provider is reported unjudged, never passed silently
+- **Regression Checks:** `omp-effective-routing-test`, `ai-policy-lint`
+- **Runtime Evidence:** mutation D (unknown model, present provider) FAILs; mutation E (absent provider) reports unjudged
+- **Reopen Conditions:** a device passes this gate while its own routing is broken
+- **Non-Scope:** forcing the native config to match the tracked reference
+- **Verification:** `bin/omp-effective-routing-test`
+- **Escalation Conditions:** two devices need mutually incompatible reference selectors
+
 ### TASK-031: A readiness gate that runs before development, not after it
 - **Requirement:** REQ-DEV-READINESS
 - **Risk Level:** R1
@@ -112,6 +126,8 @@ Completed task contracts through TASK-023 are archived in:
 
 - `docs/archive/DOTFILES_TASKS_THROUGH_2026-08-17.md`
 - `docs/archive/DOTFILES_TASKS_2026-08-18_THROUGH_2026-08-23.md`
+
+- **TASK-028 / REQ-OMP-MAC-PORTABLE-VALIDATION — completed 2026-08-31 (R1).** Portable OMP reference validation is provider-aware: invalid selectors, thinking levels, and visual fallbacks still fail under an authenticated provider; other reference providers are explicitly `unjudged`. Native runtime validation remains strict.
 
 ## Pending
 
