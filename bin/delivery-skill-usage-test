@@ -56,4 +56,38 @@ PY
 set +e; "$ROOT/bin/delivery-skill-usage" --repo "$REPO" verify >/dev/null 2>&1; rc=$?; set -e
 [ "$rc" -eq 2 ] || { echo 'recomputed usage self-hash must not replace source provenance' >&2; exit 1; }
 cp "$TMP/usage.backup" "$USAGE"
+
+# Browser-visible work cannot be finished by a green build. A second run changes
+# a rendered surface and records skills that do not include ui-validation; the
+# gate must refuse it, then accept the same run once the evidence is claimed.
+# The trigger is the boundary check's observed paths, not the recorded skills,
+# so an agent cannot talk its way past it.
+UIREPO="$TMP/uirepo"; mkdir -p "$UIREPO/.delivery/runs"; (cd "$UIREPO"; git init -q; git config user.email t@e.com; git config user.name t; echo x > STATUS.md; git add STATUS.md; git commit -qm init)
+python3 - "$UIREPO/.delivery/runs/RUN-ui.jsonl" "$UIREPO" <<'PY'
+import hashlib,json,subprocess,sys
+p,repo=sys.argv[1],sys.argv[2]
+head=subprocess.check_output(['git','-C',repo,'rev-parse','HEAD'],text=True).strip(); prev=None
+def dig(d): return hashlib.sha256(json.dumps(d,sort_keys=True,separators=(',',':'),ensure_ascii=True).encode()).hexdigest()
+def add(e):
+ global prev
+ e['prevEventHash']=prev; e['eventHash']=dig(e); prev=e['eventHash']; open(p,'a').write(json.dumps(e,sort_keys=True,separators=(',',':'))+'\n')
+b={'runId':'RUN-ui','state':'REVIEWING','head':head}
+add({**b,'eventId':'1','time':'2026-08-31T00:00:00Z','type':'run_started','task':'TASK-1','requirement':'REQ-1','risk':'R2','worker':'coder','model':'m'})
+add({**b,'eventId':'2','time':'2026-08-31T00:01:00Z','type':'boundary_check','result':'PASS','taskOwnedChanges':[
+  {'path':'src/components/Card.tsx','classification':'ALLOWED'},
+  {'path':'src/components/Card.test.tsx','classification':'ALLOWED'},
+  {'path':'src/lib/money.ts','classification':'ALLOWED'}]})
+add({**b,'eventId':'3','time':'2026-08-31T00:02:00Z','type':'verification','check':'unit','status':'PASS','detail':'ok'})
+add({**b,'eventId':'4','time':'2026-08-31T00:03:00Z','type':'run_finished','result':'PASS','detail':'done'})
+PY
+"$ROOT/bin/delivery-skill-usage" --repo "$UIREPO" record --run RUN-ui --skill nextjs-development >/dev/null
+set +e; out="$("$ROOT/bin/delivery-skill-usage" --repo "$UIREPO" verify 2>&1)"; rc=$?; set -e
+[ "$rc" -eq 2 ] || { echo 'a PASS run that changed a rendered surface must fail without ui-validation' >&2; exit 1; }
+grep -q 'Card.tsx' <<<"$out" || { echo 'the refusal must name the rendered path it saw' >&2; exit 1; }
+grep -q 'Card.test.tsx' <<<"$out" && { echo 'a component test is not a rendered surface and must not trigger the gate' >&2; exit 1; }
+
+rm "$UIREPO/.delivery/skill-usage/RUN-ui.json"
+"$ROOT/bin/delivery-skill-usage" --repo "$UIREPO" record --run RUN-ui --skill nextjs-development --skill ui-validation >/dev/null
+"$ROOT/bin/delivery-skill-usage" --repo "$UIREPO" verify >/dev/null || { echo 'claiming ui-validation must clear the gate' >&2; exit 1; }
+
 echo 'delivery-skill-usage-test: PASS'

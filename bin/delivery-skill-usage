@@ -6,6 +6,38 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 SAFE = re.compile(r'^[A-Za-z0-9._-]+$')
+
+# A browser-visible change cannot be finished by a green build. `ui-validation`
+# owns that evidence, so a PASS run that touched a rendered surface must say it
+# used it. The trigger is the run's own `taskOwnedChanges` — the paths the
+# boundary check observed — not the agent's account of what it did, because
+# `skillsUsed` is self-declared and an agent that skipped browser evidence is
+# exactly the agent that would not report skipping it.
+#
+# Deliberately one rule, and a stack-agnostic one. Mapping migrations to
+# `postgres-drizzle` or pages to `nextjs-development` would be wrong the first
+# time this ledger runs in a Prisma or Astro repository; "a rendered surface
+# changed, so someone must have looked at it" holds everywhere.
+BROWSER_VISIBLE = ('.tsx', '.jsx', '.vue', '.svelte', '.astro', '.css', '.scss', '.html')
+# A component's test is not the rendered surface; requiring browser evidence for
+# it would train people to record the skill without doing the work.
+NOT_RENDERED = re.compile(r'(^|/)(__tests__|__mocks__)/|\.(test|spec|stories)\.[^.]+$')
+UI_EVIDENCE_SKILL = 'ui-validation'
+
+
+def browser_visible_paths(events_list):
+    """Paths a finished run changed that render in a browser, newest check wins."""
+    checks = [e for e in events_list if e.get('type') == 'boundary_check']
+    if not checks:
+        return []
+    hits = []
+    for entry in checks[-1].get('taskOwnedChanges') or []:
+        path = entry.get('path') if isinstance(entry, dict) else entry
+        if not isinstance(path, str) or NOT_RENDERED.search(path):
+            continue
+        if path.endswith(BROWSER_VISIBLE):
+            hits.append(path)
+    return sorted(set(hits))
 def now(): return datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00','Z')
 def canonical(d): return json.dumps(d,sort_keys=True,separators=(',',':'),ensure_ascii=True)
 def digest(d): return hashlib.sha256(canonical(d).encode()).hexdigest()
@@ -35,12 +67,12 @@ def inspect_run(repo,run):
     ev=events(p); start=next((x for x in ev if x.get('type')=='run_started'),None); finish=next((x for x in reversed(ev) if x.get('type')=='run_finished'),None)
     if not start or not finish: raise ValueError('skill attribution requires a finished run')
     checks=[x for x in ev if x.get('type')=='verification']
-    return start,finish,checks
+    return start,finish,checks,ev
 def record(repo,a):
     if not SAFE.fullmatch(a.run): raise ValueError('invalid run id')
     skills=sorted(set(a.skill or []))
     if not skills or any(not SAFE.fullmatch(x) for x in skills): raise ValueError('at least one safe --skill is required')
-    start,finish,checks=inspect_run(repo,a.run); target=repo/'.delivery'/'skill-usage'/f'{a.run}.json'
+    start,finish,checks,_=inspect_run(repo,a.run); target=repo/'.delivery'/'skill-usage'/f'{a.run}.json'
     data={'schemaVersion':1,'runId':a.run,'recordedAt':now(),'skillsUsed':skills,'result':finish.get('result'),'risk':start.get('risk'),'job':start.get('job'),'capability':start.get('capability'),'model':start.get('model'),'provider':start.get('provider'),'reasoningEffort':start.get('reasoningEffort'),'worker':start.get('worker'),'head':finish.get('head'),'verificationFailed':any(x.get('status')!='PASS' for x in checks)}
     data['usageHash']=digest(data); atomic(target,data); print(f'delivery-skill-usage: RECORDED {target}')
 def verify(repo,as_json):
@@ -52,11 +84,16 @@ def verify(repo,as_json):
           d=json.loads(p.read_text()); supplied=d.get('usageHash'); u=dict(d);u.pop('usageHash',None)
           if supplied!=digest(u): problems.append(f'{p.name}: usage hash mismatch')
           if d.get('runId')!=p.stem: problems.append(f'{p.name}: runId mismatch')
-          start,finish,checks=inspect_run(repo,p.stem)
+          start,finish,checks,ev=inspect_run(repo,p.stem)
           if d.get('result')!=finish.get('result'): problems.append(f'{p.name}: result mismatch')
           expected={'risk':start.get('risk'),'job':start.get('job'),'capability':start.get('capability'),'model':start.get('model'),'provider':start.get('provider'),'reasoningEffort':start.get('reasoningEffort'),'worker':start.get('worker'),'head':finish.get('head'),'verificationFailed':any(x.get('status')!='PASS' for x in checks)}
           for field,value in expected.items():
             if d.get(field)!=value: problems.append(f'{p.name}: {field} mismatch')
+          # Only a PASS run claims completion; a FAIL already blocks DONE on its own.
+          if d.get('result')=='PASS':
+            rendered=browser_visible_paths(ev)
+            if rendered and UI_EVIDENCE_SKILL not in (d.get('skillsUsed') or []):
+              problems.append(f'{p.name}: browser-visible change without {UI_EVIDENCE_SKILL} evidence ({", ".join(rendered[:3])}{"…" if len(rendered)>3 else ""})')
         except Exception as e: problems.append(f'{p.name}: {e}')
     payload={'result':'VERIFIED' if not problems else 'UNVERIFIED','records':n,'problems':problems}
     print(json.dumps(payload,indent=2) if as_json else 'delivery-skill-usage: '+payload['result']+''.join(f'\n  - {x}' for x in problems)); return 0 if not problems else 2

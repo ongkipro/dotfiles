@@ -55,10 +55,24 @@ env -u OMP_RUNTIME_LEGACY_OVERLAY \
   PI_CODING_AGENT_DIR="$fixture/reference-agent" \
   "$(command -v omp)" config list --json > "$fixture/reference.json"
 
+# Deliberately NOT under PI_CODING_AGENT_DIR. The model registry is a function of
+# which providers this device has authenticated, and an isolated agent dir has
+# authenticated none — it answered with **zero** models while the real registry
+# held 94. Combined with the missing `-e` below, that made the selector checks
+# unfireable in both directions: every lookup returned null, the block evaluated
+# to `false`, and jq still exited 0. A gate that cannot fail is not a gate.
 env -u OMP_RUNTIME_LEGACY_OVERLAY \
   PI_CONFIG_FILES="$ROOT/config/omp/config.yml" \
-  PI_CODING_AGENT_DIR="$fixture/reference-agent" \
   "$(command -v omp)" models --json > "$fixture/models.json"
+
+# CI has no provider auth (RELEASE contract: repository-owned checks must not
+# require paid accounts). Say so out loud rather than passing silently.
+if [[ "$(jq '.models | length' "$fixture/models.json")" -eq 0 ]]; then
+  echo 'omp-effective-routing-test: SKIP selector validation (no authenticated provider registry)' >&2
+  skip_selector_validation=1
+else
+  skip_selector_validation=0
+fi
 
 jq -e '
   .modelRoles.value as $roles |
@@ -75,7 +89,7 @@ jq -e '
   $roles.smol == "google-antigravity/gemini-3.7-flash:medium" and
   $roles.tiny == "google-antigravity/gemini-3.7-flash:low" and
   $roles.vision == "anthropic/claude-opus-5:high" and
-  $roles.designer == "anthropic/claude-opus-5:high" and
+  $roles.designer == "google-antigravity/gemini-3.7-flash:high" and
   $roles.commit == "openai-codex/gpt-5.6-luna:low" and
   $roles.title == "google-antigravity/gemini-3.7-flash:low" and
   $roles.research == "openai-codex/gpt-5.6-terra:medium" and
@@ -85,7 +99,7 @@ jq -e '
   ($roles | has("advisor-max") | not) and
   ($fallbacks | has("advisor-max") | not) and
   ([$roles | to_entries[] | select(.value | contains("claude-fable-5")) | .key] | sort) == ["orchestrator", "plan"] and
-  ([$roles | to_entries[] | select(.value | contains("gemini-3.7-flash")) | .key] | sort) == ["smol", "tiny", "title"] and
+  ([$roles | to_entries[] | select(.value | contains("gemini-3.7-flash")) | .key] | sort) == ["designer", "smol", "tiny", "title"] and
   ([$fallbacks | to_entries[].value[] | select(contains("claude-fable-5"))] | length) == 0 and
   ([$fallbacks | to_entries[] | select(any(.value[]; contains("gemini-3.7-flash"))) | .key] | sort) == ["commit"] and
   .["advisor.enabled"].value == false and
@@ -108,7 +122,7 @@ jq -e '
   .["task.enableLsp"].value == true and
   .["task.prewalk"].value == false and
   $agents == {
-    "designer":"@vision",
+    "designer":"@designer",
     "librarian":"@research",
     "reviewer":"@advisor",
     "scout":"@discovery",
@@ -126,7 +140,11 @@ jq -e '
   exit 1
 }
 
-jq -n --slurpfile c "$fixture/reference.json" --slurpfile m "$fixture/models.json" '
+if [[ "$skip_selector_validation" -eq 0 ]]; then
+# `-e` is load-bearing: without it jq prints `false` and still exits 0, so the
+# `|| { … }` below never ran. That is how a designer selector of `:auto` — a
+# thinking level gemini-3.7-flash does not declare — passed this very check.
+jq -e -n --slurpfile c "$fixture/reference.json" --slurpfile m "$fixture/models.json" '
   def refs:
     ($c[0].modelRoles.value | to_entries[] | .value),
     ($c[0]["retry.fallbackChains"].value | to_entries[].value[]);
@@ -155,5 +173,6 @@ jq -n --slurpfile c "$fixture/reference.json" --slurpfile m "$fixture/models.jso
   echo 'FAIL: OMP reference contains an unknown selector, thinking level, or non-visual vision fallback' >&2
   exit 1
 }
+fi
 
 echo 'omp-effective-routing-test: OK (upstream defaults + cross-device reference resolve)'

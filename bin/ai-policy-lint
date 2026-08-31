@@ -55,7 +55,11 @@ def check_agents_policy():
         "goal section": "### OMP autonomous repository goals",
         "canonical task queue": "`TASKS.md` is the canonical execution",
         "development lane": "`task` / Sol:",
-        "visual lane": "`designer` / Opus:",
+        # Two anchors, because the visual lane is now two roles. Pinning only the
+        # default would let the escalation quietly disappear — and the escalation
+        # is what makes a cheap default defensible in the first place.
+        "visual lane": "`designer` / Gemini 3.7 Flash",
+        "visual escalation": "`vision` / Opus",
         "review lane": "`reviewer` / Opus:",
         "security lane": "`security-reviewer` / Opus XHigh:",
         "approval boundary": "Approval gates remain load-bearing.",

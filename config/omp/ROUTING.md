@@ -116,9 +116,41 @@ Built-in agents ship with OMP; `config/omp/agents/` tracks a definition only whe
 | `security-reviewer` | *(none)* | `@advisor-xhigh` | Bundled declares no model at all. |
 | `librarian` | `@smol` | `@research` | Bundled, evidence-heavy external reading shares the mechanical-support role and cannot be retargeted without moving `sonic` too. |
 | `scout` | `@smol` | `@discovery` | A weak model here yields a confident wrong map. |
-| `designer` | `@designer` | `@vision` | Keeps the visual lane on one role name. |
+| `designer` | `@designer` | `@designer` | Not overridden any more — see the two visual roles below. |
 
 `sonic` and `task` are deliberately **not** tracked: their bundled model already matches this fleet, so a tracked copy would change nothing while shadowing any future upstream improvement to their directives. `task.agentModelOverrides` pins both deterministically regardless. Every one of the eleven agents has an entry there, so no agent silently resolves to `default`. Inspect the bundled definitions with `omp agents unpack --dir <tmp>` before assuming what one does — and before adding a tracked copy, diff against the bundled one to confirm it is doing work.
+
+### Two visual roles, and which one is the default
+
+`vision` and `designer` are no longer the same model, and that separation is the
+point rather than an oversight:
+
+| Role | Model | When |
+| --- | --- | --- |
+| `designer` | `google-antigravity/gemini-3.7-flash:high` | Default visual lane — routine UI work, layout, states, responsive checks |
+| `vision` | `anthropic/claude-opus-5:high` | Escalation — material redesign, and visual critique where taste decides the outcome |
+
+Gemini 3.7 Flash carries this lane because it is genuinely equipped for it, not
+because it is cheap: `input: [text, image]`, so it can read a screenshot, and
+`high` is its **top** declared thinking level. It costs $0.75/$3.75 per Mtok
+against Opus 5's $5/$25 — a little over six times less — which matters when the
+Anthropic weekly allowance sits near two thirds spent while Antigravity's daily
+is barely touched.
+
+What this does **not** mean is that the strongest visual model is gone. The
+policy is *strongest designer when required*, not *always*: escalate to `@vision`
+for a material redesign or a critique that decides direction. Routing every
+spacing tweak through Opus 5 spends the allowance that escalation depends on.
+
+The `designer` fallback chain stays `gpt-5.6-sol:high → gpt-5.6-terra:high`,
+which is stronger than the primary. That is deliberate for a *failure* path: when
+the cheap primary is unavailable, correctness outranks the saving. It is not an
+implicit quality tier, and it is not a substitute for escalating to `@vision`.
+
+Until 2026-08-31 `designer` read `gemini-3.7-flash:auto` — a level the model does
+not declare (`minimal, low, medium, high`). It went unnoticed because the check
+meant to catch exactly that could not fail; see the note in
+`bin/omp-effective-routing-test`.
 
 Bundled definitions carry their own `model` and `thinkingLevel` declarations, and `agentModelOverrides` is what makes routing deterministic on top of them. Two consequences follow. A role named in a bundled definition must exist here even when an override also covers it, which is why `designer` is defined as a role alias beside `vision`. And a role's reasoning suffix must be a level its model actually supports, because an agent may declare its own level independently: `librarian` declares `minimal`, so `research` uses Gemini 3.7 Flash, which supports it, rather than Gemini 3.1 Pro, which offers only `low` and `high`.
 
