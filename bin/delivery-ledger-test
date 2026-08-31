@@ -147,6 +147,46 @@ d=json.load(open(sys.argv[1])); assert d['result']=='PASS',d; assert d['taskOwne
 PY
 python3 "$DL" --repo "$B1" finish --result PASS >/dev/null
 
+# Evidence must describe the code being shipped. A suite that passed before the
+# last edit proves nothing about what is on disk now, and HEAD does not move
+# while an agent works uncommitted, so nothing else would notice.
+BSTALE="$(make_boundary_repo boundary-stale-evidence)"
+python3 "$DL" --repo "$BSTALE" start --task TASK-BS --requirement REQ-BS --risk R1 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'src/**' >/dev/null
+printf 'first attempt\n' >> "$BSTALE/src/feature.txt"
+python3 "$DL" --repo "$BSTALE" record --check unit --status PASS >/dev/null
+printf 'edited after the green check\n' >> "$BSTALE/src/feature.txt"
+python3 "$DL" --repo "$BSTALE" check-boundary >/dev/null
+set +e; python3 "$DL" --repo "$BSTALE" finish --result PASS >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "a PASS whose only green check predates the last edit must be refused as stale"
+python3 "$DL" --repo "$BSTALE" record --check unit --status PASS >/dev/null
+python3 "$DL" --repo "$BSTALE" check-boundary >/dev/null
+python3 "$DL" --repo "$BSTALE" finish --result PASS >/dev/null || fail "re-running the check against the current tree must clear the staleness"
+
+# Committing verified work is not a change to it. A first attempt at the rule
+# above collected "currently dirty" at both ends; a commit empties that set
+# without touching a byte, so it declared commit-then-finish stale. The digest
+# therefore re-measures a *fixed* recorded path list instead of recollecting one.
+#
+# This needs its own case. The unbounded run at the top of this file looks like
+# it covers it and does not: `.delivery/` is excluded from dirty paths, so its
+# check is recorded against an empty set and both definitions agree. A bounded
+# run cannot cover it either — its boundary refuses a mid-run commit with
+# "repository HEAD moved after baseline capture". Only an unbounded run holding a
+# genuinely dirty tracked file can tell the two apart.
+CMT="$TMP/commit-then-finish"; mkdir -p "$CMT"
+(cd "$CMT"; git init -q; git config user.email t@e.com; git config user.name t
+ printf '# Status\nState: READY\n' > STATUS.md; printf 'base\n' > work.txt
+ git add . && git commit -qm baseline)
+python3 "$DL" --repo "$CMT" init >/dev/null
+python3 "$DL" --repo "$CMT" start --task TASK-CMT --requirement REQ-CMT --risk R0 --worker task --model m --provider p --reasoning-effort high >/dev/null
+printf 'verified change\n' >> "$CMT/work.txt"
+python3 "$DL" --repo "$CMT" record --check unit --status PASS >/dev/null
+grep -q '"checkedPaths":\["work.txt"\]' "$(find "$CMT/.delivery/runs" -name 'RUN-*.jsonl')" \
+  || fail "the check must record the dirty file it ran against, or this case proves nothing"
+git -C "$CMT" add work.txt && git -C "$CMT" commit -qm 'commit the verified work'
+python3 "$DL" --repo "$CMT" finish --result PASS >/dev/null \
+  || fail "committing verified work must not invalidate its verification"
+
 # An unrelated change fails, denies PASS, and does not reset or clean user work.
 B2="$(make_boundary_repo boundary-outside)"
 python3 "$DL" --repo "$B2" start --task TASK-B2 --requirement REQ-B2 --risk R1 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'src/**' >/dev/null

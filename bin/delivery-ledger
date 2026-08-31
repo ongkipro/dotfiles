@@ -138,6 +138,25 @@ def snapshot_dirty(repo: Path) -> list[dict]:
     return [{"path": path, "fingerprint": fingerprint(repo, path)} for path in dirty_paths(repo)]
 
 
+def surface_of(repo: Path, relatives: list[str]) -> str:
+    """Content identity of a fixed set of paths, independent of commit state.
+
+    `head` alone cannot answer this: an agent edits the working tree for a whole
+    run without committing, so HEAD never moves while the code under test changes
+    completely.
+
+    The path list must be fixed by the caller and re-measured later, never
+    recollected. Collecting "currently dirty" at both ends compares two different
+    questions: committing the verified work empties that set without touching a
+    byte, and a first attempt at this rule duly declared every commit-then-finish
+    run stale — a workflow that is not merely legal but the correct one.
+
+    Known limit: a file created *after* the check is not in the recorded list, so
+    it does not mark the check stale here. The boundary check owns new paths.
+    """
+    return digest([{"path": path, "fingerprint": fingerprint(repo, path)} for path in relatives])
+
+
 def validate_pattern(pattern: str) -> str:
     if not pattern or pattern.startswith("/") or "\\" in pattern:
         raise ValueError(f"invalid boundary pattern: {pattern!r}")
@@ -546,7 +565,10 @@ def cmd_record(repo: Path, a) -> int:
     if a.status not in CHECK_STATUS:
         raise ValueError("check status must be PASS, FAIL, or UNVERIFIED")
     e = event_base(repo, "verification", run_id)
-    e.update({"check": a.check, "status": a.status, "detail": a.detail})
+    checked_paths = dirty_paths(repo)
+    e.update({"check": a.check, "status": a.status, "detail": a.detail,
+              "checkedPaths": checked_paths,
+              "checkedDigest": surface_of(repo, checked_paths)})
     append_event(run_path, e); save_current(repo, data)
     print(f"delivery-ledger: RECORDED {a.check}={a.status}")
     return OK
@@ -1061,6 +1083,23 @@ def cmd_finish(repo: Path, a) -> int:
         ]
         if blocking_checks:
             raise ValueError("PASS cannot follow FAIL or UNVERIFIED verification unless the UNVERIFIED check is explicitly pre-existing")
+        # Evidence must describe the code being shipped. A suite that passed
+        # before the last three edits proves nothing about what is on disk now —
+        # and nothing here noticed, because `head` does not move while an agent
+        # works uncommitted. The boundary check has been guarded this way all
+        # along ("change surface moved after boundary check"); its verification
+        # evidence was not.
+        #
+        # Not every check must match: work legitimately interleaves editing and
+        # testing. At least one PASS must have been produced against the final
+        # surface, which is what "the suite was green when I stopped" means.
+        dated = [check for check in checks if check.get("checkedDigest") is not None]
+        if dated and not any(
+            check.get("status") == "PASS"
+            and check.get("checkedDigest") == surface_of(repo, check.get("checkedPaths") or [])
+            for check in dated
+        ):
+            raise ValueError("every passing verification is stale: the files it ran against changed afterwards, so re-run a check before PASS")
         start = run_start(events)
         if start.get("boundary"):
             report = evaluate_boundary(repo, events)

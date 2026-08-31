@@ -166,6 +166,34 @@ No child patch is auto-applied by OMP.
 `boundary_check`, only passing verification events, and a bound approval for
 `REVIEW_REQUIRED`. A stale, failed, or missing check denies completion.
 
+## Verification freshness
+
+The boundary has always refused a `PASS` whose change surface moved after the
+last `check-boundary` ("change surface moved after boundary check"). Its
+*verification* evidence carried no such rule until 2026-08-31: a suite that
+passed three edits ago satisfied `PASS`, and nothing noticed, because `HEAD` does
+not move while an agent works uncommitted.
+
+Each `record --check` now stores the dirty paths it ran against (`checkedPaths`)
+and a content digest of them (`checkedDigest`). `finish --result PASS` requires
+**at least one passing check whose recorded paths still hash to the same
+content**. Not every check must match — work legitimately interleaves editing and
+testing — but the evidence justifying `PASS` must describe the code being
+shipped.
+
+Two properties are deliberate, and each cost a wrong first attempt:
+
+- **The path list is fixed at check time and re-measured, never recollected.**
+  Collecting "currently dirty" at both ends compares different questions:
+  committing the verified work empties that set without changing a byte, and the
+  first implementation duly called every commit-then-finish run stale.
+- **A file created after the check does not mark it stale.** New paths are the
+  boundary's concern, not the freshness rule's; conflating them would fail a run
+  for adding a file the check never needed to cover.
+
+Runs recorded before this existed carry no `checkedDigest` and are not judged by
+it — the rule cannot retroactively invalidate evidence it never measured.
+
 ## Known limitations
 
 - This is a completion/evidence gate, not a filesystem write interceptor. It
