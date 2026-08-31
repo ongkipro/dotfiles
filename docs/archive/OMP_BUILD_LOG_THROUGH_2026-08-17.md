@@ -505,3 +505,50 @@ supporting service was installed or enabled by this change.
 
 `omp-routing-test` passes with 13 roles, 11 overrides, two overlays, and 790
 catalog models.
+
+---
+
+Moved out of the hot `config/omp/BUILD-LOG.md` on 2026-08-31 to stay inside its
+12 KB context budget. Unedited.
+
+## 2026-08-26 runtime maintenance
+
+- Updated the native OMP binary from 18.0.4 to 18.0.5 with `omp update`.
+- Confirmed from upstream OMP documentation that built-in resolution remains
+  separate from persistent user configuration. The upstream defaults were not
+  changed.
+- While direct Anthropic authentication is unavailable, the native device-local
+  user config routes every configured model role and fallback through Google
+  Antigravity or OpenAI Codex. No credential, account identifier, or selector
+  graph was copied into dotfiles.
+- Corrected the device-local `vision` and `designer` roles from Gemini 3.1 Pro
+  to Gemini 3.7 Flash High after checking current Google evidence rather than
+  inferring capability from the Pro/Flash labels. Google's 3.7 guidance names
+  web development, design adherence, mock-to-code fidelity, and migration from
+  3.1 Pro explicitly; the live OMP catalog and serving path were then verified.
+- Reconciled the complete temporary role graph against OMP 18.0.5 rather than
+  the retired tracked agent set: covered all ten built-in roles, retained four
+  support roles used by bundled agents, limited overrides to the seven agents
+  actually shipped by the runtime, and removed stale overrides for four
+  retired custom agents.
+- Preserved Anthropic capability without routing into a disconnected direct
+  provider. Direct `anthropic` remains first in provider precedence for future
+  recovery; the active `slow` and `plan` lanes use Claude Opus 4.6 High through
+  connected Antigravity, while normal review uses Claude Sonnet 4.6 High.
+  Both Claude serving paths passed live probes after a catalog refresh.
+- Security review remains on Codex GPT-5.6 Sol XHigh, the strongest connected
+  reasoning lane with an `xhigh` tier. Its fallbacks cross first to Claude Opus
+  and then Gemini rather than silently reducing the primary effort tier.
+- Aligned support effort with workload: Gemini 3.7 Flash Medium for research
+  and discovery, Flash Low for tiny/title work, and Codex Luna Low for commit
+  generation. The complete graph contains fourteen roles and twenty-five
+  fallbacks; all thirty-nine selectors and effort suffixes were checked against
+  the refreshed live catalog with zero resolution errors.
+- Validated OMP's 18.x native memory implementation, then left it disabled
+  because enabling it would create a second memory system rather than sync the
+  existing cross-CLI source. The empty-payload warning refers only to that
+  native backend.
+- Preserved one cross-device lifecycle: OMP reads curated dotfiles memory
+  through the shared `AGENTS.md`; verified reusable outcomes from OMP return
+  through `ai-learn capture`, review, and explicit
+  `ai-learn promote ... --yes`. Raw rollouts are never auto-ingested.

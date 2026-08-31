@@ -1,6 +1,6 @@
 # OMP Build Log
 
-Updated: 2026-08-28
+Updated: 2026-08-31
 
 This hot log contains only current OMP operating decisions and reproducible
 evidence. Full history through the start of TASK-015 is retained in
@@ -22,6 +22,41 @@ evidence. Full history through the start of TASK-015 is retained in
 - `omp-routing-test` validates the native ownership boundary;
   `omp-effective-routing-test` proves both an isolated upstream profile and the
   explicit reference resolve through OMP's native loader.
+
+## 2026-08-31 a routing guard that could not fail
+
+- `omp-effective-routing-test`'s selector/thinking-level/visual validator had
+  never been able to fail. Its `jq` ran **without `-e`**, so it printed `false`
+  and exited 0 with the `|| { FAIL }` unreachable; and its `models.json` came
+  from an isolated `PI_CODING_AGENT_DIR` with no authenticated provider, so the
+  registry held **zero** models against 94 real ones and every lookup was null.
+  Either alone made it useless; together they made it look rigorous.
+- Fixed with `-e`, the ambient registry, and an explicit SKIP when no
+  authenticated registry exists — CI has no provider auth and must say so rather
+  than pass quietly. Mutation-proven in all three directions.
+- That dead guard is why `designer: gemini-3.7-flash:auto` went unnoticed in both
+  the tracked reference and the live native config. `auto` is not a level that
+  model declares (`minimal, low, medium, high`).
+- Visual lane settled as two roles rather than reverted. `designer` is
+  `gemini-3.7-flash:high` — its top declared level — chosen on merit: it accepts
+  image input at $0.75/$3.75 per Mtok against Opus 5's $5/$25, which matters
+  while the Anthropic weekly allowance sits near two thirds spent. `vision` stays
+  Opus 5 High for material redesign. Strongest designer *when required*.
+- Its fallback chain stays `sol:high → terra:high`, deliberately stronger than
+  the primary: that is a failure path, not a quality tier.
+- The lane is pinned in **three** places — the routing test, `ai-policy-lint`,
+  and `config/ai/AGENTS.md`. The third surfaced only because the policy lint
+  failed on the AGENTS.md edit. The lint now anchors both roles, so the
+  escalation cannot vanish quietly.
+- Skill attribution was tamper-evident but not truth-evident: `skillsUsed` is
+  agent-supplied and no gate enforced a required capability. `delivery-skill-usage
+  verify` now refuses a PASS run whose boundary check saw a changed rendered
+  surface unless `ui-validation` is recorded — triggered by observed paths, never
+  by the agent's account of its own work.
+- Evidence: `ai-doctor --self-test` passes; four mutations each fail exactly one
+  intended assertion.
+- Not done: the Mac's native `~/.omp/agent/config.yml` still carries the old
+  designer value. OMP native config does not travel through Git.
 
 ## 2026-08-28 OMP 18.0.9 and autonomous goals
 
@@ -107,48 +142,6 @@ evidence. Full history through the start of TASK-015 is retained in
   `research` on Flash Medium, with cross-provider fallbacks.
 - Limited deterministic agent overrides to the seven agents bundled by OMP
   18.0.6; no retired custom agent definition was restored.
-
-## 2026-08-26 runtime maintenance
-
-- Updated the native OMP binary from 18.0.4 to 18.0.5 with `omp update`.
-- Confirmed from upstream OMP documentation that built-in resolution remains
-  separate from persistent user configuration. The upstream defaults were not
-  changed.
-- While direct Anthropic authentication is unavailable, the native device-local
-  user config routes every configured model role and fallback through Google
-  Antigravity or OpenAI Codex. No credential, account identifier, or selector
-  graph was copied into dotfiles.
-- Corrected the device-local `vision` and `designer` roles from Gemini 3.1 Pro
-  to Gemini 3.7 Flash High after checking current Google evidence rather than
-  inferring capability from the Pro/Flash labels. Google's 3.7 guidance names
-  web development, design adherence, mock-to-code fidelity, and migration from
-  3.1 Pro explicitly; the live OMP catalog and serving path were then verified.
-- Reconciled the complete temporary role graph against OMP 18.0.5 rather than
-  the retired tracked agent set: covered all ten built-in roles, retained four
-  support roles used by bundled agents, limited overrides to the seven agents
-  actually shipped by the runtime, and removed stale overrides for four
-  retired custom agents.
-- Preserved Anthropic capability without routing into a disconnected direct
-  provider. Direct `anthropic` remains first in provider precedence for future
-  recovery; the active `slow` and `plan` lanes use Claude Opus 4.6 High through
-  connected Antigravity, while normal review uses Claude Sonnet 4.6 High.
-  Both Claude serving paths passed live probes after a catalog refresh.
-- Security review remains on Codex GPT-5.6 Sol XHigh, the strongest connected
-  reasoning lane with an `xhigh` tier. Its fallbacks cross first to Claude Opus
-  and then Gemini rather than silently reducing the primary effort tier.
-- Aligned support effort with workload: Gemini 3.7 Flash Medium for research
-  and discovery, Flash Low for tiny/title work, and Codex Luna Low for commit
-  generation. The complete graph contains fourteen roles and twenty-five
-  fallbacks; all thirty-nine selectors and effort suffixes were checked against
-  the refreshed live catalog with zero resolution errors.
-- Validated OMP's 18.x native memory implementation, then left it disabled
-  because enabling it would create a second memory system rather than sync the
-  existing cross-CLI source. The empty-payload warning refers only to that
-  native backend.
-- Preserved one cross-device lifecycle: OMP reads curated dotfiles memory
-  through the shared `AGENTS.md`; verified reusable outcomes from OMP return
-  through `ai-learn capture`, review, and explicit
-  `ai-learn promote ... --yes`. Raw rollouts are never auto-ingested.
 
 ## TASK-015 decisions
 
