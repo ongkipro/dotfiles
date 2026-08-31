@@ -24,6 +24,20 @@ _None._
 
 ## Recently completed
 
+### TASK-033: What only macOS could find
+- **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/dev-ready`, `bin/dev-ready-test`, `bin/device-verify`, `bin/ai-doctor`, `bin/ai-policy-lint`, `TASKS.md`, `docs/device-reports/**`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.readiness`, `runtime.device-verification`
+- **Accepted Invariants:** a tool that cannot run says so precisely; it never reports a verdict it did not reach
+- **Regression Checks:** `dev-ready-test`, `ai-policy-lint`
+- **Runtime Evidence:** macOS report 2026-08-31T184018Z (4 gates FAILED) and its successor
+- **Reopen Conditions:** a device report names a cause that is not the real one
+- **Non-Scope:** installing node or actionlint on any device
+- **Verification:** `bin/device-verify` on both devices
+- **Escalation Conditions:** a platform difference cannot be expressed without weakening a gate
+
 ### TASK-032: The portable reference must not demand one device's providers
 - **Requirement:** REQ-PORTABLE-ROUTING
 - **Risk Level:** R1

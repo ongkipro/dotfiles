@@ -75,6 +75,9 @@ def check_agents_policy():
 def run_canonical_gate(label, command, extra_env=None):
     try:
         environment = os.environ.copy()
+        shims = os.path.expanduser("~/.local/share/mise/shims")
+        if os.path.isdir(shims) and shims not in environment.get("PATH", ""):
+            environment["PATH"] = shims + os.pathsep + environment.get("PATH", "")
         environment.update(extra_env or {})
         result = subprocess.run(
             [str(part) for part in command],
@@ -85,6 +88,14 @@ def run_canonical_gate(label, command, extra_env=None):
             env=environment,
             check=False,
         )
+    except FileNotFoundError:
+        # A tool this device does not have cannot judge anything, and saying so
+        # is the only honest verdict: failing would make one machine's missing
+        # formula a repository error, and passing would claim a check that never
+        # ran. The Mac reported actionlint as an ERROR on 2026-09-01 while its
+        # workflows were never examined at all.
+        warn(f"{label} not validated here: {command[0]} is not installed on this device")
+        return
     except OSError as error:
         err(f"{label} could not start: {error}")
         return

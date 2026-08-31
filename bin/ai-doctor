@@ -316,9 +316,16 @@ for cfg in "$HOME/.claude" "$HOME"/.claude-accounts/*/; do
 done
 
 if [ -x "$DOT/bin/ai-memory-check" ]; then
-  "$DOT/bin/ai-memory-check" >/dev/null 2>&1 \
-    && ok "referensi memori: Markdown links + wikilinks utuh" \
-    || bad "referensi memori menggantung/ambigu — jalankan: ai-memory-check"
+  # Exit 127 means the interpreter is missing, not that the references are
+  # broken. The Mac reported "referensi memori menggantung" for three gates on
+  # 2026-09-01 when the real cause was node absent from a non-interactive PATH —
+  # a diagnosis that sends the reader to inspect memory files that were fine.
+  "$DOT/bin/ai-memory-check" >/dev/null 2>&1
+  case "$?" in
+    0)   ok "referensi memori: Markdown links + wikilinks utuh" ;;
+    127) bad "ai-memory-check tidak bisa jalan (interpreter hilang, exit 127) — referensi memori TIDAK terperiksa; cek: mise which node" ;;
+    *)   bad "referensi memori menggantung/ambigu — jalankan: ai-memory-check" ;;
+  esac
 else
   wrn "bin/ai-memory-check tidak ada"
 fi

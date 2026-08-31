@@ -40,6 +40,13 @@ mkdir -p "$TMP/nocontract" && git -C "$TMP/nocontract" init -q
 expect "git repo with no contract document blocks repo authority" \
   "nothing in-repo defines the contract" "$TMP/nocontract"
 
+# macOS reaches TMPDIR through /var, a symlink to /private/var. Reproduce that
+# shape on any platform: without physical-path comparison the repository is
+# reported as nested inside itself and every other check is never reached.
+mkdir -p "$TMP/phys" && scaffold "$TMP/phys" && ln -s "$TMP/phys" "$TMP/via-symlink"
+expect "a repository reached through a symlinked path is its own root" \
+  "PROJECT READY" "$TMP/via-symlink"
+
 scaffold "$TMP/notasks" && rm "$TMP/notasks/TASKS.md"
 expect "missing TASKS.md blocks the task queue" \
   "no TASKS.md" "$TMP/notasks"

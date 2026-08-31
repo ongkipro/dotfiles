@@ -1,25 +1,25 @@
 {
   "activeRun": null,
   "lastCheckpoint": {
-    "eventHash": "73f78bd3d2291bcee95267781864c703fecbbbbae7f461b29b0ce8e1b0f2c64c",
-    "eventId": "ab4f58f321de4408ac8a53d0316bf70c",
-    "head": "46bc7df05695f9e7154228ad056e722a1ce31e75",
-    "note": "Work complete and verified: dev-ready-test 12/12, ai-policy-lint PASS, dev-ready PASS against this repository. Boundary is REVIEW_REQUIRED at effectiveRisk R2 (risk escalation plus an accepted expansion to bin/device-verify \u2014 the fifth under-declared surface today, which is itself the finding). Closing BLOCKED rather than PASS because no independent reviewer with a differing model/provider has run: recording one that did not review would be fabricated attribution. The change ships so macOS can test it; the review remains owed and TASK-031 stays open for it.",
-    "prevEventHash": "618ac36f4d9b1abf6020c8e1076412495e73a3e2cc29ecc495bb4a131799ec57",
-    "runId": "RUN-20260831T175520Z-f787c884",
+    "eventHash": "14f9083eddb1c5c7835a63d539ff1b5d58adfea8a6aa219791c54112ef6706a3",
+    "eventId": "82040036e6aa44c1a41c2fa79635a014",
+    "head": "c6f231c187a8a2100a54897140e2319f4a1be1db",
+    "note": "Verified: dev-ready-test 13/13 including a new case that reproduces the macOS symlinked-TMPDIR shape and provably fails without the fix; ai-policy-lint PASS; ai-doctor PASS. Boundary REVIEW_REQUIRED at R2 for touching ai-doctor and ai-policy-lint. Closing BLOCKED: no independent reviewer with a differing model/provider has run, and recording one that did not would be fabricated attribution. Ships so macOS can re-verify; the review remains owed.",
+    "prevEventHash": "74cb5faf4de202815ff03be4ad3f570dbaa84725f6ab43d3c2a3c74fb9b88d7d",
+    "runId": "RUN-20260831T184349Z-5a2dd269",
     "state": null,
-    "time": "2026-08-31T18:34:58Z",
+    "time": "2026-08-31T18:51:26Z",
     "type": "checkpoint"
   },
   "lastRun": {
-    "finishedAt": "2026-08-31T18:39:04Z",
-    "result": "PASS",
-    "runId": "RUN-20260831T183602Z-d0928cf0"
+    "finishedAt": "2026-08-31T18:51:26Z",
+    "result": "BLOCKED",
+    "runId": "RUN-20260831T184349Z-5a2dd269"
   },
-  "observedHead": "2231c21c855ab04be851268d0925c473051c6129",
+  "observedHead": "c6f231c187a8a2100a54897140e2319f4a1be1db",
   "observedState": null,
   "project": "dotfiles",
   "schemaVersion": 1,
   "statusAuthority": "STATUS.md",
-  "updatedAt": "2026-08-31T18:39:04Z"
+  "updatedAt": "2026-08-31T18:51:26Z"
 }

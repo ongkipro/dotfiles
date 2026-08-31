@@ -15,9 +15,9 @@
 # Usage: dev-ready [REPO]   (defaults to the current directory)
 set -uo pipefail
 
-REPO="$(cd "${1:-.}" 2>/dev/null && pwd)" || { echo "dev-ready: no such directory: ${1:-.}"; exit 2; }
+REPO="$(cd "${1:-.}" 2>/dev/null && pwd -P)" || { echo "dev-ready: no such directory: ${1:-.}"; exit 2; }
 ROOT="${DOTFILES_DIR:-$HOME/dotfiles}"
-export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 blockers=(); degraded=(); lines=()
 pass()  { lines+=("- $1: PASS${2:+ ($2)}"); }
@@ -25,7 +25,12 @@ soft()  { lines+=("- $1: degraded ($2)"); degraded+=("$1: $2"); }
 skip()  { lines+=("- $1: not required${2:+ ($2)}"); }
 fail()  { lines+=("- $1: BLOCKED ($2)"); blockers+=("$1: $2"); }
 
-git_repo() { git -C "$REPO" rev-parse --show-toplevel 2>/dev/null; }
+# macOS reaches TMPDIR through /var, a symlink to /private/var, so `pwd` and
+# `git rev-parse --show-toplevel` name the same directory differently and every
+# temporary repository was reported as nested inside itself. Compare physical
+# paths on both sides.
+git_repo() { local t; t="$(git -C "$REPO" rev-parse --show-toplevel 2>/dev/null)" || return 1
+  [ -n "$t" ] && (cd "$t" && pwd -P); }
 
 # 1. repo authority — the repository, not personal memory, must own its truth.
 top="$(git_repo)"
@@ -51,7 +56,7 @@ if [ ! -f "$REPO/TASKS.md" ]; then
 elif ! grep -qE '^#{2,4} +[A-Z]+-[0-9]+' "$REPO/TASKS.md"; then
   fail "task queue" "TASKS.md has no '### TASK-nnn' entry; nothing is selectable"
 else
-  n="$(grep -cE '^#{2,4} +[A-Z]+-[0-9]+' "$REPO/TASKS.md")"
+  n="$(grep -cE '^#{2,4} +[A-Z]+-[0-9]+' "$REPO/TASKS.md" | tr -d " ")"
   pass "task queue" "$n entries"
 fi
 
@@ -79,7 +84,7 @@ fi
 # 5. skills discovery — the routing table is worthless if its cells name skills
 #    that are not installed. ai-policy-lint owns that graph; reuse it.
 if [ -d "$ROOT/skills/local" ]; then
-  n="$(find "$ROOT/skills/local" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l)"
+  n="$(find "$ROOT/skills/local" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d " ")"
   if [ "$n" -gt 0 ]; then pass "skills discovery" "$n owned skills"
   else fail "skills discovery" "$ROOT/skills/local has no SKILL.md; no owned capability is discoverable"; fi
 else
@@ -137,6 +142,19 @@ if git -C "$REPO" ls-files 2>/dev/null | grep -qE '\.(tsx|jsx|vue|svelte|astro|c
   # The browser list is overridable so the failure path is testable: PATH cannot
   # un-find a binary, and a check whose failure branch never runs is not a check.
   b="$(command -v ${DEV_READY_BROWSERS:-google-chrome chromium chromium-browser} 2>/dev/null | head -1)"
+  # macOS ships browsers as .app bundles that are never on PATH, so a PATH-only
+  # probe reports every Mac as unable to verify anything visual. Found by running
+  # this on the Mac, which is the entire argument for running it there. The
+  # bundle search is skipped when the caller names the browsers, or the test's
+  # failure case could never fail on a machine that has Chrome installed.
+  if [ -z "$b" ] && [ -z "${DEV_READY_BROWSERS:-}" ]; then
+    for app in "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+               "/Applications/Chromium.app/Contents/MacOS/Chromium" \
+               "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge" \
+               "$HOME/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"; do
+      [ -x "$app" ] && { b="$app"; break; }
+    done
+  fi
   if [ -n "$b" ]; then pass "browser runner" "$b"
   else fail "browser runner" "repository has browser-visible files but no chrome/chromium; visual claims would be unverifiable"; fi
 else
@@ -146,7 +164,7 @@ fi
 # 9. dirty worktree boundary — pre-existing work is not a blocker, but starting
 #    without knowing it is. The boundary refuses a run whose surface overlaps it.
 if [ -n "$top" ]; then
-  dirty="$(git -C "$REPO" status --porcelain 2>/dev/null | grep -v '^.. \.delivery/' | wc -l)"
+  dirty="$(git -C "$REPO" status --porcelain 2>/dev/null | grep -v '^.. \.delivery/' | wc -l | tr -d ' ')"
   if [ "$dirty" -eq 0 ]; then pass "dirty worktree boundary" "clean"
   else soft "dirty worktree boundary" "$dirty path(s) already dirty; declare --accept-dirty or avoid them"; fi
 else
