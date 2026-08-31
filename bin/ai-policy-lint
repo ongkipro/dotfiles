@@ -383,6 +383,35 @@ def check_hot_context():
                 f"move the detail to the document that owns it and leave an anchor")
 
 
+def check_command_manifest():
+    """Both directions, because checking one is how the gap survived.
+
+    `installer-link-test` proves every manifest entry resolves to an executable.
+    Nothing proved the reverse, so a command could exist in `bin/` and never be
+    linked into `~/.local/bin` on any device — invisible on the machine that wrote
+    it, absent everywhere else. TASK-022 fixed four such commands and still missed
+    `omp-runtime-report`, because its own check compared `bin/*-test` against the
+    manifest's `-test` entries and a non-test command was outside the question.
+
+    A command has no file extension; a helper another command sources does
+    (`pi-9router-sync.js`). That is the repository's actual convention, not a rule
+    invented here — one file in eighty carries a suffix, and it is the one that is
+    not a command.
+    """
+    manifest = AI_DIR / "runtime-commands.txt"
+    bin_dir = ROOT / "bin"
+    if not manifest.is_file() or not bin_dir.is_dir():
+        return
+    listed = {line.strip() for line in manifest.read_text(encoding="utf-8").splitlines()
+              if line.strip() and not line.startswith("#")}
+    commands = {p.name for p in bin_dir.iterdir()
+                if p.is_file() and os.access(p, os.X_OK) and "." not in p.name}
+    for name in sorted(commands - listed):
+        err(f"bin/{name} is an executable command that no installer links: "
+            f"add it to config/ai/runtime-commands.txt or give it a suffix if it is a helper")
+    print(f"  OK  command manifest: {len(commands)} command(s) in bin/, all listed")
+
+
 def check_skill_routing_graph():
     """Every skill a routing table hands work to must exist.
 
@@ -427,6 +456,7 @@ def main():
     run_canonical_gate("OMP routing", [ROOT / "bin" / "omp-routing-test", ROOT])
     run_canonical_gate("owned skills", [ROOT / "skills" / "agents-bin" / "skill-check"], {"SKILL_SOURCE": str(ROOT / "skills" / "local")})
     check_skill_routing_graph()
+    check_command_manifest()
     run_canonical_gate("memory and Markdown links", [ROOT / "bin" / "ai-memory-check", ROOT])
     run_canonical_gate("memory hygiene regression", [ROOT / "bin" / "ai-memory-hygiene-test", ROOT])
     report_memory_hygiene()

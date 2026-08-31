@@ -44,6 +44,7 @@ memory-usage-hook-test
 migration-risk
 omp-effective-routing-test
 omp-routing-test
+omp-runtime-report
 omp-runtime-report-test
 omp-workspace-test
 pi-9router-restore
