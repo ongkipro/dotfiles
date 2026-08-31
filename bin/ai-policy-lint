@@ -332,6 +332,41 @@ def check_hot_context():
             err(f"Hot-context budget exceeded: {relative} is {size} bytes (limit {limit}); archive history before adding more")
 
 
+def check_skill_routing_graph():
+    """Every skill a routing table hands work to must exist.
+
+    The specialist graph — `full-stack-development` sending schema work to
+    `postgres-drizzle`, browser evidence to `ui-validation` — is prose, and prose
+    with a typo routes nowhere. A rename silently breaks capability routing while
+    every existing gate reports clean: `skill-surface-check` is report-only and
+    checks command references, not skill references, and a deliberately misspelled
+    `nextjs-devlopment` passed both it and this lint before this existed.
+
+    Scope is a routing-table cell whose entire content is code spans — the shape
+    `| Next.js App Router … | \\`nextjs-development\\` |`. Prose mentions are left
+    alone on purpose: they name npm packages (`postal-mime`), dotfiles commands
+    (`ai-memory-lifecycle`) and YAML keys (`max-parallel`), and flagging those
+    would train people to ignore this check. Across the current corpus the narrow
+    rule finds 65 references and zero false positives.
+    """
+    skills_root = ROOT / "skills" / "local"
+    if not skills_root.is_dir():
+        return
+    installed = {p.name for p in skills_root.iterdir() if (p / "SKILL.md").is_file()}
+    cell = re.compile(
+        r"^\|.*\|\s*((?:`[a-z0-9-]+`(?:\s*(?:plus|and|,|then|->|→)\s*)?)+)\s*\|\s*$", re.M)
+    token = re.compile(r"`([a-z0-9-]+)`")
+    checked = 0
+    for skill_file in sorted(skills_root.glob("*/SKILL.md")):
+        for match in cell.finditer(skill_file.read_text(encoding="utf-8")):
+            for name in token.findall(match.group(1)):
+                checked += 1
+                if name not in installed:
+                    err(f"{skill_file.parent.name}: routing table hands work to "
+                        f"'{name}', which is not an installed skill")
+    print(f"  OK  skill routing graph: {checked} routing reference(s) resolve to installed skills")
+
+
 def main():
     print("ai-policy-lint: Auditing dotfiles policy, routing, skills, and templates...")
     print("─" * 60)
@@ -340,6 +375,7 @@ def main():
     run_canonical_gate("GitHub workflows", ["actionlint"])
     run_canonical_gate("OMP routing", [ROOT / "bin" / "omp-routing-test", ROOT])
     run_canonical_gate("owned skills", [ROOT / "skills" / "agents-bin" / "skill-check"], {"SKILL_SOURCE": str(ROOT / "skills" / "local")})
+    check_skill_routing_graph()
     run_canonical_gate("memory and Markdown links", [ROOT / "bin" / "ai-memory-check", ROOT])
     run_canonical_gate("memory hygiene regression", [ROOT / "bin" / "ai-memory-hygiene-test", ROOT])
     report_memory_hygiene()
