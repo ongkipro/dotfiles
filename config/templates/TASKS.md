@@ -26,6 +26,7 @@ Every implementation task must trace to one accepted requirement, declare its ri
 - **Depends On:** [Prior integrated task/child or `None`]
 - **Regression Checks:** [Named executable checks required before integration]
 - **Runtime Evidence:** [Browser, CLI, or service scenario; `None` only when inapplicable]
+- **Visual Contract:** [Required when Allowed Paths touch `.tsx/.jsx/.vue/.svelte/.astro/.css/.scss/.html`. Name: surface type, primary user and their job, visual direction and its token source, density, desktop and mobile behaviour, the states that must exist (loading/empty/error/success/disabled), and what would be rejected. "Modern UI" is not a contract — it cannot be failed, so it cannot be reviewed. Use `Not applicable` for non-visual work.]
 - **Reopen Conditions:** [Evidence that invalidates Done and reopens the task]
 - **Rollback/Migration State:** [Rollback boundary or `Not applicable`]
 - **Non-Scope:** [Explicitly untouched paths or systems]

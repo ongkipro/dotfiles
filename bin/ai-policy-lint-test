@@ -109,6 +109,44 @@ reject_contract "unparsable risk level" "$TMP/no-risk.md" "no parsable Risk Leve
 { good_task; good_task | tail -n +2; } > "$TMP/duplicate.md"
 reject_contract "duplicate task ID" "$TMP/duplicate.md" "duplicate task ID TASK-900"
 
+# A task that changes a rendered surface needs stated visual criteria, or
+# "modern UI" is the whole brief and review has nothing to measure. The trigger
+# is the declared change surface, matching the delivery ledger's browser-evidence
+# gate: paths decide, not the author's account of the work.
+ui_task(){
+  good_task | sed 's|^- \*\*Allowed Paths:\*\* `src/\*\*`|- **Allowed Paths:** `src/components/Card.tsx`|'
+}
+ui_task > "$TMP/ui-no-contract.md"
+reject_contract "rendered surface without a visual contract" "$TMP/ui-no-contract.md" \
+  "changes a rendered surface (.tsx) and must declare Visual Contract"
+
+{ ui_task; echo '- **Visual Contract:** modern UI'; } > "$TMP/ui-placeholder.md"
+reject_contract "a visual contract that cannot be failed" "$TMP/ui-placeholder.md" \
+  "declares a placeholder Visual Contract"
+
+{ ui_task; echo '- **Visual Contract:** Storefront PDP card; buyer scanning price; tokens from design-tokens.md; states loading/empty/error; rejects a centred hero'; } > "$TMP/ui-good.md"
+contracts "$TMP/ui-good.md" >/dev/null || fail "a stated visual contract must satisfy the lint"
+
+# The trigger must be the paths, not the risk level or the words in the title.
+# Demanding a visual contract from backend work would train people to paste one
+# in, which is the same failure as accepting "modern UI".
+good_task > "$TMP/non-ui.md"
+contracts "$TMP/non-ui.md" >/dev/null || fail "non-visual work must not be asked for a visual contract"
+
+# Mutation proof: without the trigger the negative fixture passes.
+python3 - "$LINT" "$TMP/ui-no-contract.md" <<'PY'
+import importlib.util, sys, tempfile, pathlib
+src = pathlib.Path(sys.argv[1]).read_text().replace(
+    "rendered = [ext for ext in BROWSER_VISIBLE_SUFFIXES if ext in surface]",
+    "rendered = []")
+tmp = pathlib.Path(tempfile.mkstemp(suffix=".py")[1]); tmp.write_text(src)
+spec = importlib.util.spec_from_file_location("pl", tmp)
+mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+body = pathlib.Path(sys.argv[2]).read_text()
+if any("rendered surface" in p for p in mod.lint_task_contracts("T", body)):
+    raise SystemExit("mutation still reported — the trigger is not what enforces this")
+PY
+
 # A fenced contract template is documentation, not a declared task.
 { printf '## Template\n\n```markdown\n'; good_task | tail -n +2 | grep -v '^- \*\*Non-Scope'; printf '```\n'; } > "$TMP/fenced.md"
 contracts "$TMP/fenced.md" >/dev/null || fail "a fenced task template must not be linted as a declared task"
