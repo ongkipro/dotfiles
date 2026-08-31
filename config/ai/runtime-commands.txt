@@ -34,6 +34,7 @@ delivery-skill-usage
 delivery-skill-usage-test
 development-spec-suite-test
 device-register
+device-verify
 diff-risk
 diff-risk-test
 dotpush

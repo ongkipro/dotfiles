@@ -24,6 +24,32 @@ _None._
 
 ## Recently completed
 
+### TASK-029: One command that verifies a device and reports back
+- **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/device-verify`, `config/ai/runtime-commands.txt`, `TASKS.md`, `docs/device-reports/**`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.device-verification`
+- **Accepted Invariants:** the command repairs nothing and its report names the failing line
+- **Regression Checks:** `ai-policy-lint`, `omp-effective-routing-test`
+- **Runtime Evidence:** `docs/device-reports/rich-*.md` from this machine
+- **Reopen Conditions:** a report names a separator or tally instead of the failure
+- **Non-Scope:** repairing anything it finds
+- **Verification:** `bin/device-verify`
+- **Escalation Conditions:** a gate cannot run on a device for reasons the report cannot express
+
+`bin/device-verify` runs every gate, records the platform facts that actually
+differ between machines (omp location, authenticated providers, sed flavour,
+unlinked manifest commands), writes `docs/device-reports/<host>-<utc>.md`, and
+exits non-zero if anything failed. The report travels by git, so a device reports
+back without a live session between them.
+
+Its first run found two things immediately. The new command was itself unlisted
+in the manifest, so TASK-026's guard fired on its author. And the report's "last
+line" for a failing gate was `────────────`, which told nobody anything — the
+line a reader needs is the first one naming the problem, not the last one
+printed. Both fixed.
+
 ### TASK-028: Stop narrowing capacity below what OMP itself ships
 - **Requirement:** REQ-FULLSTACK-CAPACITY
 - **Risk Level:** R2
@@ -124,28 +150,6 @@ The first attempt at this run was finished `BLOCKED`: the new flag was exercised
 inside the live run, and a deliberate `exit 3` probe recorded a real FAIL that
 correctly barred `PASS`. The ledger behaved exactly as designed; the run did not.
 
-### TASK-022: Register every owned test command in the runtime manifest
-- **Requirement:** REQ-DELIVERY-CONTRACT-GAPS
-- **Risk Level:** R1
-- **Allowed Paths:** `config/ai/runtime-commands.txt`, `TASKS.md`
-- **Protected Paths:** None
-- **Canonical Contract Owners:** `runtime.command-manifest`
-- **Accepted Invariants:** every manifest entry resolves to an executable under `bin/`
-- **Regression Checks:** `installer-link-test`, `ai-policy-lint`, `skill-surface-check`
-- **Runtime Evidence:** `installer-link-test` reports "runtime command manifest and hook wiring"
-- **Reopen Conditions:** a `bin/*-test` exists that the manifest does not list
-- **Non-Scope:** installer behaviour, hook wiring
-- **Verification:** `installer-link-test`
-- **Escalation Conditions:** manifest and `bin/` disagree after one repair attempt
-
-Four commands were unregistered, not the one the pending entry named:
-`ai-memory-link-test`, `project-check-test`, `vendored-refresh-test`, and
-`omp-runtime-report-test` — the last added earlier the same day by the session
-that then found the gap. `ai-doctor --self-test` discovers tests through its own
-`bin/*-test` glob, so nothing was broken; the manifest is what every installer
-links into `~/.local/bin`, so an unregistered command simply never arrives on a
-new device.
-
 ## Done
 
 Completed task contracts through TASK-023 are archived in:
@@ -155,10 +159,7 @@ Completed task contracts through TASK-023 are archived in:
 
 ## Pending
 
-- **TASK-027 / REQ-CROSS-DEVICE-VERIFICATION — verify the 2026-08-31 gates on macOS (R1).** Every gate added or revived that day was written, run, and proven on Linux only. Run **on `ongkis-macbook-air`**, from `~/dotfiles`, and report each result rather than assuming: `bin/ai-doctor`, `bin/ai-doctor --self-test`, `bin/ai-doctor --runtime`, `bin/ai-policy-lint`, `bash bin/delivery-ledger-test`, `bash bin/omp-effective-routing-test`.
-  Known macOS differences to expect rather than debug from scratch: `omp` lives at `/opt/homebrew/bin` and is **not** on a non-interactive shell's `PATH`; the device authenticates Google Antigravity alone and its registry carries no Claude 5 family, so `omp-effective-routing-test` must report unjudged overlay selectors and must **not** demand the Linux role graph; BSD `sed`/`stat`/`date` differ from GNU, which is the most likely source of a false failure in the shell gates.
-  Already done on that device on 2026-08-31 and not to be repeated: `git pull` to `1f7c58c`, all 79 manifest commands linked into `~/.local/bin`, and the blind `vision` fallback (`9router-fantastico/cx/gpt-5.6-sol`, which takes no image) replaced with `google-antigravity/claude-opus-4-6:high` — `omp-runtime-report` there now exits 0. A backup sits at `~/.omp/agent/config.yml.bak-20260831`.
-  Report a failure as a finding, not a fix: a gate that is wrong on macOS is a gate to correct in the repository, not to weaken locally.
+- **TASK-027 / REQ-CROSS-DEVICE-VERIFICATION — verify the 2026-08-31 gates on macOS (R1).** On `ongkis-macbook-air`: `cd ~/dotfiles && git pull --ff-only && bin/device-verify`, then commit and push `docs/device-reports/`. That one command runs every gate, records this machine's platform facts, and writes the report; it repairs nothing. Report a FAIL as a finding — a gate that is wrong on macOS is a gate to correct in the repository, not to weaken locally. Setup already done there on 2026-08-31: pull, all manifest commands linked, and the blind `vision` fallback replaced (backup at `~/.omp/agent/config.yml.bak-20260831`).
 
 - **TASK-012 / AUDIT-MON-01 — measure real skill effectiveness (R0).** Dormant until at least five immutable real delivery records exist for one skill. Then run `ai-skill-evolution --repo <repo> --dotfiles ~/dotfiles --json`; never fabricate or promote synthetic attribution.
 - **TASK-013 / AUDIT-CI-01 — restore hosted GitHub Actions execution (R2).** Human billing owner must remove the external Actions block, then a fresh Ubuntu/macOS matrix must start and conclude normally. AI must not change billing or weaken CI.

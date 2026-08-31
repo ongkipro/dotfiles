@@ -46,3 +46,30 @@ context budget. Unedited; its delivery runs remain the permanent record.
   Terra/Fable probes, full repository self-test, independent Opus review, and
   the final R3 delivery boundary all passed.
 - **Escalation Conditions:** native OMP differs from a pristine upstream config, or final boundary review is required for the protected/pre-existing change surface.
+
+---
+
+Moved out of the hot `TASKS.md` on 2026-09-01 to stay inside its 12 KB
+context budget. Unedited; its delivery run remains the permanent record.
+
+### TASK-022: Register every owned test command in the runtime manifest
+- **Requirement:** REQ-DELIVERY-CONTRACT-GAPS
+- **Risk Level:** R1
+- **Allowed Paths:** `config/ai/runtime-commands.txt`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.command-manifest`
+- **Accepted Invariants:** every manifest entry resolves to an executable under `bin/`
+- **Regression Checks:** `installer-link-test`, `ai-policy-lint`, `skill-surface-check`
+- **Runtime Evidence:** `installer-link-test` reports "runtime command manifest and hook wiring"
+- **Reopen Conditions:** a `bin/*-test` exists that the manifest does not list
+- **Non-Scope:** installer behaviour, hook wiring
+- **Verification:** `installer-link-test`
+- **Escalation Conditions:** manifest and `bin/` disagree after one repair attempt
+
+Four commands were unregistered, not the one the pending entry named:
+`ai-memory-link-test`, `project-check-test`, `vendored-refresh-test`, and
+`omp-runtime-report-test` — the last added earlier the same day by the session
+that then found the gap. `ai-doctor --self-test` discovers tests through its own
+`bin/*-test` glob, so nothing was broken; the manifest is what every installer
+links into `~/.local/bin`, so an unregistered command simply never arrives on a
+new device.
