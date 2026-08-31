@@ -24,6 +24,31 @@ _None._
 
 ## Recently completed
 
+### TASK-021: Make the parallel-child example executable, not proofread
+- **Requirement:** REQ-DELIVERY-CONTRACT-GAPS
+- **Risk Level:** R1
+- **Allowed Paths:** `docs/task-change-boundary.md`, `bin/delivery-ledger-test`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `delivery.parallel-child-contract`
+- **Accepted Invariants:** the published `start-child` block runs against the shipped binary
+- **Regression Checks:** `delivery-ledger-test`
+- **Runtime Evidence:** the test extracts the block from the document and executes it
+- **Reopen Conditions:** the document publishes a `start-child` block the test cannot run
+- **Non-Scope:** `integrate-child`, which needs a patch the document does not carry
+- **Verification:** `bash bin/delivery-ledger-test`
+- **Escalation Conditions:** the example cannot be run without inventing state the document omits
+
+TASK-020's routing-provenance guard broke the block eleven days ago and nothing
+noticed: it omitted `--model/--provider/--reasoning-effort`, argparse defaulted
+them to `unknown`, and the guard refused the run. Fixed, and now extracted from
+the document and executed by `delivery-ledger-test` — proofreading is what let it
+rot. The pending entry expected `--accept-dirty`; it was not needed, because the
+file was clean by the time this ran.
+
+Writing the test surfaced a second thing the document only implies: producing the
+child's patch before `start-child` makes the child's boundary overlap the parent's
+dirty tree, which the ledger correctly refuses. The order is now stated.
+
 ### TASK-025: Executed evidence for delivery checks
 - **Requirement:** REQ-EXECUTABLE-EVIDENCE
 - **Risk Level:** R2
@@ -108,7 +133,6 @@ Completed task contracts through TASK-023 are archived in:
 
 - **TASK-012 / AUDIT-MON-01 — measure real skill effectiveness (R0).** Dormant until at least five immutable real delivery records exist for one skill. Then run `ai-skill-evolution --repo <repo> --dotfiles ~/dotfiles --json`; never fabricate or promote synthetic attribution.
 - **TASK-013 / AUDIT-CI-01 — restore hosted GitHub Actions execution (R2).** Human billing owner must remove the external Actions block, then a fresh Ubuntu/macOS matrix must start and conclude normally. AI must not change billing or weaken CI.
-- **TASK-021 / REQ-DELIVERY-CONTRACT-GAPS — fix the broken `start-child` example in `docs/task-change-boundary.md` (R1).** TASK-020's routing-provenance guard broke the canonical parallel-child example; deferred because the file carried unaccepted pre-existing dirty work at TASK-020's `start`. New run must `--accept-dirty` it.
 - **TASK-022 / REQ-DELIVERY-CONTRACT-GAPS — wire `project-check-test` into `config/ai/runtime-commands.txt` (R1).** Same deferral reason as TASK-021, same file class. Cosmetic only: `ai-doctor --self-test` already discovers the test via its `bin/*-test` glob.
 
 ## Historical closure

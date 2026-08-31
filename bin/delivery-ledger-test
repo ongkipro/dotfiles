@@ -147,6 +147,60 @@ d=json.load(open(sys.argv[1])); assert d['result']=='PASS',d; assert d['taskOwne
 PY
 python3 "$DL" --repo "$B1" finish --result PASS >/dev/null
 
+# The canonical parallel-child example in docs/task-change-boundary.md is
+# executed, not proofread. TASK-020's routing-provenance guard broke it and
+# nothing noticed for eleven days: the block omitted --model/--provider/
+# --reasoning-effort, argparse defaulted them to "unknown", and the guard refused
+# the run. Documentation that shows a command nobody runs is a command that stops
+# working.
+DOC="$ROOT/docs/task-change-boundary.md"
+DOCREPO="$TMP/docexample"; mkdir -p "$DOCREPO/src/cart"
+(cd "$DOCREPO"; git init -q; git config user.email t@e.com; git config user.name t
+ printf '# Status\nState: READY\n' > STATUS.md; printf 'base\n' > src/cart/api.ts
+ git add .; git commit -qm base)
+python3 "$DL" --repo "$DOCREPO" init >/dev/null
+python3 "$DL" --repo "$DOCREPO" start --task TASK-123 --requirement REQ-1 --risk R2 \
+  --worker task --model m --provider p --reasoning-effort high --allow 'src/**' >/dev/null
+
+# Take the block the document actually publishes, not a copy of it.
+python3 - "$DOC" "$TMP/child-example.sh" <<'PY'
+import re, sys, pathlib
+text = pathlib.Path(sys.argv[1]).read_text()
+blocks = [b for b in re.findall(r"```bash\n(.*?)```", text, re.S) if "start-child" in b]
+if len(blocks) != 1:
+    raise SystemExit(f"expected exactly one start-child example, found {len(blocks)}")
+pathlib.Path(sys.argv[2]).write_text(blocks[0])
+PY
+grep -q -- '--reasoning-effort' "$TMP/child-example.sh" \
+  || fail "the documented child example omits routing provenance the guard requires"
+
+# `delivery-ledger` in the block is the installed name; run the tree's copy, and
+# stop at finish-child — integration needs a real patch the document does not
+# carry, and inventing one here would test this test rather than the example.
+python3 - "$TMP/child-example.sh" "$DL" "$DOCREPO" "$TMP" <<'PY'
+import pathlib, re, sys
+block, dl, repo, tmp = (pathlib.Path(sys.argv[1]).read_text(), *sys.argv[2:])
+# Join the block's line continuations, then split into whole commands.
+flat = re.sub(r"\\\n\s*", " ", block)
+cmds = [c.strip() for c in flat.splitlines() if c.strip().startswith("delivery-ledger")]
+by = lambda name: next(c for c in cmds if name in c)
+rewrite = lambda c: (c.replace("delivery-ledger ", f"python3 {dl} ", 1)
+                      .replace("--repo .", f"--repo {repo}")
+                      .replace("/tmp/cart-api.patch", f"{tmp}/cart-api.patch"))
+# Order matters and the document states it: the child is started, *then* works.
+# Producing its patch first makes its own boundary overlap the parent's dirty
+# tree, which the ledger correctly refuses.
+pathlib.Path(f"{tmp}/child-a.sh").write_text(rewrite(by("start-child")) + "\n")
+pathlib.Path(f"{tmp}/child-b.sh").write_text(
+    "\n".join(rewrite(by(n)) for n in ("record-child", "finish-child")) + "\n")
+PY
+bash "$TMP/child-a.sh" >/dev/null 2>"$TMP/child-run.err" \
+  || { cat "$TMP/child-run.err" >&2; fail "the documented start-child does not run"; }
+printf 'task change\n' >> "$DOCREPO/src/cart/api.ts"
+(cd "$DOCREPO" && git diff -- src/cart > "$TMP/cart-api.patch")
+bash "$TMP/child-b.sh" >/dev/null 2>"$TMP/child-run.err" \
+  || { cat "$TMP/child-run.err" >&2; fail "the documented parallel-child example does not run"; }
+
 # Executed evidence. Freshness proves a check was not stale; nothing proved it
 # ever ran. This ledger has already accepted `installer-link-test PASS` detailed
 # "pending run below" — recorded before the check ran, by the session building

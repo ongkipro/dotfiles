@@ -133,9 +133,17 @@ semantic owner. Two active children cannot share an owner even when their path
 globs are disjoint; this catches semantic overlap such as two files modifying
 the same session or pricing invariant.
 
+`--model`, `--provider` and `--reasoning-effort` are not optional for an R1-R4
+child even though argparse defaults them: the routing-provenance guard refuses
+`unknown`, because a child whose route was never resolved cannot have its result
+attributed to anything. This example omitted all three from TASK-020 until
+2026-08-31 and failed verbatim; it is now executed by `delivery-ledger-test`, so
+it cannot silently rot again.
+
 ```bash
 delivery-ledger --repo . start-child \
   --child cart-api --task TASK-123-A --risk R2 \
+  --model claude-opus-5 --provider anthropic --reasoning-effort high \
   --allow 'src/cart/**' --owner commerce.pricing \
   --invariant 'totals use the accepted pricing rule'
 delivery-ledger --repo . record-child \
