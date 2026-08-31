@@ -175,4 +175,46 @@ jq -e -n --slurpfile c "$fixture/reference.json" --slurpfile m "$fixture/models.
 }
 fi
 
-echo 'omp-effective-routing-test: OK (upstream defaults + cross-device reference resolve)'
+# The tracked reference is a recommendation, not a mandate: OMP owns device-local
+# capacity choices, and a device legitimately routes to what it can actually
+# reach. This machine's Anthropic and Codex accounts do not exist on the Mac,
+# whose registry carries no Claude 5 family at all — so demanding the two configs
+# match would be wrong, and would push a device toward selectors it cannot use.
+#
+# What must hold on *every* device is narrower, and until now was checked on no
+# device at all: the reference above is validated, the native config never was.
+# Found by pointing these same three rules at the Mac: its `vision` fallback is
+# `gpt-5.6-sol`, which does not accept image input — so a failed visual primary
+# fell back to a model that cannot see, silently.
+if [[ "$skip_selector_validation" -eq 0 ]]; then
+  env -u PI_CONFIG_FILES -u OMP_RUNTIME_LEGACY_OVERLAY \
+    "$(command -v omp)" config list --json > "$fixture/native.json"
+
+  jq -e -n --slurpfile c "$fixture/native.json" --slurpfile m "$fixture/models.json" '
+    def refs:
+      ($c[0].modelRoles.value | to_entries[] | .value),
+      ($c[0]["retry.fallbackChains"].value // {} | to_entries[].value[]);
+    def visual_refs:
+      ($c[0].modelRoles.value | to_entries[] | select(.key == "vision" or .key == "designer") | .value),
+      ($c[0]["retry.fallbackChains"].value // {} | to_entries[] | select(.key == "vision" or .key == "designer") | .value[]);
+    ([refs |
+        capture("^(?<provider>[^/]+)/(?<id>.+):(?<effort>[^:]+)$") as $ref |
+        ([$m[0].models[] | select(.provider == $ref.provider and .id == $ref.id)][0]) as $model |
+        select(
+          ($model == null) or
+          (($model.thinking // []) as $levels |
+            ($levels | length) > 0 and ($levels | index($ref.effort) | not))
+        ) | $ref
+      ] | length == 0) and
+    ([visual_refs |
+        capture("^(?<provider>[^/]+)/(?<id>.+):(?<effort>[^:]+)$") as $ref |
+        ([$m[0].models[] | select(.provider == $ref.provider and .id == $ref.id)][0]) as $model |
+        select(($model == null) or (($model.input // []) | index("image") | not)) | $ref
+      ] | length == 0)
+  ' >/dev/null || {
+    echo 'FAIL: this device'"'"'s native OMP config names a selector, thinking level, or non-visual visual-role model its own registry does not support' >&2
+    exit 1
+  }
+fi
+
+echo 'omp-effective-routing-test: OK (upstream defaults + cross-device reference + this device'"'"'s native config resolve)'

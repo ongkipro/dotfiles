@@ -59,8 +59,19 @@ comment and an empty-array formatting difference. So the recommended role graph
 is in fact what a plain `omp` resolves here. That is a property of this device
 having been configured to match, not of any linking or wrapping, and nothing
 enforces it staying true. `omp-effective-routing-test` guards the tracked
-reference; it does not compare the two files. A device whose native config
-drifts would not be caught by any check in this repository.
+reference and does not compare the two files — deliberately. Demanding they
+match would be wrong: the Mac authenticates Google Antigravity alone, its
+registry carries no Claude 5 family at all, and pushing this device's selectors
+there would name models it cannot reach.
+
+What every device must satisfy is narrower, and as of 2026-08-31 the test also
+checks **this device's own native config** against **its own registry**: every
+selector resolves, every effort is a level that model declares, and `vision` and
+`designer` — roles and fallbacks alike — accept image input. Device adaptation
+stays free; incoherence does not. Pointing those three rules at the Mac found a
+real defect on the first try: its `vision` fallback is
+`9router-fantastico/cx/gpt-5.6-sol`, which takes no image, so a failed visual
+primary fell back to a model that cannot see.
 
 The visual lane is two roles: `designer` (Gemini 3.7 Flash High) by default,
 escalating to `vision` (Opus 5 High) for material redesign. Both are pinned in
