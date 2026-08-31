@@ -217,4 +217,53 @@ if [[ "$skip_selector_validation" -eq 0 ]]; then
   }
 fi
 
-echo 'omp-effective-routing-test: OK (upstream defaults + cross-device reference + this device'"'"'s native config resolve)'
+# `config/omp/overlays/` holds one profile per provider shape, because devices
+# deliberately differ — the Mac authenticates Google Antigravity alone and reaches
+# GPT only through 9router, which this machine has never had. Nothing checked
+# them at all, so a typo in an overlay stayed invisible until the day someone
+# selected it.
+#
+# The rule cannot be "every overlay must resolve here": four of five reference
+# providers this device does not authenticate, and demanding otherwise is the
+# same mistake as demanding the Mac match this config. So it splits on the
+# **provider**: if the registry knows that provider at all, an unknown model or
+# an undeclared level under it is a real defect; if the provider is absent
+# entirely, the device simply cannot judge, and says how many it skipped.
+if [[ "$skip_selector_validation" -eq 0 ]]; then
+  for overlay in "$ROOT"/config/omp/overlays/*.yml; do
+    [[ -e "$overlay" ]] || continue
+    name="$(basename "$overlay")"
+    if ! env -u OMP_RUNTIME_LEGACY_OVERLAY PI_CONFIG_FILES="$overlay" \
+        "$(command -v omp)" config list --json > "$fixture/overlay.json" 2>/dev/null; then
+      echo "FAIL: overlay $name did not resolve to a usable OMP configuration" >&2
+      exit 1
+    fi
+    verdict="$(jq -n --slurpfile c "$fixture/overlay.json" --slurpfile m "$fixture/models.json" '
+      ([$m[0].models[].provider] | unique) as $known |
+      def refs:
+        ($c[0].modelRoles.value | to_entries[] | .value),
+        ($c[0]["retry.fallbackChains"].value // {} | to_entries[].value[]);
+      [refs | capture("^(?<provider>[^/]+)/(?<id>.+):(?<effort>[^:]+)$")] as $all |
+      ($all | map(select(.provider as $p | $known | index($p) | not)) | length) as $unreachable |
+      [$all[] | select(.provider as $p | $known | index($p)) |
+        . as $ref |
+        ([$m[0].models[] | select(.provider == $ref.provider and .id == $ref.id)][0]) as $model |
+        select(
+          ($model == null) or
+          (($model.thinking // []) as $levels |
+            ($levels | length) > 0 and ($levels | index($ref.effort) | not))
+        ) | "\($ref.provider)/\($ref.id):\($ref.effort)"
+      ] as $broken |
+      "\($unreachable) \($broken | length) \($broken | join(","))"')"
+    read -r unreachable broken detail <<<"${verdict//\"/}"
+    if [[ "$broken" -ne 0 ]]; then
+      echo "FAIL: overlay $name names ${broken} unusable selector(s) under a provider this device does have: ${detail}" >&2
+      exit 1
+    fi
+    if [[ "$unreachable" -gt 0 ]]; then
+      echo "omp-effective-routing-test: note $name — ${unreachable} selector(s) unjudged (provider not authenticated here)" >&2
+    fi
+  done
+fi
+
+echo 'omp-effective-routing-test: OK (upstream defaults + cross-device reference + this device'"'"'s native config + overlays resolve)'

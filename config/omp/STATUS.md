@@ -46,6 +46,13 @@ curated cross-CLI lifecycle, not bidirectional raw session synchronization.
   now prints an explicit SKIP instead of passing quietly.
 - `installer-link-test` proves migration removes managed legacy links while
   preserving unmanaged runtime state.
+- `omp-effective-routing-test` also validates `config/omp/overlays/*.yml`, one
+  profile per provider shape. It splits on the provider: a model or thinking
+  level that does not hold up under a provider this device *does* authenticate is
+  a defect and fails; selectors under a provider it does not have are counted and
+  reported as unjudged, never as health. Requiring every overlay to resolve on
+  every device would be the same mistake as requiring the Mac to match this
+  config.
 - `ai-doctor --runtime` (`bin/omp-runtime-report`) answers the question
   enforcement cannot: what each role resolves to *here*, which agent uses it,
   and whether this device can actually reach it. Exits non-zero on an
