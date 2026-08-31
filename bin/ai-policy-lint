@@ -26,6 +26,8 @@ def find_dotfiles_root():
 ROOT = find_dotfiles_root()
 AI_DIR = ROOT / "config" / "ai"
 TEMPLATES_DIR = ROOT / "config" / "templates"
+# The same 120 lines `ai-doctor` has always warned about, now enforced.
+AGENTS_LINE_BUDGET = 120
 
 errors = []
 warnings = []
@@ -361,6 +363,24 @@ def check_hot_context():
         size = path.stat().st_size
         if size > limit:
             err(f"Hot-context budget exceeded: {relative} is {size} bytes (limit {limit}); archive history before adding more")
+
+    # AGENTS.md is the hottest file in the system — every request, in every
+    # installed CLI — and until now it was the only one whose budget was merely a
+    # warning in `ai-doctor`, while colder files failed CI outright. A warning
+    # loses: this file sat at exactly 120 lines, and the very session that added
+    # the delivery-evidence rules pushed it to 122 without failing anything.
+    #
+    # Lines, not bytes, because that is the threshold the tooling already agreed
+    # on and because the cost here is prose the model must read, not disk. A
+    # paragraph that must exist belongs in the document that owns it, with one
+    # anchoring sentence left here.
+    agents = AI_DIR / "AGENTS.md"
+    if agents.is_file():
+        lines = len(agents.read_text(encoding="utf-8").splitlines())
+        if lines > AGENTS_LINE_BUDGET:
+            err(f"Hot-context budget exceeded: config/ai/AGENTS.md is {lines} lines "
+                f"(limit {AGENTS_LINE_BUDGET}); it is read on every request in every CLI — "
+                f"move the detail to the document that owns it and leave an anchor")
 
 
 def check_skill_routing_graph():
