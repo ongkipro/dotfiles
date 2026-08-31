@@ -37,6 +37,7 @@ done
 
 failures=0
 rows=""
+notes=""
 
 run_gate() {
   local label="$1"; shift
@@ -54,8 +55,22 @@ run_gate() {
   tail_line="$(printf '%s\n' "$clean" | grep -m1 -E '✗|ERROR|FAIL|RUSAK' || true)"
   [ -n "$tail_line" ] || tail_line="$(printf '%s\n' "$clean" | tail -1)"
   tail_line="$(printf '%s' "$tail_line" | cut -c1-110)"
+  # A gate can exit 0 having judged nothing. ai-policy-lint passes on a device
+  # without actionlint, and omp-effective-routing-test passes with selectors it
+  # cannot evaluate — both correctly, both saying so in output this report used
+  # to throw away. A PASS beside "not validated here" is a different fact from a
+  # PASS, and the reader is the only one who can act on the difference.
+  local unjudged_here
+  unjudged_here="$(printf '%s\n' "$clean" \
+    | grep -iE 'not validated here|unjudged|SKIP|not required|degraded' | head -3)"
+  if [ -n "$unjudged_here" ]; then
+    while IFS= read -r u; do
+      [ -n "$u" ] && notes="${notes}| \`${label}\` | $(printf '%s' "$u" | sed 's/^[[:space:]]*//' | cut -c1-100 | tr '|' '/') |"$'\n'
+    done <<< "$unjudged_here"
+  fi
   local verdict="PASS"
   [ "$code" -ne 0 ] && { verdict="FAIL"; failures=$((failures + 1)); }
+  [ "$code" -eq 0 ] && [ -n "$unjudged_here" ] && verdict="PASS*"
   rows="${rows}| \`${label}\` | ${verdict} | ${code} | ${secs}s | ${tail_line//|/\\|} |"$'\n'
   printf '  %-34s %s (exit %d, %ds)\n' "$label" "$verdict" "$code" "$secs"
   rm -f "$log"
@@ -95,6 +110,17 @@ unlinked="$(cd "$ROOT" && grep -v '^#' config/ai/runtime-commands.txt | grep -v 
   echo "| --- | --- | --- | --- | --- |"
   printf '%s' "$rows"
   echo
+  if [ -n "$notes" ]; then
+    echo "## Not judged on this device"
+    echo
+    echo "A \`PASS*\` above means the gate exited 0 while leaving something"
+    echo "unexamined. That is an honest verdict, not a passing one."
+    echo
+    echo "| Gate | What it could not judge |"
+    echo "| --- | --- |"
+    printf '%s' "$notes"
+    echo
+  fi
   echo "## This machine"
   echo
   fact "uname" "$(uname -srm)"

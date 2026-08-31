@@ -24,6 +24,20 @@ _None._
 
 ## Recently completed
 
+### TASK-036: A PASS that judged nothing is a different fact
+- **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/device-verify`, `TASKS.md`, `docs/device-reports/**`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.device-verification`
+- **Accepted Invariants:** a gate that exits 0 while leaving something unexamined is reported as `PASS*` and the omission is named
+- **Regression Checks:** `ai-policy-lint`, `dev-ready-test`
+- **Runtime Evidence:** `rich-2026-08-31T191525Z.md` marks 50 unjudged selectors that earlier reports hid
+- **Reopen Conditions:** a report shows a bare PASS for a gate that skipped work
+- **Non-Scope:** installing the tools a device lacks
+- **Verification:** `bin/device-verify` on both devices
+- **Escalation Conditions:** a gate cannot express what it skipped
+
 ### TASK-035: Resume from the repository, not from the conversation
 - **Requirement:** REQ-RESUME-AUTHORITY
 - **Risk Level:** R1

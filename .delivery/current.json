@@ -12,14 +12,14 @@
     "type": "checkpoint"
   },
   "lastRun": {
-    "finishedAt": "2026-08-31T19:12:25Z",
-    "result": "BLOCKED",
-    "runId": "RUN-20260831T190912Z-1bc9eccf"
+    "finishedAt": "2026-08-31T19:21:45Z",
+    "result": "PASS",
+    "runId": "RUN-20260831T191513Z-e2bec213"
   },
-  "observedHead": "9eb188e20da1a3d5e49851612d9740f41e666cd8",
+  "observedHead": "6435da87af38ae0fb1536c88eb1bda292ddfaa4a",
   "observedState": null,
   "project": "dotfiles",
   "schemaVersion": 1,
   "statusAuthority": "STATUS.md",
-  "updatedAt": "2026-08-31T19:12:25Z"
+  "updatedAt": "2026-08-31T19:21:45Z"
 }
