@@ -118,7 +118,8 @@ jq -e '
   .["task.isolation.apply"].value == false and
   .["task.maxConcurrency"].value == 4 and
   .["task.maxRecursionDepth"].value == 1 and
-  .["task.softRequestBudget"].value == 80 and
+  .["task.softRequestBudget"].value == 200 and
+  .defaultThinkingLevel.value == "high" and
   .["task.enableLsp"].value == true and
   .["task.prewalk"].value == false and
   $agents == {

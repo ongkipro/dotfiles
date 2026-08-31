@@ -120,6 +120,37 @@ Built-in agents ship with OMP; `config/omp/agents/` tracks a definition only whe
 
 `sonic` and `task` are deliberately **not** tracked: their bundled model already matches this fleet, so a tracked copy would change nothing while shadowing any future upstream improvement to their directives. `task.agentModelOverrides` pins both deterministically regardless. Every one of the eleven agents has an entry there, so no agent silently resolves to `default`. Inspect the bundled definitions with `omp agents unpack --dir <tmp>` before assuming what one does — and before adding a tracked copy, diff against the bundled one to confirm it is doing work.
 
+### Capacity: where this profile deviates from upstream, and why
+
+Compared against OMP 18.0.11's own defaults, read from an isolated agent
+directory rather than from documentation:
+
+| Setting | Upstream | Here | Why |
+| --- | --- | --- | --- |
+| `task.isolation.mode` | `none` | `auto` | Subagents genuinely isolated; upstream ships isolation off |
+| `task.isolation.apply` | `true` | `false` | Results arrive as reviewable patches, not silent merges |
+| `task.enableLsp` | `false` | `true` | Full-stack work turns on types crossing layers |
+| `task.maxConcurrency` | `32` | `4` | Controlled parallelism beats maximum parallelism |
+| `task.maxRecursionDepth` | `2` | `1` | One parent owns integration; workers do not spawn workers |
+| `task.softRequestBudget` | `200` | **`200`** | Was 80 until 2026-08-31 |
+| `defaultThinkingLevel` | `high` | **`high`** | Was `auto` until 2026-08-31 |
+
+The first five are deliberate and stay. The last two were not decisions at all:
+they arrived together in a single commit enabling autonomous orchestration, with
+a one-line message and no recorded reasoning, and both narrowed the profile
+*below* what OMP itself ships.
+
+`softRequestBudget: 80` force-stopped a subagent at 120 requests against
+upstream's 300. A full-stack vertical slice — schema, API, UI, tests — can spend
+that before it finishes, and a truncated slice looks like a finished one.
+
+`defaultThinkingLevel: auto` delegated per-turn reasoning depth to the `tiny`
+role, which is Gemini Flash. That is the one place in an otherwise explicit
+routing design where a cheap model decided a routing parameter, and it decided it
+on every turn. Upstream's own default is `high`; choosing it aligns rather than
+invents. Both values are now pinned by `omp-effective-routing-test`, so narrowing
+them again fails the suite instead of passing quietly.
+
 ### Two visual roles, and which one is the default
 
 `vision` and `designer` are no longer the same model, and that separation is the

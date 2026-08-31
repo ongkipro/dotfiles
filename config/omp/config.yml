@@ -25,7 +25,7 @@ modelRoles:
   discovery: openai-codex/gpt-5.6-terra:medium
   advisor: anthropic/claude-opus-5:high
   advisor-xhigh: anthropic/claude-opus-5:xhigh
-defaultThinkingLevel: auto
+defaultThinkingLevel: high
 dev:
   autoqaConsent: granted
 modelProviderOrder:
@@ -106,7 +106,7 @@ task:
     apply: false
   maxConcurrency: 4
   maxRecursionDepth: 1
-  softRequestBudget: 80
+  softRequestBudget: 200
   enableLsp: true
   prewalk: false
   agentModelOverrides:

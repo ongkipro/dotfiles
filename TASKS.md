@@ -24,6 +24,34 @@ _None._
 
 ## Recently completed
 
+### TASK-028: Stop narrowing capacity below what OMP itself ships
+- **Requirement:** REQ-FULLSTACK-CAPACITY
+- **Risk Level:** R2
+- **Allowed Paths:** `config/omp/config.yml`, `bin/omp-effective-routing-test`, `config/omp/ROUTING.md`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `omp.capacity-profile`
+- **Accepted Invariants:** a deviation from an upstream default is recorded with its reason or removed
+- **Regression Checks:** `omp-effective-routing-test`
+- **Runtime Evidence:** both values pinned; restoring either fails the suite
+- **Reopen Conditions:** an upstream default changes, or a full-stack slice still truncates at the budget
+- **Non-Scope:** concurrency, recursion depth, isolation — deliberate deviations that stay
+- **Verification:** `bash bin/omp-effective-routing-test`
+- **Escalation Conditions:** raising the budget produces runaway subagent cost
+
+`softRequestBudget` 80 -> 200 and `defaultThinkingLevel` `auto` -> `high`, both
+upstream's own values. Neither was a decision: they arrived together in 473926c
+with a one-line message and no recorded reasoning, and both narrowed the profile
+*below* what OMP ships.
+
+80 force-stopped a subagent at 120 requests against upstream's 300; a full-stack
+slice can spend that before finishing, and a truncated slice looks finished.
+`auto` delegated per-turn reasoning depth to the `tiny` role — Gemini Flash — the
+one place in an otherwise explicit routing design where a cheap model decided a
+routing parameter, on every turn.
+
+Found by comparing against OMP's real defaults read from an isolated agent
+directory, not from its documentation, which does not tabulate these paths.
+
 ### TASK-026: Check the command manifest in both directions
 - **Requirement:** REQ-DELIVERY-CONTRACT-GAPS
 - **Risk Level:** R1
