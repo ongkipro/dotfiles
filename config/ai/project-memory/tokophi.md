@@ -7,7 +7,7 @@ metadata:
   originSessionId: d80df881-dc15-46ed-8d1a-e20e2834efbf
 ---
 
-TokoΦ (`ongkipro/tokophi`, **PRIVATE lagi sejak 2026-08-28** — owner mem-public-kan 2026-08-27 lalu menutupnya keesokan harinya; JANGAN flip visibility tanpa perintah eksplisit baru. ⚠️ Konsekuensi: GitHub Actions di repo private butuh billing — billing akun lapse, jadi CI `ci.yml` yang sempat hidup+hijau pada jendela public 27–28 Aug mati lagi sampai billing dipulihkan. Isi repo tersaji publik selama ~1 hari: anggap terindeks — IP VPS di docs, arsitektur, BUILD-LOG) — Shopify-style commerce SaaS for Indonesia. Monorepo: `apps/{admin,super-admin,storefront}`, `packages/{db,data,lib,ui,sections}`, `specs/`.
+TokoΦ (`ongkipro/tokophi`, **PUBLIC lagi sejak 2026-09-01** (perintah eksplisit owner — flip ketiga; alasan: Actions gratis untuk CI). Aturan tetap: JANGAN flip visibility tanpa perintah eksplisit baru. Konten repo (IP VPS di docs, arsitektur, BUILD-LOG) dianggap terindeks publik sejak jendela 27–28 Aug) — Shopify-style commerce SaaS for Indonesia. Monorepo: `apps/{admin,super-admin,storefront}`, `packages/{db,data,lib,ui,sections}`, `specs/`.
 
 This project's old name was `indostore`; rebranded 2026-07-08. The repo `ongkipro/indostore` **still exists on GitHub but is dormant** — don't use it, don't push to it. All 94 of its commits are already contained in the `tokophi` history (old HEAD `e95b71f`). If you read an old note mentioning "Indostore", that's the same project, not a separate one.
 
