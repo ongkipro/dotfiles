@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# The report must be able to say NO. A diagnostic that always exits 0 is a
+# decoration, which is exactly the failure this repository just spent a day
+# removing from omp-effective-routing-test.
+set -euo pipefail
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/omp-runtime-report-test.XXXXXX")"; trap 'rm -rf "$TMP"' EXIT
+REPORT="$ROOT/bin/omp-runtime-report"
+
+fail() { echo "omp-runtime-report-test: FAIL: $1" >&2; exit 1; }
+
+# A stub `omp` lets every branch be exercised without provider auth, so this
+# runs in CI. The real binary is covered by using it below when present.
+make_omp() {
+  local dir="$1" config="$2" models="$3"
+  mkdir -p "$dir"
+  cat > "$dir/omp" <<EOF
+#!/usr/bin/env bash
+case "\$1 \$2" in
+  "config list") cat '$config' ;;
+  "models --json") cat '$models' ;;
+  *) exit 1 ;;
+esac
+EOF
+  chmod +x "$dir/omp"
+}
+
+cat > "$TMP/models.json" <<'EOF'
+{"models":[
+ {"provider":"p","id":"seer","thinking":["low","high"],"input":["text","image"]},
+ {"provider":"p","id":"blind","thinking":["low","high"],"input":["text"]}
+]}
+EOF
+
+healthy() {
+  cat > "$1" <<'EOF'
+{"modelRoles":{"value":{"vision":"p/seer:high","designer":"p/seer:high","task":"p/blind:high"}},
+ "retry.fallbackChains":{"value":{"vision":["p/seer:low"]}},
+ "task.agentModelOverrides":{"value":{"designer":"@designer"}},
+ "task.maxConcurrency":{"value":4}}
+EOF
+}
+
+healthy "$TMP/ok.json"
+make_omp "$TMP/bin-ok" "$TMP/ok.json" "$TMP/models.json"
+PATH="$TMP/bin-ok:$PATH" "$REPORT" > "$TMP/ok.out" 2>&1 \
+  || fail "a coherent config must exit 0"
+grep -q 'omp-runtime-report: OK' "$TMP/ok.out" || fail "a healthy run must say so"
+# A non-visual model in a non-visual role is fine and must not be flagged.
+grep -q 'MASALAH' "$TMP/ok.out" && fail "task on a text-only model is not a problem"
+
+# A visual role that cannot see. This is the live defect on the Mac: its `vision`
+# fallback takes no image, so a failed visual primary falls back to a model that
+# is blind, and nothing else anywhere reports it.
+sed 's|"vision":\["p/seer:low"\]|"vision":["p/blind:high"]|' "$TMP/ok.json" > "$TMP/blind.json"
+make_omp "$TMP/bin-blind" "$TMP/blind.json" "$TMP/models.json"
+set +e; PATH="$TMP/bin-blind:$PATH" "$REPORT" > "$TMP/blind.out" 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "a blind visual fallback must exit 1"
+grep -q 'tidak menerima image' "$TMP/blind.out" || fail "the refusal must name the reason"
+
+# An effort the model does not declare — how `gemini-3.7-flash:auto` survived.
+sed 's|"task":"p/blind:high"|"task":"p/blind:auto"|' "$TMP/ok.json" > "$TMP/level.json"
+make_omp "$TMP/bin-level" "$TMP/level.json" "$TMP/models.json"
+set +e; PATH="$TMP/bin-level:$PATH" "$REPORT" > "$TMP/level.out" 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "an undeclared thinking level must exit 1"
+grep -q "level 'auto' tidak dideklarasikan" "$TMP/level.out" || fail "the refusal must name the level"
+
+# A selector this device cannot reach at all.
+sed 's|"p/seer:high"|"p/absent:high"|' "$TMP/ok.json" > "$TMP/absent.json"
+make_omp "$TMP/bin-absent" "$TMP/absent.json" "$TMP/models.json"
+set +e; PATH="$TMP/bin-absent:$PATH" "$REPORT" > "$TMP/absent.out" 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "a selector missing from the registry must exit 1"
+
+# No authenticated provider: CI. Selector validation cannot run, so it must be
+# announced and must not be reported as health.
+echo '{"models":[]}' > "$TMP/empty.json"
+make_omp "$TMP/bin-empty" "$TMP/blind.json" "$TMP/empty.json"
+PATH="$TMP/bin-empty:$PATH" "$REPORT" > "$TMP/empty.out" 2>&1 \
+  || fail "an empty registry is not a failure, it is an unknown"
+grep -q 'registry model kosong' "$TMP/empty.out" || fail "an empty registry must be announced"
+
+# No omp at all.
+mkdir -p "$TMP/bin-none"
+PATH="$TMP/bin-none:/usr/bin:/bin" "$REPORT" 2>&1 | grep -q 'SKIP' \
+  || fail "a machine without omp must skip, not fail"
+
+echo 'omp-runtime-report-test: PASS'

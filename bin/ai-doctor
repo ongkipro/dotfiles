@@ -12,8 +12,16 @@ fail=0; warn=0
 MODE="${1:-}"
 case "$MODE" in
   ""|--self-test) ;;
+  --runtime)
+    # What OMP will actually run here, and whether it can. Separate from
+    # --self-test on purpose: that proves the repository's contracts, this
+    # reports this device's resolved routing, which legitimately differs per
+    # machine. Exits non-zero when a selector, thinking level, or visual-role
+    # model does not hold up against this device's own registry.
+    exec "$DOT/bin/omp-runtime-report"
+    ;;
   --help|-h)
-    echo "Usage: ai-doctor [--self-test]"
+    echo "Usage: ai-doctor [--self-test|--runtime]"
     exit 0
     ;;
   *)

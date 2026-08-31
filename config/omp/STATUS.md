@@ -46,6 +46,12 @@ curated cross-CLI lifecycle, not bidirectional raw session synchronization.
   now prints an explicit SKIP instead of passing quietly.
 - `installer-link-test` proves migration removes managed legacy links while
   preserving unmanaged runtime state.
+- `ai-doctor --runtime` (`bin/omp-runtime-report`) answers the question
+  enforcement cannot: what each role resolves to *here*, which agent uses it,
+  and whether this device can actually reach it. Exits non-zero on an
+  unreachable selector, an undeclared thinking level, or a visual role on a
+  model that takes no image. Run on the Mac it reports that device's real defect
+  and exits 1; run here it exits 0.
 
 The historical custom routing files remain under this directory temporarily as
 reviewable evidence. Only `config.yml` is the current executable reference; it

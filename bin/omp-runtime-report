@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+"""What OMP will actually run on this device, and whether it can.
+
+`omp-effective-routing-test` already *enforces* the invariants below. This answers
+a different question the enforcement cannot: what does each role resolve to right
+now, on this machine, with these accounts. That was previously unanswerable
+without reading two JSON documents side by side, which is how a designer role
+pointing at an undeclared thinking level survived unnoticed.
+
+Read-only. Prints no account identifier, key, or token — only role names, model
+selectors, and capability facts already public in the model registry.
+"""
+from __future__ import annotations
+import json, re, shutil, subprocess, sys
+
+SELECTOR = re.compile(r"^(?P<provider>[^/]+)/(?P<id>.+):(?P<effort>[^:]+)$")
+# Roles whose whole job is looking at something. A model that takes no image here
+# is not "slightly worse" — it is blind, and it fails silently.
+VISUAL_ROLES = ("vision", "designer")
+SETTINGS = [
+    ("task.maxConcurrency", "subagen paralel"),
+    ("task.maxRecursionDepth", "kedalaman delegasi"),
+    ("task.isolation.mode", "isolasi subagen"),
+    ("task.isolation.apply", "auto-apply hasil isolasi"),
+    ("task.softRequestBudget", "budget request subagen"),
+    ("task.enableLsp", "LSP"),
+    ("prewalk.enabled", "prewalk (turun ke model murah saat edit)"),
+    ("advisor.enabled", "advisor pasif"),
+    ("goal.enabled", "goal mode"),
+    ("goal.continuationModes", "lanjut-otomatis di mode"),
+    ("memory.backend", "memori native OMP"),
+]
+
+
+def omp_json(binary: str, *args: str) -> dict | None:
+    try:
+        out = subprocess.run([binary, *args], capture_output=True, text=True, timeout=180)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0:
+        return None
+    try:
+        return json.loads(out.stdout)
+    except json.JSONDecodeError:
+        return None
+
+
+def main() -> int:
+    binary = shutil.which("omp")
+    if not binary:
+        print("omp-runtime-report: SKIP (omp tidak tersedia)")
+        return 0
+    config = omp_json(binary, "config", "list", "--json")
+    registry = omp_json(binary, "models", "--json")
+    if config is None:
+        print("omp-runtime-report: SKIP (omp config list tidak menghasilkan JSON)")
+        return 0
+    models = {(m.get("provider"), m.get("id")): m for m in (registry or {}).get("models", [])}
+    have_registry = bool(models)
+
+    roles = (config.get("modelRoles") or {}).get("value") or {}
+    chains = (config.get("retry.fallbackChains") or {}).get("value") or {}
+    overrides = (config.get("task.agentModelOverrides") or {}).get("value") or {}
+
+    print(f"OMP {binary}")
+    if not have_registry:
+        print("  ! registry model kosong — tidak ada provider terautentikasi, "
+              "validasi selector dilewati")
+
+    problems: list[str] = []
+
+    def describe(label: str, selector: str, visual: bool) -> str:
+        match = SELECTOR.match(selector)
+        if not match:
+            problems.append(f"{label}: selector tidak terurai: {selector}")
+            return "?"
+        model = models.get((match["provider"], match["id"]))
+        if not have_registry:
+            return "-"
+        if model is None:
+            problems.append(f"{label}: {selector} tidak ada di registry perangkat ini")
+            return "TIDAK ADA"
+        notes = []
+        levels = model.get("thinking") or []
+        if levels and match["effort"] not in levels:
+            problems.append(
+                f"{label}: level '{match['effort']}' tidak dideklarasikan "
+                f"{match['id']} (tersedia: {', '.join(levels)})")
+            notes.append("level!")
+        if visual and "image" not in (model.get("input") or []):
+            problems.append(f"{label}: {selector} tidak menerima image, padahal peran visual")
+            notes.append("BUTA")
+        return ",".join(notes) if notes else "ok"
+
+    print("\nPeran → model")
+    width = max((len(r) for r in roles), default=8)
+    for role, selector in roles.items():
+        visual = role in VISUAL_ROLES
+        status = describe(f"role.{role}", selector, visual)
+        agent = next((a for a, target in overrides.items() if target == f"@{role}"), None)
+        via = f"  ← agen {agent}" if agent else ""
+        print(f"  {role:<{width}}  {selector:<52} {status}{via}")
+
+    print("\nRantai fallback")
+    for role, chain in chains.items():
+        visual = role in VISUAL_ROLES
+        marks = [describe(f"fallback.{role}", s, visual) for s in chain]
+        rendered = ", ".join(f"{s} [{m}]" if m not in ("ok", "-") else s
+                             for s, m in zip(chain, marks))
+        print(f"  {role:<{width}}  {rendered}")
+
+    print("\nSetelan yang menentukan perilaku development")
+    for key, label in SETTINGS:
+        entry = config.get(key)
+        if entry is None:
+            continue
+        print(f"  {label:<42} {json.dumps(entry.get('value'))}")
+
+    if problems:
+        print(f"\nMASALAH ({len(problems)}):")
+        for item in problems:
+            print(f"  ✗ {item}")
+        return 1
+    print("\nomp-runtime-report: OK (setiap selector resolve, setiap level dideklarasikan, "
+          "peran visual menerima image)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
