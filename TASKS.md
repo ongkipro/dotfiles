@@ -24,6 +24,20 @@ _None._
 
 ## Recently completed
 
+### TASK-030: The read-only memory bootstrap must actually be read-only
+- **Requirement:** REQ-MEMORY-OWNERSHIP
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/ai-memory-link`, `config/ai/project-memory/**`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.memory-bootstrap`
+- **Accepted Invariants:** the runtime directory is mode 500 with exactly one mode-400 `MEMORY.md`, on every path including refusal
+- **Regression Checks:** `ai-policy-lint`, `ai-doctor`
+- **Runtime Evidence:** `memory-bootstrap-sealed` recorded via `record --command`
+- **Reopen Conditions:** a second file appears in a bootstrap directory on any device
+- **Non-Scope:** changing what Claude Code writes, or where its auto-memory goes
+- **Verification:** `memory-bootstrap-sealed`
+- **Escalation Conditions:** a device needs the directory writable for a reason the contract does not cover
+
 ### TASK-029: One command that verifies a device and reports back
 - **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
 - **Risk Level:** R1

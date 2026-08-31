@@ -1,25 +1,25 @@
 {
   "activeRun": null,
   "lastCheckpoint": {
-    "eventHash": "4b9132207004e924c1214b54c46f7f249f97269dc5dddd765318e7f29988e5b0",
-    "eventId": "d677bde64eff4929be56fb4cd877d8fc",
-    "head": "b9384637ff5898957a2a86ed3ac9918a14218d72",
-    "note": "CORRECTION: the installer-link-test PASS above was recorded BEFORE the check ran (detail 'pending run below'). The outcome later proved correct, but the entry asserted a result it did not yet have, which is the exact failure this ledger exists to prevent. Superseded by the re-recorded entry that follows, whose detail quotes the observed output.",
-    "prevEventHash": "d299ad0ba42959afbca98af821518eebe1155b1bd0174808633d8331c123743f",
-    "runId": "RUN-20260831T085606Z-679e1672",
+    "eventHash": "e05c7c7ac56f0e5ab92dcda7cad4f46922a0c09834c50476896ae77ea772be4a",
+    "eventId": "3d61d1c9da844a53a15168d78485e32c",
+    "head": "0133c897f9836aeb3952d1e0e63f6b74e427686c",
+    "note": "Run contaminated the same way as the three before it: the seal check was recorded, FAILED for a real defect (the refusal path unlinked the symlink it was protecting), was fixed, and then re-recorded PASS. Naming it as an expansion witness is therefore refused, correctly \u2014 every recorded status for a witness must be PASS. The fix itself is sound: six consecutive green runs of memory-bootstrap-sealed, plus ai-policy-lint and ai-doctor PASS. Closing BLOCKED rather than renaming the check to dodge the rule. Separate finding for a later run: the rule penalises the ordinary fail-fix-verify loop, which deserves a deliberate decision, not an edit made to unblock the run it is judging.",
+    "prevEventHash": "438c448df6035bc7aaf4267af10e758b9531b635672b3b9ebb3ad5607ad5ad2c",
+    "runId": "RUN-20260831T174740Z-08913957",
     "state": null,
-    "time": "2026-08-31T08:57:03Z",
+    "time": "2026-08-31T17:54:23Z",
     "type": "checkpoint"
   },
   "lastRun": {
-    "finishedAt": "2026-08-31T17:37:47Z",
-    "result": "PASS",
-    "runId": "RUN-20260831T173724Z-fc16b0be"
+    "finishedAt": "2026-08-31T17:54:24Z",
+    "result": "BLOCKED",
+    "runId": "RUN-20260831T174740Z-08913957"
   },
-  "observedHead": "191eb16196cf9dd0fe440f7080e501dc9a0c5f9b",
+  "observedHead": "0133c897f9836aeb3952d1e0e63f6b74e427686c",
   "observedState": null,
   "project": "dotfiles",
   "schemaVersion": 1,
   "statusAuthority": "STATUS.md",
-  "updatedAt": "2026-08-31T17:37:47Z"
+  "updatedAt": "2026-08-31T17:54:24Z"
 }

@@ -80,6 +80,19 @@ install_home_bootstrap() {
   local src_file="$1" dst="$2" runtime="$3" current=""
   [ -f "$src_file" ] || return 0
 
+  # Validate the runtime directory before touching anything. This check used to
+  # sit after `unlink "$dst"`, so refusing to expose a contaminated directory
+  # also destroyed the symlink it was refusing to expose — the next run rebuilt
+  # it, which is why the state alternated instead of staying broken. Refusing
+  # must leave the world exactly as it was found.
+  if [ -d "$runtime" ] \
+     && find "$runtime" -mindepth 1 -maxdepth 1 ! -name MEMORY.md -print -quit | grep -q .; then
+    chmod 500 "$runtime"
+    echo "WARNING: $runtime contains unexpected files; refusing to expose it."
+    echo "  Move them to config/ai/project-memory/ (cross-device) or ~/.config/ai-local/."
+    return 0
+  fi
+
   if [ -d "$dst" ] && [ ! -L "$dst" ]; then
     echo "WARNING: $dst is an unmanaged directory; inspect it before migration."
     return 0
@@ -98,13 +111,22 @@ install_home_bootstrap() {
   fi
 
   mkdir -p "$(dirname "$dst")" "$runtime"
-  chmod 700 "$runtime"
-  if find "$runtime" -mindepth 1 -maxdepth 1 ! -name MEMORY.md -print -quit | grep -q .; then
-    echo "WARNING: $runtime contains unexpected files; refusing to expose it."
-    return 0
+  # Refresh the file in place rather than replacing it. `install` unlinks and
+  # recreates, which needs a writable directory, and the chmod 700 / chmod 500
+  # pair around it was a real window: on 2026-08-31 a concurrent Claude session's
+  # auto-memory landed inside one and survived, because closing the directory
+  # afterwards does not remove what got in. Truncating an existing file needs no
+  # directory write at all, so steady-state refresh never opens the door.
+  if [ -f "$runtime/MEMORY.md" ]; then
+    chmod 600 "$runtime/MEMORY.md"
+    cat "$src_file" > "$runtime/MEMORY.md"
+    chmod 400 "$runtime/MEMORY.md"
+    chmod 500 "$runtime"
+  else
+    chmod 700 "$runtime"
+    install -m 400 "$src_file" "$runtime/MEMORY.md"
+    chmod 500 "$runtime"
   fi
-  install -m 400 "$src_file" "$runtime/MEMORY.md"
-  chmod 500 "$runtime"
   ln -s "$runtime" "$dst"
   echo "linked read-only bootstrap: $dst -> $runtime"
 }
