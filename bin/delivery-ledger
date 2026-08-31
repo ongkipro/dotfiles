@@ -562,15 +562,37 @@ def cmd_start(repo: Path, a) -> int:
 
 def cmd_record(repo: Path, a) -> int:
     data, run_id, run_path = active(repo)
-    if a.status not in CHECK_STATUS:
+    executed = None
+    if a.command:
+        # Executed evidence. `--status` is refused here because the command
+        # decides: an agent that may both run the check and name its result can
+        # skip the first half, and this ledger has already accepted a PASS
+        # detailed "pending run below" — recorded before the check ran, by the
+        # session building these very gates. Freshness catches stale evidence;
+        # nothing caught invented evidence, because nothing could.
+        if a.status:
+            raise ValueError("--status cannot accompany --command; the command's exit code is the status")
+        result = subprocess.run(a.command, shell=True, cwd=repo, text=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        status = "PASS" if result.returncode == 0 else "FAIL"
+        tail = [line for line in result.stdout.splitlines() if line.strip()][-1:] or [""]
+        executed = {"command": a.command, "exitCode": result.returncode,
+                    "outputTail": tail[0][:400]}
+        a.detail = a.detail or f"{tail[0][:200]} (exit {result.returncode})"
+    else:
+        if not a.status:
+            raise ValueError("record needs --status, or --command to derive one")
+        status = a.status
+    if status not in CHECK_STATUS:
         raise ValueError("check status must be PASS, FAIL, or UNVERIFIED")
     e = event_base(repo, "verification", run_id)
     checked_paths = dirty_paths(repo)
-    e.update({"check": a.check, "status": a.status, "detail": a.detail,
+    e.update({"check": a.check, "status": status, "detail": a.detail,
+              "executed": executed,
               "checkedPaths": checked_paths,
               "checkedDigest": surface_of(repo, checked_paths)})
     append_event(run_path, e); save_current(repo, data)
-    print(f"delivery-ledger: RECORDED {a.check}={a.status}")
+    print(f"delivery-ledger: RECORDED {a.check}={status}" + (f" (ran: exit {executed['exitCode']})" if executed else ""))
     return OK
 
 
@@ -1246,7 +1268,7 @@ def main() -> int:
     rc=sub.add_parser("record-child"); rc.add_argument("--child",required=True); rc.add_argument("--check",required=True); rc.add_argument("--status",required=True); rc.add_argument("--detail",default="")
     fc=sub.add_parser("finish-child"); fc.add_argument("--child",required=True); fc.add_argument("--result",required=True); fc.add_argument("--patch"); fc.add_argument("--detail",default="")
     ic=sub.add_parser("integrate-child"); ic.add_argument("--child",required=True); ic.add_argument("--patch",required=True)
-    r=sub.add_parser("record"); r.add_argument("--check",required=True); r.add_argument("--status",required=True); r.add_argument("--detail",default="")
+    r=sub.add_parser("record"); r.add_argument("--check",required=True); r.add_argument("--status"); r.add_argument("--detail",default=""); r.add_argument("--command",help="run this and derive the status from its exit code; the evidence is then executed, not asserted")
     e=sub.add_parser("expand-scope"); e.add_argument("--path",required=True); e.add_argument("--reason",required=True); e.add_argument("--required-by",required=True); e.add_argument("--risk",required=True); e.add_argument("--verification",action="append",default=[])
     b=sub.add_parser("check-boundary"); b.add_argument("--json",action="store_true")
     v=sub.add_parser("review-boundary"); v.add_argument("--reviewer",required=True); v.add_argument("--reviewer-model",required=True); v.add_argument("--reviewer-provider",required=True); v.add_argument("--reviewer-reasoning",required=True)

@@ -147,6 +147,48 @@ d=json.load(open(sys.argv[1])); assert d['result']=='PASS',d; assert d['taskOwne
 PY
 python3 "$DL" --repo "$B1" finish --result PASS >/dev/null
 
+# Executed evidence. Freshness proves a check was not stale; nothing proved it
+# ever ran. This ledger has already accepted `installer-link-test PASS` detailed
+# "pending run below" — recorded before the check ran, by the session building
+# these gates. `--command` closes that by deriving the status from an exit code.
+EXEC="$TMP/exec"; mkdir -p "$EXEC"
+(cd "$EXEC"; git init -q; git config user.email t@e.com; git config user.name t
+ printf '# Status\nState: READY\n' > STATUS.md; git add .; git commit -qm baseline)
+python3 "$DL" --repo "$EXEC" init >/dev/null
+python3 "$DL" --repo "$EXEC" start --task TASK-EX --requirement REQ-EX --risk R0 --worker task --model m --provider p --reasoning-effort high >/dev/null
+
+python3 "$DL" --repo "$EXEC" record --check green --command 'exit 0' >/dev/null
+python3 "$DL" --repo "$EXEC" record --check red --command 'echo boom; exit 7' >/dev/null
+RUNFILE="$(find "$EXEC/.delivery/runs" -name 'RUN-*.jsonl')"
+grep -q '"check":"green","checkedDigest"' "$RUNFILE" 2>/dev/null || true
+python3 - "$RUNFILE" <<'PY'
+import json,sys
+ev=[json.loads(l) for l in open(sys.argv[1])]
+v={e['check']:e for e in ev if e.get('type')=='verification'}
+assert v['green']['status']=='PASS', v['green']
+assert v['red']['status']=='FAIL', v['red']
+assert v['red']['executed']['exitCode']==7, v['red']
+assert v['red']['executed']['command']=='echo boom; exit 7', v['red']
+assert 'boom' in v['red']['executed']['outputTail'], v['red']
+assert v['green']['executed']['exitCode']==0, v['green']
+PY
+
+# An agent that may both run the check and name its result can skip the first
+# half. The command decides, or the flag buys nothing.
+set +e; python3 "$DL" --repo "$EXEC" record --check both --status PASS --command 'exit 0' >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "--status alongside --command must be refused"
+
+# Declared evidence stays possible — a browser check has no exit code — but it
+# must still say which it is.
+python3 "$DL" --repo "$EXEC" record --check manual --status PASS --detail 'observed in a browser' >/dev/null
+set +e; python3 "$DL" --repo "$EXEC" record --check neither >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "record without --status or --command must be refused"
+
+# A FAIL from an executed check must bar PASS exactly as a declared one does.
+set +e; python3 "$DL" --repo "$EXEC" finish --result PASS >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "an executed FAIL must bar a PASS finish"
+python3 "$DL" --repo "$EXEC" finish --result FAIL >/dev/null
+
 # Evidence must describe the code being shipped. A suite that passed before the
 # last edit proves nothing about what is on disk now, and HEAD does not move
 # while an agent works uncommitted, so nothing else would notice.

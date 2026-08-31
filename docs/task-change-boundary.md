@@ -166,6 +166,25 @@ No child patch is auto-applied by OMP.
 `boundary_check`, only passing verification events, and a bound approval for
 `REVIEW_REQUIRED`. A stale, failed, or missing check denies completion.
 
+## Executed versus declared evidence
+
+`record --check NAME --status PASS` takes the caller's word. That is unavoidable
+for a browser observation, and it was the only shape available — so on
+2026-08-31 this ledger accepted `installer-link-test PASS` with the detail
+"pending run below", recorded before the check ran, by the session that was
+building these gates. The run's own history keeps that entry, the checkpoint
+naming it, and the re-recorded evidence, because an append-only log with a
+visible error is worth more than a tidy one.
+
+`record --check NAME --command '<cmd>'` runs the command in the repository,
+derives `PASS`/`FAIL` from its exit code, and stores the command, the code, and
+the last line of output on the event. `--status` alongside `--command` is
+**refused**: an agent that may both run a check and name its result can skip the
+first half, which is the whole failure being closed.
+
+Prefer `--command` for anything with an exit code. Freshness proves evidence was
+not stale; only execution proves it happened.
+
 ## Verification freshness
 
 The boundary has always refused a `PASS` whose change surface moved after the

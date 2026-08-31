@@ -24,6 +24,30 @@ _None._
 
 ## Recently completed
 
+### TASK-025: Executed evidence for delivery checks
+- **Requirement:** REQ-EXECUTABLE-EVIDENCE
+- **Risk Level:** R2
+- **Allowed Paths:** `bin/delivery-ledger`, `bin/delivery-ledger-test`, `docs/task-change-boundary.md`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `delivery.verification-event`
+- **Accepted Invariants:** a recorded status is either derived from an exit code or explicitly declared, never both
+- **Regression Checks:** `delivery-ledger-test`, `ai-policy-lint`
+- **Runtime Evidence:** this run's own verification events carry `executed.exitCode`
+- **Reopen Conditions:** a PASS is recorded for a check that has an exit code but was not run
+- **Non-Scope:** child-run recording, browser evidence
+- **Verification:** `bash bin/delivery-ledger-test`
+- **Escalation Conditions:** the flag cannot derive a status without shelling out unsafely
+
+`record --command` runs the check and derives the status from its exit code;
+`--status` alongside it is refused, because an agent that may both run a check and
+name its result can skip the first half. Motivated by this repository accepting
+`installer-link-test PASS` detailed "pending run below" earlier the same day —
+recorded before the check ran, by the session building these gates.
+
+The first attempt at this run was finished `BLOCKED`: the new flag was exercised
+inside the live run, and a deliberate `exit 3` probe recorded a real FAIL that
+correctly barred `PASS`. The ledger behaved exactly as designed; the run did not.
+
 ### TASK-022: Register every owned test command in the runtime manifest
 - **Requirement:** REQ-DELIVERY-CONTRACT-GAPS
 - **Risk Level:** R1

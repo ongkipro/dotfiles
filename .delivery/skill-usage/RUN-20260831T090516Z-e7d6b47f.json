@@ -1,0 +1,19 @@
+{
+  "capability": "native-first",
+  "head": "8004a7e005d4f02183410a9d88b33adcc6490174",
+  "job": "implementation",
+  "model": "claude-opus-5",
+  "provider": "anthropic",
+  "reasoningEffort": "high",
+  "recordedAt": "2026-08-31T09:07:41Z",
+  "result": "PASS",
+  "risk": "R2",
+  "runId": "RUN-20260831T090516Z-e7d6b47f",
+  "schemaVersion": 1,
+  "skillsUsed": [
+    "native-first"
+  ],
+  "usageHash": "b0c6fbe5dc4939a00879606a46f9fb7c2632c46cd019445909f8cbf7bfd25028",
+  "verificationFailed": false,
+  "worker": "task"
+}
