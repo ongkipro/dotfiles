@@ -63,6 +63,8 @@ release-check
 release-check-test
 release-manifest
 release-safety-test
+resume-brief
+resume-brief-test
 rollback-check
 rollback-check-test
 secrets-env

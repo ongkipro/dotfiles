@@ -24,6 +24,20 @@ _None._
 
 ## Recently completed
 
+### TASK-035: Resume from the repository, not from the conversation
+- **Requirement:** REQ-RESUME-AUTHORITY
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/resume-brief`, `bin/resume-brief-test`, `bin/device-verify`, `config/ai/runtime-commands.txt`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.resume`
+- **Accepted Invariants:** the brief reports only what it can read from disk, and never presents an asserted check as an executed one
+- **Regression Checks:** `resume-brief-test`, `ai-policy-lint`
+- **Runtime Evidence:** the §25 scenario executed — start, partial evidence, fresh process, correct resume
+- **Reopen Conditions:** a fresh session needs chat history to find the next task
+- **Non-Scope:** deciding which task to do; the brief informs, the operator chooses
+- **Verification:** `bin/resume-brief-test`
+- **Escalation Conditions:** repository state is ambiguous about what is open
+
 ### TASK-034: A gate that lies about a healthy machine
 - **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
 - **Risk Level:** R1
@@ -93,60 +107,6 @@ _None._
 - **Non-Scope:** changing what Claude Code writes, or where its auto-memory goes
 - **Verification:** `memory-bootstrap-sealed`
 - **Escalation Conditions:** a device needs the directory writable for a reason the contract does not cover
-
-### TASK-029: One command that verifies a device and reports back
-- **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
-- **Risk Level:** R1
-- **Allowed Paths:** `bin/device-verify`, `config/ai/runtime-commands.txt`, `TASKS.md`, `docs/device-reports/**`
-- **Protected Paths:** None
-- **Canonical Contract Owners:** `runtime.device-verification`
-- **Accepted Invariants:** the command repairs nothing and its report names the failing line
-- **Regression Checks:** `ai-policy-lint`, `omp-effective-routing-test`
-- **Runtime Evidence:** `docs/device-reports/rich-*.md` from this machine
-- **Reopen Conditions:** a report names a separator or tally instead of the failure
-- **Non-Scope:** repairing anything it finds
-- **Verification:** `bin/device-verify`
-- **Escalation Conditions:** a gate cannot run on a device for reasons the report cannot express
-
-`bin/device-verify` runs every gate, records the platform facts that actually
-differ between machines (omp location, authenticated providers, sed flavour,
-unlinked manifest commands), writes `docs/device-reports/<host>-<utc>.md`, and
-exits non-zero if anything failed. The report travels by git, so a device reports
-back without a live session between them.
-
-Its first run found two things immediately. The new command was itself unlisted
-in the manifest, so TASK-026's guard fired on its author. And the report's "last
-line" for a failing gate was `────────────`, which told nobody anything — the
-line a reader needs is the first one naming the problem, not the last one
-printed. Both fixed.
-
-### TASK-028: Stop narrowing capacity below what OMP itself ships
-- **Requirement:** REQ-FULLSTACK-CAPACITY
-- **Risk Level:** R2
-- **Allowed Paths:** `config/omp/config.yml`, `bin/omp-effective-routing-test`, `config/omp/ROUTING.md`, `TASKS.md`
-- **Protected Paths:** None
-- **Canonical Contract Owners:** `omp.capacity-profile`
-- **Accepted Invariants:** a deviation from an upstream default is recorded with its reason or removed
-- **Regression Checks:** `omp-effective-routing-test`
-- **Runtime Evidence:** both values pinned; restoring either fails the suite
-- **Reopen Conditions:** an upstream default changes, or a full-stack slice still truncates at the budget
-- **Non-Scope:** concurrency, recursion depth, isolation — deliberate deviations that stay
-- **Verification:** `bash bin/omp-effective-routing-test`
-- **Escalation Conditions:** raising the budget produces runaway subagent cost
-
-`softRequestBudget` 80 -> 200 and `defaultThinkingLevel` `auto` -> `high`, both
-upstream's own values. Neither was a decision: they arrived together in 473926c
-with a one-line message and no recorded reasoning, and both narrowed the profile
-*below* what OMP ships.
-
-80 force-stopped a subagent at 120 requests against upstream's 300; a full-stack
-slice can spend that before finishing, and a truncated slice looks finished.
-`auto` delegated per-turn reasoning depth to the `tiny` role — Gemini Flash — the
-one place in an otherwise explicit routing design where a cheap model decided a
-routing parameter, on every turn.
-
-Found by comparing against OMP's real defaults read from an isolated agent
-directory, not from its documentation, which does not tabulate these paths.
 
 ## Done
 

@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+"""resume-brief — answer "where am I?" from repository state alone.
+
+A session that resumes from chat history resumes from the one source that does
+not survive a crash, a new machine, or a different agent. Everything needed is
+already on disk: the ledger knows which run is open, which checks passed and
+whether they were executed or merely asserted, and which tasks have never
+finished. This prints that, and nothing it cannot read.
+
+It asks the evidence, never the agent. Read-only.
+
+Usage: resume-brief [REPO]
+"""
+import json
+import pathlib
+import subprocess
+import sys
+
+
+def git(repo, *args):
+    r = subprocess.run(["git", "-C", str(repo), *args], text=True,
+                       stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
+def events(path):
+    out = []
+    try:
+        for line in path.read_text().splitlines():
+            if line.strip():
+                out.append(json.loads(line))
+    except (OSError, json.JSONDecodeError):
+        return []
+    return out
+
+
+def main():
+    repo = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
+    top = git(repo, "rev-parse", "--show-toplevel")
+    if not top:
+        print(f"resume-brief: {repo} is not a git repository", file=sys.stderr)
+        return 2
+    repo = pathlib.Path(top).resolve()
+    delivery = repo / ".delivery"
+
+    print(f"RESUME BRIEF — {repo.name}")
+    print(f"HEAD: {git(repo, 'log', '--oneline', '-1') or '(no commits)'}")
+    # Porcelain v1 is "XY<space>PATH", but a staged rename and an unmerged entry
+    # both shift what follows; lstrip after the two status columns handles every
+    # form. The ledger writes .delivery/ itself, so it is never the user's work.
+    dirty = [l for l in git(repo, "status", "--porcelain").splitlines()
+             if l and not l[2:].lstrip().startswith(".delivery/")]
+    print(f"Worktree: {'clean' if not dirty else f'{len(dirty)} path(s) dirty'}")
+    for line in dirty[:8]:
+        print(f"  {line}")
+
+    if not delivery.is_dir():
+        print("\nNo delivery ledger in this repository; resume authority is Git state only.")
+        return 0
+
+    try:
+        current = json.loads((delivery / "current.json").read_text())
+    except (OSError, json.JSONDecodeError):
+        print("\nLedger present but current.json is unreadable — the chain cannot be resumed.",
+              file=sys.stderr)
+        return 1
+
+    # Latest outcome per task, taken from evidence rather than from any claim.
+    outcomes, run_files = {}, sorted((delivery / "runs").glob("*.jsonl")) if (delivery / "runs").is_dir() else []
+    for f in run_files:
+        ev = events(f)
+        if not ev:
+            continue
+        start = next((e for e in ev if e.get("type") == "run_started"), None)
+        fin = next((e for e in reversed(ev) if e.get("type") == "run_finished"), None)
+        if start and start.get("task"):
+            outcomes[start["task"]] = (fin.get("result") if fin else "OPEN", f.stem)
+
+    active = current.get("activeRun")
+    if active:
+        run_id = active.get("runId") if isinstance(active, dict) else active
+        ev = events(delivery / "runs" / f"{run_id}.jsonl")
+        start = next((e for e in ev if e.get("type") == "run_started"), {})
+        print(f"\nActive run: {run_id}")
+        print(f"  task {start.get('task', '?')} / {start.get('requirement', '?')} "
+              f"/ risk {start.get('risk', '?')}")
+        allowed = (start.get("boundary") or {}).get("allowedPaths") or []
+        print(f"  declared surface: {', '.join(allowed) or '(none)'}")
+        checks = [e for e in ev if e.get("type") == "verification"]
+        if checks:
+            print("  checks recorded:")
+            for c in checks:
+                how = "executed" if c.get("executed") else "asserted"
+                print(f"    {c.get('status')}  {c.get('check')}  ({how})")
+        else:
+            print("  checks recorded: none — nothing yet justifies a PASS")
+        bc = [e for e in ev if e.get("type") == "boundary_check"]
+        if bc:
+            last = bc[-1]
+            print(f"  last boundary: {last.get('result', '?')} "
+                  f"effectiveRisk={last.get('effectiveRisk', '?')}")
+            for item in (last.get("failures") or [])[:4]:
+                print(f"    - {item}")
+        else:
+            print("  last boundary: never checked")
+        print("  to finish: record any missing check, run check-boundary, "
+              "then finish (review first if REVIEW_REQUIRED)")
+    else:
+        last = current.get("lastRun") or {}
+        print(f"\nNo active run. Last: {last.get('runId', '(none)')} "
+              f"-> {last.get('result', '?')} at {last.get('finishedAt', '?')}")
+        note = (current.get("lastCheckpoint") or {}).get("note")
+        if note:
+            print(f"  checkpoint: {note.split('. ')[0][:160]}")
+
+    unfinished = sorted(t for t, (res, _) in outcomes.items() if res != "PASS")
+    if unfinished:
+        print("\nTasks whose evidence does not end in PASS:")
+        for t in unfinished:
+            res, run = outcomes[t]
+            title = ""
+            tasks_md = repo / "TASKS.md"
+            if tasks_md.is_file():
+                for line in tasks_md.read_text().splitlines():
+                    if line.startswith("### ") and line[4:].startswith(t):
+                        title = line[4:].split(":", 1)[-1].strip()
+                        break
+            print(f"  {t:<10} {res:<16} {title[:70]}")
+        print("\nThese are the resume candidates. Repository evidence decides, not memory.")
+    else:
+        print("\nEvery task with recorded evidence ended in PASS.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

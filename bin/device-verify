@@ -71,6 +71,7 @@ run_gate "ai-policy-lint"             "$ROOT/bin/ai-policy-lint"
 run_gate "delivery-ledger-test"       bash "$ROOT/bin/delivery-ledger-test"
 run_gate "omp-effective-routing-test" bash "$ROOT/bin/omp-effective-routing-test"
 run_gate "dev-ready-test"           bash "$ROOT/bin/dev-ready-test"
+run_gate "resume-brief-test"        bash "$ROOT/bin/resume-brief-test"
 
 omp_bin="$(command -v omp || echo 'NOT FOUND')"
 omp_ver="$([ "$omp_bin" != 'NOT FOUND' ] && omp --version 2>/dev/null || echo '-')"
