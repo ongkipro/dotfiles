@@ -16,6 +16,7 @@ ai-memory-hygiene-test
 ai-memory-lifecycle
 ai-memory-lifecycle-test
 ai-memory-link
+ai-memory-link-test
 ai-memory-route
 ai-memory-route-test
 ai-policy-lint
@@ -43,6 +44,7 @@ memory-usage-hook-test
 migration-risk
 omp-effective-routing-test
 omp-routing-test
+omp-runtime-report-test
 omp-workspace-test
 pi-9router-restore
 pi-9router-restore-test
@@ -50,6 +52,7 @@ pi-update-safe
 production-gate
 production-gate-test
 project-check
+project-check-test
 project-init
 project-init-test
 release-check
@@ -58,9 +61,9 @@ release-manifest
 release-safety-test
 rollback-check
 rollback-check-test
-security-check
 secrets-env
 secrets-env-test
+security-check
 security-check-test
 shell-wrapper-test
 shopify-content-helper
@@ -73,4 +76,5 @@ tmux-battery
 tmux-clip
 tmux-setup
 turnstile-secret-test
+vendored-refresh-test
 vps-pgdump

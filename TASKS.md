@@ -24,6 +24,28 @@ _None._
 
 ## Recently completed
 
+### TASK-022: Register every owned test command in the runtime manifest
+- **Requirement:** REQ-DELIVERY-CONTRACT-GAPS
+- **Risk Level:** R1
+- **Allowed Paths:** `config/ai/runtime-commands.txt`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.command-manifest`
+- **Accepted Invariants:** every manifest entry resolves to an executable under `bin/`
+- **Regression Checks:** `installer-link-test`, `ai-policy-lint`, `skill-surface-check`
+- **Runtime Evidence:** `installer-link-test` reports "runtime command manifest and hook wiring"
+- **Reopen Conditions:** a `bin/*-test` exists that the manifest does not list
+- **Non-Scope:** installer behaviour, hook wiring
+- **Verification:** `installer-link-test`
+- **Escalation Conditions:** manifest and `bin/` disagree after one repair attempt
+
+Four commands were unregistered, not the one the pending entry named:
+`ai-memory-link-test`, `project-check-test`, `vendored-refresh-test`, and
+`omp-runtime-report-test` — the last added earlier the same day by the session
+that then found the gap. `ai-doctor --self-test` discovers tests through its own
+`bin/*-test` glob, so nothing was broken; the manifest is what every installer
+links into `~/.local/bin`, so an unregistered command simply never arrives on a
+new device.
+
 ### TASK-024: Restore upstream-native OMP ownership and autonomous goal orchestration
 - **Status:** DONE (2026-08-28)
 - **Requirement:** REQ-OMP-UPSTREAM-DEFAULT, REQ-OMP-AUTO-ORCHESTRATION

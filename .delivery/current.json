@@ -1,25 +1,25 @@
 {
   "activeRun": null,
   "lastCheckpoint": {
-    "eventHash": "87e94d9005e001c1c89027dcf40eeacfd574ef9dd3410d64b7e5694b2da39e15",
-    "eventId": "f04335793fbf4720b29ac5c8da993a6a",
-    "head": "9ce34cb4461fa6a03a783eac5fadeaf53109bac2",
-    "note": "OMP 18 update, immutable config layering, and all regression gates pass. Boundary is REVIEW_REQUIRED because accepted pre-existing and protected OMP paths changed. Anthropic selectors are intact but provider auth is absent in both OMP 17.4.0 and 18.0.3; awaiting explicit approval for external Anthropic login/auth-session write and independent reviewer dispatch.",
-    "prevEventHash": "afb2f0b1a82533d21d9084376887d8b923f0c431a89fea06137f7669a102f416",
-    "runId": "RUN-20260823T122624Z-f80710a8",
+    "eventHash": "4b9132207004e924c1214b54c46f7f249f97269dc5dddd765318e7f29988e5b0",
+    "eventId": "d677bde64eff4929be56fb4cd877d8fc",
+    "head": "b9384637ff5898957a2a86ed3ac9918a14218d72",
+    "note": "CORRECTION: the installer-link-test PASS above was recorded BEFORE the check ran (detail 'pending run below'). The outcome later proved correct, but the entry asserted a result it did not yet have, which is the exact failure this ledger exists to prevent. Superseded by the re-recorded entry that follows, whose detail quotes the observed output.",
+    "prevEventHash": "d299ad0ba42959afbca98af821518eebe1155b1bd0174808633d8331c123743f",
+    "runId": "RUN-20260831T085606Z-679e1672",
     "state": null,
-    "time": "2026-08-23T12:38:29Z",
+    "time": "2026-08-31T08:57:03Z",
     "type": "checkpoint"
   },
   "lastRun": {
-    "finishedAt": "2026-08-30T12:46:26Z",
+    "finishedAt": "2026-08-31T08:57:28Z",
     "result": "PASS",
-    "runId": "RUN-20260830T121532Z-65c0792c"
+    "runId": "RUN-20260831T085606Z-679e1672"
   },
-  "observedHead": "8cb05ab948d6b9e96682bbb850d4ff162599ff61",
+  "observedHead": "b9384637ff5898957a2a86ed3ac9918a14218d72",
   "observedState": null,
   "project": "dotfiles",
   "schemaVersion": 1,
   "statusAuthority": "STATUS.md",
-  "updatedAt": "2026-08-30T12:46:26Z"
+  "updatedAt": "2026-08-31T08:57:29Z"
 }
