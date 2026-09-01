@@ -171,8 +171,28 @@ No child patch is auto-applied by OMP.
 | `BLOCKED` | 1 at start | Initial dirty work overlaps the required surface without an explicit safe continuation. |
 
 `finish --result PASS` recomputes the boundary. It requires a matching final
-`boundary_check`, only passing verification events, and a bound approval for
-`REVIEW_REQUIRED`. A stale, failed, or missing check denies completion.
+`boundary_check`, every check to END resolved, and a bound approval for
+`REVIEW_REQUIRED`. A stale or missing check denies completion.
+
+**Resolved, not unblemished (owner decision, 2026-09-01).** A check that failed,
+was fixed, and passed again does not block `PASS`. The rule used to refuse any
+run containing a `FAIL` at all, and on 2026-09-01 that rejected finished,
+reviewed, green work three times — each time because `TASKS.md` had crossed its
+hot-context budget before being archived. The cost was not the delay. A rule
+that punishes recording a failure teaches the thing running under it not to
+record failures, which is the opposite of what an append-only evidence log is
+for.
+
+What still denies `PASS`, unchanged:
+
+- a check whose **latest** record is `FAIL`, including one that failed and was
+  never re-run;
+- an `UNVERIFIED` check not explicitly marked pre-existing;
+- verification that does not describe the surface being shipped.
+
+That last one is what stops the change from laundering anything: re-running a
+check and then editing the code leaves the evidence stale, and stale evidence
+still denies completion.
 
 ## Executed versus declared evidence
 

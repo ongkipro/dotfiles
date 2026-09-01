@@ -385,12 +385,10 @@ def verify_run(path: Path) -> list[str]:
         if finish.get("result") == "PASS":
             if not checks:
                 problems.append(f"{path.name}: PASS requires at least one verification event")
-            elif any(
-                check.get("status") == "FAIL"
-                or (check.get("status") == "UNVERIFIED" and not check.get("detail", "").lower().startswith("pre-existing"))
-                for check in checks
-            ):
-                problems.append(f"{path.name}: PASS cannot follow FAIL or UNVERIFIED verification unless the UNVERIFIED check is explicitly pre-existing")
+            elif unresolved_failures(checks):
+                problems.append(
+                    f"{path.name}: PASS requires every check to end resolved: "
+                    + "; ".join(unresolved_failures(checks)))
             start = events[0] if events else {}
             if start.get("boundary"):
                 boundary_checks = [event for event in events[:finishes[0]] if event.get("type") == "boundary_check"]
@@ -612,6 +610,41 @@ def run_start(events: list[dict]) -> dict:
     if len(starts) != 1:
         raise ValueError("run boundary requires exactly one run_started event")
     return starts[0]
+
+
+def unresolved_failures(checks):
+    """Check names whose LATEST record is not a resolution of an earlier failure.
+
+    Owner decision, 2026-09-01: a check that failed, was fixed, and passed again
+    no longer blocks PASS. The old rule refused any run containing a FAIL at all,
+    which three times in one day rejected finished work whose only failure was
+    TASKS.md crossing its size budget before being archived. Worse, it taught the
+    obvious lesson to any agent under it: do not record a failure you intend to
+    fix. An append-only evidence log exists to make failures cheap to record.
+
+    What still blocks, deliberately:
+      - a check that failed and was never re-run;
+      - a check whose latest record is still FAIL;
+      - an UNVERIFIED check not explicitly marked pre-existing.
+    Freshness is enforced separately and unchanged: the passing evidence must
+    still describe the surface being shipped, so a re-run against different code
+    does not launder an earlier failure.
+    """
+    latest, ever_failed = {}, set()
+    for check in checks:
+        name = check.get("check")
+        status = check.get("status")
+        if status == "FAIL":
+            ever_failed.add(name)
+        latest[name] = check
+    blocking = []
+    for name, check in latest.items():
+        status = check.get("status")
+        if status == "FAIL":
+            blocking.append(f"{name} last recorded FAIL")
+        elif status == "UNVERIFIED" and not check.get("detail", "").lower().startswith("pre-existing"):
+            blocking.append(f"{name} is UNVERIFIED and not marked pre-existing")
+    return blocking
 
 
 def child_runs(events: list[dict]) -> dict[str, dict]:
@@ -1098,13 +1131,10 @@ def cmd_finish(repo: Path, a) -> int:
             raise ValueError("PASS requires every child to finish successfully and be integrated: " + ", ".join(incomplete))
         if not checks:
             raise ValueError("PASS requires at least one verification event")
-        blocking_checks = [
-            check for check in checks
-            if check.get("status") == "FAIL"
-            or (check.get("status") == "UNVERIFIED" and not check.get("detail", "").lower().startswith("pre-existing"))
-        ]
+        blocking_checks = unresolved_failures(checks)
         if blocking_checks:
-            raise ValueError("PASS cannot follow FAIL or UNVERIFIED verification unless the UNVERIFIED check is explicitly pre-existing")
+            raise ValueError(
+                "PASS requires every check to end resolved: " + "; ".join(blocking_checks))
         # Evidence must describe the code being shipped. A suite that passed
         # before the last three edits proves nothing about what is on disk now —
         # and nothing here noticed, because `head` does not move while an agent

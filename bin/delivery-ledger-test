@@ -645,6 +645,75 @@ python3 "$M_CHILD" --repo "$BCM" start --task TASK-BCM --requirement REQ-BCM --r
 python3 "$M_CHILD" --repo "$BCM" start-child --child unresolved --task T --risk R1 --allow 'src/feature.txt' --owner one.m --invariant i >/dev/null \
   || fail "mutation probe did not neutralize the child-routing-provenance guard"
 
+# --- owner decision 2026-09-01: a failure that was fixed no longer blocks -----
+# The old rule refused PASS for any run containing a FAIL. Three times in one day
+# that rejected finished, reviewed, green work whose only failure was TASKS.md
+# crossing its size budget before being archived — and it taught the obvious
+# lesson to anything running under it: do not record a failure you mean to fix.
+
+RES="$(make_boundary_repo resolved-failure)"
+python3 "$DL" --repo "$RES" start --task TASK-RES --requirement REQ-RES --risk R1 \
+  --worker developer --model impl-model --provider impl-provider --reasoning-effort high \
+  --allow 'src/**' >/dev/null
+printf 'change\n' >> "$RES/src/feature.txt"
+python3 "$DL" --repo "$RES" record --check suite --status FAIL --detail 'budget exceeded' >/dev/null
+python3 "$DL" --repo "$RES" record --check suite --status PASS --detail 'archived, re-run' >/dev/null
+python3 "$DL" --repo "$RES" check-boundary >/dev/null 2>&1 || true
+python3 "$DL" --repo "$RES" finish --result PASS >/dev/null \
+  || fail "a check that failed and then passed must no longer block PASS"
+
+# A failure that was never re-run still blocks: nothing says it was resolved.
+UNR="$(make_boundary_repo unresolved-failure)"
+python3 "$DL" --repo "$UNR" start --task TASK-UNR --requirement REQ-UNR --risk R1 \
+  --worker developer --model impl-model --provider impl-provider --reasoning-effort high \
+  --allow 'src/**' >/dev/null
+printf 'change\n' >> "$UNR/src/feature.txt"
+python3 "$DL" --repo "$UNR" record --check other --status PASS >/dev/null
+python3 "$DL" --repo "$UNR" record --check suite --status FAIL >/dev/null
+python3 "$DL" --repo "$UNR" check-boundary >/dev/null 2>&1 || true
+python3 "$DL" --repo "$UNR" finish --result PASS >/dev/null 2>&1 \
+  && fail "a check whose latest record is FAIL must still block PASS"
+
+# Passing first and failing after is not a resolution; order is what matters.
+ORD="$(make_boundary_repo failure-after-pass)"
+python3 "$DL" --repo "$ORD" start --task TASK-ORD --requirement REQ-ORD --risk R1 \
+  --worker developer --model impl-model --provider impl-provider --reasoning-effort high \
+  --allow 'src/**' >/dev/null
+printf 'change\n' >> "$ORD/src/feature.txt"
+python3 "$DL" --repo "$ORD" record --check suite --status PASS >/dev/null
+python3 "$DL" --repo "$ORD" record --check suite --status FAIL >/dev/null
+python3 "$DL" --repo "$ORD" check-boundary >/dev/null 2>&1 || true
+python3 "$DL" --repo "$ORD" finish --result PASS >/dev/null 2>&1 \
+  && fail "PASS then FAIL on the same check must block; the run ended red"
+
+# An UNVERIFIED check that is not explicitly pre-existing still blocks.
+UNV="$(make_boundary_repo unverified-not-preexisting)"
+python3 "$DL" --repo "$UNV" start --task TASK-UNV --requirement REQ-UNV --risk R1 \
+  --worker developer --model impl-model --provider impl-provider --reasoning-effort high \
+  --allow 'src/**' >/dev/null
+printf 'change\n' >> "$UNV/src/feature.txt"
+# A passing check as well, or the freshness rule denies PASS on its own and this
+# case cannot tell the UNVERIFIED guard from its absence — the first version
+# could not, and a mutation disabling that guard passed the suite.
+python3 "$DL" --repo "$UNV" record --check green --command 'true' >/dev/null
+python3 "$DL" --repo "$UNV" record --check suite --status UNVERIFIED --detail 'not run' >/dev/null
+python3 "$DL" --repo "$UNV" check-boundary >/dev/null 2>&1 || true
+python3 "$DL" --repo "$UNV" finish --result PASS >/dev/null 2>&1 \
+  && fail "an UNVERIFIED check that is not pre-existing must still block PASS"
+
+# Freshness is unchanged, and it is what stops the new rule from laundering a
+# failure: re-running a check against code that then changes does not resolve it.
+FRS="$(make_boundary_repo resolved-then-stale)"
+python3 "$DL" --repo "$FRS" start --task TASK-FRS --requirement REQ-FRS --risk R1 \
+  --worker developer --model impl-model --provider impl-provider --reasoning-effort high \
+  --allow 'src/**' >/dev/null
+printf 'change\n' >> "$FRS/src/feature.txt"
+python3 "$DL" --repo "$FRS" record --check suite --command 'true' >/dev/null
+printf 'edited after the green run\n' >> "$FRS/src/feature.txt"
+python3 "$DL" --repo "$FRS" check-boundary >/dev/null 2>&1 || true
+python3 "$DL" --repo "$FRS" finish --result PASS >/dev/null 2>&1 \
+  && fail "evidence recorded against different code must still deny PASS"
+
 M_KEY="$(make_mutant mutant-provenance-key 'return (value or "").strip().casefold()' 'return value or ""')"
 BKM="$(make_boundary_repo boundary-normalization-mutation)"
 python3 "$M_KEY" --repo "$BKM" start --task TASK-BKM --requirement REQ-BKM --risk R1 --worker developer --model impl-model --provider impl-provider --reasoning-effort high --allow 'auth/**' --protect 'auth/**' --protected-risk R3 >/dev/null
