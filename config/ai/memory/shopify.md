@@ -4,6 +4,6 @@
 - **Skill priority for Shopify content/SEO** (moved out of `AGENTS.md`, 2026-07-20): `shopify-memory`, `shopify-listing` (both currently disabled — see above), `seo-website-builder`, `content`, `copywriting`. Verify with: `skill-list`.
 - Complete, actionable repo map: **`~/dotfiles/docs/shopify-ai-development-repos.md`** (repo map, purpose, when to use, clone vs link). The old path `~/Documents/shopify-ai-development-repos.md` DOES NOT EXIST.
 - ⚠️ The `shopify-ai-toolkit-router` skill **WAS DELETED (2026-07-14)** — its contents were 100% pointers to 10 skills that never existed. For Shopify dev work, read the repo map above directly.
-- Theme dev: prefer `horizon`/`dawn` + `theme-tools` (theme-check) + `theme-liquid-docs`. App: CLI `@shopify/cli` + `shopify-app-template-remix` + `shopify-app-js`. Extension: `ui-extensions` + `function-examples`.
-- Official AI plugin: `Shopify-AI-Toolkit` (= the source of the `shopify-dev` MCP) + `liquid-skills`.
+- Theme dev: prefer `horizon`/`dawn` + `theme-tools` (theme-check) + `theme-liquid-docs`. Headless: prefer `hydrogen` (Remix on Oxygen edge runtime, free on all plans) + Storefront API; use Next.js/Astro only when required by custom constraints. App: CLI `@shopify/cli` + `shopify-app-template-remix` + `shopify-app-js`. Extension: `ui-extensions` + `function-examples`.
+- Official AI plugin & MCP: `Shopify-AI-Toolkit` (`shopify-dev` MCP for live schema introspection, API docs, & GraphQL query validation; install via `/plugin marketplace add Shopify/shopify-ai-toolkit` or `npx skills add Shopify/shopify-ai-toolkit`) + `liquid-skills`.
 - DO NOT clone Shopify org repos unless genuinely inspecting source or basing work on a template/theme — a reference link is enough otherwise.

@@ -45,6 +45,15 @@ checklist, not a mandate to add every feature.
   to material purchase information.
 - Add to cart, accelerated Buy now, preorder, and notify-me are distinct actions
   with distinct consequences.
+- **Objection Snapping**: Place critical reassurance microcopy directly beside the decision:
+  - Beside Price: Material integrity, lining quality, or origin proof (*e.g. Furing Hero Halus, Batik Asli*).
+  - Beside Size Selector: Authoritative model fit reference (*e.g. Model TB 178cm/BB 75kg wearing L - Regular Fit*) and size exchange guarantee.
+  - Beside Action CTA: Delivery timeframe and consultative assistance.
+- **Multi-Variant Coordinated Sets ("Build Your Own Bundle" / BYOB / Sarimbit)**:
+  - When a product represents a coordinated family or bundle set (e.g. Father + Mother + Children), avoid fragmenting into separate product pages.
+  - Present an integrated multi-selector permitting concurrent variant selection across items with real-time subtotal calculation.
+  - Support atomic, single-mutation cart insertion for all selected bundle components.
+  - Provide fallback individual line deletion inside the cart drawer.
 
 ## Cart
 

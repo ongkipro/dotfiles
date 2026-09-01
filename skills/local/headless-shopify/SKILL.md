@@ -77,7 +77,9 @@ date, retrieve current official Shopify documentation. Read
 
 Read [Delivery contract](references/delivery-contract.md) before implementing
 or reviewing data flow, cache, cart, account, privacy, analytics, migration,
-and release evidence.
+and release evidence. For frontend component architecture, editorial lookbooks,
+multi-variant family bundle builders (BYOB), and luxury commerce UI/UX patterns on Hydrogen,
+read [Hydrogen UI/UX Architecture](references/hydrogen-ui-ux-architecture.md).
 
 ## Stack choices
 
