@@ -42,6 +42,7 @@ diff-risk
 diff-risk-test
 dotpush
 dotsync
+dotsync-test
 inspect-project
 installer-link-test
 memory-usage-hook-test

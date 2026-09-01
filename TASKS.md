@@ -24,6 +24,20 @@ _None._
 
 ## Recently completed
 
+### TASK-041: Pin what the sync tool promises
+- **Requirement:** REQ-SYNC-SAFETY
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/dotsync-test`, `config/ai/runtime-commands.txt`, `TASKS.md`
+- **Protected Paths:** `bin/dotsync`
+- **Canonical Contract Owners:** `runtime.sync`
+- **Accepted Invariants:** dotsync acts on the repository its script lives in, refuses to mutate without a TTY or `--yes`, and will not commit without a passing security scan
+- **Regression Checks:** `dotsync-test`, `ai-policy-lint`
+- **Runtime Evidence:** four mutations — auto-consent, skipped scan, no `cd`, no empty-commit guard — each fail named cases
+- **Reopen Conditions:** `dotsync` gains a mutating path with no case covering it
+- **Non-Scope:** changing `git add -A` behaviour; the sweep is pinned, not redesigned
+- **Verification:** `bin/dotsync-test`
+- **Escalation Conditions:** the sweep must become selective
+
 ### TASK-040: A task lifecycle that cannot go stale
 - **Requirement:** REQ-TASK-GRAPH
 - **Depends On:** TASK-037
