@@ -17,6 +17,11 @@ gh api repos/ongkipro/dotfiles --jq .visibility
 - **Public,** confirmed by `gh api` on 2026-08-26 — contradicted the prior
   "private" claim with no commit found explaining that change either.
 - **Private 2026-08-27.** Owner instruction, explicit in that session.
+- **Public, verified by `gh api` on 2026-09-01** — contradicting the
+  "Private 2026-08-27" line above with no commit found explaining the change.
+  This is the second time the written history has been overtaken without a
+  recorded flip, which is why the instruction at the top of this file is to
+  check the live value rather than read this list.
 
 ## Why visibility is not a secrets boundary
 
