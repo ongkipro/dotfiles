@@ -16,10 +16,22 @@ toolchain_pick_node() {
   while IFS= read -r c; do [ -n "$c" ] && cands+=("$c"); done < <(
     find "$HOME/.local/share/mise/installs/node" -mindepth 3 -maxdepth 3 \
          -name node -type f 2>/dev/null | sort -Vr)
+  # Probe under a SCRATCH HOME, because that is how the shim gets used. mise
+  # resolves its tool versions from configuration under $HOME, so a shim that
+  # answers fine here stops being valid inside any test that isolates HOME —
+  # which is how ai-learn-test kept failing on macOS while ai-memory-check ran
+  # perfectly when invoked directly. A candidate that only works in comfortable
+  # conditions is not the one to pin.
+  local probe_home="${TMPDIR:-/tmp}/toolchain-probe.$$"
+  mkdir -p "$probe_home" 2>/dev/null
   for c in "${cands[@]}"; do
     [ -x "$c" ] || continue
-    $t "$c" --version >/dev/null 2>&1 && { dirname "$c"; return 0; }
+    if HOME="$probe_home" $t "$c" --version >/dev/null 2>&1; then
+      rmdir "$probe_home" 2>/dev/null
+      dirname "$c"; return 0
+    fi
   done
+  rmdir "$probe_home" 2>/dev/null
 }
 
 # Directories every owned command needs on PATH but a non-interactive shell has
