@@ -28,9 +28,25 @@ TIMEOUT_SECONDS=5
 # seconds. This hook runs on every prompt in five CLIs, so that is a stalled
 # turn. memory-usage-hook-test reproduces it — it isolates HOME, which is
 # exactly what strands such a shim.
+# `timeout` is GNU and absent from stock macOS, so this function was named
+# `bounded` while running every command with no bound at all on exactly the
+# platform where nobody would notice. On 2026-09-01 that turned a stall in the
+# routing path into a hang that ran for 17 minutes inside device-verify and
+# never ended. Perl ships with macOS and its alarm gives a real bound with no
+# new dependency; an unbounded fallback now says so rather than pretending.
 TIMEOUT_BIN=$(command -v timeout 2>/dev/null) || TIMEOUT_BIN=""
+[ -n "$TIMEOUT_BIN" ] || TIMEOUT_BIN=$(command -v gtimeout 2>/dev/null) || TIMEOUT_BIN=""
+PERL_BIN=""
+[ -n "$TIMEOUT_BIN" ] || PERL_BIN=$(command -v perl 2>/dev/null) || PERL_BIN=""
 bounded() {
-  if [ -n "$TIMEOUT_BIN" ]; then "$TIMEOUT_BIN" "$TIMEOUT_SECONDS" "$@"; else "$@"; fi
+  if [ -n "$TIMEOUT_BIN" ]; then
+    "$TIMEOUT_BIN" "$TIMEOUT_SECONDS" "$@"
+  elif [ -n "$PERL_BIN" ]; then
+    "$PERL_BIN" -e 'alarm shift; exec @ARGV or exit 127' "$TIMEOUT_SECONDS" "$@"
+  else
+    echo "memory-usage hook: no timeout available; running unbounded" >&2
+    "$@"
+  fi
 }
 
 payload=$(cat) || exit 0

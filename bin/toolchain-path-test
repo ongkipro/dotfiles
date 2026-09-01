@@ -72,6 +72,18 @@ E="$TMP/empty"; mkdir -p "$E"
 picked="$(HOME="$E" toolchain_pick_node)"
 check "no runtime yields nothing" "$picked" ""
 
+# A cached answer is reused without re-probing, and a stale one is ignored
+# rather than trusted. The cache exists because re-probing per child turned a
+# 226-second self-test into 1031 seconds on macOS.
+C="$TMP/cached/bin"; mkdir -p "$C"
+printf '#!/usr/bin/env bash\necho vcached\n' > "$C/node"; chmod +x "$C/node"
+picked="$(HOME="$E" TOOLCHAIN_NODE_BIN="$C" toolchain_pick_node)"
+check "a cached runtime is reused" "$picked" "$C"
+
+picked="$(HOME="$H" TOOLCHAIN_NODE_BIN="$TMP/gone" toolchain_pick_node)"
+check "a stale cache is ignored, not trusted" "$picked" \
+  "$H/.local/share/mise/installs/node/24.0.0/bin"
+
 echo
 [ "$fails" -eq 0 ] && { echo "toolchain-path-test: all cases hold"; exit 0; }
 echo "toolchain-path-test: $fails case(s) failed"; exit 1

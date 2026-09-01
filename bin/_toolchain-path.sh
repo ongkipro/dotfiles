@@ -10,6 +10,14 @@
 # could not repair it, because it wanted GitHub for a version lookup and GitHub
 # had rate-limited it to 0/60.
 toolchain_pick_node() {
+  # Reuse an answer already found in this process tree. The probe runs a real
+  # binary, and on macOS the failing shim can drag mise into a rate-limited
+  # network lookup before it gives up — a per-invocation cost that turned a
+  # 226-second self-test into 1031 seconds because every child re-probed.
+  if [ -n "${TOOLCHAIN_NODE_BIN:-}" ] && [ -x "${TOOLCHAIN_NODE_BIN}/node" ]; then
+    printf '%s\n' "$TOOLCHAIN_NODE_BIN"
+    return 0
+  fi
   local c t=""
   command -v timeout >/dev/null 2>&1 && t="timeout 10"
   local -a cands=("$HOME/.local/share/mise/shims/node")
@@ -41,5 +49,9 @@ toolchain_export_path() {
   local node_bin
   export PATH="$HOME/.local/bin:$HOME/.agents/bin:$HOME/.local/share/mise/shims:/opt/homebrew/bin:/usr/local/bin:$PATH"
   node_bin="$(toolchain_pick_node)"
-  [ -n "$node_bin" ] && export PATH="$node_bin:$PATH"
+  if [ -n "$node_bin" ]; then
+    export PATH="$node_bin:$PATH"
+    # Exported so children skip the probe entirely rather than repeating it.
+    export TOOLCHAIN_NODE_BIN="$node_bin"
+  fi
 }

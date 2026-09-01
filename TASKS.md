@@ -24,6 +24,21 @@ _None._
 
 ## Recently completed
 
+### TASK-044: A bound that only bounds where it was written
+- **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
+- **Risk Level:** R1
+- **Depends On:** TASK-043
+- **Allowed Paths:** `config/ai/hooks/memory-usage.sh`, `bin/memory-usage-hook-test`, `bin/_toolchain-path.sh`, `bin/toolchain-path-test`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.device-verification`
+- **Accepted Invariants:** a function named `bounded` is bounded on every device, or it says out loud that it is not
+- **Regression Checks:** `memory-usage-hook-test`, `toolchain-path-test`
+- **Runtime Evidence:** the hook ran a 30s child to completion without GNU timeout; it now stops at 5s, proven with the fallback disabled
+- **Reopen Conditions:** a guard depends on a GNU-only tool without a fallback
+- **Non-Scope:** installing coreutils on any device
+- **Verification:** `bin/memory-usage-hook-test`
+- **Escalation Conditions:** a bound cannot be expressed without a new dependency
+
 ### TASK-043: Probe the runtime the way it is actually used
 - **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
 - **Risk Level:** R1
