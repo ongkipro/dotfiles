@@ -1,6 +1,6 @@
 # Meta Pixel + Hydrogen Connector Blueprint
 
-This blueprint provides the complete, copy-paste-ready implementation of a Meta Pixel subscriber component built on `@shopify/hydrogen`'s `useAnalytics()` event bus.
+This blueprint provides the complete, enterprise-grade implementation of a Meta Pixel subscriber component built on `@shopify/hydrogen`'s `useAnalytics()` event bus, featuring **automatic `event_id` deduplication** and background CAPI dispatch.
 
 ---
 
@@ -20,10 +20,11 @@ declare global {
 
 interface MetaPixelProps {
   pixelId?: string;
+  enableDualCapi?: boolean; // Set true to also trigger server /api/events
   debug?: boolean;
 }
 
-export function MetaPixel({pixelId, debug = false}: MetaPixelProps) {
+export function MetaPixel({pixelId, enableDualCapi = true, debug = false}: MetaPixelProps) {
   const {subscribe, register} = useAnalytics();
   const {ready} = register('meta-pixel');
 
@@ -64,15 +65,33 @@ export function MetaPixel({pixelId, debug = false}: MetaPixelProps) {
       window.fbq('init', pixelId);
     }
 
-    // Signal Hydrogen that this subscriber is initialized and ready to receive events
+    // Signal Hydrogen that this subscriber is ready
     ready();
+
+    // Helper: Dual dispatch to Server CAPI
+    const dispatchCapi = (eventName: string, eventId: string, customData: any) => {
+      if (!enableDualCapi) return;
+      fetch('/api/events', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          eventName,
+          eventId,
+          eventSourceUrl: window.location.href,
+          customData,
+        }),
+      }).catch((err) => {
+        if (debug) console.warn('[Meta CAPI Dual Dispatch Error]:', err);
+      });
+    };
 
     // 2. Event Subscriptions
     
-    // PageView (fires on initial load and every SPA route change)
+    // PageView
     const unsubscribePageView = subscribe(AnalyticsEvent.PAGE_VIEWED, () => {
-      if (debug) console.log('[Meta Pixel] PageView');
-      window.fbq('track', 'PageView');
+      const eventId = `pv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      if (debug) console.log('[Meta Pixel] PageView', eventId);
+      window.fbq('track', 'PageView', {}, {eventID: eventId});
     });
 
     // ViewContent (Product Details Page)
@@ -82,8 +101,7 @@ export function MetaPixel({pixelId, debug = false}: MetaPixelProps) {
         const product = payload.products?.[0];
         if (!product) return;
 
-        // Strip Shopify GID prefix if your feed uses plain numeric IDs:
-        // const rawId = product.id.replace('gid://shopify/Product/', '');
+        const eventId = `vc_${product.id}_${Date.now()}`;
         const contentId = product.id;
 
         const data = {
@@ -94,8 +112,9 @@ export function MetaPixel({pixelId, debug = false}: MetaPixelProps) {
           currency: payload.currency || 'USD',
         };
 
-        if (debug) console.log('[Meta Pixel] ViewContent', data);
-        window.fbq('track', 'ViewContent', data);
+        if (debug) console.log('[Meta Pixel] ViewContent', {data, eventId});
+        window.fbq('track', 'ViewContent', data, {eventID: eventId});
+        dispatchCapi('ViewContent', eventId, data);
       },
     );
 
@@ -106,11 +125,14 @@ export function MetaPixel({pixelId, debug = false}: MetaPixelProps) {
         const collection = payload.collection;
         if (!collection) return;
 
-        if (debug) console.log('[Meta Pixel] ViewCategory', collection);
-        window.fbq('trackCustom', 'ViewCategory', {
+        const eventId = `cat_${collection.id}_${Date.now()}`;
+        const data = {
           content_name: collection.handle || collection.id,
           content_type: 'product_group',
-        });
+        };
+
+        if (debug) console.log('[Meta Pixel] ViewCategory', {data, eventId});
+        window.fbq('trackCustom', 'ViewCategory', data, {eventID: eventId});
       },
     );
 
@@ -121,6 +143,7 @@ export function MetaPixel({pixelId, debug = false}: MetaPixelProps) {
         const product = payload.products?.[0];
         if (!product) return;
 
+        const eventId = `atc_${product.id}_${Date.now()}`;
         const contentId = product.id;
         const quantity = product.quantity || 1;
         const unitPrice = parseFloat(product.price || '0');
@@ -133,8 +156,9 @@ export function MetaPixel({pixelId, debug = false}: MetaPixelProps) {
           currency: payload.currency || 'USD',
         };
 
-        if (debug) console.log('[Meta Pixel] AddToCart', data);
-        window.fbq('track', 'AddToCart', data);
+        if (debug) console.log('[Meta Pixel] AddToCart', {data, eventId});
+        window.fbq('track', 'AddToCart', data, {eventID: eventId});
+        dispatchCapi('AddToCart', eventId, data);
       },
     );
 
@@ -143,61 +167,25 @@ export function MetaPixel({pixelId, debug = false}: MetaPixelProps) {
       AnalyticsEvent.SEARCH_SUBMITTED,
       (payload: any) => {
         if (!payload.searchTerm) return;
-        if (debug) console.log('[Meta Pixel] Search', payload.searchTerm);
-        window.fbq('track', 'Search', {
+        const eventId = `search_${Date.now()}`;
+        const data = {
           search_string: payload.searchTerm,
-        });
+        };
+
+        if (debug) console.log('[Meta Pixel] Search', {data, eventId});
+        window.fbq('track', 'Search', data, {eventID: eventId});
       },
     );
 
     return () => {
-      // Cleanup subscriptions on unmount
       unsubscribePageView();
       unsubscribeProductView();
       unsubscribeCollectionView();
       unsubscribeAddToCart();
       unsubscribeSearch();
     };
-  }, [pixelId, subscribe, register, ready, debug]);
+  }, [pixelId, enableDualCapi, subscribe, register, ready, debug]);
 
   return null;
-}
-```
-
----
-
-## 2. Mounting inside `app/root.tsx`
-
-```tsx
-// app/root.tsx
-import {Analytics, getShopAnalytics} from '@shopify/hydrogen';
-import {MetaPixel} from '~/components/MetaPixel';
-
-export async function loader({context}: LoaderFunctionArgs) {
-  return defer({
-    shop: getShopAnalytics({
-      storefront: context.storefront,
-      publicStorefrontId: context.env.PUBLIC_STOREFRONT_ID,
-    }),
-    consent: {
-      checkoutDomain: context.env.PUBLIC_CHECKOUT_DOMAIN,
-      storefrontAccessToken: context.env.PUBLIC_STOREFRONT_API_TOKEN,
-      withPrivacyBanner: true,
-    },
-    metaPixelId: context.env.PUBLIC_META_PIXEL_ID,
-  });
-}
-
-export default function App() {
-  const data = useLoaderData<typeof loader>();
-
-  return (
-    <Analytics.Provider cart={data.cart} shop={data.shop} consent={data.consent}>
-      <Layout>
-        <Outlet />
-      </Layout>
-      <MetaPixel pixelId={data.metaPixelId} debug={process.env.NODE_ENV === 'development'} />
-    </Analytics.Provider>
-  );
 }
 ```
