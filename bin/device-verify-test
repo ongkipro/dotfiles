@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# device-verify-test — prove the cross-device gate reports what actually happened.
+#
+# device-verify decides what every device believes about itself, and on
+# 2026-08-31 it twice blamed a healthy machine for commands that were installed
+# correctly. It was also edited five times in one day with nothing guarding it,
+# while forty-one lesser commands had a test each. This is that guard.
+#
+# No production seam was needed: device-verify already resolves its gates from
+# DOTFILES_DIR, so a scratch root of stub gates exercises every branch —
+# failure, success, and the PASS* case where a gate exits 0 having judged
+# nothing.
+set -uo pipefail
+ROOT="${DOTFILES_DIR:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+DV="$ROOT/bin/device-verify"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+fails=0
+
+say()  { printf '  %-4s %s\n' "$1" "$2"; }
+want() { if printf '%s' "$REPORT" | grep -qF "$2"; then say ok "$1"
+         else say FAIL "$1"; printf '       wanted: %s\n' "$2"; fails=$((fails + 1)); fi; }
+wantnot() { if printf '%s' "$REPORT" | grep -qF "$2"; then
+              say FAIL "$1"; printf '       should not contain: %s\n' "$2"; fails=$((fails + 1))
+            else say ok "$1"; fi; }
+
+# A scratch root whose gates are stubs. `fake_gate NAME EXIT LINE...`
+fake_root() {
+  local d="$1"; mkdir -p "$d/bin" "$d/config/ai"
+  printf '# manifest\ndevice-verify\n' > "$d/config/ai/runtime-commands.txt"
+  git -C "$d" init -q; git -C "$d" -c user.email=t@t -c user.name=t \
+    commit -q --allow-empty -m init >/dev/null 2>&1
+}
+fake_gate() {
+  local d="$1" name="$2" code="$3"; shift 3
+  { echo '#!/usr/bin/env bash'; for l in "$@"; do printf 'echo %q\n' "$l"; done
+    echo "exit $code"; } > "$d/bin/$name"
+  chmod +x "$d/bin/$name"
+}
+
+D="$TMP/root"; fake_root "$D"
+fake_gate "$D" ai-doctor 0 "ai-doctor: OK"
+fake_gate "$D" ai-policy-lint 0 \
+  "  ! GitHub workflows not validated here: actionlint is not installed on this device" \
+  "ai-policy-lint: PASSED"
+fake_gate "$D" delivery-ledger-test 0 "delivery-ledger-test: PASS"
+fake_gate "$D" omp-effective-routing-test 0 "omp-effective-routing-test: OK"
+# A failing gate whose LAST line is a separator — the shape that produced a
+# report saying "────────────" and telling nobody anything.
+fake_gate "$D" dev-ready-test 1 \
+  "  FAIL a repository reached through a symlinked path is its own root" \
+  "dev-ready-test: 1 case(s) failed" \
+  "────────────────────────────────────────"
+fake_gate "$D" resume-brief-test 0 "resume-brief-test: all cases hold"
+
+DOTFILES_DIR="$D" "$DV" >/dev/null 2>&1; code=$?
+REPORT="$(cat "$(ls -t "$D"/docs/device-reports/*.md | head -1)" 2>/dev/null)"
+
+[ "$code" -ne 0 ] && say ok "a failing gate makes the command exit non-zero" \
+  || { say FAIL "a failing gate makes the command exit non-zero (got $code)"; fails=$((fails + 1)); }
+want "the failing gate is marked FAIL"        "| \`dev-ready-test\` | FAIL |"
+want "the failing line is named, not a rule"  "FAIL a repository reached through a symlinked path"
+wantnot "no separator is reported as a cause" "────────────────────────────────────────ptr"
+want "a clean gate is a plain PASS"           "| \`delivery-ledger-test\` | PASS |"
+want "a gate that judged nothing is PASS*"    "| \`ai-policy-lint\` | PASS* |"
+want "what it could not judge is named"       "actionlint is not installed on this device"
+want "the unjudged section explains itself"   "Not judged on this device"
+want "the report states the PATH it used"     "**PATH used:**"
+want "the verdict counts the failure"         "gate(s) FAILED"
+
+# Every gate green: no PASS*, no failure section, exit 0.
+E="$TMP/allgreen"; fake_root "$E"
+for g in ai-doctor ai-policy-lint delivery-ledger-test omp-effective-routing-test \
+         dev-ready-test resume-brief-test; do fake_gate "$E" "$g" 0 "$g: fine"; done
+DOTFILES_DIR="$E" "$DV" >/dev/null 2>&1; code=$?
+REPORT="$(cat "$(ls -t "$E"/docs/device-reports/*.md | head -1)" 2>/dev/null)"
+[ "$code" -eq 0 ] && say ok "all gates green exits 0" \
+  || { say FAIL "all gates green exits 0 (got $code)"; fails=$((fails + 1)); }
+want "a fully green device says so"           "every gate holds on this device"
+wantnot "nothing is marked unjudged"          "Not judged on this device"
+wantnot "no gate is starred"                  "PASS* |"
+
+echo
+[ "$fails" -eq 0 ] && { echo "device-verify-test: all cases hold"; exit 0; }
+echo "device-verify-test: $fails case(s) failed"; exit 1

@@ -24,6 +24,20 @@ _None._
 
 ## Recently completed
 
+### TASK-038: Guard the gate that judges every device
+- **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/device-verify-test`, `config/ai/runtime-commands.txt`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.device-verification`
+- **Accepted Invariants:** a failing gate is named by its own failing line, and a gate that judged nothing is never reported as a plain PASS
+- **Regression Checks:** `device-verify-test`, `ai-policy-lint`
+- **Runtime Evidence:** two mutations — removing `PASS*` and removing the failing-line extraction — each fail the suite
+- **Reopen Conditions:** device-verify changes without a case covering the change
+- **Non-Scope:** running device-verify-test from inside device-verify; `ai-doctor --self-test` discovers it and CI runs that
+- **Verification:** `bin/device-verify-test`
+- **Escalation Conditions:** a gate's behaviour cannot be reproduced with a stub root
+
 ### TASK-037: A resume brief that hides retired work and watches CI
 - **Requirement:** REQ-RESUME-AUTHORITY
 - **Risk Level:** R1

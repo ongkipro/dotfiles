@@ -37,6 +37,7 @@ dev-ready-test
 development-spec-suite-test
 device-register
 device-verify
+device-verify-test
 diff-risk
 diff-risk-test
 dotpush
