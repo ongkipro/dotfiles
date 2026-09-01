@@ -77,24 +77,52 @@ fi
 # read-only copy instead: tracked source remains review-only, while attempted
 # ambient writes fail closed.
 install_home_bootstrap() {
-  local src_file="$1" dst="$2" runtime="$3" current=""
+  local src_file="$1" dst="$2" runtime="$3" current="" staging=""
   [ -f "$src_file" ] || return 0
 
-  # Validate the runtime directory before touching anything. This check used to
-  # sit after `unlink "$dst"`, so refusing to expose a contaminated directory
-  # also destroyed the symlink it was refusing to expose — the next run rebuilt
-  # it, which is why the state alternated instead of staying broken. Refusing
-  # must leave the world exactly as it was found.
-  if [ -d "$runtime" ] \
-     && find "$runtime" -mindepth 1 -maxdepth 1 ! -name MEMORY.md -print -quit | grep -q .; then
-    chmod 500 "$runtime"
-    echo "WARNING: $runtime contains unexpected files; refusing to expose it."
-    echo "  Move them to config/ai/project-memory/ (cross-device) or ~/.config/ai-local/."
-    return 0
+  # EVERY refusal below happens before $dst is touched. That ordering is the
+  # whole lesson of this function: the original code validated after
+  # `unlink "$dst"`, so refusing to expose a contaminated directory destroyed
+  # the symlink it was refusing to expose. The 2026-09-01 rework then
+  # reintroduced exactly that for two new refusal paths, one branch over, while
+  # the comment above them claimed the opposite. Do not move a `return` above
+  # the link step without moving its check up here too.
+
+  if [ -d "$runtime" ]; then
+    if find "$runtime" -mindepth 1 -maxdepth 1 ! -name MEMORY.md -print -quit | grep -q .; then
+      chmod 500 "$runtime" 2>/dev/null || true
+      echo "WARNING: $runtime contains unexpected files; refusing to expose it."
+      echo "  Move them to config/ai/project-memory/ (cross-device) or ~/.config/ai-local/."
+      return 0
+    fi
+    # -L before -f, deliberately: `[ -f ]` FOLLOWS symlinks, so a symlink named
+    # MEMORY.md satisfied the refresh branch and `cat >` wrote the bootstrap
+    # through it into an arbitrary file outside the sealed directory, chmodded
+    # the victim 400, and reported success. Truncate-in-place is what made that
+    # reachable; the earlier `install` would have replaced the link.
+    if [ -e "$runtime/MEMORY.md" ] || [ -L "$runtime/MEMORY.md" ]; then
+      if [ -L "$runtime/MEMORY.md" ] || [ ! -f "$runtime/MEMORY.md" ]; then
+        chmod 500 "$runtime" 2>/dev/null || true
+        echo "WARNING: $runtime/MEMORY.md is not a regular file; refusing to write through it."
+        return 0
+      fi
+      # A hardlink satisfies both -f and ! -L, and truncate-in-place then writes
+      # through the shared inode into the file's other name. `find -links` is
+      # POSIX; `stat -c %h` is GNU and would be wrong on macOS.
+      if find "$runtime" -maxdepth 1 -name MEMORY.md -links +1 -print -quit | grep -q .; then
+        chmod 500 "$runtime" 2>/dev/null || true
+        echo "WARNING: $runtime/MEMORY.md has other hard links; refusing to write through it."
+        return 0
+      fi
+    fi
   fi
 
   if [ -d "$dst" ] && [ ! -L "$dst" ]; then
     echo "WARNING: $dst is an unmanaged directory; inspect it before migration."
+    return 0
+  fi
+  if [ ! -L "$dst" ] && [ -e "$dst" ]; then
+    echo "WARNING: $dst is an unmanaged file; refusing to replace it."
     return 0
   fi
   if [ -L "$dst" ]; then
@@ -104,29 +132,60 @@ install_home_bootstrap() {
       echo "WARNING: $dst points to an unmanaged target; refusing to replace it."
       return 0
     fi
-    unlink "$dst"
-  elif [ -e "$dst" ]; then
-    echo "WARNING: $dst is an unmanaged file; refusing to replace it."
-    return 0
   fi
 
-  mkdir -p "$(dirname "$dst")" "$runtime"
-  # Refresh the file in place rather than replacing it. `install` unlinks and
-  # recreates, which needs a writable directory, and the chmod 700 / chmod 500
-  # pair around it was a real window: on 2026-08-31 a concurrent Claude session's
-  # auto-memory landed inside one and survived, because closing the directory
-  # afterwards does not remove what got in. Truncating an existing file needs no
-  # directory write at all, so steady-state refresh never opens the door.
-  if [ -f "$runtime/MEMORY.md" ]; then
-    chmod 600 "$runtime/MEMORY.md"
-    cat "$src_file" > "$runtime/MEMORY.md"
+  mkdir -p "$(dirname "$dst")" "$(dirname "$runtime")"
+
+  # Build or refresh the runtime FIRST; the symlink is only touched once the
+  # directory it will point at is known good.
+  if [ -f "$runtime/MEMORY.md" ] && [ ! -L "$runtime/MEMORY.md" ]; then
+    # Refresh in place. `install` unlinks and recreates, which needs a writable
+    # directory, and the chmod 700 / chmod 500 pair around it was a real window:
+    # a concurrent Claude session's auto-memory landed inside one and survived,
+    # because closing the directory afterwards does not remove what got in.
+    # Truncating an existing file needs no directory write, so this never opens.
+    if [ ! -r "$src_file" ]; then
+      echo "WARNING: $src_file is unreadable; leaving $runtime and $dst untouched."
+      return 0
+    fi
+    chmod 600 "$runtime/MEMORY.md" || {
+      echo "WARNING: cannot open $runtime/MEMORY.md for refresh; leaving it untouched."
+      return 0
+    }
+    if ! cat "$src_file" > "$runtime/MEMORY.md" || ! cmp -s "$src_file" "$runtime/MEMORY.md"; then
+      chmod 400 "$runtime/MEMORY.md"; chmod 500 "$runtime"
+      echo "WARNING: $runtime/MEMORY.md does not match the source after refresh."
+      echo "  The redirection empties it before the copy can fail, so it may be"
+      echo "  truncated, or the source may have changed mid-write. Re-run after"
+      echo "  fixing the source or freeing space; $dst is unchanged."
+      return 0
+    fi
     chmod 400 "$runtime/MEMORY.md"
     chmod 500 "$runtime"
   else
-    chmod 700 "$runtime"
-    install -m 400 "$src_file" "$runtime/MEMORY.md"
-    chmod 500 "$runtime"
+    # Built sealed in a private directory and renamed in, so the window never
+    # exists rather than merely being short. chmod 500 BEFORE the rename is
+    # load-bearing, not tidiness: it is what makes a losing race fail closed.
+    if [ -d "$runtime" ] && ! rmdir "$runtime" 2>/dev/null; then
+      echo "WARNING: $runtime could not be replaced (not empty, or its parent is not writable);"
+      echo "  leaving it and $dst exactly as they are."
+      return 0
+    fi
+    staging="$(mktemp -d "${runtime}.new.XXXXXX")" || return 0
+    if ! install -m 400 "$src_file" "$staging/MEMORY.md"; then
+      chmod 700 "$staging"; rm -rf "$staging"
+      echo "WARNING: could not stage $runtime; leaving it and $dst untouched."
+      return 0
+    fi
+    chmod 500 "$staging"
+    if ! mv "$staging" "$runtime" 2>/dev/null; then
+      chmod 700 "$staging"; rm -rf "$staging"
+      echo "WARNING: could not install $runtime; leaving it and $dst untouched."
+      return 0
+    fi
   fi
+
+  [ -L "$dst" ] && unlink "$dst"
   ln -s "$runtime" "$dst"
   echo "linked read-only bootstrap: $dst -> $runtime"
 }

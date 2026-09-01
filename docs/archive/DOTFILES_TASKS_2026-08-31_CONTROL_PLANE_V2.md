@@ -128,3 +128,59 @@ in the manifest, so TASK-026's guard fired on its author. And the report's "last
 line" for a failing gate was `────────────`, which told nobody anything — the
 line a reader needs is the first one naming the problem, not the last one
 printed. Both fixed.
+
+### TASK-030: The read-only memory bootstrap must actually be read-only
+- **Requirement:** REQ-MEMORY-OWNERSHIP
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/ai-memory-link`, `config/ai/project-memory/**`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.memory-bootstrap`
+- **Accepted Invariants:** the runtime directory is mode 500 with exactly one mode-400 `MEMORY.md`, on every path including refusal
+- **Regression Checks:** `ai-policy-lint`, `ai-doctor`
+- **Runtime Evidence:** `memory-bootstrap-sealed` recorded via `record --command`
+- **Reopen Conditions:** a second file appears in a bootstrap directory on any device
+- **Non-Scope:** changing what Claude Code writes, or where its auto-memory goes
+- **Verification:** `memory-bootstrap-sealed`
+- **Escalation Conditions:** a device needs the directory writable for a reason the contract does not cover
+
+### TASK-031: A readiness gate that runs before development, not after it
+- **Requirement:** REQ-DEV-READINESS
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/dev-ready`, `bin/dev-ready-test`, `config/ai/runtime-commands.txt`, `TASKS.md`, `bin/device-verify`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.readiness`
+- **Accepted Invariants:** every check has a constructed failing case; a blocker names the precise missing capability and never downgrades the task
+- **Regression Checks:** `dev-ready-test`, `ai-policy-lint`
+- **Runtime Evidence:** `dev-ready` against this repository
+- **Reopen Conditions:** a check passes on a repository that cannot actually be developed in
+- **Non-Scope:** repairing anything it finds, or installing a missing capability
+- **Verification:** `bin/dev-ready-test`
+- **Escalation Conditions:** a required capability has no valid fallback
+
+### TASK-032: The portable reference must not demand one device's providers
+- **Requirement:** REQ-PORTABLE-ROUTING
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/omp-effective-routing-test`, `config/omp/STATUS.md`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.routing-validation`
+- **Accepted Invariants:** a selector under a provider the device authenticates is judged; one under an absent provider is reported unjudged, never passed silently
+- **Regression Checks:** `omp-effective-routing-test`, `ai-policy-lint`
+- **Runtime Evidence:** mutation D (unknown model, present provider) FAILs; mutation E (absent provider) reports unjudged
+- **Reopen Conditions:** a device passes this gate while its own routing is broken
+- **Non-Scope:** forcing the native config to match the tracked reference
+- **Verification:** `bin/omp-effective-routing-test`
+- **Escalation Conditions:** two devices need mutually incompatible reference selectors
+
+### TASK-033: What only macOS could find
+- **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/dev-ready`, `bin/dev-ready-test`, `bin/device-verify`, `bin/ai-doctor`, `bin/ai-policy-lint`, `TASKS.md`, `docs/device-reports/**`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.readiness`, `runtime.device-verification`
+- **Accepted Invariants:** a tool that cannot run says so precisely; it never reports a verdict it did not reach
+- **Regression Checks:** `dev-ready-test`, `ai-policy-lint`
+- **Runtime Evidence:** macOS report 2026-08-31T184018Z (4 gates FAILED) and its successor
+- **Reopen Conditions:** a device report names a cause that is not the real one
+- **Non-Scope:** installing node or actionlint on any device
+- **Verification:** `bin/device-verify` on both devices
+- **Escalation Conditions:** a platform difference cannot be expressed without weakening a gate

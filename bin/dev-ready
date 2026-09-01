@@ -18,14 +18,29 @@ set -uo pipefail
 REPO="$(cd "${1:-.}" 2>/dev/null && pwd -P)" || { echo "dev-ready: no such directory: ${1:-.}"; exit 2; }
 ROOT="${DOTFILES_DIR:-$HOME/dotfiles}"
 export PATH="$HOME/.local/bin:$HOME/.agents/bin:$HOME/.local/share/mise/shims:/opt/homebrew/bin:/usr/local/bin:$PATH"
-# mise's shim directory is not enough: on 2026-09-01 the Mac's node shim was
-# dangling ("node is not a valid shim") and mise could not repair it because
-# GitHub rate-limited its unauthenticated version lookup at 0/60. The installed
-# runtime was present the whole time. Point at it directly — no shim, no network,
-# no version resolution — and let the shim serve only as the fallback.
-for _nb in "$HOME"/.local/share/mise/installs/node/*/bin; do
-  [ -x "$_nb/node" ] && NODE_BIN="$_nb"
-done
+# mise's shim directory alone is not enough: on 2026-09-01 the Mac's node shim
+# was dangling ("node is not a valid shim") and mise could not repair it because
+# GitHub rate-limited its unauthenticated version lookup at 0/60, while the
+# installed runtime was present the whole time. So try the shim FIRST — it
+# resolves the configured version — and fall back to installs newest-first,
+# accepting only a binary that actually answers --version.
+_pick_node() {
+  # Unquoted command substitution word-split on a $HOME containing a space and
+  # returned nothing at all — silently defeating the rescue this exists for.
+  # `timeout` is GNU and absent on stock macOS, so it is used only if present:
+  # requiring it would make every Mac fail to find node.
+  local c t=""
+  command -v timeout >/dev/null 2>&1 && t="timeout 10"
+  local -a cands=("$HOME/.local/share/mise/shims/node")
+  while IFS= read -r c; do [ -n "$c" ] && cands+=("$c"); done < <(
+    find "$HOME/.local/share/mise/installs/node" -mindepth 3 -maxdepth 3 \
+         -name node -type f 2>/dev/null | sort -Vr)
+  for c in "${cands[@]}"; do
+    [ -x "$c" ] || continue
+    $t "$c" --version >/dev/null 2>&1 && { dirname "$c"; return 0; }
+  done
+}
+NODE_BIN="$(_pick_node)"
 [ -n "${NODE_BIN:-}" ] && export PATH="$NODE_BIN:$PATH"
 
 
@@ -80,15 +95,19 @@ else
 fi
 
 # 4. required providers — degraded is a legitimate state; unknown is not.
-if command -v omp >/dev/null 2>&1; then
-  provs="$(omp models --json 2>/dev/null | python3 -c 'import json,sys
+# Overridable for the same reason as the browser list: PATH cannot un-find a
+# binary, and the degraded and blocked branches here had no test at all until
+# independent review pointed it out.
+OMP_CMD="${DEV_READY_OMP:-omp}"
+if command -v "$OMP_CMD" >/dev/null 2>&1; then
+  provs="$("$OMP_CMD" models --json 2>/dev/null | python3 -c 'import json,sys
 try: print(",".join(sorted({m["provider"] for m in json.load(sys.stdin)["models"]})))
 except Exception: print("")' 2>/dev/null)"
   if [ -z "$provs" ]; then fail "required providers" "omp is installed but authenticates no provider; every route would fall back"
-  elif [ "$(printf '%s' "$provs" | tr ',' '\n' | wc -l)" -lt 2 ]; then soft "required providers" "only $provs; fallback chains have nowhere to fall"
+  elif [ "$(printf '%s' "$provs" | tr ',' '\n' | grep -c .)" -lt 2 ]; then soft "required providers" "only $provs; fallback chains have nowhere to fall"
   else pass "required providers" "$provs"; fi
 else
-  soft "required providers" "omp not on PATH; routing decisions cannot be resolved here"
+  soft "required providers" "$OMP_CMD not on PATH; routing decisions cannot be resolved here"
 fi
 
 # 5. skills discovery — the routing table is worthless if its cells name skills
@@ -113,10 +132,18 @@ import json, pathlib, sys
 root = pathlib.Path(sys.argv[1]) / ".delivery"
 bad = []
 cur = root / "current.json"
+runs = sorted(root.rglob("*.jsonl"))
+# An empty .delivery is the zero-runs hole this check was written to close; the
+# first implementation reproduced it verbatim while its own comment mocked it.
+if not cur.exists() and not runs:
+    print("EMPTY"); raise SystemExit
+if not cur.exists():
+    print(f"HEADLESS {len(runs)}"); raise SystemExit
 if cur.exists():
     try: json.loads(cur.read_text())
     except Exception: bad.append("current.json")
-for f in sorted(root.rglob("*.jsonl")):
+for f in runs:
+    n = 0
     try:
         for n, line in enumerate(f.read_text().splitlines(), 1):
             if line.strip(): json.loads(line)
@@ -124,8 +151,16 @@ for f in sorted(root.rglob("*.jsonl")):
 print(", ".join(bad[:3]))
 EOF
 )"
-  if [ -z "$bad" ]; then pass "delivery ledger" "evidence parses"
-  else fail "delivery ledger" "unparseable evidence ($bad); the chain cannot be read or extended"; fi
+  case "$bad" in
+    EMPTY)
+      fail "delivery ledger" ".delivery/ exists with no current.json and no runs; the chain is uninitialised, not clean" ;;
+    "HEADLESS "*)
+      fail "delivery ledger" "current.json missing while ${bad#HEADLESS } run file(s) exist; the chain head is lost" ;;
+    "")
+      pass "delivery ledger" "evidence parses" ;;
+    *)
+      fail "delivery ledger" "unparseable evidence ($bad); the chain cannot be read or extended" ;;
+  esac
 else
   skip "delivery ledger" "repository does not use it"
 fi
@@ -140,8 +175,12 @@ except Exception: print("")' "$REPO/package.json" 2>/dev/null)"
   [ -n "$s" ] && cmds="package.json: $s"
 fi
 [ -z "$cmds" ] && [ -f "$REPO/Makefile" ] && grep -qE '^(test|check):' "$REPO/Makefile" && cmds="Makefile"
-[ -z "$cmds" ] && [ -f "$REPO/pyproject.toml" ] && cmds="pyproject.toml"
-[ -z "$cmds" ] && ls "$REPO"/bin/*-test >/dev/null 2>&1 && cmds="bin/*-test"
+[ -z "$cmds" ] && [ -f "$REPO/pyproject.toml" ] \
+  && grep -qE '\[tool\.(pytest|tox|hatch|poetry)|\[project\.scripts\]|pytest' "$REPO/pyproject.toml" \
+  && cmds="pyproject.toml"
+if [ -z "$cmds" ]; then
+  for t in "$REPO"/bin/*-test; do [ -x "$t" ] && { cmds="bin/*-test"; break; }; done
+fi
 if [ -n "$cmds" ]; then pass "test commands discovered" "$cmds"
 else fail "test commands discovered" "no package.json scripts, Makefile test target, pyproject, or bin/*-test; nothing can verify a change"; fi
 

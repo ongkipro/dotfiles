@@ -13,6 +13,7 @@ Usage: resume-brief [REPO]
 """
 import json
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -119,10 +120,21 @@ def main():
     # precisely the stale signal this command exists to remove.
     live = (repo / "TASKS.md").read_text() if (repo / "TASKS.md").is_file() else ""
     archived = ""
-    for a in sorted((repo / "docs" / "archive").glob("*.md")) if (repo / "docs" / "archive").is_dir() else []:
-        archived += a.read_text()
+    arch_dir = repo / "docs" / "archive"
+    if arch_dir.is_dir():
+        for a in sorted(arch_dir.glob("*.md")):
+            archived += a.read_text()
+
+    def mentions(text, task):
+        # Bounded on the right so TASK-02 stops matching TASK-023, and searched
+        # anywhere rather than only in an h3 heading: TASK-013 lives in TASKS.md
+        # as a bullet, and demanding "### TASK-013:" would have declared the
+        # single most active task retired. Both mistakes shipped in 1053075 and
+        # were caught by independent review, not by this file's own tests.
+        return re.search(re.escape(task) + r"(?![0-9])", text) is not None
+
     retired = {t for t in outcomes
-               if f"### {t}:" not in live and t in archived}
+               if not mentions(live, t) and mentions(archived, t)}
 
     unfinished = sorted(t for t, (res, _) in outcomes.items()
                         if res != "PASS" and t not in retired)
@@ -134,8 +146,9 @@ def main():
             tasks_md = repo / "TASKS.md"
             if tasks_md.is_file():
                 for line in tasks_md.read_text().splitlines():
-                    if line.startswith("### ") and line[4:].startswith(t):
-                        title = line[4:].split(":", 1)[-1].strip()
+                    m = re.match(r"^#{2,4}\s+" + re.escape(t) + r"(?![0-9])\s*:?\s*(.*)", line)
+                    if m:
+                        title = m.group(1).strip()
                         break
             print(f"  {t:<10} {res:<16} {title[:70]}")
         print("\nThese are the resume candidates. Repository evidence decides, not memory.")

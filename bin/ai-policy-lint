@@ -79,11 +79,32 @@ def run_canonical_gate(label, command, extra_env=None):
         # shim cannot repair itself when GitHub rate-limits mise's version
         # lookup, which is exactly what the Mac hit on 2026-09-01.
         import glob
-        extra = sorted(glob.glob(os.path.expanduser("~/.local/share/mise/installs/node/*/bin")))
-        extra.append(os.path.expanduser("~/.local/share/mise/shims"))
-        for d in reversed(extra):
-            if os.path.isdir(d) and d not in environment.get("PATH", ""):
+        import subprocess as _sp
+        # Same order as device-verify and dev-ready, deliberately: the shim
+        # resolves the configured version, installs are the fallback, newest
+        # first, and only a binary that actually answers --version is used. The
+        # first attempt let an old install shadow the shim, and the bash and
+        # python copies disagreed about which version they picked.
+        def _ver(path):
+            m = re.search(r"/node/([^/]+)/bin", path)
+            key = m.group(1) if m else ""
+            return [int(x) if x.isdigit() else -1 for x in re.split(r"[.\-]", key)]
+        installs = sorted(glob.glob(os.path.expanduser(
+            "~/.local/share/mise/installs/node/*/bin/node")), key=_ver, reverse=True)
+        for cand in [os.path.expanduser("~/.local/share/mise/shims/node")] + installs:
+            if not os.access(cand, os.X_OK):
+                continue
+            try:
+                if _sp.run([cand, "--version"], stdout=_sp.DEVNULL,
+                           stderr=_sp.DEVNULL, timeout=10).returncode != 0:
+                    continue
+            except Exception:
+                continue
+            d = os.path.dirname(cand)
+            parts = environment.get("PATH", "").split(os.pathsep)
+            if d not in parts:
                 environment["PATH"] = d + os.pathsep + environment.get("PATH", "")
+            break
         environment.update(extra_env or {})
         result = subprocess.run(
             [str(part) for part in command],
@@ -95,6 +116,15 @@ def run_canonical_gate(label, command, extra_env=None):
             check=False,
         )
     except FileNotFoundError:
+        # Only a bare external tool name can be "absent on this device". A path
+        # under the repository is tracked content: if it is missing, the checkout
+        # is broken and every device is broken with it. Warning there would turn
+        # a deleted or renamed gate into a permanent green — reported by
+        # independent review as a new dead gate inside the very commit that was
+        # removing them.
+        if os.sep in str(command[0]):
+            err(f"{label} could not start: {command[0]} is missing from the repository")
+            return
         # A tool this device does not have cannot judge anything, and saying so
         # is the only honest verdict: failing would make one machine's missing
         # formula a repository error, and passing would claim a check that never

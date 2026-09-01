@@ -59,13 +59,29 @@ REPORT="$(cat "$(ls -t "$D"/docs/device-reports/*.md | head -1)" 2>/dev/null)"
   || { say FAIL "a failing gate makes the command exit non-zero (got $code)"; fails=$((fails + 1)); }
 want "the failing gate is marked FAIL"        "| \`dev-ready-test\` | FAIL |"
 want "the failing line is named, not a rule"  "FAIL a repository reached through a symlinked path"
-wantnot "no separator is reported as a cause" "────────────────────────────────────────ptr"
+wantnot "no separator is reported as a cause" "| ────────────────"
 want "a clean gate is a plain PASS"           "| \`delivery-ledger-test\` | PASS |"
 want "a gate that judged nothing is PASS*"    "| \`ai-policy-lint\` | PASS* |"
 want "what it could not judge is named"       "actionlint is not installed on this device"
 want "the unjudged section explains itself"   "Not judged on this device"
 want "the report states the PATH it used"     "**PATH used:**"
 want "the verdict counts the failure"         "gate(s) FAILED"
+
+# Zero failures but something unjudged: the verdict must not claim full coverage.
+# The remediation for that finding shipped without a fixture, so a regression of
+# it would have been invisible — the same gap, one level up.
+G="$TMP/gaps"; fake_root "$G"
+for g in ai-doctor delivery-ledger-test omp-effective-routing-test \
+         dev-ready-test resume-brief-test; do fake_gate "$G" "$g" 0 "$g: fine"; done
+fake_gate "$G" ai-policy-lint 0 \
+  "  ! GitHub workflows not validated here: actionlint is not installed on this device" \
+  "ai-policy-lint: PASSED"
+DOTFILES_DIR="$G" "$DV" >/dev/null 2>&1; code=$?
+REPORT="$(cat "$(ls -t "$G"/docs/device-reports/*.md | head -1)" 2>/dev/null)"
+[ "$code" -eq 0 ] && say ok "unjudged work alone does not fail the device" \
+  || { say FAIL "unjudged work alone does not fail the device (got $code)"; fails=$((fails + 1)); }
+want "the verdict admits the gaps"        "PASS with gaps"
+wantnot "it does not claim full coverage" "every gate holds on this device"
 
 # Every gate green: no PASS*, no failure section, exit 0.
 E="$TMP/allgreen"; fake_root "$E"

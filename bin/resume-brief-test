@@ -73,7 +73,78 @@ want "names the retired task as retired"    "Retired in docs/archive"
 if printf '%s' "$BRIEF" | sed -n '/Tasks whose/,/^$/p' | grep -q "TASK-901"; then
   say FAIL "a retired task is not offered as a candidate"; fails=$((fails + 1))
 else say ok "a retired task is not offered as a candidate"; fi
-want "still reports CI for the current HEAD"  "CI for this HEAD:"
+if printf '%s' "$BRIEF" | grep -qE "CI for this HEAD: (success|failure|no run found|unknown|in_progress|queued|completed)"; then
+  say ok "the CI line names a real state"
+else say FAIL "the CI line names a real state"; fails=$((fails + 1)); fi
+
+# Independent review found that `TASK-02` matched an archive line mentioning
+# `TASK-023`, and that only `### TASK-nnn:` counted as live. Together they
+# deleted real unfinished work from the candidate list — the opposite of this
+# command's purpose, delivered by the commit that claimed to sharpen it.
+N="$TMP/narrow"; mkdir -p "$N/docs/archive" && git -C "$N" init -q
+printf 'contract\n' > "$N/AGENTS.md"
+printf '## TASK-02: a live task recorded as h2\n' > "$N/TASKS.md"
+printf '| TASK-023 | retired | superseded |\n' > "$N/docs/archive/old.md"
+git -C "$N" add -A >/dev/null 2>&1
+git -C "$N" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
+"$DL" --repo "$N" init >/dev/null 2>&1
+"$DL" --repo "$N" start --task TASK-02 --requirement REQ-N --risk R1 \
+  --job implementation --capability tooling --worker task \
+  --model m --provider p --reasoning-effort high --allow 'x/**' >/dev/null 2>&1
+"$DL" --repo "$N" finish --result BLOCKED >/dev/null 2>&1
+BRIEF="$("$RB" "$N" 2>&1)"
+if printf '%s' "$BRIEF" | sed -n '/Tasks whose/,/^$/p' | grep -q "TASK-02"; then
+  say ok "a live task is not retired by an unrelated longer ID"
+else
+  say FAIL "a live task is not retired by an unrelated longer ID"; fails=$((fails + 1))
+fi
+want "its h2 title is still read"  "a live task recorded as h2"
+wantnot "it is not listed as retired" "Retired in docs/archive, not candidates: TASK-02"
+
+# The archive side, isolated: TASK-02 appears NOWHERE except as a prefix of the
+# archived TASK-023. Substring matching calls it retired and deletes it; it is
+# not retired, it is simply unmentioned, and must stay a candidate. The first
+# attempt at this case put TASK-02 in TASKS.md, which made both the broken and
+# the fixed rule agree — a test that could not fail, found by mutating the fix.
+P="$TMP/prefix"; mkdir -p "$P/docs/archive" && git -C "$P" init -q
+printf 'contract\n' > "$P/AGENTS.md"; printf 'no tasks here\n' > "$P/TASKS.md"
+printf '| TASK-023 | retired | superseded |\n' > "$P/docs/archive/old.md"
+git -C "$P" add -A >/dev/null 2>&1
+git -C "$P" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
+"$DL" --repo "$P" init >/dev/null 2>&1
+"$DL" --repo "$P" start --task TASK-02 --requirement REQ-P --risk R1 \
+  --job implementation --capability tooling --worker task \
+  --model m --provider p --reasoning-effort high --allow 'x/**' >/dev/null 2>&1
+"$DL" --repo "$P" finish --result BLOCKED >/dev/null 2>&1
+BRIEF="$("$RB" "$P" 2>&1)"
+if printf '%s' "$BRIEF" | sed -n '/Tasks whose/,/^$/p' | grep -q "TASK-02"; then
+  say ok "a shorter ID is not retired by a longer archived one"
+else
+  say FAIL "a shorter ID is not retired by a longer archived one"; fails=$((fails + 1))
+fi
+
+# The live side, isolated: a task named by its exact ID in BOTH the archive and
+# TASKS.md, where TASKS.md records it as a bullet rather than a heading. This is
+# the real shape — TASK-013 lived as a bullet in the Pending section while an
+# archived audit referenced it — and demanding "### TASK-013:" declared the most
+# active task in the repository retired.
+L="$TMP/bullet"; mkdir -p "$L/docs/archive" && git -C "$L" init -q
+printf 'contract\n' > "$L/AGENTS.md"
+printf '## Pending\n\n- **TASK-05 / AUDIT-X — still open (R1).** Details.\n' > "$L/TASKS.md"
+printf 'Historical note referencing TASK-05 as prior context.\n' > "$L/docs/archive/old.md"
+git -C "$L" add -A >/dev/null 2>&1
+git -C "$L" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
+"$DL" --repo "$L" init >/dev/null 2>&1
+"$DL" --repo "$L" start --task TASK-05 --requirement REQ-L --risk R1 \
+  --job implementation --capability tooling --worker task \
+  --model m --provider p --reasoning-effort high --allow 'x/**' >/dev/null 2>&1
+"$DL" --repo "$L" finish --result BLOCKED >/dev/null 2>&1
+BRIEF="$("$RB" "$L" 2>&1)"
+if printf '%s' "$BRIEF" | sed -n '/Tasks whose/,/^$/p' | grep -q "TASK-05"; then
+  say ok "a live task recorded as a bullet is not retired"
+else
+  say FAIL "a live task recorded as a bullet is not retired"; fails=$((fails + 1))
+fi
 
 # A repository with no ledger still resumes on Git state instead of erroring.
 mkdir -p "$TMP/plain" && git -C "$TMP/plain" init -q
@@ -82,7 +153,6 @@ want "a ledger-less repository still answers" "resume authority is Git state onl
 wantnot "does not invent a run"               "Active run:"
 
 # Not a repository at all: exit 2, not a confident wrong answer.
-"$RB" "$TMP" >/dev/null 2>&1; code=$?
 mkdir -p "$TMP/nogit"; "$RB" "$TMP/nogit" >/dev/null 2>&1; code=$?
 [ "$code" = 2 ] && say ok "a non-repository exits 2" \
   || { say FAIL "a non-repository exits 2 (got $code)"; fails=$((fails + 1)); }

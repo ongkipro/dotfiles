@@ -1,25 +1,25 @@
 {
   "activeRun": null,
   "lastCheckpoint": {
-    "eventHash": "ed3155ae70f2a9d85f2eaaed69053486fc6b3135791035b4e57cdac8a3b494cb",
-    "eventId": "38a4e8051f534fc3bb020e1afa285aeb",
-    "head": "17cabe23786a14fc8476ea40e86cb71a4539401f",
-    "note": "Verified: resume-brief-test 17/17, ai-policy-lint PASS, dev-ready-test PASS. REVIEW_REQUIRED at R2 for bin/ changes; closed BLOCKED for the same reason as TASK-031/033/034/035 \u2014 no independent reviewer has run.",
-    "prevEventHash": "d4f962a9e8c4cb9a8e95ede2f9f220972d30b586eb368f8e01cc246105ac8c7f",
-    "runId": "RUN-20260901T031346Z-70b632d0",
+    "eventHash": "c937e792a8f03317f192a860a5a9941a07d96a62959cb5f7bf909776afeaa8f3",
+    "eventId": "4f3197ec0cf34939b22678634bb89ceb",
+    "head": "2bcd8c554dddc974690698f547ccd631268ef6b1",
+    "note": "Boundary APPROVED by an independent reviewer (claude-fable-5, differing model) after five adversarial passes. finish PASS is refused because ai-policy-lint recorded FAIL mid-run when TASKS.md crossed its hot-context budget, was fixed by archiving four completed contracts, and re-recorded PASS. Closing BLOCKED rather than arguing with the rule. Second independent encounter today with the same semantics \u2014 the expansion-witness rule penalised the same fail-fix-verify loop in TASK-030 \u2014 so this is a design question about the ledger, recorded twice, not a one-off.",
+    "prevEventHash": "dfc4b7a0e92d5dad8f91db39a4efe56c70e00ed04f62ce8361ed84bf55003e81",
+    "runId": "RUN-20260901T040338Z-3cf42389",
     "state": null,
-    "time": "2026-09-01T03:16:26Z",
+    "time": "2026-09-01T04:40:24Z",
     "type": "checkpoint"
   },
   "lastRun": {
-    "finishedAt": "2026-09-01T03:22:19Z",
-    "result": "PASS",
-    "runId": "RUN-20260901T032018Z-1d4597c0"
+    "finishedAt": "2026-09-01T04:40:24Z",
+    "result": "BLOCKED",
+    "runId": "RUN-20260901T040338Z-3cf42389"
   },
-  "observedHead": "10530751335195c0bd81ca62b4d7d752bcb97988",
+  "observedHead": "2bcd8c554dddc974690698f547ccd631268ef6b1",
   "observedState": null,
   "project": "dotfiles",
   "schemaVersion": 1,
   "statusAuthority": "STATUS.md",
-  "updatedAt": "2026-09-01T03:22:20Z"
+  "updatedAt": "2026-09-01T04:40:24Z"
 }

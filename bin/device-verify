@@ -24,14 +24,29 @@ mkdir -p "$OUT_DIR"
 # `omp` and the owned commands are frequently outside a non-interactive PATH,
 # which is a property of the machine and not a failure of the gate.
 export PATH="$HOME/.local/bin:$HOME/.agents/bin:$HOME/.local/share/mise/shims:/opt/homebrew/bin:/usr/local/bin:$PATH"
-# mise's shim directory is not enough: on 2026-09-01 the Mac's node shim was
-# dangling ("node is not a valid shim") and mise could not repair it because
-# GitHub rate-limited its unauthenticated version lookup at 0/60. The installed
-# runtime was present the whole time. Point at it directly — no shim, no network,
-# no version resolution — and let the shim serve only as the fallback.
-for _nb in "$HOME"/.local/share/mise/installs/node/*/bin; do
-  [ -x "$_nb/node" ] && NODE_BIN="$_nb"
-done
+# mise's shim directory alone is not enough: on 2026-09-01 the Mac's node shim
+# was dangling ("node is not a valid shim") and mise could not repair it because
+# GitHub rate-limited its unauthenticated version lookup at 0/60, while the
+# installed runtime was present the whole time. So try the shim FIRST — it
+# resolves the configured version — and fall back to installs newest-first,
+# accepting only a binary that actually answers --version.
+_pick_node() {
+  # Unquoted command substitution word-split on a $HOME containing a space and
+  # returned nothing at all — silently defeating the rescue this exists for.
+  # `timeout` is GNU and absent on stock macOS, so it is used only if present:
+  # requiring it would make every Mac fail to find node.
+  local c t=""
+  command -v timeout >/dev/null 2>&1 && t="timeout 10"
+  local -a cands=("$HOME/.local/share/mise/shims/node")
+  while IFS= read -r c; do [ -n "$c" ] && cands+=("$c"); done < <(
+    find "$HOME/.local/share/mise/installs/node" -mindepth 3 -maxdepth 3 \
+         -name node -type f 2>/dev/null | sort -Vr)
+  for c in "${cands[@]}"; do
+    [ -x "$c" ] || continue
+    $t "$c" --version >/dev/null 2>&1 && { dirname "$c"; return 0; }
+  done
+}
+NODE_BIN="$(_pick_node)"
 [ -n "${NODE_BIN:-}" ] && export PATH="$NODE_BIN:$PATH"
 
 
@@ -139,7 +154,10 @@ unlinked="$(cd "$ROOT" && grep -v '^#' config/ai/runtime-commands.txt | grep -v 
   echo
   echo "## Verdict"
   echo
-  if [ "$failures" -eq 0 ]; then
+  if [ "$failures" -eq 0 ] && [ -n "$notes" ]; then
+    echo "**PASS with gaps** — no gate failed, but the section above lists work"
+    echo "no gate on this device examined. Do not read this as full coverage."
+  elif [ "$failures" -eq 0 ]; then
     echo "**PASS** — every gate holds on this device."
   else
     echo "**${failures} gate(s) FAILED.** Report them as findings; do not weaken a"

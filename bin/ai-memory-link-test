@@ -1,39 +1,143 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# ai-memory-link-test — the sealed bootstrap, attacked.
+#
+# This one function produced a defect in three consecutive review rounds, all of
+# the same family: a refusal that damages what it refuses to touch, and a write
+# that escapes the directory it is supposed to seal. It had no test at all, which
+# is why each fix was verified by reading rather than by running.
+#
+# Everything runs under a scratch HOME. The command is driven end to end rather
+# than by extracting the function, so the real control flow is what is judged.
+set -uo pipefail
+ROOT="${DOTFILES_DIR:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+LINK="$ROOT/bin/ai-memory-link"
+TMP="$(mktemp -d)"; trap 'chmod -R u+rwX "$TMP" 2>/dev/null; rm -rf "$TMP"' EXIT
+fails=0
+say() { printf '  %-4s %s\n' "$1" "$2"; }
+mode() { stat -c %a "$1" 2>/dev/null || stat -f %Lp "$1" 2>/dev/null; }
+check() { if [ "$2" = "$3" ]; then say ok "$1"; else
+  say FAIL "$1"; printf '       expected %q, got %q\n' "$3" "$2"; fails=$((fails + 1)); fi; }
 
-SOURCE_DOT="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/ai-memory-link-test.XXXXXX")"
-trap 'find "$TEST_ROOT" -depth -mindepth 1 -delete 2>/dev/null || true; rmdir "$TEST_ROOT" 2>/dev/null || true' EXIT
+SLUG=""
+new_home() {
+  H="$TMP/h$1"; rm -rf "$H"
+  # The command only visits a config directory that already exists, and reads its
+  # bootstrap source from $HOME/dotfiles — both are prerequisites, not details.
+  mkdir -p "$H/.config/ai" "$H/.claude"
+  # A COPY, never a symlink to the real repository. The version this file
+  # replaced already did that; symlinking $ROOT in was a regression, and case 9
+  # then chmod 000'd a TRACKED file through it — restored only if the suite ran
+  # to completion. A test must not be able to damage the repository it tests.
+  mkdir -p "$H/dotfiles/config/ai/claude-home-memory"
+  cp "$ROOT/config/ai/claude-home-memory/MEMORY.md" \
+     "$H/dotfiles/config/ai/claude-home-memory/MEMORY.md"
+  cp "$ROOT/config/ai/AGENTS.md" "$H/.config/ai/AGENTS.md"
+  chmod u+w "$H/dotfiles/config/ai/claude-home-memory/MEMORY.md"
+  SRC_COPY="$H/dotfiles/config/ai/claude-home-memory/MEMORY.md"
+  SLUG="$(printf '%s' "$H" | tr '/' '-')"
+  RT="$H/.config/ai-local/claude-home-bootstrap/$(printf '%s' "$H/.claude" | tr '/ ' '--')"
+  DST="$H/.claude/projects/$SLUG/memory"
+}
+run() { HOME="$H" DOTFILES_DIR="$ROOT" "$LINK" >"$TMP/out" 2>&1; }
 
-export HOME="$TEST_ROOT/home"
-export DOTFILES_DIR="$TEST_ROOT/dotfiles"
-mkdir -p "$DOTFILES_DIR/bin" "$DOTFILES_DIR/config/ai/claude-home-memory" \
-  "$HOME/.claude/projects/-home-test" "$HOME/.config"
-cp "$SOURCE_DOT/bin/ai-memory-link" "$DOTFILES_DIR/bin/"
-chmod +x "$DOTFILES_DIR/bin/ai-memory-link"
-printf '%s\n' '# Policy fixture' >"$DOTFILES_DIR/config/ai/AGENTS.md"
-printf '%s\n' '# Home bootstrap fixture' >"$DOTFILES_DIR/config/ai/claude-home-memory/MEMORY.md"
-ln -s "$DOTFILES_DIR" "$HOME/dotfiles"
-ln -s "$DOTFILES_DIR/config/ai" "$HOME/.config/ai"
+# 1. First install builds it sealed.
+new_home 1; run
+check "first install seals the directory" "$(mode "$RT")" "500"
+check "first install writes a read-only file" "$(mode "$RT/MEMORY.md")" "400"
+check "first install creates the symlink" "$([ -L "$DST" ] && echo yes || echo no)" "yes"
 
-# Match the HOME-derived project slug used by the implementation.
-project_slug="$(printf '%s' "$HOME" | tr '/' '-')"
-legacy="$HOME/.claude/projects/$project_slug/memory"
-mkdir -p "$(dirname "$legacy")"
-ln -s "$DOTFILES_DIR/config/ai/claude-home-memory" "$legacy"
+# 2. Re-running is a no-op that never opens the directory.
+run
+check "refresh leaves the directory sealed" "$(mode "$RT")" "500"
+check "refresh leaves exactly one file" "$(find "$RT" -mindepth 1 | wc -l | tr -d ' ')" "1"
+check "refresh re-seals the file" "$(mode "$RT/MEMORY.md")" "400"
+check "refresh copies the source exactly" \
+  "$(cmp -s "$SRC_COPY" "$RT/MEMORY.md" && echo same || echo differs)" "same"
 
-"$DOTFILES_DIR/bin/ai-memory-link" >/dev/null
-runtime="$(readlink "$legacy")"
-[[ "$runtime" == "$HOME/.config/ai-local/claude-home-bootstrap/"* ]]
-[[ "$(stat -c '%a' "$runtime")" = 500 ]]
-[[ "$(stat -c '%a' "$runtime/MEMORY.md")" = 400 ]]
-cmp -s "$DOTFILES_DIR/config/ai/claude-home-memory/MEMORY.md" "$runtime/MEMORY.md"
-[[ "$(find "$runtime" -maxdepth 1 -type f | wc -l | tr -d ' ')" = 1 ]]
-if touch "$runtime/ambient-project-memory.md" 2>/dev/null; then
-  echo 'FAIL: Claude home bootstrap accepted an ambient write' >&2
-  exit 1
+# 3. A symlinked MEMORY.md must not be written through. `[ -f ]` follows
+#    symlinks, so truncate-in-place turned the sealed bootstrap into an
+#    arbitrary-file overwrite: the victim's content was replaced and chmodded.
+new_home 3; run
+printf 'PRECIOUS\n' > "$TMP/victim"; victim_mode="$(mode "$TMP/victim")"
+chmod 700 "$RT"; rm -f "$RT/MEMORY.md"; ln -s "$TMP/victim" "$RT/MEMORY.md"; chmod 500 "$RT"
+run
+check "a symlinked MEMORY.md is refused" \
+  "$(grep -c 'not a regular file' "$TMP/out")" "1"
+check "the victim file is untouched" "$(cat "$TMP/victim")" "PRECIOUS"
+check "the victim keeps its mode" "$(mode "$TMP/victim")" "$victim_mode"
+check "refusing does not destroy the symlink" "$([ -L "$DST" ] && echo yes || echo no)" "yes"
+
+# 4. Contamination is refused, and the symlink survives that too.
+new_home 4; run
+chmod 700 "$RT"; : > "$RT/stray.md"   # left at 700: the code must reseal it
+run
+check "an unexpected file is refused" "$(grep -c 'unexpected files' "$TMP/out")" "1"
+check "the directory is resealed" "$(mode "$RT")" "500"
+check "contamination refusal keeps the symlink" "$([ -L "$DST" ] && echo yes || echo no)" "yes"
+
+# 5. A replacement that cannot proceed must leave BOTH sides alone. An empty
+#    runtime whose parent is not writable cannot be rmdir'd.
+new_home 5; run
+chmod 700 "$RT"; rm -f "$RT/MEMORY.md"
+parent="$(dirname "$RT")"; chmod 500 "$parent"
+run
+check "an unreplaceable directory is refused" "$(grep -c 'could not be replaced' "$TMP/out")" "1"
+check "that refusal keeps the symlink" "$([ -L "$DST" ] && echo yes || echo no)" "yes"
+chmod 700 "$parent"
+
+# M6: the refresh branch's closing `chmod 500` only matters when recovering a
+# directory left open by a crash, and no case constructed that state — the
+# mutation survived the whole suite.
+new_home 7; run
+chmod 700 "$RT"
+run
+check "a directory left open is resealed by refresh" "$(mode "$RT")" "500"
+check "and its file is still read-only" "$(mode "$RT/MEMORY.md")" "400"
+
+# A hardlinked MEMORY.md satisfies -f and ! -L; truncate-in-place then writes
+# through the shared inode into the file's other name.
+new_home 8; run
+printf 'LINKED\n' > "$TMP/hardvictim"
+chmod 700 "$RT"; rm -f "$RT/MEMORY.md"
+if ln "$TMP/hardvictim" "$RT/MEMORY.md" 2>/dev/null; then
+  chmod 500 "$RT"; run
+  check "a hardlinked MEMORY.md is refused" "$(grep -c 'other hard links' "$TMP/out")" "1"
+  check "the hardlink victim is untouched" "$(cat "$TMP/hardvictim")" "LINKED"
+else
+  say ok "hardlink case skipped (cross-device link not possible here)"
 fi
 
-"$DOTFILES_DIR/bin/ai-memory-link" >/dev/null
-cmp -s "$DOTFILES_DIR/config/ai/claude-home-memory/MEMORY.md" "$runtime/MEMORY.md"
-echo 'PASS: Claude home memory is a device-local read-only bootstrap'
+# An unreadable source must not truncate the bootstrap that already exists: the
+# redirection empties the file before the copy can fail, so the check has to
+# happen first. This path used to seal a zero-byte file and report success.
+new_home 9; run
+before="$(cat "$RT/MEMORY.md")"
+chmod 000 "$SRC_COPY"
+run
+chmod 644 "$SRC_COPY"
+check "an unreadable source leaves the bootstrap intact" "$(cat "$RT/MEMORY.md")" "$before"
+
+# The migration this command exists for: a legacy symlink pointing straight at
+# the tracked source must be replaced by the device-local sealed copy, and the
+# sealed copy must reject an ambient write. Both cases come from the test this
+# file replaced; losing them would have been a silent regression.
+new_home 10
+rm -rf "$DST"; mkdir -p "$(dirname "$DST")"
+ln -s "$H/dotfiles/config/ai/claude-home-memory" "$DST"
+run
+check "a legacy symlink into the source is migrated" \
+  "$(readlink "$DST" | grep -c 'claude-home-bootstrap')" "1"
+check "the migrated bootstrap rejects an ambient write" \
+  "$(touch "$RT/ambient.md" 2>/dev/null && echo accepted || echo rejected)" "rejected"
+
+# 6. An unmanaged destination is never replaced.
+new_home 6; mkdir -p "$(dirname "$DST")"; printf 'mine\n' > "$DST"
+run; rc=$?
+check "an unmanaged file at the destination survives" "$(cat "$DST")" "mine"
+check "it survives by refusal, not by ln failing" \
+  "$(grep -c 'unmanaged file' "$TMP/out")" "1"
+check "and the linker still exits cleanly" "$rc" "0"
+
+echo
+[ "$fails" -eq 0 ] && { echo "ai-memory-link-test: all cases hold"; exit 0; }
+echo "ai-memory-link-test: $fails case(s) failed"; exit 1

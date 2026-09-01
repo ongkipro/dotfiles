@@ -13,7 +13,8 @@ fails=0
 
 expect() { # expect <name> <expected-substring> <dir> [env-prefix...]
   local name="$1" want="$2" dir="$3"; shift 3
-  local out; out="$(env "$@" DOTFILES_DIR="$ROOT" "$DR" "$dir" 2>&1)"
+  local out
+  out="$(env DOTFILES_DIR="${DOT_OK:-$ROOT}" DEV_READY_OMP="${OMP_OK:-omp}" "$@" "$DR" "$dir" 2>&1)"
   if printf '%s' "$out" | grep -qF "$want"; then
     printf '  ok   %s\n' "$name"
   else
@@ -31,6 +32,29 @@ scaffold() { # a repository that passes everything, as the baseline to break
   git -C "$d" add -A >/dev/null 2>&1
   git -C "$d" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
 }
+
+# Every case below runs against a scratch DOTFILES_DIR. The first version used
+# the real one, so a device with genuinely broken routing failed this suite while
+# dev-ready was behaving correctly — the same "gate blames a healthy machine"
+# failure this repository fixed twice elsewhere.
+fake_dot() { # fake_dot DIR [routing-exit]
+  local d="$1" rc="${2:-0}"
+  mkdir -p "$d/bin" "$d/skills/local/example"
+  printf 'name: example\n' > "$d/skills/local/example/SKILL.md"
+  printf '#!/usr/bin/env bash\necho routing\nexit %s\n' "$rc" > "$d/bin/omp-runtime-report"
+  chmod +x "$d/bin/omp-runtime-report"
+}
+fake_omp() { # fake_omp PATH PROVIDER...
+  local f="$1"; shift
+  local js='{"models":['
+  for p in "$@"; do js="$js{\"provider\":\"$p\",\"id\":\"m\"},"; done
+  js="${js%,}]}"
+  printf '#!/usr/bin/env bash\ncat <<JSON\n%s\nJSON\n' "$js" > "$f"; chmod +x "$f"
+}
+
+DOT_OK="$TMP/dotok"; fake_dot "$DOT_OK"
+OMP_OK="$TMP/omp-ok"; fake_omp "$OMP_OK" anthropic google
+export DOTFILES_DIR_FAKE="$DOT_OK"
 
 mkdir -p "$TMP/plain"
 expect "non-git directory blocks repo authority" \
@@ -73,6 +97,7 @@ expect "a repository with no browser-visible files does not require a browser" \
   "browser runner: not required" "$TMP/notasks" "DEV_READY_BROWSERS=dev-ready-no-such-browser"
 
 scaffold "$TMP/badledger" && mkdir -p "$TMP/badledger/.delivery/runs" \
+  && printf '{}\n' > "$TMP/badledger/.delivery/current.json" \
   && printf '{"a":1}\n{"b":\n' > "$TMP/badledger/.delivery/runs/RUN-x.jsonl"
 expect "an unreadable .delivery chain blocks the ledger" \
   "the chain cannot be read or extended" "$TMP/badledger"
@@ -80,10 +105,69 @@ expect "an unreadable .delivery chain blocks the ledger" \
 scaffold "$TMP/good"
 expect "a complete repository is READY" "PROJECT READY" "$TMP/good"
 
-out="$(DOTFILES_DIR="$ROOT" "$DR" "$TMP/good" >/dev/null 2>&1; echo $?)"
+# --- checks that had no failing case until independent review said so ---
+
+fake_dot "$TMP/dot-routing-bad" 1
+expect "a failing runtime-routing report blocks" \
+  "runtime routing: BLOCKED" "$TMP/good" "DOTFILES_DIR=$TMP/dot-routing-bad"
+
+mkdir -p "$TMP/dot-noreport/skills/local/example" "$TMP/dot-noreport/bin"
+printf 'name: x\n' > "$TMP/dot-noreport/skills/local/example/SKILL.md"
+expect "a missing routing report degrades, not passes" \
+  "runtime routing: degraded" "$TMP/good" "DOTFILES_DIR=$TMP/dot-noreport"
+
+mkdir -p "$TMP/dot-noskills/bin"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP/dot-noskills/bin/omp-runtime-report"
+chmod +x "$TMP/dot-noskills/bin/omp-runtime-report"
+expect "an absent skills directory blocks" \
+  "skills discovery: BLOCKED" "$TMP/good" "DOTFILES_DIR=$TMP/dot-noskills"
+
+mkdir -p "$TMP/dot-emptyskills/skills/local"
+cp -r "$TMP/dot-noskills/bin" "$TMP/dot-emptyskills/bin"
+expect "a skills directory with no SKILL.md blocks" \
+  "no owned capability is discoverable" "$TMP/good" "DOTFILES_DIR=$TMP/dot-emptyskills"
+
+fake_omp "$TMP/omp-one" solo
+expect "a single authenticated provider degrades" \
+  "fallback chains have nowhere to fall" "$TMP/good" "DEV_READY_OMP=$TMP/omp-one"
+
+fake_omp "$TMP/omp-two" alpha beta
+expect "exactly two providers is not degraded" \
+  "required providers: PASS" "$TMP/good" "DEV_READY_OMP=$TMP/omp-two"
+
+fake_omp "$TMP/omp-none"
+expect "an omp that authenticates nothing blocks" \
+  "every route would fall back" "$TMP/good" "DEV_READY_OMP=$TMP/omp-none"
+
+expect "an absent omp degrades rather than blocks" \
+  "required providers: degraded" "$TMP/good" "DEV_READY_OMP=$TMP/definitely-no-omp"
+
+scaffold "$TMP/dirtyrepo" && printf 'edit\n' >> "$TMP/dirtyrepo/AGENTS.md"
+expect "pre-existing dirty work is reported, not ignored" \
+  "dirty worktree boundary: degraded" "$TMP/dirtyrepo"
+
+scaffold "$TMP/emptyledger" && mkdir -p "$TMP/emptyledger/.delivery"
+expect "an uninitialised .delivery is not clean" \
+  "the chain is uninitialised" "$TMP/emptyledger"
+
+scaffold "$TMP/headless" && mkdir -p "$TMP/headless/.delivery/runs" \
+  && printf '{"a":1}\n' > "$TMP/headless/.delivery/runs/RUN-x.jsonl"
+expect "run evidence with no chain head is broken" \
+  "the chain head is lost" "$TMP/headless"
+
+scaffold "$TMP/emptypyproject" && rm "$TMP/emptypyproject/bin/x-test" \
+  && : > "$TMP/emptypyproject/pyproject.toml"
+expect "an empty pyproject.toml is not a test command" \
+  "nothing can verify a change" "$TMP/emptypyproject"
+
+scaffold "$TMP/unexec" && chmod -x "$TMP/unexec/bin/x-test"
+expect "a non-executable bin/*-test is not a test command" \
+  "nothing can verify a change" "$TMP/unexec"
+
+out="$(DOTFILES_DIR="$DOT_OK" DEV_READY_OMP="$OMP_OK" "$DR" "$TMP/good" >/dev/null 2>&1; echo $?)"
 [ "$out" = 0 ] && printf '  ok   READY exits 0\n' \
   || { printf '  FAIL READY exited %s\n' "$out"; fails=$((fails + 1)); }
-out="$(DOTFILES_DIR="$ROOT" "$DR" "$TMP/plain" >/dev/null 2>&1; echo $?)"
+out="$(DOTFILES_DIR="$DOT_OK" DEV_READY_OMP="$OMP_OK" "$DR" "$TMP/plain" >/dev/null 2>&1; echo $?)"
 [ "$out" = 1 ] && printf '  ok   NOT READY exits 1\n' \
   || { printf '  FAIL NOT READY exited %s\n' "$out"; fails=$((fails + 1)); }
 
