@@ -113,7 +113,19 @@ def main():
         if note:
             print(f"  checkpoint: {note.split('. ')[0][:160]}")
 
-    unfinished = sorted(t for t, (res, _) in outcomes.items() if res != "PASS")
+    # A task the archive has already retired will never reach PASS, and listing
+    # it as a resume candidate is worse than listing nothing: TASK-023 was
+    # superseded on 2026-08-24 and still appeared here on 2026-09-01, which is
+    # precisely the stale signal this command exists to remove.
+    live = (repo / "TASKS.md").read_text() if (repo / "TASKS.md").is_file() else ""
+    archived = ""
+    for a in sorted((repo / "docs" / "archive").glob("*.md")) if (repo / "docs" / "archive").is_dir() else []:
+        archived += a.read_text()
+    retired = {t for t in outcomes
+               if f"### {t}:" not in live and t in archived}
+
+    unfinished = sorted(t for t, (res, _) in outcomes.items()
+                        if res != "PASS" and t not in retired)
     if unfinished:
         print("\nTasks whose evidence does not end in PASS:")
         for t in unfinished:
@@ -128,7 +140,37 @@ def main():
             print(f"  {t:<10} {res:<16} {title[:70]}")
         print("\nThese are the resume candidates. Repository evidence decides, not memory.")
     else:
-        print("\nEvery task with recorded evidence ended in PASS.")
+        print("\nEvery live task with recorded evidence ended in PASS.")
+
+    if retired:
+        print(f"\nRetired in docs/archive, not candidates: {', '.join(sorted(retired))}")
+
+    # CI is part of resume authority and was the gap that made this worth adding:
+    # on 2026-08-31 nine commits went out while two CI runs were red, because
+    # nothing in the working session ever looked. Best effort only — gh may be
+    # missing, unauthenticated, or offline, and none of that is a reason to fail.
+    head = git(repo, "rev-parse", "HEAD")
+    if head:
+        r = subprocess.run(
+            ["gh", "run", "list", "--limit", "8", "--json",
+             "headSha,conclusion,status,displayTitle"],
+            cwd=repo, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        if r.returncode == 0:
+            try:
+                runs = json.loads(r.stdout)
+            except json.JSONDecodeError:
+                runs = []
+            mine = [x for x in runs if x.get("headSha") == head]
+            print("\nCI for this HEAD:", end=" ")
+            if not mine:
+                print("no run found (not pushed, or none triggered)")
+            for x in mine:
+                state = x.get("conclusion") or x.get("status") or "?"
+                print(f"{state}")
+                if state not in ("success", "in_progress", "queued"):
+                    print("  CI is not green on the commit you are resuming from.")
+        else:
+            print("\nCI for this HEAD: unknown (gh unavailable or not authenticated)")
     return 0
 
 

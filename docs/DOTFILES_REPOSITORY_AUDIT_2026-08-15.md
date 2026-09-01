@@ -61,7 +61,7 @@ validation required hardening rather than replacement.
 | Migration/rollback | RESOLVED — added-line classification and structured fail-closed evidence |
 | Release probes | RESOLVED — private-network targets blocked by default; expected HTTP errors supported |
 | Kelola memory | PARTIAL — routed across CLIs and highest-risk content sanitized; compatibility namespace remains |
-| Remote CI | BLOCKED EXTERNALLY — billing/spending-limit state prevents current cross-platform evidence |
+| Remote CI | Resolved 2026-09-01 — the repository is public, where Actions minutes are free; the Ubuntu/macOS matrix starts and concludes normally. This row records the state on 2026-08-15 and is kept as history, not as current truth. |
 
 ### Canonical lifecycle encoded by the remediation
 

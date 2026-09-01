@@ -24,6 +24,20 @@ _None._
 
 ## Recently completed
 
+### TASK-037: A resume brief that hides retired work and watches CI
+- **Requirement:** REQ-RESUME-AUTHORITY
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/resume-brief`, `bin/resume-brief-test`, `TASKS.md`, `docs/**`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.resume`
+- **Accepted Invariants:** a task retired in `docs/archive` is never a resume candidate, and CI status is best-effort and never fails the brief
+- **Regression Checks:** `resume-brief-test`, `ai-policy-lint`
+- **Runtime Evidence:** TASK-023 left the candidate list; CI line reports honestly when no run was triggered
+- **Reopen Conditions:** a retired task reappears as a candidate, or a red CI goes unmentioned
+- **Non-Scope:** making CI green, or deciding which task to resume
+- **Verification:** `bin/resume-brief-test`
+- **Escalation Conditions:** `gh` is the only way to see CI and it is unavailable everywhere
+
 ### TASK-036: A PASS that judged nothing is a different fact
 - **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
 - **Risk Level:** R1
@@ -131,12 +145,15 @@ Completed task contracts through TASK-023 are archived in:
 
 - **TASK-028 / REQ-OMP-MAC-PORTABLE-VALIDATION — completed 2026-08-31 (R1).** Portable OMP reference validation is provider-aware: invalid selectors, thinking levels, and visual fallbacks still fail under an authenticated provider; other reference providers are explicitly `unjudged`. Native runtime validation remains strict.
 
+- **TASK-013 / AUDIT-CI-01 — hosted GitHub Actions execution, resolved 2026-09-01 (R2).** Not a billing problem any more: the repository is public, where Actions minutes are free, and the Ubuntu/macOS matrix has been starting and concluding normally all along. Runs `33425819903` and `33426199372` concluded `failure` on real defects and later runs concluded `success` — execution was never blocked, the claim here was simply stale. Nothing was changed to achieve this and CI was not weakened.
+
+- **TASK-027 / REQ-CROSS-DEVICE-VERIFICATION — completed 2026-09-01 (R1).** `ongkis-MacBook-Air` runs 8/8 after four rounds of findings; reports committed under `docs/device-reports/`. Two of the four original failures were the gate misreading a healthy machine, and one was a bug in `dev-ready` itself. Evidence: `device-verify-linux` executed, macOS recorded as asserted with its committed report.
+
 ## Pending
 
-- **TASK-027 / REQ-CROSS-DEVICE-VERIFICATION — verify the 2026-08-31 gates on macOS (R1).** On `ongkis-macbook-air`: `cd ~/dotfiles && git pull --ff-only && bin/device-verify`, then commit and push `docs/device-reports/`. That one command runs every gate, records this machine's platform facts, and writes the report; it repairs nothing. Report a FAIL as a finding — a gate that is wrong on macOS is a gate to correct in the repository, not to weaken locally. Setup already done there on 2026-08-31: pull, all manifest commands linked, and the blind `vision` fallback replaced (backup at `~/.omp/agent/config.yml.bak-20260831`).
 
 - **TASK-012 / AUDIT-MON-01 — measure real skill effectiveness (R0).** Dormant until at least five immutable real delivery records exist for one skill. Then run `ai-skill-evolution --repo <repo> --dotfiles ~/dotfiles --json`; never fabricate or promote synthetic attribution.
-- **TASK-013 / AUDIT-CI-01 — restore hosted GitHub Actions execution (R2).** Human billing owner must remove the external Actions block, then a fresh Ubuntu/macOS matrix must start and conclude normally. AI must not change billing or weaken CI.
+
 - **TASK-022 / REQ-DELIVERY-CONTRACT-GAPS — wire `project-check-test` into `config/ai/runtime-commands.txt` (R1).** Same deferral reason as TASK-021, same file class. Cosmetic only: `ai-doctor --self-test` already discovers the test via its `bin/*-test` glob.
 
 ## Historical closure

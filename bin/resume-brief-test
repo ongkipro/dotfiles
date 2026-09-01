@@ -56,6 +56,25 @@ want "carries the task title from TASKS.md" "the one that is still open"
 BRIEF="$("$RB" "$R" 2>&1)"
 want "shows an asserted check as asserted"  "claimed-only  (asserted)"
 
+# A task the archive has retired must not be offered as a resume candidate:
+# TASK-023 was superseded in 2026-08 and still appeared in the list, which is the
+# exact stale signal this command exists to remove.
+mkdir -p "$R/docs/archive"
+printf '| TASK-901 | retired | superseded by TASK-902 |\n' > "$R/docs/archive/old.md"
+# The TASK-900 run is still open; a second start is refused while it is, and a
+# refused start leaves no evidence for this case to judge. Close it first.
+"$DL" --repo "$R" finish --result BLOCKED >/dev/null 2>&1
+"$DL" --repo "$R" start --task TASK-901 --requirement REQ-9 --risk R1 \
+  --job implementation --capability tooling --worker task \
+  --model m --provider p --reasoning-effort high --allow 'nowhere/**' >/dev/null 2>&1
+"$DL" --repo "$R" finish --result BLOCKED >/dev/null 2>&1
+BRIEF="$("$RB" "$R" 2>&1)"
+want "names the retired task as retired"    "Retired in docs/archive"
+if printf '%s' "$BRIEF" | sed -n '/Tasks whose/,/^$/p' | grep -q "TASK-901"; then
+  say FAIL "a retired task is not offered as a candidate"; fails=$((fails + 1))
+else say ok "a retired task is not offered as a candidate"; fi
+want "still reports CI for the current HEAD"  "CI for this HEAD:"
+
 # A repository with no ledger still resumes on Git state instead of erroring.
 mkdir -p "$TMP/plain" && git -C "$TMP/plain" init -q
 BRIEF="$("$RB" "$TMP/plain" 2>&1)"

@@ -1,25 +1,25 @@
 {
   "activeRun": null,
   "lastCheckpoint": {
-    "eventHash": "26aa2993a8d8a9390e82d77f5420e808f245e546f96e4d5634cb349d725dd0df",
-    "eventId": "a37ff80d0ba14b18aa349e584b584745",
-    "head": "9eb188e20da1a3d5e49851612d9740f41e666cd8",
-    "note": "Verified: resume-brief-test 14/14 executing the \u00a725 scenario end to end, dev-ready-test 13/13, ai-policy-lint PASS. REVIEW_REQUIRED at R2 for new executables under bin/. Fourth run closed BLOCKED for the same reason: independent review is now the single blocking dependency across TASK-031, 033, 034 and 035, and it needs a reviewer this session is not authorized to spawn.",
-    "prevEventHash": "2cba0d1e3ff9ab66b8b7db10ae128ea637ca6eaa7ce2ee4755191eaa33ee3f50",
-    "runId": "RUN-20260831T190912Z-1bc9eccf",
+    "eventHash": "ed3155ae70f2a9d85f2eaaed69053486fc6b3135791035b4e57cdac8a3b494cb",
+    "eventId": "38a4e8051f534fc3bb020e1afa285aeb",
+    "head": "17cabe23786a14fc8476ea40e86cb71a4539401f",
+    "note": "Verified: resume-brief-test 17/17, ai-policy-lint PASS, dev-ready-test PASS. REVIEW_REQUIRED at R2 for bin/ changes; closed BLOCKED for the same reason as TASK-031/033/034/035 \u2014 no independent reviewer has run.",
+    "prevEventHash": "d4f962a9e8c4cb9a8e95ede2f9f220972d30b586eb368f8e01cc246105ac8c7f",
+    "runId": "RUN-20260901T031346Z-70b632d0",
     "state": null,
-    "time": "2026-08-31T19:12:25Z",
+    "time": "2026-09-01T03:16:26Z",
     "type": "checkpoint"
   },
   "lastRun": {
-    "finishedAt": "2026-08-31T19:31:54Z",
-    "result": "PASS",
-    "runId": "RUN-20260831T192727Z-30078654"
+    "finishedAt": "2026-09-01T03:16:26Z",
+    "result": "BLOCKED",
+    "runId": "RUN-20260901T031346Z-70b632d0"
   },
-  "observedHead": "423130435364964e77a2f306bbc031dab68fefa7",
+  "observedHead": "17cabe23786a14fc8476ea40e86cb71a4539401f",
   "observedState": null,
   "project": "dotfiles",
   "schemaVersion": 1,
   "statusAuthority": "STATUS.md",
-  "updatedAt": "2026-08-31T19:31:54Z"
+  "updatedAt": "2026-09-01T03:16:26Z"
 }
