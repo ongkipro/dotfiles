@@ -29,6 +29,11 @@ printf '#!/usr/bin/env bash\necho v24.0.0\n' > "$H/.local/share/mise/installs/no
 chmod +x "$H/.local/share/mise/shims/node" "$H/.local/share/mise/installs/node/24.0.0/bin/node"
 
 . "$ROOT/bin/_toolchain-path.sh"
+# The caller may already have a cached answer exported — device-verify does
+# exactly that before running its gates, which made every fixture below return
+# the caller's node and this suite fail inside device-verify while passing when
+# run by hand. A test must not inherit the state it is testing.
+unset TOOLCHAIN_NODE_BIN
 picked="$(HOME="$H" toolchain_pick_node)"
 check "a HOME-dependent shim is rejected" "$picked" \
   "$H/.local/share/mise/installs/node/24.0.0/bin"
