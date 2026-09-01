@@ -83,6 +83,7 @@ skill-update-test
 tmux-battery
 tmux-clip
 tmux-setup
+toolchain-path-test
 turnstile-secret-test
 vendored-refresh-test
 vps-pgdump

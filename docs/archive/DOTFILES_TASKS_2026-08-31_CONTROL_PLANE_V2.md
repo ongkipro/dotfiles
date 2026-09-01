@@ -198,3 +198,45 @@ printed. Both fixed.
 - **Non-Scope:** installing runtimes or repairing mise on any device
 - **Verification:** `bin/device-verify` on both devices
 - **Escalation Conditions:** a device installs into a directory no gate can predict
+
+### TASK-035: Resume from the repository, not from the conversation
+- **Requirement:** REQ-RESUME-AUTHORITY
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/resume-brief`, `bin/resume-brief-test`, `bin/device-verify`, `config/ai/runtime-commands.txt`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.resume`
+- **Accepted Invariants:** the brief reports only what it can read from disk, and never presents an asserted check as an executed one
+- **Regression Checks:** `resume-brief-test`, `ai-policy-lint`
+- **Runtime Evidence:** the §25 scenario executed — start, partial evidence, fresh process, correct resume
+- **Reopen Conditions:** a fresh session needs chat history to find the next task
+- **Non-Scope:** deciding which task to do; the brief informs, the operator chooses
+- **Verification:** `bin/resume-brief-test`
+- **Escalation Conditions:** repository state is ambiguous about what is open
+
+### TASK-036: A PASS that judged nothing is a different fact
+- **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/device-verify`, `TASKS.md`, `docs/device-reports/**`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.device-verification`
+- **Accepted Invariants:** a gate that exits 0 while leaving something unexamined is reported as `PASS*` and the omission is named
+- **Regression Checks:** `ai-policy-lint`, `dev-ready-test`
+- **Runtime Evidence:** `rich-2026-08-31T191525Z.md` marks 50 unjudged selectors that earlier reports hid
+- **Reopen Conditions:** a report shows a bare PASS for a gate that skipped work
+- **Non-Scope:** installing the tools a device lacks
+- **Verification:** `bin/device-verify` on both devices
+- **Escalation Conditions:** a gate cannot express what it skipped
+
+### TASK-037: A resume brief that hides retired work and watches CI
+- **Requirement:** REQ-RESUME-AUTHORITY
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/resume-brief`, `bin/resume-brief-test`, `TASKS.md`, `docs/**`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.resume`
+- **Accepted Invariants:** a task retired in `docs/archive` is never a resume candidate, and CI status is best-effort and never fails the brief
+- **Regression Checks:** `resume-brief-test`, `ai-policy-lint`
+- **Runtime Evidence:** TASK-023 left the candidate list; CI line reports honestly when no run was triggered
+- **Reopen Conditions:** a retired task reappears as a candidate, or a red CI goes unmentioned
+- **Non-Scope:** making CI green, or deciding which task to resume
+- **Verification:** `bin/resume-brief-test`
+- **Escalation Conditions:** `gh` is the only way to see CI and it is unavailable everywhere

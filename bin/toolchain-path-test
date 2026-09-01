@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# toolchain-path-test — the runtime picker must reject a candidate that only
+# works in comfortable conditions.
+#
+# mise resolves tool versions from configuration under $HOME, so a shim can
+# answer --version perfectly in an interactive shell and stop being valid inside
+# any process that isolates HOME. On macOS that is exactly what happened:
+# ai-memory-check ran fine when invoked directly and failed inside ai-learn-test,
+# for 226 seconds per device-verify run, twice, before the cause was found.
+set -uo pipefail
+ROOT="${DOTFILES_DIR:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+fails=0
+say()   { printf '  %-4s %s\n' "$1" "$2"; }
+check() { if [ "$2" = "$3" ]; then say ok "$1"; else
+  say FAIL "$1"; printf '       expected %q, got %q\n' "$3" "$2"; fails=$((fails + 1)); fi; }
+
+# A fake HOME with two candidates: the shim only works when HOME is itself, the
+# install works anywhere. The picker must prefer the shim's position but reject
+# it on the probe and fall through to the install.
+H="$TMP/home"
+mkdir -p "$H/.local/share/mise/shims" "$H/.local/share/mise/installs/node/24.0.0/bin"
+cat > "$H/.local/share/mise/shims/node" <<EOF
+#!/usr/bin/env bash
+[ "\$HOME" = "$H" ] || { echo "mise ERROR node is not a valid shim" >&2; exit 1; }
+echo v24.0.0
+EOF
+printf '#!/usr/bin/env bash\necho v24.0.0\n' > "$H/.local/share/mise/installs/node/24.0.0/bin/node"
+chmod +x "$H/.local/share/mise/shims/node" "$H/.local/share/mise/installs/node/24.0.0/bin/node"
+
+. "$ROOT/bin/_toolchain-path.sh"
+picked="$(HOME="$H" toolchain_pick_node)"
+check "a HOME-dependent shim is rejected" "$picked" \
+  "$H/.local/share/mise/installs/node/24.0.0/bin"
+
+# When the shim survives the probe it wins, because it resolves the configured
+# version rather than whatever sorts highest.
+printf '#!/usr/bin/env bash\necho v24.0.0\n' > "$H/.local/share/mise/shims/node"
+chmod +x "$H/.local/share/mise/shims/node"
+picked="$(HOME="$H" toolchain_pick_node)"
+check "a robust shim is preferred" "$picked" "$H/.local/share/mise/shims"
+
+# Newest install wins among installs, and a non-answering one is skipped.
+rm -f "$H/.local/share/mise/shims/node"
+# 10.0.0 is here on purpose: with version sorting the newest answering install
+# is 24.0.0, but with plain lexical sorting 10.0.0 comes first. Without it the
+# two orderings agree by accident and the assertion passes either way — found by
+# mutating sort -Vr and watching nothing fail.
+mkdir -p "$H/.local/share/mise/installs/node/9.11.2/bin" \
+         "$H/.local/share/mise/installs/node/10.0.0/bin" \
+         "$H/.local/share/mise/installs/node/30.0.0/bin"
+printf '#!/usr/bin/env bash\necho v10\n' > "$H/.local/share/mise/installs/node/10.0.0/bin/node"
+chmod +x "$H/.local/share/mise/installs/node/10.0.0/bin/node"
+printf '#!/usr/bin/env bash\necho v9\n' > "$H/.local/share/mise/installs/node/9.11.2/bin/node"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$H/.local/share/mise/installs/node/30.0.0/bin/node"
+chmod +x "$H/.local/share/mise/installs/node/9.11.2/bin/node" \
+         "$H/.local/share/mise/installs/node/30.0.0/bin/node"
+picked="$(HOME="$H" toolchain_pick_node)"
+check "the newest install that answers is chosen" "$picked" \
+  "$H/.local/share/mise/installs/node/24.0.0/bin"
+
+# A HOME with a space must not word-split the search.
+S="$TMP/a home"; mkdir -p "$S/.local/share/mise/installs/node/24.0.0/bin"
+printf '#!/usr/bin/env bash\necho v24\n' > "$S/.local/share/mise/installs/node/24.0.0/bin/node"
+chmod +x "$S/.local/share/mise/installs/node/24.0.0/bin/node"
+picked="$(HOME="$S" toolchain_pick_node)"
+check "a HOME containing a space still resolves" "$picked" \
+  "$S/.local/share/mise/installs/node/24.0.0/bin"
+
+# Nothing installed: silence, not a wrong answer.
+E="$TMP/empty"; mkdir -p "$E"
+picked="$(HOME="$E" toolchain_pick_node)"
+check "no runtime yields nothing" "$picked" ""
+
+echo
+[ "$fails" -eq 0 ] && { echo "toolchain-path-test: all cases hold"; exit 0; }
+echo "toolchain-path-test: $fails case(s) failed"; exit 1

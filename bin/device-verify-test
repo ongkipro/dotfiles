@@ -51,6 +51,7 @@ fake_gate "$D" dev-ready-test 1 \
   "dev-ready-test: 1 case(s) failed" \
   "────────────────────────────────────────"
 fake_gate "$D" resume-brief-test 0 "resume-brief-test: all cases hold"
+fake_gate "$D" toolchain-path-test 0 "toolchain-path-test: all cases hold"
 
 DOTFILES_DIR="$D" "$DV" >/dev/null 2>&1; code=$?
 REPORT="$(cat "$(ls -t "$D"/docs/device-reports/*.md | head -1)" 2>/dev/null)"
@@ -72,7 +73,8 @@ want "the verdict counts the failure"         "gate(s) FAILED"
 # it would have been invisible — the same gap, one level up.
 G="$TMP/gaps"; fake_root "$G"
 for g in ai-doctor delivery-ledger-test omp-effective-routing-test \
-         dev-ready-test resume-brief-test; do fake_gate "$G" "$g" 0 "$g: fine"; done
+         dev-ready-test resume-brief-test toolchain-path-test; do
+  fake_gate "$G" "$g" 0 "$g: fine"; done
 fake_gate "$G" ai-policy-lint 0 \
   "  ! GitHub workflows not validated here: actionlint is not installed on this device" \
   "ai-policy-lint: PASSED"
@@ -87,7 +89,7 @@ wantnot "it does not claim full coverage" "every gate holds on this device"
 # "exactly two providers is not degraded" is a passing case name, not an omission.
 N2="$TMP/naming"; fake_root "$N2"
 for g in ai-doctor ai-policy-lint delivery-ledger-test omp-effective-routing-test \
-         resume-brief-test; do fake_gate "$N2" "$g" 0 "$g: fine"; done
+         resume-brief-test toolchain-path-test; do fake_gate "$N2" "$g" 0 "$g: fine"; done
 fake_gate "$N2" dev-ready-test 0 \
   "  ok   exactly two providers is not degraded" \
   "  ok   a repository with no browser-visible files does not require a browser" \
@@ -102,7 +104,8 @@ wantnot "and nothing is listed as unjudged"          "Not judged on this device"
 # Every gate green: no PASS*, no failure section, exit 0.
 E="$TMP/allgreen"; fake_root "$E"
 for g in ai-doctor ai-policy-lint delivery-ledger-test omp-effective-routing-test \
-         dev-ready-test resume-brief-test; do fake_gate "$E" "$g" 0 "$g: fine"; done
+         dev-ready-test resume-brief-test toolchain-path-test; do
+  fake_gate "$E" "$g" 0 "$g: fine"; done
 DOTFILES_DIR="$E" "$DV" >/dev/null 2>&1; code=$?
 REPORT="$(cat "$(ls -t "$E"/docs/device-reports/*.md | head -1)" 2>/dev/null)"
 [ "$code" -eq 0 ] && say ok "all gates green exits 0" \
