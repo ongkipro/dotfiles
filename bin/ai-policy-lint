@@ -430,6 +430,79 @@ def check_hot_context():
                 f"move the detail to the document that owns it and leave an anchor")
 
 
+def _task_graph_parser():
+    """Borrow resume-brief's parser rather than reimplementing it.
+
+    The first version of this check reimplemented the rule and the two drifted
+    immediately: the lint validated edges on bullet-shaped tasks that
+    resume-brief could not even read, and attributed a bullet task's dependency
+    to whatever heading preceded it. Two readers of one human-written line under
+    two rules is the split-truth failure the design forbids, so there is now one
+    parser and this is its second caller.
+    """
+    import importlib.util
+    from importlib.machinery import SourceFileLoader
+    # An extensionless executable has no registered loader, so name one: the
+    # default spec_from_file_location returns a spec with loader=None and the
+    # import silently yields nothing.
+    path = str(ROOT / "bin" / "resume-brief")
+    spec = importlib.util.spec_from_file_location(
+        "resume_brief", path, loader=SourceFileLoader("resume_brief", path))
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def check_task_dependencies():
+    """A dependency edge is the one part of the task lifecycle a human writes.
+
+    Everything else `resume-brief` reports is derived from ledger evidence, and
+    derived facts cannot go stale. This one can: a typo in `Depends On:` names a
+    task that will never reach PASS, so the dependent waits forever and nothing
+    says why.
+    """
+    tasks_md = ROOT / "TASKS.md"
+    if not tasks_md.is_file():
+        return
+    try:
+        rb = _task_graph_parser()
+    except Exception as error:
+        err(f"task dependency graph could not be checked: {error}")
+        return
+    if rb is None or not hasattr(rb, "parse_task_graph"):
+        err("task dependency graph could not be checked: bin/resume-brief "
+            "does not expose parse_task_graph")
+        return
+
+    anomalies = []
+    graph = rb.parse_task_graph(tasks_md.read_text(), anomalies)
+    known = set(graph)
+    # Harvest RECORDS from the archive, not every token in it. Scanning all text
+    # pulled in GPT-5, CI-01, H-01..M-08 and every other id-shaped fragment, so a
+    # digit-slip landing anywhere in archived prose passed as a real dependency.
+    archive = ROOT / "docs" / "archive"
+    if archive.is_dir():
+        for f in sorted(archive.glob("*.md")):
+            text = f.read_text()
+            known |= set(rb.parse_task_graph(text))
+            known |= set(re.findall(r"^\|\s*(TASK-[0-9]+)\s*\|", text, re.M))
+
+    bad = list(anomalies)
+    for task, deps in graph.items():
+        for dep in deps:
+            if dep == task:
+                bad.append(f"{task} depends on itself")
+            elif dep not in known:
+                bad.append(f"{task} depends on {dep}, which no task record defines")
+    if bad:
+        err("task dependency graph has problems:\n  " + "\n  ".join(bad))
+    else:
+        print(f"  OK  task dependency graph: {sum(len(d) for d in graph.values())} "
+              f"edge(s) across {len(graph)} task record(s) resolve")
+
+
 def check_command_manifest():
     """Both directions, because checking one is how the gap survived.
 
@@ -504,6 +577,7 @@ def main():
     run_canonical_gate("owned skills", [ROOT / "skills" / "agents-bin" / "skill-check"], {"SKILL_SOURCE": str(ROOT / "skills" / "local")})
     check_skill_routing_graph()
     check_command_manifest()
+    check_task_dependencies()
     run_canonical_gate("memory and Markdown links", [ROOT / "bin" / "ai-memory-check", ROOT])
     run_canonical_gate("memory hygiene regression", [ROOT / "bin" / "ai-memory-hygiene-test", ROOT])
     report_memory_hygiene()

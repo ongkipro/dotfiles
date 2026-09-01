@@ -18,6 +18,8 @@ want() { # want <name> <substring>
   if printf '%s' "$BRIEF" | grep -qF "$2"; then say ok "$1"
   else say FAIL "$1"; printf '       wanted: %s\n' "$2"; fails=$((fails + 1)); fi
 }
+wantre() { if printf '%s' "$BRIEF" | grep -qE "$2"; then say ok "$1"
+           else say FAIL "$1"; printf '       wanted /%s/\n' "$2"; fails=$((fails + 1)); fi; }
 wantnot() {
   if printf '%s' "$BRIEF" | grep -qF "$2"; then
     say FAIL "$1"; printf '       should not contain: %s\n' "$2"; fails=$((fails + 1))
@@ -145,6 +147,205 @@ if printf '%s' "$BRIEF" | sed -n '/Tasks whose/,/^$/p' | grep -q "TASK-05"; then
 else
   say FAIL "a live task recorded as a bullet is not retired"; fails=$((fails + 1))
 fi
+
+# Prose naming a task is not a record of it. One sentence in TASKS.md
+# ("Completed task contracts through TASK-023 are archived in:") resurrected an
+# archived task as a live candidate the moment the mention rule was loosened.
+M="$TMP/prose"; mkdir -p "$M/docs/archive" && git -C "$M" init -q
+printf 'contract\n' > "$M/AGENTS.md"
+printf 'Completed contracts through TASK-77 are archived in docs/archive.\n' > "$M/TASKS.md"
+printf '### TASK-77: done long ago\n' > "$M/docs/archive/old.md"
+git -C "$M" add -A >/dev/null 2>&1
+git -C "$M" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
+"$DL" --repo "$M" init >/dev/null 2>&1
+"$DL" --repo "$M" start --task TASK-77 --requirement REQ-M --risk R1 \
+  --job implementation --capability tooling --worker task \
+  --model m --provider p --reasoning-effort high --allow 'x/**' >/dev/null 2>&1
+"$DL" --repo "$M" finish --result BLOCKED >/dev/null 2>&1
+BRIEF="$("$RB" "$M" 2>&1)"
+want "a prose mention does not keep a task live" "Retired in docs/archive"
+
+# §9: the lifecycle is derived. Only the dependency edge is written by hand, so
+# only it can be wrong; a written-down status could not be, which is exactly how
+# TASK-013 sat recording a blocker that had stopped being true.
+D="$TMP/deps"; mkdir -p "$D" && git -C "$D" init -q
+printf 'contract\n' > "$D/AGENTS.md"
+cat > "$D/TASKS.md" <<'MD'
+### TASK-10: the one that must go first
+- **Risk Level:** R1
+
+### TASK-11: the one that waits
+- **Depends On:** TASK-10
+- **Risk Level:** R1
+
+### TASK-12: the one that waits on nothing real
+- **Depends On:** TASK-99
+- **Risk Level:** R1
+MD
+git -C "$D" add -A >/dev/null 2>&1
+git -C "$D" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
+"$DL" --repo "$D" init >/dev/null 2>&1
+for t in TASK-10 TASK-11 TASK-12; do
+  "$DL" --repo "$D" start --task $t --requirement REQ-D --risk R1 \
+    --job implementation --capability tooling --worker task \
+    --model m --provider p --reasoning-effort high --allow 'x/**' >/dev/null 2>&1
+  "$DL" --repo "$D" finish --result BLOCKED >/dev/null 2>&1
+done
+BRIEF="$("$RB" "$D" 2>&1)"
+wantre "an unmet dependency marks a task waiting"  "^ +TASK-11 +waiting"
+want "the blocking task is named"                 "needs first: TASK-10"
+want "a dependency that does not exist is unmet"  "needs first: TASK-99"
+wantre "a task with no dependency is READY"        "^ +TASK-10 +READY"
+want "the counts are reported"                    "1 ready to start, 2 waiting"
+
+# The core promise had no test: deleting the "is it PASS" condition entirely —
+# so every dependency is always unmet — passed the whole suite, because all three
+# fixture tasks finished BLOCKED. A met dependency must release its dependent.
+R2D="$TMP/deps2"; mkdir -p "$R2D" && git -C "$R2D" init -q
+printf 'contract\n' > "$R2D/AGENTS.md"
+cat > "$R2D/TASKS.md" <<'MD'
+### TASK-20: the finished one
+- **Risk Level:** R1
+
+### TASK-21: released once TASK-20 passes
+- **Depends On:** TASK-20
+- **Risk Level:** R1
+
+## TASK-22: a task headed with two hashes
+- **Depends On:** TASK-96
+- **Risk Level:** R1
+
+## Done
+
+- **TASK-23 / REQ-Z — a bullet-shaped record.**
+- **Depends On:** TASK-99
+MD
+git -C "$R2D" add -A >/dev/null 2>&1
+git -C "$R2D" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
+"$DL" --repo "$R2D" init >/dev/null 2>&1
+start_run() { "$DL" --repo "$R2D" start --task "$1" --requirement REQ-Z --risk R1 \
+  --job implementation --capability tooling --worker task \
+  --model m --provider p --reasoning-effort high --allow 'x/**' >/dev/null 2>&1; }
+start_run TASK-20
+"$DL" --repo "$R2D" record --check t --command 'true' >/dev/null 2>&1
+"$DL" --repo "$R2D" check-boundary >/dev/null 2>&1
+"$DL" --repo "$R2D" finish --result PASS >/dev/null 2>&1
+for t in TASK-21 TASK-22 TASK-23; do start_run $t; "$DL" --repo "$R2D" finish --result BLOCKED >/dev/null 2>&1; done
+BRIEF="$("$RB" "$R2D" 2>&1)"
+wantre "a met dependency releases its dependent"   "^ +TASK-21 +READY"
+# Depends on something UNMET on purpose: with a met dependency this case passed
+# whether or not the two-hash rule worked, which a mutation exposed.
+wantre "a two-hash task still carries its edge"    "^ +TASK-22 +waiting"
+want   "the two-hash task names its blocker"       "needs first: TASK-96"
+wantre "a bullet-shaped record carries its edge"   "^ +TASK-23 +waiting"
+want   "the bullet task names its blocker"         "needs first: TASK-99"
+
+# A `## ` section starting after a `### ` task must end that task's scan. The
+# first parser only broke on `### `, so a stray Depends On line under `## Done`
+# was attributed to the last three-hash task above it.
+L2="$TMP/leak"; mkdir -p "$L2" && git -C "$L2" init -q
+printf 'contract\n' > "$L2/AGENTS.md"
+cat > "$L2/TASKS.md" <<'MD'
+### TASK-30: has no dependency of its own
+- **Risk Level:** R1
+
+## Historical closure
+
+- **Depends On:** TASK-98
+MD
+git -C "$L2" add -A >/dev/null 2>&1
+git -C "$L2" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
+"$DL" --repo "$L2" init >/dev/null 2>&1
+"$DL" --repo "$L2" start --task TASK-30 --requirement REQ-L --risk R1 \
+  --job implementation --capability tooling --worker task \
+  --model m --provider p --reasoning-effort high --allow 'x/**' >/dev/null 2>&1
+"$DL" --repo "$L2" finish --result BLOCKED >/dev/null 2>&1
+BRIEF="$("$RB" "$L2" 2>&1)"
+wantre "a later section does not leak its edge upward" "^ +TASK-30 +READY"
+wantnot "the leaked blocker is not attributed"         "needs first: TASK-98"
+
+# Prose quoting a heading must not hijack the scan. Splitting on the substring
+# "### TASK-nnn:" found the quote first and stopped before the real record.
+Q="$TMP/quote"; mkdir -p "$Q" && git -C "$Q" init -q
+printf 'contract\n' > "$Q/AGENTS.md"
+{ printf 'An earlier draft heading read `### TASK-40: old name` before renaming.\n\n'
+  printf '### TASK-40: the real record\n- **Depends On:** TASK-97\n'; } > "$Q/TASKS.md"
+git -C "$Q" add -A >/dev/null 2>&1
+git -C "$Q" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
+"$DL" --repo "$Q" init >/dev/null 2>&1
+"$DL" --repo "$Q" start --task TASK-40 --requirement REQ-Q --risk R1 \
+  --job implementation --capability tooling --worker task \
+  --model m --provider p --reasoning-effort high --allow 'x/**' >/dev/null 2>&1
+"$DL" --repo "$Q" finish --result BLOCKED >/dev/null 2>&1
+BRIEF="$("$RB" "$Q" 2>&1)"
+want "prose quoting a heading does not hijack the scan" "needs first: TASK-97"
+
+# Finding 4's remediation had no test at all: three separate mutations of it
+# passed the whole suite. Same defect class as the coverage hole one round
+# earlier, recurring on the code written to close that hole.
+A2="$TMP/deps3"; mkdir -p "$A2/docs/archive" && git -C "$A2" init -q
+printf 'contract\n' > "$A2/AGENTS.md"
+cat > "$A2/TASKS.md" <<'MD'
+### TASK-40: waits on something the archive retired
+- **Depends On:** TASK-41
+
+### TASK-42: waits on a record that never ran
+- **Depends On:** TASK-43
+
+### TASK-43: has a record and no ledger run
+
+### TASK-44: waits on something nothing defines
+- **Depends On:** TASK-45
+
+### TASK-46: waits on a task that is BOTH live and archived
+- **Depends On:** TASK-47
+
+### TASK-47: still live despite appearing in the archive
+MD
+printf '### TASK-41: retired long ago\n### TASK-47: also mentioned here\n' > "$A2/docs/archive/old.md"
+git -C "$A2" add -A >/dev/null 2>&1
+git -C "$A2" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
+"$DL" --repo "$A2" init >/dev/null 2>&1
+for t in TASK-40 TASK-42 TASK-44 TASK-46 TASK-47; do
+  "$DL" --repo "$A2" start --task $t --requirement REQ-A --risk R1 \
+    --job implementation --capability tooling --worker task \
+    --model m --provider p --reasoning-effort high --allow 'x/**' >/dev/null 2>&1
+  "$DL" --repo "$A2" finish --result BLOCKED >/dev/null 2>&1
+done
+BRIEF="$("$RB" "$A2" 2>&1)"
+wantre "a retired dependency does not block"        "^ +TASK-40 +READY"
+want   "and it is named as superseded"              "superseded dependency, not blocking: TASK-41"
+wantre "a record with no ledger run still blocks"   "^ +TASK-42 +waiting"
+want   "and the reason says there is no run"        "TASK-43 (no ledger run)"
+want   "a dependency nothing defines says so"       "TASK-45 (no task defines it)"
+wantre "a live task that is also archived blocks"   "^ +TASK-46 +waiting"
+wantnot "it is not waved through as superseded"     "superseded dependency, not blocking: TASK-47"
+
+# A fenced example is documentation, not a task record. The archive carries
+# "### TASK-000: [Short Task Title]" inside a fence, which put TASK-000 into the
+# lint's set of real tasks.
+# Observable only because the fenced id is ALSO archived and has a run: if the
+# fence is parsed it counts as a live record and the task stops being retired.
+# The first version of this case asserted things that held either way.
+F="$TMP/fence"; mkdir -p "$F/docs/archive" && git -C "$F" init -q
+printf 'contract\n' > "$F/AGENTS.md"
+{ printf '### TASK-50: the real one\n\n'
+  printf 'Template:\n\n%s\n' '```'
+  printf '### TASK-000: [Short Task Title]\n- **Depends On:** TASK-001\n'
+  printf '%s\n' '```'; } > "$F/TASKS.md"
+printf '### TASK-000: retired template residue\n' > "$F/docs/archive/old.md"
+git -C "$F" add -A >/dev/null 2>&1
+git -C "$F" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
+"$DL" --repo "$F" init >/dev/null 2>&1
+for t in TASK-50 TASK-000; do
+  "$DL" --repo "$F" start --task $t --requirement REQ-F --risk R1 \
+    --job implementation --capability tooling --worker task \
+    --model m --provider p --reasoning-effort high --allow 'x/**' >/dev/null 2>&1
+  "$DL" --repo "$F" finish --result BLOCKED >/dev/null 2>&1
+done
+BRIEF="$("$RB" "$F" 2>&1)"
+wantre "a real task beside a fenced example is READY" "^ +TASK-50 +READY"
+want   "a fenced id is not a live record"            "Retired in docs/archive, not candidates: TASK-000"
 
 # A repository with no ledger still resumes on Git state instead of erroring.
 mkdir -p "$TMP/plain" && git -C "$TMP/plain" init -q

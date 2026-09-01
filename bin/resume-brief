@@ -18,6 +18,72 @@ import subprocess
 import sys
 
 
+# One parser, imported by ai-policy-lint, because two readers of the same
+# human-written line under two different rules is the split-truth failure this
+# whole design exists to prevent — and it is exactly what shipped first: the
+# live-record rule accepted 2-4 hashes or a contract bullet, while the
+# dependency rule split on the substring "### TASK-nnn:" anywhere in the file.
+# A `##` task, a bullet-only task, and a prose line quoting a heading each
+# produced a different wrong answer.
+TASK_ID = r"[A-Z]+-[0-9]+"
+_HEADING = re.compile(r"^#{2,4}\s+(" + TASK_ID + r")(?![0-9])")
+_BULLET = re.compile(r"^\s*-\s+\*\*(" + TASK_ID + r")(?![0-9])")
+_ANY_HEADING = re.compile(r"^#{1,6}\s")
+_DEPENDS = re.compile(r"^\s*-\s+\*\*Depends On:\*\*\s*(.+)", re.I)
+
+
+def parse_task_graph(text, anomalies=None):
+    """Map every task RECORD in a TASKS.md-shaped document to its dependencies.
+
+    A record is a heading or a contract bullet, anchored to the start of a line.
+    Prose naming a task is not a record: one sentence reading "Completed task
+    contracts through TASK-023 are archived in:" was enough to resurrect an
+    archived task as a live candidate.
+
+    Pass `anomalies` (a list) to collect edges that were WRITTEN but not read.
+    A dependency is the one human-authored fact here, so an edge that silently
+    evaporates — mis-indented, oddly spaced, before any record, or overwritten
+    by a second line — is worse than a wrong one: nothing anywhere says it was
+    ignored.
+    """
+    graph, current, fenced = {}, None, False
+    for line in text.splitlines():
+        # A fenced example is documentation, not a record. The archive already
+        # contains "### TASK-000: [Short Task Title]" inside a fence, which put
+        # TASK-000 into the lint's set of real tasks.
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        h = _HEADING.match(line)
+        b = _BULLET.match(line)
+        if h or b:
+            current = (h or b).group(1)
+            graph.setdefault(current, [])
+            continue
+        # Any other heading ends the current task's scope. Without this, a
+        # "## Historical closure" section carrying a stray Depends On line had
+        # it attributed to the last task above — a live task falsely blocked by
+        # archived prose, which is the stale signal this command removes.
+        if _ANY_HEADING.match(line):
+            current = None
+            continue
+        d = _DEPENDS.match(line)
+        if d and current:
+            if graph[current] and anomalies is not None:
+                anomalies.append(f"{current} has more than one Depends On line; "
+                                 f"only the last is read")
+            graph[current] = re.findall(TASK_ID, d.group(1))
+            continue
+        if anomalies is not None and "Depends On" in line and not d:
+            anomalies.append(f"line not read as a dependency: {line.strip()[:70]}")
+        elif anomalies is not None and d and current is None:
+            anomalies.append(f"dependency line before any task record: "
+                             f"{line.strip()[:70]}")
+    return graph
+
+
 def git(repo, *args):
     r = subprocess.run(["git", "-C", str(repo), *args], text=True,
                        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
@@ -126,18 +192,48 @@ def main():
             archived += a.read_text()
 
     def mentions(text, task):
-        # Bounded on the right so TASK-02 stops matching TASK-023, and searched
-        # anywhere rather than only in an h3 heading: TASK-013 lives in TASKS.md
-        # as a bullet, and demanding "### TASK-013:" would have declared the
-        # single most active task retired. Both mistakes shipped in 1053075 and
-        # were caught by independent review, not by this file's own tests.
+        # Right-bounded so TASK-02 stops matching TASK-023 — a substring test
+        # here deleted live work, caught by independent review rather than by
+        # this file's tests.
         return re.search(re.escape(task) + r"(?![0-9])", text) is not None
 
+    live_graph = parse_task_graph(live)
     retired = {t for t in outcomes
-               if not mentions(live, t) and mentions(archived, t)}
+               if t not in live_graph and mentions(archived, t)}
 
+    # §9 asks for a task lifecycle. The state is DERIVED, never written down:
+    # a hand-maintained status field goes stale exactly the way TASK-013's
+    # "blocked on billing" did, and the way the repository-visibility note did —
+    # both wrong on 2026-09-01, both discovered by asking reality instead of
+    # reading the file. Only the dependency edge is human-authored, because only
+    # a human knows it; everything else is computed from ledger evidence.
     unfinished = sorted(t for t, (res, _) in outcomes.items()
                         if res != "PASS" and t not in retired)
+    # A dependency is met when its evidence ends in PASS. Two other shapes are
+    # neither met nor a reason to deadlock, and saying which is which is the
+    # difference between an actionable queue and a permanent stall: a dependency
+    # the archive retired was superseded, and one with no ledger run at all has
+    # no evidence rather than failing evidence. Both are reported by name.
+    blocked_by, superseded_dep = {}, {}
+    for t in unfinished:
+        unmet = []
+        for d in live_graph.get(t, []):
+            state = outcomes.get(d, (None, ""))[0]
+            if state == "PASS":
+                continue
+            if d not in live_graph and mentions(archived, d):
+                superseded_dep.setdefault(t, []).append(d)
+                continue
+            if state is None:
+                # "no ledger run" misstates the problem when nothing defines the
+                # task at all, and resume-brief also runs where the lint does not.
+                known_anywhere = d in live_graph or mentions(archived, d)
+                unmet.append(f"{d} (no ledger run)" if known_anywhere
+                             else f"{d} (no task defines it)")
+            else:
+                unmet.append(d)
+        if unmet:
+            blocked_by[t] = unmet
     if unfinished:
         print("\nTasks whose evidence does not end in PASS:")
         for t in unfinished:
@@ -150,8 +246,16 @@ def main():
                     if m:
                         title = m.group(1).strip()
                         break
-            print(f"  {t:<10} {res:<16} {title[:70]}")
-        print("\nThese are the resume candidates. Repository evidence decides, not memory.")
+            state = "waiting" if t in blocked_by else "READY"
+            print(f"  {t:<10} {state:<8} {res:<10} {title[:56]}")
+            if t in blocked_by:
+                print(f"             needs first: {', '.join(blocked_by[t])}")
+            if t in superseded_dep:
+                print(f"             superseded dependency, not blocking: "
+                      f"{', '.join(superseded_dep[t])}")
+        ready = [t for t in unfinished if t not in blocked_by]
+        print(f"\n{len(ready)} ready to start, {len(blocked_by)} waiting on a dependency.")
+        print("These are the resume candidates. Repository evidence decides, not memory.")
     else:
         print("\nEvery live task with recorded evidence ended in PASS.")
 

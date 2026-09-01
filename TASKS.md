@@ -24,6 +24,21 @@ _None._
 
 ## Recently completed
 
+### TASK-040: A task lifecycle that cannot go stale
+- **Requirement:** REQ-TASK-GRAPH
+- **Depends On:** TASK-037
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/resume-brief`, `bin/resume-brief-test`, `bin/ai-policy-lint`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.resume`
+- **Accepted Invariants:** only the dependency edge is human-authored; every other lifecycle fact is derived from ledger evidence and cannot contradict it
+- **Regression Checks:** `resume-brief-test`, `ai-policy-lint`
+- **Runtime Evidence:** an unmet dependency marks a task waiting and names the blocker; a dangling edge fails the lint
+- **Reopen Conditions:** a written-down status field appears in a task contract
+- **Non-Scope:** deciding which ready task to take
+- **Verification:** `bin/resume-brief-test`
+- **Escalation Conditions:** a dependency cycle needs expressing
+
 ### TASK-039: What five rounds of independent review found
 - **Requirement:** REQ-REVIEW-REMEDIATION
 - **Risk Level:** R2
