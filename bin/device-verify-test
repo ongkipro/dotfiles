@@ -83,6 +83,22 @@ REPORT="$(cat "$(ls -t "$G"/docs/device-reports/*.md | head -1)" 2>/dev/null)"
 want "the verdict admits the gaps"        "PASS with gaps"
 wantnot "it does not claim full coverage" "every gate holds on this device"
 
+# A gate whose own test-result lines contain the vocabulary must not be starred:
+# "exactly two providers is not degraded" is a passing case name, not an omission.
+N2="$TMP/naming"; fake_root "$N2"
+for g in ai-doctor ai-policy-lint delivery-ledger-test omp-effective-routing-test \
+         resume-brief-test; do fake_gate "$N2" "$g" 0 "$g: fine"; done
+fake_gate "$N2" dev-ready-test 0 \
+  "  ok   exactly two providers is not degraded" \
+  "  ok   a repository with no browser-visible files does not require a browser" \
+  "dev-ready-test: all cases hold"
+DOTFILES_DIR="$N2" "$DV" >/dev/null 2>&1; code=$?
+REPORT="$(cat "$(ls -t "$N2"/docs/device-reports/*.md | head -1)" 2>/dev/null)"
+[ "$code" -eq 0 ] && say ok "a gate named after the vocabulary still passes" \
+  || { say FAIL "a gate named after the vocabulary still passes (got $code)"; fails=$((fails + 1)); }
+wantnot "a passing case name does not star the gate" "PASS* |"
+wantnot "and nothing is listed as unjudged"          "Not judged on this device"
+
 # Every gate green: no PASS*, no failure section, exit 0.
 E="$TMP/allgreen"; fake_root "$E"
 for g in ai-doctor ai-policy-lint delivery-ledger-test omp-effective-routing-test \

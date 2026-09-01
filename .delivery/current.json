@@ -1,25 +1,25 @@
 {
   "activeRun": null,
   "lastCheckpoint": {
-    "eventHash": "c937e792a8f03317f192a860a5a9941a07d96a62959cb5f7bf909776afeaa8f3",
-    "eventId": "4f3197ec0cf34939b22678634bb89ceb",
-    "head": "2bcd8c554dddc974690698f547ccd631268ef6b1",
-    "note": "Boundary APPROVED by an independent reviewer (claude-fable-5, differing model) after five adversarial passes. finish PASS is refused because ai-policy-lint recorded FAIL mid-run when TASKS.md crossed its hot-context budget, was fixed by archiving four completed contracts, and re-recorded PASS. Closing BLOCKED rather than arguing with the rule. Second independent encounter today with the same semantics \u2014 the expansion-witness rule penalised the same fail-fix-verify loop in TASK-030 \u2014 so this is a design question about the ledger, recorded twice, not a one-off.",
-    "prevEventHash": "dfc4b7a0e92d5dad8f91db39a4efe56c70e00ed04f62ce8361ed84bf55003e81",
-    "runId": "RUN-20260901T040338Z-3cf42389",
+    "eventHash": "ba3a227fef7141e71a7386aa22f5059e67d5bb3d4433955f890b32eff9f7d737",
+    "eventId": "4f8eaec79ad148bd8ff1c7d0b3e95353",
+    "head": "9a40e1e8d154ba108c581cdef19a1d0c292f5e56",
+    "note": "THIRD occurrence today of PASS-cannot-follow-FAIL blocking finished, reviewed, verified work. Pattern is identical every time: a check fails on the TASKS.md hot-context budget, the history is archived, the check is re-run and passes, and the run can no longer reach PASS. Boundary APPROVED by an independent reviewer here. The rule as written teaches an agent to avoid recording a failure it intends to fix, which is the opposite of what an append-only evidence log is for. Raised with the owner as a design decision; not changed unilaterally, because a gate that judges my work is not mine to loosen mid-run.",
+    "prevEventHash": "a11e0d96705604974f0b5423a5502fb74b222f721d074711b280f521cc9c6db8",
+    "runId": "RUN-20260901T053251Z-10d91849",
     "state": null,
-    "time": "2026-09-01T04:40:24Z",
+    "time": "2026-09-01T05:35:26Z",
     "type": "checkpoint"
   },
   "lastRun": {
-    "finishedAt": "2026-09-01T05:31:27Z",
-    "result": "PASS",
-    "runId": "RUN-20260901T053001Z-a2e49b9b"
+    "finishedAt": "2026-09-01T05:35:26Z",
+    "result": "BLOCKED",
+    "runId": "RUN-20260901T053251Z-10d91849"
   },
-  "observedHead": "94991a9b2c355dc2455b0e53af7ba301813fbb67",
+  "observedHead": "9a40e1e8d154ba108c581cdef19a1d0c292f5e56",
   "observedState": null,
   "project": "dotfiles",
   "schemaVersion": 1,
   "statusAuthority": "STATUS.md",
-  "updatedAt": "2026-09-01T05:31:27Z"
+  "updatedAt": "2026-09-01T05:35:26Z"
 }

@@ -7,6 +7,12 @@
 set -uo pipefail
 
 DOT="${DOTFILES_DIR:-$HOME/dotfiles}"
+
+# A dangling mise shim took out ai-learn and ai-memory-check on macOS while
+# device-verify beside them resolved node correctly, because the node-resolution
+# fix lived in three copies and this file had none. There is now one definition.
+[ -f "$DOT/bin/_toolchain-path.sh" ] && . "$DOT/bin/_toolchain-path.sh" \
+  && toolchain_export_path
 AI="$HOME/.config/ai"
 fail=0; warn=0
 MODE="${1:-}"

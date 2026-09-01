@@ -24,6 +24,20 @@ _None._
 
 ## Recently completed
 
+### TASK-042: One definition of where this machine's runtimes are
+- **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/_toolchain-path.sh`, `bin/ai-doctor`, `bin/dev-ready`, `bin/device-verify`, `bin/device-verify-test`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.device-verification`
+- **Accepted Invariants:** every owned command resolves node the same way, and a gate is starred only for work it actually skipped
+- **Regression Checks:** `device-verify-test`, `ai-policy-lint`
+- **Runtime Evidence:** macOS starred `dev-ready-test` for a passing case name containing "degraded"; `ai-learn-test` failed on a dangling shim `ai-doctor` could not see past
+- **Reopen Conditions:** a fourth copy of the node-resolution rule appears
+- **Non-Scope:** repairing mise on any device
+- **Verification:** `bin/device-verify` on both devices
+- **Escalation Conditions:** a runtime lives somewhere this file does not know
+
 ### TASK-041: Pin what the sync tool promises
 - **Requirement:** REQ-SYNC-SAFETY
 - **Risk Level:** R1
@@ -122,20 +136,6 @@ _None._
 - **Non-Scope:** deciding which task to do; the brief informs, the operator chooses
 - **Verification:** `bin/resume-brief-test`
 - **Escalation Conditions:** repository state is ambiguous about what is open
-
-### TASK-034: A gate that lies about a healthy machine
-- **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
-- **Risk Level:** R1
-- **Allowed Paths:** `bin/device-verify`, `bin/dev-ready`, `bin/ai-doctor`, `bin/ai-policy-lint`, `TASKS.md`, `docs/device-reports/**`
-- **Protected Paths:** None
-- **Canonical Contract Owners:** `runtime.device-verification`
-- **Accepted Invariants:** a gate reaches every directory the device installs into, and its report states the PATH it used
-- **Regression Checks:** `dev-ready-test`, `ai-policy-lint`
-- **Runtime Evidence:** macOS reports 184018Z (4 FAIL) -> 185530Z (2 FAIL) -> successor
-- **Reopen Conditions:** a device report blames a command that is in fact installed
-- **Non-Scope:** installing runtimes or repairing mise on any device
-- **Verification:** `bin/device-verify` on both devices
-- **Escalation Conditions:** a device installs into a directory no gate can predict
 
 ## Done
 

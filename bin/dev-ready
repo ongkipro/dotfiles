@@ -17,31 +17,9 @@ set -uo pipefail
 
 REPO="$(cd "${1:-.}" 2>/dev/null && pwd -P)" || { echo "dev-ready: no such directory: ${1:-.}"; exit 2; }
 ROOT="${DOTFILES_DIR:-$HOME/dotfiles}"
-export PATH="$HOME/.local/bin:$HOME/.agents/bin:$HOME/.local/share/mise/shims:/opt/homebrew/bin:/usr/local/bin:$PATH"
-# mise's shim directory alone is not enough: on 2026-09-01 the Mac's node shim
-# was dangling ("node is not a valid shim") and mise could not repair it because
-# GitHub rate-limited its unauthenticated version lookup at 0/60, while the
-# installed runtime was present the whole time. So try the shim FIRST — it
-# resolves the configured version — and fall back to installs newest-first,
-# accepting only a binary that actually answers --version.
-_pick_node() {
-  # Unquoted command substitution word-split on a $HOME containing a space and
-  # returned nothing at all — silently defeating the rescue this exists for.
-  # `timeout` is GNU and absent on stock macOS, so it is used only if present:
-  # requiring it would make every Mac fail to find node.
-  local c t=""
-  command -v timeout >/dev/null 2>&1 && t="timeout 10"
-  local -a cands=("$HOME/.local/share/mise/shims/node")
-  while IFS= read -r c; do [ -n "$c" ] && cands+=("$c"); done < <(
-    find "$HOME/.local/share/mise/installs/node" -mindepth 3 -maxdepth 3 \
-         -name node -type f 2>/dev/null | sort -Vr)
-  for c in "${cands[@]}"; do
-    [ -x "$c" ] || continue
-    $t "$c" --version >/dev/null 2>&1 && { dirname "$c"; return 0; }
-  done
-}
-NODE_BIN="$(_pick_node)"
-[ -n "${NODE_BIN:-}" ] && export PATH="$NODE_BIN:$PATH"
+# One definition of the toolchain path, shared with every other owned command.
+. "$ROOT/bin/_toolchain-path.sh"
+toolchain_export_path
 
 
 blockers=(); degraded=(); lines=()
