@@ -12,7 +12,7 @@ Mengantar API Integration Documentation & Toolkit. Permanent checkout: `~/Projec
 - **Canonical repository:** `ongkipro/mengantar-documentation`; origin URL is `https://github.com/ongkipro/mengantar-documentation.git`.
 - This is a documentation and integration-toolkit repository, not a runtime application. It contains 18 API operations across 13 OpenAPI paths, a dependency-free server-only TypeScript client, cURL/HTTP examples, and Astro/Next.js integration guidance.
 - Disk is authoritative. Before editing, inspect the checkout because the audited 2026-08-07 working tree was intentionally left uncommitted for Ongki to review and commit through lazygit. Never reset, clean, or overwrite those changes.
-- Contract priority: safely captured live/sandbox evidence → official docs at `https://app.mengantar.com/docs/` → `spec/openapi.yaml` → `docs/01-api-reference.md` → `examples/mengantar-client.ts`.
+- Contract priority: safely captured live/sandbox evidence → official docs at `https://api-public.mengantar.com/docs/` (reviewed 2026-09-01) → `spec/openapi.yaml` → `docs/01-api-reference.md` → `examples/mengantar-client.ts`.
 - Write endpoints use JSON. API keys stay server-side in `/api/public/{API_KEY}` paths. WooCommerce integrations set `x-client-source: woocommerce`.
 - Keep the two origin identifiers separate: estimate `origin_id` is the area ID (`PICKUP_AUTOFILL`); `pickup.address_id` and `/time` use the pickup-address `_id`.
 - `POST /time` returns one slot object; `GET /time` returns an array. Dates use `mm-dd-yyyy`, fixed 09:00–18:00 slots, at least 90 minutes ahead.
@@ -21,3 +21,6 @@ Mengantar API Integration Documentation & Toolkit. Permanent checkout: `~/Projec
 - Checkout gating must reject `unsupported:true`; COD checkout must also reject `unsupported_cod:true`.
 - Local quality gate: `make all`, `bash -n scripts/check-links.sh scripts/smoke.sh`, and `npx -y @redocly/cli lint spec/openapi.yaml`. The 2026-08-07 audit passed 5 contract tests, strict TypeScript, link/credential checks, shell syntax, 18-operation count, and warning-free Redocly lint.
 - No `.env` or API key was present during the audit. Live `make smoke` and sandbox-write `make smoke-full` were not executed. Never run production or write smoke operations without explicit approval.
+- Account pickup authority is `GET /api/public/{API_KEY}/address`: pickup `_id` and area `_id` in `PICKUP_AUTOFILL` are one authoritative pair. The readable hierarchy comes from `PICKUP_*` fields; do not expose provider user, PIC, or phone fields to browser code.
+- General area search is `GET /api/public/{API_KEY}/address/search?keyword={query}` and returns area `_id` plus province/city/district/subdistrict/ZIP hierarchy. Keep this route server-side even though the legacy docs say its path key is not validated.
+- For private-account configuration, revalidate pickup membership and a stable connection authority version before persistence so a credential replacement cannot bind location data from the previous account.

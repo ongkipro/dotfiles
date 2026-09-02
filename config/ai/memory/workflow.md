@@ -5,6 +5,7 @@
   and keep OMP as the primary AI control plane. Claude, Codex, Antigravity, and
   Pi are optional standalone handoffs.
 - Web preview: run the dev server (`npm run dev` / `shopify theme dev` / `wrangler dev`) then open Chromium to `localhost:<port>` (auto live-reload).
+- **Order is: run dev → review → only then present.** Never report a server as "running" or hand over a URL from a listening port or an HTTP status code alone. Open the actual `localhost`/IP and confirm the page RENDERS — real content, expected heading, no client-side error. A 200 with a blank or broken shell, a stale Turbopack chunk, or a server bound to the wrong interface all look healthy at the status-code layer. **Why:** reporting "it's ready" on a page that does not render wastes the user's trip to the browser and hides the failure until they find it. A status code proves the process answered; it does not prove the thing works.
 - Use modern tools: `rg` (not grep), `fd` (not find), `eza` (not ls), `bat` (not cat), `z` zoxide (not manual cd).
 - Git: quick commit via lazygit; backup = push to remote; DO NOT auto-commit (anti-pattern).
 - Dotfiles sync: when there's an update on GitHub (`ongkipro/dotfiles`), pull and deploy locally (especially memory `~/.config/ai/memory/`). Conversely, when there are local changes in `~/dotfiles` that need saving, commit + push to GitHub. Be precise — don't break existing patterns.
