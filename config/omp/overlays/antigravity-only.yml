@@ -18,16 +18,16 @@ __test_require_cross_host__: false
 __test_providers__: google-antigravity
 
 modelRoles:
-  default: google-antigravity/gemini-3.7-flash:medium
-  task: google-antigravity/gemini-3.7-flash:high
+  default: google-antigravity/gemini-3.8-flash:medium
+  task: google-antigravity/gemini-3.8-flash:high
   slow: google-antigravity/claude-opus-4-6:high
   plan: google-antigravity/claude-opus-4-6:high
-  smol: google-antigravity/gemini-3.7-flash:medium
-  tiny: google-antigravity/gemini-3.7-flash:medium
-  research: google-antigravity/gemini-3.7-flash:minimal
-  discovery: google-antigravity/gemini-3.7-flash:high
-  vision: google-antigravity/gemini-3.7-flash:high
-  designer: google-antigravity/gemini-3.7-flash:high
+  smol: google-antigravity/gemini-3.8-flash:medium
+  tiny: google-antigravity/gemini-3.8-flash:medium
+  research: google-antigravity/gemini-3.8-flash:medium
+  discovery: google-antigravity/gemini-3.8-flash:high
+  vision: google-antigravity/gemini-3.8-flash:high
+  designer: google-antigravity/gemini-3.8-flash:high
   advisor: google-antigravity/claude-sonnet-4-6:high
   advisor-xhigh: google-antigravity/claude-opus-4-6:high
   advisor-max: google-antigravity/claude-opus-4-6:high
@@ -53,13 +53,13 @@ retry:
       - google-antigravity/claude-sonnet-4-6:high
       - google-antigravity/gemini-3.1-pro:high
     smol:
-      - google-antigravity/gemini-3.7-flash:low
-      - google-antigravity/gemini-3.7-flash:minimal
+      - google-antigravity/gemini-3.8-flash:medium
+      - google-antigravity/gemini-3.8-flash:medium
     tiny:
-      - google-antigravity/gemini-3.7-flash:low
-      - google-antigravity/gemini-3.7-flash:minimal
+      - google-antigravity/gemini-3.8-flash:medium
+      - google-antigravity/gemini-3.8-flash:medium
     research:
-      - google-antigravity/gemini-3.7-flash:high
+      - google-antigravity/gemini-3.8-flash:high
       - google-antigravity/gemini-3.1-pro:high
     discovery:
       - google-antigravity/gemini-3.1-pro:high

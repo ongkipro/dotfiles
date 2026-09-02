@@ -2,7 +2,7 @@
 #
 #   omp --config ~/dotfiles/config/omp/overlays/antigravity-hosted.yml
 #
-# Primary capacity runs entirely on Google Antigravity (Gemini 3.7 Flash and Claude Opus 4.6),
+# Primary capacity runs entirely on Google Antigravity (Gemini 3.8 Flash and Claude Opus 4.6),
 # avoiding consumption of limited MiniMax / OpenCode Go quotas.
 #
 # 9Router Fantastico Tunnel (cx/gpt-5.6-sol) serves as the cross-host availability
@@ -11,16 +11,16 @@
 __test_providers__: google-antigravity,9router-fantastico
 
 modelRoles:
-  default: google-antigravity/gemini-3.7-flash:medium
-  task: google-antigravity/gemini-3.7-flash:high
+  default: google-antigravity/gemini-3.8-flash:medium
+  task: google-antigravity/gemini-3.8-flash:high
   slow: google-antigravity/claude-opus-4-6:high
   plan: google-antigravity/claude-opus-4-6:high
-  smol: google-antigravity/gemini-3.7-flash:medium
-  tiny: google-antigravity/gemini-3.7-flash:medium
-  research: google-antigravity/gemini-3.7-flash:high
-  discovery: google-antigravity/gemini-3.7-flash:high
-  vision: google-antigravity/gemini-3.7-flash:high
-  designer: google-antigravity/gemini-3.7-flash:high
+  smol: google-antigravity/gemini-3.8-flash:medium
+  tiny: google-antigravity/gemini-3.8-flash:medium
+  research: google-antigravity/gemini-3.8-flash:high
+  discovery: google-antigravity/gemini-3.8-flash:high
+  vision: google-antigravity/gemini-3.8-flash:high
+  designer: google-antigravity/gemini-3.8-flash:high
   advisor: google-antigravity/claude-sonnet-4-6:high
   advisor-xhigh: google-antigravity/claude-opus-4-6:high
   advisor-max: google-antigravity/claude-opus-4-6:high
@@ -49,10 +49,10 @@ retry:
       - google-antigravity/claude-sonnet-4-6:high
     smol:
       - 9router-fantastico/cx/gpt-5.4-mini:low
-      - google-antigravity/gemini-3.7-flash:minimal
+      - google-antigravity/gemini-3.8-flash:medium
     tiny:
       - 9router-fantastico/cx/gpt-5.4-mini:low
-      - google-antigravity/gemini-3.7-flash:minimal
+      - google-antigravity/gemini-3.8-flash:medium
     slow:
       - 9router-fantastico/cx/gpt-5.6-sol:high
       - google-antigravity/claude-opus-4-6:high

@@ -84,7 +84,7 @@ real defect on the first try: its `vision` fallback is
 `9router-fantastico/cx/gpt-5.6-sol`, which takes no image, so a failed visual
 primary fell back to a model that cannot see.
 
-The visual lane is two roles: `designer` (Gemini 3.7 Flash High) by default,
+The visual lane is two roles: `designer` (Gemini 3.8 Flash High) by default,
 escalating to `vision` (Opus 5 High) for material redesign. Both are pinned in
 three places — `bin/omp-effective-routing-test`, `bin/ai-policy-lint`, and
 `config/ai/AGENTS.md` — so changing one alone fails the suite.

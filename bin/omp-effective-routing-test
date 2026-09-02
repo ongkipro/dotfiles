@@ -86,12 +86,12 @@ jq -e '
   $roles.slow == "openai-codex/gpt-5.6-sol:high" and
   $roles.plan == "anthropic/claude-fable-5:high" and
   $roles.orchestrator == "anthropic/claude-fable-5:high" and
-  $roles.smol == "google-antigravity/gemini-3.7-flash:medium" and
-  $roles.tiny == "google-antigravity/gemini-3.7-flash:low" and
+  $roles.smol == "google-antigravity/gemini-3.8-flash:medium" and
+  $roles.tiny == "google-antigravity/gemini-3.8-flash:medium" and
   $roles.vision == "anthropic/claude-opus-5:high" and
-  $roles.designer == "google-antigravity/gemini-3.7-flash:high" and
+  $roles.designer == "google-antigravity/gemini-3.8-flash:high" and
   $roles.commit == "openai-codex/gpt-5.6-luna:low" and
-  $roles.title == "google-antigravity/gemini-3.7-flash:low" and
+  $roles.title == "google-antigravity/gemini-3.8-flash:medium" and
   $roles.research == "openai-codex/gpt-5.6-terra:medium" and
   $roles.discovery == "openai-codex/gpt-5.6-terra:medium" and
   $roles.advisor == "anthropic/claude-opus-5:high" and
@@ -99,9 +99,9 @@ jq -e '
   ($roles | has("advisor-max") | not) and
   ($fallbacks | has("advisor-max") | not) and
   ([$roles | to_entries[] | select(.value | contains("claude-fable-5")) | .key] | sort) == ["orchestrator", "plan"] and
-  ([$roles | to_entries[] | select(.value | contains("gemini-3.7-flash")) | .key] | sort) == ["designer", "smol", "tiny", "title"] and
+  ([$roles | to_entries[] | select(.value | contains("gemini-3.8-flash")) | .key] | sort) == ["designer", "smol", "tiny", "title"] and
   ([$fallbacks | to_entries[].value[] | select(contains("claude-fable-5"))] | length) == 0 and
-  ([$fallbacks | to_entries[] | select(any(.value[]; contains("gemini-3.7-flash"))) | .key] | sort) == ["commit"] and
+  ([$fallbacks | to_entries[] | select(any(.value[]; contains("gemini-3.8-flash"))) | .key] | sort) == ["commit"] and
   .["advisor.enabled"].value == false and
   .["prewalk.enabled"].value == false and
   .["goal.enabled"].value == true and

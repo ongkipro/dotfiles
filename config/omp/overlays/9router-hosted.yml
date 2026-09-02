@@ -43,10 +43,10 @@ retry:
   fallbackRevertPolicy: cooldown-expiry
   fallbackChains:
     default:
-      - google-antigravity/gemini-3.7-flash:medium
+      - google-antigravity/gemini-3.8-flash:medium
       - 9router-fantastico/cx/gpt-5.6-sol:medium
     task:
-      - google-antigravity/gemini-3.7-flash:high
+      - google-antigravity/gemini-3.8-flash:high
       - 9router-fantastico/cx/gpt-5.6-sol:medium
     slow:
       - google-antigravity/claude-opus-4-6:high
@@ -55,16 +55,16 @@ retry:
       - google-antigravity/claude-opus-4-6:high
       - 9router-fantastico/cx/gpt-5.6-sol:high
     smol:
-      - google-antigravity/gemini-3.7-flash:medium
+      - google-antigravity/gemini-3.8-flash:medium
       - 9router-fantastico/cx/gpt-5.4-mini:low
     tiny:
-      - google-antigravity/gemini-3.7-flash:medium
+      - google-antigravity/gemini-3.8-flash:medium
       - 9router-fantastico/cx/gpt-5.4-mini:low
     research:
-      - google-antigravity/gemini-3.7-flash:high
+      - google-antigravity/gemini-3.8-flash:high
       - 9router-fantastico/cx/gpt-5.6-sol:high
     discovery:
-      - google-antigravity/gemini-3.7-flash:high
+      - google-antigravity/gemini-3.8-flash:high
       - 9router-fantastico/cx/gpt-5.6-sol:high
     vision:
       - google-antigravity/gemini-3.1-pro:high

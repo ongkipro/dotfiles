@@ -37,11 +37,11 @@ session to one vendor.
 - `default` and `task` are Codex GPT-5.6 Terra at medium reasoning.
 - `slow` is Codex GPT-5.6 Sol at high reasoning; `plan` is Codex GPT-5.6 Terra at high reasoning.
 - `vision` is Gemini 3.1 Pro at high reasoning through Antigravity for browser-visible visual work.
-- `research` is Gemini 3.7 Flash at `minimal`, matching `librarian`'s declared ordinary API/library lookup contract. Evidence-heavy research must deliberately escalate; it must not silently override that contract.
-- `discovery`, `smol`, and `tiny` use Gemini 3.7 Flash (`high`, `medium`, and `medium` respectively). No reachable role or fallback uses Flash Lite.
+- `research` is Gemini 3.8 Flash at `medium`, matching `librarian`'s declared ordinary API/library lookup contract. Evidence-heavy research must deliberately escalate; it must not silently override that contract.
+- `discovery`, `smol`, and `tiny` use Gemini 3.8 Flash (`high`, `medium`, and `medium` respectively). No reachable role or fallback uses Flash Lite.
 Discovery and mechanical support are deliberately not the same lane, even though both are cheap and read-only. `scout` produces the compressed map the main session then makes decisions from, so a weak model there does not merely waste a call — it yields a confident, wrong map that the parent trusts, which is worse than no map at all. `sonic` only performs mechanical updates and data collection, where that failure mode does not exist. Routing them together would optimise the wrong thing.
 - The advisor lane is tiered by model as well as by reasoning level, because consultation volume is not uniform. `advisor` is Claude Sonnet 5 at high for ordinary review and bounded consultation; `advisor-xhigh` and `advisor-max` are Claude Opus 5 for difficult debugging, security-sensitive review, and costly-to-reverse architecture. Independence, not tier, is what makes a review valuable here: every primary advisor selector is from a different vendor than the Antigravity and Codex workers it reviews.
-- Every primary and fallback model must be present in the live catalog and advertise a context window larger than `compaction.thresholdTokens`, or a session can exceed the model's window before compaction fires. The current `default` recovery chain is Antigravity Gemini 3.7 Flash, then direct Anthropic Claude Sonnet 4.6.
+- Every primary and fallback model must be present in the live catalog and advertise a context window larger than `compaction.thresholdTokens`, or a session can exceed the model's window before compaction fires. The current `default` recovery chain is Antigravity Gemini 3.8 Flash, then direct Anthropic Claude Sonnet 4.6.
 - Normal recovery uses exactly the three directly connected providers: **Antigravity, Codex, and Anthropic**. For every base role, the primary and first two fallback hops span those three providers without repetition. The `advisor*` and `discovery` primaries are outside the Codex execution pool, and their first fallback stays outside it; Codex is accepted only as the final availability-over-independence hop. Output from that final hop still carries the assigned task and verification contract, but it is not independent review or discovery.
 - 9Router is an explicit reserve, not a normal-path provider. No shared role, fallback chain, or `modelProviderOrder` entry may name it. Its definition stays in `models.yml` so an operator can select it deliberately with an operator-supplied overlay or model selection; that retained definition is capability, not a claim that the gateway, account, or model is available on any device. It was removed from normal routing on 2026-08-16 because its `ag/*` routes re-spend the Antigravity allowance while every route adds another transport and failure mode; the three direct providers already supply the required diversity.
 - `advisor`, `advisor-xhigh`, and `advisor-max` map scarce, high-value Anthropic consultation to the Claude 5 family with task-proportional adaptive thinking.
@@ -96,9 +96,9 @@ The user starts `omp` and describes the desired outcome. The main worker MUST ap
 | Hard defect after reproduction or a failed reasonable path | `debugger` | `advisor-xhigh` | Claude Opus 5 XHigh |
 | High-risk correctness review | `reviewer` | `advisor` | Claude Sonnet 5 High |
 | Security-sensitive review | `security-reviewer` | `advisor-xhigh` | Claude Opus 5 XHigh |
-| Source-verified external library or API research | `librarian` | `research` | Antigravity Gemini 3.7 Flash Minimal |
-| Read-only repository discovery feeding a decision | `scout` | `discovery` | Antigravity Gemini 3.7 Flash High |
-| Strictly mechanical updates or data collection | `sonic` | `smol` | Antigravity Gemini 3.7 Flash Medium |
+| Source-verified external library or API research | `librarian` | `research` | Antigravity Gemini 3.8 Flash Medium |
+| Read-only repository discovery feeding a decision | `scout` | `discovery` | Antigravity Gemini 3.8 Flash High |
+| Strictly mechanical updates or data collection | `sonic` | `smol` | Antigravity Gemini 3.8 Flash Medium |
 | High-nuance prose, PRD synthesis, copy humanization, or brand-voice content | `writer` | `plan` | Codex GPT-5.6 Terra High |
 Browser-visible visual, layout, responsive, accessibility, or UX work MUST route to `designer`/`vision` before the first browser-visible edit. This is a capability trigger, not a reasoning-complexity escalation, so it applies regardless of task size. Pure data, API, or non-visual wiring in a frontend file does not trigger `vision`. If the designer cannot start, surface the failure instead of silently implementing the visual work in the main `default` session.
 
@@ -158,10 +158,10 @@ point rather than an oversight:
 
 | Role | Model | When |
 | --- | --- | --- |
-| `designer` | `google-antigravity/gemini-3.7-flash:high` | Default visual lane — routine UI work, layout, states, responsive checks |
+| `designer` | `google-antigravity/gemini-3.8-flash:high` | Default visual lane — routine UI work, layout, states, responsive checks |
 | `vision` | `anthropic/claude-opus-5:high` | Escalation — material redesign, and visual critique where taste decides the outcome |
 
-Gemini 3.7 Flash carries this lane because it is genuinely equipped for it, not
+Gemini 3.8 Flash carries this lane because it is genuinely equipped for it, not
 because it is cheap: `input: [text, image]`, so it can read a screenshot, and
 `high` is its **top** declared thinking level. It costs $0.75/$3.75 per Mtok
 against Opus 5's $5/$25 — a little over six times less — which matters when the

@@ -25,7 +25,7 @@
 # `thinkingLevel: minimal` in its own frontmatter, and no Codex model exposes
 # `minimal` — the family starts at `low`. Under this overlay `librarian`
 # therefore runs at least one tier above its declared floor. The declaration is
-# deliberate in the tracked config, where `research` is Gemini 3.7 Flash and
+# deliberate in the tracked config, where `research` is Gemini 3.8 Flash and
 # `minimal` is exactly why that model was chosen (see ROUTING.md), so the fix
 # belongs here as a documented reduction rather than as an edit to the agent.
 # Treat librarian output from a Codex-only session as costing more than usual,
