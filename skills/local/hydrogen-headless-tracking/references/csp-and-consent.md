@@ -1,5 +1,10 @@
 # Content Security Policy (CSP) & Customer Consent in Hydrogen
 
+> **Historical blueprint, not a canonical runtime contract.** CSP and Hydrogen
+> entry-point syntax depend on the installed project. Verify the effective
+> response header, exact domains, and current Shopify consent documentation;
+> follow [Tracking delivery contract](delivery-contract.md).
+
 ---
 
 ## 1. Content Security Policy (CSP) Whitelisting

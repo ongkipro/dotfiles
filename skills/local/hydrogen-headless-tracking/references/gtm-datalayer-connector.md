@@ -1,5 +1,9 @@
 # Google Tag Manager (GTM) & GA4 DataLayer Blueprint
 
+> **Historical blueprint, not a canonical provider contract.** Confirm current
+> Google requirements, consent behavior, and the installed Hydrogen runtime
+> before use; follow [Tracking delivery contract](delivery-contract.md).
+
 This blueprint shows how to bridge Hydrogen's `useAnalytics()` event bus into the standard `window.dataLayer` object so marketing teams can manage Meta, TikTok, GA4, and Pinterest tags directly inside GTM.
 
 ---

@@ -1,173 +1,92 @@
 ---
 name: hydrogen-headless-tracking
 description: >-
-  Enterprise conversion tracking, advertising signals (Meta Pixel/CAPI, TikTok
-  Pixel/Events API, Google Analytics 4/GTM, Shopify Monorail Analytics), and
-  WeTracked.io/Elevar architectural parity for Shopify Hydrogen (Headless Remix).
-  Covers useAnalytics event bus, Safari ITP 1-year first-party HTTP cookies,
-  cross-domain attribution preservation (_fbp, _fbc, _ga to cart attributes),
-  deterministic event_id deduplication, Advanced Matching (EMQ 8.5+), webhook
-  Purchase CAPI outbox, CSP whitelisting, and Customer Privacy API consent.
-  Triggers: "hydrogen tracking", "hydrogen pixel", "shopify headless tracking",
-  "hydrogen analytics", "hydrogen meta pixel", "hydrogen gtm", "headless
-  conversion tracking", "hydrogen capi", "wetracked hydrogen", "hydrogen tiktok pixel".
+  Implement, audit, or troubleshoot consent-aware analytics and advertising
+  signals for Shopify Hydrogen. Use for Hydrogen analytics, Shopify-hosted Web
+  Pixels, cart-to-checkout attribution, provider browser/server events, and
+  purchase webhook evidence. Not for ordinary storefront UI, generic SEO, or
+  pixel configuration changes without explicit approval.
 ---
 
-# Hydrogen Headless Tracking & Ads Signal Engine
+# Hydrogen Headless Tracking
 
-An enterprise engineering system and architectural standard for implementing, auditing, and troubleshooting conversion tracking, advertising signal engines (Meta Pixel & CAPI, TikTok Pixel & Events API, Google Tag Manager / GA4, and native Shopify Analytics), and **WeTracked.io / Elevar parity** inside Shopify Hydrogen (Remix) storefronts.
+Build an auditable event path across three separate surfaces: the Hydrogen
+storefront, Shopify-hosted pixels/checkout, and a server-side provider or
+webhook consumer. Do not collapse them into one browser-runtime assumption.
 
----
+## Inspect the accepted event contract first
 
-## 1. The Decoupled Tracking Architecture
+Identify the business objective, provider, event names, source of truth for
+each event, consent purpose, allowed fields, retention, merchant/store scope,
+cart and checkout domains, current analytics implementation, CSP, webhook
+receiver, deduplication store, and tests. Do not print credentials or customer
+data.
 
-In traditional Liquid themes, Shopify Apps inject tracking scripts directly into the DOM. In **Shopify Hydrogen (Headless)**, tracking operates across two distinct execution boundaries:
+Read [Tracking delivery contract](references/delivery-contract.md) for all
+tracking work. Read [Shopify-hosted Web Pixels](references/web-pixels.md) for
+an App Pixel or Custom Pixel. Retrieve current official provider documentation
+before using its event fields, hashing rules, deduplication window, endpoint,
+or API version.
+Read [Shopify analytics cookie migration](references/shopify-analytics-cookie-migration.md)
+when an existing Hydrogen integration reads or depends on Shopify visitor or
+session cookies.
 
-$$\begin{aligned}
-\text{\textbf{Storefront (Hydrogen)}} & \longrightarrow \text{PageView, ViewContent, Category/Collection, Search, AddToCart, CartView} \\
-\text{\textbf{Checkout (Shopify Hosted)}} & \longrightarrow \text{InitiateCheckout, PaymentInfo, Webhook-driven Purchase CAPI}
-\end{aligned}$$
+## Keep execution surfaces separate
 
-```mermaid
-flowchart TD
-    subgraph StorefrontLayer ["1. Hydrogen Storefront Layer (brand.com)"]
-        AdClick["Ad Click (?fbclid=... & ?ttclid=...)"] --> HTTPCookie["HTTP Response Header Set-Cookie (1-Year ITP Immune)"]
-        HTTPCookie --> BrowserStorefront["Storefront Navigation & UI"]
-        BrowserStorefront --> AnalyticsProvider["<Analytics.Provider>"]
-        AnalyticsProvider --> Monorail["Shopify Monorail (Live View & Reports)"]
-        AnalyticsProvider --> UseAnalytics["useAnalytics() Event Bus"]
-        
-        UseAnalytics --> MetaClient["Meta Pixel (fbq + event_id)"]
-        UseAnalytics --> TikTokClient["TikTok Pixel (ttq)"]
-        UseAnalytics --> GTMClient["GTM / dataLayer Bridge"]
-        UseAnalytics --> StorefrontCAPI["POST /api/events (Server CAPI)"]
-        
-        BrowserStorefront --> CartAttribution["Preserve _fbp, _fbc, _ga into Cart Attributes"]
-    end
+- **Hydrogen storefront:** owns server-rendered commerce interactions and its
+  supported analytics/consent integration. Keep client enhancement optional.
+- **Shopify-hosted checkout and Web Pixels:** run in Shopify-controlled
+  sandboxes. Use only their documented APIs; do not reuse Hydrogen session or
+  DOM assumptions.
+- **Server processing:** owns provider credentials, webhook signature checks,
+  durable deduplication, retry policy, and protected logs. A browser redirect
+  or thank-you page is never authoritative purchase evidence by itself.
 
-    subgraph CheckoutLayer ["2. Shopify Checkout & Webhook Layer (checkout.brand.com)"]
-        CartAttribution --> CheckoutHandoff["Shopify Hosted Checkout"]
-        CheckoutHandoff --> CustomerEvents["Shopify Web Pixels / Customer Events"]
-        CheckoutHandoff --> OrderPaid["Shopify Webhook: orders/paid"]
-        
-        OrderPaid --> PurchaseCAPI["Server Purchase CAPI (Meta Graph API v22.0+)"]
-        PurchaseCAPI --> MetaDedup["Meta Deduplication Engine (EMQ 8.5+, 100% Match)"]
-        MetaClient -.-> MetaDedup
-    end
-```
+## Privacy, attribution, and purchase evidence
 
----
+Send no marketing or analytics signal before the accepted consent condition is
+met. Minimize event data to the documented provider requirement and never put
+secrets, raw payment data, or unnecessary customer data in browser state, URLs,
+cart attributes, client logs, or analytics payloads.
 
-## 2. The 5 Pillars of Enterprise Headless Tracking
+Cart attributes can carry into an order after checkout and are visible at
+checkout by default. Use them only for an explicitly approved, consented, and
+non-sensitive attribution contract; use the platform's supported private
+convention when checkout visibility is inappropriate. Never use cart
+attributes as a secret store or assume they make attribution complete.
 
-### Pillar 1: First-Party HTTP Cookie Engine (Safari ITP Immunity)
-Client-side cookies (`document.cookie`) set via JavaScript are capped by Apple Safari ITP to 24 hours when query parameters like `?fbclid=` are present.
-- **The Standard:** Extract click IDs in the root loader (`app/root.tsx` / `server.ts`) and emit `Set-Cookie` HTTP response headers.
-- **Lifetime:** Server-set HTTP cookies are granted a full 1-year lifetime by Safari.
-- Read [WeTracked Parity Architecture](references/wetracked-parity-architecture.md).
+For provider browser/server pairs, generate one deterministic event identifier
+per logical event only when the current provider contract supports it. Verify
+deduplication in that provider's tooling; do not assert match-quality scores,
+cookie lifetimes, or delivery percentages in code or handoff evidence.
 
-### Pillar 2: Dual-Funnel Event Deduplication (`event_id`)
-Both the browser pixel and the server-side Conversions API (CAPI) must dispatch paired events using an identical `event_id` string:
-- `ViewContent`: `vc_${product.id}_${timestamp}`
-- `AddToCart`: `atc_${product.id}_${timestamp}`
-- `Purchase`: `order_${order.id}`
-- Meta's deduplication engine matches these signals within a 48-hour window, eliminating double counting while maximizing signal redundancy.
-- Read [Meta Pixel Connector Blueprint](references/meta-pixel-connector.md) and [Meta CAPI Server Engine](references/meta-capi-server-engine.md).
+## Secure server-side processing
 
-### Pillar 3: Cross-Domain Attribution Bridge (The Cart Attributes Pattern)
-Because buyers transition from `brand.com` (Hydrogen) to `checkout.brand.com` or `brand.myshopify.com` (Shopify Checkout), tracking cookies can drop across subdomains.
-- **The Standard:** Capture `_fbp`, `_fbc`, `_ga`, and `ttclid` on the client and attach them to the cart via Storefront API mutation (`cartAttributesUpdate`) before redirecting to `checkoutUrl`.
-- **Outcome:** Shopify preserves these attributes into `order.note_attributes`, allowing backend webhooks to read them for 100% accurate Purchase CAPI attribution.
-- Read [Cross-Domain Attribution Guide](references/cross-domain-attribution.md).
+Verify Shopify webhook signatures over raw request bytes before parsing or
+performing a side effect. Bind the event to the expected shop/topic, persist a
+provider delivery identifier behind durable uniqueness, and make retries and
+duplicates safe. Store provider secrets server-side and use the real proxy
+trust boundary for IP/client metadata; never trust a client-submitted event as
+purchase authority.
 
-### Pillar 4: Advanced Matching & EMQ 8.5+ Normalization
-To achieve high Event Match Quality (EMQ > 8.0), all customer identifiers must be strictly normalized before SHA-256 hashing:
-- **Email:** `trim().toLowerCase()`, then SHA-256.
-- **Phone:** Strip all non-digits (`+`, `-`, spaces). Convert local zero prefix (e.g. `08xx`) to international E.164 (e.g. `628xx`). Then SHA-256.
-- **Browser State:** Forward raw `_fbp`, `_fbc`, client IP, and User-Agent without hashing.
-- Read [Advanced Matching Normalizer](references/advanced-matching-normalizer.md).
+Keep CSP minimal and project-specific. Include the verified storefront and
+checkout domains required by the installed Hydrogen consent integration, then
+add only exact provider hosts that the accepted integration needs. Verify the
+effective response header in a browser; do not broaden wildcard sources to
+make a vendor script work.
 
-### Pillar 5: Server-Authoritative Purchase Webhook Outbox
-Never rely exclusively on client-side thank-you page redirects to fire `Purchase`.
-- **The Standard:** Subscribe to Shopify `orders/paid` webhooks.
-- The webhook endpoint extracts customer data and cart attributes, constructs the CAPI payload, and delivers the conversion to Meta Graph API, bypassing all browser ad blockers.
-- Read [Meta CAPI Server Engine](references/meta-capi-server-engine.md).
+## Verify the complete path
 
----
+Run the project checks, then exercise the relevant storefront interaction in a
+browser with consent both denied and granted. For checkout/pixel or webhook
+work, verify only in an authorized test environment:
 
-## 3. Environment Variables Contract
+1. expected events appear once with the allowed fields only;
+2. denied consent suppresses the intended non-essential signal;
+3. cart-to-checkout handoff preserves only the accepted data;
+4. an invalid or duplicate webhook has no repeated side effect; and
+5. browser console and effective CSP have no integration violation.
 
-| Variable | Scope | Destination | Description |
-| :--- | :--- | :--- | :--- |
-| `PUBLIC_STOREFRONT_ID` | Public | Client / Context | Shopify Storefront Channel ID for native Monorail telemetry |
-| `PUBLIC_CHECKOUT_DOMAIN` | Public | Client / Consent | Primary checkout domain (e.g. `checkout.brand.com`) |
-| `PUBLIC_META_PIXEL_ID` | Public | Client Connector | Meta Pixel ID for `fbq('init')` |
-| `PUBLIC_TIKTOK_PIXEL_ID` | Public | Client Connector | TikTok Pixel ID for `ttq.load()` |
-| `PUBLIC_GTM_ID` | Public | Client Connector | Google Tag Manager ID (`GTM-XXXXXXX`) |
-| `META_CAPI_ACCESS_TOKEN` | **Server-Only** | Oxygen / Remix Action | System User Access Token for Meta Graph API CAPI |
-| `META_TEST_EVENT_CODE` | **Server-Only** | Development / Staging | Optional test code from Meta Events Manager > Test Events |
-
----
-
-## 4. Content Security Policy (CSP) Directives
-
-Hydrogen enforces strict CSP in `entry.server.tsx`. Ensure all tracking endpoints are whitelisted:
-
-```typescript
-// app/entry.server.tsx
-const {nonce, header, NonceProvider} = createContentSecurityPolicy({
-  scriptSrc: [
-    "'self'",
-    'https://connect.facebook.net',
-    'https://www.googletagmanager.com',
-    'https://analytics.tiktok.com',
-  ],
-  connectSrc: [
-    "'self'",
-    'https://monorail-edge.shopifysvc.com', // Shopify Analytics
-    'https://www.facebook.com',
-    'https://connect.facebook.net',
-    'https://*.google-analytics.com',
-    'https://analytics.tiktok.com',
-  ],
-  imgSrc: [
-    "'self'",
-    'https://www.facebook.com',
-    'https://*.google-analytics.com',
-  ],
-});
-```
-Read [CSP & Consent Guide](references/csp-and-consent.md).
-
----
-
-## 5. Skill Reference Manifest
-
-| Task / Blueprint | Reference File |
-| :--- | :--- |
-| **WeTracked.io / Elevar Parity Architecture** | [WeTracked Parity Architecture](references/wetracked-parity-architecture.md) |
-| **Meta Pixel Client Subscriber (`event_id` dedup)** | [Meta Pixel Connector Blueprint](references/meta-pixel-connector.md) |
-| **Meta CAPI Server Engine & Webhook Handler** | [Meta CAPI Server Engine](references/meta-capi-server-engine.md) |
-| **Advanced Matching & Normalizer (EMQ 8.5+)** | [Advanced Matching Normalizer](references/advanced-matching-normalizer.md) |
-| **GTM / GA4 dataLayer Bridge** | [GTM DataLayer Blueprint](references/gtm-datalayer-connector.md) |
-| **Cross-Domain Attribution (Cart Attributes)** | [Cross-Domain Attribution Guide](references/cross-domain-attribution.md) |
-| **CSP & Customer Privacy API / Consent** | [CSP & Consent Guide](references/csp-and-consent.md) |
-
----
-
-## 6. Verification & Auditing Checklist
-
-Before deploying Hydrogen tracking to production, verify the 5 evidence gates:
-
-1. **Test Events in Meta Events Manager:**
-   - Trigger `PageView`, `ViewContent`, `AddToCart` on the Hydrogen preview URL.
-   - Confirm in Events Manager > *Test Events* that events show **Browser and Server** badges with status **Deduplicated**.
-2. **EMQ Audit (Event Match Quality):**
-   - Confirm EMQ score is **8.0 or higher** on `Purchase` and `AddToCart`.
-   - Verify `em`, `ph`, `fbp`, `fbc`, `client_ip_address`, and `client_user_agent` are green.
-3. **Cart Attributes Preservation:**
-   - Add item to cart and inspect Shopify Admin order: verify `note_attributes` contains valid `_fbp`, `_fbc`, and `_ga`.
-4. **Shopify Monorail / Live View:**
-   - Browse store in an incognito window: verify active visitor appears immediately on Shopify Admin *Live View*.
-5. **Console & CSP Check:**
-   - Open browser DevTools console: confirm zero CSP violations and zero `[h2:error:CartAnalytics]` errors.
+Record unavailable provider, checkout, or production checks as `UNVERIFIED`.
+Do not alter Shopify Customer Events, pixel settings, webhooks, sales-channel
+configuration, provider settings, or production data without explicit approval.

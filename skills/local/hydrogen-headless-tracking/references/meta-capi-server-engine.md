@@ -1,5 +1,11 @@
 # Meta Conversions API (CAPI) Server Engine for Hydrogen
 
+> **Historical blueprint, not a canonical provider contract.** Its endpoint,
+> API version, event fields, webhook payload assumptions, and delivery claims
+> must be replaced with current official provider and Shopify documentation
+> before implementation. Follow [Tracking delivery contract](delivery-contract.md)
+> for security, consent, and evidence requirements.
+
 > Server-side Conversions API (CAPI) implementation for Hydrogen (Remix) providing 100% conversion delivery, test event verification, and automatic deduplication with browser pixels.
 
 ---

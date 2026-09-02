@@ -1,5 +1,10 @@
 # Advanced Matching & Identity Normalization Engine (EMQ 8.5+)
 
+> **Historical blueprint, not a canonical provider contract.** Never infer a
+> country code or submit identity data without an accepted legal/consent basis.
+> Retrieve the current provider normalization specification and follow
+> [Tracking delivery contract](delivery-contract.md) before implementation.
+
 > Event Match Quality (EMQ) in Meta Ads directly influences how efficiently Meta matches browser/server events with real user accounts. Without proper normalization, EMQ drops below 4.0, starving the ad algorithm of conversion data.
 
 ---

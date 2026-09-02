@@ -1,5 +1,9 @@
 # Meta Pixel + Hydrogen Connector Blueprint
 
+> **Historical blueprint, not a canonical provider contract.** Retrieve the
+> current provider event and consent specification before implementation; follow
+> [Tracking delivery contract](delivery-contract.md).
+
 This blueprint provides the complete, enterprise-grade implementation of a Meta Pixel subscriber component built on `@shopify/hydrogen`'s `useAnalytics()` event bus, featuring **automatic `event_id` deduplication** and background CAPI dispatch.
 
 ---

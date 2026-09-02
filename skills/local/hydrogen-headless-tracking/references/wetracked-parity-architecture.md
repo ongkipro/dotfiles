@@ -1,5 +1,9 @@
 # WeTracked.io & Elevar Parity Architecture for Shopify Hydrogen
 
+> **Historical design note, not a product-parity or performance guarantee.**
+> Verify provider, browser, consent, and Shopify behavior from current primary
+> documentation; follow [Tracking delivery contract](delivery-contract.md).
+
 > How commercial enterprise tracking platforms (WeTracked.io, Elevar, Triple Whale) achieve 95%+ attribution accuracy, 8.5+ Event Match Quality (EMQ), and 100% conversion recovery — implemented natively in Hydrogen at $0 SaaS cost.
 
 ---

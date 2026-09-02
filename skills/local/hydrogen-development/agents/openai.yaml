@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hydrogen Development"
+  short_description: "Build and verify Shopify Hydrogen storefronts"
+  default_prompt: "Use $hydrogen-development to implement this Hydrogen storefront task against the installed project."
