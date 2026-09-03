@@ -19,13 +19,26 @@ account domains or API URLs. Keep OAuth/PKCE, token exchange, refresh/logout,
 and checkout handoff in a server-controlled design; load
 `application-security` for an account-flow change.
 
-## Search
+## Search & Predictive Search
 
 The Storefront `search` query can return products, pages, and articles, so UI
 must handle its result union and pagination rather than assuming products only.
 Use Shopify-provided available filters and honor the API's 250-item maximum for
 filter and type inputs. Use `prefix` only when partial matching is the desired
 buyer behavior, and make unavailable-product treatment explicit.
+
+For **`predictiveSearch`** (typeahead/live in-modal search):
+- **Hard Limit Constraint**: Storefront API GraphQL strictly requires `limit: Int`
+  to be between **1 and 10** (`1..10`). Passing any value `> 10` (e.g. 12 or 20)
+  causes a GraphQL validation rejection. Always clamp limits defensively:
+  `Math.min(10, Math.max(1, limit))`.
+- **Multi-Entity Types**: `predictiveSearch` accepts `types: [PredictiveSearchType!]`
+  (`PRODUCT`, `COLLECTION`, `ARTICLE`, `PAGE`, `QUERY`). Return and render multi-entity
+  results (matching collections, clickable tag chips, products, articles) to maximize
+  discovery.
+- **Single Fetch Serialization**: In React Router v7 framework mode, return the
+  resolved search promise/object directly from the loader (`return await searchPromise`)
+  so client fetchers (`useFetcher`) deserialize the payload seamlessly without header conflicts.
 
 ## Metaobjects and metafields
 

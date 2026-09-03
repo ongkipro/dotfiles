@@ -47,6 +47,10 @@ in scope.
 Read [Commerce platform boundaries](references/commerce-platform-boundaries.md)
 when changing cart behavior, Customer Accounts, search, metaobjects, a Liquid
 to Hydrogen migration, or any Shopify-hosted tracking/pixel surface.
+Read [Dynamic pages architecture](references/dynamic-pages-architecture.md)
+when structuring or modifying dynamic routes (`/collections/$handle`, `/products/$handle`,
+`/pages/$handle`, `/blogs/$blogHandle/$articleHandle`, `/policies/$handle`, `/cart`,
+and `/*` 404 catch-all), grid-proportional pagination, or live in-modal search.
 Read [SEO, environments, and launch](references/seo-environments-launch.md)
 when changing route metadata, sitemap/robots, Oxygen environments, preview
 visibility, traffic routing, domains, or a production cutover.
