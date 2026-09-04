@@ -111,21 +111,7 @@ Archived under `docs/archive/`, newest `DOTFILES_TASKS_2026-09-01_DEVICE_VERIFIC
 
 ## Pending
 
-Seeded by `docs/DOTFILES_REVIEW_2026-09-04.md`; run in order.
-
-### TASK-047: Record what the ledger already knows
-- **Requirement:** REQ-TASK-LEDGER-CONSISTENCY
-- **Risk Level:** R1
-- **Allowed Paths:** `TASKS.md`, `.delivery/**`
-- **Protected Paths:** `bin/delivery-ledger`
-- **Canonical Contract Owners:** `runtime.ledger`
-- **Accepted Invariants:** every completed task here ends in PASS and every PASS run has a record here; closure runs re-execute checks
-- **Regression Checks:** `resume-brief-test`, `ai-policy-lint`
-- **Runtime Evidence:** TASK-042/043 closed the `d479ceb` way — a new run each re-running `toolchain-path-test` and `device-verify-test`; TASK-045/046 recorded
-- **Reopen Conditions:** a completed task's latest run is not PASS
-- **Non-Scope:** rewriting `.delivery/runs/*`; PASS semantics
-- **Verification:** `bin/resume-brief` shows no live task whose evidence is not PASS
-- **Escalation Conditions:** a re-executed check fails
+The 2026-09-04 queue (TASK-047..056) is complete; see Recently completed.
 
 - **TASK-012 / AUDIT-MON-01 — measure real skill effectiveness (R0).** Dormant until five immutable delivery records exist for one skill; then `ai-skill-evolution --repo <repo> --dotfiles ~/dotfiles --json`. Never fabricate attribution.
 
