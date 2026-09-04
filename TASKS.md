@@ -113,5 +113,35 @@ Archived under `docs/archive/`, newest `DOTFILES_TASKS_2026-09-01_DEVICE_VERIFIC
 
 The 2026-09-04 queue (TASK-047..056) is complete; see Recently completed.
 
+### TASK-057: A sweep that asks every test whether it would notice
+- **Requirement:** REQ-TEST-EFFICACY
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/mutation-sweep`, `bin/mutation-sweep-test`, `config/ai/runtime-commands.txt`, `TASKS.md`
+- **Protected Paths:** `bin/*-test`, `bin/ai-doctor`, `bin/delivery-ledger`
+- **Canonical Contract Owners:** `runtime.readiness`
+- **Accepted Invariants:** for every `bin/<name>` with a `bin/<name>-test`, the sweep copies tracked files to a scratch root, replaces the subject with a stub that exits 0 (`exit 0` / `sys.exit(0)` after the shebang), runs `<name>-test <scratch-root>`, and reports one line per test: `BITES` (the test failed), `SURVIVED` (it passed — it asserts nothing about behaviour), or `UNSWEEPABLE` (the test resolves its subject from `$HOME/dotfiles` or its own path, so the stub was never exercised — 12 such tests on 2026-09-04, `skill-check-test`, `secrets-env-test`, `vendored-refresh-test` among them); exit 1 if any test SURVIVED; never writes outside the scratch root; never touches `~/dotfiles` or the working tree; the operator list is one explicit table in the script, and a second operator is added only with a case showing what the first one missed
+- **Depends On:** TASK-056
+- **Regression Checks:** `mutation-sweep-test`, `ai-policy-lint`, `installer-link-test`
+- **Runtime Evidence:** the sweep's own fixture holds one test that bites, one that survives a stub, and one that hardcodes its subject path, and classifies each correctly; run against the real repository once and the table committed in the run's verification detail — this is the ranking the next queue is built from, so it is evidence, not a claim
+- **Reopen Conditions:** a test classified BITES passes against a stubbed subject; a test the sweep calls UNSWEEPABLE actually reads `ROOT/bin`
+- **Non-Scope:** fixing any surviving test; making an unsweepable test sweepable; per-guard mutations, which stay the in-test idiom (`make_mutant`); running under CI
+- **Verification:** `bin/mutation-sweep-test`
+- **Escalation Conditions:** a subject cannot be stubbed without also stubbing a helper the test needs
+
+### TASK-058: Fourteen commands nothing tests
+- **Requirement:** REQ-TEST-EFFICACY
+- **Risk Level:** R2
+- **Depends On:** TASK-057
+- **Allowed Paths:** `bin/*-test`, `config/ai/runtime-commands.txt`, `TASKS.md`
+- **Protected Paths:** `bin/dotpush`, `bin/vps-pgdump`, `bin/9router-credential-migrate`, `bin/tmux-setup`, `bin/device-register`, `bin/pi-update-safe`, `bin/ai-doctor`
+- **Canonical Contract Owners:** `runtime.readiness`
+- **Accepted Invariants:** each command gains a `bin/<name>-test` that resolves its subject via `ROOT/bin/<name>` so TASK-057 can sweep it; each first test carries at least one mutation that bites; no test performs a live push, ssh, package install, or secret read — side effects are proven against a fixture repo, a fake remote, or a dry-run flag, and a command with no such seam gets the seam first (as `--dry-run`), in a separate reviewed run; order is blast radius, not convenience: `dotpush` (commit+push), `vps-pgdump` (ssh, pg_dump, backups), `9router-credential-migrate` (secrets), `tmux-setup` (installs), `device-register` (writes committed files), `pi-update-safe`, `ai-doctor` (658 lines, the health command every other gate defers to, itself judged by nothing), then the read-only seven
+- **Regression Checks:** `mutation-sweep`, `ai-policy-lint`, `installer-link-test`
+- **Runtime Evidence:** `mutation-sweep` reports BITES for every new test; `ai-doctor --self-test` discovers all of them through its `bin/*-test` glob
+- **Reopen Conditions:** a listed command regains a test-less state; a new `bin/` command lands without one and `ai-policy-lint` stays green — that gap is deliberate scope for a later task, not this one
+- **Non-Scope:** behaviour changes to any command beyond adding a dry-run seam; the `-test` suffix convention
+- **Verification:** `bin/mutation-sweep` exits 0 with the fourteen present
+- **Escalation Conditions:** a command's only observable behaviour is the live side effect
+
 - **TASK-012 / AUDIT-MON-01 — measure real skill effectiveness (R0).** Dormant until five immutable delivery records exist for one skill; then `ai-skill-evolution --repo <repo> --dotfiles ~/dotfiles --json`. Never fabricate attribution.
 
