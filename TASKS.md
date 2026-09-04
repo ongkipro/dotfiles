@@ -17,6 +17,13 @@ _None._
 
 ## Recently completed
 
+- **TASK-052 / REQ-PUBLIC-README (R1).** `README.md` had been 0 bytes on `origin/main`
+  since `6e2bf36`, a memory-cleanup commit whose stat reads `README.md | 5 --`, on a
+  public repository. 72 lines: what the repository owns, what it deliberately does not
+  (OMP runtime config, secrets, device facts, repository truth), install, the three
+  daily commands, where authority lives, and the safety boundary. Every command, path
+  and link verified against disk; no model selector or version string to chase.
+
 - **TASK-051 / REQ-MEMORY-ROUTING-COVERAGE (R2, reviewed).** 26 of 69 project-memory
   files were reachable through the router; now 69, with `ai-policy-lint` failing by
   name on an unrouted file, a dangling route, or an `unrouted` entry with no reason.
@@ -82,20 +89,6 @@ Seeded by `docs/DOTFILES_REVIEW_2026-09-04.md`; run in order.
 - **Non-Scope:** rewriting `.delivery/runs/*`; PASS semantics
 - **Verification:** `bin/resume-brief` shows no live task whose evidence is not PASS
 - **Escalation Conditions:** a re-executed check fails
-
-### TASK-052: A public repository with a README
-- **Requirement:** REQ-PUBLIC-README
-- **Risk Level:** R1
-- **Allowed Paths:** `README.md`, `TASKS.md`
-- **Protected Paths:** None
-- **Canonical Contract Owners:** `docs.entrypoint`
-- **Accepted Invariants:** English, under 120 lines: what the repository is, what it owns and deliberately does not, how a device installs it, daily commands (`ai-doctor`, `dotsync`, `resume-brief`), where authority lives; no model selector or version string
-- **Regression Checks:** `ai-memory-check`, `ai-policy-lint`
-- **Runtime Evidence:** `git cat-file -s origin/main:README.md` non-zero after push; links resolve
-- **Reopen Conditions:** it names a command absent from `runtime-commands.txt` or a missing document
-- **Non-Scope:** restoring `17021c1` wholesale (P1-16)
-- **Verification:** `bin/ai-memory-check .`
-- **Escalation Conditions:** the owner prefers the 92-byte `3d5fb69` version — valid, and closes this task
 
 ### TASK-053: Delete what nothing reads
 - **Requirement:** REQ-DEAD-ARTIFACTS
