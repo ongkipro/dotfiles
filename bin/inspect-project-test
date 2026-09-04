@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# inspect-project is read-only, so the only thing to prove is that it reports
+# what is there and does not invent what is not.
+set -uo pipefail
+ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+CMD="$ROOT/bin/inspect-project"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
+
+R="$TMP/proj"; mkdir -p "$R"; git -C "$R" init -q
+printf '{"name":"fixture"}\n' > "$R/package.json"
+printf 'dirty\n' > "$R/untracked.txt"
+OUT="$(cd "$R" && bash "$CMD" 2>&1)"
+printf '%s' "$OUT" | grep -q "$R" && ok "it names the repository root" || bad "repo root absent"
+printf '%s' "$OUT" | grep -q 'untracked.txt' && ok "it reports an untracked file" || bad "dirty state absent"
+
+# Outside a repository it must say so rather than report a neighbour's git state.
+N="$TMP/notrepo"; mkdir -p "$N"
+OUT2="$(cd "$N" && bash "$CMD" 2>&1)"
+printf '%s' "$OUT2" | grep -qi 'not.*git\|no git\|bukan' && ok "outside a repository it says so" \
+  || bad "no repository was not reported: $(printf '%s' "$OUT2" | head -3 | tr '\n' ' ')"
+
+# Read-only means read-only.
+BEFORE="$(cd "$R" && git status --porcelain | sort)"
+(cd "$R" && bash "$CMD" >/dev/null 2>&1)
+[ "$(cd "$R" && git status --porcelain | sort)" = "$BEFORE" ] && ok "it writes nothing" || bad "it changed the tree"
+
+[ "$f" -eq 0 ] && { echo "inspect-project-test: PASS"; exit 0; }
+echo "inspect-project-test: $f case(s) failed" >&2; exit 1

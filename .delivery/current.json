@@ -1,34 +1,25 @@
 {
-  "activeRun": "RUN-20260904T062330Z-ae7beb8b",
-  "activeTask": "TASK-057",
-  "capability": "unattributed",
-  "job": "implementation",
+  "activeRun": null,
   "lastCheckpoint": {
-    "eventHash": "29dfae7b4e0e13d9cf0c9202dc6e70f0a382f33a3437b0714d043130753ff16e",
-    "eventId": "9be5a3396be848f093d12232b0293328",
-    "head": "dc0ac1f48b3987b42fe0f7c984626fb0a140fb3b",
-    "note": "config/ai/project-memory/tokophi.md changed from outside this run \u2014 the owner flipped TokoPhi to PRIVATE on 2026-09-04. It is not in this Allowed Paths and is not my work, so it must not be claimed by expand-scope. The boundary is right to fail: it cannot distinguish a concurrent owner edit from an agent leaving its lane, and refusing both is the correct behaviour.",
-    "prevEventHash": "19d5878c14ecfaa23c81c2be2e0838555783ffd49d65be0a6459d265c0f4ca59",
-    "runId": "RUN-20260904T041155Z-0a2337cb",
+    "eventHash": "aa687abe35e4fd5df168fee2a2b2a981b9376c9cb9c9a9bcd7d10d444ac1e3ac",
+    "eventId": "a88c8ace609644e2a9108486f53171bd",
+    "head": "d44a8a53592363babea2a728329d67b54a0838bf",
+    "note": "Owner asked to commit, push and release before the R3 independent review returned. Every regression check and all ten new tests pass; the boundary is clean apart from the review requirement itself. Recording BLOCKED rather than relabelling the risk to fit.",
+    "prevEventHash": "ca76265290003794461402f91e95e48dc87a244181a78be739b43f3aec7a04fe",
+    "runId": "RUN-20260904T062835Z-91fa62aa",
     "state": null,
-    "time": "2026-09-04T04:19:41Z",
+    "time": "2026-09-04T06:39:23Z",
     "type": "checkpoint"
   },
   "lastRun": {
-    "finishedAt": "2026-09-04T05:10:54Z",
-    "result": "PASS",
-    "runId": "RUN-20260904T050913Z-e6a71fec"
+    "finishedAt": "2026-09-04T06:39:23Z",
+    "result": "BLOCKED",
+    "runId": "RUN-20260904T062835Z-91fa62aa"
   },
-  "model": "anthropic/claude-opus-5",
-  "observedHead": "49bb39c096a3fced3f14ec655954193e2160a327",
+  "observedHead": "d44a8a53592363babea2a728329d67b54a0838bf",
   "observedState": null,
   "project": "dotfiles",
-  "provider": "anthropic",
-  "reasoningEffort": "medium",
-  "requirement": "REQ-TEST-EFFICACY",
-  "risk": "R1",
   "schemaVersion": 1,
   "statusAuthority": "STATUS.md",
-  "updatedAt": "2026-09-04T06:27:33Z",
-  "worker": "task"
+  "updatedAt": "2026-09-04T06:39:23Z"
 }

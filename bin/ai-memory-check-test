@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# ai-memory-check is cited as evidence by ai-policy-lint and by several task
+# contracts. It has a --self-test; nothing ran it as a gate of its own.
+set -uo pipefail
+ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+CMD="$ROOT/bin/ai-memory-check"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
+
+node "$CMD" --self-test >/dev/null 2>&1 && ok "--self-test passes" || bad "--self-test failed"
+
+# A dangling link must fail, or the check is decoration on every gate citing it.
+D="$TMP/broken"; mkdir -p "$D"
+printf '# A\n\n[gone](missing-file.md)\n' > "$D/a.md"
+node "$CMD" "$D" >/dev/null 2>&1 && bad "a dangling link passed" || ok "a dangling link fails"
+
+# And a resolving one must pass, or it fails everything and means nothing.
+G="$TMP/good"; mkdir -p "$G"
+printf '# A\n\n[b](b.md)\n' > "$G/a.md"; printf '# B\n' > "$G/b.md"
+node "$CMD" "$G" >/dev/null 2>&1 && ok "a resolving link passes" || bad "a valid tree failed"
+
+[ "$f" -eq 0 ] && { echo "ai-memory-check-test: PASS"; exit 0; }
+echo "ai-memory-check-test: $f case(s) failed" >&2; exit 1

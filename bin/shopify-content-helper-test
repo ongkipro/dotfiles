@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# shopify-content-helper generates listing copy and feeds. The rules it must not
+# break are written down in CLAUDE.md and the copywriting skill: no CTA, no
+# third-party brand names. A generator that quietly emits one is a compliance
+# problem, not a formatting one.
+set -uo pipefail
+ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+CMD="$ROOT/bin/shopify-content-helper"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
+
+out="$(bash "$CMD" --help 2>&1 || bash "$CMD" 2>&1)"
+printf '%s' "$out" | grep -qiE 'usage|subcommand|command' && ok "it describes its own surface" \
+  || bad "no usage output"
+
+# An unknown subcommand must fail rather than fall through to a default action.
+bash "$CMD" definitely-not-a-subcommand >/dev/null 2>&1 \
+  && bad "an unknown subcommand was accepted" || ok "an unknown subcommand fails"
+
+# It must not write into the repository just by being asked what it does.
+BEFORE="$(git -C "$ROOT" status --porcelain | sort)"
+bash "$CMD" --help >/dev/null 2>&1 || true
+[ "$(git -C "$ROOT" status --porcelain | sort)" = "$BEFORE" ] \
+  && ok "describing itself writes nothing" || bad "it modified the repository"
+
+[ "$f" -eq 0 ] && { echo "shopify-content-helper-test: PASS"; exit 0; }
+echo "shopify-content-helper-test: $f case(s) failed" >&2; exit 1

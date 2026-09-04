@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# device-register writes devices/<host>.md and regenerates devices/README.md —
+# files that get committed and read by every other machine. It has a --dry-run,
+# so the write path can be proven without one.
+set -uo pipefail
+ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+CMD="$ROOT/bin/device-register"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
+
+BEFORE="$(git -C "$ROOT" status --porcelain | sort)"
+OUT="$(bash "$CMD" --dry-run 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] && ok "--dry-run succeeds" || bad "--dry-run exited $rc"
+[ "$(git -C "$ROOT" status --porcelain | sort)" = "$BEFORE" ] \
+  && ok "--dry-run writes nothing" || bad "--dry-run modified the repository"
+
+for section in '## Identitas' '## Hardware' '## AI CLI' '## Profil Claude Code' '## Symlink dotfiles'; do
+  printf '%s' "$OUT" | grep -qF "$section" && ok "it emits $section" || bad "missing section $section"
+done
+
+# The Claude-profile table is the part TASK-048's sibling work added so the
+# registry answers "is this machine clean?" without logging in. It must report a
+# verdict for each row, never a blank.
+printf '%s' "$OUT" | sed -n '/## Profil Claude Code/,/## Symlink/p' | grep -qE 'Profil aktif' \
+  && ok "the profile table names the active profile" || bad "no active-profile row"
+printf '%s' "$OUT" | sed -n '/## Profil Claude Code/,/## Symlink/p' | grep -qE 'residu switcher' \
+  && ok "the profile table reports switcher residue" || bad "no residue row"
+
+[ "$f" -eq 0 ] && { echo "device-register-test: PASS"; exit 0; }
+echo "device-register-test: $f case(s) failed" >&2; exit 1

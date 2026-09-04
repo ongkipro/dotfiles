@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# tmux-battery renders into the status line. It must never emit an error into
+# the bar, and must exit 0 on a machine with no battery at all.
+set -uo pipefail
+ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+CMD="$ROOT/bin/tmux-battery"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
+
+out="$(bash "$CMD" 2>/dev/null)"; rc=$?
+[ "$rc" -eq 0 ] && ok "it exits 0 on this machine" || bad "exited $rc"
+printf '%s' "$out" | grep -qiE 'error|not found|no such|traceback' \
+  && bad "an error string reached the status line: $out" || ok "no error text in the output"
+[ "$(printf '%s' "$out" | wc -l)" -le 1 ] && ok "it emits a single line" || bad "multi-line output"
+
+# On a host with no battery reader it must still exit 0 and print nothing,
+# rather than leave an error where the percentage should be. Strip the readers
+# from PATH but keep a usable shell — an empty PATH loses bash itself and the
+# 127 that produces is the harness failing, not the command.
+mkdir -p "$TMP/slim"
+for u in bash awk cat uname grep sed; do
+  p="$(command -v "$u" 2>/dev/null)" && ln -sf "$p" "$TMP/slim/$u"
+done
+out2="$(PATH="$TMP/slim" bash "$CMD" 2>/dev/null)"; rc2=$?
+[ "$rc2" -eq 0 ] && ok "no battery reader on PATH still exits 0" || bad "stripped PATH exited $rc2"
+
+# The dispatch must end in a branch that cannot fail, on every platform.
+grep -qE '\*\)\s*true' "$CMD" && ok "an unknown platform falls through cleanly" \
+  || bad "no catch-all branch: an unrecognised OS would surface an error"
+
+[ "$f" -eq 0 ] && { echo "tmux-battery-test: PASS"; exit 0; }
+echo "tmux-battery-test: $f case(s) failed" >&2; exit 1

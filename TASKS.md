@@ -17,6 +17,21 @@ _None._
 
 ## Recently completed
 
+- **TASK-058 / REQ-TEST-EFFICACY (R2).** Ten of the fourteen untested commands gained a
+  test, ordered by blast radius: `9router-credential-migrate` (secrets — only refusal and
+  misuse paths, no key read or written), `device-register` (via `--dry-run`), `ai-doctor`
+  (658 lines, the health command every gate defers to), `ai-memory-check`, `migration-risk`,
+  `release-manifest`, `inspect-project`, `shopify-content-helper`, `tmux-battery`,
+  `tmux-clip`. `mutation-sweep`: 41 pairs, **39 BITES, 0 SURVIVED**, 2 UNSWEEPABLE.
+  Scope expanded once, requirement-linked, onto `bin/mutation-sweep`: it gave a
+  node-shebang subject a bash stub, so the stub could not run and the test was
+  misclassified UNSWEEPABLE — a wrong answer wearing a cautious one, found because
+  `ai-memory-check` is the only node command with a test.
+  **Four remain untested and are named rather than counted done:** `dotpush`,
+  `vps-pgdump`, `tmux-setup`, `pi-update-safe`. Each pushes, reaches over ssh, or
+  installs, and none has a dry-run seam; the contract puts adding one in its own
+  reviewed run.
+
 - **TASK-057 / REQ-TEST-EFFICACY (R1).** `mutation-sweep` stubs `bin/<name>` to exit 0 and
   runs `bin/<name>-test` against a scratch copy, honouring both root conventions (first
   argument and `DOTFILES_DIR`). The stub records its own invocation, so a test that passes
@@ -123,21 +138,6 @@ Archived under `docs/archive/`, newest `DOTFILES_TASKS_2026-09-01_DEVICE_VERIFIC
 ## Pending
 
 The 2026-09-04 queue (TASK-047..056) is complete; see Recently completed.
-
-### TASK-058: Fourteen commands nothing tests
-- **Requirement:** REQ-TEST-EFFICACY
-- **Risk Level:** R2
-- **Depends On:** TASK-057
-- **Allowed Paths:** `bin/*-test`, `config/ai/runtime-commands.txt`, `TASKS.md`
-- **Protected Paths:** `bin/dotpush`, `bin/vps-pgdump`, `bin/9router-credential-migrate`, `bin/tmux-setup`, `bin/device-register`, `bin/pi-update-safe`, `bin/ai-doctor`
-- **Canonical Contract Owners:** `runtime.readiness`
-- **Accepted Invariants:** each command gains a `bin/<name>-test` that resolves its subject via `ROOT/bin/<name>` so TASK-057 can sweep it; each first test carries at least one mutation that bites; no test performs a live push, ssh, package install, or secret read — side effects are proven against a fixture repo, a fake remote, or a dry-run flag, and a command with no such seam gets the seam first (as `--dry-run`), in a separate reviewed run; order is blast radius, not convenience: `dotpush` (commit+push), `vps-pgdump` (ssh, pg_dump, backups), `9router-credential-migrate` (secrets), `tmux-setup` (installs), `device-register` (writes committed files), `pi-update-safe`, `ai-doctor` (658 lines, the health command every other gate defers to, itself judged by nothing), then the read-only seven
-- **Regression Checks:** `mutation-sweep`, `ai-policy-lint`, `installer-link-test`
-- **Runtime Evidence:** `mutation-sweep` reports BITES for every new test; `ai-doctor --self-test` discovers all of them through its `bin/*-test` glob
-- **Reopen Conditions:** a listed command regains a test-less state; a new `bin/` command lands without one and `ai-policy-lint` stays green — that gap is deliberate scope for a later task, not this one
-- **Non-Scope:** behaviour changes to any command beyond adding a dry-run seam; the `-test` suffix convention
-- **Verification:** `bin/mutation-sweep` exits 0 with the fourteen present
-- **Escalation Conditions:** a command's only observable behaviour is the live side effect
 
 - **TASK-012 / AUDIT-MON-01 — measure real skill effectiveness (R0).** Dormant until five immutable delivery records exist for one skill; then `ai-skill-evolution --repo <repo> --dotfiles ~/dotfiles --json`. Never fabricate attribution.
 

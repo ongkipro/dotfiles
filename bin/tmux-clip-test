@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# tmux-clip is the clipboard seam every copy path goes through. Twenty-three
+# lines, and a silent failure means copy does nothing with no error.
+set -uo pipefail
+ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+CMD="$ROOT/bin/tmux-clip"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
+
+# With no clipboard tool on PATH at all it must fail loudly rather than swallow
+# the text: a copy that silently vanishes is worse than one that errors.
+mkdir -p "$TMP/slim"
+for u in bash cat uname; do
+  q="$(command -v "$u" 2>/dev/null)" && ln -sf "$q" "$TMP/slim/$u"
+done
+out="$(printf 'hello' | PATH="$TMP/slim" bash "$CMD" 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "no clipboard tool is an error, not a silent no-op" \
+  || bad "it exited 0 with no clipboard backend (output: $out)"
+
+# It must choose a backend by what exists, not by hardcoding one platform.
+grep -qE 'wl-copy|pbcopy|xclip|xsel|clip.exe' "$CMD" && ok "it dispatches across platforms" \
+  || bad "no platform dispatch found"
+
+[ "$f" -eq 0 ] && { echo "tmux-clip-test: PASS"; exit 0; }
+echo "tmux-clip-test: $f case(s) failed" >&2; exit 1

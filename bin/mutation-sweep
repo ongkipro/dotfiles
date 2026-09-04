@@ -71,9 +71,15 @@ sweep_one() {
 
   : > "$marker"
   local shebang; shebang="$(head -1 "$subject")"
+  # The stub must be written in the subject's own language. A bash stub under a
+  # node shebang cannot run, the marker stays empty, and the sweep then reports
+  # UNSWEEPABLE — a wrong answer that looks like a cautious one. Found when
+  # ai-memory-check, the only node command with a test, was misclassified.
   case "$shebang" in
     *python*) printf '%s\n' "$shebang" \
         "import sys; open(r'$marker','a').write('x'); sys.exit(0)" > "$scratch/bin/$name" ;;
+    *node*) printf '%s\n' "$shebang" \
+        "require('fs').appendFileSync(String.raw\`$marker\`, 'x'); process.exit(0);" > "$scratch/bin/$name" ;;
     *) printf '%s\n' "$shebang" "printf 'x' >> '$marker'" "exit 0" > "$scratch/bin/$name" ;;
   esac
   chmod +x "$scratch/bin/$name"

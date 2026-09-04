@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# migration-risk classifies how dangerous a schema change is, M0..M4. A wrong
+# answer here is the difference between a routine deploy and data loss, and
+# nothing tested it.
+set -uo pipefail
+ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+CMD="$ROOT/bin/migration-risk"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
+
+R="$TMP/repo"; mkdir -p "$R/migrations"; git -C "$R" init -q
+printf 'x\n' > "$R/readme.md"
+git -C "$R" add -A >/dev/null; git -C "$R" -c user.email=t@t -c user.name=t commit -qm base >/dev/null
+BASE="$(git -C "$R" rev-parse HEAD)"
+
+level(){ python3 "$CMD" --base "$BASE" --json "$R" 2>/dev/null \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin).get("risk","?"))'; }
+
+[ "$(level)" = M0 ] && ok "no schema change is M0" || bad "clean tree was $(level), expected M0"
+
+printf 'ALTER TABLE orders ADD COLUMN note text;\n' > "$R/migrations/001_add.sql"
+git -C "$R" add -A >/dev/null; git -C "$R" -c user.email=t@t -c user.name=t commit -qm add >/dev/null
+[ "$(level)" = M1 ] && ok "an additive column is M1" || bad "additive change was $(level), expected M1"
+
+printf 'DROP TABLE orders;\n' > "$R/migrations/002_drop.sql"
+git -C "$R" add -A >/dev/null; git -C "$R" -c user.email=t@t -c user.name=t commit -qm drop >/dev/null
+case "$(level)" in M3|M4) ok "a DROP TABLE is M3 or higher" ;;
+  *) bad "DROP TABLE was $(level), expected M3+" ;; esac
+
+[ "$f" -eq 0 ] && { echo "migration-risk-test: PASS"; exit 0; }
+echo "migration-risk-test: $f case(s) failed" >&2; exit 1

@@ -1,7 +1,9 @@
 # Canonical commands linked into ~/.local/bin by every supported installer.
 # Keep one command per line. Entries must exist as executable files under bin/.
 9router-credential-migrate
+9router-credential-migrate-test
 ai-doctor
+ai-doctor-test
 ai-hooks-install
 ai-hooks-install-test
 ai-learn
@@ -9,6 +11,7 @@ ai-learn-test
 ai-memory-access
 ai-memory-access-test
 ai-memory-check
+ai-memory-check-test
 ai-memory-harvest
 ai-memory-harvest-test
 ai-memory-hygiene
@@ -36,6 +39,7 @@ dev-ready
 dev-ready-test
 development-spec-suite-test
 device-register
+device-register-test
 device-verify
 device-verify-test
 diff-risk
@@ -44,9 +48,11 @@ dotpush
 dotsync
 dotsync-test
 inspect-project
+inspect-project-test
 installer-link-test
 memory-usage-hook-test
 migration-risk
+migration-risk-test
 mutation-sweep
 mutation-sweep-test
 omp-effective-routing-test
@@ -66,6 +72,7 @@ project-init-test
 release-check
 release-check-test
 release-manifest
+release-manifest-test
 release-safety-test
 resume-brief
 resume-brief-test
@@ -77,6 +84,7 @@ security-check
 security-check-test
 shell-wrapper-test
 shopify-content-helper
+shopify-content-helper-test
 skill-check-test
 skill-map
 skill-map-test
@@ -85,7 +93,9 @@ skill-surface-check
 skill-surface-check-test
 skill-update-test
 tmux-battery
+tmux-battery-test
 tmux-clip
+tmux-clip-test
 tmux-setup
 toolchain-path-test
 turnstile-secret-test

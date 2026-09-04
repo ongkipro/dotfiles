@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# release-manifest decides whether a repository may claim a release. It had no
+# test: the gate that judges a release was itself judged by nothing.
+set -uo pipefail
+ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+CMD="$ROOT/bin/release-manifest"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
+
+r(){ python3 "$CMD" "$1" >/dev/null 2>&1; echo $?; }
+
+mkdir -p "$TMP/none"
+[ "$(r "$TMP/none")" = 2 ] && ok "a repository with no RELEASE.md is UNVERIFIED, not VALID" \
+  || bad "missing RELEASE.md did not exit 2"
+
+mkdir -p "$TMP/empty"; : > "$TMP/empty/RELEASE.md"
+[ "$(r "$TMP/empty")" != 0 ] && ok "an empty RELEASE.md is not VALID" \
+  || bad "an empty RELEASE.md was accepted"
+
+# --json must describe the same verdict the exit code does; a report that
+# disagrees with its own status is worse than no report.
+out="$(python3 "$CMD" --json "$TMP/none" 2>/dev/null)"; rc=$?
+printf '%s' "$out" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if "status" in d else 1)' 2>/dev/null \
+  && ok "--json carries a status" || bad "--json produced no status field"
+
+[ "$f" -eq 0 ] && { echo "release-manifest-test: PASS"; exit 0; }
+echo "release-manifest-test: $f case(s) failed" >&2; exit 1
