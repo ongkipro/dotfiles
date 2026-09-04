@@ -11,7 +11,8 @@ R="$TMP/proj"; mkdir -p "$R"; git -C "$R" init -q
 printf '{"name":"fixture"}\n' > "$R/package.json"
 printf 'dirty\n' > "$R/untracked.txt"
 OUT="$(cd "$R" && bash "$CMD" 2>&1)"
-printf '%s' "$OUT" | grep -q "$R" && ok "it names the repository root" || bad "repo root absent"
+printf '%s' "$OUT" | grep -q "Repo root: $R" && ok "it names the repository root" \
+  || bad "repo root absent or hardcoded — a bare grep for the path was satisfied by the PWD line"
 printf '%s' "$OUT" | grep -q 'untracked.txt' && ok "it reports an untracked file" || bad "dirty state absent"
 
 # Outside a repository it must say so rather than report a neighbour's git state.

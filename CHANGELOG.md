@@ -6,7 +6,7 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## v2026.09.04
 
-Twenty-six commits. A ten-task queue (TASK-047..058) carried end to end with
+Twenty-eight commits at the tag. A ten-task queue (TASK-047..058) carried end to end with
 eight independent reviews across two model routes. Five of the ten produced
 corrections to claims the implementer had made — recorded here because that is
 the useful part.
@@ -84,9 +84,18 @@ whether anything noticed.
 
 - `mutation-sweep`'s single operator finds wholly empty tests, not partially
   vacuous ones. It would **not** have caught the defect that motivated it.
-- Four commands still have no test because they have no safe seam: `dotpush`,
-  `vps-pgdump`, `tmux-setup`, `pi-update-safe`. Each needs a dry-run first, in
-  its own reviewed run.
+- Four commands still have no test: `dotpush`, `vps-pgdump`, `tmux-setup`,
+  `pi-update-safe`. The first wording here said they have "no safe seam"; review
+  showed that is false — each is testable behind a shim, and `pi-update-safe`
+  already exposes `PI_RUNTIME_SKILL_DIRS` for exactly that. "No seam" was doing
+  work that "needs a shim" should do.
+- **The ten tests shipped with escapes.** The review that returned after the tag
+  found a plausible bug slipping past nine of them, including an `ai-doctor-test`
+  that pinned this machine's health rather than the subject's contract and would
+  have failed on any device reporting a single finding. Fixed after the tag.
+- **`shopify-content-helper` emits the CTA text `CLAUDE.md` forbids** in its meta
+  templates — found by the review of the test written for it, whose own header
+  promised that check and made none. Queued as TASK-059.
 - Two memory files exceed the router budget and can never be selected. They are
   now reported on every hygiene run instead of passing in silence.
 

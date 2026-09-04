@@ -17,6 +17,27 @@ mkdir -p "$TMP/empty"; : > "$TMP/empty/RELEASE.md"
 [ "$(r "$TMP/empty")" != 0 ] && ok "an empty RELEASE.md is not VALID" \
   || bad "an empty RELEASE.md was accepted"
 
+# A gate with no positive fixture is a gate that can reject everything and still
+# pass its own test. Build a manifest that should be accepted.
+V="$TMP/valid"; mkdir -p "$V"; git -C "$V" init -q
+python3 "$CMD" --json "$TMP/none" >/dev/null 2>&1
+cat > "$V/RELEASE.md" <<'MD'
+# Release
+
+Status: READY
+Version: 1.0.0
+Date: 2026-09-04
+Commit: 0000000
+Verification: project-check
+Rollback: revert the release commit
+MD
+git -C "$V" add -A >/dev/null
+git -C "$V" -c user.email=t@t -c user.name=t commit -qm one >/dev/null
+git -C "$V" -c user.email=t@t -c user.name=t commit -q --allow-empty -m two >/dev/null
+rcv="$(r "$V")"
+[ "$rcv" != 1 ] && ok "a complete manifest is not rejected outright (exit $rcv)" \
+  || bad "a complete manifest was INVALID — the gate may reject everything"
+
 # --json must describe the same verdict the exit code does; a report that
 # disagrees with its own status is worse than no report.
 out="$(python3 "$CMD" --json "$TMP/none" 2>/dev/null)"; rc=$?

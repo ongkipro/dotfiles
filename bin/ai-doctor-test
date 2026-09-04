@@ -8,16 +8,21 @@ TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
 
 BEFORE="$(git -C "$ROOT" status --porcelain | sort)"
-OUT="$(DOTFILES_DIR="$ROOT" bash "$CMD" 2>&1)"; rc=$?
-[ "$rc" -eq 0 ] && ok "the default report succeeds on a healthy tree" || bad "default run exited $rc"
+OUT="$(DOTFILES_DIR="$ROOT" bash "$CMD" 2>&1)"
+# Deliberately NOT asserting exit 0. An earlier version did, which pinned THIS
+# machine's health rather than the subject's contract: in any relocated copy the
+# report exits 1, so the test failed unmutated and its mutation-sweep verdict was
+# unearned. On a device where ai-doctor legitimately reports one finding it would
+# also fail and take ai-doctor --self-test down with it.
 [ "$(git -C "$ROOT" status --porcelain | sort)" = "$BEFORE" ] \
   && ok "the report writes nothing" || bad "ai-doctor modified the repository"
 
-# The .env deny check is the one this file's own comments call load-bearing: it
-# is enforced even in bypass mode, and it silently skipped a profile with no
-# settings.json until 2026-09-04.
-printf '%s' "$OUT" | grep -q 'permissions.deny' && ok "it reports on the .env deny rule" \
-  || bad "no permissions.deny line"
+# The .env deny check is enforced even in bypass mode and silently skipped a
+# profile with no settings.json until 2026-09-04. Require the PASS marker: a bare
+# grep for the string also matched the warning line, so neutralising the check
+# entirely still passed.
+printf '%s' "$OUT" | grep -q '✓.*permissions.deny' && ok "the .env deny rule is reported as satisfied" \
+  || bad "no passing permissions.deny line — a bare string match also accepts the warning"
 printf '%s' "$OUT" | grep -qi 'hook' && ok "it reports on hook wiring" || bad "no hook line"
 
 # A missing settings.json must be named, not passed over. Point the check at a
@@ -28,11 +33,16 @@ printf '%s' "$OUT2" | grep -q 'TIDAK ADA' && ok "an absent profile settings.json
 printf '%s' "$OUT2" | grep -qi 'bukan ~/.claude\|CLAUDE_CONFIG_DIR' && ok "a redirected profile is named" \
   || bad "a profile outside ~/.claude was not reported"
 
-# --self-test must actually discover the fixture suite, not report health from
-# an empty glob.
-OUT3="$(DOTFILES_DIR="$TMP/nothing" bash "$CMD" --self-test 2>&1)"; rc3=$?
-[ "$rc3" -ne 0 ] && ok "a root with no tests fails --self-test" \
-  || bad "--self-test passed with no tests to run"
+# --self-test must say that it found no suite, not merely fail for some other
+# reason. An empty root fails on eight unrelated checks, so the earlier version
+# proved nothing: removing the discovery guard entirely still "passed".
+mkdir -p "$TMP/nosuite/bin"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP/nosuite/bin/placeholder"
+chmod +x "$TMP/nosuite/bin/placeholder"
+OUT3="$(DOTFILES_DIR="$TMP/nosuite" bash "$CMD" --self-test 2>&1)"
+printf '%s' "$OUT3" | grep -q 'tidak ditemukan' \
+  && ok "--self-test names an empty fixture suite instead of reporting health" \
+  || bad "--self-test did not report that no tests were found"
 
 [ "$f" -eq 0 ] && { echo "ai-doctor-test: PASS"; exit 0; }
 echo "ai-doctor-test: $f case(s) failed" >&2; exit 1

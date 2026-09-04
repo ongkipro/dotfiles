@@ -27,10 +27,15 @@ _None._
   node-shebang subject a bash stub, so the stub could not run and the test was
   misclassified UNSWEEPABLE — a wrong answer wearing a cautious one, found because
   `ai-memory-check` is the only node command with a test.
-  **Four remain untested and are named rather than counted done:** `dotpush`,
-  `vps-pgdump`, `tmux-setup`, `pi-update-safe`. Each pushes, reaches over ssh, or
-  installs, and none has a dry-run seam; the contract puts adding one in its own
-  reviewed run.
+  **Four remain untested:** `dotpush`, `vps-pgdump`, `tmux-setup`, `pi-update-safe`.
+  I called them seamless; review showed that is false — each is testable behind a
+  shim, and `pi-update-safe` already exposes `PI_RUNTIME_SKILL_DIRS`/`PI_ARCHIVE_ROOT`
+  for exactly that. **Post-release review found a plausible bug escaping nine of the
+  ten tests**, fixed in a follow-up run: `ai-doctor-test` pinned this machine's health
+  rather than the subject's contract and failed unmutated in any relocated copy, so its
+  sweep verdict was unearned; two assertions checked paths and patterns their subjects
+  never use; three subcommands had no positive fixture, so a subject that rejected or
+  dropped everything still passed.
 
 - **TASK-057 / REQ-TEST-EFFICACY (R1).** `mutation-sweep` stubs `bin/<name>` to exit 0 and
   runs `bin/<name>-test` against a scratch copy, honouring both root conventions (first
@@ -143,6 +148,20 @@ Archived under `docs/archive/`, newest `DOTFILES_TASKS_2026-09-01_DEVICE_VERIFIC
 ## Pending
 
 The 2026-09-04 queue (TASK-047..056) is complete; see Recently completed.
+
+### TASK-059: meta-gen ships the CTA text the policy forbids
+- **Requirement:** REQ-CONTENT-POLICY
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/shopify-content-helper`, `bin/shopify-content-helper-test`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `content.policy`
+- **Accepted Invariants:** no SEO title or meta template emits a call to action or a bracketed brand slot; `CLAUDE.md` forbids "Buy Now"/"Shop Now"/CTA in Shopify descriptions and meta unless asked, and brand-generic is the default
+- **Regression Checks:** `shopify-content-helper-test`, `ai-policy-lint`
+- **Runtime Evidence:** `bin/shopify-content-helper:108-114` ships "Buy Online at [Brand]", "Shop ${keyword} at [Brand]" and "order online today". Found 2026-09-04 by independent review of the test written for this command — that test's own header promised a CTA check and made none
+- **Reopen Conditions:** a template regains CTA or brand text
+- **Non-Scope:** the other subcommands; the SEO guidance itself
+- **Verification:** `bin/shopify-content-helper-test`, whose CTA assertion is written to fail once the templates are fixed
+- **Escalation Conditions:** a replacement cannot stay under 60/155 characters without a CTA
 
 - **TASK-012 / AUDIT-MON-01 — measure real skill effectiveness (R0).** Dormant until five immutable delivery records exist for one skill; then `ai-skill-evolution --repo <repo> --dotfiles ~/dotfiles --json`. Never fabricate attribution.
 

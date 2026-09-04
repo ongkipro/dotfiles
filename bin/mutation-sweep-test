@@ -45,6 +45,19 @@ SELF="$(cd "$(dirname "$0")" && pwd)"
 [ "$("$SELF/hardcoded")" = "fixed" ] || exit 1
 EOF
 
+# 4. A node subject. The stub must be written in the subject's own language: a
+#    bash stub under a node shebang cannot run, the marker stays empty, and the
+#    sweep reports UNSWEEPABLE — a wrong answer wearing a cautious one. That is
+#    exactly what shipped before this fixture existed.
+if command -v node >/dev/null 2>&1; then
+  printf '#!/usr/bin/env node\nconsole.log("nineteen");\n' > "$FIX/bin/noder"
+  cat > "$FIX/bin/noder-test" <<'EOF'
+#!/usr/bin/env bash
+R="${1:?}"
+[ "$(node "$R/bin/noder")" = "nineteen" ] || exit 1
+EOF
+fi
+
 chmod +x "$FIX"/bin/*
 git -C "$FIX" init -q
 git -C "$FIX" add -A >/dev/null
@@ -64,6 +77,11 @@ rc_all=$?
   || fail "sleeper should SURVIVE, got $(verdict "$OUT" sleeper)"
 [ "$(verdict "$OUT" hardcoded)" = UNSWEEPABLE ] && ok "a test that ignores its root is unsweepable" \
   || fail "hardcoded should be UNSWEEPABLE, got $(verdict "$OUT" hardcoded)"
+
+if command -v node >/dev/null 2>&1; then
+  [ "$(verdict "$OUT" noder)" = BITES ] && ok "a node subject is stubbed in its own language" \
+    || fail "noder should BITE, got $(verdict "$OUT" noder) — the stub is not valid node"
+fi
 
 # A survivor must fail the command, or the sweep is a report nobody has to act on.
 [ "$rc_all" -ne 0 ] && ok "a survivor exits non-zero" || fail "a survivor did not fail the run"

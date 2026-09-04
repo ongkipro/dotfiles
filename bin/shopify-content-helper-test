@@ -17,6 +17,23 @@ printf '%s' "$out" | grep -qiE 'usage|subcommand|command' && ok "it describes it
 bash "$CMD" definitely-not-a-subcommand >/dev/null 2>&1 \
   && bad "an unknown subcommand was accepted" || ok "an unknown subcommand fails"
 
+# A real subcommand must produce its real output, not merely exit 0.
+alt="$(bash "$CMD" image-alt-pattern "kursi kayu jati" 2>&1 || true)"
+printf '%s' "$alt" | grep -qi 'kursi' && ok "image-alt-pattern echoes the subject term" \
+  || bad "image-alt-pattern produced nothing usable: $(printf '%s' "$alt" | head -2)"
+
+# CLAUDE.md forbids CTA text in Shopify meta. meta-gen's shipped templates break
+# that rule today — "Buy Online at [Brand]", "Shop ... at [Brand]", "order online
+# today" — so this asserts the CURRENT state and fails the moment it is fixed,
+# which is the point: the finding is recorded in TASKS.md and this test is what
+# will tell us the fix landed. Changing the subject is out of this run's surface.
+meta="$(bash "$CMD" meta-gen "kursi kayu" 2>&1 || true)"
+if printf '%s' "$meta" | grep -qiE 'buy online|shop .* at|order online today'; then
+  ok "meta-gen still emits the CTA templates CLAUDE.md forbids (known, TASK-059)"
+else
+  bad "meta-gen no longer emits CTA text — good; update this assertion and close TASK-059"
+fi
+
 # It must not write into the repository just by being asked what it does.
 BEFORE="$(git -C "$ROOT" status --porcelain | sort)"
 bash "$CMD" --help >/dev/null 2>&1 || true

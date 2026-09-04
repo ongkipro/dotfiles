@@ -8,11 +8,19 @@ CMD="$ROOT/bin/device-register"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
 
-BEFORE="$(git -C "$ROOT" status --porcelain | sort)"
-OUT="$(bash "$CMD" --dry-run 2>&1)"; rc=$?
+# Point the subject at a scratch copy and DELETE the record it would write, so
+# absence is the assertion. Measuring git status in $ROOT proved nothing twice
+# over: the subject acted on ~/dotfiles regardless, and a rewrite producing
+# byte-identical content is invisible to git anyway.
+SCRATCH="$TMP/dotfiles"; mkdir -p "$SCRATCH"
+git -C "$ROOT" archive HEAD | tar -x -C "$SCRATCH"
+HOST="$(hostname -s 2>/dev/null || hostname)"
+rm -f "$SCRATCH/devices/$HOST.md"
+OUT="$(DOTFILES_DIR="$SCRATCH" bash "$CMD" --dry-run 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] && ok "--dry-run succeeds" || bad "--dry-run exited $rc"
-[ "$(git -C "$ROOT" status --porcelain | sort)" = "$BEFORE" ] \
-  && ok "--dry-run writes nothing" || bad "--dry-run modified the repository"
+[ ! -e "$SCRATCH/devices/$HOST.md" ] \
+  && ok "--dry-run writes no device record" || bad "--dry-run created devices/$HOST.md"
+[ "$(git -C "$ROOT" status --porcelain | sort)" = "$(git -C "$ROOT" status --porcelain | sort)" ] || true
 
 for section in '## Identitas' '## Hardware' '## AI CLI' '## Profil Claude Code' '## Symlink dotfiles'; do
   printf '%s' "$OUT" | grep -qF "$section" && ok "it emits $section" || bad "missing section $section"

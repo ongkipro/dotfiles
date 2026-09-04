@@ -17,9 +17,21 @@ out="$(printf 'hello' | PATH="$TMP/slim" bash "$CMD" 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "no clipboard tool is an error, not a silent no-op" \
   || bad "it exited 0 with no clipboard backend (output: $out)"
 
-# It must choose a backend by what exists, not by hardcoding one platform.
-grep -qE 'wl-copy|pbcopy|xclip|xsel|clip.exe' "$CMD" && ok "it dispatches across platforms" \
-  || bad "no platform dispatch found"
+# The text must actually arrive. Asserting only that a backend name appears in
+# the source proves nothing: replacing the backend with a no-op passed that.
+mkdir -p "$TMP/withclip"
+for u in bash cat uname; do
+  q="$(command -v "$u" 2>/dev/null)" && ln -sf "$q" "$TMP/withclip/$u"
+done
+printf '#!/usr/bin/env bash\ncat > "%s/copied.txt"\n' "$TMP" > "$TMP/withclip/pbcopy"
+chmod +x "$TMP/withclip/pbcopy"
+rm -f "$TMP/copied.txt"
+printf 'carried through' | PATH="$TMP/withclip" bash "$CMD" >/dev/null 2>&1
+if [ "$(cat "$TMP/copied.txt" 2>/dev/null)" = "carried through" ]; then
+  ok "stdin reaches the clipboard backend"
+else
+  bad "the text never reached the backend (got: $(cat "$TMP/copied.txt" 2>/dev/null))"
+fi
 
 [ "$f" -eq 0 ] && { echo "tmux-clip-test: PASS"; exit 0; }
 echo "tmux-clip-test: $f case(s) failed" >&2; exit 1
