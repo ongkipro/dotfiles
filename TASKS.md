@@ -17,33 +17,12 @@ _None._
 
 ## Recently completed
 
-### TASK-043: Probe the runtime the way it is actually used
-- **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
-- **Risk Level:** R1
-- **Allowed Paths:** `bin/_toolchain-path.sh`, `bin/toolchain-path-test`, `bin/device-verify`, `config/ai/runtime-commands.txt`, `TASKS.md`
-- **Protected Paths:** None
-- **Canonical Contract Owners:** `runtime.device-verification`
-- **Accepted Invariants:** a runtime candidate is accepted only if it answers under an isolated HOME, since that is how every test invokes it
-- **Regression Checks:** `toolchain-path-test`, `device-verify-test`
-- **Runtime Evidence:** macOS `ai-learn-test` went from FAIL to PASS; the Mac now resolves the install path, Linux still the shim
-- **Reopen Conditions:** a runtime resolves in an interactive shell and fails inside a gate
-- **Non-Scope:** repairing mise, or authenticating it against GitHub
-- **Verification:** `bin/toolchain-path-test`
-- **Escalation Conditions:** a runtime cannot be probed without side effects
-
-### TASK-042: One definition of where this machine's runtimes are
-- **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
-- **Risk Level:** R1
-- **Allowed Paths:** `bin/_toolchain-path.sh`, `bin/ai-doctor`, `bin/dev-ready`, `bin/device-verify`, `bin/device-verify-test`, `TASKS.md`
-- **Protected Paths:** None
-- **Canonical Contract Owners:** `runtime.device-verification`
-- **Accepted Invariants:** every owned command resolves node the same way, and a gate is starred only for work it actually skipped
-- **Regression Checks:** `device-verify-test`, `ai-policy-lint`
-- **Runtime Evidence:** macOS starred `dev-ready-test` for a passing case name containing "degraded"; `ai-learn-test` failed on a dangling shim `ai-doctor` could not see past
-- **Reopen Conditions:** a fourth copy of the node-resolution rule appears
-- **Non-Scope:** repairing mise on any device
-- **Verification:** `bin/device-verify` on both devices
-- **Escalation Conditions:** a runtime lives somewhere this file does not know
+- **TASK-047 / REQ-TASK-LEDGER-CONSISTENCY (R1).** TASK-042 and TASK-043 closed by
+  re-executing the checks their contracts name, not by assertion; both had been
+  `BLOCKED` since 2026-09-01 under the rule `3820a1e` relaxed. TASK-045
+  (`REQ-CROSS-DEVICE-VERIFICATION`) and TASK-046 (`REQ-LEDGER-SEMANTICS`) ended PASS
+  in `.delivery/runs/` on 2026-09-01 and had no record here; they are recorded now.
+  `resume-brief`: every live task with recorded evidence ends in PASS.
 
 ## Done
 

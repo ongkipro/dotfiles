@@ -1,10 +1,17 @@
 # Archived task contracts — device verification and resume
 
 Moved out of `TASKS.md` on 2026-09-04 to stay inside the hot-context budget.
-Every contract here has ledger evidence ending in PASS on 2026-09-01. TASK-042
-and TASK-043 are deliberately NOT here: their runs ended `BLOCKED` under the
-rule `3820a1e` later relaxed, and an archived task is retired from `resume-brief`
-— archiving them would hide unfinished evidence instead of closing it (TASK-047).
+Every contract here has ledger evidence ending in PASS.
+
+TASK-042 and TASK-043 arrived last, on 2026-09-04. Their 2026-09-01 runs ended
+`BLOCKED` under the rule `3820a1e` later relaxed — one that refused any run
+containing a FAIL at all — and were never re-closed, so `resume-brief` still
+offered finished work as the two things to resume. TASK-047 closed them the
+`d479ceb` way: a fresh run each, re-executing the checks their contracts name
+(`RUN-20260904T035817Z-40495c25`, `RUN-20260904T035855Z-652b034b`). They were
+held in the live file until then on purpose, because the archive retires a task
+from the brief and archiving them first would have hidden the gap rather than
+closed it.
 
 ### TASK-044: A bound that only bounds where it was written
 - **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
@@ -94,6 +101,34 @@ Completed task contracts through TASK-023 are archived in:
 - **TASK-014 / AUDIT-BOUNDARY-01 — deterministic task change boundaries.** Baseline fingerprints, task-owned path classification, scope expansion evidence, risk escalation, independent review, and DONE denial are executable in `delivery-ledger`; its mutation-backed regression matrix passes locally.
 - **Duplicate task ID correction (2026-08-19).** TASK-017 was issued twice: first for AUDIT-CI-02 on 2026-08-17, then again for REQ-OMP-ROUTING-COLLISION on 2026-08-18. The routing/collision task is now TASK-019, so task IDs here are unique but no longer chronological. Its immutable delivery evidence (`RUN-20260818T084140Z-30974d4a`, `RUN-20260818T085852Z-dc09a68d`) still records `TASK-017`; `.delivery` history is never rewritten to match. Match a run to a task by requirement ID.
 - Prior completed tasks and dated audit closure evidence are retained in `docs/archive/DOTFILES_TASKS_THROUGH_2026-08-17.md`. Archived prose is historical, never current pass evidence.
+
+### TASK-042: One definition of where this machine's runtimes are
+- **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/_toolchain-path.sh`, `bin/ai-doctor`, `bin/dev-ready`, `bin/device-verify`, `bin/device-verify-test`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.device-verification`
+- **Accepted Invariants:** every owned command resolves node the same way, and a gate is starred only for work it actually skipped
+- **Regression Checks:** `device-verify-test`, `ai-policy-lint`
+- **Runtime Evidence:** macOS starred `dev-ready-test` for a passing case name containing "degraded"; `ai-learn-test` failed on a dangling shim `ai-doctor` could not see past
+- **Reopen Conditions:** a fourth copy of the node-resolution rule appears
+- **Non-Scope:** repairing mise on any device
+- **Verification:** `bin/device-verify` on both devices
+- **Escalation Conditions:** a runtime lives somewhere this file does not know
+
+### TASK-043: Probe the runtime the way it is actually used
+- **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/_toolchain-path.sh`, `bin/toolchain-path-test`, `bin/device-verify`, `config/ai/runtime-commands.txt`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `runtime.device-verification`
+- **Accepted Invariants:** a runtime candidate is accepted only if it answers under an isolated HOME, since that is how every test invokes it
+- **Regression Checks:** `toolchain-path-test`, `device-verify-test`
+- **Runtime Evidence:** macOS `ai-learn-test` went from FAIL to PASS; the Mac now resolves the install path, Linux still the shim
+- **Reopen Conditions:** a runtime resolves in an interactive shell and fails inside a gate
+- **Non-Scope:** repairing mise, or authenticating it against GitHub
+- **Verification:** `bin/toolchain-path-test`
+- **Escalation Conditions:** a runtime cannot be probed without side effects
 
 ## Closed on 2026-09-04 while archiving
 
