@@ -127,7 +127,7 @@ directory rather than from documentation:
 
 | Setting | Upstream | Here | Why |
 | --- | --- | --- | --- |
-| `task.isolation.enabled` | `false` | `true` | Subagents genuinely isolated; upstream ships isolation off. Written as `task.isolation.mode: auto` until 2026-09-04. That spelling still works - OMP 18.1.5 accepts it as a legacy alias and normalizes it to `enabled: true` - but it no longer appears in `omp config list`, so the gate pinning it could not see its own setting. Behaviour is unchanged by the rename. Backend choice stays upstream's `isolation.backend: auto`. |
+| `task.isolation.enabled` | `false` | `true` | Subagents genuinely isolated; upstream ships isolation off. OMP 18.1.10 restores this canonical setting; `task.isolation.mode` is ignored. Backend choice stays upstream's `isolation.backend: auto`. |
 | `task.isolation.apply` | `true` | `false` | Results arrive as reviewable patches, not silent merges |
 | `task.enableLsp` | `false` | `true` | Full-stack work turns on types crossing layers |
 | `task.maxConcurrency` | `32` | `4` | Controlled parallelism beats maximum parallelism |

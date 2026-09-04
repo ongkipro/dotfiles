@@ -44,5 +44,22 @@ printf '%s' "$OUT3" | grep -q 'tidak ditemukan' \
   && ok "--self-test names an empty fixture suite instead of reporting health" \
   || bad "--self-test did not report that no tests were found"
 
+# A health report is used by device-verify, so an installed launcher that hangs
+# must degrade to the existing warning within the macOS fallback bound instead
+# of stalling every dependent gate.
+HANG_BIN="$TMP/hang-bin"; mkdir -p "$HANG_BIN"
+HANG_HOME="$TMP/hang-home"; mkdir -p "$HANG_HOME"
+printf '#!/usr/bin/env bash\ntrap "" TERM\nsleep 30\n' > "$HANG_BIN/claude"
+chmod +x "$HANG_BIN/claude"
+started=$(date +%s)
+OUT_HANG="$(env -u TOOLCHAIN_NODE_BIN HOME="$HANG_HOME" PATH="$HANG_BIN:$PATH" DOTFILES_DIR="$ROOT" bash "$CMD" 2>&1)"
+elapsed=$(( $(date +%s) - started ))
+[ "$elapsed" -lt 15 ] && ok "a hanging Claude launcher is bounded" \
+  || bad "a hanging Claude launcher took ${elapsed}s"
+printf '%s' "$OUT_HANG" | grep -q 'launcher ada tetapi native binary gagal' \
+  && ok "a hanging Claude launcher is reported as unhealthy" \
+  || bad "a hanging Claude launcher was not reported"
+
+
 [ "$f" -eq 0 ] && { echo "ai-doctor-test: PASS"; exit 0; }
 echo "ai-doctor-test: $f case(s) failed" >&2; exit 1

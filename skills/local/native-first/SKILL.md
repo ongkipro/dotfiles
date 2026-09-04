@@ -55,7 +55,7 @@ Never claim "it works" without running one of these. Prefer the project's own
 | Node/TS | `tsc --noEmit` → `node --test` |
 | Cloudflare Workers | `wrangler types` → `wrangler dev` (hit the route) → `wrangler deploy --dry-run` |
 | Drizzle | `drizzle-kit generate` (inspect the SQL — never blind-apply) → `drizzle-kit migrate` |
-| Shopify theme | `shopify theme check` → `shopify theme dev` |
+| Shopify theme | project theme-check script → `npx --no-install shopify theme check` → `npx --no-install shopify theme dev` |
 | Docker/Coolify | `docker compose config` → `docker compose build` → healthcheck green |
 
 **Browser-visible change?** Run the dev server and actually look — a green build

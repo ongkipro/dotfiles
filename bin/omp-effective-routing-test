@@ -144,13 +144,11 @@ jq -e '
 # A key this repo sets that is absent from the upstream schema is drift, and OMP will
 # not say so: verified 2026-09-04 that a bogus key resolves with exit 0 and empty
 # stderr. It is drift in two different ways, and the difference is not visible here.
-# `task.isolation.mode: auto` was one: OMP 18.1.5 still honours it as a legacy alias
-# and normalizes it to `task.isolation.enabled: true` (checked - `mode: none` yields
-# `enabled=false`), so behaviour was correct all along, but the name stopped appearing
-# in `omp config list` and the clause above pinned that name, leaving the gate unable
-# to see the setting it was guarding. A genuinely retired key would instead be ignored
-# outright. Both cases want the same answer - move to the canonical name - so flag any
-# leaf missing from the schema and let the reader establish which kind it is.
+# `task.isolation.mode` was one: OMP 18.1.4 exposed it as canonical, while
+# OMP 18.1.10 restored `task.isolation.enabled`. A genuinely retired key
+# would likewise be ignored outright. Both cases want the same answer - move to the
+# canonical name - so flag any leaf missing from the schema and let the reader
+# establish which kind it is.
 if unknown_keys="$(python3 - "$ROOT/config/omp/config.yml" "$fixture/config.json" <<'PYEOF'
 import json, sys
 try:

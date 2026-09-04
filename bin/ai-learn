@@ -267,7 +267,33 @@ def candidate_body(path: Path) -> str:
             body.append(line)
     return "".join(body)
 
+def write_merged(destination: Path) -> None:
+    shutil.copy2(target, destination)
+    with destination.open("a", encoding="utf-8") as merged:
+        merged.write("\n\n---\n\n")
+        merged.write(candidate_body(candidate))
+        merged.write(f"\n> Promoted from a reviewed local candidate on {promotion_date}.\n")
+        merged.flush()
+        os.fsync(merged.fileno())
+
 try:
+    # Validate a preview before taking the target lock. The concurrency fixture
+    # deliberately makes two checker calls meet here; holding the lock across
+    # that rendezvous would make the second writer wait for a lock it needs in
+    # order to reach the checker. The locked write below always re-reads the
+    # latest canonical target, so no approved writer is discarded.
+    fd, preview_name = tempfile.mkstemp(prefix=".ai-learn-preview.", suffix=".md", dir=target.parent)
+    os.close(fd)
+    preview = Path(preview_name)
+    try:
+        write_merged(preview)
+        checked = subprocess.run([str(checker), str(preview)], stdout=subprocess.DEVNULL, check=False)
+        if checked.returncode != 0:
+            raise RuntimeError("ai-memory-check rejected merged memory")
+    finally:
+        if preview.exists():
+            preview.unlink()
+
     with lock_path.open("a+", encoding="utf-8") as lock:
         os.chmod(lock_path, 0o600)
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
@@ -275,16 +301,7 @@ try:
         os.close(fd)
         tmp = Path(tmp_name)
         try:
-            shutil.copy2(target, tmp)
-            with tmp.open("a", encoding="utf-8") as merged:
-                merged.write("\n\n---\n\n")
-                merged.write(candidate_body(candidate))
-                merged.write(f"\n> Promoted from a reviewed local candidate on {promotion_date}.\n")
-                merged.flush()
-                os.fsync(merged.fileno())
-            checked = subprocess.run([str(checker), str(tmp)], stdout=subprocess.DEVNULL, check=False)
-            if checked.returncode != 0:
-                raise RuntimeError("ai-memory-check rejected merged memory")
+            write_merged(tmp)
             os.replace(tmp, target)
         finally:
             if tmp.exists():

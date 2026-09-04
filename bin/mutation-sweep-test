@@ -111,13 +111,17 @@ DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=30 "$SWEEP" >/dev/null 2>&1
 
 # A timeout is reported as ERROR, never as a pass.
 printf '#!/usr/bin/env bash\nexit 0\n' > "$FIX/bin/slow"
-printf '#!/usr/bin/env bash\nsleep 30\n' > "$FIX/bin/slow-test"
+printf '#!/usr/bin/env bash\ntrap "" TERM\nsleep 30\n' > "$FIX/bin/slow-test"
 chmod +x "$FIX/bin/slow" "$FIX/bin/slow-test"
 git -C "$FIX" add -A >/dev/null
 git -C "$FIX" -c user.email=t@t -c user.name=t commit -qm slow >/dev/null
+started=$(date +%s)
 OUT4="$(DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=2 "$SWEEP" --json slow 2>/dev/null)"
+elapsed=$(( $(date +%s) - started ))
 [ "$(verdict "$OUT4" slow)" = ERROR ] && ok "a hanging test is an ERROR, not a pass" \
   || fail "a hanging test was not reported as ERROR, got $(verdict "$OUT4" slow)"
+[ "$elapsed" -lt 15 ] && ok "a hanging test is bounded" \
+  || fail "a hanging test took ${elapsed}s"
 
 echo
 [ "$fails" -eq 0 ] && { echo "mutation-sweep-test: PASS"; exit 0; }

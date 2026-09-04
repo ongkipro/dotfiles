@@ -22,7 +22,7 @@
 | CPU | Apple M1 (8 thread) |
 | RAM | 8.0 GB |
 | GPU | Apple M1 |
-| Disk (/) | 228Gi total, 108Gi free (13% used) |
+| Disk (/) | 228Gi total, 106Gi free (14% used) |
 
 ## AI CLI
 
