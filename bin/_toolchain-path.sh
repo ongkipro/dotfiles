@@ -18,8 +18,9 @@ toolchain_pick_node() {
     printf '%s\n' "$TOOLCHAIN_NODE_BIN"
     return 0
   fi
-  local c t=""
-  command -v timeout >/dev/null 2>&1 && t="timeout 10"
+  local c timeout_bin="" perl_bin=""
+  timeout_bin="$(command -v timeout 2>/dev/null || command -v gtimeout 2>/dev/null || true)"
+  [ -n "$timeout_bin" ] || perl_bin="$(command -v perl 2>/dev/null || true)"
   local -a cands=("$HOME/.local/share/mise/shims/node")
   while IFS= read -r c; do [ -n "$c" ] && cands+=("$c"); done < <(
     find "$HOME/.local/share/mise/installs/node" -mindepth 3 -maxdepth 3 \
@@ -34,7 +35,27 @@ toolchain_pick_node() {
   mkdir -p "$probe_home" 2>/dev/null
   for c in "${cands[@]}"; do
     [ -x "$c" ] || continue
-    if HOME="$probe_home" $t "$c" --version >/dev/null 2>&1; then
+    # `alarm; exec` is not a macOS timeout: exec replaces Perl and drops the
+    # alarm. Keep Perl as the parent so it can terminate and reap a wedged mise
+    # shim, then fall through to an installed Node binary.
+    if {
+      if [ -n "$timeout_bin" ]; then
+        HOME="$probe_home" "$timeout_bin" 10 "$c" --version
+      elif [ -n "$perl_bin" ]; then
+        HOME="$probe_home" "$perl_bin" -e '
+          my $seconds = shift;
+          my $pid = fork;
+          exit 127 unless defined $pid;
+          if ($pid == 0) { exec @ARGV; exit 127 }
+          local $SIG{ALRM} = sub { kill "TERM", $pid; waitpid $pid, 0; exit 124 };
+          alarm $seconds;
+          waitpid $pid, 0;
+          exit($? >> 8);
+        ' 10 "$c" --version
+      else
+        HOME="$probe_home" "$c" --version
+      fi
+    } >/dev/null 2>&1; then
       rmdir "$probe_home" 2>/dev/null
       dirname "$c"; return 0
     fi

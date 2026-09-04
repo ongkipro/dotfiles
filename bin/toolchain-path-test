@@ -38,6 +38,21 @@ picked="$(HOME="$H" toolchain_pick_node)"
 check "a HOME-dependent shim is rejected" "$picked" \
   "$H/.local/share/mise/installs/node/24.0.0/bin"
 
+# Stock macOS has no GNU timeout. Its Perl fallback must retain a parent process
+# while the candidate runs: `alarm; exec` silently loses the alarm and lets a
+# stranded mise shim block every runtime command for its full delay.
+if ! command -v timeout >/dev/null 2>&1 && ! command -v gtimeout >/dev/null 2>&1 \
+  && command -v perl >/dev/null 2>&1; then
+  printf '#!/usr/bin/env bash\nexec perl -e "sleep 30"\n' > "$H/.local/share/mise/shims/node"
+  chmod +x "$H/.local/share/mise/shims/node"
+  start=$(date +%s)
+  picked="$(HOME="$H" toolchain_pick_node)"
+  elapsed=$(( $(date +%s) - start ))
+  check "a wedged shim falls through on macOS" "$picked" \
+    "$H/.local/share/mise/installs/node/24.0.0/bin"
+  [ "$elapsed" -lt 15 ] || { say FAIL "a wedged shim is bounded on macOS"; fails=$((fails + 1)); }
+fi
+
 # When the shim survives the probe it wins, because it resolves the configured
 # version rather than whatever sorts highest.
 printf '#!/usr/bin/env bash\necho v24.0.0\n' > "$H/.local/share/mise/shims/node"

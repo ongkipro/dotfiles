@@ -12,8 +12,8 @@ fi
 
 TEMPLATES="$DOT/config/templates"
 PROJECTS_DIR="${PROJECTS_DIR:-$HOME/Projects}"
-LEGACY_PROJECTS_DIR="$HOME/projects"
-LEGACY_DOCS_DIR="$HOME/Documents/projects"
+LEGACY_PROJECTS_DIR="${LEGACY_PROJECTS_DIR:-$HOME/projects}"
+LEGACY_DOCS_DIR="${LEGACY_DOCS_DIR:-$HOME/Documents/projects}"
 GITHUB_USER="${GITHUB_USER:-ongkipro}"
 
 PROMOTION_SOURCES=()

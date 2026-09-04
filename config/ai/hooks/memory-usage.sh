@@ -42,7 +42,18 @@ bounded() {
   if [ -n "$TIMEOUT_BIN" ]; then
     "$TIMEOUT_BIN" "$TIMEOUT_SECONDS" "$@"
   elif [ -n "$PERL_BIN" ]; then
-    "$PERL_BIN" -e 'alarm shift; exec @ARGV or exit 127' "$TIMEOUT_SECONDS" "$@"
+    # `alarm; exec` looks tempting, but exec replaces Perl and drops the alarm
+    # on macOS. Keep Perl as the parent so it can terminate and reap the child.
+    "$PERL_BIN" -e '
+      my $seconds = shift;
+      my $pid = fork;
+      exit 127 unless defined $pid;
+      if ($pid == 0) { exec @ARGV; exit 127 }
+      local $SIG{ALRM} = sub { kill "TERM", $pid; waitpid $pid, 0; exit 124 };
+      alarm $seconds;
+      waitpid $pid, 0;
+      exit($? >> 8);
+    ' "$TIMEOUT_SECONDS" "$@"
   else
     echo "memory-usage hook: no timeout available; running unbounded" >&2
     "$@"

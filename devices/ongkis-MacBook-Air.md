@@ -1,7 +1,7 @@
 # Device: `ongkis-MacBook-Air`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-08-26**
+> Terakhir diperbarui: **2026-09-04**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -22,7 +22,7 @@
 | CPU | Apple M1 (8 thread) |
 | RAM | 8.0 GB |
 | GPU | Apple M1 |
-| Disk (/) | 228Gi total, 130Gi free (9% used) |
+| Disk (/) | 228Gi total, 108Gi free (13% used) |
 
 ## AI CLI
 
@@ -32,7 +32,7 @@
 | `codex` | terpasang | ~/.local/share/mise/installs/node/24.18.0/bin/codex |
 | `pi` | terpasang | ~/.nvm/versions/node/v24.18.0/bin/pi |
 | `agy` | terpasang | ~/.local/bin/agy |
-| `omp` | terpasang | ~/.bun/bin/omp |
+| `omp` | terpasang | /opt/homebrew/bin/omp |
 
 ## Toolchain
 
@@ -44,6 +44,15 @@
 | python3 | Python 3.9.6 |
 | mise | 2026.6.14 macos-arm64 (2026-06-25) |
 | git | git version 2.55.0 |
+
+## Profil Claude Code
+
+| Apa | Status |
+|---|---|
+| Profil aktif | `~/.claude` |
+| deny baca `.env` | ✅ ada |
+| hook canonical (git-guard, memory-usage) | ✅ terpasang |
+| residu switcher multi-akun | ✅ bersih |
 
 ## Symlink dotfiles
 
