@@ -47,6 +47,8 @@ inspect-project
 installer-link-test
 memory-usage-hook-test
 migration-risk
+mutation-sweep
+mutation-sweep-test
 omp-effective-routing-test
 omp-routing-test
 omp-runtime-report

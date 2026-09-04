@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# Regression test for bin/mutation-sweep.
+#
+# The sweep's whole value is its three-way answer, so each verdict gets a
+# fixture built to earn exactly that verdict. A sweep that called everything
+# BITES would look healthy and mean nothing, which is the failure it exists to
+# find in other tests.
+set -uo pipefail
+
+ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+SWEEP="$ROOT/bin/mutation-sweep"
+[ -x "$SWEEP" ] || { echo "mutation-sweep-test: $SWEEP not executable" >&2; exit 2; }
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/mutation-sweep-test.XXXXXX")"
+trap 'rm -rf "$TMP"' EXIT
+fails=0
+fail(){ echo "  FAIL $*" >&2; fails=$((fails+1)); }
+ok(){ printf '  ✓ %s\n' "$1"; }
+
+FIX="$TMP/fixture"; mkdir -p "$FIX/bin"
+
+# 1. A subject with real behaviour and a test that checks it: BITES.
+printf '#!/usr/bin/env bash\necho seventeen\n' > "$FIX/bin/biter"
+cat > "$FIX/bin/biter-test" <<'EOF'
+#!/usr/bin/env bash
+R="${1:?}"
+[ "$("$R/bin/biter")" = "seventeen" ] || exit 1
+EOF
+
+# 2. A test that runs its subject and asserts nothing about the result. This is
+#    the shape the sweep exists to name: green, and empty.
+printf '#!/usr/bin/env bash\necho anything\n' > "$FIX/bin/sleeper"
+cat > "$FIX/bin/sleeper-test" <<'EOF'
+#!/usr/bin/env bash
+R="${1:?}"
+"$R/bin/sleeper" >/dev/null 2>&1
+exit 0
+EOF
+
+# 3. A test that resolves its subject from its own location, so the root it is
+#    handed is decoration. Not healthy, not broken — unmeasured, and said so.
+printf '#!/usr/bin/env bash\necho fixed\n' > "$FIX/bin/hardcoded"
+cat > "$FIX/bin/hardcoded-test" <<'EOF'
+#!/usr/bin/env bash
+SELF="$(cd "$(dirname "$0")" && pwd)"
+[ "$("$SELF/hardcoded")" = "fixed" ] || exit 1
+EOF
+
+chmod +x "$FIX"/bin/*
+git -C "$FIX" init -q
+git -C "$FIX" add -A >/dev/null
+git -C "$FIX" -c user.email=t@t -c user.name=t commit -qm fixture >/dev/null
+
+verdict() { printf '%s' "$1" | python3 -c '
+import json,sys
+d=json.load(sys.stdin)
+print(next((r["verdict"] for r in d["results"] if r["name"]==sys.argv[1]), "ABSENT"))' "$2"; }
+
+OUT="$(DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=30 "$SWEEP" --json 2>/dev/null)"
+rc_all=$?
+
+[ "$(verdict "$OUT" biter)" = BITES ] && ok "a test that checks behaviour bites" \
+  || fail "biter should BITE, got $(verdict "$OUT" biter)"
+[ "$(verdict "$OUT" sleeper)" = SURVIVED ] && ok "a test that asserts nothing survives" \
+  || fail "sleeper should SURVIVE, got $(verdict "$OUT" sleeper)"
+[ "$(verdict "$OUT" hardcoded)" = UNSWEEPABLE ] && ok "a test that ignores its root is unsweepable" \
+  || fail "hardcoded should be UNSWEEPABLE, got $(verdict "$OUT" hardcoded)"
+
+# A survivor must fail the command, or the sweep is a report nobody has to act on.
+[ "$rc_all" -ne 0 ] && ok "a survivor exits non-zero" || fail "a survivor did not fail the run"
+
+# UNSWEEPABLE alone must NOT fail: it is a gap to record, not a defect to block on.
+OUT2="$(DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=30 "$SWEEP" --json hardcoded 2>/dev/null)"; rc2=$?
+[ "$rc2" -eq 0 ] && ok "unsweepable alone does not fail the run" \
+  || fail "unsweepable alone failed the run (exit $rc2)"
+
+# A test whose subject is not bin/<name> is named, not silently omitted.
+cat > "$FIX/bin/orphan-test" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+chmod +x "$FIX/bin/orphan-test"
+git -C "$FIX" add -A >/dev/null
+git -C "$FIX" -c user.email=t@t -c user.name=t commit -qm orphan >/dev/null
+OUT3="$(DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=30 "$SWEEP" --json 2>/dev/null)"
+printf '%s' "$OUT3" | grep -q '"orphan-test"' && ok "an unpaired test is named" \
+  || fail "an unpaired test was omitted from the report"
+
+# The sweep must not disturb the repository it measures.
+BEFORE="$(git -C "$ROOT" status --porcelain | sort)"
+DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=30 "$SWEEP" >/dev/null 2>&1
+[ "$(git -C "$ROOT" status --porcelain | sort)" = "$BEFORE" ] \
+  && ok "the working tree is untouched" || fail "the sweep changed the working tree"
+
+# A timeout is reported as ERROR, never as a pass.
+printf '#!/usr/bin/env bash\nexit 0\n' > "$FIX/bin/slow"
+printf '#!/usr/bin/env bash\nsleep 30\n' > "$FIX/bin/slow-test"
+chmod +x "$FIX/bin/slow" "$FIX/bin/slow-test"
+git -C "$FIX" add -A >/dev/null
+git -C "$FIX" -c user.email=t@t -c user.name=t commit -qm slow >/dev/null
+OUT4="$(DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=2 "$SWEEP" --json slow 2>/dev/null)"
+[ "$(verdict "$OUT4" slow)" = ERROR ] && ok "a hanging test is an ERROR, not a pass" \
+  || fail "a hanging test was not reported as ERROR, got $(verdict "$OUT4" slow)"
+
+echo
+[ "$fails" -eq 0 ] && { echo "mutation-sweep-test: PASS"; exit 0; }
+echo "mutation-sweep-test: $fails case(s) failed" >&2; exit 1

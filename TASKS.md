@@ -17,6 +17,17 @@ _None._
 
 ## Recently completed
 
+- **TASK-057 / REQ-TEST-EFFICACY (R1).** `mutation-sweep` stubs `bin/<name>` to exit 0 and
+  runs `bin/<name>-test` against a scratch copy, honouring both root conventions (first
+  argument and `DOTFILES_DIR`). The stub records its own invocation, so a test that passes
+  without ever running it is UNSWEEPABLE by name rather than counted healthy. Against the
+  real repository: 30 pairs, **28 BITES, 0 SURVIVED**, 2 UNSWEEPABLE (`ai-hooks-install`,
+  `secrets-env`), 15 tests unpaired by name and listed. **The honest limit, recorded rather
+  than buried under the 28:** this operator would not have caught the defect that motivated
+  it. TASK-054 fixed four cases in `resume-brief-test` keyed on a heading string no longer
+  emitted — vacuous cases inside a test that still exercises its subject and still bites.
+  Wholly empty tests: none exist. Partially vacuous cases need a finer operator.
+
 - **TASK-056 / REQ-GATE-INSTRUMENTS (R1).** `ai-memory-hygiene`'s size check returned at
   the advisory limit (`projectMaxBytes` 20,000) before reaching the router comparison
   (`routerMaxBytes` 12,000), so its "can NEVER be selected" branch could not execute for
@@ -112,21 +123,6 @@ Archived under `docs/archive/`, newest `DOTFILES_TASKS_2026-09-01_DEVICE_VERIFIC
 ## Pending
 
 The 2026-09-04 queue (TASK-047..056) is complete; see Recently completed.
-
-### TASK-057: A sweep that asks every test whether it would notice
-- **Requirement:** REQ-TEST-EFFICACY
-- **Risk Level:** R1
-- **Allowed Paths:** `bin/mutation-sweep`, `bin/mutation-sweep-test`, `config/ai/runtime-commands.txt`, `TASKS.md`
-- **Protected Paths:** `bin/*-test`, `bin/ai-doctor`, `bin/delivery-ledger`
-- **Canonical Contract Owners:** `runtime.readiness`
-- **Accepted Invariants:** for every `bin/<name>` with a `bin/<name>-test`, the sweep copies tracked files to a scratch root, replaces the subject with a stub that exits 0 (`exit 0` / `sys.exit(0)` after the shebang), runs `<name>-test <scratch-root>`, and reports one line per test: `BITES` (the test failed), `SURVIVED` (it passed — it asserts nothing about behaviour), or `UNSWEEPABLE` (the test resolves its subject from `$HOME/dotfiles` or its own path, so the stub was never exercised — 12 such tests on 2026-09-04, `skill-check-test`, `secrets-env-test`, `vendored-refresh-test` among them); exit 1 if any test SURVIVED; never writes outside the scratch root; never touches `~/dotfiles` or the working tree; the operator list is one explicit table in the script, and a second operator is added only with a case showing what the first one missed
-- **Depends On:** TASK-056
-- **Regression Checks:** `mutation-sweep-test`, `ai-policy-lint`, `installer-link-test`
-- **Runtime Evidence:** the sweep's own fixture holds one test that bites, one that survives a stub, and one that hardcodes its subject path, and classifies each correctly; run against the real repository once and the table committed in the run's verification detail — this is the ranking the next queue is built from, so it is evidence, not a claim
-- **Reopen Conditions:** a test classified BITES passes against a stubbed subject; a test the sweep calls UNSWEEPABLE actually reads `ROOT/bin`
-- **Non-Scope:** fixing any surviving test; making an unsweepable test sweepable; per-guard mutations, which stay the in-test idiom (`make_mutant`); running under CI
-- **Verification:** `bin/mutation-sweep-test`
-- **Escalation Conditions:** a subject cannot be stubbed without also stubbing a helper the test needs
 
 ### TASK-058: Fourteen commands nothing tests
 - **Requirement:** REQ-TEST-EFFICACY

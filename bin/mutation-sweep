@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+# mutation-sweep — ask every test whether it would notice its subject being gone.
+#
+# Six independent reviews on 2026-09-04 found five real defects and not one came
+# from reading: a hygiene branch that could not execute, a gate measuring with a
+# different ruler than it validated with, four silent-green paths, and four test
+# cases keyed on a heading string that no longer appeared — passing while
+# asserting nothing. Reading is the wrong instrument for that defect class.
+#
+# One operator, deliberately: replace bin/<name> with a stub that exits 0 and
+# run bin/<name>-test against a scratch copy. A test that still passes is not
+# testing behaviour. This is coarse — it cannot see a test that checks half of
+# what it should — and that is the point of starting here. A second operator
+# earns its place only with a case showing what this one missed.
+#
+# The stub records its own invocation. A test that passes WITHOUT the stub ever
+# running never looked at the root it was handed, so it is reported UNSWEEPABLE
+# by name rather than counted as healthy: not knowing is a third answer, not a
+# rounding of the other two.
+#
+#   mutation-sweep              sweep every bin/<name> that has a bin/<name>-test
+#   mutation-sweep <name>...    sweep only these
+#   mutation-sweep --json       machine-readable
+#
+# Exit 1 if any test SURVIVED. Read-only with respect to this repository: the
+# working tree is fingerprinted before and after and a change aborts the run.
+set -uo pipefail
+
+ROOT="${DOTFILES_DIR:-$(cd "$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")")/.." && pwd)}"
+JSON=0
+REQUESTED=()
+TIMEOUT_S="${MUTATION_SWEEP_TIMEOUT:-120}"
+for a in "$@"; do
+  case "$a" in
+    --json) JSON=1 ;;
+    -h|--help) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -*) echo "mutation-sweep: unknown option $a" >&2; exit 2 ;;
+    *) REQUESTED+=("$a") ;;
+  esac
+done
+
+[ -d "$ROOT/bin" ] || { echo "mutation-sweep: no bin/ under $ROOT" >&2; exit 2; }
+command -v git >/dev/null || { echo "mutation-sweep: git is required" >&2; exit 2; }
+
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/mutation-sweep.XXXXXX")"
+trap 'chmod -R u+w "$WORK" 2>/dev/null; rm -rf "$WORK"' EXIT
+
+# A sweep that corrupted the repository it measures would be the exact failure
+# this command exists to catch, so the tree is pinned before anything runs.
+fingerprint() { git -C "$ROOT" status --porcelain 2>/dev/null | sort; }
+BEFORE="$(fingerprint)"
+
+bites=0; survived=0; unsweepable=0; errored=0
+rows=()
+
+sweep_one() {
+  local name="$1"
+  local subject="$ROOT/bin/$name"
+  local test="$ROOT/bin/$name-test"
+  local scratch="$WORK/$name"
+  local marker="$WORK/$name.marker"
+  rm -rf "$scratch"; mkdir -p "$scratch"
+  # Tracked files only: an untracked artefact from another run must not decide
+  # whether a test passes.
+  git -C "$ROOT" archive HEAD | tar -x -C "$scratch" 2>/dev/null || return 3
+  # Several tests expect a repository; give them one that is not this one.
+  git -C "$scratch" init -q 2>/dev/null
+  git -C "$scratch" add -A >/dev/null 2>&1
+  git -C "$scratch" -c user.email=sweep@local -c user.name=sweep \
+      commit -qm "mutation-sweep baseline" >/dev/null 2>&1
+
+  : > "$marker"
+  local shebang; shebang="$(head -1 "$subject")"
+  case "$shebang" in
+    *python*) printf '%s\n' "$shebang" \
+        "import sys; open(r'$marker','a').write('x'); sys.exit(0)" > "$scratch/bin/$name" ;;
+    *) printf '%s\n' "$shebang" "printf 'x' >> '$marker'" "exit 0" > "$scratch/bin/$name" ;;
+  esac
+  chmod +x "$scratch/bin/$name"
+
+  local out rc
+  # Both conventions this repository actually uses: the first argument, and
+  # DOTFILES_DIR. resume-brief-test and dotsync-test read only the latter, so
+  # passing the argument alone would have called them unsweepable when they are
+  # simply pointed a different way.
+  out="$(cd "$scratch" && DOTFILES_DIR="$scratch" timeout "$TIMEOUT_S" bash "$test" "$scratch" 2>&1)"; rc=$?
+  local touched=0; [ -s "$marker" ] && touched=1
+
+  if [ "$rc" -eq 124 ]; then
+    rows+=("ERROR|$name|test timed out after ${TIMEOUT_S}s"); errored=$((errored+1)); return
+  fi
+  if [ "$touched" -eq 0 ]; then
+    rows+=("UNSWEEPABLE|$name|the stub was never run; the test does not use the root it is given")
+    unsweepable=$((unsweepable+1)); return
+  fi
+  if [ "$rc" -ne 0 ]; then
+    rows+=("BITES|$name|failed with the subject stubbed"); bites=$((bites+1))
+  else
+    rows+=("SURVIVED|$name|passed with the subject stubbed — it asserts nothing about behaviour")
+    survived=$((survived+1))
+  fi
+}
+
+names=()
+if [ "${#REQUESTED[@]}" -gt 0 ]; then
+  names=("${REQUESTED[@]}")
+else
+  for t in "$ROOT"/bin/*-test; do
+    [ -e "$t" ] || continue
+    s="${t%-test}"
+    [ -f "$s" ] && names+=("$(basename "$s")")
+  done
+fi
+
+for n in "${names[@]}"; do
+  if [ ! -f "$ROOT/bin/$n" ] || [ ! -f "$ROOT/bin/$n-test" ]; then
+    rows+=("ERROR|$n|no bin/$n and bin/$n-test pair"); errored=$((errored+1)); continue
+  fi
+  sweep_one "$n"
+done
+
+# Tests whose subject is not bin/<name> — skills/agents-bin, the hooks, the
+# installers — are outside this sweep's naming convention. Naming them is the
+# honest form of "not covered"; silence would read as covered.
+unpaired=()
+if [ "${#REQUESTED[@]}" -eq 0 ]; then
+  for t in "$ROOT"/bin/*-test; do
+    [ -e "$t" ] || continue
+    [ -f "${t%-test}" ] || unpaired+=("$(basename "$t")")
+  done
+fi
+
+AFTER="$(fingerprint)"
+if [ "$BEFORE" != "$AFTER" ]; then
+  echo "mutation-sweep: ABORT — the working tree changed during the sweep" >&2
+  diff <(printf '%s\n' "$BEFORE") <(printf '%s\n' "$AFTER") >&2
+  exit 2
+fi
+
+if [ "$JSON" -eq 1 ]; then
+  printf '{"bites":%d,"survived":%d,"unsweepable":%d,"errored":%d,"results":[' \
+    "$bites" "$survived" "$unsweepable" "$errored"
+  sep=""
+  for r in "${rows[@]}"; do
+    IFS='|' read -r verdict name detail <<< "$r"
+    printf '%s{"verdict":"%s","name":"%s","detail":"%s"}' "$sep" "$verdict" "$name" "$detail"
+    sep=","
+  done
+  printf '],"unpaired":['
+  sep=""
+  for u in "${unpaired[@]:-}"; do [ -n "$u" ] && { printf '%s"%s"' "$sep" "$u"; sep=","; }; done
+  printf ']}\n'
+else
+  for r in "${rows[@]}"; do
+    IFS='|' read -r verdict name detail <<< "$r"
+    printf '  %-12s %-26s %s\n' "$verdict" "$name" "$detail"
+  done
+  if [ "${#unpaired[@]}" -gt 0 ]; then
+    printf '\nNot swept — no bin/<name> subject to stub (%d):\n  %s\n' \
+      "${#unpaired[@]}" "$(printf '%s ' "${unpaired[@]}")"
+  fi
+  printf '\nmutation-sweep: %d bite, %d survived, %d unsweepable, %d errored\n' \
+    "$bites" "$survived" "$unsweepable" "$errored"
+fi
+
+[ "$survived" -eq 0 ]
