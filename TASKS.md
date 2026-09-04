@@ -1,43 +1,21 @@
 # Tasks — dotfiles
 
-Updated: 2026-08-28
+Updated: 2026-09-04
 
-This is the sole executable queue. Historical detail through TASK-016 is
-archived in `docs/archive/DOTFILES_TASKS_THROUGH_2026-08-17.md`. Repository
-tests and runtime evidence outrank prose.
+The sole executable queue. Completed contracts live under `docs/archive/`;
+repository tests and runtime evidence outrank prose.
 
 ## Task contract
 
-Every implementation task records: Requirement, Risk Level, Job, Capability,
-Execution Class, resolved Model/Provider/Reasoning, Change Surface, Protected
-Surface, Accepted Invariants, Shared Owner, Regression Checks, Reopen
-Conditions, Non-Scope, Verification, and Escalation Condition.
-
-R0 may infer one obvious documentation path. R1 must remain bounded. R2 needs
-an explicit affected surface. R3/R4 need explicit protected surfaces and
-independent review evidence. Parallel children with a shared semantic owner do
-not run concurrently even when their file globs are disjoint.
+Fields and risk rules: `config/templates/TASKS.md`. R0 may infer one obvious file;
+R1 stays bounded; R2 names its surface; R3/R4 add protected surfaces and review.
+Only the dependency edge is human-authored; state is derived.
 
 ## In progress
 
 _None._
 
 ## Recently completed
-
-### TASK-044: A bound that only bounds where it was written
-- **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
-- **Risk Level:** R1
-- **Depends On:** TASK-043
-- **Allowed Paths:** `config/ai/hooks/memory-usage.sh`, `bin/memory-usage-hook-test`, `bin/_toolchain-path.sh`, `bin/toolchain-path-test`, `TASKS.md`
-- **Protected Paths:** None
-- **Canonical Contract Owners:** `runtime.device-verification`
-- **Accepted Invariants:** a function named `bounded` is bounded on every device, or it says out loud that it is not
-- **Regression Checks:** `memory-usage-hook-test`, `toolchain-path-test`
-- **Runtime Evidence:** the hook ran a 30s child to completion without GNU timeout; it now stops at 5s, proven with the fallback disabled
-- **Reopen Conditions:** a guard depends on a GNU-only tool without a fallback
-- **Non-Scope:** installing coreutils on any device
-- **Verification:** `bin/memory-usage-hook-test`
-- **Escalation Conditions:** a bound cannot be expressed without a new dependency
 
 ### TASK-043: Probe the runtime the way it is actually used
 - **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
@@ -67,85 +45,129 @@ _None._
 - **Verification:** `bin/device-verify` on both devices
 - **Escalation Conditions:** a runtime lives somewhere this file does not know
 
-### TASK-041: Pin what the sync tool promises
-- **Requirement:** REQ-SYNC-SAFETY
-- **Risk Level:** R1
-- **Allowed Paths:** `bin/dotsync-test`, `config/ai/runtime-commands.txt`, `TASKS.md`
-- **Protected Paths:** `bin/dotsync`
-- **Canonical Contract Owners:** `runtime.sync`
-- **Accepted Invariants:** dotsync acts on the repository its script lives in, refuses to mutate without a TTY or `--yes`, and will not commit without a passing security scan
-- **Regression Checks:** `dotsync-test`, `ai-policy-lint`
-- **Runtime Evidence:** four mutations — auto-consent, skipped scan, no `cd`, no empty-commit guard — each fail named cases
-- **Reopen Conditions:** `dotsync` gains a mutating path with no case covering it
-- **Non-Scope:** changing `git add -A` behaviour; the sweep is pinned, not redesigned
-- **Verification:** `bin/dotsync-test`
-- **Escalation Conditions:** the sweep must become selective
-
-### TASK-040: A task lifecycle that cannot go stale
-- **Requirement:** REQ-TASK-GRAPH
-- **Depends On:** TASK-037
-- **Risk Level:** R1
-- **Allowed Paths:** `bin/resume-brief`, `bin/resume-brief-test`, `bin/ai-policy-lint`, `TASKS.md`
-- **Protected Paths:** None
-- **Canonical Contract Owners:** `runtime.resume`
-- **Accepted Invariants:** only the dependency edge is human-authored; every other lifecycle fact is derived from ledger evidence and cannot contradict it
-- **Regression Checks:** `resume-brief-test`, `ai-policy-lint`
-- **Runtime Evidence:** an unmet dependency marks a task waiting and names the blocker; a dangling edge fails the lint
-- **Reopen Conditions:** a written-down status field appears in a task contract
-- **Non-Scope:** deciding which ready task to take
-- **Verification:** `bin/resume-brief-test`
-- **Escalation Conditions:** a dependency cycle needs expressing
-
-### TASK-039: What five rounds of independent review found
-- **Requirement:** REQ-REVIEW-REMEDIATION
-- **Risk Level:** R2
-- **Allowed Paths:** `bin/**`, `TASKS.md`, `docs/**`, `config/ai/runtime-commands.txt`
-- **Protected Paths:** None
-- **Canonical Contract Owners:** `runtime.readiness`, `runtime.resume`, `runtime.device-verification`, `runtime.memory-bootstrap`
-- **Accepted Invariants:** every guard has a mutation that fails a named case; a test cannot damage the repository it tests; a refusal never damages what it refuses to touch
-- **Regression Checks:** `ai-memory-link-test`, `dev-ready-test`, `resume-brief-test`, `device-verify-test`, `ai-policy-lint`
-- **Runtime Evidence:** five review passes; every surviving finding closed with a mutation that bites
-- **Reopen Conditions:** a guard is added without a mutation proving its case fails
-- **Non-Scope:** rewriting the pushed commits whose messages the review corrected
-- **Verification:** `bin/ai-doctor --self-test`
-- **Escalation Conditions:** a defect class recurs after being fixed twice
-
-### TASK-038: Guard the gate that judges every device
-- **Requirement:** REQ-CROSS-DEVICE-VERIFICATION
-- **Risk Level:** R1
-- **Allowed Paths:** `bin/device-verify-test`, `config/ai/runtime-commands.txt`, `TASKS.md`
-- **Protected Paths:** None
-- **Canonical Contract Owners:** `runtime.device-verification`
-- **Accepted Invariants:** a failing gate is named by its own failing line, and a gate that judged nothing is never reported as a plain PASS
-- **Regression Checks:** `device-verify-test`, `ai-policy-lint`
-- **Runtime Evidence:** two mutations — removing `PASS*` and removing the failing-line extraction — each fail the suite
-- **Reopen Conditions:** device-verify changes without a case covering the change
-- **Non-Scope:** running device-verify-test from inside device-verify; `ai-doctor --self-test` discovers it and CI runs that
-- **Verification:** `bin/device-verify-test`
-- **Escalation Conditions:** a gate's behaviour cannot be reproduced with a stub root
-
 ## Done
 
-Completed task contracts through TASK-023 are archived in:
-
-- `docs/archive/DOTFILES_TASKS_THROUGH_2026-08-17.md`
-- `docs/archive/DOTFILES_TASKS_2026-08-18_THROUGH_2026-08-23.md`
-
-- **TASK-028 / REQ-OMP-MAC-PORTABLE-VALIDATION — completed 2026-08-31 (R1).** Portable OMP reference validation is provider-aware: invalid selectors, thinking levels, and visual fallbacks still fail under an authenticated provider; other reference providers are explicitly `unjudged`. Native runtime validation remains strict.
-
-- **TASK-013 / AUDIT-CI-01 — hosted GitHub Actions execution, resolved 2026-09-01 (R2).** Not a billing problem any more: the repository is public, where Actions minutes are free, and the Ubuntu/macOS matrix has been starting and concluding normally all along. Runs `33425819903` and `33426199372` concluded `failure` on real defects and later runs concluded `success` — execution was never blocked, the claim here was simply stale. Nothing was changed to achieve this and CI was not weakened.
-
-- **TASK-027 / REQ-CROSS-DEVICE-VERIFICATION — completed 2026-09-01 (R1).** `ongkis-MacBook-Air` runs 8/8 after four rounds of findings; reports committed under `docs/device-reports/`. Two of the four original failures were the gate misreading a healthy machine, and one was a bug in `dev-ready` itself. Evidence: `device-verify-linux` executed, macOS recorded as asserted with its committed report.
+Archived under `docs/archive/`, newest `DOTFILES_TASKS_2026-09-01_DEVICE_VERIFICATION.md`
+(TASK-038–041, 044; prose closures for TASK-013/022/027/028).
 
 ## Pending
 
+Seeded by `docs/DOTFILES_REVIEW_2026-09-04.md`; run in order.
 
-- **TASK-012 / AUDIT-MON-01 — measure real skill effectiveness (R0).** Dormant until at least five immutable real delivery records exist for one skill. Then run `ai-skill-evolution --repo <repo> --dotfiles ~/dotfiles --json`; never fabricate or promote synthetic attribution.
+### TASK-047: Record what the ledger already knows
+- **Requirement:** REQ-TASK-LEDGER-CONSISTENCY
+- **Risk Level:** R1
+- **Allowed Paths:** `TASKS.md`, `.delivery/**`
+- **Protected Paths:** `bin/delivery-ledger`
+- **Canonical Contract Owners:** `runtime.ledger`
+- **Accepted Invariants:** every completed task here ends in PASS and every PASS run has a record here; closure runs re-execute checks
+- **Regression Checks:** `resume-brief-test`, `ai-policy-lint`
+- **Runtime Evidence:** TASK-042/043 closed the `d479ceb` way — a new run each re-running `toolchain-path-test` and `device-verify-test`; TASK-045/046 recorded
+- **Reopen Conditions:** a completed task's latest run is not PASS
+- **Non-Scope:** rewriting `.delivery/runs/*`; PASS semantics
+- **Verification:** `bin/resume-brief` shows no live task whose evidence is not PASS
+- **Escalation Conditions:** a re-executed check fails
 
-- **TASK-022 / REQ-DELIVERY-CONTRACT-GAPS — wire `project-check-test` into `config/ai/runtime-commands.txt` (R1).** Same deferral reason as TASK-021, same file class. Cosmetic only: `ai-doctor --self-test` already discovers the test via its `bin/*-test` glob.
+### TASK-048: A map of the skill set that cannot drift
+- **Requirement:** REQ-SKILL-DISCOVERY
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/skill-map`, `bin/skill-map-test`, `skills/local/README.md`, `config/ai/runtime-commands.txt`, `bin/ai-policy-lint`, `config/ai/memory/skills.md`, `TASKS.md`
+- **Protected Paths:** `skills/local/*/SKILL.md`
+- **Canonical Contract Owners:** `skills.discovery`
+- **Accepted Invariants:** rendered from frontmatter, never hand-edited; every `skills/local/*/SKILL.md` appears once, grouped by a domain table inside `bin/skill-map` (no new frontmatter key); rows show first sentence and outbound skill references; `--check` fails on a stale README and `ai-policy-lint` runs it
+- **Regression Checks:** `skill-map-test`, `ai-policy-lint`, `skill-surface-check`
+- **Runtime Evidence:** a fixture skill added without re-render fails `--check` by name; `memory/skills.md` gains one pointer line under the 12,000-byte budget
+- **Reopen Conditions:** README and `skills/local` disagree on any skill
+- **Non-Scope:** SKILL.md edits; runtime discovery; frontmatter keys
+- **Verification:** `bin/skill-map-test`
+- **Escalation Conditions:** grouping needs data frontmatter lacks
 
-## Historical closure
+### TASK-049: Trim the ten heaviest discovery descriptions
+- **Requirement:** REQ-SKILL-DISCOVERY
+- **Risk Level:** R2
+- **Depends On:** TASK-048
+- **Allowed Paths:** `skills/local/ui-validation/SKILL.md`, `skills/local/prd-taskbreaker/SKILL.md`, `skills/local/cloudflare/SKILL.md`, `skills/local/cloudflare/.local-fork`, `skills/local/storefront-ux/SKILL.md`, `skills/local/seo-website-builder/SKILL.md`, `skills/local/storefront-development/SKILL.md`, `skills/local/native-first/SKILL.md`, `skills/local/design-taste/SKILL.md`, `skills/local/google-ads-signal-engine/SKILL.md`, `skills/local/content/SKILL.md`, `skills/local/README.md`, `TASKS.md`
+- **Protected Paths:** every other `skills/local/**` path
+- **Canonical Contract Owners:** `skills.discovery`
+- **Accepted Invariants:** only `description:` changes; every trigger phrase, named sibling, and hand-off present on 2026-09-04 survives; each ends ≤ 600 characters; registry total falls ≥ 3,000; `cloudflare` keeps the sibling-routing clause its `.local-fork` protects, with that note updated
+- **Regression Checks:** `skill-check-test`, `skill-map-test`, `ai-policy-lint`, `vendored-refresh-test`
+- **Runtime Evidence:** before/after per skill recorded in the run, triggers enumerated; independent review of the ten diffs
+- **Reopen Conditions:** a 2026-09-04 routing phrase is missing, or a runtime stops surfacing a trimmed skill for a prompt that did
+- **Non-Scope:** body text; the other 56 skills; the 1,024 guideline
+- **Verification:** `skills/agents-bin/skill-check` reports ≤ 32,200 description characters
+- **Escalation Conditions:** 600 needs dropping a hand-off another skill depends on
 
-- **TASK-014 / AUDIT-BOUNDARY-01 — deterministic task change boundaries.** Baseline fingerprints, task-owned path classification, scope expansion evidence, risk escalation, independent review, and DONE denial are executable in `delivery-ledger`; its mutation-backed regression matrix passes locally.
-- **Duplicate task ID correction (2026-08-19).** TASK-017 was issued twice: first for AUDIT-CI-02 on 2026-08-17, then again for REQ-OMP-ROUTING-COLLISION on 2026-08-18. The routing/collision task is now TASK-019, so task IDs here are unique but no longer chronological. Its immutable delivery evidence (`RUN-20260818T084140Z-30974d4a`, `RUN-20260818T085852Z-dc09a68d`) still records `TASK-017`; `.delivery` history is never rewritten to match. Match a run to a task by requirement ID.
-- Prior completed tasks and dated audit closure evidence are retained in `docs/archive/DOTFILES_TASKS_THROUGH_2026-08-17.md`. Archived prose is historical, never current pass evidence.
+### TASK-050: Route payments and traffic to the owners that exist
+- **Requirement:** REQ-SKILL-DISCOVERY
+- **Risk Level:** R1
+- **Depends On:** TASK-048
+- **Allowed Paths:** `skills/local/development-kit/references/reference-map.md`, `skills/local/development-spec-suite/SKILL.md`, `skills/local/full-stack-development/SKILL.md`, `skills/local/ai-traffic-os/SKILL.md`, `skills/local/automated-traffic-pipeline/SKILL.md`, `skills/local/README.md`, `TASKS.md`
+- **Protected Paths:** `skills/local/stripe-best-practices/**`
+- **Canonical Contract Owners:** `skills.routing`
+- **Accepted Invariants:** "Billing and payments" names `doku-malaysia-integration`, `autolaris-h2h`, `mengantar-api` beside `stripe-best-practices`; `ai-traffic-os` and `automated-traffic-pipeline` name each other and `seo-website-builder`; new references resolve under the routing-graph check
+- **Regression Checks:** `ai-policy-lint`, `skill-map-test`
+- **Runtime Evidence:** the map's isolated count falls from 17; no provider skill remains in it
+- **Reopen Conditions:** a provider skill lands with no row routing to it
+- **Non-Scope:** removing `stripe-best-practices`; traffic skills beyond the hand-off sentence
+- **Verification:** `bin/ai-policy-lint`
+- **Escalation Conditions:** two skills claim one provider
+
+### TASK-051: Every memory file is reachable, or says why not
+- **Requirement:** REQ-MEMORY-ROUTING-COVERAGE
+- **Risk Level:** R2
+- **Allowed Paths:** `config/ai/memory-router.json`, `bin/ai-memory-route`, `bin/ai-memory-route-test`, `bin/ai-policy-lint`, `config/ai/project-memory/MEMORY.md`, `TASKS.md`
+- **Protected Paths:** `config/ai/memory/**`, `config/ai/project-memory/*.md`, `config/ai/hooks/memory-usage.sh`
+- **Canonical Contract Owners:** `memory.routing`
+- **Accepted Invariants:** a project key may route several files or a filename prefix, by priority within the unchanged 3-file/12,000-byte budget; every `project-memory/*.md` is reachable via a key or lesson trigger, or sits in one `unrouted` array with a reason, and `ai-policy-lint` fails any file in none; keys resolve; the hook stays fail-open
+- **Regression Checks:** `ai-memory-route-test`, `ai-memory-access-test`, `memory-usage-hook-test`, `ai-policy-lint`
+- **Runtime Evidence:** `ai-memory-access --repo ~/projects/tokophi "deploy"` selects a deploy-specific file; an unrouted fixture fails the lint by name; `petcue-theme` resolves `petcue`
+- **Reopen Conditions:** a memory file lands unrouted and the lint stays green
+- **Non-Scope:** memory content; `maxFiles`/`maxBytes`; `project-memory-kelola/**`
+- **Verification:** `bin/ai-memory-route-test`
+- **Escalation Conditions:** a project's top files cannot fit the budget
+
+### TASK-052: A public repository with a README
+- **Requirement:** REQ-PUBLIC-README
+- **Risk Level:** R1
+- **Allowed Paths:** `README.md`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `docs.entrypoint`
+- **Accepted Invariants:** English, under 120 lines: what the repository is, what it owns and deliberately does not, how a device installs it, daily commands (`ai-doctor`, `dotsync`, `resume-brief`), where authority lives; no model selector or version string
+- **Regression Checks:** `ai-memory-check`, `ai-policy-lint`
+- **Runtime Evidence:** `git cat-file -s origin/main:README.md` non-zero after push; links resolve
+- **Reopen Conditions:** it names a command absent from `runtime-commands.txt` or a missing document
+- **Non-Scope:** restoring `17021c1` wholesale (P1-16)
+- **Verification:** `bin/ai-memory-check .`
+- **Escalation Conditions:** the owner prefers the 92-byte `3d5fb69` version — valid, and closes this task
+
+### TASK-053: Delete what nothing reads
+- **Requirement:** REQ-DEAD-ARTIFACTS
+- **Risk Level:** R0
+- **Allowed Paths:** `config/omp/config.yml.lock`, `.gitignore`, `docs/dev-setup.md`, `docs/preview/**`, `TASKS.md`
+- **Protected Paths:** None
+- **Canonical Contract Owners:** `docs.hygiene`
+- **Accepted Invariants:** each deletion follows a fresh search proving no reader, link, or installer reference; `config/omp/*.lock` is ignored afterwards; `ai-memory-check .` stays green
+- **Regression Checks:** `ai-memory-check`, `ai-policy-lint`, `omp-effective-routing-test`
+- **Runtime Evidence:** `grep -rn` per removed path over `bin/ install*.sh .github/ config/ docs/ skills/` hits only the audit
+- **Reopen Conditions:** any of the three returns
+- **Non-Scope:** the four `docs/DOTFILES_*.md` (P1-16/P2-14 move is a separate decision)
+- **Verification:** `bin/ai-policy-lint`
+- **Escalation Conditions:** `docs/preview/` is published or bookmarked elsewhere
+
+### TASK-054: A contract with no run is a candidate too
+- **Requirement:** REQ-TASK-LEDGER-CONSISTENCY
+- **Risk Level:** R1
+- **Depends On:** TASK-047
+- **Allowed Paths:** `bin/resume-brief`, `bin/resume-brief-test`, `TASKS.md`
+- **Protected Paths:** `bin/delivery-ledger`
+- **Canonical Contract Owners:** `runtime.resume`
+- **Accepted Invariants:** a live `###` contract with no ledger run lists as `READY` / `no run`, or `waiting` when a dependency lacks PASS — distinct from BLOCKED; archived tasks stay retired
+- **Regression Checks:** `resume-brief-test`, `ai-policy-lint`
+- **Runtime Evidence:** on this file TASK-048/051/052/053 show ready, TASK-049/050/054 waiting
+- **Reopen Conditions:** an accepted contract is missing from the brief
+- **Non-Scope:** picking the next task; ledger semantics
+- **Verification:** `bin/resume-brief-test`
+- **Escalation Conditions:** a no-run task is indistinguishable from a fenced example
+
+- **TASK-012 / AUDIT-MON-01 — measure real skill effectiveness (R0).** Dormant until five immutable delivery records exist for one skill; then `ai-skill-evolution --repo <repo> --dotfiles ~/dotfiles --json`. Never fabricate attribution.
+
