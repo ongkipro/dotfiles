@@ -17,6 +17,15 @@ _None._
 
 ## Recently completed
 
+- **TASK-050 / REQ-SKILL-DISCOVERY (R1).** The payment row named only Stripe, which no
+  project uses. `development-kit`, `development-spec-suite` and `full-stack-development`
+  now route to `stripe-best-practices`, `doku-malaysia-integration`, `autolaris-h2h` and
+  `mengantar-api`. Only the `full-stack-development` owner matrix is gate-validated — the
+  lint reads `skills/local/*/SKILL.md`, so `references/` files and bullets are not — and all
+  four of the 65 -> 69 new references come from it. `ai-traffic-os` and
+  `automated-traffic-pipeline` name each other and `seo-website-builder` in code spans.
+  Mention-rule isolated skills: 17 -> 13.
+
 - **TASK-048 / REQ-SKILL-DISCOVERY (R1).** `skill-map` renders `skills/local/README.md`
   from frontmatter — 66 skills in 11 domains, each row carrying its first registry
   sentence, vendored/fork mark, and the siblings it routes to. `--check` fails a stale
@@ -69,21 +78,6 @@ Seeded by `docs/DOTFILES_REVIEW_2026-09-04.md`; run in order.
 - **Non-Scope:** body text; the other 56 skills; the 1,024 guideline
 - **Verification:** `skills/agents-bin/skill-check` reports ≤ 32,200 description characters
 - **Escalation Conditions:** 600 needs dropping a hand-off another skill depends on
-
-### TASK-050: Route payments and traffic to the owners that exist
-- **Requirement:** REQ-SKILL-DISCOVERY
-- **Risk Level:** R1
-- **Depends On:** TASK-048
-- **Allowed Paths:** `skills/local/development-kit/references/reference-map.md`, `skills/local/development-spec-suite/SKILL.md`, `skills/local/full-stack-development/SKILL.md`, `skills/local/ai-traffic-os/SKILL.md`, `skills/local/automated-traffic-pipeline/SKILL.md`, `skills/local/README.md`, `TASKS.md`
-- **Protected Paths:** `skills/local/stripe-best-practices/**`
-- **Canonical Contract Owners:** `skills.routing`
-- **Accepted Invariants:** "Billing and payments" names `doku-malaysia-integration`, `autolaris-h2h`, `mengantar-api` beside `stripe-best-practices`; `ai-traffic-os` and `automated-traffic-pipeline` name each other and `seo-website-builder`; new references resolve under the routing-graph check
-- **Regression Checks:** `ai-policy-lint`, `skill-map-test`
-- **Runtime Evidence:** the map's isolated count falls from 17 — the mention rule (a code span anywhere in SKILL.md, 256 edges), not the stricter routing-table rule `ai-policy-lint` resolves; no provider skill remains in it
-- **Reopen Conditions:** a provider skill lands with no row routing to it
-- **Non-Scope:** removing `stripe-best-practices`; traffic skills beyond the hand-off sentence
-- **Verification:** `bin/ai-policy-lint`
-- **Escalation Conditions:** two skills claim one provider
 
 ### TASK-051: Every memory file is reachable, or says why not
 - **Requirement:** REQ-MEMORY-ROUTING-COVERAGE

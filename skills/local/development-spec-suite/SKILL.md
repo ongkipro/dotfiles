@@ -106,7 +106,7 @@ Use existing local skills when available:
 - `adr-record` owns full standalone ADRs; Technical Design retains only the `ADR-NNNN` index row and traceability link, never a competing register.
 - `mermaid-diagram` for architecture, ERD, data-flow, and sequence diagrams.
 - `openapi-spec` for the machine-readable API contract and compatibility checks.
-- `stripe-best-practices` or the current provider skill for payment-specific behavior.
+- The provider skill that matches the project for payment-specific behavior: `stripe-best-practices`, `doku-malaysia-integration`, or `autolaris-h2h`; `mengantar-api` for shipping, rates, and COD.
 - UI route: `admin-product-ux`/`storefront-ux` for behavior,
   `design-taste`/`admin-dashboard` for presentation, `shadcn-ui` for React
   implementation, and `ui-validation` for evidence. New or materially

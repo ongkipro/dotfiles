@@ -4,7 +4,9 @@ description: >-
   End-to-end AI traffic architecture for search and answer engines. Use when designing or auditing
   crawl controls, helpful answer content, structured media, and AI referral measurement. Requires
   live vendor-documentation checks for crawler identities and keeps search/citation, user-triggered
-  retrieval, and model-training controls distinct. Triggers: "ai traffic", "geo optimization",
+  retrieval, and model-training controls distinct. Owns AEO/GEO; `seo-website-builder` owns classic
+  technical SEO and `automated-traffic-pipeline` owns the pSEO generation and indexing pipeline.
+  Triggers: "ai traffic", "geo optimization",
   "answerbox", "google ai overviews", "chatgpt search", "perplexity seo", "ai search optimization",
   "traffic architecture", "ai traffic os".
 ---

@@ -16,7 +16,8 @@ generate every file. Open only the smallest activated artifact.
 | Hostname and custom-domain routing | `08-DOMAIN-ROUTING.md` | selected platform/framework owner plus `application-security` |
 | REST contract | `09-API-SPECIFICATION.md` | `openapi-spec` |
 | Design tokens, components, accessibility, brand, and white-label primitives | `10-DESIGN-SYSTEM-WHITELABEL.md` | `design-taste` or `admin-dashboard` for direction; `shadcn-ui` for React implementation |
-| Billing and payments | `11-BILLING-PAYMENTS.md` | exact provider owner; `stripe-best-practices` for Stripe |
+| Billing and payments | `11-BILLING-PAYMENTS.md` | the exact provider owner: `stripe-best-practices` for Stripe, `doku-malaysia-integration` for DOKU/senangPay, `autolaris-h2h` for AutoLaris channels; any other provider keeps its own owner |
+| Shipping, courier selection, tracking, and COD settlement | `17-UX-FLOWS-SCREEN-CONTRACTS.md` plus the fulfilment owner | `mengantar-api` for multi-courier aggregation, `autolaris-h2h` for AutoLaris Create Resi and Cek Ongkir |
 | Security architecture | `12-SECURITY-ARCHITECTURE.md` | `application-security` |
 | Privacy and compliance | `13-COMPLIANCE-PRIVACY.md` | qualified privacy/legal owner; engineering controls via relevant specialist |
 | Reliability and recovery | `14-SLA-DRP.md` | service owner plus `observability-engineering` |

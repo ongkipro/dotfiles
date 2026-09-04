@@ -1,25 +1,25 @@
 {
   "activeRun": null,
   "lastCheckpoint": {
-    "eventHash": "cfb48370c54e8ea4fba65034ff7a394d09a51c4883ce54684774c7c1f0e0339f",
-    "eventId": "371721a9cb3745e18068ab7bbdbc35ed",
-    "head": "9244304d00d489d1182a600f08c43a1bbe7a68c1",
-    "note": "Contaminated by my own commit: I pushed bin/_toolchain-path.sh mid-run as a throwaway \"wip\" commit so the Mac could pull it and prove the probe distinguished shim from install. That moved HEAD and invalidated the baseline. Fourth occurrence today of a run participating in what it observes. The work itself is verified: toolchain-path-test 5/5 with mutations for the scratch-HOME probe, version ordering and word-splitting; device-verify-test 17/17 after stubbing the new gate; ai-learn-test on macOS went FAIL to PASS. The \"wip\" commit is a second, separate mistake \u2014 a message that says nothing, pushed to a public repository.",
-    "prevEventHash": "349abed8ceba1bee794e3423640b88527c2c1866d83b725f5c52f982f0b17765",
-    "runId": "RUN-20260901T054645Z-803b2500",
+    "eventHash": "29dfae7b4e0e13d9cf0c9202dc6e70f0a382f33a3437b0714d043130753ff16e",
+    "eventId": "9be5a3396be848f093d12232b0293328",
+    "head": "dc0ac1f48b3987b42fe0f7c984626fb0a140fb3b",
+    "note": "config/ai/project-memory/tokophi.md changed from outside this run \u2014 the owner flipped TokoPhi to PRIVATE on 2026-09-04. It is not in this Allowed Paths and is not my work, so it must not be claimed by expand-scope. The boundary is right to fail: it cannot distinguish a concurrent owner edit from an agent leaving its lane, and refusing both is the correct behaviour.",
+    "prevEventHash": "19d5878c14ecfaa23c81c2be2e0838555783ffd49d65be0a6459d265c0f4ca59",
+    "runId": "RUN-20260904T041155Z-0a2337cb",
     "state": null,
-    "time": "2026-09-01T05:50:48Z",
+    "time": "2026-09-04T04:19:41Z",
     "type": "checkpoint"
   },
   "lastRun": {
-    "finishedAt": "2026-09-04T04:11:31Z",
-    "result": "PASS",
-    "runId": "RUN-20260904T040102Z-ad3b4fbf"
+    "finishedAt": "2026-09-04T04:19:42Z",
+    "result": "BLOCKED",
+    "runId": "RUN-20260904T041155Z-0a2337cb"
   },
-  "observedHead": "ca52cb431f0c4f7479b26611400d60f51ca7d480",
+  "observedHead": "dc0ac1f48b3987b42fe0f7c984626fb0a140fb3b",
   "observedState": null,
   "project": "dotfiles",
   "schemaVersion": 1,
   "statusAuthority": "STATUS.md",
-  "updatedAt": "2026-09-04T04:11:31Z"
+  "updatedAt": "2026-09-04T04:19:42Z"
 }

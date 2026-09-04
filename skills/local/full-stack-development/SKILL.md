@@ -83,6 +83,10 @@ from a schema proposal to applying a production migration.
 | Supabase database, Auth, RLS, Storage, Realtime, and Edge Functions | `supabase-stack` |
 | Better Auth configuration and session/auth hardening | `better-auth-security` plus `application-security` for the cross-stack boundary |
 | Machine-readable REST contract | `openapi-spec` |
+| Stripe payments, Connect, and webhooks | `stripe-best-practices` |
+| DOKU or senangPay checkout for a Malaysia storefront | `doku-malaysia-integration` |
+| AutoLaris H2H payment channels, Create Resi, Cek Ongkir, and Advice reconciliation | `autolaris-h2h` |
+| Multi-courier Indonesian shipping rates, tracking, and COD settlement through an aggregator | `mengantar-api` |
 | Admin/CMS roles, objects, lifecycle, permissions, tasks, and screen contracts | `admin-product-ux` |
 | Admin/CMS information hierarchy, tables, charts, density, and responsive presentation | `admin-dashboard` |
 | React/Next.js shadcn component APIs and installed registry integration | `shadcn-ui` |
