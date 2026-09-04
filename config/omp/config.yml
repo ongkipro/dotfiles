@@ -102,7 +102,7 @@ task:
   enableEffort: true
   showResolvedModelBadge: true
   isolation:
-    mode: auto
+    enabled: true
     apply: false
   maxConcurrency: 4
   maxRecursionDepth: 1

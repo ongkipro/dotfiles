@@ -114,7 +114,7 @@ jq -e '
   .["task.batch"].value == true and
   .["task.enableEffort"].value == true and
   .["task.showResolvedModelBadge"].value == true and
-  .["task.isolation.mode"].value == "auto" and
+  .["task.isolation.enabled"].value == true and
   .["task.isolation.apply"].value == false and
   .["task.maxConcurrency"].value == 4 and
   .["task.maxRecursionDepth"].value == 1 and
@@ -140,6 +140,54 @@ jq -e '
   echo 'FAIL: cross-device OMP reference did not resolve its canonical role graph' >&2
   exit 1
 }
+
+# A key this repo sets that is absent from the upstream schema is drift, and OMP will
+# not say so: verified 2026-09-04 that a bogus key resolves with exit 0 and empty
+# stderr. It is drift in two different ways, and the difference is not visible here.
+# `task.isolation.mode: auto` was one: OMP 18.1.5 still honours it as a legacy alias
+# and normalizes it to `task.isolation.enabled: true` (checked - `mode: none` yields
+# `enabled=false`), so behaviour was correct all along, but the name stopped appearing
+# in `omp config list` and the clause above pinned that name, leaving the gate unable
+# to see the setting it was guarding. A genuinely retired key would instead be ignored
+# outright. Both cases want the same answer - move to the canonical name - so flag any
+# leaf missing from the schema and let the reader establish which kind it is.
+if unknown_keys="$(python3 - "$ROOT/config/omp/config.yml" "$fixture/config.json" <<'PYEOF'
+import json, sys
+try:
+    import yaml
+except ModuleNotFoundError:
+    sys.exit(9)
+
+tracked = yaml.safe_load(open(sys.argv[1])) or {}
+schema = json.load(open(sys.argv[2]))
+# A record-typed setting (modelRoles, task.agentModelOverrides) owns free-form
+# children by design; its keys are data, not schema.
+records = {k for k, v in schema.items() if isinstance(v, dict) and v.get("type") == "record"}
+
+def leaves(node, path=()):
+    if isinstance(node, dict):
+        dotted = ".".join(path)
+        if dotted in records:
+            return
+        for k, v in node.items():
+            yield from leaves(v, path + (str(k),))
+    else:
+        yield ".".join(path)
+
+print("\n".join(k for k in leaves(tracked) if k not in schema))
+PYEOF
+)"; then
+  if [[ -n "$unknown_keys" ]]; then
+    echo 'FAIL: tracked OMP reference sets keys absent from the upstream schema (retired, or a legacy alias OMP normalizes away - either way use the canonical name):' >&2
+    printf '  %s\n' $unknown_keys >&2
+    exit 1
+  fi
+elif [[ "$?" -eq 9 ]]; then
+  echo 'omp-effective-routing-test: SKIP retired-key audit (PyYAML unavailable)' >&2
+else
+  echo 'FAIL: retired-key audit could not read the tracked OMP reference' >&2
+  exit 1
+fi
 
 if [[ "$skip_selector_validation" -eq 0 ]]; then
 # The reference is intentionally portable. A device that does not authenticate
