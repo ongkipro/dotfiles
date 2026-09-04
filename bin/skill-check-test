@@ -25,4 +25,44 @@ if SKILL_SOURCE="$TMP" "$CHECK" placeholder >/dev/null 2>&1; then
   exit 1
 fi
 
+# ── The registry count is measured, not scanned (TASK-055) ───────────────────
+# The reported total is the one number a task can be held to — TASK-049's
+# verification used it — and the awk scanner was over by 188 characters across
+# 36 real skills: it counted the folded '>-' marker as description text and kept
+# the quotes and doubled '' escapes of single-quoted scalars. Both shapes are
+# fixtures here, with the expected length computed from the parsed YAML.
+mkdir -p "$TMP/folded" "$TMP/quoted"
+printf '%s\n' '---' 'name: folded' 'description: >-' '  One two three.' '---' '' '# Folded' \
+  > "$TMP/folded/SKILL.md"
+printf '%s\n' '---' 'name: quoted' "description: 'It''s fine.'" '---' '' '# Quoted' \
+  > "$TMP/quoted/SKILL.md"
+
+expected() { python3 - "$1" <<'PYX'
+import re, sys, yaml
+t = open(sys.argv[1], encoding="utf-8").read()
+fm = re.search(r"(?ms)\A---\n(.*?)\n---", t).group(1)
+print(len(" ".join(str(yaml.safe_load(fm)["description"]).split())))
+PYX
+}
+
+if python3 -c 'import yaml' 2>/dev/null; then
+  # One skill per source directory, so the reported total IS that description's
+  # length and the assertion is exact rather than a difference of sums.
+  for f in folded quoted; do
+    mkdir -p "$TMP/iso-$f"
+    cp -r "$TMP/$f" "$TMP/iso-$f/"
+    want="$(expected "$TMP/$f/SKILL.md")"
+    got="$(SKILL_SOURCE="$TMP/iso-$f" "$CHECK" | sed -n 's/.*Discovery metadata: \([0-9]*\) .*/\1/p')"
+    if [ "$got" != "$want" ]; then
+      echo "skill-check-test: FAILED ($f counted $got, parsed YAML says $want)"
+      exit 1
+    fi
+  done
+  # And it must not call itself approximate while it is exact.
+  if SKILL_SOURCE="$TMP/iso-folded" "$CHECK" | grep -q 'approximate'; then
+    echo "skill-check-test: FAILED (exact count labelled approximate)"
+    exit 1
+  fi
+fi
+
 echo "skill-check-test: OK"

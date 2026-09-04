@@ -98,6 +98,31 @@ fi
 seen_file="$(mktemp "${TMPDIR:-/tmp}/skill-check-seen.XXXXXX")"
 cleanup() { rm -f "$seen_file"; }
 trap cleanup EXIT
+
+# The awk scanner below reads raw frontmatter lines. That is right for the
+# checks — a placeholder or a missing field is visible in the raw text — but
+# wrong for a character COUNT, which is the one number a task can be held to:
+# TASK-049's verification used it. Measured 2026-09-04, awk was over by 188
+# characters across 36 skills: +3 wherever a folded '>-' marker is counted as
+# description text, and +14 to +36 on the four single-quoted scalars whose
+# quotes and doubled '' escapes it keeps. Count from the parsed value when
+# PyYAML is present, and say the number is approximate when it is not.
+description_length() {
+  if [ "$yaml_available" -eq 1 ]; then
+    parsed="$(python3 - "$1" <<'PYCOUNT'
+import sys, yaml
+text = open(sys.argv[1], encoding="utf-8").read()
+if not text.startswith("---"):
+    raise SystemExit(1)
+end = text.index("\n---", 3)
+value = (yaml.safe_load(text[4:end]) or {}).get("description")
+print(len(" ".join(str(value).split())) if value is not None else 0)
+PYCOUNT
+)" && [ -n "$parsed" ] && { printf '%s' "$parsed"; return 0; }
+  fi
+  printf '%s' "$2"
+}
+
 for dir in "${skills[@]}"; do
   count=$((count + 1))
   fail_before=$fail
@@ -105,7 +130,7 @@ for dir in "${skills[@]}"; do
   folder="$(basename "$dir")"
   name="$(frontmatter_value name "$file" | tr -d '\r')"
   description="$(frontmatter_value description "$file" | tr -d '\r')"
-  description_chars=$((description_chars + ${#description}))
+  description_chars=$((description_chars + $(description_length "$file" "${#description}")))
 
   [ -n "$name" ] || bad "$folder: missing frontmatter name"
   [ -n "$description" ] || bad "$folder: missing frontmatter description"
@@ -143,6 +168,9 @@ done
 
 printf '\nChecked %d skill(s): %d failure(s), %d warning(s)\n' "$count" "$fail" "$warn"
 if [ -z "$requested" ]; then
-  printf 'Discovery metadata: %d description characters; hosts may truncate the initial registry, so keep each key use case front-loaded.\n' "$description_chars"
+  if [ "$yaml_available" -eq 1 ]; then approx=''
+  else approx=' (approximate: counted from raw frontmatter because PyYAML is unavailable)'
+  fi
+  printf 'Discovery metadata: %d description characters%s; hosts may truncate the initial registry, so keep each key use case front-loaded.\n' "$description_chars" "$approx"
 fi
 [ "$fail" -eq 0 ]

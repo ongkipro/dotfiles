@@ -17,6 +17,13 @@ _None._
 
 ## Recently completed
 
+- **TASK-055 / REQ-GATE-INSTRUMENTS (R1).** `skill-check` reported the registry total
+  from an awk line-scan, over by 188 characters across 36 skills: it counted the folded
+  `>-` marker as description text and kept the quotes and doubled `''` escapes of
+  single-quoted scalars. It now counts the parsed value when PyYAML is present — 33,955,
+  matching PyYAML exactly — and labels the number approximate when it is not. This is the
+  one figure a task can be held to; TASK-049's verification used it.
+
 - **TASK-054 / REQ-TASK-LEDGER-CONSISTENCY (R1).** `resume-brief` built its candidate
   list from `.delivery/runs`, so a contract nobody had started was not in it at all: the
   eight tasks accepted on 2026-09-04 produced "0 ready to start". An accepted `###`
@@ -110,20 +117,6 @@ Seeded by `docs/DOTFILES_REVIEW_2026-09-04.md`; run in order.
 - **Non-Scope:** rewriting `.delivery/runs/*`; PASS semantics
 - **Verification:** `bin/resume-brief` shows no live task whose evidence is not PASS
 - **Escalation Conditions:** a re-executed check fails
-
-### TASK-055: The registry is measured with the wrong ruler
-- **Requirement:** REQ-GATE-INSTRUMENTS
-- **Risk Level:** R1
-- **Allowed Paths:** `skills/agents-bin/skill-check`, `bin/skill-check-test`, `TASKS.md`
-- **Protected Paths:** `skills/local/**`
-- **Canonical Contract Owners:** `skills.discovery`
-- **Accepted Invariants:** the reported description-character total is counted from the parsed YAML when PyYAML is present, and says it is approximate when it is not; the existing loud degradation notice is unchanged
-- **Regression Checks:** `skill-check-test`, `ai-policy-lint`
-- **Runtime Evidence:** measured 2026-09-04 — awk counts 34,061 where PyYAML counts 33,873, over by 188 across 36 skills: +3 wherever a folded `>-` marker is counted as text, and +14 to +36 on `adr-record`, `mermaid-diagram`, `openapi-spec`, `supabase-stack`, whose single-quoted scalars keep their quotes and doubled `''` escapes
-- **Reopen Conditions:** the two counts diverge again
-- **Non-Scope:** any SKILL.md; the 1,024 guideline
-- **Verification:** `bin/skill-check-test` covers a folded and a single-quoted fixture
-- **Escalation Conditions:** PyYAML is unavailable on a device that must report an exact number
 
 ### TASK-056: A hygiene branch that cannot execute
 - **Requirement:** REQ-GATE-INSTRUMENTS
