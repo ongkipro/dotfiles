@@ -1,0 +1,233 @@
+#!/usr/bin/env python3
+"""Render skills/local/README.md — the domain map of the owned skill set.
+
+The map is derived, never hand-written. `skill-list` prints one flat
+alphabetical list, which answers "what exists" but not "who owns this kind of
+work"; `memory/skills.md` names a subset in prose and drifts as skills change.
+Both are why a routing gap could sit unseen: on 2026-09-04, 17 of 66 skills
+referenced no sibling and none referenced them, and the payment row in
+development-kit named only Stripe while the providers actually in use appeared
+in no table at all.
+
+Domains live in DOMAINS below rather than in frontmatter. The 66 skills use
+exactly three keys — name, description, license — and adding a fourth would mean
+editing every vendored SKILL.md, which the refresh contract forbids for a
+managed fork. A skill missing from DOMAINS is rendered under "Unclassified"
+rather than dropped, so it is visible instead of silently absent.
+
+  skill-map            write skills/local/README.md
+  skill-map --check    exit 1 if the committed file is not what a fresh render
+                       produces; this is what ai-policy-lint runs
+  skill-map --stdout   print without writing
+"""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+import re
+import sys
+
+DOMAINS: dict[str, tuple[str, ...]] = {
+    "Cloudflare platform": (
+        "cloudflare", "workers-best-practices", "wrangler", "durable-objects",
+        "agents-sdk", "cloudflare-email-service", "cloudflare-one",
+        "sandbox-next", "sandbox-stable",
+    ),
+    "Web frameworks and interface": (
+        "astro-development", "nextjs-development", "shadcn-ui", "design-taste",
+        "admin-dashboard", "admin-product-ux", "ui-validation", "web-perf",
+    ),
+    "Animation (GSAP)": (
+        "gsap-core", "gsap-timeline", "gsap-scrolltrigger", "gsap-plugins",
+        "gsap-react", "gsap-frameworks", "gsap-utils", "gsap-performance",
+    ),
+    "Commerce and Shopify": (
+        "storefront-development", "storefront-ux", "headless-shopify",
+        "hydrogen-development", "hydrogen-headless-tracking",
+    ),
+    "Payments, logistics and anti-abuse": (
+        "autolaris-h2h", "doku-malaysia-integration", "mengantar-api",
+        "stripe-best-practices", "turnstile-spin",
+    ),
+    "Data, auth and API": (
+        "postgres-drizzle", "supabase-stack", "better-auth-security",
+        "openapi-spec", "application-security",
+    ),
+    "Advertising signal": (
+        "meta-ads-signal-engine", "meta-ads-scout", "google-ads-signal-engine",
+        "tiktok-ads-signal-engine",
+    ),
+    "SEO, content and traffic": (
+        "seo-website-builder", "ai-traffic-os", "automated-traffic-pipeline",
+        "content", "copywriting", "volumx-writer",
+    ),
+    "Planning and specification": (
+        "prd-taskbreaker", "development-spec-suite", "development-kit",
+        "adr-record", "mermaid-diagram", "product-intelligence",
+    ),
+    "Delivery practice": (
+        "full-stack-development", "testing-engineering",
+        "observability-engineering", "github-actions", "lean-code-review",
+        "native-first", "continuous-learning",
+    ),
+    "Infrastructure and runtime": ("vultr", "kelola-deploy", "9router"),
+}
+
+FRONTMATTER = re.compile(r"\A---\s*\n(.*?)\n---", re.S)
+FIELD = re.compile(r"^(\w[\w-]*):\s*(.*?)(?=\n\w[\w-]*:|\Z)", re.S | re.M)
+CODE_SPAN = re.compile(r"`([a-z0-9][a-z0-9-]*)`")
+
+
+def find_root() -> Path:
+    here = Path(__file__).resolve().parent
+    while here != here.parent:
+        if (here / "skills" / "local").is_dir():
+            return here
+        here = here.parent
+    return Path.home() / "dotfiles"
+
+
+def frontmatter(text: str) -> dict[str, str]:
+    m = FRONTMATTER.search(text)
+    if not m:
+        return {}
+    return {k: " ".join(v.split()) for k, v in FIELD.findall(m.group(1))}
+
+
+def first_sentence(description: str) -> str:
+    # The registry entry a host may truncate starts here, so the map shows the
+    # same opening a runtime sees rather than a summary written separately.
+    body = description.lstrip(">-| ").strip()
+    # A YAML-quoted description arrives with its quotes intact (cloudflare-one),
+    # and a stray one at the head of a table cell reads as a typo in the map.
+    if len(body) > 1 and body[0] in "\"'" and body.count(body[0]) >= 2:
+        body = body[1:]
+        if body.endswith(("\"", "'")):
+            body = body[:-1]
+    m = re.match(r"(.+?[.!?])(?:\s|$)", body)
+    sentence = (m.group(1) if m else body).strip()
+    return sentence if len(sentence) <= 200 else sentence[:197].rstrip() + "..."
+
+
+def load(root: Path) -> dict[str, dict[str, object]]:
+    skills: dict[str, dict[str, object]] = {}
+    for path in sorted((root / "skills" / "local").glob("*/SKILL.md")):
+        text = path.read_text(encoding="utf-8")
+        meta = frontmatter(text)
+        skills[path.parent.name] = {
+            "description": meta.get("description", ""),
+            "text": text,
+            "vendored": (path.parent / ".source").is_file(),
+            "fork": (path.parent / ".local-fork").is_file(),
+        }
+    for name, data in skills.items():
+        refs = {c for c in CODE_SPAN.findall(str(data["text"]))
+                if c in skills and c != name}
+        data["refs"] = sorted(refs)
+    return skills
+
+
+def render(root: Path) -> str:
+    skills = load(root)
+    classified = {n for names in DOMAINS.values() for n in names}
+    unclassified = sorted(set(skills) - classified)
+    inbound = {n: 0 for n in skills}
+    for data in skills.values():
+        for ref in data["refs"]:
+            inbound[ref] += 1
+    isolated = sorted(n for n in skills if not skills[n]["refs"] and not inbound[n])
+
+    out: list[str] = []
+    add = out.append
+    add("# Owned skills\n")
+    add("<!-- Generated by `bin/skill-map`. Do not edit by hand; run `skill-map`. -->\n")
+    add(f"{len(skills)} skills, grouped by the kind of work they own. Every runtime")
+    add("reads this directory through a symlink, so this file is the map of what is")
+    add("discoverable. **Marks:** `V` vendored from upstream (`.source`), `F` a managed")
+    add("fork whose local edit must survive refresh (`.local-fork`).")
+    add("**Routes to** lists sibling skills named in a code span anywhere in the")
+    add("SKILL.md. That is a superset of the routing-table cells `ai-policy-lint`")
+    add("resolves, so an entry here is a mention, not a gated reference.\n")
+
+    for domain, names in DOMAINS.items():
+        present = [n for n in names if n in skills]
+        if not present:
+            continue
+        add(f"## {domain}\n")
+        add("| Skill | | What it owns | Routes to |")
+        add("|---|---|---|---|")
+        for name in present:
+            data = skills[name]
+            mark = "F" if data["fork"] else ("V" if data["vendored"] else "")
+            refs = ", ".join(f"`{r}`" for r in data["refs"]) or "—"
+            add(f"| [`{name}`]({name}/SKILL.md) | {mark} | "
+                f"{first_sentence(str(data['description']))} | {refs} |")
+        add("")
+
+    if unclassified:
+        add("## Unclassified\n")
+        add("Not in `DOMAINS` in `bin/skill-map`. Add it there rather than leaving it here.\n")
+        for name in unclassified:
+            add(f"- [`{name}`]({name}/SKILL.md)")
+        add("")
+
+    add("## Skills nothing mentions, and that mention nothing\n")
+    add("Reachable only through their own description, so a truncated registry hides")
+    add("them entirely. Counted by mention, the loose rule above — the stricter set,")
+    add("skills absent from every routing table `ai-policy-lint` resolves, is larger.")
+    add("A leaf specialist belongs here; a skill named in prose without a code span")
+    add("does not.\n")
+    add(", ".join(f"`{n}`" for n in isolated) if isolated else "_None._")
+    add("")
+    return "\n".join(out).rstrip() + "\n"
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--check", action="store_true")
+    ap.add_argument("--stdout", action="store_true")
+    ap.add_argument("--root")
+    a = ap.parse_args()
+    root = Path(a.root).resolve() if a.root else find_root()
+    if not (root / "skills" / "local").is_dir():
+        print(f"skill-map: no skills/local under {root}", file=sys.stderr)
+        return 2
+    fresh = render(root)
+    target = root / "skills" / "local" / "README.md"
+    if a.stdout:
+        sys.stdout.write(fresh)
+        return 0
+    if a.check:
+        current = target.read_text(encoding="utf-8") if target.is_file() else ""
+        if current == fresh:
+            count = len(re.findall(r"^(?:\| |- )\[`", fresh, re.M))
+            print(f"skill-map: README.md matches a fresh render ({count} skills)")
+            return 0
+        if not current:
+            print("skill-map: skills/local/README.md is missing; run: skill-map",
+                  file=sys.stderr)
+            return 1
+        # Both shapes: a classified skill is a table row, an unclassified one a
+        # bullet. Harvesting rows alone meant a skill absent from DOMAINS could
+        # be added or deleted and --check would report only "stale", naming
+        # nothing — the least useful thing a gate can say.
+        names = lambda t: set(re.findall(r"^(?:\| |- )\[`([a-z0-9-]+)`\]", t, re.M))
+        have, want = names(current), names(fresh)
+        for missing in sorted(want - have):
+            print(f"skill-map: {missing} is not in the committed map", file=sys.stderr)
+        for stale in sorted(have - want):
+            print(f"skill-map: {stale} is mapped but no longer exists", file=sys.stderr)
+        if have == want:
+            print("skill-map: the committed map is stale (a description or route "
+                  "changed)", file=sys.stderr)
+        print("skill-map: run `skill-map` to re-render", file=sys.stderr)
+        return 1
+    target.write_text(fresh, encoding="utf-8")
+    count = len(re.findall(r"^(?:\| |- )\[`", fresh, re.M))
+    print(f"skill-map: wrote {target.relative_to(root)} ({count} skills)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

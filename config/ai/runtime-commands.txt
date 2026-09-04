@@ -76,6 +76,8 @@ security-check-test
 shell-wrapper-test
 shopify-content-helper
 skill-check-test
+skill-map
+skill-map-test
 skill-remove-test
 skill-surface-check
 skill-surface-check-test

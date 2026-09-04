@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# Regression test for bin/skill-map.
+#
+# Every case here is a mutation: it changes the fixture and requires --check to
+# fail, and to say which skill. A map that renders is not the point — a map that
+# cannot go stale is, and the only proof of that is a stale map failing.
+set -uo pipefail
+
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+MAP="$ROOT/bin/skill-map"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/skill-map-test.XXXXXX")"
+trap 'rm -rf "$TMP"' EXIT
+FIX="$TMP/dotfiles"
+fails=0
+
+fail() { echo "skill-map-test: FAIL — $*" >&2; fails=$((fails + 1)); }
+ok() { printf '✓ %s\n' "$1"; }
+
+skill() { # name description
+  mkdir -p "$FIX/skills/local/$1"
+  printf -- '---\nname: %s\ndescription: %s\n---\n\n# %s\n' "$1" "$2" "$1" \
+    > "$FIX/skills/local/$1/SKILL.md"
+}
+
+mkdir -p "$FIX/skills/local"
+skill cloudflare 'Comprehensive Cloudflare platform skill. Hands narrow work to `wrangler`.'
+skill wrangler 'Cloudflare Workers CLI. Second sentence ignored.'
+skill orphan-skill 'A skill no domain table knows about yet.'
+touch "$FIX/skills/local/wrangler/.source"
+
+render() { python3 "$MAP" --root "$FIX" "$@"; }
+
+# 1. A fresh render satisfies its own check.
+render >/dev/null 2>&1 || fail "render exited non-zero"
+render --check >/dev/null 2>&1 || fail "a fresh render does not satisfy --check"
+[ -s "$FIX/skills/local/README.md" ] || fail "render produced no README"
+ok "fresh render satisfies --check"
+
+# 2. Rendering twice produces the same bytes; a map that reorders on every run
+#    would make --check a coin flip and the gate worthless.
+a="$(render --stdout)"; b="$(render --stdout)"
+[ "$a" = "$b" ] || fail "render is not deterministic"
+ok "render is deterministic"
+
+# 3. An unclassified skill is visible, not dropped. Silently omitting it is how
+#    a skill becomes undiscoverable without any gate noticing.
+grep -q 'orphan-skill' "$FIX/skills/local/README.md" \
+  || fail "an unclassified skill is missing from the map"
+grep -q '## Unclassified' "$FIX/skills/local/README.md" \
+  || fail "no Unclassified section for a skill absent from DOMAINS"
+ok "unclassified skill is surfaced"
+
+# 4. A new skill without a re-render fails --check BY NAME.
+skill late-arrival 'Added after the map was written.'
+out="$(render --check 2>&1)"; rc=$?
+[ "$rc" -eq 1 ] || fail "--check passed after a skill was added (exit $rc)"
+printf '%s' "$out" | grep -q 'late-arrival' \
+  || fail "--check did not name the added skill"
+ok "added skill fails --check by name"
+render >/dev/null 2>&1
+
+# 5. A removed skill fails --check by name.
+rm -rf "$FIX/skills/local/late-arrival"
+out="$(render --check 2>&1)"; rc=$?
+[ "$rc" -eq 1 ] || fail "--check passed after a skill was removed (exit $rc)"
+printf '%s' "$out" | grep -q 'late-arrival' \
+  || fail "--check did not name the removed skill"
+ok "removed skill fails --check by name"
+render >/dev/null 2>&1
+
+# 6. An edited description fails --check. The registry text is what a runtime
+#    matches on, so the map drifting from it is the failure this file exists for.
+skill cloudflare 'Rewritten description that the committed map has never seen.'
+out="$(render --check 2>&1)"; rc=$?
+[ "$rc" -eq 1 ] || fail "--check passed after a description changed (exit $rc)"
+printf '%s' "$out" | grep -qi 'stale' \
+  || fail "--check did not report the map as stale"
+ok "edited description fails --check"
+render >/dev/null 2>&1
+
+# 7. A dropped route fails --check. ai-policy-lint resolves these references, so
+#    a map claiming a route that no longer exists is a lie a gate can catch.
+#    Note the first-sentence rule: an edit past the first sentence changes no
+#    rendered cell, so this case must change the route itself to mean anything.
+skill cloudflare 'One sentence only. Hands narrow work to `wrangler`.'
+render >/dev/null 2>&1
+skill cloudflare 'One sentence only. It no longer names a sibling.'
+out="$(render --check 2>&1)"; rc=$?
+[ "$rc" -eq 1 ] || fail "--check passed after a route was dropped (exit $rc)"
+ok "dropped route fails --check"
+render >/dev/null 2>&1
+
+# 8. A missing README fails with an instruction, not a traceback.
+rm -f "$FIX/skills/local/README.md"
+out="$(render --check 2>&1)"; rc=$?
+[ "$rc" -eq 1 ] || fail "--check passed with no README at all (exit $rc)"
+printf '%s' "$out" | grep -q 'missing' || fail "--check did not report the missing README"
+ok "missing README fails --check"
+
+# 9. A root with no skills/local is a broken invocation, not an empty map.
+mkdir -p "$TMP/empty"
+python3 "$MAP" --root "$TMP/empty" --check >/dev/null 2>&1
+[ "$?" -eq 2 ] || fail "a root without skills/local did not exit 2"
+ok "unusable root exits 2"
+
+# 10. The real repository's committed map is current.
+python3 "$MAP" --root "$ROOT" --check >/dev/null 2>&1 \
+  || fail "the committed skills/local/README.md is stale; run: skill-map"
+ok "committed map is current"
+
+if [ "$fails" -eq 0 ]; then
+  echo "skill-map-test: PASS"
+  exit 0
+fi
+echo "skill-map-test: FAILED ($fails)" >&2
+exit 1

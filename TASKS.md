@@ -17,6 +17,14 @@ _None._
 
 ## Recently completed
 
+- **TASK-048 / REQ-SKILL-DISCOVERY (R1).** `skill-map` renders `skills/local/README.md`
+  from frontmatter — 66 skills in 11 domains, each row carrying its first registry
+  sentence, vendored/fork mark, and the siblings it routes to. `--check` fails a stale
+  map by name and `ai-policy-lint` runs it. `skill-map-test` is 10 cases, 7 of them
+  mutations; the first run found three real defects. `memory/skills.md` points at the
+  map (9,468 bytes, under the 12,000 router budget). The map records 17 skills nothing
+  routes to — the input TASK-050 acts on.
+
 - **TASK-047 / REQ-TASK-LEDGER-CONSISTENCY (R1).** TASK-042 and TASK-043 closed by
   re-executing the checks their contracts name, not by assertion; both had been
   `BLOCKED` since 2026-09-01 under the rule `3820a1e` relaxed. TASK-045
@@ -47,20 +55,6 @@ Seeded by `docs/DOTFILES_REVIEW_2026-09-04.md`; run in order.
 - **Verification:** `bin/resume-brief` shows no live task whose evidence is not PASS
 - **Escalation Conditions:** a re-executed check fails
 
-### TASK-048: A map of the skill set that cannot drift
-- **Requirement:** REQ-SKILL-DISCOVERY
-- **Risk Level:** R1
-- **Allowed Paths:** `bin/skill-map`, `bin/skill-map-test`, `skills/local/README.md`, `config/ai/runtime-commands.txt`, `bin/ai-policy-lint`, `config/ai/memory/skills.md`, `TASKS.md`
-- **Protected Paths:** `skills/local/*/SKILL.md`
-- **Canonical Contract Owners:** `skills.discovery`
-- **Accepted Invariants:** rendered from frontmatter, never hand-edited; every `skills/local/*/SKILL.md` appears once, grouped by a domain table inside `bin/skill-map` (no new frontmatter key); rows show first sentence and outbound skill references; `--check` fails on a stale README and `ai-policy-lint` runs it
-- **Regression Checks:** `skill-map-test`, `ai-policy-lint`, `skill-surface-check`
-- **Runtime Evidence:** a fixture skill added without re-render fails `--check` by name; `memory/skills.md` gains one pointer line under the 12,000-byte budget
-- **Reopen Conditions:** README and `skills/local` disagree on any skill
-- **Non-Scope:** SKILL.md edits; runtime discovery; frontmatter keys
-- **Verification:** `bin/skill-map-test`
-- **Escalation Conditions:** grouping needs data frontmatter lacks
-
 ### TASK-049: Trim the ten heaviest discovery descriptions
 - **Requirement:** REQ-SKILL-DISCOVERY
 - **Risk Level:** R2
@@ -85,7 +79,7 @@ Seeded by `docs/DOTFILES_REVIEW_2026-09-04.md`; run in order.
 - **Canonical Contract Owners:** `skills.routing`
 - **Accepted Invariants:** "Billing and payments" names `doku-malaysia-integration`, `autolaris-h2h`, `mengantar-api` beside `stripe-best-practices`; `ai-traffic-os` and `automated-traffic-pipeline` name each other and `seo-website-builder`; new references resolve under the routing-graph check
 - **Regression Checks:** `ai-policy-lint`, `skill-map-test`
-- **Runtime Evidence:** the map's isolated count falls from 17; no provider skill remains in it
+- **Runtime Evidence:** the map's isolated count falls from 17 — the mention rule (a code span anywhere in SKILL.md, 256 edges), not the stricter routing-table rule `ai-policy-lint` resolves; no provider skill remains in it
 - **Reopen Conditions:** a provider skill lands with no row routing to it
 - **Non-Scope:** removing `stripe-best-practices`; traffic skills beyond the hand-off sentence
 - **Verification:** `bin/ai-policy-lint`

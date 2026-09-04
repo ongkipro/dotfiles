@@ -79,6 +79,14 @@ The destructive historical linker regression is guarded by
 `bin/skill-update-test`. Never replace a path that resolves inside
 `skills/local`; never remove Codex `.system`.
 
+## Where the skill set is mapped
+
+`skills/local/README.md` is the domain map: every owned skill grouped by the kind
+of work it owns, with its first registry sentence and the siblings it routes to.
+It is rendered by `skill-map` from frontmatter and `ai-policy-lint` fails when it
+drifts, so it is current by construction — unlike this file, which names a subset
+in prose. Read the map for coverage; read this file for calibration.
+
 ## Capability ownership
 
 - `product-intelligence` owns decision-first synthesis from an uncertain product

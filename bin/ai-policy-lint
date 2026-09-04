@@ -532,6 +532,26 @@ def check_command_manifest():
     print(f"  OK  command manifest: {len(commands)} command(s) in bin/, all listed")
 
 
+def check_skill_map():
+    """The map of the skill set must be what a fresh render produces.
+
+    `skill-map` derives `skills/local/README.md` from frontmatter. Nothing stops
+    a hand edit or a forgotten re-render, and a map that disagrees with the
+    directory is worse than none: it is read as authority. The check names the
+    skill that differs rather than only reporting staleness.
+    """
+    script = ROOT / "bin" / "skill-map"
+    if not script.is_file():
+        return
+    proc = subprocess.run([sys.executable, str(script), "--root", str(ROOT), "--check"],
+                          capture_output=True, text=True)
+    if proc.returncode == 0:
+        print(f"  OK  skill map: {proc.stdout.strip().split(': ', 1)[-1]}")
+    else:
+        detail = (proc.stderr or proc.stdout).strip().replace("\n", "\n  ")
+        err(f"skill map is not current:\n  {detail}")
+
+
 def check_skill_routing_graph():
     """Every skill a routing table hands work to must exist.
 
@@ -583,6 +603,7 @@ def main():
     report_memory_hygiene()
     check_templates()
     check_task_contracts()
+    check_skill_map()
     check_hot_context()
 
     if warnings:
