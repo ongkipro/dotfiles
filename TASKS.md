@@ -17,9 +17,21 @@ _None._
 
 ## Recently completed
 
+- **TASK-053 / REQ-DEAD-ARTIFACTS (R0).** Removed `config/omp/config.yml.lock` (0 bytes,
+  no reader, covered by no ignore rule — 2026-08-15 audit P2-13), `docs/dev-setup.md`
+  (a redirect nothing linked to; the `dev-setup.md` hits in a naive grep are all
+  `linux-dev-setup.md`, a different file that stays), and `docs/preview/` (68 KB, six
+  files; its only inbound link was a README line removed in `3d5fb69`). `config/omp/*.lock`
+  is now ignored, and the rule was proven by recreating the file and watching `git`
+  ignore it. Review confirmed independently that OMP 18.1.5 creates no lock on either
+  the read or the write path, and that `docs/preview/` was never published: no Pages,
+  no `CNAME`, no deploying workflow.
+
 - **TASK-052 / REQ-PUBLIC-README (R1).** `README.md` had been 0 bytes on `origin/main`
-  since `6e2bf36`, a memory-cleanup commit whose stat reads `README.md | 5 --`, on a
-  public repository. 72 lines: what the repository owns, what it deliberately does not
+  since `6e2bf36`, a memory-cleanup commit whose stat reads `README.md | 5 --`. The
+  commit message calls the repository public; `gh api` says `private` as of 2026-09-04,
+  and I had trusted `dev-toolchain-mise.md` instead of the check CLAUDE.md names for
+  exactly this claim. The README itself never asserted visibility. 72 lines: what the repository owns, what it deliberately does not
   (OMP runtime config, secrets, device facts, repository truth), install, the three
   daily commands, where authority lives, and the safety boundary. Every command, path
   and link verified against disk; no model selector or version string to chase.
@@ -89,20 +101,6 @@ Seeded by `docs/DOTFILES_REVIEW_2026-09-04.md`; run in order.
 - **Non-Scope:** rewriting `.delivery/runs/*`; PASS semantics
 - **Verification:** `bin/resume-brief` shows no live task whose evidence is not PASS
 - **Escalation Conditions:** a re-executed check fails
-
-### TASK-053: Delete what nothing reads
-- **Requirement:** REQ-DEAD-ARTIFACTS
-- **Risk Level:** R0
-- **Allowed Paths:** `config/omp/config.yml.lock`, `.gitignore`, `docs/dev-setup.md`, `docs/preview/**`, `TASKS.md`
-- **Protected Paths:** None
-- **Canonical Contract Owners:** `docs.hygiene`
-- **Accepted Invariants:** each deletion follows a fresh search proving no reader, link, or installer reference; `config/omp/*.lock` is ignored afterwards; `ai-memory-check .` stays green
-- **Regression Checks:** `ai-memory-check`, `ai-policy-lint`, `omp-effective-routing-test`
-- **Runtime Evidence:** `grep -rn` per removed path over `bin/ install*.sh .github/ config/ docs/ skills/` hits only the audit
-- **Reopen Conditions:** any of the three returns
-- **Non-Scope:** the four `docs/DOTFILES_*.md` (P1-16/P2-14 move is a separate decision)
-- **Verification:** `bin/ai-policy-lint`
-- **Escalation Conditions:** `docs/preview/` is published or bookmarked elsewhere
 
 ### TASK-055: The registry is measured with the wrong ruler
 - **Requirement:** REQ-GATE-INSTRUMENTS

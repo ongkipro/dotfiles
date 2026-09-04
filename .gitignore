@@ -66,3 +66,8 @@ config/omp/*.db-wal
 config/omp/agents/
 config/omp/terminal-sessions/
 config/omp/last-changelog-version
+
+# OMP writes no lock file; a zero-byte config.yml.lock was tracked for weeks
+# with no reader (2026-08-15 audit P2-13, removed 2026-09-04). Ignore the shape
+# so it cannot return unnoticed.
+config/omp/*.lock
