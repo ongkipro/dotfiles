@@ -104,14 +104,38 @@ case "$cmd" in
     keyword="$1"
     echo "→ Meta templates for keyword: $keyword"
     echo
+    # Descriptive, not promotional. CLAUDE.md forbids CTA text in Shopify meta
+    # and defaults to brand-generic, and the templates shipped here broke both
+    # rules before anyone typed a word: "Buy Online at [Brand]", "Shop ... at
+    # [Brand]", "order online today". A helper whose defaults violate the policy
+    # is worse than no helper — it makes the breach the path of least effort.
+    # "Free Shipping & Best Price" also asserted two things about a shop this
+    # command knows nothing about.
+    # "≤60 chars" was a label, not a check. A 35-character keyword pushes every
+    # title past it, and the header still claimed the limit was met — the same
+    # shape of defect as the CTA above: a promise the output does not keep.
+    emit() { # emit <limit> <n> <text>
+      local limit="$1" n="$2" text="$3" len=${#3}
+      if [ "$len" -le "$limit" ]; then
+        printf '  %s. %s  (%d)\n' "$n" "$text" "$len"
+      else
+        printf '  %s. %s  (%d — OVER %d, shorten the keyword or the template)\n' \
+          "$n" "$text" "$len" "$limit"
+      fi
+    }
     echo "[SEO Title templates (≤60 chars)]"
-    echo "  1. $(capitalize "$keyword") – Buy Online at [Brand]"
-    echo "  2. $(capitalize "$keyword") | Free Shipping & Best Price"
-    echo "  3. Best $(capitalize "$keyword") for [Use Case] – [Brand]"
+    emit 60 1 "$(capitalize "$keyword") – Specifications, Materials and Sizes"
+    emit 60 2 "$(capitalize "$keyword"): Types, Dimensions and Care"
+    emit 60 3 "$(capitalize "$keyword") for [Use Case] – Features Compared"
     echo
     echo "[Meta Description templates (≤155 chars)]"
-    echo "  1. Shop ${keyword} at [Brand]. Free shipping, easy returns. Discover top-rated [${keyword}] with detailed specs and customer reviews."
-    echo "  2. Looking for ${keyword}? Find the best selection at [Brand]. Compare prices, read reviews, and order online today."
+    emit 155 1 "${keyword}: materials, dimensions and finishes explained, with the differences between common variants and what each one suits."
+    emit 155 2 "What to check when choosing ${keyword} — size, material, build and care — so the specification matches the space it is going into."
+    echo
+    echo "[Rules these follow]"
+    echo "  No CTA and no brand slot: CLAUDE.md forbids \"Buy Now\"/\"Shop Now\" in"
+    echo "  Shopify meta and defaults to brand-generic. Add either one only when"
+    echo "  you have decided to, not because a template already had it."
     echo
     ;;
 

@@ -17,6 +17,17 @@ _None._
 
 ## Recently completed
 
+- **TASK-059 / REQ-CONTENT-POLICY (R1).** `shopify-content-helper meta-gen` shipped
+  templates breaking two rules in `CLAUDE.md` before anyone typed a word: CTA text
+  ("Buy Online at", "Shop … at", "order online today") and a `[Brand]` slot where
+  brand-generic is the default. It also asserted "Free Shipping & Best Price" about a
+  shop it knows nothing about. Six templates replaced with descriptive ones — materials,
+  dimensions, variants — and the command now prints the rule it follows. The `≤60` and
+  `≤155` headers turned out to be labels rather than checks: a 35-character keyword put
+  every title at 63–73 while the header still claimed the limit. Each template now
+  reports its own length and flags an overrun. Three mutations bite. The test that
+  previously locked the broken state asserts the rule instead.
+
 - **TASK-058 / REQ-TEST-EFFICACY (R2).** Ten of the fourteen untested commands gained a
   test, ordered by blast radius: `9router-credential-migrate` (secrets — only refusal and
   misuse paths, no key read or written), `device-register` (via `--dry-run`), `ai-doctor`
@@ -148,20 +159,6 @@ Archived under `docs/archive/`, newest `DOTFILES_TASKS_2026-09-01_DEVICE_VERIFIC
 ## Pending
 
 The 2026-09-04 queue (TASK-047..056) is complete; see Recently completed.
-
-### TASK-059: meta-gen ships the CTA text the policy forbids
-- **Requirement:** REQ-CONTENT-POLICY
-- **Risk Level:** R1
-- **Allowed Paths:** `bin/shopify-content-helper`, `bin/shopify-content-helper-test`, `TASKS.md`
-- **Protected Paths:** None
-- **Canonical Contract Owners:** `content.policy`
-- **Accepted Invariants:** no SEO title or meta template emits a call to action or a bracketed brand slot; `CLAUDE.md` forbids "Buy Now"/"Shop Now"/CTA in Shopify descriptions and meta unless asked, and brand-generic is the default
-- **Regression Checks:** `shopify-content-helper-test`, `ai-policy-lint`
-- **Runtime Evidence:** `bin/shopify-content-helper:108-114` ships "Buy Online at [Brand]", "Shop ${keyword} at [Brand]" and "order online today". Found 2026-09-04 by independent review of the test written for this command — that test's own header promised a CTA check and made none
-- **Reopen Conditions:** a template regains CTA or brand text
-- **Non-Scope:** the other subcommands; the SEO guidance itself
-- **Verification:** `bin/shopify-content-helper-test`, whose CTA assertion is written to fail once the templates are fixed
-- **Escalation Conditions:** a replacement cannot stay under 60/155 characters without a CTA
 
 - **TASK-012 / AUDIT-MON-01 — measure real skill effectiveness (R0).** Dormant until five immutable delivery records exist for one skill; then `ai-skill-evolution --repo <repo> --dotfiles ~/dotfiles --json`. Never fabricate attribution.
 

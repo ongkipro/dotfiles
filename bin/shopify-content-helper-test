@@ -22,17 +22,32 @@ alt="$(bash "$CMD" image-alt-pattern "kursi kayu jati" 2>&1 || true)"
 printf '%s' "$alt" | grep -qi 'kursi' && ok "image-alt-pattern echoes the subject term" \
   || bad "image-alt-pattern produced nothing usable: $(printf '%s' "$alt" | head -2)"
 
-# CLAUDE.md forbids CTA text in Shopify meta. meta-gen's shipped templates break
-# that rule today — "Buy Online at [Brand]", "Shop ... at [Brand]", "order online
-# today" — so this asserts the CURRENT state and fails the moment it is fixed,
-# which is the point: the finding is recorded in TASKS.md and this test is what
-# will tell us the fix landed. Changing the subject is out of this run's surface.
+# CLAUDE.md forbids CTA text in Shopify meta and defaults to brand-generic. The
+# shipped templates broke both — "Buy Online at [Brand]", "Shop ... at [Brand]",
+# "order online today" — so a helper made the breach the path of least effort.
+# This asserted the broken state until TASK-059 fixed it; it now asserts the rule.
 meta="$(bash "$CMD" meta-gen "kursi kayu" 2>&1 || true)"
-if printf '%s' "$meta" | grep -qiE 'buy online|shop .* at|order online today'; then
-  ok "meta-gen still emits the CTA templates CLAUDE.md forbids (known, TASK-059)"
+# Only the numbered template lines. The command also prints the rule it follows,
+# which necessarily quotes "Buy Now"/"Shop Now" — scanning the whole output made
+# the explanation trip the check on itself.
+templates="$(printf '%s\n' "$meta" | grep -E '^  [0-9]+\.')"
+if printf '%s' "$templates" | grep -qiE 'buy online|buy now|shop now|shop .* at |order online today|free shipping'; then
+  bad "a meta template carries CTA text: $(printf '%s' "$templates" | grep -iE 'buy|shop|order online|free shipping' | head -1)"
 else
-  bad "meta-gen no longer emits CTA text — good; update this assertion and close TASK-059"
+  ok "no CTA text in the meta templates"
 fi
+printf '%s' "$templates" | grep -q '\[Brand\]' \
+  && bad "a meta template still offers a [Brand] slot; brand-generic is the default" \
+  || ok "no brand slot in the meta templates"
+
+# The "≤60 chars" and "≤155 chars" headers were labels, not checks. A long
+# keyword pushed every title past 60 while the header still claimed the limit.
+long="$(bash "$CMD" meta-gen "kursi kayu jati ukir jepara premium" 2>&1 || true)"
+printf '%s' "$long" | grep -q 'OVER 60' \
+  && ok "a title past 60 characters is flagged, not silently claimed" \
+  || bad "a 73-character title was presented as meeting the ≤60 header"
+printf '%s' "$meta" | grep -qE '\([0-9]+\)' \
+  && ok "each template reports its own length" || bad "no length reported"
 
 # It must not write into the repository just by being asked what it does.
 BEFORE="$(git -C "$ROOT" status --porcelain | sort)"
