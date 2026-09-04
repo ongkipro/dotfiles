@@ -207,8 +207,18 @@ def main():
     # both wrong on 2026-09-01, both discovered by asking reality instead of
     # reading the file. Only the dependency edge is human-authored, because only
     # a human knows it; everything else is computed from ledger evidence.
-    unfinished = sorted(t for t, (res, _) in outcomes.items()
-                        if res != "PASS" and t not in retired)
+    # A contract with no run at all was invisible here. `outcomes` is built from
+    # .delivery/runs, so a task nobody has started was simply not in it, and a
+    # freshly accepted queue reported "0 ready to start" while eight contracts
+    # waited — the brief answering "nothing to do" for the one state it exists
+    # to surface. Only a `###` contract counts: a bullet is a prose note, and
+    # TASK-012 is dormant by design until five delivery records exist, so
+    # listing it as ready would be noise dressed as a queue.
+    accepted = {t for t in re.findall(r"(?m)^#{2,4}\s+(" + TASK_ID + r")(?![0-9])", live)}
+    unfinished = sorted(
+        {t for t, (res, _) in outcomes.items() if res != "PASS" and t not in retired}
+        | {t for t in accepted if t not in outcomes and t not in retired}
+    )
     # A dependency is met when its evidence ends in PASS. Two other shapes are
     # neither met nor a reason to deadlock, and saying which is which is the
     # difference between an actionable queue and a permanent stall: a dependency
@@ -235,9 +245,9 @@ def main():
         if unmet:
             blocked_by[t] = unmet
     if unfinished:
-        print("\nTasks whose evidence does not end in PASS:")
+        print("\nTasks not finished: no run yet, or evidence not ending in PASS:")
         for t in unfinished:
-            res, run = outcomes[t]
+            res, run = outcomes.get(t, ("no run", ""))
             title = ""
             tasks_md = repo / "TASKS.md"
             if tasks_md.is_file():
@@ -257,7 +267,7 @@ def main():
         print(f"\n{len(ready)} ready to start, {len(blocked_by)} waiting on a dependency.")
         print("These are the resume candidates. Repository evidence decides, not memory.")
     else:
-        print("\nEvery live task with recorded evidence ended in PASS.")
+        print("\nEvery accepted contract has evidence, and all of it ends in PASS.")
 
     if retired:
         print(f"\nRetired in docs/archive, not candidates: {', '.join(sorted(retired))}")

@@ -72,7 +72,7 @@ printf '| TASK-901 | retired | superseded by TASK-902 |\n' > "$R/docs/archive/ol
 "$DL" --repo "$R" finish --result BLOCKED >/dev/null 2>&1
 BRIEF="$("$RB" "$R" 2>&1)"
 want "names the retired task as retired"    "Retired in docs/archive"
-if printf '%s' "$BRIEF" | sed -n '/Tasks whose/,/^$/p' | grep -q "TASK-901"; then
+if printf '%s' "$BRIEF" | sed -n '/Tasks not finished/,/^$/p' | grep -q "TASK-901"; then
   say FAIL "a retired task is not offered as a candidate"; fails=$((fails + 1))
 else say ok "a retired task is not offered as a candidate"; fi
 if printf '%s' "$BRIEF" | grep -qE "CI for this HEAD: (success|failure|no run found|unknown|in_progress|queued|completed)"; then
@@ -95,7 +95,7 @@ git -C "$N" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
   --model m --provider p --reasoning-effort high --allow 'x/**' >/dev/null 2>&1
 "$DL" --repo "$N" finish --result BLOCKED >/dev/null 2>&1
 BRIEF="$("$RB" "$N" 2>&1)"
-if printf '%s' "$BRIEF" | sed -n '/Tasks whose/,/^$/p' | grep -q "TASK-02"; then
+if printf '%s' "$BRIEF" | sed -n '/Tasks not finished/,/^$/p' | grep -q "TASK-02"; then
   say ok "a live task is not retired by an unrelated longer ID"
 else
   say FAIL "a live task is not retired by an unrelated longer ID"; fails=$((fails + 1))
@@ -119,7 +119,7 @@ git -C "$P" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
   --model m --provider p --reasoning-effort high --allow 'x/**' >/dev/null 2>&1
 "$DL" --repo "$P" finish --result BLOCKED >/dev/null 2>&1
 BRIEF="$("$RB" "$P" 2>&1)"
-if printf '%s' "$BRIEF" | sed -n '/Tasks whose/,/^$/p' | grep -q "TASK-02"; then
+if printf '%s' "$BRIEF" | sed -n '/Tasks not finished/,/^$/p' | grep -q "TASK-02"; then
   say ok "a shorter ID is not retired by a longer archived one"
 else
   say FAIL "a shorter ID is not retired by a longer archived one"; fails=$((fails + 1))
@@ -142,7 +142,7 @@ git -C "$L" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
   --model m --provider p --reasoning-effort high --allow 'x/**' >/dev/null 2>&1
 "$DL" --repo "$L" finish --result BLOCKED >/dev/null 2>&1
 BRIEF="$("$RB" "$L" 2>&1)"
-if printf '%s' "$BRIEF" | sed -n '/Tasks whose/,/^$/p' | grep -q "TASK-05"; then
+if printf '%s' "$BRIEF" | sed -n '/Tasks not finished/,/^$/p' | grep -q "TASK-05"; then
   say ok "a live task recorded as a bullet is not retired"
 else
   say FAIL "a live task recorded as a bullet is not retired"; fails=$((fails + 1))
@@ -352,6 +352,54 @@ mkdir -p "$TMP/plain" && git -C "$TMP/plain" init -q
 BRIEF="$("$RB" "$TMP/plain" 2>&1)"
 want "a ledger-less repository still answers" "resume authority is Git state only"
 wantnot "does not invent a run"               "Active run:"
+
+# ── A contract with no run at all (TASK-054) ─────────────────────────────────
+# The brief was built from .delivery/runs, so a task nobody had started was not
+# in `outcomes` and never appeared. A freshly accepted queue of eight contracts
+# reported "0 ready to start" — the one command whose job is answering "where am
+# I" saying "nowhere to go" precisely when there was most to do.
+NR="$TMP/norun"; mkdir -p "$NR/.delivery/runs"
+printf '%s' '{"schemaVersion":1,"statusAuthority":"STATUS.md","project":"fixture","activeRun":null}' > "$NR/.delivery/current.json"
+git -C "$NR" init -q 2>/dev/null
+git -C "$NR" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base 2>/dev/null
+cat > "$NR/TASKS.md" <<'EOF'
+# Tasks — fixture
+
+## Pending
+
+### TASK-101: Never started
+- **Requirement:** REQ-X
+- **Risk Level:** R1
+
+### TASK-102: Waits on the first
+- **Requirement:** REQ-X
+- **Risk Level:** R1
+- **Depends On:** TASK-101
+
+- **TASK-103 / AUDIT-X — a dormant bullet, not an accepted contract (R0).**
+EOF
+BRIEF="$("$RB" "$NR" 2>&1)"
+want "a contract with no run is listed" "TASK-101"
+wantre "and is marked no run" "TASK-101 +READY +no run"
+wantre "an unmet dependency still waits" "TASK-102 +waiting"
+want "the blocker is named" "TASK-101 (no ledger run)"
+wantnot "a bullet is not an accepted contract" "TASK-103"
+want "the heading no longer claims evidence exists" "no run yet, or evidence not ending in PASS"
+
+# The complement: when every contract HAS a passing run, nothing is listed and
+# the closing line must not imply rows were judged that were not.
+CL="$TMP/clean"; mkdir -p "$CL/.delivery/runs"
+printf '%s' '{"schemaVersion":1,"statusAuthority":"STATUS.md","project":"fixture","activeRun":null}' > "$CL/.delivery/current.json"
+git -C "$CL" init -q 2>/dev/null
+git -C "$CL" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base 2>/dev/null
+printf '# Tasks\n\n### TASK-201: Done\n- **Risk Level:** R1\n' > "$CL/TASKS.md"
+printf '%s\n%s\n' \
+  '{"type":"run_started","task":"TASK-201","time":"2026-01-01T00:00:00Z"}' \
+  '{"type":"run_finished","result":"PASS","time":"2026-01-01T00:01:00Z"}' \
+  > "$CL/.delivery/runs/RUN-x.jsonl"
+BRIEF="$("$RB" "$CL" 2>&1)"
+wantnot "a finished contract is not a candidate" "TASK-201   READY"
+want "the all-clear says what it checked" "Every accepted contract has evidence"
 
 # Not a repository at all: exit 2, not a confident wrong answer.
 mkdir -p "$TMP/nogit"; "$RB" "$TMP/nogit" >/dev/null 2>&1; code=$?

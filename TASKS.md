@@ -17,6 +17,15 @@ _None._
 
 ## Recently completed
 
+- **TASK-054 / REQ-TASK-LEDGER-CONSISTENCY (R1).** `resume-brief` built its candidate
+  list from `.delivery/runs`, so a contract nobody had started was not in it at all: the
+  eight tasks accepted on 2026-09-04 produced "0 ready to start". An accepted `###`
+  contract with no run now reads `READY / no run`; a bullet does not, because
+  `TASK-012` is dormant by design and listing it would be noise dressed as a queue.
+  Two headings that claimed every listed row had evidence are corrected. Three
+  mutations bite, and four existing cases that keyed on the old heading were updated
+  rather than left to pass on a string that no longer appears.
+
 - **TASK-053 / REQ-DEAD-ARTIFACTS (R0).** Removed `config/omp/config.yml.lock` (0 bytes,
   no reader, covered by no ignore rule — 2026-08-15 audit P2-13), `docs/dev-setup.md`
   (a redirect nothing linked to; the `dev-setup.md` hits in a naive grep are all
@@ -129,21 +138,6 @@ Seeded by `docs/DOTFILES_REVIEW_2026-09-04.md`; run in order.
 - **Non-Scope:** splitting either file; changing either limit
 - **Verification:** `bin/ai-memory-hygiene-test` fails on a 15,000-byte fixture before the fix
 - **Escalation Conditions:** the two limits are found to be deliberately independent
-
-### TASK-054: A contract with no run is a candidate too
-- **Requirement:** REQ-TASK-LEDGER-CONSISTENCY
-- **Risk Level:** R1
-- **Depends On:** TASK-047
-- **Allowed Paths:** `bin/resume-brief`, `bin/resume-brief-test`, `TASKS.md`
-- **Protected Paths:** `bin/delivery-ledger`
-- **Canonical Contract Owners:** `runtime.resume`
-- **Accepted Invariants:** a live `###` contract with no ledger run lists as `READY` / `no run`, or `waiting` when a dependency lacks PASS — distinct from BLOCKED; archived tasks stay retired
-- **Regression Checks:** `resume-brief-test`, `ai-policy-lint`
-- **Runtime Evidence:** on this file TASK-048/051/052/053 show ready, TASK-049/050/054 waiting
-- **Reopen Conditions:** an accepted contract is missing from the brief
-- **Non-Scope:** picking the next task; ledger semantics
-- **Verification:** `bin/resume-brief-test`
-- **Escalation Conditions:** a no-run task is indistinguishable from a fenced example
 
 - **TASK-012 / AUDIT-MON-01 — measure real skill effectiveness (R0).** Dormant until five immutable delivery records exist for one skill; then `ai-skill-evolution --repo <repo> --dotfiles ~/dotfiles --json`. Never fabricate attribution.
 
