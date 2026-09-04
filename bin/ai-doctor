@@ -496,19 +496,32 @@ fi
 # perlindungan .env tidak otomatis ikut ke device baru. permissions.deny ditegakkan
 # HARD bahkan di bypassPermissions mode (bukan cuma prosa approval-gate). Cek di sini
 # supaya cuan tahu harus menambahkannya — dan supaya reset settings tidak lolos senyap.
-# ⚠️ Cek profil yang SEDANG AKTIF, bukan cuma ~/.claude. Mesin `cuan` masih memakai dua akun
-# (~/.claude-accounts/{personal,kerja}, dipilih lewat fungsi di ~/.bashrc yang menyetel
-# CLAUDE_CONFIG_DIR) walaupun dotfiles sudah pindah ke "single native profile" 2026-07-29 —
-# script switcher-nya dihapus, mekanismenya tidak. Membaca ~/.claude/settings.json saja akan
-# HIJAU sementara profil yang benar-benar dipakai kehilangan deny .env-nya: alarm yang memeriksa
-# file yang salah. Kalau CLAUDE_CONFIG_DIR tak disetel, ini persis sama dengan versi single-profile.
-CC_SETTINGS="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
-if command -v claude >/dev/null 2>&1 && [ -f "$CC_SETTINGS" ]; then
-  if grep -qE 'Read\((\*\*/)?\.env' "$CC_SETTINGS" 2>/dev/null; then
+# ⚠️ Cek profil yang SEDANG AKTIF, bukan cuma ~/.claude. Dotfiles pindah ke "single native
+# profile" 2026-07-29; di `Fantastico` residu switcher-nya (bin/akun, claude-kerja,
+# claude-personal, ~/.claude-accounts/, slash /akun) baru benar-benar dihapus 2026-09-04 —
+# sebelum itu masih ada profil kedua tanpa settings.json sama sekali yang sempat menerima
+# tulisan sesi. Mekanisme CLAUDE_CONFIG_DIR sendiri milik Claude Code, bukan milik dotfiles,
+# jadi ia tetap bisa dipakai kapan pun: cek ini SENGAJA mengikuti profil aktif. Kalau
+# CLAUDE_CONFIG_DIR tak disetel, ini persis sama dengan versi single-profile.
+CC_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+CC_SETTINGS="$CC_DIR/settings.json"
+if command -v claude >/dev/null 2>&1; then
+  [ "$CC_DIR" != "$HOME/.claude" ] && \
+    wrn "Claude profil aktif BUKAN ~/.claude melainkan $CC_DIR (CLAUDE_CONFIG_DIR disetel). Dotfiles mengasumsikan satu profil native; pastikan profil ini punya deny .env + hook yang sama."
+  if [ ! -f "$CC_SETTINGS" ]; then
+    # Kasus paling berisik justru yang dulu paling senyap: sampai 2026-09-04 blok ini
+    # dijaga `[ -f "$CC_SETTINGS" ]`, jadi profil TANPA settings.json — nol deny .env,
+    # nol hook — lolos tanpa sepatah kata. Persis yang terjadi pada ~/.claude-accounts/personal.
+    wrn "Claude settings: $CC_SETTINGS TIDAK ADA — profil ini jalan tanpa permissions.deny dan tanpa hook. Buat file itu (lalu jalankan ai-hooks-install) sebelum dipakai."
+  elif grep -qE 'Read\((\*\*/)?\.env' "$CC_SETTINGS" 2>/dev/null; then
     ok "Claude settings: permissions.deny memblokir baca .env (ditegakkan bahkan di bypass)"
   else
     wrn "Claude settings: TIDAK ada permissions.deny untuk .env — agent bisa membaca secret di bypass mode. Tambahkan blok \"permissions\":{\"deny\":[\"Read(.env*)\",\"Read(**/.env*)\",\"Read(.dev.vars*)\",\"Read(~/.ssh/**)\",\"Read(~/.aws/**)\"]} ke $CC_SETTINGS"
   fi
+  # Detektor regresi residu multi-akun: direktori ini tidak lagi punya pemilik di dotfiles,
+  # jadi kalau ia muncul lagi artinya ada yang menghidupkan profil kedua tanpa settings.
+  [ -d "$HOME/.claude-accounts" ] && \
+    wrn "Residu multi-akun muncul lagi: ~/.claude-accounts ada. Profil itu tidak dikelola dotfiles (tanpa deny .env / hook). Hapus, atau lengkapi settings.json-nya kalau memang disengaja."
 fi
 
 # Hook WIRING, bukan cuma hook-nya ada. Sampai 2026-08-16 doctor hanya menjalankan
