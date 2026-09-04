@@ -17,6 +17,15 @@ _None._
 
 ## Recently completed
 
+- **TASK-056 / REQ-GATE-INSTRUMENTS (R1).** `ai-memory-hygiene`'s size check returned at
+  the advisory limit (`projectMaxBytes` 20,000) before reaching the router comparison
+  (`routerMaxBytes` 12,000), so its "can NEVER be selected" branch could not execute for
+  any project file between them. Two were in that gap while the gate reported zero
+  issues: `tokophi-project.md` (15,573 B) and `pi-9router-setup.md` (14,671 B), both now
+  reported as UNROUTABLE rather than as a size complaint. `MEMORY.md` is exempt — it is
+  the hand-read index, never a router candidate, and the coverage gate excludes it for
+  the same reason. Both mutations bite.
+
 - **TASK-055 / REQ-GATE-INSTRUMENTS (R1).** `skill-check` reported the registry total
   from an awk line-scan, over by 188 characters across 36 skills: it counted the folded
   `>-` marker as description text and kept the quotes and doubled `''` escapes of
@@ -117,20 +126,6 @@ Seeded by `docs/DOTFILES_REVIEW_2026-09-04.md`; run in order.
 - **Non-Scope:** rewriting `.delivery/runs/*`; PASS semantics
 - **Verification:** `bin/resume-brief` shows no live task whose evidence is not PASS
 - **Escalation Conditions:** a re-executed check fails
-
-### TASK-056: A hygiene branch that cannot execute
-- **Requirement:** REQ-GATE-INSTRUMENTS
-- **Risk Level:** R1
-- **Allowed Paths:** `bin/ai-memory-hygiene`, `bin/ai-memory-hygiene-test`, `config/ai/memory-hygiene.json`, `TASKS.md`
-- **Protected Paths:** `config/ai/memory/**`, `config/ai/project-memory/**`
-- **Canonical Contract Owners:** `memory.routing`
-- **Accepted Invariants:** a memory file larger than `routerMaxBytes` is reported as never selectable even when it is under `projectMaxBytes`; the advisory-limit warning keeps its own wording
-- **Regression Checks:** `ai-memory-hygiene-test`, `ai-policy-lint`
-- **Runtime Evidence:** `check_size` returns at `size <= limit` with `limit = projectMaxBytes` (20,000) before `routerMaxBytes` (12,000) is consulted, so the "can NEVER be selected" branch is unreachable for any project file between the two. `tokophi-project.md` (15,573 B) and `pi-9router-setup.md` (14,671 B) are in that state and `ai-memory-hygiene` reports zero issues. The router names them at query time, but `ai-memory-access` — the command the hook actually runs — prints only files, never reasons, so nothing reaches a session
-- **Reopen Conditions:** a file between the two limits passes the gate
-- **Non-Scope:** splitting either file; changing either limit
-- **Verification:** `bin/ai-memory-hygiene-test` fails on a 15,000-byte fixture before the fix
-- **Escalation Conditions:** the two limits are found to be deliberately independent
 
 - **TASK-012 / AUDIT-MON-01 — measure real skill effectiveness (R0).** Dormant until five immutable delivery records exist for one skill; then `ai-skill-evolution --repo <repo> --dotfiles ~/dotfiles --json`. Never fabricate attribution.
 

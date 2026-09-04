@@ -107,15 +107,33 @@ def check_size(root: Path, path: Path, policy: dict) -> list[dict]:
     except ValueError:
         return []
     limit = policy["sharedMaxBytes"] if rel.startswith("config/ai/memory/") else policy["projectMaxBytes"]
+    routable_limit = policy.get("routerMaxBytes", limit)
     size = path.stat().st_size
-    if size <= limit:
+    # Return on the SMALLER of the two, not on the advisory one. projectMaxBytes
+    # is 20000 and routerMaxBytes 12000, so returning at the advisory limit made
+    # the "can NEVER be selected" branch below unreachable for every project file
+    # between them — a guard whose interesting case could not execute. Two files
+    # sat in that state on 2026-09-04, tokophi-project.md at 15573 bytes and
+    # pi-9router-setup.md at 14671, while this reported zero issues.
+    if size <= min(limit, routable_limit):
         return []
     # Not merely "large". The router drops any single file bigger than its whole
     # byte budget and returns nothing, while still reporting that the trigger
     # matched — so an oversize file is silently unroutable, not degraded. Say
     # that, because "exceeds advisory limit" reads as cosmetic and four files
     # sat in this state unnoticed.
-    routable_limit = policy.get("routerMaxBytes", limit)
+    if size <= limit:
+        # MEMORY.md is the hand-read index, never a router candidate — the
+        # coverage gate in ai-policy-lint excludes it for the same reason — so
+        # calling it unreachable would be a complaint about working as designed.
+        if path.name == "MEMORY.md":
+            return []
+        # Under the advisory limit but over the router's: not "large", simply
+        # unreachable. Say that instead of a size complaint nobody would act on.
+        return [issue("UNROUTABLE", "WARN", path,
+                      f"{size} bytes is under the advisory limit {limit} but over the "
+                      f"router budget ({routable_limit}B), so this file can NEVER be "
+                      f"selected — split it")]
     detail = f"{size} bytes exceeds advisory limit {limit}"
     if size > routable_limit:
         detail += f"; larger than the router budget ({routable_limit}B) so this file can NEVER be selected — split it"

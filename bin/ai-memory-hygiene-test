@@ -19,6 +19,7 @@ cat > "$TMP/config/ai/memory-hygiene.json" <<'EOF'
   "schemaVersion":1,
   "sharedMaxBytes":100,
   "projectMaxBytes":1000,
+  "routerMaxBytes":400,
   "staleDays":30,
   "semanticMinTokens":6,
   "semanticDuplicateThreshold":0.80,
@@ -88,5 +89,34 @@ EOF
 cat > "$TMP/config/ai/project-memory-kelola/MEMORY.md" <<'EOF'
 # Kelola Memory Index
 EOF
+# ── Unreachable, not merely large (TASK-056) ─────────────────────────────────
+# The size check returned at the ADVISORY limit, so for any project file between
+# routerMaxBytes and projectMaxBytes the "can NEVER be selected" branch below it
+# could not execute. Two real files sat in that gap while the gate reported zero
+# issues. Here: 600 bytes, under the 1000 advisory limit, over the 400 router
+# budget — the exact shape that used to pass in silence.
+python3 - "$TMP/config/ai/project-memory/unreachable.md" <<'PYW'
+import sys, pathlib
+pathlib.Path(sys.argv[1]).write_text("# Unreachable\n\n" + ("word " * 120))
+PYW
+OUT="$(python3 "$TMP/bin/ai-memory-hygiene" --root "$TMP" --today 2026-08-15 2>&1)" || true
+printf '%s' "$OUT" | grep -q 'UNROUTABLE' || {
+  echo 'FAIL: a file between the router budget and the advisory limit was not reported' >&2
+  exit 1; }
+printf '%s' "$OUT" | grep -q 'unreachable.md' || {
+  echo 'FAIL: the unroutable file was not named' >&2; exit 1; }
+# The index is not a router candidate, so it must not be accused of being one.
+python3 - "$TMP/config/ai/project-memory/MEMORY.md" <<'PYW'
+import sys, pathlib
+pathlib.Path(sys.argv[1]).write_text("# Memory Index\n\n" + ("entry " * 120))
+PYW
+python3 "$TMP/bin/ai-memory-hygiene" --root "$TMP" --today 2026-08-15 2>&1 \
+  | grep -q 'UNROUTABLE config/ai/project-memory/MEMORY.md' && {
+  echo 'FAIL: the hand-read index was reported as unroutable' >&2; exit 1; }
+rm -f "$TMP/config/ai/project-memory/unreachable.md"
+cat > "$TMP/config/ai/project-memory/MEMORY.md" <<'EOF'
+# Memory Index
+EOF
+
 python3 "$TMP/bin/ai-memory-hygiene" --root "$TMP" --today 2026-08-15 --strict >/dev/null
 echo 'ai-memory-hygiene-test: PASS'
