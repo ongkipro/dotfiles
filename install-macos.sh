@@ -26,6 +26,36 @@ link() {
 # OMP owns its runtime configuration, model catalog, and bundled agents.
 # Remove only links created by older dotfiles installers; preserve every
 # unmanaged file or link for the user and for OMP itself.
+# Mirrors install.sh. Claude Code moved to a single native profile at ~/.claude on
+# 2026-07-29; that removed the switcher scripts from this repo but not what they had
+# already installed on each device. The symlink prune further down only catches links
+# into $DOT/bin - on `Fantastico` these had become REAL files and survived it - so
+# retire them by name here too. ~/.claude-accounts/ is reported, never deleted: it
+# holds session transcripts that are the user's to keep or discard.
+retire_claude_account_profiles() {
+  local stub
+  for stub in "$HOME/.local/bin/claude-kerja" "$HOME/.local/bin/claude-personal"; do
+    [ -e "$stub" ] || [ -L "$stub" ] || continue
+    if [ -L "$stub" ] || grep -qF 'exec akun ' "$stub" 2>/dev/null; then
+      rm -f "$stub"
+      say "   removed retired Claude account launcher: $stub"
+    else
+      say "   ⚠️  $stub exists but is not the retired switcher stub - left untouched."
+    fi
+  done
+
+  local cmd="$HOME/.claude/commands/akun.md"
+  if [ -f "$cmd" ] && grep -qF 'akun open' "$cmd" 2>/dev/null; then
+    rm -f "$cmd"
+    say "   removed retired /akun slash command: $cmd"
+  fi
+
+  if [ -d "$HOME/.claude-accounts" ]; then
+    say "   ⚠️  ~/.claude-accounts masih ada - profil kedua ini tidak dikelola dotfiles"
+    say "       dan bisa jalan tanpa deny .env. Backup lalu hapus manual; ai-doctor juga melaporkannya."
+  fi
+}
+
 retire_omp_overrides() {
   local name live tracked
   for name in config.yml models.yml agents; do
@@ -189,6 +219,7 @@ done
 
 say "==> Link AGENTS.md ke CLI yang ada..."
 retire_omp_overrides
+retire_claude_account_profiles
 "$HOME/.local/bin/ai-memory-link"
 
 say "==> Setup tmux (install binary + clipboard + TPM + plugin)..."

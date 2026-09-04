@@ -1,7 +1,7 @@
 # Device: `Fantastico`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-08-26**
+> Terakhir diperbarui: **2026-09-04**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -11,7 +11,7 @@
 | Hostname | `Fantastico` |
 | Device | **LENOVO ThinkPad X280 (`20KES2SP07`) · laptop** |
 | OS | Ubuntu 26.04 LTS |
-| Kernel | 7.0.0-29-generic · x86_64 |
+| Kernel | 7.0.0-30-generic · x86_64 |
 | Service manager | systemd --user |
 | Package manager | apt |
 
@@ -22,7 +22,7 @@
 | CPU | Intel(R) Core(TM) i7-8650U CPU @ 1.90GHz (8 thread) |
 | RAM | 15.5 GB |
 | GPU | Intel Corporation Kaby Lake-R GT2 [UHD Graphics 620] (rev 07) |
-| Disk (/) | 233G total, 120G free (46% used) |
+| Disk (/) | 233G total, 119G free (47% used) |
 
 ## AI CLI
 
@@ -39,11 +39,20 @@
 | Tool | Versi |
 |---|---|
 | node | v24.16.0 |
-| pnpm | 11.22.0 |
-| bun | 1.3.14 |
+| pnpm | 11.24.0 |
+| bun | 1.4.0 |
 | python3 | Python 3.14.4 |
 | mise | 2026.6.14 linux-x64 (2026-06-25) |
 | git | git version 2.53.0 |
+
+## Profil Claude Code
+
+| Apa | Status |
+|---|---|
+| Profil aktif | `~/.claude` |
+| deny baca `.env` | ✅ ada |
+| hook canonical (git-guard, memory-usage) | ✅ terpasang |
+| residu switcher multi-akun | ✅ bersih |
 
 ## Symlink dotfiles
 

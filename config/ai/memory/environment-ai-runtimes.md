@@ -50,6 +50,14 @@
   no git-guard, no memory hook. Deleting a launcher is not deleting a profile. `ai-doctor`
   now warns when `CLAUDE_CONFIG_DIR` points away from `~/.claude`, when the active
   profile has no `settings.json`, and when `~/.claude-accounts` reappears.
+  The other devices cannot be inspected from here, so the cleanup is carried by the
+  repository rather than by hand: `install.sh` and `install-macos.sh` run
+  `retire_claude_account_profiles` (deleting the `claude-kerja`/`claude-personal`
+  stubs and the `/akun` command, reporting but never deleting a surviving profile
+  directory, since it holds session transcripts), and `device-register` records a
+  **Profil Claude Code** table so each committed `devices/<host>.md` answers
+  "is this machine clean?" on its own. A device is only verified once it has
+  re-run the installer and `device-register`.
 
 ## AI CLI availability
 - CLI installation and login state are machine-local. Check `command -v` and

@@ -41,6 +41,41 @@ link() {
 # OMP owns its runtime configuration, model catalog, and bundled agents.
 # Remove only links created by older dotfiles installers; preserve every
 # unmanaged file or link for the user and for OMP itself.
+# Claude Code moved to a single native profile at ~/.claude on 2026-07-29, but that
+# change only deleted the switcher scripts from this repo - it never removed what they
+# had already installed on each device. On `Fantastico` the leftovers were still there
+# on 2026-09-04: ~/.local/bin/claude-{kerja,personal} as REAL files (so the symlink
+# prune below could not see them), a /akun slash command calling a binary that no longer
+# exists, and a second profile under ~/.claude-accounts/ that was still receiving session
+# writes while carrying no settings.json at all - no permissions.deny for .env, no hooks.
+# Retire the launchers here; the profile directory is only reported, never deleted,
+# because it holds session transcripts that are the user's to keep or discard.
+retire_claude_account_profiles() {
+  local stub
+  for stub in "$HOME/.local/bin/claude-kerja" "$HOME/.local/bin/claude-personal"; do
+    [ -e "$stub" ] || [ -L "$stub" ] || continue
+    if [ -L "$stub" ] || grep -qF 'exec akun ' "$stub" 2>/dev/null; then
+      rm -f "$stub"
+      echo "   removed retired Claude account launcher: $stub"
+    else
+      echo "   ⚠️  $stub exists but is not the retired switcher stub - left untouched."
+    fi
+  done
+
+  local cmd="$HOME/.claude/commands/akun.md"
+  if [ -f "$cmd" ] && grep -qF 'akun open' "$cmd" 2>/dev/null; then
+    rm -f "$cmd"
+    echo "   removed retired /akun slash command: $cmd"
+  fi
+
+  if [ -d "$HOME/.claude-accounts" ]; then
+    echo "   ⚠️  ~/.claude-accounts masih ada. Profil kedua ini TIDAK dikelola dotfiles"
+    echo "       (single native profile sejak 2026-07-29) dan bisa jalan tanpa deny .env."
+    echo "       Isinya transkrip sesi, jadi tidak dihapus otomatis - backup lalu hapus"
+    echo "       manual kalau sudah tidak dipakai. ai-doctor juga melaporkannya."
+  fi
+}
+
 retire_omp_overrides() {
   local name live tracked
   for name in config.yml models.yml agents; do
@@ -148,14 +183,18 @@ for dst in ~/.local/bin/*; do
 done
 
 echo "==> Wire canonical Claude Code hooks..."
-# Each account under ~/.claude-accounts/ is a separate CLAUDE_CONFIG_DIR with its
-# own settings.json. Wiring only ~/.claude leaves the guard absent on whichever
-# account is actually in use, so wire every config dir that exists.
+# ~/.claude is THE profile; ~/.claude-accounts/* is retired and must not be recreated
+# (retire_claude_account_profiles above reports any survivor). It is still wired here
+# deliberately: on a device where such a profile lingers, an unguarded one is worse than
+# a deprecated one, and this loop is what gives it deny .env + git-guard until it is
+# removed. The loop must never be the reason a second profile is created - it only
+# matches directories that already exist.
 for cfg in "$HOME/.claude" "$HOME"/.claude-accounts/*/; do
   [ -d "$cfg" ] || continue
   "$HOME/.local/bin/ai-hooks-install" --settings "${cfg%/}/settings.json"
 done
 retire_omp_overrides
+retire_claude_account_profiles
 
 # `config/codex-instructions.md` has been removed from the repo. Clean up the
 # legacy symlink so ai-doctor does not flag a dangling path on upgraded devices.

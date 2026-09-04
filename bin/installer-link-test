@@ -283,6 +283,46 @@ test_retire_omp_overrides() {
   printf '✓ %s:retire_omp_overrides\n' "$(basename "$file")"
 }
 
+# The switcher stubs on `Fantastico` were REAL files, not links into $DOT/bin, so the
+# installers' symlink prune could never have reached them. Pin both halves: the retired
+# stub goes, and a same-named script the user wrote themselves stays.
+test_retire_claude_account_profiles() {
+  local file="$1" function_code case_dir
+  function_code="$(extract_function "$file" retire_claude_account_profiles)"
+  [ -n "$function_code" ] || { echo "missing retire_claude_account_profiles in $file" >&2; return 1; }
+  case_dir="$TMP/$(basename "$file").claude-accounts"
+  mkdir -p "$case_dir/home/.local/bin" "$case_dir/home/.claude/commands"
+
+  (
+    HOME="$case_dir/home"
+    say() { :; }
+    eval "$function_code"
+
+    # retired stubs (real files) and the /akun command are removed
+    printf '#!/usr/bin/env bash\nexec akun kerja "$@"\n'     > "$HOME/.local/bin/claude-kerja"
+    printf '#!/usr/bin/env bash\nexec akun personal "$@"\n'  > "$HOME/.local/bin/claude-personal"
+    printf -- '---\ndescription: x\n---\n!`akun open $ARGUMENTS`\n' > "$HOME/.claude/commands/akun.md"
+    retire_claude_account_profiles >/dev/null
+    [ ! -e "$HOME/.local/bin/claude-kerja" ]
+    [ ! -e "$HOME/.local/bin/claude-personal" ]
+    [ ! -e "$HOME/.claude/commands/akun.md" ]
+
+    # a user-authored script at the same path is NOT deleted
+    printf '#!/usr/bin/env bash\necho mine\n' > "$HOME/.local/bin/claude-kerja"
+    retire_claude_account_profiles >/dev/null
+    [ "$(cat "$HOME/.local/bin/claude-kerja")" = "$(printf '#!/usr/bin/env bash\necho mine')" ]
+    rm -f "$HOME/.local/bin/claude-kerja"
+
+    # a surviving profile directory is reported, never deleted
+    mkdir -p "$HOME/.claude-accounts/personal"
+    printf 'transcript\n' > "$HOME/.claude-accounts/personal/history.jsonl"
+    retire_claude_account_profiles >/dev/null
+    [ -f "$HOME/.claude-accounts/personal/history.jsonl" ]
+  )
+
+  printf '✓ %s:retire_claude_account_profiles\n' "$(basename "$file")"
+}
+
 test_runtime_command_manifest() {
   local manifest="$ROOT/config/ai/runtime-commands.txt" command_name
   [ -f "$manifest" ] || { echo "missing runtime command manifest" >&2; return 1; }
@@ -330,5 +370,7 @@ test_mise_absent_branch
 test_mise_discovered_path
 test_retire_omp_overrides "$ROOT/install.sh"
 test_retire_omp_overrides "$ROOT/install-macos.sh"
+test_retire_claude_account_profiles "$ROOT/install.sh"
+test_retire_claude_account_profiles "$ROOT/install-macos.sh"
 test_runtime_command_manifest
 echo "installer-link-test: OK"

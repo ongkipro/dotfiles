@@ -98,7 +98,6 @@ for cli in claude codex pi agy omp; do
   fi
 done
 
-# ── Symlink dotfiles yang aktif ──────────────────────────────────────────────
 LINK_ROWS=""
 check_link() {
   local path="$1" label="$2" disp
@@ -115,6 +114,51 @@ check_link() {
     LINK_ROWS+="| $label | \`$disp\` | — belum ada |"$'\n'
   fi
 }
+# ── Profil Claude Code ───────────────────────────────────────────────────────
+# "Apakah device lain sudah bersih?" tidak bisa dijawab dari satu mesin. Sampai
+# 2026-09-04 registry ini hanya merekam symlink, jadi profil kedua yang tertinggal
+# di device mana pun tidak terlihat sama sekali dari repo — di `Fantastico` ia masih
+# menerima tulisan sesi tanpa settings.json (tanpa deny .env, tanpa hook). Rekam di
+# sini supaya `devices/<host>.md` yang ter-commit menjawabnya untuk tiap mesin.
+CC_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+CLAUDE_ROWS=""
+cc_row() { CLAUDE_ROWS+="| $1 | $2 |"$'\n'; }
+
+cc_row "Profil aktif" "\`$(echo "$CC_DIR" | sed "s#$HOME#~#")\`$([ "$CC_DIR" = "$HOME/.claude" ] || echo ' ⚠️ **bukan ~/.claude**')"
+
+if [ -f "$CC_DIR/settings.json" ]; then
+  if grep -qE 'Read\((\*\*/)?\.env' "$CC_DIR/settings.json" 2>/dev/null; then
+    cc_row "deny baca \`.env\`" "✅ ada"
+  else
+    cc_row "deny baca \`.env\`" "❌ **TIDAK ADA** — secret terbaca di bypass mode"
+  fi
+else
+  cc_row "\`settings.json\`" "❌ **TIDAK ADA** — profil jalan tanpa deny .env dan tanpa hook"
+fi
+
+if command -v ai-hooks-install >/dev/null 2>&1; then
+  if CLAUDE_SETTINGS="$CC_DIR/settings.json" ai-hooks-install --check >/dev/null 2>&1; then
+    cc_row "hook canonical (git-guard, memory-usage)" "✅ terpasang"
+  else
+    cc_row "hook canonical (git-guard, memory-usage)" "❌ **belum terpasang** — jalankan \`ai-hooks-install\`"
+  fi
+else
+  cc_row "hook canonical (git-guard, memory-usage)" "— \`ai-hooks-install\` tidak di PATH"
+fi
+
+# Residu switcher dua-akun (pensiun 2026-07-29, sisa terakhir dibersihkan 2026-09-04).
+cc_residue=""
+[ -d "$HOME/.claude-accounts" ] && cc_residue="$cc_residue ~/.claude-accounts"
+[ -e "$HOME/.local/bin/claude-kerja" ] && cc_residue="$cc_residue ~/.local/bin/claude-kerja"
+[ -e "$HOME/.local/bin/claude-personal" ] && cc_residue="$cc_residue ~/.local/bin/claude-personal"
+[ -f "$HOME/.claude/commands/akun.md" ] && cc_residue="$cc_residue /akun"
+if [ -n "$cc_residue" ]; then
+  cc_row "residu switcher multi-akun" "❌ **masih ada**: $(echo "$cc_residue" | sed 's/ /, /g;s/^, //') — jalankan ulang \`install.sh\`"
+else
+  cc_row "residu switcher multi-akun" "✅ bersih"
+fi
+
+# ── Symlink dotfiles yang aktif ──────────────────────────────────────────────
 check_link "$HOME/.config/ai"                "memori bersama"
 check_link "$HOME/.claude/CLAUDE.md"         "memori → claude"
 check_link "$HOME/.codex/AGENTS.md"          "memori → codex"
@@ -181,6 +225,11 @@ $AI_ROWS
 | mise | $(ver mise) |
 | git | $(ver git) |
 
+## Profil Claude Code
+
+| Apa | Status |
+|---|---|
+$CLAUDE_ROWS
 ## Symlink dotfiles
 
 | Apa | Path | Status |
