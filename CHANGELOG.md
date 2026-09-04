@@ -60,6 +60,19 @@ whether anything noticed.
 - **`task.isolation.mode`** pinned a name OMP no longer prints. Behaviour was
   never affected; the gate's view of it was.
 
+### Also fixed after the tag
+
+- **`shopify-content-helper` shipped the CTA text `CLAUDE.md` forbids.** Its meta
+  templates offered "Buy Online at [Brand]", "Shop … at [Brand]" and "order online
+  today", and asserted "Free Shipping & Best Price" about a shop the command knows
+  nothing about — so the tool made the breach the path of least effort. Six
+  templates replaced with descriptive ones. Found by reviewing the test written
+  for the command, whose own header promised a CTA check and made none.
+- **Its `≤60` and `≤155` headers were labels, not checks.** A 35-character keyword
+  produced titles of 63, 70 and 73 characters under a header still claiming the
+  limit. Each template now reports its length and names an overrun. Same defect
+  shape as the CTA, found only because the first one was.
+
 ### Removed
 
 - `cloudflare-one-migrations` — the one skill with no basis here after auditing
@@ -93,9 +106,6 @@ whether anything noticed.
   found a plausible bug slipping past nine of them, including an `ai-doctor-test`
   that pinned this machine's health rather than the subject's contract and would
   have failed on any device reporting a single finding. Fixed after the tag.
-- **`shopify-content-helper` emits the CTA text `CLAUDE.md` forbids** in its meta
-  templates — found by the review of the test written for it, whose own header
-  promised that check and made none. Queued as TASK-059.
 - Two memory files exceed the router budget and can never be selected. They are
   now reported on every hygiene run instead of passing in silence.
 
