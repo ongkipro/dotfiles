@@ -1,16 +1,15 @@
 ---
 name: prd-taskbreaker
 description: >-
-  Turn an idea or feature request into a spec-driven PRD (goals, non-goals, EARS-style
-  numbered requirements, technical decisions) then break it into numbered tasks where each
-  one traces back to a single requirement and carries a runnable "Done when" — ready for an
-  AI coding agent to build without over-engineering. Output: PRD.md (+PLAN.md for architectural
-  features) + TASKS.md. Use when starting a new feature/project or when structured planning is
-  needed before coding. Triggers: 'buat PRD', 'tulis PRD', 'write a PRD', 'pecah jadi task',
-  'break into tasks', 'planning fitur baru', 'spec this feature', 'rencanakan sebelum coding',
-  'plan before coding'. For DIAGRAMS (ERD/sequence/C4) delegate to mermaid-diagram; for API
-  contracts to openapi-spec; to REWRITE/clean up an existing PRD to volumx-writer. NOT for
-  writing the code itself, and NOT for marketing/landing copy (content, copywriting).
+  Turn an idea into a spec-driven PRD (goals, non-goals, EARS-style numbered requirements,
+  technical decisions), then numbered tasks each tracing to one requirement with a runnable "Done
+  when" — ready for an AI coding agent to build without over-engineering. Output PRD.md (+PLAN.md
+  when architectural) + TASKS.md. Use on a feature request, when starting a project, or when
+  planning must precede coding. Triggers: 'buat PRD', 'tulis PRD', 'write a PRD', 'pecah jadi
+  task', 'break into tasks', 'planning fitur baru', 'spec this feature', 'rencanakan sebelum
+  coding', 'plan before coding'. Diagrams (ERD/sequence/C4) to mermaid-diagram, API contracts to
+  openapi-spec, rewriting an existing PRD to volumx-writer. NOT code, NOT marketing copy (content,
+  copywriting).
 ---
 
 # PRD Taskbreaker

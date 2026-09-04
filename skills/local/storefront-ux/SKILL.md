@@ -1,16 +1,14 @@
 ---
 name: storefront-ux
 description: >-
-  Use when designing, auditing, or repairing end-to-end commerce interaction flows and state behavior across
-  search, product listing and filtering, product detail and variants, cart, checkout handoff,
-  customer account, localization, accessibility, performance, and analytics. Use for storefront
-  UX specifications, journey audits, edge-state inventories, responsive commerce behavior,
-  conversion-friction diagnosis, direct COD or single-page order form behavior, or
-  implementation acceptance criteria. Keep decisions
-  backend-neutral; use the Shopify boundary reference when the project uses Shopify. Not for
-  visual styling or aesthetics (design-taste), marketing or product copy (copywriting/content),
-  API syntax or component installation (storefront-development implements the accepted contract),
-  admin dashboards, or browser-based validation execution.
+  Design, audit, or repair commerce interaction flows and state across search, listing, filtering,
+  product detail, variants, cart, checkout handoff, customer account, localization, accessibility,
+  performance, analytics. Use for storefront UX specs, journey audits, edge-state inventories,
+  responsive commerce behavior, conversion-friction diagnosis, direct COD or single-page order
+  forms, implementation acceptance criteria. Backend-neutral; use the Shopify boundary reference on
+  Shopify projects. Not for visual styling (design-taste), copy (copywriting/content), API syntax
+  or component installation (storefront-development implements the accepted contract), admin
+  dashboards, or browser validation (ui-validation).
 ---
 
 # Storefront UX

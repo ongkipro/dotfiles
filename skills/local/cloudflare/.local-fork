@@ -31,3 +31,26 @@ updated: 2026-08-16 — the clause named `sandbox-sdk`, which upstream retired.
   descriptions the same way ("Not for X, use Y"), which is the pattern this
   fork adds by hand. That is evidence the clause would be accepted upstream
   rather than rejected as a local preference.
+
+superseded: the note above records the 2026-08-16 comparison. It quotes the
+  pre-2026-09-04 clause and says "both files 248 lines"; the local file is now
+  256 lines and the description is a folded multi-line block. Read it as history,
+  not as a current diff baseline.
+
+updated: 2026-09-04 — TASK-049 trimmed this description for registry weight,
+  882 -> 750 characters as PyYAML parses it (`skill-check` reports 753; its awk
+  counter includes the folded-block marker). Drafts reached 674 and 702 before
+  review restored cut terms; only 750 is the shipped text. The sibling-routing clause this fork exists to protect
+  is intact and still names all eight narrower skills. Independent review
+  corrected my first note here: the trim cut capability enumeration, not only
+  restatement. "Flagship", "Terraform" and "Pulumi" were dropped and have been
+  restored, because no narrower sibling owns infrastructure-as-code and those
+  are the terms a user actually types. "Comprehensive ... covering" became
+  "Cloudflare platform entry point:", and that part is restatement. A second,
+  cross-route review caught what the first trim also did to the clause's own
+  opening: "Use as the default entry point for Cloudflare work AND for anything
+  spanning several products" had become "Use for Cloudflare work spanning several
+  products", which silently stopped claiming single-product work with no narrower
+  sibling — KV, R2, Pages, WAF, Tunnel, Terraform. That is a meaning change inside
+  the very sentence this ledger exists to protect, not restatement, and it is
+  restored. A byte-for-byte refresh would still drop the clause, so the guard stays.

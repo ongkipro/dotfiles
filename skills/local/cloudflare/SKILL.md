@@ -1,6 +1,14 @@
 ---
 name: cloudflare
-description: Comprehensive Cloudflare platform skill covering Workers, Pages, storage (KV, D1, R2), AI (Workers AI, Vectorize, Agents SDK), feature flags (Flagship), networking (Tunnel, Spectrum), security (WAF, DDoS), and infrastructure-as-code (Terraform, Pulumi). Use as the default entry point for Cloudflare work and for anything spanning several products. Prefer the narrower sibling when the task sits squarely inside one of them — workers-best-practices for reviewing or authoring Worker code, wrangler for CLI and wrangler.jsonc, durable-objects for stateful coordination, agents-sdk for stateful agents and Workflows, sandbox-next or sandbox-stable for sandboxed code execution, whichever matches the installed @cloudflare/sandbox tag, cloudflare-email-service for email, cloudflare-one for Zero Trust and SASE. Biases towards retrieval from Cloudflare docs over pre-trained knowledge.
+description: >-
+  Cloudflare platform entry point: Workers, Pages, KV, D1, R2, Workers AI, Vectorize, Agents SDK,
+  feature flags (Flagship), Tunnel, Spectrum, WAF, DDoS, and infrastructure-as-code (Terraform,
+  Pulumi). Default entry point for Cloudflare work and for anything spanning several products.
+  Prefer the narrower sibling when the task sits inside one: workers-best-practices for Worker
+  code, wrangler for CLI and wrangler.jsonc, durable-objects for stateful coordination, agents-sdk
+  for agents and Workflows, sandbox-next or sandbox-stable for sandboxed execution (match the
+  installed @cloudflare/sandbox tag), cloudflare-email-service for email, cloudflare-one for Zero
+  Trust and SASE. Biases towards retrieval from Cloudflare docs over pre-trained knowledge.
 references:
   - workers
   - pages

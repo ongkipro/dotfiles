@@ -1,17 +1,14 @@
 ---
 name: storefront-development
 description: >-
-  Build, refactor, or review customer-facing ecommerce storefronts with a clean,
-  restrained, product-first baseline informed by Shopify Dawn's HTML-first and
-  progressive-enhancement approach. Use for home, collection/PLP, search,
-  product/PDP, variants, add-to-cart, cart drawer/page, checkout handoff,
-  account, localization, merchandising, responsive behavior, semantic HTML,
-  performance, and implementation across Shopify Liquid, Astro, Next.js,
-  Vite/React, Hydrogen, or another web stack. Use storefront-ux for journey and
-  state decisions, design-taste for visual direction, and this skill for
-  implementation architecture, UI composition, commerce state, and validation.
-  Verify current platform APIs before coding; hosted Shopify, headless Shopify,
-  and non-Shopify commerce have different cart and checkout boundaries.
+  Build, refactor, or review ecommerce storefronts with a restrained product-first baseline
+  following Shopify Dawn's HTML-first progressive enhancement. Use for home, collection/PLP,
+  search, product/PDP, variants, add-to-cart, cart drawer/page, checkout handoff, account,
+  localization, merchandising, responsive behavior, semantic HTML, performance across Shopify
+  Liquid, Astro, Next.js, Vite/React, Hydrogen, or another web stack. Owns implementation
+  architecture, UI composition, commerce state, validation; storefront-ux owns journey and state,
+  design-taste owns visual direction. Verify platform APIs first — hosted Shopify, headless, and
+  non-Shopify differ at the cart and checkout boundary.
 ---
 
 # Storefront Development

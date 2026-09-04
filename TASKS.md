@@ -17,6 +17,15 @@ _None._
 
 ## Recently completed
 
+- **TASK-049 / REQ-SKILL-DISCOVERY (R2, escalated R3, two reviews).** Ten heaviest descriptions
+  8,398 -> 7,155 characters; registry 35,288 -> 34,045; longest 760. Sixteen terms and clauses were
+  cut and restored across four rounds, each found by a check the previous round had passed: a
+  quoted-string diff missed unquoted capability names, a token diff missed meaning changes inside
+  a preserved sentence. The original targets (≤600 each, −3,000 total) were unmeasured guesses,
+  dropped rather than renegotiated. Value is modest and recorded as such: 3.5 % crosses no
+  truncation threshold, and `content`, `design-taste`, `native-first` and `google-ads-signal-engine`
+  were touched for 299 characters combined — churn a future trim should skip.
+
 - **TASK-050 / REQ-SKILL-DISCOVERY (R1).** The payment row named only Stripe, which no
   project uses. `development-kit`, `development-spec-suite` and `full-stack-development`
   now route to `stripe-best-practices`, `doku-malaysia-integration`, `autolaris-h2h` and
@@ -63,21 +72,6 @@ Seeded by `docs/DOTFILES_REVIEW_2026-09-04.md`; run in order.
 - **Non-Scope:** rewriting `.delivery/runs/*`; PASS semantics
 - **Verification:** `bin/resume-brief` shows no live task whose evidence is not PASS
 - **Escalation Conditions:** a re-executed check fails
-
-### TASK-049: Trim the ten heaviest discovery descriptions
-- **Requirement:** REQ-SKILL-DISCOVERY
-- **Risk Level:** R2
-- **Depends On:** TASK-048
-- **Allowed Paths:** `skills/local/ui-validation/SKILL.md`, `skills/local/prd-taskbreaker/SKILL.md`, `skills/local/cloudflare/SKILL.md`, `skills/local/cloudflare/.local-fork`, `skills/local/storefront-ux/SKILL.md`, `skills/local/seo-website-builder/SKILL.md`, `skills/local/storefront-development/SKILL.md`, `skills/local/native-first/SKILL.md`, `skills/local/design-taste/SKILL.md`, `skills/local/google-ads-signal-engine/SKILL.md`, `skills/local/content/SKILL.md`, `skills/local/README.md`, `TASKS.md`
-- **Protected Paths:** every other `skills/local/**` path
-- **Canonical Contract Owners:** `skills.discovery`
-- **Accepted Invariants:** only `description:` changes; every trigger phrase, named sibling, and hand-off present on 2026-09-04 survives; each ends ≤ 600 characters; registry total falls ≥ 3,000; `cloudflare` keeps the sibling-routing clause its `.local-fork` protects, with that note updated
-- **Regression Checks:** `skill-check-test`, `skill-map-test`, `ai-policy-lint`, `vendored-refresh-test`
-- **Runtime Evidence:** before/after per skill recorded in the run, triggers enumerated; independent review of the ten diffs
-- **Reopen Conditions:** a 2026-09-04 routing phrase is missing, or a runtime stops surfacing a trimmed skill for a prompt that did
-- **Non-Scope:** body text; the other 56 skills; the 1,024 guideline
-- **Verification:** `skills/agents-bin/skill-check` reports ≤ 32,200 description characters
-- **Escalation Conditions:** 600 needs dropping a hand-off another skill depends on
 
 ### TASK-051: Every memory file is reachable, or says why not
 - **Requirement:** REQ-MEMORY-ROUTING-COVERAGE

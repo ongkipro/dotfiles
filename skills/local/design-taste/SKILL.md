@@ -1,17 +1,14 @@
 ---
 name: design-taste
 description: >-
-  Direct anti-slop visual judgment for landing pages, marketing sites,
-  customer-facing storefronts, portfolios, and redesigns. Use for desain
-  landing page, layout LP, homepage or hero design, storefront/PLP/PDP/cart
-  design, design review, redesign, design tokens, visual polish, or UI that
-  looks AI-templated. Choose Brand/Marketing, Storefront/Commerce, or DR/COD
-  Funnel mode and honor existing project tokens over defaults. Defaults to a
-  designed light theme (off-white, layered neutrals), with dark shipped only
-  when it is genuinely designed rather than inverted. Pair with the installed
-  framework skill for implementation. Not for admin/data-dense UI
-  (admin-dashboard), commerce behavior (storefront-ux), copywriting, component
-  installation, or browser evidence (ui-validation).
+  Anti-slop visual judgment for landing pages, marketing sites, storefronts, portfolios, redesigns.
+  Use for desain landing page, layout LP, homepage or hero design, storefront/PLP/PDP/cart design,
+  design review, redesign, design tokens, visual polish, or UI that looks AI-templated. Choose
+  Brand/Marketing, Storefront/Commerce, or DR/COD Funnel mode; honor existing project tokens over
+  defaults. Defaults to a designed light theme; dark only when genuinely designed, not inverted.
+  Pair with the installed framework skill for implementation. Not for admin/data-dense UI
+  (admin-dashboard), commerce behavior (storefront-ux), copywriting, component installation, or
+  browser evidence (ui-validation).
 ---
 
 # design-taste: Anti-Slop Design Judgment (Astro-first, funnel-aware)
