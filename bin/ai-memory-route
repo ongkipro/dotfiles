@@ -109,12 +109,35 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
         or any(phrase in project_query for phrase in ("project memory", "project reference", "known issue", "prior lesson", "gotcha", "stable constraint"))
     )
     if scope in {"auto", "project"} and selected_project and project_needed:
+        # A project key used to name exactly one file, which meant six of the
+        # seven tokophi notes and all four pixsgo notes were unreachable through
+        # the hook — 43 of 69 project-memory files in that state on 2026-09-04,
+        # in a repository whose own memory says never to scan the directory.
+        # A key may now name a list. Order is the default priority, so a bare
+        # project query still gets the same file it always did; an entry may
+        # carry its own triggers to rise above that when the query is about it.
         rel = manifest.get("projects", {}).get(selected_project.lower())
-        if rel:
-            p = root / rel
-            if p.exists():
-                candidates.append({"path": str(p), "scope": "project", "priority": 90, "reason": f"project={selected_project}"})
-                reasons.append(f"project reference matched {selected_project}")
+        entries = [rel] if isinstance(rel, str) else (rel or [])
+        for index, entry in enumerate(entries):
+            path = entry if isinstance(entry, str) else entry.get("path")
+            if not path:
+                continue
+            p = root / path
+            # Two bands, both under the execution refs above (STATUS 100,
+            # TASKS/current.json 95). A trigger-matched entry outranks every
+            # untriggered one but never repository truth: the first draft added
+            # a flat +20, which put project memory at 110 and displaced
+            # current.json from a real tokophi query — the opposite of this
+            # file's own rule that repository evidence is authoritative.
+            # Position is the tie-break inside each band. Note this cannot
+            # compete with shared or lesson triggers either way: score() returns
+            # hits*1000 + priority, so any of those starts above 1000.
+            triggered = not isinstance(entry, str) and score(query, entry)
+            priority = max(94 - index, 91) if triggered else max(90 - index, 70)
+            reason = f"project={selected_project}" + (" (trigger)" if triggered else "")
+            candidates.append({"path": str(p), "scope": "project", "priority": priority, "reason": reason})
+        if entries:
+            reasons.append(f"project reference matched {selected_project}")
 
     if scope in {"auto", "shared"}:
         for item in manifest.get("shared", []):

@@ -17,6 +17,16 @@ _None._
 
 ## Recently completed
 
+- **TASK-051 / REQ-MEMORY-ROUTING-COVERAGE (R2, reviewed).** 26 of 69 project-memory
+  files were reachable through the router; now 69, with `ai-policy-lint` failing by
+  name on an unrouted file, a dangling route, or an `unrouted` entry with no reason.
+  A project key may name a list, each entry able to carry triggers. Review caught two
+  defects I did not see: a flat +20 trigger bonus put project memory at 110 and
+  displaced `.delivery/current.json` and `STATUS.md` from real queries — inverting
+  this router's own rule that repository evidence is authoritative, now banded under
+  94; and the runtime-evidence command in the contract returned no project file at
+  all, because a bare "deploy" does not make `project_needed` true.
+
 - **TASK-049 / REQ-SKILL-DISCOVERY (R2, escalated R3, two reviews).** Ten heaviest descriptions
   8,398 -> 7,155 characters; registry 35,288 -> 34,045; longest 760. Sixteen terms and clauses were
   cut and restored across four rounds, each found by a check the previous round had passed: a
@@ -73,20 +83,6 @@ Seeded by `docs/DOTFILES_REVIEW_2026-09-04.md`; run in order.
 - **Verification:** `bin/resume-brief` shows no live task whose evidence is not PASS
 - **Escalation Conditions:** a re-executed check fails
 
-### TASK-051: Every memory file is reachable, or says why not
-- **Requirement:** REQ-MEMORY-ROUTING-COVERAGE
-- **Risk Level:** R2
-- **Allowed Paths:** `config/ai/memory-router.json`, `bin/ai-memory-route`, `bin/ai-memory-route-test`, `bin/ai-policy-lint`, `config/ai/project-memory/MEMORY.md`, `TASKS.md`
-- **Protected Paths:** `config/ai/memory/**`, `config/ai/project-memory/*.md`, `config/ai/hooks/memory-usage.sh`
-- **Canonical Contract Owners:** `memory.routing`
-- **Accepted Invariants:** a project key may route several files or a filename prefix, by priority within the unchanged 3-file/12,000-byte budget; every `project-memory/*.md` is reachable via a key or lesson trigger, or sits in one `unrouted` array with a reason, and `ai-policy-lint` fails any file in none; keys resolve; the hook stays fail-open
-- **Regression Checks:** `ai-memory-route-test`, `ai-memory-access-test`, `memory-usage-hook-test`, `ai-policy-lint`
-- **Runtime Evidence:** `ai-memory-access --repo ~/projects/tokophi "deploy"` selects a deploy-specific file; an unrouted fixture fails the lint by name; `petcue-theme` resolves `petcue`
-- **Reopen Conditions:** a memory file lands unrouted and the lint stays green
-- **Non-Scope:** memory content; `maxFiles`/`maxBytes`; `project-memory-kelola/**`
-- **Verification:** `bin/ai-memory-route-test`
-- **Escalation Conditions:** a project's top files cannot fit the budget
-
 ### TASK-052: A public repository with a README
 - **Requirement:** REQ-PUBLIC-README
 - **Risk Level:** R1
@@ -114,6 +110,34 @@ Seeded by `docs/DOTFILES_REVIEW_2026-09-04.md`; run in order.
 - **Non-Scope:** the four `docs/DOTFILES_*.md` (P1-16/P2-14 move is a separate decision)
 - **Verification:** `bin/ai-policy-lint`
 - **Escalation Conditions:** `docs/preview/` is published or bookmarked elsewhere
+
+### TASK-055: The registry is measured with the wrong ruler
+- **Requirement:** REQ-GATE-INSTRUMENTS
+- **Risk Level:** R1
+- **Allowed Paths:** `skills/agents-bin/skill-check`, `bin/skill-check-test`, `TASKS.md`
+- **Protected Paths:** `skills/local/**`
+- **Canonical Contract Owners:** `skills.discovery`
+- **Accepted Invariants:** the reported description-character total is counted from the parsed YAML when PyYAML is present, and says it is approximate when it is not; the existing loud degradation notice is unchanged
+- **Regression Checks:** `skill-check-test`, `ai-policy-lint`
+- **Runtime Evidence:** measured 2026-09-04 — awk counts 34,061 where PyYAML counts 33,873, over by 188 across 36 skills: +3 wherever a folded `>-` marker is counted as text, and +14 to +36 on `adr-record`, `mermaid-diagram`, `openapi-spec`, `supabase-stack`, whose single-quoted scalars keep their quotes and doubled `''` escapes
+- **Reopen Conditions:** the two counts diverge again
+- **Non-Scope:** any SKILL.md; the 1,024 guideline
+- **Verification:** `bin/skill-check-test` covers a folded and a single-quoted fixture
+- **Escalation Conditions:** PyYAML is unavailable on a device that must report an exact number
+
+### TASK-056: A hygiene branch that cannot execute
+- **Requirement:** REQ-GATE-INSTRUMENTS
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/ai-memory-hygiene`, `bin/ai-memory-hygiene-test`, `config/ai/memory-hygiene.json`, `TASKS.md`
+- **Protected Paths:** `config/ai/memory/**`, `config/ai/project-memory/**`
+- **Canonical Contract Owners:** `memory.routing`
+- **Accepted Invariants:** a memory file larger than `routerMaxBytes` is reported as never selectable even when it is under `projectMaxBytes`; the advisory-limit warning keeps its own wording
+- **Regression Checks:** `ai-memory-hygiene-test`, `ai-policy-lint`
+- **Runtime Evidence:** `check_size` returns at `size <= limit` with `limit = projectMaxBytes` (20,000) before `routerMaxBytes` (12,000) is consulted, so the "can NEVER be selected" branch is unreachable for any project file between the two. `tokophi-project.md` (15,573 B) and `pi-9router-setup.md` (14,671 B) are in that state and `ai-memory-hygiene` reports zero issues. The router names them at query time, but `ai-memory-access` — the command the hook actually runs — prints only files, never reasons, so nothing reaches a session
+- **Reopen Conditions:** a file between the two limits passes the gate
+- **Non-Scope:** splitting either file; changing either limit
+- **Verification:** `bin/ai-memory-hygiene-test` fails on a 15,000-byte fixture before the fix
+- **Escalation Conditions:** the two limits are found to be deliberately independent
 
 ### TASK-054: A contract with no run is a candidate too
 - **Requirement:** REQ-TASK-LEDGER-CONSISTENCY

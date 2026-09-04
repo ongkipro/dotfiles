@@ -532,6 +532,77 @@ def check_command_manifest():
     print(f"  OK  command manifest: {len(commands)} command(s) in bin/, all listed")
 
 
+def check_memory_routing_coverage():
+    """Every project-memory file is reachable, or says why not.
+
+    The router is the only way memory reaches a session — the hook calls it on
+    every prompt and this repository's own memory forbids scanning the
+    directory — so a file no key and no lesson names is invisible, not merely
+    deprioritised. On 2026-09-04, 43 of 69 were in that state: five tokophi
+    notes beside the one routed tokophi.md, all four pixsgo notes, and the
+    convention lessons about commit identity and AI trailers. Nothing checked,
+    because size was the only property anything measured.
+
+    A file may be routed by a project key, named by a lesson trigger, or listed
+    in `unrouted` with a reason. Silence is the one thing it may not be.
+    """
+    manifest_path = AI_DIR / "memory-router.json"
+    memory_dir = AI_DIR / "project-memory"
+    # Not `return`. A missing manifest breaks the router outright — load_manifest
+    # raises — so staying green there would report health for a repository whose
+    # memory reaches no session at all, which is the loudest failure this file
+    # could be silent about.
+    if not manifest_path.is_file():
+        err(f"memory router manifest is missing: {manifest_path.relative_to(ROOT)}")
+        return
+    if not memory_dir.is_dir():
+        err(f"project memory directory is missing: {memory_dir.relative_to(ROOT)}")
+        return
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        err(f"memory routing coverage could not be checked: {error}")
+        return
+
+    routed: set[str] = set()
+    for value in manifest.get("projects", {}).values():
+        for entry in ([value] if isinstance(value, str) else value or []):
+            path = entry if isinstance(entry, str) else entry.get("path")
+            if path:
+                routed.add(path)
+    routed |= {e["path"] for e in manifest.get("lessons", []) if e.get("path")}
+    declared_unrouted = {
+        e["path"] if isinstance(e, dict) else e
+        for e in manifest.get("unrouted", [])
+    }
+
+    on_disk = {
+        f"config/ai/project-memory/{p.name}"
+        for p in memory_dir.glob("*.md")
+        if p.name != "MEMORY.md"
+    }
+    missing = sorted(on_disk - routed - declared_unrouted)
+    for rel in missing:
+        err(f"{rel} is reachable through no project key, no lesson trigger, and no "
+            f"`unrouted` entry — the hook can never select it")
+    # A key naming a file that no longer exists is the same defect facing the
+    # other way: the route resolves to nothing and reports a match. An `unrouted`
+    # entry for a file that is gone is stale bookkeeping, and one with no reason
+    # is an exemption nobody has to justify.
+    dangling = sorted(r for r in (routed | declared_unrouted)
+                      if r.startswith("config/ai/project-memory/")
+                      and not (ROOT / r).is_file())
+    for rel in dangling:
+        err(f"memory router names {rel}, which does not exist")
+    unreasoned = sorted(e for e in manifest.get("unrouted", []) if isinstance(e, str))
+    for rel in unreasoned:
+        err(f"`unrouted` entry {rel} carries no reason; use "
+            f'{{"path": ..., "reason": ...}}')
+    if not missing and not dangling and not unreasoned:
+        print(f"  OK  memory routing coverage: {len(on_disk)} project-memory file(s), "
+              f"{len(on_disk & routed)} routed, {len(declared_unrouted)} declared unrouted")
+
+
 def check_skill_map():
     """The map of the skill set must be what a fresh render produces.
 
@@ -603,6 +674,7 @@ def main():
     report_memory_hygiene()
     check_templates()
     check_task_contracts()
+    check_memory_routing_coverage()
     check_skill_map()
     check_hot_context()
 

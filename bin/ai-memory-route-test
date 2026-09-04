@@ -99,4 +99,72 @@ import json,sys
 p=json.load(open(sys.argv[1])); assert any(x['path'].endswith('project-memory-kelola/MEMORY.md') for x in p['files'])
 PY
 
+# ── Multi-file project keys (TASK-051) ───────────────────────────────────────
+# A key used to name exactly one file. Six of seven tokophi notes and all four
+# pixsgo notes were unreachable because of it, in a repository whose own memory
+# forbids scanning the directory — unrouted meant invisible, not deprioritised.
+MULTI="$TMP/multi"
+mkdir -p "$MULTI/bin" "$MULTI/config/ai/project-memory"
+cp "$ROUTER" "$MULTI/bin/ai-memory-route"
+MROUTE="$MULTI/bin/ai-memory-route"
+MANIFEST="$MULTI/config/ai/memory-router.json"
+printf 'base note\n' > "$MULTI/config/ai/project-memory/demo.md"
+printf 'deploy note with enough body to be distinct\n' > "$MULTI/config/ai/project-memory/demo-deploy.md"
+printf 'domain note\n' > "$MULTI/config/ai/project-memory/demo-domain.md"
+DEMO="$TMP/demo"; mkdir -p "$DEMO"
+
+cat > "$MANIFEST" <<'JSON'
+{"schemaVersion":1,"defaults":{"maxFiles":3,"maxBytes":12000},"shared":[],"lessons":[],
+ "projects":{"demo":[
+   "config/ai/project-memory/demo.md",
+   {"path":"config/ai/project-memory/demo-deploy.md","triggers":["deploy","release"]},
+   "config/ai/project-memory/demo-domain.md"]}}
+JSON
+
+# A bare project query keeps the historic answer first: list order is priority.
+python3 "$MROUTE" 'project memory' --repo "$DEMO" --project demo --scope project --json > "$TMP/multi-bare.json"
+python3 - "$TMP/multi-bare.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1])); paths=[f['path'] for f in p['files']]
+assert len(paths)==3, paths
+assert paths[0].endswith('/demo.md'), paths
+PY
+
+# A trigger lifts its own file above list order — the point of the shape, and
+# what lets "deploy" reach a deploy note instead of the project index.
+python3 "$MROUTE" 'deploy steps' --repo "$DEMO" --project demo --scope project --json > "$TMP/multi-trig.json"
+python3 - "$TMP/multi-trig.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1])); paths=[f['path'] for f in p['files']]
+assert paths[0].endswith('demo-deploy.md'), paths
+assert any('trigger' in f.get('reason','') for f in p['files']), p['files']
+PY
+
+# The old single-string shape must keep working; this change is additive.
+cat > "$MANIFEST" <<'JSON'
+{"schemaVersion":1,"defaults":{"maxFiles":3,"maxBytes":12000},"shared":[],"lessons":[],
+ "projects":{"demo":"config/ai/project-memory/demo.md"}}
+JSON
+python3 "$MROUTE" 'project memory' --repo "$DEMO" --project demo --scope project --json > "$TMP/multi-str.json"
+python3 - "$TMP/multi-str.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1])); paths=[f['path'] for f in p['files']]
+assert len(paths)==1 and paths[0].endswith('/demo.md'), paths
+PY
+
+# An entry naming a file that is gone is skipped, not crashed on, and does not
+# stop the surviving entries from routing.
+cat > "$MANIFEST" <<'JSON'
+{"schemaVersion":1,"defaults":{"maxFiles":3,"maxBytes":12000},"shared":[],"lessons":[],
+ "projects":{"demo":["config/ai/project-memory/gone.md","config/ai/project-memory/demo.md"]}}
+JSON
+python3 "$MROUTE" 'project memory' --repo "$DEMO" --project demo --scope project --json > "$TMP/multi-gone.json"
+python3 - "$TMP/multi-gone.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1])); paths=[f['path'] for f in p['files']]
+assert len(paths)==1 and paths[0].endswith('/demo.md'), paths
+PY
+
+echo "  ✓ multi-file project keys: list order, trigger lift, string form, missing entry"
+
 echo 'ai-memory-route-test: PASS'

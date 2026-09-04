@@ -1,57 +1,674 @@
 {
   "schemaVersion": 1,
-  "defaults": {"maxFiles": 3, "maxBytes": 12000},
+  "defaults": {
+    "maxFiles": 3,
+    "maxBytes": 12000
+  },
   "shared": [
-    {"path": "config/ai/memory/identity.md", "priority": 100, "triggers": ["identity", "who am i", "role", "profile", "ongki", "irwan"]},
-    {"path": "config/ai/memory/preferences.md", "priority": 95, "triggers": ["preference", "prefer", "style", "tone", "how i like", "format"]},
-    {"path": "config/ai/memory/goals.md", "priority": 90, "triggers": ["goal", "future", "roadmap", "direction", "target"]},
-    {"path": "config/ai/memory/business.md", "priority": 85, "triggers": ["business", "market", "ecommerce", "dropshipping", "marketing"]},
-    {"path": "config/ai/memory/development.md", "priority": 80, "triggers": ["development", "stack", "coding", "architecture", "web", "software", "astro", "react", "nextjs", "next.js", "cloudflare", "workers", "drizzle", "supabase", "tailwind", "prerender", "ssr", "css", "layer", "flexbox", "grid"]},
-    {"path": "config/ai/memory/decisions.md", "priority": 78, "triggers": ["decision", "rationale", "why did we", "tradeoff", "assumption", "superseded"]},
-    {"path": "config/ai/memory/workflow.md", "priority": 75, "triggers": ["workflow", "terminal", "folder", "git", "worktree", "process"]},
-    {"path": "config/ai/memory/skills.md", "priority": 70, "triggers": ["skill", "capability", "specialist", "methodology"]},
-    {"path": "config/ai/memory/long-task-system.md", "priority": 70, "triggers": ["long task", "resume", "handoff", "checkpoint", "durable state"]},
-    {"path": "config/ai/memory/long-task-debugging.md", "priority": 72, "triggers": ["debug", "root cause", "dap", "debug adapter", "lsp navigation", "ai-doctor"]},
-    {"path": "config/ai/memory/long-task-efficiency.md", "priority": 69, "triggers": ["progressive disclosure", "token optimization", "prompt optimization", "minimal diff", "small diff"]},
-    {"path": "config/ai/memory/long-task-security.md", "priority": 74, "triggers": ["security", "secret isolation", "deny rule", "git guard", "non-destructive safety", "approval gate"]},
-    {"path": "config/ai/memory/projects.md", "priority": 68, "triggers": ["project list", "which project", "repo path", "checked out", "portfolio"]},
-    {"path": "config/ai/memory/projects-platforms.md", "priority": 67, "triggers": ["volumecms", "adsbookcms", "permatamall"]},
-    {"path": "config/ai/memory/projects-sites.md", "priority": 67, "triggers": ["pesantren-tholabie", "aussie sawit", "petanisejahtera", "mahad-nurul-haromain", "report-petani", "petcue", "pixsgo", "tradecar", "tokophi", "kamus", "babyfits", "homelook"]},
-    {"path": "config/ai/memory/shopify.md", "priority": 60, "triggers": ["shopify", "liquid", "shopify theme", "product listing", "dawn theme", "horizon theme", "shopify storefront"]},
-    {"path": "config/ai/memory/environment.md", "priority": 40, "triggers": ["environment", "installed", "binary", "machine", "toolchain", "package manager", "tmux setup"]},
-    {"path": "config/ai/memory/environment-ai-runtimes.md", "priority": 65, "triggers": ["9router", "omp model", "omp runtime", "pi runtime", "antigravity", "agy", "gemini cli", "ai cli", "remote gateway"]},
-    {"path": "config/ai/memory/environment-devices-git.md", "priority": 55, "triggers": ["device registry", "multi-machine", "cross-device", "git identity", "credential helper", "ongkipro email", "cuan specs"]}
+    {
+      "path": "config/ai/memory/identity.md",
+      "priority": 100,
+      "triggers": [
+        "identity",
+        "who am i",
+        "role",
+        "profile",
+        "ongki",
+        "irwan"
+      ]
+    },
+    {
+      "path": "config/ai/memory/preferences.md",
+      "priority": 95,
+      "triggers": [
+        "preference",
+        "prefer",
+        "style",
+        "tone",
+        "how i like",
+        "format"
+      ]
+    },
+    {
+      "path": "config/ai/memory/goals.md",
+      "priority": 90,
+      "triggers": [
+        "goal",
+        "future",
+        "roadmap",
+        "direction",
+        "target"
+      ]
+    },
+    {
+      "path": "config/ai/memory/business.md",
+      "priority": 85,
+      "triggers": [
+        "business",
+        "market",
+        "ecommerce",
+        "dropshipping",
+        "marketing"
+      ]
+    },
+    {
+      "path": "config/ai/memory/development.md",
+      "priority": 80,
+      "triggers": [
+        "development",
+        "stack",
+        "coding",
+        "architecture",
+        "web",
+        "software",
+        "astro",
+        "react",
+        "nextjs",
+        "next.js",
+        "cloudflare",
+        "workers",
+        "drizzle",
+        "supabase",
+        "tailwind",
+        "prerender",
+        "ssr",
+        "css",
+        "layer",
+        "flexbox",
+        "grid"
+      ]
+    },
+    {
+      "path": "config/ai/memory/decisions.md",
+      "priority": 78,
+      "triggers": [
+        "decision",
+        "rationale",
+        "why did we",
+        "tradeoff",
+        "assumption",
+        "superseded"
+      ]
+    },
+    {
+      "path": "config/ai/memory/workflow.md",
+      "priority": 75,
+      "triggers": [
+        "workflow",
+        "terminal",
+        "folder",
+        "git",
+        "worktree",
+        "process"
+      ]
+    },
+    {
+      "path": "config/ai/memory/skills.md",
+      "priority": 70,
+      "triggers": [
+        "skill",
+        "capability",
+        "specialist",
+        "methodology"
+      ]
+    },
+    {
+      "path": "config/ai/memory/long-task-system.md",
+      "priority": 70,
+      "triggers": [
+        "long task",
+        "resume",
+        "handoff",
+        "checkpoint",
+        "durable state"
+      ]
+    },
+    {
+      "path": "config/ai/memory/long-task-debugging.md",
+      "priority": 72,
+      "triggers": [
+        "debug",
+        "root cause",
+        "dap",
+        "debug adapter",
+        "lsp navigation",
+        "ai-doctor"
+      ]
+    },
+    {
+      "path": "config/ai/memory/long-task-efficiency.md",
+      "priority": 69,
+      "triggers": [
+        "progressive disclosure",
+        "token optimization",
+        "prompt optimization",
+        "minimal diff",
+        "small diff"
+      ]
+    },
+    {
+      "path": "config/ai/memory/long-task-security.md",
+      "priority": 74,
+      "triggers": [
+        "security",
+        "secret isolation",
+        "deny rule",
+        "git guard",
+        "non-destructive safety",
+        "approval gate"
+      ]
+    },
+    {
+      "path": "config/ai/memory/projects.md",
+      "priority": 68,
+      "triggers": [
+        "project list",
+        "which project",
+        "repo path",
+        "checked out",
+        "portfolio"
+      ]
+    },
+    {
+      "path": "config/ai/memory/projects-platforms.md",
+      "priority": 67,
+      "triggers": [
+        "volumecms",
+        "adsbookcms",
+        "permatamall"
+      ]
+    },
+    {
+      "path": "config/ai/memory/projects-sites.md",
+      "priority": 67,
+      "triggers": [
+        "pesantren-tholabie",
+        "aussie sawit",
+        "petanisejahtera",
+        "mahad-nurul-haromain",
+        "report-petani",
+        "petcue",
+        "pixsgo",
+        "tradecar",
+        "tokophi",
+        "kamus",
+        "babyfits",
+        "homelook"
+      ]
+    },
+    {
+      "path": "config/ai/memory/shopify.md",
+      "priority": 60,
+      "triggers": [
+        "shopify",
+        "liquid",
+        "shopify theme",
+        "product listing",
+        "dawn theme",
+        "horizon theme",
+        "shopify storefront"
+      ]
+    },
+    {
+      "path": "config/ai/memory/environment.md",
+      "priority": 40,
+      "triggers": [
+        "environment",
+        "installed",
+        "binary",
+        "machine",
+        "toolchain",
+        "package manager",
+        "tmux setup"
+      ]
+    },
+    {
+      "path": "config/ai/memory/environment-ai-runtimes.md",
+      "priority": 65,
+      "triggers": [
+        "9router",
+        "omp model",
+        "omp runtime",
+        "pi runtime",
+        "antigravity",
+        "agy",
+        "gemini cli",
+        "ai cli",
+        "remote gateway"
+      ]
+    },
+    {
+      "path": "config/ai/memory/environment-devices-git.md",
+      "priority": 55,
+      "triggers": [
+        "device registry",
+        "multi-machine",
+        "cross-device",
+        "git identity",
+        "credential helper",
+        "ongkipro email",
+        "cuan specs"
+      ]
+    }
   ],
   "projects": {
     "travelos": "config/ai/project-memory/travelos.md",
     "aussiemalaysia": "config/ai/project-memory/aussie-sawit-malaysia.md",
     "aussie-sawit-malaysia": "config/ai/project-memory/aussie-sawit-malaysia.md",
-    "dealerhinoofficial": "config/ai/project-memory/dealerhinoofficial.md",
+    "dealerhinoofficial": [
+      "config/ai/project-memory/dealerhinoofficial.md",
+      "config/ai/project-memory/dealerhinoofficial-project.md"
+    ],
     "dealertrukhino": "config/ai/project-memory/dealertrukhino.md",
-    "petanisejahtera": "config/ai/project-memory/petanisejahtera.md",
-    "tokophi": "config/ai/project-memory/tokophi.md",
-    "formalin": "config/ai/project-memory/formalin.md",
-    "kamus": "config/ai/project-memory/kamus-almanak.md",
-    "jasawebsite": "config/ai/project-memory/jasawebsite-co-brand.md",
-    "mengantar-documentation": "config/ai/project-memory/mengantar-documentation.md",
-    "petcue-theme": "config/ai/project-memory/petcue-dawn-rebuild.md",
+    "petanisejahtera": [
+      "config/ai/project-memory/petanisejahtera.md",
+      "config/ai/project-memory/petanisejahtera-project.md"
+    ],
+    "tokophi": [
+      "config/ai/project-memory/tokophi.md",
+      "config/ai/project-memory/tokophi-project.md",
+      {
+        "path": "config/ai/project-memory/tokophi-deploy-workflow.md",
+        "triggers": [
+          "deploy",
+          "coolify",
+          "release",
+          "merge to main"
+        ]
+      },
+      {
+        "path": "config/ai/project-memory/tokophi-worktree-deploy-gotchas.md",
+        "triggers": [
+          "worktree",
+          "gotcha",
+          "deploy gotcha"
+        ]
+      },
+      {
+        "path": "config/ai/project-memory/tokophi-market-and-hosting.md",
+        "triggers": [
+          "market",
+          "malaysia",
+          "singapore",
+          "hosting",
+          "currency"
+        ]
+      },
+      {
+        "path": "config/ai/project-memory/tokophi-domain-status.md",
+        "triggers": [
+          "domain",
+          "dns",
+          "tokophi domain"
+        ]
+      },
+      {
+        "path": "config/ai/project-memory/tokophi-repo-private-ruling.md",
+        "triggers": [
+          "private",
+          "visibility",
+          "repo private"
+        ]
+      },
+      {
+        "path": "config/ai/project-memory/tokophi-provider-brand-hidden.md",
+        "triggers": [
+          "provider brand",
+          "brand hidden",
+          "white label"
+        ]
+      }
+    ],
+    "formalin": [
+      "config/ai/project-memory/formalin.md",
+      "config/ai/project-memory/formalin-volumx-project.md",
+      {
+        "path": "config/ai/project-memory/formalinads-malaysia-gateway.md",
+        "triggers": [
+          "gateway",
+          "malaysia",
+          "senangpay",
+          "doku"
+        ]
+      }
+    ],
+    "kamus": [
+      "config/ai/project-memory/kamus-almanak.md",
+      "config/ai/project-memory/kamus-project.md"
+    ],
+    "jasawebsite": [
+      "config/ai/project-memory/jasawebsite-co-brand.md",
+      "config/ai/project-memory/jasawebsite-project.md"
+    ],
+    "mengantar-documentation": [
+      "config/ai/project-memory/mengantar-documentation.md",
+      "config/ai/project-memory/mengantar-docs-project.md"
+    ],
+    "petcue-theme": [
+      "config/ai/project-memory/petcue-dawn-rebuild.md",
+      "config/ai/project-memory/petcue-shopify-site.md"
+    ],
     "sf-theme": "config/ai/project-memory/sf-theme-shopify-store.md",
-    "pi": "config/ai/project-memory/pi-src.md",
-    "kelola": "config/ai/project-memory-kelola/MEMORY.md"
+    "pi": [
+      "config/ai/project-memory/pi-src.md",
+      {
+        "path": "config/ai/project-memory/pi-9router-setup.md",
+        "triggers": [
+          "9router",
+          "model",
+          "provider"
+        ]
+      }
+    ],
+    "kelola": "config/ai/project-memory-kelola/MEMORY.md",
+    "pixsgo": [
+      "config/ai/project-memory/pixsgo-shopify-store.md",
+      {
+        "path": "config/ai/project-memory/pixsgo-rebrand-play-and-go.md",
+        "triggers": [
+          "rebrand",
+          "play and go",
+          "brand"
+        ]
+      },
+      {
+        "path": "config/ai/project-memory/pixsgo-categories-from-producttype.md",
+        "triggers": [
+          "category",
+          "collection",
+          "product type"
+        ]
+      },
+      {
+        "path": "config/ai/project-memory/pixsgo-layout-width.md",
+        "triggers": [
+          "layout",
+          "width",
+          "container"
+        ]
+      }
+    ],
+    "ongki.pro": [
+      "config/ai/project-memory/ongki-pro-site.md"
+    ],
+    "ongki-pro": [
+      "config/ai/project-memory/ongki-pro-site.md"
+    ],
+    "rtqalhadi": [
+      "config/ai/project-memory/rtqalhadi-project.md"
+    ],
+    "adsbookcms": [
+      "config/ai/project-memory/adsbookcms-install-fleet.md",
+      {
+        "path": "config/ai/project-memory/adsbookcms-zanobyshop-sync.md",
+        "triggers": [
+          "zanobyshop",
+          "sync"
+        ]
+      }
+    ],
+    "kiriminaja": [
+      "config/ai/project-memory/kiriminaja-integration.md",
+      "config/ai/project-memory/kiriminaja-docs-project.md"
+    ],
+    "autolaris": [
+      "config/ai/project-memory/autolaris-payment-integration.md"
+    ],
+    "autolaris-payment-gateway": [
+      "config/ai/project-memory/autolaris-payment-integration.md"
+    ],
+    "mystore10": [
+      "config/ai/project-memory/mystore10-furniture-shopify.md"
+    ],
+    "toko-online-builder": [
+      "config/ai/project-memory/toko-online-builder.md"
+    ],
+    "affiliate-portal": [
+      "config/ai/project-memory/affiliate-portal-specs-project.md"
+    ],
+    "panna-coffee": [
+      "config/ai/project-memory/panna-coffee-work-project.md"
+    ],
+    "petcue": [
+      "config/ai/project-memory/petcue-dawn-rebuild.md",
+      "config/ai/project-memory/petcue-shopify-site.md"
+    ]
   },
   "lessons": [
-    {"path": "config/ai/project-memory/additive-commits-no-history-rewrite.md", "priority": 90, "triggers": ["force push", "amend", "history rewrite", "git history"]},
-    {"path": "config/ai/project-memory/cf-api-token-hijacks-wrangler.md", "priority": 90, "triggers": ["cf_api_token", "wrangler 403", "cloudflare token", "oauth wrangler"]},
-    {"path": "config/ai/project-memory/prefer-git-worktree.md", "priority": 88, "triggers": ["worktree", "branch checkout", "work on repo", "feature branch"]},
-    {"path": "config/ai/project-memory/cloudflare-pages-direct-upload-lock.md", "priority": 85, "triggers": ["pages deploy", "direct upload", "cloudflare pages"]},
-    {"path": "config/ai/project-memory/claude-code-permission-matcher-limits.md", "priority": 85, "triggers": ["permission matcher", "claude permission", "deny rule"]},
-    {"path": "config/ai/project-memory/skills-vs-memory-boundary.md", "priority": 82, "triggers": ["skill or memory", "where does this go", "project context", "memory boundary"]},
-    {"path": "config/ai/project-memory/skill-plumbing.md", "priority": 75, "triggers": ["skill-update", "skill link", "runtime skills", "skill source"]},
-    {"path": "config/ai/project-memory/claude-code-model-selection.md", "priority": 70, "triggers": ["claude model", "model picker"]},
-    {"path": "config/ai/project-memory/antigravity-cli-agy.md", "priority": 70, "triggers": ["antigravity", "agy", "gemini cli"]},
-    {"path": "config/ai/project-memory/worktrunk-worktree-tooling.md", "priority": 70, "triggers": ["worktrunk", "worktree", "wt"]},
-    {"path": "config/ai/project-memory/linux-cuan-maintenance.md", "priority": 60, "triggers": ["maintenance", "cleanup", "disk full", "update cli", "tmp cleanup"]},
-    {"path": "config/ai/project-memory/tokophi-infrastructure-2026-07.md", "priority": 65, "triggers": ["tokophi vultr", "volumdev", "tokophi backup", "tokophi coolify", "vultr snapshot failed", "tokophi ssh recovery"]},
-    {"path": "config/ai/project-memory/linux-rich-maintenance.md", "priority": 60, "triggers": ["plymouth", "boot", "systemd", "is-system-running", "grub", "splash", "rich"]}
-  ]
+    {
+      "path": "config/ai/project-memory/additive-commits-no-history-rewrite.md",
+      "priority": 90,
+      "triggers": [
+        "force push",
+        "amend",
+        "history rewrite",
+        "git history"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/cf-api-token-hijacks-wrangler.md",
+      "priority": 90,
+      "triggers": [
+        "cf_api_token",
+        "wrangler 403",
+        "cloudflare token",
+        "oauth wrangler"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/prefer-git-worktree.md",
+      "priority": 88,
+      "triggers": [
+        "worktree",
+        "branch checkout",
+        "work on repo",
+        "feature branch"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/cloudflare-pages-direct-upload-lock.md",
+      "priority": 85,
+      "triggers": [
+        "pages deploy",
+        "direct upload",
+        "cloudflare pages"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/claude-code-permission-matcher-limits.md",
+      "priority": 85,
+      "triggers": [
+        "permission matcher",
+        "claude permission",
+        "deny rule"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/skills-vs-memory-boundary.md",
+      "priority": 82,
+      "triggers": [
+        "skill or memory",
+        "where does this go",
+        "project context",
+        "memory boundary"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/skill-plumbing.md",
+      "priority": 75,
+      "triggers": [
+        "skill-update",
+        "skill link",
+        "runtime skills",
+        "skill source"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/claude-code-model-selection.md",
+      "priority": 70,
+      "triggers": [
+        "claude model",
+        "model picker"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/antigravity-cli-agy.md",
+      "priority": 70,
+      "triggers": [
+        "antigravity",
+        "agy",
+        "gemini cli"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/worktrunk-worktree-tooling.md",
+      "priority": 70,
+      "triggers": [
+        "worktrunk",
+        "worktree",
+        "wt"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/linux-cuan-maintenance.md",
+      "priority": 60,
+      "triggers": [
+        "maintenance",
+        "cleanup",
+        "disk full",
+        "update cli",
+        "tmp cleanup"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/tokophi-infrastructure-2026-07.md",
+      "priority": 65,
+      "triggers": [
+        "tokophi vultr",
+        "volumdev",
+        "tokophi backup",
+        "tokophi coolify",
+        "vultr snapshot failed",
+        "tokophi ssh recovery"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/linux-rich-maintenance.md",
+      "priority": 60,
+      "triggers": [
+        "plymouth",
+        "boot",
+        "systemd",
+        "is-system-running",
+        "grub",
+        "splash",
+        "rich"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/git-identity-noreply.md",
+      "priority": 85,
+      "triggers": [
+        "git identity",
+        "noreply",
+        "commit author",
+        "user.email"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/no-ai-commit-trailer.md",
+      "priority": 85,
+      "triggers": [
+        "co-authored-by",
+        "commit trailer",
+        "ai attribution"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/bahasa-indonesia-not-malay.md",
+      "priority": 85,
+      "triggers": [
+        "bahasa indonesia",
+        "malay",
+        "melayu"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/task-handoff-md-always.md",
+      "priority": 85,
+      "triggers": [
+        "handoff",
+        "task handoff"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/title-separator-convention.md",
+      "priority": 85,
+      "triggers": [
+        "title separator",
+        "meta title",
+        "judul"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/folder-convention-dev.md",
+      "priority": 85,
+      "triggers": [
+        "folder convention",
+        "where to put",
+        "project folder"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/dev-toolchain-mise.md",
+      "priority": 85,
+      "triggers": [
+        "mise",
+        "toolchain",
+        "dotfiles setup"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/local-skills-registry.md",
+      "priority": 85,
+      "triggers": [
+        "skill registry",
+        "owned skills"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/shopify-dev-repo-map.md",
+      "priority": 85,
+      "triggers": [
+        "shopify repo",
+        "shopify dev repo"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/coolify-vps-dev.md",
+      "priority": 85,
+      "triggers": [
+        "coolify",
+        "vps dev"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/infra-hosting-cleanup.md",
+      "priority": 85,
+      "triggers": [
+        "hosting cleanup",
+        "infra cleanup"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/playwright-browser-setup.md",
+      "priority": 85,
+      "triggers": [
+        "playwright",
+        "browser setup",
+        "chromium"
+      ]
+    }
+  ],
+  "unrouted": []
 }
