@@ -78,7 +78,12 @@ _None._
   the read or the write path, and that `docs/preview/` was never published: no Pages,
   no `CNAME`, no deploying workflow.
 
-- **TASK-052 / REQ-PUBLIC-README (R1).** `README.md` had been 0 bytes on `origin/main`
+- **TASK-052 / REQ-PUBLIC-README (R1) — superseded 2026-09-04 by owner decision.** The
+  72-line version described the whole AI engineering setup on a repository `gh api` reports
+  public. The owner replaced it with a three-line placeholder; the contract's own Escalation
+  Condition anticipated exactly this ("the owner prefers the short version — valid, and
+  closes this task"). Original entry follows.
+- **TASK-052 (original).** `README.md` had been 0 bytes on `origin/main`
   since `6e2bf36`, a memory-cleanup commit whose stat reads `README.md | 5 --`. The
   commit message calls the repository public; `gh api` says `private` as of 2026-09-04,
   and I had trusted `dev-toolchain-mise.md` instead of the check CLAUDE.md names for
