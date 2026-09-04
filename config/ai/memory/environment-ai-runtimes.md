@@ -47,7 +47,12 @@
   not remove the mechanism: on `Fantastico` a second profile at
   `~/.claude-accounts/personal/` survived until 2026-09-04 and still received session
   writes while carrying **no `settings.json` at all** — no `permissions.deny` for `.env`,
-  no git-guard, no memory hook. Deleting a launcher is not deleting a profile. `ai-doctor`
+  no git-guard, no memory hook. Deleting a launcher is not deleting a profile.
+  Cause established, so do not re-investigate: the user launched it by hand from another
+  window with an explicit `CLAUDE_CONFIG_DIR`, no automation recreated it, and that
+  profile was never logged in — its only transcript reads `Not logged in`, and the one
+  session id it held also exists in full under `~/.claude`. Nothing was lost with it.
+  What the episode proves is the shape of the hazard, not a breach. `ai-doctor`
   now warns when `CLAUDE_CONFIG_DIR` points away from `~/.claude`, when the active
   profile has no `settings.json`, and when `~/.claude-accounts` reappears.
   The other devices cannot be inspected from here, so the cleanup is carried by the
