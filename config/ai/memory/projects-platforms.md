@@ -26,11 +26,27 @@
   own implementation, gaps, execution state, and history.
 - Ad signal work routes to `meta-ads-signal-engine` and
   `google-ads-signal-engine`.
-- Live installs (each its own repo/Worker/D1/KV/R2 under `~/Projects/`):
-  merge-type on `install/<name>` (`git merge product/main`) — carukesi,
-  skincarebpom, taniniaga; copy-type on `main` (apply the product diff as a
-  patch, never `wrangler.jsonc`/`RELEASE.md`) — permatamall, zanobyshop,
-  zvarashop. `adsbookcms-dev`/`adsbookcms-lp` are product worktrees, not installs.
+- **Seven** live installs (each its own repo/Worker/D1/KV/R2 under
+  `~/Projects/`): merge-type on `install/<name>` (`git merge product/main`) —
+  carukesi, skincarebpom, taniniaga, zvarashop, and beranda-tani
+  (`beranda.click`, stood up 2026-09-05); copy-type on `main` (apply the
+  product diff as a patch, never `wrangler.jsonc`/`RELEASE.md`) — permatamall,
+  zanobyshop. This file listed zvarashop as copy-type until 2026-09-05; it sits
+  on `install/zvarashop` and merges. Count installs by **unique Worker name**,
+  not by directory: `permatamall-*` and `zvarashop-*` are worktrees of the same
+  Worker, and by directory the number looks like 16.
+  `adsbookcms-dev`/`adsbookcms-lp` are product worktrees, not installs.
+- **An install clone goes stale without warning, and `git status` will not say
+  so.** Other sessions and devices push to these repos. `git status -sb` reports
+  a branch as in sync until you `git fetch`, so read the state only after
+  fetching. Deploying a stale tree on 2026-09-05 removed a live landing page
+  from carukesi, and rolling the Worker back did not fix it: once a store's
+  `d1_migrations` ledger has advanced, an older bundle fails closed with
+  `SCHEMA_UPGRADE_DATABASE_AHEAD`. The only way out of a bad install deploy is
+  forward.
+- Migration numbers belong to the product (ADR-024, 2026-09-05). Three
+  different `0051` files once existed across the fleet; the repository owns the
+  reasoning and the repair constraints.
 - **A React island that throws during SSR returns `200` with an empty body** —
   a blank white page that `astro check`, `tsc`, `npm test` and `npm run build`
   all call healthy, because the suite globs `src/lib/*.test.ts` and executes no
