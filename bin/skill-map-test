@@ -6,7 +6,13 @@
 # cannot go stale is, and the only proof of that is a stale map failing.
 set -uo pipefail
 
-ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+ROOT="${1:-$(cd -P "$(dirname "$SOURCE")/.." && pwd)}"
 MAP="$ROOT/bin/skill-map"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/skill-map-test.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
@@ -103,7 +109,23 @@ python3 "$MAP" --root "$TMP/empty" --check >/dev/null 2>&1
 [ "$?" -eq 2 ] || fail "a root without skills/local did not exit 2"
 ok "unusable root exits 2"
 
-# 10. The real repository's committed map is current.
+# 10. The installed command is a symlink. Root discovery must follow both
+#     relative and absolute links instead of treating ~/.local as the repo.
+mkdir -p "$TMP/root-resolution/repo/bin" "$TMP/root-resolution/path"
+touch "$TMP/root-resolution/repo/bin/subject"
+ln -s ../repo/bin/subject "$TMP/root-resolution/path/subject"
+source="$TMP/root-resolution/path/subject"
+while [ -L "$source" ]; do
+  dir="$(cd -P "$(dirname "$source")" && pwd)"
+  source="$(readlink "$source")"
+  [[ "$source" != /* ]] && source="$dir/$source"
+done
+resolved_root="$(cd -P "$(dirname "$source")/.." && pwd)"
+[ "$resolved_root" = "$TMP/root-resolution/repo" ] \
+  || fail "a symlinked command resolved root as $resolved_root"
+ok "symlinked command resolves repository root"
+
+# 11. The real repository's committed map is current.
 python3 "$MAP" --root "$ROOT" --check >/dev/null 2>&1 \
   || fail "the committed skills/local/README.md is stale; run: skill-map"
 ok "committed map is current"

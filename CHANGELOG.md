@@ -62,6 +62,10 @@ whether anything noticed.
 
 ### Also fixed after the tag
 
+- **`skill-map-test` failed only through its installed command link.** Direct
+  repository execution passed, but `~/.local/bin/skill-map-test` treated
+  `~/.local` as the repository root. Root discovery now follows relative and
+  absolute symlinks, with a regression case for the installed invocation.
 - **`shopify-content-helper` shipped the CTA text `CLAUDE.md` forbids.** Its meta
   templates offered "Buy Online at [Brand]", "Shop … at [Brand]" and "order online
   today", and asserted "Free Shipping & Best Price" about a shop the command knows

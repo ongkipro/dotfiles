@@ -17,6 +17,14 @@ _None._
 
 ## Recently completed
 
+- **TASK-060 / REQ-RUNTIME-COMMAND-SYMLINK (R1).** After the 2026-09-04 pull,
+  the newly installed `~/.local/bin/skill-map-test` link ran nine fixture cases
+  successfully but failed its real-repository check because it derived `ROOT`
+  from the symlink directory (`~/.local`) instead of the command target. Root
+  discovery now follows relative and absolute symlinks. Both repository-direct
+  and installed invocations pass all eleven cases; the full repository self-test
+  and the live runtime-command manifest check also pass.
+
 - **TASK-059 / REQ-CONTENT-POLICY (R1).** `shopify-content-helper meta-gen` shipped
   templates breaking two rules in `CLAUDE.md` before anyone typed a word: CTA text
   ("Buy Online at", "Shop … at", "order online today") and a `[Brand]` slot where
@@ -161,4 +169,3 @@ Archived under `docs/archive/`, newest `DOTFILES_TASKS_2026-09-01_DEVICE_VERIFIC
 The 2026-09-04 queue (TASK-047..056) is complete; see Recently completed.
 
 - **TASK-012 / AUDIT-MON-01 — measure real skill effectiveness (R0).** Dormant until five immutable delivery records exist for one skill; then `ai-skill-evolution --repo <repo> --dotfiles ~/dotfiles --json`. Never fabricate attribution.
-
