@@ -46,11 +46,24 @@ toolchain_pick_node() {
           my $seconds = shift;
           my $pid = fork;
           exit 127 unless defined $pid;
-          if ($pid == 0) { exec @ARGV; exit 127 }
-          local $SIG{ALRM} = sub { kill "TERM", $pid; waitpid $pid, 0; exit 124 };
-          alarm $seconds;
-          waitpid $pid, 0;
-          exit($? >> 8);
+          if ($pid == 0) { setpgrp(0, 0); exec @ARGV; exit 127 }
+          use POSIX qw(WNOHANG);
+          sub wait_until {
+            my ($child, $deadline) = @_;
+            while (time < $deadline) {
+              my $done = waitpid($child, WNOHANG);
+              return $done if $done == $child;
+              select undef, undef, undef, 0.1;
+            }
+            return 0;
+          }
+          my $done = wait_until($pid, time + $seconds);
+          exit($? >> 8) if $done == $pid;
+          kill "TERM", -$pid;
+          $done = wait_until($pid, time + 2);
+          kill "KILL", -$pid if $done != $pid;
+          waitpid $pid, 0 if $done != $pid;
+          exit 124;
         ' 10 "$c" --version
       else
         HOME="$probe_home" "$c" --version

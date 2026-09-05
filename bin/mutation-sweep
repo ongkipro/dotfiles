@@ -50,6 +50,47 @@ trap 'chmod -R u+w "$WORK" 2>/dev/null; rm -rf "$WORK"' EXIT
 fingerprint() { git -C "$ROOT" status --porcelain 2>/dev/null | sort; }
 BEFORE="$(fingerprint)"
 
+# GNU `timeout` is absent on stock macOS. Keep Perl as the parent process: an
+# `alarm; exec` fallback loses the alarm on exec and lets a hanging fixture run
+# unbounded. Exit 124 to retain GNU timeout's observable contract.
+run_bounded() {
+  local seconds="$1" timeout_bin="" perl_bin=""
+  shift
+  timeout_bin="$(command -v timeout 2>/dev/null || command -v gtimeout 2>/dev/null || true)"
+  if [ -n "$timeout_bin" ]; then
+    "$timeout_bin" -k 2 "$seconds" "$@"
+    return
+  fi
+  perl_bin="$(command -v perl 2>/dev/null || true)"
+  if [ -n "$perl_bin" ]; then
+    "$perl_bin" -e '
+      my $seconds = shift;
+      my $pid = fork;
+      exit 125 unless defined $pid;
+      if ($pid == 0) { setpgrp(0, 0); exec @ARGV; exit 127 }
+      use POSIX qw(WNOHANG);
+      sub wait_until {
+        my ($child, $deadline) = @_;
+        while (time < $deadline) {
+          my $done = waitpid($child, WNOHANG);
+          return $done if $done == $child;
+          select undef, undef, undef, 0.1;
+        }
+        return 0;
+      }
+      my $done = wait_until($pid, time + $seconds);
+      exit($? >> 8) if $done == $pid;
+      kill "TERM", -$pid;
+      $done = wait_until($pid, time + 2);
+      kill "KILL", -$pid if $done != $pid;
+      waitpid $pid, 0 if $done != $pid;
+      exit 124;
+    ' "$seconds" "$@"
+    return
+  fi
+  "$@"
+}
+
 bites=0; survived=0; unsweepable=0; errored=0
 rows=()
 
@@ -89,7 +130,7 @@ sweep_one() {
   # DOTFILES_DIR. resume-brief-test and dotsync-test read only the latter, so
   # passing the argument alone would have called them unsweepable when they are
   # simply pointed a different way.
-  out="$(cd "$scratch" && DOTFILES_DIR="$scratch" timeout "$TIMEOUT_S" bash "$test" "$scratch" 2>&1)"; rc=$?
+  out="$(cd "$scratch" && DOTFILES_DIR="$scratch" run_bounded "$TIMEOUT_S" bash "$test" "$scratch" 2>&1)"; rc=$?
   local touched=0; [ -s "$marker" ] && touched=1
 
   if [ "$rc" -eq 124 ]; then

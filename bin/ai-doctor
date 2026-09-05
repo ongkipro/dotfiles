@@ -56,6 +56,47 @@ resolve_path() {
   printf '%s/%s\n' "$dir" "$(basename "$path")"
 }
 
+# Health reporting must never make a device verifier hang. GNU `timeout` is
+# absent on stock macOS; keep Perl as the parent so its alarm survives while it
+# terminates and reaps a wedged child process.
+run_bounded() {
+  local seconds="$1" timeout_bin="" perl_bin=""
+  shift
+  timeout_bin="$(command -v timeout 2>/dev/null || command -v gtimeout 2>/dev/null || true)"
+  if [ -n "$timeout_bin" ]; then
+    "$timeout_bin" -k 2 "$seconds" "$@"
+    return
+  fi
+  perl_bin="$(command -v perl 2>/dev/null || true)"
+  if [ -n "$perl_bin" ]; then
+    "$perl_bin" -e '
+      my $seconds = shift;
+      my $pid = fork;
+      exit 125 unless defined $pid;
+      if ($pid == 0) { setpgrp(0, 0); exec @ARGV; exit 127 }
+      use POSIX qw(WNOHANG);
+      sub wait_until {
+        my ($child, $deadline) = @_;
+        while (time < $deadline) {
+          my $done = waitpid($child, WNOHANG);
+          return $done if $done == $child;
+          select undef, undef, undef, 0.1;
+        }
+        return 0;
+      }
+      my $done = wait_until($pid, time + $seconds);
+      exit($? >> 8) if $done == $pid;
+      kill "TERM", -$pid;
+      $done = wait_until($pid, time + 2);
+      kill "KILL", -$pid if $done != $pid;
+      waitpid $pid, 0 if $done != $pid;
+      exit 124;
+    ' "$seconds" "$@"
+    return
+  fi
+  "$@"
+}
+
 # Keep the regression suite separate from the device-health report: CI can run
 # repository fixtures without requiring an installed runtime, while the default
 # mode remains a fast, read-only inspection of this device.
@@ -553,7 +594,7 @@ for c in claude codex pi agy omp; do
         # CLI-nya sendiri, bukan cuma sekali di instalasi awal. install.sh/install-macos.sh
         # sudah mengatur allowlist ini; device yang di-bootstrap sebelum perbaikan itu ada
         # tidak dapat allowlist-nya walau native binary-nya kebetulan masih utuh sekarang.
-        if claude --version >/dev/null 2>&1; then
+        if run_bounded 5 claude --version >/dev/null 2>&1; then
           if command -v npm >/dev/null 2>&1; then
             # `--location=user` baca eksplisit apa yang tertulis di ~/.npmrc, bukan nilai
             # gabungan efektif — .npmrc proyek di cwd lain bisa menyembunyikan entri user.
