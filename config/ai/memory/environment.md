@@ -10,14 +10,9 @@
 
 ## Installed tools (DO NOT reinstall)
 - mise (no-sudo), per `config/mise-config.toml`: fzf, fd, bat, delta, lazygit, zoxide, eza, yq(v4), ruff, starship, helix, tealdeer, direnv, qsv, gh, jq, node.
-- **ripgrep is NOT installed** and is not declared in `config/mise-config.toml`.
-  Verified on `rich` 2026-08-16: `rg` resolves in an AI CLI session only because
-  Claude Code injects a shell function and pi ships its own binary at
-  `~/.pi/agent/bin/rg`; in a clean shell `command -v rg` returns nothing. Any
-  script or non-AI tool that calls `rg` will fail. `config/ripgreprc` is linked
-  to `~/.ripgreprc` regardless, so the config outlives the missing binary.
-- `jq` is declared in mise but reports `(missing)` on `rich`; git-guard works
-  because the system `/usr/bin/jq` exists. python3 is the declared fallback.
+- ripgrep and jq are declared in `config/mise-config.toml`. Use `mise install`
+  to provision them and `mise ls --missing` to detect local gaps. Verify `rg` in
+  a clean shell; AI runtimes may inject their own binary into PATH.
 - Editor: helix (`hx`). `EDITOR=hx`.
 - npm -g: pi, pnpm, typescript-language-server, vscode-langservers-extracted, @tailwindcss/language-server, yaml-language-server, bash-language-server, pyright.
 - Native OMP binary at `~/.local/bin/omp`; resolve the current version with

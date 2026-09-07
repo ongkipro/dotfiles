@@ -22,7 +22,7 @@
 #   mutation-sweep <name>...    sweep only these
 #   mutation-sweep --json       machine-readable
 #
-# Exit 1 if any test SURVIVED. Read-only with respect to this repository: the
+# Exit 1 if any test SURVIVED or ERROR occurred. Read-only for this repository: the
 # working tree is fingerprinted before and after and a change aborts the run.
 set -uo pipefail
 
@@ -136,6 +136,11 @@ sweep_one() {
   if [ "$rc" -eq 124 ]; then
     rows+=("ERROR|$name|test timed out after ${TIMEOUT_S}s"); errored=$((errored+1)); return
   fi
+  # GNU timeout returns 137 when its kill-after deadline requires SIGKILL.
+  # A killed test is inconclusive even if it ran the stub before being killed.
+  if [ "$rc" -eq 137 ]; then
+    rows+=("ERROR|$name|test killed by SIGKILL (possibly after timeout)"); errored=$((errored+1)); return
+  fi
   if [ "$touched" -eq 0 ]; then
     rows+=("UNSWEEPABLE|$name|the stub was never run; the test does not use the root it is given")
     unsweepable=$((unsweepable+1)); return
@@ -210,4 +215,4 @@ else
     "$bites" "$survived" "$unsweepable" "$errored"
 fi
 
-[ "$survived" -eq 0 ]
+[ "$survived" -eq 0 ] && [ "$errored" -eq 0 ]

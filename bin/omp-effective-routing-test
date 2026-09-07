@@ -298,11 +298,15 @@ if [[ "$skip_selector_validation" -eq 0 ]]; then
       echo "FAIL: overlay $name did not resolve to a usable OMP configuration" >&2
       exit 1
     fi
-    verdict="$(jq -n --slurpfile c "$fixture/overlay.json" --slurpfile m "$fixture/models.json" '
+    verdict="$(jq -e -n --slurpfile c "$fixture/overlay.json" --slurpfile m "$fixture/models.json" '
       ([$m[0].models[].provider] | unique) as $known |
       def refs:
         ($c[0].modelRoles.value | to_entries[] | .value),
         ($c[0]["retry.fallbackChains"].value // {} | to_entries[].value[]);
+      [
+        ($c[0].modelRoles.value | to_entries[] | select(.key == "vision" or .key == "designer") | .value),
+        ($c[0]["retry.fallbackChains"].value // {} | to_entries[] | select(.key == "vision" or .key == "designer") | .value[])
+      ] as $visual |
       [refs | capture("^(?<provider>[^/]+)/(?<id>.+):(?<effort>[^:]+)$")] as $all |
       ($all | map(select(.provider as $p | $known | index($p) | not)) | length) as $unreachable |
       [$all[] | select(.provider as $p | $known | index($p)) |
@@ -311,13 +315,15 @@ if [[ "$skip_selector_validation" -eq 0 ]]; then
         select(
           ($model == null) or
           (($model.thinking // []) as $levels |
-            ($levels | length) > 0 and ($levels | index($ref.effort) | not))
+            ($levels | length) > 0 and ($levels | index($ref.effort) | not)) or
+          (("\($ref.provider)/\($ref.id):\($ref.effort)" as $selector | $visual | index($selector)) != null and
+            (($model.input // []) | index("image") | not))
         ) | "\($ref.provider)/\($ref.id):\($ref.effort)"
       ] as $broken |
       "\($unreachable) \($broken | length) \($broken | join(","))"')"
     read -r unreachable broken detail <<<"${verdict//\"/}"
     if [[ "$broken" -ne 0 ]]; then
-      echo "FAIL: overlay $name names ${broken} unusable selector(s) under a provider this device does have: ${detail}" >&2
+      echo "FAIL: overlay $name names ${broken} unusable selector(s), reasoning level(s), or visual capability under a provider this device does have: ${detail}" >&2
       exit 1
     fi
     if [[ "$unreachable" -gt 0 ]]; then

@@ -1,6 +1,6 @@
 # Tasks — dotfiles
 
-Updated: 2026-09-04
+Updated: 2026-09-07
 
 The sole executable queue. Completed contracts live under `docs/archive/`;
 repository tests and runtime evidence outrank prose.
@@ -16,6 +16,15 @@ Only the dependency edge is human-authored; state is derived.
 _None._
 
 ## Recently completed
+
+- **TASK-061 / REQ-LOCAL-SYNC (R2, reviewed).** Added mise-managed ripgrep,
+  verified it outside AI-injected PATH, corrected toolchain references, and
+  refreshed rich's device snapshot. GNU timeout's SIGKILL exit 137 now reports
+  ERROR in mutation-sweep; errors also fail the command. The doctor timeout
+  fixture no longer scans the real repository. Replaced unavailable Codex-only
+  selectors and checked overlay visual primaries/fallbacks for image support.
+  Full repository self-test passed; independent negative visual fixtures passed.
+  Evidence: RUN-20260907T160155Z-6c558cf6.
 
 - **TASK-060 / REQ-RUNTIME-COMMAND-SYMLINK (R1).** After the 2026-09-04 pull,
   the newly installed `~/.local/bin/skill-map-test` link ran nine fixture cases

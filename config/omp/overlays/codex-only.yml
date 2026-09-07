@@ -8,7 +8,7 @@
 # that provider rather than silently re-introducing the multi-model routing the
 # operator just opted out of.
 #
-# The role split mirrors the tracked config rather than flattening it: Terra at
+# In this single-provider role split, Terra at
 # medium owns ordinary development (`default`, `task`) and Terra at high owns
 # planning, while Sol at high stays reserved for complex, high-risk work
 # (`slow`) and the advisor tiers. Recovery inverts that pair inside Codex, so a
@@ -20,16 +20,6 @@
 #   - every reasoning suffix is a level the model actually supports
 #   - vision/designer use an image-capable model
 #
-# One capability genuinely cannot be preserved, the Codex counterpart of the
-# advisor-tier note in the Antigravity overlay. `librarian` declares
-# `thinkingLevel: minimal` in its own frontmatter, and no Codex model exposes
-# `minimal` — the family starts at `low`. Under this overlay `librarian`
-# therefore runs at least one tier above its declared floor. The declaration is
-# deliberate in the tracked config, where `research` is Gemini 3.8 Flash and
-# `minimal` is exactly why that model was chosen (see ROUTING.md), so the fix
-# belongs here as a documented reduction rather than as an edit to the agent.
-# Treat librarian output from a Codex-only session as costing more than usual,
-# not as less trustworthy.
 __test_require_cross_host__: false
 
 __test_providers__: openai-codex
@@ -42,10 +32,10 @@ modelRoles:
   plan: openai-codex/gpt-5.6-terra:high
   smol: openai-codex/gpt-5.4-mini:low
   tiny: openai-codex/gpt-5.4-mini:low
-  research: openai-codex/gpt-5.4:high
-  discovery: openai-codex/gpt-5.4:high
-  vision: openai-codex/gpt-5.4:high
-  designer: openai-codex/gpt-5.4:high
+  research: openai-codex/gpt-5.6-terra:high
+  discovery: openai-codex/gpt-5.6-terra:high
+  vision: openai-codex/gpt-5.6-terra:high
+  designer: openai-codex/gpt-5.6-terra:high
   advisor: openai-codex/gpt-5.6-sol:high
   advisor-xhigh: openai-codex/gpt-5.6-sol:xhigh
   advisor-max: openai-codex/gpt-5.6-sol:max
@@ -72,10 +62,10 @@ retry:
       - openai-codex/gpt-5.5:high
     smol:
       - openai-codex/gpt-5.5:low
-      - openai-codex/gpt-5.4:low
+      - openai-codex/gpt-5.6-terra:low
     tiny:
       - openai-codex/gpt-5.5:low
-      - openai-codex/gpt-5.4:low
+      - openai-codex/gpt-5.6-terra:low
     research:
       - openai-codex/gpt-5.5:high
       - openai-codex/gpt-5.6-sol:high

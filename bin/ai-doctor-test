@@ -52,7 +52,9 @@ HANG_HOME="$TMP/hang-home"; mkdir -p "$HANG_HOME"
 printf '#!/usr/bin/env bash\ntrap "" TERM\nsleep 30\n' > "$HANG_BIN/claude"
 chmod +x "$HANG_BIN/claude"
 started=$(date +%s)
-OUT_HANG="$(env -u TOOLCHAIN_NODE_BIN HOME="$HANG_HOME" PATH="$HANG_BIN:$PATH" DOTFILES_DIR="$ROOT" bash "$CMD" 2>&1)"
+# Use the empty fixture root: scanning the real repository is unrelated to
+# bounding the launcher and made this assertion depend on repository size/load.
+OUT_HANG="$(env -u TOOLCHAIN_NODE_BIN HOME="$HANG_HOME" PATH="$HANG_BIN:$PATH" DOTFILES_DIR="$TMP/nosuite" bash "$CMD" 2>&1)"
 elapsed=$(( $(date +%s) - started ))
 [ "$elapsed" -lt 15 ] && ok "a hanging Claude launcher is bounded" \
   || bad "a hanging Claude launcher took ${elapsed}s"

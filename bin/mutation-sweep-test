@@ -116,10 +116,11 @@ chmod +x "$FIX/bin/slow" "$FIX/bin/slow-test"
 git -C "$FIX" add -A >/dev/null
 git -C "$FIX" -c user.email=t@t -c user.name=t commit -qm slow >/dev/null
 started=$(date +%s)
-OUT4="$(DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=2 "$SWEEP" --json slow 2>/dev/null)"
+OUT4="$(DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=2 "$SWEEP" --json slow 2>/dev/null)"; rc4=$?
 elapsed=$(( $(date +%s) - started ))
 [ "$(verdict "$OUT4" slow)" = ERROR ] && ok "a hanging test is an ERROR, not a pass" \
   || fail "a hanging test was not reported as ERROR, got $(verdict "$OUT4" slow)"
+[ "$rc4" -ne 0 ] && ok "a timed-out sweep exits non-zero" || fail "a timed-out sweep exited zero"
 [ "$elapsed" -lt 15 ] && ok "a hanging test is bounded" \
   || fail "a hanging test took ${elapsed}s"
 

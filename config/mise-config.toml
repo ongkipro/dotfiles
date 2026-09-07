@@ -20,3 +20,4 @@ marksman = "latest"   # Helix LSP for Markdown — PRD, TASKS, memory, and spec 
 taplo = "latest"      # Helix LSP for TOML — mise, Helix, and wrangler configs
 node = "24.18.0"
 bun = "latest"
+ripgrep = "latest"

@@ -1,6 +1,6 @@
 # Linux Development Environment
 
-This runbook describes the current Linux terminal environment managed by this private repository. For a fresh-machine command sequence, use [`linux-install-step-by-step.md`](linux-install-step-by-step.md).
+This runbook describes the current Linux terminal environment managed by this repository. For a fresh-machine command sequence, use [`linux-install-step-by-step.md`](linux-install-step-by-step.md).
 
 ## Authority
 
@@ -78,7 +78,7 @@ mise ls
 mise up
 ```
 
-Node remains device-managed because globally installed AI CLIs can be tied to a specific Node installation. Verify each CLI after changing Node:
+Node is pinned in the shared mise declaration. Globally installed AI CLIs can be tied to a specific Node installation, so verify each CLI after changing Node:
 
 ```bash
 for command_name in claude codex pi agy omp; do
