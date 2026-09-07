@@ -5,6 +5,7 @@ set -uo pipefail
 ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
 CMD="$ROOT/bin/inspect-project"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+TMP="$(cd "$TMP" && pwd -P)"
 f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
 
 R="$TMP/proj"; mkdir -p "$R"; git -C "$R" init -q

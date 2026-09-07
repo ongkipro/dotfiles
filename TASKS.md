@@ -1,6 +1,6 @@
 # Tasks — dotfiles
 
-Updated: 2026-09-07
+Updated: 2026-09-08
 
 The sole executable queue. Completed contracts live under `docs/archive/`;
 repository tests and runtime evidence outrank prose.
@@ -16,6 +16,24 @@ Only the dependency edge is human-authored; state is derived.
 _None._
 
 ## Recently completed
+
+- **TASK-063 / REQ-OMP-UPDATE-SYNC (R2, reviewed).** Updated rich's native OMP
+  from 18.1.10 to 18.1.13 and verified native routing, shared context, 66 skills,
+  and local runtime health. CI fixtures now use a synthetic Claude profile and
+  launcher, and normalize temporary paths for macOS. The full suite passed;
+  the final launcher-isolation refinement passed its focused rerun. Independent
+  negative deny/hook fixtures and symlinked-TMPDIR checks passed. TASK-062's
+  previously reviewed changes were preserved for the authorized publication.
+  Evidence: RUN-20260907T170125Z-c0d35e3d.
+
+- **TASK-062 / REQ-MODEL-AGNOSTIC (R3).** Owner-authorized removal of model/provider
+  eligibility locks from shared capability instructions, OMP orchestration,
+  delivery-ledger and policy lint. Separate actual-agent review, truthful
+  provenance, self-review rejection, stale-evidence checks and live-operation
+  approvals remain. Same-route R3 approval/finish/verify and policy fixtures pass;
+  canonical policy lint passes. Native runtime defaults and historical runs were
+  not rewritten. Contract and retained TASK-058 history: [archive](docs/archive/DOTFILES_TASKS_2026-09-07_CONTEXT_RETENTION.md).
+  Evidence: RUN-20260907T163715Z-9766f188.
 
 - **TASK-061 / REQ-LOCAL-SYNC (R2, reviewed).** Added mise-managed ripgrep,
   verified it outside AI-injected PATH, corrected toolchain references, and
@@ -45,25 +63,8 @@ _None._
   reports its own length and flags an overrun. Three mutations bite. The test that
   previously locked the broken state asserts the rule instead.
 
-- **TASK-058 / REQ-TEST-EFFICACY (R2).** Ten of the fourteen untested commands gained a
-  test, ordered by blast radius: `9router-credential-migrate` (secrets — only refusal and
-  misuse paths, no key read or written), `device-register` (via `--dry-run`), `ai-doctor`
-  (658 lines, the health command every gate defers to), `ai-memory-check`, `migration-risk`,
-  `release-manifest`, `inspect-project`, `shopify-content-helper`, `tmux-battery`,
-  `tmux-clip`. `mutation-sweep`: 41 pairs, **39 BITES, 0 SURVIVED**, 2 UNSWEEPABLE.
-  Scope expanded once, requirement-linked, onto `bin/mutation-sweep`: it gave a
-  node-shebang subject a bash stub, so the stub could not run and the test was
-  misclassified UNSWEEPABLE — a wrong answer wearing a cautious one, found because
-  `ai-memory-check` is the only node command with a test.
-  **Four remain untested:** `dotpush`, `vps-pgdump`, `tmux-setup`, `pi-update-safe`.
-  I called them seamless; review showed that is false — each is testable behind a
-  shim, and `pi-update-safe` already exposes `PI_RUNTIME_SKILL_DIRS`/`PI_ARCHIVE_ROOT`
-  for exactly that. **Post-release review found a plausible bug escaping nine of the
-  ten tests**, fixed in a follow-up run: `ai-doctor-test` pinned this machine's health
-  rather than the subject's contract and failed unmutated in any relocated copy, so its
-  sweep verdict was unearned; two assertions checked paths and patterns their subjects
-  never use; three subcommands had no positive fixture, so a subject that rejected or
-  dropped everything still passed.
+- **TASK-058:** completed test-efficacy history retained in
+  [context archive](docs/archive/DOTFILES_TASKS_2026-09-07_CONTEXT_RETENTION.md).
 
 - **TASK-057 / REQ-TEST-EFFICACY (R1).** `mutation-sweep` stubs `bin/<name>` to exit 0 and
   runs `bin/<name>-test` against a scratch copy, honouring both root conventions (first

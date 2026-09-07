@@ -16,6 +16,7 @@ ROOT="${1:-$(cd -P "$(dirname "$SOURCE")/.." && pwd)}"
 MAP="$ROOT/bin/skill-map"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/skill-map-test.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
+TMP="$(cd "$TMP" && pwd -P)"
 FIX="$TMP/dotfiles"
 fails=0
 

@@ -1,0 +1,20 @@
+{
+  "capability": "unattributed",
+  "head": "bb5caaaabf330496b04af9b3d1747f8540c4ca9e",
+  "job": "implementation",
+  "model": "gpt-6",
+  "provider": "openai",
+  "reasoningEffort": "unavailable: runtime effort not exposed",
+  "recordedAt": "2026-09-07T17:08:04Z",
+  "result": "PASS",
+  "risk": "R2",
+  "runId": "RUN-20260907T170125Z-c0d35e3d",
+  "schemaVersion": 1,
+  "skillsUsed": [
+    "native-first",
+    "testing-engineering"
+  ],
+  "usageHash": "68b3d110ebe30da8c78d5b906306f1095d083dec68c31b2b80313c605179cc79",
+  "verificationFailed": false,
+  "worker": "codex-parent"
+}

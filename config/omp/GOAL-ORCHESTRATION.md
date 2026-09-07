@@ -11,26 +11,21 @@ OMP user explicitly starts a goal in a repository containing `TASKS.md`.
    requirement, risk, allowed/protected surface, dependencies, and runnable
    completion evidence before editing. Do not silently broaden the goal.
 3. Keep the active parent as conductor: it owns decomposition, routing, context,
-   integration, completion audit, and user communication. Terra is the normal
-   cost-aware parent. Fable is the native `plan` model and `@orchestrator` is an
-   explicit alias for genuinely hard, long-horizon sessions. OMP does not
-   dynamically replace the parent model from a task spawn.
-4. Route bounded work by bundled capability: `sonic` / Gemini for trivial,
-   mechanical work; `scout` or `librarian` / Terra for discovery and research;
-   `task` / Sol for development, tests, refactors, difficult debugging, schema,
-   queries, migrations, transactions, locking, and PostgreSQL/Drizzle changes;
-   `designer` / Opus before browser-visible visual or UX edits; `reviewer` /
-   Opus for independent correctness and architecture review; and
-   `security-reviewer` / Opus XHigh for auth, authorization, payments,
-   migrations, secrets, cryptography, tenant isolation, concurrency,
-   infrastructure, and production-sensitive review.
+   integration, completion audit, and user communication. Use the runtime's
+   available model/provider choices; no particular model or reasoning level is
+   mandatory and no parent switch is required to satisfy a model-name rule.
+4. Route bounded work by capability: discovery/research; implementation and data;
+   visual design before browser-visible edits; correctness review; and sensitive
+   review for authorization, payments, migrations, secrets, cryptography, tenant
+   isolation, concurrency, infrastructure and production. Any available capable
+   model/provider may serve a lane, including the same route as another agent.
 5. Delegate only genuinely independent slices. Never run children with a shared
    semantic owner concurrently. Give each child explicit paths, constraints,
    acceptance evidence, and non-scope. Treat child results as proposals; inspect
    and integrate one isolated result at a time.
 6. Run repository verification after integration. R0/R1 may finish with parent
-   verification. Non-trivial cross-module R2 work gets an Opus reviewer. R3/R4
-   and every sensitive trigger above require independent Opus or security review
+   verification. Non-trivial cross-module R2 work gets a separate reviewer. R3/R4
+   and every sensitive trigger above require separate-agent correctness/security review
    plus recorded delivery-ledger boundary approval; `DONE` requires `PASS`.
 7. Secret access, destructive operations, system-wide changes, production/live
    mutations, and material scope expansion stop for explicit user approval even

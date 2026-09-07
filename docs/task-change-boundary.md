@@ -118,12 +118,14 @@ Every R1-R4 run must declare a resolved route. `--model`, `--provider`, and
 exist — a deterministic script has no model route — is recorded as
 `unavailable: <reason>` so the gap is stated rather than invented.
 
-The reviewer identifier must differ from the run's worker, and where policy
-requires independent review the reviewer's model or provider must differ from
-the implementer's too. Identities and routes are compared case- and
-whitespace-insensitively, so re-casing a name is not a second reviewer. A review
-binds to the latest boundary event and surface digest. Any later worktree change invalidates
-it and requires another check and review.
+The reviewer must be a separate actual agent from the implementer. Its identifier
+must differ from the run's worker; identity comparisons ignore case and surrounding
+whitespace. Any available capable model/provider is eligible, including the same
+model/provider as the implementer. Model/provider remain mandatory truthful
+provenance, not approval eligibility rules. Merely renaming self-review is invalid:
+the orchestrator must obtain a real separate-agent review, which the ledger cannot
+prove from identity strings alone. A review binds to the latest boundary event and
+surface digest. Later worktree changes require another check and review.
 
 ## Parallel child runs
 

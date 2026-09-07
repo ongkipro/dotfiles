@@ -526,7 +526,7 @@ reject_child "parent dirty-path overlap" --child c12 --task T --risk R1 --allow 
 grep -q 'parent edit' "$COL/src/feature.txt" || fail "collision rejection modified parent work"
 python3 "$DL" --repo "$COL" finish --result BLOCKED >/dev/null
 
-# Independent review must prove a different reviewer route, not a different label.
+# Independent review requires a separate reviewer identity, not a different model/provider.
 REV="$(make_boundary_repo boundary-review-independence)"
 python3 "$DL" --repo "$REV" start --task TASK-REV --requirement REQ-REV --risk R1 --worker developer --model impl-model --provider impl-provider --reasoning-effort high --allow 'auth/**' --protect 'auth/**' --protected-risk R3 >/dev/null
 printf 'security change\n' >> "$REV/auth/session.txt"
@@ -547,18 +547,16 @@ reject_review "unknown reviewer model" --reviewer other-reviewer --reviewer-mode
 reject_review "unknown reviewer provider" --reviewer other-reviewer --reviewer-model rev-model --reviewer-provider unknown --reviewer-reasoning high
 reject_review "unknown reviewer reasoning" --reviewer other-reviewer --reviewer-model rev-model --reviewer-provider rev-provider --reviewer-reasoning unknown
 reject_review "self-review under the implementer identity" --reviewer developer --reviewer-model rev-model --reviewer-provider rev-provider --reviewer-reasoning high
-reject_review "self-review behind a different label" --reviewer other-reviewer --reviewer-model impl-model --reviewer-provider impl-provider --reviewer-reasoning high
 # Independence is decided by string equality, so presentation must not defeat it.
 reject_review "self-review behind a re-cased identity" --reviewer Developer --reviewer-model rev-model --reviewer-provider rev-provider --reviewer-reasoning high
-reject_review "implementer route behind trailing whitespace" --reviewer other-reviewer --reviewer-model 'impl-model ' --reviewer-provider impl-provider --reviewer-reasoning high
-reject_review "implementer route behind different casing" --reviewer other-reviewer --reviewer-model IMPL-MODEL --reviewer-provider Impl-Provider --reviewer-reasoning high
 set +e; python3 "$DL" --repo "$REV" finish --result PASS >/dev/null 2>&1; rc=$?; set -e
 [ "$rc" -eq 1 ] || fail "PASS must be denied while review-required boundary is unapproved"
 
 printf 'late edit\n' >> "$REV/auth/session.txt"
 reject_review "stale reviewed surface digest" --reviewer other-reviewer --reviewer-model rev-model --reviewer-provider rev-provider --reviewer-reasoning high
 python3 "$DL" --repo "$REV" check-boundary >/dev/null 2>&1 || true
-python3 "$DL" --repo "$REV" review-boundary --reviewer other-reviewer --reviewer-model rev-model --reviewer-provider impl-provider --reviewer-reasoning high >/dev/null
+python3 "$DL" --repo "$REV" review-boundary --reviewer other-reviewer --reviewer-model impl-model --reviewer-provider impl-provider --reviewer-reasoning high >/dev/null
+python3 "$DL" --repo "$REV" verify >/dev/null || fail "same-route independent review must verify"
 grep -q '"reviewEvidenceDigest"' "$REV/.delivery/runs"/*.jsonl || fail "review evidence digest was not recorded"
 
 printf 'unreviewed change\n' >> "$REV/auth/session.txt"
@@ -729,8 +727,18 @@ python3 "$M_REV" --repo "$BRM" start --task TASK-BRM --requirement REQ-BRM --ris
 printf 'security change\n' >> "$BRM/auth/session.txt"
 python3 "$M_REV" --repo "$BRM" record --check auth-regression --status PASS >/dev/null
 python3 "$M_REV" --repo "$BRM" check-boundary >/dev/null 2>&1 || true
-python3 "$M_REV" --repo "$BRM" review-boundary --reviewer other-reviewer --reviewer-model impl-model --reviewer-provider impl-provider --reviewer-reasoning high >/dev/null \
+python3 "$M_REV" --repo "$BRM" review-boundary --reviewer developer --reviewer-model impl-model --reviewer-provider impl-provider --reviewer-reasoning high >/dev/null \
   || fail "mutation probe did not neutralize the review-independence guard"
 
+
+# A complete R3 run can use the same actual model/provider for distinct agents.
+SAME="$(make_boundary_repo same-route-review)"
+python3 "$DL" --repo "$SAME" start --task TASK-SAME --requirement REQ-SAME --risk R3 --worker implementer --model same-model --provider same-provider --reasoning-effort high --allow 'auth/**' >/dev/null
+printf 'change\n' >> "$SAME/auth/session.txt"
+python3 "$DL" --repo "$SAME" record --check regression --status PASS >/dev/null
+python3 "$DL" --repo "$SAME" check-boundary >/dev/null 2>&1 || true
+python3 "$DL" --repo "$SAME" review-boundary --reviewer separate-agent --reviewer-model same-model --reviewer-provider same-provider --reviewer-reasoning high >/dev/null
+python3 "$DL" --repo "$SAME" finish --result PASS >/dev/null || fail "same-route reviewer must permit R3 completion"
+python3 "$DL" --repo "$SAME" verify >/dev/null || fail "completed same-route R3 review must verify"
 
 echo 'delivery-ledger-test: PASS'

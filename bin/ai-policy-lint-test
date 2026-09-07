@@ -247,4 +247,31 @@ PY
 
 echo "ai-policy-lint-test: task contracts PASS"
 
+
+# Capability policy permits arbitrary model/provider names but preserves the
+# separate-review and explicit-approval clauses.
+python3 - "$LINT" "$ROOT/config/ai/AGENTS.md" "$TMP" <<'PYTEST'
+import importlib.machinery, importlib.util, sys
+from pathlib import Path
+loader = importlib.machinery.SourceFileLoader("policy_fixture", sys.argv[1])
+spec = importlib.util.spec_from_loader(loader.name, loader)
+mod = importlib.util.module_from_spec(spec)
+loader.exec_module(mod)
+fixture = Path(sys.argv[3]) / "policy-fixture"
+fixture.mkdir()
+mod.AI_DIR = fixture
+source = Path(sys.argv[2]).read_text()
+for suffix in ("", "\nPreferred runtime model: arbitrary-vendor/arbitrary-model.\n"):
+    (fixture / "AGENTS.md").write_text(source + suffix)
+    mod.errors.clear()
+    mod.check_agents_policy()
+    assert not mod.errors, mod.errors
+for clause in ("Route by capability:", "Use any available capable model/provider", "separate actual agent", "Product, scope, secrets and live-operation approvals remain."):
+    (fixture / "AGENTS.md").write_text(source.replace(clause, "removed-policy-fixture"))
+    mod.errors.clear()
+    mod.check_agents_policy()
+    assert mod.errors, f"missing capability policy was accepted: {clause}"
+print("model-agnostic policy fixtures: PASS")
+PYTEST
+
 echo "ai-policy-lint-test: PASS"

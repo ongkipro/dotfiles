@@ -199,10 +199,9 @@ UNAVAILABLE_PREFIX = "unavailable:"
 def provenance_key(value: str | None) -> str:
     """Fold a route or identity to its comparison form.
 
-    Independence is decided by string equality, so the comparison must not be
-    fooled by presentation. `Developer` is the same person as `developer`, and
-    `impl-model ` is the same model as `impl-model`; comparing them raw let a
-    worker approve its own R3 change by retyping its name in a different case.
+    Reviewer identity comparisons must not be fooled by presentation:
+    `Developer` and `developer` identify the same worker. Model/provider
+    provenance is recorded, but does not determine review eligibility.
     """
     return (value or "").strip().casefold()
 
@@ -420,8 +419,6 @@ def verify_run(path: Path) -> list[str]:
             problems.append(f"{path.name}:{index}: boundary review carries a non-ASCII reviewer identity or route")
         if provenance_key(event.get("reviewer")) == provenance_key(run_head.get("worker")):
             problems.append(f"{path.name}:{index}: boundary review was performed by the implementer")
-        if RISK_ORDER.get(str(event.get("effectiveRisk")), 0) >= RISK_ORDER["R3"] and provenance_key(event.get("reviewerModel")) == provenance_key(run_head.get("model")) and provenance_key(event.get("reviewerProvider")) == provenance_key(run_head.get("provider")):
-            problems.append(f"{path.name}:{index}: boundary review reused the implementer route where independence is required")
     return problems
 
 
@@ -1083,7 +1080,7 @@ def cmd_review_boundary(repo: Path, a) -> int:
         raise ValueError(
             "independent review requires resolved reviewer provenance; unknown: " + ", ".join(unresolved)
         )
-    if provenance_key(a.reviewer) == provenance_key(start.get("worker")):
+    if provenance_key(a.reviewer) == provenance_key(start.get("worker")):  # review-independence guard
         raise ValueError("boundary reviewer must be independent from the worker")
     checks = [event for event in events if event.get("type") == "boundary_check"]
     if not checks or checks[-1].get("result") != "REVIEW_REQUIRED":
@@ -1092,14 +1089,8 @@ def cmd_review_boundary(repo: Path, a) -> int:
     latest = checks[-1]
     if current["result"] != "REVIEW_REQUIRED" or current["surfaceDigest"] != latest.get("surfaceDigest"):
         raise ValueError("change surface moved after boundary check; run check-boundary again")
-    # A different reviewer *label* on the implementer's own route is self-review.
-    # Where policy demands independence, the route itself has to differ.
-    if RISK_ORDER[current["effectiveRisk"]] >= RISK_ORDER["R3"]:  # review-independence guard
-        if provenance_key(a.reviewer_model) == provenance_key(start.get("model")) and provenance_key(a.reviewer_provider) == provenance_key(start.get("provider")):
-            raise ValueError(
-                "independent review at {} requires a reviewer model or provider different from the implementer route "
-                "{}/{}".format(current["effectiveRisk"], start.get("provider"), start.get("model"))
-            )
+    # Model/provider are provenance, not eligibility. The caller must obtain
+    # review from a separate actual agent; a renamed self-review is not valid.
     event = event_base(repo, "boundary_review", run_id)
     event.update(reviewer)
     event.update({

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ai-policy-lint — Structural linter for the tracked AI control plane.
 
-Verifies GitHub workflows, model role alignment, agent frontmatter metadata,
+Verifies GitHub workflows, capability routing, agent frontmatter metadata,
 skill structures, memory links, project templates, and policy canaries across
 dotfiles.
 """
@@ -56,15 +56,12 @@ def check_agents_policy():
     goal_contract = {
         "goal section": "### OMP autonomous repository goals",
         "canonical task queue": "`TASKS.md` is the canonical execution",
-        "development lane": "`task` / Sol:",
-        # Two anchors, because the visual lane is now two roles. Pinning only the
-        # default would let the escalation quietly disappear — and the escalation
-        # is what makes a cheap default defensible in the first place.
-        "visual lane": "`designer` / Gemini 3.7 Flash",
-        "visual escalation": "`vision` / Opus",
-        "review lane": "`reviewer` / Opus:",
-        "security lane": "`security-reviewer` / Opus XHigh:",
-        "approval boundary": "Approval gates remain load-bearing.",
+        "capability routing": "Route by capability:",
+        "visual lane": "designer/vision capability before editing",
+        "review independence": "separate actual agent",
+        "security lane": "sensitive/security review",
+        "model eligibility": "Use any available capable model/provider",
+        "approval boundary": "Product, scope, secrets and live-operation approvals remain.",
         "git authority": "Committing and pushing remain explicit user actions",
     }
     for label, anchor in goal_contract.items():
