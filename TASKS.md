@@ -17,6 +17,14 @@ _None._
 
 ## Recently completed
 
+- **TASK-066 / REQ-PROMOTION-CORPUS-RACE (R2, reviewed).** Directory discovery
+  now excludes ai-learn's private probe/preview/write files, so another writer
+  cannot remove a discovered preview before canonical indexing. Explicit preview
+  arguments remain validated. Regression fails without the filter and passes
+  with it; concurrent promotion passes with a corrected barrier that proves
+  both writers reached preview validation. No actual memory content changed.
+  Evidence: RUN-20260907T171741Z-934cb927.
+
 - **TASK-065 / REQ-CROSS-DEVICE-INTEGRATION (R2).** Integrated origin/main
   764c40c with the verified local update. Retained remote queue archives and
   physical-path assertions, and the local synthetic Claude fixture. Kept all

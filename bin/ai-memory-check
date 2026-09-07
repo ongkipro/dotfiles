@@ -16,6 +16,9 @@ function markdownFiles(entry) {
 
   return fs.readdirSync(entry, { withFileTypes: true }).flatMap((item) => {
     if (item.isDirectory() && ignoredDirectories.has(item.name)) return [];
+    // Promotion work files are private to their writer, not canonical memory.
+    // Explicit file arguments still take the stat.isFile() path above.
+    if (item.isFile() && /^\.ai-learn(?:-preview|-probe)?\..*\.md$/.test(item.name)) return [];
     return markdownFiles(path.join(entry, item.name));
   });
 }
@@ -159,6 +162,15 @@ function selfTest() {
     const alias = path.join(temp, "memory-alias");
     fs.symlinkSync(path.join(temp, "memory"), alias, "dir");
     assert.equal(canonicalMarkdownFiles([path.join(temp, "memory"), alias]).length, 2);
+
+    // Another promotion may remove these files while the corpus is indexed.
+    // Directory scans exclude them; explicit promotion checks must still run.
+    for (const prefix of [".ai-learn.", ".ai-learn-preview.", ".ai-learn-probe."]) {
+      const draft = path.join(temp, "memory", `${prefix}fixture.md`);
+      fs.writeFileSync(draft, "[broken](missing.md)\n");
+      assert.equal(canonicalMarkdownFiles([path.join(temp, "memory")]).length, 2);
+      assert.equal(scan(canonicalMarkdownFiles([draft])).issues.length, 1);
+    }
 
     fs.writeFileSync(path.join(temp, "memory", "bad.md"), "[broken](missing.md)\n");
     result = scan(canonicalMarkdownFiles([temp]));

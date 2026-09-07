@@ -146,7 +146,7 @@ import sys
 import time
 
 barrier_value = os.environ.get("AI_LEARN_TEST_BARRIER_DIR")
-if barrier_value and Path(sys.argv[1]).name.startswith(".ai-learn."):
+if barrier_value and Path(sys.argv[1]).name.startswith(".ai-learn-preview."):
     barrier = Path(barrier_value)
     barrier.mkdir(parents=True, exist_ok=True)
     (barrier / f"writer-{os.getpid()}").touch()
@@ -171,6 +171,8 @@ if [ "$alpha_rc" -ne 0 ] || [ "$beta_rc" -ne 0 ]; then
   echo "FAIL: concurrent promotions did not both succeed" >&2
   exit 1
 fi
+[ "$(find "$AI_LEARN_TEST_BARRIER_DIR" -name 'writer-*' -type f | wc -l | tr -d ' ')" -eq 2 ] \
+  || { echo "FAIL: both writers must reach the preview barrier" >&2; exit 1; }
 grep -qF 'amber writer retains every reviewed invariant' "$DOTFILES_DIR/config/ai/project-memory/concurrent.md"
 grep -qF 'cobalt writer retains every approved constraint' "$DOTFILES_DIR/config/ai/project-memory/concurrent.md"
 mv "$DOTFILES_DIR/bin/ai-memory-check.real" "$DOTFILES_DIR/bin/ai-memory-check"
