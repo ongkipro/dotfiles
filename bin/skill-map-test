@@ -16,7 +16,6 @@ ROOT="${1:-$(cd -P "$(dirname "$SOURCE")/.." && pwd)}"
 MAP="$ROOT/bin/skill-map"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/skill-map-test.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
-TMP="$(cd "$TMP" && pwd -P)"
 FIX="$TMP/dotfiles"
 fails=0
 
@@ -122,8 +121,13 @@ while [ -L "$source" ]; do
   [[ "$source" != /* ]] && source="$dir/$source"
 done
 resolved_root="$(cd -P "$(dirname "$source")/.." && pwd)"
-[ "$resolved_root" = "$TMP/root-resolution/repo" ] \
-  || fail "a symlinked command resolved root as $resolved_root"
+# Both sides physical. mktemp hands back /var/folders/... on macOS while the
+# resolver returns /private/var/folders/..., so comparing the raw $TMP path
+# failed there and nowhere else — the test was asserting the platform, not the
+# resolution. CI has been red on this since 2026-09-04.
+expected_root="$(cd -P "$TMP/root-resolution/repo" && pwd)"
+[ "$resolved_root" = "$expected_root" ] \
+  || fail "a symlinked command resolved root as $resolved_root, expected $expected_root"
 ok "symlinked command resolves repository root"
 
 # 11. The real repository's committed map is current.

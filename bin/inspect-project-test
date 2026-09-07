@@ -5,14 +5,17 @@ set -uo pipefail
 ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
 CMD="$ROOT/bin/inspect-project"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
-TMP="$(cd "$TMP" && pwd -P)"
 f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
 
 R="$TMP/proj"; mkdir -p "$R"; git -C "$R" init -q
 printf '{"name":"fixture"}\n' > "$R/package.json"
 printf 'dirty\n' > "$R/untracked.txt"
 OUT="$(cd "$R" && bash "$CMD" 2>&1)"
-printf '%s' "$OUT" | grep -q "Repo root: $R" && ok "it names the repository root" \
+# Ask git what it will print rather than assuming the path mktemp handed us.
+# The earlier version compared the raw $R, which holds on Linux and fails on
+# macOS where /var resolves to /private/var — the test asserted the platform.
+EXPECT_ROOT="$(git -C "$R" rev-parse --show-toplevel)"
+printf '%s' "$OUT" | grep -q "Repo root: $EXPECT_ROOT" && ok "it names the repository root" \
   || bad "repo root absent or hardcoded — a bare grep for the path was satisfied by the PWD line"
 printf '%s' "$OUT" | grep -q 'untracked.txt' && ok "it reports an untracked file" || bad "dirty state absent"
 

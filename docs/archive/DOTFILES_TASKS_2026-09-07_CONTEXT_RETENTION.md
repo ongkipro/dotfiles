@@ -39,3 +39,7 @@ to preserve the hot-context size limit during TASK-062.
 
 Verification: delivery-ledger regressions, policy-lint regressions and the canonical
 ai-policy-lint passed. Run RUN-20260907T163715Z-9766f188 records final review.
+
+Canonical execution ID: TASK-064. The retained TASK-062 contract and run
+use their original ID; another device independently allocated TASK-062 to
+REQ-TEST-PORTABILITY. Historical delivery records are not rewritten.
