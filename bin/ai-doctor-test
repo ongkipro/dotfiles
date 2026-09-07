@@ -46,6 +46,34 @@ printf '%s' "$OUT2" | grep -Fq "Claude settings: $TMP/absent/settings.json TIDAK
 printf '%s' "$OUT2" | grep -qi 'bukan ~/.claude\|CLAUDE_CONFIG_DIR' && ok "a redirected profile is named" \
   || bad "a profile outside ~/.claude was not reported"
 
+# Two states their fixture cannot reach from a single HOME, both of which this
+# repository has actually been in. A per-case profile isolates them: the global
+# HOME above stays the healthy baseline, and these get their own.
+profile() { # profile <name> [settings-json]  -> echoes the HOME
+  local h="$TMP/home-$1"; rm -rf "$h"; mkdir -p "$h/.claude" "$h/.local/bin"
+  cp "$HOME/.local/bin/claude" "$h/.local/bin/claude"
+  [ -n "${2:-}" ] && printf '%s' "$2" > "$h/.claude/settings.json"
+  printf '%s' "$h"
+}
+doctor_at() { env HOME="$1" PATH="$1/.local/bin:$PATH" DOTFILES_DIR="$ROOT" bash "$CMD" 2>&1; }
+
+# A settings.json that exists but carries no .env deny must warn. The baseline
+# above only proves the satisfied path, so neutralising the rule to always report
+# success would still have passed.
+printf '%s' "$(doctor_at "$(profile nodeny '{"permissions":{}}')")" \
+  | grep -q 'TIDAK ada permissions.deny' \
+  && ok "settings.json without an .env deny is warned about" \
+  || bad "a profile with no deny rule was not warned about"
+
+# ~/.claude-accounts has no owner in dotfiles. Its reappearance means a second,
+# unguarded profile is alive again — which is exactly what happened in August and
+# went unnoticed for weeks.
+H_RES="$(profile residue '{"permissions":{"deny":["Read(.env*)"]}}')"
+mkdir -p "$H_RES/.claude-accounts/personal"
+printf '%s' "$(doctor_at "$H_RES")" | grep -qi 'residu multi-akun' \
+  && ok "revived multi-account residue is reported" \
+  || bad "~/.claude-accounts was not reported"
+
 # --self-test must say that it found no suite, not merely fail for some other
 # reason. An empty root fails on eight unrelated checks, so the earlier version
 # proved nothing: removing the discovery guard entirely still "passed".

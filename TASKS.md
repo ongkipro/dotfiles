@@ -17,6 +17,15 @@ _None._
 
 ## Recently completed
 
+- **TASK-067 / REQ-TEST-PORTABILITY (R1).** Two Claude-profile states `ai-doctor` can
+  report were asserted by nothing, and neither is hypothetical: a `settings.json` that
+  exists but carries no `.env` deny, and a revived `~/.claude-accounts` — the second
+  profile that took session writes unguarded for weeks in August. The CI fixture from
+  TASK-063 proves the satisfied path from one HOME; these need their own, so a per-case
+  `profile` helper adds them without disturbing the healthy baseline. Eleven cases, zero
+  skips. Renumbered from 063 on integration: that number was taken by the OMP update sync,
+  the second colliding allocation this cycle.
+
 - **TASK-066 / REQ-PROMOTION-CORPUS-RACE (R2, reviewed).** Directory discovery
   now excludes ai-learn's private probe/preview/write files, so another writer
   cannot remove a discovered preview before canonical indexing. Explicit preview
