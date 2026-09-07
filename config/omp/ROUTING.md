@@ -127,8 +127,8 @@ directory rather than from documentation:
 
 | Setting | Upstream | Here | Why |
 | --- | --- | --- | --- |
-| `task.isolation.enabled` | `false` | `true` | Subagents genuinely isolated; upstream ships isolation off. OMP 18.1.10 restores this canonical setting; `task.isolation.mode` is ignored. Backend choice stays upstream's `isolation.backend: auto`. |
-| `task.isolation.apply` | `true` | `false` | Results arrive as reviewable patches, not silent merges |
+| `task.isolation.enabled` | `false` | `true` | Makes `isolated: true` available on each task item; does not isolate omitted flags. `task.isolation.mode` is ignored on 18.1.13. Backend selection remains native. |
+| `task.isolation.apply` | `true` | `false` | Withholds automatic application only for explicitly isolated tasks |
 | `task.enableLsp` | `false` | `true` | Full-stack work turns on types crossing layers |
 | `task.maxConcurrency` | `32` | `4` | Controlled parallelism beats maximum parallelism |
 | `task.maxRecursionDepth` | `2` | `1` | One parent owns integration; workers do not spawn workers |
@@ -206,7 +206,16 @@ What that buys has to be paid for elsewhere, so be explicit about where the boun
 
 - **`AGENTS.md` remains the approval contract.** The OMP deny list blocks known command shapes; it cannot infer secrets, production intent, or every wrapper spelling.
 - **Two mechanical backstops cover different runtimes.** OMP `bash.patterns` applies to parent and child Bash calls. `config/ai/hooks/git-guard.sh` provides deeper Git argument checks where the Claude hook is wired. Both retain documented subprocess ceilings.
-- **Delegated work is bounded mechanically.** `task.isolation.apply` is false, recursion depth is one, and child LSP is enabled. Each child declares a file boundary, accepted invariants, and semantic owners in `delivery-ledger`; active children sharing an owner are rejected. After every child finishes, the parent applies each digest-bound patch sequentially and runs integration regression checks.
+- **Isolation must be requested per editing task.** On OMP 18.1.13,
+  `task.isolation.enabled: true` exposes the capability; only an explicit
+  `isolated: true` on each task item activates it. `task.isolation.apply: false`
+  preserves artifacts only for those isolated tasks. Omitting the item flag
+  allows direct parent-workspace edits. Follow [GOAL-ORCHESTRATION.md](GOAL-ORCHESTRATION.md),
+  verify returned patch/branch artifacts and paths, then integrate sequentially.
+  Recursion is separately limited to one. Child LSP availability is a capability,
+  not a filesystem boundary. When using `delivery-ledger`, declare paths,
+  invariants and semantic owners and run the final change-boundary check;
+  the ledger does not itself sandbox the child process.
 
 If this trade stops being wanted, the change is one line — but change it deliberately, and update this section rather than letting the config and the documentation disagree again.
 

@@ -37,7 +37,8 @@ healthy() {
 {"modelRoles":{"value":{"vision":"p/seer:high","designer":"p/seer:high","task":"p/blind:high"}},
  "retry.fallbackChains":{"value":{"vision":["p/seer:low"]}},
  "task.agentModelOverrides":{"value":{"designer":"@designer"}},
- "task.maxConcurrency":{"value":4}}
+ "task.maxConcurrency":{"value":4},
+ "task.isolation.enabled":{"value":true}}
 EOF
 }
 
@@ -46,6 +47,8 @@ make_omp "$TMP/bin-ok" "$TMP/ok.json" "$TMP/models.json"
 PATH="$TMP/bin-ok:$PATH" "$REPORT" > "$TMP/ok.out" 2>&1 \
   || fail "a coherent config must exit 0"
 grep -q 'omp-runtime-report: OK' "$TMP/ok.out" || fail "a healthy run must say so"
+grep -q 'isolasi subagen.*true' "$TMP/ok.out" || fail "native isolation.enabled must be reported"
+grep -q 'live request' "$TMP/ok.out" || fail "registry checks must not imply live inference"
 # A non-visual model in a non-visual role is fine and must not be flagged.
 grep -q 'MASALAH' "$TMP/ok.out" && fail "task on a text-only model is not a problem"
 
@@ -78,6 +81,11 @@ make_omp "$TMP/bin-empty" "$TMP/blind.json" "$TMP/empty.json"
 PATH="$TMP/bin-empty:$PATH" "$REPORT" > "$TMP/empty.out" 2>&1 \
   || fail "an empty registry is not a failure, it is an unknown"
 grep -q 'registry model kosong' "$TMP/empty.out" || fail "an empty registry must be announced"
+
+grep -q 'omp-runtime-report: SKIP' "$TMP/empty.out" || fail "empty registry must end with SKIP"
+if grep -q 'omp-runtime-report: OK' "$TMP/empty.out"; then
+  fail "empty registry must never claim selector health"
+fi
 
 # No omp at all.
 mkdir -p "$TMP/bin-none"

@@ -17,6 +17,29 @@ _None._
 
 ## Recently completed
 
+- **TASK-069 / REQ-OMP-PERFORMANCE (R2, reviewed).** Native delegation
+  exposed that enabling isolation does not request it: omitted task-item flags
+  allowed direct parent edits. Confirmed against version-pinned 18.1.13 source,
+  then verified an explicit-isolation run with retained patches and parent
+  integration. Serial, shared-workspace delegation, and explicit isolation each
+  passed 100 external checks plus the immutable integration test. The playbook
+  now requires `isolated: true` per editing task and artifact/path inspection,
+  and keeps small fixes in the parent. Corrected misleading routing claims;
+  retained model/eager settings because the probes do not justify changing them.
+  Policy lint and independent evidence review passed. TASK-068 work preserved.
+  Evidence: RUN-20260907T174139Z-2a1123c8.
+
+- **TASK-068 / REQ-OMP-PERFORMANCE (R2, reviewed).** Reviewed community
+  experiments and measured native OMP 18.1.13: four Sol/high workspace runs
+  passed 112 external checks each; seven JSON probes confirmed exact requested
+  model routes. Catalog docs saved initial tokens but showed no task-time
+  benefit in this small sample, so native routing and builtins remain unchanged.
+  Fixed false runtime-report OK on an empty registry, restored isolation status
+  from the current schema, and documented measurement limits and native
+  ownership in `config/omp/PERFORMANCE.md`. Focused positive/negative regression
+  passed; independent review approved the code and evidence.
+  Evidence: RUN-20260907T173432Z-07cbc6a1.
+
 - **TASK-067 / REQ-TEST-PORTABILITY (R1).** Two Claude-profile states `ai-doctor` can
   report were asserted by nothing, and neither is hypothetical: a `settings.json` that
   exists but carries no `.env` deny, and a revived `~/.claude-accounts` — the second

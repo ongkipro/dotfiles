@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""What OMP will actually run on this device, and whether it can.
+"""Report native OMP routes and validate their declared registry capabilities.
 
 `omp-effective-routing-test` already *enforces* the invariants below. This answers
 a different question the enforcement cannot: what does each role resolve to right
-now, on this machine, with these accounts. That was previously unanswerable
+now, on this machine. This does not send live inference requests. That was previously unanswerable
 without reading two JSON documents side by side, which is how a designer role
 pointing at an undeclared thinking level survived unnoticed.
 
@@ -20,7 +20,7 @@ VISUAL_ROLES = ("vision", "designer")
 SETTINGS = [
     ("task.maxConcurrency", "subagen paralel"),
     ("task.maxRecursionDepth", "kedalaman delegasi"),
-    ("task.isolation.mode", "isolasi subagen"),
+    ("task.isolation.enabled", "isolasi subagen"),
     ("task.isolation.apply", "auto-apply hasil isolasi"),
     ("task.softRequestBudget", "budget request subagen"),
     ("task.enableLsp", "LSP"),
@@ -63,6 +63,7 @@ def main() -> int:
     overrides = (config.get("task.agentModelOverrides") or {}).get("value") or {}
 
     print(f"OMP {binary}")
+    print("  Registry validation only; no live request or inference-quality test.")
     if not have_registry:
         print("  ! registry model kosong — tidak ada provider terautentikasi, "
               "validasi selector dilewati")
@@ -121,6 +122,9 @@ def main() -> int:
         for item in problems:
             print(f"  ✗ {item}")
         return 1
+    if not have_registry:
+        print("\nomp-runtime-report: SKIP (registry kosong; selector belum diverifikasi)")
+        return 0
     print("\nomp-runtime-report: OK (setiap selector resolve, setiap level dideklarasikan, "
           "peran visual menerima image)")
     return 0

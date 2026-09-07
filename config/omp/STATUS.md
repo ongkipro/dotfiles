@@ -1,6 +1,6 @@
 # Status — OMP Integration
 
-Updated: 2026-08-31
+Updated: 2026-09-08
 Status: OMP is upstream-native; dotfiles provides shared curated context and
 owned skills plus an explicit secret-free default reference.
 
@@ -57,10 +57,11 @@ curated cross-CLI lifecycle, not bidirectional raw session synchronization.
   config.
 - `ai-doctor --runtime` (`bin/omp-runtime-report`) answers the question
   enforcement cannot: what each role resolves to *here*, which agent uses it,
-  and whether this device can actually reach it. Exits non-zero on an
-  unreachable selector, an undeclared thinking level, or a visual role on a
-  model that takes no image. Run on the Mac it reports that device's real defect
-  and exits 1; run here it exits 0.
+  and whether its selector exists in this device's registry. This is not a
+  live inference or latency probe. Exits non-zero on an
+  unavailable selector, an undeclared thinking level, or a visual role on a
+  model that takes no image. The earlier Mac audit found a visual fallback
+  defect; that historical result is not a statement about its current state.
 
 The historical custom routing files remain under this directory temporarily as
 reviewable evidence. Only `config.yml` is the current executable reference; it
@@ -84,7 +85,13 @@ real defect on the first try: its `vision` fallback is
 `9router-fantastico/cx/gpt-5.6-sol`, which takes no image, so a failed visual
 primary fell back to a model that cannot see.
 
-The visual lane is two roles: `designer` (Gemini 3.8 Flash High) by default,
-escalating to `vision` (Opus 5 High) for material redesign. Both are pinned in
-three places — `bin/omp-effective-routing-test`, `bin/ai-policy-lint`, and
-`config/ai/AGENTS.md` — so changing one alone fails the suite.
+The visual lane has two roles: `designer` for ordinary visual work and `vision`
+for a material redesign or a direction-setting critique. Model/provider choices
+are runtime-owned; shared policy no longer pins specific vendors or models.
+Both primary and fallback selectors must declare image input and a valid
+thinking level. Independent review still requires a separate actual agent.
+
+Current performance evidence and configuration decisions are recorded in
+[PERFORMANCE.md](PERFORMANCE.md). Registry validation, live text reachability,
+and measured task correctness are different checks; none substitutes for the
+others. An empty registry ends the runtime report with SKIP, never OK.
