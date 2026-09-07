@@ -17,6 +17,19 @@ _None._
 
 ## Recently completed
 
+- **TASK-062 / REQ-TEST-PORTABILITY (R1).** CI had been red since `dce20b5` on
+  2026-09-04 — my commit — and I never looked after pushing. Three tests failed, two
+  mine, all for one reason: they asserted the environment they were written in.
+  `ai-doctor-test` required three lines `ai-doctor` emits only when Claude Code is
+  installed, which CI is not; those cases now SKIP aloud and the suite prints
+  `PASS (2 skipped)` rather than counting silence as health. `inspect-project-test`
+  and `skill-map-test` compared a `mktemp` path against what `git`/`cd -P` report,
+  which differs on macOS where `/var` resolves to `/private/var`; both now ask for
+  the resolved path instead of assuming it. Both failure shapes were reproduced
+  locally before being fixed. `mutation-sweep` still reports BITES for all three,
+  and stubbing each subject with the skips active still fails — the skips did not
+  hollow the tests out.
+
 - **TASK-061 / REQ-LOCAL-SYNC (R2, reviewed).** Added mise-managed ripgrep,
   verified it outside AI-injected PATH, corrected toolchain references, and
   refreshed rich's device snapshot. GNU timeout's SIGKILL exit 137 now reports
@@ -42,21 +55,3 @@ Archived under `docs/archive/`, newest `DOTFILES_TASKS_2026-09-04_QUEUE.md`
 
 ## Pending
 
-### TASK-062: Three tests that pin the machine they were written on
-- **Requirement:** REQ-TEST-PORTABILITY
-- **Risk Level:** R1
-- **Allowed Paths:** `bin/ai-doctor-test`, `bin/inspect-project-test`, `bin/skill-map-test`, `TASKS.md`, `.delivery/**`
-- **Protected Paths:** `bin/ai-doctor`, `bin/inspect-project`, `bin/skill-map`
-- **Canonical Contract Owners:** `runtime.readiness`
-- **Accepted Invariants:** every case asserts the subject's contract, not the environment the test happened to run in; a case that cannot be judged where it runs SKIPs aloud rather than failing or passing silently; each keeps at least one mutation that bites
-- **Regression Checks:** `ai-doctor-test`, `inspect-project-test`, `skill-map-test`, `mutation-sweep`, `ai-policy-lint`
-- **Runtime Evidence:** CI has been red since `dce20b5` (2026-09-04) and I never looked. `ai-doctor-test` requires three lines `ai-doctor` only emits when Claude Code is installed, which CI is not — reproduced locally by removing `claude` from PATH. `inspect-project-test` greps `Repo root: $R` where `$R` comes from `mktemp`, but git reports the resolved path, so macOS `/var` versus `/private/var` fails it — reproduced locally through a symlinked root. `skill-map-test`'s root-resolution case fails the same way. All three pass on the machine that wrote them and nowhere else
-- **Reopen Conditions:** a test asserts a line only one platform or one installed runtime produces
-- **Non-Scope:** changing any of the three subjects; the CI workflow
-- **Verification:** `bin/ai-doctor-test` passes with `claude` absent from PATH, and all three pass from a symlinked root
-- **Escalation Conditions:** a contract genuinely cannot be asserted without the runtime present
-
-
-The 2026-09-04 queue (TASK-047..056) is complete; see Recently completed.
-
-- **TASK-012 / AUDIT-MON-01 — measure real skill effectiveness (R0).** Dormant until five immutable delivery records exist for one skill; then `ai-skill-evolution --repo <repo> --dotfiles ~/dotfiles --json`. Never fabricate attribution.

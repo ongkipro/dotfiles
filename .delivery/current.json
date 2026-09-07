@@ -1,5 +1,8 @@
 {
-  "activeRun": null,
+  "activeRun": "RUN-20260907T165912Z-98da6489",
+  "activeTask": "TASK-062",
+  "capability": "unattributed",
+  "job": "implementation",
   "lastCheckpoint": {
     "eventHash": "aa687abe35e4fd5df168fee2a2b2a981b9376c9cb9c9a9bcd7d10d444ac1e3ac",
     "eventId": "a88c8ace609644e2a9108486f53171bd",
@@ -16,10 +19,16 @@
     "result": "PASS",
     "runId": "RUN-20260907T160155Z-6c558cf6"
   },
-  "observedHead": "674e3202f9b439121f8a32bfc890c176fe9c6c77",
+  "model": "anthropic/claude-opus-5",
+  "observedHead": "795b4a10c47356e8dc23ddf415e0a484ec2becf3",
   "observedState": null,
   "project": "dotfiles",
+  "provider": "anthropic",
+  "reasoningEffort": "medium",
+  "requirement": "REQ-TEST-PORTABILITY",
+  "risk": "R1",
   "schemaVersion": 1,
   "statusAuthority": "STATUS.md",
-  "updatedAt": "2026-09-07T16:09:27Z"
+  "updatedAt": "2026-09-07T17:01:32Z",
+  "worker": "task"
 }
