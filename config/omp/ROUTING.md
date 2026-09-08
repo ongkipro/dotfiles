@@ -127,8 +127,26 @@ directory rather than from documentation:
 
 | Setting | Upstream | Here | Why |
 | --- | --- | --- | --- |
-| `task.isolation.enabled` | `false` | `true` | Makes `isolated: true` available on each task item; does not isolate omitted flags. `task.isolation.mode` is ignored on 18.1.13. Backend selection remains native. |
+| `task.isolation.enabled` | `false` | `true` | Makes `isolated: true` available on each task item; does not isolate omitted flags. Backend selection remains native. |
 | `task.isolation.apply` | `true` | `false` | Withholds automatic application only for explicitly isolated tasks |
+
+**`task.isolation.mode` is a live legacy key, not a dead one.** An earlier
+version of this table called it ignored. That was wrong when written and is
+still wrong on 18.1.14: `settings.ts` migrates it into two settings —
+`task.isolation.enabled = explicitEnabled ?? (mode !== "none")` and, when
+`isolation.backend` is unset, `isolation.backend = legacyName(mode)`. An
+explicit value always wins over the legacy one. Verified on the 18.1.14 binary
+against an isolated `PI_CODING_AGENT_DIR`:
+
+| config | `task.isolation.enabled` | `isolation.backend` |
+| --- | --- | --- |
+| `mode: auto` | `true` | `auto` |
+| `mode: none` | **`false`** | `auto` |
+| `mode: worktree` | `true` | **`rcopy`** |
+| nothing set | `false` | `auto` |
+
+So deleting a `mode:` line that looks inert silently turns isolation **off**
+wherever `enabled` is not also set. Set `enabled` explicitly before removing it.
 | `task.enableLsp` | `false` | `true` | Full-stack work turns on types crossing layers |
 | `task.maxConcurrency` | `32` | `4` | Controlled parallelism beats maximum parallelism |
 | `task.maxRecursionDepth` | `2` | `1` | One parent owns integration; workers do not spawn workers |
@@ -206,7 +224,8 @@ What that buys has to be paid for elsewhere, so be explicit about where the boun
 
 - **`AGENTS.md` remains the approval contract.** The OMP deny list blocks known command shapes; it cannot infer secrets, production intent, or every wrapper spelling.
 - **Two mechanical backstops cover different runtimes.** OMP `bash.patterns` applies to parent and child Bash calls. `config/ai/hooks/git-guard.sh` provides deeper Git argument checks where the Claude hook is wired. Both retain documented subprocess ceilings.
-- **Isolation must be requested per editing task.** On OMP 18.1.13,
+- **Isolation must be requested per editing task.** On OMP 18.1.13 and 18.1.14,
+  whose `src/task/` trees are byte-identical,
   `task.isolation.enabled: true` exposes the capability; only an explicit
   `isolated: true` on each task item activates it. `task.isolation.apply: false`
   preserves artifacts only for those isolated tasks. Omitting the item flag

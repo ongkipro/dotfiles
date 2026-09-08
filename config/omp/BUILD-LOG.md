@@ -6,7 +6,9 @@ This hot log contains only current OMP operating decisions and reproducible
 evidence. Full history through the start of TASK-015 is retained in
 `docs/archive/OMP_BUILD_LOG_THROUGH_2026-08-17.md`, and the settled TASK-015
 through TASK-024 decision records in
-`docs/archive/OMP_BUILD_LOG_TASK_015_TO_024_DECISIONS.md`.
+`docs/archive/OMP_BUILD_LOG_TASK_015_TO_024_DECISIONS.md`. The 2026-08-27
+reference-promotion entry is in
+`docs/archive/OMP_BUILD_LOG_2026-08-27_CROSS_DEVICE_REFERENCE.md`.
 
 ## Current architecture
 
@@ -45,11 +47,36 @@ through TASK-024 decision records in
 - Honest limit on that evidence. `omp-effective-routing-test` is `PASS*`: 26
   selectors in `9router-hosted.yml`, 13 in `antigravity-hosted.yml`, and 11 in
   `minimax-hosted.yml` went unjudged because those providers are not
-  authenticated here. And the capacity claims in `ROUTING.md` — notably that
-  `task.isolation.mode` is ignored — were derived from version-pinned 18.1.13
-  source and were **not** re-derived from 18.1.14. The gate passing is evidence
-  the configuration still loads and resolves, not that upstream's isolation
-  behaviour is unchanged. Re-read the source before relying on that row again.
+  authenticated here.
+- The `ROUTING.md` isolation row was then re-derived from source, and it was
+  **wrong** — not stale, wrong when written. See the next entry.
+
+## 2026-09-08 `task.isolation.mode` was never ignored
+
+- `ROUTING.md` claimed `task.isolation.mode` is ignored on 18.1.13. It is not,
+  and it was not then either. `packages/coding-agent/src/config/settings.ts` is
+  **byte-identical** across `v18.1.13` (`a1b2540`) and `v18.1.14` (`daf0799`),
+  and it migrates the legacy key into two live settings:
+  `task.isolation.enabled = explicitEnabled ?? (mode !== "none")`, and, when
+  `isolation.backend` is unset, `isolation.backend = legacyName(mode)`
+  (`worktree → rcopy`, `fuse-overlay → overlayfs`, `fuse-projfs → projfs`).
+  An explicit value wins over the legacy one in both directions.
+- Proven on the 18.1.14 binary, not just read: against an isolated
+  `PI_CODING_AGENT_DIR`, `mode: auto` yields `enabled=true backend=auto`,
+  `mode: none` yields `enabled=false`, `mode: worktree` yields `backend=rcopy`,
+  and nothing set yields `enabled=false`. `mode: none` + `enabled: true` yields
+  `true`; `mode: auto` + `enabled: false` yields `false`.
+- This is load-bearing on `rich`. Its native `~/.omp/agent/config.yml` sets
+  `task.isolation.mode: auto` and **no** `enabled` key, so isolation is on only
+  through the legacy migration. Deleting that inert-looking line would have
+  silently turned isolation off. The tracked reference `config/omp/config.yml`
+  is unaffected: it already sets `enabled: true` directly.
+- Native runtime config is OMP's, not this repository's, so the device file was
+  left as it is and the hazard documented instead.
+- Also corrected in `PERFORMANCE.md`, which called `mode` "a removed key".
+- Scope of what this does confirm: `packages/coding-agent/src/task/` has the
+  identical tree SHA `61b5be0` at both tags, so the dispatch and isolation
+  behaviour audited under TASK-069 carries to 18.1.14 unchanged.
 
 ## 2026-08-31 a routing guard that could not fail
 
@@ -156,20 +183,6 @@ through TASK-024 decision records in
   user request without linking or auto-loading the tracked reference. OMP
   18.0.8 parsed both files, all fifteen unique selectors resolved, and a
   no-session/no-tools Fable High serving probe returned `FABLE_OK`.
-
-## 2026-08-27 cross-device default reference
-
-- Promoted the validated device role graph into the secret-free
-  `config/omp/config.yml` reference without restoring installer links, command
-  wrappers, `PI_CONFIG_FILES`, shared authentication, or shared session state.
-- Kept Codex Terra/Sol as the normal and complex development lanes, Gemini 3.7
-  Flash as the high-volume support lane, and direct Anthropic Claude 5 as the
-  independent judgment lane.
-- Set `vision` and `designer` to Claude Opus 5 High by explicit user choice.
-- Kept `smol` on Gemini 3.7 Flash Medium, `discovery` on Flash High, and
-  `research` on Flash Medium, with cross-provider fallbacks.
-- Limited deterministic agent overrides to the seven agents bundled by OMP
-  18.0.6; no retired custom agent definition was restored.
 
 ## Reopen conditions
 

@@ -12,7 +12,7 @@ plugin. The reference in this directory remains opt-in; runtime configuration
 must not be overwritten by dotfiles synchronization.
 
 The concrete diagnostic fixes are an empty-registry SKIP instead of a false OK,
-reporting `task.isolation.enabled` rather than a removed key, and explicitly
+reporting `task.isolation.enabled` rather than the legacy `task.isolation.mode`, and explicitly
 separating registry validation from a live inference test. The delegation
 playbook now requires an explicit `isolated: true` per editing task; enabling
 the feature alone does not isolate a task.
