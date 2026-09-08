@@ -22,7 +22,7 @@
 | CPU | Intel(R) Core(TM) i7-7700T CPU @ 2.90GHz (8 thread) |
 | RAM | 31.2 GB |
 | GPU | Intel Corporation HD Graphics 630 (rev 04) |
-| Disk (/) | 218G total, 56G free (74% used) |
+| Disk (/) | 218G total, 40G free (81% used) |
 
 ## AI CLI
 

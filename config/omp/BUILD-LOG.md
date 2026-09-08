@@ -1,10 +1,12 @@
 # OMP Build Log
 
-Updated: 2026-08-31
+Updated: 2026-09-08
 
 This hot log contains only current OMP operating decisions and reproducible
 evidence. Full history through the start of TASK-015 is retained in
-`docs/archive/OMP_BUILD_LOG_THROUGH_2026-08-17.md`.
+`docs/archive/OMP_BUILD_LOG_THROUGH_2026-08-17.md`, and the settled TASK-015
+through TASK-024 decision records in
+`docs/archive/OMP_BUILD_LOG_TASK_015_TO_024_DECISIONS.md`.
 
 ## Current architecture
 
@@ -22,6 +24,32 @@ evidence. Full history through the start of TASK-015 is retained in
 - `omp-routing-test` validates the native ownership boundary;
   `omp-effective-routing-test` proves both an isolated upstream profile and the
   explicit reference resolve through OMP's native loader.
+
+## 2026-09-08 OMP 18.1.14 on `rich`
+
+- Updated the native Linux binary from OMP 18.1.13 to 18.1.14 through
+  `omp update`; the updater verified the downloaded release checksum
+  (`sha256:27dd66cb6a2c39fff51e1fe6db40f1f376fee4a3d04457f236edaa5d0290e4d2`)
+  before replacing the executable. Nothing in this repository pins an OMP
+  version, so no tracked file needed to move with it.
+- Re-ran `install.sh` after `git pull --ff-only`. Idempotent: every shared
+  memory link, all 66 owned skills, and both canonical Claude hooks were
+  already correct, and `~/.omp/agent/config.yml` stayed the device's own
+  unmanaged file. The only tracked change was the disk line in
+  `devices/rich.md`.
+- `device-verify` then ran the full gate suite against the new binary: all
+  nine gates exit 0, including `ai-doctor --runtime` (every selector resolves,
+  every thinking level declared, visual roles still accept image input) and
+  `omp-effective-routing-test`. Report:
+  `docs/device-reports/rich-2026-09-08T065359Z.md`.
+- Honest limit on that evidence. `omp-effective-routing-test` is `PASS*`: 26
+  selectors in `9router-hosted.yml`, 13 in `antigravity-hosted.yml`, and 11 in
+  `minimax-hosted.yml` went unjudged because those providers are not
+  authenticated here. And the capacity claims in `ROUTING.md` — notably that
+  `task.isolation.mode` is ignored — were derived from version-pinned 18.1.13
+  source and were **not** re-derived from 18.1.14. The gate passing is evidence
+  the configuration still loads and resolves, not that upstream's isolation
+  behaviour is unchanged. Re-read the source before relying on that row again.
 
 ## 2026-08-31 a routing guard that could not fail
 
@@ -142,53 +170,6 @@ evidence. Full history through the start of TASK-015 is retained in
   `research` on Flash Medium, with cross-provider fallbacks.
 - Limited deterministic agent overrides to the seven agents bundled by OMP
   18.0.6; no retired custom agent definition was restored.
-
-## TASK-015 decisions
-
-- Set `task.isolation.apply: false`, `task.maxRecursionDepth: 1`, and
-  `task.enableLsp: true`. This prevents silent isolated patch application,
-  bounds delegation depth, and gives child agents the existing shared LSP.
-- Keep `tools.approvalMode: yolo` only behind ordered `bash.patterns` deny rules
-  for destructive Git, filesystem, privilege, and deployment commands.
-- Keep routing models unchanged: the observed failure is integration and
-  evidence control, not selector quality.
-- OMP configuration composition uses `PI_CONFIG_FILES` for both interactive
-  sessions and subcommands. Local tests compare resolved runtime output so an
-  ignored overlay is a hard failure rather than a YAML-only claim.
-
-## Verification state
-
-- Linux: `omp-routing-test`, `delivery-ledger-test`, `project-init-test`,
-  `ai-policy-lint`, and the complete `ai-doctor --self-test` critical gate pass.
-- OMP overlay loader: `PI_CONFIG_FILES` is exercised against `config list` and
-  `models` for every tracked overlay.
-- macOS: not executed for TASK-015.
-- Hosted GitHub Actions: externally blocked by TASK-013; workflow presence is
-  not hosted execution evidence.
-
-## TASK-023 decisions
-
-- Keep `config/omp/config.yml` immutable at runtime. OMP settings writes belong
-  in `~/.omp/agent/config.yml`; device-only routing belongs in
-  `~/.config/ai-local/omp-overlay.yml`.
-- Compose the tracked baseline, runtime state, and optional device overlay in
-  that order through `PI_CONFIG_FILES`. Explicit caller composition remains
-  authoritative.
-- Force `omp update` to the native binary distribution and stage it beside the
-  active executable before atomic replacement. This avoids Bun/PATH shadowing
-  and Linux `ETXTBSY` failures when OMP updates itself.
-- Preserve the recorded thirteen-role model graph. Provider credentials remain
-  device-local and are never inferred from selector presence.
-
-## TASK-024 decisions
-
-- Retire TASK-023's custom runtime composition before it is committed. OMP now
-  owns configuration, models, bundled agents, routing, updates, and workspace
-  behavior through its native paths.
-- Keep only shared memory and owned skills wired from dotfiles. Do not add a
-  shared MCP file until a real secret-free cross-device configuration exists.
-- Preserve historical routing files for review while removing every runtime
-  reference. A later cleanup may archive or delete them separately.
 
 ## Reopen conditions
 
