@@ -124,4 +124,19 @@ Archived under `docs/archive/`, newest `DOTFILES_TASKS_2026-09-04_QUEUE.md`
 
 ## Pending
 
+### TASK-070: One task number, one piece of work
+- **Requirement:** REQ-TASK-ID-UNIQUENESS
+- **Risk Level:** R1
+- **Allowed Paths:** `bin/ai-policy-lint`, `bin/ai-policy-lint-test`, `TASKS.md`, `.delivery/**`
+- **Protected Paths:** `docs/archive/**`, `bin/resume-brief`, `bin/delivery-ledger`
+- **Canonical Contract Owners:** `runtime.resume`
+- **Accepted Invariants:** `ai-policy-lint` fails when one `TASK-nnn` carries two different requirement IDs across `TASKS.md` and `docs/archive/**`, naming the number and both requirements; a number appearing more than once under a *single* requirement stays green, because a contract and its later completion entry are the same work and 8 of the 10 repeats on disk are exactly that; a record whose requirement cannot be read is reported as unreadable rather than counted as unique, so an unparseable contract cannot hide a collision
+- **Regression Checks:** `ai-policy-lint-test`, `resume-brief-test`, `mutation-sweep`
+- **Runtime Evidence:** two real collisions exist today and both are recorded rather than repaired here — TASK-028 (`REQ-FULLSTACK-CAPACITY` on 2026-08-31, `REQ-OMP-MAC-PORTABLE-VALIDATION` on 2026-09-01) and TASK-062 (`REQ-MODEL-AGNOSTIC` and `REQ-TEST-PORTABILITY`, both 2026-09-07). A third was avoided only because I noticed TASK-063 was taken while resolving a rebase; nothing would have stopped it. The archives are protected, so the lint must pass on the repository as it stands: it reports these two as a named, accepted baseline and fails on the eleventh
+- **Reopen Conditions:** a new number lands twice under different requirements and the lint stays green; or the baseline grows without a task recording why
+- **Non-Scope:** renumbering the two existing collisions — archived evidence is immutable and `.delivery` runs reference those IDs; allocating numbers automatically; anything in `resume-brief`
+- **Verification:** `bin/ai-policy-lint-test` covers a genuine collision, a benign contract-plus-completion repeat, and an unreadable requirement
+- **Escalation Conditions:** the two baseline collisions cannot be expressed without an exemption list that a future collision could hide inside
+
+
 - **TASK-012 / AUDIT-MON-01 — measure real skill effectiveness (R0).** Dormant until five immutable delivery records exist for one skill; then `ai-skill-evolution --repo <repo> --dotfiles ~/dotfiles --json`. Never fabricate attribution.
