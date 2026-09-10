@@ -252,6 +252,13 @@ printf '%s' "$(DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=30 "$SWEEP" --json 2>/
   | grep -q '"verdict":"SURVIVED"' && ok "stub mode still classifies as before" \
   || fail "stub mode changed"
 
+# macOS ships bash 3.2 and CI runs there. `declare -A` shipped in this file and
+# broke the macOS job the same day; run_bounded exists because macOS has no GNU
+# timeout either. That is twice, so the next one fails here instead of in CI.
+bash4_only="$(grep -nE '^[^#]*(declare[[:space:]]+-A|local[[:space:]]+-A|mapfile|readarray|\$\{[A-Za-z_][A-Za-z0-9_]*\^\^|\$\{[A-Za-z_][A-Za-z0-9_]*,,)' "$SWEEP" || true)"
+[ -z "$bash4_only" ] && ok "no bash 4 only construct (macOS ships 3.2)" \
+  || fail "bash 4 construct would break the macOS job: $(printf '%s' "$bash4_only" | head -1)"
+
 # The sweep must not disturb the repository it measures.
 BEFORE="$(git -C "$ROOT" status --porcelain | sort)"
 DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=30 "$SWEEP" >/dev/null 2>&1

@@ -182,9 +182,19 @@ sweep_one() {
 # and drown the signal — the sweep's own escape on 2026-09-04 was exactly that,
 # a `sorted()` removal that changed no output.
 #
-# EQUIVALENT_MUTANTS holds the ones proven to change nothing, with the reason.
-# A survivor not listed here is a gap in the test, not a quirk of the operator.
-declare -A EQUIVALENT_MUTANTS=()
+# EQUIVALENT_MUTANTS holds the ones proven to change nothing, one "name:line"
+# per line with the reason after a space. A survivor not listed here is a gap in
+# the test, not a quirk of the operator.
+#
+# A plain string, not `declare -A`: macOS ships bash 3.2, which has no
+# associative arrays. CI caught this the same day, which is the second time this
+# file has needed a bash-3.2 accommodation — run_bounded exists because macOS
+# has no GNU timeout either.
+EQUIVALENT_MUTANTS=""
+
+is_equivalent_mutant() { # is_equivalent_mutant <name> <line>
+  printf '%s\n' "$EQUIVALENT_MUTANTS" | grep -q "^$1:$2 "
+}
 
 mutate_one() {
   local name="$1"
@@ -239,7 +249,7 @@ mutate_one() {
       "$subject" > "$scratch/bin/$name.tmp" && mv "$scratch/bin/$name.tmp" "$scratch/bin/$name"
     chmod +x "$scratch/bin/$name"
     if (cd "$scratch" && DOTFILES_DIR="$scratch" run_bounded "$TIMEOUT_S" bash "$test" "$scratch" >/dev/null 2>&1 </dev/null); then
-      if [ -n "${EQUIVALENT_MUTANTS[$name:$line_no]:-}" ]; then
+      if is_equivalent_mutant "$name" "$line_no"; then
         killed=$((killed+1))   # accepted as changing nothing
       else
         survived=$((survived+1)); survived_total=$((survived_total+1))
