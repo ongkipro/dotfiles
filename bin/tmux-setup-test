@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# tmux-setup installs packages and clones TPM, so the only honest way to test it
+# is behind shims: a fake tmux so it never installs, and a pre-created TPM path
+# so it never clones. What is left is link_to_repo, which decides whether an
+# existing user file is preserved or destroyed.
+set -uo pipefail
+ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+CMD="$ROOT/bin/tmux-setup"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
+
+SHIM="$TMP/shim"; mkdir -p "$SHIM"
+for c in tmux wl-copy xclip; do printf '#!/usr/bin/env bash\nexit 0\n' > "$SHIM/$c"; done
+# Anything that would install fails loudly, so a regression that starts
+# installing is a failure rather than a slow test.
+for c in apt-get brew; do
+  printf '#!/usr/bin/env bash\necho "REFUSED: %s called" >&2\nexit 90\n' "$c" > "$SHIM/$c"
+done
+# git is used legitimately here — rev-parse, cat-file and checkout pin TPM to a
+# commit and touch nothing outside the fixture. Only clone and fetch reach the
+# network, so refuse exactly those. A blanket git shim made this test report a
+# violation that was not one.
+cat > "$SHIM/git" <<'SH'
+#!/usr/bin/env bash
+for a in "$@"; do
+  case "$a" in clone|fetch) echo "REFUSED: git $a called" >&2; exit 90 ;; esac
+done
+exec /usr/bin/git "$@"
+SH
+chmod +x "$SHIM"/*
+
+setup() { # setup <home>
+  env PATH="$SHIM:/usr/bin:/bin" HOME="$1" bash "$CMD" > "$TMP/out" 2>&1; rc=$?
+}
+home() { # home <name> -> echoes a HOME with TPM already present as a git checkout
+  local h="$TMP/$1"; rm -rf "$h"; mkdir -p "$h/.local/bin" "$h/.tmux/plugins/tpm"
+  # A real checkout, so rev-parse succeeds and the commit-pin path is exercised
+  # rather than skipped. An empty .git directory made it look like a checkout and
+  # then failed at the first git call.
+  git -C "$h/.tmux/plugins/tpm" init -q
+  git -C "$h/.tmux/plugins/tpm" -c user.email=t@t -c user.name=t \
+    commit -q --allow-empty -m tpm-fixture
+  printf '%s' "$h"
+}
+
+# 1. An existing real file must be backed up, never overwritten. Someone's
+#    hand-written .tmux.conf is the thing this must not eat.
+H1="$(home keep)"
+printf 'set -g mouse off  # mine\n' > "$H1/.tmux.conf"
+setup "$H1"
+[ -L "$H1/.tmux.conf" ] && ok "the config becomes a link into the repository" \
+  || bad "the config was not linked"
+backup="$(find "$H1" -maxdepth 1 -name '.tmux.conf.bak.*' | head -1)"
+[ -n "$backup" ] && grep -q '# mine' "$backup" \
+  && ok "the previous file is preserved in a backup" \
+  || bad "the user's own .tmux.conf was destroyed"
+
+# 2. Running twice must not pile up backups of its own symlink. An installer that
+#    re-backs-up its own work leaves a trail that grows on every device sync.
+setup "$H1"
+n="$(find "$H1" -maxdepth 1 -name '.tmux.conf.bak.*' | wc -l)"
+[ "$n" -eq 1 ] && ok "a second run is idempotent" || bad "a second run made another backup ($n)"
+
+# 3. It must not install, and must not clone over an existing TPM checkout. It
+#    MAY fetch: TPM is pinned to a commit, and reaching for a commit the fixture
+#    does not have is the documented behaviour, not a violation — demanding
+#    otherwise was my assertion being wrong, not the command.
+grep -qE 'REFUSED: (apt-get|brew)' "$TMP/out" \
+  && bad "it tried to install: $(grep REFUSED "$TMP/out" | head -1)" \
+  || ok "nothing was installed"
+grep -q 'REFUSED: git clone' "$TMP/out" \
+  && bad "it cloned over an existing TPM checkout" || ok "no clone over an existing checkout"
+
+# 4. A pin it cannot reach must warn and continue. An installer that aborts here
+#    leaves tmux unusable because a plugin manager was unreachable.
+[ "$rc" -eq 0 ] && ok "an unreachable plugin pin is not fatal" \
+  || bad "setup aborted when the TPM pin could not be fetched (exit $rc)"
+
+# 5. A TPM path that is not a git checkout must be reported, not silently
+#    clobbered — the directory may be someone's own plugin tree.
+H4="$(home notgit)"; rm -rf "$H4/.tmux/plugins/tpm/.git"
+printf 'mine\n' > "$H4/.tmux/plugins/tpm/keepme"
+setup "$H4"
+[ -f "$H4/.tmux/plugins/tpm/keepme" ] && ok "a non-git TPM path is left alone" \
+  || bad "it destroyed a non-git TPM directory"
+grep -qi 'bukan Git checkout\|WARNING' "$TMP/out" && ok "and the skip is reported" \
+  || bad "the skipped TPM was not reported"
+
+[ "$f" -eq 0 ] && { echo "tmux-setup-test: PASS"; exit 0; }
+echo "tmux-setup-test: $f case(s) failed" >&2; exit 1

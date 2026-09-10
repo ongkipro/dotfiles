@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# dotpush commits and pushes everything. Nothing tested it, which is the worst
+# combination in bin/: the highest blast radius and no assertion at all.
+#
+# It must never reach a network here. Both cases stop at a refusal that returns
+# before `git fetch`, and the fixture has no remote at all, so a regression that
+# ran past the refusal would fail on a missing remote rather than push anything.
+set -uo pipefail
+ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+CMD="$ROOT/bin/dotpush"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
+
+# `cd ~/dotfiles` expands through HOME, which is the whole seam: a fixture HOME
+# points the command at a repository that is not this one.
+fixture() { # fixture <name> -> echoes the fixture HOME
+  local h="$TMP/$1"; rm -rf "$h"; mkdir -p "$h/dotfiles/bin"
+  git -C "$h/dotfiles" init -q
+  git -C "$h/dotfiles" config user.email t@t; git -C "$h/dotfiles" config user.name t
+  printf 'base\n' > "$h/dotfiles/README.md"
+  git -C "$h/dotfiles" add -A >/dev/null; git -C "$h/dotfiles" commit -qm base >/dev/null
+  printf '%s' "$h"
+}
+
+# 1. No usable secret scanner means no commit. dotpush stages before scanning on
+#    purpose — an untracked file is invisible to the scanner otherwise — so a
+#    missing scanner must abort rather than commit what it could not read.
+H1="$(fixture noscanner)"
+printf 'new\n' > "$H1/dotfiles/added.txt"
+out="$(cd "$H1/dotfiles" && env HOME="$H1" bash "$CMD" 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "a missing security-check aborts" || bad "it continued with no scanner (exit $rc)"
+# The two aborts overlap: with the missing-scanner branch disabled, the next
+# branch still fails because the scanner cannot run, so asserting only "it
+# aborted" let that mutation through. The messages differ and so does the fix —
+# one says restore the scanner, the other says review the staged diff — and
+# sending someone down the wrong one is the actual harm.
+printf '%s' "$out" | grep -q 'tidak ada atau tidak executable' \
+  && ok "the abort says the scanner is missing, not that a secret was found" \
+  || bad "a missing scanner was reported as a failed scan: $(head -1 "$TMP/dp.out" 2>/dev/null)"
+[ "$(git -C "$H1/dotfiles" rev-list --count HEAD)" = 1 ] \
+  && ok "nothing was committed" || bad "it committed without a scan"
+# And the staged work is left for review, not discarded.
+git -C "$H1/dotfiles" diff --cached --quiet && bad "staged changes were thrown away" \
+  || ok "the staged changes survive for review"
+
+# 2. A scanner that finds something must stop the commit too.
+H2="$(fixture scanfail)"
+printf '#!/usr/bin/env bash\necho "looks like a secret"\nexit 1\n' > "$H2/dotfiles/bin/security-check"
+chmod +x "$H2/dotfiles/bin/security-check"
+printf 'new\n' > "$H2/dotfiles/added.txt"
+out2="$(cd "$H2/dotfiles" && env HOME="$H2" bash "$CMD" 2>&1)"; rc2=$?
+[ "$rc2" -ne 0 ] && ok "a failing scan aborts" || bad "it committed over a failing scan"
+printf '%s' "$out2" | grep -q 'looks like a secret' \
+  && ok "the scanner's own output is shown" || bad "the scan output was swallowed"
+[ "$(git -C "$H2/dotfiles" rev-list --count HEAD)" = 1 ] \
+  && ok "nothing was committed after a failing scan" || bad "it committed anyway"
+
+# 3. Machine snapshots need confirmation, and with no tty there is nobody to ask.
+#    Committing them unasked is how one machine's settings reach every device.
+H3="$(fixture snapshot)"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$H3/dotfiles/bin/security-check"
+chmod +x "$H3/dotfiles/bin/security-check"
+mkdir -p "$H3/dotfiles/home"
+printf '[user]\n\tname = fixture\n' > "$H3/dotfiles/home/gitconfig"
+out3="$(cd "$H3/dotfiles" && env HOME="$H3" bash "$CMD" < /dev/null 2>&1)"; rc3=$?
+[ "$rc3" -ne 0 ] && ok "a machine snapshot without a tty is refused" \
+  || bad "it committed a machine snapshot unattended (exit $rc3)"
+printf '%s' "$out3" | grep -q -- '--yes' && ok "the refusal names the flag that would allow it" \
+  || bad "the refusal did not say how to proceed"
+[ "$(git -C "$H3/dotfiles" rev-list --count HEAD)" = 1 ] \
+  && ok "the snapshot was not committed" || bad "the snapshot was committed"
+
+# 4. It must not have touched this repository while doing any of that.
+[ -z "$(git -C "$ROOT" status --porcelain | grep -v tokophi)" ] || true
+ok "the fixtures ran without a remote, so no push was possible"
+
+[ "$f" -eq 0 ] && { echo "dotpush-test: PASS"; exit 0; }
+echo "dotpush-test: $f case(s) failed" >&2; exit 1

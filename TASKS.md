@@ -17,6 +17,19 @@ _None._
 
 ## Recently completed
 
+- **TASK-071 / REQ-TEST-EFFICACY (R2).** The last four commands with no test now have
+  one: `dotpush` (commits and pushes), `vps-pgdump` (ssh, pg_dump, credentials),
+  `tmux-setup` (installs), `pi-update-safe` (npm). None reaches a network, installs, or
+  reads a secret — each drives a shim, and `dotpush`'s fixture repository has no remote
+  so a regression past the refusal fails on that rather than pushing. Every `bin/` command
+  now has a test. Five subject mutations bite, including `vps-pgdump` loosening `umask 077`
+  and `tmux-setup` deleting a user's `.tmux.conf` instead of backing it up. One escaped
+  first: `dotpush`'s two aborts overlap, so asserting only "it aborted" could not tell a
+  missing scanner from a failing scan — different messages, different fixes, and the case
+  now names which. Two of my assertions were wrong before the subjects were: `pi-update-safe`
+  archives leftover `*.backup.*` artefacts, not the skills themselves, and `tmux-setup`
+  fetching an unreachable TPM pin is its documented behaviour, not a violation.
+
 - **TASK-070 / REQ-TASK-ID-UNIQUENESS (R1).** `ai-policy-lint` now fails when one
   `TASK-nnn` carries two different requirements, naming the number and both. Two
   collisions exist and are kept as a named baseline rather than repaired — `docs/archive`

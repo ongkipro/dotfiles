@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# vps-pgdump pulls a production database and the stack configuration around it
+# over ssh. Everything it writes contains credentials, so the properties worth
+# asserting are the refusals and the file mode — never a real connection. A fake
+# ssh on PATH stands in for the host; the real one is never reached.
+set -uo pipefail
+ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+CMD="$ROOT/bin/vps-pgdump"
+TMP="$(mktemp -d)"; trap 'chmod -R u+w "$TMP" 2>/dev/null; rm -rf "$TMP"' EXIT
+f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
+
+SHIM="$TMP/shim"; mkdir -p "$SHIM"
+# Answers just enough to get past container discovery, and records every call so
+# the test can prove the real ssh was never used.
+cat > "$SHIM/ssh" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$SSH_LOG"
+case "$*" in
+  *docker\ ps*) echo "db-1	postgres:16-alpine" ;;
+  *pg_isready*) exit "${SSH_PGREADY_EXIT:-1}" ;;
+  *) exit 0 ;;
+esac
+SH
+chmod +x "$SHIM/ssh"
+
+vps() { # vps <home> [args...]
+  : > "$TMP/ssh.log"
+  env PATH="$SHIM:/usr/bin:/bin" HOME="$1" SSH_LOG="$TMP/ssh.log" \
+    SSH_PGREADY_EXIT="${PGREADY:-1}" bash "$CMD" "${@:2}" > "$TMP/out" 2>&1
+  rc=$?
+}
+
+# 1. No host means usage, not a guess. A backup tool that invents a target is
+#    the one thing worse than one that refuses.
+mkdir -p "$TMP/h1"
+vps "$TMP/h1"
+[ "$rc" -ne 0 ] && ok "no host is a usage error" || bad "it proceeded with no host (exit $rc)"
+grep -qi 'usage' "$TMP/out" && ok "and it prints usage" || bad "no usage message"
+[ ! -s "$TMP/ssh.log" ] && ok "nothing was contacted" || bad "it opened a connection with no host"
+
+# 2. A host with no Postgres actually serving must stop, not write a dump that
+#    is empty. pg_isready failing is the whole point of that probe: a
+#    postgres-image container that is not a server would otherwise be chosen.
+mkdir -p "$TMP/h2"
+PGREADY=1 vps "$TMP/h2" user@example.invalid
+[ "$rc" -ne 0 ] && ok "no serving Postgres aborts" || bad "it continued with no live server"
+grep -q 'pg_isready' "$TMP/ssh.log" && ok "each candidate is probed with pg_isready" \
+  || bad "candidates were accepted without probing"
+
+# 3. Output holds credentials, so the directory must not be world-readable. umask
+#    077 is set before the directory exists precisely so nothing lands wider.
+out_dir="$(find "$TMP/h2/Documents/work/backups" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | head -1)"
+if [ -n "$out_dir" ]; then
+  mode="$(stat -c '%a' "$out_dir" 2>/dev/null || stat -f '%Lp' "$out_dir")"
+  [ "$mode" = 700 ] && ok "the output directory is private ($mode)" \
+    || bad "the output directory is $mode, readable beyond the owner"
+else
+  bad "no output directory was created to check"
+fi
+
+# 4. It must refuse to write inside the repository. A dump full of database
+#    credentials landing under dotfiles is one `git add -A` from being published.
+mkdir -p "$TMP/h4/dotfiles"
+HOME_DOT="$TMP/h4"
+env PATH="$SHIM:/usr/bin:/bin" HOME="$HOME_DOT" SSH_LOG="$TMP/ssh.log" \
+  bash -c 'cd "$1"; exec bash "$2" user@x' _ "$HOME_DOT" "$CMD" >/dev/null 2>&1
+[ -z "$(find "$TMP/h4/dotfiles" -name '*.sql*' 2>/dev/null)" ] \
+  && ok "no dump was written inside a dotfiles path" || bad "a dump landed inside dotfiles"
+
+# 5. The real ssh binary must never be invoked — every call went to the shim.
+grep -q 'example.invalid\|docker ps' "$TMP/ssh.log" && ok "the fixture ssh was used, not the real one" \
+  || bad "the shim was bypassed"
+
+[ "$f" -eq 0 ] && { echo "vps-pgdump-test: PASS"; exit 0; }
+echo "vps-pgdump-test: $f case(s) failed" >&2; exit 1

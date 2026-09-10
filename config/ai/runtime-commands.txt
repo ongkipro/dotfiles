@@ -45,6 +45,7 @@ device-verify-test
 diff-risk
 diff-risk-test
 dotpush
+dotpush-test
 dotsync
 dotsync-test
 inspect-project
@@ -63,6 +64,7 @@ omp-workspace-test
 pi-9router-restore
 pi-9router-restore-test
 pi-update-safe
+pi-update-safe-test
 production-gate
 production-gate-test
 project-check
@@ -97,7 +99,9 @@ tmux-battery-test
 tmux-clip
 tmux-clip-test
 tmux-setup
+tmux-setup-test
 toolchain-path-test
 turnstile-secret-test
 vendored-refresh-test
 vps-pgdump
+vps-pgdump-test
