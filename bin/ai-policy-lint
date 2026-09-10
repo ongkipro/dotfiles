@@ -452,6 +452,93 @@ def _task_graph_parser():
     return module
 
 
+# Two collisions exist and are kept, not repaired: docs/archive is immutable and
+# .delivery runs reference these IDs. Renumbering would falsify evidence to make
+# a lint quiet. The eleventh is what this check exists to stop.
+TASK_ID_BASELINE = {
+    "TASK-028": {"REQ-FULLSTACK-CAPACITY", "REQ-OMP-MAC-PORTABLE-VALIDATION"},
+    "TASK-062": {"REQ-MODEL-AGNOSTIC", "REQ-TEST-PORTABILITY"},
+}
+
+
+def task_records(text):
+    """Yield (task id, requirement or None) for every RECORD in a TASKS-shaped file.
+
+    A record is a heading or a contract bullet at the start of a line, matching
+    what resume-brief treats as a record. The requirement sits on the same line
+    for a bullet and on a following line for a heading, so both shapes are read.
+    """
+    # A record names the task and then says something about it with punctuation:
+    # "### TASK-070: title", "- **TASK-067 / REQ-...**", "- **TASK-052 (original)**".
+    # "## TASK-015 decisions" is prose ABOUT a task in a build log, and counting it
+    # as a record made the check report three hazards that were only its own
+    # definition being too loose.
+    for m in re.finditer(r"(?m)^(?:#{2,4}\s+|-\s+\*\*)(TASK-[0-9]+)\s*(.)", text):
+        if m.group(2) not in ":/(—-":
+            continue
+        window = text[m.end():m.end() + 400]
+        req = re.search(r"\b((?:REQ|AUDIT)-[A-Z0-9-]+)", window)
+        yield m.group(1), (req.group(1) if req else None)
+
+
+def check_task_id_uniqueness():
+    """One task number, one piece of work.
+
+    Two devices allocate numbers with nothing coordinating them. TASK-028 and
+    TASK-062 each ended up holding two unrelated requirements, and a third
+    collision was avoided only because someone noticed mid-rebase.
+
+    Grouping by REQUIREMENT rather than by occurrence is the whole design. Ten
+    numbers appear more than once on disk, but eight of those are a contract and
+    its own later completion entry — the same work, recorded twice. A check that
+    counted occurrences would report ten, be noise, and be switched off.
+
+    A record whose requirement cannot be read is reported, never treated as
+    unique: otherwise one unparseable contract hides a collision behind it.
+    """
+    files = [ROOT / "TASKS.md", *sorted((ROOT / "docs" / "archive").glob("*.md"))]
+    seen, blank, occurrences = {}, {}, {}
+    for f in files:
+        if not f.is_file():
+            continue
+        rel = f.relative_to(ROOT).as_posix()
+        for task, req in task_records(f.read_text(encoding="utf-8")):
+            occurrences[task] = occurrences.get(task, 0) + 1
+            if req is None:
+                blank.setdefault(task, []).append(rel)
+            else:
+                seen.setdefault(task, {}).setdefault(req, rel)
+
+    problems = []
+    for task, reqs in sorted(seen.items()):
+        if len(reqs) < 2:
+            continue
+        if TASK_ID_BASELINE.get(task) == set(reqs):
+            continue
+        detail = ", ".join(f"{r} ({p})" for r, p in sorted(reqs.items()))
+        problems.append(f"{task} carries {len(reqs)} requirements: {detail}")
+    # An unreadable requirement only hides something when the number is used more
+    # than once. A record that appears exactly once conceals no collision, and
+    # twelve of them predate the REQ- convention entirely — flagging those would
+    # have failed the repository as it stands and taught everyone to ignore this.
+    for task, files_ in sorted(blank.items()):
+        # Two records for one number inside ONE file are a single entry continued
+        # — "TASK-052 ... superseded" then "TASK-052 (original)". Work split
+        # across files is what could be two different things.
+        elsewhere = {f for f in files_} | set(seen.get(task, {}).values())
+        if occurrences.get(task, 0) > 1 and len(elsewhere) > 1:
+            problems.append(
+                f"{task} appears {occurrences[task]} times and at least one record has no "
+                f"readable requirement ({', '.join(sorted(set(files_)))}), so a collision "
+                f"could hide behind it")
+
+    if problems:
+        err("task numbers are not unique:\n  " + "\n  ".join(problems))
+    else:
+        print(f"  OK  task id uniqueness: {len(seen)} number(s), "
+              f"{len(TASK_ID_BASELINE)} accepted collision(s) in the baseline")
+
+
 def check_task_dependencies():
     """A dependency edge is the one part of the task lifecycle a human writes.
 
@@ -665,6 +752,7 @@ def main():
     run_canonical_gate("owned skills", [ROOT / "skills" / "agents-bin" / "skill-check"], {"SKILL_SOURCE": str(ROOT / "skills" / "local")})
     check_skill_routing_graph()
     check_command_manifest()
+    check_task_id_uniqueness()
     check_task_dependencies()
     run_canonical_gate("memory and Markdown links", [ROOT / "bin" / "ai-memory-check", ROOT])
     run_canonical_gate("memory hygiene regression", [ROOT / "bin" / "ai-memory-hygiene-test", ROOT])

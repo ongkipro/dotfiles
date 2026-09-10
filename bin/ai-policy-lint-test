@@ -274,4 +274,82 @@ for clause in ("Route by capability:", "Use any available capable model/provider
 print("model-agnostic policy fixtures: PASS")
 PYTEST
 
+# ── Task-number uniqueness (TASK-070) ────────────────────────────────────────
+# Two devices allocate numbers with nothing coordinating them, and twice they
+# picked the same one. Each fixture here is a shape the check must tell apart,
+# because a version that reported every repeat would be noise and get ignored.
+python3 - "$ROOT" <<'PYTASK'
+import importlib.machinery, importlib.util, pathlib, sys, tempfile
+
+root = pathlib.Path(sys.argv[1])
+loader = importlib.machinery.SourceFileLoader("lint", str(root / "bin" / "ai-policy-lint"))
+spec = importlib.util.spec_from_loader("lint", loader)
+mod = importlib.util.module_from_spec(spec)
+loader.exec_module(mod)
+
+def run(tasks_md, archive=None, baseline=None):
+    with tempfile.TemporaryDirectory() as d:
+        r = pathlib.Path(d)
+        (r / "docs" / "archive").mkdir(parents=True)
+        (r / "TASKS.md").write_text(tasks_md)
+        for name, text in (archive or {}).items():
+            (r / "docs" / "archive" / name).write_text(text)
+        old_root, old_base = mod.ROOT, mod.TASK_ID_BASELINE
+        mod.ROOT = r
+        if baseline is not None:
+            mod.TASK_ID_BASELINE = baseline
+        mod.errors = []
+        try:
+            mod.check_task_id_uniqueness()
+            return list(mod.errors)
+        finally:
+            mod.ROOT, mod.TASK_ID_BASELINE = old_root, old_base
+
+C = "### TASK-{n}: Title\n- **Requirement:** {req}\n- **Risk Level:** R1\n\n"
+B = "- **TASK-{n} / {req} (R1).** Done.\n\n"
+
+# 1. One number, two requirements: the defect this exists for.
+e = run(C.format(n="900", req="REQ-ONE") + C.format(n="900", req="REQ-TWO"), baseline={})
+assert e and "TASK-900" in e[0] and "REQ-ONE" in e[0] and "REQ-TWO" in e[0], e
+assert "carries 2 requirements" in e[0], e
+
+# 2. A contract and its own completion entry under one requirement: eight of the
+#    ten repeats on disk are this, and flagging them would have sunk the check.
+assert not run(C.format(n="901", req="REQ-SAME") + B.format(n="901", req="REQ-SAME"), baseline={})
+
+# 3. A number used once with no readable requirement hides nothing. Twelve
+#    records predate the REQ- convention and must not fail the repository.
+assert not run("### TASK-902: Older than the convention\n\nNo requirement line.\n", baseline={})
+
+# 4. A blank record in ANOTHER file, beside a readable one, could be hiding a
+#    second requirement — that is the case worth failing on.
+e = run(C.format(n="903", req="REQ-REAL"),
+        {"old.md": "### TASK-903: Same number, no requirement\n\nprose\n"}, baseline={})
+assert e and "TASK-903" in e[0] and "no readable requirement" in e[0], e
+
+# 5. Two blank records inside ONE file are one entry continued, as TASK-052 is.
+assert not run(B.format(n="904", req="REQ-X") + "- **TASK-904 (original).** Earlier wording.\n",
+               baseline={})
+
+# 6. Prose about a task is not a record. "## TASK-015 decisions" in a build log
+#    made the first version report three hazards that were only its own
+#    definition being too loose.
+assert not run("### TASK-905: Real\n- **Requirement:** REQ-R\n",
+               {"log.md": "## TASK-905 decisions\n\nnotes\n"}, baseline={})
+
+# 7. The baseline accepts exactly its own pair and nothing wider.
+pair = C.format(n="906", req="REQ-A") + C.format(n="906", req="REQ-B")
+assert not run(pair, baseline={"TASK-906": {"REQ-A", "REQ-B"}})
+assert run(pair + C.format(n="906", req="REQ-C"), baseline={"TASK-906": {"REQ-A", "REQ-B"}})
+
+# 8. And the real repository's two collisions must fail without it, or the
+#    baseline is decoration rather than a deliberate exemption.
+real = (root / "TASKS.md").read_text()
+arch = {f.name: f.read_text() for f in (root / "docs" / "archive").glob("*.md")}
+assert run(real, arch, baseline={}), "the recorded collisions do not fail without the baseline"
+assert not run(real, arch), "the repository does not pass with its own baseline"
+
+print("task-id uniqueness fixtures: PASS")
+PYTASK
+
 echo "ai-policy-lint-test: PASS"
