@@ -1,6 +1,6 @@
 # Vercel — native-first
 
-Live here: `volumecms` (+ tenant `tholabie` → pesantrentholabie.com), `report-petani-next`.
+Live here: `volumecms` (+ tenant `tholabie` → pesantrentholabie.com), `report-petani-next`, `jasawebsite`. Operational runbook: [`vercel`](../../vercel/SKILL.md).
 
 ## Don't build it; the platform does it
 

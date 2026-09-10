@@ -54,6 +54,7 @@ them:
 | Native feature/dependency decision | `native-first` |
 | CI workflow engineering | `github-actions` |
 | Cloudflare runtime implementation | `workers-best-practices` |
+| Vercel deployment, domains, project linking, and edge infrastructure | `vercel` |
 
 Next.js implements accepted metadata and UI contracts; it does not invent SEO,
 workflow, security, observability, component, or visual policy.
@@ -187,10 +188,11 @@ mutation or data authorization boundary. With Better Auth, load
 - Node/Docker, static export, and adapters have different feature envelopes.
   Verify Server Actions, Route Handlers, image optimization, cache persistence,
   revalidation, streaming, and filesystem assumptions against the target.
-  Platform provisioning and Vercel infrastructure are out of scope.
+  Platform provisioning and Vercel infrastructure route to `vercel`.
 
 ## Bundle and performance discipline
 
+Apply the production rules in `references/react-performance-rules.md` (concurrency waterfalls, barrel imports, action auth, React.cache).
 Keep `'use client'` leaves narrow, import heavy browser libraries only where
 used, and run expensive non-interactive transforms on the server. Prefer native
 Next image/font/linking and code-splitting features already in the installed

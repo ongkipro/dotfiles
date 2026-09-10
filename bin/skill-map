@@ -71,7 +71,7 @@ DOMAINS: dict[str, tuple[str, ...]] = {
         "observability-engineering", "github-actions", "lean-code-review",
         "native-first", "continuous-learning",
     ),
-    "Infrastructure and runtime": ("vultr", "kelola-deploy", "9router"),
+    "Infrastructure and runtime": ("vercel", "vultr", "kelola-deploy", "9router"),
 }
 
 FRONTMATTER = re.compile(r"\A---\s*\n(.*?)\n---", re.S)
