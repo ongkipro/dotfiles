@@ -18,9 +18,20 @@
 # by name rather than counted as healthy: not knowing is a third answer, not a
 # rounding of the other two.
 #
-#   mutation-sweep              sweep every bin/<name> that has a bin/<name>-test
-#   mutation-sweep <name>...    sweep only these
+#   mutation-sweep              stub every bin/<name> that has a bin/<name>-test
+#   mutation-sweep <name>...    stub only these
+#   mutation-sweep --subject <name>...
+#                               MUTATE the subject line by line instead of
+#                               stubbing it, and report each mutant the test
+#                               fails to notice. Slower and opt-in: one subject
+#                               with a 14-second test costs minutes, so this is
+#                               never part of the default sweep.
 #   mutation-sweep --json       machine-readable
+#
+# Stubbing answers "does this test assert anything at all". Mutating answers the
+# question that actually found defects here: would it notice a plausible bug?
+# Nine of ten tests written on 2026-09-04 passed the stub and fell to a hand
+# mutation days later, so the second question is the one worth automating.
 #
 # Exit 1 if any test SURVIVED or ERROR occurred. Read-only for this repository: the
 # working tree is fingerprinted before and after and a change aborts the run.
@@ -28,11 +39,14 @@ set -uo pipefail
 
 ROOT="${DOTFILES_DIR:-$(cd "$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")")/.." && pwd)}"
 JSON=0
+MODE=stub
 REQUESTED=()
 TIMEOUT_S="${MUTATION_SWEEP_TIMEOUT:-120}"
+MAX_MUTANTS="${MUTATION_SWEEP_MAX_MUTANTS:-20}"
 for a in "$@"; do
   case "$a" in
     --json) JSON=1 ;;
+    --subject) MODE=subject ;;
     -h|--help) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) echo "mutation-sweep: unknown option $a" >&2; exit 2 ;;
     *) REQUESTED+=("$a") ;;
@@ -91,7 +105,7 @@ run_bounded() {
   "$@"
 }
 
-bites=0; survived=0; unsweepable=0; errored=0
+bites=0; survived=0; unsweepable=0; errored=0; survived_total=0; unmeasured=0
 rows=()
 
 sweep_one() {
@@ -130,7 +144,15 @@ sweep_one() {
   # DOTFILES_DIR. resume-brief-test and dotsync-test read only the latter, so
   # passing the argument alone would have called them unsweepable when they are
   # simply pointed a different way.
-  out="$(cd "$scratch" && DOTFILES_DIR="$scratch" run_bounded "$TIMEOUT_S" bash "$test" "$scratch" 2>&1)"; rc=$?
+  # To a file, never a command substitution. run_bounded kills the test's shell,
+  # but a child it left behind — a sleep, a hung fetch — keeps the pipe open, and
+  # `$(...)` waits on the PIPE rather than the process. The suite's own case
+  # measured 30 seconds under a 2-second bound because of it: the timeout was
+  # real and the capture made it decorative. A file has no pipe to wait on.
+  (cd "$scratch" && DOTFILES_DIR="$scratch" run_bounded "$TIMEOUT_S" bash "$test" "$scratch") \
+    > "$WORK/$name.out" 2>&1 </dev/null
+  rc=$?
+  out="$(cat "$WORK/$name.out" 2>/dev/null)"
   local touched=0; [ -s "$marker" ] && touched=1
 
   if [ "$rc" -eq 124 ]; then
@@ -153,7 +175,93 @@ sweep_one() {
   fi
 }
 
+# ── Subject mutation ──────────────────────────────────────────────────────────
+# Two operators, chosen because every defect this repository has actually found
+# was one of these two shapes: a guard that stopped firing, or a refusal that
+# stopped refusing. A wider operator set would mostly produce equivalent mutants
+# and drown the signal — the sweep's own escape on 2026-09-04 was exactly that,
+# a `sorted()` removal that changed no output.
+#
+# EQUIVALENT_MUTANTS holds the ones proven to change nothing, with the reason.
+# A survivor not listed here is a gap in the test, not a quirk of the operator.
+declare -A EQUIVALENT_MUTANTS=()
+
+mutate_one() {
+  local name="$1"
+  local subject="$ROOT/bin/$name" test="$ROOT/bin/$name-test"
+  local killed=0 survived=0 total=0
+
+  # Guard-shaped and refusal-shaped lines only, comments excluded. Line numbers
+  # come from the real file so a report points at something a reader can open.
+  local targets
+  targets="$(grep -nE '^[[:space:]]*(if|elif)[[:space:]].*;[[:space:]]*then[[:space:]]*$|^[[:space:]]*exit[[:space:]]+[1-9]' \
+    "$subject" | grep -vE '^[0-9]+:[[:space:]]*#' | head -n "$MAX_MUTANTS")"
+  # The operators are bash-shaped: `if ...; then` and `exit N`. A python or node
+  # subject yields no targets, and reporting that as "0 survived" would read as
+  # full coverage — the same shape of lie as a gate that judged nothing and
+  # printed PASS. Count it as unmeasured and say which language it was.
+  if [ -z "$targets" ]; then
+    rows+=("UNMEASURED|$name|no guard or refusal line matched; the operators are bash-shaped and this subject is $(head -1 "$subject" | sed 's|.*/||')")
+    unmeasured=$((unmeasured+1)); return
+  fi
+
+  local scratch="$WORK/mut-$name"
+  rm -rf "$scratch"; mkdir -p "$scratch"
+  git -C "$ROOT" archive HEAD | tar -x -C "$scratch" 2>/dev/null || return 3
+  git -C "$scratch" init -q 2>/dev/null
+  git -C "$scratch" add -A >/dev/null 2>&1
+  git -C "$scratch" -c user.email=sweep@local -c user.name=sweep \
+      commit -qm "mutation-sweep baseline" >/dev/null 2>&1
+
+  # A test that fails on the UNMUTATED subject makes every verdict meaningless:
+  # every mutant would look killed. ai-doctor-test was in exactly that state on
+  # 2026-09-07, so the baseline is checked before anything is mutated.
+  # stdin closed here too. The stub runner got this and the mutation runner did
+  # not, so a test that blocks on stdin stalled until the timeout on every single
+  # mutant — a bound that holds in one mode and not the other is the worse kind.
+  if ! (cd "$scratch" && DOTFILES_DIR="$scratch" run_bounded "$TIMEOUT_S" bash "$test" "$scratch" >/dev/null 2>&1 </dev/null); then
+    rows+=("BASELINE|$name|the test fails on the unmutated subject, so no verdict is possible")
+    errored=$((errored+1)); return
+  fi
+
+  local line_no line_text op mutated
+  while IFS= read -r entry; do
+    [ -n "$entry" ] || continue
+    line_no="${entry%%:*}"; line_text="${entry#*:}"
+    case "$line_text" in
+      *exit*) op="refusal-off"; mutated="$(printf '%s' "$line_text" | sed -E 's/exit[[:space:]]+[1-9][0-9]*/exit 0/')" ;;
+      *)      op="guard-off";   mutated="$(printf '%s' "$line_text" | sed -E 's/^([[:space:]]*)(if|elif)[[:space:]].*;[[:space:]]*then[[:space:]]*$/\1\2 false; then/')" ;;
+    esac
+    [ "$mutated" = "$line_text" ] && continue
+    total=$((total+1))
+    cp "$subject" "$scratch/bin/$name"
+    awk -v n="$line_no" -v repl="$mutated" 'NR==n{print repl; next}{print}' \
+      "$subject" > "$scratch/bin/$name.tmp" && mv "$scratch/bin/$name.tmp" "$scratch/bin/$name"
+    chmod +x "$scratch/bin/$name"
+    if (cd "$scratch" && DOTFILES_DIR="$scratch" run_bounded "$TIMEOUT_S" bash "$test" "$scratch" >/dev/null 2>&1 </dev/null); then
+      if [ -n "${EQUIVALENT_MUTANTS[$name:$line_no]:-}" ]; then
+        killed=$((killed+1))   # accepted as changing nothing
+      else
+        survived=$((survived+1)); survived_total=$((survived_total+1))
+        rows+=("SURVIVED|$name|bin/$name:$line_no $op — the test passes with: $(printf '%s' "$line_text" | sed 's/^[[:space:]]*//')")
+      fi
+    else
+      killed=$((killed+1))
+    fi
+  done <<< "$targets"
+
+  if if [ "$MODE" = subject ]; then [ "$survived_total" -eq 0 ] && [ "$errored" -eq 0 ]; else [ "$survived" -eq 0 ]; fi; then
+    rows+=("KILLED|$name|$killed/$total mutants noticed")
+    bites=$((bites+1))
+  fi
+}
+
 names=()
+if [ "$MODE" = subject ] && [ "${#REQUESTED[@]}" -eq 0 ]; then
+  echo "mutation-sweep: --subject needs at least one name; mutating every subject" \
+       "would take hours and say little" >&2
+  exit 2
+fi
 if [ "${#REQUESTED[@]}" -gt 0 ]; then
   names=("${REQUESTED[@]}")
 else
@@ -168,7 +276,7 @@ for n in "${names[@]}"; do
   if [ ! -f "$ROOT/bin/$n" ] || [ ! -f "$ROOT/bin/$n-test" ]; then
     rows+=("ERROR|$n|no bin/$n and bin/$n-test pair"); errored=$((errored+1)); continue
   fi
-  sweep_one "$n"
+  if [ "$MODE" = subject ]; then mutate_one "$n"; else sweep_one "$n"; fi
 done
 
 # Tests whose subject is not bin/<name> — skills/agents-bin, the hooks, the
@@ -211,8 +319,22 @@ else
     printf '\nNot swept — no bin/<name> subject to stub (%d):\n  %s\n' \
       "${#unpaired[@]}" "$(printf '%s ' "${unpaired[@]}")"
   fi
-  printf '\nmutation-sweep: %d bite, %d survived, %d unsweepable, %d errored\n' \
-    "$bites" "$survived" "$unsweepable" "$errored"
+  if [ "$MODE" = subject ]; then
+    printf '\nmutation-sweep: %d subject(s) fully covered, %d mutant(s) survived, %d unmeasured, %d errored\n' \
+      "$bites" "$survived_total" "$unmeasured" "$errored"
+  else
+    printf '\nmutation-sweep: %d bite, %d survived, %d unsweepable, %d errored\n' \
+      "$bites" "$survived" "$unsweepable" "$errored"
+  fi
 fi
 
-[ "$survived" -eq 0 ] && [ "$errored" -eq 0 ]
+# Subject mode counts surviving MUTANTS, stub mode counts surviving TESTS. Both
+# must fail the run; an earlier edit patched a line the other device had already
+# rewritten, so subject mode silently exited 0 with nine gaps on the screen.
+if [ "$MODE" = subject ]; then
+  # Unmeasured is not a pass. A subject the operators cannot reach is a gap in
+  # this tool, and hiding it behind exit 0 is how a gate becomes decoration.
+  [ "$survived_total" -eq 0 ] && [ "$errored" -eq 0 ] && [ "$unmeasured" -eq 0 ]
+else
+  [ "$survived" -eq 0 ] && [ "$errored" -eq 0 ]
+fi

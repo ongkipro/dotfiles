@@ -103,6 +103,155 @@ OUT3="$(DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=30 "$SWEEP" --json 2>/dev/nul
 printf '%s' "$OUT3" | grep -q '"orphan-test"' && ok "an unpaired test is named" \
   || fail "an unpaired test was omitted from the report"
 
+# ── Subject mutation (TASK-072) ──────────────────────────────────────────────
+# Stubbing asks whether a test asserts anything. Mutating asks the question that
+# actually caught defects here: would it notice a plausible bug? Nine of ten
+# tests written on 2026-09-04 passed the stub and fell to a hand mutation days
+# later, so each verdict of the new mode gets a fixture built to earn it.
+MFIX="$TMP/mutfix"; mkdir -p "$MFIX/bin"
+
+# A subject with two guards. The test below checks one and ignores the other, so
+# one mutant must be killed and one must survive — a mode that reported all-clear
+# or all-gap would pass a fixture with only one of them.
+cat > "$MFIX/bin/guarded" <<'EOF'
+#!/usr/bin/env bash
+if [ "${1:-}" = "checked" ]; then
+  echo "checked-branch"
+fi
+if [ "${1:-}" = "ignored" ]; then
+  echo "ignored-branch"
+fi
+exit 0
+EOF
+cat > "$MFIX/bin/guarded-test" <<'EOF'
+#!/usr/bin/env bash
+R="${1:?}"
+[ "$("$R/bin/guarded" checked)" = "checked-branch" ] || exit 1
+"$R/bin/guarded" ignored >/dev/null 2>&1 || exit 1
+EOF
+
+# A subject whose refusal is asserted: exit 1 -> exit 0 must be noticed.
+cat > "$MFIX/bin/refuser" <<'EOF'
+#!/usr/bin/env bash
+if [ -z "${1:-}" ]; then
+  echo "need an argument" >&2
+  exit 1
+fi
+exit 0
+EOF
+cat > "$MFIX/bin/refuser-test" <<'EOF'
+#!/usr/bin/env bash
+R="${1:?}"
+"$R/bin/refuser" >/dev/null 2>&1 && exit 1
+exit 0
+EOF
+
+# A test that fails on the UNMUTATED subject. Every mutant would look killed and
+# the subject would be reported perfectly covered — ai-doctor-test was in exactly
+# this state on 2026-09-07, which is why the baseline is checked first.
+cat > "$MFIX/bin/broken" <<'EOF'
+#!/usr/bin/env bash
+if [ -n "${1:-}" ]; then
+  echo ok
+fi
+exit 0
+EOF
+printf '#!/usr/bin/env bash
+exit 1
+' > "$MFIX/bin/broken-test"
+
+chmod +x "$MFIX"/bin/*
+git -C "$MFIX" init -q
+git -C "$MFIX" add -A >/dev/null
+git -C "$MFIX" -c user.email=t@t -c user.name=t commit -qm mutfix >/dev/null
+
+msweep() { DOTFILES_DIR="$MFIX" MUTATION_SWEEP_TIMEOUT=30 "$SWEEP" --subject "$@" 2>&1; }
+
+OUTG="$(msweep guarded)"; rcg=$?
+printf '%s' "$OUTG" | grep -q 'SURVIVED.*guarded:5' \
+  && ok "a guard the test ignores survives, named by line" \
+  || fail "the ignored guard was not reported: $(printf '%s' "$OUTG" | head -3 | tr '\n' ' ')"
+printf '%s' "$OUTG" | grep -q 'guarded:2' \
+  && fail "the guard the test DOES check was reported as a gap" \
+  || ok "a guard the test checks is not reported"
+[ "$rcg" -ne 0 ] && ok "a surviving mutant fails the run" || fail "survivors did not fail the run"
+
+OUTR="$(msweep refuser)"; rcr=$?
+printf '%s' "$OUTR" | grep -q 'SURVIVED' \
+  && fail "an asserted refusal was reported as a gap" \
+  || ok "a refusal the test asserts is killed"
+[ "$rcr" -eq 0 ] && ok "a fully covered subject exits 0" || fail "a covered subject failed (exit $rcr)"
+
+# A subject the operators cannot reach must be UNMEASURED, not a silent pass.
+# Reporting "0 survived" for a python subject reads as full coverage, which is
+# the same lie as a gate that judged nothing and printed PASS.
+cat > "$MFIX/bin/pysubject" <<'EOF'
+#!/usr/bin/env python3
+import sys
+if len(sys.argv) < 2:
+    sys.exit(1)
+EOF
+printf '#!/usr/bin/env bash\nexit 0\n' > "$MFIX/bin/pysubject-test"
+chmod +x "$MFIX/bin/pysubject" "$MFIX/bin/pysubject-test"
+git -C "$MFIX" add -A >/dev/null
+git -C "$MFIX" -c user.email=t@t -c user.name=t commit -qm py >/dev/null
+OUTP="$(msweep pysubject)"; rcp=$?
+printf '%s' "$OUTP" | grep -q 'UNMEASURED' \
+  && ok "a subject the operators cannot reach is UNMEASURED" \
+  || fail "a python subject was not reported unmeasured"
+[ "$rcp" -ne 0 ] && ok "and unmeasured fails the run rather than passing quietly" \
+  || fail "unmeasured exited 0"
+
+# A test that reads stdin must not hang the sweep: the runner closes it.
+cat > "$MFIX/bin/asker" <<'EOF'
+#!/usr/bin/env bash
+if [ -z "${1:-}" ]; then
+  exit 1
+fi
+exit 0
+EOF
+# `cat`, not `read`. A read returns immediately when stdin is already closed and
+# blocks when it is a terminal, so the case proved something different depending
+# on who invoked the suite — it passed 14 times by hand and failed once under the
+# ledger. cat blocks until EOF either way: with the runner closing stdin it ends
+# at once, without it the sweep timeout is the only thing that stops it.
+cat > "$MFIX/bin/asker-test" <<'EOF'
+#!/usr/bin/env bash
+R="${1:?}"
+cat >/dev/null
+"$R/bin/asker" >/dev/null 2>&1 && exit 1
+exit 0
+EOF
+chmod +x "$MFIX/bin/asker" "$MFIX/bin/asker-test"
+git -C "$MFIX" add -A >/dev/null
+git -C "$MFIX" -c user.email=t@t -c user.name=t commit -qm asker >/dev/null
+# The bound is the signal: closed stdin finishes in about a second, an open one
+# runs until the 30-second sweep timeout. 15 leaves room for a loaded machine
+# without letting a genuine stall through.
+# The sweep is handed an stdin that stays OPEN, so the outcome depends on the
+# runner and not on whoever invoked this suite. Without that, stdin was already
+# /dev/null from the caller and `cat` returned instantly either way — the case
+# passed with the guard removed, which is a case that proves nothing.
+start=$(date +%s); msweep asker >/dev/null 2>&1 < <(sleep 45); elapsed=$(( $(date +%s) - start ))
+[ "$elapsed" -lt 15 ] && ok "a test that blocks on stdin does not stall the sweep (${elapsed}s)" \
+  || fail "a stdin read stalled the sweep for ${elapsed}s"
+
+OUTB="$(msweep broken)"
+printf '%s' "$OUTB" | grep -q 'BASELINE' \
+  && ok "a test that fails unmutated is reported, not read as perfect coverage" \
+  || fail "a broken baseline was not detected: $(printf '%s' "$OUTB" | head -3 | tr '\n' ' ')"
+printf '%s' "$OUTB" | grep -q 'KILLED' \
+  && fail "a broken baseline was counted as killed mutants" || ok "and no verdict is claimed from it"
+
+DOTFILES_DIR="$MFIX" "$SWEEP" --subject >/dev/null 2>&1
+[ "$?" -eq 2 ] && ok "--subject with no name exits 2 rather than running for hours" \
+  || fail "--subject with no name did not refuse"
+
+# The stub mode must be unchanged by any of this.
+printf '%s' "$(DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=30 "$SWEEP" --json 2>/dev/null)" \
+  | grep -q '"verdict":"SURVIVED"' && ok "stub mode still classifies as before" \
+  || fail "stub mode changed"
+
 # The sweep must not disturb the repository it measures.
 BEFORE="$(git -C "$ROOT" status --porcelain | sort)"
 DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=30 "$SWEEP" >/dev/null 2>&1
