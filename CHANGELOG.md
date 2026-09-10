@@ -4,6 +4,33 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## v2026.09.11
+
+Local setup on `rich` is synchronized with `775873d`. The installer refreshed
+runtime command links, canonical AI rules and hooks, managed skill adapters,
+tmux configuration, and the device registry. `mise install` confirmed that the
+tracked toolchain was already present.
+
+### Added
+
+- `vercel` skill and React performance reference for repository-aware Vercel
+  releases and Next.js performance work.
+- Regression coverage for policy linting, mutation sweeping, safe Pi updates,
+  tmux setup, and PostgreSQL backup handling.
+
+### Fixed
+
+- macOS portability in the mutation and gate scripts by avoiding Bash 4-only
+  associative arrays.
+- OMP isolation reporting, runtime command mapping, and policy checks so their
+  observed state matches the current runtime contract.
+
+### Verification
+
+- `ai-doctor` reports a healthy local configuration.
+- Skill surface check reports 67 available local skills and no stale command
+  references.
+
 ## v2026.09.04
 
 Twenty-eight commits at the tag. A ten-task queue (TASK-047..058) carried end to end with
