@@ -201,17 +201,48 @@ mutate_one() {
   local subject="$ROOT/bin/$name" test="$ROOT/bin/$name-test"
   local killed=0 survived=0 total=0
 
+  # Two operators, in whichever language the subject is written: guard-off turns
+  # a branch condition false, refusal-off turns a non-zero exit into zero. The
+  # SHAPES differ per language, the operators do not.
+  local lang
+  case "$(head -1 "$subject")" in
+    *python*) lang=python ;;
+    *node*)   lang=node ;;
+    *)        lang=bash ;;
+  esac
+  # No compile check on the mutant, deliberately. An uncompilable mutant fails
+  # the test for a reason unrelated to the guard and would read as KILLED,
+  # hiding the gap — so it would be worth rejecting IF it could happen. Both
+  # operators are grammar-preserving edits to a line-complete statement:
+  # applying them to every matching line of all 23 python subjects in bin/
+  # produced 519 mutants and 0 that failed to parse. A guard that cannot fire is
+  # decoration. A third operator that is not grammar-preserving brings the check
+  # back, with a fixture that shows it firing.
+  # Guard and refusal get their own patterns rather than one alternation, because
+  # which operator a line gets must be decided by which SHAPE it is, not by what
+  # substring it happens to contain. Dispatching on `*exit*` sent
+  # `if msg == "call sys.exit(1) to quit":` — a guard header — down the refusal
+  # branch, which then rewrote the string literal and never tried guard-off on it.
+  local guard_re="" refuse_re="" target_re=""
+  case "$lang" in
+    bash)   guard_re='^[[:space:]]*(if|elif)[[:space:]].*;[[:space:]]*then[[:space:]]*$'
+            refuse_re='^[[:space:]]*exit[[:space:]]+[1-9]' ;;
+    python) guard_re='^[[:space:]]*(if|elif)[[:space:]].*:[[:space:]]*$'
+            refuse_re='^[[:space:]]*(sys\.exit|raise[[:space:]]+SystemExit)\([1-9]' ;;
+  esac
+  [ -n "$guard_re" ] && target_re="$guard_re|$refuse_re"
+
   # Guard-shaped and refusal-shaped lines only, comments excluded. Line numbers
   # come from the real file so a report points at something a reader can open.
-  local targets
-  targets="$(grep -nE '^[[:space:]]*(if|elif)[[:space:]].*;[[:space:]]*then[[:space:]]*$|^[[:space:]]*exit[[:space:]]+[1-9]' \
+  local targets=""
+  [ -n "$target_re" ] && targets="$(grep -nE "$target_re" \
     "$subject" | grep -vE '^[0-9]+:[[:space:]]*#' | head -n "$MAX_MUTANTS")"
-  # The operators are bash-shaped: `if ...; then` and `exit N`. A python or node
-  # subject yields no targets, and reporting that as "0 survived" would read as
-  # full coverage — the same shape of lie as a gate that judged nothing and
-  # printed PASS. Count it as unmeasured and say which language it was.
+  # A subject in a language with no shapes defined yields no targets, and
+  # reporting that as "0 survived" would read as full coverage — the same shape
+  # of lie as a gate that judged nothing and printed PASS. Count it as
+  # unmeasured and say which language it was.
   if [ -z "$targets" ]; then
-    rows+=("UNMEASURED|$name|no guard or refusal line matched; the operators are bash-shaped and this subject is $(head -1 "$subject" | sed 's|.*/||')")
+    rows+=("UNMEASURED|$name|no guard or refusal line matched; the operators have no shapes for $(head -1 "$subject" | sed 's|.*/||')")
     unmeasured=$((unmeasured+1)); return
   fi
 
@@ -238,10 +269,19 @@ mutate_one() {
   while IFS= read -r entry; do
     [ -n "$entry" ] || continue
     line_no="${entry%%:*}"; line_text="${entry#*:}"
-    case "$line_text" in
-      *exit*) op="refusal-off"; mutated="$(printf '%s' "$line_text" | sed -E 's/exit[[:space:]]+[1-9][0-9]*/exit 0/')" ;;
-      *)      op="guard-off";   mutated="$(printf '%s' "$line_text" | sed -E 's/^([[:space:]]*)(if|elif)[[:space:]].*;[[:space:]]*then[[:space:]]*$/\1\2 false; then/')" ;;
-    esac
+    if printf '%s\n' "$line_text" | grep -qE "$guard_re"; then
+      op="guard-off"
+      case "$lang" in
+        bash)   mutated="$(printf '%s' "$line_text" | sed -E 's/^([[:space:]]*)(if|elif)[[:space:]].*;[[:space:]]*then[[:space:]]*$/\1\2 false; then/')" ;;
+        python) mutated="$(printf '%s' "$line_text" | sed -E 's/^([[:space:]]*)(if|elif)[[:space:]].*:[[:space:]]*$/\1\2 False:/')" ;;
+      esac
+    else
+      op="refusal-off"
+      case "$lang" in
+        bash)   mutated="$(printf '%s' "$line_text" | sed -E 's/exit[[:space:]]+[1-9][0-9]*/exit 0/')" ;;
+        python) mutated="$(printf '%s' "$line_text" | sed -E 's/(sys\.exit|SystemExit)\([1-9][0-9]*\)/\1(0)/')" ;;
+      esac
+    fi
     [ "$mutated" = "$line_text" ] && continue
     total=$((total+1))
     cp "$subject" "$scratch/bin/$name"

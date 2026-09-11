@@ -182,24 +182,140 @@ printf '%s' "$OUTR" | grep -q 'SURVIVED' \
   || ok "a refusal the test asserts is killed"
 [ "$rcr" -eq 0 ] && ok "a fully covered subject exits 0" || fail "a covered subject failed (exit $rcr)"
 
-# A subject the operators cannot reach must be UNMEASURED, not a silent pass.
-# Reporting "0 survived" for a python subject reads as full coverage, which is
-# the same lie as a gate that judged nothing and printed PASS.
-cat > "$MFIX/bin/pysubject" <<'EOF'
+# The same two operators, in python. Guard-off is `if COND:` -> `if False:`,
+# refusal-off is `sys.exit(N)` -> `sys.exit(0)`. Both fixtures are built the way
+# the bash ones are: something the test checks must be killed and something it
+# ignores must survive, so a mode reporting all-clear or all-gap fails here.
+cat > "$MFIX/bin/pyguard" <<'EOF'
+#!/usr/bin/env python3
+import sys
+arg = sys.argv[1] if len(sys.argv) > 1 else ""
+if arg == "checked":
+    print("checked-branch")
+if arg == "ignored":
+    print("ignored-branch")
+EOF
+cat > "$MFIX/bin/pyguard-test" <<'EOF'
+#!/usr/bin/env bash
+R="${1:?}"
+[ "$("$R/bin/pyguard" checked)" = "checked-branch" ] || exit 1
+"$R/bin/pyguard" ignored >/dev/null 2>&1 || exit 1
+EOF
+
+# The refusal here is reachable but its EXIT STATUS is never asserted: the test
+# only greps the message. exit 1 -> exit 0 must therefore survive, and be
+# labelled refusal-off rather than guard-off — the two operators stay distinct
+# in python exactly as they are in bash.
+cat > "$MFIX/bin/pyrefuser" <<'EOF'
 #!/usr/bin/env python3
 import sys
 if len(sys.argv) < 2:
+    print("need an argument", file=sys.stderr)
     sys.exit(1)
 EOF
-printf '#!/usr/bin/env bash\nexit 0\n' > "$MFIX/bin/pysubject-test"
-chmod +x "$MFIX/bin/pysubject" "$MFIX/bin/pysubject-test"
+cat > "$MFIX/bin/pyrefuser-test" <<'EOF'
+#!/usr/bin/env bash
+R="${1:?}"
+"$R/bin/pyrefuser" 2>&1 | grep -q "need an argument" || exit 1
+exit 0
+EOF
+
+# Node has no shapes defined, so it must still be UNMEASURED. Reporting
+# "0 survived" for it reads as full coverage, which is the same lie as a gate
+# that judged nothing and printed PASS.
+printf '#!/usr/bin/env node\nprocess.exit(0);\n' > "$MFIX/bin/nodesubject"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$MFIX/bin/nodesubject-test"
+chmod +x "$MFIX"/bin/pyguard "$MFIX"/bin/pyguard-test "$MFIX"/bin/pyrefuser \
+         "$MFIX"/bin/pyrefuser-test "$MFIX"/bin/nodesubject "$MFIX"/bin/nodesubject-test
 git -C "$MFIX" add -A >/dev/null
 git -C "$MFIX" -c user.email=t@t -c user.name=t commit -qm py >/dev/null
-OUTP="$(msweep pysubject)"; rcp=$?
-printf '%s' "$OUTP" | grep -q 'UNMEASURED' \
-  && ok "a subject the operators cannot reach is UNMEASURED" \
-  || fail "a python subject was not reported unmeasured"
-[ "$rcp" -ne 0 ] && ok "and unmeasured fails the run rather than passing quietly" \
+
+OUTPG="$(msweep pyguard)"; rcpg=$?
+printf '%s' "$OUTPG" | grep -q 'SURVIVED.*pyguard:6 guard-off' \
+  && ok "a python guard the test ignores survives, named by line and operator" \
+  || fail "the ignored python guard was not reported: $(printf '%s' "$OUTPG" | head -3 | tr '\n' ' ')"
+printf '%s' "$OUTPG" | grep -q 'pyguard:4' \
+  && fail "the python guard the test DOES check was reported as a gap" \
+  || ok "a python guard the test checks is killed"
+printf '%s' "$OUTPG" | grep -q 'pyguard:3' \
+  && fail "a ternary if mid-line was mutated as if it were a guard" \
+  || ok "and an inline ternary is not mistaken for a guard header"
+[ "$rcpg" -ne 0 ] && ok "a surviving python mutant fails the run" \
+  || fail "python survivors did not fail the run"
+
+OUTPR="$(msweep pyrefuser)"
+printf '%s' "$OUTPR" | grep -q 'SURVIVED.*pyrefuser:5 refusal-off' \
+  && ok "a python refusal whose exit status is never asserted survives" \
+  || fail "the python refusal was not reported: $(printf '%s' "$OUTPR" | head -3 | tr '\n' ' ')"
+printf '%s' "$OUTPR" | grep -q 'pyrefuser:3' \
+  && fail "the python guard the test reaches was reported as a gap" \
+  || ok "and the guard the test does reach is killed"
+
+# Positive evidence that both python guards and the python refusal are actually
+# TARGETED, not merely absent from the survivor list. The assertions above are
+# negative — "this line was not reported" reads the same whether the mutant was
+# killed or never generated — so this fixture asserts the denominator: three
+# shapes in, three mutants noticed.
+cat > "$MFIX/bin/pycovered" <<'EOF'
+#!/usr/bin/env python3
+import sys
+if len(sys.argv) < 2:
+    print("need an argument", file=sys.stderr)
+    sys.exit(1)
+if sys.argv[1] == "loud":
+    print("loud-branch")
+EOF
+cat > "$MFIX/bin/pycovered-test" <<'EOF'
+#!/usr/bin/env bash
+R="${1:?}"
+out="$("$R/bin/pycovered" 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] || exit 1
+printf '%s' "$out" | grep -q "need an argument" || exit 1
+[ "$("$R/bin/pycovered" loud)" = "loud-branch" ] || exit 1
+exit 0
+EOF
+
+# A guard header whose CONDITION mentions sys.exit. Dispatching on the substring
+# sent this down the refusal branch, which rewrote the string literal and never
+# tried guard-off on it — the operators stayed two in name and became something
+# else in fact. Found by the R3 review of this change, 2026-09-11.
+cat > "$MFIX/bin/pymisdispatch" <<'EOF'
+#!/usr/bin/env python3
+import sys
+msg = sys.argv[1] if len(sys.argv) > 1 else ""
+if msg == "call sys.exit(1) to quit":
+    print("triggered")
+EOF
+cat > "$MFIX/bin/pymisdispatch-test" <<'EOF'
+#!/usr/bin/env bash
+R="${1:?}"
+"$R/bin/pymisdispatch" >/dev/null 2>&1 || exit 1
+EOF
+chmod +x "$MFIX"/bin/pycovered "$MFIX"/bin/pycovered-test \
+         "$MFIX"/bin/pymisdispatch "$MFIX"/bin/pymisdispatch-test
+git -C "$MFIX" add -A >/dev/null
+git -C "$MFIX" -c user.email=t@t -c user.name=t commit -qm pycov >/dev/null
+
+OUTPC="$(msweep pycovered)"; rcpc=$?
+printf '%s' "$OUTPC" | grep -q 'KILLED.*pycovered.*3/3' \
+  && ok "two python guards and a python refusal are all three targeted and killed" \
+  || fail "python targets were not all generated: $(printf '%s' "$OUTPC" | head -3 | tr '\n' ' ')"
+[ "$rcpc" -eq 0 ] && ok "a fully covered python subject exits 0" \
+  || fail "a covered python subject failed (exit $rcpc)"
+
+OUTPM="$(msweep pymisdispatch)"
+printf '%s' "$OUTPM" | grep -q 'pymisdispatch:4 guard-off' \
+  && ok "a guard whose condition mentions sys.exit is still mutated as a guard" \
+  || fail "the guard was dispatched by substring: $(printf '%s' "$OUTPM" | head -3 | tr '\n' ' ')"
+
+OUTN="$(msweep nodesubject)"; rcn=$?
+printf '%s' "$OUTN" | grep -q 'UNMEASURED' \
+  && ok "a subject in a language with no shapes is UNMEASURED" \
+  || fail "a node subject was not reported unmeasured"
+printf '%s' "$OUTN" | grep -q 'node' \
+  && ok "and the report names the language it could not reach" \
+  || fail "unmeasured did not name the language"
+[ "$rcn" -ne 0 ] && ok "and unmeasured fails the run rather than passing quietly" \
   || fail "unmeasured exited 0"
 
 # A test that reads stdin must not hang the sweep: the runner closes it.
