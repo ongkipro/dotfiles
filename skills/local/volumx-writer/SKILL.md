@@ -1,6 +1,6 @@
 ---
 name: volumx-writer
-description: Create, rewrite, humanize, localize, optimize, audit, or score English and Indonesian writing while preserving meaning, qualifiers, citations, keywords, conversion intent, compliance language, technical accuracy, structure, and brand voice. Use for articles, SEO content, landing pages, ads, emails, social posts, ecommerce copy, founder or investor materials, PRDs, technical docs, API docs, READMEs, prompts, AI-slop removal, tone adaptation, and substantial rewrites where silent claim drift would be costly. Use when preserving meaning is the primary constraint — NOT a content workflow orchestrator (content), NOT the copy-rules source (copywriting), NOT for authoring PRDs or API specs from scratch.
+description: Create, rewrite, humanize, localize, optimize, audit, or score English and Indonesian writing while preserving meaning, qualifiers, citations, keywords, conversion intent, compliance language, technical accuracy, structure, and brand voice. Use for articles, SEO content, landing pages, ads, emails, social posts, ecommerce copy, founder or investor materials, PRDs, technical docs, API docs, READMEs, prompts, AI-slop removal, tone adaptation, and substantial rewrites where silent claim drift would be costly. Also use for requested terminal-dialogue improvement and cross-model language evaluation; not every routine terminal reply. Use when preserving meaning is the primary constraint — NOT a content workflow orchestrator (content), NOT the copy-rules source (copywriting), NOT for authoring PRDs or API specs from scratch.
 ---
 
 # VolumX Writer
@@ -11,6 +11,7 @@ Improve writing without silently changing what it claims, promises, targets, or 
 
 1. Classify the task: create, rewrite, humanize, optimize, shorten, expand, localize, audit, or score.
 2. Identify the primary content mode, audience, language, goal, and output constraints. Load only the relevant references.
+   For dialogue audits, also identify the active task, referents, negation, and what action the user actually authorized. Use the terminal-dialogue route below; do not apply article openings or conversion conventions to status updates.
 3. Before editing factual or constrained text, build a protected-content ledger from `references/preservation.md`.
 4. Choose the least destructive editing level that satisfies the request.
 5. Draft or revise for clarity, natural rhythm, specificity, credibility, and channel fit.
@@ -57,7 +58,7 @@ Confirm before delivery:
 - For straightforward writing, return the finished text directly.
 - For a high-stakes or substantial rewrite, add a compact preservation note after the text.
 - For an audit, report only material issues ranked by severity.
-- For scoring, use `references/scoring.md` and explain deductions with evidence.
+- For dialogue evaluation, use the case rubric in `references/dialogue-evaluation.md`. For other writing scores, use `references/scoring.md`. Explain deductions with evidence.
 - Preserve requested structure, schema, Markdown, JSON, XML, code fences, and character limits.
 
 ## Reference routing
@@ -68,6 +69,8 @@ Load only what the task needs:
 - Hallucination and claim safety: `references/anti-hallucination.md`
 - Research synthesis contract: `references/synthesis-contract.md`
 - Humanization and AI-slop removal: `references/human-writing.md`
+- Terminal dialogue, informal intent, status updates, and model handoffs: `references/terminal-dialogue.md`
+- Evaluating dialogue instructions across models: `references/dialogue-evaluation.md` (only for requested evaluation or changes to this dialogue guidance)
 - Indonesian: `references/indonesian.md`
 - English: `references/english.md`
 - Brand voice: `references/brand-voice.md`

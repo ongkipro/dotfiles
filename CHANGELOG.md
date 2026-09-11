@@ -6,10 +6,14 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## v2026.09.11
 
-Local setup on `rich` is synchronized with `775873d`. The installer refreshed
+Local setup on `rich` was synchronized with `775873d`. The installer refreshed
 runtime command links, canonical AI rules and hooks, managed skill adapters,
 tmux configuration, and the device registry. `mise install` confirmed that the
 tracked toolchain was already present.
+
+OMP was subsequently updated from 18.1.16 to 18.1.17 through its native updater,
+with the release SHA-256 verified. OMP versions are device-local, not pinned by
+dotfiles; shared context and all 67 owned skills remain linked to the repository.
 
 ### Added
 
@@ -17,6 +21,12 @@ tracked toolchain was already present.
   releases and Next.js performance work.
 - Regression coverage for policy linting, mutation sweeping, safe Pi updates,
   tmux setup, and PostgreSQL backup handling.
+- Terminal-dialogue guidance and twelve synthetic evaluation cases for informal
+  intent, language, authorization, and evidence preservation. These are fixtures,
+  not a claim of cross-provider behavioral validation.
+- Public UI research and review guidance, including reference-backed design
+  decisions and checks against repetitive generated layouts.
+- Python subject mutation support in `mutation-sweep`.
 
 ### Fixed
 
@@ -27,9 +37,17 @@ tracked toolchain was already present.
 
 ### Verification
 
-- `ai-doctor` reports a healthy local configuration.
+- After the OMP update, `ai-doctor` passed with a pending local-changes warning.
 - Skill surface check reports 67 available local skills and no stale command
   references.
+- `omp-routing-test` and `omp-workspace-test` passed on OMP 18.1.17.
+
+### Known limitations
+
+- `omp-effective-routing-test` failed for the optional `codex-only.yml` reference:
+  two selectors use `openai-codex/gpt-5.4-mini:low`, unavailable on `rich`.
+  Hosted provider selectors without local authentication remain unjudged.
+  These reference overlays are not loaded automatically by native OMP.
 
 ## v2026.09.04
 

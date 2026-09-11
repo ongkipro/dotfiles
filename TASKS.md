@@ -37,6 +37,20 @@ _None._
   Historical run used TASK-074: `RUN-20260910T184228Z-9eb168f3`.
   Contract, findings, and log: `docs/public-ui-skill-audit.md`.
 
+### TASK-077: Cross-model intent and language guidance
+
+- **Requirement:** REQ-CROSS-MODEL-LANGUAGE (user-requested audit and improvement).
+- **Risk Level:** R1 (declared); boundary-classified R2 due to the five-file surface, requiring independent review.
+- **Canonical Contract Owners:** `ai.communication` (shared baseline), `writing.dialogue` (detailed methodology).
+- **Allowed Paths:** `config/ai/AGENTS.md`, `skills/local/volumx-writer/SKILL.md`, `skills/local/volumx-writer/references/terminal-dialogue.md`, `skills/local/volumx-writer/references/dialogue-evaluation.md`, `TASKS.md`.
+- **Accepted Invariants:** Preserve approval gates, technical meaning, artifact language rules, and existing repository/memory ownership; no provider-specific runtime changes.
+- **Verification:** `skill-check volumx-writer`, `ai-policy-lint`, `ai-memory-check`, `git diff --check`, and delivery boundary check.
+- **Runtime Evidence:** Shared context/skill link checks; cross-provider behavioral evaluation is not performed by static validation.
+- **Non-Scope:** Model routing, credentials, automatic translation, new memory stores, commit/push.
+- **Reopen Conditions:** A supplied dialogue case reveals changed meaning, missed authorization, or unclear language attributable to these instructions.
+- **Escalation Conditions:** Any required provider execution or runtime change beyond the instruction-only scope.
+- **Evidence:** `RUN-20260910T183355Z-0cd4d108`; completion is determined by its final ledger result. Twelve synthetic behavioral cases are supplied; no cross-provider quality claim is made.
+
 Completed TASK-072 record: [retained history](docs/archive/TASKS-074-history.md).
 
 - **TASK-073 / REQ-MUTATION-COVERAGE (R2).** The two operators now have python shapes:
