@@ -61,3 +61,28 @@ command; reading the file could not.
 - **Reopen Conditions:** Lost task/source or unrelated staged content.
 - **Escalation Conditions:** Conflict or failed verification.
 - **Evidence:** `RUN-20260911T041027Z-0f497beb`; ledger determines completion. Historical 073/074 map to 077/078.
+
+- **TASK-081 / REQ-LEDGER-ID-INTEGRITY (R2, reviewed).** A run is evidence for a contract
+  only when it names that contract's requirement. `resume-brief` matched runs to tasks by id
+  alone, so when another device ran `REQ-PUBLIC-UI-QUALITY` under TASK-074, finished it PASS
+  and renumbered its own contract to TASK-079, an unrelated TASK-074 was read as finished and
+  left the candidate list without a word. Nothing failed; a queue got shorter, which is the
+  quietest way for a derived state to be wrong. Measured over 96 runs and 62 ids: 8 ids carry
+  two requirements in the ledger and 7 runs name a requirement their contract does not
+  declare, baselined by id with reasons — renumbering a historical run would falsify evidence
+  to quiet a lint. Ids no record declares stay exempt: they cannot mark a contract done, and
+  14 runs predate the convention. `ai-policy-lint` gained `check_ledger_task_binding` so the
+  collision fails loudly; `resume-brief` discounts foreign evidence, keeps the task listed as
+  having no run, and names what it discounted, because silently ignoring evidence fails the
+  same way as silently accepting it. Gate and derivation are one contract: a lint that fails
+  does not help a session that just sees fewer tasks. Two review rounds, six defects, and the
+  second round found one the first round's FIX had introduced — bounding the lookahead at the
+  next regex hit rather than the next record let a bold bullet cross-referencing another task
+  truncate a contract before its own Requirement, reproducing the same silent false completion
+  through ordinary prose. An explicit Requirement field now outranks one named in passing.
+  Every assertion was proven to bite by reverting its mechanism: ten mutations, ten named
+  failures. Two of the first fixtures did not bite and were sharpened rather than kept. Known
+  limits recorded rather than fixed: the two parsers are line-for-line duplicates, not a shared
+  import; a bullet-only record with a discounted run is more visible than one with no run at
+  all; and `resume-brief` degrades quietly on an unreadable run file where the lint fails,
+  which is the safe direction — a corrupt file can only manufacture a false "still open".

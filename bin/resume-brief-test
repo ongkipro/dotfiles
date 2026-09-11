@@ -401,6 +401,134 @@ BRIEF="$("$RB" "$CL" 2>&1)"
 wantnot "a finished contract is not a candidate" "TASK-201   READY"
 want "the all-clear says what it checked" "Every accepted contract has evidence"
 
+# Evidence belongs to a contract, not to a number. Another device ran
+# REQ-PUBLIC-UI-QUALITY under TASK-074 and finished it PASS, then renumbered its
+# own contract while the ledger kept the label; a different TASK-074 was read as
+# finished and left this list without anything failing.
+FR="$TMP/foreign"; mkdir -p "$FR/.delivery/runs"
+printf '%s' '{"schemaVersion":1,"statusAuthority":"STATUS.md","project":"fixture","activeRun":null}' > "$FR/.delivery/current.json"
+git -C "$FR" init -q 2>/dev/null
+git -C "$FR" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base 2>/dev/null
+cat > "$FR/TASKS.md" <<'EOF'
+# Tasks
+
+### TASK-301: Mine
+- **Requirement:** REQ-MINE
+- **Risk Level:** R1
+
+### TASK-302: Also mine
+- **Requirement:** REQ-OTHER
+- **Risk Level:** R1
+EOF
+printf '%s\n%s\n' \
+  '{"type":"run_started","task":"TASK-301","requirement":"REQ-THEIRS","time":"2026-01-01T00:00:00Z"}' \
+  '{"type":"run_finished","result":"PASS","time":"2026-01-01T00:01:00Z"}' \
+  > "$FR/.delivery/runs/RUN-foreign.jsonl"
+printf '%s\n%s\n' \
+  '{"type":"run_started","task":"TASK-302","requirement":"REQ-OTHER","time":"2026-01-02T00:00:00Z"}' \
+  '{"type":"run_finished","result":"PASS","time":"2026-01-02T00:01:00Z"}' \
+  > "$FR/.delivery/runs/RUN-own.jsonl"
+BRIEF="$("$RB" "$FR" 2>&1)"
+wantre "a task whose only PASS run names another requirement is still a candidate" "TASK-301 +READY +no run"
+want "and the discounted run is named, not silently dropped" "RUN-foreign records REQ-THEIRS"
+want "with the requirement the contract actually declares" "the contract declares REQ-MINE"
+wantnot "a task whose own run passed is not a candidate" "TASK-302   READY"
+
+# A run for an id no record declares cannot mark a contract done, and the ledger
+# is full of pre-convention ids. Discounting those would fail honest history.
+printf '%s\n%s\n' \
+  '{"type":"run_started","task":"TASK-SOMETHING-OLD","requirement":"REQ-ANCIENT","time":"2026-01-03T00:00:00Z"}' \
+  '{"type":"run_finished","result":"PASS","time":"2026-01-03T00:01:00Z"}' \
+  > "$FR/.delivery/runs/RUN-ancient.jsonl"
+BRIEF="$("$RB" "$FR" 2>&1)"
+wantnot "an id no contract declares is not reported as discounted" "TASK-SOMETHING-OLD"
+
+# A contract with no requirement line must keep accepting its evidence: matching
+# on requirement must never discount a run a contract cannot contradict.
+cat > "$FR/TASKS.md" <<'EOF'
+# Tasks
+
+### TASK-301: No requirement declared
+- **Risk Level:** R1
+EOF
+BRIEF="$("$RB" "$FR" 2>&1)"
+wantnot "a contract declaring no requirement still accepts its run" "TASK-301   READY"
+
+# A task recorded only as a BULLET, whose every run is discounted, must still be
+# listed: it has no run, which is the honest state and the one this list exists
+# to surface. Without the orphaned set it disappears entirely, which is how
+# TASK-074 left the queue in the first place.
+BU="$TMP/bullet-orphan"; mkdir -p "$BU/.delivery/runs"
+printf '%s' '{"schemaVersion":1,"statusAuthority":"STATUS.md","project":"fixture","activeRun":null}' > "$BU/.delivery/current.json"
+git -C "$BU" init -q 2>/dev/null
+git -C "$BU" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base 2>/dev/null
+mkdir -p "$BU/docs/archive"
+printf '# Tasks\n\n- **TASK-401 / REQ-BULLET — open, recorded as a bullet (R1).**\n' > "$BU/TASKS.md"
+printf '%s\n%s\n' \
+  '{"type":"run_started","task":"TASK-401","requirement":"REQ-ELSEWHERE","time":"2026-01-01T00:00:00Z"}' \
+  '{"type":"run_finished","result":"PASS","time":"2026-01-01T00:01:00Z"}' \
+  > "$BU/.delivery/runs/RUN-foreign.jsonl"
+BRIEF="$("$RB" "$BU" 2>&1)"
+wantre "a bullet record whose only run is discounted stays listed" "TASK-401 +READY +no run"
+want "and its discounted run is named" "RUN-foreign records REQ-ELSEWHERE"
+
+# The complement: an id the live file does not RECORD must not be promoted by a
+# mere textual mention. A substring test admitted prose — and admitted TASK-02
+# because TASK-023 contains it — as a candidate with a blank title.
+printf '# Tasks\n\n### TASK-023: the only real contract\n- **Requirement:** REQ-REAL\n\nHistorical note: this supersedes TASK-02, which is not a record here.\n' > "$BU/TASKS.md"
+printf '## Archive\n\n### TASK-02: an archived contract\n- **Requirement:** REQ-OLD\n' > "$BU/docs/archive/old.md"
+printf '%s\n%s\n' \
+  '{"type":"run_started","task":"TASK-02","requirement":"REQ-FOREIGN","time":"2026-01-02T00:00:00Z"}' \
+  '{"type":"run_finished","result":"PASS","time":"2026-01-02T00:01:00Z"}' \
+  > "$BU/.delivery/runs/RUN-foreign.jsonl"
+BRIEF="$("$RB" "$BU" 2>&1)"
+wantnot "an id mentioned only in prose is not promoted to a candidate" "TASK-02    READY"
+want "though its discounted run is still named" "TASK-02    RUN-foreign"
+
+# A record with no Requirement field must not borrow the next one's, and the
+# archive is read per file so the last record of one cannot borrow the first of
+# the next. Either bleed WIDENS an id's declared set, and a foreign run then
+# matches it and marks the contract done.
+printf '# Tasks\n\n### TASK-501: mine\n- **Requirement:** REQ-MINE\n\n- **TASK-501 (original)** superseded\n\n### TASK-502: neighbour\n- **Requirement:** REQ-NEIGHBOR\n' > "$BU/TASKS.md"
+rm -f "$BU/docs/archive/old.md"
+printf 'A_FIRST\n\n- **TASK-501 (archived)** retained\n' > "$BU/docs/archive/a_first.md"
+printf 'B_SECOND\n\nThis file collects the REQ-FROM-FILE-B work.\n\n### TASK-503: a record\n- **Requirement:** REQ-FROM-FILE-B\n' > "$BU/docs/archive/b_second.md"
+printf '%s\n%s\n' \
+  '{"type":"run_started","task":"TASK-501","requirement":"REQ-NEIGHBOR","time":"2026-01-03T00:00:00Z"}' \
+  '{"type":"run_finished","result":"PASS","time":"2026-01-03T00:01:00Z"}' \
+  > "$BU/.delivery/runs/RUN-foreign.jsonl"
+BRIEF="$("$RB" "$BU" 2>&1)"
+wantre "a neighbour's requirement does not count as this contract's evidence" "TASK-501 +READY +no run"
+printf '%s\n%s\n' \
+  '{"type":"run_started","task":"TASK-501","requirement":"REQ-FROM-FILE-B","time":"2026-01-04T00:00:00Z"}' \
+  '{"type":"run_finished","result":"PASS","time":"2026-01-04T00:01:00Z"}' \
+  > "$BU/.delivery/runs/RUN-foreign.jsonl"
+BRIEF="$("$RB" "$BU" 2>&1)"
+wantre "nor does a requirement from the next archive file" "TASK-501 +READY +no run"
+
+# A run naming no requirement cannot be shown to be about this contract.
+printf '%s\n%s\n' \
+  '{"type":"run_started","task":"TASK-501","time":"2026-01-05T00:00:00Z"}' \
+  '{"type":"run_finished","result":"PASS","time":"2026-01-05T00:01:00Z"}' \
+  > "$BU/.delivery/runs/RUN-foreign.jsonl"
+BRIEF="$("$RB" "$BU" 2>&1)"
+wantre "a run naming no requirement is not evidence either" "TASK-501 +READY +no run"
+want "and says so rather than inventing one" "records no requirement"
+
+# A bold bullet cross-referencing another task is not a record and must not bound
+# the window of the contract containing it. When it did, the contract declared
+# nothing, its foreign run was accepted, and the task appeared NOWHERE: not as a
+# candidate, not as discounted, not as retired.
+printf '# Tasks\n\n### TASK-601: mentions another task first\n- **Risk Level:** R2\n- **TASK-050 remains blocked pending this work.**\n- **Requirement:** REQ-MINE\n' > "$BU/TASKS.md"
+rm -f "$BU/docs/archive/"*.md
+printf '%s\n%s\n' \
+  '{"type":"run_started","task":"TASK-601","requirement":"REQ-UNRELATED","time":"2026-01-06T00:00:00Z"}' \
+  '{"type":"run_finished","result":"PASS","time":"2026-01-06T00:01:00Z"}' \
+  > "$BU/.delivery/runs/RUN-foreign.jsonl"
+BRIEF="$("$RB" "$BU" 2>&1)"
+wantre "a cross-reference bullet does not truncate the contract's window" "TASK-601 +READY +no run"
+want "so its foreign run is still discounted" "RUN-foreign records REQ-UNRELATED"
+
 # Not a repository at all: exit 2, not a confident wrong answer.
 mkdir -p "$TMP/nogit"; "$RB" "$TMP/nogit" >/dev/null 2>&1; code=$?
 [ "$code" = 2 ] && say ok "a non-repository exits 2" \

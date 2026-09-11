@@ -133,7 +133,7 @@ def main():
         return 1
 
     # Latest outcome per task, taken from evidence rather than from any claim.
-    outcomes, run_files = {}, sorted((delivery / "runs").glob("*.jsonl")) if (delivery / "runs").is_dir() else []
+    run_index, run_files = [], sorted((delivery / "runs").glob("*.jsonl")) if (delivery / "runs").is_dir() else []
     for f in run_files:
         ev = events(f)
         if not ev:
@@ -141,7 +141,8 @@ def main():
         start = next((e for e in ev if e.get("type") == "run_started"), None)
         fin = next((e for e in reversed(ev) if e.get("type") == "run_finished"), None)
         if start and start.get("task"):
-            outcomes[start["task"]] = (fin.get("result") if fin else "OPEN", f.stem)
+            run_index.append((start["task"], start.get("requirement"),
+                              fin.get("result") if fin else "OPEN", f.stem))
 
     active = current.get("activeRun")
     if active:
@@ -186,10 +187,62 @@ def main():
     # precisely the stale signal this command exists to remove.
     live = (repo / "TASKS.md").read_text() if (repo / "TASKS.md").is_file() else ""
     archived = ""
+    archive_texts = []
     arch_dir = repo / "docs" / "archive"
     if arch_dir.is_dir():
         for a in sorted(arch_dir.glob("*.md")):
-            archived += a.read_text()
+            text = a.read_text()
+            archive_texts.append(text)
+            archived += text
+
+    # A run names a task AND a requirement; matching on the id alone lets one
+    # contract stand as evidence for another that merely shares the number. On
+    # 2026-09-10 another device ran REQ-PUBLIC-UI-QUALITY under TASK-074 and
+    # finished it PASS, then renumbered its own contract in TASKS.md while the
+    # ledger kept the label. TASK-074 here was a different piece of work, read as
+    # finished on evidence that was never about it, and left this list without a
+    # word. Nothing failed; the queue just got shorter, which is the quietest way
+    # for a derived state to be wrong.
+    #
+    # Only a task the records actually declare a requirement for can be judged
+    # this way. An id no record declares cannot mark a contract done, and the
+    # ledger is full of pre-convention ids; treating those as mismatches would
+    # fail honest history.
+    # Deliberately the same record shape, the same bounded window and the same
+    # field-first rule as ai-policy-lint's task_records: if the two disagree
+    # about what a contract declares, the gate can pass while this brief still
+    # draws the wrong conclusion, which is two silences instead of one failure.
+    # The archive is read FILE BY FILE for the same reason — scanning the
+    # concatenation let the last record of one file borrow from the next.
+    # The boundary is the next RECORD, not the next regex hit: a bold bullet
+    # cross-referencing another task is not a record, and treating it as a
+    # boundary truncated a contract's window before its own Requirement.
+    declared_req = {}
+    for text in [live, *archive_texts]:
+        marks = list(re.finditer(r"(?m)^(?:#{2,4}\s+|-\s+\*\*)(TASK-[0-9]+)\s*(.)", text))
+        records = [i for i, m in enumerate(marks) if m.group(2) in ":/(—-"]
+        for pos, i in enumerate(records):
+            m = marks[i]
+            stop = marks[records[pos + 1]].start() if pos + 1 < len(records) else len(text)
+            window = text[m.end():min(m.end() + 400, stop)]
+            field = re.search(r"\*\*Requirement:?\*\*[^A-Za-z0-9]*((?:REQ|AUDIT)-[A-Z0-9-]+)", window)
+            req = field or re.search(r"\b((?:REQ|AUDIT)-[A-Z0-9-]+)", window)
+            if req:
+                declared_req.setdefault(m.group(1), set()).add(req.group(1))
+    live_records = {m.group(1) for m in
+                    re.finditer(r"(?m)^(?:#{2,4}\s+|-\s+\*\*)(TASK-[0-9]+)\s*[:/(—-]", live)}
+
+    outcomes, discounted = {}, {}
+    for task, req, result, stem in run_index:
+        known = declared_req.get(task)
+        if known and req not in known:
+            # A run carrying no requirement at all is discounted too: it cannot
+            # be shown to be about this contract, and accepting it is a free way
+            # around the whole rule.
+            discounted.setdefault(task, []).append(
+                (stem, req or "no requirement", sorted(known)))
+            continue
+        outcomes[task] = (result, stem)
 
     def mentions(text, task):
         # Right-bounded so TASK-02 stops matching TASK-023 — a substring test
@@ -215,9 +268,24 @@ def main():
     # TASK-012 is dormant by design until five delivery records exist, so
     # listing it as ready would be noise dressed as a queue.
     accepted = {t for t in re.findall(r"(?m)^#{2,4}\s+(" + TASK_ID + r")(?![0-9])", live)}
+    # Discounting evidence must not delete the task with it. A contract whose
+    # only runs were discounted has NO run — which is the honest state, and the
+    # one this list exists to surface — so it stays listed rather than vanishing
+    # the way TASK-074 did. Only ids the live file still records qualify: a
+    # discounted run for something TASKS.md no longer mentions is history, and
+    # the discounted list below names it either way.
+    # A record, not a mention. `mentions` is a substring test over the whole
+    # file, so prose about a task — or the same id inside a longer one — would
+    # promote something that was never a task record into a candidate with a
+    # blank title. The test is the same one that decided the task declares a
+    # requirement at all: if its evidence is judged by that record, the record is
+    # what keeps it listed.
+    orphaned = {t for t in discounted
+                if t not in outcomes and t in live_records and t not in retired}
     unfinished = sorted(
         {t for t, (res, _) in outcomes.items() if res != "PASS" and t not in retired}
         | {t for t in accepted if t not in outcomes and t not in retired}
+        | orphaned
     )
     # A dependency is met when its evidence ends in PASS. Two other shapes are
     # neither met nor a reason to deadlock, and saying which is which is the
@@ -263,6 +331,15 @@ def main():
             if t in superseded_dep:
                 print(f"             superseded dependency, not blocking: "
                       f"{', '.join(superseded_dep[t])}")
+    if discounted:
+        # Silently ignoring evidence fails the same way as silently accepting
+        # it, pointed the other way, so every discounted run is named.
+        print("\nRuns discounted — the id matches, the requirement does not:")
+        for t, rows in sorted(discounted.items()):
+            for stem, req, known in rows:
+                print(f"  {t:<10} {stem} records {req}; the contract declares "
+                      f"{', '.join(known)}")
+    if unfinished:
         ready = [t for t in unfinished if t not in blocked_by]
         print(f"\n{len(ready)} ready to start, {len(blocked_by)} waiting on a dependency.")
         print("These are the resume candidates. Repository evidence decides, not memory.")

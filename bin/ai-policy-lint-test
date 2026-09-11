@@ -245,6 +245,155 @@ with tempfile.TemporaryDirectory() as raw:
 print("template-binding probe: OK")
 PY
 
+# ── Ledger task binding ─────────────────────────────────────────────────────
+# A run is evidence for a contract only if it names that contract's work.
+# Matching on the id alone let another device's REQ-PUBLIC-UI-QUALITY run under
+# TASK-074 mark an unrelated TASK-074 finished, which removed it from the queue
+# without failing anything.
+python3 - "$LINT" <<'PYLEDGER'
+import importlib.machinery, importlib.util, json, pathlib, sys, tempfile
+
+loader = importlib.machinery.SourceFileLoader("ledger_probe", sys.argv[1])
+spec = importlib.util.spec_from_loader(loader.name, loader)
+mod = importlib.util.module_from_spec(spec)
+loader.exec_module(mod)
+
+
+def run(tasks_md, runs, baseline=None):
+    """Return the errors check_ledger_task_binding reports for a fixture."""
+    with tempfile.TemporaryDirectory() as raw:
+        root = pathlib.Path(raw)
+        (root / "docs" / "archive").mkdir(parents=True)
+        (root / "TASKS.md").write_text(tasks_md)
+        rd = root / ".delivery" / "runs"
+        rd.mkdir(parents=True)
+        for name, events in runs.items():
+            if isinstance(events, str):
+                (rd / name).write_text(events)
+            else:
+                (rd / name).write_text("\n".join(json.dumps(e) for e in events) + "\n")
+        mod.ROOT = root
+        mod.errors, mod.warnings = [], []
+        saved = mod.LEDGER_BINDING_BASELINE
+        if baseline is not None:
+            mod.LEDGER_BINDING_BASELINE = baseline
+        try:
+            mod.check_ledger_task_binding()
+        finally:
+            mod.LEDGER_BINDING_BASELINE = saved
+        return mod.errors
+
+
+CONTRACT = "### TASK-100: a contract\n- **Requirement:** REQ-MINE\n"
+started = lambda task, req: {"type": "run_started", "task": task, "requirement": req}
+
+# The defect itself: a run claims a declared id for other work.
+errs = run(CONTRACT, {"RUN-foreign.jsonl": [started("TASK-100", "REQ-THEIRS")]})
+assert errs, "a run naming a requirement the contract does not declare was accepted"
+blob = "\n".join(errs)
+assert "RUN-foreign.jsonl" in blob, f"the failure does not name the run: {blob}"
+assert "TASK-100" in blob and "REQ-THEIRS" in blob and "REQ-MINE" in blob, \
+    f"the failure does not name both sides: {blob}"
+
+# Matching evidence is left alone.
+assert not run(CONTRACT, {"RUN-ok.jsonl": [started("TASK-100", "REQ-MINE")]}), \
+    "a run naming its own contract's requirement was reported"
+
+# An id no record declares cannot mark a contract done. Fourteen such runs
+# predate the REQ- convention; failing them would fail honest history.
+assert not run(CONTRACT, {"RUN-old.jsonl": [started("TASK-999", "REQ-WHATEVER")]}), \
+    "a run for an id no contract declares was reported"
+
+# The baseline accepts named history and nothing else.
+assert not run(CONTRACT, {"RUN-foreign.jsonl": [started("TASK-100", "REQ-THEIRS")]},
+               baseline={"TASK-100": {"REQ-THEIRS"}}), "the baseline did not accept its own entry"
+assert run(CONTRACT, {"RUN-other.jsonl": [started("TASK-100", "REQ-THIRD")]},
+           baseline={"TASK-100": {"REQ-THEIRS"}}), \
+    "the baseline accepted a requirement it does not name"
+
+# A record whose requirement sits several lines below its heading still counts,
+# so a contract is never treated as undeclared because of its layout.
+spaced = "### TASK-100: a contract\n- **Risk Level:** R2\n- **Requirement:** REQ-MINE\n"
+assert run(spaced, {"RUN-foreign.jsonl": [started("TASK-100", "REQ-THEIRS")]}), \
+    "a requirement below other fields was not read, so the collision was missed"
+
+# Not knowing is a third answer: an unreadable run is reported, never skipped.
+errs = run(CONTRACT, {"RUN-broken.jsonl": "{not json\n"})
+assert errs and "RUN-broken.jsonl" in "\n".join(errs), \
+    "an unreadable run file was silently skipped"
+
+# A repository with no ledger passes rather than erroring.
+with tempfile.TemporaryDirectory() as raw:
+    root = pathlib.Path(raw)
+    (root / "docs" / "archive").mkdir(parents=True)
+    (root / "TASKS.md").write_text(CONTRACT)
+    mod.ROOT, mod.errors, mod.warnings = root, [], []
+    mod.check_ledger_task_binding()
+    assert not mod.errors, "a repository with no .delivery/runs was reported as broken"
+
+
+# A record with no Requirement field must not borrow the next record's. The
+# window used to be a flat 400 characters, so a second record for the same id —
+# "- **TASK-100 (original)**", the shape the archive is full of — widened that
+# id's declared set with its neighbour's requirement, and a foreign run then
+# matched. That is the TASK-074 defect again, reached by field ordering.
+BLEED = (
+    "### TASK-100: a contract\n- **Requirement:** REQ-MINE\n\n"
+    "- **TASK-100 (original)** superseded\n\n"
+    "### TASK-101: neighbour\n- **Requirement:** REQ-NEIGHBOR\n"
+)
+borrowed = [r for t, r in mod.task_records(BLEED) if t == "TASK-100"]
+assert "REQ-MINE" in borrowed, f"the fixture lost its own requirement: {borrowed}"
+assert "REQ-NEIGHBOR" not in borrowed, \
+    f"a record with no requirement borrowed the next record's: {borrowed}"
+errs = run(BLEED, {"RUN-bleed.jsonl": [started("TASK-100", "REQ-NEIGHBOR")]})
+assert errs, "a run carrying the NEIGHBOUR's requirement was accepted as evidence"
+
+# A run naming no requirement cannot be bound to the contract it claims, and
+# skipping it quietly is a free way around this entire check.
+for empty in ({"type": "run_started", "task": "TASK-100"},
+              {"type": "run_started", "task": "TASK-100", "requirement": None}):
+    errs = run(CONTRACT, {"RUN-noreq.jsonl": [empty]})
+    assert errs and "no requirement" in "\n".join(errs), \
+        f"a run with no requirement was accepted against a declared contract: {errs}"
+
+
+# A bold bullet that merely CROSS-REFERENCES another task is not a record, and
+# must not bound the window of the contract it sits inside. Treating every regex
+# hit as a boundary truncated a contract before its own Requirement field: the
+# contract then declared nothing, became exempt, and a foreign run passed
+# unnoticed — the same silent false completion, reached by ordinary prose.
+CROSSREF = (
+    "### TASK-100: mentions another task first\n"
+    "- **Risk Level:** R2\n"
+    "- **TASK-050 remains blocked pending this work; tracked separately.**\n"
+    "- **Requirement:** REQ-MINE\n"
+)
+assert dict(mod.task_records(CROSSREF)).get("TASK-100") == "REQ-MINE", \
+    f"a bold cross-reference truncated the contract's own window: {list(mod.task_records(CROSSREF))}"
+errs = run(CROSSREF, {"RUN-foreign.jsonl": [started("TASK-100", "REQ-UNRELATED")]})
+assert errs, "a contract whose window was truncated became exempt and took a foreign run"
+
+# An explicit Requirement FIELD outranks a requirement named in passing before
+# it, so prose cannot quietly redefine what a contract declares.
+INPASSING = (
+    "### TASK-100: names another requirement in passing\n"
+    "- **Runtime Evidence:** supersedes the REQ-OLD work.\n"
+    "- **Requirement:** REQ-MINE\n"
+)
+assert dict(mod.task_records(INPASSING)).get("TASK-100") == "REQ-MINE", \
+    f"a requirement mentioned in passing displaced the declared field: {list(mod.task_records(INPASSING))}"
+
+# A bullet record still carries its requirement inline, with no field to find.
+assert dict(mod.task_records("- **TASK-100 / REQ-INLINE — done.**\n")).get("TASK-100") == "REQ-INLINE", \
+    "a bullet record lost its inline requirement when the field rule was added"
+
+print("ledger-binding probe: OK")
+PYLEDGER
+
+echo "ai-policy-lint-test: ledger task binding PASS"
+
+
 echo "ai-policy-lint-test: task contracts PASS"
 
 

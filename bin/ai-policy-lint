@@ -473,11 +473,26 @@ def task_records(text):
     # "## TASK-015 decisions" is prose ABOUT a task in a build log, and counting it
     # as a record made the check report three hazards that were only its own
     # definition being too loose.
-    for m in re.finditer(r"(?m)^(?:#{2,4}\s+|-\s+\*\*)(TASK-[0-9]+)\s*(.)", text):
-        if m.group(2) not in ":/(—-":
-            continue
-        window = text[m.end():m.end() + 400]
-        req = re.search(r"\b((?:REQ|AUDIT)-[A-Z0-9-]+)", window)
+    # The window stops at the next RECORD, not at the next regex hit. `marks`
+    # holds every hit, including bold bullets that merely cross-reference a task
+    # — "- **TASK-050 remains blocked pending this.**" — which the punctuation
+    # filter rejects as records. Using those as boundaries truncated a contract's
+    # window before its own Requirement field, so the contract declared nothing,
+    # became exempt, and a foreign run passed unnoticed: the TASK-074 defect
+    # again, reached this time by ordinary prose. Found by review of the fix that
+    # introduced it.
+    #
+    # An explicit Requirement FIELD wins over the first REQ- token in the window,
+    # so a requirement named in passing before the field cannot displace it.
+    # Bullet records carry theirs inline and fall back to the token.
+    marks = list(re.finditer(r"(?m)^(?:#{2,4}\s+|-\s+\*\*)(TASK-[0-9]+)\s*(.)", text))
+    records = [i for i, m in enumerate(marks) if m.group(2) in ":/(—-"]
+    for pos, i in enumerate(records):
+        m = marks[i]
+        stop = marks[records[pos + 1]].start() if pos + 1 < len(records) else len(text)
+        window = text[m.end():min(m.end() + 400, stop)]
+        field = re.search(r"\*\*Requirement:?\*\*[^A-Za-z0-9]*((?:REQ|AUDIT)-[A-Z0-9-]+)", window)
+        req = field or re.search(r"\b((?:REQ|AUDIT)-[A-Z0-9-]+)", window)
         yield m.group(1), (req.group(1) if req else None)
 
 
@@ -537,6 +552,93 @@ def check_task_id_uniqueness():
     else:
         print(f"  OK  task id uniqueness: {len(seen)} number(s), "
               f"{len(TASK_ID_BASELINE)} accepted collision(s) in the baseline")
+
+
+# Seven runs predate this check and name a requirement their contract does not
+# declare. They are kept, not repaired: renumbering a historical run would
+# falsify evidence to quiet a lint, which is the inversion this whole gate
+# exists to prevent. The eighth is what the check is for.
+LEDGER_BINDING_BASELINE = {
+    "TASK-024": {"REQ-OMP-AUTO-ORCHESTRATION"},
+    "TASK-033": {"REQ-DEV-READINESS"},
+    "TASK-059": {"REQ-SKILL-SURFACE"},
+    "TASK-063": {"REQ-TEST-PORTABILITY"},
+    "TASK-073": {"REQ-CROSS-MODEL-LANGUAGE"},
+}
+
+
+def check_ledger_task_binding():
+    """A run is evidence for a contract only if it names that contract's work.
+
+    check_task_id_uniqueness compares task records to each other, so it sees a
+    number reused between TASKS.md and the archive. It cannot see one reused
+    between the LEDGER and those files. On 2026-09-10 another device ran
+    REQ-PUBLIC-UI-QUALITY under TASK-074, finished it PASS, then renumbered its
+    own contract to TASK-079 while the ledger kept the label. resume-brief
+    matches runs to tasks by id, so a different TASK-074 was read as finished on
+    evidence that was never about it and left the queue without a word. Nothing
+    failed. A queue just got shorter.
+
+    Only ids the task records declare a requirement for are judged. An id no
+    record claims cannot mark a contract done, and fourteen runs use
+    pre-convention ids; failing those would fail honest history and teach
+    everyone to switch this off.
+    """
+    runs_dir = ROOT / ".delivery" / "runs"
+    if not runs_dir.is_dir():
+        print("  OK  ledger task binding: no .delivery/runs to check")
+        return
+
+    declared = {}
+    for f in [ROOT / "TASKS.md", *sorted((ROOT / "docs" / "archive").glob("*.md"))]:
+        if f.is_file():
+            for task, req in task_records(f.read_text(encoding="utf-8")):
+                if req:
+                    declared.setdefault(task, set()).add(req)
+
+    problems, checked = [], 0
+    for f in sorted(runs_dir.glob("*.jsonl")):
+        start = None
+        try:
+            for line in f.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                ev = json.loads(line)
+                if ev.get("type") == "run_started":
+                    start = ev
+                    break
+        except (OSError, ValueError):
+            problems.append(f"{f.name} is unreadable, so its task binding cannot be checked")
+            continue
+        if not start:
+            continue
+        task, req = start.get("task"), start.get("requirement")
+        if not task:
+            continue
+        known = declared.get(task)
+        if not known:
+            continue
+        if not req:
+            # Not knowing is a third answer. A run with no requirement cannot be
+            # bound to the contract it claims, and skipping it quietly is a free
+            # way around this whole check.
+            problems.append(
+                f"{f.name} records {task} with no requirement, so it cannot be bound "
+                f"to the contract that declares {', '.join(sorted(known))}")
+            continue
+        checked += 1
+        if req in known or req in LEDGER_BINDING_BASELINE.get(task, set()):
+            continue
+        problems.append(
+            f"{f.name} records {task} as {req}, but the contract for {task} declares "
+            f"{', '.join(sorted(known))} — that run is evidence for other work and "
+            f"resume-brief would read {task} as finished")
+
+    if problems:
+        err("ledger runs are bound to the wrong task:\n  " + "\n  ".join(problems))
+    else:
+        print(f"  OK  ledger task binding: {checked} run(s) matched to a declared "
+              f"contract, {len(LEDGER_BINDING_BASELINE)} baselined id(s)")
 
 
 def check_task_dependencies():
@@ -753,6 +855,7 @@ def main():
     check_skill_routing_graph()
     check_command_manifest()
     check_task_id_uniqueness()
+    check_ledger_task_binding()
     check_task_dependencies()
     run_canonical_gate("memory and Markdown links", [ROOT / "bin" / "ai-memory-check", ROOT])
     run_canonical_gate("memory hygiene regression", [ROOT / "bin" / "ai-memory-hygiene-test", ROOT])
