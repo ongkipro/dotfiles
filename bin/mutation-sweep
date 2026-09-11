@@ -196,10 +196,108 @@ is_equivalent_mutant() { # is_equivalent_mutant <name> <line>
   printf '%s\n' "$EQUIVALENT_MUTANTS" | grep -q "^$1:$2 "
 }
 
+# A guard-shaped LINE is not the same thing as a guard. `if x > 0:` inside a
+# docstring is documentation: mutating it changes nothing, and reporting the
+# survivor sends whoever closes gaps chasing prose. `exit 124;` inside the
+# quoted Perl program in run_bounded is the opposite — real code, in a language
+# these operators do not speak, rewritten by bash's own rule. One defect wears
+# two faces, so each language answers with its own instrument.
+#
+# Python answers with its own parser. That is the dependency the contract names:
+# a subject its interpreter cannot parse becomes UNMEASURABLE rather than merely
+# under-measured, so the failure is reported by name instead of being guessed at.
+python_statements() { # python_statements <file> -> "guard|refuse <line>" per line
+  local py; py="$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)"
+  [ -n "$py" ] || return 2
+  "$py" - "$1" 2>/dev/null <<'PYSTMT'
+import ast, sys
+tree = ast.parse(open(sys.argv[1], encoding="utf-8", errors="replace").read())
+seen = set()
+for node in ast.walk(tree):
+    if isinstance(node, ast.If):
+        seen.add(("guard", node.lineno))
+    elif isinstance(node, ast.Call) and node.args:
+        f = node.func
+        name = getattr(f, "attr", None) or getattr(f, "id", None)
+        arg = node.args[0]
+        if name in ("exit", "SystemExit") and isinstance(arg, ast.Constant) \
+                and isinstance(arg.value, int) and arg.value != 0:
+            seen.add(("refuse", node.lineno))
+for kind, line in sorted(seen, key=lambda x: x[1]):
+    print(kind, line)
+PYSTMT
+}
+
+# Bash answers in bash, deliberately. Reaching for python here would make every
+# bash subject unmeasurable on a machine without it — trading a narrow blind
+# spot for a wide one. This tracks heredocs and multi-line quoted strings, which
+# is where embedded programs actually live in this repository.
+bash_embedded() { # bash_embedded <file> -> line numbers inside a heredoc or quote
+  local n=0 delims="" q="" line stripped qscan trimmed scan rest hit first
+  while IFS= read -r line || [ -n "$line" ]; do
+    n=$((n + 1))
+    { [ -n "$delims" ] || [ -n "$q" ]; } && printf '%s\n' "$n"
+    if [ -n "$delims" ]; then
+      trimmed="$(printf '%s' "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+      first="${delims# }"; first="${first%% *}"
+      if [ "$trimmed" = "$first" ]; then
+        delims="${delims# }"
+        case "$delims" in *" "*) delims=" ${delims#* }" ;; *) delims="" ;; esac
+      fi
+      continue
+    fi
+    stripped="$(printf '%s' "$line" | sed 's/\\.//g')"
+    # Closing an open quote comes BEFORE the comment test. A continuation line
+    # that starts with `#` is text inside the string, not a comment, and skipping
+    # it left the quote open forever — every guard after it was then reported
+    # EMBEDDED, which removes coverage instead of adding honesty.
+    if [ -n "$q" ]; then
+      case "$stripped" in *"$q"*) q="" ;; esac
+      continue
+    fi
+    # First non-blank character, not "contains a #": the loose glob skipped any
+    # line with a trailing comment, and skipping a line means its quotes never
+    # update, which desynchronises everything after it.
+    case "$(printf '%s' "$line" | sed 's/^[[:space:]]*//')" in \#*) continue ;; esac
+    # Escapes are already gone; remove BALANCED quotes and what survives is an
+    # opener without a partner, which is what carries the string onto the next
+    # line. A quote decided here WINS over any heredoc opener on the same line,
+    # because `msg='start <<EOF` is a string containing the text `<<EOF`, which
+    # is what bash itself does with it.
+    qscan="$(printf '%s' "$stripped" | sed -e 's/"[^"]*"//g' -e "s/'[^']*'//g")"
+    case "$qscan" in
+      *\'*) q="'"; continue ;;
+      *\"*) q='"'; continue ;;
+    esac
+    # `<<<` is a here-STRING, not a heredoc, and reading it as one swallowed the
+    # rest of the file: `done <<< "$targets"` opened a region that never closed.
+    # Blanking it first also lets a real heredoc on the same line still be seen.
+    #
+    # Then unwrap the DELIMITER's own quoting — `<<'EOF'`, `<<"EOF"`, `<<\EOF`
+    # all name the same heredoc — before removing balanced quoted spans. Order
+    # matters both ways: scanning the raw line made `echo 'see <<EOF here'` open
+    # a heredoc that never closed, so every guard after a usage string was
+    # dropped from coverage; removing quotes first would have eaten `<<'EOF'`.
+    scan="${line//<<</§}"
+    scan="$(printf '%s' "$scan" | sed -E 's/<<(-?)[[:space:]]*[\\'\''"]?([A-Za-z_][A-Za-z0-9_]*)['\''"]?/<<\1\2/g')"
+    scan="$(printf '%s' "$scan" | sed -e 's/"[^"]*"//g' -e "s/'[^']*'//g")"
+    rest="$scan"
+    # Every opener on the line, not just the first: `cat <<A <<B` opens two, and
+    # stopping at one left B's body to be read as bash. They close in the order
+    # they were opened, which is what bash does.
+    while [[ "$rest" =~ \<\<(-?)([A-Za-z_][A-Za-z0-9_]*) ]]; do
+      delims="$delims ${BASH_REMATCH[2]}"
+      hit="${BASH_REMATCH[0]}"
+      rest="${rest#*"$hit"}"
+    done
+    [ -n "$delims" ] && continue
+  done < "$1"
+}
+
 mutate_one() {
   local name="$1"
   local subject="$ROOT/bin/$name" test="$ROOT/bin/$name-test"
-  local killed=0 survived=0 total=0
+  local killed=0 survived=0 total=0 unreached=0 inline_unreached=0
 
   # Two operators, in whichever language the subject is written: guard-off turns
   # a branch condition false, refusal-off turns a non-zero exit into zero. The
@@ -223,28 +321,68 @@ mutate_one() {
   # substring it happens to contain. Dispatching on `*exit*` sent
   # `if msg == "call sys.exit(1) to quit":` — a guard header — down the refusal
   # branch, which then rewrote the string literal and never tried guard-off on it.
-  local guard_re="" refuse_re="" target_re=""
+  local guard_re="" refuse_re=""
   case "$lang" in
     bash)   guard_re='^[[:space:]]*(if|elif)[[:space:]].*;[[:space:]]*then[[:space:]]*$'
             refuse_re='^[[:space:]]*exit[[:space:]]+[1-9]' ;;
-    python) guard_re='^[[:space:]]*(if|elif)[[:space:]].*:[[:space:]]*$'
-            refuse_re='^[[:space:]]*(sys\.exit|raise[[:space:]]+SystemExit)\([1-9]' ;;
+    python) guard_re='^[[:space:]]*(if|elif)[[:space:]].*:' ;;
   esac
-  [ -n "$guard_re" ] && target_re="$guard_re|$refuse_re"
 
-  # Guard-shaped and refusal-shaped lines only, comments excluded. Line numbers
-  # come from the real file so a report points at something a reader can open.
-  local targets=""
-  [ -n "$target_re" ] && targets="$(grep -nE "$target_re" \
-    "$subject" | grep -vE '^[0-9]+:[[:space:]]*#' | head -n "$MAX_MUTANTS")"
-  # A subject in a language with no shapes defined yields no targets, and
-  # reporting that as "0 survived" would read as full coverage — the same shape
-  # of lie as a gate that judged nothing and printed PASS. Count it as
-  # unmeasured and say which language it was.
-  if [ -z "$targets" ]; then
-    rows+=("UNMEASURED|$name|no guard or refusal line matched; the operators have no shapes for $(head -1 "$subject" | sed 's|.*/||')")
+  # Entries are "kind|line|text". Which operator a line gets is decided by what
+  # the line IS, never by what substring it contains: dispatching on `*exit*`
+  # once sent the guard header `if msg == "call sys.exit(1) to quit":` down the
+  # refusal branch, which rewrote its string literal and never tried guard-off.
+  local targets="" matched=0 kind ln text embedded stmts rc
+  case "$lang" in
+    python)
+      stmts="$(python_statements "$subject")"; rc=$?
+      if [ "$rc" -eq 2 ]; then
+        rows+=("UNMEASURED|$name|python subject and no python on PATH to parse it, so a guard cannot be told from a docstring")
+        unmeasured=$((unmeasured+1)); return
+      elif [ "$rc" -ne 0 ]; then
+        rows+=("UNMEASURED|$name|its own interpreter cannot parse it, so nothing here can say which lines are code")
+        unmeasured=$((unmeasured+1)); return
+      fi
+      while read -r kind ln; do
+        [ -n "$ln" ] || continue
+        matched=$((matched + 1))
+        [ "$matched" -gt "$MAX_MUTANTS" ] && break
+        text="$(sed -n "${ln}p" "$subject")"
+        targets="$targets$kind|$ln|$text
+"
+      done <<< "$stmts"
+      ;;
+    bash)
+      embedded="$(bash_embedded "$subject")"
+      while IFS= read -r entry; do
+        [ -n "$entry" ] || continue
+        ln="${entry%%:*}"; text="${entry#*:}"
+        matched=$((matched + 1))
+        [ "$matched" -gt "$MAX_MUTANTS" ] && break
+        # Real code, in a language these operators do not speak. Mutating it by
+        # bash's rule and reporting the verdict as bash's would be the host
+        # language quietly answering for a guest; saying it is out of reach is
+        # the honest third answer, and it fails the run like any other.
+        if printf '%s\n' "$embedded" | grep -qx "$ln"; then
+          rows+=("EMBEDDED|$name|bin/$name:$ln sits inside a heredoc or quoted string: $(printf '%s' "$text" | sed 's/^[[:space:]]*//')")
+          unmeasured=$((unmeasured+1)); continue
+        fi
+        if printf '%s\n' "$text" | grep -qE "$guard_re"; then kind=guard; else kind=refuse; fi
+        targets="$targets$kind|$ln|$text
+"
+      done <<< "$(grep -nE "$guard_re|$refuse_re" "$subject" | grep -vE '^[0-9]+:[[:space:]]*#')"
+      ;;
+  esac
+
+  # A subject in a language with no shapes defined yields nothing, and reporting
+  # that as "0 survived" would read as full coverage — the same shape of lie as a
+  # gate that judged nothing and printed PASS. A subject whose every target was
+  # out of reach is already reported line by line and must not be counted twice.
+  if [ "$matched" -eq 0 ]; then
+    rows+=("UNMEASURED|$name|no guard or refusal statement found; the operators have no shapes for $(head -1 "$subject" | sed 's|.*/||')")
     unmeasured=$((unmeasured+1)); return
   fi
+  [ -n "$targets" ] || return
 
   local scratch="$WORK/mut-$name"
   rm -rf "$scratch"; mkdir -p "$scratch"
@@ -265,15 +403,18 @@ mutate_one() {
     errored=$((errored+1)); return
   fi
 
-  local line_no line_text op mutated
+  local line_no line_text op mutated rest
   while IFS= read -r entry; do
     [ -n "$entry" ] || continue
-    line_no="${entry%%:*}"; line_text="${entry#*:}"
-    if printf '%s\n' "$line_text" | grep -qE "$guard_re"; then
+    kind="${entry%%|*}"; rest="${entry#*|}"
+    line_no="${rest%%|*}"; line_text="${rest#*|}"
+    if [ "$kind" = guard ]; then
       op="guard-off"
       case "$lang" in
         bash)   mutated="$(printf '%s' "$line_text" | sed -E 's/^([[:space:]]*)(if|elif)[[:space:]].*;[[:space:]]*then[[:space:]]*$/\1\2 false; then/')" ;;
-        python) mutated="$(printf '%s' "$line_text" | sed -E 's/^([[:space:]]*)(if|elif)[[:space:]].*:[[:space:]]*$/\1\2 False:/')" ;;
+        # The trailing-comment form is the common one — `if x:  # type: ignore`
+        # — and anchoring on the colon being last never reached it.
+        python) mutated="$(printf '%s' "$line_text" | sed -E 's/^([[:space:]]*)(if|elif)[[:space:]].*:([[:space:]]*#.*)?$/\1\2 False:/')" ;;
       esac
     else
       op="refusal-off"
@@ -282,7 +423,20 @@ mutate_one() {
         python) mutated="$(printf '%s' "$line_text" | sed -E 's/(sys\.exit|SystemExit)\([1-9][0-9]*\)/\1(0)/')" ;;
       esac
     fi
-    [ "$mutated" = "$line_text" ] && continue
+    # The rewrite is line-based and the parser is not: a guard whose condition
+    # spans several lines is a guard this tool knows about and cannot reach.
+    # Counting it as nothing would round "unmeasured" down to "covered", which is
+    # the one answer this sweep exists to refuse.
+    if [ "$mutated" = "$line_text" ]; then
+      # Two different shapes land here and they deserve different words: a true
+      # count with a false explanation is how a report starts being read past.
+      if printf '%s\n' "$line_text" | grep -qE '^[[:space:]]*(if|elif)[[:space:]].*:[[:space:]]*[^[:space:]#]'; then
+        inline_unreached=$((inline_unreached+1))
+      else
+        unreached=$((unreached+1))
+      fi
+      continue
+    fi
     total=$((total+1))
     cp "$subject" "$scratch/bin/$name"
     awk -v n="$line_no" -v repl="$mutated" 'NR==n{print repl; next}{print}' \
@@ -300,7 +454,23 @@ mutate_one() {
     fi
   done <<< "$targets"
 
-  if if [ "$MODE" = subject ]; then [ "$survived_total" -eq 0 ] && [ "$errored" -eq 0 ]; else [ "$survived" -eq 0 ]; fi; then
+  local why=""
+  [ "$unreached" -gt 0 ] && why="$unreached guard(s) whose condition spans several lines"
+  if [ "$inline_unreached" -gt 0 ]; then
+    [ -n "$why" ] && why="$why and "
+    why="$why$inline_unreached with a body on the same line as the \`if\`"
+  fi
+  unreached=$((unreached + inline_unreached))
+  if [ "$unreached" -gt 0 ]; then
+    rows+=("UNREACHED|$name|$why; the rewrite is line-based and cannot change them")
+    unmeasured=$((unmeasured+1))
+  fi
+  # A subject with guards this tool could not reach is not fully covered, and
+  # printing KILLED beside its own UNREACHED row would be the report arguing with
+  # itself. (The subject-mode condition still reads the RUN totals rather than
+  # this subject's — TASK-075, left alone here on purpose.)
+  if [ "$unreached" -eq 0 ] \
+     && if [ "$MODE" = subject ]; then [ "$survived_total" -eq 0 ] && [ "$errored" -eq 0 ]; else [ "$survived" -eq 0 ]; fi; then
     rows+=("KILLED|$name|$killed/$total mutants noticed")
     bites=$((bites+1))
   fi

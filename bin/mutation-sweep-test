@@ -318,6 +318,312 @@ printf '%s' "$OUTN" | grep -q 'node' \
 [ "$rcn" -ne 0 ] && ok "and unmeasured fails the run rather than passing quietly" \
   || fail "unmeasured exited 0"
 
+# ── A guard-shaped line is not a guard ──────────────────────────────────────
+# Python answers with its own parser, so documentation stops being mutated as
+# code and a guard carrying a trailing comment stops being invisible.
+cat > "$MFIX/bin/pydoc" <<'EOF'
+#!/usr/bin/env python3
+import sys
+
+def helper(x):
+    """Example:
+
+    if x > 0:
+        return True
+    """
+    return x > 0
+
+if len(sys.argv) > 1:
+    print("branch")
+EOF
+printf '#!/usr/bin/env bash\nR="${1:?}"\n"$R/bin/pydoc" >/dev/null 2>&1 || exit 1\n' > "$MFIX/bin/pydoc-test"
+
+cat > "$MFIX/bin/pycomment" <<'EOF'
+#!/usr/bin/env python3
+import sys
+if len(sys.argv) > 1:  # a trailing comment, the common idiom
+    print("loud")
+EOF
+printf '#!/usr/bin/env bash\nR="${1:?}"\n"$R/bin/pycomment" >/dev/null 2>&1 || exit 1\n' > "$MFIX/bin/pycomment-test"
+
+printf '#!/usr/bin/env python3\ndef broken(\n' > "$MFIX/bin/pybroken"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$MFIX/bin/pybroken-test"
+
+# An `exit N` inside a quoted program in another language is real code these
+# operators do not speak. Rewriting it by bash's rule and reporting the verdict
+# as bash's is the host language answering for a guest.
+cat > "$MFIX/bin/bashembed" <<'EOF'
+#!/usr/bin/env bash
+run_it() {
+  perl -e '
+    exit 3;
+  ' "$@"
+}
+if [ "${1:-}" = go ]; then
+  echo went
+fi
+exit 0
+EOF
+printf '#!/usr/bin/env bash\nR="${1:?}"\n"$R/bin/bashembed" >/dev/null 2>&1 || exit 1\n' > "$MFIX/bin/bashembed-test"
+
+# `<<<` is a here-STRING. Reading it as a heredoc opened a region that never
+# closed and swallowed every guard after it, which would have read as coverage.
+cat > "$MFIX/bin/herestring" <<'EOF'
+#!/usr/bin/env bash
+read -r x <<< "hello"
+if [ "$x" = hello ]; then
+  echo yes
+fi
+exit 0
+EOF
+printf '#!/usr/bin/env bash\nR="${1:?}"\n"$R/bin/herestring" >/dev/null 2>&1 || exit 1\n' > "$MFIX/bin/herestring-test"
+
+# A line that OPENS a quoted string and also contains a `#`. Treating any line
+# with a `#` in it as a comment skipped it, so the quote never opened and the
+# code inside the string was mutated as if it were bash.
+cat > "$MFIX/bin/hashquote" <<'EOF'
+#!/usr/bin/env bash
+emit() {
+  msg='start # not a comment
+exit 5
+'
+  printf '%s' "$msg" >/dev/null
+}
+emit
+exit 0
+EOF
+printf '#!/usr/bin/env bash\nR="${1:?}"\n"$R/bin/hashquote" >/dev/null 2>&1 || exit 1\n' > "$MFIX/bin/hashquote-test"
+
+chmod +x "$MFIX"/bin/pydoc "$MFIX"/bin/pydoc-test "$MFIX"/bin/pycomment "$MFIX"/bin/pycomment-test \
+         "$MFIX"/bin/pybroken "$MFIX"/bin/pybroken-test "$MFIX"/bin/bashembed "$MFIX"/bin/bashembed-test \
+         "$MFIX"/bin/herestring "$MFIX"/bin/herestring-test "$MFIX"/bin/hashquote "$MFIX"/bin/hashquote-test
+git -C "$MFIX" add -A >/dev/null
+git -C "$MFIX" -c user.email=t@t -c user.name=t commit -qm text-vs-code >/dev/null
+
+OUTD="$(msweep pydoc)"
+printf '%s' "$OUTD" | grep -q 'pydoc:7' \
+  && fail "a guard-shaped line inside a docstring was mutated as code: $(printf '%s' "$OUTD" | head -2 | tr '\n' ' ')" \
+  || ok "a guard-shaped line inside a docstring is not a target"
+printf '%s' "$OUTD" | grep -q 'pydoc:12' \
+  && ok "and the real guard below it still is" \
+  || fail "the real guard was lost with the docstring: $(printf '%s' "$OUTD" | head -2 | tr '\n' ' ')"
+
+OUTC="$(msweep pycomment)"
+printf '%s' "$OUTC" | grep -q 'pycomment:3 guard-off' \
+  && ok "a python guard carrying a trailing comment is reached" \
+  || fail "the trailing-comment guard was not reported: $(printf '%s' "$OUTC" | head -2 | tr '\n' ' ')"
+
+OUTPB="$(msweep pybroken)"; rcpb=$?
+printf '%s' "$OUTPB" | grep -q 'UNMEASURED' \
+  && ok "a python subject its own interpreter cannot parse is UNMEASURED" \
+  || fail "an unparseable python subject was not reported unmeasured"
+printf '%s' "$OUTPB" | grep -q 'cannot parse' \
+  && ok "and says that is why, rather than blaming the language" \
+  || fail "the unparseable report does not say why"
+[ "$rcpb" -ne 0 ] && ok "and it fails the run" || fail "an unparseable subject exited 0"
+
+OUTE="$(msweep bashembed)"
+printf '%s' "$OUTE" | grep -q 'EMBEDDED.*bashembed:4' \
+  && ok "code inside a quoted foreign program is reported out of reach" \
+  || fail "the embedded refusal was not reported: $(printf '%s' "$OUTE" | head -3 | tr '\n' ' ')"
+printf '%s' "$OUTE" | grep -q 'SURVIVED.*bashembed:4' \
+  && fail "the embedded line was also mutated as bash" \
+  || ok "and is not mutated as the host language"
+printf '%s' "$OUTE" | grep -q 'bashembed:7' \
+  && ok "while the real bash guard after it is still reached" \
+  || fail "the scanner swallowed the code after the quoted program"
+
+OUTHS="$(msweep herestring)"
+printf '%s' "$OUTHS" | grep -q 'SURVIVED.*herestring:3 guard-off' \
+  && ok "a here-string is not read as a heredoc" \
+  || fail "a <<< here-string swallowed the guard after it: $(printf '%s' "$OUTHS" | head -3 | tr '\n' ' ')"
+
+OUTHQ="$(msweep hashquote)"
+printf '%s' "$OUTHQ" | grep -q 'EMBEDDED.*hashquote:4' \
+  && ok "a quote opened on a line containing a # still opens" \
+  || fail "a # made the scanner skip the line that opened the string: $(printf '%s' "$OUTHQ" | head -3 | tr '\n' ' ')"
+
+# The parser sees a guard whose condition spans several lines; the rewrite is
+# line-based and cannot touch it. Counting that as nothing rounds "unmeasured"
+# down to "covered", which is the one answer this sweep exists to refuse.
+cat > "$MFIX/bin/pyspan" <<'EOF'
+#!/usr/bin/env python3
+import sys
+if (len(sys.argv) > 1
+        and sys.argv[1] == "go"):
+    print("went")
+EOF
+printf '#!/usr/bin/env bash\nR="${1:?}"\n"$R/bin/pyspan" >/dev/null 2>&1 || exit 1\n' > "$MFIX/bin/pyspan-test"
+chmod +x "$MFIX/bin/pyspan" "$MFIX/bin/pyspan-test"
+git -C "$MFIX" add -A >/dev/null
+git -C "$MFIX" -c user.email=t@t -c user.name=t commit -qm span >/dev/null
+OUTSP="$(msweep pyspan)"; rcsp=$?
+printf '%s' "$OUTSP" | grep -q 'UNREACHED.*pyspan' \
+  && ok "a guard spanning several lines is reported as out of reach" \
+  || fail "a multi-line guard was skipped in silence: $(printf '%s' "$OUTSP" | head -2 | tr '\n' ' ')"
+printf '%s' "$OUTSP" | grep -q 'KILLED.*pyspan' \
+  && fail "a subject with unreachable guards was called fully covered" \
+  || ok "and the subject is not called fully covered beside it"
+[ "$rcsp" -ne 0 ] && ok "and it fails the run" || fail "unreached guards exited 0"
+
+# Three ways a scanner that reads text can be lied to, all found by review of
+# the fix rather than by reading it. Each one either removes coverage silently
+# or hands a foreign program to bash's operators.
+#
+# 1. A continuation line of an open string that begins with `#`. Testing for a
+#    comment before testing whether a string is open skipped it, so the quote
+#    never closed and every guard after it was reported EMBEDDED — coverage
+#    removed, dressed as honesty.
+cat > "$MFIX/bin/hashcont" <<'EOF'
+#!/usr/bin/env bash
+msg="foo
+#not a comment, this line closes the string"
+if [ "${1:-}" = go ]; then
+  echo went
+fi
+exit 0
+EOF
+# 2. `<<\EOF`, the idiomatic "do not expand this body" form — which is exactly
+#    where a foreign program gets embedded — was not recognised as an opener.
+cat > "$MFIX/bin/escdelim" <<'EOF'
+#!/usr/bin/env bash
+cat <<\PERLPROG >/dev/null
+  exit 9
+PERLPROG
+if [ "${1:-}" = go ]; then
+  echo went
+fi
+exit 0
+EOF
+# 3. Two heredocs opened on one line. Only the first delimiter was captured, so
+#    the second body was read as bash.
+cat > "$MFIX/bin/twoheredoc" <<'EOF'
+#!/usr/bin/env bash
+cat <<A <<B >/dev/null
+firstbody
+A
+exit 7
+B
+if [ "${1:-}" = go ]; then
+  echo went
+fi
+exit 0
+EOF
+for f in hashcont escdelim twoheredoc; do
+  printf '#!/usr/bin/env bash\nR="${1:?}"\n"$R/bin/%s" >/dev/null 2>&1 || exit 1\n' "$f" > "$MFIX/bin/$f-test"
+  chmod +x "$MFIX/bin/$f" "$MFIX/bin/$f-test"
+done
+git -C "$MFIX" add -A >/dev/null
+git -C "$MFIX" -c user.email=t@t -c user.name=t commit -qm scanner >/dev/null
+
+OUTHC="$(msweep hashcont)"
+printf '%s' "$OUTHC" | grep -q 'EMBEDDED.*hashcont:4' \
+  && fail "a real guard was removed from coverage by a string that never closed" \
+  || ok "a string closed on a line starting with # stops there"
+printf '%s' "$OUTHC" | grep -q 'SURVIVED.*hashcont:4 guard-off' \
+  && ok "and the guard after it is mutated normally" \
+  || fail "the guard after the string was not reached: $(printf '%s' "$OUTHC" | head -3 | tr '\n' ' ')"
+
+OUTED="$(msweep escdelim)"
+printf '%s' "$OUTED" | grep -q 'EMBEDDED.*escdelim:3' \
+  && ok "a backslash-escaped heredoc delimiter still opens a heredoc" \
+  || fail "<<\\EOF was not recognised, so its body was read as bash: $(printf '%s' "$OUTED" | head -3 | tr '\n' ' ')"
+
+OUTTH="$(msweep twoheredoc)"
+printf '%s' "$OUTTH" | grep -q 'EMBEDDED.*twoheredoc:5' \
+  && ok "both heredocs opened on one line are tracked, in order" \
+  || fail "the second heredoc's body was read as bash: $(printf '%s' "$OUTTH" | head -3 | tr '\n' ' ')"
+printf '%s' "$OUTTH" | grep -q 'SURVIVED.*twoheredoc:7 guard-off' \
+  && ok "and the code after both is still reached" \
+  || fail "the scanner never closed and swallowed the rest"
+
+# The other shape the line-based rewrite cannot change: a body on the SAME line
+# as its `if`. The parser sees a real guard; the rewrite leaves the line alone.
+# Reporting that as "spans more than one line" would be a true count with a
+# false explanation, which is how a report starts being read past.
+cat > "$MFIX/bin/pyinline" <<'EOF'
+#!/usr/bin/env python3
+import sys
+if len(sys.argv) < 2: sys.exit(1)
+print("ok")
+EOF
+printf '#!/usr/bin/env bash\nR="${1:?}"\n"$R/bin/pyinline" go >/dev/null 2>&1 || exit 1\n' > "$MFIX/bin/pyinline-test"
+chmod +x "$MFIX/bin/pyinline" "$MFIX/bin/pyinline-test"
+git -C "$MFIX" add -A >/dev/null
+git -C "$MFIX" -c user.email=t@t -c user.name=t commit -qm inline >/dev/null
+OUTIN="$(msweep pyinline)"
+printf '%s' "$OUTIN" | grep -q 'UNREACHED.*pyinline' \
+  && ok "a guard whose body shares its line is reported as out of reach" \
+  || fail "an inline compound guard was skipped in silence: $(printf '%s' "$OUTIN" | head -2 | tr '\n' ' ')"
+printf '%s' "$OUTIN" | grep -q 'UNREACHED.*pyinline.*span' \
+  && fail "a one-line guard was explained as spanning several lines" \
+  || ok "and is not explained as spanning several lines"
+
+# A `<<NAME` printed inside a string is text, not an opener. Scanning the raw
+# line before removing quoted spans opened a heredoc that never closed, so every
+# guard after a usage message was dropped from coverage — a real guard silently
+# removed, which is worse than the gap this whole task closes.
+cat > "$MFIX/bin/openinstring" <<'EOF'
+#!/usr/bin/env bash
+echo 'usage: cat <<EOF > file' >/dev/null
+if [ "${1:-}" = go ]; then
+  echo went
+fi
+exit 0
+EOF
+# And the reverse: a delimiter carrying its own quotes is still a delimiter, so
+# removing quoted spans must not eat `<<'EOF'`.
+cat > "$MFIX/bin/quoteddelim" <<'EOF'
+#!/usr/bin/env bash
+cat <<'PERLPROG' >/dev/null
+  exit 9
+PERLPROG
+if [ "${1:-}" = go ]; then
+  echo went
+fi
+exit 0
+EOF
+# A string that OPENS on a line also containing `<<NAME`: bash reads the text as
+# part of the string, so the quote has to win.
+cat > "$MFIX/bin/quotewins" <<'EOF'
+#!/usr/bin/env bash
+msg='start <<PERLPROG
+exit 5
+'
+printf '%s' "$msg" >/dev/null
+if [ "${1:-}" = go ]; then
+  echo went
+fi
+exit 0
+EOF
+for f in openinstring quoteddelim quotewins; do
+  printf '#!/usr/bin/env bash\nR="${1:?}"\n"$R/bin/%s" >/dev/null 2>&1 || exit 1\n' "$f" > "$MFIX/bin/$f-test"
+  chmod +x "$MFIX/bin/$f" "$MFIX/bin/$f-test"
+done
+git -C "$MFIX" add -A >/dev/null
+git -C "$MFIX" -c user.email=t@t -c user.name=t commit -qm quoting >/dev/null
+
+OUTOS="$(msweep openinstring)"
+printf '%s' "$OUTOS" | grep -q 'EMBEDDED.*openinstring' \
+  && fail "a <<NAME printed inside a string opened a heredoc: $(printf '%s' "$OUTOS" | head -2 | tr '\n' ' ')" \
+  || ok "a heredoc opener inside a string is text, not an opener"
+printf '%s' "$OUTOS" | grep -q 'SURVIVED.*openinstring:3 guard-off' \
+  && ok "and the guard after it keeps its coverage" \
+  || fail "the guard after the usage string was dropped"
+
+OUTQD="$(msweep quoteddelim)"
+printf '%s' "$OUTQD" | grep -q "EMBEDDED.*quoteddelim:3" \
+  && ok "a delimiter carrying its own quotes is still a delimiter" \
+  || fail "<<'EOF' was eaten with the quoted spans: $(printf '%s' "$OUTQD" | head -2 | tr '\n' ' ')"
+
+OUTQW="$(msweep quotewins)"
+printf '%s' "$OUTQW" | grep -q 'EMBEDDED.*quotewins:3' \
+  && ok "a string opening on the same line as <<NAME wins, as bash reads it" \
+  || fail "the heredoc opener beat the string that contained it: $(printf '%s' "$OUTQW" | head -2 | tr '\n' ' ')"
+printf '%s' "$OUTQW" | grep -q 'SURVIVED.*quotewins:6 guard-off' \
+  && ok "and the string still closes on its own line" \
+  || fail "the string never closed and swallowed the rest"
+
 # A test that reads stdin must not hang the sweep: the runner closes it.
 cat > "$MFIX/bin/asker" <<'EOF'
 #!/usr/bin/env bash

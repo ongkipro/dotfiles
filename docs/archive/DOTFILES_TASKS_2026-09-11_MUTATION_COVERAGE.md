@@ -86,3 +86,56 @@ command; reading the file could not.
   import; a bullet-only record with a discounted run is more visible than one with no run at
   all; and `resume-brief` degrades quietly on an unreadable run file where the lint fails,
   which is the safe direction — a corrupt file can only manufacture a false "still open".
+
+- **TASK-076 / REQ-MUTATION-COVERAGE (R2, reviewed).** A guard-shaped LINE is not a guard.
+  Both patterns matched text without knowing whether it was code, and two different defects
+  hid under that: `if x > 0:` inside a docstring is inert, so mutating it changes nothing and
+  reporting the survivor sends gap-closing work chasing prose; `exit 124;` inside the quoted
+  Perl program in `run_bounded` is real code in a language these operators do not speak,
+  rewritten by bash's own rule. Each language now answers with its own instrument. Python uses
+  its own parser — the dependency the contract named, so a subject its interpreter cannot parse
+  is UNMEASURED by name rather than guessed at. Bash answers in bash, because reaching for
+  python there would make every bash subject unmeasurable on a machine without it: a narrow
+  blind spot traded for a wide one. Measured: the parser finds 748 statements where the regex
+  found 534, of which 541 are rewritable; `ai-memory-access` went from UNMEASURED to 11
+  statements; 4 of 297 bash targets sit inside a heredoc or quoted string — `ai-doctor:75/93`
+  and `mutation-sweep:83/101`, all four the same Perl fallback — now EMBEDDED rather than
+  mutated as bash. Verdicts were proven unmoved rather than assumed: byte-identical reports for
+  `tmux-battery`, `tmux-clip`, `security-check` and `ai-policy-lint`.
+
+  The parser also exposed guards the line-based rewrite cannot touch, which were being skipped
+  in silence — one subject printed `KILLED 1/1` beside eleven guards it had never reached. They
+  are now UNREACHED, they fail the run, and a subject carrying them is not called fully covered.
+  The first count was reported as 207 multi-line conditions and that was wrong: splitting the
+  two shapes apart showed **205 with a body on the same line as the `if`** and **2** whose
+  condition genuinely spans several lines. A true count with a false explanation is how a report
+  starts being read past, so the two are now counted and named separately.
+
+  Writing the bash scanner produced six defects of its own, and every one of them was the
+  scanner being lied to by text it could not tell from code — the same disease as the bug it
+  was written to cure. Two were caught by measuring:
+  `<<<` is a here-STRING, and reading it as a heredoc opened a region that never closed,
+  swallowing every guard after `done <<< "$targets"`; and a comment glob matching any indented
+  line CONTAINING a `#` skipped the line that opened a string. Three more came from independent
+  review, all of them the scanner being lied to by text: a continuation line of an open string
+  that begins with `#` was treated as a comment, so the quote never closed and real guards after
+  it were reported EMBEDDED — coverage removed, dressed as honesty; `<<\EOF`, the idiomatic
+  "do not expand this body" form and therefore exactly where a foreign program gets embedded,
+  was not recognised as an opener at all; `cat <<A <<B` captured only the first delimiter,
+  leaving the second body to be read as bash; and the opener scan ran on the raw line BEFORE
+  quoted spans were removed, so `echo 'usage: cat <<EOF > file'` opened a heredoc that never
+  closed and every guard after a usage message was dropped from coverage. Two of these are the
+  very failure TASK-076 exists to close, reachable through ordinary shell idiom; two remove real
+  coverage while looking like caution, which is the worse direction. The ordering that fixes the
+  last one cuts both ways — removing quotes first would have eaten `<<'EOF'`, so the delimiter's
+  own quoting is unwrapped before quoted spans are stripped, and a string opening on the same
+  line as a `<<NAME` wins, because that is what bash itself does with it.
+
+  Fourteen mechanisms, fourteen hand mutations, fourteen named failures. Three fixtures did not bite
+  and were sharpened rather than kept: the here-string one asserted a line was mentioned, which
+  stayed true when it was mentioned as EMBEDDED; the comment one used an unindented opener the
+  loose glob never matched; and one mutation was invalid rather than survived — replacing
+  `while` with `if` left a dangling `done` and broke the tool outright, which is not evidence
+  of anything. Known limits recorded, not fixed, both TASK-083: `MAX_MUTANTS` caps at 20 and a
+  subject with more guards reports `KILLED 20/20` with the rest neither tested nor named, and
+  `os._exit(N)` is not in the refusal vocabulary.
