@@ -27,7 +27,8 @@ fi
 # such as TOKEN or SECRET. Prefixes are naturally allowed because git grep is not
 # anchored: AWS_SECRET_ACCESS_KEY matches the SECRET_ACCESS_KEY suffix.
 ASSIGNMENT_NAME='(API[_-]?(KEY|TOKEN)|ACCESS[_-]?(KEY|TOKEN)|AUTH[_-]?TOKEN|SECRET([_-]?(ACCESS[_-]?KEY|KEY|TOKEN))?|GITHUB[_-]?TOKEN|NPM[_-]?(AUTH[_-]?)?TOKEN|PASSWORD|PRIVATE[_-]?KEY)'
-PRECISE_PATTERN='(BEGIN (RSA|OPENSSH|DSA|EC|PGP) PRIVATE KEY|ghp_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]+|glpat-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35})'
+# The short sk prefix must start a token, not the suffix of a task identifier.
+PRECISE_PATTERN='(BEGIN (RSA|OPENSSH|DSA|EC|PGP) PRIVATE KEY|ghp_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]+|glpat-[A-Za-z0-9_-]{20,}|(^|[^[:alnum:]_])sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35})'
 ASSIGNMENT_PATTERN="${ASSIGNMENT_NAME}[[:space:]]*=[[:space:]]*[^.\`[:space:]]"
 
 # Placeholders — an assignment whose VALUE is obviously not a real secret.

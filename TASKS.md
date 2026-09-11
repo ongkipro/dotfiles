@@ -17,20 +17,27 @@ _None._
 
 ## Recently completed
 
-- **TASK-072 / REQ-TEST-EFFICACY (R2).** `mutation-sweep --subject <name>` mutates the
-  subject instead of stubbing it, closing the limit recorded on 2026-09-04: stubbing asks
-  whether a test asserts anything, mutating asks whether it would notice a plausible bug,
-  and nine of ten tests passed the stub then fell to a hand mutation days later. Two
-  operators only — a guard that stops firing, a refusal that stops refusing — because every
-  defect found here was one of those two shapes and a wider set produces equivalent mutants
-  that drown the signal. Opt-in and bounded: `ai-policy-lint` takes 14 seconds, so mutating
-  it costs minutes. First run found real gaps — `inspect-project` 5, `dotpush` 8, `tmux-clip`
-  4, `tmux-battery` 4. A subject the bash-shaped operators cannot reach reports UNMEASURED
-  and fails the run; a 0 that means untested must not read as covered. It also checks the
-  test passes UNMUTATED first, because a test already failing makes every mutant look killed.
-  Two pre-existing bugs fixed on the way: the runner captured output through a command
-  substitution, so an orphaned child kept the pipe open and a 2-second bound measured 30
-  seconds; and the mutation runner did not close stdin while the stub runner did.
+### TASK-079: Publish reviewed UI skills after remote integration
+
+- **Requirement:** REQ-UI-SKILL-PUBLISH (user-authorized commit/push).
+- **Risk Level:** R2.
+- **Allowed Paths:** `TASKS.md`, `docs/public-ui-skill-audit.md`; `.delivery/` is ledger-owned.
+- **Canonical Contract Owners:** `skills.publication`.
+- **Accepted Invariants:** Preserve remote records, reviewed UI bytes, local language work, and immutable logs; publish only UI and integration evidence.
+- **Verification:** Policy/skill/security checks, byte preservation, staged scope, independent review, and remote HEAD.
+- **Runtime Evidence:** Existing link/model evidence; no rendered UI claim.
+- **Non-Scope:** Deploy, tags, language-skill publication.
+- **Reopen Conditions:** Lost task/source or unrelated staged content.
+- **Escalation Conditions:** Conflict or failed verification.
+- **Evidence:** `RUN-20260911T041027Z-0f497beb`; ledger determines completion. Historical 073/074 map to 077/078.
+
+- **TASK-078 / REQ-PUBLIC-UI-QUALITY (R3, reviewed).** Framework-neutral UX,
+  reference research, and contextual anti-slop/evidence review. Skill, policy,
+  runtime-link, targeted model cases, and independent review passed.
+  Historical run used TASK-074: `RUN-20260910T184228Z-9eb168f3`.
+  Contract, findings, and log: `docs/public-ui-skill-audit.md`.
+
+Completed TASK-072 record: [retained history](docs/archive/TASKS-074-history.md).
 
 - **TASK-073 / REQ-MUTATION-COVERAGE (R2).** The two operators now have python shapes:
   `if COND:` / `elif COND:` becomes `if False:`, and `sys.exit(N)` / `raise SystemExit(N)`

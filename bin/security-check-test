@@ -51,6 +51,7 @@ cat > "$BAIT_SAFE" <<'EOF'
 TOKEN_COUNT=42
 API_KEY_NAME=primary
 PASSWORD_POLICY=strict
+task-history-preservation
 SECRETARY_EMAIL=person@example.invalid
 CLOUDFLARE_API_TOKEN='token'
 SECRET_KEY="local-secret-key"
@@ -87,6 +88,7 @@ NPM_TOKEN_NAME='NPM_TOKEN'
   printf 'export CLOUDFLARE_%s="8f4a9c2e1b7d3f6a0e5c8b2d4f7a1c9e3b6d"\n' "$KEY"
   printf '%sIOSFODNN7EXAMPLE\n'                        "$AK"
   printf '%s-proj-9x8Kd2mQpR4vT7nZ1aY6cB3eF5gH0jL8wS\n' "$SK"
+  printf '{"credential":"%s-proj-7nZ1aY6cB3eF5gH0jL8wS9x8Kd2mQpR4vT"}\n' "$SK"
   printf 'DB_%s=Sup3rS3cret!Prod2026\n'                "$PW"
   printf -- '-----%s OPENSSH PRIVATE KEY-----\n'       "$BEG"
   printf 'AWS_%s=aws-v1-7d3f9a2c\n'                    "$SECRET_ACCESS_KEY_NAME"
@@ -101,7 +103,7 @@ NPM_TOKEN_NAME='NPM_TOKEN'
   printf '%s-proj-2mQ8vT4nZ7aY1cB6eF3gH9jL5wS0kD TURNSTILE_%s=1x0000000000000000000000000000000AA\n' "$SK" "$SECRET_KEY_NAME"
 } > "$BAIT"
 git add -f "$BAIT" >/dev/null 2>&1
-want=14
+want=15
 out="$(./bin/security-check "$REPO" 2>&1 || true)"
 got=$(printf '%s\n' "$out" | grep -c "$BAIT" || true)
 if [ "$got" -eq "$want" ]; then

@@ -1,487 +1,292 @@
 ---
 name: design-taste
 description: >-
-  Anti-slop visual judgment for landing pages, marketing sites, storefronts, portfolios, redesigns.
-  Use for desain landing page, layout LP, homepage or hero design, storefront/PLP/PDP/cart design,
-  design review, redesign, design tokens, visual polish, or UI that looks AI-templated. Choose
-  Brand/Marketing, Storefront/Commerce, or DR/COD Funnel mode; honor existing project tokens over
-  defaults. Defaults to a designed light theme; dark only when genuinely designed, not inverted.
-  Pair with the installed framework skill for implementation. Not for admin/data-dense UI
-  (admin-dashboard), commerce behavior (storefront-ux), copywriting, component installation, or
-  browser evidence (ui-validation).
+  Research, design, and critique public frontend UI/UX across frameworks: landing pages,
+  marketing sites, public product flows, editorial/docs, portfolios, and storefront visuals.
+  Use for UI/UX workflow, reference research, Apple/Google/Material-inspired web design,
+  redesign, design tokens, visual polish, or AI-templated UI. Start from user tasks and
+  existing brand evidence; use a restrained, lightweight public-web foundation when no
+  accepted system exists. Require inspected references for new directions and rendered
+  critique for visual claims. Pair with the installed framework skill and ui-validation.
+  Not the owner of admin workflows, commerce business rules, copywriting, SEO, or library installation.
 ---
 
-# design-taste: Anti-Slop Design Judgment (Astro-first, funnel-aware)
+# Design Taste — Public Frontend UI/UX
 
-Adapted from a public "tasteskill" for our stack and business. The original
-assumed React/Next + Motion and pure brand-marketing pages. We build Astro on
-Cloudflare Workers, and half our pages are direct-response COD funnels where
-conversion beats aesthetics. Every rule below is contextual; read the brief
-first, then pull only what fits.
+Produce an experience that helps its audience understand, decide, and act.
+A fashionable palette or component library does not establish quality.
+Anti-slop means decisions justified by the user's task, real content, and
+observed evidence. It is not a font, punctuation, color, or layout blacklist.
 
----
+## 0. Mode and ownership
 
-## 0. MODE DETECTION (before anything else)
+Identify the surface and its primary user job before choosing a visual style.
 
-Pick ONE primary mode per surface. It changes which rules fire.
+| Surface | Priority | Pair when needed |
+| --- | --- | --- |
+| Brand / marketing | Understand the offer, evaluate evidence, choose a next step | copywriting, seo-website-builder |
+| Public product flow | Complete search, booking, onboarding, application, or another customer task | existing product/UX contract; full-stack-development for cross-layer changes |
+| Editorial / docs / portfolio | Find, read, compare, or inspect work | content, seo-website-builder |
+| Storefront / commerce | Find, compare, configure, and purchase products | storefront-ux, storefront-development |
+| DR / COD funnel | Evaluate a real offer and complete the order | copywriting, existing funnel/integration owner |
 
-| Mode | Signals | Rule set |
-|---|---|---|
-| **Brand / Marketing** | agency site, SaaS landing, campaign/editorial page, portfolio, brand awareness | All sections apply (editorial, docs, and portfolio also get §4.5.1) |
-| **Storefront / Commerce** | store home, collection/PLP, search, PDP, cart, account, merchandising shell | Universal rules plus the storefront visual lens; product decisions outrank campaign composition |
-| **DR / COD Funnel** | LP produk COD, ads funnel, Scalev/order form, "yang penting convert", quiz/geo funnel | Sections apply EXCEPT the overrides in Section 6 |
-
-For hybrid pages, assign mode per region without mixing their priorities. A
-storefront home uses Storefront mode for navigation, discovery, product cards,
-and cart entry; a campaign story inside it may use Brand mode. A single-offer
-COD page uses Funnel mode even when it resembles a PDP.
-
-For Storefront mode, read
+Admin/operator work routes to `admin-product-ux` and `admin-dashboard`.
+A public documentation sidebar or comparison table does not make a page an
+admin dashboard. Hybrid pages assign priorities by region without competing
+primary actions. Storefront visuals also load
 [public-experience-patterns.md](references/public-experience-patterns.md).
-Load `storefront-ux` for discovery, variants, cart, checkout, account, state,
-and analytics behavior, then `storefront-development` for implementation.
 
-Out of scope entirely: admin panels, operator dashboards, data tables, and
-back-office product management. Use `admin-dashboard` for those. A customer
-product configurator remains Storefront mode and belongs to `storefront-ux`.
+## 1. Design read and UX workflow
 
-## 1. DESIGN READ (one line, before any code)
+State the audience, task, surface, accepted constraints, and intended direction
+briefly. Infer ordinary choices from the repository and user context; ask only
+when missing information materially changes the target or scope.
 
-State: **"Reading this as: <page kind> for <audience>, <mode>, with a <vibe>
-language, leaning toward <aesthetic family / system>."**
+For a new public experience or material redesign:
 
-- Read signals: page kind, vibe words the user used, reference URLs or
-  screenshots, evidence-backed audience/job, global versus localized-global
-  versus country-specific market, language/locale, existing brand assets, quiet constraints
-  (trust-first commerce, regulated, accessibility-first). Constraints
-  OVERRIDE aesthetic preference.
-- Ambiguous brief → ask exactly ONE clarifying question. Confident → declare
-  the read and proceed.
-- **Anti-default discipline:** never default to AI-purple gradients, centered
-  hero over dark mesh, three equal feature cards, glassmorphism everywhere,
-  Inter + slate-900. These are the LLM defaults; reach past them
-  deliberately.
+1. **Understand:** inspect existing pages, content, assets, routes, analytics or
+   research actually supplied, and the problem to solve. Distinguish evidence
+   from assumptions. Do not invent personas or conversion findings.
+2. **Structure:** identify the primary task, information hierarchy, navigation,
+   decision sequence, and essential trust or explanatory content. Use a short
+   content outline or flow before arranging components.
+3. **Model behavior:** record entry → decision/action → outcome, including
+   relevant loading, empty, error, success, disabled, and recovery states.
+   Preserve input and provide a next step when an action fails.
+4. **Research:** inspect relevant references using
+   [design-discovery.md](references/design-discovery.md). A list of URLs is not
+   research evidence. Resolve which principles transfer before styling.
+5. **Choose:** select a coherent direction, responsive composition, and token
+   source. Compare alternatives only when the choice is material. A low-detail
+   wireframe is useful when hierarchy is unresolved, not mandatory ceremony.
+6. **Implement:** deliver the primary journey with realistic content in the
+   existing framework. Follow the session's designer/vision routing requirement
+   before visual edits; if that capability cannot start, report the limitation.
+7. **Validate and revise:** use `ui-validation` to exercise behavior, inspect
+   narrow/wide renders, compare against the accepted direction, fix concrete
+   discrepancies, and reopen the changed views.
 
-### Reference research and direction decision
+Small changes inside an accepted system skip new discovery and preserve that
+system. Scale documentation to the change; never turn a spacing fix into a PRD.
 
-For a new surface or material redesign, read
-[design-discovery.md](references/design-discovery.md) and complete its
-reference, direction, and subject-signature decision before the first visual
-edit. Small changes inside an accepted system use repository evidence alone.
+## 1.5. Design context precedence
 
-## 1.5 DESIGN CONTEXT PRECEDENCE (tokens beat taste)
+Explicit user direction and accepted repository design contracts outrank this
+skill's defaults. Inspect brand assets, existing tokens, components, content,
+and locale before inventing replacements. Preserve names, URLs, tracking,
+legal/consent text, and accessibility behavior unless their change is authorized.
 
-If the session or project carries a design spec — a `<design-context>` block,
-a `design-tokens.md` / `DESIGN.md` in the repo, or an established theme in
-the codebase — that spec WINS over every aesthetic default in this skill.
-This skill then only polices execution quality (contrast, states, layout
-discipline, AI tells), never repaints the brand.
+Tokens are the starting contract, not permission to ship an inaccessible pair.
+When a conflict is found, identify the failing use and make or propose the
+smallest authorized correction; do not silently recolor the entire brand.
 
-Precedence, highest first:
-1. Explicit design-context / token spec provided for the task
-2. Brand assets already in the codebase (CSS variables, Tailwind config,
-   existing components — extract before inventing)
-3. This skill's defaults
+Extend the existing `DESIGN.md` or accepted design specification. In a suite,
+use its existing design and UX owners. Never create a competing token file or
+queue. See the minimum record in `design-discovery.md`.
 
-Reading a design-context correctly:
-- Tokens (colors, type scale, spacing, radius, shadows, motion durations)
-  are law. Use them verbatim; do not "improve" the palette.
-- The rationale section tells you WHY — apply its logic to new surfaces the
-  spec doesn't cover, instead of falling back to this skill's taste.
-- Its accessibility notes carry known traps (e.g. an accent that fails AA
-  as text color and is button-background-only). Honor them exactly.
-- If the design-context describes a dense product console (dense tables,
-  13px base, fixed sidebar nav), you are in `admin-dashboard` territory:
-  keep the tokens, hand the patterns to that skill.
+## 2. Variance, motion, and density
 
-When durable decisions are new, update the canonical design artifact and use
-the minimum record in [design-discovery.md](references/design-discovery.md).
-Never create a parallel token document beside an accepted design artifact.
+Use these as descriptive decisions, not mandatory numerical scores:
 
-## 2. THE THREE DIALS
+- **Variance:** stable repeated structures for comparable information;
+  distinctive composition where the content needs it. Symmetry, centered
+  headings, repeated cards, and plain lists are all legitimate.
+- **Motion:** restrained feedback by default. Add orientation or narrative
+  motion only when it explains something and survives reduced-motion needs.
+  An agency or portfolio does not automatically require animation.
+- **Density:** match reading, comparison, and task frequency. Whitespace groups
+  content and supports hierarchy; it is not a quota of empty screen space.
 
-`DESIGN_VARIANCE` (1 symmetric → 10 chaos) / `MOTION_INTENSITY` (1 static →
-10 cinematic) / `VISUAL_DENSITY` (1 airy → 10 packed).
+If a project already uses 1–10 dials, retain them as shorthand with a concrete
+rationale. Do not derive forced masonry, animation, or section sizes from a
+numeric threshold. Existing numbered reference paths remain compatibility
+pointers to these decisions.
 
-| Use case | VAR | MOT | DEN |
-|---|---|---|---|
-| DR / COD funnel LP (ID/MY market) | 3 | 2 | 5 |
-| Storefront / commerce task surfaces | 4 | 3 | 5 |
-| Storefront campaign/editorial region | 5 | 4 | 4 |
-| SaaS landing (volumform/volumup class) | 7 | 5 | 4 |
-| Agency / creative (jasawebsite class) | 8 | 7 | 3 |
-| Portfolio | 7 | 6 | 3 |
-| Editorial / blog / kamus-style docs | 5 | 3 | 3 |
-| Redesign - preserve | match existing | +1 | match |
-| Redesign - overhaul | +2 | +2 | match |
+## 3. Framework-neutral implementation
 
-Dial meanings, compressed: VAR 1-3 symmetric grid and centered OK; 4-7
-offsets, mixed aspect ratios, left-aligned headers; 8-10 masonry, fractional
-grids, big empty zones. MOT 1-3 hover/active only; 4-7 load-in cascades and
-scroll reveals (CSS-first); 8-10 pin/scrub scrolltelling (GSAP). DEN 1-3
-`py-32`+ gaps; 4-7 `py-16`-`py-24`; 8-10 tight, hairlines instead of cards,
-mono numerals.
+The fallback foundation is
+[public-web-foundation.md](references/public-web-foundation.md): Apple-informed
+hierarchy and restraint, Google/Material-informed state clarity, translated to
+web conventions. It is an adaptable starting point, not a universal branded
+skin. Reference-specific claims require current source verification.
 
-Asymmetric layouts (VAR ≥ 4) MUST collapse to single column below 768px,
-declared explicitly per section.
+Use semantic HTML, CSS custom properties, responsive CSS, and native controls
+first. Reuse the project's components and dependencies. Add client JavaScript
+only for behavior that needs it. Styling must not force a framework migration,
+full-page hydration, or a universal component package. `native-first` owns the
+dependency decision; the installed framework skill owns implementation.
 
-## 3. STACK DEFAULTS (Astro-first — differs from the original on purpose)
+Prefer opacity/transform for simple motion, but choose the correct technique
+for the actual state change and measure expensive work. Do not hide essential
+content behind a reveal script. Reduced motion must keep content and controls
+available. Preserve native scroll, zoom, focus, and browser history behavior.
 
-Climb this ladder; stop at the first rung that holds (see `native-first`):
+## 4. Design directives
 
-1. **Static Astro component + plain CSS.** Most sections need zero JS.
-2. **CSS-only motion:** transitions, `animation-delay` cascades, CSS
-   scroll-driven animations (`animation-timeline: view()`) with an
-   `@supports` fallback to static. Covers most MOT 4-7 needs.
-3. **Vanilla JS + IntersectionObserver** in a `<script>` tag for reveal
-   logic CSS can't express.
-4. **GSAP + ScrollTrigger** only for real pin/scrub scrolltelling (MOT
-   8-10). Load the `gsap-scrolltrigger` / `gsap-core` skills for canonical
-   code; lazy-load GSAP below the fold.
-5. **Framework island** (React/Svelte) only when the section is genuinely
-   interactive stateful UI, never just for animation. In React projects,
-   Motion (`motion/react`) and `shadcn-ui` skill apply.
+### 4.1. Typography
 
-Taste rules in this skill are stack-agnostic; this section's ladder is for
-Astro/JS projects. On Shopify Liquid themes keep the judgment and route
-code to the official shopify plugin skills.
+Use the brand's type first; a system stack is a valid lightweight default.
+Inter, serif, and any other family are neither inherently good nor AI slop.
+Choose for content, language coverage, reading, and loading cost. Verify font
+licensing and use project-native loading or self-hosted subsets where suitable.
+Do not copy proprietary brand font assets merely to resemble a reference.
 
-Hard rules regardless of rung:
+Define a clear type hierarchy and comfortable reading measure; roughly 60–75ch
+is a starting point for long prose, not a universal width. Use responsive sizes
+that retain a rem contribution and work with zoom. Test long titles and real
+translations. A headline may wrap; do not force two lines or rewrite meaning
+to satisfy a screenshot. Avoid fixed-height text containers and clipped glyphs.
 
-- **Motion must be motivated.** Valid reasons: hierarchy, storytelling,
-  feedback, state transition. "It looked cool" is not a reason; if you
-  cannot state the reason in one sentence, drop the animation.
-- **Motion claimed = motion shown.** A page declaring MOT > 4 must
-  actually move (hero entry, scroll reveals, CTA hover at minimum). If
-  you cannot ship working motion in scope, drop the dial to 3 and ship a
-  clean static page; never half-build motion that breaks.
-- Animate ONLY `transform` and `opacity`. `will-change` sparingly.
-- Grain/noise overlays only on fixed `pointer-events-none`
-  pseudo-elements, never on scrolling containers (continuous GPU repaints
-  destroy mobile FPS).
-- `window.addEventListener('scroll')` and scroll math in state are banned →
-  IntersectionObserver / ScrollTrigger / CSS scroll-driven only.
-- Any motion above MOT 3 honors `prefers-reduced-motion` (CSS: gate behind
-  `@media (prefers-reduced-motion: no-preference)`).
-- `min-h-[100dvh]` for full-height heroes, never `h-screen`.
-- Grid over flex-percentage math.
-- Fonts self-hosted with `font-display: swap` (or `astro:assets` fonts /
-  `next/font`); never a Google Fonts `<link>` in production.
-- Dependency discipline (check installed deps before importing, prefer
-  the platform built-in) is owned by `native-first`; apply it as-is.
-- **Icons:** reuse whatever the project already uses. If none: one library
-  max per project (`@phosphor-icons/react` class or an Astro-friendly SVG
-  set), standardized strokeWidth. Hand-rolling a SIMPLE geometric mark
-  (circle, monogram, wordmark) is fine per lazy-dev rules; hand-drawing
-  complex icon paths is not.
-- Emoji in UI: off by default; only for an explicitly playful/social brief.
+### 4.2. Color, shape, and elevation
 
-## 4. DESIGN DIRECTIVES (bias correction)
+Use semantic tokens for canvas, text, action, border, state, and surfaces that
+actually exist. Default to a restrained neutral base and a clear primary
+accent when no brand is established. Additional accents, pure white/black,
+neutral grays, and gradients are valid when their role and contrast are clear.
+Do not invent three surfaces, a tint, or a texture solely to pass a rule.
 
-### 4.1 Typography
-- Display default: `text-4xl md:text-6xl tracking-tighter`; body
-  `text-base leading-relaxed max-w-[65ch]`.
-- Fluid display sizing with `clamp()` when a headline has to survive every width
-  BETWEEN breakpoints: `text-[clamp(2rem,1.5rem+2.5vw,3.5rem)]`. **Always keep a
-  `rem` term in the middle** — a pure-`vw` middle doesn't respond to browser
-  zoom or user font size between the bounds, which puts WCAG 1.4.4 (200%
-  resize) at risk. Hard breakpoint steps stay fine for short headlines.
-- **Hero font scale is planned with the asset:** headline >6 words never
-  starts at `text-7xl`. A 4-line hero headline is a font-size error.
-- Inter is discouraged as a reflex; pick Geist, Outfit, Satoshi, Cabinet
-  Grotesk, or brand-appropriate. Inter is fine when the brief is genuinely
-  neutral/Linear-style or accessibility-first.
-- **Serif discipline:** serif display is NOT the default for "creative" or
-  "premium" briefs; sans display is. Serif only when the brand names one or
-  the aesthetic is genuinely editorial/luxury/heritage AND you can say why.
-  Fraunces and Instrument Serif are banned as defaults (LLM favorites).
-- Emphasis inside a headline = italic/bold of the SAME family. Never inject
-  a serif word into a sans headline for "visual interest".
-- Italic display words with descenders (`y g j p q`) need `leading-[1.1]`
-  minimum + padding reserve, or they clip.
+Use a small radius and elevation vocabulary with consistent purposes. Cards
+may group content without implying elevation. Reserve strong shadow/blur for
+layers where separation matters. Repeated rounded boxes around every heading,
+paragraph, and section usually create noise. A functional chip or badge is not
+slop merely because it is rounded.
 
-### 4.2 Color
-- Max 1 accent color, locked for the WHOLE page. No blue CTA appearing on a
-  warm-grey page at section 7.
-- One neutral family per page (don't mix warm and cool grays).
-- **LILA rule:** no AI-purple glow defaults. Neutral base + one
-  high-contrast accent. If the brand IS purple, embrace it with intent.
-- **Premium-consumer palette ban:** the beige/cream + brass/clay/oxblood +
-  espresso family is the AI default for artisan/luxury/wellness briefs —
-  banned as a reflex. Rotate real alternatives (cold luxury silver/chrome,
-  forest green+bone+amber, black+tan, cobalt+cream, terracotta+slate,
-  olive+brick+paper, monochrome+one pop). Allowed only when the brand
-  explicitly owns those colors.
-- No pure `#000` / `#fff`; off-black and off-white. Define tokens in **OKLCH**,
-  whose lightness is perceptual — an evenly-stepped neutral ladder (§4.2.1)
-  derived in HSL comes out visually uneven. HSL only in a legacy repo already
-  using it, and never `hsl(var(--token))` wrapped around an oklch value
-  (`shadcn-ui`).
-- **Page theme lock:** one theme per page. Sections never flip
-  light↔dark mid-scroll (one deliberate full theme-switch device max, and
-  only when the brief calls for it).
-- Theme strategy is §4.2.1. One *switching* mechanism per project — a `.dark`
-  class or `data-theme`, never both. Authoring is a separate axis: re-pointing
-  CSS variables under the switch is the default, and `dark:` utilities are for
-  one-off overrides the tokens can't express. Using both axes together is the
-  normal shadcn pattern, not a violation.
+### 4.2.1. Theme policy
 
-### 4.2.1 Light-first theme policy
+Light is the fallback for an unspecified public website. Accepted dark-first
+brands remain dark-first. A second theme is optional; if supplied, design its
+contrast, media, surfaces, and control states independently and verify both.
+Single-theme sites need no theme toggle or theme JavaScript.
 
-**Light is the canonical theme.** Design it first and treat it as the source of
-truth: brand assets, screenshots, and print all assume it. Dark is a derived
-mode — optional, and only shipped if it is actually designed.
+When adaptive light/dark is in scope: explicit stored choice → system
+preference → project fallback (light if unspecified). A stored system choice
+continues following the OS. Offer Light / Dark / System when users control it.
+Use one theme-switch mechanism and one owner of `color-scheme`; resolve before
+first paint, tolerate blocked storage, and preserve behavior after navigation.
+Do not add clock or location-based theming by default. Existing implementations
+are in [theme-implementation.md](references/theme-implementation.md).
 
-**Choosing the white.** This is where "clean white" becomes either a real design
-or the single most common AI tell.
+### 4.3. Layout and composition
 
-- Never `#fff`, and never chroma 0. Commit to a temperature: warm off-white
-  (paper, bone) around hue 60-90 for editorial, craft, food, human brands; cool
-  off-white around hue 220-260 for clinical, technical, fintech. **Keep neutral
-  chroma between roughly 0.003 and 0.012** — below that it is the undecided grey
-  this rule exists to ban, above it reads as a tint rather than a temperature.
-- **Three neutral steps minimum:** canvas → surface → raised (or sunken). One
-  flat white with shadows sprinkled on top to fake depth is the Bootstrap-era
-  tell. Build the hierarchy into the neutrals, not the shadows. Countable: three
-  distinct neutral tokens in the token file.
-- **Hairlines before shadows.** On light UI a 1px low-alpha border separates
-  more cleanly than a drop shadow. Reserve shadow for things that genuinely
-  float above the page: modal, dropdown, sticky bar.
-- **Ink hierarchy, not grey mush.** Two or three ink levels. Primary and
-  secondary ink ≥ 4.5:1 on canvas; muted ink ≥ 4.5:1 whenever it carries body
-  copy. The 3:1 allowance applies only to WCAG 1.4.3 **large text** — ≥ 24px,
-  or ≥ 18.66px **and** bold. 18.66px regular does not qualify. Body copy at
-  `text-gray-400` is a contrast failure wearing a style's clothes.
-- **White needs material** — see §4.6. A page of white, text, and rounded cards
-  reads as generated.
+Arrange the content according to the decision sequence. Keep navigation and
+primary actions recognizable. Choose a hero's height, text measure, and image
+proportion from its content; a full-screen hero is not a requirement.
 
-Collision to avoid: clean white + Inter + slate ink + a grid of `rounded-xl`
-shadowed cards is itself an LLM default (§1). White is the canvas, not the
-design.
+Repeat structures for comparable items. Change composition where information
+or emphasis changes. Never require a fixed number of layout families, images,
+feature cards, asymmetric sections, or zigzags. A carousel must solve a real
+browsing need and keep keyboard/touch controls; do not use one to hide a list.
 
-**Dark mode — ship it only if you will design it.** Half-built dark mode is
-worse than none. When in scope:
+Plan responsive transformations, not just scaled desktop columns. Navigation,
+comparison, media, forms, and sticky regions must retain their hierarchy on
+narrow screens and at zoom. Breakpoints follow content fit rather than one
+mandatory framework breakpoint. Keep DOM order meaningful for keyboard and
+screen-reader navigation.
 
-- Dark is not inverted light. Re-derive it: use surface lightness for elevation
-  instead of shadow, cut accent chroma so it stops vibrating against a dark
-  ground, and re-check every contrast pair — pairs that pass AA on light
-  routinely fail on dark.
-- Images, logos, and illustrations that assumed a white ground need a dark
-  variant or a container that keeps their own background.
-- Set `color-scheme` per theme so native controls, scrollbars, and date pickers
-  follow. Own it in **one** place: either the CSS rules (`:root` / `.dark`) or a
-  library that manages the inline property on every theme change — `next-themes`
-  does this correctly. What breaks is a hand-written inline `style.colorScheme`
-  stamped once at boot: inline outranks every selector, so the `.dark` rule
-  becomes dead code and native controls freeze in the boot-time scheme.
-- DR/COD funnel LPs: single locked light theme, no toggle (§6).
+### 4.4. States, forms, and accessibility
 
-**Resolution order — strict:**
+Use real links for navigation and buttons for actions. Controls have visible
+labels or clear accessible names; placeholders never replace persistent form
+labels. Prefer labels above fields when that improves scanning. Error messages
+identify the field and recovery action; submission preserves entered data.
 
-1. **Stored explicit light/dark choice** (cookie or `localStorage`). Once set it
-   wins; nothing below overrides it. A stored `'system'` is not a choice — it is
-   an instruction to fall through to step 2.
-2. **`prefers-color-scheme`** — the native adaptive signal.
-3. **Light.**
+Test keyboard order, visible focus, accessible names/states, dialog focus
+management, pending feedback, and recovery. Do not fake working controls or
+success. Do not rely on hover, color, dragging, or motion alone.
 
-**The toggle is three-state: Light / Dark / System**, System being the default
-position. A two-state switch cannot express "follow my OS", so it strands every
-user whose system already auto-schedules.
+For WCAG AA, normal text needs 4.5:1; large text can use 3:1 (at least 24 CSS px,
+or about 18.66 CSS px bold). Required non-text control/state indicators use the
+applicable 3:1 rule, not the body-text rule. Measure actual composited colors,
+including text over media. Aim for 44px touch controls as a house usability
+baseline; WCAG 2.2 AA target size is 24px with specified exceptions, not a
+blanket 44px requirement. Sources are in `public-web-foundation.md`.
 
-**Clock-adaptive theming is opt-in, never a default.** It *replaces* step 2
-rather than stacking on it — never blend clock and `prefers-color-scheme`, they
-will disagree at the boundary. The OS auto-schedule already encodes time and
-location and arrives free via the media query. Device clock only, read
-client-side: IP geolocation costs a round trip, is wrong behind a VPN, and adds
-a privacy surface for a cosmetic feature. The first manual toggle disables it
-permanently for that user.
+### 4.5. Content and assets
 
-**No-FOUC is mandatory.** Resolve the theme before first paint — a blocking
-inline script in `<head>`, or server-render the class from a cookie. A dark mode
-that flashes is not finished.
+Use real content early. Specific offers, examples, product details, and honest
+proof provide identity. If removing the brand name leaves a page equally
+suitable for unrelated businesses, inspect whether the content and hierarchy
+are too generic. A generic shared component is not itself a failure.
 
-Do not write that script from memory. The naive four-line version has four
-distinct failure modes (blocked storage, unknown stored values, Astro's
-`ClientRouter` wiping the class on navigation, and "System" freezing at boot),
-and on Tailwind v4 a `.dark` class does nothing at all without a `@custom-variant`
-declaration. Working snippets for Astro, Astro SSR, and React, plus the CSS
-`color-scheme` rule and a verification list, are in
-[theme-implementation.md](references/theme-implementation.md).
+Approved authentic brand/product assets come first. Generated imagery can be
+an illustration or clearly identified concept, never fabricated customer,
+product, testimonial, screenshot, or performance evidence. A text-led page
+can be complete without decorative images. Do not invent customers, metrics,
+scarcity, ratings, previews, or citations to fill a layout.
 
-### 4.3 Layout
-- **Anti-center bias:** VAR > 4 avoids the centered-hero default; use split,
-  left-content/right-asset, or asymmetric whitespace. Centered is right for
-  manifesto/editorial briefs and funnel LPs.
-- Cards only when elevation means hierarchy; otherwise `border-t`,
-  `divide-y`, or space. Tint shadows to the background hue.
-- **Shape lock:** one corner-radius system per page (all-sharp, all-soft, or
-  all-pill), or a documented mixed rule followed everywhere.
-- **Hero discipline (Brand mode):** fits initial viewport; headline ≤ 2
-  lines; subtext ≤ 20 words; CTA visible without scroll; top padding ≤
-  `pt-24`; max 4 text elements (eyebrow OR brand strip, headline, subtext,
-  CTAs). Trust LOGO WALLS live UNDER the hero, never inside; a one-line
-  text trust row (the `copywriting` LP template's hero trust row) may stay
-  in the hero and counts as the one small text element.
-- Nav: one line at desktop, ≤ 80px tall.
-- **Section-layout repetition:** a layout family appears at most once per
-  page; 8 sections need ≥ 4 families. Max 2 consecutive image/text zigzag
-  splits — the 3rd breaks the pattern (full-width, stack, bento, marquee).
-  Marquee itself: max ONE per page; a second marquee is lazy filler.
-- Glassmorphism, when a premium brief legitimately calls for it: go beyond
-  `backdrop-blur` — 1px inner border (`white/10`) + subtle inner top
-  highlight — and provide a solid-fill fallback under
-  `prefers-reduced-transparency`.
-- **Eyebrow rationing:** max 1 uppercase-tracking micro-label per 3
-  sections (hero counts). Default: drop the eyebrow, the headline is enough.
-- **Split-header ban:** "big headline left + small floating paragraph
-  right" as a section header is banned by default; stack vertically.
-- Bento grids: exactly as many cells as content (no blank filler tiles),
-  varied rhythm, and 2-3 cells with real visual variation (image, tint,
-  pattern) — never all white-on-white text tiles.
+`copywriting` and `volumx-writer` own wording. This skill owns space and
+readability, not a punctuation blacklist. Preserve accurate quoted/legal text,
+locale, and meaning. Keep action labels consistent for the same intent and
+make differing intents distinguishable. Specific content beats filler slogans.
 
-### 4.4 States & forms
-- Ship full cycles: skeleton loaders shaped like the final layout, composed
-  empty states, inline form errors, `:active` press feedback
-  (`scale-[0.98]`).
-- Label above input, error below, no placeholder-as-label. Ever.
-- Every interactive element keeps a visible `focus-visible` ring. `outline:
-  none` without a designed replacement is an accessibility bug, not a style.
-- **Contrast audits are mandatory:** every CTA readable against its
-  background (WCAG AA 4.5:1); ghost buttons over photos get a scrim; form
-  placeholders/labels/focus rings pass AA too.
-- CTA label fits on one line at desktop (shorten label or widen button).
+## 5–7. Surface rules, anti-slop critique, and redesign
 
-### 4.5 Content density (Brand mode)
-- Section default: headline ≤ 8 words + sub ≤ 25 words + one visual or CTA.
-- No data-dump sections on marketing pages: top 3-5 + "view all", or
-  carousel/marquee/tabs. > 5 items never ships as a default `<ul>` with
-  `divide-y` hairlines under every row — group into chunks or card grid.
-- **One CTA label per intent** on Brand pages ("Get in touch" + "Let's
-  talk" on one page = fail). (Funnel mode overrides this — §6.)
-- Quotes ≤ 3 lines, attribution = name + role (+ company), real
-  typographic quotes or none.
-- **Copy self-audit before ship:** re-read every visible string; kill
-  grammatically-broken lines, unclear referents, and AI-cute copy. Numbers
-  are real, labeled mock, or absent — never invented precision. One copy
-  register per page.
-- Ownership split with `copywriting`: the word/line caps in this skill are
-  LAYOUT budgets (the space the design reserves) and win on layout fit;
-  wording, char limits, headline patterns, and meta rules come from
-  `copywriting` and win on phrasing — **except punctuation bans (§5), which are
-  this skill's call on any surface it designs.** Practical consequence: a
-  product title from `copywriting` carrying an en dash is correct in the store
-  admin, and must be substituted when that same string renders on a page this
-  skill owns.
+Read [surface-and-mode-rules.md](references/surface-and-mode-rules.md) for
+editorial, media, mobile, funnel, and redesign details. Apply its evidence-based
+critique instead of a mechanical style ban list. A missing or blocked reference
+must remain unverified; do not claim visual research from a search snippet.
 
-### §4.5.1–§7: Surface rules, AI tells, funnel overrides, redesign
+## 8. Delivery gate
 
-Extracted for token economy. Load
-[surface-and-mode-rules.md](references/surface-and-mode-rules.md) when working
-with:
+Separate proposed work from observed evidence. A brief, attractive screenshot
+description, or planned check is not an executed result. Without actual tool
+evidence, report inspection and verification as pending; never say references
+were recorded, regressions verified, or a visual verdict passed. A text-only
+evaluation can judge the proposed decisions, not an unseen interface.
+Use PASS, REVISE, or UNVERIFIED as distinct verdicts. In a text-only brief
+describing a polished screenshot that you have not seen, visual = UNVERIFIED;
+do not call it a pass or a provisional pass. Known keyboard failures still
+make functional/accessibility = REVISE and block delivery.
 
-- **§4.5.1** Editorial, docs, and portfolio surfaces (measure, rhythm, body
-  furniture, portfolio index grids)
-- **§4.6** Images (generation rules, logo walls, placeholder policy)
-- **§4.7** Mobile & touch reality (iOS auto-zoom, tap targets, fluid grids,
-  select-none)
-- **§5** AI tells — hard bans (visual slop, micro-label slop, copy slop,
-  em-dash/en-dash ban, fake product previews)
-- **§6** DR / COD funnel mode overrides (what is allowed vs still mandatory)
-- **§7** Redesign protocol (detect mode, audit, preserve, modernisation levers)
+Read-only reference access does not authorize live submissions. Test purchase,
+account, payment, and destructive flows with fixtures or an authorized sandbox;
+do not place real orders or mutate production to obtain design evidence.
 
-## 8. PRE-FLIGHT CHECK (run before delivering; any fail = not done)
+Before describing a new or materially changed UI as ready, establish:
 
-Hybrid pages (§0) apply the relevant Brand, Storefront, or Funnel checks to each
-block by its declared mode.
+- The primary user task, decision sequence, and content are clear.
+- The accepted tokens and brand were preserved or deliberately changed within scope.
+- New directions have inspected references and a recorded transfer rationale;
+  unavailable evidence and provisional choices are explicitly named.
+- The actual interface was viewed at relevant narrow/wide sizes, compared to
+  its direction, and revised where needed. Important flows and recovery work.
+- Readability, keyboard/focus, contrast, reflow, touch, and reduced motion were
+  checked where affected. A screenshot alone does not prove interaction.
+- No fabricated evidence, decorative filler, or unsupported product behavior
+  is presented as real. No accessibility or usability compromise is justified
+  merely by saying Apple, Google, modern, premium, or anti-slop.
+- Asset and JavaScript costs were checked using project tools where affected;
+  a quality adjective or Lighthouse score does not prove good visual design.
 
-Universal:
-- [ ] Mode + design read declared; for a new/material redesign, references and
-      the selected direction or real alternatives are recorded before code;
-      dials stated and reasoned
-- [ ] Design-context / repo tokens checked FIRST and used verbatim if
-      present (§1.5); new durable decisions written to the canonical design
-      artifact, never a competing file
-- [ ] ZERO em-dash/en-dash-separator in visible copy
-- [ ] One accent color, one neutral family, one radius system, one theme; at
-      most one deliberate full-page theme-switch device, brief-justified (§4.2)
-- [ ] Light default designed, not accepted: stated warm/cool temperature, ≥ 3
-      neutral steps, hairlines over blanket shadows, 2-3 contrast-passing ink
-      levels (§4.2.1) — unless the project spec (§1.5) sets another canonical
-      theme, which wins
-- [ ] Greyscale check: with `filter: grayscale(1)`, section boundaries, primary
-      vs secondary ink, and the primary CTA are still distinguishable by type
-      scale, weight, spacing, or neutral step alone
-- [ ] Every CTA and form element passes WCAG AA contrast; no CTA wraps at
-      desktop
-- [ ] Real images per §4.6 — no div fake-screenshots, no text-only page
-- [ ] No Section 5 AI tells (mechanical scan: eyebrow count ≤
-      ceil(sections/3), no `·` chains, no decorative dots, no
-      overlay pills, no version/locale strips, no scroll cues)
-- [ ] Copy self-audit done; numbers real or labeled mock
-- [ ] Motion: only transform/opacity, reduced-motion honored, no scroll
-      listeners, every animation justified in one sentence
-- [ ] Mobile collapse specified per multi-column section — either a named
-      breakpoint or a declared `auto-fit` min track (§4.7); `100dvh` not
-      `h-screen`; form inputs ≥ 16px (no iOS zoom); tap targets ≥ 44px;
-      visible focus ring on every interactive element
-- [ ] Loading/empty/error states exist where data renders
-- [ ] Web vitals plausible (LCP < 2.5s, INP < 200ms, CLS < 0.1); validate
-      with the project's own scripts, `web-perf` skill for a real audit
+Use [design-evaluation.md](references/design-evaluation.md) for review cases and
+separate behavioral/visual verdicts. Critical failures block completion; minor
+remaining design trade-offs are reported. Never guarantee universal absence of
+AI slop from a prompt, static scan, or one model-generated sample.
 
-Storefront mode additionally:
-- [ ] PLP cards remain comparable at realistic title, image, price, badge,
-      and availability lengths; merchandising tiles do not break discovery
-- [ ] PDP media, identity, price, options, availability, fulfilment, trust,
-      and purchase action form one legible decision sequence on desktop and
-      mobile
-- [ ] Selected, unavailable, sold-out, pending, error, sale, and base-price
-      states remain distinct without color alone or layout shift
-- [ ] Sticky purchase controls, quick add, drawers, swatches, and galleries
-      are used only when their prerequisites and accessible fallback survive
-- [ ] Checkout handoff and accelerated checkout look distinct from Add to cart;
-      no visual treatment implies payment or order completion early
+## 9. Pairing and reference ownership
 
-Brand mode additionally:
-- [ ] Hero: ≤ 2-line headline, ≤ 20-word subtext, CTA above fold, ≤ 4 text
-      elements, logos below hero
-- [ ] ≥ 4 layout families per ~8 sections; ≤ 2 consecutive zigzags; no
-      split-headers; bento cells = content count with visual variety
-- [ ] One CTA label per intent; quotes ≤ 3 lines
-- [ ] Dark mode: either genuinely out of scope, or designed (not inverted),
-      eyeballed in both themes, `color-scheme` set, three-state toggle,
-      stored choice beating `prefers-color-scheme`, and no flash before
-      first paint (§4.2.1)
+| Need | Owner |
+| --- | --- |
+| Reference evidence, UX sequence, direction record | design-discovery.md |
+| Default public-web foundation, sources, framework translation | public-web-foundation.md |
+| Editorial/media/mobile/funnel specifics, redesign | surface-and-mode-rules.md |
+| Existing theme code | theme-implementation.md |
+| Storefront visual decision hierarchy | public-experience-patterns.md |
+| Instruction evaluation and rendered critique | design-evaluation.md; ui-validation owns browser execution |
+| Audience/market uncertainty | product-intelligence |
+| Admin workflows and dense operator UI | admin-product-ux, admin-dashboard |
+| Commerce behavior and implementation | storefront-ux, storefront-development |
+| Astro / Next.js implementation | astro-development / nextjs-development |
+| React components where appropriate | shadcn-ui; not a universal public-site theme |
+| Copy, localization, content, search concerns | copywriting, volumx-writer, content, seo-website-builder |
+| Cross-layer implementation | full-stack-development |
+| Dependencies / runtime performance | native-first / web-perf |
 
-Funnel mode additionally:
-- [ ] Sticky/repeated CTA identical wording; order form fields untouched
-      for tracking; urgency claims backed by real data; MOT ≤ 3 and zero
-      animation-library JS shipped
+Vue, Svelte, Angular, Liquid, server templates, and plain HTML keep their native
+stack and existing components; do not require a React or Astro adapter merely
+to follow this skill. Load specialist animation skills only when earned.
 
-## 9. PAIRING MAP
-
-| Need | Go to |
-|---|---|
-| Theme switching code (pre-paint script, SSR cookie, `color-scheme`) | [theme-implementation.md](references/theme-implementation.md) |
-| Surface rules, AI tells, funnel overrides, redesign protocol | [surface-and-mode-rules.md](references/surface-and-mode-rules.md) |
-| Astro code, islands, content collections | `astro-development` |
-| Pin/scrub scrolltelling code | `gsap-scrolltrigger` + `gsap-core` |
-| Copy limits, headlines, meta, ALT rules | `copywriting` (source of truth) |
-| Multi-asset content production | `content` |
-| SEO QA / migration check | `seo-website-builder` |
-| React components, charts, forms | `shadcn-ui` |
-| Admin/dashboard/data-dense UI | `admin-dashboard` (this skill stops) |
-| "Is there a built-in for this?" | `native-first` |
-| Storefront discovery, PDP, cart, checkout, account behavior | `storefront-ux` |
-| Browser, viewport, keyboard, a11y, and visual evidence | `ui-validation` |
-| Perf audit of the shipped page | `web-perf` |
-
-## Reference ownership
-
-- [theme-implementation.md](references/theme-implementation.md) and [surface-and-mode-rules.md](references/surface-and-mode-rules.md) are the canonical extracted implementation and surface references.
-- [design-discovery.md](references/design-discovery.md) owns reference research,
-  direction comparison/selection, subject signature, and the canonical design record.
-- [public-experience-patterns.md](references/public-experience-patterns.md) is the canonical Storefront/Commerce visual lens; it delegates commerce behavior to `storefront-ux` and implementation to `storefront-development`.
-- [rationale.md](references/rationale.md) and [accessibility-notes.md](references/accessibility-notes.md) are optional project-record templates. Copy them into the target project; do not store project facts in this skill.
-- The retained numbered paths are compatibility pointers, not independent rule sources: [0](references/0-mode-detection-before-anything-else.md), [1](references/1-design-read-one-line-before-any-code.md), [1.5](references/1-5-design-context-precedence-tokens-beat-taste.md), [2](references/2-the-three-dials.md), [3](references/3-stack-defaults-astro-first-differs-from-the-original-on-purpose.md), [4](references/4-design-directives-bias-correction.md), [5](references/5-ai-tells-hard-bans-unless-the-brief-asks.md), [6](references/6-dr-cod-funnel-mode-overrides.md), [7](references/7-redesign-protocol.md), [8](references/8-pre-flight-check-run-before-delivering-any-fail-not-done.md), and [9](references/9-pairing-map.md).
-
-Do not add rules to a compatibility pointer. Change the canonical section or extracted reference it names so this skill retains one source of truth.
+The retained numbered references are compatibility pointers, not independent
+rules. Update canonical sources above, not those pointers. `rationale.md` and
+`accessibility-notes.md` remain optional project-record templates; project
+facts belong in the project's accepted design artifact, never in this skill.

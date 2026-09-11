@@ -1,6 +1,6 @@
 # Theme implementation
 
-Mechanics only. The policy — light canonical, dark opt-in, resolution order,
+Mechanics only. The policy — accepted project theme scope, adaptive resolution,
 three-state toggle, clock-adaptive caveats — is `SKILL.md` §4.2.1 and wins over
 anything here. Read this when you are about to write the code.
 

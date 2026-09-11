@@ -84,6 +84,16 @@ baseline merely to bless an unexplained difference. This loop validates an
 accepted direction; it does not choose one. Route unresolved direction back to
 `admin-dashboard` or `design-taste`.
 
+For public frontend, make this comparison concrete: name the intended user
+task and accepted reference principle, the observed discrepancy at a specific
+viewport/state, the revision, and the recheck result. Compare hierarchy and
+behavior, not pixel similarity to another brand. A URL list, screenshot file
+existence, model approval, or absence of banned visual keywords is not visual
+acceptance. Keep functional/accessibility and visual verdicts separate; either
+can fail while the other passes. If the reference was inaccessible or no render
+was inspected, mark the affected claim unverified. `design-taste` owns the
+reference-evidence and anti-slop review rubric.
+
 ## 3. Run the real page
 
 1. Prefer the project's own script, and know what each one actually gives you.
@@ -168,6 +178,12 @@ actions and storefront checkout/payment handoffs, stop before live mutations
 unless explicitly approved; use fixtures or test environments.
 
 ### Accessibility
+
+For material public-layout changes, include the applicable narrow reflow check
+(typically 320 CSS px for WCAG 1.4.10) and text/zoom behavior, not only a 390px
+phone screenshot. Preserve intentional two-dimensional regions such as tables
+while checking that surrounding content reflows. Do not label one viewport as
+whole-site WCAG conformance.
 
 For changed controls, verify keyboard reachability, logical focus order,
 visible focus, accessible name, role, and state. Verify dialogs trap and return
