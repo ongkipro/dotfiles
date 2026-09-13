@@ -182,7 +182,9 @@ cmd_doctor() {
     "$HOME/.config/ai" \
     "$HOME/.claude/CLAUDE.md" \
     "$HOME/.codex/AGENTS.md" \
-    "$HOME/.gemini/GEMINI.md"
+    "$HOME/.antigravity/AGENTS.md" \
+    "$HOME/.gemini/GEMINI.md" \
+    "$HOME/.omp/agent/AGENTS.md"
   do
     if [ -L "$target" ] || [ -e "$target" ]; then
       say "- OK  $target"

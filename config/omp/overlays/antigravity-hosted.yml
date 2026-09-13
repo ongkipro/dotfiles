@@ -60,10 +60,10 @@ retry:
       - 9router-fantastico/cx/gpt-5.6-terra:high
       - google-antigravity/claude-opus-4-6:high
     vision:
-      - 9router-fantastico/cx/gpt-5.6-sol:high
+      - google-antigravity/claude-opus-4-6:high
       - google-antigravity/claude-sonnet-4-6:high
     designer:
-      - 9router-fantastico/cx/gpt-5.6-sol:high
+      - google-antigravity/gemini-3.1-pro:high
       - google-antigravity/claude-sonnet-4-6:high
     research:
       - 9router-fantastico/cx/gpt-5.6-terra:medium

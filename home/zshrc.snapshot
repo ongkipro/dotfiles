@@ -1,3 +1,4 @@
+source "$HOME/dotfiles/config/zshrc.tools.sh"
 # ============================================================================
 #  ~/.zshrc — macOS (Apple Silicon) · oh-my-zsh
 #  Disempurnakan: history, completion, modern CLI tools, plugins.
@@ -54,7 +55,6 @@ command -v brew >/dev/null 2>&1 || eval "$(/opt/homebrew/bin/brew shellenv)"
 # ============================================================================
 #  Node — nvm & bun
 # ============================================================================
-export NVM_DIR="$HOME/.nvm"
 [ -s "$(brew --prefix nvm)/nvm.sh" ] && source "$(brew --prefix nvm)/nvm.sh"
 
 export BUN_INSTALL="$HOME/.bun"
@@ -126,14 +126,12 @@ export ZSH_HIGHLIGHT_HIGHLIGHTERS_DIR="$BREW_PREFIX/share/zsh-syntax-highlightin
 source "$BREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" 2>/dev/null
 
 # mise activation (dari install-macos.sh)
-eval "$($HOME/.local/bin/mise activate zsh)"
 
 # PATH: local bin + agents bin
-export PATH="$HOME/.local/bin:$HOME/.agents/bin:$PATH"
 
-source "$HOME/dotfiles/config/zshrc.tools.sh"
 
 # agent-browser encryption key (auto-generated)
 export AGENT_BROWSER_ENCRYPTION_KEY="$(cat ~/.agent-browser/.encryption_key 2>/dev/null || openssl rand -hex 32 | tee ~/.agent-browser/.encryption_key)"
 
 if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init zsh)"; fi
+
