@@ -123,6 +123,27 @@ PYCOUNT
   printf '%s' "$2"
 }
 
+# Codex shortens every description to ~250 characters once many skills are
+# installed (measured with `codex debug prompt-input`, Codex 0.154, 72 entries).
+# A "Not for"/"NOT" boundary that starts after that point is invisible there, and
+# boundaries are what separate sibling skills. The cut lands on a word boundary
+# between 247 and 251, so the guard uses 240 for margin. Vendored skills
+# (.source) are upstream text and are not judged.
+CODEX_DESCRIPTION_CUT=240
+boundary_after_cut() {
+  [ "$yaml_available" -eq 1 ] || return 1
+  [ -e "$(dirname "$1")/.source" ] && return 1
+  python3 - "$1" "$CODEX_DESCRIPTION_CUT" <<'PYCUT'
+import re, sys, yaml
+text = open(sys.argv[1], encoding="utf-8").read()
+m = re.match(r"^---\n(.*?)\n---", text, re.S)
+desc = " ".join(str((yaml.safe_load(m.group(1)) or {}).get("description", "")).split()) if m else ""
+cut = int(sys.argv[2])
+boundary = re.compile(r"\b(NOT|Not)\b|\bnot for\b")
+sys.exit(0 if len(desc) > cut and not boundary.search(desc[:cut]) and boundary.search(desc[cut:]) else 1)
+PYCUT
+}
+
 for dir in "${skills[@]}"; do
   count=$((count + 1))
   fail_before=$fail
@@ -138,6 +159,9 @@ for dir in "${skills[@]}"; do
     Describe\ what*|Describe\ exactly*|TODO*) bad "$folder: placeholder description is still active" ;;
   esac
   [ "${#description}" -le "$DESCRIPTION_MAX" ] || wrn "$folder: description is ${#description} characters; guideline is ~$DESCRIPTION_MAX"
+  if boundary_after_cut "$file"; then
+    wrn "$folder: its boundary clause starts after character $CODEX_DESCRIPTION_CUT, where Codex cuts descriptions; move it forward"
+  fi
 
   if [ "$yaml_available" -eq 1 ]; then
     yaml_err="$(frontmatter_yaml_error "$file")" || bad "$folder: frontmatter is not valid YAML: $yaml_err"

@@ -1,13 +1,14 @@
 ---
 name: full-stack-development
 description: >-
-  Orchestrate production full-stack feature delivery across product contracts,
-  frontend, backend, data, IAM, API, security, testing, observability, CI, and
-  runtime evidence. Use when implementation spans multiple application layers
-  or an accepted feature must be carried end to end. Routes only the smallest
-  relevant specialist set, preserves planning and release approval gates, and
-  keeps UI, API, authorization, and persistence contracts aligned. Not for a
-  single settled specialist task, product discovery alone, or generic architecture.
+  Orchestrate production full-stack feature delivery when implementation spans
+  multiple application layers or an accepted feature must be carried end to
+  end. Not for a single settled specialist task, product discovery alone, or
+  generic architecture. Covers product contracts, frontend, backend, data,
+  IAM, API, security, testing, observability, CI, and runtime evidence. Routes
+  only the smallest relevant specialist set, preserves planning and release
+  approval gates, and keeps UI, API, authorization, and persistence contracts
+  aligned.
 ---
 
 # Full-stack Development

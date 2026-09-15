@@ -46,7 +46,7 @@ config/omp/config.yml ─ explicit `omp --config` only; nothing installed into ~
 | Runtime | Global context | Project context | Skills | Hooks | MCP | Native config owner | Dotfiles injection | Collision risk |
 |---|---|---|---|---|---|---|---|---|
 | Claude Code | `~/.claude/CLAUDE.md` → `context/claude.md` (verified: loaded in this session) | repo `CLAUDE.md` (native) | `~/.claude/skills` → `skills/local` | git-guard (PreToolUse), memory-usage (UserPromptSubmit) via `ai-hooks-install` | `~/.claude.json` `chrome-devtools` (device-local) | Claude (`settings.json` device-local) | context link, skills link, hooks merge, sealed `$HOME` auto-memory bootstrap | Low: adapter names the hooks it really has |
-| Codex CLI | `~/.codex/AGENTS.md` → `context/codex.md` (Codex docs; live probe blocked by quota) | repo `AGENTS.md` chain (native) | per-skill links in `~/.codex/skills` beside `.system` | none | none in `config.toml` | Codex (`config.toml`, auth, native memories) | context link, per-skill links | Medium: Codex truncates the 34.5 KB skill metadata (warning observed 2026-09-15) |
+| Codex CLI | `~/.codex/AGENTS.md` → `context/codex.md` (verified: `codex debug prompt-input`) | repo `AGENTS.md` chain (native) | per-skill links in `~/.codex/skills` beside `.system` | none | none in `config.toml` | Codex (`config.toml`, auth, native memories) | context link, per-skill links | Low: descriptions cut to 250 chars; owned skills front-load boundaries (TASK-085) |
 | Antigravity (`agy`) | `~/.gemini/GEMINI.md` → `context/antigravity.md` (strace) | `GEMINI.md`/`AGENTS.md` walking cwd→repo root, deduplicated (agy embedded docs) | `~/.gemini/config/skills` → `skills/local` | none | `~/.gemini/config/mcp_config.json` (empty) | agy | context link, skills link | Low |
 | Gemini compatibility | the same `~/.gemini/GEMINI.md`; `gemini` CLI removed 2026-07-13 | n/a | n/a | n/a | n/a | n/a | none beyond agy's path | Legacy links removed |
 | Pi | `pi()` appends `context/pi.md` then `~/.config/ai-local/device.md` (`shell-wrapper-test`) | `AGENTS.md`/`CLAUDE.md` discovery (`pi --help`; `-nc` disables it) | `~/.pi/agent/skills` → `skills/local` | none | none | Pi (`settings.json`, `models.json`, `auth.json`) | shell wrapper, skills link, `pi update` → `pi-update-safe` | Low |
@@ -112,9 +112,12 @@ Section classification of the retired `AGENTS.md`:
    `ai-doctor`'s `check_link agy ~/.antigravity/AGENTS.md`. Source B: agy strace. Owner:
    `ai-memory-link`. **Fixed**: legacy managed links removed, doctor warns if they return.
 4. *Codex skill-description truncation.* Source A: 67 descriptions (~34.5 KB). Source B:
-   Codex's skill budget warning. Impact: Codex may miss skill triggers. **Mitigated** by the
-   Codex adapter (open the `SKILL.md` when a name matches). The root fix, shortening
-   descriptions, is **open**.
+   `codex debug prompt-input` (no model quota) shows Codex 0.154 cutting all 72 entries to
+   250 characters; 30 synthetic skills get 624, 10 get 699. The 12 skills in overlapping
+   groups showed zero boundary signals in Codex's view. **Fixed in TASK-085**: 21 owned
+   descriptions reordered so purpose and boundary fit the first 250 characters (2–4
+   boundary signals each), and `skill-check` warns when a boundary starts after character 240 (the cut lands at 247–251). Vendored
+   skills are untouched; `volumx-writer` remains with TASK-077.
 
 **P2**
 1. *Hook enforcement described generically.* The old file said the Git boundary "lives in
@@ -127,20 +130,28 @@ Section classification of the retired `AGENTS.md`:
    (CORE ≤ 8 KB, context ≤ 10 KB).
 4. *OMP `bash.patterns` backstop.* Described in historical `config/omp/ROUTING.md:226` but not
    configured in the tracked or live `config.yml`. The OMP adapter now says so. **Documented.**
-5. *Public server address.* `config/omp/models.yml` (historical, public repo) contains a
-   9router tunnel `baseUrl`. `apiKey` is an env-var name, not a secret. **Open**; needs a user
-   decision.
+5. *Public server address.* **Reclassified, no change.** The 9router tunnel `baseUrl` in
+   `config/omp/models.yml` is also in active use (`bin/pi-9router-sync.js`,
+   `config/pi/models.template.json`, `pi-9router-restore-test`) and is authenticated by
+   `NINEROUTER_REMOTE_KEY`. Removing it only from the historical file would change nothing, and
+   removing it from active config would break Pi on every device. First-draft wording
+   overstated this.
 6. *Reverting a user's uncommitted file.* Found by probe P3 in BEFORE and AFTER alike (1/2
    reps each): the model offered to `git restore` a modified file it had not touched. Neither
    context named that as destructive. **Fixed (user-approved new rule)**: the CORE Destructive
    gate now covers discarding changes you did not make (worktree `git restore`/`git checkout --`,
    `git stash drop`; ask when a file mixes both). Its behavioral effect is **not measured** (§10).
 
-**P3**: `memory-usage.sh` "five CLIs" comment (**fixed**); `memory/environment-ai-runtimes.md:80`
-names `chromium-browser`, while live MCP uses `google-chrome`; `sandbox-next`/`sandbox-stable` point
-to a missing `sandbox-migrate-to-next`; `admin-dashboard` repeats `admin-product-ux` operator
-scope; `wrangler` lacks a "not for" boundary; `project-memory/dev-toolchain-mise.md` still claims a
-`~/AGENTS.md` symlink; TASK-077's Allowed Paths name the retired `config/ai/AGENTS.md`.
+**P3**
+- *Fixed:*
+  - the `memory-usage.sh` "five CLIs" comment;
+  - the `environment-ai-runtimes.md` browser path (device-local, `google-chrome` on `rich`);
+  - `admin-dashboard` vs `admin-product-ux` ownership, now stated up front;
+  - the `dev-toolchain-mise.md` stale claim;
+  - TASK-077's Allowed Paths;
+  - `development-spec-suite` and `adr-record` staging text, which now points at the canonical policy.
+- *Open, not editable here:* `sandbox-next`/`sandbox-stable` (vendored) point to a missing
+  `sandbox-migrate-to-next`, and `wrangler` (fork) lacks a "not for" boundary.
 
 ## 6. Keep / Simplify / Remove / Move
 
@@ -256,6 +267,16 @@ orchestration, verifying at each step.
     ask on mixed files) were applied. Non-blocking notes (dotsync warning
     visibility, duplicate core inside `config/ai/`, budget headroom) were applied or recorded in §11.
 
+12. **TASK-085 follow-up** (user-approved "continue recommendations"):
+    - Codex skill budget measured offline.
+    - 21 owned skill descriptions front-loaded, plus a `skill-check` guard with a test that
+      survives mutation.
+    - OMP adapter trimmed to 9,972 B.
+    - Codex context load verified via `codex debug prompt-input`.
+    - Staging pointers added; stale browser-path memory fixed.
+    - TASK-084 archived to keep `TASKS.md` under budget.
+    - Tunnel URL reclassified as intentional (§5 P2-5).
+
 ## 10. Verification Performed
 
 ```text
@@ -273,7 +294,8 @@ PASS  bin/ai-doctor                (rc 0; only note: uncommitted files)
 PASS  bin/ai-policy-lint           (after the user's shadcn-ui change and skill map were committed
                                    separately as ae17c77; before that its only error was that stale map)
 SKIP  real macOS install           no macOS device in this session; linker uses only bash-3.2/BSD-safe constructs
-SKIP  Codex live probe             account usage limit until 2026-09-20
+PASS  Codex context load           `codex debug prompt-input` renders context/codex.md (no quota needed)
+PASS  bin/skill-check-test          (TASK-085 boundary guard; mutation CUT=5000 → FAIL)
 SKIP  full Tasks A–D implementation benchmark across codex/claude/omp — cost and Codex quota
 BLOCKED delivery-ledger RUN-20260914T200000Z-4c71dc92 — first run; failed on an untracked
         docs/DOTFILES_SITEMAP.md created 03:03 by another actor (left untouched, still untracked)
@@ -282,7 +304,8 @@ PASS    delivery-ledger RUN-20260915T025808Z-17662dad — second run, TASK-084 s
         pre-existing dirty, all checks re-executed after the last edit, independent review recorded.
 SKIP    P3 A/B probe for the new Destructive clause — pi's codex-spark model was rejected by the
         provider, gemini-3.6-flash-low returned empty outputs, and the retry was killed by the
-        system for low memory. The clause is unmeasured.
+        system for low memory; a foreground retry timed out 4/4 (rc=124) with the ~8 KB context.
+        The clause is unmeasured.
 ```
 
 **Behavioral probe.** Pi `openai-codex/gpt-5.3-codex-spark`, `-nc`, empty repo. Identical
@@ -306,11 +329,10 @@ prompts: this supports "safe and cheaper", not "higher quality".
 
 ## 11. Remaining Risks
 
-- **Codex skill budget.** Descriptions (~34.5 KB) are truncated. The adapter mitigates this;
-  the root fix is shortening the longest descriptions (top: volumx-writer 831,
-  prd-taskbreaker 762, ui-validation 750).
-- **OMP context is at 10,225 / 10,240 bytes.** The next OMP rule must displace text, not
-  add to it.
+- **Codex skill budget.** Codex still cuts every description to 250 characters. Owned skills
+  now front-load purpose and boundary, but triggers placed later stay invisible to Codex, and
+  a Codex release may change the cut. `volumx-writer` still warns (TASK-077).
+- **OMP context headroom is small**: 9,972 / 10,240 bytes after the TASK-085 trim.
 - **Compat symlink must stay tracked.** It shipped in the same commit as the rename;
   `ai-policy-lint` requires it on disk, which a fresh clone only has if Git tracks it.
 - **Duplicate core while editing `config/ai/`.** Codex/OMP/agy started inside `~/dotfiles/config/ai/`
@@ -356,7 +378,7 @@ after a content backup. Remove the resulting `.bak.*` files by hand once satisfi
 
 | Dimension | Before | After | Deductions remaining |
 |---|---|---|---|
-| Native CLI Preservation | 5 | 8 | Codex skill truncation; no native hooks outside Claude |
+| Native CLI Preservation | 5 | 8.5 | Codex still cuts descriptions (boundaries now front-loaded); no native hooks outside Claude |
 | Context Efficiency | 4 | 8 | 34.5 KB skill metadata still global |
 | Instruction Clarity | 5 | 8 | Staging restated in three skills |
 | Security | 7 | 7 | Unchanged gates; prose-only outside Claude; public tunnel URL; P3 gap |
@@ -364,8 +386,8 @@ after a content backup. Remove the resulting `.bak.*` files by hand once satisfi
 | Maintainability | 6 | 8 | Committed generated files need a render step |
 | Cross-Device Reliability | 6 | 7 | Devices need `ai-memory-link` after pull |
 | Orchestration Discipline | 6 | 8 | OMP adapter is guidance, not enforcement |
-| Skill Architecture | 7 | 7 | Out of scope: overlaps and missing sandbox reference |
-| **Overall** | **6.0** | **7.8** | |
+| Skill Architecture | 7 | 8 | Vendored sandbox reference and wrangler boundary are upstream; volumx-writer pending TASK-077 |
+| **Overall** | **6.0** | **8.0** | |
 
 ## 15. Final Conclusion
 

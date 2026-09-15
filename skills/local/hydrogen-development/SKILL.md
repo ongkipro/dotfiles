@@ -1,11 +1,11 @@
 ---
 name: hydrogen-development
 description: >-
-  Build, migrate, debug, upgrade, or verify a Shopify Hydrogen storefront.
-  Use for the current React Router-based Hydrogen framework, Oxygen runtime,
-  Storefront API integration, cart/session behavior, route data, caching, and
-  storefront release evidence. Not for generic Shopify headless architecture,
-  tracking-only work, Liquid themes, or UCP agentic-commerce integrations.
+  Build, migrate, debug, upgrade, or verify a Shopify Hydrogen storefront
+  (React Router framework, Oxygen runtime). Not for generic headless
+  architecture (headless-shopify), tracking-only work, Liquid themes, or UCP
+  agentic-commerce integrations. Use for Storefront API integration,
+  cart/session behavior, route data, caching, and storefront release evidence.
 ---
 
 # Hydrogen Development

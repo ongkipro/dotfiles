@@ -1,14 +1,16 @@
 ---
 name: ui-validation
 description: >-
-  Validate browser-visible changes with the smallest executable evidence proving the affected user
-  flow. Use after UI work in admin panels, dashboards, storefronts, forms, responsive layouts, web
-  interactions; when asked to open, test, verify, QA, or prove a page in a real browser; before
-  claiming a frontend change works. Prefer the project's Playwright setup; check mobile and
-  desktop, keyboard, critical states, Astro island hydration, both themes. Use axe, Storybook,
-  visual regression, or Lighthouse CI only where the project already does. Collects raw page
-  timings for web-perf when chrome-devtools MCP is absent. Not for visual direction (design-taste),
-  dashboard information architecture (admin-dashboard), or performance diagnosis (web-perf).
+  Validate browser-visible changes with the smallest executable evidence
+  proving the affected user flow, before claiming frontend work done. Not for
+  visual direction (design-taste), dashboard IA (admin-dashboard), or
+  performance diagnosis (web-perf). Use after UI work in admin panels,
+  dashboards, storefronts, forms, responsive layouts, web interactions; when
+  asked to open, test, verify, QA, or prove a page in a real browser. Prefer
+  the project's Playwright setup; check mobile and desktop, keyboard, critical
+  states, Astro island hydration, both themes. Use axe, Storybook, visual
+  regression, or Lighthouse CI only where the project already does. Collects
+  raw page timings for web-perf when chrome-devtools MCP is absent.
 ---
 
 # UI Validation

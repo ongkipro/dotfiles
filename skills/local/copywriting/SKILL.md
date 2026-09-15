@@ -1,15 +1,16 @@
 ---
 name: copywriting
 description: >-
-  Conversion-focused, SEO-friendly copywriting rules + reusable templates for
-  product listings, blog articles, meta/SEO fields, social posts, and landing
-  pages. Source of truth for char limits, no-CTA discipline, brand-voice
-  defaults, headline patterns, ALT text, and per-platform social templates.
+  Source of truth for copy rules and templates: char limits, no-CTA
+  discipline, brand voice, headline patterns, meta/SEO fields, ALT text,
+  per-platform social templates. NOT a content workflow orchestrator — use
+  content for the pipeline. Conversion-focused, SEO-friendly copy for product
+  listings, blog articles, meta/SEO fields, social posts, and landing pages.
   Triggers: copy rules, headline, meta description, alt text, brand voice,
   product title, listing copy, social caption, blog intro, copywriting rules,
   cara nulis, bikin judul, tulis caption. Pairs with content (workflow),
-  volumx-writer (preservation + humanization), and seo-website-builder (SEO QA). NOT a content workflow orchestrator — use
-  content for the production pipeline.
+  volumx-writer (preservation + humanization), and seo-website-builder (SEO
+  QA).
 ---
 
 # Copywriting — Rules + Templates

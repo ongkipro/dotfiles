@@ -1,6 +1,15 @@
 ---
 name: admin-product-ux
-description: Model product workflows and interaction requirements for SaaS, CRM, ERP, internal tools, seller consoles, and admin systems before visual design or component implementation. Use when defining roles, jobs, business objects, entity lifecycles, permissions, list-detail behavior, forms, bulk operations, approvals, audit history, screen contracts, state matrices, UX acceptance criteria, or adaptive implementation boundaries for Astro, Vite/React, and Next.js; also use when an admin UI feels generic, incomplete, or operationally incorrect. Hand visual hierarchy to admin-dashboard and component code to shadcn-ui only after the workflow contract is sufficient.
+description: >-
+  Model product workflows and interaction requirements for SaaS, CRM, ERP,
+  internal tools, seller consoles, and admin systems before visual design
+  (admin-dashboard) or component code (shadcn-ui), which follow once the
+  workflow contract is sufficient. Use when defining roles, jobs, business
+  objects, entity lifecycles, permissions, list-detail behavior, forms, bulk
+  operations, approvals, audit history, screen contracts, state matrices, UX
+  acceptance criteria, or adaptive implementation boundaries for Astro,
+  Vite/React, and Next.js; also use when an admin UI feels generic,
+  incomplete, or operationally incorrect.
 ---
 
 # Admin Product UX

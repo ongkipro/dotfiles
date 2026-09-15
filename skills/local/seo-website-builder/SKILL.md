@@ -1,14 +1,16 @@
 ---
 name: seo-website-builder
 description: >-
-  SEO operating system for building, auditing, and improving websites: technical SEO, information
-  architecture, metadata, schema/JSON-LD, sitemap, robots.txt, canonical/noindex, internal linking,
-  Shopify SEO, Astro/static SEO, local business SEO, ecommerce SEO, programmatic SEO, Search
-  Console diagnosis, SEO QA, multi-engine algorithm updates, AI-search readiness. Triggers: "audit
-  SEO situs ini", "kenapa halaman ini tidak terindeks", "why did my traffic drop". Owns pSEO
-  template, indexation and canonical strategy; automated-traffic-pipeline owns the generation and
-  indexing pipeline, ai-traffic-os owns AEO/GEO. NOT copy (content, copywriting) or Astro code
-  (astro-development).
+  Classic SEO for building and auditing websites: technical SEO, IA, metadata,
+  schema/JSON-LD, sitemap/robots, canonical/noindex, internal links, Search
+  Console. Owns pSEO templates and indexation; not AEO/GEO, the pSEO pipeline,
+  copy, or Astro code. Also covers Shopify SEO, Astro/static SEO, local
+  business SEO, ecommerce SEO, programmatic SEO, SEO QA, multi-engine
+  algorithm updates, and AI-search readiness. Triggers: "audit SEO situs ini",
+  "kenapa halaman ini tidak terindeks", "why did my traffic drop".
+  automated-traffic-pipeline owns the generation and indexing pipeline,
+  ai-traffic-os owns AEO/GEO; copy goes to content/copywriting and Astro code
+  to astro-development.
 ---
 
 # SEO Website Builder

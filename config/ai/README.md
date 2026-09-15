@@ -28,7 +28,7 @@ the byte budgets, and `ai-doctor` checks the live links.
 | Live path | Rendered file | Consumer | How verified |
 |---|---|---|---|
 | `~/.claude/CLAUDE.md` | `context/claude.md` | Claude Code | loaded into this Claude Code session, 2026-09-15 |
-| `~/.codex/AGENTS.md` | `context/codex.md` | Codex CLI | Codex documentation (global `AGENTS.md` in `CODEX_HOME`); live probe blocked by account quota on 2026-09-15 |
+| `~/.codex/AGENTS.md` | `context/codex.md` | Codex CLI | `codex debug prompt-input` renders it (Codex 0.154, 2026-09-15; needs no model quota) |
 | `~/.gemini/GEMINI.md` | `context/antigravity.md` | Antigravity (`agy`) | strace, agy 1.2.0, 2026-09-15 |
 | `~/.omp/agent/AGENTS.md` | `context/omp.md` | OMP | strace, OMP 18.1.x, 2026-09-15 |
 | `pi()` `--append-system-prompt` | `context/pi.md` | Pi | `config/shell-tools.sh` |
@@ -53,7 +53,10 @@ Owned skills live only in `~/dotfiles/skills/local/`. `skill-update` reconciles
 the runtime-native discovery adapters, including OMP's
 `~/.omp/agent/skills`; Codex keeps its built-in `.system` skills alongside
 per-skill links to the owned source. Only skill metadata is loaded up front;
-bodies load on demand.
+bodies load on demand. Codex shortens every description to ~250 characters once
+many skills are installed (measured with `codex debug prompt-input`), so an owned
+skill states what it does and its boundary within the first ~240 characters;
+`skill-check` warns when a "Not"/"NOT" boundary starts later.
 
 OMP otherwise stays upstream-native. Dotfiles does not install its
 `config.yml`, `models.yml`, or `agents/`, does not wrap the `omp` command, and

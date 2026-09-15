@@ -1,6 +1,17 @@
 ---
 name: astro-development
-description: End-to-end Astro architecture and implementation for sites and light-to-medium web apps. Use when creating or auditing an Astro project, running Astro CLI commands, adding pages, content collections, React/shadcn islands, Actions, sessions, endpoints, middleware, adapters, Cloudflare Workers deployment, or choosing static versus on-demand rendering. Also use for Astro-based admin dashboards, with admin-dashboard leading UX decisions and shadcn-ui leading component APIs. Not for generic native-feature questions (native-first), SEO strategy/audits (seo-website-builder), or visual direction (design-taste).
+description: >-
+  Astro architecture and implementation for sites and light-to-medium web
+  apps: pages, content collections, islands, Actions, endpoints, adapters,
+  rendering mode. Not for native-feature questions (native-first), SEO
+  strategy, or visual direction. Use when creating or auditing an Astro
+  project, running Astro CLI commands, adding pages, content collections,
+  React/shadcn islands, Actions, sessions, endpoints, middleware, adapters,
+  Cloudflare Workers deployment, or choosing static versus on-demand
+  rendering. Also use for Astro-based admin dashboards, with admin-dashboard
+  leading UX decisions and shadcn-ui leading component APIs. SEO
+  strategy/audits go to seo-website-builder and visual direction to
+  design-taste.
 ---
 
 # Astro Development

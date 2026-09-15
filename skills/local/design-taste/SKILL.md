@@ -1,14 +1,17 @@
 ---
 name: design-taste
 description: >-
-  Research, design, and critique public frontend UI/UX across frameworks: landing pages,
-  marketing sites, public product flows, editorial/docs, portfolios, and storefront visuals.
-  Use for UI/UX workflow, reference research, Apple/Google/Material-inspired web design,
-  redesign, design tokens, visual polish, or AI-templated UI. Start from user tasks and
-  existing brand evidence; use a restrained, lightweight public-web foundation when no
-  accepted system exists. Require inspected references for new directions and rendered
-  critique for visual claims. Pair with the installed framework skill and ui-validation.
-  Not the owner of admin workflows, commerce business rules, copywriting, SEO, or library installation.
+  Research, design, and critique public frontend UI/UX: landing pages,
+  marketing sites, public product flows, editorial/docs, portfolios,
+  storefront visuals. Not the owner of admin workflows, commerce rules,
+  copywriting, SEO, or library installation. Use for UI/UX workflow, reference
+  research, Apple/Google/Material-inspired web design, redesign, design
+  tokens, visual polish, or AI-templated UI, across frameworks. Start from
+  user tasks and existing brand evidence; use a restrained, lightweight
+  public-web foundation when no accepted system exists. Require inspected
+  references for new directions and rendered critique for visual claims.
+  Commerce business rules belong elsewhere. Pair with the installed framework
+  skill and ui-validation.
 ---
 
 # Design Taste — Public Frontend UI/UX

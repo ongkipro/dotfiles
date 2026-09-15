@@ -1,14 +1,16 @@
 ---
 name: native-first
 description: >-
-  Per-stack cheatsheet for "what does the platform already give me?" — reach for the built-in
-  before a dependency, an abstraction, or a custom layer; also carries the smallest validation
-  command per stack. Use BEFORE installing a package, writing a util/wrapper/abstraction,
-  hand-rolling auth/cache/date/validation, or choosing how to verify. Covers Next.js/React, Astro,
-  Node/TS, Cloudflare Workers, Vercel, Postgres+Drizzle+better-auth, Shopify
-  (Liquid/Storefront/CLI), self-host (Docker/Coolify/Vultr). Triggers: "perlu install apa", "pakai
-  library apa", "npm i", "pnpm add", "bikin helper/wrapper/abstraction", "cara validasi", "gimana
-  cek ini jalan", over-engineering, bloat, dependency baru. NOT a general dev-task router.
+  Per-stack cheatsheet for "what does the platform already give me?" — reach
+  for the built-in before a dependency, abstraction, or custom layer, plus the
+  smallest validation command per stack. NOT a general dev-task router. Use
+  BEFORE installing a package, writing a util/wrapper/abstraction,
+  hand-rolling auth/cache/date/validation, or choosing how to verify. Covers
+  Next.js/React, Astro, Node/TS, Cloudflare Workers, Vercel,
+  Postgres+Drizzle+better-auth, Shopify (Liquid/Storefront/CLI), self-host
+  (Docker/Coolify/Vultr). Triggers: "perlu install apa", "pakai library apa",
+  "npm i", "pnpm add", "bikin helper/wrapper/abstraction", "cara validasi",
+  "gimana cek ini jalan", over-engineering, bloat, dependency baru.
 ---
 
 # Native-first

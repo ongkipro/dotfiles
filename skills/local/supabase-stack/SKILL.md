@@ -1,6 +1,14 @@
 ---
 name: supabase-stack
-description: 'Set up and develop with Supabase — auth, database (PostgreSQL), storage, realtime, and edge functions. Supports Supabase cloud and self-hosted on a VPS via Docker. Use for projects with a serious backend, multi-user, realtime features, or that need full auth without reinventing the wheel. Triggers: ''supabase'', ''setup supabase'', ''auth supabase'', ''supabase docker'', ''self-hosted supabase'', ''supabase schema'', ''rls'', ''row level security'', ''supabase storage''. NOT for plain Postgres/Drizzle work (house stack) or Cloudflare D1 — here ''rls'' and ''storage'' mean built-in Supabase features, not plain Postgres RLS or R2/D1.'
+description: >-
+  Set up and develop with Supabase — auth, PostgreSQL, storage, realtime, edge
+  functions — on Supabase cloud or self-hosted Docker. NOT for plain
+  Postgres/Drizzle work (house stack) or Cloudflare D1. Use for projects with
+  a serious backend, multi-user, realtime features, or that need full auth
+  without reinventing the wheel. Triggers: 'supabase', 'setup supabase', 'auth
+  supabase', 'supabase docker', 'self-hosted supabase', 'supabase schema',
+  'rls', 'row level security', 'supabase storage'. Here 'rls' and 'storage'
+  mean built-in Supabase features, not plain Postgres RLS or R2/D1.
 ---
 
 # Supabase Stack

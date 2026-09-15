@@ -1,15 +1,17 @@
 ---
 name: prd-taskbreaker
 description: >-
-  Turn an idea into a spec-driven PRD (goals, non-goals, EARS-style numbered requirements,
-  technical decisions), then numbered tasks each tracing to one requirement with a runnable "Done
-  when" — ready for an AI coding agent to build without over-engineering. Output PRD.md (+PLAN.md
-  when architectural) + TASKS.md. Use on a feature request, when starting a project, or when
-  planning must precede coding. Triggers: 'buat PRD', 'tulis PRD', 'write a PRD', 'pecah jadi
-  task', 'break into tasks', 'planning fitur baru', 'spec this feature', 'rencanakan sebelum
-  coding', 'plan before coding'. Diagrams (ERD/sequence/C4) to mermaid-diagram, API contracts to
-  openapi-spec, rewriting an existing PRD to volumx-writer. NOT code, NOT marketing copy (content,
-  copywriting).
+  Turn an idea into a spec-driven PRD (goals, non-goals, EARS-style
+  requirements, decisions) plus numbered tasks, each tracing to one
+  requirement with a runnable "Done when". Output PRD.md (+PLAN.md) +
+  TASKS.md. NOT code, NOT marketing copy. Ready for an AI coding agent to
+  build without over-engineering; PLAN.md only when architectural. Use on a
+  feature request, when starting a project, or when planning must precede
+  coding. Triggers: 'buat PRD', 'tulis PRD', 'write a PRD', 'pecah jadi task',
+  'break into tasks', 'planning fitur baru', 'spec this feature', 'rencanakan
+  sebelum coding', 'plan before coding'. Diagrams (ERD/sequence/C4) to
+  mermaid-diagram, API contracts to openapi-spec, rewriting an existing PRD to
+  volumx-writer, marketing copy to content/copywriting.
 ---
 
 # PRD Taskbreaker

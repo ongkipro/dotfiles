@@ -2,10 +2,10 @@
 name: hydrogen-headless-tracking
 description: >-
   Implement, audit, or troubleshoot consent-aware analytics and advertising
-  signals for Shopify Hydrogen. Use for Hydrogen analytics, Shopify-hosted Web
-  Pixels, cart-to-checkout attribution, provider browser/server events, and
-  purchase webhook evidence. Not for ordinary storefront UI, generic SEO, or
-  pixel configuration changes without explicit approval.
+  signals for Shopify Hydrogen. Not for ordinary storefront UI, generic SEO,
+  or pixel configuration changes without explicit approval. Use for Hydrogen
+  analytics, Shopify-hosted Web Pixels, cart-to-checkout attribution, provider
+  browser/server events, and purchase webhook evidence.
 ---
 
 # Hydrogen Headless Tracking

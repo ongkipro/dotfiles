@@ -1,14 +1,15 @@
 ---
 name: automated-traffic-pipeline
 description: >-
-  End-to-end Automated Traffic Generation Engine Architecture (Programmatic SEO / pSEO, Auto Indexing Pipelines,
-  Content Freshness Crons, Visual Asset & RSS Syndication Flywheels, and Closed-Loop Revenue Attribution).
-  Use when architecting, building, or auditing websites designed to generate recurring organic, AI search,
-  and referral traffic automatically at scale.
-  This skill owns the generation, indexing, and syndication pipeline; use `seo-website-builder` for the
-  template, indexation, and canonical strategy of the pSEO page set itself, and `ai-traffic-os` for AEO/GEO.
-  Triggers: "automated traffic", "traffic engine", "programmatic seo", "pseo", "auto indexing pipeline",
-  "traffic flywheel", "content automation", "automated traffic pipeline".
+  Owns the automated traffic generation, indexing, and syndication pipeline:
+  pSEO generation, auto-indexing, RSS/visual flywheels. Not pSEO template,
+  indexation, or canonical strategy (`seo-website-builder`) or AEO/GEO
+  (`ai-traffic-os`). Includes content freshness crons and closed-loop revenue
+  attribution. Use when architecting, building, or auditing websites designed
+  to generate recurring organic, AI search, and referral traffic automatically
+  at scale. Triggers: "automated traffic", "traffic engine", "programmatic
+  seo", "pseo", "auto indexing pipeline", "traffic flywheel", "content
+  automation", "automated traffic pipeline".
 ---
 
 # Automated Traffic Pipeline Engine

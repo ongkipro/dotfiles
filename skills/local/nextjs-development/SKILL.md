@@ -1,6 +1,16 @@
 ---
 name: nextjs-development
-description: Retrieval-first Next.js App Router architecture and implementation. Use when creating, changing, debugging, or reviewing Next.js App Router routes, layouts, Server/Client Components, data fetching and caching, Route Handlers, Server Actions, forms, metadata, streaming, runtime selection, instrumentation, or deployment output. Inspect the installed Next.js/React versions and project configuration before using APIs. Not for generic React tutorials, visual design, SEO strategy, automated test strategy, cross-stack AppSec, observability design, or Vercel infrastructure.
+description: >-
+  Retrieval-first Next.js App Router architecture and implementation: routes,
+  layouts, Server/Client Components, caching, Server Actions. Not for React
+  tutorials, visual design, SEO strategy, test strategy, cross-stack AppSec,
+  or Vercel infra. Use when creating, changing, debugging, or reviewing
+  Next.js App Router routes, layouts, Server/Client Components, data fetching
+  and caching, Route Handlers, Server Actions, forms, metadata, streaming,
+  runtime selection, instrumentation, or deployment output. Inspect the
+  installed Next.js/React versions and project configuration before using
+  APIs. Automated test strategy, cross-stack AppSec, observability design, and
+  Vercel infrastructure belong to their own skills.
 ---
 
 # Next.js Development

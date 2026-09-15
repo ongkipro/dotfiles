@@ -1,14 +1,14 @@
 ---
 name: development-kit
 description: >-
-  Route an idea, feature, or existing repository through the canonical product,
-  specification, UX, visual design, implementation, verification, and release
-  owners without creating competing documents. Use when the user asks for the
-  development kit, a complete development workflow, which skills or Markdown
-  artifacts to use, or how planning should hand off to UI/UX and full-stack
-  delivery. Also routes safe extraction from an explicitly supplied worked
-  example. Not a substitute for specialist methodology, implementation, or
-  approval.
+  Route an idea, feature, or existing repository through the canonical
+  product, specification, UX, visual design, implementation, verification, and
+  release owners without competing documents. Not a substitute for specialist
+  methodology or approval. Use when the user asks for the development kit, a
+  complete development workflow, which skills or Markdown artifacts to use, or
+  how planning should hand off to UI/UX and full-stack delivery. Also routes
+  safe extraction from an explicitly supplied worked example. It does not
+  implement.
 ---
 
 # Development Kit Control Plane

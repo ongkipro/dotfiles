@@ -25,6 +25,25 @@ if SKILL_SOURCE="$TMP" "$CHECK" placeholder >/dev/null 2>&1; then
   exit 1
 fi
 
+# ── Boundaries must survive Codex's ~250-character description cut ─────────
+long_head="$(printf 'word %.0s' $(seq 1 60))"
+mkdir -p "$TMP/late" "$TMP/early" "$TMP/vendored"
+printf '%s\n' '---' 'name: late' "description: ${long_head}Not for sibling work." '---' '' '# Late' > "$TMP/late/SKILL.md"
+printf '%s\n' '---' 'name: early' "description: Does one thing. Not for sibling work. ${long_head}" '---' '' '# Early' > "$TMP/early/SKILL.md"
+printf '%s\n' '---' 'name: vendored' "description: ${long_head}Not for sibling work." '---' '' '# Vendored' > "$TMP/vendored/SKILL.md"
+: > "$TMP/vendored/.source"
+if python3 -c 'import yaml' 2>/dev/null; then
+  # Captured first: `cmd | grep -q` under pipefail fails on the SIGPIPE grep causes.
+  out_late="$(SKILL_SOURCE="$TMP" "$CHECK" late 2>&1 || true)"
+  out_early="$(SKILL_SOURCE="$TMP" "$CHECK" early 2>&1 || true)"
+  out_vendored="$(SKILL_SOURCE="$TMP" "$CHECK" vendored 2>&1 || true)"
+  case "$out_late" in *'boundary clause starts after character 240'*) ;;
+    *) echo "skill-check-test: FAILED (late boundary not reported)"; exit 1 ;; esac
+  case "$out_early" in *'boundary clause'*) echo "skill-check-test: FAILED (front-loaded boundary reported)"; exit 1 ;; esac
+  case "$out_vendored" in *'boundary clause'*) echo "skill-check-test: FAILED (vendored upstream text judged)"; exit 1 ;; esac
+fi
+rm -rf "$TMP/late" "$TMP/early" "$TMP/vendored"
+
 # ── The registry count is measured, not scanned (TASK-055) ───────────────────
 # The reported total is the one number a task can be held to — TASK-049's
 # verification used it — and the awk scanner was over by 188 characters across

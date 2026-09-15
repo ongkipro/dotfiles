@@ -1,14 +1,16 @@
 ---
 name: content
 description: >-
-  Content production playbook for blog articles, product listings, social posts, landing pages:
-  structure templates, brand voice calibration, batching/calendar workflow, image+alt pipeline,
-  cross-posting, quality gates (no CTA, no brand leak, char limits). Triggers: bikin konten, tulis
-  artikel, blog post, content calendar, social post, landing page copy, batch content, kalender
-  konten, artikel SEO. Pairs with copywriting (rules), seo-website-builder (SEO QA), volumx-writer
-  (preservation + humanization), 9router (visuals + research). NOT the source of copy rules and NOT
-  for a single asset — copywriting owns char limits, headline patterns, meta, ALT text; this is the
-  multi-asset pipeline.
+  Multi-asset content production pipeline for blog articles, listings, social
+  posts, and landing pages: templates, voice calibration, batching/calendar,
+  image+alt, cross-posting. NOT the copy-rules source (copywriting) and NOT
+  for a single asset. Quality gates: no CTA, no brand leak, char limits.
+  Triggers: bikin konten, tulis artikel, blog post, content calendar, social
+  post, landing page copy, batch content, kalender konten, artikel SEO. Pairs
+  with copywriting (rules), seo-website-builder (SEO QA), volumx-writer
+  (preservation + humanization), 9router (visuals + research). copywriting
+  owns char limits, headline patterns, meta, ALT text; this is the multi-asset
+  pipeline.
 ---
 
 # Content Production

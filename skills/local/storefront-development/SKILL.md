@@ -1,13 +1,15 @@
 ---
 name: storefront-development
 description: >-
-  Build, refactor, or review ecommerce storefronts with a restrained product-first baseline
-  following Shopify Dawn's HTML-first progressive enhancement. Use for home, collection/PLP,
-  search, product/PDP, variants, add-to-cart, cart drawer/page, checkout handoff, account,
-  localization, merchandising, responsive behavior, semantic HTML, performance across Shopify
-  Liquid, Astro, Next.js, Vite/React, Hydrogen, or another web stack. Owns implementation
-  architecture, UI composition, commerce state, validation; storefront-ux owns journey and state,
-  design-taste owns visual direction. Verify platform APIs first — hosted Shopify, headless, and
+  Build, refactor, or review ecommerce storefronts with a restrained
+  product-first, Dawn-style HTML-first progressive-enhancement baseline. Owns
+  implementation; journey and state belong to storefront-ux, visual direction
+  to design-taste. Use for home, collection/PLP, search, product/PDP,
+  variants, add-to-cart, cart drawer/page, checkout handoff, account,
+  localization, merchandising, responsive behavior, semantic HTML, performance
+  across Shopify Liquid, Astro, Next.js, Vite/React, Hydrogen, or another web
+  stack. Owns implementation architecture, UI composition, commerce state,
+  validation. Verify platform APIs first — hosted Shopify, headless, and
   non-Shopify differ at the cart and checkout boundary.
 ---
 

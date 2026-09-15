@@ -1,15 +1,16 @@
 ---
 name: admin-dashboard
 description: >-
-  Design the concept, information architecture, responsive behavior, tables,
-  charts, KPI hierarchy, accessibility, and data-loading strategy for admin
-  pages and data-dense dashboards. Use for admin panels, dashboard layouts,
+  Design the concept, IA, responsive tables, charts, KPI hierarchy,
+  accessibility, and data loading for admin pages and dense dashboards.
+  Workflow modeling is admin-product-ux; not marketing pages, copywriting, or
+  component code (shadcn-ui). Use for admin panels, dashboard layouts,
   analytics UX, chart selection, responsive tables, KPI cards, sidebars, and
   Astro-vs-React admin decisions. Also covers operator surfaces: order
-  lifecycle IA, bulk actions, multi-tenant scope and impersonation, permissions
-  and audit logs, and timezone/currency correctness. Delegate component code to shadcn-ui,
-  browser evidence to ui-validation, and performance diagnosis to web-perf.
-  Not for marketing pages, copywriting, or installing components.
+  lifecycle IA, bulk actions, multi-tenant scope and impersonation,
+  permissions and audit logs, and timezone/currency correctness. Delegate
+  browser evidence to ui-validation and performance diagnosis to web-perf; do
+  not install components.
 ---
 
 # Admin Dashboard — concept & IA

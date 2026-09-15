@@ -1,6 +1,13 @@
 ---
 name: development-spec-suite
-description: Select, initialize, and audit a traceable multi-document development specification pack across product, architecture, data, IAM, API, security, privacy, operations, UI, localization, and jurisdiction concerns. Use when several specification domains must stay consistent or an existing pack needs traceability/applicability audit. NOT for a PRD/TASKS-only request, a standalone contract/diagram, implementation, or legal conclusions.
+description: >-
+  Select, initialize, and audit a traceable multi-document spec pack when
+  several domains (product, architecture, data, IAM, API) must stay
+  consistent. NOT for a PRD/TASKS-only request, a standalone contract,
+  implementation, or legal conclusions. Domains also include security,
+  operations, privacy, UI, localization, and jurisdiction concerns. Use when
+  an existing pack needs traceability/applicability audit. A standalone
+  diagram is also out of scope.
 ---
 
 # Adaptive Development Specification Suite
@@ -30,7 +37,7 @@ Never load `assets/templates/*`, the source ledger, or maintenance backlog to an
   qualified review.
 - Never request, print, copy, or store credentials, tokens, payment data, customer records, sessions, or production secrets.
 - Preserve existing files. Initialize missing files only; require explicit update mode before changing an established pack. Do not commit, push, merge, deploy, publish, or touch production without explicit user authorization.
-- Before `~/Projects/<slug>/` exists, this skill's pack stages under the mandatory `~/Documents/work/prd/<slug>/` directory (detected by `CONTEXT-RECORD.md`) and is never authoritative alone. `project-init --from-docs` copies the accepted pack into `docs/spec/` once authorized; the repository copy is then canonical.
+- Canonical staging contract: `~/.config/ai/policies/planning-artifacts.md`. Before `~/Projects/<slug>/` exists, this skill's pack stages under the mandatory `~/Documents/work/prd/<slug>/` directory (detected by `CONTEXT-RECORD.md`) and is never authoritative alone. `project-init --from-docs` copies the accepted pack into `docs/spec/` once authorized; the repository copy is then canonical.
 
 ## Workflow
 

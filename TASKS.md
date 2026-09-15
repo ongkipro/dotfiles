@@ -13,8 +13,8 @@ Only the dependency edge is human-authored; state is derived.
 
 ## Done
 
-Archived under `docs/archive/`, newest `DOTFILES_TASKS_2026-09-11_MUTATION_COVERAGE.md`
-(TASK-078, TASK-073), then `TASKS-074-history.md` (TASK-072), then `DOTFILES_TASKS_2026-09-10_TEST_EFFICACY.md`,
+Archived under `docs/archive/`, newest `DOTFILES_TASKS_2026-09-15_NATIVE_FIRST_CONTEXT.md`
+(TASK-084), then `DOTFILES_TASKS_2026-09-11_MUTATION_COVERAGE.md` (TASK-078, TASK-073), then `TASKS-074-history.md` (TASK-072), then `DOTFILES_TASKS_2026-09-10_TEST_EFFICACY.md`,
 then `DOTFILES_TASKS_2026-09-04_QUEUE.md`
 (TASK-047..059), then `DOTFILES_TASKS_2026-09-01_DEVICE_VERIFICATION.md`
 (TASK-038–041, 044; prose closures for TASK-013/022/027/028).
@@ -26,7 +26,7 @@ then `DOTFILES_TASKS_2026-09-04_QUEUE.md`
 - **Requirement:** REQ-CROSS-MODEL-LANGUAGE (user-requested audit and improvement).
 - **Risk Level:** R1 (declared); boundary-classified R2 due to the five-file surface, requiring independent review.
 - **Canonical Contract Owners:** `ai.communication` (shared baseline), `writing.dialogue` (detailed methodology).
-- **Allowed Paths:** `config/ai/AGENTS.md`, `skills/local/volumx-writer/SKILL.md`, `skills/local/volumx-writer/references/terminal-dialogue.md`, `skills/local/volumx-writer/references/dialogue-evaluation.md`, `TASKS.md`.
+- **Allowed Paths:** `config/ai/CORE.md` (was `config/ai/AGENTS.md` before TASK-084), `skills/local/volumx-writer/SKILL.md`, `skills/local/volumx-writer/references/terminal-dialogue.md`, `skills/local/volumx-writer/references/dialogue-evaluation.md`, `TASKS.md`.
 - **Accepted Invariants:** Preserve approval gates, technical meaning, artifact language rules, and existing repository/memory ownership; no provider-specific runtime changes.
 - **Verification:** `skill-check volumx-writer`, `ai-policy-lint`, `ai-memory-check`, `git diff --check`, and delivery boundary check.
 - **Runtime Evidence:** Shared context/skill link checks; cross-provider behavioral evaluation is not performed by static validation.
@@ -65,19 +65,19 @@ Completed TASK-072 record: [retained history](docs/archive/TASKS-074-history.md)
 - **Verification:** `bin/mutation-sweep --subject pi-update-safe device-verify` names `device-verify` as fully covered while still exiting non-zero
 - **Escalation Conditions:** restoring the dropped rows reveals that a subject reported covered in an earlier batch was never actually clean, which would make every batch-derived ranking suspect
 
-### TASK-084: One source, one adapter per runtime
-- **Requirement:** REQ-NATIVE-FIRST-CONTEXT (user-requested native-first audit and refactor, 2026-09-15)
-- **Risk Level:** R3 — changes the always-loaded policy and approval-gate text every runtime reads
-- **Allowed Paths:** `config/ai/{CORE.md,AGENTS.md,README.md}`, `config/ai/{adapters,context,policies}/**`, the memory/project-memory/hook files naming the retired source, `config/shell-tools.sh`, `config/omp/{README.md,STATUS.md,GOAL-ORCHESTRATION.md,models.yml}`, `bin/{ai-memory-link,ai-doctor,ai-policy-lint,dotsync,device-register}` and their tests, `bin/{omp-routing-test,shell-wrapper-test,ai-hooks-install}`, `config/ai/hooks/{git-guard,memory-usage}.sh`, `install.sh`, `install-macos.sh`, the docs naming the retired source, `skills/local/{native-first,prd-taskbreaker}/SKILL.md`, `TASKS.md`, `.delivery/**`
-- **Protected Paths:** `config/ai/CORE.md`, `config/ai/adapters/**`, `bin/ai-memory-link`
-- **Canonical Contract Owners:** `ai.communication` (CORE.md), each runtime adapter, `config/ai/policies/planning-artifacts.md`
-- **Accepted Invariants:** approval gates, secrets, Git, and verification rules reach every runtime unchanged in meaning; OMP orchestration and designer/vision routing reach OMP only; rendered context is a pure function of CORE.md + one adapter and is committed; unmanaged runtime files and the sealed Claude home bootstrap are never touched; OMP runtime ownership stays native
-- **Regression Checks:** `ai-memory-link-test`, `ai-policy-lint-test`, `ai-policy-lint`, `shell-wrapper-test`, `omp-routing-test`, `installer-link-test`, `ai-doctor-test`, `ai-memory-check`
-- **Runtime Evidence:** one 20,434-byte AGENTS.md was linked into every runtime, carrying the OMP goal contract and a designer/vision rule single-agent CLIs cannot satisfy; agy 1.2.0 (strace) opens only `~/.gemini/GEMINI.md`, so three of four Antigravity links were dead while `ai-doctor` reported one as healthy; Codex truncates skill descriptions at its budget. Report: `docs/DOTFILES-NATIVE-FIRST-AUDIT.md`
-- **Verification:** each runtime path resolves to its own `config/ai/context/<runtime>.md` ≤ 10 KB; `ai-memory-link --check` passes; the OMP goal anchors live only in `adapters/omp.md`; `config/ai/AGENTS.md` is only a compatibility symlink to `CORE.md` (remove once every device has relinked)
-- **Non-Scope:** skill merges, MCP changes, OMP routing or model changes, archiving historical OMP docs, commit/push
-- **Reopen Conditions:** a runtime is found reading a different global context path, or a rule removed from the core has no remaining owner
-- **Escalation Conditions:** a runtime requires generated context outside `config/ai/context/`
+### TASK-085: Boundaries Codex never sees
+- **Requirement:** REQ-NATIVE-FIRST-RESIDUALS (user-approved follow-up to TASK-084, 2026-09-15)
+- **Risk Level:** R3 — touches the OMP adapter and many skill descriptions every runtime indexes
+- **Allowed Paths:** 22 owned `skills/local/*/SKILL.md` descriptions (front-load only), `skills/local/README.md`, `skills/agents-bin/skill-check`, `bin/skill-check-test`, `config/ai/adapters/omp.md`, `config/ai/context/**`, `config/ai/README.md`, `config/ai/memory/environment-ai-runtimes.md`, `docs/DOTFILES-NATIVE-FIRST-AUDIT.md`, `TASKS.md`, `.delivery/**`
+- **Protected Paths:** `config/ai/CORE.md`, `config/ai/adapters/**`
+- **Canonical Contract Owners:** each skill's own description; `skill-check` for registry hygiene
+- **Accepted Invariants:** descriptions are reordered, not rewritten in meaning — every trigger, owner, and boundary survives; vendored and forked skills (`.source`) are untouched; `volumx-writer` stays with TASK-077; OMP goal-contract anchors stay intact
+- **Regression Checks:** `skill-check-test`, `skill-check`, `skill-map --check`, `ai-policy-lint`, `ai-memory-link-test`
+- **Runtime Evidence:** `codex debug prompt-input` (no model quota) shows Codex 0.154 cutting all 72 skill descriptions to 250 characters once many skills are installed (10 synthetic skills: 699 kept; 30: 624); 64 of 67 owned descriptions exceeded 250 and the 12 overlapping-group skills showed zero boundary signals in Codex's view
+- **Verification:** `skill-check` reports no late-boundary warning except `volumx-writer`; `context/omp.md` ≤ 10,000 bytes
+- **Non-Scope:** shortening descriptions overall, disabling skills or Codex plugins, the 9router tunnel URL (an authenticated endpoint in active use by Pi sync)
+- **Reopen Conditions:** a Codex release changes the cut, or a sibling skill is mis-selected because its boundary is hidden
+- **Escalation Conditions:** fitting a boundary in 250 characters requires dropping a trigger or owner
 
 ### TASK-083: The sweep does not say what it did not look at
 - **Requirement:** REQ-MUTATION-COVERAGE

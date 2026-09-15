@@ -77,7 +77,7 @@
   from OMP. Inspect them only while troubleshooting a direct Pi session.
 - There is no Pi-owned image-generation path in tracked settings. Use the
   runtime-neutral `9router` skill/API.
-- **Claude Code**: local MCP `chrome-devtools` (uses `/usr/bin/chromium-browser`) for the `web-perf` skill. A read-only permission allowlist + a secret deny-rule are in `~/.claude/settings.json`.
+- **Claude Code**: local MCP `chrome-devtools` for the `web-perf` skill; its browser path is device-local (`rich`: `--headless --executablePath /usr/bin/google-chrome`, verified 2026-09-15 — an earlier note said `chromium-browser`). A read-only permission allowlist + a secret deny-rule are in `~/.claude/settings.json`.
 - **Supabase CLI deliberately NOT installed** (verified 2026-07-14: `supabase` not in PATH) — the DB stack = PostgreSQL + Drizzle ORM + better-auth, self-hosted via Coolify. Don't install unless a project truly needs it. The `~/.supabase/` folder **DOES NOT EXIST on Mac** (verified 2026-07-20 — the old note saying "EXISTS but leftover/empty" is wrong for this machine). The `supabase-stack` skill is kept for reference, not a sign of adoption.
 
 ## Fixes & new tools on `cuan` (2026-07-13)
