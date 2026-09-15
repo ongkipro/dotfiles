@@ -1,7 +1,7 @@
 # Device: `rich`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-09-11**
+> Terakhir diperbarui: **2026-09-15**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -10,8 +10,8 @@
 |---|---|
 | Hostname | `rich` |
 | Device | **Dell Inc. OptiPlex 7050 · desktop** |
-| OS | Ubuntu 24.04.4 LTS |
-| Kernel | 7.0.0-30-generic · x86_64 |
+| OS | Ubuntu 24.04.5 LTS |
+| Kernel | 7.0.0-31-generic · x86_64 |
 | Service manager | systemd --user |
 | Package manager | apt |
 
@@ -22,7 +22,7 @@
 | CPU | Intel(R) Core(TM) i7-7700T CPU @ 2.90GHz (8 thread) |
 | RAM | 31.2 GB |
 | GPU | Intel Corporation HD Graphics 630 (rev 04) |
-| Disk (/) | 218G total, 35G free (84% used) |
+| Disk (/) | 218G total, 50G free (77% used) |
 
 ## AI CLI
 
@@ -61,8 +61,7 @@
 | memori bersama | `~/.config/ai` | ✅ ok |
 | memori → claude | `~/.claude/CLAUDE.md` | ✅ ok |
 | memori → codex | `~/.codex/AGENTS.md` | ✅ ok |
-| memori → agy | `~/.antigravity/AGENTS.md` | ✅ ok |
-| memori → agy (gemini stack) | `~/.gemini/GEMINI.md` | ✅ ok |
+| memori → agy | `~/.gemini/GEMINI.md` | ✅ ok |
 | memori → omp | `~/.omp/agent/AGENTS.md` | ✅ ok |
 | skills → shared runtime | `~/.agents/local-skills` | ✅ ok |
 | skills → claude | `~/.claude/skills` | ✅ ok |
