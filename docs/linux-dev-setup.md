@@ -21,7 +21,7 @@ When sources disagree, use this order:
 | WSL-only tools | `config/wsl-tools.sh` | Sourced by `~/.bashrc` on WSL |
 | Shared AI policy and memory | `config/ai/` | `~/.config/ai` symlink |
 | Owned AI capabilities | `skills/local/` | Runtime links reconciled by `skill-update` |
-| OMP shared context | `config/ai/AGENTS.md` | `~/.omp/agent/AGENTS.md` symlink |
+| OMP shared context | `config/ai/context/omp.md` (CORE + OMP adapter) | `~/.omp/agent/AGENTS.md` symlink |
 | OMP owned skills | `skills/local/` | `~/.omp/agent/skills` symlink |
 | Tool versions | `config/mise-config.toml` | `~/.config/mise/config.toml` symlink |
 | Terminal prompt | `config/starship.toml` | `~/.config/starship.toml` symlink |

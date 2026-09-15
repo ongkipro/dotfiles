@@ -5,7 +5,7 @@ and owned skills across Linux and macOS.
 
 ## Sources
 
-- `config/ai/AGENTS.md` — small policy loaded by every supported AI CLI.
+- `config/ai/CORE.md` — small shared policy; each CLI loads it with its own `adapters/<runtime>.md`, rendered to `context/<runtime>.md` by `ai-memory-link`.
 - `config/ai/claude-home-memory/` — source for the minimal bootstrap copied into
   a device-local, read-only Claude `$HOME` memory directory; it must never
   expose the full project-memory tree or accept auto-memory writes.

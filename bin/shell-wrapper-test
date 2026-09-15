@@ -139,4 +139,17 @@ else
   echo "SKIP: optional Zsh execution fixture is not applicable on this device"
 fi
 
+# pi() feeds Pi its rendered context (shared core + pi adapter), then the
+# device-local file, and passes the user's arguments through untouched.
+pi_home="$TMP/pi-home"; mkdir -p "$pi_home/.config/ai/context" "$pi_home/.config/ai-local" "$TMP/pi-bin"
+: > "$pi_home/.config/ai/context/pi.md"; : > "$pi_home/.config/ai-local/device.md"
+printf '#!/usr/bin/env bash\nprintf "%%s|" "$@"\n' > "$TMP/pi-bin/pi"; chmod +x "$TMP/pi-bin/pi"
+pi_out="$(HOME="$pi_home" PATH="$TMP/pi-bin:$PATH" bash -c "$(extract_function "$ROOT/config/shell-tools.sh" pi)"'; pi -p "hello world"')"
+expected_pi="--append-system-prompt|$pi_home/.config/ai/context/pi.md|--append-system-prompt|$pi_home/.config/ai-local/device.md|-p|hello world|"
+if [ "$pi_out" != "$expected_pi" ]; then
+  echo "FAIL: pi() must append context/pi.md then device.md; got: $pi_out" >&2
+  exit 1
+fi
+echo "✓ config/shell-tools.sh: pi() appends the rendered pi context and device memory"
+
 echo "shell-wrapper-test: OK"

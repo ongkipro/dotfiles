@@ -63,7 +63,7 @@ This document uses the following evidence labels:
 
 The current GitHub baseline establishes the following:
 
-- [`config/ai/AGENTS.md`](../config/ai/AGENTS.md) is the canonical cross-CLI engineering policy.
+- [`config/ai/CORE.md`](../config/ai/CORE.md) is the canonical cross-CLI engineering policy; each runtime receives it with its own adapter from `config/ai/adapters/` (superseded wording, updated 2026-09-15 by TASK-084).
 - [`skills/local/`](../skills/local/) is the canonical owned skill source.
 - [`config/ai/memory/`](../config/ai/memory/) and [`config/ai/project-memory/`](../config/ai/project-memory/) provide shared durable reference context, with repository disk remaining authoritative for project truth.
 - [`bin/project-init`](../bin/project-init) initializes `AGENTS.md`, `PRD.md`, `TASKS.md`, `STATUS.md`, `BUILD-LOG.md`, and `docs/architecture.md` without overwriting existing files.
@@ -103,7 +103,7 @@ The strongest architectural choice is that OMP does not own all engineering inte
         ┌─────────────────────┼─────────────────────┐
         │                     │                     │
    Universal policy     Reusable skills      Durable reference
- config/ai/AGENTS.md      skills/local/       config/ai/memory/
+ config/ai/CORE.md        skills/local/       config/ai/memory/
         │                     │                     │
         └─────────────────────┼─────────────────────┘
                               │

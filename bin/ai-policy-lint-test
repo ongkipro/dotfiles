@@ -399,28 +399,82 @@ echo "ai-policy-lint-test: task contracts PASS"
 
 # Capability policy permits arbitrary model/provider names but preserves the
 # separate-review and explicit-approval clauses.
-python3 - "$LINT" "$ROOT/config/ai/AGENTS.md" "$TMP" <<'PYTEST'
+python3 - "$LINT" "$ROOT/config/ai" "$TMP" <<'PYTEST'
 import importlib.machinery, importlib.util, sys
 from pathlib import Path
 loader = importlib.machinery.SourceFileLoader("policy_fixture", sys.argv[1])
 spec = importlib.util.spec_from_loader(loader.name, loader)
 mod = importlib.util.module_from_spec(spec)
 loader.exec_module(mod)
+import shutil
+real = Path(sys.argv[2])
 fixture = Path(sys.argv[3]) / "policy-fixture"
-fixture.mkdir()
+shutil.copytree(real, fixture, symlinks=True, ignore=shutil.ignore_patterns("memory", "project-memory*", "claude-home-memory", "context"))
 mod.AI_DIR = fixture
-source = Path(sys.argv[2]).read_text()
+core = (real / "CORE.md").read_text()
+source = (real / "adapters" / "omp.md").read_text()
+omp = fixture / "adapters" / "omp.md"
 for suffix in ("", "\nPreferred runtime model: arbitrary-vendor/arbitrary-model.\n"):
-    (fixture / "AGENTS.md").write_text(source + suffix)
+    omp.write_text(source + suffix)
     mod.errors.clear()
     mod.check_agents_policy()
     assert not mod.errors, mod.errors
 for clause in ("Route by capability:", "Use any available capable model/provider", "separate actual agent", "Product, scope, secrets and live-operation approvals remain."):
-    (fixture / "AGENTS.md").write_text(source.replace(clause, "removed-policy-fixture"))
+    omp.write_text(source.replace(clause, "removed-policy-fixture"))
     mod.errors.clear()
     mod.check_agents_policy()
     assert mod.errors, f"missing capability policy was accepted: {clause}"
+omp.write_text(source)
+# OMP orchestration policy leaking back into the shared core is refused.
+(fixture / "CORE.md").write_text(core + "\n### OMP autonomous repository goals\n")
+mod.errors.clear()
+mod.check_agents_policy()
+assert any("belongs in config/ai/adapters/omp.md" in e for e in mod.errors), mod.errors
+(fixture / "CORE.md").write_text(core)
+# Deleting the Git paragraph (attribution, force-push, commit-on-request) is refused.
+git_start = core.index("Git: stage")
+(fixture / "CORE.md").write_text(core[:git_start])
+mod.errors.clear()
+mod.check_agents_policy()
+assert any("Co-Authored-By" in e for e in mod.errors) and any("Never force-push" in e for e in mod.errors), mod.errors
+(fixture / "CORE.md").write_text(core)
+# A real file at the retired AGENTS.md name is a rival source; the symlink is not.
+compat = fixture / "AGENTS.md"
+if compat.is_symlink() or compat.exists():
+    compat.unlink()
+compat.write_text(core)
+mod.errors.clear()
+mod.check_agents_policy()
+assert any("separate policy file" in e for e in mod.errors), mod.errors
+compat.unlink()
+mod.errors.clear()
+mod.check_agents_policy()
+assert any("compatibility symlink" in e for e in mod.errors), "an absent shim was accepted"
+compat.symlink_to("CORE.md")
+mod.errors.clear()
+mod.check_agents_policy()
+assert not mod.errors, mod.errors
+# A missing runtime adapter is refused.
+(fixture / "adapters" / "pi.md").unlink()
+mod.errors.clear()
+mod.check_agents_policy()
+assert any("pi.md" in e for e in mod.errors), mod.errors
 print("model-agnostic policy fixtures: PASS")
+
+# Hot context: budget and render freshness, judged against a scratch copy.
+import subprocess
+fixture2 = Path(sys.argv[3]) / "hot-fixture"
+shutil.copytree(real, fixture2, symlinks=True, ignore=shutil.ignore_patterns("memory", "project-memory*", "claude-home-memory"))
+mod.AI_DIR = fixture2
+mod.errors.clear(); mod.check_hot_context()
+assert not [e for e in mod.errors if "context" in e or "CORE" in e], mod.errors
+(fixture2 / "adapters" / "codex.md").write_text((real / "adapters" / "codex.md").read_text() + "\n- drift\n")
+mod.errors.clear(); mod.check_hot_context()
+assert any("Stale rendered runtime context" in e and "codex" in e for e in mod.errors), mod.errors
+(fixture2 / "CORE.md").write_text(core + "x" * (mod.CORE_BYTE_BUDGET + 1))
+mod.errors.clear(); mod.check_hot_context()
+assert any("config/ai/CORE.md is" in e for e in mod.errors), mod.errors
+print("hot-context budget and freshness fixtures: PASS")
 PYTEST
 
 # ── Task-number uniqueness (TASK-070) ────────────────────────────────────────

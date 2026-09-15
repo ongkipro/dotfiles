@@ -12,7 +12,7 @@ owned skills plus an explicit secret-free default reference.
 | Recommended cross-device role graph (`config/omp/config.yml`) | dotfiles reference only |
 | Models, providers, fallbacks, bundled agents, and task concurrency | OMP |
 | Auth, sessions, cache, updates, and workspace behavior | OMP |
-| `~/.omp/agent/AGENTS.md` | dotfiles shared memory |
+| `~/.omp/agent/AGENTS.md` | dotfiles shared core + OMP adapter (`config/ai/context/omp.md`) |
 | `~/.config/ai/memory/` | dotfiles curated cross-device memory |
 | Reviewed lesson candidates from OMP work | `ai-learn` lifecycle |
 | `~/.omp/agent/skills` | dotfiles owned skills |
@@ -27,7 +27,7 @@ symlinks that point exactly at this repository and preserve all unmanaged or
 OMP-owned files.
 
 The active device keeps OMP's separate native memory backend off. Dotfiles
-memory reaches OMP through `AGENTS.md`; verified reusable outcomes from OMP may
+memory reaches OMP through its rendered context (`config/ai/context/omp.md`); verified reusable outcomes from OMP may
 return through `ai-learn capture`, review, and explicit promotion. This is one
 curated cross-CLI lifecycle, not bidirectional raw session synchronization.
 

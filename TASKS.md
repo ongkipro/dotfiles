@@ -1,6 +1,6 @@
 # Tasks — dotfiles
 
-Updated: 2026-09-11
+Updated: 2026-09-15
 
 The sole executable queue. Completed contracts live under `docs/archive/`;
 repository tests and runtime evidence outrank prose.
@@ -64,6 +64,20 @@ Completed TASK-072 record: [retained history](docs/archive/TASKS-074-history.md)
 - **Non-Scope:** the exit-code rule, which is correct as it stands; closing any gap the restored rows reveal
 - **Verification:** `bin/mutation-sweep --subject pi-update-safe device-verify` names `device-verify` as fully covered while still exiting non-zero
 - **Escalation Conditions:** restoring the dropped rows reveals that a subject reported covered in an earlier batch was never actually clean, which would make every batch-derived ranking suspect
+
+### TASK-084: One source, one adapter per runtime
+- **Requirement:** REQ-NATIVE-FIRST-CONTEXT (user-requested native-first audit and refactor, 2026-09-15)
+- **Risk Level:** R3 — changes the always-loaded policy and approval-gate text every runtime reads
+- **Allowed Paths:** `config/ai/{CORE.md,AGENTS.md,README.md}`, `config/ai/{adapters,context,policies}/**`, the memory/project-memory/hook files naming the retired source, `config/shell-tools.sh`, `config/omp/{README.md,STATUS.md,GOAL-ORCHESTRATION.md,models.yml}`, `bin/{ai-memory-link,ai-doctor,ai-policy-lint,dotsync,device-register}` and their tests, `bin/{omp-routing-test,shell-wrapper-test,ai-hooks-install}`, `config/ai/hooks/{git-guard,memory-usage}.sh`, `install.sh`, `install-macos.sh`, the docs naming the retired source, `skills/local/{native-first,prd-taskbreaker}/SKILL.md`, `TASKS.md`, `.delivery/**`
+- **Protected Paths:** `config/ai/CORE.md`, `config/ai/adapters/**`, `bin/ai-memory-link`
+- **Canonical Contract Owners:** `ai.communication` (CORE.md), each runtime adapter, `config/ai/policies/planning-artifacts.md`
+- **Accepted Invariants:** approval gates, secrets, Git, and verification rules reach every runtime unchanged in meaning; OMP orchestration and designer/vision routing reach OMP only; rendered context is a pure function of CORE.md + one adapter and is committed; unmanaged runtime files and the sealed Claude home bootstrap are never touched; OMP runtime ownership stays native
+- **Regression Checks:** `ai-memory-link-test`, `ai-policy-lint-test`, `ai-policy-lint`, `shell-wrapper-test`, `omp-routing-test`, `installer-link-test`, `ai-doctor-test`, `ai-memory-check`
+- **Runtime Evidence:** one 20,434-byte AGENTS.md was linked into every runtime, carrying the OMP goal contract and a designer/vision rule single-agent CLIs cannot satisfy; agy 1.2.0 (strace) opens only `~/.gemini/GEMINI.md`, so three of four Antigravity links were dead while `ai-doctor` reported one as healthy; Codex truncates skill descriptions at its budget. Report: `docs/DOTFILES-NATIVE-FIRST-AUDIT.md`
+- **Verification:** each runtime path resolves to its own `config/ai/context/<runtime>.md` ≤ 10 KB; `ai-memory-link --check` passes; the OMP goal anchors live only in `adapters/omp.md`; `config/ai/AGENTS.md` is only a compatibility symlink to `CORE.md` (remove once every device has relinked)
+- **Non-Scope:** skill merges, MCP changes, OMP routing or model changes, archiving historical OMP docs, commit/push
+- **Reopen Conditions:** a runtime is found reading a different global context path, or a rule removed from the core has no remaining owner
+- **Escalation Conditions:** a runtime requires generated context outside `config/ai/context/`
 
 ### TASK-083: The sweep does not say what it did not look at
 - **Requirement:** REQ-MUTATION-COVERAGE

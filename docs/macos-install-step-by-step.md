@@ -110,9 +110,10 @@ node -v && npm -v
 
 1. **Symlink config** — memori AI (`~/.config/ai`), skills, mise, starship, helix,
    lazygit, gh, ripgrep.
-2. **Sambungkan memori ke semua AI CLI** — `AGENTS.md` di-link ke `~/.claude/CLAUDE.md`,
-   `~/.codex/AGENTS.md`, `~/.antigravity/AGENTS.md`, `~/.gemini/GEMINI.md`. pi memuatnya
-   lewat wrapper `pi()` di shell rc.
+2. **Sambungkan memori ke semua AI CLI** — `ai-memory-link` me-render `CORE.md` + adapter
+   tiap runtime ke `config/ai/context/`, lalu me-link `~/.claude/CLAUDE.md`,
+   `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md` (agy), `~/.omp/agent/AGENTS.md`. pi memuat
+   `context/pi.md` lewat wrapper `pi()` di shell rc.
 3. **Daftarkan Mac ini** ke [`devices/`](../devices/) lewat `device-register`.
 4. Setup tmux (TPM + plugin), pasang seluruh toolchain dari config mise yang
    dilacak, dan buat folder kerja.

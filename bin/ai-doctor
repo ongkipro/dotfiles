@@ -229,28 +229,37 @@ else
 fi
 
 # ── 2. Layer 1: rules reach every installed CLI ───────────────────────────────
-hdr "2. Aturan (AGENTS.md) — harus sampai ke SEMUA CLI yang terpasang"
-SRC="$AI/AGENTS.md"
+hdr "2. Aturan (CORE.md + adapter) — tiap CLI terpasang dapat context-nya sendiri"
+SRC="$AI/CORE.md"
 if [ -f "$SRC" ]; then
-  ok "sumber: ~/.config/ai/AGENTS.md ($(wc -l < "$SRC") baris)"
-  [ "$(wc -l < "$SRC")" -le 120 ] || wrn "AGENTS.md >120 baris — ini dibaca TIAP request di 5 CLI. Pindahkan detail ke skill."
+  ok "sumber: ~/.config/ai/CORE.md ($(wc -c < "$SRC" | tr -d ' ') byte)"
+  [ "$(wc -c < "$SRC")" -le 8192 ] || wrn "CORE.md >8 KB — dibaca TIAP request di semua CLI. Pindahkan detail ke skill/policy."
 else
-  bad "~/.config/ai/AGENTS.md TIDAK ADA — inti sistem hilang."
+  bad "~/.config/ai/CORE.md TIDAK ADA — inti sistem hilang."
+fi
+if [ -x "$DOT/bin/ai-memory-link" ]; then
+  "$DOT/bin/ai-memory-link" --check >/dev/null 2>&1 \
+    && ok "context ter-render sesuai CORE.md + adapters/" \
+    || bad "context/*.md basi (CORE atau adapter diedit tanpa render). Perbaiki: ai-memory-link"
 fi
 
-check_link() { # $1=cli  $2=path  $3=parent-that-must-exist
+check_link() { # $1=runtime  $2=path  $3=parent-that-must-exist
   if [ ! -d "$3" ]; then wrn "$1: belum terpasang di device ini (lewati)"; return; fi
-  if [ -L "$2" ] && [ "$(resolve_path "$2")" = "$(resolve_path "$SRC")" ]; then
-    ok "$1: $(printf '%s' "${2/#$HOME/\~}") → AGENTS.md"
+  if [ -L "$2" ] && [ "$(resolve_path "$2")" = "$(resolve_path "$AI/context/$1.md")" ]; then
+    ok "$1: $(printf '%s' "${2/#$HOME/\~}") → context/$1.md"
   else
-    bad "$1: ${2/#$HOME/\~} TIDAK ter-link ke AGENTS.md. Perbaiki: ai-memory-link"
+    bad "$1: ${2/#$HOME/\~} TIDAK ter-link ke context/$1.md. Perbaiki: ai-memory-link"
   fi
 }
-check_link claude "$HOME/.claude/CLAUDE.md"          "$HOME/.claude"
-check_link codex  "$HOME/.codex/AGENTS.md"           "$HOME/.codex"
-check_link agy    "$HOME/.antigravity/AGENTS.md"     "$HOME/.antigravity"
-check_link "agy compatibility (~/.gemini)" "$HOME/.gemini/GEMINI.md" "$HOME/.gemini"
-check_link omp    "$HOME/.omp/agent/AGENTS.md"        "$HOME/.omp/agent"
+check_link claude      "$HOME/.claude/CLAUDE.md"    "$HOME/.claude"
+check_link codex       "$HOME/.codex/AGENTS.md"     "$HOME/.codex"
+check_link antigravity "$HOME/.gemini/GEMINI.md"    "$HOME/.gemini"
+check_link omp         "$HOME/.omp/agent/AGENTS.md" "$HOME/.omp/agent"
+# agy 1.2.0 hanya membuka ~/.gemini/GEMINI.md (diverifikasi strace 2026-09-15).
+# Link lama di path yang tidak dibaca runtime mana pun = kesehatan palsu.
+for legacy in "$HOME/.antigravity/AGENTS.md" "$HOME/.gemini/antigravity-cli/AGENTS.md" "$HOME/.gemini/antigravity-cli/GEMINI.md"; do
+  if [ -L "$legacy" ]; then wrn "link legacy ${legacy/#$HOME/\~} tidak dibaca runtime mana pun. Bersihkan: ai-memory-link"; fi
+done
 # ~/AGENTS.md harus TIDAK ADA. Ia pernah muncul sebagai salinan tak ter-manage,
 # melenceng 5 hari, lalu rusak kena find-replace (semua "Claude" jadi "Codex")
 # tanpa ada yang tahu. Dan karena CLI naik dari cwd mencari AGENTS.md, file ini
@@ -265,9 +274,9 @@ fi
 # Satu frasa saja — canary kedua cuma menambah bising tanpa menambah informasi.
 if [ -f "$SRC" ]; then
   if grep -qF 'Permission allowed is not user approval' "$SRC"; then
-    ok "canary: aturan approval-gate masih utuh di AGENTS.md"
+    ok "canary: aturan approval-gate masih utuh di CORE.md"
   else
-    bad "canary HILANG: frasa 'Permission allowed is not user approval' tidak ada di ~/.config/ai/AGENTS.md — approval gate terhapus, semua CLI berhenti minta konfirmasi TANPA gejala. Pulihkan dari git: git -C $DOT diff config/ai/AGENTS.md"
+    bad "canary HILANG: frasa 'Permission allowed is not user approval' tidak ada di ~/.config/ai/CORE.md — approval gate terhapus, semua CLI berhenti minta konfirmasi TANPA gejala. Pulihkan dari git: git -C $DOT diff config/ai/CORE.md"
   fi
 fi
 
@@ -275,11 +284,11 @@ if command -v pi >/dev/null 2>&1; then
   # Wrapper pi() saat ini dipelihara di file dotfiles shell-tools; shell rc tinggal
   # men-source file itu. Jadi cek SUMBER-nya, jangan berasumsi wrapper hidup di
   # satu rc tertentu.
-  grep -qs "config/ai/AGENTS.md" \
+  grep -qs "config/ai/context/pi.md" \
       "$DOT/config/zshrc.tools.sh" "$DOT/config/bashrc.tools.sh" "$DOT/config/shell-tools.sh" \
       "$HOME/.zshrc" "$HOME/.bashrc" 2>/dev/null \
-    && ok "pi: wrapper pi() masih append AGENTS.md" \
-    || wrn "pi: wrapper pi() tak menyebut AGENTS.md — cek $DOT/config/{zshrc,bashrc,shell}.tools.sh"
+    && ok "pi: wrapper pi() masih append context/pi.md" \
+    || wrn "pi: wrapper pi() tak menyebut context/pi.md — cek $DOT/config/{zshrc,bashrc,shell}.tools.sh"
 
   if [ -x "$DOT/bin/pi-update-safe" ]; then
     grep -qs "pi-update-safe" \
@@ -664,7 +673,7 @@ hdr "9. Memori vs disk (aturan: disk menang)"
 if [ -d "$AI/memory" ]; then
   drift=0
   while IFS='|' read -r pat note; do
-    hits=$(grep -rn -- "$pat" "$AI/memory" "$AI/project-memory" "$AI/AGENTS.md" 2>/dev/null \
+    hits=$(grep -rn -- "$pat" "$AI/memory" "$AI/project-memory" "$AI/CORE.md" "$AI/adapters" 2>/dev/null \
       | grep -viE "TIDAK ADA|DOES NOT EXIST|USANG|STALE|OLD|SALAH|WRONG|BUKAN|jangan|dead|REMOVED|OBSOLETE|⚠️|BACA DULU" \
       | wc -l | tr -d ' ')
     if [ "$hits" -gt 0 ]; then

@@ -13,7 +13,7 @@
 
 ### Deny rules and Git guard
 
-- Permission allowlists express capability, not approval. The approval gates in [AGENTS.md](../AGENTS.md) still govern secrets, destructive operations, system-wide changes, production, and scope expansion.
+- Permission allowlists express capability, not approval. The approval gates in [CORE.md](../CORE.md) still govern secrets, destructive operations, system-wide changes, production, and scope expansion.
 - Keep sensitive directories denied as whole paths. Claude permission denies take precedence over allows and cannot safely carve exceptions from a protected directory; use a non-secret interface such as `ssh -G <host>` instead of reading `~/.ssh/**`.
 - Prefix allow rules cannot distinguish dangerous Git flags. [`git-guard.sh`](../hooks/git-guard.sh) is the Claude `PreToolUse` boundary: it denies force-push and amend, and asks before mirror/prune, ref deletion, or forced refspecs.
 - The hook does not inspect Git subprocesses launched inside Lazygit and does not protect other CLIs by itself. All agents must still obey additive-history and approval policy. Run [`git-guard.test.sh`](../hooks/git-guard.test.sh) after changing the hook.

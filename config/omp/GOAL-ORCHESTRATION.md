@@ -1,6 +1,7 @@
 # OMP Goal Orchestration
 
-This playbook is loaded on demand from the shared `AGENTS.md` contract when an
+This playbook is loaded on demand from the OMP runtime adapter
+(`config/ai/adapters/omp.md`) when an
 OMP user explicitly starts a goal in a repository containing `TASKS.md`.
 
 1. Read the nearest repository `AGENTS.md`, accepted product/specification

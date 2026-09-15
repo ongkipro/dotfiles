@@ -83,9 +83,9 @@ mkcd(){ mkdir -p -- "$1" && cd -- "$1"; }
 ff(){ local f; f=$(fzf --preview 'bat -n --color=always {} 2>/dev/null || cat {}') && [ -n "$f" ] && ${EDITOR%% *} "$f"; }
 fkill(){ local pid signal="${1:--15}"; pid=$(ps -eo pid,comm,%cpu,%mem | sed 1d | sort -rnk3 | fzf -m --header='pilih proses (TAB=multi)' | awk '{print $1}'); [ -n "$pid" ] && printf '%s\n' "$pid" | while IFS= read -r selected; do [ -n "$selected" ] && kill "$signal" "$selected"; done; }
 
-# --- pi.dev: auto-load shared AI memory ---
+# --- pi.dev: auto-load shared AI core + pi adapter (rendered by ai-memory-link) ---
 pi() {
-  local mem="$HOME/.config/ai/AGENTS.md"
+  local mem="$HOME/.config/ai/context/pi.md"
   local local_mem="$HOME/.config/ai-local/device.md"
   local safe_update="$HOME/dotfiles/bin/pi-update-safe"
   case "${1:-}" in
@@ -95,7 +95,7 @@ pi() {
       ;;
     install|uninstall|remove|list) command pi "$@" ;;
     *)
-      # Build --append-system-prompt args: shared memory + device-local memory
+      # Build --append-system-prompt args: rendered pi context + device-local memory
       local -a args=()
       [ -f "$mem" ]       && args+=(--append-system-prompt "$mem")
       [ -f "$local_mem" ] && args+=(--append-system-prompt "$local_mem")

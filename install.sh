@@ -202,7 +202,7 @@ if [ -L "$HOME/.codex/instructions.md" ] && [ "$(readlink "$HOME/.codex/instruct
   unlink "$HOME/.codex/instructions.md"
   echo "   removed legacy ~/.codex/instructions.md symlink"
 fi
-~/.local/bin/ai-memory-link              # runtime-native AGENTS.md links (including ~/.omp/agent/AGENTS.md)
+~/.local/bin/ai-memory-link              # CORE + per-runtime adapter → context/<runtime>.md, linked to each native path
 "$DOT/skills/agents-bin/skill-update"    # directory links + Codex per-skill adapter preserving .system
 
 # Pi's remote 9Router adapter is optional and does not require a local gateway.

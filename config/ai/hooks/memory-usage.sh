@@ -25,7 +25,7 @@ TIMEOUT_SECONDS=5
 # JSON readers ran unbounded, which made the promise above conditional on them:
 # on a device where jq resolves through a version-manager shim, a shim that
 # cannot find its installation falls back to the network and stalls for tens of
-# seconds. This hook runs on every prompt in five CLIs, so that is a stalled
+# seconds. This hook runs on every Claude Code prompt (the only runtime it is wired into), so that is a stalled
 # turn. memory-usage-hook-test reproduces it — it isolates HOME, which is
 # exactly what strands such a shim.
 # `timeout` is GNU and absent from stock macOS, so this function was named

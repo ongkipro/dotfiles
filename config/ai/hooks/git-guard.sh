@@ -3,7 +3,7 @@
 #
 # Bash(git add|commit|push:*) in ~/.claude/settings.json is a *prefix* rule, so
 # it silently waves through `git push --force`, `--mirror`, `--delete`, forced
-# refspecs, and `git commit --amend`. AGENTS.md forbids those, but text does not
+# refspecs, and `git commit --amend`. config/ai/CORE.md forbids those, but text does not
 # bind. This restores the boundary mechanically.
 #
 # Reads the hook payload on stdin, emits a PreToolUse decision on stdout.
@@ -111,7 +111,7 @@ while IFS= read -r seg; do
     # `-f` may arrive bundled: `git push -fu origin main` is a force-push that
     # a standalone-token match never saw.
     has '(^|[[:space:]])(--force|--force-with-lease|--force-if-includes)([=[:space:]]|$)|(^|[[:space:]])-[A-Za-z]*f[A-Za-z]*([=[:space:]]|$)' &&
-      decide deny 'Force-push is off-limits (AGENTS.md: additive commits, no history rewrite). Push without --force, or have the user do it.'
+      decide deny 'Force-push is off-limits (CORE.md: additive commits, no history rewrite). Push without --force, or have the user do it.'
     has '(^|[[:space:]])(--mirror|--prune)([=[:space:]]|$)' &&
       decide ask 'git push --mirror/--prune can delete remote refs.'
     has '(^|[[:space:]])(--delete|-d)([=[:space:]]|$)' &&
@@ -143,7 +143,7 @@ while IFS= read -r seg; do
   fi
 
   if git_sub commit && has '(^|[[:space:]])--amend([=[:space:]]|$)'; then
-    decide deny 'git commit --amend rewrites history (AGENTS.md: additive commits only).'
+    decide deny 'git commit --amend rewrites history (CORE.md: additive commits only).'
   fi
 done <<EOF
 $segments

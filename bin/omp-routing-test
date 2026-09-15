@@ -24,7 +24,7 @@ if grep -q 'PI_CONFIG_FILES' "$ROOT/config/shell-tools.sh"; then
   exit 1
 fi
 
-grep -qF '"$HOME/.omp/agent/AGENTS.md"' "$ROOT/bin/ai-memory-link" || {
+grep -qF '"omp:$HOME/.omp/agent/AGENTS.md"' "$ROOT/bin/ai-memory-link" || {
   echo 'FAIL: shared memory is not wired to OMP native context discovery' >&2
   exit 1
 }

@@ -217,7 +217,7 @@ done
 # per-skill Codex links that preserve ~/.codex/skills/.system.
 "$DOT/skills/agents-bin/skill-update"
 
-say "==> Link AGENTS.md ke CLI yang ada..."
+say "==> Render + link context AI (CORE + adapter) ke CLI yang ada..."
 retire_omp_overrides
 retire_claude_account_profiles
 "$HOME/.local/bin/ai-memory-link"

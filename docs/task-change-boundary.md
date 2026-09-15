@@ -243,6 +243,18 @@ Two properties are deliberate, and each cost a wrong first attempt:
 Runs recorded before this existed carry no `checkedDigest` and are not judged by
 it — the rule cannot retroactively invalidate evidence it never measured.
 
+## Agent obligations
+
+This is the canonical statement the shared AI core points to; it used to be
+always-loaded prose in `config/ai/AGENTS.md`. Every R1-R4 run captures its base
+HEAD and pre-existing dirty paths, declares its allowed change surface, and passes
+the final boundary check before `DONE`. Unexplained out-of-scope, protected,
+higher-risk, or touched user changes fail or require explicit expansion,
+verification, and independent review. A `PASS` run that changed a
+browser-rendered surface must record `ui-validation` (enforced from observed paths
+by `delivery-skill-usage`), and a passing check older than the last edit no longer
+justifies `PASS`.
+
 ## Known limitations
 
 - This is a completion/evidence gate, not a filesystem write interceptor. It

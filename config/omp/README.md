@@ -18,14 +18,14 @@ live link from `~/.omp/agent/{config.yml,models.yml,agents}` back here as drift.
 
 Dotfiles continues to provide OMP with:
 
-- shared context through `~/.omp/agent/AGENTS.md`;
+- shared core plus the OMP adapter through `~/.omp/agent/AGENTS.md` (rendered `config/ai/context/omp.md`);
 - owned skills through `~/.omp/agent/skills`.
 
 ## Memory boundary
 
 OMP uses the same curated memory lifecycle as the other supported AI CLIs.
 Cross-device durable memory lives only in `~/.config/ai/memory/` and reaches OMP
-through the shared `AGENTS.md` routing contract. After OMP completes and
+through the shared core routing contract (`config/ai/CORE.md`). After OMP completes and
 verifies non-trivial work, a durable reusable lesson may enter the same store
 through `ai-learn capture`, human-readable review, and explicit
 `ai-learn promote ... --yes`.

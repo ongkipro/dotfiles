@@ -10,7 +10,7 @@
 - OMP is an upstream-native runtime. Its command, configuration, bundled agents,
   provider catalog, routing, updates, workspace behavior, authentication, and
   session state are not installed or overridden by dotfiles.
-- Dotfiles supplies OMP only with shared context through
+- Dotfiles supplies OMP only with shared core + OMP adapter through
   `~/.omp/agent/AGENTS.md` and owned skills through `~/.omp/agent/skills`.
   Verify active models and providers using OMP's native commands on the device.
 - Pi is optional. When it is installed, inspect its own settings and models only
@@ -69,7 +69,7 @@
   each runtime's native status before use. Pi is optional; its absence does not
   affect OMP.
 - **Gemini CLI: DELIBERATELY REMOVED (2026-07-13)** — user decision: the Gemini stack is used via **Antigravity (`agy`)**, not the `gemini` CLI. The `@google/gemini-cli` package has been `npm uninstall -g`'d. **DO NOT reinstall it.**
-- ⚠️ **`~/.gemini/` IS STILL KEPT** even though the `gemini` CLI was removed — it holds `GEMINI.md` (symlink → `~/.config/ai/AGENTS.md`, created by `ai-memory-link`) read by **Antigravity**. **Deleting `~/.gemini` = breaking agy.** Contents as of 2026-07-14: `GEMINI.md`, `projects.json`, `config/`, and **`antigravity-cli/` (STILL PRESENT** — the old note saying this folder is gone is WRONG).
+- ⚠️ **`~/.gemini/` IS STILL KEPT** even though the `gemini` CLI was removed — it holds `GEMINI.md` (symlink → `~/.config/ai/context/antigravity.md`, created by `ai-memory-link`), the only global rules file agy 1.2.0 opens (strace-verified 2026-09-15; `~/.antigravity/AGENTS.md` and `~/.gemini/antigravity-cli/*.md` are never read). **Deleting `~/.gemini` = breaking agy.** Contents as of 2026-07-14: `GEMINI.md`, `projects.json`, `config/`, and **`antigravity-cli/` (STILL PRESENT** — the old note saying this folder is gone is WRONG).
 - **agy**: a flat native binary, its name **differs per machine** — on Mac `~/.local/bin/agy` (143M, verified 2026-07-20; there is NO `antigravity` file here), on `cuan` an ELF binary from the official installer. Check: `ls -l ~/.local/bin/ | grep -iE 'agy|antigravity'`. Antigravity config in `~/.antigravity/{AGENTS.md,ANTIGRAVITY.md}`.
 - **9Router status:** verify the remote tunnel only when operating an optional
   Pi/9Router integration; there is no supported local service.

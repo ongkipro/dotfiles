@@ -161,6 +161,20 @@ cmd_pull() {
   fi
   git pull --ff-only
   say "✓ Pull selesai"
+  # A pull can change CORE.md, an adapter, or the runtime wiring itself; relink
+  # now so no runtime keeps a dangling or outdated global context.
+  if [ -x "$DOTFILES_ROOT/bin/ai-memory-link" ]; then
+    # Only the no-op "ok:" lines are hidden; backups, skipped targets, and
+    # dangling-link warnings must stay visible after a pull.
+    if link_out="$("$DOTFILES_ROOT/bin/ai-memory-link" 2>&1)"; then
+      printf '%s\n' "$link_out" | grep -v '^ok: ' || true
+      say "✓ AI runtime context di-link ulang"
+    else
+      printf '%s\n' "$link_out"
+      err "ai-memory-link gagal — jalankan manual: ai-memory-link"
+      return 1
+    fi
+  fi
 }
 cmd_sync() {
   cmd_commit
@@ -182,7 +196,6 @@ cmd_doctor() {
     "$HOME/.config/ai" \
     "$HOME/.claude/CLAUDE.md" \
     "$HOME/.codex/AGENTS.md" \
-    "$HOME/.antigravity/AGENTS.md" \
     "$HOME/.gemini/GEMINI.md" \
     "$HOME/.omp/agent/AGENTS.md"
   do

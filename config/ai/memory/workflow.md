@@ -8,6 +8,7 @@
 - **Order is: run dev → review → only then present.** Never report a server as "running" or hand over a URL from a listening port or an HTTP status code alone. Open the actual `localhost`/IP and confirm the page RENDERS — real content, expected heading, no client-side error. A 200 with a blank or broken shell, a stale Turbopack chunk, or a server bound to the wrong interface all look healthy at the status-code layer. **Why:** reporting "it's ready" on a page that does not render wastes the user's trip to the browser and hides the failure until they find it. A status code proves the process answered; it does not prove the thing works.
 - Use modern tools: `rg` (not grep), `fd` (not find), `eza` (not ls), `bat` (not cat), `z` zoxide (not manual cd).
 - Git: quick commit via lazygit; backup = push to remote; DO NOT auto-commit (anti-pattern).
+- Git workflow (moved from the former always-loaded AGENTS.md, 2026-09-15): `git pull --ff-only` → `git status --short` → `lg`. From an AI tool shell invoke `lazygit` directly (`lg` is an interactive-shell alias) and only with a real TTY. Prefer plain non-interactive Git for deterministic automation. `dotsync status`, `dotsync doctor`, and `security-check` read without intentionally changing tracked content but are not a strict zero-write audit.
 - Dotfiles sync: when there's an update on GitHub (`ongkipro/dotfiles`), pull and deploy locally (especially memory `~/.config/ai/memory/`). Conversely, when there are local changes in `~/dotfiles` that need saving, commit + push to GitHub. Be precise — don't break existing patterns.
 - `dotpush ["message"]` = broad explicit fast path: enable driver → refresh machine snapshot → security-check → commit → **fetch+merge remote first (anti-divergence)** → push. Non-snapshot conflict stops for manual resolution. Prefer `lg` for mixed worktrees. `dotsync` with no arguments is read-only `status`; mutating variants require an explicit `commit`, `sync`, `push`, or `pull` verb.
 - Machine-specific snapshot files (`home/gitconfig`, `home/bashrc.snapshot`, `home/zshrc.snapshot`, `config/mise-config.toml`, `config/vscode-settings.json`) are marked `merge=ours` in `.gitattributes` → on sync always keep the local machine's version (needs `git config merge.ours.driver true`, set automatically by dotpush + install scripts).
@@ -28,7 +29,7 @@
 
 ## Skills — plumbing (verified 2026-07-14)
 - **Single source**: `~/dotfiles/skills/local/`. Consumers via SYMLINK: `~/.claude/skills`, `~/.pi/agent/skills`, and `~/.omp/agent/skills` (all → `dotfiles/skills/local`), plus `~/.agents/local-skills`.
-- ⚠️ **`~/.gemini/skills` DOES NOT EXIST** — Gemini CLI was removed (2026-07-13). Don't make it a sync target again. (`~/.gemini/` itself IS still kept: it contains `GEMINI.md` → AGENTS.md, read by Antigravity.)
+- ⚠️ **`~/.gemini/skills` DOES NOT EXIST** — Gemini CLI was removed (2026-07-13). Don't make it a sync target again. (`~/.gemini/` itself IS still kept: it contains `GEMINI.md` → `config/ai/context/antigravity.md`, read by Antigravity.)
 - `skill-*` scripts are in `~/dotfiles/skills/agents-bin/`, linked into `~/.agents/bin/`.
 - On macOS: `skill-update` needs bash 5+ (brew) and BSD `find` compatibility (already patched).
 - SEO: use the `seo-website-builder` skill (self-contained, has a full `references/`). ⚠️ The old corpora `~/Documents/seo-research-google/` and `~/Documents/SEO/` DO NOT EXIST — don't look for them. Don't claim secret Google algorithm knowledge.
@@ -42,7 +43,7 @@ All development projects: web app, SaaS, Shopify, bots, etc. (Created 2026-07-14
 
 ## Auto-Routing — the AI CLI knows where to put things
 
-**Without being told**, the AI should auto-save to these folders. This table is a personal routing preference, not a competing source of truth: `config/ai/AGENTS.md` owns the binding lifecycle contract — pre-development staging under `~/Documents/work/prd/<slug>/` is mandatory before `~/Projects/<slug>/` exists, `project-init --from-docs` promotes the accepted set into the repository, and the repository copy is canonical from that point. Never treat a `~/Documents/` copy as authoritative after promotion.
+**Without being told**, the AI should auto-save to these folders. This table is a personal routing preference, not a competing source of truth: `config/ai/policies/planning-artifacts.md` owns the binding lifecycle contract — pre-development staging under `~/Documents/work/prd/<slug>/` is mandatory before `~/Projects/<slug>/` exists, `project-init --from-docs` promotes the accepted set into the repository, and the repository copy is canonical from that point. Never treat a `~/Documents/` copy as authoritative after promotion.
 
 | Output | Path |
 |---|---|

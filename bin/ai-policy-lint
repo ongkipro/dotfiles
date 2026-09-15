@@ -17,7 +17,7 @@ import sys
 def find_dotfiles_root():
     current = Path(__file__).resolve().parent
     while current != current.parent:
-        if (current / "config" / "ai" / "AGENTS.md").is_file():
+        if (current / "config" / "ai" / "CORE.md").is_file():
             return current
         current = current.parent
     return Path.home() / "dotfiles"
@@ -26,8 +26,12 @@ def find_dotfiles_root():
 ROOT = find_dotfiles_root()
 AI_DIR = ROOT / "config" / "ai"
 TEMPLATES_DIR = ROOT / "config" / "templates"
-# The same 120 lines `ai-doctor` has always warned about, now enforced.
-AGENTS_LINE_BUDGET = 120
+# Bytes, not lines: the former 120-line AGENTS.md budget passed at 20 KB because
+# its lines were paragraphs. CORE is read on every request in every CLI; a
+# rendered context is CORE plus one runtime adapter.
+CORE_BYTE_BUDGET = 8 * 1024
+CONTEXT_BYTE_BUDGET = 10 * 1024
+RUNTIMES = ("claude", "codex", "antigravity", "pi", "omp")
 
 errors = []
 warnings = []
@@ -42,16 +46,42 @@ def warn(msg):
 
 
 def check_agents_policy():
-    agents_md = AI_DIR / "AGENTS.md"
-    if not agents_md.is_file():
-        err(f"Missing canonical policy file: {agents_md}")
+    core_md = AI_DIR / "CORE.md"
+    omp_md = AI_DIR / "adapters" / "omp.md"
+    missing = [p for p in [core_md] + [AI_DIR / "adapters" / f"{rt}.md" for rt in RUNTIMES] if not p.is_file()]
+    for path in missing:
+        err(f"Missing canonical policy file: {path}")
+    if core_md in missing or omp_md in missing:
         return
 
-    content = agents_md.read_text(encoding="utf-8")
-    required_terms = ["Approval gates", "secrets", "sudo", "wrangler deploy", "git reset --hard"]
+    content = core_md.read_text(encoding="utf-8")
+    # Errors, not warnings: these rules have no observable symptom when deleted —
+    # every runtime keeps working and quietly stops asking. Independent review of
+    # TASK-084 removed the whole Git paragraph from a scratch copy and the lint
+    # stayed green while this list only warned.
+    required_terms = ["Approval gates", "secrets", "sudo", "wrangler deploy", "git reset --hard",
+                      "Permission allowed is not user approval", "Scope creep", "secrets-env",
+                      "interpreting shell", "Never force-push", "`Co-Authored-By`",
+                      "review the staged diff", "disk wins"]
     for term in required_terms:
         if term not in content:
-            warn(f"AGENTS.md policy missing expected keyword: '{term}'")
+            err(f"CORE.md policy missing required anchor: '{term}'")
+
+    # The goal contract is OMP policy. It lives in the OMP adapter so Codex,
+    # Claude, Antigravity, and Pi stop receiving orchestration rules they cannot
+    # act on; finding it back in the shared core is the regression.
+    # config/ai/AGENTS.md survives only as a compatibility symlink to CORE.md, so
+    # a device that pulls before relinking still loads the approval gates. A real
+    # file there would be a rival source of truth.
+    compat = AI_DIR / "AGENTS.md"
+    # Required, not merely allowed, while any device may still hold links to the
+    # retired name; retire it together with the AGENTS.md branch of managed_link.
+    if not (compat.is_symlink() and os.readlink(compat) == "CORE.md"):
+        err("config/ai/AGENTS.md must be a compatibility symlink to CORE.md, never absent or a separate policy file")
+
+    if "### OMP autonomous repository goals" in content:
+        err("CORE.md contains the OMP autonomous-goal contract; it belongs in config/ai/adapters/omp.md")
+    content = omp_md.read_text(encoding="utf-8")
 
     goal_contract = {
         "goal section": "### OMP autonomous repository goals",
@@ -66,7 +96,7 @@ def check_agents_policy():
     }
     for label, anchor in goal_contract.items():
         if anchor not in content:
-            err(f"AGENTS.md autonomous-goal contract missing {label}: '{anchor}'")
+            err(f"adapters/omp.md autonomous-goal contract missing {label}: '{anchor}'")
 
 
 def run_canonical_gate(label, command, extra_env=None):
@@ -408,23 +438,32 @@ def check_hot_context():
         if size > limit:
             err(f"Hot-context budget exceeded: {relative} is {size} bytes (limit {limit}); archive history before adding more")
 
-    # AGENTS.md is the hottest file in the system — every request, in every
-    # installed CLI — and until now it was the only one whose budget was merely a
-    # warning in `ai-doctor`, while colder files failed CI outright. A warning
-    # loses: this file sat at exactly 120 lines, and the very session that added
-    # the delivery-evidence rules pushed it to 122 without failing anything.
-    #
-    # Lines, not bytes, because that is the threshold the tooling already agreed
-    # on and because the cost here is prose the model must read, not disk. A
-    # paragraph that must exist belongs in the document that owns it, with one
+    # CORE.md is the hottest file in the system — every request, in every
+    # installed CLI — and each runtime reads it through a rendered context file.
+    # A paragraph that must exist belongs in the document that owns it, with one
     # anchoring sentence left here.
-    agents = AI_DIR / "AGENTS.md"
-    if agents.is_file():
-        lines = len(agents.read_text(encoding="utf-8").splitlines())
-        if lines > AGENTS_LINE_BUDGET:
-            err(f"Hot-context budget exceeded: config/ai/AGENTS.md is {lines} lines "
-                f"(limit {AGENTS_LINE_BUDGET}); it is read on every request in every CLI — "
-                f"move the detail to the document that owns it and leave an anchor")
+    core = AI_DIR / "CORE.md"
+    if core.is_file() and core.stat().st_size > CORE_BYTE_BUDGET:
+        err(f"Hot-context budget exceeded: config/ai/CORE.md is {core.stat().st_size} bytes "
+            f"(limit {CORE_BYTE_BUDGET}); it is read on every request in every CLI — "
+            f"move the detail to the skill or policy that owns it and leave an anchor")
+    for rt in RUNTIMES:
+        rendered = AI_DIR / "context" / f"{rt}.md"
+        if not rendered.is_file():
+            err(f"Missing rendered runtime context: config/ai/context/{rt}.md — run: ai-memory-link")
+        elif rendered.stat().st_size > CONTEXT_BYTE_BUDGET:
+            err(f"Hot-context budget exceeded: config/ai/context/{rt}.md is {rendered.stat().st_size} bytes "
+                f"(limit {CONTEXT_BYTE_BUDGET}); shrink CORE.md or adapters/{rt}.md")
+    # Freshness is judged by the linker itself, never re-implemented here: two
+    # renderers of one file under two rules is the split-truth failure.
+    linker = ROOT / "bin" / "ai-memory-link"
+    if linker.is_file() and (AI_DIR / "CORE.md").is_file():
+        result = subprocess.run([str(linker), "--check"], cwd=ROOT, text=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                env={**os.environ, "AI_DIR": str(AI_DIR)}, check=False)
+        if result.returncode != 0:
+            err("Stale rendered runtime context: " + " ".join(
+                line for line in result.stdout.splitlines() if line.startswith(("stale:", "ERROR:"))))
 
 
 def _task_graph_parser():

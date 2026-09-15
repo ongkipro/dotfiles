@@ -1,3 +1,6 @@
+# HISTORICAL REFERENCE — not installed, linked, or auto-loaded (retired 2026-08-24).
+# OMP owns its live model catalog under ~/.omp/agent/. Kept as design evidence
+# for the retired custom routing; see config/omp/README.md and STATUS.md.
 providers:
   9router-fantastico:
     baseUrl: "https://rbq97ts.abc-tunnel.us/v1"

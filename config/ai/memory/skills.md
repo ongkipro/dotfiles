@@ -44,7 +44,7 @@ Three layers are separated by ownership:
 
 | Layer | Canonical source | Runtime behavior |
 |---|---|---|
-| Mandatory policy | `~/.config/ai/AGENTS.md` | Loaded through each runtime's verified context path |
+| Mandatory policy | `~/.config/ai/CORE.md` + `adapters/<runtime>.md` | Rendered to `context/<runtime>.md`; loaded through each runtime's verified context path |
 | Durable memory | `~/.config/ai/memory/` | Read on demand; disk wins on conflict |
 | Owned capabilities | `~/dotfiles/skills/local/` | Native runtime discovery through managed links |
 

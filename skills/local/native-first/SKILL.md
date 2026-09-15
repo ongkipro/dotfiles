@@ -13,7 +13,7 @@ description: >-
 
 # Native-first
 
-The ladder lives in `AGENTS.md` (always on). This skill is rung 3–5 made concrete:
+The ladder lives in the shared core `~/.config/ai/CORE.md` (always on). This skill is its rung 3 (stdlib / native platform / installed dependency) made concrete:
 **what does this specific stack already give me, before I add anything?**
 
 Read only the reference for the stack you're in. Don't load them all.

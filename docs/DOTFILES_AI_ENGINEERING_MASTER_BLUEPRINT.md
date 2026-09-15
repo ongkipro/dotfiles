@@ -128,7 +128,7 @@ Every project task in `config/templates/TASKS.md` follows an explicit execution 
 - **Approval Gates:** Always-on for system-wide `sudo`, production deploys (`wrangler deploy`, Shopify theme push), and secret access.
 
 ### macOS & Linux Parity:
-- Both operating systems share **identical policy sources** (`config/ai/AGENTS.md`)
+- Both operating systems share **identical policy sources** (`config/ai/CORE.md` + `config/ai/adapters/`)
   and **identical skill capabilities** (`skills/local/`). Each device keeps its
   OMP runtime configuration and routing native and machine-local.
 - `install-macos.sh` provides macOS-native symlinking (`~/.zshrc` support, Homebrew/Mise PATH resolution, BSD vs GNU `sed` safety, and `merge.ours` snapshot protection).

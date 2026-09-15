@@ -3,7 +3,7 @@
 
 ~/.claude/settings.json is device-local: it carries `model`, `theme`,
 `permissions`, and plugin state that must not be shared across machines, so it
-cannot be symlinked into dotfiles the way AGENTS.md is. The consequence, until
+cannot be symlinked into dotfiles the way the runtime context files are. The consequence, until
 this script existed, was that hook wiring was hand-maintained on every device.
 
 That is not a cosmetic gap. `config/ai/hooks/git-guard.sh` arrives on a fresh
