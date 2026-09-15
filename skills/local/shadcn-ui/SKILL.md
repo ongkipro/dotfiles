@@ -4,7 +4,8 @@ description: >-
   Use shadcn/ui as the default component source for React-capable admin
   surfaces across Next.js, Vite, React Router, Astro, and other supported
   runtimes; also use for forms, data tables, charts, sidebars, blocks, themes,
-  semantic tokens, registry inspection, and component installation. Read
+  preset switches, namespaced registry items, semantic tokens, registry
+  inspection, and component installation. Read
   components.json first because style, Tailwind configuration, aliases, base
   primitives, and prefixes change the generated code. Preserve native
   semantics and minimal hydration; shadcn is not a reason to render static
@@ -83,37 +84,78 @@ The real file can also carry keys the docs don't list (`rtl`, `menuColor`,
 `menuAccent` all appear in our projects). Read it before the first command, not
 after the first failure.
 
-## Official shadcn skill
+## Project-aware workflow
 
-shadcn publishes its own agent skill (`ui.shadcn.com/docs/skills`), installed
-through the skills.sh protocol:
+Apply this workflow when working on shadcn components, settings/forms,
+dashboards, presets, or registry items in a project with `components.json`.
+Its presence is a project-context signal, not a reason to initialize shadcn or
+change unrelated code. A skill is guidance; automatic loading still depends on
+the assistant's skill discovery rather than a hook installed by this file.
+
+1. On each shadcn-related interaction, run the installed project CLI's
+   `shadcn info --json` from the target application directory (for example,
+   `pnpm exec shadcn info --json` in a pnpm project). Inspect `components.json`,
+   the lockfile, and copied components alongside the result. If the command is
+   unavailable or fails, use those files and disclose the missing context;
+   do not install or upgrade a CLI just to perform inspection.
+2. Use the returned framework, Tailwind version, aliases, resolved paths,
+   installed components, icon library, and base library (`base`, `radix`, or
+   `aria`). Read the matching base-specific docs and local component source;
+   do not transfer composition APIs such as `asChild` between bases by memory.
+   An inferred preset with fallback values is not proof of the app's actual
+   font or rendered theme; inspect the CSS and layout before changing them.
+3. Discover before generating: use `shadcn docs`, `shadcn search`, `shadcn view`,
+   or an already configured shadcn MCP server. For a requested namespaced item
+   such as `@tailark`, resolve the actual registry item and its dependencies
+   before installation; do not invent registry URLs or item names.
+4. Compose with existing primitives: `FieldGroup`/`Field` for related form
+   fields, `ToggleGroup` for related toggle options, and semantic color tokens.
+   Keep native form behavior, labels, validation, and the control semantics
+   appropriate to the job; navigation is not a toggle group. Customize copied
+   components and variants rather than duplicating parallel implementations.
+5. For a requested preset switch, inspect the installed CLI help and current
+   project configuration first, then use its supported preset workflow. Review
+   the resulting diff for local component customizations and token changes;
+   apply `ui-validation` to the rendered result. A successful CLI exit alone
+   does not prove the requested appearance was applied.
+
+## Official shadcn skill and references
+
+The [official Skills guide](https://ui.shadcn.com/docs/skills) describes project
+context, CLI commands, theme customization, registry authoring, and MCP access.
+Verified against that guide on 2026-09-14. It documents project installation with:
 
 ```bash
-npx skills add shadcn/ui      # telemetry is on by default; DISABLE_TELEMETRY=1 to opt out
+npx skills add shadcn/ui
 ```
 
-It carries what a hand-maintained file drifts on: the current CLI reference,
-registry authoring, and the shadcn MCP setup. On each interaction it runs
-`shadcn info --json`, which resolves `components.json`, the framework, Tailwind
-version, aliases, base and icon libraries, installed components, and file paths.
-The inspection rule above remains authoritative when the official skill is not
-installed or the command fails. The official skill supersedes this file on CLI
-syntax and registry work, not on the house rules.
+This is an optional skill-installation workflow, separate from component
+scaffolding or QA tools. Do not run it merely because an existing project uses
+shadcn. On this setup, update the owned skill at
+`~/dotfiles/skills/local/shadcn-ui` rather than creating a competing local copy.
+If installing the upstream skill is explicitly requested, inspect the
+installer's current help and destination first: runtime skill directories may
+resolve into the tracked owned-skill tree. Do not overwrite that tree with
+unreviewed upstream files; deliberate vendoring uses the existing `.source`
+and `_refresh-vendored.sh` convention.
 
-**Before installing it, check where it writes.** `~/.claude/skills` is a symlink
-to `~/dotfiles/skills/local`, so an installer aimed there drops an unvendored
-third-party directory straight into the tracked dotfiles repo — it pollutes the
-single source rather than sitting beside it. The CLI does not document its
-target path: run it with `--help` first and read the install summary, or install
-from inside a project so it lands in that repo's `.claude/skills`. To put it in
-dotfiles deliberately, vendor it the way `stripe-best-practices` is — a
-`.source` file carrying the upstream raw base URL so `_refresh-vendored.sh` can
-re-fetch it.
+Load the relevant official reference for the requested operation:
 
-This skill stays useful alongside it: it carries the house rules (package
-manager per lockfile, `native-first` discipline), the verified drift traps
-below, and routing to product, dashboard, storefront, framework, performance,
-and validation owners for decisions shadcn does not make.
+- [CLI](https://ui.shadcn.com/docs/cli): `init`, `add`, `search`, `view`, `docs`,
+  `diff`, `info`, and `build`; verify installed help for flags, dry runs,
+  merge behavior, templates, and preset support.
+- [Theming](https://ui.shadcn.com/docs/theming): CSS variables, OKLCH, custom
+  colors, radius, variants, and the appropriate Tailwind v3/v4 conventions.
+- [Registry](https://ui.shadcn.com/docs/registry): `registry.json`, item types,
+  file objects, dependencies, CSS variables, building, hosting, and user config.
+- [MCP](https://ui.shadcn.com/docs/mcp): registry discovery and installation
+  tools. Reuse configured tools; MCP setup is a separate requested change.
+- [skills.sh](https://skills.sh): skill distribution and installation.
+
+Current official documentation and installed code own API/CLI details. This
+owned skill adds project package-manager conventions, native-first decisions,
+product/design routing, and browser verification. Preserve explicit user choices
+and local customizations when combining them.
 
 ## Tailwind v4 baseline (verified 2026-08-09)
 
