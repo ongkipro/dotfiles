@@ -79,6 +79,19 @@ Completed TASK-072 record: [retained history](docs/archive/TASKS-074-history.md)
 - **Reopen Conditions:** a Codex release changes the cut, or a sibling skill is mis-selected because its boundary is hidden
 - **Escalation Conditions:** fitting a boundary in 250 characters requires dropping a trigger or owner
 
+### TASK-086: Three regulator sources past review
+- **Requirement:** REQ-SPEC-SOURCE-FRESHNESS
+- **Risk Level:** R1
+- **Allowed Paths:** `skills/local/development-spec-suite/assets/sources.json`, `TASKS.md`, `.delivery/**`
+- **Canonical Contract Owners:** `development-spec-suite` source ledger
+- **Accepted Invariants:** a review date moves only for a source actually re-verified; how each was verified (live or archive) is recorded, never implied; no legal conclusion is added
+- **Regression Checks:** `development-spec-suite-test`, `audit-sources.py`
+- **Runtime Evidence:** CI `Development Specification Suite` failed on 1fad57e and 2c55457 with SRC008 for SRC-US-FTC, SRC-US-CA-CPPA, SRC-UK-ICO-XFER (next_review 2026-09-04)
+- **Verification:** `python3 skills/local/development-spec-suite/scripts/audit-sources.py` passes as of the review date
+- **Non-Scope:** changing requirements that depend on these sources; other records
+- **Reopen Conditions:** a reviewed page moves, is superseded, or no longer matches `local_use`
+- **Escalation Conditions:** a source cannot be verified live or from an archive
+
 ### TASK-083: The sweep does not say what it did not look at
 - **Requirement:** REQ-MUTATION-COVERAGE
 - **Risk Level:** R2
