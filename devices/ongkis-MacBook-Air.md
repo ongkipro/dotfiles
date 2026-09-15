@@ -1,7 +1,7 @@
 # Device: `ongkis-MacBook-Air`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-09-11**
+> Terakhir diperbarui: **2026-09-15**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -22,7 +22,7 @@
 | CPU | Apple M1 (8 thread) |
 | RAM | 8.0 GB |
 | GPU | Apple M1 |
-| Disk (/) | 228Gi total, 93Gi free (15% used) |
+| Disk (/) | 228Gi total, 84Gi free (16% used) |
 
 ## AI CLI
 
@@ -61,8 +61,7 @@
 | memori bersama | `~/.config/ai` | ✅ ok |
 | memori → claude | `~/.claude/CLAUDE.md` | ✅ ok |
 | memori → codex | `~/.codex/AGENTS.md` | ✅ ok |
-| memori → agy | `~/.antigravity/AGENTS.md` | ✅ ok |
-| memori → agy (gemini stack) | `~/.gemini/GEMINI.md` | ✅ ok |
+| memori → agy | `~/.gemini/GEMINI.md` | ✅ ok |
 | memori → omp | `~/.omp/agent/AGENTS.md` | ✅ ok |
 | skills → shared runtime | `~/.agents/local-skills` | ✅ ok |
 | skills → claude | `~/.claude/skills` | ✅ ok |
