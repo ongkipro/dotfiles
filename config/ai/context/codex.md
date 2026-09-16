@@ -50,6 +50,7 @@ Lazy = efficient, not careless. Understand the problem first (trace the real flo
 Lifecycle: understand → smallest context → implement → verify independently → persist evidence in the repo → capture only verified reusable lessons.
 
 
+- Work you hand to a subagent, worker, or another model is still yours: the session that started it owns integration and final verification.
 - Never claim "it works" without running something. Use the project's own scripts first (`package.json`, Makefile, `bin/*-test`); stack cheatsheet in skill `native-first`.
 - A green build is not proof a UI works: browser-visible changes need rendered evidence (skill `ui-validation`).
 - After a verified non-trivial fix with a durable, reusable lesson not already encoded in a repo test or doc: `ai-learn capture` (English; symptom, root cause, invariant, fix, check; no raw logs, secrets, customer data, changing project status, or unverified diagnosis). Capture is a local candidate; promotion is a separate reviewed step and never authorizes commit or push.
@@ -73,8 +74,7 @@ Git: stage, commit, and push only when the user asks for that specific action; f
 
 ## Runtime adapter — Codex CLI
 
-- Native first: prefer direct execution for bounded implementation, refactor, test, and bug-fix work. Inspect the repository before proposing architecture; keep diffs minimal and aligned with existing patterns.
-- Do not delegate or spawn parallel work unless the task has genuinely independent parts.
+- Runtime facts: Codex reads this from `~/.codex/AGENTS.md`. How you work the task is yours to choose; the core's boundaries and evidence rules still apply.
 - No dotfiles hooks are wired into Codex: every Git and approval rule in the core is enforced only by your own behavior here.
-- Skills are per-skill links in `~/.codex/skills/` beside Codex's built-in `.system` skills. Codex may shorten skill descriptions to fit its budget — when a skill name plausibly matches the task, open its `SKILL.md` instead of judging from the shortened description.
+- Skills are per-skill links in `~/.codex/skills/` beside Codex's built-in `.system` skills. Codex shortens skill descriptions to fit its budget — when a skill name plausibly matches the task, open its `SKILL.md` instead of judging from the shortened description.
 - Codex native memories are device-local session aids, not shared truth; curated cross-device memory stays in `~/.config/ai/memory/`.

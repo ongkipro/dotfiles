@@ -1,7 +1,7 @@
 ## Runtime adapter — OMP
 
-- Native first: OMP owns its config, profiles, models, providers, fallbacks, bundled agents, auth, sessions, and updates. Dotfiles never wraps `omp`, sets `PI_CONFIG_FILES`, or installs OMP config; the tracked role graph loads only via explicit `omp --config ~/dotfiles/config/omp/config.yml`. Native defaults never impose a required model, provider, or reasoning level; named models in older docs are examples.
-- Orchestration is optional. Outside an explicit OMP goal, avoid delegation for ordinary work and never invent parallelism. Delegate only independent or specialist work that justifies worker startup and integration; cross-model routing needs a concrete benefit. The parent owns integration and final verification.
+- Runtime facts: OMP owns its config, profiles, models, providers, fallbacks, bundled agents, auth, sessions, and updates. Dotfiles never wraps `omp`, sets `PI_CONFIG_FILES`, or installs OMP config; the tracked role graph loads only via explicit `omp --config ~/dotfiles/config/omp/config.yml`. Native defaults never impose a required model, provider, or reasoning level; named models in older docs are examples.
+- Whether and how to orchestrate is yours to choose; the core's boundaries and evidence rules still apply.
 - Browser-visible visual, layout, responsive, accessibility, or UX work goes to `designer`/`vision` before the first visual edit, regardless of task size — a capability trigger, not complexity escalation. Pure data/API wiring in a frontend file is exempt. If that role cannot start, surface the failure instead of absorbing the visual work.
 - OMP native memory stays off; verified lessons return only through `ai-learn`.
 - No dotfiles hooks and no `bash.patterns` backstop exist in OMP: core Git and approval rules rely on your behavior alone.

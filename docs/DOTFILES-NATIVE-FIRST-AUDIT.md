@@ -193,7 +193,9 @@ OMP (optional orchestration): native config/models/agents/routing; parent integr
 ```
 
 Ownership: **dotfiles** owns the core, adapters, rendered context, skills, hooks,
-diagnostics, and installers. **Each runtime** owns its config, auth, models, sessions,
+diagnostics, and installers — as boundaries and runtime facts, not working style:
+since TASK-087 the adapters no longer prescribe delegation, planning depth, or
+search behavior, which each runtime decides for itself. **Each runtime** owns its config, auth, models, sessions,
 native memory, and MCP. **Each repository** owns current truth.
 
 Daily workflow guidance (defaults, not rules): `codex` for bounded implementation, refactor,

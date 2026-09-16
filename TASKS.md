@@ -14,7 +14,7 @@ Only the dependency edge is human-authored; state is derived.
 ## Done
 
 Archived under `docs/archive/`, newest `DOTFILES_TASKS_2026-09-15_NATIVE_FIRST_CONTEXT.md`
-(TASK-084), then `DOTFILES_TASKS_2026-09-11_MUTATION_COVERAGE.md` (TASK-078, TASK-073), then `TASKS-074-history.md` (TASK-072), then `DOTFILES_TASKS_2026-09-10_TEST_EFFICACY.md`,
+(TASK-084, TASK-085, TASK-086), then `DOTFILES_TASKS_2026-09-11_MUTATION_COVERAGE.md` (TASK-078, TASK-073), then `TASKS-074-history.md` (TASK-072), then `DOTFILES_TASKS_2026-09-10_TEST_EFFICACY.md`,
 then `DOTFILES_TASKS_2026-09-04_QUEUE.md`
 (TASK-047..059), then `DOTFILES_TASKS_2026-09-01_DEVICE_VERIFICATION.md`
 (TASK-038–041, 044; prose closures for TASK-013/022/027/028).
@@ -65,32 +65,19 @@ Completed TASK-072 record: [retained history](docs/archive/TASKS-074-history.md)
 - **Verification:** `bin/mutation-sweep --subject pi-update-safe device-verify` names `device-verify` as fully covered while still exiting non-zero
 - **Escalation Conditions:** restoring the dropped rows reveals that a subject reported covered in an earlier batch was never actually clean, which would make every batch-derived ranking suspect
 
-### TASK-085: Boundaries Codex never sees
-- **Requirement:** REQ-NATIVE-FIRST-RESIDUALS (user-approved follow-up to TASK-084, 2026-09-15)
-- **Risk Level:** R3 — touches the OMP adapter and many skill descriptions every runtime indexes
-- **Allowed Paths:** 22 owned `skills/local/*/SKILL.md` descriptions (front-load only), `skills/local/README.md`, `skills/agents-bin/skill-check`, `bin/skill-check-test`, `config/ai/adapters/omp.md`, `config/ai/context/**`, `config/ai/README.md`, `config/ai/memory/environment-ai-runtimes.md`, `docs/DOTFILES-NATIVE-FIRST-AUDIT.md`, `TASKS.md`, `.delivery/**`
-- **Protected Paths:** `config/ai/CORE.md`, `config/ai/adapters/**`
-- **Canonical Contract Owners:** each skill's own description; `skill-check` for registry hygiene
-- **Accepted Invariants:** descriptions are reordered, not rewritten in meaning — every trigger, owner, and boundary survives; vendored and forked skills (`.source`) are untouched; `volumx-writer` stays with TASK-077; OMP goal-contract anchors stay intact
-- **Regression Checks:** `skill-check-test`, `skill-check`, `skill-map --check`, `ai-policy-lint`, `ai-memory-link-test`
-- **Runtime Evidence:** `codex debug prompt-input` (no model quota) shows Codex 0.154 cutting all 72 skill descriptions to 250 characters once many skills are installed (10 synthetic skills: 699 kept; 30: 624); 64 of 67 owned descriptions exceeded 250 and the 12 overlapping-group skills showed zero boundary signals in Codex's view
-- **Verification:** `skill-check` reports no late-boundary warning except `volumx-writer`; `context/omp.md` ≤ 10,000 bytes
-- **Non-Scope:** shortening descriptions overall, disabling skills or Codex plugins, the 9router tunnel URL (an authenticated endpoint in active use by Pi sync)
-- **Reopen Conditions:** a Codex release changes the cut, or a sibling skill is mis-selected because its boundary is hidden
-- **Escalation Conditions:** fitting a boundary in 250 characters requires dropping a trigger or owner
-
-### TASK-086: Three regulator sources past review
-- **Requirement:** REQ-SPEC-SOURCE-FRESHNESS
-- **Risk Level:** R1
-- **Allowed Paths:** `skills/local/development-spec-suite/assets/sources.json`, `TASKS.md`, `.delivery/**`
-- **Canonical Contract Owners:** `development-spec-suite` source ledger
-- **Accepted Invariants:** a review date moves only for a source actually re-verified; how each was verified (live or archive) is recorded, never implied; no legal conclusion is added
-- **Regression Checks:** `development-spec-suite-test`, `audit-sources.py`
-- **Runtime Evidence:** CI `Development Specification Suite` failed on 1fad57e and 2c55457 with SRC008 for SRC-US-FTC, SRC-US-CA-CPPA, SRC-UK-ICO-XFER (next_review 2026-09-04)
-- **Verification:** `python3 skills/local/development-spec-suite/scripts/audit-sources.py` passes as of the review date
-- **Non-Scope:** changing requirements that depend on these sources; other records
-- **Reopen Conditions:** a reviewed page moves, is superseded, or no longer matches `local_use`
-- **Escalation Conditions:** a source cannot be verified live or from an archive
+### TASK-087: Adapters state facts, not working style
+- **Requirement:** REQ-RUNTIME-STYLE-AUTONOMY (user decision, 2026-09-16: memory and skills are one shared source; how each AI works is its own)
+- **Risk Level:** R3 — protected adapter surface read by every runtime
+- **Allowed Paths:** `config/ai/adapters/**`, `config/ai/context/**`, `config/ai/README.md`, `docs/DOTFILES-NATIVE-FIRST-AUDIT.md`, `TASKS.md`, `.delivery/**`
+- **Protected Paths:** `config/ai/adapters/**`, `config/ai/CORE.md`
+- **Canonical Contract Owners:** `config/ai/CORE.md` for boundaries; each adapter for runtime facts
+- **Accepted Invariants:** every boundary, approval gate, and evidence rule survives untouched; only working-style prescriptions are removed; accountability for integration and final verification stays; the OMP designer/vision capability trigger and goal contract stay; CORE keeps the code-discipline ladder
+- **Regression Checks:** `ai-policy-lint`, `ai-memory-link-test`, `ai-doctor`
+- **Runtime Evidence:** adapters told Claude, Codex, agy, and Pi to "execute bounded tasks directly", when to use subagents, and when to stop exploring — style rules a runtime decides better than a shared file can
+- **Verification:** no adapter prescribes delegation, planning depth, or search behavior; OMP goal anchors and designer/vision trigger still present; rendered context ≤ 10 KB
+- **Non-Scope:** CORE boundaries, the OMP goal contract, skill descriptions
+- **Reopen Conditions:** an adapter starts prescribing how a runtime should think again
+- **Escalation Conditions:** removing a style rule would also remove a boundary that has no other owner
 
 ### TASK-083: The sweep does not say what it did not look at
 - **Requirement:** REQ-MUTATION-COVERAGE

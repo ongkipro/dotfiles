@@ -6,7 +6,7 @@ megaprompt for every CLI.
 
 ```text
 CORE.md             Shared policy every runtime needs in nearly every session (≤ 8 KB)
-adapters/<rt>.md    Short runtime-specific notes: claude, codex, antigravity, pi, omp
+adapters/<rt>.md    Runtime facts only: paths, hooks, skills, ownership (5 runtimes)
 context/<rt>.md     GENERATED: header + CORE.md + adapters/<rt>.md (committed, ≤ 10 KB)
 policies/           Shared policy referenced by several skills (planning artifacts)
 claude-home-memory/ Minimal bootstrap loaded only for Claude sessions at $HOME
@@ -17,6 +17,13 @@ project-memory/     Project-specific decisions and gotchas, indexed by MEMORY.md
 Precedence is one line and lives in `CORE.md`: repository disk and executable
 checks > repository contracts > project memory > shared memory > history.
 Methodology belongs to the skill that owns it, never to the always-loaded core.
+
+Two axes, kept apart deliberately. **Memory and skills are one shared source** for
+every runtime. **How an AI works a task** — planning depth, subagents, search,
+orchestration — is the runtime's own; dotfiles states boundaries (approval,
+secrets, Git, source of truth, evidence) and facts, not working style. An adapter
+that starts telling a runtime how to think is drifting back into one prompt for
+all (TASK-087).
 
 ## Runtime wiring
 
