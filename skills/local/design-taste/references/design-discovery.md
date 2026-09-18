@@ -36,6 +36,24 @@ Gemini's signed-in app, and Material component specifications are different
 kinds of evidence. Name which one was examined. An application shell does not
 supply a marketing page's information architecture.
 
+### 2.1. Assign each reference a role
+
+Before extracting style, resolve what the reference is supposed to control:
+
+- **Target composition:** the user asks to match, recreate, follow closely, or
+  preserve this layout. Keep its major geometry and hierarchy unless content,
+  accessibility, or explicit brand constraints require a documented deviation.
+- **Directional inspiration:** the user wants a similar character, not the same
+  layout. Transfer observed principles without manufacturing pixel fidelity.
+- **Interaction reference:** copy the understandable behavior/state pattern, not
+  unrelated visual branding.
+- **Token/brand reference:** use the supplied type, color, shape, or asset system
+  while deriving layout from the current task.
+
+For multiple references, assign each one a specific decision role. Do not
+average them into a generic "modern" style. When the user's wording clearly
+selects one primary reference, it outranks secondary inspiration.
+
 ## 3. Inspect, capture, and distinguish evidence
 
 Use the installed browser tooling or native browser; reuse existing project
@@ -45,7 +63,10 @@ logins, protected screenshots, and live actions need the session's authorization
 
 For each reference used to justify a visual/interaction decision:
 
-- Record the exact URL, access date, surface, viewport, and state.
+- Record its source and inspection context. For a live reference, keep the exact
+  URL and access date. For a user-supplied screenshot, image, local artifact, or
+  design export, record it as user-supplied evidence with the visible
+  surface/state and dimensions or viewport when known; a URL is not required.
 - Open the relevant region, not just the homepage. Inspect narrow/wide
   behavior when responsive transfer is part of the claim.
 - Capture and **inspect** the screenshot. Record the observed hierarchy,
@@ -133,8 +154,8 @@ Minimum decision record:
 - Information hierarchy and content/assets:
 
 ## Reference evidence
-| Source / inspected date | Surface, viewport, state, artifact | Observed | Inferred / unverified | Transfer / exclude |
-| --- | --- | --- | --- | --- |
+| Source / inspected date | Role | Surface, viewport, state, artifact | Observed | Inferred / unverified | Transfer / exclude |
+| --- | --- | --- | --- | --- | --- |
 
 ## Direction
 - Accepted direction and why it fits:
