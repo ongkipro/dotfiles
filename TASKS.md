@@ -88,6 +88,15 @@ then `DOTFILES_TASKS_2026-09-04_QUEUE.md`
 - **Non-Scope:** product state, release semantics, new state database.
 - **Escalation Conditions:** compatibility requires weakening immutable/hash-chain evidence.
 
+### TASK-091: Adaptive OMP visual routing
+- **Requirement:** REQ-OMP-ADAPTIVE-VISUAL-ROUTING. **Risk:** R3.
+- **Allowed Paths:** `config/ai/adapters/omp.md`, `config/ai/context/omp.md`, `config/omp/GOAL-ORCHESTRATION.md`, `config/omp/STATUS.md`, `TASKS.md`.
+- **Owner:** `runtime.omp.capability-routing`; `ui.validation`.
+- **Invariant:** new/material/reference-driven/unsettled UI requires designer/vision; small fixes in an accepted visual system may stay local but still use proportional ui-validation; pure data/API wiring is exempt.
+- **Checks:** `ai-memory-link --check`, `ai-policy-lint`, `ai-doctor --self-test`, `omp-routing-test`, `omp-effective-routing-test`, `git diff --check`.
+- **Reopen:** light UI is over-routed again, or material/reference work bypasses the visual capability gate.
+- **Non-Scope:** provider/model selection, new agents/skills, framework replacement.
+
 ### TASK-083: The sweep does not say what it did not look at
 - **Requirement:** REQ-MUTATION-COVERAGE
 - **Risk Level:** R2
