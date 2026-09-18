@@ -43,6 +43,9 @@ wins over this skill; current official docs win over remembered APIs.
   use `output: 'server'` only when most routes are dynamic
 - Build for **clarity, performance, and maintainability**
 - For websites, prioritize **real content + strong information architecture + SEO**
+- For new or materially redesigned public UI, let **`design-taste` choose the
+  composition before Astro/shadcn components are selected**. Astro is the
+  implementation layer, not the art director.
 - When animation is needed, follow the `design-taste` motion ladder: CSS-first (transitions, scroll-driven animations), then vanilla JS + IntersectionObserver; reach for **GSAP** (via the installed GSAP skills) only for real pin/scrub/timeline work — never invent bespoke animation patterns
 
 ## Workflow
@@ -113,6 +116,19 @@ For new sites, define:
 - SEO targets
 - deployment target
 - where interactivity is really needed
+
+For a new public surface or material redesign, load `design-taste` before
+choosing page primitives. If a visual reference is supplied, carry its accepted
+composition contract into implementation: grid/frame, focal hierarchy, hero
+geometry, open-vs-contained grouping, distinctive relationships, and responsive
+transformation.
+
+Do not start from "which cards/components should this page use?" Start from
+"what composition expresses this content and reference?" Implement that
+geometry with semantic Astro markup and CSS/Tailwind first. Introduce shadcn or
+framework islands only where their interaction semantics are useful; do not let
+an installed `Card`, `Badge`, or grid primitive become the page's visual
+architecture by default.
 
 For business/SEO sites, first produce:
 - page list
@@ -214,6 +230,14 @@ Before done:
 - test responsive layout
 - confirm hydration choices are reasonable
 - verify deployment config matches platform
+- for browser-visible visual work, use `ui-validation` to inspect narrow and
+  wide renders; when a reference/direction exists, compare composition and
+  hierarchy, name the largest deviations, revise, and re-open the views
+
+A passing Astro build is never the visual acceptance criterion. If the hero,
+section rhythm, grouping, or reference-specific relationships remain generic or
+incorrect in the render, the UI is not done even when the component tree,
+Tailwind classes, and Lighthouse checks are clean.
 
 See [Delivery Checklist](references/delivery-checklist.md).
 

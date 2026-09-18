@@ -82,6 +82,34 @@ compare audience/job fit, brand continuity, content needs, accessibility,
 responsive behavior, and implementation/runtime cost. Do not manufacture three
 options when the user already chose one.
 
+### 4.1. Convert reference evidence into geometry before coding
+
+Visual adjectives are insufficient implementation evidence. For a supplied
+reference or an accepted external direction, write the smallest useful
+composition blueprint before choosing page components:
+
+```markdown
+## Composition contract
+- Reference viewport/state:
+- Page frame / grid / dominant alignments:
+- Primary focal point; secondary anchors:
+- Hero geometry: text/media split, measure, crop/overlap, CTA placement:
+- Open vs contained regions and why:
+- Card/container boundaries that are semantically justified:
+- Distinctive relationships that must survive implementation:
+- Section rhythm / density changes:
+- Narrow-screen transformation:
+```
+
+Record relationships, not fake precision. Use measured values only when they
+were actually inspected from source/computed styles; otherwise describe
+proportions and alignment honestly.
+
+The blueprint exists to stop implementation convenience from erasing the
+reference. A component library must not silently turn open editorial grouping
+into cards, asymmetry into a centered stack, or one dominant visual into a
+uniform grid.
+
 Identity comes from the subject: actual work, product details, useful diagrams,
 photography, language, or a deliberate typographic/compositional relationship.
 Do not bolt on a signature animation, decorative badge, or texture to make an
@@ -113,6 +141,14 @@ Minimum decision record:
 - Brand/content identity; patterns intentionally repeated:
 - Responsive transformation and density:
 - Rejected alternative, only when a real choice existed:
+
+## Composition contract
+- Page frame / grid / dominant alignments:
+- Primary focal point and secondary anchors:
+- Hero geometry and media relationship:
+- Open vs contained sections; justified card boundaries:
+- Distinctive reference relationships to preserve:
+- Narrow-screen transformation:
 
 ## Tokens and behavior
 - Semantic color pairs, type, spacing, shape, elevation:

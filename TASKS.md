@@ -21,6 +21,20 @@ then `DOTFILES_TASKS_2026-09-04_QUEUE.md`
 
 ## Pending
 
+### TASK-088: Public UI reference fidelity and anti-template composition
+
+- **Requirement:** REQ-PUBLIC-UI-REFERENCE-FIDELITY (user report, 2026-09-18: Astro output overuses cards, generic heroes, and loses the character of supplied references).
+- **Risk Level:** R2 — shared design, framework, and validation instructions affect public frontend work across projects.
+- **Allowed Paths:** `skills/local/design-taste/SKILL.md`, `skills/local/design-taste/references/design-discovery.md`, `skills/local/design-taste/references/design-evaluation.md`, `skills/local/astro-development/SKILL.md`, `skills/local/ui-validation/SKILL.md`, `TASKS.md`, `.delivery/**`.
+- **Canonical Contract Owners:** `design-taste` owns reference translation and art direction; `astro-development` owns Astro implementation; `ui-validation` owns rendered evidence.
+- **Accepted Invariants:** project/brand evidence and explicit user direction still win; cards, symmetry, centered heroes, and component reuse remain valid when justified by content; no framework or UI-library replacement; visual claims still require rendered evidence.
+- **Regression Checks:** `skill-check design-taste`, `skill-check astro-development`, `skill-check ui-validation`, `ai-policy-lint`, `ai-doctor --self-test`.
+- **Runtime Evidence:** the current skills mention anti-slop and rendered critique, but do not require a reference-derived geometry/composition contract before component selection, so an agent can still legally collapse a distinctive reference into a generic centered hero plus repeated cards.
+- **Verification:** static skill/policy checks plus a behavioral case where an open/asymmetric reference must not be normalized into a card grid or centered SaaS hero without a content/semantic reason; project-level visual claims remain owned by browser evidence.
+- **Non-Scope:** new UI frameworks, replacing shadcn/Tailwind/Astro, model routing, provider configuration, project-specific design tokens, or automatic pixel matching.
+- **Reopen Conditions:** reference-driven public UI still defaults to component-kit composition without recording or preserving the accepted geometry and hierarchy.
+- **Escalation Conditions:** enforcing the rule would require changing runtime adapters, adding a design dependency, or imposing a universal visual style.
+
 ### TASK-077: Cross-model intent and language guidance
 
 - **Requirement:** REQ-CROSS-MODEL-LANGUAGE (user-requested audit and improvement).

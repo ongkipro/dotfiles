@@ -26,11 +26,32 @@ invented research/verification block delivery. Uninspected views stay unverified
    establishes credibility. Check whether utility controls remain recognizable.
 3. Compare the accepted direction and reference principle with this result;
    do not require pixel imitation or a prescribed decorative motif.
-4. Name a specific mismatch: unnecessary wrapper, competing emphasis, detached
-   label, weak contrast, lost product detail, hidden error, or generic filler.
-5. Revise the smallest coherent cause and inspect the affected views again.
+4. Name the largest concrete mismatches. For material reference-driven work,
+   list the top 3-5 visual deviations by impact: composition, focal hierarchy,
+   section rhythm, typography, media placement, grouping/container logic, or
+   responsive transformation.
+5. Revise the smallest coherent causes, then inspect the affected views again.
+   Do not spend the iteration polishing shadows or radii while the page geometry
+   is still wrong.
 6. Record the remaining trade-off or limitation; do not claim every route or
    every audience was validated by this sample.
+
+### Template-fallback check
+
+A rendered page is REVISE when the accepted direction contains distinctive
+relationships but the implementation discards them for a generic component-kit
+composition. Inspect specifically for:
+
+- an unsupported centered SaaS hero replacing a split/editorial/asymmetric hero;
+- repeated card grids where the content/reference groups information openly;
+- nested rounded surfaces that flatten hierarchy instead of clarifying it;
+- equal visual weight across sections that should have a clear primary anchor;
+- a reference-specific crop, overlap, sequence, or alignment disappearing
+  because the implementation reused a standard section primitive.
+
+These patterns can still pass when they are the correct content model or the
+accepted direction. The failure is not "cards exist"; the failure is
+implementation convenience overriding observed design intent.
 
 Meaningful repetition, whitespace, familiar controls, and simple typography
 can pass. Arbitrary novelty can fail. Real data, long titles, translations,

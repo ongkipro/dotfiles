@@ -69,6 +69,37 @@ For a new public experience or material redesign:
    narrow/wide renders, compare against the accepted direction, fix concrete
    discrepancies, and reopen the changed views.
 
+### Reference-to-composition contract
+
+When the user supplies a visual reference, do not translate it directly into
+components or style adjectives. Before implementation, extract an explicit
+composition contract from the inspected reference:
+
+- frame and grid: content width, columns, dominant alignments, and intentional
+  edge-to-edge regions;
+- focal hierarchy: the primary visual anchor plus the secondary reading anchors;
+- hero geometry: text/media split, text measure, alignment, crop/overlap,
+  vertical depth, and CTA placement;
+- section rhythm: which regions are open, contained, split, full-bleed, dense,
+  or deliberately quiet;
+- grouping logic: which information is genuinely an independent object and
+  therefore earns a card/container boundary;
+- distinctive relationships that create the reference's character, such as
+  asymmetry, overlap, scale contrast, editorial sequencing, or unusual media
+  placement;
+- responsive transformation: what reorders, stacks, crops, disappears, or
+  changes emphasis on narrow screens.
+
+A palette such as "minimal, premium, dark, modern" is not a composition
+contract. Neither is a list of component names.
+
+Do not normalize a distinctive reference into the safest component-library
+shape merely because it is easier to implement. If the reference uses an open
+layout, do not introduce cards just to group text. If it uses an asymmetric
+hero, do not collapse it into a centered heading and generic two-button CTA.
+Tailwind utilities, shadcn primitives, and Astro components implement the
+composition; they do not choose it.
+
 Small changes inside an accepted system skip new discovery and preserve that
 system. Scale documentation to the change; never turn a spacing fix into a PRD.
 
@@ -185,6 +216,29 @@ comparison, media, forms, and sticky regions must retain their hierarchy on
 narrow screens and at zoom. Breakpoints follow content fit rather than one
 mandatory framework breakpoint. Keep DOM order meaningful for keyboard and
 screen-reader navigation.
+
+### 4.3.1. Anti-template composition gate
+
+Before polishing a new public page, inspect whether the composition fell back to
+a generic assembly pattern rather than the accepted content/reference logic.
+Warning signals include:
+
+- badge -> centered headline -> paragraph -> two CTA buttons -> screenshot;
+- repeated equal 3- or 4-column card grids for unrelated kinds of information;
+- a rounded bordered container around nearly every section;
+- every section using the same centered max-width alignment and visual weight;
+- cards created only because the implementation already has a `Card` primitive;
+- distinctive reference relationships replaced by a standard bento/grid shell.
+
+These are diagnostic signals, not blanket bans. A pricing comparison may
+correctly use equal cards; a simple campaign hero may correctly be centered.
+Keep a familiar pattern when the content and accepted direction justify it.
+
+When the pattern is merely an implementation fallback, revise the composition
+before adding more decoration. Prefer hierarchy through scale, whitespace,
+alignment, media placement, dividers, sequencing, and contrast before another
+container. A technically consistent component tree is not evidence of authored
+visual direction.
 
 ### 4.4. States, forms, and accessibility
 
