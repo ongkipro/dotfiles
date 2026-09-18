@@ -25,10 +25,12 @@ wantnot() {
     say FAIL "$1"; printf '       should not contain: %s\n' "$2"; fails=$((fails + 1))
   else say ok "$1"; fi
 }
+status_ready() { printf '# Status\nState: READY\n' > "$1/STATUS.md"; }
 
 mkdir -p "$R" && git -C "$R" init -q
 printf 'contract\n' > "$R/AGENTS.md"
 printf '### TASK-900: the one that is still open\n' > "$R/TASKS.md"
+status_ready "$R"
 git -C "$R" add -A >/dev/null 2>&1
 git -C "$R" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
 
@@ -87,6 +89,7 @@ N="$TMP/narrow"; mkdir -p "$N/docs/archive" && git -C "$N" init -q
 printf 'contract\n' > "$N/AGENTS.md"
 printf '## TASK-02: a live task recorded as h2\n' > "$N/TASKS.md"
 printf '| TASK-023 | retired | superseded |\n' > "$N/docs/archive/old.md"
+status_ready "$N"
 git -C "$N" add -A >/dev/null 2>&1
 git -C "$N" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
 "$DL" --repo "$N" init >/dev/null 2>&1
@@ -111,6 +114,7 @@ wantnot "it is not listed as retired" "Retired in docs/archive, not candidates: 
 P="$TMP/prefix"; mkdir -p "$P/docs/archive" && git -C "$P" init -q
 printf 'contract\n' > "$P/AGENTS.md"; printf 'no tasks here\n' > "$P/TASKS.md"
 printf '| TASK-023 | retired | superseded |\n' > "$P/docs/archive/old.md"
+status_ready "$P"
 git -C "$P" add -A >/dev/null 2>&1
 git -C "$P" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
 "$DL" --repo "$P" init >/dev/null 2>&1
@@ -134,6 +138,7 @@ L="$TMP/bullet"; mkdir -p "$L/docs/archive" && git -C "$L" init -q
 printf 'contract\n' > "$L/AGENTS.md"
 printf '## Pending\n\n- **TASK-05 / AUDIT-X — still open (R1).** Details.\n' > "$L/TASKS.md"
 printf 'Historical note referencing TASK-05 as prior context.\n' > "$L/docs/archive/old.md"
+status_ready "$L"
 git -C "$L" add -A >/dev/null 2>&1
 git -C "$L" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
 "$DL" --repo "$L" init >/dev/null 2>&1
@@ -155,6 +160,7 @@ M="$TMP/prose"; mkdir -p "$M/docs/archive" && git -C "$M" init -q
 printf 'contract\n' > "$M/AGENTS.md"
 printf 'Completed contracts through TASK-77 are archived in docs/archive.\n' > "$M/TASKS.md"
 printf '### TASK-77: done long ago\n' > "$M/docs/archive/old.md"
+status_ready "$M"
 git -C "$M" add -A >/dev/null 2>&1
 git -C "$M" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
 "$DL" --repo "$M" init >/dev/null 2>&1
@@ -182,6 +188,7 @@ cat > "$D/TASKS.md" <<'MD'
 - **Depends On:** TASK-99
 - **Risk Level:** R1
 MD
+status_ready "$D"
 git -C "$D" add -A >/dev/null 2>&1
 git -C "$D" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
 "$DL" --repo "$D" init >/dev/null 2>&1
@@ -220,6 +227,7 @@ cat > "$R2D/TASKS.md" <<'MD'
 - **TASK-23 / REQ-Z — a bullet-shaped record.**
 - **Depends On:** TASK-99
 MD
+status_ready "$R2D"
 git -C "$R2D" add -A >/dev/null 2>&1
 git -C "$R2D" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
 "$DL" --repo "$R2D" init >/dev/null 2>&1
@@ -253,6 +261,7 @@ cat > "$L2/TASKS.md" <<'MD'
 
 - **Depends On:** TASK-98
 MD
+status_ready "$L2"
 git -C "$L2" add -A >/dev/null 2>&1
 git -C "$L2" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
 "$DL" --repo "$L2" init >/dev/null 2>&1
@@ -270,6 +279,7 @@ Q="$TMP/quote"; mkdir -p "$Q" && git -C "$Q" init -q
 printf 'contract\n' > "$Q/AGENTS.md"
 { printf 'An earlier draft heading read `### TASK-40: old name` before renaming.\n\n'
   printf '### TASK-40: the real record\n- **Depends On:** TASK-97\n'; } > "$Q/TASKS.md"
+status_ready "$Q"
 git -C "$Q" add -A >/dev/null 2>&1
 git -C "$Q" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
 "$DL" --repo "$Q" init >/dev/null 2>&1
@@ -303,6 +313,7 @@ cat > "$A2/TASKS.md" <<'MD'
 ### TASK-47: still live despite appearing in the archive
 MD
 printf '### TASK-41: retired long ago\n### TASK-47: also mentioned here\n' > "$A2/docs/archive/old.md"
+status_ready "$A2"
 git -C "$A2" add -A >/dev/null 2>&1
 git -C "$A2" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
 "$DL" --repo "$A2" init >/dev/null 2>&1
@@ -334,6 +345,7 @@ printf 'contract\n' > "$F/AGENTS.md"
   printf '### TASK-000: [Short Task Title]\n- **Depends On:** TASK-001\n'
   printf '%s\n' '```'; } > "$F/TASKS.md"
 printf '### TASK-000: retired template residue\n' > "$F/docs/archive/old.md"
+status_ready "$F"
 git -C "$F" add -A >/dev/null 2>&1
 git -C "$F" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
 "$DL" --repo "$F" init >/dev/null 2>&1

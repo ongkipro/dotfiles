@@ -72,13 +72,18 @@ export PATH="$FAKE_BIN:$PATH"
 # Legacy --repo invocation remains idempotent and preserves owned files.
 LEGACY="$TMP/legacy project"
 mkdir -p "$LEGACY"
-printf 'user-owned\n' > "$LEGACY/STATUS.md"
+cat > "$LEGACY/STATUS.md" <<'EOF'
+# User-owned status
+State: READY
+user-owned
+EOF
 "$SCRIPT" --repo "$LEGACY" tools 'Sandbox & validation | project' >/dev/null
 "$SCRIPT" --repo "$LEGACY" tools 'Sandbox & validation | project' >/dev/null
 for path in README.md AGENTS.md PRD.md TASKS.md STATUS.md DECISIONS.md RELEASE.md OBSERVABILITY.md BUILD-LOG.md ARCHITECTURE.md .delivery/current.json; do
   [ -f "$LEGACY/$path" ] || fail "legacy invocation missing $path"
 done
-[ "$(cat "$LEGACY/STATUS.md")" = 'user-owned' ] || fail 'legacy invocation overwrote STATUS.md'
+grep -q '^State: READY$' "$LEGACY/STATUS.md" || fail 'legacy invocation changed STATUS.md state'
+grep -q '^user-owned$' "$LEGACY/STATUS.md" || fail 'legacy invocation overwrote STATUS.md'
 
 # Help and parsing expose the supported option contract.
 HELP="$TMP/help.txt"
