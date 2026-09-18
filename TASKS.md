@@ -75,6 +75,19 @@ then `DOTFILES_TASKS_2026-09-04_QUEUE.md`
 - **Non-Scope:** changing visibility, rewriting history, rotating credentials.
 - **Escalation Conditions:** remediation requires destructive history or visibility changes.
 
+### TASK-090: Delivery state authority integrity
+- **Requirement:** REQ-DELIVERY-STATE-AUTHORITY.
+- **Risk Level:** R3.
+- **Allowed Paths:** `STATUS.md`, `.delivery/current.json`, `bin/delivery-ledger`, `bin/delivery-ledger-test`, `bin/dev-ready`, `bin/dev-ready-test`, `bin/resume-brief-test`, `TASKS.md`, `docs/archive/**`.
+- **Protected Paths:** `bin/delivery-ledger`, `bin/dev-ready`.
+- **Canonical Contract Owners:** `delivery.state`; `runtime.readiness`.
+- **Accepted Invariants:** STATUS.md exists and is parseable whenever a ledger exists; finished runs clear checkpoint projection; immutable JSONL remains history; readiness reuses canonical ledger verification.
+- **Regression Checks:** `delivery-ledger-test`, `resume-brief-test`, `dev-ready-test`, `ai-policy-lint`, `git diff --check`.
+- **Runtime Evidence:** root STATUS.md is absent; current ledger records `statusAuthority=STATUS.md` with null state and carries a checkpoint older than the latest PASS.
+- **Reopen Conditions:** missing/invalid STATUS.md verifies clean, a finished run exposes stale checkpoint, or readiness passes tampered ledger evidence.
+- **Non-Scope:** product state, release semantics, new state database.
+- **Escalation Conditions:** compatibility requires weakening immutable/hash-chain evidence.
+
 ### TASK-083: The sweep does not say what it did not look at
 - **Requirement:** REQ-MUTATION-COVERAGE
 - **Risk Level:** R2
