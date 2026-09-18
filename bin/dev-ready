@@ -98,47 +98,19 @@ else
   fail "skills discovery" "$ROOT/skills/local missing; owned capabilities have no source"
 fi
 
-# 6. delivery ledger — only where the repository opted in. Absent .delivery/ in a
-#    repository that never used it is not a blocker; a broken one is.
+# 6. delivery ledger — only where the repository opted in. Reuse the
+# canonical verifier; a second parser creates a second definition of healthy.
 if [ -d "$REPO/.delivery" ]; then
-  # `delivery-ledger status` was the obvious probe and is the wrong one: it exits
-  # 0 on a corrupt current.json, on a truncated run file, and on no runs at all,
-  # so a check built on it can pass but never fail. Parse the evidence instead —
-  # a half-written JSONL line is the failure that actually happens.
-  bad="$(python3 - "$REPO" <<'EOF' 2>&1
-import json, pathlib, sys
-root = pathlib.Path(sys.argv[1]) / ".delivery"
-bad = []
-cur = root / "current.json"
-runs = sorted(root.rglob("*.jsonl"))
-# An empty .delivery is the zero-runs hole this check was written to close; the
-# first implementation reproduced it verbatim while its own comment mocked it.
-if not cur.exists() and not runs:
-    print("EMPTY"); raise SystemExit
-if not cur.exists():
-    print(f"HEADLESS {len(runs)}"); raise SystemExit
-if cur.exists():
-    try: json.loads(cur.read_text())
-    except Exception: bad.append("current.json")
-for f in runs:
-    n = 0
-    try:
-        for n, line in enumerate(f.read_text().splitlines(), 1):
-            if line.strip(): json.loads(line)
-    except Exception: bad.append(f"{f.name}:{n}")
-print(", ".join(bad[:3]))
-EOF
-)"
-  case "$bad" in
-    EMPTY)
-      fail "delivery ledger" ".delivery/ exists with no current.json and no runs; the chain is uninitialised, not clean" ;;
-    "HEADLESS "*)
-      fail "delivery ledger" "current.json missing while ${bad#HEADLESS } run file(s) exist; the chain head is lost" ;;
-    "")
-      pass "delivery ledger" "evidence parses" ;;
-    *)
-      fail "delivery ledger" "unparseable evidence ($bad); the chain cannot be read or extended" ;;
-  esac
+  LEDGER="$ROOT/bin/delivery-ledger"
+  if [ ! -x "$LEDGER" ]; then
+    fail "delivery ledger" "canonical verifier is unavailable: $LEDGER"
+  elif out="$("$LEDGER" --repo "$REPO" verify 2>&1)"; then
+    pass "delivery ledger" "hash chain and STATUS authority verified"
+  else
+    reason="$(printf '%s\n' "$out" | grep -m1 -E 'ERROR|DRIFT| - ' | sed 's/^[[:space:]]*//' | cut -c1-120)"
+    [ -n "$reason" ] || reason="delivery-ledger verify failed"
+    fail "delivery ledger" "$reason"
+  fi
 else
   skip "delivery ledger" "repository does not use it"
 fi
