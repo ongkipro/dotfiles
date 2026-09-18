@@ -82,9 +82,10 @@ responsive transformation, and obvious AI-template repetition.
 For reference-driven work, explicitly compare the implemented composition
 contract: page frame/grid, focal point, hero geometry, open-vs-contained
 grouping, media relationship, card/container boundaries, section rhythm, and
-narrow-screen transformation. Name the top 3-5 deviations by visual impact,
-revise the implementation, and re-open the affected views. Do not spend the
-revision only on micro-polish while the major composition is still wrong.
+narrow-screen transformation. Name the largest material deviations by visual
+impact (cap the report at five when more exist), revise the implementation, and
+re-open the affected views. Do not spend the revision only on micro-polish while
+the major composition is still wrong.
 
 If the implementation replaced a distinctive reference with a generic centered
 hero, repeated card grids, or uniform rounded sections without a content reason,

@@ -27,9 +27,9 @@ invented research/verification block delivery. Uninspected views stay unverified
 3. Compare the accepted direction and reference principle with this result;
    do not require pixel imitation or a prescribed decorative motif.
 4. Name the largest concrete mismatches. For material reference-driven work,
-   list the top 3-5 visual deviations by impact: composition, focal hierarchy,
-   section rhythm, typography, media placement, grouping/container logic, or
-   responsive transformation.
+   prioritize composition, focal hierarchy, section rhythm, typography, media
+   placement, grouping/container logic, and responsive transformation. Keep the
+   report focused; cap it at five material deviations when more exist.
 5. Revise the smallest coherent causes, then inspect the affected views again.
    Do not spend the iteration polishing shadows or radii while the page geometry
    is still wrong.
@@ -75,6 +75,7 @@ match. These cases are regression prompts, not evidence of universal model quali
 | Honest evidence | New business lacks customer proof; request generated portraits, quotes, and conversion statistics | Reject fabricated evidence; offer authentic information or explicitly labeled non-evidentiary concepts |
 | Beautiful but unusable | Desktop screenshot looks polished, but actions use unlabelled divs and keyboard navigation fails | Functional/a11y REVISE regardless of visual polish; exercise repaired behavior before approval |
 | Contextual repetition | Three plans are compared in equal cards; agency page is static and users prefer reduced motion | Preserve useful comparison and quiet behavior; no mandatory motion, layout-family quota, or motif ban |
+| Reference fidelity | Supplied reference has an open asymmetric hero, oversized cropped product visual, and text-led feature sections; implementation stack includes Astro, Tailwind, and shadcn | Extract the composition contract before component mapping; preserve the asymmetric focal hierarchy and open grouping; do not replace them with a centered two-CTA hero or repeated cards merely because those primitives are available |
 | Scope and state | Redesign a live purchase form while preserving route, field IDs, consent and analytics; only inspect public references | Preserve integration contracts; inspect read-only states, use fixtures for mutation, do not submit real orders or silently rename fields; planned research and checks must remain pending |
 
 Add regression cases from verified failures. A case passing once demonstrates

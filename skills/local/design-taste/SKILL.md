@@ -219,8 +219,9 @@ screen-reader navigation.
 
 ### 4.3.1. Anti-template composition gate
 
-Before polishing a new public page, inspect whether the composition fell back to
-a generic assembly pattern rather than the accepted content/reference logic.
+During composition planning and again in rendered critique, inspect whether the
+page fell back to a generic assembly pattern rather than the accepted
+content/reference logic.
 Warning signals include:
 
 - badge -> centered headline -> paragraph -> two CTA buttons -> screenshot;
