@@ -34,22 +34,6 @@ then `DOTFILES_TASKS_2026-09-04_QUEUE.md`
 - **Non-Scope:** runtime/model routing, new UI dependencies, project tokens.
 - **Escalation Conditions:** enforcement would require runtime changes, a dependency, or a universal visual style.
 
-### TASK-077: Cross-model intent and language guidance
-
-- **Requirement:** REQ-CROSS-MODEL-LANGUAGE (user-requested audit and improvement).
-- **Risk Level:** R1 (declared); boundary-classified R2 due to the five-file surface, requiring independent review.
-- **Canonical Contract Owners:** `ai.communication` (shared baseline), `writing.dialogue` (detailed methodology).
-- **Allowed Paths:** `config/ai/CORE.md` (was `config/ai/AGENTS.md` before TASK-084), `skills/local/volumx-writer/SKILL.md`, `skills/local/volumx-writer/references/terminal-dialogue.md`, `skills/local/volumx-writer/references/dialogue-evaluation.md`, `TASKS.md`.
-- **Accepted Invariants:** Preserve approval gates, technical meaning, artifact language rules, and existing repository/memory ownership; no provider-specific runtime changes.
-- **Verification:** `skill-check volumx-writer`, `ai-policy-lint`, `ai-memory-check`, `git diff --check`, and delivery boundary check.
-- **Runtime Evidence:** Shared context/skill link checks; cross-provider behavioral evaluation is not performed by static validation.
-- **Non-Scope:** Model routing, credentials, automatic translation, new memory stores, commit/push.
-- **Reopen Conditions:** A supplied dialogue case reveals changed meaning, missed authorization, or unclear language attributable to these instructions.
-- **Escalation Conditions:** Any required provider execution or runtime change beyond the instruction-only scope.
-- **Evidence:** `RUN-20260910T183355Z-0cd4d108`; completion is determined by its final ledger result. Twelve synthetic behavioral cases are supplied; no cross-provider quality claim is made.
-
-Completed TASK-072 record: [retained history](docs/archive/TASKS-074-history.md).
-
 ### TASK-080: Fifty-three mutants nothing notices
 - **Requirement:** REQ-MUTATION-COVERAGE
 - **Risk Level:** R2
@@ -78,19 +62,18 @@ Completed TASK-072 record: [retained history](docs/archive/TASKS-074-history.md)
 - **Verification:** `bin/mutation-sweep --subject pi-update-safe device-verify` names `device-verify` as fully covered while still exiting non-zero
 - **Escalation Conditions:** restoring the dropped rows reveals that a subject reported covered in an earlier batch was never actually clean, which would make every batch-derived ranking suspect
 
-### TASK-087: Adapters state facts, not working style
-- **Requirement:** REQ-RUNTIME-STYLE-AUTONOMY (user decision, 2026-09-16: memory and skills are one shared source; how each AI works is its own)
-- **Risk Level:** R3 — protected adapter surface read by every runtime
-- **Allowed Paths:** `config/ai/adapters/**`, `config/ai/context/**`, `config/ai/README.md`, `docs/DOTFILES-NATIVE-FIRST-AUDIT.md`, `TASKS.md`, `.delivery/**`
-- **Protected Paths:** `config/ai/adapters/**`, `config/ai/CORE.md`
-- **Canonical Contract Owners:** `config/ai/CORE.md` for boundaries; each adapter for runtime facts
-- **Accepted Invariants:** every boundary, approval gate, and evidence rule survives untouched; only working-style prescriptions are removed; accountability for integration and final verification stays; the OMP designer/vision capability trigger and goal contract stay; CORE keeps the code-discipline ladder
-- **Regression Checks:** `ai-policy-lint`, `ai-memory-link-test`, `ai-doctor`
-- **Runtime Evidence:** adapters told Claude, Codex, agy, and Pi to "execute bounded tasks directly", when to use subagents, and when to stop exploring — style rules a runtime decides better than a shared file can
-- **Verification:** no adapter prescribes delegation, planning depth, or search behavior; OMP goal anchors and designer/vision trigger still present; rendered context ≤ 10 KB
-- **Non-Scope:** CORE boundaries, the OMP goal contract, skill descriptions
-- **Reopen Conditions:** an adapter starts prescribing how a runtime should think again
-- **Escalation Conditions:** removing a style rule would also remove a boundary that has no other owner
+### TASK-089: Tracked-memory visibility safety
+- **Requirement:** REQ-TRACKED-MEMORY-VISIBILITY-SAFETY.
+- **Risk Level:** R3.
+- **Allowed Paths:** `config/ai/memory/**`, `config/ai/project-memory/**`, `config/ai/project-memory-kelola/**`, `config/ai/memory-hygiene.json`, `bin/ai-memory-hygiene*`, `TASKS.md`, `docs/archive/**`.
+- **Protected Paths:** tracked memory directories.
+- **Canonical Contract Owners:** `ai.memory.hygiene`; `repository.visibility`.
+- **Accepted Invariants:** tracked memory is safe if repository visibility changes; secrets/internal-only identity and access facts stay device-local; live visibility is never durable identity truth.
+- **Regression Checks:** `ai-memory-hygiene-test`, `ai-memory-check`, `security-check`, `ai-policy-lint`.
+- **Runtime Evidence:** GitHub reports `visibility=public` on 2026-09-18 while tracked identity memory claimed private and stored legal identity marked internal-only.
+- **Reopen Conditions:** tracked memory can contain explicit internal-only/access-sensitive data without a deterministic hygiene finding.
+- **Non-Scope:** changing visibility, rewriting history, rotating credentials.
+- **Escalation Conditions:** remediation requires destructive history or visibility changes.
 
 ### TASK-083: The sweep does not say what it did not look at
 - **Requirement:** REQ-MUTATION-COVERAGE
