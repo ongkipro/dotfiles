@@ -1,6 +1,6 @@
 # Status — OMP Integration
 
-Updated: 2026-09-08
+Updated: 2026-09-18
 Status: OMP is upstream-native; dotfiles provides shared curated context and
 owned skills plus an explicit secret-free default reference.
 
@@ -85,8 +85,11 @@ real defect on the first try: its `vision` fallback is
 `9router-fantastico/cx/gpt-5.6-sol`, which takes no image, so a failed visual
 primary fell back to a model that cannot see.
 
-The visual lane has two roles: `designer` for ordinary visual work and `vision`
-for a material redesign or a direction-setting critique. Model/provider choices
+The visual lane has two roles: `designer` for direction-setting design work and
+`vision` for material redesign or high-fidelity reference critique. Small fixes
+inside an accepted visual system may stay with the implementer when no new design
+decision is needed, but browser-visible changes still require proportional
+`ui-validation`. Model/provider choices
 are runtime-owned; shared policy no longer pins specific vendors or models.
 Both primary and fallback selectors must declare image input and a valid
 thinking level. Independent review still requires a separate actual agent.
