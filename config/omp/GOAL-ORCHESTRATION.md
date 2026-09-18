@@ -16,12 +16,14 @@ OMP user explicitly starts a goal in a repository containing `TASKS.md`.
    available model/provider choices; no particular model or reasoning level is
    mandatory and no parent switch is required to satisfy a model-name rule.
 4. Route bounded work by capability: discovery/research; implementation and data;
-   visual design before browser-visible edits; correctness review; and sensitive
-   review for authorization, payments, migrations, secrets, cryptography, tenant
+   visual design for new surfaces, material redesigns, reference-driven UI, or
+   unsettled UX; correctness review; and sensitive review for authorization,
+   payments, migrations, secrets, cryptography, tenant
    isolation, concurrency, infrastructure and production. Any available capable
    model/provider may serve a lane, including the same route as another agent.
 5. Delegate independent slices large enough to justify worker startup and
-   integration. Keep small adjacent fixes local unless a capability or separate
+   integration. Small fixes inside an accepted visual system may stay local but
+   still require proportional `ui-validation`. Keep small adjacent fixes local unless a capability or separate
    review requires another agent. Never run children with a shared
    semantic owner concurrently. Give each child explicit paths, constraints,
    acceptance evidence, and non-scope. Treat child results as proposals; inspect
