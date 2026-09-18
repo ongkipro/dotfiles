@@ -32,14 +32,13 @@
 - A local `9router` npm package, `9router.service`, port 20128 gateway, local
   provider database, and local model-sync dependency are deliberately absent.
   Do not reinstall or recreate them as part of generic setup.
-- Exception, verified on disk 2026-09-03: workstation `Fantastico` **hosts** that
-  remote 9Router itself — a user systemd unit on `127.0.0.1:20128` behind a
-  cloudflared quick tunnel fronted by the stable `abc-tunnel.us` URL. That is a
-  device-local fact recorded in its `~/.config/ai-local/device.md`; it does not
-  make a local gateway part of the shared topology for any other device.
-- Verify tunnel availability with its unauthenticated `/api/health` endpoint.
-  Catalog or inference verification requires the machine-local remote key; use
-  the existing wrappers/helpers without printing the credential.
+- A designated workstation may host the remote 9Router service, but host,
+  port, tunnel, process, and credential details are device-local facts. Read
+  `~/.config/ai-local/device.md` on that machine instead of duplicating them
+  into shared memory.
+- Verify service availability through the existing machine-local helper. Catalog
+  or inference verification requires the machine-local remote key; never print
+  or copy the credential into tracked memory.
 - Native Claude Code, Codex, and Antigravity remain independent runtimes; do not
   redirect them through 9Router based on this memory.
 **Claude Code profile:** one native profile at `~/.claude`; run the installed `claude` binary directly. Do not add personal/work launchers or alternate config-directory profiles.
