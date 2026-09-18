@@ -38,6 +38,7 @@ git -C "$R" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
   --model m --provider p --reasoning-effort high --allow 'src/**' >/dev/null 2>&1 \
   || { echo "resume-brief-test: could not start a run"; exit 1; }
 "$DL" --repo "$R" record --check partial-suite --command 'true' >/dev/null 2>&1
+"$DL" --repo "$R" checkpoint --note 'active checkpoint that must clear on finish' >/dev/null 2>&1
 
 # The session ends here. Everything below is a fresh process reading disk.
 BRIEF="$("$RB" "$R" 2>&1)"
@@ -66,6 +67,8 @@ printf '| TASK-901 | retired | superseded by TASK-902 |\n' > "$R/docs/archive/ol
 # The TASK-900 run is still open; a second start is refused while it is, and a
 # refused start leaves no evidence for this case to judge. Close it first.
 "$DL" --repo "$R" finish --result BLOCKED >/dev/null 2>&1
+BRIEF="$("$RB" "$R" 2>&1)"
+wantnot "finished run does not surface a stale checkpoint" "checkpoint:"
 "$DL" --repo "$R" start --task TASK-901 --requirement REQ-9 --risk R1 \
   --job implementation --capability tooling --worker task \
   --model m --provider p --reasoning-effort high --allow 'nowhere/**' >/dev/null 2>&1
