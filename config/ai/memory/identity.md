@@ -8,7 +8,7 @@
 - Email: public contact/brand `get@ongki.pro`. Service-account addresses are machine-local facts and are not tracked here.
 - ⚠️ **For git commits DO NOT use either of them.** Standard: `ongkipro <82156528+ongkipro@users.noreply.github.com>` (see environment.md). `get@ongki.pro` accidentally ended up in commit history and has been removed.
 - Dotfiles repo: `github.com/ongkipro/dotfiles`. Do not encode repository visibility here; verify it from the hosting provider when visibility matters.
-- Keep legal identity and other internal-only identity data device-local/untracked. Tracked shared memory may contain only information safe to disclose if repository visibility changes.
+- Keep legal identity and other non-public identity data device-local/untracked. Tracked shared memory may contain only information safe to disclose if repository visibility changes.
 
 ## Reusable bio
 - Short ID bio: Paduka Ongki adalah full-stack web developer dan digital marketer yang fokus pada Shopify, ecommerce, SEO, Meta Ads, automation, dan AI-native workflow.
