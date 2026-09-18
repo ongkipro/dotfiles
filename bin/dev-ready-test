@@ -14,7 +14,7 @@ fails=0
 expect() { # expect <name> <expected-substring> <dir> [env-prefix...]
   local name="$1" want="$2" dir="$3"; shift 3
   local out
-  out="$(env DOTFILES_DIR="${DOT_OK:-$ROOT}" DEV_READY_OMP="${OMP_OK:-omp}" "$@" "$DR" "$dir" 2>&1)"
+  out="$(env DOTFILES_DIR="${DOT_OK:-$ROOT}" DEV_READY_OMP="${OMP_OK:-omp}" DEV_READY_LEDGER="${LEDGER_OK:-$ROOT/bin/delivery-ledger}" "$@" "$DR" "$dir" 2>&1)"
   if printf '%s' "$out" | grep -qF "$want"; then
     printf '  ok   %s\n' "$name"
   else

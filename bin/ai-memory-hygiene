@@ -154,6 +154,17 @@ def check_scope(root: Path, path: Path, policy: dict) -> list[dict]:
     return []
 
 
+def check_public_safety(path: Path, policy: dict) -> list[dict]:
+    regexes = [re.compile(pattern, re.I) for pattern in policy.get("trackedPrivacyMarkers", [])]
+    out = []
+    for no, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+        if any(rx.search(line) for rx in regexes):
+            out.append(issue(
+                "PUBLIC_SAFETY_MARKER", "WARN", path,
+                "tracked memory is visibility-agnostic; move private/internal facts to ai-local", no))
+    return out
+
+
 def check_volatile(root: Path, path: Path, policy: dict) -> list[dict]:
     try:
         rel = path.relative_to(root).as_posix()
@@ -250,6 +261,7 @@ def scan(root: Path, policy: dict, today: date, candidate: Path | None = None) -
     for path in tracked:
         out.extend(check_size(root, path, policy))
         out.extend(check_scope(root, path, policy))
+        out.extend(check_public_safety(path, policy))
         out.extend(check_volatile(root, path, policy))
         out.extend(check_authority(root, path, policy))
         out.extend(check_stale_dates(path, policy, today))
@@ -269,6 +281,7 @@ def scan(root: Path, policy: dict, today: date, candidate: Path | None = None) -
     if candidate is not None:
         out.extend(check_size(root, candidate, policy))
         out.extend(check_scope(root, candidate, policy))
+        out.extend(check_public_safety(candidate, policy))
         out.extend(check_volatile(root, candidate, policy))
         out.extend(check_authority(root, candidate, policy))
         out.extend(check_stale_dates(candidate, policy, today))

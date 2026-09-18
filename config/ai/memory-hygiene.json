@@ -30,5 +30,12 @@
   "indexFiles": [
     "config/ai/project-memory/MEMORY.md",
     "config/ai/project-memory-kelola/MEMORY.md"
+  ],
+  "trackedPrivacyMarkers": [
+    "\\binternal[ -]memory[ -]only\\b",
+    "\\binternal-only\\b",
+    "\\bprivate-only\\b",
+    "\\bnot for public\\b",
+    "\\bdo not publish this\\b"
   ]
 }

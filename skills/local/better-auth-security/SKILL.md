@@ -126,6 +126,25 @@ export const auth = betterAuth({
 
 The `baseURL` origin is automatically trusted. Also configurable via env: `BETTER_AUTH_TRUSTED_ORIGINS=https://app.example.com,https://admin.example.com`
 
+### Multi-Domain Base URL
+
+For preview hosts or multiple production domains, prefer Better Auth's documented fail-closed allowlist instead of trusting request headers directly:
+
+```ts
+export const auth = betterAuth({
+  baseURL: {
+    allowedHosts: [
+      "app.example.com",
+      "admin.example.com",
+      "*.preview.example.com",
+    ],
+    protocol: "https",
+  },
+});
+```
+
+Unknown hosts fail unless an explicit `fallback` is a deliberate product requirement, and `allowedHosts` are also added to trusted origins. In Better Auth 1.7, forwarded host/protocol headers are ignored by default for this path; enable `advanced.trustedProxyHeaders` only when a trusted proxy owns and sanitizes those headers. For tenant-managed custom domains, resolve the canonical host against the authoritative active-domain registry before adding it to any trusted-origin decision.
+
 ### Wildcard Patterns
 
 ```ts
@@ -142,13 +161,13 @@ Compute trusted origins based on the request:
 
 ```ts
 trustedOrigins: async (request) => {
-  // Validate against database, header, etc.
-  const tenant = getTenantFromRequest(request);
-  return [`https://${tenant}.myapp.com`];
+  const requestedHost = resolveCanonicalRequestHost(request); // application-owned, proxy-normalized helper
+  const domain = await lookupActiveTenantDomain(requestedHost); // application-owned registry lookup
+  return domain ? [domain.canonicalOrigin] : [];
 }
 ```
 
-Validates `callbackURL`, `redirectTo`, `errorCallbackURL`, `newUserCallbackURL`, and `origin` against trusted origins. Invalid URLs receive 403.
+Validates `callbackURL`, `redirectTo`, `errorCallbackURL`, `newUserCallbackURL`, and `origin` against trusted origins. Invalid URLs receive 403. Returned origins must come from authoritative stored data, not string interpolation of an untrusted host header or tenant slug.
 
 ## Session Security
 
@@ -180,6 +199,15 @@ session: {
 ```
 
 Strategies: `"compact"` (Base64url + HMAC, smallest), `"jwt"` (HS256, standard), `"jwe"` (encrypted, use when session has sensitive data).
+
+Cookie cache changes revocation semantics: a revoked session can remain usable on another device until `maxAge` expires. Keep `maxAge` short where revocation matters, disable cookie cache, or force an authoritative read for sensitive authorization decisions such as tenant membership/role changes, step-up checks, security settings, and privileged admin actions.
+
+```ts
+const session = await auth.api.getSession({
+  headers,
+  query: { disableCookieCache: true },
+});
+```
 
 ## Cookie Security
 
@@ -252,14 +280,14 @@ import { betterAuth } from "better-auth";
 export const auth = betterAuth({
   advanced: {
     ipAddress: {
-      ipAddressHeaders: ["x-forwarded-for", "x-real-ip"], // Headers to check
-      disableIpTracking: false, // Keep enabled for rate limiting
+      ipAddressHeaders: ["cf-connecting-ip"], // Example: one header overwritten by the trusted edge
+      disableIpTracking: false
     },
   },
 });
 ```
 
-Set `ipv6Subnet` (128, 64, 48, 32; default 64) to group IPv6 addresses. Enable `trustedProxyHeaders: true` only if behind a trusted reverse proxy.
+Set `ipv6Subnet` (128, 64, 48, 32; default 64) to group IPv6 addresses. Do not trust the leftmost `X-Forwarded-For` value from an appending proxy chain. Either use one edge-owned header clients cannot set directly, or configure trusted proxies so the chain is resolved from trusted hops toward the client. Keep the origin reachable only through those proxies and make them overwrite/sanitize forwarded headers.
 
 ## Database Hooks for Security Auditing
 
@@ -388,7 +416,7 @@ export const auth = betterAuth({
       sameSite: "lax",
     },
     ipAddress: {
-      ipAddressHeaders: ["x-forwarded-for"],
+      ipAddressHeaders: ["cf-connecting-ip"], // Example when Cloudflare is the trusted edge
       ipv6Subnet: 64,
     },
     backgroundTasks: {
@@ -425,6 +453,9 @@ Before deploying to production:
 - [ ] **Secret**: Use a strong, unique secret (32+ characters, high entropy)
 - [ ] **HTTPS**: Ensure `baseURL` uses HTTPS
 - [ ] **Trusted Origins**: Configure all valid origins (frontend, mobile apps)
+- [ ] **Multi-Domain Hosts**: Fail closed with `baseURL.allowedHosts`; never trust arbitrary forwarded hosts
+- [ ] **Session Revocation**: Decide whether cookie-cache delay is acceptable; use authoritative reads for sensitive actions
+- [ ] **Proxy/IP Boundary**: Use an edge-owned IP header or explicit trusted-proxy configuration; do not trust raw forwarded chains
 - [ ] **Rate Limiting**: Keep enabled with appropriate limits
 - [ ] **CSRF Protection**: Keep enabled (`disableCSRFCheck: false`)
 - [ ] **Secure Cookies**: Enabled automatically with HTTPS

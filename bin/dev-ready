@@ -99,46 +99,27 @@ else
 fi
 
 # 6. delivery ledger — only where the repository opted in. Absent .delivery/ in a
-#    repository that never used it is not a blocker; a broken one is.
+#    repository that never used it is not a blocker; a broken one is. Reuse the
+#    canonical verifier rather than maintaining a second partial parser here.
 if [ -d "$REPO/.delivery" ]; then
-  # `delivery-ledger status` was the obvious probe and is the wrong one: it exits
-  # 0 on a corrupt current.json, on a truncated run file, and on no runs at all,
-  # so a check built on it can pass but never fail. Parse the evidence instead —
-  # a half-written JSONL line is the failure that actually happens.
-  bad="$(python3 - "$REPO" <<'EOF' 2>&1
-import json, pathlib, sys
-root = pathlib.Path(sys.argv[1]) / ".delivery"
-bad = []
-cur = root / "current.json"
-runs = sorted(root.rglob("*.jsonl"))
-# An empty .delivery is the zero-runs hole this check was written to close; the
-# first implementation reproduced it verbatim while its own comment mocked it.
-if not cur.exists() and not runs:
-    print("EMPTY"); raise SystemExit
-if not cur.exists():
-    print(f"HEADLESS {len(runs)}"); raise SystemExit
-if cur.exists():
-    try: json.loads(cur.read_text())
-    except Exception: bad.append("current.json")
-for f in runs:
-    n = 0
-    try:
-        for n, line in enumerate(f.read_text().splitlines(), 1):
-            if line.strip(): json.loads(line)
-    except Exception: bad.append(f"{f.name}:{n}")
-print(", ".join(bad[:3]))
-EOF
-)"
-  case "$bad" in
-    EMPTY)
-      fail "delivery ledger" ".delivery/ exists with no current.json and no runs; the chain is uninitialised, not clean" ;;
-    "HEADLESS "*)
-      fail "delivery ledger" "current.json missing while ${bad#HEADLESS } run file(s) exist; the chain head is lost" ;;
-    "")
-      pass "delivery ledger" "evidence parses" ;;
-    *)
-      fail "delivery ledger" "unparseable evidence ($bad); the chain cannot be read or extended" ;;
-  esac
+  cur="$REPO/.delivery/current.json"
+  run_count="$(find "$REPO/.delivery" -type f -name 'RUN-*.jsonl' 2>/dev/null | wc -l | tr -d ' ')"
+  if [ ! -f "$cur" ] && [ "$run_count" -eq 0 ]; then
+    fail "delivery ledger" ".delivery/ exists with no current.json and no runs; the chain is uninitialised, not clean"
+  elif [ ! -f "$cur" ]; then
+    fail "delivery ledger" "current.json missing while $run_count run file(s) exist; the chain head is lost"
+  else
+    ledger="${DEV_READY_LEDGER:-$ROOT/bin/delivery-ledger}"
+    if [ ! -x "$ledger" ]; then
+      fail "delivery ledger" "delivery-ledger verifier is unavailable"
+    elif out="$("$ledger" --repo "$REPO" verify 2>&1)"; then
+      pass "delivery ledger" "hash chain, state authority and snapshots verified"
+    else
+      reason="$(printf '%s\n' "$out" | grep -m1 '^  - ' | sed 's/^  - //' | cut -c1-120)"
+      [ -n "$reason" ] || reason="$(printf '%s\n' "$out" | tail -n 1 | cut -c1-120)"
+      fail "delivery ledger" "verification failed; the chain cannot be read or extended ($reason)"
+    fi
+  fi
 else
   skip "delivery ledger" "repository does not use it"
 fi

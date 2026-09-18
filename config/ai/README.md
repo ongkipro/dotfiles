@@ -76,7 +76,9 @@ working tree is this repository.
 
 - **Visibility is not a secrets boundary.** `ongkipro/dotfiles` visibility toggles;
   verify with `gh api repos/ongkipro/dotfiles --jq .visibility` before trusting any
-  claim of it. History and what to keep out of commits: `docs/repo-visibility.md`.
+  claim of it. Tracked memory must remain public-safe even while the repository is
+  private; private/internal operational facts belong in `~/.config/ai-local/`.
+  History and what to keep out of commits: `docs/repo-visibility.md`.
 - **Device contributions are additive.** A device may add memory, owned skills, its
   own `devices/<host>.md`, or a reviewed lesson, but must not install OMP runtime
   settings, model catalogs, agent definitions, or provider routing. Device-only

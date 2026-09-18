@@ -53,6 +53,10 @@ reject_sensitive_text() {
     '(BEGIN[[:space:]][A-Z ]*PRIVATE KEY|(^|[^[:alnum:]_])(password|passwd|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*[^[:space:]]+|(^|[^[:alnum:]_])(ghp_|github_pat_|glpat-|xox[baprs]-|AKIA|AIza|sk-proj-)[[:alnum:]_-]{8,})'; then
     die "candidate looks like it contains a secret; summarize without credentials or raw logs"
   fi
+  if printf '%s\n' "$value" | grep -Eqi \
+    '(internal[ -]memory[ -]only|internal-only|private-only|not for public|do not publish this)'; then
+    die "candidate is explicitly non-public; tracked memory must remain public-safe, so keep this fact in ai-local"
+  fi
 }
 
 capture() {

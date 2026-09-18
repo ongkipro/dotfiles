@@ -28,11 +28,13 @@ cat > "$TMP/config/ai/memory-hygiene.json" <<'EOF'
   "volatilePatterns":["\\bCI (?:is )?green\\b","\\bnext:\\s","\\bchecked out on\\b"],
   "authorityClaimPatterns":["\\bthis memory is the source of truth\\b"],
   "sharedForbiddenPrefixes":["device-"],
+  "trackedPrivacyMarkers":["\\binternal[ -]memory[ -]only\\b"],
   "indexFiles":["config/ai/project-memory/MEMORY.md","config/ai/project-memory-kelola/MEMORY.md"]
 }
 EOF
 cat > "$TMP/config/ai/memory/device-mac.md" <<'EOF'
 verified 2026-01-01 installed runtime
+internal memory only: device-local detail
 EOF
 python3 - <<'PY' "$TMP/config/ai/memory/large.md"
 from pathlib import Path
@@ -63,7 +65,7 @@ python3 - "$TMP/out.json" <<'PY'
 import json,sys
 p=json.load(open(sys.argv[1]))
 kinds={x['kind'] for x in p['issues']}
-for expected in ['SCOPE_VIOLATION','OVERSIZE','VOLATILE_PROJECT_STATE','STALE_DATED_CLAIM','DUPLICATE_INDEX_ENTRY','AUTHORITY_CLAIM','SEMANTIC_DUPLICATE','MEMORY_CONFLICT']:
+for expected in ['SCOPE_VIOLATION','PUBLIC_SAFETY_MARKER','OVERSIZE','VOLATILE_PROJECT_STATE','STALE_DATED_CLAIM','DUPLICATE_INDEX_ENTRY','AUTHORITY_CLAIM','SEMANTIC_DUPLICATE','MEMORY_CONFLICT']:
     assert expected in kinds, (expected,kinds)
 assert any(x['kind']=='DUPLICATE_INDEX_ENTRY' and x['path'].endswith('project-memory-kelola/MEMORY.md') for x in p['issues'])
 assert p['status']=='WARN'

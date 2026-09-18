@@ -21,6 +21,20 @@ then `DOTFILES_TASKS_2026-09-04_QUEUE.md`
 
 ## Pending
 
+### TASK-089: Control-plane integrity and adaptive routing
+
+- **Requirement:** REQ-DOTFILES-CONTROL-PLANE-HARDENING (2026-09-18 audit: align delivery authority, proportional UI routing, tracked-memory privacy, and current Better Auth multi-tenant security guidance).
+- **Risk Level:** R3 — protected runtime, delivery, and security-methodology surfaces.
+- **Allowed Paths:** `STATUS.md`, `.delivery/current.json`, `TASKS.md`, `docs/archive/TASKS-077-087-completed.md`, `bin/delivery-ledger`, `bin/delivery-ledger-test`, `bin/dev-ready`, `bin/dev-ready-test`, `bin/ai-memory-hygiene`, `bin/ai-memory-hygiene-test`, `bin/ai-learn`, `bin/ai-learn-test`, `config/ai/README.md`, `config/ai/memory/identity.md`, `config/ai/memory-hygiene.json`, `config/ai/adapters/omp.md`, `config/ai/context/omp.md`, `config/omp/GOAL-ORCHESTRATION.md`, `config/omp/STATUS.md`, `skills/local/better-auth-security/SKILL.md`.
+- **Protected Paths:** `bin/delivery-ledger`, `config/ai/adapters/omp.md`, `skills/local/better-auth-security/SKILL.md`.
+- **Canonical Contract Owners:** delivery state → `STATUS.md` + `delivery-ledger`; OMP capability routing → OMP adapter/playbook; memory privacy → `ai-memory-hygiene` + `ai-learn`; auth methodology → `better-auth-security`.
+- **Accepted Invariants:** no new agent/orchestrator; small accepted-system UI maintenance may stay local but browser-visible work remains validated; material/reference UI still uses designer/vision capability; ledger authority fails visibly when `STATUS.md` is absent/invalid; finished runs do not leak stale checkpoints into current projection; tracked memory must be safe under public visibility; Better Auth guidance fails closed on unknown hosts and treats cached sessions/proxy headers according to current documented behavior.
+- **Regression Checks:** `delivery-ledger-test`, `dev-ready-test`, `ai-memory-hygiene-test`, `ai-learn-test`, `omp-routing-test`, `omp-effective-routing-test`, `skill-check better-auth-security`, `ai-policy-lint`, `ai-doctor --self-test`, `git diff --check`.
+- **Runtime Evidence:** exact-head Core runtime CI remains required before this task may be archived.
+- **Reopen Conditions:** stale workflow state can pass ledger verification, bounded UI maintenance again requires unnecessary design orchestration, tracked memory accepts explicitly non-public facts, or current Better Auth multi-domain/session/proxy guidance regresses.
+- **Non-Scope:** model/provider selection, new agents/skills, repository visibility mutation, history rewrite, broad historical memory scrubbing, live deployment.
+- **Escalation Conditions:** a fix requires rewriting Git history, changing repository visibility, weakening independent review, or removing operational history beyond the targeted public-safety cleanup.
+
 ### TASK-088: Public UI reference fidelity and anti-template composition
 
 - **Requirement:** REQ-PUBLIC-UI-REFERENCE-FIDELITY (2026-09-18: supplied references can collapse into generic Astro heroes/cards).
@@ -34,19 +48,7 @@ then `DOTFILES_TASKS_2026-09-04_QUEUE.md`
 - **Non-Scope:** runtime/model routing, new UI dependencies, project tokens.
 - **Escalation Conditions:** enforcement would require runtime changes, a dependency, or a universal visual style.
 
-### TASK-077: Cross-model intent and language guidance
-
-- **Requirement:** REQ-CROSS-MODEL-LANGUAGE (user-requested audit and improvement).
-- **Risk Level:** R1 (declared); boundary-classified R2 due to the five-file surface, requiring independent review.
-- **Canonical Contract Owners:** `ai.communication` (shared baseline), `writing.dialogue` (detailed methodology).
-- **Allowed Paths:** `config/ai/CORE.md` (was `config/ai/AGENTS.md` before TASK-084), `skills/local/volumx-writer/SKILL.md`, `skills/local/volumx-writer/references/terminal-dialogue.md`, `skills/local/volumx-writer/references/dialogue-evaluation.md`, `TASKS.md`.
-- **Accepted Invariants:** Preserve approval gates, technical meaning, artifact language rules, and existing repository/memory ownership; no provider-specific runtime changes.
-- **Verification:** `skill-check volumx-writer`, `ai-policy-lint`, `ai-memory-check`, `git diff --check`, and delivery boundary check.
-- **Runtime Evidence:** Shared context/skill link checks; cross-provider behavioral evaluation is not performed by static validation.
-- **Non-Scope:** Model routing, credentials, automatic translation, new memory stores, commit/push.
-- **Reopen Conditions:** A supplied dialogue case reveals changed meaning, missed authorization, or unclear language attributable to these instructions.
-- **Escalation Conditions:** Any required provider execution or runtime change beyond the instruction-only scope.
-- **Evidence:** `RUN-20260910T183355Z-0cd4d108`; completion is determined by its final ledger result. Twelve synthetic behavioral cases are supplied; no cross-provider quality claim is made.
+Completed TASK-077 record: [retained history](docs/archive/TASKS-077-087-completed.md).
 
 Completed TASK-072 record: [retained history](docs/archive/TASKS-074-history.md).
 
@@ -78,19 +80,7 @@ Completed TASK-072 record: [retained history](docs/archive/TASKS-074-history.md)
 - **Verification:** `bin/mutation-sweep --subject pi-update-safe device-verify` names `device-verify` as fully covered while still exiting non-zero
 - **Escalation Conditions:** restoring the dropped rows reveals that a subject reported covered in an earlier batch was never actually clean, which would make every batch-derived ranking suspect
 
-### TASK-087: Adapters state facts, not working style
-- **Requirement:** REQ-RUNTIME-STYLE-AUTONOMY (user decision, 2026-09-16: memory and skills are one shared source; how each AI works is its own)
-- **Risk Level:** R3 — protected adapter surface read by every runtime
-- **Allowed Paths:** `config/ai/adapters/**`, `config/ai/context/**`, `config/ai/README.md`, `docs/DOTFILES-NATIVE-FIRST-AUDIT.md`, `TASKS.md`, `.delivery/**`
-- **Protected Paths:** `config/ai/adapters/**`, `config/ai/CORE.md`
-- **Canonical Contract Owners:** `config/ai/CORE.md` for boundaries; each adapter for runtime facts
-- **Accepted Invariants:** every boundary, approval gate, and evidence rule survives untouched; only working-style prescriptions are removed; accountability for integration and final verification stays; the OMP designer/vision capability trigger and goal contract stay; CORE keeps the code-discipline ladder
-- **Regression Checks:** `ai-policy-lint`, `ai-memory-link-test`, `ai-doctor`
-- **Runtime Evidence:** adapters told Claude, Codex, agy, and Pi to "execute bounded tasks directly", when to use subagents, and when to stop exploring — style rules a runtime decides better than a shared file can
-- **Verification:** no adapter prescribes delegation, planning depth, or search behavior; OMP goal anchors and designer/vision trigger still present; rendered context ≤ 10 KB
-- **Non-Scope:** CORE boundaries, the OMP goal contract, skill descriptions
-- **Reopen Conditions:** an adapter starts prescribing how a runtime should think again
-- **Escalation Conditions:** removing a style rule would also remove a boundary that has no other owner
+Completed TASK-087 record: [retained history](docs/archive/TASKS-077-087-completed.md).
 
 ### TASK-083: The sweep does not say what it did not look at
 - **Requirement:** REQ-MUTATION-COVERAGE

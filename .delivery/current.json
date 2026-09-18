@@ -1,25 +1,14 @@
 {
   "activeRun": null,
-  "lastCheckpoint": {
-    "eventHash": "aa687abe35e4fd5df168fee2a2b2a981b9376c9cb9c9a9bcd7d10d444ac1e3ac",
-    "eventId": "a88c8ace609644e2a9108486f53171bd",
-    "head": "d44a8a53592363babea2a728329d67b54a0838bf",
-    "note": "Owner asked to commit, push and release before the R3 independent review returned. Every regression check and all ten new tests pass; the boundary is clean apart from the review requirement itself. Recording BLOCKED rather than relabelling the risk to fit.",
-    "prevEventHash": "ca76265290003794461402f91e95e48dc87a244181a78be739b43f3aec7a04fe",
-    "runId": "RUN-20260904T062835Z-91fa62aa",
-    "state": null,
-    "time": "2026-09-04T06:39:23Z",
-    "type": "checkpoint"
-  },
   "lastRun": {
     "finishedAt": "2026-09-16T12:49:24Z",
     "result": "PASS",
     "runId": "RUN-20260916T124335Z-d49d49ff"
   },
-  "observedHead": "b6faf1eac9d8650641a505d47af373671cad1a44",
-  "observedState": null,
+  "observedHead": "1c8d12f19865d1c0bf292068ce0da5be05e1bf86",
+  "observedState": "READY",
   "project": "dotfiles",
   "schemaVersion": 1,
   "statusAuthority": "STATUS.md",
-  "updatedAt": "2026-09-16T12:49:24Z"
+  "updatedAt": "2026-09-18T13:14:00Z"
 }

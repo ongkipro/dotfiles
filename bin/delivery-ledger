@@ -288,8 +288,18 @@ def state(repo: Path) -> str | None:
     p = repo / "STATUS.md"
     if not p.is_file():
         return None
-    m = re.search(r"(?im)^State:\s*([A-Z_]+)\s*$", p.read_text(encoding="utf-8", errors="replace"))
+    m = re.search(r"(?m)^(?i:State):\s*([A-Z_]+)\s*$", p.read_text(encoding="utf-8", errors="replace"))
     return m.group(1) if m else None
+
+
+def require_status_state(repo: Path) -> str:
+    p = repo / "STATUS.md"
+    if not p.is_file():
+        raise ValueError("STATUS.md missing; delivery ledger declares it as status authority")
+    value = state(repo)
+    if value is None:
+        raise ValueError("STATUS.md has no valid uppercase State field")
+    return value
 
 
 def atomic_json(path: Path, data: dict) -> None:
@@ -428,12 +438,13 @@ def paths(repo: Path):
 
 
 def initial(repo: Path) -> dict:
+    status_state = require_status_state(repo)
     return {
         "schemaVersion": 1,
         "project": repo.name,
         "statusAuthority": "STATUS.md",
         "activeRun": None,
-        "observedState": state(repo),
+        "observedState": status_state,
         "observedHead": git(repo, "rev-parse", "HEAD"),
         "updatedAt": now(),
     }
@@ -451,7 +462,7 @@ def load_current(repo: Path) -> dict:
 
 def save_current(repo: Path, data: dict) -> None:
     _, current, _, _ = paths(repo)
-    data["observedState"] = state(repo)
+    data["observedState"] = require_status_state(repo)
     data["observedHead"] = git(repo, "rev-parse", "HEAD")
     data["updatedAt"] = now()
     atomic_json(current, data)
@@ -463,7 +474,7 @@ def event_base(repo: Path, kind: str, run_id: str | None) -> dict:
         "time": now(),
         "type": kind,
         "runId": run_id,
-        "state": state(repo),
+        "state": require_status_state(repo),
         "head": git(repo, "rev-parse", "HEAD"),
     }
 
@@ -1164,6 +1175,7 @@ def cmd_finish(repo: Path, a) -> int:
     e = event_base(repo, "run_finished", run_id); e.update({"result": a.result, "detail": a.detail, "boundary": boundary_evidence})
     append_event(run_path, e)
     data["lastRun"] = {"runId": run_id, "result": a.result, "finishedAt": e["time"]}
+    data.pop("lastCheckpoint", None)
     for key in ("activeRun", "activeTask", "requirement", "risk", "job", "capability", "worker", "model", "provider", "reasoningEffort"):
         data.pop(key, None)
     data["activeRun"] = None
@@ -1199,7 +1211,7 @@ def cmd_snapshot(repo: Path, a) -> int:
         "releaseId": a.release_id,
         "capturedAt": now(),
         "head": git(repo, "rev-parse", "HEAD"),
-        "state": state(repo),
+        "state": require_status_state(repo),
         "release": fields,
         "ledger": data,
     }
@@ -1242,8 +1254,14 @@ def inspect(repo: Path) -> tuple[dict | None, list[str]]:
         data = load_current(repo)
     except Exception as exc:
         return None, [str(exc)]
-    actual_state, actual_head = state(repo), git(repo, "rev-parse", "HEAD")
-    if data.get("observedState") != actual_state:
+    authority = repo / "STATUS.md"
+    actual_state = state(repo) if authority.is_file() else None
+    actual_head = git(repo, "rev-parse", "HEAD")
+    if not authority.is_file():
+        problems.append("status authority missing: STATUS.md")
+    elif actual_state is None:
+        problems.append("status authority has no valid uppercase State: STATUS.md")
+    elif data.get("observedState") != actual_state:
         problems.append(f"state drift: ledger={data.get('observedState')} STATUS.md={actual_state}")
     relation = head_relation(repo, data.get("observedHead"), actual_head)
     if relation == "diverged":

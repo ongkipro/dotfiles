@@ -7,8 +7,7 @@
 - Personal brand/domain: `ongki.pro`.
 - Email: public contact/brand `get@ongki.pro`. Service-account addresses are machine-local facts and are not tracked here.
 - ⚠️ **For git commits DO NOT use either of them.** Standard: `ongkipro <82156528+ongkipro@users.noreply.github.com>` (see environment.md). `get@ongki.pro` accidentally ended up in commit history and has been removed.
-- Dotfiles repo: `github.com/ongkipro/dotfiles` (private).
-- Full/legal identity: Ongki A Febriananda (internal memory only; DO NOT publish in public repos/READMEs/docs/code — always use brand name `ongki.pro` / `Paduka Ongki` / `ONG`).
+- Dotfiles repo: `github.com/ongkipro/dotfiles`; visibility is mutable and must be checked live before making a visibility claim.
 
 ## Reusable bio
 - Short ID bio: Paduka Ongki adalah full-stack web developer dan digital marketer yang fokus pada Shopify, ecommerce, SEO, Meta Ads, automation, dan AI-native workflow.

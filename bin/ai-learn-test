@@ -79,6 +79,14 @@ if "$learn" capture \
   exit 1
 fi
 
+if "$learn" capture \
+  --title "Internal note" --symptom "internal memory only: account routing" \
+  --root-cause "Wrong storage scope" --invariant "Private facts stay local" \
+  --fix "Move the fact to ai-local" --check "Tracked candidate is absent" >/dev/null 2>&1; then
+  echo "FAIL: explicitly non-public capture succeeded" >&2
+  exit 1
+fi
+
 before="$(cat "$DOTFILES_DIR/config/ai/project-memory/example.md")"
 before_mode="$(stat -c '%a' "$DOTFILES_DIR/config/ai/project-memory/example.md" 2>/dev/null || stat -f '%Lp' "$DOTFILES_DIR/config/ai/project-memory/example.md")"
 if "$learn" promote "$(basename "$candidate")" --target project:example >/dev/null 2>&1; then
