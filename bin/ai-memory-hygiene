@@ -154,6 +154,44 @@ def check_scope(root: Path, path: Path, policy: dict) -> list[dict]:
     return []
 
 
+def check_disclosure_risk(root: Path, path: Path, policy: dict) -> list[dict]:
+    """Flag prose that explicitly says tracked memory is not safe to disclose.
+
+    Visibility is not a confidentiality boundary. If prose calls itself
+    internal-only/confidential/not-for-publication, the data belongs in
+    device-local ai-local storage instead of a repository that may become public.
+    Code fences and frontmatter are ignored so examples/metadata do not create
+    noisy findings.
+    """
+    regexes = [re.compile(p, re.I) for p in policy.get("trackedDisclosurePatterns", [])]
+    if not regexes:
+        return []
+    out = []
+    in_fence = False
+    in_frontmatter = False
+    for no, raw in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+        line = raw.strip()
+        if no == 1 and line == "---":
+            in_frontmatter = True
+            continue
+        if in_frontmatter:
+            if line == "---":
+                in_frontmatter = False
+            continue
+        if line.startswith("```") or line.startswith("~~~"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        if any(rx.search(line) for rx in regexes):
+            out.append(issue(
+                "DISCLOSURE_RISK", "WARN", path,
+                "tracked memory must be public-safe; internal-only/confidential material belongs in ai-local",
+                no,
+            ))
+    return out
+
+
 def check_volatile(root: Path, path: Path, policy: dict) -> list[dict]:
     try:
         rel = path.relative_to(root).as_posix()
@@ -250,6 +288,7 @@ def scan(root: Path, policy: dict, today: date, candidate: Path | None = None) -
     for path in tracked:
         out.extend(check_size(root, path, policy))
         out.extend(check_scope(root, path, policy))
+        out.extend(check_disclosure_risk(root, path, policy))
         out.extend(check_volatile(root, path, policy))
         out.extend(check_authority(root, path, policy))
         out.extend(check_stale_dates(path, policy, today))
@@ -269,6 +308,7 @@ def scan(root: Path, policy: dict, today: date, candidate: Path | None = None) -
     if candidate is not None:
         out.extend(check_size(root, candidate, policy))
         out.extend(check_scope(root, candidate, policy))
+        out.extend(check_disclosure_risk(root, candidate, policy))
         out.extend(check_volatile(root, candidate, policy))
         out.extend(check_authority(root, candidate, policy))
         out.extend(check_stale_dates(candidate, policy, today))
