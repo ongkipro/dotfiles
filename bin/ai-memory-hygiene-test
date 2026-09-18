@@ -27,6 +27,7 @@ cat > "$TMP/config/ai/memory-hygiene.json" <<'EOF'
   "maxSemanticFindings":20,
   "volatilePatterns":["\\bCI (?:is )?green\\b","\\bnext:\\s","\\bchecked out on\\b"],
   "authorityClaimPatterns":["\\bthis memory is the source of truth\\b"],
+  "trackedDisclosurePatterns":["\\binternal[- ]only\\b","\\bdo not publish\\b","\\bconfidential\\b"],
   "sharedForbiddenPrefixes":["device-"],
   "indexFiles":["config/ai/project-memory/MEMORY.md","config/ai/project-memory-kelola/MEMORY.md"]
 }
@@ -45,6 +46,7 @@ next: deploy
 This memory is the source of truth for project execution and current implementation status.
 Use repository disk as authoritative project truth before making implementation decisions.
 Never install Gemini CLI because Antigravity owns the Gemini-compatible runtime on this setup.
+This detail is internal-only and must stay out of tracked memory.
 EOF
 cat > "$TMP/config/ai/project-memory/bar.md" <<'EOF'
 Always use repository disk as authoritative project truth before making implementation decisions.
@@ -63,7 +65,7 @@ python3 - "$TMP/out.json" <<'PY'
 import json,sys
 p=json.load(open(sys.argv[1]))
 kinds={x['kind'] for x in p['issues']}
-for expected in ['SCOPE_VIOLATION','OVERSIZE','VOLATILE_PROJECT_STATE','STALE_DATED_CLAIM','DUPLICATE_INDEX_ENTRY','AUTHORITY_CLAIM','SEMANTIC_DUPLICATE','MEMORY_CONFLICT']:
+for expected in ['SCOPE_VIOLATION','OVERSIZE','VOLATILE_PROJECT_STATE','STALE_DATED_CLAIM','DUPLICATE_INDEX_ENTRY','AUTHORITY_CLAIM','DISCLOSURE_RISK','SEMANTIC_DUPLICATE','MEMORY_CONFLICT']:
     assert expected in kinds, (expected,kinds)
 assert any(x['kind']=='DUPLICATE_INDEX_ENTRY' and x['path'].endswith('project-memory-kelola/MEMORY.md') for x in p['issues'])
 assert p['status']=='WARN'
