@@ -69,6 +69,16 @@ For a new public experience or material redesign:
    narrow/wide renders, compare against the accepted direction, fix concrete
    discrepancies, and reopen the changed views.
 
+### Reference-to-composition contract
+
+When the user supplies a visual reference, inspect it and use
+[design-discovery.md](references/design-discovery.md) to record the composition
+contract before component mapping. Preserve the observed frame/grid, focal
+hierarchy, hero/media relationship, grouping boundaries, section rhythm,
+distinctive relationships, and responsive transformation. Style adjectives or
+a component list are not a substitute. Component libraries implement the
+accepted composition; they do not choose it.
+
 Small changes inside an accepted system skip new discovery and preserve that
 system. Scale documentation to the change; never turn a spacing fix into a PRD.
 
@@ -118,6 +128,22 @@ first. Reuse the project's components and dependencies. Add client JavaScript
 only for behavior that needs it. Styling must not force a framework migration,
 full-page hydration, or a universal component package. `native-first` owns the
 dependency decision; the installed framework skill owns implementation.
+
+For a material reference-driven build or redesign, implement in two visual
+passes regardless of framework:
+
+1. **Macro pass:** establish real-content reading/DOM order, page frame, section
+   rhythm, hero/media geometry, major alignment, and responsive transformation.
+   Render narrow and wide before investing in decorative detail.
+2. **Refinement pass:** after the macro composition survives that render, map
+   framework-native interaction primitives, tokens, typography detail, states,
+   motion, and micro-polish. Then run the final `ui-validation`
+   critique/revision loop.
+
+Skip the extra pass for a tiny change inside an already accepted composition.
+Astro, Next.js, React, Vue/Nuxt, Svelte/SvelteKit, Liquid/Hydrogen,
+server-rendered templates, and plain HTML all follow the same visual contract;
+only their implementation boundaries differ.
 
 Prefer opacity/transform for simple motion, but choose the correct technique
 for the actual state change and measure expensive work. Do not hide essential
@@ -185,6 +211,30 @@ comparison, media, forms, and sticky regions must retain their hierarchy on
 narrow screens and at zoom. Breakpoints follow content fit rather than one
 mandatory framework breakpoint. Keep DOM order meaningful for keyboard and
 screen-reader navigation.
+
+### 4.3.1. Anti-template composition gate
+
+During composition planning and again in rendered critique, inspect whether the
+page fell back to a generic assembly pattern rather than the accepted
+content/reference logic.
+Warning signals include:
+
+- badge -> centered headline -> paragraph -> two CTA buttons -> screenshot;
+- repeated equal 3- or 4-column card grids for unrelated kinds of information;
+- a rounded bordered container around nearly every section;
+- every section using the same centered max-width alignment and visual weight;
+- cards created only because the implementation already has a `Card` primitive;
+- distinctive reference relationships replaced by a standard bento/grid shell.
+
+These are diagnostic signals, not blanket bans. A pricing comparison may
+correctly use equal cards; a simple campaign hero may correctly be centered.
+Keep a familiar pattern when the content and accepted direction justify it.
+
+When the pattern is merely an implementation fallback, revise the composition
+before adding more decoration. Prefer hierarchy through scale, whitespace,
+alignment, media placement, dividers, sequencing, and contrast before another
+container. A technically consistent component tree is not evidence of authored
+visual direction.
 
 ### 4.4. States, forms, and accessibility
 

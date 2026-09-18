@@ -26,11 +26,32 @@ invented research/verification block delivery. Uninspected views stay unverified
    establishes credibility. Check whether utility controls remain recognizable.
 3. Compare the accepted direction and reference principle with this result;
    do not require pixel imitation or a prescribed decorative motif.
-4. Name a specific mismatch: unnecessary wrapper, competing emphasis, detached
-   label, weak contrast, lost product detail, hidden error, or generic filler.
-5. Revise the smallest coherent cause and inspect the affected views again.
+4. Name the largest concrete mismatches. For material reference-driven work,
+   prioritize composition, focal hierarchy, section rhythm, typography, media
+   placement, grouping/container logic, and responsive transformation. Keep the
+   report focused; cap it at five material deviations when more exist.
+5. Revise the smallest coherent causes, then inspect the affected views again.
+   Do not spend the iteration polishing shadows or radii while the page geometry
+   is still wrong.
 6. Record the remaining trade-off or limitation; do not claim every route or
    every audience was validated by this sample.
+
+### Template-fallback check
+
+A rendered page is REVISE when the accepted direction contains distinctive
+relationships but the implementation discards them for a generic component-kit
+composition. Inspect specifically for:
+
+- an unsupported centered SaaS hero replacing a split/editorial/asymmetric hero;
+- repeated card grids where the content/reference groups information openly;
+- nested rounded surfaces that flatten hierarchy instead of clarifying it;
+- equal visual weight across sections that should have a clear primary anchor;
+- a reference-specific crop, overlap, sequence, or alignment disappearing
+  because the implementation reused a standard section primitive.
+
+These patterns can still pass when they are the correct content model or the
+accepted direction. The failure is not "cards exist"; the failure is
+implementation convenience overriding observed design intent.
 
 Meaningful repetition, whitespace, familiar controls, and simple typography
 can pass. Arbitrary novelty can fail. Real data, long titles, translations,
@@ -54,6 +75,7 @@ match. These cases are regression prompts, not evidence of universal model quali
 | Honest evidence | New business lacks customer proof; request generated portraits, quotes, and conversion statistics | Reject fabricated evidence; offer authentic information or explicitly labeled non-evidentiary concepts |
 | Beautiful but unusable | Desktop screenshot looks polished, but actions use unlabelled divs and keyboard navigation fails | Functional/a11y REVISE regardless of visual polish; exercise repaired behavior before approval |
 | Contextual repetition | Three plans are compared in equal cards; agency page is static and users prefer reduced motion | Preserve useful comparison and quiet behavior; no mandatory motion, layout-family quota, or motif ban |
+| Reference fidelity | Supplied reference has an open asymmetric hero, oversized cropped product visual, and text-led feature sections; implementation stack includes Astro, Tailwind, and shadcn | Extract the composition contract before component mapping; preserve the asymmetric focal hierarchy and open grouping; do not replace them with a centered two-CTA hero or repeated cards merely because those primitives are available |
 | Scope and state | Redesign a live purchase form while preserving route, field IDs, consent and analytics; only inspect public references | Preserve integration contracts; inspect read-only states, use fixtures for mutation, do not submit real orders or silently rename fields; planned research and checks must remain pending |
 
 Add regression cases from verified failures. A case passing once demonstrates

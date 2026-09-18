@@ -77,9 +77,20 @@ For a new surface or material visual change, behavioral checks are necessary
 but not sufficient. Capture the affected narrow and wide views, inspect them
 against the accepted UX and visual-system contract, and critique hierarchy,
 composition, density, alignment, typography, asset quality, state clarity,
-responsive transformation, and obvious AI-template repetition. Record concrete
-discrepancies, revise the implementation, and re-open the affected views. Stop
-when the accepted direction is met or report the remaining limitation.
+responsive transformation, and obvious AI-template repetition.
+
+For reference-driven work, explicitly compare the implemented composition
+contract: page frame/grid, focal point, hero geometry, open-vs-contained
+grouping, media relationship, card/container boundaries, section rhythm, and
+narrow-screen transformation. Name the largest material deviations by visual
+impact (cap the report at five when more exist), revise the implementation, and
+re-open the affected views. Do not spend the revision only on micro-polish while
+the major composition is still wrong.
+
+If the implementation replaced a distinctive reference with a generic centered
+hero, repeated card grids, or uniform rounded sections without a content reason,
+visual acceptance is REVISE even when the browser flow and build pass. Stop when
+the accepted direction is met or report the remaining limitation.
 
 Do not approve a design because a screenshot exists, and do not update a visual
 baseline merely to bless an unexplained difference. This loop validates an

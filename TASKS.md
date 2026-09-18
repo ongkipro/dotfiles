@@ -1,6 +1,6 @@
 # Tasks — dotfiles
 
-Updated: 2026-09-15
+Updated: 2026-09-18
 
 The sole executable queue. Completed contracts live under `docs/archive/`;
 repository tests and runtime evidence outrank prose.
@@ -20,6 +20,19 @@ then `DOTFILES_TASKS_2026-09-04_QUEUE.md`
 (TASK-038–041, 044; prose closures for TASK-013/022/027/028).
 
 ## Pending
+
+### TASK-088: Public UI reference fidelity and anti-template composition
+
+- **Requirement:** REQ-PUBLIC-UI-REFERENCE-FIDELITY (2026-09-18: supplied references can collapse into generic Astro heroes/cards).
+- **Risk Level:** R2.
+- **Allowed Paths:** `skills/local/design-taste/**`, `skills/local/astro-development/SKILL.md`, `skills/local/ui-validation/SKILL.md`, `TASKS.md`, `.delivery/**`.
+- **Canonical Contract Owners:** `design-taste` direction; `astro-development` implementation; `ui-validation` rendered evidence.
+- **Accepted Invariants:** user/project evidence wins; familiar cards/centered layouts remain valid when justified; no framework/library replacement or pixel-copy rule.
+- **Regression Checks:** `skill-check design-taste`, `skill-check astro-development`, `skill-check ui-validation`, `ai-policy-lint`, `ai-doctor --self-test`.
+- **Runtime Evidence:** no pre-code composition contract previously prevented reference geometry from collapsing into component-kit defaults.
+- **Reopen Conditions:** reference-driven work can skip or erase the accepted composition contract.
+- **Non-Scope:** runtime/model routing, new UI dependencies, project tokens.
+- **Escalation Conditions:** enforcement would require runtime changes, a dependency, or a universal visual style.
 
 ### TASK-077: Cross-model intent and language guidance
 

@@ -36,6 +36,24 @@ Gemini's signed-in app, and Material component specifications are different
 kinds of evidence. Name which one was examined. An application shell does not
 supply a marketing page's information architecture.
 
+### 2.1. Assign each reference a role
+
+Before extracting style, resolve what the reference is supposed to control:
+
+- **Target composition:** the user asks to match, recreate, follow closely, or
+  preserve this layout. Keep its major geometry and hierarchy unless content,
+  accessibility, or explicit brand constraints require a documented deviation.
+- **Directional inspiration:** the user wants a similar character, not the same
+  layout. Transfer observed principles without manufacturing pixel fidelity.
+- **Interaction reference:** copy the understandable behavior/state pattern, not
+  unrelated visual branding.
+- **Token/brand reference:** use the supplied type, color, shape, or asset system
+  while deriving layout from the current task.
+
+For multiple references, assign each one a specific decision role. Do not
+average them into a generic "modern" style. When the user's wording clearly
+selects one primary reference, it outranks secondary inspiration.
+
 ## 3. Inspect, capture, and distinguish evidence
 
 Use the installed browser tooling or native browser; reuse existing project
@@ -45,7 +63,10 @@ logins, protected screenshots, and live actions need the session's authorization
 
 For each reference used to justify a visual/interaction decision:
 
-- Record the exact URL, access date, surface, viewport, and state.
+- Record its source and inspection context. For a live reference, keep the exact
+  URL and access date. For a user-supplied screenshot, image, local artifact, or
+  design export, record it as user-supplied evidence with the visible
+  surface/state and dimensions or viewport when known; a URL is not required.
 - Open the relevant region, not just the homepage. Inspect narrow/wide
   behavior when responsive transfer is part of the claim.
 - Capture and **inspect** the screenshot. Record the observed hierarchy,
@@ -82,6 +103,34 @@ compare audience/job fit, brand continuity, content needs, accessibility,
 responsive behavior, and implementation/runtime cost. Do not manufacture three
 options when the user already chose one.
 
+### 4.1. Convert reference evidence into geometry before coding
+
+Visual adjectives are insufficient implementation evidence. For a supplied
+reference or an accepted external direction, write the smallest useful
+composition blueprint before choosing page components:
+
+```markdown
+## Composition contract
+- Reference viewport/state:
+- Page frame / grid / dominant alignments:
+- Primary focal point; secondary anchors:
+- Hero geometry: text/media split, measure, crop/overlap, CTA placement:
+- Open vs contained regions and why:
+- Card/container boundaries that are semantically justified:
+- Distinctive relationships that must survive implementation:
+- Section rhythm / density changes:
+- Narrow-screen transformation:
+```
+
+Record relationships, not fake precision. Use measured values only when they
+were actually inspected from source/computed styles; otherwise describe
+proportions and alignment honestly.
+
+The blueprint exists to stop implementation convenience from erasing the
+reference. A component library must not silently turn open editorial grouping
+into cards, asymmetry into a centered stack, or one dominant visual into a
+uniform grid.
+
 Identity comes from the subject: actual work, product details, useful diagrams,
 photography, language, or a deliberate typographic/compositional relationship.
 Do not bolt on a signature animation, decorative badge, or texture to make an
@@ -105,14 +154,22 @@ Minimum decision record:
 - Information hierarchy and content/assets:
 
 ## Reference evidence
-| Source / inspected date | Surface, viewport, state, artifact | Observed | Inferred / unverified | Transfer / exclude |
-| --- | --- | --- | --- | --- |
+| Source / inspected date | Role | Surface, viewport, state, artifact | Observed | Inferred / unverified | Transfer / exclude |
+| --- | --- | --- | --- | --- | --- |
 
 ## Direction
 - Accepted direction and why it fits:
 - Brand/content identity; patterns intentionally repeated:
 - Responsive transformation and density:
 - Rejected alternative, only when a real choice existed:
+
+## Composition contract
+- Page frame / grid / dominant alignments:
+- Primary focal point and secondary anchors:
+- Hero geometry and media relationship:
+- Open vs contained sections; justified card boundaries:
+- Distinctive reference relationships to preserve:
+- Narrow-screen transformation:
 
 ## Tokens and behavior
 - Semantic color pairs, type, spacing, shape, elevation:
