@@ -292,6 +292,16 @@ def state(repo: Path) -> str | None:
     return m.group(1) if m else None
 
 
+def require_state(repo: Path) -> str:
+    p = repo / "STATUS.md"
+    if not p.is_file():
+        raise ValueError("STATUS.md missing; ledger state authority must exist")
+    value = state(repo)
+    if not value:
+        raise ValueError("STATUS.md must contain a parseable 'State: UPPER_CASE' line")
+    return value
+
+
 def atomic_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
@@ -433,7 +443,7 @@ def initial(repo: Path) -> dict:
         "project": repo.name,
         "statusAuthority": "STATUS.md",
         "activeRun": None,
-        "observedState": state(repo),
+        "observedState": require_state(repo),
         "observedHead": git(repo, "rev-parse", "HEAD"),
         "updatedAt": now(),
     }
@@ -446,12 +456,13 @@ def load_current(repo: Path) -> dict:
     data = json.loads(current.read_text(encoding="utf-8"))
     if data.get("schemaVersion") != 1 or data.get("statusAuthority") != "STATUS.md":
         raise ValueError("unsupported or invalid delivery ledger schema")
+    require_state(repo)
     return data
 
 
 def save_current(repo: Path, data: dict) -> None:
     _, current, _, _ = paths(repo)
-    data["observedState"] = state(repo)
+    data["observedState"] = require_state(repo)
     data["observedHead"] = git(repo, "rev-parse", "HEAD")
     data["updatedAt"] = now()
     atomic_json(current, data)
@@ -463,7 +474,7 @@ def event_base(repo: Path, kind: str, run_id: str | None) -> dict:
         "time": now(),
         "type": kind,
         "runId": run_id,
-        "state": state(repo),
+        "state": require_state(repo),
         "head": git(repo, "rev-parse", "HEAD"),
     }
 
@@ -474,6 +485,7 @@ def require_id(value: str, label: str) -> None:
 
 
 def cmd_init(repo: Path) -> int:
+    require_state(repo)
     root, current, runs, releases = paths(repo)
     root.mkdir(exist_ok=True); runs.mkdir(exist_ok=True); releases.mkdir(exist_ok=True)
     ignore = root / ".gitignore"
@@ -1164,6 +1176,7 @@ def cmd_finish(repo: Path, a) -> int:
     e = event_base(repo, "run_finished", run_id); e.update({"result": a.result, "detail": a.detail, "boundary": boundary_evidence})
     append_event(run_path, e)
     data["lastRun"] = {"runId": run_id, "result": a.result, "finishedAt": e["time"]}
+    data.pop("lastCheckpoint", None)
     for key in ("activeRun", "activeTask", "requirement", "risk", "job", "capability", "worker", "model", "provider", "reasoningEffort"):
         data.pop(key, None)
     data["activeRun"] = None
@@ -1242,7 +1255,7 @@ def inspect(repo: Path) -> tuple[dict | None, list[str]]:
         data = load_current(repo)
     except Exception as exc:
         return None, [str(exc)]
-    actual_state, actual_head = state(repo), git(repo, "rev-parse", "HEAD")
+    actual_state, actual_head = require_state(repo), git(repo, "rev-parse", "HEAD")
     if data.get("observedState") != actual_state:
         problems.append(f"state drift: ledger={data.get('observedState')} STATUS.md={actual_state}")
     relation = head_relation(repo, data.get("observedHead"), actual_head)
