@@ -1212,7 +1212,7 @@ def cmd_snapshot(repo: Path, a) -> int:
         "releaseId": a.release_id,
         "capturedAt": now(),
         "head": git(repo, "rev-parse", "HEAD"),
-        "state": state(repo),
+        "state": require_state(repo),
         "release": fields,
         "ledger": data,
     }
