@@ -129,6 +129,22 @@ only for behavior that needs it. Styling must not force a framework migration,
 full-page hydration, or a universal component package. `native-first` owns the
 dependency decision; the installed framework skill owns implementation.
 
+For a material reference-driven build or redesign, implement in two visual
+passes regardless of framework:
+
+1. **Macro pass:** establish real-content reading/DOM order, page frame, section
+   rhythm, hero/media geometry, major alignment, and responsive transformation.
+   Render narrow and wide before investing in decorative detail.
+2. **Refinement pass:** after the macro composition survives that render, map
+   framework-native interaction primitives, tokens, typography detail, states,
+   motion, and micro-polish. Then run the final `ui-validation`
+   critique/revision loop.
+
+Skip the extra pass for a tiny change inside an already accepted composition.
+Astro, Next.js, React, Vue/Nuxt, Svelte/SvelteKit, Liquid/Hydrogen,
+server-rendered templates, and plain HTML all follow the same visual contract;
+only their implementation boundaries differ.
+
 Prefer opacity/transform for simple motion, but choose the correct technique
 for the actual state change and measure expensive work. Do not hide essential
 content behind a reveal script. Reduced motion must keep content and controls

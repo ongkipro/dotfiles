@@ -130,16 +130,9 @@ framework islands only where their interaction semantics are useful; do not let
 an installed `Card`, `Badge`, or grid primitive become the page's visual
 architecture by default.
 
-For material reference-driven work, build in two visual passes:
-
-1. **Macro pass:** establish real-content DOM order, page frame, section rhythm,
-   hero/media geometry, major alignment, and responsive transformation. Render
-   narrow/wide before spending time on decorative detail.
-2. **Refinement pass:** after the macro composition survives that render, map
-   interaction primitives, tokens, typography detail, states, motion, and
-   micro-polish. Then run the final `ui-validation` critique/revision loop.
-
-Skip this extra pass for a tiny change inside an already accepted composition.
+For material reference-driven work, follow `design-taste`'s framework-neutral
+macro-pass → render → refinement-pass contract. Astro only decides the native
+implementation boundary for that accepted composition.
 
 For business/SEO sites, first produce:
 - page list
