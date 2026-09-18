@@ -6,6 +6,31 @@ TMP="$(mktemp -d "${TMPDIR:-/tmp}/delivery-ledger-test.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 fail(){ echo "FAIL: $*" >&2; exit 1; }
 
+NO_STATUS="$TMP/no-status"
+mkdir -p "$NO_STATUS"
+git -C "$NO_STATUS" init -q
+printf 'baseline\n' > "$NO_STATUS/README.md"
+git -C "$NO_STATUS" add README.md
+git -C "$NO_STATUS" -c user.email=t@t -c user.name=t commit -qm baseline
+set +e
+python3 "$DL" --repo "$NO_STATUS" init >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 1 ] || fail "ledger init must reject a repository without STATUS.md"
+[ ! -e "$NO_STATUS/.delivery/current.json" ] || fail "failed init must not create a current projection"
+
+INVALID_STATUS="$TMP/invalid-status"
+mkdir -p "$INVALID_STATUS"
+git -C "$INVALID_STATUS" init -q
+printf '# Status without state\n' > "$INVALID_STATUS/STATUS.md"
+git -C "$INVALID_STATUS" add STATUS.md
+git -C "$INVALID_STATUS" -c user.email=t@t -c user.name=t commit -qm baseline
+set +e
+python3 "$DL" --repo "$INVALID_STATUS" init >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 1 ] || fail "ledger init must reject STATUS.md without a parseable State line"
+
 REPO="$TMP/repo"
 mkdir -p "$REPO"
 cd "$REPO"
@@ -70,7 +95,17 @@ from pathlib import Path
 data=json.loads(Path('.delivery/current.json').read_text())
 assert data['activeRun'] is None
 assert data['lastRun']['result']=='PASS'
+assert 'lastCheckpoint' not in data
 PY
+
+mv "$REPO/STATUS.md" "$REPO/STATUS.md.missing"
+set +e
+python3 "$DL" --repo "$REPO" verify >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 2 ] || fail "verify must be UNVERIFIED when STATUS.md authority disappears"
+mv "$REPO/STATUS.md.missing" "$REPO/STATUS.md"
+python3 "$DL" --repo "$REPO" verify >/dev/null || fail "restoring STATUS.md should restore verification"
 
 python3 "$DL" --repo "$REPO" start --task TASK-002 --requirement REQ-002 --risk R0 --worker task --model test-model >/dev/null
 python3 "$DL" --repo "$REPO" record --check regression --status FAIL --detail broken >/dev/null
