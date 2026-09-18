@@ -28,6 +28,7 @@ scaffold() { # a repository that passes everything, as the baseline to break
   git -C "$d" init -q 2>/dev/null || { mkdir -p "$d"; git -C "$d" init -q; }
   printf 'contract\n' > "$d/AGENTS.md"
   printf '### TASK-001: something\n' > "$d/TASKS.md"
+  printf '# Status\nState: READY\n' > "$d/STATUS.md"
   printf '#!/bin/sh\ntrue\n' > "$d/bin/x-test"; chmod +x "$d/bin/x-test"
   git -C "$d" add -A >/dev/null 2>&1
   git -C "$d" -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1
@@ -42,7 +43,8 @@ fake_dot() { # fake_dot DIR [routing-exit]
   mkdir -p "$d/bin" "$d/skills/local/example"
   printf 'name: example\n' > "$d/skills/local/example/SKILL.md"
   printf '#!/usr/bin/env bash\necho routing\nexit %s\n' "$rc" > "$d/bin/omp-runtime-report"
-  chmod +x "$d/bin/omp-runtime-report"
+  cp "$ROOT/bin/delivery-ledger" "$d/bin/delivery-ledger"
+  chmod +x "$d/bin/omp-runtime-report" "$d/bin/delivery-ledger"
 }
 fake_omp() { # fake_omp PATH PROVIDER...
   local f="$1"; shift
@@ -96,11 +98,11 @@ expect "browser-visible files with no browser blocks the browser runner" \
 expect "a repository with no browser-visible files does not require a browser" \
   "browser runner: not required" "$TMP/notasks" "DEV_READY_BROWSERS=dev-ready-no-such-browser"
 
-scaffold "$TMP/badledger" && mkdir -p "$TMP/badledger/.delivery/runs" \
-  && printf '{}\n' > "$TMP/badledger/.delivery/current.json" \
-  && printf '{"a":1}\n{"b":\n' > "$TMP/badledger/.delivery/runs/RUN-x.jsonl"
+scaffold "$TMP/badledger"
+"$DOT_OK/bin/delivery-ledger" --repo "$TMP/badledger" init >/dev/null 2>&1
+printf '{"a":1}\n{"b":\n' > "$TMP/badledger/.delivery/runs/RUN-x.jsonl"
 expect "an unreadable .delivery chain blocks the ledger" \
-  "the chain cannot be read or extended" "$TMP/badledger"
+  "delivery-ledger: DRIFT" "$TMP/badledger"
 
 scaffold "$TMP/good"
 expect "a complete repository is READY" "PROJECT READY" "$TMP/good"
@@ -148,12 +150,12 @@ expect "pre-existing dirty work is reported, not ignored" \
 
 scaffold "$TMP/emptyledger" && mkdir -p "$TMP/emptyledger/.delivery"
 expect "an uninitialised .delivery is not clean" \
-  "the chain is uninitialised" "$TMP/emptyledger"
+  "current.json missing" "$TMP/emptyledger"
 
 scaffold "$TMP/headless" && mkdir -p "$TMP/headless/.delivery/runs" \
   && printf '{"a":1}\n' > "$TMP/headless/.delivery/runs/RUN-x.jsonl"
 expect "run evidence with no chain head is broken" \
-  "the chain head is lost" "$TMP/headless"
+  "current.json missing" "$TMP/headless"
 
 scaffold "$TMP/emptypyproject" && rm "$TMP/emptypyproject/bin/x-test" \
   && : > "$TMP/emptypyproject/pyproject.toml"
