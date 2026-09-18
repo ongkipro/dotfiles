@@ -71,34 +71,13 @@ For a new public experience or material redesign:
 
 ### Reference-to-composition contract
 
-When the user supplies a visual reference, do not translate it directly into
-components or style adjectives. Before implementation, extract an explicit
-composition contract from the inspected reference:
-
-- frame and grid: content width, columns, dominant alignments, and intentional
-  edge-to-edge regions;
-- focal hierarchy: the primary visual anchor plus the secondary reading anchors;
-- hero geometry: text/media split, text measure, alignment, crop/overlap,
-  vertical depth, and CTA placement;
-- section rhythm: which regions are open, contained, split, full-bleed, dense,
-  or deliberately quiet;
-- grouping logic: which information is genuinely an independent object and
-  therefore earns a card/container boundary;
-- distinctive relationships that create the reference's character, such as
-  asymmetry, overlap, scale contrast, editorial sequencing, or unusual media
-  placement;
-- responsive transformation: what reorders, stacks, crops, disappears, or
-  changes emphasis on narrow screens.
-
-A palette such as "minimal, premium, dark, modern" is not a composition
-contract. Neither is a list of component names.
-
-Do not normalize a distinctive reference into the safest component-library
-shape merely because it is easier to implement. If the reference uses an open
-layout, do not introduce cards just to group text. If it uses an asymmetric
-hero, do not collapse it into a centered heading and generic two-button CTA.
-Tailwind utilities, shadcn primitives, and Astro components implement the
-composition; they do not choose it.
+When the user supplies a visual reference, inspect it and use
+[design-discovery.md](references/design-discovery.md) to record the composition
+contract before component mapping. Preserve the observed frame/grid, focal
+hierarchy, hero/media relationship, grouping boundaries, section rhythm,
+distinctive relationships, and responsive transformation. Style adjectives or
+a component list are not a substitute. Component libraries implement the
+accepted composition; they do not choose it.
 
 Small changes inside an accepted system skip new discovery and preserve that
 system. Scale documentation to the change; never turn a spacing fix into a PRD.
