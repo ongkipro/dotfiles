@@ -24,6 +24,7 @@
 - [JASAWEBSITE.co brand](jasawebsite-co-brand.md) — web agency by VOLUM, 7 services, ID+MY market, spec in PRD v4.0.
 - [SF-Theme Shopify store](sf-theme-shopify-store.md) — store `yn80fb-mb`, theme `olivia-16-6-0a` (#186432061760, unpublished); permanent handle for all CLIs.
 - [PetCue Dawn rebuild](petcue-dawn-rebuild.md) — legal Dawn-based theme (a licensed Olivia alternative) for store `2mpt3p-xv`, paused mid-build.
+- [Beautyinu Skincare](beautyinu.md) — `beautyinu.co` Gen-Z & Millennial bodycare brand; Shopify Hydrogen storefront (React Router/Oxygen/Tailwind v4) backed by store p1d3wg-6i. Done.
 - [Batas permission matcher Claude Code](claude-code-permission-matcher-limits.md) — a denied directory admits no carve-out (extglob negation was tested and fails), and prefix rules cannot see flags; use `ssh -G` and a PreToolUse hook.
 
 ## Merged from the Claude account-scoped store (2026-08-17)

@@ -252,6 +252,8 @@
     }
   ],
   "projects": {
+    "beautyinu": "config/ai/project-memory/beautyinu.md",
+    "beautyinu-hydrogen": "config/ai/project-memory/beautyinu.md",
     "travelos": "config/ai/project-memory/travelos.md",
     "aussiemalaysia": "config/ai/project-memory/aussie-sawit-malaysia.md",
     "aussie-sawit-malaysia": "config/ai/project-memory/aussie-sawit-malaysia.md",
