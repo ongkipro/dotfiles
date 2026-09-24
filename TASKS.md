@@ -30,18 +30,6 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 - **Non-Scope:** non-sol roles, other devices' live config.
 - **Escalation Conditions:** OMP cannot reach the tunnel without a stored key.
 
-### TASK-092: CI flake — `grep -q` under `pipefail`
-
-- **Requirement:** REQ-CI-DETERMINISM (Core runtime `a066af0` failed on macOS only: `ai-doctor-test` "a profile with no deny rule was not warned about").
-- **Risk Level:** R1.
-- **Allowed Paths:** `bin/ai-doctor-test`, `TASKS.md`, `.delivery/**`.
-- **Canonical Contract Owners:** `runtime.readiness`.
-- **Accepted Invariants:** assertions unchanged; only how output reaches `grep`.
-- **Regression Checks:** `ai-doctor-test`, `ai-policy-lint`.
-- **Reopen Conditions:** a test fails with exit 141 while its text matched.
-- **Non-Scope:** the other ~95 `printf | grep -q` sites (follow-up once this is proven).
-- **Escalation Conditions:** the flake reproduces with here-strings.
-
 ### TASK-093: Suite validator reads root `TASKS.md`
 
 - **Requirement:** REQ-PLANNING-CONTRACT-ALIGNMENT (TASK-090 known gap: `check-traceability.py` scans only `docs/spec`, so `TASK*`/`TRACE001` never see root `TASKS.md`).

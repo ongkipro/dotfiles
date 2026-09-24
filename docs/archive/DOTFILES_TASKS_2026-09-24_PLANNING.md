@@ -46,3 +46,17 @@ Evidence: `.delivery/runs/RUN-20260924T115940Z-57ca1de6.jsonl` (PASS).
 - **Escalation Conditions:** naming the unexamined statements requires parsing every subject, which for bash would mean the dependency TASK-076 deliberately refused
 
 Evidence: `.delivery/runs/RUN-20260924T120429Z-db687cf7.jsonl` (PASS).
+
+### TASK-092: CI flake — `grep -q` under `pipefail`
+
+- **Requirement:** REQ-CI-DETERMINISM (Core runtime `a066af0` failed on macOS only: `ai-doctor-test` "a profile with no deny rule was not warned about").
+- **Risk Level:** R1.
+- **Allowed Paths:** `bin/ai-doctor-test`, `TASKS.md`, `.delivery/**`.
+- **Canonical Contract Owners:** `runtime.readiness`.
+- **Accepted Invariants:** assertions unchanged; only how output reaches `grep`.
+- **Regression Checks:** `ai-doctor-test`, `ai-policy-lint`.
+- **Reopen Conditions:** a test fails with exit 141 while its text matched.
+- **Non-Scope:** the other ~95 `printf | grep -q` sites (follow-up once this is proven).
+- **Escalation Conditions:** the flake reproduces with here-strings.
+
+Evidence: `.delivery/runs/RUN-20260924T121006Z-99c92eba.jsonl` (PASS).
