@@ -12,7 +12,7 @@ Record an important architecture decision with its context, status, alternatives
 `adr-record` owns full standalone ADR documents and the canonical filename convention. It does not own a project-wide PRD/TASKS workflow or a multi-document specification pack.
 
 - Use `prd-taskbreaker` for PRD/PLAN/TASKS. Its ADR-lite block is enough for a small, local decision; hand a costly-to-reverse decision to this skill for a full ADR.
-- In a `development-spec-suite` pack, Technical Design owns the `ADR-*` index row and traceability link. This skill writes the referenced full ADR without creating a second decision register.
+- Root `DECISIONS.md` is the repository's only decision index; each ADR gets one row there linking its file. In a `development-spec-suite` pack, Technical Design also declares the same `ADR-NNNN` as the pack's traceability link, never a second register or number. Rule: `~/.config/ai/policies/planning-artifacts.md` (Decision records).
 - Use `volumx-writer` only to rewrite, translate, or humanize an existing ADR without changing its decision.
 
 ## Workflow
@@ -21,16 +21,17 @@ Record an important architecture decision with its context, status, alternatives
 2. **Allocate the next ID.** Scan `docs/adr/` and `adr/` (or the `~/Documents/work/prd/<project>/` staging directory before the repository exists) for existing canonical `ADR-[0-9]+-*.md` files and legacy `[0-9]+-*.md` files. Parse the numeric prefixes, take the highest ID, add one, and left-pad to four digits. Start at `0001` when no ADR exists. Never reuse an ID, including a rejected or superseded one.
 3. **Clarify the decision.** Capture the problem, decision drivers, viable alternatives, and affected components.
 4. **Write the ADR.** Use `ADR-NNNN-<slug>.md`, for example `ADR-0007-d1-drizzle-orm.md`, and the template below.
-5. **Update supersession links.** When replacing an accepted decision, mark the old ADR `Superseded by ADR-NNNN` and link the new ADR back to it. Preserve both files.
+5. **Index it.** Add or update the `DECISIONS.md` row (ID = linked `ADR-NNNN`, current status). In a suite pack, add the matching Technical Design `ADR-NNNN` row.
+6. **Update supersession links.** When replacing an accepted decision, mark the old ADR `Superseded by ADR-NNNN` and link the new ADR back to it. Preserve both files. Use `Deprecated` when a decision no longer applies and nothing replaces it.
 
-If concurrent work could allocate the same number, re-scan immediately before writing. Do not guess an ID from memory.
+The number is provisional until the ADR merges into the default branch, because parallel branches each see the same "highest + 1". Before merge, rebase onto the default branch, re-scan, and if the number was taken, renumber the file, title, `DECISIONS.md` row, and every reference. The merged tree must have no duplicate number, legacy files included: `ls docs/adr adr 2>/dev/null | grep -oE '^(ADR-)?[0-9]+' | sed 's/^ADR-//; s/^0*//' | sort | uniq -d` prints nothing. Do not guess an ID from memory.
 
 ## Canonical ADR format
 
 ```markdown
 # ADR-NNNN: [Decision title]
 
-- **Status:** [Proposed | Accepted | Rejected | Superseded by ADR-NNNN]
+- **Status:** [Proposed | Accepted | Rejected | Deprecated | Superseded by ADR-NNNN]
 - **Date:** [YYYY-MM-DD]
 - **Author:** [Author name]
 - **Deciders:** [Decision makers]

@@ -50,6 +50,14 @@ local worked-example directory exists.
   `development-spec-suite`. It owns adaptive selection under `docs/spec/`;
   root `TASKS.md` remains the only execution queue.
 
+Tenancy: a feature inside an existing multi-tenant repository stays in the
+`prd-taskbreaker` lane, but its tasks carry tenant-scope constraints (tenant
+context resolved from server-verified membership; a client-supplied ID is only a selector validated against it) and
+negative cross-tenant verification on the production access path; isolation
+review goes to `application-security`. Introducing or changing the tenancy
+model itself (isolation model, tenant context, custom domains) is multi-domain:
+`development-spec-suite` (`06-TENANT-ISOLATION.md`) and/or `adr-record`.
+
 Do not select a suite because a project merely feels large. Do not jump from
 planning approval to implementation authorization.
 

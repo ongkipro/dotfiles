@@ -33,7 +33,7 @@
 - For custom platform ideas, separate MVP validation from full Shopify-like build.
 
 ### Database/backend
-- Prefer **PostgreSQL + Drizzle ORM + better-auth**. Hosting: Neon (Vercel) atau self-host via Coolify. ⚠️ **Supabase TIDAK dipakai** dan CLI-nya sengaja tidak dipasang (lihat environment.md) — catatan lama yang menyarankan Supabase sudah dibatalkan.
+- Prefer **PostgreSQL + Drizzle ORM + better-auth**. Hosting: Neon (Vercel) or self-host via Coolify. ⚠️ **Supabase is not used**, and its CLI is intentionally not installed (see environment.md); older notes recommending Supabase are cancelled.
 - For self-hosted VPS, design backup, migration, monitoring, and security before scaling.
 - Avoid overbuilding microservices before demand is proven.
 

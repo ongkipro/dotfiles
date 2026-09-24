@@ -39,7 +39,7 @@ The binding rule: **every task has exactly one primary accepted requirement; any
 - **`plan`** — technical PLAN from an existing PRD (architectural features)
 - **`tasks`** — break an existing PRD/PLAN into tasks
 - **`full`** *(default)* — clarify → PRD → (plan if needed) → tasks in one run
-- **`update`** — update existing artifacts; preserve every accepted requirement and task ID (never renumber or reuse it); append new IDs and explicitly supersede changed accepted items
+- **`update`** — update existing artifacts; preserve every accepted requirement and task ID (never renumber or reuse it); append new IDs and explicitly supersede changed accepted items. Continue the file's existing ID style; migrating old-format tasks (`REQ-1`, `**T1**`) to the contract shape is its own R0 task
 
 ### Suite-pack mode
 
@@ -47,11 +47,15 @@ If a `development-spec-suite` pack is active (`CONTEXT-RECORD.md` exists), prese
 
 ```markdown
 ### T-1 — Create the order endpoint
-Primary requirement: PR-1
-Constraints: PR-2, NFR-1
-Dependencies: None
-Done when: Execute TEST-1 against the local endpoint; its observed result satisfies PR-1's acceptance criteria.
+- **Primary requirement:** PR-1
+- **Constraints:** PR-2, NFR-1
+- **Risk Level:** R2
+- **Allowed Paths:** `src/routes/api/order.ts`, `tests/order.test.ts`
+- **Depends On:** None
+- **Done when:** Execute TEST-1 against the local endpoint; its observed result satisfies PR-1's acceptance criteria.
 ```
+
+Use bold bullet fields: the suite validator does not read plain `Primary requirement:` lines, and `resume-brief` reads dependencies only from `- **Depends On:**`.
 
 `PR-2` and `NFR-1` affect execution but do not become additional primary requirements. During planning, define `TEST-1` if the pack activates it, but do not create or claim `EVID-*`.
 
@@ -62,6 +66,14 @@ status evidence, routes, schemas, APIs, tests, and the affected flow before
 asking questions. Trace the current behavior and reuse established terminology.
 This repository-first phase is mandatory for existing code; do not design a
 feature from the request text alone.
+
+**Tenant boundary.** If step 0 finds tenant evidence (`tenant_id`/`org_id`/`workspace_id`/`store_id` keys, RLS policies, tenant-scoped middleware, `06-TENANT-ISOLATION.md`), every requirement touching tenant-owned data carries a tenant-scope constraint:
+- tenant context resolves server-side from authenticated membership; a client-supplied ID, header, or subdomain is only a selector validated against it;
+- cache, queue, storage, search, rate-limit, and export keys include the tenant; RLS context is set per transaction, never through a bypass role;
+- operator/support/impersonation access and background jobs carry an explicit tenant context and are audited; there is no implicit global scope;
+- `Done when` includes a negative test: tenant A cannot read, list, or mutate tenant B's record and gets not-found, while same-tenant access still succeeds.
+
+A task that changes the isolation mechanism itself (tenant-context resolution, authorization, RLS, scoped query/cache helpers, or a new tenant-owned surface with no established guard) is at least R3 with isolation review by `application-security`; a task that only uses the established guard stays at its normal risk but keeps the negative test. A new or changed tenancy model is costly to reverse → `adr-record`, or suite `06` when a pack is active.
 
 ## 1. Clarify — this is a gate, not small talk
 
@@ -102,10 +114,10 @@ One paragraph: what is being built, for whom, why now.
 
 ## Requirements
 Testable, numbered, EARS-style (see cheatsheet below). The ID is what tasks trace to.
-- **REQ-1** (event) When the user submits the checkout form, the system shall create an order with status `pending`.
-- **REQ-2** (unwanted) If the phone number is invalid, then the system shall reject the submit and show an error.
-- **REQ-3** (state) While the province is COD-disabled, the system shall hide the COD option.
-- **REQ-4** (ubiquitous) The system shall log every order-status change.
+- **REQ-001** (event) When the user submits the checkout form, the system shall create an order with status `pending`.
+- **REQ-002** (unwanted) If the phone number is invalid, then the system shall reject the submit and show an error.
+- **REQ-003** (state) While the province is COD-disabled, the system shall hide the COD option.
+- **REQ-004** (ubiquitous) The system shall log every order-status change.
 
 ## Stack & Constraints
 - Frontend / Backend / DB / Deploy / Constraint. (Don't repeat the global `AGENTS.md` rules. For frontend features, select the actual surface owner: `design-taste` for marketing/storefront visual direction or `admin-dashboard` for data-dense product UI; use `ui-validation` for executable browser evidence and `web-perf` for performance diagnosis.)
@@ -201,8 +213,8 @@ Before generating tasks, review the draft as a decision loop:
 - **Runtime EVID** — a fresh observed result recorded only after execution, including target/environment and enough output to support a pass or fail verdict. Never add placeholder or assumed passing EVID during planning.
 
 ```markdown
-Acceptance criterion (REQ-1): Given a valid order payload, the API returns 201 and persists status `pending`.
-Done when: Execute TEST-1 against the local endpoint; its observed result satisfies REQ-1's acceptance criterion.
+Acceptance criterion (REQ-001): Given a valid order payload, the API returns 201 and persists status `pending`.
+Done when: Execute TEST-1 against the local endpoint; its observed result satisfies REQ-001's acceptance criterion.
 TEST-1 procedure: Start the app, POST a valid payload, then assert status 201 and query the stored order.
 ```
 
@@ -210,48 +222,58 @@ Runtime EVID is intentionally absent from this planning example. Only after exec
 
 ## 4. Tasks format
 
-`TASKS.md` at project root. Generate tasks only after their primary requirements are accepted. Each task is **atomic, context-complete, and traces to exactly one primary requirement**. Other applicable IDs belong under `Constraints`; dependencies name tasks, not additional primaries.
+`TASKS.md` at project root, in the repository contract shape (`config/templates/TASKS.md`, installed by `project-init`) so `resume-brief`, `ai-policy-lint`, and `delivery-ledger` can read it. Generate tasks only after their primary requirements are accepted. Each task is **atomic, context-complete, and traces to exactly one primary requirement**; other applicable IDs go in the same field as `constraints`. `Depends On` names tasks, never extra primaries.
 
 ```markdown
 # Tasks: [Project Name]
 
 ## Rules for the AI
-- One task per request. Mark `[x]` before moving on.
-- Do ONLY the task's scope. Need something outside it → ask, don't assume.
+- One task per request. Task state lives in `STATUS.md` and `.delivery/`, not checkboxes.
+- Change only `Allowed Paths`. Need something outside them → stop and ask.
 - Respect `AGENTS.md`: YAGNI, native-first, no unrequested abstractions.
 - 1 task ≈ 1 commit that passes its own check.
 
-## Phase 1: Data
-- [ ] **T1** — Add the `orders(id, status, phone, province)` table and migration.
-      Primary requirement: REQ-1
-      Constraints: None
-      Dependencies: None
-      Done when: Apply the migration locally and verify the `orders` table has the specified columns.
+## Pending
 
-## Phase 2: Core
-- [ ] **T2** — Add `POST /api/order` to persist a valid order with status `pending`.
-      Primary requirement: REQ-1
-      Constraints: REQ-4
-      Dependencies: T1
-      Done when: Execute TEST-1; the response and stored row satisfy REQ-1's acceptance criterion.
-- [ ] **T3** — Reject an invalid phone number with a user-visible error.
-      Primary requirement: REQ-2
-      Constraints: None
-      Dependencies: T2
-      Done when: Submit an invalid phone number and verify no order is stored and the specified error is shown.
-- [ ] **T4** — Hide COD while the selected province is COD-disabled.
-      Primary requirement: REQ-3
-      Constraints: None
-      Dependencies: T2
-      Done when: Select a COD-disabled province and verify COD is unavailable while other payment options remain unchanged.
+### TASK-001: Add the orders table and migration
+- **Requirement:** REQ-001
+- **Risk Level:** R3 — schema migration.
+- **Allowed Paths:** `migrations/0001_orders.sql`, `src/db/schema.ts`
+- **Protected Paths:** `migrations/**`
+- **Canonical Contract Owners:** `data.orders`
+- **Accepted Invariants:** existing tables and rows are unchanged; the migration is additive.
+- **Depends On:** None
+- **Verification:** Done when the migration applies to a fresh local DB and `orders(id, status, phone, province)` exists.
+- **Reopen Conditions:** the migration fails on a copy of production schema.
+- **Rollback/Migration State:** additive; rollback drops `orders` before any writer ships.
+- **Non-Scope:** API routes, UI.
+- **Escalation Conditions:** the change needs a destructive or data-rewriting migration.
+
+### TASK-002: Persist a valid order via `POST /api/order`
+- **Requirement:** REQ-001 (constraints: REQ-004)
+- **Risk Level:** R3
+- **Allowed Paths:** `src/routes/api/order.ts`, `tests/order.test.ts`
+- **Protected Paths:** `migrations/**`
+- **Depends On:** TASK-001
+- **Verification:** Done when TEST-1 is executed and the response and stored row satisfy REQ-001's acceptance criterion.
+
+### TASK-003: Hide COD for COD-disabled provinces
+- **Requirement:** REQ-003
+- **Risk Level:** R1
+- **Allowed Paths:** `src/components/Checkout.tsx`
+- **Visual Contract:** Checkout payment step; COD option absent (not disabled) for a COD-disabled province, other options unchanged on mobile and desktop.
+- **Depends On:** TASK-002
+- **Verification:** Done when selecting a COD-disabled province removes COD in the rendered page and other payment options remain.
 ```
+
+Risk sets the weight. R0 (docs/mechanical) may infer one obvious file. R1+ declares `Allowed Paths` — `delivery-ledger start` refuses R1-R4 runs without `--allow`, and these paths are what it takes. R3/R4 (money, auth, tenant data, migrations, architecture) add `Protected Paths` and independent review. Before an R1+ task is accepted, fill the template's remaining required fields (Canonical Contract Owners, Accepted Invariants, Reopen Conditions, Non-Scope, Escalation Conditions; Visual Contract when paths touch rendered files); TASK-001 shows a complete contract; the others show only the planning core. Use canonical names only, never the template's compatibility aliases.
 
 ## Good-task rules
 
-1. **Traceable** — each task names exactly one `Primary requirement: REQ-x` that is accepted. **No primary means YAGNI; multiple primaries mean split the task or choose the single outcome and move cross-cutting IDs to `Constraints`.**
-2. **Runnable DoD** — `Done when` names a procedure to run and the acceptance condition its observed result must meet, not "finished" and not a claim that it already passed.
-3. **Explicit deps** — `deps: [T1, T3]` so ordering and parallelism are clear to the agent.
-4. **Context-complete** — name the concrete file/table/endpoint, not "build something".
+1. **Traceable** — `Requirement` names exactly one accepted primary `REQ-NNN`. **No primary means YAGNI; multiple primaries mean split the task or choose the single outcome and list cross-cutting IDs as `constraints`.**
+2. **Runnable DoD** — `Verification` states "Done when": a procedure to run and the acceptance condition its observed result must meet, not "finished" and not a claim that it already passed.
+3. **Explicit deps** — `- **Depends On:** TASK-001, TASK-003` on its own line; any other spelling is invisible to `resume-brief`.
+4. **Context-complete** — exact files/tables/endpoints in `Allowed Paths` and the title, not "build something".
 5. **Sized right** — 1 task ≈ one coding session (30–90 min), small enough to review in one sitting. Feels big → split first.
 6. **Ordered** — setup before feature, dependency before dependent.
 
@@ -285,5 +307,3 @@ Follow the pre-development staging and repository authority contract in `~/.conf
   decisions and observable requirements, not page count. Multi-domain depth
   belongs in `development-spec-suite`, not an oversized standalone PRD.
 - Non-goals prevent scope creep as strongly as goals drive it.
-- Each task must be doable without reading the whole PRD — its context is complete in the task itself.
-- Requirements first, then tasks. A task appearing with no requirement is a signal that scope quietly widened.

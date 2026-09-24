@@ -51,3 +51,19 @@ canonical; never re-consult the `~/Documents/` copy once promotion has happened.
 Once the repository exists, committed `PRD.md` + `TASKS.md` (+ `PLAN.md`,
 `docs/adr/`, `docs/spec/`) live at the project root so they are versioned with the
 code.
+
+## Decision records — one index
+
+Root `DECISIONS.md` is the repository's only decision index. A small decision is
+a `DEC-NNN` row there (or an ADR-lite block in `PRD.md` for a feature-local
+choice). A costly-to-reverse decision gets a full `adr-record` file
+`docs/adr/ADR-NNNN-<slug>.md` plus one `DECISIONS.md` row whose ID is that
+`ADR-NNNN`, linked to the file — no second ID. In a suite pack,
+`03-TECHNICAL-DESIGN.md` declares the same `ADR-NNNN` because the traceability
+validator requires a pack-local declaration; that row is a trace link, not a
+second register, and never allocates its own number.
+
+`ADR-NNNN` numbers are provisional until the ADR merges into the default
+branch: before merge, rebase, re-scan, and renumber (file, title, and every
+reference) if another branch took the number. The merged tree must have no
+duplicate `ADR-NNNN` prefix. Numbers are never reused.

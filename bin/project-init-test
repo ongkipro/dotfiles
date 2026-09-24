@@ -347,8 +347,8 @@ grep -q '^# Decision Register' "$GENERATED/DECISIONS.md" || fail 'decision regis
 grep -q 'Sole executable work queue: `TASKS.md`' "$STANDALONE_REPO/AGENTS.md" || fail 'project authority omitted the sole root task queue'
 grep -q 'docs/adr/ADR-NNNN-<slug>.md' "$STANDALONE_REPO/AGENTS.md" || fail 'project authority omitted full ADR documents'
 grep -q 'current passing or independently approved boundary result' "$STANDALONE_REPO/AGENTS.md" || fail 'project authority omitted the task boundary completion gate'
-grep -q '\*\*Change Surface:\*\*' "$GENERATED/TASKS.md" || fail 'task contract omitted the deterministic change surface'
-for field in 'Accepted Invariants' 'Shared Owner' 'Regression Checks' 'Reopen Conditions'; do
+grep -q '\*\*Allowed Paths:\*\*' "$GENERATED/TASKS.md" || fail 'task contract omitted the deterministic allowed paths'
+for field in 'Accepted Invariants' 'Canonical Contract Owners' 'Regression Checks' 'Reopen Conditions'; do
   grep -q "\*\*$field:\*\*" "$GENERATED/TASKS.md" || fail "task contract omitted $field"
 done
 

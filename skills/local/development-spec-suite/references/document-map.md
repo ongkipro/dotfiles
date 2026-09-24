@@ -1,6 +1,6 @@
 # Document Activation and Ownership
 
-Start with the pack's `02-PRD.md` and add only triggered artifacts. After requirements/contracts are accepted, `prd-taskbreaker` writes `TASKS.md` beside it. When no suite pack exists, `prd-taskbreaker` keeps its standalone root-level `PRD.md`/`TASKS.md` convention. Never maintain both `PRD.md` and `02-PRD.md` as competing canonical requirements.
+Start with the pack's `02-PRD.md` and add only triggered artifacts. After requirements/contracts are accepted, `prd-taskbreaker` writes the repository's root `TASKS.md`, the sole execution queue; never a `TASKS.md` beside `02-PRD.md`. Known gap: `check-traceability.py` scans only the pack root, so its task rules (`TASK*`, `TRACE001`) do not see root `TASKS.md` until the validator accepts it as an extra input. When no suite pack exists, `prd-taskbreaker` keeps its standalone root-level `PRD.md`/`TASKS.md` convention. Never maintain both `PRD.md` and `02-PRD.md` as competing canonical requirements.
 
 | Artifact | Activate when | Canonical owner |
 |---|---|---|

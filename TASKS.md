@@ -21,6 +21,18 @@ then `DOTFILES_TASKS_2026-09-04_QUEUE.md`
 
 ## Pending
 
+### TASK-090: Planning contracts
+
+- **Requirement:** REQ-PLANNING-CONTRACT-ALIGNMENT.
+- **Risk Level:** R2.
+- **Allowed Paths:** planning skills, templates (see run).
+- **Canonical Contract Owners:** `prd-taskbreaker`, `adr-record`.
+- **Accepted Invariants:** parser/lint/validator unchanged.
+- **Regression Checks:** `skill-check`, `ai-policy-lint`, `project-init-test`.
+- **Reopen Conditions:** tasks unparsable by `resume-brief`.
+- **Non-Scope:** parser code.
+- **Escalation Conditions:** parser change.
+
 ### TASK-089: Control-plane integrity and adaptive routing
 
 - **Requirement:** REQ-DOTFILES-CONTROL-PLANE-HARDENING (2026-09-18 audit: align delivery authority, proportional UI routing, tracked-memory privacy, and current Better Auth multi-tenant security guidance).

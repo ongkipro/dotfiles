@@ -11,5 +11,7 @@ support each decision; AI output alone is not evidence.
 | — | — | No decision recorded yet | — | — | — |
 
 Use stable IDs such as `DEC-001`. When a decision needs detailed alternatives or
-consequences, add a repository-owned ADR and link it from this register. Never
-rewrite history silently: mark the old decision superseded and add the new one.
+consequences, record a full ADR in `docs/adr/` and use its ID here as a link,
+for example `[ADR-0007](docs/adr/ADR-0007-d1-drizzle-orm.md)`. This file is the
+only decision index. Never rewrite history silently: mark the old decision
+superseded or deprecated and add the new one.

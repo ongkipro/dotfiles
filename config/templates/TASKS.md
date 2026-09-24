@@ -17,9 +17,6 @@ Every implementation task must trace to one accepted requirement, declare its ri
 - **Allowed Paths:** [Exact repository-relative paths; only exact paths or `subtree/**` for parallel work]
 - **Protected Paths:** [Optional higher-risk paths; otherwise `None`]
 - **Canonical Contract Owners:** [Owner names as `<domain>.<contract>[.<subcontract>]`]
-- **Change Surface:** [Compatibility alias for Allowed Paths]
-- **Protected Surface:** [Compatibility alias for Protected Paths]
-- **Shared Owner:** [Compatibility alias for Canonical Contract Owners]
 - **Accepted Invariants:** [Observable behavior that must remain true]
 - **Producers:** [State/API/event producers or `None`]
 - **Consumers:** [State/API/event consumers or `None`]
@@ -32,13 +29,22 @@ Every implementation task must trace to one accepted requirement, declare its ri
 - **Non-Scope:** [Explicitly untouched paths or systems]
 - **Verification:** `project-check` or `npm test -- path/to/test.ts`
 - **Escalation Conditions:** Fail verification after one repair attempt, or require auth/payment/migration contract changes.
-- **Escalation Condition:** [Compatibility alias for Escalation Conditions; singular in some older tasks]
 ```
 
 R0 documentation/mechanical work may infer one obvious requested file. R1 must
 remain explicitly or safely inferably bounded. R2 requires an explicit affected
 surface. R3/R4 require an explicit change surface, protected surfaces where
 applicable, and independent review evidence.
+
+New tasks use the field names above. Older tasks may still use legacy
+spellings, which lint accepts: **Change Surface:** (Allowed Paths),
+**Protected Surface:** (Protected Paths), **Shared Owner:** (Canonical Contract
+Owners), **Escalation Condition:** (Escalation Conditions).
+
+Keep this file small; agents reread it every session. Move Done or superseded
+contracts to `docs/archive/` in batches and leave a one-line pointer here
+naming the archive file. Archived contracts are immutable; never renumber or
+reuse a task ID.
 
 ## In progress
 
