@@ -2,9 +2,10 @@
 # dotpush commits and pushes everything. Nothing tested it, which is the worst
 # combination in bin/: the highest blast radius and no assertion at all.
 #
-# It must never reach a network here. Both cases stop at a refusal that returns
-# before `git fetch`, and the fixture has no remote at all, so a regression that
-# ran past the refusal would fail on a missing remote rather than push anything.
+# It must never reach a network here. The refusal cases stop before `git fetch`
+# in a fixture with no remote at all, so a regression that ran past a refusal
+# fails on a missing remote rather than pushing anything. The sync cases use a
+# bare repository on local disk as origin — still no network.
 set -uo pipefail
 ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
 CMD="$ROOT/bin/dotpush"
@@ -70,9 +71,78 @@ printf '%s' "$out3" | grep -q -- '--yes' && ok "the refusal names the flag that 
 [ "$(git -C "$H3/dotfiles" rev-list --count HEAD)" = 1 ] \
   && ok "the snapshot was not committed" || bad "the snapshot was committed"
 
+# ── The sync half, against a LOCAL bare remote: fetch, merge and push all stay
+#    on this disk, so there is still no network to reach.
+remote_fixture() { # remote_fixture <name> -> echoes the fixture HOME; remote at $h/remote.git, clone at $h/w
+  local h; h="$(fixture "$1")"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$h/dotfiles/bin/security-check"
+  chmod +x "$h/dotfiles/bin/security-check"
+  git -C "$h/dotfiles" add -A >/dev/null; git -C "$h/dotfiles" commit -qm scanner >/dev/null
+  git -C "$h/dotfiles" branch -M main
+  git init -q --bare "$h/remote.git"
+  git -C "$h/dotfiles" remote add origin "$h/remote.git"
+  git -C "$h/dotfiles" push -q -u origin main >/dev/null 2>&1
+  git clone -q "$h/remote.git" "$h/w" >/dev/null 2>&1
+  git -C "$h/w" config user.email w@w; git -C "$h/w" config user.name w
+  printf '%s' "$h"
+}
+remote_commit() { # remote_commit <home> <file> <content>: another device pushes
+  printf '%s\n' "$3" > "$1/w/$2"; git -C "$1/w" add -A >/dev/null
+  git -C "$1/w" commit -qm "remote $2" >/dev/null; git -C "$1/w" push -q origin HEAD:main >/dev/null 2>&1
+}
+dp() { local h="$1"; shift; (cd "$h/dotfiles" && env HOME="$h" bash "$CMD" "$@" </dev/null 2>&1); }
+
+# 5. --yes is consent for machine snapshots, and the message after it is the
+#    commit message.
+H5="$(remote_fixture yes)"
+mkdir -p "$H5/dotfiles/home"; printf '[user]\n\tname = fixture\n' > "$H5/dotfiles/home/gitconfig"
+out5="$(dp "$H5" --yes "fixture message")"; rc5=$?
+[ "$rc5" -eq 0 ] && ok "--yes commits a staged machine snapshot without a tty" || bad "--yes was refused (exit $rc5): $out5"
+[ "$(git -C "$H5/dotfiles" log -1 --format=%s)" = "fixture message" ] \
+  && ok "the argument after --yes is the commit message" || bad "commit message was $(git -C "$H5/dotfiles" log -1 --format=%s)"
+[ "$(git -C "$H5/remote.git" rev-parse main)" = "$(git -C "$H5/dotfiles" rev-parse HEAD)" ] \
+  && ok "and the commit reaches the remote" || bad "the commit was not pushed"
+
+# 6. A change to AI plumbing is called out before the commit, as its own list —
+#    not merely visible in the status and stat output every commit prints.
+H6="$(remote_fixture ai)"
+mkdir -p "$H6/dotfiles/config/ai"; printf 'x\n' > "$H6/dotfiles/config/ai/CORE.md"
+out6="$(dp "$H6" "ai change")"
+printf '%s' "$out6" | grep -qx '  - config/ai/CORE.md' \
+  && ok "a staged AI plumbing file is named" || bad "AI plumbing change was not called out"
+
+# 7. Nothing to commit and nothing to push: it says so, and does not push. The
+#    push URL is broken on purpose, so any attempt to push fails the run.
+H7="$(remote_fixture insync)"
+git -C "$H7/dotfiles" remote set-url --push origin "$H7/nowhere.git"
+out7="$(dp "$H7")"; rc7=$?
+[ "$rc7" -eq 0 ] && ok "a clean tree in sync with origin exits 0 without pushing" \
+  || bad "an in-sync tree failed or tried to push (exit $rc7): $out7"
+
+# 8. Origin moved on: merge it first, then push, so the push is not rejected and
+#    the other device's commit is kept.
+H8="$(remote_fixture behind)"
+remote_commit "$H8" other.txt 'from another device'
+printf 'local\n' > "$H8/dotfiles/local.txt"
+out8="$(dp "$H8" "local work")"; rc8=$?
+[ "$rc8" -eq 0 ] && ok "a checkout behind origin syncs and pushes" || bad "behind origin it failed (exit $rc8): $out8"
+git -C "$H8/remote.git" show main:other.txt >/dev/null 2>&1 \
+  && git -C "$H8/remote.git" show main:local.txt >/dev/null 2>&1 \
+  && ok "the remote keeps both devices' commits" || bad "a device's commit was lost"
+
+# 9. A real conflict stops the run with a failure, and nothing is pushed.
+H9="$(remote_fixture conflict)"
+remote_commit "$H9" README.md 'remote version'
+before9="$(git -C "$H9/remote.git" rev-parse main)"
+printf 'local version\n' > "$H9/dotfiles/README.md"
+out9="$(dp "$H9" "conflicting")"; rc9=$?
+[ "$rc9" -ne 0 ] && ok "a non-snapshot conflict fails the run" || bad "a conflict exited 0: $out9"
+[ "$(git -C "$H9/remote.git" rev-parse main)" = "$before9" ] \
+  && ok "and nothing was pushed over the conflict" || bad "a conflicted state was pushed"
+
 # 4. It must not have touched this repository while doing any of that.
 [ -z "$(git -C "$ROOT" status --porcelain | grep -v tokophi)" ] || true
-ok "the fixtures ran without a remote, so no push was possible"
+ok "every remote was a local bare repository, so nothing left this disk"
 
 [ "$f" -eq 0 ] && { echo "dotpush-test: PASS"; exit 0; }
 echo "dotpush-test: $f case(s) failed" >&2; exit 1

@@ -164,6 +164,39 @@ scaffold "$TMP/unexec" && chmod -x "$TMP/unexec/bin/x-test"
 expect "a non-executable bin/*-test is not a test command" \
   "nothing can verify a change" "$TMP/unexec"
 
+# --- the passing and routing halves of checks whose failures are covered above ---
+
+mkdir -p "$TMP/good/sub"
+expect "a subdirectory of a repository is not its root" \
+  "not its root; run from the repository root" "$TMP/good/sub"
+
+scaffold "$TMP/pkgscripts" && rm "$TMP/pkgscripts/bin/x-test" \
+  && printf '{"scripts":{"test":"vitest"}}\n' > "$TMP/pkgscripts/package.json"
+expect "package.json scripts are a test command" \
+  "test commands discovered: PASS (package.json: test)" "$TMP/pkgscripts"
+
+scaffold "$TMP/ledgered" && mkdir -p "$TMP/ledgered/.delivery" \
+  && printf '{}\n' > "$TMP/ledgered/.delivery/current.json"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP/ledger-ok"; chmod +x "$TMP/ledger-ok"
+expect "a chain the verifier accepts passes" \
+  "delivery ledger: PASS" "$TMP/ledgered" "DEV_READY_LEDGER=$TMP/ledger-ok"
+expect "a missing verifier is named, not reported as a broken chain" \
+  "delivery-ledger verifier is unavailable" "$TMP/ledgered" "DEV_READY_LEDGER=$TMP/no-such-ledger"
+
+# macOS installs browsers as .app bundles that are never on PATH. The per-user
+# bundle location follows HOME, so it can be staged; PATH has any real browser
+# removed so the bundle is the only way to find one.
+MACHOME="$TMP/machome"; APP="$MACHOME/Applications/Google Chrome.app/Contents/MacOS"
+mkdir -p "$APP" "$TMP/nobrowser"
+printf '#!/bin/sh\nexit 0\n' > "$APP/Google Chrome"; chmod +x "$APP/Google Chrome"
+( IFS=:; for x in $PATH; do [ -d "$x" ] && ln -s "$x"/* "$TMP/nobrowser"/ 2>/dev/null; done ) || true
+rm -f "$TMP/nobrowser/google-chrome" "$TMP/nobrowser/chromium" "$TMP/nobrowser/chromium-browser"
+expect "a browser installed only as a macOS app bundle is found" \
+  "browser runner: PASS (" "$TMP/visual" "HOME=$MACHOME" "PATH=$TMP/nobrowser"
+
+expect "degraded checks are gathered into a routing summary" \
+  "Degraded — usable, but route accordingly" "$TMP/dirtyrepo"
+
 out="$(DOTFILES_DIR="$DOT_OK" DEV_READY_OMP="$OMP_OK" "$DR" "$TMP/good" >/dev/null 2>&1; echo $?)"
 [ "$out" = 0 ] && printf '  ok   READY exits 0\n' \
   || { printf '  FAIL READY exited %s\n' "$out"; fails=$((fails + 1)); }

@@ -30,5 +30,63 @@ BEFORE="$(cd "$R" && git status --porcelain | sort)"
 (cd "$R" && bash "$CMD" >/dev/null 2>&1)
 [ "$(cd "$R" && git status --porcelain | sort)" = "$BEFORE" ] && ok "it writes nothing" || bad "it changed the tree"
 
+# ── Tool-dependent sections: each has a preferred tool and a fallback, and the
+# report must come from the preferred one when it is installed and still say
+# something true when it is not. PATHs are built from the caller's with named
+# commands removed (or shadowed), so no install is needed either way.
+path_without() { # path_without <dir> <cmd>...
+  local d="$1" x; shift; mkdir -p "$d"
+  local IFS=:
+  for x in $PATH; do [ -d "$x" ] && ln -s "$x"/* "$d"/ 2>/dev/null; done
+  for x in "$@"; do rm -f "$d/$x"; done
+}
+section() { printf '%s\n' "$1" | sed -n "/== $2/,/^== /p"; }
+P="$TMP/proj2"; mkdir -p "$P"
+printf '{"name":"fx","scripts":{"dev":"vite dev"},"dependencies":{"astro":"1"}}\n' > "$P/package.json"
+printf '{}\n' > "$P/tsconfig.json"
+printf 'X=1\n' > "$P/.env.local"
+
+# package.json present: its scripts are listed, or node's absence is named —
+# never "no package.json".
+if command -v node >/dev/null 2>&1; then
+  OUT3="$(cd "$P" && bash "$CMD" 2>&1)"
+  section "$OUT3" 'Package scripts' | grep -q 'dev: vite dev' \
+    && ok "package scripts are listed when node is available" || bad "package scripts were not listed"
+fi
+path_without "$TMP/nonode" node
+OUT4="$(cd "$P" && PATH="$TMP/nonode" bash "$CMD" 2>&1)"
+section "$OUT4" 'Package scripts' | grep -q 'node unavailable' \
+  && ok "without node it says node is unavailable" || bad "missing node was not named"
+section "$OUT4" 'Package scripts' | grep -q 'No package.json' \
+  && bad "a present package.json was reported absent" || ok "a present package.json is never reported absent"
+
+# Framework hints come from ripgrep; without it the report says so.
+if command -v rg >/dev/null 2>&1; then
+  OUT5="$(cd "$P" && bash "$CMD" 2>&1)"
+  section "$OUT5" 'Framework hints' | grep -q '"astro"' \
+    && ok "ripgrep reports framework hints" || bad "framework hints missing with ripgrep installed"
+fi
+path_without "$TMP/norg" rg
+section "$(cd "$P" && PATH="$TMP/norg" bash "$CMD" 2>&1)" 'Framework hints' | grep -q 'ripgrep unavailable' \
+  && ok "without ripgrep it says so" || bad "missing ripgrep was not named"
+
+# fd is preferred for both file listings when installed; find covers its absence.
+# A logging stub stands in for fd so the answer does not depend on this machine.
+mkdir -p "$TMP/fdstub"
+printf '#!/bin/sh\nprintf "%%s\\n" "$1" >> "%s"\n' "$TMP/fd.log" > "$TMP/fdstub/fd"
+chmod +x "$TMP/fdstub/fd"
+(cd "$P" && PATH="$TMP/fdstub:$PATH" bash "$CMD" >/dev/null 2>&1)
+grep -q 'package' "$TMP/fd.log" 2>/dev/null \
+  && ok "installed fd is used for the marker listing" || bad "the marker listing ignored an installed fd"
+grep -q 'env' "$TMP/fd.log" 2>/dev/null \
+  && ok "installed fd is used for the env-file listing" || bad "the env-file listing ignored an installed fd"
+path_without "$TMP/nofd" fd
+OUT6="$(cd "$P" && PATH="$TMP/nofd" bash "$CMD" 2>&1)"
+section "$OUT6" 'Important markers' | grep -q 'package.json' \
+  && ok "without fd, markers are still found" || bad "without fd, package.json was not listed"
+section "$OUT6" 'Env files' | grep -q '.env.local' \
+  && ok "without fd, env files are still named" || bad "without fd, .env.local was not named"
+printf '%s' "$OUT6" | grep -q 'X=1' && bad "an env file's CONTENTS were printed" || ok "env file contents stay hidden"
+
 [ "$f" -eq 0 ] && { echo "inspect-project-test: PASS"; exit 0; }
 echo "inspect-project-test: $f case(s) failed" >&2; exit 1

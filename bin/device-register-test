@@ -34,5 +34,65 @@ printf '%s' "$OUT" | sed -n '/## Profil Claude Code/,/## Symlink/p' | grep -qE '
 printf '%s' "$OUT" | sed -n '/## Profil Claude Code/,/## Symlink/p' | grep -qE 'residu switcher' \
   && ok "the profile table reports switcher residue" || bad "no residue row"
 
+# ── Fixture machine: a fake HOME, profile and PATH, so each verdict is decided
+# by a known state instead of whatever this device happens to have installed.
+FH="$TMP/home"; CC="$TMP/cc"; STUBS="$TMP/stubs"
+mkdir -p "$FH/.config" "$CC" "$STUBS"
+printf 'set -g mouse on\n' > "$TMP/tmux.conf"
+ln -s "$TMP/tmux.conf" "$FH/.tmux.conf"                 # healthy symlink
+ln -s "$TMP/gone" "$FH/.gitignore_global"               # dangling symlink
+printf 'local\n' > "$FH/.config/starship.toml"          # plain file, not a link
+mkdir -p "$FH/.claude-accounts"                         # retired switcher residue
+printf '{"permissions":{"deny":["Read(**/.env)"]}}\n' > "$CC/settings.json"
+printf '#!/bin/sh\nexit 0\n' > "$STUBS/claude"
+printf '#!/bin/sh\nexit 0\n' > "$STUBS/ai-hooks-install"
+chmod +x "$STUBS/claude" "$STUBS/ai-hooks-install"
+fixture() { HOME="$FH" CLAUDE_CONFIG_DIR="$CC" PATH="$STUBS:$PATH" DOTFILES_DIR="$SCRATCH" bash "$CMD" "$@" 2>&1; }
+row() { printf '%s\n' "$FOUT" | grep -F "$1"; }
+FOUT="$(fixture --dry-run)"
+
+row '`claude`' | grep -q 'terpasang' \
+  && ok "a CLI on PATH is reported installed" || bad "an installed CLI was reported missing"
+row 'tmux' | grep -q '✅ ok' \
+  && ok "a healthy symlink is reported ok" || bad "a healthy symlink was not reported ok"
+row 'gitignore global' | grep -q 'PUTUS' \
+  && ok "a dangling symlink is reported broken" || bad "a dangling symlink was not reported broken"
+row 'starship' | grep -q 'bukan symlink' \
+  && ok "a plain file is reported as not a symlink" || bad "a plain file was not told apart from a link"
+row 'lazygit' | grep -q 'belum ada' \
+  && ok "an absent path is reported absent" || bad "an absent path was not reported absent"
+row 'deny baca' | grep -q '✅' \
+  && ok "a .env read deny is recognised" || bad "a settings.json with a .env deny was reported without one"
+row 'hook canonical' | grep -q '✅' \
+  && ok "a passing ai-hooks-install --check is reported installed" || bad "passing hook check not reported installed"
+row 'residu switcher' | grep -q 'masih ada' \
+  && ok "switcher residue is reported" || bad "switcher residue was reported clean"
+
+printf '{"permissions":{"deny":[]}}\n' > "$CC/settings.json"
+printf '#!/bin/sh\nexit 1\n' > "$STUBS/ai-hooks-install"
+FOUT="$(fixture --dry-run)"
+row 'deny baca' | grep -q '❌' \
+  && ok "a settings.json without a .env deny is flagged" || bad "a missing .env deny went unflagged"
+row 'hook canonical' | grep -q '❌' \
+  && ok "a failing ai-hooks-install --check is flagged" || bad "a failing hook check went unflagged"
+rm -f "$CC/settings.json"
+FOUT="$(fixture --dry-run)"
+row 'settings.json' | grep -q '❌' \
+  && ok "a profile with no settings.json is flagged" || bad "a missing settings.json went unflagged"
+
+# ── A checkout behind its upstream must be warned about before the index is
+# regenerated from it. A local branch serves as the upstream: no network.
+DREPO="$TMP/dotrepo"; mkdir -p "$DREPO"
+g() { GIT_CONFIG_NOSYSTEM=1 HOME="$FH" git -C "$DREPO" -c user.name=t -c user.email=t@example.invalid "$@" >/dev/null 2>&1; }
+g init -q; g commit -q --allow-empty -m base; g branch up; g checkout -q up
+g commit -q --allow-empty -m ahead; g checkout -q -; g branch -q -u up
+BOUT="$(HOME="$FH" CLAUDE_CONFIG_DIR="$CC" PATH="$STUBS:$PATH" DOTFILES_DIR="$DREPO" bash "$CMD" 2>&1)"
+printf '%s\n' "$BOUT" | grep -q 'tertinggal 1 commit' \
+  && ok "a checkout behind its upstream is warned about" || bad "no warning for a checkout 1 commit behind"
+g branch -q -f up HEAD
+BOUT="$(HOME="$FH" CLAUDE_CONFIG_DIR="$CC" PATH="$STUBS:$PATH" DOTFILES_DIR="$DREPO" bash "$CMD" 2>&1)"
+printf '%s\n' "$BOUT" | grep -q 'tertinggal' \
+  && bad "an up-to-date checkout was warned about" || ok "an up-to-date checkout is not warned about"
+
 [ "$f" -eq 0 ] && { echo "device-register-test: PASS"; exit 0; }
 echo "device-register-test: $f case(s) failed" >&2; exit 1

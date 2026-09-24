@@ -33,5 +33,36 @@ else
   bad "the text never reached the backend (got: $(cat "$TMP/copied.txt" 2>/dev/null))"
 fi
 
+# Every backend in the chain must carry the text when it is the only one, and a
+# display-bound backend must not be chosen without its display: xclip with no
+# DISPLAY would fail at runtime instead of falling through to a working tool.
+backend() { # backend <tool> <env...>: the text arrives through <tool> alone
+  local tool="$1" d="$TMP/only-$1"; shift
+  mkdir -p "$d"
+  for u in bash cat uname; do
+    q="$(command -v "$u" 2>/dev/null)" && ln -sf "$q" "$d/$u"
+  done
+  printf '#!/usr/bin/env bash\ncat > "%s/%s.txt"\n' "$TMP" "$tool" > "$d/$tool"
+  chmod +x "$d/$tool"
+  rm -f "$TMP/$tool.txt"
+  printf 'via %s' "$tool" | env -u WAYLAND_DISPLAY -u DISPLAY "$@" PATH="$d" bash "$CMD" >/dev/null 2>&1
+  rc=$?
+}
+backend wl-copy WAYLAND_DISPLAY=wayland-0
+[ "$(cat "$TMP/wl-copy.txt" 2>/dev/null)" = "via wl-copy" ] && ok "Wayland: wl-copy carries the text" \
+  || bad "wl-copy with a Wayland display did not receive the text"
+backend xclip DISPLAY=:0
+[ "$(cat "$TMP/xclip.txt" 2>/dev/null)" = "via xclip" ] && ok "X11: xclip carries the text" \
+  || bad "xclip with an X display did not receive the text"
+backend xsel DISPLAY=:0
+[ "$(cat "$TMP/xsel.txt" 2>/dev/null)" = "via xsel" ] && ok "X11: xsel carries the text" \
+  || bad "xsel with an X display did not receive the text"
+backend clip.exe
+[ "$(cat "$TMP/clip.exe.txt" 2>/dev/null)" = "via clip.exe" ] && ok "WSL: clip.exe carries the text" \
+  || bad "clip.exe did not receive the text"
+backend xclip
+[ "$rc" -ne 0 ] && [ ! -e "$TMP/xclip.txt" ] && ok "xclip without a DISPLAY is not chosen; the copy fails loudly" \
+  || bad "xclip was used with no DISPLAY (exit $rc)"
+
 [ "$f" -eq 0 ] && { echo "tmux-clip-test: PASS"; exit 0; }
 echo "tmux-clip-test: $f case(s) failed" >&2; exit 1

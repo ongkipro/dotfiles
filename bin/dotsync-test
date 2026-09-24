@@ -14,6 +14,10 @@
 set -uo pipefail
 ROOT="${DOTFILES_DIR:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+# Fixture git must not read the caller's config (signing, hooksPath, templates);
+# it gets a throwaway global holding only an identity.
+printf '[user]\n\tname = fixture\n\temail = fixture@example.invalid\n' > "$TMP/gitconfig"
+export GIT_CONFIG_GLOBAL="$TMP/gitconfig" GIT_CONFIG_NOSYSTEM=1
 fails=0
 say()   { printf '  %-4s %s\n' "$1" "$2"; }
 check() { if [ "$2" = "$3" ]; then say ok "$1"; else
@@ -103,6 +107,89 @@ before="$(commits "$D")"
 printf 'more\n' > "$D/another.txt"
 OUT="$(cd "$OTHER" && "$D/bin/dotsync" 2>&1 </dev/null)"
 check "a bare invocation commits nothing" "$(commits "$D")" "$before"
+
+# 8. Without a TTY, an answer piped on stdin is still not consent: only --yes is.
+before="$(commits "$D")"
+OUT="$(cd "$OTHER" && printf 'y\n' | "$D/bin/dotsync" commit 2>&1)"; rc=$?
+check "a piped 'y' without a TTY does not confirm a commit" "$(commits "$D")" "$before"
+check "and the refusal is a failure" "$rc" "1"
+
+# 9. An unknown verb is an error, not a silent no-op.
+(cd "$OTHER" && "$D/bin/dotsync" frobnicate >/dev/null 2>&1); rc=$?
+check "an unknown command exits non-zero" "$([ "$rc" -ne 0 ] && echo refused)" "refused"
+
+# 10. Outside a git repository nothing is touched: the snapshot copy that commit
+#     performs must not run before the repository check refuses.
+N="$TMP/norepo"; mkdir -p "$N/bin" "$TMP/h2"
+cp "$ROOT/bin/dotsync" "$N/bin/dotsync"; chmod +x "$N/bin/dotsync"
+printf '[user]\n\tname = snapshot-me\n' > "$TMP/h2/.gitconfig"
+(cd "$OTHER" && GIT_CEILING_DIRECTORIES="$TMP" HOME="$TMP/h2" "$N/bin/dotsync" --yes commit >/dev/null 2>&1); rc=$?
+check "commit outside a git repository exits non-zero" "$([ "$rc" -ne 0 ] && echo refused)" "refused"
+check "and copies no snapshot into the non-repository" "$([ -e "$N/home/gitconfig" ] && echo copied || echo untouched)" "untouched"
+
+# 11. Invoked through a symlink (how install.sh exposes it in ~/.local/bin), it
+#     still resolves its own repository — with realpath, and with readlink -f
+#     alone when realpath is missing.
+mkdir -p "$TMP/link/bin" "$TMP/noreadlink" "$TMP/minpath"
+ln -s "$D/bin/dotsync" "$TMP/link/bin/dotsync"
+printf '#!/bin/sh\nexit 1\n' > "$TMP/noreadlink/readlink"; chmod +x "$TMP/noreadlink/readlink"
+OUT="$(cd "$OTHER" && PATH="$TMP/noreadlink:$PATH" "$TMP/link/bin/dotsync" status 2>&1)"
+has "via a symlink, realpath resolves the real repository" "dotfiles: $D"
+for t in bash git dirname readlink uname; do
+  p="$(command -v "$t")" && ln -s "$p" "$TMP/minpath/$t"
+done
+OUT="$(cd "$OTHER" && PATH="$TMP/minpath" "$TMP/link/bin/dotsync" status 2>&1)"
+has "via a symlink without realpath, readlink -f resolves it" "dotfiles: $D"
+
+# 12. doctor tells a present shared-memory target from a missing one.
+mkdir -p "$HOME/.config/ai"
+OUT="$(cd "$OTHER" && "$D/bin/dotsync" doctor 2>&1)"
+has "doctor reports a present target as OK" "OK  $HOME/.config/ai"
+has "doctor reports an absent target as MISS" "MISS $HOME/.claude/CLAUDE.md"
+
+# 13. pull and sync against a local bare remote — no network. P starts one
+#     commit behind origin.
+P="$TMP/p"; fake_root "$P"; R="$TMP/remote.git"; W="$TMP/w"
+git -C "$P" branch -M main
+git init -q --bare "$R"
+git -C "$P" remote add origin "$R"
+git -C "$P" push -q -u origin main >/dev/null 2>&1
+git clone -q "$R" "$W" >/dev/null 2>&1
+git -C "$W" config user.email t@t; git -C "$W" config user.name t
+printf 'upstream\n' > "$W/upstream.txt"; git -C "$W" add upstream.txt
+git -C "$W" commit -qm upstream; git -C "$W" push -q origin HEAD:main >/dev/null 2>&1
+head_p() { git -C "$P" rev-parse HEAD; }
+
+h="$(head_p)"
+(cd "$OTHER" && "$P/bin/dotsync" pull >/dev/null 2>&1 </dev/null); rc=$?
+check "a non-interactive pull without --yes does not pull" "$(head_p)" "$h"
+check "and the refusal is a failure" "$rc" "1"
+
+printf 'local edit\n' >> "$P/file.txt"
+(cd "$OTHER" && "$P/bin/dotsync" --yes pull >/dev/null 2>&1); rc=$?
+check "pull refuses a dirty working tree" "$(head_p)" "$h"
+check "and the refusal is a failure" "$rc" "1"
+git -C "$P" checkout -q -- file.txt
+
+printf '#!/usr/bin/env bash\necho "ok: unchanged link"\necho "backup: kept old file"\n' > "$P/bin/ai-memory-link"
+chmod +x "$P/bin/ai-memory-link"
+OUT="$(cd "$OTHER" && "$P/bin/dotsync" --yes pull 2>&1)"; rc=$?
+check "a clean --yes pull fast-forwards to origin" "$(head_p)" "$(git -C "$R" rev-parse main)"
+check "and succeeds" "$rc" "0"
+has "after a pull, ai-memory-link runs and its warnings stay visible" "backup: kept old file"
+check "while its no-op ok: lines are hidden" \
+  "$(printf '%s' "$OUT" | grep -c '^ok: unchanged link')" "0"
+printf '#!/usr/bin/env bash\necho "cannot link"; exit 3\n' > "$P/bin/ai-memory-link"
+printf 'upstream 2\n' > "$W/upstream.txt"; git -C "$W" commit -qam upstream2
+git -C "$W" push -q origin HEAD:main >/dev/null 2>&1
+(cd "$OTHER" && "$P/bin/dotsync" --yes pull >/dev/null 2>&1); rc=$?
+check "a failing relink after pull fails the pull" "$([ "$rc" -ne 0 ] && echo failed)" "failed"
+rm -f "$P/bin/ai-memory-link"
+
+printf 'to sync\n' > "$P/sync.txt"
+(cd "$OTHER" && "$P/bin/dotsync" --yes sync "fixture sync message" >/dev/null 2>&1)
+check "sync uses the given message for the commit" "$(git -C "$P" log -1 --format=%s)" "fixture sync message"
+check "--yes sync pushes the commit to origin" "$(git -C "$R" rev-parse main)" "$(head_p)"
 
 echo
 [ "$fails" -eq 0 ] && { echo "dotsync-test: all cases hold"; exit 0; }

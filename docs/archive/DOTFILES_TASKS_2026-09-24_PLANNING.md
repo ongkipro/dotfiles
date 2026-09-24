@@ -103,3 +103,19 @@ Evidence: `.delivery/runs/RUN-20260924T122023Z-c2ccb865.jsonl` (PASS).
 - **Escalation Conditions:** enforcement would require runtime changes, a dependency, or a universal visual style.
 
 Evidence: `.delivery/runs/RUN-20260924T122255Z-0bf48500.jsonl` (PASS; self-test except the TASK-091 OMP entitlement gate).
+
+### TASK-080: Fifty-three mutants nothing notices
+- **Requirement:** REQ-MUTATION-COVERAGE
+- **Risk Level:** R2
+- **Allowed Paths:** `bin/*-test`, `TASKS.md`, `.delivery/**`
+- **Protected Paths:** every non-test path under `bin/`
+- **Canonical Contract Owners:** `runtime.readiness`
+- **Accepted Invariants:** each closed gap is an assertion about the subject's contract, never a restatement of what it currently prints; a mutant proven to change nothing is recorded in `EQUIVALENT_MUTANTS` with its reason rather than papered over with an assertion; no test gains a live side effect — network, install, or secret read — to reach a branch
+- **Regression Checks:** `mutation-sweep`, `ai-policy-lint`, the touched `bin/*-test` suites
+- **Runtime Evidence:** renumbered from TASK-074 on 2026-09-11: another device spent that id on `REQ-PUBLIC-UI-QUALITY` and finished a PASS run under it, so this contract read as done on foreign evidence and left the candidate list. 79 surviving mutants across 14 bash subjects, ranked 2026-09-10: `device-register` 11, `secrets-env` 10, `9router-credential-migrate` 9, `dotsync` 7, `mutation-sweep` 8 (remeasured 2026-09-11, the two new ones being the untested `run_bounded` Perl fallback), `inspect-project` 5, `dotpush` 5, then `vps-pgdump`, `tmux-clip`, `tmux-battery`, `security-check`, `pi-9router-restore` at 4, and `pi-update-safe`, `dev-ready` at 3 — `dev-ready` is 4, the batch having lost one to a timeout under load. Take the security-critical ones first regardless of count: `secrets-env` injects credentials, `security-check` stops a secret reaching a commit, and 14 mutants pass unnoticed between them. `shopify-content-helper`, `device-verify` and `ai-learn` are already clean, so zero is reachable. The ranking grows with TASK-076: the parser finds 748 guard and refusal statements across the python subjects where the regex found 534, and `ai-memory-access` stopped being UNMEASURED
+- **Reopen Conditions:** a subject regresses to surviving mutants after being closed
+- **Non-Scope:** changing any subject to make it easier to test; the UNMEASURED subjects until TASK-073 reaches them
+- **Verification:** `bin/mutation-sweep --subject <name>` reports zero survivors for each subject the run claims
+- **Escalation Conditions:** a branch cannot be reached without a live side effect, in which case the mutant is recorded as accepted with the reason rather than the test bent to reach it
+
+Evidence: `.delivery/runs/RUN-20260924T134257Z-432ea5cf.jsonl` (PASS). Claimed fully covered (zero survivors, uncapped): security-check, device-register, inspect-project, dotpush, tmux-clip, tmux-battery, pi-update-safe, dev-ready. Not claimed: secrets-env (174, TASK-095), vps-pgdump (45, open gap), dotsync and mutation-sweep (capped). Residuals: TASK-097.

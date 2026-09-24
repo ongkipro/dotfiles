@@ -53,6 +53,20 @@ moved="$(find "$TMP/archive" -name 'demo.backup.*' 2>/dev/null | head -1)"
 [ ! -e "$TMP/home/.pi/agent/skill-backups" ] \
   && ok "PI_ARCHIVE_ROOT is honoured over the default path" \
   || bad "it wrote to the default archive path despite PI_ARCHIVE_ROOT"
+# Moving files out from under someone is only safe if they are told where.
+grep -qF "$TMP/archive/" "$TMP/out" && ok "the run names where the backups went" \
+  || bad "backups were moved without saying where: $(head -3 "$TMP/out" | tr '\n' ' ')"
+
+# 2b. PI_SKILLS_DIR, the single-directory override, is honoured when the list
+#     form is not set.
+mkdir -p "$TMP/single"; printf 'stale\n' > "$TMP/single/solo.backup.1"
+: > "$TMP/log"
+env -u PI_RUNTIME_SKILL_DIRS PATH="$SHIM:$PATH" PI_SHIM_LOG="$TMP/log" PI_SHIM_EXIT=0 \
+  PI_SKILLS_DIR="$TMP/single" PI_ARCHIVE_ROOT="$TMP/archive-single" \
+  HOME="$TMP/home" bash "$CMD" >/dev/null 2>&1
+[ -n "$(find "$TMP/archive-single" -name 'solo.backup.1' 2>/dev/null)" ] && [ ! -e "$TMP/single/solo.backup.1" ] \
+  && ok "PI_SKILLS_DIR is scanned when PI_RUNTIME_SKILL_DIRS is unset" \
+  || bad "a backup under PI_SKILLS_DIR was not archived"
 
 # 3. The archive is dated, so two runs on different days cannot overwrite each
 #    other's evidence.

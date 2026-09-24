@@ -102,6 +102,14 @@ git -C "$FIX" -c user.email=t@t -c user.name=t commit -qm orphan >/dev/null
 OUT3="$(DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=30 "$SWEEP" --json 2>/dev/null)"
 printf '%s' "$OUT3" | grep -q '"orphan-test"' && ok "an unpaired test is named" \
   || fail "an unpaired test was omitted from the report"
+# The human-readable report names it too, not only the JSON.
+OUT3T="$(DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=30 "$SWEEP" 2>/dev/null)"
+printf '%s' "$OUT3T" | grep -A1 'Not swept' | grep -q 'orphan-test' \
+  && ok "the text report names the unpaired test as not swept" \
+  || fail "the text report left the unpaired test out"
+printf '%s' "$OUT3T" | grep -q 'bite, .* survived, .* unsweepable' \
+  && ok "stub mode summarises in stub terms: bites and unsweepable tests" \
+  || fail "the stub-mode summary line is missing"
 
 # ── Subject mutation (TASK-072) ──────────────────────────────────────────────
 # Stubbing asks whether a test asserts anything. Mutating asks the question that
@@ -181,6 +189,17 @@ printf '%s' "$OUTR" | grep -q 'SURVIVED' \
   && fail "an asserted refusal was reported as a gap" \
   || ok "a refusal the test asserts is killed"
 [ "$rcr" -eq 0 ] && ok "a fully covered subject exits 0" || fail "a covered subject failed (exit $rcr)"
+# Subject mode counts MUTANTS and subjects, and its summary must say so; stub
+# mode's "bite/unsweepable" words would describe tests, not mutants.
+printf '%s' "$OUTR" | grep -q '1 subject(s) fully covered, 0 mutant(s) survived' \
+  && ok "subject mode summarises in mutant terms" \
+  || fail "subject mode summary is not in mutant terms: $(printf '%s' "$OUTR" | tail -1)"
+
+# A name with no bin/<name> and bin/<name>-test pair is an error, not a skip.
+OUTNS="$(msweep no-such-subject)"; rcns=$?
+printf '%s' "$OUTNS" | grep -q 'ERROR.*no-such-subject.*pair' && [ "$rcns" -ne 0 ] \
+  && ok "an unknown subject is an ERROR that fails the run" \
+  || fail "an unknown subject was not reported as an error (exit $rcns)"
 
 # TASK-075: a clean subject swept AFTER one with a survivor must keep its own
 # verdict. The KILLED row used to read the run's totals, so refuser vanished.
@@ -577,6 +596,9 @@ printf '%s' "$OUTIN" | grep -q 'UNREACHED.*pyinline' \
 printf '%s' "$OUTIN" | grep -q 'UNREACHED.*pyinline.*span' \
   && fail "a one-line guard was explained as spanning several lines" \
   || ok "and is not explained as spanning several lines"
+printf '%s' "$OUTIN" | grep -q 'UNREACHED.*pyinline.*same line' \
+  && ok "it is explained as a body on the same line as its if" \
+  || fail "the inline guard's UNREACHED row gave no reason: $(printf '%s' "$OUTIN" | grep UNREACHED)"
 
 # A refusal the parser finds but the rewrite cannot change — bare `exit(2)`, not
 # `sys.exit(2)` — is not a guard. Calling it one is the same true-count, false-
@@ -826,6 +848,74 @@ elapsed=$(( $(date +%s) - started ))
 [ "$rc4" -ne 0 ] && ok "a timed-out sweep exits non-zero" || fail "a timed-out sweep exited zero"
 [ "$elapsed" -lt 15 ] && ok "a hanging test is bounded" \
   || fail "a hanging test took ${elapsed}s"
+
+# A test that DOES die on TERM ends with 124 rather than 137 — the ordinary
+# timeout, not the kill-after one. It must be an ERROR too; read as "the stub
+# never ran" it would be UNSWEEPABLE, a gap to record instead of a failure.
+printf '#!/usr/bin/env bash\nexit 0\n' > "$FIX/bin/termable"
+printf '#!/usr/bin/env bash\nsleep 30\n' > "$FIX/bin/termable-test"
+chmod +x "$FIX/bin/termable" "$FIX/bin/termable-test"
+git -C "$FIX" add -A >/dev/null
+git -C "$FIX" -c user.email=t@t -c user.name=t commit -qm termable >/dev/null
+OUT5="$(DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=2 "$SWEEP" --json termable 2>/dev/null)"
+[ "$(verdict "$OUT5" termable)" = ERROR ] && ok "a test stopped by the ordinary timeout is an ERROR" \
+  || fail "a timed-out test that honoured TERM was reported $(verdict "$OUT5" termable)"
+
+# The bound must hold on a machine missing either timer. A PATH is built from
+# the caller's with named commands removed, so each fallback is exercised by
+# absence rather than by editing the sweep.
+path_without() { # path_without <dir> <cmd>... -> the caller's PATH minus <cmd>
+  local d="$1" x; shift; mkdir -p "$d"
+  local IFS=:
+  for x in $PATH; do [ -d "$x" ] && ln -s "$x"/* "$d"/ 2>/dev/null; done
+  for x in "$@"; do rm -f "$d/$x"; done
+}
+bounded_without() { # bounded_without <label> <cmd>...
+  local label="$1" d="$TMP/path-$1"; shift
+  path_without "$d" "$@"
+  local started out elapsed
+  started=$(date +%s)
+  out="$(PATH="$d" DOTFILES_DIR="$FIX" MUTATION_SWEEP_TIMEOUT=2 "$SWEEP" --json slow 2>/dev/null)"
+  elapsed=$(( $(date +%s) - started ))
+  [ "$(verdict "$out" slow)" = ERROR ] && [ "$elapsed" -lt 15 ] \
+    && ok "without $label, a hanging test is still bounded and an ERROR (${elapsed}s)" \
+    || fail "without $label, a hanging test got $(verdict "$out" slow) after ${elapsed}s"
+}
+if command -v perl >/dev/null 2>&1; then
+  bounded_without timeout timeout gtimeout
+fi
+if command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1; then
+  bounded_without perl perl
+fi
+
+# A python subject on a machine with no python is UNMEASURED for THAT reason,
+# not reported as a subject its interpreter failed to parse.
+path_without "$TMP/path-nopython" python3 python
+OUTNP="$(PATH="$TMP/path-nopython" DOTFILES_DIR="$MFIX" MUTATION_SWEEP_TIMEOUT=30 "$SWEEP" --subject pyguard 2>&1)"
+printf '%s' "$OUTNP" | grep -q 'UNMEASURED.*pyguard.*no python on PATH' \
+  && ok "a python subject without python is unmeasured, and says python is missing" \
+  || fail "missing python was not named: $(printf '%s' "$OUTNP" | head -2 | tr '\n' ' ')"
+
+# A test that writes into the repository being measured must abort the run: a
+# sweep that let its own measurement dirty the tree would be reporting on a
+# repository that no longer matches what it measured. The fixture test writes
+# to the fixture repository by absolute path, the one way out of its scratch copy.
+cat > "$MFIX/bin/dirtier" <<'EOF'
+#!/usr/bin/env bash
+if [ -z "${1:-}" ]; then
+  exit 1
+fi
+exit 0
+EOF
+printf '#!/usr/bin/env bash\ntouch "%s/dirt"\nexit 0\n' "$MFIX" > "$MFIX/bin/dirtier-test"
+chmod +x "$MFIX/bin/dirtier" "$MFIX/bin/dirtier-test"
+git -C "$MFIX" add -A >/dev/null
+git -C "$MFIX" -c user.email=t@t -c user.name=t commit -qm dirtier >/dev/null
+OUTD="$(msweep dirtier)"; rcd=$?
+[ "$rcd" -eq 2 ] && printf '%s' "$OUTD" | grep -q 'ABORT' \
+  && ok "a sweep during which the tree changed aborts with exit 2" \
+  || fail "a tree changed mid-sweep was not an abort (exit $rcd): $(printf '%s' "$OUTD" | tail -1)"
+rm -f "$MFIX/dirt"
 
 echo
 [ "$fails" -eq 0 ] && { echo "mutation-sweep-test: PASS"; exit 0; }

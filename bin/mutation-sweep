@@ -190,7 +190,7 @@ sweep_one() {
 # associative arrays. CI caught this the same day, which is the second time this
 # file has needed a bash-3.2 accommodation — run_bounded exists because macOS
 # has no GNU timeout either.
-EQUIVALENT_MUTANTS=""
+EQUIVALENT_MUTANTS='pi-update-safe:30 guard-off skips only the first `mkdir -p "$archive_dir"`; the unconditional `mkdir -p "$target_dir"` three lines later creates the same directory as a parent of "$archive_dir/$label" (or "$archive_dir/" when the label is empty), with the same umask, before anything is moved.'
 
 is_equivalent_mutant() { # is_equivalent_mutant <name> <line>
   printf '%s\n' "$EQUIVALENT_MUTANTS" | grep -q "^$1:$2 "

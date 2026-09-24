@@ -18,6 +18,46 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 
 ## Pending
 
+### TASK-097: Mutation gaps left after TASK-080
+
+- **Requirement:** REQ-MUTATION-COVERAGE (TASK-080 final sweep 2026-09-24, `RUN-20260924T134257Z-432ea5cf`).
+- **Risk Level:** R2.
+- **Allowed Paths:** `bin/*-test`, `TASKS.md`, `.delivery/**`.
+- **Protected Paths:** every non-test path under `bin/`.
+- **Canonical Contract Owners:** `runtime.readiness`.
+- **Accepted Invariants:** as TASK-080. Accepted open gap: `bin/vps-pgdump:45` guard-off survives on Linux because bash >= 4.4 expands an empty array under nounset; it is killed only under bash < 4.4 (macOS `/bin/bash`) and is NOT an equivalent mutant.
+- **Regression Checks:** `mutation-sweep --subject <name>`, touched `bin/*-test`.
+- **Runtime Evidence:** open: `vps-pgdump:45` (confirm the kill with a macOS sweep); `secrets-env:174` (subject defect, TASK-095); `dotsync` 3 and `mutation-sweep` 18 statements beyond the cap; `9router-credential-migrate` and `pi-9router-restore` deferred by the owner.
+- **Reopen Conditions:** a subject claimed fully covered regresses.
+- **Non-Scope:** raising the cap; changing subjects.
+- **Verification:** each claimed subject reports zero survivors and no CAPPED row.
+- **Escalation Conditions:** a gap needs a subject change or a live side effect.
+
+### TASK-095: `secrets-env check` accepts an ignored in-repo secrets file
+
+- **Requirement:** REQ-SECRET-LOCATION (CORE.md and the `secrets-env` header: 0600, outside every repository; `bin/secrets-env:174-175` prints OK for a gitignored in-repo file — found by the TASK-080 review).
+- **Risk Level:** R3 — secret handling.
+- **Allowed Paths:** `bin/secrets-env`, `bin/secrets-env-test`, `TASKS.md`, `.delivery/**`.
+- **Protected Paths:** `bin/secrets-env`.
+- **Canonical Contract Owners:** `security.secrets-location`.
+- **Accepted Invariants:** never prints a secret value; a file outside every repository with mode 600 still passes.
+- **Regression Checks:** `secrets-env-test`, `mutation-sweep --subject secrets-env`.
+- **Reopen Conditions:** `check` passes any secrets file inside a git work tree.
+- **Non-Scope:** moving existing secret files on any device.
+- **Escalation Conditions:** a supported device keeps its secrets file inside a repository today.
+
+### TASK-096: Hermetic git setup in `dotpush-test`
+
+- **Requirement:** REQ-MUTATION-COVERAGE (TASK-080 review: fixture setup `commit`/`clone`/`push` read the caller's global git config — signing or `core.hooksPath` can break or run real hooks).
+- **Risk Level:** R1.
+- **Allowed Paths:** `bin/dotpush-test`, `TASKS.md`, `.delivery/**`.
+- **Canonical Contract Owners:** `runtime.readiness`.
+- **Accepted Invariants:** the subject still sees its own managed `home/gitconfig`; a file-wide `GIT_CONFIG_GLOBAL` broke three cases, so scope it to setup calls.
+- **Regression Checks:** `dotpush-test`.
+- **Reopen Conditions:** a caller's global git config changes a `dotpush-test` verdict.
+- **Non-Scope:** `bin/dotpush`.
+- **Escalation Conditions:** isolation needs a subject change.
+
 ### TASK-091: OMP sol roles via 9Router
 
 - **Requirement:** REQ-OMP-9ROUTER-SOL (owner decision 2026-09-24: device `rich` lacks `openai-codex/gpt-5.6-sol`; route sol roles through 9Router `cx/gpt-6-sol`).
@@ -43,18 +83,4 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 - **Reopen Conditions:** stale workflow state can pass ledger verification, bounded UI maintenance again requires unnecessary design orchestration, tracked memory accepts explicitly non-public facts, or current Better Auth multi-domain/session/proxy guidance regresses.
 - **Non-Scope:** model/provider selection, new agents/skills, repository visibility mutation, history rewrite, broad historical memory scrubbing, live deployment.
 - **Escalation Conditions:** a fix requires rewriting Git history, changing repository visibility, weakening independent review, or removing operational history beyond the targeted public-safety cleanup.
-
-### TASK-080: Fifty-three mutants nothing notices
-- **Requirement:** REQ-MUTATION-COVERAGE
-- **Risk Level:** R2
-- **Allowed Paths:** `bin/*-test`, `TASKS.md`, `.delivery/**`
-- **Protected Paths:** every non-test path under `bin/`
-- **Canonical Contract Owners:** `runtime.readiness`
-- **Accepted Invariants:** each closed gap is an assertion about the subject's contract, never a restatement of what it currently prints; a mutant proven to change nothing is recorded in `EQUIVALENT_MUTANTS` with its reason rather than papered over with an assertion; no test gains a live side effect — network, install, or secret read — to reach a branch
-- **Regression Checks:** `mutation-sweep`, `ai-policy-lint`, the touched `bin/*-test` suites
-- **Runtime Evidence:** renumbered from TASK-074 on 2026-09-11: another device spent that id on `REQ-PUBLIC-UI-QUALITY` and finished a PASS run under it, so this contract read as done on foreign evidence and left the candidate list. 79 surviving mutants across 14 bash subjects, ranked 2026-09-10: `device-register` 11, `secrets-env` 10, `9router-credential-migrate` 9, `dotsync` 7, `mutation-sweep` 8 (remeasured 2026-09-11, the two new ones being the untested `run_bounded` Perl fallback), `inspect-project` 5, `dotpush` 5, then `vps-pgdump`, `tmux-clip`, `tmux-battery`, `security-check`, `pi-9router-restore` at 4, and `pi-update-safe`, `dev-ready` at 3 — `dev-ready` is 4, the batch having lost one to a timeout under load. Take the security-critical ones first regardless of count: `secrets-env` injects credentials, `security-check` stops a secret reaching a commit, and 14 mutants pass unnoticed between them. `shopify-content-helper`, `device-verify` and `ai-learn` are already clean, so zero is reachable. The ranking grows with TASK-076: the parser finds 748 guard and refusal statements across the python subjects where the regex found 534, and `ai-memory-access` stopped being UNMEASURED
-- **Reopen Conditions:** a subject regresses to surviving mutants after being closed
-- **Non-Scope:** changing any subject to make it easier to test; the UNMEASURED subjects until TASK-073 reaches them
-- **Verification:** `bin/mutation-sweep --subject <name>` reports zero survivors for each subject the run claims
-- **Escalation Conditions:** a branch cannot be reached without a live side effect, in which case the mutant is recorded as accepted with the reason rather than the test bent to reach it
 

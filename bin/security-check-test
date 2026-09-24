@@ -21,6 +21,7 @@ DOTSYNC_TMP=""
 DOTSYNC_REMOTE=""
 DOTPUSH_TMP=""
 DOCTOR_TMP=""
+NOREPO_TMP=""
 fail=0
 
 # Cleanup MUST return the index to exactly how it was found. This test stages
@@ -35,6 +36,7 @@ cleanup() {
   [ -z "$DOTSYNC_REMOTE" ] || rm -rf "$DOTSYNC_REMOTE"
   [ -z "$DOTPUSH_TMP" ] || rm -rf "$DOTPUSH_TMP"
   [ -z "$DOCTOR_TMP" ] || rm -rf "$DOCTOR_TMP"
+  [ -z "$NOREPO_TMP" ] || rm -rf "$NOREPO_TMP"
 }
 trap cleanup EXIT
 
@@ -285,6 +287,27 @@ if printf '%s\n' "$out" | grep -qF 'sinkron dengan origin/audit' \
   echo "   ✓ origin branch fallback"
 else
   echo "   ✗ FAIL: ai-doctor cannot compare origin/audit without upstream"
+  fail=1
+fi
+
+echo "12. a scan that cannot look anywhere must fail, never report clean"
+# GIT_CEILING_DIRECTORIES stops discovery at the fixture, so a TMPDIR that
+# happens to sit inside some repository cannot make this directory scannable.
+NOREPO_TMP="$(mktemp -d "${TMPDIR:-/tmp}/security-check-norepo.XXXXXX")"
+mkdir -p "$NOREPO_TMP/tree" "$NOREPO_TMP/empty-path"
+if GIT_CEILING_DIRECTORIES="$NOREPO_TMP" ./bin/security-check "$NOREPO_TMP/tree" >/dev/null 2>&1; then
+  echo "   ✗ FAIL: security-check exited 0 on a directory that is not a git work tree"
+  fail=1
+else
+  echo "   ✓ non-repository refused"
+fi
+# No git on PATH at all: bash is invoked by absolute path so the scanner still
+# starts, and the diagnosis must name the missing tool rather than blame the repo.
+out="$(PATH="$NOREPO_TMP/empty-path" "$BASH" ./bin/security-check "$REPO" 2>&1)" && rc=0 || rc=$?
+if [ "$rc" -ne 0 ] && printf '%s\n' "$out" | grep -qi 'git not found'; then
+  echo "   ✓ missing git refused and named"
+else
+  echo "   ✗ FAIL: security-check without git exited $rc and said: $out"
   fail=1
 fi
 

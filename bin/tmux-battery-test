@@ -28,5 +28,30 @@ out2="$(PATH="$TMP/slim" bash "$CMD" 2>/dev/null)"; rc2=$?
 grep -qE '\*\)\s*true' "$CMD" && ok "an unknown platform falls through cleanly" \
   || bad "no catch-all branch: an unrecognised OS would surface an error"
 
+# What the bar shows for each power state, read from fixtures rather than this
+# machine's hardware: stubs answer for uname, pmset and the sysfs lookup.
+STUB="$TMP/stub"; mkdir -p "$STUB"
+printf '#!/bin/sh\necho "$FAKE_OS"\n' > "$STUB/uname"
+printf '#!/bin/sh\ncat "$PMSET_FILE"\n' > "$STUB/pmset"
+printf '#!/bin/sh\necho "$FAKE_BAT"\n' > "$STUB/find"
+chmod +x "$STUB/uname" "$STUB/pmset" "$STUB/find"
+mac() { printf '%b' "$1" > "$TMP/pmset.txt"; PATH="$STUB:$PATH" FAKE_OS=Darwin PMSET_FILE="$TMP/pmset.txt" bash "$CMD" 2>/dev/null; }
+
+[ "$(mac "Now drawing from 'AC Power'\n -InternalBattery-0 (id=1)\t80%; charging; 0:40 remaining present: true\n")" = '⚡ 80%' ] \
+  && ok "macOS on AC and charging shows the charging mark" || bad "macOS charging rendered wrong"
+[ "$(mac "Now drawing from 'AC Power'\n -InternalBattery-0 (id=1)\t100%; charged; 0:00 remaining present: true\n")" = '🔌 100%' ] \
+  && ok "macOS on AC and charged shows the plug" || bad "macOS charged rendered wrong"
+[ "$(mac "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=1)\t85%; discharging; 3:12 remaining present: true\n")" = '🔋 85% (3:12)' ] \
+  && ok "macOS on battery shows the time remaining" || bad "macOS on battery lost the estimate"
+[ "$(mac "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=1)\t85%; discharging; (no estimate) present: true\n")" = '🔋 85%' ] \
+  && ok "macOS on battery without an estimate shows only the percentage" || bad "macOS without an estimate rendered wrong"
+
+BAT="$TMP/BAT0"; mkdir -p "$BAT"; printf '77\n' > "$BAT/capacity"; printf 'Charging\n' > "$BAT/status"
+[ "$(PATH="$STUB:$PATH" FAKE_OS=Linux FAKE_BAT="$BAT" bash "$CMD" 2>/dev/null)" = 'Charging 77%' ] \
+  && ok "Linux sysfs shows status and capacity" || bad "Linux sysfs lost the charging status"
+rm -f "$BAT/status"
+[ "$(PATH="$STUB:$PATH" FAKE_OS=Linux FAKE_BAT="$BAT" bash "$CMD" 2>/dev/null)" = '77%' ] \
+  && ok "Linux sysfs without a status shows the capacity alone" || bad "Linux sysfs without status rendered wrong"
+
 [ "$f" -eq 0 ] && { echo "tmux-battery-test: PASS"; exit 0; }
 echo "tmux-battery-test: $f case(s) failed" >&2; exit 1
