@@ -299,7 +299,7 @@ bash_embedded() { # bash_embedded <file> -> line numbers inside a heredoc or quo
 mutate_one() {
   local name="$1"
   local subject="$ROOT/bin/$name" test="$ROOT/bin/$name-test"
-  local killed=0 survived=0 total=0 unreached=0 inline_unreached=0
+  local killed=0 survived=0 total=0 unreached=0 inline_unreached=0 refuse_unreached=0
 
   # Two operators, in whichever language the subject is written: guard-off turns
   # a branch condition false, refusal-off turns a non-zero exit into zero. The
@@ -442,9 +442,13 @@ mutate_one() {
     # Counting it as nothing would round "unmeasured" down to "covered", which is
     # the one answer this sweep exists to refuse.
     if [ "$mutated" = "$line_text" ]; then
-      # Two different shapes land here and they deserve different words: a true
+      # Three different shapes land here and they deserve different words: a true
       # count with a false explanation is how a report starts being read past.
-      if printf '%s\n' "$line_text" | grep -qE '^[[:space:]]*(if|elif)[[:space:]].*:[[:space:]]*[^[:space:]#]'; then
+      # A refusal the parser found in a form the sed does not match — bare
+      # `exit(2)`, `sys.exit( 1 )` — is not a guard at all.
+      if [ "$kind" = refuse ]; then
+        refuse_unreached=$((refuse_unreached+1))
+      elif printf '%s\n' "$line_text" | grep -qE '^[[:space:]]*(if|elif)[[:space:]].*:[[:space:]]*[^[:space:]#]'; then
         inline_unreached=$((inline_unreached+1))
       else
         unreached=$((unreached+1))
@@ -474,7 +478,11 @@ mutate_one() {
     [ -n "$why" ] && why="$why and "
     why="$why$inline_unreached with a body on the same line as the \`if\`"
   fi
-  unreached=$((unreached + inline_unreached))
+  if [ "$refuse_unreached" -gt 0 ]; then
+    [ -n "$why" ] && why="$why and "
+    why="$why$refuse_unreached refusal(s) in a form the operator cannot rewrite"
+  fi
+  unreached=$((unreached + inline_unreached + refuse_unreached))
   if [ "$unreached" -gt 0 ]; then
     rows+=("UNREACHED|$name|$why; the rewrite is line-based and cannot change them")
     unmeasured=$((unmeasured+1))
@@ -531,13 +539,26 @@ if [ "$BEFORE" != "$AFTER" ]; then
   exit 2
 fi
 
+# Subject rows quote source lines, which carry quotes and backslashes; left
+# unescaped, subject-mode JSON did not parse at all.
+json_esc() {
+  local s="$1"
+  s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
 if [ "$JSON" -eq 1 ]; then
-  printf '{"bites":%d,"survived":%d,"unsweepable":%d,"errored":%d,"results":[' \
-    "$bites" "$survived" "$unsweepable" "$errored"
+  # The same totals the text summary prints. Subject mode counts surviving
+  # MUTANTS in survived_total; `survived` is the stub-mode tally and stayed 0
+  # there, so it carries the mutant count in subject mode. `unmeasured` and
+  # `survived_total` are added, no stub-mode key is renamed or removed.
+  json_survived="$survived"; [ "$MODE" = subject ] && json_survived="$survived_total"
+  printf '{"bites":%d,"survived":%d,"unsweepable":%d,"errored":%d,"unmeasured":%d,"survived_total":%d,"results":[' \
+    "$bites" "$json_survived" "$unsweepable" "$errored" "$unmeasured" "$survived_total"
   sep=""
   for r in "${rows[@]}"; do
     IFS='|' read -r verdict name detail <<< "$r"
-    printf '%s{"verdict":"%s","name":"%s","detail":"%s"}' "$sep" "$verdict" "$name" "$detail"
+    printf '%s{"verdict":"%s","name":"%s","detail":"%s"}' "$sep" "$verdict" "$(json_esc "$name")" "$(json_esc "$detail")"
     sep=","
   done
   printf '],"unpaired":['

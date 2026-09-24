@@ -578,6 +578,57 @@ printf '%s' "$OUTIN" | grep -q 'UNREACHED.*pyinline.*span' \
   && fail "a one-line guard was explained as spanning several lines" \
   || ok "and is not explained as spanning several lines"
 
+# A refusal the parser finds but the rewrite cannot change — bare `exit(2)`, not
+# `sys.exit(2)` — is not a guard. Calling it one is the same true-count, false-
+# explanation defect as above, on the other operator. The guard beside it is
+# asserted in both directions, so its mutant is killed and only the refusal is
+# out of reach.
+cat > "$MFIX/bin/pyexitform" <<'EOF'
+#!/usr/bin/env python3
+import sys
+if len(sys.argv) < 2:
+    exit(2)
+print("ok")
+EOF
+cat > "$MFIX/bin/pyexitform-test" <<'EOF'
+#!/usr/bin/env bash
+R="${1:?}"
+[ "$("$R/bin/pyexitform" go)" = ok ] || exit 1
+"$R/bin/pyexitform" >/dev/null 2>&1 && exit 1
+exit 0
+EOF
+chmod +x "$MFIX/bin/pyexitform" "$MFIX/bin/pyexitform-test"
+git -C "$MFIX" add -A >/dev/null
+git -C "$MFIX" -c user.email=t@t -c user.name=t commit -qm exitform >/dev/null
+OUTEF="$(msweep pyexitform)"
+printf '%s' "$OUTEF" | grep -q 'UNREACHED.*pyexitform.*1 refusal' \
+  && ok "a refusal the rewrite cannot change is reported as a refusal" \
+  || fail "an unrewritable refusal was not named as one: $(printf '%s' "$OUTEF" | grep UNREACHED | tr '\n' ' ')"
+printf '%s' "$OUTEF" | grep -q 'UNREACHED.*pyexitform.*guard' \
+  && fail "an unrewritable refusal was explained as a guard" \
+  || ok "and is not explained as a guard"
+printf '%s' "$OUTEF" | grep -q 'KILLED.*pyexitform' \
+  && fail "a subject with an unreached refusal was called fully covered" \
+  || ok "and the subject is still not called fully covered"
+
+# Subject-mode JSON must carry the same totals as the text summary line. It
+# once printed stub mode's `survived` (always 0 here) and no `unmeasured`, so a
+# subject with a surviving mutant and one with unreached lines read as clean to
+# any machine consumer while the text beside it said otherwise.
+JS="$(DOTFILES_DIR="$MFIX" MUTATION_SWEEP_TIMEOUT=30 "$SWEEP" --subject --json guarded pyspan 2>/dev/null)"
+TX="$(DOTFILES_DIR="$MFIX" MUTATION_SWEEP_TIMEOUT=30 "$SWEEP" --subject guarded pyspan 2>/dev/null | tail -1)"
+jtot="$(printf '%s' "$JS" | python3 -c '
+import json,sys
+d=json.load(sys.stdin)
+print(d.get("bites"), d.get("survived_total"), d.get("unmeasured"), d.get("errored"), d.get("survived"))' 2>/dev/null)"
+ttot="$(printf '%s' "$TX" | sed -nE 's/.*: ([0-9]+) subject.* ([0-9]+) mutant.* ([0-9]+) unmeasured, ([0-9]+) errored.*/\1 \2 \3 \4/p')"
+[ -n "$ttot" ] && [ "${jtot% *}" = "$ttot" ] \
+  && ok "subject-mode JSON totals agree with the text summary ($ttot)" \
+  || fail "JSON totals '${jtot% *}' disagree with text '$ttot'"
+[ "$jtot" = "0 1 1 0 1" ] \
+  && ok "and name the survivor and the unreached subject rather than zero" \
+  || fail "subject-mode JSON read '$jtot', want '0 1 1 0 1'"
+
 # A `<<NAME` printed inside a string is text, not an opener. Scanning the raw
 # line before removing quoted spans opened a heredoc that never closed, so every
 # guard after a usage message was dropped from coverage — a real guard silently

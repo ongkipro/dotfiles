@@ -30,18 +30,6 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 - **Non-Scope:** non-sol roles, other devices' live config.
 - **Escalation Conditions:** OMP cannot reach the tunnel without a stored key.
 
-### TASK-094: Sweep report honesty follow-ups
-
-- **Requirement:** REQ-MUTATION-COVERAGE (TASK-083 review: subject-mode `--json` omits `unmeasured`/`survived_total`; UNREACHED wording calls every unchanged line a guard).
-- **Risk Level:** R1.
-- **Allowed Paths:** `bin/mutation-sweep`, `bin/mutation-sweep-test`, `TASKS.md`, `.delivery/**`.
-- **Canonical Contract Owners:** `runtime.readiness`.
-- **Accepted Invariants:** text verdicts unchanged.
-- **Regression Checks:** `mutation-sweep-test`.
-- **Reopen Conditions:** JSON and text totals disagree.
-- **Non-Scope:** the cap.
-- **Escalation Conditions:** a JSON consumer depends on the old shape.
-
 ### TASK-089: Control-plane integrity and adaptive routing
 
 - **Requirement:** REQ-DOTFILES-CONTROL-PLANE-HARDENING (2026-09-18 audit: align delivery authority, proportional UI routing, tracked-memory privacy, and current Better Auth multi-tenant security guidance).

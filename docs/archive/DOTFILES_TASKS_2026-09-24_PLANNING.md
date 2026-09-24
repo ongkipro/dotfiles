@@ -74,3 +74,17 @@ Evidence: `.delivery/runs/RUN-20260924T121006Z-99c92eba.jsonl` (PASS).
 - **Escalation Conditions:** the extra input changes an existing fixture verdict.
 
 Evidence: `.delivery/runs/RUN-20260924T121241Z-2664cb3b.jsonl` (PASS).
+
+### TASK-094: Sweep report honesty follow-ups
+
+- **Requirement:** REQ-MUTATION-COVERAGE (TASK-083 review: subject-mode `--json` omits `unmeasured`/`survived_total`; UNREACHED wording calls every unchanged line a guard).
+- **Risk Level:** R1.
+- **Allowed Paths:** `bin/mutation-sweep`, `bin/mutation-sweep-test`, `TASKS.md`, `.delivery/**`.
+- **Canonical Contract Owners:** `runtime.readiness`.
+- **Accepted Invariants:** text verdicts unchanged.
+- **Regression Checks:** `mutation-sweep-test`.
+- **Reopen Conditions:** JSON and text totals disagree.
+- **Non-Scope:** the cap.
+- **Escalation Conditions:** a JSON consumer depends on the old shape.
+
+Evidence: `.delivery/runs/RUN-20260924T122023Z-c2ccb865.jsonl` (PASS).
