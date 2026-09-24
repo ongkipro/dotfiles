@@ -124,11 +124,11 @@ If a specialist is unavailable, state the capability gap and continue with a bou
 
 ### 6. Validate and report
 
-Validate a project pack with the deterministic checker; use JSON only for automation:
+Validate a project pack with the deterministic checker; pass the root execution queue with `--tasks` so task rules see it; use JSON only for automation:
 
 ```bash
-python3 scripts/check-traceability.py /path/to/project/docs/spec
-python3 scripts/check-traceability.py /path/to/project/docs/spec --format json
+python3 scripts/check-traceability.py /path/to/project/docs/spec --tasks /path/to/project/TASKS.md
+python3 scripts/check-traceability.py /path/to/project/docs/spec --tasks /path/to/project/TASKS.md --format json
 ```
 
 When maintaining this skill itself, additionally run:

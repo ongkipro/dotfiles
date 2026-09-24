@@ -61,12 +61,15 @@ class SuiteTests(unittest.TestCase):
         expected: int = 0,
         json_output: bool = False,
         stage: Optional[str] = None,
+        tasks: tuple[Path, ...] = (),
     ) -> subprocess.CompletedProcess[str]:
         args: list[object] = [PYTHON, CHECK, destination]
         if json_output:
             args += ["--format", "json"]
         if stage:
             args += ["--stage", stage]
+        for task_file in tasks:
+            args += ["--tasks", task_file]
         return run(*args, expected=expected)
 
     def test_skill_progressive_disclosure_contract(self) -> None:
@@ -318,6 +321,77 @@ class SuiteTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["version"], 2)
         self.assertEqual(payload["findings"], [])
+
+    def root_tasks_fixture(self, name: str, tasks: str) -> tuple[Path, Path]:
+        repository = self.root / name
+        pack = repository / "docs" / "spec"
+        pack.mkdir(parents=True)
+        (pack / "02-PRD.md").write_text(
+            """# PRD
+
+### PR-1 — Export report
+- Status: Accepted
+- Owner: Product owner
+
+### PR-2 — Import report
+- Status: Accepted
+- Owner: Product owner
+""",
+            encoding="utf-8",
+        )
+        root_tasks = repository / "TASKS.md"
+        root_tasks.write_text(
+            tasks
+            + """
+### TASK-900: Standalone repository task
+
+- **Requirement:** REQ-OTHER (mentions PR-404 and [TBD]).
+- **Done when:** [broken](missing.md) is ignored outside suite tasks.
+""",
+            encoding="utf-8",
+        )
+        return pack, root_tasks
+
+    def test_validator_reads_root_tasks_primary_requirement(self) -> None:
+        pack, root_tasks = self.root_tasks_fixture(
+            "missing-primary",
+            """# Tasks
+
+### T-1 — Export report
+- **Done when:** `python3 -m unittest` exits 0.
+
+### T-2 — Import report
+- **Primary requirement:** PR-2
+- **Done when:** `python3 -m unittest` exits 0.
+""",
+        )
+        self.check(pack)  # pack-only run keeps today's verdict: no tasks visible.
+        payload = json.loads(self.check(pack, expected=1, json_output=True, tasks=(root_tasks,)).stdout)
+        findings = {(item["code"], item.get("identifier", "")) for item in payload["findings"]}
+        self.assertIn(("TASK001", "T-1"), findings)
+        self.assertEqual({code for code, _identifier in findings}, {"TASK001", "TRACE001"})
+        self.assertEqual({item["path"] for item in payload["findings"] if item["code"] == "TASK001"}, {"../../TASKS.md"})
+
+    def test_validator_root_tasks_satisfy_traceability(self) -> None:
+        pack, root_tasks = self.root_tasks_fixture(
+            "traced",
+            """# Tasks
+
+### T-1 — Export report
+- **Primary requirement:** PR-1
+- **Done when:** `python3 -m unittest` exits 0.
+
+### T-2 — Import report
+- **Primary requirement:** PR-2
+- **Done when:** `python3 -m unittest` exits 0.
+""",
+        )
+        payload = json.loads(self.check(pack, json_output=True, tasks=(root_tasks, root_tasks)).stdout)
+        self.assertEqual(payload["findings"], [])
+        self.assertEqual(payload["summary"]["tasks"], 2)
+        # Passing a pack file again must not double-declare its requirements.
+        self.check(pack, tasks=(root_tasks, pack / "02-PRD.md"))
+        self.check(pack, expected=2, tasks=(pack.parent / "missing.md",))
 
     def test_validator_ignores_update_and_backup_sidecars(self) -> None:
         fixture = self.root / "sidecars"

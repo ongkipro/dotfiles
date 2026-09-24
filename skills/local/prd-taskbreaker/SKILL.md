@@ -55,7 +55,7 @@ If a `development-spec-suite` pack is active (`CONTEXT-RECORD.md` exists), prese
 - **Done when:** Execute TEST-1 against the local endpoint; its observed result satisfies PR-1's acceptance criteria.
 ```
 
-Use bold bullet fields: the suite validator does not read plain `Primary requirement:` lines, and `resume-brief` reads dependencies only from `- **Depends On:**`.
+Use bold bullet fields: the suite validator ignores unbulleted `Primary requirement:` lines, and `resume-brief` reads dependencies only from `- **Depends On:**`. Validate root tasks with `check-traceability.py docs/spec --tasks TASKS.md`.
 
 `PR-2` and `NFR-1` affect execution but do not become additional primary requirements. During planning, define `TEST-1` if the pack activates it, but do not create or claim `EVID-*`.
 

@@ -30,18 +30,6 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 - **Non-Scope:** non-sol roles, other devices' live config.
 - **Escalation Conditions:** OMP cannot reach the tunnel without a stored key.
 
-### TASK-093: Suite validator reads root `TASKS.md`
-
-- **Requirement:** REQ-PLANNING-CONTRACT-ALIGNMENT (TASK-090 known gap: `check-traceability.py` scans only `docs/spec`, so `TASK*`/`TRACE001` never see root `TASKS.md`).
-- **Risk Level:** R2.
-- **Allowed Paths:** `skills/local/development-spec-suite/scripts/check-traceability.py`, `skills/local/development-spec-suite/scripts/test-suite.py`, `skills/local/development-spec-suite/SKILL.md`, `skills/local/development-spec-suite/references/document-map.md`, `TASKS.md`, `.delivery/**`.
-- **Canonical Contract Owners:** `development-spec-suite`.
-- **Accepted Invariants:** pack-only runs behave as today; no repository-wide scan.
-- **Regression Checks:** `test-suite.py`, `skill-check development-spec-suite`.
-- **Reopen Conditions:** a task in root `TASKS.md` escapes `TASK001`.
-- **Non-Scope:** task field grammar.
-- **Escalation Conditions:** the extra input changes an existing fixture verdict.
-
 ### TASK-094: Sweep report honesty follow-ups
 
 - **Requirement:** REQ-MUTATION-COVERAGE (TASK-083 review: subject-mode `--json` omits `unmeasured`/`survived_total`; UNREACHED wording calls every unchanged line a guard).

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -17,6 +18,8 @@ NAMESPACES = (
 ID_RE = re.compile(rf"\b(?:(?:{NAMESPACES})(?:-[A-Z0-9]+)*-\d+|T-?\d+)\b")
 DECLARATION_HEADING_RE = re.compile(rf"^\s*#{{2,6}}\s+(?:\[[ xX]\]\s+)?((?:(?:{NAMESPACES})(?:-[A-Z0-9]+)*-\d+|T-?\d+))\b")
 TASK_ID_RE = re.compile(r"^T-?(\d+)$")
+TASK_HEADING_RE = re.compile(r"^\s*(#{2,6})\s+(?:\[[ xX]\]\s+)?T-?\d+\b")
+ANY_HEADING_RE = re.compile(r"^\s*(#{1,6})\s")
 PLACEHOLDER_ZERO_RE = re.compile(r"^(?:JUR(?:-[A-Z]+)?|XFER|LOC)-0$")
 TBD_RE = re.compile(r"\[TBD[^\]]*\]", re.IGNORECASE)
 VALID_TBD_RE = re.compile(r"\[TBD\s+owner=[^;\]]+;\s*due=(?:\d{4}-\d{2}-\d{2}|before [^\]]+)\]", re.IGNORECASE)
@@ -117,6 +120,21 @@ def split_table_row(line: str) -> List[str]:
     return [cell.strip().replace(sentinel, "|") for cell in value.split("|")]
 
 
+def suite_task_blocks(lines: Sequence[str]) -> List[str]:
+    """Blank everything outside `T-*` heading blocks; a same-or-higher heading ends a block."""
+    result: List[str] = []
+    level = 0
+    for line in lines:
+        task = TASK_HEADING_RE.match(line)
+        heading = ANY_HEADING_RE.match(line)
+        if task:
+            level = len(task.group(1))
+        elif heading and len(heading.group(1)) <= level:
+            level = 0
+        result.append(line if level else "")
+    return result
+
+
 def strip_code_fences(lines: Sequence[str]) -> List[str]:
     result: List[str] = []
     in_fence = False
@@ -178,7 +196,7 @@ class Reference:
 
 
 class Validator:
-    def __init__(self, root: Path, stage: Optional[str] = None) -> None:
+    def __init__(self, root: Path, stage: Optional[str] = None, task_files: Sequence[Path] = ()) -> None:
         self.root = root
         self.stage = stage
         self.findings: List[Finding] = []
@@ -191,8 +209,13 @@ class Validator:
         self.files: List[Path] = sorted(path for path in root.rglob("*.md") if not ignored_dirs.intersection(path.relative_to(root).parts))
         self.json_files: List[Path] = sorted(path for path in root.rglob("*.json") if not ignored_dirs.intersection(path.relative_to(root).parts))
         self.file_names = {path.name for path in self.files}
+        # Extra execution queues (root TASKS.md) contribute only their `T-*` suite task blocks.
+        self.task_files: Set[Path] = {path for path in task_files if path not in self.files}
+        self.files.extend(sorted(self.task_files))
 
     def relative(self, path: Path) -> str:
+        if path in self.task_files:
+            return Path(os.path.relpath(path, self.root)).as_posix()
         return path.relative_to(self.root).as_posix()
 
     def add(self, code: str, path: Path, line: int, message: str, identifier: str = "") -> None:
@@ -201,6 +224,8 @@ class Validator:
     def declare(self, declaration: Declaration) -> None:
         declaration.identifier = canonical_id(declaration.identifier)
         if PLACEHOLDER_ZERO_RE.match(declaration.identifier):
+            return
+        if declaration.path in self.task_files and not declaration.identifier.startswith("T-"):
             return
         self.declarations.setdefault(declaration.identifier, []).append(declaration)
 
@@ -212,6 +237,8 @@ class Validator:
             return
         lines = text.splitlines()
         visible = strip_code_fences(lines)
+        if path in self.task_files:
+            visible = suite_task_blocks(visible)
         fence_count = sum(1 for line in lines if re.match(r"^\s*(```+|~~~+)", line))
         if fence_count % 2:
             self.add("MD001", path, len(lines), "unbalanced fenced code block")
@@ -772,12 +799,18 @@ def main() -> int:
     parser.add_argument("root", type=Path, help="Markdown specification pack root")
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--stage", choices=STAGES, help="opt in to product stage gates")
+    parser.add_argument("--tasks", type=Path, action="append", default=[], metavar="PATH",
+                        help="extra execution queue (e.g. repository root TASKS.md); only its T-* task blocks are read; repeatable")
     args = parser.parse_args()
     root = args.root.expanduser().resolve()
     if not root.is_dir():
         parser.error(f"not a directory: {root}")
+    task_files = [path.expanduser().resolve() for path in args.tasks]
+    for path in task_files:
+        if not path.is_file() or not os.access(path, os.R_OK):
+            parser.error(f"not a readable file: {path}")
 
-    validator = Validator(root, args.stage)
+    validator = Validator(root, args.stage, task_files)
     raw_findings = validator.run()
     findings = [Finding(code, path, line, message, identifier) for code, path, line, message, identifier in raw_findings]
     summary = {
