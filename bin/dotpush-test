@@ -10,6 +10,9 @@ set -uo pipefail
 ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
 CMD="$ROOT/bin/dotpush"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+# CI has no global git identity; fixture commits must not depend on the caller's.
+export GIT_AUTHOR_NAME=fixture GIT_AUTHOR_EMAIL=fixture@example.invalid
+export GIT_COMMITTER_NAME=fixture GIT_COMMITTER_EMAIL=fixture@example.invalid
 f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
 
 # `cd ~/dotfiles` expands through HOME, which is the whole seam: a fixture HOME
@@ -80,6 +83,9 @@ remote_fixture() { # remote_fixture <name> -> echoes the fixture HOME; remote at
   git -C "$h/dotfiles" add -A >/dev/null; git -C "$h/dotfiles" commit -qm scanner >/dev/null
   git -C "$h/dotfiles" branch -M main
   git init -q --bare "$h/remote.git"
+  # Without the caller's init.defaultBranch the bare HEAD names master, and the
+  # clone below would check out nothing. Name it explicitly.
+  git -C "$h/remote.git" symbolic-ref HEAD refs/heads/main
   git -C "$h/dotfiles" remote add origin "$h/remote.git"
   git -C "$h/dotfiles" push -q -u origin main >/dev/null 2>&1
   git clone -q "$h/remote.git" "$h/w" >/dev/null 2>&1

@@ -14,6 +14,8 @@
 set -uo pipefail
 ROOT="${DOTFILES_DIR:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+# macOS temp lives under /var -> /private/var; realpath output must compare equal.
+TMP="$(cd "$TMP" && pwd -P)"
 # Fixture git must not read the caller's config (signing, hooksPath, templates);
 # it gets a throwaway global holding only an identity.
 printf '[user]\n\tname = fixture\n\temail = fixture@example.invalid\n' > "$TMP/gitconfig"

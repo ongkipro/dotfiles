@@ -46,16 +46,16 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 - **Non-Scope:** moving existing secret files on any device.
 - **Escalation Conditions:** a supported device keeps its secrets file inside a repository today.
 
-### TASK-096: Hermetic git setup in `dotpush-test`
+### TASK-096: TASK-080 tests depend on the caller's environment
 
-- **Requirement:** REQ-MUTATION-COVERAGE (TASK-080 review: fixture setup `commit`/`clone`/`push` read the caller's global git config — signing or `core.hooksPath` can break or run real hooks).
+- **Requirement:** REQ-CI-DETERMINISM (Core runtime `5c6c1fb` red on both OSes: `dotpush-test` needs a global git identity CI lacks; `dotsync-test` compares an unresolved macOS `/var` temp path with `realpath` output under `/private/var`).
 - **Risk Level:** R1.
-- **Allowed Paths:** `bin/dotpush-test`, `TASKS.md`, `.delivery/**`.
+- **Allowed Paths:** `bin/dotpush-test`, `bin/dotsync-test`, `TASKS.md`, `.delivery/**`.
 - **Canonical Contract Owners:** `runtime.readiness`.
-- **Accepted Invariants:** the subject still sees its own managed `home/gitconfig`; a file-wide `GIT_CONFIG_GLOBAL` broke three cases, so scope it to setup calls.
-- **Regression Checks:** `dotpush-test`.
-- **Reopen Conditions:** a caller's global git config changes a `dotpush-test` verdict.
-- **Non-Scope:** `bin/dotpush`.
+- **Accepted Invariants:** assertions unchanged; `dotpush` still sees its own managed `home/gitconfig` (a file-wide `GIT_CONFIG_GLOBAL` broke three cases).
+- **Regression Checks:** `dotpush-test` and `dotsync-test`, each also run with an empty `HOME`; Core runtime CI on both OSes.
+- **Reopen Conditions:** a caller's global git config or temp-dir symlink changes a verdict.
+- **Non-Scope:** `bin/dotpush`, `bin/dotsync`.
 - **Escalation Conditions:** isolation needs a subject change.
 
 ### TASK-091: OMP sol roles via 9Router
