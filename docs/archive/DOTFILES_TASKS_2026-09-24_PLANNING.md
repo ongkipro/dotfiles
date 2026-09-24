@@ -88,3 +88,18 @@ Evidence: `.delivery/runs/RUN-20260924T121241Z-2664cb3b.jsonl` (PASS).
 - **Escalation Conditions:** a JSON consumer depends on the old shape.
 
 Evidence: `.delivery/runs/RUN-20260924T122023Z-c2ccb865.jsonl` (PASS).
+
+### TASK-088: Public UI reference fidelity and anti-template composition
+
+- **Requirement:** REQ-PUBLIC-UI-REFERENCE-FIDELITY (2026-09-18: supplied references can collapse into generic Astro heroes/cards).
+- **Risk Level:** R2.
+- **Allowed Paths:** `skills/local/design-taste/**`, `skills/local/astro-development/SKILL.md`, `skills/local/ui-validation/SKILL.md`, `TASKS.md`, `.delivery/**`.
+- **Canonical Contract Owners:** `design-taste` direction; `astro-development` implementation; `ui-validation` rendered evidence.
+- **Accepted Invariants:** user/project evidence wins; familiar cards/centered layouts remain valid when justified; no framework/library replacement or pixel-copy rule.
+- **Regression Checks:** `skill-check design-taste`, `skill-check astro-development`, `skill-check ui-validation`, `ai-policy-lint`, `ai-doctor --self-test`.
+- **Runtime Evidence:** no pre-code composition contract previously prevented reference geometry from collapsing into component-kit defaults.
+- **Reopen Conditions:** reference-driven work can skip or erase the accepted composition contract.
+- **Non-Scope:** runtime/model routing, new UI dependencies, project tokens.
+- **Escalation Conditions:** enforcement would require runtime changes, a dependency, or a universal visual style.
+
+Evidence: `.delivery/runs/RUN-20260924T122255Z-0bf48500.jsonl` (PASS; self-test except the TASK-091 OMP entitlement gate).

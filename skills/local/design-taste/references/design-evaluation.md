@@ -26,10 +26,11 @@ invented research/verification block delivery. Uninspected views stay unverified
    establishes credibility. Check whether utility controls remain recognizable.
 3. Compare the accepted direction and reference principle with this result;
    do not require pixel imitation or a prescribed decorative motif.
-4. Name the largest concrete mismatches. For material reference-driven work,
-   prioritize composition, focal hierarchy, section rhythm, typography, media
-   placement, grouping/container logic, and responsive transformation. Keep the
-   report focused; cap it at five material deviations when more exist.
+4. Name the largest concrete mismatches. For reference-driven work, run the
+   per-item composition check in `ui-validation` and report the largest failing
+   items (at most five); otherwise prioritize composition, focal hierarchy,
+   section rhythm, typography, media placement, grouping/container logic, and
+   responsive transformation.
 5. Revise the smallest coherent causes, then inspect the affected views again.
    Do not spend the iteration polishing shadows or radii while the page geometry
    is still wrong.

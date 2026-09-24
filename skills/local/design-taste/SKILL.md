@@ -73,11 +73,18 @@ For a new public experience or material redesign:
 
 When the user supplies a visual reference, inspect it and use
 [design-discovery.md](references/design-discovery.md) to record the composition
-contract before component mapping. Preserve the observed frame/grid, focal
-hierarchy, hero/media relationship, grouping boundaries, section rhythm,
-distinctive relationships, and responsive transformation. Style adjectives or
-a component list are not a substitute. Component libraries implement the
-accepted composition; they do not choose it.
+contract before any code or component mapping: numbered, checkable items
+(`C1`, `C2`, …) for the per-breakpoint skeleton, grid/proportions, type
+hierarchy, density/spacing rhythm, signature elements, and a "do not
+substitute" list of kit defaults. Record it in the task's Visual Contract or
+the accepted design artifact; unrecorded, reference-driven code has no
+contract to honor. Style adjectives or a component list are not a substitute.
+Component libraries implement the accepted composition; they do not choose it.
+Explicit user or project evidence can amend an item; a familiar card grid or
+centered stack stays valid when the reference or content actually has it.
+Full `C` items apply to a *target composition* reference; for directional,
+interaction, or token/brand references record only the transferred principles
+as items and leave layout to the current task.
 
 Small changes inside an accepted system skip new discovery and preserve that
 system. Scale documentation to the change; never turn a spacing fix into a PRD.

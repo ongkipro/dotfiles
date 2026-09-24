@@ -111,16 +111,23 @@ composition blueprint before choosing page components:
 
 ```markdown
 ## Composition contract
-- Reference viewport/state:
-- Page frame / grid / dominant alignments:
-- Primary focal point; secondary anchors:
-- Hero geometry: text/media split, measure, crop/overlap, CTA placement:
-- Open vs contained regions and why:
-- Card/container boundaries that are semantically justified:
-- Distinctive relationships that must survive implementation:
-- Section rhythm / density changes:
-- Narrow-screen transformation:
+- Reference artifact, viewport(s), state, theme:
+- C1 Skeleton per breakpoint: section order, columns, what stacks or hides:
+- C2 Frame / grid / proportions: dominant alignments, text/media split, measure:
+- C3 Focal hierarchy: primary anchor, secondary anchors, CTA placement:
+- C4 Type hierarchy: relative scale steps, weight/case contrast, line length:
+- C5 Density / spacing rhythm: where sections tighten or open up:
+- C6 Signature elements: crop, overlap, sequence, open grouping, divider style:
+- C7 Container boundaries: which regions are cards and which stay open, and why:
+- Do not substitute: kit defaults barred here (e.g. centered badge+two-CTA hero,
+  equal card grid, rounded section wrappers, stock bento):
 ```
+
+Each item must be checkable against a render at the named viewport. Drop items
+the reference does not determine; add more when it has more signature traits.
+This full contract is for a *target composition* reference (§ roles above); a
+directional, interaction, or token/brand reference records only its transferred
+principles as items and leaves layout to the current task.
 
 Record relationships, not fake precision. Use measured values only when they
 were actually inspected from source/computed styles; otherwise describe
@@ -164,12 +171,7 @@ Minimum decision record:
 - Rejected alternative, only when a real choice existed:
 
 ## Composition contract
-- Page frame / grid / dominant alignments:
-- Primary focal point and secondary anchors:
-- Hero geometry and media relationship:
-- Open vs contained sections; justified card boundaries:
-- Distinctive reference relationships to preserve:
-- Narrow-screen transformation:
+- Items C1… and "do not substitute" list from section 4.1:
 
 ## Tokens and behavior
 - Semantic color pairs, type, spacing, shape, elevation:
@@ -179,7 +181,7 @@ Minimum decision record:
 
 ## Acceptance evidence
 - Browser routes, viewports, interactions, and result:
-- Reference comparison: discrepancy → revision → recheck:
+- Reference comparison per contract item: match, or deviation → reason / revision → recheck:
 - Remaining limitation and its impact:
 ```
 

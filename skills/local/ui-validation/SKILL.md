@@ -79,16 +79,19 @@ against the accepted UX and visual-system contract, and critique hierarchy,
 composition, density, alignment, typography, asset quality, state clarity,
 responsive transformation, and obvious AI-template repetition.
 
-For reference-driven work, explicitly compare the implemented composition
-contract: page frame/grid, focal point, hero geometry, open-vs-contained
-grouping, media relationship, card/container boundaries, section rhythm, and
-narrow-screen transformation. Name the largest material deviations by visual
-impact (cap the report at five when more exist), revise the implementation, and
-re-open the affected views. Do not spend the revision only on micro-polish while
-the major composition is still wrong.
+For reference-driven work, place the reference and the render side by side at
+the reference's viewport(s), with matching state, theme, and comparable
+content, then check each recorded composition contract item (`C1`… and the "do not
+substitute" list from `design-taste`). Record per item: match, or deviation
+with viewport and observation. A deviation fails visual acceptance unless a
+reason (content, accessibility, user/project decision) is recorded beside it;
+a reference without a recorded contract leaves visual acceptance UNVERIFIED.
+Revise failing items by visual impact (report at most five), re-open the
+affected views, and do not spend the revision on micro-polish while the
+composition is still wrong.
 
 If the implementation replaced a distinctive reference with a generic centered
-hero, repeated card grids, or uniform rounded sections without a content reason,
+hero, repeated card grids, or uniform rounded sections without a recorded reason,
 visual acceptance is REVISE even when the browser flow and build pass. Stop when
 the accepted direction is met or report the remaining limitation.
 

@@ -118,10 +118,12 @@ For new sites, define:
 - where interactivity is really needed
 
 For a new public surface or material redesign, load `design-taste` before
-choosing page primitives. If a visual reference is supplied, carry its accepted
-composition contract into implementation: grid/frame, focal hierarchy, hero
-geometry, open-vs-contained grouping, distinctive relationships, and responsive
-transformation.
+choosing page primitives. If a target composition reference is supplied, do not write page
+markup until its composition contract (`C1`… items plus the "do not substitute"
+list) is recorded in the task's Visual Contract or accepted design artifact.
+Implement every item; a component-kit default (shadcn `Card`, starter hero,
+bento/grid section) may replace a contracted element only with a reason
+recorded beside that item, such as content, accessibility, or a user decision.
 
 Do not start from "which cards/components should this page use?" Start from
 "what composition expresses this content and reference?" Implement that
@@ -235,8 +237,8 @@ Before done:
 - confirm hydration choices are reasonable
 - verify deployment config matches platform
 - for browser-visible visual work, use `ui-validation` to inspect narrow and
-  wide renders; when a reference/direction exists, compare composition and
-  hierarchy, name the largest deviations, revise, and re-open the views
+  wide renders; when a composition contract exists, run its per-item
+  reference comparison, revise unjustified deviations, and re-open the views
 
 A passing Astro build is never the visual acceptance criterion. If the hero,
 section rhythm, grouping, or reference-specific relationships remain generic or
