@@ -95,6 +95,13 @@
 - OMP has no dotfiles-owned 9Router provider, model catalog, credential
   injection, or shell wrapper. Configure and authenticate OMP only through its
   native machine-local mechanisms.
+- Owner decision 2026-09-24 (TASK-091): the cross-device OMP reference routes
+  `task`/`slow` and sol fallbacks to `9router-fantastico/cx/gpt-6-sol`, because a
+  device's own Codex login may lack sol entitlement. A device that loads the
+  reference declares that provider itself in `~/.omp/agent/models.yml` (a local
+  file, never a link) with `discovery: {type: openai-models-list}` and
+  `apiKey: "!secrets-env get NINEROUTER_REMOTE_KEY"`; no key is written to disk.
+  The tunnel rejects Python's default User-Agent with 403; curl and OMP pass.
 - Never read or expose credential contents while diagnosing. Use
   non-secret health checks and the relevant helper's fixture tests.
 - Legacy `~/.9router/` state is not part of the supported runtime topology and

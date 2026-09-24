@@ -82,8 +82,8 @@ jq -e '
   ($fallbacks | length) == 15 and
   ($agents | length) == 7 and
   $roles.default == "openai-codex/gpt-5.6-terra:medium" and
-  $roles.task == "openai-codex/gpt-5.6-sol:high" and
-  $roles.slow == "openai-codex/gpt-5.6-sol:high" and
+  $roles.task == "9router-fantastico/cx/gpt-6-sol:high" and
+  $roles.slow == "9router-fantastico/cx/gpt-6-sol:high" and
   $roles.plan == "anthropic/claude-fable-5:high" and
   $roles.orchestrator == "anthropic/claude-fable-5:high" and
   $roles.smol == "google-antigravity/gemini-3.8-flash:medium" and

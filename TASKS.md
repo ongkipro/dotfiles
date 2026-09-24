@@ -13,25 +13,22 @@ Only the dependency edge is human-authored; state is derived.
 
 ## Done
 
-Archived under `docs/archive/`, newest `DOTFILES_TASKS_2026-09-15_NATIVE_FIRST_CONTEXT.md`
-(TASK-084, TASK-085, TASK-086), then `DOTFILES_TASKS_2026-09-11_MUTATION_COVERAGE.md` (TASK-078, TASK-073), then `TASKS-074-history.md` (TASK-072), then `DOTFILES_TASKS_2026-09-10_TEST_EFFICACY.md`,
-then `DOTFILES_TASKS_2026-09-04_QUEUE.md`
-(TASK-047..059), then `DOTFILES_TASKS_2026-09-01_DEVICE_VERIFICATION.md`
-(TASK-038–041, 044; prose closures for TASK-013/022/027/028).
+Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
+`git grep TASK-NNN docs/archive` finds any contract).
 
 ## Pending
 
-### TASK-090: Planning contracts
+### TASK-091: OMP sol roles via 9Router
 
-- **Requirement:** REQ-PLANNING-CONTRACT-ALIGNMENT.
+- **Requirement:** REQ-OMP-9ROUTER-SOL (owner decision 2026-09-24: device `rich` lacks `openai-codex/gpt-5.6-sol`; route sol roles through 9Router `cx/gpt-6-sol`).
 - **Risk Level:** R2.
-- **Allowed Paths:** planning skills, templates (see run).
-- **Canonical Contract Owners:** `prd-taskbreaker`, `adr-record`.
-- **Accepted Invariants:** parser/lint/validator unchanged.
-- **Regression Checks:** `skill-check`, `ai-policy-lint`, `project-init-test`.
-- **Reopen Conditions:** tasks unparsable by `resume-brief`.
-- **Non-Scope:** parser code.
-- **Escalation Conditions:** parser change.
+- **Allowed Paths:** `config/omp/config.yml`, `config/omp/README.md`, `config/ai/memory/environment-ai-runtimes.md`, `TASKS.md`, `docs/archive/DOTFILES_TASKS_2026-09-24_PLANNING.md`, `.delivery/**`.
+- **Canonical Contract Owners:** OMP reference → `config/omp/`; runtime topology → `environment-ai-runtimes.md`.
+- **Accepted Invariants:** no secret in any file; key read at runtime via `secrets-env get`; dotfiles still does not install or wrap OMP.
+- **Regression Checks:** `omp-effective-routing-test`, `omp-routing-test`, `ai-policy-lint`, a live `ninerouter/cx/gpt-6-sol` completion.
+- **Reopen Conditions:** a sol role resolves to an unusable selector on `rich`.
+- **Non-Scope:** non-sol roles, other devices' live config.
+- **Escalation Conditions:** OMP cannot reach the tunnel without a stored key.
 
 ### TASK-089: Control-plane integrity and adaptive routing
 
@@ -60,10 +57,6 @@ then `DOTFILES_TASKS_2026-09-04_QUEUE.md`
 - **Non-Scope:** runtime/model routing, new UI dependencies, project tokens.
 - **Escalation Conditions:** enforcement would require runtime changes, a dependency, or a universal visual style.
 
-Completed TASK-077 record: [retained history](docs/archive/TASKS-077-087-completed.md).
-
-Completed TASK-072 record: [retained history](docs/archive/TASKS-074-history.md).
-
 ### TASK-080: Fifty-three mutants nothing notices
 - **Requirement:** REQ-MUTATION-COVERAGE
 - **Risk Level:** R2
@@ -91,8 +84,6 @@ Completed TASK-072 record: [retained history](docs/archive/TASKS-074-history.md)
 - **Non-Scope:** the exit-code rule, which is correct as it stands; closing any gap the restored rows reveal
 - **Verification:** `bin/mutation-sweep --subject pi-update-safe device-verify` names `device-verify` as fully covered while still exiting non-zero
 - **Escalation Conditions:** restoring the dropped rows reveals that a subject reported covered in an earlier batch was never actually clean, which would make every batch-derived ranking suspect
-
-Completed TASK-087 record: [retained history](docs/archive/TASKS-077-087-completed.md).
 
 ### TASK-083: The sweep does not say what it did not look at
 - **Requirement:** REQ-MUTATION-COVERAGE

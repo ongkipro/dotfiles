@@ -48,10 +48,10 @@ retry:
       - 9router-fantastico/cx/gpt-5.6-terra:medium
       - google-antigravity/claude-sonnet-4-6:high
     smol:
-      - 9router-fantastico/cx/gpt-5.4-mini:low
+      - 9router-fantastico/cx/gpt-5.6-luna:low
       - google-antigravity/gemini-3.8-flash:medium
     tiny:
-      - 9router-fantastico/cx/gpt-5.4-mini:low
+      - 9router-fantastico/cx/gpt-5.6-luna:low
       - google-antigravity/gemini-3.8-flash:medium
     slow:
       - 9router-fantastico/cx/gpt-5.6-sol:high

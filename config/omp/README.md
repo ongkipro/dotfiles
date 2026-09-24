@@ -11,6 +11,23 @@ explicitly for a session when the device has the required providers:
 omp --config ~/dotfiles/config/omp/config.yml
 ```
 
+Its `task`/`slow` roles and sol fallbacks use `9router-fantastico/cx/gpt-6-sol`
+(owner decision 2026-09-24, TASK-091), so the device must declare that provider
+in its own `~/.omp/agent/models.yml` — a local file, not a link:
+
+```yaml
+providers:
+  9router-fantastico:
+    baseUrl: https://rbq97ts.abc-tunnel.us/v1
+    api: openai-completions
+    apiKey: "!secrets-env get NINEROUTER_REMOTE_KEY"
+    authHeader: true
+    discovery:
+      type: openai-models-list
+```
+
+Verify with `omp -p --model 9router-fantastico/cx/gpt-6-sol "ping"`.
+
 The remaining custom model catalog, agent definitions, routing prose, and
 overlays are retained as historical design evidence. Installers do not link
 them, `config/shell-tools.sh` does not inject them, and `ai-doctor` treats a

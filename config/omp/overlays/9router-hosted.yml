@@ -5,7 +5,7 @@
 # Primary capacity runs on 9Router Fantastico:
 #   - cx/gpt-5.6-terra: default, task, plan, research, discovery (balanced reasoning)
 #   - cx/gpt-5.6-sol: slow, vision, designer, advisor, advisor-xhigh, advisor-max (deep reasoning)
-#   - cx/gpt-5.4-mini: smol, tiny (low-overhead tasks)
+#   - cx/gpt-5.6-luna: smol, tiny (low-overhead tasks)
 #
 # Google Antigravity serves as the cross-host availability fallback bridge.
 
@@ -16,8 +16,8 @@ modelRoles:
   task: 9router-fantastico/cx/gpt-5.6-terra:medium
   slow: 9router-fantastico/cx/gpt-5.6-sol:high
   plan: 9router-fantastico/cx/gpt-5.6-terra:high
-  smol: 9router-fantastico/cx/gpt-5.4-mini:low
-  tiny: 9router-fantastico/cx/gpt-5.4-mini:low
+  smol: 9router-fantastico/cx/gpt-5.6-luna:low
+  tiny: 9router-fantastico/cx/gpt-5.6-luna:low
   research: 9router-fantastico/cx/gpt-5.6-terra:high
   discovery: 9router-fantastico/cx/gpt-5.6-terra:high
   vision: google-antigravity/gemini-3.8-flash:high
@@ -56,10 +56,10 @@ retry:
       - 9router-fantastico/cx/gpt-5.6-sol:high
     smol:
       - google-antigravity/gemini-3.8-flash:medium
-      - 9router-fantastico/cx/gpt-5.4-mini:low
+      - 9router-fantastico/cx/gpt-5.6-luna:low
     tiny:
       - google-antigravity/gemini-3.8-flash:medium
-      - 9router-fantastico/cx/gpt-5.4-mini:low
+      - 9router-fantastico/cx/gpt-5.6-luna:low
     research:
       - google-antigravity/gemini-3.8-flash:high
       - 9router-fantastico/cx/gpt-5.6-sol:high

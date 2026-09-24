@@ -1,14 +1,14 @@
 {
   "activeRun": null,
   "lastRun": {
-    "finishedAt": "2026-09-24T06:17:03Z",
-    "result": "PASS",
-    "runId": "RUN-20260924T060356Z-eb08171b"
+    "finishedAt": "2026-09-24T11:59:07Z",
+    "result": "BLOCKED",
+    "runId": "RUN-20260924T115251Z-d372dea4"
   },
-  "observedHead": "a066af0dc223e9b973559ec8df18bc1b145e5e0d",
+  "observedHead": "30ed3605960f83d084852b0c22351212bfee8b4b",
   "observedState": "READY",
   "project": "dotfiles",
   "schemaVersion": 1,
   "statusAuthority": "STATUS.md",
-  "updatedAt": "2026-09-24T06:17:03Z"
+  "updatedAt": "2026-09-24T11:59:07Z"
 }

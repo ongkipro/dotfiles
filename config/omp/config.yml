@@ -6,13 +6,11 @@
 # It is not installed, linked, or auto-loaded. OMP continues to own native
 # settings, authentication, sessions, caches, and device-local capacity choices
 # under ~/.omp/agent/.
-providers:
-  webSearchOrder: []
 setupVersion: 2
 modelRoles:
   default: openai-codex/gpt-5.6-terra:medium
-  task: openai-codex/gpt-5.6-sol:high
-  slow: openai-codex/gpt-5.6-sol:high
+  task: 9router-fantastico/cx/gpt-6-sol:high
+  slow: 9router-fantastico/cx/gpt-6-sol:high
   plan: anthropic/claude-fable-5:high
   orchestrator: anthropic/claude-fable-5:high
   smol: google-antigravity/gemini-3.8-flash:medium
@@ -39,7 +37,7 @@ cycleOrder:
 retry:
   fallbackChains:
     default:
-      - openai-codex/gpt-5.6-sol:medium
+      - 9router-fantastico/cx/gpt-6-sol:medium
       - anthropic/claude-opus-5:medium
     task:
       - anthropic/claude-opus-5:high
@@ -49,10 +47,10 @@ retry:
       - openai-codex/gpt-5.6-terra:max
     plan:
       - anthropic/claude-opus-5:xhigh
-      - openai-codex/gpt-5.6-sol:xhigh
+      - 9router-fantastico/cx/gpt-6-sol:xhigh
     orchestrator:
       - anthropic/claude-opus-5:xhigh
-      - openai-codex/gpt-5.6-sol:xhigh
+      - 9router-fantastico/cx/gpt-6-sol:xhigh
     smol:
       - openai-codex/gpt-5.6-luna:low
       - anthropic/claude-haiku-4-5:low
@@ -60,10 +58,10 @@ retry:
       - openai-codex/gpt-5.6-luna:low
       - anthropic/claude-haiku-4-5:minimal
     vision:
-      - openai-codex/gpt-5.6-sol:high
+      - 9router-fantastico/cx/gpt-6-sol:high
       - openai-codex/gpt-5.6-terra:high
     designer:
-      - openai-codex/gpt-5.6-sol:high
+      - 9router-fantastico/cx/gpt-6-sol:high
       - openai-codex/gpt-5.6-terra:high
     commit:
       - google-antigravity/gemini-3.8-flash:medium
@@ -72,16 +70,16 @@ retry:
       - openai-codex/gpt-5.6-luna:low
       - anthropic/claude-haiku-4-5:minimal
     research:
-      - openai-codex/gpt-5.6-sol:medium
+      - 9router-fantastico/cx/gpt-6-sol:medium
       - anthropic/claude-opus-5:medium
     discovery:
-      - openai-codex/gpt-5.6-sol:medium
+      - 9router-fantastico/cx/gpt-6-sol:medium
       - anthropic/claude-opus-5:medium
     advisor:
-      - openai-codex/gpt-5.6-sol:high
+      - 9router-fantastico/cx/gpt-6-sol:high
       - openai-codex/gpt-5.6-terra:high
     advisor-xhigh:
-      - openai-codex/gpt-5.6-sol:xhigh
+      - 9router-fantastico/cx/gpt-6-sol:xhigh
       - openai-codex/gpt-5.6-terra:max
 advisor:
   enabled: false
