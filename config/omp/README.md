@@ -18,7 +18,7 @@ in its own `~/.omp/agent/models.yml` — a local file, not a link:
 ```yaml
 providers:
   9router-fantastico:
-    baseUrl: https://rbq97ts.abc-tunnel.us/v1
+    baseUrl: <9Router /v1 URL from this device's ~/.config/ai-local/ notes>
     api: openai-completions
     apiKey: "!secrets-env get NINEROUTER_REMOTE_KEY"
     authHeader: true

@@ -119,3 +119,17 @@ Evidence: `.delivery/runs/RUN-20260924T122255Z-0bf48500.jsonl` (PASS; self-test 
 - **Escalation Conditions:** a branch cannot be reached without a live side effect, in which case the mutant is recorded as accepted with the reason rather than the test bent to reach it
 
 Evidence: `.delivery/runs/RUN-20260924T134257Z-432ea5cf.jsonl` (PASS). Claimed fully covered (zero survivors, uncapped): security-check, device-register, inspect-project, dotpush, tmux-clip, tmux-battery, pi-update-safe, dev-ready. Not claimed: secrets-env (174, TASK-095), vps-pgdump (45, open gap), dotsync and mutation-sweep (capped). Residuals: TASK-097.
+
+### TASK-098: Land the unmerged memory exposure reductions
+
+- **Requirement:** REQ-PUBLIC-SAFE-MEMORY (repository is public; `origin/audit/v3-hardening-20260918` holds exposure reductions never merged: `4daca87`, `f534346`, `7f2fc55`; TASK-091 then added device and topology detail to shared memory and the OMP README).
+- **Risk Level:** R2.
+- **Allowed Paths:** `config/ai/project-memory/tokophi-infrastructure-2026-07.md`, `config/ai/project-memory/coolify-vps-dev.md`, `config/ai/memory/environment-ai-runtimes.md`, `config/omp/README.md`, `TASKS.md`, `.delivery/**`.
+- **Canonical Contract Owners:** `memory.public-safety`.
+- **Accepted Invariants:** durable invariants stay; live hosts, ports, tunnels, accounts and device names live in `~/.config/ai-local/`; the owner decision in TASK-091 stays recorded.
+- **Regression Checks:** `ai-memory-hygiene`, `ai-memory-check`, `ai-policy-lint`, `omp-routing-test`.
+- **Reopen Conditions:** tracked memory names a device-local host, port, tunnel or account.
+- **Non-Scope:** `pi-9router-setup.md` (`26b5665`; the owner has uncommitted edits there), code and tests that pin the tunnel URL, audit-branch changes main already superseded.
+- **Escalation Conditions:** a reduction removes a fact that has no device-local home.
+
+Evidence: `.delivery/runs/RUN-20260924T144620Z-7e569aa3.jsonl` (PASS). Also: `.gitignore` now ignores `skills/local/synced/` and `.trash/` (scope expansion); `26b5665` left for the owner (uncommitted edits in `pi-9router-setup.md`); device names in memory left as a follow-up.

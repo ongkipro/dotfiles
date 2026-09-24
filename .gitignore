@@ -71,3 +71,9 @@ config/omp/last-changelog-version
 # with no reader (2026-08-15 audit P2-13, removed 2026-09-04). Ignore the shape
 # so it cannot return unnoticed.
 config/omp/*.lock
+
+# === Runtime artifacts under the linked skills dir — never tracked ===
+# Claude Code syncs account-scoped plugin skills here through the ~/.claude/skills
+# link; the directory name carries a sync ID and every delivery run fingerprinted it.
+skills/local/synced/
+skills/local/.trash/
