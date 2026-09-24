@@ -467,10 +467,10 @@ mutate_one() {
   fi
   # A subject with guards this tool could not reach is not fully covered, and
   # printing KILLED beside its own UNREACHED row would be the report arguing with
-  # itself. (The subject-mode condition still reads the RUN totals rather than
-  # this subject's — TASK-075, left alone here on purpose.)
-  if [ "$unreached" -eq 0 ] \
-     && if [ "$MODE" = subject ]; then [ "$survived_total" -eq 0 ] && [ "$errored" -eq 0 ]; else [ "$survived" -eq 0 ]; fi; then
+  # itself. The verdict reads this subject's own counters only (TASK-075): the
+  # run totals used to hide a clean subject swept after one with survivors. A
+  # baseline error already returned above; the exit code still judges totals.
+  if [ "$unreached" -eq 0 ] && [ "$survived" -eq 0 ]; then
     rows+=("KILLED|$name|$killed/$total mutants noticed")
     bites=$((bites+1))
   fi

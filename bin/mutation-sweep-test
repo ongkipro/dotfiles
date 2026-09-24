@@ -182,6 +182,25 @@ printf '%s' "$OUTR" | grep -q 'SURVIVED' \
   || ok "a refusal the test asserts is killed"
 [ "$rcr" -eq 0 ] && ok "a fully covered subject exits 0" || fail "a covered subject failed (exit $rcr)"
 
+# TASK-075: a clean subject swept AFTER one with a survivor must keep its own
+# verdict. The KILLED row used to read the run's totals, so refuser vanished.
+OUTM="$(msweep guarded refuser)"; rcm=$?
+grep -q 'KILLED.*refuser' <<<"$OUTM" \
+  && ok "a clean subject keeps its KILLED row beside a subject with survivors" \
+  || fail "the clean subject vanished from a multi-subject report"
+grep -q '1 subject(s) fully covered' <<<"$OUTM" \
+  && ok "the covered count names the clean subject" \
+  || fail "the covered count ignored the clean subject"
+[ "$rcm" -ne 0 ] && ok "a survivor anywhere still fails the whole run" \
+  || fail "a multi-subject run with a survivor exited 0"
+# The old condition also read the run's error count, so another subject's
+# baseline failure hid a clean one the same way.
+OUTE="$(msweep broken refuser)"; rce=$?
+grep -q 'KILLED.*refuser' <<<"$OUTE" \
+  && ok "another subject's baseline error does not hide a clean subject" \
+  || fail "a baseline error elsewhere hid the clean subject"
+[ "$rce" -ne 0 ] && ok "a baseline error still fails the run" || fail "a baseline error exited 0"
+
 # The same two operators, in python. Guard-off is `if COND:` -> `if False:`,
 # refusal-off is `sys.exit(N)` -> `sys.exit(0)`. Both fixtures are built the way
 # the bash ones are: something the test checks must be killed and something it
