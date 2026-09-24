@@ -30,3 +30,19 @@ Evidence: `.delivery/runs/RUN-20260924T060356Z-eb08171b.jsonl` (PASS), commit `3
 - **Escalation Conditions:** restoring the dropped rows reveals that a subject reported covered in an earlier batch was never actually clean, which would make every batch-derived ranking suspect
 
 Evidence: `.delivery/runs/RUN-20260924T115940Z-57ca1de6.jsonl` (PASS).
+
+### TASK-083: The sweep does not say what it did not look at
+- **Requirement:** REQ-MUTATION-COVERAGE
+- **Risk Level:** R2
+- **Allowed Paths:** `bin/mutation-sweep`, `bin/mutation-sweep-test`, `TASKS.md`, `.delivery/**`
+- **Protected Paths:** `bin/*-test`
+- **Canonical Contract Owners:** `runtime.readiness`
+- **Accepted Invariants:** a subject with statements the run never examined is never reported fully covered; the report names how many were skipped and why; the refusal vocabulary is whatever actually ends a process in that language, not whatever the first version happened to match; the cap stays, because mutating every guard of every subject costs hours — what changes is that the report stops implying it looked
+- **Regression Checks:** `mutation-sweep-test`, `ai-policy-lint`
+- **Runtime Evidence:** two blind spots, both found by review of TASK-076 and both the same shape as the defect that task closed — the tool saying nothing about what it did not do. `MAX_MUTANTS` caps target collection at 20 and the `KILLED` row prints `$killed/$total` counted from the mutants actually generated, so a subject with 30 guards whose first 20 are trivially killed reports `KILLED 20/20` and reads as full coverage while ten guards are neither tested nor named; `delivery-ledger` has 195 statements and `ai-policy-lint` 79, so the cap is reached constantly rather than rarely. Separately, `python_statements` treats only `sys.exit` and `SystemExit` as refusals, so `os._exit(N)` — the irreversible form, used around forked children, exactly where a missed refusal matters most — is invisible with nothing said
+- **Reopen Conditions:** a report claims a count that is not the number of statements in the subject
+- **Non-Scope:** raising or removing the cap; closing any gap the named statements reveal; bash's refusal vocabulary, which `exit N` already covers
+- **Verification:** a subject with more guards than the cap reports how many it did not examine, and is not reported fully covered; a subject whose only refusal is `os._exit(1)` yields a refusal mutant
+- **Escalation Conditions:** naming the unexamined statements requires parsing every subject, which for bash would mean the dependency TASK-076 deliberately refused
+
+Evidence: `.delivery/runs/RUN-20260924T120429Z-db687cf7.jsonl` (PASS).

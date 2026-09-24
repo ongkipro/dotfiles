@@ -684,6 +684,61 @@ printf '%s' "$OUTB" | grep -q 'BASELINE' \
 printf '%s' "$OUTB" | grep -q 'KILLED' \
   && fail "a broken baseline was counted as killed mutants" || ok "and no verdict is claimed from it"
 
+# TASK-083: the report must say what it did not look at. Three guards, every one
+# checked, swept with a cap of two: the third is never mutated, so the subject
+# cannot be called fully covered however clean the first two are.
+cat > "$MFIX/bin/capped" <<'EOF'
+#!/usr/bin/env bash
+if [ "${1:-}" = b ]; then
+  echo B
+fi
+if [ "${1:-}" = c ]; then
+  echo C
+fi
+if [ "${1:-}" = d ]; then
+  echo D
+fi
+exit 0
+EOF
+cat > "$MFIX/bin/capped-test" <<'EOF'
+#!/usr/bin/env bash
+R="${1:?}"
+for x in b c d; do [ "$("$R/bin/capped" "$x")" = "$(printf '%s' "$x" | tr a-z A-Z)" ] || exit 1; done
+EOF
+# The irreversible exit used around forked children. Its status is asserted, so
+# the refusal mutant must exist and be killed.
+cat > "$MFIX/bin/pyhardexit" <<'EOF'
+#!/usr/bin/env python3
+import os, sys
+if len(sys.argv) < 2:
+    os._exit(3)
+print("ok")
+EOF
+cat > "$MFIX/bin/pyhardexit-test" <<'EOF'
+#!/usr/bin/env bash
+R="${1:?}"
+"$R/bin/pyhardexit" >/dev/null 2>&1 && exit 1
+[ "$("$R/bin/pyhardexit" x)" = ok ] || exit 1
+EOF
+chmod +x "$MFIX"/bin/*
+git -C "$MFIX" add -A >/dev/null
+git -C "$MFIX" -c user.email=t@t -c user.name=t commit -qm cap >/dev/null
+
+OUTC="$(DOTFILES_DIR="$MFIX" MUTATION_SWEEP_TIMEOUT=30 MUTATION_SWEEP_MAX_MUTANTS=2 "$SWEEP" --subject capped 2>&1)"; rcc=$?
+grep -q 'CAPPED.*capped.*2 of 3.*1 ' <<<"$OUTC" \
+  && ok "a capped subject names how many statements it did not examine" \
+  || fail "the cap was silent: $(tr '\n' ' ' <<<"$OUTC" | cut -c1-200)"
+grep -q 'KILLED.*capped' <<<"$OUTC" \
+  && fail "a capped subject was reported fully covered" \
+  || ok "a capped subject is not reported fully covered"
+[ "$rcc" -ne 0 ] && ok "an unexamined statement fails the run" || fail "a capped run exited 0"
+
+OUTX="$(msweep pyhardexit)"; rcx=$?
+grep -q 'KILLED.*pyhardexit.*2/2' <<<"$OUTX" \
+  && ok "os._exit(N) yields a refusal mutant" \
+  || fail "os._exit was invisible: $(tr '\n' ' ' <<<"$OUTX" | cut -c1-200)"
+[ "$rcx" -eq 0 ] && ok "a covered os._exit subject exits 0" || fail "the os._exit subject failed (exit $rcx)"
+
 DOTFILES_DIR="$MFIX" "$SWEEP" --subject >/dev/null 2>&1
 [ "$?" -eq 2 ] && ok "--subject with no name exits 2 rather than running for hours" \
   || fail "--subject with no name did not refuse"

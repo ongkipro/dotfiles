@@ -220,7 +220,9 @@ for node in ast.walk(tree):
         f = node.func
         name = getattr(f, "attr", None) or getattr(f, "id", None)
         arg = node.args[0]
-        if name in ("exit", "SystemExit") and isinstance(arg, ast.Constant) \
+        # os._exit only: any other `_exit` has no operator and would read as unreached.
+        hard = name == "_exit" and getattr(getattr(f, "value", None), "id", None) == "os"
+        if (name in ("exit", "SystemExit") or hard) and isinstance(arg, ast.Constant) \
                 and isinstance(arg.value, int) and arg.value != 0:
             seen.add(("refuse", node.lineno))
 for kind, line in sorted(seen, key=lambda x: x[1]):
@@ -332,7 +334,7 @@ mutate_one() {
   # the line IS, never by what substring it contains: dispatching on `*exit*`
   # once sent the guard header `if msg == "call sys.exit(1) to quit":` down the
   # refusal branch, which rewrote its string literal and never tried guard-off.
-  local targets="" matched=0 kind ln text embedded stmts rc
+  local targets="" matched=0 candidates=0 capped=0 kind ln text embedded stmts rc
   case "$lang" in
     python)
       stmts="$(python_statements "$subject")"; rc=$?
@@ -343,6 +345,7 @@ mutate_one() {
         rows+=("UNMEASURED|$name|its own interpreter cannot parse it, so nothing here can say which lines are code")
         unmeasured=$((unmeasured+1)); return
       fi
+      candidates="$(grep -c . <<< "$stmts")"
       while read -r kind ln; do
         [ -n "$ln" ] || continue
         matched=$((matched + 1))
@@ -354,6 +357,8 @@ mutate_one() {
       ;;
     bash)
       embedded="$(bash_embedded "$subject")"
+      stmts="$(grep -nE "$guard_re|$refuse_re" "$subject" | grep -vE '^[0-9]+:[[:space:]]*#')"
+      candidates="$(grep -c . <<< "$stmts")"
       while IFS= read -r entry; do
         [ -n "$entry" ] || continue
         ln="${entry%%:*}"; text="${entry#*:}"
@@ -370,7 +375,7 @@ mutate_one() {
         if printf '%s\n' "$text" | grep -qE "$guard_re"; then kind=guard; else kind=refuse; fi
         targets="$targets$kind|$ln|$text
 "
-      done <<< "$(grep -nE "$guard_re|$refuse_re" "$subject" | grep -vE '^[0-9]+:[[:space:]]*#')"
+      done <<< "$stmts"
       ;;
   esac
 
@@ -382,11 +387,20 @@ mutate_one() {
     rows+=("UNMEASURED|$name|no guard or refusal statement found; the operators have no shapes for $(head -1 "$subject" | sed 's|.*/||')")
     unmeasured=$((unmeasured+1)); return
   fi
+  # The cap keeps a sweep to minutes, but a count of mutants actually generated
+  # read as full coverage while the rest went unexamined (TASK-083). Say so.
+  if [ "$candidates" -gt "$MAX_MUTANTS" ]; then
+    capped=$((candidates - MAX_MUTANTS))
+    rows+=("CAPPED|$name|examined $MAX_MUTANTS of $candidates statements; $capped beyond MUTATION_SWEEP_MAX_MUTANTS were not examined")
+    unmeasured=$((unmeasured+1))
+  fi
   [ -n "$targets" ] || return
 
   local scratch="$WORK/mut-$name"
   rm -rf "$scratch"; mkdir -p "$scratch"
-  git -C "$ROOT" archive HEAD | tar -x -C "$scratch" 2>/dev/null || return 3
+  git -C "$ROOT" archive HEAD | tar -x -C "$scratch" 2>/dev/null || {
+    rows+=("ERROR|$name|could not copy the repository into a scratch tree, so nothing was mutated")
+    errored=$((errored+1)); return; }
   git -C "$scratch" init -q 2>/dev/null
   git -C "$scratch" add -A >/dev/null 2>&1
   git -C "$scratch" -c user.email=sweep@local -c user.name=sweep \
@@ -420,7 +434,7 @@ mutate_one() {
       op="refusal-off"
       case "$lang" in
         bash)   mutated="$(printf '%s' "$line_text" | sed -E 's/exit[[:space:]]+[1-9][0-9]*/exit 0/')" ;;
-        python) mutated="$(printf '%s' "$line_text" | sed -E 's/(sys\.exit|SystemExit)\([1-9][0-9]*\)/\1(0)/')" ;;
+        python) mutated="$(printf '%s' "$line_text" | sed -E 's/(sys\.exit|os\._exit|SystemExit)\([1-9][0-9]*\)/\1(0)/')" ;;
       esac
     fi
     # The rewrite is line-based and the parser is not: a guard whose condition
@@ -470,7 +484,7 @@ mutate_one() {
   # itself. The verdict reads this subject's own counters only (TASK-075): the
   # run totals used to hide a clean subject swept after one with survivors. A
   # baseline error already returned above; the exit code still judges totals.
-  if [ "$unreached" -eq 0 ] && [ "$survived" -eq 0 ]; then
+  if [ "$unreached" -eq 0 ] && [ "$survived" -eq 0 ] && [ "$capped" -eq 0 ]; then
     rows+=("KILLED|$name|$killed/$total mutants noticed")
     bites=$((bites+1))
   fi

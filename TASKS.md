@@ -30,6 +30,42 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 - **Non-Scope:** non-sol roles, other devices' live config.
 - **Escalation Conditions:** OMP cannot reach the tunnel without a stored key.
 
+### TASK-092: CI flake — `grep -q` under `pipefail`
+
+- **Requirement:** REQ-CI-DETERMINISM (Core runtime `a066af0` failed on macOS only: `ai-doctor-test` "a profile with no deny rule was not warned about").
+- **Risk Level:** R1.
+- **Allowed Paths:** `bin/ai-doctor-test`, `TASKS.md`, `.delivery/**`.
+- **Canonical Contract Owners:** `runtime.readiness`.
+- **Accepted Invariants:** assertions unchanged; only how output reaches `grep`.
+- **Regression Checks:** `ai-doctor-test`, `ai-policy-lint`.
+- **Reopen Conditions:** a test fails with exit 141 while its text matched.
+- **Non-Scope:** the other ~95 `printf | grep -q` sites (follow-up once this is proven).
+- **Escalation Conditions:** the flake reproduces with here-strings.
+
+### TASK-093: Suite validator reads root `TASKS.md`
+
+- **Requirement:** REQ-PLANNING-CONTRACT-ALIGNMENT (TASK-090 known gap: `check-traceability.py` scans only `docs/spec`, so `TASK*`/`TRACE001` never see root `TASKS.md`).
+- **Risk Level:** R2.
+- **Allowed Paths:** `skills/local/development-spec-suite/scripts/check-traceability.py`, `skills/local/development-spec-suite/scripts/test-suite.py`, `skills/local/development-spec-suite/SKILL.md`, `skills/local/development-spec-suite/references/document-map.md`, `TASKS.md`, `.delivery/**`.
+- **Canonical Contract Owners:** `development-spec-suite`.
+- **Accepted Invariants:** pack-only runs behave as today; no repository-wide scan.
+- **Regression Checks:** `test-suite.py`, `skill-check development-spec-suite`.
+- **Reopen Conditions:** a task in root `TASKS.md` escapes `TASK001`.
+- **Non-Scope:** task field grammar.
+- **Escalation Conditions:** the extra input changes an existing fixture verdict.
+
+### TASK-094: Sweep report honesty follow-ups
+
+- **Requirement:** REQ-MUTATION-COVERAGE (TASK-083 review: subject-mode `--json` omits `unmeasured`/`survived_total`; UNREACHED wording calls every unchanged line a guard).
+- **Risk Level:** R1.
+- **Allowed Paths:** `bin/mutation-sweep`, `bin/mutation-sweep-test`, `TASKS.md`, `.delivery/**`.
+- **Canonical Contract Owners:** `runtime.readiness`.
+- **Accepted Invariants:** text verdicts unchanged.
+- **Regression Checks:** `mutation-sweep-test`.
+- **Reopen Conditions:** JSON and text totals disagree.
+- **Non-Scope:** the cap.
+- **Escalation Conditions:** a JSON consumer depends on the old shape.
+
 ### TASK-089: Control-plane integrity and adaptive routing
 
 - **Requirement:** REQ-DOTFILES-CONTROL-PLANE-HARDENING (2026-09-18 audit: align delivery authority, proportional UI routing, tracked-memory privacy, and current Better Auth multi-tenant security guidance).
@@ -70,18 +106,4 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 - **Non-Scope:** changing any subject to make it easier to test; the UNMEASURED subjects until TASK-073 reaches them
 - **Verification:** `bin/mutation-sweep --subject <name>` reports zero survivors for each subject the run claims
 - **Escalation Conditions:** a branch cannot be reached without a live side effect, in which case the mutant is recorded as accepted with the reason rather than the test bent to reach it
-
-### TASK-083: The sweep does not say what it did not look at
-- **Requirement:** REQ-MUTATION-COVERAGE
-- **Risk Level:** R2
-- **Allowed Paths:** `bin/mutation-sweep`, `bin/mutation-sweep-test`, `TASKS.md`, `.delivery/**`
-- **Protected Paths:** `bin/*-test`
-- **Canonical Contract Owners:** `runtime.readiness`
-- **Accepted Invariants:** a subject with statements the run never examined is never reported fully covered; the report names how many were skipped and why; the refusal vocabulary is whatever actually ends a process in that language, not whatever the first version happened to match; the cap stays, because mutating every guard of every subject costs hours — what changes is that the report stops implying it looked
-- **Regression Checks:** `mutation-sweep-test`, `ai-policy-lint`
-- **Runtime Evidence:** two blind spots, both found by review of TASK-076 and both the same shape as the defect that task closed — the tool saying nothing about what it did not do. `MAX_MUTANTS` caps target collection at 20 and the `KILLED` row prints `$killed/$total` counted from the mutants actually generated, so a subject with 30 guards whose first 20 are trivially killed reports `KILLED 20/20` and reads as full coverage while ten guards are neither tested nor named; `delivery-ledger` has 195 statements and `ai-policy-lint` 79, so the cap is reached constantly rather than rarely. Separately, `python_statements` treats only `sys.exit` and `SystemExit` as refusals, so `os._exit(N)` — the irreversible form, used around forked children, exactly where a missed refusal matters most — is invisible with nothing said
-- **Reopen Conditions:** a report claims a count that is not the number of statements in the subject
-- **Non-Scope:** raising or removing the cap; closing any gap the named statements reveal; bash's refusal vocabulary, which `exit N` already covers
-- **Verification:** a subject with more guards than the cap reports how many it did not examine, and is not reported fully covered; a subject whose only refusal is `os._exit(1)` yields a refusal mutant
-- **Escalation Conditions:** naming the unexamined statements requires parsing every subject, which for bash would mean the dependency TASK-076 deliberately refused
 
