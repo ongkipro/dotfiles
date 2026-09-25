@@ -36,12 +36,22 @@ function fetchModels(apiKey) {
   });
 }
 
+const UNSUPPORTED_MODELS = new Set([
+  'cx/gpt-5.3-codex-spark',
+  'cx/gpt-5.4',
+  'cx/gpt-5.4-mini',
+]);
+
 function modelMeta(id) {
   const isGemini = /gemini/i.test(id);
+  const isClaude = /claude/i.test(id);
+  const isGpt = /^cx\//i.test(id) || /gpt/i.test(id);
+  const hasReasoning = /thinking|high|low|medium|pro|astra|spark|^cx\//i.test(id);
+
   return {
     id,
-    ...(/gemini-2\.5-pro|gemini-3|^cx\//i.test(id) ? { reasoning: true } : {}),
-    ...(isGemini ? { input: ['text', 'image'] } : {}),
+    ...(hasReasoning ? { reasoning: true } : {}),
+    input: (isGemini || isClaude || isGpt) ? ['text', 'image'] : ['text'],
     name: id.replace(/\//g, '__')
   };
 }
@@ -60,8 +70,14 @@ async function main() {
   const existingModels = cfg.providers['9router-fantastico']?.models || [];
   const existingById = new Map(existingModels.map(model => [model.id, model]));
   const payload = await fetchModels(apiKey);
-  const ids = (payload.data || []).map(model => model.id).sort();
-  const models = ids.map(id => existingById.get(id) || modelMeta(id));
+  const ids = (payload.data || [])
+    .map(model => model.id)
+    .filter(id => !UNSUPPORTED_MODELS.has(id))
+    .sort();
+  const models = ids.map(id => {
+    const existing = existingById.get(id);
+    return existing ? { ...modelMeta(id), ...existing } : modelMeta(id);
+  });
 
   cfg.providers['9router-fantastico'] = {
     baseUrl: API_BASE_URL,

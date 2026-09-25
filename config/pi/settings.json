@@ -1,6 +1,6 @@
 {
   "defaultProvider": "9router-fantastico",
-  "defaultModel": "cx/gpt-5.4",
+  "defaultModel": "cx/gpt-5.5",
   "defaultThinkingLevel": "high",
   "theme": "dark",
   "quietStartup": true,

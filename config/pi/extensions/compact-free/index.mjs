@@ -23,15 +23,12 @@ import { join } from "node:path";
 import { complete } from "@earendil-works/pi-ai/compat";
 import { convertToLlm, serializeConversation } from "@earendil-works/pi-coding-agent";
 
-// Daftar model compaction, dicoba berurutan
-// Sync dengan provider names actually configured in ~/.pi/agent/{models.json,auth.json}
-// 9router-fantastico = tunnel Fantastico (cheapest tunnel models)
+// Daftar model compaction: murni keluarga ag/gemini (1M context, cepat, hemat kuota)
 const COMPACT_MODELS = [
-  { provider: "9router-fantastico", id: "gc/gemini-2.5-flash-lite" },
-  { provider: "9router-fantastico", id: "cx/gpt-5.4-mini" },
-  { provider: "9router-fantastico", id: "ag/gemini-3.5-flash-extra-low" },
-  { provider: "minimax", id: "MiniMax-M3" },
-  { provider: "opencode-go", id: "mimo-v2.5" },
+  { provider: "9router-fantastico", id: "ag/gemini-3.8-flash" },
+  { provider: "9router-fantastico", id: "ag/gemini-3.8-flash-high" },
+  { provider: "9router-fantastico", id: "ag/gemini-pro-agent" },
+  { provider: "9router-fantastico", id: "ag/gemini-3.1-pro-low" },
 ];
 
 const LOG_PATH = join(homedir(), ".pi", "compact-free.log");
