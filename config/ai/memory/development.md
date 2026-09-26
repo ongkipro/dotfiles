@@ -171,3 +171,72 @@ Give every relative import in the tested source tree its explicit extension, app
 npm test must actually import each lib module; a bare relative specifier fails immediately with ERR_MODULE_NOT_FOUND rather than being silently skipped.
 
 > Promoted from a reviewed local candidate on 2026-08-24.
+
+
+---
+
+
+## Lesson: Admin UI: the component primitive owns control geometry, not the call site
+
+### Symptom
+Admin screens drifted apart: inputs, selects and buttons in one row had five heights (28-44px) and radii from 4 to 17px, filter rows with fixed-width columns overlapped, searches were icons absolutely positioned over inputs, and pages set their own centred max-width so content edges jumped between menus. Each fix was requested screen by screen.
+
+### Root cause
+Every call site passed height, radius, background, border colour, shadow and text size to shared shadcn-style primitives, and every page chose its own container width; nothing made a deviation fail.
+
+### Durable invariant
+Primitives (Input, SelectTrigger, InputGroup, Button default) own one control height and radius; callers pass layout only (width, flex, font, textarea min-height). Filter toolbars, search and choice menus each have one shared component (FilterBar/FilterField, SearchInput as InputGroup with icon addon, FilterSelect styled like the date filter with icon, value, chevron). Page width belongs to the app shell alone. Lists of a few settings are rows in one card, not a card per item inside a card.
+
+### Fix
+Set the height once in the primitives, strip per-call overrides, introduce the shared toolbar components, remove page-level max-width wrappers, and add a guard test that scans JSX for banned classes on the primitives, hand-built searches, oversized buttons and centred page widths. The JSX scanner must track {} depth and quotes: a regex stops at the > of an arrow function in onChange and silently skips every attribute after it.
+
+### Regression check
+Guard test fails on a planted violation; a browser pass measures every control height in toolbars, zero overlapping control boxes, and one content edge across all admin pages at 1280/1440/1920px.
+
+> Promoted from a reviewed local candidate on 2026-09-25.
+
+
+---
+
+
+## Lesson: Headless UI portals and form values: tokens, modal dialogs, SSR labels
+
+### Symptom
+Select and combobox popups were rounder than their triggers; inside a modal dialog a combobox option ignored mouse and touch (keyboard worked); a select trigger showed the raw value 'all' before hydration; a combobox's hidden input carried the whole option object as JSON.
+
+### Root cause
+Popups portal to <body>, outside the element that scopes design tokens and outside a modal dialog that sets pointer-events:none on everything else; a Select without an items map can only render its raw value server-side; an object-valued combobox serialises the object for its hidden form input.
+
+### Durable invariant
+Declare design tokens (radius, colours) on :root as well as any scoped shell. Inside a modal, portal popups into the dialog element. Always give Select an items/value->label map. Give object-valued comboboxes an itemToStringValue that returns the id.
+
+### Fix
+Moved the radius token to both :root and the shell; added a portal container prop to the combobox content and passed the closest [role=dialog]; built the filter select on an items map; set itemToStringValue to the option id.
+
+### Regression check
+Measure computed border-radius of trigger, popup and item; click (not keyboard) an option inside a modal and assert the value changed; read the server-rendered trigger text; read the hidden input value.
+
+> Promoted from a reviewed local candidate on 2026-09-25.
+
+
+---
+
+
+## Lesson: Tailwind v4: a bare border is currentColor unless a base rule sets the border colour
+
+### Symptom
+Black lines under card headers, panels and tables across an admin UI after splitting one stylesheet into several entries.
+
+### Root cause
+Tailwind v4 no longer defaults border colour to gray; shadcn's '* { border-color: var(--border) }' base rule lived in the old shared entry and was lost in the split, so every bare border/border-b fell back to currentColor.
+
+### Durable invariant
+Every entry stylesheet that renders shadcn components keeps a base-layer rule setting border-color to the --border token for *, ::before, ::after, ::backdrop.
+
+### Fix
+Restored the base rule once in the admin entry stylesheet instead of adding border-slate-* to each element.
+
+### Regression check
+In a browser, read getComputedStyle(el).borderColor of an element with a bare border class: it must equal the --border token, not the text colour.
+
+> Promoted from a reviewed local candidate on 2026-09-25.
