@@ -144,8 +144,9 @@ passes regardless of framework:
    Render narrow and wide before investing in decorative detail.
 2. **Refinement pass:** after the macro composition survives that render, map
    framework-native interaction primitives, tokens, typography detail, states,
-   motion, and micro-polish. Then run the final `ui-validation`
-   critique/revision loop.
+   motion, and micro-polish. Pair with `impeccable` for Craft Floor checks,
+   tactical polish passes, or live browser variant generation. Then run the final
+   `ui-validation` critique/revision loop.
 
 Skip the extra pass for a tiny change inside an already accepted composition.
 Astro, Next.js, React, Vue/Nuxt, Svelte/SvelteKit, Liquid/Hydrogen,
@@ -341,6 +342,7 @@ AI slop from a prompt, static scan, or one model-generated sample.
 | Copy, localization, content, search concerns | copywriting, volumx-writer, content, seo-website-builder |
 | Cross-layer implementation | full-stack-development |
 | Dependencies / runtime performance | native-first / web-perf |
+| Tactical refinement, craft floor, anti-pattern audit, live variant mode | impeccable |
 
 Vue, Svelte, Angular, Liquid, server templates, and plain HTML keep their native
 stack and existing components; do not require a React or Astro adapter merely

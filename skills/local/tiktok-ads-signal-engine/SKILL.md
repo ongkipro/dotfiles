@@ -38,7 +38,8 @@ $$\text{TikTok Ad Click (ttclid)} \longrightarrow \text{Browser Pixel (event_id)
 | Task | Read |
 | --- | --- |
 | TikTok Events API v2 Server Sender & Payload structure | [TikTok Events API v2 Sender](references/TIKTOK_EVENTS_API_V2.md) |
-| Multi-Platform Product Taxonomy, Custom Labels & 12-Point Audit Checklist | Load `skills/local/google-ads-signal-engine/references/ADVERTISING_TAXONOMY_AND_FEED_AUDIT.md` |
+| Multi-Platform Product Taxonomy & Audit Checklist | `google-ads-signal-engine` references (`ADVERTISING_TAXONOMY_AND_FEED_AUDIT.md`) |
+| Catalog identity & event deduplication invariants | `meta-ads-signal-engine` |
 
 
 ## API Version Boundary

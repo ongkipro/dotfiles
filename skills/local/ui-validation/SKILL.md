@@ -108,7 +108,9 @@ existence, model approval, or absence of banned visual keywords is not visual
 acceptance. Keep functional/accessibility and visual verdicts separate; either
 can fail while the other passes. If the reference was inaccessible or no render
 was inspected, mark the affected claim unverified. `design-taste` owns the
-reference-evidence and anti-slop review rubric.
+reference-evidence and anti-slop review rubric; pair with `impeccable`
+(`audit` or detector mode) for mechanical contrast and anti-pattern pre-flight
+checks before full browser runs.
 
 ## 3. Run the real page
 

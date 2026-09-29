@@ -19,7 +19,7 @@ references:
 
 # Cloudflare Platform Skill
 
-Consolidated skill for building on the Cloudflare platform. Use decision trees below to find the right product, then load detailed references.
+Consolidated skill for building on the Cloudflare platform. Use decision trees below to find the right product, then load detailed references. Prefer narrower sibling skills when the task sits squarely inside one: `workers-best-practices`, `wrangler`, `durable-objects`, `agents-sdk`, `sandbox-next`, `sandbox-stable`, `cloudflare-email-service`, `cloudflare-one`.
 
 Your knowledge of Cloudflare APIs, types, limits, and pricing may be outdated. **Prefer retrieval over pre-training** — the references in this skill are starting points, not source of truth.
 

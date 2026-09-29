@@ -14,7 +14,7 @@ resolves, so an entry here is a mention, not a gated reference.
 
 | Skill | | What it owns | Routes to |
 |---|---|---|---|
-| [`cloudflare`](cloudflare/SKILL.md) | F | Cloudflare platform entry point: Workers, Pages, KV, D1, R2, Workers AI, Vectorize, Agents SDK, feature flags (Flagship), Tunnel, Spectrum, WAF, DDoS, and infrastructure-as-code (Terraform, Pulumi). | — |
+| [`cloudflare`](cloudflare/SKILL.md) | F | Cloudflare platform entry point: Workers, Pages, KV, D1, R2, Workers AI, Vectorize, Agents SDK, feature flags (Flagship), Tunnel, Spectrum, WAF, DDoS, and infrastructure-as-code (Terraform, Pulumi). | `agents-sdk`, `cloudflare-email-service`, `cloudflare-one`, `durable-objects`, `sandbox-next`, `sandbox-stable`, `workers-best-practices`, `wrangler` |
 | [`workers-best-practices`](workers-best-practices/SKILL.md) | V | Cloudflare Workers best practices for production applications. | `durable-objects`, `wrangler` |
 | [`wrangler`](wrangler/SKILL.md) | F | Cloudflare Workers CLI for deploying, developing, and managing Workers, KV, R2, D1, Vectorize, Hyperdrive, Workers AI, Containers, Queues, Workflows, Pipelines, and Secrets Store. | — |
 | [`durable-objects`](durable-objects/SKILL.md) | F | Create and review Cloudflare Durable Objects. | — |
@@ -28,16 +28,16 @@ resolves, so an entry here is a mention, not a gated reference.
 
 | Skill | | What it owns | Routes to |
 |---|---|---|---|
-| [`astro-development`](astro-development/SKILL.md) |  | Astro architecture and implementation for sites and light-to-medium web apps: pages, content collections, islands, Actions, endpoints, adapters, rendering mode. | `admin-dashboard`, `design-taste`, `shadcn-ui`, `ui-validation`, `workers-best-practices`, `wrangler` |
-| [`nextjs-development`](nextjs-development/SKILL.md) |  | Retrieval-first Next.js App Router architecture and implementation: routes, layouts, Server/Client Components, caching, Server Actions. | `admin-dashboard`, `admin-product-ux`, `application-security`, `better-auth-security`, `design-taste`, `full-stack-development`, `github-actions`, `native-first`, `observability-engineering`, `openapi-spec`, `postgres-drizzle`, `seo-website-builder`, `shadcn-ui`, `storefront-development`, `storefront-ux`, `supabase-stack`, `testing-engineering`, `ui-validation`, `vercel`, `web-perf`, `workers-best-practices` |
+| [`astro-development`](astro-development/SKILL.md) |  | Astro architecture and implementation for sites and light-to-medium web apps: pages, content collections, islands, Actions, endpoints, adapters, rendering mode. | `admin-dashboard`, `design-taste`, `impeccable`, `shadcn-ui`, `ui-validation`, `workers-best-practices`, `wrangler` |
+| [`nextjs-development`](nextjs-development/SKILL.md) |  | Retrieval-first Next.js App Router architecture and implementation: routes, layouts, Server/Client Components, caching, Server Actions. | `admin-dashboard`, `admin-product-ux`, `application-security`, `better-auth-security`, `design-taste`, `full-stack-development`, `github-actions`, `impeccable`, `native-first`, `observability-engineering`, `openapi-spec`, `postgres-drizzle`, `seo-website-builder`, `shadcn-ui`, `storefront-development`, `storefront-ux`, `supabase-stack`, `testing-engineering`, `ui-validation`, `vercel`, `web-perf`, `workers-best-practices` |
 | [`shadcn-ui`](shadcn-ui/SKILL.md) |  | Use shadcn/ui as the default component source for React-capable admin surfaces across Next.js, Vite, React Router, Astro, and other supported runtimes; also use for forms, data tables, charts, side... | `admin-dashboard`, `admin-product-ux`, `design-taste`, `native-first`, `storefront-ux`, `ui-validation` |
-| [`design-taste`](design-taste/SKILL.md) |  | Research, design, and critique public frontend UI/UX: landing pages, marketing sites, public product flows, editorial/docs, portfolios, storefront visuals. | `admin-dashboard`, `admin-product-ux`, `copywriting`, `native-first`, `ui-validation`, `volumx-writer` |
-| [`admin-dashboard`](admin-dashboard/SKILL.md) |  | Design the concept, IA, responsive tables, charts, KPI hierarchy, accessibility, and data loading for admin pages and dense dashboards. | `admin-product-ux`, `astro-development`, `cloudflare`, `mermaid-diagram`, `native-first`, `shadcn-ui`, `storefront-ux`, `ui-validation`, `web-perf`, `wrangler` |
+| [`design-taste`](design-taste/SKILL.md) |  | Research, design, and critique public frontend UI/UX: landing pages, marketing sites, public product flows, editorial/docs, portfolios, storefront visuals. | `admin-dashboard`, `admin-product-ux`, `copywriting`, `impeccable`, `native-first`, `ui-validation`, `volumx-writer` |
+| [`admin-dashboard`](admin-dashboard/SKILL.md) |  | Design the concept, IA, responsive tables, charts, KPI hierarchy, accessibility, and data loading for admin pages and dense dashboards. | `admin-product-ux`, `astro-development`, `cloudflare`, `impeccable`, `mermaid-diagram`, `native-first`, `shadcn-ui`, `storefront-ux`, `ui-validation`, `web-perf`, `wrangler` |
 | [`admin-product-ux`](admin-product-ux/SKILL.md) |  | Model product workflows and interaction requirements for SaaS, CRM, ERP, internal tools, seller consoles, and admin systems before visual design (admin-dashboard) or component code (shadcn-ui), whi... | `admin-dashboard`, `mermaid-diagram`, `native-first`, `shadcn-ui`, `ui-validation`, `web-perf` |
-| [`ui-validation`](ui-validation/SKILL.md) |  | Validate browser-visible changes with the smallest executable evidence proving the affected user flow, before claiming frontend work done. | `admin-dashboard`, `design-taste`, `native-first`, `web-perf` |
+| [`ui-validation`](ui-validation/SKILL.md) |  | Validate browser-visible changes with the smallest executable evidence proving the affected user flow, before claiming frontend work done. | `admin-dashboard`, `design-taste`, `impeccable`, `native-first`, `web-perf` |
 | [`web-perf`](web-perf/SKILL.md) |  | Analyzes web performance, preferring Chrome DevTools MCP when it is configured. | `admin-dashboard`, `content`, `design-taste`, `storefront-ux`, `ui-validation` |
 | [`threejs`](threejs/SKILL.md) |  | Architect, build, and optimize 3D WebGL scenes with Three.js across vanilla JS, Vite, Astro, and React Three Fiber (R3F). | `gsap-core`, `gsap-scrolltrigger` |
-| [`impeccable`](impeccable/SKILL.md) | F | Use when the user wants to design, redesign, shape, critique, audit, polish, clarify, distill, harden, optimize, adapt, animate, colorize, extract, or otherwise improve a frontend interface. | — |
+| [`impeccable`](impeccable/SKILL.md) | F | Use when the user wants to design, redesign, shape, critique, audit, polish, clarify, distill, harden, optimize, adapt, animate, colorize, extract, or improve a frontend interface. | — |
 
 ## Animation (GSAP)
 
@@ -86,10 +86,10 @@ resolves, so an entry here is a mention, not a gated reference.
 
 | Skill | | What it owns | Routes to |
 |---|---|---|---|
-| [`meta-ads-signal-engine`](meta-ads-signal-engine/SKILL.md) |  | End-to-end Meta Ads Conversion Signal Operating System (Pixel, Conversions API / CAPI, Deduplication event_id, Advanced Matching, _fbp/_fbc attribution preservation, COD vs Prepaid Purchase definit... | — |
+| [`meta-ads-signal-engine`](meta-ads-signal-engine/SKILL.md) |  | End-to-end Meta Ads Conversion Signal Operating System (Pixel, Conversions API / CAPI, Deduplication event_id, Advanced Matching, _fbp/_fbc attribution preservation, COD vs Prepaid Purchase definit... | `copywriting`, `full-stack-development`, `google-ads-signal-engine`, `meta-ads-scout`, `tiktok-ads-signal-engine` |
 | [`meta-ads-scout`](meta-ads-scout/SKILL.md) |  | Research competitor advertising in Meta Ad Library using the official API first and the public UI for manual review when the API does not cover the requested market or ad category. | — |
 | [`google-ads-signal-engine`](google-ads-signal-engine/SKILL.md) |  | Google Ads conversion signal system: Google Tag / gtag.js, GTM, server-side GTM / sGTM, Enhanced Conversions for Web and API, Consent Mode v2, transaction_id deduplication, click IDs (gclid/gbraid/... | `meta-ads-signal-engine` |
-| [`tiktok-ads-signal-engine`](tiktok-ads-signal-engine/SKILL.md) |  | End-to-end TikTok Ads Conversion Signal Operating System (TikTok Pixel, Events API v2, Deduplication event_id, Advanced Matching with SHA-256 email/phone, ttclid attribution preservation, and VBO/L... | — |
+| [`tiktok-ads-signal-engine`](tiktok-ads-signal-engine/SKILL.md) |  | End-to-end TikTok Ads Conversion Signal Operating System (TikTok Pixel, Events API v2, Deduplication event_id, Advanced Matching with SHA-256 email/phone, ttclid attribution preservation, and VBO/L... | `google-ads-signal-engine`, `meta-ads-signal-engine` |
 
 ## SEO, content and traffic
 
@@ -100,7 +100,7 @@ resolves, so an entry here is a mention, not a gated reference.
 | [`automated-traffic-pipeline`](automated-traffic-pipeline/SKILL.md) |  | Owns the automated traffic generation, indexing, and syndication pipeline: pSEO generation, auto-indexing, RSS/visual flywheels. | `ai-traffic-os`, `seo-website-builder` |
 | [`content`](content/SKILL.md) |  | Multi-asset content production pipeline for blog articles, listings, social posts, and landing pages: templates, voice calibration, batching/calendar, image+alt, cross-posting. | `9router`, `copywriting`, `prd-taskbreaker`, `seo-website-builder`, `volumx-writer` |
 | [`copywriting`](copywriting/SKILL.md) |  | Source of truth for copy rules and templates: char limits, no-CTA discipline, brand voice, headline patterns, meta/SEO fields, ALT text, per-platform social templates. | `content`, `prd-taskbreaker`, `seo-website-builder`, `volumx-writer` |
-| [`volumx-writer`](volumx-writer/SKILL.md) |  | Create, rewrite, humanize, localize, optimize, audit, or score English and Indonesian writing while preserving meaning, qualifiers, citations, keywords, conversion intent, compliance language, tech... | `content`, `copywriting`, `seo-website-builder` |
+| [`volumx-writer`](volumx-writer/SKILL.md) |  | Create, rewrite, humanize, localize, optimize, audit, or score English and Indonesian writing while preserving meaning and voice. | `content`, `copywriting`, `seo-website-builder` |
 
 ## Planning and specification
 
@@ -118,7 +118,7 @@ resolves, so an entry here is a mention, not a gated reference.
 
 | Skill | | What it owns | Routes to |
 |---|---|---|---|
-| [`full-stack-development`](full-stack-development/SKILL.md) |  | Orchestrate production full-stack feature delivery when implementation spans multiple application layers or an accepted feature must be carried end to end. | `admin-dashboard`, `admin-product-ux`, `application-security`, `astro-development`, `autolaris-h2h`, `better-auth-security`, `design-taste`, `development-spec-suite`, `doku-malaysia-integration`, `github-actions`, `mengantar-api`, `mermaid-diagram`, `native-first`, `nextjs-development`, `observability-engineering`, `openapi-spec`, `postgres-drizzle`, `prd-taskbreaker`, `product-intelligence`, `shadcn-ui`, `storefront-development`, `storefront-ux`, `stripe-best-practices`, `supabase-stack`, `testing-engineering`, `ui-validation`, `web-perf`, `workers-best-practices` |
+| [`full-stack-development`](full-stack-development/SKILL.md) |  | Orchestrate production full-stack feature delivery when implementation spans multiple application layers or an accepted feature must be carried end to end. | `admin-dashboard`, `admin-product-ux`, `application-security`, `astro-development`, `autolaris-h2h`, `better-auth-security`, `continuous-learning`, `design-taste`, `development-spec-suite`, `doku-malaysia-integration`, `github-actions`, `mengantar-api`, `mermaid-diagram`, `native-first`, `nextjs-development`, `observability-engineering`, `openapi-spec`, `postgres-drizzle`, `prd-taskbreaker`, `product-intelligence`, `shadcn-ui`, `storefront-development`, `storefront-ux`, `stripe-best-practices`, `supabase-stack`, `testing-engineering`, `ui-validation`, `web-perf`, `workers-best-practices` |
 | [`testing-engineering`](testing-engineering/SKILL.md) |  | Design, implement, review, and stabilize automated behavioral tests for Node.js/TypeScript full-stack systems. | `application-security`, `astro-development`, `better-auth-security`, `durable-objects`, `native-first`, `nextjs-development`, `openapi-spec`, `postgres-drizzle`, `ui-validation`, `web-perf`, `workers-best-practices` |
 | [`observability-engineering`](observability-engineering/SKILL.md) |  | Designs and verifies cross-stack observability from operator decisions and observable user journeys: structured events, OpenTelemetry-aligned logs, metrics, traces, correlation, SLI/SLO/error budge... | `agents-sdk`, `application-security`, `astro-development`, `better-auth-security`, `cloudflare`, `development-spec-suite`, `full-stack-development`, `github-actions`, `native-first`, `nextjs-development`, `postgres-drizzle`, `testing-engineering`, `web-perf`, `workers-best-practices` |
 | [`github-actions`](github-actions/SKILL.md) |  | Engineers and reviews GitHub Actions CI workflows. | `application-security`, `astro-development`, `full-stack-development`, `native-first`, `nextjs-development`, `observability-engineering`, `testing-engineering`, `workers-best-practices` |
@@ -131,8 +131,8 @@ resolves, so an entry here is a mention, not a gated reference.
 | Skill | | What it owns | Routes to |
 |---|---|---|---|
 | [`vercel`](vercel/SKILL.md) |  | Deploy, configure, inspect, and manage applications and edge infrastructure on Vercel using Vercel CLI and git integration. | `application-security`, `cloudflare`, `github-actions`, `kelola-deploy`, `native-first`, `nextjs-development` |
-| [`vultr`](vultr/SKILL.md) |  | Provision & manage Vultr VPS from the terminal via the official vultr-cli, and stand up Coolify on it for Docker deploys. | — |
-| [`kelola-deploy`](kelola-deploy/SKILL.md) |  | Deploy, verify, and recover the Kelola HRIS production server (kelolatim.com). | — |
+| [`vultr`](vultr/SKILL.md) |  | Provision & manage Vultr VPS from the terminal via the official vultr-cli, and stand up Coolify on it for Docker deploys. | `cloudflare` |
+| [`kelola-deploy`](kelola-deploy/SKILL.md) |  | Deploy, verify, and recover the Kelola HRIS production server (kelolatim.com). | `vultr` |
 | [`9router`](9router/SKILL.md) |  | Entry point for 9Router — local/remote AI gateway with OpenAI-compatible REST for chat, image, TTS, STT, embeddings, web search, web fetch. | — |
 
 ## Skills nothing mentions, and that mention nothing
@@ -143,4 +143,4 @@ skills absent from every routing table `ai-policy-lint` resolves, is larger.
 A leaf specialist belongs here; a skill named in prose without a code span
 does not.
 
-`cloudflare-email-service`, `cloudflare-one`, `continuous-learning`, `gsap-frameworks`, `gsap-performance`, `gsap-plugins`, `gsap-react`, `gsap-timeline`, `gsap-utils`, `impeccable`, `meta-ads-scout`, `tiktok-ads-signal-engine`, `vultr`
+`gsap-frameworks`, `gsap-performance`, `gsap-plugins`, `gsap-react`, `gsap-timeline`, `gsap-utils`

@@ -48,6 +48,7 @@ For the fallback clean-light visual design system and standalone HTML/CSS fixtur
 |---|---|
 | Domain objects, lifecycle, roles, permissions, task flows, screen contracts | skill **`admin-product-ux`** |
 | Map/code Sidebar, Chart, Data Table, forms, overlays, blocks, themes, and semantic tokens | skill **`shadcn-ui`** |
+| Dense UI polish, cognitive load audit, operator ergonomics | skill **`impeccable`** |
 | Before adding a new dep/lib/wrapper | skill **`native-first`** |
 | IA / flow / ERD diagram from the dashboard structure | skill **`mermaid-diagram`** |
 | Dashboard slow / heavy chart bundle / render audit | skill **`web-perf`** |

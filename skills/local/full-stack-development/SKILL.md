@@ -181,6 +181,8 @@ All applicable gates must pass with fresh observed evidence:
 7. **Release:** `github-actions` owns changed CI workflows. Record target,
    command/scenario, observed result, limitations, rollback/migration state, and
    remaining risk. A local check does not prove hosted CI or production.
+8. **Learning:** after non-trivial verified work, route reusable lessons and
+   candidate captures to `continuous-learning`.
 
 Planning procedures are not runtime evidence. A green build is not UI proof, a
 mock is not integration proof, and a workflow file is not a successful hosted

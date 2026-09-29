@@ -5,7 +5,7 @@ description: Provision & manage Vultr VPS from the terminal via the official vul
 
 # Vultr (CLI-first) + Coolify
 
-Provision Vultr servers and bootstrap Coolify **from the terminal** instead of the web console. Auto-activate for Vultr / vultr-cli / "deploy server" / "pasang Coolify" tasks.
+Provision Vultr servers and bootstrap Coolify **from the terminal** instead of the web console. Auto-activate for Vultr / vultr-cli / "deploy server" / "pasang Coolify" tasks. Pairs with the `cloudflare` (Tunnel, DNS, WAF) + Coolify self-host workflow.
 
 ## Install vultr-cli (no sudo)
 

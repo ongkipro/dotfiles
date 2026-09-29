@@ -197,3 +197,14 @@ reports it as a match rate the merchant cannot act on.
 **Never change an id after a feed has been submitted.** Doing so orphans the
 catalog history. Get this right before the first install goes live; after that it
 is a catalog re-creation, not an edit.
+
+## Advertising Signal Domain Routing
+
+| Need | Owner |
+| --- | --- |
+| Competitor advertising research & copy analysis | `meta-ads-scout` |
+| Google Ads conversion tracking & enhanced conversions | `google-ads-signal-engine` |
+| TikTok Ads pixel & Events API v2 | `tiktok-ads-signal-engine` |
+| Landing page copy & compliance claims | `copywriting` |
+| Full-stack signal outbox & payment webhook verification | `full-stack-development` |
+

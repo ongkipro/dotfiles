@@ -284,6 +284,7 @@ When doing Astro work, aim to produce:
 
 ## Skill routing
 
+- Load `impeccable` for tactical refinement, craft floor audits, and anti-pattern detection.
 - Load `admin-dashboard` for admin IA, density, tables, KPIs, charts, operator
   workflows, and responsive behavior.
 - Load `shadcn-ui` for current component/CLI APIs. In an Astro project, run
