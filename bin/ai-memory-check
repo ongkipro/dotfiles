@@ -6,7 +6,42 @@ const os = require("node:os");
 const path = require("node:path");
 
 const repoRoot = path.resolve(path.dirname(fs.realpathSync(__filename)), "..");
+const { execFileSync } = require("node:child_process");
 const ignoredDirectories = new Set([".git", "node_modules"]);
+
+// Git-ignored directories are not canonical memory: `skills/local/synced/` is
+// written by an external skill sync and `.claude/worktrees/` holds other
+// branches. Their links are someone else's to keep, so a directory scan skips
+// them (one `git ls-files` per repository, not one call per directory).
+const ignoredByRepo = new Map();
+function gitIgnoredDirectories(dir) {
+  let top;
+  try {
+    top = execFileSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return new Set();
+  }
+  if (!ignoredByRepo.has(top)) {
+    const out = execFileSync(
+      "git",
+      ["-C", top, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory"],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+    );
+    ignoredByRepo.set(
+      top,
+      new Set(
+        out
+          .split("\0")
+          .filter((entry) => entry.endsWith("/"))
+          .map((entry) => path.join(top, entry.slice(0, -1))),
+      ),
+    );
+  }
+  return ignoredByRepo.get(top);
+}
 
 function markdownFiles(entry) {
   if (!fs.existsSync(entry)) return [];
@@ -14,8 +49,10 @@ function markdownFiles(entry) {
   if (stat.isFile()) return entry.endsWith(".md") ? [entry] : [];
   if (!stat.isDirectory()) return [];
 
+  const gitIgnored = gitIgnoredDirectories(entry);
   return fs.readdirSync(entry, { withFileTypes: true }).flatMap((item) => {
     if (item.isDirectory() && ignoredDirectories.has(item.name)) return [];
+    if (item.isDirectory() && gitIgnored.has(path.join(entry, item.name))) return [];
     // Promotion work files are private to their writer, not canonical memory.
     // Explicit file arguments still take the stat.isFile() path above.
     if (item.isFile() && /^\.ai-learn(?:-preview|-probe)?\..*\.md$/.test(item.name)) return [];
@@ -171,6 +208,14 @@ function selfTest() {
       assert.equal(canonicalMarkdownFiles([path.join(temp, "memory")]).length, 2);
       assert.equal(scan(canonicalMarkdownFiles([draft])).issues.length, 1);
     }
+
+    // A git-ignored directory (an external sync, a worktree) is not canonical.
+    execFileSync("git", ["-C", temp, "init", "-q"]);
+    fs.writeFileSync(path.join(temp, ".gitignore"), "synced/\n");
+    fs.mkdirSync(path.join(temp, "synced"));
+    fs.writeFileSync(path.join(temp, "synced", "vendor.md"), "[vendor-owned](missing.md)\n");
+    ignoredByRepo.clear();
+    assert.equal(scan(canonicalMarkdownFiles([temp])).issues.length, 0);
 
     fs.writeFileSync(path.join(temp, "memory", "bad.md"), "[broken](missing.md)\n");
     result = scan(canonicalMarkdownFiles([temp]));

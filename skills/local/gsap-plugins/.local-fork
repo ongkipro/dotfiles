@@ -1,5 +1,5 @@
 upstream: https://raw.githubusercontent.com/greensock/gsap-skills/main/skills/gsap-plugins/SKILL.md
-verified: 2026-08-16
+verified: 2026-09-29
 scope: directory
 reason: local retains the formerly upstream MotionPath reference and corrects its export name
 note: The locally retained MotionPathHelper example now registers the documented
@@ -14,3 +14,6 @@ refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is
   present, before any fetch or write.
 to_vendor: keep the corrected local reference unless the repository decides to
   follow upstream's removal. No external publication was performed by this task.
+recheck: 2026-09-29 — upstream now carries the MotionPathHelper section again but
+  still registers the undefined `MotionPathHelperPlugin`. npm gsap@3.15.0
+  `MotionPathHelper.js` exports `MotionPathHelper` (named + default); local stays.

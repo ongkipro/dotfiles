@@ -49,8 +49,8 @@ Use this skill when:
 Run non-interactive checks before proposing deployment commands:
 
 ```bash
-# 1. Check CLI availability and auth status (safe in any directory)
-vercel whoami 2>/dev/null
+# 1. Check CLI availability and auth status (reports user/team, NOT the linked project)
+vercel whoami --format json 2>/dev/null
 
 # 2. Check git remote
 git remote get-url origin 2>/dev/null
@@ -60,9 +60,12 @@ cat .vercel/project.json 2>/dev/null || cat .vercel/repo.json 2>/dev/null
 
 # 4. List available teams (when authenticated)
 vercel teams list --format json 2>/dev/null
+
+# 5. Before any consequential read or mutation: confirm the resolved owner + project
+vercel project inspect --non-interactive
 ```
 
-**Guardrail:** Do NOT run `vercel project inspect` or bare interactive `vercel link` in an unlinked directory — they block waiting for interactive input or silently link with defaults.
+**Guardrail:** Always pass `--non-interactive` to `vercel project inspect` — the bare command can prompt or enter a linking flow; with the flag it only resolves existing context. Stop on `link_required` or an owner/project mismatch and ask; never auto-link. Never run bare interactive `vercel link` in an unlinked directory. Being inside an app subdirectory is not proof of the target project (a non-interactive repo link can fall back to the sole configured project).
 
 ## Step 2: Project Linking
 
@@ -115,6 +118,18 @@ Inspect build and release health:
 vercel inspect <deployment-url>
 ```
 
+### 4. Staged Production, Promote & Rollback (each step is a production action — approval gate)
+```bash
+URL=$(vercel deploy --prod --skip-domain)   # production build, no domain assigned
+vercel curl / --deployment $URL             # verify the exact build to be released
+vercel promote $URL                         # instant, no rebuild
+vercel rollback [<deployment-url-or-id>]    # revert production
+```
+- Promote a staged **production** deployment, not a preview: promoting a preview rebuilds it with production env vars, so the tested build is not the one released.
+- **`vercel rollback` turns off auto-assignment:** later production pushes stay unassigned until `vercel promote` restores it. Say so when rolling back.
+- `vercel deploy --prebuilt` builds lack Vercel System Environment Variables at build time (and Next.js Skew Protection needs a custom deployment ID).
+- `vercel deploy --force` creates a fresh deployment without retaining build cache (unless `--with-cache`); `vercel redeploy` has no no-cache option.
+
 ## Environment Variables Management
 
 Manage environment variables through the CLI without opening the dashboard:
@@ -123,12 +138,12 @@ Manage environment variables through the CLI without opening the dashboard:
 # List environment variables
 vercel env ls --scope <team-slug>
 
-# Add environment variable (production only)
-echo "secret_value" | vercel env add VAR_NAME production --scope <team-slug>
+# Add a secret from a file (never `echo "value" |` or `--value`: both leak to shell history / process args)
+vercel env add VAR_NAME production --type secret < ./secret.txt --scope <team-slug>
 
-# Add variable for preview and development
-echo "preview_value" | vercel env add VAR_NAME preview --scope <team-slug>
-echo "dev_value" | vercel env add VAR_NAME development --scope <team-slug>
+# Add for preview; development gets its own command (development-only adds default to Config)
+vercel env add VAR_NAME preview --type secret < ./preview-secret.txt --scope <team-slug>
+vercel env add VAR_NAME development < ./dev-value.txt --scope <team-slug>
 
 # Pull variables to local .env.local for development
 vercel env pull .env.local --scope <team-slug>
@@ -138,6 +153,8 @@ vercel env rm VAR_NAME production --scope <team-slug> -y
 ```
 
 **Discipline:**
+- `--type config|secret` needs CLI 59.6+ (older: `--sensitive` / `--no-sensitive`). `NEXT_PUBLIC_*`/`VITE_*` are always Config.
+- Production and Preview **Secrets are never returned by `vercel env pull`** — a missing value locally is expected, not a bug; re-pull after adding/rotating.
 - Preview deployments must NOT point to the production database.
 - For per-tenant databases (Neon), use separate connection strings scoped per environment.
 
@@ -169,6 +186,8 @@ vercel logs <deployment-url> --no-follow
 vercel logs <deployment-url>
 ```
 
+**Cache debugging:** `curl -sSI <url> | grep -iE 'x-vercel-cache|x-matched-path|cache-control|vary|age|set-cookie'` gives the outcome (`HIT`/`MISS`/`STALE`/`BYPASS`/…); a `set-cookie` response forces `BYPASS`. The finer `cacheReason` (e.g. `draft_mode`, `crawler`, `stale_error`) is read from `vercel logs` or the dashboard Logs "Reason" row — the `x-vercel-cache-reason` header is internal and not visible via `curl`.
+
 ## Native Platform Services (`native-first`)
 
 | Need | Vercel Native Solution | Implementation Pattern |
@@ -178,6 +197,9 @@ vercel logs <deployment-url>
 | File / image uploads | **Vercel Blob** | `@vercel/blob` with client upload tokens or server uploads. (Or R2 if on Cloudflare). |
 | Image optimization | `next/image` | Native automatic edge optimization. |
 | Database connection pooling | **Neon Serverless** | Use pooled connection string (`?sslmode=require`), never unpooled direct TCP. |
+
+- **Config file:** `vercel.ts` (typed, via `@vercel/config`) or `vercel.json` — only one per project, never both.
+- **Fluid Compute (default):** `memory` in `vercel.json` is not honoured (build warns); set Function CPU in the dashboard. Keep no sessions or caches in process memory.
 
 ### Vercel Cron Security Invariant
 Every cron route handler (`app/api/cron/.../route.ts`) must enforce authentication:
@@ -199,14 +221,15 @@ export async function GET(request: Request) {
 1. **Local Build First:** Run `npm run build` locally before triggering any deployment. It catches static typing, route segment errors, and bundle issues faster than remote build logs.
 2. **Deploy as Preview First:** Deploy with `vercel deploy -y --no-wait`.
 3. **Inspect Remote Build:** Run `vercel inspect <deployment-url>` to confirm status is `READY`.
-4. **Smoke Check:** Open the preview URL or run `curl -fsS -I <deployment-url>` to verify HTTP 200 response and proper headers.
+4. **Smoke Check:** Open the preview URL or run `curl -fsS -I <deployment-url>` to verify HTTP 200 response and proper headers. For a protected preview use `vercel curl /path --deployment <deployment-url>` — never disable Deployment Protection.
 5. **Production Promotion:** Only promote to production (`--prod` or merging to `main`) after verifying the preview URL and receiving explicit user approval.
 
 ## Anti-patterns
 
 - Deploying to production (`--prod`) without user approval.
 - Passing sensitive tokens via `--token <secret>` in terminal commands.
-- Silently linking unlinked directories with bare `vercel link`.
+- Silently linking unlinked directories with bare `vercel link`, or running `vercel project inspect` without `--non-interactive`.
+- Piping a secret with `echo` into `vercel env add` (shell history); disabling Deployment Protection to test a preview.
 - Modifying files inside `.vercel/` manually (let the CLI manage them).
 - Pointing preview environments to production databases or payment gateways.
 - Scraping or load-testing deployment URLs when a simple inspection suffices.

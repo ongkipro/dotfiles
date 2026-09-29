@@ -6,3 +6,15 @@ reason: upstream asset-producer.md contains a malformed relative Markdown target
 note: reference/degraded/asset-producer.md linked to `../reference/component-review.md` from within `reference/degraded/`. Local uses the valid same-parent target `../component-review.md`.
 would_lose_if_wired: an unguarded byte-for-byte refresh would restore the malformed target and fail repository Markdown-link validation.
 refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is present, before any fetch or write.
+note: SKILL.md frontmatter `description` is a deliberate local edit (f641f32,
+  2026-09-29): upstream puts "Not for backend-only or non-UI tasks." at the end,
+  past the ~240-character window Codex keeps, and has no Indonesian triggers.
+  Local front-loads the boundary and adds them. Re-apply on any refresh.
+  2026-09-29 routing pass (user request): the description opens with
+  "Automatically run a critique/polish pass whenever frontend UI is built or
+  changed" so the pass auto-triggers after UI work instead of only on request,
+  and the first ~240 chars name the siblings that own adjacent concerns:
+  public direction -> design-taste, admin IA and workflow -> admin-dashboard /
+  admin-product-ux, browser proof -> ui-validation (which runs after this pass).
+  The verb list moved after the boundary; no capability was removed.
+recheck: 2026-09-29 — upstream file list equals local; only these two files differ.

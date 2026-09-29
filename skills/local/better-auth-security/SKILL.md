@@ -27,6 +27,21 @@ Better Auth looks for secrets in this order:
 - Generate: `openssl rand -base64 32`
 - Never commit secrets to version control
 
+### Rotating the Secret
+
+Versioned secrets rotate without re-encrypting data or logging users out of encrypted payloads (verified in `better-auth@1.7.6`; confirm the installed version has `secrets`):
+
+```ts
+export const auth = betterAuth({
+  secrets: [
+    { version: 2, value: process.env.AUTH_SECRET_V2! }, // first = current, encrypts new data
+    { version: 1, value: process.env.AUTH_SECRET_V1! }, // decrypt-only
+  ],
+});
+```
+
+Or `BETTER_AUTH_SECRETS=2:<base64>,1:<base64>`. When `secrets` is set, `secret`/`BETTER_AUTH_SECRET` is only the fallback for decrypting pre-rotation payloads; data is re-encrypted with the current key on its next write. Remove an old version only after nothing still needs it. Sources: [security reference](https://www.better-auth.com/docs/reference/security#secret-rotation), [`secrets` option](https://www.better-auth.com/docs/reference/options#secrets).
+
 ## Rate Limiting
 
 Enabled in production by default. Applies to all endpoints. Plugins can override per-endpoint.
@@ -57,22 +72,26 @@ rateLimit: {
 
 ### Custom Storage
 
-Implement your own rate limit storage:
+Implement your own rate limit storage with one atomic check-and-increment:
 
 ```ts
 rateLimit: {
   customStorage: {
-    get: async (key) => {
-      // Return { count: number, expiresAt: number } or null
-    },
-    set: async (key, data) => {
-      // Store the rate limit data
+    consume: async (key, rule) => {
+      // Atomically count one request for `key` in a rule.window-second window
+      // (e.g. one Redis Lua script / one SQL upsert ... returning).
+      // Return { allowed: false, retryAfter: seconds } once rule.max is reached.
+      return { allowed: true, retryAfter: null };
     },
   },
 }
 ```
 
+Version-sensitive: `better-auth@1.7.x` accepts only `consume`; separate `get`/`set` was removed because concurrent requests could all pass one stale read. `1.6.x` still accepts `get`/`set` with optional `consume` (non-atomic fallback without it). Source: [rate limit docs](https://www.better-auth.com/docs/concepts/rate-limit).
+
 ### Per-Endpoint Rules
+
+`customRules` keys are matched against the request path **with the auth base path stripped** — `"/sign-in/email"`, not `"/api/auth/sign-in/email"`; a key with the prefix silently never matches. `*` wildcards are supported.
 
 Built-in special rules are path-specific: `/sign-in`, `/sign-up`, `/change-password`, and `/change-email` are limited to 3 requests per 10 seconds, while reset-request paths including `/forget-password` are limited to 3 per 60 seconds. Better Auth also exposes `POST /reset-password`, but its current special-rule list does not tighten that path beyond the global limiter. **House rule:** configure `/reset-password` explicitly, and list `/forget-password` explicitly when the deployment must not rely on built-in defaults. Sources: [rate-limiter rules](https://github.com/better-auth/better-auth/blob/main/packages/better-auth/src/api/rate-limiter/index.ts) and [password routes](https://github.com/better-auth/better-auth/blob/main/packages/better-auth/src/api/routes/password.ts).
 
@@ -289,6 +308,35 @@ export const auth = betterAuth({
 
 Set `ipv6Subnet` (128, 64, 48, 32; default 64) to group IPv6 addresses. Do not trust the leftmost `X-Forwarded-For` value from an appending proxy chain. Either use one edge-owned header clients cannot set directly, or configure trusted proxies so the chain is resolved from trusted hops toward the client. Keep the origin reachable only through those proxies and make them overwrite/sanitize forwarded headers.
 
+## Credential Lifecycle (email/password, 2FA, session storage)
+
+Confirmed against `better-auth@1.7.6` source; re-check option names on other versions.
+
+```ts
+import { betterAuth } from "better-auth";
+import { twoFactor } from "better-auth/plugins";
+
+export const auth = betterAuth({
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: true,      // block sign-in until verified (default false)
+    resetPasswordTokenExpiresIn: 60 * 30, // seconds (default 1 hour)
+    revokeSessionsOnPasswordReset: true, // default false: a reset leaves other sessions alive
+  },
+  plugins: [
+    twoFactor({
+      otpOptions: {
+        storeOTP: "hashed",  // default "plain"; also "encrypted" or custom hash/encrypt
+        allowedAttempts: 5,  // per code (default 5)
+      },
+      trustDeviceMaxAge: 60 * 60 * 24 * 7, // seconds (default 30 days)
+    }),
+  ],
+});
+```
+
+With `secondaryStorage` (Redis/KV) configured, sessions live **only** there by default; set `session.storeSessionInDatabase: true` if you need them queryable/auditable in the database. Sources: [email & password](https://www.better-auth.com/docs/authentication/email-password), [two-factor](https://www.better-auth.com/docs/plugins/2fa), [session management](https://www.better-auth.com/docs/concepts/session-management), vendor [skills](https://github.com/better-auth/skills).
+
 ## Database Hooks for Security Auditing
 
 ```ts
@@ -298,11 +346,13 @@ export const auth = betterAuth({
   databaseHooks: {
     session: {
       create: {
-        after: async ({ data, ctx }) => {
+        after: async ({ data }) => {
           await auditLog("session.created", {
             userId: data.userId,
-            ip: ctx?.request?.headers.get("x-forwarded-for"),
-            userAgent: ctx?.request?.headers.get("user-agent"),
+            // Resolved by Better Auth via advanced.ipAddress — never re-read a
+            // raw x-forwarded-for here (see IP-Based Security).
+            ip: data.ipAddress,
+            userAgent: data.userAgent,
           });
         },
       },
@@ -384,8 +434,8 @@ export const auth = betterAuth({
     enabled: true,
     storage: "secondary-storage",
     customRules: {
-      "/api/auth/sign-in/email": { window: 60, max: 5 },
-      "/api/auth/sign-up/email": { window: 60, max: 3 },
+      "/sign-in/email": { window: 60, max: 5 },
+      "/sign-up/email": { window: 60, max: 3 },
     },
   },
   
@@ -406,8 +456,7 @@ export const auth = betterAuth({
     encryptOAuthTokens: true,
     storeStateStrategy: "cookie",
   },
-  
-  
+
   // Advanced settings
   advanced: {
     useSecureCookies: true,
@@ -424,25 +473,7 @@ export const auth = betterAuth({
     },
   },
   
-  // Security auditing
-  databaseHooks: {
-    session: {
-      create: {
-        after: async ({ data, ctx }) => {
-          console.log(`New session for user ${data.userId}`);
-        },
-      },
-    },
-    user: {
-      update: {
-        after: async ({ data, oldData }) => {
-          if (oldData?.email !== data.email) {
-            console.log(`Email changed for user ${data.id}`);
-          }
-        },
-      },
-    },
-  },
+  // Security auditing: see "Database Hooks for Security Auditing" above.
 });
 ```
 
@@ -450,7 +481,8 @@ export const auth = betterAuth({
 
 Before deploying to production:
 
-- [ ] **Secret**: Use a strong, unique secret (32+ characters, high entropy)
+- [ ] **Secret**: Use a strong, unique secret (32+ characters, high entropy); plan rotation via `secrets`
+- [ ] **Password reset**: `revokeSessionsOnPasswordReset: true`, short `resetPasswordTokenExpiresIn`
 - [ ] **HTTPS**: Ensure `baseURL` uses HTTPS
 - [ ] **Trusted Origins**: Configure all valid origins (frontend, mobile apps)
 - [ ] **Multi-Domain Hosts**: Fail closed with `baseURL.allowedHosts`; never trust arbitrary forwarded hosts

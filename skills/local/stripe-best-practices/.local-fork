@@ -1,16 +1,28 @@
 upstream: https://docs.stripe.com/.well-known/skills/stripe-best-practices
 index: https://docs.stripe.com/.well-known/skills/index.json
-verified: 2026-08-16
+verified: 2026-09-29
 scope: directory
-reason: official hosted tax reference contains a malformed undefined Markdown target
-note: references/tax.md remediation step 1 links back to its own
-  `## Choosing a product tax code` section. The hosted source emitted
-  `undefined#choosing-a-product-tax-code`; local uses the valid same-document
-  target `#choosing-a-product-tax-code`.
-would_lose_if_wired: an unguarded byte-for-byte refresh would restore the
-  malformed target and fail repository Markdown-link validation.
+reason: official hosted files still emit broken Markdown link targets (16 links in two files)
+note: every file listed by the index was fetched 2026-09-29 and adopted verbatim,
+  except for these link-target rewrites (link text and all prose unchanged):
+  1. SKILL.md, 11 links: upstream rewrites the bundled references as
+     `https://docs.stripe.com/references/<name>.md`, which returns HTTP 404
+     (measured for all six). Local uses the bundled relative path
+     `references/<name>.md`.
+  2. references/tax.md, 5 links: upstream emits
+     `https://docs.stripe.com/undefined.md#<anchor>` (HTTP 404). Each anchor is a
+     heading in the same file, so local uses the same-document target
+     `#<anchor>` (registration-safety, threshold-and-nexus-monitoring,
+     verify-before-you-trust-automatic-tax, diagnose-zero-tax,
+     choosing-a-product-tax-code).
+note: known upstream 404 NOT patched, because no verified replacement exists:
+  references/treasury.md links https://docs.stripe.com/api/v2/core/vault/financial-accounts.md.
+note: frontmatter description is upstream's, unedited.
+would_lose_if_wired: a byte-for-byte refresh would restore 16 broken link
+  targets (11 cross-file 404s in SKILL.md, 5 undefined.md targets in tax.md)
+  and fail repository Markdown-link validation.
 refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is
   present, before any fetch or write.
-to_vendor: remove this ledger only after the official hosted tax reference uses
-  a valid target and every indexed file is re-verified. No external publication
-  was performed by this task.
+to_vendor: remove this ledger only after the official hosted SKILL.md uses
+  relative reference paths and tax.md uses valid same-document anchors, and
+  every indexed file is re-verified. No external publication was performed.

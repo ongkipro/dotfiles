@@ -6,10 +6,11 @@ description: >-
   Workflow modeling is admin-product-ux; not marketing pages, copywriting, or
   component code (shadcn-ui). Use for admin panels, dashboard layouts,
   analytics UX, chart selection, responsive tables, KPI cards, sidebars, and
-  Astro-vs-React admin decisions. Also covers operator surfaces: order
-  lifecycle IA, bulk actions, multi-tenant scope and impersonation,
-  permissions and audit logs, and timezone/currency correctness. Delegate
-  browser evidence to ui-validation and performance diagnosis to web-perf; do
+  Astro-vs-React admin decisions. Also covers how operator surfaces are
+  presented (rules come from admin-product-ux): order lifecycle IA, bulk
+  actions, multi-tenant scope and impersonation, permissions and audit logs,
+  and timezone/currency correctness. Delegate polish passes to impeccable,
+  browser evidence to ui-validation, and performance diagnosis to web-perf; do
   not install components.
 ---
 
@@ -57,6 +58,9 @@ For the fallback clean-light visual design system and standalone HTML/CSS fixtur
 | Astro specifics (islands, adapter) / CF Workers+D1 | skills **`astro-development`**, **`cloudflare`**, **`wrangler`** |
 
 The rule: **this skill decides WHAT, `shadcn-ui` executes HOW.** Don't duplicate component code here.
+
+**Delivery sequence:** build or change the UI → `impeccable` critique + polish
+pass (fix its findings) → `ui-validation` browser proof → only then call it done.
 
 For React-capable admin surfaces, shadcn/ui is the default implementation
 system after this skill accepts the presentation. That does not make React a
@@ -216,13 +220,17 @@ the most-skipped part of dashboard guidance.
 - **Currency:** `Intl.NumberFormat` already drops decimals for IDR and keeps
   them for MYR (verified) — use it rather than hand-formatting. Right-align
   money, never mix currencies in one column: put it in the header or split the
-  column.
+  column. Numeric columns, KPI values, and live-updating counters use
+  `font-variant-numeric: tabular-nums` so digits align across rows and do not
+  jitter as they change (Vercel Web Interface Guidelines).
 - **Order lifecycle is the primary axis**, not a secondary filter. Define the
   status taxonomy, which statuses are terminal, and where status lives (tab bar
   vs filter). **A COD order is not a payment** — the operator view must never
   imply money received because a row says "confirmed" (`storefront-ux` owns the
   buyer side of this; this is the operator side).
-- **Row selection and bulk actions:** sticky action bar; be explicit about
+- **Row selection and bulk actions:** sticky action bar — which, like a sticky
+  table header, must never entirely cover the focused row or control (WCAG
+  2.2 SC 2.4.11; reserve its height with `scroll-padding`); be explicit about
   select-on-page vs select-across-pages (a real trap once server pagination is
   on); destructive bulk confirmation names the count; report partial failure
   honestly (`23 of 40 updated`, and which 17 failed).
@@ -238,6 +246,9 @@ the most-skipped part of dashboard guidance.
 - **Destructive and unsaved state:** confirmation names the object; no
   confirmation for reversible actions; dirty forms get a navigation guard. §1's
   no-data-loss rule applies to every operator form.
+- **Drag is never the only way.** Column reorder, kanban moves, widget layout,
+  and drag-to-rank each need a single-pointer alternative (move up/down,
+  "Move to…" menu) — WCAG 2.2 SC 2.5.7, AA.
 - **URL-addressable filters and saved views.** Admin tables need shareable state
   more than storefronts do: "unpaid orders today" should be a link.
 - **New-order arrival:** poll only where a missed item costs money (order queue,
@@ -257,7 +268,7 @@ the most-skipped part of dashboard guidance.
 
 ## Sources and freshness boundary
 
-FT Visual Vocabulary (github.com/Financial-Times/chart-doctor) · Datawrapper Academy (pie / zero-baseline / area / stacked) · Shneiderman 1996 "The Eyes Have It" · NN/g (mobile tables, F-pattern, skeleton screens) · TanStack Table/Query/Virtual docs · shadcn/ui (sidebar, data-table, chart, blocks) · Tailwind responsive docs · Material Design 3 window-size-classes · Carbon Design (density) · WCAG 1.4.1/1.4.3 · Okabe-Ito palette · Recharts/ECharts/visx GitHub · Astro islands docs · Saleor Dashboard (github.com/saleor/saleor-dashboard) for production admin behavior.
+FT Visual Vocabulary (github.com/Financial-Times/chart-doctor) · Datawrapper Academy (pie / zero-baseline / area / stacked) · Shneiderman 1996 "The Eyes Have It" · NN/g (mobile tables, F-pattern, skeleton screens) · TanStack Table/Query/Virtual docs · shadcn/ui (sidebar, data-table, chart, blocks) · Tailwind responsive docs · Material Design 3 window-size-classes · Carbon Design (density) · WCAG 1.4.1/1.4.3 and 2.2 SC 2.4.11/2.5.7 (w3.org/TR/WCAG22) · Vercel Web Interface Guidelines (github.com/vercel-labs/web-interface-guidelines, tabular numerals) · Okabe-Ito palette · Recharts/ECharts/visx GitHub · Astro islands docs · Saleor Dashboard (github.com/saleor/saleor-dashboard) for production admin behavior.
 
 Library APIs, versions, maintenance state, and deployment adapters are volatile.
 Verify them against the project's lockfile and current official upstream before

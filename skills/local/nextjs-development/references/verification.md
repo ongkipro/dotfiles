@@ -35,6 +35,13 @@ Do not assume `next lint` exists. Next.js CLI commands vary by installed version
 If there is no script for a needed framework command, inspect the project-pinned
 `next --help` using the lockfile's package manager before invoking it.
 
+On Next.js 16.3+ with Turbopack, `next dev` serves an MCP endpoint at
+`/_next/mcp` (replies are SSE; read the `data:` line): `get_routes` maps routes
+without a browser, `get_errors` reports build/runtime errors after at least one
+browser navigation, `get_compilation_issues` compiles without a full build.
+A route with blocking errors **still returns HTTP 200** in dev — a status code
+is not evidence; read `get_errors` or the overlay.
+
 Use a supervised long-running process and stop only the process you started.
 Never reclaim a port by killing unrelated processes. Pass an explicit local
 origin to any smoke script that otherwise has a production default.
@@ -53,6 +60,7 @@ origin to any smoke script that otherwise has a production default.
 | Metadata | Request/open the real parameterized route and inspect final head/metadata response; include missing-resource behavior |
 | Runtime/output/adapter | Repository build plus the target's supported local emulator/runtime smoke; report unsupported or unexercised capabilities |
 | Instrumentation | Start a fresh local server instance and observe bounded registration plus one traced/logged request without sensitive fields |
+| Partial Prefetching (16.3+) | Automatic prefetching runs only in production: `next build` + `next start` (with the app's real env); `next dev` shows only the Insights tab |
 | Bundle change | Version-matched existing analyzer/build output showing the affected client import moved/changed; hand page-speed claims to `web-perf` |
 
 ## Trust-boundary smoke matrix

@@ -113,11 +113,17 @@ the assistant's skill discovery rather than a hook installed by this file.
    Keep native form behavior, labels, validation, and the control semantics
    appropriate to the job; navigation is not a toggle group. Customize copied
    components and variants rather than duplicating parallel implementations.
-5. For a requested preset switch, inspect the installed CLI help and current
-   project configuration first, then use its supported preset workflow. Review
-   the resulting diff for local component customizations and token changes;
-   apply `ui-validation` to the rendered result. A successful CLI exit alone
-   does not prove the requested appearance was applied.
+5. For a requested preset switch, ask first: overwrite, partial, merge, or
+   skip. Inspect with `shadcn preset resolve --json` (current) and
+   `shadcn preset decode <code> --json` (incoming); never decode a preset code
+   by hand. Then:
+   - overwrite: `shadcn apply <code>` (rewrites detected components, fonts,
+     CSS variables; needs an existing `components.json`, keeps its base);
+   - partial: `shadcn apply <code> --only theme,font` (no component reinstall);
+   - merge / skip: `shadcn init --preset <code> --force --no-reinstall`, then
+     for merge update each installed component with `add --dry-run`/`--diff`.
+   Review the diff for local customizations and token changes, then apply
+   `ui-validation`. A successful CLI exit does not prove the appearance changed.
 
 ## Official shadcn skill and references
 
@@ -141,9 +147,9 @@ and `_refresh-vendored.sh` convention.
 
 Load the relevant official reference for the requested operation:
 
-- [CLI](https://ui.shadcn.com/docs/cli): `init`, `add`, `search`, `view`, `docs`,
-  `diff`, `info`, and `build`; verify installed help for flags, dry runs,
-  merge behavior, templates, and preset support.
+- [CLI](https://ui.shadcn.com/docs/cli): `init`, `apply`, `add`, `search`,
+  `view`, `docs`, `info`, `preset`, `migrate`, and `build` (`diff` is
+  deprecated); verify installed help for flags, dry runs, templates, presets.
 - [Theming](https://ui.shadcn.com/docs/theming): CSS variables, OKLCH, custom
   colors, radius, variants, and the appropriate Tailwind v3/v4 conventions.
 - [Registry](https://ui.shadcn.com/docs/registry): `registry.json`, item types,
@@ -151,6 +157,10 @@ Load the relevant official reference for the requested operation:
 - [MCP](https://ui.shadcn.com/docs/mcp): registry discovery and installation
   tools. Reuse configured tools; MCP setup is a separate requested change.
 - [skills.sh](https://skills.sh): skill distribution and installation.
+
+Radix to Base UI migration has its own vendor skill,
+[`migrate-radix-to-base`](https://github.com/shadcn-ui/ui/tree/main/skills/migrate-radix-to-base);
+point to it when a base switch is requested, do not vendor it here.
 
 Current official documentation and installed code own API/CLI details. This
 owned skill adds project package-manager conventions, native-first decisions,
@@ -212,7 +222,14 @@ shadcn search @shadcn -q <term>   # `list` is an alias
 shadcn docs <item>                # canonical docs + example URLs
 shadcn view <item>                # the ACTUAL current registry item, as JSON
 shadcn add <item> --dry-run       # what would be written, and which deps
+shadcn add <item> --diff [path]   # diff against installed files (implies --dry-run)
+shadcn add <item> --view [path]   # file contents that would be written
 ```
+
+To update an installed, locally customized component, preview with
+`--dry-run` and `--diff` and merge by hand; never `--overwrite` blindly.
+`shadcn diff` is deprecated in CLI v4 (its help says: use `add [component]
+--diff`).
 
 Two traps: the **`@namespace` is required** (a bare `shadcn search button`
 errors out), and these must be **run inside the project** — `docs` and `view`
@@ -234,11 +251,15 @@ names when this command can resolve them.
 it does NOT write `tailwind.config.ts` — the config is the CSS, and dark mode is
 a `@custom-variant dark (&:is(.dark *))` line rather than a `darkMode` key.
 
-The old "Style: Default or New York" / "Base color" prompts are gone. `init` now
-takes `--template` (`next|start|vite|react-router|laravel|astro`), `--base`
-(`base` for Base UI, `radix` for Radix, `aria` for React Aria), `--preset`,
-`--css-variables` (default true), `--monorepo`, `--rtl`, `--defaults`, `--force`.
-Verify with `--help`; treat this list as a snapshot, not a contract.
+The old "Style: Default or New York" / "Base color" prompts are gone. `init`
+(alias `create`) in CLI 4.21.0 takes `--template`
+(`next|start|vite|react-router|laravel|astro`), `--base` (`base` for Base UI,
+`radix`, `aria` for React Aria), `--preset` (name, code, or URL),
+`--css-variables`/`--no-css-variables` (default true), `--monorepo`, `--rtl`,
+`--pointer`, `--no-reinstall`, `--name`, `--force`, and `--defaults`, which
+means `--template=next --preset=base-nova`: a defaults init lands on Base UI,
+not Radix. Preset codes do not encode the base, so pass `--base` when you need
+one explicitly. Verify with `--help`; this list is a snapshot, not a contract.
 
 ## Select components from the accepted screen
 
@@ -286,6 +307,36 @@ unified `radix-ui` package, and Sidebar pulls `button`, `input`, `separator`,
 
 Follow `native-first`: a component you don't render is a dependency you don't
 need. Never install a whole category as a bundle.
+
+## Base UI vs Radix — the `base` field decides the API
+
+Check `base` in `shadcn info --json` before writing any composition; the
+vendor's [base-vs-radix rules](https://github.com/shadcn-ui/ui/blob/main/skills/shadcn/rules/base-vs-radix.md)
+own the full list. The differences that break code most often:
+
+| Concern | Radix | Base UI |
+|---|---|---|
+| Custom trigger / link | `<DialogTrigger asChild><Button/></DialogTrigger>` | `<DialogTrigger render={<Button />}>Open</DialogTrigger>` |
+| `Button` rendered as `<a>` | `<Button asChild><a href=…/></Button>` | `<Button render={<a href=… />} nativeButton={false}>` |
+| Select | inline items, `<SelectValue placeholder>` | `items` prop on root, placeholder = `{ value: null }` item |
+| ToggleGroup / Accordion | `type="single"` or `type="multiple"`, string value | `multiple` boolean, value always an array |
+| Slider (one thumb) | `defaultValue={[50]}` | `defaultValue={50}` |
+| Toast | `sonner` | the `toast` component |
+
+The `asChild`/`render` rule covers every trigger and close part, plus
+`NavigationMenuLink`, `BreadcrumbLink`, `SidebarMenuButton`, `Badge`, `Item`.
+Examples in this skill's references are Base UI unless labelled Radix.
+
+## Composition rules (from the vendor skill)
+
+- Spacing: `flex flex-col gap-*`, never `space-y-*`/`space-x-*`.
+- Icons inside `Button`: `data-icon="inline-start|inline-end"`, no sizing
+  classes; the component sizes them.
+- `Button` has no `isLoading`/`isPending`: compose `Spinner` +
+  `data-icon` + `disabled`.
+- `Dialog`, `Sheet`, `Drawer` always carry their Title (`sr-only` if hidden).
+- Forms: `FieldGroup` + `Field`; items inside their Group
+  (`SelectGroup`, `DropdownMenuGroup`, `CommandGroup`).
 
 ## Charts, Sidebar, and Theme Toggle
 

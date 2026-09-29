@@ -1,56 +1,30 @@
-upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/cloudflare/SKILL.md
-verified: 2026-08-16
+upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/cloudflare
+verified: 2026-09-29
 scope: directory
-reason: deliberate local edit to the frontmatter description, not drift
-note: Full diff 2026-08-16 — both files 248 lines, single-line difference on
-  the `description:` frontmatter field. Upstream ends "...Use for any
-  Cloudflare development task. Biases towards retrieval..." Local replaces
-  that clause with a sibling-routing sentence: "Use as the default entry
-  point for Cloudflare work and for anything spanning several products.
-  Prefer the narrower sibling when the task sits squarely inside one of
-  them — workers-best-practices for reviewing or authoring Worker code,
-  wrangler for CLI and wrangler.jsonc, durable-objects for stateful
-  coordination, agents-sdk for stateful agents and Workflows, sandbox-next
-  or sandbox-stable for sandboxed code execution, cloudflare-email-service
-  for email,
-  cloudflare-one for Zero Trust and SASE." This is AUDIT-H-04's fix so
-  Claude routes to the narrower sibling skill instead of always loading
-  this one. Body content otherwise matches upstream exactly.
-would_lose_if_wired: an unguarded byte-for-byte refresh would drop the
-  sibling-routing clause and reintroduce the ambiguity AUDIT-H-04 fixed.
-refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is
-  present, before any fetch or write.
-to_vendor: accepted as a permanent managed fork on 2026-08-17. Keep the local
-  routing clause because discovery correctness outranks byte-identical vendoring.
-  Re-evaluate only if upstream adopts an equivalent narrow-skill boundary; no
-  external publication is required.
-
-updated: 2026-08-16 — the clause named `sandbox-sdk`, which upstream retired.
-  It now names `sandbox-next` / `sandbox-stable`. Worth noting for the vendoring
-  decision: upstream's own successor skills route between each other in their
-  descriptions the same way ("Not for X, use Y"), which is the pattern this
-  fork adds by hand. That is evidence the clause would be accepted upstream
-  rather than rejected as a local preference.
-
-superseded: the note above records the 2026-08-16 comparison. It quotes the
-  pre-2026-09-04 clause and says "both files 248 lines"; the local file is now
-  256 lines and the description is a folded multi-line block. Read it as history,
-  not as a current diff baseline.
-
-updated: 2026-09-04 — TASK-049 trimmed this description for registry weight,
-  882 -> 750 characters as PyYAML parses it (`skill-check` reports 753; its awk
-  counter includes the folded-block marker). Drafts reached 674 and 702 before
-  review restored cut terms; only 750 is the shipped text. The sibling-routing clause this fork exists to protect
-  is intact and still names all eight narrower skills. Independent review
-  corrected my first note here: the trim cut capability enumeration, not only
-  restatement. "Flagship", "Terraform" and "Pulumi" were dropped and have been
-  restored, because no narrower sibling owns infrastructure-as-code and those
-  are the terms a user actually types. "Comprehensive ... covering" became
-  "Cloudflare platform entry point:", and that part is restatement. A second,
-  cross-route review caught what the first trim also did to the clause's own
-  opening: "Use as the default entry point for Cloudflare work AND for anything
-  spanning several products" had become "Use for Cloudflare work spanning several
-  products", which silently stopped claiming single-product work with no narrower
-  sibling — KV, R2, Pages, WAF, Tunnel, Terraform. That is a meaning change inside
-  the very sentence this ledger exists to protect, not restatement, and it is
-  restored. A byte-for-byte refresh would still drop the clause, so the guard stays.
+reason: Two deliberate local lines; everything else is byte-identical to upstream (last path commit 320fbbc1).
+  (1) Frontmatter description. Upstream's reads "Discover and choose Cloudflare products ..." with no
+  boundary. Codex keeps only ~240 characters of each description once many skills are installed
+  (see skill-check CODEX_DESCRIPTION_CUT), so the what AND the sibling boundary must be front-loaded:
+  local puts the "Not for sibling-owned work: workers-best-practices, wrangler, durable-objects,
+  agents-sdk, sandbox-*, cloudflare-one*, email" clause inside the first 238 characters, then a
+  sibling map (adds sandbox-migrate-to-next and cloudflare-one-migrations, vendored 2026-09-29) and
+  the product terms users type (KV, R2, Tunnel, WAF, Terraform, Pulumi ...). This is AUDIT-H-04's
+  routing fix carried forward. Upstream also dropped the old "references:" frontmatter key; local
+  follows upstream there.
+  (2) SKILL.md need-to-product table, Next.js row: upstream links ../nextjs-on-cloudflare/SKILL.md,
+  a sibling skill that is not vendored in this dotfiles tree, so skill-check fails it as a broken
+  relative link. Local points the same link text at
+  https://github.com/cloudflare/skills/tree/main/skills/nextjs-on-cloudflare instead.
+would_lose_if_wired: a byte-for-byte refresh would drop the front-loaded sibling boundary (Codex
+  would route every Cloudflare task here) and reintroduce a broken relative link.
+refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is present, before any
+  fetch or write. To re-sync: fetch upstream into a scratch dir, rsync --delete over this dir
+  excluding .local-fork/.source, then re-apply (1) and (2) and diff against upstream.
+to_vendor: (2) disappears if nextjs-on-cloudflare is vendored as a sibling (restore upstream's
+  relative link). (1) stays unless upstream adopts an equivalent front-loaded boundary.
+history: 2026-08-16 fork (description-only, sandbox-sdk -> sandbox-next/stable) and 2026-09-04
+  TASK-049 trim are superseded by this re-sync; see git history for the earlier ledger text.
+decision: 2026-09-29 — nextjs-on-cloudflare deliberately NOT vendored. Upstream's body is a
+  redirect that tells the agent to run `npx skills add cloudflare/vinext`; on this machine the
+  runtime skill dirs are symlinks into skills/local, so that installer would write third-party
+  files into owned skills (same hazard as `playwright-cli install --skills -g`). Keep (2).

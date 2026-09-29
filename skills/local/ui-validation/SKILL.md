@@ -1,13 +1,13 @@
 ---
 name: ui-validation
 description: >-
-  Validate browser-visible changes with the smallest executable evidence
-  proving the affected user flow, before claiming frontend work done. Not for
-  visual direction (design-taste), dashboard IA (admin-dashboard), or
-  performance diagnosis (web-perf). Use after UI work in admin panels,
-  dashboards, storefronts, forms, responsive layouts, web interactions; when
-  asked to open, test, verify, QA, or prove a page in a real browser. Prefer
-  the project's Playwright setup; check mobile and desktop, keyboard, critical
+  Prove browser-visible changes with the smallest executable evidence for the
+  affected flow before calling UI work done. Not visual direction
+  (design-taste), polish audits (impeccable), dashboard IA (admin-dashboard),
+  or perf (web-perf). Use after UI work in admin panels, dashboards,
+  storefronts, forms, responsive layouts, web interactions; when asked to
+  open, test, verify, QA, or prove a page in a real browser. Prefer the
+  project's Playwright setup; check mobile and desktop, keyboard, critical
   states, Astro island hydration, both themes. Use axe, Storybook, visual
   regression, or Lighthouse CI only where the project already does. Collects
   raw page timings for web-perf when chrome-devtools MCP is absent.
@@ -23,7 +23,10 @@ logic is non-trivial or likely to regress.
 
 Before running or writing anything:
 
-1. Read repository instructions and the task or diff.
+1. Read repository instructions and the task or diff. If the change produced
+   or altered UI and no `impeccable` critique + polish pass has run, run it
+   first and fix its findings; skip this for a pure bug fix with no visual
+   change.
 2. Inspect `package.json` and the lockfile before choosing commands or tools.
 3. Reuse the project's scripts, browser-test setup, fixtures, auth helpers, and
    conventions. Look for a browser layer in **three** shapes, not one — a
@@ -139,6 +142,10 @@ checks before full browser runs.
    test or project before running the entire suite.
 4. Navigate through the user-facing route rather than reaching directly into
    component internals.
+   Wait on web-first assertions (`await expect(locator).toBeVisible()`), never
+   `page.waitForTimeout()` or `waitUntil: 'networkidle'`: Playwright's own API
+   docs mark both discouraged, and generic recipes that recommend them
+   (anthropics/skills `webapp-testing`) produce flaky, slow evidence.
 5. Observe browser console errors and failed requests relevant to the flow.
 
 Never read secret files or expose credentials to obtain a session. Reuse the
@@ -207,6 +214,21 @@ For changed controls, verify keyboard reachability, logical focus order,
 visible focus, accessible name, role, and state. Verify dialogs trap and return
 focus. Prefer role/name locators because they test the accessibility surface.
 
+WCAG 2.2 added checks a one-viewport pass usually misses; run each only when
+the change creates the risk:
+
+- **2.4.11 Focus Not Obscured (AA)** — with a sticky header/footer, cookie
+  banner, chat bubble, or sticky action bar present, Tab through the affected
+  region and confirm no focused control is *entirely* covered (compare its
+  `boundingBox()` with the sticky element's). The usual fix is
+  `scroll-padding-top/bottom` equal to the sticky height.
+- **2.5.8 Target Size (Minimum) (AA)** — a pointer target under 24×24 CSS px
+  passes only via the spacing, equivalent-control, inline, user-agent, or
+  essential exceptions; measure with `boundingBox()` rather than eyeballing.
+- **2.5.7 Dragging Movements (AA)** — anything operated by dragging (slider,
+  reorder, swipe gallery, kanban) must also work by single-pointer clicks;
+  exercise that alternative, not only the drag.
+
 Run axe only when `axe-core`, `@axe-core/playwright`, or an established project
 integration already exists, or when dependency addition is explicitly in
 scope. Treat automated scans as a supplement: they do not prove keyboard
@@ -231,6 +253,10 @@ configured, this skill collects what the page reports about itself and returns
 
 - `performance.getEntriesByType('navigation')` and `('resource')`
 - `PerformanceObserver` for `largest-contentful-paint` and `layout-shift`
+- for an interaction complaint: `PerformanceObserver` type `event` with
+  `durationThreshold: 16` (the default only reports entries of 104 ms or more),
+  keeping entries that carry an `interactionId`; report per-interaction
+  durations, never an "INP" figure
 - console errors and failed requests
 
 These are single-run lab numbers from a warm local server. Label them that way.

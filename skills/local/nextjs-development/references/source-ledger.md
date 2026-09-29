@@ -20,6 +20,16 @@ current official documentation. Installed project types/source and scripts win.
   Components reference.
 - [facebook/react](https://github.com/facebook/react) — official React source and
   releases.
+- [How Next.js supports AI coding agents](https://nextjs.org/docs/app/guides/ai-agents)
+  — bundled docs (16.2+), managed `AGENTS.md` block (16.3+), legacy
+  `agents-md` codemod, and `/_next/mcp` runtime visibility.
+- [vercel/next.js `skills/`](https://github.com/vercel/next.js/tree/canary/skills)
+  — official `next-dev-loop`, Cache Components and Partial Prefetching skills
+  (retrieved 2026-09-29): 200-with-errors, `use cache` + cookies runtime throw,
+  production-only prefetching.
+- [vercel-labs react-best-practices rules](https://github.com/vercel-labs/agent-skills/tree/main/skills/react-best-practices/rules)
+  and [vercel-plugin `next-cache-components`](https://github.com/vercel/vercel-plugin/tree/main/skills/next-cache-components)
+  — `updateTag` vs `revalidateTag(tag, 'max')`.
 - [Vercel documentation](https://vercel.com/docs) — official platform behavior;
   use only when Vercel is the selected target.
 - [vercel/vercel](https://github.com/vercel/vercel) — official Vercel CLI/platform

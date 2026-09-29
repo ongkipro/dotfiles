@@ -94,10 +94,51 @@ verify_split() {
   fi
 }
 
+# A managed fork is never written, but it must not rot silently either: on
+# 2026-09-29 seven forks had drifted from an upstream that kept moving while
+# this script printed only "skip". Compare each local file with upstream in a
+# temp dir (read-only) and name the ones that differ, so a human can check them
+# against the reasons in `.local-fork`. Differences are expected — the fork
+# exists because of some — so this reports, it never fails.
+report_fork_drift() {
+  local dir="$1" name="$2" base verified f rel tmp differ="" missing=""
+  base=""
+  [ -f "$dir/.source" ] && base="$(sed -n 's/^source: //p' "$dir/.source" | head -1)"
+  [ -n "$base" ] || base="$(sed -n 's/^source: //p' "$dir/.local-fork" | head -1)"
+  [ -n "$base" ] || base="$(sed -n 's/^upstream: //p' "$dir/.local-fork" | head -1)"
+  base="${base%/SKILL.md}"
+  verified="$(sed -n 's/^verified: //p' "$dir/.local-fork" | head -1)"
+  case "$base" in
+    ""|https://github.com/*) echo "skip $name (managed local fork) — no raw upstream to compare"; return 0 ;;
+  esac
+  if grep -q '^split_of:' "$dir/.source" 2>/dev/null; then
+    echo "skip $name (managed local fork) — split; compare with upstream by hand"
+    return 0
+  fi
+  tmp="$(mktemp)"
+  while IFS= read -r f; do
+    rel="${f#"$dir"/}"
+    if curl -fsSL "$base/$rel" -o "$tmp" 2>/dev/null; then
+      cmp -s "$f" "$tmp" || differ="$differ $rel"
+    else
+      missing="$missing $rel"
+    fi
+  done < <(find "$dir" -type f ! -name '.source' ! -name '.local-fork' | sort)
+  rm -f "$tmp"
+  if [ -z "$differ$missing" ]; then
+    echo "skip $name (managed local fork) — identical to upstream now; the ledger may be retired"
+    return 0
+  fi
+  echo "skip $name (managed local fork) — upstream differs, recheck vs .local-fork (verified ${verified:-?}):"
+  [ -n "$differ" ]  && echo "   ~~ differs:${differ}"
+  [ -n "$missing" ] && echo "   -- not upstream:${missing}"
+  return 0
+}
+
 refresh_one() {
   local dir="$1" name; name="$(basename "$dir")"
   if [ -f "$dir/.local-fork" ]; then
-    echo "skip $name (managed local fork)"
+    report_fork_drift "$dir" "$name"
     return 0
   fi
   [ -f "$dir/.source" ] || { echo "skip $name (no .source — not vendored)"; return 0; }

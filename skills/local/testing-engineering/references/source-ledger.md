@@ -1,6 +1,6 @@
 # Primary-source ledger
 
-Last reviewed: **2026-08-17**.
+Last reviewed: **2026-09-29**.
 
 This ledger supports tool selection and the small number of direct commands in
 `SKILL.md`; it is not a substitute for inspecting the repository. Runner,
@@ -57,6 +57,11 @@ Verified guidance used here:
 | [Test isolation](https://playwright.dev/docs/browser-contexts) | Browser-context isolation and setup tradeoffs |
 | [Retries](https://playwright.dev/docs/test-retries) | Worker behavior, retry configuration, and flaky classification |
 | [Playwright source repository](https://github.com/microsoft/playwright) | Versioned source, releases, and bundled test-runner implementation |
+| [Release notes](https://playwright.dev/docs/release-notes) | 1.59 `npx playwright trace` CLI and `test --debug=cli`; 1.62 built-in `mount()` stories model; 1.63 experimental CT packages no longer updated |
+| [Component testing](https://playwright.dev/docs/test-components) | Story-gallery model and migration from `@playwright/experimental-ct-*` |
+| [Trace viewer](https://playwright.dev/docs/trace-viewer) | Trace recording and inspection |
+| [HTML reporter](https://playwright.dev/docs/test-reporters#html-reporter) | `PLAYWRIGHT_HTML_OPEN` = `always`/`never`/`on-failure` |
+| [Vendor `playwright-trace` skill](https://github.com/microsoft/playwright/tree/main/packages/playwright-core/src/tools/skills/playwright-trace) | Trace subcommands (`actions --errors-only`, `errors`, `requests --failed`) |
 
 Playwright is cited for automated browser-test boundaries, isolation, and flake
 evidence. `ui-validation` owns actual browser-visible QA and its command selection.

@@ -34,10 +34,13 @@ Full-stack backend using Supabase: auth, PostgreSQL, storage, realtime, edge fun
 ## Setup: Supabase Cloud
 
 ```bash
-# Install CLI
-npm i -g supabase
+# Install CLI: project dev dependency (then run as `npx supabase ...`),
+# or a global binary via Homebrew/Scoop/Linux packages. `npm i -g` is not a
+# documented install path — see supabase.com/docs/guides/local-development/cli/getting-started
+npm install supabase --save-dev
 
-# Login
+# Login (the browser flow mints a classic full-account token; in CI set
+# SUPABASE_ACCESS_TOKEN to a scoped personal access token instead)
 supabase login
 
 # Init project (at the repo root)
@@ -112,21 +115,31 @@ alter table public.profiles enable row level security;
 
 create policy "Users can read own profile"
   on public.profiles for select
-  using (auth.uid() = id);
+  to authenticated
+  using ((select auth.uid()) = id);
 
+-- UPDATE needs USING (which rows) + WITH CHECK (what the row may become),
+-- and a SELECT policy on the same rows, or it silently updates 0 rows.
 create policy "Users can update own profile"
   on public.profiles for update
-  using (auth.uid() = id);
+  to authenticated
+  using ((select auth.uid()) = id)
+  with check ((select auth.uid()) = id);
 
--- Auto-create profile on signup
+-- Auto-create profile on signup. SECURITY DEFINER bypasses RLS, so pin an
+-- empty search_path and schema-qualify every object. raw_user_meta_data is
+-- user-editable: fine for a display name, never for authorization.
 create function public.handle_new_user()
-returns trigger as $$
+returns trigger
+language plpgsql
+security definer set search_path = ''
+as $$
 begin
   insert into public.profiles (id, username)
-  values (new.id, new.raw_user_meta_data->>'username');
+  values (new.id, new.raw_user_meta_data ->> 'username');
   return new;
 end;
-$$ language plpgsql security definer;
+$$;
 
 create trigger on_auth_user_created
   after insert on auth.users
@@ -136,22 +149,41 @@ create trigger on_auth_user_created
 ## Row Level Security (RLS) — Common Patterns
 
 ```sql
--- Read: owner only
+-- Read: owner only. `TO authenticated` alone is authentication, not
+-- authorization — always pair it with an ownership predicate.
+-- Wrap auth.uid()/auth.jwt() in (select ...) so it runs once per statement.
 create policy "owner read" on orders
-  for select using (auth.uid() = user_id);
+  for select to authenticated
+  using ((select auth.uid()) = user_id);
 
 -- Write: owner only
 create policy "owner write" on orders
-  for insert with check (auth.uid() = user_id);
+  for insert to authenticated
+  with check ((select auth.uid()) = user_id);
 
--- Admin bypass
+-- Admin: the JWT `role` claim is the POSTGRES role (anon/authenticated/
+-- service_role), never an app role. Put admin flags in app_metadata (server-
+-- writable only), never user_metadata (user-editable). Claims stay stale
+-- until the token refreshes. `is_admin` is an app-chosen key.
 create policy "admin all" on orders
-  using (auth.jwt() ->> 'role' = 'admin');
+  for all to authenticated
+  using (((select auth.jwt()) -> 'app_metadata' ->> 'is_admin')::boolean is true)
+  with check (((select auth.jwt()) -> 'app_metadata' ->> 'is_admin')::boolean is true);
 
 -- Public read
 create policy "public read" on products
-  for select using (true);
+  for select to anon, authenticated
+  using (true);
 ```
+
+Traps that fail silently ([RLS guide](https://supabase.com/docs/guides/database/postgres/row-level-security), [securing the Data API](https://supabase.com/docs/guides/api/securing-your-api)):
+
+- **Grants are separate from RLS.** Depending on the project's Data API settings, a SQL-created table may not be exposed until `anon`/`authenticated` get an explicit `GRANT`; RLS only filters rows once the role can reach the table. Grant the minimum, and enable RLS on anything granted.
+- **Views bypass RLS** by default. On Postgres 15+ create them `with (security_invoker = true)`; otherwise revoke `anon`/`authenticated` access or keep the view in an unexposed schema.
+- **UPDATE without a SELECT policy** updates 0 rows with no error.
+- **`SECURITY DEFINER` functions** bypass RLS and get `EXECUTE` granted to `PUBLIC` by default, so one in `public` is an API endpoint for `anon`. Keep them in an unexposed schema, `set search_path = ''`, check `auth.uid()` inside, and revoke `EXECUTE` from roles that must not call them. Never add `SECURITY DEFINER` just to silence a permission error.
+- **`auth.role()` is deprecated** — use the policy `TO` clause.
+- Before committing a migration, run `supabase db advisors` (CLI v2.81.3+, per the vendor [agent skill](https://github.com/supabase/agent-skills); MCP `get_advisors` on older CLIs).
 
 ## Auth — Client Integration
 
@@ -300,9 +332,11 @@ supabase functions serve
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 
-# Server-side only (private)
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
+# Server-side only (private). Bypasses RLS — never behind NEXT_PUBLIC_.
+SUPABASE_SECRET_KEY=<secret key from Dashboard → API keys>
 ```
+
+`sb_publishable_…` / `sb_secret_…` are the current keys. A long `eyJ…` value is a legacy `anon`/`service_role` JWT key, which Supabase is deprecating by end of 2026; both systems work side by side until legacy keys are disabled in the dashboard ([API keys](https://supabase.com/docs/guides/api/api-keys)).
 
 ## New Project Checklist
 

@@ -1,6 +1,45 @@
 upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/cloudflare-email-service
-verified: 2026-08-16
+verified: 2026-09-29
 scope: directory
-reason: Current upstream omits the Email Sending public Beta and Workers Paid prerequisites and documents CLI/MCP operations that are not present in the current official command references.
-would_lose_if_wired: A byte-for-byte refresh would restore the wrong launch timeline, hide account eligibility requirements, and reintroduce fabricated email command trees across SKILL.md and references.
-to_vendor: Reconcile against current Cloudflare Email Service docs and Wrangler help. Remove this marker only after upstream carries equivalent prerequisite, retrieval-first, and no-invented-command safeguards in every affected file.
+reason: Upstream (fetched 2026-09-29) now carries a retrieval-first design and a
+  real `wrangler email` command tree, so the 2026-08-16 "invented CLI/MCP
+  commands" reason is RESOLVED and upstream text was adopted in every file.
+  Four narrow factual corrections remain, each checked against official docs:
+  (1) SKILL.md prerequisites + description: upstream still omits that Email
+      Sending is a public Beta on the Workers Paid plan (arbitrary recipients
+      need Workers Paid; Email Routing is Free+Paid) and requires Cloudflare DNS.
+      Local adds prerequisite step 0 and states Beta/Workers Paid plus a
+      "Not for third-party mail providers or marketing/bulk email" boundary in
+      the first ~240 description chars. Sources:
+      https://developers.cloudflare.com/email-service/ ,
+      https://developers.cloudflare.com/email-service/platform/pricing/ ,
+      https://developers.cloudflare.com/email-service/get-started/send-emails/ ,
+      https://developers.cloudflare.com/changelog/post/2026-04-16-email-sending-public-beta/
+  (2) references/cli-and-mcp.md, routing.md, deliverability.md: dashboard path
+      "Compute & AI" -> "Compute". Official setup, routing and domain pages all
+      say **Compute** > **Email Service**. Sources:
+      https://developers.cloudflare.com/email-service/get-started/route-emails/ ,
+      https://developers.cloudflare.com/email-service/configuration/domains/
+  (3) references/cli-and-mcp.md: upstream says "Remove `remote: true` before
+      deploying"; no official page says that. Replaced with the documented
+      behaviour (without `remote: true`, wrangler dev simulates and logs the
+      message). Source:
+      https://developers.cloudflare.com/email-service/local-development/sending/
+  (4) references/cli-and-mcp.md: `wrangler email` is real (wrangler 4.143.0
+      `--help` lists routing/sending incl. list, settings, enable, disable,
+      dns get, send, send-raw, rules, addresses; all tagged open beta) but is
+      not yet in the published command reference
+      https://developers.cloudflare.com/workers/wrangler/commands/ ; local adds
+      one sentence to use only subcommands the installed binary lists.
+  Verified unchanged-and-correct upstream facts (no divergence): REST `from`
+  accepts string or {address,name} and `/email/sending/limits` exists
+  (cloudflare/api-schemas openapi.json); Cloudflare MCP `search`/`execute`
+  with `cloudflare.request()` (github.com/cloudflare/mcp README).
+would_lose_if_wired: A byte-for-byte refresh would drop the Beta/Workers Paid
+  and Cloudflare DNS prerequisites and the description boundary, restore the
+  wrong "Compute & AI" dashboard label in three references, and reinstate the
+  undocumented "remove remote: true before deploying" instruction.
+to_vendor: Upstream PR candidates: add the Beta/Workers Paid/Cloudflare DNS
+  prerequisite, fix the dashboard label, drop the remote-before-deploy line.
+  Retire this marker (and go byte-identical) once upstream carries all four;
+  re-check the Wrangler command reference, which may list `email` later.

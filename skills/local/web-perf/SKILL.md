@@ -1,6 +1,6 @@
 ---
 name: web-perf
-description: Analyzes web performance, preferring Chrome DevTools MCP when it is configured. Measures Core Web Vitals (LCP, INP, CLS) and supplementary metrics (FCP, TBT, Speed Index), identifies render-blocking resources, network dependency chains, layout shifts, caching issues, and accessibility gaps. Without the MCP it still runs a codebase and static-asset audit via the project's own scripts, and reports which metrics stayed unmeasured rather than stopping. Use when asked to audit, profile, debug, or optimize page load performance, Lighthouse scores, or site speed. Biases towards retrieval from current documentation over pre-trained knowledge.
+description: Audit, diagnose, or optimize web page load and interaction performance (Core Web Vitals, Lighthouse performance, traces, network, bundles). Not UI behavior QA (ui-validation) or visual design (design-taste). Prefers Chrome DevTools MCP; without it, still runs a codebase and static-asset audit via the project's own scripts and reports which metrics stayed unmeasured instead of stopping. Biases towards retrieval from current documentation over pre-trained knowledge.
 ---
 
 # Web Performance Audit
@@ -14,15 +14,23 @@ Your knowledge of web performance metrics, thresholds, and tooling APIs may be o
 | web.dev | `https://web.dev/articles/vitals` | Core Web Vitals thresholds, definitions |
 | Chrome DevTools docs | `https://developer.chrome.com/docs/devtools/performance` | Tooling APIs, trace analysis |
 | Lighthouse scoring | `https://developer.chrome.com/docs/lighthouse/performance/performance-scoring` | Score weights, metric thresholds |
+| Chrome DevTools MCP | `https://github.com/ChromeDevTools/chrome-devtools-mcp` (`docs/tool-reference.md`, `docs/configuration.md`) | Current tool names, parameters, server flags |
 
 ## FIRST: Verify MCP Tools Available
 
-**Run this before starting.** Try calling `navigate_page` or `performance_start_trace`.
+**Run this before starting.** Discover which browser and performance tools
+are actually exposed — try `list_pages`, `navigate_page`, or
+`performance_start_trace`. Tool presence is not all-or-nothing: a server
+started with `--slim` exposes only three tools (navigation, script execution,
+screenshots) and no trace tools, so treat it as the degraded path below.
 
-If they exist, run the full workflow below.
+If the trace tools exist, run the full workflow below.
 
 If they don't, the `chrome-devtools` MCP server isn't configured on this
-machine. Register it through the CLI rather than hand-editing JSON:
+machine. **Changing MCP configuration is a user-scope change: do it only when
+the user asked for setup or it is clearly within the authorized scope;
+otherwise ask first** and continue on the degraded path meanwhile. Register it
+through the CLI rather than hand-editing JSON:
 
 ```bash
 npm i -g chrome-devtools-mcp   # persistent binary; no per-launch download
@@ -35,11 +43,32 @@ claude mcp add --scope user chrome-devtools chrome-devtools-mcp -- \
 nowhere to go and fails. Verified on the Linux box: headless Chrome renders,
 runs JS, and serves CDP fine through an SSH session with `DISPLAY` empty.
 
-Two other things that bite:
+The global install pins whatever version was installed; upstream's
+[quick start](https://github.com/ChromeDevTools/chrome-devtools-mcp#getting-started)
+instead runs `npx -y chrome-devtools-mcp@latest` so the client always gets the
+latest server. Either is fine — with the global binary, update it periodically
+(`npm i -g chrome-devtools-mcp@latest`), because tool names and parameters
+change between releases.
+
+Other things that bite:
 
 - **Headless defaults to a ~780px viewport.** That silently makes every
-  measurement a narrow-screen measurement. Set the window size (or the MCP's
-  viewport option) before reading anything as a desktop number.
+  measurement a narrow-screen measurement. Pass `--viewport 1280x720` (or
+  another size) to the server, or `emulate(viewport: ...)` per page, before
+  reading anything as a desktop number.
+- **Trace URLs may be sent to Google's CrUX API.** The performance tools fetch
+  real-user field data for the traced URL and present it beside the lab data.
+  Pass `--no-performance-crux` when auditing private, staging, or
+  pre-release URLs. When CrUX data does come back, report it as **field
+  data** and keep it separate from the lab trace numbers.
+- **Usage statistics are on by default.** Opt out with `--no-usage-statistics`
+  (or the `CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS` env var) if the user
+  wants no telemetry.
+- **Current releases require a `pageId` on page-scoped tools** (`emulate`,
+  `performance_start_trace`, `lighthouse_audit`, …). Get it from
+  `list_pages` or `new_page`; the calls in this file omit it for brevity.
+  If a parameter is rejected, read the live tool schema rather than guessing
+  ([tool reference](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/tool-reference.md)).
 - To drive a browser you can actually *see* on a machine that has a GUI, start
   Chrome there with `--remote-debugging-port=9222` and attach with
   `--browserUrl http://127.0.0.1:9222` instead of launching a private headless
@@ -112,7 +141,7 @@ Audit Progress:
 
 ### Phase 1: Performance Trace
 
-1. Set and record an explicit lab profile before navigating. A representative constrained-mobile profile is:
+1. Select the page (`list_pages` / `new_page` → `pageId`), then set and record an explicit lab profile before navigating. A representative constrained-mobile profile is:
    ```
    emulate(
      networkConditions: "Slow 4G",

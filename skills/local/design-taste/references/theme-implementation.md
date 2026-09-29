@@ -100,6 +100,12 @@ In a `next-themes` project, the library already manages the inline property and
 updates it on every theme change — leave it alone, or pass
 `enableColorScheme={false}` if you want the CSS rules to own it instead.
 
+Pair it with `<meta name="theme-color">` matching each theme's canvas (one tag
+per `media="(prefers-color-scheme: …)"`, or update the single tag when the
+class flips), so mobile browser chrome does not stay light over a dark page
+(Vercel Web Interface Guidelines,
+https://github.com/vercel-labs/web-interface-guidelines).
+
 What breaks is a **hand-written inline `style.colorScheme` set once at boot**:
 inline outranks every selector, so the `.dark` rule becomes dead code and native
 controls, scrollbars, and date pickers freeze in the boot-time scheme when the

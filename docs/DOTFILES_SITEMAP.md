@@ -14,7 +14,7 @@ graph TD
     Kernel["Core Kernel & Policy<br/><code>config/ai/CORE.md</code>"] --> Runtimes["AI CLI Runtimes<br/>Claude · Codex · Antigravity · OMP · Pi"]
     Kernel --> Memory["Durable Memory<br/><code>config/ai/memory/</code> (19 files)"]
     Kernel --> ProjectMemory["Project Memory<br/><code>config/ai/project-memory/</code> (72 files)"]
-    Kernel --> Skills["Owned Skills Registry<br/><code>skills/local/</code> (67 skills)"]
+    Kernel --> Skills["Owned Skills Registry<br/><code>skills/local/</code> (72 skills)"]
     Kernel --> Bin["Executable Toolchain<br/><code>bin/</code> (108 tools & tests)"]
     Kernel --> Ledger[".delivery/ & TASKS.md<br/>Autonomous State & Verification"]
     Kernel --> Devices["Device Profiles<br/><code>devices/</code> (7 hosts)"]
@@ -31,7 +31,7 @@ graph TD
 | **Durable Memory** | [`config/ai/memory/`](file:///home/ongki/dotfiles/config/ai/memory) | Cross-session, durable operational facts (19 files). | `ai-memory-access`, AI sessions |
 | **Project Memory** | [`config/ai/project-memory/`](file:///home/ongki/dotfiles/config/ai/project-memory) | Knowledge base for 70+ client systems, repositories, and domain gotchas. | On-demand context retrieval |
 | **Kelola Memory** | [`config/ai/project-memory-kelola/`](file:///home/ongki/dotfiles/config/ai/project-memory-kelola) | Specialized knowledge pack for Kelola HRIS infrastructure. | Kelola deployment & maintenance |
-| **Skills Registry** | [`skills/local/`](file:///home/ongki/dotfiles/skills/local) | 67 owned skills categorized into 11 engineering domains. | AI CLI tool calling & workflows |
+| **Skills Registry** | [`skills/local/`](file:///home/ongki/dotfiles/skills/local) | 72 owned skills categorized into 11 engineering domains. | AI CLI tool calling & workflows |
 | **Skill Management**| [`skills/agents-bin/`](file:///home/ongki/dotfiles/skills/agents-bin) | CLI tools for managing, checking, updating, and removing skills. | Developers & AI toolchain |
 | **Executable CLI**  | [`bin/`](file:///home/ongki/dotfiles/bin) | 108 standalone shell and Python scripts for linting, testing, sync, gates. | Terminal workflow & CI |
 | **OMP Control Plane** | [`config/omp/`](file:///home/ongki/dotfiles/config/omp) | Model routing catalogs, agent taxonomy, fallbacks, and benchmarks. | OMP (Oh My Prompt) runtime |

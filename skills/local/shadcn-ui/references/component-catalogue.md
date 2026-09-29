@@ -71,7 +71,7 @@ Below: only the things the docs won't warn you about.
 `DialogContent` hardcodes `sm:max-w-sm`, so an unprefixed `max-w-*` loses the
 specificity contest at every width above `sm`.
 
-## Select — empty string is not a legal value
+## Select (Radix) — empty string is not a legal value
 
 ```tsx
 <SelectItem value="">All</SelectItem>          // THROWS
@@ -150,11 +150,12 @@ block. Two that commonly bite:
 - **Button sizes** include `xs`, `icon-xs`, `icon-sm`, `icon-lg`, not just
   `default | sm | lg | icon`.
 - **Badge variants** include `ghost` and `link` beyond the familiar four, and
-  Badge renders a `<span>` and accepts `asChild`.
+  Badge renders a `<span>` and takes `asChild` (Radix) or `render` (Base UI).
 
-## Import style is mid-migration
+## Import style is mid-migration (Radix projects)
 
-Current registry components import from the unified `radix-ui` package:
+Current Radix-style registry components import from the unified `radix-ui`
+package (Base UI styles import `@base-ui/react` instead):
 
 ```tsx
 import { Label as LabelPrimitive } from 'radix-ui'

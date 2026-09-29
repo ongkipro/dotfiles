@@ -1,14 +1,14 @@
 ---
 name: admin-product-ux
 description: >-
-  Model product workflows and interaction requirements for SaaS, CRM, ERP,
-  internal tools, seller consoles, and admin systems before visual design
-  (admin-dashboard) or component code (shadcn-ui), which follow once the
-  workflow contract is sufficient. Use when defining roles, jobs, business
-  objects, entity lifecycles, permissions, list-detail behavior, forms, bulk
-  operations, approvals, audit history, screen contracts, state matrices, UX
-  acceptance criteria, or adaptive implementation boundaries for Astro,
-  Vite/React, and Next.js; also use when an admin UI feels generic,
+  Model product workflows and interaction contracts for SaaS, CRM, ERP,
+  internal tools, seller consoles, and admin systems. Not visual layout
+  (admin-dashboard), component code (shadcn-ui), or buyer storefront journeys
+  (storefront-ux). Use before visual design, when defining roles, jobs,
+  business objects, entity lifecycles, permissions, list-detail behavior,
+  forms, bulk operations, approvals, audit history, screen contracts, state
+  matrices, UX acceptance criteria, or adaptive implementation boundaries for
+  Astro, Vite/React, and Next.js; also use when an admin UI feels generic,
   incomplete, or operationally incorrect.
 ---
 
@@ -133,8 +133,9 @@ After product correctness is established:
 - use `shadcn-ui` for the component plan, composition, registry source, tokens,
   and component-level runtime cost
 - use `native-first` before adding a dependency or abstraction
-- use `ui-validation` for browser evidence and `web-perf` for measured
-  performance diagnosis
+- once UI is built or changed, run an `impeccable` critique + polish pass
+  (fix its findings), then `ui-validation` for browser evidence, before
+  calling it done; `web-perf` owns measured performance diagnosis
 
 Do not duplicate those skills here. This skill owns the product workflow and
 interaction contract they consume.

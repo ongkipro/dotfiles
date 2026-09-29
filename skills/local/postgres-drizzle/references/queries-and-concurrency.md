@@ -78,6 +78,29 @@ Foreign keys do not automatically create an index on referencing columns. Unique
 primary-key enforcement creates supporting indexes, but these may not match tenant/query
 ordering. Remove a redundant index only after checking all constraints and query shapes.
 
+An unindexed FK makes parent `DELETE`/key `UPDATE` (and any `ON DELETE` action) scan the
+child table. List FKs whose columns are not the leading columns of any index — a column
+merely *present* later in an index does not count (checked on PostgreSQL 16):
+
+```sql
+select c.conrelid::regclass as table_name, c.conname as fk_name,
+       array_agg(a.attname order by k.ord) as fk_columns
+from pg_constraint c
+cross join lateral unnest(c.conkey) with ordinality as k(attnum, ord)
+join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.attnum
+where c.contype = 'f'
+  and not exists (
+    select 1 from pg_index i
+    where i.indrelid = c.conrelid
+      and (i.indkey::int2[])[0:cardinality(c.conkey) - 1] @> c.conkey
+      and (i.indkey::int2[])[0:cardinality(c.conkey) - 1] <@ c.conkey)
+group by c.conrelid, c.conname
+order by 1, 2;
+```
+
+Treat hits as candidates, not orders: a rarely-deleted parent may not justify the write
+cost. Adapted from [Supabase Postgres best practices](https://github.com/supabase/agent-skills/tree/main/skills/supabase-postgres-best-practices/references).
+
 ## Plans and measurements
 
 Use representative parameters and data distribution. Plain `EXPLAIN` does not execute;

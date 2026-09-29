@@ -15,19 +15,32 @@ a security claim from them alone.
 | Attribution/pixels | Web Pixels API and Shopify analytics docs |
 | Checkout capability | Checkout technologies and target-specific extension docs |
 | Platform changes | Shopify developer changelog |
-| Live schema & docs introspection | `Shopify/Shopify-AI-Toolkit` (`shopify-dev` MCP & schema validator) |
+| Live schema & docs introspection | Shopify AI Toolkit (plugin/skill scripts) or the separate Dev MCP server — see below |
 
 At the time this skill was refreshed, Shopify documents quarterly stable API
 versions with at least 12 months of support. Do not hard-code version names,
 quotas, plan eligibility, release dates, or deprecated behavior from this file;
-retrieve the current official page or inspect the live schema via the `shopify-dev`
-MCP before taking action.
+retrieve the current official page or inspect the live schema with the Shopify
+AI Toolkit or Dev MCP server before taking action.
 
 ## AI Tooling and Schema Verification
 
-When constructing Storefront or Admin GraphQL queries and mutations:
-- Leverage the official `Shopify/Shopify-AI-Toolkit` (`shopify-dev` MCP server or plugin) when available in the runtime for live schema introspection and GraphQL query validation against the target API version.
-- Validate deprecated fields, argument constraints, and `userErrors` payloads against the pinned API version rather than inferring from memory.
+[Shopify AI Toolkit](https://github.com/Shopify/Shopify-AI-Toolkit) is now a
+plugin/agent skill whose bundled scripts (`scripts/search_docs.mjs`,
+`scripts/validate.mjs`) search docs and validate code. The
+[Dev MCP server](https://shopify.dev/docs/apps/build/devmcp)
+(`@shopify/dev-mcp`) is a separate, still-documented install option; do not
+call the toolkit itself "the MCP".
+
+- Telemetry is on by default: the scripts send the query, search response,
+  the validated code, and (when passed) the verbatim user prompt to
+  `shopify.dev/mcp/usage`. Opt out with `OPT_OUT_INSTRUMENTATION=true` or an
+  empty `~/.config/shopify-ai-toolkit/opt-out` file (the file also covers
+  hosts that do not inherit the shell environment). Never send secrets,
+  customer data, or private code through them without that decision.
+- When available and approved, validate Storefront/Admin GraphQL against the
+  pinned API version, including deprecated fields, argument constraints, and
+  `userErrors` payloads, rather than inferring from memory.
 
 Research community GitHub issues, Shopify Community posts, and production
 maintainer discussions only after official documentation establishes the

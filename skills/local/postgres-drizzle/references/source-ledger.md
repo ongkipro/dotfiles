@@ -1,6 +1,6 @@
 # Primary-source ledger
 
-Last source check: 2026-08-17.
+Last source check: 2026-09-29.
 
 Use this ledger to retrieve facts, not as a frozen API snapshot. PostgreSQL `/current/`
 resolved to PostgreSQL 18 on the check date; implementation must open the documentation
@@ -37,6 +37,15 @@ Project scripts and configuration win.
   default deny, roles, `USING`, `WITH CHECK`, permissive/restrictive behavior, and bypass.
 - [System administration functions](https://www.postgresql.org/docs/current/functions-admin.html)
   — retrieve current `set_config`/`current_setting` semantics before using custom context.
+- [`CREATE FUNCTION`](https://www.postgresql.org/docs/current/sql-createfunction.html)
+  (default `PUBLIC` execute, safe `SECURITY DEFINER`) and
+  [`CREATE VIEW`](https://www.postgresql.org/docs/current/sql-createview.html)
+  (`security_invoker`, 15+).
+- [Client connection defaults](https://www.postgresql.org/docs/current/runtime-config-client.html)
+  — `statement_timeout`, `lock_timeout`, `idle_in_transaction_session_timeout`,
+  `transaction_timeout` (17+).
+- Secondary: [Supabase Postgres best practices](https://github.com/supabase/agent-skills/tree/main/skills/supabase-postgres-best-practices/references)
+  — vendor rules (RLS initPlan wrapping, FK-index query); verify against the above.
 
 ## PostgreSQL — indexes and plans
 

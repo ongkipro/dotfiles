@@ -222,11 +222,10 @@ export function AppSidebar() {
             <SidebarMenu>
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <a href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </a>
+                  {/* Base UI: `render` (Radix: `asChild` + child <a>) */}
+                  <SidebarMenuButton render={<a href={item.url} />}>
+                    <item.icon />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -305,7 +304,7 @@ OS" and strands anyone whose system already auto-schedules.
 'use client'
 import { Monitor, Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 
 const MODES = [
@@ -318,19 +317,20 @@ export function ModeToggle() {
   const { theme, setTheme } = useTheme()
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Change theme">
-          <Sun className="h-4 w-4 dark:hidden" />
-          <Moon className="hidden h-4 w-4 dark:block" />
-        </Button>
+      {/* Base UI: `render` (Radix: `asChild` + child <Button>) */}
+      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="Change theme" />}>
+        <Sun className="dark:hidden" />
+        <Moon className="hidden dark:block" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {MODES.map(({ value, label, icon: Icon }) => (
-          <DropdownMenuItem key={value} onClick={() => setTheme(value)} aria-current={theme === value}>
-            <Icon className="mr-2 h-4 w-4" />
-            {label}
-          </DropdownMenuItem>
-        ))}
+        <DropdownMenuGroup>
+          {MODES.map(({ value, label, icon: Icon }) => (
+            <DropdownMenuItem key={value} onClick={() => setTheme(value)} aria-current={theme === value}>
+              <Icon />
+              {label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   )

@@ -94,3 +94,24 @@ and latency while controlling cardinality and exposure.
 Security-definer functions, dynamic SQL, mutable `search_path`, grants, default
 privileges, and extension trust are `application-security` review points. Keep functions
 invoked by policies small, schema-qualified, and tested under the real caller role.
+
+## Privileged objects around policies
+
+- **Evaluate context once.** A context lookup that does not depend on the row, such as
+  `current_setting('app.tenant_id', true)`, can be wrapped as a scalar subquery —
+  `tenant_id = (select current_setting('app.tenant_id', true))::uuid` — so the planner
+  runs it once per statement as an initPlan instead of per row. Only valid when the
+  result cannot vary by row; confirm with `EXPLAIN` on the real caller role.
+- **`SECURITY DEFINER` functions are `EXECUTE`-able by `PUBLIC` by default.** Revoke that
+  default, then grant to the one role that needs it, in the same transaction as
+  `CREATE FUNCTION`; pin `SET search_path` (e.g. `= ''` with schema-qualified names) and
+  keep the function out of any schema the runtime role can create objects in.
+  `REVOKE ALL ON FUNCTION f(args) FROM PUBLIC; GRANT EXECUTE ON FUNCTION f(args) TO app_role;`
+- **Views run as their owner by default**, so an owner-owned view over an RLS table
+  bypasses the caller's policies. On PostgreSQL 15+ use
+  `CREATE VIEW ... WITH (security_invoker = true)`; on older servers, do not grant the
+  view to runtime roles that must stay tenant-scoped.
+
+Sources: [`CREATE FUNCTION` — writing SECURITY DEFINER functions safely](https://www.postgresql.org/docs/current/sql-createfunction.html),
+[`CREATE VIEW`](https://www.postgresql.org/docs/current/sql-createview.html),
+[Supabase RLS performance: call functions with `select`](https://supabase.com/docs/guides/database/postgres/row-level-security).

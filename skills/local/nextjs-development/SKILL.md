@@ -87,7 +87,9 @@ Before proposing code or commands:
    is prohibited.
 5. Determine whether Cache Components or another version-specific cache mode is
    configured. This decision changes the caching model.
-6. Retrieve only the relevant current official pages from
+6. Read version-matched docs first: Next.js 16.2+ bundles them at
+   `node_modules/next/dist/docs/` (resolve from the app's own `node_modules` in
+   a monorepo). Then retrieve only the relevant current official pages from
    `references/source-ledger.md`. Use the docs version selector or the installed
    package source/types when current docs describe a different major.
 7. Write down the route's execution contract: runtime, public/private data,
@@ -244,5 +246,7 @@ Use `references/verification.md`. Minimum evidence is layered:
 - Selecting a non-default runtime for presumed speed without dependency and
   adapter evidence.
 - Adding client state/effects for derived or server-owned data.
+- Claiming a route is clean because it returned HTTP 200 — in `next dev` a
+  route with blocking errors still returns 200; read the overlay or `/_next/mcp`.
 - Claiming `next build` proves interaction, responsive layout, accessibility,
   cache invalidation at runtime, or production platform behavior.

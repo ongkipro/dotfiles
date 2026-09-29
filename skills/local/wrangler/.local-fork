@@ -1,18 +1,17 @@
 upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/wrangler/SKILL.md
-verified: 2026-08-16
+verified: 2026-09-29
 scope: directory
-reason: preserve the manual token-economy split and correct upstream remote-mode wording
-note: Upstream is one monolithic SKILL.md. Local stores its CLI reference in
-  references/bindings-cli-reference.md as declared by .source. The split itself
-  was already supported by _refresh-vendored.sh before this finding was fixed.
-note: Upstream still labels `wrangler dev --remote` as running on the edge and
-  "(legacy)". Current Cloudflare command documentation defines `--remote` as
-  developing against remote resources and data stored on Cloudflare's network;
-  local removes the stale legacy label and uses that documented wording.
-would_lose_if_wired: split verification now sees the intentional wording change,
-  while an ordinary refresh would both restore the stale label and collapse the
-  manual split.
-refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is
-  present, before split verification or any fetch/write.
-to_vendor: remove this ledger only after upstream corrects the remote-mode line,
-  then re-verify the existing split metadata against the new monolith.
+reason: One deliberate line. SKILL.md body is byte-identical to upstream (last path commit 320fbbc1);
+  only the frontmatter description appends "Not for Worker code review (workers-best-practices)
+  or product choice (cloudflare)." (236 characters total). Codex keeps only ~240 characters of
+  each description, and upstream's has no boundary, so the sibling boundary is front-loaded here,
+  matching the cloudflare and durable-objects forks.
+retired: the 2026-08-16 fork reasons are gone. The manual split was dropped with upstream's
+  rewrite, and the stale "wrangler dev --remote ... (legacy)" wording no longer exists upstream
+  (the new SKILL.md defers flags to project-local --help and the command docs). The Previews
+  claim "Wrangler 4.135.0 or later" was checked against
+  https://developers.cloudflare.com/workers/previews/get-started/ on 2026-09-29 and matches.
+would_lose_if_wired: a byte-for-byte refresh would drop the sibling boundary from the description.
+refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is present.
+to_vendor: remove this ledger (and become byte-identical) if upstream adds an equivalent boundary
+  or the Codex description cut stops mattering.

@@ -28,6 +28,19 @@ flag or subcommand is uncertain; examples:
 Choose only the command matching the repository's lockfile. Do not install or
 invoke `@latest` merely to discover an established project's behavior.
 
+Version-matched docs (source: nextjs.org/docs/app/guides/ai-agents):
+
+- **16.2+** bundles docs at `node_modules/next/dist/docs/` (numbered dirs;
+  `find node_modules/next/dist/docs -name '<slug>.md'`). Read these before the
+  website; `/docs/messages/*` error pages are not bundled.
+- **16.3+** `next dev`, when it detects a coding agent, writes/refreshes a
+  managed `<!-- BEGIN:nextjs-agent-rules -->` block in `AGENTS.md`
+  (`agentRules: false` disables it). Expect that diff; do not treat it as your
+  change or hand-strip it.
+- **≤16.1** has no bundled docs. `npx @next/codemod@canary agents-md` downloads
+  them to `.next-docs/` and edits `AGENTS.md` — it writes to the repo, so ask
+  first.
+
 ## 2. Classify the router and feature mode
 
 Answer these before implementation:
@@ -43,7 +56,9 @@ Answer these before implementation:
 | Is this route public, authenticated, or privileged? | existing auth/data policy | Drives cache sharing and mutation authorization. |
 
 Do not add Cache Components, change output mode, switch runtimes, or migrate the
-router as an incidental fix.
+router as an incidental fix. Enabling `cacheComponents` errors on any file that
+still exports `dynamic`, `revalidate`, or `fetchCache`; inventory those first
+and follow the official migration guide per key.
 
 ## 3. Retrieve the matching official contract
 

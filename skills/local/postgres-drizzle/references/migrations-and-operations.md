@@ -119,6 +119,23 @@ migrations, observability, maintenance, and reserved operator access. Configure 
 pool size, acquisition timeout, statement/transaction timeouts, and shutdown behavior
 using the installed driver/provider guidance.
 
+Timeouts are per-role or per-transaction decisions, not one global number. PostgreSQL
+defaults all of these to `0` (disabled) and advises against setting `statement_timeout`
+globally in `postgresql.conf`:
+
+- `idle_in_transaction_session_timeout` on runtime roles (`ALTER ROLE ... SET`), e.g.
+  `30s`, so an abandoned transaction cannot hold locks or block vacuum.
+- `statement_timeout` per role or `SET LOCAL` per transaction, sized to the slowest
+  legitimate query on that path; a longer, explicit value for batch/backfill roles.
+- `lock_timeout` via `SET LOCAL` in every migration/DDL transaction (seconds, not
+  minutes) so a blocked `ALTER` fails and retries instead of queueing all traffic behind
+  it. It is pointless when `>= statement_timeout`.
+- `transaction_timeout` exists only on PostgreSQL 17+.
+
+Under transaction pooling, prefer `SET LOCAL` or role-level settings; session `SET`
+does not reliably follow the client. Source:
+[client connection defaults](https://www.postgresql.org/docs/current/runtime-config-client.html).
+
 Confirm whether the endpoint is direct, session-pooled, or transaction-pooled. Test any
 feature needing session affinity. Run migrations through the provider-supported path;
 do not assume the application pool/proxy supports migration locks, DDL, or long-running

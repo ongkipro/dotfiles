@@ -101,6 +101,14 @@ checklist, not a mandate to add every feature.
   unknown outcome, and confirmation states separately.
 - On a failed submit, retain safe field values, focus the first invalid field,
   associate each error with its control, and never emit purchase success.
+- Give every buyer field its autofill token and input mode (`name`, `tel`,
+  `email`, `street-address`, `address-level2`, `postal-code` with
+  `inputmode="numeric"`), and never block paste; autofill is the cheapest
+  friction cut on a phone. (WHATWG autofill,
+  https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill)
+- Do not ask twice within one order: billing defaults to the shipping address,
+  and a phone or email given earlier is prefilled or selectable (WCAG 2.2 SC
+  3.3.7 Redundant Entry, Level A).
 - Do not invent urgency or allow client-calculated totals to override the
   authoritative order result.
 
@@ -124,6 +132,10 @@ checklist, not a mandate to add every feature.
 ## Customer account, reorder, and localization
 
 - Preserve guest purchase lookup and recovery when the platform allows it.
+- Sign-in and order lookup must not depend on a cognitive test alone: allow
+  paste and password managers (`autocomplete="current-password"`,
+  `one-time-code` for OTP), and give any puzzle CAPTCHA a non-puzzle
+  alternative (WCAG 2.2 SC 3.3.8, AA).
 - Reorder starts a new availability and price evaluation; it does not clone an
   old total as current truth.
 - Separate order placed, paid, fulfilled, delivered, cancelled, refunded,
@@ -160,6 +172,12 @@ states, many options, and cart errors.
 - Announce result count, availability, cart count, total, and mutation errors
   when they change asynchronously. Do not announce every keystroke.
 - On dialog, drawer, or sheet close, return focus to the invoking control.
+- Sticky purchase bars, cookie banners, and chat launchers must never
+  entirely cover the focused control (WCAG 2.2 SC 2.4.11, AA).
+- Price-range sliders, swipe galleries, and drag-to-zoom need a single-pointer
+  alternative such as min/max inputs or previous/next buttons (SC 2.5.7, AA).
+- A repeated help mechanism (WhatsApp, chat, contact link) keeps the same
+  relative position across PDP, cart, and checkout (SC 3.2.6, Level A).
 - Support text resize, zoom/reflow, reduced motion, and contrast without
   clipping essential product or checkout information.
 

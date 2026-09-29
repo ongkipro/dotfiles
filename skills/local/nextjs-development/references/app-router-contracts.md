@@ -79,6 +79,13 @@ constraints for cache keys, closed-over values, request APIs, private/user data,
 and Route Handlers. Do not assume a directive can be placed in every function
 body or handler.
 
+- A `cookies()`/`headers()`/session read anywhere inside a `"use cache"` call
+  tree passes `next build` but throws at request time — verify under
+  `next start`. Read request data outside and pass it in as an argument.
+- `updateTag(tag)` (Server Actions) expires immediately so the same request
+  sees fresh data; `revalidateTag(tag, 'max')` is stale-while-revalidate.
+  Single-argument `revalidateTag(tag)` is deprecated in 16.
+
 ### Cache Components not enabled
 
 Use the official “without Cache Components”/previous-model guide for that

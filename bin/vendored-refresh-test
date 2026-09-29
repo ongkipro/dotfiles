@@ -86,6 +86,24 @@ case "$out" in
 esac
 [ "$(cat "$SAND/fork/SKILL.md")" = "intentional local fork" ] \
   || fail 'refresh overwrote a managed local fork'
+
+# --- a non-split fork names the files where upstream moved on (read-only) -----
+mkdir -p "$UP/drift" "$SAND/drift"
+printf 'upstream moved on\n' > "$UP/drift/SKILL.md"
+printf 'local fix\n' > "$SAND/drift/SKILL.md"
+printf 'local only\n' > "$SAND/drift/extra.md"
+printf 'source: file://%s/drift\nvendored: 2000-01-01\n' "$UP" > "$SAND/drift/.source"
+printf 'upstream: file://%s/drift\nverified: 2000-01-01\nscope: directory\n' "$UP" \
+  > "$SAND/drift/.local-fork"
+out="$(run drift)" || fail "a drifted fork should exit 0; got: $out"
+case "$out" in *"differs:"*"SKILL.md"*) ;; *) fail "fork drift not named: $out" ;; esac
+case "$out" in *"not upstream:"*"extra.md"*) ;; *) fail "local-only file not named: $out" ;; esac
+[ "$(cat "$SAND/drift/SKILL.md")" = "local fix" ] || fail 'drift report wrote into a fork'
+grep -q '^vendored: 2000-01-01' "$SAND/drift/.source" || fail 'drift report advanced vendored date'
+printf 'local fix\n' > "$UP/drift/SKILL.md"; rm "$SAND/drift/extra.md"
+out="$(run drift)"
+case "$out" in *"identical to upstream now"*) ;; *) fail "retire hint missing: $out" ;; esac
+rm -rf "$SAND/drift" "$UP/drift"
 [ "$(cat "$SAND/fork/references/ref.md")" = "intentional local reference" ] \
   || fail 'refresh overwrote a reference inside a managed local fork'
 grep -q '^vendored: 2000-01-01' "$SAND/fork/.source" \

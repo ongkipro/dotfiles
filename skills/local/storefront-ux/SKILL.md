@@ -2,16 +2,16 @@
 name: storefront-ux
 description: >-
   Design, audit, or repair commerce interaction flows and state: search,
-  listing, filters, PDP, variants, cart, checkout handoff, account. Not visual
-  styling (design-taste), copy, implementation (storefront-development),
-  admin, or browser validation. Also covers localization, accessibility,
-  performance, and analytics. Use for storefront UX specs, journey audits,
+  listing, filters, PDP, variants, cart, checkout handoff, account. Not
+  visuals (design-taste), copy, code (storefront-development), admin, browser
+  proof (ui-validation). Also covers localization, accessibility, performance,
+  and analytics requirements. Use for storefront UX specs, journey audits,
   edge-state inventories, responsive commerce behavior, conversion-friction
-  diagnosis, direct COD or single-page order forms, implementation acceptance
-  criteria. Not for admin dashboards. Backend-neutral; use the Shopify
-  boundary reference on Shopify projects. Copy goes to copywriting/content;
-  storefront-development implements the accepted contract (API syntax,
-  component installation); ui-validation owns browser evidence.
+  diagnosis, direct COD or single-page order forms, and implementation
+  acceptance criteria. Backend-neutral; use the Shopify boundary reference on
+  Shopify projects. Copy goes to copywriting/content; storefront-development
+  implements the accepted contract (API syntax, component installation); admin
+  dashboards go to admin-dashboard.
 ---
 
 # Storefront UX
@@ -66,7 +66,9 @@ Keep semantic structure, keyboard behavior, state recovery, performance budgets,
 10. **Produce acceptance criteria.** Make each criterion observable across
     representative viewports, input methods, locales, and failure states.
     Hand visual hierarchy to `design-taste`, implementation to
-    `storefront-development`, and browser proof to `ui-validation`.
+    `storefront-development`, and browser proof to `ui-validation`. Once UI
+    is built or changed: `impeccable` critique + polish pass (fix its
+    findings) → `ui-validation` → only then done.
 
 Read [journeys-and-states.md](references/journeys-and-states.md) for canonical
 buyer journeys, responsive behavior, commerce state, recovery, analytics, and

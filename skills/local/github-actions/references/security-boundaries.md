@@ -108,6 +108,8 @@ run: printf '%s\n' "$PR_TITLE"
 
 Environment variables prevent the event value from becoming shell source, but the receiving command must still quote and validate it for its destination. Prefer an action input or structured program argument when available. Apply the same rule to branch names, issue bodies, commit text, manual inputs, matrix values influenced by external data, artifact names, and outputs.
 
+Writing to `$GITHUB_ENV` or `$GITHUB_OUTPUT` is its own sink: in a multiline `{name}<<{delimiter}` block, a value containing the delimiter on a line of its own ends the block early, and the following lines are parsed as further entries. [Workflow commands](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands#multiline-strings) warns that the delimiter must not occur within the value and says to write a completely arbitrary value to a file instead; for untrusted data, do that and pass the file path.
+
 ## Secrets and log handling
 
 - Use separate least-privilege credentials rather than a structured multi-secret blob.

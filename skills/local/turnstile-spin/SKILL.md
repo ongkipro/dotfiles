@@ -1,13 +1,6 @@
 ---
 name: turnstile-spin
-description: Set up Cloudflare Turnstile end-to-end in a project. Scan the codebase, create the widget via the Cloudflare API, embed it where user requests need bot verification (form submissions, SPA actions, API endpoints, download links, comment or vote submissions, etc.), wire canonical server-side siteverify in the customer's existing backend, validate, and persist the skill. Load this when a user asks to add Turnstile, set up CAPTCHA, protect a form or endpoint from bots, or fix a Turnstile integration. Mirrors developers.cloudflare.com/turnstile/spin.
-references:
-  - vanilla-html
-  - nextjs-app
-  - nextjs-pages
-  - astro
-  - sveltekit
-  - hugo
+description: Set up, repair, or migrate to Cloudflare Turnstile end-to-end in a project whose existing backend can call Siteverify. Not for pure-static sites or deploying new Workers, proxies, or form backends. Scans the codebase, creates the widget via the Cloudflare API, embeds it where requests need bot verification (forms, SPA actions, API endpoints, downloads, comments, votes), wires canonical server-side Siteverify into the existing handler, validates, and persists the skill. Load when a user asks to add Turnstile, set up CAPTCHA, protect a form or endpoint from bots, or fix a Turnstile integration. Derived from developers.cloudflare.com/turnstile/spin.
 ---
 
 # Turnstile Spin skill
@@ -17,6 +10,19 @@ Turns the prompt "set up Turnstile" into a working end-to-end integration: a wid
 You are the agent. Run only the helpers explicitly named by a wizard step and branch on their JSON output. The supported helpers are `auth-probe.sh`, `widget-create.sh`, `validate.sh` for the guarded existing-widget flow, and `persist-skill.sh`. `worker-deploy.sh` and `templates/worker/` are retained historical upstream artifacts and are outside the Spin contract: never invoke, copy, or deploy them.
 
 This file is the canonical machine-readable behavior. Product requirements come from the [Turnstile documentation](https://developers.cloudflare.com/turnstile/), and the hosted prompt must mirror this behavior.
+
+## Framework references
+
+Read the reference for the existing frontend when wiring the integration:
+
+| Frontend | Reference |
+|---|---|
+| Vanilla HTML | [vanilla-html](references/vanilla-html.md) |
+| Next.js App Router | [nextjs-app](references/nextjs-app.md) |
+| Next.js Pages Router | [nextjs-pages](references/nextjs-pages.md) |
+| Astro | [astro](references/astro.md) |
+| SvelteKit | [sveltekit](references/sveltekit.md) |
+| Hugo | [hugo](references/hugo.md) |
 
 ## When to load this skill
 
@@ -85,7 +91,7 @@ The user pasted the prompt. You are in a multi-step dialog. Detect what you can,
    unset CREATION_METADATA
    ```
 
-   The success contract is exactly non-secret metadata: `{"status":"ok","sitekey":"<sitekey>","secret_configuration":"required_by_user"}`. The helper validates the one-time secret in the API response, discards it in memory, and never emits or persists it. Do not use `wrangler turnstile widget create` or a direct API call as a fallback because their successful response contains the secret. Do not fall back after any helper failure. Report only the sitekey.
+   The success contract is exactly non-secret metadata: `{"status":"ok","sitekey":"<sitekey>","secret_configuration":"required_by_user"}`. The helper validates the one-time secret in the API response, discards it in memory, and never emits or persists it. Do not use `wrangler turnstile widget create` or a direct API call as a fallback because their successful response contains the secret ([Spin docs](https://developers.cloudflare.com/turnstile/spin/#set-up-from-the-wrangler-cli): Wrangler prints the sitekey and secret — that is the manual, human-run path, not an agent path). Do not fall back after any helper failure. Report only the sitekey.
 
 9. **Wire the integration.** State the contract: "I'll embed the widget at each chosen surface and add a canonical siteverify call inside its existing handler. The handler will require `success === true`, the expected action, and an approved frontend hostname. The existing handler logic stays the same. You will configure the secret directly as `TURNSTILE_SECRET`; it never enters the agent process." Ask "yes" / "show". **[wait for user]** If "show", print unified diffs and ask again. Do NOT propose alternate behavior (mail delivery, custom backends).
 

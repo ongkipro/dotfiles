@@ -1,0 +1,6 @@
+source: https://raw.githubusercontent.com/cloudflare/skills/main/skills/cloudflare
+vendored: 2026-09-29
+note: Re-vendored from upstream 2026-09-29 (last path commit 320fbbc1): SKILL.md body and the
+  full references/ tree (289 files) match upstream byte-for-byte except the two lines
+  recorded in .local-fork. Local-only references/{agents-sdk,durable-objects,sandbox,
+  turnstile,workers,wrangler}/ (31 files) were removed because upstream deleted them.

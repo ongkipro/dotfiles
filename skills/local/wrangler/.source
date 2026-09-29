@@ -1,21 +1,6 @@
 source: https://raw.githubusercontent.com/cloudflare/skills/main/skills/wrangler
-vendored: 2026-08-16
-split_of: SKILL.md
-part: SKILL.md trim-tail 10
-part: references/bindings-cli-reference.md trim-head 7
-
-# This metadata records the deliberate split made from the 922-line upstream
-# monolith verified earlier on 2026-08-16:
-#
-#   former upstream 1..281    == SKILL.md 1..281, before the local wording fix
-#   former upstream 282..922  == references/bindings-cli-reference.md 8..648
-#
-# The two trims are local additions: a 10-line pointer stub at the end of
-# SKILL.md and a 7-line header on the reference file. Upstream later replaced
-# that monolith at the same canonical URL, while the local copy also corrected
-# its stale `wrangler dev --remote` wording. The adjacent .local-fork ledger now
-# takes precedence so refresh preserves both the split and that correction.
-#
-# If the fork is retired, re-check the current upstream layout before enabling
-# split verification again; these historical part boundaries must not be
-# assumed to match a future monolith.
+vendored: 2026-09-29
+note: Re-vendored 2026-09-29 (last path commit 320fbbc1). Upstream replaced its 922-line monolith
+  with a ~69-line retrieval-first SKILL.md, so the old manual split (SKILL.md trim-tail 10 +
+  references/bindings-cli-reference.md trim-head 7) no longer reassembled and was dropped;
+  the reference file was removed (upstream has no equivalent, nothing linked to it).

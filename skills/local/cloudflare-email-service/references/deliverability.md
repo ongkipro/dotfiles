@@ -51,7 +51,7 @@ Email Service is for **transactional email** (triggered by user actions: signups
 Per-domain and account-wide analytics are available in the Cloudflare dashboard:
 
 1. Log in to the [Cloudflare dashboard](https://dash.cloudflare.com) and select your account.
-2. Go to **Compute & AI** > **Email Service**.
+2. Go to **Compute** > **Email Service**.
 3. Select a domain or view account-wide metrics.
 4. Select the **Analytics** tab.
 

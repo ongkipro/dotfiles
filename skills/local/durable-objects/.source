@@ -1,4 +1,3 @@
 source: https://raw.githubusercontent.com/cloudflare/skills/main/skills/durable-objects
-vendored: 2026-08-16
-note: Local factual fork as of 2026-08-16; see .local-fork. Preserve until upstream
-  removes the fabricated D1-based Durable Object listing command.
+vendored: 2026-09-29
+note: Merged with upstream 2026-09-29 (SKILL.md, rules.md, testing.md adopted verbatim). Local factual fork persists; see .local-fork for the two remaining divergences.

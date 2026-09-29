@@ -1,6 +1,6 @@
 upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/durable-objects
-verified: 2026-08-16
+verified: 2026-09-29
 scope: directory
-reason: Current upstream presents a D1 query against an undocumented _cf_DO table as a Durable Object listing command.
-would_lose_if_wired: A byte-for-byte refresh would reintroduce a fabricated inspection command and hide the supported Workers log and Data Studio paths.
-to_vendor: Remove this marker only after upstream replaces the D1 command with current Wrangler tail and Durable Objects Data Studio guidance or an equivalent official inspection contract.
+reason: Upstream (checked 2026-09-29, last path commit c57a2d8d) still ends references/workers.md "Development Commands" with `wrangler d1 execute DB --command "SELECT * FROM _cf_DO"` labelled "List DOs". D1 is not Durable Object storage, `_cf_DO` is undocumented, and Wrangler has no command that lists live Durable Object instances (https://developers.cloudflare.com/workers/wrangler/commands/workers/). The supported storage inspection path is Durable Objects Data Studio (https://developers.cloudflare.com/durable-objects/observability/data-studio/). Second, minimal divergence: SKILL.md frontmatter description appends a "Not for ..." boundary naming sibling skills (workers-best-practices, wrangler, agents-sdk) inside the first 240 characters; upstream's description has no boundary. Everything else (SKILL.md body, references/rules.md, references/testing.md, rest of references/workers.md) is byte-identical to upstream.
+would_lose_if_wired: A byte-for-byte refresh would reintroduce the fabricated `_cf_DO` D1 listing command, drop the Data Studio / application-owned name-mapping guidance, and remove the sibling-skill boundary from the description.
+to_vendor: Remove this marker once upstream deletes the `_cf_DO` D1 command (or replaces it with Data Studio or an equivalent documented inspection path); then decide separately whether to keep the description boundary as the only local change or drop it and become byte-identical.

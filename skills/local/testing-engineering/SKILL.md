@@ -190,6 +190,25 @@ When a test flakes:
 5. use retries or quarantine only as a visible, owned, time-bounded containment
    policy—not as evidence of correctness.
 
+For an installed Playwright Test suite (check the version; see the ledger):
+
+- Run non-interactively with `PLAYWRIGHT_HTML_OPEN=never` so the HTML report
+  never opens and blocks the shell.
+- Read a failure's `trace.zip` from the CLI (added 1.59; subcommands and flags
+  have changed since, so confirm against the installed CLI's help):
+  `npx playwright trace open <trace.zip>`, then `trace actions --errors-only`,
+  `trace errors`, `trace requests --failed`, `trace console --errors-only`;
+  `trace close` after.
+- `npx playwright test --debug=cli` (1.59+) pauses a test for `playwright-cli`
+  to attach; run it in the background and stop it afterward. Interactive page
+  driving belongs to `ui-validation`.
+- Component tests: since 1.62 use the built-in `mount()` fixture with a story
+  gallery; `@playwright/experimental-ct-*` stopped receiving updates in 1.63
+  and current docs mark them removed. Migrate while pinned to 1.62; add none.
+- Never run `playwright-cli install --skills -g` or any other agent-skill
+  installer: `~/.claude/skills` is a symlink to the owned dotfiles skills
+  directory, so it writes vendor files into owned skills.
+
 ## 8. Evidence gate and report
 
 Run the new/changed focused test, then the nearest affected suite only when it is

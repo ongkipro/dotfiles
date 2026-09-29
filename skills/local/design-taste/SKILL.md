@@ -1,17 +1,17 @@
 ---
 name: design-taste
 description: >-
-  Research, design, and critique public frontend UI/UX: landing pages,
-  marketing sites, public product flows, editorial/docs, portfolios,
-  storefront visuals. Not the owner of admin workflows, commerce rules,
-  copywriting, SEO, or library installation. Use for UI/UX workflow, reference
-  research, Apple/Google/Material-inspired web design, redesign, design
-  tokens, visual polish, or AI-templated UI, across frameworks. Start from
+  Set and critique visual direction for public frontend UI/UX (landing,
+  marketing, public flows, docs, portfolios, storefront visuals). Not admin UI
+  (admin-dashboard), commerce behavior (storefront-ux), or tactical polish
+  passes (impeccable). Use for UI/UX workflow, reference research,
+  Apple/Google/Material-inspired web design, redesign, design tokens,
+  composition contracts, or AI-templated UI, across frameworks. Start from
   user tasks and existing brand evidence; use a restrained, lightweight
   public-web foundation when no accepted system exists. Require inspected
   references for new directions and rendered critique for visual claims.
-  Commerce business rules belong elsewhere. Pair with the installed framework
-  skill and ui-validation.
+  Copywriting, SEO, and library installation belong elsewhere. Pair with the
+  installed framework skill and ui-validation.
 ---
 
 # Design Taste — Public Frontend UI/UX
@@ -65,7 +65,9 @@ For a new public experience or material redesign:
 6. **Implement:** deliver the primary journey with realistic content in the
    existing framework. Follow the session's designer/vision routing requirement
    before visual edits; if that capability cannot start, report the limitation.
-7. **Validate and revise:** use `ui-validation` to exercise behavior, inspect
+7. **Polish, then validate:** run an `impeccable` critique + polish pass on
+   the built or changed UI and fix its findings; then use `ui-validation` to
+   exercise behavior, inspect
    narrow/wide renders, compare against the accepted direction, fix concrete
    discrepancies, and reopen the changed views.
 
@@ -92,7 +94,9 @@ system. Scale documentation to the change; never turn a spacing fix into a PRD.
 ## 1.5. Design context precedence
 
 Explicit user direction and accepted repository design contracts outrank this
-skill's defaults. Inspect brand assets, existing tokens, components, content,
+skill's defaults. The user's standing "UI & Design Invariant" entries in
+`~/.config/ai/memory/preferences.md` count as explicit direction on every
+project; read them before visual work rather than restating them here. Inspect brand assets, existing tokens, components, content,
 and locale before inventing replacements. Preserve names, URLs, tracking,
 legal/consent text, and accessibility behavior unless their change is authorized.
 
@@ -169,7 +173,10 @@ licensing and use project-native loading or self-hosted subsets where suitable.
 Do not copy proprietary brand font assets merely to resemble a reference.
 
 Define a clear type hierarchy and comfortable reading measure; roughly 60–75ch
-is a starting point for long prose, not a universal width. Use responsive sizes
+is a starting point for long prose, not a universal width. Let CSS balance
+wrapping (`text-wrap: balance` on short headings, `pretty` on prose) instead of
+hard `<br>` breaks that fail at other widths and in translation (Vercel Web
+Interface Guidelines). Use responsive sizes
 that retain a rem contribution and work with zoom. Test long titles and real
 translations. A headline may wrap; do not force two lines or rewrite meaning
 to satisfy a screenshot. Avoid fixed-height text containers and clipped glyphs.
@@ -240,8 +247,10 @@ Keep a familiar pattern when the content and accepted direction justify it.
 
 When the pattern is merely an implementation fallback, revise the composition
 before adding more decoration. Prefer hierarchy through scale, whitespace,
-alignment, media placement, dividers, sequencing, and contrast before another
-container. A technically consistent component tree is not evidence of authored
+alignment, media placement, in-section dividers, sequencing, and contrast
+before another container (the user's invariants rule out divider lines
+between sections). For the look-clusters generated UI converges on, use
+`impeccable`'s `reference/new-work.md` calibration rather than restating it. A technically consistent component tree is not evidence of authored
 visual direction.
 
 ### 4.4. States, forms, and accessibility

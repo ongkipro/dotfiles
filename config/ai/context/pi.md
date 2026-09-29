@@ -52,7 +52,7 @@ Lifecycle: understand → smallest context → implement → verify independentl
 
 - Work you hand to a subagent, worker, or another model is still yours: the session that started it owns integration and final verification.
 - Never claim "it works" without running something. Use the project's own scripts first (`package.json`, Makefile, `bin/*-test`); stack cheatsheet in skill `native-first`.
-- A green build is not proof a UI works: browser-visible changes need rendered evidence (skill `ui-validation`).
+- A green build is not proof a UI works: UI you build or change gets an `impeccable` critique-and-polish pass first (skip for fixes with no visual change), then rendered browser evidence (skill `ui-validation`).
 - After a verified non-trivial fix with a durable, reusable lesson not already encoded in a repo test or doc: `ai-learn capture` (English; symptom, root cause, invariant, fix, check; no raw logs, secrets, customer data, changing project status, or unverified diagnosis). Capture is a local candidate; promotion is a separate reviewed step and never authorizes commit or push.
 
 ## Hard rules

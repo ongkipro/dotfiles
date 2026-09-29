@@ -77,6 +77,10 @@ visibility, traffic routing, domains, or a production cutover.
 - After editing GraphQL documents, run the project's code-generation script
   before typechecking. Do not hand-edit generated Storefront API, Customer
   Account API, or route type declarations.
+- Do not add deprecated Hydrogen primitives to new code: `VariantSelector` ->
+  [`getProductOptions`](https://shopify.dev/docs/api/hydrogen/latest/utilities/getproductoptions),
+  `<Seo>` -> [`getSeoMeta`](https://shopify.dev/docs/api/hydrogen/latest/utilities/getseometa)
+  in route `meta`. Migrate existing uses only with the matching Hydrogen upgrade.
 
 Use `hydrogen-headless-tracking` only for analytics, pixels, consent, or
 server-side conversion signals. Use `seo-website-builder` for SEO/indexation,

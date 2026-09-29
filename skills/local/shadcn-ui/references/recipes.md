@@ -3,6 +3,11 @@
 Ready-made patterns — copy, then swap the data. Install with the project's own
 package manager (check the lockfile); `add` pulls its npm deps itself.
 
+Composition is **Base UI** (`render`, `nativeButton`, Select `items`); on a
+Radix project swap per the table in `SKILL.md` → "Base UI vs Radix". Toasts
+use `sonner`, which is the Radix/Aria choice; a Base UI project uses its
+`toast` component instead.
+
 ## Contact Form (Field + React Hook Form)
 
 On the current style (`radix-nova`, verified) `add form` is a no-op: the
@@ -137,7 +142,7 @@ export function DataTable<T>({ columns, data }: { columns: ColumnDef<T>[]; data:
   })
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <Input placeholder="Search..." value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} className="max-w-sm" />
       <div className="rounded-md border">
         <Table>
@@ -149,7 +154,7 @@ export function DataTable<T>({ columns, data }: { columns: ColumnDef<T>[]; data:
                     {h.isPlaceholder ? null : h.column.getCanSort() ? (
                       <Button variant="ghost" size="sm" onClick={h.column.getToggleSortingHandler()} className="-ml-3">
                         {flexRender(h.column.columnDef.header, h.getContext())}
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                        <ArrowUpDown data-icon="inline-end" />
                       </Button>
                     ) : (
                       flexRender(h.column.columnDef.header, h.getContext())
@@ -202,8 +207,8 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 
 interface Item { id: string; name: string; email: string }
 
@@ -234,16 +239,16 @@ export function CrudModal({ item, open, onOpenChange, onSave }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader><DialogTitle>{item ? 'Edit' : 'Create'} Item</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="name">Name</FieldLabel>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="email">Email</FieldLabel>
             <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          </div>
-        </div>
+          </Field>
+        </FieldGroup>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button>
@@ -281,7 +286,7 @@ export function Navigation() {
         <div className="flex md:hidden items-center gap-2">
           <ModeToggle />
           <Sheet>
-            <SheetTrigger asChild><Button variant="ghost" size="icon"><Menu className="h-5 w-5" /></Button></SheetTrigger>
+            <SheetTrigger render={<Button variant="ghost" size="icon" aria-label="Open menu" />}><Menu /></SheetTrigger>
             <SheetContent side="right">
               <SheetHeader><SheetTitle>Menu</SheetTitle></SheetHeader>
               <nav className="flex flex-col gap-4 mt-6">
@@ -301,17 +306,25 @@ export function Navigation() {
 ```tsx
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
+// Base UI Select needs `items` on the root to render the selected label.
+const timezones = [
+  { label: 'Asia/Jakarta', value: 'asia-jakarta' },
+  { label: 'UTC', value: 'utc' },
+  { label: 'US/Eastern', value: 'us-eastern' },
+]
+
 export function SettingsPage() {
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="flex max-w-2xl flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold">Settings</h1>
         <p className="text-muted-foreground">Manage your account settings.</p>
@@ -321,33 +334,35 @@ export function SettingsPage() {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
         </TabsList>
-        <TabsContent value="general" className="space-y-4 mt-4">
+        <TabsContent value="general" className="mt-4 flex flex-col gap-4">
           <Card>
             <CardHeader><CardTitle>Profile</CardTitle><CardDescription>Update your display name.</CardDescription></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Display Name</Label>
-                <Input id="name" defaultValue="Alex" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="timezone">Timezone</Label>
-                <Select defaultValue="utc">
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="asia-jakarta">Asia/Jakarta</SelectItem>
-                    <SelectItem value="utc">UTC</SelectItem>
-                    <SelectItem value="us-eastern">US/Eastern</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <CardContent>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="name">Display Name</FieldLabel>
+                  <Input id="name" defaultValue="Alex" />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="timezone">Timezone</FieldLabel>
+                  <Select items={timezones} defaultValue="utc">
+                    <SelectTrigger id="timezone"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {timezones.map(tz => <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>)}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </FieldGroup>
             </CardContent>
           </Card>
           <Button onClick={() => toast.success('Settings saved')}>Save changes</Button>
         </TabsContent>
-        <TabsContent value="notifications" className="space-y-4 mt-4">
+        <TabsContent value="notifications" className="mt-4 flex flex-col gap-4">
           <Card>
             <CardHeader><CardTitle>Notifications</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="flex flex-col gap-4">
               {[
                 { id: 'email', label: 'Email notifications', desc: 'Receive email updates', default: true },
                 { id: 'marketing', label: 'Marketing emails', desc: 'Receive promotional content', default: false },
@@ -432,11 +447,9 @@ export function DatePicker() {
 
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" className={cn('w-[240px] justify-start text-left font-normal', !date && 'text-muted-foreground')}>
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? format(date, 'PPP') : 'Pick a date'}
-        </Button>
+      <PopoverTrigger render={<Button variant="outline" className={cn('w-[240px] justify-start text-left font-normal', !date && 'text-muted-foreground')} />}>
+        <CalendarIcon data-icon="inline-start" />
+        {date ? format(date, 'PPP') : 'Pick a date'}
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         {/* react-day-picker renamed initialFocus → autoFocus in v9 */}
@@ -470,11 +483,9 @@ export function Combobox() {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" className="w-[200px] justify-between">
-          {value ? options.find(o => o.value === value)?.label : 'Select framework...'}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
+      <PopoverTrigger render={<Button variant="outline" role="combobox" className="w-[200px] justify-between" />}>
+        {value ? options.find(o => o.value === value)?.label : 'Select framework...'}
+        <ChevronsUpDown data-icon="inline-end" className="opacity-50" />
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0">
         <Command>

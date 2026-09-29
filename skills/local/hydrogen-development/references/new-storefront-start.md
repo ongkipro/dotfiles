@@ -26,6 +26,12 @@ own install and development scripts, then open the local app in a browser. A
 Mock.shop run proves scaffold behavior only; it does not prove merchant data,
 Customer Accounts, checkout, Markets, or production readiness.
 
+[Mock.shop](https://shopify.dev/docs/storefronts/headless/mock-shop) now serves
+several independent mock stores, each at `https://<store>.mock.shop/api`; pick
+one from the directory at `https://mock.shop/llms.txt`. It does not support the
+Customer Account API and its checkout is mocked, so account and checkout flows
+need a linked real store.
+
 ## Link a real Shopify store
 
 Do not run `shopify hydrogen link` or an equivalent link workflow until the

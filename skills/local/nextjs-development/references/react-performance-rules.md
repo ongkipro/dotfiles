@@ -143,6 +143,24 @@ export const getCurrentUser = cache(async (userId: string) => {
 // Calling getCurrentUser(id) in Layout, Page, and Header executes only 1 DB query.
 ```
 
+### `server-no-shared-module-state`
+Server renders run concurrently in one process: never write request data (user,
+tenant, session) to a mutable module-level variable — it leaks across requests.
+Keep it in props/arguments or `React.cache()`.
+
+### `server-serialization` / `server-dedup-props`
+Every prop crossing into a Client Component is serialized into the HTML and RSC
+payload: pass only the fields the client uses. Dedup is by reference, not value —
+`list` plus `list.toSorted()` ships twice; derive on the client instead.
+
+### `server-after-nonblocking`
+Use `after()` from `next/server` for logging/analytics that must not delay the
+response; it still runs when the response fails or redirects.
+
+### `rerender-no-inline-components`
+Never define a component inside another component: a new type each render
+remounts the subtree, losing state and input focus. Pass props instead.
+
 ### `server-cache-cross-request` (Durable Caching)
 For data shared across requests and users (catalogs, public articles, exchange rates), use Next.js `unstable_cache` or standard cache tags:
 ```ts

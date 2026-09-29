@@ -36,6 +36,17 @@ to copy Dawn/Horizon visuals or to universalize Shopify-specific mechanics.
 - Customer Account API:
   https://shopify.dev/docs/api/customer
 
+## Accessibility and form standards
+
+Verified 2026-09-29.
+
+- WCAG 2.2 (SC 2.4.11, 2.5.7, 3.2.6, 3.3.7, 3.3.8):
+  https://www.w3.org/TR/WCAG22/
+- WHATWG autofill tokens:
+  https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill
+- Vercel Web Interface Guidelines (forms: autocomplete, no paste blocking):
+  https://github.com/vercel-labs/web-interface-guidelines
+
 ## Freshness rule
 
 Storefront journeys, honest price/availability presentation, progressive
