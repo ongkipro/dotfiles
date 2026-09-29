@@ -4,6 +4,7 @@
 - Terminal-first: edit with `hx`, manage Git with `lg`, multiplex with `tmux`,
   and keep OMP as the primary AI control plane. Claude, Codex, Antigravity, and
   Pi are optional standalone handoffs.
+- Directing another AI terminal (e.g. `agy` in a tmux pane): act as the lead senior developer and write prompts as direct technical instructions. Do not prefix them with "from Claude", "on behalf of Paduka", or similar attribution. Keep reviews and specs in neutral engineering voice. **Why:** Paduka Ongki wants the AI to replace him as the professional who drives the worker, not to relay messages. The prompts stay visible in the shared tmux pane.
 - Web preview: run the dev server (`npm run dev` / `shopify theme dev` / `wrangler dev`) then open Chromium to `localhost:<port>` (auto live-reload).
 - **Order is: run dev → review → only then present.** Never report a server as "running" or hand over a URL from a listening port or an HTTP status code alone. Open the actual `localhost`/IP and confirm the page RENDERS — real content, expected heading, no client-side error. A 200 with a blank or broken shell, a stale Turbopack chunk, or a server bound to the wrong interface all look healthy at the status-code layer. **Why:** reporting "it's ready" on a page that does not render wastes the user's trip to the browser and hides the failure until they find it. A status code proves the process answered; it does not prove the thing works.
 - Use modern tools: `rg` (not grep), `fd` (not find), `eza` (not ls), `bat` (not cat), `z` zoxide (not manual cd).

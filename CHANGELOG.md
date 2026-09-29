@@ -4,6 +4,28 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## v2026.09.29.1
+
+Memory-only follow-up to the morning tag: three facts learned in the day's
+AdsBookCMS and UI work, no skill or runtime change.
+
+### Changed
+
+- `projects-platforms.md`: zvarashop rejoined the AdsBookCMS product line
+  (install `cdc2d6c`, merge parent product `cf665db`) after its store-authored
+  `0055`–`0057` migrations left the chain; how to import a `wrangler d1 export`
+  dump locally (tables first, then rows, then indexes, with
+  `PRAGMA defer_foreign_keys = true`).
+- `preferences.md`: UI invariant — at most one WhatsApp/contact call to action
+  per page, placed after the user's task is done.
+- `workflow.md`: when directing another AI terminal, write prompts as the lead
+  developer's direct technical instructions, without relay attribution.
+
+### Verification
+
+- `ai-memory-check`, `ai-memory-check-test` and `ai-policy-lint` passed;
+  `ai-doctor` OK (notes: three lesson candidates awaiting `ai-learn` review).
+
 ## v2026.09.29
 
 A full skill audit: every owned and vendored skill validated, every managed fork
