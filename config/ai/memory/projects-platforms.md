@@ -51,11 +51,17 @@
 - `npm run deploy` in an install refuses a tree that is behind its upstream or
   carries uncommitted tracked changes (fetches first). `ALLOW_STALE_DEPLOY=1`
   is the only way past, and a bare `npx wrangler deploy` skips it entirely.
-- As of 2026-09-07 zvarashop (417 files diverged) and zanobyshop (275 commits
-  ahead) still run their own forks of the product; everything they had proven
-  in production has been ported upstream, so bringing them forward is a merge
-  of landing pages and config, not of behaviour. Each needs its own release
-  session with a backup and a maintenance window.
+- zvarashop rejoined the product line on 2026-09-29 (`install/zvarashop`
+  `cdc2d6c`, merge parent = product `cf665db`): every product-owned path equals
+  the product, only its native landing routes/CSS/images/register differ. It had
+  again authored store migrations on product numbers (0055-0057, data only);
+  they left the chain and their ledger rows were deleted right after deploy
+  (ADR-024 pattern, rehearsed on a local import of the prod export first — the
+  unrepaired ledger gives 503 everywhere). zanobyshop (275 commits ahead as of
+  2026-09-07) still runs its own fork and needs the same release session.
+- Importing a `wrangler d1 export` dump locally fails on foreign keys (children
+  are inserted before parents); reorder to all CREATE TABLE first, then rows,
+  then indexes/triggers, and prefix `PRAGMA defer_foreign_keys = true;`.
 - Migration numbers belong to the product (ADR-024, 2026-09-05). Three
   different `0051` files once existed across the fleet; the repository owns the
   reasoning and the repair constraints.
