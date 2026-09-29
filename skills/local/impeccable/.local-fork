@@ -1,0 +1,8 @@
+upstream: https://github.com/pbakaus/impeccable
+source: https://raw.githubusercontent.com/pbakaus/impeccable/main/.claude/skills/impeccable
+verified: 2026-09-29
+scope: directory
+reason: upstream asset-producer.md contains a malformed relative Markdown target to component-review.md
+note: reference/degraded/asset-producer.md linked to `../reference/component-review.md` from within `reference/degraded/`. Local uses the valid same-parent target `../component-review.md`.
+would_lose_if_wired: an unguarded byte-for-byte refresh would restore the malformed target and fail repository Markdown-link validation.
+refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is present, before any fetch or write.
