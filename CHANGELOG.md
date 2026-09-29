@@ -4,6 +4,66 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## v2026.09.29
+
+A full skill audit: every owned and vendored skill validated, every managed fork
+re-diffed against its upstream, and hand-written skills checked against the
+vendors' own published Agent Skills. 72 owned skills (was 67 at the last tag).
+
+### Added
+
+- `impeccable` (vendored, pbakaus/impeccable), `threejs`, `chain-of-thought`,
+  `sandbox-migrate-to-next` and `cloudflare-one-migrations` (vendored; sibling
+  skills already routed to them by name).
+- `impeccable` runs automatically after UI is built or changed, before
+  `ui-validation`. The rule lives in `CORE.md`, so every runtime carries it, and
+  in the workflow of each UI skill.
+- `_refresh-vendored.sh` reports, read-only, which files of a managed fork now
+  differ from upstream. It used to print only "skip", which is how nine forks
+  drifted unnoticed.
+- Vendor-sourced corrections and gotchas in `supabase-stack`,
+  `better-auth-security`, `vercel`, `nextjs-development`, `shadcn-ui`,
+  `postgres-drizzle`, `hydrogen-development`, `headless-shopify`,
+  `testing-engineering` and `github-actions`. Each item was checked against
+  the cited source; unconfirmed survey claims were dropped (for example,
+  shadcn CLI 4.21.0 still has `init --base`).
+- Tokophi pull-first rule in project memory; pi 9router catalog refresh;
+  `docs/DOTFILES_SITEMAP.md`.
+
+### Changed
+
+- Forks reconciled with current upstream: `cloudflare`, `wrangler` (manual
+  split retired), `durable-objects`, `stripe-best-practices`,
+  `cloudflare-email-service`. Local divergences are now limited to defects
+  upstream still carries, each recorded in `.local-fork` with evidence.
+- `web-perf` and `turnstile-spin` are recorded as forks of cloudflare/skills.
+- The six UI/UX skill descriptions name one owner per concern within the
+  first ~240 characters.
+
+### Fixed
+
+- `ai-memory-check` scanned git-ignored directories, so `ai-policy-lint` failed
+  on a link inside the claude.ai-synced skill copy.
+- `supabase-stack` RLS examples: missing `TO authenticated` and `WITH CHECK`,
+  an admin check that read the Postgres role, `SECURITY DEFINER` without
+  `search_path`.
+
+### Verification
+
+- `skill-check`: 72 skills, 0 failures, 0 warnings. `skill-surface-check`
+  clean. `ai-policy-lint` passed. `ai-doctor` OK (local-changes notes only).
+- `vendored-refresh-test`, `ai-memory-check-test`, `security-check-test` and the
+  other repository tests passed; the fork-drift and git-ignore guards were each
+  shown to fail when the new code is removed.
+
+### Known limitations
+
+- `omp-effective-routing-test` still fails for the optional `codex-only.yml`
+  reference: `openai-codex/gpt-5.6-sol` selectors are unusable on this device.
+  OMP config was not changed in this release.
+- `nextjs-on-cloudflare` is not vendored: its body tells the agent to run a
+  skill installer that would write into `skills/local` through the runtime links.
+
 ## v2026.09.11
 
 Local setup on `rich` was synchronized with `775873d`. The installer refreshed
