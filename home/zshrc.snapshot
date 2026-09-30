@@ -135,3 +135,5 @@ export AGENT_BROWSER_ENCRYPTION_KEY="$(cat ~/.agent-browser/.encryption_key 2>/d
 
 if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init zsh)"; fi
 
+
+source "$HOME/dotfiles/config/shell-tools.sh"
