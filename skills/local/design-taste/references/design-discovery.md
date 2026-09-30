@@ -78,6 +78,26 @@ For each reference used to justify a visual/interaction decision:
   DOM/computed-style inspection may establish tokens; screenshot color sampling
   is only an approximation and does not prove source CSS or measured contrast.
 
+**Measured color from a supplied image.** Eyeballed hexes drift toward familiar
+palette defaults (often ΔE 10+). When the reference is an image file and exact
+color matters, measure instead of guessing: k-means over the actual pixels with
+perceptual (CIE ΔE) merging of near-duplicates, recorded as hex plus coverage
+fraction per cluster, mapped to roles (background, text, accent). After the
+build, screenshot it and run the same measurement; report per-color ΔE and
+coverage drift rather than judging fidelity by eye. Do not add an image library
+to the project for this (`native-first`); a throwaway script in the scratchpad
+is enough, and the method comes from the `design-dna` project (MIT, `sharp`
+based). If the source is only a URL or a live page, computed styles are the
+authority instead. Keep the tokens that are measured separate from those that
+are inferred.
+
+Three dimensions keep a reference record complete: **system** (measurable
+tokens), **style** (mood, density, composition), and **effects** (canvas, WebGL,
+shaders, scroll or cursor effects). Record effects as observed with a cost tier
+(CSS/SVG, Canvas 2D/GSAP/Lottie, or Three.js/GLSL) so the build can choose the
+lightest tier that reproduces them; heavy tiers need a fallback and reduced-motion
+path (`motion-craft.md`, `threejs` skill).
+
 A search result, image search thumbnail, marketing claim, remembered screenshot,
 or generated mockup cannot support a claim that the live UI was inspected.
 Screenshots demonstrate appearance at their captured conditions, not universal

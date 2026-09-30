@@ -113,7 +113,9 @@ can fail while the other passes. If the reference was inaccessible or no render
 was inspected, mark the affected claim unverified. `design-taste` owns the
 reference-evidence and anti-slop review rubric; pair with `impeccable`
 (`audit` or detector mode) for mechanical contrast and anti-pattern pre-flight
-checks before full browser runs.
+checks before full browser runs. Report a scan that could not run (no matching
+files, content held in data files) as **not checked**, never as passed; empty
+grep output proves only that the grep found nothing.
 
 ## 3. Run the real page
 

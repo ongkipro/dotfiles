@@ -75,6 +75,10 @@ ordinary progress indicators, and meaningful beta/version labels are not
 inherently slop. Neither is correct punctuation. Judge purpose, execution,
 coherence, and context; do not replace one automatic aesthetic with another.
 
+For concrete invented-information, filler, and hollow-copy markers phrased as
+questions, plus the allowed-patterns record, see
+[invented-info-tells.md](invented-info-tells.md).
+
 Do not count every visual motif or score a page green from keyword absence.
 Use the review rubric in `design-evaluation.md`. Record concrete discrepancies
 and inspect revisions; disclose a remaining limitation rather than asserting

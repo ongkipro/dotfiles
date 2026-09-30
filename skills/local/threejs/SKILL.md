@@ -35,6 +35,22 @@ Read the specific deep-dive reference matching the active task:
 | [Disposal & Memory Discipline](references/disposal-and-memory.md) | Zero-leak GPU cleanup, geometry/material/texture disposal, context loss recovery |
 | [Performance, Shaders & Pipeline](references/performance-and-shaders.md) | Zero-allocation RAF, DPR clamping, `InstancedMesh`, Draco/KTX2, custom GLSL |
 | [R3F & Modern Web Frameworks](references/r3f-and-frameworks.md) | React Three Fiber, Drei, Astro component encapsulation, DOM HUD coordination |
+| [Materials, Lighting, Textures & Loaders](references/materials-lighting-textures.md) | Material choice, IBL over many lights, shadows, color space, loading manager, HDR |
+| [Post-Processing](references/postprocessing.md) | Pass order with `OutputPass`, mobile budget, selective bloom, disposal |
+| [Interaction & Animation](references/interaction-animation.md) | Pointer events, raycaster hygiene, controls, `Timer`, `AnimationMixer`, scroll-driven camera |
+
+### Pick the lightest tier that reproduces the effect
+
+| Tier | Use | Escalate when |
+|------|-----|---------------|
+| Lightweight | CSS animation, SVG, `IntersectionObserver` | the effect needs real depth, particles >100, or shaders |
+| Medium | Canvas 2D, GSAP, Lottie | many interacting objects or lighting are required |
+| Heavy | Three.js/R3F, GLSL | only for depth, lighting, or GPU-scale particles |
+
+Every heavy effect ships a fallback (static poster or CSS version) for
+low-power devices, `prefers-reduced-motion`, and WebGL failure. Look up the
+installed `three` version before using version-sensitive names (`Timer` vs
+`Clock`, `HDRLoader` vs `RGBELoader`, WebGPU/TSL paths).
 
 ---
 

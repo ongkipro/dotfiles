@@ -195,6 +195,11 @@ layers where separation matters. Repeated rounded boxes around every heading,
 paragraph, and section usually create noise. A functional chip or badge is not
 slop merely because it is rounded.
 
+Icons: on static or non-React sites, inline SVG copied from the Lucide set
+(one stroke weight, `currentColor`, `aria-hidden` when a text label exists) is
+the default; do not add an icon package or React only for icons. In an existing
+React app `lucide-react` is fine when already installed. Functional icons only.
+
 ### 4.2.1. Theme policy
 
 Light is the fallback for an unspecified public website. Accepted dark-first
@@ -340,6 +345,8 @@ AI slop from a prompt, static scan, or one model-generated sample.
 | Reference evidence, UX sequence, direction record | design-discovery.md |
 | Default public-web foundation, sources, framework translation | public-web-foundation.md |
 | Editorial/media/mobile/funnel specifics, redesign | surface-and-mode-rules.md |
+| Motion timing, easing tokens, stagger, reduced-motion substitution | motion-craft.md |
+| Invented-info, filler, hollow-copy tells; allowed-patterns record; scan script | invented-info-tells.md |
 | Existing theme code | theme-implementation.md |
 | Storefront visual decision hierarchy | public-experience-patterns.md |
 | Instruction evaluation and rendered critique | design-evaluation.md; ui-validation owns browser execution |

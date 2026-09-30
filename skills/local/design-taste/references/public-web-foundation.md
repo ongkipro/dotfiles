@@ -35,6 +35,8 @@ catalog, publication, and SaaS landing have different decision sequences.
   optional; readability and performance must survive without it.
 - **Motion:** brief, functional feedback by default. No required scroll reveal,
   parallax, autoplay background, custom cursor, or motion package.
+  Numeric timing, easing tokens, stagger budgets, and the reduced-motion
+  substitution table live in [motion-craft.md](motion-craft.md).
 - **Content:** real offer, product, work, or information. The page must remain
   useful when decorative effects are removed. Images are conditional on the job.
 

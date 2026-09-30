@@ -24,7 +24,7 @@ function tick() {
 // GOOD: Pre-allocated scratch objects reused every frame
 const _scratchVec = new THREE.Vector3();
 const _scratchMat = new THREE.Matrix4();
-const _clock = new THREE.Clock();
+const _clock = new THREE.Clock(); // r183+: deprecated, prefer THREE.Timer (see interaction-animation.md)
 
 function tick() {
   requestAnimationFrame(tick);
@@ -47,9 +47,8 @@ High-DPI mobile devices (e.g. iPhone Retina 3x) render 9x more pixels per frame 
 // Invariant: Always clamp devicePixelRatio to 2 max
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-// For low-power or mobile tiers, drop to 1 or 1.5
-const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-if (isMobile) {
+// For low-power tiers, prefer a capability/coarse-pointer check over user-agent sniffing
+if (window.matchMedia('(pointer: coarse)').matches) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 }
 ```
@@ -141,7 +140,7 @@ export function createOptimizedGLTFLoader(renderer: THREE.WebGLRenderer): GLTFLo
 
   // 2. KTX2 GPU texture decompression
   const ktx2Loader = new KTX2Loader();
-  ktx2Loader.setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/libs/basis/');
+  ktx2Loader.setTranscoderPath('https://cdn.jsdelivr.net/npm/three@<installed-version>/examples/jsm/libs/basis/');
   ktx2Loader.detectSupport(renderer);
   gltfLoader.setKTX2Loader(ktx2Loader);
 

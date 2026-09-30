@@ -60,6 +60,8 @@ Timing should express distance and consequence:
 
 Exit faster than entrance. Use natural deceleration such as `cubic-bezier(0.16, 1, 0.3, 1)` for confident arrivals; do not use bounce or elastic curves by reflex. Long feedback feels like latency.
 
+Numeric duration-by-element, easing tokens, stagger budgets, and the reduced-motion substitution table: `design-taste/references/motion-craft.md`. Frequency rule: the more often an animation plays, the shorter and quieter it is; never `scale(0)` for an entrance, never ease-in on an entry.
+
 ## Implement to the runtime
 
 - Use CSS transitions and keyframes for declarative state and bounded sequences.
