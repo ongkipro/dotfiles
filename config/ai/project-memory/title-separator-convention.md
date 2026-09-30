@@ -1,6 +1,6 @@
 ---
 name: title-separator-convention
-description: "Web page <title> separator preference — use a dash, never a pipe"
+description: "Web page <title> separator and length preference — dash separator, title 55–70 chars, meta description 120–155 chars"
 metadata: 
   node_type: memory
   type: feedback
@@ -11,3 +11,5 @@ Untuk `<title>` halaman web (dan title sejenis), pakai pemisah **tanda hubung `-
 
 **Why:** preferensi gaya user (Paduka Ongki), disampaikan saat membangun compro [[rtqalhadi-project]].
 **How to apply:** saat membuat/menyetel meta title di Astro/Next/HTML mana pun, default ke `Halaman - Brand` dengan ` - `. Terapkan juga ke default title di Layout.
+
+**Update 2026-09-30 (agritani DEC-022):** final `<title>` 55–70 karakter termasuk spasi dan sufiks brand; meta description 120–155 karakter; `—` juga tidak dipakai sebagai pemisah. Detail di `preferences.md` (SEO Invariant — Title & Meta Description Length).
