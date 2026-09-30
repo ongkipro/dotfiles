@@ -97,8 +97,8 @@ Risk Notes
 For every important indexable page, verify:
 
 - clear page purpose and search intent
-- unique title, ideally 45–60 characters; warning above ~65 characters
-- meta description, ideally 120–160 characters; warning above ~180 characters
+- unique title, 55–70 characters including spaces and " - Brand" (owner default); fail outside the range
+- meta description, 120–155 characters including spaces (owner default); fail outside the range
 - absolute canonical URL
 - correct robots directive (`index, follow, max-image-preview:large` for normal indexable pages)
 - OG/Twitter metadata for shareable pages
@@ -129,8 +129,8 @@ Use `PAGE_COMPLETENESS_FORMULA.md` for detailed audit rules and examples.
 
 ## Metadata Rules
 
-- Title: unique, intent-aligned, not spammy; target 45–60 chars when practical.
-- Meta description: unique, benefit/trust/intent focused; target 120–160 chars when practical.
+- Title: unique, intent-aligned, not spammy; 55–70 chars incl. " - Brand" (owner default).
+- Meta description: unique, benefit/trust/intent focused; 120–155 chars (owner default).
 - H1: one primary H1 matching page intent.
 - OG/Twitter tags: present for shareable pages.
 - OG/Twitter image URLs: absolute, crawlable, share-friendly.
@@ -187,8 +187,8 @@ Reject schema spam.
 
 - Pilot one product before batch.
 - Product title ≤70 chars.
-- SEO title ≤60 chars.
-- Meta description ≤155 chars.
+- SEO title 55–70 chars (owner default; see SKILL.md).
+- Meta description 120–155 chars.
 - Image ALT ≤125 chars.
 - Keep SKUs unchanged for kept variants.
 - Remove supplier/origin junk.

@@ -209,8 +209,8 @@ For important indexable pages, the skill checks the full page package, not just 
 
 | Element | Complete-page rule |
 | --- | --- |
-| Title | Unique, intent-aligned, ideally 45–60 characters; warning above ~65 characters |
-| Description | Unique, useful, ideally 120–160 characters; warning above ~180 characters |
+| Title | Unique, intent-aligned, 55–70 characters incl. " - Brand" (owner default); separator " - ", never "\|" |
+| Description | Unique, useful, 120–155 characters (owner default) |
 | Canonical | Absolute URL, usually self-referential for unique pages |
 | Robots | Correct index/noindex/follow rule; `max-image-preview:large` where useful |
 | Social metadata | OG/Twitter title, description, URL, and absolute image URL |

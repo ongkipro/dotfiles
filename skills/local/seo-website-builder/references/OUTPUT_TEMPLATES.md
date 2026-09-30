@@ -169,8 +169,8 @@ Ready-to-use templates for SEO audits, build plans, schema QA, metadata planning
 
 | Field | Current | Target / Rule | Status |
 | --- | --- | --- | --- |
-| Title | {{TITLE}} | 45–60 chars, unique, intent-first | Pass/Warning/Fail |
-| Description | {{DESCRIPTION}} | 120–160 chars, unique, useful | Pass/Warning/Fail |
+| Title | {{TITLE}} | 55–70 chars incl. " - Brand", unique, intent-first, no `|`/`—` | Pass/Fail |
+| Description | {{DESCRIPTION}} | 120–155 chars, unique, useful | Pass/Fail |
 | URL | {{URL}} | stable, descriptive, canonical | Pass/Warning/Fail |
 | Canonical | {{CANONICAL}} | absolute URL | Pass/Warning/Fail |
 | Robots | {{ROBOTS}} | correct index/noindex/follow rule | Pass/Warning/Fail |

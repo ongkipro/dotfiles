@@ -12,8 +12,8 @@ Recommended working ranges:
 
 | Field | Recommended | Warning zone | Notes |
 | --- | ---: | ---: | --- |
-| Title tag | 45–60 chars | >65 chars | Keep primary entity + intent visible early. Some tools allow longer, but SERP may truncate. |
-| Meta description | 120–160 chars | >180 chars | Google may rewrite snippets. Keep concise, useful, and non-spammy. |
+| Title tag | 55–70 chars incl. " - Brand" (owner default) | <55 or >70, or a `|`/`—` separator | Keep primary entity + intent visible early; pad with related keywords, never hype. |
+| Meta description | 120–155 chars (owner default) | <120 or >155 | Google may rewrite snippets. Keep concise, useful, and non-spammy. |
 | H1 | 20–70 chars | multiple H1s | One primary H1 matching page intent. |
 | Image ALT | 5–125 chars | empty or keyword-stuffed | Describe image context naturally. |
 | URL slug | 1–6 words | long/parameter-heavy | Stable, lowercase, descriptive. |

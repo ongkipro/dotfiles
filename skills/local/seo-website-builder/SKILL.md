@@ -45,6 +45,16 @@ Prefer official search engine/platform documentation and existing project data. 
 | Audit/build/schema templates | [Output Templates](references/OUTPUT_TEMPLATES.md) |
 | Deep routing/reference map | [Reference Manifest](references/REFERENCE_MANIFEST.md) |
 
+## Owner Metadata Defaults (binding unless the project records another decision)
+
+- Final rendered `<title>`: **55–70 characters including spaces and the brand suffix**, `{Page title} - {Brand}`; home may omit the suffix.
+- Meta description: **120–155 characters including spaces**, unique, ends with a full stop, matches visible intent.
+- Separator: ` - ` (or `:` inside a title). **Never `|` or `—`.**
+- Too short: add related, natural keywords (topic, crop/product, location, intent). Never pad with hype ("Rahasia", "Ampuh", "Tuntas", "100%") or keyword lists; never invent facts.
+- Generated titles/descriptions (tags, hubs, pagination, product variants) go through a fit-to-range helper with several phrasings, and the post-build check **fails** outside the ranges and on `|`/`—`. Reference: agritani `src/lib/seo.ts` `fitText()` and `scripts/check-seo.mjs`.
+- Every page: `<meta name="author">` (article author; otherwise the brand/publisher) and `<meta name="publisher">`. Articles: `article:author`, `article:publisher`, JSON-LD `author` → Person and `publisher` → Organization (raster logo ≥112px, not SVG favicon).
+- Measure the rendered HTML (decode entities), not the source string.
+
 ## Workflow
 
 1. Classify the task: new build, audit, Astro/static, Shopify, local business, ecommerce, programmatic, schema, algorithm update, or launch QA.

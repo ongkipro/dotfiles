@@ -63,8 +63,8 @@ Suggested listing limits:
 | Field | Rule |
 | --- | --- |
 | Product title | ≤70 chars, natural, no keyword stuffing |
-| SEO title | ≤60 chars, keyword-first, no forced store suffix unless requested |
-| Meta description | ≤155 chars, benefit + differentiator, no CTA spam |
+| SEO title | 55–70 chars (owner default), keyword-first, separator " - " never "|"; store suffix only if it fits the range |
+| Meta description | 120–155 chars, benefit + differentiator, no CTA spam |
 | Handle | ≤6 keyword words, unique, stable |
 | Image ALT | ≤125 chars, descriptive view/feature label |
 | Tags | clean taxonomy, no supplier/origin junk |

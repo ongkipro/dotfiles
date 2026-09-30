@@ -111,12 +111,12 @@ Use correct international phone format in schema and `tel:` links.
 ## Head tags template
 
 ```html
-<title>{{PAGE_TITLE}} | {{BUSINESS_NAME}}</title>
+<title>{{PAGE_TITLE}} - {{BUSINESS_NAME}}</title>
 <meta name="description" content="{{META_DESCRIPTION}}">
 <link rel="canonical" href="{{CANONICAL_URL}}">
 <meta property="og:type" content="website">
 <meta property="og:url" content="{{CANONICAL_URL}}">
-<meta property="og:title" content="{{PAGE_TITLE}} | {{BUSINESS_NAME}}">
+<meta property="og:title" content="{{PAGE_TITLE}} - {{BUSINESS_NAME}}">
 <meta property="og:description" content="{{META_DESCRIPTION}}">
 <meta property="og:image" content="{{OG_IMAGE_URL}}">
 <meta name="twitter:card" content="summary_large_image">
