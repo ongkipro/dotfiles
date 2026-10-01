@@ -211,4 +211,71 @@ if "$learn" promote nogate.md --target project:example --yes >/dev/null 2>&1; th
 fi
 mv "$DOTFILES_DIR/bin/ai-memory-hygiene.off" "$DOTFILES_DIR/bin/ai-memory-hygiene"
 
-echo "PASS: ai-learn capture and reviewed promotion"
+# import (TASK-101): a labelled block pasted from a phone becomes the same candidate.
+IMP="$TEST_ROOT/import-inbox"; mkdir -p "$IMP"
+AI_MEMORY_INBOX_DIR="$IMP" "$learn" import >/dev/null <<'BLOCK'
+**Title:** Imported lesson works
+- **Symptom:** First line
+  continues here.
+- Fix: a bullet inside the symptom
+Root cause: Cause text with *.ts globs.
+Invariant: Invariant text.
+Fix: Fix text.
+Check: Check text.
+Scope: project
+Project: example
+BLOCK
+imported="$(find "$IMP" -maxdepth 1 -name '*.md' -print -quit)"
+[ -n "$imported" ] || { echo "FAIL: import did not create a candidate" >&2; exit 1; }
+grep -q '^## Lesson: Imported lesson works$' "$imported" || { echo "FAIL: import lost the title" >&2; exit 1; }
+grep -q '^First line$' "$imported" && grep -q '^  continues here.$' "$imported" \
+  || { echo "FAIL: import did not keep continuation lines" >&2; exit 1; }
+grep -q '^Fix text.$' "$imported" || { echo "FAIL: a repeated label overwrote the field" >&2; exit 1; }
+grep -q 'Cause text with \*.ts globs.' "$imported" || { echo "FAIL: import corrupted asterisks" >&2; exit 1; }
+grep -q '^project: example$' "$imported" || { echo "FAIL: import lost the project scope" >&2; exit 1; }
+if printf 'Title: t\nSymptom: s\nRoot cause: r\nInvariant: i\nFix: api_key = abcdef123456\nCheck: c\n' \
+   | AI_MEMORY_INBOX_DIR="$IMP" "$learn" import >/dev/null 2>&1; then
+  echo "FAIL: import accepted a secret-looking value" >&2; exit 1
+fi
+IMP2="$TEST_ROOT/import-inbox2"; mkdir -p "$IMP2"
+printf -- '- Title: plain bullets\n- Symptom: s\n- Root cause: r\n- Invariant: i\n- Fix: f\n- Check: c\n' \
+  | AI_MEMORY_INBOX_DIR="$IMP2" "$learn" import >/dev/null || { echo "FAIL: plain-bullet labels were not parsed" >&2; exit 1; }
+printf 'Title: fenced\nSymptom: config was\n```yaml\ncheck: false\n```\nRoot cause: r\nInvariant: i\nFix: f\nCheck: real check\n' \
+  | AI_MEMORY_INBOX_DIR="$IMP2" "$learn" import >/dev/null || { echo "FAIL: fenced block import failed" >&2; exit 1; }
+f2="$(grep -l 'Lesson: fenced' "$IMP2"/*.md)"
+grep -q '^check: false$' "$f2" && grep -q '^real check$' "$f2" \
+  || { echo "FAIL: a label inside a code fence hijacked a field" >&2; exit 1; }
+if printf 'Title: only a title\n' | AI_MEMORY_INBOX_DIR="$IMP" "$learn" import >/dev/null 2>&1; then
+  echo "FAIL: import accepted an incomplete block" >&2; exit 1
+fi
+if printf 'no labels here\n' | AI_MEMORY_INBOX_DIR="$IMP" "$learn" import >/dev/null 2>&1; then
+  echo "FAIL: import accepted unlabelled text" >&2; exit 1
+fi
+[ "$(find "$IMP" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')" = "1" ] \
+  || { echo "FAIL: a rejected import left a candidate behind" >&2; exit 1; }
+
+# Provenance (TASK-107): an external candidate cannot be promoted without --allow-external.
+EXT="$TEST_ROOT/ext-inbox"; mkdir -p "$EXT"
+AI_MEMORY_INBOX_DIR="$EXT" "$learn" capture --title "External lead about caching" --symptom "A blog said X." \
+  --root-cause "Unverified." --invariant "Verify vendor claims before relying on them." --fix "Check the docs." \
+  --check "Cite the official page." --source external >/dev/null
+ext="$(find "$EXT" -maxdepth 1 -name '*.md' -print -quit)"
+grep -q '^source: external$' "$ext" || { echo "FAIL: capture did not record the source" >&2; exit 1; }
+# A body line saying "source: user" must not hide the frontmatter value.
+printf '\nsource: user\n' >> "$ext"
+if AI_MEMORY_INBOX_DIR="$EXT" "$learn" promote "$(basename "$ext")" --target shared:workflow --yes >/dev/null 2>&1; then
+  echo "FAIL: an external candidate was promoted without --allow-external" >&2; exit 1
+fi
+grep -q 'External lead about caching' "$DOTFILES_DIR/config/ai/memory/workflow.md" \
+  && { echo "FAIL: refused promotion still changed memory" >&2; exit 1; }
+AI_MEMORY_INBOX_DIR="$EXT" "$learn" promote "$(basename "$ext")" --target shared:workflow --yes --allow-external >/dev/null \
+  || { echo "FAIL: --allow-external did not permit promotion" >&2; exit 1; }
+if printf 'Title: t\nSymptom: s\nRoot cause: r\nInvariant: i\nFix: f\nCheck: c\nSource: rumor\n' \
+   | AI_MEMORY_INBOX_DIR="$EXT" "$learn" import >/dev/null 2>&1; then
+  echo "FAIL: an unknown source value was accepted" >&2; exit 1
+fi
+if "$learn" capture --title t --symptom s --root-cause r --invariant i --fix f --check c --source web >/dev/null 2>&1; then
+  echo "FAIL: capture accepted an unknown source" >&2; exit 1
+fi
+
+echo "PASS: ai-learn capture, import, provenance and reviewed promotion"

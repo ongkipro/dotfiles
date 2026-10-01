@@ -8,6 +8,8 @@ and .delivery evidence remain authoritative over returned references.
 from __future__ import annotations
 
 import argparse
+import fnmatch
+import subprocess
 import json
 import os
 from pathlib import Path
@@ -90,9 +92,53 @@ def execution_refs(repo: Path | None) -> list[dict]:
     return refs
 
 
+def changed_paths(repo: Path | None) -> list[str]:
+    """Files the working tree is touching right now (TASK-107, gap G9).
+
+    A keyword router misses memory when the prompt does not name the topic
+    ("fix this" while editing a Drizzle migration). The changed files do name
+    it. Bounded and best-effort: no repository or a slow git returns nothing.
+    """
+    if not repo:
+        return []
+    try:
+        # -z gives exact names (no quoting, renames as separate entries);
+        # untracked files respect .gitignore, so node_modules stays out.
+        out = subprocess.run(["git", "-C", str(repo), "status", "--porcelain", "-z", "-uall"],
+                             capture_output=True, text=True, timeout=2)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if out.returncode != 0:
+        return []
+    entries = [e for e in out.stdout.split("\0") if e]
+    paths, skip = [], False
+    for e in entries[:600]:
+        if skip:            # the original name that follows a rename entry
+            skip = False
+            continue
+        if len(e) > 3 and e[2] == " ":
+            paths.append(e[3:])
+            skip = e[0] in "RC"
+    return paths[:300]
+
+
+def path_score(item: dict, paths: list[str]) -> int:
+    """One trigger's worth (1000) when any changed file matches the item's
+    `paths` globs. Kept equal to a single keyword hit so it widens recall
+    without outranking an explicit keyword match."""
+    globs = item.get("paths") or []
+    if not globs or not paths:
+        return 0
+    # fnmatch's * also crosses "/", so "**/x/**" works except at the root;
+    # matching "/"+path as well covers root-relative files like x/y.tsx.
+    hit = any(fnmatch.fnmatch(p, g) or fnmatch.fnmatch("/" + p, g) for g in globs for p in paths)
+    return 1000 + int(item.get("priority", 0)) if hit else 0
+
+
 def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None, project: str | None, max_files: int, max_bytes: int) -> dict:
     candidates: list[dict] = []
     reasons = []
+    touched = changed_paths(repo) if scope in {"auto", "shared", "lesson"} else []
 
     if scope in {"auto", "execution"} and repo:
         exec_keywords = ("current", "status", "resume", "continue", "task", "next", "blocker", "release", "deploy", "verify", "implementation")
@@ -141,7 +187,7 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
 
     if scope in {"auto", "shared"}:
         for item in manifest.get("shared", []):
-            s = score(query, item)
+            s = score(query, item) or path_score(item, touched)
             if s:
                 p = root / item["path"]
                 if p.exists():
@@ -150,7 +196,7 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
 
     if scope in {"auto", "lesson"}:
         for item in manifest.get("lessons", []):
-            s = score(query, item)
+            s = score(query, item) or path_score(item, touched)
             if s:
                 p = root / item["path"]
                 if p.exists():

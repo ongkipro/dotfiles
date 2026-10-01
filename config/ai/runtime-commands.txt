@@ -105,3 +105,7 @@ turnstile-secret-test
 vendored-refresh-test
 vps-pgdump
 vps-pgdump-test
+ai-ask
+ai-ask-test
+ai-health-daily
+ai-health-daily-test

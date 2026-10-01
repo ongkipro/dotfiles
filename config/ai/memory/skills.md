@@ -123,6 +123,9 @@ in prose. Read the map for coverage; read this file for calibration.
   `shadcn-ui`, and `ui-validation` own distinct product, visual, component, and
   browser-validation responsibilities.
 - `lean-code-review` owns evidence-backed simplification review.
+- `cross-cli` owns handing one lane (research, review, second opinion, bulk
+  drafting) to another installed AI CLI through `ai-ask`, read-only by default;
+  lanes are never locked to a CLI and OMP stays upstream-native.
 - Stack- and domain-specific skills own Cloudflare, Astro, storefront, Stripe,
   Supabase, advertising, logistics, and related implementation methodology.
 

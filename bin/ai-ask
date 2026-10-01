@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# ai-ask — hand one lane of work to another AI CLI, read-only by default (TASK-102).
+#
+# Every CLI already receives the same policy, memory and skills, so any of them
+# can serve any lane (see skills/local/cross-cli). This wrapper only runs the
+# other CLI non-interactively with a safe mode and a hard timeout, so a review or
+# a second opinion can come from a different model vendor. Its output is a
+# proposal for the calling session, never an applied change.
+#
+# Usage:
+#   ai-ask RUNTIME [options] -- PROMPT
+#   RUNTIME: claude | codex | agy | pi | omp
+# Options:
+#   --cwd DIR        working directory (default: current)
+#   --attach FILE    append FILE's text to the prompt (repeatable, 60 KB total);
+#                    use it for runtimes that cannot run tools headless (agy, pi, omp)
+#   --timeout SEC    hard limit (default 600)
+#   --write          allow edits — only claude/codex, and only inside a linked
+#                    git worktree (never the main checkout)
+#   --dry-run        print the command instead of running it
+# Exit: the CLI's own status; 124 on timeout; 2 on usage errors.
+set -euo pipefail
+
+die() { printf 'ai-ask: %s\n' "$*" >&2; exit 2; }
+[ "$#" -ge 1 ] || die "usage: ai-ask RUNTIME [options] -- PROMPT (see header)"
+case "$1" in -h|--help) sed -n '2,23p' "$0"; exit 0 ;; esac
+runtime="$1"; shift
+cwd="$PWD" timeout_s=600 write=0 dry=0 prompt="" attach=()
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --cwd) [ "$#" -ge 2 ] || die "--cwd needs a value"; cwd="$2"; shift 2 ;;
+    --attach) [ "$#" -ge 2 ] || die "--attach needs a value"; attach+=("$2"); shift 2 ;;
+    --timeout) [ "$#" -ge 2 ] || die "--timeout needs a value"; timeout_s="$2"; shift 2 ;;
+    --write) write=1; shift ;;
+    --dry-run) dry=1; shift ;;
+    --) shift; prompt="$*"; break ;;
+    *) die "unknown option: $1 (put the prompt after --)" ;;
+  esac
+done
+[ -n "$prompt" ] || die "empty prompt"
+# A prompt is data, never a flag: "-s workspace-write" must not reach the CLI's
+# option parser. A leading space keeps it positional for every runtime.
+case "$prompt" in -*) prompt=" $prompt" ;; esac
+case "$timeout_s" in ''|*[!0-9]*) die "--timeout must be whole seconds" ;; esac
+[ -d "$cwd" ] || die "no such directory: $cwd"
+cwd="$(cd "$cwd" && pwd -P)"
+
+# Attachments are inlined, capped, and labelled with their path.
+if [ "${#attach[@]}" -gt 0 ]; then
+  budget=61440
+  for f in "${attach[@]}"; do
+    [ -f "$f" ] || die "cannot attach $f: not a file"
+    body="$(head -c "$budget" "$f")"
+    budget=$(( budget - ${#body} ))
+    prompt+=$'\n\n=== '"$f"$' ===\n'"$body"
+    [ "$budget" -gt 0 ] || { prompt+=$'\n[attachments truncated at 60 KB]'; break; }
+  done
+fi
+
+if [ "$write" -eq 1 ]; then
+  case "$runtime" in claude|codex) ;; *) die "--write is supported only for claude and codex" ;; esac
+  git_dir="$(git -C "$cwd" rev-parse --absolute-git-dir 2>/dev/null)" || die "--write needs a git worktree"
+  common="$(cd "$(git -C "$cwd" rev-parse --path-format=absolute --git-common-dir)" && pwd -P)" \
+    || die "--write cannot resolve the repository of $cwd"
+  [ "$git_dir" != "$common" ] || die "--write refuses the main checkout; create a linked worktree (git worktree add)"
+fi
+
+case "$runtime" in
+  claude) cmd=(claude -p --permission-mode "$([ "$write" -eq 1 ] && echo acceptEdits || echo plan)" "$prompt") ;;
+  codex)  cmd=(codex exec -s "$([ "$write" -eq 1 ] && echo workspace-write || echo read-only)" -C "$cwd" "$prompt") ;;
+  agy)    cmd=(agy --sandbox --mode plan --print-timeout "${timeout_s}s" "-p=$prompt") ;;
+  pi)     cmd=(pi -p --no-tools "$prompt") ;;
+  omp)    cmd=(omp -p --no-tools "$prompt") ;;
+  *) die "unknown runtime: $runtime (claude|codex|agy|pi|omp)" ;;
+esac
+command -v "${cmd[0]}" >/dev/null 2>&1 || die "${cmd[0]} is not installed on this device"
+
+if [ "$dry" -eq 1 ]; then
+  printf '%q ' "${cmd[@]:0:${#cmd[@]}-1}"; printf '<prompt: %d chars> (cwd %s, timeout %ss)\n' "${#prompt}" "$cwd" "$timeout_s"
+  exit 0
+fi
+
+cd "$cwd"
+if command -v timeout >/dev/null 2>&1; then
+  exec timeout --kill-after=5 "$timeout_s" "${cmd[@]}" </dev/null
+elif command -v gtimeout >/dev/null 2>&1; then
+  exec gtimeout --kill-after=5 "$timeout_s" "${cmd[@]}" </dev/null
+fi
+# macOS without coreutils: Perl stays the parent so it can stop the whole group.
+exec perl -e '
+  my $s = shift; my $pid = fork; exit 127 unless defined $pid;
+  if ($pid == 0) { setpgrp(0, 0); open STDIN, "<", "/dev/null"; exec @ARGV; exit 127 }
+  use POSIX qw(WNOHANG);
+  my $stop = sub { my $code = shift; kill "TERM", -$pid;
+    for (1 .. 50) { last if waitpid($pid, WNOHANG) == $pid; select undef, undef, undef, 0.1 }
+    kill "KILL", -$pid; waitpid $pid, 0; exit $code };
+  local $SIG{ALRM} = sub { $stop->(124) };
+  local $SIG{INT}  = sub { $stop->(130) };
+  local $SIG{TERM} = sub { $stop->(143) };
+  alarm $s; waitpid $pid, 0;
+  exit(($? & 127) ? 128 + ($? & 127) : $? >> 8);
+' "$timeout_s" "${cmd[@]}"

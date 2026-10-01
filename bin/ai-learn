@@ -10,11 +10,13 @@ usage() {
 Usage:
   ai-learn capture --title TEXT --symptom TEXT --root-cause TEXT \
     --invariant TEXT --fix TEXT --check TEXT [--scope shared|project] \
-    [--project NAME] [--repo PATH]
+    [--project NAME] [--repo PATH] [--source user|verified-run|external]
+  ai-learn import [FILE|-]   (labelled block, e.g. pasted from a ChatGPT
+                              "Dotfiles Inbox" project; see docs/chatgpt-inbox.md)
   ai-learn list
   ai-learn show CANDIDATE
   ai-learn reject CANDIDATE --reason TEXT --yes
-  ai-learn promote CANDIDATE --target shared:FILE|project:FILE --yes
+  ai-learn promote CANDIDATE --target shared:FILE|project:FILE --yes [--allow-external]
 
 Capture writes a device-local candidate. Rejection archives it locally with the
 review reason. Promotion is the only operation that changes tracked memory;
@@ -61,16 +63,16 @@ reject_sensitive_text() {
 
 capture() {
   local title="" symptom="" root_cause="" invariant="" fix="" check=""
-  local scope="shared" project="" repo="" now slug path tmp field
+  local scope="shared" project="" repo="" source="user" now slug path tmp field
   while [ "$#" -gt 0 ]; do
     case "$1" in
-      --title|--symptom|--root-cause|--invariant|--fix|--check|--scope|--project|--repo)
+      --title|--symptom|--root-cause|--invariant|--fix|--check|--scope|--project|--repo|--source)
         [ "$#" -ge 2 ] || die "$1 requires a value"
         case "$1" in
           --title) title="$2" ;; --symptom) symptom="$2" ;;
           --root-cause) root_cause="$2" ;; --invariant) invariant="$2" ;;
           --fix) fix="$2" ;; --check) check="$2" ;; --scope) scope="$2" ;;
-          --project) project="$2" ;; --repo) repo="$2" ;;
+          --project) project="$2" ;; --repo) repo="$2" ;; --source) source="$2" ;;
         esac
         shift 2
         ;;
@@ -82,6 +84,9 @@ capture() {
     [ -n "${!field}" ] || die "--${field//_/-} is required"
   done
   case "$scope" in shared|project) ;; *) die "--scope must be shared or project" ;; esac
+  # Provenance (TASK-107, G7): external text (web pages, other people's notes,
+  # tool output) is a lead, not a fact; promotion refuses it unless re-verified.
+  case "$source" in user|verified-run|external) ;; *) die "--source must be user, verified-run, or external" ;; esac
   [ "$scope" = "shared" ] || [ -n "$project" ] || die "--project is required for project scope"
   [ -z "$project" ] || safe_name "$project" || die "--project accepts only letters, numbers, dot, underscore, and hyphen"
   case "$repo" in *$'\n'*|*$'\r'*) die "--repo must be a single line" ;; esac
@@ -100,7 +105,7 @@ capture() {
   chmod 600 "$tmp"
   {
     printf '%s\n' '---'
-    printf 'status: candidate\ncreated_at: %s\nscope: %s\n' "$now" "$scope"
+    printf 'status: candidate\ncreated_at: %s\nscope: %s\nsource: %s\n' "$now" "$scope" "$source"
     [ -z "$project" ] || printf 'project: %s\n' "$project"
     [ -z "$repo" ] || printf 'repository: %s\n' "$repo"
     printf '%s\n\n' '---'
@@ -110,6 +115,60 @@ capture() {
   } >"$tmp"
   mv "$tmp" "$path"
   printf 'Captured candidate: %s\nReview it with: ai-learn show %s\n' "$path" "$(basename "$path")"
+}
+
+# import: turn a labelled text block (Title:/Symptom:/Root cause:/Invariant:/
+# Fix:/Check:, optional Scope:/Project:/Repo:) into the same candidate capture
+# writes. Built for knowledge captured on a phone and pasted into a terminal
+# (TASK-101). It only parses; capture still validates and rejects secrets, and
+# promotion stays a separate reviewed step.
+import_block() {
+  local src="${1:--}" text
+  [ "$#" -le 1 ] || die "import accepts at most one FILE (or - for stdin)"
+  if [ "$src" = "-" ]; then text="$(cat)"; else [ -f "$src" ] || die "no such file: $src"; text="$(cat "$src")"; fi
+  [ -n "$text" ] || die "import received no text"
+  command -v python3 >/dev/null 2>&1 || die "import needs python3"
+  local args=() parsed
+  parsed="$(mktemp)"
+  # Parsed into a file, not a process substitution, so a python3 failure stops
+  # the import instead of surfacing later as "missing fields".
+  if ! printf '%s' "$text" | python3 -c '
+import re, sys
+labels = {"title": "--title", "symptom": "--symptom", "root cause": "--root-cause",
+          "root-cause": "--root-cause", "invariant": "--invariant", "durable invariant": "--invariant",
+          "fix": "--fix", "check": "--check", "regression check": "--check",
+          "scope": "--scope", "project": "--project", "repo": "--repo", "repository": "--repo",
+          "source": "--source"}
+pat = re.compile(r"^[\s>*#-]*\**\s*(" + "|".join(sorted(map(re.escape, labels), key=len, reverse=True)) + r")\s*\**\s*:\s*\**\s*(.*)$", re.I)
+fields, cur, in_fence, plain_bullets = {}, None, False, False
+for raw in sys.stdin.read().splitlines():
+    fence = raw.strip().startswith("```")
+    m = None if (in_fence or fence) else pat.match(raw)
+    if fence:
+        in_fence = not in_fence
+    bulleted = bool(re.match(r"^\s*[-*]\s", raw)) and "**" not in raw.split(":", 1)[0]
+    if m and cur is None and bulleted:
+        plain_bullets = True          # the block itself uses "- Label:" lines
+    # Inside a field a plain "- Fix: ..." bullet is content unless the block
+    # uses plain bullets for its labels. A label seen twice is content, never an
+    # overwrite. Lines inside code fences are always content.
+    if m and cur is not None and bulleted and not plain_bullets:
+        m = None
+    if m and labels[m.group(1).lower()] not in fields:
+        cur = labels[m.group(1).lower()]
+        fields[cur] = m.group(2)
+    elif cur is not None:
+        fields[cur] += "\n" + raw
+for flag, value in fields.items():
+    value = re.sub(r"^\s*\*\*\s*|\s*\*\*\s*$", "", value.strip("\n")).strip()
+    sys.stdout.write(flag + "\0" + value + "\0")
+' >"$parsed"; then
+    rm -f "$parsed"; die "import could not parse the block"
+  fi
+  while IFS= read -r -d '' item; do args+=("$item"); done <"$parsed"
+  rm -f "$parsed"
+  [ "${#args[@]}" -gt 0 ] || die "no labelled fields found; expected Title:, Symptom:, Root cause:, Invariant:, Fix:, Check:"
+  capture "${args[@]}"
 }
 
 list_candidates() {
@@ -167,7 +226,7 @@ reject_candidate() {
 }
 
 promote() {
-  local requested="" target="" confirmed=0 candidate kind name target_path
+  local requested="" target="" confirmed=0 allow_external=0 candidate kind name target_path
   local target_dir probe promoted_dir promoted_path lock_dir promotion_date
   [ "$#" -gt 0 ] || die "promote requires a candidate"
   requested="$1"; shift
@@ -175,6 +234,7 @@ promote() {
     case "$1" in
       --target) [ "$#" -ge 2 ] || die "--target requires a value"; target="$2"; shift 2 ;;
       --yes) confirmed=1; shift ;;
+      --allow-external) allow_external=1; shift ;;
       --help|-h) usage; exit 0 ;;
       *) die "unknown promote option: $1" ;;
     esac
@@ -183,6 +243,13 @@ promote() {
   [ -n "$target" ] || die "--target is required"
   candidate="$(candidate_path "$requested")"
   reject_sensitive_text "$(cat "$candidate")"
+  # Only the frontmatter counts: line 1 must be ---, and the block ends at the
+  # next ---. Quotes and spaces around the value are tolerated.
+  if awk 'NR==1 && $0!="---"{exit} NR>1 && $0=="---"{exit} NR>1{print}' "$candidate" \
+       | grep -Eqi '^[[:space:]]*source[[:space:]]*:[[:space:]]*["'"'"']?external["'"'"']?[[:space:]]*$' \
+     && [ "$allow_external" -eq 0 ]; then
+    die "candidate source is external: verify it against the repository or an official source, then promote with --allow-external"
+  fi
   kind="${target%%:*}"; name="${target#*:}"
   [ "$kind" != "$target" ] || die "target must be shared:FILE or project:FILE"
   name="${name%.md}"
@@ -324,6 +391,7 @@ command_name="${1:-}"
 shift
 case "$command_name" in
   capture) capture "$@" ;;
+  import) import_block "$@" ;;
   list) [ "$#" -eq 0 ] || die "list accepts no arguments"; list_candidates ;;
   show) show_candidate "$@" ;;
   reject) reject_candidate "$@" ;;

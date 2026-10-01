@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# ai-ask-test — regression check for ai-ask. Every CLI is a stub on PATH that
+# records its argv, so no real model is called and nothing leaves the machine.
+set -uo pipefail
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+ASK="$ROOT/bin/ai-ask"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+TMP="$(cd "$TMP" && pwd -P)"
+printf '[user]\n\tname = t\n\temail = t@example.invalid\n' > "$TMP/gitconfig"
+export GIT_CONFIG_GLOBAL="$TMP/gitconfig" GIT_CONFIG_NOSYSTEM=1
+fails=0
+ok()  { printf '  ok   %s\n' "$1"; }
+bad() { printf '  FAIL %s\n' "$1"; fails=$((fails + 1)); }
+
+STUB="$TMP/stub"; mkdir -p "$STUB"
+for c in claude codex agy pi omp; do
+  printf '#!/bin/sh\nprintf "%%s\\n" "$@" > "%s/%s.argv"; pwd > "%s/%s.cwd"; [ -n "${STUB_SLEEP:-}" ] && sleep "$STUB_SLEEP"; echo "%s answered"\n' \
+    "$TMP" "$c" "$TMP" "$c" "$c" > "$STUB/$c"
+  chmod +x "$STUB/$c"
+done
+ask() { PATH="$STUB:$PATH" "$ASK" "$@"; }
+argv() { cat "$TMP/$1.argv" 2>/dev/null; }
+
+R="$TMP/repo"; mkdir -p "$R"; git -C "$R" init -q -b main
+printf 'x\n' > "$R/f.txt"; git -C "$R" add f.txt; git -C "$R" commit -qm init
+
+# Read-only modes per runtime.
+OUT="$(ask codex --cwd "$R" -- review this)"
+grep -qx 'codex answered' <<<"$OUT" && ok "passes the CLI output through" || bad "output not passed through"
+argv codex | grep -qx 'read-only' && argv codex | grep -qx -- '-s' && ok "codex runs with -s read-only" || bad "codex not read-only"
+argv codex | grep -qx "$R" && ok "codex gets -C <cwd>" || bad "codex cwd missing"
+ask claude --cwd "$R" -- hi >/dev/null; argv claude | grep -qx plan && ok "claude runs in plan mode" || bad "claude not in plan mode"
+ask agy --cwd "$R" -- hi >/dev/null
+argv agy | grep -qx -- '--sandbox' && argv agy | grep -qx plan && ok "agy runs sandboxed in plan mode" || bad "agy not sandboxed/plan"
+ask pi -- hi >/dev/null; argv pi | grep -qx -- '--no-tools' && ok "pi runs without tools" || bad "pi has tools"
+ask omp -- hi >/dev/null; argv omp | grep -qx -- '--no-tools' && ok "omp runs without tools" || bad "omp has tools"
+[ "$(cat "$TMP/claude.cwd")" = "$R" ] && ok "runs inside --cwd" || bad "wrong cwd"
+
+# Attachments are inlined with their path and capped.
+printf 'secretless body\n' > "$TMP/a.txt"
+ask pi --attach "$TMP/a.txt" -- look >/dev/null
+argv pi | grep -q "=== $TMP/a.txt ===" && argv pi | grep -q 'secretless body' && ok "attachments are inlined with their path" || bad "attachment missing"
+head -c 100000 /dev/zero | tr '\0' 'x' > "$TMP/big.txt"
+ask pi --attach "$TMP/big.txt" -- look >/dev/null
+[ "$(argv pi | wc -c)" -lt 63000 ] && ok "attachments are capped at 60 KB" || bad "attachment not capped"
+
+# --write: only claude/codex, only in a linked worktree.
+ask codex --cwd "$R" --write -- edit >/dev/null 2>&1 && bad "--write accepted the main checkout" || ok "--write refuses the main checkout"
+ask agy --cwd "$R" --write -- edit >/dev/null 2>&1 && bad "--write accepted agy" || ok "--write refuses runtimes without a safe edit mode"
+git -C "$R" worktree add -q "$TMP/wt" -b side >/dev/null 2>&1
+ask codex --cwd "$TMP/wt" --write -- edit >/dev/null
+argv codex | grep -qx workspace-write && ok "--write in a linked worktree uses workspace-write" || bad "write mode not applied"
+ask claude --cwd "$TMP/wt" --write -- edit >/dev/null
+argv claude | grep -qx acceptEdits && ok "claude --write uses acceptEdits" || bad "claude write mode not applied"
+
+# Timeout is enforced and reported as 124.
+start=$(date +%s); STUB_SLEEP=30 ask pi --timeout 2 -- slow >/dev/null 2>&1; rc=$?; took=$(( $(date +%s) - start ))
+[ "$rc" -eq 124 ] && ok "timeout exits 124" || bad "timeout exit $rc"
+[ "$took" -lt 12 ] && ok "timeout is enforced (${took}s)" || bad "timeout took ${took}s"
+
+# A prompt that looks like a flag stays a positional argument.
+ask codex --cwd "$R" -- -s workspace-write >/dev/null
+[ "$(argv codex | grep -cx 'read-only')" = "1" ] && ! argv codex | grep -qx 'workspace-write' \
+  && ok "a flag-shaped prompt cannot change the sandbox" || bad "flag-shaped prompt leaked into options"
+# --write from another directory still judges the target worktree, not the caller.
+(cd "$TMP/wt" && ask codex --cwd "$R" --write -- edit >/dev/null 2>&1) && bad "--write judged the caller's worktree" \
+  || ok "--write judges --cwd, not the caller's directory"
+# Perl fallback (macOS without coreutils): timeout and signal exit codes.
+NOTIMEOUT="$TMP/notimeout"; mkdir -p "$NOTIMEOUT"
+for b in bash git perl sed head cat mkdir dirname date sleep printf env; do p="$(command -v "$b")" && ln -sf "$p" "$NOTIMEOUT/$b"; done
+start=$(date +%s); STUB_SLEEP=30 PATH="$STUB:$NOTIMEOUT" bash "$ASK" pi --timeout 2 -- slow >/dev/null 2>&1; rc=$?; took=$(( $(date +%s) - start ))
+[ "$rc" -eq 124 ] && [ "$took" -lt 12 ] && ok "perl fallback enforces the timeout (exit $rc, ${took}s)" || bad "perl fallback: exit $rc after ${took}s"
+
+# Usage errors.
+ask nope -- x >/dev/null 2>&1; [ $? -eq 2 ] && ok "unknown runtime is a usage error" || bad "unknown runtime accepted"
+ask codex >/dev/null 2>&1; [ $? -eq 2 ] && ok "empty prompt is a usage error" || bad "empty prompt accepted"
+ask codex --timeout abc -- x >/dev/null 2>&1; [ $? -eq 2 ] && ok "non-numeric timeout is rejected" || bad "bad timeout accepted"
+OUT="$(ask codex --cwd "$R" --dry-run -- secret prompt text)"
+grep -q 'codex exec -s read-only' <<<"$OUT" && ! grep -q 'secret prompt text' <<<"$OUT" \
+  && ok "--dry-run shows the command without the prompt" || bad "dry-run output wrong"
+
+[ "$fails" -eq 0 ] && { echo "ai-ask-test: PASS"; exit 0; }
+echo "ai-ask-test: $fails failed"; exit 1

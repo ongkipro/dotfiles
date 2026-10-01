@@ -75,6 +75,6 @@ Git: stage, commit, and push only when the user asks for that specific action; f
 ## Runtime adapter — Codex CLI
 
 - Runtime facts: Codex reads this from `~/.codex/AGENTS.md`. How you work the task is yours to choose; the core's boundaries and evidence rules still apply.
-- No dotfiles hooks are wired into Codex: every Git and approval rule in the core is enforced only by your own behavior here.
+- Hooks: `ai-hooks-install --runtime codex` wires `~/.codex/hooks.json` with the same git-guard, memory-usage and session-restore hooks as Claude. Codex cannot answer "ask", so git-guard denies those cases; run such a command yourself only with the user's approval. Rules a hook cannot see (other interpreters, wrappers) still rest on your own behavior.
 - Skills are per-skill links in `~/.codex/skills/` beside Codex's built-in `.system` skills. Codex shortens skill descriptions to fit its budget — when a skill name plausibly matches the task, open its `SKILL.md` instead of judging from the shortened description.
 - Codex native memories are device-local session aids, not shared truth; curated cross-device memory stays in `~/.config/ai/memory/`.

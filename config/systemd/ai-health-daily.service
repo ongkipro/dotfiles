@@ -1,0 +1,7 @@
+[Unit]
+Description=Daily read-only AI/dotfiles health report (ai-health-daily)
+
+[Service]
+Type=oneshot
+ExecStart=%h/dotfiles/bin/ai-health-daily
+Nice=10

@@ -29,11 +29,38 @@ def load_usage(telemetry: Path):
     return started,events
 
 def main():
-    p=argparse.ArgumentParser(); p.add_argument('--dotfiles'); p.add_argument('--telemetry-dir'); p.add_argument('--cold-days',type=int,default=90); p.add_argument('--min-observation-days',type=int,default=30); p.add_argument('--never-used-days',type=int,default=60); p.add_argument('--json',action='store_true'); p.add_argument('--today')
+    p=argparse.ArgumentParser(); p.add_argument('--dotfiles'); p.add_argument('--telemetry-dir'); p.add_argument('--cold-days',type=int,default=90); p.add_argument('--min-observation-days',type=int,default=30); p.add_argument('--never-used-days',type=int,default=60); p.add_argument('--json',action='store_true'); p.add_argument('--today'); p.add_argument('--routes',action='store_true',help='per-project empty-route report: the evidence for or against a semantic fallback (TASK-109)'); p.add_argument('--min-prompts',type=int,default=100); p.add_argument('--empty-threshold',type=float,default=0.6)
     a=p.parse_args(); dot=Path(a.dotfiles or Path(__file__).resolve().parent.parent).resolve(); tele=Path(a.telemetry_dir or Path.home()/'.config/ai-local/memory-usage').expanduser().resolve()
     try:
         now=datetime.fromisoformat(a.today+'T00:00:00+00:00') if a.today else datetime.now(timezone.utc)
         started,events=load_usage(tele); counts=Counter(); last={}
+        if a.routes:
+            # An empty route is not proof of a miss ("ok", "lanjut" need no
+            # memory), so this only flags projects that HAVE project memory yet
+            # route nothing most of the time, over enough prompts to matter.
+            # Those are where a semantic fallback could earn its cost; elsewhere
+            # keyword triggers and path triggers are enough.
+            try: manifest=json.loads((dot/'config/ai/memory-router.json').read_text())
+            except Exception: manifest={}
+            with_memory={k.lower() for k in manifest.get('projects',{})}
+            tot=Counter(); empty=Counter()
+            for e in events:
+                key=(e.get('project') or '(no project)').lower(); tot[key]+=1
+                if not e.get('selected'): empty[key]+=1
+            rows=[]
+            for k,n in tot.most_common():
+                rate=empty[k]/n
+                verdict='SEMANTIC_CANDIDATE' if (k in with_memory and n>=a.min_prompts and rate>=a.empty_threshold) else ('NO_PROJECT_MEMORY' if k not in with_memory and k!='(no project)' else 'KEYWORDS_ENOUGH')
+                rows.append({'project':k,'prompts':n,'empty':empty[k],'emptyRate':round(rate,3),'hasProjectMemory':k in with_memory,'verdict':verdict})
+            out={'evidenceScope':'device-local-routed-access-only','events':len(events),'projects':rows,
+                 'semanticCandidates':[r['project'] for r in rows if r['verdict']=='SEMANTIC_CANDIDATE']}
+            if a.json: print(json.dumps(out,indent=2))
+            else:
+                print(f"ai-memory-lifecycle --routes: {len(events)} routed prompt(s), device-local")
+                for r in rows[:25]:
+                    print(f"  {r['verdict']:20} {r['project']:28} prompts={r['prompts']:5} empty={r['emptyRate']:.0%}")
+                print('  semantic fallback candidates: ' + (', '.join(out['semanticCandidates']) or 'none — keep keyword + path triggers'))
+            return 0
         for e in events:
             try: t=parse_time(e['time'])
             except Exception: continue

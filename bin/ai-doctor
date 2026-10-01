@@ -162,12 +162,16 @@ run_self_test_gate() {
       [ "$turnstile_seen" -eq 1 ] || bad "turnstile-secret-test: tidak tersedia"
       ;;
     git-guard)
-      test_script="$DOT/config/ai/hooks/git-guard.test.sh"
-      if [ -x "$test_script" ]; then
-        run_self_test_command "git-guard.test.sh" "$test_script"
-      else
-        bad "git-guard.test.sh: tidak executable atau tidak tersedia"
-      fi
+      # Every hook test, not only git-guard's (session-restore since TASK-100).
+      [ -x "$DOT/config/ai/hooks/git-guard.test.sh" ] \
+        || bad "git-guard.test.sh: tidak executable atau tidak tersedia"
+      for test_script in "$DOT"/config/ai/hooks/*.test.sh; do
+        if [ -x "$test_script" ]; then
+          run_self_test_command "$(basename "$test_script")" "$test_script"
+        else
+          bad "$(basename "$test_script"): tidak executable"
+        fi
+      done
       ;;
     *)
       bad "self-test gate tidak dikenal: $gate"
@@ -597,6 +601,18 @@ fi
 # benda yang salah, persis pola yang sama dengan cek .env di atas.
 # settings.json device-local (ada `model`, `theme`, plugin), jadi tidak bisa di-symlink —
 # `ai-hooks-install` yang merekonsiliasi entri dari config/ai/claude-hooks.json.
+# Codex reads the same hook shape (TASK-106); report its wiring too.
+if command -v codex >/dev/null 2>&1 && [ -x "$DOT/bin/ai-hooks-install" ]; then
+  if hook_out="$("$DOT/bin/ai-hooks-install" --runtime codex --check --dotfiles "$DOT" 2>&1)"; then
+    ok "Codex hooks: git-guard, memory-usage, session-restore terpasang di ~/.codex/hooks.json"
+  else
+    wrn "Codex hooks: BELUM terpasang — perbaiki dengan: ai-hooks-install --runtime codex"
+  fi
+fi
+for rt in agy omp pi; do
+  command -v "$rt" >/dev/null 2>&1 && note_hookless="${note_hookless:-}${note_hookless:+, }$rt"
+done
+[ -z "${note_hookless:-}" ] || ok "tanpa hook dotfiles (aturan Git ditegakkan lewat CORE.md saja): $note_hookless"
 if command -v claude >/dev/null 2>&1 && [ -x "$DOT/bin/ai-hooks-install" ]; then
   if hook_out="$(CLAUDE_SETTINGS="$CC_SETTINGS" "$DOT/bin/ai-hooks-install" --check --dotfiles "$DOT" 2>&1)"; then
     ok "Claude hooks: semua hook canonical terpasang di $CC_SETTINGS"

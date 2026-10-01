@@ -883,6 +883,37 @@ def check_skill_routing_graph():
     print(f"  OK  skill routing graph: {checked} routing reference(s) resolve to installed skills")
 
 
+def check_hidden_instructions():
+    """Skills and memory are loaded into every runtime's context, so text a
+    reader cannot see is a prompt-injection channel (TASK-107, gap G8):
+    invisible or bidirectional-control characters, and instruction-override
+    phrasing hidden inside HTML comments. Plain prose that *discusses* prompt
+    injection is fine; only the hidden forms fail."""
+    invisible = re.compile("[\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff\U000e0000-\U000e007f]")
+    comment = re.compile(r"<!--(.*?)-->", re.S)
+    override = re.compile(r"ignore (all |any )?(previous|prior|above|earlier) (instructions|rules)"
+                          r"|disregard (all |any )?(previous|prior|above)|you are now (a|an|the) "
+                          r"|(reveal|print|send|exfiltrate) (the |all )?(secret|password|token|api key|credential)", re.I)
+    scanned = 0
+    for base in (ROOT / "skills" / "local", AI_DIR):
+        if not base.is_dir():
+            continue
+        for path in base.rglob("*.md"):
+            if ".trash" in path.parts:
+                continue
+            scanned += 1
+            text = path.read_text(encoding="utf-8", errors="replace")
+            rel = path.relative_to(ROOT)
+            found = sorted({f"U+{ord(c):04X}" for c in invisible.findall(text)})
+            if found:
+                err(f"{rel}: invisible or bidi control characters {', '.join(found[:5])} can hide instructions; remove them")
+            for body in comment.findall(text):
+                if override.search(body):
+                    err(f"{rel}: an HTML comment carries instruction-override wording; hidden text must not instruct the model")
+                    break
+    print(f"  OK  hidden-instruction scan: {scanned} skill and memory file(s) checked")
+
+
 def main():
     print("ai-policy-lint: Auditing dotfiles policy, routing, skills, and templates...")
     print("─" * 60)
@@ -903,6 +934,7 @@ def main():
     check_task_contracts()
     check_memory_routing_coverage()
     check_skill_map()
+    check_hidden_instructions()
     check_hot_context()
 
     if warnings:

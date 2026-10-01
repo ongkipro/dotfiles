@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# ai-health-daily — one read-only health report per day for this device (TASK-108).
+#
+# The checks already exist (ai-doctor, memory hygiene, the lesson inbox,
+# resume-brief); nobody runs them unless asked, so drift is found late. This
+# runs them, writes one dated Markdown report, keeps the last 14, and records a
+# one-word status the next interactive shell can surface. It never fixes,
+# fetches, commits, or writes memory.
+#
+# Usage:
+#   ai-health-daily               run now (once per day unless --force)
+#   ai-health-daily --force       run even if today's report exists
+#   ai-health-daily --print-timer show how to schedule it (systemd user timer or
+#                                 launchd); it never installs anything itself
+set -uo pipefail
+
+# Resolve the script's real location without GNU readlink -f (macOS).
+self="$0"
+while [ -L "$self" ]; do t="$(readlink "$self")"; case "$t" in /*) self="$t" ;; *) self="$(dirname "$self")/$t" ;; esac; done
+DOT="${DOTFILES_DIR:-$(cd "$(dirname "$self")/.." && pwd -P)}"
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/ai-health"
+TODAY="$(date +%Y-%m-%d)"
+REPORT="$STATE/$TODAY.md"
+force=0
+
+case "${1:-}" in
+  --force) force=1 ;;
+  --print-timer)
+    cat <<EOF
+Linux (systemd user timer; no sudo):
+  mkdir -p ~/.config/systemd/user
+  ln -sf $DOT/config/systemd/ai-health-daily.service ~/.config/systemd/user/
+  ln -sf $DOT/config/systemd/ai-health-daily.timer ~/.config/systemd/user/
+  systemctl --user daemon-reload && systemctl --user enable --now ai-health-daily.timer
+
+macOS (launchd agent):
+  sed "s|__DOT__|$DOT|g" $DOT/config/launchd/com.dotfiles.ai-health-daily.plist > ~/Library/LaunchAgents/com.dotfiles.ai-health-daily.plist
+  launchctl load ~/Library/LaunchAgents/com.dotfiles.ai-health-daily.plist
+EOF
+    exit 0 ;;
+  "") ;;
+  -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
+  *) echo "ai-health-daily: unknown option $1" >&2; exit 2 ;;
+esac
+
+mkdir -p "$STATE"; chmod 700 "$STATE" 2>/dev/null || true
+if [ -f "$REPORT" ] && [ "$force" -eq 0 ]; then
+  echo "ai-health-daily: today's report exists: $REPORT"; exit 0
+fi
+
+# Bounded runner: GNU timeout, gtimeout, or Perl as the parent (macOS).
+bounded() {
+  local s="$1"; shift
+  if command -v timeout >/dev/null 2>&1; then timeout "$s" "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then gtimeout "$s" "$@"
+  else perl -e 'use POSIX qw(WNOHANG); my $s=shift; my $p=fork; exit 127 unless defined $p;
+      if(!$p){setpgrp(0,0); exec @ARGV; exit 127}
+      local $SIG{ALRM}=sub{ kill "TERM",-$p; for (1..50){ last if waitpid($p,WNOHANG)==$p; select undef,undef,undef,0.1 } kill "KILL",-$p; waitpid $p,0; exit 124 };
+      alarm $s; waitpid $p,0; exit(($? & 127) ? 128 + ($? & 127) : $? >> 8)' "$s" "$@"
+  fi
+}
+ESC="$(printf '\033')"
+# Strip colour codes and mask anything credential-shaped before it reaches disk.
+strip() {
+  sed -E -e "s/${ESC}\[[0-9;]*m//g" \
+    -e 's/(sk-[A-Za-z0-9_-]{4})[A-Za-z0-9_-]+/\1[REDACTED]/g' \
+    -e 's/(gh[pousr]_|github_pat_|glpat-|xox[baprs]-|AKIA|AIza)[A-Za-z0-9_-]+/\1[REDACTED]/g' \
+    -e 's/([Bb]earer )[A-Za-z0-9._-]+/\1[REDACTED]/g' \
+    -e 's/(([Aa][Pp][Ii][_-]?[Kk][Ee][Yy]|[Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd])["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"']?)[^"'"'"'[:space:]]+/\1[REDACTED]/g'
+}
+
+status=ok
+section() { # title, timeout, command...
+  local title="$1" t="$2"; shift 2
+  local out rc raw
+  raw="$(mktemp "$STATE/.sec.XXXXXX")"
+  bounded "$t" "$@" >"$raw" 2>&1; rc=$?
+  out="$(strip <"$raw")"; rm -f "$raw"
+  [ "$rc" -eq 0 ] || status=attention
+  printf '\n## %s (exit %s)\n\n```text\n%s\n```\n' "$title" "$rc" "$(printf '%s\n' "$out" | tail -60)"
+}
+has() { [ -x "$DOT/bin/$1" ]; }
+
+tmp="$(mktemp "$STATE/.report.XXXXXX")"
+{
+  printf '# AI health — %s (%s)\n\nRead-only. Nothing was fixed, fetched, or committed.\n' "$TODAY" "$(hostname 2>/dev/null || echo device)"
+  has ai-doctor && section "ai-doctor" "${AI_HEALTH_DOCTOR_TIMEOUT:-120}" "$DOT/bin/ai-doctor"
+  has ai-memory-hygiene && section "memory hygiene" 60 "$DOT/bin/ai-memory-hygiene"
+  if has ai-learn; then
+    pending="$(bounded 30 "$DOT/bin/ai-learn" list 2>/dev/null | grep -c '\.md' || true)"
+    printf '\n## lesson inbox\n\n%s candidate(s) waiting for review (`ai-learn list`).\n' "${pending:-0}"
+  fi
+  has resume-brief && section "dotfiles resume brief" 30 "$DOT/bin/resume-brief" "$DOT"
+  last="${XDG_STATE_HOME:-$HOME/.local/state}/dotsync/last-result"
+  printf '\n## autopull\n\n%s\n' "$( [ -f "$last" ] && cat "$last" || echo 'no autopull record on this device')"
+  grep -Eq ' (warn|fail): ' "$last" 2>/dev/null && status=attention
+} > "$tmp"
+# ai-doctor's own "OK dengan N catatan" exits 0; surface its warnings anyway.
+grep -Eq 'catatan|^  ! |WARN' "$tmp" && [ "$status" = ok ] && status=notes
+printf '\n**Status: %s**\n' "$status" >> "$tmp"
+mv "$tmp" "$REPORT"; chmod 600 "$REPORT"
+printf '%s %s %s\n' "$TODAY" "$status" "$REPORT" > "$STATE/latest"
+
+# Keep the last 14 reports.
+# Portable (no GNU `head -n -N`): drop all but the newest 14.
+ls -1 "$STATE"/????-??-??.md 2>/dev/null | sort -r | awk 'NR>14' | while IFS= read -r old; do rm -f "$old"; done
+
+echo "ai-health-daily: $status — $REPORT"

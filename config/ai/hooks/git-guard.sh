@@ -18,6 +18,11 @@
 set -u
 
 decide() { # <allow|deny|ask> <reason>
+  # Codex cannot ask: an "ask" there fails the hook and the command RUNS
+  # (TASK-106). Fail closed instead and tell the user to run it themselves.
+  if [ "$1" = ask ] && [ "${AI_HOOK_RUNTIME:-claude}" = codex ]; then
+    set -- deny "$2 (Codex cannot ask for confirmation, so this is blocked; run it yourself if intended.)"
+  fi
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"%s","permissionDecisionReason":"%s"}}\n' "$1" "$2"
   exit 0
 }
@@ -36,6 +41,9 @@ decide() { # <allow|deny|ask> <reason>
 # cannot run should be visible, not absent.
 payload=$(cat)
 [ -n "$payload" ] || exit 0
+# Codex payloads carry `turn_id`; detect Codex from the payload too, so a lost
+# AI_HOOK_RUNTIME cannot turn a Codex "ask" back into a fail-open.
+case "$payload" in *'"turn_id"'*) AI_HOOK_RUNTIME=codex ;; esac
 
 cmd=""
 parsed=0

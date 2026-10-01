@@ -90,5 +90,23 @@ $cases
 $mentions
 EOF
 
+# Codex cannot "ask" (an ask fails the hook and the command runs), so under
+# AI_HOOK_RUNTIME=codex every "ask" must become "deny" (TASK-106).
+for cmd in 'git push --mirror' 'git push origin :old' 'git push origin +main'; do
+  got=$(printf '%s' "$cmd" | jq -Rc '{tool_name:"Bash",tool_input:{command:.}}' | AI_HOOK_RUNTIME=codex "$guard" 2>/dev/null \
+        | jq -r '.hookSpecificOutput.permissionDecision')
+  if [ "$got" = deny ]; then pass=$((pass + 1)); else fail=$((fail + 1)); printf 'FAIL  codex mode want=deny got=%s  %s\n' "$got" "$cmd" >&2; fi
+done
+got=$(printf '%s' 'git push --force' | jq -Rc '{tool_name:"Bash",tool_input:{command:.}}' | AI_HOOK_RUNTIME=codex "$guard" | jq -r '.hookSpecificOutput.permissionDecision')
+[ "$got" = deny ] && pass=$((pass + 1)) || { fail=$((fail + 1)); echo "FAIL  codex mode force-push not denied" >&2; }
+got=$(printf '%s' 'git push --mirror' | jq -Rc '{turn_id:"t1",tool_name:"Bash",tool_input:{command:.}}' | "$guard" | jq -r '.hookSpecificOutput.permissionDecision')
+[ "$got" = deny ] && pass=$((pass + 1)) || { fail=$((fail + 1)); echo "FAIL  a Codex payload without AI_HOOK_RUNTIME still asked" >&2; }
+# Unparseable payload (no jq, no python3) under Codex must deny, not ask.
+NOPARSE="$(mktemp -d)"; ln -s "$(command -v cat)" "$NOPARSE/cat"
+got=$(printf '%s' '{"turn_id":"x","tool_name":"Bash","tool_input":{"command":"git push --mirror"}}' | env PATH="$NOPARSE" /bin/bash "$guard" | jq -r '.hookSpecificOutput.permissionDecision'); rm -rf "$NOPARSE"
+[ "$got" = deny ] && pass=$((pass + 1)) || { fail=$((fail + 1)); echo "FAIL  unparseable Codex payload got $got" >&2; }
+out=$(printf '%s' 'git status' | jq -Rc '{tool_name:"Bash",tool_input:{command:.}}' | AI_HOOK_RUNTIME=codex "$guard")
+[ -z "$out" ] && pass=$((pass + 1)) || { fail=$((fail + 1)); echo "FAIL  codex mode spoke on a safe command" >&2; }
+
 printf 'git-guard: %d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

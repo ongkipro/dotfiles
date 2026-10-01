@@ -92,6 +92,12 @@
         "node --test",
         "border color",
         "button geometry"
+      ],
+      "paths": [
+        "*.css",
+        "**/*.css",
+        "**/tailwind.config.*",
+        "**/components/ui/**"
       ]
     },
     {
@@ -223,6 +229,13 @@
         "dawn theme",
         "horizon theme",
         "shopify storefront"
+      ],
+      "paths": [
+        "*.liquid",
+        "**/*.liquid",
+        "**/shopify.app.toml",
+        "**/hydrogen.config.*",
+        "**/storefrontapi.generated.d.ts"
       ]
     },
     {
@@ -501,7 +514,23 @@
     "petcue": [
       "config/ai/project-memory/petcue-dawn-rebuild.md",
       "config/ai/project-memory/petcue-shopify-site.md"
-    ]
+    ],
+    "formalin.my": [
+      "config/ai/project-memory/formalin.md",
+      "config/ai/project-memory/formalin-volumx-project.md",
+      {
+        "path": "config/ai/project-memory/formalinads-malaysia-gateway.md",
+        "triggers": [
+          "gateway",
+          "malaysia",
+          "senangpay",
+          "doku"
+        ]
+      }
+    ],
+    "formalinads": "config/ai/project-memory/formalinads-malaysia-gateway.md",
+    "zvarashop": "config/ai/project-memory/adsbookcms-install-fleet.md",
+    "permatamall": "config/ai/project-memory/adsbookcms-install-fleet.md"
   },
   "lessons": [
     {
@@ -522,6 +551,12 @@
         "wrangler 403",
         "cloudflare token",
         "oauth wrangler"
+      ],
+      "paths": [
+        "wrangler.toml",
+        "wrangler.jsonc",
+        "**/wrangler.toml",
+        "**/wrangler.jsonc"
       ]
     },
     {
@@ -719,6 +754,14 @@
       "triggers": [
         "coolify",
         "vps dev"
+      ],
+      "paths": [
+        "docker-compose.yml",
+        "compose.yaml",
+        "**/docker-compose.yml",
+        "**/compose.yaml",
+        "Dockerfile",
+        "**/Dockerfile"
       ]
     },
     {

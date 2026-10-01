@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# ai-health-daily-test — regression check with stub tools in a sandbox.
+set -uo pipefail
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+fails=0
+ok()  { printf '  ok   %s\n' "$1"; }
+bad() { printf '  FAIL %s\n' "$1"; fails=$((fails + 1)); }
+D="$TMP/dot"; mkdir -p "$D/bin"; cp "$ROOT/bin/ai-health-daily" "$D/bin/"
+stub() { printf '#!/bin/sh\n%s\n' "$2" > "$D/bin/$1"; chmod +x "$D/bin/$1"; }
+stub ai-doctor 'echo "all good"; exit 0'
+stub ai-memory-hygiene 'echo "hygiene: OK"; exit 0'
+stub ai-learn 'echo "a.md"; echo "b.md"'
+stub resume-brief 'echo "RESUME BRIEF stub"'
+export XDG_STATE_HOME="$TMP/state" DOTFILES_DIR="$D"
+H="$D/bin/ai-health-daily"; S="$TMP/state/ai-health"
+
+out="$("$H")"; rc=$?
+[ "$rc" -eq 0 ] && grep -q 'ok —' <<<"$out" && ok "healthy run reports ok" || bad "healthy run: rc=$rc $out"
+r="$S/$(date +%Y-%m-%d).md"
+grep -q 'RESUME BRIEF stub' "$r" && grep -q '2 candidate(s)' "$r" && ok "report collects every section" || bad "report content"
+[ "$(stat -c %a "$r" 2>/dev/null || stat -f %Lp "$r")" = 600 ] && ok "report is private (600)" || bad "report mode"
+grep -q '^20.* ok ' "$S/latest" && ok "latest status recorded" || bad "latest: $(cat "$S/latest")"
+stub ai-memory-hygiene 'echo "WARN something"; exit 1'
+"$H" | grep -q "exists" && ok "runs once per day without --force" || bad "re-ran without --force"
+"$H" --force >/dev/null; grep -q ' attention ' "$S/latest" && ok "a failing check marks attention" || bad "status not attention: $(cat "$S/latest")"
+stub ai-doctor 'sleep 300'
+start=$(date +%s); AI_HEALTH_DOCTOR_TIMEOUT=3 "$H" --force >/dev/null; took=$(( $(date +%s) - start ))
+[ "$took" -lt 15 ] && ok "a hanging check is bounded (${took}s)" || bad "hang took ${took}s"
+stub ai-doctor 'exit 0'
+i=1; while [ "$i" -le 20 ]; do : > "$S/2000-01-$(printf '%02d' "$i").md"; i=$((i + 1)); done
+"$H" --force >/dev/null
+[ "$(ls "$S"/????-??-??.md | wc -l | tr -d ' ')" = 14 ] && ok "keeps the newest 14 reports" || bad "retention: $(ls "$S" | wc -l)"
+[ -f "$S/$(date +%Y-%m-%d).md" ] && ok "today's report survives retention" || bad "today's report deleted"
+stub ai-doctor 'echo "token=abcd1234secret sk-abcdefghijklmnop Bearer xyz.abc"; exit 0'
+"$H" --force >/dev/null
+r="$S/$(date +%Y-%m-%d).md"
+! grep -q 'abcd1234secret\|ijklmnop\|xyz.abc' "$r" && grep -q 'REDACTED' "$r" && ok "credential-shaped output is masked" || bad "secrets reached the report"
+printf '2026 x warn: y\n' > "$TMP/state/dotsync-last"; mkdir -p "$TMP/state/dotsync"; printf '2026 x warn: diverged\n' > "$TMP/state/dotsync/last-result"
+"$H" --force >/dev/null; grep -q ' attention ' "$S/latest" && ok "an autopull warning marks attention" || bad "autopull warning missed"
+ln -s "$H" "$TMP/linked-health"; (cd /; DOTFILES_DIR= "$TMP/linked-health" --print-timer | grep -q "$D/config/systemd") && ok "resolves its repository through a symlink" || bad "symlink resolution"
+"$H" --print-timer | grep -q 'systemctl --user enable --now ai-health-daily.timer' && ok "--print-timer shows the opt-in commands" || bad "print-timer"
+"$H" --bogus >/dev/null 2>&1; [ $? -eq 2 ] && ok "unknown option is a usage error" || bad "unknown option accepted"
+[ "$fails" -eq 0 ] && { echo "ai-health-daily-test: PASS"; exit 0; }
+echo "ai-health-daily-test: $fails failed"; exit 1

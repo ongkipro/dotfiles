@@ -167,4 +167,27 @@ PY
 
 echo "  ✓ multi-file project keys: list order, trigger lift, string form, missing entry"
 
+# Path triggers (TASK-107, G9): a changed file can route memory the prompt never named.
+PT="$TMP/pathrepo"; mkdir -p "$PT/src"; git -C "$PT" init -q; printf 'a{}\n' > "$PT/src/x.css"
+python3 "$ROUTER" 'fix this please' --repo "$PT" --json > "$TMP/path.json"
+python3 - "$TMP/path.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1]))
+assert any(x['path'].endswith('development-lessons.md') for x in p['files']), p
+PY
+rm -f "$PT/src/x.css"; mkdir -p "$PT/components/ui"; printf 'x\n' > "$PT/components/ui/my button.tsx"
+python3 "$ROUTER" 'fix this please' --repo "$PT" --json > "$TMP/root.json"
+python3 - "$TMP/root.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1]))
+assert any(x['path'].endswith('development-lessons.md') for x in p['files']), p
+PY
+rm -rf "$PT/components"; printf 'x\n' > "$PT/notes.txt"
+python3 "$ROUTER" 'fix this please' --repo "$PT" --json > "$TMP/nopath.json"
+python3 - "$TMP/nopath.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1]))
+assert not any(x['path'].endswith('development-lessons.md') for x in p['files']), p
+PY
+echo "  ✓ path triggers route from changed files and stay quiet otherwise"
 echo 'ai-memory-route-test: PASS'

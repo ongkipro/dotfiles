@@ -216,4 +216,10 @@ if [[ $- == *i* ]] && [ "${DOTSYNC_AUTOPULL:-1}" != 0 ] && [ -x "$HOME/dotfiles/
   ( "$HOME/dotfiles/bin/dotsync" autopull </dev/null >/dev/null 2>&1 & )
   unset _dotsync_last
 fi
+# Daily health report (TASK-108): one line when the latest report needs attention.
+_ai_health="${XDG_STATE_HOME:-$HOME/.local/state}/ai-health/latest"
+if [[ $- == *i* ]] && [ -f "$_ai_health" ] && grep -q ' attention ' "$_ai_health" 2>/dev/null; then
+  printf 'ai-health: %s needs attention — %s\n' "$(cut -d' ' -f1 "$_ai_health")" "$(cut -d' ' -f3- "$_ai_health")" >&2
+fi
+unset _ai_health
 # <<< dev-tools setup (ongkipro/dotfiles) <<<

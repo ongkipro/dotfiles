@@ -100,4 +100,24 @@ run >/dev/null || fail "install should succeed"
 [ -f "$TMP/settings.json.bak" ] || fail "no backup was written before modifying an existing file"
 grep -q 'opus\[1m\]' "$TMP/settings.json.bak" || fail "backup does not contain the original content"
 
+# --- codex runtime (TASK-106): same hooks, no `if`, runtime marker ----------
+rm -f "$TMP/codex.json"
+"$INSTALL" --runtime codex --settings "$TMP/codex.json" --dotfiles "$DOT" >/dev/null 2>"$TMP/err" \
+  || fail "codex install failed: $(cat "$TMP/err")"
+python3 - "$TMP/codex.json" <<'PY' || fail "codex hooks.json has the wrong shape"
+import json, sys
+d = json.load(open(sys.argv[1]))["hooks"]
+cmds = [h for ev in d.values() for g in ev for h in g["hooks"]]
+assert any("git-guard.sh" in h["command"] for h in d["PreToolUse"][0]["hooks"])
+assert any("memory-usage.sh" in h["command"] for h in d["UserPromptSubmit"][0]["hooks"])
+assert any("session-restore.sh" in h["command"] for h in d["SessionStart"][0]["hooks"])
+assert all(h["command"].startswith("env AI_HOOK_RUNTIME=codex ") for h in cmds)
+assert all("if" not in h for h in cmds)
+PY
+"$INSTALL" --runtime codex --settings "$TMP/codex.json" --dotfiles "$DOT" --check >/dev/null 2>&1 \
+  || fail "codex --check fails right after install"
+cp "$TMP/codex.json" "$TMP/codex1.json"
+"$INSTALL" --runtime codex --settings "$TMP/codex.json" --dotfiles "$DOT" >/dev/null 2>&1
+cmp -s "$TMP/codex.json" "$TMP/codex1.json" || fail "codex install is not idempotent"
+
 echo "ai-hooks-install-test: PASS"

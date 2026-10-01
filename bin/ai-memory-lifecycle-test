@@ -14,4 +14,21 @@ python3 - "$TMP/out.json" <<'PY'
 import json,sys
 p=json.load(open(sys.argv[1])); rows={x['path']:x for x in p['files']}; assert rows['config/ai/memory/active.md']['status']=='ACTIVE'; assert rows['config/ai/memory/unused.md']['status']=='NEVER_USED'; assert rows['config/ai/memory/unused.md']['recommendation']=='archive-review'
 PY
+# --routes (TASK-109): flags only projects WITH project memory that route nothing most of the time.
+mkdir -p "$DOT/config/ai"; printf '{"schemaVersion":1,"projects":{"busy":"config/ai/memory/active.md"}}' > "$DOT/config/ai/memory-router.json"
+: > "$TEL/events.jsonl"
+for i in $(awk 'BEGIN{for(i=0;i<120;i++)print i}'); do
+  if [ "$i" -lt 90 ]; then sel='[]'; else sel='[{"path":"config/ai/memory/active.md","scope":"project","bytes":10}]'; fi
+  printf '{"schemaVersion":1,"project":"busy","time":"2026-08-01T00:00:00Z","selected":%s}\n' "$sel" >> "$TEL/events.jsonl"
+  printf '{"schemaVersion":1,"project":"nomem","time":"2026-08-01T00:00:00Z","selected":[]}\n' >> "$TEL/events.jsonl"
+done
+python3 "$ROOT/bin/ai-memory-lifecycle" --dotfiles "$DOT" --telemetry-dir "$TEL" --routes --json > "$TMP/routes.json"
+python3 - "$TMP/routes.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1])); r={x['project']:x for x in p['projects']}
+assert r['busy']['verdict']=='SEMANTIC_CANDIDATE' and r['busy']['emptyRate']==0.75, r['busy']
+assert r['nomem']['verdict']=='NO_PROJECT_MEMORY', r['nomem']
+assert p['semanticCandidates']==['busy']
+PY
+python3 "$ROOT/bin/ai-memory-lifecycle" --dotfiles "$DOT" --telemetry-dir "$TEL" --routes --min-prompts 500 --json | python3 -c 'import json,sys; assert json.load(sys.stdin)["semanticCandidates"]==[]'
 echo 'ai-memory-lifecycle-test: PASS'
