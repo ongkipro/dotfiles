@@ -17,55 +17,8 @@ pi.dev CLI (`@earendil-works/pi-coding-agent`, bin `pi`) routes LLM requests thr
 
 **2026-07-10 — updated 9router 0.5.20→0.5.30 + pi 0.80.3→0.80.6** (both `npm i -g …@latest`). Blocked-postinstall warnings are expected and non-fatal (9router `hooks/postinstall.js`; pi's `@google/genai` preinstall no-op + `protobufjs`). Verified after restart: bound localhost-only via `setsid nohup 9router --tray --skip-update -n -H 127.0.0.1 -p 20128 &` (the `-H 127.0.0.1` is still REQUIRED — default is still LAN-exposed), tunnel stayed OFF (no cloudflared proc, no extra listeners), and `cx/gpt-5.5` returned a real completion. `GET /api/tunnel/status` now returns `{"error":"Unauthorized"}` without a login cookie — check for a `cloudflared` process instead as the quick liveness test. `/v1/models` grew 10→16: **NEW `cx/gpt-5.6-sol`, `cx/gpt-5.6-terra`, `cx/gpt-5.6-luna`** (+ a `-review` variant of each), all three verified returning content. Not yet added to `~/.pi/agent/models.json`.
 
-**2026-08-19 — INCIDENT: 8-day stale instance, LAN-exposed, publicly tunneled.** The
-manual restart pattern below (`setsid nohup 9router --tray ...`) launches its own
-`next-server` on :20128 **and starts a systemd unit `9router.service` that ALSO
-binds :20128** — two independent launch mechanisms racing for one port. On
-2026-08-11 19:14 the manual tray process won the race; two minutes later the
-systemd unit crash-looped on the port conflict, hit `StartLimitBurst`, and sat in
-`failed` state — unnoticed — for 8 days. Worse: the tray instance had
-`tunnelEnabled:true` at launch, so a Cloudflare quick tunnel (`cloudflared tunnel
---url http://127.0.0.1:20128`) ran continuously the whole time, exposing this
-box's 9Router — with live Codex/Gemini/OpenCode/MiniMax provider credentials
-attached — to the public internet, contrary to the "Tunnel = OFF" policy set
-2026-07-03. A `npm i -g 9router@latest` on 2026-08-17 replaced the package files
-on disk while the stale process kept running from the now-deleted directory
-(`cwd -> .../9router/app (deleted)`), so it was also several versions behind
-what `npm ls -g` reported. Found and fixed 2026-08-19: killed the orphan tree
-(cloudflared → next-server → tray cli), `systemctl --user reset-failed
-9router.service`, `systemctl --user restart 9router.service`. Now bound to
-`127.0.0.1:20128` only (was `0.0.0.0`), no cloudflared process, `/v1/chat/completions`
-verified with a real completion.
+**Incidents 2026-08-19 and 2026-08-27 (9router stale, LAN-exposed, publicly tunneled):** run 9router only via `systemctl --user ... 9router.service`; details and diagnosis in [[pi-9router-autostart-incident]].
 
-**2026-08-27 — SAME INCIDENT RECURRED, and the 2026-08-19 fix note was wrong
-about the cause.** Found again: `9router.service` `failed`, port bound to
-`0.0.0.0`, a `cloudflared` quick tunnel running publicly — identical shape,
-started 2026-08-25 21:49, two days before this was caught. The 2026-08-19 entry
-assumed a human re-ran `setsid nohup 9router --tray ...`; nobody did. The real
-trigger is **`~/.config/autostart/9router.desktop`**, an XDG autostart entry
-(`X-GNOME-Autostart-enabled=true`, `Exec=... cli.js --tray --skip-update`) that
-launches tray mode on every desktop login — a mechanism no AI session's memory
-note can reach, since the desktop session manager never reads it. This is why a
-purely procedural fix ("don't type this command") could not hold: the trigger
-was never a typed command.
-
-**Actual fix: disabled the autostart entry.** Copied to
-`~/.config/ai-local/9router.desktop.disabled-2026-08-27` (in case the tray icon
-was wanted for a reason not yet known) and removed from `~/.config/autostart/`.
-Re-killed the orphan tree, `systemctl --user reset-failed && restart
-9router.service`, re-verified `127.0.0.1`-only + no `cloudflared` + a real
-completion. **If this recurs a third time, check `~/.config/autostart/` and any
-other per-user XDG/systemd autostart path again before assuming a human cause**
-— the failure mode here was trusting a plausible narrative (someone ran a
-command) over checking what actually launched the process (`ps -o ppid`,
-`lstart`, then trace the parent to its origin).
-
-**The fix is procedural, not just a restart: `systemctl --user ...` (see
-`skills/local/9router/SKILL.md`) is the ONLY sane way to run this now.** The
-`setsid nohup 9router --tray ...` command in the two entries below is what
-caused this incident — do not run it while `9router.service` exists. If a
-manual restart is ever needed, use `systemctl --user restart 9router.service`,
-never the tray command.
 
 **API key gotcha:** `models.json` stores the 9router key as the env-var reference `${NINEROUTER_KEY}`, NOT a literal — real value lives in `~/.config/ai-local/secrets.env` (also exported from `.bashrc`). `source ~/.config/ai-local/secrets.env` before any manual `curl` against `:20128/v1`, or you'll send the literal `${NINEROUTER_KEY}` and get `invalid_api_key`.
 
@@ -73,16 +26,7 @@ never the tray command.
 - `~/.pi/agent/models.json` — defines provider `9router` (api `openai-completions`, baseUrl `http://localhost:20128/v1`, apiKey = `${NINEROUTER_KEY}`, `compat.supportsDeveloperRole/supportsReasoningEffort: false`).
 - `~/.pi/agent/settings.json` — `defaultProvider`/`defaultModel` TOGGLE often (the `/model` picker rewrites them). Observed: `9router`+`cx/gpt-5.5` (2026-06-25), `9router`+`opencode-go/deepseek-v4-pro` (2026-06-26), **`openai-codex`+`gpt-5.4` (2026-07-10)**. Always read the live value, don't assume. On pi 0.80.6 the native registry has openai-codex → **both `gpt-5.5` and `gpt-5.4`**, so `openai-codex/gpt-5.4` is a VALID default, not the bare/invalid-id corruption described below — don't "fix" it reflexively.
 
-**Working models via 9router (as of 2026-06-25):**
-- `cx/gpt-5.5`, `cx/gpt-5.4`, `cx/gpt-5.4-mini` — GPT via 9router pooling 3 Codex OAuth accounts (romario.sumali, dinarevitabeautyinu, aussie.bensu5m) → ~3x limit + auto-rotate. Better than pi's native single-account `openai-codex/*`. `cx/gpt-5.3-codex*` NOT supported via 9router chat proxy (400 error).
-- `oc/deepseek-v4-flash-free` — OpenCode free passthrough, no login/key, no risk-control, no quota use. (was the default at one point; current default is opencode-go/deepseek-v4-pro). Reasoning model (set maxTokens ≥16384 so visible content isn't eaten by reasoning_content).
-- `opencode-go/deepseek-v4-pro`, `opencode-go/glm-5.2`, `opencode-go/kimi-k2.6` — higher quality, but route via user's OpenCode API key (connected in 9router as "Irwan", apikey) so they may consume OpenCode plan credits. opencode-go qwen3.7-max & minimax-m3 return empty, skip.
-- `minimax/MiniMax-M2.7 / M2.5 / M2.1` — work via user's MiniMax API key (connected in 9router as "Irawan"). MiniMax inlines `<think>` in content. M3 returns empty, skip.
-- `mmf/mimo-auto` (MiMo Code Free) — works but frequently throttled with 441 risk_control; unreliable backup only.
-
-**compact-free extension** (`~/.pi/extensions/compact-free/index.mjs`, registered in settings.json packages as `../extensions/compact-free`): hooks `session_before_compact` so context compaction/summarization runs on a cheap model instead of the main model — saves GPT-5.4/Claude sub limits when running expensive main models. Model chain (tries in order): `9router/oc/deepseek-v4-flash-free` → `9router/minimax/MiniMax-M2.5` → `9router/cx/gpt-5.4-mini` (added 2026-06-25 as cheap backup before falling to main model) → default compaction (main model). Verified working 2026-06-25 (summary generated via deepseek-v4-flash-free, ~9-14s). Uses pi-ai `complete()` + `serializeConversation`/`convertToLlm`. Optional breadcrumb log at `~/.pi/compact-free.log`. Note: project-local `.pi/settings.json` compaction overrides seemed not to apply in testing; global `~/.pi/agent/settings.json` compaction settings did.
-
-**Compaction trigger (IMPORTANT):** pi fires `shouldCompact` when `contextTokens > contextWindow − reserveTokens` (`dist/core/compaction/compaction.js:152`). So `reserveTokens` is *headroom reserved*, NOT a max — a LARGE value makes it compact EARLY. Default 16384. Was misconfigured to `270000` (with 272k window → compacted every chat at ~2k tokens). Fixed 2026-06-25 to `reserveTokens: 22000` (compacts at ~250k/272k) + `keepRecentTokens: 6000` (was 400, too aggressive). Summary maxTokens = `min(0.8*reserveTokens, model.maxTokens)` for the default path; compact-free hardcodes its own 8192.
+**Model list, `compact-free` extension, and compaction-trigger gotcha** (`reserveTokens` is headroom, a large value compacts early): see [[pi-9router-models-compaction]].
 
 **2026-09-23 — Pruned dead models & perfected 9Router Fantastico catalog.**
 - Remote 9Router Fantastico tunnel (`https://rbq97ts.abc-tunnel.us/v1`) serves 12 active models (tested & verified 100% PASS via `pi -p`): `cx/gpt-5.5` (default), `cx/gpt-5.6-luna`, `cx/gpt-5.6-sol`, `cx/gpt-5.6-terra`, `cx/gpt-6-astra`, `ag/claude-opus-4-6-thinking`, `ag/claude-sonnet-4-6`, `ag/gemini-3.8-flash`, `ag/gemini-3.8-flash-high`, `ag/gemini-3.1-pro-low`, `ag/gemini-pro-agent`, `ag/gpt-oss-120b-medium`.

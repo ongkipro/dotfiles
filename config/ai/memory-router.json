@@ -79,6 +79,22 @@
       ]
     },
     {
+      "path": "config/ai/memory/development-lessons.md",
+      "priority": 79,
+      "triggers": [
+        "css layer",
+        "unlayered css",
+        "tailwind v4",
+        "headless ui",
+        "portal",
+        "astro query",
+        "prerender",
+        "node --test",
+        "border color",
+        "button geometry"
+      ]
+    },
+    {
       "path": "config/ai/memory/decisions.md",
       "priority": 78,
       "triggers": [
@@ -252,7 +268,21 @@
     }
   ],
   "projects": {
-    "beautyinu": "config/ai/project-memory/beautyinu.md",
+    "beautyinu": [
+      "config/ai/project-memory/beautyinu.md",
+      {
+        "path": "config/ai/project-memory/beautyinu-catalog.md",
+        "triggers": [
+          "catalog",
+          "sku",
+          "product",
+          "bundle",
+          "collection",
+          "price",
+          "taxonomy"
+        ]
+      }
+    ],
     "beautyinu-hydrogen": "config/ai/project-memory/beautyinu.md",
     "travelos": "config/ai/project-memory/travelos.md",
     "aussiemalaysia": "config/ai/project-memory/aussie-sawit-malaysia.md",
@@ -269,6 +299,19 @@
     "tokophi": [
       "config/ai/project-memory/tokophi.md",
       "config/ai/project-memory/tokophi-project.md",
+      {
+        "path": "config/ai/project-memory/tokophi-build-log.md",
+        "triggers": [
+          "build log",
+          "history",
+          "progress",
+          "stage",
+          "super-admin",
+          "variants",
+          "rebrand",
+          "slug"
+        ]
+      },
       {
         "path": "config/ai/project-memory/tokophi-deploy-workflow.md",
         "triggers": [
@@ -359,6 +402,29 @@
           "9router",
           "model",
           "provider"
+        ]
+      },
+      {
+        "path": "config/ai/project-memory/pi-9router-autostart-incident.md",
+        "triggers": [
+          "incident",
+          "autostart",
+          "tunnel",
+          "systemd",
+          "lan",
+          "cloudflared",
+          "stale"
+        ]
+      },
+      {
+        "path": "config/ai/project-memory/pi-9router-models-compaction.md",
+        "triggers": [
+          "compaction",
+          "compact",
+          "reservetokens",
+          "compact-free",
+          "model list",
+          "working models"
         ]
       }
     ],

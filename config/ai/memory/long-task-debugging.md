@@ -43,3 +43,49 @@ Use the Debug Adapter Protocol when runtime state, timing, stack flow, or mutati
 3. Re-run the failed focused check first, then `ai-doctor`. Use `ai-doctor --self-test` after changing runtime wiring, memory links, hooks, or their validation logic.
 4. Never “heal” by deleting unknown files, overwriting regular files, weakening a deny rule, installing unrequested software, or copying secrets into managed paths.
 5. A warning is not automatically a failure. Report optional-runtime or unrelated worktree warnings accurately; do not claim a clean device unless the observed output is clean.
+
+
+---
+
+
+## Lesson: Skill artifact examples must parse in the repository's own tooling
+
+### Symptom
+prd-taskbreaker emitted '- [ ] **T1**' tasks and plain 'Primary requirement:' suite lines; resume-brief, ai-policy-lint and check-traceability silently saw zero tasks or zero primaries.
+
+### Root cause
+Skill examples were written as prose conventions and never executed against the parsers (resume-brief TASK_ID/Depends On regex, suite metadata parser) that consume the generated files.
+
+### Durable invariant
+Any Markdown example a skill tells agents to emit is parsed by every repository tool that reads that artifact, with zero findings, before the skill change is accepted.
+
+### Fix
+Standalone tasks use '### TASK-NNN:' + canonical bold bullet fields; suite tasks use bold bullets; one complete lint-passing example contract.
+
+### Regression check
+Extract the fenced example from SKILL.md and run resume-brief parse_task_graph, ai-policy-lint lint_task_contracts, and check-traceability.py on it (TASK-090 run evidence prd-example-parses).
+
+> Promoted from a reviewed local candidate on 2026-10-01.
+
+
+---
+
+
+## Lesson: pkill -f / pgrep -f can kill the agent's own shell
+
+### Symptom
+Stopping a background sweep with pkill -f 'sweep080' (and later pgrep -f with the same pattern) exited the agent's Bash tool with 144/1 and left the real child processes running.
+
+### Root cause
+The harness runs each command via bash -c '<full command text>', so the pattern also matches the invoking shell's own argv; the shell is killed first, before the targets.
+
+### Durable invariant
+Never pass a pattern to pkill -f or pgrep -f from a shell whose own command line contains that pattern.
+
+### Fix
+List candidates with ps -eo pid,args | grep '[p]attern' (bracket trick excludes the grep and shell text), review the PIDs, then kill those PIDs explicitly.
+
+### Regression check
+ps -eo pid,args | grep '[m]utation-sweep' shows only the intended targets before any kill; ledger verify stays clean afterwards.
+
+> Promoted from a reviewed local candidate on 2026-10-01.

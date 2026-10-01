@@ -25,6 +25,7 @@
 - [SF-Theme Shopify store](sf-theme-shopify-store.md) — store `yn80fb-mb`, theme `olivia-16-6-0a` (#186432061760, unpublished); permanent handle for all CLIs.
 - [PetCue Dawn rebuild](petcue-dawn-rebuild.md) — legal Dawn-based theme (a licensed Olivia alternative) for store `2mpt3p-xv`, paused mid-build.
 - [Beautyinu Skincare](beautyinu.md) — `beautyinu.co` Gen-Z & Millennial bodycare brand; Shopify Hydrogen storefront (React Router/Oxygen/Tailwind v4) backed by store p1d3wg-6i. Done.
+- [Beautyinu catalog](beautyinu-catalog.md) — 15 active SKUs, bundles/routine sets, collections and taxonomy; split from beautyinu.md
 - [Batas permission matcher Claude Code](claude-code-permission-matcher-limits.md) — a denied directory admits no carve-out (extglob negation was tested and fails), and prefix rules cannot see flags; use `ssh -G` and a PreToolUse hook.
 
 ## Merged from the Claude account-scoped store (2026-08-17)
@@ -45,6 +46,8 @@
 - [Pix&Go Shopify store](pixsgo-shopify-store.md) — store 2mpt3p-xv (cart.pixsgo.com), 125 toys; CLI auth scopes; listing log in ~/Documents/Shopify/PixsGo/
 - [Pix&Go categories = real collections](pixsgo-categories-from-producttype.md) — storefront categories are the 9 real Shopify collections (getCategories in shopify.ts); blog journal lives in code (src/lib/journal.ts), admin token has no content scope
 - [pi.dev via 9router](pi-9router-setup.md) — pi routes through local 9router; default model toggles (read settings.json); configs in ~/.pi/agent/; pi has no auto-memory (uses AGENTS.md/CLAUDE.md context files)
+- [9router autostart incident](pi-9router-autostart-incident.md) — 2026-08 stale/LAN-exposed/tunneled 9router; real cause was XDG autostart; split from pi-9router-setup.md
+- [pi 9router models and compaction](pi-9router-models-compaction.md) — working model list, compact-free extension, reserveTokens gotcha; split from pi-9router-setup.md
 - [Playwright / browser setup](playwright-browser-setup.md) — agent-browser 0.30.1 + Playwright 1.61.1 global; prefer system Chrome via channel; install-deps optional (needs sudo)
 - [Pixs&Go layout width](pixsgo-layout-width.md) — content capped 1200px, body 1920px; Tailwind v4 needs bracket arbitrary values (max-w-[1200px] not max-w-1200px)
 - [Dev toolchain via mise](dev-toolchain-mise.md) — CLI tools (fzf/fd/bat/delta/lazygit/zoxide/eza/yq/direnv) via mise, no sudo; nvm lazy-loaded; git+delta configured
@@ -61,6 +64,7 @@
 - [Git identity noreply](git-identity-noreply.md) — commit pakai GitHub noreply (82156528+ongkipro@users.noreply.github.com), jangan email pribadi; sudah global
 - [ongki.pro site](ongki-pro-site.md) — personal portfolio; REDESIGNED 2026-07-04 → Astro+GSAP scroll-story + time-of-day WIB palette + celestial loader + constellation; LIVE on main (Vercel); old design at ~/projects/(old) ongki.pro
 - [TokoΦ project](tokophi-project.md) — commerce SaaS multi-tenant untuk Indonesia; rebrand dari indostore; progres dibaca dari repo
+- [TokoΦ build log](tokophi-build-log.md) — dated build log: slug rename, Stage 4, super-admin, variants, live deploy; split from tokophi-project.md
 - [TokoΦ market & hosting](tokophi-market-and-hosting.md) — CATATAN arah: market prioritas ID sekarang (MY/SG masa depan, multi-currency/i18n ditunda); edge=Cloudflare (PoP Jakarta/SG/KL), origin=Traefik/Coolify, SKIP HAProxy; **VPS 2-FASE: DEV=Vultr Singapore (pakai kredit) → PROD=Hetzner Singapore** (value, latency SG identik). Vultr TAK punya Jakarta. Migrasi murah (host-agnostic: Coolify+git+pg_dump+CF ganti IP); jangan pakai layanan vendor-lock (self-host Postgres+R2). Dev <$20 (NVMe 2GB ~$12 +swap / Regular 4GB $20). AI/GPU = instance terpisah. Daftar Hetzner lebih awal (verifikasi ketat)
 - [TokoΦ deploy workflow](tokophi-deploy-workflow.md) — deploy = Coolify auto-build saat merge ke origin/main; **jangan push `main` langsung** (origin/main hanya maju lewat PR; cek divergence sendiri, angka lama sudah basi); kerja via worktree dari origin/main → PR → merge; pantau deploy via docker image-sha di VPS (token Coolify API Unauthenticated); build 8–10 menit
 - [TokoΦ worktree deploy gotchas](tokophi-worktree-deploy-gotchas.md) — promospec worktree: admin `next dev` TAK hydrate (verify via prod build `next start`); storefront tenant `toko-demo.test` via host-resolver-rules; shared DB drift → apply migration SQL manual idempotent; Base UI Switch tak toggle via Playwright click; `gh pr create` GraphQL flakes (retry); pantau deploy 503→200 di app./toko.tokophi.com
