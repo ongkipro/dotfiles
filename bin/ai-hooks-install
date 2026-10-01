@@ -90,7 +90,12 @@ def for_runtime(manifest: dict, runtime: str) -> dict:
         for hook in spec["entry"].get("hooks", []):
             hook.pop("if", None)
             if "command" in hook:
-                hook["command"] = f"env AI_HOOK_RUNTIME={runtime} " + hook["command"]
+                # `export` in the command's own shell. An `env VAR=x` prefix is
+                # wrong here: the manifest commands start with a shell
+                # assignment (g="..."), which env swallows as a second
+                # variable and then exits, so the hook script never ran
+                # (TASK-111, found by a live Codex probe).
+                hook["command"] = f"export AI_HOOK_RUNTIME={runtime}; " + hook["command"]
     return out
 
 

@@ -66,3 +66,18 @@ Each ran under `delivery-ledger` with tests; reviews via `ai-ask agy` (106-109) 
 - **Reopen Conditions:** a check above regresses.
 - **Non-Scope:** new owned skills unless a methodology gap is proven.
 - **Escalation Conditions:** a change needs a protected path.
+
+## TASK-111 — RUN-20261001T200850Z-5af003d8 (PASS)
+
+### TASK-111: Codex hook command never invoked git-guard
+
+- **Requirement:** REQ-GUARD-PARITY (reopens TASK-106: a live Codex session ran `git push --mirror` past the hook; the generated `env AI_HOOK_RUNTIME=codex g=...;` consumed the assignment, so the guard never ran).
+- **Risk Level:** R3.
+- **Allowed Paths:** `bin/ai-hooks-install`, `bin/ai-hooks-install-test`, `config/ai/adapters/codex.md`, `config/ai/context/codex.md`, `TASKS.md`, `.delivery/**`.
+- **Protected Paths:** `config/ai/hooks/git-guard.sh`, `config/ai/CORE.md`.
+- **Canonical Contract Owners:** `runtime.guard-parity`.
+- **Accepted Invariants:** the installed Codex command, executed by a shell with a Codex payload, returns git-guard's deny; Claude wiring unchanged.
+- **Regression Checks:** `ai-hooks-install-test` executing the generated commands, `git-guard.test.sh`, a live Codex probe.
+- **Reopen Conditions:** a generated hook command exits without running its script.
+- **Non-Scope:** Codex hook trust prompts (owner action).
+- **Escalation Conditions:** Codex refuses user-level hooks in `exec` mode.

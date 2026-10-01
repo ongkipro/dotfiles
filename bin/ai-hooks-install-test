@@ -111,7 +111,7 @@ cmds = [h for ev in d.values() for g in ev for h in g["hooks"]]
 assert any("git-guard.sh" in h["command"] for h in d["PreToolUse"][0]["hooks"])
 assert any("memory-usage.sh" in h["command"] for h in d["UserPromptSubmit"][0]["hooks"])
 assert any("session-restore.sh" in h["command"] for h in d["SessionStart"][0]["hooks"])
-assert all(h["command"].startswith("env AI_HOOK_RUNTIME=codex ") for h in cmds)
+assert all(h["command"].startswith("export AI_HOOK_RUNTIME=codex; ") for h in cmds)
 assert all("if" not in h for h in cmds)
 PY
 "$INSTALL" --runtime codex --settings "$TMP/codex.json" --dotfiles "$DOT" --check >/dev/null 2>&1 \
@@ -119,5 +119,20 @@ PY
 cp "$TMP/codex.json" "$TMP/codex1.json"
 "$INSTALL" --runtime codex --settings "$TMP/codex.json" --dotfiles "$DOT" >/dev/null 2>&1
 cmp -s "$TMP/codex.json" "$TMP/codex1.json" || fail "codex install is not idempotent"
+
+# Execute the generated commands the way Codex does (a shell), not just inspect
+# their text: the TASK-106 version looked right and never ran git-guard.
+python3 - "$TMP/codex.json" "$DOT" <<'PY' || fail "a generated Codex hook command does not run its script"
+import json, os, subprocess, sys
+d = json.load(open(sys.argv[1]))["hooks"]
+env = dict(os.environ, HOME=os.path.dirname(sys.argv[2].rstrip("/")) if sys.argv[2].rstrip("/").endswith("/dotfiles") else os.environ["HOME"])
+guard = d["PreToolUse"][0]["hooks"][0]["command"]
+payload = json.dumps({"turn_id": "t", "tool_name": "Bash", "tool_input": {"command": "git push --mirror origin"}})
+out = subprocess.run(["sh", "-c", guard], input=payload, capture_output=True, text=True, env=env, timeout=20).stdout
+assert '"permissionDecision":"deny"' in out.replace(" ", ""), out
+payload = json.dumps({"turn_id": "t", "tool_name": "Bash", "tool_input": {"command": "git status"}})
+out = subprocess.run(["sh", "-c", guard], input=payload, capture_output=True, text=True, env=env, timeout=20).stdout
+assert out.strip() == "", out
+PY
 
 echo "ai-hooks-install-test: PASS"
