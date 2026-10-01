@@ -102,6 +102,17 @@ grep -q 'launcher ada tetapi native binary gagal' <<<"$OUT_HANG" \
   && ok "a hanging Claude launcher is reported as unhealthy" \
   || bad "a hanging Claude launcher was not reported"
 
+# Device drift (TASK-099): the autopull outcome is surfaced, and a device where
+# it never ran says so instead of looking synchronised.
+H_AP="$(profile autopull '{"permissions":{"deny":["Read(.env*)"]}}')"
+grep -q 'autopull belum pernah jalan' <<<"$(env -u XDG_STATE_HOME HOME="$H_AP" PATH="$H_AP/.local/bin:$PATH" DOTFILES_DIR="$ROOT" bash "$CMD" 2>&1)" \
+  && ok "a device where autopull never ran is warned about" \
+  || bad "a missing autopull record was not reported"
+mkdir -p "$H_AP/.local/state/dotsync"
+printf '2026-01-01 00:00 warn: cannot fast-forward (diverged); run dotsync pull\n' > "$H_AP/.local/state/dotsync/last-result"
+grep -q 'autopull: warn: cannot fast-forward' <<<"$(env -u XDG_STATE_HOME HOME="$H_AP" PATH="$H_AP/.local/bin:$PATH" DOTFILES_DIR="$ROOT" bash "$CMD" 2>&1)" \
+  && ok "an autopull warning reaches the health report" \
+  || bad "an autopull warning was not reported"
 
 [ "$f" -eq 0 ] && { echo "ai-doctor-test: PASS"; exit 0; }
 echo "ai-doctor-test: $f case(s) failed" >&2; exit 1

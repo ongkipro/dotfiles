@@ -202,4 +202,18 @@ shopify-full-audit() {
 if [ -f /mnt/c/Users/Asus/win-debloat.ps1 ]; then
   alias win-debloat='powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\\Users\\Asus\\win-debloat.ps1'
 fi
+# --- dotfiles: background fast-forward pull (TASK-099) ---
+# Keeps every device on the same rules, memory and skills. Interactive shells
+# only, never blocks the prompt, never commits or pushes; `dotsync autopull`
+# throttles itself (6h) and skips dirty trees. Opt out: DOTSYNC_AUTOPULL=0.
+if [[ $- == *i* ]] && [ "${DOTSYNC_AUTOPULL:-1}" != 0 ] && [ -x "$HOME/dotfiles/bin/dotsync" ]; then
+  _dotsync_last="${XDG_STATE_HOME:-$HOME/.local/state}/dotsync/last-result"
+  # warn: needs action now; fail: (network/auth) only once it repeats 3 times.
+  if [ -f "$_dotsync_last" ] && { grep -q ' warn: ' "$_dotsync_last" 2>/dev/null ||
+       [ "$(cat "${_dotsync_last%/*}/fail-count" 2>/dev/null || echo 0)" -ge 3 ] 2>/dev/null; }; then
+    printf 'dotsync: %s\n' "$(cut -d' ' -f3- "$_dotsync_last")" >&2
+  fi
+  ( "$HOME/dotfiles/bin/dotsync" autopull </dev/null >/dev/null 2>&1 & )
+  unset _dotsync_last
+fi
 # <<< dev-tools setup (ongkipro/dotfiles) <<<

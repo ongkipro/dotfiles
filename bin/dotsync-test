@@ -193,6 +193,92 @@ printf 'to sync\n' > "$P/sync.txt"
 check "sync uses the given message for the commit" "$(git -C "$P" log -1 --format=%s)" "fixture sync message"
 check "--yes sync pushes the commit to origin" "$(git -C "$R" rev-parse main)" "$(head_p)"
 
+# 14. autopull: background-safe, fast-forward only, never commits or pushes.
+export XDG_STATE_HOME="$TMP/state"
+ap() { (cd "$OTHER" && DOTSYNC_AUTOPULL_INTERVAL="${1:-0}" "$P/bin/dotsync" autopull >/dev/null 2>&1 </dev/null); }
+last() { cat "$XDG_STATE_HOME/dotsync/last-result" 2>/dev/null; }
+upstream() { { git -C "$W" fetch -q origin && git -C "$W" reset -q --hard origin/main; } || echo "fixture: W sync failed" >&2
+  printf '%s\n' "$1" > "$W/upstream.txt"; git -C "$W" add upstream.txt; git -C "$W" commit -qm "$1"
+  git -C "$W" push -q origin HEAD:main >/dev/null 2>&1 || echo "fixture: W push failed" >&2; }
+ap; rc=$?
+check "autopull when up to date succeeds" "$rc" "0"
+has_last() { if last | grep -qF "$2"; then say ok "$1"; else say FAIL "$1"; printf '       last: %s\n' "$(last)"; fails=$((fails + 1)); fi; }
+has_last "and records up to date" "ok: up to date"
+upstream "auto 1"
+ap; rc=$?
+check "autopull fast-forwards to origin" "$(head_p)" "$(git -C "$R" rev-parse main)"
+check "without creating a merge commit" "$(git -C "$P" rev-list --parents -n1 HEAD | wc -w | tr -d ' ')" "2"
+has_last "and records the pulled range" "ok: pulled"
+upstream "auto 2"; h="$(head_p)"; l="$(last)"
+ap 3600
+check "autopull is throttled within its interval" "$(head_p)" "$h"
+check "and a throttled run records nothing" "$(last)" "$l"
+mkdir "$XDG_STATE_HOME/dotsync/lock"
+ap
+check "autopull skips while another run holds the lock" "$(head_p)" "$h"
+rmdir "$XDG_STATE_HOME/dotsync/lock"
+mkdir "$XDG_STATE_HOME/dotsync/lock"; touch -t 200001010000 "$XDG_STATE_HOME/dotsync/lock"
+upstream "auto stale lock"; ap
+check "a lock left by a crashed run (>10 min) is reclaimed" "$(head_p)" "$(git -C "$R" rev-parse main)"
+h="$(head_p)"
+# ssh: our batch-mode command applies only when the device chose none.
+SSH_BIN="$TMP/ssh-bin"; mkdir -p "$SSH_BIN"
+printf '#!/bin/sh\necho "$*" > "%s/ssh-args"; exit 1\n' "$TMP" > "$SSH_BIN/ssh"; chmod +x "$SSH_BIN/ssh"
+printf '#!/bin/sh\necho own > "%s/own-ssh"; exit 1\n' "$TMP" > "$SSH_BIN/own-ssh"; chmod +x "$SSH_BIN/own-ssh"
+git -C "$P" remote set-url origin "ssh://git@example.invalid/x.git"
+(cd "$OTHER" && PATH="$SSH_BIN:$PATH" DOTSYNC_AUTOPULL_INTERVAL=0 "$P/bin/dotsync" autopull >/dev/null 2>&1 </dev/null)
+has_ssh() { if grep -qF "$2" "$3" 2>/dev/null; then say ok "$1"; else say FAIL "$1"; fails=$((fails + 1)); fi; }
+has_ssh "autopull runs ssh in batch mode with keepalives" "BatchMode=yes" "$TMP/ssh-args"
+git -C "$P" config core.sshCommand "$SSH_BIN/own-ssh"
+(cd "$OTHER" && PATH="$SSH_BIN:$PATH" DOTSYNC_AUTOPULL_INTERVAL=0 "$P/bin/dotsync" autopull >/dev/null 2>&1 </dev/null)
+has_ssh "a device's own core.sshCommand is respected" "own" "$TMP/own-ssh"
+git -C "$P" config --unset core.sshCommand; git -C "$P" remote set-url origin "$R"; rm -f "$XDG_STATE_HOME/dotsync/fail-count"
+printf '#!/usr/bin/env bash\necho ran > "%s/relinked"\n' "$TMP" > "$P/bin/ai-memory-link"; chmod +x "$P/bin/ai-memory-link"
+upstream "auto relink"; ap
+check "after a fast-forward, autopull relinks the runtimes" "$(cat "$TMP/relinked" 2>/dev/null)" "ran"
+rm -f "$P/bin/ai-memory-link"
+check "the lock is released after a run" "$([ -d "$XDG_STATE_HOME/dotsync/lock" ] && echo held || echo free)" "free"
+upstream "auto blocked"; h="$(head_p)"
+printf 'local untracked\n' > "$P/upstream.txt.tmp"; mv "$P/upstream.txt.tmp" "$P/blocker.txt"
+git -C "$W" rm -q upstream.txt >/dev/null 2>&1; printf 'x\n' > "$W/blocker.txt"; git -C "$W" add blocker.txt
+git -C "$W" commit -qm blocker; git -C "$W" push -q origin HEAD:main >/dev/null 2>&1
+ap; rc=$?
+check "an untracked file in the way stops the fast-forward" "$(head_p)" "$h"
+check "and keeps the local untracked file" "$(cat "$P/blocker.txt")" "local untracked"
+has_last "and records that it cannot fast-forward" "cannot fast-forward"
+rm -f "$P/blocker.txt"; ap
+check "once the file is gone, autopull catches up" "$(head_p)" "$(git -C "$R" rev-parse main)"
+h="$(head_p)"
+printf 'dirty\n' >> "$P/file.txt"
+ap
+check "autopull leaves a dirty tree alone" "$(head_p)" "$h"
+has_last "and records why it skipped" "skip: local changes"
+git -C "$P" checkout -q -- file.txt
+git -C "$P" checkout -q -b side
+ap
+check "autopull does nothing off main" "$(head_p)" "$h"
+has_last "and says which branch" "skip: on branch side"
+git -C "$P" checkout -q main
+printf 'local only\n' > "$P/local.txt"; git -C "$P" add local.txt; git -C "$P" commit -qm local
+upstream "auto 3"
+h="$(head_p)"; o="$(git -C "$R" rev-parse main)"
+ap; rc=$?
+check "autopull refuses a diverged history" "$(head_p)" "$h"
+check "and reports failure" "$rc" "1"
+check "and never pushes" "$(git -C "$R" rev-parse main)" "$o"
+has_last "and records the divergence" "cannot fast-forward"
+git -C "$P" reset -q --hard origin/main
+git -C "$P" remote set-url origin "$TMP/missing.git"
+ap; rc=$?
+check "a failed fetch is reported as failure" "$rc" "1"
+has_last "and recorded as fail" "fail: fetch"
+ap; ap
+check "consecutive fetch failures are counted" "$(cat "$XDG_STATE_HOME/dotsync/fail-count")" "3"
+printf 'garbage\n' > "$XDG_STATE_HOME/dotsync/fail-count"; ap
+check "a garbage failure count restarts at one" "$(cat "$XDG_STATE_HOME/dotsync/fail-count")" "1"
+git -C "$P" remote set-url origin "$R"; ap
+check "a success clears the failure count" "$([ -f "$XDG_STATE_HOME/dotsync/fail-count" ] && echo kept || echo cleared)" "cleared"
+
 echo
 [ "$fails" -eq 0 ] && { echo "dotsync-test: all cases hold"; exit 0; }
 echo "dotsync-test: $fails case(s) failed"; exit 1

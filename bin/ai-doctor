@@ -224,6 +224,22 @@ if [ -d "$DOT/.git" ]; then
   else
     wrn "branch belum punya upstream atau origin/$branch"
   fi
+  # The ahead/behind numbers above are only as fresh as the last fetch (TASK-099).
+  fetch_head="$DOT/.git/FETCH_HEAD"
+  if [ -f "$fetch_head" ]; then
+    fetched=$(stat -c %Y "$fetch_head" 2>/dev/null || stat -f %m "$fetch_head" 2>/dev/null || echo 0)
+    fetch_days=$(( ($(date +%s) - fetched) / 86400 ))
+    [ "$fetch_days" -le 7 ] || wrn "fetch terakhir $fetch_days hari lalu — status sinkron di atas bisa basi; jalankan: dotsync autopull"
+  fi
+  autopull_last="${XDG_STATE_HOME:-$HOME/.local/state}/dotsync/last-result"
+  if [ -f "$autopull_last" ]; then
+    case "$(cut -d' ' -f3 "$autopull_last")" in
+      ok:|skip:) ok "autopull: $(cut -d' ' -f3- "$autopull_last") ($(cut -d' ' -f1-2 "$autopull_last"))" ;;
+      *) wrn "autopull: $(cut -d' ' -f3- "$autopull_last") ($(cut -d' ' -f1-2 "$autopull_last"))" ;;
+    esac
+  else
+    wrn "autopull belum pernah jalan di device ini — buka shell baru atau: dotsync autopull"
+  fi
 else
   bad "$DOT bukan git repo. Clone: git clone git@github.com:ongkipro/dotfiles.git ~/dotfiles"
 fi

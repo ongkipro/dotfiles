@@ -5,6 +5,7 @@
 #   dotsync commit [message]
 #   dotsync push
 #   dotsync pull
+#   dotsync autopull   (non-interactive ff-only pull for shell start; never commits)
 #   dotsync sync [message]
 #   dotsync doctor
 # Options:
@@ -118,6 +119,83 @@ ensure_clean_for_pull() {
     exit 1
   fi
 }
+# A pull can change CORE.md, an adapter, or the runtime wiring itself; relink
+# so no runtime keeps a dangling or outdated global context.
+relink_runtimes() {
+  [ -x "$DOTFILES_ROOT/bin/ai-memory-link" ] || return 0
+  # Only the no-op "ok:" lines are hidden; backups, skipped targets, and
+  # dangling-link warnings must stay visible after a pull.
+  if link_out="$("$DOTFILES_ROOT/bin/ai-memory-link" 2>&1)"; then
+    printf '%s\n' "$link_out" | grep -v '^ok: ' || true
+    say "✓ AI runtime context di-link ulang"
+  else
+    printf '%s\n' "$link_out"
+    err "ai-memory-link gagal — jalankan manual: ai-memory-link"
+    return 1
+  fi
+}
+file_mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0; }
+autopull_state() { printf '%s\n' "${XDG_STATE_HOME:-$HOME/.local/state}/dotsync"; }
+# Devices drift when pulls are manual (TASK-099). autopull runs from shell start
+# in the background: fast-forward only, never on a dirty tree or another branch,
+# never commits or pushes, throttled, and it records one line of outcome that the
+# next shell and ai-doctor can show. `dotsync pull` keeps its confirmation.
+cmd_autopull() {
+  require_git_repo
+  local state stamp interval branch before fails=0
+  state="$(autopull_state)"; mkdir -p "$state"
+  stamp="$state/last-attempt"
+  interval="${DOTSYNC_AUTOPULL_INTERVAL:-21600}"
+  if [ -f "$stamp" ] && [ $(( $(date +%s) - $(file_mtime "$stamp") )) -lt "$interval" ]; then
+    return 0
+  fi
+  # Several shells opening at once (tmux panes) must not race on index.lock.
+  # A lock older than 10 minutes is a crashed run, not a live one.
+  # Renamed before removal to narrow the race with another shell reclaiming the
+  # same stale lock; the residual window only risks an index.lock warn: record.
+  if [ -d "$state/lock" ] && [ $(( $(date +%s) - $(file_mtime "$state/lock") )) -gt 600 ]; then
+    mv "$state/lock" "$state/lock.stale.$$" 2>/dev/null && rmdir "$state/lock.stale.$$" 2>/dev/null || true
+  fi
+  mkdir "$state/lock" 2>/dev/null || return 0
+  # Expanded now: $state is local and gone by the time the EXIT trap runs.
+  trap "rmdir $(printf '%q' "$state/lock") 2>/dev/null || true" EXIT
+  touch "$stamp"
+  [ -f "$state/fail-count" ] && fails="$(cat "$state/fail-count" 2>/dev/null || echo 0)"
+  case "$fails" in ''|*[!0-9]*) fails=0 ;; esac
+  record() {
+    printf '%s %s\n' "$(now)" "$1" > "$state/last-result"
+    case "$1" in fail:*) printf '%s\n' $((fails + 1)) > "$state/fail-count" ;; *) rm -f "$state/fail-count" ;; esac
+  }
+  branch="$(git rev-parse --abbrev-ref HEAD)"
+  [ "$branch" = main ] || { record "skip: on branch $branch, not main"; return 0; }
+  if ! git diff --quiet || ! git diff --cached --quiet; then
+    record "skip: local changes; run dotsync status"; return 0
+  fi
+  # A background job must never open a prompt or a password window, and a
+  # stalled transfer must give up. ssh options apply only when the device has
+  # not chosen its own ssh command.
+  if [ -z "${GIT_SSH_COMMAND:-}" ] && [ -z "$(git config core.sshCommand 2>/dev/null)" ]; then
+    export GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2"
+  fi
+  if ! env -u GIT_ASKPASS -u SSH_ASKPASS GIT_TERMINAL_PROMPT=0 \
+       git -c core.askPass= -c credential.interactive=false \
+           -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=20 fetch -q origin main </dev/null 2>/dev/null; then
+    record "fail: fetch origin main"; return 1
+  fi
+  if git merge-base --is-ancestor origin/main HEAD; then
+    record "ok: up to date"; return 0
+  fi
+  before="$(git rev-parse --short HEAD)"
+  if ! git merge -q --ff-only origin/main >/dev/null 2>&1; then
+    record "warn: cannot fast-forward (diverged, or local files in the way); run dotsync pull"; return 1
+  fi
+  if relink_runtimes >/dev/null 2>&1; then
+    record "ok: pulled $before..$(git rev-parse --short HEAD)"
+  else
+    record "warn: pulled $before..$(git rev-parse --short HEAD) but ai-memory-link failed; run ai-memory-link"
+    return 1
+  fi
+}
 cmd_status() {
   require_git_repo
   say "dotfiles: $DOTFILES_ROOT"
@@ -161,21 +239,9 @@ cmd_pull() {
   fi
   git pull --ff-only
   say "✓ Pull selesai"
-  # A pull can change CORE.md, an adapter, or the runtime wiring itself; relink
-  # now so no runtime keeps a dangling or outdated global context.
-  if [ -x "$DOTFILES_ROOT/bin/ai-memory-link" ]; then
-    # Only the no-op "ok:" lines are hidden; backups, skipped targets, and
-    # dangling-link warnings must stay visible after a pull.
-    if link_out="$("$DOTFILES_ROOT/bin/ai-memory-link" 2>&1)"; then
-      printf '%s\n' "$link_out" | grep -v '^ok: ' || true
-      say "✓ AI runtime context di-link ulang"
-    else
-      printf '%s\n' "$link_out"
-      err "ai-memory-link gagal — jalankan manual: ai-memory-link"
-      return 1
-    fi
-  fi
+  relink_runtimes
 }
+
 cmd_sync() {
   cmd_commit
   if confirm "Lanjut push ke origin?"; then
@@ -214,10 +280,11 @@ case "$COMMAND" in
   commit) cmd_commit ;;
   push) cmd_push ;;
   pull) cmd_pull ;;
+  autopull) cmd_autopull ;;
   sync) cmd_sync ;;
   doctor) cmd_doctor ;;
   help|-h|--help)
-    sed -n '1,12p' "$0"
+    sed -n '1,13p' "$0"
     ;;
   *)
     err "Perintah tidak dikenal: $COMMAND"
