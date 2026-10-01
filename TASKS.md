@@ -27,24 +27,11 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 - **Canonical Contract Owners:** `runtime.readiness`.
 - **Accepted Invariants:** as TASK-080. Accepted open gap: `bin/vps-pgdump:45` guard-off survives on Linux because bash >= 4.4 expands an empty array under nounset; it is killed only under bash < 4.4 (macOS `/bin/bash`) and is NOT an equivalent mutant.
 - **Regression Checks:** `mutation-sweep --subject <name>`, touched `bin/*-test`.
-- **Runtime Evidence:** open: `vps-pgdump:45` (confirm the kill with a macOS sweep); `secrets-env:174` (subject defect, TASK-095); `dotsync` 3 and `mutation-sweep` 18 statements beyond the cap; `9router-credential-migrate` and `pi-9router-restore` deferred by the owner.
+- **Runtime Evidence:** open: `vps-pgdump:45` (confirm the kill with a macOS sweep); `secrets-env:174` was closed by TASK-095 (2026-10-01); `dotsync` 3 and `mutation-sweep` 18 statements beyond the cap; `9router-credential-migrate` and `pi-9router-restore` deferred by the owner.
 - **Reopen Conditions:** a subject claimed fully covered regresses.
 - **Non-Scope:** raising the cap; changing subjects.
 - **Verification:** each claimed subject reports zero survivors and no CAPPED row.
 - **Escalation Conditions:** a gap needs a subject change or a live side effect.
-
-### TASK-095: `secrets-env check` accepts an ignored in-repo secrets file
-
-- **Requirement:** REQ-SECRET-LOCATION (CORE.md and the `secrets-env` header: 0600, outside every repository; `bin/secrets-env:174-175` prints OK for a gitignored in-repo file — found by the TASK-080 review).
-- **Risk Level:** R3 — secret handling.
-- **Allowed Paths:** `bin/secrets-env`, `bin/secrets-env-test`, `TASKS.md`, `.delivery/**`.
-- **Protected Paths:** `bin/secrets-env`.
-- **Canonical Contract Owners:** `security.secrets-location`.
-- **Accepted Invariants:** never prints a secret value; a file outside every repository with mode 600 still passes.
-- **Regression Checks:** `secrets-env-test`, `mutation-sweep --subject secrets-env`.
-- **Reopen Conditions:** `check` passes any secrets file inside a git work tree.
-- **Non-Scope:** moving existing secret files on any device.
-- **Escalation Conditions:** a supported device keeps its secrets file inside a repository today.
 
 ### TASK-096: TASK-080 tests depend on the caller's environment
 
