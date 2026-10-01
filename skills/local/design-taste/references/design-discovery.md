@@ -24,6 +24,12 @@ pricing comparison, product imagery, application steps, reading measure, or
 state feedback. Search official product sites and relevant production examples,
 not just galleries of attractive hero screenshots.
 
+Start category research from the matching file in
+[niche-patterns/](niche-patterns/README.md) when one exists: it lists the job,
+local-market conventions to verify, content inventory, claim traps, and search
+queries for the reference set. It is a starting hypothesis, not a template;
+the live references you inspect overrule it.
+
 Usually inspect 2–4 relevant examples plus the applicable accessibility/design
 system guidance. This is a research budget, not a quota: one close reference
 can resolve a narrow question; a substantially different journey may need more.
@@ -88,7 +94,8 @@ coverage drift rather than judging fidelity by eye. Do not add an image library
 to the project for this (`native-first`); a throwaway script in the scratchpad
 is enough, and the method comes from the `design-dna` project (MIT, `sharp`
 based). If the source is only a URL or a live page, computed styles are the
-authority instead. Keep the tokens that are measured separate from those that
+authority instead: `scripts/ui-ref.mjs capture` records them with geometry
+(see reference-fidelity.md). Keep the tokens that are measured separate from those that
 are inferred.
 
 Three dimensions keep a reference record complete: **system** (measurable
@@ -122,6 +129,14 @@ Select one coherent direction. When alternatives are genuinely unresolved,
 compare audience/job fit, brand continuity, content needs, accessibility,
 responsive behavior, and implementation/runtime cost. Do not manufacture three
 options when the user already chose one.
+
+When the direction is genuinely open and a render would settle it faster than
+argument, prototype up to three variants of the deciding section, each
+differing on **one named axis** (layout, density, type personality, imagery
+role, or interaction model) stated in a phrase before building. All variants use
+the same real content and the project's tokens, so the comparison is about the
+axis, not about filler. Show them side by side, record the chosen variant and
+why, and delete the losers from the codebase.
 
 ### 4.1. Convert reference evidence into geometry before coding
 
@@ -204,6 +219,24 @@ Minimum decision record:
 - Reference comparison per contract item: match, or deviation → reason / revision → recheck:
 - Remaining limitation and its impact:
 ```
+
+Optional, only when the project has no accepted identity and the owner asks
+for one:
+
+```markdown
+## Brand system
+- Strategy: audience, positioning in one sentence, 3 personality traits with
+  what each rules out:
+- Mark logic options (2-3): concept, construction, why it fits; wordmark-only is
+  a valid option:
+- Applications checklist: favicon/app icon, social avatar and share image,
+  packaging or label, WhatsApp/marketplace profile, invoice/email header,
+  signage — each checked at its real size:
+- Owner decision: <chosen option, date> (pending until confirmed)
+```
+
+Creating or changing a logo needs explicit owner confirmation; never ship a
+generated mark as the brand without it, and never imitate another brand's mark.
 
 Use executable token names and actual values where implemented. Do not claim a
 reference-comparison pass by resemblance alone: explain how the transferred

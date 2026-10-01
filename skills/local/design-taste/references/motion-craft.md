@@ -6,16 +6,21 @@ tune on a real render, not laws. Direction and the motion thesis stay with
 `impeccable` (`reference/animate.md`); GSAP API detail stays with the `gsap-*`
 skills. This file supplies the numbers and the decision order.
 
-Adapted from LottieFiles' `motion-design-skill` (MIT), filtered to what fits a
-restrained public-web policy.
+Adapted from LottieFiles' `motion-design-skill` (MIT) and Emil Kowalski's
+`skills` (MIT), paraphrased and filtered to what fits a restrained public-web
+policy.
 
 ## 1. Decide in this order
 
 1. **Purpose:** feedback, orientation (where did this come from), hierarchy, or
    one authored focal moment. No purpose, no motion.
-2. **Frequency:** the more often it plays, the shorter and quieter it is.
-   Hover ≈100ms opacity/color; routine state 150-300ms; a one-time entrance may
-   run 500ms+. Nothing repeated should exceed ~300ms.
+2. **Frequency gate:** the more often it plays, the shorter and quieter it is.
+   Actions triggered from the keyboard or used about 100+ times a day (command
+   palette, shortcuts, list navigation) get **no animation**; deleting the
+   animation is often the best fix. Hover ≈100ms opacity/color; routine state
+   150-300ms; a one-time entrance may run 500ms+. Nothing repeated should exceed
+   ~300ms. A motion proposal lists the candidates it rejected and why, so the
+   reviewer sees what was deliberately left still.
 3. **Personality (optional):** pick one and hold it site-wide. A mixed palette
    reads as unfinished.
 4. **Property:** transform/opacity by default; add clip-path, mask, blur or
@@ -26,12 +31,12 @@ restrained public-web policy.
 
 | Element | Duration | Notes |
 | --- | --- | --- |
-| Tooltip, micro-feedback | 80-120ms | must feel instant |
+| Tooltip, micro-feedback | 80-200ms | low end for micro-feedback, up to ~200ms for a tooltip; chained tooltips instant (§5.1) |
 | Button, toggle, checkbox | 120-180ms | press feedback under 100ms of latency |
 | Dropdown, popover, tab indicator | 150-250ms | |
 | Card lift, accordion | 200-350ms | |
 | Modal, drawer, sheet | 250-400ms | |
-| Page / route / view transition | 300-500ms | 600ms only for an authored moment |
+| Page / route transition | 150-300ms | View Transitions crossfades sit at the short end; an authored one-off moment (launch, story section) may run longer |
 
 - **Exit ≈ 65-75% of entrance** duration, quieter (often opacity only).
 - **Distance scaling:** short travel (<50px) sits at the low end; long travel
@@ -58,6 +63,11 @@ Define once as custom properties and reuse; do not hand-tune per component.
 
 - Entries decelerate (ease-out); exits accelerate (ease-in); movement that
   stays on screen uses ease-in-out. Never ease-in an entrance.
+- **Known disagreement:** some practitioners use ease-out for exits too,
+  arguing that an ease-in start delays the moment the user is watching. Both are
+  defensible. These tokens keep ease-in for exits because exits here are short
+  (§2) and quieter; a project may choose ease-out exits instead, but record the
+  choice and reason in its design artifact and apply it everywhere.
 - `linear` is for opacity fades, progress, and continuous loops only.
 - Never `scale(0)` for an entrance; start from ~0.95 with opacity.
 - Overshoot/bounce/elastic only when the brand personality is playful, capped
@@ -96,6 +106,53 @@ delay price, variant, cart, or form feedback.
 - **Ambient loops** (breathing scale 0.98-1.02 over 2-4s, float ±5-15px,
   layered parallax): decorative only, fewer than ~20 concurrent elements, paused
   offscreen and when the tab is hidden, and removed under reduced motion.
+
+## 5.1 Interaction details
+
+- **Interruptible by default:** anything that can re-trigger rapidly (toggles,
+  toasts, hover) uses CSS **transitions**, which retarget from the current
+  value; keyframe animations restart from zero and jump. Gestures a user may
+  reverse mid-motion settle with a spring, which keeps velocity.
+- **Origin from the trigger:** popovers, menus, and dropdowns scale from the
+  element that opened them. Headless libraries expose the origin
+  (Radix: `var(--radix-<component>-content-transform-origin)`, e.g.
+  `--radix-popover-content-transform-origin`; Base UI: `var(--transform-origin)`).
+  Modals and dialogs are exempt: they are not anchored, keep `center`.
+- **Tooltip chaining:** keep the initial delay so tooltips do not fire on a
+  passing cursor; once one is open, neighbours open instantly with no animation.
+- **Hover motion is pointer-only:** wrap hover movement in
+  `@media (hover: hover) and (pointer: fine)` so touch devices do not get stuck
+  hover states. Color/opacity feedback may stay unguarded.
+- **Hold to confirm:** the press fills slowly and linearly (around 1.5-2s) so the
+  user can still decide; release snaps back fast (~200ms ease-out). Pair with a
+  small press scale and a keyboard/AT alternative (confirmation dialog or
+  explicit button), never hold-only.
+- **Clip-path recipes** (`clip-path: inset(t r b l)`, GPU friendly, no extra
+  layout): a tab indicator whose active color swaps by clipping a duplicate
+  label row; a reveal from `inset(0 0 100% 0)` to `inset(0)`; a **before/after
+  comparison slider** (two stacked images, the top one clipped by the handle
+  position) — useful on beauty or renovation detail pages when the images are
+  real, consented, and unretouched (see invented-info-tells.md).
+- **Blur masks a crossfade seam:** when two overlapping states read as two
+  objects despite tuned easing, add a small blur (a few px, always under 20px)
+  during the transition. Heavy blur is expensive, especially in Safari.
+- **Animate the element, not its parent's variable:** driving child
+  `transform`s from a CSS custom property on a parent recalculates style for
+  every child each frame. Set `transform` on the moving element directly.
+
+## 5.2 Gesture and drag
+
+| Concern | Practice |
+| --- | --- |
+| Tracking | `setPointerCapture` once the drag starts so it continues outside the element |
+| Intent | ~10px of travel (hysteresis) before committing to a drag, and lock the axis so a horizontal swipe does not fight page scroll |
+| Dismissal | decide by velocity as well as distance: a flick above roughly 0.11 px/ms dismisses even when short |
+| Where it was going | project the release point from velocity with exponential decay (deceleration rate around 0.998) and commit on the projected position |
+| Edges | rubber-band past a boundary: resistance grows with overshoot (constant around 0.55) instead of a hard stop |
+| Settling | a spring that inherits release velocity; low bounce (damping near critical) for sheets and drawers, more only for playful brands |
+| Fallback | every drag action also has a button or keyboard path (`accessibility-notes.md`) |
+
+Values are starting points to tune on a real phone, not constants to copy.
 
 ## 6. Reduced-motion substitution
 
@@ -150,6 +207,16 @@ Important:
 - Durations/easings come from the tokens above, not per-element values.
 - Exits are shorter than entrances; nothing repeated exceeds ~300ms.
 - Offscreen and hidden-tab loops are paused.
+
+## 8.1 Review method
+
+Judge feel on the render, not in code: play at 2-5x duration (or the DevTools
+animation inspector), step frame by frame to catch properties drifting apart,
+test gestures on a real device, and look again the next day. Fix in this order
+and stop when it feels right: **delete** the animation → **reduce** distance,
+scale, or count → **easing** token → **origin** → make it **interruptible** →
+move it to GPU-friendly properties → **asymmetric timing** (slow where the
+user decides, fast where the system responds) → polish.
 
 ## 9. Troubleshooting
 

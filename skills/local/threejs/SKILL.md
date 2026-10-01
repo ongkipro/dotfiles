@@ -49,8 +49,19 @@ Read the specific deep-dive reference matching the active task:
 
 Every heavy effect ships a fallback (static poster or CSS version) for
 low-power devices, `prefers-reduced-motion`, and WebGL failure. Look up the
-installed `three` version before using version-sensitive names (`Timer` vs
-`Clock`, `HDRLoader` vs `RGBELoader`, WebGPU/TSL paths).
+installed `three` version before using version-sensitive names. Verified
+2026-10-02 against npm (`three` 0.186.x, R3F 9 + drei 10 on React 19) and the
+official migration guide:
+
+| Since | Change |
+|-------|--------|
+| r171 | WebGPU: import `WebGPURenderer`/node materials from `three/webgpu`, TSL from `three/tsl` |
+| r179 | `THREE.Timer` is core (was an addon); call `timer.connect(document)` |
+| r180 | `RGBELoader` renamed `HDRLoader` |
+| r183 | `Clock` deprecated (runtime warning) -> `Timer`; WebGPU `PostProcessing` renamed `RenderPipeline` |
+| r186 | `Object3D.dispose()` exists; custom subclasses call `super.dispose()` |
+
+Addon imports use `three/addons/...` (alias of `three/examples/jsm/...`).
 
 ---
 
@@ -71,7 +82,7 @@ const renderer = new THREE.WebGLRenderer({
 
 // Color management (Three.js r152+ standard)
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; // or AgXToneMapping / NeutralToneMapping (product color fidelity)
 renderer.toneMappingExposure = 1.0;
 
 // DPR Clamping: Never allow raw 3x DPR on mobile
@@ -101,7 +112,7 @@ function handleResize(width: number, height: number) {
 2. **Zero Allocation Inside the Animation Loop**:
    - Never instantiate `new THREE.Vector3()`, `new THREE.Matrix4()`, or object literals inside `requestAnimationFrame` or `useFrame`. Pre-allocate scratch variables outside the loop.
 3. **Tab Inactivity & Viewport Throttling**:
-   - Pause the render loop when `document.hidden` is true or when the canvas element scrolls out of view via `IntersectionObserver`. Reset `clock.getDelta()` upon resume to prevent delta time spikes.
+   - Pause the render loop when `document.hidden` is true or when the canvas element scrolls out of view via `IntersectionObserver`. Use `THREE.Timer` with `timer.connect(document)` (absorbs hidden-tab gaps) and `timer.reset()` when resuming from off-screen to prevent delta spikes.
 4. **Respect Reduced Motion**:
    - Check `window.matchMedia('(prefers-reduced-motion: reduce)')`. Disable aggressive rotations, continuous camera swaying, and high-speed particle simulations for sensitive users.
 5. **DOM Overlays for HUD/UI**:

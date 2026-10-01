@@ -1,6 +1,6 @@
 # Crawler Purpose Matrix
 
-Last re-verified against the linked primary sources: **2026-08-16**. Crawler identities and product uses change independently. Retrieve each source again immediately before changing `robots.txt`; record the new retrieval date and verify traffic by published IP ranges or reverse-DNS guidance where the vendor provides it.
+Last re-verified against the linked primary sources: **2026-10-02**. Crawler identities and product uses change independently. Retrieve each source again immediately before changing `robots.txt`; record the new retrieval date and verify traffic by published IP ranges or reverse-DNS guidance where the vendor provides it.
 
 Do not collapse all AI-related user agents into two universal buckets. Keep these purposes separate:
 
@@ -16,16 +16,26 @@ This table is a navigation aid, not a permanent fact registry. The linked primar
 | --- | --- | --- | --- |
 | `Googlebot` | Google Search crawling; Google says Search AI features use this control | `Google-Extended` | [Google common crawlers](https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers), [AI features](https://developers.google.com/search/docs/appearance/ai-features) |
 | `Google-Extended` | Standalone product token for certain Gemini/Vertex AI controls; Google says it does not affect Search inclusion or ranking | `Googlebot` | [Google-Extended](https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers#google-extended) |
-| `OAI-SearchBot` | OpenAI search discovery | `GPTBot`, `ChatGPT-User` | [OpenAI crawlers](https://platform.openai.com/docs/bots) |
-| `GPTBot` | OpenAI model-development control | `OAI-SearchBot` | [OpenAI crawlers](https://platform.openai.com/docs/bots) |
-| `ChatGPT-User` | User-initiated page visits; check the vendor's current robots behavior | automated search indexing | [OpenAI crawlers](https://platform.openai.com/docs/bots) |
+| `Google-CloudVertexBot`, `GoogleOther` | Listed Google common crawlers with non-Search purposes — read each entry's documented purpose before blocking | `Googlebot` | [Google common crawlers](https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers) |
+| `Google-Agent`, `Gemini Notebook`, others | Google user-triggered fetchers; Google: "these fetchers generally ignore robots.txt rules" | `Googlebot` | [Google user-triggered fetchers](https://developers.google.com/search/docs/crawling-indexing/google-user-triggered-fetchers) |
+| `OAI-SearchBot` | Surfacing sites in ChatGPT search results; honors robots.txt | `GPTBot`, `ChatGPT-User` | [OpenAI crawlers](https://developers.openai.com/api/docs/bots) |
+| `GPTBot` | Crawling for generative AI foundation-model training; honors robots.txt | `OAI-SearchBot` | [OpenAI crawlers](https://developers.openai.com/api/docs/bots) |
+| `OAI-AdsBot` | Checking safety of ad landing pages; OpenAI says not used for training | `GPTBot` | [OpenAI crawlers](https://developers.openai.com/api/docs/bots) |
+| `ChatGPT-User` | User-initiated actions in ChatGPT and Custom GPTs; OpenAI: "robots.txt rules may not apply" | automated search indexing | [OpenAI crawlers](https://developers.openai.com/api/docs/bots) |
 | `Claude-SearchBot` | Anthropic search discovery | `ClaudeBot`, `Claude-User` | [Anthropic crawler controls](https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler) |
 | `ClaudeBot` | Anthropic model-development control | `Claude-SearchBot` | [Anthropic crawler controls](https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler) |
-| `Claude-User` | User-triggered retrieval; check the vendor's current robots behavior | automated search indexing | [Anthropic crawler controls](https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler) |
-| `PerplexityBot` | Perplexity search indexing | `Perplexity-User` | [Perplexity crawlers](https://docs.perplexity.ai/guides/bots) |
-| `Perplexity-User` | User-triggered retrieval | `PerplexityBot` | [Perplexity crawlers](https://docs.perplexity.ai/guides/bots) |
+| `Claude-User` | User-triggered retrieval; Anthropic says it honors robots.txt directives | automated search indexing | [Anthropic crawler controls](https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler) |
+| `PerplexityBot` | Surfacing and linking sites in Perplexity search; Perplexity says not used for model training; honors robots.txt | `Perplexity-User` | [Perplexity crawlers](https://docs.perplexity.ai/guides/bots) |
+| `Perplexity-User` | User-triggered fetches; Perplexity: it "generally ignores robots.txt rules" | `PerplexityBot` | [Perplexity crawlers](https://docs.perplexity.ai/guides/bots) |
 | `Applebot` | Apple search crawling | `Applebot-Extended` | [About Applebot](https://support.apple.com/en-us/119829) |
-| `Applebot-Extended` | Apple control for use of crawled website content in foundation-model development | `Applebot` search access | [About Applebot-Extended](https://support.apple.com/en-us/120320) |
+| `Applebot-Extended` | Usage control only — Apple: "Applebot-Extended does not crawl webpages"; it governs whether Applebot-crawled data trains Apple foundation models | `Applebot` search access | [About Applebot](https://support.apple.com/en-us/119829) |
+
+### Verification notes (2026-10-02)
+
+- OpenAI moved its bot page to `developers.openai.com/api/docs/bots` (old `platform.openai.com/docs/bots` 301-redirects). It says robots.txt changes can take ~24 hours to apply and publishes IP lists: `openai.com/searchbot.json`, `openai.com/gptbot.json`, `openai.com/chatgpt-user.json`, `openai.com/adsbot.json`.
+- Anthropic publishes `claude.com/crawling/bots.json` and documents `Crawl-delay` support.
+- Perplexity publishes `www.perplexity.com/perplexitybot.json` and `www.perplexity.com/perplexity-user.json`.
+- Robots rules do not bind user-triggered fetchers that the vendor says ignore them (ChatGPT-User, Perplexity-User, Google user-triggered fetchers). If policy requires blocking those, it needs WAF/auth controls verified against the published IP lists, not `robots.txt`.
 
 ## Policy workflow
 

@@ -1,6 +1,7 @@
 source: https://raw.githubusercontent.com/cloudflare/skills/main/skills/cloudflare
-vendored: 2026-09-29
-note: Re-vendored from upstream 2026-09-29 (last path commit 320fbbc1): SKILL.md body and the
+vendored: 2026-10-02
+note: Re-merged with upstream 2026-10-02 (last path commit 41e0d19; Basin/K2 split removed
+  references/{pipelines,r2-data-catalog,r2-sql}). Earlier re-vendor 2026-09-29 (320fbbc1): SKILL.md body and the
   full references/ tree (289 files) match upstream byte-for-byte except the two lines
   recorded in .local-fork. Local-only references/{agents-sdk,durable-objects,sandbox,
   turnstile,workers,wrangler}/ (31 files) were removed because upstream deleted them.

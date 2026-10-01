@@ -15,16 +15,16 @@ Cloudflare Email Service lets you send transactional emails and route incoming e
 
 | Source | How to retrieve | Use for |
 |--------|----------------|---------|
-| Cloudflare docs | Cloudflare MCP `docs` tool or URL `https://developers.cloudflare.com/email-service/` | API reference, limits, pricing, latest features |
-| REST API spec | `https://developers.cloudflare.com/api/resources/email_sending` | OpenAPI spec for the Email Sending REST API |
+| Cloudflare docs | Cloudflare MCP `docs` tool or URL `https://developers.cloudflare.com/email-service/index.md` | API reference, limits, pricing, latest features |
+| REST API spec | `https://developers.cloudflare.com/api/resources/email_sending/index.md` | OpenAPI spec for the Email Sending REST API |
 | Workers types | `https://www.npmjs.com/package/@cloudflare/workers-types` | Type signatures, binding shapes |
-| Agents SDK docs | [Email agent walkthrough](https://developers.cloudflare.com/agents/examples/email-agent/) | Email handling in Agents SDK |
+| Agents SDK docs | [Email agent walkthrough](https://developers.cloudflare.com/agents/examples/email-agent/index.md) | Email handling in Agents SDK |
 
 ## FIRST: Check Prerequisites
 
 Before writing any email code, verify the basics are in place:
 
-0. **Account eligible?** Email Sending is a public Beta (since 2026-04-16) available on the Workers Paid plan; sending to arbitrary recipients requires Workers Paid, while Email Routing works on Free and Paid. The sending domain must use Cloudflare DNS. Re-check [the product page](https://developers.cloudflare.com/email-service/) and [pricing](https://developers.cloudflare.com/email-service/platform/pricing/) at task time; do not infer general availability from the presence of a binding, REST endpoint, or CLI command.
+0. **Account eligible?** Email Sending is a public Beta (since 2026-04-16) available on the Workers Paid plan; sending to arbitrary recipients requires Workers Paid, while Email Routing works on Free and Paid. The sending domain must use Cloudflare DNS. Re-check [the product page](https://developers.cloudflare.com/email-service/index.md) and [pricing](https://developers.cloudflare.com/email-service/platform/pricing/index.md) at task time; do not infer general availability from the presence of a binding, REST endpoint, or CLI command.
 1. **Domain onboarded?** Run `npx wrangler email sending list` to see which domains have email sending enabled. If the domain isn't listed, run `npx wrangler email sending enable userdomain.com` or see [cli-and-mcp.md](references/cli-and-mcp.md) for full setup instructions.
 2. **Binding configured?** Look for `send_email` in `wrangler.jsonc` (for Workers)
 3. **postal-mime installed?** Run `npm ls postal-mime` (only needed for receiving/parsing emails)
@@ -36,7 +36,7 @@ Start here. Find your situation, then follow the link for full details.
 | I want to... | Path | Reference |
 |--------------|------|-----------|
 | **Send emails from a Cloudflare Worker** | Workers binding (no API keys needed) | [sending.md](references/sending.md) |
-| **Send emails from an AI agent built with [Cloudflare Agents SDK](https://developers.cloudflare.com/agents/)** | `onEmail()` + `replyToEmail()` in Agent class | [sending.md](references/sending.md) |
+| **Send emails from an AI agent built with [Cloudflare Agents SDK](https://developers.cloudflare.com/agents/index.md)** | `onEmail()` + `replyToEmail()` in Agent class | [sending.md](references/sending.md) |
 | **Send emails from an external app or agent** (Node.js, Go, Python, etc.) | REST API with Bearer token | [rest-api.md](references/rest-api.md) |
 | **Send emails from a coding agent** (Claude Code, Cursor, Copilot, etc.) | MCP tools, wrangler CLI, or REST API | [cli-and-mcp.md](references/cli-and-mcp.md) |
 | **Receive and process incoming emails** (Email Routing) | Workers `email()` handler | [routing.md](references/routing.md) |

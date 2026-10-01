@@ -3,14 +3,14 @@ name: shadcn-ui
 description: >-
   Use shadcn/ui as the default component source for React-capable admin
   surfaces across Next.js, Vite, React Router, Astro, and other supported
-  runtimes; also use for forms, data tables, charts, sidebars, blocks, themes,
-  preset switches, namespaced registry items, semantic tokens, registry
-  inspection, and component installation. Read
-  components.json first because style, Tailwind configuration, aliases, base
-  primitives, and prefixes change the generated code. Preserve native
-  semantics and minimal hydration; shadcn is not a reason to render static
-  markup through React. Use admin-product-ux and admin-dashboard for workflow
-  and presentation decisions, and ui-validation for browser evidence.
+  runtimes. Not workflow (admin-product-ux), presentation or IA
+  (admin-dashboard), or browser proof (ui-validation). Also use for forms, data
+  tables, charts, sidebars, blocks, themes, preset switches, namespaced
+  registry items, semantic tokens, registry inspection, and component
+  installation. Read components.json first because style, Tailwind
+  configuration, aliases, base primitives, and prefixes change the generated
+  code. Preserve native semantics and minimal hydration; shadcn is not a
+  reason to render static markup through React.
 ---
 
 # shadcn/ui Components
@@ -246,10 +246,19 @@ shadcn info --json
 Do not infer framework, aliases, base library, or installed items from folder
 names when this command can resolve them.
 
-`init` creates `components.json`, `src/lib/utils.ts` (the `cn` helper), and
+`init` creates `components.json`, `src/lib/utils.ts`, and
 `src/components/ui/`, and writes the token block into your main CSS file. On v4
 it does NOT write `tailwind.config.ts` — the config is the CSS, and dark mode is
 a `@custom-variant dark (&:is(.dark *))` line rather than a `darkMode` key.
+
+Since September 2026 `cn` is an npm package (`cn`, published by shadcn):
+`utils.ts` is the one line `export { cn } from "cn"`, and current registry items
+(`button`, `chart`, `combobox`, ...) declare `cn` as an npm dependency. An older
+project keeps the `clsx` + `tailwind-merge` body; `shadcn migrate cn` converts
+it, which is a requested change, not a side quest. Expect `add` to install `cn`
+into a pre-migration project. Sources (verified 2026-10-02):
+https://ui.shadcn.com/docs/changelog, registry JSON
+`https://ui.shadcn.com/r/styles/base-nova/utils.json`.
 
 The old "Style: Default or New York" / "Base color" prompts are gone. `init`
 (alias `create`) in CLI 4.21.0 takes `--template`
@@ -321,7 +330,7 @@ own the full list. The differences that break code most often:
 | Select | inline items, `<SelectValue placeholder>` | `items` prop on root, placeholder = `{ value: null }` item |
 | ToggleGroup / Accordion | `type="single"` or `type="multiple"`, string value | `multiple` boolean, value always an array |
 | Slider (one thumb) | `defaultValue={[50]}` | `defaultValue={50}` |
-| Toast | `sonner` | the `toast` component |
+| Toast | `sonner` | `sonner`, or the Base UI `toast` item (`@base-ui/react`) |
 
 The `asChild`/`render` rule covers every trigger and close part, plus
 `NavigationMenuLink`, `BreadcrumbLink`, `SidebarMenuButton`, `Badge`, `Item`.

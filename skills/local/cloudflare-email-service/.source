@@ -1,5 +1,5 @@
 source: https://raw.githubusercontent.com/cloudflare/skills/main/skills/cloudflare-email-service
-vendored: 2026-09-29
+vendored: 2026-10-02
 note: Merged local fork as of 2026-09-29 - upstream content adopted in every file
   plus the minimal factual corrections listed in .local-fork. Do not refresh
   byte-for-byte until upstream carries those corrections.

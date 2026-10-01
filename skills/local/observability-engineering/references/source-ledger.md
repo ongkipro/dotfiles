@@ -1,6 +1,6 @@
 # Primary-Source Ledger
 
-Last checked: 2026-08-17
+Last checked: 2026-10-02
 
 Use this ledger as a retrieval index, not a frozen API reference. Before implementation, recheck the installed runtime, SDK, instrumentation packages, exporter/collector versions, semantic-convention stability, and current official documentation. Numeric limits, environment variables, package APIs, defaults, schema stability, sampling behavior, and provider capabilities are volatile.
 
@@ -9,15 +9,18 @@ Use this ledger as a retrieval index, not a frozen API reference. Before impleme
 | Topic | Primary source | Status/use |
 |---|---|---|
 | OpenTelemetry specification index | [OpenTelemetry Specification](https://opentelemetry.io/docs/specs/otel/) | Normative cross-language API/SDK/data-model entry point; check each component’s status |
-| Semantic conventions | [General semantic conventions](https://opentelemetry.io/docs/specs/semconv/general/) | Current naming/attribute entry point for spans, metrics, logs, and events; stability varies by convention group |
+| Semantic conventions | [Semantic conventions index](https://opentelemetry.io/docs/specs/semconv/) and [General semantic conventions](https://opentelemetry.io/docs/specs/semconv/general/) | Index reported version 1.44.0 (accessed 2026-10-02); stability varies by convention group |
 | Event format and naming | [Semantic conventions for events](https://opentelemetry.io/docs/specs/semconv/general/events/) | Event-name and event-structure guidance |
 | Error recording | [Recording errors](https://opentelemetry.io/docs/specs/semconv/general/recording-errors/) | Cross-signal error conventions; recheck relevant protocol/database conventions too |
 | Logs and severity | [Logs Data Model](https://opentelemetry.io/docs/specs/otel/logs/data-model/) | Stable logical fields, trace correlation, and normalized severity ranges when checked |
 | Metrics data | [Metrics Data Model](https://opentelemetry.io/docs/specs/otel/metrics/data-model/) | Metric streams, temporality, aggregation, and exemplars |
 | Tracing and sampling | [Tracing SDK — Sampling](https://opentelemetry.io/docs/specs/otel/trace/sdk/#sampling) | Normative SDK sampling behavior and propagation implications |
 | Resource identity | [Resource semantic conventions](https://opentelemetry.io/docs/specs/semconv/resource/) | Service, deployment, cloud, host, and process resource attributes; use only applicable stable groups |
-| HTTP conventions | [HTTP semantic conventions](https://opentelemetry.io/docs/specs/semconv/http/) | HTTP span/metric attributes and error classification; check migration notes for installed semconv version |
-| Messaging conventions | [Messaging semantic conventions](https://opentelemetry.io/docs/specs/semconv/messaging/) | Producer/consumer/process spans, message attributes, and metrics; stability can change |
+| HTTP conventions | [HTTP semantic conventions](https://opentelemetry.io/docs/specs/semconv/http/), [HTTP spans](https://opentelemetry.io/docs/specs/semconv/http/http-spans/) | HTTP spans Stable (some size/`url.template` attributes still Development); index shows Mixed; pre-1.21 instrumentations migrate via `OTEL_SEMCONV_STABILITY_OPT_IN=http` / `http/dup` (accessed 2026-10-02) |
+| Database conventions | [Database semantic conventions](https://opentelemetry.io/docs/specs/semconv/database/), [Database client spans](https://opentelemetry.io/docs/specs/semconv/database/database-spans/) | Client spans Stable (`db.system.name`, `db.namespace`, `db.operation.name`, `db.query.text`, `db.query.summary`); `db.query.parameter.<key>` and `db.response.returned_rows` Development/opt-in; migration via `OTEL_SEMCONV_STABILITY_OPT_IN=database` / `database/dup` (accessed 2026-10-02) |
+| GenAI conventions | [semantic-conventions-genai repository](https://github.com/open-telemetry/semantic-conventions-genai) (moved from [semconv/gen-ai](https://opentelemetry.io/docs/specs/semconv/gen-ai/)) | Spans, agent spans, metrics, events, MCP, and provider-specific (Anthropic, OpenAI, Bedrock, Azure AI Inference) conventions; status Development, so attribute names may change (accessed 2026-10-02) |
+| OpenTelemetry JavaScript | [JS status](https://opentelemetry.io/docs/languages/js/) and [releases](https://github.com/open-telemetry/opentelemetry-js/releases) | Traces and metrics Stable, logs Development; supports active/maintenance Node.js LTS; stable packages on the 2.x line with experimental packages on 0.2xx (accessed 2026-10-02). Check the installed version in the lockfile |
+| Messaging conventions | [Messaging semantic conventions](https://opentelemetry.io/docs/specs/semconv/messaging/) | Producer/consumer/process spans, message attributes, and metrics; Development status when checked 2026-10-02 |
 | OTLP transport | [OpenTelemetry Protocol](https://opentelemetry.io/docs/specs/otlp/) | Interoperable export protocol; implementation support still depends on installed components |
 | Collector resilience | [OpenTelemetry Collector resiliency](https://opentelemetry.io/docs/collector/resiliency/) | Official guidance for queues, retries, backpressure, and delivery caveats; verify deployed Collector version |
 | Distributed trace headers | [W3C Trace Context](https://www.w3.org/TR/trace-context/) | W3C Recommendation defining `traceparent` and `tracestate`; not an authentication mechanism |

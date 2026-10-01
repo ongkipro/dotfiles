@@ -34,9 +34,12 @@ Version-matched docs (source: nextjs.org/docs/app/guides/ai-agents):
   `find node_modules/next/dist/docs -name '<slug>.md'`). Read these before the
   website; `/docs/messages/*` error pages are not bundled.
 - **16.3+** `next dev`, when it detects a coding agent, writes/refreshes a
-  managed `<!-- BEGIN:nextjs-agent-rules -->` block in `AGENTS.md`
-  (`agentRules: false` disables it). Expect that diff; do not treat it as your
-  change or hand-strip it.
+  managed `<!-- BEGIN:nextjs-agent-rules -->` block in `AGENTS.md` and a
+  `CLAUDE.md` containing `@AGENTS.md` (`agentRules: false` disables it).
+  Expect that diff; do not treat it as your change or hand-strip it (it is
+  re-created); whether to commit it is the user's call.
+- Over the network, append `.md` to any nextjs.org/docs URL for Markdown;
+  `/docs/messages/*` error pages exist only there.
 - **≤16.1** has no bundled docs. `npx @next/codemod@canary agents-md` downloads
   them to `.next-docs/` and edits `AGENTS.md` — it writes to the repo, so ask
   first.

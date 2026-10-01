@@ -117,6 +117,14 @@ Record storage, processing, backup, replication, analytics, model-provider, and 
 
 Use expand/migrate/contract where zero downtime is required. Define backup, restore, lock duration, failure resume, and irreversible steps.
 
+### Seed and fixture data
+
+Seed data exists for development, automated tests, and demos only. It is synthetic, idempotent (re-running yields the same state without duplicates), and never copied from production or containing real personal, payment, or credential data.
+
+| Dataset | Purpose | Environments | Entities covered | Idempotency key/strategy | Reset/command | Owner |
+|---|---|---|---|---|---|---|
+| `<dataset>` | `<dev/test/demo>` | `<local/CI/staging; never production>` | `<DATA-* refs>` | `<natural key/upsert/truncate-then-insert>` | `<script or command>` | `<role>` |
+
 ## 12. Cross-Document Contract
 
 - `02-PRD.md` owns product behavior; `03-TECHNICAL-DESIGN.md` owns application flows.
@@ -136,5 +144,6 @@ Use expand/migrate/contract where zero downtime is required. Define backup, rest
 - [ ] Retention/deletion covers backups, caches, indexes, analytics, exports, and legal holds.
 - [ ] Sensitive data has classification, access, encryption, redaction, and audit requirements.
 - [ ] Migration supports compatibility, verification, interruption/resume, rollback/forward fix, and cleanup.
+- [ ] Seed/fixture data is synthetic, idempotent, scoped to dev/test/demo, and never derived from production data.
 - [ ] `DATA-*` IDs are unique and all external references resolve.
 - [ ] Application, database, tenancy, security, privacy, and operations reviewers approved.

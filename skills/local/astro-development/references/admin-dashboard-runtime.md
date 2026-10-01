@@ -48,7 +48,15 @@ cache behavior demonstrates the need.
 
 Static Astro output cannot access Workers bindings at request time. If the
 dashboard needs D1, KV, sessions, or request-time auth, use the official
-Cloudflare adapter and on-demand rendering. The adapter uses server output by
-default; explicitly prerender public static routes where appropriate. Read the
-current Cloudflare Astro guide before config changes, and load `wrangler` before
+Cloudflare adapter and on-demand rendering. Explicitly prerender public static
+routes where appropriate. On adapter 13+ read bindings with
+`import { env } from 'cloudflare:workers'` (`Astro.locals.runtime` is gone),
+sessions use the `SESSION` KV binding, and only Workers is supported, not
+Pages; see [Platform versions](platform-versions.md). Read the current
+Cloudflare Astro guide before config changes, and load `wrangler` before
 commands. A deploy or remote database mutation still requires user approval.
+
+For admin data that must be fresh on every request but is read through a
+loader-shaped API (inventory, order status from an external system), consider
+a live content collection before writing a bespoke fetch layer; keep
+authorization on the page, since collections do not know the operator.

@@ -262,7 +262,7 @@ Common schema by page type:
 | Local service page | LocalBusiness + Service + BreadcrumbList |
 | Product page | Product + Offer + BreadcrumbList |
 | Article/blog | Article/BlogPosting + BreadcrumbList |
-| FAQ section | FAQPage only if FAQ is visible |
+| FAQ section | FAQPage only if FAQ is visible; no Google rich result |
 | Review content | Review/AggregateRating only if real reviews are visible |
 
 Rules:

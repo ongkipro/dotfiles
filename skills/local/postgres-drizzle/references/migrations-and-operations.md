@@ -10,9 +10,13 @@ push, ORM push, and hand-run SQL must not compete. Manual emergency changes requ
 repository's reconciliation procedure so declared schema, migration history, and actual
 catalog do not silently diverge.
 
-Inspect the installed Drizzle/Kit versions, config, migration journal/snapshots, project
-scripts, and current official documentation. Commands and configuration keys are
-volatile. Do not copy a command from this reference or another repository.
+Inspect the installed Drizzle/Kit versions, config, migration journal/snapshots (0.x) or
+per-migration folders (1.0 line), project scripts, and current official documentation.
+Commands and configuration keys are volatile. Do not copy a command from this reference
+or another repository. Converting a 0.x migration folder with `drizzle-kit up` rewrites
+migration metadata: treat it as its own reviewed change, commit it separately, and
+confirm the runner still considers every applied migration applied on a copy of the
+target database before rollout.
 
 ## Change classification
 
@@ -101,7 +105,9 @@ This skill does not authorize the run.
 
 ## Backup and restore handoff
 
-Coordinate with the project's operations owner. Match the mechanism to recovery-point
+Coordinate with the project's operations owner (`vps-deploy` for self-hosted
+PostgreSQL on a VPS/Coolify, including restore drills; `supabase-stack` or the managed
+provider otherwise). Match the mechanism to recovery-point
 and recovery-time objectives: logical dump, physical/base backup, WAL/PITR, or managed
 snapshot are not interchangeable. Include globals/roles, extensions, large objects,
 ownership/grants, encryption/key access, retention, and version compatibility as

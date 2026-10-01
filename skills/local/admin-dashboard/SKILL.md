@@ -104,6 +104,17 @@ Reference frame: **FT "Visual Vocabulary"** (`Financial-Times/chart-doctor/visua
 - **Pie/Donut**: **max ~4 slices**, and only when shares are ~25/50/75%. **DON'T** use for: comparing small differences, >4 slices, 2 values (redundant), comparing many "wholes", or multi-answer surveys (Datawrapper). In doubt → bar.
 - **Stacked area/bar misleads** when the user compares one series over time — only the bottom band has a flat baseline. To compare one segment across bars → use a **grouped bar** or line.
 
+**Titles and empty states.** A chart title states the question it answers or
+the finding ("Which channel brought most paid orders this month?", or "Shopee
+leads paid orders in March"), not the metric name alone ("Orders by channel");
+units and period go in the subtitle. An empty chart or table distinguishes
+three cases, each with its own message and next action: **first-run** (no data
+yet: what will appear here and how to create or import it), **filtered-empty**
+(data exists but the current filters/range match nothing: show the active
+filters and a clear-filters action), and **permission-denied** (data exists but
+this role cannot see it: say so and who can grant access; never render it as
+"no data").
+
 ## 3. Chart library — when to step up from Recharts
 
 Recharts already ships via `shadcn-ui`. **Default is Recharts. Step up only when you hit the wall.**
@@ -131,7 +142,8 @@ Recharts already ships via `shadcn-ui`. **Default is Recharts. Step up only when
 
 **Data table on mobile — pick the pattern:**
 - Few columns → **horizontal scroll**, **pin the header + first column** (the label), and show a scroll affordance (peeking column/arrow).
-- Many columns, comparison task → **priority columns** (hide secondary ones) + **expandable row / accordion**. TanStack Table has the official API: `columnVisibility` state, `column.toggleVisibility()`, `enableHiding:false` to pin, render via `getVisibleLeafColumns()` (`getHeaderGroups()` is already visibility-aware and needs no variant). **v9 (Aug 2026) changed the shape:** `useReactTable` → `useTable`, and every feature is opt-in via `tableFeatures({...})` — register `columnVisibilityFeature` or those APIs do not exist on the table at all. Row models moved too (`getSortedRowModel()` → `sortedRowModel: createSortedRowModel()`). Check the lockfile before writing either dialect; `@tanstack/react-table/legacy` is a migration bridge, not a target.
+- Many columns, comparison task → **priority columns** (hide secondary ones) + **expandable row / accordion**. TanStack Table has the official API: `columnVisibility` state, `column.toggleVisibility()`, `enableHiding:false` to pin, render via `getVisibleLeafColumns()` (`getHeaderGroups()` is already visibility-aware and needs no variant). **v9 (Aug 2026) changed the shape:** `useReactTable` → `useTable`, and every feature is opt-in via `tableFeatures({...})` — register `columnVisibilityFeature` or those APIs do not exist on the table at all. Row models moved too (`getSortedRowModel()` → `sortedRowModel: createSortedRowModel()`). Check the lockfile before writing either dialect; `@tanstack/react-table/legacy` is a migration bridge, not a target. The v9 package ships version-matched agent skills under `node_modules/@tanstack/react-table/skills/` (`migrate-v8-to-v9`, `with-tanstack-query`, `with-tanstack-virtual`, `table-state`) — read the installed ones over memory (verified in the 9.2.4 tarball, 2026-10-02).
+- **Table or grid is a semantic decision, not a styling one** (WAI-ARIA APG Grid pattern, https://www.w3.org/WAI/ARIA/apg/patterns/grid/, verified 2026-10-02). A read-mostly list with sortable headers, row links, and a row-actions menu stays a native `<table>` (`aria-sort` on the sorted header; every control stays in the Tab order). Choose `role="grid"` only when operators edit or act cell-by-cell and need spreadsheet-style keyboarding: the grid is one Tab stop and arrows, Home/End, Ctrl+Home/End, and Page Up/Down move between cells. Promoting a plain table to a grid without that keyboard model makes it worse, not more accessible.
 - Transactional list (scan/tap: orders, users, tickets) → **card/stack transform** (each row becomes a label:value card).
 - Need a specific slice, not the whole grid → **filter-first** (narrow before you render).
 
@@ -186,22 +198,28 @@ Recharts already ships via `shadcn-ui`. **Default is Recharts. Step up only when
   refresh behavior explicitly. Keep shareable table state in the URL.
 - TanStack Query or another client cache is earned by client-owned polling,
   optimistic coordination, or repeated server state—not installed by default.
+  When it is installed for a server-paginated table: Query owns fetching and
+  the table owns grid state; put the pagination/sort/filter state in the
+  `queryKey`, keep the previous page visible with `placeholderData:
+  keepPreviousData` (v5) instead of flashing an empty table, and pass the
+  server `rowCount` rather than copying query results into table state
+  (TanStack Table 9.2.4 `skills/with-tanstack-query`, verified 2026-10-02).
 
 ### If the admin is Next.js App Router (patterns — code details → shadcn-ui)
 
 - **Server/Client boundary.** Pages/layouts are Server Components: fetch D1/API *on the server*, pass results as props. Add `"use client"` ONLY to interactive leaves — sortable/filterable table, hover/zoom chart, forms (need state, handlers, or `window`/`localStorage`). Keep `"use client"` on the smallest leaf (everything a client file imports ships to the browser).
 - **Stream slow sections.** `app/…/loading.tsx` = instant route-level skeleton (auto-wraps the page in `<Suspense>`). Per-section: `<Suspense fallback={<Skeleton/>}><SlowChart/></Suspense>` — KPI row, chart, table stream independently, none blocking the others.
-- **Mutations = Server Actions.** `'use server'` fn → invoke from a client component (`<form action>`, `formAction`, or handler). Re-check auth *inside* the action (it is reachable via direct POST). To refresh after the write on **Next 16**: prefer `updateTag(tag)` (Server Actions only, read-your-own-writes — the next request waits for fresh data) or `revalidatePath`. Watch the profile argument: **`revalidateTag(tag, 'max')` is stale-while-revalidate and will show the operator the pre-write table**, while a bare `revalidateTag(tag)` keeps the older immediate behavior. Use `refresh()` for dynamic data cached client-side that `updateTag` won't reach.
+- **Mutations = Server Actions.** Re-check auth *inside* each action (it is reachable via direct POST). After a write the operator must see the new row, not a stale table: choose a read-your-writes refresh. The exact API (`updateTag`, `revalidateTag` profiles, `revalidatePath`, `refresh`) depends on the installed major and Cache Components mode — follow `nextjs-development`.
 - **Heavy chart lib → lazy.** `dynamic(() => import('./chart'), { ssr: false })` for a client-only chart touching `window`/DOM. `ssr:false` is NOT allowed in a Server Component — the `dynamic()` call must live in a `"use client"` file.
 - **Deploy: check the repo before assuming.** Admin apps here are containerised (Dockerfile / Coolify) or run a separate API app; Cloudflare is the Astro-site path, not automatically the admin path. Don't reach for an `@opennextjs/cloudflare`-shaped answer without reading the project's Dockerfile and adapter config first.
 - **App Router is the house default for an integrated full admin**, because the
-  existing admins can reuse its auth middleware, Server Action conventions, and
+  existing admins can reuse its auth/session, Server Action conventions, and
   deployment path. This preference does not override project evidence: an
   API-backed client application can fit Vite/React, and a route-oriented admin
   with bounded interactivity can fit Astro. Never rewrite a working admin just
   to satisfy the default.
 - **Server-paginated tables** (Postgres via Drizzle/`pg`, or D1 behind the Astro sites):
-  - **Default is Server Component fetch + Server Action mutation + `updateTag`.** Reach for TanStack Query only when a table needs client-owned polling or optimistic state that Server Actions cannot express — and note nothing in the current repos does yet, so "we already have it" is not an argument.
+  - **Default is Server Component fetch + Server Action mutation + read-your-writes revalidation (API per `nextjs-development`).** Reach for TanStack Query only when a table needs client-owned polling or optimistic state that Server Actions cannot express — and note nothing in the current repos does yet, so "we already have it" is not an argument.
   - Small (hundreds of rows, fits at once) → client-side pagination/sort/filter.
   - **Thousands+ → server-side**: push `LIMIT/OFFSET` (or keyset) + `ORDER BY` + `WHERE` into SQL, `manualPagination:true` (+`manualSorting`/`manualFiltering`). Send **either `rowCount` or `pageCount`, not both** — prefer `rowCount` and let the table derive pages; cursor APIs use `pageCount: -1`. `autoResetPageIndex` is disabled automatically under `manualPagination`, so reset `pageIndex` yourself when filters change. **Don't ship thousands of rows to the browser.**
   - **`COUNT(*)` on a filtered large table is the hidden cost** of showing a total. Past a few hundred thousand rows, offer an approximate count or just `hasNextPage` instead.
@@ -274,6 +292,6 @@ Library APIs, versions, maintenance state, and deployment adapters are volatile.
 Verify them against the project's lockfile and current official upstream before
 implementing. Keep this skill focused on durable UX decisions.
 
-Library APIs verified 2026-08-10 (Recharts SSR status, TanStack Table v9, Next 16 `updateTag`, ECharts-on-Workers, the `echarts-for-react` compromise). These move fast — re-check before implementing.
+Library APIs verified 2026-08-10 (Recharts SSR status, TanStack Table v9, Next 16 `updateTag`, ECharts-on-Workers, the `echarts-for-react` compromise); TanStack Table 9.2.4 shipped skills, Query composition, and the APG grid-vs-table rule re-verified 2026-10-02. These move fast — re-check before implementing.
 
 **Unverified / inference:** chart point-count thresholds (architectural, no official number); "≤5 widgets/mobile screen" and the virtualization row counts (**house rule, no upstream basis** — TanStack declines to give a threshold); "color the delta by desired direction" and granularity labeling (design judgment); §8's operator-surface rules (accumulated practice, not cited standards).

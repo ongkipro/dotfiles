@@ -126,6 +126,7 @@ Use `PAGE_COMPLETENESS_FORMULA.md` for detailed audit rules and examples.
 - title/meta are unique on indexable pages.
 - schema validates and matches visible content.
 - mobile UX and CTA are usable.
+- Core Web Vitals (field data, 75th percentile, mobile and desktop separately): LCP ≤ 2.5 s, INP ≤ 200 ms, CLS ≤ 0.1. INP replaced FID as a Core Web Vital in 2024; never audit or report FID ([web.dev/articles/vitals](https://web.dev/articles/vitals), accessed 2026-10-02). Diagnosis goes to `web-perf`.
 
 ## Metadata Rules
 
@@ -146,11 +147,18 @@ Use schema only when eligible:
 - BreadcrumbList
 - Product / Offer
 - Article / BlogPosting
-- FAQPage only if FAQ visible
+- FAQPage only if FAQ visible — Google no longer shows the FAQ rich result; keep or add the markup only for other consumers, never promise a Google SERP feature from it
 - AggregateRating / Review only if real visible reviews exist
 - Service for service pages
 
 Reject schema spam.
+
+Google features that are gone — do not recommend them as Google rich results (checked 2026-10-02 against the [search gallery](https://developers.google.com/search/docs/appearance/structured-data/search-gallery), which no longer lists them):
+
+- FAQ rich result ([FAQPage doc](https://developers.google.com/search/docs/appearance/structured-data/faqpage): "no longer shown in Google Search results"; earlier restricted to authoritative government and health sites)
+- HowTo rich result; Sitelinks search box (retired 2024, so `WebSite` + `SearchAction` earns nothing in Google)
+- Book Actions, Course Info, Claim Review, Estimated Salary, Learning Video, Special Announcement, Vehicle Listing ([June 2025 announcement](https://developers.google.com/search/blog/2025/06/simplifying-search-results)); practice problems later followed
+- Google states removal does not affect ranking. Re-check the gallery before any schema plan; it is the live list of supported features.
 
 ## Internal Linking Rules
 

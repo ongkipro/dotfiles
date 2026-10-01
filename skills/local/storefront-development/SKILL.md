@@ -45,7 +45,7 @@ card soup, decorative gradients, duplicated CTAs, auto-rotating content,
 generic trust-badge rows, and motion without task value.
 
 Read [Dawn-inspired baseline](references/dawn-inspired-baseline.md) for durable
-HTML/progressive-enhancement patterns and [Next.js Commerce Patterns](references/next-commerce-patterns.md) only for that stack.
+HTML/progressive-enhancement patterns.
 
 ### 2. Render the useful document first
 
@@ -72,6 +72,8 @@ and hydration boundaries. Read only the relevant stack section in
 For advanced Next.js App Router implementations covering Server Actions, optimistic state, and headless URL logic, read [Next.js Commerce Patterns](references/next-commerce-patterns.md).
 
 For Shopify, also read [Shopify boundaries](references/shopify-boundaries.md).
+For a hosted Online Store 2.0 theme (Liquid, sections, blocks, Shopify CLI),
+read [Liquid themes](references/liquid-themes.md).
 
 Use `shadcn-ui` only when the selected React stack already supports it and its
 primitives fit the accepted component map. Do not introduce React hydration so
@@ -139,6 +141,8 @@ repository planning-document convention; source code belongs in the project.
 - `storefront-ux`: buyer journey, state requirements, and conversion correctness
 - `storefront-development`: implementation, composition, and commerce-state wiring
 - `headless-shopify`: Shopify headless architecture, runtime/data boundary, and delivery contract
+- `hydrogen-development`: Hydrogen app code once Hydrogen is the accepted stack
+- `hydrogen-headless-tracking`: Hydrogen analytics, consent, and event bus
 - `design-taste`: Storefront/Commerce hierarchy, art direction, and visual judgment
 - `native-first`: platform capability before dependencies
 - `seo-website-builder`: indexation, metadata, schema, and internal linking

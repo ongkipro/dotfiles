@@ -90,6 +90,17 @@ A trend claim defines metric, denominator, source method, geography/population, 
 
 ## Discovery tests and stop conditions
 
+Before choosing tests, tag each material assumption with the risk it carries
+— **value** (will they buy or choose it), **usability** (can they use it),
+**feasibility** (can we build it with our time, skills, and technology), or
+**business viability** (does it work for sales, legal, finance, operations)
+— and test the most decision-critical, least-evidenced ones first. Compare at
+least two candidate solutions for the same customer opportunity when solution
+risk is material, so a test can reject one option instead of confirming a
+favourite. In customer conversations, ask about a specific recent episode and
+what the person actually did, not hypothetical future intent (which stays
+stated intent in the demand ladder above).
+
 For each material hypothesis, propose the smallest test that can discriminate the pending decision. Before execution, record population/context, prediction, method, threshold, stopping rule, guardrails, result-to-decision mapping, owner, and horizon. Do not create a threshold after seeing results.
 
 The decision brief sets breadth, source, time/cost, saturation, confidence, go/hold/stop, and decision-changing-evidence limits. Stop research when:
@@ -104,5 +115,13 @@ The decision brief sets breadth, source, time/cost, saturation, confidence, go/h
 In the last two cases, preserve the conflict or gap. Report **`Not estimable`** when a critical sizing input lacks a defensible source, interval, named scenario, or explicit owner-held deterministic assumption. State the missing input, why it is material, evidence attempted, consequence, owner, and smallest next evidence. Never manufacture an estimate to complete a table.
 
 Every recommendation concludes with its exact claim or decision, evidence and counterevidence IDs, confidence with reason, limitation/applicability, practical implication, and next evidence or accountable decision owner.
+
+Methodology credits (paraphrased, accessed 2026-10-02): the four risk types
+from Marty Cagan, "The Four Big Risks" (https://www.svpg.com/four-big-risks/);
+comparing several solutions per opportunity and testing their riskiest
+assumptions from Teresa Torres, "Opportunity Solution Trees"
+(https://www.producttalk.org/opportunity-solution-trees/); story-based
+interviewing from Torres, "Customer Interviews"
+(https://www.producttalk.org/customer-interviews/).
 
 See [Evidence and Claim Contract](evidence-contract.md), [Product and UX Handoff](product-handoff.md), and [Adaptive Artifact Routing](artifact-routing.md), or return to the [Product Intelligence skill](../SKILL.md).

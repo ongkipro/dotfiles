@@ -32,7 +32,9 @@ interface PinMetadataInput {
 }
 
 export function generatePinterestMetadata({ title, description, targetUrl, imageUrl, boardId }: PinMetadataInput) {
-  // Truncate title to 100 chars, description to 500 chars per Pinterest API limits
+  // lazy: limits below are local defaults, not verified against the Pinterest API v5
+  // reference (developer docs need login to read). Confirm current maxLength values
+  // in the POST /v5/pins schema before shipping.
   const pinTitle = title.substring(0, 100);
   const pinDesc = `${description.substring(0, 400)}... Read the complete guide at ${targetUrl}`;
 
@@ -53,4 +55,4 @@ export function generatePinterestMetadata({ title, description, targetUrl, image
 
 ## 3. Canonical Syndication Rules (Medium / Dev.to)
 
-When auto-syndicating blog articles to external publishing platforms, ALWAYS specify the original URL as the **Canonical Link** (`rel="canonical"`) to prevent duplicate content penalties from Google.
+When auto-syndicating blog articles to external platforms, set the platform's canonical field (e.g. Dev.to `canonical_url`, Medium import) to the original URL where offered — but do not rely on it for Google. Google states: "The canonical link element is not recommended for those who want to avoid duplication by syndication partners, because the pages are often very different. The most effective solution is for partners to block indexing of your content." ([Fix canonicalization issues](https://developers.google.com/search/docs/crawling-indexing/canonicalization-troubleshooting), accessed 2026-10-02.) Duplicate content is not a penalty; the risk is the syndicated copy being chosen to rank instead of yours. Prefer partners that apply `noindex`, syndicate excerpts with a link back, or publish on your own domain first and syndicate later.

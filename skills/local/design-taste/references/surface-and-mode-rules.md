@@ -55,6 +55,42 @@ brand asset. Missing proof stays missing, not filled with generated evidence.
 - Bottom navigation belongs where repeated top-level tasks justify it. A
   marketing page does not automatically need a bottom tab bar or sticky CTA.
 
+### §4.7.1 Narrow and in-between widths
+
+- **Test the 600-1024px band continuously** (drag the width), not only at
+  390 and 1440. Tablets, split screens, and zoomed desktops live there, and
+  that is where two-column layouts collide.
+- **Mobile has its own size register:** display type, section spacing, and
+  media scale down deliberately; a desktop hero shrunk proportionally is not a
+  mobile design.
+- **Each multi-column section states its narrow layout** in the direction
+  record (stack order, what collapses to a list, what scrolls in its own
+  container, what is hidden and where it moved).
+- **Navigation:** either the primary destinations stay visible, or a menu
+  control has a visible label or accessible name ("Menu"). The sticky header is
+  compact on narrow screens and does not eat the first screen.
+- **Bottom bars** (when justified) pad with `env(safe-area-inset-bottom)` and
+  the page sets `scroll-padding-bottom` so focused fields and anchors are not
+  hidden behind them. A focused input must sit above the on-screen keyboard.
+
+**Horizontal overflow triage:** find the widest element first (DevTools, or
+outline every element temporarily); fix the cause with `min-width: 0` on flex
+or grid children, wrapping long strings (`overflow-wrap: anywhere`), and
+`minmax(0, 1fr)` tracks. Tables reflow into labelled rows or scroll inside
+their own focusable container. Never hide the bug with `overflow-x: hidden` on
+`body`/`main`: it also breaks `position: sticky` and clips focus rings.
+
+**Mobile web fixes** (apply where the symptom exists; verify on a real device):
+
+| Symptom | Fix |
+| --- | --- |
+| Gray/blue flash on tap | `-webkit-tap-highlight-color: transparent` plus a visible pressed state of your own |
+| Full-screen layout overflows under the URL bar | `100dvh` for app-like screens; `100svh` for marketing heroes (no shift while scrolling) |
+| Taps feel delayed | `touch-action: manipulation` on controls; feedback on pointer-down |
+| Carousel steals vertical scroll | `touch-action: pan-y` on the horizontal gesture surface |
+| Page scrolls behind a sheet, or pull-to-refresh fires | `overscroll-behavior: contain` on the inner scroller |
+| Browser chrome color mismatched | `<meta name="theme-color">` per color scheme (theme-implementation.md) |
+
 ## §5 Evidence-based anti-slop review
 
 A familiar style is not a defect by itself. Look for observable mismatches:
@@ -106,6 +142,29 @@ reason to discard an accepted brand or a user's explicit theme requirement.
 Real product images and consented testimonials remain evidence, not decorations.
 
 ## §7 Redesign protocol
+
+**Classify first** and record the class with the owner:
+
+| Class | Keeps | Changes |
+| --- | --- | --- |
+| Preserve | brand, IA, content, user learning | defects, states, accessibility, craft |
+| Overhaul | brand identity and core content | layout, hierarchy, components, type scale |
+| Rebrand | only what the owner names | identity included; needs owner approval for each asset |
+
+**Audit block by block** (header, hero, each section, forms, footer, states):
+for each, note what works, what fails, and the evidence. Decision rule: keep a
+block that serves its job and fix its execution; recompose it only when the
+structure itself causes the failure; replace it only when its job changed.
+
+**Lever order** — use the cheapest lever that resolves the finding: type
+(scale, weight, measure) → spacing and rhythm → color within the existing
+brand → interaction states → recompose the block → replace the block.
+
+Never silently change form field names, navigation labels, URLs, or the logo;
+those carry user learning, analytics, and integrations. List any such change
+for approval. Before handing over, also check: sibling cards align (titles,
+prices, and actions on shared baselines), the active nav item is marked, a skip
+link exists, the 404 page and legal pages match the new system.
 
 1. Inspect the existing behavior, content, brand/tokens, SEO/route contracts,
    accessibility, performance evidence, and the actual complaint.

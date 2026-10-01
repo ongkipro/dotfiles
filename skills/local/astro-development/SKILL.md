@@ -61,7 +61,12 @@ Decide which lane fits best:
 If Astro is a poor fit, say so early.
 
 For an existing repository, do not re-scaffold. Run its own scripts and inspect
-its installed Astro major before using current syntax.
+its installed Astro major before using current syntax. Read
+[Platform versions](references/platform-versions.md) whenever the installed
+major is 6 or 7, or before using live collections, sessions, CSP, the Fonts
+API, route caching, or the Cloudflare adapter: Astro 6/7 removed or changed
+APIs that older examples still show (`Astro.glob`, `Astro.locals.runtime`,
+Zod 3 validators, lenient HTML).
 
 ## CLI policy
 
@@ -292,7 +297,17 @@ When doing Astro work, aim to produce:
   adapting a Next.js snippet blindly.
 - Load `workers-best-practices` for runtime code and `wrangler` before Wrangler
   commands. Deployment and remote binding writes retain their approval gates.
-- Load `ui-validation` after browser-visible changes.
+- Load `storefront-development` for storefront pages, cart, and checkout
+  handoff, and `headless-shopify` first when the store is Shopify headless
+  (Storefront API, tokens, cache, accounts).
+- Load `cms-content` when a client or non-developer edits the content
+  (collections versus git-based CMS versus Payload/Shopify metaobjects).
+- Load `better-auth-security` for Better Auth configuration and its
+  `references/auth-flows.md` for signup, verification, reset, invites, OAuth or
+  magic link, and session-expiry UX.
+- Read [i18n](references/i18n.md) for multi-locale routing and dictionaries;
+  hreflang and localized SEO go to `seo-website-builder`.
+- Load `impeccable` then `ui-validation` after browser-visible changes.
 
 ## Optional advanced mode
 

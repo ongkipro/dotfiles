@@ -1,7 +1,9 @@
 ---
 name: better-auth-security
-description: Configure rate limiting, manage auth secrets, set up CSRF protection, define trusted origins, secure sessions and cookies, encrypt OAuth tokens, track IP addresses, and implement audit logging for Better Auth. Automatically use when touching auth code in a Better Auth project (e.g. the kelola backend), debugging login/OAuth/session/cookie issues, or when the user mentions Better Auth, BETTER_AUTH_URL/SECRET, trustedOrigins, brute force, or Indonesian phrases like amankan login, gak bisa login, rate limit auth, harden auth.
+description: Harden Better Auth (rate limits, secrets, CSRF, trusted origins, sessions/cookies, OAuth tokens, IP tracking, audit logs) and define its auth-flow UX. Not cross-stack AppSec (application-security), Supabase Auth (supabase-stack), or framework routing. Automatically use when touching auth code in a Better Auth project (e.g. the kelola backend), debugging login/OAuth/session/cookie issues, or when the user mentions Better Auth, BETTER_AUTH_URL/SECRET, trustedOrigins, brute force, or Indonesian phrases like amankan login, gak bisa login, rate limit auth, harden auth.
 ---
+
+User-facing flow contracts (sign-up, verification, reset, invites, OAuth/magic link, account linking, session-expiry UX, enumeration safety): [Auth flows](references/auth-flows.md). This file owns hardening.
 
 ## Secret Management
 

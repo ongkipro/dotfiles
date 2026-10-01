@@ -2,17 +2,27 @@
 name: 9router
 description: >-
   Entry point for 9Router — local/remote AI gateway with OpenAI-compatible REST
-  for chat, image, TTS, STT, embeddings, web search, web fetch. One key, many
-  providers, auto-fallback. Triggers: 9router, ninerouter, setup 9router,
-  router ai, ai gateway, ninerouter url, ninerouter key, cek model 9router,
-  daftar model 9router, 9router models, 9router health. This skill covers
-  setup + indexes capability skills; fetch the relevant capability SKILL.md
-  when needed.
+  for chat, image, TTS, STT, embeddings, web search, web fetch. Not for
+  Cloudflare AI Gateway (cloudflare) or Claude API usage (claude-api).
+  Triggers: 9router, ninerouter, setup 9router, router ai, ai gateway,
+  ninerouter url, ninerouter key, cek model 9router, daftar model 9router,
+  9router models, 9router health. Covers setup and indexes per-capability
+  reference files; read only the one needed.
 ---
 
 # 9Router
 
 Local/remote AI gateway exposing OpenAI-compatible REST. One key, many providers, auto-fallback.
+
+Upstream: https://github.com/decolua/9router (MIT, Next.js). npm `9router`
+`latest` was `0.5.95` on 2026-10-02, and the default local port is `20128`.
+Route paths below were checked against `src/app/api/` on `master` that day.
+Releases are frequent, so re-check the installed version (`npm ls -g 9router`)
+before you trust a path or a default such as the bind host.
+
+The remote `NINEROUTER_URL` tunnel and the local `127.0.0.1:20128` instance are
+different hosts. The local checks below (bind address, no `cloudflared`) apply
+to this device's instance only.
 
 ## Setup
 
@@ -102,6 +112,11 @@ Read the reference file for the endpoint you need — don't load them all:
 | Embeddings | `references/embeddings.md` | `/v1/embeddings` |
 | Web search | `references/web-search.md` | `/v1/search` |
 | Web fetch (URL → markdown) | `references/web-fetch.md` | `/v1/web/fetch` |
+
+Other routes that exist upstream (2026-10-02) and have no reference file yet:
+`/v1/responses` (OpenAI Responses; `/codex/*` and `/responses` rewrite to it),
+`/v1/messages/count_tokens`, `/v1/audio/voices`, and `/v1/models/info`. Read the
+route source before relying on their request shape.
 
 ## Errors
 

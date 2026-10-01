@@ -1,6 +1,6 @@
 ---
 name: vultr
-description: Provision & manage Vultr VPS from the terminal via the official vultr-cli, and stand up Coolify on it for Docker deploys. Automatically use when the user mentions Vultr, vultr-cli, deploy a VPS/server, spin up a cloud instance, Coolify on a server, or Indonesian phrases like beli/bikin/deploy server, sewa VPS, pasang Coolify, deploy ke Vultr, setup server baru. Pairs with the Cloudflare + Coolify self-host workflow.
+description: Provision and manage Vultr VPS instances from the terminal via the official vultr-cli (create, plan/region choice, firewall groups) and bootstrap a fresh Coolify install on it. Not app deploys, Coolify operations, backups, rollback, or hardening after install (vps-deploy). Use when the user mentions Vultr, vultr-cli, spin up a new VPS or cloud instance, install Coolify on a new server, or Indonesian phrases like beli/bikin server, sewa VPS, setup server baru, pasang Coolify di server baru.
 ---
 
 # Vultr (CLI-first) + Coolify

@@ -39,3 +39,19 @@ Two submit-time rules belong in the contract, not left to implementation:
   for selection, never re-typed, unless re-entry is essential, a security
   requirement, or the earlier value is no longer valid. (WCAG 2.2 SC 3.3.7
   Redundant Entry, Level A, https://www.w3.org/TR/WCAG22/#redundant-entry)
+
+## Keyboard and focus contract
+
+For each composite control, record its WAI-ARIA APG pattern
+(https://www.w3.org/WAI/ARIA/apg/patterns/, verified 2026-10-02) instead of
+leaving keyboard behavior to the component kit. Two decisions belong in the
+screen contract because they change the product, not the styling:
+
+- Where focus goes after a dialog closes when its invoker no longer exists
+  (after deleting a row: the next row, the list heading, or the empty state),
+  and which control a destructive confirmation focuses first (the least
+  destructive one).
+- Whether a dense list is a table (every control in the Tab order; the default)
+  or an editable grid (one Tab stop, arrow-key cell navigation). Choose grid
+  only for cell-level editing or actions; `admin-dashboard` presents it and
+  `ui-validation` exercises the keyboard contract.

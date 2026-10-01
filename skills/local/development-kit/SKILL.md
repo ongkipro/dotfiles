@@ -49,6 +49,9 @@ local worked-example directory exists.
   security, privacy, operations, or UI contracts must stay traceable:
   `development-spec-suite`. It owns adaptive selection under `docs/spec/`;
   root `TASKS.md` remains the only execution queue.
+- "Six documents before coding" requests: small/lean apps use
+  `prd-taskbreaker` six-doc lite (`PRD.md`/`PLAN.md`/`DESIGN.md`/`TASKS.md`);
+  platform or multi-domain systems use `development-spec-suite`.
 
 Tenancy: a feature inside an existing multi-tenant repository stays in the
 `prd-taskbreaker` lane, but its tasks carry tenant-scope constraints (tenant
@@ -80,7 +83,9 @@ proportional to risk before the first visual edit:
    local, and mature global comparables for broader pattern evidence. Extract
    principles; never copy brand, product policy, or unsupported interaction.
 2. **Behavior:** admin/CMS uses `admin-product-ux`; commerce uses
-   `storefront-ux`; other surfaces use the PRD plus the relevant product owner.
+   `storefront-ux`; client-edited content sites choose their editing layer
+   through `cms-content`; other surfaces use the PRD plus the relevant product
+   owner.
    Define actor, job, journey, screens, states, permissions, recovery, content,
    and responsive outcomes.
 3. **Presentation:** admin/data-dense UI uses `admin-dashboard`; marketing,
@@ -94,9 +99,10 @@ proportional to risk before the first visual edit:
 5. **Implementation:** route to the installed framework owner and `shadcn-ui`
    only for React-capable component mapping. A component library does not
    supply product workflow or visual direction.
-6. **Evidence:** `ui-validation` opens the real page, exercises the critical
-   path, inspects narrow and wide layouts, and runs a visual critique/revision
-   loop. A build or screenshot alone is insufficient.
+6. **Evidence:** `impeccable` runs the critique/polish pass and its findings
+   are fixed first; then `ui-validation` opens the real page, exercises the
+   critical path, and inspects narrow and wide layouts. A build or screenshot
+   alone is insufficient.
 
 Small changes may keep this contract inline in the accepted task. Create or
 extend a durable design/UX artifact only when decisions must be shared across
@@ -122,6 +128,9 @@ owns cross-layer sequencing and invokes only the activated specialists. A
 single settled concern routes directly to its specialist. Apply these gates:
 
 `intent -> accepted contract -> UX/visual acceptance when visible -> implementation -> focused automated checks -> real runtime/browser proof -> independent review when risk requires -> release evidence`
+
+Independent review of risky work uses a reviewer from a different vendor
+through `cross-cli` when one is available.
 
 For a skill or AI-workflow change, define the new capability scenarios and the
 existing regression scenarios before claiming improvement. Prefer executable,

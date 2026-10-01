@@ -1,5 +1,5 @@
 upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/cloudflare-email-service
-verified: 2026-09-29
+verified: 2026-10-02
 scope: directory
 reason: Upstream (fetched 2026-09-29) now carries a retrieval-first design and a
   real `wrangler email` command tree, so the 2026-08-16 "invented CLI/MCP
@@ -43,3 +43,7 @@ to_vendor: Upstream PR candidates: add the Beta/Workers Paid/Cloudflare DNS
   prerequisite, fix the dashboard label, drop the remote-before-deploy line.
   Retire this marker (and go byte-identical) once upstream carries all four;
   re-check the Wrangler command reference, which may list `email` later.
+recheck: 2026-10-02 — merged upstream 41e0d19 (docs links -> `<route>/index.md`, all six files). All four
+  corrections still hold: route-emails page still says **Compute**; email-service index still lists Email
+  Sending as Beta on Workers Paid; local-development/sending still documents simulate-without-remote; the
+  Wrangler command reference still has no `email` entry. Local-only links also moved to index.md routes.

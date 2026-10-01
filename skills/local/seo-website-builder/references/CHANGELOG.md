@@ -2,6 +2,13 @@
 
 This file records the retired `/home/fantastico/Documents/SEO` source pack and subsequent changes to the active skill.
 
+## 2026-10-02 — Current-fact audit
+
+- IndexNow participant lists corrected to Bing, Yandex, Seznam, Naver, Yep, Internet Archive, Amazon (source: indexnow.org/searchengines.json); DuckDuckGo removed. Protocol limits and response codes added to `INDEXNOW_PLAYBOOK.md`.
+- FAQ rich result marked as no longer shown by Google; deprecated rich results (HowTo, Sitelinks search box, the 2025 Course Info/Claim Review/Estimated Salary batch, practice problems) listed in `COMPACT_SKILL_REFERENCES.md`.
+- Core Web Vitals thresholds (LCP 2.5 s, INP 200 ms, CLS 0.1 at p75; INP replaced FID) added.
+- Older entries below keep their original wording as history, including the superseded DuckDuckGo claim.
+
 ## 2026-08-16 — Active-skill governance correction
 
 - The canonical active skill now lives in this directory; older entries below describe its retired source pack and are historical, not current inventory.

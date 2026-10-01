@@ -2,7 +2,7 @@
 
 Meta Conversions API (CAPI) allows server-side transmission of conversion events directly to Meta's servers (`https://graph.facebook.com/{version}/{pixel_id}/events`).
 
-> Resolve `{version}` from the changelog before coding — see the version block in `SKILL.md`. The `v22.0` strings that used to be baked into this file were four releases stale within eighteen months.
+> Resolve `{version}` from the changelog before coding — see the version block in `SKILL.md`. The `v22.0` strings that used to be baked into this file were four releases stale by 2026-10-02 (latest then: v26.0).
 
 ---
 
@@ -13,10 +13,12 @@ import { createHash } from 'crypto';
 
 interface CapiEventPayload {
   event_name: string;
-  event_time: number; // Unix timestamp in seconds
+  event_time: number; // Unix seconds; >7 days old fails the WHOLE request
   event_id: string;
   event_source_url?: string;
-  action_source: 'website' | 'system_generated' | 'app' | 'physical_store';
+  action_source:
+    | 'website' | 'app' | 'email' | 'phone_call' | 'chat'
+    | 'physical_store' | 'system_generated' | 'business_messaging' | 'other';
   user_data: {
     em?: string[]; // SHA-256 hashed
     ph?: string[]; // SHA-256 hashed
@@ -103,8 +105,9 @@ CREATE TABLE capi_event_outbox (
 CREATE INDEX capi_event_outbox_due_idx ON capi_event_outbox (status, next_retry_at);
 ```
 
-Three rules that only apply on this stack:
+Four rules for this stack (rule 0 applies to any stack):
 
+0. **Expire, don't retry forever.** Meta rejects a request whose any `event_time` is more than 7 days old ([server event parameters](https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/server-event), accessed 2026-10-02). Mark such rows `failed` instead of retrying, and send one event per request (as the worker below does) so a stale row cannot sink fresh ones.
 1. **Enqueue with `INSERT OR IGNORE` on `event_id`.** A replayed browser request then costs one no-op write instead of a duplicate conversion — the same guarantee `event_id` gives inside Meta, enforced one layer earlier.
 2. **Drain on traffic, not on cron.** If a framework adapter owns the Worker entrypoint (Astro's Cloudflare adapter does), adding a `scheduled` handler means a custom entry plus `triggers.crons` in every tenant environment. An ads storefront always has traffic, so draining a bounded batch after the response via `ctx.waitUntil` is simpler and needs no new binding. Reach for Queues or Cron Triggers only when traffic is genuinely bursty or the entrypoint is yours.
 3. **Keep the backoff decision a pure function.** `decideRetry(outcome, attempts, maxAttempts)` is then testable without a database or a live Meta — which is the only way this logic ever gets tested at all.

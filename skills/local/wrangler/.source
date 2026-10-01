@@ -1,5 +1,5 @@
 source: https://raw.githubusercontent.com/cloudflare/skills/main/skills/wrangler
-vendored: 2026-09-29
+vendored: 2026-10-02
 note: Re-vendored 2026-09-29 (last path commit 320fbbc1). Upstream replaced its 922-line monolith
   with a ~69-line retrieval-first SKILL.md, so the old manual split (SKILL.md trim-tail 10 +
   references/bindings-cli-reference.md trim-head 7) no longer reassembled and was dropped;

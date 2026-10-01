@@ -113,7 +113,9 @@ can fail while the other passes. If the reference was inaccessible or no render
 was inspected, mark the affected claim unverified. `design-taste` owns the
 reference-evidence and anti-slop review rubric; pair with `impeccable`
 (`audit` or detector mode) for mechanical contrast and anti-pattern pre-flight
-checks before full browser runs. Report a scan that could not run (no matching
+checks before full browser runs. For a reference-matched build, attach the
+`design-taste` `scripts/ui-ref.mjs compare` report (structure drift per
+viewport) next to the screenshots; it measures structure, not interaction. Report a scan that could not run (no matching
 files, content held in data files) as **not checked**, never as passed; empty
 grep output proves only that the grep found nothing.
 
@@ -121,12 +123,15 @@ grep output proves only that the grep found nothing.
 
 1. Prefer the project's own script, and know what each one actually gives you.
    `preview` is not a synonym for `dev`:
-   - **Astro + `@astrojs/cloudflare`** — `astro dev` for markup, layout, and
-     interaction. Use the project's `wrangler dev` script when the flow touches
-     D1, KV, sessions, or headers, since that is the only runtime with real
-     worker semantics. `astro preview` serves a prior `astro build` — it is not
-     a dev server, and under the Cloudflare adapter it exits rather than
-     building for you.
+   - **Astro + `@astrojs/cloudflare`** — check the installed adapter major
+     first. On 13+ (Astro 6+), `astro dev` and `astro preview` both run in
+     `workerd` through the Cloudflare Vite plugin with bindings available, so
+     the project's own `dev`/`preview` scripts already give worker semantics
+     (https://docs.astro.build/en/guides/integrations-guide/cloudflare/,
+     verified 2026-10-02). On an older adapter, `astro dev` runs in Node; use
+     the project's `wrangler dev` script when the flow touches D1, KV,
+     sessions, or headers. Either way `astro preview` serves a prior
+     `astro build`; it does not build for you.
    - **Astro + `@astrojs/node`** — `astro dev`, or `astro build && astro
      preview` when the output is prerendered.
    - **Next** — `next dev`; `next build && next start` only when the bug is
@@ -216,6 +221,27 @@ For changed controls, verify keyboard reachability, logical focus order,
 visible focus, accessible name, role, and state. Verify dialogs trap and return
 focus. Prefer role/name locators because they test the accessibility surface.
 
+For a composite widget, exercise the WAI-ARIA APG keyboard contract of its
+pattern rather than inventing one (https://www.w3.org/WAI/ARIA/apg/patterns/,
+verified 2026-10-02):
+
+- **Modal dialog** — focus moves inside on open (the least destructive control
+  for a destructive confirm; a static title for long content); Tab and
+  Shift+Tab wrap inside; Escape closes; focus returns to the invoker, or to a
+  logical place when the invoker was deleted (common after a row delete);
+  labelled via `aria-labelledby` or `aria-label`.
+- **Combobox** — DOM focus stays on the input (`role="combobox"`,
+  `aria-expanded`, `aria-controls`); Down Arrow opens or enters the popup; the
+  active option is tracked by `aria-activedescendant`; Enter accepts; Escape
+  dismisses.
+- **Grid** (only when the UI really is one; `admin-dashboard` owns the
+  table-or-grid choice) — one Tab stop; arrows, Home/End, Ctrl+Home/End move
+  between cells. A plain data table keeps every control in the Tab order.
+
+Assert these with `page.keyboard.press()` plus `toBeFocused()`,
+`toHaveAttribute('aria-expanded', 'true')`, `toHaveAccessibleName()`, and
+`toHaveRole()` where the installed Playwright has them.
+
 WCAG 2.2 added checks a one-viewport pass usually misses; run each only when
 the change creates the risk:
 
@@ -234,7 +260,13 @@ the change creates the risk:
 Run axe only when `axe-core`, `@axe-core/playwright`, or an established project
 integration already exists, or when dependency addition is explicitly in
 scope. Treat automated scans as a supplement: they do not prove keyboard
-behavior, meaningful labels, or correct interaction.
+behavior, meaningful labels, or correct interaction. With
+`@axe-core/playwright`, scope the scan to the changed region and the tags the
+project targets — `new AxeBuilder({ page }).include('#orders').withTags([
+'wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()` — reuse a project axe
+fixture when one exists, and justify every `exclude()`/`disableRules()` in the
+report rather than using them to go green
+(https://playwright.dev/docs/accessibility-testing, verified 2026-10-02).
 
 ## 5. Escalate tools only when earned
 
@@ -246,6 +278,32 @@ where a project already has them configured — then use them as they stand
 (review image diffs; never refresh a baseline just to go green). Do not
 introduce any of them for a one-off change, and do not promise visual-regression
 evidence for a project that has no snapshot infrastructure.
+
+Playwright's built-in assertions need no extra dependency; use them when the
+project's Playwright suite already holds snapshots or the user asks for a
+durable regression check (verified 2026-10-02 against
+https://playwright.dev/docs/test-snapshots,
+https://playwright.dev/docs/api/class-pageassertions,
+https://playwright.dev/docs/aria-snapshots, https://playwright.dev/docs/test-cli):
+
+- **`toMatchAriaSnapshot()`** compares the accessibility tree (roles, names,
+  states such as `[checked]`, `[expanded]`, `[level=2]`) against a YAML
+  template; matching is partial by default, regexes cover dynamic text
+  (`/Orders \d+/`). It is cheaper and more stable than pixels for "the dialog
+  has a heading, a labelled input, and two buttons", and it is not visual
+  evidence.
+- **`toHaveScreenshot()`** waits for two identical consecutive captures, then
+  compares; it disables CSS animations and hides the caret by default. Baselines
+  are named per browser **and platform** (`-chromium-linux.png`), so a baseline
+  from another OS is not comparable; rendering also varies with fonts,
+  hardware, and headless mode. Use `mask` for volatile regions (timestamps,
+  avatars) and a small `maxDiffPixels`/`maxDiffPixelRatio` only with a stated
+  reason.
+- **Updating:** without the flag the runner writes only `missing` baselines;
+  `--update-snapshots` alone means `changed` (modes: `all`, `changed`,
+  `missing`, `none`). Update only after inspecting the diff and naming the
+  intended change; `--update-source-method` (`patch` default, `3way`,
+  `overwrite`) controls how inline aria templates are rewritten.
 
 ### Performance evidence requested by `web-perf`
 

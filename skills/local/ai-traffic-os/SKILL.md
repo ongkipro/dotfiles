@@ -31,10 +31,12 @@ Primary starting points:
 
 - [Google: AI features and your website](https://developers.google.com/search/docs/appearance/ai-features)
 - [Google common crawlers](https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers)
-- [OpenAI crawlers](https://platform.openai.com/docs/bots)
+- [OpenAI crawlers](https://developers.openai.com/api/docs/bots)
 - [Anthropic crawler controls](https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler)
 - [Perplexity crawlers](https://docs.perplexity.ai/guides/bots)
 - [Applebot](https://support.apple.com/en-us/119829)
+- [Google user-triggered fetchers](https://developers.google.com/search/docs/crawling-indexing/google-user-triggered-fetchers)
+- [OpenAI publishers FAQ](https://help.openai.com/en/articles/12627856-publishers-and-developers-faq)
 
 ## Four-layer architecture
 
@@ -65,4 +67,4 @@ Primary starting points:
 
 ## Google-specific boundary
 
-Google documents `Googlebot` as the control for Search, including AI features in Search. `Google-Extended` is a separate product token for controls in certain Gemini and Vertex AI systems and does not affect inclusion or ranking in Google Search. Do not block `Googlebot` while claiming Google AI Overview eligibility. Use snippet controls such as `nosnippet`, `data-nosnippet`, or `max-snippet` when the policy goal is limiting Search previews rather than blocking indexing.
+Google documents `Googlebot` as the control for Search, including AI features in Search. `Google-Extended` is a separate product token for controls in certain Gemini and Vertex AI systems and does not affect inclusion or ranking in Google Search. Do not block `Googlebot` while claiming Google AI Overview eligibility. Google states: "You don't need to create new machine readable files, AI text files, or markup to appear in these features. There's also no special schema.org structured data that you need to add." Traffic from AI Overviews and AI Mode is counted inside the Search Console Performance report's **Web** search type, with no separate filter (both from the AI features page, last updated 2025-12-10, accessed 2026-10-02). Use snippet controls such as `nosnippet`, `data-nosnippet`, or `max-snippet` when the policy goal is limiting Search previews rather than blocking indexing.

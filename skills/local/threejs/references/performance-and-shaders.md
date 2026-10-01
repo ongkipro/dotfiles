@@ -24,11 +24,13 @@ function tick() {
 // GOOD: Pre-allocated scratch objects reused every frame
 const _scratchVec = new THREE.Vector3();
 const _scratchMat = new THREE.Matrix4();
-const _clock = new THREE.Clock(); // r183+: deprecated, prefer THREE.Timer (see interaction-animation.md)
+const _timer = new THREE.Timer(); // core since r179; Clock is deprecated since r183
+_timer.connect(document); // Page Visibility API: no delta spike after a hidden tab
 
-function tick() {
+function tick(timestamp: number) {
   requestAnimationFrame(tick);
-  const elapsedTime = _clock.getElapsedTime();
+  _timer.update(timestamp);
+  const elapsedTime = _timer.getElapsed();
 
   _scratchVec.set(0, Math.sin(elapsedTime * 2) * 0.5, 0);
   mesh.position.copy(_scratchVec);
@@ -68,7 +70,7 @@ document.addEventListener('visibilitychange', () => {
     isPaused = true;
   } else {
     isPaused = false;
-    _clock.getDelta(); // Clear delta accumulation to prevent animation jumps
+    // _timer.connect(document) already absorbs the hidden-tab gap
   }
 });
 
@@ -76,7 +78,7 @@ document.addEventListener('visibilitychange', () => {
 const observer = new IntersectionObserver((entries) => {
   entries.forEach((entry) => {
     isPaused = !entry.isIntersecting;
-    if (!isPaused) _clock.getDelta();
+    if (!isPaused) _timer.reset(); // the timer saw no updates while off-screen; restart delta
   });
 }, { threshold: 0.1 });
 
@@ -126,21 +128,22 @@ scene.add(instancedMesh);
 Ship 3D models using binary `.glb` with Draco mesh compression and KTX2 Basis Universal texture compression.
 
 ```typescript
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 
 export function createOptimizedGLTFLoader(renderer: THREE.WebGLRenderer): GLTFLoader {
   const gltfLoader = new GLTFLoader();
 
   // 1. Draco mesh decompression
   const dracoLoader = new DRACOLoader();
-  dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+  // Copy node_modules/three/examples/jsm/libs/draco/ to the static dir so it matches the installed three
+  dracoLoader.setDecoderPath('/draco/');
   gltfLoader.setDRACOLoader(dracoLoader);
 
   // 2. KTX2 GPU texture decompression
   const ktx2Loader = new KTX2Loader();
-  ktx2Loader.setTranscoderPath('https://cdn.jsdelivr.net/npm/three@<installed-version>/examples/jsm/libs/basis/');
+  ktx2Loader.setTranscoderPath('/basis/'); // copied from three/examples/jsm/libs/basis/
   ktx2Loader.detectSupport(renderer);
   gltfLoader.setKTX2Loader(ktx2Loader);
 

@@ -18,6 +18,10 @@ version, or migration date.
   https://shopify.dev/docs/storefronts/themes/best-practices/accessibility
 - Theme performance:
   https://shopify.dev/docs/storefronts/themes/best-practices/performance
+- Shopify CLI theme commands (see `liquid-themes.md` for the verified set):
+  https://shopify.dev/docs/api/shopify-cli/theme
+- Section Rendering API:
+  https://shopify.dev/docs/api/ajax/section-rendering
 - Ajax Cart API:
   https://shopify.dev/docs/api/ajax/reference/cart
 - Storefront Cart guide:

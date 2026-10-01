@@ -125,4 +125,7 @@ Return the smallest artifact that fits the request. For a full audit or specific
 6. Analytics contract for the critical funnel only.
 7. Testable acceptance criteria and unresolved decisions.
 
+Rank findings with the public evidence in
+[sources.md](references/sources.md) (Baymard abandonment data, Shopify
+limits, Indonesian COD context), and give each cited figure its access date.
 Label inference as inference. Do not invent inventory policy, tax behavior, checkout capability, analytics APIs, or platform limits; inspect the project or authoritative platform documentation first.

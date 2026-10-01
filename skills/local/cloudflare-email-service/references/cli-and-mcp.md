@@ -2,7 +2,7 @@
 
 Manage Cloudflare Email Service from the command line and coding agents.
 
-For full CLI reference, run `npx wrangler email --help` with the project's installed Wrangler; the `email` commands are marked open beta and are not yet listed in the published [Wrangler command reference](https://developers.cloudflare.com/workers/wrangler/commands/), so use only subcommands that binary lists. For Dashboard setup, see the [getting started docs](https://developers.cloudflare.com/email-service/get-started/).
+For full CLI reference, run `npx wrangler email --help` with the project's installed Wrangler; the `email` commands are marked open beta and are not yet listed in the published [Wrangler command reference](https://developers.cloudflare.com/workers/wrangler/commands/index.md), so use only subcommands that binary lists. For Dashboard setup, see the [getting started docs](https://developers.cloudflare.com/email-service/get-started/index.md).
 
 ## Wrangler Email Commands
 
@@ -48,7 +48,7 @@ Add `"remote": true` to send real emails during `wrangler dev`:
 npx wrangler dev
 ```
 
-Emails are actually sent — use test addresses you control. Without `"remote": true`, `wrangler dev` simulates the binding and only logs/saves the message locally ([local email sending](https://developers.cloudflare.com/email-service/local-development/sending/)).
+Emails are actually sent — use test addresses you control. Without `"remote": true`, `wrangler dev` simulates the binding and only logs/saves the message locally ([local email sending](https://developers.cloudflare.com/email-service/local-development/sending/index.md)).
 
 ## Cloudflare MCP Server
 

@@ -1,3 +1,3 @@
 source: https://raw.githubusercontent.com/cloudflare/skills/main/skills/turnstile-spin
-vendored: 2026-07-10
+vendored: 2026-10-02
 note: Originally installed from the Cloudflare skills plugin; SKILL.md at consolidation (1e6bd44, 2026-07-10) was byte-identical to upstream 91a6a814. Re-aligned with upstream 30553f89 afterwards, then hardened locally. Managed local fork — see .local-fork. Refresh with _refresh-vendored.sh (it skips this directory while .local-fork exists).

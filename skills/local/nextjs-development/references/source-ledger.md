@@ -1,7 +1,8 @@
 # Source ledger
 
-Primary sources retrieved 2026-08-17. The current Next.js pages identified
-themselves as version 16.3.1 when this ledger was written. That is an access
+Primary sources retrieved 2026-08-17; AI-agents, MCP, revalidateTag, and i18n
+pages rechecked 2026-10-02, when the docs identified themselves as 16.3.8 (npm
+`next@latest` 16.3.8). That is an access
 snapshot, **not the skill's assumed project version**. Before using a function,
 directive, file convention, config key, CLI command, cache default, runtime, or
 adapter claim, recheck the installed `next`/`react` versions and the matching
@@ -24,9 +25,13 @@ current official documentation. Installed project types/source and scripts win.
   — bundled docs (16.2+), managed `AGENTS.md` block (16.3+), legacy
   `agents-md` codemod, and `/_next/mcp` runtime visibility.
 - [vercel/next.js `skills/`](https://github.com/vercel/next.js/tree/canary/skills)
-  — official `next-dev-loop`, Cache Components and Partial Prefetching skills
-  (retrieved 2026-09-29): 200-with-errors, `use cache` + cookies runtime throw,
-  production-only prefetching.
+  — official `next-dev-loop`, `next-cache-components-adoption`,
+  `next-cache-components-optimizer`, and `next-partial-prefetching-adoption`
+  skills (retrieved 2026-09-29, names rechecked 2026-10-02): 200-with-errors,
+  `use cache` + cookies runtime throw, production-only prefetching. They are
+  workflows to borrow from, not installs this skill performs.
+- [Next.js MCP server](https://nextjs.org/docs/app/guides/mcp) — `/_next/mcp`
+  tool list (`compile_route`/`get_compilation_issues` are Turbopack-only).
 - [vercel-labs react-best-practices rules](https://github.com/vercel-labs/agent-skills/tree/main/skills/react-best-practices/rules)
   and [vercel-plugin `next-cache-components`](https://github.com/vercel/vercel-plugin/tree/main/skills/next-cache-components)
   — `updateTag` vs `revalidateTag(tag, 'max')`.

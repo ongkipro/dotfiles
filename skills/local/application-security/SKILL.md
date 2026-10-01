@@ -1,6 +1,6 @@
 ---
 name: application-security
-description: Implement and review cross-stack application security controls. Use for AppSec reviews, threat and trust-boundary analysis, authorization and tenant-isolation defects, injection, SSRF, uploads, webhook replay, sessions/CSRF/CORS/CSP, secrets and crypto, dependency risk, abuse controls, secure errors, or security remediation. Prioritizes reachable exploit evidence and observable fixes. Defensive, authorized work only; framework, auth, payment, Cloudflare, database, testing, and CI specialists retain their APIs.
+description: Implement and review cross-stack application security controls with reachable exploit evidence. Not framework, auth, payment, Cloudflare, database, testing, or CI API syntax (their specialists own it); defensive, authorized work only. Use for AppSec reviews, threat and trust-boundary analysis, authorization and tenant-isolation defects, injection, SSRF, uploads, webhook replay, sessions/CSRF/CORS/CSP, secrets and crypto, dependency risk, abuse controls, LLM/agent feature risks (prompt injection, tool agency, output handling), secure errors, or security remediation.
 ---
 
 # Application Security
@@ -43,9 +43,9 @@ For Astro, storefront, or broader specification work, hand implementation or pro
 2. **Read repository rules and the real stack.** Inspect manifests, lockfiles, runtime/config files, framework version, existing security middleware, deployment boundary, reverse-proxy chain, and the smallest project validation commands.
 3. **Trace complete flows.** Find routes, server actions/RPC handlers, middleware, background consumers, data access, object storage, caches, outbound HTTP, uploads, webhooks, authentication/session adapters, admin actions, and error/log paths. Inspect every parallel entry point for the same operation.
 4. **Map identities and trust.** Record callers, service identities, roles, tenant context, assets, secrets, approval transitions, entry points, boundary crossings, sinks, and externally controlled fields. Include queues, cron jobs, callbacks, caches, CDN/proxy headers, and internal service calls; “internal” is not automatically trusted.
-5. **Select applicable requirements.** Use the current OWASP ASVS as a requirement catalog, not a reason to emit unactionable checklist findings. Use the OWASP API Security Top 10 and cheat sheets for focused analysis. See `references/source-ledger.md`.
-6. **Prove each candidate.** Trace attacker-controlled source to security-sensitive sink, existing controls, bypass conditions, required privileges, affected asset/tenant, and realistic impact. Separate confirmed vulnerabilities from unverified hypotheses and hardening opportunities.
-7. **Fix the root boundary.** Put the smallest centralized control at the authoritative server-side decision point, migrate every caller, preserve valid behavior, and remove obsolete bypasses. Do not add a second convention beside the existing one.
+5. **Select applicable requirements.** Use the current OWASP ASVS (5.0.0 when checked) as a requirement catalog, not a reason to emit unactionable checklist findings. Use OWASP Top 10:2025, API Security Top 10 (2023 edition), and, for LLM/agent features, the LLM Top 10 (2025) and Agentic Top 10 (2026) as prioritization lenses, plus cheat sheets for focused analysis. Cite category IDs with their year (`A01:2025`, `API1:2023`, `LLM01:2025`). See `references/source-ledger.md`.
+6. **Prove each candidate.** Trace attacker-controlled source to security-sensitive sink, existing controls, bypass conditions, required privileges, affected asset/tenant, and realistic impact. Separate confirmed vulnerabilities from unverified hypotheses and hardening opportunities. Try to refute each candidate before reporting it (is there an upstream control, an unreachable path, a fail-closed default?).
+7. **Hunt variants, then fix the root boundary.** Once one instance is confirmed, search the codebase for the same root pattern (sibling routes, copied handlers, other tenants' paths, alternate entry points) before fixing. Put the smallest centralized control at the authoritative server-side decision point, migrate every caller, preserve valid behavior, and remove obsolete bypasses. Do not add a second convention beside the existing one. Refutation and variant analysis paraphrase the Trail of Bits `insecure-defaults` and `variant-analysis` skills (github.com/trailofbits/skills, CC BY-SA 4.0).
 8. **Verify observable behavior.** Demonstrate the authorized request succeeds and the unauthorized or hostile variant fails without side effects or secret leakage. Use `references/verification.md`.
 
 ## Threat and trust-boundary model
@@ -113,12 +113,26 @@ Do not rely on blacklists, filename stripping alone, MIME alone, naive URL prefi
 - Keep lockfiles and existing dependency policy. Remove needless packages, evaluate advisory reachability and exploit preconditions, prefer supported releases, and verify the patched path. Do not run untrusted install/build scripts with credentials. Hand workflow permissions, action pinning, artifact attestations, and CI provenance to `github-actions`.
 - Rate-limit and quota by the strongest meaningful dimensions: account/service identity, tenant, operation, and trustworthy network signal. Bound body size, pagination, fan-out, recursion, concurrency, and expensive parsing before work begins. Use a shared/atomic store when instances scale. Do not trust forwarded IP headers beyond the configured proxy chain. Use `turnstile-spin` for requested bot challenges.
 
+### LLM and agent features
+
+Treat model input, retrieved documents, tool results, and model output as untrusted data crossing a trust boundary (LLM01/LLM05:2025, ASI01:2026). Prompt wording is not a security control.
+
+- **Authority stays outside the model.** Tools execute with the calling user's server-side identity and tenant scope, not a broad service credential; authorize every tool call and its arguments as if a hostile user sent them (LLM06:2025 Excessive Agency, ASI02/ASI03:2026).
+- **Least agency.** Expose the fewest tools with the narrowest operations; require explicit, attributable human confirmation for irreversible, financial, outbound-message, or privilege-changing actions. Never let model output approve its own action.
+- **Output to sinks.** Model output reaching HTML, SQL, shell, URL fetch, file paths, or code execution gets the same sink controls as any untrusted input (table above). Sandbox any generated-code execution.
+- **Data exposure.** Keep secrets and other tenants' data out of prompts, system prompts, and retrieval indexes; assume the system prompt can leak (LLM07:2025). Filter retrieval by the caller's authorization before the model sees it (LLM08:2025).
+- **Indirect injection and memory.** Content fetched from the web, email, files, or persistent agent memory can carry instructions; scope and expire memory per user/tenant (ASI06:2026).
+- **Consumption.** Bound tokens, tool-call depth, recursion, concurrency, and spend per identity/tenant (LLM10:2025).
+- **Evidence.** Prove a planted inert instruction in retrieved/tool content cannot trigger an unauthorized tool call or cross-tenant read; a model "refusing" in one run is not proof.
+
+Provider SDK and model specifics belong to the owning AI/platform skill (for example `agents-sdk`, `claude-api`).
+
 ### Logging and secure failure
 
 - Record security-relevant authentication, authorization, admin, tenant, approval, webhook, secret-management, and abuse decisions with timestamp, event type, outcome, actor/service, target, tenant, and correlation ID as appropriate.
 - Never log passwords, session or reset tokens, API keys, signature headers, raw payment/auth payloads, sensitive query strings, or unnecessary personal data. Sanitize untrusted values to prevent log injection; restrict log access and retention. Hand telemetry implementation to `observability-engineering`.
 - Return stable, minimal client errors without stack traces, SQL text, filesystem paths, internal hostnames, secret fragments, or account-enumeration detail. Preserve useful diagnostics in protected server logs with correlation IDs.
-- Fail closed for authorization, signature, tenant, and integrity decisions. Make availability trade-offs explicit for optional dependencies; do not disguise upstream failure as success. Roll back partial state and ensure retries cannot duplicate sensitive effects.
+- Fail closed for authorization, signature, tenant, and integrity decisions (OWASP A10:2025 Mishandling of Exceptional Conditions covers fail-open error paths). Make availability trade-offs explicit for optional dependencies; do not disguise upstream failure as success. Roll back partial state and ensure retries cannot duplicate sensitive effects.
 
 ## Verification and delivery
 
@@ -144,3 +158,5 @@ Zero findings is valid. Never create checklist noise, claim a control from sourc
 - Disabling CSRF/TLS checks, widening origins, logging a secret, or adding a default key to unblock tests.
 - Broad dependency upgrades or new security middleware without proving the affected path and existing native control.
 - Security tests against production or third parties, destructive payloads, unbounded fuzzing, or fabricated proof.
+- System-prompt instructions or model refusals treated as authorization for LLM tool calls.
+- Fixing one confirmed instance without searching for variants of the same root pattern.

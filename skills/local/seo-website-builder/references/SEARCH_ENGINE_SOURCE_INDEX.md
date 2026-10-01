@@ -70,8 +70,16 @@ Key notes:
   https://developers.google.com/search/docs/appearance/structured-data/breadcrumb
 - Article structured data  
   https://developers.google.com/search/docs/appearance/structured-data/article
-- FAQ / structured data policies as relevant  
+- Structured data policies  
   https://developers.google.com/search/docs/appearance/structured-data/sd-policies
+- Search gallery (live list of supported rich results; FAQ/HowTo no longer listed, checked 2026-10-02)  
+  https://developers.google.com/search/docs/appearance/structured-data/search-gallery
+- Spam policies (scaled content abuse, doorway abuse)  
+  https://developers.google.com/search/docs/essentials/spam-policies
+- Crawl budget (large-site scope; docs moved under /crawling)  
+  https://developers.google.com/crawling/docs/crawl-budget
+- Core Web Vitals (LCP, INP, CLS thresholds)  
+  https://web.dev/articles/vitals
 
 ## Bing / Microsoft Official Sources
 

@@ -26,8 +26,14 @@ Use dynamic features surgically.
   precise HTTP method/header/body behavior.
 - Use middleware for cross-cutting request context and broad gates, but repeat
   object-level authorization in privileged Actions/endpoints.
-- Use sessions only after an adapter/runtime is chosen. Verify the adapter's
-  current session support instead of inventing a store shape from memory.
+- Use sessions only after an adapter/runtime is chosen. Node, Cloudflare (KV
+  `SESSION`), and Netlify supply a default driver; others need
+  `session.driver`. Call `session.regenerate()` after login and
+  `session.destroy()` on logout, and type values with `App.SessionData`.
+  Verify the installed version's API in [Platform versions](platform-versions.md)
+  instead of inventing a store shape from memory.
+- Keep `security.checkOrigin` on (the default); it is Astro's built-in CSRF
+  origin check for on-demand routes and Actions submitted by forms.
 
 Actions are reachable as public endpoints. Validate input at the boundary and
 authorize inside the handler. Never treat an absent UI button as access control.

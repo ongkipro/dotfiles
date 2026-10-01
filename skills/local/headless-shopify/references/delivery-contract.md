@@ -39,6 +39,8 @@ safe. Caching is an explicit data-safety decision, not only a performance tool.
 - Respect consent before emitting non-essential tracking. For custom storefront
   integration, use Shopify’s Customer Privacy API with its headless setting;
   use the supported Shopify analytics/pixel path where it meets the need.
+  Current Shopify consent and visitor analytics expect a same-origin
+  Storefront API proxy; see the snapshot in [Official sources](official-sources.md).
 - Define one funnel-event owner and a deduplication key across browser,
   server, pixels, checkout, and ad platforms. Never log cart IDs, access
   tokens, customer fields, addresses, payment data, or raw authorization data.

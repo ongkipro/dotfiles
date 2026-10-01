@@ -1,6 +1,6 @@
 # Primary-source ledger
 
-Last reviewed: **2026-09-29**.
+Last reviewed: **2026-10-02** (Vitest 5 and Playwright release rechecked).
 
 This ledger supports tool selection and the small number of direct commands in
 `SKILL.md`; it is not a substitute for inspecting the repository. Runner,
@@ -46,7 +46,16 @@ Verified guidance used here:
   for this skill.
 - Confirm the installed Vitest, Vite, and Node versions before adopting current
   examples. Do not assume fake-timer, pool, workspace/project, or coverage APIs
-  match the latest site.
+  match the latest site. Older majors keep versioned docs (for example
+  [v4.vitest.dev migration](https://v4.vitest.dev/guide/migration)).
+
+Vitest 5 facts (accessed 2026-10-02):
+
+| Source | Fact |
+|---|---|
+| [v5.0.0 release](https://github.com/vitest-dev/vitest/releases/tag/v5.0.0) | Released 2026-09-03; latest at access was v5.0.3 |
+| [Migration guide](https://vitest.dev/guide/migration) | Requires Vite >= 6.4.0 and Node.js >= 22.12.0; `clearMocks` defaults to `true`; unawaited async assertions fail; no parent-directory config lookup; `-t` matches `' > '`-joined full name; `test.sequential` removed for `concurrent: false`; inline projects inherit root config; reports/artifacts default to `.vitest/`; worker/concurrency ids 1-based |
+| [v5.0.0 release](https://github.com/vitest-dev/vitest/releases/tag/v5.0.0) | `expect.poll` fails when the function does not resolve in time; hoisted `vi.mock` calls must be top level; browser `locators.exact` on by default; `@vitest/runner` no longer published |
 
 ## Playwright Test
 
@@ -57,7 +66,7 @@ Verified guidance used here:
 | [Test isolation](https://playwright.dev/docs/browser-contexts) | Browser-context isolation and setup tradeoffs |
 | [Retries](https://playwright.dev/docs/test-retries) | Worker behavior, retry configuration, and flaky classification |
 | [Playwright source repository](https://github.com/microsoft/playwright) | Versioned source, releases, and bundled test-runner implementation |
-| [Release notes](https://playwright.dev/docs/release-notes) | 1.59 `npx playwright trace` CLI and `test --debug=cli`; 1.62 built-in `mount()` stories model; 1.63 experimental CT packages no longer updated |
+| [Release notes](https://playwright.dev/docs/release-notes) | 1.59 `npx playwright trace` CLI and `test --debug=cli`; 1.62 built-in `mount()` stories model; 1.63 experimental CT packages no longer updated. Latest release at 2026-10-02: [v1.63.0](https://github.com/microsoft/playwright/releases/tag/v1.63.0) (2026-09-04) |
 | [Component testing](https://playwright.dev/docs/test-components) | Story-gallery model and migration from `@playwright/experimental-ct-*` |
 | [Trace viewer](https://playwright.dev/docs/trace-viewer) | Trace recording and inspection |
 | [HTML reporter](https://playwright.dev/docs/test-reporters#html-reporter) | `PLAYWRIGHT_HTML_OPEN` = `always`/`never`/`on-failure` |

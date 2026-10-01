@@ -30,6 +30,9 @@ Evaluate patterns by severity, frequency, and context. A single instance is rare
 - **False-balance framing:** Unmotivated *"While X, also Y"* or *"On one hand X, on the other Y"* when no genuine contradiction or substantive contrast exists.
 - **Symmetric list bloat:** Forcing every bullet point in a list to exactly the same length (e.g. ~80 words each) regardless of the actual density of evidence.
 - **Formulaic openers:** Monotonous paragraph lead-ins like *"Here's why"*, *"At its core"*, or *"To understand X, we must first look at Y"*.
+- **Significance inflation:** Framing an ordinary feature or update as an era, a revolution, or "the future of" something, with no evidence that would make the scale true. State what changed and for whom.
+- **Unnamed authority and empty proof:** *"Experts agree"*, *"trusted by thousands"*, *"industry-leading"* with no named source, number, or customer. Name the supplied source, or drop the claim; never invent one to fill the gap.
+- **Chat residue in deliverables:** Announcements of what the text is about to do (*"Let's dive in"*), staged candour (*"Honestly?"*, *"Here's the thing"*), and assistant closers (*"Hope this helps"*, *"Let me know if…"*) pasted into copy or docs. Start with the content and end with the actual close.
 
 ### Low-impact signals
 

@@ -17,6 +17,37 @@ host integration decision. Prefer the linked primary source over memory.
   APIs into an installed React Router Hydrogen project without an explicit
   migration decision and verified compatibility.
 
+## Release snapshot (verified 2026-10-02)
+
+Point-in-time facts for orientation only; the installed lockfile and the
+current changelog win. Sources: npm `@shopify/hydrogen` dist-tags
+(https://registry.npmjs.org/@shopify/hydrogen), the package changelog
+(https://github.com/Shopify/hydrogen/blob/main/packages/hydrogen/CHANGELOG.md),
+and https://shopify.dev/docs/api/usage/versioning, all accessed 2026-10-02.
+
+- npm `latest` is `2026.4.6`; it pins Storefront API and Customer Account API
+  `2026-04`. Shopify's latest stable API is `2026-10`. Hydrogen does not ship
+  every quarter (there is no 2026.7), so a framework that lags the newest
+  API is normal; it is not a reason to bump query versions by hand.
+- Peer ranges on `2026.4.6`: `react-router` and `@react-router/dev` `~7.16.0`,
+  Vite 5 through 8. New projects default to React Router 7.16 and Vite 8.
+- `2026.4.0` removed `proxyStandardRoutes`: the same-origin Storefront API
+  proxy in `createRequestHandler` is always on, and the handler throws if the
+  load context lacks a `storefront` instance. `2026.4.6` routes consent
+  through that proxy and stops creating `_shopify_y`/`_shopify_s`; custom
+  request handlers that bypass it lose visitor analytics and consent.
+- `2026.1.0`: `cartDiscountCodesUpdate` requires `discountCodes`.
+  `2026.4.0`: cart operations can return
+  `MERCHANDISE_LINE_TRANSFORMERS_RUN_ERROR` when a Cart Transform Function
+  fails; JSON metafield writes are capped at 128KB on `2026-04`+.
+- `2026.1.4` proxies `/api/mcp` to Shopify's Storefront MCP server. Treat that
+  route as a public agent surface when reviewing routing and rate limits.
+- npm `preview` is `2026.10.0-preview.x`, the framework-agnostic SDK
+  (`npx @shopify/hydrogen@preview setup`). Its `hydrogen skills sync` writes
+  packaged agent skills into `.claude/skills` and `.agents/skills`, and
+  `hydrogen skills check` gates CI on drift. Those writes change repository
+  files: run them only on a project that adopted the preview and with approval.
+
 ## Generated contracts and versioning
 
 The upstream project ties Hydrogen and `hydrogen-react` releases to specific
@@ -58,6 +89,24 @@ install option. Do not enable or disable telemetry implicitly.
 For an installed Toolkit, use its schema/doc tools to validate Shopify-specific
 code or discover CLI commands. Do not treat a plugin response as authorization
 for store mutations, credential access, sales-channel changes, or deployment.
+
+As of 2026-10-02 the Toolkit ships one consolidated `shopify` skill plus a
+`ucp` skill; the per-domain skills, including `shopify-hydrogen`, sit under
+`deprecated/` and tell users to switch to `shopify`. The `shopify` skill's
+frontmatter registers a `PostToolUse` telemetry hook, and its validator takes
+a base64 copy of the user prompt. The Dev MCP alternative installs as
+`npx -y @shopify/dev-mcp@latest` and runs locally without authentication.
+Sources: https://github.com/Shopify/Shopify-AI-Toolkit (`skills/shopify/SKILL.md`,
+`deprecated/`) and https://shopify.dev/docs/apps/build/devmcp, accessed
+2026-10-02.
+
+Validation loop, paraphrased from the Toolkit's `shopify` skill workflow: search
+the docs for the topic before writing; validate every generated GraphQL
+document or extension against the project's pinned API version, not the
+latest; on failure, search the exact field or value the error names, change
+only that, and re-run; stop after three attempts and report the remaining
+error rather than guessing values. Without the Toolkit, apply the same loop
+with the project's codegen and typecheck scripts.
 
 ## UCP is not a Hydrogen default
 

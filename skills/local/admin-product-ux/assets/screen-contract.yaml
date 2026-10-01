@@ -8,7 +8,17 @@ decision_information: []
 primary_action: ""
 secondary_actions: []
 dangerous_actions: []
-states: []
+# One entry per state-changing action; mirrors the 17-UX Action Specification.
+# - name: ""
+#   trigger: ""
+#   validation: ""
+#   pending: ""
+#   success: ""
+#   error: ""        # message, preserved input, and retry/undo path
+#   next: ""         # screen/route after success
+#   requirement: ""  # PR-* or REQ-*
+actions: []
+states: []          # include first_use when the empty product needs onboarding
 url_state: []
 success_destination: ""
 success_condition: ""

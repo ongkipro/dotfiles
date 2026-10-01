@@ -2,7 +2,7 @@
 
 Workers run on **Web standards**, not Node. Half of npm is either unnecessary or won't run. This is where over-installing hurts most: every KB is startup latency on every request.
 
-> Deep docs already exist locally: skill `cloudflare` (319 refs), `wrangler` (full CLI), `workers-best-practices`, `durable-objects`. This file is only the "do I need a package?" filter.
+> Deep docs already exist locally: skill `cloudflare` (product references), `wrangler` (full CLI), `workers-best-practices`, `durable-objects`. This file is only the "do I need a package?" filter.
 
 ## Don't install it; the runtime already has it
 

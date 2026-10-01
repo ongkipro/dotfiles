@@ -33,8 +33,10 @@
 - `THREE.Clock` is deprecated (runtime warning since r183) in favor of
   `THREE.Timer` (`timer.update(timestamp)` each frame; `getDelta()`,
   `getElapsed()`; `timer.connect(document)` zeroes the delta when the tab is
-  hidden, which replaces manual delta resets). On older `three`, `Clock` remains
-  fine. Match the installed version.
+  hidden, which replaces manual delta resets; `timer.reset()` after resuming an
+  off-screen pause). `Timer` is in core since r179 (before that,
+  `three/addons/misc/Timer.js`); on releases before r183 `Clock` remains fine.
+  Match the installed version.
 
 ## Animation (glTF and procedural)
 

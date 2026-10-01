@@ -46,3 +46,10 @@
 `output: 'server'` changes the default prerendering behavior; it does not unlock
 features unavailable to selectively on-demand routes. Under server output,
 mark public static routes with `export const prerender = true`.
+
+## Caching on-demand routes (Astro 7)
+
+Before moving a route back to static only to make it fast, consider route
+caching: a `cache.provider` plus `Astro.cache.set()` or config `routeRules`.
+Never cache a session- or role-dependent response under a shared key. See
+[Platform versions](platform-versions.md).

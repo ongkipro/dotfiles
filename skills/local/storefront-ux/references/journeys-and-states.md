@@ -109,6 +109,10 @@ checklist, not a mandate to add every feature.
 - Do not ask twice within one order: billing defaults to the shipping address,
   and a phone or email given earlier is prefilled or selectable (WCAG 2.2 SC
   3.3.7 Redundant Entry, Level A).
+- Show shipping, any COD fee, and the payable total before the submit
+  control. In Baymard's public abandonment data, unexpected extra costs are
+  the most-cited checkout exit (see `sources.md`). Hide COD for a route the
+  provider marks COD-ineligible; do not reject it after submission.
 - Do not invent urgency or allow client-calculated totals to override the
   authoritative order result.
 

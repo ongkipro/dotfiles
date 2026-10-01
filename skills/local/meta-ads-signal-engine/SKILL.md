@@ -16,7 +16,7 @@ An engineering operating system for reliable Meta Ads conversion tracking, Pixel
 
 ## Verify the API version before writing code
 
-**Never hardcode a Graph API version from memory or from these notes.** Meta ships a new version roughly every quarter and retires each one after about two years, so any version written down here is stale the moment it is written.
+**Never hardcode a Graph API version from memory or from these notes.** Meta ships a new version a few times a year and each one expires roughly two years after its successor ships (v23.0 May 2025, v24.0 Oct 2025, v25.0 Feb 2026, v26.0 Jul 2026 — changelog checked 2026-10-02), so any version written down here goes stale.
 
 | Check | Where |
 | --- | --- |
@@ -27,7 +27,7 @@ Pin the version in **one** exported constant so a bump is a one-line change, nev
 
 ```typescript
 // Verified against the changelog on <date>. Re-check before bumping.
-export const META_GRAPH_API_VERSION = 'v26.0';
+export const META_GRAPH_API_VERSION = 'v26.0'; // latest on 2026-10-02; example only
 const endpoint = `https://graph.facebook.com/${META_GRAPH_API_VERSION}/${pixelId}/events`;
 ```
 
@@ -46,7 +46,7 @@ $$\text{Meta Ad Click (_fbp, _fbc)} \longrightarrow \text{Browser Pixel (event_i
 1. **What happened?** — Correct semantic event (`ViewContent`, `AddToCart`, `InitiateCheckout`, `Lead`, `Purchase`).
 2. **What did it happen to?** — Canonical product identity (`content_ids`, `contents`, `value`, `currency`).
 3. **Who likely performed it?** — Privacy-compliant matching (`_fbp`, `_fbc`, SHA-256 hashed email/phone/external_id, client_ip_address, client_user_agent).
-4. **Did Meta receive exactly ONE event?** — Canonical `event_id`, browser/server deduplication window (48 hours), and transactional outbox.
+4. **Did Meta receive exactly ONE event?** — Canonical `event_id` + identical `event_name` on both legs, deduplicated only when the second copy arrives within 48 hours of the first (Meta generally keeps the first received), and a transactional outbox.
 
 ## Identity contract before code
 
@@ -197,6 +197,16 @@ reports it as a match rate the merchant cannot act on.
 **Never change an id after a feed has been submitted.** Doing so orphans the
 catalog history. Get this right before the first install goes live; after that it
 is a catalog re-creation, not an edit.
+
+## Sources (accessed 2026-10-02)
+
+- Graph API changelog (version/expiry dates): https://developers.facebook.com/docs/graph-api/changelog
+- Deduplication (event_id+event_name, 48 h, first-received kept; fbp/external_id fallback only browser-first): https://developers.facebook.com/docs/marketing-api/conversions-api/deduplicate-pixel-and-server-events
+- Customer information parameters (ph: digits with country code, no symbols; external_id hashing recommended, not required; fbp/fbc never hashed): https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/customer-information-parameters
+- Official SDK release tracking the Graph version (`facebook-nodejs-business-sdk` v26.0.2, 2026-09-21): https://github.com/facebook/facebook-nodejs-business-sdk/releases
+- WebKit tracking prevention (cookie caps used in the parity reference): https://webkit.org/tracking-prevention/
+
+No official vendor agent skill for Meta CAPI was found on GitHub on that date; nothing borrowed.
 
 ## Advertising Signal Domain Routing
 

@@ -88,6 +88,12 @@ Full `C` items apply to a *target composition* reference; for directional,
 interaction, or token/brand references record only the transferred principles
 as items and leave layout to the current task.
 
+When the owner supplies content and wants a strong reference matched precisely
+and then improved, follow [reference-fidelity.md](references/reference-fidelity.md):
+research a scored shortlist, capture the target with `scripts/ui-ref.mjs`
+(measured geometry, type scale, palette), rebuild, compare until no major drift,
+then record improvements as intended deviations.
+
 Small changes inside an accepted system skip new discovery and preserve that
 system. Scale documentation to the change; never turn a spacing fix into a PRD.
 
@@ -345,8 +351,12 @@ AI slop from a prompt, static scan, or one model-generated sample.
 | Reference evidence, UX sequence, direction record | design-discovery.md |
 | Default public-web foundation, sources, framework translation | public-web-foundation.md |
 | Editorial/media/mobile/funnel specifics, redesign | surface-and-mode-rules.md |
+| Research → capture → rebuild → measured compare → improve (`scripts/ui-ref.mjs`) | reference-fidelity.md |
 | Motion timing, easing tokens, stagger, reduced-motion substitution | motion-craft.md |
 | Invented-info, filler, hollow-copy tells; allowed-patterns record; scan script | invented-info-tells.md |
+| Style-habit scan (`scripts/tells-scan.py --css`: micro-labels, 100vh, outline removal, fixed grids, loops) | invented-info-tells.md |
+| Category starting points: job, local-market checks, content inventory, claim traps, research queries | niche-patterns/README.md |
+| Measured WCAG contrast incl. alpha and large-text thresholds (`scripts/contrast.py`) | accessibility-notes.md |
 | Existing theme code | theme-implementation.md |
 | Storefront visual decision hierarchy | public-experience-patterns.md |
 | Instruction evaluation and rendered critique | design-evaluation.md; ui-validation owns browser execution |
@@ -365,6 +375,7 @@ stack and existing components; do not require a React or Astro adapter merely
 to follow this skill. Load specialist animation skills only when earned.
 
 The retained numbered references are compatibility pointers, not independent
-rules. Update canonical sources above, not those pointers. `rationale.md` and
-`accessibility-notes.md` remain optional project-record templates; project
+rules. Update canonical sources above, not those pointers. `rationale.md` is an optional
+project-record template; `accessibility-notes.md` holds the web interface
+checks table plus an optional record template; project
 facts belong in the project's accepted design artifact, never in this skill.

@@ -26,10 +26,10 @@ $$\text{TikTok Ad Click (ttclid)} \longrightarrow \text{Browser Pixel (event_id)
 
 ## 4 Core Signal Requirements
 
-1. **What happened?** — Correct semantic event (`ViewContent`, `AddToCart`, `InitiateCheckout`, `PlaceAnOrder`, `CompletePayment`).
+1. **What happened?** — Correct semantic event (`ViewContent`, `AddToCart`, `InitiateCheckout`, `Purchase`, `Lead`). TikTok renamed `CompletePayment` → `Purchase` and `SubmitForm` → `Lead` in May 2025; legacy names are still accepted and auto-converted, but new setups should use the new names. `PlaceAnOrder` is not in TikTok's current standard-event list — verify before relying on it, or send a custom event.
 2. **What did it happen to?** — Canonical product payload (`contents`: `[{ content_id, content_type, quantity, price }]`, `value`, `currency`).
 3. **Who likely performed it?** — Hashed identity & tracking IDs (`ttclid`, `ttp` cookie, SHA-256 hashed email, E.164 SHA-256 hashed phone, `client_ip_address`, `user_agent`).
-4. **Did TikTok receive exactly ONE event?** — Matching `event_id` string on both browser (`ttq.track`) and server (`/v2/place`).
+4. **Did TikTok receive exactly ONE event?** — Identical `event` name and `event_id` on browser (`ttq.track`) and server (`/open_api/<version>/event/track/`). Pixel + Events API copies are merged when they arrive within 5 minutes, and deduplicated (first received kept) up to 48 hours after the first event.
 
 ---
 
@@ -52,11 +52,18 @@ Before writing or changing sender code, verify the current server-events endpoin
 
 ## Checklist: 8 Commandments of TikTok Signal Architecture
 
-1. **Server-Authoritative `CompletePayment`**: Fire `CompletePayment` from confirmed backend payment/order status.
-2. **Matching `event_id`**: Send identical `event_id` in browser `ttq.track('CompletePayment', payload, { event_id: id })` and server Events API payload `{ "event_id": id }`.
+1. **Server-Authoritative `Purchase`**: Fire `Purchase` (legacy `CompletePayment`) from confirmed backend payment/order status. Use the same name on both legs; do not mix legacy and new names for one event.
+2. **Matching `event_id`**: Send identical `event_id` in browser `ttq.track('Purchase', payload, { event_id: id })` and server Events API payload `{ "event_id": id }`.
 3. **Preserve `ttclid` & `ttp`**: Capture `ttclid` (URL param `?ttclid=...`) and `_ttp` cookie on landing and persist them in user session/order table.
-4. **Normalize & SHA-256 Hash Identifiers**: Lowercase & trim emails before hashing. Format phone numbers in E.164 (`62812...`) before SHA-256 hashing.
+4. **Normalize & SHA-256 Hash Identifiers**: Lowercase & trim emails before hashing. Format phone numbers as `+E.164` (`+62812...`, no spaces or dashes) before SHA-256 — unlike Meta, which drops the `+`. Re-check TikTok's current Events API page; it has a documented exception for country code 86.
 5. **Set Canonical `content_id`**: Match product SKUs between TikTok Catalog and conversion payload.
-6. **Prepaid vs COD Signals**: Map COD orders to `PlaceAnOrder` or `CompletePayment` based on merchant risk tolerance; fire `CompletePayment` upon cash collection for zero fake-attribution.
+6. **Prepaid vs COD Signals**: Map COD order placement to `InitiateCheckout` or a custom event, and fire `Purchase` on confirmed collection. Collection-time `Purchase` arrives too late to pair with any browser event, so send it server-only.
 7. **Transactional Outbox & Retries**: Queue server events in a database outbox table and process asynchronously with retries on 5xx network errors.
-8. **Client IP & User Agent**: Always pass real client `ip` (`x-forwarded-for`) and `user_agent` in server payloads.
+8. **Client IP & User Agent**: Always pass the real client `ip` and `user_agent` in server payloads. Read IP from your platform's trusted header (e.g. `CF-Connecting-IP` behind Cloudflare); a raw `x-forwarded-for` first hop is client-controlled.
+
+## Sources (accessed 2026-10-02)
+
+- Updated standard events (May 2025 renames; legacy names auto-converted): https://ads.tiktok.com/resources/help/article/how-to-adopt-tiktoks-updated-standard-events?lang=en
+- Supported standard events list: https://ads.tiktok.com/help/article/supported-standard-events
+- Event deduplication (5-minute merge, 48-hour window, first event kept): https://ads.tiktok.com/help/article/event-deduplication
+- Events API 2.0 reference (JavaScript-rendered; the `+E.164` phone rule was read from TikTok's docs via search index, re-confirm in a browser): https://business-api.tiktok.com/portal/docs/events-api-2.0/v1.3

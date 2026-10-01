@@ -219,7 +219,7 @@ LocalBusiness minimal example:
 
 ## FAQ schema rules
 
-Use `FAQPage` only when the questions and answers are visible on the page.
+Use `FAQPage` only when the questions and answers are visible on the page. Google no longer shows the FAQ rich result ([FAQPage doc](https://developers.google.com/search/docs/appearance/structured-data/faqpage), accessed 2026-10-02), so the markup is optional and must not be promised as a Google SERP feature.
 
 ```json
 {

@@ -8,10 +8,12 @@ ensure the applicable consent state permits it. A browser payload that is
 correctly normalized can still be ignored when the account-side method or terms
 are not configured.
 
-> **Current account-side change:** Google Ads combined Enhanced Conversions for
-> Web and Leads into one setting from April 2026. Verify the current account UI
-> and selected data source before implementing; a browser implementation and an
-> API implementation chosen in incompatible account settings can be ignored.
+> **Current account-side change (verified 2026-10-02):** from April 2026 Google
+> Ads accepts user-provided data from website tags, Data Manager, and API
+> connections simultaneously; from June 2026 enhanced conversions for web and
+> leads are one on/off setting
+> ([Google Ads Help](https://support.google.com/google-ads/answer/16884284)).
+> Verify the current account UI and selected data sources before implementing.
 
 ---
 
@@ -19,7 +21,17 @@ are not configured.
 
 In web browser implementations, send either raw values for Google to normalize
 and hash or pre-hashed SHA-256 values in the documented field names; never mix a
-raw value with its `sha256_*` key. Use real first-party data only and omit fields
+raw value with its `sha256_*` key.
+
+If you hash yourself, follow Google's normalization exactly
+([enhanced conversions guide](https://developers.google.com/google-ads/api/docs/conversions/enhanced-conversions/web), accessed 2026-10-02):
+
+- Email: trim, lowercase; for `gmail.com` / `googlemail.com` only, also remove
+  every `.` and any `+suffix` from the local part
+  (`Jane.Doe+Shopping@googlemail.com` → `janedoe@googlemail.com`).
+- Phone: `+E.164` — digits with a leading `+`, matching `^\+[1-9]\d{6,14}$`
+  (`0812-3456-7890` in Indonesia → `+6281234567890`). This differs from Meta's
+  `ph`, which drops the `+`. Use real first-party data only and omit fields
 that are unavailable or synthetic.
 
 ```javascript
@@ -46,20 +58,48 @@ gtag('event', 'conversion', {
 
 ---
 
-## 2. Server-to-Server Google Ads API Offline Upload
+## 2. Server-to-Server Offline Upload
 
-For offline sales, delayed COD confirmations, or CRM lead qualifications, upload conversions directly via the Google Ads API.
+For offline sales, delayed COD confirmations, or CRM lead qualifications, upload
+conversions server-side.
+
+> **Path changed (verified 2026-10-02):** since June 15, 2026,
+> `UploadClickConversions` fails for developer tokens that had not previously
+> uploaded offline conversions or enhanced conversions for leads; Google directs
+> new work to the **Data Manager API** (`POST
+> https://datamanager.googleapis.com/v1/events:ingest`)
+> ([upload-clicks guide](https://developers.google.com/google-ads/api/docs/conversions/upload-clicks),
+> [REST reference](https://developers.google.com/data-manager/api/reference/rest)).
+> The builder below is the **legacy Google Ads API** `ClickConversion` shape, kept
+> for grandfathered integrations and migration mapping. For a new integration,
+> map the same inputs (transaction ID, timestamp, value, currency, click IDs,
+> hashed user data, consent) onto the Data Manager event fields from its current
+> reference — do not copy these snake_case names.
+
+Legacy-shape rules from the same guide: `conversion_date_time` must carry a
+timezone, formatted `yyyy-mm-dd HH:mm:ss+|-HH:mm`; populate `consent` (Google:
+"If not set, it's possible that your conversions won't be attributable"); when
+both a `gclid` and a `gbraid` are known, Google recommends sending both; custom
+conversion variables are not supported with `gbraid`/`wbraid`.
 
 ```typescript
 import { createHash } from 'crypto';
 
 function sha256(val: string): string {
-  return createHash('sha256').update(val.trim().toLowerCase()).digest('hex');
+  return createHash('sha256').update(val).digest('hex');
+}
+
+function normalizeEmail(raw: string): string {
+  const [local, domain] = raw.trim().toLowerCase().split('@');
+  if (domain === 'gmail.com' || domain === 'googlemail.com') {
+    return `${local.split('+')[0].replace(/\./g, '')}@${domain}`;
+  }
+  return `${local}@${domain}`;
 }
 
 interface OfflineConversionInput {
   conversionActionResourceName: string; // "customers/1234567890/conversionActions/987654321"
-  conversionDateTime: string; // "YYYY-MM-DD HH:MM:SS+TIMEZONE"
+  conversionDateTime: string; // "2026-10-02 19:32:45+07:00" (timezone required)
   conversionValue: number;
   currencyCode: string;
   orderId: string; // transaction_id
@@ -74,7 +114,7 @@ export function buildGoogleAdsApiPayload(input: OfflineConversionInput) {
   const userIdentifiers: Array<{ hashed_email?: string; hashed_phone_number?: string }> = [];
 
   if (input.rawEmail) {
-    userIdentifiers.push({ hashed_email: sha256(input.rawEmail) });
+    userIdentifiers.push({ hashed_email: sha256(normalizeEmail(input.rawEmail)) });
   }
 
   if (input.rawPhone) {

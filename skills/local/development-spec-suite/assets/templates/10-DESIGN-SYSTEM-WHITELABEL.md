@@ -106,6 +106,14 @@ For Indonesian product content, use Bahasa Indonesia rather than Malay and prese
 - Asset budgets and font/image strategy reference `NFR-*` and performance evidence.
 - Analytics MUST avoid sensitive field values and respect `PRIV-*` consent/collection rules.
 
+## Assets Needed
+
+Every image, icon set, illustration, font, video, or copy block the accepted screens depend on. An asset without a license or owner blocks the screen that needs it.
+
+| Asset | Owner | Format/specification | Status | License/source |
+|---|---|---|---|---|
+| [Asset] | [Role] | [Format, dimensions, variants, size budget] | Needed / In progress / Delivered | [License, source, or Unknown] |
+
 ## Decisions and Risks
 
 | Decision ID | Decision | Alternatives | Rationale | Consequence | Status |
@@ -131,6 +139,7 @@ For Indonesian product content, use Bahasa Indonesia rather than Malay and prese
 - [ ] Entitlements match `BILL-*`; permissions match `IAM-*`; domains match `DOM-*`.
 - [ ] Performance checks validate font, image, CSS, and layout-shift budgets.
 - [ ] Exceptions have an owner, expiry/remediation date, and approval evidence.
+- [ ] Every needed asset has an owner, format, status, and recorded license or source.
 
 ## Cross-Document References
 

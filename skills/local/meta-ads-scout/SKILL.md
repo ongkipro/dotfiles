@@ -43,6 +43,11 @@ META_AD_MAX_RESULTS='25' \
 
 Prefer injecting `META_ACCESS_TOKEN` through the runtime's existing secret mechanism rather than typing it in an interactive shell. The script sends it in the Authorization header and never includes it in JSON output.
 
+### Last verification (2026-10-02)
+
+- Graph API changelog listed **v26.0** (released 2026-07-29) as latest; v25.0 expires 2028-07-29. Still pass the version explicitly after re-checking. Source: https://developers.facebook.com/docs/graph-api/changelog
+- Ads Archive reference: `ad_reached_countries` is required; `ad_type` defaults to `ALL` and also accepts `POLITICAL_AND_ISSUE_ADS`, `EMPLOYMENT_ADS`, `HOUSING_ADS`, `FINANCIAL_PRODUCTS_AND_SERVICES_ADS`; `search_terms` is capped at 100 characters; "Ads that did not reach any location in the EU will only return if they are about social issues, elections or politics." Source: https://developers.facebook.com/docs/graph-api/reference/ads_archive/
+
 ## Analysis output
 
 - **Advertisers observed** — names and source links or library IDs when available.

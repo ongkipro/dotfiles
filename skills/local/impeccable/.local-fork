@@ -1,6 +1,6 @@
 upstream: https://github.com/pbakaus/impeccable
 source: https://raw.githubusercontent.com/pbakaus/impeccable/main/.claude/skills/impeccable
-verified: 2026-09-29
+verified: 2026-10-02
 scope: directory
 reason: upstream asset-producer.md contains a malformed relative Markdown target to component-review.md
 note: reference/degraded/asset-producer.md linked to `../reference/component-review.md` from within `reference/degraded/`. Local uses the valid same-parent target `../component-review.md`.
@@ -17,5 +17,7 @@ note: SKILL.md frontmatter `description` is a deliberate local edit (f641f32,
   public direction -> design-taste, admin IA and workflow -> admin-dashboard /
   admin-product-ux, browser proof -> ui-validation (which runs after this pass).
   The verb list moved after the boundary; no capability was removed.
-recheck: 2026-09-29 — upstream file list equals local; only these two files differ.
+recheck: 2026-10-02 — upstream file list equals local (54 files); merged upstream 0.1.10 changes
+  (component-review, asset-producer, new-work, region-map, visualize, VERSION); after merge only
+  SKILL.md, reference/animate.md and reference/degraded/asset-producer.md differ, all local edits re-applied.
 note: reference/animate.md gained one local pointer line to design-taste/references/motion-craft.md (2026-09-30, user request). Re-apply on refresh.

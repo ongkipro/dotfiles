@@ -74,6 +74,10 @@ visibility, traffic routing, domains, or a production cutover.
 - Treat Hydrogen, Storefront API, and Customer Account API versions as one
   compatibility decision. Upgrade them deliberately, regenerate types, and
   typecheck; never change only a query's API version to silence a schema error.
+- Keep the request handler's same-origin Storefront API proxy intact; current
+  Hydrogen requires it, and consent and visitor analytics depend on it. Check
+  the release snapshot in [Official integrations](references/official-integrations.md)
+  before an upgrade or a custom `server.ts`.
 - After editing GraphQL documents, run the project's code-generation script
   before typechecking. Do not hand-edit generated Storefront API, Customer
   Account API, or route type declarations.
@@ -85,7 +89,7 @@ visibility, traffic routing, domains, or a production cutover.
 Use `hydrogen-headless-tracking` only for analytics, pixels, consent, or
 server-side conversion signals. Use `seo-website-builder` for SEO/indexation,
 `application-security` for auth, tokens, webhooks, customer data, or external
-integrations, `ui-validation` for a browser-visible change, and `web-perf`
+integrations, `impeccable` then `ui-validation` for a browser-visible change, and `web-perf`
 only for measured performance investigation.
 
 ## Preserve indexation and release boundaries
@@ -144,5 +148,7 @@ modify production data without explicit approval.
 - `hydrogen-development`: installed Hydrogen framework and runtime delivery
 - `storefront-development`: page composition and commerce UI implementation
 - `storefront-ux`: buyer journeys and observable commerce states
-- `hydrogen-headless-tracking`: privacy-aware tracking and ad signals
+- `hydrogen-headless-tracking`: Hydrogen tracking surfaces, consent, and event
+  bus; provider semantics stay with `meta-ads-signal-engine`,
+  `google-ads-signal-engine`, and `tiktok-ads-signal-engine`
 - `seo-website-builder`: indexation, metadata, schema, and search strategy

@@ -393,6 +393,121 @@ class SuiteTests(unittest.TestCase):
         self.check(pack, tasks=(root_tasks, pack / "02-PRD.md"))
         self.check(pack, expected=2, tasks=(pack.parent / "missing.md",))
 
+    STANDALONE_PRD = """# PRD: Guest checkout
+
+Status: Accepted
+
+## Problem
+Buyers order by chat and details get lost.
+
+## Users and current workaround
+| Role | Job to be done | Current workaround | Evidence status |
+|---|---|---|---|
+| Buyer | Order without an account | Chat orders | Observed |
+| Admin | Fulfil orders | Spreadsheet | Observed |
+
+## Goals
+- Chat-order share drops below 20%.
+
+## Non-Goals
+- Not applicable — every scope boundary is covered by the goals.
+
+## Requirements
+- **REQ-001** (Must, event) When the buyer submits the form, the system shall create a pending order.
+  - Acceptance: Given a valid cart, When the buyer submits, Then a pending order exists.
+- **REQ-002** (Should, ubiquitous) The system shall log every order-status change.
+
+## Open questions
+None.
+"""
+    STANDALONE_PLAN = """# PLAN: Guest checkout
+
+## Auth, Roles & Authorization
+| Role | May | May not | Enforced at |
+|---|---|---|---|
+| Buyer | create own order | read other orders | server |
+| Admin | read all orders | delete orders | server |
+"""
+    STANDALONE_TASKS = """# Tasks
+
+```markdown
+### TASK-999: Template example
+- **Requirement:** REQ-404
+```
+
+## Pending
+
+### TASK-001: Persist a valid order
+- **Requirement:** REQ-001 (constraints: REQ-002)
+- **Verification:** Done when TEST-1 passes.
+
+### TASK-002: Log status changes
+- **Requirement:** REQ-002
+- **Verification:** Done when the log test passes.
+"""
+
+    def standalone(self, name: str, expected: int = 0, **documents: str) -> dict:
+        repository = self.root / name
+        repository.mkdir()
+        for filename, content in documents.items():
+            (repository / f"{filename}.md").write_text(content, encoding="utf-8")
+        result = run(PYTHON, CHECK, "--standalone", repository, "--format", "json", expected=expected)
+        return json.loads(result.stdout)
+
+    def test_standalone_lane_passes_and_templates_validate(self) -> None:
+        payload = self.standalone("pass", PRD=self.STANDALONE_PRD, PLAN=self.STANDALONE_PLAN, TASKS=self.STANDALONE_TASKS)
+        self.assertEqual(payload["findings"], [])
+        self.assertEqual(payload["warnings"], [])
+        self.assertEqual(payload["summary"]["declarations"], 2)
+        self.assertEqual(payload["summary"]["tasks"], 2)
+        # The project-init templates are a valid draft standalone repository.
+        templates = ROOT.parents[2] / "config" / "templates"
+        draft = self.standalone(
+            "templates",
+            PRD=(templates / "PRD.md").read_text(encoding="utf-8"),
+            TASKS=(templates / "TASKS.md").read_text(encoding="utf-8"),
+        )
+        self.assertEqual(draft["findings"], [])
+        text = run(PYTHON, CHECK, "--standalone", self.root / "pass").stdout
+        self.assertIn("PASS files=3", text)
+
+    def test_standalone_lane_failure_classes(self) -> None:
+        prd = (
+            self.STANDALONE_PRD.replace("## Open questions\nNone.\n", "")
+            .replace("- Not applicable — every scope boundary is covered by the goals.", "Not applicable")
+            .replace("  - Acceptance: Given a valid cart, When the buyer submits, Then a pending order exists.\n", "")
+            + "- **REQ-002** duplicate\n- **REQ-003** (Could) Accepted but untasked.\n"
+        )
+        tasks = self.STANDALONE_TASKS + "\n### TASK-003: Untraced\n- **Verification:** Done when x.\n\n### TASK-004: Ghost\n- **Requirement:** REQ-404\n"
+        plan = self.STANDALONE_PLAN.replace("| Admin |", "| Operator |")
+        payload = self.standalone("fail", expected=1, PRD=prd, PLAN=plan, TASKS=tasks)
+        findings = {(item["code"], item.get("identifier", "")) for item in payload["findings"]}
+        self.assertIn(("PRD001", ""), findings)
+        self.assertIn(("PRD002", ""), findings)
+        self.assertIn(("REQ001", "REQ-002"), findings)
+        self.assertIn(("REQ002", "REQ-001"), findings)
+        self.assertIn(("TASK004", "TASK-003"), findings)
+        self.assertIn(("TASK005", "TASK-004"), findings)
+        self.assertIn(("TRACE002", "REQ-003"), findings)
+        self.assertNotIn(("TASK005", "TASK-999"), findings)  # fenced template examples are ignored
+        warnings = {(item["path"], item["message"]) for item in payload["warnings"]}
+        self.assertIn(("PRD.md", "role 'admin' has no authorization rule in PLAN.md"), warnings)
+        self.assertIn(("PLAN.md", "role 'operator' is not named in PRD.md"), warnings)
+        # Role mismatch alone warns but exits 0; a draft PRD has no orphan requirements.
+        only_roles = self.standalone("roles", PRD=self.STANDALONE_PRD, PLAN=plan, TASKS=self.STANDALONE_TASKS)
+        self.assertEqual(only_roles["findings"], [])
+        self.assertEqual(len(only_roles["warnings"]), 2)
+        draft = self.standalone("draft", PRD=self.STANDALONE_PRD.replace("Status: Accepted", "Status: Draft"), TASKS="# Tasks\n")
+        self.assertEqual(draft["findings"], [])
+        missing = self.standalone("missing", expected=1, TASKS="# Tasks\n")
+        self.assertEqual([item["code"] for item in missing["findings"]], ["PRD001"])
+        suite = self.root / "suite"
+        (suite / "docs" / "spec").mkdir(parents=True)
+        (suite / "docs" / "spec" / "CONTEXT-RECORD.md").write_text("# Context\n", encoding="utf-8")
+        run(PYTHON, CHECK, "--standalone", suite, expected=2)
+        run(PYTHON, CHECK, "--standalone", suite, suite, expected=2)
+        run(PYTHON, CHECK, expected=2)
+
     def test_validator_ignores_update_and_backup_sidecars(self) -> None:
         fixture = self.root / "sidecars"
         fixture.mkdir()

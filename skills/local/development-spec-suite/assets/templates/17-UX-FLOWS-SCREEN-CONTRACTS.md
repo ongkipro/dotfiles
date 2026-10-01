@@ -75,6 +75,14 @@ to `product-intelligence` and wording to the relevant content/copy owner.
 |---|---|---|---|---|---|
 | [Journey] | [Trigger] | [Steps] | [Denied, invalid, conflict, timeout, partial failure, retry, cancel] | [Observable result] | [Role] |
 
+### First-use journey
+
+The path a new actor takes from first entry to first observable success, including empty-state guidance and what is deferred until later.
+
+| Actor | Entry | Steps to first success | Empty/onboarding state | First success signal | Requirement refs |
+|---|---|---|---|---|---|
+| [Actor] | [Invite, sign-up, deep link, or landing] | [Ordered steps] | [What the empty product shows and suggests] | [Observable result] | PR-[N] |
+
 Add a Mermaid activity/flow, state, sequence, or component diagram only when it materially clarifies branching, lifecycle, ownership, or cross-system interaction. Generate it through `mermaid-diagram`, keep the prose/table contract authoritative, and label unverified behavior.
 
 ```mermaid
@@ -91,6 +99,21 @@ Derive navigation from jobs and objects, not from fashionable layouts. Do not fo
 | Screen/route | Actor/job | Entry points | Information priority | Primary action | Secondary/dangerous actions | Requirement refs |
 |---|---|---|---|---|---|---|
 | [Screen] | [Actor/job] | [Entry] | [Ordered content] | [Action] | [Actions] | UX-[N] |
+
+### Navigation rules
+
+- Global navigation: [items, order, and which roles see each; hidden items still need server enforcement].
+- Back, cancel, and refresh: [where each returns; unsaved-change guard].
+- Deep links and URL state: [which filters, tabs, and selections survive reload and sharing].
+- Redirects: [after sign-in, after success, on denied or missing object].
+
+## Action Specification
+
+One row per user action that changes state or leaves a screen. Every action needs validation, pending, success, and error/recovery behavior.
+
+| Action | Trigger | Validation | Pending | Success | Error/recovery | Next screen | Req |
+|---|---|---|---|---|---|---|---|
+| [Action] | [Control/event] | [Client and server rules] | [Disabled control, progress, duplicate-submit guard] | [Observable result and message] | [Message, preserved input, retry/undo path] | [Screen/route] | PR-[N] |
 
 ## Screen Contracts
 
@@ -143,6 +166,8 @@ Reference `UI-*` decisions in `10-DESIGN-SYSTEM-WHITELABEL.md` for tokens, typog
 | UX-[N] | [Reference] | UI-[N], IAM-[N], API-[N] | TEST-[N] / EVID-[N] | T[N] |
 
 - [ ] Primary jobs, exception paths, permissions, and recovery are explicit.
+- [ ] Every state-changing action has a row in the Action Specification with error/recovery and a next screen.
+- [ ] The first-use journey reaches an observable success and every entity it touches exists in `05-DATA-MODEL.md` when that artifact is selected.
 - [ ] Every material screen has loading, empty, error, denied, success, and conflict behavior where applicable.
 - [ ] Research sources and alternatives are recorded without copying unsupported product rules.
 - [ ] Local/global references fit the actual audience and job; the result is not

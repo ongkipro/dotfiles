@@ -40,6 +40,31 @@ official transaction isolation documentation.
 Map expected PostgreSQL SQLSTATE/constraint names to stable domain errors at the data
 boundary. Do not expose raw SQL, parameters, or internal schema details to clients.
 
+## Background jobs and the outbox
+
+When the project has no queue product, PostgreSQL can be the queue. Keep it boring:
+
+- **Outbox:** write the domain change and an outbox/job row (type, payload, idempotency
+  key, `run_at`, `attempts`, `status`, `last_error`) in the **same transaction**. The
+  email, webhook, or provider call happens later from a worker, never inside the
+  request transaction.
+- **Claim:** a worker selects due rows with `FOR UPDATE SKIP LOCKED` and a `LIMIT`,
+  marks them claimed with a lease (`locked_until` or `claimed_at` + worker id), commits,
+  then does the external work outside the claim transaction. Expired leases become
+  claimable again, so a crashed worker's jobs are retried.
+- **Retries:** bounded attempts with exponential backoff and jitter via `run_at`;
+  terminal failures go to a `failed`/dead state that an operator can see and requeue.
+  Classify errors: deterministic bad input is not retried.
+- **Idempotency:** delivery is at-least-once. Each job carries a unique idempotency key
+  (unique constraint), the handler checks or records completion transactionally, and
+  provider calls pass the provider's idempotency key where supported.
+- **Index** the claim predicate (partial index on pending `run_at`), prune or archive
+  completed rows, and include worker connections in the pool budget.
+- Running the worker process and schedules is a runtime concern: `vps-deploy` (worker
+  container, Coolify scheduled tasks), `cloudflare` (Queues/Cron Triggers), or `vercel`
+  (crons). Adopt a dedicated queue only when throughput, fan-out, or latency needs exceed
+  this pattern.
+
 ## Locking
 
 Use the weakest lock that protects the stated invariant. Document:

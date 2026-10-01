@@ -794,34 +794,262 @@ class Validator:
         return sorted(set((item.code, item.path, item.line, item.message, item.identifier) for item in self.findings))
 
 
+# --- Standalone lane (prd-taskbreaker six-doc lite): root PRD.md, PLAN.md, TASKS.md ---
+
+STANDALONE_SECTIONS: Dict[str, Tuple[str, ...]] = {
+    "Problem": ("problem", "overview"),
+    "Users": ("users", "product audience and market context"),
+    "Goals": ("goals",),
+    "Non-goals": ("non goals",),
+    "Requirements": ("requirements",),
+    "Open questions": ("open questions",),
+}
+ACCEPTED_STATUSES = {"accepted", "approved", "implemented", "verified"}
+REQ_BULLET_RE = re.compile(r"^(\s*)[-*]\s+\*\*(REQ-\d+)\*\*(.*)$")
+REQ_HEADING_RE = re.compile(r"^\s*(#{2,6})\s+(?:\[[ xX]\]\s+)?(REQ-\d+)\b(.*)$")
+STANDALONE_TASK_RE = re.compile(r"^\s*(#{2,6})\s+(?:\[[ xX]\]\s+)?(TASK-\d+)\b")
+TASK_REQUIREMENT_RE = re.compile(r"^\s*[-*]\s+\**\s*(?:primary\s+)?requirement\b\s*:?\s*\**\s*:?\s*(.*)$", re.I)
+REQ_ID_RE = re.compile(r"\bREQ-\d+\b")
+NOT_APPLICABLE_RE = re.compile(r"^\W*not applicable\b", re.I)
+NOT_APPLICABLE_REASON_RE = re.compile(r"^\W*not applicable\s*[—–:-]+\s*\w", re.I)
+GIVEN_WHEN_THEN_RE = re.compile(r"\bgiven\b[\s\S]*?\bwhen\b[\s\S]*?\bthen\b", re.I)
+
+
+def indent_of(line: str) -> int:
+    return len(line) - len(line.lstrip())
+
+
+def heading_level(line: str) -> int:
+    match = ANY_HEADING_RE.match(line)
+    return len(match.group(1)) if match else 0
+
+
+def table_column_values(lines: Sequence[str], header_names: Set[str]) -> List[Tuple[int, str]]:
+    """Cells under any table column whose normalized header is in header_names, reusing the pack table parser."""
+    values: List[Tuple[int, str]] = []
+    index = 0
+    while index + 1 < len(lines):
+        headers = split_table_row(lines[index]) if "|" in lines[index] else []
+        separator = split_table_row(lines[index + 1]) if "|" in lines[index + 1] else []
+        if len(headers) < 2 or len(separator) != len(headers) or not is_separator_row(separator):
+            index += 1
+            continue
+        columns = [position for position, header in enumerate(headers) if normalize_header(header) in header_names]
+        row = index + 2
+        while row < len(lines) and "|" in lines[row] and lines[row].strip():
+            cells = split_table_row(lines[row])
+            for position in columns:
+                if position < len(cells):
+                    values.append((row + 1, cells[position].strip("`* ")))
+            row += 1
+        index = row
+    return values
+
+
+def role_names(lines: Sequence[str]) -> Dict[str, int]:
+    roles: Dict[str, int] = {}
+    for line_number, value in table_column_values(lines, {"role", "roles"}):
+        if value and not re.match(r"^[\[<{]", value):
+            roles.setdefault(value.lower(), line_number)
+    return roles
+
+
+def validate_standalone(repo: Path) -> Tuple[List[Finding], List[Finding], Dict[str, int]]:
+    findings: List[Finding] = []
+    warnings: List[Finding] = []
+
+    def read(name: str) -> Optional[List[str]]:
+        path = repo / name
+        if not path.is_file():
+            return None
+        try:
+            return strip_code_fences(path.read_text(encoding="utf-8").splitlines())
+        except UnicodeDecodeError as exc:
+            findings.append(Finding("MD005", name, 1, f"file is not valid UTF-8: {exc}"))
+            return None
+
+    prd = read("PRD.md")
+    plan = read("PLAN.md")
+    tasks = read("TASKS.md")
+    if prd is None:
+        if not any(item.code == "MD005" for item in findings):
+            findings.append(Finding("PRD001", "PRD.md", 1, "standalone repository has no root PRD.md"))
+        return findings, warnings, {"files": 0, "declarations": 0, "tasks": 0}
+
+    # Required sections: present as a level-2 heading with a non-empty body or a reasoned `Not applicable`.
+    sections: Dict[str, Tuple[int, List[str]]] = {}
+    current: Optional[str] = None
+    for line_number, line in enumerate(prd, 1):
+        match = re.match(r"^\s*##\s+(.+?)\s*#*\s*$", line)
+        if match:
+            title = normalize_header(match.group(1))
+            current = next(
+                (label for label, aliases in STANDALONE_SECTIONS.items()
+                 if any(title == alias or title.startswith(alias + " ") for alias in aliases)),
+                None,
+            )
+            if current and current not in sections:
+                sections[current] = (line_number, [])
+            elif current:
+                current = None  # a repeated section heading does not reopen the first one
+            continue
+        if heading_level(line) == 1:
+            current = None
+        elif current:
+            sections[current][1].append(line)
+    for label in STANDALONE_SECTIONS:
+        if label not in sections:
+            findings.append(Finding("PRD001", "PRD.md", 1, f"required section '{label}' is missing; keep it with 'Not applicable — <reason>' when it does not apply"))
+            continue
+        line_number, body = sections[label]
+        text = "\n".join(item for item in body if item.strip()).strip()
+        if not text:
+            findings.append(Finding("PRD002", "PRD.md", line_number, f"required section '{label}' is empty"))
+        elif NOT_APPLICABLE_RE.match(text) and not NOT_APPLICABLE_REASON_RE.match(text):
+            findings.append(Finding("PRD002", "PRD.md", line_number, f"section '{label}' is 'Not applicable' without a reason"))
+
+    document_status = next((match.group(1).lower() for match in (re.match(r"^Status:\s*\**\s*([A-Za-z]+)", line) for line in prd) if match), "")
+
+    # REQ declarations: bold bullets, headings, or table rows whose first cell is the ID.
+    requirements: Dict[str, List[Tuple[int, str]]] = {}
+    for index, line in enumerate(prd):
+        bullet = REQ_BULLET_RE.match(line)
+        heading = REQ_HEADING_RE.match(line)
+        block = [line]
+        if bullet:
+            identifier = bullet.group(2)
+            for following in prd[index + 1:]:
+                if not following.strip():
+                    continue
+                if indent_of(following) <= len(bullet.group(1)) or ANY_HEADING_RE.match(following):
+                    break
+                block.append(following)
+        elif heading:
+            identifier = heading.group(2)
+            level = len(heading.group(1))
+            for following in prd[index + 1:]:
+                if 0 < heading_level(following) <= level or REQ_HEADING_RE.match(following):
+                    break
+                block.append(following)
+        elif line.lstrip().startswith("|") and REQ_ID_RE.fullmatch(split_table_row(line)[0].strip("`* ")):
+            identifier = split_table_row(line)[0].strip("`* ")
+        else:
+            continue
+        requirements.setdefault(identifier, []).append((index + 1, "\n".join(block)))
+
+    def requirement_status(block: str) -> str:
+        match = re.search(r"\bStatus\b\**\s*:\s*\**\s*([A-Za-z]+)", block)
+        return match.group(1).lower() if match else document_status
+
+    accepted: Dict[str, int] = {}
+    for identifier, declarations in sorted(requirements.items()):
+        if len(declarations) > 1:
+            locations = ", ".join(f"PRD.md:{line}" for line, _block in declarations)
+            for line, _block in declarations:
+                findings.append(Finding("REQ001", "PRD.md", line, f"duplicate declaration for {identifier}; declarations: {locations}", identifier))
+        line, block = declarations[0]
+        first_line = block.splitlines()[0]
+        priority = re.search(r"\*\*REQ-\d+\*\*\s*\(([^)]*)\)|\bPriority\b\**\s*:\s*\**\s*(\w+)", block)
+        priority_text = " ".join(group for group in priority.groups() if group) if priority else ""
+        table_must = first_line.lstrip().startswith("|") and "must" in {cell.strip("`* ").lower() for cell in split_table_row(first_line)}
+        if (re.search(r"\bmust\b", priority_text, re.I) or table_must) and not GIVEN_WHEN_THEN_RE.search(block):
+            findings.append(Finding("REQ002", "PRD.md", line, f"Must requirement {identifier} has no Given/When/Then acceptance", identifier))
+        if requirement_status(block) in ACCEPTED_STATUSES:
+            accepted[identifier] = line
+
+    task_count = 0
+    if tasks is not None:
+        traced: Set[str] = set()
+        for index, line in enumerate(tasks):
+            match = STANDALONE_TASK_RE.match(line)
+            if not match:
+                continue
+            task_count += 1
+            task_id, level = match.group(2), len(match.group(1))
+            field_values: List[str] = []
+            for following in tasks[index + 1:]:
+                if 0 < heading_level(following) <= level:
+                    break
+                requirement = TASK_REQUIREMENT_RE.match(following)
+                if requirement:
+                    field_values.append(requirement.group(1))
+            identifiers = [item for value in field_values for item in REQ_ID_RE.findall(value)]
+            if not identifiers:
+                findings.append(Finding("TASK004", "TASKS.md", index + 1, f"{task_id} has no Requirement naming a REQ-*", task_id))
+                continue
+            for identifier in dict.fromkeys(identifiers):
+                if identifier not in requirements:
+                    findings.append(Finding("TASK005", "TASKS.md", index + 1, f"{task_id} requirement {identifier} is not declared in PRD.md", task_id))
+            traced.update(identifiers)
+        for identifier, line in sorted(accepted.items()):
+            if identifier not in traced:
+                findings.append(Finding("TRACE002", "PRD.md", line, f"accepted requirement {identifier} has no task in TASKS.md", identifier))
+
+    if plan is not None:
+        prd_roles, plan_roles = role_names(prd), role_names(plan)
+        if prd_roles and plan_roles:
+            for role, line in sorted(prd_roles.items()):
+                if role not in plan_roles:
+                    warnings.append(Finding("ROLE001", "PRD.md", line, f"role '{role}' has no authorization rule in PLAN.md"))
+            for role, line in sorted(plan_roles.items()):
+                if role not in prd_roles:
+                    warnings.append(Finding("ROLE001", "PLAN.md", line, f"role '{role}' is not named in PRD.md"))
+
+    files = sum(1 for item in (prd, plan, tasks) if item is not None)
+    return sorted(findings), sorted(warnings), {"files": files, "declarations": len(requirements), "tasks": task_count}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("root", type=Path, help="Markdown specification pack root")
+    parser.add_argument("root", type=Path, nargs="?", help="Markdown specification pack root")
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--stage", choices=STAGES, help="opt in to product stage gates")
     parser.add_argument("--tasks", type=Path, action="append", default=[], metavar="PATH",
                         help="extra execution queue (e.g. repository root TASKS.md); only its T-* task blocks are read; repeatable")
+    parser.add_argument("--standalone", type=Path, metavar="REPO",
+                        help="validate a standalone repository's root PRD.md, PLAN.md, and TASKS.md (no suite pack)")
     args = parser.parse_args()
-    root = args.root.expanduser().resolve()
-    if not root.is_dir():
-        parser.error(f"not a directory: {root}")
-    task_files = [path.expanduser().resolve() for path in args.tasks]
-    for path in task_files:
-        if not path.is_file() or not os.access(path, os.R_OK):
-            parser.error(f"not a readable file: {path}")
+    warnings: List[Finding] = []
+    if args.standalone:
+        if args.root or args.stage or args.tasks:
+            parser.error("--standalone takes only REPO and --format")
+        repo = args.standalone.expanduser().resolve()
+        if not repo.is_dir():
+            parser.error(f"not a directory: {repo}")
+        if (repo / "docs" / "spec" / "CONTEXT-RECORD.md").is_file():
+            parser.error("a development-spec-suite pack exists; validate docs/spec with --tasks TASKS.md instead")
+        findings, warnings, counts = validate_standalone(repo)
+        summary = {**counts, "findings": len(findings), "warnings": len(warnings)}
+    else:
+        if not args.root:
+            parser.error("a pack root or --standalone REPO is required")
+        root = args.root.expanduser().resolve()
+        if not root.is_dir():
+            parser.error(f"not a directory: {root}")
+        task_files = [path.expanduser().resolve() for path in args.tasks]
+        for path in task_files:
+            if not path.is_file() or not os.access(path, os.R_OK):
+                parser.error(f"not a readable file: {path}")
 
-    validator = Validator(root, args.stage, task_files)
-    raw_findings = validator.run()
-    findings = [Finding(code, path, line, message, identifier) for code, path, line, message, identifier in raw_findings]
-    summary = {
-        "files": len(validator.files),
-        "declarations": len(validator.declarations),
-        "tasks": sum(1 for identifier in validator.declarations if identifier.startswith("T-")),
-        "findings": len(findings),
-    }
+        validator = Validator(root, args.stage, task_files)
+        raw_findings = validator.run()
+        findings = [Finding(code, path, line, message, identifier) for code, path, line, message, identifier in raw_findings]
+        summary = {
+            "files": len(validator.files),
+            "declarations": len(validator.declarations),
+            "tasks": sum(1 for identifier in validator.declarations if identifier.startswith("T-")),
+            "findings": len(findings),
+        }
     if args.format == "json":
-        print(json.dumps({"version": 2, "ok": not findings, "summary": summary, "findings": [item.as_dict() for item in findings]}, indent=2, sort_keys=True))
-    elif findings:
+        payload = {"version": 2, "ok": not findings, "summary": summary, "findings": [item.as_dict() for item in findings]}
+        if args.standalone:
+            payload["warnings"] = [item.as_dict() for item in warnings]
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return 1 if findings else 0
+    for item in warnings:
+        identifier = f" [{item.identifier}]" if item.identifier else ""
+        print(f"WARN {item.code} {item.path}:{item.line}{identifier} {item.message}")
+    if findings:
         for item in findings:
             identifier = f" [{item.identifier}]" if item.identifier else ""
             print(f"FAIL {item.code} {item.path}:{item.line}{identifier} {item.message}")

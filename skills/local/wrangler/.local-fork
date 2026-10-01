@@ -1,7 +1,7 @@
 upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/wrangler/SKILL.md
-verified: 2026-09-29
+verified: 2026-10-02
 scope: directory
-reason: One deliberate line. SKILL.md body is byte-identical to upstream (last path commit 320fbbc1);
+reason: One deliberate line. SKILL.md body is byte-identical to upstream (last path commit 41e0d19);
   only the frontmatter description appends "Not for Worker code review (workers-best-practices)
   or product choice (cloudflare)." (236 characters total). Codex keeps only ~240 characters of
   each description, and upstream's has no boundary, so the sibling boundary is front-loaded here,
@@ -15,3 +15,6 @@ would_lose_if_wired: a byte-for-byte refresh would drop the sibling boundary fro
 refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is present.
 to_vendor: remove this ledger (and become byte-identical) if upstream adds an equivalent boundary
   or the Codex description cut stops mattering.
+recheck: 2026-10-02 — merged upstream b90d284 (skip this skill and follow the Cloudflare CLI docs when the
+  project has cloudflare.config.ts or the user asks for `cf`) and 41e0d19 (index.md doc routes).
+  Description boundary unchanged.

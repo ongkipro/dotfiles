@@ -130,6 +130,8 @@ For every metric define:
 
 Good bounded dimensions often include service, operation class, outcome class, dependency class, queue name from a fixed deployment set, or deployment environment. Review even these against the real topology.
 
+Database spans: current stable conventions collect `db.query.text` for parameterized queries by default and require literals to be replaced by placeholders for non-parameterized text; prefer `db.query.summary`/`db.operation.name` for low-cardinality grouping. Verify what the installed instrumentation emits before relying on it, and never put query text in metric labels.
+
 Never label metrics with user/tenant/request/job/message/session IDs, URLs, raw routes, SQL, exception messages, email/phone/IP, free text, arbitrary headers, file paths, or dynamic provider payload values. If instance-level lookup is essential, use restricted correlated events/traces, not time-series labels.
 
 Count eligible and good events separately or use another mathematically explicit SLI source. Percentiles are useful views but generally cannot be aggregated back into a trustworthy global distribution; retain histogram/distribution data according to the backend’s supported model.

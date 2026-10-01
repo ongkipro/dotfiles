@@ -47,6 +47,46 @@ Verified 2026-09-29.
 - Vercel Web Interface Guidelines (forms: autocomplete, no paste blocking):
   https://github.com/vercel-labs/web-interface-guidelines
 
+- Discount combination limits (5 product/order codes + 1 shipping code; 25
+  active automatic discounts; combining only on Online Store, Storefront API,
+  POS), accessed 2026-10-02:
+  https://help.shopify.com/en/manual/discounts/discount-combinations
+
+## Commerce UX evidence (public sources only)
+
+Accessed 2026-10-02. Use these figures to rank findings, not as targets.
+
+- Baymard cart abandonment list (updated 2025-09-22): documented average
+  abandonment 70.22% across 50 studies. Reasons US shoppers gave for leaving
+  checkout, with "just browsing" (42%) excluded: extra costs too high 40%,
+  delivery too slow 20%, distrust with card details 19%, forced account
+  creation 18%, long or complicated checkout 17%, errors or crashes 17%, returns
+  policy 13%, total cost not visible upfront 12%, card declined 10%, too few
+  payment methods 9%:
+  https://baymard.com/lists/cart-abandonment-rate
+- Baymard's public checkout research summary:
+  https://baymard.com/research/checkout-usability
+
+In this skill, that evidence means: show the full cost basis (shipping,
+fees, COD surcharge) before the order commitment, keep guest purchase, and
+treat error and decline recovery as part of the critical path. Baymard's
+paywalled guideline database is not a source here; do not cite figures from
+it second-hand.
+
+## Indonesian commerce context
+
+- BPS (Statistics Indonesia) publishes the annual *Statistik E-Commerce*,
+  which covers the payment methods (including COD), delivery methods, and
+  sales media that e-commerce businesses report. The 2024 edition was released
+  2025-11-28:
+  https://www.bps.go.id/en/publication/2025/11/28/647323224ecc656c2933571b/statistik-e-commerce-2024.html
+  The page returned HTTP 403 on 2026-10-02, so no COD share is quoted here.
+  Unverified as of 2026-10-02: cite a percentage only after reading the PDF
+  itself. Secondary summaries disagree.
+- Treat COD availability, COD fees, and courier coverage as per-route facts
+  from the logistics provider (`mengantar-api`, `autolaris-h2h`). They are not
+  storefront assumptions.
+
 ## Freshness rule
 
 Storefront journeys, honest price/availability presentation, progressive

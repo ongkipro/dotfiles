@@ -15,6 +15,8 @@ Your knowledge of web performance metrics, thresholds, and tooling APIs may be o
 | Chrome DevTools docs | `https://developer.chrome.com/docs/devtools/performance` | Tooling APIs, trace analysis |
 | Lighthouse scoring | `https://developer.chrome.com/docs/lighthouse/performance/performance-scoring` | Score weights, metric thresholds |
 | Chrome DevTools MCP | `https://github.com/ChromeDevTools/chrome-devtools-mcp` (`docs/tool-reference.md`, `docs/configuration.md`) | Current tool names, parameters, server flags |
+| INP phases | `https://web.dev/articles/optimize-inp` (verified 2026-10-02) | Input delay / processing duration / presentation delay |
+| Tailwind v4 sources | `https://tailwindcss.com/docs/detecting-classes-in-source-files` (verified 2026-10-02) | Automatic detection, `@source`, dynamic class names |
 
 ## FIRST: Verify MCP Tools Available
 
@@ -178,6 +180,7 @@ Common insight names:
 | Metric | Insight Name | What to Look For |
 |--------|--------------|------------------|
 | LCP | `LCPBreakdown` | Time to largest contentful paint; breakdown of TTFB, resource load, render delay |
+| LCP Discovery | `LCPDiscovery` | Whether the LCP resource was discoverable in the initial HTML (lazy-loaded, JS/CSS-injected, missing `fetchpriority`) |
 | CLS | `CLSCulprits` | Elements causing layout shifts (images without dimensions, injected content, font swaps) |
 | Render Blocking | `RenderBlocking` | CSS/JS blocking first paint |
 | Document Latency | `DocumentLatency` | Server response time issues |
@@ -187,6 +190,8 @@ Example:
 ```
 performance_analyze_insight(insightSetId: "<id-from-trace>", insightName: "LCPBreakdown")
 ```
+
+**Triage LCP by subpart before fixing anything.** LCP splits into four back-to-back parts: TTFB, resource load delay (HTML received until the LCP resource starts loading), resource load duration, and element render delay. The two delays should be near zero; when either is a large share, fix it first. Shrinking the image does not help when render delay dominates — the saved time just moves into render delay. To name the element and its resource URL, read it from the trace insight or run a `PerformanceObserver` for `largest-contentful-paint` via `evaluate_script`; an empty URL means a text LCP (check web-font blocking instead). Workflow adapted from the Chrome DevTools MCP `debug-optimize-lcp` skill (`https://github.com/ChromeDevTools/chrome-devtools-mcp/tree/main/skills/debug-optimize-lcp`, checked 2026-10-02).
 
 **Key thresholds (good/needs-improvement/poor):**
 - TTFB: < 800ms / < 1.8s / > 1.8s
@@ -264,26 +269,46 @@ Also check `package.json` for framework dependencies and build scripts.
 
 ### Tree-Shaking & Dead Code
 
-- **Webpack**: Check for `mode: 'production'`, `sideEffects` in package.json, `usedExports` optimization
-- **Vite/Rollup**: Tree-shaking enabled by default; check for `treeshake` options
-- **Look for**: Barrel files (`index.js` re-exports), large utility libraries imported wholesale (lodash, moment)
+- **Vite/Rollup (and Astro, which builds on Vite)**: tree-shaking is on by default; check `build.rollupOptions`, `manualChunks`, and `sideEffects` in dependency `package.json` files
+- **Next.js (Turbopack or webpack)**: check which bundler the build script uses, `experimental.optimizePackageImports` (a default package list is already optimized — verify in the installed version's docs), and whether `'use client'` sits at a leaf or pulls a large subtree into the client graph
+- **Webpack (legacy setups)**: `mode: 'production'`, `sideEffects`, `usedExports`
+- **Look for**: barrel files (`index.js` re-exports), large utility libraries imported wholesale (lodash, moment), and dynamic template-literal import paths that defeat analysis
+- Use the project's existing bundle analyzer or the framework's documented one for the installed version; do not add an analyzer speculatively
 
 ### Unused JS/CSS
 
-- Check for CSS-in-JS vs. static CSS extraction
-- Look for PurgeCSS/UnCSS configuration (Tailwind's `content` config)
-- Identify dynamic imports vs. eager loading
+- **Tailwind v4**: no `content` array — sources are detected automatically (skipping `.gitignore`d paths, `node_modules`, binaries, CSS). Check `@source` / `@source not` / `source(none)` in the CSS entry, and grep for dynamically built class names (`bg-${color}-600`), which v4 cannot see; oversized output usually means an over-broad `@source` or `@source inline()` safelist. **Tailwind v3** projects still use the `content` config — confirm the installed major first
+- **Astro**: count islands and their `client:*` directives (`client:load` is the most expensive); static markup rendered through a framework component ships JS for nothing
+- **Next.js**: check client boundaries, `next/dynamic` for heavy client-only widgets, and `next/script` strategy for third parties
+- Check for CSS-in-JS runtime vs. static CSS extraction; identify dynamic imports vs. eager loading
 
-### Polyfills
+### Images
 
-- Check for `@babel/preset-env` targets and `useBuiltIns` setting
-- Look for `core-js` imports (often oversized)
-- Check `browserslist` config for overly broad targeting
+The LCP element is usually an image; check the pipeline, not just the file:
+
+- **Astro**: `<Image>` / `<Picture>` from `astro:assets` for local and allowed remote images (width/height, modern formats, `loading`); raw `<img>` on the hero is a finding
+- **Next.js**: `next/image` with `sizes` on responsive images, `priority`/preload (name varies by version — verify) only on the LCP image, and `images.remotePatterns` for remote sources
+- **Shopify Liquid**: `image_url` with an explicit `width` plus `image_tag` (or `srcset`/`sizes`), never the original upload; the LCP image not lazy-loaded
+- **Cloudflare Images / image transformations**: confirm resizing happens at the edge (`/cdn-cgi/image/...` or the binding) with `format=auto` and bounded widths
+- Everywhere: intrinsic dimensions or `aspect-ratio` (CLS), `fetchpriority="high"` on the LCP image only, lazy-loading below the fold, no CSS-background hero images that the preload scanner cannot discover
+
+### Interaction (INP) diagnosis
+
+A reload trace does not measure INP; an interaction must happen during recording.
+
+1. With MCP: start a trace **without** reload, perform the slow interaction (`click`, `fill`, `press_key`), stop the trace, and inspect the interaction insight (name varies by DevTools version — list insights from the trace). Without MCP: ask `ui-validation` for a recorded interaction timing or use field data (CrUX/RUM) if available, and mark INP as unmeasured otherwise.
+2. Attribute the time to a phase: **input delay** (main thread busy before handlers run — long tasks, hydration, third-party scripts), **processing duration** (the handlers themselves — heavy state updates, synchronous work; yield, defer non-urgent work, React `startTransition`/`useDeferredValue`), or **presentation delay** (rendering the result — large DOM, layout thrashing, re-rendering big lists; `content-visibility`, virtualization, smaller updates).
+3. Map to code: the event handler, the component that re-renders, and any non-passive `touch`/`wheel` listener.
+
+### Polyfills & Targets
+
+- Check the `browserslist` / build `target` (Vite `build.target`, SWC/Next config) against the real audience; overly old targets inflate output
+- Polyfills are mostly a legacy-Babel concern: flag `core-js` / `@babel/preset-env` `useBuiltIns` only if the project still uses Babel
 
 ### Compression & Minification
 
-- Check for `terser`, `esbuild`, or `swc` minification
-- Look for gzip/brotli compression in build output or server config
+- Production builds of Vite, Astro, and Next minify by default; flag only overrides that disable it
+- Look for gzip/brotli (or zstd) at the CDN/server and long-lived `Cache-Control` on hashed assets
 - Check for source maps in production builds (should be external or disabled)
 
 ## Output Format

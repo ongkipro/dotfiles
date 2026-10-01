@@ -3,11 +3,11 @@ name: google-ads-signal-engine
 description: >-
   Google Ads conversion signal system: Google Tag / gtag.js, GTM, server-side GTM / sGTM, Enhanced
   Conversions for Web and API, Consent Mode v2, transaction_id deduplication, click IDs
-  (gclid/gbraid/wbraid), COD vs Prepaid taxonomy, offline conversion uploads via the Google Ads
-  API. Use when designing, building, auditing, or troubleshooting Google Ads conversion tracking,
+  (gclid/gbraid/wbraid), COD vs Prepaid taxonomy, offline conversion uploads via the Data Manager
+  API (legacy Google Ads API). Use when designing, building, auditing, or troubleshooting Google Ads conversion tracking,
   sitewide tags, Smart Bidding signals for target CPA / target ROAS, or offline CRM uploads.
   Triggers: "google ads", "google tag", "gtag", "enhanced conversions", "consent mode v2", "gclid",
-  "gbraid", "wbraid", "google conversion tracking", "offline conversion upload", "google signal
+  "gbraid", "wbraid", "google conversion tracking", "offline conversion upload", "data manager api", "google signal
   engine", "google conversion setup".
 ---
 
@@ -17,14 +17,19 @@ An engineering operating system for reliable Google Ads conversion measurement, 
 
 ## Verify the API version before writing code
 
-**Never hardcode a Google Ads API version from memory or from these notes.** Google ships a major version roughly quarterly and sunsets older ones on a published schedule; a version written down here rots fast. (These notes said `v18+` while the shipping version was `v25`.)
+**Never hardcode a Google Ads API version from memory or from these notes.** Google ships a major version roughly quarterly and sunsets older ones on a published schedule; a version written down here rots fast. (These notes once said `v18+` while the shipping version was `v25`; `v25` was still the latest on 2026-10-02.)
 
 | Check | Where |
 | --- | --- |
 | Current Google Ads API version + sunset dates | `https://developers.google.com/google-ads/api/docs/release-notes` |
 | gtag / Consent Mode parameters | `https://developers.google.com/tag-platform/gtagjs/reference` |
+| Offline conversion / EC-for-leads upload path | `https://developers.google.com/google-ads/api/docs/conversions/upload-clicks` (banner) and `https://developers.google.com/data-manager/api` |
 
 Pin it once in config, never inline across call sites.
+
+### Offline uploads moved to the Data Manager API (verified 2026-10-02)
+
+Google's upload-clicks guide states: "Starting **June 15, 2026**, UploadClickConversion requests will fail if the developer token hasn't previously sent requests to upload offline conversions or enhanced conversions for leads. Use the Data Manager API instead." New integrations therefore target the Data Manager API (`POST https://datamanager.googleapis.com/v1/events:ingest`); an existing Google Ads API uploader is a migration item, not a template. Google Ads Help also states that from June 2026 enhanced conversions for web and for leads became one on/off setting, and that from April 2026 Ads accepts user-provided data from tags, Data Manager, and API connections simultaneously. Re-read both pages before building; field names differ between the two APIs.
 
 ## Core Philosophy
 
@@ -91,7 +96,7 @@ empty-string hash for enhanced conversions.
 5. **Preserve Click IDs**: Capture `gclid`, `gbraid`, `wbraid` upon landing page entry and pass them through session storage / database orders.
 6. **Conversion ownership**: A direct Google tag or GTM owns a given Google Ads conversion action, never both.
 7. **Clean Values**: Pass raw numeric `value` (e.g. `549000`) and standard uppercase `currency` (`IDR`, `USD`). Never pass formatted strings like `"Rp 549.000"`.
-8. **Server / Offline Uploads**: Upload delayed COD deliveries or offline CRM sales only when the Google Ads API contract, conversion action, click identity, and timestamp are known. A stored click ID makes this possible; it does not authorize a made-up offline conversion.
+8. **Server / Offline Uploads**: Upload delayed COD deliveries or offline CRM sales (via the Data Manager API for new integrations) only when the API contract, conversion action, click identity, consent state, and timezone-qualified timestamp are known. A stored click ID makes this possible; it does not authorize a made-up offline conversion.
 9. **Separate Analytics**: Keep GA4 engagement events separate from Google Ads conversion bidding goals.
 10. **Reconciliation**: Periodically audit Google Ads reported conversions against backend accounting truth.
 
@@ -129,3 +134,16 @@ in your own tests.
 Derivation, grain, and the verification method are shared with Meta and are
 documented once, in `meta-ads-signal-engine` → "Catalog identity: the id that
 must match". Do not restate them here.
+
+## Sources (accessed 2026-10-02)
+
+- Google Ads API versions (v25 latest): https://developers.google.com/google-ads/api/docs/sunset-dates
+- Upload click conversions (Data Manager banner, `yyyy-mm-dd HH:mm:ss+|-HH:mm`, `consent` field, gclid+gbraid guidance): https://developers.google.com/google-ads/api/docs/conversions/upload-clicks
+- Data Manager API REST surface (`events:ingest`): https://developers.google.com/data-manager/api/reference/rest
+- Enhanced conversions settings changes (April/June 2026): https://support.google.com/google-ads/answer/16884284
+- Enhanced conversions normalization (Gmail dots/plus, `+E.164`): https://developers.google.com/google-ads/api/docs/conversions/enhanced-conversions/web
+- iOS click IDs (gbraid web-to-app, wbraid app-to-web): https://support.google.com/google-ads/answer/10417364
+- Consent mode (region precedence, `wait_for_update`): https://developers.google.com/tag-platform/security/guides/consent and basic vs advanced: https://developers.google.com/tag-platform/security/concepts/consent-mode
+- EU user consent policy scope (EEA, UK, Switzerland): https://www.google.com/about/company/user-consent-policy/
+
+No official Google agent skill for Ads measurement was found on GitHub on that date; nothing borrowed.

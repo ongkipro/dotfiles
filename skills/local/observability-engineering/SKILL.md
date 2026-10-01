@@ -1,6 +1,6 @@
 ---
 name: observability-engineering
-description: "Designs and verifies cross-stack observability from operator decisions and observable user journeys: structured events, OpenTelemetry-aligned logs, metrics, traces, correlation, SLI/SLO/error budgets, alerts, async jobs/webhooks, privacy, cost, dashboards, and bounded telemetry smoke proofs. Use when adding or reviewing diagnostic telemetry, service health, reliability objectives, or emitted evidence. Owns signal contracts and cross-service evidence; not frontend performance diagnosis, vendor selection, incident-response documentation systems, or business audit-log implementation."
+description: "Designs and verifies cross-stack observability signal contracts from operator decisions and user journeys. Not frontend performance (web-perf), vendor selection, incident-response doc systems, or business audit-log storage. Use for structured events, OpenTelemetry-aligned logs, metrics, traces, correlation, SLI/SLO/error budgets, alerts, async jobs/webhooks, LLM/GenAI call telemetry, privacy, cost, dashboards, and bounded telemetry smoke proofs when adding or reviewing diagnostic telemetry, service health, or reliability objectives."
 ---
 
 # Observability Engineering
@@ -73,13 +73,15 @@ Instrument only signals that answer a named question, defend an SLO, or diagnose
 
 ### 3. Define one portable signal contract
 
-Prefer stable OpenTelemetry semantic conventions for resources, HTTP, database, RPC, messaging, errors, and events. Do not rename well-known attributes into vendor-specific keys. Add project-specific attributes only when no stable convention fits; document type, unit, allowed values, cardinality, sensitivity, and owner.
+Prefer OpenTelemetry semantic conventions for resources, HTTP, database, RPC, messaging, errors, and events, but check each group's stability first: when checked (semconv 1.44.0, 2026-10-02) HTTP and database client spans were Stable, messaging was Development, and GenAI conventions had moved to a separate repository in Development. Instrumentation libraries migrate via `OTEL_SEMCONV_STABILITY_OPT_IN`; confirm which convention version the installed instrumentation actually emits before writing queries or dashboards. Do not rename well-known attributes into vendor-specific keys. Add project-specific attributes only when no stable convention fits; document type, unit, allowed values, cardinality, sensitivity, and owner.
 
 Use the signals deliberately:
 
 - **Metrics:** rates, ratios, latency/freshness distributions, saturation, queue age/depth, retry/dead-letter counts, and SLI numerators/denominators. Labels must be bounded.
 - **Traces:** causal work across service/dependency boundaries and expensive or failure-prone stages. Keep span names low-cardinality; put IDs in attributes, never names.
 - **Structured events/logs:** discrete lifecycle/outcome facts and diagnostics that need searchable context. Use stable event names and typed fields, not interpolated prose.
+
+For LLM/GenAI calls, record operation, provider/model, token usage, latency, finish reason, and tool-call outcome as bounded attributes; prompt and completion content is sensitive personal/secret-bearing data, so keep it off by default and capture it only under an explicit, access-controlled, retention-bounded policy. Model IDs are bounded; user prompts never become labels or span names.
 
 Every service signal identifies service/component and deployment environment through the project’s resource convention. Correlate diagnostics with trace/span context where available and with bounded request/job/message identifiers where useful. Follow [signal-contract.md](references/signal-contract.md) for severity, errors, async propagation, multi-tenancy, and audit separation.
 

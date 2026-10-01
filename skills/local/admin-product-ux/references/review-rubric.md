@@ -24,7 +24,12 @@ product.
 - Are timezone, currency, freshness, and aggregation semantics explicit?
 - Does the implementation mapping fit the installed framework without changing
   the product contract?
-- Do light and dark themes preserve hierarchy, semantics, focus, and contrast?
+- When the accepted visual system includes dark mode, do both themes preserve
+  hierarchy, semantics, focus, and contrast? (The clean-light baseline has no
+  dark mode unless requested.)
+- Does every composite control (dialog, combobox, menu, tabs, editable grid)
+  name its WAI-ARIA APG pattern, so the keyboard contract is decided before
+  implementation?
 
 ## Scale and handoff
 

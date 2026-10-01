@@ -32,7 +32,8 @@ DOMAINS: dict[str, tuple[str, ...]] = {
     "Cloudflare platform": (
         "cloudflare", "workers-best-practices", "wrangler", "durable-objects",
         "agents-sdk", "cloudflare-email-service", "cloudflare-one",
-        "sandbox-next", "sandbox-stable",
+        "cloudflare-one-migrations", "sandbox-next", "sandbox-stable",
+        "sandbox-migrate-to-next",
     ),
     "Web frameworks and interface": (
         "astro-development", "nextjs-development", "shadcn-ui", "design-taste",
@@ -61,7 +62,7 @@ DOMAINS: dict[str, tuple[str, ...]] = {
     ),
     "SEO, content and traffic": (
         "seo-website-builder", "ai-traffic-os", "automated-traffic-pipeline",
-        "content", "copywriting", "volumx-writer",
+        "content", "copywriting", "volumx-writer", "cms-content",
     ),
     "Planning and specification": (
         "prd-taskbreaker", "development-spec-suite", "development-kit",
@@ -71,9 +72,11 @@ DOMAINS: dict[str, tuple[str, ...]] = {
     "Delivery practice": (
         "full-stack-development", "testing-engineering",
         "observability-engineering", "github-actions", "lean-code-review",
-        "native-first", "continuous-learning",
+        "native-first", "continuous-learning", "cross-cli",
     ),
-    "Infrastructure and runtime": ("vercel", "vultr", "kelola-deploy", "9router"),
+    "Infrastructure and runtime": (
+        "vercel", "vultr", "vps-deploy", "kelola-deploy", "9router",
+    ),
 }
 
 FRONTMATTER = re.compile(r"\A---\s*\n(.*?)\n---", re.S)

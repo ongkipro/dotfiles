@@ -6,15 +6,24 @@ Google Ads uses click identifiers to attribute offline or delayed conversions ba
 
 ## 3 Click Identifiers
 
-1. `gclid` (Google Click Identifier): Standard search/display ad click query parameter on Desktop & Web.
-2. `gbraid`: iOS 14.5+ App-to-Web click identifier (privacy-preserving aggregated attribution).
-3. `wbraid`: Web-to-App click identifier (privacy-preserving aggregated attribution).
+1. `gclid` (Google Click Identifier): the standard ad-click parameter.
+2. `gbraid`: iOS 14+ **web-to-app** measurement — present when a user clicks an ad on the web and is directed to your iOS app (app conversions).
+3. `wbraid`: iOS 14+ **app-to-web** measurement — present when a user clicks an ad in an iOS app and lands on your webpage (web conversions).
+
+An earlier version of this file had `gbraid`/`wbraid` reversed. Source:
+[Google Ads Help — iOS 14 campaign measurement](https://support.google.com/google-ads/answer/10417364), accessed 2026-10-02.
+For a website, `wbraid` is the iOS parameter you will usually see; capture all
+three anyway. When both a `gclid` and a `gbraid` are known for one conversion,
+Google's upload guide recommends sending both.
 
 ---
 
 ## Preservation Engine (TypeScript)
 
-Store all 3 parameters in `sessionStorage` or a first-party cookie upon landing page load:
+Capture all 3 parameters on landing. `sessionStorage` is per-tab and dies with the
+tab, so treat it only as a hop to the server: persist the IDs onto the
+lead/order row at checkout (the offline upload reads them from there), and let the
+Google tag's conversion linker manage its own first-party cookies.
 
 ```typescript
 export interface StoredClickContext {

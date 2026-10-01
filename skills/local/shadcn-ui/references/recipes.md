@@ -28,10 +28,11 @@ import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 
-// zod v3 syntax. On zod v4 these move to top-level: z.email(), etc.
+// zod v4 syntax (zod `latest` is 4.x; Astro 6+ also ships Zod 4). On a v3
+// lockfile use z.string().email() instead; v4 deprecates that form.
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email'),
+  email: z.email('Invalid email'),
   message: z.string().min(10, 'At least 10 characters'),
 })
 
@@ -112,6 +113,20 @@ The only case needing `value={field.value ?? ''}` is a field whose value can be
 shadcn add table                    # styled <table> wrapper, no npm deps
 <pkg-manager> add @tanstack/react-table   # NOT pulled by the CLI — install it yourself
 ```
+
+**This snippet is the v8 dialect.** `@tanstack/react-table` 9.x is `latest`
+(9.2.4 on 2026-10-02) and changes construction: `useTable({ features, columns,
+data })`, features opted in via `tableFeatures({ rowSortingFeature,
+globalFilteringFeature, rowPaginationFeature, sortedRowModel:
+createSortedRowModel(), ... })`, no `getCoreRowModel`, and `flexRender` still
+works beside the preferred `<table.FlexRender />`. Check the lockfile and write
+the installed dialect. The v9 package ships version-matched agent skills in
+`node_modules/@tanstack/react-table/skills/` (`migrate-v8-to-v9`,
+`with-tanstack-query`, `table-state`, ...) and `@tanstack/table-core/skills/`;
+read those instead of translating this snippet from memory.
+`useLegacyTable` (`@tanstack/react-table/legacy`) is a deprecated bridge, not a
+target. Source: npm tarball `@tanstack/react-table@9.2.4`
+`skills/migrate-v8-to-v9/SKILL.md` (verified 2026-10-02).
 
 ```tsx
 import { useState } from 'react'
@@ -461,6 +476,14 @@ export function DatePicker() {
 ```
 
 ## Combobox (Command + Popover)
+
+The registry now also ships a dedicated `combobox` item (verified 2026-10-02
+on `base-nova` and `radix-nova`: npm dep `@base-ui/react` even on the Radix
+style, registry deps `button` + `input-group`). Run `shadcn docs combobox` and
+`shadcn add combobox --dry-run` before choosing; the composition below remains
+valid when the project already has `command` + `popover` and no reason to add
+Base UI. Whichever you ship, check it against the WAI-ARIA APG combobox
+keyboard contract (`ui-validation` §4).
 
 ```tsx
 'use client'

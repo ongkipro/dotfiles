@@ -49,14 +49,14 @@ scale. Pairs with `copywriting` (rules + templates) and
 4. **Protect** — for rewrites or constrained source material, use
    `volumx-writer/references/preservation.md` to ledger claims, qualifiers,
    keywords, citations, offers, and required formatting before editing.
-5. **Draft** — write to a file (`/tmp/content/<slug>.md`) so it can be reviewed
+5. **Draft** — write to a file (`~/Documents/work/content/<slug>.md`) so it can be reviewed
    in chunks. Apply hard rules from `copywriting` (no CTA, char limits, no
    third-party brand, fix typos, verifiable facts only).
 6. **QA gates (Delivery verification)** before publish — run **all**:
    - **P0 Blockers (Immediate Reject):**
      - Any fabricated or unsourced numeric claim/stat (every material number must cite a real source).
      - Title bait-and-switch (H1 and body must fulfill the headline promise).
-     - Broken links (404/SSRF) or broken local/CDN image references.
+     - Broken links (4xx/5xx responses) or broken local/CDN image references.
      - Unapproved CTA in body or meta (unless explicitly a landing page or buy-box).
      - Third-party brand names present without user opt-in.
    - **P1 Ship Blockers (Must fix before final publish):**
@@ -84,21 +84,19 @@ scale. Pairs with `copywriting` (rules + templates) and
      limits and hashtag policy.
    - **Landing**: copy + design tokens + sections; respect the project's brand
      palette and motion system (GSAP if available).
-9. **Log** — append a 1-line entry to the project's edit-log
-   (`~/Documents/<project>/_log.md` or similar) so memory stays current.
+9. **Log** — append a 1-line entry (date, slug, URL, channel) to the
+   project's own content log or index in its repository. Publishing status
+   belongs to the project, never to shared memory.
 
 ## Hard rules (apply to ALL channels unless the user explicitly overrides)
 
-- **No CTA** in blog/article/product body. CTA bands belong only on landing pages
-  or shop product pages, and even then must be user-approved.
-- **No third-party brand names** unless user opts in. Generic praise only.
-- **Field and ALT limits** — load the canonical cross-channel table from `copywriting`; that skill is the only owner of the numeric limits and qualifiers.
-- **No invented facts** — pull from source data or research; if uncertain, ask.
-- **Fix ALL typos** — run a final spell pass.
+- **Copy rules come from `copywriting`** — its hard rules (brand policy, no CTA,
+  verifiable facts, typos), field/ALT limits, and ALT patterns apply to every
+  asset. Load them; do not restate or reinterpret them here.
 - **One H1 per page**. No skipped heading levels.
 - **Language consistency** — pick one primary language per piece; do not mix
-  unless the user asks for code-switching.
-- **Image ALT** — descriptive, keyword-aware, no "image of"/"picture of" filler.
+  unless the user asks for code-switching. Indonesian pieces follow EYD V
+  spelling via `volumx-writer/references/indonesian.md`.
 
 ## Batching patterns
 
@@ -149,10 +147,11 @@ scale. Pairs with `copywriting` (rules + templates) and
 - **Token discipline**: outline + structure first, draft in chunks, never dump
   a 5000-word essay into a single response.
 - **Reuse**: prefer editing an existing draft over rewriting from scratch.
-- **File path**: write drafts to `/tmp/content/<slug>.md` for review; final
+- **File path**: write drafts to `~/Documents/work/content/<slug>.md` for review; final
   location is project-specific (e.g. `src/content/blog/<slug>.md`).
-- **Memory**: after publishing, append the headline + URL to the project's
-  block in `~/.config/ai/memory/projects.md` so the next session picks it up.
+- **Memory**: do not record published pieces or content status in
+  `~/.config/ai/memory/`. Only a verified, reusable lesson (for example a
+  platform limit that broke a publish) goes through `ai-learn capture`.
 
 ## Pair with
 

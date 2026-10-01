@@ -1,28 +1,33 @@
 upstream: https://docs.stripe.com/.well-known/skills/stripe-best-practices
 index: https://docs.stripe.com/.well-known/skills/index.json
-verified: 2026-09-29
+verified: 2026-10-02
 scope: directory
-reason: official hosted files still emit broken Markdown link targets (16 links in two files)
+reason: official hosted files still emit broken Markdown link targets (15 links in two files)
 note: every file listed by the index was fetched 2026-09-29 and adopted verbatim,
   except for these link-target rewrites (link text and all prose unchanged):
   1. SKILL.md, 11 links: upstream rewrites the bundled references as
      `https://docs.stripe.com/references/<name>.md`, which returns HTTP 404
      (measured for all six). Local uses the bundled relative path
      `references/<name>.md`.
-  2. references/tax.md, 5 links: upstream emits
+  2. references/tax.md, 4 links: upstream emits
      `https://docs.stripe.com/undefined.md#<anchor>` (HTTP 404). Each anchor is a
      heading in the same file, so local uses the same-document target
-     `#<anchor>` (registration-safety, threshold-and-nexus-monitoring,
+     `#<anchor>` (threshold-and-nexus-monitoring,
      verify-before-you-trust-automatic-tax, diagnose-zero-tax,
      choosing-a-product-tax-code).
 note: known upstream 404 NOT patched, because no verified replacement exists:
   references/treasury.md links https://docs.stripe.com/api/v2/core/vault/financial-accounts.md.
 note: frontmatter description is upstream's, unedited.
-would_lose_if_wired: a byte-for-byte refresh would restore 16 broken link
-  targets (11 cross-file 404s in SKILL.md, 5 undefined.md targets in tax.md)
+would_lose_if_wired: a byte-for-byte refresh would restore 15 broken link
+  targets (11 cross-file 404s in SKILL.md, 4 undefined.md targets in tax.md)
   and fail repository Markdown-link validation.
 refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is
   present, before any fetch or write.
 to_vendor: remove this ledger only after the official hosted SKILL.md uses
   relative reference paths and tax.md uses valid same-document anchors, and
   every indexed file is re-verified. No external publication was performed.
+recheck: 2026-10-02 — all 7 indexed files re-fetched (index lists no new files). Adopted upstream: API
+  version 2026-09-30.endive, tax.md wording, and upstream's own fix of the registration-safety link
+  (now plain text). Link rewrites re-applied: 11 in SKILL.md, 4 in tax.md; all still 404 upstream, as
+  does the unpatched treasury vault link. github.com/stripe/ai skills/stripe-best-practices lags the
+  hosted index (still 2026-08-26.dahlia), so the hosted index remains the source.

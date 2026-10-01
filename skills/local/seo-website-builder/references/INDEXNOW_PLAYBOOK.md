@@ -1,6 +1,8 @@
 # IndexNow Protocol Implementation Playbook
 
-IndexNow is an open protocol that allows website owners to instantly notify participating search engines (**Microsoft Bing, Yandex, Seznam.cz, Naver, Yep, DuckDuckGo**) whenever content is created, updated, or deleted.
+IndexNow is an open protocol that allows website owners to instantly notify participating services (**Microsoft Bing, Yandex, Seznam.cz, Naver, Yep, Internet Archive, Amazon** — [searchengines.json](https://www.indexnow.org/searchengines.json), accessed 2026-10-02; DuckDuckGo is not listed) whenever content is created, updated, or deleted.
+
+Protocol limits ([documentation](https://www.indexnow.org/documentation), accessed 2026-10-02): up to 10,000 URLs per POST; key of 8–128 characters from `a-z`, `A-Z`, `0-9`, `-`; `200` submitted, `202` received pending key validation, `400` bad format, `403` invalid key, `422` URLs not matching host/key, `429` too many requests.
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: kelola-deploy
-description: Deploy, verify, and recover the Kelola HRIS production server (kelolatim.com). Automatically use when working in the kelola repo on anything touching deploy, CI, PM2, nginx, the production VPS, a 500/502 after deploy, ChunkLoadError, node_modules corruption, or Indonesian phrases like deploy kelola, servernya error, web nya down, gak bisa login, disk penuh.
+description: Deploy, verify, and recover the Kelola HRIS production server (kelolatim.com). Not new VPS provisioning (vultr), generic VPS setup (vps-deploy), or Vercel (vercel). Automatically use when working in the kelola repo on anything touching deploy, CI, PM2, nginx, the production VPS, a 500/502 after deploy, ChunkLoadError, node_modules corruption, or Indonesian phrases like deploy kelola, servernya error, web nya down, gak bisa login, disk penuh.
 ---
 
 # Kelola — Production Deploy & Recovery Runbook
@@ -8,6 +8,10 @@ description: Deploy, verify, and recover the Kelola HRIS production server (kelo
 Kelola HRIS (repo `kelola`) is a private Next.js web and Hono backend deployment on one VPS. There is no public canonical upstream for this runbook. It was distilled from internal incidents in June-July 2026; incident explanations are historical operational evidence, not permanent platform facts.
 
 At the start of every deploy or recovery, inspect the current `kelola` repository's `.github/workflows/deploy.yml`, `deploy.sh`, `ecosystem.config.cjs`, and package scripts, then compare them with live PM2/nginx state. Current repository configuration and observed host output override this file. Keep point-in-time backup tables, disk figures, credentials, and account data in approved private operational storage, not here.
+
+## Approval gate
+
+Everything below acts on production. Read-only checks (`gh run list`, `curl`, `pm2 show`, `pgrep`, `df`, `du`) are fine; a manual `deploy.sh`, any `rm -rf`, `git reset --hard`/`git switch` on the server, `pm2 stop/restart`, `sudo journalctl --vacuum-*`, or `.env` edits need the user's explicit approval for that step. Never print `backend/.env` contents.
 
 ## Architecture
 
@@ -29,6 +33,8 @@ npm ci ×2 → db:migrate → next build with web stopped + chunk verification �
 pm2 startOrReload). **Do NOT also run a manual SSH deploy** — a second concurrent
 deploy is how node_modules gets corrupted.
 
+- Concurrency guard: `deploy.yml` should declare a workflow-level `concurrency` group with `cancel-in-progress: false` — cancelling a running deploy mid-`npm ci` is itself a corruption path. By default GitHub keeps only the newest pending run in a group (older pending runs are cancelled), which matches "one green run ships all commits". Check the live file; it does not stop a manual SSH `deploy.sh`, so the rule below still applies. Source: https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency (accessed 2026-10-02).
+- The self-hosted runner is persistent and runs as the prod user: keep the repo private, never let fork/PR workflows target that runner label, and treat any workflow change as a production change. GitHub: self-hosted runners "can be persistently compromised by untrusted code in a workflow". Source: https://docs.github.com/en/actions/reference/security/secure-use#hardening-for-self-hosted-runners (accessed 2026-10-02).
 - Watch: `gh run list --workflow=deploy.yml --limit 3`, or on the server
   `pgrep -af "next build|deploy.sh"` (empty = done).
 - The site 500s briefly DURING the build window — wait for CI before diagnosing.
@@ -80,7 +86,9 @@ If the bad release applied an incompatible migration, stop and use the migration
 ## Guardrails
 
 - A `deploy.sh` edit only takes effect on the NEXT deploy (the running copy is
-  already loaded); to apply now: `git -C ~/kelola fetch && git reset --hard origin/main` first.
+  already loaded). To apply it now (approval required, and only when no deploy is running
+  and `git -C ~/kelola status --short` is empty): `git -C ~/kelola fetch && git -C ~/kelola reset --hard origin/main`,
+  then run `deploy.sh`. This discards any server-side edits and leaves a rollback checkout.
 - Deploy resets to `origin/main` → always commit+push local work before any deploy.
 - Any successful deploy ships ALL commits on main — after a collision, one green
   run is enough; don't pile on more deploys.

@@ -99,4 +99,6 @@ When presenting reasoned analysis to the user, keep explanations in casual Bahas
 - **Never guess identifiers or destructive targets**: Grep disk before naming files or functions.
 - **Beware the local fix**: If an edit only masks the symptom (e.g. adding `try-catch` around a null pointer instead of fixing why the pointer is null), reject it.
 - **No speculative scaffolding**: Do not write code for "future extensibility" that was not explicitly requested.
+- **Show conclusions, not monologue**: The output format is a compact evidence-backed summary. Do not paste raw internal deliberation, and never let reasoning length stand in for a verification result.
+- **Hand off durable outcomes**: A concluded costly-to-reverse trade-off goes to `adr-record`; a state machine or flow worth keeping goes to `mermaid-diagram`.
 - **Respect Approval Gates**: Deep reasoning never bypasses user authorization for secrets, destructive commands, or production deploys.

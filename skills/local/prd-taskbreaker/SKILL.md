@@ -59,6 +59,28 @@ Use bold bullet fields: the suite validator ignores unbulleted `Primary requirem
 
 `PR-2` and `NFR-1` affect execution but do not become additional primary requirements. During planning, define `TEST-1` if the pack activates it, but do not create or claim `EVID-*`.
 
+### Six-doc lite (standalone lane, `lean`/`product` profiles)
+
+The common "six documents before vibe coding" set (PRD, TRD, App Flow, UI/UX
+brief, backend schema, implementation plan) maps onto the existing 3+1 files.
+Do not create a TRD, APP-FLOW, SCHEMA, or IMPLEMENTATION-PLAN file beside them.
+
+| Six-doc concern | Canonical standalone owner | Present when |
+|---|---|---|
+| Product requirements | `PRD.md` (problem, users + workaround, goals, success measure, non-goals, core features, `REQ-*` with Given/When/Then) | Always |
+| App flow / user journeys | `PRD.md` first-use journey line; `DESIGN.md` screen and action specs when the flow spans screens | Always / browser-visible |
+| Technical requirements (TRD) | `PLAN.md` conditional blocks (see PLAN format) | Architecture, data, auth, or integration is touched |
+| Backend schema | `PLAN.md` Data Schema table | Persistent state exists |
+| UI/UX brief | `DESIGN.md` (direction, screen/action specs, assets needed) — the already-allowed standalone design artifact | Browser-visible work with cross-screen decisions |
+| Implementation plan | `TASKS.md` in the default milestone order | Always |
+
+Fill `PRD.md` first, then run the [consistency review](#contract-review-gate)
+across every present file before writing tasks; check structure with
+`check-traceability.py --standalone <repo>` (the `development-spec-suite`
+validator; it reads root `PRD.md`, `PLAN.md`, and `TASKS.md`).
+A `platform` profile or a genuinely multi-domain system leaves this lane for
+`development-spec-suite`.
+
 ## 0. Inspect before clarifying
 
 Read repository instructions, existing PRD/spec/design artifacts, `TASKS.md`,
@@ -100,8 +122,14 @@ Draft into `~/Documents/work/prd/<slug>/PRD.md` first; the final PRD → project
 ## Overview
 One paragraph: what is being built, for whom, why now.
 
+## Users and current workaround
+| Role | Job to be done | Current workaround | Evidence status |
+|---|---|---|---|
+| Buyer | Order without creating an account | Orders by chat; details get lost | Observed |
+
+First-use journey: landing -> product -> checkout form -> order confirmation.
+
 ## Product, Audience, and Market Context
-- Primary user/job and evidence status
 - Global, localized-global, or country-specific scope
 - Locale/language, device/input, trust/content behavior, and unresolved assumptions
 
@@ -109,15 +137,28 @@ One paragraph: what is being built, for whom, why now.
 - Measurable goal 1
 - Measurable goal 2
 
+## Success measure
+Metric, baseline, target, and when it is read (e.g. chat-order share drops from 60% to 20% within 30 days of launch).
+
 ## Non-Goals
 - What is NOT covered (scope boundary — as important as the goals)
 
+## Core features
+| Feature | Priority | User benefit | Requirements |
+|---|---|---|---|
+| Guest checkout | Must | Buyer orders in one form, no account | REQ-001, REQ-002 |
+
 ## Requirements
-Testable, numbered, EARS-style (see cheatsheet below). The ID is what tasks trace to.
-- **REQ-001** (event) When the user submits the checkout form, the system shall create an order with status `pending`.
-- **REQ-002** (unwanted) If the phone number is invalid, then the system shall reject the submit and show an error.
-- **REQ-003** (state) While the province is COD-disabled, the system shall hide the COD option.
-- **REQ-004** (ubiquitous) The system shall log every order-status change.
+Testable, numbered, EARS-style (see cheatsheet below), with a MoSCoW priority. The ID is what tasks trace to. Every `Must` carries one Given/When/Then acceptance line.
+- **REQ-001** (Must, event) When the user submits the checkout form, the system shall create an order with status `pending`.
+  - Acceptance: Given a valid cart, When the buyer submits the form, Then an order with status `pending` exists and the confirmation shows its number.
+- **REQ-002** (Must, unwanted) If the phone number is invalid, then the system shall reject the submit and show an error.
+  - Acceptance: Given an invalid phone, When the buyer submits, Then no order is created and the phone field shows the error.
+- **REQ-003** (Should, state) While the province is COD-disabled, the system shall hide the COD option.
+- **REQ-004** (Should, ubiquitous) The system shall log every order-status change.
+
+## Open questions
+Only questions whose answers change behavior or architecture, including contradictions found by the consistency review. Owner and due gate per item.
 
 ## Stack & Constraints
 - Frontend / Backend / DB / Deploy / Constraint. (Don't repeat the global `AGENTS.md` rules. For frontend features, select the actual surface owner: `design-taste` for marketing/storefront visual direction or `admin-dashboard` for data-dense product UI; use `ui-validation` for executable browser evidence and `web-perf` for performance diagnosis.)
@@ -136,6 +177,21 @@ Embed a ```mermaid``` block (delegate the how-to to the mermaid-diagram skill).
 - [ ] v0.2: ...
 ```
 
+A section that genuinely does not apply stays as a heading with
+`Not applicable — <reason>`; never delete a required section silently. The
+standalone validator requires Problem/Overview, Users, Goals, Non-Goals,
+Requirements, and Open questions.
+
+### Default milestone order
+
+Unless the repository already dictates another order, sequence milestones and
+their tasks as: **setup -> data/auth -> core journey -> secondary journeys ->
+quality (accessibility, performance, security, error paths) -> release**. Close
+each phase with a checkpoint: run the phase's checks, then record the outcome
+and any blockers in `STATUS.md` (the only workflow-state authority) before the
+next phase starts. Skip a phase the PRD does not need; do not add tasks to fill
+it.
+
 ### Browser-visible handoff
 
 The PRD owns user outcomes, not visual taste. For a new UI or material redesign,
@@ -146,7 +202,10 @@ activate `development-kit`'s experience route before tasks are accepted:
 - suite mode -> `17-UX-FLOWS-SCREEN-CONTRACTS.md` plus
   `10-DESIGN-SYSTEM-WHITELABEL.md`;
 - standalone mode -> extend the accepted design artifact, or create `DESIGN.md`
-  only when durable cross-screen decisions need an owner and none exists;
+  only when durable cross-screen decisions need an owner and none exists; it
+  then carries the UI brief, screen specs, an action table (action, trigger,
+  validation, pending, success, error/recovery, next screen, `REQ-*`),
+  navigation rules, and assets needed — the same fields as suite `17`/`10`;
 - diagrams -> `mermaid-diagram` only for real branching, lifecycle, sequence,
   data relationship, or component-boundary value.
 
@@ -176,8 +235,38 @@ Create `PLAN.md` ONLY when the feature touches **new architecture, a DB schema, 
 ## Architecture
 Components + how they talk. Embed a diagram when a trigger is met.
 
+## Platforms & Hosting
+Runtime(s), hosting target, region, and the platform limits that bind the design.
+
+## Auth, Roles & Authorization
+| Role | May | May not | Enforced at |
+|---|---|---|---|
+| Buyer | create own order, read own order | read other orders | server route + DB predicate |
+Authorization rules are server-side; a hidden control is not authorization.
+
+## Security & Privacy
+Trust boundaries, sensitive fields and their handling, secrets location (names only), abuse controls.
+
+## Performance & Reliability Targets
+| Target | Value | Linked requirement | How measured |
+|---|---|---|---|
+| Checkout submit p95 | < 800 ms | REQ-001 | k6 / server timing on staging |
+
+## Environments & Delivery
+Local/staging/production, how config differs, deploy path, rollback.
+
 ## Data Schema
-Tables/columns/relations. Mermaid ERD when ≥2 related tables.
+Mermaid ERD when ≥2 related tables.
+| Table.field | Type | Required | Default | Index | Notes |
+|---|---|---|---|---|---|
+| orders.status | text | yes | `pending` | yes (status, created_at) | enum: pending, paid, cancelled |
+
+## Data Ownership, Retention & Deletion
+| Entity | Owner (role/tenant) | Retention | Deletion/anonymization |
+|---|---|---|---|
+
+## Migration & Seed
+Migration order and reversibility; seed/fixture data for dev/test/demo only — idempotent, never production data.
 
 ## Integrations & Contracts
 Endpoints/webhooks/third parties. Internal API → delegate to the openapi-spec skill.
@@ -185,6 +274,14 @@ Endpoints/webhooks/third parties. Internal API → delegate to the openapi-spec 
 ## Risks & Mitigations
 What can fail, and the handling (rate limit, retry, fallback).
 ```
+
+Every block between Architecture and Integrations is **conditional**: include it
+only when the feature touches that concern, and write
+`Not applicable — <reason>` instead of an empty heading when a reader would
+otherwise expect it (e.g. no auth in a public read-only site). Performance and
+reliability targets must link to a requirement; an unlinked target is a goal
+without an owner. Deep security, tenancy, or IAM design still routes to
+`application-security`, `adr-record`, or `development-spec-suite`.
 
 Before accepting a costly-to-reverse technical decision, compare the real
 alternatives found in the repository or current primary documentation. Record
@@ -203,7 +300,31 @@ Before generating tasks, review the draft as a decision loop:
    integration work has only the necessary PLAN/contracts.
 4. Conflicts with repository truth, duplicate canonical files, unowned failure
    paths, or unjustified decisions send the draft back for revision.
-5. Only a reviewed contract proceeds to `TASKS.md`.
+5. Run the consistency checklist below across every present file
+   (`PRD.md`, `PLAN.md`, `DESIGN.md`, draft `TASKS.md`). Feed them together and
+   look for contradictions, not just gaps.
+6. Only a reviewed contract proceeds to `TASKS.md`.
+
+**Consistency checklist** (semantic; the validator covers only the structural
+subset marked *checked*):
+
+- [ ] Roles named in the PRD = roles in PLAN authorization rules = roles in the
+      DESIGN permission/state matrix (*checked: PRD/PLAN role-name mismatch warns*).
+- [ ] Every entity a screen or action reads or writes exists in the PLAN schema
+      with its fields.
+- [ ] Every action has validation, pending, success, and error/recovery
+      behavior, and a defined next screen.
+- [ ] NFR/performance targets are plausible for the chosen hosting and its
+      limits (cold starts, quotas, region).
+- [ ] No task implements a non-goal; every task traces to an accepted `REQ-*`
+      (*checked: unresolved requirement and orphan accepted requirement*).
+- [ ] Every `Must` requirement has a Given/When/Then acceptance line
+      (*checked*).
+- [ ] Retention/deletion rules agree with the privacy commitments and with
+      what the schema actually stores.
+- [ ] Each contradiction or unresolved item is recorded in the PRD's
+      `Open questions` with an owner — never in a new review file — and blocks
+      the affected tasks until resolved.
 
 ## Verification vocabulary
 
@@ -264,6 +385,13 @@ Runtime EVID is intentionally absent from this planning example. Only after exec
 - **Visual Contract:** Checkout payment step; COD option absent (not disabled) for a COD-disabled province, other options unchanged on mobile and desktop.
 - **Depends On:** TASK-002
 - **Verification:** Done when selecting a COD-disabled province removes COD in the rendered page and other payment options remain.
+
+### TASK-004: Reject an invalid phone number on submit
+- **Requirement:** REQ-002
+- **Risk Level:** R1
+- **Allowed Paths:** `src/routes/api/order.ts`, `src/components/Checkout.tsx`, `tests/order.test.ts`
+- **Depends On:** TASK-002
+- **Verification:** Done when a test submits an invalid phone number, the API answers 422 with a field error, no order row is written, and the form shows the error next to the phone field.
 ```
 
 Risk sets the weight. R0 (docs/mechanical) may infer one obvious file. R1+ declares `Allowed Paths` — `delivery-ledger start` refuses R1-R4 runs without `--allow`, and these paths are what it takes. R3/R4 (money, auth, tenant data, migrations, architecture) add `Protected Paths` and independent review. Before an R1+ task is accepted, fill the template's remaining required fields (Canonical Contract Owners, Accepted Invariants, Reopen Conditions, Non-Scope, Escalation Conditions; Visual Contract when paths touch rendered files); TASK-001 shows a complete contract; the others show only the planning core. Use canonical names only, never the template's compatibility aliases.
@@ -275,7 +403,7 @@ Risk sets the weight. R0 (docs/mechanical) may infer one obvious file. R1+ decla
 3. **Explicit deps** — `- **Depends On:** TASK-001, TASK-003` on its own line; any other spelling is invisible to `resume-brief`.
 4. **Context-complete** — exact files/tables/endpoints in `Allowed Paths` and the title, not "build something".
 5. **Sized right** — 1 task ≈ one coding session (30–90 min), small enough to review in one sitting. Feels big → split first.
-6. **Ordered** — setup before feature, dependency before dependent.
+6. **Ordered** — setup before feature, dependency before dependent; follow the default milestone order and end each phase with its `STATUS.md` checkpoint.
 
 ## When to diagram (delegate to the `mermaid-diagram` skill)
 

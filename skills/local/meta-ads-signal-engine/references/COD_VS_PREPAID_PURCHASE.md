@@ -44,6 +44,8 @@ Courier Collects Cash & Delivers   Order Status = DELIVERED      Purchase (CAPI 
 
 | COD Purchase Timing | Signal Quality | Event Volume | Latency | Recommended Use Case |
 | --- | --- | --- | --- | --- |
-| **Form Submitted** | Low (includes fake/cancels) | High | 0 sec | Low volume testing only |
-| **Admin Confirmed** | Medium-High | Medium | 1–2 hours | Standard COD balance |
-| **Cash Delivered** | Maximum (100% real revenue) | Lower | 2–5 days | High volume COD scale |
+| **Form Submitted** | Low (includes fake/cancels) | High | Immediate | Low volume testing only |
+| **Admin Confirmed** | Medium-High | Medium | Ops-dependent (measure your own confirmation lag) | Standard COD balance |
+| **Cash Delivered** | Highest (collected revenue only) | Lower | Courier-dependent, usually days | High volume COD scale |
+
+Latency matters: Meta only deduplicates within 48 hours, so a delivery-time server `Purchase` will not pair with a browser event and must not have one. Meta also rejects the **entire request** when any `event_time` in `data` is more than 7 days in the past ([server event parameters](https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/server-event), accessed 2026-10-02): stamp the COD `Purchase` with the delivery/collection time, send it promptly, and never batch a stale event with fresh ones. Measure your real confirmation and delivery lag from order timestamps; the labels above are qualitative, not benchmarks.

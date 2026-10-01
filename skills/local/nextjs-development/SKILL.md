@@ -55,7 +55,7 @@ them:
 | Automated behavioral test strategy and contract coverage | `testing-engineering` |
 | Browser-visible evidence | `ui-validation` |
 | Cross-stack application security | `application-security` |
-| Better Auth configuration and hardening | `better-auth-security` |
+| Better Auth configuration, hardening, and auth flow UX | `better-auth-security` (+ `references/auth-flows.md`) |
 | Logs, metrics, traces, and SLO design | `observability-engineering` |
 | Performance diagnosis and measurement | `web-perf` |
 | Plain PostgreSQL/Drizzle data engineering | `postgres-drizzle` |
@@ -178,8 +178,26 @@ rate, and payload-limit controls as required by `application-security` and the
 project's existing stack. Never log raw secrets, tokens, or sensitive form data.
 
 Proxy/Middleware is useful for coarse routing and early rejection, not the sole
-mutation or data authorization boundary. With Better Auth, load
-`better-auth-security` before touching auth code.
+mutation or data authorization boundary (Next.js 16 renamed the
+`middleware` file convention to `proxy`; check the installed major). With
+Better Auth, load `better-auth-security` before touching auth code and its
+`references/auth-flows.md` for sign-up, verification, reset, invite, OAuth or
+magic-link, and session-expiry UX.
+
+## Internationalization
+
+Verify the installed version's i18n guide before routing locales; the Pages
+Router `i18n` config does not apply to the App Router. Current docs (v16)
+describe: all routes under `app/[lang]/`, locale negotiation and redirect in
+Proxy, per-locale dictionaries loaded server-side (`server-only` or
+`next/root-params` where the version supports it — its getters do not run in
+Server Actions or Route Handlers, so pass the locale there), `hasLocale` narrowing with
+`notFound()` for unknown locales, and `generateStaticParams` for static
+locales. Set `<html lang>` in the `[lang]` root layout. Keep dictionaries out
+of Client Components except the keys a leaf needs. Dates, numbers, and currency
+use `Intl` (`native-first`). Hreflang, per-locale canonicals, and localized
+sitemaps belong to `seo-website-builder`. Source:
+https://nextjs.org/docs/app/guides/internationalization (verified 2026-10-02).
 
 ## Route and platform concerns
 
@@ -205,7 +223,7 @@ mutation or data authorization boundary. With Better Auth, load
 
 ## Bundle and performance discipline
 
-Apply the production rules in `references/react-performance-rules.md` (concurrency waterfalls, barrel imports, action auth, React.cache).
+Apply the production rules in `references/react-performance-rules.md` (waterfalls, bundles, server, re-render, rendering, and view-transition gotchas).
 Keep `'use client'` leaves narrow, import heavy browser libraries only where
 used, and run expensive non-interactive transforms on the server. Prefer native
 Next image/font/linking and code-splitting features already in the installed
@@ -226,8 +244,9 @@ Use `references/verification.md`. Minimum evidence is layered:
    metadata generation, runtime compatibility, or production bundling changed.
 3. Start the real local runtime and smoke the affected route/action/handler,
    including the relevant unauthorized/error path for a trust boundary.
-4. For browser-visible behavior, use `ui-validation` and exercise the page. A
-   successful build is never UI evidence.
+4. For browser-visible behavior, run the `impeccable` critique/polish pass,
+   then use `ui-validation` and exercise the page. A successful build is never
+   UI evidence.
 5. Report the command, route/state exercised, and observed result. Do not claim
    deployment compatibility, cache invalidation, streaming, or UI behavior that
    was not observed.

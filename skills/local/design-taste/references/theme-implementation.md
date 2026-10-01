@@ -111,6 +111,30 @@ inline outranks every selector, so the `.dark` rule becomes dead code and native
 controls, scrollbars, and date pickers freeze in the boot-time scheme when the
 class later flips. That is why the Astro snippet above sets only the class.
 
+## Transparency and contrast preferences
+
+Translucent surfaces (frosted headers, glass panels, scrims) and low-contrast
+hairlines need fallbacks, defined as token overrides rather than per-component
+hacks:
+
+```css
+@media (prefers-reduced-transparency: reduce) {
+  :root { --surface-overlay: var(--surface-solid); }   /* opaque, no backdrop-filter */
+  .glass { backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  :root { --border: var(--border-strong); --text-muted: var(--text); }
+}
+@media (forced-colors: active) {
+  .glass, .card { border: 1px solid CanvasText; }       /* shapes still visible */
+}
+```
+
+Re-check support before relying on `prefers-reduced-transparency`; the default
+(unsupported) path must already be readable, so the media query only improves
+it. Verify text over any translucent surface against its worst-case backdrop
+with `scripts/contrast.py --over`.
+
 ## What to verify before calling it done
 
 Hand these to `ui-validation`:

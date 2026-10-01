@@ -84,7 +84,12 @@ body or handler.
   `next start`. Read request data outside and pass it in as an argument.
 - `updateTag(tag)` (Server Actions) expires immediately so the same request
   sees fresh data; `revalidateTag(tag, 'max')` is stale-while-revalidate.
-  Single-argument `revalidateTag(tag)` is deprecated in 16.
+  Single-argument `revalidateTag(tag)` is deprecated in 16. From a Route
+  Handler or webhook (where `updateTag` is unavailable) use
+  `revalidateTag(tag, { expire: 0 })` when the next read must not see stale
+  data. Neither runs in Proxy or Client Components. Revalidation happens on
+  the next request for the tagged data, not at the call. Source (2026-10-02,
+  v16.3.8): https://nextjs.org/docs/app/api-reference/functions/revalidateTag
 
 ### Cache Components not enabled
 

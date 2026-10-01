@@ -2,7 +2,8 @@
 name: autolaris-h2h
 description: >-
   Integrate AutoLaris H2H for Indonesian shipping, payment channels, Create
-  Order `/submit`, and Advice reconciliation. Use when a task mentions
+  Order `/submit`, and Advice reconciliation. Not for Mengantar
+  (mengantar-api), storefront UX, or live calls without approval. Use when a task mentions
   AutoLaris, `/api/h2h`, Create Resi, Cek Ongkir, QRIS/VA via AutoLaris,
   `courir_id`, or Advice payment status.
 ---
@@ -87,10 +88,21 @@ for the review.
 | `POST` | `/api/h2h/order` | Create a physical shipment / resi |
 | `POST` | `/api/h2h/lacak` | Track an `awb` |
 | `POST` | `/api/h2h/cancel` | Cancel a provider transaction |
+| `POST` | `/api/h2h/pickup` | Request pickup for a `transaction_id` (see note) |
 | `POST` | `/api/h2h/create_payment` | Create a payment instruction without shipment |
 | `GET` | `/api/h2h/list_payment` | List channels and fee configuration for the account |
 | `POST` | `/api/h2h/submit` | Create an order with payment instruction |
 | `POST` | `/api/h2h/advice` | Read one provider transaction status |
+
+Re-checked 2026-10-02 against the public collection
+(https://documenter.getpostman.com/view/25938923/2sB2iwFuwz). It lists nine
+requests: the eight in the local references plus "Pickup Order",
+`POST /api/h2h/pickup` with body `{ transaction_id }`. The local references
+and the OpenAPI file do not model it yet. Its response shape and its
+interaction with `/order` and `/submit` pickup data are unverified as of
+2026-10-02. Confirm them with a sanitized sandbox response or provider support
+before you build on it. Dispatch is a physical side effect: it needs the same
+explicit approval as order creation.
 
 ## Safety checks before handoff
 

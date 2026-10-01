@@ -256,6 +256,34 @@ selects the relationship and chart type.
 - Escalate beyond Recharts only after the data volume or chart form proves the
   need.
 
+## Composition patterns
+
+Use these when building a project component on top of shadcn primitives:
+
+- **Context exposes state, actions, and meta.** A compound component's provider
+  publishes `{ state, actions, meta }` (for example selected rows, `select()` /
+  `clear()`, and row count) so children read only what they need. Keep the
+  provider as low as the shared state permits.
+- **Decouple interface from implementation.** Children depend on the context
+  contract, not on how state is stored, so the same toolbar works whether the
+  table state is local, URL-backed, or server-driven. Swap the provider, not
+  the children.
+- **Explicit variants over boolean props.** Prefer `variant="compact"` (a
+  `cva` variant) or a distinct component (`<DataTable.Toolbar>`) over stacks of
+  booleans like `isCompact hasBorder noPadding`; booleans multiply into
+  untested combinations.
+- **Children over render props.** Compose with `children` and slots
+  (`asChild`/`render` per the installed base library); reach for a render prop
+  only when the parent must pass per-item data the child cannot read from
+  context.
+- **React 19 (check the installed version):** function components receive
+  `ref` as a regular prop, so new components do not need `forwardRef`
+  (match what the copied registry source does; do not rewrite older copied
+  files as a side quest). `use(Context)` reads context and may be
+  called conditionally, unlike `useContext`; `use(promise)` suspends on a
+  promise passed from a Server Component or a cache, not one created during
+  client render.
+
 ## Visual and token contract
 
 - Existing project tokens win.
@@ -325,6 +353,8 @@ before implementation:
 - https://ui.shadcn.com/docs/installation
 - https://ui.shadcn.com/docs/cli
 - https://ui.shadcn.com/docs/components
+- React 19 `ref` as prop and `use()` (verified 2026-10-02):
+  https://react.dev/blog/2024/12/05/react-19
 
 The standard registry does not require MCP. Use MCP when conversational registry
 browsing or private registries materially improve the workflow; the native CLI

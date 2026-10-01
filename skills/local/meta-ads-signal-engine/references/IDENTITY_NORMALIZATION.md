@@ -22,8 +22,10 @@ MUST BE NORMALIZED & SHA-256 HASHED:
 - st (State / Region)
 - zp (Zip / Postal Code)
 - country (Country Code, e.g. "id", "us")
-- external_id (First-Party Customer ID)
+- external_id (First-Party Customer ID) — Meta says hashing is *recommended*, not required; this skill hashes it on both legs so Pixel and CAPI values match
 ```
+
+Source: [Meta customer information parameters](https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/customer-information-parameters), accessed 2026-10-02.
 
 ---
 
@@ -64,9 +66,11 @@ export function normalizeEmail(email: string): string {
 }
 
 /**
- * Normalizes phone number to E.164 numeric representation:
+ * Normalizes phone number for Meta `ph`: country code + national number, digits only.
+ * Meta: "Remove symbols, letters, and any leading zeros" and always include the
+ * country code (so no '+'). Google Ads differs: it hashes '+E.164'.
  * - Strip non-digit characters
- * - Replace leading '0' with country code (default Indonesia '62')
+ * - Replace a national trunk '0' with the country code (default Indonesia '62')
  */
 export function normalizePhone(phone: string, defaultCountryPrefix = '62'): string {
   let cleaned = phone.replace(/[^0-9]/g, '');

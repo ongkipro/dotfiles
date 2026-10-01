@@ -111,7 +111,7 @@ Stop and ask/flag if:
 
 Use `references/LOCAL_BUSINESS_SEO_PLAYBOOK.md`.
 
-Must produce NAP consistency, Google Business/Profile alignment notes, LocalBusiness/Service/FAQ schema if eligible, service/location page rules, and phone/WhatsApp/contact QA.
+Must produce NAP consistency, Google Business/Profile alignment notes, LocalBusiness/Service schema if eligible (FAQPage only for visible FAQs and never sold as a Google rich result — Google no longer shows it), service/location page rules, and phone/WhatsApp/contact QA.
 
 ### Shopify
 
@@ -136,6 +136,13 @@ Must check App Router/Pages Router metadata, `generateMetadata()`, `app/sitemap.
 Use `references/SEARCH_ENGINE_ALGORITHM_BRIEF.md`, `references/SEARCH_ENGINE_SOURCE_INDEX.md`, and `references/ALGORITHM_UPDATE_LOG.md`.
 
 Must label evidence confidence, prefer official sources, avoid secret-algorithm claims, and update recommendations only when action is justified.
+
+## Current-fact guardrails (verified 2026-10-02)
+
+- Core Web Vitals are LCP, **INP** (not FID), CLS — thresholds in `COMPACT_SKILL_REFERENCES.md`.
+- Supported Google rich results = the live [search gallery](https://developers.google.com/search/docs/appearance/structured-data/search-gallery). FAQ, HowTo, Sitelinks search box, and the 2025 batch (Course Info, Claim Review, Estimated Salary, etc.) are gone.
+- IndexNow participants: Bing, Yandex, Seznam, Naver, Yep, Internet Archive, Amazon ([searchengines.json](https://www.indexnow.org/searchengines.json)); not Google, not DuckDuckGo.
+- Google AI Overviews / AI Mode: no extra markup or AI text files; traffic sits inside the Search Console "Web" search type. AEO/GEO detail belongs to `ai-traffic-os`.
 
 ## Promotion / Tests
 

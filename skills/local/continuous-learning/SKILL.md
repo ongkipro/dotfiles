@@ -1,6 +1,6 @@
 ---
 name: continuous-learning
-description: Route user requests to the smallest relevant memory scope, protect memory quality, and convert verified delivery evidence into reviewed reusable learning. Use when a coding/development session may benefit from identity/preferences, project reference, current execution state, or prior engineering lessons; after verified non-trivial work when a reusable lesson should be captured; and before promoting a memory candidate or evolving reusable methodology into a skill. Never treat memory as repository truth and never auto-promote unverified session narration.
+description: Route requests to the smallest relevant memory scope, protect memory quality, and turn verified evidence into reviewed reusable learning. Not a source of repository status or truth, and never auto-promotes unverified narration. Use when a coding/development session may benefit from identity/preferences, project reference, current execution state, or prior engineering lessons; after verified non-trivial work when a reusable lesson should be captured; and before promoting a memory candidate or evolving reusable methodology into a skill.
 ---
 
 # Continuous Learning
@@ -30,6 +30,16 @@ Capture a learning signal only when the result is non-trivial, reusable, and mac
 4. Never copy secrets, customer data, raw logs, hidden reasoning, volatile status, or speculative root causes into the signal.
 
 `delivery-learning` must refuse runs that are unfinished, non-PASS, have no verification, or contain FAIL/UNVERIFIED verification events.
+
+## Manual capture (no delivery run)
+
+For a verified non-trivial fix outside a `.delivery` run, the shared core's path is `ai-learn capture`:
+
+`ai-learn capture --title ... --symptom ... --root-cause ... --invariant ... --fix ... --check ... [--scope shared|project] [--project NAME] [--repo PATH] [--source user|verified-run|external]`
+
+- Capture only when the lesson is reusable and not already encoded in a repository test or doc.
+- English only; no raw logs, secrets, customer data, changing project status, or unverified diagnosis.
+- The result is a device-local candidate. Review with `ai-learn list` / `ai-learn show`, then `ai-learn promote ... --yes` or `ai-learn reject CANDIDATE --reason ... --yes`.
 
 ## Automatic candidate harvest
 

@@ -134,6 +134,56 @@ Then `import { toast } from 'sonner'` anywhere. `toast.promise(fn(), {loading,
 success, error})` is the one worth remembering — it covers all three states
 without hand-rolled state.
 
+### Sonner troubleshooting
+
+Verify props against the installed `sonner` version (https://sonner.emilkowal.ski).
+
+- **Wrong theme / always light.** Sonner's own `theme` default is `'light'`.
+  The shadcn wrapper passes `useTheme()` from `next-themes` (falling back to
+  `'system'`), so it only follows dark mode when `next-themes`' provider is
+  mounted. Without `next-themes` (Astro, Vite), drop that import and pass
+  `theme` from your own theme source or `theme="system"`.
+- **Toast from a Server Action.** `toast()` is client-only; calling it in a
+  `'use server'` function does nothing or fails. Return a typed result from the
+  action and toast in the client (`useActionState` result or `await action()`
+  in a handler). For a toast after a redirect, carry a one-shot flag (cookie or
+  search param) and fire it from a client component on mount.
+- **Duplicate toasts.** Two `<Toaster />` instances (layout plus page, or a
+  nested layout) render every toast twice — keep one at the root. React
+  StrictMode re-runs effects in development, so an effect that calls `toast()`
+  fires twice; pass a stable `id` (`toast.success('Saved', { id: 'save' })`)
+  to dedupe, or toast from the event handler instead of an effect. Multiple
+  toasters are only intentional with distinct `id` props and `toasterId` on
+  each toast.
+- **Astro.** The Toaster is a React island: hydrate it with `client:only` or
+  `client:load`, and toasts must come from React islands that share its module
+  instance. With `<ClientRouter />`, persist the island
+  (`transition:persist`) so it is not remounted on every navigation; verify
+  Sonner's stylesheet still applies after a client-side navigation.
+- **Hidden behind a modal / not clickable.** A parent with `transform`,
+  `filter`, or its own `z-index` creates a stacking context; mount the Toaster
+  as a direct child of `body` (root layout), not inside a dialog or a
+  transformed container. Radix dialogs set `pointer-events: none` on the body;
+  if toast actions must be clickable while a modal is open, check that the
+  toaster sits outside the dialog tree and test it.
+- **Custom classes ignored.** Sonner's default styles win over `classNames`;
+  the docs require `!important` (Tailwind `!` prefix) for overrides. For more
+  than a tweak, use `unstyled: true` with full classes, or `toast.custom(...)`
+  with your own JSX.
+- **Callbacks.** `onDismiss` runs when the toast is dismissed (swipe, close
+  button, `toast.dismiss`); `onAutoClose` runs when its timer expires. They are
+  separate paths; handle both if cleanup matters.
+- **Mobile placement.** `mobileOffset` (separate from `offset`) applies on
+  narrow screens; set it to clear bottom navigation or safe areas.
+
+Sources (verified 2026-10-02): Toaster props and defaults
+https://sonner.emilkowal.ski/toaster; toast options
+https://sonner.emilkowal.ski/toast; `!important` requirement
+https://sonner.emilkowal.ski/styling; shadcn wrapper using `next-themes`
+https://github.com/shadcn-ui/ui/blob/main/apps/v4/registry/new-york-v4/ui/sonner.tsx.
+The Astro persistence and modal stacking items are field guidance, not vendor
+documentation; confirm in the browser.
+
 ## Sidebar — don't hand-install `@radix-ui/react-slot`
 
 Sidebar pulls its registry deps automatically (`button`, `input`, `separator`,

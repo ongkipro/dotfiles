@@ -1,7 +1,7 @@
 upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/cloudflare
-verified: 2026-09-29
+verified: 2026-10-02
 scope: directory
-reason: Two deliberate local lines; everything else is byte-identical to upstream (last path commit 320fbbc1).
+reason: Two deliberate local lines; everything else is byte-identical to upstream (last path commit 41e0d19).
   (1) Frontmatter description. Upstream's reads "Discover and choose Cloudflare products ..." with no
   boundary. Codex keeps only ~240 characters of each description once many skills are installed
   (see skill-check CODEX_DESCRIPTION_CUT), so the what AND the sibling boundary must be front-loaded:
@@ -28,3 +28,7 @@ decision: 2026-09-29 — nextjs-on-cloudflare deliberately NOT vendored. Upstrea
   redirect that tells the agent to run `npx skills add cloudflare/vinext`; on this machine the
   runtime skill dirs are symlinks into skills/local, so that installer would write third-party
   files into owned skills (same hazard as `playwright-cli install --skills -g`). Keep (2).
+recheck: 2026-10-02 — 3-way merged upstream 320fbbc1..41e0d19: `cf` CLI check section, Basin/K2 rows
+  (pipelines, r2-data-catalog, r2-sql references moved upstream into the basin skill; local copies
+  deleted to match), and docs links switched to explicit `<route>/index.md`. (1) and (2) re-applied;
+  basin/k2 are referenced only as optional named skills, not vendored.

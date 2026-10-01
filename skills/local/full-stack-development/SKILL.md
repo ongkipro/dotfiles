@@ -81,6 +81,17 @@ from a schema proposal to applying a production migration.
 | GitHub Actions workflow design, permissions, caching, matrices, artifacts, and CI evidence | `github-actions` |
 | Astro rendering, routes, islands, Actions, sessions, adapters, and endpoints | `astro-development` |
 | Cloudflare Worker code and bindings | `workers-best-practices` |
+| Cloudflare product choice; Wrangler CLI, config, and deploy | `cloudflare`; `wrangler` |
+| VPS deploy/operate (Coolify or Docker Compose), backups, rollback, workers, cron | `vps-deploy` (provider console/provisioning: `vultr`) |
+| Vercel projects, env, domains, preview/production deploys | `vercel` |
+| Client-edited content layer and CMS selection | `cms-content` |
+| Shopify headless architecture; Hydrogen implementation; Hydrogen tracking surfaces | `headless-shopify`; `hydrogen-development`; `hydrogen-headless-tracking` |
+| Technical SEO, metadata, schema, sitemap/canonical, hreflang | `seo-website-builder` |
+| Transactional email from a Worker (Cloudflare Email Sending/Routing) | `cloudflare-email-service` |
+| Transactional email outside Workers (SMTP or provider API from Node) | no dedicated owner: provider's official docs + `native-first` before an SDK; secrets/abuse via `application-security`; send from a job (row below), not the request path |
+| File uploads (validation, size/type limits, storage, signed URLs) | `application-security` for the trust boundary; storage owner by platform: `cloudflare` (R2), `supabase-stack` (Storage), `vps-deploy` (volumes/object store) |
+| Background jobs, queues, cron, outbox | `postgres-drizzle` (outbox, `SKIP LOCKED`, idempotency); runtime by platform: `vps-deploy` (worker container, scheduled tasks), `cloudflare` (Queues/Cron Triggers), `vercel` (crons) |
+| Bot protection on forms and endpoints (Turnstile) | `turnstile-spin` |
 | Supabase database, Auth, RLS, Storage, Realtime, and Edge Functions | `supabase-stack` |
 | Better Auth configuration and session/auth hardening | `better-auth-security` plus `application-security` for the cross-stack boundary |
 | Machine-readable REST contract | `openapi-spec` |
@@ -118,6 +129,14 @@ Before editing, name the canonical owner for each changed fact:
 - UI state, loading/error/empty/success behavior, and accessibility outcome;
 - telemetry fields, redaction, service objectives, and release checks.
 
+**Forms contract (any stack):** one server-side schema validates every
+submission and is the source of field errors; the server returns a typed
+result (field errors keyed by input name, a form-level error, or success)
+rather than throwing; the UI maps those errors to the matching input with
+`aria-invalid`/`aria-describedby` and preserves entered values. The form must
+submit as a plain HTML form before JavaScript (Server Action, Astro Action, or
+POST endpoint); client-side validation is an enhancement, never the authority.
+
 Change the canonical contract first or in the same bounded slice, then migrate
 every affected producer and consumer. Reuse shared generated or repository-native
 types only when that is already the project convention. Never create a second
@@ -137,8 +156,9 @@ layers.
    timeout, partial persistence, retry, and user recovery where applicable.
 5. For browser-visible work, do not make the first visual edit until the
    proportional research, screen/UX contract, and selected presentation
-   direction are accepted. After implementation, use `ui-validation` for both
-   behavioral proof and a screenshot-based critique/revision pass.
+   direction are accepted. After implementation, run the `impeccable`
+   critique/polish pass first, fix its findings, then use `ui-validation` for
+   browser behavioral proof.
 6. Apply the evidence gates below, then reconcile accepted specs and runtime
    truth, remove scaffolding, and report remaining risk. Do not deploy unless the
    user separately authorizes it.
@@ -148,7 +168,7 @@ layers.
 For new admin or CMS work, the mandatory route is:
 
 `admin-product-ux` -> `admin-dashboard` -> installed framework owner and, when
-applicable, `shadcn-ui` -> `ui-validation`.
+applicable, `shadcn-ui` -> `impeccable` -> `ui-validation`.
 
 For a new surface or material redesign, the first two owners must inspect
 relevant references and record either a justified selection or meaningful
@@ -172,9 +192,9 @@ All applicable gates must pass with fresh observed evidence:
    touched code passes.
 4. **Behavior:** `testing-engineering` selects focused automated checks for the
    changed contract; new tests exist only for uncovered observable behavior.
-5. **Runtime:** run the real changed path. Use `ui-validation` for browser-visible
-   work; otherwise use the smallest endpoint, worker, job, CLI, or integration
-   smoke that observes the result and relevant state.
+5. **Runtime:** run the real changed path. For browser-visible work, run the
+   `impeccable` critique/polish pass first, then `ui-validation`; otherwise use
+   the smallest endpoint, worker, job, CLI, or integration smoke that observes the result and relevant state.
 6. **Trust and operations:** security-sensitive negative paths pass; activated
    telemetry is observable and redacted; performance is measured by `web-perf`
    when the acceptance criteria or risk requires it.

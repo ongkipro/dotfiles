@@ -71,14 +71,14 @@ Load only what the task needs:
 - Humanization and AI-slop removal: `references/human-writing.md`
 - Terminal dialogue, informal intent, status updates, and model handoffs: `references/terminal-dialogue.md`
 - Evaluating dialogue instructions across models: `references/dialogue-evaluation.md` (only for requested evaluation or changes to this dialogue guidance)
-- Indonesian: `references/indonesian.md`
+- Indonesian (including EYD V spelling and KBBI checks): `references/indonesian.md`
 - English: `references/english.md`
 - Brand voice: `references/brand-voice.md`
 - SEO writing: `references/seo.md`
 - Landing pages and sales copy: `references/conversion.md`
 - Paid and social ads: `references/ads.md`
 - Ecommerce and product copy: `references/ecommerce.md`
-- Technical, product, PRD, and developer docs: `references/technical.md`
+- Technical, product, PRD, and developer docs (developer-doc conventions): `references/technical.md`
 - Prompts and agent instructions: `references/prompt-writing.md`
 - Founder, corporate, proposal, and investor writing: `references/business-writing.md`
 - Channel selection: `references/modes.md`

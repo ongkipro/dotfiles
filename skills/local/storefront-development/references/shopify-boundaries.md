@@ -93,9 +93,12 @@ same data lifecycle for both targets.
   direction; never paste arbitrary scripts into checkout assumptions.
 - Plus legacy `checkout.liquid`, additional scripts, and Thank You/Order Status
   script tags sunset 2025-08-28.
-- Non-Plus additional scripts and Thank You/Order Status script tags are
-  scheduled to sunset 2026-08-26. As of this file's verification date, that is
-  upcoming; treat migration as attribution-critical.
+- Non-Plus stores had until 2026-08-26 to upgrade Thank You/Order Status
+  pages; that deadline has passed. Additional scripts were view-only from
+  2025-08-28; do not assume they run on the upgraded pages. Treat any tracking
+  that relied on them as lost until rebuilt as Web Pixels or app/customer
+  events (re-verified 2026-10-02:
+  https://help.shopify.com/en/manual/checkout-settings/checkout-extensibility/checkout-upgrade).
 - Shopify Scripts execution ended 2026-06-30. Use Shopify Functions where the
   required API and plan support the use case.
 

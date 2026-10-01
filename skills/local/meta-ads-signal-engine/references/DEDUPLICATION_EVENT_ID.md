@@ -1,6 +1,8 @@
 # Browser + Server Deduplication & `event_id` Rules
 
-When sending paired events via Meta Pixel (browser) and Conversions API (server), Meta uses `event_id` and `event_name` to deduplicate events received within a **48-hour deduplication window**.
+When sending paired events via Meta Pixel (browser) and Conversions API (server), Meta uses `event_id` and `event_name` to deduplicate events. A duplicate is only removed when it arrives **within 48 hours of the first copy Meta received**, and Meta generally keeps the event received first. ([Meta dedup docs](https://developers.facebook.com/docs/marketing-api/conversions-api/deduplicate-pixel-and-server-events), accessed 2026-10-02.)
+
+Meta also documents a fallback that compares `event_name` with `fbp` and/or `external_id`, but it only works when the browser event arrives **first** and the server event second. Do not rely on it: a server event with no matching earlier browser event is never discarded by that path. Always send `event_id`.
 
 ---
 

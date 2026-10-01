@@ -1,6 +1,6 @@
 ---
 name: doku-malaysia-integration
-description: Integrate DOKU's Global API for Malaysia storefront payments (FPX, Touch 'n Go, GrabPay, ShopeePay, BNPL, cards) — base URLs, credentials, the hosted Checkout API, the HMAC-SHA256 Global signature scheme, and webhook/notification handling. Automatically use when the project mentions DOKU, SenangPay, DOKU Malaysia, Malaysia payment gateway, or Indonesian phrases like integrasi payment malaysia, gateway malay, doku malaysia, checkout malaysia. senangPay is a DOKU company since its 2022 acquisition (BNM-regulated, PCI-DSS certified) — the same API applies.
+description: Integrate DOKU's Global API for Malaysia payments (FPX, Touch 'n Go, GrabPay, ShopeePay, BNPL, cards) via hosted Checkout, Global HMAC signatures, and notifications. Not for DOKU Indonesia SNAP APIs, AutoLaris, or Stripe. Automatically use when the project mentions DOKU, SenangPay, DOKU Malaysia, Malaysia payment gateway, or Indonesian phrases like integrasi payment malaysia, gateway malay, doku malaysia, checkout malaysia. senangPay is a DOKU company since its 2022 acquisition; use DOKU's API for it.
 ---
 
 ## What this is
@@ -11,9 +11,13 @@ a Bank Negara Malaysia-regulated, PCI DSS-certified payment gateway — became a
 DOKU company after DOKU's 2022 acquisition; DOKU's own docs are the correct
 integration surface for a Malaysia-facing product, not a separate SenangPay API.
 
-Canonical source: `https://doku-developers.apidog.io`. Verify against it before
-trusting anything below if DOKU has since revised the API — this skill is a
-distillation, not a mirror.
+Canonical source: `https://doku-developers.apidog.io` ("DOKU Malaysia API
+Reference"). Its machine-readable index is
+`https://doku-developers.apidog.io/llms.txt`, and every page is available as
+`<page>.md`. Fetch the specific page rather than the JS-rendered site. Verify
+against it before trusting anything below if DOKU has since revised the API.
+This skill is a distillation, not a mirror. Re-checked against those pages on
+2026-10-02. The corrections from that pass are marked "(2026-10-02)".
 
 ## Environments and credentials
 
@@ -67,7 +71,28 @@ and every worked example in the docs includes it.
 `INTERNET_BANKING_FPX`, `EWALLET_TNG` (Touch 'n Go), `EWALLET_GRABPAY`,
 `EWALLET_SHOPEEPAY`, `BNPL_GRABPAY`, `BNPL_SHOPEEPAY`, `CREDIT_CARD`. Omit
 `payment_channels` in a Checkout request to show all enabled channels, or list
-specific ones to restrict the page. `device_info` (platform/browser/os/
+specific ones to restrict the page.
+
+Doc inconsistencies (2026-10-02; resolve with one sandbox call before you
+build on them):
+
+- The `checkout_experience` schema names the field `payment_channels`, but
+  both request examples on the same Create Checkout page send `channels`.
+  Send the schema name. Confirm in sandbox that the hosted page is actually
+  restricted, and fall back to the example name only if it is not.
+- The Checkout overview lists Atome (`BNPL_ATOME`), but the schema enum and the
+  Global notification `payment.channel` enum omit it. That notification enum
+  also omits both BNPL values. Parse `channel` leniently and do not reject an
+  unknown value. DOKU's notification overview says new fields may be added and
+  asks for non-strict parsing.
+- `checkout_experience` also accepts `retry_payment: { enabled }`.
+- FPX bank list: `POST /v3/payments/internet-banking/banks`. Checkout status:
+  `GET /v3/checkouts/{id}` (no body, so no `Digest` line).
+
+Source pages: `overview-2375702m0.md`, `create-checkout-42667307e0.md`,
+`retrieve-checkout-status-42667308e0.md`, `get-bank-list-fpx-42667310e0.md`,
+`overview-2375708m0.md`, all under `https://doku-developers.apidog.io/` and
+accessed 2026-10-02. `device_info` (platform/browser/os/
 ip_address) is **mandatory** when the channel is Touch 'n Go, ShopeePay, or
 SPayLater — send it on every request rather than conditionally, since omitting
 it only fails for a subset of channels and that failure mode is easy to miss
@@ -99,7 +124,7 @@ field) if it turns out to be a real blocker.
     "expired_at": "2026-09-17T07:30:45Z"
   },
   "checkout_experience": {
-    "channels": ["EWALLET_TNG", "INTERNET_BANKING_FPX", "EWALLET_GRABPAY"],
+    "payment_channels": ["EWALLET_TNG", "INTERNET_BANKING_FPX", "EWALLET_GRABPAY"],
     "language": "EN",
     "auto_redirect": true,
     "callback_url": "https://merchant.host/payment/callback",
@@ -170,13 +195,21 @@ function globalSignature({ clientId, requestTimestamp, requestTarget, rawBody, s
 }
 ```
 
-DOKU signs its responses the same way but with one field swapped: the
-string-to-sign uses **`Response-Timestamp`** (from the response header) in
-place of `Request-Timestamp`, and `Digest` is computed over the *response*
-body. Recompute and compare on receipt; reject on mismatch rather than merely
-logging it. This response-signature check and the webhook-signature check
-(below) are the same mechanism applied to two different message directions —
-implement one verifier and reuse it for both.
+DOKU also signs its responses with `Response-Timestamp` (from the response
+header) in place of `Request-Timestamp`, and `Digest` is computed over the
+*response* body. Recompute and compare on receipt; reject on mismatch rather
+than merely logging it.
+
+**Response component order is inconsistent in the docs (2026-10-02).**
+"Prepare Signature Component" lists the response string-to-sign as
+`Client-Id`, `Response-Timestamp`, `Digest`, with **no path line**. The
+"Validating Signature" page's worked sample keeps the request path. Make the
+path line configurable in the response verifier. Lock it in using one real
+sandbox response, and record which form validated. Do not guess. The
+"Prepare" page also says `Digest` applies only to POST and PATCH bodies.
+Webhook verification follows the request form, with `Request-Target` set to
+your notification path. (Pages: `prepare-signature-component-2375727m0.md`,
+`validating-signature-2375729m0.md`.)
 
 ### Cards-only signature — do NOT use for Checkout/Payment/Malaysia e-wallet flows
 

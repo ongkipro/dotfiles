@@ -9,7 +9,7 @@ Astro's whole premise is *ship no JS by default*. Most "I need a library" instin
 | a React island for static markup | plain `.astro` — **zero JS**. An island is a cost; pay it only for real interactivity. |
 | next/image equivalent, sharp wrappers | `astro:assets` → `<Image />` / `<Picture />` (AVIF/WebP, sizing, lazy) |
 | a markdown/MDX pipeline | Content Collections + **zod schema** (`src/content.config.ts`) — typed, validated at build |
-| a CMS SDK for local content | Content Collections. Reach for a CMS only when a non-dev edits it. |
+| a CMS SDK for local content | Content Collections. Reach for a CMS only when a non-dev edits it — then `cms-content` picks the smallest one (its git-based options keep collections as the storage layer). |
 | a router library | file-based routing + `[slug].astro` / `[...path].astro` |
 | a sitemap generator | `@astrojs/sitemap` (official) |
 | an RSS lib | `@astrojs/rss` (official) |
@@ -17,6 +17,7 @@ Astro's whole premise is *ship no JS by default*. Most "I need a library" instin
 | a scroll-anim library, for simple cases | CSS `animation-timeline: view()` / `scroll()`. GSAP+ScrollTrigger only when you need orchestration. |
 | a dark-mode lib | `prefers-color-scheme` + a CSS var flip + one inline script to avoid FOUC |
 | a state library across islands | `nanostores` (Astro's documented answer) — but first ask if the islands need to share state at all |
+| Algolia/Elastic/a search server for a static site | **Pagefind** — runs after `astro build` over the output dir (e.g. `npx pagefind --site dist`) and ships a static index + UI; no server. Dynamic/user data search belongs in the DB (`postgres-drizzle`). |
 | env var loader | `import.meta.env` (+ `astro:env` for typed/secret vars) |
 
 ## Island discipline
@@ -39,3 +40,8 @@ Mobile overflow is the recurring bug in this codebase's Astro sites — check at
 `document.documentElement.scrollWidth - document.documentElement.clientWidth <= 1`
 (not `window.innerWidth`, which includes the scrollbar gutter and produces false
 positives on desktop).
+
+## Source notes
+
+Pagefind verified 2026-10-02 (https://pagefind.app/docs/): post-build static
+indexer, no server component. Verify flags against the installed version.

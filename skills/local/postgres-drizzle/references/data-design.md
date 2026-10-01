@@ -97,6 +97,28 @@ Do not hide tenant IDs, money, lifecycle state, or referential keys inside JSON 
 avoid a migration. Arrays are suitable for bounded atomic values, not as a substitute
 for a relationship that needs integrity or independent querying.
 
+## Site and app search
+
+Start in PostgreSQL before adding a search service:
+
+- **Full-text search:** a generated `tsvector` column (weighted with `setweight` for
+  title versus body) with a GIN index, queried with `websearch_to_tsquery` for user
+  input and ranked with `ts_rank`. Pick the text search configuration per language;
+  check the installed server's configurations (`\dF`) for Indonesian and fall back to
+  `simple` for languages without a stemmer (for example Malay). Store the config with
+  the row when content is multilingual.
+- **Fuzzy and partial matching:** `pg_trgm` (a trusted extension) with a
+  `gin_trgm_ops` index accelerates `ILIKE '%term%'`, similarity `%`, and typo-tolerant
+  lookups for names, SKUs, and short fields.
+- Combine both when needed (FTS for documents, trigram for names) and verify plans with
+  `EXPLAIN (ANALYZE, BUFFERS)` on realistic data. Scope every search by tenant and
+  visibility in the same query.
+- Purely static public content can use a build-time index (Pagefind; see `native-first`
+  Astro). Escalate to a dedicated engine only for proven relevance, facet, or scale needs.
+
+Sources (verified 2026-10-02): https://www.postgresql.org/docs/current/pgtrgm.html,
+https://www.postgresql.org/docs/current/textsearch-controls.html.
+
 ## Drizzle representation review
 
 Before accepting a schema change, compare the intended PostgreSQL object with generated

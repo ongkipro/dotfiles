@@ -15,7 +15,7 @@ Consent Mode v2 is a Google tag mechanism for reflecting an advertiser's consent
 
 ## Scope the default to the regions that require it
 
-**A blanket global `denied` default is the wrong call for an ID/MY-market advertiser.** The consent requirement is EEA/UK law. If the site has no CMP — which is normal for an Indonesian COD funnel — a global `denied` default means nothing ever grants consent, so the advertiser silently destroys their own conversion signal and Smart Bidding starves, to satisfy a regulation that does not apply to their traffic.
+**A blanket global `denied` default is the wrong call for an ID/MY-market advertiser.** Google's EU user consent policy covers end users in the EEA, the UK, and Switzerland ([policy](https://www.google.com/about/company/user-consent-policy/), accessed 2026-10-02); other jurisdictions have their own privacy laws, which the advertiser's legal review — not this skill — decides. If the site has no CMP — which is normal for an Indonesian COD funnel — a global `denied` default means nothing ever grants consent, so the advertiser silently destroys their own conversion signal and Smart Bidding starves, to satisfy a regulation that does not apply to their traffic.
 
 `gtag('consent', 'default', …)` accepts a `region` array. Deny where the law requires it, grant elsewhere:
 
@@ -24,7 +24,7 @@ Consent Mode v2 is a Google tag mechanism for reflecting an advertiser's consent
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
 
-  // EEA + UK: denied until a CMP grants.
+  // EEA + UK + CH: denied until a CMP grants.
   gtag('consent', 'default', {
     'ad_storage': 'denied',
     'ad_user_data': 'denied',
@@ -44,7 +44,7 @@ Consent Mode v2 is a Google tag mechanism for reflecting an advertiser's consent
 </script>
 ```
 
-Use a regional default only when the region list, consent experience, and legal policy are reviewed together. A global `denied` default without a CMP can be an unmonitored measurement outage; a global `granted` default without a policy can be an unauthorized data-sharing path.
+When two `default` commands match a visitor, the more specific region wins (e.g. `US-CA` over `US`), and the region-less command applies everywhere else ([consent guide](https://developers.google.com/tag-platform/security/guides/consent), accessed 2026-10-02). Use a regional default only when the region list, consent experience, and legal policy are reviewed together. A global `denied` default without a CMP can be an unmonitored measurement outage; a global `granted` default without a policy can be an unauthorized data-sharing path.
 
 ## Global-deny reference (EEA-serving properties with a CMP)
 
@@ -85,9 +85,21 @@ Use a regional default only when the region list, consent experience, and legal 
 
 ---
 
+## Basic vs advanced consent mode
+
+Google documents two implementations ([consent mode concepts](https://developers.google.com/tag-platform/security/concepts/consent-mode), accessed 2026-10-02):
+
+| | Basic | Advanced |
+| --- | --- | --- |
+| Tag loading | Blocked until the user interacts with the banner | Loads immediately with `denied` defaults |
+| Data before consent | None, not even consent state | Cookieless pings with consent state and activity |
+| Modeling | General model | Advertiser-specific model |
+
+Choosing advanced mode is a privacy/legal decision, not only a measurement one.
+
 ## GTM Consent Mode Architecture
 
 In Google Tag Manager:
 1. Enable **Consent Overview** in Container Settings.
-2. Ensure built-in consent checks are enabled for Google Ads Conversion Tracking & Google Analytics 4 tags.
-3. Fire an `accuracy_consent_update` custom event whenever consent banner state changes.
+2. Rely on built-in consent checks for Google Ads and GA4 tags; give non-Google tags explicit checks under **Advanced > Consent Settings**.
+3. Set defaults and updates from the CMP (typically a CMP's Community Template) before other tags fire. Do not invent a custom dataLayer event as a consent signal; GTM reads consent state, not event names. (An earlier version of this file prescribed an `accuracy_consent_update` event; no Google source documents it.)

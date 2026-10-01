@@ -2,7 +2,7 @@
 
 Use primary standards and platform/provider documentation. These links anchor control intent; they do not override the repository's installed versions, deployment topology, or specialist skills.
 
-Last source check: 2026-08-17.
+Last source check: 2026-10-02.
 
 ## Freshness rule
 
@@ -15,11 +15,23 @@ When citing OWASP ASVS, include the release in the identifier (for example, `v5.
 - [OWASP Application Security Verification Standard](https://owasp.org/www-project-application-security-verification-standard/) — current stable verification requirements and versioned requirement identifiers.
 - [OWASP ASVS official repository](https://github.com/OWASP/ASVS) — release artifacts, machine-readable requirements, and version history.
 - [OWASP Web Security Testing Guide](https://owasp.org/www-project-web-security-testing-guide/) — authorized verification techniques and test categories.
-- [OWASP API Security Top 10](https://owasp.org/API-Security/) — API-specific risk framing, including object/function authorization and resource consumption.
+- [OWASP ASVS project page](https://owasp.org/www-project-application-security-verification-standard/) — states 5.0.0 as the latest stable release (accessed 2026-10-02).
+- [OWASP Top 10:2025](https://top10.owasp.org/2025) — A01 Broken Access Control, A02 Security Misconfiguration, A03 Software Supply Chain Failures, A04 Cryptographic Failures, A05 Injection, A06 Insecure Design, A07 Authentication Failures, A08 Software or Data Integrity Failures, A09 Security Logging and Alerting Failures, A10 Mishandling of Exceptional Conditions (accessed 2026-10-02). Supersedes the 2021 list; old `A0x:2021` IDs do not map one-to-one.
+- [OWASP API Security Top 10](https://api-security.owasp.org/) — 2023 is still the latest edition (accessed 2026-10-02): API1 BOLA, API2 Broken Authentication, API3 Broken Object Property Level Authorization, API4 Unrestricted Resource Consumption, API5 BFLA, API6 Unrestricted Access to Sensitive Business Flows, API7 SSRF, API8 Security Misconfiguration, API9 Improper Inventory Management, API10 Unsafe Consumption of APIs.
 - [OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org/) — concise defensive implementation guidance. Retrieve the relevant sheet rather than relying on memory.
 - [NIST Secure Software Development Framework, SP 800-218](https://csrc.nist.gov/pubs/sp/800/218/final) — secure-development practices and supply-chain context.
 
 ASVS is a requirements catalog, WSTG is a verification guide, and the Top 10 projects are awareness/prioritization aids. None is a substitute for tracing the application's actual trust boundary.
+
+## LLM and agent features
+
+- [OWASP Top 10 for LLM Applications 2025](https://genai.owasp.org/llm-top-10/) — LLM01 Prompt Injection, LLM02 Sensitive Information Disclosure, LLM03 Supply Chain, LLM04 Data and Model Poisoning, LLM05 Improper Output Handling, LLM06 Excessive Agency, LLM07 System Prompt Leakage, LLM08 Vector and Embedding Weaknesses, LLM09 Misinformation, LLM10 Unbounded Consumption (accessed 2026-10-02).
+- [OWASP Top 10 for Agentic Applications for 2026](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) — published 2025-12-09; ASI01–ASI10 cover agent goal hijack, tool misuse, identity/privilege abuse, agentic supply chain, unexpected code execution, memory/context poisoning, insecure inter-agent communication, cascading failures, human-agent trust exploitation, rogue agents (accessed 2026-10-02; entry names confirmed via secondary summaries, download the PDF for exact wording before citing).
+- [OWASP LLM Prompt Injection Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html)
+
+## Borrowed methodology
+
+- [Trail of Bits skills](https://github.com/trailofbits/skills) (CC BY-SA 4.0, accessed 2026-10-02) — `insecure-defaults` (refute each fail-open candidate before reporting) and `variant-analysis` (search for the same root pattern after a confirmed finding). Paraphrased into the inspect-first workflow; no text copied.
 
 ## Threat modeling, identity, and authorization
 

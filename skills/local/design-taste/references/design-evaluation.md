@@ -54,6 +54,17 @@ These patterns can still pass when they are the correct content model or the
 accepted direction. The failure is not "cards exist"; the failure is
 implementation convenience overriding observed design intent.
 
+### Liveness check
+
+Removing tells can leave a page that is clean but empty of intent. After the
+tell pass, try to name **one specific motif** (a crop, a typographic
+relationship, a material, a sequence, an image treatment that belongs to this
+subject) and **one focal point** per key view. If either cannot be named from
+the render, record REVISE for **missing direction**, not for a defect, and
+return to the direction step (design-discovery.md §4; niche-patterns/ for
+category starting points) rather than adding decoration. A deliberately quiet
+utility page passes when its focal point is the task itself.
+
 Meaningful repetition, whitespace, familiar controls, and simple typography
 can pass. Arbitrary novelty can fail. Real data, long titles, translations,
 empty/error states, touch, zoom, and reduced motion should stress the relevant

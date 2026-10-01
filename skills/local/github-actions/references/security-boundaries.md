@@ -34,7 +34,8 @@ Checking out a PR and then “only running a safe script from main” is not saf
 
 Prefer not to use it. If a metadata workflow genuinely requires it:
 
-- leave checkout absent;
+- leave checkout absent (with `actions/checkout` v7+, never set `allow-unsafe-pr-checkout: true`; the default refusal is the control);
+- remember the job shares the default branch's cache scope, so anything it saves can reach other privileged workflows;
 - do not download PR artifacts or restore PR-influenced caches;
 - do not run a script, action, executable, configuration, or container from the PR;
 - treat title, body, labels, branch names, author, comments, and changed filenames as data, never code;
@@ -85,6 +86,8 @@ For each `uses: owner/repository@ref` or cross-repository workflow:
 5. Pin the 40-character SHA and retain the release label in a comment for update readability.
 6. Inspect whether a JavaScript/composite action invokes further executables, images, scripts, or actions.
 7. Let dependency automation propose future SHA updates; require normal review and verification.
+
+GitHub's secure-use reference calls full-SHA pinning "currently the only way to use an action as an immutable release", and the allowed-actions policy can require SHA pinning and block (`!owner/repo@ref`) compromised actions at repository or organization level ([changelog, 2025-08-15](https://github.blog/changelog/2025-08-15-github-actions-policy-now-supports-blocking-and-sha-pinning-actions/), accessed 2026-10-02). Report whether that policy is on; a YAML review alone cannot prove it.
 
 A full SHA makes the selected Git object immutable. It does not establish that the repository owner, source, generated distribution, or release process is trustworthy.
 

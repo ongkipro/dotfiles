@@ -1,5 +1,5 @@
 upstream: https://raw.githubusercontent.com/greensock/gsap-skills/main/skills/gsap-scrolltrigger/SKILL.md
-verified: 2026-09-29
+verified: 2026-10-02
 scope: directory
 reason: upstream has a real bug — local fixes it
 note: Line 235 of upstream reads:
@@ -37,5 +37,5 @@ to_vendor: watch https://github.com/greensock/gsap-skills/issues/18. Remove the
   typo fix alone is NOT sufficient (see above). Confirm with a re-diff, not
   merely with the issue being closed.
 
-recheck: 2026-09-29 — still present upstream at line 235; issue #18 still OPEN, no comments.
+recheck: 2026-10-02 — no upstream changes to merge; Max.max still at line 235; issue #18 still OPEN, no comments.
     curl -s https://raw.githubusercontent.com/greensock/gsap-skills/main/skills/gsap-scrolltrigger/SKILL.md | grep -n 'Max\.max'

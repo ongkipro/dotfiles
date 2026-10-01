@@ -39,7 +39,9 @@ Recommending the old ping URLs is a correctness bug. Use the two layers below.
 #### IndexNow — the way to "ping all search engines"
 
 One protocol, one request, propagated to all participants:
-**Microsoft Bing, Yandex, Seznam.cz, Naver, Yep** (and **DuckDuckGo** via Bing).
+**Microsoft Bing, Yandex, Seznam.cz, Naver, Yep, Internet Archive, Amazon** per
+[indexnow.org/searchengines.json](https://www.indexnow.org/searchengines.json)
+(accessed 2026-10-02). DuckDuckGo is not a listed participant; do not claim it.
 Submitting to any IndexNow endpoint shares with every participant — you do NOT
 call each engine separately.
 
@@ -86,7 +88,7 @@ Do NOT spam unchanged URLs — send only what actually changed.
 
 | Engine | How it's notified |
 | --- | --- |
-| Bing, Yandex, Seznam, Naver, Yep, DuckDuckGo | **IndexNow** (single call) |
+| Bing, Yandex, Seznam, Naver, Yep, Internet Archive, Amazon | **IndexNow** (single call) |
 | Google | robots.txt `Sitemap:` + Search Console (no ping; Indexing API only for JobPosting/BroadcastEvent) |
 | Any other | robots.txt `Sitemap:` discovery |
 

@@ -9,7 +9,7 @@ Turns the prompt "set up Turnstile" into a working end-to-end integration: a wid
 
 You are the agent. Run only the helpers explicitly named by a wizard step and branch on their JSON output. The supported helpers are `auth-probe.sh`, `widget-create.sh`, `validate.sh` for the guarded existing-widget flow, and `persist-skill.sh`. `worker-deploy.sh` and `templates/worker/` are retained historical upstream artifacts and are outside the Spin contract: never invoke, copy, or deploy them.
 
-This file is the canonical machine-readable behavior. Product requirements come from the [Turnstile documentation](https://developers.cloudflare.com/turnstile/), and the hosted prompt must mirror this behavior.
+This file is the canonical machine-readable behavior. Product requirements come from the [Turnstile documentation](https://developers.cloudflare.com/turnstile/index.md), and the hosted prompt must mirror this behavior.
 
 ## Framework references
 
@@ -333,7 +333,7 @@ Substitution:
 
 Edge cases to surface to the user:
 - **reCAPTCHA v3 score thresholds.** Turnstile has no score. Tell the user explicitly that migrated code will reject on `success === false`.
-- **reCAPTCHA Enterprise.** Don't auto-migrate. Point at [developers.cloudflare.com/turnstile/migration/recaptcha/](https://developers.cloudflare.com/turnstile/migration/recaptcha/).
+- **reCAPTCHA Enterprise.** Don't auto-migrate. Point at [developers.cloudflare.com/turnstile/migration/recaptcha/](https://developers.cloudflare.com/turnstile/migration/recaptcha/index.md).
 - **Custom `action=` values.** Preserve any valid custom action the user passed to `grecaptcha.execute` as `data-action` on the widget. Otherwise, use the stable action assigned in Step 7. In both cases, validate the returned action in the backend.
 
 ## Edge cases
@@ -342,7 +342,7 @@ Edge cases to surface to the user:
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Account enumeration is unavailable             | Ask the user for the account ID and export `CLOUDFLARE_ACCOUNT_ID`, or obtain approval for canonical absolute `WRANGLER_BIN` and exact `WRANGLER_VERSION`. Do not install or run a project-local Wrangler. |
 | Multiple Cloudflare accounts                   | `scripts/auth-probe.sh` returns all accounts; ask the user to choose, export `CLOUDFLARE_ACCOUNT_ID`                                                                                                                                  |
-| Cloudflare Pages project                       | Wire siteverify inside a Pages Function (or the equivalent for your framework). The Pages Plugin at [developers.cloudflare.com/pages/functions/plugins/turnstile](https://developers.cloudflare.com/pages/functions/plugins/turnstile/) is a shortcut. |
+| Cloudflare Pages project                       | Wire siteverify inside a Pages Function (or the equivalent for your framework). The Pages Plugin at [developers.cloudflare.com/pages/functions/plugins/turnstile](https://developers.cloudflare.com/pages/functions/plugins/turnstile/index.md) is a shortcut. |
 | Cloudflare Workers backend                     | Use the canonical fetch idiom from Step 9 inside the Worker's request handler. `fetch` to `challenges.cloudflare.com` works the same way it does in Node.                                                                             |
 | `EXPECTED_HOSTNAME` mismatch                   | Update widget domains via PUT, not PATCH (PATCH returns `10405 Method not allowed`): `curl -X PUT .../widgets/$SITEKEY -d '{"name":"...","mode":"managed","domains":[...]}'`                                                          |
 | Token expired mid-flow                         | Stop, re-run `scripts/auth-probe.sh`, prompt for fresh credentials                                                                                                                                                                    |

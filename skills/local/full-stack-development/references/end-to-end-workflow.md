@@ -90,13 +90,14 @@ Skip any concern that inspection proves absent.
 
 | Common combination | Minimal chain |
 |---|---|
-| Astro admin/CMS on Cloudflare | `admin-product-ux` -> `admin-dashboard` -> `astro-development` (+ `shadcn-ui` only for a React/shadcn island) -> `workers-best-practices` when Worker code/bindings change -> `ui-validation` |
-| Next.js admin/CMS with plain Postgres/Drizzle | `admin-product-ux` -> `admin-dashboard` -> `postgres-drizzle` -> `nextjs-development` (+ `shadcn-ui` when used) -> `ui-validation` |
-| Next.js admin/CMS with Supabase | `admin-product-ux` -> `admin-dashboard` -> `supabase-stack` -> `nextjs-development` (+ `shadcn-ui` when used) -> `ui-validation` |
-| Astro storefront on Cloudflare | `storefront-ux` when behavior is unsettled -> `storefront-development` -> `astro-development` -> `workers-best-practices` when Worker code/bindings change -> `ui-validation` |
-| Next.js storefront with Postgres/Drizzle | `storefront-ux` when behavior is unsettled -> `storefront-development` -> `postgres-drizzle` -> `nextjs-development` -> `ui-validation` |
+| Astro admin/CMS on Cloudflare | `admin-product-ux` -> `admin-dashboard` -> `astro-development` (+ `shadcn-ui` only for a React/shadcn island) -> `workers-best-practices` when Worker code/bindings change -> `impeccable` -> `ui-validation` |
+| Next.js admin/CMS with plain Postgres/Drizzle | `admin-product-ux` -> `admin-dashboard` -> `postgres-drizzle` -> `nextjs-development` (+ `shadcn-ui` when used) -> `impeccable` -> `ui-validation` |
+| Next.js admin/CMS with Supabase | `admin-product-ux` -> `admin-dashboard` -> `supabase-stack` -> `nextjs-development` (+ `shadcn-ui` when used) -> `impeccable` -> `ui-validation` |
+| Astro storefront on Cloudflare | `storefront-ux` when behavior is unsettled -> `storefront-development` -> `astro-development` -> `workers-best-practices` when Worker code/bindings change -> `impeccable` -> `ui-validation` |
+| Next.js storefront with Postgres/Drizzle | `storefront-ux` when behavior is unsettled -> `storefront-development` -> `postgres-drizzle` -> `nextjs-development` -> `impeccable` -> `ui-validation` |
+| Client-edited marketing/content site | `cms-content` (CMS choice, content model, editor roles) -> `astro-development` or `nextjs-development` -> `seo-website-builder` for SEO fields -> `impeccable` -> `ui-validation` as an editor-role login, not admin |
 | REST API contract change | `openapi-spec` -> framework/runtime owner -> data/IAM owners actually affected -> `testing-engineering` |
-| Better Auth change | `better-auth-security` -> host framework owner, with `application-security` for the end-to-end trust boundary and `testing-engineering` for behavior |
+| Better Auth change | `better-auth-security` (hardening; `references/auth-flows.md` for sign-up/reset/invite/session-expiry UX) -> host framework owner, with `application-security` for the end-to-end trust boundary and `testing-engineering` for behavior |
 | Plain PostgreSQL/Drizzle backend change | `postgres-drizzle` -> host framework/runtime owner -> `testing-engineering` |
 | Supabase backend change | `supabase-stack` -> host framework owner when application code changes -> `testing-engineering` |
 | Worker API change | `openapi-spec` when a REST contract changes -> `workers-best-practices` -> activated data/IAM owners -> `testing-engineering` |

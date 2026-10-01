@@ -6,7 +6,7 @@
 
 ## 1. Endpoint, Version, and Authentication
 
-Audit baseline: TikTok Marketing API `v1.3` matched the official server-events documentation on 2026-08-16. This is point-in-time provenance, not an evergreen "latest" claim. Re-check [TikTok's official Marketing API documentation](https://ads.tiktok.com/marketing_api/docs) and changelog before implementation or any version change.
+Audit baseline: TikTok Marketing API `v1.3` matched the official server-events documentation on 2026-08-16, and the Events API 2.0 doc URL still carried `v1.3` on 2026-10-02. This is point-in-time provenance, not an evergreen "latest" claim. Re-check [TikTok's official Marketing API documentation](https://ads.tiktok.com/marketing_api/docs) and changelog before implementation or any version change.
 
 ```typescript
 export const TIKTOK_MARKETING_API_VERSION = "v1.3";
@@ -31,7 +31,7 @@ Use `TIKTOK_EVENTS_TRACK_URL` everywhere rather than repeating the versioned URL
   "event_source_id": "C1234567890TIKTOKPIXEL",
   "data": [
     {
-      "event": "CompletePayment",
+      "event": "Purchase",
       "event_id": "order_ord_987654321",
       "event_time": 1770950000,
       "user": {
@@ -81,8 +81,8 @@ Use `TIKTOK_EVENTS_TRACK_URL` everywhere rather than repeating the versioned URL
 </script>
 
 <script>
-  // Fire CompletePayment with matching event_id
-  ttq.track('CompletePayment', {
+  // Fire Purchase (legacy name: CompletePayment) with matching event_id
+  ttq.track('Purchase', {
     contents: [{
       content_id: 'SKU-9912',
       content_type: 'product',
@@ -101,8 +101,8 @@ Use `TIKTOK_EVENTS_TRACK_URL` everywhere rather than repeating the versioned URL
 
 ## 4. Key Rules for Deduplication & High Match Rate
 
-1. **`event_id`**: Browser `ttq.track('CompletePayment', data, { event_id: id })` and Server `data[0].event_id` MUST be identical strings.
+1. **`event_id`**: Browser `ttq.track('Purchase', data, { event_id: id })` and Server `data[0].event_id` MUST be identical strings, with the same `event` name. TikTok merges Pixel + Events API copies arriving within 5 minutes and deduplicates later copies up to 48 hours after the first event, keeping the first received ([TikTok event deduplication](https://ads.tiktok.com/help/article/event-deduplication), accessed 2026-10-02).
 2. **`ttclid` preservation**: Capture `ttclid` from URL query parameter on landing, store in `httpOnly` cookie (`_ttclid`), and pass in `user.ttclid` on server events.
 3. **SHA-256 Hashing**:
    - `email`: trim whitespace, convert to lowercase, compute SHA-256 hash.
-   - `phone_number`: format to E.164 without `+` or spaces (e.g. `628123456789`), compute SHA-256 hash.
+   - `phone_number`: format to `+E.164` — `+`, country code, number, no spaces or dashes (e.g. `+628123456789`) — then SHA-256. TikTok's docs note an exception for country code 86 (omit it). An earlier version of this file said "without `+`"; that matches Meta, not TikTok. Re-confirm on the JavaScript-rendered [Events API 2.0 page](https://business-api.tiktok.com/portal/docs/events-api-2.0/v1.3) before shipping.

@@ -1,6 +1,6 @@
 # Search Engine Algorithm Brief
 
-Last reviewed: 2026-06-30
+Last reviewed: 2026-06-30 (CWV, FAQ rich-result, and AI-features facts re-checked 2026-10-02)
 Scope: Google, Bing, Yandex, Pinterest, plus cross-engine discovery surfaces.
 
 This document is a practical, evidence-first brief. It does **not** claim secret algorithm knowledge. It converts official guidance and trusted public signals into operational SEO rules.
@@ -30,7 +30,7 @@ The strongest durable pattern across engines:
 5. structured data matching visible content
 6. strong internal linking
 7. trust/reputation signals
-8. fast mobile experience
+8. fast mobile experience (Core Web Vitals at p75: LCP ≤ 2.5 s, INP ≤ 200 ms, CLS ≤ 0.1; INP replaced FID in 2024 — web.dev/articles/vitals, accessed 2026-10-02)
 9. freshness for pages where freshness matters
 10. no spam/manipulative behavior
 
@@ -85,7 +85,7 @@ Operational rules:
 
 - Build pages that answer subquestions, not just one keyword.
 - Add clear sections and passage-level headings.
-- Include concise definitions, comparison tables, FAQs, and evidence where useful.
+- Include concise definitions, comparison tables, FAQs, and evidence where useful (visible FAQ content helps readers; Google no longer shows FAQ rich results).
 - Keep important content in HTML text.
 - Use image/video support for visual topics.
 - Track performance in Search Console Web search type; AI features are folded into Search Console reporting.

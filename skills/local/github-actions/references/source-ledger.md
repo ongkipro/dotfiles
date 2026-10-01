@@ -1,6 +1,6 @@
 # Source ledger
 
-Reviewed 2026-08-17. Prefer these primary sources over remembered syntax or third-party tutorials. GitHub documentation routes, Actions syntax, action inputs/releases, runner images, plan limits, billing, and security features are volatile: recheck the installed tool/action version and current official documentation before implementation. A source's example is not automatically appropriate for a repository's trust model.
+Reviewed 2026-08-17; release and policy facts rechecked 2026-10-02. Prefer these primary sources over remembered syntax or third-party tutorials. GitHub documentation routes, Actions syntax, action inputs/releases, runner images, plan limits, billing, and security features are volatile: recheck the installed tool/action version and current official documentation before implementation. A source's example is not automatically appropriate for a repository's trust model.
 
 ## GitHub platform documentation
 
@@ -47,6 +47,27 @@ Always inspect the repository's current release and documentation before using a
 | [actions/attest-build-provenance](https://github.com/actions/attest-build-provenance) | Build provenance attestation action and current permissions/inputs |
 | [actions/runner-images](https://github.com/actions/runner-images) | Hosted image software manifests and rollout notices |
 | [actions/runner](https://github.com/actions/runner) | Runner releases and issue evidence; platform docs remain the behavioral contract |
+
+### Release snapshot (accessed 2026-10-02 via `gh api repos/<repo>/releases/latest` and each `action.yml`)
+
+Point-in-time only. Resolve the tag to a SHA from upstream at pin time.
+
+| Action | Latest release | `runs.using` | Behavior change worth knowing |
+|---|---|---|---|
+| [actions/checkout](https://github.com/actions/checkout/releases) | v7.0.1 | node24 | v7: refuses fork-PR checkout under `pull_request_target`/`workflow_run` unless `allow-unsafe-pr-checkout: true`. v6: persisted credentials moved to a file under `$RUNNER_TEMP`. |
+| [actions/setup-node](https://github.com/actions/setup-node/releases) | v7.0.0 | node24 | v7: `cache-primary-key`/`cache-matched-key` outputs, cache-poisoning guidance in README. v6: automatic caching limited to npm. |
+| [actions/cache](https://github.com/actions/cache/releases) | v6.1.0 | node24 | v6: ESM/package update; no input change noted in release notes. |
+| [actions/upload-artifact](https://github.com/actions/upload-artifact/releases) | v7.0.1 | node24 | v7: `archive: false` uploads one file unzipped. v6: Node 24, runner ≥ 2.327.1. |
+| [actions/download-artifact](https://github.com/actions/download-artifact/releases) | v8.0.1 | node24 | v8: digest mismatch errors by default (`digest-mismatch`), `skip-decompress`. |
+| [actions/attest-build-provenance](https://github.com/actions/attest-build-provenance/releases) | v4.2.2 | — | Recheck permissions/inputs at use. |
+
+## Platform changes (accessed 2026-10-02)
+
+| Source | Fact |
+|---|---|
+| [Node 20 is no longer available in GitHub Actions (2026-09-23)](https://github.blog/changelog/2026-09-23-node-20-is-no-longer-available-in-github-actions/) | JavaScript actions run on Node 24; `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` opt-out removed; Node 24 unsupported on macOS ≤ 13.4 and ARM32 self-hosted runners. |
+| [Actions policy: blocking and SHA pinning (2025-08-15)](https://github.blog/changelog/2025-08-15-github-actions-policy-now-supports-blocking-and-sha-pinning-actions/) | Allowed-actions policy can require full-SHA pinning; `!` entries block an action/version and are evaluated last. |
+| [Secure use reference](https://docs.github.com/en/actions/reference/security/secure-use) | Full-SHA pinning is "currently the only way to use an action as an immutable release"; set default `GITHUB_TOKEN` to read-only contents; `pull_request_target` shares the default-branch cache; CodeQL can scan workflows. |
 
 ## Official GitHub CLI documentation
 

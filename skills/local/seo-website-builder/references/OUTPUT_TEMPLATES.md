@@ -205,7 +205,7 @@ Ready-to-use templates for SEO audits, build plans, schema QA, metadata planning
 | Organization / LocalBusiness / EducationalOrganization |  |  |
 | WebSite |  |  |
 | BreadcrumbList |  |  |
-| FAQPage | only if FAQ visible |  |
+| FAQPage | only if FAQ visible; no Google rich result |  |
 | Product / Service / Article | by page type |  |
 
 ## Fixes

@@ -54,7 +54,7 @@ When auditing traffic decay using Google Search Console export data comparing tw
 |---|---|---|
 | **Drop ≥ 20%, Rank 4–15, High Impressions** | Content is still indexed and visible, but losing clicks due to outdated dates, stale stats, or weak CTR titles. | **Refresh:** Update title hook, inject current-year verified stats, add a direct AnswerBox section, and update sitemap `<lastmod>`. |
 | **Drop ≥ 20%, Multiple URLs ranking for same query** | Keyword cannibalization splitting authority between two or more posts. | **Consolidate:** Merge unique insights into the primary pillar URL, remove duplicate post, and set `301 Permanent Redirect`. |
-| **Drop ≥ 20%, Rank > 30, Zero Impressions** | Dead search intent, deprecated tech, or zero remaining search demand. | **Prune:** Set `noindex` or `410 Gone` to protect site-wide crawl budget and content density. |
+| **Drop ≥ 20%, Rank > 30, Zero Impressions** | Dead search intent, deprecated tech, or zero remaining search demand. | **Prune:** Set `noindex` or `410 Gone` to remove dead pages. Crawl budget is a reason only for large sites — Google's [crawl budget guide](https://developers.google.com/crawling/docs/crawl-budget) targets 1M+ page sites changing weekly or 10k+ page sites changing daily (accessed 2026-10-02). |
 
 A ≥20% QoQ drop is a review trigger, not automatic authorization to rewrite,
 redirect, noindex, or return `410`. Confirm query intent, the canonical URL,

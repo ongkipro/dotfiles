@@ -2,13 +2,13 @@
 name: testing-engineering
 description: >-
   Design, implement, review, and stabilize automated behavioral tests for
-  Node.js/TypeScript full-stack systems. Use when a feature, bug fix, API,
-  database change, authorization rule, integration, retry, concurrency path, or
-  CI failure needs durable regression evidence; when deciding unit versus
-  integration versus contract versus E2E coverage; or when diagnosing flaky
-  tests. Prefer project scripts and the installed runner. Own test strategy and
-  changed-contract tests, not browser visual QA (ui-validation), performance
-  testing (web-perf), or framework-specific implementation.
+  Node.js/TypeScript full-stack systems. Not browser visual QA (ui-validation),
+  performance testing (web-perf), or CI workflow YAML (github-actions). Use when
+  a feature, bug fix, API, database change, authorization rule, integration,
+  retry, concurrency path, or CI failure needs durable regression evidence;
+  when deciding unit versus integration versus contract versus E2E coverage; or
+  when diagnosing flaky tests. Prefer project scripts and the installed runner;
+  framework-specific harness details stay with framework skills.
 ---
 
 # Testing Engineering
@@ -189,6 +189,15 @@ When a test flakes:
 4. fix the product or isolation root cause and prove repeated focused passes;
 5. use retries or quarantine only as a visible, owned, time-bounded containment
    policy—not as evidence of correctness.
+
+For an installed Vitest suite, check the major first. Vitest 5 (2026-09-03)
+changed defaults that alter results: `clearMocks` is on (mock calls reset before
+each test), unawaited async assertions and timed-out `expect.poll` now fail,
+config files are no longer found in parent directories, `-t` matches the
+`>`-joined full name, `sequential` options are gone, and json/junit/html/blob
+reports default to `.vitest/`. It needs Node >= 22.12 and Vite >= 6.4. When a
+suite breaks on upgrade, fix the test that relied on the old default rather than
+reverting the default; update CI artifact paths for the new report location.
 
 For an installed Playwright Test suite (check the version; see the ledger):
 

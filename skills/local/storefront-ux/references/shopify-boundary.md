@@ -29,8 +29,8 @@ here.
 |---|---|---|
 | Line items per cart | **500** | verified on shopify.dev |
 | Lines per `cartLinesAdd` call | **250** — larger carts must batch | verified on shopify.dev |
-| Discount codes per order | 5 product/order + 1 shipping | **unverified** — community-sourced, and a conflicting 25-code figure exists. Confirm before designing around it |
-| Active automatic discounts | 25 | **unverified** |
+| Discount codes per order | 5 product/order + 1 shipping | verified 2026-10-02 on Shopify Help Center (discount combinations); combining applies only to Online Store, Storefront API, and POS orders |
+| Active automatic discounts | 25, including app-based discounts | verified 2026-10-02, same page |
 | Ajax API bundled section rendering | 5 sections per request | verified on shopify.dev |
 
 A cart approaching these needs designed behavior, not a thrown error: say what

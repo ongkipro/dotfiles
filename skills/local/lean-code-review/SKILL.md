@@ -2,14 +2,15 @@
 name: lean-code-review
 description: >-
   Review a code diff or, when explicitly requested, a whole repository for
-  unnecessary complexity: dead flexibility, duplicated helpers, speculative
-  abstractions, avoidable dependencies, hand-written stdlib/platform features,
-  wrappers that only delegate, and code that can be safely deleted or inlined.
-  Use when the user asks for an over-engineering review, lean review, deletion
-  pass, simplification audit, bloat audit, YAGNI review, or asks what code or
-  dependencies can be removed. Return evidence-backed findings only; do not
-  apply fixes unless asked. This complements correctness, security, performance,
-  and accessibility review rather than replacing them.
+  unnecessary complexity and safe deletions. Not correctness, security,
+  performance, or accessibility review (code-review, application-security,
+  web-perf, ui-validation). Use for an over-engineering review, lean review,
+  deletion pass, simplification audit, bloat audit, YAGNI review, or when
+  asked what code or dependencies can be removed: dead flexibility, duplicated
+  helpers, speculative abstractions, avoidable dependencies, hand-written
+  stdlib/platform features, wrappers that only delegate, and narrating
+  comments. Return evidence-backed findings only; do not apply fixes unless
+  asked.
 ---
 
 # Lean Code Review
@@ -25,6 +26,12 @@ the user explicitly requests a repo-wide audit.
 2. Search every caller before judging a helper, wrapper, or abstraction.
 3. Check the codebase, standard library, native platform, and installed
    dependencies before proposing new code or packages.
+   For a repo-wide audit, run an unused-code tool the project already has
+   configured (for example a `knip` script, which reports unused files,
+   exports, and dependencies: https://knip.dev, verified 2026-10-02) and treat
+   each hit as a lead to confirm by caller search, not a finding: dynamic
+   imports, framework entry points, and public package exports produce false
+   positives. Do not install one for a diff review.
 4. Separate measurable complexity from taste. Report only findings with a
    concrete deletion or smaller replacement.
 5. Rank findings by maintenance reduction, dependency removal, and blast radius.
@@ -40,6 +47,10 @@ the user explicitly requests a repo-wide audit.
 - `dependency:` package whose value does not justify its maintenance surface.
 - `inline:` wrapper, interface, factory, or config layer with one real consumer.
 - `shrink:` same behavior and edge-case correctness with materially less code.
+- `comment:` a comment that restates the code, narrates steps, decorates
+  (banners, emoji, end-of-block markers), or promises vague future work. Delete
+  or shorten it to one line; keep comments that record a why, a constraint, or a
+  deliberate ceiling (`// lazy:`). Never touch code under this tag.
 
 ## Output
 

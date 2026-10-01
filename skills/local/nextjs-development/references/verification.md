@@ -35,12 +35,18 @@ Do not assume `next lint` exists. Next.js CLI commands vary by installed version
 If there is no script for a needed framework command, inspect the project-pinned
 `next --help` using the lockfile's package manager before invoking it.
 
-On Next.js 16.3+ with Turbopack, `next dev` serves an MCP endpoint at
-`/_next/mcp` (replies are SSE; read the `data:` line): `get_routes` maps routes
-without a browser, `get_errors` reports build/runtime errors after at least one
-browser navigation, `get_compilation_issues` compiles without a full build.
-A route with blocking errors **still returns HTTP 200** in dev — a status code
-is not evidence; read `get_errors` or the overlay.
+On Next.js 16+, `next dev` serves an MCP endpoint at `/_next/mcp` (replies are
+SSE; read the `data:` line; `next-devtools-mcp` is the official client):
+`get_routes` maps routes without a browser, `get_errors` reports
+build/runtime/type errors from browser sessions (navigate at least once),
+`get_logs` returns the dev log path, and — Turbopack only —
+`get_compilation_issues` (whole project) and `compile_route` (one route, no
+HTTP request) check compilation without a full build. A route with blocking
+errors **still returns HTTP 200** in dev — a status code is not evidence; read
+`get_errors` or the overlay. `next dev` records its PID/port/URL in
+`.next/dev/lock`; reuse that server instead of starting a second one. Sources
+(2026-10-02, docs v16.3.8): https://nextjs.org/docs/app/guides/mcp,
+https://nextjs.org/docs/app/guides/ai-agents.
 
 Use a supervised long-running process and stop only the process you started.
 Never reclaim a port by killing unrelated processes. Pass an explicit local

@@ -14,6 +14,19 @@ Build an auditable event path across three separate surfaces: the Hydrogen
 storefront, Shopify-hosted pixels/checkout, and a server-side provider or
 webhook consumer. Do not collapse them into one browser-runtime assumption.
 
+## Ownership
+
+This skill owns the Hydrogen surfaces: the analytics/consent integration, the
+storefront event bus, Web Pixel wiring, the cart-to-checkout attribution
+carry, and the server receiver plumbing (signature, dedupe store, retries).
+Provider semantics belong to the provider skills: event taxonomy, required and
+hashed fields, deduplication rules, consent signals, and match quality go to
+`meta-ads-signal-engine` (Pixel/CAPI), `google-ads-signal-engine`
+(gtag/GTM/Enhanced Conversions/Consent Mode), and `tiktok-ads-signal-engine`.
+Load the provider skill for its contract; implement it here without redefining
+it. Non-Hydrogen headless architecture stays with `headless-shopify`, and
+Hydrogen app code with `hydrogen-development`.
+
 ## Inspect the accepted event contract first
 
 Identify the business objective, provider, event names, source of truth for

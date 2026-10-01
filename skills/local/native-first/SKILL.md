@@ -56,7 +56,7 @@ Never claim "it works" without running one of these. Prefer the project's own
 | Astro | `astro check` → `astro build` |
 | Node/TS | `tsc --noEmit` → `node --test` |
 | Cloudflare Workers | `wrangler types` → `wrangler dev` (hit the route) → `wrangler deploy --dry-run` |
-| Drizzle | `drizzle-kit generate` (inspect the SQL — never blind-apply) → `drizzle-kit migrate` |
+| Drizzle | `drizzle-kit generate` (inspect the SQL — never blind-apply) → `drizzle-kit migrate` against a **local/disposable DB only** |
 | Shopify theme | project theme-check script → `npx --no-install shopify theme check` → `npx --no-install shopify theme dev` |
 | Docker/Coolify | `docker compose config` → `docker compose build` → healthcheck green |
 
@@ -71,5 +71,5 @@ the offending element) — use it to select and report the evidence.
 
 - A 404-line date picker where `<input type="date">` was the answer.
 - An interface with one implementation. A factory for one product. A config for a value that never changes.
-- A custom cache class where `unstable_cache` / `caches.default` / an index already covered it.
+- A custom cache class where the framework cache (Next: version-dependent, see `nextjs-development`) / `caches.default` / an index already covered it.
 - Patching the one caller the ticket named, leaving three sibling callers broken.

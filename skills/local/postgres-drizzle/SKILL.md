@@ -49,6 +49,13 @@ Before proposing or running a command:
 6. Retrieve current Drizzle documentation and installed CLI help before using a
    version-sensitive API or command. Never transpose a remembered example across
    drivers or Drizzle versions.
+7. Identify the Drizzle release line before touching queries or migrations. As of
+   2026-10-02, npm `latest` is still 0.x (`drizzle-orm` 0.45.x, `drizzle-kit` 0.31.x);
+   1.0 is a pre-release (`@rc`/`@beta` tags). The lines differ: 1.0 ships Relational
+   Queries v2 (`defineRelations`, object `where`/`orderBy`) and a new migration folder
+   layout without `meta/_journal.json` (converted by `drizzle-kit up`; `drop` removed).
+   Do not mix 0.x examples into a 1.0 project or upgrade lines as a side effect; an
+   upgrade is its own reviewed change. See the [source ledger](references/source-ledger.md).
 
 If the target database or environment cannot be proven, stop before execution. Never
 infer production safety from a familiar hostname, an environment variable name, or a

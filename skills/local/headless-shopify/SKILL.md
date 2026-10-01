@@ -99,6 +99,11 @@ read [Hydrogen UI/UX Architecture](references/hydrogen-ui-ux-architecture.md).
 - `storefront-ux` owns buyer journey, states, and acceptance criteria.
 - `storefront-development` owns page composition and implementation after this
   skill establishes the headless boundary.
+- `hydrogen-development` owns Hydrogen/React Router app code, Oxygen, and
+  Hydrogen-specific APIs once Hydrogen is the accepted stack.
+- `hydrogen-headless-tracking` owns Hydrogen analytics surfaces, consent, and
+  the browser/server event bus; provider semantics stay with the
+  `*-ads-signal-engine` skills.
 - `application-security` owns a dedicated security review when auth, tokens,
   webhooks, customer data, or an external integration is added or changed.
 - `seo-website-builder` owns SEO/indexation; preserve Shopify product redirects

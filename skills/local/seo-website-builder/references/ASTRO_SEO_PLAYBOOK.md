@@ -162,7 +162,7 @@ Common schema:
 - BreadcrumbList for hierarchical pages
 - Article for blog posts
 - Product for ecommerce pages
-- FAQPage only if FAQ is visible
+- FAQPage only if FAQ is visible (no Google FAQ rich result; see Compact References)
 
 Inject JSON-LD as a script and validate with rich result/schema tools.
 

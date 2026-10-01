@@ -136,6 +136,33 @@ value or its `Target ref` differs. Derive reverse change impact from `Source`,
 traceability matrix: when an upstream declaration changes, query those links,
 invalidate affected EVID, and review the derived downstream set.
 
+## Semantic consistency review
+
+Structural links can all resolve while the documents still contradict each
+other. Before tasks are accepted, read the present artifacts together (suite:
+`02`, `05`, `07`, `10`, `17`, root `TASKS.md`; standalone: `PRD.md`, `PLAN.md`,
+`DESIGN.md`, `TASKS.md`) and confirm:
+
+- [ ] Roles named in product requirements = roles in authorization rules
+      (`IAM-*` or PLAN) = roles in the state/permission matrix.
+- [ ] Every entity a screen or action reads or writes exists in the data model
+      (`DATA-*` or PLAN schema).
+- [ ] Every state-changing action has validation, pending, success,
+      error/recovery, and a next screen.
+- [ ] `NFR-*`/performance targets are plausible for the selected hosting and
+      its limits.
+- [ ] Non-goals are absent from tasks; every task traces to an accepted
+      requirement.
+- [ ] Retention and deletion rules agree with privacy commitments (`PRIV-*`)
+      and with what the schema actually stores.
+
+Record each contradiction in the owning PRD's open questions (suite `02`
+"Risks and Open Questions"; standalone `PRD.md` `Open questions`) with an owner
+and gate. Never create a separate review or contradiction file. The validator
+checks only the structural subset (role-name mismatch in `--standalone`,
+unresolved and orphan requirements, Must requirements without Given/When/Then);
+the rest is human or model review.
+
 ## Market-input extraction
 
 Stage-aware validation accepts flat `INPUT-*` rows in Markdown tables or JSON
@@ -171,6 +198,24 @@ python3 scripts/check-traceability.py /path/to/project --stage planning
 python3 scripts/check-traceability.py /path/to/project --stage ready
 python3 scripts/check-traceability.py /path/to/project --stage verified --format json
 ```
+
+For a standalone repository without a pack (`prd-taskbreaker` six-doc lite),
+`--standalone REPO` validates root `PRD.md`, optional `PLAN.md`, and `TASKS.md`
+instead of a pack directory:
+
+```bash
+python3 scripts/check-traceability.py --standalone /path/to/repo
+python3 scripts/check-traceability.py --standalone /path/to/repo --format json
+```
+
+It errors on a missing or empty required PRD section (Problem/Overview, Users,
+Goals, Non-goals, Requirements, Open questions; a present section may say
+`Not applicable — <reason>`), duplicate `REQ-*`, a `TASK-*` whose
+`Requirement` has no `REQ-*` or names an undeclared one, an accepted `REQ-*`
+with no task, and a `Must` `REQ-*` without Given/When/Then. A `REQ-*` is
+accepted when its own `Status:` says so or, absent one, when the PRD's
+document `Status:` is `Accepted`/`Approved`. Role names that differ between
+PRD and PLAN role tables are warnings only (exit 0).
 
 Without `--stage`, validator v2 preserves its legacy validation surface. The
 stage-aware extension is read-only, offline, Python-stdlib-only, and emits

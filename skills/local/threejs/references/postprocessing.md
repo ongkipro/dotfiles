@@ -26,9 +26,12 @@ when the art direction needs it and the mobile budget holds.
 7. **R3F:** use `@react-three/postprocessing` (`EffectComposer` + effects) with
    `multisampling={0}` when using bloom on mobile; do not hand-roll a composer
    inside `useFrame`.
-8. **WebGPU/TSL post-processing** import paths and class names changed across
-   recent releases: look up the installed version's docs (Context7) before
-   writing it; do not copy older snippets.
+8. **WebGPU/TSL post-processing** uses node composition, not `EffectComposer`:
+   `RenderPipeline` from `three/webgpu` (named `PostProcessing` before r183),
+   `pass(scene, camera)` from `three/tsl`, effect nodes from
+   `three/addons/tsl/display/*`, then `renderPipeline.render()` in the loop.
+   Names still move between releases: check the installed version's docs
+   (Context7) before writing it; do not copy older snippets.
 
 ## Skip
 

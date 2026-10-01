@@ -40,6 +40,36 @@ Validation:
 - ...
 ```
 
+## 2026-10-02 — Google structured-data and IndexNow fact refresh
+
+Source:
+- Google search gallery: https://developers.google.com/search/docs/appearance/structured-data/search-gallery
+- FAQPage doc: https://developers.google.com/search/docs/appearance/structured-data/faqpage
+- Simplifying search results (June 2025): https://developers.google.com/search/blog/2025/06/simplifying-search-results
+- Core Web Vitals: https://web.dev/articles/vitals
+- IndexNow participants: https://www.indexnow.org/searchengines.json
+- Google crawl budget scope: https://developers.google.com/crawling/docs/crawl-budget
+
+Source type: Official
+
+Summary:
+- Google no longer shows FAQ rich results; FAQ, HowTo, and Sitelinks search box are absent from the search gallery. Book Actions, Course Info, Claim Review, Estimated Salary, Learning Video, Special Announcement, and Vehicle Listing were phased out from June 2025; Google says ranking is unaffected.
+- Core Web Vitals: LCP ≤ 2.5 s, INP ≤ 200 ms, CLS ≤ 0.1 at p75; INP replaced FID in 2024.
+- IndexNow participants now include Internet Archive and Amazon; DuckDuckGo is not listed.
+- Google crawl-budget guidance targets 1M+ page sites (weekly change) or 10k+ page sites (daily change).
+
+Affected surfaces:
+- Web rich results; Bing/Yandex/other IndexNow discovery
+
+Action required:
+- Update playbook (done in this pass); stop promising FAQ/HowTo rich results in audits.
+
+Files updated:
+- `SKILL.md`, `COMPACT_SKILL_REFERENCES.md`, FAQ mentions across playbooks, `INDEXNOW_PLAYBOOK.md`, `SITEMAP_SUBMISSION.md`, `CHANGELOG.md`
+
+Validation:
+- `skill-check` run after edits.
+
 ## 2026-06-30 — Multi-engine baseline refresh
 
 Source:

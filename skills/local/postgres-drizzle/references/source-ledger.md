@@ -1,9 +1,9 @@
 # Primary-source ledger
 
-Last source check: 2026-09-29.
+Last source check: 2026-10-02.
 
 Use this ledger to retrieve facts, not as a frozen API snapshot. PostgreSQL `/current/`
-resolved to PostgreSQL 18 on the check date; implementation must open the documentation
+resolved to PostgreSQL 18 (18.6) on the check date; implementation must open the documentation
 for the project's actual server major version. Drizzle ORM/Kit APIs, config, SQL output,
 drivers, and commands are volatile: recheck the installed package versions, installed
 CLI help, current official docs, and relevant release notes before implementation.
@@ -93,6 +93,25 @@ Project scripts and configuration win.
 - [Official GitHub repository](https://github.com/drizzle-team/drizzle-orm) and
   [releases](https://github.com/drizzle-team/drizzle-orm/releases) — changelog, current
   package compatibility, regressions, and source when documentation is ambiguous.
+
+### Drizzle release lines (checked 2026-10-02)
+
+- npm dist-tags ([drizzle-orm](https://registry.npmjs.org/drizzle-orm),
+  [drizzle-kit](https://registry.npmjs.org/drizzle-kit)): `latest` = `drizzle-orm`
+  0.45.3 / `drizzle-kit` 0.31.11 (published 2026-09-21); `rc` = 1.0.0-rc.4; `beta` =
+  1.0.0-beta.22. 1.0 is not a stable release yet. Re-run `npm view drizzle-orm dist-tags`.
+- [Upgrade to v1](https://orm.drizzle.team/docs/upgrade-v1) — install with `@rc`; run
+  `drizzle-kit up` to convert migrations to per-migration folders (journal file removed,
+  DDL snapshots, commutativity checks across branches); `drizzle-kit drop` removed.
+- [Relations v2](https://orm.drizzle.team/docs/relations-v2) and
+  [v1 → v2 migration](https://orm.drizzle.team/docs/relations-v1-v2) — `defineRelations`
+  passed as `drizzle(url, { relations })`; object filters (`where: { id: 1 }`, `AND`/`OR`/
+  `NOT`/`RAW`) and `orderBy: { id: "asc" }` replace callbacks; `.through()` for
+  many-to-many. RQB v2 exists only on the 1.0 line.
+- [Drizzle Kit commands](https://orm.drizzle.team/docs/kit-overview): `generate`,
+  `migrate`, `push`, `pull`, `export`, `check`, `up`, `studio`. Confirm with installed
+  `npx drizzle-kit --help`. House policy: `push` never substitutes for a reviewed
+  production migration.
 
 ## Pool/provider sources — only when installed
 

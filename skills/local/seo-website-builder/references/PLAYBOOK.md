@@ -139,7 +139,7 @@ Common types:
 - Product / Offer
 - AggregateRating / Review if real and visible
 - Article / BlogPosting
-- FAQPage if FAQ is visible on the page
+- FAQPage if FAQ is visible on the page (no Google FAQ rich result; see Compact References)
 - Service for service pages
 
 ### 9. Technical QA before launch

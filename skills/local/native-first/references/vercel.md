@@ -7,7 +7,7 @@ Live here: `volumecms` (+ tenant `tholabie` → pesantrentholabie.com), `report-
 | Reaching for… | Use instead |
 |---|---|
 | a cron server / VPS for a scheduled job | **Vercel Cron** (`vercel.json` → `crons`) hitting a Route Handler |
-| a custom cache layer | ISR: `revalidate` + `revalidateTag()` / `revalidatePath()` on mutation |
+| a custom cache layer | the framework cache + on-demand revalidation after the mutation commits. API is version-dependent (Next 16: `updateTag` in Server Actions, `revalidateTag(tag, profile)`; the one-argument form is deprecated) — follow `nextjs-development` |
 | a feature-flag service (small scale) | **Edge Config** (low-latency reads, no redeploy) |
 | a CDN / image resizer | `next/image` — optimized at the edge automatically |
 | an analytics script | `@vercel/analytics` + `@vercel/speed-insights` |

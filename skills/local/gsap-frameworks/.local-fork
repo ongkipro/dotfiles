@@ -1,5 +1,5 @@
 upstream: https://raw.githubusercontent.com/greensock/gsap-skills/main/skills/gsap-frameworks/SKILL.md
-verified: 2026-09-29
+verified: 2026-10-02
 scope: directory
 reason: upstream has two vendoring defects and one TypeScript error; local fixes them
 note: The upstream skill refers to repository-root examples as `examples/vue/`
@@ -16,4 +16,4 @@ refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is
   present, before any fetch or write.
 to_vendor: keep the local fixes until the canonical upstream source fixes both
   findings. No external publication was performed by this task.
-recheck: 2026-09-29 — both findings remain in the canonical upstream URL above (dead examples/ paths, duplicate `type Plugins`).
+recheck: 2026-10-02 — no upstream changes to merge (last upstream commit 2026-04-21); both findings remain in the canonical upstream URL above (dead examples/ paths, duplicate `type Plugins`).

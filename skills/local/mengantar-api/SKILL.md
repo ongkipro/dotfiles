@@ -1,10 +1,12 @@
 ---
 name: mengantar-api
 description: >-
-  Architectural intelligence for integrating Mengantar API (Indonesian 3PL/Logistics Aggregator). 
-  Handles expedition routing, COD workflows, balance management, and API constraints 
-  (concurrency, sandbox traps, WooCommerce headers) for JNE, SiCepat, SAP, J&T, etc.
-  Triggers: 'integrasi mengantar', 'bikin fitur ekspedisi', 'logistik api', 'aggregator kurir indonesia', 'cek ongkir', 'sistem cod'.
+  Integrate the Mengantar API (Indonesian logistics aggregator): courier
+  estimates, COD eligibility, wallet-paid orders, batching, and sandbox traps.
+  Not for AutoLaris (autolaris-h2h), storefront UX, or payment accounting.
+  Covers JNE, SiCepat, SAP, J&T, and similar couriers. Triggers: 'integrasi
+  mengantar', 'bikin fitur ekspedisi', 'logistik api', 'aggregator kurir
+  indonesia', 'cek ongkir', 'sistem cod'.
 ---
 
 # Mengantar API: Logistics & Expedition Architecture
@@ -14,6 +16,14 @@ Use this skill when integrating local Indonesian shipping, courier estimation, a
 ## Evidence and Currentness Boundary
 
 This is private integration knowledge; no relevant canonical public upstream was found. Endpoint names, account behavior, courier constraints, percentages, and sandbox rules are point-in-time operational claims. Before implementation, compare them with the tenant's current Mengantar documentation/dashboard or support response and one observed sandbox call. Record the environment, account tier, retrieval date, and sanitized evidence. Current provider documentation and observed responses override this file.
+
+Re-checked 2026-10-02: no public Mengantar API reference was found. API access
+is requested through `https://antar.co/request-api`, which redirects to a
+Typeform (`https://mengantar.typeform.com/request-api`), so the contract is
+issued per merchant. **Every endpoint path, header, flag name, the 90-minute
+pickup rule, the 409 concurrency behavior, and the sandbox traps below are
+unverified as of 2026-10-02.** Treat them as hypotheses to confirm against the
+tenant's issued documentation before you code against them.
 
 This skill owns Mengantar-specific routing, COD, wallet, and courier constraints. It does not own storefront behavior, generic order modeling, payment accounting, or courier UI; hand those concerns to their relevant product/domain skills without copying this API contract.
 

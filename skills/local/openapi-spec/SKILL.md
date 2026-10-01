@@ -1,11 +1,18 @@
 ---
 name: openapi-spec
-description: 'Generate, review, and validate an OpenAPI 3.1 spec (YAML/JSON) from an endpoint description, a codebase, or existing routes. Output is ready for Redoc, Swagger UI, or Hono/tRPC code-gen. Use when documenting a REST API, creating an API contract before coding, or reviewing an existing API. Triggers: ''buat openapi'', ''build openapi'', ''api spec'', ''dokumentasi api'', ''api documentation'', ''swagger'', ''openapi'', ''api contract'', ''api docs'', ''generate spec''.'
+description: 'Generate, review, and validate an OpenAPI 3.1/3.2 spec (YAML/JSON) from an endpoint description, a codebase, or existing routes. Not for API implementation code, auth design, or diagrams (mermaid-diagram). Output feeds Redoc, Swagger UI, or type generation. Use when documenting a REST API, creating an API contract before coding, or reviewing an existing API. Triggers: ''buat openapi'', ''build openapi'', ''api spec'', ''dokumentasi api'', ''api documentation'', ''swagger'', ''openapi'', ''api contract'', ''api docs'', ''generate spec''.'
 ---
 
 # OpenAPI Spec
 
-Generate and validate an OpenAPI 3.1 spec from a description or an existing codebase.
+Generate and validate an OpenAPI spec from a description or an existing codebase. The spec describes behavior the code has or will have; never invent endpoints, fields, status codes, or auth schemes that the routes or the user did not state.
+
+## Version choice (verified 2026-10-02)
+
+- Published lines: OAS **3.2** (3.2.0 on 2025-09-19, patch 3.2.1 on 2026-09-10) and **3.1** (latest patch 3.1.2, 2025-09-19). Patch releases only clarify text; tooling treats `3.1.0` and `3.1.2` alike, so write the `openapi` field as the patch you validated against.
+- **Existing spec:** keep its version. Do not upgrade 3.0 → 3.1 or 3.1 → 3.2 as a side effect of `expand` or `review`.
+- **New spec:** default to `3.1.x`, the line most generators, mock servers, and validators support. Choose `3.2.0` only when it is needed and the project's toolchain (linter, docs renderer, code generator) is confirmed to support it.
+- 3.2 additions worth choosing it for: the `query` HTTP method and `additionalOperations` for other methods; `itemSchema` for streaming sequential media (SSE, JSON Lines); hierarchical tags (`summary`, `parent`, `kind`); a top-level `$self` base URI; a `querystring` parameter location; OAuth 2.0 device authorization flow plus `oauth2MetadataUrl` and `deprecated` on security schemes; and an optional `summary` on Response Objects. Using any of these makes the document 3.2-only.
 
 ## Modes
 
@@ -156,7 +163,8 @@ For every endpoint, make sure it has:
 - `tags` — group related endpoints
 - `summary` — one short sentence
 - `requestBody` with a full schema (if POST/PUT/PATCH)
-- All possible responses: 200/201, 400, 401, 403, 404, 500
+- Responses: the success response plus every error the code can actually return (OAS: "expected to cover a successful operation response and any known errors"). Do not pad with codes the route never emits; use `default` for an undocumented error shape.
+- `security: []` on operations that are intentionally public, so the global scheme does not imply auth that the route does not enforce
 - Query/path parameters with type and default
 
 ## Rules for Good Schemas
@@ -201,18 +209,18 @@ Use a validator that actually exposes a CLI. Redocly CLI's documented `lint` com
 # Prefer the repository's installed dependency through its package manager.
 npx @redocly/cli lint openapi.yaml
 
-# Preview documentation when needed.
-npx @redocly/cli preview-docs openapi.yaml
+# Bundle a multi-file spec into one document for tools that need it.
+npx @redocly/cli bundle openapi.yaml -o dist/openapi.yaml
 ```
 
-Retrieve the current [Redocly lint command documentation](https://redocly.com/docs/cli/commands/lint) before adding CI flags. The `@apidevtools/swagger-parser` library does not ship the `swagger-parser` executable previously shown here; use its programmatic API only if the project already depends on it.
+Redocly CLI v2 (npm `latest` 2.57.0 on 2026-10-02) lints OpenAPI 3.0, 3.1, and 3.2; basic 3.2 support landed in 2.3.0. Its old `preview-docs` command is gone; `preview` now previews a Redocly project, and `build-docs` still renders a single HTML file. Retrieve the current [Redocly lint command documentation](https://redocly.com/docs/cli/commands/lint) before adding CI flags. The `@apidevtools/swagger-parser` library does not ship the `swagger-parser` executable previously shown here; use its programmatic API only if the project already depends on it.
 
 ## Stack Integration
 
-### Hono (Cloudflare Workers)
-```ts
-// Generate types from the spec
-npx openapi-typescript openapi.yaml -o src/types/api.d.ts
+### TypeScript types (Hono, Workers, any TS client)
+```bash
+# Only if the project already uses openapi-typescript; confirm it supports the spec's OAS version.
+npx --no-install openapi-typescript openapi.yaml -o src/types/api.d.ts
 ```
 
 ### Next.js / Astro API routes
@@ -230,4 +238,18 @@ npx @redocly/cli build-docs openapi.yaml -o docs/api/index.html
 - Group with consistent `tags`
 - If large, split per domain: `openapi/users.yaml`, `openapi/orders.yaml`, merge with `$ref`
 
-For **`review`** mode: if the spec is already valid, consistent, and complete — say so and stop. Don't invent findings or demote style preferences into "problems" to make the review look useful. Zero changes is a valid review outcome.
+For **`review`** mode, check in this order and stop at real findings:
+
+1. Lint passes (structural validity first).
+2. Spec matches code: every route exists in the spec and vice versa; methods, path params, required fields, and status codes agree with the handlers.
+3. Security: each operation's effective `security` matches what the route enforces.
+4. Breaking-change risk when editing a published contract: removed paths or fields, newly required request fields, narrowed enums, or changed types. Call these out instead of folding them into a cleanup.
+
+If the spec is already valid, consistent, and complete — say so and stop. Don't invent findings or demote style preferences into "problems" to make the review look useful. Zero changes is a valid review outcome.
+
+## Sources (accessed 2026-10-02)
+
+- OpenAPI Specification releases: <https://github.com/OAI/OpenAPI-Specification/releases> and version index <https://spec.openapis.org/oas/>
+- OAS 3.2.0 text (Path Item `query`, `additionalOperations`, `itemSchema`, Responses Object coverage, Response `summary`, patch-version rule): <https://spec.openapis.org/oas/v3.2.0.html>
+- OAS 3.1 Schema Object (no `nullable`): <https://spec.openapis.org/oas/v3.1.1.html#schema-object>
+- Redocly CLI commands and changelog: <https://redocly.com/docs/cli/commands>, <https://redocly.com/docs/cli/changelog>

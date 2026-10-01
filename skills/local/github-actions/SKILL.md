@@ -1,6 +1,6 @@
 ---
 name: github-actions
-description: Engineers and reviews GitHub Actions CI workflows. Use for `.github/workflows`, Actions YAML, triggers, permissions, action pinning, jobs/needs, matrices, reusable workflows, composite actions, concurrency, caches, artifacts, secrets, OIDC, fork PR safety, environments, release gates, queued or failed jobs, runner/billing blockers, and workflow validation. Owns GitHub CI workflow architecture and evidence; not application deployment execution or non-GitHub CI.
+description: Engineers and reviews GitHub Actions CI workflows and their run evidence. Not application deployment execution (deploy owners), test strategy (testing-engineering), or non-GitHub CI. Use for `.github/workflows`, Actions YAML, triggers, permissions, action SHA pinning and allowed-actions policy, jobs/needs, matrices, reusable workflows, composite actions, concurrency, caches, artifacts, secrets, OIDC, fork PR safety, environments, release gates, queued or failed jobs, runner/billing blockers, and workflow validation.
 ---
 
 # GitHub Actions workflow engineering
@@ -47,7 +47,7 @@ Record the expected event, ref/SHA, permissions, runner, inputs, outputs, and ga
 The workflow file, event payload, checked-out ref, dependencies, caches, artifacts, runner, token, and secrets are all inputs.
 
 - Use `pull_request` for building and testing fork contributions. Keep permissions read-only or empty and assume PR-controlled code is hostile.
-- Avoid `pull_request_target`. If it is truly required, keep it metadata-only: never checkout, execute, source, import, package, or indirectly evaluate PR-head content; never consume PR-produced caches or artifacts in that privileged job.
+- Avoid `pull_request_target`. If it is truly required, keep it metadata-only: never checkout, execute, source, import, package, or indirectly evaluate PR-head content; never consume PR-produced caches or artifacts in that privileged job. It also shares the default branch's cache scope. `actions/checkout` v7+ refuses fork-PR checkout under `pull_request_target`/`workflow_run` unless `allow-unsafe-pr-checkout: true`; treat that input (or a manual `git fetch` of the PR ref) as a blocking review finding, not a fix.
 - A later `workflow_run` can have secrets and write access even when the triggering workflow did not. Treat every artifact, cache, output, filename, and command derived from the untrusted run as hostile; do not execute it in the privileged run.
 - Never run public-fork code on a persistent self-hosted runner. A runner can expose network reachability, credentials, tools, and state beyond the documented job inputs.
 - Event fields such as PR titles, branch names, issue bodies, commit messages, and input values are untrusted. Do not splice expressions into shell source. Pass values through environment variables or action inputs and quote them in the receiving program.
@@ -101,7 +101,7 @@ See `references/workflow-architecture.md` for reuse, concurrency, and data-flow 
 
 - Cache only regenerable dependencies or tool state. Keys must bind to relevant OS, tool/runtime version, lockfile, and other compatibility inputs. Restore prefixes must not cross trust or ABI boundaries.
 - Never put secrets in caches or artifacts. Never let a privileged workflow restore a cache an untrusted workflow can influence.
-- Use artifacts for explicit immutable-by-convention handoff between jobs/runs. Set deliberate names and retention, validate expected contents, and treat artifacts from untrusted runs as untrusted input.
+- Use artifacts for explicit handoff between jobs/runs. Set deliberate names and retention, validate expected contents, and treat artifacts from untrusted runs as untrusted input. `actions/download-artifact` v8+ fails on a digest mismatch by default; do not relax `digest-mismatch` to make a run pass.
 - Publish or deploy the exact verified artifact/digest rather than rebuilding different bytes after approval.
 - When provenance is required, use GitHub artifact attestations with job-scoped permissions and verify the attestation in the consumer/release process. Attestation does not make malicious source or a compromised build trustworthy.
 
@@ -111,6 +111,10 @@ See `references/workflow-architecture.md` for reuse, concurrency, and data-flow 
 - Verify repository ownership, source, release notes, maintenance state, and the tag-to-SHA mapping from upstream. Review dependency updates; use Dependabot/Renovate only as an update proposal mechanism, never automatic trust.
 - Recheck current official action documentation and repository releases before changing versions or inputs. Do not invent action inputs from memory.
 - Local actions are still code from the checked-out ref. Their safety matches that ref's trust level.
+- Where the plan allows, enforce this centrally: the repository/organization allowed-actions policy can require full-SHA pinning and block specific actions or versions with a `!` entry. Inspect the setting before claiming enforcement.
+- JavaScript actions now run on Node 24; GitHub removed Node 20 from hosted runners on 2026-09-23 with no opt-out. When a run fails on an old action, bump to a release whose `action.yml` declares `runs.using: node24` (verify upstream), and keep self-hosted runners at the minimum version that release states.
+
+Current majors observed 2026-10-02 (re-verify before pinning; see the ledger): `checkout` v7, `setup-node` v7, `cache` v6, `upload-artifact` v7, `download-artifact` v8. Major bumps changed behavior (fork-checkout refusal, digest enforcement, `setup-node` auto-caching limited to npm since v6), so read release notes across every skipped major.
 
 ## Secrets, OIDC, and protected environments
 
@@ -150,6 +154,7 @@ Use `references/diagnostics-and-verification.md` for a concrete evidence sequenc
 
 1. Run the repository's existing workflow/static checks.
 2. If installed or accepted by the project, run `actionlint` from repository root. It validates syntax and many expressions, references, matrices, and shell embeddings; it does not prove permissions, settings, hosted runners, or environment gates.
+   If the repository already enables code scanning, CodeQL can also flag vulnerable workflow patterns; treat its alerts as review input, not proof of safety.
 3. Run the exact underlying project command locally for each changed `run` path, using the repository's supported runtime. Hand behavioral-test design to `testing-engineering`.
 4. Inspect the remote registered workflow and execute the smallest safe hosted event when the change depends on GitHub contexts, permissions, reusable-workflow wiring, OIDC, environments, or runner behavior.
 5. Record workflow/run URL or ID, event, ref and SHA, jobs observed, expected skip/cancel/approval behavior, artifact identity where relevant, and final conclusion. A merely queued run is not passing evidence.
@@ -159,7 +164,7 @@ Do not claim fork safety without exercising a fork-equivalent event or proving n
 ## Anti-patterns
 
 - Broad `on` plus broad write permissions “for convenience.”
-- `pull_request_target` that checks out or executes the PR head.
+- `pull_request_target` that checks out or executes the PR head, including `allow-unsafe-pr-checkout: true`.
 - Privileged `workflow_run` consuming untrusted artifacts, caches, filenames, or scripts.
 - Mutable action tags/branches, or a full SHA copied without verifying its source/release.
 - Secrets or OIDC in matrix build/test jobs.

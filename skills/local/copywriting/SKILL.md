@@ -40,7 +40,28 @@ source, also run `volumx-writer` so qualifiers, claims, citations, and condition
 survive the edit. This skill owns house rules and templates; `volumx-writer`
 owns preservation and claim integrity.
 
+## Clarity rules (all copy)
+
+- Lead with what matters most and front-load the keyword the reader scans for.
+- Start statements with a verb where natural; cut "there is/there are" and an
+  unnecessary "you can".
+- Prefer short, common words over jargon; explain a necessary term once.
+- Sentence case for blog H2s and UI-style headings unless the brand or channel
+  specifies otherwise; product titles stay Title Case (below).
+- No end period on headings, titles, or button-like labels.
+
+(Condensed from Microsoft's top-10 style tips, Google's developer style
+highlights, and the U.S. plain-language principles; see Sources.) Indonesian
+copy additionally follows EYD V spelling through
+`volumx-writer/references/indonesian.md`; this skill does not restate
+spelling rules.
+
 ## Char limits (cross-channel)
+
+These are **house limits** chosen to avoid truncation, not platform rules.
+Google sets no meta description length and truncates snippets to the device
+width, and it rewrites titles; keep every page's title and description unique
+and treat the numbers below as the house QA gate.
 
 | Field | Limit | Notes |
 |---|---|---|
@@ -146,13 +167,17 @@ Avoid generic suffixes: `main product image`, `product image N`, `image`.
 
 ## Social templates (per platform)
 
+Lengths below are house targets for readability. Platform maximums change;
+check the platform's current help page before treating a number as a hard
+limit, and never state reach or algorithm effects as fact without a source.
+
 ### Facebook (long-form, ~80-500 chars optimal)
 ```
 [Hook — 1 sentence that earns the scroll-stop]
 [2-3 sentences of context or value]
 [Optional: 1 short question to invite comment]
 ```
-No external links in the body (kills reach) — put link in first comment if needed.
+House preference: keep external links out of the body and put the link in the first comment when needed.
 
 ### Instagram (caption + hashtags, ~150-300 chars)
 ```
@@ -236,3 +261,10 @@ For 50+ items:
 - `volumx-writer` — preservation, anti-hallucination, humanization, and scoring
 - `seo-website-builder` — SEO QA, schema, sitemap
 - `prd-taskbreaker` — break a copy sprint into numbered tasks
+
+## Sources (accessed 2026-10-02)
+
+- Microsoft Writing Style Guide, top 10 tips: <https://learn.microsoft.com/en-us/style-guide/top-10-tips-style-voice>
+- Google developer documentation style guide highlights: <https://developers.google.com/style/highlights>
+- Plain language principles (digital.gov): <https://digital.gov/guides/plain-language/principles>
+- Google Search Central, meta description length and uniqueness: <https://developers.google.com/search/docs/appearance/snippet>
