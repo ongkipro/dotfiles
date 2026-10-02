@@ -9,8 +9,7 @@ description: >-
   and caching, Route Handlers, Server Actions, forms, metadata, streaming,
   runtime selection, instrumentation, or deployment output. Inspect the
   installed Next.js/React versions and project configuration before using
-  APIs. Automated test strategy, cross-stack AppSec, observability design, and
-  Vercel infrastructure belong to their own skills.
+  APIs.
 ---
 
 # Next.js Development

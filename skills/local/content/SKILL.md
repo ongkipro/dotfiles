@@ -8,9 +8,7 @@ description: >-
   Triggers: bikin konten, tulis artikel, blog post, content calendar, social
   post, landing page copy, batch content, kalender konten, artikel SEO. Pairs
   with copywriting (rules), seo-website-builder (SEO QA), volumx-writer
-  (preservation + humanization), 9router (visuals + research). copywriting
-  owns char limits, headline patterns, meta, ALT text; this is the multi-asset
-  pipeline.
+  (preservation + humanization), 9router (visuals + research).
 ---
 
 # Content Production

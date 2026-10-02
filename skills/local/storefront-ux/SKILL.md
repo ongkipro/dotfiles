@@ -9,9 +9,7 @@ description: >-
   edge-state inventories, responsive commerce behavior, conversion-friction
   diagnosis, direct COD or single-page order forms, and implementation
   acceptance criteria. Backend-neutral; use the Shopify boundary reference on
-  Shopify projects. Copy goes to copywriting/content; storefront-development
-  implements the accepted contract (API syntax, component installation); admin
-  dashboards go to admin-dashboard.
+  Shopify projects.
 ---
 
 # Storefront UX

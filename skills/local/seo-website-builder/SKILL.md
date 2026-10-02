@@ -8,9 +8,6 @@ description: >-
   business SEO, ecommerce SEO, programmatic SEO, SEO QA, multi-engine
   algorithm updates, and AI-search readiness. Triggers: "audit SEO situs ini",
   "kenapa halaman ini tidak terindeks", "why did my traffic drop".
-  automated-traffic-pipeline owns the generation and indexing pipeline,
-  ai-traffic-os owns AEO/GEO; copy goes to content/copywriting and Astro code
-  to astro-development.
 ---
 
 # SEO Website Builder

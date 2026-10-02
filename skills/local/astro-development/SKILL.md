@@ -9,9 +9,7 @@ description: >-
   React/shadcn islands, Actions, sessions, endpoints, middleware, adapters,
   Cloudflare Workers deployment, or choosing static versus on-demand
   rendering. Also use for Astro-based admin dashboards, with admin-dashboard
-  leading UX decisions and shadcn-ui leading component APIs. SEO
-  strategy/audits go to seo-website-builder and visual direction to
-  design-taste.
+  leading UX decisions and shadcn-ui leading component APIs.
 ---
 
 # Astro Development
