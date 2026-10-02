@@ -191,6 +191,11 @@ def audit(root: Path) -> dict[str, object]:
         for command, path_reference, line, source in command_regions(text):
             if command in skill_names:
                 continue
+            # A bare name has no family suffix, so it cannot be a member of an
+            # owned `family-*` group: `pi` and `omp` are external runtimes even
+            # though `pi-update-safe` and `omp-runtime-report` are owned.
+            if "-" not in command:
+                continue
             family = command.split("-", 1)[0]
             if path_reference:
                 if command in executable_surface or family not in owned_families:

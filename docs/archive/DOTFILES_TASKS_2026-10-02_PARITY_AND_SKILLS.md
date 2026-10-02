@@ -81,3 +81,33 @@ Each ran under `delivery-ledger` with tests; reviews via `ai-ask agy` (106-109) 
 - **Reopen Conditions:** a generated hook command exits without running its script.
 - **Non-Scope:** Codex hook trust prompts (owner action).
 - **Escalation Conditions:** Codex refuses user-level hooks in `exec` mode.
+
+## TASK-112 — RUN-20261002T022453Z-cb04d42f (PASS)
+
+### TASK-112: External runtimes misreported as missing owned commands
+
+- **Requirement:** REQ-SKILL-SURFACE (daily health 2026-10-02 reported `pi`/`omp` in cross-cli as missing owned commands).
+- **Risk Level:** R1.
+- **Allowed Paths:** `bin/skill-surface-check`, `bin/skill-surface-check-test`, `config/ai/memory/long-task-debugging.md`, `TASKS.md`, `.delivery/**`.
+- **Protected Paths:** `config/ai/CORE.md`.
+- **Canonical Contract Owners:** `skills.surface`.
+- **Accepted Invariants:** a missing owned `family-name` command is still reported; a bare external CLI name is not.
+- **Regression Checks:** `skill-surface-check-test`, `skill-surface-check` CLEAN on the repo.
+- **Reopen Conditions:** a real missing owned command stops being reported.
+- **Non-Scope:** changing cross-cli content.
+- **Escalation Conditions:** none expected.
+
+## TASK-113 — RUN-20261002T022621Z-d6001d4a (PASS)
+
+### TASK-113: Daily health report can drop warning lines
+
+- **Requirement:** REQ-DAILY-HEALTH (a section keeps only its last 60 lines, so ai-doctor's early `!` lines were cut from the 2026-10-02 report).
+- **Risk Level:** R1.
+- **Allowed Paths:** `bin/ai-health-daily`, `bin/ai-health-daily-test`, `TASKS.md`, `.delivery/**`.
+- **Protected Paths:** `config/ai/CORE.md`.
+- **Canonical Contract Owners:** `runtime.daily-health`.
+- **Accepted Invariants:** every warning or failure line of a section appears in the report regardless of output length; still read-only and redacted.
+- **Regression Checks:** `ai-health-daily-test`.
+- **Reopen Conditions:** a warning line is missing from a report.
+- **Non-Scope:** changing ai-doctor.
+- **Escalation Conditions:** none expected.

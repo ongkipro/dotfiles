@@ -39,7 +39,11 @@ ai-doctor --self-test
 git status
 "$ROOT/bin/ai-local-helper" --check
 skill-update --help
+ai --version
 ```
+
+An external runtime whose bare name matches an owned family prefix, like
+`ai -p hello`, is not an owned command (TASK-112: `pi`, `omp`).
 EOF
 
 cat > "$FIXTURE/skills/local/ai-traffic-os/SKILL.md" <<'EOF'

@@ -77,7 +77,12 @@ section() { # title, timeout, command...
   bounded "$t" "$@" >"$raw" 2>&1; rc=$?
   out="$(strip <"$raw")"; rm -f "$raw"
   [ "$rc" -eq 0 ] || status=attention
-  printf '\n## %s (exit %s)\n\n```text\n%s\n```\n' "$title" "$rc" "$(printf '%s\n' "$out" | tail -60)"
+  # Warnings first, complete: the tail below is capped and an early "!" line
+  # was once cut from the report (TASK-113).
+  local flagged; flagged="$(printf '%s\n' "$out" | grep -E '^[[:space:]]*(!|✗|WARN|FAIL|ERROR)' || true)"
+  printf '\n## %s (exit %s)\n\n' "$title" "$rc"
+  [ -z "$flagged" ] || printf '**Flagged:**\n\n```text\n%s\n```\n\n' "$flagged"
+  printf '```text\n%s\n```\n' "$(printf '%s\n' "$out" | tail -60)"
 }
 has() { [ -x "$DOT/bin/$1" ]; }
 

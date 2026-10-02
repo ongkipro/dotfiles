@@ -39,6 +39,9 @@ r="$S/$(date +%Y-%m-%d).md"
 printf '2026 x warn: y\n' > "$TMP/state/dotsync-last"; mkdir -p "$TMP/state/dotsync"; printf '2026 x warn: diverged\n' > "$TMP/state/dotsync/last-result"
 "$H" --force >/dev/null; grep -q ' attention ' "$S/latest" && ok "an autopull warning marks attention" || bad "autopull warning missed"
 ln -s "$H" "$TMP/linked-health"; (cd /; DOTFILES_DIR= "$TMP/linked-health" --print-timer | grep -q "$D/config/systemd") && ok "resolves its repository through a symlink" || bad "symlink resolution"
+stub ai-doctor 'echo "  ! early warning line"; i=0; while [ $i -lt 100 ]; do echo "  ok line $i"; i=$((i+1)); done; exit 0'
+"$H" --force >/dev/null
+grep -q 'early warning line' "$S/$(date +%Y-%m-%d).md" && ok "warnings survive long output" || bad "an early warning was cut from the report"
 "$H" --print-timer | grep -q 'systemctl --user enable --now ai-health-daily.timer' && ok "--print-timer shows the opt-in commands" || bad "print-timer"
 "$H" --bogus >/dev/null 2>&1; [ $? -eq 2 ] && ok "unknown option is a usage error" || bad "unknown option accepted"
 [ "$fails" -eq 0 ] && { echo "ai-health-daily-test: PASS"; exit 0; }

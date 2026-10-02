@@ -89,3 +89,26 @@ List candidates with ps -eo pid,args | grep '[p]attern' (bracket trick excludes 
 ps -eo pid,args | grep '[m]utation-sweep' shows only the intended targets before any kill; ledger verify stays clean afterwards.
 
 > Promoted from a reviewed local candidate on 2026-10-01.
+
+
+---
+
+
+## Lesson: Execute generated hook commands in tests, never just inspect their text
+
+### Symptom
+A Codex PreToolUse hook installed as 'env AI_HOOK_RUNTIME=codex g=...; [ -x "$g" ] && exec "$g"' passed its test, yet a live session ran git push --mirror unguarded.
+
+### Root cause
+env treats every leading NAME=value as an environment assignment, so it swallowed the shell assignment g=..., ran no command and exited; the guard was never invoked. The test only checked the command prefix string.
+
+### Durable invariant
+A generated hook or wrapper command is verified by executing it through the same shell with a realistic payload and asserting the guarded outcome.
+
+### Fix
+Prefix with 'export VAR=value;' instead of 'env VAR=value', and add a test that runs the installed command via sh -c and requires a deny for a dangerous command and silence for a safe one.
+
+### Regression check
+Revert the fix and confirm the execution test fails; with the fix, a live 'codex exec' probe reports 'Command blocked by PreToolUse hook'.
+
+> Promoted from a reviewed local candidate on 2026-10-02.
