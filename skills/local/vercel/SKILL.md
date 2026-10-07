@@ -7,7 +7,7 @@ description: Deploy, configure, inspect, and manage Vercel projects via Vercel C
 
 Deploy, manage, and inspect web applications and edge infrastructure on Vercel. Standardize deployment workflows across Claude Code, Antigravity, Codex, OMP, and Pi.
 
-**Verify the installed CLI first:** `vercel --version`. Flags below were checked against Vercel CLI 62.1.0 (`vercel <cmd> --help`, 2026-10-02); when a flag is missing or behaves differently, trust the local `--help` and https://vercel.com/docs/cli over this file. Vercel also publishes an agent plugin (`npx plugins add vercel/vercel-plugin`, advertised on every docs page) and `vercel-labs/agent-skills` (`vercel-optimize`, `vercel-deploy-claimable`); prefer this skill's approval gates when they conflict.
+**Verify the installed CLI first:** `vercel --version`. Flags below were checked against Vercel CLI 62.7.0 (`vercel <cmd> --help`, 2026-10-07); when a flag is missing or behaves differently, trust the local `--help` and https://vercel.com/docs/cli over this file. Vercel also publishes an agent plugin (`npx plugins add vercel/vercel-plugin`, advertised on every docs page) and `vercel-labs/agent-skills` (`vercel-optimize`, `vercel-deploy-claimable`); prefer this skill's approval gates when they conflict.
 
 ## Scope and triggers
 
@@ -95,7 +95,7 @@ Run non-blocking deployments so the terminal returns immediately with the URL:
 ```bash
 vercel deploy -y --no-wait --scope <team-slug>
 ```
-Follow up by inspecting status (`--wait` blocks until the deployment finishes, default timeout 3m):
+Follow up by inspecting status (`--wait` blocks until the deployment finishes, default timeout 3m; the CLI 62.7.0 help says it exits 124 when `--timeout` is reached first, so treat 124 as "still building", not a failed build):
 ```bash
 vercel inspect <deployment-url> --wait
 ```

@@ -245,6 +245,9 @@ shadcn info --json
 
 Do not infer framework, aliases, base library, or installed items from folder
 names when this command can resolve them.
+Since CLI 4.21.2 a UTF-8 byte order mark at the start of `components.json` or
+`package.json` is accepted; an older pinned CLI fails to parse such a file, so
+strip the BOM rather than debugging the config.
 
 `init` creates `components.json`, `src/lib/utils.ts`, and
 `src/components/ui/`, and writes the token block into your main CSS file. On v4
@@ -261,7 +264,7 @@ https://ui.shadcn.com/docs/changelog, registry JSON
 `https://ui.shadcn.com/r/styles/base-nova/utils.json`.
 
 The old "Style: Default or New York" / "Base color" prompts are gone. `init`
-(alias `create`) in CLI 4.21.0 takes `--template`
+(alias `create`) in CLI 4.21.3 (`init --help`, 2026-10-07) takes `--template`
 (`next|start|vite|react-router|laravel|astro`), `--base` (`base` for Base UI,
 `radix`, `aria` for React Aria), `--preset` (name, code, or URL),
 `--css-variables`/`--no-css-variables` (default true), `--monorepo`, `--rtl`,
