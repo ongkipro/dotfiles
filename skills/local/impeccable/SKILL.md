@@ -1,7 +1,7 @@
 ---
 name: impeccable
 description: Automatically run a critique/polish pass whenever frontend UI is built or changed; also audit, harden, animate. Not public direction (design-taste), admin IA/workflow (admin-dashboard, admin-product-ux), browser proof (ui-validation). Fix its findings, then hand off to ui-validation. Also use to design, redesign, shape, clarify, distill, adapt, colorize, typeset, optimize, extract, or improve websites, landing pages, dashboards, product UI, components, forms, settings, onboarding. Handles UX review, visual hierarchy, IA, cognitive load, a11y, responsive, theming, anti-patterns, typography, spacing, layout, micro-interactions, tokens. Not for backend-only or non-UI tasks. Also use for bland designs that need to become bolder or more delightful, loud designs that should become quieter, or Indonesian phrases like rapikan UI, perbagus tampilan, audit UX, poles frontend, bikin lebih estetik/bold, tampilan kaku.
-version: 4.4.0
+version: 4.5.0
 user-invocable: true
 argument-hint: "[shape · audit|critique · animate|bolder|colorize|delight|layout|overdrive|quieter|typeset · adapt|clarify|distill · harden|onboard|optimize|polish · init|document|extract|live|generate] [target]"
 license: Apache 2.0
@@ -26,6 +26,7 @@ Core principles:
 
 - **The brief wins.** Honor pinned aesthetics, eras, materials, fonts, and palettes even when they conflict with a saturated-pattern warning. Redirecting a clear brief toward your taste is failure.
 - **Refinement preserves; redesign replaces.** Refinement keeps the incumbent identity, behavior, copy, and everything outside scope. Ask before replacing factual copy or adding claims. Redesign keeps product truth, content, function, native affordances, and constraints, but treats the old look as evidence and anti-reference; choose a replacement world in new-work and replace DESIGN.md. Never split the difference into polish on the discarded look.
+- **Loaded symbols stay out of the decoration.** A subject's world does not license emblems tied to militarism, supremacy, or hate movements as motifs, badges, or ornament, such as the Rising Sun flag's rays, the Confederate battle flag, or Nazi-era insignia and their stylised variants; reach for that world's neutral forms instead. Content that documents such a symbol as fact stays as it is.
 - **Visual authority is evidence, not a filename.** Missing DESIGN.md alone does not make a project greenfield; new-work decides whether to preserve, expand, or replace the incumbent world.
 
 ## Modes
