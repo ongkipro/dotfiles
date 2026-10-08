@@ -4,6 +4,24 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## v2026.10.08.2
+
+### Fixed
+
+- `astro-development`: `astro check` needs `@astrojs/check` + `typescript`;
+  when missing it opens an interactive prompt that hangs agents (`--yes` skips
+  it); with TypeScript 7 it errors out, so use `@astrojs/ts-content-mapper`
+  or report type-checking as not run (verified in Astro 7.3.7 source).
+- `design-taste` delivery gate: new work is rendered twice (after the macro
+  composition pass and at the end), both captures recorded; found by the
+  e2e company-profile build.
+
+### Other devices
+
+- Nothing beyond the normal autopull. If a device ever needs
+  `mise install node@<v> --force`, record and reinstall its global npm CLIs
+  first: the forced reinstall deletes them (lesson candidate captured).
+
 ## v2026.10.08.1
 
 Surface catalog for every public web surface type, admin contradictions

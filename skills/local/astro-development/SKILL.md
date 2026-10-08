@@ -89,6 +89,15 @@ npx astro sync
 npx astro check
 ```
 
+`astro check` (verified in Astro 7.3.7 source, 2026-10-08) needs
+`@astrojs/check` and `typescript` in the project. When they are missing it
+opens an interactive install prompt that hangs a non-interactive agent:
+install them deliberately as pinned dev dependencies first, or pass `--yes`
+only when that install is intended. With TypeScript 7.x installed it stops
+with an error (TypeScript 7 unsupported, `astro check` slated for
+deprecation); type-check `.astro` files through `@astrojs/ts-content-mapper`
+per its README, or report type-checking as not run.
+
 Replace `npm`/`npx` with the lockfile's package manager. Before an unfamiliar
 flag, run the project-pinned `astro --help` or relevant subcommand help. Adding
 an integration mutates source/config: inspect the current official integration

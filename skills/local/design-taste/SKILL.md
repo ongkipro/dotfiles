@@ -368,6 +368,10 @@ Before describing a new or materially changed UI as ready, establish:
   unavailable evidence and provisional choices are explicitly named.
 - The actual interface was viewed at relevant narrow/wide sizes, compared to
   its direction, and revised where needed. Important flows and recovery work.
+  For new work this happened twice: once after the macro composition pass,
+  before decorative polish, and once at the end; both captures are listed in
+  the design artifact's acceptance evidence. One render after the full build
+  does not meet this item.
 - Readability, keyboard/focus, contrast, reflow, touch, and reduced motion were
   checked where affected. A screenshot alone does not prove interaction.
 - No fabricated evidence, decorative filler, or unsupported product behavior
