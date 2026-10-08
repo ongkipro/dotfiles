@@ -65,7 +65,11 @@ For a new public experience or material redesign:
    Preserve input and provide a next step when an action fails.
 4. **Research:** inspect relevant references using
    [design-discovery.md](references/design-discovery.md). A list of URLs is not
-   research evidence. Resolve which principles transfer before styling.
+   research evidence, and neither is a reference table written from memory:
+   capture at least two live references with
+   `node scripts/ui-ref.mjs capture URL --out design/refs/<name>` (this skill's
+   `scripts/`), open the captured screenshots, and cite those directories in
+   the design artifact. Resolve which principles transfer before styling.
 5. **Choose:** select a coherent direction, responsive composition, and token
    source. Compare alternatives only when the choice is material. A low-detail
    wireframe is useful when hierarchy is unresolved, not mandatory ceremony.
@@ -78,8 +82,10 @@ For a new public experience or material redesign:
    existing framework, following the recorded contract. Render and look at
    each changed view (screenshot at narrow and wide widths) before moving on;
    if no browser can start, report the limitation instead of claiming a look.
-7. **Polish, then validate:** critique the built or changed UI against
-   the accepted direction and fix its findings; then use `ui-validation` to
+7. **Polish, then validate:** open the narrow and wide screenshots (view the
+   image itself; an overflow number is not a look), write a `## Render
+   critique` section in the design artifact that cites them and judges each
+   page section against §4.3.1, fix its findings, and re-render; then use `ui-validation` to
    exercise behavior, inspect
    narrow/wide renders, compare against the accepted direction, fix concrete
    discrepancies, and reopen the changed views.
@@ -323,7 +329,12 @@ Anthropic `frontend-design`, Apache-2.0):
   black, monospace for small data labels, `→` appended to every link/button;
 - typographic tells: one accented word in a headline, numbered `01 / 02 / 03`
   markers on content that is not a sequence, fade-and-slide-up on every
-  section.
+  section;
+- tech-mono template (seen on a construction company and an ads report):
+  navy canvas with a dot grid, monospace on labels and figures, `A // B`
+  separators, `LAYANAN 01` / `03 / Section` labels, a fake terminal or
+  "blueprint" panel, rows of icon-in-tile cards, Tailwind default blue or
+  indigo as the accent. `scripts/design-gate.py` measures most of it.
 
 Calibration check before code: write the direction as 4–6 named colors, type
 roles, and a one-sentence layout concept, then ask whether a similar prompt
@@ -367,7 +378,11 @@ are too generic. A generic shared component is not itself a failure.
 
 Approved authentic brand/product assets come first. Generated imagery can be
 an illustration or clearly identified concept, never fabricated customer,
-product, testimonial, screenshot, or performance evidence. A text-led page
+product, testimonial, screenshot, or performance evidence. Drawing "project
+photos", diagrams, or portfolio images with PIL, canvas, or SVG to fill empty
+slots is fabricated evidence; use a labeled placeholder the owner replaces.
+Write for the actual reader: a homeowner page explains outcomes in plain
+words and keeps specification jargon to a details table. A text-led page
 can be complete without decorative images. Do not invent customers, metrics,
 scarcity, ratings, previews, or citations to fill a layout.
 
@@ -399,7 +414,12 @@ Read-only reference access does not authorize live submissions. Test purchase,
 account, payment, and destructive flows with fixtures or an authorized sandbox;
 do not place real orders or mutate production to obtain design evidence.
 
-Before describing a new or materially changed UI as ready, establish:
+Before describing a new or materially changed UI as ready, run
+`python3 scripts/design-gate.py <project>` (this skill's `scripts/`) and quote
+its final line. Exit 1 means not ready: fix the source or the evidence, never
+the gate. A look the brief explicitly asks for is recorded as
+`gate-allow: <check> - <reason>` in the design artifact. Exit 2 means the gate
+did not run; report it as not checked. Then establish:
 
 - The primary user task, decision sequence, and content are clear.
 - The accepted tokens and brand were preserved or deliberately changed within scope.
@@ -439,6 +459,7 @@ AI slop from a prompt, static scan, or one model-generated sample.
 | Category starting points: job, local-market checks, content inventory, claim traps, research queries | niche-patterns/README.md |
 | Measured WCAG contrast incl. alpha and large-text thresholds (`scripts/contrast.py`) | accessibility-notes.md |
 | Cross-project repetition (`scripts/portfolio-scan.py`: fonts, radius, accent, direction per recent project) | SKILL.md §2.1 |
+| Delivery gate (`scripts/design-gate.py`: ui-ref captures cited, fresh render critique, tech-mono look counts; exit 1 blocks "ready") | SKILL.md §8 |
 | Existing theme code | theme-implementation.md |
 | Storefront visual decision hierarchy | public-experience-patterns.md |
 | Instruction evaluation and rendered critique | design-evaluation.md; ui-validation owns browser execution |

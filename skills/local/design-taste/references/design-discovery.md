@@ -194,7 +194,8 @@ owner exists and durable decisions need a home. In a specification suite,
 extend its existing design-system and UX-flow documents. Do not create a rival
 PRD, task queue, or token file. Large research screenshots can remain in an
 approved local artifact directory; record portable source/observation details
-in the repository and do not commit authenticated captures or private data.
+in the repository and do not commit authenticated captures or private data;
+`design/refs/` captures of public pages may stay untracked (`.gitignore`).
 
 Minimum decision record:
 
@@ -208,7 +209,8 @@ Minimum decision record:
   owner:
 
 ## Reference evidence
-| Source / inspected date | Role | Surface, viewport, state, artifact | Observed | Inferred / unverified | Transfer / exclude |
+<!-- Each row cites its ui-ref capture dir (design/refs/<name>/); design-gate.py needs two. -->
+| Source / inspected date | Role | Surface, viewport, state, capture dir | Observed | Inferred / unverified | Transfer / exclude |
 | --- | --- | --- | --- | --- | --- |
 
 ## Direction
@@ -228,7 +230,13 @@ Minimum decision record:
 - Relevant loading/empty/error/success/disabled states:
 - Framework-native implementation and budget:
 
+## Render critique
+<!-- Cite the narrow and wide screenshots you opened; design-gate.py checks they
+     exist and are newer than the source. One line per page section. -->
+- <screenshot path>: section → generic or authored? which §4.3.1 look? fix:
+
 ## Acceptance evidence
+- design-gate.py final line:
 - Browser routes, viewports, interactions, and result:
 - Reference comparison per contract item: match, or deviation → reason / revision → recheck:
 - Remaining limitation and its impact:

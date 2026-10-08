@@ -4,6 +4,33 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## v2026.10.08.6
+
+design-taste: executable delivery gate. Two agy runs (an ads report and a
+fresh company profile) read the skill, then wrote a reference table from
+memory, never opened their own screenshots, and shipped the same tech-mono
+look; the text rules already banned it, nothing enforced them.
+
+### Added
+
+- `scripts/design-gate.py` (+ `test-design-gate.py`): exit 1 unless the design
+  artifact cites two `ui-ref` capture dirs and a `## Render critique` with
+  narrow/wide screenshots newer than the source, and unless monospace, `//`
+  separators, numbered labels, tracked uppercase labels, and Tailwind default
+  blue/indigo stay under limits. `gate-allow: <check> - <reason>` records a
+  look the brief asks for. Both observed projects fail it; a clean fixture
+  passes.
+- SKILL.md: research step requires `ui-ref` captures; polish step requires
+  opening the screenshots and writing the critique; §8 requires the gate's
+  final line; §4.3.1 names the tech-mono template; §4.5 bans drawn "project
+  photos" and asks for reader-level vocabulary.
+- `design-discovery.md` template: capture-dir column, Render critique and
+  gate line.
+
+### Removed
+
+- design-taste: 11 navigation-only pointer files under `references/`.
+
 ## v2026.10.08.5
 
 Motion: researched trends and sources, corrected vendored GSAP skills.
