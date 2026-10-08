@@ -64,11 +64,11 @@ into the runtime.
 
 When a project lacks an established visual system, default to the **clean-light CMS/admin visual baseline** rather than a heavy two-theme or heavily branded default. Existing project tokens always win, but this is the fallback for new operator surfaces.
 
-Dark mode is not part of this baseline unless explicitly requested. Do not build a dark mode speculatively.
+Dark mode is a stated deferral, not a ban: the baseline is light-only (light polarity reads better for most people — Piepenbrock et al., *Ergonomics* 2013; NN/g 2020-02-02), and NN/g recommends offering a choice. Do not build it speculatively; when operators ask, add it as a designed second theme with re-derived contrast.
 
 - **Surfaces:** White (`#ffffff`) or near-white (`#fcfcfc`) backgrounds, clean un-tinted neutrals for borders (`#e5e5e5`) and text (`#171717`, `#525252`).
 - **Accent:** One restrained accent color (e.g., a subdued blue/indigo or slate) used strictly for focus rings, active selection, and primary actions.
-- **Semantic status:** Pure emerald for success, amber for warning, red for destructive, blue for info. Never use the brand/accent color for semantic state.
+- **Semantic status:** Emerald for success, amber for warning, red for destructive, blue for info, using the contrast-checked mark and text-on-tint values in the baseline (the lighter 500-level hues fail contrast). Never use the brand/accent color for semantic state.
 - **Hierarchy:** Establish hierarchy through typography (weight, size), layout density, and subtle 1px borders.
 - **Anti-slop:** No gradients, no glassmorphism, no oversized border radii, no excessive drop shadows, no rainbow charts, no generic bento/KPI card grids, and no emoji icons.
 

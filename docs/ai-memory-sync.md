@@ -89,12 +89,28 @@ or unexpectedly dirty worktree.
 
 ## Another device
 
-Pull only from a clean worktree:
+Opening a shell already runs `dotsync autopull` in the background (main
+branch, clean tree, at most every 6 hours): it fast-forwards, re-links every
+runtime's context (`ai-memory-link`), and reconciles owned skills into every
+runtime (`skill-update`). To update now instead of waiting:
 
 ```bash
 cd ~/dotfiles
-git pull --ff-only
-ai-doctor
+dotsync pull             # ff-only pull, then ai-memory-link + skill-update
+ai-doctor                # links, contexts, skills, last autopull result
+cat ~/.local/state/dotsync/last-result   # outcome of the last autopull
+```
+
+A plain `git pull --ff-only` skips the relink and skill sync; if you used it,
+run `ai-memory-link && skill-update` afterwards. Pull only from a clean
+worktree.
+
+Release-specific cleanup lives in `CHANGELOG.md` under "Other devices". For
+v2026.10.08 (impeccable removed), on each device:
+
+```bash
+ls ~/.codex/skills/impeccable 2>/dev/null && skill-update   # must print nothing after the sync
+rm -rf ~/.impeccable                                         # leftover CLI cache outside the repo
 ```
 
 If the branches diverged, inspect both sides before integrating:

@@ -25,8 +25,12 @@ product.
 - Does the implementation mapping fit the installed framework without changing
   the product contract?
 - When the accepted visual system includes dark mode, do both themes preserve
-  hierarchy, semantics, focus, and contrast? (The clean-light baseline has no
-  dark mode unless requested.)
+  hierarchy, semantics, focus, and contrast? (The clean-light baseline is
+  light-only by stated deferral; a dark theme is added on request.)
+- Are posted/immutable records, period locks, maker-checker separation, and
+  timer-driven auto-transitions modelled where money or deadlines are involved?
+- Does each destructive action have its tier (high / medium / low) and does
+  each settings form use a single save model?
 - Does every composite control (dialog, combobox, menu, tabs, editable grid)
   name its WAI-ARIA APG pattern, so the keyboard contract is decided before
   implementation?

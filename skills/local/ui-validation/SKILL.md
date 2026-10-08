@@ -52,6 +52,14 @@ browser already on the machine — `channel: 'chrome'`, or an explicit
 If you do download browsers for an already-declared dependency, that is a
 one-line-noted exception, not a new dependency: say you did it.
 
+**No runner in the project** (typical for a new site): use, in order, (1) an
+available browser tool (Chrome DevTools or Playwright MCP); (2) a pinned
+`playwright` dev dependency added to the project the task is building, with the
+system browser via `channel: 'chrome'` and the check script committed beside
+it; (3) otherwise report browser behavior as not verified. Never run a runner
+out of an `npx` cache or another project: the evidence would not be
+reproducible.
+
 ## 2. Choose the smallest evidence
 
 Use the first level that proves the claim:

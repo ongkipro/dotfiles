@@ -86,8 +86,10 @@ the content fills them honestly.
 ## 8. Mobile notes
 
 First contact often happens on a phone from a WhatsApp or LinkedIn link:
-the service summary and the contact action must be reachable without long
-scrolling, the facts block reads as a short list, case studies keep the
+the service summary comes first and contact details stay findable from the
+navigation and footer; the single contact action follows the content per the
+owner's contact invariant (never in header, hero, or sticky bars); the facts
+block reads as a short list, case studies keep the
 result line near the top, and forms ask only what the first call needs.
 
 ## 9. Claim traps

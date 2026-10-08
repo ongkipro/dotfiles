@@ -2,8 +2,8 @@
 name: design-taste
 description: >-
   Set and critique visual direction for public frontend UI/UX (company
-  profiles, landing, marketing, public flows, docs, portfolios, storefront
-  visuals). Not admin UI
+  profiles, landing and sales pages, advertorials, marketing, portals, docs,
+  portfolios, storefront visuals). Not admin UI
   (admin-dashboard) or commerce behavior (storefront-ux). Use for UI/UX workflow, reference research,
   Apple/Google/Material-inspired web design, redesign, design tokens,
   composition contracts, or AI-templated UI, across frameworks. Start from
@@ -26,6 +26,11 @@ observed evidence. It is not a font, punctuation, color, or layout blacklist.
 ## 0. Mode and ownership
 
 Identify the surface and its primary user job before choosing a visual style.
+Read the matching entry in [surface-catalog.md](references/surface-catalog.md)
+(compro, landing, sales page, advertorial, lead magnet, donation, government,
+portfolio, waitlist, storefront, marketplace, directory, booking, news,
+docs, customer portal, and the component and state baseline): it holds the
+surface's job, anatomy, evidence, and Indonesia/Malaysia compliance.
 
 | Surface | Priority | Pair when needed |
 | --- | --- | --- |
@@ -382,6 +387,7 @@ AI slop from a prompt, static scan, or one model-generated sample.
 | --- | --- |
 | Reference evidence, UX sequence, direction record | design-discovery.md |
 | Default public-web foundation, sources, framework translation | public-web-foundation.md |
+| Surface type: job, anatomy, evidence, compliance (incl. advertorial labeling); component taxonomy and states | surface-catalog.md |
 | Editorial/media/mobile/funnel specifics, redesign | surface-and-mode-rules.md |
 | Research → capture → rebuild → measured compare → improve (`scripts/ui-ref.mjs`) | reference-fidelity.md |
 | Motion timing, easing tokens, stagger, reduced-motion substitution | motion-craft.md |

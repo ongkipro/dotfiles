@@ -32,7 +32,8 @@ Use these token values as a baseline. Implement them via CSS variables (e.g., `-
 ### Typography (Neutrals)
 - **Text (Primary):** `#171717` (off-black)
 - **Text (Secondary):** `#525252` (mid-gray for metadata/table headers)
-- **Text (Disabled/Placeholder):** `#a3a3a3`
+- **Text (Placeholder/Muted meaningful):** `#737373` (4.74:1 on `#ffffff`, 4.62:1 on `#fcfcfc`)
+- **Text (Disabled only):** `#a3a3a3` (2.52:1; acceptable only because WCAG 1.4.3 exempts inactive controls — never for a placeholder that carries an example or hint)
 
 ### Accent
 Choose exactly *one* restrained accent color. The default is a subdued indigo/slate.
@@ -42,11 +43,18 @@ Choose exactly *one* restrained accent color. The default is a subdued indigo/sl
 - **Accent (Foreground):** `#ffffff` (text on accent base)
 
 ### Semantic Status
-Never use the accent color for semantic states. Use these specific hues:
-- **Success:** `#10b981` (emerald) — *Background:* `#d1fae5`, *Text:* `#065f46`
-- **Warning:** `#f59e0b` (amber) — *Background:* `#fef3c7`, *Text:* `#92400e`
-- **Destructive/Error:** `#ef4444` (red) — *Background:* `#fee2e2`, *Text:* `#991b1b`
-- **Info:** `#3b82f6` (blue) — *Background:* `#dbeafe`, *Text:* `#1e40af`
+Never use the accent color for semantic states. Each status has a **mark**
+color for icons, dots, borders, and chart marks (≥3:1 on white, WCAG 1.4.11)
+and a **text-on-tint** pair for badges (≥4.5:1). Ratios measured with
+`design-taste/scripts/contrast.py` (2026-10-08):
+- **Success:** mark `#047857` (5.48:1) — *Background:* `#d1fae5`, *Text:* `#065f46` (6.77:1)
+- **Warning:** mark `#b45309` (5.02:1) — *Background:* `#fef3c7`, *Text:* `#92400e` (6.36:1)
+- **Destructive/Error:** mark and inline error text `#b91c1c` (6.47:1 on `#ffffff`, 6.30:1 on `#fcfcfc`) — *Background:* `#fee2e2`, *Text:* `#991b1b` (6.80:1)
+- **Info:** mark `#1d4ed8` (6.70:1) — *Background:* `#dbeafe`, *Text:* `#1e40af` (7.14:1)
+
+The lighter Tailwind-500 hues (`#10b981` 2.53:1, `#f59e0b` 2.14:1, `#ef4444`
+3.76:1, `#3b82f6` 3.67:1 on white) fail as text and the first two fail even as
+non-text marks; do not use them for status.
 
 ## 3. Typography & Spacing
 
@@ -84,7 +92,7 @@ Never use the accent color for semantic states. Use these specific hues:
 - **Pagination:** Clean numerical links and Prev/Next buttons at the bottom.
 
 ### Editors & Forms
-- **Inputs:** `32px` or `36px` height. `1px solid #e5e5e5` border. Focus state MUST show a visible outline (`2px solid var(--accent)` or an `outline-offset`).
+- **Inputs:** `32px` or `36px` height for mouse/keyboard; under `@media (pointer: coarse)` raise controls and row hit areas to at least `44px` (Apple 44pt, Android 48dp; WCAG 2.5.8 sets only the 24px floor). `1px solid #e5e5e5` border. Focus state MUST show a visible outline (`2px solid var(--accent)` or an `outline-offset`).
 - **Labels:** Placed above the input. `14px`, `500` weight, primary text.
 - **Buttons:**
   - *Primary:* Solid accent background, white text.
@@ -92,10 +100,10 @@ Never use the accent color for semantic states. Use these specific hues:
   - *Ghost:* No border/background. Hover: `#f0f0f0`.
 
 ### Status, Empty, Loading, and Error States
-- **Badges/Tags:** Small (`12px`, `padding: 2px 6px`), rounded (`4px`). Semantic background/text colors (see Token Definitions).
-- **Empty States:** Center-aligned in the content area. Secondary text color. Include an SVG icon (neutral color) and a single Primary call-to-action button. Avoid "cute" illustrations.
+- **Badges/Tags:** Small (`12px`, `padding: 2px 6px`), rounded (`4px`). Semantic background/text colors (see Token Definitions). A status indicator uses at least **three** of icon, shape, color, and text, survives grayscale, and a screen shows no more than 5–6 indicator kinds (Carbon status-indicator pattern, updated 2026-08-12).
+- **Empty States:** Replace the empty element rather than rendering empty headers (Carbon). Match the type (GitLab Pajamas, 2026-07-03): *blank* → one active-verb action; *configuration required* → a primary and a secondary action; *empty search / filtered* → **no CTA**, say "No results found" and how to edit the search or clear filters; *permission-denied* → who can grant access. 1–2 sentences, neutral SVG, no "cute" illustrations.
 - **Loading:** Use skeleton loaders matching the expected text/table shapes. Do NOT use full-page spinners.
-- **Error:** Inline error messages below inputs (`12px`, `#ef4444`). Page-level errors should clearly state the cause and offer a recovery action (e.g., "Retry" or "Clear filters").
+- **Error:** Inline error messages below inputs (`12px`, `#b91c1c`, 6.47:1) with an icon or the word "Error" so the cue is not color-only. Page-level errors should clearly state the cause and offer a recovery action (e.g., "Retry" or "Clear filters").
 
 ## 5. Responsive Behavior
 
@@ -104,6 +112,8 @@ Never use the accent color for semantic states. Use these specific hues:
 - **Desktop (> 1024px):** Persistent left sidebar and full table layout.
 
 ## 6. Accessibility (A11y)
+
+- **Theme scope:** this baseline is light-only. Light text polarity reads better for most people (Piepenbrock et al., *Ergonomics* 2013; NN/g 2020-02-02), but NN/g recommends offering a choice — record dark mode as a stated deferral, not a ban, and add it as a designed second theme when operators ask.
 
 - **Contrast:** Ensure all text passes WCAG AA (4.5:1). `#525252` on `#ffffff` passes (4.54:1).
 - **Focus Rings:** All interactive elements must have a distinct, visible focus ring (`outline: 2px solid var(--accent)`). Never set `outline: none` without a fallback.

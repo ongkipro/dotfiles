@@ -178,7 +178,21 @@ Rules:
 - Filtered-empty and system-empty are different states.
 - A toast supplements the changed screen state; it must not be the only evidence
   of success or failure.
-- Critical information never lives only in a tooltip.
+- Critical information never lives only in a tooltip. A disabled control's
+  reason goes in inline helper text or a focusable popover, not a tooltip on
+  the disabled control.
+- Pick the message type by job (NN/g indicators/validations/notifications,
+  2024-01-17; Carbon notification pattern): inline for one field or region,
+  banner for a persistent page-level condition, toast for a short
+  confirmation of something that already happened, notification panel for a
+  chronological history with mute options, modal only for critical
+  interruptions.
+- Toasts carry no errors and no actions: errors and warnings stay on screen
+  as a banner or inline message (Shopify app alerts; Atlassian flags never
+  auto-dismiss errors); a toast with no action may auto-dismiss (about 5 s,
+  pausing on hover — GitLab Pajamas toast); offer Undo as a persistent control
+  instead of a timed toast button; critical messages never auto-dismiss
+  (Carbon).
 
 ### Navigation
 
@@ -191,7 +205,10 @@ and Collapsible.
   merely shrink labels until they disappear.
 - Keep tenant/store scope and impersonation state persistent and unmistakable.
 - Command palettes supplement visible navigation; they do not hide the only path
-  to a primary task.
+  to a primary task. Keyboard accelerators stay optional, cover frequent
+  actions, are shown beside the action, never override OS shortcuts, and
+  single-key shortcuts can be turned off or remapped (NN/g UI accelerators,
+  2024-10-18; WCAG 2.1.4; GitLab Pajamas keyboard shortcuts).
 
 ### Forms
 
@@ -207,8 +224,11 @@ Switch, Calendar, Popover, Dialog, Sheet, and AlertDialog.
 - Focus the first actionable error after submission.
 - Use Switch for an immediately applied binary setting; use Checkbox for a
   selected value or consent inside a form.
-- Use AlertDialog for irreversible or costly actions. Reversible actions should
-  not receive ritual confirmation.
+- Match confirmation to the destructive tier in `admin-product-ux`: AlertDialog
+  with typed confirmation for irreversible or wide-impact actions; two-click
+  friction (inside a DropdownMenu) for recoverable but painful ones; no
+  confirmation plus Undo for reversible actions (GitLab Pajamas destructive
+  actions, 2026-07-13).
 - Move long, shareable, high-risk, or multi-step forms to a route rather than
   stacking Dialogs.
 

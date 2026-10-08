@@ -66,8 +66,8 @@ and treat the numbers below as the house QA gate.
 | Field | Limit | Notes |
 |---|---|---|
 | Product title | ≤70 | primary keyword first, Title Case |
-| Meta title (SEO) | ≤60 | keyword-focused, **do NOT** append `\| StoreName` |
-| Meta description | ≤155 | benefit + primary keyword, no CTA |
+| Meta title (SEO) | 55–70 incl. suffix | owner SEO invariant (`~/.config/ai/memory/preferences.md`): `{Page title} - {Brand}` (home may omit the suffix), separator ` - ` never `\|` or `—`; keyword first |
+| Meta description | 120–155 | owner SEO invariant; benefit + primary keyword, ends with a full stop, no CTA |
 | Handle (URL slug) | ≤6 keyword words | lowercase-hyphenated, **must be unique** |
 | Image ALT | ≤125 (≤120 recommended) | descriptive, no "image of"/"picture of" filler |
 | OG title | ≤95 | for share previews |

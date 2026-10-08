@@ -249,6 +249,9 @@ for one:
 
 Creating or changing a logo needs explicit owner confirmation; never ship a
 generated mark as the brand without it, and never imitate another brand's mark.
+Until the owner supplies one, a typographic placeholder may fill `logo` in
+structured data and the favicon for local and preview builds only; list it as
+owner-pending and block production release on it.
 
 Use executable token names and actual values where implemented. Do not claim a
 reference-comparison pass by resemblance alone: explain how the transferred

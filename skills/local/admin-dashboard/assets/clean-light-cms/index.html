@@ -17,7 +17,12 @@
       /* Typography */
       --text-primary: #171717;
       --text-secondary: #525252;
-      --text-disabled: #a3a3a3;
+      --text-disabled: #a3a3a3; /* disabled controls only */
+      --text-placeholder: #737373;
+      --success-mark: #047857;
+      --warning-mark: #b45309;
+      --error-mark: #b91c1c;
+      --info-mark: #1d4ed8;
 
       /* Accent (Indigo/Slate) */
       --accent-base: #4f46e5;
@@ -147,7 +152,11 @@
       transform: translateY(-50%);
       width: 16px;
       height: 16px;
-      color: var(--text-disabled);
+      color: var(--text-placeholder);
+    }
+
+    input::placeholder {
+      color: var(--text-placeholder);
     }
 
     .header-search input {

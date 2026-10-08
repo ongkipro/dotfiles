@@ -42,6 +42,7 @@ split panes according to the job.
 For harvested GitHub production contracts (TanStack Table v9, Refine, Payload CMS, Medusa Admin, Strapi, kbar, Clerk impersonation), load `references/github-admin-patterns.md`.
 For the Next.js 16 + shadcn admin-starter implementation contracts (URL-as-state `useDataTable`, the nuqs server/client parser seam, feature-first `src/features/<feature>/{api,components,schemas,types}`, the multi-palette `data-theme` CSS-variable engine, and TanStack Form multi-step wizards), load `references/next-shadcn-starter-patterns.md`.
 For the fallback clean-light visual design system and standalone HTML/CSS fixture (when a project lacks an established theme), load `references/clean-light-cms-baseline.md`.
+For order/seller-center queues, inventory, finance/ledger, audit-log, and search presentation detail behind §8, load `references/operator-surfaces.md`.
 ## Delegation — this skill does NOT write component code
 
 | Need | Go to |
@@ -77,7 +78,9 @@ force KPI cards or charts onto every admin home.
 
 - **KPI cards top-left** — users scan top-left first; put the most important metric there.
 - **F/Z-patterns are text-reading behavior, NOT a layout template** (NN/g F-pattern is from text eye-tracking, 2006). For a dashboard you deliberately **fight** the F-pattern with strong visual hierarchy (KPI size/color/position) so the eye lands on the priority metric instead of sweeping.
-- **12-column** grid. Density: offer a **comfortable vs compact** toggle for dense views (Carbon: row XS ~24px up to tall; compact when space efficiency matters, tall only when rows need two lines of text).
+- **12-column** grid. Density ladder: **32px compact** for mouse/keyboard back offices, **40px default**, **48px comfortable**, **≥44px on touch** (`@media (pointer: coarse)`). Carbon data-table rows are 24 / 32 / **40 default** / 48 / 64px, the 64px size only for two-line rows, header matching the row size (Carbon, 2026-09-30); Fluent v9 table rows 24 / 34 / 44 (source, 2026-10-08). Offer a compact/default toggle only on views operators scan for long periods.
+- **Pick the dashboard type first** (Few, *Dashboard Confusion*, 2004; NN/g 2017-06-18): **operational** — changing events that need action now: exception tier, alerts, fast refresh; **analytical** — comparison, history, drill-down; **strategic/executive** — health at a glance, low interactivity, periodic snapshot. A dashboard fits one screen and is real-time only when the decision needs it.
+- **Alert tiers** (Carbon status indicators, 2026-08-12): three attention levels; each indicator combines at least 3 of icon/shape/color/text with ≥3:1 contrast and survives grayscale; no more than 5–6 indicator kinds on one screen. An operational board without an exception tier is a report, not a dashboard.
 - **Required states**: loading = a **skeleton** that mimics the final layout (not a spinner, for content loads); empty = explain WHY it's empty + the next action; error = don't wipe already-entered data, name the cause + the recovery path.
 
 ## 2. Chart selection — cheatsheet (the often-missed part)
@@ -99,7 +102,7 @@ Reference frame: **FT "Visual Vocabulary"** (`Financial-Times/chart-doctor/visua
 
 **Anti-patterns (don't):**
 - **Bars/columns MUST start at zero** — bars encode via length; a non-zero baseline exaggerates small differences (Datawrapper). **Lines may be truncated** (they encode via slope) — but pick an honest range, don't zoom for drama.
-- **Pie/Donut**: **max ~4 slices**, and only when shares are ~25/50/75%. **DON'T** use for: comparing small differences, >4 slices, 2 values (redundant), comparing many "wholes", or multi-answer surveys (Datawrapper). In doubt → bar.
+- **Pie/Donut**: avoid on dashboards (NN/g 2017: length and position read more accurately; also no gauges, no 3D). If one is kept: **max ~4–5 slices** (Datawrapper ~4; UK Analysis Function ≤5, 2022-05-19), and only when shares are ~25/50/75%. **DON'T** use for: comparing small differences, >4 slices, 2 values (redundant), comparing many "wholes", or multi-answer surveys (Datawrapper). In doubt → bar.
 - **Stacked area/bar misleads** when the user compares one series over time — only the bottom band has a flat baseline. To compare one segment across bars → use a **grouped bar** or line.
 
 **Titles and empty states.** A chart title states the question it answers or
@@ -155,10 +158,11 @@ Recharts already ships via `shadcn-ui`. **Default is Recharts. Step up only when
 2026-02-23, and filter analysis, updated 2026-03-16): text left-aligned,
 numbers right-aligned in fixed-width digits (`tabular-nums` or a monospace
 face) with consistent precision; each header aligns like its column; separate
-rows with a light line rather than zebra stripes, which collide with hover,
-selected, and disabled states; on horizontal scroll keep the header and the
-leftmost identifier column sticky; offer row-height density (about 40 / 48 /
-56 px) when operators scan long lists; pick the detail path (expand row,
+rows with a light line by default, because zebra stripes collide with hover,
+selected, and disabled states (zebra stays acceptable on wide, read-only
+numeric tables — NN/g Data Tables, 2022-04-03); on horizontal scroll keep the header and the
+leftmost identifier column sticky; offer row-height density (32 compact / 40
+default / 48 comfortable, per the §1 ladder) when operators scan long lists; pick the detail path (expand row,
 quick-view side panel, modal, full page) by how much detail there is.
 Filters mirror the fields the list shows. Live filtering for cheap, small
 choices; per-filter or one global **Apply** for heavy datasets or slow
@@ -167,6 +171,22 @@ marker (weight, background, or count) on each filter that is active, and an
 applied-filters summary of removable chips below the filter bar and above the
 results. Let operators save a frequent query; keep filter state in the URL
 (Vercel Web Interface Guidelines).
+
+**Batch mode** (Carbon data table, 2026-09-30): while rows are selected a
+batch bar replaces the toolbar and row-level actions/overflow menus are
+disabled; at most 5 toolbar actions; the header checkbox has an indeterminate
+state. **Edit pattern:** inline edit for frequent single-field changes (Enter
+saves, Esc cancels, never inside a form — Atlassian inline edit); a
+non-modal side panel when the list must stay visible (NN/g Data Tables 2022);
+an object page with a draft for multi-field or multi-user edits
+(`admin-product-ux` owns the draft/lock contract).
+
+**Phone = a task subset, not a shrunken desktop** (NN/g Mobile Tables
+2017-09-17; Shopify mobile app changelog 2021-01-22): the home screen shows
+actionable counts that deep-link into filtered lists (to ship, to reply, to
+approve), not a KPI grid; tables keep a sticky header and locked first column
+with a cut-off/arrow scroll cue, filter first; no swipe-to-delete on money
+records; no hover-only tooltips.
 
 **Build on, don't hand-roll:** for TanStack-based shadcn tables start from
 `sadmann7/tablecn` / Dice UI data-table (MIT; server-side pagination, sorting, and filtering; action
@@ -182,12 +202,15 @@ current registry item and the project's TanStack major before installing.
 - **Don't rely on color alone** (WCAG 1.4.1) — keep the **arrow/± sign** as a non-color cue.
 - Give context: period-over-period (MoM/QoQ/YoY) or vs target — a bare number can't be read as good/bad.
 - **Label real-time vs batched** so an incomplete current period isn't misread as a drop. Granularity (daily/weekly/monthly) follows the decision cadence.
+- **Round KPI values** (Rp 3,8 M, not Rp 3.848.305) and show **variance to target directly as a %**, not as two lines to compare; if everything is emphasized nothing stands out; one color per bar is noise (Few, *Common Pitfalls*, 2006). Restrained color is not just taste: color misuse slowed business-dashboard decisions (Bera, CACM 2016-03-23).
+- **KPI vs target → bullet graph** (Few spec, rev. 2013-10-10): one featured bar, one comparative tick, 3 (max 5) qualitative ranges as shades of one hue — not a gauge or donut.
 
 ## 6. A11y & dark-mode charts (brief)
 
 - **Not color alone** to distinguish series (WCAG 1.4.1): add **direct labels / patterns / markers / dashes**.
-- Categorical palette **colorblind-safe**: **Okabe-Ito** (`#E69F00 #56B4E9 #009E73 #F0E442 #0072B2 #D55E00 #CC79A7`). Seed the `--chart-*` tokens with these rather than hardcoding hex at the call site — that is how "don't hardcode hex" and "use an accessible ramp" coexist. Two gotchas: shadcn ships only **5** `--chart-*` slots, so >5 series means adding `--chart-6..8` and re-checking the dark ramp; and Okabe-Ito includes **black** among its eight, which is unusable as a series colour in dark mode — substitute it under `.dark`. shadcn's stock `--chart-*` values are brand colours, not an accessible ramp, so check the project CSS before overwriting. Alternatives: ColorBrewer, Tableau 10.
-- Axis/text contrast follows WCAG 1.4.3 (4.5:1 for normal text).
+- Categorical palette **colorblind-safe** *and* **contrast-checked against the surface**: Okabe-Ito (`#E69F00 #56B4E9 #009E73 #F0E442 #0072B2 #D55E00 #CC79A7`) is colorblind-safe but on white only `#0072B2` (5.18:1), `#D55E00` (3.86:1), `#009E73` (3.42:1), and `#CC79A7` (3.06:1) reach the 3:1 that graphics needed for understanding require (WCAG 1.4.11); `#E69F00` (2.25), `#56B4E9` (2.30), and `#F0E442` (1.32) need an outline, direct labels, or a dark surface. Measure each series with `design-taste/scripts/contrast.py`. Seed the `--chart-*` tokens with these rather than hardcoding hex at the call site — that is how "don't hardcode hex" and "use an accessible ramp" coexist. Two gotchas: shadcn ships only **5** `--chart-*` slots, so >5 series means adding `--chart-6..8` and re-checking the dark ramp; and Okabe-Ito includes **black** among its eight, which is unusable as a series colour in dark mode — substitute it under `.dark`. shadcn's stock `--chart-*` values are brand colours, not an accessible ramp, so check the project CSS before overwriting. Alternatives: ColorBrewer, Tableau 10.
+- Axis/text contrast follows WCAG 1.4.3 (4.5:1 for normal text); chart text ≥12px (Chartability heuristic, EuroVis 2022).
+- **Text alternative for every chart** (W3C WAI Complex Images, 2026-04-08): short alt plus a long description delivered as `<figure>` + `<figcaption>` containing the finding *and a data table* (or a data download); `aria-describedby` only for plain text. Title = headline finding, subtitle = statistic, unit, and period (UK Analysis Function, 2022-05-19). Interactive charts never require a mouse.
 - **Dark mode**: map each series to a **`--chart-*`** token (light in `:root`, override in `.dark`) — **don't hardcode hex**. Token syntax: see the `shadcn-ui` skill.
 
 **Palette ownership:** this section is the local source of truth for categorical chart colour. If the runtime also exposes a general `dataviz` skill, use it for craft detail (mark specs, legends, tooltips) but keep the accessibility floor here — colourblind-safe series and a non-colour cue are not negotiable by another palette's defaults.
@@ -256,15 +279,26 @@ the most-skipped part of dashboard guidance.
   is wrong silently. State the timezone next to every period label, compute
   period boundaries in the operation's timezone, and never let a date filter and
   a KPI disagree about when "today" started.
-- **Currency:** `Intl.NumberFormat` already drops decimals for IDR and keeps
-  them for MYR (verified) — use it rather than hand-formatting. Right-align
+- **Currency:** `Intl.NumberFormat('id-ID', { style: 'currency', currency:
+  'IDR', maximumFractionDigits: 0 })` is for **display only** — it silently
+  rounds (`1234567.5` → `Rp 1.234.568`, Node 24, 2026-10-08); store and sum
+  integer rupiah or exact decimals. ISO 4217 lists 2 minor units for IDR while
+  CLDR shows 0, so set the digits explicitly. `currencySign: 'accounting'`
+  prints `-Rp 1.234.567` for id-ID (no parentheses; MYR gets `(RM 1,234.50)`),
+  so a negative in a ledger needs the minus sign or explicit parentheses, never
+  color alone; keep one decimal precision per ledger column. MYR keeps 2
+  decimals. Use `Intl` rather than hand-formatting. Right-align
   money, never mix currencies in one column: put it in the header or split the
   column. Numeric columns, KPI values, and live-updating counters use
   `font-variant-numeric: tabular-nums` so digits align across rows and do not
   jitter as they change (Vercel Web Interface Guidelines).
-- **Order lifecycle is the primary axis**, not a secondary filter. Define the
-  status taxonomy, which statuses are terminal, and where status lives (tab bar
-  vs filter). **A COD order is not a payment** — the operator view must never
+- **Order status is several independent axes**, not one merged column:
+  order, payment, fulfillment, and return (Shopify order status model). Tabs
+  follow the axis the operator works (usually fulfillment); payment and return
+  stay separate columns; define which values are terminal. This matches
+  `admin-product-ux` `states-and-permissions.md` (business state vs payment or
+  fulfilment sub-state). Marketplace order queues add deadline semantics —
+  see [operator surfaces](references/operator-surfaces.md). **A COD order is not a payment** — the operator view must never
   imply money received because a row says "confirmed" (`storefront-ux` owns the
   buyer side of this; this is the operator side).
 - **Row selection and bulk actions:** sticky action bar — which, like a sticky
@@ -277,13 +311,23 @@ the most-skipped part of dashboard guidance.
   switcher. Per-store vs aggregate KPIs must be labelled as such.
   **Impersonation needs a visible, persistent banner with one-click exit** —
   an operator who forgets they are impersonating will act as the customer.
-- **Permissions:** **hide** an action the role can never hold; **disable** with
-  a reason tooltip when the role could hold it but this object's state forbids
-  it; **403** only as the server-side backstop. Never render an action as
+  Every action taken while impersonating records **both** the real operator
+  and the impersonated user.
+- **Permissions:** **hide** an action the role can never hold; **disable**
+  with a visible reason when the role could hold it but this object's state
+  forbids it — inline helper text or a focusable popover beside the control,
+  not a tooltip on the disabled control, which keyboard users usually cannot
+  reach (and `shadcn-ui` keeps critical information out of tooltips); **403** only as the server-side backstop. Never render an action as
   enabled that will fail server-side. Audit logs are their own table archetype:
-  append-only, no edit, actor + before/after.
-- **Destructive and unsaved state:** confirmation names the object; no
-  confirmation for reversible actions; dirty forms get a navigation guard. §1's
+  append-only, no edit, actor + before/after; required fields, exclusions, and
+  access rules are in [operator surfaces](references/operator-surfaces.md).
+- **Destructive and unsaved state — three tiers** (GitLab Pajamas destructive
+  actions, 2026-07-13; NN/g confirmation dialogs 2018, reviewed 2026-08-07):
+  *high* (irreversible or wide blast radius) → type the object's name and state
+  any restore window; *medium* (recoverable but painful) → two-click friction,
+  e.g. behind a dropdown; *low* (easily undone) → no confirmation, offer Undo.
+  Buttons name the action; no default answer. Dirty forms get a navigation
+  guard. §1's
   no-data-loss rule applies to every operator form.
 - **Drag is never the only way.** Column reorder, kanban moves, widget layout,
   and drag-to-rank each need a single-pointer alternative (move up/down,
@@ -310,6 +354,8 @@ the most-skipped part of dashboard guidance.
 ## Sources and freshness boundary
 
 FT Visual Vocabulary (github.com/Financial-Times/chart-doctor) · Datawrapper Academy (pie / zero-baseline / area / stacked) · Shneiderman 1996 "The Eyes Have It" · NN/g (mobile tables, F-pattern, skeleton screens) · TanStack Table/Query/Virtual docs · shadcn/ui (sidebar, data-table, chart, blocks) · Tailwind responsive docs · Material Design 3 window-size-classes · Carbon Design (density) · WCAG 1.4.1/1.4.3 and 2.2 SC 2.4.11/2.5.7 (w3.org/TR/WCAG22) · Vercel Web Interface Guidelines (github.com/vercel-labs/web-interface-guidelines, tabular numerals) · Okabe-Ito palette · Recharts/ECharts/visx GitHub · Astro islands docs · Saleor Dashboard (github.com/saleor/saleor-dashboard) for production admin behavior.
+
+Added 2026-10-08 (fetched): Few — *Dashboard Confusion* 2004, *Common Pitfalls* 2006, bullet graph spec rev. 2013-10-10 · NN/g dashboards (2017-06-18), data tables (2022-04-03), mobile tables (2017-09-17), confirmation dialogs (2018, rev. 2026-08-07), dark mode (2020-02-02) · Carbon data table (2026-09-30), status indicators (2026-08-12) · Fluent v9 source · W3C WAI Complex Images (2026-04-08) · UK Analysis Function charts (2022-05-19) · Chartability (EuroVis 2022) · GitLab Pajamas destructive actions/empty states · OWASP Logging Cheat Sheet · NIST 800-53 r5 AU-9 · Shopify order status, bulk fulfillment, inventory · TikTok Shop by Tokopedia seller university · Odoo 18 accounting/barcode · MDN `Intl.NumberFormat` (2026-08-21) plus a local Node 24 check. Snippet-only items are marked *(unverified)* where used.
 
 Library APIs, versions, maintenance state, and deployment adapters are volatile.
 Verify them against the project's lockfile and current official upstream before

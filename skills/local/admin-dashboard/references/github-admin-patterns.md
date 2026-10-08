@@ -58,7 +58,7 @@ Data-dense operator views must decouple state management from presentation:
 
 ### 3.1 Dirty State & Unsaved Changes Guard
 - **Dirty State Tracking:** Track form dirtiness via reactive state (`isDirty`). Intercept navigation attempts (both `beforeunload` browser events and router transitions) when `isDirty === true`.
-- **Autosave Debouncing:** Implement autosave using a debounced write window (default `800ms`), storing draft state in server-side collections or indexed local storage with explicit timestamp badges (`Draft saved at 14:32`).
+- **Autosave Debouncing:** **[House rule, no upstream basis]** debounce local field persistence (~`800ms`) and show an explicit timestamp badge (`Draft saved at 14:32`). Keep a **draft distinct from the active record**: SAP Fiori draft handling (v1.148) saves the server draft about every 20 s, locks the object while edited (lock expires after 30 min idle), and publishes only on an explicit Save; autosave must never overwrite the active/published version (WordPress Revisions, 2026-09-28).
 
 ---
 
@@ -69,7 +69,8 @@ Data-dense operator views must decouple state management from presentation:
 
 ### 4.2 Impersonation & Operator Safety
 - **Visual Callout:** Render a high-visibility persistent top banner during impersonation sessions (`Impersonating User: john@example.com`).
-- **One-Click Exit:** Provide an un-authenticated, server-validated exit button (`POST /api/auth/impersonate/exit`) to immediately revoke delegated tokens.
+- **One-Click Exit:** Provide an **authenticated**, server-validated exit request bound to the current impersonation session (`POST /api/auth/impersonate/exit`, CSRF-protected) that immediately revokes the delegated session and restores the operator's own session. An unauthenticated exit endpoint would let anyone end or tamper with sessions (OWASP session-management principles).
+- **Dual attribution:** every action during impersonation records both the real operator and the impersonated user; the session start/stop is its own audit event.
 - **Expiry Bounds:** **[House rule]** Cap impersonation tokens at 30 minutes. Retain or tighten Clerk's documented default 10-minute inactivity timeout ([Clerk — User impersonation](https://clerk.com/docs/guides/users/impersonation)); the 30-minute absolute maximum is local policy, not a Clerk default.
 
 ---

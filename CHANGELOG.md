@@ -4,6 +4,51 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## v2026.10.08.1
+
+Surface catalog for every public web surface type, admin contradictions
+fixed against primary sources, and instruction conflicts found by an
+end-to-end company-profile build.
+
+### Added
+
+- `design-taste/references/surface-catalog.md`: job, anatomy, evidence, and
+  Indonesia/Malaysia compliance for compro, landing, sales page, advertorial
+  (EPI 2020 4.13 and 4.6.3 "#sponsor", Dewan Pers 2012, Content Code 2022 6.3,
+  FTC), lead magnet, donation, government, portfolio, waitlist, storefront,
+  marketplace, directory, booking, news, docs, customer portal; component
+  taxonomy and state baseline. Routed from `design-taste` §0 and §9.
+- `admin-dashboard/references/operator-surfaces.md`: Indonesian marketplace
+  order queues, inventory ledger, finance presentation, audit-log UI.
+
+### Fixed
+
+- Admin baseline colors failed WCAG: error text `#ef4444` 3.76:1 → `#b91c1c`
+  6.47:1; success/warning/info marks and placeholder replaced (all ≥4.5:1);
+  Okabe-Ito no longer called accessible by default (most hues <3:1 on white).
+- `Intl` IDR is display-only (it rounds silently); impersonation exit is
+  authenticated and CSRF-protected; order status uses four axes; disabled
+  reasons are visible text, not tooltips; three destructive tiers; Carbon
+  density 24/32/40/48/64.
+- Conflicts from the e2e build: `copywriting` meta title/description follow
+  the owner SEO invariant (55–70 with ` - Brand`, 120–155); the compro niche
+  respects the contact-CTA invariant; placeholder logos are preview-only;
+  `ui-validation` has a runner fallback for projects without Playwright.
+
+### Other devices
+
+- Shell autopull or `dotsync pull` applies it; nothing else to do.
+
+### Verification
+
+- Contrast re-measured with `contrast.py`; EPI clauses checked verbatim in
+  the primary PDF text; e2e company-profile build: DESIGN.md before code,
+  references captured, owner content marked pending, 24/24 browser checks.
+- `skill-check` 74 skills 0 failures 0 warnings; `skill-map-test`,
+  `ai-policy-lint`, `skill-surface-check`, `skill-check-test`,
+  `skill-update-test`, `dotsync-test`, `test-tells-scan.py`,
+  `test-contrast.py` passed.
+
 ## v2026.10.08
 
 Removed `impeccable`; rebuilt the UI/UX route around sourced, checkable rules;
@@ -47,6 +92,12 @@ patched backend and security skills from verified upstream sources.
   spec check, optional zizmor.
 - `dotsync pull` / `autopull` now also run `skill-update`, so a pulled skill
   add or remove reaches every runtime (Codex per-skill links) on other devices.
+
+### Other devices
+
+- `dotsync pull` (or the shell-start autopull) applies this release, including
+  the skill sync. Then delete the leftover CLI cache outside the repository:
+  `rm -rf ~/.impeccable`. Details: `docs/ai-memory-sync.md` § Another device.
 
 ### Verification
 
