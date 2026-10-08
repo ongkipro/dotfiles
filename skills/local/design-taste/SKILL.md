@@ -145,6 +145,40 @@ rationale. Do not derive forced masonry, animation, or section sizes from a
 numeric threshold. Existing numbered reference paths remain compatibility
 pointers to these decisions.
 
+### 2.1. Distinct from the owner's other sites
+
+Every project starts without memory of the others, so unconstrained choices
+repeat: a 2026-10-08 scan of the owner's 15 most recent projects found Inter
+in 9, Inter + Cinzel in 8, and shadcn's default `0.625rem` radius in 9 —
+seven of them separate brands' stores on one shared `adsbookcms` engine whose
+theme layer was never changed per brand. A shared engine is fine; identical
+brands are not. For new work, a new brand on a shared template, or a
+redesign without an established brand system:
+
+1. Run `python3 scripts/portfolio-scan.py` (from this skill's directory;
+   `scripts/test-portfolio-scan.py` is its check). Exit 2 = not checked.
+2. Do not reuse a typeface, accent hue family, or radius value that the scan
+   lists as recurring, unless the owner's brand assets or brief require it.
+3. Differ from each of the last five projects on at least two of these axes:
+   type classification and pairing (grotesk, humanist, geometric, serif,
+   slab, mono accent; one family or a contrasting pair), color strategy
+   (monochrome + one accent, duotone, tinted neutrals, dark canvas, full
+   brand field), layout concept (editorial columns, asymmetric split,
+   full-bleed media, index/list-led, single narrow column), imagery mode
+   (photography, illustration, diagrams, type-only, product renders),
+   signature element (one memorable device drawn from the subject), motion
+   signature (none, one orchestrated moment, functional only).
+4. On a shared template, keep the engine and components; give each brand
+   its own theme layer (tokens for type, color, radius where invariants
+   allow) and its own hero composition, imagery, and signature element.
+5. When the owner's invariants fix the shape language (flat, sharp,
+   micro-radius), vary the other axes; never relax an invariant for variety.
+6. Record the comparison in the design artifact (Direction: "differs from
+   <projects> on <axes>").
+
+Variety is a means: each choice still has to come from the subject,
+audience, and content (§4.3.1 calibration), not from a random pick.
+
 ## 3. Framework-neutral implementation
 
 The fallback foundation is
@@ -184,7 +218,9 @@ available. Preserve native scroll, zoom, focus, and browser history behavior.
 
 ### 4.1. Typography
 
-Use the brand's type first; a system stack is a valid lightweight default.
+Use the brand's type first. A system stack suits utilitarian or
+performance-critical surfaces; for a new brand without type, choose the
+family from the subject and the §2.1 distinctness check, not from habit.
 Inter, serif, and any other family are neither inherently good nor AI slop.
 Choose for content, language coverage, reading, and loading cost. Verify font
 licensing and use project-native loading or self-hosted subsets where suitable.
@@ -399,6 +435,7 @@ AI slop from a prompt, static scan, or one model-generated sample.
 | Style-habit scan (`scripts/tells-scan.py --css`: micro-labels, 100vh, outline removal, fixed grids, loops, generated-look palette) | invented-info-tells.md |
 | Category starting points: job, local-market checks, content inventory, claim traps, research queries | niche-patterns/README.md |
 | Measured WCAG contrast incl. alpha and large-text thresholds (`scripts/contrast.py`) | accessibility-notes.md |
+| Cross-project repetition (`scripts/portfolio-scan.py`: fonts, radius, accent, direction per recent project) | SKILL.md §2.1 |
 | Existing theme code | theme-implementation.md |
 | Storefront visual decision hierarchy | public-experience-patterns.md |
 | Instruction evaluation and rendered critique | design-evaluation.md; ui-validation owns browser execution |

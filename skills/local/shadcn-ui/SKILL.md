@@ -371,7 +371,9 @@ Sera editorial (serif headings, square corners, underlined controls), Rhea a
 more compact Luma for focused product UI. For operator-dense admin screens
 prefer Mira or Rhea; flat, sharp, editorial brands start from Lyra or Sera;
 never ship the untouched default style plus neutral base color as the
-product's look. Pair the style with a brand token set (OKLCH scale or a
+product's look (the owner's portfolio already repeats the default `0.625rem`
+radius and Inter; run `design-taste`'s `scripts/portfolio-scan.py` before
+choosing). Pair the style with a brand token set (OKLCH scale or a
 `tweakcn` theme) before generating screens.
 
 ## Charts, Sidebar, and Theme Toggle

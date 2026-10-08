@@ -216,6 +216,8 @@ Minimum decision record:
 - Brand/content identity; patterns intentionally repeated:
 - Responsive transformation and density:
 - Rejected alternative, only when a real choice existed:
+- Distinct from the owner's portfolio (`scripts/portfolio-scan.py`): recurring
+  choices avoided, and the axes on which this differs from the last projects:
 
 ## Composition contract
 - Items C1… and "do not substitute" list from section 4.1:

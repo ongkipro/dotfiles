@@ -4,6 +4,19 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## v2026.10.08.3
+
+### Added
+
+- `design-taste` §2.1 cross-project distinctness and
+  `scripts/portfolio-scan.py` (+ test): lists fonts, radius, accent, and
+  direction of the owner's recent projects and flags recurring choices and
+  shared templates. Evidence: of the 15 latest projects, Inter in 9, Inter +
+  Cinzel in 8, shadcn default `0.625rem` radius in 9; seven are separate
+  brands on one `adsbookcms` engine with an unchanged theme layer. New work
+  avoids recurring choices and differs from recent projects on two or more
+  axes; brands on a shared template get their own theme layer.
+
 ## v2026.10.08.2
 
 ### Fixed
