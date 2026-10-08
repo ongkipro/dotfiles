@@ -3,7 +3,7 @@ name: ui-validation
 description: >-
   Prove browser-visible changes with the smallest executable evidence for the
   affected flow before calling UI work done. Not visual direction
-  (design-taste), polish audits (impeccable), dashboard IA (admin-dashboard),
+  (design-taste), dashboard IA (admin-dashboard),
   or perf (web-perf). Use after UI work in admin panels, dashboards,
   storefronts, forms, responsive layouts, web interactions; when asked to
   open, test, verify, QA, or prove a page in a real browser. Prefer the
@@ -23,10 +23,7 @@ logic is non-trivial or likely to regress.
 
 Before running or writing anything:
 
-1. Read repository instructions and the task or diff. If the change produced
-   or altered UI and no `impeccable` critique + polish pass has run, run it
-   first and fix its findings; skip this for a pure bug fix with no visual
-   change.
+1. Read repository instructions and the task or diff.
 2. Inspect `package.json` and the lockfile before choosing commands or tools.
 3. Reuse the project's scripts, browser-test setup, fixtures, auth helpers, and
    conventions. Look for a browser layer in **three** shapes, not one — a
@@ -111,9 +108,7 @@ existence, model approval, or absence of banned visual keywords is not visual
 acceptance. Keep functional/accessibility and visual verdicts separate; either
 can fail while the other passes. If the reference was inaccessible or no render
 was inspected, mark the affected claim unverified. `design-taste` owns the
-reference-evidence and anti-slop review rubric; pair with `impeccable`
-(`audit` or detector mode) for mechanical contrast and anti-pattern pre-flight
-checks before full browser runs. For a reference-matched build, attach the
+reference-evidence and anti-slop review rubric. For a reference-matched build, attach the
 `design-taste` `scripts/ui-ref.mjs compare` report (structure drift per
 viewport) next to the screenshots; it measures structure, not interaction. Report a scan that could not run (no matching
 files, content held in data files) as **not checked**, never as passed; empty

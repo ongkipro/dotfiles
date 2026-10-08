@@ -89,7 +89,7 @@ visibility, traffic routing, domains, or a production cutover.
 Use `hydrogen-headless-tracking` only for analytics, pixels, consent, or
 server-side conversion signals. Use `seo-website-builder` for SEO/indexation,
 `application-security` for auth, tokens, webhooks, customer data, or external
-integrations, `impeccable` then `ui-validation` for a browser-visible change, and `web-perf`
+integrations, `ui-validation` for a browser-visible change, and `web-perf`
 only for measured performance investigation.
 
 ## Preserve indexation and release boundaries

@@ -156,8 +156,7 @@ layers.
    timeout, partial persistence, retry, and user recovery where applicable.
 5. For browser-visible work, do not make the first visual edit until the
    proportional research, screen/UX contract, and selected presentation
-   direction are accepted. After implementation, run the `impeccable`
-   critique/polish pass first, fix its findings, then use `ui-validation` for
+   direction are accepted. After implementation, use `ui-validation` for
    browser behavioral proof.
 6. Apply the evidence gates below, then reconcile accepted specs and runtime
    truth, remove scaffolding, and report remaining risk. Do not deploy unless the
@@ -168,7 +167,7 @@ layers.
 For new admin or CMS work, the mandatory route is:
 
 `admin-product-ux` -> `admin-dashboard` -> installed framework owner and, when
-applicable, `shadcn-ui` -> `impeccable` -> `ui-validation`.
+applicable, `shadcn-ui` -> `ui-validation`.
 
 For a new surface or material redesign, the first two owners must inspect
 relevant references and record either a justified selection or meaningful
@@ -192,8 +191,8 @@ All applicable gates must pass with fresh observed evidence:
    touched code passes.
 4. **Behavior:** `testing-engineering` selects focused automated checks for the
    changed contract; new tests exist only for uncovered observable behavior.
-5. **Runtime:** run the real changed path. For browser-visible work, run the
-   `impeccable` critique/polish pass first, then `ui-validation`; otherwise use
+5. **Runtime:** run the real changed path. For browser-visible work, run
+   `ui-validation`; otherwise use
    the smallest endpoint, worker, job, CLI, or integration smoke that observes the result and relevant state.
 6. **Trust and operations:** security-sensitive negative paths pass; activated
    telemetry is observable and redacted; performance is measured by `web-perf`

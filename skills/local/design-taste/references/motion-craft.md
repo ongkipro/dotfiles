@@ -3,7 +3,7 @@
 Numeric starting points for web motion once a surface has earned motion
 (`SKILL.md` §2: restrained feedback by default). Values are starting ranges to
 tune on a real render, not laws. Direction and the motion thesis stay with
-`impeccable` (`reference/animate.md`); GSAP API detail stays with the `gsap-*`
+`SKILL.md`; GSAP API detail stays with the `gsap-*`
 skills. This file supplies the numbers and the decision order.
 
 Adapted from LottieFiles' `motion-design-skill` (MIT) and Emil Kowalski's

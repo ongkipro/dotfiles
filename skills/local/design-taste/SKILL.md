@@ -3,8 +3,7 @@ name: design-taste
 description: >-
   Set and critique visual direction for public frontend UI/UX (landing,
   marketing, public flows, docs, portfolios, storefront visuals). Not admin UI
-  (admin-dashboard), commerce behavior (storefront-ux), or tactical polish
-  passes (impeccable). Use for UI/UX workflow, reference research,
+  (admin-dashboard) or commerce behavior (storefront-ux). Use for UI/UX workflow, reference research,
   Apple/Google/Material-inspired web design, redesign, design tokens,
   composition contracts, or AI-templated UI, across frameworks. Start from
   user tasks and existing brand evidence; use a restrained, lightweight
@@ -65,8 +64,8 @@ For a new public experience or material redesign:
 6. **Implement:** deliver the primary journey with realistic content in the
    existing framework. Follow the session's designer/vision routing requirement
    before visual edits; if that capability cannot start, report the limitation.
-7. **Polish, then validate:** run an `impeccable` critique + polish pass on
-   the built or changed UI and fix its findings; then use `ui-validation` to
+7. **Polish, then validate:** critique the built or changed UI against
+   the accepted direction and fix its findings; then use `ui-validation` to
    exercise behavior, inspect
    narrow/wide renders, compare against the accepted direction, fix concrete
    discrepancies, and reopen the changed views.
@@ -154,8 +153,7 @@ passes regardless of framework:
    Render narrow and wide before investing in decorative detail.
 2. **Refinement pass:** after the macro composition survives that render, map
    framework-native interaction primitives, tokens, typography detail, states,
-   motion, and micro-polish. Pair with `impeccable` for Craft Floor checks,
-   tactical polish passes, or live browser variant generation. Then run the final
+   motion, and micro-polish. Then run the final
    `ui-validation` critique/revision loop.
 
 Skip the extra pass for a tiny change inside an already accepted composition.
@@ -260,8 +258,7 @@ When the pattern is merely an implementation fallback, revise the composition
 before adding more decoration. Prefer hierarchy through scale, whitespace,
 alignment, media placement, in-section dividers, sequencing, and contrast
 before another container (the user's invariants rule out divider lines
-between sections). For the look-clusters generated UI converges on, use
-`impeccable`'s `reference/new-work.md` calibration rather than restating it. A technically consistent component tree is not evidence of authored
+between sections). A technically consistent component tree is not evidence of authored
 visual direction.
 
 ### 4.4. States, forms, and accessibility
@@ -368,7 +365,6 @@ AI slop from a prompt, static scan, or one model-generated sample.
 | Copy, localization, content, search concerns | copywriting, volumx-writer, content, seo-website-builder |
 | Cross-layer implementation | full-stack-development |
 | Dependencies / runtime performance | native-first / web-perf |
-| Tactical refinement, craft floor, anti-pattern audit, live variant mode | impeccable |
 
 Vue, Svelte, Angular, Liquid, server templates, and plain HTML keep their native
 stack and existing components; do not require a React or Astro adapter merely

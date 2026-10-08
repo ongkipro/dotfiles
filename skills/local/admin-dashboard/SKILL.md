@@ -9,8 +9,7 @@ description: >-
   Astro-vs-React admin decisions. Also covers how operator surfaces are
   presented (rules come from admin-product-ux): order lifecycle IA, bulk
   actions, multi-tenant scope and impersonation, permissions and audit logs,
-  and timezone/currency correctness. Delegate polish passes to impeccable,
-  browser evidence to ui-validation, and performance diagnosis to web-perf; do
+  and timezone/currency correctness. Delegate browser evidence to ui-validation, and performance diagnosis to web-perf; do
   not install components.
 ---
 
@@ -49,7 +48,6 @@ For the fallback clean-light visual design system and standalone HTML/CSS fixtur
 |---|---|
 | Domain objects, lifecycle, roles, permissions, task flows, screen contracts | skill **`admin-product-ux`** |
 | Map/code Sidebar, Chart, Data Table, forms, overlays, blocks, themes, and semantic tokens | skill **`shadcn-ui`** |
-| Dense UI polish, cognitive load audit, operator ergonomics | skill **`impeccable`** |
 | Before adding a new dep/lib/wrapper | skill **`native-first`** |
 | IA / flow / ERD diagram from the dashboard structure | skill **`mermaid-diagram`** |
 | Dashboard slow / heavy chart bundle / render audit | skill **`web-perf`** |
@@ -59,8 +57,8 @@ For the fallback clean-light visual design system and standalone HTML/CSS fixtur
 
 The rule: **this skill decides WHAT, `shadcn-ui` executes HOW.** Don't duplicate component code here.
 
-**Delivery sequence:** build or change the UI → `impeccable` critique + polish
-pass (fix its findings) → `ui-validation` browser proof → only then call it done.
+**Delivery sequence:** build or change the UI → critique it against this
+skill's IA, density, and accessibility rules (fix the findings) → `ui-validation` browser proof → only then call it done.
 
 For React-capable admin surfaces, shadcn/ui is the default implementation
 system after this skill accepts the presentation. That does not make React a

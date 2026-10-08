@@ -65,8 +65,7 @@ Keep semantic structure, keyboard behavior, state recovery, performance budgets,
     representative viewports, input methods, locales, and failure states.
     Hand visual hierarchy to `design-taste`, implementation to
     `storefront-development`, and browser proof to `ui-validation`. Once UI
-    is built or changed: `impeccable` critique + polish pass (fix its
-    findings) → `ui-validation` → only then done.
+    is built or changed: `ui-validation` → only then done.
 
 Read [journeys-and-states.md](references/journeys-and-states.md) for canonical
 buyer journeys, responsive behavior, commerce state, recovery, analytics, and

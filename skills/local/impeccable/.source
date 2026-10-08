@@ -1,4 +1,0 @@
-source: https://raw.githubusercontent.com/pbakaus/impeccable/main/.claude/skills/impeccable
-vendored: 2026-10-07
-note: Vendored single-source (dotfiles contract: no plugins). Refresh with _refresh-vendored.sh
-note: Re-merged with upstream 0.1.11 on 2026-10-07; local edits listed in .local-fork.

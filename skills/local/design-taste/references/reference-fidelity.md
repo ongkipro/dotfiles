@@ -6,7 +6,7 @@ improved. It exists because eyeballed references drift into generic kit layouts,
 flat type scales, and rigid equal sections. Every step leaves an artifact, and
 fidelity is **measured**, not asserted. Builds on
 [design-discovery.md](design-discovery.md) (reference roles and the composition
-contract) and ends with `impeccable` and `ui-validation`.
+contract) and ends with `ui-validation`.
 
 ## 0. Boundary
 
@@ -76,7 +76,7 @@ owner accepts a generated mockup as a starting point, treat it as a labelled
 contract strip everything the generator invented: statistics, logos, ratings,
 testimonials, certifications, and product claims. What remains is geometry,
 hierarchy, and mood. Record it in the reference table with role "concept,
-generated" and route the image-to-code build and polish through `impeccable`;
+generated" and build it from the composition contract;
 `ui-ref.mjs compare` cannot measure an image, so judge it side by side.
 
 ## 4. Rebuild — macro pass with the owner's content
@@ -111,7 +111,7 @@ drift. Do not "improve" by adding decoration (see invented-info-tells.md).
 
 ## 7. Validate
 
-Run the `impeccable` critique/polish pass, `scripts/tells-scan.py` on the source,
+Run `scripts/tells-scan.py` on the source,
 and `ui-validation` (keyboard, reduced motion, both breakpoints, real flows).
 Report fidelity with the latest `report.md`, the deviation list, and what
 remains UNVERIFIED.

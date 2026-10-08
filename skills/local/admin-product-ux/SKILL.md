@@ -133,8 +133,7 @@ After product correctness is established:
 - use `shadcn-ui` for the component plan, composition, registry source, tokens,
   and component-level runtime cost
 - use `native-first` before adding a dependency or abstraction
-- once UI is built or changed, run an `impeccable` critique + polish pass
-  (fix its findings), then `ui-validation` for browser evidence, before
+- once UI is built or changed, run `ui-validation` for browser evidence, before
   calling it done; `web-perf` owns measured performance diagnosis
 
 Do not duplicate those skills here. This skill owns the product workflow and

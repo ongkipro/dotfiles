@@ -287,7 +287,6 @@ When doing Astro work, aim to produce:
 
 ## Skill routing
 
-- Load `impeccable` for tactical refinement, craft floor audits, and anti-pattern detection.
 - Load `admin-dashboard` for admin IA, density, tables, KPIs, charts, operator
   workflows, and responsive behavior.
 - Load `shadcn-ui` for current component/CLI APIs. In an Astro project, run
@@ -305,7 +304,7 @@ When doing Astro work, aim to produce:
   magic link, and session-expiry UX.
 - Read [i18n](references/i18n.md) for multi-locale routing and dictionaries;
   hreflang and localized SEO go to `seo-website-builder`.
-- Load `impeccable` then `ui-validation` after browser-visible changes.
+- Load `ui-validation` after browser-visible changes.
 
 ## Optional advanced mode
 

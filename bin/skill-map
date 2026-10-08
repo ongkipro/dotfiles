@@ -38,7 +38,7 @@ DOMAINS: dict[str, tuple[str, ...]] = {
     "Web frameworks and interface": (
         "astro-development", "nextjs-development", "shadcn-ui", "design-taste",
         "admin-dashboard", "admin-product-ux", "ui-validation", "web-perf",
-        "threejs", "impeccable",
+        "threejs",
     ),
     "Animation (GSAP)": (
         "gsap-core", "gsap-timeline", "gsap-scrolltrigger", "gsap-plugins",

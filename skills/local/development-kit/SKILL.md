@@ -99,8 +99,8 @@ proportional to risk before the first visual edit:
 5. **Implementation:** route to the installed framework owner and `shadcn-ui`
    only for React-capable component mapping. A component library does not
    supply product workflow or visual direction.
-6. **Evidence:** `impeccable` runs the critique/polish pass and its findings
-   are fixed first; then `ui-validation` opens the real page, exercises the
+6. **Evidence:** the visual owner (`design-taste` or `admin-dashboard`)
+   critiques the build and its findings are fixed first; then `ui-validation` opens the real page, exercises the
    critical path, and inspects narrow and wide layouts. A build or screenshot
    alone is insufficient.
 

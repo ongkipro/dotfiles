@@ -48,7 +48,6 @@ them:
 | Product/operator workflow, roles, lifecycle, and screen contracts | `admin-product-ux` |
 | Admin information architecture and presentation | `admin-dashboard` |
 | Non-admin visual direction | `design-taste` |
-| Tactical design refinement, craft floor, and anti-pattern audit | `impeccable` |
 | Existing shadcn component APIs and registry work | `shadcn-ui` |
 | Storefront journey/state decisions and implementation | `storefront-ux`, then `storefront-development` |
 | Automated behavioral test strategy and contract coverage | `testing-engineering` |
@@ -243,8 +242,7 @@ Use `references/verification.md`. Minimum evidence is layered:
    metadata generation, runtime compatibility, or production bundling changed.
 3. Start the real local runtime and smoke the affected route/action/handler,
    including the relevant unauthorized/error path for a trust boundary.
-4. For browser-visible behavior, run the `impeccable` critique/polish pass,
-   then use `ui-validation` and exercise the page. A successful build is never
+4. For browser-visible behavior, use `ui-validation` and exercise the page. A successful build is never
    UI evidence.
 5. Report the command, route/state exercised, and observed result. Do not claim
    deployment compatibility, cache invalidation, streaming, or UI behavior that
