@@ -4,6 +4,31 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## v2026.10.09
+
+design-taste: independent cross-family visual review, enforced by the gate.
+After v2026.10.08.6 agy passed the gate with self-praising critiques, a
+same-family subagent review, then its own leading prompt with a prefilled
+`Verdict: PASS` and a `touch`ed review file. With this release the same
+fixed demo prompt produced a clean, specific page: Claude reviewed it through
+the script, agy fixed findings each round, and the gate passed with no edits
+to the review.
+
+### Added
+
+- `scripts/visual-review.py`: slices full-page screenshots to viewport height,
+  sends the canonical prompt from `references/visual-review.md` through
+  `ai-ask` to another model family (refuses the author's family), writes
+  `design/review.md` with prompt, image, and output hashes, and stops at five
+  rounds (`design/review-rounds.log`).
+- `design-gate.py`: `review` check (script-written, hash-verified, other
+  family, same screenshots as the critique, `Verdict: PASS`), `headline`
+  (colored word in h1/h2), and `stat` (placeholder set as a big figure).
+- `references/visual-review.md`: reviewer prompt with the generic-look list,
+  unsourced-claim and owner-photo rules.
+- CORE and `ui-validation`: a new or redesigned public page is done only when
+  `design-gate.py` exits 0.
+
 ## v2026.10.08.6
 
 design-taste: executable delivery gate. Two agy runs (an ads report and a

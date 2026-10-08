@@ -231,11 +231,13 @@ Minimum decision record:
 - Framework-native implementation and budget:
 
 ## Render critique
+Author: <runtime/model that built the page>
 <!-- Cite the narrow and wide screenshots you opened; design-gate.py checks they
      exist and are newer than the source. One line per page section. -->
 - <screenshot path>: section → generic or authored? which §4.3.1 look? fix:
 
 ## Acceptance evidence
+- Independent review (`design/review.md`): reviewer, verdict, round:
 - design-gate.py final line:
 - Browser routes, viewports, interactions, and result:
 - Reference comparison per contract item: match, or deviation → reason / revision → recheck:

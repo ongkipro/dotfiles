@@ -116,7 +116,8 @@ existence, model approval, or absence of banned visual keywords is not visual
 acceptance. Keep functional/accessibility and visual verdicts separate; either
 can fail while the other passes. If the reference was inaccessible or no render
 was inspected, mark the affected claim unverified. `design-taste` owns the
-reference-evidence and anti-slop review rubric. For a reference-matched build, attach the
+reference-evidence and anti-slop review rubric; a new or redesigned public page
+is not visually accepted until its `scripts/design-gate.py` exits 0. For a reference-matched build, attach the
 `design-taste` `scripts/ui-ref.mjs compare` report (structure drift per
 viewport) next to the screenshots; it measures structure, not interaction. Report a scan that could not run (no matching
 files, content held in data files) as **not checked**, never as passed; empty

@@ -23,6 +23,15 @@ A fashionable palette or component library does not establish quality.
 Anti-slop means decisions justified by the user's task, real content, and
 observed evidence. It is not a font, punctuation, color, or layout blacklist.
 
+**Done contract (new page or redesign).** Not done, and not to be reported as
+done, until `python3 scripts/design-gate.py <project>` (this skill's
+`scripts/`) exits 0. That needs, in this order: two `ui-ref` reference captures
+whose screenshots you opened (§1 step 4); a `## Render critique` citing your
+narrow and wide screenshots (step 7); and `design/review.md` with
+`Verdict: PASS` from `scripts/visual-review.py --reviewer <other family>`
+([visual-review.md](references/visual-review.md)); never write it yourself. Quote the gate's final line
+in the report. If it cannot pass, report FAIL and the failing checks.
+
 ## 0. Mode and ownership
 
 Identify the surface and its primary user job before choosing a visual style.
@@ -68,8 +77,9 @@ For a new public experience or material redesign:
    research evidence, and neither is a reference table written from memory:
    capture at least two live references with
    `node scripts/ui-ref.mjs capture URL --out design/refs/<name>` (this skill's
-   `scripts/`), open the captured screenshots, and cite those directories in
-   the design artifact. Resolve which principles transfer before styling.
+   `scripts/`), open the captured screenshots (`<dir>/<width>.png`; reading
+   `ref.json` alone is not inspection), and cite those directories in the
+   design artifact. Resolve which principles transfer before styling.
 5. **Choose:** select a coherent direction, responsive composition, and token
    source. Compare alternatives only when the choice is material. A low-detail
    wireframe is useful when hierarchy is unresolved, not mandatory ceremony.
@@ -85,7 +95,11 @@ For a new public experience or material redesign:
 7. **Polish, then validate:** open the narrow and wide screenshots (view the
    image itself; an overflow number is not a look), write a `## Render
    critique` section in the design artifact that cites them and judges each
-   page section against §4.3.1, fix its findings, and re-render; then use `ui-validation` to
+   page section against §4.3.1, fix its findings, and re-render. Then get an
+   independent review per
+   [visual-review.md](references/visual-review.md): `scripts/visual-review.py`
+   has another model family write `design/review.md`; fix REVISE findings and
+   re-review (the script stops at five rounds). Then use `ui-validation` to
    exercise behavior, inspect
    narrow/wide renders, compare against the accepted direction, fix concrete
    discrepancies, and reopen the changed views.
@@ -416,8 +430,10 @@ do not place real orders or mutate production to obtain design evidence.
 
 Before describing a new or materially changed UI as ready, run
 `python3 scripts/design-gate.py <project>` (this skill's `scripts/`) and quote
-its final line. Exit 1 means not ready: fix the source or the evidence, never
-the gate. A look the brief explicitly asks for is recorded as
+its final line. It also requires the independent review (`Verdict: PASS` from
+a model family other than the design file's `Author:`). Exit 1 means not ready:
+fix the source or the evidence, never the gate, and never write the review
+yourself. A look the brief explicitly asks for is recorded as
 `gate-allow: <check> - <reason>` in the design artifact. Exit 2 means the gate
 did not run; report it as not checked. Then establish:
 
@@ -459,7 +475,8 @@ AI slop from a prompt, static scan, or one model-generated sample.
 | Category starting points: job, local-market checks, content inventory, claim traps, research queries | niche-patterns/README.md |
 | Measured WCAG contrast incl. alpha and large-text thresholds (`scripts/contrast.py`) | accessibility-notes.md |
 | Cross-project repetition (`scripts/portfolio-scan.py`: fonts, radius, accent, direction per recent project) | SKILL.md §2.1 |
-| Delivery gate (`scripts/design-gate.py`: ui-ref captures cited, fresh render critique, tech-mono look counts; exit 1 blocks "ready") | SKILL.md §8 |
+| Delivery gate (`scripts/design-gate.py`: ui-ref captures cited, fresh render critique, independent review PASS, generated-look counts; exit 1 blocks "ready") | SKILL.md §8 |
+| Independent review prompt and output format | visual-review.md |
 | Existing theme code | theme-implementation.md |
 | Storefront visual decision hierarchy | public-experience-patterns.md |
 | Instruction evaluation and rendered critique | design-evaluation.md; ui-validation owns browser execution |
