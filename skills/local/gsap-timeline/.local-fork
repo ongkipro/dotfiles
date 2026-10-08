@@ -1,0 +1,13 @@
+upstream: https://raw.githubusercontent.com/greensock/gsap-skills/main/skills/gsap-timeline/SKILL.md
+verified: 2026-10-08
+scope: directory
+reason: local adds GSAP 3.15 facts the upstream skill lacks
+note: Local edit 2026-10-08: `easeReverse` in timeline defaults (gsap.com/blog/3-15/),
+  and the position-parameter wording: an unpositioned child is added at the end of
+  the timeline (gsap.com docs GSAP/Timeline: "Adds ... to the end of the timeline");
+  upstream called `">"` the default, reported in greensock/gsap-skills issue #21.
+would_lose_if_wired: a byte-for-byte refresh would drop these corrections.
+refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is
+  present, before any fetch or write.
+to_vendor: drop the fork once upstream documents easeReverse (and, for timeline,
+  the end-of-timeline default); confirm with a re-diff.

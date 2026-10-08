@@ -55,6 +55,9 @@ niche files are by industry. Use both.
   ≤200 ms, CLS ≤0.1 (web.dev); used by Google ranking, but there is no single
   page-experience signal (Search Central, 2026-09-22). Full-page promotional
   interstitials can hurt search; consent dialogs are exempt.
+- **Motion:** per-surface adopt/avoid list in
+  [motion-craft.md §8.3](motion-craft.md); platform support dates in
+  [motion-platform-support.md](motion-platform-support.md).
 - **Accessibility:** WCAG 2.2 AA, including 2.4.11 Focus Not Obscured (sticky
   bars and cookie banners), 2.5.8 targets ≥24×24 px, 3.2.6 Consistent Help,
   3.3.7 Redundant Entry, 3.3.8 Accessible Authentication (no CAPTCHA-style

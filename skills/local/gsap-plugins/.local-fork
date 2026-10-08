@@ -5,9 +5,9 @@ reason: local retains the formerly upstream MotionPath reference and corrects it
 note: The locally retained MotionPathHelper example now registers the documented
   `MotionPathHelper` export from `gsap/MotionPathHelper`; the old upstream text
   used the undefined identifier `MotionPathHelperPlugin` in registerPlugin().
-  The canonical upstream URL no longer contains the MotionPath/MotionPathHelper
-  section as of the verification date, so this is intentionally not described
-  as a current upstream defect or a byte-identical vendor snapshot.
+  Upstream main still contains the MotionPath/MotionPathHelper section (line
+  ~326) and still registers the undefined `MotionPathHelperPlugin` (corrected
+  2026-10-08; an earlier note here wrongly said the section was removed).
 would_lose_if_wired: an ordinary byte-for-byte refresh would remove the retained
   MotionPath reference, including the corrected example.
 refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is
@@ -17,3 +17,12 @@ to_vendor: keep the corrected local reference unless the repository decides to
 recheck: 2026-10-02 — no upstream changes to merge; only diff is still line 331. Upstream carries the MotionPathHelper section again but
   still registers the undefined `MotionPathHelperPlugin`. npm gsap@3.15.0
   `MotionPathHelper.js` exports `MotionPathHelper` (named + default); local stays.
+
+recheck: 2026-10-08 — further local corrections, each checked against gsap.com docs:
+  Flip `nested` (prevents compounding nested movement) and `scale` (default false;
+  width/height unless true) per Plugins/Flip/static.from(); Observer `type` default
+  "wheel,touch,pointer" per Plugins/Observer; ScrollTo has no `element` option —
+  use a selector for x/y, plus `autoKill`/`onAutoKill` per Plugins/ScrollToPlugin;
+  MotionPathHelper.create(tween) or create(target, { path, ... }) per
+  Plugins/MotionPathHelper (removed the undocumented helper.path/getProgress()).
+  Upstream issues #19–#21 report overlapping defects; still open on 2026-10-08.

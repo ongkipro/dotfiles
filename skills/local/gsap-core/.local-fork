@@ -1,0 +1,14 @@
+upstream: https://raw.githubusercontent.com/greensock/gsap-skills/main/skills/gsap-core/SKILL.md
+verified: 2026-10-08
+scope: directory
+reason: local adds GSAP 3.15 facts the upstream skill lacks
+note: Local edit 2026-10-08: added `easeReverse` and the `yoyoEase` deprecation to
+  the Easing section, from the GSAP 3.15 release post (gsap.com/blog/3-15/, 2026-04-13).
+  Upstream (last commit 2026-04-21) does not mention it. Library choice
+  (CSS/WAAPI/Motion before GSAP) is decided by design-taste
+  references/motion-craft.md, not by this vendor skill's "recommend GSAP" line.
+would_lose_if_wired: a byte-for-byte refresh would drop these corrections.
+refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is
+  present, before any fetch or write.
+to_vendor: drop the fork once upstream documents easeReverse (and, for timeline,
+  the end-of-timeline default); confirm with a re-diff.

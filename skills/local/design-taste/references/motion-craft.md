@@ -6,9 +6,12 @@ tune on a real render, not laws. Direction and the motion thesis stay with
 `SKILL.md`; GSAP API detail stays with the `gsap-*`
 skills. This file supplies the numbers and the decision order.
 
-Adapted from LottieFiles' `motion-design-skill` (MIT) and Emil Kowalski's
-`skills` (MIT), paraphrased and filtered to what fits a restrained public-web
-policy.
+Adapted from LottieFiles' `motion-design-skill` (MIT), Emil Kowalski's
+`skills` (MIT), Motion's `ai-kit` (MIT per its package.json), ibelick's
+`ui-skills` `fixing-motion-performance` (MIT), and the Vercel Web Interface
+Guidelines (MIT), paraphrased and filtered to what fits a restrained public-web
+policy. Platform support with dates: [motion-platform-support.md](motion-platform-support.md).
+Researched 2026-10-08; sources in that file.
 
 ## 1. Decide in this order
 
@@ -25,7 +28,13 @@ policy.
    reads as unfinished.
 4. **Property:** transform/opacity by default; add clip-path, mask, blur or
    filter only when the meaning needs them and they measure smooth.
-5. **Fallback:** the reduced-motion path (§6) is designed with the animation.
+5. **Tool:** the cheapest that works (§7.1): CSS transition (state, hover) →
+   `@starting-style` (mount) → CSS animation (predetermined; stays smooth under
+   main-thread load) → WAAPI `element.animate()` → a library. Never install a
+   library for a fade. In React/Vue the framework removes an unmounting node at
+   once, so an exit animation needs `AnimatePresence` (Motion) or an
+   equivalent; CSS alone cannot animate it.
+6. **Fallback:** the reduced-motion path (§6) is designed with the animation.
 
 ## 2. Duration by element
 
@@ -45,6 +54,9 @@ policy.
 - **Latency ceilings:** hover response <100ms, press <150ms, drag start <50ms.
   Long feedback reads as lag, not polish.
 - Mobile: shave ~20%. Never block interaction behind an intro.
+- Evidence: NN/g (Laubheimer, 2020) puts most UI animation at 100-400ms and
+  says animations start to feel like "a real drag" at 500ms; Emil Kowalski keeps
+  UI animation under 300ms.
 
 ## 3. Easing tokens
 
@@ -72,6 +84,22 @@ Define once as custom properties and reuse; do not hand-tune per component.
 - Never `scale(0)` for an entrance; start from ~0.95 with opacity.
 - Overshoot/bounce/elastic only when the brand personality is playful, capped
   at ~10% overshoot, and never on errors or destructive confirmations.
+- Hover and color changes may use plain `ease`; the role tokens are for
+  movement.
+- **Springs** suit gestures, sheets, layout moves, and toggles. Reference
+  values (Material 3 tokens in androidx source, damping ratio / stiffness):
+  Standard scheme spatial fast 0.9/1400, default 0.9/700, slow 0.9/300;
+  effects (opacity, color) 1.0/3800, 1600, 800. Expressive scheme spatial
+  fast 0.6/800, default 0.8/380, slow 0.8/200. SwiftUI's `spring` and
+  `smooth` default to 0.5s with zero bounce. Use the Standard scheme for
+  commerce, DR/COD, and admin; Expressive only for a playful brand.
+- **CSS springs** exist as sampled `linear()` easings (Widely available since
+  2026-06): fixed duration, and they cannot carry velocity when interrupted,
+  so gestures need a real spring (Motion, GSAP Inertia). Time sibling
+  animations from the requested duration, not the longer settle time.
+- Material 3 durations for comparison: short 50-200ms, medium 250-400ms, long
+  450-600ms; emphasized easing `cubic-bezier(0.2, 0, 0, 1)`. IBM Carbon:
+  70/110/150/240/400/700ms with productive and expressive curves.
 - GSAP mapping: `power3.out` ≈ ease-out, `power2.in` ≈ ease-in,
   `power2.inOut` ≈ ease-in-out; use `CustomEase` only for a token above that
   no named ease matches (see `gsap-core`, `gsap-plugins`).
@@ -134,8 +162,11 @@ delay price, variant, cart, or form feedback.
   position) — useful on beauty or renovation detail pages when the images are
   real, consented, and unretouched (see invented-info-tells.md).
 - **Blur masks a crossfade seam:** when two overlapping states read as two
-  objects despite tuned easing, add a small blur (a few px, always under 20px)
-  during the transition. Heavy blur is expensive, especially in Safari.
+  objects despite tuned easing, add a small blur during the transition: about
+  8px or less, one-shot only, never continuous or on large surfaces, hard
+  ceiling 20px. Blur is expensive to paint, especially in Safari.
+- **SVG transforms:** apply them to a `<g>` wrapper with
+  `transform-box: fill-box` so the origin is the shape, not the viewport.
 - **Animate the element, not its parent's variable:** driving child
   `transform`s from a CSS custom property on a parent recalculates style for
   every child each frame. Set `transform` on the moving element directly.
@@ -150,6 +181,10 @@ delay price, variant, cart, or form feedback.
 | Where it was going | project the release point from velocity with exponential decay (deceleration rate around 0.998) and commit on the projected position |
 | Edges | rubber-band past a boundary: resistance grows with overshoot (constant around 0.55) instead of a hard stop |
 | Settling | a spring that inherits release velocity; low bounce (damping near critical) for sheets and drawers, more only for playful brands |
+| Interrupt | a new animation starts from the live on-screen value, never from the old target |
+| 1:1 tracking | the element follows the pointer for the whole drag; do not animate only on release |
+| Multi-touch | ignore extra touch points once a drag has started |
+| 2D settle | separate X and Y springs so each axis keeps its own velocity |
 | Fallback | every drag action also has a button or keyboard path (`accessibility-notes.md`) |
 
 Values are starting points to tune on a real phone, not constants to copy.
@@ -168,20 +203,44 @@ that carry state; replace the vestibular triggers.
 | Autoplay video / looping ambient | paused, poster frame |
 | Smooth scroll hijack | native scroll |
 
+Default pattern: under reduce, remove movement (translate, scale, rotate,
+parallax, scroll-linked transforms) and keep opacity and color feedback, so
+state changes stay visible. This is how Motion's
+`<MotionConfig reducedMotion="user">` and the Next.js View Transitions guide
+behave.
+
 ```css
 @media (prefers-reduced-motion: reduce) {
-  * , *::before, *::after { animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  .reveal, .slide-in, .card:hover { transform: none; }
+  .reveal { transition-property: opacity; }
+  ::view-transition-group(*), ::view-transition-old(*),
+  ::view-transition-new(*) { animation: none; }
+  .parallax, .marquee { animation: none; }
 }
 ```
 
-The blanket reset is a floor, not the design: also swap the specific cases above
-and keep meaningful feedback visible. In GSAP use `gsap.matchMedia()`.
+A blanket `animation-duration: 0.01ms` reset on `*` removes feedback too and
+breaks `animationend` logic; use it only as a last-resort floor on an
+inherited codebase, never as the design. In GSAP use `gsap.matchMedia()`.
+WCAG: 2.2.2 (A) pause/stop/hide anything moving over 5s; 2.3.1 (A) no more
+than three flashes per second; 2.3.3 (AAA) motion triggered by interaction
+can be disabled (color, opacity, and blur alone do not count as motion).
+`prefers-reduced-motion` appears on about half of pages (Web Almanac 2025).
+
+### 6.1 Smooth scrolling
+
+No Lenis or ScrollSmoother by default: they fight keyboard, scrollbar, anchor,
+and find-in-page scrolling, break scroll-snap and iframes, and read as an
+agency-template tell. Allow only to sync a WebGL scene with scroll, with
+`anchors: true`, reduced motion honored, and keyboard and scrollbar
+scrolling tested.
 
 ## 7. Modern CSS first, with fallbacks
 
-Prefer native CSS before a library (`native-first`). Re-verify support before
-relying on any feature; the platform moves quickly.
+Prefer native CSS before a library (`native-first`). Support status and dates
+are in [motion-platform-support.md](motion-platform-support.md); re-verify
+quarterly. As of 2026-10, Firefox has no scroll-driven animations and no
+cross-document View Transitions, and `interpolate-size` is Chromium-only.
 
 | Need | Native option | Guard |
 | --- | --- | --- |
@@ -194,13 +253,63 @@ relying on any feature; the platform moves quickly.
 
 Content must be visible and usable in the default (unsupported) state.
 
+**View Transitions craft** (Next.js View Transitions guide, 2026-09; Chrome
+docs): use them for navigation-level changes (route, thumbnail → detail,
+tab or theme swap), not for interaction-heavy or interruptible UI; one shared
+named element per transition; `::view-transition { pointer-events: none }`
+is set by default, so keep transitions short (crossfade ~150-250ms, morph
+≤400ms); anchor persistent chrome (header) with its own name or none; use
+transition types for direction (forward/back); include the reduced-motion
+block from §6. In Astro prefer `@view-transition { navigation: auto }` and use
+`<ClientRouter />` only when `transition:persist`, a fallback, or
+`navigate()` is needed (`native-first` astro reference).
+
+### 7.1 Library choice
+
+| Need | Use | Notes |
+| --- | --- | --- |
+| State, hover, mount/unmount of native elements | CSS transitions, `@starting-style` | no dependency |
+| Predetermined or scroll-linked effect | CSS animation, scroll timelines in `@supports` | runs off the main thread |
+| Imperative one-off without a framework | WAAPI `element.animate()` | interruptible, returns a promise |
+| React/shadcn springs, layout, exit, drag | Motion (`motion` 14.x, MIT) | import from `motion/react`; never install alongside `framer-motion` |
+| Timelines, pinning, scrub, SVG morph, text splitting | GSAP (3.15, `gsap-*` skills) | free incl. all plugins since 2025-04-30 under the GSAP Standard no-charge license, not an OSI license; it forbids building a tool that competes with Webflow's visual animation builder |
+| Illustrated interactive states | Rive or dotLottie | canvas has no accessibility tree: add text alternatives and a static poster |
+| List add/remove/move with no design input | auto-animate | turns itself off under reduced motion |
+
+Avoid: Theatre.js (public development dormant since 2024), `vaul` (README:
+unmaintained; shadcn's Drawer moved to Base UI), Lenis by default (§6.1).
+
+**Motion notes** (Motion `ai-kit` best practices, MIT): animating `transform`
+as a string runs on WAAPI and the compositor; the `x`/`y`/`scale` shorthands
+run on the main thread, so use them only to compose transforms or motion
+values. Set `will-change` for CSS transitions and independent transforms only,
+and remove it afterwards. `<MotionConfig reducedMotion="user">` at the root.
+For API questions query `mcp.motion.dev` or `motion.dev/llms-full.txt`
+rather than guessing; Motion+ (paid) components need the owner's consent.
+
 ## 8. Quality checklist
 
 Critical (block delivery):
-- No essential content hidden until a script or animation runs.
-- Reduced-motion path exists and was checked; no autoplay flashing >3/second.
-- No animation of layout properties in a hot path; no jank on a mid-range phone.
+- No essential content hidden until a script or animation runs; the page works
+  with JS off and in Firefox stable (no scroll-driven animations, no
+  cross-document View Transitions).
+- Reduced-motion path checked with `prefers-reduced-motion: reduce` emulated:
+  no translate, scale, or parallax remains and state feedback is still visible.
+  Nothing flashes more than three times per second; anything moving over 5s
+  can be paused.
+- Lighthouse shows no "non-composited animations" on key templates (40% of
+  mobile pages had them, Web Almanac 2025); CLS ≤0.1 and INP ≤200ms on a
+  throttled mid-range mobile profile. Compositor-friendly: transform, opacity,
+  filter, clip-path; paint properties and CSS variables cost more; layout
+  properties are not animated in a hot path (Motion performance tier list,
+  2025-11).
+- No animation driven by `scroll` events or `scrollY` polling (use scroll
+  timelines or IntersectionObserver); every `requestAnimationFrame` loop has a
+  stop condition; one animation system per component.
 - Interruption works: re-triggering mid-animation, rapid hover, route change.
+- Native scrolling, anchors, find-in-page, and Back/Forward behave normally.
+- Animation libraries load only on routes that use them; canvas/3D/Rive have a
+  static poster and a clamped device pixel ratio.
 
 Important:
 - Every animation answers "what would be lost if this were removed?"
@@ -208,7 +317,19 @@ Important:
 - Exits are shorter than entrances; nothing repeated exceeds ~300ms.
 - Offscreen and hidden-tab loops are paused.
 
-## 8.1 Review method
+## 8.1 Generated-motion tells
+
+Remove these unless the design artifact records why this brand needs them:
+fade-and-slide-up on every section, staggered letter-by-letter hero
+headlines, glass cards over busy imagery ("Liquid Glass" revival; NN/g found
+legibility problems, 2025-10), custom cursor followers, tilt-on-hover bento
+cards, smooth-scroll libraries on brochure sites, marquee logo strips of
+unknown companies, count-up numbers that are not real data, typewriter delay
+on text that is already available, and shimmer/beam/border-glow buttons from
+effect catalogs. Prefer one authored focal moment over scattered effects
+(Anthropic `frontend-design`).
+
+## 8.2 Review method
 
 Judge feel on the render, not in code: play at 2-5x duration (or the DevTools
 animation inspector), step frame by frame to catch properties drifting apart,
@@ -217,6 +338,21 @@ and stop when it feels right: **delete** the animation → **reduce** distance,
 scale, or count → **easing** token → **origin** → make it **interruptible** →
 move it to GPU-friendly properties → **asymmetric timing** (slow where the
 user decides, fast where the system responds) → polish.
+
+## 8.3 Motion by surface
+
+Defaults for all surfaces: `--dur-fast` 150ms / `--dur-base` 250ms /
+`--dur-slow` 400ms, the easing tokens above, Standard-scheme springs only
+through a library, `@starting-style` entry and exit on every dialog and
+popover, the §6 reduced-motion pattern.
+
+| Surface | Adopt | Avoid |
+| --- | --- | --- |
+| Company profile | native cross-document View Transition crossfade (~200ms); at most one hero entrance; a CSS scroll-driven progress bar or sticky-header shrink in `@supports`; hover lift on hover-capable pointers | smooth-scroll libraries, decorative WebGL, fade-up on every section, text splitting, glass, cursor effects |
+| Storefront | thumbnail → product detail morph (≤400ms); add-to-cart feedback under 100ms; cart as a sheet; skeleton → content for 2-10s loads; gallery crossfade | anything that delays price, variant, cart, or checkout; parallax; autoplay carousels without pause; bouncy springs; 3D unless it is a product configurator |
+| Landing / sales page | one authored focal moment (hero or one scroll-told section); a library lazy-loaded below the LCP element; count-up only for real figures | interaction-blocking intros, scroll-jacking, more than one text-split effect, glass over busy imagery |
+| Advertorial (DR/COD) | essentially static; opacity-only reveals at most; video with poster and controls | motion near the CTA or form, smooth scroll, anything delaying content on low-end Android |
+| Admin dashboard | corporate/utility timing 120-200ms; list add/remove with AnimatePresence or auto-animate; tab crossfade; Standard spring for sheets | motion on keyboard or high-frequency actions, chart entry animation on every refresh, View Transitions on table pagination, glass or backdrop blur |
 
 ## 9. Troubleshooting
 

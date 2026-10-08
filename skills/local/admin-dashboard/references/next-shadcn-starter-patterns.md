@@ -31,7 +31,7 @@ Verified from `admin-starter/package.json`:
 | `zod` | `^4.3.6` | `z.infer`, `safeParse`, `error.issues[].path` |
 | `next-themes` | `^0.4.6` | light/dark **mode** only (palette is separate) |
 | `tailwindcss` | `^4.2.2` | CSS-first `@theme` / `@theme inline`, no JS config |
-| `motion` | `^11.18.2` | Framer-successor, used by the stepper progress UI |
+| `motion` | `^11.18.2` | Framer-successor, used by the stepper progress UI. Historical snapshot of the starter; current `motion` is 14.0.0 (MIT, 2026-10-02; v13 dropped the `@emotion/is-prop-valid` dependency). Pin from the project's lockfile, not this table |
 
 ### 0.1 The version discrepancy you must resolve first
 

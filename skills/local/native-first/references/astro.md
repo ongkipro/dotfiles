@@ -13,8 +13,8 @@ Astro's whole premise is *ship no JS by default*. Most "I need a library" instin
 | a router library | file-based routing + `[slug].astro` / `[...path].astro` |
 | a sitemap generator | `@astrojs/sitemap` (official) |
 | an RSS lib | `@astrojs/rss` (official) |
-| client-side page transitions (barba, swup) | `<ClientRouter />` (view transitions) |
-| a scroll-anim library, for simple cases | CSS `animation-timeline: view()` / `scroll()`. GSAP+ScrollTrigger only when you need orchestration. |
+| client-side page transitions (barba, swup) | native cross-document view transitions: `@view-transition { navigation: auto; }` in CSS (zero JS; Chrome 126+, Safari 18.2+; Firefox does a normal navigation). Add `<ClientRouter />` only for `transition:persist`, a fallback animation in unsupported browsers, or `navigate()` (Astro docs: it "will increasingly become unnecessary"). Dates: `design-taste` motion-platform-support.md |
+| a scroll-anim library, for simple cases | CSS `animation-timeline: view()` / `scroll()` inside `@supports`, with content visible by default (Firefox has no scroll-driven animations as of 2026-10). GSAP+ScrollTrigger only when you need orchestration. |
 | a dark-mode lib | `prefers-color-scheme` + a CSS var flip + one inline script to avoid FOUC |
 | a state library across islands | `nanostores` (Astro's documented answer) — but first ask if the islands need to share state at all |
 | Algolia/Elastic/a search server for a static site | **Pagefind** — runs after `astro build` over the output dir (e.g. `npx pagefind --site dist`) and ships a static index + UI; no server. Dynamic/user data search belongs in the DB (`postgres-drizzle`). |

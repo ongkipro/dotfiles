@@ -4,6 +4,39 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## v2026.10.08.5
+
+Motion: researched trends and sources, corrected vendored GSAP skills.
+
+### Fixed
+
+- `gsap-*` (checked against gsap.com docs; logged in each `.local-fork`):
+  `refreshPriority` higher refreshes first (was inverted); Observer default
+  `type` is `"wheel,touch,pointer"`; Flip `nested`/`scale`; ScrollTo has no
+  `element` option; `MotionPathHelper.create` signature; `easeReverse`
+  (GSAP 3.15) with `yoyoEase` deprecated; timeline default position is the
+  end of the timeline. Upstream `greensock/gsap-skills` is unchanged since
+  2026-04-21 with these issues open.
+- `motion-craft.md` reduced motion: drop movement, keep opacity/color
+  feedback; the blanket `0.01ms` reset is a last-resort floor only.
+
+### Added
+
+- `motion-craft.md`: tool precedence (CSS → `@starting-style` → CSS
+  animation → WAAPI → Motion → GSAP → Rive/dotLottie; GSAP license is
+  non-OSI), M3/SwiftUI spring tokens and the CSS `linear()` caveat, View
+  Transition rules, smooth-scroll stance, Motion library notes, gesture
+  rules, performance/accessibility gate, generated-motion tells, motion
+  policy per surface. Sources: Emil Kowalski skills, Motion AI Kit, ibelick
+  ui-skills, Vercel guidelines (all MIT), NN/g, WCAG, Material 3, Apple HIG.
+- `motion-platform-support.md`: dated Baseline table (same-document View
+  Transitions Baseline 2025-10-14; cross-document and scroll-driven
+  animations lack Firefox), re-verify quarterly.
+- Astro: native `@view-transition` by default, `ClientRouter` only when
+  needed; WAAPI in the motion ladder. Next.js/shadcn: Motion lookups via
+  `mcp.motion.dev`; vaul is unmaintained and the shadcn Drawer moved to
+  Base UI. Admin: motion policy; the `motion ^11` pin marked historical.
+
 ## v2026.10.08.4
 
 ### Changed

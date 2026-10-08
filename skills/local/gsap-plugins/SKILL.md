@@ -54,8 +54,9 @@ gsap.to(scrollContainer, { duration: 1, scrollTo: { x: "max" } });
 | Option | Description |
 |--------|-------------|
 | `x`, `y` | Target scroll position (number), or `"max"` for maximum |
-| `element` | Selector or element to scroll to (for scroll-into-view) |
-| `offsetX`, `offsetY` | Offset in pixels from the target position |
+| `x`/`y` as selector | `scrollTo: "#id"` or `{ y: "#id" }` scrolls to that element (there is no `element` option) |
+| `offsetX`, `offsetY` | Offset in pixels from the target position (e.g. under a fixed header) |
+| `autoKill` | `true` cancels the tween when the user scrolls mid-tween; `onAutoKill` callback reports it |
 
 ### ScrollSmoother
 
@@ -91,8 +92,8 @@ Flip.from(state, { duration: 0.5, ease: "power2.inOut" });
 | Option | Description |
 |--------|-------------|
 | `absolute` | Use `position: absolute` during the flip (default: `false`) |
-| `nested` | When true, only the first level of children is measured (better for nested transforms) |
-| `scale` | When true, scale elements to fit (avoids stretch); default `true` |
+| `nested` | Set `true` when targets are nested (a parent and its child both flip) so Flip compensates instead of compounding the parent's movement into the child |
+| `scale` | Default `false`: Flip animates `width`/`height`. Set `true` to scale instead (usually better performance) |
 | `simple` | When true, only position/scale are animated (faster, less accurate) |
 | `duration`, `ease` | Standard tween options |
 
@@ -167,7 +168,7 @@ Observer.create({
 | `target` | Element or selector to observe |
 | `onUp`, `onDown`, `onLeft`, `onRight` | Callbacks when swipe/scroll passes tolerance in that direction |
 | `tolerance` | Pixels before direction is detected; default 10 |
-| `type` | `"touch"`, `"pointer"`, or `"wheel"` (default: `"touch,pointer"`) |
+| `type` | Comma-delimited `"wheel,touch,scroll,pointer"` (default: `"wheel,touch,pointer"`) |
 
 ## Text
 
@@ -330,8 +331,10 @@ Visual editor for MotionPath (alignment, offset). Use during development to tune
 ```javascript
 gsap.registerPlugin(MotionPathPlugin, MotionPathHelper);
 
-const helper = MotionPathHelper.create(".dot", "#path", { end: 0.5 });
-// adjust in UI, then use helper.path or helper.getProgress() in your animation
+// pass a tween that has a motionPath, or a target plus vars:
+MotionPathHelper.create(tween);
+MotionPathHelper.create(".dot", { path: "#path", end: 0.5 });
+// edit in the browser, copy the resulting path data into your code; remove before production
 ```
 
 ## Easing

@@ -125,6 +125,8 @@ ease: "elastic.out(1, 0.3)"
 ease: "none"           // linear
 ```
 
+**Reverse easing (GSAP 3.15+):** `easeReverse` sets the ease used when the playhead moves backwards — `true` reuses the forward ease adapted for reverse, or pass any ease string (`easeReverse: "sine.in"`). GSAP recalculates from the exact point where direction changed, so it stays smooth when a tween is interrupted mid-way. `yoyoEase` is deprecated in favor of it.
+
 Built-in eases: base (same as `.out`), `.in`, `.out`, `.inOut` where "power" refers to the strength of the curve (1 is more gradual, 4 is steepest):
 
 ```

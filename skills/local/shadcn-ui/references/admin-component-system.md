@@ -379,3 +379,15 @@ before implementation:
 The standard registry does not require MCP. Use MCP when conversational registry
 browsing or private registries materially improve the workflow; the native CLI
 remains the deterministic baseline.
+
+## Drawer and motion (checked 2026-10-08)
+
+- Drawer: on Base UI styles it is built on Base UI's drawer (the docs page:
+  "now uses Base UI instead of Vaul", with a migration guide); the Radix
+  style still wraps `vaul`, whose README says the repo is unmaintained.
+  Prefer the Base UI drawer or a `Sheet` for new work.
+- Motion in components follows `design-taste` `references/motion-craft.md`
+  §7.1 and §8.3: CSS first; the `motion` library (imported from
+  `motion/react`, never alongside `framer-motion`) for springs, layout, and
+  exit animations. Look up its API via `mcp.motion.dev` or
+  `motion.dev/llms-full.txt` instead of guessing.

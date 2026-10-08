@@ -39,3 +39,10 @@ to_vendor: watch https://github.com/greensock/gsap-skills/issues/18. Remove the
 
 recheck: 2026-10-02 — no upstream changes to merge; Max.max still at line 235; issue #18 still OPEN, no comments.
     curl -s https://raw.githubusercontent.com/greensock/gsap-skills/main/skills/gsap-scrolltrigger/SKILL.md | grep -n 'Max\.max'
+
+recheck: 2026-10-08 — second local correction: `refreshPriority` direction. Upstream
+  (and the previous local text) said "lower = refreshed first"; gsap.com docs
+  (Plugins/ScrollTrigger, refreshPriority): "A ScrollTrigger with refreshPriority: 1
+  will get refreshed earlier than one with refreshPriority: 0 (the default)." Local
+  now says higher = refreshed first at SKILL.md lines ~61 and ~284. Reported upstream
+  in issues #15 and #20 (open on 2026-10-08).

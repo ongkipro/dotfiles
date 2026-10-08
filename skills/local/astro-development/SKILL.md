@@ -44,7 +44,7 @@ wins over this skill; current official docs win over remembered APIs.
 - For new or materially redesigned public UI, let **`design-taste` choose the
   composition before Astro/shadcn components are selected**. Astro is the
   implementation layer, not the art director.
-- When animation is needed, follow the `design-taste` motion ladder: CSS-first (transitions, scroll-driven animations), then vanilla JS + IntersectionObserver; reach for **GSAP** (via the installed GSAP skills) only for real pin/scrub/timeline work — never invent bespoke animation patterns
+- When animation is needed, follow the `design-taste` motion ladder (`references/motion-craft.md` §7.1): CSS-first (transitions, `@starting-style`, scroll-driven animations in `@supports`), then WAAPI `element.animate()` or vanilla JS + IntersectionObserver; reach for **GSAP** (via the installed GSAP skills) only for real pin/scrub/timeline work — never invent bespoke animation patterns
 
 ## Workflow
 

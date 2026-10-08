@@ -30,7 +30,7 @@ Third argument (or position property in vars) controls placement:
 - **Absolute**: `1` — start at 1 second.
 - **Relative (default)**: `"+=0.5"` — 0.5s after end; `"-=0.2"` — 0.2s before end.
 - **Label**: `"labelName"` — at that label; `"labelName+=0.3"` — 0.3s after label.
-- **Placement**: `"<"` — start when recently-added animation starts; `">"` — start when recently-added animation ends (default); `"<0.2"` — 0.2s after recently-added animation start.
+- **Placement**: `"<"` — start when recently-added animation starts; `">"` — start when recently-added animation ends; with no position at all the child goes to the **end of the timeline** (the same as `">"` only when the most recently added child also ends last); `"<0.2"` — 0.2s after recently-added animation start.
 
 Examples:
 
@@ -49,6 +49,8 @@ Pass defaults into the timeline so all child tweens inherit:
 const tl = gsap.timeline({ defaults: { duration: 0.5, ease: "power2.out" } });
 tl.to(".a", { x: 100 }).to(".b", { y: 50 }); // both use 0.5s and power2.out
 ```
+
+`easeReverse` (GSAP 3.15+) can live in `defaults` and cascades to child tweens, so a reversed timeline (e.g. a menu closing) gets its own easing: `gsap.timeline({ defaults: { ease: "back.out", easeReverse: "expo.in" } })`.
 
 ## Timeline Options (constructor)
 

@@ -31,7 +31,7 @@ Kowalski's `skills` (MIT); filtered to what applies across stacks.
 | Navigation | Navigation uses `<a>`/framework `Link` (Cmd/Ctrl/middle-click work), never `<div onClick>`; anything that looks clickable is clickable |
 | Feedback | Destructive actions confirm or offer Undo; toasts and inline validation use a polite `aria-live` region; a loading button keeps its label next to the spinner |
 | Unsaved work | Warn before navigation discards unsaved form changes |
-| Motion | Animate `transform`/`opacity` only; never `transition: all` (list properties); animations are interruptible; honor `prefers-reduced-motion` |
+| Motion | Animate compositor-friendly properties (`transform`, `opacity`, `filter`, `clip-path`) and measure anything else; never `transition: all` (list properties); animations are interruptible; honor `prefers-reduced-motion` by removing movement and keeping opacity/color feedback; WCAG 2.3.3 (AAA) lets interaction-triggered motion be disabled (motion-craft.md §6) |
 | Overflow | Text containers handle short, average, and very long content (`truncate`, `line-clamp-*`, `break-words`); flex children that truncate need `min-w-0` |
 | States | Empty, sparse, dense, and error states are designed; skeletons mirror final layout so nothing shifts; no dead ends without a next step |
 | Lists | Virtualize lists beyond roughly 50 rows; mutations target under 500 ms or show progress |
