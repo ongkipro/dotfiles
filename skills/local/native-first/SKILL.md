@@ -42,6 +42,10 @@ Before `npm i` / `pnpm add`, answer all four. Any "no" → don't install.
    heuristic, not a gate; include bundle, supply-chain, upgrade, and API surface.
 4. **Is it healthy for this project?** Check compatibility, releases,
    unresolved breakage, security advisories, license, and maintenance signals.
+   - First confirm the exact name exists in the registry with the expected
+     publisher, linked repo, and release age; LLM-suggested names may be
+     hallucinated and squatted (arXiv 2406.10279). Install hardening:
+     `application-security` → `references/supply-chain.md`.
 
 Adding it anyway is a legitimate call — but say in one line what you skipped and why.
 

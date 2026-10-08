@@ -497,3 +497,4 @@ Before deploying to production:
 - [ ] **Background Tasks**: Configure for serverless platforms
 - [ ] **Audit Logging**: Implement via `databaseHooks` or `hooks`
 - [ ] **IP Tracking**: Configure headers if behind a proxy
+- [ ] **Organizations**: server-side `hasPermission` on mutations, last-owner and deletion guards, membership-checked `activeOrganizationId` ([auth-flows.md § Organization RBAC](references/auth-flows.md#organization-rbac))

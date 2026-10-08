@@ -51,6 +51,16 @@ Record command or browser scenario, response/status, relevant state before/after
 
 Only run cases applicable to the changed flow. Add boundary cases when the threat model identifies them; do not turn the table into a mandatory full-suite checklist.
 
+## Pre-commit agent gate
+
+Before an agent proposes a commit, run the scanners the machine already has (do not install them unasked) and report each as passed, findings, or not run:
+
+- Secrets in staged changes: `gitleaks git --pre-commit --redact --staged --verbose` (the upstream pre-commit hook entry; `--redact` keeps values out of output).
+- Known-vulnerable dependencies: `osv-scanner scan source -r .`
+- Static patterns: Semgrep only when already installed, and always with `--metrics=off`.
+
+A scanner pass is supporting evidence, not proof; a scanner that did not run is "not run", never "clean".
+
 ## Severity and confidence
 
 Use evidence-based labels:

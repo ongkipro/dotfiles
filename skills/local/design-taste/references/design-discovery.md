@@ -30,6 +30,15 @@ local-market conventions to verify, content inventory, claim traps, and search
 queries for the reference set. It is a starting hypothesis, not a template;
 the live references you inspect overrule it.
 
+Where to look (verified 2026-10-08; re-check access before relying on one):
+the category's own live competitors and leaders first; then real-product
+galleries — Nicelydone and SaaS Interface (SaaS/admin screens), Mobbin and
+Refero (screens and flows), Page Flows (recorded flows), SaaS Landing Page,
+One Page Love, and Httpster (marketing pages), Component Gallery (how design
+systems build one component). Galleries locate candidates; the inspected live
+site is the evidence. A screenshot from a gallery is directional unless the
+live page confirms it.
+
 Usually inspect 2–4 relevant examples plus the applicable accessibility/design
 system guidance. This is a research budget, not a quota: one close reference
 can resolve a narrow question; a substantially different journey may need more.
@@ -194,6 +203,9 @@ Minimum decision record:
 - Audience/job, primary action, assumptions:
 - Entry → decision/action → outcome; critical recovery:
 - Information hierarchy and content/assets:
+- Page anatomy: per page, the ordered sections and the one job each does
+  (what the visitor learns or decides there); content still missing from the
+  owner:
 
 ## Reference evidence
 | Source / inspected date | Role | Surface, viewport, state, artifact | Observed | Inferred / unverified | Transfer / exclude |

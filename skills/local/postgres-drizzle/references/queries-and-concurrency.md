@@ -140,6 +140,20 @@ concurrency. Do not paste plans containing literals or row data into public arti
 Production performance diagnosis and alerting belong to `observability-engineering` and
 `web-perf` does not own database query plans.
 
+**Find the queries worth tuning first.** Where the `pg_stat_statements` extension is
+loaded (it needs `shared_preload_libraries` plus `CREATE EXTENSION`; managed providers
+often enable it), rank normalized statements by `total_exec_time`, then check `calls`
+and `mean_exec_time`: a cheap query with huge `calls` is usually an N+1, a slow one with
+few calls is a plan problem. Column names are for PostgreSQL 13+; reset stats only with
+approval on shared environments.
+
+**N+1 through Drizzle.** A loop (`for`, `map` + `Promise.all`) that awaits a
+`db.select`/`db.query` per parent row issues one round trip per row. Spot it in code
+review and confirm with query logging or `calls`. Replace with one set-based read:
+`inArray(child.parentId, ids)` and group in memory, a join, or a relational query
+(`db.query.parent.findMany({ with: { children: true } })`) — then compare emitted SQL
+and row counts, and bound `ids` (chunk very large lists).
+
 ## Pagination
 
 Keyset pagination is the default for large/mutable ordered sets:

@@ -349,6 +349,30 @@ Examples in this skill's references are Base UI unless labelled Radix.
 - `Dialog`, `Sheet`, `Drawer` always carry their Title (`sr-only` if hidden).
 - Forms: `FieldGroup` + `Field`; items inside their Group
   (`SelectGroup`, `DropdownMenuGroup`, `CommandGroup`).
+- Styling: `className` sets layout, never component color or typography;
+  `size-*` when width equals height; `truncate` shorthand; `cn()` for
+  conditional classes; no manual `z-index` on overlays (they stack themselves).
+- Color: semantic tokens only. No raw palette classes (`text-emerald-600`) and
+  no manual `dark:` color overrides; status goes through `Badge` variants or a
+  semantic token the project defines (for example `--success`).
+- Existing components before custom markup: `Alert` for callouts, `Empty` for
+  empty states, `Skeleton` for loading, `Separator` instead of `<hr>`/border
+  divs, `Badge` instead of styled spans, `Avatar` always with
+  `AvatarFallback`.
+
+Source: the official `shadcn` skill (`shadcn-ui/ui` `skills/shadcn/`, MIT);
+re-check it when the CLI major version changes.
+
+**Style choice is a density decision, made at init.** The style rewrites
+component code, not just colors (`shadcn create` changelog 2025-12, Rhea
+2026-05): Vega classic, Nova compact, Maia soft and generous, Lyra boxy and
+sharp, Mira compact for dense interfaces, Luma rounded with soft elevation,
+Sera editorial (serif headings, square corners, underlined controls), Rhea a
+more compact Luma for focused product UI. For operator-dense admin screens
+prefer Mira or Rhea; flat, sharp, editorial brands start from Lyra or Sera;
+never ship the untouched default style plus neutral base color as the
+product's look. Pair the style with a brand token set (OKLCH scale or a
+`tweakcn` theme) before generating screens.
 
 ## Charts, Sidebar, and Theme Toggle
 

@@ -236,6 +236,14 @@ git -C "$P" config --unset core.sshCommand; git -C "$P" remote set-url origin "$
 printf '#!/usr/bin/env bash\necho ran > "%s/relinked"\n' "$TMP" > "$P/bin/ai-memory-link"; chmod +x "$P/bin/ai-memory-link"
 upstream "auto relink"; ap
 check "after a fast-forward, autopull relinks the runtimes" "$(cat "$TMP/relinked" 2>/dev/null)" "ran"
+mkdir -p "$P/skills/agents-bin"
+printf '#!/usr/bin/env bash\necho ran > "%s/skills-synced"\n' "$TMP" > "$P/skills/agents-bin/skill-update"; chmod +x "$P/skills/agents-bin/skill-update"
+upstream "auto skill sync"; ap
+check "after a fast-forward, autopull reconciles runtime skills" "$(cat "$TMP/skills-synced" 2>/dev/null)" "ran"
+printf '#!/usr/bin/env bash\nexit 4\n' > "$P/skills/agents-bin/skill-update"
+upstream "skill sync fails"; ap
+check "a failing skill-update is recorded as a warning" "$(grep -c '^.* warn: ' "$XDG_STATE_HOME/dotsync/last-result")" "1"
+rm -rf "$P/skills/agents-bin"
 rm -f "$P/bin/ai-memory-link"
 check "the lock is released after a run" "$([ -d "$XDG_STATE_HOME/dotsync/lock" ] && echo held || echo free)" "free"
 upstream "auto blocked"; h="$(head_p)"

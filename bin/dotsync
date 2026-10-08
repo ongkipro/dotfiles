@@ -133,6 +133,16 @@ relink_runtimes() {
     err "ai-memory-link gagal — jalankan manual: ai-memory-link"
     return 1
   fi
+  # A pulled skill add/remove must reach every runtime's discovery path too;
+  # Codex keeps per-skill links that dangle until skill-update reconciles them.
+  local skill_update="$DOTFILES_ROOT/skills/agents-bin/skill-update"
+  [ -x "$skill_update" ] || return 0
+  if "$skill_update" >/dev/null 2>&1; then
+    say "✓ Skill runtime di-sinkron ulang"
+  else
+    err "skill-update gagal — jalankan manual: skill-update"
+    return 1
+  fi
 }
 file_mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0; }
 autopull_state() { printf '%s\n' "${XDG_STATE_HOME:-$HOME/.local/state}/dotsync"; }

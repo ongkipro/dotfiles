@@ -86,6 +86,7 @@ The installed `gh ... --help` wins for flags supported by that local version.
 | Source | Use | Boundary |
 |---|---|---|
 | [rhysd/actionlint](https://github.com/rhysd/actionlint) | Actions-aware local/static workflow validation | Not GitHub-maintained and not hosted-behavior proof; use only if installed or accepted by project |
+| [zizmorcore/zizmor](https://github.com/zizmorcore/zizmor) (MIT, checked 2026-10-08) | Static security audit of workflows and actions | Not GitHub-maintained; findings need triage; use only if installed or accepted by project |
 
 ## Local examples inspected
 

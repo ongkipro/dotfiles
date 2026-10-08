@@ -204,6 +204,11 @@ when the change touches them or failure would be costly. For admin destructive
 actions and storefront checkout/payment handoffs, stop before live mutations
 unless explicitly approved; use fixtures or test environments.
 
+For a code-level pre-flight before the browser run, review the changed files
+against the web interface checklist in `design-taste`'s
+`references/accessibility-notes.md` (focus, URL state, navigation semantics,
+overflow, motion, hydration, locale) and report findings as `file:line`.
+
 ### Accessibility
 
 For material public-layout changes, include the applicable narrow reflow check

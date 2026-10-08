@@ -1,8 +1,9 @@
 ---
 name: design-taste
 description: >-
-  Set and critique visual direction for public frontend UI/UX (landing,
-  marketing, public flows, docs, portfolios, storefront visuals). Not admin UI
+  Set and critique visual direction for public frontend UI/UX (company
+  profiles, landing, marketing, public flows, docs, portfolios, storefront
+  visuals). Not admin UI
   (admin-dashboard) or commerce behavior (storefront-ux). Use for UI/UX workflow, reference research,
   Apple/Google/Material-inspired web design, redesign, design tokens,
   composition contracts, or AI-templated UI, across frameworks. Start from
@@ -10,7 +11,9 @@ description: >-
   public-web foundation when no accepted system exists. Require inspected
   references for new directions and rendered critique for visual claims.
   Copywriting, SEO, and library installation belong elsewhere. Pair with the
-  installed framework skill and ui-validation.
+  installed framework skill and ui-validation. Triggers: company profile,
+  compro, bikin website, landing page, website jasa, redesign website, tampilan
+  web, UI/UX riset referensi.
 ---
 
 # Design Taste — Public Frontend UI/UX
@@ -61,9 +64,15 @@ For a new public experience or material redesign:
 5. **Choose:** select a coherent direction, responsive composition, and token
    source. Compare alternatives only when the choice is material. A low-detail
    wireframe is useful when hierarchy is unresolved, not mandatory ceremony.
+   Run the calibration check in §4.3.1 on the plan, then write the decision
+   record (design-discovery.md §5: references, direction, composition
+   contract, tokens, page anatomy) into the design artifact **before** the
+   first visual edit. Content the owner has not supplied goes to the owner as
+   a list; copy itself is drafted through `copywriting`.
 6. **Implement:** deliver the primary journey with realistic content in the
-   existing framework. Follow the session's designer/vision routing requirement
-   before visual edits; if that capability cannot start, report the limitation.
+   existing framework, following the recorded contract. Render and look at
+   each changed view (screenshot at narrow and wide widths) before moving on;
+   if no browser can start, report the limitation instead of claiming a look.
 7. **Polish, then validate:** critique the built or changed UI against
    the accepted direction and fix its findings; then use `ui-validation` to
    exercise behavior, inspect
@@ -254,6 +263,32 @@ These are diagnostic signals, not blanket bans. A pricing comparison may
 correctly use equal cards; a simple campaign hero may correctly be centered.
 Keep a familiar pattern when the content and accepted direction justify it.
 
+Generated UI also converges on whole looks. Where the brief leaves an axis
+free, do not spend that freedom on one of these defaults (adapted from
+Anthropic `frontend-design`, Apache-2.0):
+
+- warm cream canvas (near `#F4F1EA`) + high-contrast serif display + terracotta
+  or clay accent (near `#D97757`);
+- near-black canvas with a single acid-green or vermilion accent;
+- broadsheet layout: hairline rules, zero radius, dense newspaper columns;
+- SaaS-card kit: identical rounded cards, one radius for every level, the same
+  soft grey shadow, gradient washes as decoration;
+- template chrome: tracked ALL-CAPS eyebrow over every heading, `A · B · C`
+  meta strings, `WORD — fragment` labels, tinted near-black standing in for
+  black, monospace for small data labels, `→` appended to every link/button;
+- typographic tells: one accented word in a headline, numbered `01 / 02 / 03`
+  markers on content that is not a sequence, fade-and-slide-up on every
+  section.
+
+Calibration check before code: write the direction as 4–6 named colors, type
+roles, and a one-sentence layout concept, then ask whether a similar prompt
+for a different subject would land on the same plan. Revise each part that
+would, and record what changed. Spend boldness in one place; keep the rest
+quiet. The brief's explicit words and the owner's standing UI invariants
+(§1.5) always win, including when they ask for one of these looks (for
+example flat, sharp, micro-radius surfaces or a `01 / 02 / 03` index on a
+real sequence).
+
 When the pattern is merely an implementation fallback, revise the composition
 before adding more decoration. Prefer hierarchy through scale, whitespace,
 alignment, media placement, in-section dividers, sequencing, and contrast
@@ -351,7 +386,7 @@ AI slop from a prompt, static scan, or one model-generated sample.
 | Research → capture → rebuild → measured compare → improve (`scripts/ui-ref.mjs`) | reference-fidelity.md |
 | Motion timing, easing tokens, stagger, reduced-motion substitution | motion-craft.md |
 | Invented-info, filler, hollow-copy tells; allowed-patterns record; scan script | invented-info-tells.md |
-| Style-habit scan (`scripts/tells-scan.py --css`: micro-labels, 100vh, outline removal, fixed grids, loops) | invented-info-tells.md |
+| Style-habit scan (`scripts/tells-scan.py --css`: micro-labels, 100vh, outline removal, fixed grids, loops, generated-look palette) | invented-info-tells.md |
 | Category starting points: job, local-market checks, content inventory, claim traps, research queries | niche-patterns/README.md |
 | Measured WCAG contrast incl. alpha and large-text thresholds (`scripts/contrast.py`) | accessibility-notes.md |
 | Existing theme code | theme-implementation.md |

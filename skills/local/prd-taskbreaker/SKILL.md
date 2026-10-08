@@ -322,6 +322,11 @@ subset marked *checked*):
       (*checked*).
 - [ ] Retention/deletion rules agree with the privacy commitments and with
       what the schema actually stores.
+- [ ] No vague adjective (fast, scalable, secure, intuitive, robust) stands
+      without a measurable criterion; no unresolved placeholder (`TODO`,
+      `TKTK`, `???`, `<placeholder>`); one name per concept across all files
+      (no terminology drift). Ambiguity checks adapted from github/spec-kit
+      `analyze` (MIT).
 - [ ] Each contradiction or unresolved item is recorded in the PRD's
       `Open questions` with an owner — never in a new review file — and blocks
       the affected tasks until resolved.

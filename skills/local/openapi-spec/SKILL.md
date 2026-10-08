@@ -48,14 +48,23 @@ components:
       bearerFormat: JWT
 
   schemas:
-    Error:
+    # RFC 9457 Problem Details, served as application/problem+json
+    Problem:
       type: object
-      required: [code, message]
+      required: [type, title, status]
       properties:
-        code:
+        type:
           type: string
-        message:
+          format: uri-reference
+        title:
           type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
 
     User:
       type: object
@@ -76,29 +85,37 @@ components:
           type: string
           format: email
 
+    # Cursor pagination: cursors are opaque; no total count on large sets
     Pagination:
       type: object
       properties:
-        page:
-          type: integer
-        limit:
-          type: integer
-        total:
-          type: integer
+        next_cursor:
+          type: [string, "null"]
 
   responses:
     Unauthorized:
       description: Missing or invalid token
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: '#/components/schemas/Problem'
     BadRequest:
       description: Validation error
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: '#/components/schemas/Problem'
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying
+          schema:
+            type: integer
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
 
 paths:
   /users:
@@ -107,15 +124,17 @@ paths:
       operationId: listUsers
       tags: [Users]
       parameters:
-        - name: page
+        - name: cursor
           in: query
+          description: Opaque cursor from a previous response; never built by clients
           schema:
-            type: integer
-            default: 1
+            type: string
         - name: limit
           in: query
           schema:
             type: integer
+            minimum: 1
+            maximum: 100
             default: 20
       responses:
         '200':
@@ -133,6 +152,8 @@ paths:
                     $ref: '#/components/schemas/Pagination'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
     post:
       summary: Create user
@@ -165,7 +186,8 @@ For every endpoint, make sure it has:
 - `requestBody` with a full schema (if POST/PUT/PATCH)
 - Responses: the success response plus every error the code can actually return (OAS: "expected to cover a successful operation response and any known errors"). Do not pad with codes the route never emits; use `default` for an undocumented error shape.
 - `security: []` on operations that are intentionally public, so the global scheme does not imply auth that the route does not enforce
-- Query/path parameters with type and default
+- Query/path parameters with type and default; list `limit` bounded by `maximum`
+- Errors as RFC 9457 `application/problem+json`, `429` with `Retry-After` where the route is rate-limited, and `Idempotency-Key` on retried non-idempotent `POST` — see `references/http-api-design.md` (pagination, null vs absent, compatibility rules)
 
 ## Rules for Good Schemas
 
@@ -252,4 +274,6 @@ If the spec is already valid, consistent, and complete — say so and stop. Don'
 - OpenAPI Specification releases: <https://github.com/OAI/OpenAPI-Specification/releases> and version index <https://spec.openapis.org/oas/>
 - OAS 3.2.0 text (Path Item `query`, `additionalOperations`, `itemSchema`, Responses Object coverage, Response `summary`, patch-version rule): <https://spec.openapis.org/oas/v3.2.0.html>
 - OAS 3.1 Schema Object (no `nullable`): <https://spec.openapis.org/oas/v3.1.1.html#schema-object>
+- RFC 9457 Problem Details: <https://www.rfc-editor.org/rfc/rfc9457>; RFC 6585 (429): <https://www.rfc-editor.org/rfc/rfc6585>
+- Zalando RESTful API Guidelines (CC BY 4.0; rules #106, #107, #123, #153, #160, #176, #230, #254, checked 2026-10-08): <https://opensource.zalando.com/restful-api-guidelines/>
 - Redocly CLI commands and changelog: <https://redocly.com/docs/cli/commands>, <https://redocly.com/docs/cli/changelog>

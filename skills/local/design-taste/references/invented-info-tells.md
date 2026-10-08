@@ -92,15 +92,18 @@ of html/astro/jsx/tsx/vue/svelte/liquid files as questions. It reads text
 between tags plus `alt`/`aria-label`/`placeholder`/`title`, never class or style
 values. It also reports emoji in headings/buttons and **one action intent under
 several labels** (e.g. `Get started` / `Start free trial` / `Sign up` across the
-scanned files) as a question for the copy owner. Exit 2 means no scannable
+scanned files) as a question for the copy owner, plus two template-chrome
+markers from SKILL.md §4.3.1: a label ending in `→` (`arrow-label`) and an
+`A · B · C` meta string (`middot-meta`). Exit 2 means no scannable
 files: report **not checked**.
 
 `--css` scans css/scss/astro/jsx/tsx/vue/svelte/html source for style habits,
 also as questions: the number of uppercase tracked micro-labels against the
 number of `<section>`s, `100vh`/`h-screen`, outline removal with no
 `:focus-visible` in the same file, fixed-px grid columns, `animate-pulse` or
-`infinite` loops, scroll event listeners, and `overflow-x: hidden` on
-html/body/main. Each can be correct; the finding asks for the reason.
+`infinite` loops, scroll event listeners, `overflow-x: hidden` on
+html/body/main, and the cream/terracotta generated-look hex values `#F4F1EA`
+and `#D97757` (`default-look-palette`). Each can be correct; the finding asks for the reason.
 
 **Em-dash decision:** the em dash is correct punctuation (§5 of
 surface-and-mode-rules.md), so it is not a tell. The scanner prints only an

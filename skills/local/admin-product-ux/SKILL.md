@@ -70,7 +70,10 @@ Read [States and permissions](references/states-and-permissions.md).
 
 For a new multi-screen surface or material redesign, inspect the existing
 product first, then research relevant production products and authoritative
-patterns for the same operator job, scale, and risk. Record what was observed,
+patterns for the same operator job, scale, and risk (real SaaS screens:
+Nicelydone, SaaS Interface, Mobbin; readable production codebases: Supabase
+Studio, Dub, Plane, Twenty — study, never paste AGPL code; operator
+conventions: Shopify Polaris, Carbon data table). Record what was observed,
 why it transfers, and what must not be copied. If product or interaction
 direction remains open, compare two or three materially different candidates
 and recommend one; if evidence clearly selects one, state the choice and

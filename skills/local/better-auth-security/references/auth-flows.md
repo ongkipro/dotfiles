@@ -84,6 +84,15 @@ version and the official docs before writing code.
   (`cancelPendingInvitationsOnReInvite`) and show pending/expired state in the
   admin member list (`admin-product-ux` owns that screen contract).
 
+## Organization RBAC
+
+Checked against the [organization plugin docs](https://www.better-auth.com/docs/plugins/organization) on 2026-10-08; re-check on the installed version.
+
+- **Authorize mutations on the server.** `authClient.organization.checkRolePermission` runs synchronously on the client and does not see dynamic roles — use it only to show/hide UI. Every server mutation calls `auth.api.hasPermission({ headers, body: { permissions: { project: ["create"] } } })` (or an equivalent server-side check) and fails closed.
+- **Protect the last owner.** Built-in member routes refuse to let the only owner leave or be removed (`YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER`, `routes/crud-members.ts`, checked 2026-10-08); keep that invariant on any custom path (direct DB writes, admin tools, role updates) — transfer ownership first.
+- **Guard organization deletion.** Deletion removes all members, invitations, and org data. Set `disableOrganizationDeletion: true`, or gate/soft-delete in `organizationHooks.beforeDeleteOrganization`.
+- **`activeOrganizationId` is a pointer, not proof.** Before using the session's active organization in a custom route or query, confirm current membership server-side (e.g. `auth.api.getActiveMember`), and scope every query by that verified org — a member may have been removed since the session was set, and cookie cache can lag (see Session Caching in SKILL.md).
+
 ## OAuth and magic link
 
 - **OAuth:** keep state/PKCE handling as configured in `SKILL.md`. Callback

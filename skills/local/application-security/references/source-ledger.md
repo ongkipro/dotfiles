@@ -31,7 +31,8 @@ ASVS is a requirements catalog, WSTG is a verification guide, and the Top 10 pro
 
 ## Borrowed methodology
 
-- [Trail of Bits skills](https://github.com/trailofbits/skills) (CC BY-SA 4.0, accessed 2026-10-02) — `insecure-defaults` (refute each fail-open candidate before reporting) and `variant-analysis` (search for the same root pattern after a confirmed finding). Paraphrased into the inspect-first workflow; no text copied.
+- [Trail of Bits skills](https://github.com/trailofbits/skills) (CC BY-SA 4.0, accessed 2026-10-02) — `insecure-defaults` (refute each fail-open candidate before reporting) and `variant-analysis` (search for the same root pattern after a confirmed finding). Paraphrased into the inspect-first workflow; no text copied. Also `supply-chain-risk-auditor` (unassessable data is not a verdict) paraphrased into `references/supply-chain.md` (accessed 2026-10-08).
+- [getsentry/skills `secret-serialization`](https://github.com/getsentry/skills) (Apache-2.0, accessed 2026-10-08) — holder/sink model for credentials leaking through whole-object serialization; paraphrased into the sink table.
 
 ## Threat modeling, identity, and authorization
 
@@ -51,6 +52,7 @@ Use these to distinguish identity from permission, place object/function checks 
 - [OWASP SQL Injection Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html)
 - [OWASP OS Command Injection Defense Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html)
 - [OWASP Injection Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Injection_Prevention_Cheat_Sheet.html)
+- [OWASP Prototype Pollution Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Prototype_Pollution_Prevention_Cheat_Sheet.html)
 
 Validation constrains the data contract; parameterization or context-specific output handling protects the sink. Do not claim that a generic sanitizer solves SQL, command, template, URL, HTML, and log contexts.
 
@@ -84,6 +86,9 @@ Framework/auth documentation owns exact cookie and CSRF APIs. Verify headers on 
 - [OWASP Denial of Service Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Denial_of_Service_Cheat_Sheet.html)
 - [OpenSSF Scorecard](https://scorecard.dev/) — dependency-project security signals; signals require context and are not vulnerability proof.
 - [SLSA specification](https://slsa.dev/spec/) — build provenance and supply-chain integrity levels.
+- [Supabase: npm security](https://supabase.com/docs/guides/security/npm-security) — package-manager install hardening settings (release age, script allowlists, exotic subdeps, trust policy); paraphrased into `references/supply-chain.md` (accessed 2026-10-08).
+- [Spracklen et al., package hallucinations by code LLMs](https://arxiv.org/abs/2406.10279) — measured hallucinated package-name rates; basis for the new-package existence gate.
+- [gitleaks](https://github.com/gitleaks/gitleaks), [OSV-Scanner](https://google.github.io/osv-scanner/) — pre-commit secret and dependency-advisory scanners used in `references/verification.md`.
 - [GitHub dependency review documentation](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-dependency-review) — GitHub-native pull-request dependency review; workflow details belong to `github-actions`.
 
 Use the application's auth owner for password/session algorithms, the platform owner for secret stores, and `github-actions` for CI permissions and provenance. Advisory presence, package age, or a low project score does not prove application exploitability; establish reachability and affected behavior.

@@ -11,6 +11,19 @@ SQL semantics, constraints, generated/default values, transactions, locks,
 isolation, indexes, triggers, or migrations. A repository fake remains useful
 for pure application policy, but it cannot prove those properties.
 
+Pick the engine harness by what the test must prove (use the one the repository
+already has):
+
+- **Testcontainers (real PostgreSQL in Docker):** faithful server, extensions,
+  multiple connections; needed for locks, isolation, `SKIP LOCKED`, pool behavior,
+  and concurrency proofs. Slower start; pin the image to the production major.
+- **PGlite (Postgres compiled to WASM, in-process):** fast and hermetic, but single
+  user/connection, so it cannot prove locking, isolation, or concurrent-session
+  behavior; extension support differs. Good for query/constraint/migration smoke.
+- **Supabase RLS:** pgTAP SQL tests under `supabase/tests/database/`, run with
+  `supabase test db`, asserting per-role/per-user visibility; `supabase-stack` owns
+  the policies.
+
 ### Data isolation checklist
 
 - Allocate unique database/schema/namespace or rows per test worker using the

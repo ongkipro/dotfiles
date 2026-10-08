@@ -4,11 +4,13 @@
 Usage: tells-scan.py [--css] PATH [PATH...]
 Default (text) mode scans .html/.astro/.jsx/.tsx/.vue/.svelte/.liquid for text
 between tags plus alt/aria-label/placeholder/title, emoji in headings/buttons,
-and one action intent shown under several button/link labels.
+one action intent shown under several button/link labels, a trailing `→` on
+labels, and `A · B · C` meta strings.
 --css mode scans .css/.scss/.astro/.jsx/.tsx/.vue/.svelte/.html source for style
 habits: uppercase tracked micro-labels vs sections, 100vh/h-screen, outline
 removal without :focus-visible, fixed-px grid columns, pulse/infinite
-animation, scroll listeners, overflow-x hidden on html/body/main.
+animation, scroll listeners, overflow-x hidden on html/body/main, and the
+cream/terracotta generated-look hex values (#F4F1EA, #D97757).
 Findings are QUESTIONS for the brief, not defects. The scan is line-based:
 multi-line elements and copy held in JS/TS/JSON/CMS data are not seen.
 Exit 0 = ran (findings or clean), 2 = not applicable (no scannable files): report
@@ -35,6 +37,8 @@ TELLS = {
                    r"|revolutionary|cutting-edge|game[- ]changer|AI-powered)\b",
     "unsourced-badge": r"\bMost popular\b|\bBest[- ]?seller\b|\bTerlaris\b|\bPaling (?:laris|populer)\b",
     "scroll-cue": r"^\s*scroll(?:\s+down)?\s*[↓⌄]?\s*$|\bscroll to (?:explore|discover|continue)\b",
+    "arrow-label": r"\S\s*→\s*$",
+    "middot-meta": r"\S\s+·\s+[^·]+\s+·\s+\S",
 }
 NOCASE = {"filler-word", "unsourced-badge", "scroll-cue", "placeholder-contact"}
 TEXT = re.compile(r">([^<>{}]+)<|(?:alt|aria-label|placeholder|title)=\"([^\"]+)\"", re.I)
@@ -51,6 +55,7 @@ CSS_RULES = {
     "full-height": (r"\b100vh\b|\b(?:min-)?h-screen\b", "full viewport height: is it needed? prefer svh/dvh"),
     "pulse-infinite": (r"\banimate-(?:pulse|ping|bounce)\b|\binfinite\b", "looping motion: does it report live state?"),
     "scroll-listener": (r"addEventListener\(\s*['\"]scroll['\"]", "scroll listener: IntersectionObserver or scroll-driven CSS?"),
+    "default-look-palette": (r"(?i)#(?:f4f1ea|d97757)\b", "cream/terracotta generated-look hex: chosen for this brief?"),
 }
 OUTLINE_OFF = re.compile(r"outline\s*:\s*(?:none|0)\b|\boutline-(?:none|0)\b")
 GRID_PX = re.compile(r"grid-template-columns\s*:([^;}\n]*)|grid-cols-\[([^\]]*)\]")

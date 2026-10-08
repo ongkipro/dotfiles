@@ -4,6 +4,58 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## v2026.10.08
+
+Removed `impeccable`; rebuilt the UI/UX route around sourced, checkable rules;
+patched backend and security skills from verified upstream sources.
+
+### Removed
+
+- `impeccable` skill, its mandatory critique step in `CORE.md` and every
+  sibling route, and its `skill-map` entry (`f145ebb`). Visual critique stays
+  with `design-taste` / `admin-dashboard`; browser proof with `ui-validation`.
+
+### Changed
+
+- `design-taste`: generated-look calibration and plan check (Anthropic
+  `frontend-design`, Apache-2.0); decision record written before the first
+  visual edit, with page anatomy; real-product reference sources; Indonesian
+  triggers; new niche `professional-services.md` (B2B service firms);
+  `tells-scan.py` adds `arrow-label`, `middot-meta`, `default-look-palette`.
+- `design-taste/references/accessibility-notes.md`: 14 more web interface
+  checks (Vercel Web Interface Guidelines, MIT); `ui-validation` runs them as
+  a `file:line` pre-flight.
+- `shadcn-ui`: missing official composition/color rules (official `shadcn`
+  skill, MIT), style choice as a density decision (Mira/Rhea dense, Lyra/Sera
+  sharp), KPI recipe moved to semantic tokens.
+- `admin-dashboard`, `admin-product-ux`: table and filter craft (Pencil &
+  Paper, 2026), MIT table registries, AGPL and stock-template guardrails,
+  reference sources.
+- `application-security`: `references/supply-chain.md` (pnpm/npm install
+  hardening with verified versions, package-existence gate), pre-commit
+  scanner gate, prototype-pollution and whole-object serialization sinks.
+- `supabase-stack`: anonymous-role RLS trap, token validity after user
+  deletion, RLS on every exposed table, pgTAP RLS tests, incident rationale.
+- `openapi-spec`: RFC 9457 problem details, cursor pagination with bounded
+  `limit`, 429 + `Retry-After`; `references/http-api-design.md` (Zalando
+  rules, CC-BY-4.0).
+- `better-auth-security`: organization RBAC in `references/auth-flows.md`
+  (server `hasPermission`, last-owner and deletion guards).
+- `native-first`, `postgres-drizzle`, `testing-engineering`,
+  `prd-taskbreaker`, `github-actions`: package-existence check,
+  `pg_stat_statements` and N+1, Testcontainers vs PGlite vs pgTAP, vague-term
+  spec check, optional zizmor.
+- `dotsync pull` / `autopull` now also run `skill-update`, so a pulled skill
+  add or remove reaches every runtime (Codex per-skill links) on other devices.
+
+### Verification
+
+- Claims checked against primary sources (vendor docs, source code, papers);
+  unverifiable ones dropped. `skill-check` 74 skills 0 failures 0 warnings;
+  `skill-map-test`, `ai-policy-lint`, `skill-surface-check`,
+  `skill-check-test`, `skill-update-test`, `dotsync-test`,
+  `test-tells-scan.py`, `test-contrast.py` passed.
+
 ## v2026.09.29.1
 
 Memory-only follow-up to the morning tag: three facts learned in the day's

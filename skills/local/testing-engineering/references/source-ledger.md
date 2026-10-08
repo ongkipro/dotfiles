@@ -91,6 +91,15 @@ when the relevant package and DOM environment are already part of the project's
 harness; real browser, visual, keyboard, and hydration evidence still belongs to
 `ui-validation`.
 
+## Database test harnesses
+
+- [Testcontainers for Node.js](https://node.testcontainers.org/) — disposable real
+  PostgreSQL containers; check the installed module's API.
+- [PGlite](https://github.com/electric-sql/pglite) — WASM PostgreSQL; README states it
+  is single user/connection (checked 2026-10-08).
+- [Supabase database testing](https://supabase.com/docs/guides/database/testing) —
+  pgTAP tests in `supabase/tests/database/`, run by `supabase test db` (checked 2026-10-08).
+
 ## Standards
 
 No external specification is used as a normative source in the current skill.

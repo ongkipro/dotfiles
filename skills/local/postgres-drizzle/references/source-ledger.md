@@ -55,6 +55,8 @@ Project scripts and configuration win.
 - [Using EXPLAIN](https://www.postgresql.org/docs/current/using-explain.html) and
   [`EXPLAIN`](https://www.postgresql.org/docs/current/sql-explain.html) — plan evidence
   and the fact that `ANALYZE` executes the statement.
+- [`pg_stat_statements`](https://www.postgresql.org/docs/current/pgstatstatements.html) —
+  per-statement planning/execution statistics; check columns for the target version.
 - [`LIMIT`/`OFFSET`](https://www.postgresql.org/docs/current/queries-limit.html) —
   deterministic ordering and offset cost. Keyset predicates derive from the query's
   documented ordering/comparison semantics rather than a universal helper.

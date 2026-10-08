@@ -63,6 +63,7 @@ Every niche file uses these headings, in this order. Leave a heading with
 | [skincare-beauty.md](skincare-beauty.md) | skincare, cosmetics, body care, beauty D2C |
 | [food-beverage.md](food-beverage.md) | packaged food and drink, cafés and restaurants, catering |
 | [local-services.md](local-services.md) | clinics, workshops, salons, contractors, education, local professionals |
-| [saas-b2b.md](saas-b2b.md) | B2B software, tools, and services sold to teams |
+| [saas-b2b.md](saas-b2b.md) | B2B software and tools sold to teams |
+| [professional-services.md](professional-services.md) | B2B service firms: sales outsourcing, consulting, agencies, accounting, legal, IT services, training |
 
 Add a niche only when a real project needs it, following the same headings.

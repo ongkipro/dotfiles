@@ -155,6 +155,7 @@ Use `references/diagnostics-and-verification.md` for a concrete evidence sequenc
 1. Run the repository's existing workflow/static checks.
 2. If installed or accepted by the project, run `actionlint` from repository root. It validates syntax and many expressions, references, matrices, and shell embeddings; it does not prove permissions, settings, hosted runners, or environment gates.
    If the repository already enables code scanning, CodeQL can also flag vulnerable workflow patterns; treat its alerts as review input, not proof of safety.
+   When the project accepts it, `zizmor .` (MIT, third-party) audits workflow security patterns such as template injection, excessive permissions, unpinned actions, and dangerous triggers; same boundary — review input, not hosted-behavior proof, and do not install it unasked.
 3. Run the exact underlying project command locally for each changed `run` path, using the repository's supported runtime. Hand behavioral-test design to `testing-engineering`.
 4. Inspect the remote registered workflow and execute the smallest safe hosted event when the change depends on GitHub contexts, permissions, reusable-workflow wiring, OIDC, environments, or runner behavior.
 5. Record workflow/run URL or ID, event, ref and SHA, jobs observed, expected skip/cancel/approval behavior, artifact identity where relevant, and final conclusion. A merely queued run is not passing evidence.

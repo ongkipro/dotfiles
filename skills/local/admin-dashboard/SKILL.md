@@ -151,6 +151,29 @@ Recharts already ships via `shadcn-ui`. **Default is Recharts. Step up only when
 
 **Dense toolbar/filters:** desktop = search + faceted-filter + column-visibility dropdown → on mobile **collapse into a single "Filters" button that opens a `Sheet`/drawer**.
 
+**Table and filter craft** (Pencil & Paper data-table analysis, updated
+2026-02-23, and filter analysis, updated 2026-03-16): text left-aligned,
+numbers right-aligned in fixed-width digits (`tabular-nums` or a monospace
+face) with consistent precision; each header aligns like its column; separate
+rows with a light line rather than zebra stripes, which collide with hover,
+selected, and disabled states; on horizontal scroll keep the header and the
+leftmost identifier column sticky; offer row-height density (about 40 / 48 /
+56 px) when operators scan long lists; pick the detail path (expand row,
+quick-view side panel, modal, full page) by how much detail there is.
+Filters mirror the fields the list shows. Live filtering for cheap, small
+choices; per-filter or one global **Apply** for heavy datasets or slow
+backends. Show applied filters redundantly: kept visible in their menu, a
+marker (weight, background, or count) on each filter that is active, and an
+applied-filters summary of removable chips below the filter bar and above the
+results. Let operators save a frequent query; keep filter state in the URL
+(Vercel Web Interface Guidelines).
+
+**Build on, don't hand-roll:** for TanStack-based shadcn tables start from
+`sadmann7/tablecn` / Dice UI data-table (MIT; server-side pagination, sorting, and filtering; action
+bar) or `openstatusHQ/data-table-filters` (MIT; faceted filters, ⌘K filter,
+Drizzle server filters, installable through the shadcn CLI). Verify the
+current registry item and the project's TanStack major before installing.
+
 ## 5. KPI cards & honest analytics
 
 **KPI card anatomy:** metric label + **value (largest)** + **delta vs previous period** + trend direction (**arrow/±**) + optional sparkline + the time basis/comparison. Font hierarchy: value > label > context.
@@ -281,6 +304,8 @@ the most-skipped part of dashboard guidance.
 - **Don't build custom viz (visx)** when a bar chart already answers the question.
 - **One dashboard shell, reused.** Don't invent a new layout per page.
 - Tailwind Plus/Catalyst = **harvest the concept** (paid); shadcn blocks (free, open) cover the same ground.
+- **Study AGPL products, never paste them.** Dub, Midday, OpenStatus app, Plane, Twenty, and coss ui are AGPL: copy patterns, not files, unless the specific package is permissively licensed.
+- **Stock admin templates are wiring, not direction.** `shadcn-admin`-style starters ship the default look; take their auth/layout plumbing, then apply the accepted style and tokens.
 
 ## Sources and freshness boundary
 

@@ -15,19 +15,23 @@ with tempfile.TemporaryDirectory() as d:
         '<h2>🚀 Launch faster</h2><button>Buy ✨</button>\n'
         '<p>Harga Rp 555.000 — siap kirim</p>\n'
         '<a href="/s">Get started</a> <button>Start free trial</button> <a href="/j">Sign up</a>\n'
-        '<a href="/c">Contact us</a>\n')
+        '<a href="/c">Contact us</a>\n'
+        '<a href="/w">Read the case study →</a><p>Jakarta · B2B · Since 2019</p>\n'
+        '<p>Price · per month</p>\n')
     Path(d, "b.tsx").write_text('<img alt="Acme dashboard" /><h1>Seamlessly elevate</h1>')
     r = run(d)
     out = r.stdout
     assert r.returncode == 0, r.stderr
     for tag in ("locale-clock", "placeholder-name", "filler-word", "placeholder-contact",
-                "unsourced-badge", "scroll-cue", "emoji-in-heading", "emoji-in-button"):
+                "unsourced-badge", "scroll-cue", "emoji-in-heading", "emoji-in-button",
+                "arrow-label", "middot-meta"):
         assert tag in out, f"missing {tag}\n{out}"
     assert "cta-intent: one start/sign-up intent under 3 labels" in out, out
     assert "contact/sales" not in out, "a single label per intent is not a finding"
     assert out.count("placeholder-contact") == 1, "price 555.000 must not count as a 555 phone"
     assert "false-precision" not in out, "style attribute must not count as copy"
     assert "Real price" not in out
+    assert out.count(": middot-meta:") == 1, "a single middot is not a meta string"
     assert "info: 1 em-dash" in out and "em-dash:" not in out, "em-dash is info only, not a tell"
 
 # CSS mode.
@@ -39,7 +43,8 @@ with tempfile.TemporaryDirectory() as d:
         ".grid { grid-template-columns: 320px 1fr; }\n"
         ".ok { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }\n"
         ".dot { animation: blink 1s infinite; }\n"
-        "button:focus { outline: none; }\n")
+        "button:focus { outline: none; }\n"
+        ":root { --bg: #F4F1EA; --accent: #d97757; --ink: #1a1a1a; }\n")
     Path(d, "Page.astro").write_text(
         '<main class="overflow-x-hidden"><section class="h-screen">\n'
         '<p class="text-xs uppercase tracking-widest">Field notes</p></section>\n'
@@ -51,7 +56,7 @@ with tempfile.TemporaryDirectory() as d:
     out = r.stdout
     assert r.returncode == 0, r.stderr
     for tag in ("overflow-x-hidden", "full-height", "fixed-grid-px", "pulse-infinite",
-                "outline-removed", "scroll-listener", "micro-labels"):
+                "outline-removed", "scroll-listener", "micro-labels", "default-look-palette"):
         assert tag in out, f"missing {tag}\n{out}"
     assert out.count(": fixed-grid-px:") == 1, "minmax() tracks must not count as fixed px"
     assert out.count(": overflow-x-hidden:") == 2, out

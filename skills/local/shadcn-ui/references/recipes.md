@@ -403,13 +403,14 @@ export function SettingsPage() {
 
 ```tsx
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 import { Users, DollarSign, TrendingUp, ShoppingCart } from 'lucide-react'
 
 const stats = [
-  { title: 'Total Users', value: '12,345', change: '+12%', icon: Users },
-  { title: 'Revenue', value: 'Rp 45.6M', change: '+8%', icon: DollarSign },
-  { title: 'Growth', value: '23%', change: '+4%', icon: TrendingUp },
-  { title: 'Orders', value: '1,234', change: '+18%', icon: ShoppingCart },
+  { title: 'Total Users', value: '12,345', change: '+12%', good: true, icon: Users },
+  { title: 'Revenue', value: 'Rp 45.6M', change: '+8%', good: true, icon: DollarSign },
+  { title: 'Refund rate', value: '2.3%', change: '+0.4%', good: false, icon: TrendingUp },
+  { title: 'Orders', value: '1,234', change: '+18%', good: true, icon: ShoppingCart },
 ]
 
 export function StatsCards() {
@@ -419,16 +420,18 @@ export function StatsCards() {
         <Card key={stat.title}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
-            <stat.icon className="h-4 w-4 text-muted-foreground" />
+            <stat.icon className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stat.value}</div>
-            {/* Trend colour is a deliberate raw-palette exception: it encodes
-                meaning, not brand. Colour the delta by the DESIRED direction
-                (churn or latency rising is red), and keep the +/- sign so the
-                cue is not colour-only. See admin-dashboard §5. */}
+            <div className="text-2xl font-bold tabular-nums">{stat.value}</div>
+            {/* Colour the delta by the DESIRED direction (refund rate rising is
+                bad), keep the +/- sign so the cue is not colour-only, and use
+                semantic tokens: define `--success` (light + dark) beside the
+                existing `--destructive` and map it in `@theme inline` as
+                `--color-success`. No raw palette or manual `dark:`. See
+                admin-dashboard §5. */}
             <p className="text-xs text-muted-foreground mt-1">
-              <span className="text-emerald-600 dark:text-emerald-400">{stat.change}</span> from last month
+              <span className={cn('tabular-nums', stat.good ? 'text-success' : 'text-destructive')}>{stat.change}</span> from last month
             </p>
           </CardContent>
         </Card>

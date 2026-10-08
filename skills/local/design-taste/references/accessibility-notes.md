@@ -25,6 +25,19 @@ Kowalski's `skills` (MIT); filtered to what applies across stacks.
 | Motion media | Use `<video>` (muted, `playsinline`, poster) instead of large GIFs; anything that moves for more than 5 seconds has a pause control (WCAG 2.2.2) |
 | Numbers | Prices, quantities, and table figures use `font-variant-numeric: tabular-nums` where columns or changing values must align |
 | Dark mode | Native `<select>`, date inputs, and scrollbars follow `color-scheme`; set explicit option background/text colors where a platform ignores it (theme-implementation.md) |
+| Focus | Never `outline: none` without a visible `:focus-visible` replacement; focus is trapped, moved, and returned per the WAI-ARIA APG pattern |
+| Zoom | Never disable zoom (`user-scalable=no`, `maximum-scale=1`); mobile inputs use at least 16px text so iOS does not zoom on focus |
+| URL state | Filters, tabs, pagination, and expanded panels are reflected in the URL; Back/Forward restores them and the scroll position |
+| Navigation | Navigation uses `<a>`/framework `Link` (Cmd/Ctrl/middle-click work), never `<div onClick>`; anything that looks clickable is clickable |
+| Feedback | Destructive actions confirm or offer Undo; toasts and inline validation use a polite `aria-live` region; a loading button keeps its label next to the spinner |
+| Unsaved work | Warn before navigation discards unsaved form changes |
+| Motion | Animate `transform`/`opacity` only; never `transition: all` (list properties); animations are interruptible; honor `prefers-reduced-motion` |
+| Overflow | Text containers handle short, average, and very long content (`truncate`, `line-clamp-*`, `break-words`); flex children that truncate need `min-w-0` |
+| States | Empty, sparse, dense, and error states are designed; skeletons mirror final layout so nothing shifts; no dead ends without a next step |
+| Lists | Virtualize lists beyond roughly 50 rows; mutations target under 500 ms or show progress |
+| Hydration | Controlled inputs pair `value` with `onChange` (or use `defaultValue`); date/time output is guarded against server/client mismatch |
+| Locale | Dates, times, numbers, and currency use `Intl.DateTimeFormat` / `Intl.NumberFormat`, never hand-built strings |
+| Status | State is never conveyed by color alone; icon-only buttons have an accurate `aria-label`; native elements before ARIA |
 
 **Not adopted here:** English typographic rules such as forcing Title Case on
 headings and buttons or converting straight quotes to curly quotes. Indonesian
