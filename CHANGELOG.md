@@ -4,6 +4,21 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## v2026.10.08.4
+
+### Changed
+
+- `preferences.md` (owner decision): style rules are now research-driven
+  per project instead of a fixed house look. Shape language (radius,
+  surfaces, gradients, references) and section dividers follow the surface
+  catalog, inspected references, brand, and the distinctness check, recorded
+  in the design artifact; flat/micro-radius is one valid direction, not the
+  default. Quality rules stay fixed: no decorative Sparkles, no invented
+  meters, one contact CTA, solid star ratings.
+- Star-rating color: the old ambers fail WCAG 1.4.11 on white (`#f59e0b`
+  2.14:1); light-surface default is now `#d97706` (3.18:1).
+- `design-taste` §1.5, §2.1, §4.3.1 aligned with the change.
+
 ## v2026.10.08.3
 
 ### Added

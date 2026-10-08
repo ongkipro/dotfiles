@@ -113,9 +113,11 @@ system. Scale documentation to the change; never turn a spacing fix into a PRD.
 ## 1.5. Design context precedence
 
 Explicit user direction and accepted repository design contracts outrank this
-skill's defaults. The user's standing "UI & Design Invariant" entries in
-`~/.config/ai/memory/preferences.md` count as explicit direction on every
-project; read them before visual work rather than restating them here. Inspect brand assets, existing tokens, components, content,
+skill's defaults. Read the owner's "UI & Design" entries in
+`~/.config/ai/memory/preferences.md` before visual work: entries marked
+Invariant are explicit direction on every project; entries marked Default
+(and the shape-language rule) are starting points that the project's
+research may change, with the reason recorded. Inspect brand assets, existing tokens, components, content,
 and locale before inventing replacements. Preserve names, URLs, tracking,
 legal/consent text, and accessibility behavior unless their change is authorized.
 
@@ -171,8 +173,10 @@ redesign without an established brand system:
 4. On a shared template, keep the engine and components; give each brand
    its own theme layer (tokens for type, color, radius where invariants
    allow) and its own hero composition, imagery, and signature element.
-5. When the owner's invariants fix the shape language (flat, sharp,
-   micro-radius), vary the other axes; never relax an invariant for variety.
+5. Shape language (radius, surfaces, dividers) is itself a researched,
+   per-project choice (owner decision 2026-10-08); the owner's fixed rules
+   are the quality ones (no decorative Sparkles, no invented meters, one
+   contact CTA), which variety never relaxes.
 6. Record the comparison in the design artifact (Direction: "differs from
    <projects> on <axes>").
 
@@ -325,16 +329,15 @@ Calibration check before code: write the direction as 4–6 named colors, type
 roles, and a one-sentence layout concept, then ask whether a similar prompt
 for a different subject would land on the same plan. Revise each part that
 would, and record what changed. Spend boldness in one place; keep the rest
-quiet. The brief's explicit words and the owner's standing UI invariants
-(§1.5) always win, including when they ask for one of these looks (for
-example flat, sharp, micro-radius surfaces or a `01 / 02 / 03` index on a
-real sequence).
+quiet. The brief's explicit words and the owner's standing UI rules (§1.5)
+always win, including when they ask for one of these looks (for example a
+`01 / 02 / 03` index on a real sequence).
 
 When the pattern is merely an implementation fallback, revise the composition
 before adding more decoration. Prefer hierarchy through scale, whitespace,
 alignment, media placement, in-section dividers, sequencing, and contrast
-before another container (the user's invariants rule out divider lines
-between sections). A technically consistent component tree is not evidence of authored
+before another container (between sections the owner's default is
+whitespace or a background shift; a divider needs a recorded reason). A technically consistent component tree is not evidence of authored
 visual direction.
 
 ### 4.4. States, forms, and accessibility
