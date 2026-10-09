@@ -6,6 +6,11 @@ metadata:
   type: project
 ---
 
+> Historical reference: dated operational claims below have not been re-certified.
+> Verify the owning repository/runtime before relying on deployment, catalog,
+> integration, or installed-tool state. Retain dates as provenance; reusable
+> instructions come from the active skills and repository contracts.
+
 **★ UPDATE 2026-08-12 — SLUG RENAME + PLATFORM THEME HOLDER (PR #261/#262/#263).** Demo/real store slug **`batik-nusantara` → `batiknusantara`** (storefront live di **`batiknusantara.tokophi.id`**; host lama 301 via middleware storefront; prod+dev DB sudah di-rename; STORE_SLUG env Coolify + compose default ikut). ⚠️ Storefronts serve di zona **`tokophi.id`** (`<slug>.tokophi.com` 301 → `.id`); `batiknusantara.id` = portal berita PHP terpisah milik user, BUKAN toko. **Theme**: holder platform `tema-platform` (UUID tetap `a0000000-0000-4000-8000-000000000001`, suspended+comped, slug reserved) pegang default homepage/category/product; `PLATFORM_DEFAULT_THEME_STORE_ID` env → holder; semantik = **decision-B per-slot fallback** (theme milik store menang, slot kosong → holder; `byId` tak lintas tenant), `/tema` prefill copy-on-first-edit. N41 parity: prod schema=kode; drift kecil (`store_shipping_methods` demo + 8 review NULL) **sudah diperbaiki**, delta kurir **sudah diputuskan** (seed mengikuti operator, PR #268).
 
 **★ PAPAN KERJA PINDAH (sejak ~2026-08-16): antrean tunggal = root `TASKS.md`** (Stage 0–7, penomoran "Task N.M", 13 P0 + 20 P1 + 9 P2 + release gate), bukan lagi `specs/docs/tasks/NEXT.md`/`OPEN.md` (keduanya kini historis). **Protokol wajib di `AGENTS.md`: TASKS.md flag `[ ]`→`[~]`→`[x]` · entri `BUILD-LOG.md` tiap pass · sync `specs/docs/STATUS.md` · handoff di `specs/docs/tasks/`.** Status task dibaca dari BUILD-LOG (checkbox sering tak terisi). `TASKS.md` juga punya **Parallel Execution Contract** (wave/lane) — pakai itu untuk klaim lane, jangan tebak. **Rilis produksi masih DIBLOKIR sampai Stage 4 + Stage 7 lulus.**

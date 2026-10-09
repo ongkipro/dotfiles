@@ -91,14 +91,19 @@
 - `ocg/` is a NATIVE pi provider prefix (opencode-go), NOT 9router. Do not set `defaultModel: "ocg/..."` while `defaultProvider: "9router"` — invalid combination. `ocg/*` models are accessed via the `opencode-go` provider.
 
 
-### Graphify — no global install (reviewed 2026-07-29)
-- Tool: `Graphify-Labs/graphify` v0.9.29 (`graphifyy` on PyPI), Apache-2.0, Python 3.10+, tree-sitter plus optional semantic extraction. The repository is active and well tested; this is not a quality rejection.
-- Current installers are platform-selective, so the old claim that one install always edits both Claude and Codex was stale. The conflict remains: the default Claude install appends to `~/.claude/CLAUDE.md`, which is our shared `AGENTS.md` symlink, while `--platform agents` creates a second skill source outside `~/dotfiles/skills/local/`.
-- Our current navigation layer (`MEMORY.md`, project-memory index, `skill-list`, and `rg`) is adequate. A global package, generated graph state, hooks, and another query syntax do not yet earn their maintenance cost.
-- **What was taken:** make missing and ambiguous memory edges visible. `ai-memory-check` now validates relative Markdown links and wikilinks, and `ai-doctor` runs it.
-- **Reviewed lesson inbox (2026-08-15):** `ai-learn` adds a small capture → review → promote loop without a daemon, session-log ingestion, generated graph, or automatic Git mutation. Candidates are device-local; only explicit promotion updates canonical memory. `ai-doctor` exposes pending review work.
-- Revisit only for a specific large codebase or mixed research corpus where the current index plus `rg` measurably fails. Pilot ad hoc with code-only extraction before considering persistent hooks or an extension; do not install globally by default.
-- Full current analysis: `~/Documents/work/research/ponytail-graphify-dotfiles-analysis-2026-07-29.md`.
+### Graphify — optional code navigation, no global installer
+- The initial no-global-install decision remains. TASK-115 added an optional
+  code-only pilot and query lane; it did not install runtime hooks or replace
+  canonical AI configuration.
+- [codebase-navigation](../../../skills/local/codebase-navigation/SKILL.md) owns
+  the tested package pin, commands, scope selection, freshness, and limitations.
+  Start with repository search; use graph relationships when they help the task.
+- [Ecosystem adoption](../../../skills/local/development-kit/references/ecosystem-adoption.md)
+  records the Ponytail, Graphify, and Caveman adoption boundaries. Do not infer
+  current package quality or runtime state from the old July review.
+- Memory links remain validated by `ai-memory-check`; graph navigation does not
+  replace repository truth or memory hygiene. Reviewed learning stays a local
+  candidate until explicit promotion, without automatic Git mutation.
 
 ### Anti-pattern memory (lesson 2026-07-14)
 - **Operational facts that keep changing (service status, default model, versions) should not be copied into many files.** It happened before: the 9router autostart fact was copied 6×, and ALL of them became wrong the moment the service was disabled; pi's default model had 4 conflicting answers across 2 files.

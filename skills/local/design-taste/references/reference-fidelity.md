@@ -48,9 +48,11 @@ Treat the list as leads; verify every URL yourself.
 
 Score each candidate 0–2 on: content-shape fit, audience/market fit, conversion
 pattern fit (PDP, bundles, subscriptions), imagery fit, mobile quality,
-performance (does it load fast), accessibility basics. Choose **one target
-composition reference** and at most two directional references (type, colour,
-interaction). Record URLs, access date, scores, and what transfers or does not.
+performance (does it load fast), accessibility basics. Choose a primary target
+composition reference and add directional references (type, colour, interaction)
+when they resolve an open decision. The scoring is a comparison aid, not a
+required quota. Record URLs, access date, observations, and what transfers or
+does not; stop when the evidence supports the direction.
 
 ## 3. Capture — measure the reference
 

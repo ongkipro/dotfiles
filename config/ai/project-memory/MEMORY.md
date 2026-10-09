@@ -1,5 +1,9 @@
 # Memory Index
 
+> Dated build, deploy, catalog, quota, and installed-tool snapshots are historical
+> context, not execution truth. Recheck the owning repository or runtime before
+> using them. Index summaries do not authorize Git, secret, or production actions.
+
 > Checkout state is device-local and changes. On the Mac, verify it with `find ~/Projects -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort`; never infer that an indexed project is locally available. Read code progress from the repository's `STATUS.md`, `BUILD-LOG.md`, `TASKS.md`, or handover file rather than this index.
 
 - [Dealer Hino Official](dealerhinoofficial.md) — `dealerhinoofficial.com` lead generation; private repository `ongkipro/dealerhinoofficial`. Execution truth lives in its repository handover and task documents.
@@ -16,7 +20,7 @@
 - [Skill vs memory](skills-vs-memory-boundary.md) — personal project reference may stay in memory; authoritative project truth stays in the repository; reusable methodology belongs in skills.
 - [Pages deployment mode](cloudflare-pages-direct-upload-lock.md) — Direct Upload and Git integration are distinct setup paths; do not improvise with `wrangler pages deploy` when push-to-deploy is required.
 - [`CF_API_TOKEN` membajak wrangler](cf-api-token-hijacks-wrangler.md) — a stale zone-scoped variable can override OAuth and fake 403s; unset both token variables for interactive OAuth checks instead of assigning empty values.
-- [Biasakan git worktree](prefer-git-worktree.md) — work on repos via a separate worktree, don't checkout/commit directly on `main`.
+- [Git worktree preference](prefer-git-worktree.md) — isolate feature work; configuration repositories such as dotfiles stay on `main` under their repository contract.
 - [Commit menambah, bukan menimpa](additive-commits-no-history-rewrite.md) — don't force-push/rewrite history. Commit identity = noreply, don't use the real email.
 - [Pemilihan model Claude Code](claude-code-model-selection.md) — the `/model` picker is server-curated per account, not the availability list; unlisted models stay callable by full ID. Settings pin no `model`, so sessions run the default Opus 5.
 - [Antigravity CLI = `agy`](antigravity-cli-agy.md) — binary `agy`, NOT `gemini`; subcommand `plugin` not `extensions`. Gemini CLI is deliberately not installed. Also: the "⚠ Eligibility Check / profile picture TLS timeout" is cosmetic — restart, don't re-login.
@@ -30,7 +34,7 @@
 
 ## Merged from the Claude account-scoped store (2026-08-17)
 
-- [Handoff .md tiap mulai & selesai task](task-handoff-md-always.md) — tulis + commit file handoff di repo sebelum mulai dan setelah selesai tiap task, satu file per task
+- [Repository task handoff](task-handoff-md-always.md) — persist resumable state in existing task/status/evidence owners; no duplicate handoff files or automatic commits.
 - [Bahasa konten per-repo](bahasa-indonesia-not-malay.md) — bahasa konten beda per-repo: Kamus Indonesia (bukan Malay), dotfiles English
 - [Formalin — TWO repos](formalin-volumx-project.md) — dua repo terpisah — greenfield docs-only vs implementasi lama; baca STATUS.md di repo, bukan dari sini
 - [JASAWEBSITE.co project](jasawebsite-project.md) — agency site clone Hello Monday (Astro+CF, ~/Projects/jasawebsite, GitHub ongkipro/jasawebsite PRIVATE); DUA DB: D1 (leads+/admin lama) + Postgres (client portal /dashboard + admin panel /panel, docker jws-pg :5434); lucide per-icon import wajib, drizzle op dari pg-core/expressions; aset dummy
@@ -44,10 +48,10 @@
 - [Panna Coffee work project](panna-coffee-work-project.md) — "project akun kerja" = local Shopify theme prototype, not the Kelola workspace
 - [Pixs&Go rebrand to Play & Go](pixsgo-rebrand-play-and-go.md) — pixsgo.com is now Toys & Hobbies "Play & Go" (name stays Pixs&Go); offline game players + toys for kids
 - [Pix&Go Shopify store](pixsgo-shopify-store.md) — store 2mpt3p-xv (cart.pixsgo.com), 125 toys; CLI auth scopes; listing log in ~/Documents/Shopify/PixsGo/
-- [Pix&Go categories = real collections](pixsgo-categories-from-producttype.md) — storefront categories are the 9 real Shopify collections (getCategories in shopify.ts); blog journal lives in code (src/lib/journal.ts), admin token has no content scope
-- [pi.dev via 9router](pi-9router-setup.md) — pi routes through local 9router; default model toggles (read settings.json); configs in ~/.pi/agent/; pi has no auto-memory (uses AGENTS.md/CLAUDE.md context files)
+- [Pix&Go categories and collections](pixsgo-categories-from-producttype.md) — historical collection mapping and taxonomy lesson; verify live counts, content paths, and access scopes in the project before use.
+- [Optional Pi and 9Router](pi-9router-setup.md) — remote adapter ownership and credential-safe troubleshooting; no local-gateway requirement or memorized default model.
 - [9router autostart incident](pi-9router-autostart-incident.md) — 2026-08 stale/LAN-exposed/tunneled 9router; real cause was XDG autostart; split from pi-9router-setup.md
-- [pi 9router models and compaction](pi-9router-models-compaction.md) — working model list, compact-free extension, reserveTokens gotcha; split from pi-9router-setup.md
+- [Pi compaction](pi-9router-models-compaction.md) — source-owned fallback behavior and reserved-headroom debugging lesson; live catalogs are not stored in memory.
 - [Playwright / browser setup](playwright-browser-setup.md) — agent-browser 0.30.1 + Playwright 1.61.1 global; prefer system Chrome via channel; install-deps optional (needs sudo)
 - [Pixs&Go layout width](pixsgo-layout-width.md) — content capped 1200px, body 1920px; Tailwind v4 needs bracket arbitrary values (max-w-[1200px] not max-w-1200px)
 - [Dev toolchain via mise](dev-toolchain-mise.md) — CLI tools (fzf/fd/bat/delta/lazygit/zoxide/eza/yq/direnv) via mise, no sudo; nvm lazy-loaded; git+delta configured

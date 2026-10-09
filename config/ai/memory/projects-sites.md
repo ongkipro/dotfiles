@@ -1,5 +1,10 @@
 # Memory: Sites, commerce projects, reports, and repository history
 
+> Historical reference: dated operational claims below have not been re-certified.
+> Verify the owning repository/runtime before relying on deployment, catalog,
+> integration, or installed-tool state. Retain dates as provenance; reusable
+> instructions come from the active skills and repository contracts.
+
 > Project-specific advisory facts split from [projects.md](projects.md). Load this file only for a named site or repository below; each repository remains authoritative.
 
 ## Linux — Projects (reference from the main machine)

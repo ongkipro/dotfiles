@@ -1,6 +1,6 @@
 # OMP Build Log
 
-Updated: 2026-09-08
+Updated: 2026-10-10
 
 This hot log contains only current OMP operating decisions and reproducible
 evidence. Full history through the start of TASK-015 is retained in
@@ -9,6 +9,14 @@ through TASK-024 decision records in
 `docs/archive/OMP_BUILD_LOG_TASK_015_TO_024_DECISIONS.md`. The 2026-08-27
 reference-promotion entry is in
 `docs/archive/OMP_BUILD_LOG_2026-08-27_CROSS_DEVICE_REFERENCE.md`.
+
+## 2026-10-10 Native update and targeted repair on `rich`
+
+Native update: 18.8.6 → 18.8.7; verified SHA256:
+`b87f9835a0acdbb81bbbad8273aa2d999b608a208598421a9584cffeb3139a8a`.
+Private backup preceded targeted Claude 4.6 → 5.5 selector repair.
+Unrelated settings/auth/session files stayed intact; task behavior matches
+upstream defaults. TASK-117 records registry checks/review, not inference quality. Restart sessions.
 
 ## Current architecture
 

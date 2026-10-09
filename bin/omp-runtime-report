@@ -11,9 +11,7 @@ Read-only. Prints no account identifier, key, or token — only role names, mode
 selectors, and capability facts already public in the model registry.
 """
 from __future__ import annotations
-import json, re, shutil, subprocess, sys
-
-SELECTOR = re.compile(r"^(?P<provider>[^/]+)/(?P<id>.+):(?P<effort>[^:]+)$")
+import json, shutil, subprocess, sys
 # Roles whose whole job is looking at something. A model that takes no image here
 # is not "slightly worse" — it is blind, and it fails silently.
 VISUAL_ROLES = ("vision", "designer")
@@ -51,12 +49,14 @@ def main() -> int:
         print("omp-runtime-report: SKIP (omp tidak tersedia)")
         return 0
     config = omp_json(binary, "config", "list", "--json")
-    registry = omp_json(binary, "models", "--json")
+    registry = omp_json(binary, "models", "--kind", "all", "--json")
     if config is None:
         print("omp-runtime-report: SKIP (omp config list tidak menghasilkan JSON)")
         return 0
     models = {(m.get("provider"), m.get("id")): m for m in (registry or {}).get("models", [])}
-    have_registry = bool(models)
+    # Search/local auxiliary catalogs may exist without any authenticated chat
+    # provider. They must not turn an unavailable chat check into OK.
+    have_registry = any(m.get("kind", "chat") == "chat" for m in models.values())
 
     roles = (config.get("modelRoles") or {}).get("value") or {}
     chains = (config.get("retry.fallbackChains") or {}).get("value") or {}
@@ -71,11 +71,15 @@ def main() -> int:
     problems: list[str] = []
 
     def describe(label: str, selector: str, visual: bool) -> str:
-        match = SELECTOR.match(selector)
-        if not match:
+        provider, slash, model_id = selector.partition("/")
+        effort = None
+        # Exact ids may themselves contain colons (e.g. local model tags).
+        if (provider, model_id) not in models and ":" in model_id:
+            model_id, _, effort = model_id.rpartition(":")
+        if not slash or not provider or not model_id or effort == "":
             problems.append(f"{label}: selector tidak terurai: {selector}")
             return "?"
-        model = models.get((match["provider"], match["id"]))
+        model = models.get((provider, model_id))
         if not have_registry:
             return "-"
         if model is None:
@@ -83,10 +87,11 @@ def main() -> int:
             return "TIDAK ADA"
         notes = []
         levels = model.get("thinking") or []
-        if levels and match["effort"] not in levels:
+        if (effort not in (None, "auto", "off", "minimal", "low", "medium", "high", "xhigh", "max")
+                or (levels and effort not in (None, "auto", "off") and effort not in levels)):
             problems.append(
-                f"{label}: level '{match['effort']}' tidak dideklarasikan "
-                f"{match['id']} (tersedia: {', '.join(levels)})")
+                f"{label}: level '{effort}' tidak dideklarasikan "
+                f"{model_id} (tersedia: {', '.join(levels)})")
             notes.append("level!")
         if visual and "image" not in (model.get("input") or []):
             problems.append(f"{label}: {selector} tidak menerima image, padahal peran visual")
@@ -125,7 +130,7 @@ def main() -> int:
     if not have_registry:
         print("\nomp-runtime-report: SKIP (registry kosong; selector belum diverifikasi)")
         return 0
-    print("\nomp-runtime-report: OK (setiap selector resolve, setiap level dideklarasikan, "
+    print("\nomp-runtime-report: OK (setiap selector resolve, setiap effort valid, "
           "peran visual menerima image)")
     return 0
 

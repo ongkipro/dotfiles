@@ -129,8 +129,10 @@ single settled concern routes directly to its specialist. Apply these gates:
 
 `intent -> accepted contract -> UX/visual acceptance when visible -> implementation -> focused automated checks -> real runtime/browser proof -> independent review when risk requires -> release evidence`
 
-Independent review of risky work uses a reviewer from a different vendor
-through `cross-cli` when one is available.
+Independent review of risky work uses a separate capable reviewer through
+`cross-cli` or the runtime's native review lane. Same model/provider is eligible;
+vendor diversity is useful when it adds perspective, not a prerequisite.
+The parent owns integration and verification; self-review is not independent.
 
 For a skill or AI-workflow change, define the new capability scenarios and the
 existing regression scenarios before claiming improvement. Prefer executable,

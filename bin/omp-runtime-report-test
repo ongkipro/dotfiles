@@ -18,7 +18,7 @@ make_omp() {
 #!/usr/bin/env bash
 case "\$1 \$2" in
   "config list") cat '$config' ;;
-  "models --json") cat '$models' ;;
+  "models --kind") [ "\$3 \$4" = "all --json" ] || exit 1; cat '$models' ;;
   *) exit 1 ;;
 esac
 EOF
@@ -61,12 +61,44 @@ set +e; PATH="$TMP/bin-blind:$PATH" "$REPORT" > "$TMP/blind.out" 2>&1; rc=$?; se
 [ "$rc" -eq 1 ] || fail "a blind visual fallback must exit 1"
 grep -q 'tidak menerima image' "$TMP/blind.out" || fail "the refusal must name the reason"
 
-# An effort the model does not declare — how `gemini-3.7-flash:auto` survived.
-sed 's|"task":"p/blind:high"|"task":"p/blind:auto"|' "$TMP/ok.json" > "$TMP/level.json"
+# A concrete effort the model does not declare must still fail. Native auto
+# selects effort dynamically; it is not a missing concrete provider level.
+sed 's|"task":"p/blind:high"|"task":"p/blind:ultra"|' "$TMP/ok.json" > "$TMP/level.json"
 make_omp "$TMP/bin-level" "$TMP/level.json" "$TMP/models.json"
 set +e; PATH="$TMP/bin-level:$PATH" "$REPORT" > "$TMP/level.out" 2>&1; rc=$?; set -e
 [ "$rc" -eq 1 ] || fail "an undeclared thinking level must exit 1"
-grep -q "level 'auto' tidak dideklarasikan" "$TMP/level.out" || fail "the refusal must name the level"
+grep -q "level 'ultra' tidak dideklarasikan" "$TMP/level.out" || fail "the refusal must name the level"
+
+sed 's|"task":"p/blind:high"|"task":"p/blind:auto","image":"p/painter"|' "$TMP/ok.json" > "$TMP/native.json"
+cat > "$TMP/all.json" <<'EOF'
+{"models":[
+ {"provider":"p","id":"seer","kind":"chat","thinking":["low","high"],"input":["text","image"]},
+ {"provider":"p","id":"blind","kind":"chat","thinking":["low","high"],"input":["text"]},
+ {"provider":"p","id":"painter","kind":"image","input":["text"]},
+ {"provider":"p","id":"tagged:latest","kind":"chat","thinking":["low","high"],"input":["text"]}
+]}
+EOF
+make_omp "$TMP/bin-native" "$TMP/native.json" "$TMP/all.json"
+PATH="$TMP/bin-native:$PATH" "$REPORT" > "$TMP/native.out" 2>&1 \
+  || fail "native auto effort and bare image selector must pass"
+sed 's|p/blind:auto|p/blind:off|' "$TMP/native.json" > "$TMP/off.json"
+make_omp "$TMP/bin-off" "$TMP/off.json" "$TMP/all.json"
+PATH="$TMP/bin-off:$PATH" "$REPORT" > "$TMP/off.out" 2>&1 \
+  || fail "native off effort must pass"
+sed 's|p/blind:auto|p/tagged:latest|' "$TMP/native.json" > "$TMP/tagged.json"
+make_omp "$TMP/bin-tagged" "$TMP/tagged.json" "$TMP/all.json"
+PATH="$TMP/bin-tagged:$PATH" "$REPORT" > "$TMP/tagged.out" 2>&1 \
+  || fail "an exact model id containing a colon must pass"
+
+# Native clamps valid effort on nonthinking models; unknown suffixes still fail.
+sed 's/"thinking":\["low","high"\]/"thinking":[]/g' "$TMP/models.json" > "$TMP/plain-models.json"
+make_omp "$TMP/bin-plain" "$TMP/ok.json" "$TMP/plain-models.json"
+PATH="$TMP/bin-plain:$PATH" "$REPORT" > "$TMP/plain.out" 2>&1 \
+  || fail "valid effort on a nonthinking model may clamp natively"
+sed 's|p/blind:high|p/blind:garbage|' "$TMP/ok.json" > "$TMP/garbage.json"
+make_omp "$TMP/bin-garbage" "$TMP/garbage.json" "$TMP/plain-models.json"
+set +e; PATH="$TMP/bin-garbage:$PATH" "$REPORT" > "$TMP/garbage.out" 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "unknown suffix on a nonthinking model must fail"
 
 # A selector this device cannot reach at all.
 sed 's|"p/seer:high"|"p/absent:high"|' "$TMP/ok.json" > "$TMP/absent.json"
@@ -86,6 +118,12 @@ grep -q 'omp-runtime-report: SKIP' "$TMP/empty.out" || fail "empty registry must
 if grep -q 'omp-runtime-report: OK' "$TMP/empty.out"; then
   fail "empty registry must never claim selector health"
 fi
+
+echo '{"models":[{"provider":"web","id":"public","kind":"search"}]}' > "$TMP/aux-only.json"
+make_omp "$TMP/bin-aux" "$TMP/ok.json" "$TMP/aux-only.json"
+PATH="$TMP/bin-aux:$PATH" "$REPORT" > "$TMP/aux.out" 2>&1 \
+  || fail "auxiliary catalog without chat auth must skip"
+grep -q 'omp-runtime-report: SKIP' "$TMP/aux.out" || fail "auxiliary catalog must not prove chat health"
 
 # No omp at all.
 mkdir -p "$TMP/bin-none"

@@ -7,6 +7,11 @@ metadata:
   originSessionId: 3e4988c3-f68e-4be4-9f89-3ee747bbc9aa
 ---
 
+> Historical reference: dated operational claims below have not been re-certified.
+> Verify the owning repository/runtime before relying on deployment, catalog,
+> integration, or installed-tool state. Retain dates as provenance; reusable
+> instructions come from the active skills and repository contracts.
+
 Ubuntu 26.04, bash, terminal-first AI CLI workflow (claude/pi/codex via nvm node v24).
 
 **Toolchain decision (2026-06-25):** CLI tools managed by **mise** (`~/.local/bin/mise`, installs to `~/.local/share/mise`) — user-local, **no sudo**. Update with `mise up`. Tools: fzf, fd, bat, delta, lazygit, zoxide, eza, yq (v4 Go), direnv, tealdeer, starship (prompt), helix (`hx` — terminal editor, set as EDITOR and git core.editor for terminal-first / no-VSCode coding).

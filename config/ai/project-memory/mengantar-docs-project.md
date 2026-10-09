@@ -7,6 +7,11 @@ metadata:
   originSessionId: 21498f9a-f581-465f-900e-ef575ec4d1dd
 ---
 
+> Historical reference: dated operational claims below have not been re-certified.
+> Verify the owning repository/runtime before relying on deployment, catalog,
+> integration, or installed-tool state. Retain dates as provenance; reusable
+> instructions come from the active skills and repository contracts.
+
 `~/Documents/mengantar` = git repo **ongkipro/mengantar-documentation** (public): docs + toolkit
 integrasi API Mengantar (agregator kurir Indonesia). Awalnya reverse-engineered dari plugin WooCommerce
 *Woo Mengantar*; 2026-07-03 dicocokkan penuh dengan **docs resmi `app.mengantar.com/docs`** (static

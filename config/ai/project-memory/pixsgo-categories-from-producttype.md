@@ -7,6 +7,11 @@ metadata:
   originSessionId: 55d03e92-6d73-4109-8c38-acde4f1411f7
 ---
 
+> Historical reference: dated operational claims below have not been re-certified.
+> Verify the owning repository/runtime before relying on deployment, catalog,
+> integration, or installed-tool state. Retain dates as provenance; reusable
+> instructions come from the active skills and repository contracts.
+
 Pix&Go's Shopify store (2mpt3p-xv) now has **14 real collections** (as of 2026-06-29; was 9) plus `frontpage`/home: `3d-wooden-puzzles` (41), `more-toys` (30), `fidget-sensory-toys` (28), `building-blocks` (24), `hand-puppets` (20)⭐, `reborn-art-dolls` (19)⭐, `brain-teaser-puzzles` (11), `play-kitchens` (10)⭐, `inflatables-pool` (10)⭐, `music-boxes` (8), `plush-soft-toys` (6)⭐, `marble-run-kits` (6), `puzzles-for-kids` (2), `toy-blasters-guns` (2). ⭐ = 5 new collections created 2026-06-29 for the +96-product batch (full SEO desc/meta + AI cover image via Higgsfield, set via `collectionUpdate(image)`). Frontend deployed 2026-06-29 (commit 8af442f): cache synced to 217 products, 5 new slugs added to Header/Footer nav, built + `wrangler deploy`'d → all 92 new products LIVE on pixsgo.com (/shop, feed.xml, product pages). The 5 new collections were **published to the Online Store channel (manually in Shopify admin) on 2026-06-30**, so the Storefront API now returns all 14 and `npm run cache:fetch` is self-sufficient — no workaround needed. (Earlier stopgap `build_collection_cache.py` is now obsolete.) **Permanent safety net:** `cache:fetch` runs `scripts/fetch-shopify-cache.js && scripts/merge-admin-collections.mjs`; the merge step pulls via Admin API (CLI auth, read_products) any collection NOT yet Storefront-visible (excludes `frontpage`) and merges it into the cache — a NO-OP once everything is published, but keeps future new/unpublished collections from disappearing from nav/getCategories. Deployed commit d061fb9. NOTE: CLI store-auth token still LACKS `write_publications`, so collection publishing must be done in the admin UI (not via CLI `publishablePublish`).
 
 **The storefront's categories ARE these real collections** (excluding `frontpage`). Earlier they were derived from `productType` (a `PRODUCT_CATEGORIES` map) as an interim when only `frontpage` existed — that map is now removed.

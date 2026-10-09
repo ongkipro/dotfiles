@@ -10,12 +10,13 @@
 - Use modern tools: `rg` (not grep), `fd` (not find), `eza` (not ls), `bat` (not cat), `z` zoxide (not manual cd).
 - Git: quick commit via lazygit; backup = push to remote; DO NOT auto-commit (anti-pattern).
 - Git workflow (moved from the former always-loaded AGENTS.md, 2026-09-15): `git pull --ff-only` → `git status --short` → `lg`. From an AI tool shell invoke `lazygit` directly (`lg` is an interactive-shell alias) and only with a real TTY. Prefer plain non-interactive Git for deterministic automation. `dotsync status`, `dotsync doctor`, and `security-check` read without intentionally changing tracked content but are not a strict zero-write audit.
-- Dotfiles sync: when there's an update on GitHub (`ongkipro/dotfiles`), pull and deploy locally (especially memory `~/.config/ai/memory/`). Conversely, when there are local changes in `~/dotfiles` that need saving, commit + push to GitHub. Be precise — don't break existing patterns.
+- Dotfiles sync: when there's an update on GitHub (`ongkipro/dotfiles`), pull and deploy locally (especially memory `~/.config/ai/memory/`). Conversely, commit + push local changes only when the user explicitly requests those Git actions. Be precise — don't break existing patterns.
 - `dotpush ["message"]` = broad explicit fast path: enable driver → refresh machine snapshot → security-check → commit → **fetch+merge remote first (anti-divergence)** → push. Non-snapshot conflict stops for manual resolution. Prefer `lg` for mixed worktrees. `dotsync` with no arguments is read-only `status`; mutating variants require an explicit `commit`, `sync`, `push`, or `pull` verb.
 - Machine-specific snapshot files (`home/gitconfig`, `home/bashrc.snapshot`, `home/zshrc.snapshot`, `config/mise-config.toml`, `config/vscode-settings.json`) are marked `merge=ours` in `.gitattributes` → on sync always keep the local machine's version (needs `git config merge.ours.driver true`, set automatically by dotpush + install scripts).
 - VSCode optional, not mandatory — don't suggest it unless asked.
-- Shopify dev routing: **the official Shopify AI Toolkit is NOT installed** in Claude (verified 2026-07-14 — the only marketplace present is `claude-plugins-official`). The repo map is at `~/dotfiles/docs/shopify-ai-development-repos.md`. Don't clone Shopify support repos (dawn/horizon/hydrogen/cli/liquid/theme-liquid-docs) as duplicate skills; just reference the links unless asked to inspect/base on them.
-- Kelola exception: after completing any task in the Kelola repository, commit only the files changed for that task, push to `dev`, wait until the dev PM2 restart count increases, then exercise the changed flow on `dev.kelolatim.com`. Never include unrelated worktree changes. Push or merge to `main` only when explicitly requested.
+- Shopify dev routing: use the active owned skills and current official documentation. Plugin installation is runtime/device-local; inspect it when relevant instead of trusting an old installed-plugin snapshot. Do not clone support repositories as duplicate skills.
+- Kelola development delivery has a repository-specific `dev` verification workflow. Read its current repository contract and `kelola-deploy` when relevant; this memory does not independently authorize commit, push, restart, or deployment. Follow any applicable explicit authorization, and never include unrelated changes.
+
 
 ## Long tasks, debugging, and security
 
@@ -28,14 +29,14 @@
 - Keep always-loaded prompts concise, use progressive disclosure, prefer surgical minimal diffs and YAGNI, isolate secrets, and preserve approval/non-destructive gates.
 - Full protocol: [long-task-system.md](long-task-system.md). Runtime health: `ai-doctor` diagnoses; follow its narrow repair instruction and re-run the check rather than weakening a gate.
 
-## Skills — plumbing (verified 2026-07-14)
-- **Single source**: `~/dotfiles/skills/local/`. Consumers via SYMLINK: `~/.claude/skills`, `~/.pi/agent/skills`, and `~/.omp/agent/skills` (all → `dotfiles/skills/local`), plus `~/.agents/local-skills`.
-- ⚠️ **`~/.gemini/skills` DOES NOT EXIST** — Gemini CLI was removed (2026-07-13). Don't make it a sync target again. (`~/.gemini/` itself IS still kept: it contains `GEMINI.md` → `config/ai/context/antigravity.md`, read by Antigravity.)
-- `skill-*` scripts are in `~/dotfiles/skills/agents-bin/`, linked into `~/.agents/bin/`.
-- On macOS: `skill-update` needs bash 5+ (brew) and BSD `find` compatibility (already patched).
-- SEO: use the `seo-website-builder` skill (self-contained, has a full `references/`). ⚠️ The old corpora `~/Documents/seo-research-google/` and `~/Documents/SEO/` DO NOT EXIST — don't look for them. Don't claim secret Google algorithm knowledge.
-- Cloudflare and Shopify workflows come from active skills plus current official documentation. Do not restore the deleted `ai-toolkits/` router layer or the old `~/.ai/...` paths.
-- GitHub architecture references (harvested 2026-08-13): production patterns from pulled reference repos live in skill `references/` directories — `admin-dashboard` has `github-admin-patterns.md` and `next-shadcn-starter-patterns.md` (TanStack Table v9, Refine, Payload CMS, Medusa Admin, kbar, Clerk, next-shadcn-dashboard-starter); `storefront-development` has `next-commerce-patterns.md` (Next Commerce cart/checkout/catalog architecture). Load via the owning skill, not standalone.
+## Skills and runtime discovery
+
+[Shared AI context](../README.md) owns runtime wiring;
+[skill plumbing](../project-memory/skill-plumbing.md) provides the narrow reference.
+The generated [skill map](../../../skills/local/README.md) owns the inventory and
+capability routing. Use `skill-update` after source additions/removals and
+`ai-doctor` to check links. Do not recreate deleted router layers or duplicate
+skill sources from a historical setup note.
 
 ## Folder structure
 
@@ -56,7 +57,10 @@ All development projects: web app, SaaS, Shopify, bots, etc. (Created 2026-07-14
 
 **Filename:** `YYYY-MM-DD - title.md`
 
-> ⚠️ **`~/Documents/work/notes/` is practically DEAD for session logs** (verified 2026-07-20 on Mac: it holds only 2 files, the newest **2026-07-12**, plus the archive folder `projects-md-archive-2026-07-14/`). Real session logs now live in **`BUILD-LOG.md` / `WORKLOG.md` per-repo**, next to the code. Don't assume the "write session notes to `notes/`" convention still runs — for work tied to a repo, write it in that repo. `notes/` is left for loose drafts/ideas that have no repo. Check: `ls -la ~/Documents/work/notes/`.
+> Session progress belongs in repository task/status/evidence owners. The notes
+> folder is for drafts; do not infer its activity or contents from an old device
+> snapshot.
+
 
 **Rule:** DO NOT put files directly in `~/Documents/`. Always into a `work/` subfolder. The AI should report the file path at the end of its response.
 
@@ -72,4 +76,7 @@ All development projects: web app, SaaS, Shopify, bots, etc. (Created 2026-07-14
 ~/.config/ai/memory/     ← memory AI (symlink → dotfiles/config/ai/memory)
 ```
 
-> ⚠️ **AI memory only exists in `~/.config/ai/memory/`.** The legacy `~/dotfiles/memori-ai/` directory was removed; `~/Documents/memori ai/` does not exist. Do not recreate either path.
+> Shared durable memory lives in `~/.config/ai/memory/`; narrow project reference
+> lives in `~/.config/ai/project-memory/`; device-only facts live in `~/.config/ai-local/`.
+> Repository execution truth stays in each repository. Do not recreate legacy
+> `memori-ai` stores.

@@ -35,11 +35,12 @@ Do not use this skill for:
 - **Identify Invariants**: What MUST remain true under all conditions (e.g. idempotency, balance consistency, auth boundaries, zero data loss)?
 - **Pin the Earliest Divergence**: Locate the exact point where actual system state diverged from expected invariant, not just where the crash was reported.
 
-### 2. State & Branch Exploration (Tree of Thoughts)
+### 2. State & Hypothesis Exploration
 - Frame the problem as a state machine or execution timeline.
-- Generate at least 2 distinct hypotheses or solution paths:
-  - **Path A (Direct/Conservative)**: Smallest touch to existing mechanism.
-  - **Path B (Structural/Fundamental)**: Resolves underlying flaw or removes fragility.
+- Compare plausible hypotheses or solution paths when the evidence leaves a
+  material choice. A direct reproduction may already identify one root cause;
+  do not invent a second path to satisfy a quota. Consider a structural change
+  only when the smaller fix cannot preserve the required invariants.
 - For each path, identify the exact state transition where it succeeds or fails.
 - Define explicit **Falsification Criteria**: What observable evidence or test would definitively prove each hypothesis FALSE?
 
@@ -60,19 +61,26 @@ Do not use this skill for:
 
 ### 5. Verification Ledger
 - Define the exact verification command or test scenario *before* implementing.
-- Every non-trivial reasoning step requires a falsifiable check (unit test, curl command, or reproducible script).
+- Tie material behavioral claims to a falsifiable check (unit test, curl command,
+  or reproducible script). Reuse one check when it covers related claims; internal
+  reasoning does not require a separate test for every step.
 - Verify independently: never claim "it works" without executing the project's own test or verification command.
 
 ## Circuit Breaker (Anti-Thrashing)
 
 If a proposed fix or verification fails:
-- **Max 2 Iterations**: Do NOT proceed with a 3rd speculative tweak or blind retry.
-- **Halt and Step Back**: Immediately stop making edits. Return to Phase 1 (Deconstruct & Anchor Facts).
+- **Reassess on repeated failure**: When a retry adds no evidence, stop that
+  approach and return to observed facts. A deterministic failure needs diagnosis;
+  a transient failure may justify a bounded retry. Continue authorized work when
+  new evidence supports a different fix; no universal two-attempt ceiling.
 - **Audit Assumptions**: Re-read the runtime logs, inspect current disk state, and identify which assumption in the hypothesis was flawed before making another change.
 
 ## Output Format
 
-When presenting reasoned analysis to the user, keep explanations in casual Bahasa Indonesia (per user core preferences) while technical terms, code symbols, and architecture remain English:
+Present the conclusion, decisive evidence, tradeoffs, and executed verification
+in the user's language. The outline below is optional for a complex analysis;
+omit sections that do not help. Do not publish internal reasoning traces or
+manufacture branches to fill the outline.
 
 ```markdown
 ### 1. Problem Deconstruction & Invariants

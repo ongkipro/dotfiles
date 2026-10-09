@@ -7,6 +7,11 @@ metadata:
   originSessionId: 08b34e7f-f4f1-428f-ba4d-072e10c5af42
 ---
 
+> Historical reference: dated operational claims below have not been re-certified.
+> Verify the owning repository/runtime before relying on deployment, catalog,
+> integration, or installed-tool state. Retain dates as provenance; reusable
+> instructions come from the active skills and repository contracts.
+
 New Shopify store **jwy0qz-ic.myshopify.com** ("My Store 10", Basic plan, currency IDR, TZ Asia/Jakarta, owner <cf-account-email>). 98 raw dropship **furniture** products (end/side tables, console, coffee, nightstands, storage ottomans, accent/saucer chairs, shoe cabinets, dressers, mattress toppers, bed frames, + baby items). All ACTIVE but unoptimized (no SEO/type/tags); titles full of supplier brands (JHK, Tribesigns, SucceBuy, MCQ, HOOMIC, VEVOR); variants have `Color`/`Size`/`Ships From`.
 
 Same listing-optimization workflow as [[pixsgo-shopify-store]] and [[petcue-shopify-site]]. Docs workspace: `~/Documents/Shopify/jwy0qz-ic - My Store 10/` (README, LISTING-PLAYBOOK, STYLE-GUIDE, KEYWORD-MAP, OPTIMIZATION_GUIDE, products_master.csv, .products_full.json, sync_data.sh, generate_files.py).

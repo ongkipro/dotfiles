@@ -34,7 +34,9 @@ Read only the reference for the stack you're in. Don't load them all.
 
 ## The dependency test
 
-Before `npm i` / `pnpm add`, answer all four. Any "no" → don't install.
+Before `npm i` / `pnpm add`, check reuse first. If either of the first two
+answers is yes, use that existing capability. Consider a new dependency only
+when both are no and the cost/compatibility checks below support it.
 
 1. **Does the runtime already do it?** (`fetch`, `URL`, `Intl`, `crypto`, `structuredClone`, CSS, a DB constraint)
 2. **Does an already-installed dep do it?** Check `package.json` first — you probably have it.

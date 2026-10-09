@@ -7,6 +7,11 @@ metadata:
   originSessionId: a3473a68-f7cb-4f46-aa14-c07821480525
 ---
 
+> Historical reference: dated operational claims below have not been re-certified.
+> Verify the owning repository/runtime before relying on deployment, catalog,
+> integration, or installed-tool state. Retain dates as provenance; reusable
+> instructions come from the active skills and repository contracts.
+
 AutoLaris = the single platform-managed **payment gateway** (PSP) in [[tokophi-project]], mirroring the [[kiriminaja-integration]] shipping pattern (config in super-admin, client just uses it). Docs repo: `ongkipro/autolaris-payment-gateway` (public — Create Payment VA/QRIS/DANA + callback).
 
 **API:** base `https://api-h2h.autolaris.com` (same for prod/dev, use dev key). Auth `Authorization: Bearer <key>` + `Content-Type: application/json`. Key in **gitignored** `.env.local` as `AUTOLARIS_API_KEY` / `AUTOLARIS_BASE` (dev key not committed). Dashboard: seller.autolaris.com; prod needs IP whitelist.

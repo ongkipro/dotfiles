@@ -1,18 +1,34 @@
 ---
 name: pi-9router-models-compaction
-description: Verified 9router model list for pi (as of 2026-06-25), the compact-free compaction extension, and the reserveTokens compaction trigger gotcha
+description: Pi compaction headroom semantics and source-owned optional compact-free fallback behavior; no live model catalog
 metadata:
   node_type: memory
   type: project
 ---
 
-**Working models via 9router (as of 2026-06-25):**
-- `cx/gpt-5.5`, `cx/gpt-5.4`, `cx/gpt-5.4-mini` — GPT via 9router pooling 3 Codex OAuth accounts (romario.sumali, dinarevitabeautyinu, aussie.bensu5m) → ~3x limit + auto-rotate. Better than pi's native single-account `openai-codex/*`. `cx/gpt-5.3-codex*` NOT supported via 9router chat proxy (400 error).
-- `oc/deepseek-v4-flash-free` — OpenCode free passthrough, no login/key, no risk-control, no quota use. (was the default at one point; current default is opencode-go/deepseek-v4-pro). Reasoning model (set maxTokens ≥16384 so visible content isn't eaten by reasoning_content).
-- `opencode-go/deepseek-v4-pro`, `opencode-go/glm-5.2`, `opencode-go/kimi-k2.6` — higher quality, but route via user's OpenCode API key (connected in 9router as "Irwan", apikey) so they may consume OpenCode plan credits. opencode-go qwen3.7-max & minimax-m3 return empty, skip.
-- `minimax/MiniMax-M2.7 / M2.5 / M2.1` — work via user's MiniMax API key (connected in 9router as "Irawan"). MiniMax inlines `<think>` in content. M3 returns empty, skip.
-- `mmf/mimo-auto` (MiMo Code Free) — works but frequently throttled with 441 risk_control; unreliable backup only.
+# Pi Compaction Reference
 
-**compact-free extension** (`~/.pi/extensions/compact-free/index.mjs`, registered in settings.json packages as `../extensions/compact-free`): hooks `session_before_compact` so context compaction/summarization runs on a cheap model instead of the main model — saves GPT-5.4/Claude sub limits when running expensive main models. Model chain (tries in order): `9router/oc/deepseek-v4-flash-free` → `9router/minimax/MiniMax-M2.5` → `9router/cx/gpt-5.4-mini` (added 2026-06-25 as cheap backup before falling to main model) → default compaction (main model). Verified working 2026-06-25 (summary generated via deepseek-v4-flash-free, ~9-14s). Uses pi-ai `complete()` + `serializeConversation`/`convertToLlm`. Optional breadcrumb log at `~/.pi/compact-free.log`. Note: project-local `.pi/settings.json` compaction overrides seemed not to apply in testing; global `~/.pi/agent/settings.json` compaction settings did.
+Do not retain a live model catalog, account pool, quota, default model, or fallback
+chain in memory. They drift independently of this file. See [[pi-9router-setup]]
+and the [optional Pi contract](../../pi/README.md) for ownership.
 
-**Compaction trigger (IMPORTANT):** pi fires `shouldCompact` when `contextTokens > contextWindow − reserveTokens` (`dist/core/compaction/compaction.js:152`). So `reserveTokens` is *headroom reserved*, NOT a max — a LARGE value makes it compact EARLY. Default 16384. Was misconfigured to `270000` (with 272k window → compacted every chat at ~2k tokens). Fixed 2026-06-25 to `reserveTokens: 22000` (compacts at ~250k/272k) + `keepRecentTokens: 6000` (was 400, too aggressive). Summary maxTokens = `min(0.8*reserveTokens, model.maxTokens)` for the default path; compact-free hardcodes its own 8192.
+The tracked [compact-free implementation](../../pi/extensions/compact-free/index.mjs)
+handles `session_before_compact`, tries the actual `COMPACT_MODELS` array in
+order, and falls back to normal compaction when its candidates cannot succeed.
+Read the implementation rather than treating its introductory comment or an
+old successful run as today's provider availability. Its breadcrumb log is
+device-local evidence; avoid copying conversation content into shared memory.
+
+## Durable debugging lesson
+
+`reserveTokens` is reserved headroom, not a maximum context length. In the Pi
+implementation observed during the original incident, compaction was triggered
+when `contextTokens > contextWindow - reserveTokens`. An oversized reserve
+therefore caused early compaction. Recheck the installed Pi implementation
+before changing settings; do not infer current defaults or limits from this
+historical formula.
+
+When diagnosing compaction, distinguish the active model's context window,
+headroom, retained recent tokens, and the summarizer's output limit. Verify with
+an actual local compaction event before claiming a fix. Do not invoke a paid
+provider or access credentials without the relevant authorization.

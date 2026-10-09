@@ -7,6 +7,11 @@ metadata:
   originSessionId: ec759fe5-aa4a-472c-80c3-485d3027656e
 ---
 
+> Historical reference: dated operational claims below have not been re-certified.
+> Verify the owning repository/runtime before relying on deployment, catalog,
+> integration, or installed-tool state. Retain dates as provenance; reusable
+> instructions come from the active skills and repository contracts.
+
 Personal portfolio site **ongki.pro** ("Digital Growth Systems Builder" — funnel/conversion architecture, paid media, Shopify, analytics, AI workflows). Repo github.com/ongkipro/ongki.pro. Local clone was DELETED on 2026-06-30 — plan is to rebuild from 0 but keep the understanding below for the update.
 
 **Stack (original):** React 19 + Vite 6 + Tailwind v4 (@tailwindcss/vite) + react-router-dom v7 SPA + react-helmet-async (SEO) + motion + lucide-react. Originally a Google AI Studio app (Gemini API key refs in vite.config/.env.example but Gemini not actually used in code).

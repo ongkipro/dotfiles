@@ -7,6 +7,11 @@ metadata:
   originSessionId: a3473a68-f7cb-4f46-aa14-c07821480525
 ---
 
+> Historical reference: dated operational claims below have not been re-certified.
+> Verify the owning repository/runtime before relying on deployment, catalog,
+> integration, or installed-tool state. Retain dates as provenance; reusable
+> instructions come from the active skills and repository contracts.
+
 KiriminAja (Indonesia multi-courier aggregator) integration in [[tokophi-project]] — platform-managed shipping (ADR 0004: config in super-admin, output in client admin).
 
 **Sandbox**: base `https://tdev.kiriminaja.com` (prod `https://client.kiriminaja.com`). Auth: `Authorization: Bearer {key}` + Accept/Content-Type `application/json`. Sandbox key stored in **gitignored** `.env.local` + root `.env` as `KIRIMINAJA_API_KEY` / `KIRIMINAJA_ENV` (NOT committed; `.env.example` has a placeholder). Docs: developer.kiriminaja.com/docs; exact endpoints came from the **Postman collection** (community docs at `ongkipro/kiriminaja-documentation` abstract the paths; the official portal hides them).

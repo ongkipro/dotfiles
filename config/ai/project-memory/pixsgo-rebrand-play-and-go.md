@@ -7,6 +7,11 @@ metadata:
   originSessionId: 15d467b4-c0ee-433c-82de-045a30445d77
 ---
 
+> Historical reference: dated operational claims below have not been re-certified.
+> Verify the owning repository/runtime before relying on deployment, catalog,
+> integration, or installed-tool state. Retain dates as provenance; reusable
+> instructions come from the active skills and repository contracts.
+
 The pixsgo.com Astro store (in /home/fantastico/Projects/pixsgo) was rebranded from a retro-gaming
 niche to **Toys & Hobbies** under the **"Play & Go"** philosophy (USA market). Done 2026-06-25.
 

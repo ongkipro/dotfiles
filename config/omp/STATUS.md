@@ -48,20 +48,21 @@ curated cross-CLI lifecycle, not bidirectional raw session synchronization.
   than passing quietly.
 - `installer-link-test` proves migration removes managed legacy links while
   preserving unmanaged runtime state.
-- `omp-effective-routing-test` also validates `config/omp/overlays/*.yml`, one
-  profile per provider shape. It splits on the provider: a model or thinking
-  level that does not hold up under a provider this device *does* authenticate is
-  a defect and fails; selectors under a provider it does not have are counted and
-  reported as unjudged, never as health. Requiring every overlay to resolve on
-  every device would be the same mistake as requiring the Mac to match this
-  config.
+- `omp-effective-routing-test` checks that retired `config/omp/overlays/*.yml`
+  still load as settings. Their selectors are historical and not certified as
+  live routes. The active native configuration and explicitly recommended
+  `config.yml` retain registry validation; providers absent from a device remain
+  unjudged. Revalidate a retired overlay with `omp-runtime-report` when explicitly
+  selecting it for a session.
 - `ai-doctor --runtime` (`bin/omp-runtime-report`) answers the question
   enforcement cannot: what each role resolves to *here*, which agent uses it,
   and whether its selector exists in this device's registry. This is not a
   live inference or latency probe. Exits non-zero on an
-  unavailable selector, an undeclared thinking level, or a visual role on a
+  unavailable selector, an unsupported concrete thinking level, or a visual role on a
   model that takes no image. The earlier Mac audit found a visual fallback
   defect; that historical result is not a statement about its current state.
+  The report uses the all-kind catalog for image roles and accepts bare selectors
+  and native auto/off effort. Auxiliary catalogs alone cannot certify chat health.
 
 The historical custom routing files remain under this directory temporarily as
 reviewable evidence. Only `config.yml` is the current executable reference; it
@@ -78,7 +79,8 @@ selector is sound wherever its provider is available.
 
 What every device must satisfy is narrower, and as of 2026-08-31 the test also
 checks **this device's own native config** against **its own registry**: every
-selector resolves, every effort is a level that model declares, and `vision` and
+selector resolves, concrete efforts match supported levels (native auto/off are
+valid controls), and `vision` and
 `designer` — roles and fallbacks alike — accept image input. Device adaptation
 stays free; incoherence does not. Pointing those three rules at the Mac found a
 real defect on the first try: its `vision` fallback is

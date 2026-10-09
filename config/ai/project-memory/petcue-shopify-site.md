@@ -7,6 +7,11 @@ metadata:
   originSessionId: 0c64c809-05f4-4dad-808b-69ea887649ce
 ---
 
+> Historical reference: dated operational claims below have not been re-certified.
+> Verify the owning repository/runtime before relying on deployment, catalog,
+> integration, or installed-tool state. Retain dates as provenance; reusable
+> instructions come from the active skills and repository contracts.
+
 **Snapshot dated 2026-06-29.** PetCue is a pet-supplies Shopify store with an
 Astro storefront. All observations below require fresh repository and platform
 evidence before use.

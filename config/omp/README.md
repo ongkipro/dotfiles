@@ -38,6 +38,37 @@ Dotfiles continues to provide OMP with:
 - shared core plus the OMP adapter through `~/.omp/agent/AGENTS.md` (rendered `config/ai/context/omp.md`);
 - owned skills through `~/.omp/agent/skills`.
 
+## Defaults and targeted repair
+
+Prefer upstream behavior settings and a small device-local set of intentional
+model choices. A whole-directory reset also discards useful provider/session
+state and shared-context links; it is not a routine update procedure.
+
+1. Run `omp update --check`, then `omp update` when an update is wanted. Restart
+   an already running OMP session to use the new executable.
+2. Use `omp config path` to identify the active profile. Inspect only relevant
+   non-secret settings; `omp config get` can print credential values, whereas
+   `omp config list --json` masks schema-declared credentials.
+3. Compare with upstream defaults using an isolated agent directory, not by
+   deleting the real profile. Back up the active config outside the repository
+   with private permissions before a repair.
+4. Run `omp-runtime-report`. Check available selectors with `omp models --json`
+   and use `omp models --kind all --json` when image or other auxiliary roles
+   are involved. A bare selector inherits effort; `:auto` is native automatic
+   effort and `:off` disables thinking. Concrete efforts must use native names; declared thinking levels are checked
+   when available. Nonthinking models may clamp a valid effort natively.
+5. Repair only stale choices using native `omp config set`, or remove a specific
+   unwanted global setting with `omp config reset <key>`. Other configured
+   layers may still supply it; reset does not always mean the built-in default.
+
+Do not infer live reachability, quota, image quality, or development performance
+from registry validation. Retired files under `overlays/` are historical settings
+examples: their syntax may still load, but their old selectors are not certified
+against today's providers. Revalidate an overlay before explicitly selecting it.
+
+Official references: [settings](https://github.com/can1357/oh-my-pi/blob/main/docs/settings.md),
+[model resolution](https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/src/config/model-resolver.ts).
+
 ## Memory boundary
 
 OMP uses the same curated memory lifecycle as the other supported AI CLIs.

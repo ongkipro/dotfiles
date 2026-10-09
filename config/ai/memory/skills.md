@@ -15,7 +15,7 @@
   integrated full admin, Vite + React for an API-backed client app, and Astro +
   React for route-oriented bounded interactivity; preserve semantic HTML and
   minimal hydration.
-- Infrastructure interests: Cloudflare Workers/R2/D1/Queues, VPS, PostgreSQL (Drizzle), queue systems, scraping, API architecture, multi-domain publishing. (**Supabase NOT used** — the CLI is deliberately not installed; see development.md.)
+- Infrastructure interests: Cloudflare Workers/R2/D1/Queues, VPS, PostgreSQL (Drizzle), queue systems, scraping, API architecture, multi-domain publishing. (plain PostgreSQL is the usual baseline; Supabase applicability follows the project contract, and CLI installation is device-local.)
 
 ## Marketing & conversion
 - Strong areas: Meta Ads, Google Ads, landing page copywriting, funnel strategy, product research, conversion optimization, tracking/attribution, ecommerce positioning. Local skills: `meta-ads-signal-engine` (Pixel + CAPI, deduplication event_id, identity normalization, outbox pattern), `google-ads-signal-engine` (Google Tag / GTM, Consent Mode v2, Enhanced Conversions, transaction_id, gclid/gbraid/wbraid, offline conversion upload), `tiktok-ads-signal-engine` (TikTok Pixel, Events API, ttclid/ttp, event_id dedup), and `hydrogen-headless-tracking` (Shopify Hydrogen event bus, WeTracked/Elevar parity, Safari ITP 1-yr cookies, Cart Attributes cross-domain bridge, webhook Purchase CAPI outbox). **Signal engine skills do not pin API versions** — they carry "verify before you code" guidance against changelogs.
@@ -23,7 +23,7 @@
 - Prefers direct, critical analysis over agreeable brainstorming.
 
 ## SEO & content
-- Focus areas: Shopify SEO, Astro/static SEO, German SEO articles, Medium SEO, Pinterest SEO, affiliate SEO, indexing strategy, internal linking, semantic page structure, image optimization, AEO/GEO (Google AI Overviews, ChatGPT Search, Perplexity). Local skills: `ai-traffic-os` (4-layer traffic system, AnswerBox 134–167 words chunking, 2026 crawler matrix, multi-modal schema, dual-path referral tracking) and `automated-traffic-pipeline` (pSEO programmatic engine, IndexNow auto push, 90-day freshness cron, Pinterest/RSS distribution flywheel).
+- Focus areas: Shopify SEO, Astro/static SEO, German SEO articles, Medium SEO, Pinterest SEO, affiliate SEO, indexing strategy, internal linking, semantic page structure, image optimization, AEO/GEO (Google AI Overviews, ChatGPT Search, Perplexity). Local skills: `ai-traffic-os` owns AI discovery and referral measurement; `automated-traffic-pipeline` owns indexing and distribution automation. Read their current contracts rather than treating word counts, crawler lists, or refresh intervals in memory as universal requirements.
 - Article preference: dynamic templates that can render guide, comparison, review, and FAQ content while remaining SEO-friendly.
 - Avoid claiming secret Google algorithm knowledge; use evidence labels and source-backed reasoning when current facts matter.
 
@@ -123,6 +123,10 @@ in prose. Read the map for coverage; read this file for calibration.
   `shadcn-ui`, and `ui-validation` own distinct product, visual, component, and
   browser-validation responsibilities.
 - `lean-code-review` owns evidence-backed simplification review.
+- `codebase-navigation` owns search-first call/dependency tracing with optional
+  code-only Graphify extraction; it does not replace source verification.
+- `volumx-writer` owns meaning-preserving writing and concise terminal dialogue,
+  including Caveman-inspired replies without a fixed word quota.
 - `cross-cli` owns handing one lane (research, review, second opinion, bulk
   drafting) to another installed AI CLI through `ai-ask`, read-only by default;
   lanes are never locked to a CLI and OMP stays upstream-native.

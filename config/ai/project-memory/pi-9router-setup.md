@@ -1,36 +1,35 @@
 ---
 name: pi-9router-setup
-description: pi.dev (pi-coding-agent) is wired to route through local 9router AI router; default free model + config locations
-metadata: 
+description: Optional Pi adapter, remote 9Router configuration ownership, and credential-safe troubleshooting
+metadata:
   node_type: memory
   type: project
-  originSessionId: 94b5abab-6d9a-43ee-a856-b32cfccea19b
 ---
 
-pi.dev CLI (`@earendil-works/pi-coding-agent`, bin `pi`) routes LLM requests through **9router** (local AI router, `npm i -g 9router`, server at `http://localhost:20128/v1`, dashboard 20128). This replaced the old **omniroute** pi extension, which was deleted on 2026-06-25.
+# Optional Pi and 9Router Reference
 
-**2026-07-03 — restricted to OpenAI/ChatGPT ONLY (global).** Public tunnel = 9router's own branded domain `https://rbq97ts.abc-tunnel.us/v1` (shortId `bq97ts` in `~/.9router/tunnel/state.json`; `tunnelEnabled:true`, `requireApiKey:true`, apiKey via `secrets-env` (never written to memory)). 9router 0.5.15 has NO per-tunnel/per-key model allowlist — the tunnel proxies straight to :20128/v1 and serves whatever providers are active, so the ONLY way to limit it is global. Disabled 6 providers (antigravity, gemini, gemini-cli, groq, minimax, opencode-go) via `PUT /api/providers/{id}` `{"isActive":false}` (dashboard login `POST /api/auth/login` `{password}`, cookie-jar; password gated + 5-fail lockout). Kept only the 3 **codex** OAuth accounts → `/v1/models` now returns exactly `cx/gpt-5.5, cx/gpt-5.4, cx/gpt-5.4-mini`. Since `ocg/deepseek-v4-pro` died, **pi defaultModel switched to `cx/gpt-5.5`**. Rewrote `~/.pi/agent/models.json` provider `9router` (backup `~/.pi/agent/models.json.bak-20260703`). **compact-free** `COMPACT_MODELS` = NATIVE pi.dev providers (NOT 9router, per user 2026-07-03): `opencode-go/deepseek-v4-pro` (effort high) → `minimax/MiniMax-M2.7` → `openai-codex/gpt-5.5` → fallback pi default. Extension now passes `reasoning:{effort}` per-target + `maxTokens:16384` (was 8192; reasoning models need headroom). **Default pi = `opencode-go/deepseek-v4-pro`** (defaultProvider `opencode-go`). KEY FACT: pi's native registry (`dist/core/model-resolver.js`, static) only has opencode-go=[deepseek-v4-pro, glm-4.7/5/5.1, kimi-k2.6], minimax=[MiniMax-M2.7], openai-codex→gpt-5.5. The models user first named (deepseek-v4-**flash**, MiniMax-**M3**, gpt-5.4-**mini**) are **9router-only** — NOT native; user chose native closest-equivalents. ollama local can't do compaction (32k context, but summarizer gets ~full conversation). Verify `~/.pi/compact-free.log` + UI notify on next real compaction. Main/default = `cx/gpt-5.5` (provider `9router`). NOTE: pi's `/model` picker can overwrite `defaultProvider`+`defaultModel` in settings.json to a bare/invalid id (seen `minimax`/`MiniMax-M3` while that provider is OFF) — if pi errors on start, reset to `9router` + `cx/gpt-5.5`.
+The old June–September local-gateway/model snapshots are superseded by the
+tracked [Pi adapter contract](../../pi/README.md). Dotfiles does not install or
+start a local gateway. Pi is optional; OMP uses its own native configuration.
 
-**2026-07-03 (later) — expanded pi picker beyond GPT-only** (user request). Re-enabled `gemini-cli` provider (id `99a9c676-...`, OAuth `<personal-email>`) via dashboard PUT — but all `gc/gemini-*` currently return **429 "Resource exhausted"** (free Google quota drained; recovers on reset). Free passthrough routes `oc/*` and `mmf/*` work WITHOUT any provider connection and are NOT listed in `/v1/models` (so adding them to pi is local-only, doesn't need password). Current `~/.pi/agent/models.json` 9router models: `cx/gpt-5.5`, `cx/gpt-5.4`, `cx/gpt-5.4-mini`, `oc/deepseek-v4-flash-free` (works), `oc/north-mini-code-free` (works), `oc/big-pickle` (works→deepseek-flash), `mmf/mimo-auto` (441 throttle often), `gc/gemini-3-pro-preview`/`gc/gemini-3-flash-preview`/`gc/gemini-2.5-pro`/`gc/gemini-2.5-flash` (429 quota now). Providers still OFF: antigravity, gemini(apikey, 403 banned), groq, minimax, opencode-go. Since gemini-cli is back on, the public tunnel now also exposes `gc/*` (not strictly GPT-only anymore). To re-enable/disable a provider: dashboard login (`POST /api/auth/login {password}`, pwd `<site-pin>`, 5-fail lockout) → `PUT /api/providers/{id} {isActive}` (cookie-jar), then edit models.json. NOTE: 9router uses sql.js (DB in-memory), so editing `~/.9router/db/data.sqlite` while the app runs is UNSAFE — always go through the dashboard API.
+- `config/pi/settings.json` and `models.template.json` are fresh-device seeds,
+  not current machine state. `pi-9router-restore` preserves existing local copies.
+- Pi owns live settings and model selection. A picker can change defaults; do
+  not restore an old default merely because it differs from a remembered value.
+- Provider catalogs, quotas, tunnel URLs, account connections, and authentication
+  are device-local. Discover them through the current supported helper/runtime
+  and official documentation, not a historical list of working model IDs.
+- Read [9router](../../../skills/local/9router/SKILL.md) for current gateway usage
+  and [the credential section](../../pi/README.md#credentials) for the optional
+  adapter's credential ownership and migration. Do not open auth/session files
+  or print provider configuration that may contain secrets.
+- Development credentials are accessed only through `secrets-env` under the
+  shared authorization policy. Use `secrets-env list` for names and approved
+  `secrets-env run -- <command>` for injection. Never source the secrets store,
+  paste a token into an interpreting shell, or copy it into memory.
+- A missing provider/model or quota error is not permission to change services,
+  reconnect accounts, expose a listener, or re-enable a public tunnel.
 
-**2026-07-03 (evening) — updated 0.5.15→0.5.18 + HARDENED (user: "pastikan aman").** `npm i -g 9router@latest`. 0.5.18 postinstall (warm-up sqlite/tray runtime) is blocked by npm allow-scripts policy but is **non-fatal** (cli.js retries at runtime) — safe to skip. **DB is now WAL SQLite persisted to disk** (`~/.9router/db/data.sqlite` + `-wal`/`-shm`), NOT pure sql.js-in-memory — API changes persist; version upgrades auto-backup to `db/backups/upgrade-*`. ⚠️ **0.5.18 default `--host` = `0.0.0.0`** (LAN-exposed, no auth on local/LAN); MUST launch with **`-H 127.0.0.1`** to bind localhost-only. Restart cmd used: `setsid nohup 9router --tray --skip-update -n -H 127.0.0.1 -p 20128 &`. Graceful stop = SIGTERM the `bin/9router` main; it can orphan the Next `next-server` child holding :20128 → SIGTERM that too (verify its cwd is `…/9router/app`, NOT another project). **Tunnel = OFF** (user choice): `PATCH /api/settings {"tunnelEnabled":false}` (PUT=405; the cookie-jar login still works, pwd `<site-pin>`) → stops cloudflared + `settingsEnabled:false` so it won't auto-start (it WILL auto-start if left true). Tunnel status at `GET /api/tunnel/status`; branded publicUrl `rbq97ts.abc-tunnel.us`, `tunnelDashboardAccess:true` (dashboard reachable via tunnel when on — extra reason to keep off). **Providers locked to codex + gemini-cli** (disabled antigravity id `70cfa90e-…` + gemini/apikey id `498fa267-…` via `PUT /api/providers/{id} {isActive:false}`). `/api/providers` returns `{connections:[…]}` each `{id,provider,authType,name,isActive}`. Active now: **4 codex** OAuth (romario.sumali, dinarevitabeautyinu, aussie.bensu5m, **get@ongki.pro** new) + gemini-cli (hamba.merdesa). `/v1/models` = 10: `cx/gpt-5.5,5.4,5.4-mini` + `gc/gemini-3.1-pro-preview,3-pro-preview,3-flash-preview,3.1-flash-lite-preview,2.5-pro,2.5-flash,2.5-flash-lite`. Side effect: indostore admin `next-server` (~/projects/indostore/apps/admin) went down during the restart churn — restart with its own `npm run dev`.
-
-**2026-07-10 — updated 9router 0.5.20→0.5.30 + pi 0.80.3→0.80.6** (both `npm i -g …@latest`). Blocked-postinstall warnings are expected and non-fatal (9router `hooks/postinstall.js`; pi's `@google/genai` preinstall no-op + `protobufjs`). Verified after restart: bound localhost-only via `setsid nohup 9router --tray --skip-update -n -H 127.0.0.1 -p 20128 &` (the `-H 127.0.0.1` is still REQUIRED — default is still LAN-exposed), tunnel stayed OFF (no cloudflared proc, no extra listeners), and `cx/gpt-5.5` returned a real completion. `GET /api/tunnel/status` now returns `{"error":"Unauthorized"}` without a login cookie — check for a `cloudflared` process instead as the quick liveness test. `/v1/models` grew 10→16: **NEW `cx/gpt-5.6-sol`, `cx/gpt-5.6-terra`, `cx/gpt-5.6-luna`** (+ a `-review` variant of each), all three verified returning content. Not yet added to `~/.pi/agent/models.json`.
-
-**Incidents 2026-08-19 and 2026-08-27 (9router stale, LAN-exposed, publicly tunneled):** run 9router only via `systemctl --user ... 9router.service`; details and diagnosis in [[pi-9router-autostart-incident]].
-
-
-**API key gotcha:** `models.json` stores the 9router key as the env-var reference `${NINEROUTER_KEY}`, NOT a literal — real value lives in `~/.config/ai-local/secrets.env` (also exported from `.bashrc`). `source ~/.config/ai-local/secrets.env` before any manual `curl` against `:20128/v1`, or you'll send the literal `${NINEROUTER_KEY}` and get `invalid_api_key`.
-
-**Config:**
-- `~/.pi/agent/models.json` — defines provider `9router` (api `openai-completions`, baseUrl `http://localhost:20128/v1`, apiKey = `${NINEROUTER_KEY}`, `compat.supportsDeveloperRole/supportsReasoningEffort: false`).
-- `~/.pi/agent/settings.json` — `defaultProvider`/`defaultModel` TOGGLE often (the `/model` picker rewrites them). Observed: `9router`+`cx/gpt-5.5` (2026-06-25), `9router`+`opencode-go/deepseek-v4-pro` (2026-06-26), **`openai-codex`+`gpt-5.4` (2026-07-10)**. Always read the live value, don't assume. On pi 0.80.6 the native registry has openai-codex → **both `gpt-5.5` and `gpt-5.4`**, so `openai-codex/gpt-5.4` is a VALID default, not the bare/invalid-id corruption described below — don't "fix" it reflexively.
-
-**Model list, `compact-free` extension, and compaction-trigger gotcha** (`reserveTokens` is headroom, a large value compacts early): see [[pi-9router-models-compaction]].
-
-**2026-09-23 — Pruned dead models & perfected 9Router Fantastico catalog.**
-- Remote 9Router Fantastico tunnel (`https://rbq97ts.abc-tunnel.us/v1`) serves 12 active models (tested & verified 100% PASS via `pi -p`): `cx/gpt-5.5` (default), `cx/gpt-5.6-luna`, `cx/gpt-5.6-sol`, `cx/gpt-5.6-terra`, `cx/gpt-6-astra`, `ag/claude-opus-4-6-thinking`, `ag/claude-sonnet-4-6`, `ag/gemini-3.8-flash`, `ag/gemini-3.8-flash-high`, `ag/gemini-3.1-pro-low`, `ag/gemini-pro-agent`, `ag/gpt-oss-120b-medium`.
-- Filtered `UNSUPPORTED_MODELS` in `bin/pi-9router-sync.js` (`cx/gpt-5.3-codex-spark`, `cx/gpt-5.4`, `cx/gpt-5.4-mini`) which fail with 400 rejection from ChatGPT accounts in Codex pool. Pruned stale phantom models (`gc/*`, old `ag/*` variants).
-- `defaultProvider` and `defaultModel` in `settings.json` set to `9router-fantastico` / `cx/gpt-5.5` (native `openai-codex` and `minimax` credentials in `auth.json` were expired).
-- `compact-free` extension updated to 100% `ag/gemini` chain (`ag/gemini-3.8-flash` -> `ag/gemini-3.8-flash-high` -> `ag/gemini-pro-agent` -> `ag/gemini-3.1-pro-low`) for 1M context headroom, fast execution, and zero premium GPT quota waste.
-- Verified: `systemctl --user restart pi-9router-sync.service` returns 0 with `modelCount: 12`, all harness tests pass (`pi-9router-restore-test`, `pi-update-safe-test`).
+Compaction semantics and source pointers: [[pi-9router-models-compaction]].
+Historical service-exposure lesson: [[pi-9router-autostart-incident]]. That
+incident is context, not an instruction to start a gateway on this device.
