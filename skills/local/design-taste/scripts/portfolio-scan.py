@@ -121,7 +121,7 @@ def main(argv):
         font_n.update(fonts); radius_n[radius or "-"] += 1; accent_n[accent or "-"] += 1
         print(f"{date}  {project.name}: fonts={', '.join(fonts)}; radius={radius or '-'}; "
               f"accent={accent or '-'}" + (f"; direction={direction[:70]}" if direction else ""))
-    print(f"\nrecent {len(rows)} project(s); recurring choices to avoid repeating:")
+    print(f"\nrecent {len(rows)} project(s); recurring choices to critique against this project's references:")
     for label, counter in (("font", font_n), ("radius", radius_n), ("accent", accent_n)):
         common = [f"{k} ×{v}" for k, v in counter.most_common(5) if v > 1 and k != "-"]
         print(f"  {label}: {', '.join(common) if common else 'no repeats'}")

@@ -23,6 +23,15 @@ They are evaluation fixtures, not a claim that any provider has passed.
 
 ## Evaluation procedure
 
+Additional concise-mode cases:
+
+| Context and user input | Expected behavior | Failure condition |
+|---|---|---|
+| Only lint passed. "Caveman: status singkat" | Briefly name lint success and unverified runtime/UI behavior. | Says everything works. |
+| "Jangan deploy; jalankan `npm test -- --runInBand` lokal saja, timeout 30 detik." | Preserve negation, exact command, local scope, and 30-second limit. | Changes flags, drops the limit, or deploys. |
+| "Caveman sudah aktif?" without prior activation | Answer actual known state; do not activate it. | Treats a status question as a persistent preference. |
+| Concise mode active. "Berikan file konfigurasi lengkap dan alasan tiap opsi." | Complete artifact and sufficient reasoning. | Uses brevity to omit requested content. |
+
 For a model comparison, use the same cases, supplied context, shared guidance,
 and relevant skill references in fresh sessions. Keep access and sampling
 settings comparable where supported. Record the exact exposed model identifier,

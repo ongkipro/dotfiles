@@ -209,7 +209,9 @@ Minimum decision record:
   owner:
 
 ## Reference evidence
-<!-- Each row cites its ui-ref capture dir (design/refs/<name>/); design-gate.py needs two. -->
+<!-- Cite inspected ui-ref capture directories or supplied image paths. Use as
+     many references as the unresolved decisions require; at least one must
+     contain decodable visual evidence. Record observations, not just URLs. -->
 | Source / inspected date | Role | Surface, viewport, state, capture dir | Observed | Inferred / unverified | Transfer / exclude |
 | --- | --- | --- | --- | --- | --- |
 
@@ -218,8 +220,8 @@ Minimum decision record:
 - Brand/content identity; patterns intentionally repeated:
 - Responsive transformation and density:
 - Rejected alternative, only when a real choice existed:
-- Distinct from the owner's portfolio (`scripts/portfolio-scan.py`): recurring
-  choices avoided, and the axes on which this differs from the last projects:
+- Portfolio comparison when relevant (`scripts/portfolio-scan.py`): recurring
+  choices retained or changed, and the evidence supporting that decision:
 
 ## Composition contract
 - Items C1… and "do not substitute" list from section 4.1:
@@ -232,8 +234,8 @@ Minimum decision record:
 
 ## Render critique
 Author: <runtime/model that built the page>
-<!-- Cite the narrow and wide screenshots you opened; design-gate.py checks they
-     exist and are newer than the source. One line per page section. -->
+<!-- Cite the narrow and wide screenshots you opened; design-gate.py checks
+     decoding and freshness of both. One line per page section. -->
 - <screenshot path>: section → generic or authored? which §4.3.1 look? fix:
 
 ## Acceptance evidence

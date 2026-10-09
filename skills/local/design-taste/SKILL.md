@@ -25,10 +25,10 @@ observed evidence. It is not a font, punctuation, color, or layout blacklist.
 
 **Done contract (new page or redesign).** Not done, and not to be reported as
 done, until `python3 scripts/design-gate.py <project>` (this skill's
-`scripts/`) exits 0. That needs, in this order: two `ui-ref` reference captures
-whose screenshots you opened (§1 step 4); a `## Render critique` citing your
-narrow and wide screenshots (step 7); and `design/review.md` with
-`Verdict: PASS` from `scripts/visual-review.py --reviewer <other family>`
+`scripts/`) exits 0. That needs inspected reference evidence sufficient for
+the decisions made (§1 step 4); a `## Render critique` citing your fresh,
+decoded narrow and wide screenshots (step 7); and `design/review.md` with
+`Verdict: PASS` from `scripts/visual-review.py --reviewer <capable runtime>`
 ([visual-review.md](references/visual-review.md)); never write it yourself. Quote the gate's final line
 in the report. If it cannot pass, report FAIL and the failing checks.
 
@@ -75,11 +75,16 @@ For a new public experience or material redesign:
 4. **Research:** inspect relevant references using
    [design-discovery.md](references/design-discovery.md). A list of URLs is not
    research evidence, and neither is a reference table written from memory:
-   capture at least two live references with
+   capture relevant live references with
    `node scripts/ui-ref.mjs capture URL --out design/refs/<name>` (this skill's
    `scripts/`), open the captured screenshots (`<dir>/<width>.png`; reading
    `ref.json` alone is not inspection), and cite those directories in the
-   design artifact. Resolve which principles transfer before styling.
+   design artifact. User-supplied images and accepted project reference
+   captures also qualify: cite their image paths under `## Reference evidence`,
+   source/role, observations, and transfer rationale. One close reference may
+   resolve the design; add others when important decisions remain open. Every
+   new direction still needs inspected visual evidence and research before
+   styling. A URL list, generated mockup, or unread screenshot is insufficient.
 5. **Choose:** select a coherent direction, responsive composition, and token
    source. Compare alternatives only when the choice is material. A low-detail
    wireframe is useful when hierarchy is unresolved, not mandatory ceremony.
@@ -98,7 +103,7 @@ For a new public experience or material redesign:
    page section against §4.3.1, fix its findings, and re-render. Then get an
    independent review per
    [visual-review.md](references/visual-review.md): `scripts/visual-review.py`
-   has another model family write `design/review.md`; fix REVISE findings and
+   starts a separate image-capable reviewer to write `design/review.md`; fix REVISE findings and
    re-review (the script stops at five rounds). Then use `ui-validation` to
    exercise behavior, inspect
    narrow/wide renders, compare against the accepted direction, fix concrete
@@ -162,46 +167,33 @@ Use these as descriptive decisions, not mandatory numerical scores:
 - **Density:** match reading, comparison, and task frequency. Whitespace groups
   content and supports hierarchy; it is not a quota of empty screen space.
 
-If a project already uses 1–10 dials, retain them as shorthand with a concrete
-rationale. Do not derive forced masonry, animation, or section sizes from a
-numeric threshold. Existing numbered reference paths remain compatibility
-pointers to these decisions.
+Existing 1–10 dials are shorthand, not thresholds for forced masonry,
+animation, or section sizes; record the rationale. Numbered reference paths
+remain compatibility pointers.
 
 ### 2.1. Distinct from the owner's other sites
 
-Every project starts without memory of the others, so unconstrained choices
-repeat: a 2026-10-08 scan of the owner's 15 most recent projects found Inter
-in 9, Inter + Cinzel in 8, and shadcn's default `0.625rem` radius in 9 —
-seven of them separate brands' stores on one shared `adsbookcms` engine whose
-theme layer was never changed per brand. A shared engine is fine; identical
-brands are not. For new work, a new brand on a shared template, or a
-redesign without an established brand system:
+Cross-project context can reveal accidental sameness: a 2026-10-08 scan found
+Inter in 9 of 15 recent projects and Inter + Cinzel in 8. For new work, a new
+brand on a shared template, or a redesign without an established brand system:
 
-1. Run `python3 scripts/portfolio-scan.py` (from this skill's directory;
-   `scripts/test-portfolio-scan.py` is its check). Exit 2 = not checked.
-2. Do not reuse a typeface, accent hue family, or radius value that the scan
-   lists as recurring, unless the owner's brand assets or brief require it.
-3. Differ from each of the last five projects on at least two of these axes:
-   type classification and pairing (grotesk, humanist, geometric, serif,
-   slab, mono accent; one family or a contrasting pair), color strategy
-   (monochrome + one accent, duotone, tinted neutrals, dark canvas, full
-   brand field), layout concept (editorial columns, asymmetric split,
-   full-bleed media, index/list-led, single narrow column), imagery mode
-   (photography, illustration, diagrams, type-only, product renders),
-   signature element (one memorable device drawn from the subject), motion
-   signature (none, one orchestrated moment, functional only).
-4. On a shared template, keep the engine and components; give each brand
-   its own theme layer (tokens for type, color, radius where invariants
-   allow) and its own hero composition, imagery, and signature element.
-5. Shape language (radius, surfaces, dividers) is itself a researched,
+1. For a new brand or an open direction, use `python3 scripts/portfolio-scan.py`
+   when the owner's recent projects are available (from this skill's directory;
+   `scripts/test-portfolio-scan.py` is its check). Exit 2 = not checked; continue
+   with inspected references rather than inventing a portfolio comparison.
+2. Treat recurring type, color, radius, composition, imagery, and motion as
+   prompts for critique. Reuse is valid when it fits this audience, content,
+   reference, and brand. There is no forbidden-font list or quota of differences.
+3. On a shared template, preserve the engine and components. Derive each
+   brand's expression from its assets and researched direction; do not force a
+   different hero or signature device when the reference and job favor reuse.
+4. Shape language (radius, surfaces, dividers) is itself a researched,
    per-project choice (owner decision 2026-10-08); the owner's fixed rules
    are the quality ones (no decorative Sparkles, no invented meters, one
    contact CTA), which variety never relaxes.
-6. Record the comparison in the design artifact (Direction: "differs from
-   <projects> on <axes>").
-
-Variety is a means: each choice still has to come from the subject,
-audience, and content (§4.3.1 calibration), not from a random pick.
+5. Record any material comparison and the reason to retain or change a
+   recurring choice in the design artifact. The quality criterion is fit and
+   intentional composition, not novelty for its own sake.
 
 ## 3. Framework-neutral implementation
 
@@ -328,9 +320,9 @@ These are diagnostic signals, not blanket bans. A pricing comparison may
 correctly use equal cards; a simple campaign hero may correctly be centered.
 Keep a familiar pattern when the content and accepted direction justify it.
 
-Generated UI also converges on whole looks. Where the brief leaves an axis
-free, do not spend that freedom on one of these defaults (adapted from
-Anthropic `frontend-design`, Apache-2.0):
+Generated UI also converges on whole looks. The following are critique signals
+(adapted from Anthropic `frontend-design`, Apache-2.0), not style bans. Judge
+whether each pattern serves the researched direction, hierarchy, and content:
 
 - warm cream canvas (near `#F4F1EA`) + high-contrast serif display + terracotta
   or clay accent (near `#D97757`);
@@ -348,13 +340,15 @@ Anthropic `frontend-design`, Apache-2.0):
   navy canvas with a dot grid, monospace on labels and figures, `A // B`
   separators, `LAYANAN 01` / `03 / Section` labels, a fake terminal or
   "blueprint" panel, rows of icon-in-tile cards, Tailwind default blue or
-  indigo as the accent. `scripts/design-gate.py` measures most of it.
+   indigo as the accent. `scripts/design-gate.py` reports counts as warnings;
+   only rendered critique can establish whether the composition is generic.
 
-Calibration check before code: write the direction as 4–6 named colors, type
-roles, and a one-sentence layout concept, then ask whether a similar prompt
-for a different subject would land on the same plan. Revise each part that
-would, and record what changed. Spend boldness in one place; keep the rest
-quiet. The brief's explicit words and the owner's standing UI rules (§1.5)
+Calibration check before code: record semantic color roles, type hierarchy,
+and layout intent proportional to the page. Tie each major decision to an
+observed reference principle, user task, content need, or accepted brand rule.
+Ask whether swapping the business name would leave an unexplained generic
+page; revise the unsupported decisions, not every familiar pattern. The
+brief's explicit words and the owner's standing UI rules (§1.5)
 always win, including when they ask for one of these looks (for example a
 `01 / 02 / 03` index on a real sequence).
 
@@ -430,11 +424,14 @@ do not place real orders or mutate production to obtain design evidence.
 
 Before describing a new or materially changed UI as ready, run
 `python3 scripts/design-gate.py <project>` (this skill's `scripts/`) and quote
-its final line. It also requires the independent review (`Verdict: PASS` from
-a model family other than the design file's `Author:`). Exit 1 means not ready:
+its final line. It also requires an independent image review (`Verdict: PASS`
+from a fresh context; same model/provider is eligible). Exit 1 means not ready:
 fix the source or the evidence, never the gate, and never write the review
-yourself. A look the brief explicitly asks for is recorded as
-`gate-allow: <check> - <reason>` in the design artifact. Exit 2 means the gate
+yourself. Source-level style warnings prompt inspection, not automatic failure;
+record justified choices in the direction. `gate-allow` can explain a style
+signal, but cannot waive references, render evidence, review, or unsupported
+claims. If review cannot run, continue authorized work and report visual
+acceptance UNVERIFIED; do not invent PASS. Exit 2 means the gate
 did not run; report it as not checked. Then establish:
 
 - The primary user task, decision sequence, and content are clear.
@@ -475,7 +472,7 @@ AI slop from a prompt, static scan, or one model-generated sample.
 | Category starting points: job, local-market checks, content inventory, claim traps, research queries | niche-patterns/README.md |
 | Measured WCAG contrast incl. alpha and large-text thresholds (`scripts/contrast.py`) | accessibility-notes.md |
 | Cross-project repetition (`scripts/portfolio-scan.py`: fonts, radius, accent, direction per recent project) | SKILL.md §2.1 |
-| Delivery gate (`scripts/design-gate.py`: ui-ref captures cited, fresh render critique, independent review PASS, generated-look counts; exit 1 blocks "ready") | SKILL.md §8 |
+| Delivery gate (`scripts/design-gate.py`: decoded references, fresh narrow/wide renders, independent review PASS; style counters advisory; exit 1 blocks "ready") | SKILL.md §8 |
 | Independent review prompt and output format | visual-review.md |
 | Existing theme code | theme-implementation.md |
 | Storefront visual decision hierarchy | public-experience-patterns.md |

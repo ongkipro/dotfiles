@@ -61,6 +61,27 @@ An update should communicate a useful finding or next check. A final handoff
 should identify the result, meaningful verification, and unresolved limitation
 when one exists. Avoid repeating a fixed template for every small reply.
 
+## Lossless concise replies (Caveman-inspired)
+
+Lead with the answer, finding, or action. Remove filler, repeated status,
+ceremonial acknowledgments, and explanations the reader already understands.
+Keep natural grammar and the user's language; no caveman roleplay or fixed
+sentence-length cap. Depth follows the task: a short status can be one sentence,
+while a complex decision still needs its reasoning and material tradeoffs.
+
+Compression must retain negation, quantities and units, exact commands and
+identifiers, uncertainty, authorization boundaries, verification results, and
+unresolved limitations. Do not shorten an untested claim into a success claim.
+Full requested code, schemas, artifacts, and reproducible checks remain complete.
+
+Treat an explicit request for a persistent concise/Caveman mode as a session
+style preference until changed. A mention, comparison, installation question,
+or "is Caveman enabled?" asks for information; it does not activate a mode.
+The shared preference for clear, concise replies already applies without a
+toggle. Do not install providers, proxies, hooks, or silently truncate commands,
+tool output, or saved evidence to obtain shorter replies. Token savings need
+measurement; concise wording alone does not establish an advertised percentage.
+
 ## Resume across models
 
 Use repository-owned task, status, decisions, and verification records when

@@ -108,6 +108,7 @@ from a schema proposal to applying a production migration.
 | Browser-visible executable evidence | `ui-validation` |
 | Performance measurement and diagnosis | `web-perf` |
 | Built-in capability and dependency decision | `native-first` |
+| Cross-file call tracing or change-impact navigation | `codebase-navigation` (search first; optional Graphify) |
 | Small PRD/PLAN/TASKS route | `prd-taskbreaker` |
 | Traceable multi-document specification pack | `development-spec-suite` |
 

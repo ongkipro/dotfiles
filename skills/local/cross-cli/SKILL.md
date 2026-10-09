@@ -26,8 +26,8 @@ are defaults, not locks.
 | Discovery / research | Read-only exploration, large documents | agy, codex, claude |
 | Implementation / data | Edits — only in a linked worktree | codex or claude via `ai-ask --write`; OMP children through OMP's own isolated tasks |
 | Visual design | UI direction; needs an image-capable model | claude, agy |
-| Correctness review | Independent diff review | **a different vendor** than the author |
-| Sensitive review (R3/R4) | Auth, payments, secrets, migrations, infra | **a different vendor**, then the ledger review |
+| Correctness review | Independent diff review | a separate capable context; vendor diversity may help |
+| Sensitive review (R3/R4) | Auth, payments, secrets, migrations, infra | a separate actual reviewer, then the ledger review |
 | Bulk / cheap | Summaries, conversions, content batches | pi, omp |
 
 OMP keeps its own native agents; when OMP is the conductor it maps them onto
@@ -61,13 +61,15 @@ ai-ask RUNTIME [--cwd DIR] [--attach FILE]... [--timeout SEC] [--write] [--dry-r
 
 1. **Delegated output is a proposal.** The conductor reads it, verifies claims
    against the code, and integrates; it never pastes results in unchecked.
-2. **Review across vendors for R2+.** Prefer a reviewer from a different vendor
-   than the author model. For R3/R4 delivery runs this is the independent review;
+2. **Review independently for R2+.** Select a separate actual reviewer with the
+   required tools and expertise. Same model/provider is eligible; use vendor
+   diversity when it adds useful perspective, not as an approval requirement.
+   For R3/R4 delivery runs this is the independent review;
    record it with `delivery-ledger review-boundary` and the reviewer's real
    runtime/model, or `unavailable: <reason>` when the CLI does not report it.
 3. **Fallback, never a silent skip.** If a runtime fails (quota, expired login,
-   401), use the next candidate and say so. Only when no other vendor is
-   available, use a separate same-vendor agent and record that fact.
+   401), use the next capable candidate and say so. A separate same-vendor agent
+   is eligible immediately. Never replace independent review with self-review.
 4. **Give the reviewer the contract.** Include the task's requirement,
    invariants, and the exact files or diff; ask for APPROVE / CHANGES REQUIRED
    with `file:line` and a failing scenario. Fix, then re-review the fix.

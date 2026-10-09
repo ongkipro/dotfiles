@@ -93,8 +93,11 @@ working tree is this repository.
   forced refspecs. It cannot see Git launched inside Lazygit, wrapped in another
   interpreter (`bash -c`), or via `$(which git)`. `hooks/memory-usage.sh` records
   only which memory files were routed and their byte counts, and fails open.
-  Both hooks exist only in Claude Code; Codex, Antigravity, Pi, and OMP rely on
-  the Git rules in `CORE.md` alone.
+  Claude Code and Codex share the canonical hooks; Codex wiring uses
+  `ai-hooks-install --runtime codex`. Codex also requires trusting each exact
+  hook definition through `/hooks` in an interactive session. `ai-doctor`
+  verifies wiring, not trust or actual execution. Antigravity, Pi, and OMP
+  rely on the Git rules in `CORE.md` alone.
 
 ## Learning loop
 

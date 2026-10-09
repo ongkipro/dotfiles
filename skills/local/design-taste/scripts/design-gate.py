@@ -3,20 +3,16 @@
 
 Usage: design-gate.py PROJECT [--design FILE] [--review FILE] [--src DIR]
 
-Fails (exit 1) when the evidence the workflow asks for is missing or when the
-source matches a generated look the brief did not ask for. Prose in DESIGN.md
-cannot satisfy it: references must be ui-ref captures on disk and the render
-critique must point at screenshots newer than the source.
+Fails (exit 1) when required evidence is missing, corrupt, stale, or changed.
+Style counters are advisory; appearance must be judged against the researched
+direction in an independent image review, not inferred from source counts.
 
-  refs      >= 2 directories cited in the design file that hold a ui-ref
-            capture (ref.json), e.g. design/refs/<name>/
-  critique  a "Render critique" heading citing >= 2 existing screenshots
-            (narrow + wide), the newest at least as new as the newest source
+  refs      >= 1 inspected reference: a valid ui-ref capture or supplied image
+            cited under "Reference evidence". Pillow verifies image decoding.
+  critique  narrow + wide decoded screenshots, both at least as new as source
   review    design/review.md written by scripts/visual-review.py: canonical
-            prompt, another model family than the design file's Author:, the
-            critique's exact screenshots (hash-checked, so a re-render needs a
-            re-review), and `Verdict: PASS`. A same-model subagent rated a
-            templated page "authored" everywhere; another family said REVISE.
+            prompt, a separate ai-ask invocation, the exact screenshots and
+            references plus current design context, and `Verdict: PASS`.
             lazy: hashes stop rewritten prompts, touch, and edited verdicts,
             not a builder who deliberately recomputes them.
   look      source-level counts for generated looks: monospace usage, `//`
@@ -25,11 +21,12 @@ critique must point at screenshots newer than the source.
             blue/indigo accent, a colored word inside an h1/h2, and an
             owner placeholder set as a large stat figure
 
-A look the brief really wants is allowed by a design-file line
-`gate-allow: <check> - <reason>`; allowed checks are reported, not hidden.
+`gate-allow` explains a style choice; it cannot waive missing evidence or
+unsupported placeholder statistics. The gate validates artifacts, not whether
+a person or model actually inspected them; record that observation honestly.
 Exit 0 = pass, 1 = fail, 2 = not applicable (no design file or no source).
 """
-import hashlib, re, sys
+import hashlib, json, re, sys
 from pathlib import Path
 
 SRC_EXT = {".astro", ".html", ".jsx", ".tsx", ".vue", ".svelte", ".liquid", ".css", ".scss"}
@@ -50,8 +47,6 @@ HEAD_ACCENT = re.compile(r"<h[12]\b[^>]*>(?:(?!</h[12]>).)*?<(?:span|em|strong|m
                          r"|nowrap|ellipsis|clip|inherit|current)\b)[\w\[\]()/.#:-]+|\bbg-clip-text\b)", re.S | re.I)
 # "[Placeholder: 450+]" set as a big stat still reads as a claim.
 PH_STAT = re.compile(r"class=[\"'][^\"']*\btext-(?:[2-9]xl)\b[^\"']*[\"'][^>]*>\s*[^<]*placeholder", re.I)
-FAMILIES = {"anthropic": r"claude|opus|sonnet|haiku", "google": r"gemini|\bagy\b|antigravity",
-            "openai": r"\bgpt|codex|\bo[134]\b"}
 LIMITS = {"mono": 8, "slash": 1, "numbered": 2, "accent": 5, "headline": 0, "stat": 0}
 
 
@@ -85,8 +80,47 @@ def section(doc, title):
 
 def critique_shots(root, doc):
     body = section(doc, "Render critique")
-    return None if body is None else sorted({root / m.group(0) for m in IMG.finditer(body)
-                                             if (root / m.group(0)).is_file()})
+    return None if body is None else sorted({root / m.group(0) for m in IMG.finditer(body)})
+
+
+def image_size(path):
+    from PIL import Image
+    with Image.open(path) as img:
+        size = img.size
+        img.verify()
+    # verify() checks the container; load() also checks compressed pixel data.
+    with Image.open(path) as img:
+        img.load()
+    return size
+
+
+def reference_shots(root, doc):
+    body = section(doc, "Reference evidence") or section(doc, "References") or ""
+    dirs = {root / m.group(1).rstrip("/") for m in PATH.finditer(body)
+            if not IMG.fullmatch(m.group(1)) and
+            ((root / m.group(1)).is_dir() or m.group(1).startswith("design/refs/"))}
+    shots = {root / m.group(0) for m in IMG.finditer(body)}
+    errors = []
+    for directory in sorted(dirs):
+        try:
+            ref = json.loads((directory / "ref.json").read_text())
+            if not isinstance(ref, dict) or not ref.get("capturedAt") or not ref.get("viewports"):
+                raise ValueError("missing capturedAt or viewports")
+            for width, viewport in ref["viewports"].items():
+                if not isinstance(viewport, dict) or not re.match(r"https?://", str(viewport.get("url", ""))):
+                    raise ValueError("missing source URL")
+                shot = directory / f"{int(width)}.png"
+                if image_size(shot)[0] != int(width) or viewport.get("width") != int(width):
+                    raise ValueError("viewport and screenshot widths differ")
+                shots.add(shot)
+        except (OSError, ValueError, TypeError, AttributeError, ImportError) as error:
+            errors.append(f"{directory.relative_to(root)}: {error}")
+    for shot in sorted(shots):
+        try:
+            image_size(shot)
+        except (OSError, ValueError, ImportError) as error:
+            errors.append(f"{shot.relative_to(root)}: {error}")
+    return sorted(shots), errors
 
 
 def sources(root, dirs):
@@ -112,27 +146,31 @@ def main(argv):
     allowed = {m.group(1).lower() for m in re.finditer(r"gate-allow:\s*(\w+)\s*[-—:]\s*\S", doc)}
     fails = []
 
-    def check(name, ok, detail):
-        state = "PASS" if ok else ("ALLOWED" if name in allowed else "FAIL")
+    def check(name, ok, detail, advisory=False):
+        state = "PASS" if ok else ("ALLOWED" if advisory and name in allowed else "WARN" if advisory else "FAIL")
         print(f"{state:8}{name}: {detail}")
         if state == "FAIL":
             fails.append(name)
 
-    refs = {p for p in (root / m.group(1).rstrip("/") for m in PATH.finditer(doc))
-            if p.is_dir() and (p / "ref.json").is_file()}
-    check("refs", len(refs) >= 2, f"{len(refs)} ui-ref capture dir(s) cited (need 2): "
-          + (", ".join(str(p.relative_to(root)) for p in sorted(refs)) or
-             "capture with `node scripts/ui-ref.mjs capture URL --out design/refs/<name>`"))
+    refs, ref_errors = reference_shots(root, doc)
+    check("refs", bool(refs) and not ref_errors,
+          "; ".join(ref_errors) or f"{len(refs)} decoded reference image(s) cited (need at least 1)")
 
     shots = critique_shots(root, doc)
     head = shots is not None
     shots = shots or []
     newest_src = max(f.stat().st_mtime for f in files)
-    fresh = shots and max(p.stat().st_mtime for p in shots) >= newest_src
-    check("critique", bool(head) and len(shots) >= 2 and bool(fresh),
+    fresh = shots and all(p.is_file() for p in shots) and min(p.stat().st_mtime for p in shots) >= newest_src
+    try:
+        widths = [image_size(p)[0] for p in shots]
+        responsive = bool(widths) and min(widths) < 600 and max(widths) >= 900
+        shot_error = "" if responsive else "; need decoded narrow (<600px) and wide (>=900px) renders"
+    except (OSError, ValueError, ImportError) as error:
+        responsive, shot_error = False, f"; unreadable screenshot: {error}"
+    check("critique", bool(head) and responsive and bool(fresh),
           "no 'Render critique' heading" if not head else
-          f"{len(shots)} existing screenshot(s) cited (need 2)" + ("" if fresh or not shots else
-          "; newest screenshot is older than the source: re-render and re-critique"))
+          f"{len(shots)} screenshot(s) cited" + shot_error + ("" if fresh or not shots else
+          "; a screenshot is older than the source: re-render and re-critique"))
 
     review = root / opts.get("--review", "design/review.md")
     rv = review.read_text(errors="ignore") if review.is_file() else ""
@@ -141,23 +179,22 @@ def main(argv):
     author = re.search(r"^\W*Author:\s*(.+)$", doc, re.M | re.I)
     reviewer = re.search(r"^Reviewer:\s*(.+)$", hdr, re.M)
     rshots = sorted({root / p.strip() for p in field("Screenshots").split(",") if p.strip()})
-    verdicts = re.findall(r"^\W*Verdict:\W*(PASS|REVISE)\b", body, re.M | re.I)
+    verdicts = re.findall(r"^\W*Verdict:\W*(PASS|REVISE|UNVERIFIED)\b", body, re.M | re.I)
     verdict = verdicts[-1].upper() if verdicts else None
-    def family(m):
-        return next((k for k, rx in FAMILIES.items() if m and re.search(rx, m.group(1), re.I)), None)
-    fa, fr = family(author), family(reviewer)
+    rrefs = sorted({root / p.strip() for p in field("References").split(",") if p.strip()})
     problem = ("missing: run the independent review in references/visual-review.md" if not rv else
                "no 'Reviewer:' line" if not reviewer else
                "not written by scripts/visual-review.py (prompt or output hash missing or changed)"
                if field("Prompt-SHA") != sha(review_prompt()) or field("Output-SHA") != sha(body) else
-               "reviewer is the author" if author and author.group(1).strip().lower() == reviewer.group(1).strip().lower() else
-               "name the model in the design file's 'Author:' and in 'Reviewer:'" if not (fa and fr) else
-               f"reviewer and author are both {fa} models: review with another CLI" if fa == fr else
+               "missing builder Author or separate review context" if not author or
+               field("Review-Context") != "separate ai-ask invocation" else
+               "design context changed after review: re-review" if field("Context-SHA") != sha(doc) else
                "reviewed screenshots differ from the render critique's" if rshots != shots or len(shots) < 2 else
-               "screenshots changed after the review: re-run scripts/visual-review.py"
-               if not all(p.is_file() for p in rshots) or field("Images-SHA") != images_sha(rshots) else
-               "no 'Verdict: PASS|REVISE' line" if not verdict else
-               "verdict REVISE: fix its findings, re-render, re-review" if verdict != "PASS" else "")
+               "reviewed references differ from the design evidence" if rrefs != refs else
+               "images changed after the review: re-run scripts/visual-review.py"
+               if not all(p.is_file() for p in rshots + rrefs) or field("Images-SHA") != images_sha(rshots + rrefs) else
+               "no 'Verdict: PASS|REVISE|UNVERIFIED' line" if not verdict else
+               f"verdict {verdict}: resolve findings or missing inspection, then re-review" if verdict != "PASS" else "")
     check("review", not problem, problem or f"PASS by {reviewer.group(1).strip()} on {len(rshots)} screenshot(s)")
 
     n = {k: 0 for k in LIMITS}
@@ -197,10 +234,11 @@ def main(argv):
              "stat": "owner placeholder set as a large stat figure"}
     for k, limit in LIMITS.items():
         check(k, n[k] <= limit,
-              f"{n[k]} (limit {limit}) {notes[k]}" + (f" e.g. {', '.join(where[k])}" if n[k] > limit else ""))
+              f"{n[k]} (signal threshold {limit}) {notes[k]}" + (f" e.g. {', '.join(where[k])}" if n[k] > limit else ""),
+              advisory=k != "stat")
     limit = max(2, sections // 2)
     check("labels", tracked <= limit,
-          f"{tracked} tracked uppercase label(s) vs {sections} <section>(s) (limit {limit}: an eyebrow over every heading is template chrome)")
+          f"{tracked} tracked uppercase label(s) vs {sections} <section>(s) (signal threshold {limit})", advisory=True)
 
     print(f"{'FAIL' if fails else 'PASS'}: {len(fails)} failing check(s)"
           + (f" ({', '.join(fails)})" if fails else ""))

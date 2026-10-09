@@ -72,7 +72,7 @@ DOMAINS: dict[str, tuple[str, ...]] = {
     "Delivery practice": (
         "full-stack-development", "testing-engineering",
         "observability-engineering", "github-actions", "lean-code-review",
-        "native-first", "continuous-learning", "cross-cli",
+        "native-first", "continuous-learning", "cross-cli", "codebase-navigation",
     ),
     "Infrastructure and runtime": (
         "vercel", "vultr", "vps-deploy", "kelola-deploy", "9router",

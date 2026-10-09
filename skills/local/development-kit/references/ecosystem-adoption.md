@@ -14,6 +14,16 @@ configuration.
 | [Kimi Code Agent Skills](https://github.com/MoonshotAI/kimi-code/blob/main/docs/en/customization/skills.md) | Layered skill discovery and explicit Mermaid/D2 flow decision loops. | The standard skill keeps explicit phases and gates; diagrams may document BEGIN/decision/revision/END behavior. | `type: flow`, Kimi-only arguments, model routing, and runtime paths are not placed in canonical cross-CLI skills because they change activation semantics elsewhere. |
 | [Everything Claude Code (ECC)](https://github.com/affaan-m/ECC) | Distinguish new capability scenarios from regression scenarios, define expected behavior before editing, and prefer deterministic graders over model or human judgment. | `development-kit` uses the local [skill evaluation contract](skill-evaluation.md) for skill-system changes; repository checks and delivery evidence remain authoritative. | Do not install the stale [WorldFlowAI snapshot](https://github.com/worldflowai/everything-claude-code) or ECC wholesale. Universal coverage targets, package-runner commands, vendor agents/hooks, model routing, MCP bundles, memory runtimes, and `.claude/evals/` would conflict with repository scripts, approval gates, canonical artifacts, and runtime-native ownership. Reliability metrics require repeated controlled trials, not labels attached to one run. |
 
+## Optional navigation and concise communication
+
+Rechecked 2026-10-10 against upstream sources and the real Graphify CLI.
+
+| Upstream | Local adoption | Deliberate non-adoption |
+|---|---|---|
+| [Ponytail](https://github.com/DietrichGebert/ponytail/blob/main/skills/ponytail/SKILL.md) | Existing `CORE.md`, `native-first`, and `lean-code-review` already cover the smallest complete change, caller tracing, reuse, and preservation of security/accessibility. | No duplicate skill or persistent lite/full/ultra toggle overriding explicit task depth. |
+| [Graphify](https://github.com/Graphify-Labs/graphify) | `codebase-navigation` adds optional repository-local AST extraction and upstream graph queries through isolated `pipx run`, pinned to `graphifyy==0.9.82`. A runnable synthetic Python pilot checks alias calls, directed path lookup, skipped Markdown, zero LLM tokens, and unchanged sources. | No global installer, config overwrite, automatic indexing, watcher, MCP registration, or document-to-LLM extraction. One fixture does not prove production coverage or performance. |
+| [Caveman](https://github.com/JuliusBrussee/caveman) | `volumx-writer/references/terminal-dialogue.md` adopts concise natural replies while preserving technical payload, negation, uncertainty, user language, and status-vs-activation intent. | No duplicate skill, forced grammar/word quota, provider proxy, hidden output compression, or unmeasured token-saving claim. |
+
 ## PRD conclusion
 
 No first-party Anthropic, OpenAI, shadcn, or Kimi source above defines a

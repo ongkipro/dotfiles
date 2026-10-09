@@ -1,6 +1,6 @@
 ---
 name: volumx-writer
-description: Create, rewrite, humanize, localize, optimize, audit, or score English and Indonesian writing while preserving meaning and voice. NOT a content workflow orchestrator (content), NOT the copy-rules source (copywriting), NOT for authoring PRDs from scratch. Use for articles, SEO content, landing pages, ads, emails, social posts, technical docs, READMEs, prompts, AI-slop removal, tone adaptation, and rewrites where silent claim drift would be costly. Also use for terminal-dialogue improvement and cross-model language evaluation.
+description: Write, rewrite, audit, or shorten English/Indonesian text and terminal dialogue, including Caveman-style concise replies, preserving meaning. NOT content orchestration (content), copy rules (copywriting), or PRDs from scratch. Use for articles, SEO content, landing pages, ads, emails, social posts, technical docs, READMEs, prompts, AI-slop removal, tone adaptation, and cross-model language evaluation.
 ---
 
 # VolumX Writer
