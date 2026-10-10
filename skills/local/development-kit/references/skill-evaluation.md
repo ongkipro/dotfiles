@@ -63,3 +63,33 @@ For an owned canonical skill, verify at minimum:
 Add scenario-specific tests for the behavior changed. Do not impose a universal
 coverage percentage or install throwaway tooling merely to produce a green
 report.
+
+## Portable decision scenarios
+
+`ai-workflow-eval check` validates the shared scenario bank. `prompt` emits only
+synthetic context/conversations, a response schema and global choices; `grade`
+checks a supplied response against the current suite and instruction revision.
+It invokes no provider and runs no simulated action. See
+[system procedures](../../../../docs/adaptive-ai-system.md) for trial/review usage.
+
+A decision PASS still leaves behavior UNVERIFIED and semantic review REQUIRED.
+Review natural-language replies against each case rubric for contradictory
+actions, lost constraints and invented evidence; structured flags are not truth.
+Use isolated project-native execution tests for real full-stack claims. Record
+actual runtime/model when exposed, otherwise an explicit unavailable reason.
+Synthetic fixture success validates the grader, not the model.
+
+## Observed execution
+
+For a small portable coding trial, `ai-workflow-eval execution-init DIR` exports
+a deliberately defective synthetic order-note application. A separate worker
+repairs only that copy. `execution-check DIR --out FRESH_DIR --runtime ACTUAL
+--model ACTUAL` starts it on loopback and applies an external HTTP/SQLite/browser
+oracle. Reference exports verify the oracle; they are not model trials.
+
+See [execution procedures](../../../../docs/ai-execution-evaluation.md). Full PASS
+requires the real browser journey and independent database assertions. Missing
+Node/browser or `--api-only` remains UNVERIFIED; behavioral failures are FAIL.
+Preserve attempts, revision hashes, exact provenance gaps and visual review.
+This synthetic exercise complements project-native tests and independent review;
+it cannot certify general model capability or production authorization.

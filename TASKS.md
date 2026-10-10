@@ -18,39 +18,38 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 
 ## Pending
 
-### TASK-117: Native OMP update and configuration health
+### TASK-119: Executed cross-layer evaluation
 
-- **Requirement:** REQ-OMP-NATIVE-CONFIG-HEALTH (owner requests applying audit recommendations, assessing a default reset, and updating OMP CLI).
+- **Requirement:** REQ-ADAPTIVE-EXECUTION-EVAL (continue the adaptive AI system with observed behavior beyond decision-only trials).
 - **Risk Level:** R3.
 - **Job:** implementation.
-- **Capability:** native-first, continuous-learning.
-- **Allowed Paths:** `bin/omp-runtime-report`, `bin/omp-runtime-report-test`, `bin/omp-effective-routing-test`, `config/omp/README.md`, `config/omp/STATUS.md`, `config/omp/BUILD-LOG.md`, `skills/local/native-first/SKILL.md`, `config/ai/memory/projects-sites.md`, `config/ai/project-memory/autolaris-payment-integration.md`, `config/ai/project-memory/dev-toolchain-mise.md`, `config/ai/project-memory/kiriminaja-integration.md`, `config/ai/project-memory/mengantar-docs-project.md`, `config/ai/project-memory/mystore10-furniture-shopify.md`, `config/ai/project-memory/ongki-pro-site.md`, `config/ai/project-memory/petcue-shopify-site.md`, `config/ai/project-memory/pixsgo-categories-from-producttype.md`, `config/ai/project-memory/pixsgo-rebrand-play-and-go.md`, `config/ai/project-memory/tokophi-build-log.md`, `docs/skills-memory-audit.md`, `TASKS.md`, `.delivery/**`.
-- **Protected Paths:** None; runtime state remains device-local, not installed from dotfiles.
-- **Canonical Contract Owners:** `omp.native-health`, `ai.memory-history`.
-- **Accepted Invariants:** update through native updater; back up before narrow runtime repair; preserve provider/auth/session state and valid role choices; native bare selectors and auto/off effort remain usable; missing models, invalid concrete effort, and blind visual models still fail; auxiliary catalogs cannot certify chat health; retired overlays are not active routing; historical claims keep dates and warnings.
-- **Regression Checks:** `omp-runtime-report-test`, `omp-runtime-report`, `omp-effective-routing-test`, `omp-routing-test`, `omp update --check`, `ai-policy-lint`, `ai-memory-hygiene`, `git diff --check`, independent review.
-- **Runtime Evidence:** native update 18.8.6 → 18.8.7 with verified checksum; local retired Claude selectors repaired using available registry successors. Registry validation is not a live inference or quality benchmark.
-- **Visual Contract:** Not applicable; no application UI changes.
-- **Reopen Conditions:** native syntax gets rejected, a genuinely unavailable active selector passes, or unrelated runtime state changes during repair.
-- **Non-Scope:** full runtime reset, credential access, paid inference, new provider, mass upstream upgrade, commit/push; initial dirty memory untouched.
-- **Escalation Conditions:** repair needs auth replacement, destructive reset, or discard of unrelated work.
+- **Capability:** development-kit, testing-engineering, ui-validation, native-first.
+- **Allowed Paths:** `TASKS.md`, `bin/ai-workflow-eval`, `bin/ai-workflow-eval-test`, `bin/_workflow-execution.py`, `config/ai/evals/execution/**`, `skills/local/design-taste/scripts/ui-ref.mjs`, `skills/local/design-taste/scripts/ui-ref.test.mjs`, `docs/adaptive-ai-system.md`, `docs/ai-execution-evaluation.md`, `skills/local/development-kit/references/skill-evaluation.md`, `.delivery/**`.
+- **Protected Paths:** None; no runtime credentials, model/provider configuration, CORE, hooks, production app or deployment changes.
+- **Canonical Contract Owners:** execution oracle -> ai-workflow-eval; browser transport -> existing ui-ref; workflow -> development-kit.
+- **Accepted Invariants:** synthetic loopback-only fixture; no paid model invocation; fresh output paths; independent database assertions; full PASS requires browser evidence; no model-parity claim; preserve TASK-118 work and unrelated initial dirty memory.
+- **Regression Checks:** decision evaluator tests; reference execution; behavioral mutation detection; independent agent repair trial; existing browser transport tests; policy, surface, whitespace and boundary checks; independent R3 review.
+- **Runtime Evidence:** bind source hashes, actual runtime provenance and case-level observations; missing browser remains UNVERIFIED. A successful local coding trial is not a general model benchmark.
+- **Non-Scope:** new orchestrator, production authentication, hostile-code sandbox, provider benchmarks, dependency downloads without need, commit/push.
+- **Reopen Conditions:** fixture can certify itself, cross-tenant writes survive, errors retain partial writes, missing browser passes, or unrelated dirty changes become task-owned.
+- **Escalation Conditions:** acceptance requires secrets, paid providers, live writes or destructive/system changes.
 
-### TASK-116: Skill and memory consistency audit
+### TASK-118: Adaptive cross-CLI AI workflow and evidence
 
-- **Requirement:** REQ-SKILLS-MEMORY-CONSISTENCY (owner asks for a whole skill/memory scan and cleanup).
+- **Requirement:** REQ-ADAPTIVE-AI-SYSTEM (owner authorizes research, Markdown documentation, implementation, local dependencies when useful, and parallel work; OMP remains one CLI).
 - **Risk Level:** R3.
 - **Job:** implementation.
-- **Capability:** skill-creator, continuous-learning.
-- **Allowed Paths:** `skills/local/development-kit/SKILL.md`, `skills/local/chain-of-thought/SKILL.md`, `skills/local/design-taste/references/reference-fidelity.md`, `config/ai/memory/decisions.md`, `config/ai/memory/skills.md`, `config/ai/memory/workflow.md`, `config/ai/project-memory/local-skills-registry.md`, `config/ai/project-memory/pi-9router-setup.md`, `config/ai/project-memory/pi-9router-models-compaction.md`, `config/ai/project-memory/git-identity-noreply.md`, `config/ai/project-memory/MEMORY.md`, `skills/local/README.md`, `docs/skills-memory-audit.md`, `docs/archive/DOTFILES_TASKS_2026-10-10_SKILLS.md`, `TASKS.md`, `.delivery/**`.
-- **Protected Paths:** None; shared CORE and runtime configuration are unchanged.
-- **Canonical Contract Owners:** `ai.skill-memory-consistency`.
-- **Accepted Invariants:** skill methodology remains adaptive and evidence-backed; independent review does not require a different vendor; memory cannot authorize Git/secret/live actions or own changing project status; no false freshness, automatic deletion, or bulk upstream upgrade; initial dirty memory stays untouched.
-- **Regression Checks:** `skill-check`, `skill-surface-check`, `ai-policy-lint`, `ai-memory-hygiene`, `ai-memory-check`, `skill-map --check`, independent conflict-case review, `git diff --check`.
-- **Runtime Evidence:** structural/routing checks cover the owned corpus; targeted semantic review fixes evidenced contradictions. Dated project claims remain advisory and are not re-certified. Scope and residual findings: `docs/skills-memory-audit.md`.
-- **Visual Contract:** Not applicable; no UI or application behavior change.
-- **Reopen Conditions:** unsafe secret sourcing or automatic commit instructions survive in an active route, memory snapshots override code, or skill linkage regresses.
-- **Non-Scope:** provider/model/runtime changes, full API-by-API upstream certification, live project mutations, unrelated dirty memory, commit/push.
-- **Escalation Conditions:** a repair requires private credentials, discarding user work, deployment, or replacing canonical runtime configuration.
+- **Capability:** development-kit, skill-creator, native-first, continuous-learning, volumx-writer.
+- **Allowed Paths:** `TASKS.md`, `docs/adaptive-ai-system.md`, `docs/research/adaptive-ai-sources.md`, `docs/archive/DOTFILES_TASKS_2026-10-10_RUNTIME.md`, `config/ai/README.md`, `config/ai/evals/workflow-scenarios.json`, `config/ai/runtime-commands.txt`, `bin/ai-workflow-eval`, `bin/ai-workflow-eval-test`, `bin/dev-ready`, `bin/dev-ready-test`, `skills/local/development-kit/SKILL.md`, `skills/local/development-kit/references/adaptive-execution.md`, `skills/local/development-kit/references/skill-evaluation.md`, `skills/local/full-stack-development/SKILL.md`, `skills/local/continuous-learning/SKILL.md`, `skills/local/volumx-writer/references/terminal-dialogue.md`, `.delivery/**`.
+- **Protected Paths:** None; no CORE, hooks, credentials, model/provider settings or live deployment changes. Runtime gates require R3 independent review.
+- **Canonical Contract Owners:** adaptive workflow -> development-kit; delivery -> full-stack-development and ledger; dialogue -> volumx-writer; learning -> continuous-learning; native runtime -> adapters.
+- **Accepted Invariants:** no CLI/model lock; capability-appropriate context; repository truth; authorization preserved; no secrets/raw sessions; verified improvement before promotion; eval decisions cannot certify executed behavior; no model-parity guarantee.
+- **Capability Scenarios:** informal corrections/status/negation; cross-layer tenant-safe delivery; small-model/tool limitation; fresh docs; cross-session resume; bounded self-improvement; CLI-independent readiness.
+- **Regression Checks:** new evaluator fixtures and independent decision trial; dev-ready-test; resume-brief-test; skill-surface-check; relevant skill-check; ai-policy-lint; installer-link-test; git diff checks; boundary and independent review.
+- **Runtime Evidence:** record exact trial type and exposed provenance; offline fixtures and decision trials do not prove live provider or production behavior.
+- **Non-Scope:** model training, wholesale upstream installation, live deployment, credential access, commit/push, initial dirty projects-platforms memory.
+- **Reopen Conditions:** SKIP claims health, new CLI requires OMP, answer key leaks into trial prompt, or simulated decisions claim real execution.
+- **Escalation Conditions:** new behavior requires destructive/system/live changes beyond existing authorization.
 
 ### TASK-097: Mutation gaps left after TASK-080
 

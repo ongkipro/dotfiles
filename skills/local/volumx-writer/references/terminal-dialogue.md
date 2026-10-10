@@ -90,6 +90,13 @@ claim access to another model's private conversation or create parallel memory
 stores. If context is missing, inspect the relevant artifact or ask about the
 missing decision; do not fabricate continuity.
 
+## Cross-CLI decision checks
+
+`ai-workflow-eval prompt` supplies synthetic communication and development cases
+without the answer key. Its grader checks structured decisions only. Apply the
+[dialogue evaluation rubric](dialogue-evaluation.md) independently to the replies;
+matching labels cannot establish naturalness, correct execution, or model reliability.
+
 ## Final language pass
 
 Check that the reply answers the intended question, keeps every material

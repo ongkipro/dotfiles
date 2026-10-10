@@ -109,3 +109,5 @@ ai-ask
 ai-ask-test
 ai-health-daily
 ai-health-daily-test
+ai-workflow-eval
+ai-workflow-eval-test

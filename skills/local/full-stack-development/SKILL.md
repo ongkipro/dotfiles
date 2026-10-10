@@ -18,6 +18,11 @@ truth and accepted behavior, route each concern to its canonical owner, keep
 cross-layer contracts synchronized, and stop only when the requested outcome has
 executable evidence or an explicit external blocker.
 
+When the selected runtime/model lacks a needed capability or the session resumes
+elsewhere, use [adaptive execution](../development-kit/references/adaptive-execution.md).
+Preserve acceptance criteria; disclose unverified gates and continue independent
+work. Runtime-specific checks apply only to the selected CLI.
+
 Read [End-to-end workflow](references/end-to-end-workflow.md) for the runnable
 phase checklist, contract record, stack combinations, and evidence packet. Read
 [source-ledger.md](references/source-ledger.md) only when a current platform or

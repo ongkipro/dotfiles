@@ -1,0 +1,315 @@
+#!/usr/bin/env python3
+"""Deterministic grader/local API fixtures; these do not measure an AI model."""
+import argparse
+import copy
+import json
+from pathlib import Path
+import runpy
+import subprocess
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+
+arguments = sys.argv[1:]
+BROWSER_TESTS = '--browser' in arguments
+roots = [value for value in arguments if value != '--browser']
+if len(roots) > 1:
+    raise SystemExit('Usage: ai-workflow-eval-test [ROOT] [--browser]')
+ROOT = Path(roots[0]).resolve() if roots else Path(__file__).resolve().parent.parent
+EVAL = ROOT / 'bin/ai-workflow-eval'
+api = runpy.run_path(str(EVAL))
+execution_api = runpy.run_path(str(ROOT / 'bin/_workflow-execution.py'))
+
+
+class EvaluationTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.suite, cls.suite_hash, cls.owners = api['load_suite'](ROOT)
+        cls.revision = api['instruction_revision'](ROOT)
+
+    def response(self):
+        # Deliberate answer-key fixture: grader tests ONLY, never model evidence.
+        return {'suiteHash': self.suite_hash, 'instructionRevision': self.revision,
+                'runtime': 'synthetic-fixture', 'model': 'unavailable: deterministic fixture',
+                'mode': 'decision-only', 'cases': [
+                    {'id': c['id'], 'intent': c['expected']['intent'][0],
+                     'owners': c['expected']['owners_any'][:1],
+                     'steps': c['expected']['steps_all'][:],
+                     'reply': 'Synthetic fixture; no work executed.'}
+                    for c in self.suite['cases']]}
+
+    def grade(self, data):
+        return api['grade'](self.suite, self.suite_hash, self.revision, self.owners, data)
+
+    def test_valid_decisions_never_certify_behavior(self):
+        report, rc = self.grade(self.response())
+        self.assertEqual(rc, 0)
+        self.assertEqual(report['decisionResult'], 'PASS')
+        self.assertEqual(report['behaviorResult'], 'UNVERIFIED')
+        self.assertEqual(report['semanticReview'], 'REQUIRED')
+
+    def test_equivalent_continuation_labels_keep_constraints(self):
+        data = self.response()
+        case = next(c for c in data['cases'] if c['id'] == 'continue-with-negation')
+        case['intent'] = 'resume'
+        self.assertEqual(self.grade(data)[1], 0)
+        case['steps'].append('deploy')
+        self.assertEqual(self.grade(data)[1], 1)
+
+    def test_rubric_alignment_keeps_material_checks(self):
+        data = self.response()
+        cases = {c['id']: c for c in data['cases']}
+        self.assertNotIn('bounded-context', cases['small-model-no-browser']['steps'])
+        self.assertNotIn('disclose-limitations', cases['external-instruction-injection']['steps'])
+        self.assertEqual(self.grade(data)[1], 0)
+        cases['webhook-retry']['steps'].remove('check-auth')
+        self.assertEqual(self.grade(data)[1], 1)
+
+    def test_missing_response_cannot_pass(self):
+        data = self.response(); data['cases'].pop()
+        report, rc = self.grade(data)
+        self.assertEqual(rc, 2)
+        self.assertEqual(report['decisionResult'], 'UNVERIFIED')
+
+    def test_empty_response_cannot_pass(self):
+        data = self.response(); data['cases'] = []
+        self.assertEqual(self.grade(data)[1], 2)
+
+    def test_each_required_step_is_load_bearing(self):
+        for i, case in enumerate(self.suite['cases']):
+            for step in case['expected']['steps_all']:
+                with self.subTest(case=case['id'], step=step):
+                    data = self.response(); data['cases'][i]['steps'].remove(step)
+                    self.assertEqual(self.grade(data)[1], 1)
+
+    def test_each_forbidden_action_is_rejected(self):
+        for i, case in enumerate(self.suite['cases']):
+            for step in case['expected']['steps_none']:
+                with self.subTest(case=case['id'], step=step):
+                    data = self.response(); data['cases'][i]['steps'].append(step)
+                    self.assertEqual(self.grade(data)[1], 1)
+
+    def test_wrong_intent_and_owner_fail(self):
+        data = self.response(); data['cases'][0]['intent'] = 'implement'
+        self.assertEqual(self.grade(data)[1], 1)
+        data = self.response(); data['cases'][0]['owners'] = []
+        self.assertEqual(self.grade(data)[1], 1)
+
+    def test_identity_and_revision_fail_closed(self):
+        for key in ('suiteHash', 'instructionRevision', 'mode', 'runtime', 'model'):
+            with self.subTest(key=key):
+                data = self.response(); data[key] = ''
+                with self.assertRaises(ValueError): self.grade(data)
+
+    def test_duplicate_unknown_malformed_response_refused(self):
+        data = self.response(); data['cases'].append(copy.deepcopy(data['cases'][0]))
+        with self.assertRaises(ValueError): self.grade(data)
+        data = self.response(); data['cases'][0]['id'] = 'unknown'
+        with self.assertRaises(ValueError): self.grade(data)
+        for field in ('steps', 'owners'):
+            data = self.response(); data['cases'][0][field] = 'not-a-list'
+            with self.assertRaises(ValueError): self.grade(data)
+        data = self.response(); data['cases'][0]['reply'] = ''
+        with self.assertRaises(ValueError): self.grade(data)
+
+    def test_malformed_suite_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            path = root / 'config/ai/evals/workflow-scenarios.json'
+            path.parent.mkdir(parents=True)
+            for owner in self.owners:
+                if owner != 'repository':
+                    skill = root / 'skills/local' / owner / 'SKILL.md'
+                    skill.parent.mkdir(parents=True)
+                    skill.write_text('fixture')
+            mutations = [
+                lambda s: s['cases'].append(copy.deepcopy(s['cases'][0])),
+                lambda s: s['cases'][0]['expected'].update(intent=['invented']),
+                lambda s: s['cases'][0]['expected'].update(owners_any=['missing-owner']),
+                lambda s: s['cases'][0]['expected'].update(steps_none=s['cases'][0]['expected']['steps_all']),
+                lambda s: s['cases'][0]['conversation'][0].update(role='system'),
+                lambda s: s['cases'][0].update(rubric=''),
+            ]
+            for mutate in mutations:
+                suite = copy.deepcopy(self.suite); mutate(suite)
+                path.write_text(json.dumps(suite))
+                with self.assertRaises(ValueError): api['load_suite'](root)
+
+    def test_prompt_has_no_answer_key_or_rubric(self):
+        prompt = api['prompt'](self.suite, self.suite_hash, self.revision, self.owners)
+        for case in prompt['cases']:
+            self.assertEqual(set(case), {'id', 'context', 'conversation'})
+        self.assertNotIn('expected', json.dumps(prompt))
+        self.assertNotIn('rubric', json.dumps(prompt))
+
+    def test_cli_exit_codes_and_invalid_json(self):
+        with tempfile.TemporaryDirectory() as temp:
+            response = Path(temp) / 'responses.json'
+            data = self.response(); response.write_text(json.dumps(data))
+            result = subprocess.run([str(EVAL), 'grade', str(response)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout)['behaviorResult'], 'UNVERIFIED')
+            data['cases'] = []; response.write_text(json.dumps(data))
+            result = subprocess.run([str(EVAL), 'grade', str(response)], capture_output=True)
+            self.assertEqual(result.returncode, 2)
+            response.write_text('{invalid')
+            result = subprocess.run([str(EVAL), 'grade', str(response)], capture_output=True)
+            self.assertEqual(result.returncode, 1)
+
+
+class ExecutionTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.base = Path(self.temp.name)
+        self.candidate = self.base / 'candidate'
+        execution_api['export_fixture'](ROOT, self.candidate, reference=True)
+
+    def run_candidate(self):
+        args = argparse.Namespace(directory=self.candidate, out=self.base / 'evidence', api_only=True,
+                                  runtime='deterministic-fixture', model='unavailable: no model involved')
+        summary, code = execution_api['execute'](ROOT, args)
+        return json.loads(Path(summary['report']).read_text()), code
+
+    def mutate(self, original, replacement):
+        path = self.candidate / 'app.py'
+        text = path.read_text()
+        self.assertEqual(text.count(original), 1)
+        path.write_text(text.replace(original, replacement, 1))
+
+    def test_reference_api_pass_cannot_certify_browser(self):
+        report, code = self.run_candidate()
+        self.assertEqual(code, 2)
+        self.assertEqual(report['behaviorResult'], 'UNVERIFIED')
+        self.assertTrue(all(c['result'] == 'PASS' for c in report['checks'] if c['id'] != 'browser-journey'))
+        self.assertEqual(next(c for c in report['checks'] if c['id'] == 'browser-journey')['result'], 'UNVERIFIED')
+
+    def test_tenant_filter_mutation_fails_behavioral_oracle(self):
+        self.mutate("WHERE id = ? AND tenant = ?',\n                      (order_id, tenant)",
+                    "WHERE id = ?',\n                      (order_id,)")
+        report, code = self.run_candidate()
+        self.assertEqual(code, 1)
+        checks = {c['id']: c['result'] for c in report['checks']}
+        self.assertEqual(checks['foreign-read'], 'FAIL')
+        self.assertEqual(checks['foreign-write'], 'FAIL')
+        self.assertNotIn('execution-infrastructure', checks)
+
+    def test_missing_commit_mutation_fails_persistence(self):
+        self.mutate('                db.commit()', '                pass  # mutation: omit commit')
+        report, code = self.run_candidate()
+        self.assertEqual(code, 1)
+        checks = {c['id']: c['result'] for c in report['checks']}
+        self.assertEqual(checks['own-write-persistence'], 'FAIL')
+        self.assertEqual(checks['restart-persistence'], 'FAIL')
+        self.assertNotIn('execution-infrastructure', checks)
+
+    def test_early_commit_mutation_fails_rollback(self):
+        original = "                db.execute('INSERT INTO audit"
+        self.mutate(original, "                db.commit()  # mutation: partial transaction\n" + original)
+        report, code = self.run_candidate()
+        self.assertEqual(code, 1)
+        checks = {c['id']: c['result'] for c in report['checks']}
+        self.assertEqual(checks['write-failure-rollback'], 'FAIL')
+        self.assertEqual(checks['restart-persistence'], 'FAIL')
+        self.assertNotIn('execution-infrastructure', checks)
+
+    def test_startup_failure_is_not_a_behavioral_mutation_kill(self):
+        (self.candidate / 'app.py').write_text('this is not python!\n')
+        report, code = self.run_candidate()
+        self.assertEqual(code, 1)
+        self.assertTrue(any(c['id'] == 'execution-infrastructure' for c in report['checks']))
+        self.assertFalse(any(c['id'] == 'foreign-write' for c in report['checks']))
+
+    def test_export_and_evidence_never_overwrite(self):
+        before = (self.candidate / 'app.py').read_bytes()
+        with self.assertRaises(ValueError):
+            execution_api['export_fixture'](ROOT, self.candidate)
+        self.assertEqual((self.candidate / 'app.py').read_bytes(), before)
+        self.run_candidate()
+        with self.assertRaises(ValueError): self.run_candidate()
+
+    def test_contract_change_and_symlink_refused(self):
+        readme = self.candidate / 'README.md'
+        readme.write_text('Different requirements')
+        with self.assertRaises(ValueError):
+            execution_api['validate_candidate'](ROOT, self.candidate)
+        readme.unlink()
+        readme.symlink_to(ROOT / 'config/ai/evals/execution/README.md')
+        with self.assertRaises(ValueError):
+            execution_api['validate_candidate'](ROOT, self.candidate)
+
+    def test_default_export_is_repair_exercise(self):
+        fresh = self.base / 'repair'
+        execution_api['export_fixture'](ROOT, fresh)
+        self.assertNotEqual((fresh / 'app.py').read_bytes(), (self.candidate / 'app.py').read_bytes())
+        self.assertEqual((fresh / 'README.md').read_bytes(), (self.candidate / 'README.md').read_bytes())
+
+    def test_missing_node_keeps_whole_journey_unverified(self):
+        args = argparse.Namespace(directory=self.candidate, out=self.base / 'evidence', api_only=False,
+                                  runtime='fixture', model='unavailable: no model')
+        with patch('shutil.which', return_value=None):
+            summary, code = execution_api['execute'](ROOT, args)
+        self.assertEqual(code, 2)
+        report = json.loads(Path(summary['report']).read_text())
+        self.assertEqual(report['behaviorResult'], 'UNVERIFIED')
+        self.assertIn('Node is unavailable', json.dumps(report))
+
+    def test_browser_status_cannot_override_missing_or_failed_checks(self):
+        grade = execution_api['browser_outcome']
+        self.assertEqual(grade({'status': 'PASS', 'checks': []}, 0, self.base), 'FAIL')
+        self.assertEqual(grade({'status': 'PASS', 'checks': [{'name': 'cleanup', 'status': 'FAIL'}]}, 0, self.base), 'FAIL')
+        self.assertEqual(grade({'status': 'UNVERIFIED'}, 2, self.base), 'UNVERIFIED')
+        self.assertEqual(grade({'status': 'UNVERIFIED'}, 0, self.base), 'FAIL')
+        self.assertEqual(grade({'status': 'PASS'}, 2, self.base), 'FAIL')
+        self.assertEqual(grade([], 0, self.base), 'FAIL')
+        self.assertEqual(grade({'status': 'PASS', 'checks': ['invalid']}, 0, self.base), 'FAIL')
+
+    def run_browser_candidate(self):
+        args = argparse.Namespace(directory=self.candidate, out=self.base / 'evidence', api_only=False,
+                                  runtime='deterministic-browser-fixture', model='unavailable: no model involved')
+        summary, code = execution_api['execute'](ROOT, args)
+        return json.loads(Path(summary['report']).read_text()), code
+
+    @unittest.skipUnless(BROWSER_TESTS, 'opt-in --browser requires actual Chrome/Chromium')
+    def test_real_reference_browser_journey(self):
+        report, code = self.run_browser_candidate()
+        self.assertEqual(code, 0, json.dumps(report))
+        self.assertEqual(report['behaviorResult'], 'PASS')
+
+    @unittest.skipUnless(BROWSER_TESTS, 'opt-in --browser requires actual Chrome/Chromium')
+    def test_disabled_submit_is_a_browser_behavior_failure(self):
+        path = self.candidate / 'index.html'
+        needle = "document.querySelector('#form').addEventListener('submit', async event => {"
+        self.assertEqual(path.read_text().count(needle), 1)
+        path.write_text(path.read_text().replace(needle, needle + '\n event.preventDefault(); return;', 1))
+        report, code = self.run_browser_candidate()
+        self.assertEqual(code, 1)
+        checks = report['browser']['checks']
+        self.assertTrue(any(c['name'] == 'initial API value rendered' and c['status'] == 'PASS' for c in checks))
+        self.assertTrue(any(c['status'] == 'FAIL' and 'save confirmation' in c.get('detail', '') for c in checks))
+        self.assertTrue(all(c['result'] == 'PASS' for c in report['checks'] if c['id'] != 'browser-journey'))
+
+    @unittest.skipUnless(BROWSER_TESTS, 'opt-in --browser requires actual Chrome/Chromium')
+    def test_invisible_feedback_cannot_pass(self):
+        path = self.candidate / 'index.html'
+        path.write_text(path.read_text().replace('</style>', '#status, #error { opacity: 0; }\n</style>', 1))
+        report, code = self.run_browser_candidate()
+        self.assertEqual(code, 1)
+        self.assertTrue(any(c['name'] == 'native input and click save' and c['status'] == 'FAIL'
+                            for c in report['browser']['checks']))
+        self.assertTrue(all(c['result'] == 'PASS' for c in report['checks'] if c['id'] != 'browser-journey'))
+
+    @unittest.skipUnless(BROWSER_TESTS, 'opt-in --browser requires actual Chrome/Chromium')
+    def test_offscreen_feedback_cannot_pass(self):
+        path = self.candidate / 'index.html'
+        path.write_text(path.read_text().replace('</style>', '#status, #error { position: absolute; left: -9999px; }\n</style>', 1))
+        report, code = self.run_browser_candidate()
+        self.assertEqual(code, 1)
+        self.assertTrue(any(c['name'] == 'native input and click save' and c['status'] == 'FAIL'
+                            for c in report['browser']['checks']))
+        self.assertTrue(all(c['result'] == 'PASS' for c in report['checks'] if c['id'] != 'browser-journey'))
+
+
+if __name__ == '__main__':
+    unittest.main(argv=[sys.argv[0]], verbosity=1)

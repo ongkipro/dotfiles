@@ -14,8 +14,8 @@ fails=0
 expect() { # expect <name> <expected-substring> <dir> [env-prefix...]
   local name="$1" want="$2" dir="$3"; shift 3
   local out
-  out="$(env DOTFILES_DIR="${DOT_OK:-$ROOT}" DEV_READY_OMP="${OMP_OK:-omp}" DEV_READY_LEDGER="${LEDGER_OK:-$ROOT/bin/delivery-ledger}" "$@" "$DR" "$dir" 2>&1)"
-  if printf '%s' "$out" | grep -qF "$want"; then
+  out="$(env -u CODEX_THREAD_ID -u CLAUDECODE DEV_READY_CLAUDE="$TMP/no-claude" DEV_READY_CODEX="$TMP/no-codex" DEV_READY_AGY="$TMP/no-agy" DEV_READY_PI="$TMP/no-pi" DOTFILES_DIR="${DOT_OK:-$ROOT}" DEV_READY_OMP="${OMP_OK:-omp}" DEV_READY_LEDGER="${LEDGER_OK:-$ROOT/bin/delivery-ledger}" "$@" "$DR" --runtime "${RUNTIME_OK:-omp}" "$dir" 2>&1)"
+  if printf '%s' "$out" | grep -qF -- "$want"; then
     printf '  ok   %s\n' "$name"
   else
     printf '  FAIL %s\n       wanted: %s\n%s\n' "$name" "$want" "$(printf '%s' "$out" | sed 's/^/       /')"
@@ -41,15 +41,16 @@ fake_dot() { # fake_dot DIR [routing-exit]
   local d="$1" rc="${2:-0}"
   mkdir -p "$d/bin" "$d/skills/local/example"
   printf 'name: example\n' > "$d/skills/local/example/SKILL.md"
-  printf '#!/usr/bin/env bash\necho routing\nexit %s\n' "$rc" > "$d/bin/omp-runtime-report"
+  printf '#!/usr/bin/env bash\necho "omp-runtime-report: OK"\nexit %s\n' "$rc" > "$d/bin/omp-runtime-report"
   chmod +x "$d/bin/omp-runtime-report"
+  printf 'toolchain_export_path() { :; }\n' > "$d/bin/_toolchain-path.sh"
 }
 fake_omp() { # fake_omp PATH PROVIDER...
   local f="$1"; shift
   local js='{"models":['
   for p in "$@"; do js="$js{\"provider\":\"$p\",\"id\":\"m\"},"; done
   js="${js%,}]}"
-  printf '#!/usr/bin/env bash\ncat <<JSON\n%s\nJSON\n' "$js" > "$f"; chmod +x "$f"
+  printf '#!/usr/bin/env bash\nif [ "${1:-}" = --version ]; then echo omp/fixture; exit 0; fi\ncat <<JSON\n%s\nJSON\n' "$js" > "$f"; chmod +x "$f"
 }
 
 DOT_OK="$TMP/dotok"; fake_dot "$DOT_OK"
@@ -128,19 +129,19 @@ expect "a skills directory with no SKILL.md blocks" \
   "no owned capability is discoverable" "$TMP/good" "DOTFILES_DIR=$TMP/dot-emptyskills"
 
 fake_omp "$TMP/omp-one" solo
-expect "a single authenticated provider degrades" \
-  "fallback chains have nowhere to fall" "$TMP/good" "DEV_READY_OMP=$TMP/omp-one"
+expect "a single provider is valid without enforced fallback" \
+  "required providers: PASS" "$TMP/good" "DEV_READY_OMP=$TMP/omp-one"
 
 fake_omp "$TMP/omp-two" alpha beta
 expect "exactly two providers is not degraded" \
   "required providers: PASS" "$TMP/good" "DEV_READY_OMP=$TMP/omp-two"
 
 fake_omp "$TMP/omp-none"
-expect "an omp that authenticates nothing blocks" \
-  "every route would fall back" "$TMP/good" "DEV_READY_OMP=$TMP/omp-none"
+expect "an empty catalog discloses unverified provider health" \
+  "chat catalog unavailable or empty; provider health unverified" "$TMP/good" "DEV_READY_OMP=$TMP/omp-none"
 
-expect "an absent omp degrades rather than blocks" \
-  "required providers: degraded" "$TMP/good" "DEV_READY_OMP=$TMP/definitely-no-omp"
+expect "an explicitly requested absent omp blocks runtime executable" \
+  "runtime executable: BLOCKED" "$TMP/good" "DEV_READY_OMP=$TMP/definitely-no-omp"
 
 scaffold "$TMP/dirtyrepo" && printf 'edit\n' >> "$TMP/dirtyrepo/AGENTS.md"
 expect "pre-existing dirty work is reported, not ignored" \
@@ -197,12 +198,50 @@ expect "a browser installed only as a macOS app bundle is found" \
 expect "degraded checks are gathered into a routing summary" \
   "Degraded — usable, but route accordingly" "$TMP/dirtyrepo"
 
-out="$(DOTFILES_DIR="$DOT_OK" DEV_READY_OMP="$OMP_OK" "$DR" "$TMP/good" >/dev/null 2>&1; echo $?)"
+out="$(DOTFILES_DIR="$DOT_OK" DEV_READY_OMP="$OMP_OK" "$DR" --runtime omp "$TMP/good" >/dev/null 2>&1; echo $?)"
 [ "$out" = 0 ] && printf '  ok   READY exits 0\n' \
   || { printf '  FAIL READY exited %s\n' "$out"; fails=$((fails + 1)); }
-out="$(DOTFILES_DIR="$DOT_OK" DEV_READY_OMP="$OMP_OK" "$DR" "$TMP/plain" >/dev/null 2>&1; echo $?)"
+out="$(DOTFILES_DIR="$DOT_OK" DEV_READY_OMP="$OMP_OK" "$DR" --runtime omp "$TMP/plain" >/dev/null 2>&1; echo $?)"
 [ "$out" = 1 ] && printf '  ok   NOT READY exits 1\n' \
   || { printf '  FAIL NOT READY exited %s\n' "$out"; fails=$((fails + 1)); }
+
+# Runtime selection must not silently substitute OMP for another CLI.
+printf '#!/bin/sh\necho codex-fixture\n' > "$TMP/codex-ok"; chmod +x "$TMP/codex-ok"
+RUNTIME_OK=codex expect "explicit Codex has no OMP dependency" \
+  "PROJECT READY" "$TMP/good" "DEV_READY_CODEX=$TMP/codex-ok" "DEV_READY_OMP=$TMP/no-omp"
+RUNTIME_OK=codex expect "Codex reports unverified provider health" \
+  "version is not authentication evidence" "$TMP/good" "DEV_READY_CODEX=$TMP/codex-ok"
+RUNTIME_OK=codex expect "missing explicit Codex blocks executable" \
+  "runtime executable: BLOCKED" "$TMP/good"
+RUNTIME_OK=auto expect "no installed runtime remains unknown" \
+  "runtime identity: degraded (unknown or ambiguous" "$TMP/good" "DEV_READY_OMP=$TMP/no-omp"
+RUNTIME_OK=auto expect "multiple installed runtimes remain unknown" \
+  "runtime identity: degraded (unknown or ambiguous" "$TMP/good" "DEV_READY_CODEX=$TMP/codex-ok"
+RUNTIME_OK=auto expect "exactly one executable selects its runtime" \
+  "runtime executable: PASS (codex:" "$TMP/good" "DEV_READY_CODEX=$TMP/codex-ok" "DEV_READY_OMP=$TMP/no-omp"
+RUNTIME_OK=auto expect "native Codex marker selects Codex with multiple installed" \
+  "runtime executable: PASS (codex:" "$TMP/good" "DEV_READY_CODEX=$TMP/codex-ok" "CODEX_THREAD_ID=fixture"
+RUNTIME_OK=auto expect "conflicting markers do not guess a runtime" \
+  "runtime identity: degraded (unknown or ambiguous" "$TMP/good" "CODEX_THREAD_ID=fixture" "CLAUDECODE=1"
+
+fake_dot "$TMP/dot-report-skip"
+printf '#!/bin/sh\necho "omp-runtime-report: SKIP registry unavailable"\n' > "$TMP/dot-report-skip/bin/omp-runtime-report"
+expect "exit-zero SKIP report is not routing PASS" \
+  "runtime routing: degraded (report skipped or produced no OK evidence" "$TMP/good" "DOTFILES_DIR=$TMP/dot-report-skip"
+# Detect accidental OMP probes even when their output is ignored.
+printf '#!/bin/sh\necho called >> "$DEV_READY_PROBE_LOG"\nexit 1\n' > "$TMP/omp-poison"; chmod +x "$TMP/omp-poison"
+RUNTIME_OK=codex expect "non-OMP selection ignores broken OMP" \
+  "PROJECT READY" "$TMP/good" "DEV_READY_CODEX=$TMP/codex-ok" "DEV_READY_OMP=$TMP/omp-poison" "DEV_READY_PROBE_LOG=$TMP/probed"
+RUNTIME_OK=auto expect "unknown selection ignores OMP catalog" \
+  "required providers: degraded (unverified; no runtime selected)" "$TMP/good" "DEV_READY_CODEX=$TMP/codex-ok" "DEV_READY_OMP=$TMP/omp-poison" "DEV_READY_PROBE_LOG=$TMP/probed"
+if [ -e "$TMP/probed" ]; then
+  printf '  FAIL non-OMP or unknown runtime invoked OMP\n'; fails=$((fails + 1))
+else
+  printf '  ok   non-OMP and unknown runtime never invoked OMP\n'
+fi
+printf '#!/bin/sh\nexec sleep 30\n' > "$TMP/hung-codex"; chmod +x "$TMP/hung-codex"
+RUNTIME_OK=codex expect "native version probe is bounded" \
+  "--version failed, timed out or returned no version" "$TMP/good" "DEV_READY_CODEX=$TMP/hung-codex"
 
 echo
 [ "$fails" -eq 0 ] && { echo "dev-ready-test: all cases hold"; exit 0; }

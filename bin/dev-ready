@@ -12,10 +12,20 @@
 # Read-only. It repairs nothing and installs nothing. A blocker here is a
 # precise instruction to the caller, never a reason to proceed anyway.
 #
-# Usage: dev-ready [REPO]   (defaults to the current directory)
+# Usage: dev-ready [--runtime auto|claude|codex|agy|pi|omp] [REPO]
 set -uo pipefail
 
-REPO="$(cd "${1:-.}" 2>/dev/null && pwd -P)" || { echo "dev-ready: no such directory: ${1:-.}"; exit 2; }
+runtime=auto; repo_arg=.; repo_seen=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --runtime) [ "$#" -ge 2 ] || { echo 'dev-ready: --runtime needs a value'; exit 2; }; runtime="$2"; shift 2 ;;
+    --help|-h) echo 'Usage: dev-ready [--runtime auto|claude|codex|agy|pi|omp] [REPO]'; exit 0 ;;
+    --*) echo "dev-ready: unknown option: $1"; exit 2 ;;
+    *) [ "$repo_seen" -eq 0 ] || { echo 'dev-ready: only one repository allowed'; exit 2; }; repo_arg="$1"; repo_seen=1; shift ;;
+  esac
+done
+case "$runtime" in auto|claude|codex|agy|pi|omp) ;; *) echo "dev-ready: unsupported runtime: $runtime"; exit 2 ;; esac
+REPO="$(cd "$repo_arg" 2>/dev/null && pwd -P)" || { echo "dev-ready: no such directory: $repo_arg"; exit 2; }
 ROOT="${DOTFILES_DIR:-$HOME/dotfiles}"
 # One definition of the toolchain path, shared with every other owned command.
 . "$ROOT/bin/_toolchain-path.sh"
@@ -63,29 +73,100 @@ else
   pass "task queue" "$n entries"
 fi
 
-# 3. runtime routing — a role pointing at an unreachable selector is a silent
-#    downgrade waiting to happen, which §22 names explicitly.
-if [ -x "$ROOT/bin/omp-runtime-report" ]; then
-  if out="$("$ROOT/bin/omp-runtime-report" 2>&1)"; then pass "runtime routing"
-  else fail "runtime routing" "$(printf '%s' "$out" | sed 's/\x1b\[[0-9;]*m//g' | grep -m1 -E '✗|ERROR|FAIL' | cut -c1-90)"; fi
-else
-  soft "runtime routing" "omp-runtime-report not installed; routing is unverified"
+# 3. Runtime identity is not provider health. Native child markers are hints,
+# not credentials; conflicting/inherited markers remain explicitly ambiguous.
+# Sources: code.claude.com/docs/en/env-vars (CLAUDECODE),
+# github.com/openai/codex/blob/main/codex-rs/protocol/src/shell_environment.rs.
+runtime_cmd() {
+  case "$1" in
+    claude) printf '%s' "${DEV_READY_CLAUDE:-claude}" ;;
+    codex) printf '%s' "${DEV_READY_CODEX:-codex}" ;;
+    agy) printf '%s' "${DEV_READY_AGY:-agy}" ;;
+    pi) printf '%s' "${DEV_READY_PI:-pi}" ;;
+    omp) printf '%s' "${DEV_READY_OMP:-omp}" ;;
+  esac
+}
+# All native probes have a deadline; never spawn inference or inspect auth/session
+# files. Suppress failed probe output because it may contain environment details.
+probe() {
+  python3 - "$@" <<'PYPROBE'
+import subprocess, sys
+try:
+    result = subprocess.run(sys.argv[1:], capture_output=True, text=True, timeout=8)
+    if result.returncode: sys.exit(1)
+    print(result.stdout, end="")
+except (OSError, subprocess.TimeoutExpired):
+    sys.exit(1)
+PYPROBE
+}
+if [ "$runtime" = auto ]; then
+  hints=()
+  [ -n "${CODEX_THREAD_ID:-}" ] && hints+=(codex)
+  [ "${CLAUDECODE:-}" = 1 ] && hints+=(claude)
+  if [ "${#hints[@]}" -eq 1 ]; then
+    runtime="${hints[0]}"
+  elif [ "${#hints[@]}" -gt 1 ]; then
+    runtime=unknown
+  else
+    available=()
+    for candidate in claude codex agy pi omp; do
+      type -P "$(runtime_cmd "$candidate")" >/dev/null 2>&1 && available+=("$candidate")
+    done
+    if [ "${#available[@]}" -eq 1 ]; then runtime="${available[0]}"; else runtime=unknown; fi
+  fi
 fi
-
-# 4. required providers — degraded is a legitimate state; unknown is not.
-# Overridable for the same reason as the browser list: PATH cannot un-find a
-# binary, and the degraded and blocked branches here had no test at all until
-# independent review pointed it out.
-OMP_CMD="${DEV_READY_OMP:-omp}"
-if command -v "$OMP_CMD" >/dev/null 2>&1; then
-  provs="$("$OMP_CMD" models --json 2>/dev/null | python3 -c 'import json,sys
-try: print(",".join(sorted({m["provider"] for m in json.load(sys.stdin)["models"]})))
-except Exception: print("")' 2>/dev/null)"
-  if [ -z "$provs" ]; then fail "required providers" "omp is installed but authenticates no provider; every route would fall back"
-  elif [ "$(printf '%s' "$provs" | tr ',' '\n' | grep -c .)" -lt 2 ]; then soft "required providers" "only $provs; fallback chains have nowhere to fall"
-  else pass "required providers" "$provs"; fi
+if [ "$runtime" = unknown ]; then
+  soft "runtime identity" "unknown or ambiguous; select --runtime explicitly"
+  soft "runtime routing" "unverified until runtime is selected"
+  soft "required providers" "unverified; no runtime selected"
 else
-  soft "required providers" "$OMP_CMD not on PATH; routing decisions cannot be resolved here"
+  cli="$(runtime_cmd "$runtime")"
+  if ! type -P "$cli" >/dev/null 2>&1; then
+    fail "runtime executable" "$runtime executable not on PATH"
+  elif version="$(probe "$cli" --version)" && [ -n "$version" ]; then
+    pass "runtime executable" "$runtime: $(printf '%s' "$version" | head -1 | cut -c1-100)"
+  else
+    fail "runtime executable" "$runtime --version failed, timed out or returned no version"
+  fi
+  # Existence proves wiring only, not that a running model consumed the context.
+  case "$runtime" in
+    claude) native_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"; instruction="$native_dir/CLAUDE.md"; native_skills="$native_dir/skills" ;;
+    codex) native_dir="${CODEX_HOME:-$HOME/.codex}"; instruction="$native_dir/AGENTS.md"; native_skills="$native_dir/skills" ;;
+    agy) instruction="$HOME/.gemini/GEMINI.md"; native_skills="$HOME/.gemini/config/skills" ;;
+    pi) instruction="$ROOT/config/ai/context/pi.md"; native_skills="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/skills" ;;
+    omp) native_dir="${PI_CODING_AGENT_DIR:-$HOME/.omp/agent}"; instruction="$native_dir/AGENTS.md"; native_skills="$native_dir/skills" ;;
+  esac
+  if [ -s "$instruction" ]; then
+    pass "runtime instructions" "file exists; consumption unverified"
+  else
+    soft "runtime instructions" "shared instructions missing; run ai-memory-link"
+  fi
+  [ "$runtime" != pi ] || soft "runtime instructions injection" "Pi wrapper injection must be checked in the calling shell"
+  if [ -d "$native_skills" ] && find -L "$native_skills" -mindepth 2 -maxdepth 2 -name SKILL.md -print -quit 2>/dev/null | grep -q .; then
+    pass "runtime skill discovery" "entrypoints exist; consumption unverified"
+  else
+    soft "runtime skill discovery" "no native skill entrypoints found; run skill-update"
+  fi
+  if [ "$runtime" = omp ]; then
+    if [ ! -x "$ROOT/bin/omp-runtime-report" ]; then
+      soft "runtime routing" "omp-runtime-report not installed; routing is unverified"
+    elif out="$(probe "$ROOT/bin/omp-runtime-report" 2>&1)"; then
+      if printf '%s\n' "$out" | grep -q '^omp-runtime-report: OK'; then pass "runtime routing"
+      else soft "runtime routing" "report skipped or produced no OK evidence; routing unverified"; fi
+    else
+      fail "runtime routing" "OMP report failed or timed out; run omp-runtime-report for details"
+    fi
+    # Only OMP owns this catalog API. One provider is a valid native setup:
+    # redundancy is optional, not a prerequisite for doing useful work.
+    provs="$(probe "$cli" models --json | python3 -c 'import json,sys
+try: print(",".join(sorted({m["provider"] for m in json.load(sys.stdin)["models"] if m.get("kind", "chat") == "chat"})))
+except Exception: print("")' 2>/dev/null)"
+    if [ -n "$provs" ]; then pass "required providers" "$provs (catalog only; inference unverified)"
+    else soft "required providers" "chat catalog unavailable or empty; provider health unverified"; fi
+  else
+    soft "runtime routing" "$runtime native settings and model route unverified; no OMP dependency"
+    soft "required providers" "$runtime provider health unverified; version is not authentication evidence"
+  fi
 fi
 
 # 5. skills discovery — the routing table is worthless if its cells name skills

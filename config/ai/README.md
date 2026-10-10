@@ -130,3 +130,14 @@ existing project-memory file. Promotion validates Markdown references, archives
 the candidate locally, and performs no Git action. Raw sessions are never
 ingested because they mix useful lessons with secrets, private data, transient
 state, and unverified reasoning.
+
+## Adaptive cross-CLI workflow
+
+[Adaptive AI system](../../docs/adaptive-ai-system.md) connects intent, native
+runtime capability, full-stack execution, continuation and reviewed improvement.
+OMP is one adapter, not a dependency of other CLIs. Use
+`dev-ready --runtime <cli> <repo>`; ambiguous auto detection stays unverified.
+`ai-workflow-eval` supplies portable decision cases, not simulated execution proof.
+[Research and limits](../../docs/research/adaptive-ai-sources.md) distinguishes
+primary evidence, community hypotheses, metadata-only video discovery and local
+validation. Methodology remains with the owning skills; CORE stays small.

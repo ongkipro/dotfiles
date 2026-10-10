@@ -1,0 +1,23 @@
+{
+  "capability": "development-kit",
+  "head": "de7441f5057c0adc674b5023582f98325e89b765",
+  "job": "implementation",
+  "model": "unavailable: exact model ID not exposed by runtime metadata",
+  "provider": "unavailable: provider not exposed by runtime metadata",
+  "reasoningEffort": "unavailable: reasoning effort not exposed by runtime metadata",
+  "recordedAt": "2026-10-09T18:10:20Z",
+  "result": "PASS",
+  "risk": "R3",
+  "runId": "RUN-20261009T175752Z-947b9344",
+  "schemaVersion": 1,
+  "skillsUsed": [
+    "design-taste",
+    "development-kit",
+    "native-first",
+    "testing-engineering",
+    "ui-validation"
+  ],
+  "usageHash": "31aceda8790186e3a73dfea0f0847a7c7731e20e0b92f389d8d885b498c53e4b",
+  "verificationFailed": true,
+  "worker": "codex-root"
+}

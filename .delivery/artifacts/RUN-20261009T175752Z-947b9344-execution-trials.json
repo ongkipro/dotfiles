@@ -1,0 +1,2433 @@
+{
+  "schemaVersion": 1,
+  "runId": "RUN-20261009T175752Z-947b9344",
+  "task": "TASK-119",
+  "createdAt": "2026-10-09T18:06:48.040038+00:00",
+  "trialType": "synthetic-local-execution",
+  "provenance": {
+    "worker": "/root/workflow_trial_v3",
+    "verifier": "/root",
+    "runtime": "codex native agents",
+    "model": "unavailable: runtime does not expose actual model ID",
+    "provider": "unavailable: runtime does not expose provider",
+    "reasoning": "unavailable: runtime does not expose setting"
+  },
+  "workerAttempts": 1,
+  "workerIsolation": "Worker was instructed to read only exported fixture/contract; no reference or oracle source. Black-box checker feedback was allowed. Directory separation is not a security sandbox.",
+  "repairPatch": "--- exported/app.py\n+++ repaired/app.py\n@@ -12,8 +12,8 @@\n \n \n def owned_order(db, order_id, tenant):\n-    return db.execute('SELECT id, note FROM orders WHERE id = ?',\n-                      (order_id,)).fetchone()\n+    return db.execute('SELECT id, note FROM orders WHERE id = ? AND tenant = ?',\n+                      (order_id, tenant)).fetchone()\n \n \n class Handler(BaseHTTPRequestHandler):\n",
+  "repairedFiles": {
+    "app.py": {
+      "sha256": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+      "content": "\"\"\"Synthetic local evaluation app. Public fake sessions; never production auth.\"\"\"\nimport argparse\nfrom contextlib import closing\nfrom http.cookies import SimpleCookie\nfrom http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\nimport json\nfrom pathlib import Path\nimport re\nimport sqlite3\n\nSESSIONS = {'alpha-session': 'tenant-alpha', 'beta-session': 'tenant-beta'}\n\n\ndef owned_order(db, order_id, tenant):\n    return db.execute('SELECT id, note FROM orders WHERE id = ? AND tenant = ?',\n                      (order_id, tenant)).fetchone()\n\n\nclass Handler(BaseHTTPRequestHandler):\n    def log_message(self, *_):\n        pass\n\n    def respond(self, status, data, content_type='application/json'):\n        body = data if isinstance(data, bytes) else json.dumps(data).encode()\n        self.send_response(status)\n        self.send_header('Content-Type', content_type)\n        self.send_header('Content-Length', str(len(body)))\n        self.send_header('Cache-Control', 'no-store')\n        self.end_headers()\n        self.wfile.write(body)\n\n    def context(self):\n        cookie = SimpleCookie()\n        try:\n            cookie.load(self.headers.get('Cookie', ''))\n            tenant = SESSIONS.get(cookie['session'].value) if 'session' in cookie else None\n        except Exception:\n            tenant = None\n        if not tenant:\n            self.respond(401, {'error': 'Unauthorized'})\n            return None\n        match = re.fullmatch(r'/api/orders/(\\d+)', self.path.split('?', 1)[0])\n        if not match:\n            self.respond(404, {'error': 'Not found'})\n            return None\n        return int(match[1]), tenant\n\n    def do_GET(self):\n        if self.path == '/':\n            self.respond(200, Path(__file__).with_name('index.html').read_bytes(), 'text/html; charset=utf-8')\n            return\n        if self.path == '/favicon.ico':\n            self.respond(204, b'')\n            return\n        context = self.context()\n        if context is None:\n            return\n        with closing(sqlite3.connect(self.server.db_path)) as db:\n            row = owned_order(db, *context)\n        self.respond(200, {'id': row[0], 'note': row[1]}) if row else self.respond(404, {'error': 'Not found'})\n\n    def do_PATCH(self):\n        context = self.context()\n        if context is None:\n            return\n        try:\n            length = int(self.headers.get('Content-Length', '0'))\n            if not 0 < length <= 4096:\n                self.respond(413, {'error': 'Request too large or empty'})\n                return\n            payload = json.loads(self.rfile.read(length))\n            if (not isinstance(payload, dict) or set(payload) != {'note'}\n                    or not isinstance(payload['note'], str) or not 1 <= len(payload['note']) <= 200):\n                self.respond(422, {'error': 'Use a note of 1 to 200 characters'})\n                return\n        except (ValueError, UnicodeError):\n            self.respond(400, {'error': 'Invalid JSON'})\n            return\n        with closing(sqlite3.connect(self.server.db_path)) as db:\n            if not owned_order(db, *context):\n                self.respond(404, {'error': 'Not found'})\n                return\n            try:\n                db.execute('UPDATE orders SET note = ? WHERE id = ?', (payload['note'], context[0]))\n                db.execute('INSERT INTO audit(order_id, note) VALUES (?, ?)', (context[0], payload['note']))\n                db.commit()\n            except sqlite3.Error:\n                db.rollback()\n                self.respond(503, {'error': 'Could not save. Try again.'})\n                return\n        self.respond(200, {'id': context[0], 'note': payload['note']})\n\n\ndef main():\n    parser = argparse.ArgumentParser()\n    parser.add_argument('--db', type=Path, required=True)\n    parser.add_argument('--ready', type=Path, required=True)\n    args = parser.parse_args()\n    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)\n    server.db_path = args.db\n    args.ready.write_text(json.dumps({'origin': f'http://127.0.0.1:{server.server_port}'}))\n    server.serve_forever()\n\n\nif __name__ == '__main__':\n    main()\n"
+    },
+    "index.html": {
+      "sha256": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+      "content": "<!doctype html>\n<html lang=\"en\">\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<title>Order note \u00b7 Local evaluation</title>\n<style>\n  * { box-sizing: border-box; }\n  body { margin: 0; color: #18232a; background: #f4f5f3; font: 16px/1.5 system-ui, sans-serif; }\n  main { max-width: 42rem; margin: 8vh auto; padding: 1.5rem; }\n  form { padding: 1.5rem; border: 1px solid #c6ceca; background: white; }\n  h1 { font-size: 1.8rem; line-height: 1.2; }\n  label { display: block; font-weight: 600; }\n  input { display: block; width: 100%; padding: .75rem; margin: .5rem 0 1rem; font: inherit; }\n  button { padding: .7rem 1.2rem; color: white; background: #245b49; border: 0; font: inherit; cursor: pointer; }\n  :focus-visible { outline: 3px solid #926400; outline-offset: 3px; }\n  #error { color: #922c25; }\n</style>\n<main>\n  <p>Local execution fixture</p>\n  <h1>Order 101</h1>\n  <p>A synthetic order note for checking the browser, API and database together.</p>\n  <form id=\"form\">\n    <label for=\"note\">Internal note</label>\n    <input id=\"note\" name=\"note\" maxlength=\"200\" required disabled>\n    <button id=\"save\" type=\"submit\" disabled>Save note</button>\n    <p id=\"status\" role=\"status\" aria-live=\"polite\">Loading</p>\n    <p id=\"error\" role=\"alert\"></p>\n  </form>\n</main>\n<script>\nconst note = document.querySelector('#note');\nconst save = document.querySelector('#save');\nconst status = document.querySelector('#status');\nconst error = document.querySelector('#error');\nasync function load() {\n  try {\n    const response = await fetch('/api/orders/101');\n    if (!response.ok) throw new Error('load');\n    note.value = (await response.json()).note;\n    note.disabled = save.disabled = false;\n    status.textContent = 'Ready';\n  } catch {\n    status.textContent = '';\n    error.textContent = 'Could not load. Reload to try again.';\n  }\n}\ndocument.querySelector('#form').addEventListener('submit', async event => {\n  event.preventDefault();\n  save.disabled = true;\n  error.textContent = '';\n  status.textContent = 'Saving';\n  try {\n    const response = await fetch('/api/orders/101', {\n      method: 'PATCH', headers: {'Content-Type': 'application/json'},\n      body: JSON.stringify({note: note.value})\n    });\n    if (!response.ok) throw new Error('save');\n    status.textContent = 'Saved';\n  } catch {\n    status.textContent = '';\n    error.textContent = 'Could not save. Try again.';\n  } finally {\n    save.disabled = false;\n  }\n});\nload();\n</script>\n</html>\n"
+    },
+    "README.md": {
+      "sha256": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+      "content": "# Local order-note execution fixture\n\nRepair the supplied application in `app.py` and `index.html`. Preserve this\ncontract and the fixture marker. There is a tenant-isolation defect in the default\nexport. Trace the real flow and fix its cause; add no dependencies. The trusted\noracle lives in dotfiles outside this directory. This is synthetic local work,\nnot production authentication or a hostile-code sandbox.\n\n## Contract\n\n- Python 3.10+ standard library only. Start `python3 -B app.py --db PATH --ready\n  PATH`; bind to `127.0.0.1` port 0 and write `{\"origin\":\"http://127.0.0.1:PORT\"}`.\n- The runner owns SQLite schema/seeds: `orders(id, tenant, note)` and\n  `audit(order_id, note)`. Order 101 and 303 belong to tenant-alpha, order 202 to\n  tenant-beta. Do not change the database schema or seed/reset it inside the app.\n- Public fake session cookies: `session=alpha-session` maps to tenant-alpha;\n  `session=beta-session` to tenant-beta. Unknown/missing sessions return 401.\n  Membership comes from this server mapping, never query/body/tenant headers.\n- `GET /api/orders/ID` and `PATCH /api/orders/ID` use the session's tenant. A\n  missing or foreign order returns 404 without exposing its note. Success returns\n  JSON `{id, note}`. A successful PATCH persists across fresh requests/restarts,\n  changes only that order, and adds one audit row in the same transaction.\n- PATCH accepts only JSON `{note: STRING}`, 1\u2013200 characters. Invalid JSON ->\n  400; wrong shape, unknown fields, type or length -> 422; empty or body over\n  4096 bytes -> 413. Rejected requests leave all orders and audit rows unchanged.\n- Query/header tenant selectors cannot override membership. Unknown body fields\n  are rejected, including a supplied tenant field.\n- The runner installs an audit trigger that rejects `blocked-write`. It fires\n  after the order UPDATE and before commit. Return 503 and roll back both tables.\n  Inspect the database through a separate connection; a response alone is not\n  proof of persistence or rollback.\n- Root HTML loads order 101 through the same cookie/API path. Keep a labelled\n  `input#note`, `button#save`, `#status[role=status]`, `#error[role=alert]`.\n  Save through a real form interaction; success status is `Saved`. On 503 show\n  `Could not save. Try again.`, retain the user's input and allow retry. Reload\n  shows the last persisted value. No horizontal overflow at 390px and 1280px.\n\nRun the trusted command with your actual runtime/model provenance:\n\n```sh\nai-workflow-eval execution-check /absolute/fixture --out /absolute/fresh-evidence \\\n  --runtime YOUR-CLI --model 'unavailable: not exposed by runtime'\n```\n\nInspect evidence and report exactly what ran. API-only checks stay UNVERIFIED for\nthe whole journey. No commit, push, deployment, external calls or credential\naccess is part of this exercise. Reference exports test the oracle, not AI skill.\n"
+    },
+    ".workflow-fixture.json": {
+      "sha256": "c46374cceea2f5a8b3cce522ab06cbd409afd6a4208c75a2873e9ea29ef1b952",
+      "content": "{\n  \"schemaVersion\": 1,\n  \"fixtureId\": \"order-note-v1\",\n  \"exportMode\": \"repair\",\n  \"sourceHashes\": {\n    \"app.py\": \"b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8\",\n    \"index.html\": \"a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008\",\n    \"README.md\": \"6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd\"\n  }\n}\n"
+    }
+  },
+  "trials": [
+    {
+      "directory": "/home/ongki/Projects/dotfiles-execution-task119/reference-evidence",
+      "reportHash": "6bfe13150fc80a6e43d79757d520e861b486ac877df88325cdcef244c3dab700",
+      "report": {
+        "schemaVersion": 1,
+        "fixtureId": "order-note-v1",
+        "behaviorResult": "PASS",
+        "provenance": {
+          "runtime": "deterministic-reference",
+          "model": "unavailable: no AI repair involved",
+          "python": "3.12.3",
+          "mode": "local-execution"
+        },
+        "candidateHashes": {
+          "app.py": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+          "index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          ".workflow-fixture.json": "9d35711bd12faa7107671b1b7e0af3f0e634b6014a9eee03444bfa139fe333a4"
+        },
+        "oracleHashes": {
+          "bin/_workflow-execution.py": "b4f96e4b349057bb5f194822f9308272b9d5b092e9dd0ff2d1b44c4459417e2f",
+          "bin/ai-workflow-eval": "b97a51411e60b08362520e809b4eeb271a5d0b20e6d997dafb5185ae245d9737",
+          "config/ai/evals/execution/README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          "config/ai/evals/execution/app.py": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+          "config/ai/evals/execution/browser.mjs": "523d6e227c95687e2b1cd26dbd3958eb0ac17d4c1eace4923fbe3d9dbee10333",
+          "config/ai/evals/execution/index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "skills/local/design-taste/scripts/ui-ref.mjs": "65c66d789621ae17df7541a10cd153f2d5d27c697fdd58992b62feda962fba26"
+        },
+        "checks": [
+          {
+            "id": "own-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-write",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-query",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-header",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-body",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-order",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-json",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-type",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-shape",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-empty",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-long",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-size",
+            "result": "PASS"
+          },
+          {
+            "id": "own-write-persistence",
+            "result": "PASS"
+          },
+          {
+            "id": "write-failure-rollback",
+            "result": "PASS"
+          },
+          {
+            "id": "restart-persistence",
+            "result": "PASS"
+          },
+          {
+            "id": "browser-journey",
+            "result": "PASS",
+            "exitCode": 0
+          },
+          {
+            "id": "browser-database",
+            "result": "PASS"
+          },
+          {
+            "id": "candidate-unchanged",
+            "result": "PASS"
+          }
+        ],
+        "limitations": "Synthetic authorized code on loopback; not an OS sandbox, production-auth review, or general model benchmark.",
+        "browser": {
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "initial API value rendered",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "native input and click save",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "successful save persists across navigation",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write has actionable visible error",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write retains input",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write allows retry",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write leaves persisted value unchanged",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no horizontal overflow at 390px",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no horizontal overflow at 1280px",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "deliberate failed write returned HTTP 503",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no runtime exceptions",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no console errors",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no unexpected network failures",
+              "status": "PASS",
+              "detail": ""
+            }
+          ],
+          "screenshots": [
+            "390.png",
+            "1280.png"
+          ],
+          "browserVersion": "Chrome/155.0.8059.39",
+          "console": [],
+          "exceptions": [],
+          "network": [
+            {
+              "kind": "response",
+              "path": "/api/orders/101",
+              "method": "PATCH",
+              "status": 503,
+              "expected": true
+            }
+          ],
+          "exclusion": "Only HTTP 503 for PATCH /api/orders/101 with JSON note=blocked-write, correlated by requestId. No other console, runtime, or network errors are excluded."
+        },
+        "databaseState": {
+          "orders": [
+            [
+              101,
+              "tenant-alpha",
+              "browser-saved"
+            ],
+            [
+              202,
+              "tenant-beta",
+              "beta-private"
+            ],
+            [
+              303,
+              "tenant-alpha",
+              "alpha-collateral"
+            ]
+          ],
+          "audit": [
+            [
+              101,
+              "api-saved"
+            ],
+            [
+              101,
+              "browser-saved"
+            ]
+          ]
+        }
+      },
+      "files": {
+        "1280.png": {
+          "bytes": 25573,
+          "sha256": "fd6e13b8c1c744541e1df59ab72cc90fdebae0cfdd155db913301dac979d5201"
+        },
+        "390.png": {
+          "bytes": 22670,
+          "sha256": "477309c1b46122cb3e26c29fd109c649fe7166422fc68ade4dd4dc2c0d3236c1"
+        },
+        "app-1.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "app-2.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "browser-report.json": {
+          "bytes": 1874,
+          "sha256": "80e9cb1b16e331a148076444316ebf872d0ca91615072f6573371a8059f8afe6"
+        },
+        "browser.log": {
+          "bytes": 24,
+          "sha256": "9705b35a8ff25a210210a1830217282e212214b6887539b22311299f6bad5dcb"
+        },
+        "ready-1.json": {
+          "bytes": 35,
+          "sha256": "0d0decea67816fc30c5f51041309c644f876f9933d30a5af61018ccd63dce359"
+        },
+        "ready-2.json": {
+          "bytes": 35,
+          "sha256": "86e7e620ce5717b36b71b68cd0632056739b61088a0bfae419d7c5b63dbf54e0"
+        },
+        "report.json": {
+          "bytes": 5598,
+          "sha256": "6bfe13150fc80a6e43d79757d520e861b486ac877df88325cdcef244c3dab700"
+        },
+        "state.sqlite": {
+          "bytes": 12288,
+          "sha256": "834945789cea9db55f871fa250955f7cfafcdab53f2ba44bcd737b8c5bc583bb"
+        }
+      }
+    },
+    {
+      "directory": "/home/ongki/Projects/dotfiles-execution-task119/worker-evidence",
+      "reportHash": "dc1197601533f1858349f07bba54c69f58678d10574edbc26f6e227f00ad70c9",
+      "report": {
+        "schemaVersion": 1,
+        "fixtureId": "order-note-v1",
+        "behaviorResult": "PASS",
+        "provenance": {
+          "runtime": "codex-subagent",
+          "model": "unavailable: runtime does not expose model ID",
+          "python": "3.12.3",
+          "mode": "local-execution"
+        },
+        "candidateHashes": {
+          "app.py": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+          "index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          ".workflow-fixture.json": "c46374cceea2f5a8b3cce522ab06cbd409afd6a4208c75a2873e9ea29ef1b952"
+        },
+        "oracleHashes": {
+          "bin/_workflow-execution.py": "b4f96e4b349057bb5f194822f9308272b9d5b092e9dd0ff2d1b44c4459417e2f",
+          "bin/ai-workflow-eval": "b97a51411e60b08362520e809b4eeb271a5d0b20e6d997dafb5185ae245d9737",
+          "config/ai/evals/execution/README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          "config/ai/evals/execution/app.py": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+          "config/ai/evals/execution/browser.mjs": "523d6e227c95687e2b1cd26dbd3958eb0ac17d4c1eace4923fbe3d9dbee10333",
+          "config/ai/evals/execution/index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "skills/local/design-taste/scripts/ui-ref.mjs": "65c66d789621ae17df7541a10cd153f2d5d27c697fdd58992b62feda962fba26"
+        },
+        "checks": [
+          {
+            "id": "own-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-write",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-query",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-header",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-body",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-order",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-json",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-type",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-shape",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-empty",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-long",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-size",
+            "result": "PASS"
+          },
+          {
+            "id": "own-write-persistence",
+            "result": "PASS"
+          },
+          {
+            "id": "write-failure-rollback",
+            "result": "PASS"
+          },
+          {
+            "id": "restart-persistence",
+            "result": "PASS"
+          },
+          {
+            "id": "browser-journey",
+            "result": "PASS",
+            "exitCode": 0
+          },
+          {
+            "id": "browser-database",
+            "result": "PASS"
+          },
+          {
+            "id": "candidate-unchanged",
+            "result": "PASS"
+          }
+        ],
+        "limitations": "Synthetic authorized code on loopback; not an OS sandbox, production-auth review, or general model benchmark.",
+        "browser": {
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "initial API value rendered",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "native input and click save",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "successful save persists across navigation",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write has actionable visible error",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write retains input",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write allows retry",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write leaves persisted value unchanged",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no horizontal overflow at 390px",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no horizontal overflow at 1280px",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "deliberate failed write returned HTTP 503",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no runtime exceptions",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no console errors",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no unexpected network failures",
+              "status": "PASS",
+              "detail": ""
+            }
+          ],
+          "screenshots": [
+            "390.png",
+            "1280.png"
+          ],
+          "browserVersion": "Chrome/155.0.8059.39",
+          "console": [],
+          "exceptions": [],
+          "network": [
+            {
+              "kind": "response",
+              "path": "/api/orders/101",
+              "method": "PATCH",
+              "status": 503,
+              "expected": true
+            }
+          ],
+          "exclusion": "Only HTTP 503 for PATCH /api/orders/101 with JSON note=blocked-write, correlated by requestId. No other console, runtime, or network errors are excluded."
+        },
+        "databaseState": {
+          "orders": [
+            [
+              101,
+              "tenant-alpha",
+              "browser-saved"
+            ],
+            [
+              202,
+              "tenant-beta",
+              "beta-private"
+            ],
+            [
+              303,
+              "tenant-alpha",
+              "alpha-collateral"
+            ]
+          ],
+          "audit": [
+            [
+              101,
+              "api-saved"
+            ],
+            [
+              101,
+              "browser-saved"
+            ]
+          ]
+        }
+      },
+      "files": {
+        "1280.png": {
+          "bytes": 25573,
+          "sha256": "fd6e13b8c1c744541e1df59ab72cc90fdebae0cfdd155db913301dac979d5201"
+        },
+        "390.png": {
+          "bytes": 22670,
+          "sha256": "477309c1b46122cb3e26c29fd109c649fe7166422fc68ade4dd4dc2c0d3236c1"
+        },
+        "app-1.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "app-2.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "browser-report.json": {
+          "bytes": 1874,
+          "sha256": "80e9cb1b16e331a148076444316ebf872d0ca91615072f6573371a8059f8afe6"
+        },
+        "browser.log": {
+          "bytes": 24,
+          "sha256": "9705b35a8ff25a210210a1830217282e212214b6887539b22311299f6bad5dcb"
+        },
+        "ready-1.json": {
+          "bytes": 35,
+          "sha256": "b08107449644dfba2fcd814cf15720bdecf5ec720498c7ec2857c786eda2c21c"
+        },
+        "ready-2.json": {
+          "bytes": 36,
+          "sha256": "5016ea93cadf170ee1aaa7a1a59c2e76a3c15c7f214b0a7dbe77f2f3dcb61de4"
+        },
+        "report.json": {
+          "bytes": 5600,
+          "sha256": "dc1197601533f1858349f07bba54c69f58678d10574edbc26f6e227f00ad70c9"
+        },
+        "state.sqlite": {
+          "bytes": 12288,
+          "sha256": "834945789cea9db55f871fa250955f7cfafcdab53f2ba44bcd737b8c5bc583bb"
+        }
+      }
+    },
+    {
+      "directory": "/home/ongki/Projects/dotfiles-execution-task119/independent-evidence",
+      "reportHash": "283fc74f863c8c022e3a23bc8a123d461e23e9af0ee3241a3fbcf63812dd646e",
+      "report": {
+        "schemaVersion": 1,
+        "fixtureId": "order-note-v1",
+        "behaviorResult": "PASS",
+        "provenance": {
+          "runtime": "codex-root-verifying-subagent-repair",
+          "model": "unavailable: worker runtime does not expose model ID",
+          "python": "3.12.3",
+          "mode": "local-execution"
+        },
+        "candidateHashes": {
+          "app.py": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+          "index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          ".workflow-fixture.json": "c46374cceea2f5a8b3cce522ab06cbd409afd6a4208c75a2873e9ea29ef1b952"
+        },
+        "oracleHashes": {
+          "bin/_workflow-execution.py": "b4f96e4b349057bb5f194822f9308272b9d5b092e9dd0ff2d1b44c4459417e2f",
+          "bin/ai-workflow-eval": "b97a51411e60b08362520e809b4eeb271a5d0b20e6d997dafb5185ae245d9737",
+          "config/ai/evals/execution/README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          "config/ai/evals/execution/app.py": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+          "config/ai/evals/execution/browser.mjs": "523d6e227c95687e2b1cd26dbd3958eb0ac17d4c1eace4923fbe3d9dbee10333",
+          "config/ai/evals/execution/index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "skills/local/design-taste/scripts/ui-ref.mjs": "65c66d789621ae17df7541a10cd153f2d5d27c697fdd58992b62feda962fba26"
+        },
+        "checks": [
+          {
+            "id": "own-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-write",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-query",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-header",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-body",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-order",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-json",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-type",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-shape",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-empty",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-long",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-size",
+            "result": "PASS"
+          },
+          {
+            "id": "own-write-persistence",
+            "result": "PASS"
+          },
+          {
+            "id": "write-failure-rollback",
+            "result": "PASS"
+          },
+          {
+            "id": "restart-persistence",
+            "result": "PASS"
+          },
+          {
+            "id": "browser-journey",
+            "result": "PASS",
+            "exitCode": 0
+          },
+          {
+            "id": "browser-database",
+            "result": "PASS"
+          },
+          {
+            "id": "candidate-unchanged",
+            "result": "PASS"
+          }
+        ],
+        "limitations": "Synthetic authorized code on loopback; not an OS sandbox, production-auth review, or general model benchmark.",
+        "browser": {
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "initial API value rendered",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "native input and click save",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "successful save persists across navigation",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write has actionable visible error",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write retains input",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write allows retry",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write leaves persisted value unchanged",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no horizontal overflow at 390px",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no horizontal overflow at 1280px",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "deliberate failed write returned HTTP 503",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no runtime exceptions",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no console errors",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no unexpected network failures",
+              "status": "PASS",
+              "detail": ""
+            }
+          ],
+          "screenshots": [
+            "390.png",
+            "1280.png"
+          ],
+          "browserVersion": "Chrome/155.0.8059.39",
+          "console": [],
+          "exceptions": [],
+          "network": [
+            {
+              "kind": "response",
+              "path": "/api/orders/101",
+              "method": "PATCH",
+              "status": 503,
+              "expected": true
+            }
+          ],
+          "exclusion": "Only HTTP 503 for PATCH /api/orders/101 with JSON note=blocked-write, correlated by requestId. No other console, runtime, or network errors are excluded."
+        },
+        "databaseState": {
+          "orders": [
+            [
+              101,
+              "tenant-alpha",
+              "browser-saved"
+            ],
+            [
+              202,
+              "tenant-beta",
+              "beta-private"
+            ],
+            [
+              303,
+              "tenant-alpha",
+              "alpha-collateral"
+            ]
+          ],
+          "audit": [
+            [
+              101,
+              "api-saved"
+            ],
+            [
+              101,
+              "browser-saved"
+            ]
+          ]
+        }
+      },
+      "files": {
+        "1280.png": {
+          "bytes": 25573,
+          "sha256": "fd6e13b8c1c744541e1df59ab72cc90fdebae0cfdd155db913301dac979d5201"
+        },
+        "390.png": {
+          "bytes": 22670,
+          "sha256": "477309c1b46122cb3e26c29fd109c649fe7166422fc68ade4dd4dc2c0d3236c1"
+        },
+        "app-1.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "app-2.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "browser-report.json": {
+          "bytes": 1874,
+          "sha256": "80e9cb1b16e331a148076444316ebf872d0ca91615072f6573371a8059f8afe6"
+        },
+        "browser.log": {
+          "bytes": 24,
+          "sha256": "9705b35a8ff25a210210a1830217282e212214b6887539b22311299f6bad5dcb"
+        },
+        "ready-1.json": {
+          "bytes": 36,
+          "sha256": "abfe9fdeb41aa087280c94b902da35c33b70da0691884beb7f86870321080a06"
+        },
+        "ready-2.json": {
+          "bytes": 36,
+          "sha256": "32fd2d2d0cbbf317c6f500d0189ceb8c86d1a54783e263a7ac598f835c4af431"
+        },
+        "report.json": {
+          "bytes": 5629,
+          "sha256": "283fc74f863c8c022e3a23bc8a123d461e23e9af0ee3241a3fbcf63812dd646e"
+        },
+        "state.sqlite": {
+          "bytes": 12288,
+          "sha256": "834945789cea9db55f871fa250955f7cfafcdab53f2ba44bcd737b8c5bc583bb"
+        }
+      }
+    },
+    {
+      "directory": "/home/ongki/Projects/dotfiles-execution-task119/reference-final-evidence",
+      "reportHash": "4279a041cc1cfb3eea36772c367d9fc04d953abd781dededa9276bb757f9d1b7",
+      "report": {
+        "schemaVersion": 1,
+        "fixtureId": "order-note-v1",
+        "behaviorResult": "PASS",
+        "provenance": {
+          "runtime": "deterministic-reference",
+          "model": "unavailable: no AI repair involved",
+          "python": "3.12.3",
+          "mode": "local-execution"
+        },
+        "candidateHashes": {
+          "app.py": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+          "index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          ".workflow-fixture.json": "9d35711bd12faa7107671b1b7e0af3f0e634b6014a9eee03444bfa139fe333a4"
+        },
+        "oracleHashes": {
+          "bin/_workflow-execution.py": "1ec1658efdcde6e81efc9c29e61b6bf48436df57d4d9333727ca5033437810b1",
+          "bin/ai-workflow-eval": "b97a51411e60b08362520e809b4eeb271a5d0b20e6d997dafb5185ae245d9737",
+          "config/ai/evals/execution/README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          "config/ai/evals/execution/app.py": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+          "config/ai/evals/execution/browser.mjs": "c009318fdccc1d9ee865c0d87fba88c88a475111007a329bd40fca429a915b37",
+          "config/ai/evals/execution/index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "skills/local/design-taste/scripts/ui-ref.mjs": "65c66d789621ae17df7541a10cd153f2d5d27c697fdd58992b62feda962fba26"
+        },
+        "checks": [
+          {
+            "id": "own-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-write",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-query",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-header",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-body",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-order",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-json",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-type",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-shape",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-empty",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-long",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-size",
+            "result": "PASS"
+          },
+          {
+            "id": "own-write-persistence",
+            "result": "PASS"
+          },
+          {
+            "id": "write-failure-rollback",
+            "result": "PASS"
+          },
+          {
+            "id": "restart-persistence",
+            "result": "PASS"
+          },
+          {
+            "id": "browser-journey",
+            "result": "PASS",
+            "exitCode": 0
+          },
+          {
+            "id": "browser-database",
+            "result": "PASS"
+          },
+          {
+            "id": "candidate-unchanged",
+            "result": "PASS"
+          }
+        ],
+        "limitations": "Synthetic authorized code on loopback; not an OS sandbox, production-auth review, or general model benchmark.",
+        "browser": {
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "initial API value rendered",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "native input and click save",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "successful save persists across navigation",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write has actionable visible error",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write retains input",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write allows retry",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write leaves persisted value unchanged",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no horizontal overflow at 390px",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no horizontal overflow at 1280px",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "deliberate failed write returned HTTP 503",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no runtime exceptions",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no console errors",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no unexpected network failures",
+              "status": "PASS",
+              "detail": ""
+            }
+          ],
+          "screenshots": [
+            "390.png",
+            "1280.png"
+          ],
+          "browserVersion": "Chrome/155.0.8059.39",
+          "console": [],
+          "exceptions": [],
+          "network": [
+            {
+              "kind": "response",
+              "path": "/api/orders/101",
+              "method": "PATCH",
+              "status": 503,
+              "expected": true
+            }
+          ],
+          "exclusion": "Only HTTP 503 for PATCH /api/orders/101 with JSON note=blocked-write, correlated by requestId. No other console, runtime, or network errors are excluded."
+        },
+        "databaseState": {
+          "orders": [
+            [
+              101,
+              "tenant-alpha",
+              "browser-saved"
+            ],
+            [
+              202,
+              "tenant-beta",
+              "beta-private"
+            ],
+            [
+              303,
+              "tenant-alpha",
+              "alpha-collateral"
+            ]
+          ],
+          "audit": [
+            [
+              101,
+              "api-saved"
+            ],
+            [
+              101,
+              "browser-saved"
+            ]
+          ]
+        }
+      },
+      "files": {
+        "1280.png": {
+          "bytes": 25573,
+          "sha256": "fd6e13b8c1c744541e1df59ab72cc90fdebae0cfdd155db913301dac979d5201"
+        },
+        "390.png": {
+          "bytes": 22670,
+          "sha256": "477309c1b46122cb3e26c29fd109c649fe7166422fc68ade4dd4dc2c0d3236c1"
+        },
+        "app-1.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "app-2.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "browser-report.json": {
+          "bytes": 1874,
+          "sha256": "80e9cb1b16e331a148076444316ebf872d0ca91615072f6573371a8059f8afe6"
+        },
+        "browser.log": {
+          "bytes": 24,
+          "sha256": "9705b35a8ff25a210210a1830217282e212214b6887539b22311299f6bad5dcb"
+        },
+        "ready-1.json": {
+          "bytes": 36,
+          "sha256": "e0537cf6f04fdf6bd3f7165650e17e738fa5a136bfc380492f592900d6c50ff6"
+        },
+        "ready-2.json": {
+          "bytes": 36,
+          "sha256": "f88ab4716bce273294835cd1dfe9238e8db7da28c912f677990e628a14ab3c73"
+        },
+        "report.json": {
+          "bytes": 5598,
+          "sha256": "4279a041cc1cfb3eea36772c367d9fc04d953abd781dededa9276bb757f9d1b7"
+        },
+        "state.sqlite": {
+          "bytes": 12288,
+          "sha256": "834945789cea9db55f871fa250955f7cfafcdab53f2ba44bcd737b8c5bc583bb"
+        }
+      }
+    },
+    {
+      "directory": "/home/ongki/Projects/dotfiles-execution-task119/independent-final-evidence",
+      "reportHash": "eb798101783272c9f9ba48407cc3e9d88a2a599078274a11c9d94cddc9f99b26",
+      "report": {
+        "schemaVersion": 1,
+        "fixtureId": "order-note-v1",
+        "behaviorResult": "PASS",
+        "provenance": {
+          "runtime": "codex-root-verifying-subagent-repair",
+          "model": "unavailable: worker runtime does not expose model ID",
+          "python": "3.12.3",
+          "mode": "local-execution"
+        },
+        "candidateHashes": {
+          "app.py": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+          "index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          ".workflow-fixture.json": "c46374cceea2f5a8b3cce522ab06cbd409afd6a4208c75a2873e9ea29ef1b952"
+        },
+        "oracleHashes": {
+          "bin/_workflow-execution.py": "1ec1658efdcde6e81efc9c29e61b6bf48436df57d4d9333727ca5033437810b1",
+          "bin/ai-workflow-eval": "b97a51411e60b08362520e809b4eeb271a5d0b20e6d997dafb5185ae245d9737",
+          "config/ai/evals/execution/README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          "config/ai/evals/execution/app.py": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+          "config/ai/evals/execution/browser.mjs": "c009318fdccc1d9ee865c0d87fba88c88a475111007a329bd40fca429a915b37",
+          "config/ai/evals/execution/index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "skills/local/design-taste/scripts/ui-ref.mjs": "65c66d789621ae17df7541a10cd153f2d5d27c697fdd58992b62feda962fba26"
+        },
+        "checks": [
+          {
+            "id": "own-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-write",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-query",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-header",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-body",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-order",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-json",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-type",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-shape",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-empty",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-long",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-size",
+            "result": "PASS"
+          },
+          {
+            "id": "own-write-persistence",
+            "result": "PASS"
+          },
+          {
+            "id": "write-failure-rollback",
+            "result": "PASS"
+          },
+          {
+            "id": "restart-persistence",
+            "result": "PASS"
+          },
+          {
+            "id": "browser-journey",
+            "result": "PASS",
+            "exitCode": 0
+          },
+          {
+            "id": "browser-database",
+            "result": "PASS"
+          },
+          {
+            "id": "candidate-unchanged",
+            "result": "PASS"
+          }
+        ],
+        "limitations": "Synthetic authorized code on loopback; not an OS sandbox, production-auth review, or general model benchmark.",
+        "browser": {
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "initial API value rendered",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "native input and click save",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "successful save persists across navigation",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write has actionable visible error",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write retains input",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write allows retry",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "failed write leaves persisted value unchanged",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no horizontal overflow at 390px",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no horizontal overflow at 1280px",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "deliberate failed write returned HTTP 503",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no runtime exceptions",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no console errors",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "no unexpected network failures",
+              "status": "PASS",
+              "detail": ""
+            }
+          ],
+          "screenshots": [
+            "390.png",
+            "1280.png"
+          ],
+          "browserVersion": "Chrome/155.0.8059.39",
+          "console": [],
+          "exceptions": [],
+          "network": [
+            {
+              "kind": "response",
+              "path": "/api/orders/101",
+              "method": "PATCH",
+              "status": 503,
+              "expected": true
+            }
+          ],
+          "exclusion": "Only HTTP 503 for PATCH /api/orders/101 with JSON note=blocked-write, correlated by requestId. No other console, runtime, or network errors are excluded."
+        },
+        "databaseState": {
+          "orders": [
+            [
+              101,
+              "tenant-alpha",
+              "browser-saved"
+            ],
+            [
+              202,
+              "tenant-beta",
+              "beta-private"
+            ],
+            [
+              303,
+              "tenant-alpha",
+              "alpha-collateral"
+            ]
+          ],
+          "audit": [
+            [
+              101,
+              "api-saved"
+            ],
+            [
+              101,
+              "browser-saved"
+            ]
+          ]
+        }
+      },
+      "files": {
+        "1280.png": {
+          "bytes": 25573,
+          "sha256": "fd6e13b8c1c744541e1df59ab72cc90fdebae0cfdd155db913301dac979d5201"
+        },
+        "390.png": {
+          "bytes": 22670,
+          "sha256": "477309c1b46122cb3e26c29fd109c649fe7166422fc68ade4dd4dc2c0d3236c1"
+        },
+        "app-1.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "app-2.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "browser-report.json": {
+          "bytes": 1874,
+          "sha256": "80e9cb1b16e331a148076444316ebf872d0ca91615072f6573371a8059f8afe6"
+        },
+        "browser.log": {
+          "bytes": 24,
+          "sha256": "9705b35a8ff25a210210a1830217282e212214b6887539b22311299f6bad5dcb"
+        },
+        "ready-1.json": {
+          "bytes": 36,
+          "sha256": "87a2b04d981afa9dbcb21e475438a0533050ca25d09b3abe55c82b8645a3c362"
+        },
+        "ready-2.json": {
+          "bytes": 36,
+          "sha256": "81805081eb6d3dbab0c12a02a26d72f38c0dd91e08d2618696de9273a6063275"
+        },
+        "report.json": {
+          "bytes": 5629,
+          "sha256": "eb798101783272c9f9ba48407cc3e9d88a2a599078274a11c9d94cddc9f99b26"
+        },
+        "state.sqlite": {
+          "bytes": 12288,
+          "sha256": "834945789cea9db55f871fa250955f7cfafcdab53f2ba44bcd737b8c5bc583bb"
+        }
+      }
+    },
+    {
+      "directory": "/home/ongki/Projects/dotfiles-execution-task119/ui-mutant-evidence",
+      "reportHash": "101a8cfaa7f49c3a41101bcc4ee8f0858bf89b5000fa4c91093bfc0e0da77e57",
+      "report": {
+        "schemaVersion": 1,
+        "fixtureId": "order-note-v1",
+        "behaviorResult": "FAIL",
+        "provenance": {
+          "runtime": "deterministic-ui-mutant",
+          "model": "unavailable: no AI repair involved",
+          "python": "3.12.3",
+          "mode": "local-execution"
+        },
+        "candidateHashes": {
+          "app.py": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+          "index.html": "421e785f985576c1ea0d10ca01a96f6f10f4cd2d90e0f9780ad0483066cfdf28",
+          "README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          ".workflow-fixture.json": "9d35711bd12faa7107671b1b7e0af3f0e634b6014a9eee03444bfa139fe333a4"
+        },
+        "oracleHashes": {
+          "bin/_workflow-execution.py": "b4f96e4b349057bb5f194822f9308272b9d5b092e9dd0ff2d1b44c4459417e2f",
+          "bin/ai-workflow-eval": "b97a51411e60b08362520e809b4eeb271a5d0b20e6d997dafb5185ae245d9737",
+          "config/ai/evals/execution/README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          "config/ai/evals/execution/app.py": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+          "config/ai/evals/execution/browser.mjs": "523d6e227c95687e2b1cd26dbd3958eb0ac17d4c1eace4923fbe3d9dbee10333",
+          "config/ai/evals/execution/index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "skills/local/design-taste/scripts/ui-ref.mjs": "65c66d789621ae17df7541a10cd153f2d5d27c697fdd58992b62feda962fba26"
+        },
+        "checks": [
+          {
+            "id": "own-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-write",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-query",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-header",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-body",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-order",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-json",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-type",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-shape",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-empty",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-long",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-size",
+            "result": "PASS"
+          },
+          {
+            "id": "own-write-persistence",
+            "result": "PASS"
+          },
+          {
+            "id": "write-failure-rollback",
+            "result": "PASS"
+          },
+          {
+            "id": "restart-persistence",
+            "result": "PASS"
+          },
+          {
+            "id": "browser-journey",
+            "result": "FAIL",
+            "exitCode": 1
+          },
+          {
+            "id": "candidate-unchanged",
+            "result": "PASS"
+          }
+        ],
+        "limitations": "Synthetic authorized code on loopback; not an OS sandbox, production-auth review, or general model benchmark.",
+        "browser": {
+          "status": "FAIL",
+          "checks": [
+            {
+              "name": "initial API value rendered",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "browser execution",
+              "status": "FAIL",
+              "detail": "save confirmation did not become visible within 10 seconds"
+            }
+          ],
+          "screenshots": [],
+          "browserVersion": "Chrome/155.0.8059.39",
+          "console": [],
+          "exceptions": [],
+          "network": [],
+          "exclusion": "Only HTTP 503 for PATCH /api/orders/101 with JSON note=blocked-write, correlated by requestId. No other console, runtime, or network errors are excluded."
+        },
+        "databaseState": {
+          "orders": [
+            [
+              101,
+              "tenant-alpha",
+              "api-saved"
+            ],
+            [
+              202,
+              "tenant-beta",
+              "beta-private"
+            ],
+            [
+              303,
+              "tenant-alpha",
+              "alpha-collateral"
+            ]
+          ],
+          "audit": [
+            [
+              101,
+              "api-saved"
+            ]
+          ]
+        }
+      },
+      "files": {
+        "app-1.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "app-2.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "browser-report.json": {
+          "bytes": 581,
+          "sha256": "8783909b72ac7bbd32cff66776c4265c9ce78e80ab6eb6929edbc90f4884e301"
+        },
+        "browser.log": {
+          "bytes": 24,
+          "sha256": "9d8e1b4fa524dd28e43bcee7cf354d72e6c4616dc3ef8b4f87694177e84aef15"
+        },
+        "ready-1.json": {
+          "bytes": 35,
+          "sha256": "2e1cdb4c17e98c9b630d7ff72e3e25bfc08551bbccb29a6eefa30d1d986a3a19"
+        },
+        "ready-2.json": {
+          "bytes": 35,
+          "sha256": "c66109a7d956aae16bd92a3d97f0535710f80b6974d65a82fedb0d7dc91b4822"
+        },
+        "report.json": {
+          "bytes": 4047,
+          "sha256": "101a8cfaa7f49c3a41101bcc4ee8f0858bf89b5000fa4c91093bfc0e0da77e57"
+        },
+        "state.sqlite": {
+          "bytes": 12288,
+          "sha256": "c6d2d0275997a4f4d4fecde2324ace74a6df31971fb66a03025ed527088cdd07"
+        }
+      }
+    },
+    {
+      "directory": "/home/ongki/Projects/dotfiles-execution-task119/invisible-mutant-evidence",
+      "reportHash": "4a70cb22f7c867502e4ed87a961c520a9b2388ec83dc8a4583f7198e2755f97f",
+      "report": {
+        "schemaVersion": 1,
+        "fixtureId": "order-note-v1",
+        "behaviorResult": "FAIL",
+        "provenance": {
+          "runtime": "deterministic-visibility-mutant",
+          "model": "unavailable: no AI repair involved",
+          "python": "3.12.3",
+          "mode": "local-execution"
+        },
+        "candidateHashes": {
+          "app.py": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+          "index.html": "89f0b2ed85eb122c2304fe7f764ef56ca6f7fd2844065f02ef3863a07659f20a",
+          "README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          ".workflow-fixture.json": "9d35711bd12faa7107671b1b7e0af3f0e634b6014a9eee03444bfa139fe333a4"
+        },
+        "oracleHashes": {
+          "bin/_workflow-execution.py": "1ec1658efdcde6e81efc9c29e61b6bf48436df57d4d9333727ca5033437810b1",
+          "bin/ai-workflow-eval": "b97a51411e60b08362520e809b4eeb271a5d0b20e6d997dafb5185ae245d9737",
+          "config/ai/evals/execution/README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          "config/ai/evals/execution/app.py": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+          "config/ai/evals/execution/browser.mjs": "c009318fdccc1d9ee865c0d87fba88c88a475111007a329bd40fca429a915b37",
+          "config/ai/evals/execution/index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "skills/local/design-taste/scripts/ui-ref.mjs": "65c66d789621ae17df7541a10cd153f2d5d27c697fdd58992b62feda962fba26"
+        },
+        "checks": [
+          {
+            "id": "own-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-write",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-query",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-header",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-body",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-order",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-json",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-type",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-shape",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-empty",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-long",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-size",
+            "result": "PASS"
+          },
+          {
+            "id": "own-write-persistence",
+            "result": "PASS"
+          },
+          {
+            "id": "write-failure-rollback",
+            "result": "PASS"
+          },
+          {
+            "id": "restart-persistence",
+            "result": "PASS"
+          },
+          {
+            "id": "browser-journey",
+            "result": "FAIL",
+            "exitCode": 1
+          },
+          {
+            "id": "candidate-unchanged",
+            "result": "PASS"
+          }
+        ],
+        "limitations": "Synthetic authorized code on loopback; not an OS sandbox, production-auth review, or general model benchmark.",
+        "browser": {
+          "status": "FAIL",
+          "checks": [
+            {
+              "name": "initial API value rendered",
+              "status": "PASS",
+              "detail": ""
+            },
+            {
+              "name": "native input and click save",
+              "status": "FAIL",
+              "detail": ""
+            },
+            {
+              "name": "browser execution",
+              "status": "FAIL",
+              "detail": "native input and click save"
+            }
+          ],
+          "screenshots": [],
+          "browserVersion": "Chrome/155.0.8059.39",
+          "console": [],
+          "exceptions": [],
+          "network": [],
+          "exclusion": "Only HTTP 503 for PATCH /api/orders/101 with JSON note=blocked-write, correlated by requestId. No other console, runtime, or network errors are excluded."
+        },
+        "databaseState": {
+          "orders": [
+            [
+              101,
+              "tenant-alpha",
+              "browser-saved"
+            ],
+            [
+              202,
+              "tenant-beta",
+              "beta-private"
+            ],
+            [
+              303,
+              "tenant-alpha",
+              "alpha-collateral"
+            ]
+          ],
+          "audit": [
+            [
+              101,
+              "api-saved"
+            ],
+            [
+              101,
+              "browser-saved"
+            ]
+          ]
+        }
+      },
+      "files": {
+        "app-1.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "app-2.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "browser-report.json": {
+          "bytes": 651,
+          "sha256": "d11f978fc449978beae0f4e0b870b08b476523079558afd0a096de9fa166ff55"
+        },
+        "browser.log": {
+          "bytes": 24,
+          "sha256": "9d8e1b4fa524dd28e43bcee7cf354d72e6c4616dc3ef8b4f87694177e84aef15"
+        },
+        "ready-1.json": {
+          "bytes": 36,
+          "sha256": "243cd68b7e78e2a91f44c2b394b6d4743d0b758e4a4c8db0fdc5a7b75e2d4fdf"
+        },
+        "ready-2.json": {
+          "bytes": 36,
+          "sha256": "4ae46909b25e2cd9d3c0539321d44373c9d7ed49243e54ce5d317d5bf02b734c"
+        },
+        "report.json": {
+          "bytes": 4193,
+          "sha256": "4a70cb22f7c867502e4ed87a961c520a9b2388ec83dc8a4583f7198e2755f97f"
+        },
+        "state.sqlite": {
+          "bytes": 12288,
+          "sha256": "834945789cea9db55f871fa250955f7cfafcdab53f2ba44bcd737b8c5bc583bb"
+        }
+      }
+    },
+    {
+      "directory": "/home/ongki/Projects/dotfiles-execution-task119/defective-baseline-evidence",
+      "reportHash": "2939a358a0c6f2f3bcda770007201a84bcde13450e6d3293038e8dd6ed5b622f",
+      "report": {
+        "schemaVersion": 1,
+        "fixtureId": "order-note-v1",
+        "behaviorResult": "FAIL",
+        "provenance": {
+          "runtime": "deterministic-behavioral-mutant",
+          "model": "unavailable: no model involved",
+          "python": "3.12.3",
+          "mode": "local-execution"
+        },
+        "candidateHashes": {
+          "app.py": "9ceca1c12c116426458b749cfa9f65e4fbb28c8657834664cd45ecc9167331ec",
+          "index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          ".workflow-fixture.json": "c46374cceea2f5a8b3cce522ab06cbd409afd6a4208c75a2873e9ea29ef1b952"
+        },
+        "oracleHashes": {
+          "bin/_workflow-execution.py": "1ec1658efdcde6e81efc9c29e61b6bf48436df57d4d9333727ca5033437810b1",
+          "bin/ai-workflow-eval": "b97a51411e60b08362520e809b4eeb271a5d0b20e6d997dafb5185ae245d9737",
+          "config/ai/evals/execution/README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          "config/ai/evals/execution/app.py": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+          "config/ai/evals/execution/browser.mjs": "c009318fdccc1d9ee865c0d87fba88c88a475111007a329bd40fca429a915b37",
+          "config/ai/evals/execution/index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "skills/local/design-taste/scripts/ui-ref.mjs": "65c66d789621ae17df7541a10cd153f2d5d27c697fdd58992b62feda962fba26"
+        },
+        "checks": [
+          {
+            "id": "own-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-read",
+            "result": "FAIL",
+            "detail": "expected HTTP 404, got 200"
+          },
+          {
+            "id": "foreign-write",
+            "result": "FAIL",
+            "detail": "expected HTTP 404, got 200"
+          },
+          {
+            "id": "spoof-query",
+            "result": "FAIL",
+            "detail": "expected HTTP 404, got 200"
+          },
+          {
+            "id": "spoof-header",
+            "result": "FAIL",
+            "detail": "expected HTTP 404, got 200"
+          },
+          {
+            "id": "spoof-body",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-order",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-json",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-type",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-shape",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-empty",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-long",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-size",
+            "result": "PASS"
+          },
+          {
+            "id": "own-write-persistence",
+            "result": "FAIL",
+            "detail": "write missing or collateral mutation"
+          },
+          {
+            "id": "write-failure-rollback",
+            "result": "PASS"
+          },
+          {
+            "id": "restart-persistence",
+            "result": "FAIL",
+            "detail": "persistence/rollback failed after restart"
+          },
+          {
+            "id": "browser-journey",
+            "result": "UNVERIFIED",
+            "detail": "--api-only requested"
+          },
+          {
+            "id": "candidate-unchanged",
+            "result": "PASS"
+          }
+        ],
+        "limitations": "Synthetic authorized code on loopback; not an OS sandbox, production-auth review, or general model benchmark.",
+        "databaseState": {
+          "orders": [
+            [
+              101,
+              "tenant-alpha",
+              "api-saved"
+            ],
+            [
+              202,
+              "tenant-beta",
+              "stolen"
+            ],
+            [
+              303,
+              "tenant-alpha",
+              "alpha-collateral"
+            ]
+          ],
+          "audit": [
+            [
+              202,
+              "stolen"
+            ],
+            [
+              202,
+              "stolen"
+            ],
+            [
+              202,
+              "stolen"
+            ],
+            [
+              101,
+              "api-saved"
+            ]
+          ]
+        }
+      },
+      "files": {
+        "app-1.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "app-2.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "ready-1.json": {
+          "bytes": 36,
+          "sha256": "f8cd28a2447f40c1ef2c775db0568162090bec58d2d0376ba159ac5349a1855b"
+        },
+        "ready-2.json": {
+          "bytes": 36,
+          "sha256": "45dd1f2c8a3f841ca8393ead2a7fd63cc633b199402a007833b91914ff369dc7"
+        },
+        "report.json": {
+          "bytes": 3877,
+          "sha256": "2939a358a0c6f2f3bcda770007201a84bcde13450e6d3293038e8dd6ed5b622f"
+        },
+        "state.sqlite": {
+          "bytes": 12288,
+          "sha256": "26996a002dc4236b30876ca43f2e7881841c5386affd45f6a4e2e790e4c25e42"
+        }
+      }
+    },
+    {
+      "directory": "/home/ongki/Projects/dotfiles-execution-task119/commit-mutant-evidence",
+      "reportHash": "9340399639aa2bd99c7e6f18c8788696bd7d61c49de2c926f20d3be40f7035f9",
+      "report": {
+        "schemaVersion": 1,
+        "fixtureId": "order-note-v1",
+        "behaviorResult": "FAIL",
+        "provenance": {
+          "runtime": "deterministic-behavioral-mutant",
+          "model": "unavailable: no model involved",
+          "python": "3.12.3",
+          "mode": "local-execution"
+        },
+        "candidateHashes": {
+          "app.py": "1b751fe7c797f36f2c7a3d25b90281cb00710397399df3ede214dda2015a98b3",
+          "index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          ".workflow-fixture.json": "9d35711bd12faa7107671b1b7e0af3f0e634b6014a9eee03444bfa139fe333a4"
+        },
+        "oracleHashes": {
+          "bin/_workflow-execution.py": "1ec1658efdcde6e81efc9c29e61b6bf48436df57d4d9333727ca5033437810b1",
+          "bin/ai-workflow-eval": "b97a51411e60b08362520e809b4eeb271a5d0b20e6d997dafb5185ae245d9737",
+          "config/ai/evals/execution/README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          "config/ai/evals/execution/app.py": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+          "config/ai/evals/execution/browser.mjs": "c009318fdccc1d9ee865c0d87fba88c88a475111007a329bd40fca429a915b37",
+          "config/ai/evals/execution/index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "skills/local/design-taste/scripts/ui-ref.mjs": "65c66d789621ae17df7541a10cd153f2d5d27c697fdd58992b62feda962fba26"
+        },
+        "checks": [
+          {
+            "id": "own-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-write",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-query",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-header",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-body",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-order",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-json",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-type",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-shape",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-empty",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-long",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-size",
+            "result": "PASS"
+          },
+          {
+            "id": "own-write-persistence",
+            "result": "FAIL",
+            "detail": "write missing or collateral mutation"
+          },
+          {
+            "id": "write-failure-rollback",
+            "result": "PASS"
+          },
+          {
+            "id": "restart-persistence",
+            "result": "FAIL",
+            "detail": "persistence/rollback failed after restart"
+          },
+          {
+            "id": "browser-journey",
+            "result": "UNVERIFIED",
+            "detail": "--api-only requested"
+          },
+          {
+            "id": "candidate-unchanged",
+            "result": "PASS"
+          }
+        ],
+        "limitations": "Synthetic authorized code on loopback; not an OS sandbox, production-auth review, or general model benchmark.",
+        "databaseState": {
+          "orders": [
+            [
+              101,
+              "tenant-alpha",
+              "alpha-original"
+            ],
+            [
+              202,
+              "tenant-beta",
+              "beta-private"
+            ],
+            [
+              303,
+              "tenant-alpha",
+              "alpha-collateral"
+            ]
+          ],
+          "audit": []
+        }
+      },
+      "files": {
+        "app-1.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "app-2.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "ready-1.json": {
+          "bytes": 36,
+          "sha256": "5c40cc8c949dd39c7d2b5555a2a5b1f711a14bfcc425701a31b120659030c192"
+        },
+        "ready-2.json": {
+          "bytes": 36,
+          "sha256": "1396def523ad9876d7b6308a8309d67ad1fff28f6486d538129df3c2a68328ca"
+        },
+        "report.json": {
+          "bytes": 3509,
+          "sha256": "9340399639aa2bd99c7e6f18c8788696bd7d61c49de2c926f20d3be40f7035f9"
+        },
+        "state.sqlite": {
+          "bytes": 12288,
+          "sha256": "155332800f192a9f36f571e18679815626415e1af5e5be81be7172e98de8f197"
+        }
+      }
+    },
+    {
+      "directory": "/home/ongki/Projects/dotfiles-execution-task119/atomicity-mutant-evidence",
+      "reportHash": "96ec69ab7da637751e25a71231018fa4fd92ed30d6efa8d294977d03f97ae230",
+      "report": {
+        "schemaVersion": 1,
+        "fixtureId": "order-note-v1",
+        "behaviorResult": "FAIL",
+        "provenance": {
+          "runtime": "deterministic-behavioral-mutant",
+          "model": "unavailable: no model involved",
+          "python": "3.12.3",
+          "mode": "local-execution"
+        },
+        "candidateHashes": {
+          "app.py": "49d08a1b9b17c0e7acbba1f9097cee779dbbe718be2b3605e600b6198c195e61",
+          "index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          ".workflow-fixture.json": "9d35711bd12faa7107671b1b7e0af3f0e634b6014a9eee03444bfa139fe333a4"
+        },
+        "oracleHashes": {
+          "bin/_workflow-execution.py": "1ec1658efdcde6e81efc9c29e61b6bf48436df57d4d9333727ca5033437810b1",
+          "bin/ai-workflow-eval": "b97a51411e60b08362520e809b4eeb271a5d0b20e6d997dafb5185ae245d9737",
+          "config/ai/evals/execution/README.md": "6b229b837d77f016104dc15ff82e1571d47aefa6ad0381516888829f5bc056dd",
+          "config/ai/evals/execution/app.py": "b1727ca5ae47e3e8410b413fee475f73d461c12834bb4b4ad88d325df15655c8",
+          "config/ai/evals/execution/browser.mjs": "c009318fdccc1d9ee865c0d87fba88c88a475111007a329bd40fca429a915b37",
+          "config/ai/evals/execution/index.html": "a7053adb44321e4a01ecea34cece3972a0d804c499c204c5f3c170655f622008",
+          "skills/local/design-taste/scripts/ui-ref.mjs": "65c66d789621ae17df7541a10cd153f2d5d27c697fdd58992b62feda962fba26"
+        },
+        "checks": [
+          {
+            "id": "own-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-read",
+            "result": "PASS"
+          },
+          {
+            "id": "foreign-write",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-query",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-header",
+            "result": "PASS"
+          },
+          {
+            "id": "spoof-body",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-order",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "missing-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-read",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-session-write",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-json",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-type",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-shape",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-empty",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-long",
+            "result": "PASS"
+          },
+          {
+            "id": "invalid-size",
+            "result": "PASS"
+          },
+          {
+            "id": "own-write-persistence",
+            "result": "PASS"
+          },
+          {
+            "id": "write-failure-rollback",
+            "result": "FAIL",
+            "detail": "rejected request changed persistent state"
+          },
+          {
+            "id": "restart-persistence",
+            "result": "FAIL",
+            "detail": "persistence/rollback failed after restart"
+          },
+          {
+            "id": "browser-journey",
+            "result": "UNVERIFIED",
+            "detail": "--api-only requested"
+          },
+          {
+            "id": "candidate-unchanged",
+            "result": "PASS"
+          }
+        ],
+        "limitations": "Synthetic authorized code on loopback; not an OS sandbox, production-auth review, or general model benchmark.",
+        "databaseState": {
+          "orders": [
+            [
+              101,
+              "tenant-alpha",
+              "blocked-write"
+            ],
+            [
+              202,
+              "tenant-beta",
+              "beta-private"
+            ],
+            [
+              303,
+              "tenant-alpha",
+              "alpha-collateral"
+            ]
+          ],
+          "audit": [
+            [
+              101,
+              "api-saved"
+            ]
+          ]
+        }
+      },
+      "files": {
+        "app-1.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "app-2.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "ready-1.json": {
+          "bytes": 35,
+          "sha256": "fddcff182f7a1b3b53a026d1db46c0eb1d612acd3ed9d8bb0ad8025cea8551f4"
+        },
+        "ready-2.json": {
+          "bytes": 36,
+          "sha256": "4519884c6dfeb92133ad8589c4af99d6e5d28ba27e945cca956e6f4af8971c6e"
+        },
+        "report.json": {
+          "bytes": 3567,
+          "sha256": "96ec69ab7da637751e25a71231018fa4fd92ed30d6efa8d294977d03f97ae230"
+        },
+        "state.sqlite": {
+          "bytes": 12288,
+          "sha256": "e5bfb7d02a028eaae7086b709540a36f8fcdf69be524b75d524dab8aeb5d7bae"
+        }
+      }
+    }
+  ],
+  "reviewFindings": [
+    {
+      "id": "invisible-feedback",
+      "status": "corrected",
+      "evidence": "Independent reviewer reproduced opacity:0 false PASS; final retained visibility mutant FAIL plus executable browser regression."
+    },
+    {
+      "id": "cleanup-after-pass",
+      "status": "corrected",
+      "evidence": "Browser catch now assigns FAIL for ordinary exceptions; worker injected cleanup exception after 13 PASS assertions and observed exit1/FAIL. Oracle independently rejects inconsistent report status/checks."
+    }
+  ],
+  "visualInspection": {
+    "owner": "/root",
+    "widths": [
+      390,
+      1280
+    ],
+    "observation": "Local synthetic fixture form is readable, labelled and fits both viewports; screenshot inspection does not certify public design quality."
+  },
+  "limitations": [
+    "One observed repair, not a reliability metric or model comparison.",
+    "Older/other models and hosted macOS were not benchmarked.",
+    "Reference exports are oracle verification, not AI capability evidence.",
+    "Earlier diagnostics preserve their original oracle hashes; final reference and independent repair use the final oracle revision."
+  ]
+}

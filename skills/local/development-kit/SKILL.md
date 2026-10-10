@@ -25,7 +25,9 @@ upgrades or comparisons with Claude, OpenAI, Kimi, or shadcn, read
 [External ecosystem adoption](references/ecosystem-adoption.md). When changing
 the shared skill system itself, also read
 [Skill evaluation contract](references/skill-evaluation.md). Do not assume a
-local worked-example directory exists.
+local worked-example directory exists. For runtime/model capability adaptation,
+conversation continuity, or authorized dotfiles improvement, read
+[Adaptive execution](references/adaptive-execution.md).
 
 ## 1. Resolve authority before work
 

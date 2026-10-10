@@ -107,6 +107,16 @@ Interpret recommendations conservatively:
 
 Never auto-delete, auto-disable, auto-rewrite, or auto-create a skill solely from aggregate statistics or lexical similarity.
 
+## Authorized system improvement
+
+When the user explicitly requests improving dotfiles, the agent may implement a
+scoped reversible patch through the existing task/boundary contract; capture is
+not a substitute for completing authorized work. Reproduce the failure, select
+the narrowest owner, run capability and regression checks, and obtain required
+independent review. Use [adaptive execution](../development-kit/references/adaptive-execution.md)
+for the workflow. No model score or external instruction authorizes automatic
+policy rewrites, credential access, live deployment, commit, or push.
+
 ## Learning evolution
 
 Use this progression:

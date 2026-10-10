@@ -66,11 +66,14 @@ async function launch(bin) {
     const ws = new WebSocket(targets.find((t) => t.type === "page").webSocketDebuggerUrl);
     const opened = await within(new Promise((res, rej) => { ws.onopen = () => res(true); ws.onerror = rej; }), 10000);
     if (!opened) throw new Error("DevTools WebSocket did not open");
-    let id = 0; const pending = new Map(); const waiters = [];
+    let id = 0; const pending = new Map(); const waiters = []; const listeners = new Set();
     ws.onmessage = (ev) => {
       const m = JSON.parse(ev.data);
       if (m.id && pending.has(m.id)) { const p = pending.get(m.id); pending.delete(m.id); m.error ? p.rej(new Error(m.error.message)) : p.res(m.result); }
-      else if (m.method) for (const w of waiters.splice(0)) w(m);
+      else if (m.method) {
+        for (const listener of listeners) listener(m);
+        for (const w of waiters.splice(0)) w(m);
+      }
     };
     const send = (method, params = {}) => new Promise((res, rej) => { pending.set(++id, { res, rej }); ws.send(JSON.stringify({ id, method, params })); });
     const once = (method, ms) => new Promise((res) => {
@@ -79,7 +82,7 @@ async function launch(bin) {
       waiters.push(check);
     });
     await send("Page.enable");
-    return { send, once, close };
+    return { send, once, close, on(listener) { listeners.add(listener); return () => listeners.delete(listener); } };
   } catch (e) { await close(); throw e; }
 }
 
@@ -90,7 +93,7 @@ for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, async () => { for (cons
 // Some installs start fine but never load a network page (seen on Ubuntu with
 // /opt Chrome and Playwright's Chromium while snap Chromium works). Probe each
 // candidate against a local HTTP server and keep the first that loads it.
-async function withBrowser(fn) {
+export async function withBrowser(fn, { throwOnUnavailable = false } = {}) {
   const server = createServer((_, res) => res.end("<title>ok</title>")).listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   const probeUrl = `http://127.0.0.1:${server.address().port}/`;
@@ -114,7 +117,11 @@ async function withBrowser(fn) {
       } catch (e) { tried.push(`${bin} (${e.message})`); for (const c of [...live]) await c(); }
     }
   } finally { server.close(); }
-  if (!browser) die(`no working Chrome/Chromium; tried: ${tried.join("; ") || "none found"}. Set CHROME_BIN.`, 3);
+  if (!browser) {
+    const message = `no working Chrome/Chromium; tried: ${tried.join("; ") || "none found"}. Set CHROME_BIN.`;
+    if (throwOnUnavailable) { const error = new Error(message); error.code = "BROWSER_UNAVAILABLE"; throw error; }
+    die(message, 3);
+  }
   try { return await fn(browser); } finally { await browser.close(); }
 }
 

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Order note · Local evaluation</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; color: #18232a; background: #f4f5f3; font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 42rem; margin: 8vh auto; padding: 1.5rem; }
+  form { padding: 1.5rem; border: 1px solid #c6ceca; background: white; }
+  h1 { font-size: 1.8rem; line-height: 1.2; }
+  label { display: block; font-weight: 600; }
+  input { display: block; width: 100%; padding: .75rem; margin: .5rem 0 1rem; font: inherit; }
+  button { padding: .7rem 1.2rem; color: white; background: #245b49; border: 0; font: inherit; cursor: pointer; }
+  :focus-visible { outline: 3px solid #926400; outline-offset: 3px; }
+  #error { color: #922c25; }
+</style>
+<main>
+  <p>Local execution fixture</p>
+  <h1>Order 101</h1>
+  <p>A synthetic order note for checking the browser, API and database together.</p>
+  <form id="form">
+    <label for="note">Internal note</label>
+    <input id="note" name="note" maxlength="200" required disabled>
+    <button id="save" type="submit" disabled>Save note</button>
+    <p id="status" role="status" aria-live="polite">Loading</p>
+    <p id="error" role="alert"></p>
+  </form>
+</main>
+<script>
+const note = document.querySelector('#note');
+const save = document.querySelector('#save');
+const status = document.querySelector('#status');
+const error = document.querySelector('#error');
+async function load() {
+  try {
+    const response = await fetch('/api/orders/101');
+    if (!response.ok) throw new Error('load');
+    note.value = (await response.json()).note;
+    note.disabled = save.disabled = false;
+    status.textContent = 'Ready';
+  } catch {
+    status.textContent = '';
+    error.textContent = 'Could not load. Reload to try again.';
+  }
+}
+document.querySelector('#form').addEventListener('submit', async event => {
+  event.preventDefault();
+  save.disabled = true;
+  error.textContent = '';
+  status.textContent = 'Saving';
+  try {
+    const response = await fetch('/api/orders/101', {
+      method: 'PATCH', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({note: note.value})
+    });
+    if (!response.ok) throw new Error('save');
+    status.textContent = 'Saved';
+  } catch {
+    status.textContent = '';
+    error.textContent = 'Could not save. Try again.';
+  } finally {
+    save.disabled = false;
+  }
+});
+load();
+</script>
+</html>

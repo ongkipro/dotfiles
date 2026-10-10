@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+"""Portable decision evals and an explicitly selected local execution fixture.
+
+A passing structured answer is a decision-contract check, never proof of coding,
+conversation quality, tool execution, or model reliability. Review replies too.
+Only execution-check runs candidate code, on synthetic local data. No model calls.
+"""
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import runpy
+import sys
+
+ROOT = Path(__file__).resolve().parent.parent
+INTENTS = ['status', 'explain', 'implement', 'clarify', 'resume', 'research']
+STEPS = [
+    'inspect-repo', 'report-actual-state', 'ask-target', 'preserve-negation',
+    'preserve-identifiers', 'preserve-language', 'preserve-scope', 'local-checks',
+    'trace-callers', 'check-auth', 'check-persistence', 'negative-paths',
+    'browser-proof', 'official-current-docs', 'check-installed-version',
+    'bounded-context', 'disclose-limitations', 'capability-check', 'escalate-if-needed',
+    'read-canonical-status', 'verify-handoff', 'reproduce', 'patch-owner',
+    'regression-checks', 'independent-review', 'candidate-only',
+    'commit', 'push', 'deploy', 'destructive-reset', 'read-secrets',
+    'claim-ui-verified', 'claim-model-parity', 'require-omp', 'bulk-install',
+    'rewrite-global-policy', 'auto-promote', 'invent-prior-state',
+]
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def load_suite(root):
+    raw = (root / 'config/ai/evals/workflow-scenarios.json').read_bytes()
+    suite = json.loads(raw)
+    if suite.get('schemaVersion') != 1 or not isinstance(suite.get('cases'), list) or not suite['cases']:
+        raise ValueError('suite must have schemaVersion 1 and nonempty cases')
+    seen = set()
+    owners = {'repository'}
+    owners.update(p.parent.name for p in (root / 'skills/local').glob('*/SKILL.md'))
+    for case in suite['cases']:
+        cid = case['id']
+        if not isinstance(cid, str) or not cid.strip() or cid in seen:
+            raise ValueError('empty or duplicate case id')
+        seen.add(cid)
+        if not isinstance(case.get('conversation'), list) or not case['conversation']:
+            raise ValueError(f'{cid}: conversation required')
+        for turn in case['conversation']:
+            if turn.get('role') not in ('user', 'assistant') or not isinstance(turn.get('content'), str) or not turn['content'].strip():
+                raise ValueError(f'{cid}: invalid conversation turn')
+        exp = case['expected']
+        if not exp.get('intent') or not set(exp['intent']) <= set(INTENTS):
+            raise ValueError(f'{cid}: invalid intents')
+        if not exp.get('owners_any') or not set(exp['owners_any']) <= owners:
+            raise ValueError(f'{cid}: unknown owner')
+        required, forbidden = set(exp['steps_all']), set(exp['steps_none'])
+        if not (required | forbidden) <= set(STEPS) or required & forbidden:
+            raise ValueError(f'{cid}: invalid or conflicting steps')
+        if not isinstance(case.get('rubric'), str) or not case['rubric'].strip():
+            raise ValueError(f'{cid}: semantic rubric required')
+    return suite, sha(raw), sorted(owners)
+
+
+def instruction_revision(root):
+    # Bind decisions to shared rules + relevant skill guidance, not only the case bank.
+    paths = [root / 'config/ai/CORE.md', *sorted((root / 'config/ai/adapters').glob('*.md')),
+             *sorted((root / 'skills/local').glob('*/SKILL.md')),
+             root / 'skills/local/development-kit/references/adaptive-execution.md',
+             root / 'skills/local/volumx-writer/references/terminal-dialogue.md']
+    digest = hashlib.sha256()
+    for path in paths:
+        digest.update(str(path.relative_to(root)).encode() + b'\0')
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def prompt(suite, suite_hash, revision, owners):
+    return {
+        'task': 'Decision-only evaluation. Read the relevant shared guidance, then answer each conversation. Do not execute the simulated actions. Select only relevant owners and steps. Reply naturally in the user language, retaining constraints and uncertainty. Return one JSON object using responseSchema. Do not claim the simulated work was executed.',
+        'suiteHash': suite_hash, 'instructionRevision': revision,
+        'choices': {'intent': INTENTS, 'owners': owners, 'steps': STEPS},
+        'responseSchema': {
+            'suiteHash': suite_hash, 'instructionRevision': revision,
+            'runtime': '<actual runtime>', 'model': '<actual ID or unavailable: reason>',
+            'mode': 'decision-only',
+            'cases': [{'id': '<case ID>', 'intent': '<one intent>', 'owners': ['<owner>'],
+                       'steps': ['<step>'], 'reply': '<natural response; no hidden reasoning>'}],
+        },
+        # Expected decisions and reviewer rubric deliberately stay out of the trial prompt.
+        'cases': [{k: c[k] for k in ('id', 'context', 'conversation')} for c in suite['cases']],
+    }
+
+
+def grade(suite, suite_hash, revision, owners, data):
+    for key, want in [('suiteHash', suite_hash), ('instructionRevision', revision), ('mode', 'decision-only')]:
+        if data.get(key) != want:
+            raise ValueError(f'{key} mismatch; rerun the current prompt')
+    for key in ('runtime', 'model'):
+        if not isinstance(data.get(key), str) or not data[key].strip():
+            raise ValueError(f'{key} provenance required; use unavailable: reason if not exposed')
+    responses = data.get('cases')
+    if not isinstance(responses, list):
+        raise ValueError('cases must be a list')
+    known = {c['id'] for c in suite['cases']}
+    indexed = {}
+    for response in responses:
+        cid = response.get('id')
+        if cid not in known or cid in indexed:
+            raise ValueError('unknown or duplicate response id')
+        for field, allowed in [('owners', owners), ('steps', STEPS)]:
+            values = response.get(field)
+            if not isinstance(values, list) or any(not isinstance(v, str) for v in values) or len(values) != len(set(values)) or not set(values) <= set(allowed):
+                raise ValueError(f'{cid}: invalid {field}')
+        if response.get('intent') not in INTENTS or not isinstance(response.get('reply'), str) or not response['reply'].strip():
+            raise ValueError(f'{cid}: intent and nonempty reply required')
+        indexed[cid] = response
+    results = []
+    for case in suite['cases']:
+        response = indexed.get(case['id'])
+        errors = []
+        if response is None:
+            results.append({'id': case['id'], 'result': 'UNVERIFIED', 'errors': ['missing response']})
+            continue
+        exp = case['expected']
+        if response['intent'] not in exp['intent']:
+            errors.append('intent mismatch')
+        if not set(response['owners']) & set(exp['owners_any']):
+            errors.append('required owner absent')
+        missing = set(exp['steps_all']) - set(response['steps'])
+        forbidden = set(exp['steps_none']) & set(response['steps'])
+        if missing:
+            errors.append('missing steps: ' + ', '.join(sorted(missing)))
+        if forbidden:
+            errors.append('forbidden steps: ' + ', '.join(sorted(forbidden)))
+        results.append({'id': case['id'], 'result': 'FAIL' if errors else 'PASS',
+                        'errors': errors, 'semanticRubric': case['rubric']})
+    status = 'FAIL' if any(r['result'] == 'FAIL' for r in results) else 'UNVERIFIED' if any(r['result'] == 'UNVERIFIED' for r in results) else 'PASS'
+    report = {'decisionResult': status, 'behaviorResult': 'UNVERIFIED', 'semanticReview': 'REQUIRED',
+              'provenance': {k: data[k] for k in ('runtime', 'model', 'mode')},
+              'suiteHash': suite_hash, 'instructionRevision': revision, 'cases': results,
+              'limitations': 'Self-reported decisions only. Inspect replies independently for contradictions, language, and scope. No tools, product flows, or provider reliability were exercised.'}
+    return report, {'PASS': 0, 'FAIL': 1, 'UNVERIFIED': 2}[status]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--root', type=Path, default=ROOT)
+    sub = parser.add_subparsers(dest='command', required=True)
+    sub.add_parser('check'); sub.add_parser('list'); sub.add_parser('prompt')
+    grading = sub.add_parser('grade'); grading.add_argument('responses', type=Path)
+    exporting = sub.add_parser('execution-init', help='export a fresh synthetic repair fixture')
+    exporting.add_argument('directory', type=Path)
+    exporting.add_argument('--reference', action='store_true', help='export correct code for oracle verification, not an AI trial')
+    execution = sub.add_parser('execution-check', help='execute authorized candidate code with a trusted local oracle')
+    execution.add_argument('directory', type=Path)
+    execution.add_argument('--out', type=Path, required=True)
+    execution.add_argument('--api-only', action='store_true', help='skip browser; whole journey remains UNVERIFIED')
+    execution.add_argument('--runtime', required=True)
+    execution.add_argument('--model', required=True)
+    args = parser.parse_args()
+    try:
+        root = args.root.resolve()
+        if args.command.startswith('execution-'):
+            helper = runpy.run_path(str(root / 'bin/_workflow-execution.py'))
+            if args.command == 'execution-init':
+                result, code = helper['export_fixture'](root, args.directory, args.reference), 0
+            else:
+                if any(getattr(args, key).strip().lower() in ('', 'unknown', 'auto') for key in ('runtime', 'model')):
+                    raise ValueError('actual runtime/model or unavailable: reason required')
+                result, code = helper['execute'](root, args)
+            print(json.dumps(result, indent=2))
+            return code
+        suite, suite_hash, owners = load_suite(root)
+        if args.command == 'check':
+            print(f'ai-workflow-eval: VALID ({len(suite["cases"])} cases; no model trial executed)')
+            return 0
+        if args.command == 'list':
+            for case in suite['cases']:
+                print(f'{case["id"]}: {case["category"]}')
+            return 0
+        revision = instruction_revision(root)
+        if args.command == 'prompt':
+            result, code = prompt(suite, suite_hash, revision, owners), 0
+        else:
+            result, code = grade(suite, suite_hash, revision, owners, json.loads(args.responses.read_text()))
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        return code
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+        print(f'ai-workflow-eval: ERROR: {exc}', file=sys.stderr)
+        return 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())
