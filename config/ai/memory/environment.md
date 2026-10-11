@@ -4,7 +4,7 @@
 > `devices/` is the generated registry and outranks this list; if a machine is
 > registered there but missing here, `devices/` wins.
 > - Linux (laptop): hostname **`cuan`** — ThinkPad T480, Ubuntu 26.04, kernel 7.0.0. Old nickname in memory = "fantastico" (the SAME machine).
-> - Linux (desktop): hostname **`rich`** — Dell OptiPlex 7050, Ubuntu 24.04.4 LTS, kernel 7.0.0. Registered 2026-08-15.
+> - Linux (desktop): hostname **`rich`** — Dell OptiPlex 7050 (i7-7700T, 32GB RAM), Ubuntu 24.04 LTS. Root SSD (`/dev/sda2`, 240GB) houses OS, AI CLI runtimes, and active `~/Projects` for zero-latency terminal development; secondary 1TB drive (`/data`) stores heavy AI models (`/data/ai`), backups, and cold archives.
 > - Mac (secondary): hostname **`feris-MacBook-Air`** — MacBook Air M1 8GB, macOS 26.5.1 arm64. This is the same `MacBookAir10,1` previously registered as **`ongkis-MacBook-Air`**; the generated `devices/` registry records both names and is authoritative for current device facts.
 > `brew` instructions = MAC ONLY. On `cuan` and `rich` use mise/apt.
 

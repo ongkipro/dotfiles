@@ -19,7 +19,15 @@ COD funnel-ads ecommerce. Repo **`ongkipro/petanisejahtera`** (public, created 2
 
 **Landing-page pattern:** `src/pages/<slug>.astro`, `prerender=false`, product data from `src/data/products.ts`, shared components `GeoIpResolvedForm`/`MetaLandingTracker`/`StickyCTA`/`SocialProof` (these are a GLOBAL pattern — do not fork them per page). Per-page images live in `public/images/<slug>/` (webp).
 
-**Status & token cleanliness (2026-08-07):** invalid Tailwind classes (`red-650`/`slate-450`/`red-350`) have been fully cleaned out of all of `src/` (0 matches). The form-mode resolver falls back to **`hybrid`** when the province is unknown (`src/lib/form-mode.ts`). Typecheck `npm run check` reported 0 errors, unit tests `npm run test` passed 25/25, and the Astro v6 SSR Cloudflare Workers build succeeded.
+**Status & deployment (2026-10-07):** Live on `petanisejahtera.com` via Cloudflare Workers deployment `6a4b33cf-bee9-4186-9c6e-96fab4c434d1` (commit `dc3642e` + docs `4d59785` on `main`). Typecheck `npm run check` 0 errors, unit tests `npm run test` 76/76 passed (12 test suites), Astro v6 SSR build clean.
 
-**Sessions 2026-07-18 through 2026-08-01:** built the `saratoga-anggrek` and `saratoga-anthurium` landing pages. Same physical product (`productSlug="saratoga"`). SEO policy was made uniform: every landing page is `index, follow` and listed in the sitemap, except `/404` and `/sitemap` which are `noindex`.
-**Durable architecture:** product variants and prices are synchronized from Scalev and must be verified from the repository or provider instead of copied into memory. `BaseLayout.astro` owns the shared `BreadcrumbList` JSON-LD through its `breadcrumbs` property.
+**Landing pages & Content:** Active LPs: `/bensu-jagung`, `/aussie-sawit-ganoderma`, `/saratoga-padi`, `/saratoga-anggrek`, `/saratoga-anthurium`. Catalog has 4 products: Aussie (sawit), Bensu (jagung/palawija), Saratoga (padi/anggrek/anthurium), Kojien. Articles system in `src/data/content.ts` holds 45 articles across multiple crops (anggrek, anthurium, padi, sawit, jagung, cabai). Standalone form routes (`/form-middle`, `/form-hybrid`, `/form-full`, `/geoipform`) and `/thanks` serve `noindex, nofollow`; main LPs and articles serve `index, follow`.
+
+**Conversion & Tracking Architecture (DEC-013 through DEC-018):**
+- `/thanks` visit is the single `Purchase` trigger for all payment methods (DEC-016). No conversions derived from Scalev order state or webhooks (Scalev webhook route removed).
+- Application is sole owner of conversions (DEC-017); COD orders never receive Scalev-hosted URLs.
+- Conversion `value` is merchandise only, never including ongkir or admin fees (DEC-013).
+- Advanced Matching on COD path resolves 8 SHA-256 keys directly from typed address (`country`, `ct`, `external_id`, `fn`, `ln`, `ph`, `st`, `zp` - DEC-018).
+- GTM container vars are dormant in `wrangler.jsonc`; Google Ads receives no live tag conversions, though `gclid`/`gbraid`/`wbraid` are captured in session records (DEC-015).
+- Pending operational items: Visual verification of test order with `FB_TEST_EVENT_CODE` in Meta Events Manager, resolving GitHub Actions billing block on account level, and deleting unused `SCALEV_WEBHOOK_SIGNING_SECRET` from Worker.
+

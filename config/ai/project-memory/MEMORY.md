@@ -79,3 +79,4 @@
 - [TokoΦ hide provider brand (white-label)](tokophi-provider-brand-hidden.md) — JANGAN tampilkan brand provider (KiriminAja shipping, AutoLaris payment) di client (merchant admin+storefront); label generik saja; hanya super-admin lihat brand (ADR 0004 platform-managed)
 - [AdsBookCMS install fleet](adsbookcms-install-fleet.md) — satu produk, beberapa toko live; peta direktori lokal + kenapa `product` remote di-DISABLED.
 - [Sync adsbookcms ↔ zanobyshop](adsbookcms-zanobyshop-sync.md) — update produk turun lewat `sync-from-product.sh`; temuan dari toko live naik sebagai issue, bukan tambalan lokal.
+- [Reven Leather Shopify HK Payments](revenleather-shopify-hk-payments.md) — Shopify Payments HK setup, USD base currency decision, and product naming/SEO invariant.

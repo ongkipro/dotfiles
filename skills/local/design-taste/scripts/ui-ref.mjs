@@ -302,6 +302,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.ar
     for (const [w, v] of Object.entries(r.viewports))
       console.log(`${w}px: ${v.sections.length} sections, height ${v.height}px, h1 ${v.type.roles.h1?.size ?? "-"}, fonts ${v.type.families.map((x) => x.v).join(" / ")}`);
     console.log(`wrote ${out}/ref.json and screenshots`);
+    process.exit(0);
   } else if (cmd === "compare") {
     const out = opt("--out"); const [refDir, url] = rest;
     if (!refDir || !url || !out) die("usage: ui-ref.mjs compare REF_DIR URL --out DIR");
