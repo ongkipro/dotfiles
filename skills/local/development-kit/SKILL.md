@@ -41,11 +41,28 @@ conversation continuity, or authorized dotfiles improvement, read
 4. Label unresolved facts `Unknown`, `Assumption`, or `Proposal`; Markdown is
    intent, not runtime proof.
 
-## 2. Choose one planning lane
+## 2. Select the work type before planning
+
+An actionable request to fix, build, or implement authorizes the scoped
+reversible work when its target and intended behavior are clear. Preserve that
+authorization across handoffs; ask only for a consequential missing decision or
+an action outside it. Research, review, and planning alone do not authorize code.
+
+- **Settled repair or maintenance:** reuse accepted requirements, design, and
+  root tasks. Route one concern directly to its specialist; cross-layer work
+  goes to `full-stack-development`. Do not require a new PRD or repeat an
+  implementation permission question. A status request only reports evidence.
+- **Skill-system audit or improvement:** keep the existing owner and evaluation
+  contract; use a runtime-native `skill-creator` only when available. Research
+  does not require a product spec pack.
+- **Unsettled behavior or requested planning:** choose one lane below, then
+  hand accepted work to delivery within the user's existing authorization.
+
+Planning lanes:
 
 - Unresolved market, pricing, audience, or product direction:
   `product-intelligence` first.
-- Bounded feature or ordinary repository work: `prd-taskbreaker`, using the
+- Bounded feature needing requirements or tasks: `prd-taskbreaker`, using the
   repository's existing `PRD.md` and root `TASKS.md` when present.
 - A genuinely multi-domain system whose product, architecture, data, IAM, API,
   security, privacy, operations, or UI contracts must stay traceable:
@@ -66,6 +83,11 @@ model itself (isolation model, tenant context, custom domains) is multi-domain:
 Do not select a suite because a project merely feels large. Do not jump from
 planning approval to implementation authorization.
 
+Match implementation owners to the installed stack. If no dedicated skill
+exists, keep the framework and use its installed-version official documentation
+plus the relevant domain/testing owners. Do not invent a skill, switch stacks,
+or install an ecosystem bundle merely to complete the owner map.
+
 Before experience work, resolve the product context: audience segments and
 jobs, evidence-backed behavior, geography/market, language and locale, device
 and input conditions, trust expectations, content/asset availability, and
@@ -78,6 +100,12 @@ persona to make a design brief look complete.
 
 Every maintained browser-visible surface needs an accepted experience contract
 proportional to risk before the first visual edit:
+
+For bounded maintenance, reuse the accepted screen behavior, tokens, and
+references. Record the small delta inline and run browser validation; fresh
+reference research or a redesign handoff is needed only when direction, behavior,
+or a material constraint changes. Escalate if the existing contract cannot
+resolve the change.
 
 1. **Reference discovery:** for a new surface or material redesign, inspect the
    repository first, then research a small, relevant set of professional

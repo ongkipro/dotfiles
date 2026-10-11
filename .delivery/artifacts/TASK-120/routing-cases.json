@@ -1,0 +1,22 @@
+[
+  {
+    "id": "authorized-maintenance",
+    "context": "Existing application: accepted order-note behavior, README, root TASKS.md, and endpoint tests. Save returns 200 but notes disappear after reload. Product policy and architecture are settled. No secrets or live data needed.",
+    "request": "Perbaiki bug save itu sampai tuntas, cek lokal saja, jangan deploy atau commit."
+  },
+  {
+    "id": "accepted-ui-maintenance",
+    "context": "Existing Next.js admin: accepted UX screen contract and tokens. A CSS min-width causes the existing orders table to overflow at 390px. User wants the same visual direction and behavior. Browser tools are available.",
+    "request": "Betulkan overflow mobile ini pakai desain yang sudah disetujui, jangan redesign."
+  },
+  {
+    "id": "unowned-installed-stack",
+    "context": "Existing SvelteKit application: its installed version and package lock are available; route validation accepts an invalid payload. Product behavior is settled. Owned skill catalog has no SvelteKit specialist.",
+    "request": "Perbaiki validasi endpoint ini dan tes; framework jangan diganti."
+  },
+  {
+    "id": "bounded-upstream-adoption",
+    "context": "Dotfiles has canonical owned skills, existing evals, and five native CLI adapters. Upstream https://github.com/obra/superpowers suggests a useful debugging method, but its installer also replaces runtime hooks and global agent settings. No installation has been requested.",
+    "request": "Riset pola dari repo itu dan gunakan yang berguna untuk menyempurnakan skill kita. Jangan ubah hooks atau config model."
+  }
+]

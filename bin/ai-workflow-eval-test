@@ -102,6 +102,39 @@ class EvaluationTests(unittest.TestCase):
                 data = self.response(); data[key] = ''
                 with self.assertRaises(ValueError): self.grade(data)
 
+    def test_reference_changes_invalidate_prior_decisions(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            sources = ['config/ai/CORE.md', 'config/ai/adapters/codex.md',
+                       'config/ai/policies/planning-artifacts.md',
+                       'skills/local/development-kit/SKILL.md',
+                       'skills/local/development-kit/references/adaptive-execution.md',
+                       'skills/local/development-kit/references/skill-evaluation.md',
+                       'skills/local/volumx-writer/references/terminal-dialogue.md',
+                       'skills/local/testing-engineering/references/nested/checks.md']
+            for relative in sources:
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text('Original instruction')
+            revision = api['instruction_revision'](root)
+            data = self.response(); data['instructionRevision'] = revision
+            for relative in sources:
+                with self.subTest(source=relative):
+                    path = root / relative
+                    path.write_text('Changed instruction')
+                    current = api['instruction_revision'](root)
+                    self.assertNotEqual(current, revision)
+                    with self.assertRaisesRegex(ValueError, 'instructionRevision mismatch'):
+                        api['grade'](self.suite, self.suite_hash, current, self.owners, data)
+                    path.write_text('Original instruction')
+            added = root / 'skills/local/development-kit/references/new.md'
+            added.write_text('Additional instruction')
+            self.assertNotEqual(api['instruction_revision'](root), revision)
+            added.unlink()
+            self.assertEqual(api['instruction_revision'](root), revision)
+            (root / 'TASKS.md').write_text('Updated execution status')
+            self.assertEqual(api['instruction_revision'](root), revision)
+
     def test_duplicate_unknown_malformed_response_refused(self):
         data = self.response(); data['cases'].append(copy.deepcopy(data['cases'][0]))
         with self.assertRaises(ValueError): self.grade(data)

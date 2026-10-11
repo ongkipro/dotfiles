@@ -1,0 +1,11 @@
+{
+  "sourceSha256": {
+    "skills/local/development-kit/SKILL.md": "383c3ff23be53657f760c9e08bd6bab361172483c1387ee4b59e27cd1a8b7f40",
+    "skills/local/full-stack-development/SKILL.md": "9db4fe45cf9a1c05607b04acf839d5502116335da0a32b1b3c1be6efef407a7e",
+    "skills/local/full-stack-development/references/end-to-end-workflow.md": "ffaf804e1ae699f31dcb33400d7660f167cd33dbc3853f99e949441786935675"
+  },
+  "casesSha256": "87a5e625af2d101d171a90821832d5060b5a0dd4d5a29f8fed0825ceb7efd854",
+  "limits": [
+    "Synthetic decision scenarios, not application execution or a reliability measure."
+  ]
+}

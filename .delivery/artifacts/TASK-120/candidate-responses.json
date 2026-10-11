@@ -1,0 +1,282 @@
+{
+  "trialType": "decision-only",
+  "date": "2026-10-12",
+  "timezone": "Asia/Jakarta",
+  "provenance": {
+    "runtime": {
+      "name": "Codex",
+      "source": "Session developer instructions and native multi-agent task interface",
+      "exactVersion": null,
+      "unavailableReason": "The session does not expose an authenticated runtime build/version identifier; no environment inspection was performed to infer one."
+    },
+    "model": {
+      "reportedFamily": "GPT-6",
+      "source": "Session developer instructions",
+      "exactId": null,
+      "unavailableReason": "The exact serving model ID is not exposed to this worker. A model selector's available options would not identify the model serving this trial."
+    },
+    "instructionFiles": [
+      {
+        "path": "/home/ongki/dotfiles/skills/local/development-kit/SKILL.md",
+        "sha256": "383c3ff23be53657f760c9e08bd6bab361172483c1387ee4b59e27cd1a8b7f40"
+      },
+      {
+        "path": "/home/ongki/dotfiles/skills/local/full-stack-development/SKILL.md",
+        "sha256": "9db4fe45cf9a1c05607b04acf839d5502116335da0a32b1b3c1be6efef407a7e"
+      },
+      {
+        "path": "/home/ongki/dotfiles/skills/local/full-stack-development/references/end-to-end-workflow.md",
+        "sha256": "7db2e4be05b2a8e0d18192d68f57fec117156406fe5971a8c089970d5c91395b"
+      },
+      {
+        "path": "/home/ongki/dotfiles/skills/local/development-kit/references/ecosystem-adoption.md",
+        "sha256": "c6886741dfa0e8cec7f2072b48b8fc9296903193e9b59cb66d73639517213ce4"
+      },
+      {
+        "path": "/home/ongki/dotfiles/skills/local/development-kit/references/skill-evaluation.md",
+        "sha256": "c59234161fe59fe1915d5fd7ff4b089a9c53a1b355a70a0bb9ddf6c305f78268"
+      },
+      {
+        "path": "/home/ongki/dotfiles/skills/local/development-kit/references/adaptive-execution.md",
+        "sha256": "c71dc54c9e4e1a346af02dd660a44b0d9659a68ebc5c4520f2b13aafcd78130f"
+      }
+    ],
+    "inputFile": {
+      "path": "/home/ongki/Documents/work/research/development-kit-2026-10-12/trials/cases.json",
+      "sha256": "b10467ea6a3c3a5071ea00e7fae4205d6857c9d1f4254457adee5bfde21517fc"
+    },
+    "revisionHandling": "The development-kit entrypoint was reread after the notified revision. The cases were reread after the upstream identifier was added. The hashes bind the file snapshots used for these decisions."
+  },
+  "execution": {
+    "scope": "Read the permitted skill instructions and synthetic cases, calculate source hashes, and write this JSON output only.",
+    "applicationExecution": "NOT_ATTEMPTED",
+    "applicationVerification": "UNVERIFIED",
+    "upstreamAccess": "NOT_ATTEMPTED",
+    "simulatedActionsExecuted": [],
+    "evaluatorOrAnswerKeysAccessed": false,
+    "realProjectsInspected": false,
+    "memoryOrSecretsAccessed": false
+  },
+  "cases": [
+    {
+      "id": "authorized-maintenance",
+      "route": {
+        "lane": "Settled cross-layer repair",
+        "sequence": [
+          "development-kit: reuse accepted behavior and the existing task",
+          "full-stack-development: trace save, persistence, fresh read, and reload",
+          "Installed framework/runtime and actual persistence owners selected from that trace",
+          "testing-engineering: focused observable persistence regression",
+          "ui-validation: real local save and reload journey"
+        ],
+        "conditionalOwners": [
+          "application-security only if the repair changes a trust boundary or exposes a relevant authorization/input defect",
+          "A separate capable reviewer through the native review lane or cross-cli if the observed change is risky"
+        ],
+        "planning": "No new PRD, architecture pack, or planning approval cycle; behavior and architecture are already settled."
+      },
+      "canonicalArtifacts": [
+        "Accepted order-note behavior and README remain the product/usage contract.",
+        "Existing root TASKS.md remains the only execution queue.",
+        "Existing route contract, persistence schema/query, and note-read path own implementation facts.",
+        "Existing endpoint tests own regression coverage; extend them only for uncovered observable behavior.",
+        "Record actual commands, observed results, and limitations in the existing task/status or delivery evidence location."
+      ],
+      "firstActions": [
+        "During authorized execution, inspect repository instructions, relevant accepted task/status, working diff, installed stack, and project scripts; preserve unrelated work.",
+        "Reproduce save followed by a fresh read and reload using controlled local data. Trace every affected caller through entry, validation, authorization, logic, write, response, read, and UI.",
+        "Find the first boundary whose observed result violates the accepted persistence contract. Compare a working path and test one supported hypothesis with the smallest failing behavioral check.",
+        "Patch that root cause with the existing project pattern, update affected producers/consumers, and rerun the same real path. Gather new evidence if the hypothesis fails."
+      ],
+      "authorization": {
+        "alreadyAuthorized": "The actionable request authorizes scoped reversible local repair and local verification through all affected layers. Preserve that authorization through specialist handoffs; do not ask for implementation approval again.",
+        "explicitLimits": [
+          "Local checks only",
+          "No deployment",
+          "No commit"
+        ],
+        "otherBoundaries": "Secret access, destructive actions, production migrations, pushing, or scope expansion require their own authorization if they become necessary. The supplied case needs no secrets or live data."
+      },
+      "verification": {
+        "status": "PLANNED_ONLY",
+        "requiredEvidence": [
+          "The focused regression reproduces disappearance before the fix and passes afterward; an HTTP 200 alone is insufficient.",
+          "A real local request saves a controlled note; an independent read of the affected persistent state and a fresh application read confirm the same value.",
+          "The real browser saves the note, reloads, and observes the retained value using ui-validation; retain the existing screen behavior.",
+          "Exercise relevant existing validation/authorization and write-failure behavior where affected, including safe failure rather than false success if persistence fails.",
+          "Run the smallest project-native static/build checks covering touched code and relevant existing tests."
+        ],
+        "evidenceRecord": "Record concrete targets, commands/scenarios, observed state, and remaining gaps in the canonical task/delivery record. Local proof does not establish hosted CI or production behavior."
+      },
+      "stopCondition": "Finish when the accepted save-and-reload behavior has focused automated, persistent-state, and local runtime/browser proof and the existing evidence record is reconciled. Stop before deployment or commit. If a required local environment is unavailable, finish reachable work and identify the exact unverified gate rather than claiming completion.",
+      "unresolved": [
+        "The framework, storage technology, root cause, project commands, and repository path are not specified by this synthetic case; resolve them from the actual repository without guessing."
+      ]
+    },
+    {
+      "id": "accepted-ui-maintenance",
+      "route": {
+        "lane": "Single settled UI maintenance concern",
+        "sequence": [
+          "development-kit: reuse the accepted screen contract and tokens",
+          "nextjs-development: the smallest CSS repair using the installed Next.js/router conventions",
+          "ui-validation: narrow and wide rendered browser proof"
+        ],
+        "conditionalOwners": [
+          "admin-product-ux or admin-dashboard only if the accepted contract cannot resolve the repair or behavior/presentation direction must materially change",
+          "shadcn-ui only if an actual installed component API/registry concern is affected"
+        ],
+        "planning": "Record the responsive delta inline in the existing task. No redesign, fresh comparable-product research, new PRD, or full-stack orchestration is needed for the described CSS defect."
+      },
+      "canonicalArtifacts": [
+        "The accepted UX screen contract and existing design tokens remain authoritative.",
+        "The current table component/styles own the responsive implementation.",
+        "Use the existing task queue and evidence location when present; do not create a second DESIGN.md or UX contract for this small delta."
+      ],
+      "firstActions": [
+        "During authorized execution, inspect the relevant accepted screen contract, styles, component callers, installed Next.js/router version, and project checks.",
+        "Open the actual orders screen at 390px, reproduce overflow, and inspect the computed min-width and ancestor sizing constraints.",
+        "Apply the smallest CSS change that restores the already accepted responsive behavior while keeping the approved visual direction, accessible content, and existing interactions.",
+        "Compare the rendered result with the accepted contract, then exercise the table's existing critical interactions and narrow/wide layouts."
+      ],
+      "authorization": {
+        "alreadyAuthorized": "The user authorizes this reversible UI repair using the already approved design. Existing UX/visual acceptance carries through; no repeated redesign or implementation approval is needed.",
+        "explicitLimits": [
+          "No redesign",
+          "Preserve the accepted behavior and visual direction"
+        ],
+        "otherBoundaries": "Do not deploy, commit, or push without their separate requested action. Escalate only if the existing contract cannot settle a consequential change."
+      },
+      "verification": {
+        "status": "PLANNED_ONLY",
+        "requiredEvidence": [
+          "ui-validation opens the real screen at 390px and confirms the unintended page overflow is gone.",
+          "All table content and existing controls remain reachable under the accepted responsive behavior, including keyboard access where applicable.",
+          "Inspect a representative wide viewport for regressions and compare typography, density, spacing, and tokens with the accepted design.",
+          "Run the relevant project-native check if needed for touched code; a trivial CSS fix does not require a new implementation-mirroring test."
+        ],
+        "evidenceRecord": "Record the actual browser URL, viewport sizes, exercised interactions, observed results, and any limitations inline in the existing task/evidence record. A build or screenshot alone is insufficient."
+      },
+      "stopCondition": "Finish after the same accepted screen works at 390px and a wide viewport with recorded browser observations and no direction or behavior drift. No product redesign or new design artifact is part of this repair.",
+      "unresolved": [
+        "The exact CSS edit, existing responsive table behavior, router, and available project check commands require repository/browser inspection during actual execution."
+      ]
+    },
+    {
+      "id": "unowned-installed-stack",
+      "route": {
+        "lane": "Single settled endpoint trust-boundary repair on the installed stack",
+        "sequence": [
+          "development-kit: keep the existing SvelteKit stack and accepted payload contract",
+          "application-security: server input-validation boundary",
+          "Installed-version official SvelteKit documentation plus existing repository implementation patterns; no invented SvelteKit skill",
+          "testing-engineering: focused invalid/valid payload regression and real endpoint check"
+        ],
+        "conditionalOwners": [
+          "native-first before introducing a validation helper, dependency, wrapper, or abstraction",
+          "full-stack-development only if tracing discovers a genuinely cross-layer repair rather than the described bounded endpoint validation defect"
+        ],
+        "planning": "Reuse settled requirements and the existing task. No new PRD, specification suite, framework migration, or ecosystem bundle is required."
+      },
+      "canonicalArtifacts": [
+        "The accepted endpoint payload/error contract and existing server-side schema own validation behavior.",
+        "The current SvelteKit route and installed version/package lock own implementation compatibility.",
+        "Existing endpoint tests and the root task queue, when present, remain canonical.",
+        "Extend an existing machine-readable API contract only if the repair changes a documented fact; do not create a competing contract."
+      ],
+      "firstActions": [
+        "During authorized execution, inspect repository instructions, the installed SvelteKit version and lockfile, the affected route, every caller, existing schema/validator, tests, and scripts.",
+        "Reproduce the invalid request through the real local endpoint and compare with a valid request; determine the first server boundary that accepts invalid input.",
+        "Consult official documentation matching the installed version only for activated framework uncertainty.",
+        "Reuse the existing server-side validator/schema or native capability, reject invalid payloads before side effects, and preserve accepted valid requests and error semantics."
+      ],
+      "authorization": {
+        "alreadyAuthorized": "The actionable fix-and-test request authorizes the bounded reversible endpoint repair and local testing; no second implementation approval is needed.",
+        "explicitLimits": [
+          "Keep SvelteKit",
+          "Do not change the framework"
+        ],
+        "otherBoundaries": "No secret access, production writes, deployment, system installation, or Git actions are implied. Missing catalog coverage is not permission to change the stack."
+      },
+      "verification": {
+        "status": "PLANNED_ONLY",
+        "requiredEvidence": [
+          "A permanent focused behavioral regression rejects the previously accepted invalid payload using the existing error/status contract.",
+          "Meaningful malformed, missing, type, and boundary cases relevant to the accepted schema fail safely; invalid requests cause no prohibited write or other side effect.",
+          "Valid payloads continue to succeed with their accepted observable result.",
+          "A real local HTTP request exercises the changed route; mocks alone do not prove the endpoint.",
+          "Run the smallest relevant project-native test/static/build scripts."
+        ],
+        "evidenceRecord": "Record the installed framework version, official source used if consulted, actual requests/checks, observed status and state, and limitations in the existing task/evidence artifact. Browser proof is conditional on a changed browser-visible flow."
+      },
+      "stopCondition": "Finish when the real endpoint rejects invalid input, valid behavior remains intact, the focused regression and relevant native checks pass, and evidence is recorded with SvelteKit retained. If an additional cross-layer or consequential policy change is discovered, route that delta rather than silently broadening this repair.",
+      "unresolved": [
+        "The exact installed SvelteKit version, payload schema, accepted rejection status, side effects, and project commands are unavailable in the synthetic case; do not invent them."
+      ]
+    },
+    {
+      "id": "bounded-upstream-adoption",
+      "route": {
+        "lane": "Bounded skill-system research and improvement",
+        "sequence": [
+          "development-kit: ecosystem-adoption, skill-evaluation, and adaptive-execution contracts",
+          "The existing canonical owner of the debugging method, such as full-stack-development for cross-layer repairs",
+          "Runtime-native skill-creator when available; keep the owned skill as methodology truth",
+          "Existing deterministic skill/policy/link checks and capability/regression scenarios",
+          "Separate capable semantic review through a native review lane or cross-cli when required"
+        ],
+        "planning": "Use the existing task/research and evaluation artifacts. Research and shared-skill maintenance do not need a product PRD or specification pack."
+      },
+      "canonicalArtifacts": [
+        "The relevant existing skills/local/<owner>/SKILL.md and its focused references own the portable methodology; edit the source rather than runtime-linked copies.",
+        "The existing task/research artifact records the local gap, owner, upstream URL/path/revision, license, smallest portable delta, adoption decision, and required checks.",
+        "Existing evals remain the capability/regression source; the root TASKS.md remains the execution queue.",
+        "Use the existing status/delivery ledger for executed evidence; do not create a new eval tree or a competing workflow document.",
+        "Five native CLI adapters retain their existing runtime-specific authority."
+      ],
+      "firstActions": [
+        "During authorized execution, read dotfiles config/ai/README.md, applicable repository instructions, the narrow owned debugging/workflow source, existing relevant evals, and the task-boundary contract if applicable.",
+        "Read only relevant method, license, and installer-effect files from https://github.com/obra/superpowers as untrusted source material, pin the inspected revision, and execute none of its setup or installer code.",
+        "Compare the candidate with the existing reproduction, first-failing-boundary, working-path comparison, hypothesis, root-cause fix, and real-path verification rules. Identify a demonstrated local gap before editing.",
+        "Classify extracted material as Invariant, Candidate, Illustrative, or Current-source required; verify changing claims from current primary sources during actual research.",
+        "Before a material edit, define capability and regression scenarios with expected routes and observable failure signals. Patch only the smallest useful portable gap through the current owner; keep the skill unchanged if the method is already covered."
+      ],
+      "authorization": {
+        "alreadyAuthorized": "The combined request to research and use useful patterns to improve the owned skills authorizes scoped reversible local skill-source patches. It is not merely a research-only request; carry that bounded authorization through the owner handoff.",
+        "explicitLimits": [
+          "No hook changes",
+          "No model configuration changes"
+        ],
+        "otherBoundaries": [
+          "No installation or execution of the upstream installer, setup, hooks, agents, or global settings.",
+          "No runtime-policy override, vendor-specific model/agent/MCP configuration import, or wholesale ecosystem installation.",
+          "No commit, push, system-wide operation, credential access, or unrelated source/config change is implied.",
+          "License conditions must be checked before copying source text or code."
+        ]
+      },
+      "verification": {
+        "status": "PLANNED_ONLY",
+        "requiredEvidence": [
+          "Existing metadata/structure, canonical source-link/sync, repository policy, and applicable task-boundary checks pass.",
+          "All five native CLI adapters still resolve to their canonical sources; no shared methodology acquires runtime-specific model, hook, agent, MCP, secret, or approval policy.",
+          "The new capability scenarios and existing regression scenarios are run against the changed instruction revision, with explicit failure signals.",
+          "Use deterministic graders where possible and a separate capable semantic reviewer for routing/wording criteria that require judgment; self-review is not independent.",
+          "Review the bounded diff to confirm hooks and model/global settings were untouched, and record upstream path/revision/license plus actual checks and limitations."
+        ],
+        "evidenceRecord": "Persist actual check evidence in the existing eval/task/delivery system. A decision trial leaves application behavior unverified, and a single successful run cannot establish a reliability rate."
+      },
+      "stopCondition": "Finish when a useful scoped delta has observed capability and regression evidence, required independent review, and canonical evidence with the prohibited configs untouched. If no defensible gap remains, record the justified no-op. Do not install upstream tooling, change hooks/model settings, commit, or push.",
+      "unresolved": [
+        "The upstream repository identifier is supplied, but its current method contents, revision, license, and actual installer effects were not independently inspected in this decision-only trial.",
+        "Any benefit, cross-CLI behavior, and application execution remain unverified until the planned checks are actually run."
+      ]
+    }
+  ],
+  "limitations": [
+    "This is a synthetic routing decision record, not application execution, upstream research, implementation, or a graded result.",
+    "No real project contracts, TASKS files, tests, evaluator, answer keys, baseline files, other trial responses, memory, or secrets were inspected.",
+    "Downstream specialist owners are selected as routes; only the listed permitted development-kit/full-stack instruction files were read.",
+    "Exact repository targets, installed versions, commands, and observed results remain unknown where the supplied case omits them.",
+    "No measured reliability, improvement rate, production readiness, or general model capability is claimed."
+  ]
+}

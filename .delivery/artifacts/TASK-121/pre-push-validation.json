@@ -1,0 +1,49 @@
+{
+  "type": "pre-push verification after remote fast-forward",
+  "taskEvidence": [
+    "TASK-120",
+    "TASK-121"
+  ],
+  "upstreamBase": "a7dd1d1514876a413b0594800cc05d53cf4eee48",
+  "reviewedSourceSha256": {
+    "TASKS.md": "c427b8ef6147c1e52c39e42e5e38bdced9fe4a02e4a172a2ddcb7fa395c0fa16",
+    "bin/ai-workflow-eval": "9500cf690aabc703a2dffe21b47bf9ff246bc073903e875407d5619f6c6354db",
+    "bin/ai-workflow-eval-test": "5389f40452eb7d624e6869836e57511a47e2ad415a0fe7b1511b953fbca0efc1",
+    "config/ai/evals/workflow-scenarios.json": "db1c5714b7b3fc5c97e7e8942b4beae837c16f4f89538655c63ee3b0009a8f0f",
+    "docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT.md": "f471d9a7212b85ad5e0e2e65ce8b1591d6dbbc280626646698ca2a9f9202379e",
+    "skills/local/development-kit/SKILL.md": "383c3ff23be53657f760c9e08bd6bab361172483c1387ee4b59e27cd1a8b7f40",
+    "skills/local/development-kit/references/ecosystem-adoption.md": "c6886741dfa0e8cec7f2072b48b8fc9296903193e9b59cb66d73639517213ce4",
+    "skills/local/development-kit/references/skill-evaluation.md": "c59234161fe59fe1915d5fd7ff4b089a9c53a1b355a70a0bb9ddf6c305f78268",
+    "skills/local/full-stack-development/SKILL.md": "9db4fe45cf9a1c05607b04acf839d5502116335da0a32b1b3c1be6efef407a7e",
+    "docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT_FOLLOWUP.md": "559c1594f648fe4b467ef0e146cc28e94295025561f6871dd95cade46cf95af8",
+    "skills/local/full-stack-development/references/end-to-end-workflow.md": "ffaf804e1ae699f31dcb33400d7660f167cd33dbc3853f99e949441786935675"
+  },
+  "upstreamBrowserTransportSha256": "f0f7cc74b9cf5f3a3f0b85f914cd6210c3cdba2ca23d74690d02f64884588395",
+  "checks": [
+    {
+      "command": "python3 bin/ai-workflow-eval-test --browser",
+      "exitCode": 0,
+      "observed": "Ran 28 tests in 47.313s; OK; no skipped tests."
+    },
+    {
+      "command": "bash skills/local/design-taste/scripts/test-ui-ref.sh",
+      "exitCode": 0,
+      "observed": "test-ui-ref: PASS; real capture and same/different page comparisons exercised."
+    },
+    {
+      "command": "bin/ai-policy-lint",
+      "exitCode": 0,
+      "observed": "PASSED; 75 owned skills valid."
+    },
+    {
+      "command": "git diff --cached --check",
+      "exitCode": 0,
+      "observed": "No staged whitespace errors."
+    }
+  ],
+  "limits": [
+    "Deterministic fixture/browser checks are not model uplift or live-application evidence.",
+    "Independent source approvals retain their original execution-base provenance; their final source fingerprints are unchanged after the fast-forward.",
+    "macOS and hosted CI were not executed in this publication step."
+  ]
+}

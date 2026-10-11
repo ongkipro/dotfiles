@@ -69,6 +69,10 @@ report.
 `ai-workflow-eval check` validates the shared scenario bank. `prompt` emits only
 synthetic context/conversations, a response schema and global choices; `grade`
 checks a supplied response against the current suite and instruction revision.
+That revision binds CORE, runtime adapters, shared policy Markdown, owned skill
+entrypoints, and their nested Markdown references. Editing, adding, or removing
+one of those instruction sources requires a new prompt/trial; execution-status
+updates do not. It does not fingerprint arbitrary external docs or tool binaries.
 It invokes no provider and runs no simulated action. See
 [system procedures](../../../../docs/adaptive-ai-system.md) for trial/review usage.
 

@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-120",
+  "requirement": "REQ-DEVELOPMENT-KIT-REFINEMENT",
+  "reviewType": "independent R3 final source and evidence review",
+  "reviewedAt": "2026-10-11T18:12:40.403016+00:00",
+  "reviewerId": "/root/devkit_final_review",
+  "provenance": {
+    "runtime": "Codex",
+    "runtimeEvidence": "Session developer instructions identify Codex; the native collaboration task exposes this separate reviewer agent as /root/devkit_final_review.",
+    "runtimeVersion": "unavailable: exact runtime build/version is not exposed in the review context",
+    "modelFamily": "GPT-6",
+    "modelFamilyEvidence": "Session developer instructions identify the agent as based on GPT-6.",
+    "model": "unavailable: exact serving model ID is not exposed; available model override names do not identify this serving model",
+    "provider": "openai",
+    "providerEvidence": "Codex/GPT-6 session identity; an underlying backend route identifier is not exposed.",
+    "reasoningEffort": "unavailable: the active inference effort setting is not exposed",
+    "independence": "A separately spawned actual reviewer agent; the implementer is development-kit-maintainer. This agent made no task-source edits."
+  },
+  "verdict": "APPROVE",
+  "findings": [],
+  "reviewedBoundary": {
+    "runId": "RUN-20261011T180120Z-c70e8a76",
+    "eventId": "5adb74e4580f40dd8d9fd36de2785bcd",
+    "baseHead": "a2f68649731784877ad6414ad2f415c3e741b7d2",
+    "surfaceDigest": "6853f105fa107273aa92ae1f67eec73d7f5c506a56be461c4e227638c93d1335",
+    "effectiveRisk": "R3",
+    "sourceSha256": {
+      "TASKS.md": "b7a754b705cb8176621ef7c801b99e4b6d77e71ad97628b794509af75b39454b",
+      "bin/ai-workflow-eval": "9500cf690aabc703a2dffe21b47bf9ff246bc073903e875407d5619f6c6354db",
+      "bin/ai-workflow-eval-test": "5389f40452eb7d624e6869836e57511a47e2ad415a0fe7b1511b953fbca0efc1",
+      "config/ai/evals/workflow-scenarios.json": "db1c5714b7b3fc5c97e7e8942b4beae837c16f4f89538655c63ee3b0009a8f0f",
+      "docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT.md": "f471d9a7212b85ad5e0e2e65ce8b1591d6dbbc280626646698ca2a9f9202379e",
+      "skills/local/development-kit/SKILL.md": "383c3ff23be53657f760c9e08bd6bab361172483c1387ee4b59e27cd1a8b7f40",
+      "skills/local/development-kit/references/ecosystem-adoption.md": "c6886741dfa0e8cec7f2072b48b8fc9296903193e9b59cb66d73639517213ce4",
+      "skills/local/development-kit/references/skill-evaluation.md": "c59234161fe59fe1915d5fd7ff4b089a9c53a1b355a70a0bb9ddf6c305f78268",
+      "skills/local/full-stack-development/SKILL.md": "9db4fe45cf9a1c05607b04acf839d5502116335da0a32b1b3c1be6efef407a7e"
+    }
+  },
+  "assessment": {
+    "correctness": "The revision guard now includes shared policy Markdown and all owned nested Markdown references, with deterministic ordering. Reference-only changes invalidate prior decisions without coupling revision to execution-status updates. The existing suite hash and decision-only/behavior-UNVERIFIED separation remain intact.",
+    "authorizationPreservation": "Actionable bounded implementation requests retain their authorization through handoffs. Research/planning alone remains insufficient. Existing secret, destructive, production, migration, deployment, commit and push boundaries remain explicit.",
+    "portabilityAndOverconstraint": "The implementation uses the existing Python standard library and repository layout. Routing keeps the installed framework, reuses accepted maintenance contracts, activates only relevant owners, and retains real browser proof for browser-visible changes. It imports no installer, hooks, model settings, universal TDD requirement or fixed retry quota.",
+    "regressionQuality": "The new regression exercises instruction edits across CORE, adapters, policies, skill entrypoints, direct references and nested references, validates stale-answer rejection, covers reference addition, and protects TASKS status immunity. Existing generic tests make every required and forbidden scenario flag load-bearing. Additional isolated reviewer checks confirmed reference deletion/restoration and policy addition/removal.",
+    "evidenceTruthfulness": "Both baseline and candidate trial outputs preserve scope and distinguish future verification from executed work. routing-review.json explicitly reports no measured routing uplift, no application execution and no reliability rate. Trial/input hashes, baseline instruction hashes against HEAD, candidate instruction hashes and task-owned boundary fingerprints all match. The deterministic reference regression is separate from model trials.",
+    "archiveExpansion": "Accepted as requirement-linked and proportional. TASKS.md is 11704 bytes; restoring the 2854-byte full contract there would exceed the enforced 12288-byte hot-context limit. The sole new archive retains the full TASK-120 contract and points to the authoritative run rather than creating another execution queue. The ledger contains the preceding executed task-archive-policy PASS and explicit scope-expansion event. Final completion still belongs to the parent ledger review/finish sequence."
+  },
+  "checksActuallyRun": [
+    {
+      "name": "decision-grader-tests",
+      "command": "python3 heredoc: runpy.run_path('bin/ai-workflow-eval-test'); unittest.defaultTestLoader.loadTestsFromTestCase(module['EvaluationTests']); unittest.TextTestRunner(verbosity=2).run(suite)",
+      "result": "PASS",
+      "observed": "14 EvaluationTests passed, including reference-change invalidation, stale identity/revision refusal, CLI exit codes, required/forbidden scenario flags and answer-key exclusion."
+    },
+    {
+      "name": "scenario-bank-validation",
+      "command": "bin/ai-workflow-eval check",
+      "result": "PASS",
+      "observed": "20 cases valid; no model trial executed."
+    },
+    {
+      "name": "scoped-whitespace",
+      "command": "git diff --check -- TASKS.md bin/ai-workflow-eval bin/ai-workflow-eval-test config/ai/evals/workflow-scenarios.json docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT.md skills/local/development-kit/SKILL.md skills/local/development-kit/references/ecosystem-adoption.md skills/local/development-kit/references/skill-evaluation.md skills/local/full-stack-development/SKILL.md",
+      "result": "PASS",
+      "observed": "Exit 0; no whitespace errors in the scoped tracked diff."
+    },
+    {
+      "name": "development-kit-metadata",
+      "command": "skills/agents-bin/skill-check development-kit",
+      "result": "PASS",
+      "observed": "1 skill checked; 0 failures and 0 warnings."
+    },
+    {
+      "name": "full-stack-development-metadata",
+      "command": "skills/agents-bin/skill-check full-stack-development",
+      "result": "PASS",
+      "observed": "1 skill checked; 0 failures and 0 warnings."
+    },
+    {
+      "name": "artifact-and-surface-provenance",
+      "command": "Isolated Python SHA-256 assertions over the permitted artifacts, git show HEAD:<baseline instruction path>, current candidate instructions and latest task-owned boundary files.",
+      "result": "PASS",
+      "observed": "9 baseline instruction hashes, both trial artifact/input hashes, candidate instruction hashes, all 9 task-owned source fingerprints and root queue budget verified."
+    },
+    {
+      "name": "additional-reference-lifecycle-cases",
+      "command": "Isolated TemporaryDirectory fixture invoking instruction_revision; remove/restore a deeply nested reference and add/remove a shared policy.",
+      "result": "PASS",
+      "observed": "Each deletion/addition changed the revision; restoring the exact source set/content restored the original revision. Only ephemeral fixtures were written."
+    },
+    {
+      "name": "independent-semantic-trial-review",
+      "command": "Manual inspection of routing-cases.json, baseline-responses.json, candidate-responses.json and routing-review.json.",
+      "result": "PASS",
+      "observed": "All four cases in both versions preserve authorization, installed stack, accepted UI direction, local proof and external-instruction boundaries. This is a semantic assessment, not application execution or a model reliability measurement."
+    }
+  ],
+  "evidenceInspectedNotRerun": [
+    "Run ledger executed workflow-evaluator-regression PASS after two recorded failures; full suite skipped four opt-in browser cases.",
+    "Run ledger executed task-archive-policy, canonical-runtime-skill-links, skill-command-surface, whitespace and scenario-bank checks.",
+    "Run ledger reference-edit-before-after execution and reference-regression.json record the old stale revision and candidate detection.",
+    "upstream-sources.json records pinned paths/revisions and license checks; upstream citations were inspected as recorded provenance only."
+  ],
+  "limitations": [
+    "No external network retrieval, provider invocation, installs, Git mutations, real project inspection or application/browser execution was performed by this reviewer.",
+    "Full ai-policy-lint was not rerun because this review forbids AI-memory reads; its executed PASS is present in the permitted ledger.",
+    "Full ExecutionTests and browser tests were not rerun; the changed behavior is covered by the focused decision-grader suite. No application or browser behavior is certified.",
+    "Upstream snapshots were not independently fetched or read outside the permitted artifacts. Source authenticity, live documentation claims and license scope are limited to the recorded provenance.",
+    "Portability was assessed by source inspection and current Linux execution; macOS was not executed.",
+    "The baseline frozen directory was not accessed. Its recorded hashes were compared with HEAD sources and the trial manifest.",
+    "One decision-only worker per version across four synthetic cases cannot establish reliability or routing improvement.",
+    "No memory, secrets, unrelated diffs or config/ai/memory/projects-platforms.md contents were read or modified. The pre-existing memory path appears only as ledger metadata.",
+    "Approval applies to the listed reviewed source fingerprints. The parent still owns final boundary binding, verification freshness and delivery-ledger completion."
+  ]
+}

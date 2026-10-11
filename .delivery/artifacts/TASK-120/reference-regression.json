@@ -1,0 +1,9 @@
+{
+  "type": "deterministic before/after instruction revision probe",
+  "baseHead": "a2f68649731784877ad6414ad2f415c3e741b7d2",
+  "candidateSourceSha256": "9500cf690aabc703a2dffe21b47bf9ff246bc073903e875407d5619f6c6354db",
+  "changedFile": "skills/local/development-kit/references/skill-evaluation.md",
+  "previousRevisionStayedUnchanged": true,
+  "currentRevisionChanged": true,
+  "modelTrial": false
+}

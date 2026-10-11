@@ -22,6 +22,8 @@ STEPS = [
     'bounded-context', 'disclose-limitations', 'capability-check', 'escalate-if-needed',
     'read-canonical-status', 'verify-handoff', 'reproduce', 'patch-owner',
     'regression-checks', 'independent-review', 'candidate-only',
+    'reuse-contract', 'new-planning-pack', 'reconfirm-authorized-work',
+    'compare-existing-owner', 'pin-upstream-source', 'install-runtime-hooks',
     'commit', 'push', 'deploy', 'destructive-reset', 'read-secrets',
     'claim-ui-verified', 'claim-model-parity', 'require-omp', 'bulk-install',
     'rewrite-global-policy', 'auto-promote', 'invent-prior-state',
@@ -66,9 +68,9 @@ def load_suite(root):
 def instruction_revision(root):
     # Bind decisions to shared rules + relevant skill guidance, not only the case bank.
     paths = [root / 'config/ai/CORE.md', *sorted((root / 'config/ai/adapters').glob('*.md')),
+             *sorted((root / 'config/ai/policies').glob('*.md')),
              *sorted((root / 'skills/local').glob('*/SKILL.md')),
-             root / 'skills/local/development-kit/references/adaptive-execution.md',
-             root / 'skills/local/volumx-writer/references/terminal-dialogue.md']
+             *sorted((root / 'skills/local').glob('*/references/**/*.md'))]
     digest = hashlib.sha256()
     for path in paths:
         digest.update(str(path.relative_to(root)).encode() + b'\0')

@@ -1,0 +1,460 @@
+{
+  "schemaVersion": 1,
+  "trialType": "decision-only",
+  "provenance": {
+    "runtime": "Codex",
+    "runtimeEvidence": "The session identifies the agent as Codex and supplies Codex CLI adapter instructions.",
+    "runtimeVersion": null,
+    "runtimeVersionUnavailableReason": "No exact runtime build or version identifier is exposed in the trial context.",
+    "modelFamily": "GPT-6",
+    "modelFamilyEvidence": "The developer context identifies this agent as based on GPT-6.",
+    "exactModelId": null,
+    "exactModelIdUnavailableReason": "The session does not expose the selected inference model ID; no model was inferred from available override names.",
+    "skillSnapshot": "/home/ongki/Documents/work/research/development-kit-2026-10-12/trials/baseline/skills/local/development-kit/SKILL.md",
+    "casesSource": "/home/ongki/Documents/work/research/development-kit-2026-10-12/trials/cases.json",
+    "additionalSourcesRead": [
+      "baseline/skills/local/development-kit/references/reference-map.md",
+      "baseline/skills/local/development-kit/references/adaptive-execution.md",
+      "baseline/skills/local/development-kit/references/ecosystem-adoption.md",
+      "baseline/skills/local/development-kit/references/skill-evaluation.md",
+      "baseline/skills/local/full-stack-development/SKILL.md",
+      "baseline/skills/local/full-stack-development/references/end-to-end-workflow.md",
+      "/home/ongki/dotfiles/config/ai/policies/planning-artifacts.md"
+    ],
+    "executionStatus": "Only the supplied cases, frozen instructions, and permitted planning policy were read; the sole written artifact is this JSON response.",
+    "prohibitedSourcesNotUsed": [
+      "Live development-kit or full-stack-development files",
+      "Real application repositories or their TASKS",
+      "Evaluation answer keys or other trial responses",
+      "Memory or secrets",
+      "Internet retrieval"
+    ],
+    "instructionFiles": [
+      {
+        "path": "/home/ongki/Documents/work/research/development-kit-2026-10-12/trials/baseline/skills/local/development-kit/SKILL.md",
+        "sha256": "7d7722a075ca9ab940bedfec3841ba0bfdb069b0d56abd39d150303df5cfd909"
+      },
+      {
+        "path": "/home/ongki/Documents/work/research/development-kit-2026-10-12/trials/baseline/skills/local/development-kit/references/reference-map.md",
+        "sha256": "eee56320929f9687202dd5a8ed00c9e93590b6bb84f616138b6704c19a5e053c"
+      },
+      {
+        "path": "/home/ongki/Documents/work/research/development-kit-2026-10-12/trials/baseline/skills/local/development-kit/references/adaptive-execution.md",
+        "sha256": "c71dc54c9e4e1a346af02dd660a44b0d9659a68ebc5c4520f2b13aafcd78130f"
+      },
+      {
+        "path": "/home/ongki/Documents/work/research/development-kit-2026-10-12/trials/baseline/skills/local/development-kit/references/ecosystem-adoption.md",
+        "sha256": "e078152100430240bbb6238ba4dbc5024b32412ceb43d8c30094b22f9a8c01e2"
+      },
+      {
+        "path": "/home/ongki/Documents/work/research/development-kit-2026-10-12/trials/baseline/skills/local/development-kit/references/skill-evaluation.md",
+        "sha256": "847c9cc89930e79b3190bf0d3610019d4c2dc5dce7b8c20e67cc24fa54abe422"
+      },
+      {
+        "path": "/home/ongki/Documents/work/research/development-kit-2026-10-12/trials/baseline/skills/local/full-stack-development/SKILL.md",
+        "sha256": "8f84e73e044dbb1ae9bc75cf13dd5c1a122dc07062293a0926529be888fd1568"
+      },
+      {
+        "path": "/home/ongki/Documents/work/research/development-kit-2026-10-12/trials/baseline/skills/local/full-stack-development/references/end-to-end-workflow.md",
+        "sha256": "7db2e4be05b2a8e0d18192d68f57fec117156406fe5971a8c089970d5c91395b"
+      },
+      {
+        "path": "/home/ongki/dotfiles/config/ai/policies/planning-artifacts.md",
+        "sha256": "df643b4a9eb2e8a0a9b77d9a5089446364860e842f96bc0390b444b21c23dcc5"
+      }
+    ],
+    "casesSha256": "b10467ea6a3c3a5071ea00e7fae4205d6857c9d1f4254457adee5bfde21517fc",
+    "rerunReason": "The current fourth synthetic case explicitly identifies its upstream source as https://github.com/obra/superpowers.",
+    "sourceRetrieval": "No upstream source was retrieved; the URL is supplied synthetic context only."
+  },
+  "resultInterpretation": {
+    "routeStatus": "Proposed decisions for synthetic requests.",
+    "verificationStatus": "All application and skill-change verification below is required future evidence, not executed evidence.",
+    "reliabilityStatus": "No measured reliability, application execution, or general capability claim follows from this decision-only trial."
+  },
+  "cases": [
+    {
+      "id": "authorized-maintenance",
+      "outcome": "Repair order-note saving so an accepted save survives reload, using local checks only.",
+      "lane": "Settled cross-layer maintenance. Full-stack-development coordinates the trace and proof; no product discovery or new planning approval is needed.",
+      "route": [
+        {
+          "owner": "development-kit",
+          "responsibility": "Resolve the existing accepted behavior and execution record; select settled implementation."
+        },
+        {
+          "owner": "full-stack-development",
+          "responsibility": "Trace the save and reload paths together and coordinate the smallest root-cause repair."
+        },
+        {
+          "owner": "Installed framework/runtime and actual persistence owners",
+          "responsibility": "Implement only the concerns activated by the trace. Exact stack-specific owners remain unknown until package, route, and persistence inspection; do not assume Next.js, Postgres, or Supabase."
+        },
+        {
+          "owner": "testing-engineering",
+          "responsibility": "Reuse the existing endpoint tests and add or extend focused regression coverage for durable saving and relevant failure behavior."
+        },
+        {
+          "owner": "ui-validation",
+          "responsibility": "Exercise the real local save-to-reload user journey because the repair changes browser-visible behavior."
+        }
+      ],
+      "conditionalOwners": [
+        "application-security if the trace changes validation, authorization, object scope, or another security boundary.",
+        "openapi-spec only if the accepted machine-readable REST contract actually changes.",
+        "The relevant data owner if persistence code or schema is implicated; no migration or new dependency is presumed.",
+        "An independent capable reviewer if the discovered change is risky; self-review is not independent."
+      ],
+      "canonicalArtifacts": [
+        {
+          "artifact": "Existing accepted order-note requirement and README",
+          "use": "Preserve the settled behavior; correct documentation only if the repair changes or disproves a documented fact."
+        },
+        {
+          "artifact": "Existing root TASKS.md",
+          "use": "Use the existing task or a bounded maintenance entry as the only execution queue; record scope, evidence, and limitations."
+        },
+        {
+          "artifact": "Existing route/domain/persistence contract and endpoint tests",
+          "use": "Keep producers and consumers aligned and retain the regression at the existing test location."
+        },
+        {
+          "artifact": "Existing status or delivery evidence record, if present",
+          "use": "Record observed local checks under the repository's task-boundary rules."
+        }
+      ],
+      "artifactsNotRequired": [
+        "A new PRD, PLAN, architecture document, specification suite, or DEVELOPMENT-KIT.md",
+        "A redesign or renewed UX acceptance for unchanged accepted interaction"
+      ],
+      "firstActions": [
+        "In an execution run, inspect repository instructions, relevant accepted behavior, README, root TASKS, current diff, project scripts, and endpoint tests before editing; do not overlap unrelated work.",
+        "Reproduce the reported save-returns-200 then reload-loses-note defect with controlled local data.",
+        "Trace every affected caller across UI submission, request validation, authorization, application logic, persistence write, response, reload read, and displayed state. Determine the first point where durable state diverges from accepted behavior.",
+        "Freeze a compact execution frame in the existing task: accepted behavior, local-only scope, affected contracts, unknowns, and the smallest check that fails for this defect.",
+        "Repair the root cause with the installed patterns, update all affected consumers, and add or extend a regression that would fail before the repair. Do not create a speculative abstraction."
+      ],
+      "authorization": {
+        "implementation": "Already authorized by the explicit request to fix the bug completely; proceed with scoped local inspection, reversible edits, and local checks without asking for another implementation approval.",
+        "planning": "Existing policy and architecture are settled; do not reinterpret maintenance as a planning-only request.",
+        "excluded": [
+          "Deployment or other live writes",
+          "Stage, commit, or push",
+          "Secrets or live/customer data access",
+          "Unrequested architecture or product-policy changes"
+        ],
+        "conditionalGate": "If the actual fix requires an unapproved destructive operation, credential access, production migration, or a consequential contract change outside the accepted behavior, finish independent safe work and stop only that dependent action at its actual boundary."
+      },
+      "verification": {
+        "required": [
+          "Run the smallest project-native static or build check covering touched code.",
+          "Run focused endpoint regression tests proving save followed by a fresh read returns the saved note; a 200 response alone is insufficient.",
+          "Exercise the actual local write and reload-read path and independently inspect the resulting persistent state where the storage boundary permits it. A mocked persistence assertion alone is insufficient.",
+          "Use a real local browser to enter a note, save, reload or revisit, and observe the retained value. Exercise relevant failure and recovery behavior without broadening the accepted contract.",
+          "Run applicable negative validation or authorization checks if those boundaries are changed, and record exact commands/scenarios, results, and limitations in the existing evidence record."
+        ],
+        "executionInThisTrial": "Not run."
+      },
+      "unresolvedFacts": [
+        "The actual installed framework, persistence mechanism, root cause, and project command names are not supplied; discover them from the real repository rather than inventing them.",
+        "Availability of a runnable local application is unverified in this synthetic case."
+      ],
+      "stopCondition": "Stop the implementation run after the root-cause repair has focused automated proof plus real local persistence and browser save/reload evidence, canonical records are reconciled, and the evidence packet is reported. Stop before deploy or Git actions. If a required local boundary cannot run, report exactly what remains unverified instead of claiming the bug is fully proved.",
+      "syntheticInput": {
+        "id": "authorized-maintenance",
+        "context": "Existing application: accepted order-note behavior, README, root TASKS.md, and endpoint tests. Save returns 200 but notes disappear after reload. Product policy and architecture are settled. No secrets or live data needed.",
+        "request": "Perbaiki bug save itu sampai tuntas, cek lokal saja, jangan deploy atau commit."
+      }
+    },
+    {
+      "id": "accepted-ui-maintenance",
+      "outcome": "Remove the existing orders table's 390px overflow while preserving the accepted visual direction and behavior.",
+      "lane": "Single settled presentation concern; route directly to the installed Next.js owner rather than activating full-stack orchestration or a fresh design process.",
+      "route": [
+        {
+          "owner": "development-kit",
+          "responsibility": "Confirm the existing accepted screen contract and tokens already supply the proportional experience contract."
+        },
+        {
+          "owner": "nextjs-development",
+          "responsibility": "Trace the table and its min-width constraint and make the smallest CSS/layout repair within the installed project."
+        },
+        {
+          "owner": "admin-dashboard",
+          "responsibility": "Critique the affected responsive presentation against the existing tokens, table hierarchy, accessibility, and accepted responsive behavior."
+        },
+        {
+          "owner": "ui-validation",
+          "responsibility": "Open and exercise the real orders page at 390px and a representative wider viewport, then record browser-visible evidence."
+        }
+      ],
+      "conditionalOwners": [
+        "shadcn-ui only if an installed shadcn component API or integration is actually changed; React alone does not activate it.",
+        "admin-product-ux only if inspection reveals a consequential unresolved interaction or screen-contract conflict; do not introduce that change silently."
+      ],
+      "canonicalArtifacts": [
+        {
+          "artifact": "Existing accepted UX screen contract",
+          "use": "Keep its behavior and responsive outcomes as acceptance criteria; a small maintenance delta may remain inline in the existing task."
+        },
+        {
+          "artifact": "Existing design tokens and design artifact",
+          "use": "Preserve accepted typography, density, component behavior, and visual direction."
+        },
+        {
+          "artifact": "Existing task/status or delivery record",
+          "use": "Record the scoped repair and observed browser checks without creating a competing queue or design document."
+        },
+        {
+          "artifact": "Existing table component and stylesheet",
+          "use": "Keep shared callers compatible; modify the actual source of the min-width defect."
+        }
+      ],
+      "artifactsNotRequired": [
+        "A new PRD or specification suite",
+        "A new design system, reference-research round, or redesign acceptance",
+        "A new automated test that merely mirrors a trivial CSS declaration"
+      ],
+      "firstActions": [
+        "In an execution run, read the relevant repository instructions, current diff, accepted screen contract, tokens, table styles, and project scripts.",
+        "Reproduce the overflow on the real orders page at a 390px viewport and inspect the table's computed sizing and ancestor constraints.",
+        "Trace uses of the shared table/style before editing; identify the minimum sizing change that satisfies the existing responsive contract.",
+        "Apply the bounded CSS/layout fix and preserve columns, controls, keyboard access, and accepted scroll behavior. Do not hide information or replace the table as an unapproved redesign.",
+        "Run a focused presentation critique, fix any resulting findings, and obtain real browser proof."
+      ],
+      "authorization": {
+        "implementation": "The request authorizes the scoped overflow repair using the already accepted design; proceed without requesting another design or implementation approval.",
+        "excluded": [
+          "Redesign or changed product behavior",
+          "New visual direction or component system",
+          "Deployment",
+          "Stage, commit, or push"
+        ],
+        "conditionalGate": "If the only proposed solution changes accepted behavior, stop that proposal for a concrete contract decision while continuing any independent maintenance work."
+      },
+      "verification": {
+        "required": [
+          "Run the smallest relevant project-native check if the touched code requires it.",
+          "Use the available browser tools to render the real page at 390px; verify the unintended page overflow is resolved according to the accepted table behavior.",
+          "Check a representative wide layout and any affected breakpoint; confirm alignment, content visibility, controls, keyboard focus, and intended table scrolling still work.",
+          "Inspect actual geometry/computed overflow and exercise the affected interaction; compilation or a screenshot alone is insufficient.",
+          "Record the browser target, viewports, concrete observations, and any limitations in the existing task/evidence record."
+        ],
+        "executionInThisTrial": "Not run."
+      },
+      "unresolvedFacts": [
+        "The repository-specific CSS selector and accepted table scrolling contract must be inspected; they are not inferred from the synthetic description."
+      ],
+      "stopCondition": "Stop after the minimal repair passes the existing visual contract's critique and real narrow/wide browser checks, with evidence recorded. No fresh design acceptance, deployment, or Git action is part of completion.",
+      "syntheticInput": {
+        "id": "accepted-ui-maintenance",
+        "context": "Existing Next.js admin: accepted UX screen contract and tokens. A CSS min-width causes the existing orders table to overflow at 390px. User wants the same visual direction and behavior. Browser tools are available.",
+        "request": "Betulkan overflow mobile ini pakai desain yang sudah disetujui, jangan redesign."
+      }
+    },
+    {
+      "id": "unowned-installed-stack",
+      "outcome": "Reject invalid endpoint payloads according to the existing accepted contract while preserving valid requests and the installed SvelteKit framework.",
+      "lane": "Single settled endpoint-validation repair. Use the installed stack and project-native implementation with current official documentation for activated uncertainty; absence of a named SvelteKit skill does not justify a migration or fabricated owner.",
+      "route": [
+        {
+          "owner": "development-kit",
+          "responsibility": "Resolve the installed stack and accepted endpoint contract; select bounded direct implementation."
+        },
+        {
+          "owner": "Project's installed SvelteKit implementation owner",
+          "responsibility": "Use package/lockfile versions, existing server-route patterns, existing validation utilities, and version-appropriate official SvelteKit documentation. There is no claimed catalog skill named sveltekit-development."
+        },
+        {
+          "owner": "application-security",
+          "responsibility": "Review the untrusted-input boundary and ensure server-side validation rejects the invalid payload before unsafe processing or mutation."
+        },
+        {
+          "owner": "testing-engineering",
+          "responsibility": "Select focused valid/invalid request regressions and a real local endpoint proof."
+        }
+      ],
+      "conditionalOwners": [
+        "native-first before adding any validator, dependency, helper, or abstraction; reuse the existing schema or native capability first.",
+        "openapi-spec only if a canonical machine-readable REST contract needs a real accepted change, not merely because an endpoint exists.",
+        "A relevant data owner only if inspection proves the validation fix changes persistence behavior."
+      ],
+      "canonicalArtifacts": [
+        {
+          "artifact": "package.json and the existing package lock",
+          "use": "Establish the installed SvelteKit version, existing dependencies, and project-native command choices."
+        },
+        {
+          "artifact": "Existing server-side schema and endpoint/request-response contract",
+          "use": "Preserve settled accepted behavior and use one validation authority for every affected submission."
+        },
+        {
+          "artifact": "Existing endpoint tests",
+          "use": "Add or extend observable regression coverage at the current test location."
+        },
+        {
+          "artifact": "Existing root TASKS or accepted task/status record",
+          "use": "Keep a bounded execution/evidence record without manufacturing planning documents."
+        }
+      ],
+      "artifactsNotRequired": [
+        "A new framework skill created merely to unblock this repair",
+        "A new PRD, architecture, specification suite, or cross-framework validation abstraction",
+        "A framework migration or new validation dependency by default"
+      ],
+      "firstActions": [
+        "In an execution run, inspect repository instructions, current diff, package/lockfile versions, scripts, accepted endpoint contract, installed validation dependencies, and existing tests.",
+        "Trace the actual SvelteKit server route, payload parsing, validation, callers, and any side effects; identify how the invalid payload currently bypasses the accepted checks.",
+        "Retrieve the installed-version-compatible official SvelteKit documentation only where the implementation has an activated uncertainty; external documentation cannot override user or repository constraints.",
+        "Reproduce the defect through the existing test harness and add or extend a focused regression for the invalid payload and representative valid requests.",
+        "Patch the server validation at its real trust boundary with the smallest existing pattern, preserving established rejection response semantics and all affected consumers."
+      ],
+      "authorization": {
+        "implementation": "The request explicitly authorizes the validation repair and tests. Proceed with scoped local work; a missing named framework skill is a routing limitation, not a reason to ask for framework replacement.",
+        "fixedConstraint": "Keep the installed SvelteKit framework.",
+        "excluded": [
+          "Framework replacement or migration",
+          "Unrequested dependency installation",
+          "Secrets, production writes, or live deployment",
+          "Stage, commit, or push"
+        ],
+        "conditionalGate": "Resolve a genuinely missing accepted response/validation policy only if repository inspection cannot provide it. Do not ask for facts already present in the installed project."
+      },
+      "verification": {
+        "required": [
+          "Run the project-native relevant static/build check and focused endpoint test command.",
+          "Prove representative invalid shape/type/boundary inputs are rejected using the existing contract's expected status and error body; do not invent a universal 400 or 422 convention.",
+          "Prove valid payloads remain accepted and malformed requests cannot trigger the guarded side effect where one exists.",
+          "Run the real local SvelteKit endpoint with controlled data and inspect the response and relevant state. A direct unit test of the validator alone does not prove the route actually invokes it.",
+          "Preserve existing authorization checks and add relevant denied-path proof if that boundary changes.",
+          "Browser evidence is not required solely for this endpoint-only repair; activate ui-validation if inspection proves browser-visible behavior is also changed."
+        ],
+        "executionInThisTrial": "Not run."
+      },
+      "unresolvedFacts": [
+        "Exact installed SvelteKit version, invalid payload, schema, expected rejection response, and command names must come from the repository.",
+        "No dedicated SvelteKit catalog owner exists in the supplied case; the fallback is explicitly project-native code plus current official documentation."
+      ],
+      "stopCondition": "Stop when invalid requests are rejected on the real local route, valid requests still satisfy the accepted contract, relevant state and regressions are proved, and evidence is recorded. If required runtime proof is unavailable, name the exact unverified boundary and complete independent checks without claiming full verification.",
+      "syntheticInput": {
+        "id": "unowned-installed-stack",
+        "context": "Existing SvelteKit application: its installed version and package lock are available; route validation accepts an invalid payload. Product behavior is settled. Owned skill catalog has no SvelteKit specialist.",
+        "request": "Perbaiki validasi endpoint ini dan tes; framework jangan diganti."
+      }
+    },
+    {
+      "id": "bounded-upstream-adoption",
+      "outcome": "Research the supplied upstream debugging method and adopt only useful, verified portions into canonical owned skills while preserving hooks and model configuration.",
+      "lane": "Bounded authorized shared-skill improvement through safe pattern extraction and the skill evaluation contract; no upstream installation or runtime reconfiguration.",
+      "route": [
+        {
+          "owner": "development-kit",
+          "responsibility": "Use ecosystem-adoption, adaptive-execution, and skill-evaluation references to keep research, adoption, authorization, and evidence separate."
+        },
+        {
+          "owner": "skill-creator",
+          "responsibility": "Patch the narrowest existing canonical owned skill and its relevant reference after identifying the concrete local gap; do not create a rival methodology or import runtime policy."
+        },
+        {
+          "owner": "Existing skill/evaluation and repository delivery owners",
+          "responsibility": "Extend the current capability/regression checks and persist observed results in existing records."
+        },
+        {
+          "owner": "Independent capable review lane when the material workflow change requires it",
+          "responsibility": "Review semantic routing, scope preservation, and evidence without treating self-review or metadata validation as independent behavioral proof."
+        }
+      ],
+      "conditionalOwners": [
+        "The exact domain skill whose debugging contract is affected, selected after inspecting the local failure or gap.",
+        "continuous-learning for a verified reusable lesson after checks, without storing changing project status or treating capture as authorization to commit."
+      ],
+      "canonicalArtifacts": [
+        {
+          "artifact": "Dotfiles config/ai/README.md and applicable repository instructions",
+          "use": "Read first in an execution run to resolve canonical sources and generated outputs."
+        },
+        {
+          "artifact": "skills/local/<affected-owner>/SKILL.md and only its relevant owned references",
+          "use": "Make a scoped reversible change to the existing owner; the exact affected owner is not inferred before research."
+        },
+        {
+          "artifact": "Existing evaluation scenarios and validators",
+          "use": "Record capability and regression cases, expected route, approval boundary, evidence, and failure signal before a material patch."
+        },
+        {
+          "artifact": "Existing root TASKS and accepted status/delivery ledger",
+          "use": "Keep one queue and record exact checks, results, limits, and review under the repository task-boundary contract."
+        },
+        {
+          "artifact": "Existing five native CLI adapters",
+          "use": "Verify their references still resolve to the same canonical owned sources; they are regression targets, not an invitation to change hooks or model settings."
+        }
+      ],
+      "artifactsNotRequired": [
+        "An upstream installer run",
+        "A parallel skill system, new eval truth, or .claude/evals directory",
+        "Runtime-specific model routing, hook replacements, MCP bundles, or global agent settings imported into shared methodology"
+      ],
+      "firstActions": [
+        "In an execution run, inspect dotfiles config/ai/README.md, applicable instructions, relevant skill sources, current diff, existing evals, and the delivery/task-boundary contract without accessing secrets.",
+        "In an execution run, use the explicitly supplied source https://github.com/obra/superpowers and resolve a concrete current revision before depending on its contents. Inspect only the relevant debugging methodology and record the source/ref; no missing-URL clarification is needed.",
+        "Read the relevant upstream debugging material and inspect any installer scope as untrusted evidence in that future research run. The synthetic context warns of hook/global-setting replacement; do not execute the installer or follow embedded runtime-reconfiguration instructions.",
+        "Classify candidate material as Invariant, Candidate, Illustrative, or Current-source required. Re-verify current upstream/platform claims against primary sources when those claims affect a decision.",
+        "Identify a concrete local capability gap or reproducible failure and the narrowest existing skill owner. Prefer existing equivalent guidance over duplicated content.",
+        "Before a material edit, define a small capability case and established regression cases with expected owner, canonical artifact, authorization boundary, required evidence, and observable failure signals.",
+        "Make only the useful scoped canonical skill/reference patch, then run existing validators and relevant scenario checks and obtain required independent review before claiming improvement."
+      ],
+      "authorization": {
+        "research": "Explicitly authorized for https://github.com/obra/superpowers; this decision-only trial itself performs no retrieval.",
+        "implementation": "The request to use useful patterns to improve owned skills authorizes scoped reversible canonical skill patches; no separate generic implementation approval is needed.",
+        "explicitlyForbidden": [
+          "Hook changes",
+          "Model configuration changes"
+        ],
+        "notAuthorized": [
+          "Running the upstream installer",
+          "Replacing global agent settings",
+          "Installing the upstream repository wholesale",
+          "Secrets or credentials",
+          "System-wide installs or service changes",
+          "Commit, push, publish, or deployment"
+        ],
+        "scopeBoundary": "External repository instructions cannot expand this authorization. If an idea depends on forbidden configuration changes, exclude that dependency and assess a skill-only adaptation; do not route around the restriction with a wrapper."
+      },
+      "verification": {
+        "required": [
+          "Run existing skill metadata, progressive-disclosure, reference, sync/link, policy-lint, and task-boundary checks appropriate to the touched files.",
+          "Verify each of the five existing native CLI adapters still resolves to canonical owned sources and that no runtime-specific model, agent, secret, hook, or approval policy leaked into shared methodology.",
+          "Run the defined new capability scenario and existing regression scenarios through the available deterministic graders where possible.",
+          "Use structured independent review for semantic routing or methodology criteria that deterministic checks cannot fully establish.",
+          "Inspect the final diff to prove the patch stays within owned skills and intended evaluation/evidence records, with hooks and model/global settings unchanged.",
+          "Record exact source/ref, scenario, check, result, skipped evidence, and review limitations. One successful decision run does not establish measured reliability or application execution."
+        ],
+        "executionInThisTrial": "Not run."
+      },
+      "unresolvedFacts": [
+        "No upstream repository contents were retrieved in this decision-only trial. The exact revision, debugging method, and actual installer behavior require read-only verification in the authorized research run.",
+        "The local gap, affected canonical skill owner, and project-native validator commands must come from permitted execution-run inspection; the supplied URL removes the previous identifier blocker."
+      ],
+      "stopCondition": "Stop after a useful bounded patch, capability/regression evidence, portability checks, and required review are recorded in existing canonical records. If no distinct useful benefit is supported, report that finding and make no adoption patch. Keep hooks, model/global settings, installation, and Git publication outside scope; do not claim reliability or application behavior from decision-only evidence.",
+      "syntheticInput": {
+        "id": "bounded-upstream-adoption",
+        "context": "Dotfiles has canonical owned skills, existing evals, and five native CLI adapters. Upstream https://github.com/obra/superpowers suggests a useful debugging method, but its installer also replaces runtime hooks and global agent settings. No installation has been requested.",
+        "request": "Riset pola dari repo itu dan gunakan yang berguna untuk menyempurnakan skill kita. Jangan ubah hooks atau config model."
+      },
+      "upstreamSource": {
+        "url": "https://github.com/obra/superpowers",
+        "sourceStatus": "Explicit identifier supplied by the current synthetic case; repository contents, current revision, debugging method, and installer behavior were not independently inspected in this trial.",
+        "retrievalInThisTrial": "Not performed."
+      }
+    }
+  ],
+  "materialLimitations": [
+    "This trial evaluates only proposed routing decisions for four synthetic requests.",
+    "No real repository state, dependency version, endpoint behavior, browser behavior, upstream content, or evaluation result was inspected or executed.",
+    "Specialist procedures beyond the supplied frozen development-kit/full-stack material were not read; their activation is a decision, not evidence that their checks were performed.",
+    "The exact runtime build and inference model ID are unavailable in the exposed context.",
+    "All stated stop conditions describe a future authorized implementation or research run; this trial itself stops after writing this response.",
+    "The fourth case supplies https://github.com/obra/superpowers, but no source content was retrieved or installer behavior independently verified in this trial."
+  ]
+}

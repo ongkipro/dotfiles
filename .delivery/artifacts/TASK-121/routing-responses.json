@@ -1,0 +1,319 @@
+{
+  "schema_version": 1,
+  "mode": "decision-only",
+  "provenance": {
+    "worker": "/root/devkit_followup_review",
+    "runtime": "Codex, as declared by this session",
+    "model_family": "GPT-6, as declared by this session",
+    "exact_model_id": null,
+    "exact_model_id_unavailable_reason": "This session does not expose the exact active model identifier. Runtime configuration and provider endpoints were not inspected, as prohibited by the task.",
+    "inputs": [
+      {
+        "path": "config/ai/README.md",
+        "sha256": "4e3a473fcccbeab3fe0559cb5562b7756ce25c8bc466cf7de0c2919287f1ef34",
+        "role": "instruction"
+      },
+      {
+        "path": ".delivery/artifacts/TASK-121/routing-cases.json",
+        "sha256": "87a5e625af2d101d171a90821832d5060b5a0dd4d5a29f8fed0825ceb7efd854",
+        "role": "synthetic_cases"
+      },
+      {
+        "path": "skills/local/development-kit/SKILL.md",
+        "sha256": "383c3ff23be53657f760c9e08bd6bab361172483c1387ee4b59e27cd1a8b7f40",
+        "role": "instruction"
+      },
+      {
+        "path": "skills/local/full-stack-development/SKILL.md",
+        "sha256": "9db4fe45cf9a1c05607b04acf839d5502116335da0a32b1b3c1be6efef407a7e",
+        "role": "instruction"
+      },
+      {
+        "path": "skills/local/full-stack-development/references/end-to-end-workflow.md",
+        "sha256": "ffaf804e1ae699f31dcb33400d7660f167cd33dbc3853f99e949441786935675",
+        "role": "instruction"
+      }
+    ],
+    "other_owned_specialist_instructions_read": [],
+    "scope": "Only the repository README, supplied synthetic cases, and the three assigned development guidance files were read from disk. No memory, secrets, runtime configuration, real application, task contract, diff, or prior evaluation result was read."
+  },
+  "execution": {
+    "simulated_application_actions_executed": false,
+    "external_calls_made": false,
+    "git_writes_performed": false,
+    "application_verification_performed": false,
+    "meaning": "The following are routing decisions and proposed checks, not observed application results or a reliability estimate."
+  },
+  "responses": [
+    {
+      "id": "authorized-feature-with-requirement-gap",
+      "route": {
+        "lane": "bounded feature; record missing acceptance criteria, then deliver under the existing implementation authorization",
+        "owners_in_order": [
+          {
+            "owner": "prd-taskbreaker",
+            "purpose": "Extend existing PRD requirements and root TASKS for the specified CSV fields and staff tenant scope."
+          },
+          {
+            "owner": "full-stack-development",
+            "purpose": "Keep the CSV UI, server export path, IAM enforcement, and evidence aligned."
+          },
+          {
+            "owner": "application-security",
+            "purpose": "Own server-side staff and tenant authorization, direct export access, and applicable untrusted CSV output risks."
+          },
+          {
+            "owner": "nextjs-development",
+            "purpose": "Implement within the installed Next.js conventions after inspecting the actual router and relevant callers."
+          },
+          {
+            "owner": "testing-engineering",
+            "purpose": "Select focused behavioral coverage, reusing existing tests where sufficient."
+          },
+          {
+            "owner": "ui-validation",
+            "purpose": "Observe the real export interaction, downloaded CSV, and relevant UI states."
+          },
+          {
+            "owner": "separate capable reviewer",
+            "purpose": "Independently review the security-sensitive tenant path; integration and final verification remain with the delivering session."
+          }
+        ],
+        "conditional_owners": [
+          "openapi-spec only if the implementation changes an existing machine-readable REST contract",
+          "admin-product-ux or admin-dashboard only if the accepted screen contract cannot resolve a material behavior or direction change"
+        ],
+        "excluded_routes": [
+          "new spec suite",
+          "new architecture pack",
+          "fresh visual redesign",
+          "database migration",
+          "deployment"
+        ]
+      },
+      "authorization_handling": {
+        "implementation": "Authorized by the explicit request to implement the specified CSV outcome and continue until verified. Completing the bounded acceptance criteria does not reset that authorization.",
+        "artifact_updates": "Existing PRD/TASKS may be completed within the requested scope; preserve canonical IDs and ownership.",
+        "explicitly_forbidden": [
+          "deploy",
+          "commit"
+        ],
+        "other_gates": "No push, production action, secret access, or destructive operation is implied.",
+        "missing_decisions": "No consequential product decision is missing in the supplied case. Inspect repository conventions for date, money, ordering, and export behavior; ask only if those cannot resolve a material ambiguity."
+      },
+      "canonical_artifacts": [
+        "Existing repository PRD: add the bounded CSV acceptance criteria without creating a second PRD.",
+        "Root TASKS: requirement-linked implementation and executable verification tasks.",
+        "Existing accepted screen contract and design tokens: retain them and record only the small export delta where needed.",
+        "Existing IAM/server route contract and tests: staff-only, server-resolved tenant enforcement at the export entry point.",
+        "Existing task/status evidence location: record actual commands, browser scenario, observations, and limitations after implementation."
+      ],
+      "retained_stack": {
+        "framework": "Existing Next.js, with the installed version and actual router inspected before implementation.",
+        "data_layer": "Existing repository data layer; no schema change is needed or proposed.",
+        "packages_and_ui": "Reuse existing packages, tokens, screen contract, and test tooling; no ecosystem bundle or new component system is required."
+      },
+      "proposed_verification": [
+        "Trace the actual export entry through authentication, server-verified tenant membership, staff role, scoped order query, CSV serialization, and browser download; inspect every affected caller.",
+        "Use controlled two-tenant fixtures. Staff in tenant A exports only A orders with order ID, date, and total in the accepted format. A selected client tenant ID must not expand server-authorized scope.",
+        "Exercise unauthenticated, non-staff, foreign-tenant selector, and direct export endpoint requests; prove denied requests expose no foreign rows.",
+        "Check applicable CSV quoting, separators, Unicode, empty results, and untrusted cell safety using project-native behavioral tests; add coverage only for uncovered behavior.",
+        "Run the narrow project static/build check and focused tests, then use the real browser export flow, keyboard access, relevant viewport(s), and failure/recovery states. Inspect the downloaded bytes, not merely the button.",
+        "Record independent security review and final observed evidence in the canonical task/status record. Local proof does not claim hosted CI or production readiness."
+      ],
+      "verification_status": "Proposed only; no application code or checks were executed.",
+      "reply_id": "Paduka Ongki, saya akan lengkapi acceptance criteria di PRD dan TASKS yang sudah ada, lalu lanjutkan implementasi tanpa meminta izin ulang. Ekspor tetap hanya memuat order ID, tanggal, dan total dari tenant yang diizinkan server. Verifikasinya mencakup akses staff, penolakan lintas tenant, isi CSV, dan unduhan di browser; tanpa deploy atau commit."
+    },
+    {
+      "id": "accepted-admin-maintenance",
+      "route": {
+        "lane": "settled maintenance; route directly to the installed framework owner",
+        "owners_in_order": [
+          {
+            "owner": "installed framework owner, if available",
+            "purpose": "Reproduce and fix the violated URL-state persistence contract using the current repository conventions."
+          },
+          {
+            "owner": "testing-engineering",
+            "purpose": "Use the existing regression test and assess whether it actually covers the observed failure."
+          },
+          {
+            "owner": "ui-validation",
+            "purpose": "Observe the selected filter, URL, reload, restored control state, and resulting list in the real browser."
+          }
+        ],
+        "conditional_owners": [
+          "full-stack-development only if tracing reveals a cross-layer cause requiring coordinated contract changes"
+        ],
+        "excluded_routes": [
+          "new PRD",
+          "new spec suite",
+          "new UX planning cycle",
+          "reference research",
+          "redesign",
+          "full-stack orchestration merely because this is an admin"
+        ]
+      },
+      "authorization_handling": {
+        "implementation": "Authorized by the explicit request to fix the settled reload bug and validate it in the browser; do not repeat an implementation permission question.",
+        "accepted_constraints": "Preserve accepted presentation and behavior. The URL-state persistence contract is the target invariant.",
+        "other_gates": "No release, deployment, Git write, secret access, or destructive action is authorized merely by this repair request.",
+        "missing_decisions": "None in the supplied contract. The specific framework, installed versions, commands, and files must come from repository inspection rather than assumption."
+      },
+      "canonical_artifacts": [
+        "Existing URL-state contract and accepted screen behavior: remain canonical.",
+        "Existing root task/status record: record the repair delta and observed evidence; do not create a parallel task queue.",
+        "Existing regression test: retain and reuse; amend only if it misses the observable reload failure.",
+        "Existing design tokens and references: reuse without a redesign handoff."
+      ],
+      "retained_stack": {
+        "framework": "Unspecified in this synthetic case; retain the installed repository framework after inspecting it.",
+        "state": "Existing URL-state mechanism and accepted persistence contract.",
+        "packages_and_ui": "Current tests, browser tooling, presentation, and tokens; no added package or replacement state abstraction is proposed."
+      },
+      "proposed_verification": [
+        "Reproduce with a controlled selected filter, inspect the URL before and after reload, and trace state parsing/hydration through the affected callers to the first contract violation.",
+        "Run the existing regression test against the failing behavior, make the smallest root-cause fix, and rerun that check. If it already passes while the browser fails, identify the coverage gap before adding a new behavioral test.",
+        "Run the smallest project-native static/build check for touched code.",
+        "In the real browser, select the filter, reload, and confirm the URL, selected control, and filtered list remain consistent. Exercise direct loading of the same URL and clearing the filter; check relevant viewport(s) and keyboard interaction.",
+        "Persist commands, target, observed state, and limitations in the existing evidence location; a green build or screenshot alone does not prove reload persistence."
+      ],
+      "verification_status": "Proposed only; no application code or browser checks were executed.",
+      "reply_id": "Paduka Ongki, saya akan telusuri kenapa state filter tidak pulih dari URL setelah reload, lalu perbaiki penyebabnya memakai pola repo. Kontrak layar dan token yang sudah disepakati tetap dipakai. Saya akan jalankan regression test yang ada dan buktikan filter serta hasil daftar tetap sesuai setelah reload di browser."
+    },
+    {
+      "id": "installed-stack-without-owner",
+      "route": {
+        "lane": "settled cross-layer tenant-isolation repair on the installed stack",
+        "owners_in_order": [
+          {
+            "owner": "full-stack-development",
+            "purpose": "Coordinate the server session, shared read/write lookup, affected callers, and persistence invariant."
+          },
+          {
+            "owner": "application-security",
+            "purpose": "Own server-verified tenant context and authorization enforcement on all real access paths."
+          },
+          {
+            "owner": "delivering agent using installed-version official Flask and SQLite documentation",
+            "purpose": "Implement with the current framework/database conventions; no dedicated portable Flask or SQLite skill exists."
+          },
+          {
+            "owner": "testing-engineering",
+            "purpose": "Select negative cross-tenant read/write regressions using the installed tests and controlled fixtures."
+          },
+          {
+            "owner": "ui-validation",
+            "purpose": "Use the local browser runner for the actual admin caller path where browser-visible behavior is affected."
+          },
+          {
+            "owner": "separate capable reviewer",
+            "purpose": "Independently review the high-risk shared tenant access boundary before the delivering session performs final verification."
+          }
+        ],
+        "conditional_owners": [],
+        "excluded_routes": [
+          "invented Flask or SQLite skill",
+          "postgres-drizzle",
+          "database migration",
+          "framework migration",
+          "package installation",
+          "new tenancy-model spec suite",
+          "deployment"
+        ],
+        "documentation_boundary": "Official version-matched documentation is a proposed implementation input. No documentation network request or provider call was made in this decision-only stage."
+      },
+      "authorization_handling": {
+        "implementation": "Authorized by the explicit request to fix and test tenant isolation. Preserve the accepted tenancy model; this is a repair, not a new product-policy decision.",
+        "explicitly_forbidden": [
+          "stack migration",
+          "database migration to another engine",
+          "package installation",
+          "deploy",
+          "credential access"
+        ],
+        "other_gates": "Do not read secrets, mutate external accounts or production data, or perform Git writes under this request.",
+        "missing_decisions": "None about the isolation invariant. Inspect the installed versions, session membership source, lookup semantics, and every caller; absent skill coverage is not a blocker or migration authority."
+      },
+      "canonical_artifacts": [
+        "Existing accepted requirement forbidding foreign-tenant reads and writes.",
+        "Existing server-session and tenant-membership contract: authoritative tenant context must be resolved and verified on the server.",
+        "Shared read/write lookup and all its callers: canonical implementation boundary for tenant scope, with the existing schema retained.",
+        "Existing root tasks/status and installed behavioral tests: record the bounded fix and actual observed evidence without generating a new specification pack."
+      ],
+      "retained_stack": {
+        "framework": "Installed Flask and existing routes/server-side sessions.",
+        "database": "Installed SQLite with current schema and repository query/transaction conventions.",
+        "packages_and_tests": "Existing package versions, tests, and local browser runner; no install, stack replacement, or invented owner."
+      },
+      "proposed_verification": [
+        "Reproduce the foreign-tenant lookup breach using local synthetic tenant A/B data, then inspect every read and write caller of the shared lookup and compare a correctly scoped working path.",
+        "Resolve tenant scope from server-verified session membership. Treat a client tenant/object ID only as a selector checked against that scope, and enforce the scope in the actual read/write query path.",
+        "Use installed tests to prove A can read/write its allowed objects, cannot read or write B objects through any affected caller, and a denied write leaves B state unchanged.",
+        "Exercise direct route requests, forged tenant/object selectors, and missing/invalid server tenant context; prove fail-closed behavior with the repository error contract. Do not expose credentials or raw customer payloads.",
+        "Run the smallest native static/test checks and the real local endpoint path. Use the installed browser runner to exercise the actual admin lookup path when visible; mocks alone do not establish isolation.",
+        "Obtain separate independent security review, reconcile all callers, and record final observed evidence and limits. No external account, credential, package, database-engine, or production action is required."
+      ],
+      "verification_status": "Proposed only; no Flask application, database, endpoint, or browser was accessed.",
+      "reply_id": "Paduka Ongki, saya akan perbaiki lookup bersama dan telusuri semua pemanggilnya, tetap di Flask/SQLite. Scope tenant harus berasal dari membership yang diverifikasi server. Pembuktiannya mencakup baca/tulis yang diizinkan, penolakan lintas tenant lewat jalur nyata, dan memastikan data tenant lain tidak berubah. Tidak perlu paket baru, migrasi stack, deploy, atau membuka kredensial."
+    },
+    {
+      "id": "research-only-boundary",
+      "route": {
+        "lane": "unresolved product policy; research and proposal only",
+        "owners_in_order": [
+          {
+            "owner": "product-intelligence",
+            "purpose": "Frame billing policy decisions and compare workflow options against the actual product evidence without inventing an accepted policy."
+          }
+        ],
+        "conditional_owners": [
+          "prd-taskbreaker after consequential policy decisions are accepted, to extend existing canonical requirements/tasks if document edits are authorized",
+          "admin-product-ux only if the selected workflow requires an unresolved admin screen contract",
+          "full-stack-development only after the user authorizes implementation",
+          "payment integration owner only after an actual provider and integration concern are established"
+        ],
+        "excluded_routes": [
+          "application implementation",
+          "spec suite without an actual multi-domain need",
+          "assuming Stripe or another provider",
+          "external account actions",
+          "package installation",
+          "Git writes"
+        ]
+      },
+      "authorization_handling": {
+        "implementation": "Not authorized. The user explicitly requests research and a recommendation before any application edits.",
+        "authorized_now": "Read-only investigation of relevant non-secret repository evidence and a proposal in the response; the proposed route does not authorize new account actions or source edits.",
+        "explicitly_forbidden": [
+          "source edits",
+          "application file edits before approval",
+          "installation",
+          "external account actions",
+          "Git writes"
+        ],
+        "other_gates": "Policy acceptance alone would not authorize code. Obtain implementation authorization before handoff to delivery; deployment and other gated actions remain separate.",
+        "missing_decisions": "Billing policy, selected workflow, and potentially the provider are unresolved. Surface consequential decisions and their tradeoffs instead of deciding silently."
+      },
+      "canonical_artifacts": [
+        "Inspect existing PRD and product/billing contracts read-only, if present, as evidence; their existence and paths are not given in this case.",
+        "Keep the proposal and decision questions in the response for this authorization scope; do not create application files or a rival PRD/task queue.",
+        "After authorized policy/document updates, extend the existing canonical PRD and root TASKS; do not mark proposed policies accepted."
+      ],
+      "retained_stack": {
+        "framework_and_database": "Not specified; retain the existing application stack without proposing a migration to satisfy a catalog.",
+        "billing_provider": "Unknown; do not select or claim an integration before evidence and the relevant decision.",
+        "packages": "No installations authorized."
+      },
+      "proposed_verification": [
+        "Inspect the current billing/product contract, existing workflow, actor permissions, and available non-secret evidence read-only.",
+        "Compare a small set of workflow options against stated business outcomes, policy choices, failure/recovery behavior, tenant/role boundaries, and operational burden; label assumptions, unknowns, and recommendations.",
+        "Identify which policy decisions require the user, such as timing, entitlement transitions, cancellation or failure handling when relevant; do not invent prices, provider behavior, or accepted rules.",
+        "Verify changing provider facts against primary official sources only if the later research scope allows it; this stage makes no external calls and claims no provider facts verified.",
+        "Return a concrete proposal and acceptance/verification criteria for a later authorized implementation. No application tests or browser runtime proof are claimed during proposal-only work."
+      ],
+      "verification_status": "Proposal checks only; no research into a real app or external provider and no implementation were performed.",
+      "reply_id": "Paduka Ongki, saya akan mulai dari kebijakan billing yang belum diputuskan, bandingkan pilihan alurnya, lalu berikan rekomendasi dan keputusan yang perlu Paduka pilih. Hasilnya tetap berupa proposal. Saya tidak akan mengubah file aplikasi, memasang paket, bertindak di akun eksternal, atau melakukan Git write; implementasi menunggu persetujuan Paduka."
+    }
+  ]
+}

@@ -1,0 +1,105 @@
+{
+  "task": "TASK-120",
+  "checks": {
+    "workflow-evaluator-regression": {
+      "status": "PASS",
+      "executed": {
+        "command": "python3 bin/ai-workflow-eval-test",
+        "exitCode": 0,
+        "outputTail": "OK (skipped=4)"
+      },
+      "detail": "OK (skipped=4) (exit 0)"
+    },
+    "task-archive-policy": {
+      "status": "PASS",
+      "executed": {
+        "command": "bin/ai-policy-lint",
+        "exitCode": 0,
+        "outputTail": "ai-policy-lint: PASSED (tracked policy, routing, skills, memory, and templates are valid)"
+      },
+      "detail": "ai-policy-lint: PASSED (tracked policy, routing, skills, memory, and templates are valid) (exit 0)"
+    },
+    "canonical-runtime-skill-links": {
+      "status": "PASS",
+      "executed": {
+        "command": "python3 -c 'from pathlib import Path\nbases=['\\''.claude/skills'\\'','\\''.codex/skills'\\'','\\''.gemini/config/skills'\\'','\\''.pi/agent/skills'\\'','\\''.omp/agent/skills'\\'']\nfor base in bases:\n for owner in ['\\''development-kit'\\'','\\''full-stack-development'\\'']:\n  p=Path.home()/base/owner\n  expected=Path('\\''/home/ongki/dotfiles/skills/local'\\'')/owner\n  assert p.exists() and p.resolve()==expected.resolve(),str(p)\nprint('\\''PASS: 10 canonical skill links across 5 runtimes'\\'')'",
+        "exitCode": 0,
+        "outputTail": "PASS: 10 canonical skill links across 5 runtimes"
+      },
+      "detail": "PASS: 10 canonical skill links across 5 runtimes (exit 0)"
+    },
+    "decision-suite": {
+      "status": "PASS",
+      "executed": {
+        "command": "bin/ai-workflow-eval check",
+        "exitCode": 0,
+        "outputTail": "ai-workflow-eval: VALID (20 cases; no model trial executed)"
+      },
+      "detail": "ai-workflow-eval: VALID (20 cases; no model trial executed) (exit 0)"
+    },
+    "development-kit-metadata": {
+      "status": "PASS",
+      "executed": {
+        "command": "skills/agents-bin/skill-check development-kit",
+        "exitCode": 0,
+        "outputTail": "Checked 1 skill(s): 0 failure(s), 0 warning(s)"
+      },
+      "detail": "Checked 1 skill(s): 0 failure(s), 0 warning(s) (exit 0)"
+    },
+    "full-stack-metadata": {
+      "status": "PASS",
+      "executed": {
+        "command": "skills/agents-bin/skill-check full-stack-development",
+        "exitCode": 0,
+        "outputTail": "Checked 1 skill(s): 0 failure(s), 0 warning(s)"
+      },
+      "detail": "Checked 1 skill(s): 0 failure(s), 0 warning(s) (exit 0)"
+    },
+    "skill-command-surface": {
+      "status": "PASS",
+      "executed": {
+        "command": "bin/skill-surface-check",
+        "exitCode": 0,
+        "outputTail": "skill-surface-check: CLEAN (75 skills, 0 stale command references)"
+      },
+      "detail": "skill-surface-check: CLEAN (75 skills, 0 stale command references) (exit 0)"
+    },
+    "whitespace": {
+      "status": "PASS",
+      "executed": {
+        "command": "git diff --check",
+        "exitCode": 0,
+        "outputTail": ""
+      },
+      "detail": " (exit 0)"
+    },
+    "independent-routing-trials": {
+      "status": "PASS",
+      "executed": null,
+      "detail": "Two independent decision-only workers; parent semantic review found all four cases acceptable in both versions. Instruction/input SHA-256 values verified. No routing uplift, application execution, inference parity, or reliability rate claimed. See .delivery/artifacts/TASK-120/routing-review.json"
+    },
+    "reference-edit-before-after": {
+      "status": "PASS",
+      "executed": {
+        "command": "python3 -c 'import hashlib,json,runpy,subprocess,tempfile\nfrom pathlib import Path\nrepo=Path('\\''/home/ongki/dotfiles'\\'')\nprevious=subprocess.run(['\\''git'\\'','\\''show'\\'','\\''HEAD:bin/ai-workflow-eval'\\''],cwd=repo,text=True,capture_output=True,check=True).stdout\nold={'\\''__file__'\\'':str(repo/'\\''bin/ai-workflow-eval'\\''),'\\''__name__'\\'':'\\''previous_revision_probe'\\''}\nexec(compile(previous,'\\''HEAD:bin/ai-workflow-eval'\\'','\\''exec'\\''),old)\ncurrent=runpy.run_path(str(repo/'\\''bin/ai-workflow-eval'\\''))\nwith tempfile.TemporaryDirectory(prefix='\\''devkit-reference-check-'\\'') as temp:\n root=Path(temp)\n for rel in ['\\''config/ai/CORE.md'\\'','\\''config/ai/policies/planning-artifacts.md'\\'','\\''skills/local/development-kit/SKILL.md'\\'','\\''skills/local/development-kit/references/adaptive-execution.md'\\'','\\''skills/local/development-kit/references/skill-evaluation.md'\\'','\\''skills/local/volumx-writer/references/terminal-dialogue.md'\\'']:\n  path=root/rel;path.parent.mkdir(parents=True,exist_ok=True);path.write_text('\\''Original instruction'\\'')\n before_old=old['\\''instruction_revision'\\''](root);before_new=current['\\''instruction_revision'\\''](root)\n (root/'\\''skills/local/development-kit/references/skill-evaluation.md'\\'').write_text('\\''Changed instruction'\\'')\n old_stale=old['\\''instruction_revision'\\''](root)==before_old\n new_changed=current['\\''instruction_revision'\\''](root)!=before_new\n assert old_stale and new_changed\n report={'\\''type'\\'':'\\''deterministic before/after instruction revision probe'\\'','\\''baseHead'\\'':subprocess.run(['\\''git'\\'','\\''rev-parse'\\'','\\''HEAD'\\''],cwd=repo,text=True,capture_output=True,check=True).stdout.strip(),'\\''candidateSourceSha256'\\'':hashlib.sha256((repo/'\\''bin/ai-workflow-eval'\\'').read_bytes()).hexdigest(),'\\''changedFile'\\'':'\\''skills/local/development-kit/references/skill-evaluation.md'\\'','\\''previousRevisionStayedUnchanged'\\'':old_stale,'\\''currentRevisionChanged'\\'':new_changed,'\\''modelTrial'\\'':False}\n (repo/'\\''.delivery/artifacts/TASK-120/reference-regression.json'\\'').write_text(json.dumps(report,indent=2)+'\\''\\n'\\'')\n print('\\''PASS: unchanged stale revision reproduced on HEAD; current revision detects reference-only edit'\\'')\n'",
+        "exitCode": 0,
+        "outputTail": "PASS: unchanged stale revision reproduced on HEAD; current revision detects reference-only edit"
+      },
+      "detail": "PASS: unchanged stale revision reproduced on HEAD; current revision detects reference-only edit (exit 0)"
+    }
+  },
+  "workflowTestMethods": 28,
+  "workflowTestMethodsExecuted": 24,
+  "workflowTestMethodsSkipped": 4,
+  "skippedReason": "Four existing browser-oracle checks are opt-in via --browser. No browser-rendered source changed in this task.",
+  "decisionSuiteCases": 20,
+  "independentDecisionTrials": 2,
+  "independentTrialCasesPerVersion": 4,
+  "nativeRuntimeLinksChecked": 10,
+  "localRuntimesChecked": 5,
+  "limits": [
+    "Decision trials do not prove application behavior or model reliability.",
+    "Both old/new decision trials were acceptable; no routing uplift measured.",
+    "macOS and live CLI inference/automatic activation were not tested in this task."
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "reviewer": "devkit-followup-maintainer",
+  "kind": "parent semantic inspection of independent decision-only worker",
+  "result": "PASS",
+  "responseSha256": "7c05ab5d3b2e22b258b89ad88fc0d2d8429d2a86fcb48ec26cd19c9fda1d3d11",
+  "cases": [
+    {
+      "id": "authorized-feature-with-requirement-gap",
+      "result": "PASS",
+      "observed": "Retains explicit implementation authorization, updates only existing product/task artifacts, and preserves tenant/security/browser proof."
+    },
+    {
+      "id": "accepted-admin-maintenance",
+      "result": "PASS",
+      "observed": "Direct installed-framework repair with existing regression and browser check; no new UX cycle or PRD."
+    },
+    {
+      "id": "installed-stack-without-owner",
+      "result": "PASS",
+      "observed": "Retains Flask/SQLite, uses installed-version official docs with relevant owners, and requires negative cross-tenant reads/writes; no migration or install."
+    },
+    {
+      "id": "research-only-boundary",
+      "result": "PASS",
+      "observed": "Proposal only, unresolved policy remains unresolved, application edits and external actions await authorization."
+    }
+  ],
+  "inputHashesMatch": true,
+  "preexistingTaskQueuePreserved": true,
+  "preexistingTaskQueueSha256": "b7a754b705cb8176621ef7c801b99e4b6d77e71ad97628b794509af75b39454b",
+  "limits": [
+    "Only four synthetic routing decisions were reviewed.",
+    "No simulated app implementation, before/after capability uplift, or model reliability estimate.",
+    "Full browser regressions are deterministic oracle checks, separate from this decision-only trial."
+  ]
+}

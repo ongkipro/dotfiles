@@ -1,0 +1,96 @@
+{
+  "task": "TASK-121",
+  "run": "RUN-20261011T182900Z-84a6a84f",
+  "checks": {
+    "full-workflow-browser-regression": {
+      "status": "PASS",
+      "executed": {
+        "command": "python3 bin/ai-workflow-eval-test --browser",
+        "exitCode": 0,
+        "outputTail": "OK"
+      },
+      "detail": "OK (exit 0)"
+    },
+    "development-kit-followup-metadata": {
+      "status": "PASS",
+      "executed": {
+        "command": "skills/agents-bin/skill-check development-kit",
+        "exitCode": 0,
+        "outputTail": "Checked 1 skill(s): 0 failure(s), 0 warning(s)"
+      },
+      "detail": "Checked 1 skill(s): 0 failure(s), 0 warning(s) (exit 0)"
+    },
+    "full-stack-followup-metadata": {
+      "status": "PASS",
+      "executed": {
+        "command": "skills/agents-bin/skill-check full-stack-development",
+        "exitCode": 0,
+        "outputTail": "Checked 1 skill(s): 0 failure(s), 0 warning(s)"
+      },
+      "detail": "Checked 1 skill(s): 0 failure(s), 0 warning(s) (exit 0)"
+    },
+    "followup-decision-suite": {
+      "status": "PASS",
+      "executed": {
+        "command": "bin/ai-workflow-eval check",
+        "exitCode": 0,
+        "outputTail": "ai-workflow-eval: VALID (20 cases; no model trial executed)"
+      },
+      "detail": "ai-workflow-eval: VALID (20 cases; no model trial executed) (exit 0)"
+    },
+    "followup-command-surface": {
+      "status": "PASS",
+      "executed": {
+        "command": "bin/skill-surface-check",
+        "exitCode": 0,
+        "outputTail": "skill-surface-check: CLEAN (75 skills, 0 stale command references)"
+      },
+      "detail": "skill-surface-check: CLEAN (75 skills, 0 stale command references) (exit 0)"
+    },
+    "followup-routing-review": {
+      "status": "PASS",
+      "executed": null,
+      "detail": "Parent inspected four independent decision-only routes, checked source/input hashes, and found authorization, accepted UX, installed-stack and research-only boundaries preserved. No model uplift or simulated application execution claimed. Evidence: .delivery/artifacts/TASK-121/routing-review.json"
+    },
+    "followup-policy": {
+      "status": "PASS",
+      "executed": {
+        "command": "bin/ai-policy-lint",
+        "exitCode": 0,
+        "outputTail": "ai-policy-lint: PASSED (tracked policy, routing, skills, memory, and templates are valid)"
+      },
+      "detail": "ai-policy-lint: PASSED (tracked policy, routing, skills, memory, and templates are valid) (exit 0)"
+    },
+    "followup-whitespace": {
+      "status": "PASS",
+      "executed": {
+        "command": "git diff --check -- TASKS.md skills/local/full-stack-development/references/end-to-end-workflow.md docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT_FOLLOWUP.md",
+        "exitCode": 0,
+        "outputTail": ""
+      },
+      "detail": " (exit 0)"
+    }
+  },
+  "fullWorkflowTestMethods": 28,
+  "fullWorkflowPassed": 28,
+  "fullWorkflowSkipped": 0,
+  "browserCoverage": [
+    "reference save/reload/failure/retry journey",
+    "disabled submit behavior is rejected",
+    "invisible feedback is rejected",
+    "offscreen feedback is rejected"
+  ],
+  "decisionBankCases": 20,
+  "independentSyntheticRoutingCases": 4,
+  "sourceSha256": {
+    "TASKS.md": "c427b8ef6147c1e52c39e42e5e38bdced9fe4a02e4a172a2ddcb7fa395c0fa16",
+    "skills/local/full-stack-development/references/end-to-end-workflow.md": "ffaf804e1ae699f31dcb33400d7660f167cd33dbc3853f99e949441786935675",
+    "docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT_FOLLOWUP.md": "559c1594f648fe4b467ef0e146cc28e94295025561f6871dd95cade46cf95af8"
+  },
+  "limits": [
+    "Browser checks exercise the existing trusted synthetic fixtures; no live app or model implementation was executed.",
+    "Four routing decisions do not establish model uplift or a reliability rate.",
+    "No browser-rendered product source changed; no subjective visual quality claim.",
+    "This run did not execute macOS or live AI CLI inference."
+  ]
+}

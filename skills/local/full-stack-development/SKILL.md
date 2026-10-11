@@ -62,8 +62,9 @@ permissions, migration intent, or external behavior as unknown; never invent it.
 - **Settled implementation:** acceptance criteria and policy are accepted. Do not
   manufacture a PRD or architecture document; execute the bounded change.
 - **Bounded new feature:** use `prd-taskbreaker` for accepted requirements and
-  executable tasks. Planning approval is not implementation approval; stop at
-  the implementation gate until approval is explicit.
+  executable tasks when these are not already settled. An actionable request to
+  implement the bounded outcome supplies implementation authorization; carry it
+  through the handoff. Planning approval alone does not supply it.
 - **Multi-domain specification:** use `development-spec-suite` only when product,
   architecture, data, IAM, API, security, privacy, or operations artifacts must
   remain traceable together. It selects the pack; this skill resumes after the
@@ -73,6 +74,17 @@ permissions, migration intent, or external behavior as unknown; never invent it.
 
 Never silently move from planning to code, from local proof to deployment, or
 from a schema proposal to applying a production migration.
+
+For a repair, reproduce the symptom on controlled data and identify the first
+boundary whose observed result violates the accepted contract. Compare a working
+path, test one supported cause with the smallest failing check, then fix that
+cause and rerun the real path. If the hypothesis fails, gather new evidence
+before adding another patch; do not replace diagnosis with a retry quota. Use
+redacted observations rather than raw payloads or credentials.
+
+When the installed framework has no dedicated skill, use its version-matched
+official docs and the activated domain owners. Keep the project's stack and test
+conventions; missing catalog coverage is not permission to migrate it.
 
 ## Owner matrix
 
@@ -174,6 +186,10 @@ For new admin or CMS work, the mandatory route is:
 
 `admin-product-ux` -> `admin-dashboard` -> installed framework owner and, when
 applicable, `shadcn-ui` -> `ui-validation`.
+
+Bounded maintenance of an accepted screen reuses its behavior, tokens, and
+references; activate the UX/visual owner again when the contract or direction
+changes. Browser evidence still applies to every browser-visible change.
 
 For a new surface or material redesign, the first two owners must inspect
 relevant references and record either a justified selection or meaningful

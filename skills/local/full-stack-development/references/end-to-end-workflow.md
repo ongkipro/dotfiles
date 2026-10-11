@@ -9,12 +9,14 @@ mechanics.
 
 Keep a compact record in the repository's accepted task/status artifact or in the
 response when no artifact exists. Do not create a new planning file merely to
-hold it.
+hold it. The fields below are prompts, not a required document or a checklist of
+unrelated domains. Keep the outcome, authorization source, affected path and
+evidence; include the other fields only when that concern is present.
 
 ```text
 Outcome / accepted requirement:
 Non-goals:
-Implementation approval:
+Implementation authorization and its source:
 Release/deploy approval:
 Observed repository state:
 Affected entry point and callers:
@@ -31,8 +33,9 @@ Evidence required:
 Unknowns, owner, and blocking effect:
 ```
 
-An empty field means “not applicable” only when inspection proves that. Otherwise
-mark it unknown and identify who can decide it.
+For an applicable concern, mark an unresolved fact unknown and identify its
+blocking effect and decision owner. Omit absent concerns rather than making a
+small repair wait for unrelated architecture, IAM or release decisions.
 
 ## 2. Inspect and trace
 
@@ -55,14 +58,17 @@ stale prose, but an accepted policy decision can require changing them.
 
 | Evidence | Route now | Stop line |
 |---|---|---|
-| Acceptance behavior and policy are settled | Start bounded implementation | Before deployment unless separately authorized |
-| New bounded feature needs requirements/tasks | `prd-taskbreaker` | Explicit implementation approval |
-| Several specification domains need traceability | `development-spec-suite` plus activated artifact owners | Explicit implementation approval |
-| Target user, outcome, market, policy, or product direction is unresolved | `product-intelligence`, then the smallest spec route | Accepted direction, accepted requirements, and explicit implementation approval |
+| Acceptance behavior and policy are settled | Start bounded implementation within existing authorization | Missing implementation authorization or an unauthorized release action |
+| New bounded feature needs requirements/tasks | `prd-taskbreaker`, reusing existing artifacts | Resolve consequential requirement gaps; then deliver within existing implementation authorization |
+| Several specification domains need traceability | `development-spec-suite` plus activated artifact owners | Resolve applicable contract gaps; then deliver within existing implementation authorization |
+| Target user, outcome, market, policy, or product direction is unresolved | `product-intelligence`, then the smallest spec route | Obtain the missing consequential decisions; retain the scope and implementation boundary of the original request |
 | One settled specialist concern | Route directly to that owner; do not use this orchestrator | The specialist's own evidence boundary |
 
-Do not infer implementation approval from approval to research, draft, review, or
-initialize a repository. Do not infer deploy approval from implementation approval.
+An actionable request to fix, build or implement a clear bounded outcome supplies
+implementation authorization. Record its source and preserve it through planning
+and handoffs; do not request it again after filling requirements within that scope.
+Research, drafting, review or repository initialization alone does not authorize
+implementation. Deployment and other gated actions still need their own approval.
 
 ## 4. Build the owner and contract map
 
@@ -85,14 +91,17 @@ errors, timestamps, money, locale, and tenant scope across layers.
 
 ## 5. Activate the smallest specialist chain
 
-The arrows show ownership order, not a requirement to load every skill listed.
-Skip any concern that inspection proves absent.
+The arrows show ownership order for activated concerns, not a requirement to load
+every skill listed or select a stack. Reuse accepted UX, visual tokens and screen
+contracts for maintenance. Activate product/UX owners when behavior is unsettled
+and visual owners for new or materially changed direction; bounded browser-visible
+changes still require browser evidence. Skip concerns that inspection proves absent.
 
 | Common combination | Minimal chain |
 |---|---|
-| Astro admin/CMS on Cloudflare | `admin-product-ux` -> `admin-dashboard` -> `astro-development` (+ `shadcn-ui` only for a React/shadcn island) -> `workers-best-practices` when Worker code/bindings change -> `ui-validation` |
-| Next.js admin/CMS with plain Postgres/Drizzle | `admin-product-ux` -> `admin-dashboard` -> `postgres-drizzle` -> `nextjs-development` (+ `shadcn-ui` when used) -> `ui-validation` |
-| Next.js admin/CMS with Supabase | `admin-product-ux` -> `admin-dashboard` -> `supabase-stack` -> `nextjs-development` (+ `shadcn-ui` when used) -> `ui-validation` |
+| Astro admin/CMS on Cloudflare | `admin-product-ux` / `admin-dashboard` when behavior/direction changes -> `astro-development` (+ `shadcn-ui` only for a React/shadcn island) -> `workers-best-practices` when Worker code/bindings change -> `ui-validation` |
+| Next.js admin/CMS with plain Postgres/Drizzle | `admin-product-ux` / `admin-dashboard` when behavior/direction changes -> `postgres-drizzle` when data changes -> `nextjs-development` (+ `shadcn-ui` when used) -> `ui-validation` |
+| Next.js admin/CMS with Supabase | `admin-product-ux` / `admin-dashboard` when behavior/direction changes -> `supabase-stack` when its contracts change -> `nextjs-development` (+ `shadcn-ui` when used) -> `ui-validation` |
 | Astro storefront on Cloudflare | `storefront-ux` when behavior is unsettled -> `storefront-development` -> `astro-development` -> `workers-best-practices` when Worker code/bindings change -> `ui-validation` |
 | Next.js storefront with Postgres/Drizzle | `storefront-ux` when behavior is unsettled -> `storefront-development` -> `postgres-drizzle` -> `nextjs-development` -> `ui-validation` |
 | Client-edited marketing/content site | `cms-content` (CMS choice, content model, editor roles) -> `astro-development` or `nextjs-development` -> `seo-website-builder` for SEO fields -> `ui-validation` as an editor-role login, not admin |
@@ -103,6 +112,11 @@ Skip any concern that inspection proves absent.
 | Worker API change | `openapi-spec` when a REST contract changes -> `workers-best-practices` -> activated data/IAM owners -> `testing-engineering` |
 | CI workflow change | domain owner for commands/contracts -> `github-actions`; do not claim hosted success without a hosted run |
 | Telemetry/SLO change | application owner for emitted behavior -> `observability-engineering`; add `application-security` when data classification or redaction boundaries change |
+
+For an installed stack without a dedicated skill, use its installed-version
+official documentation and relevant domain/testing owners. The agent delivering
+the task owns that implementation; do not invent a specialist, install a bundle,
+or migrate the stack to fill this table.
 
 Cross-cutting owners are conditional:
 
@@ -183,7 +197,7 @@ behavior.
 
 | Gate | Minimum acceptable observed evidence | Not sufficient |
 |---|---|---|
-| Scope and approval | Accepted outcome/non-goals and explicit implementation state | An idea, planning approval, or inferred consent |
+| Scope and approval | Accepted outcome/non-goals and recorded implementation authorization, including a clear actionable user request | An idea, planning-only approval, or unrelated permission |
 | Contract alignment | Canonical delta plus all producers/consumers updated and a relevant contract/schema check | Matching TypeScript names with divergent runtime semantics |
 | Static/build | Narrow project script covering touched code | Unrelated project-wide success or an unexecuted command |
 | Data | Generated/selected migration or local schema path inspected and the affected invariant/query observed | Compilation or blindly applying production changes |

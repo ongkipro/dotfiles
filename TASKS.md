@@ -16,6 +16,9 @@ Only the dependency edge is human-authored; state is derived.
 Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 `git grep TASK-NNN docs/archive` finds any contract).
 
+- TASK-121: [Development-kit runbook consistency and browser verification](docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT_FOLLOWUP.md).
+- TASK-120: [Development-kit routing and evaluation refinement](docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT.md).
+
 ## Pending
 
 ### TASK-119: Executed cross-layer evaluation

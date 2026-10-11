@@ -1,0 +1,26 @@
+{
+  "mode": "decision-only",
+  "task": "Use the supplied development-kit and full-stack guidance to route each synthetic request. Do not execute the simulated application work. Distinguish authorized actions, missing decisions and checks that would be required.",
+  "cases": [
+    {
+      "id": "authorized-feature-with-requirement-gap",
+      "context": "An existing Next.js admin has accepted tokens, a screen contract, repository-owned PRD/TASKS and existing tests. The requested CSV export fields and staff-only permission are specified; the new acceptance criteria have not yet been recorded. No schema or deployment change is needed.",
+      "request": "Implementasikan ekspor CSV untuk daftar pesanan ini: order ID, tanggal, total. Staff boleh export sesuai tenant-nya. Lengkapi task yang perlu dan lanjutkan sampai terverifikasi; jangan deploy atau commit."
+    },
+    {
+      "id": "accepted-admin-maintenance",
+      "context": "The existing admin has accepted UX and tokens. A recent local change makes a selected filter disappear after reload. The URL-state contract already specifies persistence and contains a regression test. No product policy or visual direction changes.",
+      "request": "Perbaiki filter yang hilang setelah reload. Pertahankan tampilan dan perilaku yang sudah disepakati, lalu validasi di browser."
+    },
+    {
+      "id": "installed-stack-without-owner",
+      "context": "The repository is a Flask/SQLite admin with existing package versions, routes, server-side sessions, installed tests and a local browser runner. None of the available portable skills is a Flask or SQLite specialist. A shared read/write lookup omits the server-resolved tenant scope. Accepted requirements forbid foreign-tenant reads/writes.",
+      "request": "Perbaiki isolasi tenant pada lookup ini sampai teruji. Tetap gunakan stack repo; jangan pindah database, install paket, deploy, atau buka kredensial."
+    },
+    {
+      "id": "research-only-boundary",
+      "context": "An existing app has a requested new billing workflow. The product policy is unsettled. The user authorizes only a proposal and explicitly forbids source edits, installation, external account actions and Git writes.",
+      "request": "Riset dulu pilihan alurnya dan rekomendasikan langkahnya. Jangan implementasi atau ubah file aplikasi sebelum saya setuju."
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "reviewer": "development-kit-maintainer",
+  "reviewType": "semantic inspection of independent decision-only worker outputs",
+  "trialCases": 4,
+  "trials": {
+    "baseline": {
+      "artifact": "baseline-responses.json",
+      "sha256": "8ce62c139568463fba6ebf7f55cf3b957ec3fab065627e694274c69c7847ef65",
+      "decisionOnly": true,
+      "caseCount": 4
+    },
+    "candidate": {
+      "artifact": "candidate-responses.json",
+      "sha256": "345bc625dcd27b26a27dedae76c6ccf38da8250d0d67645e56cc90effa498bf9",
+      "decisionOnly": true,
+      "caseCount": 4
+    }
+  },
+  "results": [
+    {
+      "id": "authorized-maintenance",
+      "baseline": "ACCEPTABLE",
+      "candidate": "ACCEPTABLE",
+      "observed": "Both preserve accepted requirements, local-only repair, persistence proof, and no deploy/commit; neither requires renewed planning approval."
+    },
+    {
+      "id": "accepted-ui-maintenance",
+      "baseline": "ACCEPTABLE",
+      "candidate": "ACCEPTABLE",
+      "observed": "Both reuse accepted visual direction and require real narrow/wide browser evidence. Candidate keeps UX/visual reactivation conditional on a contract or direction change."
+    },
+    {
+      "id": "unowned-installed-stack",
+      "baseline": "ACCEPTABLE",
+      "candidate": "ACCEPTABLE",
+      "observed": "Both preserve SvelteKit and use actual installed documentation/domain owners without inventing a skill or migrating the stack."
+    },
+    {
+      "id": "bounded-upstream-adoption",
+      "baseline": "ACCEPTABLE",
+      "candidate": "ACCEPTABLE",
+      "observed": "Both select a bounded existing-owner adaptation and exclude hooks/model settings/installers. Candidate explicitly records revision/license and makes native skill-creator conditional on availability."
+    }
+  ],
+  "interpretation": "No measured routing uplift: both versions produced acceptable decisions in these four synthetic cases. The deterministic reference-edit regression separately demonstrates and verifies the stale-evidence fix. New wording resolves routing ambiguity; it does not establish higher model capability.",
+  "limits": [
+    "One worker per version, four synthetic cases; no reliability estimate.",
+    "Trials did not run applications, browsers, upstream installers, or model providers.",
+    "Serving model ID was not exposed.",
+    "Source hashes bind trial instructions and inputs; runtime source-link checks do not prove live inference or automatic skill activation."
+  ]
+}
