@@ -59,10 +59,12 @@ def main():
             selected.append({'path':rel,'scope':item.get('scope'),'bytes':item.get('bytes')})
         append_jsonl(telemetry/'events.jsonl',{'schemaVersion':1,'time':now(),'project':result.get('project'),'selected':selected})
         if a.json: print(json.dumps(result,indent=2))
-        elif not result.get('needed'): print('ai-memory-access: NONE')
         else:
-            print(f"ai-memory-access: {len(result.get('files',[]))} routed file(s); {len(selected)} durable memory use(s) recorded")
-            for item in result.get('files',[]): print(f"  {item.get('scope'):9} {item.get('path')}")
+            if not result.get('needed'): print('ai-memory-routing: no files selected for this request.')
+            else:
+                print(f"ai-memory-routing: {len(result.get('files',[]))} file(s) selected; {len(selected)} durable memory use(s) recorded")
+                for item in result.get('files',[]): print(f"  {item.get('scope'):9} {item.get('path')}")
+            print('Context selection is advisory; it does not grant or deny memory access.')
         return 0
     except (OSError,ValueError,json.JSONDecodeError) as e:
         print(f'ai-memory-access: ERROR: {e}',file=sys.stderr); return 1

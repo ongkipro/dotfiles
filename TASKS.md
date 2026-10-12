@@ -1,6 +1,6 @@
 # Tasks — dotfiles
 
-Updated: 2026-09-18
+Updated: 2026-10-12
 
 The sole executable queue. Completed contracts live under `docs/archive/`;
 repository tests and runtime evidence outrank prose.
@@ -18,6 +18,22 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 
 - TASK-121: [Development-kit runbook consistency and browser verification](docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT_FOLLOWUP.md).
 - TASK-120: [Development-kit routing and evaluation refinement](docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT.md).
+
+### TASK-122: Clarify advisory memory-routing output
+
+- **Requirement:** REQ-MEMORY-ROUTING-CLARITY (owner requests removing the ambiguity that made an empty routing result look like disabled memory access).
+- **Risk Level:** R1.
+- **Job:** implementation.
+- **Capability:** continuous-learning, codebase-navigation.
+- **Allowed Paths:** `TASKS.md`, `bin/ai-memory-access`, `bin/ai-memory-access-test`, `bin/memory-usage-hook-test`, `config/ai/README.md`, `.delivery/**`.
+- **Canonical Contract Owners:** advisory routing message -> ai-memory-access.
+- **Accepted Invariants:** human-readable output identifies context selection and makes no permission decision; JSON, selection, budgets and private telemetry remain unchanged; tests use synthetic memory fixtures.
+- **Regression Checks:** ai-memory-access-test; memory-usage-hook-test; shell/Python syntax; whitespace and task boundary checks.
+- **Runtime Evidence:** `RUN-20261012T032304Z-e7606641`; CLI and real UserPromptSubmit hook passed with synthetic fixtures, and a separate agent review passed. The regression rejected the original output before the fix. That implementation audit was invalidated by a concurrent change to unrelated pre-existing Adsbookcms memory; the subsequent verification-only run in `.delivery/` owns final checks against the current source.
+- **Non-Scope:** memory contents, memory deletion, router matching changes, hook wiring/trust, credentials, commit/push.
+- **Verification:** `./bin/ai-memory-access-test` and `./bin/memory-usage-hook-test`.
+- **Reopen Conditions:** a routing result again implies denied access or an output change breaks JSON/telemetry.
+- **Escalation Conditions:** the fix requires access-control, runtime wiring or unrelated user changes.
 
 ## Pending
 

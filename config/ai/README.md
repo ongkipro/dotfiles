@@ -56,6 +56,21 @@ Claude's `$HOME` project entry links to a device-local, read-only copy of
 unrelated project facts into tracked dotfiles. Project memory is selected on
 demand by `ai-memory-access`; it is never exposed as one ambient directory.
 
+The prompt hook reports advisory context selection under `ai-memory-routing`.
+For an empty selection it prints:
+
+```text
+ai-memory-routing: no files selected for this request.
+Context selection is advisory; it does not grant or deny memory access.
+```
+
+This describes the current request's routing result only. It does not establish
+that memory is disabled or absent. Explicit memory inspection or maintenance
+requests follow their own authorized scope and any separate access restrictions.
+The JSON interface and private usage telemetry are unchanged. Verify the CLI
+and real prompt hook with `bin/ai-memory-access-test` and
+`bin/memory-usage-hook-test`; both use synthetic memory fixtures.
+
 Owned skills live only in `~/dotfiles/skills/local/`. `skill-update` reconciles
 the runtime-native discovery adapters, including OMP's
 `~/.omp/agent/skills`; Codex keeps its built-in `.system` skills alongside

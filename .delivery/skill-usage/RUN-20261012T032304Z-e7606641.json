@@ -1,0 +1,20 @@
+{
+  "capability": "continuous-learning",
+  "head": "ae160a4a22f330bdb54aecf8ac803e57f2f4d396",
+  "job": "implementation",
+  "model": "GPT-6 (system-declared family; exact variant unavailable)",
+  "provider": "openai",
+  "reasoningEffort": "unavailable: configured reasoning effort not exposed",
+  "recordedAt": "2026-10-12T03:28:39Z",
+  "result": "FAIL",
+  "risk": "R1",
+  "runId": "RUN-20261012T032304Z-e7606641",
+  "schemaVersion": 1,
+  "skillsUsed": [
+    "codebase-navigation",
+    "continuous-learning"
+  ],
+  "usageHash": "d3f3252c9463461dd2124186290cdcbf2fbc8eb89aefba1a0880e3ba8b187f12",
+  "verificationFailed": true,
+  "worker": "codex-root"
+}

@@ -21,4 +21,34 @@ python3 - "$TEL/meta.json" "$TEL/events.jsonl" <<'PY'
 import json,sys
 m=json.load(open(sys.argv[1])); e=json.loads(open(sys.argv[2]).read()); assert m['schemaVersion']==1; assert m['privacy']=='selected durable-memory paths only; query text, query hashes, and memory content are not stored'; assert e['selected'][0]['path']=='config/ai/memory/preferences.md'; assert 'queryHash' not in e; assert 'query' not in e
 PY
+
+# Human-readable routing is context advice, never an access-control decision.
+python3 "$ROOT/bin/ai-memory-access" 'my preferred tone' --dotfiles "$DOT" --telemetry-dir "$TEL" >"$TMP/selected.txt"
+python3 - "$TMP/selected.txt" <<'PY'
+from pathlib import Path
+import sys
+lines = Path(sys.argv[1]).read_text().splitlines()
+assert lines[0] == 'ai-memory-routing: 1 file(s) selected; 1 durable memory use(s) recorded', lines
+assert lines[-1] == 'Context selection is advisory; it does not grant or deny memory access.', lines
+PY
+
+cat > "$DOT/bin/ai-memory-route" <<'PY'
+#!/usr/bin/env python3
+import json
+print(json.dumps({'needed': False, 'project': None, 'files': [], 'budget': {'maxFiles': 3, 'maxBytes': 12000, 'usedBytes': 0}, 'reason': ['no match']}))
+PY
+python3 "$ROOT/bin/ai-memory-access" 'unrelated request' --dotfiles "$DOT" --telemetry-dir "$TEL" >"$TMP/empty.txt"
+python3 "$ROOT/bin/ai-memory-access" 'unrelated request' --dotfiles "$DOT" --telemetry-dir "$TEL" --json >"$TMP/empty.json"
+python3 - "$TMP/empty.txt" "$TMP/empty.json" <<'PY'
+from pathlib import Path
+import json, sys
+lines = Path(sys.argv[1]).read_text().splitlines()
+assert lines == [
+    'ai-memory-routing: no files selected for this request.',
+    'Context selection is advisory; it does not grant or deny memory access.',
+], lines
+result = json.loads(Path(sys.argv[2]).read_text())
+assert result['needed'] is False and result['files'] == [], result
+assert result['budget']['usedBytes'] == 0, result
+PY
 echo 'ai-memory-access-test: PASS'

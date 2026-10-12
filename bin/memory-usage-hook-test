@@ -23,6 +23,15 @@ trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/home/.local/bin"
 ln -s "$DOT/bin/ai-memory-access" "$TMP/home/.local/bin/ai-memory-access"
 
+# Route only synthetic context; the test must not consult personal memory.
+fixture="$TMP/dotfiles"
+mkdir -p "$fixture/bin" "$fixture/config/ai/memory"
+cp "$DOT/bin/ai-memory-route" "$fixture/bin/ai-memory-route"
+printf 'Synthetic preference fixture.\n' > "$fixture/config/ai/memory/preferences.md"
+cat > "$fixture/config/ai/memory-router.json" <<'JSON'
+{"schemaVersion":1,"defaults":{"maxFiles":3,"maxBytes":12000},"shared":[{"path":"config/ai/memory/preferences.md","priority":40,"triggers":["preferences"]}],"projects":{},"lessons":[]}
+JSON
+
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
 # Feed a prompt and capture stdout. HOME injects the exact ai-memory-access under
@@ -30,6 +39,7 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 feed() {
   printf '%s' "$1" | \
     HOME="$TMP/home" \
+    DOTFILES_DIR="$fixture" \
     AI_MEMORY_USAGE_DIR="$TMP/telemetry" \
     "$HOOK" 2>"$TMP/err"
 }
@@ -97,8 +107,15 @@ feed "$(payload '--telemetry-dir=/tmp/should-not-exist')" >/dev/null
 # --- routing still works, including for a prompt that starts with a dash -----
 out="$(feed "$(payload 'what are my preferences')")"
 case "$out" in *preferences.md*) ;; *) fail "an ordinary prompt no longer routes: $out" ;; esac
+case "$out" in *'ai-memory-routing: 1 file(s) selected;'*) ;; *) fail "routing output has no explicit selection status: $out" ;; esac
+case "$out" in *'Context selection is advisory; it does not grant or deny memory access.'*) ;; *) fail "routing output omits its permission boundary: $out" ;; esac
 out="$(feed "$(payload '-x what are my preferences')")"
 case "$out" in *preferences.md*) ;; *) fail "a dash-prefixed prompt lost routing: $out" ;; esac
+
+# An empty selection must remain advisory when injected into a model turn.
+out="$(feed "$(payload 'completely unrelated arithmetic')")"
+expected=$'ai-memory-routing: no files selected for this request.\nContext selection is advisory; it does not grant or deny memory access.'
+[ "$out" = "$expected" ] || fail "empty routing is ambiguous: $out"
 
 # --- telemetry lands in the sandbox and records no prompt text ---------------
 events="$TMP/telemetry/events.jsonl"
@@ -112,7 +129,7 @@ grep -qi 'what are my preferences' "$events" \
 # would be testing the test harness rather than the hook.
 python3 -c 'import json,sys;sys.stdout.write(json.dumps({"prompt":"preference "*20000}))' > "$TMP/big.json"
 start=$(date +%s)
-HOME="$TMP/home" AI_MEMORY_USAGE_DIR="$TMP/telemetry" \
+HOME="$TMP/home" DOTFILES_DIR="$fixture" AI_MEMORY_USAGE_DIR="$TMP/telemetry" \
   "$HOOK" < "$TMP/big.json" >/dev/null 2>&1 \
   || fail "hook failed on a very large prompt"
 [ $(( $(date +%s) - start )) -le 15 ] || fail "hook took too long on a large prompt"
