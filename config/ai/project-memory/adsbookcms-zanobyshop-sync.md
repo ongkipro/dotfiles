@@ -19,11 +19,11 @@ that could fix it for every install.
 
 **How to apply:**
 
-- Down: `bash scripts/sync-from-product.sh` in `~/Projects/zanobyshop`, then
-  `npm run build`, `wrangler d1 migrations apply <db> --remote`, `wrangler deploy`.
-  The store shares no git history with the product, so a sync **replaces** the
-  tree; `wrangler.jsonc`, `design-tokens.md`, `public/` and the store's own
-  scripts are what it keeps.
+- Down: `bash scripts/sync-from-product.sh` in `~/Projects/zanobyshop` — since
+  2026-10-12 an ordinary `git merge product/main` (history joined at product
+  `d19231b`) followed by the palette script; then check/test/build, commit, and
+  push `main`, which deploys. The old tree replace is retired: it would discard
+  the store's own changes the merge base now accounts for.
 - The product is monochrome deliberately — it installs for any merchant.
   zanobyshop's deep blue lives in `scripts/apply-store-palette.py`, which the
   sync re-runs. Without it a sync reverts the store to black and white.
