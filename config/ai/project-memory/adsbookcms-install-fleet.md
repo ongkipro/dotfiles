@@ -28,7 +28,9 @@ Local directories, all clones of the product, none obvious from its name:
 - `~/Projects/beranda-tani` — install `beranda.click` (Petani Sejahtera theme), repo `ongkipro/beranda-tani`, branch `install/beranda-tani`, Worker `beranda-tani`; deployed manually with `npm run deploy`. Its breadcrumb and footer are install-themed, so product changes there conflict.
 - `~/Projects/revenleather` — install `page.revenleather.com`, merges on `main`.
 
-That is eight installs. Roll a release out to every one of them; list
+- `~/Projects/klikinaja` — install for `klikinaja.shop`, repo `ongkipro/klikinaja`, branch `install/klikinaja`, Worker `klikinaja`, D1 `klikinaja-d1`, KV `klikinaja-SESSION`, R2 `klikinaja-assets`; created 2026-10-13 from product 1.5.4 with shared history. The domain was not registered at creation (RDAP 404), so it runs on `klikinaja.ongki.workers.dev` until attached. Its `/install` token is `KLIKINAJA_INSTALL_TOKEN` in secrets-env.
+
+That is nine installs. Roll a release out to every one of them; list
 `~/Projects/*/wrangler.jsonc` rather than trusting a remembered count.
 
 In every install clone `origin` is the store and `product` is
