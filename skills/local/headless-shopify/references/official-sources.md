@@ -1,67 +1,40 @@
-# Official sources and freshness
+# Official Shopify Headless Sources & API Snapshot
 
-Use the primary Shopify source that governs the capability. Community reports
-are useful for finding edge cases, but never establish entitlement, a limit, or
-a security claim from them alone.
+Last verified against `shopify.dev`, `@shopify/hydrogen@2026.10.1`, and `Shopify/Shopify-AI-Toolkit` (`v1.17.1`) on `2026-10-14`.
 
-| Need | First source |
-|---|---|
-| Headless channel, credentials, routes | Shopify Headless / Bring your own stack docs |
-| Catalog, Cart, checkout URL, tokens | Storefront API reference and Cart guides |
-| Customer login/accounts | Customer Account API docs |
-| API lifecycle and limits | Shopify API versioning and usage limits |
-| Cache/data loading | Hydrogen caching and performance docs, or runtime docs for custom stack |
-| Consent | Customer Privacy API docs |
-| Attribution/pixels | Web Pixels API and Shopify analytics docs |
-| Checkout capability | Checkout technologies and target-specific extension docs |
-| Platform changes | Shopify developer changelog |
-| Live schema & docs introspection | Shopify AI Toolkit (plugin/skill scripts) or the separate Dev MCP server — see below |
+## 1. Current Release & API Version Matrix (2026-10-14)
 
-At the time this skill was refreshed, Shopify documents quarterly stable API
-versions with at least 12 months of support. Do not hard-code version names,
-quotas, plan eligibility, release dates, or deprecated behavior from this file;
-retrieve the current official page or inspect the live schema with the Shopify
-AI Toolkit or Dev MCP server before taking action.
+| Surface | Current Version | Key Architectural Facts |
+| --- | --- | --- |
+| `@shopify/hydrogen` | `2026.10.1` (`latest` on npm) / `2026.4.7` (Legacy Hydrogen) | `2026.10+` is a framework-agnostic headless toolkit (`@shopify/hydrogen`, `./react`, `./vue`, `./customer-account`, `./vite`, `./ts-plugin`, `./skills/*`) that plugs into React Router 7, Next.js App Router, Astro, Nuxt, SvelteKit, or SolidStart. |
+| Storefront GraphQL API | `2026-10` | Adds `Cart.discountApplications`, `CartDeliveryGroup.discountAllocations`, `CartDiscountAllocation.sourceDiscountApplication`, and `lineLevelOnly` (default `true`) on cart line `discountAllocations` (replacing deprecated `Cart.discountAllocations`). |
+| Customer Account GraphQL API | `2026-10` | OAuth 2.0 + PKCE. Deprecates/omits `CustomerAddress.territoryCode` and `CustomerAddressInput.territoryCode` in favor of two-letter uppercase `countryCode: CountryCode`; removes `Order.shippingTitle` (use `Order.shippingLine.title`); removes `Customer.lastIncompleteCheckout` and `Checkout` types. |
+| Checkout & Customer Account UI Extensions | `2026-04+` (`@shopify/ui-extensions`) | Uses Preact (`@shopify/ui-extensions/preact`) and `<s-*>` Polaris web components (`<s-banner>`, `<s-stack>`, `<s-button>`, `<s-text>`). React and legacy `2025-07` components are deprecated. |
 
-Orientation snapshot, accessed 2026-10-02 (re-check before acting):
-Shopify's latest stable API version is `2026-10`, with each version supported
-at least 12 months (https://shopify.dev/docs/api/usage/versioning). The newest
-stable Hydrogen, `2026.4.6`, still pins Storefront and Customer Account API
-`2026-04` (https://github.com/Shopify/hydrogen/blob/main/packages/hydrogen/CHANGELOG.md).
-A custom stack may pin newer; a Hydrogen app follows its framework release.
+## 2. Primary `shopify.dev` Documentation URLs
 
-Hydrogen `2026.4.x` makes a same-origin Storefront API proxy mandatory and
-routes consent through it. Shopify stopped setting `_shopify_y`/`_shopify_s`
-(https://shopify.dev/changelog/posts/tracking-cookie-deprecation-hydrogen).
-For a non-Hydrogen headless stack, the changelog notes for
-`@shopify/hydrogen-react` say visitor analytics and session attribution need
-`/api/{version}/graphql.json` proxied on the storefront domain, with
-`sameDomainForStorefrontApi: true`. Confirm this against the custom-storefront
-dev docs before designing analytics.
+- **Headless Commerce Overview & Decision Guide**: `https://shopify.dev/docs/storefronts/headless/overview`
+- **Hydrogen `2026-10` Toolkit Docs**: `https://shopify.dev/docs/storefronts/hydrogen`
+- **Hydrogen `2026-10` Request Handlers & Multi-Framework Wiring**: `https://shopify.dev/docs/storefronts/hydrogen/request-handlers`
+- **Migrate from Hydrogen `2026-04` or Earlier to `2026-10`**: `https://shopify.dev/docs/storefronts/hydrogen/migrate`
+- **Hydrogen API Reference (`latest`)**: `https://shopify.dev/docs/api/hydrogen/latest`
+- **Storefront Standard Events & Actions (`window.Shopify.actions`)**: `https://shopify.dev/docs/api/storefront-events-and-actions`
+- **Bring Your Own Stack (Storefront API Architecture)**: `https://shopify.dev/docs/storefronts/headless/bring-your-own-stack`
+- **Storefront Web Components (`<shopify-account>`, etc.)**: `https://shopify.dev/docs/api/storefront-web-components`
+- **Dynamic Content with Metaobjects (Online Store 2.0 Section CMS)**: `https://shopify.dev/docs/storefronts/headless/hydrogen/cookbook/metaobjects`
+- **Storefront GraphQL API Reference**: `https://shopify.dev/docs/api/storefront/latest`
+- **Customer Account GraphQL API Reference**: `https://shopify.dev/docs/api/customer/latest`
+- **Custom Data (Metafields & Metaobjects)**: `https://shopify.dev/docs/apps/build/custom-data`
+- **Official GitHub Repositories**:
+  - `https://github.com/Shopify/hydrogen` (`main` for `2026.10+`, `2026-04` for Classic; includes `templates/react-router` and `examples/{hydrogen,nextjs,astro,nuxt,sveltekit,solidstart}`)
+  - `https://github.com/Shopify/hydrogen-redirect-theme` (Online Store Liquid redirect theme preserving `/checkpoint` bot protection, `gift_card.liquid`, and B2B `company_location_id` handoff)
+  - `https://github.com/Shopify/mock-shop-starter` (`https://mock.shop/llms.txt` — 100+ themed demo stores)
+  - `https://github.com/vercel/shop` (Next.js 16+ App Router + `@shopify/hydrogen` reference storefront)
 
-## AI Tooling and Schema Verification
+## 3. `@shopify/dev-mcp` Retrieval Protocol
 
-[Shopify AI Toolkit](https://github.com/Shopify/Shopify-AI-Toolkit) is now a
-plugin/agent skill whose bundled scripts (`scripts/search_docs.mjs`,
-`scripts/validate.mjs`) search docs and validate code. As of 2026-10-02 it
-ships one consolidated `shopify` skill plus `ucp`; the earlier per-domain
-skills are deprecated. The
-[Dev MCP server](https://shopify.dev/docs/apps/build/devmcp)
-(`npx -y @shopify/dev-mcp@latest`) is a separate, still-documented install option; do not
-call the toolkit itself "the MCP".
+When the `shopify` MCP server is available:
 
-- Telemetry is on by default: the scripts send the query, search response,
-  the validated code, and (when passed) the verbatim user prompt to
-  `shopify.dev/mcp/usage`. Opt out with `OPT_OUT_INSTRUMENTATION=true` or an
-  empty `~/.config/shopify-ai-toolkit/opt-out` file (the file also covers
-  hosts that do not inherit the shell environment). The `shopify` skill also
-  registers a `PostToolUse` telemetry hook in its frontmatter. Never send secrets,
-  customer data, or private code through them without that decision.
-- When available and approved, validate Storefront/Admin GraphQL against the
-  pinned API version, including deprecated fields, argument constraints, and
-  `userErrors` payloads, rather than inferring from memory.
-
-Research community GitHub issues, Shopify Community posts, and production
-maintainer discussions only after official documentation establishes the
-platform boundary. Record the source as anecdotal and convert it into a
-reproducible project probe before changing architecture or declaring a defect.
+1. Call `learn_shopify_api` with `api: "hydrogen"`, `"storefront-graphql"`, `"customer"`, `"custom-data"`, `"polaris-checkout-extensions"`, or `"polaris-customer-account-extensions"`.
+2. Reuse the returned `conversationId` for `search_docs_chunks`, `fetch_full_docs`, and `introspect_graphql_schema`.
+3. Run `validate_graphql_codeblocks` (and `npx hydrogen gql check --fail-on-warn` in Hydrogen `2026.10+` projects) on every GraphQL operation and `validate_components_codeblocks` on Checkout/Customer Account UI extensions.

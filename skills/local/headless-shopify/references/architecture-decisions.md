@@ -1,55 +1,45 @@
-# Headless architecture decisions
+# Headless Architecture Decisions & Platform Selection
 
-Use this reference to decide the shape before creating routes, GraphQL clients,
-or a migration plan. Mark all unverified claims as assumptions.
+Use this reference to decide the architecture shape before creating routes, GraphQL clients, or a migration plan. Mark all unverified claims as assumptions.
 
-## Suitability gate
+## 1. Suitability Gate & Shopify Surface Selection
 
-Headless needs a verified business outcome that Shopify’s theme/app model cannot
-meet with acceptable cost and risk. Acceptable drivers include multi-surface
-commerce, a truly custom transactional experience, a hard integration boundary,
-or delivery on a non-web client. It also needs an owner for runtime, releases,
-security, monitoring, SEO, performance, and API upgrades.
+Headless requires a verified business outcome that Shopify's Online Store 2.0 theme + app model cannot meet with acceptable cost and operational risk.
 
-Reject or defer headless when the need is mostly an editable store, standard
-catalog/PDP/cart behavior, a landing page, or cosmetic redesign. Prefer a
-theme, app, Checkout Extension, or Storefront Web Components for an existing
-site when that closes the gap.
+| Option | When It Fits Best | What It Owns |
+| --- | --- | --- |
+| **Online Store 2.0 Liquid Theme** (`sections/*.liquid`, `blocks/*.liquid`, `templates/*.json`) | Default for merchant-editable storefronts, standard catalog/PDP/cart flows, and maximum third-party app compatibility (`storefront-development`). | Shopify hosts routing, rendering, CDN, Theme Editor, App Blocks, and Checkout. |
+| **Storefront Web Components** (`https://shopify.dev/docs/api/storefront-web-components`, `<shopify-account>`, embedded buy surfaces) | Adding Shopify commerce or account widgets into an existing marketing/editorial site (Astro, WordPress, static docs) without rebuilding a full storefront. | Host site owns pages; Shopify web components + Storefront API handle embedded product/cart/account widgets and hand off to Shopify Checkout. |
+| **Hydrogen `2026.10+` Toolkit** (`@shopify/hydrogen@2026.10.1`) | Full custom storefront inside **React Router 7 on Oxygen**, **Next.js App Router on Vercel**, **Astro**, **Nuxt**, **SvelteKit**, or **SolidStart** (`hydrogen-development`). | Framework owns routing/rendering/UI; Hydrogen owns Storefront & Customer Account clients, pre-router `handleShopifyRoutes`, post-404 `handleShopifyRedirects`, observable stores, and Standard Actions (`window.Shopify.actions`). |
+| **Bring Your Own Stack (Raw Storefront API `2026-10`)** | Native mobile apps (iOS/Android), game engines, POS/kiosks, or non-JS server stacks where `@shopify/hydrogen` cannot run. | Custom client/server owns all GraphQL queries, cart token persistence, buyer IP forwarding, rate-limit backoff, and `checkoutUrl` handoff. |
 
-## Architecture record
+## 2. Architecture Decision Matrix
 
 Capture these decisions before implementation:
 
-| Concern | Decision required |
-|---|---|
-| Rendering | SSG, SSR, streaming, client enhancement, and fallback HTML path |
-| Runtime | Hosting, edge/server capabilities, region, secrets, background work |
-| Commerce authority | Shopify owner for catalog, price, market, cart, checkout, order |
-| Content/search | Shopify-native versus external source, synchronization and outage behavior |
-| Identity | Guest/account journeys, Customer Account API, session ownership, return URL |
-| Markets | Country, locale, currency, duties, B2B/company context, cart invalidation |
-| Integrations | Trigger, auth boundary, idempotency, retries, observability, failure UX |
-| Operations | Version update cadence, credential rotation, webhook reconciliation, rollback |
+| Concern | Decision Required |
+| --- | --- |
+| **Rendering & Framework** | React Router 7 (Oxygen), Next.js App Router, Astro, Nuxt, or SvelteKit; SSR vs streaming vs static; progressive HTML form fallback before JS loads. |
+| **Runtime & Edge** | Oxygen Worker (`@shopify/mini-oxygen@4.2.2`), Vercel/Cloudflare/Node; `caches.open('hydrogen')` vs CDN cache; `waitUntil` background work. |
+| **Commerce Authority** | Shopify is the sole authority for catalog, localized money, inventory, cart (`Cart`), discounts (`discountApplications`), checkout (`checkoutUrl`), and orders. |
+| **Dynamic Content & Theme 2.0 Parity** | Native **Shopify Metaobject Section CMS** (`Route -> Sections -> References`) vs external CMS; `$app:` reserved custom data in `shopify.app.toml` vs merchant-owned namespaces. |
+| **Identity & Sessions** | Guest vs Customer Account API (`2026-10`, OAuth 2.0 + PKCE), `WritableCustomerSessionManager` (`HttpOnly; Secure; SameSite=Lax`), automatic `cartBuyerIdentityUpdate` sync, `requestContext.applyResponseHeaders` privacy guard. |
+| **Markets & B2B** | Subfolder (`/fr-ca`), domain, or cookie market resolution; `@inContext(country, language)` propagation; B2B `purchasingCompany`, quantity rules, and volume price breaks. |
+| **Checkout & Account Extensions** | Checkout UI Extensions and Customer Account UI Extensions (`@shopify/ui-extensions` `2026-04+` Preact + `<s-*>` Polaris web components) replacing legacy ScriptTag/checkout.liquid hacks. |
 
-## Authority matrix
+## 3. Authority & Custom Data Boundaries (`Shopify-AI-Toolkit` Custom Data Rules)
 
-No client state may become a second authority. State the owner and freshness
-rule for each: product publication, variant availability, money, cart, buyer
-identity, delivery eligibility, discount, checkout target, payment result,
-order confirmation, consent, attribution, and content.
+No client store or external CMS may become a second authority for price, inventory, discounts, or order state.
 
-When a CMS or search provider shadows Shopify data, name the canonical source,
-sync trigger, deletion behavior, stale-data ceiling, and degraded experience.
-If that cannot be stated, query Shopify at request time or remove the mirror.
+- **App-Owned vs Merchant-Owned Custom Data (`custom-data`)**:
+  - When building a companion Shopify app or custom storefront integration, declare **app-reserved definitions** in `shopify.app.toml` (`[product.metafields.app-reserved.<key>]`, `[metaobjects.app-reserved.<type>]`) using the `$app:` prefix (`type = "$app:<type>"`). App-reserved schemas deploy atomically with `shopify app deploy`, cannot be mutated by other apps, survive app uninstallation, and are readable inside Checkout UI Extensions via `useAppMetafields()` with zero network latency.
+  - Use `metafieldsSet` (up to 25 metafields per atomic call; no `customer_id`/`product_id` query filter needed) and `metaobjectUpsert` for values.
+- **CMS / Search Mirror Discipline**:
+  - If an external search or CMS indexes Shopify products, state the webhook sync trigger (`products/update`, `inventory_levels/update`), stale-data ceiling, and request-time Shopify verification before checkout.
 
-## Migration shape
+## 4. Reversible Migration & Coexistence Shape
 
-Inventory existing URLs, templates, scripts/pixels, apps, redirects, feeds,
-merchant editing workflows, theme dependencies, fulfillment/tax/shipping
-assumptions, analytics, account behavior, and checkout extensions. Use a
-reversible rollout: isolate the new surface, preserve URL/canonical rules, run
-representative purchase and attribution probes, monitor, then cut over.
-
-Rollback means restoring the previous buyer route and measurement path without
-invalidating carts, losing order visibility, or serving duplicate content. It
-is not merely reverting frontend code after traffic has moved.
+- Inventory existing Liquid URLs, `?variant=<id>` deep links, `filter.v.*` collection URLs, `/cart/{id}:{qty}` permalinks, `/cart.js` AJAX consumers, redirects, feeds, pixels, and theme app embeds.
+- In **Hydrogen `2026.10+`**, `handleShopifyRoutes` and `handleShopifyRedirects` natively preserve `?variant=` 302 redirects, `/cart/{id}:{qty}`, `/buy/{id}:{qty}`, `/cart.js`, `/checkout`, and Storefront `urlRedirects`.
+- During phased Liquid-to-Hydrogen traffic splits on the same root domain, cart cookies are shared only for products published to **both** the Online Store and Hydrogen sales channels.
+- Rollback means restoring the previous route and measurement path without invalidating active carts, breaking `checkoutUrl` handoffs, or serving duplicate canonical URLs.

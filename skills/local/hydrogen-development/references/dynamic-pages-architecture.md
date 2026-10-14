@@ -1,91 +1,133 @@
-# Dynamic Pages Architecture in Headless Shopify Hydrogen
+# Hydrogen Dynamic Storefront Pages, Online Store 2.0 Section CMS, and Commerce Architecture
 
-> Reference guide for implementing, structuring, and optimizing dynamic route surfaces
-> in Shopify Hydrogen with React Router v7 on Oxygen.
-
----
-
-## 1. Dynamic Product Listing Pages (PLP — `/collections/$handle` & `/collections/all`)
-
-Dynamic collections form the primary catalog browsing surface in headless commerce.
-
-### A. Route Structure & Fallback Hierarchy
-- **Specific Collection Route**: `app/routes/collections.$handle.jsx` resolves specific collection handles.
-- **Catalog Route**: `app/routes/collections.all.jsx` serves the unified catalog.
-- **Directory Route**: `app/routes/collections._index.jsx` renders all available collections.
-
-### B. Best Practices
-1. **Grid-Proportional Pagination**:
-   Always calculate `pageBy` to match desktop grid columns. For a 4-column desktop layout, paginate at **12 items** (4 columns x 3 rows). This prevents awkward single orphaned product cards on the final row.
-2. **Sort Key Normalization**:
-   Parse URL search params (`sort`, `direction`) and map them strictly to Storefront API `ProductCollectionSortKeys` (`BEST_SELLING`, `PRICE`, `CREATED`, `TITLE`).
-3. **Tier-Differentiated Rendering**:
-   Use collection handles or product metafields (e.g. `custom.tier_kasta`) to conditionally load specialized luxury presentation components (e.g. expansive editorial layouts for haute couture vs high-speed conversion grids for essentials).
-4. **Single-Line Breadcrumbs**:
-   Render clean, uppercase-tracked breadcrumbs (`BERANDA / KOLEKSI / [TITLE]`) to reinforce category hierarchy without visual clutter.
+Use this reference when building or refactoring dynamic pages in Hydrogen (`@shopify/hydrogen@2026.10.1` or Classic Hydrogen `<= 2026.4.x`): home, collection/PLP, product/PDP, search, cart, customer account, and **Online Store 2.0 (Theme 2.0) parity via Metaobject Dynamic Content Sections**.
 
 ---
 
-## 2. Dynamic Product Detail Pages (PDP — `/products/$handle`)
+## 1. Online Store 2.0 (Theme 2.0) Parity in Hydrogen: Metaobjects as Dynamic Section CMS
 
-The PDP is the core conversion surface, requiring robust variant selection, inventory synchronization, and responsive media handling.
+Liquid Online Store 2.0 themes use `templates/*.json` + `sections/*.liquid` + `blocks/*.liquid`. Hydrogen does **not** execute `.liquid` files or read theme `settings_data.json`. Instead, Shopify's official **Dynamic Content with Metaobjects** architecture (`https://shopify.dev/docs/storefronts/headless/hydrogen/cookbook/metaobjects`) gives merchants the same Admin-editable Section & Block authoring experience natively in Shopify Admin (`Content -> Metaobjects`) without an external headless CMS:
 
-### A. Variant Resolution & State
-- **URL Parameter Binding**: Selected variant must reflect in the URL search params so buyers can bookmark or share specific variants.
-- **Synthetic Variant Suppression**: When a product has only 1 variant or generic default options, automatically suppress the non-informative `"Title: Default Title"` variant label from the UI.
-- **Real-Time Availability**: Check `availableForSale` and disable purchase actions when out of stock.
+### Hierarchical Metaobject Schema (`Route -> Sections -> Blocks/References`)
 
-### B. Media & Gallery Architecture
-- **Strict Aspect Ratios**: Use 4:5 vertical portrait aspect ratio (`aspect-[4/5]`) for full-body garment drape and luxury aesthetic.
-- **Mobile Touch-Swipe**: Implement native horizontal swipe containers (`overflow-x-auto snap-x scrollbar-none`) with snap-aligned cards on mobile, synchronized with desktop thumbnail selectors.
-- **Currency Purity**: Format prices in local standard format (e.g. Indonesian Rupiah `Rp 1.680.000` without noisy `,00` decimals).
+```text
+Route (Metaobject: type "route", handle e.g. "route-home", "route-about", "route-stores")
+  ├── title (single_line_text_field)
+  └── sections (list.metaobject_reference)
+        ├── section_hero (heading, subheading, image -> MediaImage, link -> metaobject "link")
+        ├── section_featured_products (heading, body, products -> list.product_reference, with_product_prices)
+        ├── section_featured_collections (heading, collections -> list.collection_reference, with_collection_titles)
+        ├── section_rich_text (heading, body -> rich_text_field)
+        ├── section_stores_grid / section_store_profile
+        └── custom app/marketing sections (comparison table, FAQ accordion, editorial lookbook)
+```
+
+### GraphQL Inline-Fragment Section Dispatcher Pattern
+
+Query the container `route` metaobject and resolve its `sections.references` in a single Storefront API round-trip using inline fragments per section type:
+
+```ts
+// app/sections/Sections.tsx (Hydrogen 2026.10+ with gql())
+import {gql, type InferResult} from '@shopify/hydrogen';
+import {SectionHero, SECTION_HERO_FRAGMENT} from '~/sections/SectionHero';
+import {
+  SectionFeaturedProducts,
+  SECTION_FEATURED_PRODUCTS_FRAGMENT,
+} from '~/sections/SectionFeaturedProducts';
+import {
+  SectionFeaturedCollections,
+  SECTION_FEATURED_COLLECTIONS_FRAGMENT,
+} from '~/sections/SectionFeaturedCollections';
+
+export const SECTIONS_FRAGMENT = gql(
+  `fragment Sections on MetaobjectField {
+    references(first: 10) {
+      nodes {
+        ... on Metaobject {
+          id
+          type
+          ...SectionHero
+          ...SectionFeaturedProducts
+          ...SectionFeaturedCollections
+        }
+      }
+    }
+  }`,
+  [
+    SECTION_HERO_FRAGMENT,
+    SECTION_FEATURED_PRODUCTS_FRAGMENT,
+    SECTION_FEATURED_COLLECTIONS_FRAGMENT,
+  ],
+);
+
+export const ROUTE_CONTENT_QUERY = gql(
+  `query RouteContent($handle: String!, $country: CountryCode, $language: LanguageCode)
+    @inContext(country: $country, language: $language) {
+    route: metaobject(handle: {type: "route", handle: $handle}) {
+      id
+      type
+      title: field(key: "title") { value }
+      sections: field(key: "sections") { ...Sections }
+    }
+  }`,
+  [SECTIONS_FRAGMENT],
+);
+```
+
+Map `section.type` 1:1 to modular React components with a safe `default: return null` fallback so newly created Admin section types never crash production routes.
+
+### Parsing Metaobject Fields & Rich Text AST (`2026.10` vs Classic)
+
+- **Hydrogen `2026.10+`**:
+  - Core `@shopify/hydrogen@2026.10.1` does **not** export `<RichText>`, `parseMetafield`, `<Image>`, or `<Money>`.
+  - Read scalar strings directly from `field.value`, list/JSON fields via `JSON.parse(field.value)`, prices via `formatMoney(money, { locale })`, and images via `URL.searchParams` (`width`, `height`, `crop`) on `MediaImage.image.url`.
+  - Render `rich_text_field` values by parsing `JSON.parse(field.value)` (Shopify's Rich Text AST: `root`, `heading`, `paragraph`, `list`, `list-item`, `link`, `text` with `bold`/`italic`) into semantic HTML elements (`<h2>`–`<h6>`, `<p>`, `<ul>`/`<ol>`, `<a>`).
+- **Classic Hydrogen (`<= 2026.4.x`)**:
+  - Uses `parseMetafield<ParsedMetafields['...']>(node)` (via `parseSection` helper lifting `reference`/`references`), `<RichText data={field.value} />`, `<Image data={...} />`, and `<Money data={...} />`.
+- **Dev/Preview Admin Deep-Link (`<EditRoute>`)**:
+  - On `localhost` / `127.0.0.1` / `*.tryhydrogen.dev` / preview hosts, render an `Edit Route` link pointing to `https://admin.shopify.com/store/${storeSubdomain}/content/entries/route/${route.id.split('/').pop()}` so editors can jump straight from the Hydrogen page to the exact Metaobject entry in Shopify Admin.
+- **Caching Strategy for Metaobject Routes**:
+  - Use `Cache.none()` in development/preview so Admin edits appear immediately on refresh; use `Cache.short()` or `Cache.custom({ maxAge: 60, staleWhileRevalidate: 600 })` in production.
 
 ---
 
-## 3. Dynamic Storefront CMS Pages (`/pages/$handle`)
+## 2. Dynamic Route Matrix & Data-Loading Contracts
 
-Storefronts need both high-touch tailored brand pages and generic merchant CMS pages.
+### Home & Landing Pages (`_index.tsx`, `pages.$handle.tsx`)
 
-### A. Route Precedence Pattern
-1. **High-Touch Specific Routes**: Create explicit files for critical brand pages (e.g. `pages.tentang-kami.jsx`, `pages.layanan-seragam.jsx`, `pages.fasilitas-store.jsx`, `pages.lokasi-toko.jsx`).
-2. **Generic Dynamic Fallback**: `app/routes/pages.$handle.jsx` dynamically queries `page(handle: $handle)` from the Storefront API. Any page created by the merchant in Shopify Admin (**Online Store $\rightarrow$ Pages**) will automatically render with consistent luxury prose styling without deploying code.
+- **Critical (awaited)**: Above-the-fold hero (`route-home` metaobject or featured collection) and primary merchandised product rail.
+- **Non-critical (streamed promise)**: Below-the-fold recommendations or editorial blocks, wrapped in `<Suspense>` + `<Await>` with `.catch(() => null)` so a secondary query failure never 500s the page.
+- **LCP image discipline**: The first hero or featured image must render with `loading="eager"`, `fetchPriority="high"`, explicit `width`/`height`, and responsive `srcset`/`sizes`.
 
----
+### Collection / PLP (`collections.$handle.tsx`) & Search (`search.tsx`)
 
-## 4. Dynamic Cultural Journal & Blogs (`/blogs/$blogHandle/$articleHandle`)
+- **URL state owns filters, sort, and pagination**:
+  - In **Hydrogen `2026.10+`**, parse the request URL with `parseCollectionParams(request.url)` (`filter.v.price.gte`, `filter.v.price.lte`, `filter.v.availability`, `filter.p.m.*`, `sort_by`, `cursor`, `direction`) and pass `filters`, `sortKey`, `reverse`, and pagination variables into `storefrontClient.graphql()`. Wrap the route in `<CollectionProvider data={collectionData} defaultPriceStep={1}>` and bind filter/sort controls with `useCollectionForm()`.
+  - In **Classic Hydrogen (`<= 2026.4.x`)**, use `getPaginationVariables(request, { pageBy })` and `<Pagination connection={collection.products}>`.
+- **Zero-results & filter recovery**: When active filters yield 0 products, keep the filter bar mounted and render one-click removal chips (`getFilterRemovalUrl(location.search, filter.id)` in `2026.10`) plus a `Clear all` link so shoppers are never trapped.
 
-- **Route Structure**:
-  - `blogs._index.jsx`: List of all blogs.
-  - `blogs.$blogHandle._index.jsx`: Article grid within a specific blog.
-  - `blogs.$blogHandle.$articleHandle.jsx`: Single article reader.
-- **Content Flow**: Render sanitized article HTML with responsive typography prose, author v2 metadata, publication dates, and contextual related products.
+### Product / PDP (`products.$handle.tsx`)
 
----
+- **URL-driven variant resolution**:
+  - Extract selected options from URL query parameters via `getSelectedProductOptions(request)` and pass them to `product(handle: $handle)` -> `selectedOrFirstAvailableVariant(selectedOptions: $selectedOptions)`.
+  - In **Hydrogen `2026.10+`**:
+    - `handleShopifyRoutes` automatically intercepts legacy Liquid `?variant=<numeric_id>` links on product routes matching `routeTemplates` and `302` redirects them to canonical option query parameters (`?Color=Blue&Size=M`).
+    - Query `encodedVariantExistence` and `encodedVariantAvailability`, wrap the PDP in `<ProductProvider product={product} selectedOptions={selectedOptions} onSelect={(href) => navigate(href, { replace: true, preventScrollReset: true })}>` from `createProductComponents()`, and bind `<a {...register('optionValue', { optionName, valueName })}>` links.
+    - Keep sold-out options (`exists: true, available: false`) clickable `<a href>` links with `"Sold out"` visual treatment; only disable non-existent combinations (`exists: false`) as `<button type="button" disabled>`.
+- **Add-to-cart & accelerated checkout**:
+  - Bind the add-to-cart form with `useCartForm({ onSubmitSuccess })` + `<input {...register('merchandiseId')} />` + `canAddToCart(product, options)` in `2026.10+` (or `<CartForm route="/cart" action={CartForm.ACTIONS.LinesAdd}>` in Classic Hydrogen).
+  - Pair the primary add-to-cart button with `<ShopPayButton variantIdsAndQuantities={[{ id: selectedVariant.id, quantity }]} storeDomain={storeDomain} />` when `selectedVariant.availableForSale` is true.
 
-## 5. Dynamic Policies (`/policies/$handle`)
+### Cart Drawer & `/cart` Page
 
-- **Route**: `app/routes/policies.$handle.jsx` dynamically resolves Shopify legal policies:
-  - `privacy-policy` $\rightarrow$ `shop.privacyPolicy`
-  - `refund-policy` $\rightarrow$ `shop.refundPolicy`
-  - `terms-of-service` $\rightarrow$ `shop.termsOfService`
-  - `shipping-policy` $\rightarrow$ `shop.shippingPolicy`
-- Guarantees merchant policy edits in Shopify Admin update instantly on the headless storefront.
+- **Single source of truth**:
+  - In **Hydrogen `2026.10+`**, hydrate `<CartProvider initialData={initialCart}>` from `await cartHandlers.get({ storefrontClient, request, sessionManager, requestContext })` in the root loader and read `useCart((s) => s.data)` everywhere. Never mix a deferred root `cart` promise with `useCart`.
+  - Keep a dedicated `/cart` route alongside the `<dialog closedby="any">` cart drawer so no-JS form submissions, shared cart links, and pre-hydration `<a href="/cart">` header clicks always work.
+  - Render `checkoutUrl` via a plain `<a href={cart.checkoutUrl}>` (never client router `<Link>`) so the browser navigates cleanly to Shopify-hosted Checkout.
 
----
+### Customer Account Pages (`account.*.tsx`)
 
-## 6. Dynamic In-Modal Predictive Search (`/search` & Modals)
-
-- **Pure In-Modal Experience**: Prevent full-page redirects. Execute queries live via `useFetcher` and render results inside the active modal dialog.
-- **Hard Limit Constraint**: Storefront API GraphQL strictly requires `limit: Int` to be **1..10**. Defensively clamp: `Math.min(10, Math.max(1, limit))`.
-- **Multi-Entity Normalization**: Fetch `PRODUCT`, `COLLECTION`, `ARTICLE`, `PAGE`, `QUERY`. Display related collections, clickable tag chips, 4:5 portrait products, and editorial articles with tabbed in-modal filtering.
-- **Single Fetch Data Flow**: In React Router v7 framework mode, return resolved data objects directly from the loader (`return await searchPromise`) rather than wrapping in `Response.json()`.
-
----
-
-## 7. Dynamic 404 Catch-All & SEO Defense (`app/routes/$.jsx`)
-
-- **Catch-All Route**: `app/routes/$.jsx` intercepts all unmatched URLs.
-- **Zero-Box Experience**: Present a spacious, card-free, unboxed layout with delicate background watermark numeral ("404"), subtle animated heritage emblem, focused dual CTAs (`KEMBALI KE BERANDA →`, `JELAJAHI KOLEKSI`), and an in-modal search trigger.
-- **Dual-Layer SEO Defense**:
-  1. **HTML Meta**: `{ name: 'robots', content: 'noindex, nofollow' }` in route `meta()`.
-  2. **Edge HTTP Header**: `X-Robots-Tag: noindex, nofollow` injected in `entry.server.jsx` whenever `responseStatusCode === 404`.
+- **Protected server loaders**:
+  - In **Hydrogen `2026.10+`**, `/account/login`, `/account/authorize`, `/account/refresh`, and `/account/logout` are handled automatically by `createCustomerAccountServerHandlers` inside `handleShopifyRoutes`. App routes only own `/account` (profile/dashboard), `/account/orders`, `/account/orders/:id`, and `/account/addresses`.
+  - Use `countryCode` (`CountryCode` two-letter uppercase) on `CustomerAddressInput` and `Order.shippingLine { title }` on orders (`territoryCode` and `Order.shippingTitle` are deprecated/removed in `2026-10`).
+  - Optionally enable `<ShopifyScripts account />` when embedding Shopify's `<shopify-account>` web component (`https://cdn.shopify.com/storefront/web-components/account.js`) in headers.

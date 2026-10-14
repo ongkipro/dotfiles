@@ -1,0 +1,22 @@
+{
+  "capability": "hydrogen-development,headless-shopify,hydrogen-headless-tracking,storefront-development",
+  "head": "f22a038c7230e642a2c74cecf3db2b5aef844998",
+  "job": "implementation",
+  "model": "gemini-2.5-pro",
+  "provider": "google-antigravity",
+  "reasoningEffort": "high",
+  "recordedAt": "2026-10-14T10:09:16Z",
+  "result": "PASS",
+  "risk": "R3",
+  "runId": "RUN-20261014T100005Z-363ec3f3",
+  "schemaVersion": 1,
+  "skillsUsed": [
+    "headless-shopify",
+    "hydrogen-development",
+    "hydrogen-headless-tracking",
+    "storefront-development"
+  ],
+  "usageHash": "401433be4e0bc348e14d389e6bb5f0f88e9eaa71360a97c4fc0ab1b5189aa21d",
+  "verificationFailed": false,
+  "worker": "agy-main"
+}

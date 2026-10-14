@@ -16,27 +16,28 @@ Only the dependency edge is human-authored; state is derived.
 Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 `git grep TASK-NNN docs/archive` finds any contract).
 
-- TASK-123: [UI/UX skill suite perfection and control-plane hygiene](docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md).
+- TASK-124, TASK-123: [UI/UX skill suite perfection, reviewer rubrics, and Supabase full-spectrum skill suite](docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md).
 - TASK-122, TASK-119, TASK-118: [Adaptive workflow, execution evaluation, and memory-routing contracts](docs/archive/DOTFILES_TASKS_2026-10-12_ADAPTIVE_AND_MEMORY.md).
 - TASK-121: [Development-kit runbook consistency and browser verification](docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT_FOLLOWUP.md).
 - TASK-120: [Development-kit routing and evaluation refinement](docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT.md).
 
-### TASK-124: UI/UX reviewer rubric alignment and Supabase full-spectrum skill suite
+### TASK-125: Shopify Hydrogen 2026.10 and Online Store 2.0 skill suite perfection
 
-- **Requirement:** REQ-UI-REVIEWER-AND-SUPABASE-SKILL-SUITE (owner requests completing UI/UX reviewer rubrics for TASK-123 contracts and implementing full Supabase skill coverage from `supabase/agent-skills`).
+- **Requirement:** REQ-SHOPIFY-HYDROGEN-2026-10-AND-THEME-2-0-SKILL-SUITE (owner requests official-source research and perfection of the Shopify/Hydrogen skill suite covering `@shopify/hydrogen@2026.10.1`, packaged skills, Online Store 2.0 / Metaobjects Dynamic Sections in Hydrogen, and Liquid Theme 2.0 blocks/performance).
 - **Risk Level:** R3.
 - **Job:** implementation.
-- **Capability:** supabase-stack, admin-product-ux, design-taste, storefront-ux, postgres-drizzle.
-- **Allowed Paths:** `TASKS.md`, `docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md`, `docs/DOTFILES_SITEMAP.md`, `config/ai/memory/skills.md`, `config/mise-config.toml`, `skills/local/README.md`, `skills/local/admin-product-ux/references/review-rubric.md`, `skills/local/design-taste/references/design-evaluation.md`, `skills/local/storefront-ux/references/journeys-and-states.md`, `skills/local/supabase-stack/**`, `skills/local/postgres-drizzle/**`, `.delivery/**`.
+- **Capability:** hydrogen-development, headless-shopify, hydrogen-headless-tracking, storefront-development.
+- **Allowed Paths:** `TASKS.md`, `docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md`, `skills/local/hydrogen-development/**`, `skills/local/headless-shopify/**`, `skills/local/hydrogen-headless-tracking/**`, `skills/local/storefront-development/**`, `.delivery/**`.
 - **Protected Paths:** None; preserve unrelated initial dirty memory files, CORE, hooks, credentials, and live applications.
-- **Canonical Contract Owners:** Supabase platform & Postgres best-practices references -> `supabase-stack`; operator UX review rubric -> `admin-product-ux`; public UI design evaluation -> `design-taste`; storefront UX delivery gate -> `storefront-ux`.
-- **Accepted Invariants:** all `SKILL.md` files stay under 500 lines and keep front-loaded `Not`/`NOT` boundaries; `supabase-stack` remains the single canonical Supabase skill owner (no duplicate upstream skill folders) while covering all `supabase/agent-skills` (`supabase` + `supabase-postgres-best-practices`) capabilities via modular `references/*.md`; `TASKS.md` stays under 12,288 bytes; pre-existing dirty memory files stay untouched.
+- **Canonical Contract Owners:** Hydrogen 2026.10 & Classic Hydrogen implementation -> `hydrogen-development`; headless Shopify architecture & custom data boundaries -> `headless-shopify`; Hydrogen consent/analytics & WebMCP signal engine -> `hydrogen-headless-tracking`; Liquid Theme 2.0 & storefront engineering -> `storefront-development`.
+- **Accepted Invariants:** all `SKILL.md` files stay under 500 lines and keep front-loaded `Not`/`NOT` boundaries; `hydrogen-development` covers both Hydrogen `>= 2026.10.0` (`2026.10.1` latest, framework-agnostic server-handler SDK, 20 packaged skills, `gql()` + `@shopify/hydrogen/ts-plugin`) and Classic Hydrogen (`<= 2026.4.7`) plus migration (`migrate-to-hydrogen-2026-10`) and Metaobject Dynamic Section CMS (Online Store 2.0 parity); `storefront-development` covers Liquid Theme 2.0 blocks (`blocks/*.liquid`, `{% content_for 'blocks' %}`, `{% doc %}`, `{% stylesheet %}` subsetting) and the 7 essential theme performance rules; `TASKS.md` stays under 12,288 bytes; pre-existing dirty memory files stay untouched.
 - **Regression Checks:** `skill-map --check`, `skill-check`, `skill-surface-check`, `ai-policy-lint`, `ai-memory-check`, `git diff --check`, boundary check and independent review.
 - **Non-Scope:** live project code edits outside `~/dotfiles`, git commit/push unless requested, touching pre-existing dirty memory files.
 - **Reopen Conditions:** `SKILL.md` exceeds 500 lines, broken reference links appear, `skill-map` drifts from `skills/local/README.md`, or `TASKS.md` exceeds 12,288 bytes.
 - **Escalation Conditions:** requires runtime hook changes, external dependencies, or modifying unrelated user files.
 
 ## Pending
+
 
 ### TASK-097: Mutation gaps left after TASK-080
 

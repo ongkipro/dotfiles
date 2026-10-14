@@ -16,3 +16,18 @@ Archived from `TASKS.md` after verification and completion.
 - **Non-Scope:** live project code edits outside `~/dotfiles`, git commit/push, touching pre-existing dirty memory files.
 - **Reopen Conditions:** `contrast.py` rejects valid `oklch()`/`hsl()` tokens, `SKILL.md` exceeds 500 lines, broken reference links appear, or `TASKS.md` exceeds 12,288 bytes.
 - **Escalation Conditions:** requires runtime hook changes, external dependencies, or modifying unrelated user files.
+
+### TASK-124: UI/UX reviewer rubric alignment and Supabase full-spectrum skill suite
+
+- **Requirement:** REQ-UI-REVIEWER-AND-SUPABASE-SKILL-SUITE (owner requests completing UI/UX reviewer rubrics for TASK-123 contracts and implementing full Supabase skill coverage from `supabase/agent-skills`).
+- **Risk Level:** R3.
+- **Job:** implementation.
+- **Capability:** supabase-stack, admin-product-ux, design-taste, storefront-ux, postgres-drizzle.
+- **Allowed Paths:** `TASKS.md`, `docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md`, `docs/DOTFILES_SITEMAP.md`, `config/ai/memory/skills.md`, `config/mise-config.toml`, `skills/local/README.md`, `skills/local/admin-product-ux/references/review-rubric.md`, `skills/local/design-taste/references/design-evaluation.md`, `skills/local/storefront-ux/references/journeys-and-states.md`, `skills/local/supabase-stack/**`, `skills/local/postgres-drizzle/**`, `.delivery/**`.
+- **Protected Paths:** None; preserve unrelated initial dirty memory files, CORE, hooks, credentials, and live applications.
+- **Canonical Contract Owners:** Supabase platform & Postgres best-practices references -> `supabase-stack`; operator UX review rubric -> `admin-product-ux`; public UI design evaluation -> `design-taste`; storefront UX delivery gate -> `storefront-ux`.
+- **Accepted Invariants:** all `SKILL.md` files stay under 500 lines and keep front-loaded `Not`/`NOT` boundaries; `supabase-stack` remains the single canonical Supabase skill owner (no duplicate upstream skill folders) while covering all `supabase/agent-skills` (`supabase` + `supabase-postgres-best-practices`) capabilities via modular `references/*.md`; `TASKS.md` stays under 12,288 bytes; pre-existing dirty memory files stay untouched.
+- **Regression Checks:** `skill-map --check`, `skill-check`, `skill-surface-check`, `ai-policy-lint`, `ai-memory-check`, `git diff --check`, boundary check and independent review.
+- **Non-Scope:** live project code edits outside `~/dotfiles`, git commit/push unless requested, touching pre-existing dirty memory files.
+- **Reopen Conditions:** `SKILL.md` exceeds 500 lines, broken reference links appear, `skill-map` drifts from `skills/local/README.md`, or `TASKS.md` exceeds 12,288 bytes.
+- **Escalation Conditions:** requires runtime hook changes, external dependencies, or modifying unrelated user files.

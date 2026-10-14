@@ -1,73 +1,38 @@
-# Headless delivery contract
+# Headless Shopify Delivery Contract (2026-10)
 
-Use this reference for implementation, audit, or migration acceptance. Adapt
-the details to the approved architecture; do not create a generic integration
-layer merely to satisfy the checklist.
+## 1. Access Tokens, Client Types & Security Boundaries
 
-## Data and cache classification
+| Client / Token | Scope & Exposure | Mandatory Guardrails |
+| --- | --- | --- |
+| **Private Storefront Token** (`PRIVATE_STOREFRONT_API_TOKEN`, `type: 'private'`) | Server-only (`server.ts`, framework middleware, loaders/actions). Never bundled into browser code. | Must pass a real `buyerIp` (`oxygen-buyer-ip`, `cf-connecting-ip`, or `x-forwarded-for`) into `createShopifyRequestContext({ request, i18n, buyerIp })` so Shopify rate-limits per buyer rather than throttling your server IP. |
+| **Private No-Buyer-Context Client** (`type: 'private_no_buyer_context'`) | Server-only / build-time SSG / cron jobs / sitemaps. | Omit `buyerIp`; never use for buyer-specific cart, personalized pricing, or authenticated queries. |
+| **Public Storefront Token** (`PUBLIC_STOREFRONT_API_TOKEN`, `type: 'public'`) | Safe for client or server; omit token completely when pointing at `mock.shop`. | Never set `PUBLIC_STOREFRONT_API_TOKEN=""` to an empty string (the `2026.10` client rejects empty strings). |
+| **Customer Account API Client** (`PUBLIC_CUSTOMER_ACCOUNT_API_CLIENT_ID`, `@shopify/hydrogen/customer-account`) | OAuth 2.0 + PKCE (`2026-10`). | Store tokens in a signed `HttpOnly; Secure; SameSite=Lax` cookie via `WritableCustomerSessionManager`. Always call `requestContext.applyResponseHeaders(response.headers)` so responses touching Customer Account or setting cookies get `Cache-Control: private, no-store` and have CDN cache headers stripped. |
 
-| Class | Examples | Rule |
-|---|---|---|
-| Public, slow-changing | brand content, policies, stable collections | Cache deliberately; invalidate or accept stated staleness |
-| Public, context-sensitive | product price, availability, localization, market catalog | Vary cache by every response-changing context; keep TTL conservative |
-| Private or mutable | cart, account, buyer identity, personalized price, consent | `no-store`/private; never put in a shared response cache |
-| Mutation result | cart updates, login callback, webhook processing | Authoritative server response; idempotency/retry/error contract required |
+## 2. Storefront API & Customer Account API (`2026-10`) Schema Contract
 
-Do not cache a full page that can include cart/account/customer context unless
-the personalized fragments are isolated and the cache boundary is demonstrably
-safe. Caching is an explicit data-safety decision, not only a performance tool.
+- **Query discipline**:
+  - Pin and validate against `2026-10` using `gql()` + `@shopify/hydrogen/ts-plugin` and `npx hydrogen gql check --fail-on-warn`.
+  - Pass `@inContext(country: $country, language: $language)` on catalog, product, collection, search, and cart queries.
+  - Keep field selection bounded (`first: <= 50`, explicit fragments, no unbounded nested connections).
+- **2026-10 Cart Discount & Metafield Contract**:
+  - Query `Cart.discountApplications`, `CartDeliveryGroup.discountAllocations`, `CartDiscountAllocation.sourceDiscountApplication`, and `lineLevelOnly` (default `true`) on cart line `discountAllocations` instead of deprecated `Cart.discountAllocations`.
+  - Read cart metafields via custom `CartFragment` on `createCartServerHandlers({ fragment })`; write cart metafields via an app-owned server POST endpoint (`metafieldsSet` / `cartMetafieldDelete`) returning only `{ userErrors }`, followed by `await useCartActions().refresh()`.
+- **2026-10 Customer Account Contract**:
+  - Use two-letter uppercase `countryCode: CountryCode` on `CustomerAddress` and `CustomerAddressInput` (`territoryCode` is deprecated/omitted).
+  - Query `Order.shippingLine { title }` instead of removed `Order.shippingTitle`.
+  - Do not query removed `Customer.lastIncompleteCheckout` or `Checkout` types.
 
-## Commerce lifecycle
+## 3. Checkout & Customer Account UI Extensions (`2026-04+`)
 
-1. Resolve product and variant from current Shopify data using the active
-   market and buyer context where applicable.
-2. Create/read/update the cart through Storefront API. Preserve opaque cart ID
-   confidentiality and reconcile UI from returned cart fields and `userErrors`.
-3. Explain recovered conflicts: unavailable line, quantity rule, discount,
-   delivery eligibility, price, market, or cart expiry. Never silently discard
-   the buyer's intent.
-4. Navigate only to current `checkoutUrl` returned by Shopify. Shopify checkout
-   owns payment, tax, final delivery price, order creation, and confirmation.
-5. Treat a return or Thank You render as a distinct lifecycle from finalized
-   order evidence. Use supported platform event/data surfaces for the claim the
-   experience needs.
+When headless storefronts pair with custom Checkout or Customer Account UI Extensions:
 
-## Account, privacy, and analytics
+- Target `2026-04` or later using `@shopify/ui-extensions/preact` and Polaris `<s-*>` web components (`<s-banner>`, `<s-stack>`, `<s-button>`, `<s-text>`).
+- Before calling `shopify.applyAttributeChange()`, `applyNoteChange()`, `applyDiscountCodeChange()`, or `applyCartLinesChange()`, always check `shopify.instructions.value.attributes.canUpdateAttributes` (or the corresponding instruction flag), which can be `false` on accelerated wallets (Shop Pay, Apple Pay) or B2B checkouts.
+- Declare `network_access = true` under `[extensions.capabilities]` in `shopify.extension.toml` before making external `fetch()` calls, and prefer `useAppMetafields()` (`$app:` reserved metafields in `shopify.app.toml`) to read data in checkout with zero network latency.
 
-- Use OAuth 2.0 + PKCE and server-side session handling for Customer Account
-  API flows. Account responses must never be shared-cacheable.
-- Respect consent before emitting non-essential tracking. For custom storefront
-  integration, use Shopify’s Customer Privacy API with its headless setting;
-  use the supported Shopify analytics/pixel path where it meets the need.
-  Current Shopify consent and visitor analytics expect a same-origin
-  Storefront API proxy; see the snapshot in [Official sources](official-sources.md).
-- Define one funnel-event owner and a deduplication key across browser,
-  server, pixels, checkout, and ad platforms. Never log cart IDs, access
-  tokens, customer fields, addresses, payment data, or raw authorization data.
-- Validate analytics separately from checkout completion: page view, product
-  view, add to cart, checkout initiation, and order/purchase signals each have
-  different authorities and consent conditions.
+## 4. Verification & Release Evidence
 
-## Resilience and operations
-
-- Pin supported Storefront and Customer Account API versions and review the
-  Shopify changelog on the project’s scheduled upgrade cadence.
-- Handle GraphQL errors, `userErrors`, transport failures, checkout throttles,
-  and Shopify security rejection without exposing implementation details.
-- Pass the actual buyer IP on private server-side Storefront calls when the
-  runtime safely provides it. Do not forward untrusted spoofable headers
-  without a verified proxy policy.
-- Make webhook consumers authenticated, signature-verified, idempotent,
-  observable, and replay-safe before relying on them for a mirror or cache
-  purge. A missed webhook requires a bounded reconciliation mechanism.
-- Rotate credentials using overlap: provision new, update all consumers,
-  verify, then revoke old. This is an approval-gated external operation.
-
-## Minimum executable evidence
-
-Prove the approved journey in a running environment: public routes and
-redirects, market/locale behavior, variant selection, cart mutation/error
-recovery, checkout handoff, account login/logout if present, consent-aware
-analytics, private cache non-leakage, and monitoring/error visibility. For a
-migration, additionally prove canonical/redirect behavior, merchant content
-updates, and rollback readiness.
+1. **Schema & Type Verification**: `npx hydrogen gql check --fail-on-warn`, `tsc`, and `@shopify/dev-mcp` `validate_graphql_codeblocks` pass with zero errors.
+2. **Response Privacy Proof**: Inspect response headers on `/api/cart`, `/account/*`, and any route setting cookies to confirm `Cache-Control: private, no-store` is present and CDN cache headers are stripped.
+3. **End-to-End Commerce Proof (`ui-validation`)**: Prove browse -> filter/sort -> variant selection (`replace: true`) -> add-to-cart -> cart drawer/page -> `checkoutUrl` redirect on both mobile (`390x844`) and desktop (`1440x900`) viewports with zero `console.error` or `pageerror`.

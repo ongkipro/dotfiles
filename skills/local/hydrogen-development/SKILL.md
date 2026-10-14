@@ -1,154 +1,107 @@
 ---
 name: hydrogen-development
-description: >-
-  Build, migrate, debug, upgrade, or verify a Shopify Hydrogen storefront
-  (React Router framework, Oxygen runtime). Not for generic headless
-  architecture (headless-shopify), tracking-only work, Liquid themes, or UCP
-  agentic-commerce integrations. Use for Storefront API integration,
-  cart/session behavior, route data, caching, and storefront release evidence.
+description: Build, migrate, debug, upgrade, or verify a Shopify Hydrogen storefront (React Router framework, Oxygen runtime). Not for generic headless architecture (headless-shopify), tracking-only work, Liquid themes, or UCP agentic-commerce integrations. Use for Storefront API integration, cart/session behavior, route data, caching, and storefront release evidence.
 ---
 
-# Hydrogen Development
+# Shopify Hydrogen Development
 
-Own the framework-specific implementation of a Shopify Hydrogen storefront.
-Keep Shopify as the commerce authority and preserve the accepted boundary from
-`headless-shopify`; this skill does not replace it.
+Use this skill when implementing, debugging, migrating, or reviewing code in a **Shopify Hydrogen storefront**.
 
-## Start from the installed project
+## Role & Specialist Boundaries
 
-Read repository instructions, package scripts and lockfile, route structure,
-environment-variable names without printing values, deployed runtime, and the
-existing cart, session, customer-account, SEO, analytics, and test contracts.
-When present, also inspect the GraphQL configuration, generated API types,
-React Router configuration, and runtime entry point. They describe the
-installed application's contract; do not recreate a current skeleton layout
-inside an older or custom project.
-Classify the task before editing:
+- **This skill (`hydrogen-development`)**: Owns Hydrogen code across both **Hydrogen `2026.10+` (`@shopify/hydrogen@2026.10.1`, current `latest`)** and **Classic Hydrogen (`<= 2026.4.7`, labeled Legacy Hydrogen on `shopify.dev`)**: server request context and handlers, Storefront & Customer Account GraphQL clients (`gql()`), observable stores (cart, variant form, collection browser, predictive search), Online Store 2.0 (Theme 2.0) parity via Metaobject Dynamic Content Sections, Oxygen worker configuration, caching, and migration (`migrate-to-hydrogen-2026-10`).
+- **Not this skill**:
+  - Deciding whether headless is justified or designing multi-system boundaries -> `headless-shopify`
+  - Consent-aware analytics/pixel/CAPI/sGTM signal pipelines -> `hydrogen-headless-tracking` (paired with `meta-ads-signal-engine`, `google-ads-signal-engine`, `tiktok-ads-signal-engine`)
+  - Liquid themes (`sections/*.liquid`, `blocks/*.liquid`) or non-Hydrogen storefronts -> `storefront-development`
+  - Commerce journey/state UX contracts -> `storefront-ux`; technical SEO -> `seo-website-builder`; security review -> `application-security`; Core Web Vitals -> `web-perf`; browser proof -> `ui-validation`
 
-- **New app:** use the current official Hydrogen generator only after the
-  destination and development authorization are clear.
-- **Existing app:** preserve its installed Hydrogen and React Router contract;
-  do not migrate it merely because a newer preview or scaffold exists.
-- **Developer preview:** treat the framework-agnostic Hydrogen preview as a
-  separate migration decision, not an upgrade of the current framework.
+---
 
-For a new storefront, read [New storefront start](references/new-storefront-start.md).
-It separates a disposable Mock.shop quickstart from a real-store link and an
-Oxygen preview deployment; those are not interchangeable steps.
+## Step 0: Detect the Hydrogen Generation First
 
-For a new headless decision, migration, API/token/cache/account/analytics
-boundary, load `headless-shopify` first. For page composition and buyer-facing
-commerce state, load `storefront-development`; for journey requirements load
-`storefront-ux`.
+Before writing or editing code, inspect `package.json` (`@shopify/hydrogen` version, framework packages, and scripts):
 
-Read [Official integrations](references/official-integrations.md) when a
-platform capability, generator, AI Toolkit integration, or UCP question is
-in scope.
-Read [Commerce platform boundaries](references/commerce-platform-boundaries.md)
-when changing cart behavior, Customer Accounts, search, metaobjects, a Liquid
-to Hydrogen migration, or any Shopify-hosted tracking/pixel surface.
-Read [Dynamic pages architecture](references/dynamic-pages-architecture.md)
-when structuring or modifying dynamic routes (`/collections/$handle`, `/products/$handle`,
-`/pages/$handle`, `/blogs/$blogHandle/$articleHandle`, `/policies/$handle`, `/cart`,
-and `/*` 404 catch-all), grid-proportional pagination, or live in-modal search.
-Read [SEO, environments, and launch](references/seo-environments-launch.md)
-when changing route metadata, sitemap/robots, Oxygen environments, preview
-visibility, traffic routing, domains, or a production cutover.
+| Signal | Hydrogen `2026.10+` (`latest`: `2026.10.1`) | Classic Hydrogen (`<= 2026.4.7`) |
+| --- | --- | --- |
+| Mental model | **Framework-agnostic storefront toolkit & server-handler library** added to React Router 7 (`future.v8_middleware: true`), Next.js App Router, Astro, Nuxt, SvelteKit, or SolidStart. | **React Router 7 / Remix framework** where Hydrogen owns `createHydrogenContext()` in `server.ts` and the `hydrogen()` Vite plugin. |
+| Server wiring | `createShopifyRequestContext` + `createStorefrontClient({ type: 'private', requestContext, config })` + pre-router `handleShopifyRoutes()` + post-404 `handleShopifyRedirects()` + `requestContext.applyResponseHeaders(response.headers)`. | `createHydrogenContext()` in `server.ts` passing `context.storefront`, `context.cart`, and `context.customerAccount` into loaders/actions. |
+| GraphQL & types | `storefrontClient.graphql(gql(...))`, `@shopify/hydrogen/ts-plugin`, `hydrogen gql check --fail-on-warn`, `Cache.long()` / `Cache.short()` / `Cache.none()`. | `context.storefront.query(#graphql...)`, `shopify hydrogen codegen` (`storefrontapi.generated.d.ts`), `CacheLong()` / `CacheShort()` / `CacheNone()`. |
+| Cart & UI state | Observable stores (`createCartServerHandlers` at `/api/cart` + `createCartComponents`, `createProductComponents`, `CollectionProvider`, `PredictiveSearchProvider`), `formatMoney()`, native `<img>` + CDN `width`/`height`/`crop` params, `<ShopPayButton>` custom element. | `context.cart` + `/cart` route action + `<CartForm>`, `<VariantSelector>` / `getProductOptions`, `<Pagination>`, `<Money>`, `<Image>`, `<RichText>`. |
+| Analytics | `<ShopifyScripts />` + `window.Shopify.analytics.publish()` + `analytics.addDestination({ name, setup({ subscribe }) })` + `useCartAnalytics()`. | `<Analytics.Provider>` + `useAnalytics()` + `<Analytics.ProductView>` + `getShopAnalytics()`. |
+| Build & CLI | `hydrogen skills check --mode=warn && vite dev`, `react-router build` (`buildDirectory: 'dist'`), `shopify hydrogen deploy --assets-dir dist/client --worker-dir dist/server`. | `shopify hydrogen dev`, `shopify hydrogen build`, `shopify hydrogen deploy`. |
 
-## Implement the Hydrogen boundary
+- **SemVer Caret Trap (`^2026.4.0` vs `~2026.4.0`)**: Because both `2026.4.x` (Classic) and `2026.10.x` (new toolkit) share CalVer major `2026` and `2026.10.1` is npm `latest`, `"@shopify/hydrogen": "^2026.4.0"` in a Classic storefront resolves to `2026.10.x` on fresh install and breaks the build. Classic storefronts that have not migrated yet must pin with a tilde range (`"~2026.4.0"`) or exact `"2026.4.7"`.
+- Read [`references/hydrogen-2026-10-architecture.md`](references/hydrogen-2026-10-architecture.md) for all `2026.10+` APIs and the 20 packaged skills in `@shopify/hydrogen/skills/*`. If scaffolding or migrating from `<= 2026.4.x` to `2026.10`, read [`references/new-storefront-start.md`](references/new-storefront-start.md) and `https://shopify.dev/docs/storefronts/hydrogen/migrate`.
 
-- Fetch public storefront data in the server-side route/data boundary, with an
-  explicit cache policy that varies for every market, locale, currency, buyer,
-  or other response-affecting context.
-- Keep cart references and customer-account/session state server-backed and
-  private. Reconcile cart UI from the authoritative mutation response and its
-  user errors; use only the returned checkout URL at handoff.
-- Keep operational Admin API access, private Storefront tokens, customer
-  credentials, webhook verification, and personal data out of browser code.
-- Preserve server-rendered product, collection, search, and content routes;
-  establish redirects, canonical URLs, metadata, localization, and error
-  behavior before client-only enhancements.
-- Prefer installed Hydrogen and React Router primitives over a new abstraction
-  or dependency. Do not transplant patterns from a different Hydrogen major
-  version without checking the installed project and current official docs.
-- Treat Hydrogen, Storefront API, and Customer Account API versions as one
-  compatibility decision. Upgrade them deliberately, regenerate types, and
-  typecheck; never change only a query's API version to silence a schema error.
-- Keep the request handler's same-origin Storefront API proxy intact; current
-  Hydrogen requires it, and consent and visitor analytics depend on it. Check
-  the release snapshot in [Official integrations](references/official-integrations.md)
-  before an upgrade or a custom `server.ts`.
-- After editing GraphQL documents, run the project's code-generation script
-  before typechecking. Do not hand-edit generated Storefront API, Customer
-  Account API, or route type declarations.
-- Do not add deprecated Hydrogen primitives to new code: `VariantSelector` ->
-  [`getProductOptions`](https://shopify.dev/docs/api/hydrogen/latest/utilities/getproductoptions),
-  `<Seo>` -> [`getSeoMeta`](https://shopify.dev/docs/api/hydrogen/latest/utilities/getseometa)
-  in route `meta`. Migrate existing uses only with the matching Hydrogen upgrade.
+---
 
-Use `hydrogen-headless-tracking` only for analytics, pixels, consent, or
-server-side conversion signals. Use `seo-website-builder` for SEO/indexation,
-`application-security` for auth, tokens, webhooks, customer data, or external
-integrations, `ui-validation` for a browser-visible change, and `web-perf`
-only for measured performance investigation.
+## Core Engineering Rules (Hydrogen `2026.10+`)
 
-## Preserve indexation and release boundaries
+### 1. Request Context, Storefront Client & Privacy Headers
 
-Use the installed Hydrogen metadata utilities and route `meta` contract for
-HTML metadata. Let the most specific nested route own product or content SEO;
-do not restore query parameters to canonical URLs by default. Do not add a
-sitemap or robots route before confirming the project does not already own one.
+1. **Single `ShopifyRequestContext` per request**: Call `createShopifyRequestContext({ request, i18n: { country, language }, buyerIp })` once per request and reuse that instance across `createStorefrontClient`, `createCustomerAccountClient`, `handleShopifyRoutes`, and `cartHandlers.get()`. Creating a second context causes `handleShopifyRoutes()` to throw.
+2. **Always forward `buyerIp` on `'private'` clients**: Extract `oxygen-buyer-ip`, `cf-connecting-ip`, or `x-forwarded-for` (fallback `'127.0.0.1'` in non-production) so Shopify rate-limits per buyer rather than throttling the server IP. Use `type: 'private_no_buyer_context'` only for module-scoped/build-time catalog reads with no buyer context, and `type: 'public'` (with no token) when testing against `mock.shop`.
+3. **Never skip `requestContext.applyResponseHeaders(response.headers)`**: Call it on every normal response after committing `sessionManager`. It marks any response that sets cookies or uses the Customer Account client as `Cache-Control: private, no-store` and strips CDN caching headers (`Oxygen-Cache-Control`, `CDN-Cache-Control`, `Cloudflare-CDN-Cache-Control`, `Surrogate-Control`, `s-maxage`).
 
-Treat Oxygen environment variables, visibility, domain routing, and deployment
-as external environment state. Never print values, make an environment public,
-change a target branch, rotate a token, alter DNS, remove password protection,
-or redirect Online Store traffic without explicit approval. A launch also
-requires redirects, canonicals, feeds, notification links, channel publication,
-and checkout-domain behavior to be verified together.
+### 2. Pre-Router (`handleShopifyRoutes`) & Post-404 (`handleShopifyRedirects`) Gates
 
-## Keep Shopify surfaces separate
+1. **Run `handleShopifyRoutes` before framework routing**:
+   - It decides synchronously whether it owns the URL (`null` when unmatched; `Promise<Response>` when matched). Do not `await` before checking truthiness, and inside a `try/catch` use `if (shopifyRoute) return await shopifyRoute;`.
+   - Delete competing route files for paths Hydrogen owns (`/api/cart`, `/api/predictive-search`, `/checkout`, `/cart/c/*`, `/cart/{id}:{qty}`, `/buy/{id}:{qty}`, `/discount/{code}`, `/cart.js`, `/account/login`, `/account/authorize`, `/account/refresh`, `/account/logout`), but **keep a catch-all route (`app/routes/$.tsx`)** in React Router 7 so root middleware runs on unmatched URLs.
+   - Always pass `routeTemplates` (`createShopifyRouteTemplates`) so legacy Liquid `?variant=<numeric_id>` URLs on custom product routes `302`-redirect to canonical option query params.
+2. **Run `handleShopifyRedirects` only on `404` responses**:
+   - After `const response = await next()`, if `response.status === 404`, check `await handleShopifyRedirects({ request, storefrontClient, routeTemplates })`.
 
-Hydrogen owns the storefront runtime. Shopify-hosted checkout and Web Pixels
-are separate controlled surfaces. Do not assume a Web Pixel can use Hydrogen
-code, arbitrary DOM access, or the same storage/session boundary. Coordinate
-event names and consent across surfaces, but implement each in its supported
-runtime.
+### 3. Observable Stores, Cart, Variant Picker & Collection Browser
 
-## AI Toolkit is an optional host capability
+1. **Stable store selectors**: `useCart`, `useProductForm`, `useCollection`, and `usePredictiveSearch` compare selector output by reference. Never allocate a new object/array inside a selector; select existing store slices (`state.data.lines.nodes`, `state.errors`, `state.pending.lines`) and derive view models in the component body.
+2. **Cart hydration & single-concern mutations**:
+   - Hydrate `<CartProvider initialData={initialCart}>` from `await cartHandlers.get({ storefrontClient, request, sessionManager, requestContext })` in the root loader (`{ cart, errors? }` envelope) and render all cart UI from `useCart((s) => s.data)`. Never pass a deferred root `cart` promise to `<Await>`.
+   - `/api/cart` rejects combined JSON payloads: send only one mutation kind per POST (`lines`, `discountCodes`, `attributes`, or `note`).
+   - Disable line item controls **only** when `line.id.startsWith('optimistic:')`, never for all `state.pending.lines`.
+   - Build the Cart Drawer with native `<dialog closedby="any">` + `.showModal()`, CSS `html:has(dialog[open]) { overflow: hidden }`, pre-hydration `<a href="/cart">` trigger, auto-open on `state.pending.lines.size > 0`, and `window.Shopify.actions.openCart.configure()`.
+   - Read cart metafields via `createCartServerHandlers({ fragment })`; write them through an app-owned `createShopifyRouteHandler('/api/cart/metafields', 'POST', ...)` route that checks `getCartId(request)` without creating a cart, runs `cartMetafieldsSet` / `cartMetafieldDelete`, and calls `await useCartActions().refresh()`.
+3. **Symmetric Variant Picker (`encodedVariantExistence` / `encodedVariantAvailability`)**:
+   - Hide the entire option picker when `product.options.every((o) => o.values.length <= 1)`.
+   - Render `exists: false` as `<button type="button" disabled>`, keep sold-out (`exists: true, available: false`) as an interactive `<a href>` link with `"Sold out"` styling, and never hide option values based on the current selection.
+   - Support **Combined Listings** (`value.handle !== product.handle`) with cross-product links preserving non-option search params via `buildProductSelectionSearchParams()`.
+4. **Collection & Search Browser**:
+   - Use Liquid-compatible URL params via `parseCollectionParams(request.url)` (`filter.v.*`, `sort_by`, `cursor`, `direction`), explicit `<form method="get" action={pathname}>`, and 350ms debounced price inputs prefixed with `formatMoney(..., { locale }).currencyNarrowSymbol`.
 
-When installed in the active AI host, use Shopify AI Toolkit for current
-official documentation, schema validation, and Shopify CLI discovery. It is
-not a project dependency and it is not a replacement for repository evidence.
+### 4. Online Store 2.0 (Theme 2.0) Dynamic Sections in Hydrogen
 
-Never install its Claude, Codex, or Antigravity plugin automatically. Plugin
-installation changes the local AI runtime and may enable toolkit telemetry;
-ask for explicit approval first. If the Toolkit is unavailable, retrieve the
-required current fact from official Shopify documentation instead. Do not
-write to a store, alter permissions, or expose credentials as part of this
-fallback.
+- Hydrogen replaces Liquid `templates/*.json` + `sections/*.liquid` with **Metaobject-driven Dynamic Content Sections** (`Route` metaobject -> `sections` reference list -> inline-fragment GraphQL query -> `<Sections>` React switch dispatcher + dev/preview `<EditRoute>` deep link to Shopify Admin).
+- Follow [`references/dynamic-pages-architecture.md`](references/dynamic-pages-architecture.md) for the complete `ROUTE_CONTENT_QUERY`, `SECTIONS_FRAGMENT`, Rich Text AST rendering, and caching patterns across both Hydrogen `2026.10+` and Classic Hydrogen.
 
-## Verify the actual path
+---
 
-Run the project's smallest relevant typecheck, test, lint, or build script.
-Use the project's local Hydrogen/Shopify CLI integration rather than assuming
-a globally installed CLI. A scaffold's `dev` command may also run GraphQL
-codegen and an Oxygen-compatible local runtime, so use it as the first
-browser-proof path when available.
-For a browser-visible change, run the app and verify the affected route in a
-browser, including a relevant loading/error state and cart-to-checkout handoff
-when touched. Record unavailable checks as `UNVERIFIED` or `BLOCKED`.
+## Reference Routing Table
 
-Do not deploy to Oxygen, publish a storefront, change a sales channel, or
-modify production data without explicit approval.
+Load only the reference file needed for the active task:
 
-## Ownership boundaries
+| Task / Domain | Reference File |
+| --- | --- |
+| Hydrogen `2026.10+` entry points, request handlers, `gql()` branded types, observable stores, cart/drawer/metafields, variant picker, collection browser, Customer Accounts (`__Host-session`), `configureLogging` | [`references/hydrogen-2026-10-architecture.md`](references/hydrogen-2026-10-architecture.md) |
+| Verified `2026-10-14` package snapshot, 20 packaged skills + 3 upstream repo skills in `Shopify/hydrogen`, `github.com/Shopify` repository map, `shopify.dev` URLs, and `@shopify/dev-mcp` workflow | [`references/official-integrations.md`](references/official-integrations.md) |
+| Online Store 2.0 Metaobject Section CMS (`RouteContent`, `Sections`, Rich Text AST) and dynamic page contracts (home, PLP, PDP, cart, account) | [`references/dynamic-pages-architecture.md`](references/dynamic-pages-architecture.md) |
+| Canonical Oxygen React Router 7 template (`entry.server.tsx`, `ssr.optimizeDeps.include`, `resolveShopIdentity`), Next.js 16+ (`proxy.ts`) & Astro 6 wiring, and Classic -> `2026.10` migration traps | [`references/new-storefront-start.md`](references/new-storefront-start.md) |
+| Markets (`@inContext`), Customer Account `2026-10` schema (`countryCode`), Online Store 2.0 coexistence, Bundles, Combined Listings, Subscriptions, B2B | [`references/commerce-platform-boundaries.md`](references/commerce-platform-boundaries.md) |
+| SEO metadata, custom sitemaps, `Cache.*` & `applyResponseHeaders` privacy rules, Oxygen deploy, `Shopify/hydrogen-redirect-theme`, and Playwright E2E smoke-test gate | [`references/seo-environments-launch.md`](references/seo-environments-launch.md) |
 
-- `headless-shopify`: architecture, Shopify authority, API/token/cache/account
-  boundaries, and migration contract
-- `hydrogen-development`: installed Hydrogen framework and runtime delivery
-- `storefront-development`: page composition and commerce UI implementation
-- `storefront-ux`: buyer journeys and observable commerce states
-- `hydrogen-headless-tracking`: Hydrogen tracking surfaces, consent, and event
-  bus; provider semantics stay with `meta-ads-signal-engine`,
-  `google-ads-signal-engine`, and `tiktok-ads-signal-engine`
-- `seo-website-builder`: indexation, metadata, schema, and search strategy
+---
+
+## Verification & Release Gate
+
+Never claim a Hydrogen change works without running:
+
+1. **Packaged skills & GraphQL schema check (`2026.10+`)**:
+   - `npx hydrogen skills check --mode=warn`
+   - `npm run typecheck` (`react-router typegen && tsc && hydrogen gql check --fail-on-warn`)
+   - Classic Hydrogen (`<= 2026.4.x`): `npx shopify hydrogen codegen && npm run typecheck`
+2. **Production build check**:
+   - `npm run build` (`react-router build` outputting `dist/client` and `dist/server`)
+3. **Browser smoke evidence (`ui-validation` / `hydrogen-smoke-test`)**:
+   - Verify affected routes at mobile (`390x844`) and desktop (`1440x900`) viewports with zero `console.error` / `pageerror`: variant option switching (`replace: true`), cart drawer open/update/remove, collection filtering/sorting, and `checkoutUrl` handoff.
+4. **Live deployment gate**:
+   - Stop and ask for explicit approval before running `shopify hydrogen deploy`, changing Oxygen environment variables, or mutating live store Metaobjects/Metafields.

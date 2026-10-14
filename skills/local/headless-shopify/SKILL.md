@@ -1,123 +1,76 @@
 ---
 name: headless-shopify
-description: >-
-  Architect, build, migrate, or audit Shopify headless storefronts (Storefront
-  API, Hydrogen, or a custom framework). Not for Liquid themes, generic
-  storefront UX, Hydrogen app code (hydrogen-development), or arbitrary
-  checkout DOM customization. Use for deciding whether headless is justified,
-  API/version/token boundaries, cart and checkout handoff, Customer Account
-  API, Markets, caching, privacy, analytics, operations, and migration.
+description: Architect, build, migrate, or audit Shopify headless storefronts (Storefront API, Hydrogen, or a custom framework). Not for Liquid themes, generic storefront UX, Hydrogen app code (hydrogen-development), or arbitrary checkout DOM customization. Use for deciding whether headless is justified, API/version/token boundaries, cart and checkout handoff, Customer Account API, Markets, caching, privacy, analytics, operations, and migration.
 ---
 
-# Headless Shopify
+# Shopify Headless Storefront Architecture
 
-Own the Shopify-specific architecture and delivery contract for a decoupled
-storefront. Keep Shopify as the commerce authority: product publication,
-pricing, inventory, discounts, tax, shipping, payment, checkout, order, and
-the supported account/extension surfaces remain platform contracts.
+Use this skill when deciding whether a Shopify project should go headless, selecting between **Online Store 2.0 Liquid themes**, **Storefront Web Components**, **Hydrogen `2026.10+` toolkit**, or a **Bring-Your-Own-Stack Storefront API** architecture, or auditing cross-system boundaries (tokens, Markets, Customer Accounts, custom data, Checkout UI Extensions, caching, and migration).
 
-## Enter with a decision, not a framework
+## Role & Specialist Boundaries
 
-First establish the required experience, channels, content model, integrations,
-merchant operating model, team capacity, and measurable reason a theme/app
-cannot meet the need. Headless is justified by a concrete constraint, such as
-a bespoke interaction model, multi-surface delivery, or a real integration
-boundary. Faster pages or visual novelty alone are not sufficient evidence.
+- **This skill (`headless-shopify`)**: Owns the headless suitability gate, Shopify authority matrix, Storefront API (`2026-10`) and Customer Account API (`2026-10`) token/client boundaries, Online Store 2.0 parity via Metaobject Section CMS and `$app:` custom data, Checkout & Customer Account UI Extension (`2026-04+`) boundaries, and reversible Liquid-to-headless migration.
+- **Not this skill**:
+  - Implementing Hydrogen routes, request handlers, `gql()` queries, and observable stores -> `hydrogen-development`
+  - Online Store 2.0 Liquid themes (`sections/*.liquid`, `blocks/*.liquid`) or non-Shopify storefronts -> `storefront-development`
+  - Buyer commerce journeys, filter/variant/cart UX contracts -> `storefront-ux`
+  - Consent-aware Hydrogen analytics, Web Pixels, and ad signal engines -> `hydrogen-headless-tracking`
+  - Technical SEO & canonical/indexation strategy -> `seo-website-builder`; security audits -> `application-security`; Core Web Vitals -> `web-perf`; browser verification -> `ui-validation`
 
-If Shopify's hosted theme, app, Checkout Extension, Storefront Web Components,
-or a native Shopify capability meets the accepted need, recommend that smaller
-solution and do not create headless plumbing.
+---
 
-Read [Architecture decisions](references/architecture-decisions.md) before
-selecting a stack or planning a migration.
+## Core Architectural Rules (`2026-10`)
 
-## Inspect the actual contract
+### 1. Suitability Gate & Surface Selection
 
-Determine and record:
+1. **Challenge headless first**: Do not build a custom headless storefront when an Online Store 2.0 Liquid theme (`storefront-development`), Storefront Web Components (`<shopify-account>`, embedded buy widgets), or Checkout/Customer Account UI Extensions solve the business requirement with lower operational risk.
+2. **Choose the right headless tier**:
+   - **Hydrogen `2026.10+` (`@shopify/hydrogen@2026.10.1`, current `latest`)**: Framework-agnostic storefront toolkit and server-handler library added to React Router 7 (Oxygen), Next.js App Router (Vercel), Astro, Nuxt, SvelteKit, or SolidStart. Preferred for all web headless builds (`hydrogen-development`).
+   - **Bring Your Own Stack (Raw Storefront API `2026-10`)**: Reserve for native mobile apps, kiosks, or non-JS server runtimes.
 
-- Shopify plan, enabled sales channels, published products, Markets, customer
-  account model, delivery methods, subscriptions/B2B, discounts, and required
-  checkout or post-purchase surfaces.
-- Runtime and rendering model, ownership of routes, redirects, domains,
-  cookies, cache, content, search, cart, customer identity, consent,
-  analytics, error reporting, and webhooks.
-- Every Shopify API, explicit API version, token type and scope, plus every
-  external integration and its failure behavior. Do not reveal secret values.
-- The project’s existing cart, checkout, SEO, localization, privacy, and test
-  contracts. Repository evidence wins over a proposed pattern.
+### 2. Token, Client & Privacy Boundaries
 
-For any capability, plan entitlement, exact API field, limit, or migration
-date, retrieve current official Shopify documentation. Read
-[Official sources](references/official-sources.md) for the source map.
+1. **Private vs Public Storefront Clients**:
+   - Use `type: 'private'` (`PRIVATE_STOREFRONT_API_TOKEN`) on the server with a real `buyerIp` (`oxygen-buyer-ip`, `cf-connecting-ip`, or `x-forwarded-for`) on `createShopifyRequestContext` so Shopify rate-limits per buyer rather than throttling your server IP.
+   - Use `type: 'private_no_buyer_context'` only for module-scoped/build-time catalog reads with no buyer context.
+   - Use `type: 'public'` with **no token** when testing against `mock.shop` (never pass `PUBLIC_STOREFRONT_API_TOKEN=""` as an empty string).
+2. **Response Privacy Enforcement**:
+   - Call `requestContext.applyResponseHeaders(response.headers)` on every framework response after committing session cookies. Any response setting cookies or touching the Customer Account client must carry `Cache-Control: private, no-store` with CDN cache headers stripped.
 
-## Build the boundary correctly
+### 3. `2026-10` Storefront & Customer Account Schema Invariants
 
-1. Use the Headless sales channel and least access needed. Pin every versioned
-   API. Treat private Storefront tokens, Customer Account credentials, Admin
-   tokens, cart secret keys, and personal data as server-only.
-2. Send the genuine buyer IP on server-side Storefront requests when Shopify
-   requires it. Preserve privacy, consent, and proxy trust boundaries; never
-   invent a client IP header.
-3. Give catalog, content, navigation, and other public data an explicit cache
-   policy. Cart, account, personalized pricing/context, customer data, and
-   mutation responses are private/no-store unless an official contract proves
-   otherwise. A cache key must vary by every market, locale, currency, buyer,
-   and other context that changes the response.
-4. Keep one server-backed cart owner. Store only the opaque cart reference in
-   an appropriate private session/cookie; reconcile every mutation from the
-   returned cart and `userErrors`; get a fresh returned `checkoutUrl` only at
-   handoff. Never construct checkout URLs or rebuild payment/order logic.
-5. Use the Customer Account API for modern cross-platform account experience
-   when accounts are required. Its OAuth/PKCE/session lifecycle belongs in a
-   server boundary, never a presentation component or shared cache.
-6. Use Shopify-native data, Search & Discovery, metafields/metaobjects,
-   Functions, Web Pixels, and extensions before adding a duplicate service.
-   Any mirror needs an explicit source, webhook/reconciliation path, staleness
-   tolerance, and failure mode.
+1. **Storefront API (`2026-10`)**:
+   - Query `Cart.discountApplications`, `CartDeliveryGroup.discountAllocations`, `CartDiscountAllocation.sourceDiscountApplication`, and `lineLevelOnly` (default `true`) on cart line `discountAllocations` instead of deprecated `Cart.discountAllocations`.
+   - Keep cart metafield writes server-only (`metafieldsSet` / `cartMetafieldDelete`) on an app-owned POST route returning `{ userErrors }` followed by client `useCartActions().refresh()`.
+2. **Customer Account API (`2026-10`)**:
+   - Use two-letter uppercase `countryCode: CountryCode` on `CustomerAddress` and `CustomerAddressInput` (`territoryCode` is deprecated/omitted).
+   - Query `Order.shippingLine { title }` instead of removed `Order.shippingTitle`, and never query removed `Customer.lastIncompleteCheckout` or `Checkout` types.
+   - Sync cart buyer identity on login/logout by wiring `createCustomerSession` into both `createCartServerHandlers` and `createCustomerAccountServerHandlers`.
 
-Read [Delivery contract](references/delivery-contract.md) before implementing
-or reviewing data flow, cache, cart, account, privacy, analytics, migration,
-and release evidence. For frontend component architecture, editorial lookbooks,
-multi-variant family bundle builders (BYOB), and luxury commerce UI/UX patterns on Hydrogen,
-read [Hydrogen UI/UX Architecture](references/hydrogen-ui-ux-architecture.md).
+### 4. Online Store 2.0 Parity, Custom Data (`$app:`), and UI Extensions
 
-## Stack choices
+1. **Metaobjects as Headless Theme 2.0 Section CMS**:
+   - Model `Route` -> `Sections` (`section_hero`, `section_featured_products`, `section_featured_collections`, `section_rich_text`) in Shopify Admin Metaobjects and resolve them via single-round-trip inline fragments (`references/hydrogen-ui-ux-architecture.md`).
+2. **App-Reserved Custom Data (`$app:`)**:
+   - When pairing a headless storefront with a custom Shopify app, declare `[product.metafields.app-reserved.*]` and `[metaobjects.app-reserved.*]` in `shopify.app.toml` (`$app:` prefix) so definitions deploy atomically, survive uninstall, and can be read in Checkout UI Extensions via `useAppMetafields()` with zero network latency.
+3. **Checkout & Customer Account UI Extensions (`2026-04+`)**:
+   - Build extensions with `@shopify/ui-extensions/preact` and Polaris `<s-*>` web components (`<s-banner>`, `<s-stack>`, `<s-button>`, `<s-text>`). Always check `shopify.instructions.value.attributes.canUpdateAttributes` before calling `shopify.applyAttributeChange()`.
 
-- Prefer Hydrogen when React plus Shopify’s opinionated server/cart/analytics
-  primitives fit the product and hosting. It lowers commerce integration work;
-  it is not mandatory.
-- Use a custom framework only when its existing ecosystem or a verified runtime
-  constraint outweighs rebuilding the same Shopify boundary. Preserve SSR/HTML
-  product routes, route redirects, cache discipline, and server mutations.
-- Use Storefront Web Components when adding commerce to an existing site is the
-  actual need; do not build a new headless application around an embed use case.
-- Do not call Admin API from buyer-facing browser code. Keep operational Admin
-  work in a private service with least scopes and auditable mutation ownership.
+---
 
-## Coordinate without overlap
+## Reference Routing Table
 
-- `storefront-ux` owns buyer journey, states, and acceptance criteria.
-- `storefront-development` owns page composition and implementation after this
-  skill establishes the headless boundary.
-- `hydrogen-development` owns Hydrogen/React Router app code, Oxygen, and
-  Hydrogen-specific APIs once Hydrogen is the accepted stack.
-- `hydrogen-headless-tracking` owns Hydrogen analytics surfaces, consent, and
-  the browser/server event bus; provider semantics stay with the
-  `*-ads-signal-engine` skills.
-- `application-security` owns a dedicated security review when auth, tokens,
-  webhooks, customer data, or an external integration is added or changed.
-- `seo-website-builder` owns SEO/indexation; preserve Shopify product redirects
-  and canonical behavior during a migration.
-- `ui-validation` owns browser-visible proof and `web-perf` owns measured
-  performance diagnosis.
+| Topic | Reference File |
+| --- | --- |
+| Suitability gate, surface selection (Liquid 2.0 vs Web Components vs Hydrogen 2026.10 vs BYO stack), `$app:` custom data, and reversible migration | [`references/architecture-decisions.md`](references/architecture-decisions.md) |
+| Token/client boundaries, `buyerIp`, `applyResponseHeaders` privacy guard, `2026-10` schema breaking changes, and UI extension contracts | [`references/delivery-contract.md`](references/delivery-contract.md) |
+| Progressive HTML-first variant/collection/cart primitives and Online Store 2.0 Metaobject Section CMS architecture | [`references/hydrogen-ui-ux-architecture.md`](references/hydrogen-ui-ux-architecture.md) |
+| Verified `2026-10-14` API/SDK matrix, `shopify.dev` URLs, and `@shopify/dev-mcp` retrieval workflow | [`references/official-sources.md`](references/official-sources.md) |
 
-## Deliverable and stop conditions
+---
 
-For architecture, migration, or audit work, produce the smallest useful
-headless contract: decision and alternatives, authority/ownership matrix,
-data/cache classification, API/version/token inventory without secrets, cart
-and checkout path, account/privacy/analytics design, migration cutover and
-rollback, observability, risks, and executable acceptance evidence.
+## Verification & Release Gate
 
-Do not deploy, rotate/revoke credentials, alter Headless channel permissions,
-write to Admin API, or publish a sales channel without explicit approval.
+1. Validate all Storefront and Customer Account GraphQL operations against `2026-10` using `npx hydrogen gql check --fail-on-warn` and `@shopify/dev-mcp` `validate_graphql_codeblocks`.
+2. Confirm `Cache-Control: private, no-store` and stripped CDN cache headers on `/api/cart`, `/account/*`, and any response with `Set-Cookie`.
+3. Prove end-to-end browse -> variant switch -> cart -> `checkoutUrl` handoff in a real browser (`ui-validation`) before cutover, and ask for explicit approval before live deployment or bulk Shopify mutations.

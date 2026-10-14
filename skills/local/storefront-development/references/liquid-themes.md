@@ -1,123 +1,125 @@
-# Liquid Themes (Online Store 2.0)
+# Shopify Online Store 2.0 (Theme 2.0) Liquid Engineering Reference
 
-Hosted Shopify theme work: Liquid, JSON templates, sections, blocks, locales,
-theme editor, and Shopify CLI. Limits, flags, and schema keys change; verify
-against the installed Shopify CLI version and shopify.dev before relying on a
-number or flag below.
+Last verified against `shopify.dev/docs/storefronts/themes`, `shopify.dev/docs/storefronts/themes/best-practices/performance`, and `Shopify/Shopify-AI-Toolkit` (`v1.17.1` `shopify-liquid`) on `2026-10-14`.
 
-## Shopify CLI workflow
+Use this reference when building, refactoring, or auditing **Shopify Online Store 2.0 Liquid themes** (`layout/`, `templates/*.json`, `sections/*.liquid`, `blocks/*.liquid`, `snippets/*.liquid`, `config/`, `locales/`) or **Theme App Extensions** (`extensions/<handle>/blocks/*.liquid`).
 
-Run the CLI through the project's pinned version (`npx --no-install shopify`
-or the package script).
+---
 
-| Step | Command | Notes |
-|---|---|---|
-| Local preview | `shopify theme dev --store <store>` | Uploads to a development theme and serves a hot-reloading preview at `127.0.0.1:9292`. Checkout cannot be previewed. `--theme-editor-sync` writes editor changes back to local files. |
-| Lint | `shopify theme check` | Run before every push and in CI; fix errors, triage warnings. |
-| Pull merchant edits | `shopify theme pull --only templates/*.json --only config/settings_data.json` (scope to need) | Merchants edit JSON templates and settings in the editor; pull before changing them or you overwrite their work. |
-| Stage | `shopify theme push --unpublished` or `--theme <id>` | Push to an unpublished/preview theme and share its preview link. |
-| Live | `shopify theme push --live` (plus `--allow-live` in non-interactive runs) or `shopify theme publish` | **Approval-gated production action.** Never run without the user's explicit approval for that exact target. |
+## 1. Online Store 2.0 Architecture: Sections, Theme Blocks & JSON Templates
 
-Push guardrails: prefer `--only` for scoped changes, use `--nodelete` when the
-remote may hold files you did not author, and never `--ignore` your way past a
-conflict in `templates/*.json` or `config/settings_data.json`.
+### Directory & Ownership Contract
 
-## Theme architecture
+| Directory | Purpose & Rules |
+| --- | --- |
+| `layout/theme.liquid` | Global HTML shell. Place `<meta>`, `<title>`, critical CSS, font preloads, and `<script type="importmap">` **before** `{{ content_for_header }}` so Shopify flushes the early `<head>` stream immediately. |
+| `templates/*.json` & `sections/*.json` | Declarative JSON trees assembling sections and blocks (`header-group.json`, `footer-group.json`, `product.json`, `collection.json`, `index.json`). Never put business logic in JSON templates. |
+| `sections/*.liquid` | Self-contained page sections with `{% schema %}`. Support `"blocks": [{ "type": "@theme" }, { "type": "@app" }]` so merchants can compose both theme blocks and app blocks anywhere. |
+| `blocks/*.liquid` | Reusable, nestable **Theme Blocks** (`_internal.liquid` prefix for section-private blocks). Rendered dynamically via `{% content_for 'blocks' %}` or statically via `{% content_for 'block', type: 'button', id: 'hero-cta' %}`. Always include `{{ block.shopify_attributes }}` on the root HTML element for the Theme Editor. |
+| `snippets/*.liquid` | Pure presentation helpers invoked with `{% render 'name', param: value %}` (never deprecated `{% include %}`). Isolated variable scope—cannot read parent section variables unless explicitly passed. |
 
-- **JSON templates** (`templates/*.json`) list section instances in `sections`
-  and their render `order`; optional `layout` and `wrapper`. Merchants own their
-  contents after launch. Current cap: 25 sections per template, 50 blocks per
-  section.
-- **Section groups** (header/footer JSON in `sections/*.json`) hold
-  merchant-composed global areas.
-- **Sections** (`sections/*.liquid`) carry exactly one `{% schema %}` tag of
-  valid JSON, not nested inside other Liquid. Key fields: `name`, `tag`,
-  `class`, `limit`, `settings`, `blocks`, `max_blocks`, `presets`, `default`,
-  `locales`, `enabled_on`/`disabled_on`. A section without `presets` cannot be
-  added from the editor to JSON templates.
-- **Blocks**: section-local blocks are defined in the schema; theme blocks live
-  in `blocks/*.liquid` and are reusable across sections (referenced with
-  `{"type": "@theme"}`). Add `{"type": "@app"}` to a section's `blocks` so
-  merchants can insert **app blocks** from theme app extensions without code
-  edits. Render app blocks with `{% render block %}` and never assume their
-  markup or settings.
-- **Settings**: read `section.settings` / `block.settings`; every setting may be
-  blank, so render a sensible empty state. Use `block.shopify_attributes` on the
-  block wrapper so the editor can select it.
-- **Snippets** (`snippets/*.liquid`) via `{% render %}` (isolated scope); never
-  the deprecated `{% include %}`.
+### `{% doc %}` LiquidDoc Header Contract (Required on Snippets & Static Blocks)
 
-## Locales
+Document every snippet (`snippets/*.liquid`) and static theme block (`blocks/*.liquid`) with a `{% doc %}` header at the top of the file so Theme Check and `Shopify-AI-Toolkit` validate callers:
 
-- `locales/<lang>.json` holds storefront strings (merchant-editable in the
-  language editor); `locales/<lang>.schema.json` translates editor labels.
-  Exactly one default file, e.g. `en.default.json` (and
-  `en.default.schema.json`).
-- Read strings with `{{ 'group.key' | t }}`, using interpolation arguments and
-  `count` for plurals instead of string concatenation. Never hardcode visible
-  copy in Liquid or JavaScript.
-- Section-scoped strings can live in the schema `locales` object.
-- Build Ajax/Section Rendering URLs from `window.Shopify.routes.root` so Markets
-  and language prefixes survive.
+```liquid
+{% doc %}
+  Renders a product media card with responsive srcset and LCP priority control.
 
-## Theme editor integration
+  @param {product} product_resource - The Shopify product object to display.
+  @param {boolean} [is_lcp] - Set true on the first visible card to enable eager loading and high fetchpriority.
+  @param {string} [sizes] - Responsive sizes attribute (defaults to '(min-width: 990px) 25vw, 50vw').
 
-The editor re-renders sections in place, so page-load JavaScript does not run
-again. Use custom elements (connected/disconnected callbacks) or listen for:
+  @example
+  {% render 'product-card', product_resource: product, is_lcp: true %}
+{% enddoc %}
+```
 
-- `shopify:section:load` (re-initialize) and `shopify:section:unload` (remove
-  listeners, observers, timers);
-- `shopify:section:select`/`deselect`, `shopify:section:reorder`;
-- `shopify:block:select`/`deselect` (for example, move a slider to the block);
-- `Shopify.designMode` is `true` only inside the editor; use it to disable
-  autoplay, popups, and analytics there.
+### `{% stylesheet %}` & `{% javascript %}` Subsetting Rules
 
-## Section Rendering API
+- Shopify automatically bundles, deduplicates, and **subsets** `{% stylesheet %}` and `{% javascript %}` tags inside sections and blocks **per render tree**—only CSS/JS for sections and blocks actually rendered on the current page is shipped to the browser.
+- **No Liquid inside `{% stylesheet %}` or `{% javascript %}`**: Liquid tags inside these blocks are not evaluated. Pass merchant settings via inline CSS custom properties on the section/block wrapper and read them in CSS:
+  ```liquid
+  <div
+    class="hero-block"
+    style="--hero-gap: {{ block.settings.gap }}px; --hero-bg: {{ block.settings.bg_color }};"
+    {{ block.shopify_attributes }}
+  >
+    {% content_for 'blocks' %}
+  </div>
 
-Fetch re-rendered section HTML instead of building markup in JavaScript:
-`?sections=a,b` returns JSON keyed by section ID (current limit: five sections
-per request); `?section_id=a` returns the HTML directly. Cart Ajax endpoints
-accept a `sections` parameter for bundled rendering, so add/change/update
-returns fresh cart drawer and count HTML in the same response. A failed section
-comes back as `null`; keep the previous DOM and show an error instead of
-emptying the region. Replace by parsing with `DOMParser`, never regex.
+  {% stylesheet %}
+    .hero-block {
+      display: grid;
+      gap: var(--hero-gap, 16px);
+      background-color: var(--hero-bg);
+    }
+  {% endstylesheet %}
+  ```
 
-## Starting from or tracking Dawn
+---
 
-New Theme Store submissions currently start from Skeleton (see
-`shopify-boundaries.md`). For a client theme built on Dawn:
+## 2. Critical Liquid Syntax & Runtime Gotchas (`Shopify-AI-Toolkit`)
 
-1. Keep Dawn as a git `upstream` remote; record the Dawn version the fork is
-   based on.
-2. Isolate customizations: new sections/snippets/blocks and a project CSS/JS
-   file over editing core files; when a core file must change, keep the diff
-   small and comment why.
-3. Merge upstream on a branch (`git fetch upstream` then merge the tagged
-   release), resolve conflicts, run `shopify theme check`, preview with
-   `theme dev`, and compare key templates in the browser.
-4. Never merge upstream `templates/*.json` or `config/settings_data.json` over
-   the live store's versions; pull the live JSON first and keep merchant data.
-5. Ship through an unpublished theme for review; publishing stays
-   approval-gated.
+1. **No parentheses `()` in `if` / `unless` conditions & right-to-left evaluation**:
+   - Liquid does **not** support parentheses in boolean expressions, and `and` / `or` evaluate **right-to-left**!
+   - Always extract compound conditions into named `{% assign %}` booleans first:
+     ```liquid
+     {% liquid
+       assign is_on_sale = false
+       if product.compare_at_price > product.price and product.available
+         assign is_on_sale = true
+       endif
+     %}
+     ```
+2. **No ternary operator**: Use `{% if %}` / `{% else %}` or `{{ value | default: fallback }}`.
+3. **`contains` only matches strings or arrays of strings**:
+   - `{% if product.variants contains variant %}` fails silently. Map to a scalar array first (`{% assign skus = product.variants | map: 'sku' %}{% if skus contains target_sku %}`) or filter objects with `| where: 'available', true`.
+4. **50-item `for` loop hard cap & DB hydration cost**:
+   - Iterating `collection.products` without `{% paginate %}` silently stops at 50 items.
+   - Always pass `limit:` when rendering a small subset (`{% for product in collection.products limit: 4 %}`) so Shopify does not load all 50 products from the database.
+5. **Never use deprecated `img_url` or `include`**:
+   - Always use `image_url` + `image_tag` and `{% render %}`:
+     ```liquid
+     {{
+       product.featured_media
+       | image_url: width: 1500
+       | image_tag:
+         widths: '375, 550, 750, 1100, 1500',
+         sizes: '(min-width: 990px) 50vw, 100vw',
+         loading: loading_strategy,
+         fetchpriority: fetch_priority,
+         alt: product.featured_media.alt | escape
+     }}
+     ```
+6. **Modern Color Filters**: Prefer `color_to_oklch` and `color_contrast` over legacy hex math when generating accessible theme tokens.
 
-## Source notes
+---
 
-Verified 2026-10-02:
-- CLI: https://shopify.dev/docs/api/shopify-cli/theme/theme-dev and
-  https://shopify.dev/docs/api/shopify-cli/theme/theme-push (`--allow-live`
-  required in non-interactive runs targeting the live theme).
-- Section schema, `@app`/`@theme` blocks, single schema tag:
-  https://shopify.dev/docs/storefronts/themes/architecture/sections/section-schema
-- JSON template limits:
-  https://shopify.dev/docs/storefronts/themes/architecture/templates/json-templates
-- Locale file naming and default file:
-  https://shopify.dev/docs/storefronts/themes/architecture/locales
-- Editor events and `Shopify.designMode`:
-  https://shopify.dev/docs/storefronts/themes/architecture/sections/integrate-sections-with-the-theme-editor
-- Section Rendering API (five-section limit, `null` on failure):
-  https://shopify.dev/docs/api/ajax/section-rendering
-- Dawn upstream sync: https://github.com/Shopify/dawn (README)
+## 3. The 7 Essential Shopify Theme Performance Practices
 
-Not independently re-verified today: `--nodelete`/`--only` behavior details
-beyond flag names, presets requirement for adding sections, and `count`
-pluralization syntax; confirm in shopify.dev before relying on them.
+Enforce all 7 official `shopify.dev` performance rules on every Liquid template and section:
+
+1. **Never lazy-load above-the-fold images**:
+   - In `sections/*.liquid`, use `section.index`: if `section.index == 1` (or `section.index <= 2` and `forloop.index <= 2` in product grids), set `loading: 'eager'`. Lazy-loading the LCP image directly degrades Largest Contentful Paint.
+2. **Set `fetchpriority="high"` on the single LCP image**:
+   - Apply `fetchpriority: 'high'` + `loading: 'eager'` to the hero banner on `index`, the primary selected variant media on `product`, and the first card on `collection`.
+3. **Never apply fade-in or `opacity: 0` animations to the LCP image**:
+   - CSS/JS fade-in transitions delay the browser's LCP timestamp until `opacity` reaches `1`. Keep the LCP image immediately visible at `opacity: 1`.
+4. **Render essential content in HTML/Liquid, never client-side JS**:
+   - Product titles, prices, variant links (`?variant=`), availability states, and primary media must be present in the initial server-rendered Liquid HTML before JavaScript loads.
+5. **Avoid $O(n^2)$ nested Liquid loops and metafield N+1 reads in grids**:
+   - Never nest `{% for variant in product.variants %}` inside a 24-product collection loop with inner option/metafield lookups. Use `product.selected_or_first_available_variant`, `product.options_with_values`, and `| where:` / `| map:` filters.
+6. **Streamed `<head>` ordering before `{{ content_for_header }}`**:
+   - In `layout/theme.liquid`, place `<meta charset>`, `<meta name="viewport">`, `<title>`, critical CSS (`stylesheet_tag: preload: true`), critical font preloads, and `<script type="importmap">` **above** `{{ content_for_header }}`. Shopify flushes everything before `{{ content_for_header }}` immediately while computing dynamic header scripts.
+7. **Use `preload` sparingly**:
+   - Only preload the base stylesheet and 1–2 primary above-the-fold font files (`{{ settings.type_body_font | font_url | preload_tag: as: 'font', type: 'font/woff2', crossorigin: 'anonymous' }}`). Excessive preloads compete with the LCP image bandwidth.
+
+---
+
+## 4. Section Rendering API & Dawn-Style Progressive Enhancement
+
+- **Section Rendering API (`?sections=cart-drawer,cart-icon-bubble` or `?section_id=...`)**:
+  - When a buyer switches variants on a PDP or mutates `/cart/add.js` / `/cart/change.js`, request only the affected section HTML from Shopify's Section Rendering API and morph/replace the target DOM subtree (`<cart-drawer>`, `<product-info>`) rather than duplicating price/discount templates in client JS.
+- **Theme App Extensions (`extensions/<handle>/blocks/*.liquid`)**:
+  - App blocks and app embeds cannot use `{% content_for 'blocks' %}` or theme-only `blocks/` files. Validate them in app context (`--context app`) with complete `locales/en.default.json` and `locales/en.default.schema.json` keys.

@@ -72,13 +72,12 @@ and hydration boundaries. Read only the relevant stack section in
 For advanced Next.js App Router implementations covering Server Actions, optimistic state, and headless URL logic, read [Next.js Commerce Patterns](references/next-commerce-patterns.md).
 
 For Shopify, also read [Shopify boundaries](references/shopify-boundaries.md).
-For a hosted Online Store 2.0 theme (Liquid, sections, blocks, Shopify CLI),
-read [Liquid themes](references/liquid-themes.md).
+For a hosted Online Store 2.0 theme (Liquid, `sections/*.liquid`, Theme Blocks `blocks/*.liquid` + `{% content_for 'blocks' %}`, `{% doc %}` LiquidDoc headers, `{% stylesheet %}` subsetting, the 7 essential theme performance rules, and Shopify CLI), read [Liquid themes](references/liquid-themes.md). For Hydrogen `2026.10+` or Classic Hydrogen storefronts (including Metaobject-driven Theme 2.0 dynamic sections), route to `hydrogen-development`.
 
 Use `shadcn-ui` only when the selected React stack already supports it and its
 primitives fit the accepted component map. Do not introduce React hydration so
 static Shopify Liquid or Astro merchandising can look like shadcn. Shopify
-checkout UI extensions use Polaris web components, not storefront shadcn
+checkout UI extensions use Polaris web components (`@shopify/ui-extensions/preact` `<s-*>`), not storefront shadcn
 components.
 
 ### 5. Enhance deliberately

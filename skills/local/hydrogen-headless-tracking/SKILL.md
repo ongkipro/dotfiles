@@ -1,105 +1,63 @@
 ---
 name: hydrogen-headless-tracking
-description: >-
-  Implement, audit, or troubleshoot consent-aware analytics and advertising
-  signals for Shopify Hydrogen. Not for ordinary storefront UI, generic SEO,
-  or pixel configuration changes without explicit approval. Use for Hydrogen
-  analytics, Shopify-hosted Web Pixels, cart-to-checkout attribution, provider
-  browser/server events, and purchase webhook evidence.
+description: Implement, audit, or troubleshoot consent-aware analytics and advertising signals for Shopify Hydrogen. Not for ordinary storefront UI, generic SEO, or pixel configuration changes without explicit approval. Use for Hydrogen analytics, Shopify-hosted Web Pixels, cart-to-checkout attribution, provider browser/server events, and purchase webhook evidence.
 ---
 
-# Hydrogen Headless Tracking
+# Shopify Hydrogen Headless Tracking & Signal Engine
 
-Build an auditable event path across three separate surfaces: the Hydrogen
-storefront, Shopify-hosted pixels/checkout, and a server-side provider or
-webhook consumer. Do not collapse them into one browser-runtime assumption.
+Use this skill when implementing, migrating, auditing, or debugging **first-party Shopify analytics, Customer Privacy consent, cart-to-checkout attribution, and ad-platform signal pipelines** in a Shopify Hydrogen storefront (`@shopify/hydrogen@2026.10.1` or Classic Hydrogen `<= 2026.4.x`).
 
-## Ownership
+## Role & Specialist Boundaries
 
-This skill owns the Hydrogen surfaces: the analytics/consent integration, the
-storefront event bus, Web Pixel wiring, the cart-to-checkout attribution
-carry, and the server receiver plumbing (signature, dedupe store, retries).
-Provider semantics belong to the provider skills: event taxonomy, required and
-hashed fields, deduplication rules, consent signals, and match quality go to
-`meta-ads-signal-engine` (Pixel/CAPI), `google-ads-signal-engine`
-(gtag/GTM/Enhanced Conversions/Consent Mode), and `tiktok-ads-signal-engine`.
-Load the provider skill for its contract; implement it here without redefining
-it. Non-Hydrogen headless architecture stays with `headless-shopify`, and
-Hydrogen app code with `hydrogen-development`.
+- **This skill (`hydrogen-headless-tracking`)**: Owns Hydrogen analytics (`<ShopifyScripts />`, `window.Shopify.analytics`, `useCartAnalytics()`, `addDestination()`, and Classic `<Analytics.Provider>`), Customer Privacy consent gating, first-party `/__shopify/*` and `/.well-known/shopify/fec/produce` proxies, cart-to-checkout click-ID/cookie bridging, and Shopify Web Pixel + webhook deduplication handoff.
+- **Not this skill**:
+  - General Hydrogen routes, Storefront API queries, or UI components -> `hydrogen-development`
+  - Headless suitability or multi-system commerce boundaries -> `headless-shopify`
+  - Platform-specific ad signal schemas, EMQ scoring, and server outboxes:
+    - Meta Pixel + CAPI -> `meta-ads-signal-engine`
+    - Google Tag / sGTM / Enhanced Conversions -> `google-ads-signal-engine`
+    - TikTok Pixel + Events API v2 -> `tiktok-ads-signal-engine`
 
-## Inspect the accepted event contract first
+---
 
-Identify the business objective, provider, event names, source of truth for
-each event, consent purpose, allowed fields, retention, merchant/store scope,
-cart and checkout domains, current analytics implementation, CSP, webhook
-receiver, deduplication store, and tests. Do not print credentials or customer
-data.
+## Core Engineering Rules (`2026.10+` vs Classic)
 
-Read [Tracking delivery contract](references/delivery-contract.md) for all
-tracking work. Read [Shopify-hosted Web Pixels](references/web-pixels.md) for
-an App Pixel or Custom Pixel. Retrieve current official provider documentation
-before using its event fields, hashing rules, deduplication window, endpoint,
-or API version.
-Read [Shopify analytics cookie migration](references/shopify-analytics-cookie-migration.md)
-when an existing Hydrogen integration reads or depends on Shopify visitor or
-session cookies.
+### 1. Detect Hydrogen Analytics Generation First
 
-## Keep execution surfaces separate
+1. **Hydrogen `2026.10+` (`@shopify/hydrogen@2026.10.1`, current `latest`)**:
+   - `<Analytics.Provider>`, `useAnalytics()`, `<Analytics.ProductView>` (and other view components), `getShopAnalytics()`, `analytics.subscribe()`, and `analytics.destroy()` are **removed**.
+   - Render `<ShopifyScripts analytics={{ shop, i18n }} consent={consentConfig} />` from `@shopify/hydrogen/react` (`./vue`) in the root layout (or `renderShopifyScriptTags` + `initializeShopifyScripts` in Astro/SvelteKit).
+   - Mount `useCartAnalytics()` (or `trackCartAnalytics(cartStore)`) once inside `<CartProvider>` so `product_added_to_cart`, `product_removed_from_cart`, and `cart_updated` publish automatically.
+   - Publish route events (`AnalyticsEvent.PAGE_VIEWED`, `PRODUCT_VIEWED`, `COLLECTION_VIEWED`, `SEARCH_VIEWED`, `CART_VIEWED`) via `window.Shopify?.analytics.publish(event, payload)` in client `useEffect` hooks when location/entity changes.
+2. **Classic Hydrogen (`<= 2026.4.7`)**:
+   - Uses `<Analytics.Provider cart={cart} shop={shop} consent={consent}>`, `useAnalytics()`, and `<Analytics.ProductView>` / `<Analytics.CollectionView>` / `<Analytics.CartView>`.
 
-- **Hydrogen storefront:** owns server-rendered commerce interactions and its
-  supported analytics/consent integration. Keep client enhancement optional.
-- **Shopify-hosted checkout and Web Pixels:** run in Shopify-controlled
-  sandboxes. Use only their documented APIs; do not reuse Hydrogen session or
-  DOM assumptions.
-- **Server processing:** owns provider credentials, webhook signature checks,
-  durable deduplication, retry policy, and protected logs. A browser redirect
-  or thank-you page is never authoritative purchase evidence by itself.
+### 2. Consent-Gated Destinations & `2026-10` Payload Traps
 
-## Privacy, attribution, and purchase evidence
+1. **Register external destinations with `addDestination()` (`2026.10+`)**:
+   - Never call removed `analytics.subscribe()`. Register Meta, GA4/GTM, or TikTok forwarders once via `window.Shopify?.analytics.addDestination({ name, setup({ subscribe }) { subscribe(event, (payload, { getTrackingValues }) => ...) } })`.
+   - `window.Shopify.analytics` buffers up to **500 events** before consent resolves or before destinations register, and replays them in order once Customer Privacy allows processing.
+   - When using `consent={{ mode: 'custom-banner', setup }}`, `setup` is **mandatory** and must return a `Promise<ConsentPreferences>` (`{ analytics, marketing, preferences, saleOfData }`).
+2. **`ProductPayload.price` is `MoneyV2`, not a string (`2026.10+`)**:
+   - Both `ProductPayload.price` and `AnalyticsCartLine.price` are `MoneyV2` objects (`{ amount: string, currencyCode: CurrencyCode }`), matching `CartViewPayload.totalValue`. Always read `Number(product.price.amount)` and `product.price.currencyCode`.
+3. **Ensure `handleShopifyRoutes()` runs before the router**:
+   - `handleShopifyRoutes()` proxies `/__shopify/*` and `/.well-known/shopify/fec/produce` (WebMCP / first-party event collector). Without it, first-party Shopify analytics requests 404.
 
-Send no marketing or analytics signal before the accepted consent condition is
-met. Minimize event data to the documented provider requirement and never put
-secrets, raw payment data, or unnecessary customer data in browser state, URLs,
-cart attributes, client logs, or analytics payloads.
+### 3. Cart-to-Checkout Attribution & Purchase Authority
 
-Cart attributes can carry into an order after checkout and are visible at
-checkout by default. Use them only for an explicitly approved, consented, and
-non-sensitive attribution contract; use the platform's supported private
-convention when checkout visibility is inappropriate. Never use cart
-attributes as a secret store or assume they make attribution complete.
+1. **Cross-Boundary Attribution Preservation**:
+   - Keep storefront and checkout on the same root domain (`store.example.com` + `checkout.example.com`) so `_shopify_y`, `_shopify_s`, `_fbp`, `_fbc`, and `_ga` cookies survive `checkoutUrl` handoff.
+   - Persist landing click IDs (`fbclid`/`_fbc`, `_fbp`, `gclid`, `gbraid`, `wbraid`, `ttclid`, `_ttp`, `utm_*`) into cart attributes (`register('attributeValue', { key, value })` + `register('attributes-update')` — preserving existing cart attributes because `attributes-update` replaces the full list) so order webhooks receive them.
+2. **Server-Authoritative Purchase Signals**:
+   - Never fire `Purchase` from Hydrogen on checkout link click. Emit browser purchase events from Shopify Admin **Customer events (Web Pixels)** on `checkout_completed` and server purchase events from verified `orders/paid` (or COD `orders/create`) webhooks with matching deterministic `event_id` (`meta-ads-signal-engine`, `google-ads-signal-engine`, `tiktok-ads-signal-engine`).
 
-For provider browser/server pairs, generate one deterministic event identifier
-per logical event only when the current provider contract supports it. Verify
-deduplication in that provider's tooling; do not assert match-quality scores,
-cookie lifetimes, or delivery percentages in code or handoff evidence.
+---
 
-## Secure server-side processing
+## Reference Routing
 
-Verify Shopify webhook signatures over raw request bytes before parsing or
-performing a side effect. Bind the event to the expected shop/topic, persist a
-provider delivery identifier behind durable uniqueness, and make retries and
-duplicates safe. Store provider secrets server-side and use the real proxy
-trust boundary for IP/client metadata; never trust a client-submitted event as
-purchase authority.
+- Read [`references/delivery-contract.md`](references/delivery-contract.md) for the complete `2026.10+` vs Classic analytics matrix, `<ShopifyScripts>` consent setup, `addDestination()` code pattern, attribution bridging, and verification checklist.
 
-Keep CSP minimal and project-specific. Include the verified storefront and
-checkout domains required by the installed Hydrogen consent integration, then
-add only exact provider hosts that the accepted integration needs. Verify the
-effective response header in a browser; do not broaden wildcard sources to
-make a vendor script work.
+## Verification & Approval Gate
 
-## Verify the complete path
-
-Run the project checks, then exercise the relevant storefront interaction in a
-browser with consent both denied and granted. For checkout/pixel or webhook
-work, verify only in an authorized test environment:
-
-1. expected events appear once with the allowed fields only;
-2. denied consent suppresses the intended non-essential signal;
-3. cart-to-checkout handoff preserves only the accepted data;
-4. an invalid or duplicate webhook has no repeated side effect; and
-5. browser console and effective CSP have no integration violation.
-
-Record unavailable provider, checkout, or production checks as `UNVERIFIED`.
-Do not alter Shopify Customer Events, pixel settings, webhooks, sales-channel
-configuration, provider settings, or production data without explicit approval.
+1. Verify all 7 standard events (`page_viewed`, `product_viewed`, `collection_viewed`, `search_viewed`, `cart_viewed`, `product_added_to_cart`, `product_removed_from_cart`/`cart_updated`) and `/__shopify/*` proxy responses in browser DevTools.
+2. Stop and ask for explicit approval before modifying live Shopify Admin Web Pixels, GTM containers, or production ad-platform credentials.
