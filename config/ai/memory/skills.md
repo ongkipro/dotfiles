@@ -15,7 +15,7 @@
   integrated full admin, Vite + React for an API-backed client app, and Astro +
   React for route-oriented bounded interactivity; preserve semantic HTML and
   minimal hydration.
-- Infrastructure interests: Cloudflare Workers/R2/D1/Queues, VPS, PostgreSQL (Drizzle), queue systems, scraping, API architecture, multi-domain publishing. (plain PostgreSQL is the usual baseline; Supabase applicability follows the project contract, and CLI installation is device-local.)
+- Infrastructure interests: Cloudflare Workers/R2/D1/Queues, VPS, PostgreSQL (Drizzle), Supabase, queue systems, scraping, API architecture, multi-domain publishing. (plain PostgreSQL is the usual baseline; Supabase applicability follows the project contract, with `supabase` CLI managed via `config/mise-config.toml`.)
 
 ## Marketing & conversion
 - Strong areas: Meta Ads, Google Ads, landing page copywriting, funnel strategy, product research, conversion optimization, tracking/attribution, ecommerce positioning. Local skills: `meta-ads-signal-engine` (Pixel + CAPI, deduplication event_id, identity normalization, outbox pattern), `google-ads-signal-engine` (Google Tag / GTM, Consent Mode v2, Enhanced Conversions, transaction_id, gclid/gbraid/wbraid, offline conversion upload), `tiktok-ads-signal-engine` (TikTok Pixel, Events API, ttclid/ttp, event_id dedup), and `hydrogen-headless-tracking` (Shopify Hydrogen event bus, WeTracked/Elevar parity, Safari ITP 1-yr cookies, Cart Attributes cross-domain bridge, webhook Purchase CAPI outbox). **Signal engine skills do not pin API versions** — they carry "verify before you code" guidance against changelogs.
@@ -105,7 +105,10 @@ in prose. Read the map for coverage; read this file for calibration.
   and `web-perf` retains performance diagnosis.
 - `postgres-drizzle` owns plain PostgreSQL and Drizzle schema, query, migration,
   transaction, concurrency, and tenant-boundary engineering. `supabase-stack`
-  retains Supabase-managed Auth, Storage, Realtime, RLS, and Edge Functions.
+  retains Supabase-managed Auth, Storage, Realtime (Broadcast & Postgres Changes),
+  RLS + pgTAP verification, Edge Functions, Vectors (`pgvector` + hybrid search),
+  Queues (`pgmq`), Cron (`pg_cron` + `pg_net` + Vault), declarative schemas, and
+  Supabase Postgres performance/advisor checks.
 - `application-security` owns cross-stack application threat modeling, trust
   boundaries, authorization, validation, SSRF, injection, secrets, supply-chain
   review, and security verification. Narrow platform and product security skills
@@ -119,7 +122,11 @@ in prose. Read the map for coverage; read this file for calibration.
 - `github-actions` owns GitHub Actions workflow architecture, permissions,
   untrusted-input boundaries, reuse, caching, artifacts, OIDC, release gates,
   and hosted-run evidence.
-- `admin-product-ux`, `admin-dashboard`, `design-taste`, `storefront-ux`,
+- `admin-product-ux` (workflows, progressive onboarding, AI/agentic HITL),
+  `admin-dashboard` (operator IA, charts, `@media print` commercial documents),
+  `design-taste` (public visual direction, OKLCH/HSL color scales, multi-brand
+  skinning, explanatory SVG craft, niche patterns), `storefront-ux` (commerce
+  journeys, COD RTS-reduction, WhatsApp handoff, AI shopping advisor states),
   `shadcn-ui`, and `ui-validation` own distinct product, visual, component, and
   browser-validation responsibilities.
 - `lean-code-review` owns evidence-backed simplification review.

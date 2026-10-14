@@ -283,6 +283,15 @@ Before accepting a storefront UX contract:
 - price, availability, fulfilment, cart, checkout, and analytics each have one
   authority;
 - loading, empty, error, pending, conflict, recovery, and success states exist;
+- COD funnels include post-purchase RTS-reduction states (`Siapkan Uang Tunai Pas`
+  callout, courier/ETA window, `"Kabari Orang Rumah"` share summary, and NDR
+  delivery-exception rescue);
+- WhatsApp conversational handoffs enforce a single natural entry point per
+  viewport, a structured human-readable `text=` summary with compact attribution
+  reference, and a desktop fallback;
+- any AI shopping assistant grounds answers in real PDP/policy data, hands off
+  uncertain requests to human CS, and never mutates cart or order state without
+  an explicit user click;
 - desktop and narrow-screen transformations are named;
 - keyboard, focus, announcement, zoom/reflow, and contrast behavior is testable;
 - every commercial claim has an evidence source;

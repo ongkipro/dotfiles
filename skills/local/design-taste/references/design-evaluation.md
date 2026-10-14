@@ -70,6 +70,21 @@ can pass. Arbitrary novelty can fail. Real data, long titles, translations,
 empty/error states, touch, zoom, and reduced motion should stress the relevant
 design decisions. No font blacklist or screenshot-existence test replaces this.
 
+### Multi-brand skinning and asset craft check
+
+- **Shared-template skinning**: when multiple brands or storefronts share one
+  codebase/layout, record REVISE if they differ only by a primary-hex swap
+  while serving distinct brand references or product jobs. Evaluate the 5
+  structural axes in `color-scales-and-skinning.md` (`header/navigation topology`,
+  `corner/border physics`, `hero composition slot`, `product card silhouette/aspect
+  ratio`, and `surface chromaticity/section rhythm`) against each brand's
+  researched reference rather than enforcing an arbitrary numeric quota, and
+  validate token pairs (`#hex`, `rgb()`, `hsl()`, `oklch()`) with `scripts/contrast.py`.
+- **Visual asset and SVG craft**: record REVISE if explanatory sections use
+  unlabelled decorative node meshes, stretched/inconsistent aspect ratios, raw
+  unframed screenshots, or unverified trust badges. Verify that diagrams, icons,
+  and crops follow `visual-asset-and-svg-craft.md`.
+
 ## Behavioral cases for skill changes
 
 Give the model only each brief and the current skill instructions, not this
@@ -89,6 +104,8 @@ match. These cases are regression prompts, not evidence of universal model quali
 | Contextual repetition | Three plans are compared in equal cards; agency page is static and users prefer reduced motion | Preserve useful comparison and quiet behavior; no mandatory motion, layout-family quota, or motif ban |
 | Reference fidelity | Supplied reference has an open asymmetric hero, oversized cropped product visual, and text-led feature sections; implementation stack includes Astro, Tailwind, and shadcn | Extract the composition contract before component mapping; preserve the asymmetric focal hierarchy and open grouping; do not replace them with a centered two-CTA hero or repeated cards merely because those primitives are available |
 | Scope and state | Redesign a live purchase form while preserving route, field IDs, consent and analytics; only inspect public references | Preserve integration contracts; inspect read-only states, use fixtures for mutation, do not submit real orders or silently rename fields; planned research and checks must remain pending |
+| Multi-brand skinning | Two sister D2C brands share one Astro storefront template (artisan leather goods vs clinical skincare); prevent them from looking like hex-swap clones | Differentiate structural axes that fit each brand's reference and job (`color-scales-and-skinning.md`: header/navigation topology, corner/border physics, hero composition slot, product card silhouette/aspect ratio, surface chromaticity/section rhythm) without a rigid difference quota, and validate contrast with `contrast.py` |
+| Explanatory visual craft | B2B logistics/SaaS hero needs a visual explaining API routing, but no studio photography exists | Propose a crisp explanatory inline SVG diagram or realistic UI specimen with authentic domain labels (`visual-asset-and-svg-craft.md`); reject abstract glowing blobs and fake partner logos |
 
 Add regression cases from verified failures. A case passing once demonstrates
 that answer only. Maintain skill checks for syntax/links and behavioral cases

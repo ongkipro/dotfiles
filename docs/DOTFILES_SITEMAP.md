@@ -1,7 +1,7 @@
 # Dotfiles Sitemap & Engineering Dictionary
 
 > **Universal Page-by-Page Development Map for `ongkipro/dotfiles`**  
-> Updated: 2026-09-23 | Scope: Full Repository Topology, AI Control Plane, Memory, Skills, CLI Binaries, Devices, and Templates.
+> Updated: 2026-10-14 | Scope: Full Repository Topology, AI Control Plane, Memory, Skills, CLI Binaries, Devices, and Templates.
 
 ---
 
@@ -12,10 +12,10 @@ The `dotfiles` repository is an AI-native engineering operating system shared ac
 ```mermaid
 graph TD
     Kernel["Core Kernel & Policy<br/><code>config/ai/CORE.md</code>"] --> Runtimes["AI CLI Runtimes<br/>Claude · Codex · Antigravity · OMP · Pi"]
-    Kernel --> Memory["Durable Memory<br/><code>config/ai/memory/</code> (19 files)"]
-    Kernel --> ProjectMemory["Project Memory<br/><code>config/ai/project-memory/</code> (72 files)"]
-    Kernel --> Skills["Owned Skills Registry<br/><code>skills/local/</code> (72 skills)"]
-    Kernel --> Bin["Executable Toolchain<br/><code>bin/</code> (108 tools & tests)"]
+    Kernel --> Memory["Durable Memory<br/><code>config/ai/memory/</code> (20 files)"]
+    Kernel --> ProjectMemory["Project Memory<br/><code>config/ai/project-memory/</code> (76 files)"]
+    Kernel --> Skills["Owned Skills Registry<br/><code>skills/local/</code> (75 skills)"]
+    Kernel --> Bin["Executable Toolchain<br/><code>bin/</code> (111 tools & tests)"]
     Kernel --> Ledger[".delivery/ & TASKS.md<br/>Autonomous State & Verification"]
     Kernel --> Devices["Device Profiles<br/><code>devices/</code> (7 hosts)"]
 ```
@@ -28,12 +28,12 @@ graph TD
 |---|---|---|---|
 | **Core Kernel** | [`config/ai/CORE.md`](file:///home/ongki/dotfiles/config/ai/CORE.md) | Canonical cross-CLI operating rules, approval gates, coding standards. | All AI CLIs & Developers |
 | **CLI Adapters** | [`config/ai/adapters/`](file:///home/ongki/dotfiles/config/ai/adapters) | Runtime-specific context adapters (`claude`, `codex`, `antigravity`, `omp`, `pi`). | AI CLI Runtimes |
-| **Durable Memory** | [`config/ai/memory/`](file:///home/ongki/dotfiles/config/ai/memory) | Cross-session, durable operational facts (19 files). | `ai-memory-access`, AI sessions |
-| **Project Memory** | [`config/ai/project-memory/`](file:///home/ongki/dotfiles/config/ai/project-memory) | Knowledge base for 70+ client systems, repositories, and domain gotchas. | On-demand context retrieval |
+| **Durable Memory** | [`config/ai/memory/`](file:///home/ongki/dotfiles/config/ai/memory) | Cross-session, durable operational facts (20 files). | `ai-memory-access`, AI sessions |
+| **Project Memory** | [`config/ai/project-memory/`](file:///home/ongki/dotfiles/config/ai/project-memory) | Knowledge base for 76 client systems, repositories, and domain gotchas. | On-demand context retrieval |
 | **Kelola Memory** | [`config/ai/project-memory-kelola/`](file:///home/ongki/dotfiles/config/ai/project-memory-kelola) | Specialized knowledge pack for Kelola HRIS infrastructure. | Kelola deployment & maintenance |
-| **Skills Registry** | [`skills/local/`](file:///home/ongki/dotfiles/skills/local) | 72 owned skills categorized into 11 engineering domains. | AI CLI tool calling & workflows |
+| **Skills Registry** | [`skills/local/`](file:///home/ongki/dotfiles/skills/local) | 75 owned skills categorized into 11 engineering domains. | AI CLI tool calling & workflows |
 | **Skill Management**| [`skills/agents-bin/`](file:///home/ongki/dotfiles/skills/agents-bin) | CLI tools for managing, checking, updating, and removing skills. | Developers & AI toolchain |
-| **Executable CLI**  | [`bin/`](file:///home/ongki/dotfiles/bin) | 108 standalone shell and Python scripts for linting, testing, sync, gates. | Terminal workflow & CI |
+| **Executable CLI**  | [`bin/`](file:///home/ongki/dotfiles/bin) | 111 standalone shell and Python scripts for linting, testing, sync, gates. | Terminal workflow & CI |
 | **OMP Control Plane** | [`config/omp/`](file:///home/ongki/dotfiles/config/omp) | Model routing catalogs, agent taxonomy, fallbacks, and benchmarks. | OMP (Oh My Prompt) runtime |
 | **Device Registry** | [`devices/`](file:///home/ongki/dotfiles/devices) | Hardware manifests, OS specs, and per-machine configurations (7 hosts). | `dotsync`, `device-register` |
 | **Project Templates** | [`config/templates/`](file:///home/ongki/dotfiles/config/templates) | Contract scaffold for new projects (`PRD`, `TASKS`, `ARCHITECTURE`, etc.). | `project-init` |
@@ -89,6 +89,7 @@ Cross-project durable facts loaded selectively on demand by `ai-memory-access`.
 | [`goals.md`](file:///home/ongki/dotfiles/config/ai/memory/goals.md) | High-level engineering roadmap, business objectives, milestones. |
 | [`business.md`](file:///home/ongki/dotfiles/config/ai/memory/business.md) | Business landscape: client systems, dropshipping, affiliate platforms, e-commerce stores. |
 | [`development.md`](file:///home/ongki/dotfiles/config/ai/memory/development.md) | House stack (Postgres + Drizzle + Better Auth, Astro, Next.js, Cloudflare Workers), lazy developer guidelines. |
+| [`development-lessons.md`](file:///home/ongki/dotfiles/config/ai/memory/development-lessons.md) | Verified cross-project engineering lessons promoted via `ai-learn`. |
 | [`workflow.md`](file:///home/ongki/dotfiles/config/ai/memory/workflow.md) | Pre-dev staging contract (`~/Documents/work/prd/<slug>/` -> `~/Projects/<slug>/`), delivery ledger lifecycle. |
 | [`decisions.md`](file:///home/ongki/dotfiles/config/ai/memory/decisions.md) | Master log of architectural decisions, stack selections, and structural choices. |
 | [`skills.md`](file:///home/ongki/dotfiles/config/ai/memory/skills.md) | Summary of owned skills, external upstream sources, and skill evolution rules. |
@@ -141,7 +142,7 @@ Comprehensive project memory for the production deployment of `kelolatim.com`:
 
 ## 6. Owned Skills Directory (`skills/local/`)
 
-Dotfiles hosts 67 specialized capabilities grouped into 11 distinct domains. Every runtime accesses these skills via symlinks.
+Dotfiles hosts 75 specialized capabilities grouped into 11 distinct domains (`skills/local/README.md` is auto-rendered by `bin/skill-map`). Every runtime accesses these skills via symlinks.
 
 ### 6.1 Cloudflare Platform
 - [`cloudflare`](file:///home/ongki/dotfiles/skills/local/cloudflare/SKILL.md): Platform entry point (Workers, KV, D1, R2, Vectorize, WAF).
@@ -151,18 +152,21 @@ Dotfiles hosts 67 specialized capabilities grouped into 11 distinct domains. Eve
 - [`agents-sdk`](file:///home/ongki/dotfiles/skills/local/agents-sdk/SKILL.md): Stateful AI agents and durable workflows on Cloudflare Workers.
 - [`cloudflare-email-service`](file:///home/ongki/dotfiles/skills/local/cloudflare-email-service/SKILL.md): Transactional email sending and routing.
 - [`cloudflare-one`](file:///home/ongki/dotfiles/skills/local/cloudflare-one/SKILL.md): Zero Trust, Tunnels, Access, and Gateway policies.
+- [`cloudflare-one-migrations`](file:///home/ongki/dotfiles/skills/local/cloudflare-one-migrations/SKILL.md): VPN/SWG/SASE migration planning to Cloudflare One.
 - [`sandbox-next`](file:///home/ongki/dotfiles/skills/local/sandbox-next/SKILL.md): Code execution sandbox on `@cloudflare/sandbox@next`.
 - [`sandbox-stable`](file:///home/ongki/dotfiles/skills/local/sandbox-stable/SKILL.md): Stable `@cloudflare/sandbox` execution.
+- [`sandbox-migrate-to-next`](file:///home/ongki/dotfiles/skills/local/sandbox-migrate-to-next/SKILL.md): Migration from `@cloudflare/sandbox` stable to `@next`.
 
 ### 6.2 Web Frameworks & Interface
 - [`astro-development`](file:///home/ongki/dotfiles/skills/local/astro-development/SKILL.md): Content-focused Astro architecture and hybrid rendering.
 - [`nextjs-development`](file:///home/ongki/dotfiles/skills/local/nextjs-development/SKILL.md): App Router architecture, Server Actions, route handlers.
 - [`shadcn-ui`](file:///home/ongki/dotfiles/skills/local/shadcn-ui/SKILL.md): React component foundation and accessible primitives.
-- [`design-taste`](file:///home/ongki/dotfiles/skills/local/design-taste/SKILL.md): Public frontend design direction, design tokens, typography.
-- [`admin-dashboard`](file:///home/ongki/dotfiles/skills/local/admin-dashboard/SKILL.md): Information architecture for data-dense dashboards.
-- [`admin-product-ux`](file:///home/ongki/dotfiles/skills/local/admin-product-ux/SKILL.md): Operator workflows, state machines, bulk operations.
+- [`design-taste`](file:///home/ongki/dotfiles/skills/local/design-taste/SKILL.md): Public frontend visual direction, OKLCH/HSL color scales, multi-brand skinning, explanatory SVG craft, and niche patterns (`contrast.py`, `design-gate.py`).
+- [`admin-dashboard`](file:///home/ongki/dotfiles/skills/local/admin-dashboard/SKILL.md): Information architecture, responsive tables, chart selection, and `@media print` commercial document specs (`dataviz-and-print-specs.md`).
+- [`admin-product-ux`](file:///home/ongki/dotfiles/skills/local/admin-product-ux/SKILL.md): Operator workflows, state machines, progressive onboarding (`First-Use Empty` vs `Filtered-Zero Empty`), and AI/agentic HITL approval contracts.
 - [`ui-validation`](file:///home/ongki/dotfiles/skills/local/ui-validation/SKILL.md): Browser-based verification (Playwright, responsive, dark/light).
 - [`web-perf`](file:///home/ongki/dotfiles/skills/local/web-perf/SKILL.md): Core Web Vitals profiling, Lighthouse optimization.
+- [`threejs`](file:///home/ongki/dotfiles/skills/local/threejs/SKILL.md): 3D WebGL scenes across vanilla JS, Vite, Astro, and React Three Fiber (R3F).
 
 ### 6.3 Animation (GSAP)
 - [`gsap-core`](file:///home/ongki/dotfiles/skills/local/gsap-core/SKILL.md): Core tweening, easing, matchMedia.
@@ -176,7 +180,7 @@ Dotfiles hosts 67 specialized capabilities grouped into 11 distinct domains. Eve
 
 ### 6.4 Commerce & Shopify
 - [`storefront-development`](file:///home/ongki/dotfiles/skills/local/storefront-development/SKILL.md): Dawn-aligned progressive enhancement storefronts.
-- [`storefront-ux`](file:///home/ongki/dotfiles/skills/local/storefront-ux/SKILL.md): Commerce user journey, variant selection, checkout friction analysis.
+- [`storefront-ux`](file:///home/ongki/dotfiles/skills/local/storefront-ux/SKILL.md): Commerce journeys, variant selection, direct COD funnels, post-purchase RTS-reduction, WhatsApp conversational handoff, and AI shopping advisor states.
 - [`headless-shopify`](file:///home/ongki/dotfiles/skills/local/headless-shopify/SKILL.md): Storefront API architecture and Customer Account API.
 - [`hydrogen-development`](file:///home/ongki/dotfiles/skills/local/hydrogen-development/SKILL.md): Shopify Hydrogen framework and Oxygen runtime.
 - [`hydrogen-headless-tracking`](file:///home/ongki/dotfiles/skills/local/hydrogen-headless-tracking/SKILL.md): Consent-aware analytics and Web Pixels.
@@ -190,7 +194,7 @@ Dotfiles hosts 67 specialized capabilities grouped into 11 distinct domains. Eve
 
 ### 6.6 Data, Auth & API
 - [`postgres-drizzle`](file:///home/ongki/dotfiles/skills/local/postgres-drizzle/SKILL.md): PostgreSQL schema modeling, Drizzle ORM migrations, RLS.
-- [`supabase-stack`](file:///home/ongki/dotfiles/skills/local/supabase-stack/SKILL.md): Supabase Auth, realtime DB, storage, Edge Functions.
+- [`supabase-stack`](file:///home/ongki/dotfiles/skills/local/supabase-stack/SKILL.md): Full-spectrum Supabase platform & Postgres best practices — Auth (`@supabase/ssr`, Hooks, MFA), RLS + pgTAP testing, Storage (TUS resumable, signed URLs), Realtime Broadcast, Edge Functions, Vectors (`pgvector` + hybrid RRF), Queues (`pgmq`), Cron (`pg_cron` + `pg_net` + Vault), declarative schemas, and Supavisor pooling.
 - [`better-auth-security`](file:///home/ongki/dotfiles/skills/local/better-auth-security/SKILL.md): Better Auth hardening, rate limiting, trusted origins.
 - [`openapi-spec`](file:///home/ongki/dotfiles/skills/local/openapi-spec/SKILL.md): OpenAPI 3.1 REST specification design and validation.
 - [`application-security`](file:///home/ongki/dotfiles/skills/local/application-security/SKILL.md): Threat modeling, tenant isolation, CSRF, XSS, injection prevention.
@@ -208,6 +212,7 @@ Dotfiles hosts 67 specialized capabilities grouped into 11 distinct domains. Eve
 - [`content`](file:///home/ongki/dotfiles/skills/local/content/SKILL.md): Multi-asset editorial workflows, batching calendars, quality gates.
 - [`copywriting`](file:///home/ongki/dotfiles/skills/local/copywriting/SKILL.md): Conversion copywriting templates, headline formulas, character limits.
 - [`volumx-writer`](file:///home/ongki/dotfiles/skills/local/volumx-writer/SKILL.md): Tone humanization, terminal dialogue improvements.
+- [`cms-content`](file:///home/ongki/dotfiles/skills/local/cms-content/SKILL.md): Client content-editing layer selection and implementation (Astro collections, Keystatic, Payload, Shopify metaobjects).
 
 ### 6.9 Planning & Specification
 - [`prd-taskbreaker`](file:///home/ongki/dotfiles/skills/local/prd-taskbreaker/SKILL.md): Transforms features into numbered PRDs and runnable task queues.
@@ -216,6 +221,7 @@ Dotfiles hosts 67 specialized capabilities grouped into 11 distinct domains. Eve
 - [`adr-record`](file:///home/ongki/dotfiles/skills/local/adr-record/SKILL.md): Architectural Decision Record generation.
 - [`mermaid-diagram`](file:///home/ongki/dotfiles/skills/local/mermaid-diagram/SKILL.md): Flowcharts, ERDs, sequence diagrams, and architecture graphs.
 - [`product-intelligence`](file:///home/ongki/dotfiles/skills/local/product-intelligence/SKILL.md): Market viability, pricing analysis, and product scope research.
+- [`chain-of-thought`](file:///home/ongki/dotfiles/skills/local/chain-of-thought/SKILL.md): Structured step-by-step problem decomposition and invariant deduction.
 
 ### 6.10 Delivery Practice
 - [`full-stack-development`](file:///home/ongki/dotfiles/skills/local/full-stack-development/SKILL.md): Cross-layer end-to-end feature delivery orchestration.
@@ -225,10 +231,13 @@ Dotfiles hosts 67 specialized capabilities grouped into 11 distinct domains. Eve
 - [`lean-code-review`](file:///home/ongki/dotfiles/skills/local/lean-code-review/SKILL.md): Bloat audit, dead code elimination, YAGNI enforcement.
 - [`native-first`](file:///home/ongki/dotfiles/skills/local/native-first/SKILL.md): Platform-native cheatsheets (standard library over dependencies).
 - [`continuous-learning`](file:///home/ongki/dotfiles/skills/local/continuous-learning/SKILL.md): Capturing reusable lessons and promoting memory candidates.
+- [`cross-cli`](file:///home/ongki/dotfiles/skills/local/cross-cli/SKILL.md): Delegating review/research lanes across installed AI CLIs via `ai-ask`.
+- [`codebase-navigation`](file:///home/ongki/dotfiles/skills/local/codebase-navigation/SKILL.md): Cross-file call/dependency tracing and optional Graphify code graphs.
 
 ### 6.11 Infrastructure & Runtime
 - [`vercel`](file:///home/ongki/dotfiles/skills/local/vercel/SKILL.md): Edge deployment, Vercel CLI, environment variable management.
 - [`vultr`](file:///home/ongki/dotfiles/skills/local/vultr/SKILL.md): VPS provisioning and Coolify deployment via `vultr-cli`.
+- [`vps-deploy`](file:///home/ongki/dotfiles/skills/local/vps-deploy/SKILL.md): Ubuntu VPS deployment and operations via Coolify v4 or Docker Compose.
 - [`kelola-deploy`](file:///home/ongki/dotfiles/skills/local/kelola-deploy/SKILL.md): Production server deployment and recovery for Kelola HRIS.
 - [`9router`](file:///home/ongki/dotfiles/skills/local/9router/SKILL.md): Local/remote multi-provider AI gateway management.
 

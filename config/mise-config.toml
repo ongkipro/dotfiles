@@ -21,3 +21,4 @@ taplo = "latest"      # Helix LSP for TOML — mise, Helix, and wrangler configs
 node = "24.21.0"
 bun = "latest"
 ripgrep = "latest"
+supabase = "latest"
