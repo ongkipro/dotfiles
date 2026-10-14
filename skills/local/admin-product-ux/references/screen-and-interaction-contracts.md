@@ -65,17 +65,45 @@ window; medium — recoverable but painful → two-click friction (e.g. inside a
 dropdown); low → no confirmation, offer Undo. Buttons name the action; no
 default answer (NN/g confirmation dialogs, 2018, reviewed 2026-08-07).
 
-## Settings and setup
+## Settings, progressive onboarding, and workspace activation
 
 - Low-impact settings may autosave; high-impact ones use an explicit Save;
   **never mix both models in one form**. Inherited or locked settings show why
   and where they are set (GitLab Pajamas settings management, 2026-07-15).
   A contextual save bar appears only while there are unsaved changes
   (Shopify settings template).
-- Setup checklist for a new workspace: "N of M steps completed", each step
-  links to where the task is done, dismissible and collapsible (Shopify setup
-  guide). Model it as the screen contract's first-use state; no forced product
-  tour.
+- **Empty-to-Active Workspace Lifecycle (Progressive Onboarding)**:
+  - A new workspace (`0` records) must never drop the operator onto a dead
+    `"No data found"` table with zero guidance.
+  - Model a **3–5 step Setup & Activation Checklist** (`"N of M steps completed"`,
+    Shopify setup guide pattern) derived from real backend state (e.g.,
+    *1. Lengkapi profil & rekening pencairan → 2. Hubungkan ekspedisi/webhook →
+    3. Tambah produk pertama / impor CSV → 4. Buat pesanan uji coba*).
+  - Each step links directly to the action surface, marks itself complete
+    automatically when the underlying entity exists, is collapsible/dismissible,
+    and never forces a modal tooltip tour.
+  - Distinguish **First-Use Empty** (workspace has never created an object → show
+    activation CTA + CSV import/template) from **Filtered-Zero Empty** (workspace
+    has data, current filter matched `0` rows → show active filters + `Reset
+    filter` button).
+
+## AI / agentic operator co-pilots and human-in-the-loop (HITL) approvals
+
+When an admin surface uses an LLM/agent to classify tickets, draft listings,
+reconcile payments, extract invoice/waybill fields, or recommend inventory actions:
+
+- **Provenance & Confidence Visibility**: show which source records or rules
+  grounded the suggestion (e.g., linked order ID, uploaded PDF field highlight,
+  or matched policy) and flag low-confidence fields requiring operator review.
+- **Diff Before Mutation**: AI-proposed edits to existing records (product copy,
+  stock adjustment, payroll/ledger categorization, bulk status change) must
+  render a **before vs after diff preview** with field-level accept/edit/reject
+  controls before writing to the database.
+- **Mandatory Human-in-the-Loop Gate**: AI agents in operator consoles must
+  never auto-execute financial disbursements, refunds, external customer
+  notifications (WhatsApp/email broadcasts), or destructive bulk mutations
+  without an explicit operator approval action that records the approving
+  operator's identity alongside the AI suggestion in the audit log.
 
 ## Forms and mutations
 

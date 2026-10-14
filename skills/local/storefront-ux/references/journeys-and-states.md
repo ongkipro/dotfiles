@@ -149,6 +149,68 @@ checklist, not a mandate to add every feature.
 - Persist locale/market intentionally; never use IP or browser language as an
   irreversible decision.
 
+## Post-purchase, order tracking, and COD RTS-reduction
+
+In Indonesian/Malaysian COD funnels, order submission is only half the conversion;
+**RTS (Return to Sender / rejected delivery)** destroys unit economics when buyers
+forget the order, do not prepare cash, or household members refuse an unexpected
+courier.
+
+- **COD Order Confirmation Screen ("Thank You" Page) Contract**:
+  - **Cash Preparation Callout**: display a high-contrast summary box stating
+    **`Siapkan Uang Tunai Pas: Rp XX.XXX`** (exact total including shipping and
+    COD fee) and **`Bayar ke kurir saat paket tiba`**.
+  - **Courier & Delivery Window**: state the selected courier (`J&T`, `SiCepat`,
+    `JNE`, `SAP`, `Ninja`) and realistic arrival range (`Estimasi tiba: 2–4 hari
+    kerja`), plus a reminder to keep the registered WhatsApp/phone number active
+    for the courier call.
+  - **"Kabari Orang Rumah" Share Action**: provide a 1-tap share/copy summary
+    card so buyers who work outside the home can forward the expected COD amount
+    and courier name to family/reception receiving the package.
+  - **Address Correction Window**: allow immediate address/patokan correction or
+    1-click WhatsApp confirmation before the warehouse prints the AWB.
+- **Self-Serve Order Tracking & NDR (Non-Delivery Report) Rescue**:
+  - Map raw courier statuses into buyer-understandable stages: `Pesanan Dikonfirmasi`
+    → `Dikemas` → `Diserahkan ke Ekspedisi (No. Resi)` → `Dalam Perjalanan` →
+    `Kurir Menuju Alamat Anda` → `Terkirim`.
+  - When a courier reports a delivery exception (`Kendala Pengiriman`: *Alamat
+    kurang jelas*, *Penerima tidak ada di tempat*, *Nomor tidak aktif*), surface
+    an urgent banner with a direct action (`Update Patokan Alamat / Jadwal Ulang
+    Pengiriman`) before the courier triggers automatic return.
+
+## WhatsApp conversational commerce handoff
+
+- **Single Natural Entry Point**: respect the project's single-WhatsApp-CTA
+  discipline (never stack a floating WA bubble on top of a sticky bottom WA bar
+  and inline WA buttons in the same viewport).
+- **Structured, Human-First Pre-Filled Message**:
+  - Format the `text=` payload so the buyer sees a clean, editable order summary
+    rather than a raw URL dump:
+    1. Greeting + intent (`Halo Admin, saya mau pesan / tanya produk:`)
+    2. Selected product title, variant/color/size, and quantity
+    3. Buyer name & destination `Kecamatan / Kota` (if entered on page)
+    4. Compact attribution reference on the final line (`Ref: #ORD-...` or short
+       attribution code mapped server-side to `gclid`/`fbclid`/`ttclid`) so
+       ad-signal reconciliation works without exposing a 300-character query string.
+- **Desktop & In-App Browser Resilience**:
+  - Use `https://wa.me/628...` (universal link). On desktop viewports (`>= 1024px`)
+    where `wa.me` may fail if WhatsApp Desktop is not installed, provide a
+    fallback copy-message + visible number/QR option in the confirmation modal.
+
+## AI shopping assistant & conversational advisor states
+
+When a storefront includes an AI product advisor, size finder, or chat search:
+
+- **Grounded Product & Policy Citations**: every recommendation or policy answer
+  must link to the real PDP card, live variant price, and verified return/shipping
+  policy — never hallucinate stock, discounts, or medical/efficacy claims.
+- **Explicit Uncertainty & Human Handoff**: when a question requires checking
+  physical warehouse stock, custom tailoring, or a complaint, state what is known
+  and hand off cleanly to human CS with the conversation context preserved.
+- **No Silent Cart/Order Mutation**: AI assistants may stage a recommended
+  variant or bundle card with an explicit `Tambah ke Keranjang` button, but must
+  never submit an order or mutate checkout state without direct user click confirmation.
+
 ## Responsive behavior
 
 Specify transformations per region:

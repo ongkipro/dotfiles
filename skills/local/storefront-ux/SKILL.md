@@ -68,8 +68,9 @@ Keep semantic structure, keyboard behavior, state recovery, performance budgets,
     is built or changed: `ui-validation` → only then done.
 
 Read [journeys-and-states.md](references/journeys-and-states.md) for canonical
-buyer journeys, responsive behavior, commerce state, recovery, analytics, and
-acceptance gates. For Shopify work, also read
+buyer journeys, post-purchase COD RTS-reduction screens, WhatsApp conversational
+commerce handoffs, AI shopping assistant states, responsive behavior, commerce
+state, recovery, analytics, and acceptance gates. For Shopify work, also read
 [shopify-boundary.md](references/shopify-boundary.md); treat hosted checkout,
 accelerated checkout, Customer Accounts, cart semantics, and extension surfaces
 as platform contracts, not generic frontend behavior. Use `design-taste`
@@ -100,6 +101,13 @@ buyer journey and observable state requirements, not the runtime design.
 - Never imply checkout completion before the commerce backend confirms it.
   Cart success, checkout initiation, payment intent creation, and client return
   are not order confirmation.
+- On Indonesian/Malaysian COD orders, design the post-purchase confirmation and
+  tracking screens to prevent Return-to-Sender (RTS): highlight exact cash to
+  prepare (`Siapkan Uang Tunai Pas`), courier + arrival window, a "Kabari Orang
+  Rumah" share summary, and Non-Delivery Report (`Kendala Pengiriman`) rescue actions.
+- Keep WhatsApp commerce handoffs to a single natural CTA per viewport with a
+  human-readable pre-filled summary (item, variant, qty, kecamatan, and compact
+  attribution ref) plus a desktop copy/QR fallback.
 - Do not require account creation before purchase unless the business
   constraint is verified. Preserve guest progress through authentication.
 - Format price, dates, units, names, and addresses for the active market. Do

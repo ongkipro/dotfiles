@@ -6,18 +6,20 @@ Usage:
   contrast.py "FG on BG" ["FG on BG" ...] [options]
   contrast.py --file pairs.txt [options]     # one "FG on BG" per line; a '#'
                                              # followed by a space starts a comment
-Colors: #rgb, #rgba, #rrggbb, #rrggbbaa, rgb()/rgba() (comma or space syntax,
-alpha as 0-1 or %). A translucent BG is composited over --over (required then);
-a translucent FG is composited over the resulting BG.
+Colors: #rgb, #rgba, #rrggbb, #rrggbbaa, rgb()/rgba(), hsl()/hsla(), oklch()
+(comma or space syntax, alpha as 0-1 or %). A translucent BG is composited over
+--over (required then); a translucent FG is composited over the resulting BG.
 Large text = >=24px regular or >=18.66px bold (18pt / 14pt bold). Thresholds:
 AA 4.5 (large 3), AAA 7 (large 4.5). Ratios are floored to 2 decimals for
 display; pass/fail uses the unrounded value.
 Exit 0 = all pairs pass the chosen level, 1 = at least one fails, 2 = bad input.
 """
-import argparse, math, re, sys
+import argparse, colorsys, math, re, sys
 
 HEX = re.compile(r"#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$", re.I)
 FUNC = re.compile(r"rgba?\(\s*([^)]*)\)$", re.I)
+HSL = re.compile(r"hsla?\(\s*([^)]*)\)$", re.I)
+OKLCH = re.compile(r"oklch\(\s*([^)]*)\)$", re.I)
 
 
 def parse(color):
@@ -36,7 +38,69 @@ def parse(color):
             rgb = [_channel(p) for p in parts[:3]]
             a = _alpha(parts[3]) if len(parts) == 4 else 1.0
             return (*rgb, a)
+    m = HSL.match(c)
+    if m:
+        parts = [p for p in re.split(r"[\s,/]+", m.group(1).strip()) if p]
+        if len(parts) in (3, 4) and parts[1].endswith("%") and parts[2].endswith("%"):
+            h = (_angle_deg(parts[0]) % 360.0) / 360.0
+            s = _unit_pct(parts[1])
+            l = _unit_pct(parts[2])
+            a = _alpha(parts[3]) if len(parts) == 4 else 1.0
+            r, g, b = (ch * 255.0 for ch in colorsys.hls_to_rgb(h, l, s))
+            return (r, g, b, a)
+    m = OKLCH.match(c)
+    if m:
+        parts = [p for p in re.split(r"[\s,/]+", m.group(1).strip()) if p]
+        if len(parts) in (3, 4):
+            L = 0.0 if parts[0].lower() == "none" else (
+                _unit_pct(parts[0]) if parts[0].endswith("%") else float(parts[0])
+            )
+            if not 0 <= L <= 1:
+                raise ValueError(f"oklch lightness out of range: {parts[0]}")
+            C = 0.0 if parts[1].lower() == "none" else (
+                float(parts[1][:-1]) * 0.4 / 100.0 if parts[1].endswith("%") else float(parts[1])
+            )
+            if C < 0:
+                raise ValueError(f"oklch chroma out of range: {parts[1]}")
+            H = math.radians(_angle_deg(parts[2]))
+            a = _alpha(parts[3]) if len(parts) == 4 else 1.0
+            ok_a, ok_b = C * math.cos(H), C * math.sin(H)
+            l_ = L + 0.3963377774 * ok_a + 0.2158037573 * ok_b
+            m_ = L - 0.1055613458 * ok_a - 0.0638541728 * ok_b
+            s_ = L - 0.0894841775 * ok_a - 1.2914855480 * ok_b
+            l_c, m_c, s_c = l_ ** 3, m_ ** 3, s_ ** 3
+            r_lin = +4.0767416621 * l_c - 3.3077115913 * m_c + 0.2309699292 * s_c
+            g_lin = -1.2684380046 * l_c + 2.6097574011 * m_c - 0.3413193965 * s_c
+            b_lin = -0.0041960863 * l_c - 0.7034186147 * m_c + 1.7076147010 * s_c
+            return (_lin_to_srgb255(r_lin), _lin_to_srgb255(g_lin), _lin_to_srgb255(b_lin), a)
     raise ValueError(f"unrecognised color: {color!r}")
+
+
+def _angle_deg(p):
+    t = p.strip().lower()
+    if t == "none":
+        return 0.0
+    if t.endswith("turn"):
+        return float(t[:-4]) * 360.0
+    if t.endswith("grad"):
+        return float(t[:-4]) * 0.9
+    if t.endswith("rad"):
+        return float(t[:-3]) * 180.0 / math.pi
+    if t.endswith("deg"):
+        return float(t[:-3])
+    return float(t)
+
+
+def _unit_pct(p):
+    v = float(p[:-1]) / 100.0
+    if not 0 <= v <= 1:
+        raise ValueError(f"percentage out of range: {p}")
+    return v
+
+
+def _lin_to_srgb255(c):
+    c = min(1.0, max(0.0, c))
+    return 255.0 * (12.92 * c if c <= 0.04045 / 12.92 else 1.055 * (c ** (1.0 / 2.4)) - 0.055)
 
 
 def _channel(p):

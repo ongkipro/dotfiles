@@ -184,16 +184,16 @@ brand on a shared template, or a redesign without an established brand system:
 2. Treat recurring type, color, radius, composition, imagery, and motion as
    prompts for critique. Reuse is valid when it fits this audience, content,
    reference, and brand. There is no forbidden-font list or quota of differences.
-3. On a shared template, preserve the engine and components. Derive each
-   brand's expression from its assets and researched direction; do not force a
-   different hero or signature device when the reference and job favor reuse.
-4. Shape language (radius, surfaces, dividers) is itself a researched,
-   per-project choice (owner decision 2026-10-08); the owner's fixed rules
-   are the quality ones (no decorative Sparkles, no invented meters, one
-   contact CTA), which variety never relaxes.
+3. On a shared template, preserve the engine and components while evaluating
+   structural axes (header topology, corner/border physics, hero slot, card
+   ratio, and tinted OKLCH surfaces) per
+   [color-scales-and-skinning.md](references/color-scales-and-skinning.md); do
+   not force a different hero or device when the reference and job favor reuse.
+4. Shape language (radius, surfaces, dividers) is a researched per-project
+   choice (owner decision 2026-10-08); fixed quality rules (no decorative
+   Sparkles, no invented meters, one contact CTA) never relax.
 5. Record any material comparison and the reason to retain or change a
-   recurring choice in the design artifact. The quality criterion is fit and
-   intentional composition, not novelty for its own sake.
+   recurring choice in the design artifact.
 
 ## 3. Framework-neutral implementation
 
@@ -236,8 +236,8 @@ available. Preserve native scroll, zoom, focus, and browser history behavior.
 
 Use the brand's type first. A system stack suits utilitarian or
 performance-critical surfaces; for a new brand without type, choose the
-family from the subject and the §2.1 distinctness check, not from habit.
-Inter, serif, and any other family are neither inherently good nor AI slop.
+family from the subject, the §2.1 distinctness check, and the pairing matrix +
+zero-CLS fallback rules in [color-scales-and-skinning.md](references/color-scales-and-skinning.md).
 Choose for content, language coverage, reading, and loading cost. Verify font
 licensing and use project-native loading or self-hosted subsets where suitable.
 Do not copy proprietary brand font assets merely to resemble a reference.
@@ -246,29 +246,24 @@ Define a clear type hierarchy and comfortable reading measure; roughly 60–75ch
 is a starting point for long prose, not a universal width. Let CSS balance
 wrapping (`text-wrap: balance` on short headings, `pretty` on prose) instead of
 hard `<br>` breaks that fail at other widths and in translation (Vercel Web
-Interface Guidelines). Use responsive sizes
-that retain a rem contribution and work with zoom. Test long titles and real
-translations. A headline may wrap; do not force two lines or rewrite meaning
-to satisfy a screenshot. Avoid fixed-height text containers and clipped glyphs.
+Interface Guidelines). Use responsive `clamp()` sizes that retain a rem
+contribution and work with zoom. Test long titles and real translations. Avoid
+fixed-height text containers and clipped glyphs.
 
-### 4.2. Color, shape, and elevation
+### 4.2. Color, shape, elevation, and visual assets
 
 Use semantic tokens for canvas, text, action, border, state, and surfaces that
-actually exist. Default to a restrained neutral base and a clear primary
-accent when no brand is established. Additional accents, pure white/black,
-neutral grays, and gradients are valid when their role and contrast are clear.
-Do not invent three surfaces, a tint, or a texture solely to pass a rule.
+actually exist. For deriving OKLCH perceptual scales and tinted neutrals from a
+brand seed color, follow [color-scales-and-skinning.md](references/color-scales-and-skinning.md).
+Use a small radius and elevation vocabulary with consistent purposes. Reserve
+strong shadow/blur for layers where separation matters. Repeated rounded boxes
+around every heading, paragraph, and section create noise.
 
-Use a small radius and elevation vocabulary with consistent purposes. Cards
-may group content without implying elevation. Reserve strong shadow/blur for
-layers where separation matters. Repeated rounded boxes around every heading,
-paragraph, and section usually create noise. A functional chip or badge is not
-slop merely because it is rounded.
-
-Icons: on static or non-React sites, inline SVG copied from the Lucide set
+Icons and schematics: on static or non-React sites, inline SVG from Lucide
 (one stroke weight, `currentColor`, `aria-hidden` when a text label exists) is
-the default; do not add an icon package or React only for icons. In an existing
-React app `lucide-react` is fine when already installed. Functional icons only.
+the default; in React `lucide-react` is fine when installed. For explanatory
+SVG diagrams, photographic focal-point cropping, honest AI asset generation, and
+`1200×630` OpenGraph cards, follow [visual-asset-and-svg-craft.md](references/visual-asset-and-svg-craft.md).
 
 ### 4.2.1. Theme policy
 
@@ -470,7 +465,9 @@ AI slop from a prompt, static scan, or one model-generated sample.
 | Invented-info, filler, hollow-copy tells; allowed-patterns record; scan script | invented-info-tells.md |
 | Style-habit scan (`scripts/tells-scan.py --css`: micro-labels, 100vh, outline removal, fixed grids, loops, generated-look palette) | invented-info-tells.md |
 | Category starting points: job, local-market checks, content inventory, claim traps, research queries | niche-patterns/README.md |
-| Measured WCAG contrast incl. alpha and large-text thresholds (`scripts/contrast.py`) | accessibility-notes.md |
+| OKLCH color scale derivation, fluid type/CLS fallbacks, font archetypes, shared-template skinning axes | color-scales-and-skinning.md |
+| Explanatory SVG diagrams, photographic focal cropping, honest AI asset generation, `1200×630` OpenGraph cards | visual-asset-and-svg-craft.md |
+| Measured WCAG contrast incl. `oklch()`, `hsl()`, alpha, and large-text thresholds (`scripts/contrast.py`) | accessibility-notes.md |
 | Cross-project repetition (`scripts/portfolio-scan.py`: fonts, radius, accent, direction per recent project) | SKILL.md §2.1 |
 | Delivery gate (`scripts/design-gate.py`: decoded references, fresh narrow/wide renders, independent review PASS; style counters advisory; exit 1 blocks "ready") | SKILL.md §8 |
 | Independent review prompt and output format | visual-review.md |

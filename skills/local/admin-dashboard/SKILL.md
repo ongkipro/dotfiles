@@ -52,7 +52,7 @@ For order/seller-center queues, inventory, finance/ledger, audit-log, and search
 | Before adding a new dep/lib/wrapper | skill **`native-first`** |
 | IA / flow / ERD diagram from the dashboard structure | skill **`mermaid-diagram`** |
 | Dashboard slow / heavy chart bundle / render audit | skill **`web-perf`** |
-| Chart craft: mark specs, legends, tooltips, sequential/diverging ramps | skill **`dataviz`** when the runtime exposes it — but §6's accessibility floor (colourblind-safe series + a non-colour cue) is not overridable by another palette's defaults |
+| Chart craft (mark specs, legends, tooltips, sequential/diverging ramps, COD waterfall, cohorts) & `@media print` (invoices, payslips, A6 thermal waybills) | [references/dataviz-and-print-specs.md](references/dataviz-and-print-specs.md) — keeping §6's colourblind-safe + non-colour-cue accessibility floor |
 | Viewport, keyboard, accessibility, state, and visual-regression evidence | skill **`ui-validation`** |
 | Astro specifics (islands, adapter) / CF Workers+D1 | skills **`astro-development`**, **`cloudflare`**, **`wrangler`** |
 
@@ -214,7 +214,7 @@ current registry item and the project's TanStack major before installing.
 - **Motion** (`design-taste` `references/motion-craft.md` §8.3): corporate/utility timing 120-200ms for state changes; no animation on keyboard or high-frequency actions; no chart entry animation on every data refresh (animate only the first render, if at all); no View Transitions on table pagination; list add/remove via AnimatePresence or auto-animate; reduced motion removes movement but keeps state feedback.
 - **Dark mode**: map each series to a **`--chart-*`** token (light in `:root`, override in `.dark`) — **don't hardcode hex**. Token syntax: see the `shadcn-ui` skill.
 
-**Palette ownership:** this section is the local source of truth for categorical chart colour. If the runtime also exposes a general `dataviz` skill, use it for craft detail (mark specs, legends, tooltips) but keep the accessibility floor here — colourblind-safe series and a non-colour cue are not negotiable by another palette's defaults.
+**Palette & encoding ownership:** this section is the local source of truth for categorical chart colour. For quantitative encoding rules, sequential/diverging OKLCH ramps, COD cashflow waterfalls, cohort retention heatmaps, and `@media print` document specs (B2B invoices, HRIS payslips, A6 thermal waybills), load [references/dataviz-and-print-specs.md](references/dataviz-and-print-specs.md) — keeping §6's colourblind-safe series and non-colour cue floor non-negotiable.
 
 ## 7. Stack fit — Astro, Vite, Next, and server data
 

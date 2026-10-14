@@ -84,8 +84,10 @@ accepted workflow may use repository evidence alone.
 
 Derive navigation and screens from tasks and objects. For each screen, define
 entry points, required information, primary and secondary actions, dangerous
-actions, states, persistence, and completion criteria. Select list-detail,
-queue, timeline, wizard, settings, or dashboard based on the job—not habit.
+actions, states (including first-use progressive onboarding vs filtered-zero
+empty states, and AI/agentic human-in-the-loop diff/approval states where
+applicable), persistence, and completion criteria. Select list-detail, queue,
+timeline, wizard, settings, or dashboard based on the job—not habit.
 
 Read [Screen and interaction contracts](references/screen-and-interaction-contracts.md).
 

@@ -65,5 +65,8 @@ Every niche file uses these headings, in this order. Leave a heading with
 | [local-services.md](local-services.md) | clinics, workshops, salons, contractors, education, local professionals |
 | [saas-b2b.md](saas-b2b.md) | B2B software and tools sold to teams |
 | [professional-services.md](professional-services.md) | B2B service firms: sales outsourcing, consulting, agencies, accounting, legal, IT services, training |
+| [agribusiness-b2b.md](agribusiness-b2b.md) | agricultural inputs (seeds, fertilizers, crop protection), plantation supplies, B2B commodity trading |
+| [fashion-craft-leather.md](fashion-craft-leather.md) | leather goods, modest fashion/muslimwear, sarimbit family sets, batik/tenun, artisan crafts |
+| [logistics-shipping-aggregator.md](logistics-shipping-aggregator.md) | multi-courier shipping aggregators, cargo platforms, COD logistics and AWB/tariff portals |
 
 Add a niche only when a real project needs it, following the same headings.

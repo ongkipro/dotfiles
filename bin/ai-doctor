@@ -459,7 +459,7 @@ if [ -d "$SK" ]; then
     if [ -L "$path" ]; then
       root_tgt=$(resolve_path "$path" 2>/dev/null || true)
       if [ "$root_tgt" = "$(resolve_path "$SK" 2>/dev/null)" ]; then
-        n_skills=$(find -L "$path" -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')
+        n_skills=$(find -L "$path" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')
         ok "$cli: ${path/#$HOME/\~} → skills/local ($n_skills skill)"
       else
         bad "$cli: ${path/#$HOME/\~} symlink ke $root_tgt, bukan skills/local. Perbaiki: skill-update"
