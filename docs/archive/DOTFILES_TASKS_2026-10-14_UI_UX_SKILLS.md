@@ -31,3 +31,18 @@ Archived from `TASKS.md` after verification and completion.
 - **Non-Scope:** live project code edits outside `~/dotfiles`, git commit/push unless requested, touching pre-existing dirty memory files.
 - **Reopen Conditions:** `SKILL.md` exceeds 500 lines, broken reference links appear, `skill-map` drifts from `skills/local/README.md`, or `TASKS.md` exceeds 12,288 bytes.
 - **Escalation Conditions:** requires runtime hook changes, external dependencies, or modifying unrelated user files.
+
+### TASK-125: Shopify Hydrogen 2026.10 and Online Store 2.0 skill suite perfection
+
+- **Requirement:** REQ-SHOPIFY-HYDROGEN-2026-10-AND-THEME-2-0-SKILL-SUITE (owner requests official-source research and perfection of the Shopify/Hydrogen skill suite covering `@shopify/hydrogen@2026.10.1`, packaged skills, Online Store 2.0 / Metaobjects Dynamic Sections in Hydrogen, and Liquid Theme 2.0 blocks/performance).
+- **Risk Level:** R3.
+- **Job:** implementation.
+- **Capability:** hydrogen-development, headless-shopify, hydrogen-headless-tracking, storefront-development.
+- **Allowed Paths:** `TASKS.md`, `docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md`, `skills/local/hydrogen-development/**`, `skills/local/headless-shopify/**`, `skills/local/hydrogen-headless-tracking/**`, `skills/local/storefront-development/**`, `.delivery/**`.
+- **Protected Paths:** None; preserve unrelated initial dirty memory files, CORE, hooks, credentials, and live applications.
+- **Canonical Contract Owners:** Hydrogen 2026.10 & Classic Hydrogen implementation -> `hydrogen-development`; headless Shopify architecture & custom data boundaries -> `headless-shopify`; Hydrogen consent/analytics & WebMCP signal engine -> `hydrogen-headless-tracking`; Liquid Theme 2.0 & storefront engineering -> `storefront-development`.
+- **Accepted Invariants:** all `SKILL.md` files stay under 500 lines and keep front-loaded `Not`/`NOT` boundaries; `hydrogen-development` covers both Hydrogen `>= 2026.10.0` (`2026.10.1` latest, framework-agnostic server-handler SDK, 20 packaged skills, `gql()` + `@shopify/hydrogen/ts-plugin`) and Classic Hydrogen (`<= 2026.4.7`) plus migration (`migrate-to-hydrogen-2026-10`) and Metaobject Dynamic Section CMS (Online Store 2.0 parity); `storefront-development` covers Liquid Theme 2.0 blocks (`blocks/*.liquid`, `{% content_for 'blocks' %}`, `{% doc %}`, `{% stylesheet %}` subsetting) and the 7 essential theme performance rules; `TASKS.md` stays under 12,288 bytes; pre-existing dirty memory files stay untouched.
+- **Regression Checks:** `skill-map --check`, `skill-check`, `skill-surface-check`, `ai-policy-lint`, `ai-memory-check`, `git diff --check`, boundary check and independent review.
+- **Non-Scope:** live project code edits outside `~/dotfiles`, git commit/push unless requested, touching pre-existing dirty memory files.
+- **Reopen Conditions:** `SKILL.md` exceeds 500 lines, broken reference links appear, `skill-map` drifts from `skills/local/README.md`, or `TASKS.md` exceeds 12,288 bytes.
+- **Escalation Conditions:** requires runtime hook changes, external dependencies, or modifying unrelated user files.

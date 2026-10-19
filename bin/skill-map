@@ -57,8 +57,8 @@ DOMAINS: dict[str, tuple[str, ...]] = {
         "openapi-spec", "application-security",
     ),
     "Advertising signal": (
-        "meta-ads-signal-engine", "meta-ads-scout", "google-ads-signal-engine",
-        "tiktok-ads-signal-engine",
+        "meta-ads-cli", "meta-ads-signal-engine", "meta-ads-scout",
+        "google-ads-signal-engine", "tiktok-ads-signal-engine",
     ),
     "SEO, content and traffic": (
         "seo-website-builder", "ai-traffic-os", "automated-traffic-pipeline",

@@ -212,6 +212,7 @@ No official vendor agent skill for Meta CAPI was found on GitHub on that date; n
 
 | Need | Owner |
 | --- | --- |
+| Meta Ads campaign, ad set, creative (image/video/DCO), and insights CLI operations | `meta-ads-cli` |
 | Competitor advertising research & copy analysis | `meta-ads-scout` |
 | Google Ads conversion tracking & enhanced conversions | `google-ads-signal-engine` |
 | TikTok Ads pixel & Events API v2 | `tiktok-ads-signal-engine` |

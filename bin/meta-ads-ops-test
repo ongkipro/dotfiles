@@ -1,0 +1,267 @@
+#!/usr/bin/env bash
+# Behavioral regression suite for bin/meta-ads-ops.
+set -uo pipefail
+
+ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+CMD="$ROOT/bin/meta-ads-ops"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/meta-ads-ops-test.XXXXXX")"
+trap 'rm -rf "$TMP"' EXIT
+
+f=0
+ok()  { printf '  ✓ %s\n' "$1"; }
+bad() { printf '  FAIL %s\n' "$1" >&2; f=$((f + 1)); }
+
+# 1. Surface & read-only --help check
+BEFORE="$(git -C "$ROOT" status --porcelain | sort)"
+help_out="$("$CMD" --help 2>&1 || true)"
+printf '%s' "$help_out" | grep -qE 'setup|init|validate|deploy|status|doctor|run' \
+  && ok "describes its subcommands on --help" \
+  || bad "missing usage output on --help"
+[ "$(git -C "$ROOT" status --porcelain | sort)" = "$BEFORE" ] \
+  && ok "--help does not modify the repository" \
+  || bad "--help modified the repository"
+
+"$CMD" unknown-subcommand >/dev/null 2>&1 \
+  && bad "accepted an unknown subcommand" \
+  || ok "rejects an unknown subcommand"
+
+# 2. Scaffold workspace via init
+WS="$TMP/brand-alpha"
+"$CMD" init "$WS" >/dev/null 2>&1 \
+  && [ -f "$WS/brand.json" ] \
+  && [ -f "$WS/campaigns/sample-campaign.json" ] \
+  && [ -d "$WS/media" ] \
+  && grep -qxF '.meta-state.json' "$WS/.gitignore" \
+  && ok "init scaffolds brand.json, sample-campaign.json, media/, and .gitignore" \
+  || bad "init failed to scaffold workspace"
+
+# Create dummy image asset for sample campaign
+printf '\x89PNG\r\n\x1a\nfake-image-bytes' > "$WS/media/hero.jpg"
+
+# Idempotency of init without --force
+cp "$WS/brand.json" "$WS/brand.json.orig"
+"$CMD" init "$WS" >/dev/null 2>&1
+cmp -s "$WS/brand.json" "$WS/brand.json.orig" \
+  && ok "init preserves existing files without --force" \
+  || bad "init overwrote existing brand.json without --force"
+
+# 3. Offline validation passes on valid CBO OUTCOME_SALES manifest
+val_out="$("$CMD" validate "$WS/campaigns/sample-campaign.json" 2>&1)"
+if [ "$?" -eq 0 ] && printf '%s' "$val_out" | grep -q 'Validation PASSED' && printf '%s' "$val_out" | grep -q '50.00 USD'; then
+  ok "validate passes on valid CBO OUTCOME_SALES campaign and prints minor/major budget summary"
+else
+  bad "validate failed on valid sample campaign: $val_out"
+fi
+
+# 3b. Zero-decimal currency (IDR) explicit offset warning
+jq '.currency = "IDR"' "$WS/brand.json" > "$WS/brand-idr.json"
+idr_out="$("$CMD" validate "$WS/campaigns/sample-campaign.json" --brand "$WS/brand-idr.json" 2>&1)"
+if [ "$?" -eq 0 ] && printf '%s' "$idr_out" | grep -q 'offset-1 OR'; then
+  ok "validate surfaces explicit offset-1 vs /100 guidance for zero-decimal currencies (IDR)"
+else
+  bad "validate did not surface zero-decimal currency guidance for IDR: $idr_out"
+fi
+
+# 4. Trap guards in validate
+# 4a. CBO + ABO budget collision (Error 1885621 guard)
+jq '.adsets[0].daily_budget = 2000' "$WS/campaigns/sample-campaign.json" > "$WS/campaigns/cbo-abo-collision.json"
+collision_out="$("$CMD" validate "$WS/campaigns/cbo-abo-collision.json" 2>&1)"
+if [ "$?" -ne 0 ] && printf '%s' "$collision_out" | grep -q '1885621'; then
+  ok "validate rejects CBO + ABO budget collision (Error 1885621 guard)"
+else
+  bad "validate allowed CBO + ABO budget collision: $collision_out"
+fi
+
+# 4b. Missing conversion_domain on OUTCOME_SALES
+jq '.conversion_domain = ""' "$WS/brand.json" > "$WS/brand-no-domain.json"
+nodomain_out="$("$CMD" validate "$WS/campaigns/sample-campaign.json" --brand "$WS/brand-no-domain.json" 2>&1)"
+if [ "$?" -ne 0 ] && printf '%s' "$nodomain_out" | grep -q 'conversion_domain'; then
+  ok "validate rejects OUTCOME_SALES ad without conversion_domain"
+else
+  bad "validate allowed OUTCOME_SALES ad without conversion_domain: $nodomain_out"
+fi
+
+# 4c. DCO creative without dynamic_creative: true on ad set
+jq '.creatives[0].titles = ["Title 1", "Title 2"]' "$WS/campaigns/sample-campaign.json" > "$WS/campaigns/dco-missing-flag.json"
+dco_out="$("$CMD" validate "$WS/campaigns/dco-missing-flag.json" 2>&1)"
+if [ "$?" -ne 0 ] && printf '%s' "$dco_out" | grep -q 'dynamic_creative'; then
+  ok "validate rejects DCO creative when ad set lacks dynamic_creative: true"
+else
+  bad "validate allowed DCO creative on non-dynamic ad set: $dco_out"
+fi
+
+# 4d. Missing local media file
+jq '.creatives[0].image = "media/does-not-exist.jpg"' "$WS/campaigns/sample-campaign.json" > "$WS/campaigns/missing-media.json"
+media_out="$("$CMD" validate "$WS/campaigns/missing-media.json" 2>&1)"
+if [ "$?" -ne 0 ] && printf '%s' "$media_out" | grep -q 'file not found'; then
+  ok "validate rejects missing local media file"
+else
+  bad "validate allowed missing local media file: $media_out"
+fi
+
+# 5. Mock `meta` and `secrets-env` binaries for setup, dry-run, deploy --apply, state resume, drift detection, and media hash dedup
+MOCK_BIN="$TMP/mock-bin"
+META_LOG="$TMP/meta-invocations.log"
+mkdir -p "$MOCK_BIN"
+
+cat > "$MOCK_BIN/secrets-env" <<'EOF'
+#!/usr/bin/env bash
+if [ "${1:-}" = "get" ] && [ "${2:-}" = "META_ACCESS_TOKEN" ]; then
+  printf 'MOCK_SYSTEM_USER_TOKEN_SECRET_999\n'
+  exit 0
+fi
+exit 1
+EOF
+chmod +x "$MOCK_BIN/secrets-env"
+
+cat > "$MOCK_BIN/meta" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${1:-}" = "--version" ]; then
+  echo "meta, version 1.2.0"
+  exit 0
+fi
+if [ "${1:-}" = "auth" ] && [ "${2:-}" = "status" ]; then
+  if [ -n "${ACCESS_TOKEN:-}" ]; then
+    echo "Authenticated via ACCESS_TOKEN"
+    exit 0
+  fi
+  echo "Not authenticated. Set the ACCESS_TOKEN environment variable."
+  exit 0
+fi
+
+# Record invocation args and verify ACCESS_TOKEN is in env, never in args
+printf 'TOKEN_LEN=%d ARGS=%s\n' "${#ACCESS_TOKEN}" "$*" >> "$META_LOG"
+case "$*" in
+  *MOCK_SYSTEM_USER_TOKEN_SECRET_999*)
+    echo "SECRET LEAKED IN CLI ARGS" >&2
+    exit 99
+    ;;
+esac
+
+# Verify global flags precede `ads`
+if [ "${1:-}" != "--output" ] || [ "${2:-}" != "json" ] || [ "${3:-}" != "--no-input" ] || [ "${4:-}" != "ads" ]; then
+  echo "Invalid global flag ordering: $*" >&2
+  exit 2
+fi
+
+case "$*" in
+  *" campaign create "*)
+    printf '[\n  {\n    "id": "camp_1001",\n    "name": "Sales_CBO_Launch"\n  }\n]\n'
+    ;;
+  *" creative create "*)
+    if [[ "$*" == *"--image-hash"* ]]; then
+      printf '[\n  {\n    "id": "cr_2002",\n    "image_hash": "hash_hero_abc123"\n  }\n]\n'
+    else
+      printf '[\n  {\n    "id": "cr_2001",\n    "image_hash": "hash_hero_abc123"\n  }\n]\n'
+    fi
+    ;;
+  *" adset create "*)
+    printf '[\n  {\n    "id": "adset_3001",\n    "name": "AdSet_Broad_ID"\n  }\n]\n'
+    ;;
+  *" ad create "*)
+    printf '[\n  {\n    "id": "ad_4001",\n    "name": "Ad_Hero_V1"\n  }\n]\n'
+    ;;
+  *" campaign list"*)
+    printf '[\n  {\n    "id": "camp_1001"\n  }\n]\n'
+    ;;
+  *)
+    echo "Unexpected mock meta command: $*" >&2
+    exit 3
+    ;;
+esac
+EOF
+chmod +x "$MOCK_BIN/meta"
+
+export META_ADS_BIN="$MOCK_BIN/meta"
+export SECRETS_ENV_BIN="$MOCK_BIN/secrets-env"
+export META_LOG
+
+# 5a. setup subcommand detects installed meta-ads CLI
+setup_out="$("$CMD" setup 2>&1)"
+if [ "$?" -eq 0 ] && printf '%s' "$setup_out" | grep -q 'already installed'; then
+  ok "setup detects already-installed meta-ads binary"
+else
+  bad "setup failed: $setup_out"
+fi
+
+# 5b. Dry-run makes zero calls to meta CLI and forces PAUSED even if manifest has ACTIVE
+jq '.campaign.status = "ACTIVE" | .ads[0].status = "ACTIVE"' "$WS/campaigns/sample-campaign.json" > "$WS/campaigns/active-manifest.json"
+dry_out="$("$CMD" deploy "$WS/campaigns/active-manifest.json" 2>&1)"
+if [ "$?" -eq 0 ] \
+  && [ ! -f "$META_LOG" ] \
+  && [ ! -f "$WS/.meta-state.json" ] \
+  && printf '%s' "$dry_out" | grep -q 'PAUSED FORCED' \
+  && ! printf '%s' "$dry_out" | grep -q -- '--status ACTIVE'; then
+  ok "deploy without --apply performs a dry-run, forces PAUSED status, and makes zero API calls"
+else
+  bad "dry-run failed or leaked ACTIVE / API calls: $dry_out"
+fi
+
+# 5c. Deploy with --apply executes L3->L1, injects secret via env only, and writes .meta-state.json
+apply_out="$("$CMD" deploy "$WS/campaigns/active-manifest.json" --apply 2>&1)"
+if [ "$?" -eq 0 ] \
+  && [ -f "$WS/.meta-state.json" ] \
+  && [ "$(wc -l < "$META_LOG" | tr -d ' ')" -eq 4 ] \
+  && ! printf '%s' "$apply_out" | grep -q 'MOCK_SYSTEM_USER_TOKEN_SECRET_999' \
+  && jq -e '.campaigns.camp_sales_cbo.id == "camp_1001" and .creatives.cr_hero_v1.id == "cr_2001" and .adsets.adset_broad_id.id == "adset_3001" and .ads.ad_hero_v1.id == "ad_4001"' "$WS/.meta-state.json" >/dev/null; then
+  ok "deploy --apply creates campaign->creative->adset->ad and persists .meta-state.json"
+else
+  bad "deploy --apply failed: $apply_out"
+fi
+
+# 5d. Idempotent re-run of deploy --apply skips all 4 steps
+"$CMD" deploy "$WS/campaigns/active-manifest.json" --apply >/dev/null 2>&1
+if [ "$(wc -l < "$META_LOG" | tr -d ' ')" -eq 4 ]; then
+  ok "re-running deploy --apply is idempotent and skips already-created entities"
+else
+  bad "re-running deploy --apply called meta CLI again ($(wc -l < "$META_LOG") lines)"
+fi
+
+# 5e. Drift detection warns when a deployed entity's spec changes under the same key
+jq '.creatives[0].title = "Edited Headline Without Bumping Key"' "$WS/campaigns/active-manifest.json" > "$WS/campaigns/drifted-manifest.json"
+drift_out="$("$CMD" deploy "$WS/campaigns/drifted-manifest.json" 2>&1)"
+if [ "$?" -eq 0 ] && printf '%s' "$drift_out" | grep -q 'DRIFT: local manifest'; then
+  ok "deploy warns on spec drift when manifest changes for an already-created entity key"
+else
+  bad "deploy did not warn on spec drift: $drift_out"
+fi
+
+# 5f. Adding a second creative referencing the same image SHA-256 reuses --image-hash from media_cache
+jq '.creatives += [{"key":"cr_hero_v2","name":"Creative_Hero_V2","image":"media/hero.jpg","title":"Second Headline","body":"Second body","link_url":"https://example.com/products/flagship","call_to_action":"SHOP_NOW"}]' \
+  "$WS/campaigns/active-manifest.json" > "$WS/campaigns/second-creative.json"
+"$CMD" deploy "$WS/campaigns/second-creative.json" --apply >/dev/null 2>&1
+last_call="$(tail -n 1 "$META_LOG")"
+if [ "$(wc -l < "$META_LOG" | tr -d ' ')" -eq 5 ] && printf '%s' "$last_call" | grep -q -- '--image-hash hash_hero_abc123'; then
+  ok "second creative with identical media SHA-256 reuses cached --image-hash instead of re-uploading"
+else
+  bad "second creative did not reuse --image-hash: $last_call"
+fi
+
+# 6. status, doctor & run subcommands
+status_out="$("$CMD" status --brand "$WS/brand.json" --json 2>&1)"
+if [ "$?" -eq 0 ] && printf '%s' "$status_out" | jq -e '.exists == true and .state.campaigns.camp_sales_cbo.id == "camp_1001" and .state.creatives.cr_hero_v2.id == "cr_2002"' >/dev/null; then
+  ok "status reports deployed entity IDs and media cache from .meta-state.json"
+else
+  bad "status failed: $status_out"
+fi
+
+doc_out="$("$CMD" doctor --brand "$WS/brand.json" 2>&1)"
+if [ "$?" -eq 0 ] \
+  && printf '%s' "$doc_out" | grep -q 'Authenticated via ACCESS_TOKEN' \
+  && ! printf '%s' "$doc_out" | grep -q 'MOCK_SYSTEM_USER_TOKEN_SECRET_999'; then
+  ok "doctor verifies meta CLI, secrets-env token (redacted), and auth status"
+else
+  bad "doctor failed: $doc_out"
+fi
+
+run_out="$("$CMD" run --brand "$WS/brand.json" -- --output json --no-input ads --ad-account-id act_1234567890 campaign list 2>&1)"
+if [ "$?" -eq 0 ] && printf '%s' "$run_out" | grep -q '"camp_1001"'; then
+  ok "run bridges secrets-env and brand.json to raw meta CLI commands"
+else
+  bad "run failed: $run_out"
+fi
+
+[ "$f" -eq 0 ] && { echo "meta-ads-ops-test: PASS"; exit 0; }
+echo "meta-ads-ops-test: $f case(s) failed" >&2
+exit 1

@@ -52,6 +52,8 @@ inspect-project
 inspect-project-test
 installer-link-test
 memory-usage-hook-test
+meta-ads-ops
+meta-ads-ops-test
 migration-risk
 migration-risk-test
 mutation-sweep

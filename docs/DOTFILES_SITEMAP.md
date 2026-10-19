@@ -200,6 +200,7 @@ Dotfiles hosts 75 specialized capabilities grouped into 11 distinct domains (`sk
 - [`application-security`](file:///home/ongki/dotfiles/skills/local/application-security/SKILL.md): Threat modeling, tenant isolation, CSRF, XSS, injection prevention.
 
 ### 6.7 Advertising Signals
+- [`meta-ads-cli`](file:///home/ongki/dotfiles/skills/local/meta-ads-cli/SKILL.md): Meta Ads campaign, ad set, creative (image/video/DCO), and insights CLI operations via Meta's official `meta-ads` CLI and `meta-ads-ops`.
 - [`meta-ads-signal-engine`](file:///home/ongki/dotfiles/skills/local/meta-ads-signal-engine/SKILL.md): Meta Pixel + CAPI outbox, deduplication `event_id`.
 - [`meta-ads-scout`](file:///home/ongki/dotfiles/skills/local/meta-ads-scout/SKILL.md): Competitor ad intelligence via Meta Ad Library.
 - [`google-ads-signal-engine`](file:///home/ongki/dotfiles/skills/local/google-ads-signal-engine/SKILL.md): Google Tag, sGTM, Enhanced Conversions, Consent Mode v2.
@@ -291,6 +292,7 @@ Over 50 executable commands and their test suites, providing deterministic autom
 - [`tmux-setup`](file:///home/ongki/dotfiles/bin/tmux-setup), [`tmux-clip`](file:///home/ongki/dotfiles/bin/tmux-clip), [`tmux-battery`](file:///home/ongki/dotfiles/bin/tmux-battery): Terminal session management and status bar tooling.
 - [`vps-pgdump`](file:///home/ongki/dotfiles/bin/vps-pgdump) (+ [`test`](file:///home/ongki/dotfiles/bin/vps-pgdump-test)): Dumps remote PostgreSQL databases over SSH.
 - [`shopify-content-helper`](file:///home/ongki/dotfiles/bin/shopify-content-helper) (+ [`test`](file:///home/ongki/dotfiles/bin/shopify-content-helper-test)): Assists in formatting and uploading Shopify blog/product copy.
+- [`meta-ads-ops`](file:///home/ongki/dotfiles/bin/meta-ads-ops) (+ [`test`](file:///home/ongki/dotfiles/bin/meta-ads-ops-test)): Per-project Meta Ads validator, dry-run planner, stateful deployer, and `secrets-env` bridge for Meta's official `meta-ads` CLI.
 
 ---
 

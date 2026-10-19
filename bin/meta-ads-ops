@@ -1,0 +1,1803 @@
+#!/usr/bin/env node
+/**
+ * meta-ads-ops — Per-project Meta Ads workflow & secrets-env bridge for Meta's official `meta` CLI.
+ *
+ * Subcommands:
+ *   setup [--version <ver>]
+ *     Ensure Meta's official `meta-ads` CLI (default 1.2.0) is installed via pipx on this device.
+ *   init [dir] [--force]
+ *     Scaffold a per-project Meta Ads workspace (brand.json, campaigns/sample-campaign.json, media/, .gitignore).
+ *   validate <campaign.json> [--brand <brand.json>] [--json]
+ *     Validate campaign + brand manifests offline against Meta ODAX, CBO/ABO, DCO, and conversion rules.
+ *   deploy <campaign.json> [--brand <brand.json>] [--apply] [--activate] [--json]
+ *     Build the L3->L1 creation plan (dry-run by default). Pass --apply to execute via `meta` CLI with
+ *     stateful resume, drift detection, and media SHA-256 deduplication in .meta-state.json. Forces PAUSED unless --activate.
+ *   status [campaign.json] [--brand <brand.json>] [--json]
+ *     Inspect created entity IDs and cached media SHA-256 hashes recorded in .meta-state.json.
+ *   doctor [--brand <brand.json>] [--token-env <NAME>]
+ *     Check the installed `meta` CLI binary, secrets-env token availability, and `meta auth status`.
+ *   run [--brand <brand.json>] [--token-env <NAME>] -- <meta args...>
+ *     Execute raw `meta` CLI commands with ACCESS_TOKEN, AD_ACCOUNT_ID, and BUSINESS_ID injected in-memory.
+ */
+
+import fs from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
+import { spawnSync } from "node:child_process";
+import os from "node:os";
+
+const DEFAULT_META_ADS_VERSION = "1.2.0";
+
+const VALID_OBJECTIVES = new Set([
+  "OUTCOME_APP_PROMOTION",
+  "OUTCOME_AWARENESS",
+  "OUTCOME_ENGAGEMENT",
+  "OUTCOME_LEADS",
+  "OUTCOME_SALES",
+  "OUTCOME_TRAFFIC",
+]);
+
+const VALID_STATUSES = new Set(["PAUSED", "ACTIVE"]);
+
+const VALID_BID_STRATEGIES = new Set([
+  "COST_CAP",
+  "LOWEST_COST_WITHOUT_CAP",
+  "LOWEST_COST_WITH_BID_CAP",
+  "LOWEST_COST_WITH_MIN_ROAS",
+]);
+
+const VALID_BILLING_EVENTS = new Set([
+  "APP_INSTALLS",
+  "CLICKS",
+  "IMPRESSIONS",
+  "LINK_CLICKS",
+  "PAGE_LIKES",
+  "POST_ENGAGEMENT",
+  "THRUPLAY",
+]);
+
+const VALID_OPTIMIZATION_GOALS = new Set([
+  "APP_INSTALLS",
+  "CONVERSATIONS",
+  "EVENT_RESPONSES",
+  "IMPRESSIONS",
+  "LANDING_PAGE_VIEWS",
+  "LEAD_GENERATION",
+  "LINK_CLICKS",
+  "OFFSITE_CONVERSIONS",
+  "PAGE_LIKES",
+  "POST_ENGAGEMENT",
+  "REACH",
+  "THRUPLAY",
+  "VALUE",
+]);
+
+const VALID_CTAS = new Set([
+  "APPLY_NOW",
+  "BOOK_TRAVEL",
+  "BUY_NOW",
+  "CONTACT_US",
+  "DOWNLOAD",
+  "GET_OFFER",
+  "GET_QUOTE",
+  "LEARN_MORE",
+  "NO_BUTTON",
+  "OPEN_LINK",
+  "SHOP_NOW",
+  "SIGN_UP",
+  "SUBSCRIBE",
+  "WATCH_MORE",
+]);
+
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  "CLP",
+  "CRC",
+  "HUF",
+  "IDR",
+  "ISK",
+  "JPY",
+  "KRW",
+  "PYG",
+  "TWD",
+  "UGX",
+  "VND",
+]);
+
+const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"]);
+const VIDEO_EXTENSIONS = new Set([".mp4", ".mov", ".avi", ".mkv", ".wmv"]);
+
+function usage(exitCode = 0) {
+  const text = `Usage: meta-ads-ops <subcommand> [options]
+
+Subcommands:
+  setup [--version <ver>]
+      Ensure Meta's official meta-ads CLI (default ${DEFAULT_META_ADS_VERSION}) is installed via pipx.
+
+  init [dir] [--force]
+      Scaffold brand.json, campaigns/sample-campaign.json, media/, and .gitignore.
+
+  validate <campaign.json> [--brand <brand.json>] [--json]
+      Offline validation of brand.json + campaign.json (CBO/ABO rules, OUTCOME_SALES
+      conversion requirements, DCO limits, local media files, and budget summary).
+
+  deploy <campaign.json> [--brand <brand.json>] [--apply] [--activate] [--json]
+      Dry-run execution plan by default. With --apply, injects ACCESS_TOKEN via
+      secrets-env, executes meta CLI steps, and saves IDs/hashes to .meta-state.json.
+      Enforces PAUSED status on all created entities unless --activate is passed.
+
+  status [campaign.json] [--brand <brand.json>] [--json]
+      Show deployed campaign/creative/adset/ad IDs and media hashes in .meta-state.json.
+
+  doctor [--brand <brand.json>] [--token-env <NAME>]
+      Verify meta CLI installation, secrets-env token presence, and auth status.
+
+  run [--brand <brand.json>] [--token-env <NAME>] -- <meta args...>
+      Run any meta CLI command with credentials injected in-memory from secrets-env.
+`;
+  if (exitCode === 0) {
+    process.stdout.write(text);
+  } else {
+    process.stderr.write(text);
+  }
+  process.exit(exitCode);
+}
+
+function resolveMetaBin() {
+  if (process.env.META_ADS_BIN) return process.env.META_ADS_BIN;
+  const pathDirs = (process.env.PATH || "").split(path.delimiter).filter(Boolean);
+  const candidates = [
+    ...pathDirs.map((dir) => path.join(dir, "meta")),
+    path.join(os.homedir(), ".local", "bin", "meta"),
+  ];
+  for (const candidate of candidates) {
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+      return candidate;
+    } catch {
+      // keep searching
+    }
+  }
+  return "meta";
+}
+
+function resolveSecretsEnvBin() {
+  if (process.env.SECRETS_ENV_BIN) return process.env.SECRETS_ENV_BIN;
+  const pathDirs = (process.env.PATH || "").split(path.delimiter).filter(Boolean);
+  const candidates = [
+    ...pathDirs.map((dir) => path.join(dir, "secrets-env")),
+    path.join(os.homedir(), ".local", "bin", "secrets-env"),
+    path.join(os.homedir(), "dotfiles", "bin", "secrets-env"),
+  ];
+  for (const candidate of candidates) {
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+      return candidate;
+    } catch {
+      // keep searching
+    }
+  }
+  return "secrets-env";
+}
+
+function readSecretToken(tokenEnvName = "META_ACCESS_TOKEN") {
+  const bin = resolveSecretsEnvBin();
+  const res = spawnSync(bin, ["get", tokenEnvName], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (res.status === 0 && res.stdout && res.stdout.trim()) {
+    return res.stdout.trim();
+  }
+  if (process.env[tokenEnvName] && process.env[tokenEnvName].trim()) {
+    return process.env[tokenEnvName].trim();
+  }
+  if (process.env.ACCESS_TOKEN && process.env.ACCESS_TOKEN.trim()) {
+    return process.env.ACCESS_TOKEN.trim();
+  }
+  const detail = (res.stderr || "").trim() || `key '${tokenEnvName}' not found in secrets-env`;
+  throw new Error(`Unable to load secret '${tokenEnvName}' via secrets-env (${detail}).`);
+}
+
+function readJsonFile(filePath, label) {
+  let raw;
+  try {
+    raw = fs.readFileSync(filePath, "utf8");
+  } catch (err) {
+    throw new Error(`Cannot read ${label} at ${filePath}: ${err.message}`);
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    throw new Error(`Invalid JSON in ${label} at ${filePath}: ${err.message}`);
+  }
+}
+
+function findBrandPath(campaignPath, explicitBrandPath) {
+  if (explicitBrandPath) return path.resolve(explicitBrandPath);
+  if (campaignPath) {
+    const campaignDir = path.dirname(path.resolve(campaignPath));
+    const candidates = [
+      path.join(campaignDir, "brand.json"),
+      path.join(path.dirname(campaignDir), "brand.json"),
+    ];
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) return candidate;
+    }
+  }
+  const cwdCandidate = path.resolve("brand.json");
+  if (fs.existsSync(cwdCandidate)) return cwdCandidate;
+  throw new Error(
+    "Cannot locate brand.json. Pass --brand <path/to/brand.json> or run inside a project initialized with `meta-ads-ops init`."
+  );
+}
+
+function sha256File(filePath) {
+  const hash = crypto.createHash("sha256");
+  hash.update(fs.readFileSync(filePath));
+  return hash.digest("hex");
+}
+
+function stableHashObject(obj) {
+  return crypto.createHash("sha256").update(JSON.stringify(obj)).digest("hex").slice(0, 16);
+}
+
+function resolveMediaFile(workspaceDir, campaignDir, relOrAbsPath) {
+  if (path.isAbsolute(relOrAbsPath)) return relOrAbsPath;
+  const fromWorkspace = path.resolve(workspaceDir, relOrAbsPath);
+  if (fs.existsSync(fromWorkspace)) return fromWorkspace;
+  return path.resolve(campaignDir, relOrAbsPath);
+}
+
+function formatBudgetSummary(minorAmount, currency = "USD") {
+  const cur = String(currency || "USD").toUpperCase();
+  const num = Number(minorAmount);
+  const major100 = (num / 100).toFixed(2);
+  if (ZERO_DECIMAL_CURRENCIES.has(cur)) {
+    return `${minorAmount} API units (${num.toLocaleString("en-US")} ${cur} at offset-1 OR ${major100} ${cur} at /100; verify account currency offset in Meta)`;
+  }
+  return `${minorAmount} minor units (${major100} ${cur} at /100 standard minor-unit scale)`;
+}
+
+function validateManifests(campaignPath, explicitBrandPath) {
+  const resolvedCampaignPath = path.resolve(campaignPath);
+  const brandPath = findBrandPath(resolvedCampaignPath, explicitBrandPath);
+  const workspaceDir = path.dirname(brandPath);
+  const campaignDir = path.dirname(resolvedCampaignPath);
+
+  const brand = readJsonFile(brandPath, "brand.json");
+  const manifest = readJsonFile(resolvedCampaignPath, "campaign manifest");
+
+  const errors = [];
+  const warnings = [];
+  const mediaFiles = {};
+
+  if (!brand || typeof brand !== "object" || Array.isArray(brand)) {
+    errors.push("brand.json must be a JSON object.");
+  } else {
+    if (!brand.ad_account_id || typeof brand.ad_account_id !== "string") {
+      errors.push("brand.json: missing required string 'ad_account_id' (e.g. 'act_1234567890').");
+    } else if (!/^act_[0-9]+$/.test(brand.ad_account_id)) {
+      errors.push(
+        `brand.json: 'ad_account_id' must match 'act_<digits>' (got '${brand.ad_account_id}').`
+      );
+    }
+    if (brand.business_id !== undefined && brand.business_id !== "" && !/^[0-9]+$/.test(String(brand.business_id))) {
+      errors.push(`brand.json: 'business_id' must be numeric digits when set (got '${brand.business_id}').`);
+    }
+    if (brand.page_id !== undefined && brand.page_id !== "" && !/^[0-9]+$/.test(String(brand.page_id))) {
+      errors.push(`brand.json: 'page_id' must be numeric digits when set (got '${brand.page_id}').`);
+    }
+  }
+
+  const campaign = manifest?.campaign;
+  if (!campaign || typeof campaign !== "object" || Array.isArray(campaign)) {
+    errors.push("campaign manifest: missing required 'campaign' object.");
+  }
+
+  const creatives = Array.isArray(manifest?.creatives) ? manifest.creatives : [];
+  const adsets = Array.isArray(manifest?.adsets) ? manifest.adsets : [];
+  const ads = Array.isArray(manifest?.ads) ? manifest.ads : [];
+
+  if (creatives.length === 0) errors.push("campaign manifest: 'creatives' must be a non-empty array.");
+  if (adsets.length === 0) errors.push("campaign manifest: 'adsets' must be a non-empty array.");
+  if (ads.length === 0) errors.push("campaign manifest: 'ads' must be a non-empty array.");
+
+  let isCbo = false;
+  let isFlex = false;
+  const budgets = [];
+  const currency = brand?.currency || "USD";
+
+  if (campaign && typeof campaign === "object") {
+    if (!campaign.name || typeof campaign.name !== "string") {
+      errors.push("campaign: 'name' is required.");
+    }
+    if (!campaign.objective || !VALID_OBJECTIVES.has(campaign.objective)) {
+      errors.push(
+        `campaign: 'objective' must be one of ${Array.from(VALID_OBJECTIVES).join(", ")} (got '${campaign.objective || ""}').`
+      );
+    }
+    if (campaign.status !== undefined && !VALID_STATUSES.has(campaign.status)) {
+      errors.push(`campaign: 'status' must be PAUSED or ACTIVE (got '${campaign.status}').`);
+    }
+    const hasDaily = campaign.daily_budget !== undefined && campaign.daily_budget !== null;
+    const hasLifetime = campaign.lifetime_budget !== undefined && campaign.lifetime_budget !== null;
+    if (hasDaily && hasLifetime) {
+      errors.push("campaign: 'daily_budget' and 'lifetime_budget' are mutually exclusive.");
+    }
+    if (hasDaily) {
+      if (!Number.isInteger(campaign.daily_budget) || campaign.daily_budget <= 0) {
+        errors.push("campaign: 'daily_budget' must be a positive integer in minor currency units.");
+      } else {
+        isCbo = true;
+        budgets.push({
+          scope: `campaign:${campaign.name || "unnamed"}`,
+          type: "daily_budget",
+          minor: campaign.daily_budget,
+          formatted: formatBudgetSummary(campaign.daily_budget, currency),
+        });
+      }
+    }
+    if (hasLifetime) {
+      if (!Number.isInteger(campaign.lifetime_budget) || campaign.lifetime_budget <= 0) {
+        errors.push("campaign: 'lifetime_budget' must be a positive integer in minor currency units.");
+      } else {
+        isCbo = true;
+        budgets.push({
+          scope: `campaign:${campaign.name || "unnamed"}`,
+          type: "lifetime_budget",
+          minor: campaign.lifetime_budget,
+          formatted: formatBudgetSummary(campaign.lifetime_budget, currency),
+        });
+      }
+    }
+    isFlex = Boolean(campaign.adset_budget_sharing);
+    if (isCbo && isFlex) {
+      errors.push("campaign: 'adset_budget_sharing' cannot be combined with a campaign budget (CBO).");
+    }
+    if (!isCbo && !isFlex && campaign.bid_strategy) {
+      errors.push(
+        "campaign: 'bid_strategy' on a plain ABO campaign is rejected by Meta; set 'bid_strategy' on the ad set instead."
+      );
+    }
+    if (!isCbo && campaign.pacing_type) {
+      errors.push(
+        "campaign: 'pacing_type' requires a campaign budget (CBO); for ABO/flex set 'pacing_type' on the ad set."
+      );
+    }
+    if (campaign.bid_strategy && !VALID_BID_STRATEGIES.has(campaign.bid_strategy)) {
+      errors.push(`campaign: invalid 'bid_strategy' '${campaign.bid_strategy}'.`);
+    }
+  }
+
+  // Validate creatives
+  const creativeMap = new Map();
+  for (let i = 0; i < creatives.length; i++) {
+    const cr = creatives[i];
+    const key = cr.key || cr.name;
+    const label = `creatives[${i}] (${key || "unnamed"})`;
+    if (!key || typeof key !== "string") {
+      errors.push(`${label}: requires a string 'key' or 'name'.`);
+      continue;
+    }
+    if (creativeMap.has(key)) {
+      errors.push(`${label}: duplicate creative key '${key}'.`);
+    }
+    if (!cr.name || typeof cr.name !== "string") {
+      errors.push(`${label}: 'name' is required.`);
+    }
+    if (cr.status !== undefined && !VALID_STATUSES.has(cr.status)) {
+      errors.push(`${label}: 'status' must be PAUSED or ACTIVE.`);
+    }
+    if (cr.call_to_action && !VALID_CTAS.has(cr.call_to_action)) {
+      errors.push(`${label}: invalid 'call_to_action' '${cr.call_to_action}'.`);
+    }
+
+    const isDco =
+      Array.isArray(cr.images) ||
+      Array.isArray(cr.videos) ||
+      Array.isArray(cr.titles) ||
+      Array.isArray(cr.bodies) ||
+      Array.isArray(cr.descriptions) ||
+      Array.isArray(cr.call_to_actions);
+
+    const isExistingPost = Boolean(
+      cr.object_story_id || cr.source_instagram_media_id || cr.instagram_permalink_url
+    );
+    const isRawSpec = Boolean(cr.object_story_spec || cr.asset_feed_spec);
+    const isCatalog = Boolean(cr.product_set_id);
+    const hasSingleMedia = Boolean(cr.image || cr.video || cr.image_hash || cr.video_id);
+
+    const pageId = cr.page_id || brand?.page_id;
+    if (!isExistingPost && !cr.object_story_spec && !pageId) {
+      errors.push(`${label}: requires 'page_id' (in creative or brand.json) unless boosting an existing post or passing object_story_spec.`);
+    }
+
+    if (!isDco && !isExistingPost && !isRawSpec && !isCatalog && !hasSingleMedia && !cr.body) {
+      errors.push(`${label}: creative has no media, DCO assets, post reference, catalog product_set_id, or body text.`);
+    }
+
+    if (cr.image && cr.video) {
+      errors.push(`${label}: cannot set both 'image' and 'video' on a single-media creative.`);
+    }
+
+    // Check local media files
+    const checkLocalFile = (fileRef, kind) => {
+      const resolved = resolveMediaFile(workspaceDir, campaignDir, fileRef);
+      if (!fs.existsSync(resolved)) {
+        errors.push(`${label}: ${kind} file not found at '${fileRef}' (resolved: ${resolved}).`);
+        return null;
+      }
+      const stat = fs.statSync(resolved);
+      if (!stat.isFile() || stat.size === 0) {
+        errors.push(`${label}: ${kind} file '${fileRef}' must be a non-empty file.`);
+        return null;
+      }
+      const ext = path.extname(resolved).toLowerCase();
+      const allowed = kind === "image" ? IMAGE_EXTENSIONS : VIDEO_EXTENSIONS;
+      if (!allowed.has(ext)) {
+        errors.push(
+          `${label}: unsupported ${kind} extension '${ext}' on '${fileRef}' (allowed: ${Array.from(allowed).join(", ")}).`
+        );
+        return null;
+      }
+      const sha256 = sha256File(resolved);
+      mediaFiles[resolved] = { path: resolved, kind, bytes: stat.size, sha256 };
+      return { resolved, sha256, bytes: stat.size };
+    };
+
+    if (cr.image) checkLocalFile(cr.image, "image");
+    if (cr.video) checkLocalFile(cr.video, "video");
+
+    if (isDco) {
+      if (Array.isArray(cr.images)) {
+        if (cr.images.length > 10) errors.push(`${label}: DCO 'images' exceeds maximum of 10.`);
+        for (const img of cr.images) checkLocalFile(img, "image");
+      }
+      if (Array.isArray(cr.videos)) {
+        if (cr.videos.length > 10) errors.push(`${label}: DCO 'videos' exceeds maximum of 10.`);
+        for (const vid of cr.videos) checkLocalFile(vid, "video");
+      }
+      if (Array.isArray(cr.titles) && cr.titles.length > 5) {
+        errors.push(`${label}: DCO 'titles' exceeds maximum of 5.`);
+      }
+      if (Array.isArray(cr.bodies) && cr.bodies.length > 5) {
+        errors.push(`${label}: DCO 'bodies' exceeds maximum of 5.`);
+      }
+      if (Array.isArray(cr.descriptions) && cr.descriptions.length > 5) {
+        errors.push(`${label}: DCO 'descriptions' exceeds maximum of 5.`);
+      }
+      if (Array.isArray(cr.call_to_actions)) {
+        if (cr.call_to_actions.length > 5) {
+          errors.push(`${label}: DCO 'call_to_actions' exceeds maximum of 5.`);
+        }
+        for (const cta of cr.call_to_actions) {
+          if (!VALID_CTAS.has(cta)) {
+            errors.push(`${label}: invalid DCO call_to_action '${cta}'.`);
+          }
+        }
+      }
+    }
+
+    creativeMap.set(key, { ...cr, _key: key, _isDco: isDco });
+  }
+
+  // Validate adsets
+  const adsetMap = new Map();
+  for (let i = 0; i < adsets.length; i++) {
+    const as = adsets[i];
+    const key = as.key || as.name;
+    const label = `adsets[${i}] (${key || "unnamed"})`;
+    if (!key || typeof key !== "string") {
+      errors.push(`${label}: requires a string 'key' or 'name'.`);
+      continue;
+    }
+    if (adsetMap.has(key)) {
+      errors.push(`${label}: duplicate ad set key '${key}'.`);
+    }
+    if (!as.name || typeof as.name !== "string") {
+      errors.push(`${label}: 'name' is required.`);
+    }
+    if (!as.optimization_goal || !VALID_OPTIMIZATION_GOALS.has(as.optimization_goal)) {
+      errors.push(
+        `${label}: 'optimization_goal' must be one of ${Array.from(VALID_OPTIMIZATION_GOALS).join(", ")} (got '${as.optimization_goal || ""}').`
+      );
+    }
+    if (!as.billing_event || !VALID_BILLING_EVENTS.has(as.billing_event)) {
+      errors.push(
+        `${label}: 'billing_event' must be one of ${Array.from(VALID_BILLING_EVENTS).join(", ")} (got '${as.billing_event || ""}').`
+      );
+    }
+    if (as.status !== undefined && !VALID_STATUSES.has(as.status)) {
+      errors.push(`${label}: 'status' must be PAUSED or ACTIVE.`);
+    }
+
+    const hasDaily = as.daily_budget !== undefined && as.daily_budget !== null;
+    const hasLifetime = as.lifetime_budget !== undefined && as.lifetime_budget !== null;
+    if (hasDaily && hasLifetime) {
+      errors.push(`${label}: 'daily_budget' and 'lifetime_budget' are mutually exclusive.`);
+    }
+    if (isCbo && (hasDaily || hasLifetime)) {
+      errors.push(
+        `${label}: cannot set ad set budget when campaign uses CBO budget (Error 1885621 guard).`
+      );
+    }
+    if (!isCbo && !hasDaily && !hasLifetime) {
+      errors.push(
+        `${label}: ad set requires 'daily_budget' or 'lifetime_budget' when campaign has no CBO budget.`
+      );
+    }
+    if (isFlex && hasLifetime) {
+      errors.push(
+        `${label}: 'adset_budget_sharing' (flex) requires 'daily_budget' on ad sets; 'lifetime_budget' is not supported.`
+      );
+    }
+    if (hasDaily) {
+      if (!Number.isInteger(as.daily_budget) || as.daily_budget <= 0) {
+        errors.push(`${label}: 'daily_budget' must be a positive integer in minor currency units.`);
+      } else {
+        budgets.push({
+          scope: `adset:${as.name || key}`,
+          type: "daily_budget",
+          minor: as.daily_budget,
+          formatted: formatBudgetSummary(as.daily_budget, currency),
+        });
+      }
+    }
+    if (hasLifetime) {
+      if (!Number.isInteger(as.lifetime_budget) || as.lifetime_budget <= 0) {
+        errors.push(`${label}: 'lifetime_budget' must be a positive integer in minor currency units.`);
+      } else {
+        budgets.push({
+          scope: `adset:${as.name || key}`,
+          type: "lifetime_budget",
+          minor: as.lifetime_budget,
+          formatted: formatBudgetSummary(as.lifetime_budget, currency),
+        });
+      }
+      if (!as.end_time) {
+        errors.push(`${label}: 'end_time' (ISO 8601) is required when using 'lifetime_budget'.`);
+      }
+    }
+
+    if (as.bid_strategy && !VALID_BID_STRATEGIES.has(as.bid_strategy)) {
+      errors.push(`${label}: invalid 'bid_strategy' '${as.bid_strategy}'.`);
+    }
+    if (
+      (as.bid_strategy === "COST_CAP" || as.bid_strategy === "LOWEST_COST_WITH_BID_CAP") &&
+      (!Number.isInteger(as.bid_amount) || as.bid_amount <= 0)
+    ) {
+      errors.push(`${label}: 'bid_amount' (in minor units) is required for ${as.bid_strategy}.`);
+    }
+
+    const hasCountries =
+      (typeof as.targeting_countries === "string" && as.targeting_countries.trim().length > 0) ||
+      (Array.isArray(as.targeting_countries) && as.targeting_countries.length > 0);
+    const hasTargetingJson = Boolean(as.targeting);
+    if (!hasCountries && !hasTargetingJson) {
+      errors.push(`${label}: must specify either 'targeting_countries' or 'targeting'.`);
+    }
+    if (hasCountries && hasTargetingJson) {
+      errors.push(
+        `${label}: specify either 'targeting_countries' or 'targeting', not both ('targeting' replaces 'targeting_countries').`
+      );
+    }
+
+    const pixelId = as.pixel_id || brand?.pixel_id;
+    const needsConversionObject =
+      as.optimization_goal === "OFFSITE_CONVERSIONS" || as.optimization_goal === "VALUE";
+    if (needsConversionObject && !as.promoted_object) {
+      if (!pixelId) {
+        errors.push(
+          `${label}: optimization_goal '${as.optimization_goal}' requires 'pixel_id' (in ad set or brand.json) or 'promoted_object'.`
+        );
+      }
+      if (!as.custom_event_type) {
+        errors.push(
+          `${label}: optimization_goal '${as.optimization_goal}' requires 'custom_event_type' (e.g. 'PURCHASE' or 'LEAD').`
+        );
+      }
+    }
+
+    adsetMap.set(key, { ...as, _key: key });
+  }
+
+  // Validate ads
+  for (let i = 0; i < ads.length; i++) {
+    const ad = ads[i];
+    const key = ad.key || ad.name;
+    const label = `ads[${i}] (${key || "unnamed"})`;
+    if (!ad.name || typeof ad.name !== "string") {
+      errors.push(`${label}: 'name' is required.`);
+    }
+    if (ad.status !== undefined && !VALID_STATUSES.has(ad.status)) {
+      errors.push(`${label}: 'status' must be PAUSED or ACTIVE.`);
+    }
+    const adsetRef = ad.adset || ad.adset_key;
+    const creativeRef = ad.creative || ad.creative_key;
+    if (!adsetRef || !adsetMap.has(adsetRef)) {
+      errors.push(`${label}: references unknown ad set '${adsetRef || ""}'.`);
+    }
+    if (!creativeRef || !creativeMap.has(creativeRef)) {
+      errors.push(`${label}: references unknown creative '${creativeRef || ""}'.`);
+    }
+    const resolvedAdset = adsetRef ? adsetMap.get(adsetRef) : null;
+    const resolvedCreative = creativeRef ? creativeMap.get(creativeRef) : null;
+
+    if (resolvedCreative?._isDco && resolvedAdset && !resolvedAdset.dynamic_creative) {
+      errors.push(
+        `${label}: creative '${creativeRef}' uses DCO multi-asset fields, so ad set '${adsetRef}' must set "dynamic_creative": true.`
+      );
+    }
+
+    const conversionDomain = ad.conversion_domain || brand?.conversion_domain;
+    const isSalesOrConversion =
+      campaign?.objective === "OUTCOME_SALES" ||
+      resolvedAdset?.optimization_goal === "OFFSITE_CONVERSIONS" ||
+      resolvedAdset?.optimization_goal === "VALUE";
+    if (isSalesOrConversion && !conversionDomain) {
+      errors.push(
+        `${label}: requires 'conversion_domain' (in ad or brand.json) for OUTCOME_SALES / OFFSITE_CONVERSIONS.`
+      );
+    }
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    warnings,
+    brandPath,
+    campaignPath: resolvedCampaignPath,
+    workspaceDir,
+    campaignDir,
+    brand,
+    manifest,
+    isCbo,
+    isFlex,
+    budgets,
+    mediaFiles,
+  };
+}
+
+function serializeJsonOrFileArg(val, workspaceDir, campaignDir) {
+  if (typeof val === "string") {
+    if (val.startsWith("@")) {
+      const fileRef = val.slice(1);
+      const resolved = resolveMediaFile(workspaceDir, campaignDir, fileRef);
+      return `@${resolved}`;
+    }
+    return val;
+  }
+  return JSON.stringify(val);
+}
+
+function buildCampaignArgs(validation, activate) {
+  const { brand, manifest } = validation;
+  const c = manifest.campaign;
+  const status = activate ? c.status || "PAUSED" : "PAUSED";
+  const args = [
+    "--output",
+    "json",
+    "--no-input",
+    "ads",
+    "--ad-account-id",
+    brand.ad_account_id,
+  ];
+  if (brand.business_id) {
+    args.push("--business-id", String(brand.business_id));
+  }
+  args.push("campaign", "create", "--name", c.name, "--objective", c.objective, "--status", status);
+
+  if (c.daily_budget !== undefined && c.daily_budget !== null) {
+    args.push("--daily-budget", String(c.daily_budget));
+  }
+  if (c.lifetime_budget !== undefined && c.lifetime_budget !== null) {
+    args.push("--lifetime-budget", String(c.lifetime_budget));
+  }
+  if (c.bid_strategy) args.push("--bid-strategy", c.bid_strategy);
+  if (c.buying_type) args.push("--buying-type", c.buying_type);
+  if (c.pacing_type) args.push("--pacing-type", c.pacing_type);
+  if (c.adset_budget_sharing === true) args.push("--adset-budget-sharing");
+  if (c.adset_budget_sharing === false) args.push("--no-adset-budget-sharing");
+  if (c.skadnetwork_attribution === true) args.push("--skadnetwork-attribution");
+  if (c.skadnetwork_attribution === false) args.push("--no-skadnetwork-attribution");
+  if (c.spend_cap !== undefined && c.spend_cap !== null) args.push("--spend-cap", String(c.spend_cap));
+  if (c.start_time) args.push("--start-time", c.start_time);
+  if (c.stop_time) args.push("--stop-time", c.stop_time);
+  if (Array.isArray(c.special_ad_categories)) {
+    for (const cat of c.special_ad_categories) {
+      args.push("--special-ad-categories", String(cat));
+    }
+  } else if (c.special_ad_categories) {
+    args.push("--special-ad-categories", String(c.special_ad_categories));
+  }
+  return args;
+}
+
+function buildCreativeArgs(validation, cr, stateMediaCache, activate) {
+  const { brand, workspaceDir, campaignDir } = validation;
+  const args = [
+    "--output",
+    "json",
+    "--no-input",
+    "ads",
+    "--ad-account-id",
+    brand.ad_account_id,
+  ];
+  if (brand.business_id) {
+    args.push("--business-id", String(brand.business_id));
+  }
+  args.push("creative", "create", "--name", cr.name);
+
+  const pageId = cr.page_id || brand.page_id;
+  const isExistingPost = Boolean(
+    cr.object_story_id || cr.source_instagram_media_id || cr.instagram_permalink_url
+  );
+  if (pageId && !isExistingPost && !cr.object_story_spec) {
+    args.push("--page-id", String(pageId));
+  }
+  const igUserId = cr.instagram_user_id || brand.instagram_user_id;
+  if (igUserId) {
+    args.push("--instagram-user-id", String(igUserId));
+  }
+
+  let primaryMediaSha = null;
+  let primaryMediaKind = null;
+
+  if (cr.image_hash) {
+    args.push("--image-hash", String(cr.image_hash));
+  } else if (cr.image) {
+    const resolved = resolveMediaFile(workspaceDir, campaignDir, cr.image);
+    const sha = validation.mediaFiles[resolved]?.sha256 || sha256File(resolved);
+    primaryMediaSha = sha;
+    primaryMediaKind = "image";
+    const cached = stateMediaCache?.[sha];
+    if (cached?.image_hash) {
+      args.push("--image-hash", String(cached.image_hash));
+    } else {
+      args.push("--image", resolved);
+    }
+  }
+
+  if (cr.video_id) {
+    args.push("--video-id", String(cr.video_id));
+  } else if (cr.video) {
+    const resolved = resolveMediaFile(workspaceDir, campaignDir, cr.video);
+    const sha = validation.mediaFiles[resolved]?.sha256 || sha256File(resolved);
+    primaryMediaSha = sha;
+    primaryMediaKind = "video";
+    const cached = stateMediaCache?.[sha];
+    if (cached?.video_id) {
+      args.push("--video-id", String(cached.video_id));
+    } else {
+      args.push("--video", resolved);
+    }
+  }
+
+  if (cr.body) args.push("--body", cr.body);
+  if (cr.title) args.push("--title", cr.title);
+  if (cr.description) args.push("--description", cr.description);
+  if (cr.link_url) args.push("--link-url", cr.link_url);
+  if (cr.call_to_action) args.push("--call-to-action", cr.call_to_action);
+
+  if (Array.isArray(cr.images)) {
+    for (const img of cr.images) {
+      args.push("--images", resolveMediaFile(workspaceDir, campaignDir, img));
+    }
+  }
+  if (Array.isArray(cr.videos)) {
+    for (const vid of cr.videos) {
+      args.push("--videos", resolveMediaFile(workspaceDir, campaignDir, vid));
+    }
+  }
+  if (Array.isArray(cr.titles)) {
+    for (const t of cr.titles) args.push("--titles", String(t));
+  }
+  if (Array.isArray(cr.bodies)) {
+    for (const b of cr.bodies) args.push("--bodies", String(b));
+  }
+  if (Array.isArray(cr.descriptions)) {
+    for (const d of cr.descriptions) args.push("--descriptions", String(d));
+  }
+  if (Array.isArray(cr.call_to_actions)) {
+    for (const cta of cr.call_to_actions) args.push("--call-to-actions", String(cta));
+  }
+  if (cr.ad_format) args.push("--ad-format", cr.ad_format);
+
+  if (cr.object_story_id) args.push("--object-story-id", String(cr.object_story_id));
+  if (cr.source_instagram_media_id) {
+    args.push("--source-instagram-media-id", String(cr.source_instagram_media_id));
+  }
+  if (cr.instagram_permalink_url) {
+    args.push("--instagram-permalink-url", String(cr.instagram_permalink_url));
+  }
+  if (cr.product_set_id) args.push("--product-set-id", String(cr.product_set_id));
+  if (cr.url_tags) args.push("--url-tags", String(cr.url_tags));
+  if (cr.authorization_category) {
+    args.push("--authorization-category", String(cr.authorization_category));
+  }
+  if (cr.applink_treatment) args.push("--applink-treatment", String(cr.applink_treatment));
+  if (cr.contextual_multi_ads === true) args.push("--contextual-multi-ads");
+  if (cr.contextual_multi_ads === false) args.push("--no-contextual-multi-ads");
+
+  if (cr.status) {
+    args.push("--status", activate ? cr.status : "PAUSED");
+  }
+  if (cr.object_story_spec) {
+    args.push("--object-story-spec", serializeJsonOrFileArg(cr.object_story_spec, workspaceDir, campaignDir));
+  }
+  if (cr.asset_feed_spec) {
+    args.push("--asset-feed-spec", serializeJsonOrFileArg(cr.asset_feed_spec, workspaceDir, campaignDir));
+  }
+  if (cr.degrees_of_freedom_spec) {
+    args.push(
+      "--degrees-of-freedom-spec",
+      serializeJsonOrFileArg(cr.degrees_of_freedom_spec, workspaceDir, campaignDir)
+    );
+  }
+
+  return { args, primaryMediaSha, primaryMediaKind };
+}
+
+function buildAdsetArgs(validation, as, campaignId, activate) {
+  const { brand, workspaceDir, campaignDir } = validation;
+  const status = activate ? as.status || "PAUSED" : "PAUSED";
+  const args = [
+    "--output",
+    "json",
+    "--no-input",
+    "ads",
+    "--ad-account-id",
+    brand.ad_account_id,
+  ];
+  if (brand.business_id) {
+    args.push("--business-id", String(brand.business_id));
+  }
+  args.push(
+    "adset",
+    "create",
+    "--campaign-id",
+    String(campaignId),
+    "--name",
+    as.name,
+    "--optimization-goal",
+    as.optimization_goal,
+    "--billing-event",
+    as.billing_event,
+    "--status",
+    status
+  );
+
+  if (as.daily_budget !== undefined && as.daily_budget !== null) {
+    args.push("--daily-budget", String(as.daily_budget));
+  }
+  if (as.lifetime_budget !== undefined && as.lifetime_budget !== null) {
+    args.push("--lifetime-budget", String(as.lifetime_budget));
+  }
+  if (as.bid_strategy) args.push("--bid-strategy", as.bid_strategy);
+  if (as.bid_amount !== undefined && as.bid_amount !== null) {
+    args.push("--bid-amount", String(as.bid_amount));
+  }
+  if (as.pacing_type) args.push("--pacing-type", as.pacing_type);
+  if (as.destination_type) args.push("--destination-type", as.destination_type);
+  if (as.start_time) args.push("--start-time", as.start_time);
+  if (as.end_time) args.push("--end-time", as.end_time);
+
+  const pixelId = as.pixel_id || brand.pixel_id;
+  if (as.promoted_object) {
+    args.push("--promoted-object", serializeJsonOrFileArg(as.promoted_object, workspaceDir, campaignDir));
+  } else {
+    if (pixelId && (as.pixel_id || as.optimization_goal === "OFFSITE_CONVERSIONS" || as.optimization_goal === "VALUE")) {
+      args.push("--pixel-id", String(pixelId));
+    }
+    if (as.custom_event_type) {
+      args.push("--custom-event-type", String(as.custom_event_type));
+    }
+  }
+
+  if (as.targeting) {
+    args.push("--targeting", serializeJsonOrFileArg(as.targeting, workspaceDir, campaignDir));
+  } else if (as.targeting_countries) {
+    const countries = Array.isArray(as.targeting_countries)
+      ? as.targeting_countries.join(",")
+      : String(as.targeting_countries);
+    args.push("--targeting-countries", countries);
+  }
+
+  if (as.dynamic_creative === true) args.push("--dynamic-creative");
+  if (as.dynamic_creative === false) args.push("--no-dynamic-creative");
+  if (as.advantage_audience === true) args.push("--advantage-audience");
+  if (as.advantage_audience === false) args.push("--no-advantage-audience");
+  if (as.incremental_attribution === true) args.push("--incremental-attribution");
+  if (as.incremental_attribution === false) args.push("--no-incremental-attribution");
+  if (as.attribution_spec) {
+    args.push("--attribution-spec", serializeJsonOrFileArg(as.attribution_spec, workspaceDir, campaignDir));
+  }
+  if (as.dsa_beneficiary) args.push("--dsa-beneficiary", String(as.dsa_beneficiary));
+  if (as.dsa_payor) args.push("--dsa-payor", String(as.dsa_payor));
+
+  return args;
+}
+
+function buildAdArgs(validation, ad, adsetId, creativeId, activate) {
+  const { brand, workspaceDir, campaignDir, manifest } = validation;
+  const status = activate ? ad.status || "PAUSED" : "PAUSED";
+  const args = [
+    "--output",
+    "json",
+    "--no-input",
+    "ads",
+    "--ad-account-id",
+    brand.ad_account_id,
+  ];
+  if (brand.business_id) {
+    args.push("--business-id", String(brand.business_id));
+  }
+  args.push(
+    "ad",
+    "create",
+    "--adset-id",
+    String(adsetId),
+    "--name",
+    ad.name,
+    "--creative-id",
+    String(creativeId),
+    "--status",
+    status
+  );
+
+  const conversionDomain = ad.conversion_domain || brand.conversion_domain;
+  if (conversionDomain) {
+    args.push("--conversion-domain", String(conversionDomain));
+  }
+  const pixelId = ad.pixel_id || (manifest.campaign?.objective === "OUTCOME_SALES" ? brand.pixel_id : undefined);
+  if (ad.tracking_specs) {
+    args.push("--tracking-specs", serializeJsonOrFileArg(ad.tracking_specs, workspaceDir, campaignDir));
+  } else if (pixelId) {
+    args.push("--pixel-id", String(pixelId));
+  }
+  if (ad.schedule_start_time) args.push("--schedule-start-time", String(ad.schedule_start_time));
+  if (ad.schedule_end_time) args.push("--schedule-end-time", String(ad.schedule_end_time));
+
+  return args;
+}
+
+function loadState(stateFile) {
+  if (!fs.existsSync(stateFile)) {
+    return {
+      version: 1,
+      media_cache: {},
+      campaigns: {},
+      creatives: {},
+      adsets: {},
+      ads: {},
+    };
+  }
+  try {
+    const data = JSON.parse(fs.readFileSync(stateFile, "utf8"));
+    return {
+      version: 1,
+      media_cache: data.media_cache || {},
+      campaigns: data.campaigns || {},
+      creatives: data.creatives || {},
+      adsets: data.adsets || {},
+      ads: data.ads || {},
+    };
+  } catch {
+    return {
+      version: 1,
+      media_cache: {},
+      campaigns: {},
+      creatives: {},
+      adsets: {},
+      ads: {},
+    };
+  }
+}
+
+function saveState(stateFile, state) {
+  state.updated_at = new Date().toISOString();
+  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2) + "\n", { mode: 0o600 });
+}
+
+function parseMetaJsonOutput(stdout) {
+  const trimmed = (stdout || "").trim();
+  if (!trimmed) throw new Error("Empty stdout from meta CLI.");
+  let parsed;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    const idxArr = trimmed.indexOf("[");
+    const idxObj = trimmed.indexOf("{");
+    const start =
+      idxArr >= 0 && idxObj >= 0 ? Math.min(idxArr, idxObj) : idxArr >= 0 ? idxArr : idxObj;
+    if (start >= 0) {
+      parsed = JSON.parse(trimmed.slice(start));
+    } else {
+      throw new Error(`Could not parse JSON from meta CLI output: ${trimmed.slice(0, 200)}`);
+    }
+  }
+  const record = Array.isArray(parsed) ? parsed[0] : parsed;
+  if (!record || typeof record !== "object" || !record.id) {
+    throw new Error(`meta CLI JSON response did not include an 'id' field: ${trimmed.slice(0, 200)}`);
+  }
+  return record;
+}
+
+function cmdSetup(argv) {
+  let version = DEFAULT_META_ADS_VERSION;
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--version") {
+      version = argv[++i];
+      if (!version) throw new Error("--version requires a version string.");
+    } else {
+      throw new Error(`Unknown option for setup: ${arg}`);
+    }
+  }
+
+  const metaBin = resolveMetaBin();
+  const verRes = spawnSync(metaBin, ["--version"], { encoding: "utf8" });
+  if (verRes.status === 0 && (verRes.stdout || "").includes(version)) {
+    console.log(`✓ meta-ads CLI already installed: ${(verRes.stdout || "").trim()} (${metaBin})`);
+    return;
+  }
+
+  const pipxCheck = spawnSync("pipx", ["--version"], { encoding: "utf8" });
+  if (pipxCheck.status !== 0) {
+    throw new Error("pipx is not installed. Install pipx first (e.g. `sudo apt install pipx` or `brew install pipx`).");
+  }
+
+  const pkgSpec = `meta-ads==${version}`;
+  console.log(`Installing ${pkgSpec} via pipx...`);
+  const installRes = spawnSync("pipx", ["install", "--force", pkgSpec], { stdio: "inherit" });
+  if (installRes.status !== 0) {
+    throw new Error(`pipx install ${pkgSpec} failed with exit code ${installRes.status}`);
+  }
+  console.log(`✓ ${pkgSpec} installed.`);
+}
+
+function cmdInit(argv) {
+  let targetDir = ".";
+  let force = false;
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--force") {
+      force = true;
+    } else if (!arg.startsWith("-")) {
+      targetDir = arg;
+    } else {
+      throw new Error(`Unknown option for init: ${arg}`);
+    }
+  }
+
+  const root = path.resolve(targetDir);
+  const campaignsDir = path.join(root, "campaigns");
+  const mediaDir = path.join(root, "media");
+  fs.mkdirSync(campaignsDir, { recursive: true });
+  fs.mkdirSync(mediaDir, { recursive: true });
+
+  const brandPath = path.join(root, "brand.json");
+  const sampleCampaignPath = path.join(campaignsDir, "sample-campaign.json");
+  const gitignorePath = path.join(root, ".gitignore");
+  const mediaPlaceholderPath = path.join(mediaDir, ".gitkeep");
+
+  const created = [];
+  const skipped = [];
+
+  if (!fs.existsSync(mediaPlaceholderPath)) {
+    fs.writeFileSync(mediaPlaceholderPath, "");
+  }
+
+  if (!fs.existsSync(brandPath) || force) {
+    const brandTemplate = {
+      brand: path.basename(root),
+      ad_account_id: "act_1234567890",
+      business_id: "9876543210",
+      page_id: "1122334455",
+      instagram_user_id: "",
+      pixel_id: "5566778899",
+      conversion_domain: "example.com",
+      currency: "USD",
+      token_env: "META_ACCESS_TOKEN",
+    };
+    fs.writeFileSync(brandPath, JSON.stringify(brandTemplate, null, 2) + "\n");
+    created.push(brandPath);
+  } else {
+    skipped.push(brandPath);
+  }
+
+  if (!fs.existsSync(sampleCampaignPath) || force) {
+    const sampleCampaign = {
+      campaign: {
+        key: "camp_sales_cbo",
+        name: "Sales_CBO_Launch",
+        objective: "OUTCOME_SALES",
+        status: "PAUSED",
+        daily_budget: 5000,
+      },
+      creatives: [
+        {
+          key: "cr_hero_v1",
+          name: "Creative_Hero_V1",
+          image: "media/hero.jpg",
+          title: "Engineered for Daily Comfort",
+          body: "Discover breathable materials crafted for everyday durability.",
+          description: "Fast nationwide shipping",
+          link_url: "https://example.com/products/flagship",
+          call_to_action: "SHOP_NOW",
+          url_tags: "utm_source=meta&utm_medium=paid_social&utm_campaign=sales_cbo_launch",
+        },
+      ],
+      adsets: [
+        {
+          key: "adset_broad_id",
+          name: "AdSet_Broad_ID",
+          optimization_goal: "OFFSITE_CONVERSIONS",
+          billing_event: "IMPRESSIONS",
+          custom_event_type: "PURCHASE",
+          targeting_countries: ["ID"],
+          status: "PAUSED",
+        },
+      ],
+      ads: [
+        {
+          key: "ad_hero_v1",
+          name: "Ad_Hero_V1",
+          adset: "adset_broad_id",
+          creative: "cr_hero_v1",
+          status: "PAUSED",
+        },
+      ],
+    };
+    fs.writeFileSync(sampleCampaignPath, JSON.stringify(sampleCampaign, null, 2) + "\n");
+    created.push(sampleCampaignPath);
+  } else {
+    skipped.push(sampleCampaignPath);
+  }
+
+  const ignoreLines = [".meta-state.json", ".env", ".env.*"];
+  let existingIgnore = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, "utf8") : "";
+  let ignoreUpdated = false;
+  for (const line of ignoreLines) {
+    if (!existingIgnore.split(/\r?\n/).includes(line)) {
+      existingIgnore += (existingIgnore && !existingIgnore.endsWith("\n") ? "\n" : "") + line + "\n";
+      ignoreUpdated = true;
+    }
+  }
+  if (ignoreUpdated || !fs.existsSync(gitignorePath)) {
+    fs.writeFileSync(gitignorePath, existingIgnore);
+    created.push(gitignorePath);
+  }
+
+  console.log(`Initialized Meta Ads project workspace at ${root}`);
+  for (const p of created) console.log(`  + created ${path.relative(root, p) || "."}`);
+  for (const p of skipped) console.log(`  = kept existing ${path.relative(root, p)}`);
+  console.log(
+    "\nNext steps:\n  1. Edit brand.json with your real Business Manager IDs (ad_account_id, page_id, pixel_id, conversion_domain).\n  2. Place your image/video assets in media/ (e.g. media/hero.jpg).\n  3. Run: meta-ads-ops validate campaigns/sample-campaign.json"
+  );
+}
+
+function cmdValidate(argv) {
+  let campaignPath = null;
+  let brandPath = null;
+  let jsonOut = false;
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--brand") {
+      brandPath = argv[++i];
+      if (!brandPath) throw new Error("--brand requires a file path.");
+    } else if (arg === "--json") {
+      jsonOut = true;
+    } else if (!arg.startsWith("-") && !campaignPath) {
+      campaignPath = arg;
+    } else {
+      throw new Error(`Unknown or unexpected argument for validate: ${arg}`);
+    }
+  }
+  if (!campaignPath) {
+    throw new Error("validate requires <campaign.json>.");
+  }
+
+  const res = validateManifests(campaignPath, brandPath);
+  if (jsonOut) {
+    console.log(
+      JSON.stringify(
+        {
+          ok: res.ok,
+          errors: res.errors,
+          warnings: res.warnings,
+          brandPath: res.brandPath,
+          campaignPath: res.campaignPath,
+          mode: res.isCbo ? "CBO" : res.isFlex ? "FLEX" : "ABO",
+          budgets: res.budgets,
+          mediaFiles: Object.values(res.mediaFiles),
+        },
+        null,
+        2
+      )
+    );
+    process.exit(res.ok ? 0 : 1);
+  }
+
+  if (!res.ok) {
+    console.error(`Validation FAILED for ${res.campaignPath}:`);
+    for (const err of res.errors) {
+      console.error(`  ✗ ${err}`);
+    }
+    process.exit(1);
+  }
+
+  console.log(`Validation PASSED for ${res.campaignPath}`);
+  console.log(`  Brand config : ${res.brandPath} (${res.brand.ad_account_id})`);
+  console.log(`  Budget mode  : ${res.isCbo ? "CBO (Campaign Budget)" : res.isFlex ? "FLEX (Ad Set Budget Sharing)" : "ABO (Ad Set Budget)"}`);
+  for (const b of res.budgets) {
+    console.log(`  Budget       : [${b.scope}] ${b.type} = ${b.formatted}`);
+  }
+  const mediaList = Object.values(res.mediaFiles);
+  console.log(`  Media files  : ${mediaList.length} verified on disk`);
+  for (const m of mediaList) {
+    console.log(`    - ${path.relative(res.workspaceDir, m.path)} (${m.kind}, ${m.bytes} bytes, sha256:${m.sha256.slice(0, 12)})`);
+  }
+}
+
+function cmdDeploy(argv) {
+  let campaignPath = null;
+  let brandPath = null;
+  let apply = false;
+  let activate = false;
+  let jsonOut = false;
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--brand") {
+      brandPath = argv[++i];
+      if (!brandPath) throw new Error("--brand requires a file path.");
+    } else if (arg === "--apply") {
+      apply = true;
+    } else if (arg === "--activate") {
+      activate = true;
+    } else if (arg === "--json") {
+      jsonOut = true;
+    } else if (!arg.startsWith("-") && !campaignPath) {
+      campaignPath = arg;
+    } else {
+      throw new Error(`Unknown or unexpected argument for deploy: ${arg}`);
+    }
+  }
+  if (!campaignPath) {
+    throw new Error("deploy requires <campaign.json>.");
+  }
+
+  const validation = validateManifests(campaignPath, brandPath);
+  if (!validation.ok) {
+    if (jsonOut) {
+      console.log(JSON.stringify({ ok: false, errors: validation.errors }, null, 2));
+    } else {
+      console.error(`Validation FAILED for ${validation.campaignPath}:`);
+      for (const err of validation.errors) console.error(`  ✗ ${err}`);
+    }
+    process.exit(1);
+  }
+
+  const stateFile = path.join(validation.workspaceDir, ".meta-state.json");
+  const state = loadState(stateFile);
+  const { manifest, brand } = validation;
+  const metaBin = resolveMetaBin();
+
+  const campKey = manifest.campaign.key || manifest.campaign.name;
+  const campArgs = buildCampaignArgs(validation, activate);
+  const campHash = stableHashObject(manifest.campaign);
+  const existingCamp = state.campaigns[campKey];
+
+  const steps = [];
+
+  steps.push({
+    step: 1,
+    kind: "campaign",
+    key: campKey,
+    name: manifest.campaign.name,
+    hash: campHash,
+    cachedId: existingCamp?.id || null,
+    drift: Boolean(existingCamp?.id && existingCamp?.hash && existingCamp.hash !== campHash),
+    action: existingCamp?.id ? "SKIP" : "CREATE",
+    args: campArgs,
+  });
+
+  // Creatives
+  for (const cr of manifest.creatives) {
+    const crKey = cr.key || cr.name;
+    const { args: crArgs, primaryMediaSha, primaryMediaKind } = buildCreativeArgs(
+      validation,
+      cr,
+      state.media_cache,
+      activate
+    );
+    const crHash = stableHashObject({ spec: cr, primaryMediaSha });
+    const existingCr = state.creatives[crKey];
+    steps.push({
+      step: steps.length + 1,
+      kind: "creative",
+      key: crKey,
+      name: cr.name,
+      hash: crHash,
+      primaryMediaSha,
+      primaryMediaKind,
+      cachedId: existingCr?.id || null,
+      drift: Boolean(existingCr?.id && existingCr?.hash && existingCr.hash !== crHash),
+      action: existingCr?.id ? "SKIP" : "CREATE",
+      args: crArgs,
+    });
+  }
+
+  // Adsets
+  for (const as of manifest.adsets) {
+    const asKey = as.key || as.name;
+    const placeholderCampId = existingCamp?.id || `<CAMPAIGN_ID:${campKey}>`;
+    const asArgs = buildAdsetArgs(validation, as, placeholderCampId, activate);
+    const asHash = stableHashObject(as);
+    const existingAs = state.adsets[asKey];
+    steps.push({
+      step: steps.length + 1,
+      kind: "adset",
+      key: asKey,
+      name: as.name,
+      hash: asHash,
+      rawSpec: as,
+      cachedId: existingAs?.id || null,
+      drift: Boolean(existingAs?.id && existingAs?.hash && existingAs.hash !== asHash),
+      action: existingAs?.id ? "SKIP" : "CREATE",
+      args: asArgs,
+    });
+  }
+
+  // Ads
+  for (const ad of manifest.ads) {
+    const adKey = ad.key || ad.name;
+    const adsetRef = ad.adset || ad.adset_key;
+    const creativeRef = ad.creative || ad.creative_key;
+    const placeholderAdsetId = state.adsets[adsetRef]?.id || `<ADSET_ID:${adsetRef}>`;
+    const placeholderCreativeId = state.creatives[creativeRef]?.id || `<CREATIVE_ID:${creativeRef}>`;
+    const adArgs = buildAdArgs(validation, ad, placeholderAdsetId, placeholderCreativeId, activate);
+    const adHash = stableHashObject(ad);
+    const existingAd = state.ads[adKey];
+    steps.push({
+      step: steps.length + 1,
+      kind: "ad",
+      key: adKey,
+      name: ad.name,
+      hash: adHash,
+      rawSpec: ad,
+      adsetRef,
+      creativeRef,
+      cachedId: existingAd?.id || null,
+      drift: Boolean(existingAd?.id && existingAd?.hash && existingAd.hash !== adHash),
+      action: existingAd?.id ? "SKIP" : "CREATE",
+      args: adArgs,
+    });
+  }
+
+  if (!apply) {
+    if (jsonOut) {
+      console.log(
+        JSON.stringify(
+          {
+            ok: true,
+            mode: "DRY_RUN",
+            pausedForced: !activate,
+            budgets: validation.budgets,
+            stateFile,
+            steps: steps.map((s) => ({
+              step: s.step,
+              kind: s.kind,
+              key: s.key,
+              action: s.action,
+              cachedId: s.cachedId,
+              drift: s.drift,
+              command: [metaBin, ...s.args],
+            })),
+          },
+          null,
+          2
+        )
+      );
+      return;
+    }
+
+    console.log(`=== DRY-RUN DEPLOYMENT PLAN (${validation.campaignPath}) ===`);
+    console.log(`Ad Account : ${brand.ad_account_id}`);
+    console.log(`Safety Gate: ${activate ? "ACTIVE ALLOWED (--activate)" : "PAUSED FORCED (default safe mode)"}`);
+    for (const b of validation.budgets) {
+      console.log(`Budget     : [${b.scope}] ${b.type} = ${b.formatted}`);
+    }
+    console.log(`State File : ${stateFile}`);
+    console.log("");
+    for (const s of steps) {
+      if (s.action === "SKIP") {
+        console.log(`  [${s.step}] SKIP   ${s.kind}:${s.key} -> reuse id=${s.cachedId}`);
+        if (s.drift) {
+          console.log(
+            `      ⚠ DRIFT: local manifest for '${s.key}' changed since id=${s.cachedId} was created. Bump 'key' to create a new entity or update via 'meta-ads-ops run -- ... update'.`
+          );
+        }
+      } else {
+        console.log(`  [${s.step}] CREATE ${s.kind}:${s.key}`);
+        console.log(`      $ ${metaBin} ${s.args.map((a) => (/\s/.test(a) ? JSON.stringify(a) : a)).join(" ")}`);
+      }
+    }
+    console.log("\nDry-run complete. No API calls were made. Pass --apply to execute.");
+    return;
+  }
+
+  // Execute with --apply
+  const tokenEnv = brand.token_env || "META_ACCESS_TOKEN";
+  const token = readSecretToken(tokenEnv);
+  const childEnv = {
+    ...process.env,
+    ACCESS_TOKEN: token,
+    AD_ACCOUNT_ID: brand.ad_account_id,
+  };
+  if (brand.business_id) {
+    childEnv.BUSINESS_ID = String(brand.business_id);
+  }
+
+  const runMetaStep = (args, label) => {
+    const res = spawnSync(metaBin, args, {
+      env: childEnv,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    if (res.status !== 0) {
+      const errText = (res.stderr || res.stdout || "").trim() || `exit code ${res.status}`;
+      throw new Error(`Failed at ${label}: ${errText}`);
+    }
+    return parseMetaJsonOutput(res.stdout);
+  };
+
+  const results = [];
+
+  // 1. Campaign
+  let campaignId = state.campaigns[campKey]?.id;
+  if (!campaignId) {
+    const rec = runMetaStep(campArgs, `campaign:${campKey}`);
+    campaignId = String(rec.id);
+    state.campaigns[campKey] = {
+      id: campaignId,
+      name: manifest.campaign.name,
+      hash: campHash,
+      created_at: new Date().toISOString(),
+    };
+    saveState(stateFile, state);
+    results.push({ kind: "campaign", key: campKey, action: "CREATED", id: campaignId, drift: false });
+  } else {
+    const drift = Boolean(state.campaigns[campKey]?.hash && state.campaigns[campKey].hash !== campHash);
+    results.push({ kind: "campaign", key: campKey, action: "SKIPPED", id: campaignId, drift });
+  }
+
+  // 2. Creatives
+  for (const cr of manifest.creatives) {
+    const crKey = cr.key || cr.name;
+    let creativeId = state.creatives[crKey]?.id;
+    const { args: crArgs, primaryMediaSha, primaryMediaKind } = buildCreativeArgs(
+      validation,
+      cr,
+      state.media_cache,
+      activate
+    );
+    const crHash = stableHashObject({ spec: cr, primaryMediaSha });
+    if (!creativeId) {
+      const rec = runMetaStep(crArgs, `creative:${crKey}`);
+      creativeId = String(rec.id);
+      const imageHash =
+        rec.image_hash ||
+        rec.object_story_spec?.link_data?.image_hash ||
+        rec.object_story_spec?.photo_data?.image_hash ||
+        null;
+      const videoId =
+        rec.video_id ||
+        rec.object_story_spec?.video_data?.video_id ||
+        null;
+
+      if (primaryMediaSha) {
+        state.media_cache[primaryMediaSha] = {
+          kind: primaryMediaKind,
+          creative_id: creativeId,
+          ...(imageHash ? { image_hash: String(imageHash) } : {}),
+          ...(videoId ? { video_id: String(videoId) } : {}),
+          updated_at: new Date().toISOString(),
+        };
+      }
+      state.creatives[crKey] = {
+        id: creativeId,
+        name: cr.name,
+        hash: crHash,
+        ...(imageHash ? { image_hash: String(imageHash) } : {}),
+        ...(videoId ? { video_id: String(videoId) } : {}),
+        created_at: new Date().toISOString(),
+      };
+      saveState(stateFile, state);
+      results.push({ kind: "creative", key: crKey, action: "CREATED", id: creativeId, drift: false });
+    } else {
+      const drift = Boolean(state.creatives[crKey]?.hash && state.creatives[crKey].hash !== crHash);
+      results.push({ kind: "creative", key: crKey, action: "SKIPPED", id: creativeId, drift });
+    }
+  }
+
+  // 3. Ad Sets
+  for (const as of manifest.adsets) {
+    const asKey = as.key || as.name;
+    let adsetId = state.adsets[asKey]?.id;
+    const asHash = stableHashObject(as);
+    if (!adsetId) {
+      const asArgs = buildAdsetArgs(validation, as, campaignId, activate);
+      const rec = runMetaStep(asArgs, `adset:${asKey}`);
+      adsetId = String(rec.id);
+      state.adsets[asKey] = {
+        id: adsetId,
+        campaign_id: campaignId,
+        name: as.name,
+        hash: asHash,
+        created_at: new Date().toISOString(),
+      };
+      saveState(stateFile, state);
+      results.push({ kind: "adset", key: asKey, action: "CREATED", id: adsetId, drift: false });
+    } else {
+      const drift = Boolean(state.adsets[asKey]?.hash && state.adsets[asKey].hash !== asHash);
+      results.push({ kind: "adset", key: asKey, action: "SKIPPED", id: adsetId, drift });
+    }
+  }
+
+  // 4. Ads
+  for (const ad of manifest.ads) {
+    const adKey = ad.key || ad.name;
+    let adId = state.ads[adKey]?.id;
+    const adHash = stableHashObject(ad);
+    if (!adId) {
+      const adsetRef = ad.adset || ad.adset_key;
+      const creativeRef = ad.creative || ad.creative_key;
+      const adsetId = state.adsets[adsetRef]?.id;
+      const creativeId = state.creatives[creativeRef]?.id;
+      const adArgs = buildAdArgs(validation, ad, adsetId, creativeId, activate);
+      const rec = runMetaStep(adArgs, `ad:${adKey}`);
+      adId = String(rec.id);
+      state.ads[adKey] = {
+        id: adId,
+        adset_id: adsetId,
+        creative_id: creativeId,
+        name: ad.name,
+        hash: adHash,
+        created_at: new Date().toISOString(),
+      };
+      saveState(stateFile, state);
+      results.push({ kind: "ad", key: adKey, action: "CREATED", id: adId, drift: false });
+    } else {
+      const drift = Boolean(state.ads[adKey]?.hash && state.ads[adKey].hash !== adHash);
+      results.push({ kind: "ad", key: adKey, action: "SKIPPED", id: adId, drift });
+    }
+  }
+
+  if (jsonOut) {
+    console.log(JSON.stringify({ ok: true, mode: "APPLIED", stateFile, results }, null, 2));
+    return;
+  }
+
+  console.log(`Deployment SUCCEEDED for ${validation.campaignPath}`);
+  for (const r of results) {
+    console.log(`  ✓ [${r.action}] ${r.kind}:${r.key} -> id=${r.id}${r.drift ? " (⚠ DRIFT: manifest modified since creation)" : ""}`);
+  }
+  console.log(`State saved to ${stateFile}`);
+}
+
+function cmdStatus(argv) {
+  let campaignPath = null;
+  let brandPath = null;
+  let jsonOut = false;
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--brand") {
+      brandPath = argv[++i];
+      if (!brandPath) throw new Error("--brand requires a file path.");
+    } else if (arg === "--json") {
+      jsonOut = true;
+    } else if (!arg.startsWith("-") && !campaignPath) {
+      campaignPath = arg;
+    } else {
+      throw new Error(`Unknown or unexpected argument for status: ${arg}`);
+    }
+  }
+
+  const resolvedBrand = findBrandPath(campaignPath, brandPath);
+  const workspaceDir = path.dirname(resolvedBrand);
+  const brand = readJsonFile(resolvedBrand, "brand.json");
+  const stateFile = path.join(workspaceDir, ".meta-state.json");
+  const state = loadState(stateFile);
+
+  if (jsonOut) {
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          brand: brand.brand || path.basename(workspaceDir),
+          ad_account_id: brand.ad_account_id,
+          stateFile,
+          exists: fs.existsSync(stateFile),
+          state,
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  console.log(`Workspace   : ${workspaceDir} (${brand.ad_account_id})`);
+  console.log(`State File  : ${stateFile} (${fs.existsSync(stateFile) ? "present" : "not created yet"})`);
+  const printGroup = (title, mapObj) => {
+    const entries = Object.entries(mapObj || {});
+    console.log(`  ${title} (${entries.length}):`);
+    for (const [key, val] of entries) {
+      console.log(`    - ${key}: id=${val.id} (${val.name || "unnamed"})`);
+    }
+  };
+  printGroup("Campaigns", state.campaigns);
+  printGroup("Creatives", state.creatives);
+  printGroup("Ad Sets  ", state.adsets);
+  printGroup("Ads      ", state.ads);
+  const mediaEntries = Object.entries(state.media_cache || {});
+  console.log(`  Media Cache (${mediaEntries.length}):`);
+  for (const [sha, val] of mediaEntries) {
+    const ref = val.image_hash ? `image_hash=${val.image_hash}` : val.video_id ? `video_id=${val.video_id}` : `creative_id=${val.creative_id}`;
+    console.log(`    - sha256:${sha.slice(0, 12)} (${val.kind}) -> ${ref}`);
+  }
+}
+
+function cmdDoctor(argv) {
+  let brandPath = null;
+  let tokenEnv = "META_ACCESS_TOKEN";
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--brand") {
+      brandPath = argv[++i];
+    } else if (arg === "--token-env") {
+      tokenEnv = argv[++i];
+    } else {
+      throw new Error(`Unknown option for doctor: ${arg}`);
+    }
+  }
+
+  if (brandPath || fs.existsSync(path.resolve("brand.json"))) {
+    try {
+      const resolved = findBrandPath(null, brandPath);
+      const brand = readJsonFile(resolved, "brand.json");
+      if (brand.token_env) tokenEnv = brand.token_env;
+      console.log(`✓ brand.json: ${resolved} (ad_account_id=${brand.ad_account_id || "unset"})`);
+    } catch (err) {
+      console.error(`✗ brand.json: ${err.message}`);
+      process.exit(1);
+    }
+  }
+
+  const metaBin = resolveMetaBin();
+  const verRes = spawnSync(metaBin, ["--version"], { encoding: "utf8" });
+  if (verRes.status !== 0) {
+    console.error(`✗ meta CLI binary not executable at '${metaBin}'. Run: meta-ads-ops setup (or pipx install meta-ads==${DEFAULT_META_ADS_VERSION})`);
+    process.exit(1);
+  }
+  console.log(`✓ meta CLI: ${(verRes.stdout || verRes.stderr).trim()} (${metaBin})`);
+
+  let token = null;
+  try {
+    token = readSecretToken(tokenEnv);
+    console.log(`✓ secret '${tokenEnv}': available via secrets-env (redacted, length=${token.length})`);
+  } catch (err) {
+    console.error(`✗ secret '${tokenEnv}': ${err.message}`);
+    process.exit(1);
+  }
+
+  const authRes = spawnSync(metaBin, ["auth", "status"], {
+    env: { ...process.env, ACCESS_TOKEN: token },
+    encoding: "utf8",
+  });
+  const authOut = ((authRes.stdout || "") + (authRes.stderr || "")).trim();
+  if (authRes.status !== 0 || /Not authenticated/i.test(authOut)) {
+    console.error(`✗ meta auth status failed: ${authOut}`);
+    process.exit(1);
+  }
+  console.log(`✓ meta auth status: ${authOut.split(/\r?\n/)[0]}`);
+}
+
+function cmdRun(argv) {
+  let brandPath = null;
+  let tokenEnv = null;
+  let passthrough = [];
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--") {
+      passthrough = argv.slice(i + 1);
+      break;
+    } else if (arg === "--brand") {
+      brandPath = argv[++i];
+    } else if (arg === "--token-env") {
+      tokenEnv = argv[++i];
+    } else {
+      passthrough = argv.slice(i);
+      break;
+    }
+  }
+
+  if (passthrough.length === 0) {
+    throw new Error("run requires arguments to pass to `meta` (e.g. `meta-ads-ops run -- ads campaign list`).");
+  }
+
+  let brand = null;
+  if (brandPath || fs.existsSync(path.resolve("brand.json"))) {
+    const resolved = findBrandPath(null, brandPath);
+    brand = readJsonFile(resolved, "brand.json");
+  }
+
+  const effectiveTokenEnv = tokenEnv || brand?.token_env || "META_ACCESS_TOKEN";
+  const token = readSecretToken(effectiveTokenEnv);
+  const env = {
+    ...process.env,
+    ACCESS_TOKEN: token,
+  };
+  if (brand?.ad_account_id && !env.AD_ACCOUNT_ID) {
+    env.AD_ACCOUNT_ID = String(brand.ad_account_id);
+  }
+  if (brand?.business_id && !env.BUSINESS_ID) {
+    env.BUSINESS_ID = String(brand.business_id);
+  }
+
+  const metaBin = resolveMetaBin();
+  const res = spawnSync(metaBin, passthrough, {
+    env,
+    stdio: "inherit",
+  });
+  process.exit(res.status ?? 1);
+}
+
+function main() {
+  const argv = process.argv.slice(2);
+  if (argv.length === 0 || argv[0] === "-h" || argv[0] === "--help" || argv[0] === "help") {
+    usage(0);
+  }
+
+  const sub = argv[0];
+  const rest = argv.slice(1);
+
+  try {
+    switch (sub) {
+      case "setup":
+        cmdSetup(rest);
+        break;
+      case "init":
+        cmdInit(rest);
+        break;
+      case "validate":
+        cmdValidate(rest);
+        break;
+      case "deploy":
+        cmdDeploy(rest);
+        break;
+      case "status":
+        cmdStatus(rest);
+        break;
+      case "doctor":
+        cmdDoctor(rest);
+        break;
+      case "run":
+        cmdRun(rest);
+        break;
+      default:
+        console.error(`Unknown subcommand: ${sub}`);
+        usage(1);
+    }
+  } catch (err) {
+    console.error(`meta-ads-ops error: ${err.message}`);
+    process.exit(1);
+  }
+}
+
+main();
