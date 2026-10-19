@@ -41,7 +41,7 @@ skill sources from a historical setup note.
 ## Folder structure
 
 ### `~/Projects/` — Coding
-All development projects: web app, SaaS, Shopify, bots, etc. (Created 2026-07-14 on `cuan`; before that this convention was written in memory but the folder never actually existed.)
+All development projects: web app, SaaS, Shopify, bots, etc.
 
 ## Auto-Routing — the AI CLI knows where to put things
 

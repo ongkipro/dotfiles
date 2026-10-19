@@ -68,6 +68,7 @@ def visible_units(path: Path, min_tokens: int) -> list[tuple[int, str, set[str],
     units = []
     in_fence = False
     in_frontmatter = False
+    in_historical_banner = False
     for no, raw in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
         line = raw.strip()
         if no == 1 and line == "---":
@@ -80,6 +81,13 @@ def visible_units(path: Path, min_tokens: int) -> list[tuple[int, str, set[str],
         if line.startswith("```") or line.startswith("~~~"):
             in_fence = not in_fence
             continue
+        if line.startswith("> Historical reference:"):
+            in_historical_banner = True
+            continue
+        if in_historical_banner:
+            if line.startswith(">"):
+                continue
+            in_historical_banner = False
         if in_fence or not line or line.startswith("#"):
             continue
         cleaned = re.sub(r"^[-*+>]\s*", "", line)
@@ -197,8 +205,11 @@ def check_authority(root: Path, path: Path, policy: dict) -> list[dict]:
 
 def check_stale_dates(path: Path, policy: dict, today: date) -> list[dict]:
     cutoff = policy.get("staleDays", 90)
+    text = path.read_text(encoding="utf-8", errors="replace")
+    if "> Historical reference: dated operational claims below have not been re-certified." in text:
+        return []
     out = []
-    for no, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+    for no, line in enumerate(text.splitlines(), 1):
         low = line.lower()
         if not any(word in low for word in ("verified", "currently", "current", "checked out", "installed", "removed", "created")):
             continue

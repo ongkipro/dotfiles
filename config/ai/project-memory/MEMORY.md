@@ -80,3 +80,4 @@
 - [AdsBookCMS install fleet](adsbookcms-install-fleet.md) — satu produk, beberapa toko live; peta direktori lokal + kenapa `product` remote di-DISABLED.
 - [Sync adsbookcms ↔ zanobyshop](adsbookcms-zanobyshop-sync.md) — update produk turun lewat `sync-from-product.sh`; temuan dari toko live naik sebagai issue, bukan tambalan lokal.
 - [Reven Leather Shopify HK Payments](revenleather-shopify-hk-payments.md) — Shopify Payments HK setup, USD base currency decision, and product naming/SEO invariant.
+- [Reven Leather Catalog & Price Data](revenleather-catalog-data.md) — locations of raw, harmonized, live-scraped (reven.id), and backup product price files in ~/Projects/revenleather.com.

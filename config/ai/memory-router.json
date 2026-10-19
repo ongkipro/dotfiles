@@ -531,8 +531,34 @@
     "formalinads": "config/ai/project-memory/formalinads-malaysia-gateway.md",
     "zvarashop": "config/ai/project-memory/adsbookcms-install-fleet.md",
     "permatamall": "config/ai/project-memory/adsbookcms-install-fleet.md",
-    "revenleather": "config/ai/project-memory/revenleather-shopify-hk-payments.md",
-    "revenleather.com": "config/ai/project-memory/revenleather-shopify-hk-payments.md"
+    "revenleather": [
+      "config/ai/project-memory/revenleather-shopify-hk-payments.md",
+      {
+        "path": "config/ai/project-memory/revenleather-catalog-data.md",
+        "triggers": [
+          "catalog",
+          "price",
+          "pricing",
+          "reven.id",
+          "products.json",
+          "csv"
+        ]
+      }
+    ],
+    "revenleather.com": [
+      "config/ai/project-memory/revenleather-shopify-hk-payments.md",
+      {
+        "path": "config/ai/project-memory/revenleather-catalog-data.md",
+        "triggers": [
+          "catalog",
+          "price",
+          "pricing",
+          "reven.id",
+          "products.json",
+          "csv"
+        ]
+      }
+    ]
   },
   "lessons": [
     {

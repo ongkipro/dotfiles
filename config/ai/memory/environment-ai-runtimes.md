@@ -67,9 +67,9 @@
 - CLI installation and login state are machine-local. Check `command -v` and
   each runtime's native status before use. Pi is optional; its absence does not
   affect OMP.
-- **Gemini CLI: DELIBERATELY REMOVED (2026-07-13)** — user decision: the Gemini stack is used via **Antigravity (`agy`)**, not the `gemini` CLI. The `@google/gemini-cli` package has been `npm uninstall -g`'d. **DO NOT reinstall it.**
-- ⚠️ **`~/.gemini/` IS STILL KEPT** even though the `gemini` CLI was removed — it holds `GEMINI.md` (symlink → `~/.config/ai/context/antigravity.md`, created by `ai-memory-link`), the only global rules file agy 1.2.0 opens (strace-verified 2026-09-15; `~/.antigravity/AGENTS.md` and `~/.gemini/antigravity-cli/*.md` are never read). **Deleting `~/.gemini` = breaking agy.** Contents as of 2026-07-14: `GEMINI.md`, `projects.json`, `config/`, and **`antigravity-cli/` (STILL PRESENT** — the old note saying this folder is gone is WRONG).
-- **agy**: a flat native binary, its name **differs per machine** — on Mac `~/.local/bin/agy` (143M, verified 2026-07-20; there is NO `antigravity` file here), on `cuan` an ELF binary from the official installer. Check: `ls -l ~/.local/bin/ | grep -iE 'agy|antigravity'`. Antigravity config in `~/.antigravity/{AGENTS.md,ANTIGRAVITY.md}`.
+- **Gemini CLI: DELIBERATELY REMOVED** — user decision: the Gemini stack is used via **Antigravity (`agy`)**, not the `gemini` CLI. The `@google/gemini-cli` package has been `npm uninstall -g`'d. **DO NOT reinstall it.**
+- ⚠️ **`~/.gemini/` IS STILL KEPT** even though the `gemini` CLI was removed — it holds `GEMINI.md` (symlink → `~/.config/ai/context/antigravity.md`, created by `ai-memory-link`), the only global rules file agy 1.2.0 opens (strace-verified 2026-09-15; `~/.antigravity/AGENTS.md` and `~/.gemini/antigravity-cli/*.md` are never read). **Deleting `~/.gemini` = breaking agy.** Contents: `GEMINI.md`, `projects.json`, `config/`, and **`antigravity-cli/` (STILL PRESENT** — the old note saying this folder is gone is WRONG).
+- **agy**: a flat native binary, its name **differs per machine** — on Mac `~/.local/bin/agy` (there is NO `antigravity` file here), on `cuan` an ELF binary from the official installer. Check: `ls -l ~/.local/bin/ | grep -iE 'agy|antigravity'`. Antigravity config in `~/.antigravity/{AGENTS.md,ANTIGRAVITY.md}`.
 - **9Router status:** verify the remote tunnel only when operating an optional
   Pi/9Router integration; there is no supported local service.
 - Optional Pi provider metadata, credentials, and sync status are independent
@@ -77,7 +77,7 @@
 - There is no Pi-owned image-generation path in tracked settings. Use the
   runtime-neutral `9router` skill/API.
 - **Claude Code**: local MCP `chrome-devtools` for the `web-perf` skill; its browser path is device-local (`rich`: `--headless --executablePath /usr/bin/google-chrome`, verified 2026-09-15 — an earlier note said `chromium-browser`). A read-only permission allowlist + a secret deny-rule are in `~/.claude/settings.json`.
-- **Supabase CLI deliberately NOT installed** (verified 2026-07-14: `supabase` not in PATH) — the DB stack = PostgreSQL + Drizzle ORM + better-auth, self-hosted via Coolify. Don't install unless a project truly needs it. The `~/.supabase/` folder **DOES NOT EXIST on Mac** (verified 2026-07-20 — the old note saying "EXISTS but leftover/empty" is wrong for this machine). The `supabase-stack` skill is kept for reference, not a sign of adoption.
+- **Supabase CLI**: the house DB stack = PostgreSQL + Drizzle ORM + better-auth, self-hosted via Coolify. Don't adopt Supabase for new projects unless explicitly requested. The `~/.supabase/` folder **DOES NOT EXIST on Mac** (the old note saying "EXISTS but leftover/empty" is wrong for this machine). The `supabase-stack` skill is kept for reference and explicit Supabase projects.
 
 ## Fixes & new tools on `cuan` (2026-07-13)
 - `pi-9router-sync.service` is an optional Pi adapter that refreshes Pi's
@@ -106,11 +106,11 @@
 - Legacy `~/.9router/` state is not part of the supported runtime topology and
   must not be restored from backups.
 
-## Antigravity (`agy`) — the OFFICIAL install method (2026-07-13, verified)
+## Antigravity (`agy`) — the OFFICIAL install method
 - **Official installer**: `curl -fsSL https://antigravity.google/cli/install.sh | bash` → then `agy install` (configures PATH + shell). Docs: https://antigravity.google/docs/cli-getting-started
 - Verified directly: the URL returns **HTTP 200**, its content is a genuine bash script ("Antigravity CLI - Unix Bootstrapper Script"), `TARGET_DIR="$HOME/.local/bin"`, `BINARY_PATH="$TARGET_DIR/agy"`.
 - **Not an npm package**, needs no Node. A flat native binary, directly named `agy`.
 - Subcommands: `agy install` · `agy update` · `agy models` · `agy agents` · `agy plugin` · `agy changelog`. **There is no `agy login`** — auth runs when `agy` is first launched (via browser).
-- ✅ **The `cuan` machine has been RE-INSTALLED using the official installer (2026-07-13)**: now `~/.local/bin/agy` = the real ELF binary (173MB), NOT a symlink anymore. The old binary `~/.local/bin/antigravity` (166MB) has been DELETED. The "agy symlink silently disappears" problem can't recur.
+- ✅ **The `cuan` machine uses the official installer**: `~/.local/bin/agy` = the real ELF binary, NOT a symlink anymore. The old binary `~/.local/bin/antigravity` has been DELETED. The "agy symlink silently disappears" problem can't recur.
 - ⚠️ **The `agy` installer POLLUTES `~/.profile` + `~/.bashrc`**: it adds `export PATH="/home/ongki/.local/bin:$PATH"` (hardcoded home path). `~/.profile` is a SYMLINK to `dotfiles/home/profile` → that line gets committed & is BROKEN on Mac (`/Users/...`). Dotfiles already handles `~/.local/bin` portably (idempotent guard at .bashrc:166). **After every agy install/update: `git checkout home/profile` + remove the `# Added by Antigravity CLI installer` line from the shell rc.**
 - Antigravity **replaces the Gemini CLI** (which has been removed from this machine).

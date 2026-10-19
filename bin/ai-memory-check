@@ -49,14 +49,15 @@ function markdownFiles(entry) {
   if (stat.isFile()) return entry.endsWith(".md") ? [entry] : [];
   if (!stat.isDirectory()) return [];
 
-  const gitIgnored = gitIgnoredDirectories(entry);
-  return fs.readdirSync(entry, { withFileTypes: true }).flatMap((item) => {
+  const realEntry = fs.realpathSync(entry);
+  const gitIgnored = gitIgnoredDirectories(realEntry);
+  return fs.readdirSync(realEntry, { withFileTypes: true }).flatMap((item) => {
     if (item.isDirectory() && ignoredDirectories.has(item.name)) return [];
-    if (item.isDirectory() && gitIgnored.has(path.join(entry, item.name))) return [];
+    if (item.isDirectory() && gitIgnored.has(path.join(realEntry, item.name))) return [];
     // Promotion work files are private to their writer, not canonical memory.
     // Explicit file arguments still take the stat.isFile() path above.
     if (item.isFile() && /^\.ai-learn(?:-preview|-probe)?\..*\.md$/.test(item.name)) return [];
-    return markdownFiles(path.join(entry, item.name));
+    return markdownFiles(path.join(realEntry, item.name));
   });
 }
 
