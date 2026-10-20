@@ -101,15 +101,20 @@ verify_split() {
 # against the reasons in `.local-fork`. Differences are expected — the fork
 # exists because of some — so this reports, it never fails.
 report_fork_drift() {
-  local dir="$1" name="$2" base verified f rel tmp differ="" missing=""
+  local dir="$1" name="$2" base verified sync_tool f rel tmp differ="" missing=""
   base=""
   [ -f "$dir/.source" ] && base="$(sed -n 's/^source: //p' "$dir/.source" | head -1)"
   [ -n "$base" ] || base="$(sed -n 's/^source: //p' "$dir/.local-fork" | head -1)"
   [ -n "$base" ] || base="$(sed -n 's/^upstream: //p' "$dir/.local-fork" | head -1)"
   base="${base%/SKILL.md}"
   verified="$(sed -n 's/^verified: //p' "$dir/.local-fork" | head -1)"
+  sync_tool="$(sed -n 's/^sync_tool: //p' "$dir/.local-fork" | head -1)"
   case "$base" in
-    ""|https://github.com/*) echo "skip $name (managed local fork) — no raw upstream to compare"; return 0 ;;
+    ""|https://github.com/*)
+      echo "skip $name (managed local fork) — no raw upstream to compare"
+      [ -n "$sync_tool" ] && echo "   >> sync_tool: ${sync_tool} (run '${sync_tool} --remote' to auto-sync upstream)"
+      return 0
+      ;;
   esac
   if grep -q '^split_of:' "$dir/.source" 2>/dev/null; then
     echo "skip $name (managed local fork) — split; compare with upstream by hand"
@@ -130,8 +135,9 @@ report_fork_drift() {
     return 0
   fi
   echo "skip $name (managed local fork) — upstream differs, recheck vs .local-fork (verified ${verified:-?}):"
-  [ -n "$differ" ]  && echo "   ~~ differs:${differ}"
-  [ -n "$missing" ] && echo "   -- not upstream:${missing}"
+  [ -n "$differ" ]    && echo "   ~~ differs:${differ}"
+  [ -n "$missing" ]   && echo "   -- not upstream:${missing}"
+  [ -n "$sync_tool" ] && echo "   >> sync_tool: ${sync_tool} (run '${sync_tool} --remote' to auto-sync upstream)"
   return 0
 }
 

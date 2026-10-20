@@ -126,6 +126,7 @@ conventions; missing catalog coverage is not permission to migrate it.
 | Performance measurement and diagnosis | `web-perf` |
 | Built-in capability and dependency decision | `native-first` |
 | Cross-file call tracing or change-impact navigation | `codebase-navigation` (search first; optional Graphify) |
+| Shipped-artifact, HAR/network, bundle, APK, SQLite, or binary reverse engineering and reconstruction coverage | `black-magic` |
 | Small PRD/PLAN/TASKS route | `prd-taskbreaker` |
 | Traceable multi-document specification pack | `development-spec-suite` |
 

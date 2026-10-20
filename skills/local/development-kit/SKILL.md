@@ -110,8 +110,13 @@ resolve the change.
 1. **Reference discovery:** for a new surface or material redesign, inspect the
    repository first, then research a small, relevant set of professional
    products: local comparables when market language or operator behavior is
-   local, and mature global comparables for broader pattern evidence. Extract
-   principles; never copy brand, product policy, or unsupported interaction.
+   local, and mature global comparables for broader pattern evidence. When a
+   supplied reference is a `.har`/`.saz` capture, shipped
+   bundle/binary/APK/SQLite snapshot, or live interactive app whose runtime
+   state, computed tokens, or API surface cannot be resolved by static
+   screenshots alone, extract that evidence through `black-magic` first.
+   Extract principles; never copy brand, product policy, or unsupported
+   interaction.
 2. **Behavior:** admin/CMS uses `admin-product-ux`; commerce uses
    `storefront-ux`; client-edited content sites choose their editing layer
    through `cms-content`; other surfaces use the PRD plus the relevant product

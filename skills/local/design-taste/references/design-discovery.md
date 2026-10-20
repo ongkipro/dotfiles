@@ -104,8 +104,12 @@ to the project for this (`native-first`); a throwaway script in the scratchpad
 is enough, and the method comes from the `design-dna` project (MIT, `sharp`
 based). If the source is only a URL or a live page, computed styles are the
 authority instead: `scripts/ui-ref.mjs capture` records them with geometry
-(see reference-fidelity.md). Keep the tokens that are measured separate from those that
-are inferred.
+(see reference-fidelity.md). When a live reference or supplied `.har`/bundle
+involves runtime state transitions, scroll/GSAP triggers, or obfuscated client
+bundles that static capture does not resolve, use `black-magic`
+(`capture-browser-scenario`, `inspect-browser-styles`, or
+`analyze-javascript-application`) to extract exact runtime evidence. Keep the
+tokens that are measured separate from those that are inferred.
 
 Three dimensions keep a reference record complete: **system** (measurable
 tokens), **style** (mood, density, composition), and **effects** (canvas, WebGL,
