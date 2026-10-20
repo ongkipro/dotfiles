@@ -1,7 +1,7 @@
 # Device: `ongkis-MacBook-Air`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-09-15**
+> Terakhir diperbarui: **2026-10-20**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -22,15 +22,15 @@
 | CPU | Apple M1 (8 thread) |
 | RAM | 8.0 GB |
 | GPU | Apple M1 |
-| Disk (/) | 228Gi total, 84Gi free (16% used) |
+| Disk (/) | 228Gi total, 101Gi free (11% used) |
 
 ## AI CLI
 
 | CLI | Status | Path |
 |---|---|---|
-| `claude` | terpasang | ~/.local/share/mise/installs/node/24.18.0/bin/claude |
-| `codex` | terpasang | ~/.local/share/mise/installs/node/24.18.0/bin/codex |
-| `pi` | terpasang | ~/.nvm/versions/node/v24.18.0/bin/pi |
+| `claude` | terpasang | ~/.local/share/mise/installs/node/24.21.0/bin/claude |
+| `codex` | terpasang | ~/.local/share/mise/installs/node/24.21.0/bin/codex |
+| `pi` | terpasang | ~/.local/share/mise/installs/node/24.21.0/bin/pi |
 | `agy` | terpasang | ~/.local/bin/agy |
 | `omp` | terpasang | /opt/homebrew/bin/omp |
 
@@ -38,12 +38,12 @@
 
 | Tool | Versi |
 |---|---|
-| node | v24.18.0 |
-| pnpm | 11.9.0 |
-| bun | 1.3.14 |
+| node | v24.21.0 |
+| pnpm | 12.11.2 |
+| bun | 1.4.3 |
 | python3 | Python 3.9.6 |
 | mise | 2026.6.14 macos-arm64 (2026-06-25) |
-| git | git version 2.55.0 |
+| git | git version 2.56.0 |
 
 ## Profil Claude Code
 
