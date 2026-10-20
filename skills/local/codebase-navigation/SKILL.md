@@ -1,6 +1,6 @@
 ---
 name: codebase-navigation
-description: Trace cross-file calls, dependencies, and change impact with repository search or optional Graphify code graphs. Not correctness review (testing-engineering), architecture decisions (adr-record), or shared memory.
+description: Trace cross-file calls, dependencies, and change impact with repository search or optional Graphify code graphs. Not correctness review (testing-engineering), architecture decisions (adr-record), shipped binary/bundle/HAR reverse engineering (black-magic), or shared memory.
 ---
 
 # Codebase Navigation
@@ -8,6 +8,9 @@ description: Trace cross-file calls, dependencies, and change impact with reposi
 Start with `rg`, definitions, imports, and callers. For a bounded lookup, stop
 there. Use a graph when relationships across modules are costly to reconstruct,
 or the user explicitly asks for Graphify. No graph is required for ordinary edits.
+For shipped binaries, Electron `.asar` bundles, minified web bundles without
+repository source, `.har`/`.saz` captures, Android `.apk`s, or `.sqlite`
+snapshots, use `black-magic` instead.
 
 ## Optional Graphify lane
 

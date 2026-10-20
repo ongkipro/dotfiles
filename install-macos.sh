@@ -222,6 +222,9 @@ retire_omp_overrides
 retire_claude_account_profiles
 "$HOME/.local/bin/ai-memory-link"
 
+say "==> Synchronize global MCP servers..."
+"$HOME/.local/bin/ai-mcp-sync"
+
 say "==> Setup tmux (install binary + clipboard + TPM + plugin)..."
 "$DOT/bin/tmux-setup"
 

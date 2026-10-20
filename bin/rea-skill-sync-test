@@ -1,0 +1,235 @@
+#!/usr/bin/env python3
+"""Deterministic regression test suite for bin/rea-skill-sync."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+
+DOT = Path(__file__).resolve().parent.parent
+BIN = DOT / "bin" / "rea-skill-sync"
+
+
+def run_sync(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(BIN), *args],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+
+
+def main() -> int:
+    if not BIN.is_file():
+        print(f"FAIL: missing {BIN}", file=sys.stderr)
+        return 1
+
+    with tempfile.TemporaryDirectory(prefix="rea-skill-sync-test-") as tmp_str:
+        tmp = Path(tmp_str)
+        root = tmp / "dotfiles"
+        up = tmp / "rea-upstream"
+
+        # 1. Create synthetic dotfiles + upstream fixture
+        local_refs = root / "skills" / "local" / "black-magic" / "references"
+        local_refs.mkdir(parents=True)
+        integration_file = local_refs / "dotfiles-integration.md"
+        integration_file.write_text(
+            "# Local Dotfiles Integration\nKeep this file intact.\n",
+            encoding="utf-8",
+        )
+
+        up_refs = up / ".agents" / "skills" / "reverse-engineer-anything" / "references"
+        up_refs.mkdir(parents=True)
+        (up / "src").mkdir(parents=True)
+        (up / "package.json").write_text(
+            json.dumps({"name": "rea-agents", "version": "6.7.0"}),
+            encoding="utf-8",
+        )
+        (up / "src" / "cliCommandNames.ts").write_text(
+            'export const BROWSER_OBSERVATION_CLI_COMMAND_NAMES = ["list-browser-targets"] as const;\n'
+            'export const ELECTRON_OBSERVATION_CLI_COMMAND_NAMES = ["list-electron-targets"] as const;\n'
+            'export const PRIMARY_CLI_COMMAND_NAMES = ["doctor", "setup", "open-binary"] as const;\n'
+            'export const MCP_ONLY_BINARY_SESSION_TOOL_NAMES = ["binary_session", "get_xrefs"] as const;\n',
+            encoding="utf-8",
+        )
+        upstream_body = (
+            "# REA\n\nUpstream body line 1.\n"
+            "See [references/runtime-observation.md](references/runtime-observation.md).\n"
+        )
+        (up / ".agents" / "skills" / "reverse-engineer-anything" / "SKILL.md").write_text(
+            '---\nname: reverse-engineer-anything\ndescription: Upstream desc.\nmetadata:\n  version: "43"\n---\n\n'
+            + upstream_body,
+            encoding="utf-8",
+        )
+        (up_refs / "runtime-observation.md").write_text(
+            "# Runtime Observation\nUpstream ref content.\n",
+            encoding="utf-8",
+        )
+        (up_refs / "legacy-guide.md").write_text(
+            "# Legacy Guide\nTo be removed later.\n",
+            encoding="utf-8",
+        )
+
+        # 2. Initial --check before sync must report DRIFT (exit 1)
+        chk0 = run_sync("--root", str(root), "--upstream-dir", str(up), "--check", "--json")
+        assert chk0.returncode == 1, f"expected exit 1 on initial check, got {chk0.returncode}: {chk0.stderr}"
+        rep0 = json.loads(chk0.stdout)
+        assert rep0["status"] == "DRIFT", rep0
+        assert "SKILL.md" in rep0["driftedFiles"], rep0
+
+        # 3. Initial sync writes SKILL.md, references, .source, .local-fork
+        sync1 = run_sync("--root", str(root), "--upstream-dir", str(up), "--json")
+        assert sync1.returncode == 0, f"sync1 failed: {sync1.stderr}"
+        rep1 = json.loads(sync1.stdout)
+        assert rep1["status"] == "UPDATED", rep1
+        assert rep1["reaVersion"] == "6.7.0", rep1
+        assert rep1["skillVersion"] == "43", rep1
+        assert rep1["primaryCliCommandCount"] == 5, rep1
+        assert rep1["mcpOnlyToolCount"] == 2, rep1
+
+        skill_md_path = root / "skills" / "local" / "black-magic" / "SKILL.md"
+        skill_text = skill_md_path.read_text(encoding="utf-8")
+        assert "name: black-magic\n" in skill_text, skill_text
+        # Verify exact byte-for-byte preservation of upstream_body
+        fm_end = skill_text.index("\n---\n\n") + len("\n---\n\n")
+        dotfiles_marker = "\n## Dotfiles integration and sibling handoffs\n"
+        marker_idx = skill_text.index(dotfiles_marker)
+        preserved_body = skill_text[fm_end:marker_idx]
+        assert preserved_body == upstream_body, (
+            f"body mismatch:\nexpected={upstream_body!r}\ngot={preserved_body!r}"
+        )
+        # Check Codex <240-char Not-for boundary
+        desc_line = [ln for ln in skill_text.splitlines() if ln.startswith("description:")][0]
+        not_idx = desc_line.find("Not for")
+        assert 0 < not_idx < 240, f"Not for boundary index out of range: {not_idx}"
+
+        # 4. Idempotent check: set an old date in .source/.local-fork and verify --check stays IN_SYNC when content matches
+        src_file = root / "skills" / "local" / "black-magic" / ".source"
+        fork_file = root / "skills" / "local" / "black-magic" / ".local-fork"
+        src_file.write_text(
+            src_file.read_text(encoding="utf-8").replace(
+                src_file.read_text(encoding="utf-8").splitlines()[1],
+                "vendored: 2020-01-01",
+            ),
+            encoding="utf-8",
+        )
+        fork_file.write_text(
+            fork_file.read_text(encoding="utf-8").replace(
+                fork_file.read_text(encoding="utf-8").splitlines()[1],
+                "verified: 2020-01-01",
+            ),
+            encoding="utf-8",
+        )
+        chk1 = run_sync("--root", str(root), "--upstream-dir", str(up), "--check", "--json")
+        assert chk1.returncode == 0, f"expected exit 0 after sync, got {chk1.returncode}: {chk1.stdout}"
+        assert "vendored: 2020-01-01" in src_file.read_text(encoding="utf-8")
+
+        # 5. Simulate upstream release: bump version to 6.8.0 / v44, add new ref, remove legacy-guide.md
+        (up / "package.json").write_text(
+            json.dumps({"name": "rea-agents", "version": "6.8.0"}),
+            encoding="utf-8",
+        )
+        (up / ".agents" / "skills" / "reverse-engineer-anything" / "SKILL.md").write_text(
+            '---\nname: reverse-engineer-anything\ndescription: Upstream desc.\nmetadata:\n  version: "44"\n---\n\n'
+            "# REA\n\nUpstream body line 1.\nUpstream added v44 capability.\n",
+            encoding="utf-8",
+        )
+        (up_refs / "quantum-binaries.md").write_text(
+            "# Quantum Binaries\nNew upstream reference.\n",
+            encoding="utf-8",
+        )
+        (up_refs / "legacy-guide.md").unlink()
+
+        chk2 = run_sync("--root", str(root), "--upstream-dir", str(up), "--check", "--json")
+        assert chk2.returncode == 1, "expected drift exit 1 after upstream update"
+        rep2 = json.loads(chk2.stdout)
+        assert "SKILL.md" in rep2["driftedFiles"], rep2
+        assert "references/quantum-binaries.md" in rep2["driftedFiles"], rep2
+        assert "references/legacy-guide.md" in rep2["driftedFiles"], rep2
+
+        # 6. Apply sync and verify new ref added, stale ref removed, and local integration preserved
+        sync2 = run_sync("--root", str(root), "--upstream-dir", str(up), "--json")
+        assert sync2.returncode == 0, f"sync2 failed: {sync2.stderr}"
+        assert (local_refs / "quantum-binaries.md").is_file()
+        assert not (local_refs / "legacy-guide.md").exists()
+        assert integration_file.read_text(encoding="utf-8") == "# Local Dotfiles Integration\nKeep this file intact.\n"
+        assert 'rea_version: "6.8.0"' in skill_md_path.read_text(encoding="utf-8")
+
+        # 7. Verify upstream collision with references/dotfiles-integration.md is refused (exit 2)
+        (up_refs / "dotfiles-integration.md").write_text(
+            "# Malicious Upstream Collision\n",
+            encoding="utf-8",
+        )
+        coll = run_sync("--root", str(root), "--upstream-dir", str(up), "--json")
+        assert coll.returncode == 2, f"expected exit 2 on collision, got {coll.returncode}"
+        assert "collides with protected local file" in coll.stdout, coll.stdout
+        assert integration_file.read_text(encoding="utf-8") == "# Local Dotfiles Integration\nKeep this file intact.\n"
+        (up_refs / "dotfiles-integration.md").unlink()
+
+        # 8. Verify CRLF preservation across body and references without perpetual DRIFT
+        crlf_body = "# REA\r\n\r\nCRLF body line 1.\r\n"
+        (up / ".agents" / "skills" / "reverse-engineer-anything" / "SKILL.md").write_bytes(
+            (
+                '---\r\nname: reverse-engineer-anything\r\ndescription: Upstream desc.\r\nmetadata:\r\n  version: "45"\r\n---\r\n\r\n'
+                + crlf_body
+            ).encode("utf-8")
+        )
+        (up_refs / "runtime-observation.md").write_bytes(
+            b"# Runtime Observation\r\nCRLF ref line.\r\n"
+        )
+        sync3 = run_sync("--root", str(root), "--upstream-dir", str(up), "--json")
+        assert sync3.returncode == 0, f"sync3 failed: {sync3.stderr}"
+        raw_skill = skill_md_path.read_bytes().decode("utf-8")
+        fm_end3 = raw_skill.index("\n---\n\n") + len("\n---\n\n")
+        marker_idx3 = raw_skill.index("\n## Dotfiles integration and sibling handoffs\n")
+        assert raw_skill[fm_end3:marker_idx3] == crlf_body, (
+            f"CRLF body altered: {raw_skill[fm_end3:marker_idx3]!r}"
+        )
+        assert (local_refs / "runtime-observation.md").read_bytes() == b"# Runtime Observation\r\nCRLF ref line.\r\n"
+        chk3 = run_sync("--root", str(root), "--upstream-dir", str(up), "--check", "--json")
+        assert chk3.returncode == 0, f"expected IN_SYNC on CRLF check, got {chk3.returncode}: {chk3.stdout}"
+
+        # 9. Verify malformed JSON in package.json and invalid UTF-8 exit 2 (not 1) with structured JSON error
+        (up / "package.json").write_text("{corrupt json", encoding="utf-8")
+        bad_json = run_sync("--root", str(root), "--upstream-dir", str(up), "--check", "--json")
+        assert bad_json.returncode == 2, f"expected exit 2 on corrupt JSON, got {bad_json.returncode}"
+        err_rep = json.loads(bad_json.stdout)
+        assert err_rep["status"] == "ERROR", err_rep
+
+        (up / "package.json").write_text('{"name":"rea-agents","version":"6.8.0"}', encoding="utf-8")
+        (up_refs / "runtime-observation.md").write_bytes(b"\xff\xfeinvalid-utf8")
+        bad_utf8 = run_sync("--root", str(root), "--upstream-dir", str(up), "--check", "--json")
+        assert bad_utf8.returncode == 2, f"expected exit 2 on invalid UTF-8, got {bad_utf8.returncode}"
+        assert json.loads(bad_utf8.stdout)["status"] == "ERROR"
+
+        # 10. Verify http.client.IncompleteRead in fetch_text raises SyncError (exit 2)
+        import http.client
+        import importlib.machinery
+        import importlib.util
+        import unittest.mock
+
+        loader = importlib.machinery.SourceFileLoader("rea_skill_sync_mod", str(BIN))
+        spec = importlib.util.spec_from_loader("rea_skill_sync_mod", loader)
+        assert spec and spec.loader
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        with unittest.mock.patch(
+            "urllib.request.urlopen",
+            side_effect=http.client.IncompleteRead(b"partial", 100),
+        ):
+            try:
+                mod.fetch_text("https://example.invalid/SKILL.md")
+                raise AssertionError("expected SyncError on IncompleteRead")
+            except mod.SyncError as exc:
+                assert "IncompleteRead" in str(exc)
+
+    print("rea-skill-sync-test: PASS")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

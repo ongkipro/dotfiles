@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Regression check for ai-mcp-sync.
+# Runs in an isolated temporary sandbox without touching real user files.
+set -euo pipefail
+
+DOT="$(cd "$(dirname "$0")/.." && pwd)"
+SYNC="$DOT/bin/ai-mcp-sync"
+[ -x "$SYNC" ] || { echo "not executable: $SYNC" >&2; exit 2; }
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+fail() { echo "FAIL: $*" >&2; exit 1; }
+
+run_sync() { "$SYNC" --dotfiles "$DOT" --home "$TMP" "$@"; }
+
+# 1. Manifest must be valid JSON
+python3 -m json.tool "$DOT/config/ai/mcp-servers.json" >/dev/null \
+  || fail "config/ai/mcp-servers.json is not valid JSON"
+
+# 2. Test sandbox initial sync
+mkdir -p "$TMP/.claude" "$TMP/.gemini/config" "$TMP/.codex" "$TMP/.omp/agent" "$TMP/.pi/agent"
+printf '{"mcpServers":{"existing-tool":{"command":"echo"}}}' > "$TMP/.claude.json"
+printf 'model = "gpt-5"\n' > "$TMP/.codex/config.toml"
+
+run_sync >/dev/null || fail "initial sync failed"
+
+# 3. Check Claude
+python3 -c "import json; d=json.load(open('$TMP/.claude.json')); assert 'shadcn' in d['mcpServers'] and 'existing-tool' in d['mcpServers']" \
+  || fail "Claude MCP missing shadcn or lost existing-tool"
+
+# 4. Check Antigravity
+python3 -c "import json; d=json.load(open('$TMP/.gemini/config/mcp_config.json')); assert 'shadcn' in d['mcpServers']" \
+  || fail "Antigravity MCP missing shadcn"
+
+# 5. Check Codex
+grep -q '\[mcp_servers\.shadcn\]' "$TMP/.codex/config.toml" \
+  || fail "Codex config missing [mcp_servers.shadcn]"
+grep -q 'model = "gpt-5"' "$TMP/.codex/config.toml" \
+  || fail "Codex config lost existing model setting"
+
+# 6. Check OMP
+python3 -c "import json; d=json.load(open('$TMP/.omp/agent/mcp.json')); assert 'shadcn' in d['mcpServers']" \
+  || fail "OMP MCP missing shadcn"
+
+# 7. Check Pi
+python3 -c "import json; d=json.load(open('$TMP/.pi/agent/mcp.json')); assert 'shadcn' in d['mcpServers']" \
+  || fail "Pi MCP missing shadcn"
+
+# 8. Check --check reports in-sync
+run_sync --check >/dev/null || fail "ai-mcp-sync --check should return 0 when in sync"
+
+# 9. Tamper/drift check
+python3 -c "import json; p='$TMP/.omp/agent/mcp.json'; d=json.load(open(p)); del d['mcpServers']['shadcn']; json.dump(d,open(p,'w'))"
+if run_sync --check >/dev/null 2>&1; then
+  fail "ai-mcp-sync --check should return non-zero on drift"
+fi
+
+# Repair
+run_sync >/dev/null || fail "repair sync failed"
+run_sync --check >/dev/null || fail "in sync after repair"
+
+echo "ai-mcp-sync-test: PASS"

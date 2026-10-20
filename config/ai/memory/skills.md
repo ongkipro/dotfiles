@@ -132,6 +132,12 @@ in prose. Read the map for coverage; read this file for calibration.
 - `lean-code-review` owns evidence-backed simplification review.
 - `codebase-navigation` owns search-first call/dependency tracing with optional
   code-only Graphify extraction; it does not replace source verification.
+- `black-magic` owns shipped-artifact and runtime reverse engineering (`morluto/rea`
+  / `rea-agents` across native binaries, Electron/JS bundles, web/browser
+  captures, `.har`/`.saz`/`.qlog`, Android `.apk`s, `.sqlite` snapshots, `.wasm`,
+  EVM bytecode, and firmware), synchronized via `bin/rea-skill-sync` and routing
+  extracted `Evidence` into `openapi-spec`, `postgres-drizzle`, `design-taste`,
+  `*-ads-signal-engine`, `application-security`, and `full-stack-development`.
 - `volumx-writer` owns meaning-preserving writing and concise terminal dialogue,
   including Caveman-inspired replies without a fixed word quota.
 - `cross-cli` owns handing one lane (research, review, second opinion, bulk

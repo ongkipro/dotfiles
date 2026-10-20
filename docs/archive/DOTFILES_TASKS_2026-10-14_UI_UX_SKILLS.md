@@ -46,3 +46,18 @@ Archived from `TASKS.md` after verification and completion.
 - **Non-Scope:** live project code edits outside `~/dotfiles`, git commit/push unless requested, touching pre-existing dirty memory files.
 - **Reopen Conditions:** `SKILL.md` exceeds 500 lines, broken reference links appear, `skill-map` drifts from `skills/local/README.md`, or `TASKS.md` exceeds 12,288 bytes.
 - **Escalation Conditions:** requires runtime hook changes, external dependencies, or modifying unrelated user files.
+
+### TASK-126: Meta Ads official CLI (`meta-ads`) per-project workflow, `meta-ads-ops`, and `meta-ads-cli` skill
+
+- **Requirement:** REQ-META-ADS-CLI-WORKFLOW-AND-SKILL (owner requests official-source research and dotfiles integration for setting up Meta Ads video/image/copy campaigns from laptop across all AI CLIs and devices via Business Manager while keeping campaign assets per-project).
+- **Risk Level:** R2.
+- **Job:** implementation.
+- **Capability:** meta-ads-cli, meta-ads-signal-engine.
+- **Allowed Paths:** `TASKS.md`, `docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md`, `bin/meta-ads-ops`, `bin/meta-ads-ops-test`, `config/ai/runtime-commands.txt`, `bin/skill-map`, `skills/local/README.md`, `skills/local/meta-ads-cli/**`, `skills/local/meta-ads-signal-engine/SKILL.md`, `config/ai/memory/skills.md`, `docs/DOTFILES_SITEMAP.md`, `.delivery/**`.
+- **Protected Paths:** None; preserve unrelated initial dirty memory files, CORE, hooks, credentials, and live applications.
+- **Canonical Contract Owners:** Meta Ads CLI campaign/adset/creative operations -> `meta-ads-cli` + `bin/meta-ads-ops`; Meta Pixel/CAPI signal engine -> `meta-ads-signal-engine`.
+- **Accepted Invariants:** zero secrets in repository files or CLI argv (`ACCESS_TOKEN` injected via `secrets-env get` into child process environment); `meta-ads-ops deploy` is dry-run by default and forces `PAUSED` status unless `--activate` is passed; `.meta-state.json` caches created entity IDs and SHA-256 media `image_hash`/`video_id` for idempotent resume; `SKILL.md` stays under 500 lines with a front-loaded `Not for` boundary before character 240; `TASKS.md` stays under 12,288 bytes.
+- **Regression Checks:** `meta-ads-ops-test`, `installer-link-test`, `skill-map --check`, `skill-map-test`, `skill-check meta-ads-cli`, `skill-check-test`, `skill-surface-check`, `git diff --check`, boundary check.
+- **Non-Scope:** live Meta Ad Account mutations without approval, git commit/push unless requested, touching pre-existing dirty memory files.
+- **Reopen Conditions:** `meta-ads-ops-test` fails, `skill-map` drifts from `skills/local/README.md`, `SKILL.md` exceeds 500 lines, or `TASKS.md` exceeds 12,288 bytes.
+- **Escalation Conditions:** requires modifying runtime hooks, live secrets, or unrelated user files.

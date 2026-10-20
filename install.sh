@@ -205,6 +205,9 @@ fi
 ~/.local/bin/ai-memory-link              # CORE + per-runtime adapter → context/<runtime>.md, linked to each native path
 "$DOT/skills/agents-bin/skill-update"    # directory links + Codex per-skill adapter preserving .system
 
+echo "==> Synchronize global MCP servers..."
+"$HOME/.local/bin/ai-mcp-sync"
+
 # Pi's remote 9Router adapter is optional and does not require a local gateway.
 # Credential migration remains a separate manual command.
 if [ "${DOTFILES_SETUP_PI:-0}" = "1" ]; then

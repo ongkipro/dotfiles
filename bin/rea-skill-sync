@@ -1,0 +1,537 @@
+#!/usr/bin/env python3
+"""Synchronize and check skills/local/black-magic against upstream morluto/rea.
+
+Preserves 100% of upstream `.agents/skills/reverse-engineer-anything/SKILL.md`
+body and all upstream `references/*.md` files while wrapping the local
+`black-magic` frontmatter (`Not for` boundary before character 240), appending
+the dotfiles handoff section, preserving `references/dotfiles-integration.md`,
+and maintaining `.source` and `.local-fork` metadata.
+
+Modes:
+  rea-skill-sync --upstream-dir /path/to/rea [--pull]
+  rea-skill-sync --remote [--ref main]
+  rea-skill-sync --check [--upstream-dir /path/to/rea | --remote] [--json]
+"""
+
+from __future__ import annotations
+
+import argparse
+from datetime import date
+import http.client
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+
+UPSTREAM_REPO = "morluto/rea"
+UPSTREAM_SKILL_REL = ".agents/skills/reverse-engineer-anything"
+LOCAL_SKILL_REL = "skills/local/black-magic"
+LOCAL_INTEGRATION_REF = "references/dotfiles-integration.md"
+DEFAULT_UPSTREAM_DIR = Path.home() / "Documents/work/research/rea-2026-10-20/rea-upstream"
+
+BLACK_MAGIC_DESCRIPTION = (
+    "Reverse engineer native, managed, Electron/JS, web, HAR/network, APK, "
+    "SQLite, WASM, and firmware targets with REA. Not for owned source repos "
+    "(codebase-navigation), exploit payloads, or DRM/auth bypass. Triggers: "
+    "black magic, rea, reverse engineer, bedah aplikasi, bedah web, decompile, har api."
+)
+
+DOTFILES_SECTION = """
+## Dotfiles integration and sibling handoffs
+
+For CLI-first execution recipes across `claude`, `codex`, `agy`, `pi`, and `omp`
+(avoiding global MCP schema bloat), upstream auto-sync (`rea-skill-sync`),
+output isolation in `~/Documents/work/research/`, and handoff pipelines to
+`openapi-spec`, `codebase-navigation`, `postgres-drizzle`, `supabase-stack`,
+`design-taste`, `gsap-core`, `gsap-scrolltrigger`, `storefront-development`,
+`storefront-ux`, `application-security`, `meta-ads-signal-engine`,
+`google-ads-signal-engine`, `tiktok-ads-signal-engine`, `prd-taskbreaker`,
+`full-stack-development`, `testing-engineering`, and `ui-validation`, read
+[references/dotfiles-integration.md](references/dotfiles-integration.md).
+""".lstrip("\n")
+
+FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n(?:\r?\n)?", re.S)
+VERSION_RE = re.compile(r'^\s*version:\s*["\']?([^"\'\n]+)["\']?\s*$', re.M)
+ARRAY_BLOCK_RE = re.compile(
+    r"export const (\w+)\s*=\s*(?:Object\.freeze\()?\[(.*?)\]\s*(?:\)|as const);",
+    re.S,
+)
+OBJECT_BLOCK_RE = re.compile(
+    r"export const (\w+)\s*=\s*Object\.freeze\(\{(.*?)\}\);",
+    re.S,
+)
+STRING_LITERAL_RE = re.compile(r"""['"]([a-z0-9][a-z0-9_-]*)['"]""")
+
+
+class SyncError(RuntimeError):
+    """Raised when upstream or local skill state cannot be read or validated."""
+
+
+def read_exact_text(path: Path) -> str:
+    try:
+        return path.read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise SyncError(f"failed to read {path}: {exc}") from exc
+
+
+def write_exact_text(path: Path, text: str) -> None:
+    try:
+        path.write_bytes(text.encode("utf-8"))
+    except OSError as exc:
+        raise SyncError(f"failed to write {path}: {exc}") from exc
+
+
+def parse_json_text(raw: str, label: str) -> object:
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise SyncError(f"invalid JSON in {label}: {exc}") from exc
+
+
+def find_root() -> Path:
+    here = Path(__file__).resolve().parent
+    while here != here.parent:
+        if (here / "skills" / "local").is_dir():
+            return here
+        here = here.parent
+    return Path.home() / "dotfiles"
+
+
+def parse_cli_counts(ts_source: str) -> tuple[int, int]:
+    obj_blocks: dict[str, list[str]] = {}
+    for name, body in OBJECT_BLOCK_RE.findall(ts_source):
+        obj_blocks[name] = STRING_LITERAL_RE.findall(body)
+    arr_blocks: dict[str, list[str]] = {}
+    for name, body in ARRAY_BLOCK_RE.findall(ts_source):
+        arr_blocks[name] = STRING_LITERAL_RE.findall(body)
+
+    if "CLI_COMMANDS" in obj_blocks:
+        primary = len(obj_blocks["CLI_COMMANDS"])
+    else:
+        primary = len(arr_blocks.get("PRIMARY_CLI_COMMAND_NAMES", []))
+        for spread_name in (
+            "BROWSER_OBSERVATION_CLI_COMMAND_NAMES",
+            "ELECTRON_OBSERVATION_CLI_COMMAND_NAMES",
+        ):
+            if spread_name in arr_blocks:
+                primary += len(arr_blocks[spread_name])
+
+    mcp_only = len(
+        arr_blocks.get(
+            "MCP_TOOLS_WITHOUT_DEDICATED_CLI",
+            arr_blocks.get("MCP_ONLY_BINARY_SESSION_TOOL_NAMES", []),
+        )
+    )
+    return primary, mcp_only
+
+
+def split_upstream_skill(raw_skill: str) -> tuple[str, str]:
+    match = FRONTMATTER_RE.match(raw_skill)
+    if not match:
+        raise SyncError("upstream SKILL.md is missing YAML frontmatter")
+    fm_text = match.group(1)
+    ver_match = VERSION_RE.search(fm_text)
+    skill_version = ver_match.group(1).strip() if ver_match else "unknown"
+    body = raw_skill[match.end() :]
+    return skill_version, body
+
+
+def build_black_magic_skill(
+    upstream_body: str, skill_version: str, rea_version: str
+) -> str:
+    frontmatter = (
+        "---\n"
+        "name: black-magic\n"
+        f"description: '{BLACK_MAGIC_DESCRIPTION}'\n"
+        "metadata:\n"
+        f'  version: "{skill_version}"\n'
+        f'  rea_version: "{rea_version}"\n'
+        "---\n\n"
+    )
+    sep = "\n" if upstream_body.endswith("\n") else "\n\n"
+    return frontmatter + upstream_body + sep + DOTFILES_SECTION
+
+
+def read_existing_stamp(path: Path, key: str) -> str | None:
+    if not path.is_file():
+        return None
+    for line in read_exact_text(path).splitlines():
+        if line.startswith(f"{key}: "):
+            return line.split(": ", 1)[1].strip()
+    return None
+
+
+def build_metadata_files(
+    ref: str,
+    stamp_date: str,
+    rea_version: str,
+    skill_version: str,
+    upstream_commit: str,
+    primary_cli_count: int,
+    mcp_only_count: int,
+) -> tuple[str, str]:
+    raw_base = f"https://raw.githubusercontent.com/{UPSTREAM_REPO}/{ref}/{UPSTREAM_SKILL_REL}"
+    source_text = (
+        f"source: {raw_base}\n"
+        f"vendored: {stamp_date}\n"
+        f"rea_version: {rea_version}\n"
+        f"skill_version: {skill_version}\n"
+        f"upstream_commit: {upstream_commit}\n"
+        f"primary_cli_commands: {primary_cli_count}\n"
+        f"mcp_only_session_tools: {mcp_only_count}\n"
+    )
+    fork_text = (
+        f"upstream: {raw_base}/SKILL.md\n"
+        f"verified: {stamp_date}\n"
+        "scope: directory\n"
+        "sync_tool: bin/rea-skill-sync\n"
+        f"rea_version: {rea_version}\n"
+        f"skill_version: {skill_version}\n"
+        f"upstream_commit: {upstream_commit}\n"
+        "reason: Preserves 100% of upstream reverse-engineer-anything SKILL.md body and all\n"
+        "  upstream references/*.md verbatim via bin/rea-skill-sync, while renaming the skill\n"
+        "  to black-magic, front-loading the <240-char Not-for sibling boundary for Codex\n"
+        "  truncation safety, and adding references/dotfiles-integration.md for CLI-first\n"
+        "  execution and dotfiles sibling skill handoffs.\n"
+        "refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is present.\n"
+    )
+    return source_text, fork_text
+
+
+def load_from_local_dir(upstream_dir: Path, pull: bool) -> dict[str, object]:
+    if not upstream_dir.is_dir():
+        raise SyncError(f"upstream directory not found: {upstream_dir}")
+    if pull:
+        res = subprocess.run(
+            ["git", "-C", str(upstream_dir), "pull", "--ff-only"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        if res.returncode != 0:
+            raise SyncError(
+                f"git pull --ff-only failed in {upstream_dir}: {res.stderr.strip()}"
+            )
+
+    skill_dir = upstream_dir / UPSTREAM_SKILL_REL
+    skill_md = skill_dir / "SKILL.md"
+    refs_dir = skill_dir / "references"
+    if not skill_md.is_file() or not refs_dir.is_dir():
+        raise SyncError(
+            f"missing {UPSTREAM_SKILL_REL}/SKILL.md or references/ in {upstream_dir}"
+        )
+
+    pkg_path = upstream_dir / "package.json"
+    rea_version = "unknown"
+    if pkg_path.is_file():
+        pkg = parse_json_text(read_exact_text(pkg_path), str(pkg_path))
+        if isinstance(pkg, dict):
+            rea_version = str(pkg.get("version", "unknown"))
+
+    cli_names_path = upstream_dir / "src" / "cliCommandNames.ts"
+    primary_count, mcp_count = (0, 0)
+    if cli_names_path.is_file():
+        primary_count, mcp_count = parse_cli_counts(
+            read_exact_text(cli_names_path)
+        )
+
+    commit = "unknown"
+    if (upstream_dir / ".git").exists():
+        rev = subprocess.run(
+            ["git", "-C", str(upstream_dir), "rev-parse", "HEAD"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        if rev.returncode == 0 and rev.stdout.strip():
+            commit = rev.stdout.strip()
+
+    references: dict[str, str] = {}
+    for ref_file in sorted(refs_dir.glob("*.md")):
+        references[f"references/{ref_file.name}"] = read_exact_text(ref_file)
+
+    return {
+        "ref": "main",
+        "rea_version": rea_version,
+        "upstream_commit": commit,
+        "primary_cli_count": primary_count,
+        "mcp_only_count": mcp_count,
+        "skill_md": read_exact_text(skill_md),
+        "references": references,
+    }
+
+
+def fetch_text(url: str) -> str:
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "dotfiles-rea-skill-sync/1.0"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            return resp.read().decode("utf-8")
+    except (
+        urllib.error.URLError,
+        http.client.HTTPException,
+        TimeoutError,
+        OSError,
+        UnicodeDecodeError,
+        ValueError,
+    ) as exc:
+        raise SyncError(f"failed to fetch {url}: {exc}") from exc
+
+
+def load_from_remote(ref: str) -> dict[str, object]:
+    encoded_ref = urllib.parse.quote(ref, safe="")
+    api_root = f"https://api.github.com/repos/{UPSTREAM_REPO}"
+    commit_info = parse_json_text(
+        fetch_text(f"{api_root}/commits/{encoded_ref}"),
+        f"commits/{ref}",
+    )
+    commit = (
+        str(commit_info.get("sha", "")).strip()
+        if isinstance(commit_info, dict)
+        else ""
+    )
+    if not re.fullmatch(r"[0-9a-f]{40}", commit):
+        raise SyncError(f"could not resolve immutable 40-char commit SHA for ref {ref!r}")
+
+    # Pin all subsequent raw and API fetches to the resolved immutable commit SHA
+    raw_root = f"https://raw.githubusercontent.com/{UPSTREAM_REPO}/{commit}"
+
+    pkg = parse_json_text(fetch_text(f"{raw_root}/package.json"), "remote package.json")
+    rea_version = (
+        str(pkg.get("version", "unknown")) if isinstance(pkg, dict) else "unknown"
+    )
+    cli_ts = fetch_text(f"{raw_root}/src/cliCommandNames.ts")
+    primary_count, mcp_count = parse_cli_counts(cli_ts)
+    skill_md = fetch_text(f"{raw_root}/{UPSTREAM_SKILL_REL}/SKILL.md")
+
+    refs_listing = parse_json_text(
+        fetch_text(f"{api_root}/contents/{UPSTREAM_SKILL_REL}/references?ref={commit}"),
+        "remote references listing",
+    )
+    if not isinstance(refs_listing, list):
+        raise SyncError("unexpected GitHub API response for references directory")
+
+    references: dict[str, str] = {}
+    for entry in sorted(
+        refs_listing,
+        key=lambda item: str(item.get("name", "")) if isinstance(item, dict) else "",
+    ):
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("name", ""))
+        if not name.endswith(".md"):
+            continue
+        encoded_name = urllib.parse.quote(name, safe="")
+        references[f"references/{name}"] = fetch_text(
+            f"{raw_root}/{UPSTREAM_SKILL_REL}/references/{encoded_name}"
+        )
+
+    return {
+        "ref": commit,
+        "rea_version": rea_version,
+        "upstream_commit": commit,
+        "primary_cli_count": primary_count,
+        "mcp_only_count": mcp_count,
+        "skill_md": skill_md,
+        "references": references,
+    }
+
+
+def sync_or_check(
+    root: Path, upstream: dict[str, object], check_only: bool
+) -> tuple[int, dict[str, object]]:
+    skill_dir = root / LOCAL_SKILL_REL
+    integration_path = skill_dir / LOCAL_INTEGRATION_REF
+    if not integration_path.is_file():
+        raise SyncError(
+            f"required local reference is missing: {integration_path.relative_to(root)}"
+        )
+
+    skill_version, upstream_body = split_upstream_skill(str(upstream["skill_md"]))
+    rea_version = str(upstream["rea_version"])
+    upstream_commit = str(upstream["upstream_commit"])
+    primary_cli_count = int(upstream["primary_cli_count"])
+    mcp_only_count = int(upstream["mcp_only_count"])
+    ref = str(upstream["ref"])
+
+    desired_files: dict[str, str] = {
+        "SKILL.md": build_black_magic_skill(upstream_body, skill_version, rea_version),
+    }
+    upstream_refs = dict(upstream["references"])  # type: ignore[arg-type]
+    if LOCAL_INTEGRATION_REF in upstream_refs:
+        raise SyncError(
+            f"upstream reference collides with protected local file: {LOCAL_INTEGRATION_REF}"
+        )
+    for rel_path, content in sorted(upstream_refs.items()):
+        desired_files[rel_path] = content
+
+    content_drifted: list[str] = []
+    for rel_path, expected in sorted(desired_files.items()):
+        local_file = skill_dir / rel_path
+        current = read_exact_text(local_file) if local_file.is_file() else None
+        if current != expected:
+            content_drifted.append(rel_path)
+
+    stale_upstream_refs: list[str] = []
+    refs_dir = skill_dir / "references"
+    if refs_dir.is_dir():
+        for existing in sorted(refs_dir.glob("*.md")):
+            rel = f"references/{existing.name}"
+            if rel == LOCAL_INTEGRATION_REF:
+                continue
+            if rel not in desired_files:
+                stale_upstream_refs.append(rel)
+                content_drifted.append(rel)
+
+    existing_stamp = read_existing_stamp(skill_dir / ".source", "vendored")
+    stamp_date = (
+        existing_stamp
+        if (existing_stamp and not content_drifted)
+        else date.today().isoformat()
+    )
+
+    source_text, fork_text = build_metadata_files(
+        ref=ref,
+        stamp_date=stamp_date,
+        rea_version=rea_version,
+        skill_version=skill_version,
+        upstream_commit=upstream_commit,
+        primary_cli_count=primary_cli_count,
+        mcp_only_count=mcp_only_count,
+    )
+    desired_files[".source"] = source_text
+    desired_files[".local-fork"] = fork_text
+
+    drifted_files: list[str] = []
+    for rel_path, expected in sorted(desired_files.items()):
+        local_file = skill_dir / rel_path
+        current = read_exact_text(local_file) if local_file.is_file() else None
+        if current != expected:
+            drifted_files.append(rel_path)
+    for rel in stale_upstream_refs:
+        if rel not in drifted_files:
+            drifted_files.append(rel)
+
+    if check_only:
+        status = "IN_SYNC" if not drifted_files else "DRIFT"
+        code = 0 if not drifted_files else 1
+    else:
+        if drifted_files:
+            (skill_dir / "references").mkdir(parents=True, exist_ok=True)
+            for rel_path, expected in sorted(desired_files.items()):
+                target = skill_dir / rel_path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                write_exact_text(target, expected)
+            for rel in stale_upstream_refs:
+                stale_target = skill_dir / rel
+                if stale_target.is_file():
+                    stale_target.unlink()
+            status = "UPDATED"
+        else:
+            status = "IN_SYNC"
+        code = 0
+
+    report: dict[str, object] = {
+        "status": status,
+        "skill": "black-magic",
+        "reaVersion": rea_version,
+        "skillVersion": skill_version,
+        "upstreamCommit": upstream_commit,
+        "primaryCliCommandCount": primary_cli_count,
+        "mcpOnlyToolCount": mcp_only_count,
+        "syncedFiles": sorted(desired_files.keys()),
+        "preservedLocalFiles": [LOCAL_INTEGRATION_REF],
+        "driftedFiles": sorted(drifted_files),
+    }
+    return code, report
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, help="dotfiles repository root")
+    parser.add_argument(
+        "--upstream-dir",
+        type=Path,
+        help="local morluto/rea checkout directory",
+    )
+    parser.add_argument(
+        "--pull",
+        action="store_true",
+        help="run git pull --ff-only in --upstream-dir before syncing",
+    )
+    parser.add_argument(
+        "--remote",
+        action="store_true",
+        help="fetch directly from GitHub morluto/rea instead of a local clone",
+    )
+    parser.add_argument(
+        "--ref",
+        default="main",
+        help="GitHub ref (branch/tag/SHA) when using --remote (default: main)",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="verify black-magic matches upstream without writing files",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="emit machine-readable JSON output",
+    )
+    args = parser.parse_args()
+
+    if args.remote and args.upstream_dir:
+        print(
+            "rea-skill-sync: cannot combine --remote and --upstream-dir",
+            file=sys.stderr,
+        )
+        return 2
+
+    root = (args.root or find_root()).expanduser().resolve()
+    try:
+        if args.remote:
+            upstream = load_from_remote(args.ref)
+        else:
+            env_dir = os.environ.get("REA_UPSTREAM_DIR")
+            chosen_dir = (
+                args.upstream_dir
+                or (Path(env_dir) if env_dir else DEFAULT_UPSTREAM_DIR)
+            ).expanduser().resolve()
+            upstream = load_from_local_dir(chosen_dir, pull=args.pull)
+
+        code, report = sync_or_check(root, upstream, check_only=args.check)
+    except (SyncError, OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        if args.json:
+            print(json.dumps({"status": "ERROR", "error": str(exc)}, indent=2))
+        else:
+            print(f"rea-skill-sync: ERROR: {exc}", file=sys.stderr)
+        return 2
+
+    if args.json:
+        print(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        drifted = report["driftedFiles"]
+        print(
+            f"rea-skill-sync: {report['status']} "
+            f"(rea-agents@{report['reaVersion']}, skill v{report['skillVersion']}, "
+            f"commit {str(report['upstreamCommit'])[:12]}, "
+            f"{report['primaryCliCommandCount']} CLI commands)"
+        )
+        if isinstance(drifted, list) and drifted:
+            label = "drifted" if args.check else "updated"
+            for item in drifted:
+                print(f"  - {label}: {item}")
+    return code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

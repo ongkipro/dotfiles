@@ -1,6 +1,6 @@
 # Tasks — dotfiles
 
-Updated: 2026-10-19
+Updated: 2026-10-20
 
 The sole executable queue. Completed contracts live under `docs/archive/`;
 repository tests and runtime evidence outrank prose.
@@ -16,24 +16,24 @@ Only the dependency edge is human-authored; state is derived.
 Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 `git grep TASK-NNN docs/archive` finds any contract).
 
-- TASK-125, TASK-124, TASK-123: [Shopify Hydrogen 2026.10, UI/UX skill suite, and Supabase full-spectrum skill suite](docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md).
+- TASK-126, TASK-125, TASK-124, TASK-123: [Meta Ads CLI, Shopify Hydrogen 2026.10, UI/UX skill suite, and Supabase full-spectrum skill suite](docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md).
 - TASK-122, TASK-119, TASK-118: [Adaptive workflow, execution evaluation, and memory-routing contracts](docs/archive/DOTFILES_TASKS_2026-10-12_ADAPTIVE_AND_MEMORY.md).
 - TASK-121: [Development-kit runbook consistency and browser verification](docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT_FOLLOWUP.md).
 - TASK-120: [Development-kit routing and evaluation refinement](docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT.md).
 
-### TASK-126: Meta Ads official CLI (`meta-ads`) per-project workflow, `meta-ads-ops`, and `meta-ads-cli` skill
+### TASK-127: `black-magic` reverse-engineering skill (`morluto/rea` v6.7.0) and deterministic `rea-skill-sync` auto-sync
 
-- **Requirement:** REQ-META-ADS-CLI-WORKFLOW-AND-SKILL (owner requests official-source research and dotfiles integration for setting up Meta Ads video/image/copy campaigns from laptop across all AI CLIs and devices via Business Manager while keeping campaign assets per-project).
-- **Risk Level:** R2.
+- **Requirement:** REQ-BLACK-MAGIC-REA-SKILL-AND-AUTOSYNC (owner requests `black-magic` reverse-engineering skill integrating `https://github.com/morluto/rea` across all targets with deterministic upstream auto-sync, sibling handoffs, and capability benchmark).
+- **Risk Level:** R3 (large explicit change surface > 10 files).
 - **Job:** implementation.
-- **Capability:** meta-ads-cli, meta-ads-signal-engine.
-- **Allowed Paths:** `TASKS.md`, `docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md`, `bin/meta-ads-ops`, `bin/meta-ads-ops-test`, `config/ai/runtime-commands.txt`, `bin/skill-map`, `skills/local/README.md`, `skills/local/meta-ads-cli/**`, `skills/local/meta-ads-signal-engine/SKILL.md`, `config/ai/memory/skills.md`, `docs/DOTFILES_SITEMAP.md`, `.delivery/**`.
+- **Capability:** black-magic, codebase-navigation, openapi-spec, development-kit.
+- **Allowed Paths:** `TASKS.md`, `docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md`, `docs/DOTFILES_SITEMAP.md`, `config/ai/memory/skills.md`, `config/ai/runtime-commands.txt`, `bin/rea-skill-sync`, `bin/rea-skill-sync-test`, `bin/skill-map`, `skills/local/README.md`, `skills/local/black-magic/**`, `skills/local/codebase-navigation/SKILL.md`, `skills/local/openapi-spec/SKILL.md`, `skills/local/development-kit/references/ecosystem-adoption.md`, `.delivery/**`.
 - **Protected Paths:** None; preserve unrelated initial dirty memory files, CORE, hooks, credentials, and live applications.
-- **Canonical Contract Owners:** Meta Ads CLI campaign/adset/creative operations -> `meta-ads-cli` + `bin/meta-ads-ops`; Meta Pixel/CAPI signal engine -> `meta-ads-signal-engine`.
-- **Accepted Invariants:** zero secrets in repository files or CLI argv (`ACCESS_TOKEN` injected via `secrets-env get` into child process environment); `meta-ads-ops deploy` is dry-run by default and forces `PAUSED` status unless `--activate` is passed; `.meta-state.json` caches created entity IDs and SHA-256 media `image_hash`/`video_id` for idempotent resume; `SKILL.md` stays under 500 lines with a front-loaded `Not for` boundary before character 240; `TASKS.md` stays under 12,288 bytes.
-- **Regression Checks:** `meta-ads-ops-test`, `installer-link-test`, `skill-map --check`, `skill-map-test`, `skill-check meta-ads-cli`, `skill-check-test`, `skill-surface-check`, `git diff --check`, boundary check.
-- **Non-Scope:** live Meta Ad Account mutations without approval, git commit/push unless requested, touching pre-existing dirty memory files.
-- **Reopen Conditions:** `meta-ads-ops-test` fails, `skill-map` drifts from `skills/local/README.md`, `SKILL.md` exceeds 500 lines, or `TASKS.md` exceeds 12,288 bytes.
+- **Canonical Contract Owners:** shipped-artifact & runtime reverse-engineering -> `black-magic` + `bin/rea-skill-sync`; owned source-tree AST/call navigation -> `codebase-navigation`; OpenAPI specification synthesis -> `openapi-spec`.
+- **Accepted Invariants:** `skills/local/black-magic/` preserves 100% of upstream `morluto/rea/.agents/skills/reverse-engineer-anything/` (`SKILL.md` body + all 6 `references/*.md` files) while adding the `black-magic` frontmatter (`Not for` boundary before character 240) and `references/dotfiles-integration.md`; `bin/rea-skill-sync` deterministically syncs from `--upstream-dir` or `--remote`, discovers new upstream reference files automatically, supports read-only `--check` / `--json`, and maintains `.source` + `.local-fork` so `_refresh-vendored.sh` preserves the managed fork; no global `rea setup` MCP bloat; `SKILL.md` stays under 500 lines; `TASKS.md` stays under 12,288 bytes.
+- **Regression Checks:** `rea-skill-sync-test`, `vendored-refresh-test`, `installer-link-test`, `skill-map --check`, `skill-map-test`, `skill-check black-magic`, `skill-check-test`, `skill-surface-check`, `ai-policy-lint`, `ai-memory-check`, `git diff --check`, boundary check and independent review.
+- **Non-Scope:** global `rea setup` MCP registration on host, git commit/push unless requested, touching pre-existing dirty memory files.
+- **Reopen Conditions:** `rea-skill-sync-test` fails, `skill-map` drifts from `skills/local/README.md`, `SKILL.md` exceeds 500 lines, or `TASKS.md` exceeds 12,288 bytes.
 - **Escalation Conditions:** requires modifying runtime hooks, live secrets, or unrelated user files.
 
 ## Pending

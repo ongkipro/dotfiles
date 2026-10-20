@@ -73,6 +73,7 @@ DOMAINS: dict[str, tuple[str, ...]] = {
         "full-stack-development", "testing-engineering",
         "observability-engineering", "github-actions", "lean-code-review",
         "native-first", "continuous-learning", "cross-cli", "codebase-navigation",
+        "black-magic",
     ),
     "Infrastructure and runtime": (
         "vercel", "vultr", "vps-deploy", "kelola-deploy", "9router",

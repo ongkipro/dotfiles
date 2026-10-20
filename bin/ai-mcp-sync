@@ -1,0 +1,299 @@
+#!/usr/bin/env python3
+"""ai-mcp-sync - reconcile global MCP server configurations across runtimes.
+
+Declared in config/ai/mcp-servers.json and synchronized idempotently to:
+  - Claude Code: ~/.claude.json ("mcpServers")
+  - Antigravity: ~/.gemini/config/mcp_config.json ("mcpServers")
+  - Codex CLI:   ~/.codex/config.toml ("[mcp_servers.<name>]")
+  - OMP:         ~/.omp/agent/mcp.json ("mcpServers")
+  - Pi:          ~/.pi/agent/mcp.json ("mcpServers")
+
+Usage:
+  ai-mcp-sync             install or repair missing MCP servers
+  ai-mcp-sync --check     report status, write nothing, non-zero if drift
+  ai-mcp-sync --dotfiles P specify dotfiles repository root
+"""
+import argparse
+import json
+import os
+import re
+import sys
+from pathlib import Path
+
+
+def find_dotfiles(override: str | None = None) -> Path:
+    if override:
+        return Path(override).expanduser().resolve()
+    env = os.environ.get("DOTFILES")
+    if env:
+        return Path(env).expanduser().resolve()
+    home = Path.home()
+    if (home / "dotfiles").is_dir():
+        return home / "dotfiles"
+    script = Path(__file__).resolve().parent.parent
+    if (script / "config" / "ai").is_dir():
+        return script
+    raise RuntimeError("Cannot locate dotfiles directory")
+
+
+def load_manifest(dotfiles: Path) -> dict:
+    manifest_path = dotfiles / "config" / "ai" / "mcp-servers.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"Manifest not found: {manifest_path}")
+    with manifest_path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    return data.get("mcpServers", {})
+
+
+def get_home(override: str | None = None) -> Path:
+    if override:
+        return Path(override).expanduser().resolve()
+    return Path.home()
+
+
+def sync_claude(home: Path, manifest: dict, check_only: bool) -> tuple[bool, str]:
+    claude_json = home / ".claude.json"
+    if not claude_json.exists():
+        if not (home / ".claude").exists():
+            return True, "skipped (Claude Code not configured on this device)"
+        if check_only:
+            return False, "drift detected (~/.claude.json missing)"
+        data = {"mcpServers": {}}
+        changed = True
+    else:
+        try:
+            with claude_json.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            return False, f"failed to parse ~/.claude.json: {e}"
+        changed = False
+
+    mcp_servers = data.setdefault("mcpServers", {})
+
+    for name, spec in manifest.items():
+        curr = mcp_servers.get(name)
+        needed = {
+            "type": "stdio",
+            "command": spec["command"],
+            "args": spec.get("args", []),
+            "env": spec.get("env", {}),
+        }
+        if curr is None:
+            changed = True
+            mcp_servers[name] = needed
+        else:
+            if curr.get("command") != needed["command"] or curr.get("args") != needed["args"]:
+                changed = True
+                mcp_servers[name] = {**curr, "command": needed["command"], "args": needed["args"]}
+
+    if not changed:
+        return True, "in sync"
+    if check_only:
+        return False, "drift detected"
+
+    tmp = claude_json.with_suffix(".json.tmp")
+    mode = 0o600
+    if claude_json.exists():
+        mode = claude_json.stat().st_mode & 0o777
+    with tmp.open("w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+    os.chmod(tmp, mode)
+    tmp.replace(claude_json)
+    return True, "updated"
+
+
+def sync_antigravity(home: Path, manifest: dict, check_only: bool) -> tuple[bool, str]:
+    gemini_dir = home / ".gemini"
+    if not gemini_dir.exists():
+        return True, "skipped (Antigravity not configured on this device)"
+    target = gemini_dir / "config" / "mcp_config.json"
+    data = {}
+    if target.exists() and target.stat().st_size > 0:
+        try:
+            with target.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            return False, f"failed to parse {target}: {e}"
+
+    mcp_servers = data.setdefault("mcpServers", {})
+    changed = False
+
+    for name, spec in manifest.items():
+        curr = mcp_servers.get(name)
+        needed = {
+            "command": spec["command"],
+            "args": spec.get("args", []),
+        }
+        if "env" in spec:
+            needed["env"] = spec["env"]
+        if curr is None or curr.get("command") != needed["command"] or curr.get("args") != needed["args"]:
+            changed = True
+            mcp_servers[name] = needed
+
+    if not changed and target.exists():
+        return True, "in sync"
+    if check_only:
+        return False, "drift detected"
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_suffix(".json.tmp")
+    with tmp.open("w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+    tmp.replace(target)
+    return True, "updated"
+
+
+def sync_codex(home: Path, manifest: dict, check_only: bool) -> tuple[bool, str]:
+    codex_dir = home / ".codex"
+    if not codex_dir.exists():
+        return True, "skipped (Codex CLI not configured on this device)"
+    target = codex_dir / "config.toml"
+    content = ""
+    if target.exists():
+        try:
+            content = target.read_text(encoding="utf-8")
+        except Exception as e:
+            return False, f"failed to read {target}: {e}"
+
+    changed = False
+    new_content = content
+
+    for name, spec in manifest.items():
+        pattern = rf'(?m)^\[mcp_servers\.{re.escape(name)}\]'
+        if not re.search(pattern, content):
+            changed = True
+            args_str = json.dumps(spec.get("args", []))
+            block = f"\n[mcp_servers.{name}]\ncommand = \"{spec['command']}\"\nargs = {args_str}\n"
+            new_content = new_content.rstrip() + block
+
+    if not changed:
+        return True, "in sync"
+    if check_only:
+        return False, "drift detected"
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_suffix(".toml.tmp")
+    tmp.write_text(new_content, encoding="utf-8")
+    tmp.replace(target)
+    return True, "updated"
+
+
+def sync_json_mcp(target_dir: Path, runtime_name: str, manifest: dict, check_only: bool) -> tuple[bool, str]:
+    if not target_dir.parent.exists():
+        return True, f"skipped ({runtime_name} not configured on this device)"
+    target = target_dir / "mcp.json"
+    data = {}
+    if target.exists() and target.stat().st_size > 0:
+        try:
+            with target.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            return False, f"failed to parse {target}: {e}"
+
+    mcp_servers = data.setdefault("mcpServers", {})
+    changed = False
+
+    for name, spec in manifest.items():
+        curr = mcp_servers.get(name)
+        needed = {
+            "command": spec["command"],
+            "args": spec.get("args", []),
+        }
+        if "env" in spec:
+            needed["env"] = spec["env"]
+        if curr is None or curr.get("command") != needed["command"] or curr.get("args") != needed["args"]:
+            changed = True
+            mcp_servers[name] = needed
+
+    if not changed and target.exists():
+        return True, "in sync"
+    if check_only:
+        return False, "drift detected"
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_suffix(".json.tmp")
+    with tmp.open("w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+    tmp.replace(target)
+    return True, "updated"
+    target = target_dir / "mcp.json"
+    data = {}
+    if target.exists() and target.stat().st_size > 0:
+        try:
+            with target.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            return False, f"failed to parse {target}: {e}"
+
+    mcp_servers = data.setdefault("mcpServers", {})
+    changed = False
+
+    for name, spec in manifest.items():
+        curr = mcp_servers.get(name)
+        needed = {
+            "command": spec["command"],
+            "args": spec.get("args", []),
+        }
+        if "env" in spec:
+            needed["env"] = spec["env"]
+        if curr is None or curr.get("command") != needed["command"] or curr.get("args") != needed["args"]:
+            changed = True
+            mcp_servers[name] = needed
+
+    if not changed and target.exists():
+        return True, "in sync"
+    if check_only:
+        return False, "drift detected"
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_suffix(".json.tmp")
+    with tmp.open("w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+    tmp.replace(target)
+    return True, "updated"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Reconcile global MCP server configurations across runtimes.")
+    parser.add_argument("--check", action="store_true", help="Report drift without modifying files")
+    parser.add_argument("--dotfiles", type=str, help="Dotfiles repository root path")
+    parser.add_argument("--home", type=str, help="User home directory path (for testing)")
+    args = parser.parse_args()
+
+    try:
+        dotfiles = find_dotfiles(args.dotfiles)
+        manifest = load_manifest(dotfiles)
+        home = get_home(args.home)
+    except Exception as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 2
+
+    runtimes = [
+        ("Claude Code", lambda: sync_claude(home, manifest, args.check)),
+        ("Antigravity", lambda: sync_antigravity(home, manifest, args.check)),
+        ("Codex CLI", lambda: sync_codex(home, manifest, args.check)),
+        ("OMP", lambda: sync_json_mcp(home / ".omp" / "agent", "OMP", manifest, args.check)),
+        ("Pi", lambda: sync_json_mcp(home / ".pi" / "agent", "Pi", manifest, args.check)),
+    ]
+
+    all_ok = True
+    for name, runner in runtimes:
+        ok, msg = runner()
+        symbol = "✓" if ok else "✗"
+        print(f"  {symbol} {name}: {msg}")
+        if not ok:
+            all_ok = False
+
+    if not all_ok and args.check:
+        print("\nDrift detected. Run 'ai-mcp-sync' to align all runtimes.", file=sys.stderr)
+        return 1
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

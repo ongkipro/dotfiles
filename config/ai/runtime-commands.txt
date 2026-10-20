@@ -6,6 +6,8 @@ ai-doctor
 ai-doctor-test
 ai-hooks-install
 ai-hooks-install-test
+ai-mcp-sync
+ai-mcp-sync-test
 ai-learn
 ai-learn-test
 ai-memory-access
@@ -73,6 +75,8 @@ project-check
 project-check-test
 project-init
 project-init-test
+rea-skill-sync
+rea-skill-sync-test
 release-check
 release-check-test
 release-manifest

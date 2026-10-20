@@ -16,7 +16,7 @@ Generate and validate an OpenAPI spec from a description or an existing codebase
 
 ## Modes
 
-- **`generate`** — create a new spec from an endpoint description
+- **`generate`** — create a new spec from an endpoint description or from structured `api-surface` Evidence extracted from a `.har`/`.saz` capture or web bundle via `black-magic`
 - **`review`** — analyze and fix an existing spec
 - **`expand`** — add new endpoints to an existing spec
 - **`from-code`** — read route files and generate a spec from the code

@@ -700,6 +700,14 @@ else
   ok "OMP memakai native/project MCP discovery; shared user MCP belum dikonfigurasi"
 fi
 
+if command -v ai-mcp-sync >/dev/null 2>&1; then
+  if ai-mcp-sync --check >/dev/null 2>&1; then
+    ok "Global MCP servers (config/ai/mcp-servers.json) selaras di seluruh runtime AI"
+  else
+    wrn "Global MCP server mengalami drift — jalankan 'ai-mcp-sync' untuk menyelaraskan"
+  fi
+fi
+
 # ── 9. Memory drift ───────────────────────────────────────────────────────────
 hdr "9. Memori vs disk (aturan: disk menang)"
 if [ -d "$AI/memory" ]; then

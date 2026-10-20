@@ -1,7 +1,7 @@
 # Dotfiles Sitemap & Engineering Dictionary
 
 > **Universal Page-by-Page Development Map for `ongkipro/dotfiles`**  
-> Updated: 2026-10-14 | Scope: Full Repository Topology, AI Control Plane, Memory, Skills, CLI Binaries, Devices, and Templates.
+> Updated: 2026-10-20 | Scope: Full Repository Topology, AI Control Plane, Memory, Skills, CLI Binaries, Devices, and Templates.
 
 ---
 
@@ -14,8 +14,8 @@ graph TD
     Kernel["Core Kernel & Policy<br/><code>config/ai/CORE.md</code>"] --> Runtimes["AI CLI Runtimes<br/>Claude · Codex · Antigravity · OMP · Pi"]
     Kernel --> Memory["Durable Memory<br/><code>config/ai/memory/</code> (20 files)"]
     Kernel --> ProjectMemory["Project Memory<br/><code>config/ai/project-memory/</code> (76 files)"]
-    Kernel --> Skills["Owned Skills Registry<br/><code>skills/local/</code> (75 skills)"]
-    Kernel --> Bin["Executable Toolchain<br/><code>bin/</code> (111 tools & tests)"]
+    Kernel --> Skills["Owned Skills Registry<br/><code>skills/local/</code> (77 skills)"]
+    Kernel --> Bin["Executable Toolchain<br/><code>bin/</code> (113 tools & tests)"]
     Kernel --> Ledger[".delivery/ & TASKS.md<br/>Autonomous State & Verification"]
     Kernel --> Devices["Device Profiles<br/><code>devices/</code> (7 hosts)"]
 ```
@@ -31,9 +31,9 @@ graph TD
 | **Durable Memory** | [`config/ai/memory/`](file:///home/ongki/dotfiles/config/ai/memory) | Cross-session, durable operational facts (20 files). | `ai-memory-access`, AI sessions |
 | **Project Memory** | [`config/ai/project-memory/`](file:///home/ongki/dotfiles/config/ai/project-memory) | Knowledge base for 76 client systems, repositories, and domain gotchas. | On-demand context retrieval |
 | **Kelola Memory** | [`config/ai/project-memory-kelola/`](file:///home/ongki/dotfiles/config/ai/project-memory-kelola) | Specialized knowledge pack for Kelola HRIS infrastructure. | Kelola deployment & maintenance |
-| **Skills Registry** | [`skills/local/`](file:///home/ongki/dotfiles/skills/local) | 75 owned skills categorized into 11 engineering domains. | AI CLI tool calling & workflows |
+| **Skills Registry** | [`skills/local/`](file:///home/ongki/dotfiles/skills/local) | 77 owned skills categorized into 11 engineering domains. | AI CLI tool calling & workflows |
 | **Skill Management**| [`skills/agents-bin/`](file:///home/ongki/dotfiles/skills/agents-bin) | CLI tools for managing, checking, updating, and removing skills. | Developers & AI toolchain |
-| **Executable CLI**  | [`bin/`](file:///home/ongki/dotfiles/bin) | 111 standalone shell and Python scripts for linting, testing, sync, gates. | Terminal workflow & CI |
+| **Executable CLI**  | [`bin/`](file:///home/ongki/dotfiles/bin) | 113 standalone shell and Python scripts for linting, testing, sync, gates. | Terminal workflow & CI |
 | **OMP Control Plane** | [`config/omp/`](file:///home/ongki/dotfiles/config/omp) | Model routing catalogs, agent taxonomy, fallbacks, and benchmarks. | OMP (Oh My Prompt) runtime |
 | **Device Registry** | [`devices/`](file:///home/ongki/dotfiles/devices) | Hardware manifests, OS specs, and per-machine configurations (7 hosts). | `dotsync`, `device-register` |
 | **Project Templates** | [`config/templates/`](file:///home/ongki/dotfiles/config/templates) | Contract scaffold for new projects (`PRD`, `TASKS`, `ARCHITECTURE`, etc.). | `project-init` |
@@ -142,7 +142,7 @@ Comprehensive project memory for the production deployment of `kelolatim.com`:
 
 ## 6. Owned Skills Directory (`skills/local/`)
 
-Dotfiles hosts 75 specialized capabilities grouped into 11 distinct domains (`skills/local/README.md` is auto-rendered by `bin/skill-map`). Every runtime accesses these skills via symlinks.
+Dotfiles hosts 77 specialized capabilities grouped into 11 distinct domains (`skills/local/README.md` is auto-rendered by `bin/skill-map`). Every runtime accesses these skills via symlinks.
 
 ### 6.1 Cloudflare Platform
 - [`cloudflare`](file:///home/ongki/dotfiles/skills/local/cloudflare/SKILL.md): Platform entry point (Workers, KV, D1, R2, Vectorize, WAF).
@@ -234,6 +234,7 @@ Dotfiles hosts 75 specialized capabilities grouped into 11 distinct domains (`sk
 - [`continuous-learning`](file:///home/ongki/dotfiles/skills/local/continuous-learning/SKILL.md): Capturing reusable lessons and promoting memory candidates.
 - [`cross-cli`](file:///home/ongki/dotfiles/skills/local/cross-cli/SKILL.md): Delegating review/research lanes across installed AI CLIs via `ai-ask`.
 - [`codebase-navigation`](file:///home/ongki/dotfiles/skills/local/codebase-navigation/SKILL.md): Cross-file call/dependency tracing and optional Graphify code graphs.
+- [`black-magic`](file:///home/ongki/dotfiles/skills/local/black-magic/SKILL.md): Shipped-artifact and runtime reverse engineering across native binaries, Electron/JS bundles, web/browser captures, `.har`/`.saz`/`.qlog`, Android `.apk`s, `.sqlite` snapshots, `.wasm`, EVM bytecode, and firmware via `morluto/rea` (`rea-agents@6.7.0`) and `rea-skill-sync`.
 
 ### 6.11 Infrastructure & Runtime
 - [`vercel`](file:///home/ongki/dotfiles/skills/local/vercel/SKILL.md): Edge deployment, Vercel CLI, environment variable management.
@@ -293,6 +294,7 @@ Over 50 executable commands and their test suites, providing deterministic autom
 - [`vps-pgdump`](file:///home/ongki/dotfiles/bin/vps-pgdump) (+ [`test`](file:///home/ongki/dotfiles/bin/vps-pgdump-test)): Dumps remote PostgreSQL databases over SSH.
 - [`shopify-content-helper`](file:///home/ongki/dotfiles/bin/shopify-content-helper) (+ [`test`](file:///home/ongki/dotfiles/bin/shopify-content-helper-test)): Assists in formatting and uploading Shopify blog/product copy.
 - [`meta-ads-ops`](file:///home/ongki/dotfiles/bin/meta-ads-ops) (+ [`test`](file:///home/ongki/dotfiles/bin/meta-ads-ops-test)): Per-project Meta Ads validator, dry-run planner, stateful deployer, and `secrets-env` bridge for Meta's official `meta-ads` CLI.
+- [`rea-skill-sync`](file:///home/ongki/dotfiles/bin/rea-skill-sync) (+ [`test`](file:///home/ongki/dotfiles/bin/rea-skill-sync-test)): Deterministic upstream auto-sync and drift checker synchronizing `skills/local/black-magic/` with `morluto/rea`.
 
 ---
 
