@@ -69,11 +69,11 @@ toolchain_pick_node() {
         HOME="$probe_home" "$c" --version
       fi
     } >/dev/null 2>&1; then
-      rmdir "$probe_home" 2>/dev/null
+      rm -rf "$probe_home" 2>/dev/null
       dirname "$c"; return 0
     fi
   done
-  rmdir "$probe_home" 2>/dev/null
+  rm -rf "$probe_home" 2>/dev/null
 }
 
 # Directories every owned command needs on PATH but a non-interactive shell has

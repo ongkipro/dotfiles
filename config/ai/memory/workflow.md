@@ -62,7 +62,7 @@ All development projects: web app, SaaS, Shopify, bots, etc.
 > snapshot.
 
 
-**Rule:** DO NOT put files directly in `~/Documents/`. Always into a `work/` subfolder. The AI should report the file path at the end of its response.
+**Rule:** DO NOT put files directly in `~/Documents/`. Always into a `work/` subfolder. On Windows/WSL2 devices, both `~/Documents/work/` and `~/Projects/` always live in the native Linux `$HOME` filesystem (never `/mnt/c/`). The AI should report the file path at the end of its response.
 
 ```
 ~/Documents/

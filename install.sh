@@ -270,6 +270,12 @@ if command -v claude >/dev/null 2>&1 && ! claude --version >/dev/null 2>&1; then
     || echo "   ⚠️  postinstall gagal — perbaiki manual: npm i -g @anthropic-ai/claude-code"
 fi
 
+echo "==> Create work folder structure..."
+mkdir -p "$HOME/Documents/work/"{prd,research,content,notes}
+mkdir -p "$HOME/Projects"
+echo "   ~/Documents/work/{prd,research,content,notes}"
+echo "   ~/Projects/"
+
 echo "==> Daftarkan device ini ke registry (devices/<hostname>.md)..."
 # Non-fatal: registry cuma dokumentasi. Jangan sampai bootstrap device baru gagal
 # total hanya karena probe hardware bermasalah (install.sh pakai `set -e`).

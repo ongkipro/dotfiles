@@ -372,6 +372,8 @@ test_runtime_command_manifest() {
     ! grep -qF 'link "$DOT/config/omp/models.yml"' "$installer"
     ! grep -qF 'link "$DOT/config/omp/agents"' "$installer"
     grep -qF 'retire_omp_overrides' "$installer"
+    grep -qF 'mkdir -p "$HOME/Documents/work/"{prd,research,content,notes}' "$installer"
+    grep -qF 'mkdir -p "$HOME/Projects"' "$installer"
   done
 
   # The hook reconciler is idempotence-tested by ai-hooks-install-test. Both

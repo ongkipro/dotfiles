@@ -15,6 +15,9 @@ Canonical locations:
   before the repository exists or before they are promoted with `project-init`.
 - `~/Documents/work/{research,content,notes}/` contains non-authoritative drafts
   and working material.
+- On Windows machines running WSL2, all canonical directories (`~/Projects/` and
+  `~/Documents/work/`) live inside the native Linux `$HOME` filesystem (ext4),
+  never on the mounted Windows host (`/mnt/c/`).
 
 After promotion, the repository copy is authoritative. Never use an older
 `~/Documents/` snapshot to determine current project status.

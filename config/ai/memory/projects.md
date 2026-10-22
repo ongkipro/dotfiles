@@ -18,6 +18,7 @@ Want to work on a project? `git clone` it first into **`~/Projects/<name>/`** (t
 
 - **Source code → `~/Projects/<project-name>/`** (everything inside: config, node_modules, .git).
 - AI output (PRD, research, content, notes) → `~/Documents/work/{prd,research,content,notes}/`.
+- **Windows / WSL2 rule:** Always store `~/Projects/` and `~/Documents/work/` inside the native WSL2 Linux `$HOME` filesystem, never under `/mnt/c/` on the Windows side.
 - AI memory → **`~/.config/ai/memory/`** (symlink → dotfiles). Old notes mentioning `~/Documents/memori ai/` or `~/dotfiles/memori-ai/` are **WRONG** — neither exists.
 - Main machine: Linux. macOS = secondary device for mobile/sync.
 

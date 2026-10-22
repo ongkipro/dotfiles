@@ -28,15 +28,27 @@ EOF
 printf '#!/usr/bin/env bash\necho v24.0.0\n' > "$H/.local/share/mise/installs/node/24.0.0/bin/node"
 chmod +x "$H/.local/share/mise/shims/node" "$H/.local/share/mise/installs/node/24.0.0/bin/node"
 
+# A HOME-dependent shim that writes into $HOME/.local during the probe must still
+# have its scratch directory cleaned up on exit (rmdir alone leaves 260 MB behind).
+cat > "$H/.local/share/mise/shims/node" <<EOF
+#!/usr/bin/env bash
+mkdir -p "\$HOME/.local" "\$HOME/.cache"
+[ "\$HOME" = "$H" ] || { echo "mise ERROR node is not a valid shim" >&2; exit 1; }
+echo v24.0.0
+EOF
+chmod +x "$H/.local/share/mise/shims/node"
+
 . "$ROOT/bin/_toolchain-path.sh"
 # The caller may already have a cached answer exported — device-verify does
 # exactly that before running its gates, which made every fixture below return
 # the caller's node and this suite fail inside device-verify while passing when
 # run by hand. A test must not inherit the state it is testing.
 unset TOOLCHAIN_NODE_BIN
-picked="$(HOME="$H" toolchain_pick_node)"
+picked="$(TMPDIR="$TMP" HOME="$H" toolchain_pick_node)"
 check "a HOME-dependent shim is rejected" "$picked" \
   "$H/.local/share/mise/installs/node/24.0.0/bin"
+leftover="$(find "$TMP" -maxdepth 1 -name 'toolchain-probe.*' | wc -l | tr -d ' ')"
+check "non-empty scratch probe home is cleaned up" "$leftover" "0"
 
 # Stock macOS has no GNU timeout. Its Perl fallback must retain a parent process
 # while the candidate runs: `alarm; exec` silently loses the alarm and lets a

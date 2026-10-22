@@ -24,7 +24,7 @@ Repository disk and executable checks > repository contracts (`AGENTS.md`, `PRD.
 ## Output locations
 
 - Research/content/notes drafts → `~/Documents/work/{research,content,notes}/`.
-- Source code → `~/Projects/<slug>/`. Shared memory edits → `~/.config/ai/memory/`; device-only → `~/.config/ai-local/`.
+- Source code → `~/Projects/<slug>/` (on Windows/WSL2, keep both in Linux `$HOME`, never `/mnt/c/`). Shared memory edits → `~/.config/ai/memory/`; device-only → `~/.config/ai-local/`.
 
 ## Skills
 
