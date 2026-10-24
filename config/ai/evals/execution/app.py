@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import re
 import sqlite3
+from socketserver import TCPServer
 
 SESSIONS = {'alpha-session': 'tenant-alpha', 'beta-session': 'tenant-beta'}
 
@@ -91,12 +92,20 @@ class Handler(BaseHTTPRequestHandler):
         self.respond(200, {'id': context[0], 'note': payload['note']})
 
 
+class LoopbackHTTPServer(ThreadingHTTPServer):
+    def server_bind(self):
+        # The fixture binds a numeric loopback address; reverse DNS adds no
+        # identity guarantee and can block server readiness on macOS runners.
+        TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--db', type=Path, required=True)
     parser.add_argument('--ready', type=Path, required=True)
     args = parser.parse_args()
-    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+    server = LoopbackHTTPServer(('127.0.0.1', 0), Handler)
     server.db_path = args.db
     args.ready.write_text(json.dumps({'origin': f'http://127.0.0.1:{server.server_port}'}))
     server.serve_forever()

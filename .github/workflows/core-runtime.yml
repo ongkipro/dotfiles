@@ -11,6 +11,7 @@ on:
       - "config/omp/**"
       - "config/pi/**"
       - "config/shell-tools.sh"
+      - "config/wsl-tools.sh"
       - "config/bashrc.tools.sh"
       - "config/zshrc.tools.sh"
       - "skills/**"
@@ -32,6 +33,7 @@ on:
       - "config/omp/**"
       - "config/pi/**"
       - "config/shell-tools.sh"
+      - "config/wsl-tools.sh"
       - "config/bashrc.tools.sh"
       - "config/zshrc.tools.sh"
       - "skills/**"
@@ -93,8 +95,10 @@ jobs:
           tar -xzf "$archive" -C "$RUNNER_TEMP" actionlint
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
-      - name: Validate GitHub workflows
-        run: actionlint
+      - name: Validate GitHub workflows and WSL shell syntax
+        run: |
+          actionlint
+          bash -n config/wsl-tools.sh
 
       - name: Run authoritative core suite
         # The suite uses local fixtures and synthetic credentials only. Turnstile

@@ -1,4 +1,5 @@
 """Trusted local behavioral oracle for ai-workflow-eval; stdlib only."""
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -62,7 +63,7 @@ def validate_candidate(root, candidate):
 
 
 def seed_database(path):
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db, db:
         db.executescript('''
           CREATE TABLE orders(id INTEGER PRIMARY KEY, tenant TEXT NOT NULL, note TEXT NOT NULL);
           CREATE TABLE audit(order_id INTEGER NOT NULL, note TEXT NOT NULL);
@@ -74,7 +75,7 @@ def seed_database(path):
 
 def snapshot(path):
     # New independent connection for every assertion, never the app's connection.
-    with sqlite3.connect(path, timeout=2) as db:
+    with closing(sqlite3.connect(path, timeout=2)) as db:
         return {'orders': db.execute('SELECT id, tenant, note FROM orders ORDER BY id').fetchall(),
                 'audit': db.execute('SELECT order_id, note FROM audit ORDER BY rowid').fetchall()}
 

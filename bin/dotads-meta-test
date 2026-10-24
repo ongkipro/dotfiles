@@ -34,7 +34,9 @@ else
   bad "canonical command help or installer manifest is incomplete"
 fi
 retired_name='meta-ads-ops'
-retired_refs="$(cd "$ROOT" && rg --files-with-matches --hidden --glob '!.git/**' --glob '!.delivery/**' --glob '!bin/dotads-meta-test' --fixed-strings "$retired_name" . 2>&1)"
+# Git is already required by this suite; runner images need no ripgrep install.
+# Include untracked maintained files, but leave immutable evidence out.
+retired_refs="$(git -C "$ROOT" grep -IlF --untracked --exclude-standard -- "$retired_name" . ':(exclude).delivery/**' ':(exclude)bin/dotads-meta-test' 2>&1)"
 retired_rc=$?
 if [ "$retired_rc" -eq 1 ] \
   && [ ! -e "$ROOT/bin/$retired_name" ] && [ ! -L "$ROOT/bin/$retired_name" ] \

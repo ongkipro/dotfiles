@@ -50,6 +50,31 @@ check "a HOME-dependent shim is rejected" "$picked" \
 leftover="$(find "$TMP" -maxdepth 1 -name 'toolchain-probe.*' | wc -l | tr -d ' ')"
 check "non-empty scratch probe home is cleaned up" "$leftover" "0"
 
+# A pre-existing PID-named path is not ours to remove. Repeated command
+# substitutions share $$, so each probe must allocate a distinct private HOME.
+legacy_probe="$TMP/toolchain-probe.$$"
+mkdir -p "$legacy_probe"
+printf 'caller-owned\n' > "$legacy_probe/keep"
+cat > "$H/.local/share/mise/shims/node" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$HOME" >> "$TMP/probe-homes"
+mkdir -p "\$HOME/.cache"
+exit 1
+EOF
+chmod +x "$H/.local/share/mise/shims/node"
+picked="$(TMPDIR="$TMP" HOME="$H" toolchain_pick_node)"
+picked="$(TMPDIR="$TMP" HOME="$H" toolchain_pick_node)"
+check "repeated probes get separate scratch homes" "$(sort -u "$TMP/probe-homes" | wc -l | tr -d ' ')" "2"
+check "pre-existing PID-named content is preserved" "$(cat "$legacy_probe/keep" 2>/dev/null)" "caller-owned"
+owned_leftover="$(find "$TMP" -maxdepth 1 -type d -name 'toolchain-probe.*' ! -path "$legacy_probe" | wc -l | tr -d ' ')"
+check "each allocated scratch home is removed" "$owned_leftover" "0"
+# A non-directory scratch root must fail open without probing any candidate.
+: > "$TMP/not-a-directory"
+before="$(wc -l < "$TMP/probe-homes" | tr -d ' ')"
+picked="$(TMPDIR="$TMP/not-a-directory" HOME="$H" toolchain_pick_node)"
+check "unavailable scratch directory yields no runtime" "$picked" ""
+check "unavailable scratch directory never runs a candidate" "$(wc -l < "$TMP/probe-homes" | tr -d ' ')" "$before"
+
 # Stock macOS has no GNU timeout. Its Perl fallback must retain a parent process
 # while the candidate runs: `alarm; exec` silently loses the alarm and lets a
 # stranded mise shim block every runtime command for its full delay.

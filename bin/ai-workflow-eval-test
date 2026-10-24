@@ -5,6 +5,7 @@ import copy
 import json
 from pathlib import Path
 import runpy
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -217,6 +218,40 @@ class ExecutionTests(unittest.TestCase):
         self.assertEqual(report['behaviorResult'], 'UNVERIFIED')
         self.assertTrue(all(c['result'] == 'PASS' for c in report['checks'] if c['id'] != 'browser-journey'))
         self.assertEqual(next(c for c in report['checks'] if c['id'] == 'browser-journey')['result'], 'UNVERIFIED')
+
+    def test_oracle_database_connections_are_closed(self):
+        # Retain actual handles so GC timing cannot hide a leaked connection.
+        connect = sqlite3.connect
+        opened = []
+        def track(*args, **kwargs):
+            db = connect(*args, **kwargs)
+            opened.append(db)
+            return db
+        database = self.base / 'oracle.sqlite'
+        try:
+            with patch('sqlite3.connect', side_effect=track):
+                execution_api['seed_database'](database)
+                state = execution_api['snapshot'](database)
+            self.assertEqual(state, {'orders': execution_api['SEEDS'], 'audit': []})
+            self.assertEqual(len(opened), 2)
+            for db in opened:
+                with self.assertRaises(sqlite3.ProgrammingError):
+                    db.execute('SELECT 1')
+        finally:
+            for db in opened:
+                db.close()
+
+    def test_loopback_fixture_needs_no_reverse_dns(self):
+        # Hosted macOS reverse lookup can block HTTPServer's bind for 30s.
+        # The fixture uses numeric loopback and must not depend on DNS at all.
+        path = self.candidate / 'app.py'
+        text = path.read_text()
+        hook = "\nimport socket\ndef reject_reverse_dns(*args):\n    raise RuntimeError('synthetic reverse DNS unavailable')\nsocket.getfqdn = reject_reverse_dns\n"
+        path.write_text(text.replace("if __name__ == '__main__':", hook + "\nif __name__ == '__main__':", 1))
+        report, code = self.run_candidate()
+        self.assertEqual(code, 2, json.dumps(report))
+        self.assertTrue(all(c['result'] == 'PASS' for c in report['checks'] if c['id'] != 'browser-journey'), json.dumps(report))
+        self.assertNotIn('execution-infrastructure', {c['id'] for c in report['checks']})
 
     def test_tenant_filter_mutation_fails_behavioral_oracle(self):
         self.mutate("WHERE id = ? AND tenant = ?',\n                      (order_id, tenant)",

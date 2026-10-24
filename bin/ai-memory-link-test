@@ -11,7 +11,8 @@
 set -uo pipefail
 ROOT="${DOTFILES_DIR:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
 LINK="$ROOT/bin/ai-memory-link"
-TMP="$(mktemp -d)"; trap 'chmod -R u+rwX "$TMP" 2>/dev/null; rm -rf "$TMP"' EXIT
+# Canonicalize macOS /var aliases before constructing literal link targets.
+TMP="$(mktemp -d)"; TMP="$(cd "$TMP" && pwd -P)"; trap 'chmod -R u+rwX "$TMP" 2>/dev/null; rm -rf "$TMP"' EXIT
 fails=0
 say() { printf '  %-4s %s\n' "$1" "$2"; }
 mode() { stat -c %a "$1" 2>/dev/null || stat -f %Lp "$1" 2>/dev/null; }

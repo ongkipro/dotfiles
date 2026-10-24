@@ -35,3 +35,9 @@ operations remain outside this local result.
 ## Verification evidence
 
 Use repository-native checks and the delivery ledger. This file owns workflow state only; it is not test evidence.
+
+
+TASK-136 repairs the failing hosted CI gates after the WSL remote integration.
+Local aggregate passed 77/77; targeted browser and independent portability
+checks passed. Delivery evidence distinguishes these local results from hosted
+confirmation after publication. Unrelated local memory/design/tmux changes are preserved.

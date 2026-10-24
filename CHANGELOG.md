@@ -6,6 +6,23 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-24
 
+### Cross-platform CI repair (TASK-136)
+
+- Integrated remote WSL/device updates while preserving all unrelated local edits.
+- Meta naming checks use native Git search, including untracked maintained files,
+  without requiring ripgrep on CI runners. Fatal search errors still fail.
+- Linker/recall fixtures canonicalize temporary roots so macOS `/var` aliases
+  do not produce false path mismatches.
+- Telemetry uses exclusive first creation followed by plain existing-file append,
+  avoiding the Darwin create/open race while retaining descriptor/link guards.
+- Synthetic workflow servers bind numeric loopback without reverse DNS. Oracle
+  SQLite handles close after each operation; mutation checks remain unchanged.
+- Toolchain probes use unique private temporary homes and preserve pre-existing
+  PID-named paths. WSL shell edits now trigger CI and receive Bash syntax checks.
+- Local aggregate passed 77/77; full browser workflow passed 30/30. Independent
+  portability review and symlinked temporary-root fixtures passed. Hosted
+  Linux/macOS confirmation is recorded only after an actual run.
+
 ### Added
 
 - Explicit staged lessons through `delivery-learning stage`, automatic verified

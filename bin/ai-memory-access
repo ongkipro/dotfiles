@@ -38,14 +38,19 @@ def telemetry_directory(path: Path):
 
 def telemetry_file(directory, name, data, append=False):
     flags = os.O_WRONLY | os.O_NOFOLLOW | os.O_NONBLOCK
-    if append: flags |= os.O_APPEND | os.O_CREAT
-    else: flags |= os.O_CREAT | os.O_EXCL
-    try: fd = os.open(name, flags, 0o600, dir_fd=directory)
+    if append: flags |= os.O_APPEND
+    # macOS openat's create-or-open path can report ENOENT when writers race
+    # the first creation. Exclusive creation and a plain existing-file open
+    # avoid that path without retries or following a substituted link.
+    try: fd = os.open(name, flags | os.O_CREAT | os.O_EXCL, 0o600, dir_fd=directory)
     except FileExistsError:
-        fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
-        try: validate_telemetry_file(fd)
-        finally: os.close(fd)
-        return
+        if append:
+            fd = os.open(name, flags, dir_fd=directory)
+        else:
+            fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+            try: validate_telemetry_file(fd)
+            finally: os.close(fd)
+            return
     try:
         validate_telemetry_file(fd)
         fcntl.flock(fd, fcntl.LOCK_EX)

@@ -41,6 +41,20 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 - **Reopen Conditions:** regression of findings F1–F9 or W1–W16; documentation claims exceed executed evidence.
 - **Escalation Conditions:** unrelated user work, system or production changes become necessary.
 
+### TASK-136: Repair hosted Linux/macOS CI after whole-system hardening
+
+- **Requirement:** REQ-CROSS-PLATFORM-CI-REPAIR (owner requests investigation, fixes and refinement for failing hosted gates on remote f96b8d5).
+- **Risk Level:** R3.
+- **Allowed Paths:** memory telemetry, workflow evaluation/toolchain helper and tests; Meta/link/recall regression suites; Core runtime workflow; TASKS/STATUS/CHANGELOG/system map/reliability evidence docs; exact parent and child boundaries in the delivery run.
+- **Protected Paths:** unrelated local memory/design edits and config/tmux.conf; credentials, providers, services and live advertising.
+- **Canonical Contract Owners:** telemetry -> ai-memory-access; execution evidence -> ai-workflow-eval; runtime discovery -> _toolchain-path.sh; regression portability -> existing suites.
+- **Accepted Invariants:** identical Linux/macOS semantics, symlink/hardlink guards retained, actual errors remain failures, no optional dependency masquerades as product failure, user edits survive synchronization.
+- **Regression Checks:** failing suites, negative trust-boundary fixtures, real Git-index snapshot checks, policy/workflow/syntax, aggregate self-test and independent review; hosted results only when actually observed.
+- **Runtime Evidence:** local Linux aggregate 77/77 PASS; real browser workflow30/30 PASS; independent portability review PASS; run `RUN-20261024T110436Z-6716ffde`. Hosted confirmation is checked separately after publication.
+- **Non-Scope:** weakening security or assertions, secrets, runtime/provider changes, services, checkpoint/mobile features.
+- **Reopen Conditions:** a runner-specific regression returns or a skipped check is called verified.
+- **Escalation Conditions:** an unrelated user edit, system install or live action becomes necessary.
+
 ## Pending
 
 ### TASK-097: Mutation gaps left after TASK-080

@@ -125,3 +125,36 @@ retained. No gateway service was restarted or private service database opened.
   node --version` returned `v24.22.1`. Other devices use normal mise installation.
 - Checkpoint/mobile access and Google/TikTok operations remain deferred. No new
   manager, scheduler service, or general orchestration layer was introduced.
+
+
+## Hosted CI portability follow-up (TASK-136)
+
+Remote run [40087062168](https://github.com/ongkipro/dotfiles/actions/runs/40087062168)
+failed one Linux and five macOS gates. Repairs preserve the original behavioral
+assertions and are covered by failing-before/passing-after scenarios:
+
+- Missing ripgrep was a test dependency defect. Native `git grep` searches
+  tracked/untracked maintained files, excludes immutable evidence and preserves
+  no-match versus fatal-error exit semantics.
+- macOS temporary aliases caused literal path expectation mismatches in linker
+  and recall fixtures. Canonical fixture roots retain the same identity checks.
+- Telemetry's first-create contention matches a documented Darwin `openat`
+  create-or-open failure. Exclusive creation then existing-file append preserves
+  no-follow, ownership and hardlink validation. See the [upstream fix and native
+  reproduction](https://github.com/entireio/cli/commit/9c18f31b23a62749b804718125b17c236420a28a)
+  and [Apple race-condition guidance](https://developer.apple.com/library/archive/documentation/Security/Conceptual/SecureCodingGuide/Articles/RaceConditions.html).
+- `HTTPServer.server_bind` performs reverse DNS before startup readiness. The
+  [runner issue](https://github.com/actions/setup-python/issues/1223) matches the
+  timeout observed here. The synthetic fixture now binds numeric loopback without
+  that lookup; forced DNS failure no longer prevents all behavioral assertions.
+  The [CPython implementation](https://raw.githubusercontent.com/python/cpython/3.15/Lib/http/server.py)
+  is the primary API reference. This remains a hosted-confirmation hypothesis
+  until the repaired native macOS job is observed passing.
+- SQLite context management commits/rolls back without closing the connection;
+  the oracle now explicitly closes native handles while preserving seed commits.
+  A native closed-handle regression catches the prior leak.
+
+The inherited toolchain probe cleanup also now allocates its own unique private
+scratch home instead of recursively removing a predictable pre-existing path.
+No timeout, mutation assertion, tenant boundary, or filesystem guard was removed.
+Local API/browser checks and simulated OS seams are distinct from hosted results.

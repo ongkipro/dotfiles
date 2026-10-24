@@ -17,7 +17,7 @@ graph TD
     Kernel --> Skills["Owned Skills Registry<br/><code>skills/local/</code> (77 skills)"]
     Kernel --> Bin["Executable Toolchain<br/><code>bin/</code> (126 command, test and helper files)"]
     Kernel --> Ledger[".delivery/ & TASKS.md<br/>Autonomous State & Verification"]
-    Kernel --> Devices["Device Profiles<br/><code>devices/</code> (7 hosts)"]
+    Kernel --> Devices["Device Profiles<br/><code>devices/</code> (8 hosts)"]
     Ledger -->|"explicit lesson and PASS"| Learning["Verified Learning<br/><code>delivery-learning</code>"]
     Learning --> Candidates["Private Review Candidates<br/><code>ai-memory-harvest</code>"]
     Candidates --> Review["Reviewed Adoption"]
@@ -45,7 +45,7 @@ graph TD
 | **Skill Management**| [`skills/agents-bin/`](../skills/agents-bin) | CLI tools for managing, checking, updating, and removing skills. | Developers & AI toolchain |
 | **Executable CLI**  | [`bin/`](../bin) | 126 Bash, Python, and Node.js command, test, and helper files for verification and automation. | Terminal workflow & CI |
 | **OMP Runtime Reference** | [`config/omp/`](../config/omp) | Explicit native runtime reference plus historical routing evidence; installers do not load model catalogs or agent overlays. | OMP native runtime |
-| **Device Registry** | [`devices/`](../devices) | Hardware manifests, OS specs, and per-machine configurations (7 hosts). | `dotsync`, `device-register` |
+| **Device Registry** | [`devices/`](../devices) | Hardware manifests, OS specs, and per-machine configurations (8 hosts). | `dotsync`, `device-register` |
 | **Project Templates** | [`config/templates/`](../config/templates) | Contract scaffold for new projects (`PRD`, `TASKS`, `ARCHITECTURE`, etc.). | `project-init` |
 | **System Docs**     | [`docs/`](../docs) | Architecture blueprints, security policies, install SOPs, audit logs. | Architecture & Governance |
 | **Delivery Engine** | [`.delivery/`](../.delivery) | Run ledger, verification checkpoints, task boundary states. | `delivery-ledger` |
@@ -391,3 +391,9 @@ TASK-135 and the delivery ledger own implementation and verification status.
 The Node toolchain pin is 24.22.1. Hosted CI, macOS installation/mutation evidence,
 provider availability and production restore drills remain distinct from local
 fixture results. Checkpoint/mobile and future advertising platforms stay deferred.
+
+
+TASK-136 covers CI portability across Git search dependencies, canonical temporary
+paths, telemetry creation, numeric-loopback evaluation startup, SQLite lifecycle,
+and private toolchain probe homes. `config/wsl-tools.sh` edits trigger the core
+workflow and Bash syntax checks. Native touchscreen behavior still requires WSL.

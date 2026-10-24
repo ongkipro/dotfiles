@@ -31,8 +31,10 @@ toolchain_pick_node() {
   # which is how ai-learn-test kept failing on macOS while ai-memory-check ran
   # perfectly when invoked directly. A candidate that only works in comfortable
   # conditions is not the one to pin.
-  local probe_home="${TMPDIR:-/tmp}/toolchain-probe.$$"
-  mkdir -p "$probe_home" 2>/dev/null
+  # A PID-named directory can already belong to another invocation or caller.
+  # Only remove the private directory atomically allocated by this probe.
+  local probe_home
+  probe_home="$(mktemp -d "${TMPDIR:-/tmp}/toolchain-probe.XXXXXX" 2>/dev/null)" || return 0
   for c in "${cands[@]}"; do
     [ -x "$c" ] || continue
     # `alarm; exec` is not a macOS timeout: exec replaces Perl and drops the
@@ -69,11 +71,11 @@ toolchain_pick_node() {
         HOME="$probe_home" "$c" --version
       fi
     } >/dev/null 2>&1; then
-      rm -rf "$probe_home" 2>/dev/null
+      rm -rf -- "$probe_home" 2>/dev/null
       dirname "$c"; return 0
     fi
   done
-  rm -rf "$probe_home" 2>/dev/null
+  rm -rf -- "$probe_home" 2>/dev/null
 }
 
 # Directories every owned command needs on PATH but a non-interactive shell has
