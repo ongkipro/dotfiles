@@ -50,7 +50,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Device profiles | [`devices/`](../devices/) | 8 | linked from this page |
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
 | Top-level docs | [`docs/`](../docs/) | 23 | linked from this page |
-| Archived task records | [`docs/archive/`](../docs/archive/) | 27 | count only |
+| Archived task records | [`docs/archive/`](../docs/archive/) | 28 | count only |
 
 <!-- system-map:inventory:end -->
 

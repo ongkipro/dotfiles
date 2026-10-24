@@ -13,6 +13,8 @@ Only the dependency edge is human-authored; state is derived.
 
 ## Done
 
+- TASK-141, TASK-139: [System-map coverage gate and memory hygiene](docs/archive/DOTFILES_TASKS_2026-10-25_SYSTEM_MAP.md).
+
 - TASK-138, TASK-137: [Development-kit audit and eval guidance provenance](docs/archive/DOTFILES_TASKS_2026-10-25_DEVELOPMENT_KIT.md).
 
 - TASK-136, TASK-135: [Whole-system reliability and hosted CI repair](docs/archive/DOTFILES_TASKS_2026-10-24_WHOLE_SYSTEM.md).
@@ -33,34 +35,6 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 
 ## Pending
 
-### TASK-141: Generated system-map inventory and coverage gate
-
-- **Requirement:** REQ-SYSTEM-MAP-ACCURACY (owner 2026-10-25: keep the sitemap tidy and precise; audit found 7 bin commands, 1 template, 14 top-level docs unlinked and 5 project memories missing from `MEMORY.md`).
-- **Risk Level:** R2.
-- **Allowed Paths:** `bin/system-map`, `bin/system-map-test`, `bin/ai-policy-lint`, `config/ai/runtime-commands.txt`, `docs/DOTFILES_SITEMAP.md`, `config/ai/project-memory/MEMORY.md`, `TASKS.md`, `CHANGELOG.md`, `STATUS.md`.
-- **Protected Paths:** pre-existing dirty work; CORE and adapters.
-- **Canonical Contract Owners:** sitemap -> `system-map`; project-memory index -> `MEMORY.md`.
-- **Accepted Invariants:** narrative stays hand-written; only the inventory block is rendered; one index per collection; `--check` writes nothing.
-- **Regression Checks:** `system-map-test`, `system-map --check`, `ai-policy-lint`, `skill-map --check`.
-- **Runtime Evidence:** `--check` fails on a seeded unlinked file and a broken link, then passes on the repository.
-- **Non-Scope:** rewriting curated narrative, commit/push.
-- **Reopen Conditions:** a tracked collection member can be added without the check failing.
-- **Escalation Conditions:** the check needs CORE or provider calls.
-
-### TASK-139: Memory hygiene before publication
-
-- **Requirement:** REQ-MEMORY-HYGIENE (owner 2026-10-25: scan, validate, review and commit memory; repository is public).
-- **Risk Level:** R1.
-- **Allowed Paths:** the six project-memory files flagged by `ai-memory-hygiene`, `TASKS.md`.
-- **Protected Paths:** other memory files; credentials.
-- **Canonical Contract Owners:** memory -> `ai-memory-hygiene`.
-- **Accepted Invariants:** re-measure or reduce dated claims to timeless facts; no secret, address, or new client data.
-- **Regression Checks:** `ai-memory-hygiene`, `ai-memory-check`, `security-check`, `ai-policy-lint`.
-- **Runtime Evidence:** HEAD requests for re-measured domain claims.
-- **Non-Scope:** push.
-- **Reopen Conditions:** a rewritten line changes meaning.
-- **Escalation Conditions:** a claim cannot be re-measured or safely generalized.
-
 ### TASK-140: Codex decision trial (not before 2026-10-31)
 
 - **Requirement:** REQ-EVAL-GUIDANCE-PROVENANCE (owner reminder; Codex usage limit resets 2026-10-31).
@@ -69,6 +43,31 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 - **Accepted Invariants:** read-only `codex exec`; record `guidanceRead` and the actual model.
 - **Regression Checks:** `ai-workflow-eval grade`.
 - **Non-Scope:** provider purchases, commit/push.
+
+### TASK-142: Skill consolidation (deferred)
+
+- **Requirement:** REQ-SKILL-BUDGET (owner 2026-10-25: merging skills is cancelled for now; reopen only on a budget breach).
+- **Risk Level:** R2 when reopened.
+- **Allowed Paths:** decided when reopened.
+- **Canonical Contract Owners:** skills.inventory -> `skill-map`.
+- **Accepted Invariants:** no skill is merged or deleted while the budget holds.
+- **Regression Checks:** `skill-map --check`, `ai-policy-lint`.
+- **Non-Scope:** any merge before a reopen condition fires; commit/push.
+- **Reopen Conditions:** the skill budget is exceeded again.
+- **Escalation Conditions:** a merge would change a skill's trigger surface or remove a canonical owner.
+
+### TASK-143: `ai-memory-harvest-test` intermittent macOS failure
+
+- **Requirement:** REQ-PORTABLE-CHECKS (owner 2026-10-25: investigate the intermittent macOS failure).
+- **Risk Level:** R1.
+- **Allowed Paths:** `bin/ai-memory-harvest-test`, `bin/ai-memory-harvest`, `TASKS.md`.
+- **Canonical Contract Owners:** memory.harvest -> `ai-memory-harvest`.
+- **Accepted Invariants:** investigation first; record the reproduced cause before any fix; Linux behavior unchanged.
+- **Regression Checks:** `ai-memory-harvest-test` on Linux and on the hosted macOS runner.
+- **Runtime Evidence:** a failing macOS run log and the passing rerun after the fix.
+- **Non-Scope:** other macOS checks; CI workflow changes unless the cause lives there; commit/push.
+- **Reopen Conditions:** the test fails again on macOS after the fix.
+- **Escalation Conditions:** the failure cannot be reproduced after repeated macOS runs.
 
 ### TASK-097: Mutation gaps left after TASK-080
 
