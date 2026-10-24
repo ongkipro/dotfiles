@@ -848,6 +848,26 @@ def check_skill_map():
         err(f"skill map is not current:\n  {detail}")
 
 
+def check_system_map():
+    """The sitemap's inventory and coverage must match the tracked tree.
+
+    `system-map` renders only the inventory block and refuses an unlinked
+    collection member, a project memory missing from MEMORY.md, or a broken
+    relative link. Hand-kept counts and lists drifted before this gate existed.
+    """
+    script = ROOT / "bin" / "system-map"
+    if not script.is_file():
+        err("bin/system-map is missing; the sitemap coverage gate cannot run")
+        return
+    proc = subprocess.run([sys.executable, str(script), "--root", str(ROOT), "--check"],
+                          capture_output=True, text=True)
+    if proc.returncode == 0:
+        print(f"  OK  system map: {proc.stdout.strip().split(': ', 1)[-1]}")
+    else:
+        detail = (proc.stderr or proc.stdout).strip().replace("\n", "\n  ")
+        err(f"system map is not current:\n  {detail}")
+
+
 def check_skill_routing_graph():
     """Every skill a routing table hands work to must exist.
 
@@ -934,6 +954,7 @@ def main():
     check_task_contracts()
     check_memory_routing_coverage()
     check_skill_map()
+    check_system_map()
     check_hidden_instructions()
     check_hot_context()
 

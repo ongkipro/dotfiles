@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# Regression test for bin/system-map.
+#
+# Every failing case is a mutation of a complete fixture that --check must
+# reject by name. A map that renders is not the point; a map that cannot
+# silently drop a member, a link, or an index entry is.
+set -uo pipefail
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+ROOT="${1:-$(cd -P "$(dirname "$SOURCE")/.." && pwd)}"
+MAP="$ROOT/bin/system-map"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/system-map-test.XXXXXX")"
+trap 'rm -rf "$TMP"' EXIT
+FIX="$TMP/dotfiles"
+fails=0
+
+fail() { echo "system-map-test: FAIL — $*" >&2; fails=$((fails + 1)); }
+ok() { printf '✓ %s\n' "$1"; }
+run() { python3 "$MAP" --root "$FIX" "$@"; }
+track() { git -C "$FIX" add -A >/dev/null; }
+
+build() {
+  rm -rf "$FIX"
+  mkdir -p "$FIX"/{bin,devices,docs/archive,config/templates,config/ai/memory,config/ai/project-memory,skills/local/demo}
+  git -C "$FIX" init -q
+  printf '#!/bin/sh\n' > "$FIX/bin/tool"; printf '#!/bin/sh\n' > "$FIX/bin/tool-test"
+  printf '#!/bin/sh\n' > "$FIX/bin/_helper"
+  printf '# host\n' > "$FIX/devices/host.md"; printf '# devices\n' > "$FIX/devices/README.md"
+  printf '# prd\n' > "$FIX/config/templates/PRD.md"
+  printf '# core\n' > "$FIX/config/ai/memory/core.md"
+  printf '# note\n' > "$FIX/config/ai/project-memory/note.md"
+  printf -- '- [Note](note.md) — a note.\n' > "$FIX/config/ai/project-memory/MEMORY.md"
+  printf -- '---\nname: demo\n---\n' > "$FIX/skills/local/demo/SKILL.md"
+  printf '# guide\n' > "$FIX/docs/guide.md"; printf '# old\n' > "$FIX/docs/archive/old.md"
+  cat > "$FIX/docs/DOTFILES_SITEMAP.md" <<'EOF'
+# Sitemap
+
+<!-- system-map:inventory:start (rendered by bin/system-map; do not edit) -->
+<!-- system-map:inventory:end -->
+
+- [`core.md`](../config/ai/memory/core.md), [`MEMORY.md`](../config/ai/project-memory/MEMORY.md)
+- [`demo`](../skills/local/demo/SKILL.md), [`tool`](../bin/tool), [`host.md`](../devices/host.md)
+- [`PRD.md`](../config/templates/PRD.md), [`guide.md`](../docs/guide.md#top), [site](https://example.com)
+EOF
+  track
+  run >/dev/null && track
+}
+
+expect_fail() { # label needle
+  local out
+  if out="$(run --check 2>&1)"; then fail "$1 passed --check"; return; fi
+  grep -qF -- "$2" <<<"$out" && ok "$1" || fail "$1 did not name '$2': $out"
+}
+
+build
+out="$(run --check 2>&1)" && ok "complete fixture passes" || fail "complete fixture failed: $out"
+grep -q '| Commands | \[`bin/`\](../bin/) | 1 |' "$FIX/docs/DOTFILES_SITEMAP.md" \
+  && ok "helpers and tests excluded from command count" || fail "command count wrong"
+grep -q '| Device profiles | \[`devices/`\](../devices/) | 1 |' "$FIX/docs/DOTFILES_SITEMAP.md" \
+  && ok "device README is not counted as a host" || fail "device count wrong"
+
+before="$(cksum < "$FIX/docs/DOTFILES_SITEMAP.md")"
+printf '#!/bin/sh\n' > "$FIX/bin/newtool"; track
+expect_fail "unlinked command fails" "bin/newtool is tracked but not linked"
+[ "$(cksum < "$FIX/docs/DOTFILES_SITEMAP.md")" = "$before" ] && ok "--check writes nothing" \
+  || fail "--check modified the sitemap"
+expect_fail "stale inventory fails" "inventory block is stale"
+
+build; printf '#!/bin/sh\n' > "$FIX/bin/wip"
+out="$(run --check 2>&1)" && ok "untracked work does not fail the gate" || fail "untracked file failed: $out"
+
+build; printf '# t\n' > "$FIX/config/templates/TASKS.md"; track; run >/dev/null
+expect_fail "unlinked template fails" "config/templates/TASKS.md is tracked but not linked"
+
+build; printf '# x\n' > "$FIX/config/ai/project-memory/extra.md"; track; run >/dev/null
+expect_fail "memory missing from MEMORY.md fails" "extra.md is not listed in config/ai/project-memory/MEMORY.md"
+
+build; printf -- '- [gone](../docs/gone.md)\n' >> "$FIX/docs/DOTFILES_SITEMAP.md"; track
+expect_fail "broken relative link fails" "links docs/gone.md, which is not tracked"
+
+build; printf '# wip\n' > "$FIX/docs/wip.md"; printf -- '- [wip](../docs/wip.md)\n' >> "$FIX/docs/DOTFILES_SITEMAP.md"
+git -C "$FIX" add docs/DOTFILES_SITEMAP.md
+expect_fail "link to an untracked file fails" "links docs/wip.md, which is not tracked"
+
+build; sed -i.bak 's#(../skills/local/demo/SKILL.md)#(../skills/local/demo/)#' "$FIX/docs/DOTFILES_SITEMAP.md"; rm -f "$FIX/docs/DOTFILES_SITEMAP.md.bak"; track
+out="$(run --check 2>&1)" && ok "skill directory link counts as linked" || fail "skill directory link rejected: $out"
+
+build; rm "$FIX/skills/local/demo/SKILL.md"; mkdir -p "$FIX/skills/local/other"
+printf -- '---\nname: other\n---\n' > "$FIX/skills/local/other/SKILL.md"; track; run >/dev/null
+expect_fail "unlinked skill fails" "skills/local/other/SKILL.md is tracked but not linked"
+
+build; sed -i.bak '/system-map:inventory/d' "$FIX/docs/DOTFILES_SITEMAP.md"
+run --check >/dev/null 2>&1; [ $? -eq 2 ] && ok "missing markers exit 2" || fail "missing markers did not exit 2"
+
+out="$(python3 "$MAP" --root "$ROOT" --check 2>&1)" && ok "repository sitemap passes" \
+  || fail "repository sitemap: $out"
+
+[ "$fails" -eq 0 ] && echo "system-map-test: PASS" || { echo "system-map-test: $fails failure(s)" >&2; exit 1; }

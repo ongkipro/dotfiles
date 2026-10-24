@@ -12,12 +12,12 @@ The `dotfiles` repository shares developer configuration, AI policy, owned skill
 ```mermaid
 graph TD
     Kernel["Shared Policy<br/><code>config/ai/CORE.md</code>"] --> Runtimes["AI CLI Runtimes<br/>Claude · Codex · Antigravity · OMP · Pi"]
-    Kernel --> Memory["Durable Memory<br/><code>config/ai/memory/</code> (20 files)"]
-    Kernel --> ProjectMemory["Project Memory<br/><code>config/ai/project-memory/</code> (79 tracked documents)"]
-    Kernel --> Skills["Owned Skills Registry<br/><code>skills/local/</code> (77 skills)"]
-    Kernel --> Bin["Executable Toolchain<br/><code>bin/</code> (126 command, test and helper files)"]
+    Kernel --> Memory["Durable Memory<br/><code>config/ai/memory/</code>"]
+    Kernel --> ProjectMemory["Project Memory<br/><code>config/ai/project-memory/</code>"]
+    Kernel --> Skills["Owned Skills Registry<br/><code>skills/local/</code>"]
+    Kernel --> Bin["Executable Toolchain<br/><code>bin/</code>"]
     Kernel --> Ledger[".delivery/ & TASKS.md<br/>Autonomous State & Verification"]
-    Kernel --> Devices["Device Profiles<br/><code>devices/</code> (8 hosts)"]
+    Kernel --> Devices["Device Profiles<br/><code>devices/</code>"]
     Ledger -->|"explicit lesson and PASS"| Learning["Verified Learning<br/><code>delivery-learning</code>"]
     Learning --> Candidates["Private Review Candidates<br/><code>ai-memory-harvest</code>"]
     Candidates --> Review["Reviewed Adoption"]
@@ -32,20 +32,44 @@ graph TD
 
 ---
 
+### Inventory
+
+Counts and completeness are checked, not remembered: `bin/system-map --check`
+runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
+`git add` (or `git add -N`), link it here, then `bin/system-map`.
+
+<!-- system-map:inventory:start (rendered by bin/system-map; do not edit) -->
+
+| Collection | Path | Tracked | Completeness enforced by |
+|---|---|---|---|
+| Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 20 | linked from this page |
+| Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 79 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
+| Owned skills | [`skills/local/`](../skills/local/) | 77 | linked from this page |
+| Commands | [`bin/`](../bin/) | 55 | linked from this page |
+| Command tests | [`bin/`](../bin/) | 71 | count only |
+| Device profiles | [`devices/`](../devices/) | 8 | linked from this page |
+| Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
+| Top-level docs | [`docs/`](../docs/) | 23 | linked from this page |
+| Archived task records | [`docs/archive/`](../docs/archive/) | 27 | count only |
+
+<!-- system-map:inventory:end -->
+
+---
+
 ## 2. Sitemap Directory Index
 
 | Section | Directory / File | Description & Function | Target Audience / Consumer |
 |---|---|---|---|
 | **Core Kernel** | [`config/ai/CORE.md`](../config/ai/CORE.md) | Canonical cross-CLI operating rules, approval gates, coding standards. | All AI CLIs & Developers |
 | **CLI Adapters** | [`config/ai/adapters/`](../config/ai/adapters) | Runtime-specific context adapters (`claude`, `codex`, `antigravity`, `omp`, `pi`). | AI CLI Runtimes |
-| **Durable Memory** | [`config/ai/memory/`](../config/ai/memory) | Cross-session, durable operational facts (20 files). | `ai-memory-access`, AI sessions |
-| **Project Memory** | [`config/ai/project-memory/`](../config/ai/project-memory) | 79 tracked project reference documents, including the index; file count is not a count of client systems. | On-demand context retrieval |
+| **Durable Memory** | [`config/ai/memory/`](../config/ai/memory) | Cross-session, durable operational facts. | `ai-memory-access`, AI sessions |
+| **Project Memory** | [`config/ai/project-memory/`](../config/ai/project-memory) | Project reference documents indexed by [`MEMORY.md`](../config/ai/project-memory/MEMORY.md); a file count is not a count of client systems. | On-demand context retrieval |
 | **Kelola Memory** | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola) | Specialized knowledge pack for Kelola HRIS infrastructure. | Kelola deployment & maintenance |
-| **Skills Registry** | [`skills/local/`](../skills/local) | 77 owned skills categorized into 11 engineering domains. | AI CLI tool calling & workflows |
+| **Skills Registry** | [`skills/local/`](../skills/local) | Owned skills categorized into engineering domains; domain map in [`skills/local/README.md`](../skills/local/README.md). | AI CLI tool calling & workflows |
 | **Skill Management**| [`skills/agents-bin/`](../skills/agents-bin) | CLI tools for managing, checking, updating, and removing skills. | Developers & AI toolchain |
-| **Executable CLI**  | [`bin/`](../bin) | 126 Bash, Python, and Node.js command, test, and helper files for verification and automation. | Terminal workflow & CI |
+| **Executable CLI**  | [`bin/`](../bin) | Bash, Python, and Node.js commands, tests, and helpers for verification and automation. | Terminal workflow & CI |
 | **OMP Runtime Reference** | [`config/omp/`](../config/omp) | Explicit native runtime reference plus historical routing evidence; installers do not load model catalogs or agent overlays. | OMP native runtime |
-| **Device Registry** | [`devices/`](../devices) | Hardware manifests, OS specs, and per-machine configurations (8 hosts). | `dotsync`, `device-register` |
+| **Device Registry** | [`devices/`](../devices) | Hardware manifests, OS specs, and per-machine configurations. | `dotsync`, `device-register` |
 | **Project Templates** | [`config/templates/`](../config/templates) | Contract scaffold for new projects (`PRD`, `TASKS`, `ARCHITECTURE`, etc.). | `project-init` |
 | **System Docs**     | [`docs/`](../docs) | Architecture blueprints, security policies, install SOPs, audit logs. | Architecture & Governance |
 | **Delivery Engine** | [`.delivery/`](../.delivery) | Run ledger, verification checkpoints, task boundary states. | `delivery-ledger` |
@@ -135,7 +159,7 @@ Cross-project durable facts loaded selectively on demand by `ai-memory-access`.
 
 ## 5. Project Memory Knowledge Base (`config/ai/project-memory/`)
 
-79 tracked project-memory documents, including the index, with project-specific references and platform gotchas.
+Project-specific references and platform gotchas; [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) is the complete index and the sections below are curated highlights.
 
 ### 5.1 Project & Business Reference Cards
 - [`MEMORY.md`](../config/ai/project-memory/MEMORY.md): The central index for all project memories.
@@ -168,7 +192,7 @@ Comprehensive project memory for the production deployment of `kelolatim.com`:
 
 ## 6. Owned Skills Directory (`skills/local/`)
 
-Dotfiles hosts 77 specialized capabilities grouped into 11 distinct domains (`skills/local/README.md` is auto-rendered by `bin/skill-map`). Every runtime accesses these skills via symlinks.
+Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rendered by `bin/skill-map`. Every runtime accesses these skills via symlinks.
 
 ### 6.1 Cloudflare Platform
 - [`cloudflare`](../skills/local/cloudflare/SKILL.md): Platform entry point (Workers, KV, D1, R2, Vectorize, WAF).
@@ -260,6 +284,7 @@ Dotfiles hosts 77 specialized capabilities grouped into 11 distinct domains (`sk
 - [`continuous-learning`](../skills/local/continuous-learning/SKILL.md): Capturing reusable lessons and promoting memory candidates.
 - [`cross-cli`](../skills/local/cross-cli/SKILL.md): Delegating review/research lanes across installed AI CLIs via `ai-ask`.
 - [`codebase-navigation`](../skills/local/codebase-navigation/SKILL.md): Cross-file call/dependency tracing and optional Graphify code graphs.
+- [`black-magic`](../skills/local/black-magic/SKILL.md): Evidence-first reverse engineering of captures, bundles, binaries, and live apps (vendored from REA); hands findings to the owning specialist.
 
 ### 6.11 Infrastructure & Runtime
 - [`vercel`](../skills/local/vercel/SKILL.md): Edge deployment, Vercel CLI, environment variable management.
@@ -272,7 +297,7 @@ Dotfiles hosts 77 specialized capabilities grouped into 11 distinct domains (`sk
 
 ## 7. Executable Toolchain Dictionary (`bin/`)
 
-The current working tree contains 124 top-level files under `bin/`, including executable commands, their tests, and helpers. Counts describe repository inventory, not installed software or device readiness.
+Commands, their tests, and helpers; counts live in the Inventory block and describe repository inventory, not installed software or device readiness.
 
 ### 7.1 AI, Policy & Memory Management
 - [`ai-doctor`](../bin/ai-doctor) (+ [`test`](../bin/ai-doctor-test)): Comprehensive health check for AI links, tools, hooks, and environment.
@@ -291,6 +316,9 @@ The current working tree contains 124 top-level files under `bin/`, including ex
 - [`ai-skill-evolution`](../bin/ai-skill-evolution) (+ [`test`](../bin/ai-skill-evolution-test)): Reports advisory recurring-pattern candidates for skill improvement; it does not promote or rewrite skills automatically.
 - [`ai-hooks-install`](../bin/ai-hooks-install) (+ [`test`](../bin/ai-hooks-install-test)): Installs and checks canonical Claude Code and Codex hooks; native Codex trust remains an interactive runtime step.
 - [`ai-mcp-sync`](../bin/ai-mcp-sync) (+ [`test`](../bin/ai-mcp-sync-test)): Synchronizes and checks global MCP servers across AI CLI runtimes.
+- [`ai-ask`](../bin/ai-ask) (+ [`test`](../bin/ai-ask-test)): Hands one lane of work to another AI CLI, read-only by default.
+- [`ai-health-daily`](../bin/ai-health-daily) (+ [`test`](../bin/ai-health-daily-test)): One read-only health report per day for this device.
+- [`ai-workflow-eval`](../bin/ai-workflow-eval) (+ [`test`](../bin/ai-workflow-eval-test)): Portable decision evals with guidance-read labels, plus an explicit local execution fixture; never certifies model reliability.
 
 ### 7.2 Delivery Ledger, Safety Gates & Testing
 - [`delivery-ledger`](../bin/delivery-ledger) (+ [`test`](../bin/delivery-ledger-test)): State machine enforcing contract boundaries, risks, and task runs.
@@ -304,6 +332,10 @@ The current working tree contains 124 top-level files under `bin/`, including ex
 - [`rollback-check`](../bin/rollback-check) (+ [`test`](../bin/rollback-check-test)): Verifies safety of rollbacks and rollback scripts.
 - [`migration-risk`](../bin/migration-risk) (+ [`test`](../bin/migration-risk-test)): Audits database migration scripts for destructive operations.
 - [`resume-brief`](../bin/resume-brief) (+ [`test`](../bin/resume-brief-test)): Generates quick context summaries when resuming work on a repository.
+- [`delivery-benchmark`](../bin/delivery-benchmark) (+ [`test`](../bin/delivery-benchmark-test)): Evidence-driven delivery telemetry and advisory routing comparisons.
+- [`delivery-skill-usage`](../bin/delivery-skill-usage) (+ [`test`](../bin/delivery-skill-usage-test)): Immutable skill-attribution evidence for finished delivery runs.
+- [`inspect-project`](../bin/inspect-project) (+ [`test`](../bin/inspect-project-test)): Read-only snapshot of the current directory: Git state, project files, and toolchain.
+- [`system-map`](../bin/system-map) (+ [`test`](../bin/system-map-test)): Renders this page's inventory and fails lint on unlinked collection members, unindexed project memory, or broken links.
 
 ### 7.3 Multi-Device Sync & Credentials
 - [`dotsync`](../bin/dotsync) (+ [`test`](../bin/dotsync-test)): Pulls, merges, and reconciles dotfiles cross-device.
@@ -325,6 +357,8 @@ The current working tree contains 124 top-level files under `bin/`, including ex
 - [`shopify-content-helper`](../bin/shopify-content-helper) (+ [`test`](../bin/shopify-content-helper-test)): Assists in formatting and uploading Shopify blog/product copy.
 - [`dotads-meta`](../bin/dotads-meta) (+ [`test`](../bin/dotads-meta-test)): Per-project Meta Ads validator, dry-run planner, stateful deployer, and `secrets-env` bridge for Meta's official `meta-ads` CLI.
 - [`rea-skill-sync`](../bin/rea-skill-sync) (+ [`test`](../bin/rea-skill-sync-test)): Deterministic upstream auto-sync and drift checker synchronizing `skills/local/black-magic/` with `morluto/rea`.
+- [`pi-9router-restore`](../bin/pi-9router-restore): Restores optional Pi settings and the remote 9Router model integration.
+- [`pi-9router-sync.js`](../bin/pi-9router-sync.js): Syncs the remote 9Router catalog into Pi's machine-local `models.json`.
 
 ---
 
@@ -355,6 +389,14 @@ Managed by `bin/device-register`, documenting exact hardware and OS specs:
 - [`repo-visibility.md`](../docs/repo-visibility.md): Public vs private repository security protocol.
 - [`shopify-ai-development-repos.md`](../docs/shopify-ai-development-repos.md): Mapping of Shopify open-source repositories and theme tools.
 - [`linux-dev-setup.md`](../docs/linux-dev-setup.md) & [`macos-install-step-by-step.md`](../docs/macos-install-step-by-step.md): Clean-install guides for new workstations.
+- [`ai-execution-evaluation.md`](../docs/ai-execution-evaluation.md): Local execution evaluation procedure and its evidence limits.
+- [`chatgpt-inbox.md`](../docs/chatgpt-inbox.md): Phone capture from a ChatGPT "Dotfiles Inbox" into `ai-learn import`.
+- [`linux-install-step-by-step.md`](../docs/linux-install-step-by-step.md): Linux install from zero, step by step.
+- [`linux-maintenance-log.md`](../docs/linux-maintenance-log.md): Linux maintenance log.
+- [`github-account-cleanup-plan.md`](../docs/github-account-cleanup-plan.md), [`github-profile-readme-draft.md`](../docs/github-profile-readme-draft.md): GitHub account cleanup plan and profile README draft.
+- Dated audits (historical, superseded by current contracts): [`DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md`](../docs/DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md), [`DOTFILES_REPOSITORY_AUDIT_2026-08-15.md`](../docs/DOTFILES_REPOSITORY_AUDIT_2026-08-15.md), [`DOTFILES_REVIEW_2026-09-04.md`](../docs/DOTFILES_REVIEW_2026-09-04.md), [`DOTFILES-NATIVE-FIRST-AUDIT.md`](../docs/DOTFILES-NATIVE-FIRST-AUDIT.md), [`public-ui-skill-audit.md`](../docs/public-ui-skill-audit.md), [`skills-memory-audit.md`](../docs/skills-memory-audit.md).
+- [`AUSSIE_SAWIT_MALAYSIA_MEMORY_ARCHIVE_2026-07.md`](../docs/AUSSIE_SAWIT_MALAYSIA_MEMORY_ARCHIVE_2026-07.md): Archived AUSSIE Sawit Malaysia session history.
+- Directories: [`docs/archive/`](../docs/archive/) (immutable task contracts), [`docs/research/`](../docs/research/) (source and trial evidence), [`docs/device-reports/`](../docs/device-reports/).
 
 ---
 
@@ -369,7 +411,8 @@ Standardized contract files copied to the root of every new project by `project-
 - [`DECISIONS.md`](../config/templates/DECISIONS.md): Architectural decision records.
 - [`OBSERVABILITY.md`](../config/templates/OBSERVABILITY.md): Probe contract plus a Runbook for probes whose failure needs more than the rollback command.
 - [`RELEASE.md`](../config/templates/RELEASE.md): Deployment and release log.
-
+- [`BUILD-LOG.md`](../config/templates/BUILD-LOG.md): Durable implementation notes and blameless incident notes.
+- [`README.md`](../config/templates/README.md): Project README scaffold.
 
 ## Whole-system reliability and recovery
 
@@ -392,7 +435,6 @@ TASK-135 and the delivery ledger own implementation and verification status.
 The Node toolchain pin is 24.22.1. Hosted CI, macOS installation/mutation evidence,
 provider availability and production restore drills remain distinct from local
 fixture results. Checkpoint/mobile and future advertising platforms stay deferred.
-
 
 TASK-136 covers CI portability across Git search dependencies, canonical temporary
 paths, telemetry creation, numeric-loopback evaluation startup, SQLite lifecycle,

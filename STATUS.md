@@ -37,6 +37,8 @@ sections, routing descriptions, and guidance-read labels in `ai-workflow-eval`.
 Sources, trials, and open items:
 [development-kit audit](docs/research/development-kit-audit-2026-10-25.md).
 TASK-139 tracks memory hygiene; TASK-140 is the pending Codex trial.
+TASK-141 makes the sitemap inventory generated and its coverage a lint gate
+(`system-map --check`).
 
 ## Verification evidence
 

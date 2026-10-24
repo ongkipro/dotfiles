@@ -6,6 +6,16 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-24
 
+### Generated system-map inventory and coverage gate (TASK-141)
+
+- `system-map` renders the sitemap inventory and `--check` (run by
+  `ai-policy-lint`) fails on an unlinked tracked memory, skill, command,
+  device, template or top-level doc, a project memory missing from
+  `MEMORY.md`, or a broken relative link. Hand-kept counts were removed.
+- Linked the 9 commands, 2 templates, 13 documents and 1 skill the first run
+  found, indexed 5 routed but unindexed project memories, and corrected the
+  FormalinADS gateway summary (senangPay is a DOKU company).
+
 ### Decision-trial guidance provenance (TASK-138)
 
 - `ai-workflow-eval` accepts optional self-reported `guidanceRead` and labels each

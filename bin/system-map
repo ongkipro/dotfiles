@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+"""Keep docs/DOTFILES_SITEMAP.md complete and its numbers true.
+
+The sitemap is curated prose: groupings and one-line explanations stay
+hand-written. What drifted was everything derivable. On 2026-10-25 it still
+said 8 devices correctly but omitted lenovo from its table, linked none of
+seven commands including ai-workflow-eval, missed a template and fourteen
+top-level documents, and five project memories were absent from MEMORY.md.
+
+So only the inventory block between the markers is rendered, and --check
+fails when a tracked member of a covered collection is unlinked, when a
+project memory is missing from its own index, or when a relative link in the
+sitemap resolves to nothing. Each collection has one index: project memory is
+listed by config/ai/project-memory/MEMORY.md, so the sitemap links that index
+rather than duplicating it. Only tracked files count, so uncommitted work never
+fails the gate.
+
+  system-map            rewrite the inventory block
+  system-map --check    exit 1 on a stale block, unlinked member, unindexed
+                        memory or broken link; writes nothing (ai-policy-lint)
+  system-map --stdout   print the rendered sitemap without writing
+"""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path, PurePosixPath
+import re
+import subprocess
+import sys
+
+SITEMAP = "docs/DOTFILES_SITEMAP.md"
+MEMORY_INDEX = "config/ai/project-memory/MEMORY.md"
+START = "<!-- system-map:inventory:start (rendered by bin/system-map; do not edit) -->"
+END = "<!-- system-map:inventory:end -->"
+LINK = re.compile(r"\]\(([^)\s]+)\)")
+
+
+def tracked(root: Path) -> list[str]:
+    out = subprocess.run(["git", "-C", str(root), "ls-files", "-z"],
+                         capture_output=True, check=True).stdout
+    return sorted(p for p in out.decode().split("\0") if p)
+
+
+def collections(files: list[str]) -> list[tuple[str, str, list[str], str]]:
+    """(label, path, members, owner): members are what must be linked, if owned."""
+    def under(prefix: str, suffix: str = "") -> list[str]:
+        return [f for f in files if f.startswith(prefix) and "/" not in f[len(prefix):]
+                and f.endswith(suffix)]
+    bin_files = under("bin/")
+    return [
+        ("Durable memory", "config/ai/memory/", under("config/ai/memory/", ".md"), "sitemap"),
+        ("Project memory", "config/ai/project-memory/",
+         [f for f in under("config/ai/project-memory/", ".md") if f != MEMORY_INDEX], "MEMORY.md"),
+        ("Owned skills", "skills/local/",
+         [f for f in files if re.fullmatch(r"skills/local/[^/]+/SKILL\.md", f)], "sitemap"),
+        ("Commands", "bin/", [f for f in bin_files if not f.endswith("-test")
+                              and not PurePosixPath(f).name.startswith("_")], "sitemap"),
+        ("Command tests", "bin/", [f for f in bin_files if f.endswith("-test")], "count"),
+        ("Device profiles", "devices/",
+         [f for f in under("devices/", ".md") if not f.endswith("/README.md")], "sitemap"),
+        ("Project templates", "config/templates/", under("config/templates/", ".md"), "sitemap"),
+        ("Top-level docs", "docs/", [f for f in under("docs/", ".md") if f != SITEMAP], "sitemap"),
+        ("Archived task records", "docs/archive/", under("docs/archive/"), "count"),
+    ]
+
+
+def render_block(files: list[str]) -> str:
+    rows = [START, "", "| Collection | Path | Tracked | Completeness enforced by |",
+            "|---|---|---|---|"]
+    owners = {"sitemap": "linked from this page", "MEMORY.md": f"[`MEMORY.md`](../{MEMORY_INDEX})",
+              "count": "count only"}
+    for label, path, members, owner in collections(files):
+        rows.append(f"| {label} | [`{path}`](../{path}) | {len(members)} | {owners[owner]} |")
+    return "\n".join(rows + ["", END])
+
+
+def links(text: str, base: str) -> set[str]:
+    found = set()
+    for target in LINK.findall(text):
+        if re.match(r"^[a-z]+:|^#", target):
+            continue
+        path = target.split("#", 1)[0].rstrip("/")
+        if path:
+            found.add(_norm(f"{base}/{path}"))
+    return found
+
+
+def _norm(path: str) -> str:
+    parts: list[str] = []
+    for part in PurePosixPath(path).parts:
+        if part == "..":
+            if parts:
+                parts.pop()
+        elif part != ".":
+            parts.append(part)
+    return "/".join(parts)
+
+
+def problems(root: Path, text: str, files: list[str]) -> list[str]:
+    found = []
+    targets = links(text, "docs")
+    for label, _, members, owner in collections(files):
+        if owner != "sitemap":
+            continue
+        for member in members:
+            accepted = {member, str(PurePosixPath(member).parent)} if label == "Owned skills" else {member}
+            if not accepted & targets:
+                found.append(f"{member} is tracked but not linked from {SITEMAP} ({label})")
+    if MEMORY_INDEX in files:
+        indexed = links((root / MEMORY_INDEX).read_text(encoding="utf-8"), "config/ai/project-memory")
+        for member in collections(files)[1][2]:
+            if member not in indexed:
+                found.append(f"{member} is not listed in {MEMORY_INDEX}")
+    # Tracked, not on disk: a link to an ignored or uncommitted file passes
+    # locally and breaks on every fresh clone.
+    for target in sorted(targets):
+        if target not in files and not any(f.startswith(target + "/") for f in files):
+            found.append(f"{SITEMAP} links {target}, which is not tracked")
+    return found
+
+
+def render(text: str, block: str) -> str:
+    if START not in text or END not in text:
+        raise ValueError(f"{SITEMAP} has no inventory markers; add {START!r} and {END!r}")
+    head, rest = text.split(START, 1)
+    return head + block + rest.split(END, 1)[1]
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parent.parent)
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--check", action="store_true")
+    mode.add_argument("--stdout", action="store_true")
+    a = parser.parse_args()
+    root = a.root.resolve()
+    target = root / SITEMAP
+    try:
+        files = tracked(root)
+        current = target.read_text(encoding="utf-8")
+        fresh = render(current, render_block(files))
+    except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+        print(f"system-map: {exc}", file=sys.stderr)
+        return 2
+    if a.stdout:
+        sys.stdout.write(fresh)
+        return 0
+    if a.check:
+        issues = problems(root, current, files)
+        if current != fresh:
+            issues.insert(0, "inventory block is stale; run `system-map`")
+        for issue in issues:
+            print(f"system-map: {issue}", file=sys.stderr)
+        if issues:
+            return 1
+        print(f"system-map: {SITEMAP} is complete and current "
+              f"({sum(len(c[2]) for c in collections(files))} tracked members)")
+        return 0
+    target.write_text(fresh, encoding="utf-8")
+    print(f"system-map: wrote inventory in {SITEMAP}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

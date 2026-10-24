@@ -100,6 +100,8 @@ skill-remove-test
 skill-surface-check
 skill-surface-check-test
 skill-update-test
+system-map
+system-map-test
 tmux-battery
 tmux-battery-test
 tmux-clip

@@ -1,6 +1,6 @@
 ---
 name: formalinads-malaysia-gateway
-description: "FormalinADS Malaysia payment gateway identity is SenangPay, not DOKU — and current pivot direction is Malaysia-focused"
+description: "FormalinADS Malaysia payment gateway is senangPay, a DOKU company (DOKU Malaysia), distinct from the Indonesian DOKU gateway"
 metadata:
   node_type: memory
   type: project

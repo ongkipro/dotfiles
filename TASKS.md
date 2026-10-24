@@ -33,6 +33,20 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 
 ## Pending
 
+### TASK-141: Generated system-map inventory and coverage gate
+
+- **Requirement:** REQ-SYSTEM-MAP-ACCURACY (owner 2026-10-25: keep the sitemap tidy and precise; audit found 7 bin commands, 1 template, 14 top-level docs unlinked and 5 project memories missing from `MEMORY.md`).
+- **Risk Level:** R2.
+- **Allowed Paths:** `bin/system-map`, `bin/system-map-test`, `bin/ai-policy-lint`, `config/ai/runtime-commands.txt`, `docs/DOTFILES_SITEMAP.md`, `config/ai/project-memory/MEMORY.md`, `TASKS.md`, `CHANGELOG.md`, `STATUS.md`.
+- **Protected Paths:** pre-existing dirty work; CORE and adapters.
+- **Canonical Contract Owners:** sitemap -> `system-map`; project-memory index -> `MEMORY.md`.
+- **Accepted Invariants:** narrative stays hand-written; only the inventory block is rendered; one index per collection; `--check` writes nothing.
+- **Regression Checks:** `system-map-test`, `system-map --check`, `ai-policy-lint`, `skill-map --check`.
+- **Runtime Evidence:** `--check` fails on a seeded unlinked file and a broken link, then passes on the repository.
+- **Non-Scope:** rewriting curated narrative, commit/push.
+- **Reopen Conditions:** a tracked collection member can be added without the check failing.
+- **Escalation Conditions:** the check needs CORE or provider calls.
+
 ### TASK-139: Memory hygiene before publication
 
 - **Requirement:** REQ-MEMORY-HYGIENE (owner 2026-10-25: scan, validate, review and commit memory; repository is public).
