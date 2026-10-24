@@ -1,7 +1,7 @@
 # Device: `lenovo`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-10-22**
+> Terakhir diperbarui: **2026-10-24**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -22,15 +22,15 @@
 | CPU | 13th Gen Intel(R) Core(TM) i7-1355U (12 thread) |
 | RAM | 7.6 GB |
 | GPU | - |
-| Disk (/) | 1007G total, 950G free (1% used) |
+| Disk (/) | 1007G total, 945G free (2% used) |
 
 ## AI CLI
 
 | CLI | Status | Path |
 |---|---|---|
-| `claude` | terpasang | ~/.local/share/mise/installs/node/24.21.0/bin/claude |
-| `codex` | terpasang | ~/.local/share/mise/installs/node/24.21.0/bin/codex |
-| `pi` | terpasang | ~/.local/share/mise/installs/node/24.21.0/bin/pi |
+| `claude` | terpasang | ~/.local/share/mise/shims/claude |
+| `codex` | terpasang | ~/.local/share/mise/shims/codex |
+| `pi` | terpasang | ~/.local/share/mise/shims/pi |
 | `agy` | terpasang | ~/.local/bin/agy |
 | `omp` | — | — |
 
@@ -38,8 +38,8 @@
 
 | Tool | Versi |
 |---|---|
-| node | v24.21.0 |
-| pnpm | 12.14.0 |
+| node | v24.22.1 |
+| pnpm | 12.15.0 |
 | bun | 1.4.3 |
 | python3 | Python 3.14.4 |
 | mise | 2026.10.17 linux-x64 (2026-10-21) |
@@ -62,12 +62,12 @@
 | memori → claude | `~/.claude/CLAUDE.md` | ✅ ok |
 | memori → codex | `~/.codex/AGENTS.md` | ✅ ok |
 | memori → agy | `~/.gemini/GEMINI.md` | ✅ ok |
-| memori → omp | `~/.omp/agent/AGENTS.md` | — belum ada |
+| memori → omp | `~/.omp/agent/AGENTS.md` | ✅ ok |
 | skills → shared runtime | `~/.agents/local-skills` | ✅ ok |
 | skills → claude | `~/.claude/skills` | ✅ ok |
 | skills → pi | `~/.pi/agent/skills` | ✅ ok |
 | skills → agy | `~/.gemini/config/skills` | ✅ ok |
-| skills → omp | `~/.omp/agent/skills` | — belum ada |
+| skills → omp | `~/.omp/agent/skills` | ✅ ok |
 | OMP config | `~/.omp/agent/config.yml` | — belum ada |
 | OMP models | `~/.omp/agent/models.yml` | — belum ada |
 | OMP specialist agents | `~/.omp/agent/agents` | — belum ada |

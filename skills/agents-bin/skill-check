@@ -63,7 +63,7 @@ frontmatter_value() {
       value = $0
       sub("^" key ":[[:space:]]*", "", value)
       if (value ~ /^[>|][-+]?[[:space:]]*$/) { block = 1; next }
-      gsub(/^['\''\"]|['\''\"]$/, "", value)
+      gsub(/^['\''"]|['\''"]$/, "", value)
       print value
       exit
     }

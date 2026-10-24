@@ -47,8 +47,8 @@ else
 fi
 
 # ── 2) Clipboard tool (dipakai bin/tmux-clip) ─────────────────────────────────
-# macOS: pbcopy bawaan. Linux: butuh wl-clipboard (Wayland) atau xclip/xsel (X11).
-if [ "$OS" = "Linux" ] && ! have wl-copy && ! have xclip && ! have xsel; then
+# macOS: pbcopy bawaan. Linux: butuh wl-clipboard (Wayland), xclip/xsel (X11), atau clip.exe (WSL).
+if [ "$OS" = "Linux" ] && ! have wl-copy && ! have xclip && ! have xsel && ! have clip.exe; then
   say "Install clipboard tool (wl-clipboard + xclip)..."
   if   have apt-get; then $SUDO apt-get install -y wl-clipboard xclip || true
   elif have dnf;     then $SUDO dnf install -y wl-clipboard xclip || true
