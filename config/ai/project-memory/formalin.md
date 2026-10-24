@@ -8,7 +8,7 @@ metadata:
   modified: 2026-08-05T00:00:00.000Z
 ---
 
-Formalin — VolumX engine monorepo (Indonesian direct-response commerce). Checked out at `~/Projects/formalin` (since 2026-07-24).
+Formalin — VolumX engine monorepo (Indonesian direct-response commerce). Usual checkout path `~/Projects/formalin`; it is device-dependent, so confirm the path and `git remote -v` before use.
 
 - **Canonical repository:** `irwansyah10/formalin`; the verified `origin` points there. `ongkipro/formalin` is a docs-only ancestor.
 - **Verified active branch:** `main`, tracking `origin/main`.

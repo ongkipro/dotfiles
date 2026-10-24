@@ -67,7 +67,7 @@ metadata:
   - `/data/99ribu-berlapak-data/bin/berlapak-sync --sync` — Incremental sync: automatically downloads full product details, writes `products-md/<rank>-<slug>.md`, downloads all gallery + variant images, converts them to `.webp`, and refreshes curation & Google Catalog feeds.
 
 ## 7. Storefront Category Architecture & Google Catalog Mapping
-- **Problem Solved**: In Berlapak's raw data, **198 of 482 products (41.1%)** were dumped into `"Lainnya"`. All 482 products have now been reclassified into **12 clean `99ribu.com` Storefront Categories** (`0` items left in `"Lainnya"`) and mapped to **109 verified Official Google Product Taxonomy IDs** (`2021-09-21`, verified against `/data/99ribu-berlapak-data/data-json/google-product-taxonomy-en-US.txt`).
+- **Problem Solved**: In Berlapak's raw data, **198 of 482 products (41.1%)** were dumped into `"Lainnya"`. All 482 products have now been reclassified into **12 clean `99ribu.com` Storefront Categories** (`0` items left in `"Lainnya"`) and mapped to **109 valid Official Google Product Taxonomy IDs** (taxonomy release `2021-09-21`, matched against `/data/99ribu-berlapak-data/data-json/google-product-taxonomy-en-US.txt`).
 - **Key Files**:
   - `catalog-md/KATEGORI-PRODUK-DAN-GOOGLE-CATALOG-MAPPING.md` (and copy at `/home/ongki/Documents/work/research/99ribu-google-catalog-category-mapping.md`) — Full documentation of the 12 Storefront Categories, 36 Subcategories (`product_type`), 109 Google Product Taxonomy IDs, 26 Curated Bundles, and 482-product mapping table.
   - `categories-md/INDEX-KATEGORI.md` & `categories-md/01-*.md` .. `12-*.md` — 12 Storefront category Markdown files with Google Category IDs.

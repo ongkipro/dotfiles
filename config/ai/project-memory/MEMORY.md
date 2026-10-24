@@ -81,3 +81,5 @@
 - [Sync adsbookcms ↔ zanobyshop](adsbookcms-zanobyshop-sync.md) — update produk turun lewat `sync-from-product.sh`; temuan dari toko live naik sebagai issue, bukan tambalan lokal.
 - [Reven Leather Shopify HK Payments](revenleather-shopify-hk-payments.md) — Shopify Payments HK setup, USD base currency decision, and product naming/SEO invariant.
 - [Reven Leather Catalog & Price Data](revenleather-catalog-data.md) — locations of raw, harmonized, live-scraped (reven.id), and backup product price files in ~/Projects/revenleather.com.
+- [99ribu Berlapak catalog & asset vault](99ribu-berlapak-catalog.md) — `/data/99ribu-berlapak-data/`: Berlapak product data, bundling economics, warehouse hubs, local images, and the `berlapak-sync` CLI.
+- [99ribu `shop.com` UI/UX reference](99ribu-shop-com-ui-ux-pattern.md) — pointer to the research pack and the repo docs that own 99ribu design decisions.

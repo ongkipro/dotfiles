@@ -15,7 +15,7 @@ in `~/Downloads/Volumform-…`). Engine = **VolumX** (replaced the old term "Per
 
 ## ⚠️ TWO repos as of 2026-07-22 — check which one you are in
 - **`~/projects/formalin`** · GitHub `ongkipro/formalin` **PRIVATE** — **the greenfield project, docs only,
-  no code.** Created 2026-07-22 to develop from 0 via AI terminal. Holds the curated spec set: PRD, 13 ADRs,
+  no code.** Started from zero for development via AI terminal. Holds the curated spec set: PRD, 13 ADRs,
   architecture/data-model/RBAC, and four NEW specs written 22 Jul — `MERCHANT_CONSOLE.md` (teardown of
   competitor app.formulir.com), `DESIGN_SYSTEM.md` (Meta palette + the ID/EN language split),
   `CONVERSATIONS_PIPELINE.md` (WhatsApp CRM), `ORDER_CAPTURE_INDONESIA.md` (phone/COD/tracking rules audited

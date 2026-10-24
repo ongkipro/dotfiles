@@ -24,14 +24,24 @@
 - AdsBookCMS ships no merchant catalog or demo dataset by default (ADR-016); never copy Permatamall content, credentials, assets, or live-install policy into the product repository.
 - Repository `AGENTS.md`, `ARCHITECTURE.md`, `TASKS.md`, and `DECISIONS.md`
   own implementation, gaps, execution state, and history.
+- User-directed maintenance rule (2026-10-12): whenever a bug is found in
+  an AdsBookCMS-derived project, check whether its root cause belongs to the
+  shared product code. Shared fixes must also be implemented and verified in
+  the AdsBookCMS master repository; an install-only patch is incomplete. Keep
+  merchant-specific fixes in the install and never copy merchant data, assets
+  or credentials into the product. Commit, push and live rollout retain their
+  existing explicit approval gates.
 - Ad signal work routes to `meta-ads-signal-engine` and
   `google-ads-signal-engine`.
-- **Seven** live installs (each its own repo/Worker/D1/KV/R2 under
-  `~/Projects/`): merge-type on `install/<name>` (`git merge product/main`) —
+- Live installs (each its own repo/Worker/D1/KV/R2 under `~/Projects/`;
+  full list and count in project memory `adsbookcms-install-fleet`): merge-type on `install/<name>` (`git merge product/main`) —
   carukesi, skincarebpom, taniniaga, zvarashop, and beranda-tani
-  (`beranda.click`, stood up 2026-09-05); copy-type on `main` (apply the
+  (`beranda.click`, stood up 2026-09-05); revenleather merges on `main`
+  (`page.revenleather.com`, stood up 2026-09-29); copy-type on `main` (apply the
   product diff as a patch, never `wrangler.jsonc`/`RELEASE.md`) — permatamall,
-  zanobyshop. This file listed zvarashop as copy-type until 2026-09-05; it sits
+  zanobyshop. Pushing `main` in permatamall and zanobyshop deploys
+  through `.github/workflows/deploy.yml` — the push is the deploy; a manual
+  `npm run deploy` after it only deploys twice. This file listed zvarashop as copy-type until 2026-09-05; it sits
   on `install/zvarashop` and merges. Count installs by **unique Worker name**,
   not by directory: `permatamall-*` and `zvarashop-*` are worktrees of the same
   Worker, and by directory the number looks like 16.
