@@ -22,6 +22,7 @@ gh api repos/ongkipro/dotfiles --jq .visibility
   This is the second time the written history has been overtaken without a
   recorded flip, which is why the instruction at the top of this file is to
   check the live value rather than read this list.
+- **Public 2026-10-21.** Owner instruction (`gh repo edit --visibility public`).
 
 ## Why visibility is not a secrets boundary
 

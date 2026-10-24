@@ -13,6 +13,8 @@ Usage:
   ai-mcp-sync --check     report status, write nothing, non-zero if drift
   ai-mcp-sync --dotfiles P specify dotfiles repository root
 """
+from __future__ import annotations
+
 import argparse
 import json
 import os
