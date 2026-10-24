@@ -161,7 +161,10 @@ retains `behaviorResult: UNVERIFIED` and `semanticReview: REQUIRED`.
 
 A separate reviewer must inspect replies for contradictions, lost constraints,
 invented execution and natural language quality against case rubrics. Flags are
-self-reported choices, not observed tool actions. The opt-in
+self-reported choices, not observed tool actions. Optional `guidanceRead` lists the
+files a participant says it opened; failed cases are labeled by whether an
+expected owner's `SKILL.md` was among them, and an unreported list stays
+`unavailable`. The opt-in
 [execution lane](ai-execution-evaluation.md) checks a local UI/API/SQLite journey;
 use project-native assertions for actual application completion claims.
 This evaluation does not replace delivery-ledger or delivery-benchmark telemetry.

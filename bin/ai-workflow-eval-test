@@ -67,6 +67,32 @@ class EvaluationTests(unittest.TestCase):
         cases['webhook-retry']['steps'].remove('check-auth')
         self.assertEqual(self.grade(data)[1], 1)
 
+    def test_guidance_read_labels_failures_without_changing_results(self):
+        data = self.response()
+        case = next(c for c in data['cases'] if c['id'] == 'tenant-order-bug')
+        case['steps'].remove('check-persistence')
+        report, rc = self.grade(data)
+        self.assertEqual(rc, 1)
+        self.assertEqual(report['provenance']['guidanceRead'], 'unavailable: not reported')
+        self.assertNotIn('guidance', next(r for r in report['cases'] if r['id'] == 'tenant-order-bug'))
+        data['guidanceRead'] = ['config/ai/CORE.md']
+        report, rc = self.grade(data)
+        failed = next(r for r in report['cases'] if r['id'] == 'tenant-order-bug')
+        self.assertEqual((rc, failed['result'], failed['guidance']), (1, 'FAIL', 'expected-owner-unread'))
+        data['guidanceRead'].append('./skills/local/full-stack-development/SKILL.md')
+        failed = next(r for r in self.grade(data)[0]['cases'] if r['id'] == 'tenant-order-bug')
+        self.assertEqual(failed['guidance'], 'expected-owner-read')
+        passed = next(r for r in self.grade(data)[0]['cases'] if r['id'] == 'status-not-edit')
+        self.assertNotIn('guidance', passed)
+
+    def test_guidance_read_rejects_malformed_paths(self):
+        for bad in ['CORE.md', [1], ['/etc/passwd'], ['../x/SKILL.md'], ['skills/../../x'], ['a\\b'], [''], [' '],
+                    ['C:/x'], ['~/x'], ['file:///etc'], ['%2e%2e/x']]:
+            data = self.response()
+            data['guidanceRead'] = bad
+            with self.subTest(bad=bad):
+                with self.assertRaises(ValueError): self.grade(data)
+
     def test_missing_response_cannot_pass(self):
         data = self.response(); data['cases'].pop()
         report, rc = self.grade(data)

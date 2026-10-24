@@ -8,6 +8,7 @@ Only execution-check runs candidate code, on synthetic local data. No model call
 import argparse
 import hashlib
 import json
+import posixpath
 from pathlib import Path
 import runpy
 import sys
@@ -80,13 +81,13 @@ def instruction_revision(root):
 
 def prompt(suite, suite_hash, revision, owners):
     return {
-        'task': 'Decision-only evaluation. Read the relevant shared guidance, then answer each conversation. Do not execute the simulated actions. Select only relevant owners and steps. Reply naturally in the user language, retaining constraints and uncertainty. Return one JSON object using responseSchema. Do not claim the simulated work was executed.',
+        'task': 'Decision-only evaluation. Read the relevant shared guidance, then answer each conversation. Do not execute the simulated actions. Select only relevant owners and steps. Reply naturally in the user language, retaining constraints and uncertainty. Return one JSON object using responseSchema; list in guidanceRead every guidance file you actually opened, repository-relative. Do not claim the simulated work was executed.',
         'suiteHash': suite_hash, 'instructionRevision': revision,
         'choices': {'intent': INTENTS, 'owners': owners, 'steps': STEPS},
         'responseSchema': {
             'suiteHash': suite_hash, 'instructionRevision': revision,
             'runtime': '<actual runtime>', 'model': '<actual ID or unavailable: reason>',
-            'mode': 'decision-only',
+            'mode': 'decision-only', 'guidanceRead': ['<repo-relative path actually opened>'],
             'cases': [{'id': '<case ID>', 'intent': '<one intent>', 'owners': ['<owner>'],
                        'steps': ['<step>'], 'reply': '<natural response; no hidden reasoning>'}],
         },
@@ -102,6 +103,13 @@ def grade(suite, suite_hash, revision, owners, data):
     for key in ('runtime', 'model'):
         if not isinstance(data.get(key), str) or not data[key].strip():
             raise ValueError(f'{key} provenance required; use unavailable: reason if not exposed')
+    read = data.get('guidanceRead')
+    if read is not None:
+        if not isinstance(read, list) or any(not isinstance(p, str) or not p.strip() or '\\' in p for p in read):
+            raise ValueError('guidanceRead must be a list of repository-relative paths')
+        read = sorted({posixpath.normpath(p) for p in read})
+        if any(p.startswith(('/', '~', '..')) or ':' in p or '%' in p for p in read):
+            raise ValueError('guidanceRead must be a list of repository-relative paths')
     responses = data.get('cases')
     if not isinstance(responses, list):
         raise ValueError('cases must be a list')
@@ -136,11 +144,18 @@ def grade(suite, suite_hash, revision, owners, data):
             errors.append('missing steps: ' + ', '.join(sorted(missing)))
         if forbidden:
             errors.append('forbidden steps: ' + ', '.join(sorted(forbidden)))
-        results.append({'id': case['id'], 'result': 'FAIL' if errors else 'PASS',
-                        'errors': errors, 'semanticRubric': case['rubric']})
+        result = {'id': case['id'], 'result': 'FAIL' if errors else 'PASS',
+                  'errors': errors, 'semanticRubric': case['rubric']}
+        if errors and read is not None:
+            # Self-reported label only: separates unread guidance from weak guidance; never changes the result.
+            skills = [f'skills/local/{o}/SKILL.md' for o in exp['owners_any'] if o in owners and o != 'repository']
+            result['guidance'] = ('not-applicable' if not skills else
+                                  'expected-owner-read' if set(skills) & set(read) else 'expected-owner-unread')
+        results.append(result)
     status = 'FAIL' if any(r['result'] == 'FAIL' for r in results) else 'UNVERIFIED' if any(r['result'] == 'UNVERIFIED' for r in results) else 'PASS'
     report = {'decisionResult': status, 'behaviorResult': 'UNVERIFIED', 'semanticReview': 'REQUIRED',
-              'provenance': {k: data[k] for k in ('runtime', 'model', 'mode')},
+              'provenance': {**{k: data[k] for k in ('runtime', 'model', 'mode')},
+                             'guidanceRead': len(read) if read is not None else 'unavailable: not reported'},
               'suiteHash': suite_hash, 'instructionRevision': revision, 'cases': results,
               'limitations': 'Self-reported decisions only. Inspect replies independently for contradictions, language, and scope. No tools, product flows, or provider reliability were exercised.'}
     return report, {'PASS': 0, 'FAIL': 1, 'UNVERIFIED': 2}[status]

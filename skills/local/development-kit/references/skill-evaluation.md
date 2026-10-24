@@ -76,6 +76,12 @@ updates do not. It does not fingerprint arbitrary external docs or tool binaries
 It invokes no provider and runs no simulated action. See
 [system procedures](../../../../docs/adaptive-ai-system.md) for trial/review usage.
 
+Participants report `guidanceRead`, the guidance files they actually opened.
+A failed case is then labeled `expected-owner-read` or `expected-owner-unread`;
+the label never changes the result. Only failures with the owner read are
+evidence about that skill body; unread failures measure discovery
+(descriptions) or participant diligence.
+
 A decision PASS still leaves behavior UNVERIFIED and semantic review REQUIRED.
 Review natural-language replies against each case rubric for contradictory
 actions, lost constraints and invented evidence; structured flags are not truth.
