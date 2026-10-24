@@ -1,14 +1,14 @@
 ---
 name: development-kit
 description: >-
-  Route an idea, feature, or existing repository through the canonical
-  product, specification, UX, visual design, implementation, verification, and
-  release owners without competing documents. Not a substitute for specialist
-  methodology or approval. Use when the user asks for the development kit, a
-  complete development workflow, which skills or Markdown artifacts to use, or
-  how planning should hand off to UI/UX and full-stack delivery. Also routes
-  safe extraction from an explicitly supplied worked example. It does not
-  implement.
+  Route ideas, features, repositories, and AI skill-system changes through
+  canonical product, spec, UX, implementation, verification, and release
+  owners. Not specialist methodology or approval. Use for the development kit,
+  which skills or Markdown artifacts apply, auditing or improving dotfiles
+  skills and workflows, onboarding a new AI CLI, adopting upstream patterns,
+  research-only workflow questions, or handing planning to UI/UX and full-stack
+  delivery. Also routes safe extraction from a supplied worked example. It does
+  not implement.
 ---
 
 # Development Kit Control Plane
@@ -53,8 +53,10 @@ an action outside it. Research, review, and planning alone do not authorize code
   goes to `full-stack-development`. Do not require a new PRD or repeat an
   implementation permission question. A status request only reports evidence.
 - **Skill-system audit or improvement:** keep the existing owner and evaluation
-  contract; use a runtime-native `skill-creator` only when available. Research
-  does not require a product spec pack.
+  contract; use a runtime-native `skill-creator` only when available. Pin
+  upstream sources, compare with the existing owner, stay inside the requested
+  scope, run regression checks, and get an independent review before claiming
+  improvement. Research does not require a product spec pack or authorize edits.
 - **Unsettled behavior or requested planning:** choose one lane below, then
   hand accepted work to delivery within the user's existing authorization.
 

@@ -38,3 +38,26 @@ Label each extracted item before reuse:
 - **Current-source required** — law, tax, vendor API, regional availability, pricing, quota, certification, or market fact; retrieve again for the target context.
 
 If a request spans several concerns, route the top-level accepted implementation through `full-stack-development`. Do not use this map to bypass product acceptance, repository authority, or specialist review.
+
+## Professional engineering-kit concerns
+
+Generic kits often prescribe one file per concern (`TESTING.md`, `THREAT-MODEL.md`,
+`RUNBOOK.md`, `agents/<role>.md`). Map each concern to its existing home instead;
+fill a section only when the concern applies.
+
+| Concern | Standalone repository | Suite pack | Owner |
+|---|---|---|---|
+| Requirements, user stories, acceptance | `PRD.md` `REQ-*` with Given/When/Then | `02-PRD.md` | `prd-taskbreaker` |
+| Quality attributes and performance budget | `PRD.md` "Quality attributes" | `NFR-*` rows | `prd-taskbreaker`; `web-perf` measures |
+| Architecture and decisions | `ARCHITECTURE.md` (as built), `DECISIONS.md`, `docs/adr/` | `03`/`04` | `adr-record` for costly decisions |
+| Threat model | `ARCHITECTURE.md` "Threats and controls" | `12-SECURITY-ARCHITECTURE.md` | `application-security` |
+| Test strategy and definition of done | `AGENTS.md` "Test strategy", "Definition of done"; per-task Verification in `TASKS.md` | same | `testing-engineering` |
+| Runbook, rollback, incident note | `OBSERVABILITY.md` "Runbook", `RELEASE.md` rollback, `BUILD-LOG.md` | `14-SLA-DRP.md`, `15-DEVOPS-CICD-MIGRATIONS.md`, `16-OBSERVABILITY-RATE-LIMITING.md` | deploy owner; `observability-engineering` |
+| CI/CD | workflow files plus `RELEASE.md` | `15-DEVOPS-CICD-MIGRATIONS.md` | `github-actions` |
+| Agent roles and workflows | skills routed by this kit; no persona files | same | `development-kit`, `cross-cli` for independent review |
+| Roadmap | not created by default | `01-BRD.md` | `product-intelligence` when direction is open |
+
+Persona agent files are deliberately absent: measured persona prompting showed
+no consistent accuracy gain, and long always-loaded context files raised cost
+without reliable success gains (sources in
+`docs/research/development-kit-audit-2026-10-25.md`).

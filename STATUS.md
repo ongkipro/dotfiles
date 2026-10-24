@@ -1,6 +1,6 @@
 # Status — dotfiles
 
-Updated: 2026-10-24
+Updated: 2026-10-25
 Status: Active configuration repository
 State: READY
 
@@ -31,6 +31,12 @@ backup, memory/MCP/Pi, delivery checks, Meta state, scanner/updater and CI.
 source adoption and limitations. Final local aggregate: 77/77 PASS; the ledger
 owns completion and independent review evidence. Hosted CI/macOS and live
 operations remain outside this local result.
+
+TASK-137 and TASK-138 refine the development kit: conditional template
+sections, routing descriptions, and guidance-read labels in `ai-workflow-eval`.
+Sources, trials, and open items:
+[development-kit audit](docs/research/development-kit-audit-2026-10-25.md).
+TASK-139 tracks memory hygiene; TASK-140 is the pending Codex trial.
 
 ## Verification evidence
 

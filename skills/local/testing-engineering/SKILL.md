@@ -39,6 +39,10 @@ change. It may coordinate several layers, but it does not replace specialists:
 - Apply `native-first` before adding a runner, assertion library, DOM environment,
   container harness, or mocking package. Installed stack and project scripts win.
 
+The repository-level strategy lives in the `AGENTS.md` "Test strategy" table
+(layer, command, real versus substituted dependencies). Update it when a layer,
+runner, or substitution changes; do not create a separate `TESTING.md`.
+
 ## 1. Inspect before choosing a test
 
 1. Read repository instructions, the task/specification, and the complete changed

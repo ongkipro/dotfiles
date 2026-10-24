@@ -65,6 +65,8 @@ Create a compact model before reviewing controls:
 
 Prioritize exposed, reachable paths with meaningful confidentiality, integrity, financial, tenant, approval, or availability impact. Do not inflate severity from a scanner label alone. Report location, preconditions, path, impact, evidence, remediation invariant, and verification result.
 
+Persist the accepted model where the repository already keeps it: `ARCHITECTURE.md` "Threats and controls" in a standalone repository, `12-SECURITY-ARCHITECTURE.md` in a suite pack. Each row is a real component, a STRIDE-style threat, a response (mitigate, eliminate, transfer, or accept with reason and owner), and the enforcing file and test. Pick the verification depth explicitly by risk: OWASP ASVS L1 is the starting point, ASVS 5.0 expects most applications to strive for L2, and high-assurance financial systems need L3; the L2 trigger for authentication or personal data is a local policy choice.
+
 ## Control implementation
 
 ### Identity, authorization, and tenancy

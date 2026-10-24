@@ -315,7 +315,9 @@ subset marked *checked*):
 - [ ] Every action has validation, pending, success, and error/recovery
       behavior, and a defined next screen.
 - [ ] NFR/performance targets are plausible for the chosen hosting and its
-      limits (cold starts, quotas, region).
+      limits (cold starts, quotas, region). In a standalone repository they live
+      in the `PRD.md` "Quality attributes" table, keeping only applicable rows,
+      each with an enforcing command.
 - [ ] No task implements a non-goal; every task traces to an accepted `REQ-*`
       (*checked: unresolved requirement and orphan accepted requirement*).
 - [ ] Every `Must` requirement has a Given/When/Then acceptance line

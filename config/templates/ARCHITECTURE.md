@@ -23,6 +23,20 @@ Architecture is not documented yet. Inspect the repository and describe only com
 
 Record system boundaries, trust boundaries, external integrations, and ownership before adding diagrams.
 
+## Threats and controls
+
+Not assessed yet. Required once the system handles authentication, payments,
+personal or tenant data, uploads, webhooks, or server-side fetches of
+user-supplied URLs; otherwise state `Not applicable: <reason>`. Answer what can go wrong at each
+boundary above and what the system does about it:
+
+| Boundary or component | Threat (STRIDE category) | Response: mitigate / eliminate / transfer / accept | Enforced in, tested by |
+|---|---|---|---|
+| [Real component] | [What goes wrong] | [Response; accepted risk names reason and owner] | [File and test] |
+
+Each row names a component that exists in this repository. Revisit when a
+boundary, data class, or integration changes.
+
 ## Data
 
 Record authoritative data stores, invariants, migration constraints, and retention requirements when present.

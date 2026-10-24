@@ -1,7 +1,7 @@
 # Dotfiles Sitemap & Engineering Dictionary
 
 > **Universal Page-by-Page Development Map for `ongkipro/dotfiles`**
-> Updated: 2026-10-24 | Scope: Full Repository Topology, AI Control Plane, Memory, Skills, CLI Binaries, Devices, and Templates.
+> Updated: 2026-10-25 | Scope: Full Repository Topology, AI Control Plane, Memory, Skills, CLI Binaries, Devices, and Templates.
 
 ---
 
@@ -244,7 +244,7 @@ Dotfiles hosts 77 specialized capabilities grouped into 11 distinct domains (`sk
 ### 6.9 Planning & Specification
 - [`prd-taskbreaker`](../skills/local/prd-taskbreaker/SKILL.md): Transforms features into numbered PRDs and runnable task queues.
 - [`development-spec-suite`](../skills/local/development-spec-suite/SKILL.md): Multi-domain enterprise specification packs.
-- [`development-kit`](../skills/local/development-kit/SKILL.md): Router mapping tasks to specialized skills and lifecycles.
+- [`development-kit`](../skills/local/development-kit/SKILL.md): Router mapping tasks, skill-system changes, CLI onboarding, and upstream adoption to specialized skills and lifecycles; `references/reference-map.md` maps professional-kit concerns to existing homes.
 - [`adr-record`](../skills/local/adr-record/SKILL.md): Architectural Decision Record generation.
 - [`mermaid-diagram`](../skills/local/mermaid-diagram/SKILL.md): Flowcharts, ERDs, sequence diagrams, and architecture graphs.
 - [`product-intelligence`](../skills/local/product-intelligence/SKILL.md): Market viability, pricing analysis, and product scope research.
@@ -341,6 +341,7 @@ Managed by `bin/device-register`, documenting exact hardware and OS specs:
 | [`irwansyahs-MacBook-Air.md`](../devices/irwansyahs-MacBook-Air.md) | Apple MacBook Air (M4, 16GB RAM) | macOS 26.5 | Irwansyah's primary machine |
 | [`feris-MacBook-Air.md`](../devices/feris-MacBook-Air.md) | Apple MacBook Air (M1, 8GB RAM) | macOS 26.5 | Secondary macOS workstation |
 | [`Olans-MacBook-Pro.md`](../devices/Olans-MacBook-Pro.md) | Apple MacBook Pro (M2, 8GB RAM) | macOS 26.5 | Secondary macOS workstation |
+| [`lenovo.md`](../devices/lenovo.md) | Intel i7-1355U, 7.6 GB RAM | Ubuntu 26.04.1 LTS on WSL2 | Windows-hosted Linux dev environment |
 
 ---
 
@@ -360,13 +361,13 @@ Managed by `bin/device-register`, documenting exact hardware and OS specs:
 ## 10. Project Scaffolding Templates (`config/templates/`)
 
 Standardized contract files copied to the root of every new project by `project-init`:
-- [`AGENTS.md`](../config/templates/AGENTS.md): Project-level AI operating guidelines.
-- [`PRD.md`](../config/templates/PRD.md): Product requirements template with EARS-style requirements.
+- [`AGENTS.md`](../config/templates/AGENTS.md): Project-level AI operating guidelines, Test strategy table, and Definition of done.
+- [`PRD.md`](../config/templates/PRD.md): Product requirements template with EARS-style requirements and a conditional Quality attributes menu (Web Vitals, ASVS level, WCAG, latency, recovery).
 - [`TASKS.md`](../config/templates/TASKS.md): Executable task queue structure.
 - [`STATUS.md`](../config/templates/STATUS.md): Current build, test, and release state.
-- [`ARCHITECTURE.md`](../config/templates/ARCHITECTURE.md): As-built architecture log.
+- [`ARCHITECTURE.md`](../config/templates/ARCHITECTURE.md): As-built architecture log with a conditional Threats and controls table.
 - [`DECISIONS.md`](../config/templates/DECISIONS.md): Architectural decision records.
-- [`OBSERVABILITY.md`](../config/templates/OBSERVABILITY.md): Logging and metrics contract.
+- [`OBSERVABILITY.md`](../config/templates/OBSERVABILITY.md): Probe contract plus a Runbook for probes whose failure needs more than the rollback command.
 - [`RELEASE.md`](../config/templates/RELEASE.md): Deployment and release log.
 
 

@@ -1,9 +1,9 @@
 ---
 name: full-stack-development
 description: >-
-  Orchestrate production full-stack feature delivery when implementation spans
-  multiple application layers or an accepted feature must be carried end to
-  end. Not for a single settled specialist task, product discovery alone, or
+  Orchestrate production full-stack feature delivery or bug repair when work
+  spans multiple application layers or an accepted feature must be carried end
+  to end. Not for a single settled specialist task, product discovery alone, or
   generic architecture. Covers product contracts, frontend, backend, data,
   IAM, API, security, testing, observability, CI, and runtime evidence. Routes
   only the smallest relevant specialist set, preserves planning and release
@@ -80,7 +80,11 @@ boundary whose observed result violates the accepted contract. Compare a working
 path, test one supported cause with the smallest failing check, then fix that
 cause and rerun the real path. If the hypothesis fails, gather new evidence
 before adding another patch; do not replace diagnosis with a retry quota. Use
-redacted observations rather than raw payloads or credentials.
+redacted observations rather than raw payloads or credentials. A repair that
+crosses a trust or data boundary checks both sides even when the symptom names
+one: who is authorized or verified (session, tenant membership, provider
+signature) and what is durably written (transaction, idempotency, duplicate or
+partial state), each proven on the real path.
 
 When the installed framework has no dedicated skill, use its version-matched
 official docs and the activated domain owners. Keep the project's stack and test

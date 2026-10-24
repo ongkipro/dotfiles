@@ -82,15 +82,15 @@ repository root:
 
 ```text
 README.md
-AGENTS.md
-PRD.md        # suite packs use an index to docs/spec/02-PRD.md
+AGENTS.md     # repo rules, Test strategy, Definition of done
+PRD.md        # suite packs use an index to docs/spec/02-PRD.md; Quality attributes menu
 TASKS.md      # canonical repository execution queue
 STATUS.md
 DECISIONS.md
 RELEASE.md
-OBSERVABILITY.md
+OBSERVABILITY.md  # probes and Runbook
 BUILD-LOG.md
-ARCHITECTURE.md
+ARCHITECTURE.md   # as-built record and Threats and controls
 .delivery/
 ```
 

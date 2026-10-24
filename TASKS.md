@@ -1,6 +1,6 @@
 # Tasks — dotfiles
 
-Updated: 2026-10-24
+Updated: 2026-10-25
 
 The sole executable queue. Completed contracts live under `docs/archive/`;
 repository tests and runtime evidence outrank prose.
@@ -12,6 +12,10 @@ R1 stays bounded; R2 names its surface; R3/R4 add protected surfaces and review.
 Only the dependency edge is human-authored; state is derived.
 
 ## Done
+
+- TASK-138, TASK-137: [Development-kit audit and eval guidance provenance](docs/archive/DOTFILES_TASKS_2026-10-25_DEVELOPMENT_KIT.md).
+
+- TASK-136, TASK-135: [Whole-system reliability and hosted CI repair](docs/archive/DOTFILES_TASKS_2026-10-24_WHOLE_SYSTEM.md).
 
 - TASK-132, TASK-131, TASK-128: [Command migration, canonical naming, and reference routing](docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md).
 
@@ -27,35 +31,30 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 
 - TASK-134, TASK-133: [Verified automation, skill audit, and system map](docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md).
 
-### TASK-135: Whole-system reliability and community evidence
-
-- **Requirement:** REQ-WHOLE-SYSTEM-HARDENING (owner authorizes implementation and review of the 2026-10-24 whole-system audit, with community experience, updated docs, log, and system map).
-- **Risk Level:** R3.
-- **Allowed Paths:** precise parent/child boundaries in `RUN-20261024T093836Z-08b11229`; installer/shell/backup, memory/MCP/Pi, release/project/resume checks, Meta state, secret scanner, vendored refresh, Node pin, CI, runtime manifest, and their tests and documentation.
-- **Protected Paths:** unrelated pre-existing edits, credentials, provider choices, live APIs and services.
-- **Canonical Contract Owners:** system migration -> installers/linker; memory -> existing memory commands; delivery evidence -> ledger; Meta workflow -> `dotads-meta`; sources -> research evidence document.
-- **Accepted Invariants:** preserve foreign/user data; distinguish failure from no-op; bind state to account and parents; serialize apply; preserve private file permissions; verify canonical evidence; no false success from missing checks; community claims require official corroboration or local reproduction.
-- **Regression Checks:** affected command suites, negative fixtures, syntax/workflow/policy checks, complete core self-test, independent review and final boundary.
-- **Runtime Evidence:** final Linux aggregate 77/77 PASS under Node24.22.1/Pillow13.0.0, focused review regressions and independent reviews PASS; parent run `RUN-20261024T093836Z-08b11229`. Hosted CI/macOS and live operations remain unverified.
-- **Non-Scope:** checkpoint/mobile access, Google/TikTok operations, automatic services, production calls, credentials, commit/push.
-- **Reopen Conditions:** regression of findings F1–F9 or W1–W16; documentation claims exceed executed evidence.
-- **Escalation Conditions:** unrelated user work, system or production changes become necessary.
-
-### TASK-136: Repair hosted Linux/macOS CI after whole-system hardening
-
-- **Requirement:** REQ-CROSS-PLATFORM-CI-REPAIR (owner requests investigation, fixes and refinement for failing hosted gates on remote f96b8d5).
-- **Risk Level:** R3.
-- **Allowed Paths:** memory telemetry, workflow evaluation/toolchain helper and tests; Meta/link/recall regression suites; Core runtime workflow; TASKS/STATUS/CHANGELOG/system map/reliability evidence docs; exact parent and child boundaries in the delivery run.
-- **Protected Paths:** unrelated local memory/design edits and config/tmux.conf; credentials, providers, services and live advertising.
-- **Canonical Contract Owners:** telemetry -> ai-memory-access; execution evidence -> ai-workflow-eval; runtime discovery -> _toolchain-path.sh; regression portability -> existing suites.
-- **Accepted Invariants:** identical Linux/macOS semantics, symlink/hardlink guards retained, actual errors remain failures, no optional dependency masquerades as product failure, user edits survive synchronization.
-- **Regression Checks:** failing suites, negative trust-boundary fixtures, real Git-index snapshot checks, policy/workflow/syntax, aggregate self-test and independent review; hosted results only when actually observed.
-- **Runtime Evidence:** local Linux aggregate 77/77 PASS; real browser workflow30/30 PASS; independent portability review PASS; run `RUN-20261024T110436Z-6716ffde`. Hosted confirmation is checked separately after publication.
-- **Non-Scope:** weakening security or assertions, secrets, runtime/provider changes, services, checkpoint/mobile features.
-- **Reopen Conditions:** a runner-specific regression returns or a skipped check is called verified.
-- **Escalation Conditions:** an unrelated user edit, system install or live action becomes necessary.
-
 ## Pending
+
+### TASK-139: Memory hygiene before publication
+
+- **Requirement:** REQ-MEMORY-HYGIENE (owner 2026-10-25: scan, validate, review and commit memory; repository is public).
+- **Risk Level:** R1.
+- **Allowed Paths:** the six project-memory files flagged by `ai-memory-hygiene`, `TASKS.md`.
+- **Protected Paths:** other memory files; credentials.
+- **Canonical Contract Owners:** memory -> `ai-memory-hygiene`.
+- **Accepted Invariants:** re-measure or reduce dated claims to timeless facts; no secret, address, or new client data.
+- **Regression Checks:** `ai-memory-hygiene`, `ai-memory-check`, `security-check`, `ai-policy-lint`.
+- **Runtime Evidence:** HEAD requests for re-measured domain claims.
+- **Non-Scope:** push.
+- **Reopen Conditions:** a rewritten line changes meaning.
+- **Escalation Conditions:** a claim cannot be re-measured or safely generalized.
+
+### TASK-140: Codex decision trial (not before 2026-10-31)
+
+- **Requirement:** REQ-EVAL-GUIDANCE-PROVENANCE (owner reminder; Codex usage limit resets 2026-10-31).
+- **Risk Level:** R0.
+- **Allowed Paths:** `docs/research/development-kit-audit-2026-10-25.md`, `TASKS.md`.
+- **Accepted Invariants:** read-only `codex exec`; record `guidanceRead` and the actual model.
+- **Regression Checks:** `ai-workflow-eval grade`.
+- **Non-Scope:** provider purchases, commit/push.
 
 ### TASK-097: Mutation gaps left after TASK-080
 

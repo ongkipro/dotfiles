@@ -29,3 +29,21 @@ Probe: database|https://example.com/health/db|200-299|ok|750
 Probe: background-jobs|https://example.com/health/workers|200-299|ok|1000
 Probe: critical-errors|https://example.com/health/errors|200-299|critical_errors=0|1000
 ```
+
+## Runbook
+
+No runbook entry exists yet. Add one for each probe or alert whose failure needs
+more than `RELEASE.md` Rollback-Command; when an entry becomes a fixed command
+sequence, move it into a script and name the script.
+
+```text
+### <probe-name>
+- Symptom and impact:
+- Check: <command or URL>
+- Mitigation:
+- Rollback: RELEASE.md Rollback-Command; migration phase (expand/migrate/contract) and whether it reverses
+- Escalation: <owner or provider status page>
+```
+
+After user-visible downtime, data loss, or a manual rollback, add a short
+blameless note to `BUILD-LOG.md`: impact, cause, fix, and the check that now catches it.

@@ -6,6 +6,27 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-24
 
+### Decision-trial guidance provenance (TASK-138)
+
+- `ai-workflow-eval` accepts optional self-reported `guidanceRead` and labels each
+  failed case `expected-owner-read` or `expected-owner-unread`; results are
+  unchanged; paths are normalized, deduplicated, and traversal, absolute, home,
+  drive, or URL forms fail closed.
+- `development-kit` states pinning, scope, regression checks, and independent
+  review for skill-system changes after one read-labeled trial per revision
+  pointed to that gap (self-reported, not a reliability rate).
+
+### Development-kit completeness audit (TASK-137)
+
+- Standalone templates gain conditional sections instead of new files: `PRD.md`
+  Quality attributes, `ARCHITECTURE.md` Threats and controls, `AGENTS.md` Test
+  strategy and Definition of done, `OBSERVABILITY.md` Runbook.
+- `development-kit` description names skill-system improvement, CLI onboarding,
+  upstream adoption, and research-only questions; `full-stack-development`
+  covers cross-layer repair and checks both authorization and persistence.
+- Sources, decision trials, and open items:
+  `docs/research/development-kit-audit-2026-10-25.md`.
+
 ### Cross-platform CI repair (TASK-136)
 
 - Integrated remote WSL/device updates while preserving all unrelated local edits.

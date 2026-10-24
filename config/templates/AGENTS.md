@@ -34,3 +34,21 @@ plan or supersede its decision rather than leaving two current claims.
 Delivery metrics are optional immutable sidecars under `.delivery/metrics/`. Use `delivery-benchmark` to record them after a run finishes and to compare model reliability/cost empirically. Benchmark recommendations are advisory only. Do not rewrite routing from a small sample, do not select a cheaper model below the configured reliability floor, and never auto-downgrade R3/R4 work from benchmark output.
 
 Inspect the repository's actual configuration before adding stack-specific rules. Disk and executable behavior override stale documentation. Production readiness must be proven by the repository gates; never infer it from prose alone. `production-gate` also requires `delivery-ledger verify` to pass before a release is production-ready.
+
+## Test strategy
+
+Not recorded yet. Once the first runner exists, list only commands that actually run:
+
+| Layer | Command | Real versus substituted dependencies |
+|---|---|---|
+| Static | [typecheck/lint] | None |
+| Unit | [command] | [What is mocked] |
+| Integration | [command] | [Real DB/HTTP where code serializes; no in-memory stand-in for the production engine] |
+| Browser | [command] | [Critical journeys only] |
+
+## Definition of done
+
+On top of each task's acceptance and Verification: the commands above that cover
+the changed surface pass, and applicable `PRD.md` quality attributes,
+`ARCHITECTURE.md` threats, and `OBSERVABILITY.md` runbook entries are updated or
+confirmed unchanged.

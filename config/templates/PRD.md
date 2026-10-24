@@ -52,6 +52,22 @@ Requirement format (EARS statement, MoSCoW priority, one Given/When/Then per req
 
 Per-requirement Given/When/Then lives under each `REQ-*` above. Record here only release-level acceptance that spans requirements.
 
+## Quality attributes
+
+No quality targets are accepted yet. The table is a menu: keep only rows that
+apply. Accepting a row means writing its target as a ubiquitous `REQ-*` ("The
+<surface> shall …") and citing that ID here; the requirement holds the value, this
+table only routes it. A target with no enforcing command is a wish, not a requirement.
+
+| Attribute | Candidate target | Measured by | Enforced by | REQ |
+|---|---|---|---|---|
+| Web vitals (field p75, mobile and desktop) | LCP ≤ 2.5 s, INP ≤ 200 ms, CLS ≤ 0.1 | CrUX/RUM; before traffic, lab LCP and CLS with TBT as the INP proxy | [CI step or command] | — |
+| JavaScript budget per page type | [KB compressed] | Bundle report | [CI step] | — |
+| Backend latency | [pN of <endpoint> < X ms] | [Load test or metrics] | [Command] | — |
+| Availability and recovery | [SLO, RPO/RTO] | `OBSERVABILITY.md` probes | [Probe] | — |
+| Security verification level | OWASP ASVS L1 baseline; L2 for most production apps with auth or personal data; L3 for high-assurance financial apps (local policy) | `ARCHITECTURE.md` threats | [Tests] | — |
+| Accessibility | WCAG 2.2 AA | axe and keyboard pass | [Browser check] | — |
+
 ## Open questions
 
 Capture only questions whose answers materially change product behavior or architecture, including contradictions found by the consistency review.
