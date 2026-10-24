@@ -192,4 +192,18 @@ esac
 echo "upstream drifted again" >> "$UP/split/SKILL.md"
 run >/dev/null && fail 'a full sweep must exit non-zero when a split skill diverged'
 
+# A partial multi-file fetch preserves the entire previous skill and its date.
+printf 'unavailable local reference\n' > "$SAND/plain/z-missing.md"
+printf 'upstream newer again\n' > "$UP/plain/SKILL.md"
+out="$(run plain)" && fail 'partial download reported success'
+[ "$(cat "$SAND/plain/SKILL.md")" = "new upstream content" ] || fail 'partial download installed some files'
+grep -q '^vendored: 2000-01-01' "$SAND/plain/.source" || fail 'partial download advanced date'
+case "$out" in *'done (up-to-date)'*) fail 'failed download claims up-to-date' ;; esac
+rm "$SAND/plain/z-missing.md"
+# Transport errors differ from a genuine missing upstream file.
+mkdir -p "$TMP/mock"
+printf '#!/bin/sh\nexit 7\n' > "$TMP/mock/curl"; chmod +x "$TMP/mock/curl"
+out="$(PATH="$TMP/mock:$PATH" run ledger-only)" && fail 'fork transport error reported success'
+case "$out" in *'comparison unavailable'*) ;; *) fail 'transport failure mislabeled as upstream absence' ;; esac
+
 echo 'vendored-refresh-test: PASS'

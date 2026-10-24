@@ -86,5 +86,22 @@ setup "$H4"
 grep -qi 'bukan Git checkout\|WARNING' "$TMP/out" && ok "and the skip is reported" \
   || bad "the skipped TPM was not reported"
 
+# Installed invocation follows relative and absolute symlinks to the same repo.
+ln -s "$CMD" "$TMP/real-setup"
+ln -s ../real-setup "$SHIM/tmux-setup"
+env PATH="$SHIM:/usr/bin:/bin" HOME="$H1" bash "$SHIM/tmux-setup" > "$TMP/out" 2>&1
+[ "$?" -eq 0 ] && [ "$(readlink "$H1/.tmux.conf")" = "$ROOT/config/tmux.conf" ] \
+  && [ -e "$H1/.tmux.conf" ] && ok "installed symlink invocation resolves the real repository" \
+  || bad "installed invocation creates a dangling config link"
+
+# Missing sources must fail before replacing even one working config/helper.
+mkdir -p "$TMP/incomplete/bin" "$TMP/incomplete/config"
+cp "$CMD" "$TMP/incomplete/bin/tmux-setup"
+printf 'fixture config\n' > "$TMP/incomplete/config/tmux.conf"
+prior="$(readlink "$H1/.tmux.conf")"
+env PATH="$SHIM:/usr/bin:/bin" HOME="$H1" bash "$TMP/incomplete/bin/tmux-setup" > "$TMP/out" 2>&1
+[ "$?" -ne 0 ] && [ "$(readlink "$H1/.tmux.conf")" = "$prior" ] \
+  && ok "missing source fails before changing existing links" || bad "missing source damaged links"
+
 [ "$f" -eq 0 ] && { echo "tmux-setup-test: PASS"; exit 0; }
 echo "tmux-setup-test: $f case(s) failed" >&2; exit 1

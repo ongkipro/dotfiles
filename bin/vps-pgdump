@@ -30,8 +30,11 @@ SSH_OPTS=("$@")   # mis. -i ~/.ssh/tokophi_dev
 [ -n "$HOST" ] || { echo "Usage: vps-pgdump user@host [ssh-opts...]" >&2; exit 1; }
 
 STAMP=$(date +%Y%m%d-%H%M%S)
-OUT="$HOME/Documents/work/backups/$(echo "$HOST" | tr '@.' '__')-$STAMP"
-mkdir -p "$OUT"
+BACKUPS="$HOME/Documents/work/backups"
+mkdir -p "$BACKUPS"
+HOST_LABEL="$(printf '%s' "$HOST" | LC_ALL=C sed 's/[^a-zA-Z0-9_.-]/_/g')"
+OUT="$(mktemp -d "$BACKUPS/$HOST_LABEL-$STAMP.XXXXXX")"
+printf 'INCOMPLETE\n' > "$OUT/backup.status"
 
 # Backup berisi SECRET (env, kredensial DB). JANGAN pernah masuk repo.
 case "$OUT" in
@@ -62,8 +65,13 @@ say "3. Cari container Postgres"
 # apakah benar-benar MELAYANI Postgres, pakai pg_isready. Kandidat pertama yang
 # menjawab = server DB yang asli.
 PGS=()
-CANDS=$(run 'docker ps --format "{{.Names}}\t{{.Image}}" | grep -iE "postgres|pgvector" | cut -f1' || true)
+if ! INVENTORY=$(run 'docker ps --format "{{.Names}}\t{{.Image}}"'); then
+  echo "  ✗ container enumeration failed — backup INCOMPLETE: $OUT" >&2
+  exit 1
+fi
+CANDS=$(printf '%s\n' "$INVENTORY" | awk 'tolower($0) ~ /postgres|pgvector/ { print $1 }')
 for c in $CANDS; do
+  case "$c" in ''|.|..|-*|*[!a-zA-Z0-9_.-]*) echo "Invalid container identity" >&2; exit 1 ;; esac
   printf '  %-52s ' "$c"
   if run "docker exec $c sh -c 'pg_isready -U \"\$POSTGRES_USER\" -q'" 2>/dev/null; then
     echo "✓ melayani Postgres"
@@ -90,38 +98,77 @@ if ! command -v pg_restore >/dev/null 2>&1; then
 fi
 FAIL=0
 UNVERIFIED=0
+DISCOVERED=0
+DUMPED=0
+VERIFIED=0
 for PG in "${PGS[@]}"; do
   echo "  [$PG]"
-  DBS=$(run "docker exec $PG sh -c 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -tAc \"SELECT datname FROM pg_database WHERE datistemplate=false AND datname<>'\"'\"'postgres'\"'\"';\"'" || true)
-  for db in $DBS; do
+  if ! DBS=$(run "docker exec $PG sh -c 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -tAc \"SELECT datname FROM pg_database WHERE datistemplate=false AND datname<>'\"'\"'postgres'\"'\"';\"'"); then
+    echo "    ✗ database enumeration failed — backup INCOMPLETE" >&2
+    FAIL=1
+    continue
+  fi
+  if [ -z "$DBS" ]; then
+    echo "    ✗ no databases discovered — backup INCOMPLETE" >&2
+    FAIL=1
+    continue
+  fi
+  mkdir -p "$OUT/$PG"
+  INDEX=0
+  while IFS= read -r db; do
     [ -n "$db" ] || continue
+    DISCOVERED=$((DISCOVERED + 1))
+    INDEX=$((INDEX + 1))
+    # The ordinal prevents collisions after filename sanitization. Keep the
+    # original identity in a private manifest, and pass it as one remote arg.
+    label="$(printf '%s' "$db" | LC_ALL=C sed 's/[^a-zA-Z0-9_.-]/_/g')"
+    dumpfile="$OUT/$PG/$INDEX-$label.dump"
+    printf '%s\t%s\n' "$INDEX-$label.dump" "$db" >> "$OUT/$PG/databases.tsv"
+    quoted_db="'$(printf '%s' "$db" | sed "s/'/'\\\\''/g")'"
     printf '    %-22s ' "$db"
-    run "docker exec $PG sh -c 'pg_dump -Fc -U \"\$POSTGRES_USER\" $db'" > "$OUT/$db.dump"
-    sz=$(du -h "$OUT/$db.dump" | cut -f1)
-    # Missing verification tooling is not evidence of corruption. Keep the dump
-    # and label it unverified; delete only when a real pg_restore check rejects it.
+    if ! run "docker exec $PG sh -c 'pg_dump -Fc -U \"\$POSTGRES_USER\" -- \"\$1\"' sh $quoted_db" > "$dumpfile.partial"; then
+      echo "✗ pg_dump failed — partial output retained, backup INCOMPLETE"
+      FAIL=1
+      continue
+    fi
+    mv "$dumpfile.partial" "$dumpfile"
+    DUMPED=$((DUMPED + 1))
+    sz=$(du -h "$dumpfile" | cut -f1)
+    # Archive readability is not a restore drill. Missing tooling preserves
+    # the archive but never counts it as verified.
     if [ "$PG_RESTORE_AVAILABLE" -eq 0 ]; then
       echo "! $sz — DISIMPAN, BELUM TERVERIFIKASI (pg_restore lokal tidak ada)"
       UNVERIFIED=1
-    elif pg_restore -l "$OUT/$db.dump" >/dev/null 2>&1; then
-      n=$(pg_restore -l "$OUT/$db.dump" 2>/dev/null | grep -c '^[0-9]' || true)
-      echo "✓ $sz — $n objek, terbaca pg_restore"
+    elif pg_restore -l "$dumpfile" >/dev/null 2>&1; then
+      VERIFIED=$((VERIFIED + 1))
+      echo "✓ $sz — archive readable by pg_restore (restore not tested)"
     else
       echo "✗ $sz — RUSAK menurut pg_restore. JANGAN dianggap backup."
-      rm -f "$OUT/$db.dump"; FAIL=1
+      mv "$dumpfile" "$dumpfile.invalid"; FAIL=1
     fi
-  done
+  done <<EOF
+$DBS
+EOF
 done
-[ $FAIL -eq 0 ] || { echo "  ✗ ada dump yang rusak — backup TIDAK lengkap." >&2; exit 1; }
+printf '  Databases: discovered=%s dumped=%s archive-verified=%s\n' "$DISCOVERED" "$DUMPED" "$VERIFIED"
+[ "$FAIL" -eq 0 ] && [ "$DISCOVERED" -gt 0 ] && [ "$DUMPED" -eq "$DISCOVERED" ] || {
+  echo "  ✗ backup INCOMPLETE — successful dumps retained at $OUT" >&2
+  exit 1
+}
 [ "$UNVERIFIED" -eq 0 ] \
   || echo "  ! Satu atau lebih dump dipertahankan tetapi integritasnya BELUM TERVERIFIKASI."
 
-say "6. Config stack (compose + Coolify), tanpa isi .env"
+say "6. Config stack (compose + Coolify; archive dapat memuat .env)"
 run 'find /data/coolify -maxdepth 3 -name "docker-compose*.y*ml" 2>/dev/null | head -20' > "$OUT/compose-files.txt" || true
 run 'tar czf - /data/coolify/applications /data/coolify/databases 2>/dev/null' > "$OUT/coolify-config.tar.gz" 2>/dev/null || \
   echo "  ! /data/coolify tidak terbaca — lewati (dump DB tetap aman)"
 [ -s "$OUT/coolify-config.tar.gz" ] && echo "  ✓ coolify-config.tar.gz ($(du -h "$OUT/coolify-config.tar.gz" | cut -f1))" || rm -f "$OUT/coolify-config.tar.gz"
 
+if [ "$UNVERIFIED" -eq 0 ]; then
+  printf 'DATABASE_ARCHIVES_VERIFIED; RESTORE_NOT_TESTED\n' > "$OUT/backup.status"
+else
+  printf 'DATABASE_DUMPS_UNVERIFIED\n' > "$OUT/backup.status"
+fi
 say "SELESAI"
 echo "  Lokasi : $OUT"
 du -sh "$OUT" | awk '{print "  Ukuran : " $1}'

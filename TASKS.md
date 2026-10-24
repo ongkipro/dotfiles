@@ -1,6 +1,6 @@
 # Tasks — dotfiles
 
-Updated: 2026-10-20
+Updated: 2026-10-24
 
 The sole executable queue. Completed contracts live under `docs/archive/`;
 repository tests and runtime evidence outrank prose.
@@ -13,6 +13,10 @@ Only the dependency edge is human-authored; state is derived.
 
 ## Done
 
+- TASK-132, TASK-131, TASK-128: [Command migration, canonical naming, and reference routing](docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md).
+
+- TASK-130, TASK-129: [Meta Ads canonical naming and deployment reliability](docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md).
+
 Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 `git grep TASK-NNN docs/archive` finds any contract).
 
@@ -21,23 +25,23 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 - TASK-121: [Development-kit runbook consistency and browser verification](docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT_FOLLOWUP.md).
 - TASK-120: [Development-kit routing and evaluation refinement](docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT.md).
 
-### TASK-128: Conditional inbound routing to `black-magic` for deep reference extraction and `rea-skill-sync` hint in `_refresh-vendored.sh`
+- TASK-134, TASK-133: [Verified automation, skill audit, and system map](docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md).
 
-- **Requirement:** REQ-BLACK-MAGIC-REFERENCE-ORCHESTRATION (owner authorizes wiring `black-magic` into `development-kit`, `full-stack-development`, `design-taste`, and `_refresh-vendored.sh` where it genuinely maximizes reference extraction and sync discoverability without adding bloat to ordinary tasks).
-- **Risk Level:** R2.
-- **Job:** implementation.
-- **Capability:** black-magic, development-kit, full-stack-development, design-taste.
-- **Allowed Paths:** `TASKS.md`, `docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md`, `skills/local/README.md`, `skills/local/_refresh-vendored.sh`, `skills/local/development-kit/SKILL.md`, `skills/local/full-stack-development/SKILL.md`, `skills/local/design-taste/references/design-discovery.md`, `.delivery/**`.
-- **Protected Paths:** None; preserve unrelated initial dirty memory files, CORE, hooks, credentials, and live applications.
-- **Canonical Contract Owners:** reference discovery & workflow routing -> `development-kit`; cross-layer orchestration -> `full-stack-development`; public UI reference evidence -> `design-taste`; vendored/fork refresh reporting -> `skills/local/_refresh-vendored.sh`.
-- **Accepted Invariants:** ordinary source-repo and static-screenshot tasks remain fast and lightweight (no mandatory REA execution on routine edits); `black-magic` is invoked automatically when a supplied reference or integration target is a `.har`/`.saz` capture, shipped bundle/binary/APK/SQLite snapshot, or live interactive flow whose computed tokens/motion/API state are not resolved by static screenshot capture; `_refresh-vendored.sh` surfaces `sync_tool:` from `.local-fork` without breaking offline `vendored-refresh-test`; all `SKILL.md` files stay under 500 lines; `TASKS.md` stays under 12,288 bytes.
-- **Regression Checks:** `vendored-refresh-test`, `skill-map --check`, `skill-map-test`, `skill-check development-kit`, `skill-check full-stack-development`, `skill-check design-taste`, `skill-surface-check`, `ai-policy-lint`, `ai-memory-check`, `git diff --check`, boundary check.
-- **Non-Scope:** forcing REA on ordinary source or static UI tasks, git commit/push unless requested, touching pre-existing dirty memory files.
-- **Reopen Conditions:** `vendored-refresh-test` fails, `skill-map` drifts from `skills/local/README.md`, any `SKILL.md` exceeds 500 lines, or `TASKS.md` exceeds 12,288 bytes.
-- **Escalation Conditions:** requires modifying runtime hooks, live secrets, or unrelated user files.
+### TASK-135: Whole-system reliability and community evidence
+
+- **Requirement:** REQ-WHOLE-SYSTEM-HARDENING (owner authorizes implementation and review of the 2026-10-24 whole-system audit, with community experience, updated docs, log, and system map).
+- **Risk Level:** R3.
+- **Allowed Paths:** precise parent/child boundaries in `RUN-20261024T093836Z-08b11229`; installer/shell/backup, memory/MCP/Pi, release/project/resume checks, Meta state, secret scanner, vendored refresh, Node pin, CI, runtime manifest, and their tests and documentation.
+- **Protected Paths:** unrelated pre-existing edits, credentials, provider choices, live APIs and services.
+- **Canonical Contract Owners:** system migration -> installers/linker; memory -> existing memory commands; delivery evidence -> ledger; Meta workflow -> `dotads-meta`; sources -> research evidence document.
+- **Accepted Invariants:** preserve foreign/user data; distinguish failure from no-op; bind state to account and parents; serialize apply; preserve private file permissions; verify canonical evidence; no false success from missing checks; community claims require official corroboration or local reproduction.
+- **Regression Checks:** affected command suites, negative fixtures, syntax/workflow/policy checks, complete core self-test, independent review and final boundary.
+- **Runtime Evidence:** final Linux aggregate 77/77 PASS under Node24.22.1/Pillow13.0.0, focused review regressions and independent reviews PASS; parent run `RUN-20261024T093836Z-08b11229`. Hosted CI/macOS and live operations remain unverified.
+- **Non-Scope:** checkpoint/mobile access, Google/TikTok operations, automatic services, production calls, credentials, commit/push.
+- **Reopen Conditions:** regression of findings F1–F9 or W1–W16; documentation claims exceed executed evidence.
+- **Escalation Conditions:** unrelated user work, system or production changes become necessary.
 
 ## Pending
-
 
 ### TASK-097: Mutation gaps left after TASK-080
 
@@ -62,6 +66,7 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 - **Canonical Contract Owners:** `runtime.readiness`.
 - **Accepted Invariants:** assertions unchanged; `dotpush` still sees its own managed `home/gitconfig` (a file-wide `GIT_CONFIG_GLOBAL` broke three cases).
 - **Regression Checks:** `dotpush-test` and `dotsync-test`, each also run with an empty `HOME`; Core runtime CI on both OSes.
+- **Runtime Evidence:** implementation complete; local run `RUN-20260924T162918Z-e96c87ba` passed. Hosted Linux/macOS CI evidence remains pending.
 - **Reopen Conditions:** a caller's global git config or temp-dir symlink changes a verdict.
 - **Non-Scope:** `bin/dotpush`, `bin/dotsync`.
 - **Escalation Conditions:** isolation needs a subject change.

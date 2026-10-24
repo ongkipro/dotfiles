@@ -48,6 +48,18 @@ else
   ./bin/security-check "$REPO" 2>&1 | sed 's/^/     /'
   fail=1
 fi
+# Corrupt index must fail even though rev-parse still recognizes the repository.
+corrupt_index="$(mktemp)"
+printf 'invalid git index' > "$corrupt_index"
+if corrupt_out="$(GIT_INDEX_FILE="$corrupt_index" ./bin/security-check "$REPO" 2>&1)"; then
+  echo "   FAIL: corrupt index reported a clean scan"; fail=1
+elif printf '%s' "$corrupt_out" | grep -q 'no obvious secrets'; then
+  echo "   FAIL: failed scan printed a clean verdict"; fail=1
+else
+  echo "   ✓ corrupt index fails without a clean verdict"
+fi
+rm -f "$corrupt_index"
+
 echo "2. credential-adjacent documentation forms must not create broad false positives"
 cat > "$BAIT_SAFE" <<'EOF'
 TOKEN_COUNT=42

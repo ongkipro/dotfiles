@@ -1,0 +1,240 @@
+#!/usr/bin/env python3
+"""Behavioral recall tests use isolated repositories, HOME, and SQLite caches."""
+from pathlib import Path
+import json
+import hashlib
+import os
+import sqlite3
+import stat
+import subprocess
+import sys
+import tempfile
+import unittest
+
+ROOT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent
+COMMAND = ROOT / 'bin/ai-recall'
+
+
+class RecallTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix='ai-recall-test-')
+        self.addCleanup(self.temp.cleanup)
+        self.base = Path(self.temp.name)
+        self.home = self.base / 'home'
+        self.home.mkdir()
+        self.env = {**os.environ, 'HOME': str(self.home), 'GIT_CONFIG_NOSYSTEM': '1',
+                    'GIT_CONFIG_GLOBAL': os.devnull, 'DOTFILES_DIR': str(ROOT),
+                    'AI_MEMORY_INBOX_DIR': str(self.base / 'inbox')}
+        self.repo = self.new_repo('repo')
+        self.index = self.base / 'recall.sqlite3'
+
+    def run_command(self, args, *, success=True):
+        result = subprocess.run([str(value) for value in args], env=self.env, capture_output=True, text=True, timeout=20)
+        if success:
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return result
+
+    def new_repo(self, name):
+        repo = self.base / name
+        repo.mkdir()
+        self.run_command(['git', '-C', repo, 'init', '--quiet'])
+        (repo / 'STATUS.md').write_text('# Status\nState: READY\n')
+        (repo / 'TASKS.md').write_text('# Tasks\nTASK-001: REQ-ATOMIC Write reliable state\n')
+        return repo
+
+    def recall(self, query, *extra, repos=None, success=True):
+        args = [COMMAND, query, '--index', self.index, '--json']
+        for repo in repos or [self.repo]:
+            args += ['--repo', repo]
+        result = self.run_command([*args, *extra], success=success)
+        return json.loads(result.stdout) if result.returncode == 0 else result
+
+    def verified_learning(self, repo=None):
+        repo = repo or self.repo
+        ledger = ROOT / 'bin/delivery-ledger'
+        self.run_command([ledger, '--repo', repo, 'init'])
+        self.run_command([ledger, '--repo', repo, 'start', '--task', 'TASK-001', '--requirement', 'REQ-ATOMIC', '--risk', 'R0'])
+        run_id = json.loads((repo / '.delivery/current.json').read_text())['activeRun']
+        self.run_command([ledger, '--repo', repo, 'record', '--check', 'regression', '--status', 'PASS', '--detail', 'RAW_RUN_OUTPUT_ONLY'])
+        self.run_command([ledger, '--repo', repo, 'finish', '--result', 'PASS', '--detail', 'RAW_FINISH_DETAIL_ONLY'])
+        self.run_command([ROOT / 'bin/delivery-learning', '--repo', repo, 'record', '--run', run_id,
+                          '--scope', 'methodology', '--title', 'Atomic state replacement',
+                          '--symptom', 'Interrupted writes damaged saved state', '--root-cause', 'Direct writes truncated the destination',
+                          '--invariant', 'Persisted state must survive an interrupted replacement', '--fix', 'Write a sibling file then atomically rename',
+                          '--check', 'Inject a write failure and retain the original bytes'])
+        return run_id
+
+    def test_help_is_read_only(self):
+        self.run_command([COMMAND, '--help'])
+        self.assertFalse(self.index.exists())
+        self.assertFalse((self.home / '.config').exists())
+
+    def test_contract_recall_ranks_titles_and_limits_results(self):
+        (self.repo / 'ARCHITECTURE.md').write_text('# Atomic storage\nUse sibling writes.\n')
+        (self.repo / 'DECISIONS.md').write_text('# Storage choice\nAn atomic replacement preserves saved state.\n')
+        payload = self.recall('atomic', '--limit', '1')
+        self.assertEqual(len(payload['results']), 1)
+        self.assertEqual(payload['results'][0]['source'], 'ARCHITECTURE.md')
+        self.assertIn('advisory', payload['notice'])
+        self.assertEqual(stat.S_IMODE(self.index.stat().st_mode), 0o600)
+
+    def test_refresh_removes_changed_and_deleted_sources(self):
+        document = self.repo / 'ARCHITECTURE.md'
+        document.write_text('# Obsoletequartz\n')
+        self.assertTrue(self.recall('Obsoletequartz')['results'])
+        document.write_text('# Newgranite\n')
+        self.assertFalse(self.recall('Obsoletequartz')['results'])
+        self.assertTrue(self.recall('Newgranite')['results'])
+        document.unlink()
+        self.assertFalse(self.recall('Newgranite')['results'])
+
+    def test_multiple_repositories_stay_explicit_and_isolated(self):
+        other = self.new_repo('other')
+        (self.repo / 'ARCHITECTURE.md').write_text('# Sharedneedle\nFirst repository.\n')
+        (other / 'ARCHITECTURE.md').write_text('# Sharedneedle\nSecond repository.\n')
+        payload = self.recall('Sharedneedle', repos=[self.repo, other])
+        self.assertEqual({result['repo'] for result in payload['results']}, {str(self.repo), str(other)})
+        self.assertEqual(len({result['repo_id'] for result in payload['results']}), 2)
+        payload = self.recall('Sharedneedle')
+        self.assertEqual({result['repo'] for result in payload['results']}, {str(self.repo)})
+
+    def test_only_explicit_documents_and_no_ignored_files(self):
+        (self.repo / 'docs').mkdir()
+        (self.repo / 'docs/guide.md').write_text('# Explicitneedle\n')
+        self.assertFalse(self.recall('Explicitneedle')['results'])
+        self.assertTrue(self.recall('Explicitneedle', '--document', 'docs/guide.md')['results'])
+        (self.repo / '.gitignore').write_text('docs/guide.md\n')
+        self.assertFalse(self.recall('Explicitneedle', '--document', 'docs/guide.md')['results'])
+        result = self.recall('needle', '--document', '../outside.md', success=False)
+        self.assertNotEqual(result.returncode, 0)
+
+    def test_private_files_and_transcripts_never_enter_the_index(self):
+        (self.repo / '.env').write_text('RAW_SECRET_ENV_ONLY=synthetic\n')
+        (self.repo / 'session.jsonl').write_text('RAW_TRANSCRIPT_ONLY\n')
+        (self.repo / 'STATUS.md').write_text('# Secret state\naccess_token=synthetic-access-value\n')
+        self.recall('state')
+        content = self.index.read_bytes()
+        for marker in (b'RAW_SECRET_ENV_ONLY', b'RAW_TRANSCRIPT_ONLY', b'synthetic-access-value'):
+            self.assertFalse(marker in content, 'excluded synthetic content was cached')
+
+    def test_symlink_sources_and_evidence_are_excluded(self):
+        outside = self.base / 'outside.md'
+        outside.write_text('Outsidequartz\n')
+        (self.repo / 'ARCHITECTURE.md').symlink_to(outside)
+        (self.repo / '.delivery').symlink_to(self.base)
+        payload = self.recall('Outsidequartz')
+        self.assertFalse(payload['results'])
+        self.assertNotIn(b'Outsidequartz', self.index.read_bytes())
+        self.assertTrue(payload['warnings'])
+
+    def test_hardlinked_sources_are_excluded_without_touching_external_data(self):
+        outside = self.base / 'outside.md'
+        outside.write_text('Hardlinkquartz\n')
+        os.chmod(outside, 0o640)
+        before = outside.read_bytes()
+        before_mode = stat.S_IMODE(outside.stat().st_mode)
+        os.link(outside, self.repo / 'ARCHITECTURE.md')
+        payload = self.recall('Hardlinkquartz')
+        self.assertFalse(payload['results'])
+        self.assertNotIn('Hardlinkquartz', json.dumps(payload))
+        self.assertNotIn(b'Hardlinkquartz', self.index.read_bytes())
+        self.assertEqual(outside.read_bytes(), before)
+        self.assertEqual(stat.S_IMODE(outside.stat().st_mode), before_mode)
+        self.assertTrue(payload['warnings'])
+
+    def test_verified_learning_has_provenance_without_raw_run_detail(self):
+        run_id = self.verified_learning()
+        payload = self.recall('interrupted replacement')
+        result = payload['results'][0]
+        self.assertEqual(result['kind'], 'verified-learning')
+        self.assertEqual(result['run_id'], run_id)
+        self.assertEqual(result['provenance']['task'], 'TASK-001')
+        self.assertIn(run_id, result['citation'])
+        content = self.index.read_bytes()
+        self.assertNotIn(b'RAW_RUN_OUTPUT_ONLY', content)
+        self.assertNotIn(b'RAW_FINISH_DETAIL_ONLY', content)
+
+    def test_corrupt_run_or_signal_invalidates_cached_verified_results(self):
+        run_id = self.verified_learning()
+        self.assertTrue(self.recall('interrupted replacement')['results'])
+        signal = self.repo / '.delivery/learning' / f'{run_id}.json'
+        original = signal.read_text()
+        signal.write_text(original.replace('Atomic state replacement', 'Tampered replacement'))
+        self.assertFalse(self.recall('interrupted replacement')['results'])
+        signal.write_text(original)
+        run = self.repo / '.delivery/runs' / f'{run_id}.jsonl'
+        run.write_text(run.read_text().replace('RAW_RUN_OUTPUT_ONLY', 'ALTERED_RUN_OUTPUT'))
+        self.assertFalse(self.recall('interrupted replacement')['results'])
+
+    def test_malformed_evidence_is_excluded_without_crashing(self):
+        runs = self.repo / '.delivery/runs'
+        runs.mkdir(parents=True)
+        (runs / 'RUN-broken.jsonl').write_text('[]\n')
+        payload = self.recall('state')
+        self.assertTrue(payload['ok'])
+        self.assertTrue(payload['warnings'])
+        self.assertFalse(any(result['kind'] == 'verified-historical-run' for result in payload['results']))
+
+    def test_sensitive_provenance_never_enters_results_or_cache(self):
+        run_id = self.verified_learning()
+        self.assertTrue(self.recall('interrupted replacement')['results'])
+        marker = 'access_token=synthetic-review-marker'
+        run = self.repo / '.delivery/runs' / f'{run_id}.jsonl'
+        events = [json.loads(line) for line in run.read_text().splitlines()]
+        events[0]['worker'] = marker
+        previous = None
+        digest = lambda data: hashlib.sha256(json.dumps(data, sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode()).hexdigest()
+        for event in events:
+            event['prevEventHash'] = previous
+            event.pop('eventHash', None)
+            event['eventHash'] = digest(event)
+            previous = event['eventHash']
+        run.write_text(''.join(json.dumps(event) + '\n' for event in events))
+        signal = self.repo / '.delivery/learning' / f'{run_id}.json'
+        data = json.loads(signal.read_text())
+        data['provenance']['worker'] = marker
+        for check, event in zip(data['provenance']['verification'], [entry for entry in events if entry['type'] == 'verification']):
+            if 'eventHash' in check:
+                check['eventHash'] = event['eventHash']
+        data.pop('signalHash')
+        data['signalHash'] = digest(data)
+        signal.write_text(json.dumps(data))
+        payload = self.recall('interrupted replacement')
+        self.assertFalse(payload['results'])
+        self.assertNotIn(marker, json.dumps(payload))
+        self.assertNotIn(marker.encode(), self.index.read_bytes())
+
+    def test_sensitive_source_name_is_not_exported_in_warnings(self):
+        (self.repo / 'docs').mkdir()
+        name = 'docs/access_token=synthetic-path-marker.md'
+        (self.repo / name).write_text('# Useful reference\n')
+        payload = self.recall('useful', '--document', name)
+        self.assertFalse(payload['results'])
+        self.assertNotIn('synthetic-path-marker', json.dumps(payload))
+        self.assertNotIn(b'synthetic-path-marker', self.index.read_bytes())
+
+    def test_query_operators_are_literal_and_invalid_limits_fail(self):
+        (self.repo / 'ARCHITECTURE.md').write_text('# Atomic\n')
+        self.assertFalse(self.recall('atomic OR unknownword')['results'])
+        self.assertFalse(self.recall('" OR 1=1 --')['results'])
+        self.assertNotEqual(self.recall('atomic', '--limit', '0', success=False).returncode, 0)
+
+    def test_index_refuses_repository_paths_symlinks_and_unrelated_databases(self):
+        self.index = self.repo / 'recall.sqlite3'
+        self.assertNotEqual(self.recall('state', success=False).returncode, 0)
+        self.index = self.base / 'recall.sqlite3'
+        target = self.base / 'untouched.sqlite3'
+        target.write_bytes(b'untouched')
+        self.index.symlink_to(target)
+        self.assertNotEqual(self.recall('state', success=False).returncode, 0)
+        self.assertEqual(target.read_bytes(), b'untouched')
+        self.index.unlink()
+        with sqlite3.connect(self.index) as db:
+            db.execute('CREATE TABLE precious(value TEXT)')
+        before = self.index.read_bytes()
+        self.assertNotEqual(self.recall('state', success=False).returncode, 0)
+        self.assertEqual(self.index.read_bytes(), before)
+
+
+if __name__ == '__main__':
+    unittest.main(argv=[sys.argv[0]], verbosity=2)

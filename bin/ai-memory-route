@@ -209,7 +209,7 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
         old = by_path.get(item["path"])
         if old is None or item["priority"] > old["priority"]:
             by_path[item["path"]] = item
-    ordered = sorted(by_path.values(), key=lambda x: (-x["priority"], x["path"]))
+    ordered = sorted(by_path.values(), key=lambda x: (x["scope"] != "execution", -x["priority"], x["path"]))
 
     selected = []
     dropped = []

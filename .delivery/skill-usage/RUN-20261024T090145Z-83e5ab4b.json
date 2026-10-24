@@ -1,0 +1,20 @@
+{
+  "capability": "unattributed",
+  "head": "c3aa901ca9ec1e8eebc958f96de0fbc5a591dbe8",
+  "job": "implementation",
+  "model": "gpt-6",
+  "provider": "openai",
+  "reasoningEffort": "unavailable: runtime does not expose configured effort",
+  "recordedAt": "2026-10-24T09:04:10Z",
+  "result": "PASS",
+  "risk": "R1",
+  "runId": "RUN-20261024T090145Z-83e5ab4b",
+  "schemaVersion": 1,
+  "skillsUsed": [
+    "mermaid-diagram",
+    "volumx-writer"
+  ],
+  "usageHash": "77a7ebf6c3f862af9843fe2888e9822dacac06a92536c607cabb88070c01881c",
+  "verificationFailed": false,
+  "worker": "codex-system-map"
+}

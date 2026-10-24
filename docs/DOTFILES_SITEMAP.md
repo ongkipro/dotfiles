@@ -1,23 +1,33 @@
 # Dotfiles Sitemap & Engineering Dictionary
 
 > **Universal Page-by-Page Development Map for `ongkipro/dotfiles`**
-> Updated: 2026-10-20 | Scope: Full Repository Topology, AI Control Plane, Memory, Skills, CLI Binaries, Devices, and Templates.
+> Updated: 2026-10-24 | Scope: Full Repository Topology, AI Control Plane, Memory, Skills, CLI Binaries, Devices, and Templates.
 
 ---
 
 ## 1. System Topology Overview
 
-The `dotfiles` repository is an AI-native engineering operating system shared across Linux and macOS devices. It coordinates multiple AI CLI runtimes (**Claude Code**, **Codex**, **Antigravity `agy`**, **OMP**, **Pi**) through a deterministic kernel.
+The `dotfiles` repository shares developer configuration, AI policy, owned skills, and verified tooling across Linux and macOS. Native adapters connect **Claude Code**, **Codex**, **Antigravity `agy`**, **OMP**, and **Pi**; each runtime keeps ownership of its execution and provider configuration.
 
 ```mermaid
 graph TD
-    Kernel["Core Kernel & Policy<br/><code>config/ai/CORE.md</code>"] --> Runtimes["AI CLI Runtimes<br/>Claude · Codex · Antigravity · OMP · Pi"]
+    Kernel["Shared Policy<br/><code>config/ai/CORE.md</code>"] --> Runtimes["AI CLI Runtimes<br/>Claude · Codex · Antigravity · OMP · Pi"]
     Kernel --> Memory["Durable Memory<br/><code>config/ai/memory/</code> (20 files)"]
-    Kernel --> ProjectMemory["Project Memory<br/><code>config/ai/project-memory/</code> (77 files)"]
-    Kernel --> Skills["Owned Skills Registry<br/><code>skills/local/</code> (76 skills)"]
-    Kernel --> Bin["Executable Toolchain<br/><code>bin/</code> (113 tools & tests)"]
+    Kernel --> ProjectMemory["Project Memory<br/><code>config/ai/project-memory/</code> (79 tracked documents)"]
+    Kernel --> Skills["Owned Skills Registry<br/><code>skills/local/</code> (77 skills)"]
+    Kernel --> Bin["Executable Toolchain<br/><code>bin/</code> (126 command, test and helper files)"]
     Kernel --> Ledger[".delivery/ & TASKS.md<br/>Autonomous State & Verification"]
     Kernel --> Devices["Device Profiles<br/><code>devices/</code> (7 hosts)"]
+    Ledger -->|"explicit lesson and PASS"| Learning["Verified Learning<br/><code>delivery-learning</code>"]
+    Learning --> Candidates["Private Review Candidates<br/><code>ai-memory-harvest</code>"]
+    Candidates --> Review["Reviewed Adoption"]
+    Review --> Memory
+    Review --> Skills
+    Contracts["Selected Repository Contracts"] --> Recall["Curated Recall<br/><code>ai-recall</code>"]
+    Ledger --> Recall
+    Learning --> Recall
+    Bin --> Schedule["Offline Checks<br/><code>ai-schedule</code>"]
+    Schedule --> Reports["Private Job Summaries"]
 ```
 
 ---
@@ -29,18 +39,34 @@ graph TD
 | **Core Kernel** | [`config/ai/CORE.md`](../config/ai/CORE.md) | Canonical cross-CLI operating rules, approval gates, coding standards. | All AI CLIs & Developers |
 | **CLI Adapters** | [`config/ai/adapters/`](../config/ai/adapters) | Runtime-specific context adapters (`claude`, `codex`, `antigravity`, `omp`, `pi`). | AI CLI Runtimes |
 | **Durable Memory** | [`config/ai/memory/`](../config/ai/memory) | Cross-session, durable operational facts (20 files). | `ai-memory-access`, AI sessions |
-| **Project Memory** | [`config/ai/project-memory/`](../config/ai/project-memory) | Knowledge base for 77 client systems, repositories, and domain gotchas. | On-demand context retrieval |
+| **Project Memory** | [`config/ai/project-memory/`](../config/ai/project-memory) | 79 tracked project reference documents, including the index; file count is not a count of client systems. | On-demand context retrieval |
 | **Kelola Memory** | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola) | Specialized knowledge pack for Kelola HRIS infrastructure. | Kelola deployment & maintenance |
-| **Skills Registry** | [`skills/local/`](../skills/local) | 76 owned skills categorized into 11 engineering domains. | AI CLI tool calling & workflows |
+| **Skills Registry** | [`skills/local/`](../skills/local) | 77 owned skills categorized into 11 engineering domains. | AI CLI tool calling & workflows |
 | **Skill Management**| [`skills/agents-bin/`](../skills/agents-bin) | CLI tools for managing, checking, updating, and removing skills. | Developers & AI toolchain |
-| **Executable CLI**  | [`bin/`](../bin) | 113 standalone shell and Python scripts for linting, testing, sync, gates. | Terminal workflow & CI |
-| **OMP Control Plane** | [`config/omp/`](../config/omp) | Model routing catalogs, agent taxonomy, fallbacks, and benchmarks. | OMP (Oh My Prompt) runtime |
+| **Executable CLI**  | [`bin/`](../bin) | 126 Bash, Python, and Node.js command, test, and helper files for verification and automation. | Terminal workflow & CI |
+| **OMP Runtime Reference** | [`config/omp/`](../config/omp) | Explicit native runtime reference plus historical routing evidence; installers do not load model catalogs or agent overlays. | OMP native runtime |
 | **Device Registry** | [`devices/`](../devices) | Hardware manifests, OS specs, and per-machine configurations (7 hosts). | `dotsync`, `device-register` |
 | **Project Templates** | [`config/templates/`](../config/templates) | Contract scaffold for new projects (`PRD`, `TASKS`, `ARCHITECTURE`, etc.). | `project-init` |
 | **System Docs**     | [`docs/`](../docs) | Architecture blueprints, security policies, install SOPs, audit logs. | Architecture & Governance |
 | **Delivery Engine** | [`.delivery/`](../.delivery) | Run ledger, verification checkpoints, task boundary states. | `delivery-ledger` |
 | **Active Tasks**    | [`TASKS.md`](../TASKS.md) | Single executable task queue for dotfiles evolution. | All contributors & AI agents |
 | **User Environment**| [`home/`](../home), [`config/`](../config) | Shell configs (`bash`, `zsh`), Helix editor, mise toolchains. | Terminal-first developer setup |
+
+---
+
+### Current workflow and limits
+
+The completed TASK-133 workflow is:
+
+`explicit lesson -> verified PASS -> immutable signal -> private candidate -> review`
+
+Recall reads curated contracts and verified history; it does not ingest raw chat
+or command output and cannot establish current build success. Scheduled checks
+run only when a device explicitly registers jobs and invokes `tick` or keeps
+`serve` running. Cross-device `dotsync` distributes tool links, not private
+indexes, candidate inboxes, scheduler jobs, or credentials. Checkpoint and mobile
+access remain deferred. See [usage and recovery](adaptive-ai-system.md#verified-learning-recall-and-scheduled-checks)
+and the [update log](../CHANGELOG.md).
 
 ---
 
@@ -109,7 +135,7 @@ Cross-project durable facts loaded selectively on demand by `ai-memory-access`.
 
 ## 5. Project Memory Knowledge Base (`config/ai/project-memory/`)
 
-A repository of over 70 project-specific memories, architecture references, and platform gotchas.
+79 tracked project-memory documents, including the index, with project-specific references and platform gotchas.
 
 ### 5.1 Project & Business Reference Cards
 - [`MEMORY.md`](../config/ai/project-memory/MEMORY.md): The central index for all project memories.
@@ -142,7 +168,7 @@ Comprehensive project memory for the production deployment of `kelolatim.com`:
 
 ## 6. Owned Skills Directory (`skills/local/`)
 
-Dotfiles hosts 76 specialized capabilities grouped into 11 distinct domains (`skills/local/README.md` is auto-rendered by `bin/skill-map`). Every runtime accesses these skills via symlinks.
+Dotfiles hosts 77 specialized capabilities grouped into 11 distinct domains (`skills/local/README.md` is auto-rendered by `bin/skill-map`). Every runtime accesses these skills via symlinks.
 
 ### 6.1 Cloudflare Platform
 - [`cloudflare`](../skills/local/cloudflare/SKILL.md): Platform entry point (Workers, KV, D1, R2, Vectorize, WAF).
@@ -200,7 +226,7 @@ Dotfiles hosts 76 specialized capabilities grouped into 11 distinct domains (`sk
 - [`application-security`](../skills/local/application-security/SKILL.md): Threat modeling, tenant isolation, CSRF, XSS, injection prevention.
 
 ### 6.7 Advertising Signals
-- [`meta-ads-cli`](../skills/local/meta-ads-cli/SKILL.md): Meta Ads campaign, ad set, creative (image/video/DCO), and insights CLI operations via Meta's official `meta-ads` CLI and `meta-ads-ops`.
+- [`meta-ads-cli`](../skills/local/meta-ads-cli/SKILL.md): Meta Ads campaign, ad set, creative (image/video/DCO), and insights CLI operations via Meta's official `meta-ads` CLI and `dotads-meta`.
 - [`meta-ads-signal-engine`](../skills/local/meta-ads-signal-engine/SKILL.md): Meta Pixel + CAPI outbox, deduplication `event_id`.
 - [`meta-ads-scout`](../skills/local/meta-ads-scout/SKILL.md): Competitor ad intelligence via Meta Ad Library.
 - [`google-ads-signal-engine`](../skills/local/google-ads-signal-engine/SKILL.md): Google Tag, sGTM, Enhanced Conversions, Consent Mode v2.
@@ -246,20 +272,24 @@ Dotfiles hosts 76 specialized capabilities grouped into 11 distinct domains (`sk
 
 ## 7. Executable Toolchain Dictionary (`bin/`)
 
-Over 50 executable commands and their test suites, providing deterministic automation.
+The current working tree contains 124 top-level files under `bin/`, including executable commands, their tests, and helpers. Counts describe repository inventory, not installed software or device readiness.
 
 ### 7.1 AI, Policy & Memory Management
 - [`ai-doctor`](../bin/ai-doctor) (+ [`test`](../bin/ai-doctor-test)): Comprehensive health check for AI links, tools, hooks, and environment.
 - [`ai-policy-lint`](../bin/ai-policy-lint) (+ [`test`](../bin/ai-policy-lint-test)): Audits dotfiles policy consistency, markdown links, skill maps, and task IDs.
 - [`ai-learn`](../bin/ai-learn) (+ [`test`](../bin/ai-learn-test)): Captures, lists, and promotes verified lessons into durable memory.
+- [`delivery-learning`](../bin/delivery-learning) (+ [`test`](../bin/delivery-learning-test)): Stages explicit reusable lessons, finalizes verified PASS signals, and supports idempotent candidate retry.
+- [`ai-memory-harvest`](../bin/ai-memory-harvest) (+ [`test`](../bin/ai-memory-harvest-test)): Publishes private review candidates with verified provenance; never applies canonical changes.
+- [`ai-recall`](../bin/ai-recall) (+ [`test`](../bin/ai-recall-test)): Refreshes a private SQLite FTS5 index of selected contracts and verified historical evidence, returning advisory source citations.
+- [`ai-schedule`](../bin/ai-schedule) (+ [`test`](../bin/ai-schedule-test)): Manages explicit offline `repo-status` and `dotads-validate` jobs, foreground ticks/loop, private history, and isolated failures; no service or real job is installed automatically.
 - [`ai-memory-access`](../bin/ai-memory-access) (+ [`test`](../bin/ai-memory-access-test)): Selects minimal relevant memory context based on query triggers.
 - [`ai-memory-check`](../bin/ai-memory-check) (+ [`test`](../bin/ai-memory-check-test)): Verifies markdown links across all memory files.
 - [`ai-memory-hygiene`](../bin/ai-memory-hygiene) (+ [`test`](../bin/ai-memory-hygiene-test)): Detects dead memory, secret leaks, and unrouted files.
 - [`ai-memory-lifecycle`](../bin/ai-memory-lifecycle) (+ [`test`](../bin/ai-memory-lifecycle-test)): Analyzes memory access logs to recommend file retention or pruning.
-- [`ai-memory-link`](../bin/ai-memory-link) (+ [`test`](../bin/ai-memory-link-test)): Symlinks canonical policies to CLI-native config directories.
+- [`ai-memory-link`](../bin/ai-memory-link) (+ [`test`](../bin/ai-memory-link-test)): Renders and links native contexts; reconciles manifest command links and prunes only dangling repository-owned links, including the first upgrade from older sync code.
 - [`ai-memory-route`](../bin/ai-memory-route) (+ [`test`](../bin/ai-memory-route-test)): Tests trigger resolution against `memory-router.json`.
-- [`ai-skill-evolution`](../bin/ai-skill-evolution) (+ [`test`](../bin/ai-skill-evolution-test)): Evaluates promotion of repeated memory patterns into full skills.
-- [`ai-hooks-install`](../bin/ai-hooks-install) (+ [`test`](../bin/ai-hooks-install-test)): Installs and checks Claude Code execution safety hooks.
+- [`ai-skill-evolution`](../bin/ai-skill-evolution) (+ [`test`](../bin/ai-skill-evolution-test)): Reports advisory recurring-pattern candidates for skill improvement; it does not promote or rewrite skills automatically.
+- [`ai-hooks-install`](../bin/ai-hooks-install) (+ [`test`](../bin/ai-hooks-install-test)): Installs and checks canonical Claude Code and Codex hooks; native Codex trust remains an interactive runtime step.
 - [`ai-mcp-sync`](../bin/ai-mcp-sync) (+ [`test`](../bin/ai-mcp-sync-test)): Synchronizes and checks global MCP servers across AI CLI runtimes.
 
 ### 7.2 Delivery Ledger, Safety Gates & Testing
@@ -293,7 +323,7 @@ Over 50 executable commands and their test suites, providing deterministic autom
 - [`tmux-setup`](../bin/tmux-setup), [`tmux-clip`](../bin/tmux-clip), [`tmux-battery`](../bin/tmux-battery): Terminal session management and status bar tooling.
 - [`vps-pgdump`](../bin/vps-pgdump) (+ [`test`](../bin/vps-pgdump-test)): Dumps remote PostgreSQL databases over SSH.
 - [`shopify-content-helper`](../bin/shopify-content-helper) (+ [`test`](../bin/shopify-content-helper-test)): Assists in formatting and uploading Shopify blog/product copy.
-- [`meta-ads-ops`](../bin/meta-ads-ops) (+ [`test`](../bin/meta-ads-ops-test)): Per-project Meta Ads validator, dry-run planner, stateful deployer, and `secrets-env` bridge for Meta's official `meta-ads` CLI.
+- [`dotads-meta`](../bin/dotads-meta) (+ [`test`](../bin/dotads-meta-test)): Per-project Meta Ads validator, dry-run planner, stateful deployer, and `secrets-env` bridge for Meta's official `meta-ads` CLI.
 - [`rea-skill-sync`](../bin/rea-skill-sync) (+ [`test`](../bin/rea-skill-sync-test)): Deterministic upstream auto-sync and drift checker synchronizing `skills/local/black-magic/` with `morluto/rea`.
 
 ---
@@ -338,3 +368,26 @@ Standardized contract files copied to the root of every new project by `project-
 - [`DECISIONS.md`](../config/templates/DECISIONS.md): Architectural decision records.
 - [`OBSERVABILITY.md`](../config/templates/OBSERVABILITY.md): Logging and metrics contract.
 - [`RELEASE.md`](../config/templates/RELEASE.md): Deployment and release log.
+
+
+## Whole-system reliability and recovery
+
+[Research evidence](research/dotfiles-reliability-sources.md) maps F1–F9 and
+W1–W16 to their regression owners and records community/thread/video experience.
+TASK-135 and the delivery ledger own implementation and verification status.
+
+| Surface | Current protection / check |
+|---|---|
+| Device migration | Ownership-aware legacy retirement, malformed-block refusal, explicit fresh Claude/Codex hook wiring, visible context-link collisions. |
+| Shell/editor | Installed tmux path resolution, symlinked sysfs batteries, bounded OMP completion, dedicated JSON/HTML/CSS language servers. |
+| Backup | Per-container dump paths and explicit incomplete counts; archive checks remain distinct from restore drills. |
+| Memory/MCP | Managed-value reconciliation, private writes, merged retrieval budgets, protected telemetry descriptors, repository status priority. |
+| Pi compaction | Complete responses only; provider errors preserve fallback. [`pi-compact-test`](../bin/pi-compact-test) exercises the extension. |
+| Evidence/release | Canonical verification before summaries/statistics; cross-stack UI requirement; address-pinned HTTP/TLS probes; fenced templates inactive. |
+| Meta operations | Account/parent-bound state, effective-default drift, unique keys and a local single-writer lock with explicit crash recovery. |
+| Skill maintenance | Complete download staging, visible transport failures, managed fork preservation. |
+| Design tooling | [`design-tools-test`](../bin/design-tools-test) runs all five existing suites; dedicated CI requires Pillow and working browser coverage. |
+
+The Node toolchain pin is 24.22.1. Hosted CI, macOS installation/mutation evidence,
+provider availability and production restore drills remain distinct from local
+fixture results. Checkpoint/mobile and future advertising platforms stay deferred.

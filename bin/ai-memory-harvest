@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, hashlib, json, os, re, subprocess
+import argparse, hashlib, json, os, re, stat, subprocess, tempfile
 from pathlib import Path
 
 TOKEN_RE=re.compile(r'[a-z0-9][a-z0-9_.+/-]*')
@@ -14,7 +14,9 @@ def sim(a,b):
     return len(a&b)/len(a|b) if a and b else 0.0
 
 def load_signal(repo: Path, run: str):
+    if not re.fullmatch(r'[A-Za-z0-9._-]+',run): raise ValueError('invalid run id')
     p=repo/'.delivery'/'learning'/f'{run}.json'
+    if p.is_symlink(): raise ValueError('learning signal must not be a symlink')
     if not p.is_file(): raise ValueError(f'learning signal missing: {run}')
     d=json.loads(p.read_text(encoding='utf-8')); supplied=d.get('signalHash'); u=dict(d);u.pop('signalHash',None)
     if supplied != digest(u): raise ValueError('learning signal hash mismatch')
@@ -47,9 +49,9 @@ def novelty(dot: Path, lesson: dict):
         if s>best: best,best_path=s,p
     return max(0,round((1-best)*100)),best,best_path
 
-def render(signal: dict, novelty_score: int, maxsim: float, related: Path|None, recommendation: str):
+def render(signal: dict, novelty_score: int, maxsim: float, related: Path|None, recommendation: str, repo: Path):
     l=signal['lesson']; p=signal['provenance']; checks=p.get('verification') or []
-    lines=['---','status: candidate',f"scope: {signal['scope']}",f"source_run: {signal['runId']}",f"source_head: {p.get('sourceHead') or ''}",f"source_task: {p.get('task') or ''}",f"source_requirement: {p.get('requirement') or ''}",f"risk: {p.get('risk') or ''}",f"worker: {p.get('worker') or ''}",f"model: {p.get('model') or ''}",f"reusability_score: {signal['reusabilityScore']}",f"novelty_score: {novelty_score}",f"recommended_destination: {recommendation}",'---','',f"## Lesson: {l['title']}",'','### Symptom',l['symptom'],'','### Root cause',l['rootCause'],'','### Durable invariant',l['invariant'],'','### Fix',l['fix'],'','### Regression check',l['check'],'','### Provenance',f"- Run: `{signal['runId']}`",f"- Head: `{p.get('sourceHead') or 'unknown'}`",f"- Task: `{p.get('task') or 'unknown'}`",f"- Requirement: `{p.get('requirement') or 'unknown'}`",f"- Finished: `{p.get('finishedAt') or 'unknown'}`",'- Verification:']
+    lines=['---','status: candidate',f"scope: {signal['scope']}",f"source_run: {signal['runId']}",f"source_signal_hash: {signal['signalHash']}",f"source_repo: {json.dumps(str(repo))}",f"source_head: {p.get('sourceHead') or ''}",f"source_task: {p.get('task') or ''}",f"source_requirement: {p.get('requirement') or ''}",f"risk: {p.get('risk') or ''}",f"worker: {p.get('worker') or ''}",f"model: {p.get('model') or ''}",f"reusability_score: {signal['reusabilityScore']}",f"novelty_score: {novelty_score}",f"recommended_destination: {recommendation}",'---','',f"## Lesson: {l['title']}",'','### Symptom',l['symptom'],'','### Root cause',l['rootCause'],'','### Durable invariant',l['invariant'],'','### Fix',l['fix'],'','### Regression check',l['check'],'','### Provenance',f"- Run: `{signal['runId']}`",f"- Head: `{p.get('sourceHead') or 'unknown'}`",f"- Task: `{p.get('task') or 'unknown'}`",f"- Requirement: `{p.get('requirement') or 'unknown'}`",f"- Finished: `{p.get('finishedAt') or 'unknown'}`",'- Verification:']
     for c in checks: lines.append(f"  - `{c.get('check')}` = `{c.get('status')}`")
     lines += ['', '### Novelty', f'- Score: `{novelty_score}/100`', f'- Maximum lexical similarity: `{maxsim:.2f}`']
     if related: lines.append(f'- Closest memory: `{related}`')
@@ -59,28 +61,61 @@ def classify(signal: dict, novelty_score: int):
     if novelty_score < 20: return 'discard-or-merge'
     return signal.get('recommendedDestination') or {'project':'project-memory','shared':'memory','methodology':'skill'}.get(signal.get('scope'),'review')
 
+def private_inbox(raw):
+    inbox=Path(os.path.abspath(os.path.expanduser(str(raw))))
+    chain=[*reversed(inbox.parents),inbox]
+    for path in chain:
+        if path.is_symlink(): raise ValueError('candidate storage path must not contain symlinks')
+        if path.exists() and not path.is_dir(): raise ValueError('candidate storage path must contain directories only')
+    if inbox.exists():
+        info=inbox.stat()
+        if info.st_uid!=os.getuid() or stat.S_IMODE(info.st_mode)&0o077:
+            raise ValueError('existing candidate inbox must be owned by the current user and private; permissions were left unchanged')
+    else:
+        for path in chain:
+            if not path.exists(): path.mkdir(mode=0o700)
+    return inbox
+
 def main():
     p=argparse.ArgumentParser(); p.add_argument('--repo',default='.'); p.add_argument('--run'); p.add_argument('--all',action='store_true'); p.add_argument('--inbox'); p.add_argument('--dotfiles'); p.add_argument('--json',action='store_true')
-    a=p.parse_args(); repo=Path(a.repo).resolve(); dot=Path(a.dotfiles or os.environ.get('DOTFILES_DIR',Path(__file__).resolve().parent.parent)).resolve(); inbox=Path(a.inbox or os.environ.get('AI_MEMORY_INBOX_DIR',Path.home()/'.config/ai-local/memory-inbox')).expanduser().resolve()
+    a=p.parse_args(); repo=Path(a.repo).resolve(); dot=Path(a.dotfiles or os.environ.get('DOTFILES_DIR',Path(__file__).resolve().parent.parent)).resolve(); inbox_path=a.inbox or os.environ.get('AI_MEMORY_INBOX_DIR',Path.home()/'.config/ai-local/memory-inbox')
     try:
       verifier=dot/'bin'/'delivery-learning'
       if not verifier.is_file(): raise ValueError('delivery-learning verifier is unavailable')
-      vr=subprocess.run(['python3',str(verifier),'--repo',str(repo),'verify','--json'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,check=False)
+      verify_command=['python3',str(verifier),'--repo',str(repo),'verify','--json']
+      if a.run: verify_command+=['--run',a.run]
+      vr=subprocess.run(verify_command,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,check=False,timeout=30)
       if vr.returncode != 0: raise ValueError('delivery learning evidence is not verified')
       if a.all:
         runs=[x.stem for x in sorted((repo/'.delivery'/'learning').glob('RUN-*.json'))]
       else: runs=[a.run or latest_run(repo)]
       if not runs: raise ValueError('no learning signals found')
-      inbox.mkdir(parents=True,exist_ok=True); os.chmod(inbox,0o700); results=[]
+      inbox=private_inbox(inbox_path); results=[]
       hygiene=dot/'bin'/'ai-memory-hygiene'
       for run in runs:
         signal=load_signal(repo,run); ns,ms,related=novelty(dot,signal['lesson']); recommendation=classify(signal,ns)
         target=inbox/f'learning-{run}.md'; created=False
-        if not target.exists():
-          target.write_text(render(signal,ns,ms,related,recommendation),encoding='utf-8'); os.chmod(target,0o600); created=True
+        if target.is_symlink(): raise ValueError('candidate must not be a symlink')
+        fd,tmp=tempfile.mkstemp(prefix='.learning-',suffix='.tmp',dir=inbox)
+        try:
+          with os.fdopen(fd,'w',encoding='utf-8') as candidate:
+            candidate.write(render(signal,ns,ms,related,recommendation,repo)); candidate.flush(); os.fsync(candidate.fileno())
+          try:
+            os.link(tmp,target)
+          except FileExistsError:
+            if target.is_symlink(): raise ValueError('candidate must not be a symlink')
+            if not target.is_file() or target.stat().st_nlink!=1: raise ValueError('candidate must be a regular file without hardlinks')
+            info=target.stat()
+            if info.st_uid!=os.getuid() or stat.S_IMODE(info.st_mode)&0o077: raise ValueError('existing candidate must be owned by the current user and private; permissions were left unchanged')
+            text=target.read_text(encoding='utf-8')
+            if f"source_signal_hash: {signal['signalHash']}" not in text.splitlines() or f"source_repo: {json.dumps(str(repo))}" not in text.splitlines():
+              raise ValueError('existing candidate has different or missing source provenance; preserve and review it before retrying')
+          else: created=True
+        finally:
+          os.unlink(tmp)
         hygiene_result=None
         if hygiene.is_file():
-          r=subprocess.run(['python3',str(hygiene),'--candidate',str(target),'--json'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,check=False)
+          r=subprocess.run(['python3',str(hygiene),'--candidate',str(target),'--json'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,check=False,timeout=15)
           if r.returncode in (0,1):
             try: hygiene_result=json.loads(r.stdout)
             except json.JSONDecodeError: pass
@@ -92,6 +127,6 @@ def main():
       else:
         for x in results: print(f"ai-memory-harvest: {'CREATED' if x['created'] else 'EXISTS'} {x['candidate']} novelty={x['noveltyScore']} reuse={x['reusabilityScore']} -> {x['recommendation']}")
       return 0
-    except (ValueError,OSError,json.JSONDecodeError) as e:
+    except (ValueError,OSError,json.JSONDecodeError,subprocess.SubprocessError) as e:
       print(f'ai-memory-harvest: ERROR: {e}',file=__import__('sys').stderr); return 1
 if __name__=='__main__': raise SystemExit(main())

@@ -236,7 +236,7 @@ check "and links nothing" "$([ -e "$H/.claude/CLAUDE.md" ] || [ -L "$H/.claude/C
 # A directory at one target is skipped with a warning; the other runtimes still link.
 ctx_home 7; mkdir -p "$H/.codex/AGENTS.md"
 run; rc=$?
-check "a directory target does not abort the run" "$rc" "0"
+check "a directory target reports incomplete reconciliation" "$rc" "1"
 check "it is reported" "$(grep -c 'is a directory; not linking codex' "$TMP/out")" "1"
 check "later runtimes still link" "$(readlink "$H/.omp/agent/AGENTS.md")" "$H/.config/ai/context/omp.md"
 
@@ -253,6 +253,70 @@ run
 check "an unmanaged target symlink is backed up by content" \
   "$(cat "$H"/.claude/CLAUDE.md.bak.* 2>/dev/null)" "hand-written rules"
 check "the user's original file survives" "$(cat "$TMP/own-claude.md")" "hand-written rules"
+
+# Command migrations run through the existing relink entry point, including the
+# first pull executed by a device's older dotsync process.
+new_home commands
+mv "$H/.config/ai/CORE.md" "$H/dotfiles/config/ai/CORE.md"
+mv "$H/.config/ai/adapters" "$H/dotfiles/config/ai/adapters"
+rmdir "$H/.config/ai"
+ln -s "$H/dotfiles/config/ai" "$H/.config/ai"
+mkdir -p "$H/dotfiles/bin" "$H/.local/bin"
+printf '#!/bin/sh\necho migrated\n' > "$H/dotfiles/bin/new-command"
+chmod +x "$H/dotfiles/bin/new-command"
+printf 'new-command\n' > "$H/dotfiles/config/ai/runtime-commands.txt"
+ln -s "$H/dotfiles/bin/retired-command" "$H/.local/bin/retired-command"
+ln -s "$TMP/foreign-missing" "$H/.local/bin/foreign-command"
+printf 'personal\n' > "$H/.local/bin/personal-command"
+run; rc=$?
+check "command migration succeeds" "$rc" "0"
+check "new manifest commands are linked" "$(readlink "$H/.local/bin/new-command")" "$H/dotfiles/bin/new-command"
+check "retired managed command links are removed" "$([ -L "$H/.local/bin/retired-command" ] && echo kept || echo removed)" "removed"
+check "foreign dangling command links are preserved" "$(readlink "$H/.local/bin/foreign-command")" "$TMP/foreign-missing"
+check "unrelated regular commands are preserved" "$(cat "$H/.local/bin/personal-command")" "personal"
+run; rc=$?
+check "repeated command migration succeeds" "$rc" "0"
+check "repeated command migration creates no new command links" "$(grep -c '^linked command:' "$TMP/out")" "0"
+
+unlink "$H/.local/bin/new-command"
+printf 'keep me\n' > "$H/.local/bin/new-command"
+run; rc=$?
+check "a regular command collision reports failure" "$rc" "1"
+check "a regular command collision preserves user content" "$(cat "$H/.local/bin/new-command")" "keep me"
+rm "$H/.local/bin/new-command"
+ln -s "$TMP/foreign-missing" "$H/.local/bin/new-command"
+run; rc=$?
+check "a foreign symlink collision reports failure" "$rc" "1"
+check "a foreign command collision preserves its link" "$(readlink "$H/.local/bin/new-command")" "$TMP/foreign-missing"
+unlink "$H/.local/bin/new-command"
+ln -s "$H/dotfiles/bin/retired-command" "$H/.local/bin/retired-command"
+HOME="$H" "$LINK" --check >"$TMP/out" 2>&1; rc=$?
+check "--check still succeeds without installing commands" "$rc" "0"
+check "--check leaves missing command links absent" "$([ -L "$H/.local/bin/new-command" ] && echo linked || echo absent)" "absent"
+check "--check leaves retired command links untouched" "$([ -L "$H/.local/bin/retired-command" ] && echo kept || echo removed)" "kept"
+# Failed filesystem operations must not be printed or returned as successful.
+mkdir -p "$TMP/fail-command-link"
+cat > "$TMP/fail-command-link/ln" <<'EOF'
+#!/bin/sh
+for arg; do
+  case "$arg" in */.local/bin/*) echo 'synthetic command-link failure' >&2; exit 1 ;; esac
+done
+exec "$REAL_LN" "$@"
+EOF
+chmod +x "$TMP/fail-command-link/ln"
+REAL_LN="$(command -v ln)" PATH="$TMP/fail-command-link:$PATH" run; rc=$?
+check "failed command-link write reports failure" "$rc" "1"
+check "failed command-link write never prints success" "$(grep -c '^linked command:' "$TMP/out")" "0"
+check "failed command-link write never prints Done" "$(grep -c '^Done\.' "$TMP/out")" "0"
+
+printf 'new-command\nmissing-command\n' > "$H/dotfiles/config/ai/runtime-commands.txt"
+run; rc=$?
+check "a missing manifest executable reports failure" "$rc" "1"
+check "manifest validation precedes command installation" "$([ -L "$H/.local/bin/new-command" ] && echo linked || echo absent)" "absent"
+check "manifest validation precedes retired-link cleanup" "$([ -L "$H/.local/bin/retired-command" ] && echo kept || echo removed)" "kept"
+printf '../outside-command\n' > "$H/dotfiles/config/ai/runtime-commands.txt"
+run; rc=$?
+check "manifest traversal is rejected" "$rc" "1"
 
 echo
 [ "$fails" -eq 0 ] && { echo "ai-memory-link-test: all cases hold"; exit 0; }

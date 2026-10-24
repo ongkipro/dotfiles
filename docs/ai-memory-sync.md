@@ -91,12 +91,13 @@ or unexpectedly dirty worktree.
 
 Opening a shell already runs `dotsync autopull` in the background (main
 branch, clean tree, at most every 6 hours): it fast-forwards, re-links every
-runtime's context (`ai-memory-link`), and reconciles owned skills into every
-runtime (`skill-update`). To update now instead of waiting:
+runtime's context and executable commands (`ai-memory-link`), and reconciles
+owned skills into every runtime (`skill-update`). An up-to-date run also retries
+reconciliation, so an interrupted migration does not need another commit. To update now instead of waiting:
 
 ```bash
 cd ~/dotfiles
-dotsync pull             # ff-only pull, then ai-memory-link + skill-update
+dotsync pull             # ff-only pull, then context/command links + skill-update
 ai-doctor                # links, contexts, skills, last autopull result
 cat ~/.local/state/dotsync/last-result   # outcome of the last autopull
 ```
@@ -104,6 +105,20 @@ cat ~/.local/state/dotsync/last-result   # outcome of the last autopull
 A plain `git pull --ff-only` skips the relink and skill sync; if you used it,
 run `ai-memory-link && skill-update` afterwards. Pull only from a clean
 worktree.
+
+Command links in `~/.local/bin` follow `config/ai/runtime-commands.txt`.
+Reconciliation installs newly listed executables and prunes dangling links that
+resolve into this repository's `bin/`. For example, an existing device receives
+`dotads-meta` on its first pull without reinstalling dotfiles. The running older
+`dotsync` already calls the newly pulled `ai-memory-link`, which performs the
+migration. Existing campaign workspaces and deployment state are unchanged.
+
+The complete manifest is validated before command links change. User files,
+directories, and foreign command symlinks are preserved; a name collision reports
+failure and leaves a warning in the autopull result. Inspect the collision,
+then rerun `ai-memory-link && skill-update`. `ai-memory-link --check` remains
+read-only and does not install or prune commands. This only reconciles links;
+it does not install packages, read credentials, or call advertising APIs.
 
 Release-specific cleanup lives in `CHANGELOG.md` under "Other devices". For
 v2026.10.08 (impeccable removed), on each device:
@@ -144,6 +159,18 @@ or private environment files. `security-check` is a guardrail, not a substitute
 for reviewing the staged diff. If a credential is ever committed, revoke or
 rotate it immediately; deleting it in a later commit is insufficient.
 
-Background synchronization, if added later, should be pull-only. Candidate
+Background synchronization stays pull-only. Candidate
 capture may happen during an AI session, but canonical promotion, commits, and
 pushes remain explicit reviewed actions.
+
+## Reconciliation failures and hook bootstrap
+
+A directory collision at a runtime context path preserves that directory and
+returns nonzero after processing other runtimes. Autopull records incomplete
+reconciliation rather than an up-to-date success. Inspect the conflicting path
+and rerun `ai-memory-link && skill-update` after resolving ownership.
+
+Fresh installers wire both Claude and Codex. Existing devices can explicitly run
+`ai-hooks-install --runtime claude` and `ai-hooks-install --runtime codex`, then
+check each runtime with `--check`. Codex requires interactive `/hooks` trust for
+the exact definitions; file wiring alone is not execution evidence.

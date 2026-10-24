@@ -163,4 +163,39 @@ else
   echo "project-check-test: SKIP shopify fixtures (shopify CLI unavailable)"
 fi
 
+# Explicit UI capability applies to every stack, including mixed repositories.
+# Synthetic tool executables keep these checks independent of installed SDKs.
+python3 - "$PC" "$TMP" <<'PYUI'
+import json, os, pathlib, subprocess, sys
+pc, root = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+bins = root / 'ui-bin'; bins.mkdir()
+for tool in ('go', 'cargo', 'ruff', 'pytest', 'composer', 'npm', 'shopify'):
+    path = bins / tool
+    path.write_text('#!/bin/sh\nexit 0\n'); path.chmod(0o700)
+env = dict(os.environ, PATH=str(bins) + os.pathsep + os.environ['PATH'])
+fixtures = {'go': ('go.mod', 'module fixture.invalid/ui\n'),
+            'rust': ('Cargo.toml', '[package]\nname="fixture"\n'),
+            'python': ('pyproject.toml', '[project]\nname="fixture"\n'),
+            'php': ('composer.json', '{"scripts":{"test":"fixture"}}'),
+            'node': ('package.json', '{"scripts":{"test":"fixture"}}'),
+            'shopify': ('layout/theme.liquid', '{{ content_for_layout }}')}
+for stack, (name, text) in fixtures.items():
+    repo = root / ('ui-' + stack); repo.mkdir()
+    (repo / name).parent.mkdir(parents=True, exist_ok=True)
+    (repo / name).write_text(text)
+    if stack == 'shopify':
+        (repo / 'config').mkdir(); (repo / 'config/settings_schema.json').write_text('[]')
+    result = subprocess.run([sys.executable, str(pc), '--ui', str(repo)], env=env, text=True, capture_output=True)
+    assert result.returncode == 2 and 'UI mode requires' in result.stdout, (stack, result.stdout, result.stderr)
+# A declared and executed E2E script supplies UI evidence for the mixed Go/Node repo.
+repo = root / 'ui-go'
+(repo / 'package.json').write_text(json.dumps({'scripts': {'test:e2e': 'fixture'}}))
+result = subprocess.run([sys.executable, str(pc), '--ui', str(repo)], env=env, text=True, capture_output=True)
+assert result.returncode == 0 and 'npm run test:e2e' in result.stdout, result.stdout
+(bins / 'npm').write_text('#!/bin/sh\nexit 1\n')
+result = subprocess.run([sys.executable, str(pc), '--ui', str(repo)], env=env, text=True, capture_output=True)
+assert result.returncode == 1 and 'FAILED' in result.stderr, result.stdout
+print('project-check-test: UI capability cases PASS (6 stacks, mixed pass/fail)')
+PYUI
+
 echo "project-check-test: PASS"

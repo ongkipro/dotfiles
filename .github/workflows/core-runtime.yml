@@ -14,8 +14,12 @@ on:
       - "config/bashrc.tools.sh"
       - "config/zshrc.tools.sh"
       - "skills/**"
-      - "docs/task-change-boundary.md"
-      - "docs/project-init.md"
+      - "docs/**"
+      - "README.md"
+      - "CHANGELOG.md"
+      - "STATUS.md"
+      - "config/helix/**"
+      - "config/mise-config.toml"
       - "install.sh"
       - "install-macos.sh"
   pull_request:
@@ -31,8 +35,12 @@ on:
       - "config/bashrc.tools.sh"
       - "config/zshrc.tools.sh"
       - "skills/**"
-      - "docs/task-change-boundary.md"
-      - "docs/project-init.md"
+      - "docs/**"
+      - "README.md"
+      - "CHANGELOG.md"
+      - "STATUS.md"
+      - "config/helix/**"
+      - "config/mise-config.toml"
       - "install.sh"
       - "install-macos.sh"
   workflow_dispatch:
@@ -44,6 +52,7 @@ jobs:
   self-test:
     name: Self-test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -97,3 +106,22 @@ jobs:
           OPENAI_API_KEY: ""
         run: bin/ai-doctor --self-test
         shell: bash
+
+  design-tools:
+    name: Full design-tool fixtures
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Prepare isolated image-test dependency
+        run: |
+          python3 -m venv "$RUNNER_TEMP/design-tests"
+          "$RUNNER_TEMP/design-tests/bin/python" -m pip install --only-binary=:all: --no-deps Pillow==13.0.0
+          echo "$RUNNER_TEMP/design-tests/bin" >> "$GITHUB_PATH"
+      - name: Run all five suites with required browser coverage
+        env:
+          DESIGN_TEST_REQUIRE_FULL: "1"
+        run: bin/design-tools-test

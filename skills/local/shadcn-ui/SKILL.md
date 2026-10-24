@@ -440,13 +440,11 @@ hierarchy and states, and preserve just the primitives that fit.
 
 ## Known Gotchas
 
-### Radix Select — No Empty Strings
-
-```tsx
-<SelectItem value="">All</SelectItem>           // BREAKS
-<SelectItem value="__any__">All</SelectItem>    // WORKS
-const actual = value === "__any__" ? "" : value
-```
+For Radix Select's empty-string restriction, breakpoint-specific Dialog widths,
+and static Lucide imports, read the matching section in
+[Component gotchas](references/component-catalogue.md). Keep Select's clear
+state separate from item values, use the generated Dialog's breakpoint prefix,
+and prefer explicit icon imports.
 
 ### React Hook Form — nullable values only
 
@@ -458,41 +456,12 @@ input from controlled to uncontrolled mid-life. Override just that one prop:
 <Input {...field} value={field.value ?? ''} />
 ```
 
-### Lucide Icons — Tree-Shaking
+### Provider boundaries and chart height
 
-```tsx
-// Don't dynamic import
-import * as Icons from 'lucide-react'
-const Icon = Icons[name]  // BREAKS in prod
-
-// Use an explicit map
-import { Home, Users, Settings, type LucideIcon } from 'lucide-react'
-const ICON_MAP: Record<string, LucideIcon> = { Home, Users, Settings }
-const Icon = ICON_MAP[name]
-```
-
-### Dialog Width Override
-
-```tsx
-<DialogContent className="max-w-6xl">       // DOESN'T WORK
-<DialogContent className="sm:max-w-6xl">    // WORKS — must use a breakpoint prefix
-```
-
-### Sidebar + Next.js App Router
-
-```tsx
-// Keep the provider in the smallest client boundary shared by its consumers.
-'use client'
-import { SidebarProvider } from '@/components/ui/sidebar'
-// Context requires a client boundary; cookie persistence is optional policy.
-```
-
-### Chart Container Height
-
-```tsx
-// Always set min-h on ChartContainer, not on the chart itself
-<ChartContainer className="min-h-[200px] w-full">  // CORRECT
-```
+Keep `SidebarProvider` inside the smallest client boundary shared by its
+consumers; cookie persistence is optional. Set minimum height on
+`ChartContainer`, not the chart itself. See
+[Component examples](references/component-examples.md) for both compositions.
 
 ## Customising Components
 

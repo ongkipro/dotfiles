@@ -1,6 +1,6 @@
 ---
 name: continuous-learning
-description: Route requests to the smallest relevant memory scope, protect memory quality, and turn verified evidence into reviewed reusable learning. Not a source of repository status or truth, and never auto-promotes unverified narration. Use when a coding/development session may benefit from identity/preferences, project reference, current execution state, or prior engineering lessons; after verified non-trivial work when a reusable lesson should be captured; and before promoting a memory candidate or evolving reusable methodology into a skill.
+description: Route relevant memory and curated cross-session recall, protect memory quality, and turn verified evidence into review candidates. Not a source of repository status or truth, and never auto-promotes unverified narration. Use when a coding/development session may benefit from identity/preferences, project reference, current execution state, or prior engineering lessons; after verified non-trivial work when a reusable lesson should be captured; and before promoting a memory candidate or evolving reusable methodology into a skill.
 ---
 
 # Continuous Learning
@@ -17,19 +17,64 @@ Treat repository contracts, executable behavior, and `.delivery` evidence as aut
 4. For resume/current status/next blocker, prefer `STATUS.md`, `TASKS.md`, `.delivery/current.json`, and current code over cross-session memory.
 5. If memory conflicts with repository/evidence, use repository/evidence and treat the memory as stale.
 
+## Curated cross-session recall
+
+When earlier decisions or lessons matter, query the affected repository:
+
+```bash
+ai-recall "atomic deployment state" --repo <repo> --limit 5 --json
+```
+
+Repeat `--repo` only for repositories in scope. Add `--document docs/FILE.md`
+only for an explicitly selected additional document. Every query refreshes the
+selected sources and removes deleted or excluded records before searching local
+SQLite FTS5; this is literal-term retrieval, not semantic understanding.
+
+The default sources are repository contracts, structured verified `PASS` run
+metadata, and finalized learning signals. Results include source paths and
+provenance but remain historical/advisory. Reopen the source and verify current
+repository state before acting. Do not add raw chats, command output, private
+files, ignored files, or symlink sources to widen recall. The device-local index
+is a cache, never a second authority or a reason to load unrelated projects.
+
 ## After verified work
 
-Capture a learning signal only when the result is non-trivial, reusable, and machine-verified.
+Capture only a non-trivial, reusable, machine-verified lesson that is not already
+preserved by a repository test or document. Choose the narrowest scope:
 
-1. Complete verification and finish the delivery run with `PASS`.
-2. Record a structured immutable learning signal with `delivery-learning record --repo <repo> --run <RUN-ID> ...`.
-3. Choose the narrowest scope:
-   - `project`: stable project/domain constraint or recurring project-specific lesson;
-   - `shared`: durable cross-project preference or engineering invariant;
-   - `methodology`: repeatable workflow or technique that should evolve into a skill/reference.
-4. Never copy secrets, customer data, raw logs, hidden reasoning, volatile status, or speculative root causes into the signal.
+- `project`: a stable project/domain constraint or recurring project lesson;
+- `shared`: a cross-project preference or engineering invariant;
+- `methodology`: a repeatable workflow worth improving in its owning skill.
 
-`delivery-learning` must refuse runs that are unfinished, non-PASS, have no verification, or contain FAIL/UNVERIFIED verification events.
+Before finishing the active run, stage the explicit English summary:
+
+```bash
+delivery-learning --repo <repo> stage --run <ACTIVE-RUN> \
+  --scope methodology --title ... --symptom ... --root-cause ... \
+  --invariant ... --fix ... --check ...
+```
+
+`delivery-ledger finish --result PASS` finalizes a staged summary into an
+immutable learning signal and harvests a local review candidate. No staged lesson
+means no inference or candidate; `FAIL` and `BLOCKED` never harvest. Do not include
+secrets, customer data, raw logs, hidden reasoning, volatile status, or speculative
+root causes.
+
+Learning requires a verified finished `PASS` run with verification evidence and a
+latest `PASS` result for every check. Earlier failed checks remain in provenance;
+a repaired red-to-green check is allowed. Unfinished or non-PASS runs, unresolved
+`FAIL`/`UNVERIFIED` checks, and tampered evidence are refused.
+
+If the local harvest fails after the run finishes, its recorded result remains
+intact. Inspect the warning and retry idempotently:
+
+```bash
+delivery-learning --repo <repo> finalize --run <FINISHED-RUN>
+```
+
+For an already finished verified run without a staged lesson, the explicit
+`delivery-learning --repo <repo> record --run <RUN-ID> ...` path remains available.
+Neither path applies a patch, promotes memory, or changes a skill automatically.
 
 ## Manual capture (no delivery run)
 
@@ -43,7 +88,7 @@ For a verified non-trivial fix outside a `.delivery` run, the shared core's path
 
 ## Automatic candidate harvest
 
-Run `ai-memory-harvest --repo <repo> --run <RUN-ID>` or `--all` after a verified learning signal exists.
+Automatic finalization uses the existing harvester. Run `ai-memory-harvest --repo <repo> --run <RUN-ID>` or `--all` to process an existing verified learning signal explicitly.
 
 The harvester must:
 

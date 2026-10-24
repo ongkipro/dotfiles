@@ -1,0 +1,15 @@
+upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/workers-best-practices
+verified: 2026-10-24
+scope: directory
+reason: The current upstream entrypoint references the cf-cli sibling skill,
+  which is not vendored in this dotfiles tree. Local points to its official
+  upstream directory instead of creating a broken relative link or installing
+  an unrelated skill. The rest of SKILL.md is byte-identical to the reviewed
+  upstream entrypoint; existing reference files are preserved.
+would_lose_if_wired: A byte-for-byte refresh would reintroduce a reference to an
+  unavailable local sibling and remove its reachable official source.
+refresh_guard: _refresh-vendored.sh reports and preserves this managed fork.
+  Compare upstream in a scratch directory, then retain the external pointer
+  while the sibling is not intentionally adopted.
+to_vendor: Restore the upstream sibling reference if cf-cli is deliberately
+  installed as a canonical owned skill and its routing boundary is accepted.

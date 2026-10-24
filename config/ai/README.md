@@ -71,6 +71,16 @@ The JSON interface and private usage telemetry are unchanged. Verify the CLI
 and real prompt hook with `bin/ai-memory-access-test` and
 `bin/memory-usage-hook-test`; both use synthetic memory fixtures.
 
+`ai-memory-link` also reconciles `config/ai/runtime-commands.txt` into
+`~/.local/bin` when the AI context points into the repository. It validates all
+sources, installs missing command links, and removes dangling command links
+owned by this repository. It preserves user files and foreign links, reporting
+collisions as failure. Runtime context directory collisions also return failure
+after other runtimes are processed. `--check` still writes nothing. Existing `dotsync` versions
+already call this entry point after pulling, so command renames migrate on the
+first upgrade; current autopull also retries reconciliation when up to date.
+See [device synchronization](../../docs/ai-memory-sync.md).
+
 Owned skills live only in `~/dotfiles/skills/local/`. `skill-update` reconciles
 the runtime-native discovery adapters, including OMP's
 `~/.omp/agent/skills`; Codex keeps its built-in `.system` skills alongside
@@ -146,6 +156,28 @@ the candidate locally, and performs no Git action. Raw sessions are never
 ingested because they mix useful lessons with secrets, private data, transient
 state, and unverified reasoning.
 
+## Reviewed automation
+
+An explicit structured lesson can be staged through `delivery-learning stage`
+while a run is active. Finishing PASS finalizes the verified signal and harvests
+a private review candidate; absent proposals, failed runs, and invalid evidence
+never invent lessons. `delivery-learning finalize` retries a failed harvest.
+Canonical memory and skill adoption remain reviewed operations.
+
+`ai-recall` refreshes a private SQLite FTS5 index of explicitly selected repo
+contracts and verified historical evidence. It returns source citations and
+provenance, excludes raw chats/logs and sensitive sources, and does not replace
+current repository checks.
+
+`ai-schedule` registers only allowlisted read-only jobs (`repo-status` and
+`dotads-validate`). It stores local summaries, supports one due tick or a
+foreground loop, and installs no service, cron entry, or live job. Both new
+commands and their tests are in the shared runtime manifest for device sync.
+
+Usage, boundaries, and recovery are documented in
+[Adaptive AI workflow](../../docs/adaptive-ai-system.md#verified-learning-recall-and-scheduled-checks).
+Checkpoint and phone access are deferred.
+
 ## Adaptive cross-CLI workflow
 
 [Adaptive AI system](../../docs/adaptive-ai-system.md) connects intent, native
@@ -156,3 +188,14 @@ OMP is one adapter, not a dependency of other CLIs. Use
 [Research and limits](../../docs/research/adaptive-ai-sources.md) distinguishes
 primary evidence, community hypotheses, metadata-only video discovery and local
 validation. Methodology remains with the owning skills; CORE stays small.
+
+## Whole-system reliability
+
+TASK-135 hardens MCP reconciliation, memory promotion and telemetry, Pi
+compaction, canonical evidence summaries, device migration, and operational
+helpers. [Evidence and recovery](../../docs/research/dotfiles-reliability-sources.md)
+connect the audit findings, community experience, tests, and remaining limits.
+Private MCP configuration retains restrictive modes; unavailable or invalid
+inputs never become a successful sync. Promoted memory must fit its retrieval
+budget before replacing the target. Pi compaction failures retain native
+fallback instead of substituting incomplete context.

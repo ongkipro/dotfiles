@@ -23,22 +23,36 @@ def existing_skills(dot):
     return out
 def method_text(d):
     l=d.get('lesson',{}); return ' '.join(str(l.get(k,'')) for k in ('title','rootCause','invariant','fix'))
+def verified_records(repo, directory, verifier, hash_key, problems):
+    root = repo / '.delivery' / directory
+    if not root.exists(): return []
+    paths = sorted(root.glob('RUN-*.json'))
+    try:
+      if root.is_symlink() or (repo / '.delivery').is_symlink(): raise ValueError('linked evidence directory')
+      if any(p.is_symlink() or p.stat().st_nlink != 1 for p in paths): raise ValueError('linked evidence record')
+      checked = subprocess.run([str(Path(__file__).resolve().parent / verifier), '--repo', str(repo), 'verify', '--json'], capture_output=True, text=True, timeout=60)
+      result = json.loads(checked.stdout)
+      if checked.returncode or result.get('result') != 'VERIFIED':
+        problems.extend(f"{repo}/{directory}: {x}" for x in (result.get('problems') or ['canonical verification failed']))
+        return []
+      records = []
+      for path in paths:
+        data = read_json_verified(path, hash_key)
+        if data.get('runId') != path.stem: raise ValueError('record/run identity mismatch')
+        data['_repo'] = str(repo); records.append(data)
+      return records
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+      problems.append(f'{repo}/{directory}: evidence excluded ({type(exc).__name__})')
+      return []
+
+
 def collect(repos):
     usages=[]; methods=[]; problems=[]
-    for repo in repos:
-      su=repo/'.delivery'/'skill-usage'
-      if su.is_dir():
-        for p in sorted(su.glob('RUN-*.json')):
-          try:
-            d=read_json_verified(p,'usageHash'); d['_repo']=str(repo); usages.append(d)
-          except Exception as e: problems.append(str(e))
-      lr=repo/'.delivery'/'learning'
-      if lr.is_dir():
-        for p in sorted(lr.glob('RUN-*.json')):
-          try:
-            d=read_json_verified(p,'signalHash')
-            if d.get('scope')=='methodology': d['_repo']=str(repo); methods.append(d)
-          except Exception as e: problems.append(str(e))
+    # A canonical repository/run is one sample, even when selected through an
+    # alias, repeated --repo, and --repos-root together.
+    for repo in dict.fromkeys(path.resolve() for path in repos):
+      usages.extend(verified_records(repo, 'skill-usage', 'delivery-skill-usage', 'usageHash', problems))
+      methods.extend(d for d in verified_records(repo, 'learning', 'delivery-learning', 'signalHash', problems) if d.get('scope') == 'methodology')
     return usages,methods,problems
 def clusters(methods,threshold):
     groups=[]
@@ -56,11 +70,12 @@ def main():
     if a.repos_root:
       root=Path(a.repos_root).expanduser().resolve(); repos += [x for x in root.iterdir() if x.is_dir() and (x/'.delivery').is_dir()]
     if not repos: repos=[Path('.').resolve()]
+    repos=list(dict.fromkeys(path.resolve() for path in repos))
     try:
       usages,methods,problems=collect(repos); stats={}
       grouped=defaultdict(list)
       for u in usages:
-        for skill in u.get('skillsUsed',[]): grouped[skill].append(u)
+        for skill in set(u.get('skillsUsed',[])): grouped[skill].append(u)
       for skill,rows in sorted(grouped.items()):
         n=len(rows); evaluated=[x for x in rows if x.get('result') in {'PASS','FAIL'}]; evaluated_n=len(evaluated)
         passed=sum(x.get('result')=='PASS' for x in evaluated); vf=sum(bool(x.get('verificationFailed')) for x in evaluated)
@@ -87,6 +102,7 @@ def main():
         for name,s in stats.items(): print(f"  skill {name}: n={s['samples']} success={s['successRate']:.2f} verify-fail={s['verificationFailureRate']:.2f} -> {s['status']}")
         for x in patterns:
           if x['recommendation']!='INSUFFICIENT_PATTERN': print(f"  {x['patternId']} n={x['samples']} -> {x['recommendation']} {x['closestSkill'] or ''}")
+        for problem in problems: print(f'  excluded evidence: {problem}')
       return 2 if problems else 0
     except (OSError,ValueError,json.JSONDecodeError) as e: print(f'ai-skill-evolution: ERROR: {e}',file=__import__('sys').stderr); return 1
 if __name__=='__main__': raise SystemExit(main())

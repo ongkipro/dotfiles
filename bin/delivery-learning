@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, hashlib, json, os, re, tempfile
+import argparse, fcntl, hashlib, json, os, re, subprocess, tempfile
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -27,11 +28,29 @@ def atomic_json(path: Path, data: dict):
     finally:
         if os.path.exists(tmp): os.unlink(tmp)
 
+def guard_evidence(repo, run_id=None):
+    directories=[repo/'.delivery',repo/'.delivery'/'runs',repo/'.delivery'/'learning',repo/'.delivery'/'learning-pending']
+    files=[repo/'.delivery'/'current.json',repo/'.delivery'/'learning.lock',repo/'.delivery'/'ledger.lock']
+    if run_id is not None:
+        if not SAFE_ID.fullmatch(run_id): raise ValueError('invalid run id')
+        files += [repo/'.delivery'/'runs'/f'{run_id}.jsonl',repo/'.delivery'/'learning'/f'{run_id}.json',repo/'.delivery'/'learning-pending'/f'{run_id}.json']
+    for path in directories:
+        if path.is_symlink() or (path.exists() and not path.is_dir()):
+            raise ValueError('managed delivery directories must be real directories, not symlinks')
+    for path in files:
+        if path.is_symlink() or (path.exists() and (not path.is_file() or path.stat().st_nlink!=1)):
+            raise ValueError('managed delivery files must be regular files without symlinks or hardlinks')
+
 def read_events(path: Path):
+    path=Path(path)
+    if path.is_symlink() or any(p.is_symlink() for p in (path.parent,path.parent.parent)):
+        raise ValueError('run evidence storage must not contain symlinks')
+    if path.stat().st_nlink!=1: raise ValueError('run evidence must not be hardlinked')
     events=[]; prev=None
     for no,raw in enumerate(path.read_text(encoding='utf-8').splitlines(),1):
         if not raw.strip(): continue
         e=json.loads(raw)
+        if not isinstance(e,dict): raise ValueError(f'{path.name}:{no}: event must be an object')
         if e.get('runId') != path.stem: raise ValueError(f'{path.name}:{no}: runId mismatch')
         if e.get('prevEventHash') != prev: raise ValueError(f'{path.name}:{no}: broken hash chain')
         supplied=e.get('eventHash'); unsigned=dict(e); unsigned.pop('eventHash',None)
@@ -41,8 +60,10 @@ def read_events(path: Path):
     return events
 
 def require_run(repo: Path, run_id: str):
+    guard_evidence(repo,run_id)
     if not SAFE_ID.fullmatch(run_id): raise ValueError('invalid run id')
     path=repo/'.delivery'/'runs'/f'{run_id}.jsonl'
+    if path.is_symlink(): raise ValueError('run evidence must not be a symlink')
     if not path.is_file(): raise ValueError(f'run evidence missing: {run_id}')
     ev=read_events(path)
     start=next((x for x in ev if x.get('type')=='run_started'),None)
@@ -51,25 +72,37 @@ def require_run(repo: Path, run_id: str):
     if finish.get('result') != 'PASS': raise ValueError('learning requires run result PASS')
     checks=[x for x in ev if x.get('type')=='verification']
     if not checks: raise ValueError('learning requires at least one verification event')
-    bad=[x for x in checks if x.get('status') != 'PASS']
-    if bad: raise ValueError('learning requires all verification events PASS')
+    latest={x.get('check'):x for x in checks}
+    if any(x.get('status') != 'PASS' for x in latest.values()):
+        raise ValueError('learning requires every verification check to end PASS')
     return start, finish, checks
 
+def verification_provenance(checks, version):
+    if version==1:
+        return [{'check':x.get('check'),'status':x.get('status'),'detail':x.get('detail')} for x in checks]
+    if version==2:
+        return [{'check':x.get('check'),'status':x.get('status'),'eventHash':x.get('eventHash')} for x in checks]
+    raise ValueError('unsupported learning signal schema version')
+
 def verify_signal_against_run(repo: Path, data: dict):
+    validate_lesson(data.get('scope'),data.get('lesson') or {})
+    if data.get('recommendedDestination')!=destination(data['scope']): raise ValueError('learning destination does not match scope')
+    if type(data.get('reusabilityScore')) is not int or not 0<=data['reusabilityScore']<=100: raise ValueError('invalid learning reusability score')
     start,finish,checks=require_run(repo,data.get('runId',''))
     provenance=data.get('provenance') or {}
     expected={
       'task':start.get('task'),'requirement':start.get('requirement'),'risk':start.get('risk'),
       'job':start.get('job'),'capability':start.get('capability'),'worker':start.get('worker'),'model':start.get('model'),'provider':start.get('provider'),'reasoningEffort':start.get('reasoningEffort'),'sourceHead':finish.get('head'),
       'finishedAt':finish.get('time'),
-      'verification':[{'check':x.get('check'),'status':x.get('status'),'detail':x.get('detail')} for x in checks]
+      'verification':verification_provenance(checks,data.get('schemaVersion'))
     }
+    reject_sensitive_tree(provenance)
     for field,value in expected.items():
         if provenance.get(field) != value: raise ValueError(f'learning provenance {field} does not match source run evidence')
 
 def score(scope: str, invariant: str, checks: list[dict]):
     base={'project':60,'shared':75,'methodology':85}[scope]
-    if len(checks) >= 2: base += 5
+    if len({x.get('check') for x in checks}) >= 2: base += 5
     if len(invariant.strip()) >= 60: base += 5
     return min(base,100)
 
@@ -78,36 +111,137 @@ def destination(scope: str): return {'project':'project-memory','shared':'memory
 def reject_sensitive(values):
     if any(SENSITIVE_RE.search(value) for value in values):
         raise ValueError('learning signal looks like it contains a secret; summarize without credentials or raw logs')
+    if any(re.search(r'internal[ -]memory[ -]only|internal-only|private-only|not for public|do not publish this',value,re.I) for value in values):
+        raise ValueError('learning summaries must be public-safe; keep private operational facts device-local')
 
-def record(repo: Path, a):
-    if a.scope not in SCOPES: raise ValueError('scope must be project, shared, or methodology')
-    for name in ('title','symptom','root_cause','invariant','fix','check'):
-        if not getattr(a,name).strip(): raise ValueError(f'--{name.replace("_","-")} is required')
-    reject_sensitive([getattr(a,name) for name in ('title','symptom','root_cause','invariant','fix','check')])
+def reject_sensitive_tree(value):
+    if isinstance(value,dict):
+        for item in value.values(): reject_sensitive_tree(item)
+    elif isinstance(value,(list,tuple)):
+        for item in value: reject_sensitive_tree(item)
+    elif isinstance(value,str): reject_sensitive([value])
+
+def validate_lesson(scope, lesson):
+    if not isinstance(scope,str) or scope not in SCOPES: raise ValueError('scope must be project, shared, or methodology')
+    fields=('title','symptom','rootCause','invariant','fix','check')
+    if not isinstance(lesson,dict) or set(lesson)!=set(fields): raise ValueError('lesson requires exactly the six structured summary fields')
+    for name in fields:
+        value=lesson.get(name)
+        if not isinstance(value,str) or not value.strip() or len(value)>4096:
+            raise ValueError(f'lesson {name} must be a nonempty summary of at most 4096 characters')
+    reject_sensitive(lesson.values())
+
+def lesson_args(a):
+    return {'title':a.title,'symptom':a.symptom,'rootCause':a.root_cause,'invariant':a.invariant,'fix':a.fix,'check':a.check}
+
+def _record(repo: Path, a):
+    validate_lesson(a.scope,lesson_args(a))
     start,finish,checks=require_run(repo,a.run)
     root=repo/'.delivery'/'learning'; target=root/f'{a.run}.json'
-    if target.exists(): raise ValueError('learning signal already exists; signals are immutable')
+    if target.exists() or target.is_symlink(): raise ValueError('learning signal already exists; signals are immutable')
     data={
-      'schemaVersion':1,'runId':a.run,'capturedAt':now(),'scope':a.scope,
+      'schemaVersion':2,'runId':a.run,'capturedAt':now(),'scope':a.scope,
       'recommendedDestination':destination(a.scope),'reusabilityScore':score(a.scope,a.invariant,checks),
       'lesson':{'title':a.title,'symptom':a.symptom,'rootCause':a.root_cause,'invariant':a.invariant,'fix':a.fix,'check':a.check},
       'provenance':{
         'task':start.get('task'),'requirement':start.get('requirement'),'risk':start.get('risk'),
         'job':start.get('job'),'capability':start.get('capability'),'worker':start.get('worker'),'model':start.get('model'),'provider':start.get('provider'),'reasoningEffort':start.get('reasoningEffort'),'sourceHead':finish.get('head'),
         'finishedAt':finish.get('time'),
-        'verification':[{'check':x.get('check'),'status':x.get('status'),'detail':x.get('detail')} for x in checks]
+        'verification':verification_provenance(checks,2)
       }
     }
+    reject_sensitive_tree(data['provenance'])
     data['signalHash']=digest(data)
     atomic_json(target,data)
     print(f'delivery-learning: RECORDED {target}')
 
-def verify(repo: Path, as_json: bool):
+@contextmanager
+def learning_lock(repo, filename='learning.lock'):
+    guard_evidence(repo)
+    root=repo/'.delivery'
+    if not root.is_dir(): raise ValueError('repository delivery ledger is missing')
+    with (root/filename).open('a') as lock:
+        fcntl.flock(lock.fileno(),fcntl.LOCK_EX)
+        yield
+
+
+def record(repo, a):
+    with learning_lock(repo): _record(repo,a)
+
+
+def proposal_path(repo, run_id):
+    if not SAFE_ID.fullmatch(run_id): raise ValueError('invalid run id')
+    return repo/'.delivery'/'learning-pending'/f'{run_id}.json'
+
+
+def stage(repo, a):
+    lesson=lesson_args(a); validate_lesson(a.scope,lesson)
+    target=proposal_path(repo,a.run)
+    guard_evidence(repo,a.run)
+    # Match finish's ledger -> learning lock order, so staging cannot land after
+    # finish has already checked for a proposal and closed the run.
+    with learning_lock(repo,'ledger.lock'), learning_lock(repo):
+        current=json.loads((repo/'.delivery'/'current.json').read_text())
+        events=read_events(repo/'.delivery'/'runs'/f'{a.run}.jsonl')
+        start=next((e for e in events if e.get('type')=='run_started'),None)
+        if current.get('activeRun')!=a.run or not start or any(e.get('type')=='run_finished' for e in events):
+            raise ValueError('stage requires the active unfinished run')
+        data={'schemaVersion':1,'runId':a.run,'startEventHash':start['eventHash'],'scope':a.scope,'lesson':lesson}
+        data['proposalHash']=digest(data)
+        if target.is_symlink(): raise ValueError('learning proposal must not be a symlink')
+        if target.exists():
+            if json.loads(target.read_text())!=data: raise ValueError('a different lesson is already staged for this run')
+        else: atomic_json(target,data)
+    print(f'delivery-learning: STAGED {target}; promotion still requires review')
+
+
+def finalize(repo, a):
+    target=proposal_path(repo,a.run)
+    guard_evidence(repo,a.run)
+    with learning_lock(repo):
+        if not target.exists():
+            if target.is_symlink(): raise ValueError('learning proposal must not be a symlink')
+            print(f'delivery-learning: NO_PROPOSAL {a.run}')
+            return
+        if target.is_symlink(): raise ValueError('learning proposal must not be a symlink')
+        data=json.loads(target.read_text())
+        if not isinstance(data,dict): raise ValueError('learning proposal must be an object')
+        unsigned=dict(data); supplied=unsigned.pop('proposalHash',None)
+        if supplied!=digest(unsigned) or data.get('runId')!=a.run: raise ValueError('learning proposal hash or run mismatch')
+        validate_lesson(data.get('scope'),data.get('lesson') or {})
+        start,_,_=require_run(repo,a.run)
+        if data.get('startEventHash')!=start.get('eventHash'): raise ValueError('learning proposal does not match the source run')
+        signal=repo/'.delivery'/'learning'/f'{a.run}.json'
+        if signal.is_symlink(): raise ValueError('learning signal must not be a symlink')
+        if signal.exists():
+            existing=json.loads(signal.read_text()); un=dict(existing); signature=un.pop('signalHash',None)
+            if signature!=digest(un): raise ValueError('learning signal hash mismatch')
+            verify_signal_against_run(repo,existing)
+            if existing.get('scope')!=data['scope'] or existing.get('lesson')!=data['lesson']:
+                raise ValueError('staged lesson differs from the immutable learning signal')
+        else:
+            lesson=data['lesson']
+            _record(repo,argparse.Namespace(run=a.run,scope=data['scope'],title=lesson['title'],symptom=lesson['symptom'],root_cause=lesson['rootCause'],invariant=lesson['invariant'],fix=lesson['fix'],check=lesson['check']))
+        dot=Path(a.dotfiles or os.environ.get('DOTFILES_DIR',Path(__file__).resolve().parent.parent)).resolve()
+        harvester=dot/'bin'/'ai-memory-harvest'
+        if not harvester.is_file(): raise ValueError('ai-memory-harvest is unavailable; retry finalize after restoring it')
+        command=['python3',str(harvester),'--repo',str(repo),'--run',a.run,'--dotfiles',str(dot)]
+        if a.inbox: command+=['--inbox',a.inbox]
+        result=subprocess.run(command,capture_output=True,text=True,timeout=60)
+        if result.returncode:
+            raise ValueError('candidate harvest failed; retry delivery-learning finalize after resolving the local failure')
+        print(result.stdout.strip())
+
+
+def verify(repo: Path, as_json: bool, run_id=None):
+    guard_evidence(repo,run_id)
     root=repo/'.delivery'/'learning'; problems=[]; count=0
+    if run_id is not None and not (root/f'{run_id}.json').is_file(): raise ValueError('learning signal is missing')
     if root.is_dir():
-      for p in sorted(root.glob('RUN-*.json')):
+      for p in ([root/f'{run_id}.json'] if run_id is not None else sorted(root.glob('RUN-*.json'))):
         count+=1
         try:
+          if p.is_symlink(): raise ValueError('learning signal must not be a symlink')
           d=json.loads(p.read_text(encoding='utf-8')); supplied=d.get('signalHash'); u=dict(d);u.pop('signalHash',None)
           if supplied != digest(u): problems.append(f'{p.name}: signal hash mismatch')
           if d.get('runId') != p.stem: problems.append(f'{p.name}: runId mismatch')
@@ -118,15 +252,20 @@ def verify(repo: Path, as_json: bool):
     return 0 if not problems else 2
 
 def main():
-    p=argparse.ArgumentParser(); p.add_argument('--repo',default='.')
+    p=argparse.ArgumentParser(description='Stage explicit lessons, verify completed delivery evidence, and create local review candidates.')
+    p.add_argument('--repo',default='.')
     sub=p.add_subparsers(dest='cmd',required=True)
-    r=sub.add_parser('record'); r.add_argument('--run',required=True); r.add_argument('--scope',required=True,choices=sorted(SCOPES))
-    for x in ('title','symptom','root-cause','invariant','fix','check'): r.add_argument('--'+x,required=True,dest=x.replace('-','_'))
-    v=sub.add_parser('verify'); v.add_argument('--json',action='store_true')
+    for name in ('record','stage'):
+        r=sub.add_parser(name); r.add_argument('--run',required=True); r.add_argument('--scope',required=True,choices=sorted(SCOPES))
+        for x in ('title','symptom','root-cause','invariant','fix','check'): r.add_argument('--'+x,required=True,dest=x.replace('-','_'))
+    f=sub.add_parser('finalize'); f.add_argument('--run',required=True); f.add_argument('--inbox'); f.add_argument('--dotfiles')
+    v=sub.add_parser('verify'); v.add_argument('--json',action='store_true'); v.add_argument('--run')
     a=p.parse_args(); repo=Path(a.repo).resolve()
     try:
-      if a.cmd=='record': record(repo,a); return 0
-      return verify(repo,a.json)
-    except (ValueError,OSError,json.JSONDecodeError) as e:
-      print(f'delivery-learning: ERROR: {e}',file=__import__('sys').stderr); return 1
+        if a.cmd=='record': record(repo,a); return 0
+        if a.cmd=='stage': stage(repo,a); return 0
+        if a.cmd=='finalize': finalize(repo,a); return 0
+        return verify(repo,a.json,a.run)
+    except (ValueError,OSError,json.JSONDecodeError,subprocess.SubprocessError) as e:
+        print(f'delivery-learning: ERROR: {e}',file=__import__('sys').stderr); return 1
 if __name__=='__main__': raise SystemExit(main())

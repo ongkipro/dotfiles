@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Behavioral regression suite for bin/meta-ads-ops.
+# Behavioral regression suite for bin/dotads-meta.
 set -uo pipefail
 
 ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
-CMD="$ROOT/bin/meta-ads-ops"
-TMP="$(mktemp -d "${TMPDIR:-/tmp}/meta-ads-ops-test.XXXXXX")"
+CMD="$ROOT/bin/dotads-meta"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/dotads-meta-test.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 
 f=0
@@ -24,6 +24,25 @@ printf '%s' "$help_out" | grep -qE 'setup|init|validate|deploy|status|doctor|run
 "$CMD" unknown-subcommand >/dev/null 2>&1 \
   && bad "accepted an unknown subcommand" \
   || ok "rejects an unknown subcommand"
+
+# Pin the public command surface and reject retired naming across maintained files.
+if printf '%s' "$help_out" | grep -q '^Usage: dotads-meta ' \
+  && grep -qxF 'dotads-meta' "$ROOT/config/ai/runtime-commands.txt" \
+  && grep -qxF 'dotads-meta-test' "$ROOT/config/ai/runtime-commands.txt"; then
+  ok "canonical command and regression suite remain installable"
+else
+  bad "canonical command help or installer manifest is incomplete"
+fi
+retired_name='meta-ads-ops'
+retired_refs="$(cd "$ROOT" && rg --files-with-matches --hidden --glob '!.git/**' --glob '!.delivery/**' --glob '!bin/dotads-meta-test' --fixed-strings "$retired_name" . 2>&1)"
+retired_rc=$?
+if [ "$retired_rc" -eq 1 ] \
+  && [ ! -e "$ROOT/bin/$retired_name" ] && [ ! -L "$ROOT/bin/$retired_name" ] \
+  && [ ! -e "$ROOT/bin/$retired_name-test" ] && [ ! -L "$ROOT/bin/$retired_name-test" ]; then
+  ok "retired commands and references stay absent outside immutable execution evidence"
+else
+  bad "retired command or reference reintroduced (or search failed): $retired_refs"
+fi
 
 # 2. Scaffold workspace via init
 WS="$TMP/brand-alpha"
@@ -128,6 +147,15 @@ if [ "${1:-}" = "auth" ] && [ "${2:-}" = "status" ]; then
   fi
   echo "Not authenticated. Set the ACCESS_TOKEN environment variable."
   exit 0
+fi
+
+if [ -n "${EXPECTED_AD_ACCOUNT_ID:-}" ] && [ "${AD_ACCOUNT_ID:-}" != "$EXPECTED_AD_ACCOUNT_ID" ]; then
+  echo "Wrong ad account environment" >&2
+  exit 98
+fi
+if [ "${EXPECTED_BUSINESS_ID+x}" = x ] && [ "${BUSINESS_ID:-}" != "$EXPECTED_BUSINESS_ID" ]; then
+  echo "Wrong business environment" >&2
+  exit 98
 fi
 
 # Record invocation args and verify ACCESS_TOKEN is in env, never in args
@@ -262,6 +290,162 @@ else
   bad "run failed: $run_out"
 fi
 
-[ "$f" -eq 0 ] && { echo "meta-ads-ops-test: PASS"; exit 0; }
-echo "meta-ads-ops-test: $f case(s) failed" >&2
+# A corrupt state file must never be silently reset into a fresh deployment.
+cp "$WS/.meta-state.json" "$TMP/good-state.json"
+for invalid_state in '{"campaigns":' 'null' '{"version":2}' '{"version":1,"campaigns":[]}' '{"version":1,"media_cache":{},"campaigns":{},"creatives":{},"adsets":{},"ads":{"ad":{"name":"missing ID"}}}'; do
+  printf '%s\n' "$invalid_state" > "$WS/.meta-state.json"
+  calls_before="$(wc -l < "$META_LOG")"
+  invalid_out="$("$CMD" deploy "$WS/campaigns/active-manifest.json" --apply 2>&1)"
+  invalid_rc=$?
+  if [ "$invalid_rc" -ne 0 ] \
+    && [ "$(wc -l < "$META_LOG")" = "$calls_before" ] \
+    && [ "$(cat "$WS/.meta-state.json")" = "$invalid_state" ]; then
+    ok "invalid state blocks deployment without API calls or data loss: $invalid_state"
+  else
+    bad "invalid state allowed a deployment or changed persisted data: $invalid_state"
+  fi
+  "$CMD" status --brand "$WS/brand.json" --json >/dev/null 2>&1 \
+    && bad "status accepted invalid state: $invalid_state" \
+    || ok "status rejects invalid persisted state"
+done
+cp "$TMP/good-state.json" "$WS/.meta-state.json"
+
+# An explicit brand must win over unrelated account defaults in the parent shell.
+brand_account="$(jq -r '.ad_account_id' "$WS/brand.json")"
+brand_business="$(jq -r '.business_id' "$WS/brand.json")"
+brand_out="$(AD_ACCOUNT_ID=act_999999 BUSINESS_ID=999999 EXPECTED_AD_ACCOUNT_ID="$brand_account" EXPECTED_BUSINESS_ID="$brand_business" \
+  "$CMD" run --brand "$WS/brand.json" -- --output json --no-input ads campaign list 2>&1)"
+if [ "$?" -eq 0 ] && printf '%s' "$brand_out" | grep -q '"camp_1001"'; then
+  ok "explicit brand overrides inherited ad account and business defaults"
+else
+  bad "parent account defaults overrode explicit brand: $brand_out"
+fi
+
+# No business in the selected brand must not pick a different shell default.
+jq 'del(.business_id)' "$WS/brand.json" > "$WS/brand-no-business.json"
+BUSINESS_ID=999999 EXPECTED_BUSINESS_ID= "$CMD" run --brand "$WS/brand-no-business.json" -- --output json --no-input ads campaign list >/dev/null 2>&1 \
+  && ok "brand without business clears inherited business defaults" \
+  || bad "brand without business inherited an unrelated business"
+
+jq '.creatives += [.creatives[0] | .key = "cr_no_business"]' "$WS/campaigns/active-manifest.json" > "$WS/campaigns/no-business.json"
+BUSINESS_ID=999999 EXPECTED_BUSINESS_ID= "$CMD" deploy "$WS/campaigns/no-business.json" --brand "$WS/brand-no-business.json" --apply >/dev/null 2>&1 \
+  && ok "deployment without a business clears inherited business defaults" \
+  || bad "deployment without a business inherited an unrelated business"
+cp "$WS/.meta-state.json" "$TMP/good-state.json"
+
+# Simulate interruption during state writing after a remote creation succeeded.
+cat > "$TMP/fail-state-write.cjs" <<'EOF'
+const fs = require('node:fs');
+const write = fs.writeFileSync;
+fs.writeFileSync = function(file, data, options) {
+  if (String(file).includes('.meta-state.json')) {
+    write(file, '{"interrupted":', options);
+    throw new Error('Simulated state write failure');
+  }
+  return write.apply(this, arguments);
+};
+EOF
+jq '.creatives += [.creatives[0] | .key = "cr_write_failure"]' "$WS/campaigns/active-manifest.json" > "$WS/campaigns/write-failure.json"
+failure_out="$(NODE_OPTIONS="--require=$TMP/fail-state-write.cjs" "$CMD" deploy "$WS/campaigns/write-failure.json" --apply 2>&1)"
+if [ "$?" -ne 0 ] \
+  && printf '%s' "$failure_out" | grep -q 'Simulated state write failure' \
+  && cmp -s "$TMP/good-state.json" "$WS/.meta-state.json" \
+  && [ -d "$WS/.dotads-meta.lock" ] \
+  && [ -z "$(find "$WS" -name '.meta-state.json.*.tmp' -print)" ]; then
+  ok "interrupted state write preserves previous IDs and cleans its temporary file"
+else
+  bad "interrupted state write lost previous deployment state or temporary-file cleanup: $failure_out"
+fi
+
+# Account/parent identities, default drift, duplicate keys and concurrent writers.
+if python3 - "$CMD" <<'PYTEST'
+from pathlib import Path
+import json, os, subprocess, sys, tempfile, time
+cmd = sys.argv[1]
+with tempfile.TemporaryDirectory(prefix='dotads-integrity-') as tmp:
+    root = Path(tmp); ws = root/'ws'
+    subprocess.run([cmd, 'init', str(ws)], check=True, capture_output=True)
+    (ws/'media/hero.jpg').write_bytes(b'synthetic image')
+    mock = root/'meta'
+    mock.write_text('''#!/usr/bin/env python3
+import json, os, time
+from pathlib import Path
+r=Path(os.environ['FIXTURE_ROOT'])
+with (r/'calls').open('a') as f: f.write('create\\n')
+(r/'started').touch()
+time.sleep(float(os.environ.get('FIXTURE_DELAY','0')))
+print(json.dumps({'id':str(os.getpid())}))
+'''); mock.chmod(0o755)
+    secret = root/'secrets-env'
+    secret.write_text('#!/bin/sh\nprintf "synthetic-fixture-value\\n"\n'); secret.chmod(0o755)
+    env = dict(os.environ, META_ADS_BIN=str(mock), SECRETS_ENV_BIN=str(secret), FIXTURE_ROOT=str(root))
+    manifest = ws/'campaigns/sample-campaign.json'; brandpath = ws/'brand.json'; statepath = ws/'.meta-state.json'
+    original = json.loads(manifest.read_text()); brand = json.loads(brandpath.read_text())
+    def run(apply=True):
+        return subprocess.run([cmd,'deploy',str(manifest),'--json',*(['--apply'] if apply else [])],env=env,capture_output=True,text=True)
+    def save(file, value): file.write_text(json.dumps(value))
+    def rejected(label):
+        before = (root/'calls').read_bytes() if (root/'calls').exists() else b''
+        r = run(); assert r.returncode != 0, (label,r.stdout)
+        after = (root/'calls').read_bytes() if (root/'calls').exists() else b''
+        assert before == after, label+' made remote calls'
+        print('  PASS '+label)
+    for value in ['', '  ', 23, None]:
+        data = json.loads(json.dumps(original)); data['ads'][0]['key'] = value
+        # null means fallback-to-name; explicit invalid values must still fail.
+        if value is None: data['ads'][0]['name'] = None
+        save(manifest,data); rejected('invalid effective ad key '+repr(value))
+    data=json.loads(json.dumps(original)); data['ads'].append(dict(data['ads'][0],name='second ad'))
+    save(manifest,data); rejected('duplicate ad identity')
+    # Prototype-named keys are valid strings and cannot masquerade as saved IDs.
+    data=json.loads(json.dumps(original)); data['adsets'][0]['key']='toString'; data['ads'][0]['adset']='toString'
+    save(manifest,data)
+    r=run(False); assert r.returncode==0 and all(step['action']=='CREATE' for step in json.loads(r.stdout)['steps']),r.stderr
+    print('  PASS prototype-named key does not inherit a saved record')
+    save(manifest, original)
+    args=[cmd,'deploy',str(manifest),'--apply','--json']
+    first=subprocess.Popen(args,env=dict(env,FIXTURE_DELAY='0.25'),stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+    deadline=time.monotonic()+5
+    while not (root/'started').exists():
+        assert time.monotonic()<deadline,'first apply did not start'; time.sleep(.01)
+    second=run(); assert second.returncode != 0 and 'lock exists' in second.stderr,second.stderr
+    out,err=first.communicate(timeout=10); assert first.returncode==0,err
+    assert len((root/'calls').read_text().splitlines())==4,'concurrent duplicate creation'
+    assert not (ws/'.dotads-meta.lock').exists()
+    assert run().returncode==0 and len((root/'calls').read_text().splitlines())==4
+    print('  PASS concurrent apply excluded; resumed apply reuses all IDs')
+    state=json.loads(statepath.read_text()); assert state['ad_account_id']==brand['ad_account_id']
+    save(brandpath,dict(brand,ad_account_id='act_999999999')); rejected('account change')
+    save(brandpath,brand)
+    data=json.loads(json.dumps(original)); data['campaign']['key']='new-campaign'
+    save(manifest,data); rejected('campaign parent change')
+    save(manifest,original)
+    altered=json.loads(json.dumps(state)); del altered['ads'][original['ads'][0]['key']]['creative_id']
+    save(statepath,altered); rejected('missing saved parent')
+    altered=json.loads(json.dumps(state)); del altered['ad_account_id']
+    save(statepath,altered); rejected('unbound legacy state')
+    assert json.loads(statepath.read_text())==altered
+    save(statepath,state)
+    save(brandpath,dict(brand,page_id='999999',pixel_id='888888',conversion_domain='new.example.invalid'))
+    r=run(False); assert r.returncode==0,r.stderr
+    steps=json.loads(r.stdout)['steps']; assert all(s['drift'] for s in steps if s['kind']!='campaign'),steps
+    print('  PASS effective brand defaults participate in drift')
+    save(brandpath,brand)
+    # DCO media content is part of creative identity even with stable paths.
+    data=json.loads(json.dumps(original)); cr=data['creatives'][0]
+    cr['key']='dco'; cr['images']=[cr.pop('image')]
+    data['adsets'][0]['key']='dynamic'; data['adsets'][0]['dynamic_creative']=True
+    data['ads'][0].update(key='dynamic-ad',adset='dynamic',creative='dco')
+    save(manifest,data); r=run(); assert r.returncode==0,r.stderr
+    (ws/'media/hero.jpg').write_bytes(b'changed DCO image')
+    r=run(False); assert r.returncode==0,r.stderr
+    assert next(step for step in json.loads(r.stdout)['steps'] if step['kind']=='creative')['drift']
+    print('  PASS DCO content changes cause creative drift')
+    lock=ws/'.dotads-meta.lock'; lock.mkdir(); (lock/'owner.json').write_text('{"pid":0}')
+    rejected('stale lock requires explicit reconciliation')
+PYTEST
+then ok "deployment identity and single-writer regressions"; else bad "deployment identity or lock regression"; fi
+
+[ "$f" -eq 0 ] && { echo "dotads-meta-test: PASS"; exit 0; }
+echo "dotads-meta-test: $f case(s) failed" >&2
 exit 1

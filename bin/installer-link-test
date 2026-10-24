@@ -169,6 +169,22 @@ EOF
     [ "$(find "$TMP" -maxdepth 1 -type f -name 'macos-zshrc.bak.*' | wc -l)" -eq 1 ]
   )
 
+  (
+    eval "$function_code"
+    say() { :; }
+    for shape in missing nested; do
+      rc="$TMP/macos-malformed-$shape"
+      printf 'keep-before\n# >>> broken >>>\nkeep-after\n' > "$rc"
+      if [ "$shape" = nested ]; then
+        printf '# >>> broken >>>\nlegacy-stop\nkeep-tail\n' >> "$rc"
+      fi
+      before="$(cksum "$rc")"
+      ! ensure_shell_source "$rc" broken.sh broken legacy-stop >/dev/null 2>&1
+      [ "$before" = "$(cksum "$rc")" ]
+      [ "$(find "$TMP" -name "macos-malformed-$shape.bak.*" | wc -l)" -eq 0 ]
+    done
+  )
+
   echo "✓ install-macos.sh:ensure_shell_source"
 }
 
@@ -295,6 +311,7 @@ test_retire_claude_account_profiles() {
 
   (
     HOME="$case_dir/home"
+    DOT="$case_dir/dotfiles"
     say() { :; }
     eval "$function_code"
 
@@ -312,6 +329,15 @@ test_retire_claude_account_profiles() {
     retire_claude_account_profiles >/dev/null
     [ "$(cat "$HOME/.local/bin/claude-kerja")" = "$(printf '#!/usr/bin/env bash\necho mine')" ]
     rm -f "$HOME/.local/bin/claude-kerja"
+
+    # Only repository-owned legacy links may be retired, including dangling ones.
+    printf 'foreign launcher\n' > "$case_dir/foreign"
+    ln -s "$case_dir/foreign" "$HOME/.local/bin/claude-kerja"
+    ln -s "$DOT/bin/claude-personal" "$HOME/.local/bin/claude-personal"
+    retire_claude_account_profiles >/dev/null
+    [ -L "$HOME/.local/bin/claude-kerja" ]
+    [ "$(cat "$case_dir/foreign")" = 'foreign launcher' ]
+    [ ! -L "$HOME/.local/bin/claude-personal" ]
 
     # a surviving profile directory is reported, never deleted
     mkdir -p "$HOME/.claude-accounts/personal"
@@ -359,6 +385,36 @@ test_runtime_command_manifest() {
   grep -qF 'pruned stale command link' "$ROOT/install-macos.sh"
   echo "✓ runtime command manifest and hook wiring"
 }
+
+# Execute each installer's actual hook bootstrap against a brand-new HOME.
+# The real reconciler must create both profiles without relying on memory-link.
+python3 - "$ROOT" "$TMP" <<'PYTEST'
+import json, os, pathlib, subprocess, sys
+root, tmp = map(pathlib.Path, sys.argv[1:])
+for name in ('install.sh', 'install-macos.sh'):
+    home = tmp / (name + '-fresh-hooks')
+    (home / '.local/bin').mkdir(parents=True)
+    (home / '.local/bin/ai-hooks-install').symlink_to(root / 'bin/ai-hooks-install')
+    source = (root / name).read_text()
+    block = source[source.index('"==> Wire canonical'):]
+    block = ('echo ' if name == 'install.sh' else 'say ') + block
+    block = block.split('retire_omp_overrides\n', 1)[0] if name == 'install.sh' else block.split('say "==> Link local skills', 1)[0]
+    env = dict(os.environ, HOME=str(home), DOTFILES_DIR=str(root), CLAUDE_CONFIG_DIR=str(home / 'foreign'), CODEX_HOME=str(home / 'other'))
+    for _ in range(2):
+        subprocess.run(['bash', '-euc', 'say() { :; }; ' + block], env=env, check=True, stdout=subprocess.DEVNULL)
+        for rel in ('.claude/settings.json', '.codex/hooks.json'):
+            path = home / rel
+            data = json.loads(path.read_text())
+            assert data['hooks'], rel
+            if _:
+                assert data['fixture_setting'] == 'preserved'
+            data['fixture_setting'] = 'preserved'
+            path.write_text(json.dumps(data))
+    assert not (home / '.claude-accounts').exists()
+    assert not (home / 'foreign').exists()
+    assert not (home / 'other').exists()
+    print('✓ ' + name + ': fresh Claude/Codex hooks, explicit primary paths, settings preserved')
+PYTEST
 
 test_helper "$ROOT/install.sh" link
 test_helper "$ROOT/install-macos.sh" link

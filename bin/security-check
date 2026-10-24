@@ -11,12 +11,7 @@ if ! command -v git >/dev/null 2>&1; then
   exit 1
 fi
 
-# Fail loudly when there is nothing to scan. The two `git grep … || true` calls
-# below absorb git's exit 1 ("no match"), but they absorb fatal errors just as
-# happily — a non-repository, a corrupt index, a bad pathspec. Without this
-# guard the scan never runs and the script still prints "no obvious secrets
-# found" and exits 0, which is the worst possible failure mode for a secret
-# gate: green because it looked nowhere.
+# A missing repository and every fatal search error must fail the scan.
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   echo "ERROR: $REPO is not a git work tree; refusing to report a clean scan." >&2
   exit 1
@@ -81,15 +76,24 @@ umask 077
 TMP="$(mktemp "${TMPDIR:-/tmp}/dotfiles-secret-scan.XXXXXX")"
 trap 'rm -f "$TMP"' EXIT
 
+git_search() {
+  local rc=0
+  git grep "$@" || rc=$?
+  if [ "$rc" -gt 1 ]; then
+    echo "ERROR: git search failed; scan is incomplete." >&2
+    return "$rc"
+  fi
+}
+
 {
   # Precise signatures are never allowlisted.
-  git grep -nEI          "$PRECISE_PATTERN" -- "${EXCLUDES[@]}" || true
-  git grep -nEI --cached "$PRECISE_PATTERN" -- "${EXCLUDES[@]}" || true
+  git_search -nEI          "$PRECISE_PATTERN" -- "${EXCLUDES[@]}"
+  git_search -nEI --cached "$PRECISE_PATTERN" -- "${EXCLUDES[@]}"
 
   # Only broad NAME=value heuristics receive placeholder/test-key filtering.
   {
-    git grep -nEI          "$ASSIGNMENT_PATTERN" -- "${EXCLUDES[@]}" || true
-    git grep -nEI --cached "$ASSIGNMENT_PATTERN" -- "${EXCLUDES[@]}" || true
+    git_search -nEI          "$ASSIGNMENT_PATTERN" -- "${EXCLUDES[@]}"
+    git_search -nEI --cached "$ASSIGNMENT_PATTERN" -- "${EXCLUDES[@]}"
   } | sort -u \
     | { grep -vEi "$PLACEHOLDER" || true; } \
     | { grep -vEi "$SAFE_DOC_VALUE" || true; } \

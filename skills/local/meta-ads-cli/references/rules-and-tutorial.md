@@ -1,4 +1,4 @@
-# Meta Ads CLI & `meta-ads-ops` — Rules, SOP, and Step-by-Step Tutorial
+# Meta Ads CLI & `dotads-meta` — Rules, SOP, and Step-by-Step Tutorial
 
 Canonical operational rules and copy-paste recipes for running Meta (Facebook & Instagram) Ads from the terminal across all devices and all 5 AI CLIs (`claude`, `codex`, `agy`, `pi`, `omp`).
 
@@ -7,15 +7,15 @@ Canonical operational rules and copy-paste recipes for running Meta (Facebook & 
 ## Part 1: The 8 Golden Rules (Mandatory Guardrails)
 
 1. **Workspace Separation (`~/dotfiles` vs Project Data):**
-   - `~/dotfiles` holds only CLI helpers (`bin/meta-ads-ops`, `bin/meta-ads-ops-test`) and skills (`skills/local/meta-ads-cli/`).
+   - `~/dotfiles` holds only CLI helpers (`bin/dotads-meta`, `bin/dotads-meta-test`) and skills (`skills/local/meta-ads-cli/`).
    - Every brand or store workspace (`brand.json`, `campaigns/*.json`, `media/`, `.meta-state.json`) lives outside `~/dotfiles` (e.g. `~/Documents/work/ads/<brand-slug>/` or `<repo>/ads/`).
 2. **Zero Plaintext Secrets in Project Folders:**
    - Never create `.env` files with Meta tokens inside project workspaces, and never pass tokens via CLI flags (`--access-token`).
-   - Store all System User tokens in `~/.config/ai-local/secrets.env` (`chmod 600`) and let `meta-ads-ops` inject `ACCESS_TOKEN` in-memory via `secrets-env get`.
+   - Store all System User tokens in `~/.config/ai-local/secrets.env` (`chmod 600`) and let `dotads-meta` inject `ACCESS_TOKEN` in-memory via `secrets-env get`.
 3. **Mandatory 4-Step Pre-Flight Sequence:**
-   - Always run: (1) `meta-ads-ops validate <campaign.json>` -> (2) `meta-ads-ops deploy <campaign.json>` (dry-run) -> (3) obtain explicit user approval -> (4) `meta-ads-ops deploy <campaign.json> --apply`.
+   - Always run: (1) `dotads-meta validate <campaign.json>` -> (2) `dotads-meta deploy <campaign.json>` (dry-run) -> (3) obtain explicit user approval -> (4) `dotads-meta deploy <campaign.json> --apply`.
 4. **Paused-by-Default Safety Gate:**
-   - `meta-ads-ops deploy --apply` forces `--status PAUSED` on all created entities unless `--activate` is explicitly passed.
+   - `dotads-meta deploy --apply` forces `--status PAUSED` on all created entities unless `--activate` is explicitly passed.
 5. **Budget Exclusivity & Minor Currency Units:**
    - Choose exactly one budget mode per campaign: **CBO** (budget on `campaign`, none on `adsets`), **ABO** (no budget/bid_strategy/pacing_type on `campaign`, budget on each `adset`), or **Flex** (`"adset_budget_sharing": true` on `campaign`, `daily_budget` on each `adset`).
    - Budgets and bid amounts are integers in **minor currency units** (`5000` = `$50.00` USD).
@@ -23,11 +23,12 @@ Canonical operational rules and copy-paste recipes for running Meta (Facebook & 
    - `OUTCOME_SALES` / `OFFSITE_CONVERSIONS` requires `pixel_id` + `custom_event_type` on the ad set and `conversion_domain` on the ad.
    - Dynamic Creative Optimization (DCO plural fields: `images`, `videos`, `titles`, `bodies`, `descriptions`, `call_to_actions`) requires `"dynamic_creative": true` on the owning ad set.
 7. **Stateful Idempotency (`.meta-state.json`):**
+   - State writes replace the file atomically. Invalid state blocks deployment and status; restore a verified backup rather than deleting it. A remote creation can succeed before a state-write failure: reconcile the created ID before retrying. Do not run concurrent deployments in the same workspace.
    - Created IDs and SHA-256 media hashes (`image_hash`, `video_id`) are persisted after every step in `.meta-state.json`. Re-running `deploy --apply` skips already-created steps and reuses uploaded media hashes.
 8. **Strict Flag Ordering for Raw `meta` Commands:**
    - Global flags (`--output json`, `--no-input`, `--no-color`, `--debug`) must precede `ads`; group flags (`--ad-account-id`, `--business-id`) must follow `ads` before the resource noun:
      ```bash
-     meta-ads-ops run -- --output json --no-input ads --ad-account-id act_1234567890 campaign list
+     dotads-meta run -- --output json --no-input ads --ad-account-id act_1234567890 campaign list
      ```
 
 ---
@@ -37,9 +38,9 @@ Canonical operational rules and copy-paste recipes for running Meta (Facebook & 
 ### 1. Device Bootstrap
 ```bash
 dotsync
-meta-ads-ops setup
+dotads-meta setup
 meta --version
-meta-ads-ops --help
+dotads-meta --help
 ```
 
 ### 2. Meta Developer App & Business Manager System User
@@ -49,14 +50,14 @@ meta-ads-ops --help
 4. **Save to `secrets.env`:** Add `META_ACCESS_TOKEN=<token>` (or per-BM `META_ACCESS_TOKEN_<BRAND>`) to `~/.config/ai-local/secrets.env` and verify:
    ```bash
    secrets-env check
-   meta-ads-ops doctor
+   dotads-meta doctor
    ```
 
 ### 3. Discover Asset IDs via Terminal
 ```bash
-meta-ads-ops run -- --output json --no-input ads adaccount list
-meta-ads-ops run -- --output json --no-input ads --ad-account-id act_YOUR_ID page list
-meta-ads-ops run -- --output json --no-input ads --ad-account-id act_YOUR_ID dataset list
+dotads-meta run -- --output json --no-input ads adaccount list
+dotads-meta run -- --output json --no-input ads --ad-account-id act_YOUR_ID page list
+dotads-meta run -- --output json --no-input ads --ad-account-id act_YOUR_ID dataset list
 ```
 
 ---
@@ -160,21 +161,21 @@ meta-ads-ops run -- --output json --no-input ads --ad-account-id act_YOUR_ID dat
 
 ```bash
 # 1. Pull last 7 days insights at ad level
-meta-ads-ops run --brand ./brand.json -- \
+dotads-meta run --brand ./brand.json -- \
   --output json --no-input ads --ad-account-id act_1234567890 \
   insights --date-preset last_7d --level ad --breakdowns age,gender
 
 # 2. Check Advantage+ & account recommendations
-meta-ads-ops run --brand ./brand.json -- \
+dotads-meta run --brand ./brand.json -- \
   --output json --no-input ads --ad-account-id act_1234567890 guidance
 
 # 3. Activate or pause a campaign
-meta-ads-ops run --brand ./brand.json -- \
+dotads-meta run --brand ./brand.json -- \
   --output json --no-input ads --ad-account-id act_1234567890 \
   campaign update --id <CAMPAIGN_ID> --status ACTIVE
 
 # 4. Update a CBO campaign daily budget (in minor currency units)
-meta-ads-ops run --brand ./brand.json -- \
+dotads-meta run --brand ./brand.json -- \
   --output json --no-input ads --ad-account-id act_1234567890 \
   campaign update --id <CAMPAIGN_ID> --daily-budget 7500
 ```

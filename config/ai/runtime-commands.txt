@@ -54,8 +54,8 @@ inspect-project
 inspect-project-test
 installer-link-test
 memory-usage-hook-test
-meta-ads-ops
-meta-ads-ops-test
+dotads-meta
+dotads-meta-test
 migration-risk
 migration-risk-test
 mutation-sweep
@@ -117,3 +117,10 @@ ai-health-daily
 ai-health-daily-test
 ai-workflow-eval
 ai-workflow-eval-test
+ai-recall
+ai-recall-test
+ai-schedule
+ai-schedule-test
+
+design-tools-test
+pi-compact-test

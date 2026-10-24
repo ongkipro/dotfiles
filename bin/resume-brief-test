@@ -12,6 +12,10 @@ RB="$ROOT/bin/resume-brief"
 DL="$ROOT/bin/delivery-ledger"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 R="$TMP/repo"; fails=0
+mkdir -p "$TMP/bin"
+printf '#!/bin/sh\nexit 1\n' > "$TMP/bin/gh"
+chmod +x "$TMP/bin/gh"
+export PATH="$TMP/bin:$PATH"
 
 say() { printf '  %-4s %s\n' "$1" "$2"; }
 want() { # want <name> <substring>
@@ -26,6 +30,29 @@ wantnot() {
   else say ok "$1"; fi
 }
 status_ready() { printf '# Status\nState: READY\n' > "$1/STATUS.md"; }
+
+# Parser-focused legacy fixtures still carry real canonical hashes and a
+# verification event for every PASS. Never teach the brief to trust raw JSON.
+seal_fixture() {
+  python3 - "$DL" "$1" <<'PYFIXTURE'
+import json, pathlib, runpy, sys
+ledger = runpy.run_path(sys.argv[1]); repo = pathlib.Path(sys.argv[2])
+(repo / 'STATUS.md').write_text('State: READY\n')
+(repo / '.delivery/current.json').write_text(json.dumps(ledger['initial'](repo)))
+for path in (repo / '.delivery/runs').glob('*.jsonl'):
+    rows = ledger['read_events'](path)
+    if not ledger['verify_run'](path):
+        continue
+    path.write_text('')
+    for row in rows:
+        row['runId'] = path.stem
+        if row.get('type') == 'run_finished' and row.get('result') == 'PASS':
+            ledger['append_event'](path, {'type': 'verification', 'runId': path.stem,
+                                          'check': 'fixture', 'status': 'PASS'})
+        ledger['append_event'](path, row)
+    assert not ledger['verify_run'](path)
+PYFIXTURE
+}
 
 mkdir -p "$R" && git -C "$R" init -q
 printf 'contract\n' > "$R/AGENTS.md"
@@ -390,6 +417,10 @@ cat > "$NR/TASKS.md" <<'EOF'
 
 - **TASK-103 / AUDIT-X — a dormant bullet, not an accepted contract (R0).**
 EOF
+seal_fixture "$NR"
+printf '%s\n%s\n' \
+  '{"type":"run_started","task":"TASK-101","requirement":"REQ-X"}' \
+  '{"type":"run_finished","result":"PASS"}' > "$NR/.delivery/runs/not-a-run.jsonl"
 BRIEF="$("$RB" "$NR" 2>&1)"
 want "a contract with no run is listed" "TASK-101"
 wantre "and is marked no run" "TASK-101 +READY +no run"
@@ -409,6 +440,7 @@ printf '%s\n%s\n' \
   '{"type":"run_started","task":"TASK-201","time":"2026-01-01T00:00:00Z"}' \
   '{"type":"run_finished","result":"PASS","time":"2026-01-01T00:01:00Z"}' \
   > "$CL/.delivery/runs/RUN-x.jsonl"
+seal_fixture "$CL"
 BRIEF="$("$RB" "$CL" 2>&1)"
 wantnot "a finished contract is not a candidate" "TASK-201   READY"
 want "the all-clear says what it checked" "Every accepted contract has evidence"
@@ -440,6 +472,7 @@ printf '%s\n%s\n' \
   '{"type":"run_started","task":"TASK-302","requirement":"REQ-OTHER","time":"2026-01-02T00:00:00Z"}' \
   '{"type":"run_finished","result":"PASS","time":"2026-01-02T00:01:00Z"}' \
   > "$FR/.delivery/runs/RUN-own.jsonl"
+seal_fixture "$FR"
 BRIEF="$("$RB" "$FR" 2>&1)"
 wantre "a task whose only PASS run names another requirement is still a candidate" "TASK-301 +READY +no run"
 want "and the discounted run is named, not silently dropped" "RUN-foreign records REQ-THEIRS"
@@ -452,6 +485,7 @@ printf '%s\n%s\n' \
   '{"type":"run_started","task":"TASK-SOMETHING-OLD","requirement":"REQ-ANCIENT","time":"2026-01-03T00:00:00Z"}' \
   '{"type":"run_finished","result":"PASS","time":"2026-01-03T00:01:00Z"}' \
   > "$FR/.delivery/runs/RUN-ancient.jsonl"
+seal_fixture "$FR"
 BRIEF="$("$RB" "$FR" 2>&1)"
 wantnot "an id no contract declares is not reported as discounted" "TASK-SOMETHING-OLD"
 
@@ -463,6 +497,7 @@ cat > "$FR/TASKS.md" <<'EOF'
 ### TASK-301: No requirement declared
 - **Risk Level:** R1
 EOF
+seal_fixture "$FR"
 BRIEF="$("$RB" "$FR" 2>&1)"
 wantnot "a contract declaring no requirement still accepts its run" "TASK-301   READY"
 
@@ -480,6 +515,7 @@ printf '%s\n%s\n' \
   '{"type":"run_started","task":"TASK-401","requirement":"REQ-ELSEWHERE","time":"2026-01-01T00:00:00Z"}' \
   '{"type":"run_finished","result":"PASS","time":"2026-01-01T00:01:00Z"}' \
   > "$BU/.delivery/runs/RUN-foreign.jsonl"
+seal_fixture "$BU"
 BRIEF="$("$RB" "$BU" 2>&1)"
 wantre "a bullet record whose only run is discounted stays listed" "TASK-401 +READY +no run"
 want "and its discounted run is named" "RUN-foreign records REQ-ELSEWHERE"
@@ -493,6 +529,7 @@ printf '%s\n%s\n' \
   '{"type":"run_started","task":"TASK-02","requirement":"REQ-FOREIGN","time":"2026-01-02T00:00:00Z"}' \
   '{"type":"run_finished","result":"PASS","time":"2026-01-02T00:01:00Z"}' \
   > "$BU/.delivery/runs/RUN-foreign.jsonl"
+seal_fixture "$BU"
 BRIEF="$("$RB" "$BU" 2>&1)"
 wantnot "an id mentioned only in prose is not promoted to a candidate" "TASK-02    READY"
 want "though its discounted run is still named" "TASK-02    RUN-foreign"
@@ -509,12 +546,14 @@ printf '%s\n%s\n' \
   '{"type":"run_started","task":"TASK-501","requirement":"REQ-NEIGHBOR","time":"2026-01-03T00:00:00Z"}' \
   '{"type":"run_finished","result":"PASS","time":"2026-01-03T00:01:00Z"}' \
   > "$BU/.delivery/runs/RUN-foreign.jsonl"
+seal_fixture "$BU"
 BRIEF="$("$RB" "$BU" 2>&1)"
 wantre "a neighbour's requirement does not count as this contract's evidence" "TASK-501 +READY +no run"
 printf '%s\n%s\n' \
   '{"type":"run_started","task":"TASK-501","requirement":"REQ-FROM-FILE-B","time":"2026-01-04T00:00:00Z"}' \
   '{"type":"run_finished","result":"PASS","time":"2026-01-04T00:01:00Z"}' \
   > "$BU/.delivery/runs/RUN-foreign.jsonl"
+seal_fixture "$BU"
 BRIEF="$("$RB" "$BU" 2>&1)"
 wantre "nor does a requirement from the next archive file" "TASK-501 +READY +no run"
 
@@ -523,6 +562,7 @@ printf '%s\n%s\n' \
   '{"type":"run_started","task":"TASK-501","time":"2026-01-05T00:00:00Z"}' \
   '{"type":"run_finished","result":"PASS","time":"2026-01-05T00:01:00Z"}' \
   > "$BU/.delivery/runs/RUN-foreign.jsonl"
+seal_fixture "$BU"
 BRIEF="$("$RB" "$BU" 2>&1)"
 wantre "a run naming no requirement is not evidence either" "TASK-501 +READY +no run"
 want "and says so rather than inventing one" "records no requirement"
@@ -537,9 +577,107 @@ printf '%s\n%s\n' \
   '{"type":"run_started","task":"TASK-601","requirement":"REQ-UNRELATED","time":"2026-01-06T00:00:00Z"}' \
   '{"type":"run_finished","result":"PASS","time":"2026-01-06T00:01:00Z"}' \
   > "$BU/.delivery/runs/RUN-foreign.jsonl"
+seal_fixture "$BU"
 BRIEF="$("$RB" "$BU" 2>&1)"
 wantre "a cross-reference bullet does not truncate the contract's window" "TASK-601 +READY +no run"
 want "so its foreign run is still discounted" "RUN-foreign records REQ-UNRELATED"
+
+# Canonical integrity and optional CI dependencies are independent boundaries.
+python3 - "$R2D" <<'PYTAMPER'
+import json, pathlib, sys
+p = sorted((pathlib.Path(sys.argv[1]) / '.delivery/runs').glob('*.jsonl'))[-1]
+rows = [json.loads(x) for x in p.read_text().splitlines()]
+assert rows[-1]['result'] == 'BLOCKED'
+rows[-1]['result'] = 'PASS'
+p.write_text(''.join(json.dumps(x) + '\n' for x in rows))
+PYTAMPER
+"$DL" --repo "$R2D" verify >/dev/null 2>&1; code=$?
+[ "$code" != 0 ] || { say FAIL "canonical verifier accepted tampering"; fails=$((fails + 1)); }
+BRIEF="$("$RB" "$R2D" 2>&1)"; code=$?
+[ "$code" = 2 ] || { say FAIL "tampered brief must exit UNVERIFIED"; fails=$((fails + 1)); }
+want "a corrupt chain is visibly UNVERIFIED" "Ledger: UNVERIFIED"
+wantnot "corrupt completion is never restated" "all of it ends in PASS"
+
+# Keep only git in PATH; invoke Python by absolute path so gh is truly absent.
+mkdir -p "$TMP/no-gh"
+ln -s "$(command -v git)" "$TMP/no-gh/git"
+PYTHON="$(command -v python3)"
+BRIEF="$(PATH="$TMP/no-gh" "$PYTHON" "$RB" "$R" 2>&1)"; code=$?
+[ "$code" = 0 ] || { say FAIL "missing gh aborted local resume"; fails=$((fails + 1)); }
+want "missing gh preserves the local brief" "TASK-900"
+want "missing gh reports unknown CI" "CI for this HEAD: unknown"
+wantnot "missing gh does not traceback" "Traceback"
+
+# Last-result prose also comes from the verified run, not mutable projection text.
+python3 - "$Q/.delivery/current.json" <<'PYPROJECTION'
+import json, pathlib, sys
+p = pathlib.Path(sys.argv[1]); current = json.loads(p.read_text())
+current['lastRun']['result'] = 'PASS'
+p.write_text(json.dumps(current))
+PYPROJECTION
+BRIEF="$(PATH="$TMP/no-gh" "$PYTHON" "$RB" "$Q" 2>&1)"
+wantre "last result is derived from verified evidence" "No active run\. Last: .* -> BLOCKED"
+wantnot "a mutable projection cannot invent PASS" " -> PASS at"
+
+# A hanging remote helper is bounded; its absence cannot erase local evidence.
+printf '#!/bin/sh\nexec /bin/sleep 30\n' > "$TMP/no-gh/gh"
+chmod +x "$TMP/no-gh/gh"
+BRIEF="$(PATH="$TMP/no-gh" "$PYTHON" "$RB" "$R" 2>&1)"; code=$?
+[ "$code" = 0 ] || { say FAIL "gh timeout aborted local resume"; fails=$((fails + 1)); }
+want "timed-out gh reports unknown CI" "CI for this HEAD: unknown"
+printf '#!/bin/sh\nexit 1\n' > "$TMP/no-gh/gh"
+BRIEF="$(PATH="$TMP/no-gh" "$PYTHON" "$RB" "$R" 2>&1)"
+want "failed gh reports unknown CI" "CI for this HEAD: unknown"
+printf '#!/bin/sh\nprintf invalid\n' > "$TMP/no-gh/gh"
+BRIEF="$(PATH="$TMP/no-gh" "$PYTHON" "$RB" "$R" 2>&1)"
+want "invalid gh response is unknown, not no run" "unknown (invalid gh response)"
+
+# The random suffix in a run ID is not chronological evidence. Finish times
+# win; second-precision ties with conflicting results stay explicitly unknown.
+if python3 - "$RB" "$DL" "$TMP/order" <<'PYORDER'
+import json, os, pathlib, runpy, subprocess, sys
+rb, dl, root = sys.argv[1], sys.argv[2], pathlib.Path(sys.argv[3])
+root.mkdir(); subprocess.run(['git', 'init', '-q', str(root)], check=True)
+(root / 'STATUS.md').write_text('State: READY\n')
+(root / 'TASKS.md').write_text('### TASK-701: repeated work\n- **Requirement:** REQ-ORDER\n')
+(root / '.delivery/runs').mkdir(parents=True)
+ledger = runpy.run_path(dl)
+(root / '.delivery/current.json').write_text(json.dumps(ledger['initial'](root)))
+def write_run(suffix, result, stamp):
+    run_id = 'RUN-20261024T100000Z-' + suffix
+    path = root / '.delivery/runs' / (run_id + '.jsonl'); path.write_text('')
+    for row in [dict(type='run_started', task='TASK-701', requirement='REQ-ORDER', time='2026-10-24T10:00:00Z'),
+                dict(type='verification', check='fixture', status='PASS', time=stamp),
+                dict(type='run_finished', result=result, time=stamp)]:
+        ledger['append_event'](path, dict(row, runId=run_id))
+    assert not ledger['verify_run'](path)
+def brief():
+    assert not ledger['inspect'](root)[1]
+    result = subprocess.run([sys.executable, rb, str(root)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    return result.stdout
+write_run('ffffffff', 'BLOCKED', '2026-10-24T10:00:00.100000Z')
+write_run('00000000', 'PASS', '2026-10-24T10:00:00.900000Z')
+out = brief()
+assert 'Last: RUN-20261024T100000Z-00000000 -> PASS' in out and 'all of it ends in PASS' in out, out
+# Same second, different outcomes: neither filename nor mutable projection wins.
+write_run('ffffffff', 'BLOCKED', '2026-10-24T10:00:00Z')
+write_run('00000000', 'PASS', '2026-10-24T10:00:00Z')
+projection = ledger['initial'](root)
+projection['lastRun'] = dict(runId='RUN-20261024T100000Z-00000000', result='PASS')
+(root / '.delivery/current.json').write_text(json.dumps(projection))
+out = brief()
+assert 'TASK-701: UNVERIFIED' in out and 'Last: order unresolved' in out and 'all of it ends in PASS' not in out, out
+# Agreeing evidence still proves completion without inventing a last-run order.
+write_run('ffffffff', 'PASS', '2026-10-24T10:00:00Z')
+out = brief()
+assert 'all of it ends in PASS' in out and 'Last: order unresolved' in out, out
+write_run('ffffffff', 'BLOCKED', None)
+out = brief()
+assert 'TASK-701: UNVERIFIED' in out and 'all of it ends in PASS' not in out, out
+PYORDER
+then say ok "verified timestamps order repeated runs; ambiguous outcomes stay UNVERIFIED"
+else say FAIL "run chronology or ambiguous completion regressed"; fails=$((fails + 1)); fi
 
 # Not a repository at all: exit 2, not a confident wrong answer.
 mkdir -p "$TMP/nogit"; "$RB" "$TMP/nogit" >/dev/null 2>&1; code=$?

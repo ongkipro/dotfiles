@@ -51,210 +51,118 @@ def get_home(override: str | None = None) -> Path:
     return Path.home()
 
 
-def sync_claude(home: Path, manifest: dict, check_only: bool) -> tuple[bool, str]:
-    claude_json = home / ".claude.json"
-    if not claude_json.exists():
-        if not (home / ".claude").exists():
-            return True, "skipped (Claude Code not configured on this device)"
-        if check_only:
-            return False, "drift detected (~/.claude.json missing)"
-        data = {"mcpServers": {}}
-        changed = True
-    else:
-        try:
-            with claude_json.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-        except Exception as e:
-            return False, f"failed to parse ~/.claude.json: {e}"
-        changed = False
+def atomic_write(target: Path, content: str) -> None:
+    import stat
+    import tempfile
+    if target.is_symlink() or (target.exists() and (not target.is_file() or target.stat().st_nlink != 1)):
+        raise ValueError("configuration must be a regular file without links")
+    mode = (stat.S_IMODE(target.stat().st_mode) & 0o600) if target.exists() else 0o600
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix="." + target.name + ".", dir=target.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            os.fchmod(f.fileno(), mode)
+            f.write(content); f.flush(); os.fsync(f.fileno())
+        os.replace(tmp, target)
+    finally:
+        if os.path.exists(tmp): os.unlink(tmp)
 
-    mcp_servers = data.setdefault("mcpServers", {})
 
+def managed_spec(spec: dict, claude=False) -> dict:
+    result = {"command": spec["command"], "args": spec.get("args", []), "env": spec.get("env", {})}
+    if claude: result["type"] = "stdio"
+    return result
+
+
+def sync_json(target: Path, manifest: dict, check_only: bool, claude=False) -> tuple[bool, str]:
+    data = json.loads(target.read_text(encoding="utf-8")) if target.exists() else {}
+    servers = data.setdefault("mcpServers", {})
+    changed = not target.exists()
     for name, spec in manifest.items():
-        curr = mcp_servers.get(name)
-        needed = {
-            "type": "stdio",
-            "command": spec["command"],
-            "args": spec.get("args", []),
-            "env": spec.get("env", {}),
-        }
-        if curr is None:
+        current = servers.get(name, {})
+        needed = managed_spec(spec, claude)
+        if name not in servers or any(current.get(k, {} if k == "env" else None) != v for k, v in needed.items()):
+            servers[name] = {**current, **needed}
             changed = True
-            mcp_servers[name] = needed
-        else:
-            if curr.get("command") != needed["command"] or curr.get("args") != needed["args"]:
-                changed = True
-                mcp_servers[name] = {**curr, "command": needed["command"], "args": needed["args"]}
-
-    if not changed:
-        return True, "in sync"
-    if check_only:
-        return False, "drift detected"
-
-    tmp = claude_json.with_suffix(".json.tmp")
-    mode = 0o600
-    if claude_json.exists():
-        mode = claude_json.stat().st_mode & 0o777
-    with tmp.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-        f.write("\n")
-    os.chmod(tmp, mode)
-    tmp.replace(claude_json)
+    if not changed: return True, "in sync"
+    if check_only: return False, "drift detected"
+    atomic_write(target, json.dumps(data, indent=2) + "\n")
     return True, "updated"
+
+
+def sync_claude(home: Path, manifest: dict, check_only: bool) -> tuple[bool, str]:
+    if not (home / ".claude.json").exists() and not (home / ".claude").exists():
+        return True, "skipped (Claude Code not configured on this device)"
+    return sync_json(home / ".claude.json", manifest, check_only, claude=True)
 
 
 def sync_antigravity(home: Path, manifest: dict, check_only: bool) -> tuple[bool, str]:
-    gemini_dir = home / ".gemini"
-    if not gemini_dir.exists():
+    if not (home / ".gemini").exists():
         return True, "skipped (Antigravity not configured on this device)"
-    target = gemini_dir / "config" / "mcp_config.json"
-    data = {}
-    if target.exists() and target.stat().st_size > 0:
-        try:
-            with target.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-        except Exception as e:
-            return False, f"failed to parse {target}: {e}"
+    return sync_json(home / ".gemini/config/mcp_config.json", manifest, check_only)
 
-    mcp_servers = data.setdefault("mcpServers", {})
-    changed = False
 
-    for name, spec in manifest.items():
-        curr = mcp_servers.get(name)
-        needed = {
-            "command": spec["command"],
-            "args": spec.get("args", []),
-        }
-        if "env" in spec:
-            needed["env"] = spec["env"]
-        if curr is None or curr.get("command") != needed["command"] or curr.get("args") != needed["args"]:
-            changed = True
-            mcp_servers[name] = needed
-
-    if not changed and target.exists():
-        return True, "in sync"
-    if check_only:
-        return False, "drift detected"
-
-    target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.with_suffix(".json.tmp")
-    with tmp.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-        f.write("\n")
-    tmp.replace(target)
-    return True, "updated"
+def toml_value(value):
+    # Values retained inside a managed table; all unrelated tables stay verbatim.
+    from datetime import date, time
+    if isinstance(value, str): return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, bool): return str(value).lower()
+    if isinstance(value, (int, float)): return repr(value)
+    if isinstance(value, (date, time)): return value.isoformat()
+    if isinstance(value, list): return "[" + ", ".join(map(toml_value, value)) + "]"
+    if isinstance(value, dict): return "{ " + ", ".join(json.dumps(k) + " = " + toml_value(v) for k, v in value.items()) + " }"
+    raise ValueError("unsupported TOML value")
 
 
 def sync_codex(home: Path, manifest: dict, check_only: bool) -> tuple[bool, str]:
-    codex_dir = home / ".codex"
-    if not codex_dir.exists():
+    import copy
+    import tomllib
+    if not (home / ".codex").exists():
         return True, "skipped (Codex CLI not configured on this device)"
-    target = codex_dir / "config.toml"
-    content = ""
-    if target.exists():
-        try:
-            content = target.read_text(encoding="utf-8")
-        except Exception as e:
-            return False, f"failed to read {target}: {e}"
-
-    changed = False
-    new_content = content
-
+    target = home / ".codex/config.toml"
+    content = target.read_text(encoding="utf-8") if target.exists() else ""
+    data = tomllib.loads(content)
+    expected = copy.deepcopy(data)
+    servers = expected.setdefault("mcp_servers", {})
+    changed = []
     for name, spec in manifest.items():
-        pattern = rf'(?m)^\[mcp_servers\.{re.escape(name)}\]'
-        if not re.search(pattern, content):
-            changed = True
-            args_str = json.dumps(spec.get("args", []))
-            block = f"\n[mcp_servers.{name}]\ncommand = \"{spec['command']}\"\nargs = {args_str}\n"
-            new_content = new_content.rstrip() + block
+        current = servers.get(name, {})
+        needed = managed_spec(spec)
+        if name not in servers or any(current.get(k, {} if k == "env" else None) != v for k, v in needed.items()):
+            servers[name] = {**current, **needed}
+            changed.append(name)
+    if not changed: return True, "in sync"
+    if check_only: return False, "drift detected"
 
-    if not changed:
-        return True, "in sync"
-    if check_only:
-        return False, "drift detected"
-
-    target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.with_suffix(".toml.tmp")
-    tmp.write_text(new_content, encoding="utf-8")
-    tmp.replace(target)
+    # Rewrite only complete managed tables (including their child tables).
+    # Parsing the result and comparing the entire object prevents an unusual
+    # inline/dotted/multiline representation from losing unrelated settings.
+    header = re.compile(r"(?m)^\s*\[[^\n]+\][ \t]*(?:#[^\n]*)?$")
+    matches = list(header.finditer(content))
+    ranges = []
+    for index, match in enumerate(matches):
+        try:
+            section = tomllib.loads(match.group() + "\n")
+            managed = section.get("mcp_servers", {})
+            owned = any(name in managed for name in changed)
+        except (ValueError, AttributeError):
+            owned = False
+        if owned: ranges.append((match.start(), matches[index + 1].start() if index + 1 < len(matches) else len(content)))
+    for start, end in reversed(ranges): content = content[:start] + content[end:]
+    for name in changed:
+        content = content.rstrip() + "\n\n[mcp_servers." + (name if re.fullmatch(r"[A-Za-z0-9_-]+", name) else json.dumps(name)) + "]\n"
+        for key, value in servers[name].items():
+            content += json.dumps(key) + " = " + toml_value(value) + "\n"
+    if tomllib.loads(content) != expected:
+        raise ValueError("unsupported managed TOML layout; configuration was preserved")
+    atomic_write(target, content)
     return True, "updated"
 
 
 def sync_json_mcp(target_dir: Path, runtime_name: str, manifest: dict, check_only: bool) -> tuple[bool, str]:
     if not target_dir.parent.exists():
         return True, f"skipped ({runtime_name} not configured on this device)"
-    target = target_dir / "mcp.json"
-    data = {}
-    if target.exists() and target.stat().st_size > 0:
-        try:
-            with target.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-        except Exception as e:
-            return False, f"failed to parse {target}: {e}"
-
-    mcp_servers = data.setdefault("mcpServers", {})
-    changed = False
-
-    for name, spec in manifest.items():
-        curr = mcp_servers.get(name)
-        needed = {
-            "command": spec["command"],
-            "args": spec.get("args", []),
-        }
-        if "env" in spec:
-            needed["env"] = spec["env"]
-        if curr is None or curr.get("command") != needed["command"] or curr.get("args") != needed["args"]:
-            changed = True
-            mcp_servers[name] = needed
-
-    if not changed and target.exists():
-        return True, "in sync"
-    if check_only:
-        return False, "drift detected"
-
-    target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.with_suffix(".json.tmp")
-    with tmp.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-        f.write("\n")
-    tmp.replace(target)
-    return True, "updated"
-    target = target_dir / "mcp.json"
-    data = {}
-    if target.exists() and target.stat().st_size > 0:
-        try:
-            with target.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-        except Exception as e:
-            return False, f"failed to parse {target}: {e}"
-
-    mcp_servers = data.setdefault("mcpServers", {})
-    changed = False
-
-    for name, spec in manifest.items():
-        curr = mcp_servers.get(name)
-        needed = {
-            "command": spec["command"],
-            "args": spec.get("args", []),
-        }
-        if "env" in spec:
-            needed["env"] = spec["env"]
-        if curr is None or curr.get("command") != needed["command"] or curr.get("args") != needed["args"]:
-            changed = True
-            mcp_servers[name] = needed
-
-    if not changed and target.exists():
-        return True, "in sync"
-    if check_only:
-        return False, "drift detected"
-
-    target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.with_suffix(".json.tmp")
-    with tmp.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-        f.write("\n")
-    tmp.replace(target)
-    return True, "updated"
+    return sync_json(target_dir / "mcp.json", manifest, check_only)
 
 
 def main() -> int:
@@ -282,14 +190,17 @@ def main() -> int:
 
     all_ok = True
     for name, runner in runtimes:
-        ok, msg = runner()
+        try:
+            ok, msg = runner()
+        except (OSError, ValueError, TypeError, AttributeError, KeyError) as exc:
+            ok, msg = False, f"configuration error ({type(exc).__name__}); file preserved"
         symbol = "✓" if ok else "✗"
         print(f"  {symbol} {name}: {msg}")
         if not ok:
             all_ok = False
 
-    if not all_ok and args.check:
-        print("\nDrift detected. Run 'ai-mcp-sync' to align all runtimes.", file=sys.stderr)
+    if not all_ok:
+        print("\nMCP synchronization incomplete; resolve reported drift or configuration errors.", file=sys.stderr)
         return 1
 
     return 0

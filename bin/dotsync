@@ -193,6 +193,10 @@ cmd_autopull() {
     record "fail: fetch origin main"; return 1
   fi
   if git merge-base --is-ancestor origin/main HEAD; then
+    if ! relink_runtimes >/dev/null 2>&1; then
+      record "warn: up to date but runtime reconciliation failed; run ai-memory-link && skill-update"
+      return 1
+    fi
     record "ok: up to date"; return 0
   fi
   before="$(git rev-parse --short HEAD)"
@@ -202,7 +206,7 @@ cmd_autopull() {
   if relink_runtimes >/dev/null 2>&1; then
     record "ok: pulled $before..$(git rev-parse --short HEAD)"
   else
-    record "warn: pulled $before..$(git rev-parse --short HEAD) but ai-memory-link failed; run ai-memory-link"
+    record "warn: pulled $before..$(git rev-parse --short HEAD) but runtime reconciliation failed; run ai-memory-link && skill-update"
     return 1
   fi
 }

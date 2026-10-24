@@ -82,4 +82,105 @@ EOF
 set +e; "$RC" --allow-private --json "$TMP/repo" >"$TMP/state.json" 2>&1; rc=$?; set -e
 [ "$rc" -eq 2 ] || { cat "$TMP/state.json" >&2; fail "pre-deploy state should be UNVERIFIED"; }
 
+# Parse the actual scaffold output, including its fenced format/examples.
+mkdir -p "$TMP/generated" "$TMP/init-home"
+git -C "$TMP/generated" init -q
+set +e
+HOME="$TMP/init-home" DOTFILES_DIR="$ROOT" "$ROOT/bin/project-init" --repo "$TMP/generated" --stack existing-repository --no-install > "$TMP/init.log" 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 2 ] && [ -f "$TMP/generated/OBSERVABILITY.md" ] \
+  || { cat "$TMP/init.log" >&2; fail "project-init did not produce its intentionally unverified scaffold"; }
+python3 - "$RC" "$TMP" <<'PYNETWORK'
+import http.server, os, pathlib, runpy, socket, ssl, subprocess, sys, threading
+from unittest.mock import patch
+rc = runpy.run_path(sys.argv[1]); root = pathlib.Path(sys.argv[2])
+obs = root / 'generated/OBSERVABILITY.md'
+text = obs.read_text()
+# project-init uses TBD for unavailable URLs; configure only the active entries.
+lines = [f'Probe: {line.split("|", 1)[0][7:]}|https://example.invalid/|200|TBD|1000'
+         if line.startswith(('Probe: app|', 'Probe: health|')) else line for line in text.splitlines()]
+obs.write_text('\n'.join(lines) + '\n')
+probes, errors = rc['parse_probes'](obs)
+assert not errors and [p['name'] for p in probes] == ['app', 'health'], (probes, errors)
+obs.write_text('~~~~text\n```\nProbe: example|TBD|x|x|x\n~~~\n~~~~\nProbe: actual|https://example.invalid|200|TBD|1000\n')
+probes, errors = rc['parse_probes'](obs)
+assert not errors and [p['name'] for p in probes] == ['actual']
+
+public = (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('8.8.8.8', 80))
+private = (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('127.0.0.1', 80))
+connected = []
+class RefuseSocket:
+    def __init__(self, *args): pass
+    def settimeout(self, timeout): pass
+    def connect(self, address):
+        connected.append(address)
+        raise OSError('synthetic connection refusal; no external packet sent')
+    def close(self): pass
+probe = {'name':'rebind', 'url':'http://fixture.invalid/', 'expected':'200', 'marker':None, 'maxLatencyMs':1000}
+# A second DNS lookup would return loopback. No second lookup may occur.
+with patch.object(socket, 'getaddrinfo', side_effect=[[public], [private]]) as dns:
+    targets = rc['resolve_target'](probe['url'], False)
+    with patch.object(socket, 'socket', RefuseSocket):
+        result = rc['run_probe'](probe, 1, targets)
+    assert result['status'] == 'FAIL' and connected == [('8.8.8.8', 80)]
+    assert dns.call_count == 1
+with patch.object(socket, 'getaddrinfo', return_value=[public, private]):
+    try: rc['resolve_target'](probe['url'], False)
+    except ValueError: pass
+    else: raise AssertionError('mixed public/private DNS answer accepted')
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    requests = []
+    def do_GET(self):
+        self.requests.append((self.path, self.headers.get('Host')))
+        self.send_response(302 if self.path == '/redirect' else 200)
+        if self.path == '/redirect': self.send_header('Location', '/unchecked')
+        self.end_headers(); self.wfile.write(b'local-fixture')
+    def log_message(self, *args): pass
+
+def request(server, scheme, hostname='fixture.invalid', path='/'):
+    probe = {'name':'transport', 'url':f'{scheme}://{hostname}:{server.server_port}{path}', 'expected':'200', 'marker':'local-fixture', 'maxLatencyMs':5000}
+    answers = [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('127.0.0.1', server.server_port))]
+    with patch.object(socket, 'getaddrinfo', return_value=answers) as dns:
+        targets = rc['resolve_target'](probe['url'], True)
+        result = rc['run_probe'](probe, 1, targets)
+        assert dns.call_count == 1
+    return result
+
+server = http.server.HTTPServer(('127.0.0.1', 0), Handler)
+thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+try:
+    # Even an explicit proxy environment cannot redirect probes off their pinned socket.
+    with patch.dict(os.environ, {'HTTP_PROXY':'http://127.0.0.1:1', 'HTTPS_PROXY':'http://127.0.0.1:1', 'ALL_PROXY':'http://127.0.0.1:1', 'NO_PROXY':'', 'no_proxy':''}):
+        assert request(server, 'http')['status'] == 'PASS'
+        assert Handler.requests[-1][1] == f'fixture.invalid:{server.server_port}'
+        before = len(Handler.requests)
+        assert request(server, 'http', path='/redirect')['status'] == 'FAIL'
+        assert len(Handler.requests) == before + 1 and Handler.requests[-1][0] == '/redirect'
+finally:
+    server.shutdown(); server.server_close(); thread.join()
+
+# Real local TLS proves both hostname/SNI preservation and certificate rejection.
+cert, key = root / 'fixture.crt', root / 'fixture.key'
+config = root / 'fixture.cnf'
+config.write_text('[req]\ndistinguished_name=dn\nx509_extensions=extensions\nprompt=no\n[dn]\nCN=fixture.invalid\n[extensions]\nsubjectAltName=DNS:fixture.invalid\n')
+subprocess.run(['openssl','req','-x509','-newkey','rsa:2048','-nodes','-keyout',str(key),'-out',str(cert),'-days','1','-config',str(config)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); context.load_cert_chain(cert, key)
+sni = []; context.set_servername_callback(lambda sock, name, ctx: sni.append(name))
+server = http.server.HTTPServer(('127.0.0.1', 0), Handler)
+server.socket = context.wrap_socket(server.socket, server_side=True)
+thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+try:
+    assert request(server, 'https')['status'] == 'FAIL', 'untrusted certificate accepted'
+    with patch.dict(os.environ, {'SSL_CERT_FILE':str(cert)}):
+        assert request(server, 'https')['status'] == 'PASS'
+        assert sni[-1] == 'fixture.invalid'
+        assert Handler.requests[-1][1] == f'fixture.invalid:{server.server_port}'
+        assert request(server, 'https', hostname='wrong.invalid')['status'] == 'FAIL'
+finally:
+    server.shutdown(); server.server_close(); thread.join()
+print('release-check-test: template, DNS pinning, proxy, redirect, Host and TLS cases PASS')
+PYNETWORK
+
 echo 'release-check-test: PASS'

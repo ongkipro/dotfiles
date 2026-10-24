@@ -101,12 +101,14 @@ TARGETS=(
   "omp:$HOME/.omp/agent/AGENTS.md"
 )
 
+link_failures=0
 for pair in "${TARGETS[@]}"; do
   rt="${pair%%:*}"; t="${pair#*:}"; src="$AI/context/$rt.md"
   mkdir -p "$(dirname "$t")"
 
   if [ -d "$t" ] && [ ! -L "$t" ]; then
     echo "WARNING: $t is a directory; not linking $rt. Inspect it and re-run."
+    link_failures=1
     continue
   fi
   if [ -L "$t" ]; then
@@ -294,4 +296,62 @@ for cfg in "$HOME/.claude" "$HOME"/.claude-accounts/*/; do
     "$HOME/.config/ai-local/claude-home-bootstrap/$cfg_key"
 done
 
+# Older dotsync versions already invoke this entry point after pulling. Keep
+# command reconciliation here so the very first upgrade migrates device links.
+link_runtime_commands() {
+  local repo manifest command_name src dst resolved failures=0
+  repo="$(cd "$AI_REAL/../.." && pwd -P)"
+  manifest="$repo/config/ai/runtime-commands.txt"
+  [ -f "$manifest" ] || return 0
+
+  # Validate the complete manifest before installing or pruning any command.
+  while IFS= read -r command_name || [ -n "$command_name" ]; do
+    case "$command_name" in ""|\#*) continue ;; esac
+    case "$command_name" in
+      *[!a-zA-Z0-9_-]*) echo "ERROR: invalid runtime command name: $command_name"; return 1 ;;
+    esac
+    src="$repo/bin/$command_name"
+    [ -f "$src" ] && [ -x "$src" ] || {
+      echo "ERROR: runtime command is missing or not executable: $command_name"; return 1;
+    }
+  done < "$manifest"
+
+  mkdir -p "$HOME/.local/bin"
+  while IFS= read -r command_name || [ -n "$command_name" ]; do
+    case "$command_name" in ""|\#*) continue ;; esac
+    src="$repo/bin/$command_name"; dst="$HOME/.local/bin/$command_name"
+    if [ -L "$dst" ]; then
+      resolved="$(resolve_path "$dst" 2>/dev/null)" || resolved=""
+      if [ "$resolved" = "$(resolve_path "$src")" ]; then
+        continue
+      fi
+      if [ -z "$resolved" ] || [ "$(dirname "$resolved")" != "$repo/bin" ]; then
+        echo "WARNING: command collision at $dst; foreign link left untouched."
+        failures=1
+        continue
+      fi
+    elif [ -e "$dst" ]; then
+      echo "WARNING: command collision at $dst; user file or directory left untouched."
+      failures=1
+      continue
+    fi
+    ln -sfn "$src" "$dst"
+    echo "linked command: $dst -> $src"
+  done < "$manifest"
+
+  for dst in "$HOME/.local/bin"/*; do
+    [ -L "$dst" ] && [ ! -e "$dst" ] || continue
+    resolved="$(resolve_path "$dst" 2>/dev/null)" || continue
+    if [ "$(dirname "$resolved")" = "$repo/bin" ]; then
+      unlink "$dst"
+      echo "pruned stale command link: $dst"
+    fi
+  done
+  return "$failures"
+}
+# Keep this a direct call: putting a function on the left of || disables
+# errexit inside it and can turn failed mkdir/ln/unlink into false success.
+link_runtime_commands
+
+[ "$link_failures" -eq 0 ] || { echo "ERROR: runtime reconciliation incomplete; preserved conflicting paths."; exit 1; }
 echo "Done. Edit ~/.config/ai/CORE.md, adapters/<runtime>.md, or memory/*.md; re-run ai-memory-link after editing CORE or an adapter."

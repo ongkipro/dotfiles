@@ -3,7 +3,7 @@
 #
 # Any skill dir under ~/dotfiles/skills/local/<name>/ that contains a
 # `.local-fork` ledger is a managed fork. Refresh reports and preserves the
-# entire directory without fetching or writing. Otherwise, a `.source` file
+# entire directory without writing; comparison fetches are read-only. Otherwise, a `.source` file
 # marks a vendored upstream: every existing file is re-fetched byte-for-byte,
 # with index drift reported when the source provides an index.
 #
@@ -14,7 +14,7 @@
 #   _refresh-vendored.sh            # refresh every vendored skill
 #   _refresh-vendored.sh stripe-best-practices   # just one
 #
-# Exit status is non-zero if any split skill no longer reassembles to upstream,
+# Exit status is non-zero on fetch failure or a split skill that no longer matches,
 # so this is usable as a check and not only as a fetch.
 #
 # After running: review `git diff` in ~/dotfiles, then commit via lazygit.
@@ -23,8 +23,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TODAY="$(date +%Y-%m-%d)"
 DRIFT=0
+FAILED=0
+STAGE=""
 SPLIT_TMPS=""
-trap 'rm -f $SPLIT_TMPS' EXIT
+trap 'rm -f $SPLIT_TMPS; [ -z "$STAGE" ] || rm -rf -- "$STAGE"' EXIT
 
 # --- Split skills -------------------------------------------------------------
 # One upstream file that we store as several local files. The plain path above
@@ -55,7 +57,7 @@ verify_split() {
   SPLIT_TMPS="$SPLIT_TMPS $tmp $asm"
 
   if ! curl -fsSL "$base/$upstream_rel" -o "$tmp"; then
-    echo "   !! fetch failed: $base/$upstream_rel"; DRIFT=1; return 0
+    echo "   !! fetch failed: $base/$upstream_rel"; FAILED=1; return 0
   fi
 
   local rel head tail missing=0
@@ -101,7 +103,7 @@ verify_split() {
 # against the reasons in `.local-fork`. Differences are expected — the fork
 # exists because of some — so this reports, it never fails.
 report_fork_drift() {
-  local dir="$1" name="$2" base verified sync_tool f rel tmp differ="" missing=""
+  local dir="$1" name="$2" base verified sync_tool f rel tmp code rc differ="" missing="" unavailable=""
   base=""
   [ -f "$dir/.source" ] && base="$(sed -n 's/^source: //p' "$dir/.source" | head -1)"
   [ -n "$base" ] || base="$(sed -n 's/^source: //p' "$dir/.local-fork" | head -1)"
@@ -123,20 +125,27 @@ report_fork_drift() {
   tmp="$(mktemp)"
   while IFS= read -r f; do
     rel="${f#"$dir"/}"
-    if curl -fsSL "$base/$rel" -o "$tmp" 2>/dev/null; then
+    rc=0
+    code="$(curl -fsSL -w '%{http_code}' "$base/$rel" -o "$tmp" 2>/dev/null)" || rc=$?
+    if [ "$rc" -eq 0 ]; then
       cmp -s "$f" "$tmp" || differ="$differ $rel"
     else
-      missing="$missing $rel"
+      if [ "$code" = 404 ] || { [ "$rc" -eq 37 ] && [[ "$base" == file://* ]]; }; then
+        missing="$missing $rel"
+      else
+        unavailable="$unavailable $rel"; FAILED=1
+      fi
     fi
   done < <(find "$dir" -type f ! -name '.source' ! -name '.local-fork' | sort)
   rm -f "$tmp"
-  if [ -z "$differ$missing" ]; then
+  if [ -z "$differ$missing$unavailable" ]; then
     echo "skip $name (managed local fork) — identical to upstream now; the ledger may be retired"
     return 0
   fi
   echo "skip $name (managed local fork) — upstream differs, recheck vs .local-fork (verified ${verified:-?}):"
   [ -n "$differ" ]    && echo "   ~~ differs:${differ}"
   [ -n "$missing" ]   && echo "   -- not upstream:${missing}"
+  [ -n "$unavailable" ] && echo "   !! comparison unavailable (fetch failed):${unavailable}"
   [ -n "$sync_tool" ] && echo "   >> sync_tool: ${sync_tool} (run '${sync_tool} --remote' to auto-sync upstream)"
   return 0
 }
@@ -161,25 +170,29 @@ refresh_one() {
     verify_split "$dir" "$name" "$base" "$split_of"
     return 0
   fi
-  local changed=0 f rel url
-  # Re-fetch every file we already vendor (SKILL.md + references/*), preserving layout.
+  local changed=0 f rel url fetch_failed=0
+  STAGE="$(mktemp -d "$ROOT/.refresh.XXXXXX")"
+  # Download the complete set first. A failed fetch never installs half a skill.
   while IFS= read -r f; do
     rel="${f#"$dir"/}"
-    [ "$rel" = ".source" ] && continue
+    mkdir -p "$STAGE/$(dirname "$rel")"
     url="$base/$rel"
-    if curl -fsSL "$url" -o "$f.tmp"; then
-      if cmp -s "$f" "$f.tmp"; then rm -f "$f.tmp";
-      else mv "$f.tmp" "$f"; echo "   updated: $rel"; changed=1; fi
-    else
-      rm -f "$f.tmp"; echo "   !! fetch failed (gone upstream?): $rel"
+    if ! curl -fsSL "$url" -o "$STAGE/$rel"; then
+      echo "   !! fetch failed: $rel"; fetch_failed=1
     fi
   done < <(find "$dir" -type f ! -name '.source' | sort)
+  if [ "$fetch_failed" = 1 ]; then
+    FAILED=1
+    rm -rf -- "$STAGE"; STAGE=""
+    echo "   incomplete: original files and vendored date preserved"
+    return 0
+  fi
 
   # Drift check: does upstream's index list files we don't have?
   if [ -n "$index" ] && command -v jq >/dev/null 2>&1; then
     local want
     want="$(curl -fsSL "$index" 2>/dev/null \
-      | jq -r --arg n "$name" '.skills[] | select(.name==$n) | .files[]' 2>/dev/null || true)"
+      | jq -r --arg n "$name" '.skills[] | select(.name==$n) | .files[]' 2>/dev/null)" || { FAILED=1; echo "   !! upstream index unavailable"; rm -rf -- "$STAGE"; STAGE=""; return 0; }
     if [ -n "$want" ]; then
       while IFS= read -r rel; do
         [ -f "$dir/$rel" ] || echo "   ++ upstream added (not vendored): $rel"
@@ -187,6 +200,14 @@ refresh_one() {
     fi
   fi
 
+  while IFS= read -r f; do
+    rel="${f#"$STAGE"/}"
+    if ! cmp -s "$dir/$rel" "$f"; then
+      mv "$f" "$dir/$rel"
+      echo "   updated: $rel"; changed=1
+    fi
+  done < <(find "$STAGE" -type f | sort)
+  rm -rf -- "$STAGE"; STAGE=""
   [ "$changed" = 1 ] && sed -i.bak "s/^vendored: .*/vendored: $TODAY/" "$dir/.source" && rm -f "$dir/.source.bak"
   echo "   done ($([ "$changed" = 1 ] && echo changed || echo up-to-date))"
 }
@@ -208,3 +229,5 @@ echo "Then commit via lazygit (lg)."
 # A split skill that no longer reassembles is the one failure this script can
 # detect but not repair, so it has to leave a trace something else can act on.
 [ "$DRIFT" = 0 ] || { echo; echo "!! a split skill needs a manual re-split (see above)"; exit 1; }
+
+[ "$FAILED" = 0 ] || { echo "!! refresh incomplete: one or more fetches failed"; exit 1; }

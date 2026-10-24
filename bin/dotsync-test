@@ -243,6 +243,14 @@ check "after a fast-forward, autopull reconciles runtime skills" "$(cat "$TMP/sk
 printf '#!/usr/bin/env bash\nexit 4\n' > "$P/skills/agents-bin/skill-update"
 upstream "skill sync fails"; ap
 check "a failing skill-update is recorded as a warning" "$(grep -c '^.* warn: ' "$XDG_STATE_HOME/dotsync/last-result")" "1"
+ap; rc=$?
+check "up-to-date autopull retries a failed reconciliation" "$rc" "1"
+has_last "and reports the reconciliation failure" "up to date but runtime reconciliation failed"
+printf '#!/usr/bin/env bash\necho repaired > "%s/skills-synced"\n' "$TMP" > "$P/skills/agents-bin/skill-update"
+chmod +x "$P/skills/agents-bin/skill-update"
+ap; rc=$?
+check "up-to-date autopull succeeds after the reconciliation is repaired" "$rc" "0"
+check "and actually reruns skill reconciliation" "$(cat "$TMP/skills-synced")" "repaired"
 rm -rf "$P/skills/agents-bin"
 rm -f "$P/bin/ai-memory-link"
 check "the lock is released after a run" "$([ -d "$XDG_STATE_HOME/dotsync/lock" ] && echo held || echo free)" "free"
@@ -286,6 +294,58 @@ printf 'garbage\n' > "$XDG_STATE_HOME/dotsync/fail-count"; ap
 check "a garbage failure count restarts at one" "$(cat "$XDG_STATE_HOME/dotsync/fail-count")" "1"
 git -C "$P" remote set-url origin "$R"; ap
 check "a success clears the failure count" "$([ -f "$XDG_STATE_HOME/dotsync/fail-count" ] && echo kept || echo cleared)" "cleared"
+
+# 15. Upgrade a second device through a local remote. The running dotsync only
+# needs the pre-existing relink entry point; the pulled linker owns migration.
+M="$TMP/migration"; fake_root "$M"
+git -C "$M" branch -M main
+mkdir -p "$M/config/ai"
+cp "$ROOT/config/ai/CORE.md" "$M/config/ai/CORE.md"
+cp -R "$ROOT/config/ai/adapters" "$ROOT/config/ai/context" "$M/config/ai/"
+printf '#!/bin/sh\nexit 0\n' > "$M/bin/ai-memory-link"
+printf '#!/bin/sh\necho retired\n' > "$M/bin/retired-command"
+chmod +x "$M/bin/ai-memory-link" "$M/bin/retired-command"
+printf 'retired-command\n' > "$M/config/ai/runtime-commands.txt"
+git -C "$M" add -A; git -C "$M" commit -qm device-before-upgrade
+MR="$TMP/migration-remote.git"; MW="$TMP/migration-upstream"
+git clone -q --bare "$M" "$MR"
+git -C "$M" remote add origin "$MR"
+git -C "$M" branch --set-upstream-to=origin/main >/dev/null 2>&1 || {
+  git -C "$M" fetch -q origin
+  git -C "$M" branch --set-upstream-to=origin/main >/dev/null
+}
+git clone -q --branch main "$MR" "$MW"
+MH="$TMP/migration-home"; mkdir -p "$MH/.config" "$MH/.local/bin"
+ln -s "$M/config/ai" "$MH/.config/ai"
+ln -s "$M/bin/retired-command" "$MH/.local/bin/retired-command"
+printf 'personal command\n' > "$MH/.local/bin/personal-command"
+cp "$ROOT/bin/ai-memory-link" "$MW/bin/ai-memory-link"
+git -C "$MW" rm -q bin/retired-command
+printf '#!/bin/sh\necho canonical-command\n' > "$MW/bin/dotads-meta"
+chmod +x "$MW/bin/dotads-meta"
+printf 'dotads-meta\n' > "$MW/config/ai/runtime-commands.txt"
+git -C "$MW" add -A; git -C "$MW" commit -qm publish-command-migration
+git -C "$MW" push -q origin main
+OUT="$(cd "$OTHER" && HOME="$MH" "$M/bin/dotsync" --yes pull 2>&1)"; rc=$?
+check "first pull migrates command links through the newly pulled linker" "$rc" "0"
+check "new canonical command is usable on the upgraded device" "$("$MH/.local/bin/dotads-meta" 2>/dev/null)" "canonical-command"
+check "upgrade removes the retired managed command link" "$([ -L "$MH/.local/bin/retired-command" ] && echo kept || echo removed)" "removed"
+check "upgrade preserves unrelated device commands" "$(cat "$MH/.local/bin/personal-command")" "personal command"
+# With no newer commit, repair a missing link left by an interrupted migration.
+unlink "$MH/.local/bin/dotads-meta"
+h="$(git -C "$M" rev-parse HEAD)"
+(cd "$OTHER" && HOME="$MH" XDG_STATE_HOME="$MH/.state" DOTSYNC_AUTOPULL_INTERVAL=0 "$M/bin/dotsync" autopull >/dev/null 2>&1); rc=$?
+check "up-to-date autopull repairs missing command links" "$rc" "0"
+check "and restores the canonical executable" "$("$MH/.local/bin/dotads-meta" 2>/dev/null)" "canonical-command"
+check "reconciliation creates no new commit" "$(git -C "$M" rev-parse HEAD)" "$h"
+# A later background pull also installs additions from the manifest.
+printf '#!/bin/sh\necho next-command\n' > "$MW/bin/next-command"; chmod +x "$MW/bin/next-command"
+printf 'next-command\n' >> "$MW/config/ai/runtime-commands.txt"
+git -C "$MW" add -A; git -C "$MW" commit -qm next-command
+git -C "$MW" push -q origin main
+(cd "$OTHER" && HOME="$MH" XDG_STATE_HOME="$MH/.state" DOTSYNC_AUTOPULL_INTERVAL=0 "$M/bin/dotsync" autopull >/dev/null 2>&1); rc=$?
+check "background pull also reconciles the updated command manifest" "$rc" "0"
+check "background pull exposes new commands without reinstalling" "$("$MH/.local/bin/next-command" 2>/dev/null)" "next-command"
 
 echo
 [ "$fails" -eq 0 ] && { echo "dotsync-test: all cases hold"; exit 0; }

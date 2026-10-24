@@ -4,6 +4,91 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## Unreleased — 2026-10-24
+
+### Added
+
+- Explicit staged lessons through `delivery-learning stage`, automatic verified
+  PASS finalization, private candidate harvesting, and idempotent `finalize`
+  recovery. New signals bind verification event hashes without copying logs.
+- `ai-recall`: private SQLite FTS5 recall over selected repository contracts and
+  verified historical learning/run metadata, with source citations, provenance,
+  refresh deletion, and sensitive-source exclusion.
+- `ai-schedule`: allowlisted offline `repo-status` and `dotads-validate` jobs,
+  due ticks, foreground scheduling, pause/resume/removal, run history, exclusive
+  execution, and visible UNKNOWN results for interrupted attempts.
+
+### Changed
+
+- The Meta Ads helper is now `dotads-meta`. Retired aliases are removed and a
+  regression guard prevents their return. Deployment state writes are atomic;
+  invalid state blocks execution, and selected brands override inherited account
+  defaults. Live account operations were not exercised.
+- Existing devices reconcile executable links through the post-pull
+  `ai-memory-link` entry point. Up-to-date autopull retries reconciliation;
+  owned dangling links are pruned while personal files and foreign links survive.
+- Whole-corpus skill audit covers 77 entrypoints and 22 upstream provenance
+  sources. Shadcn guidance now fits the 500-line budget; Postgres scope is visible
+  within the discovery budget; learning and execution guidance use the new tools.
+- Three Cloudflare entrypoints received verified upstream updates with explicit
+  local-fork provenance where missing sibling links need external references.
+  Cloudflare One no longer recommends Audit SSH after its documented EOL;
+  see [API deprecations](https://developers.cloudflare.com/fundamentals/api/reference/deprecations/#2026-05-13)
+  and [DLP Passive Detection](https://developers.cloudflare.com/cloudflare-one/data-loss-prevention/passive-detection/).
+
+### Whole-system hardening (TASK-135)
+
+- Meta deployment state binds account and parent identities, detects effective
+  brand-default drift, rejects duplicate keys, and serializes local apply with
+  explicit recovery for uncertain remote outcomes.
+- Installers preserve malformed shell files and foreign launchers, and bootstrap
+  Claude/Codex hooks on fresh homes. Context collisions fail reconciliation.
+- Backup names include container identity; discovery and partial dump failures
+  are visible. Installed tmux paths, sysfs batteries, bounded shell completion,
+  and JSON/HTML/CSS language-server mappings are corrected.
+- MCP sync compares managed values and preserves private modes. Learning checks
+  final retrieval budgets, telemetry rejects unsafe links, status routing keeps
+  execution references, and Pi falls back on failed/incomplete compaction.
+- Release probes pin validated destinations with hostname/TLS checks. Fenced
+  examples stay inactive; cross-stack UI requirements and canonical resume and
+  skill-statistics evidence cannot silently pass missing/invalid checks.
+- Secret scans fail on fatal Git errors; vendored refresh stages all downloads
+  before replacement and distinguishes network failures from missing files.
+- Node pin advances to 24.22.1; adopting devices must migrate version-local npm
+  globals. The audited device retained all 21 package versions and 36 executable
+  names, with real CLI/LSP checks and the old runtime preserved.
+- Five existing design-tool suites join automatic
+  checks; maintained documentation triggers Core runtime CI.
+- [Research and adoption notes](docs/research/dotfiles-reliability-sources.md)
+  retain community/thread/video references, corroboration, recovery, and limits.
+
+### Verification
+
+- TASK-135: final Linux core aggregate **77/77 PASS** under Node 24.22.1 and
+  Pillow 13.0.0, including real browser fixtures. The initial Shopify failure
+  remains recorded; exact-version npm-global migration repaired it without
+  weakening the test. Focused review regressions, syntax/workflow/policy checks,
+  and independent integration review passed. Final code/config matched the
+  tested snapshot; 11 unrelated dirty files remained byte-identical.
+
+- TASK-133 focused gates passed: learning lifecycle and harvest, full
+  delivery-ledger regression, recall (15 scenarios), scheduler (10 scenarios),
+  all 77 skill checks (zero warnings), command/installer/device-sync integration,
+  policy lint, and an independent review. Exact commands and results belong to
+  `.delivery/`; these counts describe local fixtures, not fleet reliability.
+
+### Boundaries and adoption
+
+- Candidates require review before canonical memory/skill changes. Recall is
+  advisory full-text search and does not ingest raw chat or verification output.
+- No real scheduled job, cron entry, system service, paid model call, or mobile
+  gateway is enabled. Checkpoints and phone access remain deferred.
+- After publication, existing devices use `dotsync pull` (or normal autopull)
+  to receive the commands. Plain Git pulls need `ai-memory-link && skill-update`.
+- Focused regression suites use isolated homes, local Git remotes, synthetic
+  evidence and credentials. This audit does not recertify every vendor API
+  example or establish reliability across all native AI runtimes.
+
 ## v2026.10.09
 
 design-taste: independent cross-family visual review, enforced by the gate.

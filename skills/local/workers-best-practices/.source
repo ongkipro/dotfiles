@@ -2,3 +2,4 @@ source: https://raw.githubusercontent.com/cloudflare/skills/main/skills/workers-
 vendored: 2026-10-02
 note: Vendored single-source (dotfiles contract: no plugins). Refresh with _refresh-vendored.sh
 note: Verified byte-identical to upstream on 2026-09-29.
+note: Entrypoint refreshed 2026-10-24; reference files retain the prior vendoring date. The .local-fork ledger preserves an external cf-cli reference.

@@ -14,8 +14,10 @@ Usage: resume-brief [REPO]
 import json
 import pathlib
 import re
+import runpy
 import subprocess
 import sys
+from datetime import datetime
 
 
 # One parser, imported by ai-policy-lint, because two readers of the same
@@ -101,6 +103,23 @@ def events(path):
     return out
 
 
+def latest_evidence(records):
+    """Return all possible latest (result, run ID, time) records.
+
+    Run IDs have random suffixes and timestamps have second precision. A tie
+    cannot establish chronology; missing timestamps cannot establish it either.
+    """
+    def timestamp(record):
+        try:
+            value = datetime.fromisoformat(record[2].replace("Z", "+00:00"))
+            return value if value.tzinfo else None
+        except (AttributeError, TypeError, ValueError):
+            return None
+    dated = [(timestamp(record), record) for record in records]
+    newest = max((stamp for stamp, _ in dated if stamp is not None), default=None)
+    return [record for stamp, record in dated if stamp is None or stamp == newest]
+
+
 def main():
     repo = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
     top = git(repo, "rev-parse", "--show-toplevel")
@@ -125,29 +144,42 @@ def main():
         print("\nNo delivery ledger in this repository; resume authority is Git state only.")
         return 0
 
+    # Reuse the canonical verifier before trusting any completion or projection.
+    # Invalid evidence must not be turned into a fresh-session all-clear.
     try:
-        current = json.loads((delivery / "current.json").read_text())
-    except (OSError, json.JSONDecodeError):
-        print("\nLedger present but current.json is unreadable — the chain cannot be resumed.",
-              file=sys.stderr)
-        return 1
+        ledger = runpy.run_path(str(pathlib.Path(__file__).resolve().with_name("delivery-ledger")))
+        current, problems = ledger["inspect"](repo)
+    except (OSError, ValueError, TypeError, AttributeError) as exc:
+        current, problems = None, [str(exc)]
+    if problems or current is None:
+        print("\nLedger: UNVERIFIED — completion claims cannot be resumed.")
+        for problem in problems[:8]:
+            print(f"  {problem}")
+        return 2
 
     # Latest outcome per task, taken from evidence rather than from any claim.
-    run_index, run_files = [], sorted((delivery / "runs").glob("*.jsonl")) if (delivery / "runs").is_dir() else []
+    run_index, run_files = [], sorted((delivery / "runs").glob("RUN-*.jsonl")) if (delivery / "runs").is_dir() else []
+    finished_records = []
     for f in run_files:
         ev = events(f)
         if not ev:
             continue
         start = next((e for e in ev if e.get("type") == "run_started"), None)
         fin = next((e for e in reversed(ev) if e.get("type") == "run_finished"), None)
+        if fin:
+            finished_records.append((fin.get("result"), f.stem, fin.get("time")))
         if start and start.get("task"):
             run_index.append((start["task"], start.get("requirement"),
-                              fin.get("result") if fin else "OPEN", f.stem))
+                              fin.get("result") if fin else "OPEN", f.stem, (fin or start).get("time")))
 
     active = current.get("activeRun")
     if active:
         run_id = active.get("runId") if isinstance(active, dict) else active
-        ev = events(delivery / "runs" / f"{run_id}.jsonl")
+        active_path = delivery / "runs" / f"{run_id}.jsonl"
+        if active_path not in run_files:
+            print("\nLedger: UNVERIFIED — active run is outside verified evidence.")
+            return 2
+        ev = events(active_path)
         start = next((e for e in ev if e.get("type") == "run_started"), {})
         print(f"\nActive run: {run_id}")
         print(f"  task {start.get('task', '?')} / {start.get('requirement', '?')} "
@@ -174,9 +206,14 @@ def main():
         print("  to finish: record any missing check, run check-boundary, "
               "then finish (review first if REVIEW_REQUIRED)")
     else:
-        last = current.get("lastRun") or {}
-        print(f"\nNo active run. Last: {last.get('runId', '(none)')} "
-              f"-> {last.get('result', '?')} at {last.get('finishedAt', '?')}")
+        latest = latest_evidence(finished_records)
+        if len(latest) > 1:
+            print(f"\nNo active run. Last: order unresolved for {len(latest)} verified completed runs (equal or missing timestamps).")
+        elif latest:
+            result, run_id, finished_at = latest[0]
+            print(f"\nNo active run. Last: {run_id} -> {result} at {finished_at or '?'}")
+        else:
+            print("\nNo active run. No completed run evidence.")
         note = (current.get("lastCheckpoint") or {}).get("note")
         if note:
             print(f"  checkpoint: {note.split('. ')[0][:160]}")
@@ -232,8 +269,8 @@ def main():
     live_records = {m.group(1) for m in
                     re.finditer(r"(?m)^(?:#{2,4}\s+|-\s+\*\*)(TASK-[0-9]+)\s*[:/(—-]", live)}
 
-    outcomes, discounted = {}, {}
-    for task, req, result, stem in run_index:
+    outcomes, discounted, matched_runs = {}, {}, {}
+    for task, req, result, stem, timestamp in run_index:
         known = declared_req.get(task)
         if known and req not in known:
             # A run carrying no requirement at all is discounted too: it cannot
@@ -242,7 +279,14 @@ def main():
             discounted.setdefault(task, []).append(
                 (stem, req or "no requirement", sorted(known)))
             continue
-        outcomes[task] = (result, stem)
+        matched_runs.setdefault(task, []).append((result, stem, timestamp))
+    for task, records in matched_runs.items():
+        latest = latest_evidence(records)
+        results = {record[0] for record in latest}
+        outcomes[task] = (next(iter(results)) if len(results) == 1 else "UNVERIFIED",
+                          ", ".join(record[1] for record in latest))
+        if len(results) > 1:
+            print(f"\n{task}: UNVERIFIED — latest run order unresolved (equal or missing timestamps).")
 
     def mentions(text, task):
         # Right-bounded so TASK-02 stops matching TASK-023 — a substring test
@@ -355,15 +399,22 @@ def main():
     # missing, unauthenticated, or offline, and none of that is a reason to fail.
     head = git(repo, "rev-parse", "HEAD")
     if head:
-        r = subprocess.run(
-            ["gh", "run", "list", "--limit", "8", "--json",
-             "headSha,conclusion,status,displayTitle"],
-            cwd=repo, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        if r.returncode == 0:
+        try:
+            r = subprocess.run(
+                ["gh", "run", "list", "--limit", "8", "--json",
+                 "headSha,conclusion,status,displayTitle"],
+                cwd=repo, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                timeout=5)
+        except (OSError, subprocess.TimeoutExpired):
+            r = None
+        if r is not None and r.returncode == 0:
             try:
                 runs = json.loads(r.stdout)
             except json.JSONDecodeError:
-                runs = []
+                runs = None
+            if not isinstance(runs, list) or any(not isinstance(x, dict) for x in runs):
+                print("\nCI for this HEAD: unknown (invalid gh response)")
+                return 0
             mine = [x for x in runs if x.get("headSha") == head]
             print("\nCI for this HEAD:", end=" ")
             if not mine:
@@ -374,7 +425,7 @@ def main():
                 if state not in ("success", "in_progress", "queued"):
                     print("  CI is not green on the commit you are resuming from.")
         else:
-            print("\nCI for this HEAD: unknown (gh unavailable or not authenticated)")
+            print("\nCI for this HEAD: unknown (gh unavailable, timed out, or not authenticated)")
     return 0
 
 

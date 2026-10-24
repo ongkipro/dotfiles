@@ -1,27 +1,65 @@
 #!/usr/bin/env python3
 """ai-memory-access - route memory and record privacy-minimal local usage telemetry."""
 from __future__ import annotations
-import argparse, json, os, subprocess, sys, tempfile
+import argparse, json, os, stat, subprocess, sys
+import fcntl
 from datetime import datetime, timezone
 from pathlib import Path
 
 
 def now(): return datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00','Z')
-def atomic_json(path: Path, data: dict):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd,tmp=tempfile.mkstemp(prefix='.'+path.name+'.',dir=path.parent)
+def telemetry_directory(path: Path):
+    """Walk with directory descriptors so a replaced parent cannot redirect I/O."""
+    # macOS exposes its system temp roots through root-owned /tmp and /var
+    # aliases. Canonicalize only those exact OS aliases, never user parents.
+    if sys.platform == 'darwin' and len(path.parts) > 1 and path.parts[1] in {'tmp', 'var'}:
+        alias = Path('/') / path.parts[1]
+        if alias.is_symlink() and alias.lstat().st_uid == 0 and os.readlink(alias) in {f'private/{path.parts[1]}', f'/private/{path.parts[1]}'}:
+            path = Path('/private') / path.relative_to('/')
+    fd = os.open(path.anchor, os.O_RDONLY | os.O_DIRECTORY)
     try:
-        with os.fdopen(fd,'w',encoding='utf-8') as f:
-            json.dump(data,f,indent=2,sort_keys=True); f.write('\n'); f.flush(); os.fsync(f.fileno())
-        os.replace(tmp,path)
-    finally:
-        if os.path.exists(tmp): os.unlink(tmp)
+        for part in path.parts[1:]:
+            if part in {".", ".."}: raise ValueError("telemetry path must not traverse parents")
+            try: os.mkdir(part, mode=0o700, dir_fd=fd)
+            except FileExistsError: pass
+            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            os.close(fd); fd = child
+            info = os.fstat(fd)
+            if info.st_uid not in {0, os.getuid()} or (info.st_mode & 0o022 and not info.st_mode & stat.S_ISVTX):
+                raise ValueError("unsafe telemetry parent ownership or permissions")
+        info = os.fstat(fd)
+        if info.st_uid != os.getuid() or info.st_mode & 0o077:
+            raise ValueError("telemetry directory must be owned by this user and private (0700)")
+        return fd
+    except Exception:
+        os.close(fd)
+        raise
 
-def append_jsonl(path: Path, data: dict):
-    path.parent.mkdir(parents=True,exist_ok=True)
-    with path.open('a',encoding='utf-8') as f:
-        f.write(json.dumps(data,sort_keys=True,separators=(',',':'),ensure_ascii=True)+'\n'); f.flush(); os.fsync(f.fileno())
-    os.chmod(path,0o600)
+
+def telemetry_file(directory, name, data, append=False):
+    flags = os.O_WRONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+    if append: flags |= os.O_APPEND | os.O_CREAT
+    else: flags |= os.O_CREAT | os.O_EXCL
+    try: fd = os.open(name, flags, 0o600, dir_fd=directory)
+    except FileExistsError:
+        fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+        try: validate_telemetry_file(fd)
+        finally: os.close(fd)
+        return
+    try:
+        validate_telemetry_file(fd)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, 'w', encoding='utf-8', closefd=False) as stream:
+            stream.write(json.dumps(data, sort_keys=True, separators=(',', ':'), ensure_ascii=True) + '\n')
+            stream.flush(); os.fsync(fd)
+    finally: os.close(fd)
+
+
+def validate_telemetry_file(fd):
+    info = os.fstat(fd)
+    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_uid != os.getuid():
+        raise ValueError("telemetry file must be owned by this user, regular, and not hardlinked")
 
 def main():
     p=argparse.ArgumentParser(
@@ -37,7 +75,7 @@ def main():
     p.add_argument('--dotfiles')
     p.add_argument('--json',action='store_true')
     a=p.parse_args(); dot=Path(a.dotfiles or os.environ.get('DOTFILES_DIR',Path(__file__).resolve().parent.parent)).resolve(); router=dot/'bin'/'ai-memory-route'
-    telemetry=Path(a.telemetry_dir or os.environ.get('AI_MEMORY_USAGE_DIR',Path.home()/'.config/ai-local/memory-usage')).expanduser().resolve()
+    telemetry=Path(a.telemetry_dir or os.environ.get('AI_MEMORY_USAGE_DIR',Path.home()/'.config/ai-local/memory-usage')).expanduser().absolute()
     try:
         cmd=['python3',str(router),a.query,'--scope',a.scope,'--json']
         if a.repo: cmd += ['--repo',a.repo]
@@ -47,9 +85,6 @@ def main():
         r=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,check=False)
         if r.returncode != 0: raise ValueError(r.stderr.strip() or 'memory router failed')
         result=json.loads(r.stdout)
-        telemetry.mkdir(parents=True,exist_ok=True); os.chmod(telemetry,0o700)
-        meta=telemetry/'meta.json'
-        if not meta.exists(): atomic_json(meta,{'schemaVersion':1,'startedAt':now(),'privacy':'selected durable-memory paths only; query text, query hashes, and memory content are not stored'})
         selected=[]
         for item in result.get('files',[]):
             if item.get('scope') not in {'shared','project','lesson'}: continue
@@ -57,7 +92,11 @@ def main():
             try: rel=path.relative_to(dot).as_posix()
             except ValueError: continue
             selected.append({'path':rel,'scope':item.get('scope'),'bytes':item.get('bytes')})
-        append_jsonl(telemetry/'events.jsonl',{'schemaVersion':1,'time':now(),'project':result.get('project'),'selected':selected})
+        directory = telemetry_directory(telemetry)
+        try:
+            telemetry_file(directory, 'meta.json', {'schemaVersion':1,'startedAt':now(),'privacy':'selected durable-memory paths only; query text, query hashes, and memory content are not stored'})
+            telemetry_file(directory, 'events.jsonl', {'schemaVersion':1,'time':now(),'project':result.get('project'),'selected':selected}, append=True)
+        finally: os.close(directory)
         if a.json: print(json.dumps(result,indent=2))
         else:
             if not result.get('needed'): print('ai-memory-routing: no files selected for this request.')

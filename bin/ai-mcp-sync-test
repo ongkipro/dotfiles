@@ -61,3 +61,39 @@ run_sync >/dev/null || fail "repair sync failed"
 run_sync --check >/dev/null || fail "in sync after repair"
 
 echo "ai-mcp-sync-test: PASS"
+
+# Full managed drift, preserved unrelated values, private writes, and failures.
+python3 - "$SYNC" "$TMP" <<'PY'
+import json,os,stat,subprocess,sys,tomllib
+from pathlib import Path
+sync=Path(sys.argv[1]); root=Path(sys.argv[2]); dot=root/'manifest'; (dot/'config/ai').mkdir(parents=True)
+manifest=dot/'config/ai/mcp-servers.json'
+manifest.write_text(json.dumps({'mcpServers':{'demo':{'command':'new-command','args':['new'], 'env':{'MODE':'new'}}}}))
+home=root/'drift';home.mkdir()
+paths=['.claude.json','.gemini/config/mcp_config.json','.omp/agent/mcp.json','.pi/agent/mcp.json']
+for rel in paths:
+ p=home/rel;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(json.dumps({'keep':'value','mcpServers':{'demo':{'command':'old','args':['old'],'env':{'MODE':'old'},'timeout':99},'foreign':{'command':'keep'}}}));p.chmod(0o600)
+p=home/'.codex/config.toml';p.parent.mkdir();p.write_text('model = "keep"\n# untouched comment\n[mcp_servers.demo]\ncommand="old"\nargs=["old"]\ntimeout=99\n[mcp_servers.demo.env]\nMODE="old"\n[mcp_servers.foreign]\ncommand="keep"\n');p.chmod(0o600)
+cmd=[str(sync),'--dotfiles',str(dot),'--home',str(home)]
+def run(*args):return subprocess.run(cmd+list(args),capture_output=True,text=True)
+assert run('--check').returncode==1
+old=os.umask(0o002)
+try: assert run().returncode==0
+finally:os.umask(old)
+assert run('--check').returncode==0
+for rel in paths:
+ p=home/rel;d=json.loads(p.read_text());assert d['keep']=='value';assert d['mcpServers']['foreign']['command']=='keep';assert d['mcpServers']['demo']['env']=={'MODE':'new'};assert d['mcpServers']['demo']['timeout']==99;assert stat.S_IMODE(p.stat().st_mode)==0o600
+p=home/'.codex/config.toml';d=tomllib.loads(p.read_text());assert d['model']=='keep';assert d['mcp_servers']['demo']=={'command':'new-command','args':['new'],'env':{'MODE':'new'},'timeout':99};assert d['mcp_servers']['foreign']=={'command':'keep'};assert '# untouched comment' in p.read_text();assert stat.S_IMODE(p.stat().st_mode)==0o600
+before={q:q.read_bytes() for q in [home/x for x in paths]+[p]};assert run().returncode==0;assert all(q.read_bytes()==v for q,v in before.items())
+# env-only drift is detected in every runtime, including removal from manifest.
+manifest.write_text(json.dumps({'mcpServers':{'demo':{'command':'new-command','args':['new']}}}));assert run('--check').returncode==1;assert run().returncode==0;assert run('--check').returncode==0
+for rel in paths+['.codex/config.toml']:
+ p=home/rel;original=p.read_bytes();p.write_text('broken {')
+ assert run().returncode==1 and run('--check').returncode==1
+ assert p.read_text()=='broken {'
+ p.write_bytes(original)
+# An unsupported inline table cannot lose unrelated TOML content during repair.
+p=home/'.codex/config.toml';p.write_text('mcp_servers = { demo = {command="old", args=[]}, foreign={command="keep"} }\n');original=p.read_bytes()
+assert run().returncode==1 and p.read_bytes()==original
+print('ai-mcp-sync-test: drift, privacy, idempotence, parse/layout failure regressions PASS')
+PY

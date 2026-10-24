@@ -59,15 +59,22 @@ def check_node(repo: Path, mode: str) -> tuple[int, int, bool]:
     say(f"Node project detected (package manager: {pm})")
     names = [name for name in ["typecheck", "tsc", "lint", "test"] if name in scripts]
     if mode != "changed" and "build" in scripts: names.append("build")
-    missing_ui = False
-    if mode == "ui":
-        ui = next((name for name in ["test:e2e", "e2e", "test:ui", "playwright"] if name in scripts), None)
-        if ui: names.append(ui)
-        else:
-            say("UI mode requested but no E2E/UI script was discovered")
-            missing_ui = True
     passed = sum(1 for name in names if run_cmd([pm, "run", name], repo))
-    return len(names) + (1 if missing_ui else 0), passed, True
+    return len(names), passed, True
+
+
+def ui_gate(repo: Path) -> tuple[int, int]:
+    """A compiler/unit suite never supplies the explicit UI capability."""
+    try:
+        scripts = json.loads((repo / "package.json").read_text(encoding="utf-8")).get("scripts") or {}
+    except (OSError, ValueError):
+        scripts = {}
+    name = next((name for name in ["test:e2e", "e2e", "test:ui", "playwright"] if name in scripts), None)
+    pm = node_pm(repo) if name else None
+    if not pm:
+        say("UI mode requested but no runnable E2E/UI script was discovered")
+        return 0, 0
+    return 1, int(run_cmd([pm, "run", name], repo))
 
 
 def check_python(repo: Path, mode: str) -> tuple[int, int, bool]:
@@ -198,12 +205,22 @@ def main() -> int:
     for checker in [check_node, check_python, check_go, check_rust, check_php, check_shopify]:
         count, good, seen = checker(repo, mode); total += count; passed += good; recognized = recognized or seen
         if seen and count == 0:
+            # A Node package may expose only its UI script; the aggregate gate
+            # below executes it and rejects the missing-capability case.
+            if checker is check_node and mode == "ui":
+                continue
             uncovered = True
             fail(f"{checker.__name__.removeprefix('check_').title()} stack has no runnable verification")
+    missing_ui = False
+    if mode == "ui":
+        count, good = ui_gate(repo); total += count; passed += good
+        missing_ui = count == 0
     if mode == "security":
         count, good = security_gate(repo); total += count; passed += good
     report_delivery_contract(repo)
     print("-" * 60)
+    if missing_ui:
+        print("project-check: UNVERIFIED (UI mode requires a runnable E2E/UI check)"); return UNVERIFIED
     if uncovered:
         print("project-check: UNVERIFIED (at least one detected stack has no runnable verification)"); return UNVERIFIED
     if total == 0:

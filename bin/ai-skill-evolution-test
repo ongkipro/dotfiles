@@ -10,19 +10,44 @@ description: Keep deterministic retries at the owning integration boundary and p
 # Retry Discipline
 Keep retries at the integration adapter. Preserve deterministic first-failure evidence and regression checks.
 EOF
-python3 - "$REPO" <<'PY'
-import hashlib,json,sys
+python3 - "$REPO" "$ROOT" <<'PYFIX'
+import hashlib,json,sys,subprocess
 from pathlib import Path
-r=Path(sys.argv[1])
+r,root=map(Path,sys.argv[1:]); (r/'.delivery/runs').mkdir()
 def dig(d): return hashlib.sha256(json.dumps(d,sort_keys=True,separators=(',',':'),ensure_ascii=True).encode()).hexdigest()
 for i,result in enumerate(['PASS','PASS','PASS','PASS','FAIL','BLOCKED'],1):
- d={'schemaVersion':1,'runId':f'RUN-s{i}','recordedAt':'2026-08-15T00:00:00Z','skillsUsed':['retry-discipline'],'result':result,'risk':'R1','model':'m','worker':'coder','head':'abc','verificationFailed':result!='PASS'};d['usageHash']=dig(d);json.dump(d,open(r/'.delivery'/'skill-usage'/f'RUN-s{i}.json','w'),indent=2,sort_keys=True)
-for i in range(1,4):
- d={'schemaVersion':1,'runId':f'RUN-m{i}','capturedAt':'2026-08-15T00:00:00Z','scope':'methodology','recommendedDestination':'skill','reusabilityScore':90,'lesson':{'title':'Retry boundary discipline','symptom':'Retries hid deterministic failure','rootCause':'Retry logic lived outside owning integration boundary','invariant':'Keep retry behavior at the owning integration boundary and preserve deterministic failure evidence','fix':'Move retry logic into the integration adapter','check':'Run regression and inspect first failure'},'provenance':{}};d['signalHash']=dig(d);json.dump(d,open(r/'.delivery'/'learning'/f'RUN-m{i}.json','w'),indent=2,sort_keys=True)
-PY
+ run=f'RUN-s{i}'; previous=None; events=[]
+ for fields in [{'type':'run_started','task':'TASK-1','requirement':'REQ-1','risk':'R1','worker':'coder','model':'fixture'}, {'type':'verification','check':'unit','status':'PASS' if result=='PASS' else 'FAIL','detail':'fixture'}, {'type':'run_finished','result':result}]:
+  event={'runId':run,'head':'fixture-head','time':'2026-10-24T00:00:00Z','prevEventHash':previous,**fields};event['eventHash']=dig(event);previous=event['eventHash'];events.append(event)
+ (r/'.delivery/runs'/f'{run}.jsonl').write_text(''.join(json.dumps(e)+'\n' for e in events))
+ subprocess.run([str(root/'bin/delivery-skill-usage'),'--repo',str(r),'record','--run',run,'--skill','retry-discipline'],check=True,stdout=subprocess.DEVNULL)
+ if i<=3:
+  subprocess.run([str(root/'bin/delivery-learning'),'--repo',str(r),'record','--run',run,'--scope','methodology','--title','Retry boundary discipline','--symptom','Retries hid deterministic failure','--root-cause','Retry logic lived outside owning integration boundary','--invariant','Keep retry behavior at the owning integration boundary and preserve deterministic failure evidence','--fix','Move retry logic into the integration adapter','--check','Run regression and inspect first failure'],check=True,stdout=subprocess.DEVNULL)
+PYFIX
 python3 "$ROOT/bin/ai-skill-evolution" --repo "$REPO" --dotfiles "$DOT" --min-samples 5 --min-pattern 3 --json > "$TMP/o.json"
 python3 - "$TMP/o.json" <<'PY'
 import json,sys
 p=json.load(open(sys.argv[1]));s=p['skillEvidence']['retry-discipline'];assert s['samples']==6;assert s['evaluatedSamples']==5;assert s['blocked']==1;assert s['successRate']==.8;assert s['status']=='STABLE';pat=p['methodologyPatterns'][0];assert pat['samples']==3;assert pat['recommendation']=='IMPROVE_EXISTING_SKILL';assert pat['closestSkill']=='retry-discipline'
 PY
+# Repeated and symlinked selections cannot turn one sample into many.
+ln -s "$REPO" "$TMP/repo-alias"
+python3 "$ROOT/bin/ai-skill-evolution" --repo "$REPO" --repo "$REPO" --repo "$TMP/repo-alias" --repos-root "$TMP" --dotfiles "$DOT" --json > "$TMP/repeated.json"
+python3 - "$TMP/o.json" "$TMP/repeated.json" <<'PYFIX'
+import json,sys
+first,repeated=[json.load(open(p)) for p in sys.argv[1:]]
+assert first['skillEvidence']==repeated['skillEvidence']
+assert first['methodologyPatterns']==repeated['methodologyPatterns']
+assert len(repeated['repos'])==1
+PYFIX
+# A self-consistent sidecar cannot substitute for its missing source run.
+rm "$REPO/.delivery/runs/RUN-s1.jsonl"
+if python3 "$ROOT/bin/ai-skill-evolution" --repo "$REPO" --dotfiles "$DOT" --json > "$TMP/bad.json"; then
+ echo 'FAIL: orphan evidence accepted' >&2; exit 1
+fi
+python3 - "$TMP/bad.json" <<'PYFIX'
+import json,sys
+p=json.load(open(sys.argv[1]));assert p['problems'];assert p['skillEvidence']=={};assert p['methodologyPatterns']==[]
+PYFIX
+python3 "$ROOT/bin/ai-skill-evolution" --repo "$REPO" --dotfiles "$DOT" > "$TMP/bad.txt" && exit 1
+grep -q 'excluded evidence:' "$TMP/bad.txt"
 echo 'ai-skill-evolution-test: PASS'

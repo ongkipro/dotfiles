@@ -31,7 +31,7 @@ battery_macos() {
 
 battery_linux_sysfs() {
   local bat_dir
-  bat_dir="$(find /sys/class/power_supply -maxdepth 1 -type d -name 'BAT*' 2>/dev/null | head -n 1 || true)"
+  bat_dir="$(find -L /sys/class/power_supply -maxdepth 1 -type d -name 'BAT*' 2>/dev/null | head -n 1 || true)"
   [ -n "$bat_dir" ] || return 1
   local cap status
   cap="$(cat "$bat_dir/capacity" 2>/dev/null || true)"

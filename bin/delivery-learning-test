@@ -3,6 +3,7 @@ set -euo pipefail
 ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/delivery-learning-test.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
+TMP="$(cd "$TMP" && pwd -P)"
 REPO="$TMP/repo"; mkdir -p "$REPO/.delivery/runs"; cd "$REPO"; git init -q; git config user.email test@example.com; git config user.name test; echo 'State: REVIEWING' > STATUS.md; git add STATUS.md; git commit -qm init
 python3 - "$REPO/.delivery/runs/RUN-test.jsonl" <<'PY'
 import hashlib,json,subprocess,sys
@@ -40,4 +41,180 @@ PY
 set +e; "$ROOT/bin/delivery-learning" --repo "$REPO" verify >/dev/null 2>&1; rc=$?; set -e
 [ "$rc" -eq 2 ] || { echo 'FAIL recomputed self-hash must not replace source provenance' >&2; exit 1; }
 cp "$TMP/signal.backup" "$REPO/.delivery/learning/RUN-test.json"
+# Exercise the public lifecycle with real ledger evidence and a private fixture inbox.
+FLOW="$TMP/workflow"; DOT="$TMP/dotfiles"; INBOX="$TMP/inbox"
+mkdir -p "$FLOW" "$DOT/bin" "$DOT/config/ai/memory" "$TMP/home"
+cp "$ROOT/bin/delivery-learning" "$ROOT/bin/ai-memory-harvest" "$DOT/bin/"
+export DOTFILES_DIR="$DOT" AI_MEMORY_INBOX_DIR="$INBOX" HOME="$TMP/home"
+git -C "$FLOW" init -q; git -C "$FLOW" config user.email fixture@example.invalid; git -C "$FLOW" config user.name fixture
+printf 'State: READY\n' > "$FLOW/STATUS.md"
+git -C "$FLOW" add STATUS.md; git -C "$FLOW" commit -qm baseline
+ledger() { "$ROOT/bin/delivery-ledger" --repo "$FLOW" "$@"; }
+learning() { "$ROOT/bin/delivery-learning" --repo "$FLOW" "$@"; }
+ledger init >/dev/null
+begin() {
+  ledger start --task TASK-learning --requirement REQ-learning --risk R0 "$@" >/dev/null
+  RUN="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["activeRun"])' "$FLOW/.delivery/current.json")"
+}
+lesson=(--scope methodology --title 'Keep retry failures observable' --symptom 'Retries hid the first failing boundary.' --root-cause 'Retries were implemented above the owning adapter.' --invariant 'Preserve the first deterministic failure while keeping retries at their owning integration boundary.' --fix 'Move retries into the adapter.' --check 'Run the retry boundary regression.')
+refuse() { if "$@" >"$TMP/refused.log" 2>&1; then echo 'FAIL expected lifecycle refusal' >&2; exit 1; fi; }
+begin
+learning stage --run "$RUN" "${lesson[@]}" >/dev/null
+cp "$FLOW/.delivery/learning-pending/$RUN.json" "$TMP/proposal.json"
+learning stage --run "$RUN" "${lesson[@]}" >/dev/null
+cmp "$TMP/proposal.json" "$FLOW/.delivery/learning-pending/$RUN.json"
+refuse learning stage --run "$RUN" "${lesson[@]}" --title 'Different lesson'
+refuse learning finalize --run "$RUN"
+[ ! -e "$INBOX/learning-$RUN.md" ] || { echo 'FAIL unfinished run harvested' >&2; exit 1; }
+ledger record --check regression --status FAIL --detail DIAGNOSTIC_NOT_LEARNING >/dev/null
+refuse ledger finish --result PASS
+[ ! -e "$FLOW/.delivery/learning/$RUN.json" ] || { echo 'FAIL unresolved failure learned' >&2; exit 1; }
+ledger record --check regression --status PASS >/dev/null
+ledger finish --result PASS >"$TMP/finish.log" 2>&1
+python3 - "$FLOW" "$RUN" "$INBOX" <<'PYTEST'
+import json,stat,sys
+from pathlib import Path
+repo=Path(sys.argv[1]); run=sys.argv[2]; inbox=Path(sys.argv[3])
+signal=json.loads((repo/'.delivery/learning'/f'{run}.json').read_text())
+assert 'DIAGNOSTIC_NOT_LEARNING' not in json.dumps(signal)
+assert signal['schemaVersion']==2
+assert [c['status'] for c in signal['provenance']['verification']]==['FAIL','PASS']
+assert all(set(c)=={'check','status','eventHash'} for c in signal['provenance']['verification'])
+candidate=inbox/f'learning-{run}.md'
+assert candidate.is_file() and stat.S_IMODE(candidate.stat().st_mode)==0o600
+assert f"source_signal_hash: {signal['signalHash']}" in candidate.read_text()
+assert json.loads((repo/'.delivery/current.json').read_text())['activeRun'] is None
+PYTEST
+cp "$INBOX/learning-$RUN.md" "$TMP/candidate.md"
+cp "$FLOW/.delivery/learning/$RUN.json" "$TMP/signal.json"
+learning finalize --run "$RUN" >/dev/null
+cmp "$TMP/candidate.md" "$INBOX/learning-$RUN.md"
+cmp "$TMP/signal.json" "$FLOW/.delivery/learning/$RUN.json"
+refuse learning stage --run "$RUN" "${lesson[@]}"
+
+# No inferred lessons: a verified run without a proposal writes no candidate.
+begin
+ledger record --check regression --status PASS >/dev/null
+ledger finish --result PASS >/dev/null
+[ ! -e "$INBOX/learning-$RUN.md" ] || { echo 'FAIL unstaged lesson inferred' >&2; exit 1; }
+for result in FAIL BLOCKED; do
+  begin
+  learning stage --run "$RUN" "${lesson[@]}" >/dev/null
+  ledger finish --result "$result" >/dev/null
+  refuse learning finalize --run "$RUN"
+  [ ! -e "$INBOX/learning-$RUN.md" ] || { echo 'FAIL non-PASS run harvested' >&2; exit 1; }
+done
+
+# A transient harvester failure cannot undo a durable PASS and is retryable.
+begin
+learning stage --run "$RUN" "${lesson[@]}" >/dev/null
+ledger record --check regression --status PASS >/dev/null
+mv "$DOT/bin/ai-memory-harvest" "$TMP/harvester"
+ledger finish --result PASS >"$TMP/retry.log" 2>&1
+grep -q 'WARNING: learning candidate not finalized' "$TMP/retry.log"
+[ -e "$FLOW/.delivery/learning/$RUN.json" ] && [ ! -e "$INBOX/learning-$RUN.md" ]
+ledger verify >/dev/null
+mv "$TMP/harvester" "$DOT/bin/ai-memory-harvest"
+learning finalize --run "$RUN" >/dev/null
+[ -e "$INBOX/learning-$RUN.md" ]
+
+# Tampered pending input never becomes canonical learning or a candidate.
+begin
+learning stage --run "$RUN" "${lesson[@]}" >/dev/null
+cp "$FLOW/.delivery/learning-pending/$RUN.json" "$TMP/pending.backup"
+python3 - "$FLOW/.delivery/learning-pending/$RUN.json" <<'PYTEST'
+import json,sys
+from pathlib import Path
+p=Path(sys.argv[1]); data=json.loads(p.read_text()); data['lesson']['fix']='forged'; p.write_text(json.dumps(data))
+PYTEST
+ledger record --check regression --status PASS >/dev/null
+ledger finish --result PASS >"$TMP/tampered.log" 2>&1
+grep -q 'WARNING: learning candidate not finalized' "$TMP/tampered.log"
+[ ! -e "$FLOW/.delivery/learning/$RUN.json" ]
+cp "$TMP/pending.backup" "$FLOW/.delivery/learning-pending/$RUN.json"
+learning finalize --run "$RUN" >/dev/null
+[ -e "$INBOX/learning-$RUN.md" ]
+
+# A stage in flight holds the ledger lock, so concurrent finish cannot miss it.
+begin
+ledger record --check regression --status PASS >/dev/null
+python3 - "$ROOT" "$FLOW" "$RUN" "$INBOX" <<'PYTEST'
+import fcntl,select,subprocess,sys
+from pathlib import Path
+root,repo,run,inbox=map(Path,sys.argv[1:])
+worker=r"""
+import importlib.machinery,importlib.util,sys
+loader=importlib.machinery.SourceFileLoader('staged_learning',sys.argv.pop(1))
+spec=importlib.util.spec_from_loader(loader.name,loader); module=importlib.util.module_from_spec(spec); loader.exec_module(module)
+write=module.atomic_json
+def pause(*args):
+    print('STAGE_READY',flush=True)
+    if not sys.stdin.readline(): raise ValueError('stage test release missing')
+    return write(*args)
+module.atomic_json=pause
+raise SystemExit(module.main())
+"""
+args=['--repo',str(repo),'stage','--run',str(run),'--scope','methodology','--title','Serialize staged learning','--symptom','Finish missed a pending proposal.','--root-cause','Staging and finish used different locks.','--invariant','Stage and finish serialize against the same delivery lock.','--fix','Acquire ledger before learning lock.','--check','Run the concurrent stage and finish fixture.']
+stage=subprocess.Popen([sys.executable,'-c',worker,str(root/'bin/delivery-learning'),*args],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+try:
+    assert select.select([stage.stdout],[],[],10)[0], 'stage did not reach the write barrier'
+    assert stage.stdout.readline().strip()=='STAGE_READY'
+    with (repo/'.delivery/ledger.lock').open('a') as lock:
+        try: fcntl.flock(lock.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except BlockingIOError: pass
+        else: raise AssertionError('stage did not serialize with finish')
+    finish=subprocess.Popen([str(root/'bin/delivery-ledger'),'--repo',str(repo),'finish','--result','PASS'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+    stage.stdin.write('release\n'); stage.stdin.flush()
+    out,err=stage.communicate(timeout=15); assert stage.returncode==0,(out,err)
+    out,err=finish.communicate(timeout=30); assert finish.returncode==0,(out,err)
+    assert (inbox/f'learning-{run}.md').is_file(),(out,err)
+finally:
+    if stage.poll() is None: stage.kill(); stage.communicate()
+PYTEST
+
+# Unsafe metadata remains in raw run evidence, but is never exported as learning.
+begin --worker 'access_token=synthetic-review-marker'
+learning stage --run "$RUN" "${lesson[@]}" >/dev/null
+ledger record --check regression --status PASS >/dev/null
+ledger finish --result PASS >"$TMP/unsafe-metadata.log" 2>&1
+grep -q 'WARNING: learning candidate not finalized' "$TMP/unsafe-metadata.log"
+refuse learning record --run "$RUN" "${lesson[@]}"
+refuse learning finalize --run "$RUN"
+[ ! -e "$FLOW/.delivery/learning/$RUN.json" ] && [ ! -e "$INBOX/learning-$RUN.md" ]
+
+# Every managed evidence path is checked before stage reads or writes through it.
+begin
+learning stage --run "$RUN" "${lesson[@]}" >/dev/null
+python3 - "$ROOT/bin/delivery-learning" "$FLOW" "$RUN" "$TMP" <<'PYTEST'
+import json,os,shutil,stat,subprocess,sys
+from pathlib import Path
+command,folder,run,temp=sys.argv[1:]; repo=Path(folder); outside=Path(temp)/'outside'
+outside.mkdir(mode=0o700)
+args=[command,'--repo',str(repo),'stage','--run',run,'--scope','methodology','--title','Keep retry failures observable','--symptom','Retries hid the first failing boundary.','--root-cause','Retries were implemented above the owning adapter.','--invariant','Preserve the first deterministic failure while keeping retries at their owning integration boundary.','--fix','Move retries into the adapter.','--check','Run the retry boundary regression.']
+paths=['.delivery/learning-pending','.delivery/learning','.delivery/runs','.delivery/current.json','.delivery/learning.lock','.delivery/ledger.lock',f'.delivery/runs/{run}.jsonl',f'.delivery/learning-pending/{run}.json','.delivery']
+for index,relative in enumerate(paths):
+    target=repo/relative; saved=target.with_name(target.name+'.saved')
+    target.rename(saved)
+    redirected=outside/f'target-{index}'
+    if saved.is_dir(): shutil.copytree(saved,redirected)
+    else: shutil.copy2(saved,redirected)
+    target.symlink_to(redirected,target_is_directory=saved.is_dir())
+    mode=stat.S_IMODE(redirected.stat().st_mode)
+    before={str(p.relative_to(redirected)):p.read_bytes() for p in redirected.rglob('*') if p.is_file()} if redirected.is_dir() else redirected.read_bytes()
+    result=subprocess.run(args,capture_output=True,text=True)
+    assert result.returncode==1 and 'symlink' in result.stderr,(relative,result.stdout,result.stderr)
+    after={str(p.relative_to(redirected)):p.read_bytes() for p in redirected.rglob('*') if p.is_file()} if redirected.is_dir() else redirected.read_bytes()
+    assert before==after and stat.S_IMODE(redirected.stat().st_mode)==mode,relative
+    target.unlink(); saved.rename(target)
+# Shared-inode evidence files are refused as well, without touching their alias.
+for index,relative in enumerate(['.delivery/current.json','.delivery/learning.lock',f'.delivery/runs/{run}.jsonl',f'.delivery/learning-pending/{run}.json']):
+    target=repo/relative; alias=outside/f'hardlink-{index}'; os.link(target,alias)
+    before=alias.read_bytes(); mode=stat.S_IMODE(alias.stat().st_mode)
+    result=subprocess.run(args,capture_output=True,text=True)
+    assert result.returncode==1 and 'hardlink' in result.stderr,(relative,result.stderr)
+    assert alias.read_bytes()==before and stat.S_IMODE(alias.stat().st_mode)==mode
+    alias.unlink()
+PYTEST
+ledger finish --result FAIL >/dev/null
+
 echo 'delivery-learning-test: PASS'

@@ -69,7 +69,7 @@ echo "✓ config/shell-tools.sh: detects the running shell"
 
 check_quiet_source() {
   local shell="$1" login_shell="$2" output
-  if ! output="$(SHELL="$login_shell" "$shell" -c '. "$1"' _ "$ROOT/config/shell-tools.sh" 2>&1)"; then
+  if ! output="$(HOME="$TMP/home" PATH="$TMP/bin:/usr/bin:/bin" SHELL="$login_shell" "$shell" -c '. "$1"' _ "$ROOT/config/shell-tools.sh" 2>&1)"; then
     printf '%s\n' "$output" >&2
     return 1
   fi
@@ -151,5 +151,50 @@ if [ "$pi_out" != "$expected_pi" ]; then
   exit 1
 fi
 echo "✓ config/shell-tools.sh: pi() appends the rendered pi context and device memory"
+
+# Run the actual completion block in an interactive shell with isolated tools.
+python3 - "$ROOT" "$TMP" <<'PYTEST'
+import os, pathlib, shutil, subprocess, sys, time, tomllib
+root, tmp = map(pathlib.Path, sys.argv[1:])
+source = (root / 'config/shell-tools.sh').read_text()
+block = source[source.index('if [[ $- == *i* ]] && command -v omp'):source.index('# --- starship prompt ---')]
+script = tmp / 'completion-block.sh'
+script.write_text(block + '\nprintf "READY:%s" "${COMPLETION_GENERATED:-unset}"\n')
+for timer in ('timeout', 'perl'):
+    if not shutil.which(timer):
+        print('SKIP: optional completion timer unavailable: ' + timer)
+        continue
+    tools = tmp / ('completion-tools-' + timer)
+    tools.mkdir()
+    for tool in ('bash', 'dirname', 'mkdir', 'mktemp', 'mv', 'rm', 'sleep', timer):
+        (tools / tool).symlink_to(shutil.which(tool))
+    omp = tools / 'omp'
+    for mode in ('success', 'failure', 'stalled'):
+        home = tmp / ('completion-home-' + timer + '-' + mode)
+        cache = home / '.cache/omp-completions.bash'
+        cache.parent.mkdir(parents=True)
+        if mode != 'success':
+            cache.write_text('export COMPLETION_GENERATED=previous\n')
+            os.utime(cache, (1, 1))
+        body = 'echo "export COMPLETION_GENERATED=new"' if mode == 'success' else ('echo partial; exit 1' if mode == 'failure' else 'sleep 30')
+        omp.write_text('#!/bin/sh\n' + body + '\n')
+        omp.chmod(0o755)
+        env = dict(os.environ, HOME=str(home), PATH=str(tools), XDG_CACHE_HOME=str(home / '.cache'))
+        started = time.monotonic()
+        run = subprocess.run([str(tools / 'bash'), '--noprofile', '--norc', '-ic', 'source "$1"', '_', str(script)], env=env, capture_output=True, text=True, timeout=6)
+        assert run.returncode == 0, run.stderr
+        assert time.monotonic() - started < 5, mode
+        assert run.stdout == 'READY:' + ('new' if mode == 'success' else 'previous'), run.stdout
+        assert not list(cache.parent.glob('omp-completions.bash.*'))
+        print('✓ completion ' + timer + ': ' + mode + ' preserves prompt/cache contract')
+# Mapping uses installed dedicated LSP commands, not TypeScript for other languages.
+config = tomllib.loads((root / 'config/helix/languages.toml').read_text())
+languages = {entry['name']: entry for entry in config['language']}
+for lang in ('json', 'html', 'css'):
+    server = languages[lang]['language-servers'][0]
+    assert config['language-server'][server]['command'] == 'vscode-' + lang + '-language-server'
+    assert 'typescript' not in languages[lang]['language-servers']
+print('✓ Helix JSON/HTML/CSS use their dedicated language servers')
+PYTEST
 
 echo "shell-wrapper-test: OK"

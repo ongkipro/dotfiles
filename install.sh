@@ -51,10 +51,17 @@ link() {
 # Retire the launchers here; the profile directory is only reported, never deleted,
 # because it holds session transcripts that are the user's to keep or discard.
 retire_claude_account_profiles() {
-  local stub
+  local stub managed target
   for stub in "$HOME/.local/bin/claude-kerja" "$HOME/.local/bin/claude-personal"; do
     [ -e "$stub" ] || [ -L "$stub" ] || continue
-    if [ -L "$stub" ] || grep -qF 'exec akun ' "$stub" 2>/dev/null; then
+    managed=0
+    if [ -L "$stub" ]; then
+      target="$(readlink "$stub")"
+      [ "$target" = "$DOT/bin/${stub##*/}" ] && managed=1
+    elif [ -f "$stub" ] && grep -qF 'exec akun ' "$stub" 2>/dev/null; then
+      managed=1
+    fi
+    if [ "$managed" -eq 1 ]; then
       rm -f "$stub"
       echo "   removed retired Claude account launcher: $stub"
     else
@@ -182,14 +189,16 @@ for dst in ~/.local/bin/*; do
   case "$target" in "$DOT/bin/"*) [ -e "$target" ] || { unlink "$dst"; echo "   pruned stale command link: $dst"; } ;; esac
 done
 
-echo "==> Wire canonical Claude Code hooks..."
+echo "==> Wire canonical Claude Code and Codex hooks..."
+"$HOME/.local/bin/ai-hooks-install" --runtime claude --settings "$HOME/.claude/settings.json"
+"$HOME/.local/bin/ai-hooks-install" --runtime codex --settings "$HOME/.codex/hooks.json"
 # ~/.claude is THE profile; ~/.claude-accounts/* is retired and must not be recreated
 # (retire_claude_account_profiles above reports any survivor). It is still wired here
 # deliberately: on a device where such a profile lingers, an unguarded one is worse than
 # a deprecated one, and this loop is what gives it deny .env + git-guard until it is
 # removed. The loop must never be the reason a second profile is created - it only
 # matches directories that already exist.
-for cfg in "$HOME/.claude" "$HOME"/.claude-accounts/*/; do
+for cfg in "$HOME"/.claude-accounts/*/; do
   [ -d "$cfg" ] || continue
   "$HOME/.local/bin/ai-hooks-install" --settings "${cfg%/}/settings.json"
 done

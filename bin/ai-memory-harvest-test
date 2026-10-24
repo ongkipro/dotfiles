@@ -3,6 +3,7 @@ set -euo pipefail
 ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/ai-memory-harvest-test.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
+TMP="$(cd "$TMP" && pwd -P)"
 REPO="$TMP/repo"; DOT="$TMP/dot"; INBOX="$TMP/inbox"; mkdir -p "$REPO/.delivery/learning" "$REPO/.delivery/runs" "$DOT/config/ai/memory" "$DOT/config/ai/project-memory" "$DOT/bin"
 cp "$ROOT/bin/delivery-learning" "$DOT/bin/delivery-learning"
 cat > "$DOT/config/ai/memory/existing.md" <<'EOF'
@@ -38,6 +39,67 @@ python3 - "$TMP/out2.json" <<'PY'
 import json,sys
 assert json.load(open(sys.argv[1]))['results'][0]['created'] is False
 PY
+# Concurrent harvest publishes one complete candidate, never a partial overwrite.
+cp "$INBOX/learning-RUN-test.md" "$TMP/candidate.backup"
+rm "$INBOX/learning-RUN-test.md"
+python3 "$ROOT/bin/ai-memory-harvest" --repo "$REPO" --run RUN-test --dotfiles "$DOT" --inbox "$INBOX" --json > "$TMP/concurrent1.json" &
+first_pid=$!
+python3 "$ROOT/bin/ai-memory-harvest" --repo "$REPO" --run RUN-test --dotfiles "$DOT" --inbox "$INBOX" --json > "$TMP/concurrent2.json" &
+second_pid=$!
+wait "$first_pid"; wait "$second_pid"
+python3 - "$TMP/concurrent1.json" "$TMP/concurrent2.json" "$INBOX" <<'PYTEST'
+import json,stat,sys
+from pathlib import Path
+created=[json.load(open(p))['results'][0]['created'] for p in sys.argv[1:3]]
+assert sorted(created)==[False,True]
+inbox=Path(sys.argv[3]); candidate=inbox/'learning-RUN-test.md'
+assert stat.S_IMODE(candidate.stat().st_mode)==0o600
+assert '### Regression check' in candidate.read_text()
+assert not list(inbox.glob('.learning-*.tmp'))
+PYTEST
+# Existing foreign content is preserved even if it occupies the expected name.
+rm "$INBOX/learning-RUN-test.md"
+printf 'precious\n' > "$TMP/victim.md"
+ln -s "$TMP/victim.md" "$INBOX/learning-RUN-test.md"
+if python3 "$ROOT/bin/ai-memory-harvest" --repo "$REPO" --run RUN-test --dotfiles "$DOT" --inbox "$INBOX" >/dev/null 2>&1; then echo 'FAIL symlink candidate accepted' >&2; exit 1; fi
+[ "$(cat "$TMP/victim.md")" = precious ]
+unlink "$INBOX/learning-RUN-test.md"
+printf 'unrelated review candidate\n' > "$INBOX/learning-RUN-test.md"
+if python3 "$ROOT/bin/ai-memory-harvest" --repo "$REPO" --run RUN-test --dotfiles "$DOT" --inbox "$INBOX" >/dev/null 2>&1; then echo 'FAIL candidate provenance collision accepted' >&2; exit 1; fi
+[ "$(cat "$INBOX/learning-RUN-test.md")" = 'unrelated review candidate' ]
+cp "$TMP/candidate.backup" "$INBOX/learning-RUN-test.md"
+cp -R "$REPO" "$TMP/other-repo"
+if python3 "$ROOT/bin/ai-memory-harvest" --repo "$TMP/other-repo" --run RUN-test --dotfiles "$DOT" --inbox "$INBOX" >/dev/null 2>&1; then echo 'FAIL cross-repository candidate collision accepted' >&2; exit 1; fi
+cmp "$TMP/candidate.backup" "$INBOX/learning-RUN-test.md"
+# Private storage must never chmod or write through an existing foreign path.
+mkdir "$TMP/public-inbox"; chmod 755 "$TMP/public-inbox"
+ln -s "$TMP/public-inbox" "$TMP/inbox-link"
+ln -s "$TMP/public-inbox" "$TMP/inbox-parent"
+for unsafe_inbox in "$TMP/public-inbox" "$TMP/inbox-link" "$TMP/inbox-parent/new-inbox"; do
+  if python3 "$ROOT/bin/ai-memory-harvest" --repo "$REPO" --run RUN-test --dotfiles "$DOT" --inbox "$unsafe_inbox" >/dev/null 2>&1; then echo 'FAIL unsafe inbox accepted' >&2; exit 1; fi
+done
+python3 - "$TMP/public-inbox" <<'PYTEST'
+import stat,sys
+from pathlib import Path
+p=Path(sys.argv[1]); assert stat.S_IMODE(p.stat().st_mode)==0o755; assert list(p.iterdir())==[]
+PYTEST
+rm "$INBOX/learning-RUN-test.md"
+cp "$TMP/candidate.backup" "$TMP/hardlink-source.md"
+ln "$TMP/hardlink-source.md" "$INBOX/learning-RUN-test.md"
+if python3 "$ROOT/bin/ai-memory-harvest" --repo "$REPO" --run RUN-test --dotfiles "$DOT" --inbox "$INBOX" >/dev/null 2>&1; then echo 'FAIL hardlink candidate accepted' >&2; exit 1; fi
+cmp "$TMP/candidate.backup" "$TMP/hardlink-source.md"
+unlink "$INBOX/learning-RUN-test.md"
+cp "$TMP/candidate.backup" "$INBOX/learning-RUN-test.md"
+chmod 644 "$INBOX/learning-RUN-test.md"
+if python3 "$ROOT/bin/ai-memory-harvest" --repo "$REPO" --run RUN-test --dotfiles "$DOT" --inbox "$INBOX" >/dev/null 2>&1; then echo 'FAIL public candidate accepted' >&2; exit 1; fi
+python3 - "$INBOX/learning-RUN-test.md" <<'PYTEST'
+import stat,sys
+from pathlib import Path
+assert stat.S_IMODE(Path(sys.argv[1]).stat().st_mode)==0o644
+PYTEST
+chmod 600 "$INBOX/learning-RUN-test.md"
+# A path traversal selector is not an alternative source of verified evidence.
+if python3 "$ROOT/bin/ai-memory-harvest" --repo "$REPO" --run ../outside --dotfiles "$DOT" --inbox "$INBOX" >/dev/null 2>&1; then echo 'FAIL traversal run accepted' >&2; exit 1; fi
 rm "$DOT/bin/delivery-learning"
 set +e
 python3 "$ROOT/bin/ai-memory-harvest" --repo "$REPO" --run RUN-test --dotfiles "$DOT" --inbox "$INBOX" >/dev/null 2>&1

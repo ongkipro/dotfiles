@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+node --input-type=module - "$ROOT" <<'JS'
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const root=process.argv[2];
+// Import the actual extension with only I/O and Pi package seams replaced.
+let source=await readFile(`${root}/config/pi/extensions/compact-free/index.mjs`,'utf8');
+source=source.replace(/^import .*;\n/gm,'');
+const factory=new Function('appendFile','homedir','join','convertToLlm','serializeConversation',source.replace('export default function','return function'));
+const logs=[];
+const extension=factory(async (_,text)=>logs.push(text),()=>'/fixture',(...s)=>s.join('/'),x=>x,()=> 'synthetic conversation');
+let handler; extension({on:(name,fn)=>{assert.equal(name,'session_before_compact');handler=fn;}});
+const success={stopReason:'stop',content:[{type:'text',text:'complete summary'}]};
+async function run(responses,{abort=false,missing=false}={}) {
+ const controller=new AbortController();if(abort)controller.abort();let calls=0;
+ const ctx={ui:{notify(){}},modelRegistry:{find:(provider,id)=>missing?null:{provider,id},complete:async()=>{const value=responses[calls++];if(value instanceof Error)throw value;if(typeof value==='function')return value(controller);return value??success;}}};
+ const result=await handler({signal:controller.signal,preparation:{messagesToSummarize:[],turnPrefixMessages:[],tokensBefore:99,firstKeptEntryId:'keep'}},ctx);
+ return {result,calls};
+}
+for (const stopReason of ['error','aborted','length','toolUse','pending','deferred',undefined]) {
+ const {result,calls}=await run([{stopReason,content:[{type:'text',text:'partial'}]},success]);
+ assert.equal(calls,2);assert.equal(result.compaction.summary,'complete summary');
+}
+let r=await run([new Error('synthetic-auth-private'),success]);assert.equal(r.calls,2);assert.equal(r.result.compaction.firstKeptEntryId,'keep');
+r=await run(Array(4).fill(new Error('synthetic-auth-private')));assert.equal(r.calls,4);assert.equal(r.result,undefined);
+r=await run([{stopReason:'stop',content:[{type:'text',text:'  '} ]},success]);assert.equal(r.calls,2);
+r=await run([],{abort:true});assert.equal(r.calls,0);assert.equal(r.result,undefined);
+r=await run([c=>{c.abort();return success;}]);assert.equal(r.calls,1);assert.equal(r.result,undefined);
+r=await run([],{missing:true});assert.equal(r.calls,0);assert.equal(r.result,undefined);
+assert(!logs.join('').includes('synthetic-auth-private'));
+console.log('pi-compact-test: PASS (13 completion, fallback, cancellation, and log-privacy cases)');
+JS

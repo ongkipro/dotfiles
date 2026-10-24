@@ -1,13 +1,12 @@
 ---
 name: postgres-drizzle
 description: >-
-  Engineer plain PostgreSQL databases with Drizzle: schemas, constraints, migrations,
-  expand-contract rollouts, transactions, isolation, locking, tenant boundaries and
-  RLS, indexes, query plans, pagination, data types, pooling, and generated SQL review.
-  Use for PostgreSQL/Drizzle schema changes, migration safety, query performance,
-  concurrency bugs, or database invariants. Retrieval-first for version-sensitive
-  Drizzle APIs and commands. This skill does not own Supabase services, generic API
-  design, or application authentication.
+  Engineer plain PostgreSQL databases with Drizzle: schemas, migrations,
+  transactions, RLS, indexes, and query performance. Not Supabase services,
+  generic API design, or application authentication. Use for constraints,
+  expand-contract rollouts, isolation, locking, tenant boundaries, pagination,
+  data types, pooling, concurrency bugs, and generated SQL review. Retrieve
+  matching documentation for version-sensitive Drizzle APIs and commands.
 ---
 
 # PostgreSQL + Drizzle Engineering

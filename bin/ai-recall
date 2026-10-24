@@ -1,0 +1,253 @@
+#!/usr/bin/env python3
+"""Search curated repository references and verified learning across sessions.
+
+The local SQLite FTS5 index is a rebuildable cache, never a source of current
+project truth. Raw conversations, check commands/output, and arbitrary files
+are outside the indexed source set.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import importlib.machinery
+import importlib.util
+import json
+import os
+from pathlib import Path
+import re
+import sqlite3
+import stat
+import subprocess
+import sys
+
+CONTRACTS = ('STATUS.md', 'TASKS.md', 'PRD.md', 'DECISIONS.md', 'ARCHITECTURE.md', 'RELEASE.md')
+MAX_BYTES = 262144
+LESSON_FIELDS = ('title', 'symptom', 'rootCause', 'invariant', 'fix', 'check')
+PROVENANCE_FIELDS = ('task', 'requirement', 'risk', 'job', 'capability', 'worker', 'model', 'provider', 'reasoningEffort', 'sourceHead', 'finishedAt')
+NOTICE = 'Recall is advisory. Historical verification describes its run; current repository files and checks remain authoritative.'
+
+
+def learning_module():
+    loader = importlib.machinery.SourceFileLoader('recall_delivery_learning', str(Path(__file__).resolve().with_name('delivery-learning')))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    sys.dont_write_bytecode = True
+    loader.exec_module(module)
+    return module
+
+
+def safe_file(repo: Path, relative: str) -> Path:
+    parts = Path(relative).parts
+    if not parts or Path(relative).is_absolute() or '..' in parts:
+        raise ValueError('source must be inside the selected repository')
+    path = repo
+    for part in parts:
+        path = path / part
+        if path.is_symlink():
+            raise ValueError('symlink sources are excluded')
+    ignored = subprocess.run(['git', '-C', str(repo), 'check-ignore', '-q', '--', relative], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+    if ignored.returncode == 0:
+        raise ValueError('ignored sources are excluded')
+    if ignored.returncode != 1:
+        raise ValueError('could not determine source ignore status')
+    info = path.stat()
+    if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_BYTES or info.st_nlink != 1:
+        raise ValueError('source must be a bounded regular file with one link')
+    return path
+
+
+def read_text(repo: Path, relative: str) -> str:
+    return safe_file(repo, relative).read_text(encoding='utf-8')
+
+
+def repo_path(value: str) -> Path:
+    repo = Path(value).expanduser().resolve()
+    result = subprocess.run(['git', '-C', str(repo), 'rev-parse', '--show-toplevel'], capture_output=True, text=True, timeout=5)
+    if result.returncode or Path(result.stdout.strip()).resolve() != repo or repo == Path.home().resolve():
+        raise ValueError(f'--repo must name a repository root outside the home-directory Git repository: {repo}')
+    return repo
+
+
+def reject_sensitive(text: str, learning) -> None:
+    learning.reject_sensitive([text])
+    if re.search(r'(?i)(?:internal[ -]only|private[ -]only|do not publish this)', text):
+        raise ValueError('explicitly private source is excluded')
+
+
+def provenance(data: dict) -> dict:
+    return {key: str(data[key])[:300] for key in PROVENANCE_FIELDS if data.get(key) is not None}
+
+
+def source_rows(repo: Path, documents: list[str], learning) -> tuple[list[dict], list[dict]]:
+    rows, warnings = [], []
+
+    def add(relative, kind, title, body, run_id='', origin=None):
+        row = {'source': relative, 'kind': kind, 'title': title[:300], 'body': body,
+               'run_id': run_id, 'provenance': origin or {}}
+        # Provenance and filenames cross the same export/cache boundary as text.
+        text_fields = [row[key] for key in ('source', 'kind', 'title', 'body', 'run_id')]
+        text_fields.extend(f'{key}\n{value}' for key, value in row['provenance'].items())
+        reject_sensitive('\n'.join(text_fields), learning)
+        rows.append(row)
+
+    def excluded(relative, reason):
+        try:
+            reject_sensitive(relative, learning)
+        except ValueError:
+            relative = '<sensitive-source-excluded>'
+        warnings.append({'source': relative, 'reason': reason})
+
+    for relative in (*CONTRACTS, *documents):
+        try:
+            text = read_text(repo, relative)
+            add(relative, 'repository-reference', next((line.lstrip('# ').strip() for line in text.splitlines() if line.strip()), relative), text)
+        except FileNotFoundError:
+            continue
+        except (OSError, ValueError, UnicodeError) as exc:
+            excluded(relative, 'reference excluded: ' + type(exc).__name__)
+
+    # Resolve directory ownership before globbing; a symlinked .delivery must
+    # never cause evidence outside this repository to be read.
+    delivery = repo / '.delivery'
+    if delivery.is_symlink():
+        return rows, warnings + [{'source': '.delivery', 'reason': 'symlink evidence directory excluded'}]
+    runs = delivery / 'runs'
+    if runs.is_symlink():
+        return rows, warnings + [{'source': '.delivery/runs', 'reason': 'symlink evidence directory excluded'}]
+    if runs.is_dir():
+        for path in sorted(runs.glob('RUN-*.jsonl')):
+            relative = path.relative_to(repo).as_posix()
+            try:
+                safe_file(repo, relative)
+                start, finish, checks = learning.require_run(repo, path.stem)
+                origin = provenance({**start, 'sourceHead': finish.get('head'), 'finishedAt': finish.get('time')})
+                title = ' '.join(str(start.get(key) or '') for key in ('task', 'requirement', 'capability'))
+                # Intentionally omit free-form run detail and check commands/output.
+                body = 'Historical PASS run ' + path.stem + '\n' + '\n'.join(f'{key}: {value}' for key, value in origin.items())
+                body += '\nChecks: ' + ', '.join(str(check.get('check', '')) for check in checks)
+                add(relative, 'verified-historical-run', title, body, path.stem, origin)
+            except (OSError, ValueError, UnicodeError, KeyError, TypeError, AttributeError) as exc:
+                excluded(relative, 'run excluded: ' + type(exc).__name__)
+    signals = delivery / 'learning'
+    if signals.is_symlink():
+        return rows, warnings + [{'source': '.delivery/learning', 'reason': 'symlink evidence directory excluded'}]
+    if signals.is_dir():
+        for path in sorted(signals.glob('RUN-*.json')):
+            relative = path.relative_to(repo).as_posix()
+            try:
+                data = json.loads(read_text(repo, relative))
+                unsigned = dict(data)
+                supplied = unsigned.pop('signalHash', None)
+                if supplied != learning.digest(unsigned) or data.get('runId') != path.stem:
+                    raise ValueError('learning integrity mismatch')
+                safe_file(repo, f'.delivery/runs/{path.stem}.jsonl')
+                learning.verify_signal_against_run(repo, data)
+                lesson = data.get('lesson')
+                if not isinstance(lesson, dict) or any(not isinstance(lesson.get(key), str) or not lesson[key].strip() for key in LESSON_FIELDS):
+                    raise ValueError('invalid structured lesson')
+                body = '\n'.join(f'{key}: {lesson[key]}' for key in LESSON_FIELDS)
+                add(relative, 'verified-learning', lesson['title'], body, path.stem, provenance(data.get('provenance', {})))
+            except (OSError, ValueError, UnicodeError, KeyError, TypeError, AttributeError) as exc:
+                excluded(relative, 'learning excluded: ' + type(exc).__name__)
+    return rows, warnings
+
+
+def open_index(path: Path, repos: list[Path]) -> sqlite3.Connection:
+    path = path.expanduser().absolute()
+    resolved = path.resolve()
+    if any(resolved.is_relative_to(repo) for repo in repos):
+        raise ValueError('recall index must stay outside selected repositories')
+    if path.is_symlink():
+        raise ValueError('index must not be a symlink')
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    location = subprocess.run(['git', '-C', str(path.parent), 'rev-parse', '--show-toplevel'], capture_output=True, text=True, timeout=5)
+    if location.returncode == 0 and Path(location.stdout.strip()).resolve() != Path.home().resolve():
+        raise ValueError('recall index must stay outside Git repositories')
+    if stat.S_IMODE(path.parent.stat().st_mode) & 0o077:
+        raise ValueError('index parent must be a private directory (mode 0700)')
+    try:
+        descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError:
+        info = path.lstat()
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+            raise ValueError('index must be a regular file with one link')
+    else:
+        os.close(descriptor)
+    existing = path.stat().st_size > 0
+    db = sqlite3.connect(path, timeout=10)
+    if existing and db.execute('PRAGMA application_id').fetchone()[0] != 0x41495243:
+        db.close()
+        raise ValueError('existing database is not an ai-recall index')
+    os.chmod(path, 0o600)
+    db.execute('PRAGMA application_id=1095324227')
+    db.execute('PRAGMA temp_store=MEMORY')
+    try:
+        db.execute('CREATE VIRTUAL TABLE IF NOT EXISTS documents USING fts5(repo UNINDEXED, source UNINDEXED, kind UNINDEXED, run_id UNINDEXED, title, body, provenance UNINDEXED)')
+    except sqlite3.OperationalError as exc:
+        db.close()
+        raise ValueError('SQLite FTS5 is required for recall; no package was installed') from exc
+    return db
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__, epilog=NOTICE)
+    parser.add_argument('query', help='literal words to search; FTS operators are not executed')
+    parser.add_argument('--repo', action='append', help='explicit repository root; repeat for cross-repository recall (default: current directory)')
+    parser.add_argument('--document', action='append', default=[], help='additional explicitly selected .md file under docs/, relative to each repository')
+    parser.add_argument('--limit', type=int, default=8)
+    parser.add_argument('--index', type=Path, default=Path.home() / '.config/ai-local/recall/index.sqlite3', help='private device-local SQLite cache outside source repositories')
+    parser.add_argument('--json', action='store_true')
+    args = parser.parse_args()
+    try:
+        terms = re.findall(r'\w+', args.query, re.UNICODE)
+        if not terms or len(args.query) > 1000 or len(terms) > 32 or any(len(term) > 100 for term in terms):
+            raise ValueError('query must contain 1 to 32 bounded words')
+        if not 1 <= args.limit <= 50:
+            raise ValueError('--limit must be between 1 and 50')
+        for relative in args.document:
+            parts = Path(relative).parts
+            if not parts or parts[0] != 'docs' or Path(relative).suffix != '.md' or '..' in parts or any(part.startswith('.') for part in parts):
+                raise ValueError('--document must be a non-hidden Markdown path under docs/')
+        repos = list(dict.fromkeys(repo_path(value) for value in (args.repo or ['.'])))
+        learning = learning_module()
+        for repo in repos:
+            reject_sensitive(str(repo), learning)
+        collected = [(repo, *source_rows(repo, args.document, learning)) for repo in repos]
+        db = open_index(args.index, repos)
+        try:
+            with db:
+                for repo, rows, _ in collected:
+                    db.execute('DELETE FROM documents WHERE repo=?', (str(repo),))
+                    db.executemany('INSERT INTO documents(repo, source, kind, run_id, title, body, provenance) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                                   [(str(repo), row['source'], row['kind'], row['run_id'], row['title'], row['body'], json.dumps(row['provenance'], sort_keys=True)) for row in rows])
+            query = ' AND '.join('"' + term.replace('"', '""') + '"' for term in terms)
+            placeholders = ','.join('?' for _ in repos)
+            found = db.execute(f'''SELECT repo, source, kind, run_id, title,
+                snippet(documents, 5, '', '', ' … ', 32), provenance
+                FROM documents WHERE documents MATCH ? AND repo IN ({placeholders})
+                ORDER BY bm25(documents, 0, 0, 0, 0, 4, 1, 0), repo, source LIMIT ?''',
+                               (query, *(str(repo) for repo in repos), args.limit)).fetchall()
+        finally:
+            db.close()
+        results = [{'repo': row[0], 'repo_id': hashlib.sha256(row[0].encode()).hexdigest()[:16],
+                    'source': row[1], 'citation': str(Path(row[0]) / row[1]), 'kind': row[2],
+                    'run_id': row[3] or None, 'title': row[4], 'snippet': row[5][:600],
+                    'provenance': json.loads(row[6])} for row in found]
+        payload = {'ok': True, 'notice': NOTICE, 'refreshed': [{'repo': str(repo), 'sources': len(rows)} for repo, rows, _ in collected],
+                   'warnings': [{'repo': str(repo), **warning} for repo, _, warnings in collected for warning in warnings], 'results': results}
+        if args.json:
+            print(json.dumps(payload, indent=2))
+        else:
+            print(NOTICE)
+            for result in results:
+                print(f"\n[{result['kind']}] {result['citation']}" + (f" ({result['run_id']})" if result['run_id'] else ''))
+                print(result['snippet'])
+            print(f"\n{len(results)} result(s); {len(payload['warnings'])} source(s) excluded.")
+        return 0
+    except (OSError, ValueError, sqlite3.Error, subprocess.SubprocessError) as exc:
+        print(f'ai-recall: ERROR: {exc}', file=sys.stderr)
+        return 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

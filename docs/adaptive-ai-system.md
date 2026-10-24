@@ -193,6 +193,95 @@ agent framework, MCP bundle or model weights to complete an already-supported
 workflow. Git history and narrow backups supply rollback without a blanket reset
 or discarding someone else's work.
 
+## Verified learning, recall, and scheduled checks
+
+TASK-133 adds three local workflows using the existing delivery and review
+owners. Their persistent data stays device-local; repository contracts and
+current executable evidence remain authoritative.
+
+### Stage a reusable lesson before finishing
+
+Supply a compact English lesson while its delivery run is active:
+
+```bash
+delivery-learning --repo /path/to/repo stage --run RUN-ID --scope methodology \
+  --title "Preserve published state on write failure" \
+  --symptom "An interrupted write damaged the saved state" \
+  --root-cause "The writer truncated the published file" \
+  --invariant "Readers must see a complete previous or new state" \
+  --fix "Write beside the target and rename after success" \
+  --check "Inject a failed write and compare the previous state bytes"
+```
+
+`delivery-ledger finish --result PASS` automatically finalizes an existing
+proposal, records its immutable learning signal, and creates a private review
+candidate through `ai-memory-harvest`. A run without a proposal creates no
+lesson. FAIL/BLOCKED runs cannot produce candidates. Resolved historical test
+failures remain in provenance; the latest result for each check must pass.
+New signals bind verification event hashes without copying command output.
+
+If harvesting fails, the completed delivery result remains intact and the CLI
+reports a warning. Retry with:
+
+```bash
+delivery-learning --repo /path/to/repo finalize --run RUN-ID
+ai-learn list
+```
+
+Review the candidate before promotion. No automatic canonical memory write,
+skill patch, commit, or push occurs. This feature does not infer lessons from
+raw chats or claim a model improved itself.
+
+### Recall curated work across sessions
+
+```bash
+ai-recall "atomic state replacement" --repo /path/to/repo --limit 5 --json
+ai-recall "migration" --repo /path/to/repo-a --repo /path/to/repo-b
+ai-recall "architecture" --repo /path/to/repo --document docs/guide.md
+```
+
+Each query refreshes selected sources in a private SQLite FTS5 index at
+`~/.config/ai-local/recall/index.sqlite3`. Default documents are root
+`STATUS.md`, `TASKS.md`, `PRD.md`, `DECISIONS.md`, `ARCHITECTURE.md`, and
+`RELEASE.md`, plus verified historical PASS metadata and finalized learning
+lessons. Additional documents must be explicitly selected. Results include
+source paths and provenance and are historical/advisory, never current build
+proof. Deleted, ignored, sensitive, symlinked, or invalid evidence is excluded
+on refresh. Raw chats, shell output, and verification logs are not indexed.
+This is full-text retrieval, not semantic/vector search.
+
+### Schedule offline checks explicitly
+
+```bash
+ai-schedule add repo-audit --kind repo-status --repo /path/to/repo \
+  --every 3600 --paused
+ai-schedule add ads-audit --kind dotads-validate --repo /path/to/ads-workspace \
+  --manifest /path/to/ads-workspace/campaigns/campaign.json --every 86400 --paused
+ai-schedule list
+ai-schedule resume repo-audit
+ai-schedule tick
+ai-schedule serve --poll 30
+```
+
+The allowlist contains `repo-status` and `dotads-validate` only. The first
+reports the count of changed tracked Git files; the second runs offline
+validation with an explicit workspace `brand.json` and confined local media.
+No shell command, model, token lookup, advertising API, deployment, or
+activation is supported. Child checks receive a minimal environment.
+
+Jobs and bounded result summaries live in a private local SQLite database at
+`~/.config/ai-local/scheduler/schedule.sqlite3`. `--state-dir` selects isolated
+storage for testing. `pause`, `resume`, `run`, `remove`, and `history` manage
+jobs; removal retains run history. A due tick runs each enabled job once and
+schedules its next check after completion. A process lock prevents concurrent
+execution; abandoned attempts become UNKNOWN instead of fabricated success.
+Validation failures are recorded per job and do not strand other due checks.
+
+`serve` runs in the foreground until interrupted. No cron entry, service,
+autostart process, or real scheduled job is installed by this delivery.
+A device must explicitly register jobs and run `tick` or keep `serve` running.
+Checkpoint/rollback features and mobile/messaging access remain deferred.
+
 ## Validation and remaining limits
 
 The initial independent decision trial exposed an overly narrow intent label:
@@ -209,3 +298,19 @@ those observed checks. Hosted macOS/CI results require an actual hosted run; no
 cross-model full-stack performance claim is made from local decision evaluation.
 Future changes should be triggered by an observed gap, then tested through this
 same lifecycle rather than appended as universal instructions.
+
+
+## Reliability of context and evidence
+
+Memory promotion checks the final merged document under the target lock. Usage
+telemetry rejects foreign links while its prompt hook remains fail-open.
+Status/resume routing prioritizes repository execution references. MCP sync
+compares managed values, preserves unrelated configuration and private modes,
+and reports parse/write failures.
+
+Pi's optional compaction extension accepts only a complete successful response;
+provider/auth failures try the remaining configured models and native fallback.
+Skill statistics count distinct canonically verified repository/run evidence.
+`resume-brief` verifies delivery evidence before reporting completion; unavailable
+GitHub CLI leaves remote CI unknown while preserving the local brief.
+See [whole-system evidence and limits](research/dotfiles-reliability-sources.md).

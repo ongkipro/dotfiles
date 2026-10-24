@@ -33,10 +33,17 @@ link() {
 # retire them by name here too. ~/.claude-accounts/ is reported, never deleted: it
 # holds session transcripts that are the user's to keep or discard.
 retire_claude_account_profiles() {
-  local stub
+  local stub managed target
   for stub in "$HOME/.local/bin/claude-kerja" "$HOME/.local/bin/claude-personal"; do
     [ -e "$stub" ] || [ -L "$stub" ] || continue
-    if [ -L "$stub" ] || grep -qF 'exec akun ' "$stub" 2>/dev/null; then
+    managed=0
+    if [ -L "$stub" ]; then
+      target="$(readlink "$stub")"
+      [ "$target" = "$DOT/bin/${stub##*/}" ] && managed=1
+    elif [ -f "$stub" ] && grep -qF 'exec akun ' "$stub" 2>/dev/null; then
+      managed=1
+    fi
+    if [ "$managed" -eq 1 ]; then
       rm -f "$stub"
       say "   removed retired Claude account launcher: $stub"
     else
@@ -91,12 +98,13 @@ ensure_shell_source() {
              line == "[ -s \"$(brew --prefix nvm 2>/dev/null)/nvm.sh\" ] && source \"$(brew --prefix nvm)/nvm.sh\"" ||
              line == "export PATH=\"$HOME/.local/bin:$HOME/.agents/bin:$PATH\""
     }
-    remove_block && index($0, start) == 1 { skip = 1; found = 1; next }
+    remove_block && index($0, start) == 1 { if (skip) exit 2; skip = 1; found = 1; next }
     remove_block && skip && $0 == stop { skip = 0; next }
     skip { next }
     generated_duplicate($0) { next }
     $0 == source_line { next }
     { print }
+    END { if (remove_block && (skip || !found)) exit 2 }
   ' "$rc" > "$tmp"; then
     rm -f "$tmp"
     say "ERROR: failed to migrate managed shell block in $rc"
@@ -204,8 +212,9 @@ for dst in "$HOME/.local/bin"/*; do
     "$DOT/bin/"*) [ -e "$target" ] || { unlink "$dst"; say "   pruned stale command link: $dst"; } ;;
   esac
 done
-say "==> Wire canonical Claude Code hooks..."
-"$HOME/.local/bin/ai-hooks-install"
+say "==> Wire canonical Claude Code and Codex hooks..."
+"$HOME/.local/bin/ai-hooks-install" --runtime claude --settings "$HOME/.claude/settings.json"
+"$HOME/.local/bin/ai-hooks-install" --runtime codex --settings "$HOME/.codex/hooks.json"
 
 
 say "==> Link local skills + skill commands..."

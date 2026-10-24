@@ -1,29 +1,16 @@
 /**
- * compact-free
- *
- * Saat pi auto-compact (atau /compact), summarization dialihkan ke model
- * MURAH/GRATIS via 9router, supaya tidak menghabiskan limit model utama
- * (mis. GPT-5.4 / Claude sub). Kerja utama tetap di model yang sedang dipakai.
- *
- * Urutan model compaction (free duluan, paid murah sebagai backstop; dicoba
- * berurutan, pakai yang pertama berhasil):
- *   1. 9router/oc/deepseek-v4-flash-free  (free, reasoning)
- *   2. 9router/oc/nemotron-3-ultra-free   (free, general purpose)
- *   3. minimax/MiniMax-M3                 (pi.dev provider minimax — murah, backstop andal)
- *   4. opencode-go/mimo-v2.5              (pi.dev provider opencode-go — last resort)
- *   5. (implisit) 4 backup gagal semua -> compaction default pakai model awal
- *      yang sedang aktif/dipakai di sesi.
- *
- * Log breadcrumb: ~/.pi/compact-free.log
+ * Route compaction through the configured 9router-fantastico Gemini models,
+ * in order, then fall back to Pi's active model. Only a complete successful
+ * summary may replace conversation history. No credentials or provider errors
+ * are persisted in the breadcrumb log.
  */
 
 import { appendFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { complete } from "@earendil-works/pi-ai/compat";
 import { convertToLlm, serializeConversation } from "@earendil-works/pi-coding-agent";
 
-// Daftar model compaction: murni keluarga ag/gemini (1M context, cepat, hemat kuota)
+// Keep provider/model selection explicit; no automatic catalog substitutions.
 const COMPACT_MODELS = [
   { provider: "9router-fantastico", id: "ag/gemini-3.8-flash" },
   { provider: "9router-fantastico", id: "ag/gemini-3.8-flash-high" },
@@ -90,26 +77,25 @@ ${conversationText}
     for (const target of COMPACT_MODELS) {
       if (signal.aborted) return;
 
-      const model = ctx.modelRegistry.find(target.provider, target.id);
-      if (!model) {
-        await log(`skip ${target.provider}/${target.id}: model tidak ditemukan`);
-        continue;
-      }
-
-      const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
-      if (!auth.ok || !auth.apiKey) {
-        await log(`skip ${target.id}: auth gagal`);
-        continue;
-      }
-
-      ctx.ui.notify(`[compact-free] summarize pakai ${model.id}…`, "info");
-
       try {
-        const response = await complete(
+        const model = ctx.modelRegistry.find(target.provider, target.id);
+        if (!model) {
+          await log(`skip ${target.provider}/${target.id}: model unavailable`);
+          continue;
+        }
+        ctx.ui.notify(`[compact-free] summarize via ${model.id}…`, "info");
+        // Pi owns provider authentication and header resolution, including
+        // failures. Keep that whole operation inside the per-model fallback.
+        const response = await ctx.modelRegistry.complete(
           model,
           { messages: summaryMessages },
-          { apiKey: auth.apiKey, headers: auth.headers, maxTokens: 8192, signal },
+          { maxTokens: 8192, signal },
         );
+        if (signal.aborted) return;
+        if (response.stopReason !== "stop") {
+          await log(`incomplete response from ${model.id}; trying next model`);
+          continue;
+        }
 
         const summary = response.content
           .filter((c) => c.type === "text")
@@ -125,8 +111,8 @@ ${conversationText}
         ctx.ui.notify(`[compact-free] compaction selesai via ${model.id}`, "info");
         return { compaction: { summary, firstKeptEntryId, tokensBefore } };
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        await log(`error ${model.id}: ${message}`);
+        if (signal.aborted) return;
+        await log(`request failed for ${target.id}; trying next model`);
         continue;
       }
     }

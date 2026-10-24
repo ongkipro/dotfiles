@@ -312,6 +312,7 @@ from __future__ import annotations
 
 import fcntl
 import hashlib
+import json
 import os
 from pathlib import Path
 import shutil
@@ -373,6 +374,14 @@ try:
         tmp = Path(tmp_name)
         try:
             write_merged(tmp)
+            policy_path = checker.parent.parent / "config/ai/memory-hygiene.json"
+            policy = json.loads(policy_path.read_text(encoding="utf-8"))
+            shared = target.parent.name == "memory"
+            limit = policy["sharedMaxBytes" if shared else "projectMaxBytes"]
+            if target.name != "MEMORY.md":
+                limit = min(limit, policy.get("routerMaxBytes", limit))
+            if tmp.stat().st_size > limit:
+                raise RuntimeError(f"merged memory exceeds {limit}-byte budget; split the target before promotion")
             os.replace(tmp, target)
         finally:
             if tmp.exists():

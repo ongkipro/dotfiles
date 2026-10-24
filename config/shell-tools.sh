@@ -122,15 +122,39 @@ if [[ $- == *i* ]] && command -v omp >/dev/null 2>&1; then
   _omp_bin="$(command -v omp)"
   _omp_cache="${XDG_CACHE_HOME:-$HOME/.cache}/omp-completions.$_omp_shell"
   if [ ! -s "$_omp_cache" ] || [ "$_omp_bin" -nt "$_omp_cache" ]; then
-    mkdir -p "$(dirname "$_omp_cache")" 2>/dev/null
-    if command omp completions "$_omp_shell" >"$_omp_cache.tmp" 2>/dev/null; then
-      mv "$_omp_cache.tmp" "$_omp_cache"
-    else
-      rm -f "$_omp_cache.tmp"
+    # Never run an optional generator without a deadline. macOS lacks GNU
+    # timeout, so use its bundled Perl as a bounded parent when needed.
+    _omp_complete_bounded() {
+      local timer
+      timer="$(command -v timeout 2>/dev/null || command -v gtimeout 2>/dev/null)"
+      if [ -n "$timer" ]; then
+        "$timer" -k 1 3 "$_omp_bin" completions "$_omp_shell"
+      elif command -v perl >/dev/null 2>&1; then
+        perl -e '
+          my $pid = fork; exit 125 unless defined $pid;
+          if ($pid == 0) { setpgrp(0, 0); exec @ARGV; exit 127 }
+          eval { local $SIG{ALRM} = sub { die "timeout" }; alarm 3;
+                 waitpid($pid, 0); my $status = $?; alarm 0;
+                 exit(($status & 127) ? 128 + ($status & 127) : $status >> 8) };
+          kill "TERM", -$pid; select undef, undef, undef, 0.2;
+          kill "KILL", -$pid; waitpid($pid, 0); exit 124;
+        ' "$_omp_bin" completions "$_omp_shell"
+      else
+        return 125
+      fi
+    }
+    if mkdir -p "$(dirname "$_omp_cache")" 2>/dev/null &&
+       _omp_tmp="$(mktemp "$_omp_cache.XXXXXX" 2>/dev/null)"; then
+      if _omp_complete_bounded >"$_omp_tmp" 2>/dev/null && [ -s "$_omp_tmp" ]; then
+        mv "$_omp_tmp" "$_omp_cache" 2>/dev/null || rm -f "$_omp_tmp"
+      else
+        rm -f "$_omp_tmp"
+      fi
     fi
+    unset -f _omp_complete_bounded
   fi
   [ -s "$_omp_cache" ] && source "$_omp_cache"
-  unset _omp_shell _omp_bin _omp_cache
+  unset _omp_shell _omp_bin _omp_cache _omp_tmp
 fi
 
 # --- starship prompt ---

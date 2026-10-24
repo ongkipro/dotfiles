@@ -5,7 +5,20 @@
 # Bagian WAJIB bootstrap dotfiles — dipanggil dari install.sh & install-macos.sh.
 set -euo pipefail
 
-DOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SOURCE="${BASH_SOURCE[0]}"
+HOPS=0
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+  HOPS=$((HOPS + 1))
+  [ "$HOPS" -le 40 ] || { echo "ERROR: tmux-setup symlink loop" >&2; exit 1; }
+done
+DOT="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
+# Validate every source before changing any links or installing anything.
+for source in config/tmux.conf bin/tmux-clip bin/tmux-battery; do
+  [ -f "$DOT/$source" ] || { echo "ERROR: missing tmux source: $DOT/$source" >&2; exit 1; }
+done
 say()  { printf '==> %s\n' "$*"; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
@@ -49,6 +62,7 @@ mkdir -p "$HOME/.local/bin"
 link_to_repo() {
   local src="$1" dst="$2"
   local backup
+  [ -f "$src" ] || { echo "ERROR: missing tmux source: $src" >&2; return 1; }
   if [ -L "$dst" ] && [ "$(readlink "$dst" 2>/dev/null)" = "$src" ]; then return 0; fi
   if [ -L "$dst" ]; then
     unlink "$dst"

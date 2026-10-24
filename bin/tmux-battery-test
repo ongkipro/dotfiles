@@ -53,5 +53,35 @@ rm -f "$BAT/status"
 [ "$(PATH="$STUB:$PATH" FAKE_OS=Linux FAKE_BAT="$BAT" bash "$CMD" 2>/dev/null)" = '77%' ] \
   && ok "Linux sysfs without a status shows the capacity alone" || bad "Linux sysfs without status rendered wrong"
 
+# Exercise real find behavior against sysfs-shaped symlinks; the shim only
+# substitutes the absolute root, preserving every discovery option.
+mkdir -p "$TMP/power_supply" "$TMP/device"
+printf '61\n' > "$TMP/device/capacity"
+printf 'Discharging\n' > "$TMP/device/status"
+ln -s ../device "$TMP/power_supply/BAT0"
+real_find="$(command -v find)"
+cat > "$STUB/find" <<'SH'
+#!/usr/bin/env bash
+args=()
+for arg in "$@"; do
+  [ "$arg" != /sys/class/power_supply ] || arg="$SYSFS_FIXTURE"
+  args+=("$arg")
+done
+exec "$REAL_FIND" "${args[@]}"
+SH
+cat > "$STUB/upower" <<'SH'
+#!/usr/bin/env bash
+case "$1" in
+  -e) echo /fixture/battery ;;
+  -i) printf '  state: charging\n  percentage: 49%%\n' ;;
+esac
+SH
+chmod +x "$STUB/find" "$STUB/upower"
+[ "$(PATH="$STUB:$PATH" FAKE_OS=Linux SYSFS_FIXTURE="$TMP/power_supply" REAL_FIND="$real_find" bash "$CMD" 2>/dev/null)" = 'Discharging 61%' ] \
+  && ok "real symlinked sysfs battery is discovered before upower" || bad "symlinked battery missing"
+unlink "$TMP/power_supply/BAT0"
+[ "$(PATH="$STUB:$PATH" FAKE_OS=Linux SYSFS_FIXTURE="$TMP/power_supply" REAL_FIND="$real_find" bash "$CMD" 2>/dev/null)" = 'charging 49%' ] \
+  && ok "no sysfs battery falls back to upower" || bad "upower fallback failed"
+
 [ "$f" -eq 0 ] && { echo "tmux-battery-test: PASS"; exit 0; }
 echo "tmux-battery-test: $f case(s) failed" >&2; exit 1

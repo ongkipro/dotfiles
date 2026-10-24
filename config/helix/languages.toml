@@ -13,6 +13,18 @@ args = ["server"]
 command = "typescript-language-server"
 args = ["--stdio"]
 
+[language-server.vscode-json]
+command = "vscode-json-language-server"
+args = ["--stdio"]
+
+[language-server.vscode-html]
+command = "vscode-html-language-server"
+args = ["--stdio"]
+
+[language-server.vscode-css]
+command = "vscode-css-language-server"
+args = ["--stdio"]
+
 [language-server.tailwindcss]
 command = "tailwindcss-language-server"
 args = ["--stdio"]
@@ -45,15 +57,15 @@ language-servers = ["typescript", "tailwindcss"]
 
 [[language]]
 name = "json"
-language-servers = ["typescript"]
+language-servers = ["vscode-json"]
 
 [[language]]
 name = "html"
-language-servers = ["typescript", "tailwindcss"]
+language-servers = ["vscode-html", "tailwindcss"]
 
 [[language]]
 name = "css"
-language-servers = ["typescript", "tailwindcss"]
+language-servers = ["vscode-css", "tailwindcss"]
 
 [[language]]
 name = "yaml"

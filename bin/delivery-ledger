@@ -488,12 +488,14 @@ def cmd_init(repo: Path) -> int:
     root, current, runs, releases = paths(repo)
     root.mkdir(exist_ok=True); runs.mkdir(exist_ok=True); releases.mkdir(exist_ok=True)
     ignore = root / ".gitignore"
-    if not ignore.exists():
-        try:
-            with ignore.open("x", encoding="utf-8") as stream:
-                stream.write("ledger.lock\n")
-        except FileExistsError:
-            pass
+    if ignore.is_symlink() or (ignore.exists() and (not ignore.is_file() or ignore.stat().st_nlink!=1)):
+        raise ValueError("delivery ignore file must be a regular file without symlinks or hardlinks")
+    existing=ignore.read_text(encoding="utf-8") if ignore.exists() else ""
+    missing=[name for name in ("ledger.lock","learning.lock") if name not in existing.splitlines()]
+    if missing:
+        with ignore.open("a",encoding="utf-8") as stream:
+            if existing and not existing.endswith("\n"): stream.write("\n")
+            stream.write("\n".join(missing)+"\n")
     if not current.exists():
         atomic_json(current, initial(repo))
     print(f"delivery-ledger: READY ({current})")
@@ -1181,6 +1183,18 @@ def cmd_finish(repo: Path, a) -> int:
     data["activeRun"] = None
     save_current(repo, data)
     print(f"delivery-ledger: FINISHED {run_id} result={a.result}")
+    # Only an explicit structured lesson can enter learning. The delivery result
+    # is already durable; a failed local harvest must stay visible and retryable.
+    pending=repo/".delivery"/"learning-pending"/f"{run_id}.json"
+    if a.result == "PASS" and (pending.exists() or pending.is_symlink()):
+        learning=Path(__file__).resolve().with_name("delivery-learning")
+        try:
+            result=subprocess.run([sys.executable,str(learning),"--repo",str(repo),"finalize","--run",run_id],capture_output=True,text=True,timeout=75)
+            if result.returncode:
+                print(f"delivery-ledger: WARNING: learning candidate not finalized; retry: delivery-learning --repo {repo} finalize --run {run_id}",file=sys.stderr)
+            elif result.stdout.strip(): print(result.stdout.strip())
+        except (OSError,subprocess.SubprocessError):
+            print(f"delivery-ledger: WARNING: learning candidate not finalized; retry: delivery-learning --repo {repo} finalize --run {run_id}",file=sys.stderr)
     return OK
 
 

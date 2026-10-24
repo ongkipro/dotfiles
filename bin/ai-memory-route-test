@@ -191,3 +191,20 @@ assert not any(x['path'].endswith('development-lessons.md') for x in p['files'])
 PY
 echo "  ✓ path triggers route from changed files and stay quiet otherwise"
 echo 'ai-memory-route-test: PASS'
+
+# Current repository truth retains priority when three durable topics match.
+python3 - "$ROUTER" "$TMP" <<'PY'
+import runpy,sys
+from pathlib import Path
+m=runpy.run_path(sys.argv[1]);root=Path(sys.argv[2]);repo=root/'truth';repo.mkdir()
+(repo/'STATUS.md').write_text('State: READY\n');(repo/'TASKS.md').write_text('# Tasks\n')
+items=[]
+for i in range(3):
+ p=root/f'topic{i}.md';p.write_text('stable note\n');items.append({'path':p.name,'priority':99,'triggers':['status','current','topic']})
+manifest={'shared':items}
+r=m['select'](root,manifest,'current status topic','auto',repo,None,3,12000)
+assert [Path(f['path']).name for f in r['files'][:2]]==['STATUS.md','TASKS.md'],r
+r=m['select'](root,manifest,'topic','auto',repo,None,3,12000)
+assert all(f['scope']=='shared' for f in r['files']) and len(r['files'])==3
+print('ai-memory-route-test: execution priority under competing triggers PASS')
+PY

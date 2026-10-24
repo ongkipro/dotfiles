@@ -279,3 +279,22 @@ if "$learn" capture --title t --symptom s --root-cause r --invariant i --fix f -
 fi
 
 echo "PASS: ai-learn capture, import, provenance and reviewed promotion"
+
+# Size is checked against the final merged content while holding the target lock.
+python3 - "$DOTFILES_DIR" "$TEST_ROOT" <<'PY'
+from pathlib import Path
+import os,subprocess,sys
+root,tmp=map(Path,sys.argv[1:]);inbox=tmp/'size-inbox';inbox.mkdir()
+target=root/'config/ai/project-memory/budget.md';target.write_text('# Budget\n'+('z'*11800)+'\n')
+candidate=inbox/'budget.md';candidate.write_text('---\nstatus: candidate\nsource: user\n---\n\n## Lesson: Bound promotion sizes\n\n### Symptom\nAn appended lesson exceeded the routing capacity.\n\n### Root cause\nThe capacity check inspected only the new fragment.\n\n### Durable invariant\nValidate the merged bytes before replacing canonical memory.\n\n### Fix\nReject the merge while preserving the target and candidate.\n\n### Regression check\nAssert that an oversized merged target is unchanged.\n')
+env={**os.environ,'AI_MEMORY_INBOX_DIR':str(inbox)};before=target.read_bytes()
+r=subprocess.run([str(root/'bin/ai-learn'),'promote',str(candidate),'--target','project:budget','--yes'],env=env,capture_output=True,text=True)
+assert r.returncode and 'merged memory exceeds' in r.stderr,r.stderr
+assert target.read_bytes()==before and candidate.is_file()
+# The hand-read MEMORY.md index uses its own advisory limit, not router capacity.
+index=target.with_name('MEMORY.md');target.rename(index)
+r=subprocess.run([str(root/'bin/ai-learn'),'promote',str(candidate),'--target','project:MEMORY','--yes'],env=env,capture_output=True,text=True)
+assert r.returncode==0,r.stderr
+assert index.stat().st_size>12000 and not candidate.exists()
+print('ai-learn-test: merged budget rejection and index exception PASS')
+PY

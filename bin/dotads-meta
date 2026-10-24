@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * meta-ads-ops — Per-project Meta Ads workflow & secrets-env bridge for Meta's official `meta` CLI.
+ * dotads-meta — Per-project Meta Ads workflow & secrets-env bridge for Meta's official `meta` CLI.
  *
  * Subcommands:
  *   setup [--version <ver>]
@@ -107,7 +107,10 @@ const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".bmp", ".web
 const VIDEO_EXTENSIONS = new Set([".mp4", ".mov", ".avi", ".mkv", ".wmv"]);
 
 function usage(exitCode = 0) {
-  const text = `Usage: meta-ads-ops <subcommand> [options]
+  const text = `Usage: dotads-meta <subcommand> [options]
+
+Dotfiles helper for Meta Ads. The underlying CLI command remains meta.
+Existing workspaces need no migration.
 
 Subcommands:
   setup [--version <ver>]
@@ -227,7 +230,7 @@ function findBrandPath(campaignPath, explicitBrandPath) {
   const cwdCandidate = path.resolve("brand.json");
   if (fs.existsSync(cwdCandidate)) return cwdCandidate;
   throw new Error(
-    "Cannot locate brand.json. Pass --brand <path/to/brand.json> or run inside a project initialized with `meta-ads-ops init`."
+    "Cannot locate brand.json. Pass --brand <path/to/brand.json> or run inside a project initialized with `dotads-meta init`."
   );
 }
 
@@ -297,6 +300,21 @@ function validateManifests(campaignPath, explicitBrandPath) {
   const creatives = Array.isArray(manifest?.creatives) ? manifest.creatives : [];
   const adsets = Array.isArray(manifest?.adsets) ? manifest.adsets : [];
   const ads = Array.isArray(manifest?.ads) ? manifest.ads : [];
+
+  // Keys are persisted object identities, not display labels. Validate every
+  // namespace before credential lookup or any remote operation.
+  for (const [group, entries] of [["campaign", campaign ? [campaign] : []], ["creatives", creatives], ["adsets", adsets], ["ads", ads]]) {
+    const seen = new Set();
+    for (const item of entries) {
+      const key = item?.key ?? item?.name;
+      if (typeof key !== "string" || !key.trim() || ["__proto__", "constructor", "prototype"].includes(key)) {
+        errors.push(`${group}: effective key must be a non-empty, non-reserved string.`);
+      } else if (seen.has(key)) {
+        errors.push(`${group}: duplicate key '${key}'.`);
+      } else seen.add(key);
+    }
+  }
+  if (errors.length) return { ok: false, errors, warnings, campaignPath: resolvedCampaignPath };
 
   if (creatives.length === 0) errors.push("campaign manifest: 'creatives' must be a non-empty array.");
   if (adsets.length === 0) errors.push("campaign manifest: 'adsets' must be a non-empty array.");
@@ -835,7 +853,11 @@ function buildCreativeArgs(validation, cr, stateMediaCache, activate) {
     );
   }
 
-  return { args, primaryMediaSha, primaryMediaKind };
+  const multiMediaSha = [...(cr.images || []), ...(cr.videos || [])].map((ref) => {
+    const file = resolveMediaFile(workspaceDir, campaignDir, ref);
+    return validation.mediaFiles[file]?.sha256 || sha256File(file);
+  });
+  return { args, primaryMediaSha, primaryMediaKind, multiMediaSha };
 }
 
 function buildAdsetArgs(validation, as, campaignId, activate) {
@@ -961,42 +983,93 @@ function buildAdArgs(validation, ad, adsetId, creativeId, activate) {
   return args;
 }
 
-function loadState(stateFile) {
-  if (!fs.existsSync(stateFile)) {
-    return {
-      version: 1,
-      media_cache: {},
-      campaigns: {},
-      creatives: {},
-      adsets: {},
-      ads: {},
-    };
+function entityHash(kind, spec, brand, extra = {}) {
+  const defaults = { ad_account_id: brand.ad_account_id, business_id: brand.business_id };
+  if (kind === "creative") {
+    defaults.page_id = spec.page_id || brand.page_id;
+    defaults.instagram_user_id = spec.instagram_user_id || brand.instagram_user_id;
+  }
+  if (kind === "adset" || kind === "ad") defaults.pixel_id = spec.pixel_id || brand.pixel_id;
+  if (kind === "ad") defaults.conversion_domain = spec.conversion_domain || brand.conversion_domain;
+  return stableHashObject({ spec, defaults, ...extra });
+}
+
+function checkStateScope(state, manifest, brand) {
+  const populated = ["campaigns", "creatives", "adsets", "ads", "media_cache"].some((k) => Object.keys(state[k]).length);
+  if (populated && !state.ad_account_id) {
+    throw new Error("Legacy deployment state has no account binding. Verify every saved ID and media entry belongs to this account, back up the state, then explicitly add its ad_account_id before retrying. Do not delete state to bypass this check.");
+  }
+  if (state.ad_account_id && state.ad_account_id !== brand.ad_account_id) {
+    throw new Error("Deployment state account differs from brand.ad_account_id. Use a separate workspace for another account.");
+  }
+  const campaignId = state.campaigns[manifest.campaign.key || manifest.campaign.name]?.id;
+  for (const spec of manifest.adsets) {
+    const saved = state.adsets[spec.key || spec.name];
+    if (saved && (!campaignId || saved.campaign_id !== campaignId)) {
+      throw new Error("Ad set parent conflict: use new ad set and ad keys when changing campaign identity.");
+    }
+  }
+  for (const spec of manifest.ads) {
+    const saved = state.ads[spec.key || spec.name];
+    const adsetId = state.adsets[spec.adset || spec.adset_key]?.id;
+    const creativeId = state.creatives[spec.creative || spec.creative_key]?.id;
+    if (saved && (!adsetId || !creativeId || saved.adset_id !== adsetId || saved.creative_id !== creativeId)) {
+      throw new Error("Ad parent conflict: use a new ad key when changing ad set or creative identity.");
+    }
+  }
+  state.ad_account_id = brand.ad_account_id;
+}
+
+// mkdir is exclusive on Linux and macOS. Never reclaim by age: a slow live
+// deploy can outlast any timeout, and a crash may leave unrecorded remote IDs.
+function acquireDeployLock(workspaceDir) {
+  const lock = path.join(workspaceDir, ".dotads-meta.lock");
+  try { fs.mkdirSync(lock, { mode: 0o700 }); }
+  catch (err) {
+    if (err.code !== "EEXIST") throw err;
+    throw new Error(`Deployment lock exists: ${lock}. Wait for the active deploy. After a crash, confirm its process is stopped and reconcile remote IDs with state before removing this lock.`);
   }
   try {
-    const data = JSON.parse(fs.readFileSync(stateFile, "utf8"));
-    return {
-      version: 1,
-      media_cache: data.media_cache || {},
-      campaigns: data.campaigns || {},
-      creatives: data.creatives || {},
-      adsets: data.adsets || {},
-      ads: data.ads || {},
-    };
-  } catch {
-    return {
-      version: 1,
-      media_cache: {},
-      campaigns: {},
-      creatives: {},
-      adsets: {},
-      ads: {},
-    };
+    fs.writeFileSync(path.join(lock, "owner.json"), JSON.stringify({ pid: process.pid, hostname: os.hostname(), started_at: new Date().toISOString() }), { mode: 0o600, flag: "wx" });
+  } catch (err) { fs.rmdirSync(lock); throw err; }
+  return () => { fs.unlinkSync(path.join(lock, "owner.json")); fs.rmdirSync(lock); };
+}
+
+function loadState(stateFile) {
+  if (!fs.existsSync(stateFile)) {
+    return { version: 1, ...Object.fromEntries(["media_cache", "campaigns", "creatives", "adsets", "ads"].map((key) => [key, Object.create(null)])) };
   }
+  const data = readJsonFile(stateFile, "deployment state");
+  if (!data || Array.isArray(data) || data.version !== 1) {
+    throw new Error(`Invalid deployment state at ${stateFile}: expected version 1. Restore the last valid state before retrying.`);
+  }
+  for (const group of ["media_cache", "campaigns", "creatives", "adsets", "ads"]) {
+    const records = data[group];
+    if (!records || typeof records !== "object" || Array.isArray(records)) {
+      throw new Error(`Invalid deployment state at ${stateFile}: '${group}' must be an object. Restore the last valid state before retrying.`);
+    }
+    Object.setPrototypeOf(records, null);
+    for (const [key, record] of Object.entries(records)) {
+      if (!record || typeof record !== "object" || Array.isArray(record) ||
+          (group !== "media_cache" && (typeof record.id !== "string" || !record.id.trim()))) {
+        throw new Error(`Invalid deployment state at ${stateFile}: invalid record '${group}.${key}'. Restore the last valid state before retrying.`);
+      }
+    }
+  }
+  return data;
 }
 
 function saveState(stateFile, state) {
   state.updated_at = new Date().toISOString();
-  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2) + "\n", { mode: 0o600 });
+  const tempFile = `${stateFile}.${crypto.randomUUID()}.tmp`;
+  try {
+    fs.writeFileSync(tempFile, JSON.stringify(state, null, 2) + "\n", { mode: 0o600, flag: "wx" });
+    fs.renameSync(tempFile, stateFile);
+  } catch (err) {
+    throw new Error(`Cannot persist deployment state at ${stateFile}: ${err.message}. Remote creation may already have succeeded; reconcile its ID before retrying.`);
+  } finally {
+    fs.rmSync(tempFile, { force: true });
+  }
 }
 
 function parseMetaJsonOutput(stdout) {
@@ -1155,7 +1228,8 @@ function cmdInit(argv) {
     skipped.push(sampleCampaignPath);
   }
 
-  const ignoreLines = [".meta-state.json", ".env", ".env.*"];
+  const ignoreLines = [".meta-state.json",
+    ".dotads-meta.lock/", ".env", ".env.*"];
   let existingIgnore = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, "utf8") : "";
   let ignoreUpdated = false;
   for (const line of ignoreLines) {
@@ -1173,7 +1247,7 @@ function cmdInit(argv) {
   for (const p of created) console.log(`  + created ${path.relative(root, p) || "."}`);
   for (const p of skipped) console.log(`  = kept existing ${path.relative(root, p)}`);
   console.log(
-    "\nNext steps:\n  1. Edit brand.json with your real Business Manager IDs (ad_account_id, page_id, pixel_id, conversion_domain).\n  2. Place your image/video assets in media/ (e.g. media/hero.jpg).\n  3. Run: meta-ads-ops validate campaigns/sample-campaign.json"
+    "\nNext steps:\n  1. Edit brand.json with your real Business Manager IDs (ad_account_id, page_id, pixel_id, conversion_domain).\n  2. Place your image/video assets in media/ (e.g. media/hero.jpg).\n  3. Run: dotads-meta validate campaigns/sample-campaign.json"
   );
 }
 
@@ -1281,13 +1355,17 @@ function cmdDeploy(argv) {
   }
 
   const stateFile = path.join(validation.workspaceDir, ".meta-state.json");
+  const releaseLock = apply ? acquireDeployLock(validation.workspaceDir) : () => {};
+  let uncertainRemote = false;
+  try {
   const state = loadState(stateFile);
   const { manifest, brand } = validation;
+  checkStateScope(state, manifest, brand);
   const metaBin = resolveMetaBin();
 
   const campKey = manifest.campaign.key || manifest.campaign.name;
   const campArgs = buildCampaignArgs(validation, activate);
-  const campHash = stableHashObject(manifest.campaign);
+  const campHash = entityHash("campaign", manifest.campaign, brand);
   const existingCamp = state.campaigns[campKey];
 
   const steps = [];
@@ -1307,13 +1385,13 @@ function cmdDeploy(argv) {
   // Creatives
   for (const cr of manifest.creatives) {
     const crKey = cr.key || cr.name;
-    const { args: crArgs, primaryMediaSha, primaryMediaKind } = buildCreativeArgs(
+    const { args: crArgs, primaryMediaSha, primaryMediaKind, multiMediaSha } = buildCreativeArgs(
       validation,
       cr,
       state.media_cache,
       activate
     );
-    const crHash = stableHashObject({ spec: cr, primaryMediaSha });
+    const crHash = entityHash("creative", cr, brand, { primaryMediaSha, multiMediaSha });
     const existingCr = state.creatives[crKey];
     steps.push({
       step: steps.length + 1,
@@ -1335,7 +1413,7 @@ function cmdDeploy(argv) {
     const asKey = as.key || as.name;
     const placeholderCampId = existingCamp?.id || `<CAMPAIGN_ID:${campKey}>`;
     const asArgs = buildAdsetArgs(validation, as, placeholderCampId, activate);
-    const asHash = stableHashObject(as);
+    const asHash = entityHash("adset", as, brand);
     const existingAs = state.adsets[asKey];
     steps.push({
       step: steps.length + 1,
@@ -1359,7 +1437,7 @@ function cmdDeploy(argv) {
     const placeholderAdsetId = state.adsets[adsetRef]?.id || `<ADSET_ID:${adsetRef}>`;
     const placeholderCreativeId = state.creatives[creativeRef]?.id || `<CREATIVE_ID:${creativeRef}>`;
     const adArgs = buildAdArgs(validation, ad, placeholderAdsetId, placeholderCreativeId, activate);
-    const adHash = stableHashObject(ad);
+    const adHash = entityHash("ad", ad, brand, { objective: manifest.campaign.objective });
     const existingAd = state.ads[adKey];
     steps.push({
       step: steps.length + 1,
@@ -1417,7 +1495,7 @@ function cmdDeploy(argv) {
         console.log(`  [${s.step}] SKIP   ${s.kind}:${s.key} -> reuse id=${s.cachedId}`);
         if (s.drift) {
           console.log(
-            `      ⚠ DRIFT: local manifest for '${s.key}' changed since id=${s.cachedId} was created. Bump 'key' to create a new entity or update via 'meta-ads-ops run -- ... update'.`
+            `      ⚠ DRIFT: local manifest for '${s.key}' changed since id=${s.cachedId} was created. Bump 'key' to create a new entity or update via 'dotads-meta run -- ... update'.`
           );
         }
       } else {
@@ -1439,9 +1517,12 @@ function cmdDeploy(argv) {
   };
   if (brand.business_id) {
     childEnv.BUSINESS_ID = String(brand.business_id);
+  } else {
+    delete childEnv.BUSINESS_ID;
   }
 
   const runMetaStep = (args, label) => {
+    uncertainRemote = true;
     const res = spawnSync(metaBin, args, {
       env: childEnv,
       encoding: "utf8",
@@ -1449,7 +1530,7 @@ function cmdDeploy(argv) {
     });
     if (res.status !== 0) {
       const errText = (res.stderr || res.stdout || "").trim() || `exit code ${res.status}`;
-      throw new Error(`Failed at ${label}: ${errText}`);
+      throw new Error(`Failed at ${label}: ${errText}. Deployment lock retained; reconcile remote IDs before retrying.`);
     }
     return parseMetaJsonOutput(res.stdout);
   };
@@ -1468,6 +1549,7 @@ function cmdDeploy(argv) {
       created_at: new Date().toISOString(),
     };
     saveState(stateFile, state);
+    uncertainRemote = false;
     results.push({ kind: "campaign", key: campKey, action: "CREATED", id: campaignId, drift: false });
   } else {
     const drift = Boolean(state.campaigns[campKey]?.hash && state.campaigns[campKey].hash !== campHash);
@@ -1478,13 +1560,13 @@ function cmdDeploy(argv) {
   for (const cr of manifest.creatives) {
     const crKey = cr.key || cr.name;
     let creativeId = state.creatives[crKey]?.id;
-    const { args: crArgs, primaryMediaSha, primaryMediaKind } = buildCreativeArgs(
+    const { args: crArgs, primaryMediaSha, primaryMediaKind, multiMediaSha } = buildCreativeArgs(
       validation,
       cr,
       state.media_cache,
       activate
     );
-    const crHash = stableHashObject({ spec: cr, primaryMediaSha });
+    const crHash = entityHash("creative", cr, brand, { primaryMediaSha, multiMediaSha });
     if (!creativeId) {
       const rec = runMetaStep(crArgs, `creative:${crKey}`);
       creativeId = String(rec.id);
@@ -1516,6 +1598,7 @@ function cmdDeploy(argv) {
         created_at: new Date().toISOString(),
       };
       saveState(stateFile, state);
+    uncertainRemote = false;
       results.push({ kind: "creative", key: crKey, action: "CREATED", id: creativeId, drift: false });
     } else {
       const drift = Boolean(state.creatives[crKey]?.hash && state.creatives[crKey].hash !== crHash);
@@ -1527,7 +1610,7 @@ function cmdDeploy(argv) {
   for (const as of manifest.adsets) {
     const asKey = as.key || as.name;
     let adsetId = state.adsets[asKey]?.id;
-    const asHash = stableHashObject(as);
+    const asHash = entityHash("adset", as, brand);
     if (!adsetId) {
       const asArgs = buildAdsetArgs(validation, as, campaignId, activate);
       const rec = runMetaStep(asArgs, `adset:${asKey}`);
@@ -1540,6 +1623,7 @@ function cmdDeploy(argv) {
         created_at: new Date().toISOString(),
       };
       saveState(stateFile, state);
+    uncertainRemote = false;
       results.push({ kind: "adset", key: asKey, action: "CREATED", id: adsetId, drift: false });
     } else {
       const drift = Boolean(state.adsets[asKey]?.hash && state.adsets[asKey].hash !== asHash);
@@ -1551,7 +1635,7 @@ function cmdDeploy(argv) {
   for (const ad of manifest.ads) {
     const adKey = ad.key || ad.name;
     let adId = state.ads[adKey]?.id;
-    const adHash = stableHashObject(ad);
+    const adHash = entityHash("ad", ad, brand, { objective: manifest.campaign.objective });
     if (!adId) {
       const adsetRef = ad.adset || ad.adset_key;
       const creativeRef = ad.creative || ad.creative_key;
@@ -1569,6 +1653,7 @@ function cmdDeploy(argv) {
         created_at: new Date().toISOString(),
       };
       saveState(stateFile, state);
+    uncertainRemote = false;
       results.push({ kind: "ad", key: adKey, action: "CREATED", id: adId, drift: false });
     } else {
       const drift = Boolean(state.ads[adKey]?.hash && state.ads[adKey].hash !== adHash);
@@ -1586,6 +1671,7 @@ function cmdDeploy(argv) {
     console.log(`  ✓ [${r.action}] ${r.kind}:${r.key} -> id=${r.id}${r.drift ? " (⚠ DRIFT: manifest modified since creation)" : ""}`);
   }
   console.log(`State saved to ${stateFile}`);
+  } finally { if (!uncertainRemote) releaseLock(); }
 }
 
 function cmdStatus(argv) {
@@ -1681,7 +1767,7 @@ function cmdDoctor(argv) {
   const metaBin = resolveMetaBin();
   const verRes = spawnSync(metaBin, ["--version"], { encoding: "utf8" });
   if (verRes.status !== 0) {
-    console.error(`✗ meta CLI binary not executable at '${metaBin}'. Run: meta-ads-ops setup (or pipx install meta-ads==${DEFAULT_META_ADS_VERSION})`);
+    console.error(`✗ meta CLI binary not executable at '${metaBin}'. Run: dotads-meta setup (or pipx install meta-ads==${DEFAULT_META_ADS_VERSION})`);
     process.exit(1);
   }
   console.log(`✓ meta CLI: ${(verRes.stdout || verRes.stderr).trim()} (${metaBin})`);
@@ -1728,7 +1814,7 @@ function cmdRun(argv) {
   }
 
   if (passthrough.length === 0) {
-    throw new Error("run requires arguments to pass to `meta` (e.g. `meta-ads-ops run -- ads campaign list`).");
+    throw new Error("run requires arguments to pass to `meta` (e.g. `dotads-meta run -- ads campaign list`).");
   }
 
   let brand = null;
@@ -1743,11 +1829,13 @@ function cmdRun(argv) {
     ...process.env,
     ACCESS_TOKEN: token,
   };
-  if (brand?.ad_account_id && !env.AD_ACCOUNT_ID) {
+  if (brand?.ad_account_id) {
     env.AD_ACCOUNT_ID = String(brand.ad_account_id);
   }
-  if (brand?.business_id && !env.BUSINESS_ID) {
+  if (brand?.business_id) {
     env.BUSINESS_ID = String(brand.business_id);
+  } else if (brand) {
+    delete env.BUSINESS_ID;
   }
 
   const metaBin = resolveMetaBin();
@@ -1795,7 +1883,7 @@ function main() {
         usage(1);
     }
   } catch (err) {
-    console.error(`meta-ads-ops error: ${err.message}`);
+    console.error(`dotads-meta error: ${err.message}`);
     process.exit(1);
   }
 }

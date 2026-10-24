@@ -1,0 +1,294 @@
+#!/usr/bin/env python3
+"""Local scheduler for allowlisted, read-only checks; never installs a service."""
+from __future__ import annotations
+
+import argparse
+from contextlib import contextmanager
+import fcntl
+import json
+import os
+from pathlib import Path
+import re
+import sqlite3
+import stat
+import subprocess
+import sys
+import time
+
+ROOT = Path(__file__).resolve().parent.parent
+KINDS = ("repo-status", "dotads-validate")
+TIMEOUT = 30
+
+
+def connect(directory):
+    directory = Path(directory).expanduser().absolute()
+    for component in (*reversed(directory.parents), directory):
+        if component.is_symlink():
+            raise ValueError("scheduler state path must not traverse symlinks")
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if directory.stat().st_mode & 0o077 or directory.stat().st_uid != os.getuid():
+        raise ValueError("scheduler state directory must already be private (mode 0700)")
+    database = directory / "schedule.sqlite3"
+    descriptor = os.open(database, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    try:
+        info = os.fstat(descriptor)
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_mode & 0o077:
+            raise ValueError("scheduler database must be a private, unshared regular file")
+    finally:
+        os.close(descriptor)
+    db = sqlite3.connect(database, timeout=5)
+    db.row_factory = sqlite3.Row
+    app_id = db.execute("PRAGMA application_id").fetchone()[0]
+    if app_id != 0x41495343 and (app_id != 0 or info.st_size != 0):
+        db.close()
+        raise ValueError("refusing a database owned by another application")
+    db.execute("PRAGMA application_id=1095324483")
+    db.execute("""CREATE TABLE IF NOT EXISTS jobs (
+      name TEXT PRIMARY KEY, kind TEXT NOT NULL, repo TEXT NOT NULL,
+      manifest TEXT, every INTEGER NOT NULL, next_run REAL NOT NULL,
+      paused INTEGER NOT NULL, status TEXT, result TEXT)""")
+    db.execute("""CREATE TABLE IF NOT EXISTS runs (
+      id INTEGER PRIMARY KEY, name TEXT NOT NULL, started REAL NOT NULL,
+      finished REAL, status TEXT NOT NULL, result TEXT)""")
+    db.commit()
+    return directory, db
+
+
+@contextmanager
+def lock(directory):
+    descriptor = os.open(directory / ".lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    try:
+        info = os.fstat(descriptor)
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_mode & 0o077:
+            raise ValueError("scheduler lock must be a private, unshared regular file")
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise ValueError("scheduler is busy; retry after the current check finishes") from None
+        yield
+    finally:
+        os.close(descriptor)
+
+
+def safe_environment():
+    # Checks neither need credentials nor inherit Git redirection/configuration.
+    env = {key: os.environ[key] for key in ("PATH", "HOME", "LANG", "LC_ALL", "TZ")
+           if key in os.environ}
+    env.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1", GIT_OPTIONAL_LOCKS="0")
+    return env
+
+
+def workspace_file(path, repo, extensions):
+    if not path.is_absolute() or not path.is_relative_to(repo):
+        raise ValueError("check inputs must stay inside the selected workspace")
+    current = repo
+    for part in path.relative_to(repo).parts:
+        if part.startswith(".") or re.search(r"(?i)secrets?|credentials?|password", part):
+            raise ValueError("private or traversing paths are not check inputs")
+        current /= part
+        if current.is_symlink():
+            raise ValueError("check inputs must not traverse symlinks")
+    if not path.resolve().is_relative_to(repo) or not path.is_file() or path.suffix.lower() not in extensions:
+        raise ValueError("check input must be a regular workspace file of the expected type")
+    if path.stat().st_nlink != 1:
+        raise ValueError("shared hardlinks are not check inputs")
+    return path
+
+
+def check_job(job):
+    if "every" in job.keys() and (not isinstance(job["every"], int) or job["every"] < 60):
+        raise ValueError("stored job interval must be at least 60 seconds")
+    if job["kind"] not in KINDS:
+        raise ValueError("unsupported job kind; arbitrary commands are not permitted")
+    repo = Path(job["repo"])
+    if (not repo.is_absolute() or not repo.is_dir() or repo.resolve() != repo
+            or repo in (Path("/"), Path.home().resolve())):
+        raise ValueError("job repository must be an existing canonical directory")
+    if job["kind"] == "dotads-validate":
+        manifest = workspace_file(Path(job["manifest"] or ""), repo, {".json"})
+        workspace_file(repo / "brand.json", repo, {".json"})
+        if manifest.stat().st_size > 1_000_000:
+            raise ValueError("manifest exceeds the scheduler input budget")
+        data = json.loads(manifest.read_text())
+        if not isinstance(data, dict) or not isinstance(data.get("creatives", []), list):
+            raise ValueError("invalid campaign manifest shape")
+        for creative in data.get("creatives", []):
+            if not isinstance(creative, dict):
+                raise ValueError("invalid creative shape")
+            for field in ("image", "video", "images", "videos"):
+                references = creative.get(field) or []
+                if isinstance(references, str):
+                    references = [references]
+                if not isinstance(references, list) or any(not isinstance(item, str) for item in references):
+                    raise ValueError("invalid media references")
+                for reference in references:
+                    path = Path(reference)
+                    if not path.is_absolute():
+                        path = repo / reference
+                        if not path.exists():
+                            path = manifest.parent / reference
+                    workspace_file(path, repo, {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp",
+                                                 ".mp4", ".mov", ".avi", ".mkv", ".wmv"})
+    elif job["manifest"]:
+        raise ValueError("repo-status does not accept a manifest")
+
+
+def execute(job):
+    check_job(job)
+    if job["kind"] == "repo-status":
+        command = ["git", "--no-optional-locks", "-c", "core.fsmonitor=false",
+                   "-C", job["repo"], "status", "--porcelain=v1", "-z",
+                   "--untracked-files=no", "--ignore-submodules=all"]
+    else:
+        command = ["node", str(ROOT / "bin/dotads-meta"), "validate", job["manifest"],
+                   "--brand", str(Path(job["repo"]) / "brand.json"), "--json"]
+    # No shell, model, auth helper, deploy flag, or raw output persisted.
+    output = subprocess.run(command, env=safe_environment(), stdin=subprocess.DEVNULL,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=TIMEOUT,
+                            check=False)
+    result = {"kind": job["kind"], "exitCode": output.returncode}
+    if output.returncode == 0 and job["kind"] == "repo-status":
+        entries = output.stdout.split(b"\0")
+        changed = 0
+        position = 0
+        while position < len(entries) and entries[position]:
+            changed += 1
+            if entries[position][:1] in (b"R", b"C"):
+                position += 1
+            position += 1
+        result["changedTrackedFiles"] = changed
+    return ("PASS" if output.returncode == 0 else "FAIL"), result
+
+
+def run_job(db, job):
+    # Invalid inputs are failed attempts, not a reason to strand other due jobs.
+    interval = job["every"] if isinstance(job["every"], int) and job["every"] >= 60 else 60
+    started = time.time()
+    cursor = db.execute("INSERT INTO runs(name,started,status) VALUES(?,?,?)",
+                        (job["name"], started, "RUNNING"))
+    db.execute("UPDATE jobs SET status='RUNNING',next_run=? WHERE name=?",
+               (started + interval, job["name"]))
+    db.commit()
+    try:
+        status, result = execute(job)
+    except subprocess.TimeoutExpired:
+        status, result = "FAIL", {"reason": "check timed out", "timeoutSeconds": TIMEOUT}
+    except (OSError, ValueError):
+        status, result = "FAIL", {"reason": "check could not run; inspect its local inputs"}
+    finished = time.time()
+    db.execute("UPDATE runs SET finished=?,status=?,result=? WHERE id=?",
+               (finished, status, json.dumps(result), cursor.lastrowid))
+    db.execute("UPDATE jobs SET status=?,result=?,next_run=? WHERE name=?",
+               (status, json.dumps(result), finished + interval, job["name"]))
+    db.commit()
+    return {"name": job["name"], "status": status, "result": result}
+
+
+def recover(db):
+    # The process-shared lock proves no previous scheduler still owns these runs.
+    db.execute("UPDATE runs SET status='UNKNOWN',finished=? WHERE status='RUNNING'", (time.time(),))
+    db.execute("UPDATE jobs SET status='UNKNOWN' WHERE status='RUNNING'")
+    db.commit()
+
+
+def tick(directory, db):
+    with lock(directory):
+        recover(db)
+        jobs = db.execute("SELECT * FROM jobs WHERE paused=0 AND next_run<=? ORDER BY next_run,name",
+                          (time.time(),)).fetchall()
+        results = []
+        for job in jobs:
+            try:
+                results.append(run_job(db, job))
+            except (OSError, ValueError):
+                results.append({"name": job["name"], "status": "FAIL",
+                                "result": {"reason": "invalid stored job configuration"}})
+        return results
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--state-dir", default=str(Path.home() / ".config/ai-local/scheduler"))
+    sub = parser.add_subparsers(dest="action", required=True)
+    add = sub.add_parser("add", help="register a local check; first execution is due immediately")
+    add.add_argument("name")
+    add.add_argument("--kind", choices=KINDS, required=True)
+    add.add_argument("--repo", required=True)
+    add.add_argument("--every", type=int, required=True, help="interval in seconds, at least 60")
+    add.add_argument("--manifest")
+    add.add_argument("--paused", action="store_true")
+    sub.add_parser("list")
+    sub.add_parser("history")
+    for action in ("pause", "resume", "run", "remove"):
+        sub.add_parser(action).add_argument("name")
+    sub.add_parser("tick", help="execute each due, enabled job once")
+    serve = sub.add_parser("serve", help="foreground scheduler; Ctrl-C stops it; no service is installed")
+    serve.add_argument("--poll", type=int, default=30)
+    args = parser.parse_args()
+    if args.action == "serve" and args.poll < 1:
+        parser.error("--poll must be positive")
+    directory, db = connect(args.state_dir)
+    try:
+        if args.action == "serve":
+            while True:
+                print(json.dumps(tick(directory, db)), flush=True)
+                time.sleep(args.poll)
+        elif args.action == "tick":
+            results = tick(directory, db)
+            print(json.dumps(results))
+            return int(any(row["status"] != "PASS" for row in results))
+        else:
+            with lock(directory):
+                recover(db)
+                if args.action == "add":
+                    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", args.name):
+                        raise ValueError("job name must contain only letters, numbers, dash or underscore")
+                    if args.every < 60:
+                        raise ValueError("--every must be at least 60 seconds")
+                    job = {"kind": args.kind, "repo": str(Path(args.repo).expanduser().resolve()),
+                           "manifest": str(Path(args.manifest).expanduser().absolute()) if args.manifest else None}
+                    check_job(job)
+                    db.execute("INSERT INTO jobs(name,kind,repo,manifest,every,next_run,paused) VALUES(?,?,?,?,?,?,?)",
+                               (args.name, job["kind"], job["repo"], job["manifest"], args.every,
+                                time.time(), int(args.paused)))
+                    db.commit()
+                    print(json.dumps({"name": args.name, "registered": True, "paused": args.paused}))
+                elif args.action in ("list", "history"):
+                    table = "jobs" if args.action == "list" else "runs"
+                    rows = db.execute(f"SELECT * FROM {table} ORDER BY rowid DESC LIMIT 100").fetchall()
+                    print(json.dumps([dict(row) for row in rows]))
+                else:
+                    job = db.execute("SELECT * FROM jobs WHERE name=?", (args.name,)).fetchone()
+                    if not job:
+                        raise ValueError("job not found")
+                    if args.action == "run":
+                        if job["paused"]:
+                            raise ValueError("job is paused; resume it before running")
+                        result = run_job(db, job)
+                        print(json.dumps(result))
+                        return int(result["status"] != "PASS")
+                    if args.action == "remove":
+                        db.execute("DELETE FROM jobs WHERE name=?", (args.name,))
+                        db.commit()
+                        print(json.dumps({"name": args.name, "removed": True, "historyRetained": True}))
+                        return 0
+                    db.execute("UPDATE jobs SET paused=? WHERE name=?",
+                               (int(args.action == "pause"), args.name))
+                    db.commit()
+                    print(json.dumps({"name": args.name, "paused": args.action == "pause"}))
+        return 0
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except KeyboardInterrupt:
+        raise SystemExit(0)
+    except ValueError as error:
+        print(f"ai-schedule: {error}", file=sys.stderr)
+        raise SystemExit(1)
+    except (OSError, sqlite3.Error):
+        print("ai-schedule: invalid input, unsafe state, duplicate job, or unavailable storage; inspect the local configuration.", file=sys.stderr)
+        raise SystemExit(1)
