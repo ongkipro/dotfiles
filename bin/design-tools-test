@@ -25,6 +25,16 @@ else
   cat "$log" >&2
   exit 1
 fi
+if bash "$ROOT/skills/local/admin-dashboard/scripts/test-admin-geometry.sh" >"$log" 2>&1; then
+  cat "$log"
+  if grep -q 'NOT CHECKED' "$log"; then
+    echo 'WARNING: admin geometry browser fixtures were not checked; coverage is partial.'
+    partial=1
+  fi
+else
+  cat "$log" >&2
+  exit 1
+fi
 if [ "$partial" -ne 0 ] && [ "${DESIGN_TEST_REQUIRE_FULL:-0}" = 1 ]; then
   echo 'FAIL: full design-tool coverage required.' >&2
   exit 1

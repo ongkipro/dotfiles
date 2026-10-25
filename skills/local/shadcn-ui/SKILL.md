@@ -44,7 +44,7 @@ alone is not UI proof.
 
 For admin work, load `admin-product-ux` first when workflow, permissions, or
 screen states are not explicit; then load `admin-dashboard` for hierarchy,
-responsive behavior, and the clean-light visual baseline. Load the installed
+responsive behavior, and the admin visual contract (sizes and surfaces). Load the installed
 framework skill for server/client/island boundaries. This skill owns the final
 component mapping and copied component source.
 

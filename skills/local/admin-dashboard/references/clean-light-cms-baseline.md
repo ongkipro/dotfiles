@@ -4,6 +4,8 @@ This document specifies the fallback visual design system for operator surfaces,
 
 For a functional standalone HTML/CSS implementation of this spec, view `../assets/clean-light-cms/index.html`.
 
+This is the **compact** contract in [admin-visual-contract.md](admin-visual-contract.md): it applies only when the repository has no contract and the owner chose compact over the `volum-admin` default. Its numbers are exact and measured by `../assets/size-contracts/compact.json`; there is no "or" to choose per screen.
+
 ## 1. Core Principles & Anti-Slop Rules
 
 - **Clean and restrained:** Minimal use of color. Color indicates action, selection, or status. Everything else is neutral.
@@ -64,35 +66,35 @@ non-text marks; do not use them for status.
   - `xs` (12px): Badges, table headers, tiny metadata.
   - `sm` (14px): Base body text, table cells, form inputs, sidebar links. **(Default size)**
   - `base` (16px): Section headings, modal titles.
-  - `lg` (18px) / `xl` (20px): Page titles, KPI values.
+  - `xl` (20px): Page titles and KPI values (never larger than the page title).
 - **Weights:** Use `400` (Regular) for data and body, `500` (Medium) for column headers/buttons, and `600` (Semi-bold) for page headings.
 
 ### Spacing & Density
 - Base unit: `4px`
-- **Layout Padding:** `16px` or `24px` for main content areas and shell.
+- **Layout Padding:** `16px` for main content areas and shell.
 - **Component Padding:**
-  - Buttons/Inputs: `8px` vertical, `12px` horizontal (for 32px height).
-  - Table cells: `8px` vertical, `12px` horizontal.
+  - Buttons/Inputs: fixed `32px` height, `12px` horizontal (small buttons `28px`, large `36px`).
+  - Table cells: `6px` vertical, `8px` horizontal (a 32px row with 20px line height).
 - **Gap:** `8px` between related items, `16px` between layout sections.
 
 ## 4. Component Patterns
 
 ### Shell & Navigation
-- **Top Header:** 48px to 56px height. Contains global search, user profile, multi-tenant switcher, and a subtle bottom border (`1px solid var(--border)`). Background: `#ffffff`.
-- **Sidebar (Desktop):** 240px to 260px wide. Right border (`1px solid var(--border)`). Background: `#fcfcfc`.
+- **Top Header:** `48px` height. Contains global search, user profile, multi-tenant switcher, and a subtle bottom border (`1px solid var(--border)`). Background: `#ffffff`.
+- **Sidebar (Desktop):** `240px` wide (`48px` icon rail). Right border (`1px solid var(--border)`). Background: `#fcfcfc`.
   - **Active Item:** Uses the subtle accent background (`#e0e7ff`) with primary accent text/icon.
   - **Inactive Item:** Transparent background, secondary text. Hover state: `#f0f0f0`.
 
 ### Tables & Lists
 - **Structure:** No outer card box if it spans the whole page. Top and bottom borders for the table, internal horizontal dividers (`1px solid #e5e5e5`) for rows.
-- **Headers:** `12px` or `14px`, `500` weight, secondary text color. Left-aligned (except numbers/currency).
+- **Headers:** `32px` row, `12px` label, `500` weight, secondary text color. Left-aligned (except numbers/currency).
 - **Row Hover:** `#f9fafb`.
 - **Row Selected:** Subtle accent background.
 - **Actions:** Placed at the far right. Use an ellipsis (`...`) dropdown for >2 actions.
 - **Pagination:** Clean numerical links and Prev/Next buttons at the bottom.
 
 ### Editors & Forms
-- **Inputs:** `32px` or `36px` height for mouse/keyboard; under `@media (pointer: coarse)` raise controls and row hit areas to at least `44px` (Apple 44pt, Android 48dp; WCAG 2.5.8 sets only the 24px floor). `1px solid #e5e5e5` border. Focus state MUST show a visible outline (`2px solid var(--accent)` or an `outline-offset`).
+- **Inputs:** `32px` height for mouse/keyboard; under `@media (pointer: coarse)` raise controls and row hit areas to at least `44px` (Apple 44pt, Android 48dp; WCAG 2.5.8 sets only the 24px floor). `1px solid #e5e5e5` border. Focus state MUST show a visible outline (`2px solid var(--accent)` or an `outline-offset`).
 - **Labels:** Placed above the input. `14px`, `500` weight, primary text.
 - **Buttons:**
   - *Primary:* Solid accent background, white text.

@@ -42,6 +42,7 @@ split panes according to the job.
 For harvested GitHub production contracts (TanStack Table v9, Refine, Payload CMS, Medusa Admin, Strapi, kbar, Clerk impersonation), load `references/github-admin-patterns.md`.
 For the Next.js 16 + shadcn admin-starter implementation contracts (URL-as-state `useDataTable`, the nuqs server/client parser seam, feature-first `src/features/<feature>/{api,components,schemas,types}`, the multi-palette `data-theme` CSS-variable engine, and TanStack Form multi-step wizards), load `references/next-shadcn-starter-patterns.md`.
 For the fallback clean-light visual design system and standalone HTML/CSS fixture (when a project lacks an established theme), load `references/clean-light-cms-baseline.md`.
+**Before building or changing any admin screen, load `references/admin-visual-contract.md`.** It fixes the one size and surface contract per product (repository contract > `volum-admin` default > compact clean-light), maps every size role to Tailwind/shadcn classes, lists the anti-slop surface rules, and proves them with `scripts/admin-geometry.mjs` (computed geometry at 390/1366/1536 against `assets/size-contracts/*.json`). Numbers elsewhere in this skill (density ladder, Carbon/Fluent rows) are background evidence; the contract decides.
 For order/seller-center queues, inventory, finance/ledger, audit-log, and search presentation detail behind §8, load `references/operator-surfaces.md`.
 ## Delegation — this skill does NOT write component code
 
@@ -59,7 +60,7 @@ For order/seller-center queues, inventory, finance/ledger, audit-log, and search
 The rule: **this skill decides WHAT, `shadcn-ui` executes HOW.** Don't duplicate component code here.
 
 **Delivery sequence:** build or change the UI → critique it against this
-skill's IA, density, and accessibility rules (fix the findings) → `ui-validation` browser proof → only then call it done.
+skill's IA, density, and accessibility rules (fix the findings) → `scripts/admin-geometry.mjs` exits 0 against the project's size contract on every changed route → `ui-validation` browser proof → only then call it done.
 
 For React-capable admin surfaces, shadcn/ui is the default implementation
 system after this skill accepts the presentation. That does not make React a
@@ -350,7 +351,7 @@ the most-skipped part of dashboard guidance.
 - **One dashboard shell, reused.** Don't invent a new layout per page.
 - Tailwind Plus/Catalyst = **harvest the concept** (paid); shadcn blocks (free, open) cover the same ground.
 - **Study AGPL products, never paste them.** Dub, Midday, OpenStatus app, Plane, Twenty, and coss ui are AGPL: copy patterns, not files, unless the specific package is permissively licensed.
-- **Stock admin templates are wiring, not direction.** `shadcn-admin`-style starters ship the default look; take their auth/layout plumbing, then apply the accepted style and tokens.
+- **Stock admin templates are wiring, not direction — except `volum-admin`.** Generic `shadcn-admin`-style starters ship the default look; take their auth/layout plumbing, then apply the accepted style and tokens. `ongkipro/volum-admin` is the owner's accepted reference: its density and surfaces are the default contract (`references/admin-visual-contract.md`), so preserve them unless the project contract records a change.
 
 ## Sources and freshness boundary
 

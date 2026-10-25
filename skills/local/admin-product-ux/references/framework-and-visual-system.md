@@ -62,7 +62,7 @@ into the runtime.
 
 ## Clean-light CMS/admin baseline
 
-When a project lacks an established visual system, default to the **clean-light CMS/admin visual baseline** rather than a heavy two-theme or heavily branded default. Existing project tokens always win, but this is the fallback for new operator surfaces.
+When a project lacks an established visual system, default to the `volum-admin` contract, and use the **clean-light CMS/admin visual baseline** (the compact contract) only when the owner asks for a denser back office; see [`admin-visual-contract.md`](../../admin-dashboard/references/admin-visual-contract.md) for precedence, exact sizes, and the measured check. Existing project tokens always win. The surface rules below apply to both.
 
 Dark mode is a stated deferral, not a ban: the baseline is light-only (light polarity reads better for most people — Piepenbrock et al., *Ergonomics* 2013; NN/g 2020-02-02), and NN/g recommends offering a choice. Do not build it speculatively; when operators ask, add it as a designed second theme with re-derived contrast.
 

@@ -103,6 +103,13 @@ hero, repeated card grids, or uniform rounded sections without a recorded reason
 visual acceptance is REVISE even when the browser flow and build pass. Stop when
 the accepted direction is met or report the remaining limitation.
 
+For admin surfaces, "too small / too big / not precise" and template ornament
+are measured, not judged from screenshots: attach the `admin-dashboard`
+`scripts/admin-geometry.mjs` report (sizes, radii, shadows, gradients, icon
+tiles, accent surfaces against the project's size contract) for each changed
+route on the production build or preview. Exit 1 is visual REVISE; exit 3 or
+`NOT-CHECKED` roles are reported as not checked, never as passed.
+
 Do not approve a design because a screenshot exists, and do not update a visual
 baseline merely to bless an unexplained difference. This loop validates an
 accepted direction; it does not choose one. Route unresolved direction back to
@@ -177,7 +184,10 @@ needs the same approval as a live mutation.
 
 When layout can change, test at least one narrow phone viewport and one wide
 desktop viewport. Prefer project-defined devices; otherwise use approximately
-390 CSS px and 1280 CSS px. Check:
+390 CSS px and 1280 CSS px. For admin surfaces use 390, 1366, and 1536 CSS px
+(common laptop widths at 100% and 125% OS scaling) plus the owner's recorded
+screen; a layout judged only at 1280/1440 can still feel oversized on a 1366
+laptop. Check:
 
 - no accidental page-level horizontal scroll;
 - no clipped controls, text, menus, dialogs, or sticky regions;

@@ -1,0 +1,22 @@
+{
+  "name": "compact",
+  "source": "admin-dashboard clean-light-cms-baseline (greenfield fallback when no repo or volum-admin reference applies); Tailwind/shadcn mapping in references/admin-visual-contract.md",
+  "settleMs": 1500,
+  "checks": [
+    { "id": "root-font", "selector": "html", "prop": "fontSize", "allowed": [16], "viewports": "all" },
+    { "id": "button-height", "selector": "[data-slot=button], button", "prop": "height", "allowed": [28, 32, 36], "ignore": "[role=checkbox], [role=switch]", "viewports": "desktop" },
+    { "id": "input-height", "selector": "[data-slot=input], [data-slot=select-trigger], input:not([type=checkbox]):not([type=radio]), select", "prop": "height", "allowed": [32], "viewports": "desktop" },
+    { "id": "input-font-desktop", "selector": "[data-slot=input], input:not([type=checkbox]):not([type=radio]), textarea", "prop": "fontSize", "allowed": [14], "viewports": "desktop" },
+    { "id": "input-font-mobile", "selector": "[data-slot=input], input:not([type=checkbox]):not([type=radio]), textarea, select", "prop": "fontSize", "allowed": [16], "viewports": "mobile" },
+    { "id": "sidebar-width", "selector": "[data-slot=sidebar-container], body > aside, [data-shell=sidebar]", "prop": "width", "allowed": [240, 48], "viewports": "desktop" },
+    { "id": "header-height", "selector": "header", "prop": "height", "allowed": [48], "viewports": "all" },
+    { "id": "table-head-height", "selector": "[data-slot=table-head], th", "prop": "height", "allowed": [32], "viewports": "desktop" },
+    { "id": "table-cell-font", "selector": "[data-slot=table-cell], td", "prop": "fontSize", "allowed": [14], "viewports": "all" },
+    { "id": "radius", "selector": "body *", "prop": "borderRadius", "allowed": [4, 6, 8], "allowPill": true, "viewports": "desktop" },
+    { "id": "shadow", "selector": "body *", "prop": "shadowBlur", "max": 0, "ignore": "[role=dialog], [role=menu], [role=listbox], [data-slot=popover-content], [data-slot=tooltip-content], [data-sonner-toaster]", "viewports": "desktop" },
+    { "id": "gradient", "selector": "body *", "prop": "gradient", "forbid": true, "viewports": "all" },
+    { "id": "icon-tile", "selector": "body *", "prop": "iconTile", "forbid": true, "viewports": "all" },
+    { "id": "accent-surfaces", "selector": "body *", "prop": "accentSurface", "distinctMax": 5, "viewports": "desktop" },
+    { "id": "touch-target", "selector": "button, input, select, [role=checkbox], [role=switch]", "prop": "minSide", "warnBelow": 44, "viewports": "mobile" }
+  ]
+}

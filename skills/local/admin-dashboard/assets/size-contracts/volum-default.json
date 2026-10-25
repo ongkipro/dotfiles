@@ -1,0 +1,22 @@
+{
+  "name": "volum-default",
+  "source": "ongkipro/volum-admin (shadcn new-york-v4), calibrated with admin-geometry.mjs on its production preview, 2026-10-25",
+  "settleMs": 1500,
+  "checks": [
+    { "id": "root-font", "selector": "html", "prop": "fontSize", "allowed": [16], "viewports": "all" },
+    { "id": "button-height", "selector": "[data-slot=button]", "prop": "height", "allowed": [32, 36, 40], "viewports": "desktop" },
+    { "id": "input-height", "selector": "[data-slot=input], input[data-slot=form-control], [data-slot=select-trigger]", "prop": "height", "allowed": [32, 36], "viewports": "desktop" },
+    { "id": "input-font-desktop", "selector": "[data-slot=input], input[data-slot=form-control], textarea", "prop": "fontSize", "allowed": [14], "viewports": "desktop" },
+    { "id": "input-font-mobile", "selector": "[data-slot=input], textarea, select", "prop": "fontSize", "allowed": [16], "viewports": "mobile" },
+    { "id": "sidebar-width", "selector": "[data-slot=sidebar-container]", "prop": "width", "allowed": [256, 48], "viewports": "desktop" },
+    { "id": "header-height", "selector": "header", "prop": "height", "allowed": [64], "viewports": "all" },
+    { "id": "table-head-height", "selector": "[data-slot=table-head]", "prop": "height", "allowed": [40], "viewports": "desktop" },
+    { "id": "table-cell-font", "selector": "[data-slot=table-cell]", "prop": "fontSize", "allowed": [14], "viewports": "all" },
+    { "id": "radius", "selector": "body *", "prop": "borderRadius", "allowed": [4, 6, 8, 10], "allowPill": true, "ignore": "[data-slot=sidebar-inset]", "viewports": "desktop" },
+    { "id": "shadow", "selector": "body *", "prop": "shadowBlur", "max": 3, "ignore": "[role=dialog], [role=menu], [role=listbox], [data-slot=popover-content], [data-slot=tooltip-content], [data-sonner-toaster]", "viewports": "desktop" },
+    { "id": "gradient", "selector": "body *", "prop": "gradient", "forbid": true, "viewports": "all" },
+    { "id": "icon-tile", "selector": "body *", "prop": "iconTile", "forbid": true, "viewports": "all" },
+    { "id": "accent-surfaces", "selector": "body *", "prop": "accentSurface", "distinctMax": 5, "viewports": "desktop" },
+    { "id": "touch-target", "selector": "[data-slot=button], [data-slot=input], [data-slot=select-trigger], [role=checkbox], [role=switch]", "prop": "minSide", "warnBelow": 44, "viewports": "mobile" }
+  ]
+}
