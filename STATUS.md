@@ -41,6 +41,8 @@ TASK-141 makes the sitemap inventory generated and its coverage a lint gate
 (`system-map --check`).
 TASK-144 makes it queryable (`system-map --find`, Quick find intents,
 invariants); see [system-map references](docs/research/system-map-references-2026-10-25.md).
+TASK-145 validates it as the system dictionary: federated lookup, full coverage,
+audited notes, and a locked 72-query owner set.
 
 ## Verification evidence
 

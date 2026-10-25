@@ -6,6 +6,19 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-24
 
+### System map as a measured dictionary (TASK-145)
+
+- `--find` federates project-memory, Kelola, and skill indexes; each link is a
+  candidate, each entry one result; stopwords, substring names, stable stems,
+  test and historical-page demotion.
+- Coverage gate 371 -> 517 members plus a catch-all: environment, CI, OMP/Pi, hooks, evals,
+  skill commands, helpers, tests, research; Kelola checked against its index;
+  same-page anchors validated.
+- Six wrong and more than a dozen vague command notes, five memory notes, rewritten from
+  their sources. A 72-query owner set is locked in `system-map-test`
+  (100% top 3, >=90% first). The page gained usage notes, contents, and a
+  reliability section.
+
 ### Queryable system map (TASK-144)
 
 - `system-map --find <terms>` ranks sitemap entries (name and path over section

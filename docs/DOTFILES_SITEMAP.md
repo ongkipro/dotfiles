@@ -1,15 +1,39 @@
 # Dotfiles Sitemap & Engineering Dictionary
 
-> **Universal Page-by-Page Development Map for `ongkipro/dotfiles`**
-> Updated: 2026-10-25 | Scope: Full Repository Topology, AI Control Plane, Memory, Skills, CLI Binaries, Devices, and Templates.
+> The development dictionary for `ongkipro/dotfiles`: every tracked page, what
+> it is for, and who owns it. Reviewed: 2026-10-25. Review the hand-written
+> notes twice a year; `system-map --check` enforces everything derivable.
+
+**Use it.** Ask, don't scan: `system-map --find <terms>` ranks this page and the
+indexes it federates ([project memory](../config/ai/project-memory/MEMORY.md),
+[Kelola memory](../config/ai/project-memory-kelola/MEMORY.md),
+[skills](../skills/local/README.md)); add `--json` for agents. Otherwise start at
+**Quick find**, then the numbered sections.
+
+**Change it.** Link every new tracked file here as a list item: the link, a
+colon, then what it is for, in the words its source uses. `--check` fails
+on an unlinked member, an entry without a note, a stale inventory, or a broken
+link.
+
+**Contents:** [Quick find](#quick-find) ·
+[1 Topology](#1-system-topology-overview) ·
+[2 Index](#2-sitemap-directory-index) ·
+[3 AI kernel](#3-core-policy--ai-kernel-configai) ·
+[4 Durable memory](#4-durable-memory-dictionary-configaimemory) ·
+[5 Project memory](#5-project-memory-knowledge-base-configaiproject-memory) ·
+[6 Skills](#6-owned-skills-directory-skillslocal) ·
+[7 Commands](#7-executable-toolchain-dictionary-bin) ·
+[8 Devices](#8-multi-device-hardware-registry-devices) ·
+[9 Docs](#9-architecture--governance-docs-docs) ·
+[10 Templates](#10-project-scaffolding-templates-configtemplates) ·
+[11 Environment](#11-environment-and-bootstrap) ·
+[12 Reliability](#12-reliability-recovery-and-limits)
 
 ---
 
 ## Quick find
 
-Start here. Each line answers one question with the page that owns it; the
-sections below are the full dictionary. From a terminal, `system-map --find
-<terms>` ranks every entry on this page against a query (`--json` for agents).
+Each line answers one question with the page that owns it.
 
 - [Change a rule every AI CLI follows](../config/ai/CORE.md): approval gates, language, code discipline, Git rules; edit here, never a rendered context.
 - [Change behavior for one runtime only](../config/ai/adapters/claude.md): runtime adapters (Claude here; Codex, agy, OMP, Pi beside it) rendered by `ai-memory-link`.
@@ -22,6 +46,7 @@ sections below are the full dictionary. From a terminal, `system-map --find
 - [Start, scope, or finish a task run](../docs/task-change-boundary.md): ledger boundary contract enforced by [`delivery-ledger`](../bin/delivery-ledger).
 - [Rate the risk of a diff](../bin/diff-risk): R0 to R4 tiers that decide review depth.
 - [Run every policy check before a commit](../bin/ai-policy-lint): policy, routing, skills, memory, templates, and this map.
+- [Install dotfiles on a new machine](../install.sh): idempotent installer for Ubuntu and macOS; [`install-macos.sh`](../install-macos.sh) is the light macOS bootstrap.
 - [Check this device's AI setup](../bin/ai-doctor): links, tools, hooks, and environment health.
 - [Record a verified lesson](../bin/ai-learn): capture and promote reusable lessons; never unverified diagnosis.
 - [Start a new project with contracts](../bin/project-init): scaffolds from [`config/templates/`](../config/templates) without overwriting.
@@ -87,12 +112,22 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 |---|---|---|---|
 | Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 20 | linked from this page |
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 79 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
+| Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
 | Owned skills | [`skills/local/`](../skills/local/) | 77 | linked from this page |
 | Commands | [`bin/`](../bin/) | 55 | linked from this page |
-| Command tests | [`bin/`](../bin/) | 71 | count only |
+| Command tests | [`bin/`](../bin/) | 71 | linked from this page |
 | Device profiles | [`devices/`](../devices/) | 8 | linked from this page |
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
 | Top-level docs | [`docs/`](../docs/) | 23 | linked from this page |
+| AI control files | [`config/ai/`](../config/ai/) | 30 | linked from this page |
+| Runtime references | [`config/omp/`](../config/omp/) | 27 | linked from this page |
+| Skill commands | [`skills/agents-bin/`](../skills/agents-bin/) | 7 | linked from this page |
+| Skill tooling | [`skills/local/`](../skills/local/) | 2 | linked from this page |
+| Registry indexes | [`devices/`](../devices/) | 1 | linked from this page |
+| Command helpers | [`bin/`](../bin/) | 2 | linked from this page |
+| Research records | [`docs/research/`](../docs/research/) | 4 | linked from this page |
+| Environment and bootstrap | [`config/`](../config/) | 35 | linked from this page |
+| Device reports | [`docs/device-reports/`](../docs/device-reports/) | 21 | count only |
 | Archived task records | [`docs/archive/`](../docs/archive/) | 28 | count only |
 
 <!-- system-map:inventory:end -->
@@ -111,29 +146,14 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | **Skills Registry** | [`skills/local/`](../skills/local) | Owned skills categorized into engineering domains; domain map in [`skills/local/README.md`](../skills/local/README.md). | AI CLI tool calling & workflows |
 | **Skill Management**| [`skills/agents-bin/`](../skills/agents-bin) | CLI tools for managing, checking, updating, and removing skills. | Developers & AI toolchain |
 | **Executable CLI**  | [`bin/`](../bin) | Bash, Python, and Node.js commands, tests, and helpers for verification and automation. | Terminal workflow & CI |
-| **OMP Runtime Reference** | [`config/omp/`](../config/omp) | Explicit native runtime reference plus historical routing evidence; installers do not load model catalogs or agent overlays. | OMP native runtime |
+| **Runtime References** | [`config/omp/`](../config/omp), [`config/pi/`](../config/pi) | OMP native reference plus historical routing evidence, and optional Pi defaults; installers load neither. | OMP and Pi runtimes |
 | **Device Registry** | [`devices/`](../devices) | Hardware manifests, OS specs, and per-machine configurations. | `dotsync`, `device-register` |
 | **Project Templates** | [`config/templates/`](../config/templates) | Contract scaffold for new projects (`PRD`, `TASKS`, `ARCHITECTURE`, etc.). | `project-init` |
 | **System Docs**     | [`docs/`](../docs) | Architecture blueprints, security policies, install SOPs, audit logs. | Architecture & Governance |
 | **Delivery Engine** | [`.delivery/`](../.delivery) | Run ledger, verification checkpoints, task boundary states. | `delivery-ledger` |
 | **Active Tasks**    | [`TASKS.md`](../TASKS.md) | Single executable task queue for dotfiles evolution. | All contributors & AI agents |
-| **User Environment**| [`home/`](../home), [`config/`](../config) | Shell configs (`bash`, `zsh`), Helix editor, mise toolchains. | Terminal-first developer setup |
-
----
-
-### Current workflow and limits
-
-The completed TASK-133 workflow is:
-
-`explicit lesson -> verified PASS -> immutable signal -> private candidate -> review`
-
-Recall reads curated contracts and verified history; it does not ingest raw chat
-or command output and cannot establish current build success. Scheduled checks
-run only when a device explicitly registers jobs and invokes `tick` or keeps
-`serve` running. Cross-device `dotsync` distributes tool links, not private
-indexes, candidate inboxes, scheduler jobs, or credentials. Checkpoint and mobile
-access remain deferred. See [usage and recovery](adaptive-ai-system.md#verified-learning-recall-and-scheduled-checks)
-and the [update log](../CHANGELOG.md).
+| **User Environment**| [`home/`](../home), [`config/`](../config) | Shell, terminal, editor, Git, and toolchain settings (section 11). | Terminal-first developer setup |
+| **CI** | [`.github/workflows/`](../.github/workflows) | Core runtime and spec-suite checks on Ubuntu and macOS. | Every push |
 
 ---
 
@@ -156,6 +176,13 @@ Central repository for AI behavior, context distribution, and safety guards.
 - [`config/ai/claude-home-memory/MEMORY.md`](../config/ai/claude-home-memory/MEMORY.md):
   **Function:** Read-only bootstrap for Claude sessions started at `$HOME` to prevent accidental auto-memory clutter in dotfiles.
 
+- [`config/ai/AGENTS.md`](../config/ai/AGENTS.md): Symlink to `CORE.md` kept for tools that look for the old name.
+- [`config/ai/mcp-servers.json`](../config/ai/mcp-servers.json): The one global MCP server list that `ai-mcp-sync` writes into each runtime.
+- [`config/ai/runtime-commands.txt`](../config/ai/runtime-commands.txt): Canonical commands every installer links into `~/.local/bin`, one per line.
+- [`config/ai/policies/planning-artifacts.md`](../config/ai/policies/planning-artifacts.md): Where PRD, PLAN, TASKS, ADR, and spec-suite documents live; never a rival beside an existing one.
+
+- **Rendered runtime contexts (never edit):** [`claude.md`](../config/ai/context/claude.md), [`codex.md`](../config/ai/context/codex.md), [`antigravity.md`](../config/ai/context/antigravity.md), [`omp.md`](../config/ai/context/omp.md), [`pi.md`](../config/ai/context/pi.md): `ai-memory-link` renders CORE plus each adapter here; edit the sources instead.
+
 ### 3.2 AI Runtimes Adapters (`config/ai/adapters/`)
 - [`config/ai/adapters/antigravity.md`](../config/ai/adapters/antigravity.md): Adapter for Antigravity (`agy`).
 - [`config/ai/adapters/claude.md`](../config/ai/adapters/claude.md): Adapter for Claude Code (`~/.claude/CLAUDE.md`).
@@ -170,6 +197,24 @@ Central repository for AI behavior, context distribution, and safety guards.
   **Function:** `UserPromptSubmit` hook that tracks memory file hit counts and byte sizes without logging sensitive prompts.
 
 ---
+- [`config/ai/hooks/git-guard.test.sh`](../config/ai/hooks/git-guard.test.sh): Regression check for `git-guard.sh`; run after touching the guard.
+- [`config/ai/hooks/session-restore.sh`](../config/ai/hooks/session-restore.sh): `SessionStart` hook (compact or resume) that restores exact task state lost by compaction.
+- [`config/ai/hooks/session-restore.test.sh`](../config/ai/hooks/session-restore.test.sh): Sandboxed regression check for the session-restore hook.
+
+### 3.4 Evaluation Fixtures (`config/ai/evals/`)
+- [`workflow-scenarios.json`](../config/ai/evals/workflow-scenarios.json): Decision-eval scenarios graded by `ai-workflow-eval`.
+- **Local execution fixture:** [`README.md`](../config/ai/evals/execution/README.md), [`app.py`](../config/ai/evals/execution/app.py), [`index.html`](../config/ai/evals/execution/index.html), [`browser.mjs`](../config/ai/evals/execution/browser.mjs): synthetic loopback app an agent repairs during execution evals; fake sessions, never production auth.
+
+### 3.5 Runtime References (`config/omp/`, `config/pi/`)
+OMP runs upstream-native; installers link none of these files.
+- [`config/omp/README.md`](../config/omp/README.md): How OMP uses its own config, what dotfiles still provides, and how to repair drift.
+- [`config/omp/config.yml`](../config/omp/config.yml): Secret-free cross-device reference config, used only when passed with `omp --config`.
+- **OMP records:** [`STATUS.md`](../config/omp/STATUS.md), [`BUILD-LOG.md`](../config/omp/BUILD-LOG.md), [`PERFORMANCE.md`](../config/omp/PERFORMANCE.md), [`GOAL-ORCHESTRATION.md`](../config/omp/GOAL-ORCHESTRATION.md): integration status, build log, performance review, and the on-demand goal-orchestration playbook.
+- **OMP historical design evidence:** [`ROUTING.md`](../config/omp/ROUTING.md), [`models.yml`](../config/omp/models.yml): retired custom routing and model catalog; not installed or injected.
+- **OMP reference agents (not installed):** [`architect`](../config/omp/agents/architect.md), [`complex-developer`](../config/omp/agents/complex-developer.md), [`debugger`](../config/omp/agents/debugger.md), [`designer`](../config/omp/agents/designer.md), [`librarian`](../config/omp/agents/librarian.md), [`reviewer`](../config/omp/agents/reviewer.md), [`scout`](../config/omp/agents/scout.md), [`security-reviewer`](../config/omp/agents/security-reviewer.md), [`writer`](../config/omp/agents/writer.md): role definitions kept as design evidence.
+- **OMP retired overlays:** [`9router-hosted`](../config/omp/overlays/9router-hosted.yml), [`antigravity-hosted`](../config/omp/overlays/antigravity-hosted.yml), [`antigravity-only`](../config/omp/overlays/antigravity-only.yml), [`codex-only`](../config/omp/overlays/codex-only.yml), [`minimax-hosted`](../config/omp/overlays/minimax-hosted.yml): single-provider session overlays; revalidate before selecting one.
+- [`config/pi/README.md`](../config/pi/README.md): Optional Pi setup; Pi is a standalone fallback CLI, not an OMP prerequisite.
+- **Pi files:** [`settings.json`](../config/pi/settings.json), [`models.template.json`](../config/pi/models.template.json), [`compact-free/index.mjs`](../config/pi/extensions/compact-free/index.mjs), [`compact-free/package.json`](../config/pi/extensions/compact-free/package.json): non-secret defaults copied by `pi-9router-restore`, the machine-local model template, and the custom compaction extension.
 
 ## 4. Durable Memory Dictionary (`config/ai/memory/`)
 
@@ -185,14 +230,14 @@ Cross-project durable facts loaded selectively on demand by `ai-memory-access`.
 | [`development-lessons.md`](../config/ai/memory/development-lessons.md) | Verified cross-project engineering lessons promoted via `ai-learn`. |
 | [`workflow.md`](../config/ai/memory/workflow.md) | Pre-dev staging contract (`~/Documents/work/prd/<slug>/` -> `~/Projects/<slug>/`), delivery ledger lifecycle. |
 | [`decisions.md`](../config/ai/memory/decisions.md) | Master log of architectural decisions, stack selections, and structural choices. |
-| [`skills.md`](../config/ai/memory/skills.md) | Summary of owned skills, external upstream sources, and skill evolution rules. |
+| [`skills.md`](../config/ai/memory/skills.md) | The user's skill profile (development, marketing, SEO, affiliate) for calibrating explanation depth, plus where the owned skill set is mapped. |
 | [`shopify.md`](../config/ai/memory/shopify.md) | Shopify standards: Dawn baseline, Storefront API, Hydrogen, no CTA in descriptions, brand-generic SEO. |
 | [`environment.md`](../config/ai/memory/environment.md) | Hardware & software toolchains, installed packages, mise plugins, cross-platform parity. |
-| [`environment-ai-runtimes.md`](../config/ai/memory/environment-ai-runtimes.md) | AI CLI binaries, versions, model flags, context linking mechanics. |
-| [`environment-devices-git.md`](../config/ai/memory/environment-devices-git.md) | Git noreply identities, SSH credentials locations, per-machine Git configurations. |
+| [`environment-ai-runtimes.md`](../config/ai/memory/environment-ai-runtimes.md) | OMP, optional Pi, 9Router, and Antigravity: availability, credential boundary, and the official install method. |
+| [`environment-devices-git.md`](../config/ai/memory/environment-devices-git.md) | User machines, the generated device registry, and the one Git identity shared by all devices. |
 | [`projects.md`](../config/ai/memory/projects.md) | Master directory index of active repositories under `~/Projects/`. |
-| [`projects-platforms.md`](../config/ai/memory/projects-platforms.md) | Deployment infrastructure: Cloudflare, Vultr, Hetzner, Coolify, Vercel, Supabase. |
-| [`projects-sites.md`](../config/ai/memory/projects-sites.md) | Domain DNS records, public URLs, SSL, hosting provider linkages. |
+| [`projects-platforms.md`](../config/ai/memory/projects-platforms.md) | Advisory map of product platforms and admin applications (volumecms, adsbookcms); load only for the named platform. |
+| [`projects-sites.md`](../config/ai/memory/projects-sites.md) | Historical reference for sites and commerce projects (Astro, Shopify Storefront), SEO knowledge, and repository history. |
 | [`long-task-system.md`](../config/ai/memory/long-task-system.md) | Architecture for multi-hour autonomous tasks, state persistence, error boundaries. |
 | [`long-task-efficiency.md`](../config/ai/memory/long-task-efficiency.md) | Token economics, context pruning, prompt compaction strategies. |
 | [`long-task-security.md`](../config/ai/memory/long-task-security.md) | Security constraints during autonomous runs, preventing file creep and accidental leaks. |
@@ -343,14 +388,14 @@ Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rende
 Commands, their tests, and helpers; counts live in the Inventory block and describe repository inventory, not installed software or device readiness.
 
 ### 7.1 AI, Policy & Memory Management
-- [`ai-doctor`](../bin/ai-doctor) (+ [`test`](../bin/ai-doctor-test)): Comprehensive health check for AI links, tools, hooks, and environment.
-- [`ai-policy-lint`](../bin/ai-policy-lint) (+ [`test`](../bin/ai-policy-lint-test)): Audits dotfiles policy consistency, markdown links, skill maps, and task IDs.
-- [`ai-learn`](../bin/ai-learn) (+ [`test`](../bin/ai-learn-test)): Captures, lists, and promotes verified lessons into durable memory.
+- [`ai-doctor`](../bin/ai-doctor) (+ [`test`](../bin/ai-doctor-test)): Read-only health report for AI runtime wiring: links, tools, hooks, environment; never repairs or installs.
+- [`ai-policy-lint`](../bin/ai-policy-lint) (+ [`test`](../bin/ai-policy-lint-test)): Structural lint of the tracked AI control plane: workflows, routing, agent frontmatter, skills, memory, templates, and this map.
+- [`ai-learn`](../bin/ai-learn) (+ [`test`](../bin/ai-learn-test)): Captures, lists, and promotes reviewed lesson candidates; never ingests session logs.
 - [`delivery-learning`](../bin/delivery-learning) (+ [`test`](../bin/delivery-learning-test)): Stages explicit reusable lessons, finalizes verified PASS signals, and supports idempotent candidate retry.
-- [`ai-memory-harvest`](../bin/ai-memory-harvest) (+ [`test`](../bin/ai-memory-harvest-test)): Publishes private review candidates with verified provenance; never applies canonical changes.
+- [`ai-memory-harvest`](../bin/ai-memory-harvest) (+ [`test`](../bin/ai-memory-harvest-test)): Publishes verified lesson signals as private review candidates in the lesson inbox; never applies canonical changes.
 - [`ai-recall`](../bin/ai-recall) (+ [`test`](../bin/ai-recall-test)): Refreshes a private SQLite FTS5 index of selected contracts and verified historical evidence, returning advisory source citations.
 - [`ai-schedule`](../bin/ai-schedule) (+ [`test`](../bin/ai-schedule-test)): Manages explicit offline `repo-status` and `dotads-validate` jobs, foreground ticks/loop, private history, and isolated failures; no service or real job is installed automatically.
-- [`ai-memory-access`](../bin/ai-memory-access) (+ [`test`](../bin/ai-memory-access-test)): Selects minimal relevant memory context based on query triggers.
+- [`ai-memory-access`](../bin/ai-memory-access) (+ [`test`](../bin/ai-memory-access-test)): Routes a request to the smallest relevant memory files and records privacy-minimal usage telemetry.
 - [`ai-memory-check`](../bin/ai-memory-check) (+ [`test`](../bin/ai-memory-check-test)): Verifies markdown links across all memory files.
 - [`ai-memory-hygiene`](../bin/ai-memory-hygiene) (+ [`test`](../bin/ai-memory-hygiene-test)): Detects dead memory, secret leaks, and unrouted files.
 - [`ai-memory-lifecycle`](../bin/ai-memory-lifecycle) (+ [`test`](../bin/ai-memory-lifecycle-test)): Analyzes memory access logs to recommend file retention or pruning.
@@ -360,21 +405,21 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`ai-hooks-install`](../bin/ai-hooks-install) (+ [`test`](../bin/ai-hooks-install-test)): Installs and checks canonical Claude Code and Codex hooks; native Codex trust remains an interactive runtime step.
 - [`ai-mcp-sync`](../bin/ai-mcp-sync) (+ [`test`](../bin/ai-mcp-sync-test)): Synchronizes and checks global MCP servers across AI CLI runtimes.
 - [`ai-ask`](../bin/ai-ask) (+ [`test`](../bin/ai-ask-test)): Hands one lane of work to another AI CLI, read-only by default.
-- [`ai-health-daily`](../bin/ai-health-daily) (+ [`test`](../bin/ai-health-daily-test)): One read-only health report per day for this device.
+- [`ai-health-daily`](../bin/ai-health-daily) (+ [`test`](../bin/ai-health-daily-test)): Daily read-only health report for this device, built from existing checks.
 - [`ai-workflow-eval`](../bin/ai-workflow-eval) (+ [`test`](../bin/ai-workflow-eval-test)): Portable decision evals with guidance-read labels, plus an explicit local execution fixture; never certifies model reliability.
 
 ### 7.2 Delivery Ledger, Safety Gates & Testing
-- [`delivery-ledger`](../bin/delivery-ledger) (+ [`test`](../bin/delivery-ledger-test)): State machine enforcing contract boundaries, risks, and task runs.
-- [`project-check`](../bin/project-check) (+ [`test`](../bin/project-check-test)): Universal zero-config test runner (detects npm, pnpm, bun, pytest, cargo, go).
+- [`delivery-ledger`](../bin/delivery-ledger) (+ [`test`](../bin/delivery-ledger-test)): Repository-local run evidence and resume ledger: boundaries, verification, review, and finish; `STATUS.md` stays the state authority.
+- [`project-check`](../bin/project-check) (+ [`test`](../bin/project-check-test)): Discovers and runs a repository's own checks: exit 0 verified, 1 failed, 2 unverified; `--changed`, `--full`, `--ui` modes.
 - [`diff-risk`](../bin/diff-risk) (+ [`test`](../bin/diff-risk-test)): Classifies code diffs into risk tiers (R0 to R4).
-- [`mutation-sweep`](../bin/mutation-sweep) (+ [`test`](../bin/mutation-sweep-test)): AST mutation tester testing test efficacy across Python and Bash scripts.
+- [`mutation-sweep`](../bin/mutation-sweep) (+ [`test`](../bin/mutation-sweep-test)): Stubs each `bin/<name>` that has a test and reports any test that still passes with its subject gone.
 - [`project-init`](../bin/project-init) (+ [`test`](../bin/project-init-test)): Initializes new projects with standard engineering contracts without overwriting.
 - [`production-gate`](../bin/production-gate) (+ [`test`](../bin/production-gate-test)): Enforces safety verification before production deployments.
-- [`release-check`](../bin/release-check) (+ [`test`](../bin/release-check-test)): Validates version bump, changelog, and clean git status.
-- [`release-manifest`](../bin/release-manifest) (+ [`test`](../bin/release-manifest-test)): Generates release manifest artifacts.
+- [`release-check`](../bin/release-check) (+ [`test`](../bin/release-check-test)): Post-deploy verification: every probe in `OBSERVABILITY.md` must succeed for the state in `STATUS.md`.
+- [`release-manifest`](../bin/release-manifest) (+ [`test`](../bin/release-manifest-test)): Validates the repository-local `RELEASE.md` (exit 0 valid, 1 invalid, 2 missing evidence).
 - [`rollback-check`](../bin/rollback-check) (+ [`test`](../bin/rollback-check-test)): Verifies safety of rollbacks and rollback scripts.
 - [`migration-risk`](../bin/migration-risk) (+ [`test`](../bin/migration-risk-test)): Audits database migration scripts for destructive operations.
-- [`resume-brief`](../bin/resume-brief) (+ [`test`](../bin/resume-brief-test)): Generates quick context summaries when resuming work on a repository.
+- [`resume-brief`](../bin/resume-brief) (+ [`test`](../bin/resume-brief-test)): Answers "where am I?" from repository state alone when resuming work.
 - [`delivery-benchmark`](../bin/delivery-benchmark) (+ [`test`](../bin/delivery-benchmark-test)): Evidence-driven delivery telemetry and advisory routing comparisons.
 - [`delivery-skill-usage`](../bin/delivery-skill-usage) (+ [`test`](../bin/delivery-skill-usage-test)): Immutable skill-attribution evidence for finished delivery runs.
 - [`inspect-project`](../bin/inspect-project) (+ [`test`](../bin/inspect-project-test)): Read-only snapshot of the current directory: Git state, project files, and toolchain.
@@ -382,32 +427,59 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 
 ### 7.3 Multi-Device Sync & Credentials
 - [`dotsync`](../bin/dotsync) (+ [`test`](../bin/dotsync-test)): Pulls, merges, and reconciles dotfiles cross-device.
-- [`dotpush`](../bin/dotpush) (+ [`test`](../bin/dotpush-test)): Safely stages, commits, and pushes dotfiles changes after linting.
+- [`dotpush`](../bin/dotpush) (+ [`test`](../bin/dotpush-test)): Commits and pushes dotfiles in one step: syncs with the remote first and scans for secrets before committing.
 - [`device-register`](../bin/device-register) (+ [`test`](../bin/device-register-test)): Registers current machine specs into `devices/`.
-- [`device-verify`](../bin/device-verify) (+ [`test`](../bin/device-verify-test)): Asserts hardware and package consistency for registered devices.
-- [`dev-ready`](../bin/dev-ready) (+ [`test`](../bin/dev-ready-test)): Checks whether the machine has all dependencies ready for coding.
+- [`device-verify`](../bin/device-verify) (+ [`test`](../bin/device-verify-test)): Runs every repository gate on this device and writes a report other devices can read.
+- [`dev-ready`](../bin/dev-ready) (+ [`test`](../bin/dev-ready-test)): Two-second gate before autonomous work: providers, test command, ledger, and a worktree that does not overlap the task.
 - [`secrets-env`](../bin/secrets-env) (+ [`test`](../bin/secrets-env-test)): Safely inspects and injects credentials from `~/.config/ai-local/secrets.env`.
 - [`security-check`](../bin/security-check) (+ [`test`](../bin/security-check-test)): Audits repositories for staged credentials and secret leaks.
 
 ### 7.4 Skill & Runtime Plumbing
 - [`skill-map`](../bin/skill-map) (+ [`test`](../bin/skill-map-test)): Compiles the domain map in `skills/local/README.md`.
-- [`skill-surface-check`](../bin/skill-surface-check) (+ [`test`](../bin/skill-surface-check-test)): Audits descriptions and character budgets.
-- [`omp-runtime-report`](../bin/omp-runtime-report) (+ [`test`](../bin/omp-runtime-report-test)): Reports OMP model status and token usage metrics.
+- [`skill-surface-check`](../bin/skill-surface-check) (+ [`test`](../bin/skill-surface-check-test)): Reports stale dotfiles command references in owned `SKILL.md` files; advisory.
+- [`omp-runtime-report`](../bin/omp-runtime-report) (+ [`test`](../bin/omp-runtime-report-test)): Reports native OMP routes and validates their declared registry capabilities.
 - [`9router-credential-migrate`](../bin/9router-credential-migrate) (+ [`test`](../bin/9router-credential-migrate-test)): Migrates 9Router API keys securely.
-- [`pi-update-safe`](../bin/pi-update-safe) (+ [`test`](../bin/pi-update-safe-test)): Safe updates for Pi CLI preserving configurations.
-- [`tmux-setup`](../bin/tmux-setup), [`tmux-clip`](../bin/tmux-clip), [`tmux-battery`](../bin/tmux-battery): Terminal session management and status bar tooling.
-- [`vps-pgdump`](../bin/vps-pgdump) (+ [`test`](../bin/vps-pgdump-test)): Dumps remote PostgreSQL databases over SSH.
-- [`shopify-content-helper`](../bin/shopify-content-helper) (+ [`test`](../bin/shopify-content-helper-test)): Assists in formatting and uploading Shopify blog/product copy.
+- [`pi-update-safe`](../bin/pi-update-safe) (+ [`test`](../bin/pi-update-safe-test)): Wraps `pi update` with a backup of Pi's runtime skill directories under `~/.pi/agent/skill-backups`.
+- [`tmux-setup`](../bin/tmux-setup) (+ [`test`](../bin/tmux-setup-test)): Installs and configures tmux from zero: binary, clipboard tool, `tmux.conf` link, TPM, plugins; idempotent.
+- [`tmux-clip`](../bin/tmux-clip) (+ [`test`](../bin/tmux-clip-test)): The clipboard seam every tmux copy path goes through (pbcopy, wl-copy, xclip or xsel, or WSL clip.exe).
+- [`tmux-battery`](../bin/tmux-battery) (+ [`test`](../bin/tmux-battery-test)): Battery segment for the tmux status bar; silent and exit 0 on machines without a battery.
+- [`vps-pgdump`](../bin/vps-pgdump) (+ [`test`](../bin/vps-pgdump-test)): Pulls a Postgres backup and the stack config off a VPS over SSH, because provider snapshots failed silently.
+- [`shopify-content-helper`](../bin/shopify-content-helper) (+ [`test`](../bin/shopify-content-helper-test)): Shopify SEO and content utilities: SEO audit and limits, sitemap entries, meta and brief templates, RSS and JSON-LD skeletons.
 - [`dotads-meta`](../bin/dotads-meta) (+ [`test`](../bin/dotads-meta-test)): Per-project Meta Ads validator, dry-run planner, stateful deployer, and `secrets-env` bridge for Meta's official `meta-ads` CLI.
 - [`rea-skill-sync`](../bin/rea-skill-sync) (+ [`test`](../bin/rea-skill-sync-test)): Deterministic upstream auto-sync and drift checker synchronizing `skills/local/black-magic/` with `morluto/rea`.
 - [`pi-9router-restore`](../bin/pi-9router-restore): Restores optional Pi settings and the remote 9Router model integration.
 - [`pi-9router-sync.js`](../bin/pi-9router-sync.js): Syncs the remote 9Router catalog into Pi's machine-local `models.json`.
+
+### 7.5 Skill Commands (`skills/agents-bin/`)
+- [`skill-help`](../skills/agents-bin/skill-help): Prints the skill commands and the one-source symlink model.
+- [`skill-list`](../skills/agents-bin/skill-list): Lists every skill with what it is for.
+- [`skill-open`](../skills/agents-bin/skill-open): Opens a skill's `SKILL.md` in the editor.
+- [`skill-check`](../skills/agents-bin/skill-check) (+ [`test`](../bin/skill-check-test)): Validates one or all owned skills offline: frontmatter, reference links, and description length against the 1024-character limit and Codex's ~250-character cut.
+- [`skill-new`](../skills/agents-bin/skill-new): Creates a skill with a trigger description.
+- [`skill-remove`](../skills/agents-bin/skill-remove) (+ [`test`](../bin/skill-remove-test)): Removes a skill from every CLI at once.
+- [`skill-update`](../skills/agents-bin/skill-update) (+ [`test`](../bin/skill-update-test)): Installs or repairs the skill symlinks; once per machine.
+
+### 7.6 Helpers and Cross-Cutting Tests
+- [`_toolchain-path.sh`](../bin/_toolchain-path.sh) (+ [`test`](../bin/toolchain-path-test)): Sourced, never run: the one definition of where this machine's runtimes are.
+- [`_workflow-execution.py`](../bin/_workflow-execution.py): Trusted local behavioral oracle for `ai-workflow-eval`; stdlib only.
+- [`delivery-gate-test`](../bin/delivery-gate-test): Exercises `project-check` and delivery gates against fixture projects.
+- [`release-safety-test`](../bin/release-safety-test): Covers `release-manifest`, `migration-risk`, and `rollback-check` together.
+- [`installer-link-test`](../bin/installer-link-test): Backup-before-link helpers used by the installers.
+- [`shell-wrapper-test`](../bin/shell-wrapper-test): Cross-shell setup fixtures and transparent OMP execution.
+- **OMP boundary tests:** [`omp-routing-test`](../bin/omp-routing-test), [`omp-effective-routing-test`](../bin/omp-effective-routing-test), [`omp-workspace-test`](../bin/omp-workspace-test): dotfiles may add context and skills but never installs routing or alters OMP arguments.
+- [`pi-9router-restore-test`](../bin/pi-9router-restore-test): Machine-local Pi seeding and the remote-only 9Router boundary.
+- [`memory-usage-hook-test`](../bin/memory-usage-hook-test): Regression check for the `UserPromptSubmit` memory-usage hook.
+- [`turnstile-secret-test`](../bin/turnstile-secret-test): Secret handling in the `turnstile-spin` skill scripts.
+- [`development-spec-suite-test`](../bin/development-spec-suite-test): Runs the `development-spec-suite` skill's own test script.
+- [`_refresh-vendored.sh`](../skills/local/_refresh-vendored.sh) (+ [`test`](../bin/vendored-refresh-test)): Re-fetches vendored skills byte for byte from their `.source`, reports index drift, and preserves managed forks (`.local-fork`).
 
 ---
 
 ## 8. Multi-Device Hardware Registry (`devices/`)
 
 Managed by `bin/device-register`, documenting exact hardware and OS specs:
+
+- [`devices/README.md`](../devices/README.md): Registry index written by `device-register`.
 
 | Host Profile | Device Hardware | Operating System | Primary Purpose |
 |---|---|---|---|
@@ -439,6 +511,7 @@ Managed by `bin/device-register`, documenting exact hardware and OS specs:
 - [`github-account-cleanup-plan.md`](../docs/github-account-cleanup-plan.md), [`github-profile-readme-draft.md`](../docs/github-profile-readme-draft.md): GitHub account cleanup plan and profile README draft.
 - Dated audits (historical, superseded by current contracts): [`DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md`](../docs/DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md), [`DOTFILES_REPOSITORY_AUDIT_2026-08-15.md`](../docs/DOTFILES_REPOSITORY_AUDIT_2026-08-15.md), [`DOTFILES_REVIEW_2026-09-04.md`](../docs/DOTFILES_REVIEW_2026-09-04.md), [`DOTFILES-NATIVE-FIRST-AUDIT.md`](../docs/DOTFILES-NATIVE-FIRST-AUDIT.md), [`public-ui-skill-audit.md`](../docs/public-ui-skill-audit.md), [`skills-memory-audit.md`](../docs/skills-memory-audit.md).
 - [`AUSSIE_SAWIT_MALAYSIA_MEMORY_ARCHIVE_2026-07.md`](../docs/AUSSIE_SAWIT_MALAYSIA_MEMORY_ARCHIVE_2026-07.md): Archived AUSSIE Sawit Malaysia session history.
+- **Research records:** [`adaptive-ai-sources.md`](../docs/research/adaptive-ai-sources.md), [`development-kit-audit-2026-10-25.md`](../docs/research/development-kit-audit-2026-10-25.md), [`dotfiles-reliability-sources.md`](../docs/research/dotfiles-reliability-sources.md), [`system-map-references-2026-10-25.md`](../docs/research/system-map-references-2026-10-25.md): adaptive-AI adoption, development-kit audit, reliability sources, and the references behind this map.
 - Directories: [`docs/archive/`](../docs/archive/) (immutable task contracts), [`docs/research/`](../docs/research/) (source and trial evidence), [`docs/device-reports/`](../docs/device-reports/).
 
 ---
@@ -457,7 +530,65 @@ Standardized contract files copied to the root of every new project by `project-
 - [`BUILD-LOG.md`](../config/templates/BUILD-LOG.md): Durable implementation notes and blameless incident notes.
 - [`README.md`](../config/templates/README.md): Project README scaffold.
 
-## Whole-system reliability and recovery
+## 11. Environment and Bootstrap
+
+What a new machine gets, and where each terminal, editor, and Git setting lives.
+
+### 11.1 Bootstrap and Repository Files
+- [`README.md`](../README.md): Repository entry point: what dotfiles shares and how to install it.
+- [`install.sh`](../install.sh): Idempotent installer for Ubuntu and macOS (bash and zsh): places config and patches shell rc files.
+- [`install-macos.sh`](../install-macos.sh): Light macOS bootstrap for shared memory, skills, `dotsync`, and shell hooks.
+- [`.gitignore`](../.gitignore): Keeps SSH keys and other per-device secrets out of the repository.
+- [`.gitattributes`](../.gitattributes): Keeps the local machine's version of machine-specific snapshots on sync merges.
+- **Home snapshots:** [`home/bashrc.snapshot`](../home/bashrc.snapshot), [`home/zshrc.snapshot`](../home/zshrc.snapshot), [`home/profile`](../home/profile), [`home/gitconfig`](../home/gitconfig): reference copies of shell rc files, login profile, and Git identity.
+
+### 11.2 Shell and Terminal
+- [`config/shell-tools.sh`](../config/shell-tools.sh): Cross-shell, cross-OS tool setup sourced by bash and zsh; idempotent.
+- **Shell entry points:** [`bashrc.tools.sh`](../config/bashrc.tools.sh), [`zshrc.tools.sh`](../config/zshrc.tools.sh): compatibility shims that source `shell-tools.sh`.
+- [`config/wsl-tools.sh`](../config/wsl-tools.sh): WSL2-only bashrc additions.
+- [`config/tmux.conf`](../config/tmux.conf): tmux prefix, mouse and copy bindings, status bar.
+- [`config/starship.toml`](../config/starship.toml): Prompt that reads clearly without a Nerd Font.
+- [`config/btop/btop.conf`](../config/btop/btop.conf): btop system monitor settings.
+- **Search defaults:** [`config/ripgreprc`](../config/ripgreprc), [`config/fd-ignore`](../config/fd-ignore): ripgrep flags and the fd ignore list that keeps heavy artifacts out of fd, fzf, and AI CLI searches.
+
+### 11.3 Editors, Git, and Toolchains
+- **Helix editor:** [`config/helix/config.toml`](../config/helix/config.toml), [`config/helix/languages.toml`](../config/helix/languages.toml): editor settings and language servers (`hx --health` checks them).
+- [`config/vscode-settings.json`](../config/vscode-settings.json): VS Code user settings.
+- [`config/lazygit/config.yml`](../config/lazygit/config.yml): lazygit diff renderers and behavior.
+- [`config/gh/config.yml`](../config/gh/config.yml): GitHub CLI settings; the OAuth token stays in `hosts.yml`, never here.
+- [`config/gitignore_global`](../config/gitignore_global): Global Git ignore for OS and editor cruft.
+- [`config/mise-config.toml`](../config/mise-config.toml): Toolchain versions installed through mise.
+
+### 11.4 Scheduled Health Report
+- **Daily ai-health-daily:** [`config/systemd/ai-health-daily.service`](../config/systemd/ai-health-daily.service), [`config/systemd/ai-health-daily.timer`](../config/systemd/ai-health-daily.timer), [`config/launchd/com.dotfiles.ai-health-daily.plist`](../config/launchd/com.dotfiles.ai-health-daily.plist): Linux timer and macOS launchd job that run the read-only daily health report.
+
+### 11.5 Windows and WSL
+- [`docs/.wslconfig.template`](../docs/.wslconfig.template): WSL2 host configuration template, edited on the Windows side.
+- [`docs/win-debloat.ps1`](../docs/win-debloat.ps1): Administrator script that optimizes Windows and WSL for a dev workstation.
+
+### 11.6 CI Workflows (`.github/workflows/`)
+- [`core-runtime.yml`](../.github/workflows/core-runtime.yml): Core runtime CI: repository self-tests on Ubuntu and macOS runners.
+- [`development-spec-suite.yml`](../.github/workflows/development-spec-suite.yml): CI for the development-spec-suite skill on Ubuntu and macOS across Python versions.
+
+---
+
+## 12. Reliability, Recovery, and Limits
+
+### Learning workflow and limits
+
+The completed TASK-133 workflow is:
+
+`explicit lesson -> verified PASS -> immutable signal -> private candidate -> review`
+
+Recall reads curated contracts and verified history; it does not ingest raw chat
+or command output and cannot establish current build success. Scheduled checks
+run only when a device explicitly registers jobs and invokes `tick` or keeps
+`serve` running. Cross-device `dotsync` distributes tool links, not private
+indexes, candidate inboxes, scheduler jobs, or credentials. Checkpoint and mobile
+access remain deferred. See [usage and recovery](adaptive-ai-system.md#verified-learning-recall-and-scheduled-checks)
+and the [update log](../CHANGELOG.md).
+
+### Whole-system reliability and recovery
 
 [Research evidence](research/dotfiles-reliability-sources.md) maps F1–F9 and
 W1–W16 to their regression owners and records community/thread/video experience.

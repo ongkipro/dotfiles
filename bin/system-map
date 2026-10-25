@@ -41,11 +41,19 @@ import sys
 
 SITEMAP = "docs/DOTFILES_SITEMAP.md"
 MEMORY_INDEX = "config/ai/project-memory/MEMORY.md"
+KELOLA_INDEX = "config/ai/project-memory-kelola/MEMORY.md"
+# --find reads these in order; each collection keeps its one index.
+SOURCES = (SITEMAP, MEMORY_INDEX, KELOLA_INDEX, "skills/local/README.md")
 START = "<!-- system-map:inventory:start (rendered by bin/system-map; do not edit) -->"
 END = "<!-- system-map:inventory:end -->"
 LINK = re.compile(r"\]\(([^)\s]+)\)")
 NAMED_LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
 QUICK_FIND = "Quick find"
+RETIRED = re.compile(r"\b(historical|retired|superseded|not installed|archived)\b", re.I)
+# Same list as ai-memory-harvest, plus question words a lookup starts with.
+STOP = {"a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "in", "is", "it",
+        "of", "on", "or", "that", "the", "this", "to", "with", "when", "where", "which",
+        "will", "am", "do", "does", "how", "what", "who", "why", "can", "my", "me"}
 
 
 def tracked(root: Path) -> list[str]:
@@ -63,27 +71,54 @@ def collections(files: list[str]) -> list[tuple[str, str, list[str], str]]:
     return [
         ("Durable memory", "config/ai/memory/", under("config/ai/memory/", ".md"), "sitemap"),
         ("Project memory", "config/ai/project-memory/",
-         [f for f in under("config/ai/project-memory/", ".md") if f != MEMORY_INDEX], "MEMORY.md"),
+         [f for f in under("config/ai/project-memory/", ".md") if f != MEMORY_INDEX], MEMORY_INDEX),
+        ("Kelola memory", "config/ai/project-memory-kelola/",
+         [f for f in under("config/ai/project-memory-kelola/", ".md") if f != KELOLA_INDEX], KELOLA_INDEX),
         ("Owned skills", "skills/local/",
          [f for f in files if re.fullmatch(r"skills/local/[^/]+/SKILL\.md", f)], "sitemap"),
         ("Commands", "bin/", [f for f in bin_files if not f.endswith("-test")
                               and not PurePosixPath(f).name.startswith("_")], "sitemap"),
-        ("Command tests", "bin/", [f for f in bin_files if f.endswith("-test")], "count"),
+        ("Command tests", "bin/", [f for f in bin_files if f.endswith("-test")], "sitemap"),
         ("Device profiles", "devices/",
          [f for f in under("devices/", ".md") if not f.endswith("/README.md")], "sitemap"),
         ("Project templates", "config/templates/", under("config/templates/", ".md"), "sitemap"),
         ("Top-level docs", "docs/", [f for f in under("docs/", ".md") if f != SITEMAP], "sitemap"),
+        ("AI control files", "config/ai/",
+         [f for f in files if f.startswith("config/ai/") and (f.count("/") == 2 or
+          f.split("/")[2] in ("adapters", "context", "hooks", "evals", "policies",
+                                "claude-home-memory"))], "sitemap"),
+        ("Runtime references", "config/omp/",
+         [f for f in files if f.startswith(("config/omp/", "config/pi/"))], "sitemap"),
+        ("Skill commands", "skills/agents-bin/", under("skills/agents-bin/"), "sitemap"),
+        ("Skill tooling", "skills/local/", under("skills/local/"), "sitemap"),
+        ("Registry indexes", "devices/", [f for f in files if f == "devices/README.md"], "sitemap"),
+        ("Command helpers", "bin/", [f for f in bin_files
+                                    if PurePosixPath(f).name.startswith("_")], "sitemap"),
+        ("Research records", "docs/research/", under("docs/research/"), "sitemap"),
+        ("Environment and bootstrap", "config/",
+         [f for f in files if "/" not in f or f.startswith(("home/", ".github/workflows/"))
+          or (f.startswith("docs/") and f.count("/") == 1 and not f.endswith(".md"))
+          or (f.startswith("config/") and not f.startswith(
+              ("config/ai/", "config/templates/", "config/omp/", "config/pi/")))], "sitemap"),
+        ("Device reports", "docs/device-reports/", under("docs/device-reports/"), "count"),
         ("Archived task records", "docs/archive/", under("docs/archive/"), "count"),
     ]
+
+
+# Owned by something other than a collection: the ledger writes .delivery/,
+# and a skill's own files are reached through its SKILL.md.
+UNMAPPED_OK = re.compile(r"^(\.delivery/|skills/local/[^/]+/)")
 
 
 def render_block(files: list[str]) -> str:
     rows = [START, "", "| Collection | Path | Tracked | Completeness enforced by |",
             "|---|---|---|---|"]
-    owners = {"sitemap": "linked from this page", "MEMORY.md": f"[`MEMORY.md`](../{MEMORY_INDEX})",
-              "count": "count only"}
+    owners = {"sitemap": "linked from this page", "count": "count only"}
     for label, path, members, owner in collections(files):
-        rows.append(f"| {label} | [`{path}`](../{path}) | {len(members)} | {owners[owner]} |")
+        if not members:
+            continue
+        enforced = owners.get(owner) or f"[`{PurePosixPath(owner).name}`](../{owner})"
+        rows.append(f"| {label} | [`{path}`](../{path}) | {len(members)} | {enforced} |")
     return "\n".join(rows + ["", END])
 
 
@@ -118,21 +153,34 @@ def problems(root: Path, text: str, files: list[str]) -> list[str]:
     found = []
     targets = links(text, "docs")
     for label, _, members, owner in collections(files):
-        if owner != "sitemap":
-            continue
-        for member in members:
-            accepted = {member, str(PurePosixPath(member).parent)} if label == "Owned skills" else {member}
-            if not accepted & targets:
-                found.append(f"{member} is tracked but not linked from {SITEMAP} ({label})")
-    if MEMORY_INDEX in files:
-        indexed = links((root / MEMORY_INDEX).read_text(encoding="utf-8"), "config/ai/project-memory")
-        for member in collections(files)[1][2]:
-            if member not in indexed:
-                found.append(f"{member} is not listed in {MEMORY_INDEX}")
+        if owner == "sitemap":
+            for member in members:
+                accepted = {member, str(PurePosixPath(member).parent)} if label == "Owned skills" else {member}
+                if not accepted & targets:
+                    found.append(f"{member} is tracked but not linked from {SITEMAP} ({label})")
+        elif owner != "count" and owner in files:
+            indexed = links((root / owner).read_text(encoding="utf-8"), str(PurePosixPath(owner).parent))
+            found += [f"{m} is not listed in {owner}" for m in members if m not in indexed]
+    claimed = {m for *_, members, _ in collections(files) for m in members}
+    claimed |= {SITEMAP, MEMORY_INDEX, KELOLA_INDEX}
+    found += [f"{f} is tracked but belongs to no collection; add one in bin/system-map"
+              for f in files if f not in claimed and not UNMAPPED_OK.match(f)]
     for item in entries(text):
         if not item["note"]:
             found.append(f"{SITEMAP}:{item['line']} entry {item['name']!r} has no note; "
                          "say what it is for after the link")
+    slugs, fenced = set(), False
+    for line in text.splitlines():
+        fenced ^= line.lstrip().startswith("```")
+        heading = None if fenced else re.match(r"^#{1,6} (.+)$", line)
+        if heading:
+            slug, n = _slug(heading.group(1)), 1
+            while slug in slugs:  # GitHub suffixes repeats: name, name-1, ...
+                slug, n = f"{_slug(heading.group(1))}-{n}", n + 1
+            slugs.add(slug)
+    for anchor in sorted(set(re.findall(r"\]\(#([^)\s]+)\)", text))):
+        if anchor not in slugs:
+            found.append(f"{SITEMAP} links #{anchor}, which no heading on the page produces")
     # Tracked, not on disk: a link to an ignored or uncommitted file passes
     # locally and breaks on every fresh clone.
     for target in sorted(targets):
@@ -141,7 +189,7 @@ def problems(root: Path, text: str, files: list[str]) -> list[str]:
     return found
 
 
-def entries(text: str) -> list[dict]:
+def entries(text: str, base: str = "docs") -> list[dict]:
     """List items and table rows holding a link, outside the rendered block and
     code fences. A link-first item is named by its link; a labelled item
     (`- **Label:** [..]`) by its label. Indented lines continue the note."""
@@ -169,28 +217,52 @@ def entries(text: str) -> list[dict]:
             found[-1]["open"] = False
         if re.match(r"^[-*] \[", line):
             body = NAMED_LINK.sub(lambda m: m.group(1), line[2:])
-            note = body.split(":", 1)[1] if ":" in body else ""
-            found.append(_entry(line, _plain(note), heads, number, True))
+            # The note starts at whichever comes first: the sitemap's ":" or
+            # MEMORY.md's " — "; a hook may itself contain a colon.
+            cut = min((i for i in (body.find(":"), body.find(" — ")) if i >= 0), default=-1)
+            note = body[cut:].lstrip(":— ") if cut >= 0 else ""
+            found.append(_entry(line, _plain(note), heads, number, True, base))
         elif re.match(r"^[-*] ", line) and NAMED_LINK.search(line):
             cut = NAMED_LINK.search(line).start()
             label = _plain(line[2:cut]).rstrip(":").strip()
             note = _plain(NAMED_LINK.sub(lambda m: m.group(1), line[cut:]))
-            found.append(_entry(line, note, heads, number, True, label))
+            found.append(_entry(line, note, heads, number, True, base, label))
         elif line.startswith("|") and NAMED_LINK.search(line):
             cells = [c.strip() for c in line.strip().strip("|").split("|")]
             first = next(i for i, c in enumerate(cells) if NAMED_LINK.search(c))
             note = " — ".join(_plain(NAMED_LINK.sub(lambda m: m.group(1), c))
                               for i, c in enumerate(cells) if i != first and c)
-            found.append(_entry(cells[first], note, heads, number, False))
+            found.append(_entry(cells[first], note, heads, number, False, base))
     for item in found:
         del item["open"]
     return found
 
 
+def candidates(root: Path) -> list[dict]:
+    """One candidate per link: the page it names, its own link text, and the
+    entry's shared label, note, and section. A page grouped with others in one
+    entry is then found by its own name, not hidden behind the first link."""
+    out = []
+    for order, source in enumerate(SOURCES):
+        path = root / source
+        if not path.is_file():
+            continue
+        base = str(PurePosixPath(source).parent)
+        for item in entries(path.read_text(encoding="utf-8"), base):
+            first = item["links"][0][1] if item["links"] else None
+            for text, target in item["links"]:
+                name = item["name"] if target == first else f"{item['label']} {text}".strip()
+                out.append({**item, "name": name, "page": target, "source": source,
+                            "rank": (order, item["line"])})
+    return out
+
+
 def _entry(source: str, note: str, heads: list[str], number: int, is_item: bool,
-           label: str = "") -> dict:
+           base: str, label: str = "") -> dict:
     name = label or NAMED_LINK.search(source).group(1)
-    return {"name": _plain(name), "paths": _targets(source, "docs"), "note": note,
+    pairs = [(_plain(text), _targets(f"]({target})", base)) for text, target in NAMED_LINK.findall(source)]
+    return {"name": _plain(name), "paths": _targets(source, base), "note": note, "label": label,
+            "links": [(text, hit[0]) for text, hit in pairs if hit],
             "section": " > ".join(heads), "line": number, "open": is_item}
 
 
@@ -201,41 +273,65 @@ def _plain(text: str) -> str:
 def _stem(word: str) -> str:
     # lazy: suffix stripping, not a stemmer; route/router/routing/routes meet.
     # Upgrade to a real stemmer only if queries in another language arrive.
-    for suffix, keep in (("ies", "y"), ("ing", ""), ("er", ""), ("es", ""),
-                         ("ed", ""), ("e", ""), ("s", "")):
-        if word.endswith(suffix) and len(word) - len(suffix) >= 3:
-            return word[: -len(suffix)] + keep
-    return word
+    # Repeat until stable so workers -> worker -> work meets worker -> work.
+    while True:
+        for suffix, keep in (("ies", "y"), ("ing", ""), ("er", ""), ("es", ""),
+                             ("ed", ""), ("e", ""), ("s", "")):
+            if word.endswith(suffix) and len(word) - len(suffix) >= 3:
+                word = word[: -len(suffix)] + keep
+                break
+        else:
+            return word
 
 
 def _words(text: str) -> set[str]:
-    return {_stem(w) for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) > 1}
+    return {_stem(w) for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) > 1 and w not in STOP}
 
 
-def find(text: str, terms: list[str], limit: int) -> list[dict]:
-    """Path or name hit 10, section hit 3, note hit 1; Quick find intents
-    double. Entries matching more distinct terms always rank first, and each
-    page appears once, under its best entry."""
+def find(root: Path, terms: list[str], limit: int) -> list[dict]:
+    """Path or name hit 10 (a term also matches inside a longer name), section
+    hit 3, note hit 1. Entries matching more distinct terms rank first. Quick
+    find intents double; a test page halves unless the query asks for a test,
+    so a subject outranks its test, and a page under a historical or retired
+    heading or label halves. Each page appears once, and each entry
+    once (its other pages are listed under `also`). Weights were picked
+    on the live query set in system-map-test, not tuned per query."""
     query = _words(" ".join(terms))
     ranked = []
-    for item in entries(text):
-        where = {"name": _words(item["name"] + " " + " ".join(item["paths"])),
+    for item in candidates(root):
+        where = {"name": _words(item["name"] + " " + item["page"]),
                  "section": _words(item["section"]), "note": _words(item["note"])}
-        hits = [t for t in query if any(t in w for w in where.values())]
+        # A name also matches inside a longer word: sync finds dotsync.
+        named = {t for t in query if t in where["name"]
+                 or (len(t) >= 3 and any(t in w for w in where["name"]))}
+        hits = [t for t in query if t in named or t in where["section"] or t in where["note"]]
         if not hits:
             continue
-        score = sum(10 * (t in where["name"]) + 3 * (t in where["section"])
+        score = sum(10 * (t in named) + 3 * (t in where["section"])
                     + (t in where["note"]) for t in hits)
         if QUICK_FIND in item["section"]:
             score *= 2
-        ranked.append((-len(hits), -score, item["line"], {**item, "score": score}))
+        is_test = bool(re.search(r"[-.]test(\.sh)?$", item["page"]))
+        if is_test and "test" not in query:
+            score /= 2
+        # Backstage keeps spec.lifecycle; here the heading or label says so.
+        if RETIRED.search(f"{item['section']} {item['label']}"):
+            score /= 2
+        ranked.append((-len(hits), -score, item["rank"], {**item, "score": score, "test": is_test}))
     best, seen = [], set()
     for *_, item in sorted(ranked, key=lambda r: r[:3]):
-        key = item["paths"][0] if item["paths"] else item["name"]
-        if key not in seen:
-            seen.add(key)
-            best.append(item)
+        # A `(+ test)` page shares its subject's entry but not its slot.
+        entry = (item["source"], item["line"], item["test"])
+        if item["page"] not in seen and entry not in seen:
+            seen |= {item["page"], entry}
+            best.append({k: item[k] for k in ("page", "name", "note", "section", "source", "score")}
+                        | {"also": [p for p in item["paths"] if p != item["page"]][:4]})
     return best[:limit]
+
+
+def _slug(heading: str) -> str:
+    """GitHub's heading anchor: lowercase, punctuation dropped, spaces to hyphens."""
+    return re.sub(r"[^\w\- ]", "", heading.strip().lower()).replace(" ", "-")
 
 
 def render(text: str, block: str) -> str:
@@ -268,13 +364,13 @@ def main() -> int:
         sys.stdout.write(fresh)
         return 0
     if a.find:
-        hits = find(current, a.find, a.limit)
+        hits = find(root, a.find, a.limit)
         if a.json:
             print(json.dumps(hits, indent=2))
         for hit in [] if a.json else hits:
-            path = hit["paths"][0] if hit["paths"] else "-"
-            also = f"\n    also: {', '.join(hit['paths'][1:5])}" if len(hit["paths"]) > 1 else ""
-            print(f"{path}\n    {hit['name']}: {hit['note'][:160]}{also}\n    [{hit['section']}]")
+            also = f"\n    also: {', '.join(hit['also'])}" if hit["also"] else ""
+            where = hit["section"] or hit["source"]
+            print(f"{hit['page']}\n    {hit['name']}: {hit['note'][:160]}{also}\n    [{where}]")
         return 0 if hits else 1
     if a.check:
         issues = problems(root, current, files)

@@ -135,3 +135,41 @@ page without opening and screening files one by one. TASK-141 made it complete
 - Diátaxis labels: when wrong-type pages are opened repeatedly.
 - Cost column per hit (repomix token tree): when agents need a byte budget.
 - Graph ranking (aider): when `--find` misranks a seeded intent.
+
+## TASK-145 — validation to a measured dictionary
+
+Run `RUN-20261025T000650Z-31d7b9f9`. TASK-144 was validated before it was
+called final, and it was not: 18 of 32 owner queries ranked first (56%), 165
+tracked files were unlinked, and one note sampled in six was wrong.
+
+| Gap found | Fix |
+|---|---|
+| `--find` read only the sitemap | Federates `project-memory/MEMORY.md`, the Kelola `MEMORY.md`, and `skills/local/README.md`; each keeps its one index |
+| Grouped entries hid pages | Every link is its own candidate; each entry yields one result, others under `also:` |
+| Environment, CI, OMP/Pi, hooks, evals, skill commands, helpers, tests unlinked | Linked with notes from their sources; coverage gate grew from 371 to 517 members, any tracked file outside every collection now fails, and the Kelola pack is checked against its own index |
+| Notes contradicted sources | Audited every command note against its header: six were wrong (`mutation-sweep`, `release-check`, `release-manifest`, `device-verify`, `skill-surface-check`, `omp-runtime-report`) and more than a dozen vague or missing their source vocabulary; five durable-memory notes rewritten |
+| Ranking defects | Stopwords; name substring (`sync` finds `dotsync`); idempotent stems (`workers` met `worker` never); tests halve unless asked; historical or retired pages halve (Backstage `lifecycle`) |
+| Same-page anchors unchecked | `--check` validates `#anchor` links against GitHub heading slugs, skipping fences and suffixing repeats |
+| Independent review (second) | Caught an untestable lifecycle case, live pages demoted by a word in their note, uncovered file classes, and fence or duplicate anchors; each fixed with a regression case |
+
+Ranking rules were chosen by a grid over the tuning queries, keeping the
+simplest best option. A stem bonus and a breadth multiplier were tried and
+rejected because they lowered accuracy. Non-English synonyms are out of scope:
+the map stays English.
+
+| Query set | Before fixes | After fixes |
+|---|---|---|
+| Tuning, 40 queries | 33 first, 39 top 3 | 36 first, 40 top 3 |
+| Held-out 1, 20 queries | 15 first, 17 top 3 | 18 first, 20 top 3 |
+| Held-out 2, 12 queries, measured once before any change | 8 first, 10 top 3 | (content fixes only) |
+| All 72, locked in `system-map-test` | — | 65 first (90.3%), 72 top 3 |
+
+Held-out 2 is the honest estimate for unseen queries: about two in three first
+and five in six in the top three. One of its misses was a wrong expectation
+created by the old, wrong `skill-surface-check` note. The seven remaining
+first-place misses each have two defensible owners.
+
+Every new rule was mutation-checked: removing stopwords, entry-once, lifecycle,
+test slots, substring, federation, stem stability, environment coverage, index
+ownership, or test demotion turns `system-map-test` red. The live query check
+runs in-process (the suite takes about 8 seconds).

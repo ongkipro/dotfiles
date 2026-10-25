@@ -13,7 +13,7 @@ Only the dependency edge is human-authored; state is derived.
 
 ## Done
 
-- TASK-141, TASK-139: [System-map coverage gate and memory hygiene](docs/archive/DOTFILES_TASKS_2026-10-25_SYSTEM_MAP.md).
+- TASK-144, TASK-141, TASK-139: [System-map queryability, coverage gate, and memory hygiene](docs/archive/DOTFILES_TASKS_2026-10-25_SYSTEM_MAP.md).
 
 - TASK-138, TASK-137: [Development-kit audit and eval guidance provenance](docs/archive/DOTFILES_TASKS_2026-10-25_DEVELOPMENT_KIT.md).
 
@@ -34,6 +34,20 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 - TASK-134, TASK-133: [Verified automation, skill audit, and system map](docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md).
 
 ## Pending
+
+### TASK-145: System map as a complete, measured dictionary
+
+- **Requirement:** REQ-SYSTEM-MAP-ACCURACY (owner 2026-10-25: validate the map until it is final as the system dictionary; the map stays English).
+- **Risk Level:** R2.
+- **Allowed Paths:** `bin/system-map`, `bin/system-map-test`, `docs/DOTFILES_SITEMAP.md`, `docs/research/system-map-references-2026-10-25.md`, `TASKS.md`, `CHANGELOG.md`, `STATUS.md`, `docs/archive/DOTFILES_TASKS_2026-10-25_SYSTEM_MAP.md`.
+- **Protected Paths:** pre-existing dirty work; CORE and adapters; the federated indexes (read only).
+- **Canonical Contract Owners:** sitemap -> `system-map`; project memory -> `MEMORY.md`; skills -> `skill-map`.
+- **Accepted Invariants:** `--find` federates existing indexes, never copies them; every link is its own candidate; coverage extends to environment, CI, skill tools, and research; notes are re-audited against sources.
+- **Regression Checks:** `system-map-test` (with a live query set: 100% top-3, >=90% top-1), `system-map --check`, `ai-policy-lint`, `skill-map --check`.
+- **Runtime Evidence:** the 26-query English set from the TASK-144 validation, rerun and extended.
+- **Non-Scope:** non-English synonyms; embeddings or external search; commit/push.
+- **Reopen Conditions:** the live query set drops below threshold, or a tracked environment file is unlinked.
+- **Escalation Conditions:** a federated index needs a format change.
 
 ### TASK-140: Codex decision trial (not before 2026-10-31)
 
@@ -68,20 +82,6 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 - **Non-Scope:** other macOS checks; CI workflow changes unless the cause lives there; commit/push.
 - **Reopen Conditions:** the test fails again on macOS after the fix.
 - **Escalation Conditions:** the failure cannot be reproduced after repeated macOS runs.
-
-### TASK-144: Queryable system map (intent index, `find`, invariants)
-
-- **Requirement:** REQ-SYSTEM-MAP-ACCURACY (owner 2026-10-25: the sitemap is a development dictionary like sitemap.xml, so engineers and AI reach the exact page without screening files one by one; study GitHub references and adopt what fits).
-- **Risk Level:** R2.
-- **Allowed Paths:** `bin/system-map`, `bin/system-map-test`, `docs/DOTFILES_SITEMAP.md`, `docs/research/system-map-references-2026-10-25.md`, `TASKS.md`, `CHANGELOG.md`, `STATUS.md`.
-- **Protected Paths:** pre-existing dirty work; CORE and adapters.
-- **Canonical Contract Owners:** sitemap -> `system-map`; references -> `docs/research/system-map-references-2026-10-25.md`.
-- **Accepted Invariants:** the sitemap stays the single map (no rival index, cache, or generated file); `find` reads it read-only; entries keep the llms.txt `[name](path): note` shape; every entry carries a note.
-- **Regression Checks:** `system-map-test`, `system-map --check`, `ai-policy-lint`, `skill-map --check`.
-- **Runtime Evidence:** `system-map find` returns the owning page first for seeded intents; `--check` fails on an entry without a note.
-- **Non-Scope:** symbol graphs and PageRank (owned by `codebase-navigation`); Diátaxis labels; external portal; commit/push.
-- **Reopen Conditions:** a seeded intent stops returning its owner first, or a noteless entry passes the check.
-- **Escalation Conditions:** the change needs CORE, a new dependency, or a provider call.
 
 ### TASK-097: Mutation gaps left after TASK-080
 

@@ -52,7 +52,9 @@ build() {
 
 - [`core.md`](../config/ai/memory/core.md), [`MEMORY.md`](../config/ai/project-memory/MEMORY.md): memory pages.
 - [`demo`](../skills/local/demo/SKILL.md), [`tool`](../bin/tool), [`host.md`](../devices/host.md): demo skill.
-- [`tool`](../bin/tool): release gate command.
+- [`tool`](../bin/tool) (+ [`test`](../bin/tool-test)): release gate command.
+- [`_helper`](../bin/_helper): sourced helper.
+- [`devices`](../devices/README.md): device index.
 - [`PRD.md`](../config/templates/PRD.md), [`guide.md`](../docs/guide.md#top), [site](https://example.com):
   continued note about the product guide.
 
@@ -133,21 +135,155 @@ run --find tool --json | python3 -c 'import json,sys; h=json.load(sys.stdin); as
   && ok "Quick find intent outranks its dictionary entry" || fail "intent did not rank first"
 run --find product guide --json | python3 -c 'import json,sys; h=json.load(sys.stdin); assert "continued note" in h[0]["note"], h' \
   && ok "indented continuation joins the note" || fail "continuation line lost"
-run --find laptop --json | python3 -c 'import json,sys; h=json.load(sys.stdin); assert h[0]["paths"]==["devices/host.md"], h' \
+run --find laptop --json | python3 -c 'import json,sys; h=json.load(sys.stdin); assert h[0]["page"]=="devices/host.md", h' \
   && ok "table rows are entries" || fail "table row not found"
 first="$(run --find laptop hardware tool | head -1)"
 [ "$first" = "devices/host.md" ] && ok "more matched terms beat a higher single-term score" \
   || fail "breadth ranking top hit: $first"
-run --find spare parts --json | python3 -c 'import json,sys; h=json.load(sys.stdin); assert h[0]["name"]=="Device pack" and h[0]["paths"]==["devices/host.md","config/templates/PRD.md"], h' \
-  && ok "labelled item is an entry named by its label" || fail "labelled item missed"
-run --find docs relative --json | python3 -c 'import json,sys; h=json.load(sys.stdin); assert h[0]["paths"]==["bin/tool","docs/guide.md"], h' \
+run --find pack prd --json | python3 -c 'import json,sys; h=json.load(sys.stdin); assert h[0]["page"]=="config/templates/PRD.md" and h[0]["name"]=="Device pack PRD.md" and h[0]["also"]==["devices/host.md"], h' \
+  && ok "a grouped page is found by its own name, with its label" || fail "labelled item missed"
+run --find read guide --json | python3 -c 'import json,sys; h=json.load(sys.stdin); assert h[0]["page"]=="bin/tool" and h[0]["also"]==["docs/guide.md"], h' \
   && ok "paths keep link order, including docs-relative links" || fail "path order wrong"
 run --find spare parts | grep -q '^    also: config/templates/PRD.md$' \
   && ok "text output lists the other pages" || fail "also line missing"
 run --find fenced >/dev/null 2>&1; [ $? -eq 1 ] && ok "code fences are not entries" || fail "fenced link parsed"
 run --find sprocket --json | python3 -c 'import json,sys; h=json.load(sys.stdin); assert h[0]["section"].endswith("Deep heading"), h' \
   && ok "deeper headings set the section" || fail "#### heading ignored"
+run --find a note --json | python3 -c 'import json,sys; h=json.load(sys.stdin); assert h[0]["page"]=="config/ai/project-memory/note.md" and h[0]["note"]=="a note.", h' \
+  && ok "find federates MEMORY.md and reads its dash notes" || fail "MEMORY.md entry not found"
+first="$(run --find too --limit 1 | head -1)"
+[ "$first" = "bin/tool" ] && ok "a term matches inside a longer name" || fail "substring name hit: $first"
+build; mkdir -p "$FIX/config/ai/project-memory-kelola"; printf '# k\n' > "$FIX/config/ai/project-memory-kelola/k.md"
+printf '# Kelola\n' > "$FIX/config/ai/project-memory-kelola/MEMORY.md"
+printf -- '- [`kelola`](../config/ai/project-memory-kelola/MEMORY.md): pack index.\n' >> "$FIX/docs/DOTFILES_SITEMAP.md"; track; run >/dev/null; track
+expect_fail "a pack member missing from its own index fails" "k.md is not listed in config/ai/project-memory-kelola/MEMORY.md"
+build; mkdir -p "$FIX/config/vim"; printf 'set nu\n' > "$FIX/config/vim/vimrc"; track; run >/dev/null; track
+expect_fail "an unlinked environment file fails" "config/vim/vimrc is tracked but not linked"
+build; printf '#!/bin/sh\n' > "$FIX/bin/other-test"; track; run >/dev/null; track
+expect_fail "an unlinked command test fails" "bin/other-test is tracked but not linked"
+
+build; printf -- '- [Jump](#tools): to the tools.\n- [Gone](#nowhere): missing.\n' >> "$FIX/docs/DOTFILES_SITEMAP.md"; track
+expect_fail "a same-page anchor without a heading fails" "links #nowhere, which no heading"
+run --check 2>&1 | grep -q "#tools" && fail "a valid anchor was rejected" || ok "a valid anchor passes"
+
+build; mkdir -p "$FIX/scripts"; printf 'x\n' > "$FIX/scripts/new.sh"; track
+expect_fail "a file in no collection fails" "scripts/new.sh is tracked but belongs to no collection"
+build; printf '## Tools\n\n```text\n## Fenced\n```\n\n- [A](#tools-1): second tools heading.\n- [B](#fenced): fenced heading.\n' >> "$FIX/docs/DOTFILES_SITEMAP.md"; track
+out="$(run --check 2>&1)"; grep -q "#tools-1" <<<"$out" && fail "duplicate heading suffix rejected" || ok "a repeated heading gets GitHub's -1 anchor"
+grep -q "#fenced, which no heading" <<<"$out" && ok "a heading inside a fence is not an anchor" || fail "fenced heading treated as anchor"
+
+build
+run --find where is the zzzunknown >/dev/null 2>&1; [ $? -eq 1 ] && ok "stopwords alone match nothing" \
+  || fail "a stopword matched an entry"
+printf -- '- **Historical:** [`old-gate`](../docs/archive/old.md): wicket gate.\n' >> "$FIX/docs/DOTFILES_SITEMAP.md"
+printf -- '- [`new-gate`](../docs/guide.md): wicket gate.\n' >> "$FIX/docs/DOTFILES_SITEMAP.md"
+run --find wicket --json | python3 -c 'import json,sys; n=[h["page"] for h in json.load(sys.stdin)]; assert n[:2]==["docs/guide.md","docs/archive/old.md"], n' \
+  && ok "a historical page ranks below a live one" || fail "historical page outranked a live one"
+build
 run --find zzzunknown >/dev/null 2>&1; [ $? -eq 1 ] && ok "no match exits 1" || fail "no match did not exit 1"
+
+python3 - "$MAP" <<'STEMS' && ok "stems are stable: workers, worker and routes, router meet" || fail "stemming is not idempotent"
+import importlib.machinery, importlib.util, sys
+loader = importlib.machinery.SourceFileLoader("system_map", sys.argv[1])
+m = importlib.util.module_from_spec(importlib.util.spec_from_loader("system_map", loader)); loader.exec_module(m)
+assert m._stem("workers") == m._stem("worker") and m._stem("routes") == m._stem("router") == m._stem("routing")
+STEMS
+
+# Live ranking contract: each query names the page an engineer or agent means.
+# Every owner must be in the top three, and at least 90% must be first. The
+# remaining first-place misses have two defensible owners (e.g. the cloudflare
+# entry skill versus workers-best-practices). Tune notes before weights.
+python3 - "$MAP" "$ROOT" <<'QUERIES' && ok "live query set: owners in top 3, >=90% first" || fail "live query set below threshold"
+import importlib.machinery, importlib.util, sys
+from pathlib import Path
+mapper, root = sys.argv[1:3]
+loader = importlib.machinery.SourceFileLoader("system_map", mapper)
+module = importlib.util.module_from_spec(importlib.util.spec_from_loader("system_map", loader))
+loader.exec_module(module)
+rows = [line.split("\t") for line in """
+memory routing	config/ai/memory-router.json
+approval gates	config/ai/CORE.md
+change claude only behavior	config/ai/adapters/claude.md
+risk tier diff	bin/diff-risk
+start new project	bin/project-init
+production deploy gate	bin/production-gate
+secrets env	bin/secrets-env
+git force push blocked	config/ai/hooks/git-guard.sh
+seo skill	skills/local/seo-website-builder/SKILL.md
+shopify hydrogen	skills/local/hydrogen-development/SKILL.md
+meta pixel capi	skills/local/meta-ads-signal-engine/SKILL.md
+tmux config	config/tmux.conf
+helix editor	config/helix/config.toml
+ci workflow	.github/workflows/core-runtime.yml
+install dotfiles	install.sh
+sync devices	bin/dotsync
+register device	bin/device-register
+tokophi deploy	config/ai/project-memory/tokophi-deploy-workflow.md
+kelola nginx patch	config/ai/project-memory-kelola/feedback_deploy_nginx_patch.md
+formalinads malaysia gateway	config/ai/project-memory/formalinads-malaysia-gateway.md
+mcp servers sync	bin/ai-mcp-sync
+record lesson	bin/ai-learn
+task queue	TASKS.md
+current status	STATUS.md
+health check	bin/ai-doctor
+omp config	config/omp/config.yml
+session restore hook	config/ai/hooks/session-restore.sh
+remove skill	skills/agents-bin/skill-remove
+lazygit	config/lazygit/config.yml
+starship prompt	config/starship.toml
+wsl config	docs/.wslconfig.template
+daily health timer	config/systemd/ai-health-daily.timer
+pi settings	config/pi/settings.json
+planning artifacts	config/ai/policies/planning-artifacts.md
+rendered context claude	config/ai/context/claude.md
+kelola deploy skill	skills/local/kelola-deploy/SKILL.md
+coolify vps	config/ai/project-memory/coolify-vps-dev.md
+stripe payments	skills/local/stripe-best-practices/SKILL.md
+cloudflare workers	skills/local/workers-best-practices/SKILL.md
+mutation test	bin/mutation-sweep
+backup postgres vps	bin/vps-pgdump
+rollback evidence	bin/rollback-check
+migration schema risk	bin/migration-risk
+where am i resume	bin/resume-brief
+daily health report	bin/ai-health-daily
+second opinion another cli	bin/ai-ask
+agent architect role	config/omp/agents/architect.md
+gh cli config	config/gh/config.yml
+global gitignore	config/gitignore_global
+mise toolchain versions	config/mise-config.toml
+skill symlinks	skills/agents-bin/skill-update
+new skill	skills/agents-bin/skill-new
+decision eval scenarios	config/ai/evals/workflow-scenarios.json
+supabase	skills/local/supabase-stack/SKILL.md
+tiktok pixel	skills/local/tiktok-ads-signal-engine/SKILL.md
+prd template	config/templates/PRD.md
+architecture decision record	skills/local/adr-record/SKILL.md
+claude hooks declarations	config/ai/claude-hooks.json
+lesson inbox harvest	bin/ai-memory-harvest
+reverse engineer apk	skills/local/black-magic/SKILL.md
+clipboard tmux copy	bin/tmux-clip
+battery status bar	bin/tmux-battery
+language servers editor	config/helix/languages.toml
+meta ads deploy campaign	bin/dotads-meta
+9router api key migrate	bin/9router-credential-migrate
+skill description budget	skills/agents-bin/skill-check
+memory retention pruning	bin/ai-memory-lifecycle
+openapi spec	skills/local/openapi-spec/SKILL.md
+security review webhook	skills/local/application-security/SKILL.md
+domain map skills	skills/local/README.md
+fd ignore	config/fd-ignore
+windows debloat	docs/win-debloat.ps1
+""".strip().splitlines()]
+top1 = top3 = 0
+for query, want in rows:
+    pages = [hit["page"] for hit in module.find(Path(root), query.split(), 3)]
+    top1 += pages[:1] == [want]
+    top3 += want in pages
+    if want not in pages:
+        print(f"  not in top 3: {query!r} -> {pages}", file=sys.stderr)
+print(f"  live queries: {top1}/{len(rows)} first, {top3}/{len(rows)} top 3")
+sys.exit(0 if top3 == len(rows) and top1 >= 0.9 * len(rows) else 1)
+QUERIES
 
 out="$(python3 "$MAP" --root "$ROOT" --check 2>&1)" && ok "repository sitemap passes" \
   || fail "repository sitemap: $out"
