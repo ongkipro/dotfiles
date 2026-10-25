@@ -89,6 +89,14 @@ const VALID_CTAS = new Set([
   "WATCH_MORE",
 ]);
 
+const VALID_AD_FORMATS = new Set([
+  "AUTOMATIC_FORMAT",
+  "CAROUSEL",
+  "COLLECTION",
+  "SINGLE_IMAGE",
+  "SINGLE_VIDEO",
+]);
+
 const ZERO_DECIMAL_CURRENCIES = new Set([
   "CLP",
   "CRC",
@@ -105,6 +113,89 @@ const ZERO_DECIMAL_CURRENCIES = new Set([
 
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"]);
 const VIDEO_EXTENSIONS = new Set([".mp4", ".mov", ".avi", ".mkv", ".wmv"]);
+
+// Strict Indonesia (ID) vs Malaysia (MY) market lexical guard:
+// Flags Malaysian Malay vocabulary when an ad set targets Indonesia ("ID").
+const MALAYSIAN_LEXICAL_LEAKS_FOR_ID = [
+  { pattern: /\bpercuma\b/i, term: "percuma", idReplacement: "gratis / cuma-cuma ('percuma' means 'sia-sia/useless' in Indonesia)" },
+  { pattern: /\bpenghantaran\b/i, term: "penghantaran", idReplacement: "pengiriman / ongkir" },
+  { pattern: /\bdiskaun\b/i, term: "diskaun", idReplacement: "diskon / potongan harga" },
+  { pattern: /\btempah(?:an)?\b/i, term: "tempah/tempahan", idReplacement: "pesan / pesanan" },
+  { pattern: /\b(?:wang dikembalikan|pulangan wang)\b/i, term: "wang dikembalikan / pulangan wang", idReplacement: "garansi uang kembali" },
+  { pattern: /\bsila layari\b/i, term: "sila layari", idReplacement: "kunjungi / cek di" },
+  { pattern: /\bbila-bila masa\b/i, term: "bila-bila masa", idReplacement: "kapan saja" },
+  { pattern: /\btelefon\s+(?:bimbit|pintar)\b/i, term: "telefon bimbit/pintar", idReplacement: "HP / smartphone / ponsel" },
+  { pattern: /\bkaki\s*tangan\b/i, term: "kakitangan", idReplacement: "tim / staf / karyawan" },
+  { pattern: /\bkesan sampingan\b/i, term: "kesan sampingan", idReplacement: "efek samping" },
+  { pattern: /\bsaiz\b/i, term: "saiz", idReplacement: "ukuran / size" },
+];
+
+// Flags Indonesian-only vocabulary/slang when an ad set targets Malaysia ("MY").
+const INDONESIAN_LEXICAL_LEAKS_FOR_MY = [
+  { pattern: /\bgratis(?:\s+ongkir)?\b/i, term: "gratis / gratis ongkir", myReplacement: "percuma / penghantaran percuma" },
+  { pattern: /\bongkir\b/i, term: "ongkir", myReplacement: "kos penghantaran" },
+  { pattern: /\bdiskon\b/i, term: "diskon", myReplacement: "diskaun / potongan harga" },
+  { pattern: /\b(?:nggak|gak|enggak)\b/i, term: "nggak/gak/enggak", myReplacement: "tidak / tak" },
+  { pattern: /\bbanget\b/i, term: "banget", myReplacement: "sangat / sekali" },
+  { pattern: /\b(?:cewek|cowok)\b/i, term: "cewek/cowok", myReplacement: "wanita / lelaki" },
+  { pattern: /\bcelana\b/i, term: "celana", myReplacement: "seluar" },
+];
+
+// Meta Andromeda NLP & Lattice Ad Quality copy guard:
+// Meta Ads renders the native CTA button via `call_to_action` (SHOP_NOW / LEARN_MORE).
+// Stuffing primary text/headline with direct-click commands, WhatsApp redirects on website
+// conversion ads, or hard-sell CTA clutter wastes above-the-fold semantic tokens and triggers
+// engagement-bait / low-quality ad downranking.
+const SPAMMY_TEXT_CTA_PATTERNS = [
+  { pattern: /\bklik\s+(?:link|tautan|tombol)\s+di\s+bawah\b/i, label: "klik link/tombol di bawah" },
+  { pattern: /\bklik\s+di\s+sini\b/i, label: "klik di sini" },
+  { pattern: /\bclick\s+the\s+link\s+below\b/i, label: "click the link below" },
+  { pattern: /\b(?:chat|hubungi|klik|order\s+via|pesan\s+via)\s+(?:wa|whatsapp)\b/i, label: "direct WA/WhatsApp CTA in ad text" },
+  { pattern: /\b(?:wa|whatsapp)\s+sekarang\b/i, label: "WA/WhatsApp sekarang" },
+  { pattern: /\b(?:beli|order|checkout)\s+sekarang\s+juga\b/i, label: "beli/order sekarang juga" },
+];
+
+function extractAdsetCountries(as) {
+  const out = new Set();
+  if (typeof as?.targeting_countries === "string") {
+    for (const c of as.targeting_countries.split(",")) {
+      const code = c.trim().toUpperCase();
+      if (code) out.add(code);
+    }
+  } else if (Array.isArray(as?.targeting_countries)) {
+    for (const c of as.targeting_countries) {
+      const code = String(c || "").trim().toUpperCase();
+      if (code) out.add(code);
+    }
+  }
+  const geoCountries = as?.targeting?.geo_locations?.countries;
+  if (Array.isArray(geoCountries)) {
+    for (const c of geoCountries) {
+      const code = String(c || "").trim().toUpperCase();
+      if (code) out.add(code);
+    }
+  }
+  return out;
+}
+
+function collectCreativeTexts(cr) {
+  const texts = [];
+  for (const field of ["title", "body", "description"]) {
+    if (typeof cr?.[field] === "string" && cr[field].trim()) {
+      texts.push({ field, text: cr[field].trim() });
+    }
+  }
+  for (const field of ["titles", "bodies", "descriptions"]) {
+    if (Array.isArray(cr?.[field])) {
+      cr[field].forEach((val, idx) => {
+        if (typeof val === "string" && val.trim()) {
+          texts.push({ field: `${field}[${idx}]`, text: val.trim() });
+        }
+      });
+    }
+  }
+  return texts;
+}
 
 function usage(exitCode = 0) {
   const text = `Usage: dotads-meta <subcommand> [options]
@@ -136,6 +227,15 @@ Subcommands:
 
   run [--brand <brand.json>] [--token-env <NAME>] -- <meta args...>
       Run any meta CLI command with credentials injected in-memory from secrets-env.
+
+  learn <unit-economics|add|list> [options]
+      Maintain per-brand Meta Ads intelligence & unit-economics memory in memory/ads-memory.json
+      and memory/MEMORY.md (learn from 1st-party data, competitor references, outsource, and audits).
+
+  analyze [<insights.json>] [--pull] [--date-preset <preset>] [--delivery-rate <0..1>] [--brand <brand.json>] [--record-memory] [--json]
+      Analyze Meta Ads conversion insights (ROAS as North-Star, CPR/CPA, CTR, CPC, Hook Rate, Hold Rate,
+      CVR, Frequency, Net Profit, and Backend/COD Reconciliation) against brand unit economics,
+      detect MONITOR_EARLY & CREATIVE_FATIGUE, and output Day-2 scaling / stop-loss CLI plans.
 `;
   if (exitCode === 0) {
     process.stdout.write(text);
@@ -385,6 +485,11 @@ function validateManifests(campaignPath, explicitBrandPath) {
     if (campaign.bid_strategy && !VALID_BID_STRATEGIES.has(campaign.bid_strategy)) {
       errors.push(`campaign: invalid 'bid_strategy' '${campaign.bid_strategy}'.`);
     }
+    if (campaign.smart_promotion_type !== undefined && campaign.smart_promotion_type !== null && campaign.smart_promotion_type !== "") {
+      errors.push(
+        `campaign: 'smart_promotion_type' ('${campaign.smart_promotion_type}') is deprecated/blocked in Meta Marketing API v25.0–v26.0. Use Unified Advantage+ campaign architecture (standard objective + CBO budget + "advantage_audience": true on the ad set).`
+      );
+    }
   }
 
   // Validate creatives
@@ -408,6 +513,20 @@ function validateManifests(campaignPath, explicitBrandPath) {
     }
     if (cr.call_to_action && !VALID_CTAS.has(cr.call_to_action)) {
       errors.push(`${label}: invalid 'call_to_action' '${cr.call_to_action}'.`);
+    }
+    if (cr.ad_format && !VALID_AD_FORMATS.has(cr.ad_format)) {
+      errors.push(
+        `${label}: invalid 'ad_format' '${cr.ad_format}' (must be one of ${Array.from(VALID_AD_FORMATS).join(", ")}).`
+      );
+    }
+    if (
+      cr.degrees_of_freedom_spec &&
+      typeof cr.degrees_of_freedom_spec === "object" &&
+      cr.degrees_of_freedom_spec?.creative_features_spec?.standard_enhancements !== undefined
+    ) {
+      warnings.push(
+        `${label}: 'creative_features_spec.standard_enhancements' bundle is deprecated in Meta Graph API v22.0+; prefer granular keys (image_touchups, image_templates, video_auto_crop, text_optimizations, inline_comment, background_generation, image_expansion, text_generation).`
+      );
     }
 
     const isDco =
@@ -616,10 +735,27 @@ function validateManifests(campaignPath, explicitBrandPath) {
       }
     }
 
+    if (Array.isArray(as.attribution_spec)) {
+      for (const spec of as.attribution_spec) {
+        if (
+          spec &&
+          typeof spec === "object" &&
+          String(spec.event_type || "").toUpperCase() === "VIEW_THROUGH" &&
+          (Number(spec.window_days) === 7 || Number(spec.window_days) === 28)
+        ) {
+          errors.push(
+            `${label}: attribution_spec VIEW_THROUGH window_days=${spec.window_days} (7d_view/28d_view) is deprecated in Meta Marketing API; use window_days=1 (1d_view) alongside CLICK_THROUGH (1d/7d) or ENGAGED_VIEW (1d).`
+          );
+        }
+      }
+    }
+
     adsetMap.set(key, { ...as, _key: key });
   }
 
   // Validate ads
+  const dcoAdsetUsageCount = new Map();
+  const creativeCountriesMap = new Map();
   for (let i = 0; i < ads.length; i++) {
     const ad = ads[i];
     const key = ad.key || ad.name;
@@ -641,10 +777,26 @@ function validateManifests(campaignPath, explicitBrandPath) {
     const resolvedAdset = adsetRef ? adsetMap.get(adsetRef) : null;
     const resolvedCreative = creativeRef ? creativeMap.get(creativeRef) : null;
 
-    if (resolvedCreative?._isDco && resolvedAdset && !resolvedAdset.dynamic_creative) {
+    if (resolvedCreative && resolvedAdset) {
+      if (!creativeCountriesMap.has(creativeRef)) {
+        creativeCountriesMap.set(creativeRef, new Set());
+      }
+      const countrySet = creativeCountriesMap.get(creativeRef);
+      for (const c of extractAdsetCountries(resolvedAdset)) {
+        countrySet.add(c);
+      }
+    }
+
+    const isFlexibleCreative = Boolean(
+      resolvedCreative?.ad_format === "AUTOMATIC_FORMAT" || resolvedCreative?.asset_feed_spec
+    );
+    if (resolvedCreative?._isDco && resolvedAdset && !resolvedAdset.dynamic_creative && !isFlexibleCreative) {
       errors.push(
-        `${label}: creative '${creativeRef}' uses DCO multi-asset fields, so ad set '${adsetRef}' must set "dynamic_creative": true.`
+        `${label}: creative '${creativeRef}' uses DCO multi-asset fields, so either ad set '${adsetRef}' must set "dynamic_creative": true (classic DCO) or creative '${creativeRef}' must set "ad_format": "AUTOMATIC_FORMAT" (Flexible Ad Format).`
       );
+    }
+    if (resolvedAdset?.dynamic_creative) {
+      dcoAdsetUsageCount.set(adsetRef, (dcoAdsetUsageCount.get(adsetRef) || 0) + 1);
     }
 
     const conversionDomain = ad.conversion_domain || brand?.conversion_domain;
@@ -658,6 +810,92 @@ function validateManifests(campaignPath, explicitBrandPath) {
       );
     }
   }
+
+  for (const [adsetKey, count] of dcoAdsetUsageCount.entries()) {
+    if (count > 1) {
+      errors.push(
+        `adset '${adsetKey}' has "dynamic_creative": true and cannot be referenced by more than 1 ad (got ${count}); Meta API allows only 1 ad per DCO ad set. Either keep 1 ad per DCO ad set or use ad-level Flexible Format ("ad_format": "AUTOMATIC_FORMAT" on creatives with "dynamic_creative": false on the ad set).`
+      );
+    }
+  }
+
+  // Ad copy Andromeda NLP quality, viewport truncation, UTM attribution & market localization (ID <-> MY) checks
+  const fallbackCampaignCountries = new Set();
+  for (const as of adsets) {
+    for (const c of extractAdsetCountries(as)) fallbackCampaignCountries.add(c);
+  }
+  for (let i = 0; i < creatives.length; i++) {
+    const cr = creatives[i];
+    const key = cr.key || cr.name;
+    const label = `creatives[${i}] (${key || "unnamed"})`;
+    const targetCountries = creativeCountriesMap.get(key) || fallbackCampaignCountries;
+    const targetsIndonesiaOnly = targetCountries.has("ID") && !targetCountries.has("MY");
+    const targetsMalaysiaOnly = targetCountries.has("MY") && !targetCountries.has("ID");
+    const textEntries = collectCreativeTexts(cr);
+
+    if (
+      campaign?.objective === "OUTCOME_SALES" &&
+      cr.link_url &&
+      !cr.url_tags &&
+      !String(cr.link_url).includes("utm_")
+    ) {
+      warnings.push(
+        `${label}: missing 'url_tags' (e.g. "utm_source=meta&utm_medium=paid_social&utm_campaign=...&utm_content={{ad.id}}") for backend ROAS reconciliation.`
+      );
+    }
+
+    for (const { field, text } of textEntries) {
+      if (field.startsWith("title") && text.length > 40) {
+        warnings.push(
+          `${label}.${field}: headline length (${text.length} chars) exceeds the 40-char mobile Feed truncation threshold.`
+        );
+      }
+      if (field.startsWith("description") && text.length > 30) {
+        warnings.push(
+          `${label}.${field}: description length (${text.length} chars) exceeds the 30-char mobile Feed truncation threshold.`
+        );
+      }
+      for (const rule of SPAMMY_TEXT_CTA_PATTERNS) {
+        if (rule.pattern.test(text)) {
+          warnings.push(
+            `${label}.${field}: contains pushy/off-funnel CTA text ('${rule.label}'). Meta Ads already renders the native 'call_to_action' button; Andromeda NLP and Lattice Ad Quality reward benefit-, mechanism-, and proof-led copy over direct-click/WhatsApp CTA clutter.`
+          );
+        }
+      }
+      if (targetsIndonesiaOnly) {
+        for (const leak of MALAYSIAN_LEXICAL_LEAKS_FOR_ID) {
+          if (leak.pattern.test(text)) {
+            warnings.push(
+              `${label}.${field}: targets Indonesia ('ID') but contains Malaysian Malay term '${leak.term}'. Use natural Bahasa Indonesia for the Indonesian market instead: ${leak.idReplacement}.`
+            );
+          }
+        }
+      }
+      if (targetsMalaysiaOnly) {
+        for (const leak of INDONESIAN_LEXICAL_LEAKS_FOR_MY) {
+          if (leak.pattern.test(text)) {
+            warnings.push(
+              `${label}.${field}: targets Malaysia ('MY') but contains Indonesian term/slang '${leak.term}'. Use natural Malaysian Malay for the Malaysian market instead: ${leak.myReplacement}.`
+            );
+          }
+        }
+      }
+    }
+  }
+
+  const allAdvantageAudience = adsets.length > 0 && adsets.every((a) => a.advantage_audience === true);
+  let advantageStateCandidate = "MANUAL_OR_HYBRID";
+  if (isCbo && allAdvantageAudience) {
+    if (campaign?.objective === "OUTCOME_SALES") advantageStateCandidate = "ADVANTAGE_PLUS_SALES";
+    else if (campaign?.objective === "OUTCOME_LEADS") advantageStateCandidate = "ADVANTAGE_PLUS_LEADS";
+    else if (campaign?.objective === "OUTCOME_APP_PROMOTION") advantageStateCandidate = "ADVANTAGE_PLUS_APP";
+  }
+  const algorithmAlignment = {
+    advantageStateCandidate,
+    incrementalAttributionAdsets: adsets.filter((a) => a.incremental_attribution === true).length,
+    totalAdsets: adsets.length,
+    distinctCreatives: creatives.length,
+  };
 
   return {
     ok: errors.length === 0,
@@ -673,6 +911,7 @@ function validateManifests(campaignPath, explicitBrandPath) {
     isFlex,
     budgets,
     mediaFiles,
+    algorithmAlignment,
   };
 }
 
@@ -1146,11 +1385,15 @@ function cmdInit(argv) {
   const root = path.resolve(targetDir);
   const campaignsDir = path.join(root, "campaigns");
   const mediaDir = path.join(root, "media");
+  const memoryDir = path.join(root, "memory");
   fs.mkdirSync(campaignsDir, { recursive: true });
   fs.mkdirSync(mediaDir, { recursive: true });
+  fs.mkdirSync(memoryDir, { recursive: true });
 
   const brandPath = path.join(root, "brand.json");
   const sampleCampaignPath = path.join(campaignsDir, "sample-campaign.json");
+  const memoryJsonPath = path.join(memoryDir, "ads-memory.json");
+  const memoryMdPath = path.join(memoryDir, "MEMORY.md");
   const gitignorePath = path.join(root, ".gitignore");
   const mediaPlaceholderPath = path.join(mediaDir, ".gitkeep");
 
@@ -1228,6 +1471,15 @@ function cmdInit(argv) {
     skipped.push(sampleCampaignPath);
   }
 
+  if (!fs.existsSync(memoryJsonPath) || force) {
+    const initialMemory = defaultAdsMemory(path.basename(root));
+    saveAdsMemory(root, initialMemory);
+    created.push(memoryJsonPath);
+    created.push(memoryMdPath);
+  } else {
+    skipped.push(memoryJsonPath);
+  }
+
   const ignoreLines = [".meta-state.json",
     ".dotads-meta.lock/", ".env", ".env.*"];
   let existingIgnore = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, "utf8") : "";
@@ -1284,6 +1536,7 @@ function cmdValidate(argv) {
           brandPath: res.brandPath,
           campaignPath: res.campaignPath,
           mode: res.isCbo ? "CBO" : res.isFlex ? "FLEX" : "ABO",
+          algorithmAlignment: res.algorithmAlignment,
           budgets: res.budgets,
           mediaFiles: Object.values(res.mediaFiles),
         },
@@ -1305,6 +1558,9 @@ function cmdValidate(argv) {
   console.log(`Validation PASSED for ${res.campaignPath}`);
   console.log(`  Brand config : ${res.brandPath} (${res.brand.ad_account_id})`);
   console.log(`  Budget mode  : ${res.isCbo ? "CBO (Campaign Budget)" : res.isFlex ? "FLEX (Ad Set Budget Sharing)" : "ABO (Ad Set Budget)"}`);
+  console.log(
+    `  Advantage+   : ${res.algorithmAlignment.advantageStateCandidate} (incremental_attribution: ${res.algorithmAlignment.incrementalAttributionAdsets}/${res.algorithmAlignment.totalAdsets} ad sets, ${res.algorithmAlignment.distinctCreatives} creative(s))`
+  );
   for (const b of res.budgets) {
     console.log(`  Budget       : [${b.scope}] ${b.type} = ${b.formatted}`);
   }
@@ -1312,6 +1568,9 @@ function cmdValidate(argv) {
   console.log(`  Media files  : ${mediaList.length} verified on disk`);
   for (const m of mediaList) {
     console.log(`    - ${path.relative(res.workspaceDir, m.path)} (${m.kind}, ${m.bytes} bytes, sha256:${m.sha256.slice(0, 12)})`);
+  }
+  for (const w of res.warnings) {
+    console.log(`  ⚠ Warning    : ${w}`);
   }
 }
 
@@ -1846,6 +2105,746 @@ function cmdRun(argv) {
   process.exit(res.status ?? 1);
 }
 
+const VALID_LEARN_SOURCES = new Set([
+  "audit",
+  "competitor",
+  "data",
+  "experiment",
+  "outsource",
+  "reference",
+]);
+
+const VALID_LEARN_CATEGORIES = new Set([
+  "angle",
+  "audience",
+  "bidding",
+  "format",
+  "hook",
+  "landing-page",
+  "offer",
+  "unit-economics",
+]);
+
+const VALID_LEARN_VERDICTS = new Set(["insight", "loser", "rule", "winner"]);
+
+function computeUnitEconomics(input) {
+  const aov = Number(input.aov);
+  const cogs = Number(input.cogs);
+  const shippingFee = Number(input.shipping_fee ?? 0);
+  const codRtsRate = Number(input.cod_rts_rate ?? 0);
+  const rtsPenalty = Number(input.rts_penalty ?? shippingFee);
+  const targetMargin = Number(input.target_margin ?? 0.2);
+
+  if (!Number.isFinite(aov) || aov <= 0) throw new Error("unit-economics requires a positive --aov.");
+  if (!Number.isFinite(cogs) || cogs < 0 || cogs >= aov) {
+    throw new Error("unit-economics requires --cogs >= 0 and < --aov.");
+  }
+  if (!Number.isFinite(shippingFee) || shippingFee < 0) {
+    throw new Error("unit-economics requires --shipping-fee >= 0.");
+  }
+  if (!Number.isFinite(codRtsRate) || codRtsRate < 0 || codRtsRate >= 1) {
+    throw new Error("unit-economics requires --cod-rts-rate between 0 and 0.99.");
+  }
+  if (!Number.isFinite(rtsPenalty) || rtsPenalty < 0) {
+    throw new Error("unit-economics requires --rts-penalty >= 0.");
+  }
+  if (!Number.isFinite(targetMargin) || targetMargin < 0 || targetMargin >= 1) {
+    throw new Error("unit-economics requires --target-margin between 0 and 0.99.");
+  }
+
+  const deliveredRate = 1 - codRtsRate;
+  const expectedRevenue = aov * deliveredRate;
+  const expectedCost = (cogs + shippingFee) * deliveredRate + rtsPenalty * codRtsRate;
+  const contributionMargin = expectedRevenue - expectedCost;
+  if (contributionMargin <= 0) {
+    throw new Error(
+      `Negative or zero contribution margin (${contributionMargin.toFixed(2)}) after COGS/shipping/RTS; increase AOV (bundles) or lower RTS/COGS before running paid conversion ads.`
+    );
+  }
+  const maxCprBreakeven = Number(contributionMargin.toFixed(2));
+  const breakevenRoas = Number((aov / contributionMargin).toFixed(2));
+  const targetProfitPerOrder = aov * targetMargin;
+  const rawTargetCpr = contributionMargin - targetProfitPerOrder;
+  const targetCpr = Number(Math.max(rawTargetCpr, contributionMargin * 0.4).toFixed(2));
+  const targetRoas = Number((aov / targetCpr).toFixed(2));
+  const recommendedCostCap = Number((targetCpr * 0.85).toFixed(2));
+
+  return {
+    aov,
+    cogs,
+    shipping_fee: shippingFee,
+    cod_rts_rate: codRtsRate,
+    rts_penalty: rtsPenalty,
+    target_margin: targetMargin,
+    delivered_rate: Number(deliveredRate.toFixed(4)),
+    contribution_margin_per_order: maxCprBreakeven,
+    max_cpr_breakeven: maxCprBreakeven,
+    breakeven_roas: breakevenRoas,
+    target_cpr: targetCpr,
+    target_roas: targetRoas,
+    recommended_cost_cap: recommendedCostCap,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function defaultAdsMemory(brandName = "brand") {
+  return {
+    version: 1,
+    brand: brandName,
+    updated_at: new Date().toISOString(),
+    unit_economics: null,
+    entries: [],
+  };
+}
+
+function loadAdsMemory(workspaceDir, brandName = "brand") {
+  const memFile = path.join(workspaceDir, "memory", "ads-memory.json");
+  if (!fs.existsSync(memFile)) {
+    return defaultAdsMemory(brandName);
+  }
+  const data = readJsonFile(memFile, "ads-memory.json");
+  if (!data || typeof data !== "object" || Array.isArray(data) || data.version !== 1 || !Array.isArray(data.entries)) {
+    throw new Error(`Invalid ads-memory.json at ${memFile}: expected version 1 with 'entries' array.`);
+  }
+  return data;
+}
+
+function renderAdsMemoryMarkdown(memory) {
+  const lines = [
+    `# Meta Ads Intelligence & Conversion Memory — ${memory.brand || "Brand"}`,
+    "",
+    `Updated: ${memory.updated_at}`,
+    "",
+    "> Canonical per-brand learning store synthesized from 1st-party Meta Ads data, competitor references (`meta-ads-scout`), outsource/agency benchmarks, and funnel audits.",
+    "",
+  ];
+
+  const ue = memory.unit_economics;
+  lines.push("## 1. Conversion Unit Economics & Bidding Floors");
+  lines.push("");
+  if (ue) {
+    lines.push(`- **Gross AOV**: \`${ue.aov}\` | **COGS**: \`${ue.cogs}\` | **Shipping Subsidy**: \`${ue.shipping_fee}\``);
+    lines.push(`- **COD RTS Rate**: \`${(ue.cod_rts_rate * 100).toFixed(1)}%\` (Delivered Rate: \`${(ue.delivered_rate * 100).toFixed(1)}%\`, RTS Penalty: \`${ue.rts_penalty}\`)`);
+    lines.push(`- **Contribution Margin / Max Break-Even CPR**: \`${ue.max_cpr_breakeven}\` (**Break-Even ROAS**: \`${ue.breakeven_roas}x\`)`);
+    lines.push(`- **Target Profit CPR**: \`${ue.target_cpr}\` (**Target Profit ROAS**: \`${ue.target_roas}x\`, Target Net Margin: \`${(ue.target_margin * 100).toFixed(1)}%\`)`);
+    lines.push(`- **Recommended Cost Cap Floor (0.85x Target CPR)**: \`${ue.recommended_cost_cap}\``);
+  } else {
+    lines.push("_Not configured yet. Run `dotads-meta learn unit-economics --aov <AOV> --cogs <COGS>` to compute Break-Even ROAS, Max CPR, and Cost Cap floors._");
+  }
+  lines.push("");
+
+  const groups = [
+    ["winner", "## 2. Proven Winners (Scale & Remix Concepts)"],
+    ["loser", "## 3. Confirmed Losers & Burned Angles (Do Not Repeat)"],
+    ["rule", "## 4. Validated Rules & Bidding Guardrails"],
+    ["insight", "## 5. Competitor, Reference & Outsource Intelligence"],
+  ];
+
+  for (const [verdict, heading] of groups) {
+    lines.push(heading);
+    lines.push("");
+    const items = memory.entries.filter((e) => e.verdict === verdict);
+    if (items.length === 0) {
+      lines.push("_No entries recorded yet._");
+      lines.push("");
+      continue;
+    }
+    for (const item of items) {
+      const m = item.metrics ? ` | metrics: \`${JSON.stringify(item.metrics)}\`` : "";
+      lines.push(`- **[${item.category.toUpperCase()} | source:${item.source}] ${item.title}** (${item.created_at.slice(0, 10)}${m})`);
+      lines.push(`  - Summary: ${item.summary}`);
+      if (item.action) {
+        lines.push(`  - Action: ${item.action}`);
+      }
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+function saveAdsMemory(workspaceDir, memory) {
+  const memDir = path.join(workspaceDir, "memory");
+  fs.mkdirSync(memDir, { recursive: true });
+  memory.updated_at = new Date().toISOString();
+  const memFile = path.join(memDir, "ads-memory.json");
+  const mdFile = path.join(memDir, "MEMORY.md");
+  const tmpJson = `${memFile}.${crypto.randomUUID()}.tmp`;
+  const tmpMd = `${mdFile}.${crypto.randomUUID()}.tmp`;
+  try {
+    fs.writeFileSync(tmpJson, JSON.stringify(memory, null, 2) + "\n", { mode: 0o600, flag: "wx" });
+    fs.renameSync(tmpJson, memFile);
+    fs.writeFileSync(tmpMd, renderAdsMemoryMarkdown(memory), { mode: 0o600, flag: "wx" });
+    fs.renameSync(tmpMd, mdFile);
+  } finally {
+    fs.rmSync(tmpJson, { force: true });
+    fs.rmSync(tmpMd, { force: true });
+  }
+}
+
+function cmdLearn(argv) {
+  const sub = argv[0];
+  if (!sub || sub === "-h" || sub === "--help") {
+    console.log(`Usage:
+  dotads-meta learn unit-economics --aov <num> --cogs <num> [--shipping-fee <num>] [--cod-rts-rate <0..1>] [--rts-penalty <num>] [--target-margin <0..1>] [--brand <brand.json>] [--json]
+  dotads-meta learn add --source <data|reference|competitor|outsource|experiment|audit> --category <hook|angle|format|offer|audience|bidding|landing-page|unit-economics> --verdict <winner|loser|insight|rule> --title <text> --summary <text> [--action <text>] [--metrics <json>] [--brand <brand.json>] [--json]
+  dotads-meta learn list [--source <s>] [--category <c>] [--verdict <v>] [--brand <brand.json>] [--json]`);
+    return;
+  }
+
+  const rest = argv.slice(1);
+  let brandPath = null;
+  let jsonOut = false;
+
+  if (sub === "unit-economics") {
+    const opts = {};
+    for (let i = 0; i < rest.length; i++) {
+      const a = rest[i];
+      if (a === "--brand") brandPath = rest[++i];
+      else if (a === "--json") jsonOut = true;
+      else if (a === "--aov") opts.aov = rest[++i];
+      else if (a === "--cogs") opts.cogs = rest[++i];
+      else if (a === "--shipping-fee") opts.shipping_fee = rest[++i];
+      else if (a === "--cod-rts-rate") opts.cod_rts_rate = rest[++i];
+      else if (a === "--rts-penalty") opts.rts_penalty = rest[++i];
+      else if (a === "--target-margin") opts.target_margin = rest[++i];
+      else throw new Error(`Unknown option for learn unit-economics: ${a}`);
+    }
+    const resolvedBrand = findBrandPath(null, brandPath);
+    const workspaceDir = path.dirname(resolvedBrand);
+    const brand = readJsonFile(resolvedBrand, "brand.json");
+    const ue = computeUnitEconomics(opts);
+    const memory = loadAdsMemory(workspaceDir, brand.brand || path.basename(workspaceDir));
+    memory.unit_economics = ue;
+    saveAdsMemory(workspaceDir, memory);
+
+    if (jsonOut) {
+      console.log(JSON.stringify({ ok: true, unit_economics: ue, memoryPath: path.join(workspaceDir, "memory", "ads-memory.json") }, null, 2));
+      return;
+    }
+    console.log(`✓ Saved conversion unit economics for ${memory.brand}`);
+    console.log(`  Max Break-Even CPR : ${ue.max_cpr_breakeven} (${brand.currency || "USD"}) | Break-Even ROAS: ${ue.breakeven_roas}x`);
+    console.log(`  Target Profit CPR  : ${ue.target_cpr} (${brand.currency || "USD"}) | Target ROAS    : ${ue.target_roas}x`);
+    console.log(`  Recommended CostCap: ${ue.recommended_cost_cap} (${brand.currency || "USD"})`);
+    return;
+  }
+
+  if (sub === "add") {
+    let source = null;
+    let category = null;
+    let verdict = null;
+    let title = null;
+    let summary = null;
+    let action = "";
+    let metricsRaw = null;
+
+    for (let i = 0; i < rest.length; i++) {
+      const a = rest[i];
+      if (a === "--brand") brandPath = rest[++i];
+      else if (a === "--json") jsonOut = true;
+      else if (a === "--source") source = rest[++i];
+      else if (a === "--category") category = rest[++i];
+      else if (a === "--verdict") verdict = rest[++i];
+      else if (a === "--title") title = rest[++i];
+      else if (a === "--summary") summary = rest[++i];
+      else if (a === "--action") action = rest[++i];
+      else if (a === "--metrics") metricsRaw = rest[++i];
+      else throw new Error(`Unknown option for learn add: ${a}`);
+    }
+
+    if (!source || !VALID_LEARN_SOURCES.has(source)) {
+      throw new Error(`--source must be one of ${Array.from(VALID_LEARN_SOURCES).join(", ")}.`);
+    }
+    if (!category || !VALID_LEARN_CATEGORIES.has(category)) {
+      throw new Error(`--category must be one of ${Array.from(VALID_LEARN_CATEGORIES).join(", ")}.`);
+    }
+    if (!verdict || !VALID_LEARN_VERDICTS.has(verdict)) {
+      throw new Error(`--verdict must be one of ${Array.from(VALID_LEARN_VERDICTS).join(", ")}.`);
+    }
+    if (!title || !String(title).trim()) throw new Error("learn add requires a non-empty --title.");
+    if (!summary || !String(summary).trim()) throw new Error("learn add requires a non-empty --summary.");
+
+    let metrics = null;
+    if (metricsRaw) {
+      try {
+        metrics = JSON.parse(metricsRaw);
+      } catch (err) {
+        throw new Error(`Invalid JSON in --metrics: ${err.message}`);
+      }
+    }
+
+    const resolvedBrand = findBrandPath(null, brandPath);
+    const workspaceDir = path.dirname(resolvedBrand);
+    const brand = readJsonFile(resolvedBrand, "brand.json");
+    const memory = loadAdsMemory(workspaceDir, brand.brand || path.basename(workspaceDir));
+
+    const entry = {
+      id: `mem_${crypto.randomUUID().slice(0, 8)}`,
+      created_at: new Date().toISOString(),
+      source,
+      category,
+      verdict,
+      title: String(title).trim(),
+      summary: String(summary).trim(),
+      action: action ? String(action).trim() : "",
+      ...(metrics ? { metrics } : {}),
+    };
+    memory.entries.push(entry);
+    saveAdsMemory(workspaceDir, memory);
+
+    if (jsonOut) {
+      console.log(JSON.stringify({ ok: true, entry, totalEntries: memory.entries.length }, null, 2));
+      return;
+    }
+    console.log(`✓ Recorded [${verdict.toUpperCase()}] (${category} / ${source}): ${entry.title}`);
+    return;
+  }
+
+  if (sub === "list") {
+    let filterSource = null;
+    let filterCategory = null;
+    let filterVerdict = null;
+    for (let i = 0; i < rest.length; i++) {
+      const a = rest[i];
+      if (a === "--brand") brandPath = rest[++i];
+      else if (a === "--json") jsonOut = true;
+      else if (a === "--source") filterSource = rest[++i];
+      else if (a === "--category") filterCategory = rest[++i];
+      else if (a === "--verdict") filterVerdict = rest[++i];
+      else throw new Error(`Unknown option for learn list: ${a}`);
+    }
+    const resolvedBrand = findBrandPath(null, brandPath);
+    const workspaceDir = path.dirname(resolvedBrand);
+    const brand = readJsonFile(resolvedBrand, "brand.json");
+    const memory = loadAdsMemory(workspaceDir, brand.brand || path.basename(workspaceDir));
+    const entries = memory.entries.filter((e) => {
+      if (filterSource && e.source !== filterSource) return false;
+      if (filterCategory && e.category !== filterCategory) return false;
+      if (filterVerdict && e.verdict !== filterVerdict) return false;
+      return true;
+    });
+
+    if (jsonOut) {
+      console.log(JSON.stringify({ ok: true, brand: memory.brand, unit_economics: memory.unit_economics, entries }, null, 2));
+      return;
+    }
+    console.log(`Meta Ads Memory for ${memory.brand} (${entries.length} entries)`);
+    if (memory.unit_economics) {
+      const ue = memory.unit_economics;
+      console.log(`  Unit Economics: Break-Even ROAS=${ue.breakeven_roas}x (Max CPR=${ue.max_cpr_breakeven}) | Target ROAS=${ue.target_roas}x (Target CPR=${ue.target_cpr})`);
+    }
+    for (const e of entries) {
+      console.log(`  - [${e.verdict.toUpperCase()}] (${e.category}/${e.source}) ${e.title}: ${e.summary}`);
+    }
+    return;
+  }
+
+  throw new Error(`Unknown learn subcommand: ${sub}`);
+}
+
+function extractActionMetric(list, matchTypes) {
+  if (!Array.isArray(list)) return 0;
+  for (const t of matchTypes) {
+    const found = list.find((item) => item && item.action_type === t);
+    if (found && found.value !== undefined) return Number(found.value) || 0;
+  }
+  return 0;
+}
+
+function cmdAnalyze(argv) {
+  let insightsPath = null;
+  let brandPath = null;
+  let pullLive = false;
+  let datePreset = "last_7d";
+  let deliveryRate = null;
+  let recordMemory = false;
+  let jsonOut = false;
+
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--brand") brandPath = argv[++i];
+    else if (a === "--pull") pullLive = true;
+    else if (a === "--date-preset") datePreset = argv[++i] || "last_7d";
+    else if (a === "--delivery-rate") deliveryRate = Number(argv[++i]);
+    else if (a === "--record-memory") recordMemory = true;
+    else if (a === "--json") jsonOut = true;
+    else if (!a.startsWith("-") && !insightsPath) insightsPath = a;
+    else throw new Error(`Unknown or unexpected option for analyze: ${a}`);
+  }
+  if (!insightsPath && !pullLive) {
+    throw new Error("analyze requires <insights.json> or --pull.");
+  }
+  if (deliveryRate !== null && (!Number.isFinite(deliveryRate) || deliveryRate <= 0 || deliveryRate > 1)) {
+    throw new Error("--delivery-rate must be between 0 (exclusive) and 1 (inclusive).");
+  }
+
+  const resolvedBrand = findBrandPath(insightsPath, brandPath);
+  const workspaceDir = path.dirname(resolvedBrand);
+  const brand = readJsonFile(resolvedBrand, "brand.json");
+  const memory = loadAdsMemory(workspaceDir, brand.brand || path.basename(workspaceDir));
+
+  let rawInsights;
+  if (pullLive) {
+    const metaBin = resolveMetaBin();
+    const token = readSecretToken(brand.token_env || "META_ACCESS_TOKEN");
+    const childEnv = {
+      ...process.env,
+      ACCESS_TOKEN: token,
+      AD_ACCOUNT_ID: brand.ad_account_id,
+    };
+    if (brand.business_id) childEnv.BUSINESS_ID = String(brand.business_id);
+    else delete childEnv.BUSINESS_ID;
+
+    const pullArgs = [
+      "--output",
+      "json",
+      "--no-input",
+      "ads",
+      "--ad-account-id",
+      brand.ad_account_id,
+    ];
+    if (brand.business_id) pullArgs.push("--business-id", String(brand.business_id));
+    pullArgs.push(
+      "insights",
+      "--date-preset",
+      datePreset,
+      "--level",
+      "ad",
+      "--fields",
+      "ad_id,ad_name,adset_id,campaign_id,spend,impressions,frequency,clicks,outbound_clicks,cpc,ctr,actions,action_values,video_3_sec_watched_actions,video_thruplay_watched_actions"
+    );
+
+    const res = spawnSync(metaBin, pullArgs, {
+      env: childEnv,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    if (res.status !== 0) {
+      throw new Error(`Failed to pull insights via meta CLI: ${(res.stderr || res.stdout || "").trim()}`);
+    }
+    try {
+      rawInsights = JSON.parse((res.stdout || "").trim() || "[]");
+    } catch (err) {
+      throw new Error(`Invalid JSON returned by meta insights: ${err.message}`);
+    }
+    if (insightsPath) {
+      fs.writeFileSync(path.resolve(insightsPath), JSON.stringify(rawInsights, null, 2) + "\n", { mode: 0o600 });
+    }
+  } else {
+    rawInsights = readJsonFile(path.resolve(insightsPath), "insights JSON");
+  }
+
+  const rows = Array.isArray(rawInsights)
+    ? rawInsights
+    : Array.isArray(rawInsights?.data)
+      ? rawInsights.data
+      : [];
+
+  if (rows.length === 0) {
+    throw new Error(`No insight rows found${insightsPath ? ` in ${insightsPath}` : ""}.`);
+  }
+
+  const ue = memory.unit_economics;
+  const breakevenRoas = ue?.breakeven_roas ?? 1.5;
+  const targetRoas = ue?.target_roas ?? 2.5;
+  const maxCpr = ue?.max_cpr_breakeven ?? null;
+  const targetCpr = ue?.target_cpr ?? null;
+  const contribPerOrder = ue?.contribution_margin_per_order ?? null;
+
+  const purchaseTypes = [
+    "purchase",
+    "omni_purchase",
+    "offsite_conversion.fb_pixel_purchase",
+  ];
+
+  const evaluated = rows.map((row, idx) => {
+    const name = row.ad_name || row.adset_name || row.campaign_name || row.name || `row_${idx + 1}`;
+    const id = row.ad_id || row.adset_id || row.campaign_id || row.id || String(idx + 1);
+    const spend = Number(row.spend ?? 0);
+    const impressions = Number(row.impressions ?? 0);
+    const frequency = row.frequency !== undefined ? Number(row.frequency) : null;
+    const metaPurchases =
+      row.purchases !== undefined
+        ? Number(row.purchases)
+        : extractActionMetric(row.actions, purchaseTypes);
+    const metaRevenue =
+      row.revenue !== undefined
+        ? Number(row.revenue)
+        : row.purchase_value !== undefined
+          ? Number(row.purchase_value)
+          : extractActionMetric(row.action_values, purchaseTypes);
+
+    const hasBackendOverride =
+      row.real_purchases !== undefined ||
+      row.backend_purchases !== undefined ||
+      row.real_revenue !== undefined ||
+      row.backend_revenue !== undefined;
+    const purchases =
+      row.real_purchases !== undefined
+        ? Number(row.real_purchases)
+        : row.backend_purchases !== undefined
+          ? Number(row.backend_purchases)
+          : deliveryRate !== null
+            ? Number((metaPurchases * deliveryRate).toFixed(2))
+            : metaPurchases;
+    const revenue =
+      row.real_revenue !== undefined
+        ? Number(row.real_revenue)
+        : row.backend_revenue !== undefined
+          ? Number(row.backend_revenue)
+          : deliveryRate !== null
+            ? Number((metaRevenue * deliveryRate).toFixed(2))
+            : metaRevenue;
+
+    const outboundClicks =
+      row.outbound_clicks !== undefined
+        ? Array.isArray(row.outbound_clicks)
+          ? extractActionMetric(row.outbound_clicks, ["outbound_click"])
+          : Number(row.outbound_clicks)
+        : Number(row.clicks ?? 0);
+    const video3s =
+      row.video_3s_views !== undefined
+        ? Number(row.video_3s_views)
+        : extractActionMetric(row.video_3_sec_watched_actions, ["video_view"]);
+    const thruplays =
+      row.thruplays !== undefined
+        ? Number(row.thruplays)
+        : extractActionMetric(row.video_thruplay_watched_actions, ["video_view"]);
+
+    const metaRoas = spend > 0 ? Number((metaRevenue / spend).toFixed(2)) : 0;
+    const roas = spend > 0 ? Number((revenue / spend).toFixed(2)) : 0;
+    const cpr = purchases > 0 ? Number((spend / purchases).toFixed(2)) : null;
+    const cpm = impressions > 0 ? Number(((spend / impressions) * 1000).toFixed(2)) : 0;
+    const ctr = impressions > 0 ? Number((outboundClicks / impressions).toFixed(4)) : 0;
+    const cpc =
+      row.cpc !== undefined
+        ? Number(row.cpc)
+        : outboundClicks > 0
+          ? Number((spend / outboundClicks).toFixed(2))
+          : null;
+    const hookRate =
+      row.hook_rate !== undefined
+        ? Number(row.hook_rate)
+        : impressions > 0 && video3s > 0
+          ? Number((video3s / impressions).toFixed(4))
+          : null;
+    const holdRate =
+      row.hold_rate !== undefined
+        ? Number(row.hold_rate)
+        : video3s > 0 && thruplays > 0
+          ? Number((thruplays / video3s).toFixed(4))
+          : null;
+    const cvr = outboundClicks > 0 ? Number((purchases / outboundClicks).toFixed(4)) : 0;
+    const estimatedNetProfit =
+      contribPerOrder !== null
+        ? Number((purchases * contribPerOrder - spend).toFixed(2))
+        : Number((revenue - spend).toFixed(2));
+
+    // ROAS is the primary North-Star gate whenever purchase revenue is reported;
+    // CTR and CPC are secondary diagnostic levers (ROAS = (AOV * CVR) / CPC).
+    // CPR fallback applies only when revenue is not tracked (0) on non-value events.
+    const hasRevenue = revenue > 0 || metaRevenue > 0;
+    const meetsTarget =
+      purchases >= 1 &&
+      (hasRevenue ? roas >= targetRoas : targetCpr !== null && cpr !== null && cpr <= targetCpr);
+    const meetsBreakeven =
+      purchases >= 1 &&
+      (hasRevenue ? roas >= breakevenRoas : maxCpr !== null && cpr !== null && cpr <= maxCpr);
+
+    const isEarlyLearning =
+      purchases === 0 && maxCpr !== null && spend > 0 && spend < maxCpr;
+    const isCreativeFatigue =
+      !meetsTarget && !isEarlyLearning && frequency !== null && frequency >= 2.5;
+    const stopLoss =
+      !meetsBreakeven &&
+      !isEarlyLearning &&
+      ((maxCpr !== null && spend >= 1.5 * maxCpr && purchases === 0) ||
+        (spend > 0 && purchases > 0 && roas < 0.5 * breakevenRoas));
+
+    let classification = "MONITOR_EARLY";
+    let diagnosis = `Early learning phase: spend (${spend}) is below 1.0x Max Break-Even CPR (${maxCpr ?? "n/a"}).`;
+    let nextAction = "Do not prematurely pause; allow Andromeda learning until spend reaches 1.0x-1.5x Max CPR.";
+    let recommendedCommand = null;
+
+    if (meetsTarget) {
+      classification = "SCALE_WINNER";
+      diagnosis = `Exceeds target ROAS (${roas}x >= ${targetRoas}x; CPR=${cpr ?? "n/a"}, CTR=${(ctr * 100).toFixed(2)}%, CPC=${cpc ?? "n/a"}). Strong Andromeda/Lattice buyer resonance.`;
+      nextAction = "Scale budget +20% every 24-48h or graduate Post/Creative ID into Advantage+ Sales CBO; produce 3 hook variations of this winning angle.";
+      recommendedCommand = row.campaign_id
+        ? `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} campaign update --id ${row.campaign_id} --daily-budget <CURRENT_PLUS_20_PCT>`
+        : `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} ad update --id ${id} --status ACTIVE`;
+    } else if (meetsBreakeven) {
+      classification = "PROFITABLE_OPTIMIZE";
+      diagnosis = `Above break-even ROAS (${roas}x >= ${breakevenRoas}x; CPR=${cpr ?? "n/a"}, CTR=${(ctr * 100).toFixed(2)}%, CPC=${cpc ?? "n/a"}) but below target ROAS (${targetRoas}x).`;
+      nextAction = "Keep active; test higher-AOV bundle offer on landing page or fresh 3-second visual hook to lift ROAS toward target.";
+    } else if (isEarlyLearning) {
+      classification = "MONITOR_EARLY";
+    } else if (isCreativeFatigue) {
+      classification = "CREATIVE_FATIGUE";
+      diagnosis = `Audience saturation / creative fatigue: Frequency=${frequency} (>= 2.5) with ROAS=${roas}x below target (${targetRoas}x) and CTR=${(ctr * 100).toFixed(2)}%.`;
+      nextAction = "Pause fatigued ad or rotate a fresh creative concept (new first 3s visual hook and persona) to reset Andromeda delivery.";
+      if (stopLoss) {
+        recommendedCommand = `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} ad update --id ${id} --status PAUSED`;
+      }
+    } else if (hookRate !== null && hookRate < 0.25) {
+      classification = "FIX_HOOK_FIRST_3S";
+      diagnosis = `ROAS below break-even (${roas}x < ${breakevenRoas}x) caused by low Hook Rate (${(hookRate * 100).toFixed(1)}% < 25%; CTR=${(ctr * 100).toFixed(2)}%, CPC=${cpc ?? "n/a"}). First 3 seconds failed to stop scroll.`;
+      nextAction = "Pause or keep body script and replace the first 3-second visual pattern interrupt and headline overlay.";
+      if (stopLoss) {
+        recommendedCommand = `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} ad update --id ${id} --status PAUSED`;
+      }
+    } else if (holdRate !== null && holdRate < 0.20) {
+      classification = "FIX_HOLD_BODY_PACING";
+      diagnosis = `ROAS below break-even (${roas}x < ${breakevenRoas}x): Hook stopped scroll (${hookRate !== null ? (hookRate * 100).toFixed(1) + "%" : "n/a"}), but Hold Rate dropped (${(holdRate * 100).toFixed(1)}% < 20%; CPC=${cpc ?? "n/a"}).`;
+      nextAction = "Tighten middle pacing (cut every 1.5-2.5s), demonstrate product mechanism by second 4, and add clear captions.";
+      if (stopLoss) {
+        recommendedCommand = `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} ad update --id ${id} --status PAUSED`;
+      }
+    } else if (ctr < 0.01) {
+      classification = "FIX_OFFER_OR_CTA";
+      diagnosis = `ROAS below break-even (${roas}x < ${breakevenRoas}x) with low Outbound CTR (${(ctr * 100).toFixed(2)}% < 1.0%) and high CPC (${cpc ?? "n/a"}). Creative angle or offer failed to drive qualified click intent.`;
+      nextAction = "Strengthen offer value stack (bundle anchor, risk-reversal guarantee in headline/description) and align native call_to_action button without stuffing spammy text CTAs.";
+      if (stopLoss) {
+        recommendedCommand = `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} ad update --id ${id} --status PAUSED`;
+      }
+    } else {
+      classification = "FIX_LANDING_CVR_OR_SIGNAL";
+      diagnosis = `Healthy CTR (${(ctr * 100).toFixed(2)}%) and CPC (${cpc ?? "n/a"}) but low conversion rate (${(cvr * 100).toFixed(2)}%) dragged final ROAS below break-even (${roas}x < ${breakevenRoas}x).`;
+      nextAction = "Audit ad-to-landing-page congruence, pre-qualify buyer intent in ad copy, improve AOV bundle/upsell, check mobile LCP (<2.5s), COD checkout friction, CAPI EMQ deduplication, and enable incremental_attribution.";
+      if (stopLoss) {
+        recommendedCommand = `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} ad update --id ${id} --status PAUSED`;
+      }
+    }
+
+    return {
+      id,
+      name,
+      spend,
+      impressions,
+      frequency,
+      purchases,
+      revenue,
+      meta_purchases: metaPurchases,
+      meta_revenue: metaRevenue,
+      meta_roas: metaRoas,
+      reconciled: hasBackendOverride || deliveryRate !== null,
+      roas,
+      cpr,
+      cpm,
+      ctr,
+      cpc,
+      hook_rate: hookRate,
+      hold_rate: holdRate,
+      cvr,
+      estimated_net_profit: estimatedNetProfit,
+      stop_loss: stopLoss,
+      classification,
+      diagnosis,
+      next_action: nextAction,
+      recommended_command: recommendedCommand,
+    };
+  });
+
+  let recordedCount = 0;
+  if (recordMemory) {
+    for (const item of evaluated) {
+      if (item.classification === "SCALE_WINNER") {
+        memory.entries.push({
+          id: `mem_${crypto.randomUUID().slice(0, 8)}`,
+          created_at: new Date().toISOString(),
+          source: "data",
+          category: "angle",
+          verdict: "winner",
+          title: `Winning Ad: ${item.name} (ROAS ${item.roas}x, CPR ${item.cpr})`,
+          summary: item.diagnosis,
+          action: item.next_action,
+          metrics: {
+            roas: item.roas,
+            cpr: item.cpr,
+            spend: item.spend,
+            purchases: item.purchases,
+            hook_rate: item.hook_rate,
+            hold_rate: item.hold_rate,
+            ctr: item.ctr,
+            cpc: item.cpc,
+            cvr: item.cvr,
+            net_profit: item.estimated_net_profit,
+          },
+        });
+        recordedCount++;
+      } else if (
+        item.spend > 0 &&
+        (item.classification.startsWith("FIX_") || item.classification === "CREATIVE_FATIGUE")
+      ) {
+        memory.entries.push({
+          id: `mem_${crypto.randomUUID().slice(0, 8)}`,
+          created_at: new Date().toISOString(),
+          source: "data",
+          category:
+            item.classification === "FIX_HOOK_FIRST_3S"
+              ? "hook"
+              : item.classification === "FIX_HOLD_BODY_PACING"
+                ? "format"
+                : item.classification === "FIX_OFFER_OR_CTA"
+                  ? "offer"
+                  : item.classification === "CREATIVE_FATIGUE"
+                    ? "angle"
+                    : "landing-page",
+          verdict: "loser",
+          title: `Underperforming Ad: ${item.name} [${item.classification}]`,
+          summary: item.diagnosis,
+          action: item.next_action,
+          metrics: {
+            roas: item.roas,
+            cpr: item.cpr,
+            spend: item.spend,
+            hook_rate: item.hook_rate,
+            hold_rate: item.hold_rate,
+            ctr: item.ctr,
+            cpc: item.cpc,
+            cvr: item.cvr,
+          },
+        });
+        recordedCount++;
+      }
+    }
+    if (recordedCount > 0) {
+      saveAdsMemory(workspaceDir, memory);
+    }
+  }
+
+  if (jsonOut) {
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          brand: memory.brand,
+          benchmarks: { breakeven_roas: breakevenRoas, target_roas: targetRoas, max_cpr: maxCpr, target_cpr: targetCpr },
+          recordedToMemory: recordedCount,
+          results: evaluated,
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  console.log(`=== META ADS CONVERSION & PROFIT ANALYSIS (${memory.brand}) ===`);
+  console.log(`Benchmarks: Break-Even ROAS=${breakevenRoas}x (Max CPR=${maxCpr ?? "n/a"}) | Target ROAS=${targetRoas}x (Target CPR=${targetCpr ?? "n/a"})`);
+  for (const r of evaluated) {
+    console.log(`  • [${r.classification}] ${r.name} (ROAS=${r.roas}x${r.reconciled ? ` [Meta ${r.meta_roas}x]` : ""}, CPR=${r.cpr ?? "n/a"}, CTR=${(r.ctr * 100).toFixed(2)}%, CPC=${r.cpc ?? "n/a"}, Profit=${r.estimated_net_profit})`);
+    console.log(`    Diagnosis : ${r.diagnosis}`);
+    console.log(`    Next Step : ${r.next_action}`);
+    if (r.recommended_command) {
+      console.log(`    Plan CLI  : $ ${r.recommended_command}`);
+    }
+  }
+  if (recordMemory) {
+    console.log(`✓ Recorded ${recordedCount} data-driven lesson(s) into ${path.join(workspaceDir, "memory", "ads-memory.json")}`);
+  }
+}
+
 function main() {
   const argv = process.argv.slice(2);
   if (argv.length === 0 || argv[0] === "-h" || argv[0] === "--help" || argv[0] === "help") {
@@ -1877,6 +2876,12 @@ function main() {
         break;
       case "run":
         cmdRun(rest);
+        break;
+      case "learn":
+        cmdLearn(rest);
+        break;
+      case "analyze":
+        cmdAnalyze(rest);
         break;
       default:
         console.error(`Unknown subcommand: ${sub}`);
