@@ -3,7 +3,8 @@
 #
 # Every failing case is a mutation of a complete fixture that --check must
 # reject by name. A map that renders is not the point; a map that cannot
-# silently drop a member, a link, or an index entry is.
+# silently drop a member, a link, an index entry, or an entry's note is.
+# --find cases pin the ranking contract: the owner first, each page once.
 set -uo pipefail
 
 SOURCE="${BASH_SOURCE[0]}"
@@ -43,9 +44,32 @@ build() {
 <!-- system-map:inventory:start (rendered by bin/system-map; do not edit) -->
 <!-- system-map:inventory:end -->
 
-- [`core.md`](../config/ai/memory/core.md), [`MEMORY.md`](../config/ai/project-memory/MEMORY.md)
-- [`demo`](../skills/local/demo/SKILL.md), [`tool`](../bin/tool), [`host.md`](../devices/host.md)
-- [`PRD.md`](../config/templates/PRD.md), [`guide.md`](../docs/guide.md#top), [site](https://example.com)
+## Quick find
+
+- [Ship a release safely](../bin/tool): the release gate.
+
+## Tools
+
+- [`core.md`](../config/ai/memory/core.md), [`MEMORY.md`](../config/ai/project-memory/MEMORY.md): memory pages.
+- [`demo`](../skills/local/demo/SKILL.md), [`tool`](../bin/tool), [`host.md`](../devices/host.md): demo skill.
+- [`tool`](../bin/tool): release gate command.
+- [`PRD.md`](../config/templates/PRD.md), [`guide.md`](../docs/guide.md#top), [site](https://example.com):
+  continued note about the product guide.
+
+- **Device pack:** [`host.md`](../devices/host.md), [`PRD.md`](../config/templates/PRD.md) (spare parts).
+- [Read the guide](../bin/tool), see [guide](guide.md): docs-relative second link.
+
+```text
+- [`fenced`](../docs/guide.md)
+```
+
+#### Deep heading
+
+- [`tool`](../bin/tool): sprocket deep note.
+
+| Page | Purpose |
+|---|---|
+| [`host.md`](../devices/host.md) | Laptop hardware profile. |
 EOF
   track
   run >/dev/null && track
@@ -96,6 +120,34 @@ expect_fail "unlinked skill fails" "skills/local/other/SKILL.md is tracked but n
 
 build; sed -i.bak '/system-map:inventory/d' "$FIX/docs/DOTFILES_SITEMAP.md"
 run --check >/dev/null 2>&1; [ $? -eq 2 ] && ok "missing markers exit 2" || fail "missing markers did not exit 2"
+
+build; printf -- '- [`bare`](../docs/guide.md)\n' >> "$FIX/docs/DOTFILES_SITEMAP.md"; track
+expect_fail "entry without a note fails" "entry 'bare' has no note"
+
+build
+first="$(run --find release gate --limit 5 | head -1)"
+[ "$first" = "bin/tool" ] && ok "find returns the owning page first" || fail "find top hit: $first"
+[ "$(run --find release gate --limit 5 | grep -c '^bin/tool$')" -eq 1 ] \
+  && ok "find lists each page once" || fail "find repeated a page"
+run --find tool --json | python3 -c 'import json,sys; h=json.load(sys.stdin); assert "Quick find" in h[0]["section"], h' \
+  && ok "Quick find intent outranks its dictionary entry" || fail "intent did not rank first"
+run --find product guide --json | python3 -c 'import json,sys; h=json.load(sys.stdin); assert "continued note" in h[0]["note"], h' \
+  && ok "indented continuation joins the note" || fail "continuation line lost"
+run --find laptop --json | python3 -c 'import json,sys; h=json.load(sys.stdin); assert h[0]["paths"]==["devices/host.md"], h' \
+  && ok "table rows are entries" || fail "table row not found"
+first="$(run --find laptop hardware tool | head -1)"
+[ "$first" = "devices/host.md" ] && ok "more matched terms beat a higher single-term score" \
+  || fail "breadth ranking top hit: $first"
+run --find spare parts --json | python3 -c 'import json,sys; h=json.load(sys.stdin); assert h[0]["name"]=="Device pack" and h[0]["paths"]==["devices/host.md","config/templates/PRD.md"], h' \
+  && ok "labelled item is an entry named by its label" || fail "labelled item missed"
+run --find docs relative --json | python3 -c 'import json,sys; h=json.load(sys.stdin); assert h[0]["paths"]==["bin/tool","docs/guide.md"], h' \
+  && ok "paths keep link order, including docs-relative links" || fail "path order wrong"
+run --find spare parts | grep -q '^    also: config/templates/PRD.md$' \
+  && ok "text output lists the other pages" || fail "also line missing"
+run --find fenced >/dev/null 2>&1; [ $? -eq 1 ] && ok "code fences are not entries" || fail "fenced link parsed"
+run --find sprocket --json | python3 -c 'import json,sys; h=json.load(sys.stdin); assert h[0]["section"].endswith("Deep heading"), h' \
+  && ok "deeper headings set the section" || fail "#### heading ignored"
+run --find zzzunknown >/dev/null 2>&1; [ $? -eq 1 ] && ok "no match exits 1" || fail "no match did not exit 1"
 
 out="$(python3 "$MAP" --root "$ROOT" --check 2>&1)" && ok "repository sitemap passes" \
   || fail "repository sitemap: $out"

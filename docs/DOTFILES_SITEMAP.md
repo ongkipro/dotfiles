@@ -5,6 +5,36 @@
 
 ---
 
+## Quick find
+
+Start here. Each line answers one question with the page that owns it; the
+sections below are the full dictionary. From a terminal, `system-map --find
+<terms>` ranks every entry on this page against a query (`--json` for agents).
+
+- [Change a rule every AI CLI follows](../config/ai/CORE.md): approval gates, language, code discipline, Git rules; edit here, never a rendered context.
+- [Change behavior for one runtime only](../config/ai/adapters/claude.md): runtime adapters (Claude here; Codex, agy, OMP, Pi beside it) rendered by `ai-memory-link`.
+- [Why a memory file loaded, or make one load](../config/ai/memory-router.json): trigger routing with byte and file budgets; test with [`ai-memory-route`](../bin/ai-memory-route).
+- [Find a project's reference card](../config/ai/project-memory/MEMORY.md): the one index of project memory.
+- [Find which skill owns a domain](../skills/local/README.md): rendered domain map of owned skills (`skill-map`).
+- [Add, update, or expose a skill](../skills/agents-bin/skill-update): links `skills/local` into every runtime; check with [`skill-check`](../skills/agents-bin/skill-check).
+- [See what is queued or next](../TASKS.md): the sole executable task queue and its contracts.
+- [Know the current state](../STATUS.md): status authority; memory never overrides it.
+- [Start, scope, or finish a task run](../docs/task-change-boundary.md): ledger boundary contract enforced by [`delivery-ledger`](../bin/delivery-ledger).
+- [Rate the risk of a diff](../bin/diff-risk): R0 to R4 tiers that decide review depth.
+- [Run every policy check before a commit](../bin/ai-policy-lint): policy, routing, skills, memory, templates, and this map.
+- [Check this device's AI setup](../bin/ai-doctor): links, tools, hooks, and environment health.
+- [Record a verified lesson](../bin/ai-learn): capture and promote reusable lessons; never unverified diagnosis.
+- [Start a new project with contracts](../bin/project-init): scaffolds from [`config/templates/`](../config/templates) without overwriting.
+- [Decide where a PRD, plan, or ADR goes](../config/ai/policies/planning-artifacts.md): planning-artifact policy; one document per purpose.
+- [Ask another AI CLI for a second opinion](../bin/ai-ask): one read-only lane to claude, codex, agy, pi, or omp.
+- [Install or check Git safety hooks](../bin/ai-hooks-install): wires [`git-guard.sh`](../config/ai/hooks/git-guard.sh) and memory-usage hooks.
+- [Sync MCP servers across runtimes](../bin/ai-mcp-sync): one global MCP list, checked per runtime.
+- [Gate a production deploy](../bin/production-gate): safety verification before anything live.
+- [Understand learning, recall, and scheduled checks](../docs/adaptive-ai-system.md): how verified lessons, recall, and offline jobs fit together.
+- [Update this map](../bin/system-map): renders the inventory, gates coverage, answers `--find`; design sources in [system-map references](research/system-map-references-2026-10-25.md).
+
+---
+
 ## 1. System Topology Overview
 
 The `dotfiles` repository shares developer configuration, AI policy, owned skills, and verified tooling across Linux and macOS. Native adapters connect **Claude Code**, **Codex**, **Antigravity `agy`**, **OMP**, and **Pi**; each runtime keeps ownership of its execution and provider configuration.
@@ -31,6 +61,19 @@ graph TD
 ```
 
 ---
+
+### Architecture invariants
+
+Rules that hold by absence; the code rarely states them.
+
+- Memory never owns status, requirements, or decisions; repository contracts and checks do.
+- Owned skills live only in `skills/local/`; runtimes see them through links.
+- Rendered files (`config/ai/context/*`, `skills/local/README.md`, this page's inventory) are never edited by hand.
+- `delivery-ledger` is the only writer of `.delivery/`; a run never resets, stashes, or commits.
+- Each collection has one index; no second list of the same members exists.
+- Recall and harvest are advisory: they cite and propose, never apply canonical changes.
+- Each runtime keeps its own execution and provider configuration; the shared core only sets policy.
+- Claude Code hooks enforce Git rules only in Claude Code; other runtimes rely on policy text.
 
 ### Inventory
 
@@ -186,7 +229,7 @@ Project-specific references and platform gotchas; [`MEMORY.md`](../config/ai/pro
 Comprehensive project memory for the production deployment of `kelolatim.com`:
 - [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md): Index of Kelola operational files.
 - [`reference_deploy.md`](../config/ai/project-memory-kelola/reference_deploy.md): Production PM2, Nginx, build pipeline.
-- [`feedback_deploy_collision.md`](../config/ai/project-memory-kelola/feedback_deploy_collision.md), [`feedback_deploy_nginx_patch.md`](../config/ai/project-memory-kelola/feedback_deploy_nginx_patch.md), [`feedback_npm_install_sandbox.md`](../config/ai/project-memory-kelola/feedback_npm_install_sandbox.md), [`reference_tatacuan_api.md`](../config/ai/project-memory-kelola/reference_tatacuan_api.md), [`reference_telegram_bot_pool.md`](../config/ai/project-memory-kelola/reference_telegram_bot_pool.md).
+- [`feedback_deploy_collision.md`](../config/ai/project-memory-kelola/feedback_deploy_collision.md), [`feedback_deploy_nginx_patch.md`](../config/ai/project-memory-kelola/feedback_deploy_nginx_patch.md), [`feedback_npm_install_sandbox.md`](../config/ai/project-memory-kelola/feedback_npm_install_sandbox.md), [`reference_tatacuan_api.md`](../config/ai/project-memory-kelola/reference_tatacuan_api.md), [`reference_telegram_bot_pool.md`](../config/ai/project-memory-kelola/reference_telegram_bot_pool.md): deploy collision, nginx patch and npm sandbox lessons, plus Tatacuan API and Telegram bot pool references.
 
 ---
 

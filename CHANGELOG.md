@@ -6,6 +6,16 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-24
 
+### Queryable system map (TASK-144)
+
+- `system-map --find <terms>` ranks sitemap entries (name and path over section
+  over note, curated intents first, each page once; `--limit`, `--json`).
+- The sitemap opens with 21 `Quick find` intents and states eight architecture
+  invariants; `--check` rejects an entry without a note.
+- References studied (llms.txt, aider repo map, rust-analyzer ARCHITECTURE.md,
+  Backstage catalog, Diátaxis, repomix) and what was adopted or deferred:
+  [system-map references](docs/research/system-map-references-2026-10-25.md).
+
 ### Generated system-map inventory and coverage gate (TASK-141)
 
 - `system-map` renders the sitemap inventory and `--check` (run by

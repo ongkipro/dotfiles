@@ -39,6 +39,8 @@ Sources, trials, and open items:
 TASK-139 tracks memory hygiene; TASK-140 is the pending Codex trial.
 TASK-141 makes the sitemap inventory generated and its coverage a lint gate
 (`system-map --check`).
+TASK-144 makes it queryable (`system-map --find`, Quick find intents,
+invariants); see [system-map references](docs/research/system-map-references-2026-10-25.md).
 
 ## Verification evidence
 

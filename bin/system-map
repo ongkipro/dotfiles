@@ -15,15 +15,25 @@ listed by config/ai/project-memory/MEMORY.md, so the sitemap links that index
 rather than duplicating it. Only tracked files count, so uncommitted work never
 fails the gate.
 
-  system-map            rewrite the inventory block
-  system-map --check    exit 1 on a stale block, unlinked member, unindexed
-                        memory or broken link; writes nothing (ai-policy-lint)
-  system-map --stdout   print the rendered sitemap without writing
+Entries keep the llms.txt shape, `- [name](path): note` or a table row with a
+link, so the map is also a dictionary: --find ranks entries against a query
+the way aider ranks its repo map, path and name hits over note hits, with the
+hand-written "Quick find" intents first. It reads the page; no index or
+generated copy exists to drift. An entry without a note cannot be found by
+what it does, so --check rejects one.
+
+  system-map              rewrite the inventory block
+  system-map --check      exit 1 on a stale block, unlinked member, unindexed
+                          memory, broken link or noteless entry; writes nothing
+                          (ai-policy-lint)
+  system-map --stdout     print the rendered sitemap without writing
+  system-map --find T...  print the best entries for the terms (--limit, --json)
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path, PurePosixPath
 import re
 import subprocess
@@ -34,6 +44,8 @@ MEMORY_INDEX = "config/ai/project-memory/MEMORY.md"
 START = "<!-- system-map:inventory:start (rendered by bin/system-map; do not edit) -->"
 END = "<!-- system-map:inventory:end -->"
 LINK = re.compile(r"\]\(([^)\s]+)\)")
+NAMED_LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
+QUICK_FIND = "Quick find"
 
 
 def tracked(root: Path) -> list[str]:
@@ -76,13 +88,18 @@ def render_block(files: list[str]) -> str:
 
 
 def links(text: str, base: str) -> set[str]:
-    found = set()
+    return set(_targets(text, base))
+
+
+def _targets(text: str, base: str) -> list[str]:
+    """Relative link targets, repository-relative, in the order they appear."""
+    found: list[str] = []
     for target in LINK.findall(text):
         if re.match(r"^[a-z]+:|^#", target):
             continue
         path = target.split("#", 1)[0].rstrip("/")
-        if path:
-            found.add(_norm(f"{base}/{path}"))
+        if path and _norm(f"{base}/{path}") not in found:
+            found.append(_norm(f"{base}/{path}"))
     return found
 
 
@@ -112,12 +129,113 @@ def problems(root: Path, text: str, files: list[str]) -> list[str]:
         for member in collections(files)[1][2]:
             if member not in indexed:
                 found.append(f"{member} is not listed in {MEMORY_INDEX}")
+    for item in entries(text):
+        if not item["note"]:
+            found.append(f"{SITEMAP}:{item['line']} entry {item['name']!r} has no note; "
+                         "say what it is for after the link")
     # Tracked, not on disk: a link to an ignored or uncommitted file passes
     # locally and breaks on every fresh clone.
     for target in sorted(targets):
         if target not in files and not any(f.startswith(target + "/") for f in files):
             found.append(f"{SITEMAP} links {target}, which is not tracked")
     return found
+
+
+def entries(text: str) -> list[dict]:
+    """List items and table rows holding a link, outside the rendered block and
+    code fences. A link-first item is named by its link; a labelled item
+    (`- **Label:** [..]`) by its label. Indented lines continue the note."""
+    found: list[dict] = []
+    heads: list[str] = []
+    inside = fenced = False
+    for number, line in enumerate(text.splitlines(), 1):
+        if START in line or END in line:
+            inside = START in line
+            continue
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if inside or fenced:
+            continue
+        head = re.match(r"^(#{2,6}) (.*)", line)
+        if head:
+            heads = heads[:len(head.group(1)) - 2] + [head.group(2).strip()]
+            continue
+        if found and found[-1]["open"] and re.match(r"^\s{2,}\S", line) \
+                and not re.match(r"^\s*[-*] ", line):
+            found[-1]["note"] = f"{found[-1]['note']} {_plain(line)}".strip()
+            continue
+        if found:
+            found[-1]["open"] = False
+        if re.match(r"^[-*] \[", line):
+            body = NAMED_LINK.sub(lambda m: m.group(1), line[2:])
+            note = body.split(":", 1)[1] if ":" in body else ""
+            found.append(_entry(line, _plain(note), heads, number, True))
+        elif re.match(r"^[-*] ", line) and NAMED_LINK.search(line):
+            cut = NAMED_LINK.search(line).start()
+            label = _plain(line[2:cut]).rstrip(":").strip()
+            note = _plain(NAMED_LINK.sub(lambda m: m.group(1), line[cut:]))
+            found.append(_entry(line, note, heads, number, True, label))
+        elif line.startswith("|") and NAMED_LINK.search(line):
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            first = next(i for i, c in enumerate(cells) if NAMED_LINK.search(c))
+            note = " — ".join(_plain(NAMED_LINK.sub(lambda m: m.group(1), c))
+                              for i, c in enumerate(cells) if i != first and c)
+            found.append(_entry(cells[first], note, heads, number, False))
+    for item in found:
+        del item["open"]
+    return found
+
+
+def _entry(source: str, note: str, heads: list[str], number: int, is_item: bool,
+           label: str = "") -> dict:
+    name = label or NAMED_LINK.search(source).group(1)
+    return {"name": _plain(name), "paths": _targets(source, "docs"), "note": note,
+            "section": " > ".join(heads), "line": number, "open": is_item}
+
+
+def _plain(text: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"[`*]", "", text)).strip()
+
+
+def _stem(word: str) -> str:
+    # lazy: suffix stripping, not a stemmer; route/router/routing/routes meet.
+    # Upgrade to a real stemmer only if queries in another language arrive.
+    for suffix, keep in (("ies", "y"), ("ing", ""), ("er", ""), ("es", ""),
+                         ("ed", ""), ("e", ""), ("s", "")):
+        if word.endswith(suffix) and len(word) - len(suffix) >= 3:
+            return word[: -len(suffix)] + keep
+    return word
+
+
+def _words(text: str) -> set[str]:
+    return {_stem(w) for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) > 1}
+
+
+def find(text: str, terms: list[str], limit: int) -> list[dict]:
+    """Path or name hit 10, section hit 3, note hit 1; Quick find intents
+    double. Entries matching more distinct terms always rank first, and each
+    page appears once, under its best entry."""
+    query = _words(" ".join(terms))
+    ranked = []
+    for item in entries(text):
+        where = {"name": _words(item["name"] + " " + " ".join(item["paths"])),
+                 "section": _words(item["section"]), "note": _words(item["note"])}
+        hits = [t for t in query if any(t in w for w in where.values())]
+        if not hits:
+            continue
+        score = sum(10 * (t in where["name"]) + 3 * (t in where["section"])
+                    + (t in where["note"]) for t in hits)
+        if QUICK_FIND in item["section"]:
+            score *= 2
+        ranked.append((-len(hits), -score, item["line"], {**item, "score": score}))
+    best, seen = [], set()
+    for *_, item in sorted(ranked, key=lambda r: r[:3]):
+        key = item["paths"][0] if item["paths"] else item["name"]
+        if key not in seen:
+            seen.add(key)
+            best.append(item)
+    return best[:limit]
 
 
 def render(text: str, block: str) -> str:
@@ -133,6 +251,9 @@ def main() -> int:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--check", action="store_true")
     mode.add_argument("--stdout", action="store_true")
+    mode.add_argument("--find", nargs="+", metavar="TERM")
+    parser.add_argument("--limit", type=lambda v: max(1, int(v)), default=8)
+    parser.add_argument("--json", action="store_true")
     a = parser.parse_args()
     root = a.root.resolve()
     target = root / SITEMAP
@@ -146,6 +267,15 @@ def main() -> int:
     if a.stdout:
         sys.stdout.write(fresh)
         return 0
+    if a.find:
+        hits = find(current, a.find, a.limit)
+        if a.json:
+            print(json.dumps(hits, indent=2))
+        for hit in [] if a.json else hits:
+            path = hit["paths"][0] if hit["paths"] else "-"
+            also = f"\n    also: {', '.join(hit['paths'][1:5])}" if len(hit["paths"]) > 1 else ""
+            print(f"{path}\n    {hit['name']}: {hit['note'][:160]}{also}\n    [{hit['section']}]")
+        return 0 if hits else 1
     if a.check:
         issues = problems(root, current, files)
         if current != fresh:

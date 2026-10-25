@@ -69,6 +69,20 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 - **Reopen Conditions:** the test fails again on macOS after the fix.
 - **Escalation Conditions:** the failure cannot be reproduced after repeated macOS runs.
 
+### TASK-144: Queryable system map (intent index, `find`, invariants)
+
+- **Requirement:** REQ-SYSTEM-MAP-ACCURACY (owner 2026-10-25: the sitemap is a development dictionary like sitemap.xml, so engineers and AI reach the exact page without screening files one by one; study GitHub references and adopt what fits).
+- **Risk Level:** R2.
+- **Allowed Paths:** `bin/system-map`, `bin/system-map-test`, `docs/DOTFILES_SITEMAP.md`, `docs/research/system-map-references-2026-10-25.md`, `TASKS.md`, `CHANGELOG.md`, `STATUS.md`.
+- **Protected Paths:** pre-existing dirty work; CORE and adapters.
+- **Canonical Contract Owners:** sitemap -> `system-map`; references -> `docs/research/system-map-references-2026-10-25.md`.
+- **Accepted Invariants:** the sitemap stays the single map (no rival index, cache, or generated file); `find` reads it read-only; entries keep the llms.txt `[name](path): note` shape; every entry carries a note.
+- **Regression Checks:** `system-map-test`, `system-map --check`, `ai-policy-lint`, `skill-map --check`.
+- **Runtime Evidence:** `system-map find` returns the owning page first for seeded intents; `--check` fails on an entry without a note.
+- **Non-Scope:** symbol graphs and PageRank (owned by `codebase-navigation`); Diátaxis labels; external portal; commit/push.
+- **Reopen Conditions:** a seeded intent stops returning its owner first, or a noteless entry passes the check.
+- **Escalation Conditions:** the change needs CORE, a new dependency, or a provider call.
+
 ### TASK-097: Mutation gaps left after TASK-080
 
 - **Requirement:** REQ-MUTATION-COVERAGE (TASK-080 final sweep 2026-09-24, `RUN-20260924T134257Z-432ea5cf`).
