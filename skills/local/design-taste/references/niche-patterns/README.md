@@ -68,5 +68,6 @@ Every niche file uses these headings, in this order. Leave a heading with
 | [agribusiness-b2b.md](agribusiness-b2b.md) | agricultural inputs (seeds, fertilizers, crop protection), plantation supplies, B2B commodity trading |
 | [fashion-craft-leather.md](fashion-craft-leather.md) | leather goods, modest fashion/muslimwear, sarimbit family sets, batik/tenun, artisan crafts |
 | [logistics-shipping-aggregator.md](logistics-shipping-aggregator.md) | multi-courier shipping aggregators, cargo platforms, COD logistics and AWB/tariff portals |
+| [value-bundle-marketplace.md](value-bundle-marketplace.md) | multi-category consumer marketplaces, fixed-price value stores, multipack/BOGO bundle catalogs, and multi-warehouse retail |
 
 Add a niche only when a real project needs it, following the same headings.

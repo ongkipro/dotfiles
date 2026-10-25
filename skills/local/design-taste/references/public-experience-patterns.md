@@ -45,6 +45,11 @@ controls.
 - Filters and sort remain visually subordinate to results but stay easy to
   discover. On narrow screens, transform a sidebar/toolbar into a labelled
   control and bounded sheet without hiding active-filter count or clear-all.
+  Where every offer shares one price, a price-range filter is meaningless;
+  filter by package contents and fulfillment origin instead.
+- Multi-department discovery can show real product photos on category chips
+  and cards so shoppers recognize what a department holds without promotional
+  banner clutter.
 - Quick add is optional. It must not compress a complex variant decision into
   an ambiguous icon or bypass required options.
 
