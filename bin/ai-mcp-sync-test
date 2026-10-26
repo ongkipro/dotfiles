@@ -18,42 +18,43 @@ run_sync() { "$SYNC" --dotfiles "$DOT" --home "$TMP" "$@"; }
 python3 -m json.tool "$DOT/config/ai/mcp-servers.json" >/dev/null \
   || fail "config/ai/mcp-servers.json is not valid JSON"
 
-# 2. Test sandbox initial sync
+# 2. Test sandbox initial sync with repo manifest (preserves existing user config)
 mkdir -p "$TMP/.claude" "$TMP/.gemini/config" "$TMP/.codex" "$TMP/.omp/agent" "$TMP/.pi/agent"
 printf '{"mcpServers":{"existing-tool":{"command":"echo"}}}' > "$TMP/.claude.json"
 printf 'model = "gpt-5"\n' > "$TMP/.codex/config.toml"
 
 run_sync >/dev/null || fail "initial sync failed"
 
-# 3. Check Claude
-python3 -c "import json; d=json.load(open('$TMP/.claude.json')); assert 'shadcn' in d['mcpServers'] and 'existing-tool' in d['mcpServers']" \
-  || fail "Claude MCP missing shadcn or lost existing-tool"
+# 3. Check Claude preserves existing-tool and does not inject removed shadcn MCP
+python3 -c "import json; d=json.load(open('$TMP/.claude.json')); assert 'existing-tool' in d['mcpServers'] and 'shadcn' not in d['mcpServers']" \
+  || fail "Claude MCP lost existing-tool or still injected shadcn"
 
 # 4. Check Antigravity
-python3 -c "import json; d=json.load(open('$TMP/.gemini/config/mcp_config.json')); assert 'shadcn' in d['mcpServers']" \
-  || fail "Antigravity MCP missing shadcn"
+python3 -c "import json; d=json.load(open('$TMP/.gemini/config/mcp_config.json')); assert 'mcpServers' in d and 'shadcn' not in d['mcpServers']" \
+  || fail "Antigravity MCP invalid or still injected shadcn"
 
 # 5. Check Codex
-grep -q '\[mcp_servers\.shadcn\]' "$TMP/.codex/config.toml" \
-  || fail "Codex config missing [mcp_servers.shadcn]"
 grep -q 'model = "gpt-5"' "$TMP/.codex/config.toml" \
   || fail "Codex config lost existing model setting"
+if grep -q '\[mcp_servers\.shadcn\]' "$TMP/.codex/config.toml"; then
+  fail "Codex config still injected [mcp_servers.shadcn]"
+fi
 
 # 6. Check OMP
-python3 -c "import json; d=json.load(open('$TMP/.omp/agent/mcp.json')); assert 'shadcn' in d['mcpServers']" \
-  || fail "OMP MCP missing shadcn"
+python3 -c "import json; d=json.load(open('$TMP/.omp/agent/mcp.json')); assert 'mcpServers' in d and 'shadcn' not in d['mcpServers']" \
+  || fail "OMP MCP invalid or still injected shadcn"
 
 # 7. Check Pi
-python3 -c "import json; d=json.load(open('$TMP/.pi/agent/mcp.json')); assert 'shadcn' in d['mcpServers']" \
-  || fail "Pi MCP missing shadcn"
+python3 -c "import json; d=json.load(open('$TMP/.pi/agent/mcp.json')); assert 'mcpServers' in d and 'shadcn' not in d['mcpServers']" \
+  || fail "Pi MCP invalid or still injected shadcn"
 
 # 8. Check --check reports in-sync
 run_sync --check >/dev/null || fail "ai-mcp-sync --check should return 0 when in sync"
 
-# 9. Tamper/drift check
-python3 -c "import json; p='$TMP/.omp/agent/mcp.json'; d=json.load(open(p)); del d['mcpServers']['shadcn']; json.dump(d,open(p,'w'))"
+# 9. Missing file drift check & repair
+rm -f "$TMP/.omp/agent/mcp.json"
 if run_sync --check >/dev/null 2>&1; then
-  fail "ai-mcp-sync --check should return non-zero on drift"
+  fail "ai-mcp-sync --check should return non-zero on missing runtime MCP file"
 fi
 
 # Repair

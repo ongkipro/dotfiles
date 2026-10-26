@@ -387,9 +387,8 @@ before implementation:
 - React 19 `ref` as prop and `use()` (verified 2026-10-02):
   https://react.dev/blog/2024/12/05/react-19
 
-The standard registry does not require MCP. Use MCP when conversational registry
-browsing or private registries materially improve the workflow; the native CLI
-remains the deterministic baseline.
+Use the native `shadcn` CLI (`shadcn info --json`, `shadcn docs`, `shadcn search`,
+`shadcn view`) and the `shadcn-ui` skill as the deterministic baseline.
 
 ## Drawer and motion (checked 2026-10-08)
 

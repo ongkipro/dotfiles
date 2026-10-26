@@ -1,11 +1,3 @@
 {
-  "mcpServers": {
-    "shadcn": {
-      "command": "shadcn",
-      "args": [
-        "mcp"
-      ],
-      "description": "Official shadcn MCP server for component registries, examples, and scaffolding"
-    }
-  }
+  "mcpServers": {}
 }

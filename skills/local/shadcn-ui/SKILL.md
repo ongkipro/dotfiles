@@ -104,11 +104,12 @@ the assistant's skill discovery rather than a hook installed by this file.
    do not transfer composition APIs such as `asChild` between bases by memory.
    An inferred preset with fallback values is not proof of the app's actual
    font or rendered theme; inspect the CSS and layout before changing them.
-3. Discover before generating: use the pre-configured shadcn MCP server tools
-   (see § shadcn MCP Server Tools below) or local CLI discovery (`shadcn docs`,
-   `shadcn search`, `shadcn view`). For a requested namespaced item such as
-   `@tailark`, resolve the actual registry item and its dependencies before
-   installation; do not invent registry URLs or item names.
+3. Discover before generating: use local CLI discovery (`shadcn docs`,
+   `shadcn search`, `shadcn view`) and inspect local `src/components/ui/`
+   files rather than guessing props or subcomponents from outdated model
+   pre-training. For a requested namespaced item such as `@tailark`, resolve
+   the actual registry item and its dependencies before installation; do not
+   invent registry URLs or item names.
 4. Compose with existing primitives: `FieldGroup`/`Field` for related form
    fields, `ToggleGroup` for related toggle options, and semantic color tokens.
    Keep native form behavior, labels, validation, and the control semantics
@@ -126,38 +127,10 @@ the assistant's skill discovery rather than a hook installed by this file.
    Review the diff for local customizations and token changes, then apply
    `ui-validation`. A successful CLI exit does not prove the appearance changed.
 
-## shadcn MCP Server Tools
-
-The official shadcn MCP server is synchronized and available across all AI
-runtimes via dotfiles (`config/ai/mcp-servers.json` synced with `ai-mcp-sync`).
-When interacting with a shadcn project, AI agents should actively leverage the
-available MCP tools:
-
-- `get_project_registries`: Read configured registry endpoints directly from
-  the active project's `components.json`.
-- `list_items_in_registries`: List items by type (`component`, `ui`, `block`,
-  `hook`, `lib`) across `@shadcn` and custom registries.
-- `search_items_in_registries`: Perform fuzzy searches for components and
-  blocks by keyword and description.
-- `view_items_in_registries`: Inspect exact TypeScript source code, types, and
-  props for specified items (e.g. `['@shadcn/button', '@shadcn/dialog']`).
-- `get_item_examples_from_registries`: Retrieve full working demos and code
-  examples (e.g. search `'dialog-demo'`, `'card example'`, `'booking-form'`).
-- `get_add_command_for_items`: Obtain the precise CLI command needed to install
-  specific registry components into the project.
-- `get_audit_checklist`: Post-generation verification checklist to ensure code
-  matches accessibility, styling, and framework constraints.
-
-**Zero-Hallucination Rule:** When working with shadcn components, prefer
-`view_items_in_registries` and `get_item_examples_from_registries` over guessing
-props or subcomponents from outdated model pre-training. If MCP tools are
-temporarily unreachable, fallback to `shadcn view <item>` via CLI and inspect
-local `src/components/ui/` files.
-
 ## Official shadcn skill and references
 
 The [official Skills guide](https://ui.shadcn.com/docs/skills) describes project
-context, CLI commands, theme customization, registry authoring, and MCP access.
+context, CLI commands, theme customization, and registry authoring.
 Verified against that guide on 2026-09-14. It documents project installation with:
 
 ```bash
@@ -183,8 +156,6 @@ Load the relevant official reference for the requested operation:
   colors, radius, variants, and the appropriate Tailwind v3/v4 conventions.
 - [Registry](https://ui.shadcn.com/docs/registry): `registry.json`, item types,
   file objects, dependencies, CSS variables, building, hosting, and user config.
-- [MCP](https://ui.shadcn.com/docs/mcp): registry discovery and installation
-  tools. Reuse configured tools; MCP setup is a separate requested change.
 - [skills.sh](https://skills.sh): skill distribution and installation.
 
 Radix to Base UI migration has its own vendor skill,
