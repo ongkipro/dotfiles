@@ -1,6 +1,20 @@
 # Archived Tasks — System-Map Queryability, Coverage Gate, and Memory Hygiene (2026-10-25)
 
-Archived from `TASKS.md` after verification; evidence lives in delivery runs `RUN-20261024T185655Z-9f997678` (TASK-141), `RUN-20261024T234022Z-b09d99aa` (TASK-144), and `RUN-20261024T184257Z-b95d642f` (TASK-139).
+Archived from `TASKS.md` after verification; evidence lives in delivery runs `RUN-20261024T185655Z-9f997678` (TASK-141), `RUN-20261024T234022Z-b09d99aa` (TASK-144), `RUN-20261025T000650Z-31d7b9f9` (TASK-145), and `RUN-20261024T184257Z-b95d642f` (TASK-139).
+
+### TASK-145: System map as a complete, measured dictionary
+
+- **Requirement:** REQ-SYSTEM-MAP-ACCURACY (owner 2026-10-25: validate the map until it is final as the system dictionary; the map stays English).
+- **Risk Level:** R2.
+- **Allowed Paths:** `bin/system-map`, `bin/system-map-test`, `docs/DOTFILES_SITEMAP.md`, `docs/research/system-map-references-2026-10-25.md`, `TASKS.md`, `CHANGELOG.md`, `STATUS.md`, `docs/archive/DOTFILES_TASKS_2026-10-25_SYSTEM_MAP.md`.
+- **Protected Paths:** pre-existing dirty work; CORE and adapters; the federated indexes (read only).
+- **Canonical Contract Owners:** sitemap -> `system-map`; project memory -> `MEMORY.md`; skills -> `skill-map`.
+- **Accepted Invariants:** `--find` federates existing indexes, never copies them; every link is its own candidate; coverage extends to environment, CI, skill tools, and research; notes are re-audited against sources.
+- **Regression Checks:** `system-map-test` (with a live query set: 100% top-3, >=90% top-1), `system-map --check`, `ai-policy-lint`, `skill-map --check`.
+- **Runtime Evidence:** the 26-query English set from the TASK-144 validation, rerun and extended.
+- **Non-Scope:** non-English synonyms; embeddings or external search; commit/push.
+- **Reopen Conditions:** the live query set drops below threshold, or a tracked environment file is unlinked.
+- **Escalation Conditions:** a federated index needs a format change.
 
 ### TASK-141: Generated system-map inventory and coverage gate
 

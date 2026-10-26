@@ -1,6 +1,6 @@
-# Meta Ads CLI & `dotads-meta` — Rules, SOP, and Step-by-Step Tutorial
+# Meta Ads CLI & `dotads-meta` — 2026 Algorithm Architecture, Rules, SOP, and Recipes
 
-Canonical operational rules and copy-paste recipes for running Meta (Facebook & Instagram) Ads from the terminal across all devices and all 5 AI CLIs (`claude`, `codex`, `agy`, `pi`, `omp`).
+Canonical operational rules, 2025–2026 Meta AI delivery breakdown (Andromeda, GEM, Lattice), and copy-paste campaign recipes for running Meta (Facebook & Instagram) Ads from the terminal across all devices and all 5 AI CLIs (`claude`, `codex`, `agy`, `pi`, `omp`).
 
 ---
 
@@ -19,9 +19,9 @@ Canonical operational rules and copy-paste recipes for running Meta (Facebook & 
 5. **Budget Exclusivity & Minor Currency Units:**
    - Choose exactly one budget mode per campaign: **CBO** (budget on `campaign`, none on `adsets`), **ABO** (no budget/bid_strategy/pacing_type on `campaign`, budget on each `adset`), or **Flex** (`"adset_budget_sharing": true` on `campaign`, `daily_budget` on each `adset`).
    - Budgets and bid amounts are integers in **minor currency units** (`5000` = `$50.00` USD).
-6. **Conversion & DCO Completeness:**
+6. **Conversion, Flexible Format & DCO Completeness:**
    - `OUTCOME_SALES` / `OFFSITE_CONVERSIONS` requires `pixel_id` + `custom_event_type` on the ad set and `conversion_domain` on the ad.
-   - Dynamic Creative Optimization (DCO plural fields: `images`, `videos`, `titles`, `bodies`, `descriptions`, `call_to_actions`) requires `"dynamic_creative": true` on the owning ad set.
+   - Multi-asset creatives (`images`, `videos`, `titles`, `bodies`, `descriptions`, `call_to_actions`) require either `"ad_format": "AUTOMATIC_FORMAT"` on the creative (ad-level Flexible Format, allowing multiple ads per ad set) or `"dynamic_creative": true` on the owning ad set (classic DCO, restricted to 1 ad per ad set).
 7. **Stateful Idempotency (`.meta-state.json`):**
    - State writes replace the file atomically. Invalid state blocks deployment and status; restore a verified backup rather than deleting it. A remote creation can succeed before a state-write failure: reconcile the created ID before retrying. Do not run concurrent deployments in the same workspace.
    - Created IDs and SHA-256 media hashes (`image_hash`, `video_id`) are persisted after every step in `.meta-state.json`. Re-running `deploy --apply` skips already-created steps and reuses uploaded media hashes.
@@ -33,7 +33,77 @@ Canonical operational rules and copy-paste recipes for running Meta (Facebook & 
 
 ---
 
-## Part 2: One-Time Setup Tutorial (Device & Business Manager)
+## Part 2: Complete Breakdown of the 2025–2026 Meta Ads Algorithm
+
+### 1. The 3-Stage AI Delivery Pipeline
+
+When a user opens Facebook or Instagram, Meta's ad stack executes three sequential neural architectures:
+
+1. **Stage 1 — Andromeda (Next-Gen Retrieval Engine):**
+   - **What it does:** Powered by NVIDIA Grace Hopper and Meta MTIA chips, Andromeda uses a deep hierarchical neural index to filter **tens of millions of active ads down to a shortlist of ~1,000–3,000 candidates** in milliseconds before the auction even runs.
+   - **Multimodal Creative Indexing & Entity ID Collapse:** Andromeda extracts visual frames, audio transcripts, on-screen OCR text, and copy embeddings from every uploaded creative. If you upload 5 videos that share the same visual opening and voiceover with only minor text-color tweaks, Andromeda assigns them to the **same internal cluster / Entity ID** and drops 4 of them at retrieval (**Entity Collapse**).
+   - **Operational Rule ("Creative IS the Targeting"):** Replace manual interest micro-segmentation with **Creative Diversification**. Every ad inside a consolidated ad set should represent a distinct angle:
+     - **Angle / Persona:** Problem-Aware vs Solution-Aware vs Social Proof / Founder Story vs Offer/Bundle Breakdown.
+     - **Visual Format:** Native 9:16 UGC/Reels video, 4:5 static comparison infographic, 1:1 product carousel/catalog.
+     - **First-3-Second Hook:** Distinct visual first frame and opening audio statement.
+
+2. **Stage 2 — GEM (Generative Ads Recommendation Model) & Sequence Learning:**
+   - **What it does:** Scores the shortlisted candidates by modeling the user's chronological sequence of organic and paid interactions across surfaces (Reels -> Feed -> Website ViewContent -> AddToCart -> Purchase).
+   - **Operational Rule:** Hyper-fragmenting campaigns into many small ad sets splits conversion volume and starves GEM of complete user action sequences. Consolidate ad sets so each ad set exits the learning phase (~50 optimization events per 7-day window).
+
+3. **Stage 3 — Meta Lattice (Unified Ranking & Auction Engine):**
+   - **What it does:** Transfers learning across placements and objectives and runs the real-time VCG-like auction using the **Total Value Formula**:
+     $$\text{Total Value} = (\text{Advertiser Bid} \times \text{Estimated Action Rate } eCVR) + \text{Ad Quality / User Value}$$
+   - **Operational Rule:** You control $\text{Advertiser Bid}$ (via budget, bid cap/cost cap, and **Value Rules**), help Meta estimate $eCVR$ accurately (via clean browser+CAPI deduplicated signals in `meta-ads-signal-engine` + **Incremental Attribution**), and maximize $\text{Ad Quality}$ (via high hook-hold rate, fast landing page load, and low negative feedback).
+
+---
+
+### 2. Marketing API v22.0–v26.0 Reference Matrix
+
+| Feature | Legacy Pattern (Deprecated/Blocked) | 2025–2026 Canonical API Pattern (`dotads-meta`) |
+| --- | --- | --- |
+| **Advantage+ Sales / App / Leads** | `smart_promotion_type: "AUTOMATED_SHOPPING_ADS"` or `"SMART_APP_PROMOTION"` (creation deprecated in v25.0; edits blocked in v26.0) | Standard `objective` (`OUTCOME_SALES`, `OUTCOME_LEADS`, `OUTCOME_APP_PROMOTION`) + CBO budget + `"advantage_audience": true` on ad set -> achieves `advantage_state: "ADVANTAGE_PLUS_SALES"` |
+| **Multi-Asset Creative Testing** | Ad-set `"dynamic_creative": true` only (limits ad set to 1 ad) | Creative `"ad_format": "AUTOMATIC_FORMAT"` (ad-level Flexible Format `asset_feed_spec`; supports multiple multi-asset ads in one ad set) |
+| **Advantage+ Creative Enhancements** | Bundled `creative_features_spec.standard_enhancements` (deprecated in v22.0+) | Granular `degrees_of_freedom_spec.creative_features_spec` keys (`image_touchups`, `image_templates`, `video_auto_crop`, `text_optimizations`, `inline_comment`, `background_generation`, `image_expansion`, `text_generation`) |
+| **Attribution Windows** | `7d_view` and `28d_view` (removed from Insights & ad set attribution specs) | `1d_view` (`VIEW_THROUGH`, `window_days: 1`), `1d_ev` (`ENGAGED_VIEW`, `window_days: 1`), `7d_click` / `1d_click` (`CLICK_THROUGH`) |
+| **Causal Lift Optimization** | Correlational post-view/click optimization only | Ad set `"incremental_attribution": true` (`--incremental-attribution`) to optimize for holdout-calibrated net-new conversions |
+| **ABO Testing Budget Liquidity** | Rigid isolated ABO budgets | Campaign `"adset_budget_sharing": true` (`--adset-budget-sharing`) to share up to 20% budget across ad sets |
+| **Multi-Advertiser Placement** | Implicit auto-enrollment | Creative `"contextual_multi_ads": false` (`--no-contextual-multi-ads`) to opt out when offer isolation is required |
+
+---
+
+### 3. Granular `degrees_of_freedom_spec` JSON Reference (v22.0–v26.0)
+
+Never pass `"standard_enhancements": {"enroll_status": "OPT_IN"}`. Use explicit feature keys so AI transformations never distort brand typography or product packaging unexpectedly:
+
+```json
+{
+  "creative_features_spec": {
+    "image_touchups": { "enroll_status": "OPT_IN" },
+    "image_templates": { "enroll_status": "OPT_OUT" },
+    "video_auto_crop": { "enroll_status": "OPT_OUT" },
+    "text_optimizations": { "enroll_status": "OPT_IN" },
+    "inline_comment": { "enroll_status": "OPT_IN" },
+    "background_generation": { "enroll_status": "OPT_OUT" },
+    "image_expansion": { "enroll_status": "OPT_OUT" },
+    "text_generation": { "enroll_status": "OPT_OUT" }
+  }
+}
+```
+
+### 4. Value Rules & Opportunity Score Operational Rules
+
+- **Value Rules (Auction Bid Multipliers):**
+  - Adjusts the $\text{Advertiser Bid}$ component for high-LTV or high-margin segments (e.g. +30% in Tier-1 cities with low COD return rate, or -25% on low-margin age brackets).
+  - **Hard Limits:** Maximum **2 criteria per rule** (e.g. Location + Age, or Device OS + Gender), **10 rules per rule set**, and **6 rule sets per ad account**.
+  - **First-Match Priority Rule:** If an impression matches Rule 1 and Rule 3, Meta applies **only Rule 1**. Always order rules from **most specific (2 criteria) to least specific (1 criterion)**.
+- **Opportunity Score (`0–100` via `meta ads guidance`):**
+  - Measures structural alignment with Meta's automation defaults, **not** business ROAS or net profit.
+  - Never auto-apply recommendations that remove deliberate geographic exclusions (e.g. non-serviceable COD islands) or collapse structured creative testing ad sets.
+
+---
+
+## Part 3: One-Time Setup Tutorial (Device & Business Manager)
 
 ### 1. Device Bootstrap
 ```bash
@@ -62,55 +132,171 @@ dotads-meta run -- --output json --no-input ads --ad-account-id act_YOUR_ID data
 
 ---
 
-## Part 3: Campaign Manifest Recipes
+## Part 4: Production Campaign Manifest Recipes
 
-### Recipe 1: CBO Single-Image or Video Sales Campaign
+### Recipe 1: Unified Advantage+ Sales Campaign (`ADVANTAGE_PLUS_SALES` + Incremental Attribution + Granular DOF)
+
+Replaces legacy `AUTOMATED_SHOPPING_ADS` in v25.0–v26.0 using standard `OUTCOME_SALES` + CBO + `advantage_audience: true` + `incremental_attribution: true`:
+
 ```json
 {
   "campaign": {
-    "key": "camp_sales_cbo",
-    "name": "ID_Sales_CBO_Launch",
+    "key": "camp_adv_plus_sales",
+    "name": "ID_AdvPlus_Sales_CBO",
     "objective": "OUTCOME_SALES",
     "status": "PAUSED",
-    "daily_budget": 5000
+    "daily_budget": 10000
   },
   "creatives": [
     {
-      "key": "cr_video_v1",
-      "name": "Cr_Video_Reel_V1",
-      "video": "media/reel.mp4",
-      "title": "Engineered for Daily Comfort",
-      "body": "Discover breathable materials crafted for everyday durability.",
-      "description": "Fast nationwide shipping",
+      "key": "cr_ugc_problem_v1",
+      "name": "Cr_9x16_UGC_ProblemHook_V1",
+      "video": "media/ugc-problem-9x16.mp4",
+      "title": "Jalan Seharian Tanpa Nyeri Tumit",
+      "body": "Tumit sering nyeri setelah berdiri atau jalan lebih dari 4 jam? Insole dual-density rebound foam menopang lengkung kaki dan meredam 68% tekanan di titik tumpu.",
+      "description": "Garansi tukar ukuran 14 hari",
       "link_url": "https://example.com/products/flagship",
       "call_to_action": "SHOP_NOW",
-      "url_tags": "utm_source=meta&utm_medium=paid_social&utm_campaign=sales_cbo_launch"
+      "contextual_multi_ads": false,
+      "url_tags": "utm_source=meta&utm_medium=paid_social&utm_campaign=adv_plus_sales&utm_content=ugc_problem_v1",
+      "degrees_of_freedom_spec": {
+        "creative_features_spec": {
+          "video_auto_crop": { "enroll_status": "OPT_OUT" },
+          "text_optimizations": { "enroll_status": "OPT_IN" },
+          "inline_comment": { "enroll_status": "OPT_IN" },
+          "text_generation": { "enroll_status": "OPT_OUT" }
+        }
+      }
+    },
+    {
+      "key": "cr_static_comparison_v1",
+      "name": "Cr_4x5_Static_Comparison_V1",
+      "image": "media/comparison-4x5.jpg",
+      "title": "Dipakai 42.000+ Pekerja Aktif",
+      "body": "Uji ketahanan bantalan setelah 6 bulan pemakaian harian di jalan aspal dan lantai keras.",
+      "description": "Dikirim di hari yang sama",
+      "link_url": "https://example.com/products/flagship",
+      "call_to_action": "SHOP_NOW",
+      "contextual_multi_ads": false,
+      "url_tags": "utm_source=meta&utm_medium=paid_social&utm_campaign=adv_plus_sales&utm_content=static_comparison_v1"
     }
   ],
   "adsets": [
     {
-      "key": "adset_broad_id",
-      "name": "AdSet_Broad_ID",
+      "key": "adset_adv_broad_id",
+      "name": "AdSet_AdvAudience_ID_Incremental",
       "optimization_goal": "OFFSITE_CONVERSIONS",
       "billing_event": "IMPRESSIONS",
       "custom_event_type": "PURCHASE",
       "targeting_countries": ["ID"],
+      "advantage_audience": true,
+      "incremental_attribution": true,
+      "attribution_spec": [
+        { "event_type": "CLICK_THROUGH", "window_days": 7 },
+        { "event_type": "VIEW_THROUGH", "window_days": 1 }
+      ],
       "status": "PAUSED"
     }
   ],
   "ads": [
     {
-      "key": "ad_video_v1",
-      "name": "Ad_Video_Reel_V1",
-      "adset": "adset_broad_id",
-      "creative": "cr_video_v1",
+      "key": "ad_ugc_problem_v1",
+      "name": "Ad_UGC_ProblemHook_V1",
+      "adset": "adset_adv_broad_id",
+      "creative": "cr_ugc_problem_v1",
+      "status": "PAUSED"
+    },
+    {
+      "key": "ad_static_comparison_v1",
+      "name": "Ad_Static_Comparison_V1",
+      "adset": "adset_adv_broad_id",
+      "creative": "cr_static_comparison_v1",
       "status": "PAUSED"
     }
   ]
 }
 ```
 
-### Recipe 2: Dynamic Creative Optimization (DCO Multi-Asset)
+### Recipe 2: Ad-Level Flexible Ad Format (`AUTOMATIC_FORMAT`) — Multiple Multi-Asset Concepts in One Ad Set
+
+Uses `"ad_format": "AUTOMATIC_FORMAT"` on each creative so Andromeda can mix-and-match assets per concept while serving multiple concepts inside one consolidated ad set:
+
+```json
+{
+  "campaign": {
+    "key": "camp_flex_format_sales",
+    "name": "ID_Sales_CBO_FlexibleFormat",
+    "objective": "OUTCOME_SALES",
+    "status": "PAUSED",
+    "daily_budget": 12000
+  },
+  "creatives": [
+    {
+      "key": "cr_flex_angle_durability",
+      "name": "Cr_Flex_Durability_Angle",
+      "ad_format": "AUTOMATIC_FORMAT",
+      "images": ["media/durability-1.jpg", "media/durability-2.jpg"],
+      "titles": ["Full-Grain Leather Built to Last", "10-Year Stitch Guarantee"],
+      "bodies": [
+        "Hand-cut full-grain cowhide that develops a richer patina every year.",
+        "Zero synthetic peeling—backed by our workshop repair guarantee."
+      ],
+      "descriptions": ["Free shipping nationwide"],
+      "call_to_actions": ["SHOP_NOW"],
+      "link_url": "https://example.com/collections/leather",
+      "contextual_multi_ads": false
+    },
+    {
+      "key": "cr_flex_angle_gift",
+      "name": "Cr_Flex_ExecutiveGift_Angle",
+      "ad_format": "AUTOMATIC_FORMAT",
+      "images": ["media/gift-box-1.jpg", "media/gift-box-2.jpg"],
+      "titles": ["Ready-to-Gift Luxury Box Included", "Custom Monogram Available"],
+      "bodies": [
+        "Arrives in a signature hard-shell gift box with complimentary initials embossing.",
+        "The practical executive gift that gets used every single day."
+      ],
+      "descriptions": ["Same-day dispatch before 15:00 WIB"],
+      "call_to_actions": ["SHOP_NOW"],
+      "link_url": "https://example.com/collections/gifts",
+      "contextual_multi_ads": false
+    }
+  ],
+  "adsets": [
+    {
+      "key": "adset_consolidated_id",
+      "name": "AdSet_Consolidated_AdvAudience_ID",
+      "optimization_goal": "OFFSITE_CONVERSIONS",
+      "billing_event": "IMPRESSIONS",
+      "custom_event_type": "PURCHASE",
+      "targeting_countries": ["ID"],
+      "advantage_audience": true,
+      "status": "PAUSED"
+    }
+  ],
+  "ads": [
+    {
+      "key": "ad_flex_durability",
+      "name": "Ad_Flex_Durability",
+      "adset": "adset_consolidated_id",
+      "creative": "cr_flex_angle_durability",
+      "status": "PAUSED"
+    },
+    {
+      "key": "ad_flex_gift",
+      "name": "Ad_Flex_ExecutiveGift",
+      "adset": "adset_consolidated_id",
+      "creative": "cr_flex_angle_gift",
+      "status": "PAUSED"
+    }
+  ]
+}
+```
+
+### Recipe 3: Classic Dynamic Creative Optimization (DCO — 1 Ad per Ad Set)
+
+When using ad-set-level `"dynamic_creative": true`, keep exactly 1 ad in that DCO ad set:
+
 ```json
 {
   "campaign": {
@@ -155,9 +341,83 @@ dotads-meta run -- --output json --no-input ads --ad-account-id act_YOUR_ID data
 }
 ```
 
+### Recipe 4: Flex Budget (`adset_budget_sharing: true`) Creative Testing Campaign
+
+Uses ABO with `"adset_budget_sharing": true` so each creative concept gets a dedicated daily budget while allowing Meta to shift up to 20% budget toward the winning ad set:
+
+```json
+{
+  "campaign": {
+    "key": "camp_flex_creative_test",
+    "name": "ID_Sales_FlexBudget_ConceptTest",
+    "objective": "OUTCOME_SALES",
+    "adset_budget_sharing": true,
+    "status": "PAUSED"
+  },
+  "creatives": [
+    {
+      "key": "cr_concept_a",
+      "name": "Cr_ConceptA_FounderStory",
+      "video": "media/founder-story.mp4",
+      "title": "Why We Built This From Scratch",
+      "body": "3 years of R&D to solve tropical humidity wear.",
+      "link_url": "https://example.com/products/flagship",
+      "call_to_action": "SHOP_NOW"
+    },
+    {
+      "key": "cr_concept_b",
+      "name": "Cr_ConceptB_UnboxingBundle",
+      "video": "media/unboxing-bundle.mp4",
+      "title": "Complete 3-Piece Starter Bundle",
+      "body": "Everything you need in one box—save 25% on the bundle today.",
+      "link_url": "https://example.com/products/bundle",
+      "call_to_action": "SHOP_NOW"
+    }
+  ],
+  "adsets": [
+    {
+      "key": "adset_test_a",
+      "name": "AdSet_Test_ConceptA",
+      "daily_budget": 5000,
+      "optimization_goal": "OFFSITE_CONVERSIONS",
+      "billing_event": "IMPRESSIONS",
+      "custom_event_type": "PURCHASE",
+      "targeting_countries": ["ID"],
+      "advantage_audience": true,
+      "status": "PAUSED"
+    },
+    {
+      "key": "adset_test_b",
+      "name": "AdSet_Test_ConceptB",
+      "daily_budget": 5000,
+      "optimization_goal": "OFFSITE_CONVERSIONS",
+      "billing_event": "IMPRESSIONS",
+      "custom_event_type": "PURCHASE",
+      "targeting_countries": ["ID"],
+      "advantage_audience": true,
+      "status": "PAUSED"
+    }
+  ],
+  "ads": [
+    {
+      "key": "ad_test_a",
+      "name": "Ad_Test_ConceptA",
+      "adset": "adset_test_a",
+      "creative": "cr_concept_a"
+    },
+    {
+      "key": "ad_test_b",
+      "name": "Ad_Test_ConceptB",
+      "adset": "adset_test_b",
+      "creative": "cr_concept_b"
+    }
+  ]
+}
+```
+
 ---
 
-## Part 4: Day-2 Operations (Insights, Guidance, Status & Budget Updates)
+## Part 5: Day-2 Operations (Insights, Guidance, Status & Budget Updates)
 
 ```bash
 # 1. Pull last 7 days insights at ad level
@@ -165,7 +425,7 @@ dotads-meta run --brand ./brand.json -- \
   --output json --no-input ads --ad-account-id act_1234567890 \
   insights --date-preset last_7d --level ad --breakdowns age,gender
 
-# 2. Check Advantage+ & account recommendations
+# 2. Check Advantage+ Opportunity Score & account recommendations
 dotads-meta run --brand ./brand.json -- \
   --output json --no-input ads --ad-account-id act_1234567890 guidance
 

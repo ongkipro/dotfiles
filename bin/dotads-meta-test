@@ -120,6 +120,77 @@ else
   bad "validate allowed missing local media file: $media_out"
 fi
 
+# 4e. Flexible Ad Format (ad_format: AUTOMATIC_FORMAT) allows multi-asset creative without dynamic_creative: true
+jq '.creatives[0].titles = ["Title 1", "Title 2"] | .creatives[0].ad_format = "AUTOMATIC_FORMAT" | .adsets[0].advantage_audience = true | .adsets[0].incremental_attribution = true' \
+  "$WS/campaigns/sample-campaign.json" > "$WS/campaigns/flexible-format.json"
+flex_out="$("$CMD" validate "$WS/campaigns/flexible-format.json" --json 2>&1)"
+if [ "$?" -eq 0 ] && printf '%s' "$flex_out" | jq -e '.ok == true and .algorithmAlignment.advantageStateCandidate == "ADVANTAGE_PLUS_SALES" and .algorithmAlignment.incrementalAttributionAdsets == 1' >/dev/null; then
+  ok "validate accepts ad-level Flexible Ad Format (AUTOMATIC_FORMAT) and reports ADVANTAGE_PLUS_SALES alignment"
+else
+  bad "validate rejected Flexible Ad Format or missed algorithmAlignment: $flex_out"
+fi
+
+# 4f. Classic DCO ad set (dynamic_creative: true) rejects >1 ad referencing the same DCO ad set
+jq '.creatives[0].titles = ["Title 1", "Title 2"] | .adsets[0].dynamic_creative = true | .ads += [{"key":"ad_hero_v2","name":"Ad_Hero_V2","adset":"adset_broad_id","creative":"cr_hero_v1","status":"PAUSED"}]' \
+  "$WS/campaigns/sample-campaign.json" > "$WS/campaigns/dco-multi-ad.json"
+dco_multi_out="$("$CMD" validate "$WS/campaigns/dco-multi-ad.json" 2>&1)"
+if [ "$?" -ne 0 ] && printf '%s' "$dco_multi_out" | grep -q 'more than 1 ad'; then
+  ok "validate rejects >1 ad in a dynamic_creative: true ad set"
+else
+  bad "validate allowed >1 ad in a dynamic_creative: true ad set: $dco_multi_out"
+fi
+
+# 4g. Rejects legacy smart_promotion_type (v25.0-v26.0 deprecation guard)
+jq '.campaign.smart_promotion_type = "AUTOMATED_SHOPPING_ADS"' "$WS/campaigns/sample-campaign.json" > "$WS/campaigns/legacy-asc.json"
+asc_out="$("$CMD" validate "$WS/campaigns/legacy-asc.json" 2>&1)"
+if [ "$?" -ne 0 ] && printf '%s' "$asc_out" | grep -q 'smart_promotion_type'; then
+  ok "validate rejects deprecated smart_promotion_type (v25.0-v26.0 guard)"
+else
+  bad "validate allowed deprecated smart_promotion_type: $asc_out"
+fi
+
+# 4h. Rejects deprecated 7d_view / 28d_view in attribution_spec
+jq '.adsets[0].attribution_spec = [{"event_type":"CLICK_THROUGH","window_days":7},{"event_type":"VIEW_THROUGH","window_days":7}]' \
+  "$WS/campaigns/sample-campaign.json" > "$WS/campaigns/deprecated-view-window.json"
+attr_out="$("$CMD" validate "$WS/campaigns/deprecated-view-window.json" 2>&1)"
+if [ "$?" -ne 0 ] && printf '%s' "$attr_out" | grep -q '7d_view/28d_view'; then
+  ok "validate rejects deprecated 7d_view/28d_view attribution window"
+else
+  bad "validate allowed deprecated 7d_view attribution window: $attr_out"
+fi
+
+# 4i. Warns on deprecated standard_enhancements bundle in degrees_of_freedom_spec
+jq '.creatives[0].degrees_of_freedom_spec = {"creative_features_spec":{"standard_enhancements":{"enroll_status":"OPT_IN"}}}' \
+  "$WS/campaigns/sample-campaign.json" > "$WS/campaigns/deprecated-dof.json"
+dof_out="$("$CMD" validate "$WS/campaigns/deprecated-dof.json" 2>&1)"
+if [ "$?" -eq 0 ] && printf '%s' "$dof_out" | grep -q 'standard_enhancements'; then
+  ok "validate warns on deprecated standard_enhancements bundle in degrees_of_freedom_spec"
+else
+  bad "validate did not warn on deprecated standard_enhancements bundle: $dof_out"
+fi
+
+# 4j. Warns on Malaysian Malay vocabulary leak when targeting Indonesia (ID) and pushy/off-funnel CTA text in copy
+jq '.creatives[0].title = "Diskaun 50% & Penghantaran Percuma" | .creatives[0].body = "Tempah sekarang! Klik link di bawah atau chat WA sekarang juga." | .adsets[0].targeting_countries = ["ID"]' \
+  "$WS/campaigns/sample-campaign.json" > "$WS/campaigns/id-copy-lint.json"
+copy_lint_out="$("$CMD" validate "$WS/campaigns/id-copy-lint.json" --json 2>&1)"
+if [ "$?" -eq 0 ] \
+  && printf '%s' "$copy_lint_out" | jq -e '.ok == true and (.warnings | any(contains("Malaysian Malay term \u0027percuma\u0027"))) and (.warnings | any(contains("Malaysian Malay term \u0027penghantaran\u0027"))) and (.warnings | any(contains("Malaysian Malay term \u0027diskaun\u0027"))) and (.warnings | any(contains("pushy/off-funnel CTA text")))' >/dev/null; then
+  ok "validate warns on Malaysian Malay lexical leaks for ID market and pushy direct-click/WA CTA clutter"
+else
+  bad "validate missed ID vs MY lexical leak or pushy CTA copy warning: $copy_lint_out"
+fi
+
+# 4k. Warns on Indonesian lexical leak when targeting Malaysia (MY), mobile viewport truncation (>40/>30 chars), and missing url_tags
+jq 'del(.creatives[0].url_tags) | .creatives[0].title = "Gratis Ongkir & Diskon Gede Banget Untuk Semua Pembeli Baru Hari Ini" | .creatives[0].description = "Garansi tukar ukuran gratis sampai 30 hari penuh" | .adsets[0].targeting_countries = ["MY"]' \
+  "$WS/campaigns/sample-campaign.json" > "$WS/campaigns/my-copy-lint.json"
+my_lint_out="$("$CMD" validate "$WS/campaigns/my-copy-lint.json" --json 2>&1)"
+if [ "$?" -eq 0 ] \
+  && printf '%s' "$my_lint_out" | jq -e '.ok == true and (.warnings | any(contains("Indonesian term/slang"))) and (.warnings | any(contains("40-char mobile Feed truncation"))) and (.warnings | any(contains("30-char mobile Feed truncation"))) and (.warnings | any(contains("missing \u0027url_tags\u0027")))' >/dev/null; then
+  ok "validate warns on Indonesian slang leak for MY market, headline/description viewport truncation, and missing url_tags"
+else
+  bad "validate missed MY lexical leak, truncation, or url_tags warning: $my_lint_out"
+fi
+
 # 5. Mock `meta` and `secrets-env` binaries for setup, dry-run, deploy --apply, state resume, drift detection, and media hash dedup
 MOCK_BIN="$TMP/mock-bin"
 META_LOG="$TMP/meta-invocations.log"
@@ -194,6 +265,9 @@ case "$*" in
     ;;
   *" campaign list"*)
     printf '[\n  {\n    "id": "camp_1001"\n  }\n]\n'
+    ;;
+  *" insights "*)
+    printf '[{"ad_id":"ad_live_1","ad_name":"Ad_Live_Pulled","spend":"100","impressions":"12000","frequency":"1.4","outbound_clicks":"200","actions":[{"action_type":"purchase","value":"5"}],"action_values":[{"action_type":"purchase","value":"500"}]},{"ad_id":"ad_early_1","ad_name":"Ad_Early_Learning","spend":"20","impressions":"2000","frequency":"1.1","outbound_clicks":"25"},{"ad_id":"ad_fatigue_1","ad_name":"Ad_Fatigued_V1","spend":"100","impressions":"15000","frequency":"2.9","outbound_clicks":"150","actions":[{"action_type":"purchase","value":"1"}],"action_values":[{"action_type":"purchase","value":"100"}]}]\n'
     ;;
   *)
     echo "Unexpected mock meta command: $*" >&2
@@ -290,6 +364,86 @@ if [ "$?" -eq 0 ] && printf '%s' "$run_out" | grep -q '"camp_1001"'; then
   ok "run bridges secrets-env and brand.json to raw meta CLI commands"
 else
   bad "run failed: $run_out"
+fi
+
+# 6b. Multi-source Meta Ads Memory (learn unit-economics, learn add, learn list) & Conversion Analyzer (analyze --record-memory)
+ue_out="$("$CMD" learn unit-economics --brand "$WS/brand.json" --aov 100 --cogs 30 --shipping-fee 5 --cod-rts-rate 0.10 --rts-penalty 10 --target-margin 0.20 --json 2>&1)"
+if [ "$?" -eq 0 ] \
+  && printf '%s' "$ue_out" | jq -e '.ok == true and .unit_economics.max_cpr_breakeven == 57.5 and .unit_economics.target_cpr == 37.5 and .unit_economics.recommended_cost_cap == 31.88' >/dev/null \
+  && [ -f "$WS/memory/ads-memory.json" ] \
+  && [ -f "$WS/memory/MEMORY.md" ]; then
+  ok "learn unit-economics computes COD RTS contribution margin, max/target CPR, Break-Even/Target ROAS, and Cost Cap"
+else
+  bad "learn unit-economics failed: $ue_out"
+fi
+
+learn_add_out="$("$CMD" learn add --brand "$WS/brand.json" --source outsource --category bidding --verdict rule --title "Cost Cap Payday Rule" --summary "Hold 0.85x Target CPR during payday spikes" --action "Use COST_CAP on scaling ad set" --json 2>&1)"
+if [ "$?" -eq 0 ] && printf '%s' "$learn_add_out" | jq -e '.ok == true and .totalEntries == 1' >/dev/null; then
+  ok "learn add records external/outsource intelligence to memory/ads-memory.json and MEMORY.md"
+else
+  bad "learn add failed: $learn_add_out"
+fi
+
+cat > "$WS/insights-sample.json" <<'EOF'
+[
+  {
+    "ad_id": "ad_1",
+    "ad_name": "Ad_UGC_Winner_V1",
+    "spend": "100",
+    "impressions": "10000",
+    "outbound_clicks": "220",
+    "video_3s_views": "3600",
+    "thruplays": "1100",
+    "purchases": "4",
+    "revenue": "400"
+  },
+  {
+    "ad_id": "ad_2",
+    "ad_name": "Ad_WeakHook_V1",
+    "spend": "80",
+    "impressions": "10000",
+    "outbound_clicks": "60",
+    "video_3s_views": "1500",
+    "thruplays": "400",
+    "purchases": "0",
+    "revenue": "0"
+  },
+  {
+    "ad_id": "ad_3",
+    "ad_name": "Ad_FunnelDrop_V1",
+    "spend": "90",
+    "impressions": "8000",
+    "outbound_clicks": "180",
+    "video_3s_views": "2800",
+    "thruplays": "800",
+    "purchases": "1",
+    "revenue": "100"
+  }
+]
+EOF
+
+an_out="$("$CMD" analyze "$WS/insights-sample.json" --brand "$WS/brand.json" --record-memory --json 2>&1)"
+if [ "$?" -eq 0 ] \
+  && printf '%s' "$an_out" | jq -e '.ok == true and .recordedToMemory == 3 and .results[0].classification == "SCALE_WINNER" and .results[0].cpc == 0.45 and .results[1].classification == "FIX_HOOK_FIRST_3S" and .results[2].classification == "FIX_LANDING_CVR_OR_SIGNAL" and .results[2].cpc == 0.5' >/dev/null; then
+  ok "analyze classifies SCALE_WINNER (ROAS North-Star + CTR/CPC diagnostics), FIX_HOOK_FIRST_3S, and FIX_LANDING_CVR_OR_SIGNAL and records lessons to memory"
+else
+  bad "analyze failed or misclassified rows: $an_out"
+fi
+
+list_out="$("$CMD" learn list --brand "$WS/brand.json" --verdict winner --json 2>&1)"
+if [ "$?" -eq 0 ] && printf '%s' "$list_out" | jq -e '.entries | length == 1 and .[0].source == "data"' >/dev/null; then
+  ok "learn list filters recorded winners from memory/ads-memory.json"
+else
+  bad "learn list failed: $list_out"
+fi
+
+# 6c. Live insights --pull, COD --delivery-rate ROAS reconciliation, MONITOR_EARLY spend gate, CREATIVE_FATIGUE, and stop-loss CLI plan
+pull_out="$("$CMD" analyze --pull --delivery-rate 0.8 --brand "$WS/brand.json" --json 2>&1)"
+if [ "$?" -eq 0 ] \
+  && printf '%s' "$pull_out" | jq -e '.ok == true and .results[0].meta_roas == 5 and .results[0].roas == 4 and .results[0].classification == "SCALE_WINNER" and (.results[0].recommended_command | type == "string") and .results[1].classification == "MONITOR_EARLY" and .results[2].classification == "CREATIVE_FATIGUE"' >/dev/null; then
+  ok "analyze --pull fetches live insights, reconciles COD delivery-rate ROAS, protects MONITOR_EARLY ads, detects CREATIVE_FATIGUE, and emits Day-2 CLI plan"
+else
+  bad "analyze --pull / delivery-rate / MONITOR_EARLY / CREATIVE_FATIGUE failed: $pull_out"
 fi
 
 # A corrupt state file must never be silently reset into a fresh deployment.

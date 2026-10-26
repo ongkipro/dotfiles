@@ -13,7 +13,7 @@ Only the dependency edge is human-authored; state is derived.
 
 ## Done
 
-- TASK-144, TASK-141, TASK-139: [System-map queryability, coverage gate, and memory hygiene](docs/archive/DOTFILES_TASKS_2026-10-25_SYSTEM_MAP.md).
+- TASK-145, TASK-144, TASK-141, TASK-139: [System-map dictionary, queryability, coverage gate, and memory hygiene](docs/archive/DOTFILES_TASKS_2026-10-25_SYSTEM_MAP.md).
 
 - TASK-138, TASK-137: [Development-kit audit and eval guidance provenance](docs/archive/DOTFILES_TASKS_2026-10-25_DEVELOPMENT_KIT.md).
 
@@ -35,19 +35,19 @@ Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
 
 ## Pending
 
-### TASK-145: System map as a complete, measured dictionary
+### TASK-146: Meta Ads 2026 algorithm (Andromeda, GEM, Lattice) and Marketing API v22–v26 upgrade
 
-- **Requirement:** REQ-SYSTEM-MAP-ACCURACY (owner 2026-10-25: validate the map until it is final as the system dictionary; the map stays English).
+- **Requirement:** REQ-META-ADS-2026-ALGORITHM-AND-API (preserve `dotads-meta` and `meta-ads-cli` foundations while adding Andromeda/GEM/Lattice architecture, Unified Advantage+, Flexible Format vs DCO, granular `degrees_of_freedom_spec`, Incremental Attribution, Value Rules, and offline validator guards).
 - **Risk Level:** R2.
-- **Allowed Paths:** `bin/system-map`, `bin/system-map-test`, `docs/DOTFILES_SITEMAP.md`, `docs/research/system-map-references-2026-10-25.md`, `TASKS.md`, `CHANGELOG.md`, `STATUS.md`, `docs/archive/DOTFILES_TASKS_2026-10-25_SYSTEM_MAP.md`.
-- **Protected Paths:** pre-existing dirty work; CORE and adapters; the federated indexes (read only).
-- **Canonical Contract Owners:** sitemap -> `system-map`; project memory -> `MEMORY.md`; skills -> `skill-map`.
-- **Accepted Invariants:** `--find` federates existing indexes, never copies them; every link is its own candidate; coverage extends to environment, CI, skill tools, and research; notes are re-audited against sources.
-- **Regression Checks:** `system-map-test` (with a live query set: 100% top-3, >=90% top-1), `system-map --check`, `ai-policy-lint`, `skill-map --check`.
-- **Runtime Evidence:** the 26-query English set from the TASK-144 validation, rerun and extended.
-- **Non-Scope:** non-English synonyms; embeddings or external search; commit/push.
-- **Reopen Conditions:** the live query set drops below threshold, or a tracked environment file is unlinked.
-- **Escalation Conditions:** a federated index needs a format change.
+- **Allowed Paths:** `TASKS.md`, `docs/archive/DOTFILES_TASKS_2026-10-25_SYSTEM_MAP.md`, `bin/dotads-meta`, `bin/dotads-meta-test`, `skills/local/meta-ads-cli/**`.
+- **Protected Paths:** `config/ai/CORE.md`, `config/ai/adapters/**`.
+- **Canonical Contract Owners:** CLI -> `bin/dotads-meta`; guidance -> `meta-ads-cli`.
+- **Accepted Invariants:** preserve existing subcommands, `secrets-env` injection, `.meta-state.json` v1, SHA-256 media cache, and `PAUSED` gate; support `AUTOMATIC_FORMAT` alongside `dynamic_creative`; reject `smart_promotion_type`, >1 ad per DCO ad set, and `7d_view`/`28d_view`.
+- **Regression Checks:** `dotads-meta-test`, `skill-check meta-ads-cli`, `skill-surface-check`, `skill-map --check`, `ai-policy-lint`, `ai-memory-check`, `security-check`, `git diff --check`.
+- **Runtime Evidence:** `dotads-meta-test` verifies all 2026 API & algorithm guards.
+- **Non-Scope:** live API mutations, credentials, commit/push unless requested.
+- **Reopen Conditions:** existing workspaces break, `SKILL.md` > 500 lines, or `TASKS.md` > 12,288 bytes.
+- **Escalation Conditions:** requires live API mutations or `CORE.md` edits.
 
 ### TASK-140: Codex decision trial (not before 2026-10-31)
 
