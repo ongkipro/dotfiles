@@ -23,6 +23,7 @@ gh api repos/ongkipro/dotfiles --jq .visibility
   recorded flip, which is why the instruction at the top of this file is to
   check the live value rather than read this list.
 - **Public 2026-10-21.** Owner instruction (`gh repo edit --visibility public`).
+- **Private 2026-10-26.** Owner instruction (`gh repo edit --visibility private`).
 
 ## Why visibility is not a secrets boundary
 
