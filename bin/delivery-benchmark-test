@@ -75,6 +75,38 @@ set +e; python3 "$DB" --repo . record --run "$NAN_RUN" --duration-sec NaN >/dev/
 [ "$rc" -eq 1 ] || fail "non-finite metrics must be rejected before persistence"
 [ ! -e "$REPO/.delivery/metrics/$NAN_RUN.json" ] || fail "invalid metric must not be persisted"
 
+# Omitted cost is unknown, not a free run. It cannot make a partially measured
+# group eligible for cost ranking; an explicit zero remains a measured zero.
+python3 "$DB" --repo . record --run "$NAN_RUN" --duration-sec 10 >/dev/null
+python3 "$DB" --repo . report --json > "$TMP/unknown-cost.json"
+python3 - "$REPO/.delivery/metrics/$NAN_RUN.json" "$TMP/unknown-cost.json" <<'PY'
+import json,sys
+metric=json.load(open(sys.argv[1])); report=json.load(open(sys.argv[2]))
+assert metric['costUsd'] is None, metric
+group=next(g for g in report['groups'] if g['model']=='model-a')
+assert group['costPerSuccess'] is None, group
+assert group['costUsdTotal'] is None, group
+assert group['costCoverage'] < 1, group
+PY
+record_run model-zero PASS 0 0 0 no
+python3 "$DB" --repo . report --json > "$TMP/zero-cost.json"
+python3 - "$TMP/zero-cost.json" <<'PY'
+import json,sys
+group=next(g for g in json.load(open(sys.argv[1]))['groups'] if g['model']=='model-zero')
+assert group['costUsdTotal']==0 and group['costPerSuccess']==0
+assert group['costCoverage']==1
+PY
+python3 - "$DB" "$REPO" <<'PY'
+import pathlib,runpy,sys
+module=runpy.run_path(sys.argv[1])
+rows,_=module['collect'](pathlib.Path(sys.argv[2]))
+row=next(row for row in rows if row['model']=='model-zero')
+row['metrics']['schemaVersion']=1
+group=module['aggregate']([row])[0]
+assert group['costCoverage']==0 and group['costPerSuccess'] is None, group
+assert group['costUsdTotal'] is None, group
+PY
+
 cp "$FIRST_METRIC" "$TMP/metric.backup"
 python3 - "$FIRST_METRIC" <<'PY'
 from pathlib import Path

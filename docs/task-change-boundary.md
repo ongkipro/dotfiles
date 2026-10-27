@@ -215,6 +215,28 @@ first half, which is the whole failure being closed.
 Prefer `--command` for anything with an exit code. Freshness proves evidence was
 not stale; only execution proves it happened.
 
+An executed check now fingerprints Git-visible dirty content and HEAD before
+and after the command. A zero exit code with a net source/path/HEAD change is
+`UNVERIFIED`, with `sourceChangedDuringExecution: true`; it cannot certify the
+post-command source. This catches a passing test followed by code generation,
+including new files and edits to already-dirty files. Run generation/formatting
+first, then re-run a successful check that leaves the source unchanged. Staging
+alone and ignored build/cache output do not invalidate a check. Historical
+events without before-execution metadata remain historical evidence.
+
+New verification events explicitly label `evidenceType` as `executed` or
+`declared`; the CLI prints the distinction too. A declared browser observation
+cannot satisfy an executable gate.
+
+Bind every mandatory executable check from the task's Regression Checks when
+starting a new run, for example `start ... --require-check auth-regression
+--require-check persistence-integration`. Repeat the option for independent
+functional, security, or visual checks with executable graders. Each named
+check must end in an executed PASS; a manual PASS with the same name cannot
+substitute. Do not label a screenshot command as visual acceptance unless its
+grader actually evaluates the accepted visual criteria. Human visual acceptance
+may be recorded separately as a declared observation.
+
 ## Verification freshness
 
 The boundary has always refused a `PASS` whose change surface moved after the
@@ -243,6 +265,15 @@ Two properties are deliberate, and each cost a wrong first attempt:
 Runs recorded before this existed carry no `checkedDigest` and are not judged by
 it — the rule cannot retroactively invalidate evidence it never measured.
 
+For runs declaring `--require-check`, **every required check** must match the
+final surface. A new dirty file also invalidates required checks that did not
+include it. Another fresh PASS cannot hide a stale required check. The fixed
+recorded path list is retained, so committing verified content does not by
+itself stale it. Historical runs and new runs without named required checks keep
+the legacy minimum-one-fresh-PASS rule; the ledger does not infer mandatory tests
+from arbitrary task prose. Selecting and binding those checks is part of the
+task contract, not proof that every possible risk was tested.
+
 ## Agent obligations
 
 This is the canonical statement the shared AI core points to; it used to be
@@ -260,6 +291,9 @@ justifies `PASS`.
 - This is a completion/evidence gate, not a filesystem write interceptor. It
   proves the final surface and denies `PASS`; it cannot stop an editor at the
   instant of an accidental write.
+- Pre/post fingerprints detect net changes; they do not observe transient source
+  mutations reverted before a command returns. Check commands still need to
+  test the intended code; a stable digest is not proof of their semantics.
 - Ignored files are outside Git's change surface. Secrets and generated outputs
   remain governed by repository ignore and security policy.
 - Worktree fingerprints distinguish initial user content from later content but

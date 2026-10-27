@@ -98,7 +98,7 @@ Rules that hold by absence; the code rarely states them.
 - Each collection has one index; no second list of the same members exists.
 - Recall and harvest are advisory: they cite and propose, never apply canonical changes.
 - Each runtime keeps its own execution and provider configuration; the shared core only sets policy.
-- Claude Code hooks enforce Git rules only in Claude Code; other runtimes rely on policy text.
+- Canonical hooks are wired for Claude Code and Codex; Codex also requires trust of the exact definitions. Antigravity, Pi, and OMP rely on policy text.
 
 ### Inventory
 
@@ -128,7 +128,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Research records | [`docs/research/`](../docs/research/) | 4 | linked from this page |
 | Environment and bootstrap | [`config/`](../config/) | 35 | linked from this page |
 | Device reports | [`docs/device-reports/`](../docs/device-reports/) | 21 | count only |
-| Archived task records | [`docs/archive/`](../docs/archive/) | 28 | count only |
+| Archived task records | [`docs/archive/`](../docs/archive/) | 29 | count only |
 
 <!-- system-map:inventory:end -->
 
@@ -146,7 +146,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | **Skills Registry** | [`skills/local/`](../skills/local) | Owned skills categorized into engineering domains; domain map in [`skills/local/README.md`](../skills/local/README.md). | AI CLI tool calling & workflows |
 | **Skill Management**| [`skills/agents-bin/`](../skills/agents-bin) | CLI tools for managing, checking, updating, and removing skills. | Developers & AI toolchain |
 | **Executable CLI**  | [`bin/`](../bin) | Bash, Python, and Node.js commands, tests, and helpers for verification and automation. | Terminal workflow & CI |
-| **Runtime References** | [`config/omp/`](../config/omp), [`config/pi/`](../config/pi) | OMP native reference plus historical routing evidence, and optional Pi defaults; installers load neither. | OMP and Pi runtimes |
+| **Runtime References** | [`config/omp/`](../config/omp), [`config/pi/`](../config/pi) | OMP references are never installed automatically. Pi settings, model template, and extension may be seeded by the explicit `DOTFILES_SETUP_PI=1` installer option. | OMP and Pi runtimes |
 | **Device Registry** | [`devices/`](../devices) | Hardware manifests, OS specs, and per-machine configurations. | `dotsync`, `device-register` |
 | **Project Templates** | [`config/templates/`](../config/templates) | Contract scaffold for new projects (`PRD`, `TASKS`, `ARCHITECTURE`, etc.). | `project-init` |
 | **System Docs**     | [`docs/`](../docs) | Architecture blueprints, security policies, install SOPs, audit logs. | Architecture & Governance |
@@ -168,11 +168,11 @@ Central repository for AI behavior, context distribution, and safety guards.
 - [`config/ai/README.md`](../config/ai/README.md):
   **Function:** Overview of the shared AI context architecture and memory link paths.
 - [`config/ai/memory-router.json`](../config/ai/memory-router.json):
-  **Function:** Keyword/trigger mapping engine that matches prompts to specific memory files with token budget limits (`maxFiles: 3`, `maxBytes: 12000`).
+  **Function:** Prompt/path-trigger mapping with file and byte budgets (`maxFiles: 3`, `maxBytes: 12000`).
 - [`config/ai/memory-hygiene.json`](../config/ai/memory-hygiene.json):
-  **Function:** Rule definitions for memory linting (anti-staleness, dead links, secret detection).
+  **Function:** Memory budget, scope, privacy-marker, stale-claim, authority, and duplicate/conflict rules; link and secret checks have separate owners.
 - [`config/ai/claude-hooks.json`](../config/ai/claude-hooks.json):
-  **Function:** Claude Code hook declarations (`PreToolUse` git-guard, `UserPromptSubmit` memory-usage).
+  **Function:** Canonical Claude Code hook declarations, adapted for Codex by `ai-hooks-install`: `PreToolUse` git-guard, `UserPromptSubmit` memory-usage, and `SessionStart` session-restore.
 - [`config/ai/claude-home-memory/MEMORY.md`](../config/ai/claude-home-memory/MEMORY.md):
   **Function:** Read-only bootstrap for Claude sessions started at `$HOME` to prevent accidental auto-memory clutter in dotfiles.
 
@@ -192,13 +192,13 @@ Central repository for AI behavior, context distribution, and safety guards.
 
 ### 3.3 Security & Telemetry Hooks (`config/ai/hooks/`)
 - [`config/ai/hooks/git-guard.sh`](../config/ai/hooks/git-guard.sh):
-  **Function:** Intercepts Git commands before execution. Blocks force-push (`--force`, `+refspec`), history rewriting (`commit --amend`), and deletion of remote branches.
+  **Function:** Inspects recognized shell Git invocations. Denies force flags and amend; requests approval for forced refspecs and remote deletion, which Codex converts to denial. Interpreter wrappers and aliases remain outside its parser coverage.
 - [`config/ai/hooks/memory-usage.sh`](../config/ai/hooks/memory-usage.sh):
-  **Function:** `UserPromptSubmit` hook that tracks memory file hit counts and byte sizes without logging sensitive prompts.
+  **Function:** `UserPromptSubmit` hook that records selected memory paths and byte sizes without logging prompts. Selection does not prove a model opened or benefited from a file.
 
 ---
 - [`config/ai/hooks/git-guard.test.sh`](../config/ai/hooks/git-guard.test.sh): Regression check for `git-guard.sh`; run after touching the guard.
-- [`config/ai/hooks/session-restore.sh`](../config/ai/hooks/session-restore.sh): `SessionStart` hook (compact or resume) that restores exact task state lost by compaction.
+- [`config/ai/hooks/session-restore.sh`](../config/ai/hooks/session-restore.sh): Injects a bounded repository-state brief after compact/resume; `STATUS.md`, `TASKS.md`, and delivery evidence must be rechecked.
 - [`config/ai/hooks/session-restore.test.sh`](../config/ai/hooks/session-restore.test.sh): Sandboxed regression check for the session-restore hook.
 
 ### 3.4 Evaluation Fixtures (`config/ai/evals/`)
@@ -229,7 +229,7 @@ Cross-project durable facts loaded selectively on demand by `ai-memory-access`.
 | [`development.md`](../config/ai/memory/development.md) | House stack (Postgres + Drizzle + Better Auth, Astro, Next.js, Cloudflare Workers), lazy developer guidelines. |
 | [`development-lessons.md`](../config/ai/memory/development-lessons.md) | Verified cross-project engineering lessons promoted via `ai-learn`. |
 | [`workflow.md`](../config/ai/memory/workflow.md) | Pre-dev staging contract (`~/Documents/work/prd/<slug>/` -> `~/Projects/<slug>/`), delivery ledger lifecycle. |
-| [`decisions.md`](../config/ai/memory/decisions.md) | Master log of architectural decisions, stack selections, and structural choices. |
+| [`decisions.md`](../config/ai/memory/decisions.md) | Advisory cross-project decisions, preferences, and working assumptions; each project's repository owns its technical decision records. |
 | [`skills.md`](../config/ai/memory/skills.md) | The user's skill profile (development, marketing, SEO, affiliate) for calibrating explanation depth, plus where the owned skill set is mapped. |
 | [`shopify.md`](../config/ai/memory/shopify.md) | Shopify standards: Dawn baseline, Storefront API, Hydrogen, no CTA in descriptions, brand-generic SEO. |
 | [`environment.md`](../config/ai/memory/environment.md) | Hardware & software toolchains, installed packages, mise plugins, cross-platform parity. |
@@ -397,10 +397,10 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`ai-schedule`](../bin/ai-schedule) (+ [`test`](../bin/ai-schedule-test)): Manages explicit offline `repo-status` and `dotads-validate` jobs, foreground ticks/loop, private history, and isolated failures; no service or real job is installed automatically.
 - [`ai-memory-access`](../bin/ai-memory-access) (+ [`test`](../bin/ai-memory-access-test)): Routes a request to the smallest relevant memory files and records privacy-minimal usage telemetry.
 - [`ai-memory-check`](../bin/ai-memory-check) (+ [`test`](../bin/ai-memory-check-test)): Verifies markdown links across all memory files.
-- [`ai-memory-hygiene`](../bin/ai-memory-hygiene) (+ [`test`](../bin/ai-memory-hygiene-test)): Detects dead memory, secret leaks, and unrouted files.
+- [`ai-memory-hygiene`](../bin/ai-memory-hygiene) (+ [`test`](../bin/ai-memory-hygiene-test)): Checks memory budgets, scope, privacy markers, volatile or stale claims, authority conflicts, and duplicate/conflicting content. Routing coverage belongs to `ai-policy-lint`; secret scanning to `security-check`.
 - [`ai-memory-lifecycle`](../bin/ai-memory-lifecycle) (+ [`test`](../bin/ai-memory-lifecycle-test)): Analyzes memory access logs to recommend file retention or pruning.
 - [`ai-memory-link`](../bin/ai-memory-link) (+ [`test`](../bin/ai-memory-link-test)): Renders and links native contexts; reconciles manifest command links and prunes only dangling repository-owned links, including the first upgrade from older sync code.
-- [`ai-memory-route`](../bin/ai-memory-route) (+ [`test`](../bin/ai-memory-route-test)): Tests trigger resolution against `memory-router.json`.
+- [`ai-memory-route`](../bin/ai-memory-route) (+ [`test`](../bin/ai-memory-route-test)): Selects scoped memory references using prompt/path triggers and file/byte budgets.
 - [`ai-skill-evolution`](../bin/ai-skill-evolution) (+ [`test`](../bin/ai-skill-evolution-test)): Reports advisory recurring-pattern candidates for skill improvement; it does not promote or rewrite skills automatically.
 - [`ai-hooks-install`](../bin/ai-hooks-install) (+ [`test`](../bin/ai-hooks-install-test)): Installs and checks canonical Claude Code and Codex hooks; native Codex trust remains an interactive runtime step.
 - [`ai-mcp-sync`](../bin/ai-mcp-sync) (+ [`test`](../bin/ai-mcp-sync-test)): Synchronizes and checks global MCP servers across AI CLI runtimes.
@@ -430,7 +430,7 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`dotpush`](../bin/dotpush) (+ [`test`](../bin/dotpush-test)): Commits and pushes dotfiles in one step: syncs with the remote first and scans for secrets before committing.
 - [`device-register`](../bin/device-register) (+ [`test`](../bin/device-register-test)): Registers current machine specs into `devices/`.
 - [`device-verify`](../bin/device-verify) (+ [`test`](../bin/device-verify-test)): Runs every repository gate on this device and writes a report other devices can read.
-- [`dev-ready`](../bin/dev-ready) (+ [`test`](../bin/dev-ready-test)): Two-second gate before autonomous work: providers, test command, ledger, and a worktree that does not overlap the task.
+- [`dev-ready`](../bin/dev-ready) (+ [`test`](../bin/dev-ready-test)): Read-only readiness summary for runtime wiring, available checks, and ledger state. Reports unknown provider health and existing dirty paths; `delivery-ledger` enforces task-surface overlap.
 - [`secrets-env`](../bin/secrets-env) (+ [`test`](../bin/secrets-env-test)): Safely inspects and injects credentials from `~/.config/ai-local/secrets.env`.
 - [`security-check`](../bin/security-check) (+ [`test`](../bin/security-check-test)): Audits repositories for staged credentials and secret leaks.
 

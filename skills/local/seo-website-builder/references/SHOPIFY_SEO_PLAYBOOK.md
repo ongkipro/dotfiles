@@ -38,7 +38,7 @@ Hard rule: do not invent product facts. Use only existing data, images, verified
 | Blog | index if helpful and supports topical authority |
 | Search results | noindex |
 | Cart/checkout/account | noindex |
-| Thin tag/filter pages | noindex/canonical |
+| Tag/filter pages | Choose exclusion with readable noindex or duplicate consolidation with canonical according to purpose; these are not interchangeable. |
 | Sold-out product | keep indexed if demand is high and alternatives are shown |
 
 ## Product page checklist
@@ -229,7 +229,8 @@ A Shopify store is not SEO-ready until:
 
 - product and collection pages have unique title/meta
 - Product schema is valid
-- thin collections/facets are noindex/canonical-controlled
+- collections/facets have a deliberate exclusion or consolidation policy; robots
+  crawling restrictions do not themselves prevent indexing or protect private data
 - important images have good ALT
 - Merchant/feed data is healthy
 - internal linking is clear

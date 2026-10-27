@@ -88,7 +88,11 @@ Operational rules:
 - Include concise definitions, comparison tables, FAQs, and evidence where useful (visible FAQ content helps readers; Google no longer shows FAQ rich results).
 - Keep important content in HTML text.
 - Use image/video support for visual topics.
-- Track performance in Search Console Web search type; AI features are folded into Search Console reporting.
+- Overall reporting still includes generative-AI data, and Google now documents
+  dedicated Search/Discover generative-AI visibility views. Use documented
+  impressions and available dimensions; do not invent AI-only click, CTR,
+  conversion, or API breakdowns. An absent report is not proof of zero traffic.
+  See the current [source index](SEARCH_ENGINE_SOURCE_INDEX.md).
 
 ### Google spam/current risk notes
 
@@ -249,14 +253,25 @@ Operational rules:
 
 When an algorithm update happens:
 
-1. Confirm source: official dashboard/blog first.
+1. Confirm source: official dashboard/blog first; retain the actual rollout
+   dates. For a suspected Google core update, confirm completion and wait the
+   documented full week before comparing an appropriate pre-update period.
 2. Identify affected surfaces: web, local, images, shopping, Discover, AI features.
-3. Compare Search Console by page type and query intent.
+3. Verify the exact property, host/path, search type, and comparable date windows;
+   compare pages, queries, countries, and devices only where data is available.
 4. Segment pages: winners, losers, unchanged.
 5. Check technical/indexing before content rewrites.
 6. Check SERP changes and competitor changes.
 7. Update playbooks only when evidence is strong.
 8. Record update in `ALGORITHM_UPDATE_LOG.md`.
+
+Missing analytics is unknown, not zero. Assess technical incidents, migrations,
+seasonality, competitors, reporting anomalies, and manual actions before a
+causal algorithm claim. A small fluctuation does not justify broad changes to
+an already-performing page. Source and timing:
+[Google core updates](https://developers.google.com/search/docs/appearance/core-updates),
+[traffic-drop diagnosis](https://developers.google.com/search/docs/monitor-debug/debugging-search-traffic-drops)
+(retrieved 2026-10-26). These docs do not reveal private ranking weights.
 
 ## Current Practical Priority
 

@@ -60,6 +60,23 @@ python3 - "$TMP/self-contained.json" <<'PY'
 import json,sys
 p=json.load(open(sys.argv[1])); assert p['needed'] is False; assert p['files']==[]
 PY
+# Everyday Indonesian continuation must find local execution truth, while
+# unrelated words and self-contained work must not trigger a whole workflow.
+python3 - "$ROUTER" "$REPO" <<'PY'
+import json, subprocess, sys
+router, repo = sys.argv[1:]
+for query in ('lanjut yang tadi','lanjutin yg tadi','lanjt task tadi','status pekerjaan sekarang','apa langkah berikutnya?'):
+    p=json.loads(subprocess.check_output([sys.executable,router,query,'--repo',repo,'--json'],text=True))
+    assert any(f['scope']=='execution' for f in p['files']), (query,p)
+    assert not any(f['scope']=='project' for f in p['files']), (query,p)
+for query in ('hitung 2 tambah 2','ubah warna tombol ini','currentlyrical taskmaster nextjs curriculum','cerita berlanjut di kota',
+              'apa angka berikutnya dari 2, 4, 6?','lanjutkan cerita fiksi ini satu paragraf','apa langkah berikutnya untuk merebus telur?'):
+    p=json.loads(subprocess.check_output([sys.executable,router,query,'--repo',repo,'--json'],text=True))
+    assert not any(f['scope']=='execution' for f in p['files']), (query,p)
+for query in ('tolong lanjut audit repo ini','lanjutkan tugas yang tadi'):
+    p=json.loads(subprocess.check_output([sys.executable,router,query,'--repo',repo,'--json'],text=True))
+    assert any(f['scope']=='execution' for f in p['files']), (query,p)
+PY
 python3 "$ROUTER" 'digital painting techniques' --json > "$TMP/token-boundary.json"
 python3 - "$TMP/token-boundary.json" <<'PY'
 import json,sys

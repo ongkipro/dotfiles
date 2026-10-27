@@ -2,13 +2,23 @@
 
 Purpose: define the minimum complete SEO package for an indexable page. Use this when auditing a page like a homepage, service page, product page, local business page, article, or landing page.
 
-Last updated: 2026-06-30
+Last updated: 2026-10-26 (scope, owner-convention, and evidence corrections).
+
+Use the full formula for a page audit or launch. A bounded repair checks its
+affected behavior and preserves accepted unrelated content. Report served HTML,
+rendered DOM, engine indexing, and conversion evidence separately; unavailable
+measurements are unverified, not failures or measured zeros.
 
 ## Important note about character counts
 
 Character counts are practical QA targets, not guaranteed ranking factors. Search engines may rewrite titles/snippets. The goal is clarity, intent match, and clean presentation.
 
-Recommended working ranges:
+Title/meta ranges are binding owner conventions unless the project records an
+override. Other numeric hints below are editorial heuristics, not Google limits
+or sufficient reasons to fail a page. Decorative images may correctly use empty
+ALT; never add keywords merely to satisfy a minimum length.
+
+Working ranges:
 
 | Field | Recommended | Warning zone | Notes |
 | --- | ---: | ---: | --- |
@@ -345,13 +355,13 @@ Assessment:
 | Area | Status | Reason |
 | --- | --- | --- |
 | Title | Warning | Clear but slightly long; may truncate. Consider shortening while preserving entity + intent. |
-| Description | Warning | Informative but too long for snippet control. Reduce to ~150–160 chars. |
+| Description | Owner convention | Check the project's override or the 120–155-character default; Google does not impose that character boundary. |
 | Canonical | Pass | Absolute canonical present. |
 | Robots | Pass | Index/follow and large image preview present. |
 | Headings | Pass | One H1 and rich section hierarchy. Check H2 count for readability, not as a ranking issue. |
 | Images | Pass | ALT coverage complete. Image title attributes are optional. |
 | Social images | Warning | OG/Twitter image should be absolute URL. |
-| Schema | Fail/Gap | Add JSON-LD Organization/LocalBusiness/EducationalOrganization, WebSite, BreadcrumbList, FAQPage if FAQ visible. |
+| Schema | Assess eligibility | Missing JSON-LD alone is not a universal SEO failure. Select applicable markup for real visible entities and current feature eligibility; do not add FAQ markup to promise a retired Google rich result. |
 | Links | Pass/Minor | Link title attributes are optional; make sure anchor text is descriptive. |
 | Keywords meta | Neutral | Not needed for Google ranking. Keep only as internal targeting if desired. |
 

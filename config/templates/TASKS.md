@@ -21,7 +21,7 @@ Every implementation task must trace to one accepted requirement, declare its ri
 - **Producers:** [State/API/event producers or `None`]
 - **Consumers:** [State/API/event consumers or `None`]
 - **Depends On:** [Prior integrated task/child or `None`]
-- **Regression Checks:** [Named executable checks required before integration]
+- **Regression Checks:** [Named executable checks required before integration; bind each at run start with repeated `--require-check NAME`. Required checks must each have a fresh executed PASS. Record functional and visual acceptance separately when applicable.]
 - **Runtime Evidence:** [Browser, CLI, or service scenario; `None` only when inapplicable]
 - **Visual Contract:** [Required when Allowed Paths touch `.tsx/.jsx/.vue/.svelte/.astro/.css/.scss/.html`. Name: surface type, primary user and their job, visual direction and its token source, density, desktop and mobile behaviour, the states that must exist (loading/empty/error/success/disabled), and what would be rejected; when a target reference is supplied, its `C1`… composition contract from `design-taste`. "Modern UI" is not a contract — it cannot be failed, so it cannot be reviewed. Use `Not applicable` for non-visual work.]
 - **Reopen Conditions:** [Evidence that invalidates Done and reopens the task]

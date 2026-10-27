@@ -87,6 +87,8 @@ def for_runtime(manifest: dict, runtime: str) -> dict:
         return manifest
     out = json.loads(json.dumps(manifest))
     for spec in out.get("hooks", []):
+        spec["legacyCommands"] = [f"export AI_HOOK_RUNTIME={runtime}; " + cmd
+                                  for cmd in spec.get("legacyCommands", [])]
         for hook in spec["entry"].get("hooks", []):
             hook.pop("if", None)
             if "command" in hook:
@@ -110,6 +112,14 @@ def reconcile(settings: dict, manifest: dict, force: bool) -> list:
         groups = hooks.setdefault(spec["event"], [])
         if not isinstance(groups, list):
             raise ValueError(f"settings.json hooks.{spec['event']} is not a list; refusing to overwrite it")
+        migrated = False
+        for group in groups:
+            if not isinstance(group, dict):
+                continue
+            for hook in group.get("hooks", []):
+                if isinstance(hook, dict) and hook.get("command") in spec.get("legacyCommands", []):
+                    hook["command"] = spec["entry"]["hooks"][0]["command"]
+                    migrated = True
         index = find_group(groups, spec["match"])
         if index < 0:
             groups.append(spec["entry"])
@@ -117,6 +127,10 @@ def reconcile(settings: dict, manifest: dict, force: bool) -> list:
         elif force and groups[index] != spec["entry"]:
             groups[index] = spec["entry"]
             actions.append((spec["id"], "replaced"))
+        elif migrated:
+            # Migrate only the known unsafe launcher. Keep local matchers,
+            # timeouts, and unrelated hooks; arbitrary customization needs --force.
+            actions.append((spec["id"], "unsafe launcher (migration needed)"))
         elif groups[index] != spec["entry"]:
             actions.append((spec["id"], "present (differs from canonical; --force to replace)"))
         else:
@@ -185,10 +199,10 @@ def main() -> int:
     for hook_id, action in actions:
         print(f"  {hook_id}: {action}")
 
-    missing = [i for i, a in actions if a == "installed"]
+    missing = [i for i, a in actions if a in {"installed", "replaced", "unsafe launcher (migration needed)"}]
     if args.check:
         if missing:
-            print(f"ai-hooks-install: {len(missing)} hook(s) NOT wired in {settings_path}: {', '.join(missing)}", file=sys.stderr)
+            print(f"ai-hooks-install: {len(missing)} hook(s) NOT wired safely in {settings_path}: {', '.join(missing)}", file=sys.stderr)
             return 1
         print(f"ai-hooks-install: all {len(actions)} canonical hook(s) wired")
         return 0

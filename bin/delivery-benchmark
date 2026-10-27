@@ -84,11 +84,11 @@ def record(repo: Path, a) -> int:
     target=metrics/f"{a.run}.json"
     if target.exists(): raise ValueError("run metrics already exist; metrics are immutable")
     data={
-        "schemaVersion":1,"runId":a.run,
+        "schemaVersion":2,"runId":a.run,
         "durationSeconds":nonneg(a.duration_sec,"duration-sec"),
         "inputTokens":nonneg(a.input_tokens,"input-tokens",True),
         "outputTokens":nonneg(a.output_tokens,"output-tokens",True),
-        "costUsd":nonneg(a.cost_usd,"cost-usd"),
+        "costUsd":nonneg(a.cost_usd,"cost-usd") if a.cost_usd is not None else None,
         "repairAttempts":nonneg(a.repair_attempts,"repair-attempts",True),
         "humanCorrections":nonneg(a.human_corrections,"human-corrections",True),
         "escalated":a.escalated=="yes",
@@ -129,12 +129,19 @@ def aggregate(rows: list[dict]) -> list[dict]:
     for (risk,job,capability,model,provider,reasoning_effort,worker),items in sorted(groups.items(),key=lambda kv:str(kv[0])):
         n=len(items); passed=sum(r["result"]=="PASS" for r in items); failed=sum(r["result"]=="FAIL" for r in items); blocked=sum(r["result"]=="BLOCKED" for r in items)
         vf=sum(bool(r["verificationFailed"]) for r in items); mr=[r["metrics"] for r in items if "metrics" in r]
-        total_cost=sum(m["costUsd"] for m in mr); total_repairs=sum(m["repairAttempts"] for m in mr); total_human=sum(m["humanCorrections"] for m in mr); escalated=sum(bool(m["escalated"]) for m in mr)
+        # v1 omitted costs defaulted to zero, so old zero values cannot prove
+        # that a run was free. Keep immutable sidecars; expose the uncertainty.
+        known_costs = [m["costUsd"] for m in mr if m.get("costUsd") is not None
+                       and (m.get("schemaVersion", 1) >= 2 or m["costUsd"] != 0)]
+        total_cost=sum(known_costs); total_repairs=sum(m["repairAttempts"] for m in mr); total_human=sum(m["humanCorrections"] for m in mr); escalated=sum(bool(m["escalated"]) for m in mr)
         result.append({
             "risk":risk,"job":job,"capability":capability,"model":model,"provider":provider,"reasoningEffort":reasoning_effort,"worker":worker,"samples":n,"pass":passed,"fail":failed,"blocked":blocked,
             "successRate":round(passed/n,4),"verificationFailureRate":round(vf/n,4),"metricsCoverage":round(len(mr)/n,4),
             "acceptedOutcomeRate":round(sum(bool(item['acceptedOutcome']) for item in items)/n,4),
-            "costUsdTotal":round(total_cost,6),"costPerSuccess":round(total_cost/passed,6) if passed and len(mr)==n else None,
+            "costCoverage":round(len(known_costs)/n,4),
+            "costUsdKnownSubtotal":round(total_cost,6),
+            "costUsdTotal":round(total_cost,6) if len(known_costs)==n else None,
+            "costPerSuccess":round(total_cost/passed,6) if passed and len(known_costs)==n else None,
             "avgRepairAttempts":round(total_repairs/len(mr),3) if mr else None,
             "humanCorrectionRate":round(sum(m["humanCorrections"]>0 for m in mr)/len(mr),4) if mr else None,
             "escalationRate":round(escalated/len(mr),4) if mr else None,
@@ -179,7 +186,7 @@ def report(repo: Path, a) -> int:
 
 def main()->int:
     p=argparse.ArgumentParser();p.add_argument("--repo",default=".");sub=p.add_subparsers(dest="cmd",required=True)
-    r=sub.add_parser("record");r.add_argument("--run",required=True);r.add_argument("--duration-sec",required=True);r.add_argument("--input-tokens",default="0");r.add_argument("--output-tokens",default="0");r.add_argument("--cost-usd",default="0");r.add_argument("--repair-attempts",default="0");r.add_argument("--human-corrections",default="0");r.add_argument("--escalated",choices=["yes","no"],default="no")
+    r=sub.add_parser("record");r.add_argument("--run",required=True);r.add_argument("--duration-sec",required=True);r.add_argument("--input-tokens",default="0");r.add_argument("--output-tokens",default="0");r.add_argument("--cost-usd",help="measured USD cost; omit when unknown, use 0 only for measured zero");r.add_argument("--repair-attempts",default="0");r.add_argument("--human-corrections",default="0");r.add_argument("--escalated",choices=["yes","no"],default="no")
     q=sub.add_parser("report");q.add_argument("--risk",choices=sorted(RISKS));q.add_argument("--min-samples",type=int,default=10);q.add_argument("--reliability",type=float,default=.90);q.add_argument("--json",action="store_true")
     a=p.parse_args();repo=Path(a.repo).resolve()
     if not repo.is_dir(): print(f"delivery-benchmark: ERROR: repo not found: {repo}",file=sys.stderr);return FAILED

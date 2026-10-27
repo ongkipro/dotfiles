@@ -2,7 +2,7 @@
 
 Purpose: SEO implementation and audit rules for Next.js frontend projects using App Router or Pages Router.
 
-Last updated: 2026-06-30
+Last updated: 2026-10-26 (SEO examples and Google safeguards; match framework APIs to the installed version).
 
 ## Core principle
 
@@ -31,7 +31,21 @@ Rules:
 - Use ISR for content/catalog pages that change but do not require per-request personalization.
 - Use SSR only when request-time data is needed.
 - Avoid client-only rendering for primary content.
-- Client Components are fine for interactive UI, not for the main indexable content.
+- A Client Component is not automatically client-only HTML. Inspect served and
+  rendered content before diagnosing a crawl problem; follow the installed
+  framework owner for rendering/API changes.
+
+## Indexability evidence
+
+Inspect response status/headers, initial HTML, and rendered DOM separately.
+An initial noindex response for a public route is not safely fixed by removing
+that directive in JavaScript: Google may skip rendering. A DOM screenshot does
+not prove what was served or indexed. Preserve intentional exclusions, and do
+not treat robots Disallow as privacy or as a replacement for readable noindex.
+JSON-LD may be rendered with JavaScript; validate the observed representation
+and keep engine inspection unknown unless actually available. Metadata streaming
+must be assessed against the installed framework and relevant crawler behavior,
+not declared broken solely from one generic HTML snapshot.
 
 ## App Router SEO
 
@@ -41,26 +55,32 @@ For Next.js App Router, prefer built-in Metadata API.
 
 ```tsx
 export const metadata = {
-  title: 'Service in Location | Brand',
-  description: 'Professional service description written for humans.',
+  title: 'Home Appliance Repair in Springfield - North Pine Repairs',
+  description: 'Explore North Pine Repairs home appliance services in Springfield, with clear service information and contact details for local households.',
   alternates: {
     canonical: 'https://example.com/service/',
   },
   openGraph: {
     type: 'website',
     url: 'https://example.com/service/',
-    title: 'Service in Location | Brand',
-    description: 'Professional service description written for humans.',
+    title: 'Home Appliance Repair in Springfield - North Pine Repairs',
+    description: 'Explore North Pine Repairs home appliance services in Springfield, with clear service information and contact details for local households.',
     images: ['https://example.com/og/service.jpg'],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Service in Location | Brand',
-    description: 'Professional service description written for humans.',
+    title: 'Home Appliance Repair in Springfield - North Pine Repairs',
+    description: 'Explore North Pine Repairs home appliance services in Springfield, with clear service information and contact details for local households.',
     images: ['https://example.com/og/service.jpg'],
   },
 }
 ```
+
+The examples use the owner's final title/description conventions. If a parent
+layout adds a title template, avoid appending the brand twice: use the intended
+page title/template or an appropriate absolute title, and check final HTML.
+Current API reference: https://nextjs.org/docs/app/api-reference/functions/generate-metadata
+(retrieved 2026-10-26); actual projects must match their installed version.
 
 ### Dynamic metadata
 
@@ -68,7 +88,8 @@ Use `generateMetadata()` for dynamic routes:
 
 ```tsx
 export async function generateMetadata({ params }) {
-  const page = await getPage(params.slug)
+  const { slug } = await params
+  const page = await getPage(slug)
 
   return {
     title: page.seoTitle,
@@ -105,13 +126,13 @@ export default function Page() {
   return (
     <>
       <Head>
-        <title>Service in Location | Brand</title>
-        <meta name="description" content="Professional service description written for humans." />
+        <title>Home Appliance Repair in Springfield - North Pine Repairs</title>
+        <meta name="description" content="Explore North Pine Repairs home appliance services in Springfield, with clear service information and contact details for local households." />
         <link rel="canonical" href="https://example.com/service/" />
         <meta name="robots" content="index, follow, max-image-preview:large" />
         <meta property="og:type" content="website" />
-        <meta property="og:title" content="Service in Location | Brand" />
-        <meta property="og:description" content="Professional service description written for humans." />
+        <meta property="og:title" content="Home Appliance Repair in Springfield - North Pine Repairs" />
+        <meta property="og:description" content="Explore North Pine Repairs home appliance services in Springfield, with clear service information and contact details for local households." />
         <meta property="og:url" content="https://example.com/service/" />
         <meta property="og:image" content="https://example.com/og/service.jpg" />
         <meta name="twitter:card" content="summary_large_image" />

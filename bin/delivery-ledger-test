@@ -273,6 +273,7 @@ assert v['red']['executed']['exitCode']==7, v['red']
 assert v['red']['executed']['command']=='echo boom; exit 7', v['red']
 assert 'boom' in v['red']['executed']['outputTail'], v['red']
 assert v['green']['executed']['exitCode']==0, v['green']
+assert v['green']['evidenceType']=='executed', v['green']
 PY
 
 # An agent that may both run the check and name its result can skip the first
@@ -283,6 +284,11 @@ set +e; python3 "$DL" --repo "$EXEC" record --check both --status PASS --command
 # Declared evidence stays possible — a browser check has no exit code — but it
 # must still say which it is.
 python3 "$DL" --repo "$EXEC" record --check manual --status PASS --detail 'observed in a browser' >/dev/null
+python3 - "$RUNFILE" <<'PY'
+import json,sys
+event=next(e for e in map(json.loads,open(sys.argv[1])) if e.get('check')=='manual')
+assert event['evidenceType']=='declared' and event['executed'] is None, event
+PY
 set +e; python3 "$DL" --repo "$EXEC" record --check neither >/dev/null 2>&1; rc=$?; set -e
 [ "$rc" -eq 1 ] || fail "record without --status or --command must be refused"
 
@@ -305,6 +311,94 @@ set +e; python3 "$DL" --repo "$BSTALE" finish --result PASS >/dev/null 2>&1; rc=
 python3 "$DL" --repo "$BSTALE" record --check unit --status PASS >/dev/null
 python3 "$DL" --repo "$BSTALE" check-boundary >/dev/null
 python3 "$DL" --repo "$BSTALE" finish --result PASS >/dev/null || fail "re-running the check against the current tree must clear the staleness"
+
+# Required executable checks cannot be replaced by a manual assertion or by
+# another fresh but unrelated PASS. New source files also stale these checks.
+REQ="$(make_boundary_repo required-executed-checks)"
+python3 "$DL" --repo "$REQ" start --task TASK-REQ --requirement REQ-REQ --risk R1 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'src/**' --require-check functional --require-check security >/dev/null
+printf 'first change\n' >> "$REQ/src/feature.txt"
+python3 "$DL" --repo "$REQ" record --check unrelated --command true >/dev/null
+python3 "$DL" --repo "$REQ" check-boundary >/dev/null
+if python3 "$DL" --repo "$REQ" finish --result PASS >"$TMP/required.err" 2>&1; then fail "missing required checks accepted"; fi
+grep -q 'functional' "$TMP/required.err" || fail "missing-check diagnostic did not name the check"
+python3 "$DL" --repo "$REQ" record --check functional --status PASS --detail 'not actually executed' >/dev/null
+python3 "$DL" --repo "$REQ" record --check security --command true >/dev/null
+if python3 "$DL" --repo "$REQ" finish --result PASS >"$TMP/required.err" 2>&1; then fail "declared PASS replaced required execution"; fi
+grep -q 'executed' "$TMP/required.err" || fail "manual-check diagnostic did not explain evidence type"
+python3 "$DL" --repo "$REQ" record --check functional --command true >/dev/null
+printf 'later change\n' >> "$REQ/src/feature.txt"
+python3 "$DL" --repo "$REQ" record --check unrelated --command true >/dev/null
+python3 "$DL" --repo "$REQ" check-boundary >/dev/null
+if python3 "$DL" --repo "$REQ" finish --result PASS >"$TMP/required.err" 2>&1; then fail "fresh unrelated PASS masked stale required checks"; fi
+grep -q 'stale' "$TMP/required.err" || fail "stale-check diagnostic missing"
+python3 "$DL" --repo "$REQ" record --check functional --command true >/dev/null
+python3 "$DL" --repo "$REQ" record --check security --command true >/dev/null
+printf 'new untested path\n' > "$REQ/src/new.txt"
+python3 "$DL" --repo "$REQ" check-boundary >/dev/null
+if python3 "$DL" --repo "$REQ" finish --result PASS >/dev/null 2>&1; then fail "new source did not stale required checks"; fi
+python3 "$DL" --repo "$REQ" record --check functional --command true >/dev/null
+python3 "$DL" --repo "$REQ" record --check security --command true >/dev/null
+python3 "$DL" --repo "$REQ" check-boundary >/dev/null
+python3 "$DL" --repo "$REQ" finish --result PASS >/dev/null || fail "fresh required checks did not clear the gate"
+python3 "$DL" --repo "$REQ" verify >/dev/null || fail "completed required-check run does not verify"
+
+# A genuine passing behavior test followed by generation must not certify the
+# generated-but-untested source, even when the command itself exits zero.
+GEN="$(make_boundary_repo source-mutating-check)"
+mkdir -p "$GEN/checks"
+printf 'def value():\n    return 1\n' > "$GEN/src/generated.py"
+cp "$GEN/src/generated.py" "$GEN/src/template.py.in"
+cat > "$GEN/checks/test_generated.py" <<'PY'
+import runpy
+assert runpy.run_path('src/generated.py')['value']() == 1, 'generated behavior changed'
+PY
+cat > "$GEN/checks/generate.py" <<'PY'
+from pathlib import Path
+Path('src/generated.py').write_text(Path('src/template.py.in').read_text())
+PY
+printf 'cache/\n' > "$GEN/.gitignore"
+git -C "$GEN" add src checks .gitignore && git -C "$GEN" commit -qm fixture
+python3 "$DL" --repo "$GEN" start --task TASK-GEN --requirement REQ-GEN --risk R1 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'src/**' --require-check generated-behavior >/dev/null
+printf 'def value():\n    return 2\n' > "$GEN/src/template.py.in"
+python3 "$DL" --repo "$GEN" record --check generated-behavior --command 'python3 checks/test_generated.py && python3 checks/generate.py' >/dev/null
+python3 - "$GEN" <<'PY'
+import json,sys
+from pathlib import Path
+event=next(e for p in (Path(sys.argv[1])/'.delivery/runs').glob('*.jsonl') for e in map(json.loads,p.read_text().splitlines()) if e.get('check')=='generated-behavior')
+assert event['executed']['exitCode']==0
+assert event['status']=='UNVERIFIED', event
+assert event['sourceChangedDuringExecution'] is True, event
+PY
+python3 "$DL" --repo "$GEN" check-boundary >/dev/null
+if python3 "$DL" --repo "$GEN" finish --result PASS >/dev/null 2>&1; then fail "source-changing test command certified untested generated source"; fi
+if (cd "$GEN" && python3 checks/test_generated.py >/dev/null 2>&1); then fail "fixture must demonstrate the final source fails the actual behavior test"; fi
+printf 'def value():\n    return 1\n' > "$GEN/src/template.py.in"
+python3 "$DL" --repo "$GEN" record --check generated-behavior --command 'python3 checks/generate.py && python3 checks/test_generated.py' >/dev/null
+# The generator changed tracked source, so even this valid order needs a
+# non-mutating rerun. Ignored build output and staging alone stay admissible.
+python3 "$DL" --repo "$GEN" record --check generated-behavior --command 'python3 checks/test_generated.py' >/dev/null
+python3 "$DL" --repo "$GEN" record --check new-path --command 'python3 checks/test_generated.py && printf generated > src/new.txt' >/dev/null
+python3 "$DL" --repo "$GEN" record --check new-path --command 'python3 checks/test_generated.py' >/dev/null
+printf 'dirty before check\n' >> "$GEN/src/feature.txt"
+python3 "$DL" --repo "$GEN" record --check dirty-path --command 'python3 checks/test_generated.py && printf changed >> src/feature.txt' >/dev/null
+python3 "$DL" --repo "$GEN" record --check dirty-path --command 'python3 checks/test_generated.py && git add src' >/dev/null
+python3 "$DL" --repo "$GEN" record --check ignored-output --command 'python3 checks/test_generated.py && mkdir -p cache && printf build > cache/output.txt' >/dev/null
+python3 - "$GEN" <<'PY'
+import json,sys
+from pathlib import Path
+events=[e for p in (Path(sys.argv[1])/'.delivery/runs').glob('*.jsonl') for e in map(json.loads,p.read_text().splitlines()) if e.get('type')=='verification']
+for name in ('new-path','dirty-path'):
+    pair=[e for e in events if e['check']==name]
+    assert [e['status'] for e in pair]==['UNVERIFIED','PASS'], pair
+    assert pair[0]['sourceChangedDuringExecution'] is True
+    assert pair[1]['sourceChangedDuringExecution'] is False
+ignored=next(e for e in events if e['check']=='ignored-output')
+assert ignored['status']=='PASS' and ignored['sourceChangedDuringExecution'] is False, ignored
+PY
+# All mandatory evidence must cover the final surface after new source edits.
+python3 "$DL" --repo "$GEN" record --check generated-behavior --command 'python3 checks/test_generated.py' >/dev/null
+python3 "$DL" --repo "$GEN" check-boundary >/dev/null
+python3 "$DL" --repo "$GEN" finish --result PASS >/dev/null || fail "non-mutating reruns did not resolve source-change evidence"
 
 # Committing verified work is not a change to it. A first attempt at the rule
 # above collected "currently dirty" at both ends; a commit empties that set

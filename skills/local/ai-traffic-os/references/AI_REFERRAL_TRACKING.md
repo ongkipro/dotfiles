@@ -2,10 +2,17 @@
 
 Use observed HTTP referrers and explicit campaign parameters as separate attribution signals. `sessionStorage` can preserve a source already observed during the same browser session; it cannot recover a source when neither a referrer nor a campaign parameter was present. Label such traffic `unknown` rather than assigning an AI source.
 
-Two documented facts shape the classifier (accessed 2026-10-02):
+Two documented facts shape the classifier (OpenAI source accessed 2026-10-02;
+Google reporting rechecked 2026-10-26):
 
 - OpenAI: ChatGPT adds `utm_source=chatgpt.com` to referral URLs from ChatGPT search ([Publishers and Developers FAQ](https://help.openai.com/en/articles/12627856-publishers-and-developers-faq)).
-- Google: AI Overviews and AI Mode traffic is reported inside the Search Console Performance report's **Web** search type with no separate filter ([AI features and your website](https://developers.google.com/search/docs/appearance/ai-features)). A `google.*` referrer therefore cannot be split into AI Overview vs classic results client-side — classify it as `google_search`, never `google_aio`. (An earlier version of this file guessed AIO from the referrer string and an invented `source=aio` parameter.)
+- Google: overall reporting still includes generative-AI data, and
+  [dedicated visibility reports](https://developers.google.com/search/blog/2026/06/gen-ai-performance-reports)
+  now expose documented impressions and dimensions. They do not create a browser
+  referrer signal for an individual AI visit. Classify an observed `google.*`
+  referrer as `google_search`, not `google_aio`; do not invent a `source=aio`
+  parameter or infer AI-only clicks, conversions, or API attribution. Missing
+  report data stays unknown; inspect the property's documented reporting scope.
 
 The examples below are a local analytics pattern, not a vendor-reported recovery guarantee. Apply consent, retention, minimization, and access-control requirements before collecting referrers or user-agent data.
 

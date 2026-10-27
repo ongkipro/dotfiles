@@ -1,6 +1,6 @@
 # Tasks — dotfiles
 
-Updated: 2026-10-25
+Updated: 2026-10-27
 
 The sole executable queue. Completed contracts live under `docs/archive/`;
 repository tests and runtime evidence outrank prose.
@@ -13,27 +13,33 @@ Only the dependency edge is human-authored; state is derived.
 
 ## Done
 
-- TASK-145, TASK-144, TASK-141, TASK-139: [System-map dictionary, queryability, coverage gate, and memory hygiene](docs/archive/DOTFILES_TASKS_2026-10-25_SYSTEM_MAP.md).
+Completed contracts: `docs/archive/` (`git grep TASK-NNN docs/archive`).
 
-- TASK-138, TASK-137: [Development-kit audit and eval guidance provenance](docs/archive/DOTFILES_TASKS_2026-10-25_DEVELOPMENT_KIT.md).
+TASK-147: [Runtime activation and trustworthy verification](docs/archive/DOTFILES_TASKS_2026-10-26_RUNTIME.md).
 
-- TASK-136, TASK-135: [Whole-system reliability and hosted CI repair](docs/archive/DOTFILES_TASKS_2026-10-24_WHOLE_SYSTEM.md).
+## In progress
 
-- TASK-132, TASK-131, TASK-128: [Command migration, canonical naming, and reference routing](docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md).
+### TASK-149: Adaptive SEO guidance from current official sources
 
-- TASK-130, TASK-129: [Meta Ads canonical naming and deployment reliability](docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md).
-
-Archived under `docs/archive/` (`DOTFILES_TASKS_<date>_*.md`, newest date first;
-`git grep TASK-NNN docs/archive` finds any contract).
-
-- TASK-127, TASK-126, TASK-125, TASK-124, TASK-123: [`black-magic` reverse-engineering skill, Meta Ads CLI, Shopify Hydrogen 2026.10, UI/UX skill suite, and Supabase full-spectrum skill suite](docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md).
-- TASK-122, TASK-119, TASK-118: [Adaptive workflow, execution evaluation, and memory-routing contracts](docs/archive/DOTFILES_TASKS_2026-10-12_ADAPTIVE_AND_MEMORY.md).
-- TASK-121: [Development-kit runbook consistency and browser verification](docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT_FOLLOWUP.md).
-- TASK-120: [Development-kit routing and evaluation refinement](docs/archive/DOTFILES_TASKS_2026-10-12_DEVELOPMENT_KIT.md).
-
-- TASK-134, TASK-133: [Verified automation, skill audit, and system map](docs/archive/DOTFILES_TASKS_2026-10-14_UI_UX_SKILLS.md).
+- **Requirement:** REQ-ADAPTIVE-SEO-SKILL (owner: audit/improve SEO and compare GitHub skills, 2026-10-26).
+- **Risk Level:** R2.
+- **Allowed Paths:** `skills/local/seo-website-builder/**`, `skills/local/ai-traffic-os/SKILL.md`, `skills/local/ai-traffic-os/references/AI_REFERRAL_TRACKING.md`, `skills/local/ai-traffic-os/references/CRAWLER_MATRIX_2026.md`, `skills/local/README.md`, `TASKS.md`, `docs/archive/DOTFILES_TASKS_2026-10-26_RUNTIME.md`.
+- **Canonical Contract Owners:** seo.guidance, ai-traffic.measurement.
+- **Accepted Invariants:** preserve owner metadata/Shopify rules; proportional loading; current primary-source evidence; unknown data stays unknown; no ranking guarantee or automatic policy adoption.
+- **Regression Checks:** skill metadata/map/surface, offline SEO fixture, guided repair, links, policy, security, diff.
+- **Runtime Evidence:** scoped trials/review pass; global lint awaits unrelated 9Router link/map repair.
+- **Reopen Conditions:** source-backed guidance or scoped repair regresses.
+- **Non-Scope:** live site/account mutations, secrets, installs, scheduling, commit/push.
+- **Escalation Conditions:** live/credential access or changing owner preferences is needed.
 
 ## Pending
+
+### TASK-148: Scope remaining owner priorities
+
+- **Requirement:** REQ-RUNTIME-EVIDENCE-FOLLOWUP (2026-10-26 audit).
+- **Risk Level:** R0 planning.
+- **Allowed Paths:** `TASKS.md`, `docs/research/development-kit-audit-2026-10-25.md`.
+- **Verification:** select device/project targets and bind required checks before implementation; preserve deferred tasks.
 
 ### TASK-146: Meta Ads 2026 algorithm (Andromeda, GEM, Lattice) and Marketing API v22–v26 upgrade
 

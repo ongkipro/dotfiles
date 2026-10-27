@@ -7,7 +7,7 @@ This manifest maps the important files in the `seo-website-builder` skill so age
 | File | Purpose |
 | --- | --- |
 | `SKILL.md` | Main skill instructions |
-| `COMPACT_SKILL_REFERENCES.md` | Compact default reference for fast use |
+| `COMPACT_SKILL_REFERENCES.md` | Optional cross-domain overview; not a mandatory pre-read |
 | `PLAYBOOK.md` | Daily operational SEO workflow |
 | `PAGE_COMPLETENESS_FORMULA.md` | Complete page audit formula: title, description, canonical, robots, headings, images, links, schema, sitemap |
 | `SITEMAP_SUBMISSION.md` | Sitemap discovery + search-engine notification: robots `Sitemap:`, GSC/Bing submit, IndexNow (Bing/Yandex/partners), Google no-ping, on-publish auto-notify |
@@ -32,25 +32,21 @@ This manifest maps the important files in the `seo-website-builder` skill so age
 
 ### Fast mode
 
-1. `COMPACT_SKILL_REFERENCES.md`
-2. `PLAYBOOK.md`
-3. `PAGE_COMPLETENESS_FORMULA.md` when auditing one specific page
-4. relevant stack/use-case playbook
+Read SKILL.md and existing repository context. For a bounded repair, load only
+the relevant topic/stack section if needed, then prove the affected behavior.
+Do not require full business planning or analytics for a settled markup change.
 
 ### Build mode
 
 1. `PLAYBOOK.md`
 2. `PAGE_COMPLETENESS_FORMULA.md`
 3. stack/use-case playbook (`ASTRO_SEO_PLAYBOOK.md`, `NEXTJS_SEO_PLAYBOOK.md`, `SHOPIFY_SEO_PLAYBOOK.md`, etc.)
-4. `OUTPUT_TEMPLATES.md`
+4. Applicable sections of `OUTPUT_TEMPLATES.md` only when useful
 
 ### Audit mode
 
-1. `COMPACT_SKILL_REFERENCES.md`
-2. `PLAYBOOK.md`
-3. `PAGE_COMPLETENESS_FORMULA.md`
-4. relevant stack/use-case playbook
-5. `OUTPUT_TEMPLATES.md`
+Start with `PLAYBOOK.md`; select page-family, stack, completeness, and template
+sections needed for the actual audit scope. The compact overview is optional.
 
 ### Algorithm refresh mode
 
@@ -70,7 +66,9 @@ This manifest maps the important files in the `seo-website-builder` skill so age
 
 ## Deep reference note
 
-The original long-form SEO OS archive is intentionally not bundled into this public skill. This repository includes compact, agent-ready references only.
+The original long-form SEO OS archive is intentionally not bundled. Numeric
+module IDs from that retired corpus are not loadable references in this skill.
+Use the bundled files listed above.
 
 If a local user has a larger private SEO archive, load it only for deep research tasks and keep the public skill compact.
 

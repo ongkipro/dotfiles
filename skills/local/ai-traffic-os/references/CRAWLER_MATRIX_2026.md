@@ -14,7 +14,7 @@ This table is a navigation aid, not a permanent fact registry. The linked primar
 
 | Vendor token | Documented purpose to verify | Keep distinct from | Primary source |
 | --- | --- | --- | --- |
-| `Googlebot` | Google Search crawling; Google says Search AI features use this control | `Google-Extended` | [Google common crawlers](https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers), [AI features](https://developers.google.com/search/docs/appearance/ai-features) |
+| `Googlebot` | Google Search crawling; check Search Console's separate generative-AI participation setting when AI eligibility matters | `Google-Extended`, account participation controls | [Google common crawlers](https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers), [AI optimization](https://developers.google.com/search/docs/fundamentals/ai-optimization-guide) |
 | `Google-Extended` | Standalone product token for certain Gemini/Vertex AI controls; Google says it does not affect Search inclusion or ranking | `Googlebot` | [Google-Extended](https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers#google-extended) |
 | `Google-CloudVertexBot`, `GoogleOther` | Listed Google common crawlers with non-Search purposes — read each entry's documented purpose before blocking | `Googlebot` | [Google common crawlers](https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers) |
 | `Google-Agent`, `Gemini Notebook`, others | Google user-triggered fetchers; Google: "these fetchers generally ignore robots.txt rules" | `Googlebot` | [Google user-triggered fetchers](https://developers.google.com/search/docs/crawling-indexing/google-user-triggered-fetchers) |

@@ -162,3 +162,156 @@ One trial per revision; not a reliability rate.
   (description, CORE, or a hook), not only in a skill body; CORE is at its byte
   budget, so this needs an owner decision.
 - A Codex trial (usage limit until 2026-10-31) and more repeated trials remain.
+
+## Runtime and evidence follow-up — 2026-10-26
+
+Owner priorities are assessed as **Defect**, **Unverified**, or **Proposal**.
+Existing behavior is **Verified** only within the stated probe. An untested
+integration, a deferred trial, or a desired enhancement is not itself a bug.
+`TASKS.md` remains the execution queue; this section records findings and
+acceptance evidence, not another task state machine.
+
+### Baseline and implemented slice (TASK-147)
+
+Baseline: `db2d3e8`, clean working tree, local `main` equal to `origin/main`
+after `git fetch origin`. Only this device was inspected. Device registry files
+are historical inventory, not proof that another device has the same revision.
+
+| Finding | Class and evidence | Change and completion criterion |
+|---|---|---|
+| Missing Git guard allowed shell operations | **Defect reproduced**: the manifest launcher returned exit 0 and no decision with an isolated HOME and a missing guard. Only JSON payloads were passed; no Git push ran. | Launcher emits a deny decision for a missing/non-executable guard, failed interpreter startup, or runtime failure; partial failed output is discarded. Installer migrates the known unsafe command without replacing custom timeouts; `--check` fails without writing until migrated. Both Claude and Codex variants are exercised. |
+| Executed and manual PASS looked equivalent at the CLI | **Verified existing capability, incomplete presentation**: events already stored `executed` metadata; `--command` already derived status from exit code. | Events and CLI label `executed` versus `declared`. An observation cannot satisfy a required executable check. This is stronger classification, not a claim that command execution was absent before. |
+| One fresh PASS could mask stale mandatory evidence | **Verified limitation**: `finish` required only one matching digest, and there was no mandatory-check declaration. | New runs may bind repeated `--require-check NAME`. Every named check must have a latest executed PASS matching the final surface, including newly added dirty files. Missing, manual, stale, and red-to-green cases are covered. Existing runs without this declaration retain legacy behavior; automatic inference from task prose is not implemented. |
+| Missing cost became zero | **Defect reproduced**: omitting `--cost-usd` persisted `costUsd: 0.0`. | Schema v2 stores omitted cost as null. Reports expose cost coverage and known subtotal; incomplete totals and cost-per-success remain null. Explicit measured zero is valid. Legacy schema-v1 zero costs are treated as uncertain because their origin cannot be recovered. No historical metrics are rewritten. |
+| Everyday Indonesian continuation found no execution truth | **Reproduced routing gap**: `lanjut yang tadi` returned no files although STATUS/TASKS existed. | Add bounded continuation terms and observed typo `lanjt`, with token boundaries. Positive and negative Indonesian/English cases exercise routing without adding a retrieval service. |
+
+The existing suites passed before adding the new cases. The four expanded suites
+failed before their implementation changes; the updated suites then passed.
+They exercise local shell/filesystem and disposable Git repositories, not native
+CLI hook trust or remote services. Final execution and independent-review
+evidence belongs to delivery run `RUN-20261026T150445Z-aece36f1`.
+
+### Activation evidence by runtime
+
+| Runtime | Verified on this device | Still unverified or outside its capability |
+|---|---|---|
+| Codex | Instruction symlink resolves to generated `context/codex.md`; `ai-memory-link --check` passes. `codex debug prompt-input` renders the Codex adapter and all 77 owned skill names. Direct execution of the installed hook command allows a harmless status payload and denies a mirror-push payload. | Rendering proves discovery, not skill invocation. Direct hook execution does not prove trust or a native PreToolUse event. Changed definitions require interactive `/hooks` trust. TASK-140's model decision trial remains deferred until 2026-10-31. |
+| Claude Code | Instruction symlink resolves to generated `context/claude.md`; all 77 owned skills are visible through the configured filesystem path. | Native discovery/listing budget and actual hook dispatch were not exercised. The previous audit's listing-budget concern is not a measured failure in this session. |
+| Antigravity | Instruction symlink resolves to generated `context/antigravity.md`; all 77 owned skills are visible through its filesystem adapter. | Native discovery is unverified. No dotfiles hooks are wired; Git restrictions depend on agent behavior. |
+| Pi | All 77 owned skills are visible on disk. Tracked shell wrapper appends generated `context/pi.md`. | The wrapper's presence does not establish which shell function another terminal loaded. Native discovery and actual context consumption are unverified. No dotfiles hooks are wired. |
+| OMP | Instruction symlink resolves to generated `context/omp.md`; all 77 owned skills are visible on disk. `omp config path` and `omp config get modelRoles --json` identify its device-owned effective configuration; roles differ from the tracked reference. | Native skill discovery, provider availability, and actual role completions are unverified. The reference loads only when explicitly selected. No dotfiles hooks or equivalent backstop are claimed. |
+
+### Remaining owner priorities and evidence needed
+
+These findings retain the owner's P1/P2/P3 priorities. A **Proposal** is a
+candidate improvement, not an accepted implementation contract. Select a bounded
+target and its risk before implementation; keep existing deferred tasks and
+their acceptance conditions intact.
+
+| Area | Classification and remaining acceptance evidence |
+|---|---|
+| Other devices (P1) | **Unverified**. Read each device's actual HEAD, dirty state, generated context targets, runtime discovery, and safe native hook probe. Registered hardware or GitHub state cannot stand in for terminal evidence. No remote-device access was attempted. |
+| Hook trust/dispatch (P1), capability reporting (P2) | **Unverified activation**, partly reported above. Prove a harmless native invocation and an inert denied payload in each hooked runtime. Keep wiring, direct command execution, trust, and dispatch as separate observations. Antigravity/Pi/OMP must not inherit a claim of hook protection. |
+| OMP routing (P2) | Effective config lookup is **Verified locally**. Provider authentication and successful role execution remain **Unverified**; no paid completion or credential inspection was performed. Preserve TASK-091's device-specific scope. |
+| Memory selection/Indonesian prompts (P1) | Bounded continuation cases are covered by TASK-147. Broader conversational terms, additional typos, relevant versus irrelevant memory, and cross-project isolation are **evaluation work**, not an assertion of global accuracy. Use synthetic project A/B fixtures and positive/negative cases before adding triggers. |
+| Memory budgets/hygiene/reconciliation (P2) | Whole-file budget selection and explicit UNROUTABLE reporting already exist. Guaranteeing a useful excerpt or splitting an oversized canonical file is a **Proposal**. Run existing hygiene and compare individual stale claims against the owning repo; do not load or rewrite all memories as an audit shortcut. |
+| Retrieval utility (P3) | **Unverified**. Path/byte telemetry proves selection frequency, not benefit. Evaluate relevant context, false selections, human corrections, and final outcomes on repeated comparable tasks. No vector database is justified by the current failures. |
+| Skill access/routing/listing budget (P1) | Codex discovery is verified above; automatic correct use remains **Unverified**. Preserve actual read traces when available, expected owner selection for adjacent skills, and runtime-specific listing/budget evidence. Self-reported `guidanceRead` remains self-reported. |
+| Skill contracts/negative cases/real execution/failure attribution (P2) | **Proposals for stronger evaluation**. Separate failure to discover, failure to open, inadequate guidance, and faulty execution. Test small tasks that should not trigger a full workflow; then evaluate actual generated code and flows. Extend the existing harness/owner rather than requiring all 77 bodies. |
+| Skill consolidation (P3) | **Deferred owner decision**, TASK-142. Do not merge/delete based on count alone; reopen only on its documented budget condition. |
+| UX complete flow (P1/P2) | **Existing methodology plus proposed execution trial**. Requires a named product and accepted actors/jobs, role permissions, information structure, end-to-end persistence/handoff, reuse of available input, full states, validation/recovery, realistic data, risky-action recovery, history when needed, useful search/bulk actions, accessibility, and target devices. A clinic example is not authorization to modify an unspecified clinic repository. |
+| UI direction/render/rework (P1/P2/P3) | **Existing methodology plus proposed execution trial**. Record accepted typography, colors, density, references with reasons, screen hierarchy, tokens/components, and concrete rejection criteria in the existing project design artifact. Review actual render, fix significant findings, and recheck typography/copy/responsive behavior/assets. Motion needs a user benefit. Gradients/cards are not prohibited categories. |
+| Functional versus visual acceptance (P1) | Separate typed executable gates are available; **criteria and real project evidence remain required**. A screenshot or browser opening cannot stand in for functional acceptance or a visual critique. No browser-visible product was changed in TASK-147. |
+| Real integrations/reviewer provenance (P2) | **Unverified per target**. Exercise auth, persistence, and relevant service boundaries in an authorized non-production environment. Bind reviewer provenance to the actual reviewed surface; distinct names alone do not prove independent review. TASK-147 requires a separate actual reviewer. |
+| CI reconciliation/macOS/mutation gaps (P2/P3) | **Existing pending verification**, TASK-096/TASK-089, TASK-143, TASK-097. This session did not fetch hosted CI or reproduce macOS. Do not close any of these from Linux fixtures or from a later unrelated green run. |
+| Comparable model cohorts (P2) | **Verified limitation/proposed fix**: aggregation groups by job/capability, but recommendations compare across all groups with the same risk. Filter comparable job/capability cohorts before making model-choice claims. Unknown-cost handling alone does not fix comparability. |
+| Human correction/rework/time to acceptance (P2) | Metric fields already exist for corrections, repairs, and duration; **measurement semantics and outcome utility are unverified**. Include correction and validation time; do not use first-response latency as completion time. |
+| Release scope (P2) | **Verified limitation/proposed change**: `production-gate.tasks_gate` rejects any Pending or In progress task. Define release task IDs and dependency closure before changing it, so future backlog does not block a ready release and selected unfinished work still does. |
+| Active integrations (P2) | **Unverified**. A manifest or installed MCP entry does not prove an active connection. Check only the integrations needed by the selected task, without dumping credentials or sessions. |
+| Repeated outcome evaluations (P3) | **Proposal**. Run several comparable tasks and repeated trials with discovery/read/behavior labels; one successful trial is evidence for that trial, not a reliability estimate. |
+
+Next execution order remains: activation evidence and safeguards; required-check
+integrity; one complete admin experience contract through implementation and
+render critique; one real cross-role flow; then measured retrieval, listing
+budget, cost, and model comparison. No unrelated product scaffold or new
+orchestrator is required to perform this evaluation.
+
+### Independent review and local reconciliation
+
+Separate reviewer `/root/review_runtime_evidence` returned APPROVE after finding
+and rechecking the guard startup/runtime-failure case. The reviewer independently
+ran all four focused suites and `git diff --check`; each passed. Provider:
+OpenAI; exact model ID and reasoning setting were not exposed. Identity strings
+alone are not the independence evidence: a separate agent actually inspected and
+probed the implementation in this session.
+
+The known unsafe launcher was reconciled into the local Codex and Claude hook
+files after review. This changes the exact Codex hook definition; interactive
+trust and native dispatch remain unverified. A subsequent `--check` can prove
+safe known wiring, not trust. Repository changes remain uncommitted and unpushed.
+
+## Parallel revalidation — 2026-10-26
+
+The owner requested a fresh validation, semantic map review, and skill overkill
+review in parallel. The original 12 executed checks still matched their recorded
+surface, and six regression suites passed again. Separate agents nevertheless
+found cases outside those suites. Audit run `RUN-20261026T154457Z-f8b80a09`
+finished **FAIL** rather than treating structural success as semantic acceptance.
+TASK-147 was reopened under `RUN-20261026T154909Z-c335be63`.
+
+### Reproduced code issues and bounded repairs
+
+| Class | Reproduction | Repair and regression boundary |
+|---|---|---|
+| Inherited freshness defect (P1) | A genuine behavior test passed against old generated code, then a generator changed that code within the same zero-exit command. Recording only the final digest certified source that failed the next real behavior test. | Record pre/post source fingerprints. Net source/path/HEAD changes produce executed UNVERIFIED even with exit 0; a stable successful rerun is needed. Cases cover generated clean files, new paths, already-dirty content, staging without content change, and ignored outputs. This does not monitor transient edits restored before return or prove that an arbitrary command tests the right behavior. |
+| Incomplete known-launcher migration (P2) | A safe first hook group hid a later exact unsafe launcher; `--check` incorrectly returned success. | Inspect/migrate every exact known legacy command within the event, retaining matchers and timeouts. Fixtures exercise both Claude and Codex without executing any Git payload. |
+| New irrelevant context selection (P2) | Standalone Indonesian next/continue words selected STATUS/TASKS for arithmetic, fiction, and cooking. Identical baseline fixtures selected none. | Use bounded continuation phrases/work context instead of standalone berikutnya/lanjutkan. Add those negative cases while preserving observed continuation/typo positives. This is a bounded keyword-router repair, not general semantic understanding. |
+
+### System map semantic corrections
+
+The source-backed review found eight groups of inaccurate descriptions:
+Claude-only hook claims; unconditional Git blocking/parser claims; dev-ready's
+provider/non-overlap/timing guarantees; OMP versus opt-in Pi bootstrap;
+shared-memory decision authority; hygiene versus routing/secret-check ownership;
+exact session restoration; and byte budgets/selector purpose. The map now
+describes those boundaries. The telemetry note also distinguishes routing
+selection from actual model use.
+
+Coverage and retrieval checks remain separate evidence: `system-map --check`
+covered 517 tracked members; the existing query fixture returned 65/72 first
+and 72/72 within the first three results before these prose corrections. Final
+checks must re-evaluate the changed map. The semantic review sampled high-impact
+claims across runtime, memory, bootstrap, and evidence; it is not source-by-source
+certification of all 517 entries.
+
+### Skill overkill review: proposals, no skill edits
+
+Metadata checks covered 77 skills: 37,205 description characters, 950,258 bytes
+across the main SKILL.md bodies, and no main body over 500 lines. These source
+sizes do not prove a runtime budget breach: bodies load on demand. Semantic
+review covered 11 core skills and relevant references. The existing skill map
+already groups owners and sibling routes; a new discovery mechanism is not
+justified by this evidence.
+
+| Candidate | Smallest proposed change; invariant to retain |
+|---|---|
+| Universal no-JavaScript form rule in `full-stack-development` | Preserve the accepted submission architecture; prefer native forms/actions where supported. Keep server validation, recovery, and persisted-outcome proof. An existing SPA does not automatically need a second submission path. |
+| Geometry gate on every changed admin route | Reserve the full geometry pass for new/redesigned routes or dimension/typography/token/component/responsive changes. A label-only fix still needs affected-route browser inspection; escalate if wrapping/layout changes. |
+| Unconditional command palette in the role-navigation reference | Add one only for a demonstrated frequent navigation/action need; reuse an existing palette. Keep server authorization and role-aware navigation. |
+| TanStack API recipes repeated in the visual owner | Keep the presentation decision and route version-specific code to the installed-version implementation owner. Avoid maintaining the same recipe in multiple skills. |
+
+One wording concern remains a proposal: `prd-taskbreaker`'s one-task-per-request
+phrasing can conflict with authorized multi-task delivery. Prefer dependency-led
+bounded runs; commits still require user authorization. No model behavior,
+invocation frequency, token/time savings, or causal improvement was measured.
+Separate UX, presentation, implementation, and browser evidence owners remain
+useful; the collection as a whole is not shown to be overkill. TASK-142's
+consolidation deferral remains intact. The owner explicitly requested discussion
+before any new skill sitemap/discovery mechanism; no skill or registry was edited.
+
+The independent source reviewer approved the scoped repairs after rerunning the
+three affected suites, duplicate-group migration, and irrelevant-context probes.
+The map reviewer approved the eight correction groups; the skill reviewer
+confirmed the report's qualifications. These are separate actual review agents,
+not renamed self-review. Final executable results and the approved surface are
+bound by the reopened TASK-147 delivery run.

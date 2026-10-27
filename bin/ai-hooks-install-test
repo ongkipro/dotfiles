@@ -135,4 +135,63 @@ out = subprocess.run(["sh", "-c", guard], input=payload, capture_output=True, te
 assert out.strip() == "", out
 PY
 
+# A missing/non-executable guard must produce a denial, including after an
+# ordinary upgrade from the old fail-open launcher. No Git command is executed.
+python3 - "$TMP" "$INSTALL" "$DOT" <<'PY' || fail "guard launcher fails open or cannot migrate safely"
+import json, os, pathlib, subprocess, sys
+tmp, installer, dot = map(pathlib.Path, sys.argv[1:])
+legacy = 'g="$HOME/dotfiles/config/ai/hooks/git-guard.sh"; [ -x "$g" ] && exec "$g" || exit 0'
+payload = json.dumps({'tool_name':'Bash','tool_input':{'command':'git push --mirror origin'}})
+for runtime in ('claude','codex'):
+    settings = tmp / f'{runtime}-migration.json'
+    old = ('export AI_HOOK_RUNTIME=codex; ' if runtime == 'codex' else '') + legacy
+    settings.write_text(json.dumps({'hooks':{'PreToolUse':[{'matcher':'Bash','hooks':[{'type':'command','command':old,'timeout':99}]}]}}))
+    args = [str(installer),'--runtime',runtime,'--settings',str(settings),'--dotfiles',str(dot)]
+    before = settings.read_bytes()
+    check = subprocess.run(args + ['--check'],capture_output=True,text=True)
+    assert check.returncode != 0, 'unsafe legacy launcher reported healthy'
+    assert settings.read_bytes() == before, '--check changed settings'
+    subprocess.run(args,check=True,capture_output=True)
+    group = json.loads(settings.read_text())['hooks']['PreToolUse'][0]
+    assert len(json.loads(settings.read_text())['hooks']['PreToolUse']) == 1
+    assert group['hooks'][0]['timeout'] == 99, 'migration lost local timeout'
+    command = group['hooks'][0]['command']
+    sandbox = tmp / f'{runtime}-missing-guard'
+    sandbox.mkdir()
+    for state in ('missing','not-executable','missing-interpreter','runtime-error'):
+        if state != 'missing':
+            guard = sandbox / 'dotfiles/config/ai/hooks/git-guard.sh'
+            guard.parent.mkdir(parents=True,exist_ok=True)
+            scripts = {'not-executable':'#!/bin/sh\nexit 0\n',
+                       'missing-interpreter':'#!/nonexistent-guard-interpreter\n',
+                       'runtime-error':'#!/bin/sh\nprintf partial-output\nexit 1\n'}
+            guard.write_text(scripts[state])
+            guard.chmod(0o600 if state == 'not-executable' else 0o700)
+        result = subprocess.run(['sh','-c',command],input=payload,capture_output=True,text=True,env=dict(os.environ,HOME=str(sandbox)))
+        decision = json.loads(result.stdout)['hookSpecificOutput']
+        assert decision['permissionDecision'] == 'deny', (runtime,state,result)
+        assert 'guard' in decision['permissionDecisionReason']
+    subprocess.run(args + ['--check'],check=True,capture_output=True)
+    # Explicit --force still replaces the full entry, including its timeout.
+    settings.write_text(json.dumps({'hooks':{'PreToolUse':[{'matcher':'Bash','hooks':[{'type':'command','command':old,'timeout':99}]}]}}))
+    subprocess.run(args + ['--force'],check=True,capture_output=True)
+    group = json.loads(settings.read_text())['hooks']['PreToolUse'][0]
+    assert group['hooks'][0]['timeout'] == 10
+    # A safe first group must not hide a later exact unsafe launcher.
+    data = json.loads(settings.read_text())
+    data['hooks']['PreToolUse'] = [
+        {'matcher':'Read','hooks':[{'type':'command','command':command,'timeout':41}]},
+        {'matcher':'Bash','hooks':[{'type':'command','command':old,'timeout':99}]}]
+    settings.write_text(json.dumps(data))
+    before = settings.read_bytes()
+    assert subprocess.run(args + ['--check'],capture_output=True).returncode != 0, 'later legacy group was hidden by safe first group'
+    assert settings.read_bytes() == before
+    subprocess.run(args,check=True,capture_output=True)
+    groups = json.loads(settings.read_text())['hooks']['PreToolUse']
+    assert [g['matcher'] for g in groups] == ['Read','Bash']
+    assert [g['hooks'][0]['timeout'] for g in groups] == [41,99]
+    assert all(g['hooks'][0]['command'] != old for g in groups)
+    subprocess.run(args + ['--check'],check=True,capture_output=True)
+PY
+
 echo "ai-hooks-install-test: PASS"

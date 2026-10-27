@@ -19,7 +19,8 @@ Design discoverable, source-backed web content without inventing a special ranki
 
 ## Evidence policy
 
-Before recommending crawler rules or vendor-specific markup:
+Before recommending crawler rules, participation settings, reporting features,
+or vendor-specific markup:
 
 1. Retrieve the vendor's current official crawler documentation.
 2. Record the retrieval date and the exact user-agent token.
@@ -29,7 +30,9 @@ Before recommending crawler rules or vendor-specific markup:
 
 Primary starting points:
 
-- [Google: AI features and your website](https://developers.google.com/search/docs/appearance/ai-features)
+- [Google: generative-AI optimization guide](https://developers.google.com/search/docs/fundamentals/ai-optimization-guide)
+- [Google: generative-AI performance reports](https://developers.google.com/search/blog/2026/06/gen-ai-performance-reports)
+- [Google: content-sharing controls](https://developers.google.com/search/docs/crawling-indexing/control-what-you-share)
 - [Google common crawlers](https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers)
 - [OpenAI crawlers](https://developers.openai.com/api/docs/bots)
 - [Anthropic crawler controls](https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler)
@@ -67,4 +70,21 @@ Primary starting points:
 
 ## Google-specific boundary
 
-Google documents `Googlebot` as the control for Search, including AI features in Search. `Google-Extended` is a separate product token for controls in certain Gemini and Vertex AI systems and does not affect inclusion or ranking in Google Search. Do not block `Googlebot` while claiming Google AI Overview eligibility. Google states: "You don't need to create new machine readable files, AI text files, or markup to appear in these features. There's also no special schema.org structured data that you need to add." Traffic from AI Overviews and AI Mode is counted inside the Search Console Performance report's **Web** search type, with no separate filter (both from the AI features page, last updated 2025-12-10, accessed 2026-10-02). Use snippet controls such as `nosnippet`, `data-nosnippet`, or `max-snippet` when the policy goal is limiting Search previews rather than blocking indexing.
+Google review: **2026-10-26**. Keep Googlebot Search crawling, Google-Extended
+controls for certain Gemini/Vertex uses, snippet controls, and Search Console's
+property-scoped generative-AI participation setting (with parent/child inheritance
+and URL-prefix overrides) distinct. Do not block Googlebot
+while claiming crawl eligibility. Check the current
+[participation-setting documentation](https://support.google.com/webmasters/answer/16908024)
+before advising; changing an account setting requires explicit live authorization.
+No mandatory llms.txt, special schema, or content-chunk size is required by Google.
+
+Dedicated Search/Discover generative-AI reports now provide documented
+impressions and dimensions, while data remains included in overall reporting.
+Use the property's actual available report and
+[metric definitions](https://support.google.com/webmasters/answer/16984139).
+Do not invent AI-only clicks, CTR, conversions, or API breakdowns; report absence
+can reflect insufficient impressions or participation state, not measured zero.
+These reports do not let a client-side google.* referrer identify an individual
+AI visit. No property access, activation, ranking, or conversion result is implied
+by reading the documentation. Other vendors retain their own evidence dates.

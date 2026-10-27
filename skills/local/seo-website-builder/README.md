@@ -4,6 +4,13 @@
 
 ### A multi-engine SEO operating system for AI coding agents
 
+In the dotfiles-managed installation, this directory is the canonical skill;
+do not run the standalone installation examples into its runtime links. Start
+with SKILL.md and load task-relevant references. The 2026-10-26 source review and
+observed offline trials are recorded in references/VALIDATION_REPORT.md;
+historical validation labels below do not establish current ranking results or
+active Search Console connections.
+
 Plan, build, audit, and maintain SEO-ready websites for **Google**, **Bing**, **Yandex**, **Pinterest**, and modern **AI-search / answer surfaces**.
 
 <br />
@@ -234,31 +241,24 @@ User request
    ↓
 Load SKILL.md
    ↓
-Read COMPACT_SKILL_REFERENCES.md
+Reuse repository context and classify scope
    ↓
-Classify task mode
-   ↓
-Load one specific playbook
+Load a relevant reference only if needed
    ↓
 Inspect project/site facts
    ↓
-Produce structured SEO output
+Produce the scoped change/findings and evidence
    ↓
 Validate with QA checklist
 ```
 
-### Default load order
+### Task-specific loading
 
-1. `references/COMPACT_SKILL_REFERENCES.md`
-2. `references/PLAYBOOK.md`
-3. one task-specific reference:
-   - `ASTRO_SEO_PLAYBOOK.md`
-   - `NEXTJS_SEO_PLAYBOOK.md`
-   - `SHOPIFY_SEO_PLAYBOOK.md`
-   - `LOCAL_BUSINESS_SEO_PLAYBOOK.md`
-   - `SEARCH_ENGINE_ALGORITHM_BRIEF.md`
-
-This keeps agent context light while still allowing deeper references when needed.
+A canonical-only repair may need only SKILL.md and the affected repository
+files. Use COMPACT for a broader overview, PLAYBOOK for a substantial audit or
+build, and a stack/topic reference for a question that needs it. None is an
+unconditional second pre-read. The reference manifest supplies the detailed
+map; a full audit outline is optional for a small repair.
 
 ---
 

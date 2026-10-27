@@ -174,3 +174,17 @@ Fresh installers wire both Claude and Codex. Existing devices can explicitly run
 `ai-hooks-install --runtime claude` and `ai-hooks-install --runtime codex`, then
 check each runtime with `--check`. Codex requires interactive `/hooks` trust for
 the exact definitions; file wiring alone is not execution evidence.
+
+The canonical Git guard launcher emits an explicit deny decision when its
+script is missing, not executable, cannot start, or exits unsuccessfully.
+Failed guard output is discarded before the deny decision is emitted.
+`ai-hooks-install` migrates the known older
+fail-open launcher while preserving local timeouts; `--check` reports that
+launcher as unsafe without writing. Arbitrary customized launchers still require
+review; a wiring PASS is not a semantic proof of every custom shell command.
+After a Codex launcher migration the exact definition has changed, so interactive
+`/hooks` trust must be reviewed again before claiming runtime activation.
+
+Known legacy-command detection scans every hook group for the event. A safe
+first group cannot hide another exact legacy launcher later in the list;
+migration preserves those groups' matchers, timeouts, and unrelated entries.

@@ -2,6 +2,23 @@
 
 This file records the retired `/home/fantastico/Documents/SEO` source pack and subsequent changes to the active skill.
 
+## 2026-10-26 — Evidence-led adaptive SEO
+
+- Replaced unconditional two-reference loading and full-audit hard stops with
+  bounded-repair, substantial-audit, diagnostic, and current-fact routes.
+- Preserved owner metadata, Shopify copy/pilot, real-fact, and authorization
+  rules; corrected conflicting Next.js examples and clarified override scope.
+- Added raw/served/rendered/engine/business evidence boundaries and explicit
+  missing-data handling; scores and snapshots do not prove rankings or access.
+- Updated Google generative-AI reporting/participation guidance and corrected
+  the Book Actions retirement claim. Added initial-noindex, core-update timing,
+  and 301/308 safeguards. Dated earlier entries remain historical.
+- Compared four pinned MIT GitHub sources; adapted narrow workflow/evidence
+  patterns in local wording, without upstream installers, bundled tools, or
+  wholesale imports. See VALIDATION_REPORT.md for decisions and provenance.
+- Added an offline raw-artifact fixture oracle and independent guided trials;
+  these do not certify a live site, browser, indexing, ranking, or reliability.
+
 ## 2026-10-02 — Current-fact audit
 
 - IndexNow participant lists corrected to Bing, Yandex, Seznam, Naver, Yep, Internet Archive, Amazon (source: indexnow.org/searchengines.json); DuckDuckGo removed. Protocol limits and response codes added to `INDEXNOW_PLAYBOOK.md`.

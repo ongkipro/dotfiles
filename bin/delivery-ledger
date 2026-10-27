@@ -399,6 +399,7 @@ def verify_run(path: Path) -> list[str]:
                     f"{path.name}: PASS requires every check to end resolved: "
                     + "; ".join(unresolved_failures(checks)))
             start = events[0] if events else {}
+            problems.extend(f"{path.name}: {problem}" for problem in required_check_failures(start, checks))
             if start.get("boundary"):
                 boundary_checks = [event for event in events[:finishes[0]] if event.get("type") == "boundary_check"]
                 if not boundary_checks:
@@ -521,6 +522,9 @@ def cmd_start(repo: Path, a) -> int:
     if a.risk not in RISK:
         raise ValueError("risk must be R0-R4")
     require_id(a.task, "task"); require_id(a.requirement, "requirement")
+    required_checks = sorted(set(a.require_check))
+    for name in required_checks:
+        require_id(name, "required check")
     allowed = [validate_pattern(pattern) for pattern in a.allow]
     owners = sorted(set(canonical_owner(value) for value in a.owner if value.strip()))
     protected = [validate_pattern(pattern) for pattern in a.protect]
@@ -560,7 +564,7 @@ def cmd_start(repo: Path, a) -> int:
     run_id = datetime.now(timezone.utc).strftime("RUN-%Y%m%dT%H%M%SZ-") + uuid4().hex[:8]
     _, _, runs, _ = paths(repo)
     event = event_base(repo, "run_started", run_id)
-    event.update({"task": a.task, "requirement": a.requirement, "risk": a.risk, "job": a.job, "capability": a.capability, "worker": a.worker, "model": a.model, "provider": a.provider, "reasoningEffort": a.reasoning_effort, "owners": owners, "boundary": boundary})
+    event.update({"task": a.task, "requirement": a.requirement, "risk": a.risk, "job": a.job, "capability": a.capability, "worker": a.worker, "model": a.model, "provider": a.provider, "reasoningEffort": a.reasoning_effort, "owners": owners, "boundary": boundary, "requiredChecks": required_checks})
     append_event(runs / f"{run_id}.jsonl", event)
     data.update({"activeRun": run_id, "activeTask": a.task, "requirement": a.requirement, "risk": a.risk, "job": a.job, "capability": a.capability, "worker": a.worker, "model": a.model, "provider": a.provider, "reasoningEffort": a.reasoning_effort})
     save_current(repo, data)
@@ -571,6 +575,8 @@ def cmd_start(repo: Path, a) -> int:
 def cmd_record(repo: Path, a) -> int:
     data, run_id, run_path = active(repo)
     executed = None
+    before_paths = None
+    source_changed = False
     if a.command:
         # Executed evidence. `--status` is refused here because the command
         # decides: an agent that may both run the check and name its result can
@@ -580,13 +586,23 @@ def cmd_record(repo: Path, a) -> int:
         # nothing caught invented evidence, because nothing could.
         if a.status:
             raise ValueError("--status cannot accompany --command; the command's exit code is the status")
+        before_paths = dirty_paths(repo)
+        before_digest = surface_of(repo, before_paths)
+        before_head = base_head(repo)
         result = subprocess.run(a.command, shell=True, cwd=repo, text=True,
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        source_changed = (before_paths != dirty_paths(repo)
+                          or before_digest != surface_of(repo, before_paths)
+                          or before_head != base_head(repo))
         status = "PASS" if result.returncode == 0 else "FAIL"
+        if status == "PASS" and source_changed:
+            status = "UNVERIFIED"
         tail = [line for line in result.stdout.splitlines() if line.strip()][-1:] or [""]
         executed = {"command": a.command, "exitCode": result.returncode,
                     "outputTail": tail[0][:400]}
         a.detail = a.detail or f"{tail[0][:200]} (exit {result.returncode})"
+        if source_changed:
+            a.detail += "; Git-visible source changed during execution; re-run a non-mutating check"
     else:
         if not a.status:
             raise ValueError("record needs --status, or --command to derive one")
@@ -597,10 +613,14 @@ def cmd_record(repo: Path, a) -> int:
     checked_paths = dirty_paths(repo)
     e.update({"check": a.check, "status": status, "detail": a.detail,
               "executed": executed,
+              "evidenceType": "executed" if executed else "declared",
               "checkedPaths": checked_paths,
               "checkedDigest": surface_of(repo, checked_paths)})
+    if before_paths is not None:
+        e.update({"beforePaths": before_paths, "beforeDigest": before_digest,
+                  "sourceChangedDuringExecution": source_changed})
     append_event(run_path, e); save_current(repo, data)
-    print(f"delivery-ledger: RECORDED {a.check}={status}" + (f" (ran: exit {executed['exitCode']})" if executed else ""))
+    print(f"delivery-ledger: RECORDED {a.check}={status}" + (f" (executed: exit {executed['exitCode']})" if executed else " (declared observation)"))
     return OK
 
 
@@ -620,6 +640,23 @@ def run_start(events: list[dict]) -> dict:
     if len(starts) != 1:
         raise ValueError("run boundary requires exactly one run_started event")
     return starts[0]
+
+
+def required_check_failures(start: dict, checks: list[dict], repo: Path | None = None) -> list[str]:
+    """Named executable gates are stricter than legacy best-effort evidence."""
+    latest = {check.get("check"): check for check in checks}
+    failures = []
+    for name in start.get("requiredChecks", []):
+        check = latest.get(name)
+        if not check or check.get("status") != "PASS":
+            failures.append(f"required check {name} needs PASS")
+        elif not check.get("executed") or check["executed"].get("exitCode") != 0:
+            failures.append(f"required check {name} must be executed with --command")
+        elif repo is not None:
+            paths = sorted(set(check.get("checkedPaths") or []) | set(dirty_paths(repo)))
+            if check.get("checkedDigest") != surface_of(repo, paths):
+                failures.append(f"required check {name} is stale; re-run against the final surface")
+    return failures
 
 
 def unresolved_failures(checks):
@@ -1139,6 +1176,9 @@ def cmd_finish(repo: Path, a) -> int:
         if blocking_checks:
             raise ValueError(
                 "PASS requires every check to end resolved: " + "; ".join(blocking_checks))
+        required_failures = required_check_failures(run_start(events), checks, repo)
+        if required_failures:
+            raise ValueError("PASS denied: " + "; ".join(required_failures))
         # Evidence must describe the code being shipped. A suite that passed
         # before the last three edits proves nothing about what is on disk now —
         # and nothing here noticed, because `head` does not move while an agent
@@ -1315,7 +1355,7 @@ def main() -> int:
     p = argparse.ArgumentParser(); p.add_argument("--repo", default=".")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init")
-    s=sub.add_parser("start"); s.add_argument("--task",required=True); s.add_argument("--requirement",required=True); s.add_argument("--risk",required=True); s.add_argument("--job",default="implementation"); s.add_argument("--capability",default="unattributed"); s.add_argument("--worker",default="unknown"); s.add_argument("--model",default="unknown"); s.add_argument("--provider",default="unknown"); s.add_argument("--reasoning-effort",default="unknown"); s.add_argument("--allow",action="append",default=[]); s.add_argument("--owner",action="append",default=[]); s.add_argument("--protect",action="append",default=[]); s.add_argument("--protected-risk",default="R3"); s.add_argument("--accept-dirty",action="append",default=[])
+    s=sub.add_parser("start"); s.add_argument("--task",required=True); s.add_argument("--requirement",required=True); s.add_argument("--risk",required=True); s.add_argument("--job",default="implementation"); s.add_argument("--capability",default="unattributed"); s.add_argument("--worker",default="unknown"); s.add_argument("--model",default="unknown"); s.add_argument("--provider",default="unknown"); s.add_argument("--reasoning-effort",default="unknown"); s.add_argument("--allow",action="append",default=[]); s.add_argument("--owner",action="append",default=[]); s.add_argument("--protect",action="append",default=[]); s.add_argument("--protected-risk",default="R3"); s.add_argument("--accept-dirty",action="append",default=[]); s.add_argument("--require-check",action="append",default=[],help="required fresh executable check; repeat for each mandatory gate")
     sc=sub.add_parser("start-child"); sc.add_argument("--child",required=True); sc.add_argument("--task",required=True); sc.add_argument("--risk",required=True); sc.add_argument("--model",default="unknown"); sc.add_argument("--provider",default="unknown"); sc.add_argument("--reasoning-effort",default="unknown"); sc.add_argument("--allow",action="append",default=[]); sc.add_argument("--owner",action="append",default=[]); sc.add_argument("--invariant",action="append",default=[]); sc.add_argument("--depends-on",action="append",default=[])
     po=sub.add_parser("claim-owner"); po.add_argument("--owner",action="append",default=[])
     rc=sub.add_parser("record-child"); rc.add_argument("--child",required=True); rc.add_argument("--check",required=True); rc.add_argument("--status",required=True); rc.add_argument("--detail",default="")

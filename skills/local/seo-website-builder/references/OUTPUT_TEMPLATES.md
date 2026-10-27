@@ -2,6 +2,12 @@
 
 Ready-to-use templates for SEO audits, build plans, schema QA, metadata planning, and implementation notes.
 
+Select only sections required by the task. A bounded fix returns the finding,
+scoped change, actual verification, and gaps; it does not require a full audit.
+For each substantive finding include affected URL/path, observed evidence,
+impact, confidence, priority, fix, and rerun. Keep missing measurements distinct
+from zero or a tool failure, and do not manufacture issues for empty headings.
+
 ## 1. Full SEO Audit Template
 
 ```md

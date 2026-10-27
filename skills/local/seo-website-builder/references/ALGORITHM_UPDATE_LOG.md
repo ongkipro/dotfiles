@@ -40,6 +40,48 @@ Validation:
 - ...
 ```
 
+## 2026-10-26 — Google reporting, eligibility, and diagnostic correction
+
+Source type: Official; pages retrieved 2026-10-26.
+
+Sources:
+- https://developers.google.com/search/docs/fundamentals/ai-optimization-guide
+- https://developers.google.com/search/blog/2026/06/gen-ai-performance-reports
+- https://support.google.com/webmasters/answer/16984139
+- https://developers.google.com/search/docs/crawling-indexing/control-what-you-share
+- https://support.google.com/webmasters/answer/16908024
+- https://developers.google.com/search/docs/appearance/structured-data/book
+- https://developers.google.com/search/updates
+- https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics
+- https://developers.google.com/search/docs/appearance/core-updates
+- https://developers.google.com/search/docs/crawling-indexing/301-redirects
+
+Verified changes to the local guidance:
+- Dedicated generative-AI visibility reports coexist with overall reporting.
+  Use documented impressions/dimensions; absent reports do not establish zero,
+  AI-only clicks/conversions, or available API breakdowns.
+- Google documents a property-scoped Search Console generative-AI participation
+  setting with inheritance and URL-prefix overrides. Keep it separate from crawler/training/snippet controls and do not
+  change an account setting without authorization.
+- The earlier blanket Book Actions retirement claim is incorrect: its current
+  guide describes restricted provider participation. Gallery absence alone is
+  not evidence of retirement. FAQ retirement remains documented in the update
+  log; the old FAQ guide now redirects there.
+- Initial noindex may prevent rendering; client-side removal is not a reliable
+  public-page repair. Keep canonical, readable noindex, robots, and access
+  control separate. Permanent 301 and 308 redirects are both supported.
+- Core-update assessment uses the actual rollout end and a full-week wait,
+  appropriate comparison scope, and alternative-cause diagnosis.
+
+Supersedes: the Book Actions portion of the 2026-10-02 summary below and the
+old assertion that generative-AI visibility has no separate reporting view.
+Other vendor facts were not re-certified by this Google-only review.
+
+Action: update the entrypoint, affected references/examples, and the AI owner's
+reporting/control descriptions. No Search Console property, production site,
+account setting, ranking result, or conversion effect was inspected or changed.
+Validation details and upstream comparison belong to VALIDATION_REPORT.md.
+
 ## 2026-10-02 — Google structured-data and IndexNow fact refresh
 
 Source:

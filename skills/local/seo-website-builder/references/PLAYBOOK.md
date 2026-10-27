@@ -31,6 +31,11 @@ Default rule: optimise for users and technical clarity first, then add platform-
 
 ## Standard workflow
 
+Use this full workflow for an audit/build with several affected concerns. For
+a settled single-rule repair, follow SKILL.md's bounded path and load only the
+relevant section. Reuse existing project context and report unrelated findings
+without expanding the requested edit.
+
 ### 1. Define business context
 
 Answer:
@@ -99,7 +104,7 @@ Rules:
 | Helpful blog/guide | index |
 | Thank-you page | noindex |
 | Cart/checkout/internal search | noindex |
-| Thin filter/facet page | noindex/canonical |
+| Filter/facet page | Decide by purpose: canonical for duplicate consolidation, noindex for intended exclusion; unique useful landing pages need their own decision. |
 | Duplicate location page without unique value | noindex/merge |
 
 ### 6. Create per-page SEO templates
@@ -155,14 +160,21 @@ Minimum checks:
 - mobile layout is usable
 - LCP image is not lazy-loaded
 - 404 page returns 404
-- permanent URL changes use 301 redirects
+- permanent URL changes use appropriate 301 or 308 redirects
 - Search Console and/or platform webmaster tools are ready
 
 ### 10. Measurement plan
 
+Record the exact property/host/path, environment, date range, and available
+metrics. Separate raw HTTP/HTML, rendered DOM, engine inspection, and business
+outcomes. Missing access/data is unknown, not zero. Public/code checks may
+continue while authenticated analytics is unavailable.
+
 Track:
 
 - Google Search Console
+- Google generative-AI visibility reports when available for the property;
+  use documented impressions/dimensions, not invented AI-only click or conversion breakdowns
 - Bing Webmaster Tools
 - analytics CTA events
 - conversion tracking
@@ -179,7 +191,8 @@ Track:
 
 ## Required AI output
 
-For substantial SEO tasks, return:
+For substantial SEO tasks, select applicable sections; do not manufacture empty
+headings or require this structure for a bounded repair:
 
 ```txt
 Critical Assessment
@@ -203,7 +216,7 @@ Risk Notes
 
 ## Stop rules
 
-Stop or ask before continuing if:
+Ask before a consequential decision or mutation if:
 
 - business goal is unclear
 - page map is unclear
@@ -211,7 +224,12 @@ Stop or ask before continuing if:
 - the page exists only for keyword capture
 - content would be generic, fake, or misleading
 - schema would mark invisible content
-- there is no Search Console/analytics plan
+- there is no Search Console/analytics evidence for a claimed outcome
+
+These conditions do not block an unrelated authorized technical check or a
+settled markup fix. Canonical, noindex, robots, and server access control solve
+different problems. Google may skip rendering initial noindex HTML; do not rely
+on client-side removal to make an intended public page indexable.
 
 ## Official source priority
 

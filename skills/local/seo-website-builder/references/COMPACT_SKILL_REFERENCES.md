@@ -2,19 +2,14 @@
 
 Purpose: compact default reference for the `seo-website-builder` skill. This file keeps the skill lightweight so agents do not need to load large reference sets for every task.
 
-Last updated: 2026-06-30
+Last updated: 2026-10-26 (workflow and Google corrections; other engine snapshots retain their own evidence dates).
 
-## Default Load Order
+## Selective loading
 
-1. `COMPACT_SKILL_REFERENCES.md`
-2. `PLAYBOOK.md`
-3. specific mode file if needed:
-   - `ASTRO_SEO_PLAYBOOK.md`
-   - `NEXTJS_SEO_PLAYBOOK.md`
-   - `SHOPIFY_SEO_PLAYBOOK.md`
-   - `LOCAL_BUSINESS_SEO_PLAYBOOK.md`
-   - `SEARCH_ENGINE_ALGORITHM_BRIEF.md`
-4. deep modules only when necessary via `REFERENCE_MANIFEST.md`
+Start with SKILL.md and repository context. This overview is optional for a
+bounded repair; load only the relevant stack/topic section when needed.
+PLAYBOOK.md is for substantial audits/builds, not a second mandatory pre-read.
+REFERENCE_MANIFEST.md points only to resources bundled with this skill.
 
 ## Core Operating Principle
 
@@ -31,9 +26,10 @@ Every indexable page must earn its place by supporting at least one of:
 
 If a page has no unique value, do not index it.
 
-## Universal Output Contract
+## Substantial audit output
 
-Every substantial SEO task should return:
+Select applicable sections; a focused repair returns its finding/change,
+executed check, and remaining unknowns instead of this full audit structure:
 
 ```txt
 Critical Assessment
@@ -56,18 +52,16 @@ Risk Notes
 
 ## Mode Routing
 
-| Intent | Primary file | Deep modules |
-| --- | --- | --- |
-| New website SEO | `PLAYBOOK.md` | 01, 02, 03, 11, 12, 85 |
-| Existing audit | `PLAYBOOK.md` | 13, 23, 38, 57, 59, 82, 95 |
-| Astro/static | `ASTRO_SEO_PLAYBOOK.md` | 28, 58, 82 |
-| Next.js frontend | `NEXTJS_SEO_PLAYBOOK.md` | 02, 12, 58, 82 |
-| Shopify/ecommerce | `SHOPIFY_SEO_PLAYBOOK.md` | 04, 26, 30, 50, 69, 89 |
-| Local business | `LOCAL_BUSINESS_SEO_PLAYBOOK.md` | 08, 49, 56 |
-| Algorithm update | `SEARCH_ENGINE_ALGORITHM_BRIEF.md` | `SEARCH_ENGINE_SOURCE_INDEX.md`, `ALGORITHM_UPDATE_LOG.md` |
-| Complete page audit | `PAGE_COMPLETENESS_FORMULA.md` | 02, 12, 85 |
-| Schema | stack playbook | 12, 91 |
-| Programmatic SEO | `PLAYBOOK.md` | 10, 42, 57, 59, 71, 72 |
+| Intent | Relevant bundled reference |
+| --- | --- |
+| New website or substantial audit | `PLAYBOOK.md` |
+| Astro/static | `ASTRO_SEO_PLAYBOOK.md` |
+| Next.js | `NEXTJS_SEO_PLAYBOOK.md` |
+| Shopify/ecommerce | `SHOPIFY_SEO_PLAYBOOK.md` |
+| Local business | `LOCAL_BUSINESS_SEO_PLAYBOOK.md` |
+| Algorithm update | `SEARCH_ENGINE_ALGORITHM_BRIEF.md`, then current sources as needed |
+| Complete page audit | `PAGE_COMPLETENESS_FORMULA.md` |
+| Schema | relevant stack guide and current feature-specific official documentation |
 
 ## Hard Rules
 
@@ -110,7 +104,8 @@ For every important indexable page, verify:
 - crawlable internal links
 - eligible JSON-LD schema matching visible content
 - page included in sitemap only if canonical-indexable
-- CTA/conversion measurement ready
+- CTA/conversion measurement when the task includes launch/outcome planning;
+  missing analytics does not block a scoped markup repair
 
 Use `PAGE_COMPLETENESS_FORMULA.md` for detailed audit rules and examples.
 
@@ -121,7 +116,7 @@ Use `PAGE_COMPLETENESS_FORMULA.md` for detailed audit rules and examples.
 - canonical URLs are absolute and correct.
 - index/noindex rules are deliberate.
 - 404 returns 404.
-- redirects are 301 for permanent moves.
+- permanent redirects use appropriate server-side 301 or 308 responses.
 - key pages return 200.
 - title/meta are unique on indexable pages.
 - schema validates and matches visible content.
@@ -153,12 +148,21 @@ Use schema only when eligible:
 
 Reject schema spam.
 
-Google features that are gone — do not recommend them as Google rich results (checked 2026-10-02 against the [search gallery](https://developers.google.com/search/docs/appearance/structured-data/search-gallery), which no longer lists them):
+Google feature status must be checked against its current guide and official
+update history, not inferred solely from a missing search-gallery row. Google
+reviewed 2026-10-26:
 
-- FAQ rich result ([FAQPage doc](https://developers.google.com/search/docs/appearance/structured-data/faqpage): "no longer shown in Google Search results"; earlier restricted to authoritative government and health sites)
+- FAQ rich results are retired; the former FAQPage guide redirects to the
+  [documentation update log](https://developers.google.com/search/updates).
 - HowTo rich result; Sitelinks search box (retired 2024, so `WebSite` + `SearchAction` earns nothing in Google)
-- Book Actions, Course Info, Claim Review, Estimated Salary, Learning Video, Special Announcement, Vehicle Listing ([June 2025 announcement](https://developers.google.com/search/blog/2025/06/simplifying-search-results)); practice problems later followed
-- Google states removal does not affect ranking. Re-check the gallery before any schema plan; it is the live list of supported features.
+- Course Info, Claim Review, Estimated Salary, Learning Video, Special
+  Announcement, Vehicle Listing, and later practice problems were retired;
+  verify the current feature before planning implementation.
+- **Book Actions is not blanket-retired:** its current
+  [feature guide](https://developers.google.com/search/docs/appearance/structured-data/book)
+  describes restricted provider participation. Do not promise universal eligibility.
+- The gallery is useful discovery, not sufficient proof of every feature's
+  availability. Eligibility and valid markup do not guarantee a rich result.
 
 ## Internal Linking Rules
 
@@ -220,6 +224,11 @@ Google features that are gone — do not recommend them as Google rich results (
 5. Check technical/indexing before rewriting content.
 6. Compare competitors/SERP changes.
 7. Update playbooks only when action is justified.
+
+For a suspected Google core update, confirm rollout completion and wait the
+documented full week before comparing appropriate pre/post periods. Check
+property/path/search type, seasonality, technical changes, and data gaps first;
+small fluctuations do not justify broad rewriting.
 
 ## Promotion Rule
 
