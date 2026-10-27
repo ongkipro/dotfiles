@@ -6,11 +6,10 @@ Engineering and media-buying operating guide for achieving **maximum Net Profit,
 
 ## 1. The Conversion Auction & Profit Equations
 
-Meta's Lattice auction does not award impressions to the highest bidder alone; it ranks every candidate ad by **Total Value**:
-
-$$\text{Total Value} = (\text{Advertiser Bid} \times \text{Estimated Action Rate } eCVR) + \text{Ad Quality / User Value}$$
-
-Because Meta prices the winning impression just above the second-place ad's Total Value (VCG-style pricing), increasing your **Hook Rate, Hold Rate, Engagement, and CAPI Signal Match Quality** directly increases $\text{User Value}$ and $eCVR$—allowing you to win premium buyer impressions at a **30–50% lower effective CPM and CPR**.
+Use observed spend, revenue, conversion counts, and the brand's stated cost
+assumptions. The [API and evidence record](api-and-evidence.md) separates current
+platform facts from local heuristics. Architecture summaries do not establish
+auction prices, hidden quality weights, or a guaranteed CPM/CPR reduction.
 
 ### Decomposing CPR and ROAS into Physical Levers
 
@@ -18,7 +17,7 @@ $$\text{CPR (Cost Per Purchase)} = \frac{\text{CPM}}{1000 \times \text{CTR}_{\te
 
 $$\text{ROAS} = \frac{\text{AOV} \times \text{CVR}_{\text{landing}} \times \text{CTR}_{\text{outbound}} \times 1000}{\text{CPM}}$$
 
-| Lever | Benchmark Target | Primary Owner & How to Improve |
+| Lever | Local hypothesis / starting guideline | Primary Owner & How to Improve |
 | --- | --- | --- |
 | **Hook Rate** (`3s Video Views / Impressions`) | `>= 30%` (Warning `< 25%`) | **First 3 Seconds:** Visual pattern interrupt, high-contrast on-screen headline overlay, direct callout to the buyer's core pain or desire in frame 1. |
 | **Hold Rate** (`ThruPlays / 3s Video Views`) | `>= 25%` (Warning `< 20%`) | **Seconds 3–15 Pacing:** Cut scenes every 1.5–2.5 seconds, show the physical product mechanism/demo by second 4, use burned-in captions. |
@@ -40,6 +39,10 @@ $$\text{Max Break-Even CPR} = \text{Contribution Margin per Order}, \qquad \text
 
 $$\text{Target Profit CPR} = \text{Contribution Margin per Order} - (\text{AOV} \times m_{\text{target}}), \qquad \text{Target ROAS} = \frac{\text{AOV}}{\text{Target Profit CPR}}$$
 
+The equations below use the configured cost and delivery assumptions; they are
+not an accounting audit or a guaranteed realized margin. All numerical examples
+and external-learning examples are fictional until replaced with verified data.
+
 ### Configure Unit Economics in `<workspace>/memory/`
 
 ```bash
@@ -54,7 +57,7 @@ dotads-meta learn unit-economics \
   --target-margin 0.20
 ```
 
-This persists `unit_economics` into `<workspace>/memory/ads-memory.json` and renders `<workspace>/memory/MEMORY.md` with exact Break-Even ROAS, Max CPR, Target Profit CPR, Target ROAS, and **Recommended Cost Cap (`0.85 × Target CPR`)**.
+This persists `unit_economics` into `<workspace>/memory/ads-memory.json` and renders `<workspace>/memory/MEMORY.md` with exact Break-Even ROAS, Max CPR, Target Profit CPR, Target ROAS, and **local cost-cap suggestion (`0.85 × Target CPR`)**; eligibility, underdelivery, and realized cost still require review.
 
 ### The ROAS-First Metric Hierarchy (`ROAS = (AOV × CVR) / CPC`)
 
@@ -62,7 +65,7 @@ This persists `unit_economics` into `<workspace>/memory/ads-memory.json` and ren
 
 $$\text{CPC} = \frac{\text{Spend}}{\text{Outbound Clicks}} = \frac{\text{CPM}}{1000 \times \text{CTR}}, \qquad \text{CPR} = \frac{\text{CPC}}{\text{CVR}}, \qquad \text{ROAS} = \frac{\text{AOV}}{\text{CPR}} = \frac{\text{AOV} \times \text{CVR}}{\text{CPC}}$$
 
-- **Primary Gate (`ROAS` & `Net Profit`):** An ad is a `SCALE_WINNER` if and only if **`ROAS >= Target ROAS`** (or `CPR <= Target CPR` when order revenue is not tracked). Even if an ad has a modest `CTR` (`1.1%`) or higher `CPC`, if its copy pre-qualifies buyers so `CVR` and `AOV` push **`ROAS >= Target ROAS`**, you **scale it**.
+- **Primary Gate (`ROAS` & `Net Profit`):** An ad is a `SCALE_WINNER` if and only if **`ROAS >= Target ROAS`** (or `CPR <= Target CPR` when order revenue is not tracked). This is a local review candidate, not automatic approval to scale. Check sample size, conversion lag, attribution, backend reconciliation, and margin before proposing changes.
 - **Why Cheap `CPC` / High `CTR` Alone Is a Trap:** Clickbait copy or spammy CTAs (`"Klik di sini!"`) artificially inflate `CTR` and lower `CPC`, but attract low-intent clickers (`CVR -> 0%`), collapsing **ROAS** below break-even.
 - **When to Inspect `CTR` and `CPC`:** Only when **ROAS is below target**—use `Hook Rate`, `Hold Rate`, `Outbound CTR`, and `CPC` to isolate whether the ROAS bottleneck is in the creative (`CTR < 1.0%` / high `CPC` → `FIX_OFFER_OR_CTA`) or on the landing page/checkout (`CTR >= 1.0%` & healthy `CPC` but low `CVR` → `FIX_LANDING_CVR_OR_SIGNAL`).
 
@@ -72,7 +75,7 @@ $$\text{CPC} = \frac{\text{Spend}}{\text{Outbound Clicks}} = \frac{\text{CPM}}{1
 
 Every brand workspace maintains its own structured intelligence store at `<workspace>/memory/ads-memory.json` and `<workspace>/memory/MEMORY.md`, learning continuously from four sources:
 
-### Source A: Learn Automatically from 1st-Party Meta Ads Data (`dotads-meta analyze`)
+### Source A: Record Scoped Observations from 1st-Party Meta Ads Data (`dotads-meta analyze`)
 
 Pull ad-level performance insights directly from Meta (or pass an existing JSON file), reconcile COD/backend delivery rate if needed, and run the automated 8-bucket diagnostic analyzer:
 
@@ -86,7 +89,7 @@ dotads-meta analyze ./insights-last-7d.json --brand ./brand.json --record-memory
 
 `dotads-meta analyze` classifies every ad into one of 8 deterministic buckets and outputs a Day-2 `recommended_command` (scaling `+20%` for winners or `--status PAUSED` on `stop_loss` bleeders where `spend >= 1.5x Max CPR`):
 
-| Classification | Trigger Condition | Automated Action & Memory Capture |
+| Classification | Local trigger / implementation heuristic | Proposed review & optional memory capture |
 | --- | --- | --- |
 | `SCALE_WINNER` | `purchases >= 1` and (`ROAS >= Target ROAS`, or `CPR <= Target CPR` when revenue is untracked) | Saved as `winner` in `ads-memory.json`. Emits Day-2 CLI plan to scale budget `+20%` every 24–48h or graduate into Advantage+ Sales CBO; brief 3 new hook variations on this angle. |
 | `PROFITABLE_OPTIMIZE` | `ROAS >= Break-Even ROAS` but `< Target ROAS` | Keep active; test higher-AOV bundle on landing page or fresh 3s visual hook to push ROAS above target. |
@@ -95,11 +98,11 @@ dotads-meta analyze ./insights-last-7d.json --brand ./brand.json --record-memory
 | `FIX_HOOK_FIRST_3S` | Below break-even and `Hook Rate < 25%` | Saved as `loser` (`hook`). Keep body video, replace first 3-second visual pattern interrupt and headline overlay. |
 | `FIX_HOLD_BODY_PACING` | Below break-even, `Hook Rate >= 25%`, `Hold Rate < 20%` | Saved as `loser` (`format`). Tighten middle editing (cut every 1.5–2.5s), show product mechanism by second 4, add captions. |
 | `FIX_OFFER_OR_CTA` | Below break-even, good Hook/Hold, `Outbound CTR < 1.0%` | Saved as `loser` (`offer`). Strengthen bundle offer, risk reversal/guarantee in headline/description, and align native `call_to_action` button without stuffing spammy text CTAs. |
-| `FIX_LANDING_CVR_OR_SIGNAL` | `Outbound CTR >= 1.0%` & healthy `CPC`, but `ROAS < Break-Even ROAS` | Saved as `loser` (`landing-page`). Audit mobile page speed (`web-perf`), message congruence, COD form friction, CAPI EMQ (`meta-ads-signal-engine`), and enable `incremental_attribution`. |
+| `FIX_LANDING_CVR_OR_SIGNAL` | `Outbound CTR >= 1.0%` & healthy `CPC`, but `ROAS < Break-Even ROAS` | Saved as `loser` (`landing-page`). Audit mobile page speed (`web-perf`), message congruence, COD form friction, CAPI EMQ (`meta-ads-signal-engine`), and review attribution eligibility without automatically changing modes. |
 
 ### Source B: Learn from Competitor & Ad Library References (`--source competitor` / `reference`)
 
-After researching competitor ads in `meta-ads-scout` (focusing on ads running continuously for `>= 30 days`, which signals profitable unit economics), record the extracted pattern into the brand memory:
+After researching competitor ads in `meta-ads-scout` (ad longevity can guide research, but it does not reveal spend, scaling, or profitable unit economics), record the extracted pattern into the brand memory:
 
 ```bash
 dotads-meta learn add --brand ./brand.json \
@@ -107,7 +110,7 @@ dotads-meta learn add --brand ./brand.json \
   --category hook \
   --verdict insight \
   --title "Competitor 45-Day Active Hook: Split-Screen Wet Floor Slip Test" \
-  --summary "Top competitor has scaled a 9:16 split-screen slip test video for 45+ days across ID/MY." \
+  --summary "An illustrative library record shows the ad active for 45 days; spend and profitability are unknown." \
   --action "Produce our own physical slip-resistance demonstration in first 3 seconds for next creative batch."
 ```
 
@@ -149,47 +152,42 @@ ai-learn capture \
    - Check `unit_economics` (`max_cpr_breakeven`, `target_cpr`, `target_roas`, `recommended_cost_cap`).
    - Review all `winner` hooks/angles to iterate on, and all `loser` hooks/angles to avoid repeating.
 2. **Phase 1 — Creative Concept Testing (Low-Risk Discovery):**
-   - Launch 3–5 genuinely distinct creative concepts (different visual opener, persona, and format to prevent **Andromeda Entity Collapse**).
-   - Use either **Consolidated CBO with `"ad_format": "AUTOMATIC_FORMAT"`** (3 images/videos × 2 bodies × 2 titles per concept) or **Flex Budget (`"adset_budget_sharing": true`)** when strict per-concept spend minimums are needed.
+   - Launch 3–5 genuinely distinct creative concepts (different visual opener, persona, and format to test different creative hypotheses).
+   - Use either **Consolidated CBO with `"ad_format": "AUTOMATIC_FORMAT"`** (3 images/videos × 2 bodies × 2 titles per concept) or **Flex Budget (`"adset_budget_sharing": true`)** when budget allocation by concept is useful; sharing can move spend and does not guarantee a strict per-concept floor.
 3. **Phase 2 — Data Analysis & Memory Harvesting (After 2–3x Max CPR Spend per Concept):**
    - Pull insights and run `dotads-meta analyze insights.json --brand ./brand.json --record-memory`.
-   - Pause `FIX_*` losers immediately and queue specific creative/funnel fixes based on the bottleneck (`Hook` vs `Hold` vs `CTR` vs `Landing CVR`).
+   - Review `FIX_*` hypotheses, stop-loss limits, and alternative causes before proposing pause/creative/funnel changes. Any live mutation still requires approval.
 4. **Phase 3 — Profitable Scaling (`ADVANTAGE_PLUS_SALES` + Cost Cap Protection):**
    - Graduate `SCALE_WINNER` creatives into the primary **Unified Advantage+ Sales Campaign** (`objective: "OUTCOME_SALES"`, CBO budget, `"advantage_audience": true`, `"incremental_attribution": true`, `"contextual_multi_ads": false`).
-   - For high-budget scaling with strict margin protection, deploy a parallel **Cost Cap** ad set (`"bid_strategy": "COST_CAP"`, `"bid_amount": <recommended_cost_cap_in_minor_units>`) or **Minimum ROAS** (`"bid_strategy": "LOWEST_COST_WITH_MIN_ROAS"`) so Meta never bids on impressions whose expected CPR exceeds your profit ceiling.
+   - For high-budget scaling with strict margin protection, deploy a parallel **Cost Cap** ad set (`"bid_strategy": "COST_CAP"`, `"bid_amount": <recommended_cost_cap_in_minor_units>`) or **Minimum ROAS** (`"bid_strategy": "LOWEST_COST_WITH_MIN_ROAS"`) only when the objective and account support them. These are optimization controls, not guaranteed realized cost/profit ceilings; review underdelivery and outcome quality.
 
 ---
 
 ## 5. AI-Aligned Conversion Ad Copy & Strict Market Localization (`ID` vs `MY`)
 
-### 5.1 How Meta Andromeda NLP & Lattice Score Ad Copy
+### 5.1 Copy, destination, and evidence
 
-In the 2025–2026 Meta Ads architecture, **Ad Copy Is Semantic Targeting**:
-
-1. **Multimodal Semantic Retrieval (Andromeda)**:
-   - Andromeda's deep retrieval neural network tokenizes `body` (Primary Text), `title` (Headline), `description`, and on-screen video/image OCR text into dense semantic embeddings, matching those embeddings against users who recently exhibited high purchase intent for that specific problem, category, and price point.
-   - When you fill the first 125 characters of `body` or the 27–40 characters of `title` with generic command clutter (`"Klik link di bawah!"`, `"Chat WA sekarang!"`, `"Beli sekarang juga sebelum kehabisan!"`), you starve Andromeda of the **domain nouns, buyer pain points, and product mechanism tokens** it needs to retrieve actual buyers.
-2. **Lattice Ad Quality & Engagement-Bait Penalty**:
-   - Meta's auction Total Value formula (`Bid × eCVR + Ad Quality`) penalizes ads that read like hard-sell spam, clickbait (`"Klik di sini"`), or off-funnel redirects (`"Hubungi WA"` on an `OFFSITE_CONVERSIONS` website checkout campaign).
-   - Furthermore, on `OUTCOME_SALES` (`OFFSITE_CONVERSIONS`), telling users in the text to *"Chat WA"* while optimizing the ad set for website `PURCHASE` splits user behavior and trains the pixel on low-intent browsers instead of self-serve checkout buyers.
-3. **The Native CTA Button Rule**:
-   - Meta Ads already renders a dedicated, thumb-reachable UI button via `call_to_action` (`"SHOP_NOW"` or `"LEARN_MORE"`).
-   - **Never waste `body`, `title`, or `description` repeating button commands.** Let the copy build **conviction and desire** (Problem → Mechanism → Proof → Risk Reversal), and let the native `call_to_action` button handle the click.
+Write clear, fact-supported product/offer copy for the intended market. Distinct
+concepts and benefit/mechanism/proof structure are useful local hypotheses, not
+published token quotas or secret model instructions. Review repetitive commands
+and mismatched destinations. A messaging campaign may intentionally use a
+WhatsApp CTA; an explicit text CTA is not universally forbidden or proof of an
+algorithmic penalty. The native button and copy should support the same journey.
 
 ### 5.2 Field-by-Field Conversion Copy Architecture (`OUTCOME_SALES`)
 
-| Creative Field | Mobile Viewport Limit | Role in Andromeda & Buyer Psychology | What to Write (High Conversion) | What to Avoid (Linted by `dotads-meta validate`) |
+| Creative Field | Placement-dependent preview guideline | Communication purpose | What to Write (High Conversion) | What to Avoid (Linted by `dotads-meta validate`) |
 | --- | --- | --- | --- | --- |
-| `body` / `bodies` (Primary Text) | **First 125 chars** visible before *"…Lihat Selengkapnya"* | **Semantic Retrieval + Scroll Stop + Mechanism** | Line 1: Specific situational symptom/problem (`"Tumit sering nyeri setelah berdiri atau jalan seharian?"`).<br>Line 2: Concrete mechanism + quantified proof (`"Insole dual-density memory foam menopang lengkung kaki dan meredam 68% tekanan tumit."`). | Generic greetings, ALL-CAPS shouting, emoji walls, `"Klik link di bawah"`, `"Chat WA sekarang"`, `"Beli sekarang juga"`. |
-| `title` / `titles` (Headline) | **27–40 chars** (truncates past ~40 chars on mobile Feed) | **Value Prop / Offer Anchor next to the CTA button** | Concrete outcome, bundle value, or risk-reversal hook (`"Solusi Jalan Jauh Tanpa Pegal"`, `"Hemat 25% Paket 2 Pasang"`). | Repeating the brand name alone, `"Klik Di Sini"`, `"Order Sekarang Juga"`. |
-| `description` / `descriptions` | **25–30 chars** (shown on high-intent Feed placements) | **Frictionless Trust Signal / Objection Killer** | Shipping speed, exchange guarantee, or social proof (`"Garansi tukar ukuran 14 hari"`, `"42.000+ pasang terjual di ID"`). | Pushy CTA commands or long sentences that get cut off mid-word. |
+| `body` / `bodies` (Primary Text) | **~125 chars** as a local preview starting point; actual visibility varies | **Semantic Retrieval + Scroll Stop + Mechanism** | Line 1: Specific situational symptom/problem (`"Tumit sering nyeri setelah berdiri atau jalan seharian?"`).<br>Line 2: Verified product mechanism; add quantitative proof only when substantiated. | Generic greetings, ALL-CAPS shouting, emoji walls, `"Klik link di bawah"`, `"Chat WA sekarang"`, `"Beli sekarang juga"`. |
+| `title` / `titles` (Headline) | **~40 chars** local headline guideline; actual truncation varies | **Value Prop / Offer Anchor next to the CTA button** | Concrete outcome, bundle value, or risk-reversal hook (`"Solusi Jalan Jauh Tanpa Pegal"`, `"Hemat 25% Paket 2 Pasang"`). | Repeating the brand name alone, `"Klik Di Sini"`, `"Order Sekarang Juga"`. |
+| `description` / `descriptions` | **~30 chars** local description guideline; visibility varies | **Frictionless Trust Signal / Objection Killer** | Shipping speed, exchange guarantee, or social proof (`"Periksa panduan ukuran"`, `"Pilihan ukuran tersedia"`). | Pushy CTA commands or long sentences that get cut off mid-word. |
 | `call_to_action` | Native UI Button | **Single Action Trigger** | `"SHOP_NOW"` (direct e-commerce/catalog) or `"LEARN_MORE"` (advertorial / high-ticket consideration). | Mixing website `SHOP_NOW` with `"Chat WA"` instructions inside the text. |
 
 ### 5.3 Strict Market Localization: Indonesia (`ID`) vs Malaysia (`MY`)
 
 When `targeting_countries` targets **Indonesia (`["ID"]`)**, all copy (`title`, `body`, `description`, video subtitles, and image overlays) **must** use natural **Bahasa Indonesia for the Indonesian market**—**never** Malaysian Malay (`BM` / `MY`).
 
-Even a single Malaysian Malay word in an Indonesian ad destroys native brand trust and can invert the meaning of your offer (most famously: **`"percuma"` means *"free"* in Malaysia, but means *"useless / sia-sia"* in Indonesia!**).
+Market wording can create confusion; review it in context rather than treating every dictionary match as a language error or measured conversion loss (most famously: **`"percuma"` means *"free"* in Malaysia, but means *"useless / sia-sia"* in Indonesia!**).
 
 `dotads-meta validate` automatically scans creative text fields on `"ID"`-targeted ad sets and warns if any Malaysian Malay vocabulary leaks into Indonesian ad copy:
 
@@ -207,12 +205,16 @@ Even a single Malaysian Malay word in an Indonesian ad destroys native brand tru
 | Side Effect | `kesan sampingan` | `efek samping` | Crucial for skincare/supplement/wellness compliance and clarity. |
 | Size | `saiz` | `ukuran` / `size` | `"Saiz"` is Malaysian phonetic spelling. |
 
-### 5.4 Canonical High-Converting Indonesian (`ID`) Ad Copy Examples
+### 5.4 Illustrative Indonesian (`ID`) Copy Patterns
+
+These examples establish a writing pattern, not product facts or proven lift.
+Verify materials, shipping, discounts, guarantees, and any performance claims
+before use; do not invent customer counts or medical outcomes.
 
 - **Example A — Problem/Mechanism/Proof (`OUTCOME_SALES`, Indonesia Market, Zero Pushy CTA in Text):**
-  - `body`: `"Tumit sering nyeri setelah berdiri atau jalan lebih dari 4 jam? Insole ortopedi dual-density ini menopang lengkung kaki dan meredam 68% tekanan di titik tumpu. Sudah dipakai 42.000+ pekerja aktif di seluruh Indonesia."`
-  - `title`: `"Jalan Seharian Tanpa Nyeri Tumit"`
-  - `description`: `"Garansi tukar ukuran 14 hari"`
+  - `body`: `"Lengkapi sepatu harian dengan insole yang sesuai. Periksa bahan, ukuran, dan cara perawatan pada detail produk."`
+  - `title`: `"Pilihan Insole untuk Sepatu Harian"`
+  - `description`: `"Periksa panduan ukuran"`
   - `call_to_action`: `"SHOP_NOW"`
 - **Example B — Comparison / Value Bundle (`AUTOMATIC_FORMAT` Multi-Text Array, Indonesia Market):**
   - `bodies`:

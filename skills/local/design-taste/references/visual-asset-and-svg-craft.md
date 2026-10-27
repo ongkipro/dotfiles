@@ -79,9 +79,13 @@ rather than generic icon grids or text walls.
 
 ---
 
-## 3. Honest AI Asset Generation Protocol (`9router` / `image-generator`)
+## 3. Honest AI Asset Generation Protocol
 
 When real product/brand photos are absent and a task calls for generated imagery:
+
+Use the active runtime's available image-generation capability and its relevant
+instructions, or a supplied asset. If unavailable, provide the asset brief and
+report the missing output; do not install a gateway to fulfill this reference.
 
 ### Permitted vs Forbidden Subjects
 

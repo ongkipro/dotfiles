@@ -76,7 +76,7 @@ DOMAINS: dict[str, tuple[str, ...]] = {
         "black-magic",
     ),
     "Infrastructure and runtime": (
-        "vercel", "vultr", "vps-deploy", "kelola-deploy", "9router",
+        "vercel", "vultr", "vps-deploy", "kelola-deploy",
     ),
 }
 

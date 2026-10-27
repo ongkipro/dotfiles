@@ -17,20 +17,7 @@ Completed contracts: `docs/archive/` (`git grep TASK-NNN docs/archive`).
 
 TASK-147: [Runtime activation and trustworthy verification](docs/archive/DOTFILES_TASKS_2026-10-26_RUNTIME.md).
 
-## In progress
-
-### TASK-149: Adaptive SEO guidance from current official sources
-
-- **Requirement:** REQ-ADAPTIVE-SEO-SKILL (owner: audit/improve SEO and compare GitHub skills, 2026-10-26).
-- **Risk Level:** R2.
-- **Allowed Paths:** `skills/local/seo-website-builder/**`, `skills/local/ai-traffic-os/SKILL.md`, `skills/local/ai-traffic-os/references/AI_REFERRAL_TRACKING.md`, `skills/local/ai-traffic-os/references/CRAWLER_MATRIX_2026.md`, `skills/local/README.md`, `TASKS.md`, `docs/archive/DOTFILES_TASKS_2026-10-26_RUNTIME.md`.
-- **Canonical Contract Owners:** seo.guidance, ai-traffic.measurement.
-- **Accepted Invariants:** preserve owner metadata/Shopify rules; proportional loading; current primary-source evidence; unknown data stays unknown; no ranking guarantee or automatic policy adoption.
-- **Regression Checks:** skill metadata/map/surface, offline SEO fixture, guided repair, links, policy, security, diff.
-- **Runtime Evidence:** scoped trials/review pass; global lint awaits unrelated 9Router link/map repair.
-- **Reopen Conditions:** source-backed guidance or scoped repair regresses.
-- **Non-Scope:** live site/account mutations, secrets, installs, scheduling, commit/push.
-- **Escalation Conditions:** live/credential access or changing owner preferences is needed.
+TASK-146, TASK-149, TASK-150: [Meta/SEO implementations and retired-skill integration](docs/archive/DOTFILES_TASKS_2026-10-27_META_SEO.md).
 
 ## Pending
 
@@ -40,20 +27,6 @@ TASK-147: [Runtime activation and trustworthy verification](docs/archive/DOTFILE
 - **Risk Level:** R0 planning.
 - **Allowed Paths:** `TASKS.md`, `docs/research/development-kit-audit-2026-10-25.md`.
 - **Verification:** select device/project targets and bind required checks before implementation; preserve deferred tasks.
-
-### TASK-146: Meta Ads 2026 algorithm (Andromeda, GEM, Lattice) and Marketing API v22–v26 upgrade
-
-- **Requirement:** REQ-META-ADS-2026-ALGORITHM-AND-API (preserve `dotads-meta` and `meta-ads-cli` foundations while adding Andromeda/GEM/Lattice architecture, Unified Advantage+, Flexible Format vs DCO, granular `degrees_of_freedom_spec`, Incremental Attribution, Value Rules, and offline validator guards).
-- **Risk Level:** R2.
-- **Allowed Paths:** `TASKS.md`, `docs/archive/DOTFILES_TASKS_2026-10-25_SYSTEM_MAP.md`, `bin/dotads-meta`, `bin/dotads-meta-test`, `skills/local/meta-ads-cli/**`.
-- **Protected Paths:** `config/ai/CORE.md`, `config/ai/adapters/**`.
-- **Canonical Contract Owners:** CLI -> `bin/dotads-meta`; guidance -> `meta-ads-cli`.
-- **Accepted Invariants:** preserve existing subcommands, `secrets-env` injection, `.meta-state.json` v1, SHA-256 media cache, and `PAUSED` gate; support `AUTOMATIC_FORMAT` alongside `dynamic_creative`; reject `smart_promotion_type`, >1 ad per DCO ad set, and `7d_view`/`28d_view`.
-- **Regression Checks:** `dotads-meta-test`, `skill-check meta-ads-cli`, `skill-surface-check`, `skill-map --check`, `ai-policy-lint`, `ai-memory-check`, `security-check`, `git diff --check`.
-- **Runtime Evidence:** `dotads-meta-test` verifies all 2026 API & algorithm guards.
-- **Non-Scope:** live API mutations, credentials, commit/push unless requested.
-- **Reopen Conditions:** existing workspaces break, `SKILL.md` > 500 lines, or `TASKS.md` > 12,288 bytes.
-- **Escalation Conditions:** requires live API mutations or `CORE.md` edits.
 
 ### TASK-140: Codex decision trial (not before 2026-10-31)
 

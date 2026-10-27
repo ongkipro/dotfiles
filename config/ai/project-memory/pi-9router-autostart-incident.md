@@ -1,6 +1,6 @@
 ---
 name: pi-9router-autostart-incident
-description: Why 9router must run only as the systemd user unit: the 2026-08 stale/LAN-exposed/tunneled incident, its real cause (XDG autostart), and the diagnosis rule
+description: Historical 2026-08 gateway exposure incident, its XDG autostart cause, and the lesson to trace actual process launchers; not current service instructions
 metadata:
   node_type: memory
   type: project
@@ -49,9 +49,9 @@ other per-user XDG/systemd autostart path again before assuming a human cause**
 command) over checking what actually launched the process (`ps -o ppid`,
 `lstart`, then trace the parent to its origin).
 
-**The fix is procedural, not just a restart: `systemctl --user ...` (see
-`skills/local/9router/SKILL.md`) is the ONLY sane way to run this now.** The
-`setsid nohup 9router --tray ...` command in the two entries below is what
-caused this incident — do not run it while `9router.service` exists. If a
-manual restart is ever needed, use `systemctl --user restart 9router.service`,
-never the tray command.
+**Historical boundary:** the service commands above describe the 2026-08
+incident, not current setup instructions. Current supported topology follows
+the [Pi adapter contract](../../pi/README.md): no local gateway is installed or
+started by dotfiles. The retired skill is not a restart procedure. Trace the
+actual launcher before diagnosing recurrence, and obtain authorization before
+any service or tunnel change.

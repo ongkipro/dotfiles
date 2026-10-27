@@ -19,9 +19,9 @@ small standalone fallback surface and the custom `compact-free` extension.
 - `extensions/compact-free/` — optional Pi-only conversation compaction with a
   machine-local provider fallback chain.
 
-Image generation is not owned by Pi or a Pi package. Use the runtime-neutral
-`9router` skill and its OpenAI-compatible `/v1/images/generations` API from the
-active runtime.
+Image generation is not owned by Pi or a Pi package. Use the active runtime's
+available image-generation capability or a supplied asset. The removed 9Router
+skill is not a prerequisite for this optional adapter.
 
 ## Restore boundaries
 

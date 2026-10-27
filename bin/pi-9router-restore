@@ -117,4 +117,4 @@ SYNCEOF
 fi
 
 say "Pi adapter restore complete; remote 9Router credentials and Pi state remain machine-local"
-say "Image generation belongs to the runtime-neutral 9Router skill/API, not this adapter"
+say "Use the active runtime's available image-generation capability or supplied assets; this Pi adapter does not provide image generation"

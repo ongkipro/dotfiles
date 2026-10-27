@@ -24,8 +24,8 @@
 - `9router-credential-migrate` may copy a legacy key from Pi auth only when
   explicitly invoked. It does not print the value, delete the source, or
   overwrite an existing neutral credential.
-- Image generation belongs to the runtime-neutral `9router` skill/API, not a Pi
-  image package.
+- Image generation uses the active runtime's available capability or supplied
+  assets; it does not require the removed 9Router skill or a Pi image package.
 - 9Router is remote-only in the supported dotfiles topology. Optional Pi and
   runtime-neutral 9Router helpers may target that service; OMP provider choices
   remain native and machine-local.
@@ -74,8 +74,9 @@
   Pi/9Router integration; there is no supported local service.
 - Optional Pi provider metadata, credentials, and sync status are independent
   from OMP. Inspect them only while troubleshooting a direct Pi session.
-- There is no Pi-owned image-generation path in tracked settings. Use the
-  runtime-neutral `9router` skill/API.
+- There is no Pi-owned image-generation path in tracked settings. Use the active
+  runtime's available image-generation capability; report a missing capability
+  instead of installing a gateway.
 - **Claude Code**: local MCP `chrome-devtools` for the `web-perf` skill; its browser path is device-local (`rich`: `--headless --executablePath /usr/bin/google-chrome`, verified 2026-09-15 — an earlier note said `chromium-browser`). A read-only permission allowlist + a secret deny-rule are in `~/.claude/settings.json`.
 - **Supabase CLI**: the house DB stack = PostgreSQL + Drizzle ORM + better-auth, self-hosted via Coolify. Don't adopt Supabase for new projects unless explicitly requested. The `~/.supabase/` folder **DOES NOT EXIST on Mac** (the old note saying "EXISTS but leftover/empty" is wrong for this machine). The `supabase-stack` skill is kept for reference and explicit Supabase projects.
 

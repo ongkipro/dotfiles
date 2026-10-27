@@ -141,11 +141,8 @@ const INDONESIAN_LEXICAL_LEAKS_FOR_MY = [
   { pattern: /\bcelana\b/i, term: "celana", myReplacement: "seluar" },
 ];
 
-// Meta Andromeda NLP & Lattice Ad Quality copy guard:
-// Meta Ads renders the native CTA button via `call_to_action` (SHOP_NOW / LEARN_MORE).
-// Stuffing primary text/headline with direct-click commands, WhatsApp redirects on website
-// conversion ads, or hard-sell CTA clutter wastes above-the-fold semantic tokens and triggers
-// engagement-bait / low-quality ad downranking.
+// Local copy/funnel heuristics, not documented ranking penalties. A messaging
+// campaign may intentionally use a WhatsApp CTA; review the actual destination.
 const SPAMMY_TEXT_CTA_PATTERNS = [
   { pattern: /\bklik\s+(?:link|tautan|tombol)\s+di\s+bawah\b/i, label: "klik link/tombol di bawah" },
   { pattern: /\bklik\s+di\s+sini\b/i, label: "klik di sini" },
@@ -313,6 +310,21 @@ function readJsonFile(filePath, label) {
   } catch (err) {
     throw new Error(`Invalid JSON in ${label} at ${filePath}: ${err.message}`);
   }
+}
+
+function readJsonArgument(value, workspaceDir, campaignDir, label) {
+  if (typeof value !== "string") return value;
+  return value.startsWith("@")
+    ? readJsonFile(resolveMediaFile(workspaceDir, campaignDir, value.slice(1)), label)
+    : JSON.parse(value);
+}
+
+function containsRetiredPoll(value, inComponents = false) {
+  if (!value || typeof value !== "object") return false;
+  return Object.entries(value).some(([key, child]) =>
+    key === "poll_spec" || (inComponents && key === "type" && child === "poll") ||
+    containsRetiredPoll(child, inComponents || key === "interactive_components_spec")
+  );
 }
 
 function findBrandPath(campaignPath, explicitBrandPath) {
@@ -487,7 +499,7 @@ function validateManifests(campaignPath, explicitBrandPath) {
     }
     if (campaign.smart_promotion_type !== undefined && campaign.smart_promotion_type !== null && campaign.smart_promotion_type !== "") {
       errors.push(
-        `campaign: 'smart_promotion_type' ('${campaign.smart_promotion_type}') is deprecated/blocked in Meta Marketing API v25.0–v26.0. Use Unified Advantage+ campaign architecture (standard objective + CBO budget + "advantage_audience": true on the ad set).`
+        `campaign: 'smart_promotion_type' ('${campaign.smart_promotion_type}') is retired for legacy ASC/AAC creation, duplication, and updates in v25.0 and across versions since 2026-05-19. Use a standard supported objective and verify current Advantage+ eligibility.`
       );
     }
   }
@@ -518,6 +530,27 @@ function validateManifests(campaignPath, explicitBrandPath) {
       errors.push(
         `${label}: invalid 'ad_format' '${cr.ad_format}' (must be one of ${Array.from(VALID_AD_FORMATS).join(", ")}).`
       );
+    }
+    for (const field of ["poll_spec", "interactive_components_spec"]) {
+      if (cr[field] !== undefined) {
+        errors.push(`${label}: '${field}' is not forwarded by this helper. Poll creatives are retired across API versions since 2026-10-27.`);
+      }
+    }
+    for (const field of ["object_story_spec", "asset_feed_spec"]) {
+      if (cr[field] === undefined || cr[field] === null) continue;
+      try {
+        const rawSpec = readJsonArgument(cr[field], workspaceDir, campaignDir, `${label}.${field}`);
+        if (!rawSpec || typeof rawSpec !== "object" || Array.isArray(rawSpec)) {
+          errors.push(`${label}.${field}: expected a JSON object, not an array, primitive, or null.`);
+        } else if (containsRetiredPoll(rawSpec)) {
+          errors.push(`${label}.${field}: poll_spec / interactive_components_spec type 'poll' is retired across API versions since 2026-10-27.`);
+        }
+      } catch {
+        errors.push(`${label}.${field}: expected valid JSON or a readable JSON file.`);
+      }
+    }
+    if (cr.applink_treatment === "web_only") {
+      warnings.push(`${label}: applink_treatment='web_only' is retired for Web and App campaigns since 2026-10-27. Review the actual conversion locations; use 'automatic' or 'deeplink_with_web_fallback' where applicable. This helper cannot establish the campaign's live configuration.`);
     }
     if (
       cr.degrees_of_freedom_spec &&
@@ -718,6 +751,23 @@ function validateManifests(campaignPath, explicitBrandPath) {
         `${label}: specify either 'targeting_countries' or 'targeting', not both ('targeting' replaces 'targeting_countries').`
       );
     }
+    if (as.targeting) {
+      try {
+        const targeting = readJsonArgument(as.targeting, workspaceDir, campaignDir, `${label}.targeting`);
+        if (!targeting || typeof targeting !== "object" || Array.isArray(targeting)) {
+          errors.push(`${label}: 'targeting' must be a JSON object, not an array, primitive, or null.`);
+        } else {
+          const automation = targeting.targeting_automation;
+          if (automation !== undefined && (!automation || typeof automation !== "object" || Array.isArray(automation))) {
+            errors.push(`${label}: targeting_automation must be a JSON object.`);
+          } else if (automation?.advantage_audience !== undefined && automation.advantage_audience !== 0 && automation.advantage_audience !== 1) {
+            errors.push(`${label}: targeting_automation.advantage_audience must be 0 or 1. The raw nested value overrides the shortcut flag.`);
+          }
+        }
+      } catch {
+        errors.push(`${label}: 'targeting' must contain valid JSON or reference a readable JSON file.`);
+      }
+    }
 
     const pixelId = as.pixel_id || brand?.pixel_id;
     const needsConversionObject =
@@ -735,8 +785,46 @@ function validateManifests(campaignPath, explicitBrandPath) {
       }
     }
 
-    if (Array.isArray(as.attribution_spec)) {
-      for (const spec of as.attribution_spec) {
+    for (const field of ["incremental_attribution", "advantage_audience", "dynamic_creative"]) {
+      if (as[field] !== undefined && typeof as[field] !== "boolean") {
+        errors.push(`${label}: '${field}' must be a boolean.`);
+      }
+    }
+    if (as.incremental_attribution === true) {
+      if (as.attribution_spec !== undefined && as.attribution_spec !== null) {
+        errors.push(`${label}: cannot combine 'incremental_attribution: true' with 'attribution_spec'; choose one attribution mode.`);
+      }
+      if (!["OFFSITE_CONVERSIONS", "VALUE", "RETURN_ON_AD_SPEND"].includes(as.optimization_goal)) {
+        errors.push(`${label}: incremental attribution requires a supported conversion/value optimization_goal.`);
+      }
+      const bidStrategy = (isCbo ? campaign.bid_strategy : as.bid_strategy) || "LOWEST_COST_WITHOUT_CAP";
+      if (!["LOWEST_COST_WITHOUT_CAP", "COST_CAP", "LOWEST_COST_WITH_MIN_ROAS"].includes(bidStrategy)) {
+        errors.push(`${label}: incremental attribution does not support bid_strategy '${bidStrategy}'.`);
+      }
+    }
+
+    // Inspect the same inline JSON / @file forms that the CLI receives so files
+    // cannot bypass the attribution-window guard. Forwarding retains its form.
+    let attributionSpec = as.attribution_spec;
+    if (typeof attributionSpec === "string") {
+      try {
+        attributionSpec = readJsonArgument(attributionSpec, workspaceDir, campaignDir, `${label}.attribution_spec`);
+      } catch {
+        errors.push(`${label}: 'attribution_spec' must contain valid JSON or reference a readable JSON file.`);
+      }
+    }
+    if (as.attribution_spec !== undefined && as.attribution_spec !== null && !Array.isArray(attributionSpec)) {
+      errors.push(`${label}: 'attribution_spec' must be an array of attribution windows.`);
+    }
+    if (Array.isArray(attributionSpec)) {
+      for (const spec of attributionSpec) {
+        if (!spec || typeof spec !== "object" || Array.isArray(spec) || typeof spec.event_type !== "string" || !Number.isInteger(spec.window_days) || spec.window_days <= 0) {
+          errors.push(`${label}: attribution_spec entries require an event_type and positive integer window_days.`);
+          continue;
+        }
+        if (spec.event_type.toUpperCase() === "ENGAGED_VIEW") {
+          errors.push(`${label}: attribution_spec uses 'ENGAGED_VIEW'; the documented API event is 'ENGAGED_VIDEO_VIEW'.`);
+        }
         if (
           spec &&
           typeof spec === "object" &&
@@ -744,7 +832,7 @@ function validateManifests(campaignPath, explicitBrandPath) {
           (Number(spec.window_days) === 7 || Number(spec.window_days) === 28)
         ) {
           errors.push(
-            `${label}: attribution_spec VIEW_THROUGH window_days=${spec.window_days} (7d_view/28d_view) is deprecated in Meta Marketing API; use window_days=1 (1d_view) alongside CLICK_THROUGH (1d/7d) or ENGAGED_VIEW (1d).`
+            `${label}: attribution_spec VIEW_THROUGH window_days=${spec.window_days} (7d_view/28d_view) is deprecated in Meta Marketing API; choose a goal-supported CLICK_THROUGH, VIEW_THROUGH, or ENGAGED_VIDEO_VIEW window.`
           );
         }
       }
@@ -819,7 +907,7 @@ function validateManifests(campaignPath, explicitBrandPath) {
     }
   }
 
-  // Ad copy Andromeda NLP quality, viewport truncation, UTM attribution & market localization (ID <-> MY) checks
+  // Local copy, placement-length, attribution, and market-language heuristics.
   const fallbackCampaignCountries = new Set();
   for (const as of adsets) {
     for (const c of extractAdsetCountries(as)) fallbackCampaignCountries.add(c);
@@ -847,18 +935,18 @@ function validateManifests(campaignPath, explicitBrandPath) {
     for (const { field, text } of textEntries) {
       if (field.startsWith("title") && text.length > 40) {
         warnings.push(
-          `${label}.${field}: headline length (${text.length} chars) exceeds the 40-char mobile Feed truncation threshold.`
+          `${label}.${field}: headline length (${text.length} chars) exceeds the local 40-char mobile Feed preview guideline; actual truncation varies by placement.`
         );
       }
       if (field.startsWith("description") && text.length > 30) {
         warnings.push(
-          `${label}.${field}: description length (${text.length} chars) exceeds the 30-char mobile Feed truncation threshold.`
+          `${label}.${field}: description length (${text.length} chars) exceeds the local 30-char mobile Feed preview guideline; actual visibility varies by placement.`
         );
       }
       for (const rule of SPAMMY_TEXT_CTA_PATTERNS) {
         if (rule.pattern.test(text)) {
           warnings.push(
-            `${label}.${field}: contains pushy/off-funnel CTA text ('${rule.label}'). Meta Ads already renders the native 'call_to_action' button; Andromeda NLP and Lattice Ad Quality reward benefit-, mechanism-, and proof-led copy over direct-click/WhatsApp CTA clutter.`
+            `${label}.${field}: contains pushy/off-funnel CTA text ('${rule.label}'). Local copy heuristic: check repetition and destination consistency; messaging campaigns may intentionally use it. This is not evidence of a Meta ranking penalty.`
           );
         }
       }
@@ -883,7 +971,16 @@ function validateManifests(campaignPath, explicitBrandPath) {
     }
   }
 
-  const allAdvantageAudience = adsets.length > 0 && adsets.every((a) => a.advantage_audience === true);
+  const allAdvantageAudience = adsets.length > 0 && adsets.every((a) => {
+    if (a.targeting) {
+      // Raw targeting overrides the shortcut flag. Uninspected JSON/file input
+      // cannot establish this local candidate; the CLI resolves it at execution.
+      if (typeof a.targeting !== "object" || Array.isArray(a.targeting)) return false;
+      const nested = a.targeting.targeting_automation?.advantage_audience;
+      if (nested !== undefined) return nested === 1;
+    }
+    return a.advantage_audience === true;
+  });
   let advantageStateCandidate = "MANUAL_OR_HYBRID";
   if (isCbo && allAdvantageAudience) {
     if (campaign?.objective === "OUTCOME_SALES") advantageStateCandidate = "ADVANTAGE_PLUS_SALES";
@@ -892,6 +989,7 @@ function validateManifests(campaignPath, explicitBrandPath) {
   }
   const algorithmAlignment = {
     advantageStateCandidate,
+    verifiedWithMeta: false,
     incrementalAttributionAdsets: adsets.filter((a) => a.incremental_attribution === true).length,
     totalAdsets: adsets.length,
     distinctCreatives: creatives.length,
@@ -1559,7 +1657,7 @@ function cmdValidate(argv) {
   console.log(`  Brand config : ${res.brandPath} (${res.brand.ad_account_id})`);
   console.log(`  Budget mode  : ${res.isCbo ? "CBO (Campaign Budget)" : res.isFlex ? "FLEX (Ad Set Budget Sharing)" : "ABO (Ad Set Budget)"}`);
   console.log(
-    `  Advantage+   : ${res.algorithmAlignment.advantageStateCandidate} (incremental_attribution: ${res.algorithmAlignment.incrementalAttributionAdsets}/${res.algorithmAlignment.totalAdsets} ad sets, ${res.algorithmAlignment.distinctCreatives} creative(s))`
+    `  Advantage+   : ${res.algorithmAlignment.advantageStateCandidate} (local candidate, not verified with Meta; incremental_attribution: ${res.algorithmAlignment.incrementalAttributionAdsets}/${res.algorithmAlignment.totalAdsets} ad sets, ${res.algorithmAlignment.distinctCreatives} creative key(s))`
   );
   for (const b of res.budgets) {
     console.log(`  Budget       : [${b.scope}] ${b.type} = ${b.formatted}`);
@@ -2227,9 +2325,9 @@ function renderAdsMemoryMarkdown(memory) {
     lines.push(`- **COD RTS Rate**: \`${(ue.cod_rts_rate * 100).toFixed(1)}%\` (Delivered Rate: \`${(ue.delivered_rate * 100).toFixed(1)}%\`, RTS Penalty: \`${ue.rts_penalty}\`)`);
     lines.push(`- **Contribution Margin / Max Break-Even CPR**: \`${ue.max_cpr_breakeven}\` (**Break-Even ROAS**: \`${ue.breakeven_roas}x\`)`);
     lines.push(`- **Target Profit CPR**: \`${ue.target_cpr}\` (**Target Profit ROAS**: \`${ue.target_roas}x\`, Target Net Margin: \`${(ue.target_margin * 100).toFixed(1)}%\`)`);
-    lines.push(`- **Recommended Cost Cap Floor (0.85x Target CPR)**: \`${ue.recommended_cost_cap}\``);
+    lines.push(`- **Local Cost Cap Suggestion (0.85x Target CPR)**: \`${ue.recommended_cost_cap}\``);
   } else {
-    lines.push("_Not configured yet. Run `dotads-meta learn unit-economics --aov <AOV> --cogs <COGS>` to compute Break-Even ROAS, Max CPR, and Cost Cap floors._");
+    lines.push("_Not configured yet. Run `dotads-meta learn unit-economics --aov <AOV> --cogs <COGS>` to compute Break-Even ROAS, Max CPR, and a local Cost Cap suggestion._");
   }
   lines.push("");
 
@@ -2325,7 +2423,7 @@ function cmdLearn(argv) {
     console.log(`✓ Saved conversion unit economics for ${memory.brand}`);
     console.log(`  Max Break-Even CPR : ${ue.max_cpr_breakeven} (${brand.currency || "USD"}) | Break-Even ROAS: ${ue.breakeven_roas}x`);
     console.log(`  Target Profit CPR  : ${ue.target_cpr} (${brand.currency || "USD"}) | Target ROAS    : ${ue.target_roas}x`);
-    console.log(`  Recommended CostCap: ${ue.recommended_cost_cap} (${brand.currency || "USD"})`);
+    console.log(`  Local CostCap suggestion: ${ue.recommended_cost_cap} (${brand.currency || "USD"})`);
     return;
   }
 
@@ -2662,14 +2760,14 @@ function cmdAnalyze(argv) {
         (spend > 0 && purchases > 0 && roas < 0.5 * breakevenRoas));
 
     let classification = "MONITOR_EARLY";
-    let diagnosis = `Early learning phase: spend (${spend}) is below 1.0x Max Break-Even CPR (${maxCpr ?? "n/a"}).`;
-    let nextAction = "Do not prematurely pause; allow Andromeda learning until spend reaches 1.0x-1.5x Max CPR.";
+    let diagnosis = `Local monitoring heuristic: spend=${spend}, purchases=${purchases}, Max Break-Even CPR=${maxCpr ?? "n/a"}; platform learning state is unverified.`;
+    let nextAction = "Review sample size, conversion lag, and the agreed stop-loss budget before proposing a change.";
     let recommendedCommand = null;
 
     if (meetsTarget) {
       classification = "SCALE_WINNER";
-      diagnosis = `Exceeds target ROAS (${roas}x >= ${targetRoas}x; CPR=${cpr ?? "n/a"}, CTR=${(ctr * 100).toFixed(2)}%, CPC=${cpc ?? "n/a"}). Strong Andromeda/Lattice buyer resonance.`;
-      nextAction = "Scale budget +20% every 24-48h or graduate Post/Creative ID into Advantage+ Sales CBO; produce 3 hook variations of this winning angle.";
+      diagnosis = `Reported results meet the local target (${roas}x ROAS; target=${targetRoas}x; CPR=${cpr ?? "n/a"}, CTR=${(ctr * 100).toFixed(2)}%, CPC=${cpc ?? "n/a"}). This does not establish incrementality or future performance.`;
+      nextAction = "Consider a measured budget or creative experiment after reviewing attribution, conversion lag, sample size, and margin; any live change requires approval.";
       recommendedCommand = row.campaign_id
         ? `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} campaign update --id ${row.campaign_id} --daily-budget <CURRENT_PLUS_20_PCT>`
         : `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} ad update --id ${id} --status ACTIVE`;
@@ -2681,14 +2779,14 @@ function cmdAnalyze(argv) {
       classification = "MONITOR_EARLY";
     } else if (isCreativeFatigue) {
       classification = "CREATIVE_FATIGUE";
-      diagnosis = `Audience saturation / creative fatigue: Frequency=${frequency} (>= 2.5) with ROAS=${roas}x below target (${targetRoas}x) and CTR=${(ctr * 100).toFixed(2)}%.`;
-      nextAction = "Pause fatigued ad or rotate a fresh creative concept (new first 3s visual hook and persona) to reset Andromeda delivery.";
+      diagnosis = `Possible creative fatigue under the local frequency heuristic: Frequency=${frequency} (>= 2.5), ROAS=${roas}x below target (${targetRoas}x), CTR=${(ctr * 100).toFixed(2)}%. Confirm trends and alternative causes.`;
+      nextAction = "Compare matched periods, reach, audience overlap, and conversion lag; propose a fresh creative experiment if supported by the evidence.";
       if (stopLoss) {
         recommendedCommand = `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} ad update --id ${id} --status PAUSED`;
       }
     } else if (hookRate !== null && hookRate < 0.25) {
       classification = "FIX_HOOK_FIRST_3S";
-      diagnosis = `ROAS below break-even (${roas}x < ${breakevenRoas}x) caused by low Hook Rate (${(hookRate * 100).toFixed(1)}% < 25%; CTR=${(ctr * 100).toFixed(2)}%, CPC=${cpc ?? "n/a"}). First 3 seconds failed to stop scroll.`;
+      diagnosis = `ROAS below break-even (${roas}x < ${breakevenRoas}x) and Hook Rate below the local 25% guideline (${(hookRate * 100).toFixed(1)}%; CTR=${(ctr * 100).toFixed(2)}%, CPC=${cpc ?? "n/a"}). Investigate the opening; causality is unverified.`;
       nextAction = "Pause or keep body script and replace the first 3-second visual pattern interrupt and headline overlay.";
       if (stopLoss) {
         recommendedCommand = `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} ad update --id ${id} --status PAUSED`;
@@ -2702,7 +2800,7 @@ function cmdAnalyze(argv) {
       }
     } else if (ctr < 0.01) {
       classification = "FIX_OFFER_OR_CTA";
-      diagnosis = `ROAS below break-even (${roas}x < ${breakevenRoas}x) with low Outbound CTR (${(ctr * 100).toFixed(2)}% < 1.0%) and high CPC (${cpc ?? "n/a"}). Creative angle or offer failed to drive qualified click intent.`;
+      diagnosis = `ROAS below break-even (${roas}x < ${breakevenRoas}x) with Outbound CTR below the local 1.0% guideline (${(ctr * 100).toFixed(2)}%; CPC=${cpc ?? "n/a"}). Compare offer and destination hypotheses; buyer intent is unverified.`;
       nextAction = "Strengthen offer value stack (bundle anchor, risk-reversal guarantee in headline/description) and align native call_to_action button without stuffing spammy text CTAs.";
       if (stopLoss) {
         recommendedCommand = `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} ad update --id ${id} --status PAUSED`;
@@ -2710,7 +2808,7 @@ function cmdAnalyze(argv) {
     } else {
       classification = "FIX_LANDING_CVR_OR_SIGNAL";
       diagnosis = `Healthy CTR (${(ctr * 100).toFixed(2)}%) and CPC (${cpc ?? "n/a"}) but low conversion rate (${(cvr * 100).toFixed(2)}%) dragged final ROAS below break-even (${roas}x < ${breakevenRoas}x).`;
-      nextAction = "Audit ad-to-landing-page congruence, pre-qualify buyer intent in ad copy, improve AOV bundle/upsell, check mobile LCP (<2.5s), COD checkout friction, CAPI EMQ deduplication, and enable incremental_attribution.";
+      nextAction = "Audit message congruence, landing/checkout behavior, conversion lag, and signal reconciliation. Evaluate incremental attribution only if eligible and compatible with the chosen attribution mode; do not enable it automatically.";
       if (stopLoss) {
         recommendedCommand = `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} ad update --id ${id} --status PAUSED`;
       }
@@ -2820,6 +2918,8 @@ function cmdAnalyze(argv) {
           ok: true,
           brand: memory.brand,
           benchmarks: { breakeven_roas: breakevenRoas, target_roas: targetRoas, max_cpr: maxCpr, target_cpr: targetCpr },
+          diagnosticBasis: "local heuristics; causality and platform learning state unverified",
+          recommendationsRequireApproval: true,
           recordedToMemory: recordedCount,
           results: evaluated,
         },
@@ -2831,6 +2931,7 @@ function cmdAnalyze(argv) {
   }
 
   console.log(`=== META ADS CONVERSION & PROFIT ANALYSIS (${memory.brand}) ===`);
+  console.log("Diagnostics use local heuristics; causal explanations and platform learning state are unverified. CLI plans require approval before execution.");
   console.log(`Benchmarks: Break-Even ROAS=${breakevenRoas}x (Max CPR=${maxCpr ?? "n/a"}) | Target ROAS=${targetRoas}x (Target CPR=${targetCpr ?? "n/a"})`);
   for (const r of evaluated) {
     console.log(`  • [${r.classification}] ${r.name} (ROAS=${r.roas}x${r.reconciled ? ` [Meta ${r.meta_roas}x]` : ""}, CPR=${r.cpr ?? "n/a"}, CTR=${(r.ctr * 100).toFixed(2)}%, CPC=${r.cpc ?? "n/a"}, Profit=${r.estimated_net_profit})`);

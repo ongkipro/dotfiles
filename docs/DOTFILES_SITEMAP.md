@@ -113,7 +113,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 20 | linked from this page |
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 79 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
-| Owned skills | [`skills/local/`](../skills/local/) | 77 | linked from this page |
+| Owned skills | [`skills/local/`](../skills/local/) | 76 | linked from this page |
 | Commands | [`bin/`](../bin/) | 55 | linked from this page |
 | Command tests | [`bin/`](../bin/) | 71 | linked from this page |
 | Device profiles | [`devices/`](../devices/) | 8 | linked from this page |
@@ -128,7 +128,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Research records | [`docs/research/`](../docs/research/) | 4 | linked from this page |
 | Environment and bootstrap | [`config/`](../config/) | 35 | linked from this page |
 | Device reports | [`docs/device-reports/`](../docs/device-reports/) | 21 | count only |
-| Archived task records | [`docs/archive/`](../docs/archive/) | 29 | count only |
+| Archived task records | [`docs/archive/`](../docs/archive/) | 30 | count only |
 
 <!-- system-map:inventory:end -->
 
@@ -379,7 +379,6 @@ Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rende
 - [`vultr`](../skills/local/vultr/SKILL.md): VPS provisioning and Coolify deployment via `vultr-cli`.
 - [`vps-deploy`](../skills/local/vps-deploy/SKILL.md): Ubuntu VPS deployment and operations via Coolify v4 or Docker Compose.
 - [`kelola-deploy`](../skills/local/kelola-deploy/SKILL.md): Production server deployment and recovery for Kelola HRIS.
-- [`9router`](../skills/local/9router/SKILL.md): Local/remote multi-provider AI gateway management.
 
 ---
 

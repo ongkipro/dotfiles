@@ -185,10 +185,125 @@ jq 'del(.creatives[0].url_tags) | .creatives[0].title = "Gratis Ongkir & Diskon 
   "$WS/campaigns/sample-campaign.json" > "$WS/campaigns/my-copy-lint.json"
 my_lint_out="$("$CMD" validate "$WS/campaigns/my-copy-lint.json" --json 2>&1)"
 if [ "$?" -eq 0 ] \
-  && printf '%s' "$my_lint_out" | jq -e '.ok == true and (.warnings | any(contains("Indonesian term/slang"))) and (.warnings | any(contains("40-char mobile Feed truncation"))) and (.warnings | any(contains("30-char mobile Feed truncation"))) and (.warnings | any(contains("missing \u0027url_tags\u0027")))' >/dev/null; then
+  && printf '%s' "$my_lint_out" | jq -e '.ok == true and (.warnings | any(contains("Indonesian term/slang"))) and (.warnings | any(contains("40-char mobile Feed preview guideline"))) and (.warnings | any(contains("30-char mobile Feed preview guideline"))) and (.warnings | any(contains("missing \u0027url_tags\u0027"))) and (.warnings | all(contains("Andromeda NLP") | not))' >/dev/null; then
   ok "validate warns on Indonesian slang leak for MY market, headline/description viewport truncation, and missing url_tags"
 else
   bad "validate missed MY lexical leak, truncation, or url_tags warning: $my_lint_out"
+fi
+
+# Attribution is an alternative mode, not an additional attribution window.
+if python3 - "$CMD" "$WS" <<'PY'
+import copy, json, pathlib, re, subprocess, sys
+cmd, workspace = sys.argv[1], pathlib.Path(sys.argv[2])
+baseline = json.loads((workspace / 'campaigns/sample-campaign.json').read_text())
+windows = [{'event_type': 'CLICK_THROUGH', 'window_days': 7}]
+(workspace / 'windows.json').write_text(json.dumps(windows))
+(workspace / 'old-windows.json').write_text(json.dumps([{'event_type': 'VIEW_THROUGH', 'window_days': 28}]))
+
+def check(name, patch, valid, message=None, flags=()):
+    manifest = copy.deepcopy(baseline)
+    patch(manifest)
+    path = workspace / 'campaigns' / (name + '.json')
+    path.write_text(json.dumps(manifest))
+    result = subprocess.run([cmd, 'validate', str(path), '--json'], capture_output=True, text=True)
+    data = json.loads(result.stdout)
+    assert data['ok'] is valid and (result.returncode == 0) is valid, (name, result.stdout, result.stderr)
+    if message:
+        assert any(message in error for error in data['errors']), (name, data)
+    plan = subprocess.run([cmd, 'deploy', str(path)], capture_output=True, text=True)
+    assert (plan.returncode == 0) is valid, (name, plan.stdout, plan.stderr)
+    if valid:
+        for present, flag in flags:
+            assert (flag in plan.stdout) is present, (name, flag, plan.stdout)
+    print('    ' + name + ': PASS')
+    return data
+
+def attribution(incremental, spec=None):
+    def patch(manifest):
+        manifest['adsets'][0]['incremental_attribution'] = incremental
+        if spec is not None:
+            manifest['adsets'][0]['attribution_spec'] = spec
+    return patch
+
+check('incremental-only', attribution(True), True,
+      flags=((True, '--incremental-attribution'), (False, '--attribution-spec')))
+check('window-only', lambda m: m['adsets'][0].update(attribution_spec=windows), True,
+      flags=((False, '--incremental-attribution'), (True, '--attribution-spec')))
+check('disabled-incremental-window', attribution(False, windows), True)
+check('window-file', lambda m: m['adsets'][0].update(attribution_spec='@windows.json'), True)
+for name, value in [('inline', windows), ('json-string', json.dumps(windows)), ('file', '@windows.json')]:
+    check('conflicting-attribution-' + name, attribution(True, value), False, 'cannot combine')
+check('old-window-file', lambda m: m['adsets'][0].update(attribution_spec='@old-windows.json'), False, '7d_view/28d_view')
+check('incremental-string', attribution('true'), False, 'boolean')
+check('incremental-click-goal', lambda m: m['adsets'][0].update(incremental_attribution=True, optimization_goal='LINK_CLICKS'), False, 'optimization_goal')
+check('incremental-cbo-bid-cap', lambda m: (m['campaign'].update(bid_strategy='LOWEST_COST_WITH_BID_CAP'), m['adsets'][0].update(incremental_attribution=True)), False, 'bid_strategy')
+check('incremental-cbo-cost-cap', lambda m: (m['campaign'].update(bid_strategy='COST_CAP'), m['adsets'][0].update(incremental_attribution=True)), True)
+check('incremental-abo-bid-cap', lambda m: (m['campaign'].pop('daily_budget'), m['adsets'][0].update(daily_budget=5000, bid_strategy='LOWEST_COST_WITH_BID_CAP', bid_amount=200, incremental_attribution=True)), False, 'bid_strategy')
+check('wrong-engaged-event', lambda m: m['adsets'][0].update(attribution_spec=[{'event_type':'ENGAGED_VIEW','window_days':1}]), False, 'ENGAGED_VIDEO_VIEW')
+check('valid-engaged-event', lambda m: m['adsets'][0].update(attribution_spec=[{'event_type':'ENGAGED_VIDEO_VIEW','window_days':1}]), True)
+check('malformed-window', lambda m: m['adsets'][0].update(attribution_spec=[None]), False, 'entries require')
+check('malformed-window-json', lambda m: m['adsets'][0].update(attribution_spec='{broken'), False, 'valid JSON')
+
+poll = {'video_data': {'poll_spec': {'question':'Choose a color'}}}
+(workspace / 'poll.json').write_text(json.dumps(poll))
+check('retired-poll-direct', lambda m: m['creatives'][0].update(poll_spec={}), False, 'not forwarded')
+check('unsupported-components', lambda m: m['creatives'][0].update(interactive_components_spec=[]), False, 'not forwarded')
+check('retired-poll-raw', lambda m: m['creatives'][0].update(object_story_spec=poll), False, 'retired across API')
+check('retired-poll-file', lambda m: m['creatives'][0].update(object_story_spec='@poll.json'), False, 'retired across API')
+check('retired-poll-component', lambda m: m['creatives'][0].update(asset_feed_spec={'interactive_components_spec':[{'type':'poll'}]}), False, 'retired across API')
+check('poll-word-in-copy', lambda m: m['creatives'][0].update(body='Our customer poll inspired these colors.'), True)
+web = check('web-only-scope-review', lambda m: m['creatives'][0].update(applink_treatment='web_only'), True)
+assert any('Web and App' in warning for warning in web['warnings'])
+
+def raw_targeting(value, shortcut=None):
+    def patch(manifest):
+        manifest['campaign']['special_ad_categories'] = ['HOUSING']
+        adset = manifest['adsets'][0]
+        adset.pop('targeting_countries')
+        adset['targeting'] = value
+        if shortcut is not None:
+            adset['advantage_audience'] = shortcut
+    return patch
+
+targeting = {'geo_locations': {'countries': ['US']}, 'custom_audiences': [{'id':'123'}]}
+check('hef-cli-default', raw_targeting(targeting), True)
+for i, bad_target in enumerate(([], 1, '[]', 'null', 'true', '1')):
+    check('targeting-wrong-shape-' + str(i), raw_targeting(bad_target), False, 'JSON object')
+(workspace / 'bad-targeting.json').write_text('[]')
+check('targeting-file-wrong-shape', raw_targeting('@bad-targeting.json'), False, 'JSON object')
+(workspace / 'good-targeting.json').write_text(json.dumps(targeting))
+check('targeting-file-object', raw_targeting('@good-targeting.json'), True)
+check('targeting-json-object', raw_targeting(json.dumps(targeting)), True)
+check('automation-wrong-shape', raw_targeting(dict(targeting, targeting_automation=[])), False, 'JSON object')
+check('invalid-audience-shortcut', raw_targeting(targeting, 'true'), False, 'boolean')
+nested = dict(targeting, targeting_automation={'advantage_audience':0})
+candidate = check('nested-audience-overrides-optin', raw_targeting(nested, True), True)
+assert candidate['algorithmAlignment']['advantageStateCandidate'] == 'MANUAL_OR_HYBRID'
+assert candidate['algorithmAlignment']['verifiedWithMeta'] is False
+check('invalid-nested-audience', raw_targeting(dict(targeting, targeting_automation={'advantage_audience':True})), False, 'must be 0 or 1')
+for field in ('object_story_spec', 'asset_feed_spec'):
+    for i, value in enumerate(([], 'null', '1', '@bad-targeting.json')):
+        check(field + '-wrong-shape-' + str(i), lambda m: m['creatives'][0].update({field:value}), False, 'JSON object')
+check('raw-story-object', lambda m: m['creatives'][0].update(object_story_spec={'link_data':{'link':'https://example.com/product','message':'Verified product information.'}}), True)
+
+# Execute the documented campaign examples rather than trusting their prose.
+tutorial = pathlib.Path(cmd).parent.parent / 'skills/local/meta-ads-cli/references/rules-and-tutorial.md'
+recipes = [json.loads(block) for block in re.findall(r'```json\n(.*?)\n```', tutorial.read_text(), re.S)]
+recipes = [recipe for recipe in recipes if 'campaign' in recipe]
+assert len(recipes) == 4
+for i, recipe in enumerate(recipes, 1):
+    for creative in recipe['creatives']:
+        refs = [creative.get('image'), creative.get('video')] + creative.get('images', []) + creative.get('videos', [])
+        for ref in filter(None, refs):
+            asset = workspace / ref
+            asset.parent.mkdir(parents=True, exist_ok=True)
+            asset.write_bytes(b'synthetic-media-for-offline-plan')
+    check('documented-recipe-' + str(i), lambda manifest: manifest.update(recipe), True)
+PY
+then
+  ok "attribution, current payload boundaries, and documented recipes validate and dry-run offline"
+else
+  bad "attribution compatibility regression"
 fi
 
 # 5. Mock `meta` and `secrets-env` binaries for setup, dry-run, deploy --apply, state resume, drift detection, and media hash dedup
@@ -280,6 +395,22 @@ chmod +x "$MOCK_BIN/meta"
 export META_ADS_BIN="$MOCK_BIN/meta"
 export SECRETS_ENV_BIN="$MOCK_BIN/secrets-env"
 export META_LOG
+
+# Invalid input must stop before credential lookup, state creation, or API work.
+cat > "$MOCK_BIN/forbidden-secrets" <<'EOF'
+#!/usr/bin/env bash
+touch "$META_LOG.secret-attempt"
+exit 1
+EOF
+chmod +x "$MOCK_BIN/forbidden-secrets"
+invalid_apply="$(SECRETS_ENV_BIN="$MOCK_BIN/forbidden-secrets" "$CMD" deploy "$WS/campaigns/conflicting-attribution-inline.json" --apply 2>&1)"
+if [ "$?" -ne 0 ] && printf '%s' "$invalid_apply" | grep -q 'cannot combine' \
+  && [ ! -e "$META_LOG" ] && [ ! -e "$META_LOG.secret-attempt" ] \
+  && [ ! -e "$WS/.meta-state.json" ] && [ ! -e "$WS/.dotads-meta.lock" ]; then
+  ok "conflicting attribution blocks apply before credentials, state, lock, or API calls"
+else
+  bad "invalid attribution reached deployment side effects: $invalid_apply"
+fi
 
 # 5a. setup subcommand detects installed meta-ads CLI
 setup_out="$("$CMD" setup 2>&1)"
@@ -424,7 +555,7 @@ EOF
 
 an_out="$("$CMD" analyze "$WS/insights-sample.json" --brand "$WS/brand.json" --record-memory --json 2>&1)"
 if [ "$?" -eq 0 ] \
-  && printf '%s' "$an_out" | jq -e '.ok == true and .recordedToMemory == 3 and .results[0].classification == "SCALE_WINNER" and .results[0].cpc == 0.45 and .results[1].classification == "FIX_HOOK_FIRST_3S" and .results[2].classification == "FIX_LANDING_CVR_OR_SIGNAL" and .results[2].cpc == 0.5' >/dev/null; then
+  && printf '%s' "$an_out" | jq -e '.ok == true and .recordedToMemory == 3 and .recommendationsRequireApproval == true and (.diagnosticBasis | contains("heuristics")) and (.results | all((.diagnosis + .next_action) | test("Andromeda|Lattice|caused by|reset") | not)) and .results[0].classification == "SCALE_WINNER" and .results[0].cpc == 0.45 and .results[1].classification == "FIX_HOOK_FIRST_3S" and .results[2].classification == "FIX_LANDING_CVR_OR_SIGNAL" and .results[2].cpc == 0.5' >/dev/null; then
   ok "analyze classifies SCALE_WINNER (ROAS North-Star + CTR/CPC diagnostics), FIX_HOOK_FIRST_3S, and FIX_LANDING_CVR_OR_SIGNAL and records lessons to memory"
 else
   bad "analyze failed or misclassified rows: $an_out"

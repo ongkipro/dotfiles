@@ -1,6 +1,6 @@
-# Meta Ads CLI & `dotads-meta` — 2026 Algorithm Architecture, Rules, SOP, and Recipes
+# Meta Ads CLI & `dotads-meta` — Operations and Campaign Recipes
 
-Canonical operational rules, 2025–2026 Meta AI delivery breakdown (Andromeda, GEM, Lattice), and copy-paste campaign recipes for running Meta (Facebook & Instagram) Ads from the terminal across all devices and all 5 AI CLIs (`claude`, `codex`, `agy`, `pi`, `omp`).
+Operational contracts and illustrative campaign recipes. For dated platform facts, current API scope, installed CLI/SDK limits, and primary URLs, read [API and evidence](api-and-evidence.md). Do not load every reference for a bounded repair.
 
 ---
 
@@ -33,48 +33,47 @@ Canonical operational rules, 2025–2026 Meta AI delivery breakdown (Andromeda, 
 
 ---
 
-## Part 2: Complete Breakdown of the 2025–2026 Meta Ads Algorithm
+## Part 2: Documented Components and API Boundaries
 
-### 1. The 3-Stage AI Delivery Pipeline
+### 1. Delivery components and operational hypotheses
 
-When a user opens Facebook or Instagram, Meta's ad stack executes three sequential neural architectures:
+The official sources describe Andromeda retrieval, GEM foundation-model transfer,
+Lattice cross-domain learning, and GenRecs semantic tokens. These are evolving,
+related components, not a documented fixed three-engine execution chain. Similar
+creative content sharing representations does not prove duplicate ad rejection,
+Entity Collapse, a ranking penalty, or a delivery reset after a creative edit.
 
-1. **Stage 1 — Andromeda (Next-Gen Retrieval Engine):**
-   - **What it does:** Powered by NVIDIA Grace Hopper and Meta MTIA chips, Andromeda uses a deep hierarchical neural index to filter **tens of millions of active ads down to a shortlist of ~1,000–3,000 candidates** in milliseconds before the auction even runs.
-   - **Multimodal Creative Indexing & Entity ID Collapse:** Andromeda extracts visual frames, audio transcripts, on-screen OCR text, and copy embeddings from every uploaded creative. If you upload 5 videos that share the same visual opening and voiceover with only minor text-color tweaks, Andromeda assigns them to the **same internal cluster / Entity ID** and drops 4 of them at retrieval (**Entity Collapse**).
-   - **Operational Rule ("Creative IS the Targeting"):** Replace manual interest micro-segmentation with **Creative Diversification**. Every ad inside a consolidated ad set should represent a distinct angle:
-     - **Angle / Persona:** Problem-Aware vs Solution-Aware vs Social Proof / Founder Story vs Offer/Bundle Breakdown.
-     - **Visual Format:** Native 9:16 UGC/Reels video, 4:5 static comparison infographic, 1:1 product carousel/catalog.
-     - **First-3-Second Hook:** Distinct visual first frame and opening audio statement.
-
-2. **Stage 2 — GEM (Generative Ads Recommendation Model) & Sequence Learning:**
-   - **What it does:** Scores the shortlisted candidates by modeling the user's chronological sequence of organic and paid interactions across surfaces (Reels -> Feed -> Website ViewContent -> AddToCart -> Purchase).
-   - **Operational Rule:** Hyper-fragmenting campaigns into many small ad sets splits conversion volume and starves GEM of complete user action sequences. Consolidate ad sets so each ad set exits the learning phase (~50 optimization events per 7-day window).
-
-3. **Stage 3 — Meta Lattice (Unified Ranking & Auction Engine):**
-   - **What it does:** Transfers learning across placements and objectives and runs the real-time VCG-like auction using the **Total Value Formula**:
-     $$\text{Total Value} = (\text{Advertiser Bid} \times \text{Estimated Action Rate } eCVR) + \text{Ad Quality / User Value}$$
-   - **Operational Rule:** You control $\text{Advertiser Bid}$ (via budget, bid cap/cost cap, and **Value Rules**), help Meta estimate $eCVR$ accurately (via clean browser+CAPI deduplicated signals in `meta-ads-signal-engine` + **Incremental Attribution**), and maximize $\text{Ad Quality}$ (via high hook-hold rate, fast landing page load, and low negative feedback).
-
----
+Consider distinct creative concepts and suitable campaign consolidation as
+experiments tied to the business objective, budget, audience constraints, and
+observed results. Do not claim a particular ad-set structure controls GEM's
+user-history access. Platform architecture alone does not justify switching
+attribution, removing targeting restrictions, or changing spend.
 
 ### 2. Marketing API v22.0–v26.0 Reference Matrix
 
 | Feature | Legacy Pattern (Deprecated/Blocked) | 2025–2026 Canonical API Pattern (`dotads-meta`) |
 | --- | --- | --- |
-| **Advantage+ Sales / App / Leads** | `smart_promotion_type: "AUTOMATED_SHOPPING_ADS"` or `"SMART_APP_PROMOTION"` (creation deprecated in v25.0; edits blocked in v26.0) | Standard `objective` (`OUTCOME_SALES`, `OUTCOME_LEADS`, `OUTCOME_APP_PROMOTION`) + CBO budget + `"advantage_audience": true` on ad set -> achieves `advantage_state: "ADVANTAGE_PLUS_SALES"` |
+| **Advantage+ Sales / App / Leads** | `smart_promotion_type: "AUTOMATED_SHOPPING_ADS"` or `"SMART_APP_PROMOTION"` (create, duplicate, and update retired in v25; all versions since 2026-05-19) | Standard `objective` (`OUTCOME_SALES`, `OUTCOME_LEADS`, `OUTCOME_APP_PROMOTION`) + CBO budget + `"advantage_audience": true` on ad set -> local automation candidate; actual server `advantage_state` and placement eligibility require account evidence |
 | **Multi-Asset Creative Testing** | Ad-set `"dynamic_creative": true` only (limits ad set to 1 ad) | Creative `"ad_format": "AUTOMATIC_FORMAT"` (ad-level Flexible Format `asset_feed_spec`; supports multiple multi-asset ads in one ad set) |
 | **Advantage+ Creative Enhancements** | Bundled `creative_features_spec.standard_enhancements` (deprecated in v22.0+) | Granular `degrees_of_freedom_spec.creative_features_spec` keys (`image_touchups`, `image_templates`, `video_auto_crop`, `text_optimizations`, `inline_comment`, `background_generation`, `image_expansion`, `text_generation`) |
-| **Attribution Windows** | `7d_view` and `28d_view` (removed from Insights & ad set attribution specs) | `1d_view` (`VIEW_THROUGH`, `window_days: 1`), `1d_ev` (`ENGAGED_VIEW`, `window_days: 1`), `7d_click` / `1d_click` (`CLICK_THROUGH`) |
-| **Causal Lift Optimization** | Correlational post-view/click optimization only | Ad set `"incremental_attribution": true` (`--incremental-attribution`) to optimize for holdout-calibrated net-new conversions |
+| **Attribution Windows** | `7d_view` and `28d_view` (removed from Insights & ad set attribution specs) | `1d_view` (`VIEW_THROUGH`, `window_days: 1`), `1d_ev` (`ENGAGED_VIDEO_VIEW`, `window_days: 1`), `7d_click` / `1d_click` (`CLICK_THROUGH`) |
+| **Causal Lift Optimization** | Correlational post-view/click optimization only | Ad set `"incremental_attribution": true` (`--incremental-attribution`), only for eligible goals/bids and without `attribution_spec`; this is an optimization setting, not measured causal lift |
 | **ABO Testing Budget Liquidity** | Rigid isolated ABO budgets | Campaign `"adset_budget_sharing": true` (`--adset-budget-sharing`) to share up to 20% budget across ad sets |
 | **Multi-Advertiser Placement** | Implicit auto-enrollment | Creative `"contextual_multi_ads": false` (`--no-contextual-multi-ads`) to opt out when offer isolation is required |
 
 ---
 
+For explicit windows, use a separate mode such as
+`"attribution_spec": [{"event_type":"CLICK_THROUGH","window_days":7}]`
+with incremental attribution omitted or false. Validate the actual goal/window
+combination; the offline validator is not a complete API eligibility oracle.
+
+The source record covers the 2026-10-27 poll, Web and App, and HEF changes.
+Installed CLI 1.2.0 uses SDK 24.x; a v26 checklist does not upgrade its requests.
+
 ### 3. Granular `degrees_of_freedom_spec` JSON Reference (v22.0–v26.0)
 
-Never pass `"standard_enhancements": {"enroll_status": "OPT_IN"}`. Use explicit feature keys so AI transformations never distort brand typography or product packaging unexpectedly:
+Prefer explicit feature choices to the retired bundled pattern. This is an illustrative shape: check each feature name, current availability, and enrollment behavior before live use. Opt-outs do not guarantee every rendering preserves the intended brand appearance:
 
 ```json
 {
@@ -93,10 +92,10 @@ Never pass `"standard_enhancements": {"enroll_status": "OPT_IN"}`. Use explicit 
 
 ### 4. Value Rules & Opportunity Score Operational Rules
 
-- **Value Rules (Auction Bid Multipliers):**
-  - Adjusts the $\text{Advertiser Bid}$ component for high-LTV or high-margin segments (e.g. +30% in Tier-1 cities with low COD return rate, or -25% on low-margin age brackets).
-  - **Hard Limits:** Maximum **2 criteria per rule** (e.g. Location + Age, or Device OS + Gender), **10 rules per rule set**, and **6 rule sets per ad account**.
-  - **First-Match Priority Rule:** If an impression matches Rule 1 and Rule 3, Meta applies **only Rule 1**. Always order rules from **most specific (2 criteria) to least specific (1 criterion)**.
+- **Value Rules:** Assess against the approved business objective and current
+  account eligibility. Verify limits, matching order, and the actual upstream
+  operation in official documentation; this helper has no first-class Value
+  Rules manifest feature. Do not infer a guaranteed profit ceiling.
 - **Opportunity Score (`0–100` via `meta ads guidance`):**
   - Measures structural alignment with Meta's automation defaults, **not** business ROAS or net profit.
   - Never auto-apply recommendations that remove deliberate geographic exclusions (e.g. non-serviceable COD islands) or collapse structured creative testing ad sets.
@@ -106,6 +105,9 @@ Never pass `"standard_enhancements": {"enroll_status": "OPT_IN"}`. Use explicit 
 ## Part 3: One-Time Setup Tutorial (Device & Business Manager)
 
 ### 1. Device Bootstrap
+
+Run only when synchronization/installation is authorized; offline validation
+does not need setup, credentials, or account access.
 ```bash
 dotsync
 dotads-meta setup
@@ -132,11 +134,15 @@ dotads-meta run -- --output json --no-input ads --ad-account-id act_YOUR_ID data
 
 ---
 
-## Part 4: Production Campaign Manifest Recipes
+## Part 4: Illustrative Campaign Manifest Recipes
+
+Examples use fictional IDs, offers, copy, and media. Replace them with verified
+brand facts/assets; validate and dry-run before seeking approval for any live
+execution. Passing the helper does not establish account/API eligibility.
 
 ### Recipe 1: Unified Advantage+ Sales Campaign (`ADVANTAGE_PLUS_SALES` + Incremental Attribution + Granular DOF)
 
-Replaces legacy `AUTOMATED_SHOPPING_ADS` in v25.0–v26.0 using standard `OUTCOME_SALES` + CBO + `advantage_audience: true` + `incremental_attribution: true`:
+Illustrates a standard sales CBO candidate with explicit audience opt-in and incremental attribution. It does not confirm server Advantage+ eligibility. Use only with an eligible goal/bid, and do not add explicit attribution windows:
 
 ```json
 {
@@ -191,10 +197,6 @@ Replaces legacy `AUTOMATED_SHOPPING_ADS` in v25.0–v26.0 using standard `OUTCOM
       "targeting_countries": ["ID"],
       "advantage_audience": true,
       "incremental_attribution": true,
-      "attribution_spec": [
-        { "event_type": "CLICK_THROUGH", "window_days": 7 },
-        { "event_type": "VIEW_THROUGH", "window_days": 1 }
-      ],
       "status": "PAUSED"
     }
   ],
@@ -219,7 +221,7 @@ Replaces legacy `AUTOMATED_SHOPPING_ADS` in v25.0–v26.0 using standard `OUTCOM
 
 ### Recipe 2: Ad-Level Flexible Ad Format (`AUTOMATIC_FORMAT`) — Multiple Multi-Asset Concepts in One Ad Set
 
-Uses `"ad_format": "AUTOMATIC_FORMAT"` on each creative so Andromeda can mix-and-match assets per concept while serving multiple concepts inside one consolidated ad set:
+Uses `"ad_format": "AUTOMATIC_FORMAT"` on each creative to supply multiple assets per concept while serving multiple concepts inside one consolidated ad set:
 
 ```json
 {
@@ -418,6 +420,9 @@ Uses ABO with `"adset_budget_sharing": true` so each creative concept gets a ded
 ---
 
 ## Part 5: Day-2 Operations (Insights, Guidance, Status & Budget Updates)
+
+Read commands need authorized account access. Update commands below are proposals;
+validate their exact installed syntax and obtain approval before live execution.
 
 ```bash
 # 1. Pull last 7 days insights at ad level

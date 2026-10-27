@@ -8,7 +8,7 @@ description: >-
   Triggers: bikin konten, tulis artikel, blog post, content calendar, social
   post, landing page copy, batch content, kalender konten, artikel SEO. Pairs
   with copywriting (rules), seo-website-builder (SEO QA), volumx-writer
-  (preservation + humanization), 9router (visuals + research).
+  (preservation + humanization); use available runtime tools for visuals and research.
 ---
 
 # Content Production
@@ -37,8 +37,10 @@ scale. Pairs with `copywriting` (rules + templates) and
    - Volume and deadline.
 2. **Research** — for any factual claim:
    - Official docs first, then trusted secondary.
-   - For SEO-driven pieces: pull related queries from `seo-website-builder` +
-     `9router` (`references/web-search.md`).
+   - For SEO-driven pieces: use `seo-website-builder` for search intent/QA and
+     the runtime's available web search/fetch tools for current source evidence.
+     If a required capability is unavailable, state the gap; do not install a
+     gateway or infer research results.
    - Do **not** invent specs, prices, dates, or product facts.
 3. **Outline** — produce a numbered outline with:
    - Hook (1 sentence), H2s (3-6), key points per H2, internal link candidates,
@@ -69,8 +71,9 @@ scale. Pairs with `copywriting` (rules + templates) and
      - Duplicate trailing `## Sources` block when citations are already inline (`volumx-writer/references/synthesis-contract.md`).
      - JSON-LD schema `wordCount` matches actual body word count within ±5%.
 7. **Image pipeline** — for each visual:
-   - Generate via `9router` (`references/image.md`), selecting the current image model from that skill's use-case matrix rather than pinning a model ID here, or
-     use supplied asset.
+   - Use a supplied asset or the runtime's available image-generation capability
+     and its relevant instructions. If generation is unavailable, deliver the
+     image brief and state that no asset was generated; do not install a provider.
    - Filename: `<handle-or-slug>-N.<ext>`. Write ALT text with `copywriting`'s canonical pattern and current limit.
    - If image is AI-generated: keep the original, store the public URL (R2/Cloudinary)
      before publishing.
@@ -103,7 +106,7 @@ scale. Pairs with `copywriting` (rules + templates) and
 2. Outline all pieces first; checkpoint with user.
 3. Draft sequentially; write to files for review.
 4. QA each piece individually.
-5. Generate visuals in parallel (one 9router image call per piece).
+5. Generate or select the planned visuals with available tools; batch only when supported.
 6. Publish in publish order, log each.
 
 ### Social batch (per channel, weekly)
@@ -156,6 +159,6 @@ scale. Pairs with `copywriting` (rules + templates) and
 - `copywriting` — exact copy rules + headline/meta/body templates.
 - `volumx-writer` — preservation, anti-hallucination, humanization, and scoring.
 - `seo-website-builder` — for technical SEO QA + sitemap/IndexNow.
-- `9router` (`references/image.md`) — for image generation.
-- `9router` (`references/web-search.md`) — for research and source verification.
+- Available runtime image-generation and web search/fetch tools — for visual
+  assets and current source evidence; unavailable tools remain an explicit gap.
 - `prd-taskbreaker` — to break a content sprint into numbered tasks.
