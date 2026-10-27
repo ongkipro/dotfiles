@@ -373,6 +373,7 @@ test_runtime_command_manifest() {
     ! grep -qF 'link "$DOT/config/omp/agents"' "$installer"
     grep -qF 'retire_omp_overrides' "$installer"
     grep -qF 'mkdir -p "$HOME/Documents/work/"{prd,research,content,notes}' "$installer"
+    grep -qF 'mkdir -p -m 0700 "$HOME/Documents/dotads-meta-report"' "$installer"
     grep -qF 'mkdir -p "$HOME/Projects"' "$installer"
   done
 

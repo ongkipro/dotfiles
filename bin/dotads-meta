@@ -208,10 +208,12 @@ Subcommands:
       Province/city evidence retains source periods, populations, and coverage limits.
 
   setup [--version <ver>]
-      Ensure Meta's official meta-ads CLI (default ${DEFAULT_META_ADS_VERSION}) is installed via pipx.
+      Ensure Meta's official meta-ads CLI (default ${DEFAULT_META_ADS_VERSION}) is installed via pipx
+      and prepare ~/Documents/dotads-meta-report/ (0700).
 
-  init [dir] [--force]
-      Scaffold brand.json, campaigns/sample-campaign.json, media/, and .gitignore.
+  init [dir-or-account-slug] [--force]
+      Scaffold brand.json, campaigns/sample-campaign.json, media/, memory/, and .gitignore
+      (bare account/brand names scaffold under ~/Documents/dotads-meta-report/).
 
   validate <campaign.json> [--brand <brand.json>] [--json]
       Offline validation of brand.json + campaign.json (CBO/ABO rules, OUTCOME_SALES
@@ -1439,6 +1441,31 @@ function parseMetaJsonOutput(stdout) {
   return record;
 }
 
+function defaultWorkspaceRoot() {
+  if (process.env.DOTADS_WORKSPACE_ROOT && process.env.DOTADS_WORKSPACE_ROOT.trim()) {
+    return path.resolve(process.env.DOTADS_WORKSPACE_ROOT.trim());
+  }
+  return path.join(os.homedir(), "Documents", "dotads-meta-report");
+}
+
+function ensureWorkspaceRoot() {
+  const wsRoot = defaultWorkspaceRoot();
+  if (fs.existsSync(wsRoot)) {
+    const st = fs.lstatSync(wsRoot);
+    if (st.isSymbolicLink() || !st.isDirectory()) {
+      throw new Error(`Workspace root must be a real directory (not a symlink or file): ${wsRoot}`);
+    }
+  } else {
+    fs.mkdirSync(wsRoot, { recursive: true, mode: 0o700 });
+  }
+  try {
+    fs.chmodSync(wsRoot, 0o700);
+  } catch {
+    // ignore chmod on unsupported filesystems
+  }
+  return wsRoot;
+}
+
 function cmdSetup(argv) {
   let version = DEFAULT_META_ADS_VERSION;
   for (let i = 0; i < argv.length; i++) {
@@ -1451,10 +1478,12 @@ function cmdSetup(argv) {
     }
   }
 
+  const wsRoot = ensureWorkspaceRoot();
   const metaBin = resolveMetaBin();
   const verRes = spawnSync(metaBin, ["--version"], { encoding: "utf8" });
   if (verRes.status === 0 && (verRes.stdout || "").includes(version)) {
     console.log(`✓ meta-ads CLI already installed: ${(verRes.stdout || "").trim()} (${metaBin})`);
+    console.log(`✓ workspace root ready: ${wsRoot} (0700)`);
     return;
   }
 
@@ -1465,11 +1494,25 @@ function cmdSetup(argv) {
 
   const pkgSpec = `meta-ads==${version}`;
   console.log(`Installing ${pkgSpec} via pipx...`);
-  const installRes = spawnSync("pipx", ["install", "--force", pkgSpec], { stdio: "inherit" });
+  let installRes = spawnSync("pipx", ["install", "--force", pkgSpec], { stdio: "inherit" });
+  if (installRes.status !== 0) {
+    const sharedDir = path.join(os.homedir(), ".local", "share", "pipx", "shared");
+    const sharedPy = path.join(sharedDir, "bin", "python");
+    const sharedPip = path.join(sharedDir, "bin", "pip");
+    const bootstrapPip = path.join(os.homedir(), ".local", "share", "pipx-bootstrap", "bin", "pip");
+    if (!fs.existsSync(sharedPip) && fs.existsSync(bootstrapPip)) {
+      spawnSync("python3", ["-m", "venv", "--without-pip", sharedDir], { stdio: "inherit" });
+      if (fs.existsSync(sharedPy)) {
+        spawnSync(bootstrapPip, ["--python", sharedPy, "install", "--upgrade", "pip"], { stdio: "inherit" });
+        installRes = spawnSync("pipx", ["install", "--force", pkgSpec], { stdio: "inherit" });
+      }
+    }
+  }
   if (installRes.status !== 0) {
     throw new Error(`pipx install ${pkgSpec} failed with exit code ${installRes.status}`);
   }
   console.log(`✓ ${pkgSpec} installed.`);
+  console.log(`✓ workspace root ready: ${wsRoot} (0700)`);
 }
 
 function cmdInit(argv) {
@@ -1486,7 +1529,18 @@ function cmdInit(argv) {
     }
   }
 
-  const root = path.resolve(targetDir);
+  const isBareSlug =
+    targetDir !== "." &&
+    targetDir !== ".." &&
+    !targetDir.includes("/") &&
+    !targetDir.includes("\\") &&
+    !path.isAbsolute(targetDir) &&
+    !fs.existsSync(path.resolve(targetDir));
+  const wsRoot = defaultWorkspaceRoot();
+  const root = isBareSlug ? path.join(ensureWorkspaceRoot(), targetDir) : path.resolve(targetDir);
+  if (!isBareSlug && (root === wsRoot || root.startsWith(wsRoot + path.sep))) {
+    ensureWorkspaceRoot();
+  }
   const campaignsDir = path.join(root, "campaigns");
   const mediaDir = path.join(root, "media");
   const memoryDir = path.join(root, "memory");
@@ -1508,10 +1562,15 @@ function cmdInit(argv) {
     fs.writeFileSync(mediaPlaceholderPath, "");
   }
 
+  const baseName = path.basename(root);
+  const actMatch = baseName.match(/^(act_\d+)(?:--(.+))?$/);
+  const inferredBrand = actMatch && actMatch[2] ? actMatch[2] : baseName;
+  const inferredAccountId = actMatch ? actMatch[1] : "act_1234567890";
+
   if (!fs.existsSync(brandPath) || force) {
     const brandTemplate = {
-      brand: path.basename(root),
-      ad_account_id: "act_1234567890",
+      brand: inferredBrand,
+      ad_account_id: inferredAccountId,
       business_id: "9876543210",
       page_id: "1122334455",
       instagram_user_id: "",
@@ -1576,7 +1635,7 @@ function cmdInit(argv) {
   }
 
   if (!fs.existsSync(memoryJsonPath) || force) {
-    const initialMemory = defaultAdsMemory(path.basename(root));
+    const initialMemory = defaultAdsMemory(inferredBrand);
     saveAdsMemory(root, initialMemory);
     created.push(memoryJsonPath);
     created.push(memoryMdPath);

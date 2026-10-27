@@ -412,12 +412,20 @@ else
   bad "invalid attribution reached deployment side effects: $invalid_apply"
 fi
 
-# 5a. setup subcommand detects installed meta-ads CLI
-setup_out="$("$CMD" setup 2>&1)"
-if [ "$?" -eq 0 ] && printf '%s' "$setup_out" | grep -q 'already installed'; then
-  ok "setup detects already-installed meta-ads binary"
+# 5a. setup subcommand detects installed meta-ads CLI and prepares ~/Documents/dotads-meta-report (0700)
+SETUP_HOME="$TMP/setup-home"
+mkdir -p "$SETUP_HOME"
+setup_out="$(HOME="$SETUP_HOME" "$CMD" setup 2>&1)"
+setup_ws_mode="$(python3 -c 'import os, stat, sys; print(oct(stat.S_IMODE(os.lstat(sys.argv[1]).st_mode)))' "$SETUP_HOME/Documents/dotads-meta-report" 2>/dev/null || true)"
+HOME="$SETUP_HOME" "$CMD" init act_987654321--brand-alpha >/dev/null 2>&1
+if [ "$?" -eq 0 ] \
+  && printf '%s' "$setup_out" | grep -q 'already installed' \
+  && [ "$setup_ws_mode" = "0o700" ] \
+  && [ -f "$SETUP_HOME/Documents/dotads-meta-report/act_987654321--brand-alpha/brand.json" ] \
+  && jq -e '.ad_account_id == "act_987654321" and .brand == "brand-alpha"' "$SETUP_HOME/Documents/dotads-meta-report/act_987654321--brand-alpha/brand.json" >/dev/null; then
+  ok "setup detects already-installed meta-ads binary and prepares ~/Documents/dotads-meta-report (0700)"
 else
-  bad "setup failed: $setup_out"
+  bad "setup or default workspace root failed: $setup_out (mode=$setup_ws_mode)"
 fi
 
 # 5b. Dry-run makes zero calls to meta CLI and forces PAUSED even if manifest has ACTIVE

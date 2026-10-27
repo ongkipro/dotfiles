@@ -328,8 +328,11 @@ fi
 
 say "==> Create work folder structure..."
 mkdir -p "$HOME/Documents/work/"{prd,research,content,notes}
+mkdir -p -m 0700 "$HOME/Documents/dotads-meta-report"
+chmod 0700 "$HOME/Documents/dotads-meta-report" 2>/dev/null || true
 mkdir -p "$HOME/Projects"
 say "   ~/Documents/work/{prd,research,content,notes}"
+say "   ~/Documents/dotads-meta-report/ (0700)"
 say "   ~/Projects/"
 
 say "==> Patch ~/.zshrc dan ~/.bashrc (tanpa overwrite total)..."

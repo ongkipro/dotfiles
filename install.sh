@@ -272,8 +272,11 @@ fi
 
 echo "==> Create work folder structure..."
 mkdir -p "$HOME/Documents/work/"{prd,research,content,notes}
+mkdir -p -m 0700 "$HOME/Documents/dotads-meta-report"
+chmod 0700 "$HOME/Documents/dotads-meta-report" 2>/dev/null || true
 mkdir -p "$HOME/Projects"
 echo "   ~/Documents/work/{prd,research,content,notes}"
+echo "   ~/Documents/dotads-meta-report/ (0700)"
 echo "   ~/Projects/"
 
 echo "==> Daftarkan device ini ke registry (devices/<hostname>.md)..."

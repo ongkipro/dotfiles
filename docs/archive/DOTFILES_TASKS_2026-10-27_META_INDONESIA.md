@@ -74,3 +74,24 @@ effective Meta controls, and profitable outcomes are not established. Source
 refresh is review-driven, not an automatic algorithm-update engine. Future
 releases must recheck source triggers and the separately documented CLI/SDK
 compatibility limits.
+
+### TASK-153: Align cross-device `~/Documents/dotads-meta-report/` bootstrap and docs
+
+- **Requirement:** REQ-DOTADS-WORKSPACE-ROOT (owner: align `~/Documents/dotads-meta-report/` creation and documentation across devices, 2026-10-27).
+- **Risk Level:** R3.
+- **Job:** implementation.
+- **Capability:** meta-ads-cli, testing-engineering.
+- **Execution Class:** precision.
+- **Allowed Paths:** `install.sh`, `install-macos.sh`, `bin/installer-link-test`, `bin/dotads-meta`, `bin/dotads-meta-test`, `skills/local/meta-ads-cli/SKILL.md`, `skills/local/meta-ads-cli/references/rules-and-tutorial.md`, `skills/local/meta-ads-cli/references/account-workspace-guide.review.json`, `TASKS.md`, `docs/archive/DOTFILES_TASKS_2026-10-27_META_INDONESIA.md`, `CHANGELOG.md`.
+- **Protected Paths:** `install.sh`, `install-macos.sh`, `bin/dotads-meta`.
+- **Canonical Contract Owners:** workspace bootstrap -> `install.sh`, `install-macos.sh`, `dotads-meta`; documentation -> `meta-ads-cli`.
+- **Accepted Invariants:** `~/Documents/dotads-meta-report/` is created with mode `0700` on Linux/macOS installers and `dotads-meta setup`/`init`; bare account slugs (`act_<id>--<slug>`) resolve under `~/Documents/dotads-meta-report/` and populate `ad_account_id` and `brand` while explicit path targets remain unchanged; user-space `pipx` shared-venv recovery works without `sudo`; `SKILL.md` and `rules-and-tutorial.md` examples point to `~/Documents/dotads-meta-report/`.
+- **Regression Checks:** `installer-link-test`, `meta-regression`, `meta-skill`, `policy`, `security`, `diff`.
+- **Runtime Evidence:** executed regression checks and independent boundary review in `RUN-20261027T154106Z-056df004`.
+- **Visual Contract:** Not applicable.
+- **Depends On:** None.
+- **Reopen Conditions:** installer or CLI fails to create `~/Documents/dotads-meta-report/` with `0700` permissions or documentation drifts back to legacy workspace paths.
+- **Escalation Conditions:** stop for live-account mutations or secret exposure.
+- **Rollback/Migration State:** additive directory bootstrap; existing explicit workspace paths remain supported.
+- **Non-Scope:** live Meta API calls, unimplemented automated reporting sync packages.
+- **Verification:** `bin/installer-link-test`, `bin/dotads-meta-test`, `SKILL_SOURCE="$PWD/skills/local" skills/agents-bin/skill-check meta-ads-cli`, `bin/ai-policy-lint`, `bin/security-check`, `git diff --check`; independent review and final boundary approval.

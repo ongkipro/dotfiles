@@ -4,7 +4,18 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
-## Unreleased — 2026-10-24
+## Unreleased — 2026-10-27
+
+### Cross-device `dotads-meta-report` workspace bootstrap (TASK-153)
+
+- `install.sh`, `install-macos.sh`, and `dotads-meta setup`/`init` create
+  `~/Documents/dotads-meta-report/` with mode `0700` across Linux and macOS.
+- `dotads-meta init <act_id--slug>` resolves bare account/brand names under
+  `~/Documents/dotads-meta-report/` and populates `ad_account_id` and `brand`
+  while preserving explicit directory arguments.
+- `dotads-meta setup` recovers automatically when Ubuntu/Debian `pipx` lacks
+  `ensurepip` and a user-space `pipx-bootstrap` exists; `SKILL.md` and
+  `rules-and-tutorial.md` examples now point to `~/Documents/dotads-meta-report/`.
 
 ### System map as a measured dictionary (TASK-145)
 

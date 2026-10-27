@@ -23,7 +23,7 @@ test candidates, not a universal Meta requirement or verified performance optimu
 
 1. **Workspace Separation (`~/dotfiles` vs Project Data):**
    - `~/dotfiles` holds only CLI helpers (`bin/dotads-meta`, `bin/dotads-meta-test`) and skills (`skills/local/meta-ads-cli/`).
-   - Every brand or store workspace (`brand.json`, `campaigns/*.json`, `media/`, `.meta-state.json`) lives outside `~/dotfiles` (e.g. `~/Documents/work/ads/<brand-slug>/` or `<repo>/ads/`).
+   - Every account or brand workspace (`brand.json`, `campaigns/*.json`, `media/`, `.meta-state.json`) lives outside `~/dotfiles` under `~/Documents/dotads-meta-report/act_<id>--<slug>/` (or `<repo>/ads/`).
 2. **Zero Plaintext Secrets in Project Folders:**
    - Never create `.env` files with Meta tokens inside project workspaces, and never pass tokens via CLI flags (`--access-token`).
    - Store all System User tokens in `~/.config/ai-local/secrets.env` (`chmod 600`) and let `dotads-meta` inject `ACCESS_TOKEN` in-memory via `secrets-env get`.
