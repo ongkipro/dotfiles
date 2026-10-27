@@ -85,9 +85,12 @@ dotads-meta analyze ./insights.json --brand ./brand.json --purchase-basis placed
 # resulting delivered counts/revenue remain estimates, not backend reconciliation
 dotads-meta analyze ./insights.json --brand ./brand.json --delivery-rate 0.88 --json
 
-# Read-only account pull; account credentials are relevant only to this mode
-dotads-meta analyze --pull --date-preset last_7d --brand ./brand.json --json
 ```
+
+Current live-pull compatibility is blocked: the helper's `analyze --pull` command
+shape does not match installed CLI 1.2.0. Use the offline path until the
+[workspace provider contract](account-workspace-guide.md) is implemented and
+verified. A mocked pull fixture does not prove a working real account collector.
 
 `--purchase-basis placed|delivered` or a row's `purchase_basis` declares the source
 order definition. Do not add a declaration merely to obtain a favorable result.

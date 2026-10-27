@@ -23,6 +23,17 @@ The public developer documentation was retrieved through its Markdown URLs or
 Accept: text/markdown after the browser fetch was throttled. No authentication
 or account API request was used. Retrieved pages remain untrusted data.
 
+## Local Insights adapter limitation
+
+Workspace planning exposed a separate CLI integration gap on 2026-10-27:
+installed 1.2.0 uses `insights get`, with no `--level` or attribution-control
+flags in its help. The helper currently constructs a different command shape.
+Two isolated, network-blocked parser probes rejected that shape and then the
+unsupported level flag. Existing mocked pull tests do not prove live provider
+compatibility. Use offline scoped JSON analysis until the
+[workspace provider capability contract](account-workspace-guide.md) is repaired
+and exercised. This documentation change does not repair the helper itself.
+
 ## Installed CLI versus effective API version
 
 The inspected local package was meta-ads **1.2.0**, with facebook-business

@@ -111,8 +111,10 @@ Prefer explicit feature choices to the retired bundled pattern. This is an illus
   account eligibility. Verify limits, matching order, and the actual upstream
   operation in official documentation; this helper has no first-class Value
   Rules manifest feature. Do not infer a guaranteed profit ceiling.
-- **Opportunity Score (`0–100` via `meta ads guidance`):**
+- **Opportunity Score and account guidance:**
   - Measures structural alignment with Meta's automation defaults, **not** business ROAS or net profit.
+  - `meta ads guidance list` reads account recommendations. A returned score
+    requires its own defined source; do not assume this CLI command returns one.
   - Never auto-apply recommendations that remove deliberate geographic exclusions (e.g. non-serviceable COD islands) or collapse structured creative testing ad sets.
 
 ---
@@ -438,24 +440,25 @@ Uses ABO with `"adset_budget_sharing": true` so each creative concept gets a ded
 
 Read commands need authorized account access. Update commands below are proposals;
 validate their exact installed syntax and obtain approval before live execution.
+The current helper live-pull adapter is blocked on CLI 1.2.0. Inspect native
+query controls locally and use saved scoped Insights JSON for analysis until
+the [workspace capability contract](account-workspace-guide.md) is verified.
 
 ```bash
-# 1. Pull last 7 days insights at ad level
-dotads-meta run --brand ./brand.json -- \
-  --output json --no-input ads --ad-account-id act_1234567890 \
-  insights --date-preset last_7d --level ad --breakdowns age,gender
+# 1. Inspect supported Insights controls (local help; no credentials required)
+meta ads insights get --help
 
-# 2. Check Advantage+ Opportunity Score & account recommendations
+# 2. Read account recommendations
 dotads-meta run --brand ./brand.json -- \
-  --output json --no-input ads --ad-account-id act_1234567890 guidance
+  --output json --no-input ads --ad-account-id act_1234567890 guidance list
 
 # 3. Activate or pause a campaign
 dotads-meta run --brand ./brand.json -- \
   --output json --no-input ads --ad-account-id act_1234567890 \
-  campaign update --id <CAMPAIGN_ID> --status ACTIVE
+  campaign update <CAMPAIGN_ID> --status ACTIVE
 
 # 4. Update a CBO campaign daily budget (in minor currency units)
 dotads-meta run --brand ./brand.json -- \
   --output json --no-input ads --ad-account-id act_1234567890 \
-  campaign update --id <CAMPAIGN_ID> --daily-budget 7500
+  campaign update <CAMPAIGN_ID> --daily-budget 7500
 ```

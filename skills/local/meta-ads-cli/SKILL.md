@@ -33,6 +33,15 @@ Operate Meta (Facebook & Instagram) Ads from the terminal using Meta's official 
 
 ## Choose the relevant task and evidence
 
+- **Operator onboarding or AI-terminal handoff:** use the
+  [English AI terminal contract](references/terminal-control.md). Open relevant
+  sections of the [Bahasa Indonesia operator guide](GUIDE.id.md) when teaching
+  human usage. The human owns goals/decisions; the AI executes within the
+  existing authorization boundaries.
+- **Account reporting workspace or existing-device organization:** read the
+  [account workspace guide](references/account-workspace-guide.md). It defines
+  the planned Documents layout, adoption/recovery rules and AI/human read order;
+  automatic sync/report/import operations remain pending implementation.
 - **General Indonesia market baseline:** for an explicitly selected `ID` market,
   run `dotads-meta baseline --market ID` and load
   [Indonesia market guidance](references/indonesia-market.md) as needed. Optional
@@ -165,11 +174,14 @@ dotads-meta status ~/Documents/work/ads/brand-alpha/campaigns/sample-campaign.js
 Executes `campaign create` -> `creative create` -> `adset create` -> `ad create` sequentially with `PAUSED` status, saving each returned ID and media `image_hash` / `video_id` immediately to `.meta-state.json`. If a step fails mid-run, re-running the command skips already-created steps and resumes from the failed step.
 
 ### Step 5: Analyze Conversion Performance & Harvest Multi-Source Memory
-```bash
-# Read-only account pull; explicitly estimate delivered outcomes from placed orders
-dotads-meta analyze --pull --date-preset last_7d --delivery-rate 0.88 --brand ./brand.json --record-memory
 
-# Offline alternative: declare the order basis only when the source establishes it
+Use a scoped saved Insights JSON export. The current helper's `analyze --pull`
+adapter is blocked against installed CLI 1.2.0: its command/flags are rejected
+before a request. See the [workspace capability contract](references/account-workspace-guide.md)
+before building a live collector; mocked pull tests do not establish provider compatibility.
+
+```bash
+# Offline analysis: declare the order basis only when the source establishes it
 dotads-meta analyze ./insights-last-7d.json --purchase-basis placed --brand ./brand.json --record-memory
 
 # Record insights from competitor research (meta-ads-scout), outsource media buyers, or funnel audits
@@ -211,12 +223,11 @@ dotads-meta run --brand ./brand.json -- --output json --no-input ads --ad-accoun
 # List pixels / datasets
 dotads-meta run --brand ./brand.json -- --output json --no-input ads --ad-account-id act_1234567890 dataset list
 
-# Pull performance insights (last 7 days, broken down by age)
-dotads-meta run --brand ./brand.json -- --output json --no-input ads --ad-account-id act_1234567890 \
-  insights --date-preset last_7d --level ad --breakdowns age
+# Inspect supported Insights controls locally before planning an authorized pull
+meta ads insights get --help
 
-# Check Advantage+ Opportunity Score & account delivery guidance
-dotads-meta run --brand ./brand.json -- --output json --no-input ads --ad-account-id act_1234567890 guidance
+# Read account delivery recommendations
+dotads-meta run --brand ./brand.json -- --output json --no-input ads --ad-account-id act_1234567890 guidance list
 ```
 
 ### Creative Modes in `meta ads creative create`
