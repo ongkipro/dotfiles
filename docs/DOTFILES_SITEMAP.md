@@ -537,7 +537,7 @@ Standardized contract files copied to the root of every new project by `project-
 What a new machine gets, and where each terminal, editor, and Git setting lives.
 
 ### 11.1 Bootstrap and Repository Files
-- [`README.md`](../README.md): Repository entry point: what dotfiles shares and how to install it.
+- [`README.md`](../README.md): Minimal maintainer entry point linking setup notes, the system map and change history.
 - [`install.sh`](../install.sh): Idempotent installer for Ubuntu and macOS (bash and zsh): places config and patches shell rc files.
 - [`install-macos.sh`](../install-macos.sh): Light macOS bootstrap for shared memory, skills, `dotsync`, and shell hooks.
 - [`.gitignore`](../.gitignore): Keeps SSH keys and other per-device secrets out of the repository.

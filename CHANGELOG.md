@@ -4,7 +4,22 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
-## Unreleased — 2026-10-27
+## Unreleased — 2026-10-28
+
+### Repository entry points and discovery
+
+- Keep the root README short and neutral; setup, operating contracts and
+  verification guidance remain in their existing documentation owners.
+- Remove repository discovery topics. Public files and repository names remain
+  searchable; this is reduced discovery metadata, not an indexing or access block.
+- Use the Git commit as the installed revision. This documentation update does
+  not create a release tag or a separate version file.
+- The system-map inventory check, 72-query lookup regression and focused
+  documentation link checks passed for these entry-point edits.
+- The preceding implementation snapshot `b70a227` passed the hosted Linux,
+  macOS and full design-tool jobs in
+  [Core runtime run 40555479199](https://github.com/ongkipro/dotfiles/actions/runs/40555479199).
+  This is historical evidence for that commit, not a result for later changes.
 
 ### On-demand Meta knowledge and campaign learning — 2026-10-28
 
@@ -26,7 +41,7 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
   Partial/failed refreshes never become measured zero or replace complete data.
 - Add journaled local asset copy/move and hash-bound reference-only adoption;
   explicitly selected legacy root folders preserve their files/deployment state.
-- Real-account/macOS access, effective server settings, scheduled backfill,
+- Real-account access, effective server settings, scheduled backfill,
   network checkpoints, remote downloads/captures and full operational cutover
   remain separate verification or implementation work.
 
