@@ -444,7 +444,7 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`tmux-battery`](../bin/tmux-battery) (+ [`test`](../bin/tmux-battery-test)): Battery segment for the tmux status bar; silent and exit 0 on machines without a battery.
 - [`vps-pgdump`](../bin/vps-pgdump) (+ [`test`](../bin/vps-pgdump-test)): Pulls a Postgres backup and the stack config off a VPS over SSH, because provider snapshots failed silently.
 - [`shopify-content-helper`](../bin/shopify-content-helper) (+ [`test`](../bin/shopify-content-helper-test)): Shopify SEO and content utilities: SEO audit and limits, sitemap entries, meta and brief templates, RSS and JSON-LD skeletons.
-- [`dotads-meta`](../bin/dotads-meta) (+ [`test`](../bin/dotads-meta-test)): Offline Indonesia market baseline, scoped economics observations, campaign validation, dry-run planning, stateful deployment, and `secrets-env` bridge for Meta's official CLI.
+- [`dotads-meta`](../bin/dotads-meta) (+ [`test`](../bin/dotads-meta-test)): Per-project Meta Ads campaign validator, dry-run planner, stateful deployer, and `secrets-env` bridge for Meta's official CLI; offline Indonesia market baseline and scoped economics observations.
 - [`rea-skill-sync`](../bin/rea-skill-sync) (+ [`test`](../bin/rea-skill-sync-test)): Deterministic upstream auto-sync and drift checker synchronizing `skills/local/black-magic/` with `morluto/rea`.
 - [`pi-9router-restore`](../bin/pi-9router-restore): Restores optional Pi settings and the remote 9Router model integration.
 - [`pi-9router-sync.js`](../bin/pi-9router-sync.js): Syncs the remote 9Router catalog into Pi's machine-local `models.json`.
