@@ -3,6 +3,8 @@
  * dotads-meta — Per-project Meta Ads workflow & secrets-env bridge for Meta's official `meta` CLI.
  *
  * Subcommands:
+ *   baseline --market ID [--province <name|BPS code>] [--city <name>] [--json]
+ *     Query the dated public Indonesia baseline offline, without a brand or credentials.
  *   setup [--version <ver>]
  *     Ensure Meta's official `meta-ads` CLI (default 1.2.0) is installed via pipx on this device.
  *   init [dir] [--force]
@@ -198,9 +200,13 @@ function usage(exitCode = 0) {
   const text = `Usage: dotads-meta <subcommand> [options]
 
 Dotfiles helper for Meta Ads. The underlying CLI command remains meta.
-Existing workspaces need no migration.
+Existing campaign/state formats remain compatible; legacy unscoped economics require explicit reconfiguration for financial comparisons.
 
 Subcommands:
+  baseline --market ID [--province <name|BPS code>] [--city <name>] [--json]
+      Read the public Indonesia shopping baseline offline. Other markets never inherit ID data.
+      Province/city evidence retains source periods, populations, and coverage limits.
+
   setup [--version <ver>]
       Ensure Meta's official meta-ads CLI (default ${DEFAULT_META_ADS_VERSION}) is installed via pipx.
 
@@ -229,10 +235,10 @@ Subcommands:
       Maintain per-brand Meta Ads intelligence & unit-economics memory in memory/ads-memory.json
       and memory/MEMORY.md (learn from 1st-party data, competitor references, outsource, and audits).
 
-  analyze [<insights.json>] [--pull] [--date-preset <preset>] [--delivery-rate <0..1>] [--brand <brand.json>] [--record-memory] [--json]
-      Analyze Meta Ads conversion insights (ROAS as North-Star, CPR/CPA, CTR, CPC, Hook Rate, Hold Rate,
-      CVR, Frequency, Net Profit, and Backend/COD Reconciliation) against brand unit economics,
-      detect MONITOR_EARLY & CREATIVE_FATIGUE, and output Day-2 scaling / stop-loss CLI plans.
+  analyze [<insights.json>] [--pull] [--date-preset <preset>] [--purchase-basis placed|delivered] [--delivery-rate <0..1>] [--brand <brand.json>] [--record-memory] [--json]
+      Report observational conversion/creative diagnostics with explicit order and cost bases,
+      estimated contribution after ads (not net profit), and unknown/invalid-data qualification,
+      with diagnostic candidates and deduplicated insight capture; emits no mutation commands.
 `;
   if (exitCode === 0) {
     process.stdout.write(text);
@@ -2225,47 +2231,49 @@ const VALID_LEARN_CATEGORIES = new Set([
 
 const VALID_LEARN_VERDICTS = new Set(["insight", "loser", "rule", "winner"]);
 
-function computeUnitEconomics(input) {
-  const aov = Number(input.aov);
-  const cogs = Number(input.cogs);
-  const shippingFee = Number(input.shipping_fee ?? 0);
-  const codRtsRate = Number(input.cod_rts_rate ?? 0);
-  const rtsPenalty = Number(input.rts_penalty ?? shippingFee);
-  const targetMargin = Number(input.target_margin ?? 0.2);
+function analysisNumber(value) {
+  if (typeof value !== "number" && (typeof value !== "string" || !/^[+]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim()))) return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : null;
+}
 
-  if (!Number.isFinite(aov) || aov <= 0) throw new Error("unit-economics requires a positive --aov.");
-  if (!Number.isFinite(cogs) || cogs < 0 || cogs >= aov) {
+function computeUnitEconomics(input) {
+  const aov = analysisNumber(input.aov);
+  const cogs = analysisNumber(input.cogs);
+  const shippingFee = analysisNumber(input.shipping_fee);
+  const codRtsRate = analysisNumber(input.cod_rts_rate);
+  const rtsPenalty = analysisNumber(input.rts_penalty);
+  const targetMargin = analysisNumber(input.target_margin);
+  for (const [field, value] of Object.entries(input)) {
+    if (value !== undefined && analysisNumber(value) === null) throw new Error(`unit-economics: '${field}' must be a finite nonnegative number.`);
+  }
+
+  if (aov === null || aov <= 0) throw new Error("unit-economics requires a positive --aov.");
+  if (cogs === null || cogs >= aov) {
     throw new Error("unit-economics requires --cogs >= 0 and < --aov.");
   }
-  if (!Number.isFinite(shippingFee) || shippingFee < 0) {
-    throw new Error("unit-economics requires --shipping-fee >= 0.");
-  }
-  if (!Number.isFinite(codRtsRate) || codRtsRate < 0 || codRtsRate >= 1) {
+  if (codRtsRate !== null && codRtsRate >= 1) {
     throw new Error("unit-economics requires --cod-rts-rate between 0 and 0.99.");
   }
-  if (!Number.isFinite(rtsPenalty) || rtsPenalty < 0) {
-    throw new Error("unit-economics requires --rts-penalty >= 0.");
-  }
-  if (!Number.isFinite(targetMargin) || targetMargin < 0 || targetMargin >= 1) {
+  if (targetMargin !== null && targetMargin >= 1) {
     throw new Error("unit-economics requires --target-margin between 0 and 0.99.");
   }
 
-  const deliveredRate = 1 - codRtsRate;
-  const expectedRevenue = aov * deliveredRate;
-  const expectedCost = (cogs + shippingFee) * deliveredRate + rtsPenalty * codRtsRate;
-  const contributionMargin = expectedRevenue - expectedCost;
-  if (contributionMargin <= 0) {
+  const complete = shippingFee !== null && codRtsRate !== null && rtsPenalty !== null;
+  const deliveredRate = codRtsRate === null ? null : 1 - codRtsRate;
+  const contributionMargin = complete ? (aov - cogs - shippingFee) * deliveredRate - rtsPenalty * codRtsRate : null;
+  if (contributionMargin !== null && contributionMargin <= 0) {
     throw new Error(
       `Negative or zero contribution margin (${contributionMargin.toFixed(2)}) after COGS/shipping/RTS; increase AOV (bundles) or lower RTS/COGS before running paid conversion ads.`
     );
   }
-  const maxCprBreakeven = Number(contributionMargin.toFixed(2));
-  const breakevenRoas = Number((aov / contributionMargin).toFixed(2));
-  const targetProfitPerOrder = aov * targetMargin;
-  const rawTargetCpr = contributionMargin - targetProfitPerOrder;
-  const targetCpr = Number(Math.max(rawTargetCpr, contributionMargin * 0.4).toFixed(2));
-  const targetRoas = Number((aov / targetCpr).toFixed(2));
-  const recommendedCostCap = Number((targetCpr * 0.85).toFixed(2));
+  const maxCprBreakeven = contributionMargin;
+  const breakevenRoas = contributionMargin === null ? null : analysisNumber(aov / contributionMargin);
+  const rawTargetCpr = contributionMargin !== null && targetMargin !== null ? contributionMargin - aov * deliveredRate * targetMargin : null;
+  const targetCpr = rawTargetCpr !== null && rawTargetCpr > 0 ? rawTargetCpr : null;
+  const targetRoas = targetCpr === null ? null : analysisNumber(aov / targetCpr);
+  const roundedCostCap = targetCpr === null ? null : Math.round(targetCpr * 85) / 100;
+  const recommendedCostCap = roundedCostCap !== null && roundedCostCap > 0 ? roundedCostCap : null;
 
   return {
     aov,
@@ -2274,12 +2282,19 @@ function computeUnitEconomics(input) {
     cod_rts_rate: codRtsRate,
     rts_penalty: rtsPenalty,
     target_margin: targetMargin,
-    delivered_rate: Number(deliveredRate.toFixed(4)),
+    delivered_rate: deliveredRate === null ? null : Number(deliveredRate.toFixed(4)),
+    cost_coverage: "COGS, shipping subsidy, and RTS penalty only; excludes other operating costs",
+    economic_basis: "expected_per_placed_order",
+    qualification: complete ? "CONFIGURED_COST_ASSUMPTIONS" : "INCOMPLETE_COST_ASSUMPTIONS",
+    target_feasible: rawTargetCpr === null ? null : rawTargetCpr > 0,
     contribution_margin_per_order: maxCprBreakeven,
     max_cpr_breakeven: maxCprBreakeven,
     breakeven_roas: breakevenRoas,
+    expected_delivered_breakeven_roas: contributionMargin === null ? null : analysisNumber(aov * deliveredRate / contributionMargin),
     target_cpr: targetCpr,
     target_roas: targetRoas,
+    expected_delivered_target_roas: targetCpr === null ? null : analysisNumber(aov * deliveredRate / targetCpr),
+    target_margin_revenue_basis: "expected_delivered_revenue",
     recommended_cost_cap: recommendedCostCap,
     updated_at: new Date().toISOString(),
   };
@@ -2313,7 +2328,7 @@ function renderAdsMemoryMarkdown(memory) {
     "",
     `Updated: ${memory.updated_at}`,
     "",
-    "> Canonical per-brand learning store synthesized from 1st-party Meta Ads data, competitor references (`meta-ads-scout`), outsource/agency benchmarks, and funnel audits.",
+    "> Per-brand observations and user-recorded claims. Source labels and automatic diagnostics do not establish causality, independent validation, or permission to change spend.",
     "",
   ];
 
@@ -2321,21 +2336,22 @@ function renderAdsMemoryMarkdown(memory) {
   lines.push("## 1. Conversion Unit Economics & Bidding Floors");
   lines.push("");
   if (ue) {
-    lines.push(`- **Gross AOV**: \`${ue.aov}\` | **COGS**: \`${ue.cogs}\` | **Shipping Subsidy**: \`${ue.shipping_fee}\``);
-    lines.push(`- **COD RTS Rate**: \`${(ue.cod_rts_rate * 100).toFixed(1)}%\` (Delivered Rate: \`${(ue.delivered_rate * 100).toFixed(1)}%\`, RTS Penalty: \`${ue.rts_penalty}\`)`);
-    lines.push(`- **Contribution Margin / Max Break-Even CPR**: \`${ue.max_cpr_breakeven}\` (**Break-Even ROAS**: \`${ue.breakeven_roas}x\`)`);
-    lines.push(`- **Target Profit CPR**: \`${ue.target_cpr}\` (**Target Profit ROAS**: \`${ue.target_roas}x\`, Target Net Margin: \`${(ue.target_margin * 100).toFixed(1)}%\`)`);
-    lines.push(`- **Local Cost Cap Suggestion (0.85x Target CPR)**: \`${ue.recommended_cost_cap}\``);
+    lines.push(`- **Economics Scope**: account \`${ue.scope?.ad_account_id ?? "unscoped legacy record"}\`, currency \`${ue.scope?.currency ?? "unknown"}\`; analysis requires matching current brand and insight scope.`);
+    lines.push(`- **Gross AOV**: \`${ue.aov ?? "unknown"}\` | **COGS**: \`${ue.cogs ?? "unknown"}\` | **Shipping Subsidy**: \`${ue.shipping_fee ?? "unknown"}\``);
+    lines.push(`- **COD RTS Rate**: \`${ue.cod_rts_rate == null ? "unknown" : (ue.cod_rts_rate * 100).toFixed(1) + "%"}\` (Delivered Rate: \`${ue.delivered_rate == null ? "unknown" : (ue.delivered_rate * 100).toFixed(1) + "%"}\`, RTS Penalty: \`${ue.rts_penalty ?? "unknown"}\`)`);
+    lines.push(`- **Expected Placed-Order Contribution / Max Break-Even CPR**: \`${ue.max_cpr_breakeven ?? "unknown"}\` (**Gross Placed-Order Break-Even ROAS**: \`${ue.breakeven_roas ?? "unknown"}\`)`);
+    lines.push(`- **Target CPR**: \`${ue.target_cpr ?? "unknown"}\` (**Gross Placed-Order Target ROAS**: \`${ue.target_roas ?? "unknown"}\`, Target Margin Assumption: \`${ue.target_margin == null ? "unknown" : (ue.target_margin * 100).toFixed(1) + "%"}\`)`);
+    lines.push(`- **Local Cost Cap Suggestion (0.85x Target CPR)**: \`${ue.recommended_cost_cap ?? "unknown"}\`; neither a realized cost ceiling nor spend approval.`);
   } else {
     lines.push("_Not configured yet. Run `dotads-meta learn unit-economics --aov <AOV> --cogs <COGS>` to compute Break-Even ROAS, Max CPR, and a local Cost Cap suggestion._");
   }
   lines.push("");
 
   const groups = [
-    ["winner", "## 2. Proven Winners (Scale & Remix Concepts)"],
-    ["loser", "## 3. Confirmed Losers & Burned Angles (Do Not Repeat)"],
-    ["rule", "## 4. Validated Rules & Bidding Guardrails"],
-    ["insight", "## 5. Competitor, Reference & Outsource Intelligence"],
+    ["winner", "## 2. User-Recorded Winner Claims (Verification Required)"],
+    ["loser", "## 3. User-Recorded Loser Claims (Verification Required)"],
+    ["rule", "## 4. User-Recorded Rules (Scope and Validation Required)"],
+    ["insight", "## 5. Observations, References & Diagnostic Candidates"],
   ];
 
   for (const [verdict, heading] of groups) {
@@ -2411,7 +2427,11 @@ function cmdLearn(argv) {
     const resolvedBrand = findBrandPath(null, brandPath);
     const workspaceDir = path.dirname(resolvedBrand);
     const brand = readJsonFile(resolvedBrand, "brand.json");
+    if (!/^act_[0-9]+$/.test(brand.ad_account_id) || typeof brand.currency !== "string" || !/^[A-Z]{3}$/.test(brand.currency)) {
+      throw new Error("unit-economics requires an explicit act_<digits> ad_account_id and three-letter uppercase currency in brand.json.");
+    }
     const ue = computeUnitEconomics(opts);
+    ue.scope = { ad_account_id: brand.ad_account_id, currency: brand.currency };
     const memory = loadAdsMemory(workspaceDir, brand.brand || path.basename(workspaceDir));
     memory.unit_economics = ue;
     saveAdsMemory(workspaceDir, memory);
@@ -2521,15 +2541,19 @@ function cmdLearn(argv) {
       if (filterVerdict && e.verdict !== filterVerdict) return false;
       return true;
     });
+    const ue = memory.unit_economics;
+    const economicsScopeStatus = !ue ? "UNCONFIGURED" : !ue.scope?.ad_account_id || !ue.scope?.currency ? "UNSCOPED"
+      : ue.scope.ad_account_id === brand.ad_account_id && ue.scope.currency === brand.currency ? "MATCHES_CURRENT_BRAND" : "MISMATCH";
 
     if (jsonOut) {
-      console.log(JSON.stringify({ ok: true, brand: memory.brand, unit_economics: memory.unit_economics, entries }, null, 2));
+      console.log(JSON.stringify({ ok: true, brand: memory.brand, unit_economics: ue, unit_economics_scope_status: economicsScopeStatus, entries }, null, 2));
       return;
     }
     console.log(`Meta Ads Memory for ${memory.brand} (${entries.length} entries)`);
-    if (memory.unit_economics) {
-      const ue = memory.unit_economics;
-      console.log(`  Unit Economics: Break-Even ROAS=${ue.breakeven_roas}x (Max CPR=${ue.max_cpr_breakeven}) | Target ROAS=${ue.target_roas}x (Target CPR=${ue.target_cpr})`);
+    if (ue) {
+      console.log(`  Economics scope: saved account=${ue.scope?.ad_account_id ?? "unknown"}, currency=${ue.scope?.currency ?? "unknown"}; selected account=${brand.ad_account_id ?? "unknown"}, currency=${brand.currency ?? "unknown"}; ${economicsScopeStatus}`);
+      if (economicsScopeStatus !== "MATCHES_CURRENT_BRAND") console.log("  RECONFIGURE: historical/unscoped costs do not qualify for this brand. Explicitly relearn assumptions; changing a currency label does not convert costs.");
+      console.log(`  Recorded thresholds (not approval): Break-Even ROAS=${ue.breakeven_roas ?? "unknown"} (Max CPR=${ue.max_cpr_breakeven ?? "unknown"}) | Target ROAS=${ue.target_roas ?? "unknown"} (Target CPR=${ue.target_cpr ?? "unknown"}); analyze recomputes qualified inputs.`);
     }
     for (const e of entries) {
       console.log(`  - [${e.verdict.toUpperCase()}] (${e.category}/${e.source}) ${e.title}: ${e.summary}`);
@@ -2540,13 +2564,23 @@ function cmdLearn(argv) {
   throw new Error(`Unknown learn subcommand: ${sub}`);
 }
 
-function extractActionMetric(list, matchTypes) {
-  if (!Array.isArray(list)) return 0;
-  for (const t of matchTypes) {
-    const found = list.find((item) => item && item.action_type === t);
-    if (found && found.value !== undefined) return Number(found.value) || 0;
+function extractActionMetric(list, matchTypes, issues, label) {
+  if (list === undefined) return null;
+  if (!Array.isArray(list)) { issues.push(`invalid ${label}: expected an action array`); return null; }
+  const matches = list.filter((item) => item && matchTypes.includes(item.action_type));
+  if (!matches.length) return null;
+  const values = matches.map((item) => analysisNumber(item.value));
+  if (values.some((value) => value === null) || new Set(values).size > 1) {
+    issues.push(`invalid ${label}: malformed or conflicting action values; select an unambiguous event`);
+    return null;
   }
-  return 0;
+  return values[0]; // Equivalent aliases are not summed into additional conversions.
+}
+
+function analysisHash(value) {
+  const canonical = (v) => Array.isArray(v) ? v.map(canonical) : v && typeof v === "object"
+    ? Object.fromEntries(Object.keys(v).sort().map((key) => [key, canonical(v[key])])) : v;
+  return crypto.createHash("sha256").update(JSON.stringify(canonical(value))).digest("hex");
 }
 
 function cmdAnalyze(argv) {
@@ -2555,6 +2589,7 @@ function cmdAnalyze(argv) {
   let pullLive = false;
   let datePreset = "last_7d";
   let deliveryRate = null;
+  let purchaseBasis = null;
   let recordMemory = false;
   let jsonOut = false;
 
@@ -2563,7 +2598,14 @@ function cmdAnalyze(argv) {
     if (a === "--brand") brandPath = argv[++i];
     else if (a === "--pull") pullLive = true;
     else if (a === "--date-preset") datePreset = argv[++i] || "last_7d";
-    else if (a === "--delivery-rate") deliveryRate = Number(argv[++i]);
+    else if (a === "--delivery-rate") {
+      deliveryRate = analysisNumber(argv[++i]);
+      if (deliveryRate === null) throw new Error("--delivery-rate requires a finite number between 0 and 1.");
+    }
+    else if (a === "--purchase-basis") {
+      purchaseBasis = argv[++i];
+      if (!["placed", "delivered"].includes(purchaseBasis)) throw new Error("--purchase-basis must be placed or delivered.");
+    }
     else if (a === "--record-memory") recordMemory = true;
     else if (a === "--json") jsonOut = true;
     else if (!a.startsWith("-") && !insightsPath) insightsPath = a;
@@ -2572,8 +2614,8 @@ function cmdAnalyze(argv) {
   if (!insightsPath && !pullLive) {
     throw new Error("analyze requires <insights.json> or --pull.");
   }
-  if (deliveryRate !== null && (!Number.isFinite(deliveryRate) || deliveryRate <= 0 || deliveryRate > 1)) {
-    throw new Error("--delivery-rate must be between 0 (exclusive) and 1 (inclusive).");
+  if (deliveryRate !== null && (!Number.isFinite(deliveryRate) || deliveryRate < 0 || deliveryRate > 1)) {
+    throw new Error("--delivery-rate must be between 0 and 1 (inclusive).");
   }
 
   const resolvedBrand = findBrandPath(insightsPath, brandPath);
@@ -2609,7 +2651,7 @@ function cmdAnalyze(argv) {
       "--level",
       "ad",
       "--fields",
-      "ad_id,ad_name,adset_id,campaign_id,spend,impressions,frequency,clicks,outbound_clicks,cpc,ctr,actions,action_values,video_3_sec_watched_actions,video_thruplay_watched_actions"
+      "account_id,account_currency,date_start,date_stop,ad_id,ad_name,adset_id,campaign_id,spend,impressions,frequency,clicks,outbound_clicks,cpc,ctr,actions,action_values,video_3_sec_watched_actions,video_thruplay_watched_actions"
     );
 
     const res = spawnSync(metaBin, pullArgs, {
@@ -2642,308 +2684,290 @@ function cmdAnalyze(argv) {
     throw new Error(`No insight rows found${insightsPath ? ` in ${insightsPath}` : ""}.`);
   }
 
-  const ue = memory.unit_economics;
-  const breakevenRoas = ue?.breakeven_roas ?? 1.5;
-  const targetRoas = ue?.target_roas ?? 2.5;
-  const maxCpr = ue?.max_cpr_breakeven ?? null;
-  const targetCpr = ue?.target_cpr ?? null;
-  const contribPerOrder = ue?.contribution_margin_per_order ?? null;
-
-  const purchaseTypes = [
-    "purchase",
-    "omni_purchase",
-    "offsite_conversion.fb_pixel_purchase",
-  ];
-
-  const evaluated = rows.map((row, idx) => {
+  // Recompute from explicitly configured inputs; cached or legacy derived fields are not approval.
+  let ue = null;
+  const savedEconomics = memory.unit_economics;
+  const economicsIssues = [];
+  if (savedEconomics && (!savedEconomics.scope?.ad_account_id || !savedEconomics.scope?.currency)) {
+    economicsIssues.push("Persisted economics scope is missing; explicitly relearn account/currency-scoped assumptions before financial comparison.");
+  } else if (savedEconomics?.scope) {
+    if (savedEconomics.scope.ad_account_id !== brand.ad_account_id) economicsIssues.push("Persisted economics account scope differs from the selected brand; explicitly relearn assumptions for this account.");
+    if (savedEconomics.scope.currency !== brand.currency) economicsIssues.push("Persisted economics currency scope differs from the selected brand; currency changes do not convert historical costs.");
+  }
+  if (!economicsIssues.length && ["CONFIGURED_COST_ASSUMPTIONS", "INCOMPLETE_COST_ASSUMPTIONS"].includes(savedEconomics?.qualification)) {
+    try {
+      const fields = ["aov", "cogs", "shipping_fee", "cod_rts_rate", "rts_penalty", "target_margin"];
+      ue = computeUnitEconomics(Object.fromEntries(fields.filter((field) => savedEconomics[field] != null).map((field) => [field, savedEconomics[field]])));
+    } catch { /* Invalid persisted assumptions remain unknown; never reuse cached thresholds. */ }
+  }
+  const benchmarks = {
+    breakeven_roas: analysisNumber(ue?.breakeven_roas), target_roas: analysisNumber(ue?.target_roas),
+    max_cpr: analysisNumber(ue?.max_cpr_breakeven), target_cpr: analysisNumber(ue?.target_cpr),
+    expected_delivered_breakeven_roas: analysisNumber(ue?.expected_delivered_breakeven_roas),
+    expected_delivered_target_roas: analysisNumber(ue?.expected_delivered_target_roas),
+    basis: "configured_expected_per_placed_order; row comparisons use comparison_benchmarks",
+  };
+  const snapshotId = analysisHash(rawInsights);
+  const purchaseTypes = ["purchase", "omni_purchase", "offsite_conversion.fb_pixel_purchase"];
+  const round = (n, digits = 2) => n === null || !Number.isFinite(n) ? null : Number(n.toFixed(digits));
+  const ratio = (n, d, digits = 2) => n === null || d === null || d <= 0 ? null : round(n / d, digits);
+  const evaluated = rows.map((input, idx) => {
+    const issues = [];
+    const row = input && typeof input === "object" && !Array.isArray(input) ? input : {};
+    if (row !== input) issues.push("invalid row: expected an object");
+    const has = (key) => Object.prototype.hasOwnProperty.call(row, key);
+    const metric = (key, max = Infinity) => {
+      if (!has(key)) return null;
+      const value = analysisNumber(row[key]);
+      if (value === null || value > max) { issues.push(`invalid ${key}: expected a finite nonnegative number${max === 1 ? " at most 1" : ""}`); return null; }
+      return value;
+    };
     const name = row.ad_name || row.adset_name || row.campaign_name || row.name || `row_${idx + 1}`;
     const id = row.ad_id || row.adset_id || row.campaign_id || row.id || String(idx + 1);
-    const spend = Number(row.spend ?? 0);
-    const impressions = Number(row.impressions ?? 0);
-    const frequency = row.frequency !== undefined ? Number(row.frequency) : null;
-    const metaPurchases =
-      row.purchases !== undefined
-        ? Number(row.purchases)
-        : extractActionMetric(row.actions, purchaseTypes);
-    const metaRevenue =
-      row.revenue !== undefined
-        ? Number(row.revenue)
-        : row.purchase_value !== undefined
-          ? Number(row.purchase_value)
-          : extractActionMetric(row.action_values, purchaseTypes);
-
-    const hasBackendOverride =
-      row.real_purchases !== undefined ||
-      row.backend_purchases !== undefined ||
-      row.real_revenue !== undefined ||
-      row.backend_revenue !== undefined;
-    const purchases =
-      row.real_purchases !== undefined
-        ? Number(row.real_purchases)
-        : row.backend_purchases !== undefined
-          ? Number(row.backend_purchases)
-          : deliveryRate !== null
-            ? Number((metaPurchases * deliveryRate).toFixed(2))
-            : metaPurchases;
-    const revenue =
-      row.real_revenue !== undefined
-        ? Number(row.real_revenue)
-        : row.backend_revenue !== undefined
-          ? Number(row.backend_revenue)
-          : deliveryRate !== null
-            ? Number((metaRevenue * deliveryRate).toFixed(2))
-            : metaRevenue;
-
-    const outboundClicks =
-      row.outbound_clicks !== undefined
-        ? Array.isArray(row.outbound_clicks)
-          ? extractActionMetric(row.outbound_clicks, ["outbound_click"])
-          : Number(row.outbound_clicks)
-        : Number(row.clicks ?? 0);
-    const video3s =
-      row.video_3s_views !== undefined
-        ? Number(row.video_3s_views)
-        : extractActionMetric(row.video_3_sec_watched_actions, ["video_view"]);
-    const thruplays =
-      row.thruplays !== undefined
-        ? Number(row.thruplays)
-        : extractActionMetric(row.video_thruplay_watched_actions, ["video_view"]);
-
-    const metaRoas = spend > 0 ? Number((metaRevenue / spend).toFixed(2)) : 0;
-    const roas = spend > 0 ? Number((revenue / spend).toFixed(2)) : 0;
-    const cpr = purchases > 0 ? Number((spend / purchases).toFixed(2)) : null;
-    const cpm = impressions > 0 ? Number(((spend / impressions) * 1000).toFixed(2)) : 0;
-    const ctr = impressions > 0 ? Number((outboundClicks / impressions).toFixed(4)) : 0;
-    const cpc =
-      row.cpc !== undefined
-        ? Number(row.cpc)
-        : outboundClicks > 0
-          ? Number((spend / outboundClicks).toFixed(2))
-          : null;
-    const hookRate =
-      row.hook_rate !== undefined
-        ? Number(row.hook_rate)
-        : impressions > 0 && video3s > 0
-          ? Number((video3s / impressions).toFixed(4))
-          : null;
-    const holdRate =
-      row.hold_rate !== undefined
-        ? Number(row.hold_rate)
-        : video3s > 0 && thruplays > 0
-          ? Number((thruplays / video3s).toFixed(4))
-          : null;
-    const cvr = outboundClicks > 0 ? Number((purchases / outboundClicks).toFixed(4)) : 0;
-    const estimatedNetProfit =
-      contribPerOrder !== null
-        ? Number((purchases * contribPerOrder - spend).toFixed(2))
-        : Number((revenue - spend).toFixed(2));
-
-    // ROAS is the primary North-Star gate whenever purchase revenue is reported;
-    // CTR and CPC are secondary diagnostic levers (ROAS = (AOV * CVR) / CPC).
-    // CPR fallback applies only when revenue is not tracked (0) on non-value events.
-    const hasRevenue = revenue > 0 || metaRevenue > 0;
-    const meetsTarget =
-      purchases >= 1 &&
-      (hasRevenue ? roas >= targetRoas : targetCpr !== null && cpr !== null && cpr <= targetCpr);
-    const meetsBreakeven =
-      purchases >= 1 &&
-      (hasRevenue ? roas >= breakevenRoas : maxCpr !== null && cpr !== null && cpr <= maxCpr);
-
-    const isEarlyLearning =
-      purchases === 0 && maxCpr !== null && spend > 0 && spend < maxCpr;
-    const isCreativeFatigue =
-      !meetsTarget && !isEarlyLearning && frequency !== null && frequency >= 2.5;
-    const stopLoss =
-      !meetsBreakeven &&
-      !isEarlyLearning &&
-      ((maxCpr !== null && spend >= 1.5 * maxCpr && purchases === 0) ||
-        (spend > 0 && purchases > 0 && roas < 0.5 * breakevenRoas));
-
-    let classification = "MONITOR_EARLY";
-    let diagnosis = `Local monitoring heuristic: spend=${spend}, purchases=${purchases}, Max Break-Even CPR=${maxCpr ?? "n/a"}; platform learning state is unverified.`;
-    let nextAction = "Review sample size, conversion lag, and the agreed stop-loss budget before proposing a change.";
-    let recommendedCommand = null;
-
-    if (meetsTarget) {
-      classification = "SCALE_WINNER";
-      diagnosis = `Reported results meet the local target (${roas}x ROAS; target=${targetRoas}x; CPR=${cpr ?? "n/a"}, CTR=${(ctr * 100).toFixed(2)}%, CPC=${cpc ?? "n/a"}). This does not establish incrementality or future performance.`;
-      nextAction = "Consider a measured budget or creative experiment after reviewing attribution, conversion lag, sample size, and margin; any live change requires approval.";
-      recommendedCommand = row.campaign_id
-        ? `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} campaign update --id ${row.campaign_id} --daily-budget <CURRENT_PLUS_20_PCT>`
-        : `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} ad update --id ${id} --status ACTIVE`;
-    } else if (meetsBreakeven) {
-      classification = "PROFITABLE_OPTIMIZE";
-      diagnosis = `Above break-even ROAS (${roas}x >= ${breakevenRoas}x; CPR=${cpr ?? "n/a"}, CTR=${(ctr * 100).toFixed(2)}%, CPC=${cpc ?? "n/a"}) but below target ROAS (${targetRoas}x).`;
-      nextAction = "Keep active; test higher-AOV bundle offer on landing page or fresh 3-second visual hook to lift ROAS toward target.";
-    } else if (isEarlyLearning) {
-      classification = "MONITOR_EARLY";
-    } else if (isCreativeFatigue) {
-      classification = "CREATIVE_FATIGUE";
-      diagnosis = `Possible creative fatigue under the local frequency heuristic: Frequency=${frequency} (>= 2.5), ROAS=${roas}x below target (${targetRoas}x), CTR=${(ctr * 100).toFixed(2)}%. Confirm trends and alternative causes.`;
-      nextAction = "Compare matched periods, reach, audience overlap, and conversion lag; propose a fresh creative experiment if supported by the evidence.";
-      if (stopLoss) {
-        recommendedCommand = `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} ad update --id ${id} --status PAUSED`;
-      }
-    } else if (hookRate !== null && hookRate < 0.25) {
-      classification = "FIX_HOOK_FIRST_3S";
-      diagnosis = `ROAS below break-even (${roas}x < ${breakevenRoas}x) and Hook Rate below the local 25% guideline (${(hookRate * 100).toFixed(1)}%; CTR=${(ctr * 100).toFixed(2)}%, CPC=${cpc ?? "n/a"}). Investigate the opening; causality is unverified.`;
-      nextAction = "Pause or keep body script and replace the first 3-second visual pattern interrupt and headline overlay.";
-      if (stopLoss) {
-        recommendedCommand = `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} ad update --id ${id} --status PAUSED`;
-      }
-    } else if (holdRate !== null && holdRate < 0.20) {
-      classification = "FIX_HOLD_BODY_PACING";
-      diagnosis = `ROAS below break-even (${roas}x < ${breakevenRoas}x): Hook stopped scroll (${hookRate !== null ? (hookRate * 100).toFixed(1) + "%" : "n/a"}), but Hold Rate dropped (${(holdRate * 100).toFixed(1)}% < 20%; CPC=${cpc ?? "n/a"}).`;
-      nextAction = "Tighten middle pacing (cut every 1.5-2.5s), demonstrate product mechanism by second 4, and add clear captions.";
-      if (stopLoss) {
-        recommendedCommand = `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} ad update --id ${id} --status PAUSED`;
-      }
-    } else if (ctr < 0.01) {
-      classification = "FIX_OFFER_OR_CTA";
-      diagnosis = `ROAS below break-even (${roas}x < ${breakevenRoas}x) with Outbound CTR below the local 1.0% guideline (${(ctr * 100).toFixed(2)}%; CPC=${cpc ?? "n/a"}). Compare offer and destination hypotheses; buyer intent is unverified.`;
-      nextAction = "Strengthen offer value stack (bundle anchor, risk-reversal guarantee in headline/description) and align native call_to_action button without stuffing spammy text CTAs.";
-      if (stopLoss) {
-        recommendedCommand = `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} ad update --id ${id} --status PAUSED`;
-      }
-    } else {
-      classification = "FIX_LANDING_CVR_OR_SIGNAL";
-      diagnosis = `Healthy CTR (${(ctr * 100).toFixed(2)}%) and CPC (${cpc ?? "n/a"}) but low conversion rate (${(cvr * 100).toFixed(2)}%) dragged final ROAS below break-even (${roas}x < ${breakevenRoas}x).`;
-      nextAction = "Audit message congruence, landing/checkout behavior, conversion lag, and signal reconciliation. Evaluate incremental attribution only if eligible and compatible with the chosen attribution mode; do not enable it automatically.";
-      if (stopLoss) {
-        recommendedCommand = `dotads-meta run --brand "${resolvedBrand}" -- --output json --no-input ads --ad-account-id ${brand.ad_account_id} ad update --id ${id} --status PAUSED`;
-      }
+    const spend = metric("spend"), impressions = metric("impressions"), frequency = metric("frequency");
+    const metaPurchases = has("purchases") ? metric("purchases") : extractActionMetric(row.actions, purchaseTypes, issues, "purchases");
+    const metaRevenue = has("revenue") ? metric("revenue") : has("purchase_value") ? metric("purchase_value") : extractActionMetric(row.action_values, purchaseTypes, issues, "revenue");
+    const real = has("real_purchases") || has("real_revenue");
+    const backend = has("backend_purchases") || has("backend_revenue");
+    let source = real && backend ? "mixed_backend" : real ? "backend_real" : backend ? "backend" : "meta";
+    let rawPurchases = real ? metric("real_purchases") : backend ? metric("backend_purchases") : metaPurchases;
+    let rawRevenue = real ? metric("real_revenue") : backend ? metric("backend_revenue") : metaRevenue;
+    const contextIssues = [...economicsIssues];
+    let compatible = true;
+    if (real && backend) { contextIssues.push("Mixed real_* and backend_* sources are unqualified."); compatible = false; }
+    if ((real || backend) && (rawPurchases === null || rawRevenue === null)) {
+      contextIssues.push("A backend purchase/revenue pair is incomplete; missing values are not filled from Meta."); compatible = false;
     }
-
+    let basis = has("purchase_basis") ? row.purchase_basis : purchaseBasis;
+    if ((has("purchase_basis") || basis != null) && !["placed", "delivered"].includes(basis)) { contextIssues.push("Invalid purchase_basis."); compatible = false; basis = null; }
+    if (purchaseBasis && has("purchase_basis") && row.purchase_basis !== purchaseBasis) { contextIssues.push("Row and CLI purchase bases conflict."); compatible = false; }
+    // A rate supplied for raw Meta orders declares placed input; backend counts need their own explicit basis.
+    if (!basis && deliveryRate !== null && !real && !backend) basis = "placed";
+    if (!basis) contextIssues.push("Purchase basis is unknown; financial comparison is unavailable.");
+    if (deliveryRate !== null && basis !== "placed") { contextIssues.push("--delivery-rate requires placed input; do not apply it to delivered or unknown backend orders."); compatible = false; }
+    if (typeof row.account_id !== "string" || !/^(act_)?[0-9]+$/.test(row.account_id)) { contextIssues.push("Insight account scope is missing or invalid; financial comparison requires an explicit account_id."); compatible = false; }
+    else if (row.account_id.replace(/^act_/, "") !== String(brand.ad_account_id).replace(/^act_/, "")) { contextIssues.push("Insight account differs from the selected brand."); compatible = false; }
+    const currency = brand.currency;
+    if (typeof currency !== "string" || !/^[A-Z]{3}$/.test(currency)) { contextIssues.push("Brand currency is unknown or invalid."); compatible = false; }
+    for (const field of ["currency", "account_currency"]) {
+      if (has(field) && row[field] !== currency) { contextIssues.push(`Insight ${field} differs from the selected brand.`); compatible = false; }
+    }
+    if (!has("currency") && !has("account_currency")) { contextIssues.push("Insight currency scope is missing; financial comparison requires account_currency or currency."); compatible = false; }
+    if (!row.date_start || !row.date_stop) contextIssues.push("Reporting window is unknown; freshness and cohort comparability are unverified.");
+    if (rawInsights?.paging?.next) { contextIssues.push("Input pagination is incomplete."); compatible = false; }
+    for (const [field, value] of [["spend", spend], ["purchases", rawPurchases], ["revenue", rawRevenue]]) {
+      if (value === null) issues.push(`unavailable ${field}`);
+    }
+    if (rawPurchases === 0 && rawRevenue !== null && rawRevenue > 0) { contextIssues.push("Positive revenue with zero purchases needs reconciliation."); compatible = false; }
+    const applyRate = deliveryRate !== null && basis === "placed" && compatible;
+    const purchases = applyRate && rawPurchases !== null ? round(rawPurchases * deliveryRate) : rawPurchases;
+    const revenue = applyRate && rawRevenue !== null ? round(rawRevenue * deliveryRate) : rawRevenue;
+    const outboundClicks = has("outbound_clicks") && Array.isArray(row.outbound_clicks)
+      ? extractActionMetric(row.outbound_clicks, ["outbound_click"], issues, "outbound_clicks") : metric("outbound_clicks");
+    const video3s = has("video_3s_views") ? metric("video_3s_views") : extractActionMetric(row.video_3_sec_watched_actions, ["video_view"], issues, "video_3s_views");
+    const thruplays = has("thruplays") ? metric("thruplays") : extractActionMetric(row.video_thruplay_watched_actions, ["video_view"], issues, "thruplays");
+    const roas = ratio(revenue, spend), cpr = ratio(spend, purchases);
+    const cpm = impressions !== null && impressions > 0 && spend !== null ? round(spend / impressions * 1000) : null;
+    const ctr = ratio(outboundClicks, impressions, 4), cpc = ratio(spend, outboundClicks);
+    const hookRate = has("hook_rate") ? metric("hook_rate", 1) : ratio(video3s, impressions, 4);
+    const holdRate = has("hold_rate") ? metric("hold_rate", 1) : ratio(thruplays, video3s, 4);
+    const cvr = ratio(purchases, outboundClicks, 4);
+    const costs = [ue?.cogs, ue?.shipping_fee, ue?.rts_penalty, ue?.cod_rts_rate].map(analysisNumber);
+    const costsKnown = ue?.qualification === "CONFIGURED_COST_ASSUMPTIONS" && costs.every((value) => value !== null) && costs[3] < 1;
+    const d = deliveryRate ?? (costsKnown ? 1 - costs[3] : null);
+    const comparisonQualified = compatible && basis === "placed" && costsKnown && spend !== null && rawPurchases !== null && rawRevenue !== null;
+    if (!costsKnown) contextIssues.push("Required cost assumptions are unknown; contribution and financial comparison are unavailable.");
+    if (basis === "delivered") contextIssues.push("Delivered inputs do not establish placed/failed order counts or total RTS costs; full contribution is unavailable.");
+    const comparisonCpr = comparisonQualified && rawPurchases > 0 ? analysisNumber(spend / rawPurchases) : null;
+    const comparisonRoas = comparisonQualified && spend > 0 ? analysisNumber(rawRevenue / spend) : null;
+    const aov = rawPurchases > 0 && rawRevenue !== null ? rawRevenue / rawPurchases : analysisNumber(ue?.aov);
+    const contributionPerPlaced = comparisonQualified && aov !== null ? (aov - costs[0] - costs[1]) * d - costs[2] * (1 - d) : null;
+    const maxCpr = contributionPerPlaced !== null && contributionPerPlaced > 0 ? contributionPerPlaced : null;
+    const margin = analysisNumber(ue?.target_margin);
+    const targetCpr = maxCpr !== null && margin !== null && margin < 1 && maxCpr - aov * d * margin > 0 ? maxCpr - aov * d * margin : null;
+    const rowBenchmarks = { basis: "placed", max_cpr: maxCpr, target_cpr: targetCpr, breakeven_roas: ratio(aov, maxCpr), target_roas: ratio(aov, targetCpr),
+      expected_delivered_breakeven_roas: ratio(aov === null || d === null ? null : aov * d, maxCpr),
+      expected_delivered_target_roas: ratio(aov === null || d === null ? null : aov * d, targetCpr), target_margin_revenue_basis: "expected_delivered_revenue" };
+    const rawContribution = comparisonQualified ? rawRevenue * d - rawPurchases * ((costs[0] + costs[1]) * d + costs[2] * (1 - d)) - spend : null;
+    const contribution = round(rawContribution);
+    const meetsTarget = comparisonCpr !== null && targetCpr !== null && rawPurchases > 0 && spend > 0 && comparisonCpr <= targetCpr;
+    const meetsBreakeven = comparisonCpr !== null && maxCpr !== null && rawPurchases > 0 && spend > 0 && comparisonCpr <= maxCpr;
+    const early = comparisonQualified && rawPurchases === 0 && maxCpr !== null && spend > 0 && spend < maxCpr;
+    const stopLoss = comparisonQualified && !meetsBreakeven && !early && ((maxCpr !== null && spend >= 1.5 * maxCpr && rawPurchases === 0) || (rawContribution !== null && rawContribution < -spend / 2));
+    let classification = "INSUFFICIENT_DATA";
+    let diagnosis = "Insufficient qualified financial data. Available metrics remain observations; missing values are not zero.";
+    let nextAction = "Resolve unavailable fields, order/cost bases, conversion lag and evidence sufficiency before a performance conclusion.";
+    if (comparisonQualified) {
+      classification = "MONITOR_EARLY";
+      diagnosis = "Local observation only; platform learning, incrementality, sample sufficiency and future performance are unverified.";
+      if (meetsTarget) { classification = "ABOVE_TARGET_CANDIDATE"; diagnosis = "Observed placed-order economics meet the configured target assumptions; this is not a proven winner or permission to scale."; }
+      else if (meetsBreakeven) { classification = "ABOVE_BREAKEVEN_CANDIDATE"; diagnosis = "Observed placed-order economics exceed break-even under the declared cost coverage; other operating costs and persistence remain unverified."; }
+      else if (!early && spend > 0) {
+        if (frequency !== null && frequency >= 2.5) classification = "CREATIVE_FATIGUE_CANDIDATE";
+        else if (hookRate !== null && hookRate < .25) classification = "FIX_HOOK_FIRST_3S_CANDIDATE";
+        else if (holdRate !== null && holdRate < .20) classification = "FIX_HOLD_BODY_PACING_CANDIDATE";
+        else if (ctr !== null && ctr < .01) classification = "FIX_OFFER_OR_CTA_CANDIDATE";
+        else if (ctr !== null) classification = "FIX_LANDING_CVR_OR_SIGNAL_CANDIDATE";
+        diagnosis = "Below local economic assumptions. The diagnostic candidate is a hypothesis; compare alternative causes, conversion lag and matched periods.";
+      }
+      nextAction = "Review the observation, cost coverage, conversion lag and evidence sufficiency; design a measured test if warranted. No automatic spend change or winner/loser promotion.";
+    }
     return {
-      id,
-      name,
-      spend,
-      impressions,
-      frequency,
-      purchases,
-      revenue,
-      meta_purchases: metaPurchases,
-      meta_revenue: metaRevenue,
-      meta_roas: metaRoas,
-      reconciled: hasBackendOverride || deliveryRate !== null,
-      roas,
-      cpr,
-      cpm,
-      ctr,
-      cpc,
-      hook_rate: hookRate,
-      hold_rate: holdRate,
-      cvr,
-      estimated_net_profit: estimatedNetProfit,
-      stop_loss: stopLoss,
-      classification,
-      diagnosis,
-      next_action: nextAction,
-      recommended_command: recommendedCommand,
+      id, name, spend, impressions, frequency, purchases, revenue, meta_purchases: metaPurchases, meta_revenue: metaRevenue,
+      meta_roas: ratio(metaRevenue, spend), reconciled: false, reconciliation_status: applyRate ? "DELIVERY_RATE_ESTIMATE" : real || backend ? "BACKEND_SUPPLIED_UNVERIFIED" : "NONE",
+      roas, cpr, cpm, ctr, cpc, hook_rate: hookRate, hold_rate: holdRate, cvr,
+      revenue_after_ad_spend: revenue !== null && spend !== null ? round(revenue - spend) : null,
+      estimated_contribution_after_ads: contribution, estimated_net_profit: null,
+      economic_basis: comparisonQualified ? "expected_per_placed_order" : "unavailable",
+      cost_coverage: "COGS, shipping subsidy, RTS penalty and ad spend only; excludes other operating costs",
+      purchase_basis: basis || "unknown", output_purchase_basis: applyRate ? "estimated_delivered" : basis || "unknown",
+      effective_delivery_rate: d, metric_source: source, comparison_qualified: comparisonQualified,
+      comparison_cpr: comparisonCpr, comparison_roas: comparisonRoas, comparison_benchmarks: rowBenchmarks,
+      data_quality: { status: issues.some((issue) => issue.startsWith("invalid")) ? "INVALID" : issues.length ? "INSUFFICIENT" : "VALID", issues },
+      context_issues: contextIssues, provenance_status: "UNVERIFIED", evidence_status: "OBSERVATIONAL_CANDIDATE", stop_loss: stopLoss,
+      classification, diagnosis, next_action: nextAction, recommended_command: null,
+      observation_id: analysisHash({ account: brand.ad_account_id,
+        row: Object.fromEntries(Object.entries(row).filter(([key]) => !["purchase_basis", "ad_name", "adset_name", "campaign_name", "name"].includes(key))),
+        purchase_basis: basis || "unknown", deliveryRate }),
+      scope: { ad_account_id: brand.ad_account_id, entity_id: id, date_start: row.date_start ?? null, date_stop: row.date_stop ?? null, metric_source: source, purchase_basis: basis || "unknown", snapshot_id: snapshotId },
     };
   });
 
-  let recordedCount = 0;
+  let recordedCount = 0, updatedCount = 0;
   if (recordMemory) {
     for (const item of evaluated) {
-      if (item.classification === "SCALE_WINNER") {
-        memory.entries.push({
-          id: `mem_${crypto.randomUUID().slice(0, 8)}`,
-          created_at: new Date().toISOString(),
-          source: "data",
-          category: "angle",
-          verdict: "winner",
-          title: `Winning Ad: ${item.name} (ROAS ${item.roas}x, CPR ${item.cpr})`,
-          summary: item.diagnosis,
-          action: item.next_action,
-          metrics: {
-            roas: item.roas,
-            cpr: item.cpr,
-            spend: item.spend,
-            purchases: item.purchases,
-            hook_rate: item.hook_rate,
-            hold_rate: item.hold_rate,
-            ctr: item.ctr,
-            cpc: item.cpc,
-            cvr: item.cvr,
-            net_profit: item.estimated_net_profit,
-          },
-        });
-        recordedCount++;
-      } else if (
-        item.spend > 0 &&
-        (item.classification.startsWith("FIX_") || item.classification === "CREATIVE_FATIGUE")
-      ) {
-        memory.entries.push({
-          id: `mem_${crypto.randomUUID().slice(0, 8)}`,
-          created_at: new Date().toISOString(),
-          source: "data",
-          category:
-            item.classification === "FIX_HOOK_FIRST_3S"
-              ? "hook"
-              : item.classification === "FIX_HOLD_BODY_PACING"
-                ? "format"
-                : item.classification === "FIX_OFFER_OR_CTA"
-                  ? "offer"
-                  : item.classification === "CREATIVE_FATIGUE"
-                    ? "angle"
-                    : "landing-page",
-          verdict: "loser",
-          title: `Underperforming Ad: ${item.name} [${item.classification}]`,
-          summary: item.diagnosis,
-          action: item.next_action,
-          metrics: {
-            roas: item.roas,
-            cpr: item.cpr,
-            spend: item.spend,
-            hook_rate: item.hook_rate,
-            hold_rate: item.hold_rate,
-            ctr: item.ctr,
-            cpc: item.cpc,
-            cvr: item.cvr,
-          },
-        });
-        recordedCount++;
-      }
+      if ([item.spend, item.impressions, item.purchases, item.revenue].every((value) => value === null)) continue;
+      const entry = {
+        id: `obs_${item.observation_id.slice(0, 16)}`, observation_id: item.observation_id,
+        analysis_version: 2, source: "data", category: "angle", verdict: "insight",
+        title: `Observed Ad: ${item.name} [${item.classification}]`, summary: item.diagnosis, action: item.next_action,
+        scope: item.scope, metrics: { spend: item.spend, purchases: item.purchases, revenue: item.revenue, roas: item.roas, cpr: item.cpr, ctr: item.ctr, cpc: item.cpc, estimated_contribution_after_ads: item.estimated_contribution_after_ads },
+        classification: item.classification, data_quality: item.data_quality, context_issues: item.context_issues,
+        comparison_benchmarks: item.comparison_benchmarks, replication_status: "NOT_ESTABLISHED",
+      };
+      const existing = memory.entries.find((e) => e.observation_id === item.observation_id);
+      if (existing) {
+        const comparable = { ...existing }; delete comparable.created_at; delete comparable.updated_at;
+        if (analysisHash(comparable) !== analysisHash(entry)) { Object.assign(existing, entry, { updated_at: new Date().toISOString() }); updatedCount++; }
+      } else { memory.entries.push({ ...entry, created_at: new Date().toISOString() }); recordedCount++; }
     }
-    if (recordedCount > 0) {
-      saveAdsMemory(workspaceDir, memory);
-    }
+    if (recordedCount || updatedCount) saveAdsMemory(workspaceDir, memory);
   }
-
   if (jsonOut) {
-    console.log(
-      JSON.stringify(
-        {
-          ok: true,
-          brand: memory.brand,
-          benchmarks: { breakeven_roas: breakevenRoas, target_roas: targetRoas, max_cpr: maxCpr, target_cpr: targetCpr },
-          diagnosticBasis: "local heuristics; causality and platform learning state unverified",
-          recommendationsRequireApproval: true,
-          recordedToMemory: recordedCount,
-          results: evaluated,
-        },
-        null,
-        2
-      )
-    );
+    console.log(JSON.stringify({ ok: true, analysis_version: 2, brand: memory.brand, benchmarks,
+      diagnosticBasis: "local observational heuristics; causality, evidence sufficiency and platform learning state unverified",
+      recommendationsRequireApproval: true,
+      deprecated_fields: { estimated_net_profit: "Always null; use estimated_contribution_after_ads with its explicit basis and cost coverage.", reconciled: "Always false; supplied backend values or a delivery estimate do not prove reconciliation." },
+      recordedToMemory: recordedCount, updatedInMemory: updatedCount, results: evaluated }, null, 2));
     return;
   }
-
-  console.log(`=== META ADS CONVERSION & PROFIT ANALYSIS (${memory.brand}) ===`);
-  console.log("Diagnostics use local heuristics; causal explanations and platform learning state are unverified. CLI plans require approval before execution.");
-  console.log(`Benchmarks: Break-Even ROAS=${breakevenRoas}x (Max CPR=${maxCpr ?? "n/a"}) | Target ROAS=${targetRoas}x (Target CPR=${targetCpr ?? "n/a"})`);
+  console.log(`=== META ADS OBSERVATIONS (${memory.brand}) ===`);
+  console.log("Local hypotheses only; no mutation commands or automatic winner/loser promotion. Unknown costs and unsupported order bases remain unavailable.");
   for (const r of evaluated) {
-    console.log(`  • [${r.classification}] ${r.name} (ROAS=${r.roas}x${r.reconciled ? ` [Meta ${r.meta_roas}x]` : ""}, CPR=${r.cpr ?? "n/a"}, CTR=${(r.ctr * 100).toFixed(2)}%, CPC=${r.cpc ?? "n/a"}, Profit=${r.estimated_net_profit})`);
-    console.log(`    Diagnosis : ${r.diagnosis}`);
-    console.log(`    Next Step : ${r.next_action}`);
-    if (r.recommended_command) {
-      console.log(`    Plan CLI  : $ ${r.recommended_command}`);
+    console.log(`  [${r.classification}] ${r.name}: ROAS=${r.roas ?? "n/a"}, CPR=${r.cpr ?? "n/a"}, contribution after ads=${r.estimated_contribution_after_ads ?? "unknown"}`);
+    console.log(`    ${r.diagnosis}`);
+    for (const issue of [...r.data_quality.issues, ...r.context_issues]) console.log(`    Review: ${issue}`);
+  }
+  if (recordMemory) console.log(`Recorded ${recordedCount} new observation(s); updated ${updatedCount}. Reanalysis is not replication.`);
+}
+
+function cmdBaseline(argv) {
+  const options = {};
+  for (let i = 0; i < argv.length; i++) {
+    const flag = argv[i];
+    if (flag === "--help" || flag === "-h") {
+      console.log("Usage: dotads-meta baseline --market ID [--province <name|BPS code>] [--city <name>] [--json]");
+      return;
+    }
+    if (!["--market", "--province", "--city", "--json"].includes(flag) || flag in options) {
+      throw new Error(`Unknown or repeated baseline option: ${flag}`);
+    }
+    if (flag === "--json") options[flag] = true;
+    else {
+      const value = argv[++i]?.trim();
+      if (!value || value.startsWith("--")) throw new Error(`${flag} requires a value.`);
+      options[flag] = value;
     }
   }
-  if (recordMemory) {
-    console.log(`✓ Recorded ${recordedCount} data-driven lesson(s) into ${path.join(workspaceDir, "memory", "ads-memory.json")}`);
+  if (options["--market"]?.toUpperCase() !== "ID") {
+    throw new Error("Public baseline requires explicit --market ID. No Indonesia data is applied to other or unspecified markets.");
   }
+  // Resolve the installed command's symlink; do not depend on the caller's cwd or brand workspace.
+  const repoRoot = path.dirname(path.dirname(fs.realpathSync(process.argv[1])));
+  const data = readJsonFile(path.join(repoRoot, "skills/local/meta-ads-cli/references/indonesia-baseline.json"), "Indonesia baseline");
+  const provinces = data?.province_participation?.rows;
+  const cities = data?.city_participation?.rows;
+  const transactions = data?.regional_transactions;
+  const pct = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100;
+  const normalize = (value) => value.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase("id-ID");
+  const sourceExists = (key) => typeof key === "string" && typeof data.sources?.[key]?.url === "string";
+  if (data?.schema_version !== 1 || data.market !== "ID" || data.documentation_language !== "en" || data.market_language !== "id-ID"
+      || !Array.isArray(provinces) || provinces.length !== 38 || !Array.isArray(cities) || !Array.isArray(transactions)
+      || !Array.isArray(data.limitations) || !/^\d{4}-\d{2}-\d{2}$/.test(data.reviewed_at)
+      || !sourceExists(data.province_participation.source_id) || !sourceExists(data.city_participation.source_id)
+      || ![data.province_participation.national_pct, data.province_participation.urban_pct, data.province_participation.rural_pct, data.city_participation.national_pct].every(pct)) {
+    throw new Error("Invalid Indonesia baseline schema, source metadata, or national comparators.");
+  }
+  const codes = new Set(), names = new Set();
+  for (const row of provinces) {
+    if (!row || typeof row.bps_code !== "string" || !/^\d{2}$/.test(row.bps_code) || typeof row.name !== "string" || !row.name.trim()
+        || codes.has(row.bps_code) || names.has(normalize(row.name)) || !pct(row.purchasing_pct)) {
+      throw new Error("Invalid or duplicate Indonesia province record.");
+    }
+    codes.add(row.bps_code); names.add(normalize(row.name));
+  }
+  const cityNames = new Set();
+  for (const row of cities) {
+    if (!row || typeof row.name !== "string" || !row.name.trim() || cityNames.has(normalize(row.name))
+        || !codes.has(row.province_bps_code) || !pct(row.purchasing_pct)) throw new Error("Invalid Indonesia city record or parent.");
+    cityNames.add(normalize(row.name));
+  }
+  for (const row of transactions) {
+    if (!row || !sourceExists(row.source_id) || !codes.has(row.province_bps_code) || !/^\d{4}-Q[1-4]$/.test(row.period)
+        || typeof row.value_idr !== "number" || !Number.isFinite(row.value_idr) || row.value_idr < 0
+        || typeof row.transactions !== "number" || !Number.isFinite(row.transactions) || row.transactions <= 0) {
+      throw new Error("Invalid Indonesia regional transaction record.");
+    }
+  }
+  let province = null;
+  if (options["--province"]) {
+    const query = normalize(options["--province"]);
+    province = provinces.find((row) => row.bps_code === query || normalize(row.name) === query);
+    if (!province) throw new Error("Unknown province; use a BPS code or the dataset's province name.");
+  }
+  const cityQuery = options["--city"];
+  const city = cityQuery ? cities.find((row) => normalize(row.name) === normalize(cityQuery)) : null;
+  if (city && province && city.province_bps_code !== province.bps_code) throw new Error("City does not match the selected province.");
+  if (city && !province) province = provinces.find((row) => row.bps_code === city.province_bps_code);
+  if (cityQuery && !city && !province) throw new Error("No direct city observation; supply an explicit valid --province for inherited context.");
+  const selectedTransactions = transactions.filter((row) => !province || row.province_bps_code === province.bps_code);
+  const sourceIds = new Set([data.province_participation.source_id, data.city_participation.source_id, ...selectedTransactions.map((row) => row.source_id)]);
+  const result = {
+    ...data,
+    sources: Object.fromEntries([...sourceIds].map((key) => [key, data.sources[key]])),
+    selection: {
+      province: province ? { bps_code: province.bps_code, name: province.name } : null,
+      requested_city: cityQuery || null,
+      city_evidence: !cityQuery ? "not_selected" : city ? "direct_observation" : "province_context_only",
+      city_purchasing_pct: city?.purchasing_pct ?? null,
+      note: cityQuery && !city ? "No direct city metric. Province context is inherited; the requested city label and administrative parent are not verified." : "BPS codes are not Meta location keys. City coverage is selected and incomplete.",
+    },
+    province_participation: { ...data.province_participation, rows: province ? [province] : provinces },
+    city_participation: { ...data.city_participation, rows: cityQuery ? (city ? [city] : []) : cities.filter((row) => !province || row.province_bps_code === province.bps_code) },
+    regional_transactions: selectedTransactions,
+  };
+  if (options["--json"]) { console.log(JSON.stringify(result, null, 2)); return; }
+  console.log(`Indonesia public baseline | reviewed ${data.reviewed_at} | documentation en | customer market id-ID`);
+  console.log(`Province participation (${data.province_participation.reference_period}): ${data.province_participation.population}`);
+  console.log(`National ${data.province_participation.national_pct}% | urban ${data.province_participation.urban_pct}% | rural ${data.province_participation.rural_pct}%`);
+  for (const row of result.province_participation.rows) console.log(`  ${row.bps_code} ${row.name}: ${row.purchasing_pct.toFixed(2)}%`);
+  console.log(`Selected city participation (${data.city_participation.reference_period}): ${data.city_participation.population}`);
+  console.log(`National ${data.city_participation.national_pct}% | incomplete city coverage; different denominator from provinces`);
+  for (const row of result.city_participation.rows) console.log(`  ${row.name}: ${row.purchasing_pct.toFixed(2)}%`);
+  if (cityQuery && !city) console.log(`  ${cityQuery}: unavailable city metric; inherited ${province.name} context only. Administrative parent unverified.`);
+  for (const row of selectedTransactions) console.log(`Regional transactions (${row.period}, BPS province ${row.province_bps_code}): IDR ${row.value_idr}, ${row.transactions} transactions; rounded aggregates, not unique buyers or brand AOV.`);
+  for (const [key, source] of Object.entries(result.sources)) console.log(`Source ${key}: published ${source.published_at}, measured ${source.measurement_period} | ${source.url}`);
+  console.log("Shared Susenas lineage is not independent replication. No campaign CPA, age optimum, buyer-pool size, or budget ranking follows from this baseline.");
 }
 
 function main() {
@@ -2957,6 +2981,9 @@ function main() {
 
   try {
     switch (sub) {
+      case "baseline":
+        cmdBaseline(rest);
+        break;
       case "setup":
         cmdSetup(rest);
         break;

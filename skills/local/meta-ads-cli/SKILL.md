@@ -33,6 +33,13 @@ Operate Meta (Facebook & Instagram) Ads from the terminal using Meta's official 
 
 ## Choose the relevant task and evidence
 
+- **General Indonesia market baseline:** for an explicitly selected `ID` market,
+  run `dotads-meta baseline --market ID` and load
+  [Indonesia market guidance](references/indonesia-market.md) as needed. Optional
+  province/city filters retain source populations and coverage limits. This
+  public-data workflow needs no brand, product, credentials, or account setup.
+  Do not apply Indonesian data or customer language to Malaysia, global, or
+  unspecified markets. In a mixed-market plan, isolate the explicit ID segment.
 - **Repair or validate:** inspect the existing manifest/code and run the smallest
   relevant offline check. Do not require account access, brand-memory setup, or
   campaign redesign for a local repair.
@@ -99,7 +106,9 @@ For headless CLI automation across devices, use a **Business Manager System User
 ## 2. Per-Project Workflow (`dotads-meta`)
 
 - For operational guardrails, documented delivery components, granular `degrees_of_freedom_spec` JSON templates, Business Manager SOP, and copy-paste campaign JSON recipes, open [references/rules-and-tutorial.md](references/rules-and-tutorial.md).
-- For **ROAS maximization, lowest CPR/CPA math, COD RTS unit-economics modeling, 8-bucket creative bottleneck diagnostics, and multi-source learning (`learn` & `analyze`)**, open [references/roas-cpr-profit-intelligence.md](references/roas-cpr-profit-intelligence.md).
+- For **ROAS/CPR interpretation, COD contribution estimates, data-quality checks,
+  and scoped observational learning (`learn` & `analyze`)**, open
+  [references/roas-cpr-profit-intelligence.md](references/roas-cpr-profit-intelligence.md).
 
 ### Step 0: Device Bootstrap (Once per Laptop)
 ```bash
@@ -115,7 +124,9 @@ dotads-meta init ~/Documents/work/ads/brand-alpha
 This creates:
 - `brand.json`: holds `ad_account_id` (`act_<digits>`), `business_id`, `page_id`, `instagram_user_id`, `pixel_id`, `conversion_domain`, `currency`, and `token_env` (default `"META_ACCESS_TOKEN"`).
 - `campaigns/sample-campaign.json`: declarative L3->L1 campaign manifest (`campaign`, `creatives`, `adsets`, `ads`).
-- `memory/ads-memory.json` & `memory/MEMORY.md`: per-brand conversion unit economics, proven winners, burned losers, and competitor/outsource intelligence.
+- `memory/ads-memory.json` & `memory/MEMORY.md`: per-brand economics assumptions,
+  scoped observations, manually supplied verdicts, and competitor references.
+  Stored labels do not independently prove profitability or causality.
 - `media/`: directory for local `.jpg`, `.png`, `.webp`, `.mp4`, `.mov` assets.
 - `.gitignore`: excludes `.meta-state.json`, `.dotads-meta.lock/`, and `.env*`.
 
@@ -125,7 +136,7 @@ This creates:
 dotads-meta learn unit-economics --brand ~/Documents/work/ads/brand-alpha/brand.json \
   --aov 250000 --cogs 75000 --shipping-fee 15000 --cod-rts-rate 0.12 --rts-penalty 20000 --target-margin 0.20
 
-# Review existing winners, losers, and competitor/outsource insights before writing a campaign
+# Review the evidence, scope, and age of existing observations before planning
 dotads-meta learn list --brand ~/Documents/work/ads/brand-alpha/brand.json
 ```
 
@@ -155,11 +166,11 @@ Executes `campaign create` -> `creative create` -> `adset create` -> `ad create`
 
 ### Step 5: Analyze Conversion Performance & Harvest Multi-Source Memory
 ```bash
-# Pull live ad insights (or pass ./insights.json), reconcile COD delivery rate, classify 8 ROAS buckets & record to memory/
+# Read-only account pull; explicitly estimate delivered outcomes from placed orders
 dotads-meta analyze --pull --date-preset last_7d --delivery-rate 0.88 --brand ./brand.json --record-memory
 
-# Or analyze a saved insights JSON file against brand unit economics
-dotads-meta analyze ./insights-last-7d.json --brand ./brand.json --record-memory
+# Offline alternative: declare the order basis only when the source establishes it
+dotads-meta analyze ./insights-last-7d.json --purchase-basis placed --brand ./brand.json --record-memory
 
 # Record insights from competitor research (meta-ads-scout), outsource media buyers, or funnel audits
 dotads-meta learn add --brand ./brand.json \
@@ -168,6 +179,11 @@ dotads-meta learn add --brand ./brand.json \
   --summary "Split-screen durability demonstration ran 45+ days in ID/MY." \
   --action "Test physical durability demonstration in first 3 seconds."
 ```
+
+Analysis produces observations and review hypotheses, not proven winners,
+causal diagnoses, or executable scale/pause recommendations. Unknown metrics,
+cost coverage, order basis, and partial backend reconciliation stay visible.
+Repeated recording of the same observation is not independent replication.
 
 ---
 

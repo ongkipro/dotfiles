@@ -2,6 +2,21 @@
 
 Operational contracts and illustrative campaign recipes. For dated platform facts, current API scope, installed CLI/SDK limits, and primary URLs, read [API and evidence](api-and-evidence.md). Do not load every reference for a bounded repair.
 
+## Public market research versus account operations
+
+For an explicitly Indonesian market or segment, start with
+`dotads-meta baseline --market ID` and the on-demand
+[Indonesia market reference](indonesia-market.md). This general cross-category
+baseline does not require a product, brand history, token, installation, or live
+account call. Province participation, selected city observations, and regional
+transactions remain separate metrics; none is a campaign budget score.
+
+Only account operations below require the relevant workspace and credentials.
+Documentation stays English; customer content follows the explicitly selected
+market. Do not infer ID from conversation language, IDR, or billing country.
+Age 21–65+, all genders, and a consolidated campaign structure are conditional
+test candidates, not a universal Meta requirement or verified performance optimum.
+
 ---
 
 ## Part 1: The 8 Golden Rules (Mandatory Guardrails)

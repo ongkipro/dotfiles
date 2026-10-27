@@ -77,9 +77,40 @@ in a library does not establish competitor budget, scaling, or profitability.
 Observe conversion lag, attribution, sample size, backend reconciliation, and
 the approved business constraints before proposing an experiment.
 
-## Evaluation contract and observed evidence
+## Indonesia baseline and performance analysis contract
 
-Capability scenarios defined before editing:
+The maintained [Indonesia reference](indonesia-market.md) and
+[source data](indonesia-baseline.json) keep source dates, measurement periods,
+denominators, lineage, and missing coverage explicit. The BPS publication released
+in 2026 measures Susenas 2025; its date is not 2026 campaign performance. NEXT is
+an original reanalysis sharing Susenas lineage, not independent replication of
+BPS. BI quarterly transaction aggregates are a third metric family.
+
+`dotads-meta baseline --market ID` reads this public snapshot offline. Filters
+retain observed versus inherited geographic context. No Meta location keys,
+account reach, product demand, optimal age, or geographic spend allocations are
+inferred. It does not refresh itself: revisit the linked source and its refresh
+trigger when a correction/new release appears or a decision needs newer data.
+Do not overwrite historical periods or relabel old measurements as current.
+
+The current analyzer distinguishes unknown/invalid metrics from measured zero,
+requires an explicit coherent order basis for financial interpretation, and
+keeps economic coverage and partial backend reconciliation visible. Saved costs
+are scoped to their account and currency; changed or unscoped context requires
+explicit reconfiguration rather than silent cost reuse. COD delivery
+adjustment is applied once. Contribution estimates are not realized net profit.
+Automated classifications and deduplicated memory entries remain observations;
+there are no generated scale/pause commands or automatic proven verdicts.
+See [performance interpretation](roas-cpr-profit-intelligence.md).
+
+TASK-152's executable checks and independent review own evidence for this change.
+Public-source and offline behavior checks do not prove a live account's targeting
+eligibility, current effective age controls, causal ad lift, or brand profit.
+
+## Historical evaluation: TASK-146
+
+Capability scenarios defined before that earlier change (classifier behavior
+below describes that historical snapshot, superseded by TASK-152):
 
 1. Conflicting attribution fails validate/dry-run before any remote creation;
    each compatible mode remains accepted, including supported JSON/file forms.

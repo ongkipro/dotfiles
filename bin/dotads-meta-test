@@ -382,7 +382,7 @@ case "$*" in
     printf '[\n  {\n    "id": "camp_1001"\n  }\n]\n'
     ;;
   *" insights "*)
-    printf '[{"ad_id":"ad_live_1","ad_name":"Ad_Live_Pulled","spend":"100","impressions":"12000","frequency":"1.4","outbound_clicks":"200","actions":[{"action_type":"purchase","value":"5"}],"action_values":[{"action_type":"purchase","value":"500"}]},{"ad_id":"ad_early_1","ad_name":"Ad_Early_Learning","spend":"20","impressions":"2000","frequency":"1.1","outbound_clicks":"25"},{"ad_id":"ad_fatigue_1","ad_name":"Ad_Fatigued_V1","spend":"100","impressions":"15000","frequency":"2.9","outbound_clicks":"150","actions":[{"action_type":"purchase","value":"1"}],"action_values":[{"action_type":"purchase","value":"100"}]}]\n'
+    printf '[{"account_id":"act_1234567890","account_currency":"USD","ad_id":"ad_live_1","ad_name":"Ad_Live_Pulled","spend":"100","impressions":"12000","frequency":"1.4","outbound_clicks":"200","actions":[{"action_type":"purchase","value":"5"}],"action_values":[{"action_type":"purchase","value":"500"}]},{"account_id":"act_1234567890","account_currency":"USD","ad_id":"ad_early_1","ad_name":"Ad_Early_Learning","spend":"20","impressions":"2000","frequency":"1.1","outbound_clicks":"25"},{"account_id":"act_1234567890","account_currency":"USD","ad_id":"ad_fatigue_1","ad_name":"Ad_Fatigued_V1","spend":"100","impressions":"15000","frequency":"2.9","outbound_clicks":"150","actions":[{"action_type":"purchase","value":"1"}],"action_values":[{"action_type":"purchase","value":"100"}]}]\n'
     ;;
   *)
     echo "Unexpected mock meta command: $*" >&2
@@ -500,7 +500,7 @@ fi
 # 6b. Multi-source Meta Ads Memory (learn unit-economics, learn add, learn list) & Conversion Analyzer (analyze --record-memory)
 ue_out="$("$CMD" learn unit-economics --brand "$WS/brand.json" --aov 100 --cogs 30 --shipping-fee 5 --cod-rts-rate 0.10 --rts-penalty 10 --target-margin 0.20 --json 2>&1)"
 if [ "$?" -eq 0 ] \
-  && printf '%s' "$ue_out" | jq -e '.ok == true and .unit_economics.max_cpr_breakeven == 57.5 and .unit_economics.target_cpr == 37.5 and .unit_economics.recommended_cost_cap == 31.88' >/dev/null \
+  && printf '%s' "$ue_out" | jq -e '.ok == true and .unit_economics.max_cpr_breakeven == 57.5 and .unit_economics.target_cpr == 39.5 and .unit_economics.recommended_cost_cap == 33.58' >/dev/null \
   && [ -f "$WS/memory/ads-memory.json" ] \
   && [ -f "$WS/memory/MEMORY.md" ]; then
   ok "learn unit-economics computes COD RTS contribution margin, max/target CPR, Break-Even/Target ROAS, and Cost Cap"
@@ -518,6 +518,8 @@ fi
 cat > "$WS/insights-sample.json" <<'EOF'
 [
   {
+    "account_id": "act_1234567890",
+    "account_currency": "USD",
     "ad_id": "ad_1",
     "ad_name": "Ad_UGC_Winner_V1",
     "spend": "100",
@@ -529,6 +531,8 @@ cat > "$WS/insights-sample.json" <<'EOF'
     "revenue": "400"
   },
   {
+    "account_id": "act_1234567890",
+    "account_currency": "USD",
     "ad_id": "ad_2",
     "ad_name": "Ad_WeakHook_V1",
     "spend": "80",
@@ -540,6 +544,8 @@ cat > "$WS/insights-sample.json" <<'EOF'
     "revenue": "0"
   },
   {
+    "account_id": "act_1234567890",
+    "account_currency": "USD",
     "ad_id": "ad_3",
     "ad_name": "Ad_FunnelDrop_V1",
     "spend": "90",
@@ -553,29 +559,186 @@ cat > "$WS/insights-sample.json" <<'EOF'
 ]
 EOF
 
-an_out="$("$CMD" analyze "$WS/insights-sample.json" --brand "$WS/brand.json" --record-memory --json 2>&1)"
+an_out="$("$CMD" analyze "$WS/insights-sample.json" --brand "$WS/brand.json" --purchase-basis placed --record-memory --json 2>&1)"
 if [ "$?" -eq 0 ] \
-  && printf '%s' "$an_out" | jq -e '.ok == true and .recordedToMemory == 3 and .recommendationsRequireApproval == true and (.diagnosticBasis | contains("heuristics")) and (.results | all((.diagnosis + .next_action) | test("Andromeda|Lattice|caused by|reset") | not)) and .results[0].classification == "SCALE_WINNER" and .results[0].cpc == 0.45 and .results[1].classification == "FIX_HOOK_FIRST_3S" and .results[2].classification == "FIX_LANDING_CVR_OR_SIGNAL" and .results[2].cpc == 0.5' >/dev/null; then
-  ok "analyze classifies SCALE_WINNER (ROAS North-Star + CTR/CPC diagnostics), FIX_HOOK_FIRST_3S, and FIX_LANDING_CVR_OR_SIGNAL and records lessons to memory"
+  && printf '%s' "$an_out" | jq -e '.ok == true and .recordedToMemory == 3 and .recommendationsRequireApproval == true and (.diagnosticBasis | contains("heuristics")) and (.results | all(.recommended_command == null)) and .results[0].classification == "ABOVE_TARGET_CANDIDATE" and .results[0].cpc == 0.45 and .results[1].classification == "FIX_HOOK_FIRST_3S_CANDIDATE" and .results[2].classification == "FIX_LANDING_CVR_OR_SIGNAL_CANDIDATE" and .results[2].cpc == 0.5' >/dev/null; then
+  ok "analyze retains useful observational diagnostics and records insights without mutation commands"
 else
   bad "analyze failed or misclassified rows: $an_out"
 fi
 
-list_out="$("$CMD" learn list --brand "$WS/brand.json" --verdict winner --json 2>&1)"
-if [ "$?" -eq 0 ] && printf '%s' "$list_out" | jq -e '.entries | length == 1 and .[0].source == "data"' >/dev/null; then
-  ok "learn list filters recorded winners from memory/ads-memory.json"
+list_out="$("$CMD" learn list --brand "$WS/brand.json" --verdict insight --json 2>&1)"
+if [ "$?" -eq 0 ] && printf '%s' "$list_out" | jq -e '.entries | length == 3 and all(.source == "data" and .replication_status == "NOT_ESTABLISHED")' >/dev/null; then
+  ok "learn list filters scoped observations without promoting winner/loser proof"
 else
   bad "learn list failed: $list_out"
 fi
 
-# 6c. Live insights --pull, COD --delivery-rate ROAS reconciliation, MONITOR_EARLY spend gate, CREATIVE_FATIGUE, and stop-loss CLI plan
+# 6c. Mocked insights pull and explicitly estimated COD delivery, without mutation plans.
 pull_out="$("$CMD" analyze --pull --delivery-rate 0.8 --brand "$WS/brand.json" --json 2>&1)"
 if [ "$?" -eq 0 ] \
-  && printf '%s' "$pull_out" | jq -e '.ok == true and .results[0].meta_roas == 5 and .results[0].roas == 4 and .results[0].classification == "SCALE_WINNER" and (.results[0].recommended_command | type == "string") and .results[1].classification == "MONITOR_EARLY" and .results[2].classification == "CREATIVE_FATIGUE"' >/dev/null; then
-  ok "analyze --pull fetches live insights, reconciles COD delivery-rate ROAS, protects MONITOR_EARLY ads, detects CREATIVE_FATIGUE, and emits Day-2 CLI plan"
+  && printf '%s' "$pull_out" | jq -e '.ok == true and .results[0].meta_roas == 5 and .results[0].roas == 4 and .results[0].classification == "ABOVE_TARGET_CANDIDATE" and (.results | all(.recommended_command == null)) and .results[1].classification == "INSUFFICIENT_DATA" and .results[1].purchases == null and .results[2].classification == "CREATIVE_FATIGUE_CANDIDATE"' >/dev/null; then
+  ok "mocked pull preserves absent conversion counts, labels COD estimates, and emits diagnostic candidates only"
 else
   bad "analyze --pull / delivery-rate / MONITOR_EARLY / CREATIVE_FATIGUE failed: $pull_out"
 fi
+
+# Analysis must preserve unknowns and record observations, not causal verdicts.
+if python3 - "$CMD" "$TMP" <<'PYANALYSIS'
+import copy, json, pathlib, subprocess, sys
+cmd, tmp = sys.argv[1:]
+ws = pathlib.Path(tmp) / 'analysis-contract'; ws.mkdir()
+brand = ws / 'brand.json'; brand.write_text(json.dumps({'brand':'Analysis fixture','ad_account_id':'act_1234567890','currency':'USD'}))
+insights = ws / 'insights.json'
+def call(*args):
+    p = subprocess.run([cmd,*args,'--brand',str(brand),'--json'],capture_output=True,text=True)
+    assert p.returncode == 0, p.stderr
+    return json.loads(p.stdout)
+def analyze(row, *args):
+    insights.write_text(json.dumps([row])); return call('analyze',str(insights),*args)
+def economics():
+    return call('learn','unit-economics','--aov','100','--cogs','30','--shipping-fee','5','--cod-rts-rate','.1','--rts-penalty','10','--target-margin','.2')
+base = {'account_id':'act_1234567890','account_currency':'USD','ad_id':'ad_observation','date_start':'2026-10-01','date_stop':'2026-10-07','spend':100,'impressions':10000,'purchases':10,'revenue':1000,'outbound_clicks':200,'purchase_basis':'placed'}
+failures = []
+def check(name, fn):
+    try: fn(); print('  PASS',name)
+    except Exception as e: failures.append(name); print('  FAIL',name,repr(e))
+def missing():
+    r=analyze({'ad_id':'empty'})['results'][0]
+    assert r['spend'] is None and r['purchases'] is None and r['roas'] is None,r
+    assert r['classification']=='INSUFFICIENT_DATA' and r['recommended_command'] is None,r
+check('missing metrics stay unavailable, without an invented diagnosis',missing)
+def unknown_costs():
+    r=analyze(base)['results'][0]
+    assert r['estimated_net_profit'] is None and r['estimated_contribution_after_ads'] is None,r
+    assert r['revenue_after_ad_spend']==900 and not r['comparison_qualified'],r
+check('unconfigured costs never become profit or approved default benchmarks',unknown_costs)
+economics()
+def invalid_metrics():
+    for field in ['spend','purchases','revenue','impressions','outbound_clicks','hook_rate']:
+        for value in [None,'',True,[],{},'Infinity','NaN',-1]:
+            row=dict(base,**{field:value}); r=analyze(row)['results'][0]
+            key={'outbound_clicks':'ctr'}.get(field,field)
+            assert r[key] is None,(field,value,r)
+            assert r['recommended_command'] is None,(field,value,r)
+    r=analyze(dict(base,spend='bad'))['results'][0]
+    assert r['spend'] is None and r['roas'] is None and r['impressions']==10000,r
+check('invalid numeric shapes are not coerced to zero; valid partial metrics survive',invalid_metrics)
+def zeroes():
+    r=analyze(dict(base,purchases=0,revenue=0,video_3s_views=0,thruplays=0))['results'][0]
+    assert r['purchases']==0 and r['revenue']==0 and r['roas']==0 and r['cpr'] is None,r
+    assert r['hook_rate']==0 and r['hold_rate'] is None,r
+    r=analyze(dict(base,spend=0,outbound_clicks=0))['results'][0]
+    assert r['spend']==0 and r['roas'] is None and r['ctr']==0 and r['cpc'] is None,r
+check('legitimate zero is retained and undefined ratios remain unavailable',zeroes)
+def coherent_cod():
+    r=analyze(base,'--delivery-rate','.9')['results'][0]
+    assert r['purchases']==9 and r['revenue']==900,r
+    assert r['estimated_contribution_after_ads']==475 and r['estimated_net_profit'] is None,r
+    assert r['economic_basis']=='expected_per_placed_order' and r['comparison_qualified'],r
+    assert r['comparison_cpr']==10 and r['comparison_roas']==10,r
+    assert r['comparison_benchmarks']['target_cpr']==39.5 and r['comparison_benchmarks']['target_roas']==2.53,r
+    assert r['comparison_benchmarks']['expected_delivered_target_roas']==2.28,r
+check('ten placed COD orders with .9 delivery estimate contribute 475 after ads',coherent_cod)
+def missing_basis():
+    row=dict(base); row.pop('purchase_basis'); r=analyze(row)['results'][0]
+    assert not r['comparison_qualified'] and r['estimated_contribution_after_ads'] is None,r
+    r=analyze(row,'--purchase-basis','placed')['results'][0]
+    assert r['comparison_qualified'] and r['estimated_contribution_after_ads']==475,r
+check('unknown order basis is visible; explicit basis enables coherent estimates',missing_basis)
+def backend():
+    r=analyze(dict(base,real_purchases=9))['results'][0]
+    assert r['purchases']==9 and r['revenue'] is None and not r['comparison_qualified'],r
+    r=analyze(dict(base,real_purchases=9,backend_revenue=900))['results'][0]
+    assert not r['comparison_qualified'] and r['estimated_contribution_after_ads'] is None,r
+    r=analyze(dict(base,real_purchases=9,real_revenue=900,purchase_basis='delivered'))['results'][0]
+    assert r['roas']==9 and r['cpr']==11.11 and r['estimated_contribution_after_ads'] is None,r
+check('partial, mixed and delivered backend inputs do not invent placed counts or RTS costs',backend)
+def observations():
+    r=analyze(dict(base,spend=10,purchases=1,revenue=100),'--record-memory')
+    assert r['results'][0]['classification']=='ABOVE_TARGET_CANDIDATE',r
+    assert r['results'][0]['recommended_command'] is None,r
+    assert r['recordedToMemory']==1,r
+    repeat=analyze(dict(base,spend=10,purchases=1,revenue=100),'--record-memory')
+    assert repeat['recordedToMemory']==0,repeat
+    repeat=analyze(dict(base,spend=10,purchases=1,revenue=100,ad_name='Renamed ad'),'--purchase-basis','placed','--record-memory')
+    assert repeat['recordedToMemory']==0,repeat
+    entries=call('learn','list')['entries']; assert len(entries)==1 and entries[0]['verdict']=='insight',entries
+    assert entries[0]['observation_id'] and entries[0]['scope']['ad_account_id']=='act_1234567890',entries
+    md=(ws/'memory/MEMORY.md').read_text(); assert 'Proven Winners' not in md and 'Confirmed Losers' not in md,md
+check('one purchase remains a candidate; reanalysis records one scoped insight',observations)
+def no_click_substitution():
+    row=dict(base,clicks=500,cpc=.2); row.pop('outbound_clicks'); r=analyze(row)['results'][0]
+    assert r['ctr'] is None and r['cpc'] is None,r
+    r=analyze(dict(base,cpc=.2))['results'][0]; assert r['cpc']==.5,r
+check('outbound ratios never substitute all clicks or all-click CPC',no_click_substitution)
+def action_values():
+    row=dict(base); row.pop('purchases'); row['actions']=[{'action_type':'purchase','value':0}]
+    r=analyze(dict(row,revenue=0))['results'][0]; assert r['purchases']==0,r
+    row['actions']=[{'action_type':'purchase','value':10},{'action_type':'omni_purchase','value':11}]
+    r=analyze(row)['results'][0]; assert r['purchases'] is None and not r['comparison_qualified'],r
+check('explicit action zero survives; conflicting purchase aliases are not silently selected or summed',action_values)
+def economics_unknowns():
+    e=call('learn','unit-economics','--aov','100','--cogs','30')['unit_economics']
+    assert e['shipping_fee'] is None and e['target_margin'] is None and e['max_cpr_breakeven'] is None,e
+check('omitted economic inputs remain unknown rather than silently approved defaults',economics_unknowns)
+def provenance_and_legacy():
+    economics()
+    memfile=ws/'memory/ads-memory.json'; mem=json.loads(memfile.read_text()); mem['unit_economics'].update(target_cpr=999,max_cpr_breakeven=999,target_roas=.01); memfile.write_text(json.dumps(mem))
+    o=analyze(base); assert o['benchmarks']['target_cpr']==39.5 and o['benchmarks']['max_cpr']==57.5,o
+    r=analyze(dict(base,account_id='act_999'))['results'][0]
+    assert not r['comparison_qualified'] and r['estimated_contribution_after_ads'] is None,r
+    r=analyze(dict(base,account_currency='IDR'))['results'][0]
+    assert not r['comparison_qualified'],r
+    memfile=ws/'memory/ads-memory.json'; mem=json.loads(memfile.read_text()); mem['unit_economics'].pop('qualification'); memfile.write_text(json.dumps(mem))
+    r=analyze(base)['results'][0]; assert not r['comparison_qualified'],r
+    call('learn','add','--source','reference','--category','offer','--verdict','winner','--title','Existing user claim','--summary','Needs verification')
+    claims=call('learn','list','--verdict','winner')['entries']
+    assert len(claims)==1 and claims[0]['title']=='Existing user claim',claims
+    assert 'User-Recorded Winner Claims' in (ws/'memory/MEMORY.md').read_text()
+check('incompatible account/currency and legacy economics stay unqualified; manual records survive',provenance_and_legacy)
+def infeasible_target():
+    e=call('learn','unit-economics','--aov','100','--cogs','30','--shipping-fee','5','--cod-rts-rate','.1','--rts-penalty','10','--target-margin','.9')['unit_economics']
+    assert not e['target_feasible'] and e['target_cpr'] is None and e['target_roas'] is None,e
+check('an unattainable target margin never becomes an invented positive CPR budget',infeasible_target)
+def economic_scope():
+    original=json.loads(brand.read_text()); economics()
+    memfile=ws/'memory/ads-memory.json'; saved=json.loads(memfile.read_text())
+    for changes in [{'currency':'IDR'},{'ad_account_id':'act_999'},{'currency':'IDR','ad_account_id':'act_999'}]:
+        current=dict(original,**changes); brand.write_text(json.dumps(current))
+        row=dict(base,account_id=current['ad_account_id'],account_currency=current['currency'])
+        out=analyze(row); r=out['results'][0]
+        assert not r['comparison_qualified'] and r['estimated_contribution_after_ads'] is None,(changes,r)
+        assert r['classification']=='INSUFFICIENT_DATA' and any('scope' in issue.lower() for issue in r['context_issues']),r
+        assert out['benchmarks']['max_cpr'] is None,out
+        listed=subprocess.run([cmd,'learn','list','--brand',str(brand)],capture_output=True,text=True)
+        assert listed.returncode==0 and 'saved account=act_1234567890, currency=USD' in listed.stdout and 'MISMATCH' in listed.stdout and 'RECONFIGURE' in listed.stdout,listed.stdout
+        assert json.loads(memfile.read_text())==saved,'analysis rewrote historical assumptions'
+    brand.write_text(json.dumps(original)); economics()
+    row=dict(base,account_id=original['ad_account_id'],account_currency=original['currency'])
+    r=analyze(row)['results'][0]
+    assert r['comparison_qualified'] and r['estimated_contribution_after_ads']==475,r
+    saved=json.loads(memfile.read_text()); assert saved['unit_economics']['scope']=={'ad_account_id':original['ad_account_id'],'currency':original['currency']},saved
+    assert 'account `act_1234567890`, currency `USD`' in (ws/'memory/MEMORY.md').read_text()
+    assert call('learn','list')['unit_economics_scope_status']=='MATCHES_CURRENT_BRAND'
+    saved['unit_economics'].pop('scope'); memfile.write_text(json.dumps(saved))
+    r=analyze(row)['results'][0]
+    assert not r['comparison_qualified'] and r['estimated_contribution_after_ads'] is None,r
+    listed=subprocess.run([cmd,'learn','list','--brand',str(brand)],capture_output=True,text=True)
+    assert listed.returncode==0 and 'UNSCOPED' in listed.stdout and 'RECONFIGURE' in listed.stdout,listed.stdout
+    economics(); missing=dict(row); missing.pop('account_currency')
+    assert not analyze(missing)['results'][0]['comparison_qualified']
+check('economic assumptions require matching persisted, selected-brand and row account/currency scopes',economic_scope)
+def financial_precision():
+    economics()
+    r=analyze(dict(base,purchases=1000,revenue=100000,spend=39504))['results'][0]
+    assert r['classification']=='ABOVE_BREAKEVEN_CANDIDATE' and r['comparison_cpr']>r['comparison_benchmarks']['target_cpr'],r
+    e=call('learn','unit-economics','--aov','1','--cogs','.999','--shipping-fee','0','--cod-rts-rate','0','--rts-penalty','0','--target-margin','0')['unit_economics']
+    assert e['target_feasible'] and e['max_cpr_breakeven']>0 and e['target_cpr']>0 and e['target_roas'] is not None,e
+check('financial gates use unrounded ratios and retain positive sub-cent threshold precision',financial_precision)
+assert not failures, failures
+PYANALYSIS
+then ok "analysis numeric, economic-basis, and observation-memory regressions"; else bad "analysis qualification regression"; fi
 
 # A corrupt state file must never be silently reset into a fresh deployment.
 cp "$WS/.meta-state.json" "$TMP/good-state.json"
@@ -732,6 +895,82 @@ print(json.dumps({'id':str(os.getpid())}))
     rejected('stale lock requires explicit reconciliation')
 PYTEST
 then ok "deployment identity and single-writer regressions"; else bad "deployment identity or lock regression"; fi
+
+# Public baseline must work without a brand, credentials, upstream CLI, or caller-cwd assumptions.
+if python3 - "$CMD" "$TMP" <<'PYBASELINE'
+import copy, hashlib, json, os, pathlib, shutil, subprocess, sys
+cmd = pathlib.Path(sys.argv[1]).resolve()
+root = pathlib.Path(sys.argv[2]) / 'baseline-public'
+root.mkdir()
+spy = root / 'forbidden-upstream'
+spy.write_text('#!/bin/sh\nprintf called >> "$BASELINE_SPY_LOG"\nexit 91\n')
+spy.chmod(0o755)
+log = root / 'calls'
+env = dict(os.environ, META_ADS_BIN=str(spy), SECRETS_ENV_BIN=str(spy), BASELINE_SPY_LOG=str(log))
+env.pop('ACCESS_TOKEN', None)
+env.pop('META_ACCESS_TOKEN', None)
+env.pop('AD_ACCOUNT_ID', None)
+link = root / 'dotads-meta'
+link.symlink_to(cmd)
+def run(*args, command=link):
+    return subprocess.run([str(command), 'baseline', *args], cwd=root, env=env, capture_output=True, text=True)
+def query(*args):
+    r = run('--market', 'ID', *args, '--json')
+    assert r.returncode == 0, r.stderr
+    return json.loads(r.stdout)
+before = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in root.iterdir() if p.is_file()}
+data = query()
+assert data['market'] == 'ID' and data['documentation_language'] == 'en' and data['market_language'] == 'id-ID'
+assert len(data['province_participation']['rows']) == 38
+assert len({r['bps_code'] for r in data['province_participation']['rows']}) == 38
+assert len(data['city_participation']['rows']) == 7 and len(data['regional_transactions']) == 2
+assert data['province_participation']['national_pct'] == 26.73 and data['city_participation']['national_pct'] == 19.18
+assert data['sources']['bps']['measurement_period'] == '2025' and data['sources']['bps']['published_at'] == '2026-08-31'
+assert data['sources']['bps']['lineage_id'] == data['sources']['next']['lineage_id']
+assert data['province_participation']['population'] != data['city_participation']['population']
+for args in [(), ('--json',), ('--market','MY'), ('--market','GLOBAL'), ('--market','ID,MY'), ('--market','ID','--market','MY'), ('--market','ID','--brand','unused')]:
+    r = run(*args)
+    assert r.returncode != 0 and not r.stdout, (args,r.stdout,r.stderr)
+assert json.loads(run('--market','id','--json').stdout)['market'] == 'ID'
+province = query('--province','  jawa   barat  ')
+assert [r['bps_code'] for r in province['province_participation']['rows']] == ['32']
+assert province['province_participation']['rows'][0]['purchasing_pct'] == 33.08 and not province['regional_transactions']
+city = query('--city','Kota Depok')
+assert city['selection']['city_evidence'] == 'direct_observation' and city['selection']['city_purchasing_pct'] == 36.96
+assert [r['bps_code'] for r in city['province_participation']['rows']] == ['32']
+unknown = query('--province','32','--city','Kota Bandung')
+assert unknown['selection']['city_evidence'] == 'province_context_only' and unknown['selection']['city_purchasing_pct'] is None
+assert unknown['city_participation']['rows'] == [] and unknown['province_participation']['rows'][0]['purchasing_pct'] == 33.08
+for args in [('--city','Kota Bandung'), ('--city','Depok'), ('--province','Banten','--city','Kota Depok'), ('--province','999'), ('--province',)]:
+    r = run('--market','ID',*args,'--json')
+    assert r.returncode != 0 and not r.stdout, (args,r.stdout,r.stderr)
+bi = query('--province','71')['regional_transactions']
+assert [(r['period'],r['value_idr'],r['transactions']) for r in bi] == [('2026-Q1',789600000000,5340000),('2026-Q2',773300000000,5560000)]
+assert run('--market','ID','--province','32').returncode == 0
+assert run('--help').returncode == 0
+after = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in root.iterdir() if p.is_file()}
+assert before == after and not log.exists(), 'baseline wrote files or invoked credentials/upstream'
+# A broken maintained snapshot must fail clearly, rather than silently returning bad evidence.
+fixture = root / 'copy'
+(fixture/'bin').mkdir(parents=True)
+copycmd = fixture/'bin/dotads-meta'
+shutil.copy2(cmd, copycmd)
+snapshot = fixture/'skills/local/meta-ads-cli/references/indonesia-baseline.json'
+snapshot.parent.mkdir(parents=True)
+original = json.loads((cmd.parent.parent/'skills/local/meta-ads-cli/references/indonesia-baseline.json').read_text())
+for mutation in ['wrong-market','duplicate-province','invalid-percentage','invalid-parent','missing-source']:
+    broken = copy.deepcopy(original)
+    if mutation == 'wrong-market': broken['market'] = 'MY'
+    elif mutation == 'duplicate-province': broken['province_participation']['rows'][1]['bps_code'] = '11'
+    elif mutation == 'invalid-percentage': broken['province_participation']['rows'][0]['purchasing_pct'] = 101
+    elif mutation == 'invalid-parent': broken['city_participation']['rows'][0]['province_bps_code'] = '99'
+    else: del broken['sources']['bps']
+    snapshot.write_text(json.dumps(broken))
+    r = run('--market','ID','--json',command=copycmd)
+    assert r.returncode != 0 and not r.stdout, (mutation,r.stdout,r.stderr)
+print('  PASS explicit market isolation, scoped geography, provenance, zero upstream/writes, symlink execution and broken snapshots')
+PYBASELINE
+then ok "public Indonesia baseline contract"; else bad "public Indonesia baseline regression"; fi
 
 [ "$f" -eq 0 ] && { echo "dotads-meta-test: PASS"; exit 0; }
 echo "dotads-meta-test: $f case(s) failed" >&2

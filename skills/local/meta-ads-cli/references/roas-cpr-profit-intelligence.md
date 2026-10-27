@@ -1,228 +1,168 @@
-# Meta Ads ROAS, Lowest CPR, Profit Maximization & Multi-Source Memory System
+# Meta Ads Performance, Contribution Estimates, and Scoped Learning
 
-Engineering and media-buying operating guide for achieving **maximum Net Profit, highest ROAS, and lowest Cost Per Result (CPR / CPA)** on conversion campaigns (`OUTCOME_SALES` / `OFFSITE_CONVERSIONS` / `VALUE`), powered by `dotads-meta learn` and `dotads-meta analyze`.
+Use this reference for `dotads-meta analyze` and `learn`. For public Indonesian
+shopping context, load [Indonesia market guidance](indonesia-market.md) only
+when the target market is explicitly ID. Public baseline research requires no
+brand or unit-economics setup. Brand economics are relevant to financial
+performance analysis, not a prerequisite for general market research.
 
----
+## Interpret metrics before diagnosing
 
-## 1. The Conversion Auction & Profit Equations
+Use matching account, currency, date range, conversion definition, attribution
+window, and reporting level. Keep those fields with exported insights. A saved
+JSON array without that metadata remains unqualified; the helper cannot recover
+provenance, complete pagination, or conversion maturity from its numbers.
+Financial comparisons require row `account_id` and `account_currency` (or
+`currency`) matching the selected brand and its saved economics scope. Missing
+scope still permits independent raw metrics, without a contribution candidate.
 
-Use observed spend, revenue, conversion counts, and the brand's stated cost
-assumptions. The [API and evidence record](api-and-evidence.md) separates current
-platform facts from local heuristics. Architecture summaries do not establish
-auction prices, hidden quality weights, or a guaranteed CPM/CPR reduction.
+- Missing, malformed, or unsupported metrics remain unknown. A measured zero is
+  different from a missing value. Derived ratios require valid denominators.
+- Revenue, orders, clicks, and spend must describe compatible populations and
+  periods. Aggregate ROAS is total compatible revenue divided by total spend;
+  do not average row ROAS values or mix currencies.
+- An attributed purchase is not evidence of incrementality. A strong observed
+  result is a review candidate, not a proven creative winner or causal diagnosis.
+- Judge sample sufficiency against the decision, variability, conversion lag,
+  and experiment design. There is no universal minimum count in this helper.
 
-### Decomposing CPR and ROAS into Physical Levers
+For a coherent funnel, CPR = spend / purchases, ROAS = revenue / spend,
+CTR = outbound clicks / impressions, and observed click-to-purchase ratio =
+purchases / outbound clicks. The latter is not necessarily a landing-session
+conversion rate: attribution can include other paths. Hook/hold/frequency
+thresholds are local review heuristics, not Meta penalties or causal tests.
 
-$$\text{CPR (Cost Per Purchase)} = \frac{\text{CPM}}{1000 \times \text{CTR}_{\text{outbound}} \times \text{CVR}_{\text{landing}}}$$
+## Economics and COD order basis
 
-$$\text{ROAS} = \frac{\text{AOV} \times \text{CVR}_{\text{landing}} \times \text{CTR}_{\text{outbound}} \times 1000}{\text{CPM}}$$
-
-| Lever | Local hypothesis / starting guideline | Primary Owner & How to Improve |
-| --- | --- | --- |
-| **Hook Rate** (`3s Video Views / Impressions`) | `>= 30%` (Warning `< 25%`) | **First 3 Seconds:** Visual pattern interrupt, high-contrast on-screen headline overlay, direct callout to the buyer's core pain or desire in frame 1. |
-| **Hold Rate** (`ThruPlays / 3s Video Views`) | `>= 25%` (Warning `< 20%`) | **Seconds 3–15 Pacing:** Cut scenes every 1.5–2.5 seconds, show the physical product mechanism/demo by second 4, use burned-in captions. |
-| **Outbound CTR** (`Outbound Clicks / Impressions`) | `>= 1.5%` (Warning `< 1.0%`) | **Offer & CTA Clarity:** Clear value stack (bundle savings, free exchange/guarantee, urgency) and explicit verbal + visual CTA. |
-| **Landing Page CVR** (`Purchases / Outbound Clicks`) | `>= 2.5% – 5.0%+` | **Funnel & Signal:** Fast mobile LCP (`< 2.5s`), 1:1 headline congruence with the ad hook, frictionless checkout, and deduplicated Server CAPI (`meta-ads-signal-engine`). |
-| **Average Order Value (AOV)** | `1.4x – 1.8x` single-unit price | **Bundle Architecture:** Offer 1-Pack (Anchor), 2-Pack ("Most Popular — Save 15%"), and 3-Pack ("Best Value — Save 25% + Free Shipping"). Raising AOV raises ROAS and Max CPR immediately without needing cheaper traffic. |
-
----
-
-## 2. True Unit Economics & COD RTS Profit Modeling
-
-High dashboard ROAS can still lose money if COGS, shipping subsidies, or Cash-on-Delivery (COD) Return-to-Sender (RTS) rates are ignored. Always configure unit economics in the brand workspace first:
-
-$$\text{Delivered Rate } d = 1 - r_{\text{RTS}}$$
-
-$$\text{Contribution Margin per Order} = (\text{AOV} \times d) - ((\text{COGS} + \text{Shipping}) \times d) - (\text{RTS Penalty} \times r_{\text{RTS}})$$
-
-$$\text{Max Break-Even CPR} = \text{Contribution Margin per Order}, \qquad \text{Break-Even ROAS} = \frac{\text{AOV}}{\text{Max Break-Even CPR}}$$
-
-$$\text{Target Profit CPR} = \text{Contribution Margin per Order} - (\text{AOV} \times m_{\text{target}}), \qquad \text{Target ROAS} = \frac{\text{AOV}}{\text{Target Profit CPR}}$$
-
-The equations below use the configured cost and delivery assumptions; they are
-not an accounting audit or a guaranteed realized margin. All numerical examples
-and external-learning examples are fictional until replaced with verified data.
-
-### Configure Unit Economics in `<workspace>/memory/`
+Unknown costs produce an unknown contribution estimate. Revenue minus ad spend
+alone is not net profit. Configure assumptions only from an established business
+source; explicit zero costs are permitted, silent zero defaults are not.
 
 ```bash
-# Example: IDR 250,000 AOV, IDR 75,000 COGS, IDR 15,000 shipping subsidy, 12% COD RTS rate, 20% target net margin
-dotads-meta learn unit-economics \
-  --brand ~/Documents/work/ads/brand-alpha/brand.json \
-  --aov 250000 \
-  --cogs 75000 \
-  --shipping-fee 15000 \
-  --cod-rts-rate 0.12 \
-  --rts-penalty 20000 \
-  --target-margin 0.20
+dotads-meta learn unit-economics --brand ./brand.json \
+  --aov 250000 --cogs 75000 --shipping-fee 15000 \
+  --cod-rts-rate 0.12 --rts-penalty 20000 --target-margin 0.20
 ```
 
-This persists `unit_economics` into `<workspace>/memory/ads-memory.json` and renders `<workspace>/memory/MEMORY.md` with exact Break-Even ROAS, Max CPR, Target Profit CPR, Target ROAS, and **local cost-cap suggestion (`0.85 × Target CPR`)**; eligibility, underdelivery, and realized cost still require review.
+These are fictional example inputs. The model covers only configured COGS,
+shipping subsidy, and RTS penalty, excluding unconfigured taxes, payment fees,
+refunds, overhead, and other costs. Its output is an assumption-based contribution
+estimate after ads, not audited realized net profit.
 
-### The ROAS-First Metric Hierarchy (`ROAS = (AOV × CVR) / CPC`)
+For raw **placed orders**, define delivery fraction d, revenue per delivered order
+A, delivered-order COGS C, shipping subsidy S, and failed-order penalty P:
 
-**Final Target = ROAS (and Net Profit); CTR & CPC Are Secondary Diagnostic Levers Only:**
-
-$$\text{CPC} = \frac{\text{Spend}}{\text{Outbound Clicks}} = \frac{\text{CPM}}{1000 \times \text{CTR}}, \qquad \text{CPR} = \frac{\text{CPC}}{\text{CVR}}, \qquad \text{ROAS} = \frac{\text{AOV}}{\text{CPR}} = \frac{\text{AOV} \times \text{CVR}}{\text{CPC}}$$
-
-- **Primary Gate (`ROAS` & `Net Profit`):** An ad is a `SCALE_WINNER` if and only if **`ROAS >= Target ROAS`** (or `CPR <= Target CPR` when order revenue is not tracked). This is a local review candidate, not automatic approval to scale. Check sample size, conversion lag, attribution, backend reconciliation, and margin before proposing changes.
-- **Why Cheap `CPC` / High `CTR` Alone Is a Trap:** Clickbait copy or spammy CTAs (`"Klik di sini!"`) artificially inflate `CTR` and lower `CPC`, but attract low-intent clickers (`CVR -> 0%`), collapsing **ROAS** below break-even.
-- **When to Inspect `CTR` and `CPC`:** Only when **ROAS is below target**—use `Hook Rate`, `Hold Rate`, `Outbound CTR`, and `CPC` to isolate whether the ROAS bottleneck is in the creative (`CTR < 1.0%` / high `CPC` → `FIX_OFFER_OR_CTA`) or on the landing page/checkout (`CTR >= 1.0%` & healthy `CPC` but low `CVR` → `FIX_LANDING_CVR_OR_SIGNAL`).
-
----
-
-## 3. Multi-Source Continuous Learning (`dotads-meta learn` & `analyze`)
-
-Every brand workspace maintains its own structured intelligence store at `<workspace>/memory/ads-memory.json` and `<workspace>/memory/MEMORY.md`, learning continuously from four sources:
-
-### Source A: Record Scoped Observations from 1st-Party Meta Ads Data (`dotads-meta analyze`)
-
-Pull ad-level performance insights directly from Meta (or pass an existing JSON file), reconcile COD/backend delivery rate if needed, and run the automated 8-bucket diagnostic analyzer:
-
-```bash
-# Option 1: One-command live pull + COD delivery-rate reconciliation (e.g. 88% delivered) + memory capture
-dotads-meta analyze --pull --date-preset last_7d --delivery-rate 0.88 --brand ./brand.json --record-memory
-
-# Option 2: Analyze a saved insights JSON file (supports optional row-level real_purchases / real_revenue)
-dotads-meta analyze ./insights-last-7d.json --brand ./brand.json --record-memory
+```text
+expected contribution per placed order = d * (A - C - S) - (1 - d) * P
+estimated contribution after ads = placed orders * expected contribution - spend
+break-even CPR (placed) = expected contribution per placed order
+break-even ROAS (placed revenue basis) = A / expected contribution per placed order
+break-even ROAS (expected delivered revenue basis) = d * A / expected contribution
+target CPR (placed) = expected contribution - d * A * target margin
 ```
 
-`dotads-meta analyze` classifies every ad into one of 8 deterministic buckets and outputs a Day-2 `recommended_command` (scaling `+20%` for winners or `--status PAUSED` on `stop_loss` bleeders where `spend >= 1.5x Max CPR`):
+Keep every CPR/ROAS threshold on the same order/revenue basis as its observed
+metric. A declared target margin is an assumption, not an automatically approved
+business target; it applies to expected delivered/collected revenue. A zero or
+negative target CPR is unattainable and returns null, without a positive clamp.
+The local
+`recommended_cost_cap` convention, when available, is not a guaranteed CPA or
+profit ceiling and does not establish bidding eligibility.
 
-| Classification | Local trigger / implementation heuristic | Proposed review & optional memory capture |
-| --- | --- | --- |
-| `SCALE_WINNER` | `purchases >= 1` and (`ROAS >= Target ROAS`, or `CPR <= Target CPR` when revenue is untracked) | Saved as `winner` in `ads-memory.json`. Emits Day-2 CLI plan to scale budget `+20%` every 24–48h or graduate into Advantage+ Sales CBO; brief 3 new hook variations on this angle. |
-| `PROFITABLE_OPTIMIZE` | `ROAS >= Break-Even ROAS` but `< Target ROAS` | Keep active; test higher-AOV bundle on landing page or fresh 3s visual hook to push ROAS above target. |
-| `MONITOR_EARLY` | `purchases == 0` and `spend < 1.0x Max Break-Even CPR` | Protected from premature pause and excluded from `loser` memory until spend reaches `1.0x–1.5x Max CPR`. |
-| `CREATIVE_FATIGUE` | Below target ROAS with `Frequency >= 2.5` | Saved as `loser` (`angle`). Audience saturation—rotate a fresh creative concept (new 3s visual opener and persona). |
-| `FIX_HOOK_FIRST_3S` | Below break-even and `Hook Rate < 25%` | Saved as `loser` (`hook`). Keep body video, replace first 3-second visual pattern interrupt and headline overlay. |
-| `FIX_HOLD_BODY_PACING` | Below break-even, `Hook Rate >= 25%`, `Hold Rate < 20%` | Saved as `loser` (`format`). Tighten middle editing (cut every 1.5–2.5s), show product mechanism by second 4, add captions. |
-| `FIX_OFFER_OR_CTA` | Below break-even, good Hook/Hold, `Outbound CTR < 1.0%` | Saved as `loser` (`offer`). Strengthen bundle offer, risk reversal/guarantee in headline/description, and align native `call_to_action` button without stuffing spammy text CTAs. |
-| `FIX_LANDING_CVR_OR_SIGNAL` | `Outbound CTR >= 1.0%` & healthy `CPC`, but `ROAS < Break-Even ROAS` | Saved as `loser` (`landing-page`). Audit mobile page speed (`web-perf`), message congruence, COD form friction, CAPI EMQ (`meta-ads-signal-engine`), and review attribution eligibility without automatically changing modes. |
+Do not multiply an already delivery-adjusted order count by an RTS-adjusted
+per-placed-order contribution. For example, 10 placed orders, A=100, C=30, S=5,
+d=0.9, P=10, and ad spend=100 yield 475, not 417.5. Already-delivered backend
+orders do not reveal placed counts or failed-order costs. Partial backend fields
+are not full reconciliation; keep the source and coverage visible.
 
-### Source B: Learn from Competitor & Ad Library References (`--source competitor` / `reference`)
-
-After researching competitor ads in `meta-ads-scout` (ad longevity can guide research, but it does not reveal spend, scaling, or profitable unit economics), record the extracted pattern into the brand memory:
+## Run the analyzer
 
 ```bash
+# Offline analysis; declare placed only when the source establishes that basis
+dotads-meta analyze ./insights.json --brand ./brand.json --purchase-basis placed --json
+
+# Explicit delivery-rate assumption declares raw Meta orders placed;
+# resulting delivered counts/revenue remain estimates, not backend reconciliation
+dotads-meta analyze ./insights.json --brand ./brand.json --delivery-rate 0.88 --json
+
+# Read-only account pull; account credentials are relevant only to this mode
+dotads-meta analyze --pull --date-preset last_7d --brand ./brand.json --json
+```
+
+`--purchase-basis placed|delivered` or a row's `purchase_basis` declares the source
+order definition. Do not add a declaration merely to obtain a favorable result.
+Conflicting bases/rates, partial backend overrides, and unknown provenance remain
+visible. `real_purchases` and `real_revenue` are optional backend fields; they are
+not proof that both sides describe the same cohort.
+
+Read the report's metric quality, basis, economic coverage, and limitations
+before its observational classification. `estimated_contribution_after_ads`
+replaces the misleading net-profit interpretation; the deprecated
+`estimated_net_profit` field is null. Financial candidates require coherent
+inputs and are still observations. Diagnostic hypotheses suggest what to
+inspect, not what caused a result. There are no generated scale/pause commands.
+Any later live mutation requires an approved, reviewed deployment/change plan.
+
+`comparison_cpr`, `comparison_roas`, and `comparison_benchmarks` retain the
+placed-order/gross placed-revenue basis. Delivery-estimated displayed ROAS uses
+the corresponding delivered-revenue threshold; do not cross-compare the two.
+Derived thresholds are recomputed from qualified base assumptions. Legacy
+economics without explicit cost coverage or account/currency scope remain
+unqualified until reviewed and explicitly reconfigured. Saved cost assumptions
+must match the selected brand's account and currency. Editing `brand.json` or
+changing row currency does not convert historical costs or authorize reusing
+them across accounts.
+
+## Learning without manufacturing proof
+
+```bash
+# Explicitly record scoped analysis observations; repeat input is deduplicated
+dotads-meta analyze ./insights.json --brand ./brand.json --record-memory
+
+# Add a reference hypothesis, retaining its source and uncertainty
 dotads-meta learn add --brand ./brand.json \
-  --source competitor \
-  --category hook \
-  --verdict insight \
-  --title "Competitor 45-Day Active Hook: Split-Screen Wet Floor Slip Test" \
-  --summary "An illustrative library record shows the ad active for 45 days; spend and profitability are unknown." \
-  --action "Produce our own physical slip-resistance demonstration in first 3 seconds for next creative batch."
+  --source competitor --category hook --verdict insight \
+  --title "Product demonstration reference" \
+  --summary "An observed ad demonstrates product handling; spend and outcomes are unknown." \
+  --action "Consider a distinct demonstration concept if relevant to the approved offer."
+
+dotads-meta learn list --brand ./brand.json
 ```
 
-### Source C: Learn from Outsource, Agency Media Buyers & Audits (`--source outsource` / `audit` / `experiment`)
+Automated analysis records `insight`, never a proven `winner` or `loser`.
+Repeated observations are not independent replications. Existing manual verdicts
+remain stored with their original evidence; their labels do not validate them.
+Competitor longevity, forum claims, and outsourced advice are hypotheses unless
+outcomes and methods are verifiable. Do not turn illustrative payday effects,
+creative counts, editing cadence, or bidding ratios into established rules.
 
-Capture external media-buyer playbooks, agency post-mortems, or split-test conclusions directly into the workspace memory:
+Keep brand/account records outside dotfiles. Promote only verified reusable,
+non-sensitive engineering lessons through the separate `ai-learn` review path;
+campaign outcomes and client data do not belong in shared memory.
 
-```bash
-dotads-meta learn add --brand ./brand.json \
-  --source outsource \
-  --category bidding \
-  --verdict rule \
-  --title "Cost Cap Floor at 0.85x Target CPR Prevents Payday CPM Spikes" \
-  --summary "External media buyer test showed Lowest Cost CPMs spiked +40% on payday (25th-5th) with lower CVR, whereas Cost Cap at 0.85x Target CPR held CPA flat." \
-  --action "Deploy a parallel Cost Cap campaign during payday windows with bid_amount set to recommended_cost_cap."
-```
+## Copy and campaign experiments
 
-### Source D: Promote Verified Cross-Brand Invariants to Shared Dotfiles Memory (`ai-learn`)
+Start with the actual objective, destination, serviceability, budget, and
+verified offer. Choose distinct concepts the budget can meaningfully observe.
+Consolidation, ad counts, creative formats, and bid controls are conditional
+choices, not guaranteed algorithm advantages. Changing attribution also changes
+the measurement basis; do not silently switch it while comparing performance.
 
-When a lesson proved across multiple campaigns is a durable engineering or media-buying invariant (no client secrets or raw logs), capture a review candidate into the global dotfiles inbox:
+Technical guidance stays English. For an explicit ID market/segment, write
+customer-facing copy in natural Bahasa Indonesia; keep MY and other markets
+separate. Mixed-country plans require market-specific creative/measurement
+rather than imposing Indonesian language on the whole plan. Vocabulary warnings
+are contextual review aids: a valid Indonesian use of “percuma” is not itself a
+language defect or a ranking penalty.
 
-```bash
-ai-learn capture \
-  --title "Use AUTOMATIC_FORMAT instead of dynamic_creative for multi-concept ad sets" \
-  --symptom "Adding a second multi-asset creative to a dynamic_creative ad set failed validation" \
-  --root-cause "Meta Marketing API restricts dynamic_creative: true ad sets to a single ad" \
-  --invariant "Use ad_format: AUTOMATIC_FORMAT on each creative when testing multiple multi-asset concepts in one consolidated ad set" \
-  --fix "Set ad_format: AUTOMATIC_FORMAT on creatives and omit dynamic_creative on the ad set" \
-  --check "dotads-meta validate passes with multiple AUTOMATIC_FORMAT creatives in one ad set" \
-  --scope shared
-```
+Primary text, headline, and description should express a specific, substantiated
+benefit or relevant information. Approximate 125/40/30-character preview targets
+are local starting points, not guaranteed placement limits. Verify actual
+placement previews, product claims, discounts, shipping promises, and guarantees.
+Use a native CTA appropriate to the destination; a messaging journey can use a
+WhatsApp CTA. Do not infer an algorithm penalty from an explicit text CTA.
 
----
-
-## 4. End-to-End High-ROAS & Low-CPR Execution Playbook
-
-1. **Before Writing Any Campaign JSON:**
-   - Run `dotads-meta learn list --brand ./brand.json` (or read `<workspace>/memory/MEMORY.md`).
-   - Check `unit_economics` (`max_cpr_breakeven`, `target_cpr`, `target_roas`, `recommended_cost_cap`).
-   - Review all `winner` hooks/angles to iterate on, and all `loser` hooks/angles to avoid repeating.
-2. **Phase 1 — Creative Concept Testing (Low-Risk Discovery):**
-   - Launch 3–5 genuinely distinct creative concepts (different visual opener, persona, and format to test different creative hypotheses).
-   - Use either **Consolidated CBO with `"ad_format": "AUTOMATIC_FORMAT"`** (3 images/videos × 2 bodies × 2 titles per concept) or **Flex Budget (`"adset_budget_sharing": true`)** when budget allocation by concept is useful; sharing can move spend and does not guarantee a strict per-concept floor.
-3. **Phase 2 — Data Analysis & Memory Harvesting (After 2–3x Max CPR Spend per Concept):**
-   - Pull insights and run `dotads-meta analyze insights.json --brand ./brand.json --record-memory`.
-   - Review `FIX_*` hypotheses, stop-loss limits, and alternative causes before proposing pause/creative/funnel changes. Any live mutation still requires approval.
-4. **Phase 3 — Profitable Scaling (`ADVANTAGE_PLUS_SALES` + Cost Cap Protection):**
-   - Graduate `SCALE_WINNER` creatives into the primary **Unified Advantage+ Sales Campaign** (`objective: "OUTCOME_SALES"`, CBO budget, `"advantage_audience": true`, `"incremental_attribution": true`, `"contextual_multi_ads": false`).
-   - For high-budget scaling with strict margin protection, deploy a parallel **Cost Cap** ad set (`"bid_strategy": "COST_CAP"`, `"bid_amount": <recommended_cost_cap_in_minor_units>`) or **Minimum ROAS** (`"bid_strategy": "LOWEST_COST_WITH_MIN_ROAS"`) only when the objective and account support them. These are optimization controls, not guaranteed realized cost/profit ceilings; review underdelivery and outcome quality.
-
----
-
-## 5. AI-Aligned Conversion Ad Copy & Strict Market Localization (`ID` vs `MY`)
-
-### 5.1 Copy, destination, and evidence
-
-Write clear, fact-supported product/offer copy for the intended market. Distinct
-concepts and benefit/mechanism/proof structure are useful local hypotheses, not
-published token quotas or secret model instructions. Review repetitive commands
-and mismatched destinations. A messaging campaign may intentionally use a
-WhatsApp CTA; an explicit text CTA is not universally forbidden or proof of an
-algorithmic penalty. The native button and copy should support the same journey.
-
-### 5.2 Field-by-Field Conversion Copy Architecture (`OUTCOME_SALES`)
-
-| Creative Field | Placement-dependent preview guideline | Communication purpose | What to Write (High Conversion) | What to Avoid (Linted by `dotads-meta validate`) |
-| --- | --- | --- | --- | --- |
-| `body` / `bodies` (Primary Text) | **~125 chars** as a local preview starting point; actual visibility varies | **Semantic Retrieval + Scroll Stop + Mechanism** | Line 1: Specific situational symptom/problem (`"Tumit sering nyeri setelah berdiri atau jalan seharian?"`).<br>Line 2: Verified product mechanism; add quantitative proof only when substantiated. | Generic greetings, ALL-CAPS shouting, emoji walls, `"Klik link di bawah"`, `"Chat WA sekarang"`, `"Beli sekarang juga"`. |
-| `title` / `titles` (Headline) | **~40 chars** local headline guideline; actual truncation varies | **Value Prop / Offer Anchor next to the CTA button** | Concrete outcome, bundle value, or risk-reversal hook (`"Solusi Jalan Jauh Tanpa Pegal"`, `"Hemat 25% Paket 2 Pasang"`). | Repeating the brand name alone, `"Klik Di Sini"`, `"Order Sekarang Juga"`. |
-| `description` / `descriptions` | **~30 chars** local description guideline; visibility varies | **Frictionless Trust Signal / Objection Killer** | Shipping speed, exchange guarantee, or social proof (`"Periksa panduan ukuran"`, `"Pilihan ukuran tersedia"`). | Pushy CTA commands or long sentences that get cut off mid-word. |
-| `call_to_action` | Native UI Button | **Single Action Trigger** | `"SHOP_NOW"` (direct e-commerce/catalog) or `"LEARN_MORE"` (advertorial / high-ticket consideration). | Mixing website `SHOP_NOW` with `"Chat WA"` instructions inside the text. |
-
-### 5.3 Strict Market Localization: Indonesia (`ID`) vs Malaysia (`MY`)
-
-When `targeting_countries` targets **Indonesia (`["ID"]`)**, all copy (`title`, `body`, `description`, video subtitles, and image overlays) **must** use natural **Bahasa Indonesia for the Indonesian market**—**never** Malaysian Malay (`BM` / `MY`).
-
-Market wording can create confusion; review it in context rather than treating every dictionary match as a language error or measured conversion loss (most famously: **`"percuma"` means *"free"* in Malaysia, but means *"useless / sia-sia"* in Indonesia!**).
-
-`dotads-meta validate` automatically scans creative text fields on `"ID"`-targeted ad sets and warns if any Malaysian Malay vocabulary leaks into Indonesian ad copy:
-
-| Concept | Forbidden in Indonesia (`ID`) — *Malaysian Malay (`MY`)* | Mandatory in Indonesia (`ID`) — *Bahasa Indonesia* | Why It Matters for Conversion |
-| --- | --- | --- | --- |
-| Free / Complimentary | `percuma` (`"Penghantaran percuma"`) | `gratis` / `bebas ongkir` (`"Gratis ongkir"`) | In Indonesia, `"percuma"` means **"sia-sia / useless"**! Writing `"Penghantaran percuma"` tells Indonesian buyers your delivery is useless. |
-| Shipping / Delivery | `penghantaran` | `pengiriman` / `ongkir` | `"Penghantaran"` is unnatural in Indonesian e-commerce. |
-| Discount | `diskaun` / `potongan diskaun` | `diskon` / `potongan harga` / `hemat` | `"Diskaun"` immediately signals a non-Indonesian / translated ad. |
-| Order / Pre-order | `tempah` / `tempahan` | `pesan` / `pesanan` / `pre-order` | In Indonesia, `"menempah"` is archaic/foreign; buyers say `"pesan"`. |
-| Money-Back Guarantee | `wang dikembalikan` / `pulangan wang` | `garansi uang kembali` | `"Wang"` is Malaysian Malay; Indonesian uses `"uang"`. |
-| Visit Website | `sila layari` / `layari laman web` | `cek selengkapnya` / `kunjungi website` | `"Sila layari"` is pure Malaysian formal phrasing. |
-| Anytime | `bila-bila masa` | `kapan saja` | Idiomatic mismatch that breaks reading flow. |
-| Mobile Phone | `telefon bimbit` / `telefon pintar` | `HP` / `smartphone` / `ponsel` | Nobody in Indonesia says `"telefon bimbit"`. |
-| Staff / Team | `kakitangan` / `kaki tangan` | `tim` / `staf` / `tim CS` | In Indonesia, `"kaki tangan"` has a negative connotation (*"henchman / accomplice"*). |
-| Side Effect | `kesan sampingan` | `efek samping` | Crucial for skincare/supplement/wellness compliance and clarity. |
-| Size | `saiz` | `ukuran` / `size` | `"Saiz"` is Malaysian phonetic spelling. |
-
-### 5.4 Illustrative Indonesian (`ID`) Copy Patterns
-
-These examples establish a writing pattern, not product facts or proven lift.
-Verify materials, shipping, discounts, guarantees, and any performance claims
-before use; do not invent customer counts or medical outcomes.
-
-- **Example A — Problem/Mechanism/Proof (`OUTCOME_SALES`, Indonesia Market, Zero Pushy CTA in Text):**
-  - `body`: `"Lengkapi sepatu harian dengan insole yang sesuai. Periksa bahan, ukuran, dan cara perawatan pada detail produk."`
-  - `title`: `"Pilihan Insole untuk Sepatu Harian"`
-  - `description`: `"Periksa panduan ukuran"`
-  - `call_to_action`: `"SHOP_NOW"`
-- **Example B — Comparison / Value Bundle (`AUTOMATIC_FORMAT` Multi-Text Array, Indonesia Market):**
-  - `bodies`:
-    1. `"Kemeja biasa gampang kusut setelah 2 jam di perjalanan. Katun Tencel anti-kusut ini tetap rapi dari pagi sampai meeting sore tanpa perlu disetrika ulang."`
-    2. `"Adem di cuaca tropis Indonesia dan tidak menerawang. Jahitan rantai ganda yang tetap presisi meski dicuci puluhan kali."`
-  - `titles`:
-    1. `"Tetap Rapi Seharian Tanpa Setrika"`
-    2. `"Paket Hemat 2 Pcs — Gratis Tukar Size"`
-  - `descriptions`:
-    1. `"Dikirim di hari yang sama"`
-  - `call_to_actions`: `["SHOP_NOW"]`
+Current platform sources, CLI compatibility limits, and changing API claims are
+maintained in [API and evidence](api-and-evidence.md). Never promise maximum ROAS,
+lowest CPR, successful delivery, or profitable scaling from a public baseline,
+a classifier, or a cost-cap setting.

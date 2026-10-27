@@ -19,6 +19,8 @@ TASK-147: [Runtime activation and trustworthy verification](docs/archive/DOTFILE
 
 TASK-146, TASK-149, TASK-150: [Meta/SEO implementations and retired-skill integration](docs/archive/DOTFILES_TASKS_2026-10-27_META_SEO.md).
 
+TASK-152: [Indonesia baseline and trustworthy Meta diagnostics](docs/archive/DOTFILES_TASKS_2026-10-27_META_INDONESIA.md); implementation evidence remains in its delivery run.
+
 ## Pending
 
 ### TASK-148: Scope remaining owner priorities

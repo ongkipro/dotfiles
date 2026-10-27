@@ -128,7 +128,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Research records | [`docs/research/`](../docs/research/) | 4 | linked from this page |
 | Environment and bootstrap | [`config/`](../config/) | 35 | linked from this page |
 | Device reports | [`docs/device-reports/`](../docs/device-reports/) | 21 | count only |
-| Archived task records | [`docs/archive/`](../docs/archive/) | 30 | count only |
+| Archived task records | [`docs/archive/`](../docs/archive/) | 31 | count only |
 
 <!-- system-map:inventory:end -->
 
@@ -338,7 +338,7 @@ Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rende
 - [`application-security`](../skills/local/application-security/SKILL.md): Threat modeling, tenant isolation, CSRF, XSS, injection prevention.
 
 ### 6.7 Advertising Signals
-- [`meta-ads-cli`](../skills/local/meta-ads-cli/SKILL.md): Meta Ads campaign, ad set, creative (image/video/DCO), and insights CLI operations via Meta's official `meta-ads` CLI and `dotads-meta`.
+- [`meta-ads-cli`](../skills/local/meta-ads-cli/SKILL.md): Meta Ads CLI operations, scoped performance analysis, and the on-demand Indonesia market baseline via `dotads-meta`.
 - [`meta-ads-signal-engine`](../skills/local/meta-ads-signal-engine/SKILL.md): Meta Pixel + CAPI outbox, deduplication `event_id`.
 - [`meta-ads-scout`](../skills/local/meta-ads-scout/SKILL.md): Competitor ad intelligence via Meta Ad Library.
 - [`google-ads-signal-engine`](../skills/local/google-ads-signal-engine/SKILL.md): Google Tag, sGTM, Enhanced Conversions, Consent Mode v2.
@@ -444,7 +444,7 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`tmux-battery`](../bin/tmux-battery) (+ [`test`](../bin/tmux-battery-test)): Battery segment for the tmux status bar; silent and exit 0 on machines without a battery.
 - [`vps-pgdump`](../bin/vps-pgdump) (+ [`test`](../bin/vps-pgdump-test)): Pulls a Postgres backup and the stack config off a VPS over SSH, because provider snapshots failed silently.
 - [`shopify-content-helper`](../bin/shopify-content-helper) (+ [`test`](../bin/shopify-content-helper-test)): Shopify SEO and content utilities: SEO audit and limits, sitemap entries, meta and brief templates, RSS and JSON-LD skeletons.
-- [`dotads-meta`](../bin/dotads-meta) (+ [`test`](../bin/dotads-meta-test)): Per-project Meta Ads validator, dry-run planner, stateful deployer, and `secrets-env` bridge for Meta's official `meta-ads` CLI.
+- [`dotads-meta`](../bin/dotads-meta) (+ [`test`](../bin/dotads-meta-test)): Offline Indonesia market baseline, scoped economics observations, campaign validation, dry-run planning, stateful deployment, and `secrets-env` bridge for Meta's official CLI.
 - [`rea-skill-sync`](../bin/rea-skill-sync) (+ [`test`](../bin/rea-skill-sync-test)): Deterministic upstream auto-sync and drift checker synchronizing `skills/local/black-magic/` with `morluto/rea`.
 - [`pi-9router-restore`](../bin/pi-9router-restore): Restores optional Pi settings and the remote 9Router model integration.
 - [`pi-9router-sync.js`](../bin/pi-9router-sync.js): Syncs the remote 9Router catalog into Pi's machine-local `models.json`.
