@@ -5,7 +5,14 @@ set -uo pipefail
 ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
 CMD="$ROOT/bin/dotads-meta"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/dotads-meta-test.XXXXXX")"
+TMP="$(cd "$TMP" && pwd -P)"
+# HOME/cwd fixtures must retain the actual Node binary, not a configuration-dependent shim.
+dotads_test_node_dir="$(node -p 'require("node:path").dirname(process.execPath)')"
+export PATH="$dotads_test_node_dir:$PATH"
 trap 'rm -rf "$TMP"' EXIT
+
+# A caller's workspace override must never redirect fixture writes to real data.
+unset DOTADS_WORKSPACE_ROOT
 
 f=0
 ok()  { printf '  ✓ %s\n' "$1"; }
@@ -428,6 +435,136 @@ else
   bad "setup or default workspace root failed: $setup_out (mode=$setup_ws_mode)"
 fi
 
+# 5a2. Real filesystem and child-process contracts for workspace setup/init.
+python3 - "$CMD" "$TMP" <<'PYTEST'
+import json, os, pathlib, stat, subprocess, sys
+cmd, base = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]) / 'workspace-contract'
+base.mkdir()
+env = dict(os.environ)
+for key in ('DOTADS_WORKSPACE_ROOT', 'NODE_OPTIONS'):
+    env.pop(key, None)
+def run(args, home, **options):
+    home.mkdir(parents=True, exist_ok=True)
+    return subprocess.run([str(cmd), *args], env=dict(env, HOME=str(home), **options.pop('extra', {})),
+                          text=True, capture_output=True, timeout=30, **options)
+home, cwd = base / 'routing-home', base / 'cwd'
+cwd.mkdir()
+slug = 'act_321--brand'
+(cwd / slug).mkdir()
+r = run(['init', slug], home, cwd=cwd)
+workspace = home / 'Documents/dotads-meta-report' / slug
+assert r.returncode == 0 and (workspace / 'brand.json').exists(), r.stderr
+assert not (cwd / slug / 'brand.json').exists()
+brand = json.loads((workspace / 'brand.json').read_text())
+assert brand['ad_account_id'] == 'act_321' and brand['brand'] == 'brand'
+(workspace / '.meta-state.json').write_text('{"keep":true}')
+before = {p: p.read_bytes() for p in workspace.rglob('*') if p.is_file()}
+assert run(['init', slug], home, cwd=cwd).returncode == 0
+assert all(p.read_bytes() == data for p, data in before.items())
+assert run(['init', './local-brand'], home, cwd=cwd).returncode == 0
+assert (cwd / 'local-brand/brand.json').exists()
+for case in ('root-link', 'root-dangling', 'root-file', 'account-link', 'media-link', 'brand-link'):
+    h = base / case
+    documents = h / 'Documents'
+    documents.mkdir(parents=True)
+    report = documents / 'dotads-meta-report'
+    external = h / 'other-data'
+    external.mkdir(mode=0o755)
+    (external / 'keep.txt').write_text('preserve')
+    if case.startswith('root-'):
+        if case == 'root-file': report.write_text('preserve')
+        else: report.symlink_to(external if case == 'root-link' else h / 'missing', target_is_directory=True)
+    else:
+        report.mkdir(mode=0o700)
+        account = report / slug
+        if case == 'account-link': account.symlink_to(external, target_is_directory=True)
+        else:
+            account.mkdir()
+            if case == 'media-link': (account / 'media').symlink_to(external, target_is_directory=True)
+            else: (account / 'brand.json').symlink_to(external / 'keep.txt')
+    result = run(['init', slug, '--force'], h, cwd=cwd)
+    assert result.returncode != 0, case
+    assert sorted(p.name for p in external.iterdir()) == ['keep.txt'], case
+    assert (external / 'keep.txt').read_text() == 'preserve' and stat.S_IMODE(external.stat().st_mode) == 0o755, case
+    assert not (h / 'missing').exists()
+for effect in ('denied', 'noop'):
+    h = base / ('chmod-' + effect)
+    root = h / 'Documents/dotads-meta-report'
+    root.mkdir(parents=True, mode=0o755)
+    root.chmod(0o755)
+    hook = h / 'fs-fixture.cjs'
+    hook.write_text("require('fs').fchmodSync = () => { " +
+                    ("throw Object.assign(new Error('fixture EPERM'), {code:'EPERM'});" if effect == 'denied' else '') + ' };\n')
+    result = run(['init', slug], h, cwd=cwd, extra={'NODE_OPTIONS': '--require=' + str(hook)})
+    assert result.returncode != 0 and not (root / slug).exists(), effect
+    assert stat.S_IMODE(root.stat().st_mode) == 0o755
+
+# Fake provider processes; only dotads-meta itself and the filesystem are real.
+provider = r'''
+import json, os, pathlib, sys
+home = pathlib.Path(os.environ['HOME'])
+kind = pathlib.Path(sys.argv[0]).name
+args = sys.argv[1:]
+log = home / 'calls.jsonl'
+past = [json.loads(x) for x in log.read_text().splitlines()] if log.exists() else []
+with log.open('a') as f: f.write(json.dumps([kind, *args]) + '\n')
+case = os.environ['SETUP_CASE']
+shared = pathlib.Path(os.environ['PIPX_SHARED_LIBS'])
+if kind == 'meta':
+    if (home / 'installed').exists(): print('meta, version ' + ('11.2.0' if case == 'wrong-version' else '1.2.0')); sys.exit(0)
+    sys.exit(1)
+if kind == 'pipx' and args == ['--version']: print('1.4.3'); sys.exit(0)
+if kind == 'pipx' and args[:1] == ['environment']: print(shared); sys.exit(0)
+if kind == 'pipx' and args[:1] == ['install']:
+    count = sum(x[:2] == ['pipx', 'install'] for x in past)
+    if case == 'missing-binary': sys.exit(0)
+    if case in ('install-success', 'wrong-version') or (case == 'recovery-success' and count == 1):
+        (home / 'installed').touch(); sys.exit(0)
+    sys.exit(7)
+if kind == 'python3':
+    (shared / 'bin').mkdir(parents=True, exist_ok=True)
+    (shared / 'bin/python').touch()
+    sys.exit(9 if case == 'venv-failed' else 0)
+if kind == 'pip':
+    if case == 'bootstrap-failed': sys.exit(8)
+    (shared / 'bin/pip').touch(); sys.exit(0)
+sys.exit(99)
+'''
+for case in ('install-success', 'missing-binary', 'wrong-version', 'recovery-success', 'venv-failed', 'bootstrap-failed', 'retry-failed', 'shared-healthy', 'no-bootstrap'):
+    h = base / case
+    fake = h / 'fake-bin'
+    fake.mkdir(parents=True)
+    shared = h / 'custom-pipx/shared'
+    bootstrap = h / '.local/share/pipx-bootstrap/bin/pip'
+    commands = [fake / 'meta', fake / 'pipx', fake / 'python3']
+    if case != 'no-bootstrap':
+        bootstrap.parent.mkdir(parents=True)
+        commands.append(bootstrap)
+    if case == 'shared-healthy':
+        (shared / 'bin').mkdir(parents=True)
+        (shared / 'bin/pip').touch()
+    for executable in commands:
+        executable.write_text('#!' + sys.executable + '\n' + provider)
+        executable.chmod(0o755)
+    result = run(['setup'], h, cwd=cwd, extra={
+        'PATH': str(fake) + os.pathsep + env['PATH'], 'META_ADS_BIN': str(fake / 'meta'),
+        'SETUP_CASE': case, 'PIPX_HOME': str(h / 'custom-pipx'), 'PIPX_SHARED_LIBS': str(shared)})
+    assert (result.returncode == 0) == (case in ('install-success', 'recovery-success')), (case, result.stderr)
+    calls = [json.loads(x) for x in (h / 'calls.jsonl').read_text().splitlines()]
+    installs = sum(x[:2] == ['pipx', 'install'] for x in calls)
+    assert installs == (2 if case in ('recovery-success', 'retry-failed') else 1), (case, calls)
+    if case == 'venv-failed': assert not any(x[0] == 'pip' for x in calls), calls
+    if case in ('shared-healthy', 'no-bootstrap', 'install-success', 'missing-binary', 'wrong-version'):
+        assert not any(x[0] in ('python3', 'pip') for x in calls), calls
+    assert not (h / '.local/share/pipx/shared').exists(), case
+print('PASS workspace routing, preservation, symlink/permission rejection and bounded pipx recovery with custom paths')
+PYTEST
+if [ "$?" -eq 0 ]; then
+  ok "workspace setup/init public filesystem and process contracts"
+else
+  bad "workspace setup/init contract failed"
+fi
+
 # 5b. Dry-run makes zero calls to meta CLI and forces PAUSED even if manifest has ACTIVE
 jq '.campaign.status = "ACTIVE" | .ads[0].status = "ACTIVE"' "$WS/campaigns/sample-campaign.json" > "$WS/campaigns/active-manifest.json"
 dry_out="$("$CMD" deploy "$WS/campaigns/active-manifest.json" 2>&1)"
@@ -583,7 +720,20 @@ else
 fi
 
 # 6c. Mocked insights pull and explicitly estimated COD delivery, without mutation plans.
-pull_out="$("$CMD" analyze --pull --delivery-rate 0.8 --brand "$WS/brand.json" --json 2>&1)"
+cat > "$TMP/provider-python" <<'PYMOCK'
+#!/usr/bin/env python3
+import json,sys
+request=json.load(sys.stdin)
+if '--plan' in sys.argv:
+    print(json.dumps({'request':request,'scope':{'level':'ad'}}));sys.exit(0)
+assert request['operation']=='insights' and request['levels']==['ad']
+rows=[{'account_id':'act_1234567890','account_currency':'USD','ad_id':'ad_live_1','ad_name':'Ad_Live_Pulled','spend':'100','impressions':'12000','frequency':'1.4','outbound_clicks':'200','actions':[{'action_type':'purchase','value':'5'}],'action_values':[{'action_type':'purchase','value':'500'}]},
+{'account_id':'act_1234567890','account_currency':'USD','ad_id':'ad_early_1','ad_name':'Ad_Early_Learning','spend':'20','impressions':'2000','frequency':'1.1','outbound_clicks':'25'},
+{'account_id':'act_1234567890','account_currency':'USD','ad_id':'ad_fatigue_1','ad_name':'Ad_Fatigued_V1','spend':'100','impressions':'15000','frequency':'2.9','outbound_clicks':'150','actions':[{'action_type':'purchase','value':'1'}],'action_values':[{'action_type':'purchase','value':'100'}]}]
+print(json.dumps({'account':{'id':request['account_id']},'insights':[{'query':{'level':'ad'},'coverage':{'status':'complete','pagination_exhausted':True},'rows':rows}]}))
+PYMOCK
+chmod +x "$TMP/provider-python"
+pull_out="$(DOTADS_META_PYTHON="$TMP/provider-python" "$CMD" analyze --pull --delivery-rate 0.8 --brand "$WS/brand.json" --json 2>&1)"
 if [ "$?" -eq 0 ] \
   && printf '%s' "$pull_out" | jq -e '.ok == true and .results[0].meta_roas == 5 and .results[0].roas == 4 and .results[0].classification == "ABOVE_TARGET_CANDIDATE" and (.results | all(.recommended_command == null)) and .results[1].classification == "INSUFFICIENT_DATA" and .results[1].purchases == null and .results[2].classification == "CREATIVE_FATIGUE_CANDIDATE"' >/dev/null; then
   ok "mocked pull preserves absent conversion counts, labels COD estimates, and emits diagnostic candidates only"
@@ -963,6 +1113,7 @@ fixture = root / 'copy'
 (fixture/'bin').mkdir(parents=True)
 copycmd = fixture/'bin/dotads-meta'
 shutil.copy2(cmd, copycmd)
+shutil.copy2(cmd.parent/'_dotads-workspace.mjs', copycmd.parent/'_dotads-workspace.mjs')
 snapshot = fixture/'skills/local/meta-ads-cli/references/indonesia-baseline.json'
 snapshot.parent.mkdir(parents=True)
 original = json.loads((cmd.parent.parent/'skills/local/meta-ads-cli/references/indonesia-baseline.json').read_text())
@@ -979,6 +1130,113 @@ for mutation in ['wrong-market','duplicate-province','invalid-percentage','inval
 print('  PASS explicit market isolation, scoped geography, provenance, zero upstream/writes, symlink execution and broken snapshots')
 PYBASELINE
 then ok "public Indonesia baseline contract"; else bad "public Indonesia baseline regression"; fi
+
+if python3 - "$CMD" "$TMP" <<'PYREPORTING'
+import copy, importlib.util, json, os, pathlib, subprocess, sys
+cmd, tmp = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]) / 'reporting-cli'
+tmp.mkdir()
+root, home = tmp / 'reports', tmp / 'home'
+home.mkdir()
+env = dict(os.environ, HOME=str(home), DOTADS_WORKSPACE_ROOT=str(root), PYTHONDONTWRITEBYTECODE='1')
+for key in ('ACCESS_TOKEN', 'META_ACCESS_TOKEN', 'DOTADS_META_PYTHON', 'NODE_OPTIONS'):
+    env.pop(key, None)
+secret = tmp / 'secret-service'
+secret.write_text('#!/bin/sh\nprintf called >> "' + str(tmp / 'secret-calls') + '"\nprintf synthetic-fixture-token\n')
+secret.chmod(0o755)
+env['SECRETS_ENV_BIN'] = str(secret)
+def call(*args, ok=True):
+    result = subprocess.run([str(cmd), *args], env=env, text=True, capture_output=True, timeout=30)
+    assert (result.returncode == 0) == ok, (args, result.stdout, result.stderr)
+    assert 'synthetic-fixture-token' not in result.stdout + result.stderr
+    return json.loads(result.stdout) if ok else result
+assert call('accounts', '--local', '--json')['accounts'] == [] and not root.exists()
+payload = {
+ 'schema_version':1,
+ 'source':{'kind':'OFFLINE_FIXTURE','sdk_version':'24.0.1','api_version':'v24.0','effective_api_version':None,'started_at':'2026-10-01T00:00:00Z','finished_at':'2026-10-01T00:01:00Z'},
+ 'account':{'id':'act_123','account_id':'123','name':'Fixture account','currency':'IDR','timezone_name':'Asia/Jakarta'},
+ 'scope':{'since':'2026-09-01','until':'2026-09-30','levels':['ad'],'breakdowns':[],'attribution':{},'action_report_time':'conversion'},
+ 'resources':{
+   'campaigns':{'status':'complete','pagination_exhausted':True,'rows':[{'id':'1','account_id':'123','name':'Campaign'}],'errors':[]},
+   'adsets':{'status':'complete','pagination_exhausted':True,'rows':[{'id':'2','account_id':'123','campaign_id':'1','name':'Adset'}],'errors':[]},
+   'ads':{'status':'complete','pagination_exhausted':True,'rows':[{'id':'3','account_id':'123','campaign_id':'1','adset_id':'2','name':'Ad'}],'errors':[]},
+   'creatives':{'status':'complete','pagination_exhausted':True,'rows':[],'errors':[]}},
+ 'insights':[{'query':{'account_id':'123','since':'2026-09-01','until':'2026-09-30','level':'ad','fields':['account_id','ad_id','spend','impressions'],'breakdowns':[],'time_increment':'all_days','attribution':{},'action_report_time':'conversion'},'coverage':{'status':'complete','pagination_exhausted':True},'rows':[{'account_id':'123','ad_id':'3','adset_id':'2','campaign_id':'1','spend':'0','impressions':'0'}],'errors':[]}]}
+export = tmp / 'export.json'
+export.write_text(json.dumps(payload))
+scope = ('--account','act_123','--since','2026-09-01','--until','2026-09-30','--levels','ad','--json')
+saved = call('sync',*scope,'--input',str(export))
+assert saved['status'] == 'complete'
+report = call('report','--account','act_123','--json')
+assert pathlib.Path(report['report_path']).is_file()
+assert 'Imported collection' in pathlib.Path(report['report_path']).read_text()
+assert not (tmp / 'secret-calls').exists()
+assert len(call('accounts','--local','--json')['accounts']) == 1
+bad = copy.deepcopy(payload); bad['scope']['attribution']={'action_attribution_windows':['7d_click']}
+export.write_text(json.dumps(bad))
+call('sync',*scope,'--input',str(export),ok=False)
+call('sync','--account','act_123','--since','2026-02-30','--until','2026-09-30',ok=False)
+assert not (tmp / 'secret-calls').exists()
+media = tmp / 'photo.jpg'; media.write_bytes(b'fixture-image')
+asset = call('import-media','--account','act_123',str(media),'--json')
+assert media.exists() and pathlib.Path(asset['destination_path']).read_bytes() == b'fixture-image'
+video = tmp / 'clip.mp4'; video.write_bytes(b'fixture-video')
+moved = call('import-media','--account','act_123',str(video),'--move','--json')
+assert not video.exists() and pathlib.Path(moved['destination_path']).read_bytes() == b'fixture-video'
+project = tmp / 'project'; project.mkdir()
+(project / 'brand.json').write_text('{"ad_account_id":"act_123"}')
+before = (project / 'brand.json').read_bytes()
+assert call('adopt','--account','act_123',str(project),'--json')['status'] == 'planned'
+assert call('adopt','--account','act_123',str(project),'--apply','--json')['status'] == 'complete'
+assert call('adopt','--account','act_123',str(project),'--apply','--json')['status'] == 'no_change'
+assert (project / 'brand.json').read_bytes() == before
+
+# Existing init folders remain authoritative and require explicit selection.
+legacy = root / 'act_456--old-name'
+subprocess.run([str(cmd),'init',str(legacy)],env=env,text=True,capture_output=True,check=True)
+(legacy / '.meta-state.json').write_text(json.dumps({'version':1,'ad_account_id':'act_456',**{key:{} for key in ('media_cache','campaigns','creatives','adsets','ads')}}))
+(legacy / 'NOTES.md').write_text('Preserve these decisions.\n')
+preserved = {name:(legacy/name).read_bytes() for name in ('brand.json','.meta-state.json','NOTES.md')}
+legacy_payload = copy.deepcopy(payload)
+legacy_payload['account'].update(id='act_456',account_id='456',name='New remote name')
+for resource in legacy_payload['resources'].values():
+    for row in resource['rows']: row['account_id']='456'
+for query in legacy_payload['insights']:
+    query['query']['account_id']='456'
+    for row in query['rows']: row['account_id']='456'
+legacy_export=tmp/'legacy-export.json';legacy_export.write_text(json.dumps(legacy_payload))
+legacy_scope=('--account','act_456','--since','2026-09-01','--until','2026-09-30','--levels','ad','--input',str(legacy_export),'--json')
+call('sync',*legacy_scope,ok=False)
+registered=call('sync',*legacy_scope,'--existing-directory',str(legacy))
+assert pathlib.Path(registered['directory']) == legacy
+assert all((legacy/name).read_bytes()==data for name,data in preserved.items())
+assert len([p for p in root.iterdir() if p.name.startswith('act_456--')]) == 1
+assert not (tmp/'secret-calls').exists()
+
+# Use the actual provider's pure planning contract with a substituted execution process.
+export.write_text(json.dumps(payload))
+fake = tmp / 'provider-python'
+fake.write_text('#!' + sys.executable + '\n' + '''
+import importlib.util,json,pathlib,sys
+spec=importlib.util.spec_from_file_location('provider',sys.argv[1]);provider=importlib.util.module_from_spec(spec);spec.loader.exec_module(provider)
+request=provider.validate(json.load(sys.stdin));scope=provider.planned_scope(request)
+if '--plan' in sys.argv: print(json.dumps({'request':request,'scope':scope}));sys.exit(0)
+base=pathlib.Path(__file__).parent
+if (base/'provider-failed').exists(): print('synthetic-fixture-token',file=sys.stderr);sys.exit(8)
+value=json.loads((base/'export.json').read_text());value['scope']=scope
+print(json.dumps(value))
+''')
+fake.chmod(0o755)
+env['DOTADS_META_PYTHON']=str(fake)
+live = call('sync',*scope)
+assert live['status'] == 'complete'
+(tmp / 'provider-failed').touch()
+call('sync',*scope,ok=False)
+retained = call('report','--account','act_123','--json')
+assert retained['snapshot_id'] == live['snapshot_id']
+assert 'failed' in pathlib.Path(retained['report_path']).read_text().lower()
+print('  PASS reporting CLI: offline source proof, scoped sync/report, copy/move/adoption and canonical failed-refresh fallback')
+PYREPORTING
+then ok "account reporting CLI integration"; else bad "account reporting CLI regression"; fi
 
 [ "$f" -eq 0 ] && { echo "dotads-meta-test: PASS"; exit 0; }
 echo "dotads-meta-test: $f case(s) failed" >&2

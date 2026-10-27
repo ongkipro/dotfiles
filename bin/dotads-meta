@@ -27,6 +27,9 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import os from "node:os";
+import { fileURLToPath } from "node:url";
+import { parseArgs, isDeepStrictEqual } from "node:util";
+import * as workspace from "./_dotads-workspace.mjs";
 
 const DEFAULT_META_ADS_VERSION = "1.2.0";
 
@@ -215,6 +218,25 @@ Subcommands:
       Scaffold brand.json, campaigns/sample-campaign.json, media/, memory/, and .gitignore
       (bare account/brand names scaffold under ~/Documents/dotads-meta-report/).
 
+  accounts [--local] [--token-env <KEY>] [--json]
+      Discover accessible accounts read-only, or list local account workspaces offline.
+
+  sync --account <act_id> --since <YYYY-MM-DD> --until <YYYY-MM-DD>
+       [--levels account,campaign,adset,ad] [--breakdowns age,gender]
+       [--attribution <json>] [--action-report-time conversion|impression|mixed]
+       [--input <collection.json>] [--existing-directory <path>]
+       [--token-env <KEY>] [--max-pages <n>] [--json]
+      Save scoped inventory/Insights snapshots. --input imports an authorized export offline.
+
+  report --account <act_id> [--snapshot <id>] [--scope-key <key>] [--json]
+      Render immutable Markdown/CSV reports offline from saved snapshots.
+
+  import-media --account <act_id> <file> [--move] [--json]
+      Copy a selected image/video into its account workspace; --move explicitly requests cleanup.
+
+  adopt --account <act_id> <selected-project-directory> [--apply] [--json]
+      Plan a hash-bound operational reference; apply preserves source files and deployment ownership.
+
   validate <campaign.json> [--brand <brand.json>] [--json]
       Offline validation of brand.json + campaign.json (CBO/ABO rules, OUTCOME_SALES
       conversion requirements, DCO limits, local media files, and budget summary).
@@ -302,8 +324,181 @@ function readSecretToken(tokenEnvName = "META_ACCESS_TOKEN") {
   if (process.env.ACCESS_TOKEN && process.env.ACCESS_TOKEN.trim()) {
     return process.env.ACCESS_TOKEN.trim();
   }
-  const detail = (res.stderr || "").trim() || `key '${tokenEnvName}' not found in secrets-env`;
-  throw new Error(`Unable to load secret '${tokenEnvName}' via secrets-env (${detail}).`);
+  throw new Error("Unable to load the configured secret reference via secrets-env; inspect its local configuration without printing credentials.");
+}
+
+function providerPython() {
+  if (process.env.DOTADS_META_PYTHON) return process.env.DOTADS_META_PYTHON;
+  try {
+    const candidate = path.join(path.dirname(fs.realpathSync(resolveMetaBin())), "python");
+    fs.accessSync(candidate, fs.constants.X_OK);
+    return candidate;
+  } catch {
+    throw new Error("Cannot locate the installed Meta CLI Python environment; use authorized setup or configure DOTADS_META_PYTHON.");
+  }
+}
+
+function collectProvider(request, tokenKey = "META_ACCESS_TOKEN") {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(tokenKey)) throw new Error("--token-env requires a secret key name, never its value.");
+  const python = providerPython();
+  const provider = fileURLToPath(new URL("./_dotads-meta-provider.py", import.meta.url));
+  const planningEnv = { ...process.env };
+  delete planningEnv.ACCESS_TOKEN;
+  delete planningEnv[tokenKey];
+  const planned = spawnSync(python, [provider, "--plan"], {
+    input: JSON.stringify(request), env: planningEnv, encoding: "utf8", timeout: 15_000, maxBuffer: 1024 * 1024,
+  });
+  if (planned.status !== 0) throw new Error("Provider request validation failed before credential access; check the selected scope and installed adapter.");
+  let plan;
+  try { plan = JSON.parse(planned.stdout); } catch { throw new Error("Provider planning returned an invalid JSON envelope."); }
+  try {
+    const token = readSecretToken(tokenKey);
+    const result = spawnSync(python, [provider], {
+      input: JSON.stringify(request), env: { ...process.env, ACCESS_TOKEN: token },
+      encoding: "utf8", stdio: ["pipe", "pipe", "pipe"], timeout: 180_000,
+      maxBuffer: 128 * 1024 * 1024,
+    });
+    if (result.status !== 0) throw new Error("Meta SDK collection failed or exceeded its execution budget; inspect sanitized provider diagnostics and account access before retrying.");
+    if ((result.stdout || "").includes(token)) throw new Error("Provider output contained credential material and was rejected before persistence.");
+    let data;
+    try { data = JSON.parse(result.stdout); }
+    catch { throw new Error("Meta SDK collector did not return a valid JSON envelope."); }
+    if (request.operation === "collect" && !isDeepStrictEqual(data.scope, plan.scope)) {
+      throw new Error("Provider returned a different collection scope from its validated plan.");
+    }
+    if (request.operation === "collect") workspace.validateCollection(data);
+    return data;
+  } catch (error) {
+    if (plan.scope) error.collectionScope = plan.scope;
+    throw error;
+  }
+}
+
+function accountId(value) {
+  if (typeof value !== "string" || !/^act_[0-9]+$/.test(value)) throw new Error("An explicit canonical --account act_<digits> is required.");
+  return value;
+}
+
+function dateRange(since, until) {
+  const valid = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || "") &&
+    Number.isFinite(Date.parse(value + "T00:00:00Z")) && new Date(value + "T00:00:00Z").toISOString().slice(0, 10) === value;
+  if (!valid(since) || !valid(until) || since > until) throw new Error("Explicit valid --since and --until dates are required in chronological YYYY-MM-DD order.");
+}
+
+function cmdAccounts(argv) {
+  const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: {
+    local: { type: "boolean" }, "token-env": { type: "string" }, json: { type: "boolean" },
+  }});
+  if (positionals.length) throw new Error("accounts accepts no positional arguments.");
+  const result = values.local ? { accounts: workspace.listLocalAccounts(defaultWorkspaceRoot()), source: "LOCAL_REGISTRY" } :
+    collectProvider({ operation: "accounts", max_pages: 100 }, values["token-env"]);
+  if (!Array.isArray(result.accounts)) throw new Error("Account discovery returned an invalid envelope.");
+  if (values.json) console.log(JSON.stringify(result, null, 2));
+  else {
+    for (const account of result.accounts) console.log(`${account.id || account.account_id} | ${account.name || "name unavailable"} | ${account.currency || "currency unknown"}`);
+    console.log(`Coverage: ${result.coverage?.status || "local registry only"}; discovery does not export account data.`);
+  }
+}
+
+function cmdSync(argv) {
+  const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: {
+    account: { type: "string" }, since: { type: "string" }, until: { type: "string" },
+    levels: { type: "string" }, breakdowns: { type: "string" }, attribution: { type: "string" },
+    "action-report-time": { type: "string" }, "token-env": { type: "string" },
+    "max-pages": { type: "string" }, input: { type: "string" }, "existing-directory": { type: "string" }, json: { type: "boolean" },
+  }});
+  if (positionals.length) throw new Error("sync accepts options only.");
+  const account = accountId(values.account);
+  dateRange(values.since, values.until);
+  const levels = [...new Set((values.levels || "account,campaign,adset,ad").split(","))].sort();
+  if (levels.some((level) => !["account", "campaign", "adset", "ad"].includes(level))) throw new Error("Unsupported Insights level.");
+  const breakdowns = values.breakdowns ? [...new Set(values.breakdowns.split(","))].sort() : [];
+  if (breakdowns.some((item) => !/^[a-z][a-z0-9_]*$/.test(item))) throw new Error("Invalid breakdown name.");
+  let attribution;
+  try { attribution = JSON.parse(values.attribution || "{}"); } catch { throw new Error("--attribution must be a JSON object."); }
+  if (!attribution || Array.isArray(attribution) || typeof attribution !== "object") throw new Error("--attribution must be a JSON object.");
+  const attributionKeys = new Set(["action_attribution_windows", "use_account_attribution_setting", "use_unified_attribution_setting"]);
+  if (Object.keys(attribution).some((key) => !attributionKeys.has(key)) ||
+      ["use_account_attribution_setting", "use_unified_attribution_setting"].some((key) => key in attribution && typeof attribution[key] !== "boolean")) {
+    throw new Error("Attribution must use supported API keys and boolean source flags.");
+  }
+  const windows = attribution.action_attribution_windows;
+  if (windows !== undefined && (!Array.isArray(windows) || !windows.length || windows.some((value) => typeof value !== "string") || new Set(windows).size !== windows.length)) {
+    throw new Error("Attribution windows must be a nonempty array of distinct API window names.");
+  }
+  if ((attribution.use_account_attribution_setting && attribution.use_unified_attribution_setting) ||
+      (windows && (attribution.use_account_attribution_setting || attribution.use_unified_attribution_setting))) {
+    throw new Error("Explicit attribution windows and attribution source settings must not conflict.");
+  }
+  const actionReportTime = values["action-report-time"] || "conversion";
+  if (!["conversion", "impression", "mixed"].includes(actionReportTime)) throw new Error("Invalid action report time.");
+  const maxPages = Number(values["max-pages"] || 100);
+  if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 1000) throw new Error("--max-pages must be an integer from 1 to 1000.");
+  const request = { operation: "collect", account_id: account, since: values.since, until: values.until,
+    levels, breakdowns, attribution, action_report_time: actionReportTime, max_pages: maxPages };
+  let payload;
+  if (values.input) {
+    let inputBytes;
+    try { inputBytes = fs.readFileSync(path.resolve(values.input)); payload = JSON.parse(inputBytes.toString("utf8")); }
+    catch { throw new Error("Cannot read a valid authorized collection JSON input."); }
+    if (payload && typeof payload === "object") payload.source = {
+      ...payload.source,
+      import_context: { kind: "LOCAL_INPUT", input_sha256: crypto.createHash("sha256").update(inputBytes).digest("hex"),
+        imported_at: new Date().toISOString(), declared_source: payload.source?.kind || "unknown", authenticated_read_observed: false },
+    };
+  } else {
+    try { payload = collectProvider(request, values["token-env"]); }
+    catch (error) {
+      if (error.collectionScope) workspace.recordFailure(defaultWorkspaceRoot(), account, error.collectionScope, "Provider collection failed; no new complete snapshot was published.");
+      throw error;
+    }
+  }
+  if (payload?.account?.id !== account || payload?.scope?.since !== values.since || payload?.scope?.until !== values.until ||
+      JSON.stringify([...(payload?.scope?.levels || [])].sort()) !== JSON.stringify(levels) ||
+      JSON.stringify([...(payload?.scope?.breakdowns || [])].sort()) !== JSON.stringify(breakdowns) ||
+      !isDeepStrictEqual(payload?.scope?.attribution || {}, attribution) || payload?.scope?.action_report_time !== actionReportTime) {
+    throw new Error("Collection identity or measurement scope does not match the request.");
+  }
+  let result;
+  try {
+    workspace.validateCollection(payload);
+    if (values["existing-directory"]) workspace.registerExisting(defaultWorkspaceRoot(), payload.account, path.resolve(values["existing-directory"]));
+    result = workspace.saveSnapshot(defaultWorkspaceRoot(), payload);
+  }
+  catch (error) {
+    if (!values.input) workspace.recordFailure(defaultWorkspaceRoot(), account, payload.scope, "Local snapshot publication failed; inspect recovery before retrying.");
+    throw error;
+  }
+  console.log(values.json ? JSON.stringify(result, null, 2) : `Snapshot ${result.snapshot_id} | ${result.status} | scope ${result.scope_key}`);
+}
+
+function cmdReport(argv) {
+  const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: {
+    account: { type: "string" }, snapshot: { type: "string" }, "scope-key": { type: "string" }, json: { type: "boolean" },
+  }});
+  if (positionals.length) throw new Error("report accepts options only.");
+  const result = workspace.renderReport(defaultWorkspaceRoot(), accountId(values.account), {
+    snapshotId: values.snapshot, scopeKey: values["scope-key"],
+  });
+  console.log(JSON.stringify(result, null, 2));
+}
+
+function cmdImportMedia(argv) {
+  const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: {
+    account: { type: "string" }, move: { type: "boolean" }, json: { type: "boolean" },
+  }});
+  if (positionals.length !== 1) throw new Error("import-media requires exactly one selected file.");
+  const result = workspace.importMedia(defaultWorkspaceRoot(), accountId(values.account), path.resolve(positionals[0]), { move: !!values.move });
+  console.log(JSON.stringify(result, null, 2));
+}
+
+function cmdAdopt(argv) {
+  const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: {
+    account: { type: "string" }, apply: { type: "boolean" }, json: { type: "boolean" },
+  }});
+  if (positionals.length !== 1) throw new Error("adopt requires exactly one selected project directory.");
+  const result = workspace.planAdoption(defaultWorkspaceRoot(), accountId(values.account), path.resolve(positionals[0]), { apply: !!values.apply });
+  console.log(JSON.stringify(result, null, 2));
 }
 
 function readJsonFile(filePath, label) {
@@ -1458,10 +1653,17 @@ function ensureWorkspaceRoot() {
   } else {
     fs.mkdirSync(wsRoot, { recursive: true, mode: 0o700 });
   }
+  const fd = fs.openSync(wsRoot, fs.constants.O_RDONLY | fs.constants.O_DIRECTORY | fs.constants.O_NOFOLLOW);
   try {
-    fs.chmodSync(wsRoot, 0o700);
-  } catch {
-    // ignore chmod on unsupported filesystems
+    fs.fchmodSync(fd, 0o700);
+    const opened = fs.fstatSync(fd);
+    const current = fs.lstatSync(wsRoot);
+    if (!current.isDirectory() || current.dev !== opened.dev || current.ino !== opened.ino ||
+        (opened.mode & 0o7777) !== 0o700) {
+      throw new Error(`Cannot verify workspace root identity and permissions (0700): ${wsRoot}`);
+    }
+  } finally {
+    fs.closeSync(fd);
   }
   return wsRoot;
 }
@@ -1481,7 +1683,7 @@ function cmdSetup(argv) {
   const wsRoot = ensureWorkspaceRoot();
   const metaBin = resolveMetaBin();
   const verRes = spawnSync(metaBin, ["--version"], { encoding: "utf8" });
-  if (verRes.status === 0 && (verRes.stdout || "").includes(version)) {
+  if (verRes.status === 0 && (verRes.stdout || "").trim().split(/\s+/).includes(version)) {
     console.log(`✓ meta-ads CLI already installed: ${(verRes.stdout || "").trim()} (${metaBin})`);
     console.log(`✓ workspace root ready: ${wsRoot} (0700)`);
     return;
@@ -1496,20 +1698,34 @@ function cmdSetup(argv) {
   console.log(`Installing ${pkgSpec} via pipx...`);
   let installRes = spawnSync("pipx", ["install", "--force", pkgSpec], { stdio: "inherit" });
   if (installRes.status !== 0) {
-    const sharedDir = path.join(os.homedir(), ".local", "share", "pipx", "shared");
+    const sharedRes = spawnSync("pipx", ["environment", "--value", "PIPX_SHARED_LIBS"], { encoding: "utf8" });
+    const sharedDir = sharedRes.status === 0 ? (sharedRes.stdout || "").trim() : "";
+    if (!sharedDir || !path.isAbsolute(sharedDir)) {
+      throw new Error("pipx install failed; cannot resolve its shared environment safely. Inspect pipx diagnostics before retrying.");
+    }
     const sharedPy = path.join(sharedDir, "bin", "python");
     const sharedPip = path.join(sharedDir, "bin", "pip");
     const bootstrapPip = path.join(os.homedir(), ".local", "share", "pipx-bootstrap", "bin", "pip");
     if (!fs.existsSync(sharedPip) && fs.existsSync(bootstrapPip)) {
-      spawnSync("python3", ["-m", "venv", "--without-pip", sharedDir], { stdio: "inherit" });
-      if (fs.existsSync(sharedPy)) {
-        spawnSync(bootstrapPip, ["--python", sharedPy, "install", "--upgrade", "pip"], { stdio: "inherit" });
-        installRes = spawnSync("pipx", ["install", "--force", pkgSpec], { stdio: "inherit" });
+      if (!fs.existsSync(sharedPy)) {
+        const venvRes = spawnSync("python3", ["-m", "venv", "--without-pip", sharedDir], { stdio: "inherit" });
+        if (venvRes.status !== 0) {
+          throw new Error(`pipx shared-environment creation failed (${venvRes.error?.message || venvRes.status}); installation was not retried.`);
+        }
       }
+      const bootstrapRes = spawnSync(bootstrapPip, ["--python", sharedPy, "install", "--upgrade", "pip"], { stdio: "inherit" });
+      if (bootstrapRes.status !== 0) {
+        throw new Error(`pipx shared-pip recovery failed (${bootstrapRes.error?.message || bootstrapRes.status}); installation was not retried.`);
+      }
+      installRes = spawnSync("pipx", ["install", "--force", pkgSpec], { stdio: "inherit" });
     }
   }
   if (installRes.status !== 0) {
     throw new Error(`pipx install ${pkgSpec} failed with exit code ${installRes.status}`);
+  }
+  const installed = spawnSync(resolveMetaBin(), ["--version"], { encoding: "utf8" });
+  if (installed.status !== 0 || !(installed.stdout || "").trim().split(/\s+/).includes(version)) {
+    throw new Error(`pipx reported success, but meta-ads ${version} is not available; inspect the executable path before retrying.`);
   }
   console.log(`✓ ${pkgSpec} installed.`);
   console.log(`✓ workspace root ready: ${wsRoot} (0700)`);
@@ -1534,8 +1750,7 @@ function cmdInit(argv) {
     targetDir !== ".." &&
     !targetDir.includes("/") &&
     !targetDir.includes("\\") &&
-    !path.isAbsolute(targetDir) &&
-    !fs.existsSync(path.resolve(targetDir));
+    !path.isAbsolute(targetDir);
   const wsRoot = defaultWorkspaceRoot();
   const root = isBareSlug ? path.join(ensureWorkspaceRoot(), targetDir) : path.resolve(targetDir);
   if (!isBareSlug && (root === wsRoot || root.startsWith(wsRoot + path.sep))) {
@@ -1544,9 +1759,12 @@ function cmdInit(argv) {
   const campaignsDir = path.join(root, "campaigns");
   const mediaDir = path.join(root, "media");
   const memoryDir = path.join(root, "memory");
-  fs.mkdirSync(campaignsDir, { recursive: true });
-  fs.mkdirSync(mediaDir, { recursive: true });
-  fs.mkdirSync(memoryDir, { recursive: true });
+  for (const dir of [root, campaignsDir, mediaDir, memoryDir]) {
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    if (!fs.lstatSync(dir).isDirectory()) {
+      throw new Error(`Workspace directory must not be a symlink: ${dir}`);
+    }
+  }
 
   const brandPath = path.join(root, "brand.json");
   const sampleCampaignPath = path.join(campaignsDir, "sample-campaign.json");
@@ -1554,6 +1772,14 @@ function cmdInit(argv) {
   const memoryMdPath = path.join(memoryDir, "MEMORY.md");
   const gitignorePath = path.join(root, ".gitignore");
   const mediaPlaceholderPath = path.join(mediaDir, ".gitkeep");
+
+  for (const file of [brandPath, sampleCampaignPath, memoryJsonPath, memoryMdPath, gitignorePath, mediaPlaceholderPath]) {
+    let st;
+    try { st = fs.lstatSync(file); } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    if (st && !st.isFile()) throw new Error(`Workspace file must be a regular file: ${file}`);
+  }
 
   const created = [];
   const skipped = [];
@@ -2684,48 +2910,15 @@ function cmdAnalyze(argv) {
 
   let rawInsights;
   if (pullLive) {
-    const metaBin = resolveMetaBin();
-    const token = readSecretToken(brand.token_env || "META_ACCESS_TOKEN");
-    const childEnv = {
-      ...process.env,
-      ACCESS_TOKEN: token,
-      AD_ACCOUNT_ID: brand.ad_account_id,
-    };
-    if (brand.business_id) childEnv.BUSINESS_ID = String(brand.business_id);
-    else delete childEnv.BUSINESS_ID;
-
-    const pullArgs = [
-      "--output",
-      "json",
-      "--no-input",
-      "ads",
-      "--ad-account-id",
-      brand.ad_account_id,
-    ];
-    if (brand.business_id) pullArgs.push("--business-id", String(brand.business_id));
-    pullArgs.push(
-      "insights",
-      "--date-preset",
-      datePreset,
-      "--level",
-      "ad",
-      "--fields",
-      "account_id,account_currency,date_start,date_stop,ad_id,ad_name,adset_id,campaign_id,spend,impressions,frequency,clicks,outbound_clicks,cpc,ctr,actions,action_values,video_3_sec_watched_actions,video_thruplay_watched_actions"
-    );
-
-    const res = spawnSync(metaBin, pullArgs, {
-      env: childEnv,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    if (res.status !== 0) {
-      throw new Error(`Failed to pull insights via meta CLI: ${(res.stderr || res.stdout || "").trim()}`);
+    const selectedAccount = accountId(brand.ad_account_id);
+    const collected = collectProvider({ operation: "insights", account_id: selectedAccount,
+      date_preset: datePreset, levels: ["ad"], breakdowns: [], attribution: {}, action_report_time: "conversion", max_pages: 100 }, brand.token_env);
+    const query = collected?.insights?.[0];
+    if (collected?.account?.id !== selectedAccount || collected?.insights?.length !== 1 || query?.query?.level !== "ad" ||
+        query?.coverage?.status !== "complete" || query?.coverage?.pagination_exhausted !== true || !Array.isArray(query?.rows)) {
+      throw new Error("Insights collection did not establish complete ad-level coverage for the selected account.");
     }
-    try {
-      rawInsights = JSON.parse((res.stdout || "").trim() || "[]");
-    } catch (err) {
-      throw new Error(`Invalid JSON returned by meta insights: ${err.message}`);
-    }
+    rawInsights = query.rows;
     if (insightsPath) {
       fs.writeFileSync(path.resolve(insightsPath), JSON.stringify(rawInsights, null, 2) + "\n", { mode: 0o600 });
     }
@@ -3048,6 +3241,21 @@ function main() {
         break;
       case "init":
         cmdInit(rest);
+        break;
+      case "accounts":
+        cmdAccounts(rest);
+        break;
+      case "sync":
+        cmdSync(rest);
+        break;
+      case "report":
+        cmdReport(rest);
+        break;
+      case "import-media":
+        cmdImportMedia(rest);
+        break;
+      case "adopt":
+        cmdAdopt(rest);
         break;
       case "validate":
         cmdValidate(rest);

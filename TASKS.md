@@ -1,6 +1,6 @@
 # Tasks — dotfiles
 
-Updated: 2026-10-27
+Updated: 2026-10-28
 
 The sole executable queue. Completed contracts live under `docs/archive/`;
 repository tests and runtime evidence outrank prose.
@@ -20,6 +20,10 @@ TASK-147: [Runtime activation and trustworthy verification](docs/archive/DOTFILE
 TASK-146, TASK-149, TASK-150: [Meta/SEO implementations and retired-skill integration](docs/archive/DOTFILES_TASKS_2026-10-27_META_SEO.md).
 
 TASK-152, TASK-153: [Indonesia baseline, trustworthy Meta diagnostics, and cross-device dotads-meta-report root](docs/archive/DOTFILES_TASKS_2026-10-27_META_INDONESIA.md); implementation evidence remains in their delivery runs.
+
+TASK-154: [Verified bootstrap and review provenance](docs/archive/DOTFILES_TASKS_2026-10-27_META_INDONESIA.md); evidence `RUN-20261027T160756Z-7c8deb3c`.
+
+TASK-155: [Scoped account reporting runtime](docs/archive/DOTFILES_TASKS_2026-10-27_META_INDONESIA.md); evidence `RUN-20261027T163122Z-9c4249c0`.
 
 ## Pending
 

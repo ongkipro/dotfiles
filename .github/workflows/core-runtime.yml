@@ -111,6 +111,19 @@ jobs:
         run: bin/ai-doctor --self-test
         shell: bash
 
+      - name: Run Meta reporting filesystem contracts
+        run: node --test bin/_dotads-workspace-test.mjs
+
+      - name: Run installed-SDK Meta provider contracts without account access
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+          ACCESS_TOKEN: ""
+          META_ACCESS_TOKEN: ""
+        run: |
+          python3 -m venv "$RUNNER_TEMP/meta-provider-tests"
+          "$RUNNER_TEMP/meta-provider-tests/bin/python" -m pip install facebook-business==24.0.1
+          "$RUNNER_TEMP/meta-provider-tests/bin/python" bin/_dotads-meta-provider-test.py
+
   design-tools:
     name: Full design-tool fixtures
     runs-on: ubuntu-latest

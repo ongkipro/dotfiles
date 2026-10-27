@@ -39,9 +39,11 @@ Operate Meta (Facebook & Instagram) Ads from the terminal using Meta's official 
   human usage. The human owns goals/decisions; the AI executes within the
   existing authorization boundaries.
 - **Account reporting workspace or existing-device organization:** read the
-  [account workspace guide](references/account-workspace-guide.md). It defines
-  the planned Documents layout, adoption/recovery rules and AI/human read order;
-  automatic sync/report/import operations remain pending implementation.
+  [runtime guide](references/account-workspace-runtime.md) for scoped SDK
+  collection, saved snapshots, offline reports, media import and reference-only
+  adoption. The [revision 3 design](references/account-workspace-guide.md) is
+  historical context; current capabilities/limits belong to the runtime guide
+  and executable evidence. Real-account validation remains separate.
 - **General Indonesia market baseline:** for an explicitly selected `ID` market,
   run `dotads-meta baseline --market ID` and load
   [Indonesia market guidance](references/indonesia-market.md) as needed. Optional
@@ -124,6 +126,9 @@ For headless CLI automation across devices, use a **Business Manager System User
 dotads-meta setup
 ```
 Checks `meta` and can install it through `pipx` if missing. Use this bootstrap only when installation is authorized; it is unnecessary for offline validation or a read-only audit.
+Recovery queries pipx's effective shared-library path, attempts at most one
+repair/retry when shared pip is missing, and stops if either repair step fails.
+Installation success also requires the requested CLI version to be runnable.
 
 ### Step 1: Scaffold an Account / Brand Workspace
 ```bash
@@ -138,6 +143,15 @@ This ensures `~/Documents/dotads-meta-report/` (`0700`) exists and creates:
   Stored labels do not independently prove profitability or causality.
 - `media/`: directory for local `.jpg`, `.png`, `.webp`, `.mp4`, `.mov` assets.
 - `.gitignore`: excludes `.meta-state.json`, `.dotads-meta.lock/`, and `.env*`.
+
+Bare names always resolve under the Documents root, even when the current
+directory contains a matching name. Use `./name` or an absolute path for an
+explicit location. Root permissions must be verified; symlink workspace
+directories/files are rejected before scaffold files are written. Parents are
+operator-controlled; concurrent directory replacement is outside this bootstrap
+contract. An inferred folder ID is not proof of Meta access. Templates still
+contain example identity, currency, market and offer values to replace.
+This creates local scaffolding, not an account export, registry or report sync.
 
 ### Step 1b: Configure Conversion Unit Economics & Consult Brand Memory
 ```bash
@@ -175,10 +189,12 @@ Executes `campaign create` -> `creative create` -> `adset create` -> `ad create`
 
 ### Step 5: Analyze Conversion Performance & Harvest Multi-Source Memory
 
-Use a scoped saved Insights JSON export. The current helper's `analyze --pull`
-adapter is blocked against installed CLI 1.2.0: its command/flags are rejected
-before a request. See the [workspace capability contract](references/account-workspace-guide.md)
-before building a live collector; mocked pull tests do not establish provider compatibility.
+Use a scoped saved Insights JSON export for offline analysis. Authorized
+`analyze --pull` now uses the installed official SDK adapter with an explicit
+ad-level query; it does not pass unsupported flags to CLI 1.2.0. Read the
+[runtime contract](references/account-workspace-runtime.md) before account reads.
+Installed-SDK contract tests substitute HTTP; they do not establish actual
+account permissions, effective API version or business outcomes.
 
 ```bash
 # Offline analysis: declare the order basis only when the source establishes it

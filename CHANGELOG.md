@@ -6,6 +6,41 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-27
 
+### On-demand Meta knowledge and campaign learning — 2026-10-28
+
+- Add a small routed Meta knowledge card linking the existing algorithm, market,
+  campaign, economics and terminal references; private account data stays outside
+  dotfiles. Reusable findings require evidence and review before skill updates.
+- Clarify the campaign decision procedure with dated Meta Performance 5 support,
+  conditional structure examples, backend economics and explicit uncertainty.
+  Memory routing regression and six focused inclusion/exclusion probes passed.
+
+### Scoped Meta account reporting runtime (TASK-155)
+
+- Read account inventory and explicit Insights scopes through the installed
+  official SDK, with pure pre-credential planning, bounded pagination/retries,
+  declared fields/status filters and sanitized failures. Existing CLI writes
+  remain behind their own dry-run/approval gates.
+- Add account registry, private immutable snapshots, per-scope complete-success
+  pointers, reproducible Markdown/CSV report revisions and offline export input.
+  Partial/failed refreshes never become measured zero or replace complete data.
+- Add journaled local asset copy/move and hash-bound reference-only adoption;
+  explicitly selected legacy root folders preserve their files/deployment state.
+- Real-account/macOS access, effective server settings, scheduled backfill,
+  network checkpoints, remote downloads/captures and full operational cutover
+  remain separate verification or implementation work.
+
+### Verified Meta workspace bootstrap and review provenance (TASK-154)
+
+- Reject symlink report roots on both installers and fail when private `0700`
+  permissions cannot be verified. CLI init rejects symlink scaffold destinations.
+- Resolve bare workspace names consistently under Documents; explicit `./` and
+  absolute paths retain their own destinations and existing files/state.
+- Query pipx's effective shared environment, stop failed recovery steps, retry
+  installation at most once, and verify the requested executable afterward.
+- Retain historical approval hashes and record fresh reviews separately. Local
+  folder creation remains distinct from account export and report automation.
+
 ### Cross-device `dotads-meta-report` workspace bootstrap (TASK-153)
 
 - `install.sh`, `install-macos.sh`, and `dotads-meta setup`/`init` create

@@ -113,6 +113,12 @@ resolve into this repository's `bin/`. For example, an existing device receives
 `dotsync` already calls the newly pulled `ai-memory-link`, which performs the
 migration. Existing campaign workspaces and deployment state are unchanged.
 
+Pulling transfers the `dotads-meta` helper, skill and guides; it does not export
+an ad account or transfer private reports, media or credentials. The separate
+DotAds application requires its own repository update. Installers and authorized
+`dotads-meta setup`/`init` prepare the local Documents report root; a pull alone
+does not install Meta's CLI or create populated account reports.
+
 The complete manifest is validated before command links change. User files,
 directories, and foreign command symlinks are preserved; a name collision reports
 failure and leaves a warning in the autopull result. Inspect the collision,

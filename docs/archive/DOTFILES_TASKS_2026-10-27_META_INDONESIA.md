@@ -95,3 +95,38 @@ compatibility limits.
 - **Rollback/Migration State:** additive directory bootstrap; existing explicit workspace paths remain supported.
 - **Non-Scope:** live Meta API calls, unimplemented automated reporting sync packages.
 - **Verification:** `bin/installer-link-test`, `bin/dotads-meta-test`, `SKILL_SOURCE="$PWD/skills/local" skills/agents-bin/skill-check meta-ads-cli`, `bin/ai-policy-lint`, `bin/security-check`, `git diff --check`; independent review and final boundary approval.
+
+### TASK-154: Verify Meta bootstrap paths, recovery and review provenance
+
+- **Requirement:** REQ-DOTADS-BOOTSTRAP-INTEGRITY (owner review/perfection request, 2026-10-27).
+- **Risk Level:** R3.
+- **Capability:** meta-ads-cli, testing-engineering.
+- **Allowed Paths:** `install.sh`, `install-macos.sh`, `bin/installer-link-test`, `bin/dotads-meta`, `bin/dotads-meta-test`, `skills/local/meta-ads-cli/**`, `TASKS.md`, `CHANGELOG.md`, `docs/ai-memory-sync.md`, `docs/DOTFILES_SITEMAP.md`.
+- **Protected Paths:** `install.sh`, `install-macos.sh`, `bin/dotads-meta`.
+- **Canonical Contract Owners:** bootstrap -> installers and dotads-meta; guide/review provenance -> meta-ads-cli.
+- **Accepted Invariants:** real private root or clear failure; no scaffold writes through symlinks; deterministic bare-name routing; explicit paths and existing state preserved; effective pipx path, failed-step stop, one retry maximum; historical review hashes retained and fresh approval bound separately.
+- **Regression Checks:** bootstrap-regression, installer-regression, meta-regression, skill, policy, security, diff.
+- **Runtime Evidence:** isolated filesystem/process fixtures and independent review in `RUN-20261027T160756Z-7c8deb3c`.
+- **Visual Contract:** Not applicable.
+- **Non-Scope:** live accounts, credentials, package installation, report collectors, visibility changes, commit/push; concurrent parent-directory replacement and real macOS execution remain unverified.
+- **Reopen Conditions:** a rejected path is modified, privacy is falsely claimed, recovery ignores a failed step, or historical approval hashes are rewritten.
+- **Escalation Conditions:** a fix requires modifying unrelated local work, real credentials, live accounts, or system installation.
+- **Verification:** `bin/installer-link-test`, `bin/dotads-meta-test`, `SKILL_SOURCE="$PWD/skills/local" skills/agents-bin/skill-check meta-ads-cli`, `bin/ai-policy-lint`, `bin/security-check`, `git diff --check`.
+
+### TASK-155: Deliver scoped Meta account snapshots, reports and local assets
+
+- **Requirement:** REQ-DOTADS-ACCOUNT-REPORTING (owner continuation, 2026-10-27).
+- **Risk Level:** R3.
+- **Job:** implementation.
+- **Capability:** meta-ads-cli, testing-engineering.
+- **Allowed Paths:** `bin/dotads-meta`, `bin/dotads-meta-test`, `bin/_dotads-meta-provider.py`, `bin/_dotads-meta-provider-test.py`, `bin/_dotads-workspace.mjs`, `bin/_dotads-workspace-test.mjs`, `skills/local/meta-ads-cli/**`, `TASKS.md`, `CHANGELOG.md`, `docs/ai-memory-sync.md`, `docs/DOTFILES_SITEMAP.md`, `docs/archive/DOTFILES_TASKS_2026-10-27_META_INDONESIA.md`, `.github/workflows/core-runtime.yml`.
+- **Protected Paths:** `bin/dotads-meta`, `bin/_dotads-meta-provider.py`, `bin/_dotads-workspace.mjs`.
+- **Canonical Contract Owners:** provider -> official installed SDK adapter; local snapshot/report/import/adoption -> workspace module; routing/approvals -> meta-ads-cli.
+- **Accepted Invariants:** explicit account and measurement scope; credentials only in child environment; bounded paging/retries; complete/partial/failed distinct; per-scope complete pointers survive failed refresh; immutable reproducible reports; account/parent/grain isolation; private contained files; move cleanup only after durable verified bytes/index; source replacement never clobbered; existing project/state preserved; historical review hashes never retargeted.
+- **Regression Checks:** provider, workspace, meta-regression, installer-regression, skill, policy, security, diff, ci.
+- **Runtime Evidence:** SDK/HTTP fixtures, temporary filesystem, CLI integration and independent review in `RUN-20261027T163122Z-9c4249c0`.
+- **Visual Contract:** Not applicable.
+- **Reopen Conditions:** scope, durability, provenance or isolation regressions; unsupported provider controls silently dropped.
+- **Escalation Conditions:** requires credentials, live writes, destructive migration, unrelated work or installation.
+- **Non-Scope:** real account/macOS validation, automated scheduling, resumable asynchronous backfill, full operational cutover, remote media downloads/captures, visibility changes, commit/push. Complete means declared query/status scope, never all lifetime history.
+- **Verification:** provider unittest, workspace node:test, `bin/dotads-meta-test`, `bin/installer-link-test`, skill validation, `bin/ai-policy-lint`, `bin/security-check`, `git diff --check`.

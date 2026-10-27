@@ -83,6 +83,20 @@ retire_claude_account_profiles() {
   fi
 }
 
+ensure_meta_workspace() {
+  local root="$HOME/Documents/dotads-meta-report"
+  if [ -L "$root" ] || { [ -e "$root" ] && [ ! -d "$root" ]; }; then
+    echo "Workspace root must be a real directory, not a symlink or file: $root" >&2
+    return 1
+  fi
+  mkdir -p -m 0700 "$root" || return 1
+  chmod 0700 "$root" || return 1
+  if [ -L "$root" ] || [ -z "$(find "$root" -prune -type d -perm 0700 2>/dev/null)" ]; then
+    echo "Cannot verify workspace root permissions (0700): $root" >&2
+    return 1
+  fi
+}
+
 retire_omp_overrides() {
   local name live tracked
   for name in config.yml models.yml agents; do
@@ -272,8 +286,7 @@ fi
 
 echo "==> Create work folder structure..."
 mkdir -p "$HOME/Documents/work/"{prd,research,content,notes}
-mkdir -p -m 0700 "$HOME/Documents/dotads-meta-report"
-chmod 0700 "$HOME/Documents/dotads-meta-report" 2>/dev/null || true
+ensure_meta_workspace
 mkdir -p "$HOME/Projects"
 echo "   ~/Documents/work/{prd,research,content,notes}"
 echo "   ~/Documents/dotads-meta-report/ (0700)"

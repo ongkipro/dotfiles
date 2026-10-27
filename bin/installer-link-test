@@ -373,7 +373,6 @@ test_runtime_command_manifest() {
     ! grep -qF 'link "$DOT/config/omp/agents"' "$installer"
     grep -qF 'retire_omp_overrides' "$installer"
     grep -qF 'mkdir -p "$HOME/Documents/work/"{prd,research,content,notes}' "$installer"
-    grep -qF 'mkdir -p -m 0700 "$HOME/Documents/dotads-meta-report"' "$installer"
     grep -qF 'mkdir -p "$HOME/Projects"' "$installer"
   done
 
@@ -417,6 +416,56 @@ for name in ('install.sh', 'install-macos.sh'):
     assert not (home / 'foreign').exists()
     assert not (home / 'other').exists()
     print('✓ ' + name + ': fresh Claude/Codex hooks, explicit primary paths, settings preserved')
+PYTEST
+
+# Exercise the real folder-bootstrap block without running the full installer.
+python3 - "$ROOT" "$TMP" <<'PYTEST'
+import os, pathlib, re, stat, subprocess, sys
+root, tmp = map(pathlib.Path, sys.argv[1:])
+for name in ('install.sh', 'install-macos.sh'):
+    source = (root / name).read_text()
+    function = re.search(r'^ensure_meta_workspace\(\) \{\n.*?^\}', source, re.M | re.S).group()
+    lines = source.splitlines()
+    start = next(i for i, line in enumerate(lines) if '==> Create work folder structure' in line)
+    end = next(i for i in range(start, len(lines)) if lines[i] == 'mkdir -p "$HOME/Projects"')
+    script = 'say() { :; }\n' + function + '\n' + '\n'.join(lines[start:end + 1])
+    for case in ('fresh', 'existing', 'link', 'dangling', 'file', 'chmod-failed', 'chmod-noop'):
+        home = tmp / (name + '-workspace-' + case)
+        documents = home / 'Documents'
+        documents.mkdir(parents=True)
+        workspace = documents / 'dotads-meta-report'
+        target = home / 'other-data'
+        target.mkdir(mode=0o755)
+        marker = target / 'keep.txt'
+        marker.write_text('preserve')
+        env = dict(os.environ, HOME=str(home))
+        if case in ('existing', 'chmod-failed', 'chmod-noop'):
+            workspace.mkdir(mode=0o755)
+            (workspace / 'notes.txt').write_text('preserve')
+        elif case in ('link', 'dangling'):
+            workspace.symlink_to(target if case == 'link' else home / 'missing', target_is_directory=True)
+        elif case == 'file':
+            workspace.write_text('preserve')
+        if case.startswith('chmod-'):
+            fake = home / 'fake-bin'
+            fake.mkdir()
+            command = fake / 'chmod'
+            command.write_text('#!/bin/sh\nexit ' + ('1' if case == 'chmod-failed' else '0') + '\n')
+            command.chmod(0o755)
+            env['PATH'] = str(fake) + os.pathsep + env['PATH']
+        result = subprocess.run(['bash', '-euc', script], env=env, text=True, capture_output=True)
+        assert (result.returncode == 0) == (case in ('fresh', 'existing')), (name, case, result.stderr)
+        assert marker.read_text() == 'preserve' and stat.S_IMODE(target.stat().st_mode) == 0o755, (name, case)
+        if case in ('fresh', 'existing'):
+            subprocess.run(['bash', '-euc', script], env=env, check=True, stdout=subprocess.DEVNULL)
+            assert stat.S_IMODE(workspace.stat().st_mode) == 0o700
+        if case in ('existing', 'chmod-failed', 'chmod-noop'):
+            assert (workspace / 'notes.txt').read_text() == 'preserve'
+        if case == 'file':
+            assert workspace.read_text() == 'preserve'
+        if case == 'dangling':
+            assert not (home / 'missing').exists()
+    print('✓ ' + name + ': private root, idempotence, symlink/file rejection and chmod failures')
 PYTEST
 
 test_helper "$ROOT/install.sh" link

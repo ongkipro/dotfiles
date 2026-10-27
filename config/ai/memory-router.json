@@ -6,6 +6,18 @@
   },
   "shared": [
     {
+      "path": "config/ai/memory/meta-ads.md",
+      "priority": 88,
+      "triggers": [
+        "meta ads",
+        "facebook ads",
+        "dotads-meta",
+        "iklan meta",
+        "iklan facebook",
+        "kampanye meta"
+      ]
+    },
+    {
       "path": "config/ai/memory/identity.md",
       "priority": 100,
       "triggers": [
