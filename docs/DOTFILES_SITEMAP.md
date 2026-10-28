@@ -114,7 +114,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 79 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
 | Owned skills | [`skills/local/`](../skills/local/) | 76 | linked from this page |
-| Commands | [`bin/`](../bin/) | 55 | linked from this page |
+| Commands | [`bin/`](../bin/) | 57 | linked from this page |
 | Command tests | [`bin/`](../bin/) | 71 | linked from this page |
 | Device profiles | [`devices/`](../devices/) | 8 | linked from this page |
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
@@ -444,6 +444,8 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`tmux-clip`](../bin/tmux-clip) (+ [`test`](../bin/tmux-clip-test)): The clipboard seam every tmux copy path goes through (pbcopy, wl-copy, xclip or xsel, or WSL clip.exe).
 - [`tmux-battery`](../bin/tmux-battery) (+ [`test`](../bin/tmux-battery-test)): Battery segment for the tmux status bar; silent and exit 0 on machines without a battery.
 - [`vps-pgdump`](../bin/vps-pgdump) (+ [`test`](../bin/vps-pgdump-test)): Pulls a Postgres backup and the stack config off a VPS over SSH, because provider snapshots failed silently.
+- [`dotfiles-vultr`](../bin/dotfiles-vultr): `vultr-cli` for the `dotfiles-vultr` account; injects `VULTR_DOTFILES_API_KEY` from `secrets-env` into that one process, so no `~/.vultr-cli.yaml` is needed.
+- [`dotfiles-coolify`](../bin/dotfiles-coolify): `coolify` CLI for the `vps-main` instance; the CLI context holds only the URL and the token comes from `secrets-env` (`COOLIFY_VPS_MAIN_TOKEN`) per call.
 - [`shopify-content-helper`](../bin/shopify-content-helper) (+ [`test`](../bin/shopify-content-helper-test)): Shopify SEO and content utilities: SEO audit and limits, sitemap entries, meta and brief templates, RSS and JSON-LD skeletons.
 - [`dotads-meta`](../bin/dotads-meta) (+ [`test`](../bin/dotads-meta-test)): Per-project Meta Ads campaign validator, dry-run planner, stateful deployer, and `secrets-env` bridge for Meta's official CLI; offline Indonesia market baseline and scoped economics observations. SDK account discovery, scoped inventory/Insights snapshots, immutable Markdown/CSV reports, selected media import and reference-only adoption.
 - [`_dotads-meta-provider.py`](../bin/_dotads-meta-provider.py) (+ [`SDK tests`](../bin/_dotads-meta-provider-test.py)): Private read adapter for official-SDK account inventory and Insights; bounded paging, retries and isolated transport tests.

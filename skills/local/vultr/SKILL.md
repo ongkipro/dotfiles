@@ -19,11 +19,13 @@ Note: the asset keeps the `v` in the version (e.g. `vultr-cli_v3.10.0_linux_amd6
 
 ## Auth (secret stays out of chat/history)
 
-Create a Personal Access Token at https://my.vultr.com/settings/#settingsapi (also add your IP under **Access Control**), then in **your own terminal**:
-```bash
-echo 'api-key: "PASTE_TOKEN"' > ~/.vultr-cli.yaml && chmod 600 ~/.vultr-cli.yaml
-```
-`vultr-cli` reads it automatically. Verify: `vultr-cli account info` (negative balance = credit).
+One wrapper per Vultr account; the token lives in `secrets-env`, never in `~/.vultr-cli.yaml` (no plaintext config, and several accounts can coexist). `VULTR_API_KEY` in the environment overrides the config file.
+
+- Current account: **`dotfiles-vultr`** (`~/dotfiles/bin/dotfiles-vultr`, linked into `~/.local/bin`), token `VULTR_DOTFILES_API_KEY`. Run every command below as `dotfiles-vultr <args>` instead of `vultr-cli <args>`.
+- Set or rotate the token: create a Personal Access Token at https://my.vultr.com/settings/#settingsapi, add this machine's IP under **Access Control**, then the user pastes it into the `VULTR_DOTFILES_API_KEY=` line of `~/.config/ai-local/secrets.env` with their own editor (never via chat or a command line). Verify: `dotfiles-vultr account info` (negative balance = credit), then `secrets-env check`.
+- Another account: copy the wrapper to `bin/<name>-vultr`, change the variable it reads (`VULTR_<NAME>_API_KEY`), add an empty `# --- Vultr — <name> ---` group + variable to `~/.config/ai-local/secrets.env`, and symlink it into `~/.local/bin`.
+- Retired account: delete its secret line and wrapper; check no `~/.vultr-cli.yaml` is left behind.
+- Existing servers on this account (IDs, firewall group, SSH key): `~/.config/ai-local/vps-main-access.md`. Note `plans list` shows nominal regions, not stock — confirm with `regions availability <region>` before `instance create`.
 
 ## Deploy an instance (end-to-end)
 

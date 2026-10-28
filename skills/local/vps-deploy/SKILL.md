@@ -17,7 +17,9 @@ Production is an **approval gate** (`CORE.md`): plan, show the exact commands,
 and wait for explicit approval before touching a live server, DNS, or a
 database. Read-only inspection (status, logs, disk) is fine when access already
 exists. Live hosts, accounts, and credentials are device-local
-(`~/.config/ai-local/`), never in tracked files.
+(`~/.config/ai-local/`), never in tracked files. Current Coolify instance:
+drive it with `dotfiles-coolify <args>` (token injected from `secrets-env`);
+host, firewall, and recovery facts are in `~/.config/ai-local/vps-main-access.md`.
 
 Facts verified against official docs on **2026-10-02** (Coolify v4.3.x,
 Docker Compose, PostgreSQL 18 docs). Re-check version-specific behavior before
