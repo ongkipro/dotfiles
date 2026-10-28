@@ -63,7 +63,7 @@ env -u OMP_RUNTIME_LEGACY_OVERLAY \
 # to `false`, and jq still exited 0. A gate that cannot fail is not a gate.
 env -u OMP_RUNTIME_LEGACY_OVERLAY \
   PI_CONFIG_FILES="$ROOT/config/omp/config.yml" \
-  "$(command -v omp)" models --json > "$fixture/models.json"
+  "$(command -v omp)" models --kind all --json > "$fixture/models.json"
 
 # CI has no provider auth (RELEASE contract: repository-owned checks must not
 # require paid accounts). Say so out loud rather than passing silently.
@@ -78,30 +78,35 @@ jq -e '
   .modelRoles.value as $roles |
   .["retry.fallbackChains"].value as $fallbacks |
   .["task.agentModelOverrides"].value as $agents |
-  ($roles | length) == 15 and
-  ($fallbacks | length) == 15 and
-  ($agents | length) == 7 and
-  $roles.default == "openai-codex/gpt-5.6-terra:medium" and
-  $roles.task == "9router-fantastico/cx/gpt-6-sol:high" and
-  $roles.slow == "9router-fantastico/cx/gpt-6-sol:high" and
-  $roles.plan == "anthropic/claude-fable-5:high" and
-  $roles.orchestrator == "anthropic/claude-fable-5:high" and
-  $roles.smol == "google-antigravity/gemini-3.8-flash:medium" and
-  $roles.tiny == "google-antigravity/gemini-3.8-flash:medium" and
-  $roles.vision == "anthropic/claude-opus-5:high" and
-  $roles.designer == "google-antigravity/gemini-3.8-flash:high" and
-  $roles.commit == "openai-codex/gpt-5.6-luna:low" and
-  $roles.title == "google-antigravity/gemini-3.8-flash:medium" and
-  $roles.research == "openai-codex/gpt-5.6-terra:medium" and
-  $roles.discovery == "openai-codex/gpt-5.6-terra:medium" and
-  $roles.advisor == "anthropic/claude-opus-5:high" and
-  $roles["advisor-xhigh"] == "anthropic/claude-opus-5:xhigh" and
-  ($roles | has("advisor-max") | not) and
-  ($fallbacks | has("advisor-max") | not) and
-  ([$roles | to_entries[] | select(.value | contains("claude-fable-5")) | .key] | sort) == ["orchestrator", "plan"] and
-  ([$roles | to_entries[] | select(.value | contains("gemini-3.8-flash")) | .key] | sort) == ["designer", "smol", "tiny", "title"] and
-  ([$fallbacks | to_entries[].value[] | select(contains("claude-fable-5"))] | length) == 0 and
-  ([$fallbacks | to_entries[] | select(any(.value[]; contains("gemini-3.8-flash"))) | .key] | sort) == ["commit"] and
+  $roles == {
+    "default": "9router/cc/claude-sonnet-5-5:high",
+    "coding": "9router/cc/claude-opus-5-5:high",
+    "task": "9router/cc/claude-opus-5-5:high",
+    "slow": "9router/cx/gpt-6.1-sol:xhigh",
+    "plan": "9router/cc/claude-fable-5-1:high",
+    "orchestrator": "9router/cc/claude-fable-5-1:high",
+    "advisor": "9router/cx/gpt-6.1-sol:high",
+    "advisor-xhigh": "9router/cx/gpt-6.1-sol:xhigh",
+    "vision": "9router/cc/claude-opus-5-5:high",
+    "designer": "google-antigravity/gemini-4-argon:high",
+    "research": "google-antigravity/gemini-4-argon:high",
+    "discovery": "google-antigravity/gemini-3.8-flash:high",
+    "smol": "google-antigravity/gemini-3.8-flash:medium",
+    "tiny": "google-antigravity/gemini-3.8-flash:low",
+    "commit": "9router/cx/gpt-5.6-luna:low",
+    "title": "google-antigravity/gemini-3.8-flash:low",
+    "memory": "google-antigravity/gemini-3.8-flash:medium",
+    "judge": "9router/cx/gpt-6.1-terra:medium",
+    "widget": "google-antigravity/gemini-3.8-flash:low",
+    "image": "google-antigravity/gemini-3-pro-image",
+    "web": "google-antigravity/gemini-3.8-flash:auto"
+} and
+  ($fallbacks | length) == 19 and
+  .enabledModels.value == ["9router/cc/*", "9router/cx/*", "google-antigravity/*"] and
+  .modelProviderOrder.value == ["9router", "google-antigravity"] and
+  .cycleOrder.value == ["smol", "default", "coding", "slow"] and
+  .["retry.modelFallback"].value == true and
+  ([$fallbacks | to_entries[].value[] | select(test("^(9router/(cc|cx)/|google-antigravity/)" ) | not)] | length) == 0 and
   .["advisor.enabled"].value == false and
   .["prewalk.enabled"].value == false and
   .["goal.enabled"].value == true and
@@ -127,14 +132,15 @@ jq -e '
     "librarian":"@research",
     "reviewer":"@advisor",
     "scout":"@discovery",
+    "seance":"@research",
     "security-reviewer":"@advisor-xhigh",
     "sonic":"@smol",
     "task":"@task"
   } and
   $agents.reviewer == "@advisor" and
-  $roles.advisor == "anthropic/claude-opus-5:high" and
+  $roles.advisor == "9router/cx/gpt-6.1-sol:high" and
   $agents["security-reviewer"] == "@advisor-xhigh" and
-  $roles["advisor-xhigh"] == "anthropic/claude-opus-5:xhigh" and
+  $roles["advisor-xhigh"] == "9router/cx/gpt-6.1-sol:xhigh" and
   ([$agents[] | select(. == "@advisor-max")] | length) == 0
 ' "$fixture/reference.json" >/dev/null || {
   echo 'FAIL: cross-device OMP reference did not resolve its canonical role graph' >&2
@@ -202,7 +208,7 @@ verdict="$(jq -e -n --slurpfile c "$fixture/reference.json" --slurpfile m "$fixt
     $c[0].modelRoles.value.designer,
     $c[0]["retry.fallbackChains"].value.vision[],
     $c[0]["retry.fallbackChains"].value.designer[];
-  [refs | capture("^(?<provider>[^/]+)/(?<id>.+):(?<effort>[^:]+)$")] as $all |
+  [refs | capture("^(?<provider>[^/]+)/(?<id>[^:]+)(:(?<effort>[^:]+))?$")] as $all |
   ($all | map(select(.provider as $p | $known | index($p) | not)) | length) as $unjudged |
   [$all[] | select(.provider as $p | $known | index($p)) |
     . as $ref |
@@ -210,10 +216,11 @@ verdict="$(jq -e -n --slurpfile c "$fixture/reference.json" --slurpfile m "$fixt
     select(
       ($model == null) or
       (($model.thinking // []) as $levels |
+        ($ref.effort != null and $ref.effort != "auto" and $ref.effort != "off") and
         ($levels | length) > 0 and ($levels | index($ref.effort) | not))
     ) | "\($ref.provider)/\($ref.id):\($ref.effort)"
   ] as $broken |
-  [visual_refs | capture("^(?<provider>[^/]+)/(?<id>.+):(?<effort>[^:]+)$") |
+  [visual_refs | capture("^(?<provider>[^/]+)/(?<id>[^:]+)(:(?<effort>[^:]+))?$") |
     select(.provider as $p | $known | index($p)) |
     . as $ref |
     ([$m[0].models[] | select(.provider == $ref.provider and .id == $ref.id)][0]) as $model |

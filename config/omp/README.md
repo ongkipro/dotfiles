@@ -11,22 +11,61 @@ explicitly for a session when the device has the required providers:
 omp --config ~/dotfiles/config/omp/config.yml
 ```
 
-Its `task`/`slow` roles and sol fallbacks use `9router-fantastico/cx/gpt-6-sol`
-(owner decision 2026-09-24, TASK-091), so the device must declare that provider
-in its own `~/.omp/agent/models.yml` — a local file, not a link:
+The accepted default reference (owner decision 2026-10-29) is:
+
+| Role | Model / route |
+|---|---|
+| Default | Sonnet 5.5 through `9router/cc` |
+| Coding and task implementation | Opus 5.5 through `9router/cc` |
+| Planning and orchestration | Fable 5.1 through `9router/cc` |
+| Review, security review and deep analysis | Sol 6.1 through `9router/cx` |
+| Research and design | Argon 4 through native `google-antigravity` |
+| Lightweight work | Flash 3.8 through native `google-antigravity` |
+
+Exact efforts, auxiliary roles, bundled-agent mappings and fallback order live
+in `config.yml`. Sonnet remains the general default; choosing Opus for development
+does not make it the default for every task. Package multipliers across vendors
+are not interchangeable token budgets or evidence of model quality.
+
+This replaces the older `9router-fantastico` role recommendation. A device must
+declare the `9router` provider in its own `~/.omp/agent/models.yml` (a local file,
+not a link), and authenticate native Antigravity separately. Adapt the URL and
+secret reference to that device; this example contains no usable credential:
 
 ```yaml
 providers:
-  9router-fantastico:
-    baseUrl: <9Router /v1 URL from this device's ~/.config/ai-local/ notes>
+  9router:
+    baseUrl: <device-specific 9Router /v1 URL>
     api: openai-completions
     apiKey: "!secrets-env get NINEROUTER_REMOTE_KEY"
     authHeader: true
     discovery:
-      type: openai-models-list
+      type: proxy
 ```
 
-Verify with `omp -p --model 9router-fantastico/cx/gpt-6-sol "ping"`.
+Validate the selected reference without inference:
+
+```bash
+PI_CONFIG_FILES=~/dotfiles/config/omp/config.yml omp-runtime-report
+```
+
+Provider compatibility remains device-local. With OMP 18.13.3 and the inspected
+9Router 0.5.112 catalog, discovery omitted endpoint metadata and Codex reasoning
+effort was not transmitted without an override. Under
+`providers.9router.modelOverrides`, the verified settings are:
+
+- Claude `cc/...`: `api: anthropic-messages` to use `/v1/messages`.
+- Claude rows advertising `thinkingFormat: claude-adaptive` (including Opus 5.5,
+  Sonnet 5.5 and Fable 5.1):
+  `thinking: {mode: anthropic-adaptive, efforts: [low, medium, high]}`.
+- Codex `cx/...`: `compat: {supportsReasoningEffort: true}` to transmit
+  `reasoning_effort` on `/v1/chat/completions`.
+
+Apply overrides to exact advertised model IDs, retain discovered context/output
+limits, and revalidate against the installed proxy/runtime when upgrading. Do not
+apply adaptive thinking to Haiku or another catalog row that does not advertise
+it. Local synthetic tests covered request serialization for eleven advertised
+Claude/Codex models; they do not prove upstream inference or account availability.
 
 The remaining custom model catalog, agent definitions, routing prose, and
 overlays are retained as historical design evidence. Installers do not link

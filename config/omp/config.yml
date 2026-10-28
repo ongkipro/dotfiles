@@ -8,79 +8,112 @@
 # under ~/.omp/agent/.
 setupVersion: 2
 modelRoles:
-  default: openai-codex/gpt-5.6-terra:medium
-  task: 9router-fantastico/cx/gpt-6-sol:high
-  slow: 9router-fantastico/cx/gpt-6-sol:high
-  plan: anthropic/claude-fable-5:high
-  orchestrator: anthropic/claude-fable-5:high
+  default: 9router/cc/claude-sonnet-5-5:high
+  coding: 9router/cc/claude-opus-5-5:high
+  task: 9router/cc/claude-opus-5-5:high
+  slow: 9router/cx/gpt-6.1-sol:xhigh
+  plan: 9router/cc/claude-fable-5-1:high
+  orchestrator: 9router/cc/claude-fable-5-1:high
+  advisor: 9router/cx/gpt-6.1-sol:high
+  advisor-xhigh: 9router/cx/gpt-6.1-sol:xhigh
+  vision: 9router/cc/claude-opus-5-5:high
+  designer: google-antigravity/gemini-4-argon:high
+  research: google-antigravity/gemini-4-argon:high
+  discovery: google-antigravity/gemini-3.8-flash:high
   smol: google-antigravity/gemini-3.8-flash:medium
-  tiny: google-antigravity/gemini-3.8-flash:medium
-  vision: anthropic/claude-opus-5:high
-  designer: google-antigravity/gemini-3.8-flash:high
-  commit: openai-codex/gpt-5.6-luna:low
-  title: google-antigravity/gemini-3.8-flash:medium
-  research: openai-codex/gpt-5.6-terra:medium
-  discovery: openai-codex/gpt-5.6-terra:medium
-  advisor: anthropic/claude-opus-5:high
-  advisor-xhigh: anthropic/claude-opus-5:xhigh
+  tiny: google-antigravity/gemini-3.8-flash:low
+  commit: 9router/cx/gpt-5.6-luna:low
+  title: google-antigravity/gemini-3.8-flash:low
+  memory: google-antigravity/gemini-3.8-flash:medium
+  judge: 9router/cx/gpt-6.1-terra:medium
+  widget: google-antigravity/gemini-3.8-flash:low
+  image: google-antigravity/gemini-3-pro-image
+  web: google-antigravity/gemini-3.8-flash:auto
 defaultThinkingLevel: high
 dev:
   autoqaConsent: granted
 modelProviderOrder:
-  - anthropic
-  - google-antigravity
-  - openai-codex
+- 9router
+- google-antigravity
 cycleOrder:
-  - smol
-  - default
-  - slow
+- smol
+- default
+- coding
+- slow
 retry:
+  modelFallback: true
+  fallbackOn: any
+  usageAwareFallback: false
   fallbackChains:
     default:
-      - 9router-fantastico/cx/gpt-6-sol:medium
-      - anthropic/claude-opus-5:medium
+    - google-antigravity/gemini-4-argon:high
+    - 9router/cx/gpt-6.1-sol:high
+    - 9router/cx/gpt-6.1-terra:high
+    coding:
+    - 9router/cx/gpt-6.1-sol:high
+    - 9router/cc/claude-sonnet-5-5:high
+    - 9router/cx/gpt-6.1-terra:high
     task:
-      - anthropic/claude-opus-5:high
-      - openai-codex/gpt-5.6-terra:high
+    - 9router/cc/claude-sonnet-5-5:high
+    - 9router/cx/gpt-6.1-terra:high
+    - 9router/cx/gpt-6-astra:high
     slow:
-      - anthropic/claude-opus-5:high
-      - openai-codex/gpt-5.6-terra:max
+    - 9router/cc/claude-opus-5-5:high
+    - 9router/cc/claude-fable-5-1:high
+    - 9router/cc/claude-opus-5:high
     plan:
-      - anthropic/claude-opus-5:xhigh
-      - 9router-fantastico/cx/gpt-6-sol:xhigh
+    - 9router/cc/claude-opus-5-5:high
+    - 9router/cx/gpt-6.1-sol:xhigh
+    - 9router/cc/claude-fable-5:high
     orchestrator:
-      - anthropic/claude-opus-5:xhigh
-      - 9router-fantastico/cx/gpt-6-sol:xhigh
-    smol:
-      - openai-codex/gpt-5.6-luna:low
-      - anthropic/claude-haiku-4-5:low
-    tiny:
-      - openai-codex/gpt-5.6-luna:low
-      - anthropic/claude-haiku-4-5:minimal
-    vision:
-      - 9router-fantastico/cx/gpt-6-sol:high
-      - openai-codex/gpt-5.6-terra:high
-    designer:
-      - 9router-fantastico/cx/gpt-6-sol:high
-      - openai-codex/gpt-5.6-terra:high
-    commit:
-      - google-antigravity/gemini-3.8-flash:medium
-      - anthropic/claude-haiku-4-5:low
-    title:
-      - openai-codex/gpt-5.6-luna:low
-      - anthropic/claude-haiku-4-5:minimal
-    research:
-      - 9router-fantastico/cx/gpt-6-sol:medium
-      - anthropic/claude-opus-5:medium
-    discovery:
-      - 9router-fantastico/cx/gpt-6-sol:medium
-      - anthropic/claude-opus-5:medium
+    - 9router/cc/claude-opus-5-5:high
+    - 9router/cx/gpt-6.1-sol:xhigh
+    - 9router/cc/claude-fable-5:high
     advisor:
-      - 9router-fantastico/cx/gpt-6-sol:high
-      - openai-codex/gpt-5.6-terra:high
+    - 9router/cc/claude-opus-5-5:high
+    - 9router/cc/claude-fable-5-1:high
+    - google-antigravity/gemini-4-argon:high
     advisor-xhigh:
-      - 9router-fantastico/cx/gpt-6-sol:xhigh
-      - openai-codex/gpt-5.6-terra:max
+    - 9router/cc/claude-opus-5-5:high
+    - 9router/cc/claude-fable-5-1:high
+    - 9router/cc/claude-opus-5:high
+    vision:
+    - google-antigravity/gemini-4-argon:high
+    - 9router/cx/gpt-6.1-sol:high
+    - 9router/cc/claude-sonnet-5-5:high
+    designer:
+    - 9router/cc/claude-opus-5-5:high
+    - 9router/cc/claude-sonnet-5-5:high
+    - 9router/cx/gpt-6.1-sol:high
+    research:
+    - 9router/cx/gpt-6.1-terra:high
+    - 9router/cc/claude-sonnet-5-5:high
+    - 9router/cx/gpt-6.1-sol:high
+    discovery:
+    - 9router/cx/gpt-6.1-terra:high
+    - 9router/cc/claude-sonnet-5-5:medium
+    - 9router/cx/gpt-5.6-luna:low
+    smol:
+    - 9router/cx/gpt-5.6-luna:low
+    - 9router/cc/claude-haiku-4-5-20251001:off
+    tiny:
+    - 9router/cx/gpt-5.6-luna:low
+    - 9router/cc/claude-haiku-4-5-20251001:off
+    commit:
+    - google-antigravity/gemini-3.8-flash:low
+    - 9router/cc/claude-haiku-4-5-20251001:off
+    title:
+    - 9router/cx/gpt-5.6-luna:low
+    - 9router/cc/claude-haiku-4-5-20251001:off
+    memory:
+    - 9router/cc/claude-haiku-4-5-20251001:off
+    - 9router/cx/gpt-5.6-luna:low
+    judge:
+    - google-antigravity/gemini-4-argon:medium
+    - 9router/cc/claude-haiku-4-5-20251001:off
+    widget:
+    - 9router/cc/claude-haiku-4-5-20251001:off
+    - 9router/cx/gpt-5.6-luna:low
 advisor:
   enabled: false
 prewalk:
@@ -89,7 +122,7 @@ goal:
   enabled: true
   statusInFooter: true
   continuationModes:
-    - interactive
+  - interactive
 todo:
   enabled: true
   reminders: true
@@ -108,15 +141,20 @@ task:
   enableLsp: true
   prewalk: false
   agentModelOverrides:
-    designer: "@designer"
-    librarian: "@research"
-    reviewer: "@advisor"
-    scout: "@discovery"
-    security-reviewer: "@advisor-xhigh"
-    sonic: "@smol"
-    task: "@task"
+    designer: '@designer'
+    librarian: '@research'
+    reviewer: '@advisor'
+    scout: '@discovery'
+    seance: '@research'
+    security-reviewer: '@advisor-xhigh'
+    sonic: '@smol'
+    task: '@task'
 memory:
-  backend: "off"
+  backend: 'off'
 memories:
   maxRolloutsPerStartup: 64
   stage1Concurrency: 8
+enabledModels:
+- 9router/cc/*
+- 9router/cx/*
+- google-antigravity/*
