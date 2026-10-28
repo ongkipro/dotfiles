@@ -111,16 +111,16 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Collection | Path | Tracked | Completeness enforced by |
 |---|---|---|---|
 | Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 21 | linked from this page |
-| Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 81 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
+| Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 82 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
 | Owned skills | [`skills/local/`](../skills/local/) | 76 | linked from this page |
-| Commands | [`bin/`](../bin/) | 57 | linked from this page |
-| Command tests | [`bin/`](../bin/) | 71 | linked from this page |
+| Commands | [`bin/`](../bin/) | 58 | linked from this page |
+| Command tests | [`bin/`](../bin/) | 73 | linked from this page |
 | Device profiles | [`devices/`](../devices/) | 8 | linked from this page |
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
 | Top-level docs | [`docs/`](../docs/) | 23 | linked from this page |
 | AI control files | [`config/ai/`](../config/ai/) | 30 | linked from this page |
-| Runtime references | [`config/omp/`](../config/omp/) | 27 | linked from this page |
+| Runtime references | [`config/omp/`](../config/omp/) | 28 | linked from this page |
 | Skill commands | [`skills/agents-bin/`](../skills/agents-bin/) | 7 | linked from this page |
 | Skill tooling | [`skills/local/`](../skills/local/) | 2 | linked from this page |
 | Registry indexes | [`devices/`](../devices/) | 1 | linked from this page |
@@ -209,6 +209,7 @@ Central repository for AI behavior, context distribution, and safety guards.
 OMP runs upstream-native; installers link none of these files.
 - [`config/omp/README.md`](../config/omp/README.md): How OMP uses its own config, what dotfiles still provides, and how to repair drift.
 - [`config/omp/config.yml`](../config/omp/config.yml): Secret-free cross-device reference config, used only when passed with `omp --config`.
+- [`9router-compat.yml`](../config/omp/9router-compat.yml): Secret-free `modelOverrides` reference for Claude models behind 9router (chat-compatible transport, reasoning efforts); never installed or auto-loaded.
 - **OMP records:** [`STATUS.md`](../config/omp/STATUS.md), [`BUILD-LOG.md`](../config/omp/BUILD-LOG.md), [`PERFORMANCE.md`](../config/omp/PERFORMANCE.md), [`GOAL-ORCHESTRATION.md`](../config/omp/GOAL-ORCHESTRATION.md): integration status, build log, performance review, and the on-demand goal-orchestration playbook.
 - **OMP historical design evidence:** [`ROUTING.md`](../config/omp/ROUTING.md), [`models.yml`](../config/omp/models.yml): retired custom routing and model catalog; not installed or injected.
 - **OMP reference agents (not installed):** [`architect`](../config/omp/agents/architect.md), [`complex-developer`](../config/omp/agents/complex-developer.md), [`debugger`](../config/omp/agents/debugger.md), [`designer`](../config/omp/agents/designer.md), [`librarian`](../config/omp/agents/librarian.md), [`reviewer`](../config/omp/agents/reviewer.md), [`scout`](../config/omp/agents/scout.md), [`security-reviewer`](../config/omp/agents/security-reviewer.md), [`writer`](../config/omp/agents/writer.md): role definitions kept as design evidence.
@@ -451,6 +452,7 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`_dotads-meta-provider.py`](../bin/_dotads-meta-provider.py) (+ [`SDK tests`](../bin/_dotads-meta-provider-test.py)): Private read adapter for official-SDK account inventory and Insights; bounded paging, retries and isolated transport tests.
 - [`_dotads-workspace.mjs`](../bin/_dotads-workspace.mjs) (+ [`filesystem tests`](../bin/_dotads-workspace-test.mjs)): Private account registry, immutable snapshots/reports, media import and reference-only adoption; filesystem safety and recovery checks.
 - [`rea-skill-sync`](../bin/rea-skill-sync) (+ [`test`](../bin/rea-skill-sync-test)): Deterministic upstream auto-sync and drift checker synchronizing `skills/local/black-magic/` with `morluto/rea`.
+- [`skill-upstream`](../bin/skill-upstream) (+ [`test`](../bin/skill-upstream-test)): Read-only drift report for skills that declare a watch-only `.upstream` or a vendored source; never edits a skill.
 - [`pi-9router-restore`](../bin/pi-9router-restore): Restores optional Pi settings and the device-local 9Router model integration.
 - [`pi-9router-sync.js`](../bin/pi-9router-sync.js): Refreshes Pi's existing 9Router providers from their public catalogs in the machine-local `models.json`.
 
@@ -470,7 +472,7 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`release-safety-test`](../bin/release-safety-test): Covers `release-manifest`, `migration-risk`, and `rollback-check` together.
 - [`installer-link-test`](../bin/installer-link-test): Backup-before-link helpers used by the installers.
 - [`shell-wrapper-test`](../bin/shell-wrapper-test): Cross-shell setup fixtures and transparent OMP execution.
-- **OMP boundary tests:** [`omp-routing-test`](../bin/omp-routing-test), [`omp-effective-routing-test`](../bin/omp-effective-routing-test), [`omp-workspace-test`](../bin/omp-workspace-test): dotfiles may add context and skills but never installs routing or alters OMP arguments.
+- **OMP boundary tests:** [`omp-routing-test`](../bin/omp-routing-test), [`omp-effective-routing-test`](../bin/omp-effective-routing-test), [`omp-9router-claude-test`](../bin/omp-9router-claude-test), [`omp-workspace-test`](../bin/omp-workspace-test): dotfiles may add context and skills but never installs routing or alters OMP arguments.
 - [`pi-9router-restore-test`](../bin/pi-9router-restore-test): Machine-local Pi seeding and the remote-only 9Router boundary.
 - [`memory-usage-hook-test`](../bin/memory-usage-hook-test): Regression check for the `UserPromptSubmit` memory-usage hook.
 - [`turnstile-secret-test`](../bin/turnstile-secret-test): Secret handling in the `turnstile-spin` skill scripts.
