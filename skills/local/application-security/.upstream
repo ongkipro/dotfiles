@@ -1,0 +1,5 @@
+watch: OWASP/ASVS
+watch: trailofbits/skills plugins
+watch: getsentry/skills plugins
+verified: 2026-10-25
+note: ASVS verification baseline and defensive AppSec skill patterns.

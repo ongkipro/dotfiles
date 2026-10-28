@@ -1,0 +1,4 @@
+watch: supabase/agent-skills skills
+watch: supabase/supabase
+verified: 2026-10-14
+note: Official Supabase agent skills and platform changes.

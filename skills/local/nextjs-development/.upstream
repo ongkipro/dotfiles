@@ -1,0 +1,5 @@
+watch: vercel/next.js docs
+watch: vercel-labs/agent-skills skills
+watch: facebook/react
+verified: 2026-10-08
+note: Next.js App Router docs, official Vercel agent skills, and React Server/Client semantics.

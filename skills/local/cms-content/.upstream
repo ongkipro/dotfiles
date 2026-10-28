@@ -1,0 +1,6 @@
+watch: payloadcms/payload
+watch: Thinkmill/keystatic
+watch: decaporg/decap-cms
+watch: tinacms/tinacms
+verified: 2026-10-02
+note: Self-hosted and git-backed CMS upstreams.

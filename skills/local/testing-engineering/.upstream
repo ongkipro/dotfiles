@@ -1,0 +1,4 @@
+watch: vitest-dev/vitest
+watch: microsoft/playwright
+verified: 2026-10-25
+note: Vitest and Playwright test runner semantics.

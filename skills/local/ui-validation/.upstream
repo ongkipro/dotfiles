@@ -1,0 +1,4 @@
+watch: microsoft/playwright
+watch: dequelabs/axe-core
+verified: 2026-10-25
+note: Browser automation and accessibility verification.

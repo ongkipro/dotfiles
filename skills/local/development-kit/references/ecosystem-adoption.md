@@ -19,6 +19,22 @@ to evaluate methodology. Preserve the installed stack, canonical artifacts, and
 the task's authorization. Promote a change only after local checks and the
 required review; record unavailable evidence rather than claiming parity.
 
+## Watch upstream drift without auto-syncing
+
+Every skill that learns from an upstream repository declares it in its own
+directory:
+
+- **Vendored or forked skills** use `.source` and `.local-fork` (owned by
+  `_refresh-vendored.sh`).
+- **Homegrown skills** use `.upstream` (`watch: <owner/repo> [path]`,
+  `verified: YYYY-MM-DD`, `note: ...`). `.upstream` is watch-only and never
+  fetches or overwrites skill files.
+
+Run `skill-upstream` (or `skill-upstream --skill <name>`, `skill-upstream --list`
+offline) to inspect commits touching watched paths since each skill's `verified`
+date. Combine upstream drift with deduplicated usage and methodology evidence from
+`ai-skill-evolution` before proposing any skill edit.
+
 | Upstream | Useful contract | Local adoption | Deliberate non-adoption |
 |---|---|---|---|
 | [Anthropic Claude Code frontend-design](https://github.com/anthropics/claude-code/blob/main/plugins/frontend-design/skills/frontend-design/SKILL.md) | Ground a visual direction in the subject, audience, job, materials, and a deliberate memorable choice. | `design-taste` requires subject-derived reference research, a clear direction, and an anti-template signature. | “Bold” or “unforgettable” is not universal; operator UI, accessibility, storefront tasks, and direct-response constraints can require restraint. |

@@ -1,0 +1,4 @@
+watch: withastro/astro
+watch: withastro/docs src/content/docs/en
+verified: 2026-10-08
+note: Astro runtime, CLI, islands, Actions, and official documentation.

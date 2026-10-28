@@ -1,0 +1,4 @@
+watch: zizmorcore/zizmor
+watch: rhysd/actionlint
+verified: 2026-10-08
+note: GitHub Actions static security analysis and workflow linting.

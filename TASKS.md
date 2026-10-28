@@ -27,6 +27,19 @@ TASK-155: [Scoped account reporting runtime](docs/archive/DOTFILES_TASKS_2026-10
 
 ## Pending
 
+### TASK-151: Upstream watch registry and deduplicated skill evidence
+
+- **Requirement:** REQ-SKILL-UPSTREAM-WATCH (owner: build a skill/upstream reference so upstream changes can refine skills, and repair usage evidence, 2026-10-27).
+- **Risk Level:** R2.
+- **Allowed Paths:** `TASKS.md`, `bin/skill-upstream`, `bin/skill-upstream-test`, `bin/ai-skill-evolution`, `bin/ai-skill-evolution-test`, `config/ai/runtime-commands.txt`, `docs/DOTFILES_SITEMAP.md`, `skills/local/*/.upstream`, `skills/local/development-kit/references/ecosystem-adoption.md`.
+- **Canonical Contract Owners:** skills.provenance -> `.source`/`.local-fork` (vendored) and `.upstream` (watch-only); skills.evidence -> `ai-skill-evolution`; adoption -> `development-kit`.
+- **Accepted Invariants:** `.upstream` never triggers a fetch or write; vendored refresh semantics unchanged; the report is read-only and never edits skills; one delivery run counts once however many checkouts carry it.
+- **Regression Checks:** bind skills, maps, links, policy, security, diff, evolution-regression, upstream-regression at run start.
+- **Runtime Evidence:** live `skill-upstream` report over all registered watches; `ai-skill-evolution --repos-root ~/Projects` sample counts equal unique runs.
+- **Non-Scope:** refreshing or reconciling vendored skills, adopting new upstream skills, scheduling, commit/push.
+- **Reopen Conditions:** a watch resolves to a missing repository, or duplicated checkouts inflate evidence again.
+- **Escalation Conditions:** a change to vendored refresh semantics or skill frontmatter is required.
+
 ### TASK-148: Scope remaining owner priorities
 
 - **Requirement:** REQ-RUNTIME-EVIDENCE-FOLLOWUP (2026-10-26 audit).

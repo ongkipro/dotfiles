@@ -39,6 +39,18 @@ assert first['skillEvidence']==repeated['skillEvidence']
 assert first['methodologyPatterns']==repeated['methodologyPatterns']
 assert len(repeated['repos'])==1
 PYFIX
+# A second checkout (worktree or copy) carries the same committed runs; it is
+# a second repository, but not a second sample.
+cp -a "$REPO" "$TMP/repo-checkout"
+python3 "$ROOT/bin/ai-skill-evolution" --repo "$REPO" --repo "$TMP/repo-checkout" --dotfiles "$DOT" --json > "$TMP/copied.json"
+python3 - "$TMP/o.json" "$TMP/copied.json" <<'PYFIX'
+import json,sys
+first,copied=[json.load(open(p)) for p in sys.argv[1:]]
+assert len(copied['repos'])==2
+assert first['skillEvidence']==copied['skillEvidence'], copied['skillEvidence']
+assert first['methodologyPatterns']==copied['methodologyPatterns']
+PYFIX
+rm -rf "$TMP/repo-checkout"
 # A self-consistent sidecar cannot substitute for its missing source run.
 rm "$REPO/.delivery/runs/RUN-s1.jsonl"
 if python3 "$ROOT/bin/ai-skill-evolution" --repo "$REPO" --dotfiles "$DOT" --json > "$TMP/bad.json"; then

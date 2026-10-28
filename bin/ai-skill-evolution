@@ -53,7 +53,11 @@ def collect(repos):
     for repo in dict.fromkeys(path.resolve() for path in repos):
       usages.extend(verified_records(repo, 'skill-usage', 'delivery-skill-usage', 'usageHash', problems))
       methods.extend(d for d in verified_records(repo, 'learning', 'delivery-learning', 'signalHash', problems) if d.get('scope') == 'methodology')
-    return usages,methods,problems
+    # Committed evidence travels with every checkout: fifteen worktrees of one
+    # repository carry the same records, which is one run, not fifteen.
+    return unique_runs(usages,'usageHash'),unique_runs(methods,'signalHash'),problems
+def unique_runs(records,hash_key):
+    return list({(d.get('runId'),d.get(hash_key)):d for d in records}.values())
 def clusters(methods,threshold):
     groups=[]
     for d in methods:

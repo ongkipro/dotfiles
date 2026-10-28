@@ -1,0 +1,5 @@
+watch: anthropics/skills skills
+watch: openai/skills skills
+watch: agentskills/agentskills
+verified: 2026-10-12
+note: Cross-CLI portable skill packaging and evaluation patterns.

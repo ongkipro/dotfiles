@@ -1,0 +1,4 @@
+watch: open-telemetry/semantic-conventions
+watch: open-telemetry/semantic-conventions-genai
+verified: 2026-10-02
+note: OpenTelemetry semantic conventions including GenAI telemetry.

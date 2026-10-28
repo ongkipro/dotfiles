@@ -1,0 +1,4 @@
+watch: drizzle-team/drizzle-orm
+watch: supabase/agent-skills skills
+verified: 2026-10-24
+note: Drizzle ORM schema/migration semantics and Postgres best-practice skills.

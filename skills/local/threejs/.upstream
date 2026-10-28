@@ -1,0 +1,4 @@
+watch: mrdoob/three.js
+watch: pmndrs/react-three-fiber
+verified: 2026-10-02
+note: Three.js r170+ WebGL/WebGPU and React Three Fiber.
