@@ -21,3 +21,10 @@ Some Coolify maintenance commands require a real TTY. When a password/reset comm
 ## Operational rule
 
 Current container names, user records, SMTP state, and provider/network details are runtime facts. Inspect them on the target host instead of relying on this memory file.
+
+## Current instance pointer
+
+The earlier dev instance is retired (2026-10-28). The current instance is `vps-main`
+(Vultr account `dotfiles-vultr`); its host, firewall, hardening, and recovery facts are in
+`~/.config/ai-local/vps-main-access.md`. Drive it with `dotfiles-coolify <args>`; tokens and
+passwords live only in `secrets-env`.
