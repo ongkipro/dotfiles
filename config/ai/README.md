@@ -94,6 +94,39 @@ OMP otherwise stays upstream-native. Dotfiles does not install its
 `config.yml`, `models.yml`, or `agents/`, does not wrap the `omp` command, and
 does not inject `PI_CONFIG_FILES`. See `config/omp/README.md`.
 
+### Keep CLI authentication independent
+
+9Router is used by **Pi and OMP only**. Each runtime owns its provider definitions,
+model selection and credentials; sharing a gateway does not mean copying auth
+stores. Pi's `9router-fantastico` compatibility name and OMP's `9router` name may
+point to the same device-local endpoint. See [Pi](../pi/README.md) and
+[OMP](../omp/README.md) for their separate configuration boundaries.
+
+Claude Code, Codex and Antigravity use their own native logins. Synchronizing
+rules, skills and supported hook/MCP wiring must not redirect them through
+9Router or reuse another CLI's account. Keep credentials and account identities
+out of tracked references.
+
+For native Claude Code, remove authorized gateway `ANTHROPIC_BASE_URL` and
+`ANTHROPIC_AUTH_TOKEN` overrides, proxy-specific `cc/...` model aliases, and any
+proxy-only thread workaround. An external auth source such as
+`ANTHROPIC_API_KEY` or `apiKeyHelper` takes precedence over the saved login and
+disables claude.ai connectors. Inspect source names without exposing values;
+remove only the authorized override. Verify `claude auth status --json` reports
+`claude.ai` and the intended account, then test a native model. Preserve the
+existing login; never infer its identity from Pi, OMP or 9Router.
+
+A prior gateway diagnosis on Claude Code 2.1.312 established that wrapping
+HTTP 404 `thread_not_found` as HTTP 503 prevents the client's full-history replay
+branch from recognizing the error. Disabling server threads was tested as a
+proxy workaround, but is not part of the accepted native Claude profile.
+Restart the affected CLI and resume its saved conversation after changing auth
+sources; do not delete transcripts or rewrite message IDs. Keep local settings
+that contain credentials private (`0600`).
+
+Sources: [Claude authentication](https://code.claude.com/docs/en/authentication),
+[reported missing-thread recovery](https://github.com/anthropics/claude-code/issues/102850).
+
 ## Rules for working on dotfiles itself
 
 Moved here from the former always-loaded `AGENTS.md`; they only matter when the

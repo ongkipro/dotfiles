@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Restore optional Pi settings and remote 9Router model integration.
+# Restore optional Pi settings and device-local 9Router model integration.
 # Safe to run repeatedly. OMP does not depend on this adapter or on Pi state.
 set -euo pipefail
 
@@ -99,7 +99,7 @@ if [ "$OS" = "Linux" ] \
   mkdir -p "$systemd_user_dir"
   cat > "$sync_service_path" <<SYNCEOF
 [Unit]
-Description=Sync remote 9Router models into optional Pi models.json
+Description=Sync device-local 9Router models into optional Pi models.json
 Wants=network-online.target
 After=network-online.target
 
@@ -116,5 +116,5 @@ SYNCEOF
   say "Restored the optional Pi model-sync service at $sync_service_path"
 fi
 
-say "Pi adapter restore complete; remote 9Router credentials and Pi state remain machine-local"
+say "Pi adapter restore complete; device-local 9Router credentials and Pi state remain machine-local"
 say "Use the active runtime's available image-generation capability or supplied assets; this Pi adapter does not provide image generation"

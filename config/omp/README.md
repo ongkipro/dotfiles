@@ -33,6 +33,12 @@ in `config.yml`. Sonnet remains the general default; choosing Opus for developme
 does not make it the default for every task. Package multipliers across vendors
 are not interchangeable token budgets or evidence of model quality.
 
+The reference also records the accepted interactive retry policy: four retries,
+a 5000 ms retry-wait ceiling, and immediate fallback-chain eligibility on rate
+limits. The wait ceiling does not bound HTTP or stream duration. These values
+match the inspected native profile; explicit reference loading on another device
+must not silently revert to different upstream retry defaults.
+
 This replaces the older `9router-fantastico` role recommendation. A device must
 declare the `9router` provider in its own `~/.omp/agent/models.yml` (a local file,
 not a link), and authenticate native Antigravity separately. Adapt the URL and
@@ -55,23 +61,49 @@ Validate the selected reference without inference:
 PI_CONFIG_FILES=~/dotfiles/config/omp/config.yml omp-runtime-report
 ```
 
-Provider compatibility remains device-local. With OMP 18.13.3 and the inspected
-9Router 0.5.112 catalog, discovery omitted endpoint metadata and Codex reasoning
-effort was not transmitted without an override. Under
-`providers.9router.modelOverrides`, the verified settings are:
+Provider compatibility remains device-local. With OMP 18.13.3 and 9Router
+0.5.112, the working Pi client was used as an inference control: Pi completed a
+Claude tool roundtrip while OMP's native `anthropic-messages` request failed with
+an upstream 429 wrapped as 503. Changing the URL or disabling context management
+alone did not fix it. OMP's supported `openai-completions` gateway route completed
+the same tool flow. This isolates a transport/request compatibility problem;
+it does not identify the exact upstream validation rule behind the 429.
 
-- Claude `cc/...`: `api: anthropic-messages` to use `/v1/messages`.
-- Claude rows advertising `thinkingFormat: claude-adaptive` (including Opus 5.5,
-  Sonnet 5.5 and Fable 5.1):
-  `thinking: {mode: anthropic-adaptive, efforts: [low, medium, high]}`.
-- Codex `cx/...`: `compat: {supportsReasoningEffort: true}` to transmit
-  `reasoning_effort` on `/v1/chat/completions`.
+For Claude `cc/...` models, merge the non-secret `modelOverrides` from
+[`9router-compat.yml`](9router-compat.yml) into the device's own `models.yml`:
 
-Apply overrides to exact advertised model IDs, retain discovered context/output
-limits, and revalidate against the installed proxy/runtime when upgrading. Do not
-apply adaptive thinking to Haiku or another catalog row that does not advertise
-it. Local synthetic tests covered request serialization for eleven advertised
-Claude/Codex models; they do not prove upstream inference or account availability.
+- `api: openai-completions` uses the gateway's `/v1/chat/completions` surface.
+- `thinking.mode: effort` preserves the role's low/medium/high reasoning choice;
+  `compat.supportsReasoningEffort: true` sends `reasoning_effort`.
+- For verified disable-capable models (Opus 5, Sonnet 5/5.5 and Haiku 4.5), `requiresEffort: false` and a
+  lowest `minimal` tier mapped to wire value `none` preserve `:off`. On this
+  gateway, that `minimal` tier also means disabled; explicit `low` still sends
+  `low`. Opus 5.5 and Fable 5/5.1 require thinking; `off` clamps to their lowest
+  supported effort. Fable 5 returned HTTP 400 for disabled thinking despite the
+  catalog advertising that it could disable it; the compatibility reference
+  corrects that metadata using `requiresEffort: true`.
+- `compat.supportsStrictMode: false` keeps tool schemas compatible with this route.
+- Discovery continues to own context/output limits and input capabilities.
+
+Pi can retain its working `anthropic-messages` configuration. Native OMP
+`anthropic/*` and the independent Claude CLI keep their own protocols and logins.
+Do not copy Pi's auth store, credentials or client-identity headers into OMP.
+Codex `cx/...` continues using `compat.supportsReasoningEffort: true` on the
+OpenAI-compatible gateway route.
+
+The reference is never installed or auto-loaded. Revalidate it against the
+installed runtime and proxy after upgrades. The credential-free native-runtime
+regression exercises all seven advertised Claude IDs, high/low effort, explicit
+`off` on every verified disable-capable row, required-thinking clamping, actual
+file reads and full tool continuation:
+
+```bash
+~/dotfiles/bin/omp-9router-claude-test
+```
+
+This local fixture proves the wire contract, not upstream quota or entitlement.
+Real provider acceptance must also be checked with fallback disabled, so success
+cannot silently come from native Anthropic instead of 9Router.
 
 The remaining custom model catalog, agent definitions, routing prose, and
 overlays are retained as historical design evidence. Installers do not link

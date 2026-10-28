@@ -2,45 +2,31 @@
 
 > Detailed shared reference for OMP, 9Router, optional Pi, and Antigravity. Machine-local availability and service state must be verified on the relevant device. See [environment.md](environment.md) for the compact environment index.
 
-## OMP, optional Pi, and 9Router
-> Runtime installation, active models, provider availability, and service state
-> are machine-local. Verify them from the relevant machine instead of recording
-> a current snapshot here.
+## Pi, OMP, and 9Router
 
-- OMP is an upstream-native runtime. Its command, configuration, bundled agents,
-  provider catalog, routing, updates, workspace behavior, authentication, and
-  session state are not installed or overridden by dotfiles.
-- Dotfiles supplies OMP only with shared core + OMP adapter through
-  `~/.omp/agent/AGENTS.md` and owned skills through `~/.omp/agent/skills`.
-  Verify active models and providers using OMP's native commands on the device.
-- Pi is optional. When it is installed, inspect its own settings and models only
-  for a direct Pi session. Its custom compaction extension is a Pi-only fallback.
-- `bin/pi-9router-restore` is an explicitly invoked optional adapter for Pi
-  settings, compaction, and remote-catalog sync. It does not install or start a
-  local gateway.
-- The optional remote 9Router credential is machine-local and used only by the
-  explicitly invoked Pi/9Router helpers that require it. Dotfiles does not
-  inject it into OMP.
-- `9router-credential-migrate` may copy a legacy key from Pi auth only when
-  explicitly invoked. It does not print the value, delete the source, or
-  overwrite an existing neutral credential.
+- Owner decision: **Pi and OMP may use 9Router; Claude Code, Codex and
+  Antigravity use their own native logins.** Shared dotfiles synchronization
+  never copies accounts, tokens or auth stores between runtimes.
+- Canonical configuration boundaries: [shared AI context](../README.md),
+  [Pi configuration](../../pi/README.md), and [OMP reference](../../omp/README.md).
+  Verify actual versions, endpoints and readiness on the current device.
+- OMP owns its native settings, provider catalog, sessions and auth. Dotfiles
+  provides shared context, skills and an explicitly loaded non-secret reference;
+  it does not install a model-provider file or wrap the command.
+- Pi is an optional independent runtime. `pi-9router-restore` seeds missing local
+  settings and the compaction extension without overwriting existing settings.
+  `pi-9router-sync.js` reads the public catalog from each existing Pi 9Router
+  provider's configured endpoint; it does not read or migrate credentials.
+- The gateway may be local on its designated host or reached remotely by other
+  devices. Endpoint, service, tunnel and account facts stay device-local.
+  Generic setup must not create a new gateway or change another CLI's auth.
+- Provider labels may differ between Pi and OMP. Verify the selected label has
+  credentials in that runtime before making it the default; matching model IDs
+  and base URLs do not establish matching authentication.
+- `9router-credential-migrate` is a legacy explicit migration helper, not part
+  of ordinary sync. Never run it merely to make the runtimes use the same account.
 - Image generation uses the active runtime's available capability or supplied
-  assets; it does not require the removed 9Router skill or a Pi image package.
-- 9Router is remote-only in the supported dotfiles topology. Optional Pi and
-  runtime-neutral 9Router helpers may target that service; OMP provider choices
-  remain native and machine-local.
-- A local `9router` npm package, `9router.service`, port 20128 gateway, local
-  provider database, and local model-sync dependency are deliberately absent.
-  Do not reinstall or recreate them as part of generic setup.
-- A designated workstation may host the remote 9Router service, but host,
-  port, tunnel, process, and credential details are device-local facts. Read
-  `~/.config/ai-local/device.md` on that machine instead of duplicating them
-  into shared memory.
-- Verify service availability through the existing machine-local helper. Catalog
-  or inference verification requires the machine-local remote key; never print
-  or copy the credential into tracked memory.
-- Native Claude Code, Codex, and Antigravity remain independent runtimes; do not
-  redirect them through 9Router based on this memory.
+  assets; it does not require a Pi image package.
 **Claude Code profile:** one native profile at `~/.claude`; run the installed `claude` binary directly. Do not add personal/work launchers or alternate config-directory profiles.
   The single-profile rule dates from 2026-07-29, but removing the switcher scripts did
   not remove the mechanism: on `Fantastico` a second profile at
@@ -70,8 +56,7 @@
 - **Gemini CLI: DELIBERATELY REMOVED** — user decision: the Gemini stack is used via **Antigravity (`agy`)**, not the `gemini` CLI. The `@google/gemini-cli` package has been `npm uninstall -g`'d. **DO NOT reinstall it.**
 - ⚠️ **`~/.gemini/` IS STILL KEPT** even though the `gemini` CLI was removed — it holds `GEMINI.md` (symlink → `~/.config/ai/context/antigravity.md`, created by `ai-memory-link`), the only global rules file agy 1.2.0 opens (strace-verified 2026-09-15; `~/.antigravity/AGENTS.md` and `~/.gemini/antigravity-cli/*.md` are never read). **Deleting `~/.gemini` = breaking agy.** Contents: `GEMINI.md`, `projects.json`, `config/`, and **`antigravity-cli/` (STILL PRESENT** — the old note saying this folder is gone is WRONG).
 - **agy**: a flat native binary, its name **differs per machine** — on Mac `~/.local/bin/agy` (there is NO `antigravity` file here), on `cuan` an ELF binary from the official installer. Check: `ls -l ~/.local/bin/ | grep -iE 'agy|antigravity'`. Antigravity config in `~/.antigravity/{AGENTS.md,ANTIGRAVITY.md}`.
-- **9Router status:** verify the remote tunnel only when operating an optional
-  Pi/9Router integration; there is no supported local service.
+- **9Router status:** verify the device-configured endpoint for Pi or OMP; do not infer its host or service state from shared memory.
 - Optional Pi provider metadata, credentials, and sync status are independent
   from OMP. Inspect them only while troubleshooting a direct Pi session.
 - There is no Pi-owned image-generation path in tracked settings. Use the active
@@ -81,31 +66,25 @@
 - **Supabase CLI**: the house DB stack = PostgreSQL + Drizzle ORM + better-auth, self-hosted via Coolify. Don't adopt Supabase for new projects unless explicitly requested. The `~/.supabase/` folder **DOES NOT EXIST on Mac** (the old note saying "EXISTS but leftover/empty" is wrong for this machine). The `supabase-stack` skill is kept for reference and explicit Supabase projects.
 
 ## Fixes & new tools on `cuan` (2026-07-13)
-- `pi-9router-sync.service` is an optional Pi adapter that refreshes Pi's
-  machine-local provider metadata from the authenticated remote tunnel. It has
-  no local-gateway dependency.
+- `pi-9router-sync.service` is an optional Pi catalog adapter. Its endpoint comes
+  from Pi's existing provider config; it does not start or configure the gateway.
 - **PostgreSQL client status changed (disk check 2026-08-07):** `psql` resolves to a mise shim but no PostgreSQL version is configured, so `psql`/`pg_dump`/`pg_restore` are currently unavailable until an explicit mise version is selected. The older claim that client 18.4 was available via apt is stale. Other tools in this section must be rechecked individually before use.
 - **Hardware `cuan`**: full specs in the "Device registry" section — don't duplicate. What matters for AI decisions: 4GB swap unused (no OOM), and **the MX150 2GB GPU is too small for a local LLM** → the AI load stays in the cloud.
 
 ## 9Router credential and restore boundary
-- `bin/pi-9router-restore` owns optional Pi settings, compaction, and
-  remote-catalog sync integration. It does not install a gateway.
-- Optional Pi and runtime-neutral 9Router helpers may target the remote tunnel;
-  localhost is not a supported 9Router endpoint in this setup.
-- OMP has no dotfiles-owned 9Router provider, model catalog, credential
-  injection, or shell wrapper. Configure and authenticate OMP only through its
-  native machine-local mechanisms.
-- Owner decision 2026-09-24 (TASK-091): the cross-device OMP reference routes
-  `task`/`slow` and sol fallbacks to `9router-fantastico/cx/gpt-6-sol`, because a
-  device's own Codex login may lack sol entitlement. A device that loads the
-  reference declares that provider itself in `~/.omp/agent/models.yml` (a local
-  file, never a link) with `discovery: {type: openai-models-list}` and
-  `apiKey: "!secrets-env get NINEROUTER_REMOTE_KEY"`; no key is written to disk.
-  The base URL and any tunnel behaviour are device-local (`~/.config/ai-local/`).
-- Never read or expose credential contents while diagnosing. Use
-  non-secret health checks and the relevant helper's fixture tests.
-- Legacy `~/.9router/` state is not part of the supported runtime topology and
-  must not be restored from backups.
+
+- Pi and OMP authenticate through their own native mechanisms. Neither runtime
+  imports the other's credential store; native Claude, Codex and Antigravity
+  credentials must not be replaced with gateway credentials.
+- Pi's local `models.json` and OMP's local `models.yml` are not symlinks into
+  dotfiles. Adapt the endpoint per device; do not hard-code another machine's
+  tunnel into a synchronization helper.
+- Catalog synchronization is metadata-only. A protected or unavailable catalog
+  must fail without changing the last working file, exposing credentials or
+  silently switching endpoints. An available catalog is not inference proof.
+- Use the current OMP reference for role/model IDs; historical TASK-091 selectors
+  do not override it. Preserve runtime sessions and local gateway data during
+  configuration repair.
 
 ## Antigravity (`agy`) — the OFFICIAL install method
 - **Official installer**: `curl -fsSL https://antigravity.google/cli/install.sh | bash` → then `agy install` (configures PATH + shell). Docs: https://antigravity.google/docs/cli-getting-started

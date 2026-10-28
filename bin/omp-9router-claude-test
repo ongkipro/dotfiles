@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+"""Exercise the real OMP binary against an isolated chat-compatible Claude gateway."""
+import http.server
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+import threading
+import yaml
+
+root = Path(__file__).resolve().parent.parent
+if not shutil.which('omp'):
+    raise SystemExit('FAIL: omp is required')
+reference = yaml.safe_load((root / 'config/omp/9router-compat.yml').read_text())
+overrides = reference['providers']['9router']['modelOverrides']
+expected = {
+    'cc/claude-opus-5-5', 'cc/claude-opus-5', 'cc/claude-sonnet-5-5',
+    'cc/claude-sonnet-5', 'cc/claude-fable-5-1', 'cc/claude-fable-5',
+    'cc/claude-haiku-4-5-20251001',
+}
+assert set(overrides) == expected
+disable_capable = {
+    "cc/claude-opus-5", "cc/claude-sonnet-5-5",
+    "cc/claude-sonnet-5", "cc/claude-haiku-4-5-20251001",
+}
+assert {model for model, value in overrides.items()
+        if value["thinking"].get("requiresEffort") is False} == disable_capable
+
+with tempfile.TemporaryDirectory(prefix='omp-claude-gateway-') as directory:
+    work = Path(directory)
+    agent = work / 'agent'
+    agent.mkdir()
+    fixture = work / 'fixture.txt'
+    marker = 'RESULT_ONLY_AVAILABLE_FROM_READ_TOOL'
+    fixture.write_text(marker + '\n')
+    requests, failures = [], []
+    expected_effort = "high"
+
+    class Gateway(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *_):
+            pass
+
+        def do_GET(self):
+            catalog = {'data': [{
+                'id': model, 'context_length': 200000,
+                'max_completion_tokens': 16000,
+                'capabilities': {'reasoning': True, 'vision': True, 'thinkingFormat': 'claude-adaptive', 'thinkingCanDisable': model in disable_capable or model == 'cc/claude-fable-5'},
+            } for model in sorted(expected)]}
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(catalog).encode())
+
+        def do_POST(self):
+            try:
+                body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+                assert self.path == '/v1/chat/completions', self.path
+                assert body['model'] in expected
+                assert body.get('reasoning_effort') == expected_effort, body.get('reasoning_effort')
+                assert 'context_management' not in body and 'thinking' not in body
+                assert not self.headers.get('anthropic-beta')
+                tool = body['tools'][0]['function']
+                assert tool['name'] == 'read'
+                assert tool.get('strict') is not True
+                results = [m for m in body['messages'] if m['role'] == 'tool']
+                if results:
+                    assert marker in json.dumps(results)
+                    assert results[-1]['tool_call_id'] == 'call_fixture'
+                    assert any(m['role'] == 'assistant' and m.get('tool_calls') for m in body['messages'])
+                    delta = {'role': 'assistant', 'content': marker}
+                    reason = 'stop'
+                else:
+                    assert marker not in json.dumps(body['messages'])
+                    properties = tool['parameters']['properties']
+                    path_key = next(k for k in ('path', 'file_path', 'filePath') if k in properties)
+                    delta = {'role': 'assistant', 'reasoning_content': 'Read the fixture.', 'tool_calls': [{
+                        'index': 0, 'id': 'call_fixture', 'type': 'function',
+                        'function': {'name': 'read', 'arguments': json.dumps({path_key: str(fixture)})},
+                    }]}
+                    reason = 'tool_calls'
+                requests.append((body['model'], bool(results)))
+                chunk = {'id': 'chat_fixture', 'object': 'chat.completion.chunk', 'created': 1,
+                         'model': body['model'], 'choices': [{'index': 0, 'delta': delta, 'finish_reason': None}]}
+                end = {**chunk, 'choices': [{'index': 0, 'delta': {}, 'finish_reason': reason}]}
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/event-stream')
+                self.end_headers()
+                self.wfile.write(('data: ' + json.dumps(chunk) + '\n\ndata: ' + json.dumps(end) + '\n\ndata: [DONE]\n\n').encode())
+            except Exception as error:
+                failures.append(str(error))
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b'{"error":{"message":"gateway contract violation"}}')
+
+    gateway = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Gateway)
+    thread = threading.Thread(target=gateway.serve_forever, daemon=True)
+    thread.start()
+    config = {'providers': {'9router': {
+        'baseUrl': f'http://127.0.0.1:{gateway.server_port}/v1',
+        'api': 'openai-completions', 'apiKey': 'synthetic-fixture-key',
+        'discovery': {'type': 'proxy'}, 'modelOverrides': overrides,
+    }}}
+    (agent / 'models.yml').write_text(yaml.safe_dump(config))
+    (agent / 'config.yml').write_text('retry:\n  enabled: false\n  modelFallback: false\nproviders:\n  cacheWarming: off\n')
+    environment = os.environ.copy()
+    environment.pop('PI_CONFIG_FILES', None)
+    environment['PI_CODING_AGENT_DIR'] = str(agent)
+    try:
+        cases = [(model, "high", "high") for model in sorted(expected)]
+        cases += [(model, "off", "none") for model in sorted(disable_capable)]
+        cases += [(model, "off", "low") for model in sorted(expected - disable_capable)]
+        cases += [("cc/claude-haiku-4-5-20251001", "low", "low")]
+        for model, level, expected_effort in cases:
+            command = ['omp', '-p', '--mode', 'json', '--no-session', '--tools', 'read', '--no-lsp',
+                       '--no-extensions', '--no-skills', '--no-rules', '--no-context-files', '--no-title',
+                       '--max-time', '12s', '--model', '9router/' + model, '--thinking', level,
+                       'Read fixture.txt with the read tool. Return its exact contents.']
+            run = subprocess.run(command, cwd=work, env=environment, capture_output=True, text=True, timeout=18)
+            assert run.returncode == 0, f'{model}: exit {run.returncode}; {failures}'
+            messages = []
+            for line in run.stdout.splitlines():
+                try:
+                    event = json.loads(line)
+                except ValueError:
+                    continue
+                if event.get('type') == 'message_end' and event.get('message', {}).get('role') == 'assistant':
+                    messages.append(event['message'])
+            assert any(marker in c.get('text', '') for m in messages for c in m.get('content', []) if c['type'] == 'text'), model
+            assert any(c['type'] == 'toolCall' for m in messages for c in m.get('content', [])), model
+            if level != 'off':
+                assert any(c.get('type') == 'thinking' and c.get('thinking') == 'Read the fixture.'
+                           for m in messages for c in m.get('content', [])), model
+            assert all(m['provider'] == '9router' for m in messages), model
+            assert requests[-2:] == [(model, False), (model, True)], model
+        assert not failures, failures
+        print('omp-9router-claude-test: PASS (7 models; high, low and explicit off; real read and tool-history replay; no credentials or live inference)')
+    finally:
+        gateway.shutdown()
+        gateway.server_close()

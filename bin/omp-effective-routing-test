@@ -75,6 +75,10 @@ else
 fi
 
 jq -e '
+  .["retry.maxRetries"].value == 4 and
+  .["retry.maxDelayMs"].value == 5000 and
+  .["retry.rateLimitWalksChain"].value == true and
+  (
   .modelRoles.value as $roles |
   .["retry.fallbackChains"].value as $fallbacks |
   .["task.agentModelOverrides"].value as $agents |
@@ -148,6 +152,7 @@ jq -e '
   $agents["security-reviewer"] == "@advisor-xhigh" and
   $roles["advisor-xhigh"] == "9router/cx/gpt-6.1-sol:xhigh" and
   ([$agents[] | select(. == "@advisor-max")] | length) == 0
+  )
 ' "$fixture/reference.json" >/dev/null || {
   echo 'FAIL: cross-device OMP reference did not resolve its canonical role graph' >&2
   exit 1

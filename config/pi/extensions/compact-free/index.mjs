@@ -1,5 +1,5 @@
 /**
- * Route compaction through the configured 9router-fantastico Gemini models,
+ * Route compaction through configured 9Router models,
  * in order, then fall back to Pi's active model. Only a complete successful
  * summary may replace conversation history. No credentials or provider errors
  * are persisted in the breadcrumb log.
@@ -12,10 +12,10 @@ import { convertToLlm, serializeConversation } from "@earendil-works/pi-coding-a
 
 // Keep provider/model selection explicit; no automatic catalog substitutions.
 const COMPACT_MODELS = [
-  { provider: "9router-fantastico", id: "ag/gemini-3.8-flash" },
-  { provider: "9router-fantastico", id: "ag/gemini-3.8-flash-high" },
-  { provider: "9router-fantastico", id: "ag/gemini-pro-agent" },
-  { provider: "9router-fantastico", id: "ag/gemini-3.1-pro-low" },
+  { provider: "9router-fantastico", id: "cx/gpt-5.6-luna" },
+  { provider: "9router-fantastico", id: "cc/claude-haiku-4-5-20251001" },
+  { provider: "9router-fantastico", id: "cc/claude-sonnet-5-5" },
+  { provider: "9router-fantastico", id: "cx/gpt-6.1-sol" },
 ];
 
 const LOG_PATH = join(homedir(), ".pi", "compact-free.log");

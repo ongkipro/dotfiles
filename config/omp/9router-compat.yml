@@ -1,0 +1,108 @@
+# Secret-free modelOverrides reference; never installed or auto-loaded.
+# Fable 5 rejects disabled thinking despite the gateway catalog saying otherwise.
+providers:
+  9router:
+    modelOverrides:
+      cc/claude-opus-5-5:
+        api: openai-completions
+        reasoning: true
+        thinking:
+          mode: effort
+          efforts:
+          - low
+          - medium
+          - high
+          requiresEffort: true
+        compat:
+          supportsReasoningEffort: true
+          supportsStrictMode: false
+      cc/claude-opus-5:
+        api: openai-completions
+        reasoning: true
+        thinking:
+          mode: effort
+          efforts:
+          - minimal
+          - low
+          - medium
+          - high
+          requiresEffort: false
+        compat:
+          supportsReasoningEffort: true
+          supportsStrictMode: false
+          reasoningEffortMap:
+            minimal: none
+      cc/claude-fable-5-1:
+        api: openai-completions
+        reasoning: true
+        thinking:
+          mode: effort
+          efforts:
+          - low
+          - medium
+          - high
+          requiresEffort: true
+        compat:
+          supportsReasoningEffort: true
+          supportsStrictMode: false
+      cc/claude-fable-5:
+        api: openai-completions
+        reasoning: true
+        thinking:
+          mode: effort
+          efforts:
+          - low
+          - medium
+          - high
+          requiresEffort: true
+        compat:
+          supportsReasoningEffort: true
+          supportsStrictMode: false
+      cc/claude-sonnet-5-5:
+        api: openai-completions
+        reasoning: true
+        thinking:
+          mode: effort
+          efforts:
+          - minimal
+          - low
+          - medium
+          - high
+          requiresEffort: false
+        compat:
+          supportsReasoningEffort: true
+          supportsStrictMode: false
+          reasoningEffortMap:
+            minimal: none
+      cc/claude-sonnet-5:
+        api: openai-completions
+        reasoning: true
+        thinking:
+          mode: effort
+          efforts:
+          - minimal
+          - low
+          - medium
+          - high
+          requiresEffort: false
+        compat:
+          supportsReasoningEffort: true
+          supportsStrictMode: false
+          reasoningEffortMap:
+            minimal: none
+      cc/claude-haiku-4-5-20251001:
+        api: openai-completions
+        reasoning: true
+        thinking:
+          mode: effort
+          efforts:
+          - minimal
+          - low
+          - medium
+          - high
+          requiresEffort: false
+        compat:
+          supportsReasoningEffort: true
+          supportsStrictMode: false
+          reasoningEffortMap:
+            minimal: none

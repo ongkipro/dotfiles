@@ -43,6 +43,9 @@ cycleOrder:
 - coding
 - slow
 retry:
+  maxRetries: 4
+  maxDelayMs: 5000
+  rateLimitWalksChain: true
   modelFallback: true
   fallbackOn: any
   usageAwareFallback: false

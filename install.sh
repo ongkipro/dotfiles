@@ -231,7 +231,7 @@ fi
 echo "==> Synchronize global MCP servers..."
 "$HOME/.local/bin/ai-mcp-sync"
 
-# Pi's remote 9Router adapter is optional and does not require a local gateway.
+# Pi's 9Router adapter is optional and does not install or start a gateway.
 # Credential migration remains a separate manual command.
 if [ "${DOTFILES_SETUP_PI:-0}" = "1" ]; then
   command -v pi >/dev/null 2>&1 || { echo "ERROR: DOTFILES_SETUP_PI=1 but pi is not installed." >&2; exit 1; }

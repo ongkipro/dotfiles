@@ -1,6 +1,6 @@
 ---
 name: pi-9router-setup
-description: Optional Pi adapter, remote 9Router configuration ownership, and credential-safe troubleshooting
+description: Optional Pi adapter, device-local 9Router configuration ownership, and credential-safe troubleshooting
 metadata:
   node_type: memory
   type: project
