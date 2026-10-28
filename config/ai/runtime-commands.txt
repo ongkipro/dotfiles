@@ -62,6 +62,7 @@ migration-risk
 migration-risk-test
 mutation-sweep
 mutation-sweep-test
+omp-9router-claude-test
 omp-effective-routing-test
 omp-routing-test
 omp-runtime-report
@@ -102,6 +103,8 @@ skill-remove-test
 skill-surface-check
 skill-surface-check-test
 skill-update-test
+skill-upstream
+skill-upstream-test
 system-map
 system-map-test
 tmux-battery

@@ -451,6 +451,16 @@
           "model list",
           "working models"
         ]
+      },
+      {
+        "path": "config/ai/project-memory/omp-9router-claude-wire.md",
+        "triggers": [
+          "omp",
+          "claude",
+          "chat-compatible",
+          "transport",
+          "reasoning effort"
+        ]
       }
     ],
     "kelola": "config/ai/project-memory-kelola/MEMORY.md",
@@ -492,7 +502,29 @@
     ],
     "99ribu": [
       "config/ai/project-memory/99ribu-berlapak-catalog.md",
-      "config/ai/project-memory/99ribu-shop-com-ui-ux-pattern.md"
+      "config/ai/project-memory/99ribu-shop-com-ui-ux-pattern.md",
+      {
+        "path": "config/ai/project-memory/99ribu-url-slugs.md",
+        "triggers": [
+          "url",
+          "slug",
+          "uuid",
+          "canonical",
+          "sitemap",
+          "admin id",
+          "redirect"
+        ]
+      },
+      {
+        "path": "config/ai/project-memory/customer-messaging-pending.md",
+        "triggers": [
+          "email",
+          "whatsapp",
+          "waba",
+          "messaging",
+          "notification"
+        ]
+      }
     ],
     "adsbookcms": [
       "config/ai/project-memory/adsbookcms-install-fleet.md",

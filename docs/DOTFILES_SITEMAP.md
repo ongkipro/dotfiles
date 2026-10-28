@@ -111,7 +111,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Collection | Path | Tracked | Completeness enforced by |
 |---|---|---|---|
 | Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 21 | linked from this page |
-| Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 79 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
+| Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 81 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
 | Owned skills | [`skills/local/`](../skills/local/) | 76 | linked from this page |
 | Commands | [`bin/`](../bin/) | 57 | linked from this page |
@@ -451,8 +451,8 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`_dotads-meta-provider.py`](../bin/_dotads-meta-provider.py) (+ [`SDK tests`](../bin/_dotads-meta-provider-test.py)): Private read adapter for official-SDK account inventory and Insights; bounded paging, retries and isolated transport tests.
 - [`_dotads-workspace.mjs`](../bin/_dotads-workspace.mjs) (+ [`filesystem tests`](../bin/_dotads-workspace-test.mjs)): Private account registry, immutable snapshots/reports, media import and reference-only adoption; filesystem safety and recovery checks.
 - [`rea-skill-sync`](../bin/rea-skill-sync) (+ [`test`](../bin/rea-skill-sync-test)): Deterministic upstream auto-sync and drift checker synchronizing `skills/local/black-magic/` with `morluto/rea`.
-- [`pi-9router-restore`](../bin/pi-9router-restore): Restores optional Pi settings and the remote 9Router model integration.
-- [`pi-9router-sync.js`](../bin/pi-9router-sync.js): Syncs the remote 9Router catalog into Pi's machine-local `models.json`.
+- [`pi-9router-restore`](../bin/pi-9router-restore): Restores optional Pi settings and the device-local 9Router model integration.
+- [`pi-9router-sync.js`](../bin/pi-9router-sync.js): Refreshes Pi's existing 9Router providers from their public catalogs in the machine-local `models.json`.
 
 ### 7.5 Skill Commands (`skills/agents-bin/`)
 - [`skill-help`](../skills/agents-bin/skill-help): Prints the skill commands and the one-source symlink model.

@@ -44,7 +44,12 @@ session that wrote it.
 
 ## How to apply
 
-- Before reusing the fix, rerun the 9router test set (`bin/omp-9router-claude-test`)
-  against the current gateway. Model availability and the 9router catalog drift.
+- `bin/omp-9router-claude-test` is the repeatable regression check: it runs the real
+  `omp` binary against an isolated synthetic chat-compatible gateway (no credentials,
+  no live inference) and asserts the wire shape, reasoning effort, and tool-history
+  replay for the seven models.
+- The live 7/7 result above came from the Codex run against the real gateway and is
+  not reproduced by that script. Re-test live before reuse; model availability and the
+  9router catalog drift.
 - Do not treat the test list above as a current catalog. See [[pi-9router-models-compaction]]
   and [[pi-9router-setup]] for the gateway setup.

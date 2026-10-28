@@ -53,7 +53,7 @@
 - [Pixs&Go rebrand to Play & Go](pixsgo-rebrand-play-and-go.md) — pixsgo.com is now Toys & Hobbies "Play & Go" (name stays Pixs&Go); offline game players + toys for kids
 - [Pix&Go Shopify store](pixsgo-shopify-store.md) — store 2mpt3p-xv (cart.pixsgo.com), 125 toys; CLI auth scopes; listing log in ~/Documents/Shopify/PixsGo/
 - [Pix&Go categories and collections](pixsgo-categories-from-producttype.md) — historical collection mapping and taxonomy lesson; verify live counts, content paths, and access scopes in the project before use.
-- [Optional Pi and 9Router](pi-9router-setup.md) — remote adapter ownership and credential-safe troubleshooting; no local-gateway requirement or memorized default model.
+- [Optional Pi and 9Router](pi-9router-setup.md) — adapter ownership and credential-safe troubleshooting; dotfiles never starts a gateway or memorizes a default model.
 - [9router autostart incident](pi-9router-autostart-incident.md) — 2026-08 stale/LAN-exposed/tunneled 9router; real cause was XDG autostart; split from pi-9router-setup.md
 - [Pi compaction](pi-9router-models-compaction.md) — source-owned fallback behavior and reserved-headroom debugging lesson; live catalogs are not stored in memory.
 - [OMP Claude via 9router](omp-9router-claude-wire.md) — verified transport fix record (chat-compatible endpoint, 7/7 9router tests, run RUN-20261028T203549Z-2e1c5b55); rerun tests before reuse.
@@ -89,4 +89,5 @@
 - [Reven Leather Catalog & Price Data](revenleather-catalog-data.md) — locations of raw, harmonized, live-scraped (reven.id), and backup product price files in ~/Projects/revenleather.com.
 - [99ribu Berlapak catalog & asset vault](99ribu-berlapak-catalog.md) — `/data/99ribu-berlapak-data/`: Berlapak product data, bundling economics, warehouse hubs, local images, and the `berlapak-sync` CLI.
 - [99ribu `shop.com` UI/UX reference](99ribu-shop-com-ui-ux-pattern.md) — pointer to the research pack and the repo docs that own 99ribu design decisions.
+- [99ribu URL slugs and admin ids](99ribu-url-slugs.md) — owner rule: clean title slugs on the public storefront (no UUID/hash/long codes), numeric ids in admin URLs; the repository owns the scheme.
 - [Customer messaging decision (pending)](customer-messaging-pending.md) — email ESP + WhatsApp WABA for 99ribu/bukalaris/geraiexpress is UNDECIDED; discussion note in `~/Documents/work/notes/`; outcome belongs in each repo's `DECISIONS.md`
