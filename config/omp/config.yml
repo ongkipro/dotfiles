@@ -34,6 +34,8 @@ dev:
   autoqaConsent: granted
 modelProviderOrder:
 - 9router
+- anthropic
+- openai-codex
 - google-antigravity
 cycleOrder:
 - smol
@@ -46,14 +48,17 @@ retry:
   usageAwareFallback: false
   fallbackChains:
     default:
+    - anthropic/claude-sonnet-5-5:high
     - google-antigravity/gemini-4-argon:high
     - 9router/cx/gpt-6.1-sol:high
     - 9router/cx/gpt-6.1-terra:high
     coding:
+    - anthropic/claude-opus-5-5:high
     - 9router/cx/gpt-6.1-sol:high
     - 9router/cc/claude-sonnet-5-5:high
     - 9router/cx/gpt-6.1-terra:high
     task:
+    - anthropic/claude-opus-5-5:high
     - 9router/cc/claude-sonnet-5-5:high
     - 9router/cx/gpt-6.1-terra:high
     - 9router/cx/gpt-6-astra:high
@@ -62,10 +67,12 @@ retry:
     - 9router/cc/claude-fable-5-1:high
     - 9router/cc/claude-opus-5:high
     plan:
+    - anthropic/claude-fable-5-1:high
     - 9router/cc/claude-opus-5-5:high
     - 9router/cx/gpt-6.1-sol:xhigh
     - 9router/cc/claude-fable-5:high
     orchestrator:
+    - anthropic/claude-fable-5-1:high
     - 9router/cc/claude-opus-5-5:high
     - 9router/cx/gpt-6.1-sol:xhigh
     - 9router/cc/claude-fable-5:high
@@ -78,6 +85,7 @@ retry:
     - 9router/cc/claude-fable-5-1:high
     - 9router/cc/claude-opus-5:high
     vision:
+    - anthropic/claude-opus-5-5:high
     - google-antigravity/gemini-4-argon:high
     - 9router/cx/gpt-6.1-sol:high
     - 9router/cc/claude-sonnet-5-5:high
@@ -157,4 +165,6 @@ memories:
 enabledModels:
 - 9router/cc/*
 - 9router/cx/*
+- anthropic/*
+- openai-codex/*
 - google-antigravity/*

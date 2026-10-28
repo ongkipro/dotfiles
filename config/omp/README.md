@@ -22,6 +22,12 @@ The accepted default reference (owner decision 2026-10-29) is:
 | Research and design | Argon 4 through native `google-antigravity` |
 | Lightweight work | Flash 3.8 through native `google-antigravity` |
 
+Native `anthropic/*` and `openai-codex/*` models remain visible alongside
+9Router and Antigravity. For default, coding, task, plan, orchestrator and vision,
+the first fallback is the matching native Anthropic model. Authenticate through
+OMP on each device; credentials stay local. This routing preference does not
+assert that a provider account is healthy or has quota.
+
 Exact efforts, auxiliary roles, bundled-agent mappings and fallback order live
 in `config.yml`. Sonnet remains the general default; choosing Opus for development
 does not make it the default for every task. Package multipliers across vendors

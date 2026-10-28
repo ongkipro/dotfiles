@@ -102,11 +102,17 @@ jq -e '
     "web": "google-antigravity/gemini-3.8-flash:auto"
 } and
   ($fallbacks | length) == 19 and
-  .enabledModels.value == ["9router/cc/*", "9router/cx/*", "google-antigravity/*"] and
-  .modelProviderOrder.value == ["9router", "google-antigravity"] and
+  .enabledModels.value == ["9router/cc/*", "9router/cx/*", "anthropic/*", "openai-codex/*", "google-antigravity/*"] and
+  .modelProviderOrder.value == ["9router", "anthropic", "openai-codex", "google-antigravity"] and
   .cycleOrder.value == ["smol", "default", "coding", "slow"] and
   .["retry.modelFallback"].value == true and
-  ([$fallbacks | to_entries[].value[] | select(test("^(9router/(cc|cx)/|google-antigravity/)" ) | not)] | length) == 0 and
+  $fallbacks.default[0] == "anthropic/claude-sonnet-5-5:high" and
+  $fallbacks.coding[0] == "anthropic/claude-opus-5-5:high" and
+  $fallbacks.task[0] == "anthropic/claude-opus-5-5:high" and
+  $fallbacks.plan[0] == "anthropic/claude-fable-5-1:high" and
+  $fallbacks.orchestrator[0] == "anthropic/claude-fable-5-1:high" and
+  $fallbacks.vision[0] == "anthropic/claude-opus-5-5:high" and
+  ([$fallbacks | to_entries[].value[] | select(test("^(9router/(cc|cx)/|anthropic/|openai-codex/|google-antigravity/)" ) | not)] | length) == 0 and
   .["advisor.enabled"].value == false and
   .["prewalk.enabled"].value == false and
   .["goal.enabled"].value == true and
