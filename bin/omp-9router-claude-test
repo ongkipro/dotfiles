@@ -6,13 +6,22 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
-import yaml
 
 root = Path(__file__).resolve().parent.parent
+# Device-bound gate: the real OMP binary and PyYAML exist on configured devices,
+# not on CI runners. Mirror omp-effective-routing-test: skip with PARTIAL so
+# ai-doctor reports reduced coverage instead of a hard failure (TASK-096).
 if not shutil.which('omp'):
-    raise SystemExit('FAIL: omp is required')
+    print('omp-9router-claude-test: SKIP PARTIAL (omp unavailable)')
+    sys.exit(0)
+try:
+    import yaml
+except ModuleNotFoundError:
+    print('omp-9router-claude-test: SKIP PARTIAL (PyYAML unavailable)')
+    sys.exit(0)
 reference = yaml.safe_load((root / 'config/omp/9router-compat.yml').read_text())
 overrides = reference['providers']['9router']['modelOverrides']
 expected = {
