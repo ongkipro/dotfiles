@@ -1,15 +1,15 @@
 # Status — OMP Integration
 
-Updated: 2026-09-18
+Updated: 2026-10-31
 Status: OMP is upstream-native; dotfiles provides shared curated context and
-owned skills plus an explicit secret-free default reference.
+owned skills plus an empty reference (OMP runs on upstream defaults).
 
 ## Active ownership
 
 | Surface | Owner |
 |---|---|
 | `~/.omp/agent/config.yml` and profiles | OMP |
-| Recommended cross-device role graph (`config/omp/config.yml`) | dotfiles reference only |
+| Cross-device reference (`config/omp/config.yml`, empty: no override) | dotfiles reference only |
 | Models, providers, fallbacks, bundled agents, and task concurrency | OMP |
 | Auth, sessions, cache, updates, and workspace behavior | OMP |
 | `~/.omp/agent/AGENTS.md` | dotfiles shared core + OMP adapter (`config/ai/context/omp.md`) |

@@ -128,7 +128,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Research records | [`docs/research/`](../docs/research/) | 5 | linked from this page |
 | Environment and bootstrap | [`config/`](../config/) | 35 | linked from this page |
 | Device reports | [`docs/device-reports/`](../docs/device-reports/) | 21 | count only |
-| Archived task records | [`docs/archive/`](../docs/archive/) | 39 | count only |
+| Archived task records | [`docs/archive/`](../docs/archive/) | 40 | count only |
 
 <!-- system-map:inventory:end -->
 
@@ -208,7 +208,7 @@ Central repository for AI behavior, context distribution, and safety guards.
 ### 3.5 Runtime References (`config/omp/`, `config/pi/`)
 OMP runs upstream-native; installers link none of these files.
 - [`config/omp/README.md`](../config/omp/README.md): How OMP uses its own config, what dotfiles still provides, and how to repair drift.
-- [`config/omp/config.yml`](../config/omp/config.yml): Secret-free cross-device reference config, used only when passed with `omp --config`.
+- [`config/omp/config.yml`](../config/omp/config.yml): Empty reference (OMP runs on upstream defaults; no override), used only when passed with `omp --config`.
 - [`9router-compat.yml`](../config/omp/9router-compat.yml): Secret-free `modelOverrides` reference for Claude models behind 9router (chat-compatible transport, reasoning efforts); never installed or auto-loaded.
 - **OMP records:** [`STATUS.md`](../config/omp/STATUS.md), [`BUILD-LOG.md`](../config/omp/BUILD-LOG.md), [`PERFORMANCE.md`](../config/omp/PERFORMANCE.md), [`GOAL-ORCHESTRATION.md`](../config/omp/GOAL-ORCHESTRATION.md): integration status, build log, performance review, and the on-demand goal-orchestration playbook.
 - **OMP historical design evidence:** [`ROUTING.md`](../config/omp/ROUTING.md), [`models.yml`](../config/omp/models.yml): retired custom routing and model catalog; not installed or injected.

@@ -1,113 +1,65 @@
 # OMP Native Runtime and Default Reference
 
-OMP uses its upstream-native runtime configuration. Dotfiles does not install,
-link, or auto-load runtime settings.
+OMP runs on its upstream defaults (owner decision 2026-10-31). Dotfiles does not
+install, link, wrap, or auto-load runtime settings, and it no longer recommends
+model roles, fallback chains, retry values or task limits.
 
-[`config.yml`](config.yml) is the canonical secret-free cross-device reference
-for the recommended model roles, fallbacks, and bundled-agent mapping. Load it
-explicitly for a session when the device has the required providers:
+[`config.yml`](config.yml) is intentionally empty (`{}`): a reference that adds no
+override. `omp-effective-routing-test` fails if anyone adds one, so a guessed
+setting cannot quietly become policy again. Choose models in OMP with `/model`;
+OMP saves the choice in the device's own `~/.omp/agent/config.yml`.
 
-```bash
-omp --config ~/dotfiles/config/omp/config.yml
-```
+Upstream already covers what an earlier override tried to fix. With OMP 18.13.3
+the defaults are `retry.maxRetries: 10` and `retry.maxDelayMs: 300000`.
+`maxDelayMs` is a give-up ceiling against the gateway's `retry-after`, not a sleep
+cap: a custom 5000 ms made every 9Router lock longer than 5 s read as a dropped
+session. Details and measurements are in
+[`omp-pi-9router-runbook`](../ai/project-memory/omp-pi-9router-runbook.md). Read
+the effective values from the installed version with `omp config list`, not from
+this file.
 
-The accepted default reference (owner decision 2026-10-29) is:
+## Connecting 9Router
 
-| Role | Model / route |
-|---|---|
-| Default | Sonnet 5.5 through `9router/cc` |
-| Coding and task implementation | Opus 5.5 through `9router/cc` |
-| Planning and orchestration | Fable 5.1 through `9router/cc` |
-| Review, security review and deep analysis | Sol 6.1 through `9router/cx` |
-| Research and design | Argon 4 through native `google-antigravity` |
-| Lightweight work | Flash 3.8 through native `google-antigravity` |
-
-Native `anthropic/*` and `openai-codex/*` models remain visible alongside
-9Router and Antigravity. For default, coding, task, plan, orchestrator and vision,
-the first fallback is the matching native Anthropic model. Authenticate through
-OMP on each device; credentials stay local. This routing preference does not
-assert that a provider account is healthy or has quota.
-
-Exact efforts, auxiliary roles, bundled-agent mappings and fallback order live
-in `config.yml`. Sonnet remains the general default; choosing Opus for development
-does not make it the default for every task. Package multipliers across vendors
-are not interchangeable token budgets or evidence of model quality.
-
-The reference also records the accepted interactive retry policy (owner
-decision 2026-10-30): six retries, a 120 000 ms ceiling on the gateway's
-`retry-after`, and no immediate chain walk on a rate limit. The ceiling is a
-give-up threshold, not a sleep cap: the earlier 5000 ms failed every 9Router
-lock longer than 5 s and read as a dropped session, while Pi's 60 s default
-waited them out. Measurements and the per-runtime checklist live in
-[`omp-pi-9router-runbook`](../ai/project-memory/omp-pi-9router-runbook.md).
-The ceiling does not bound HTTP or stream duration. Explicit reference loading
-on another device must not silently revert to different upstream retry defaults.
-
-This replaces the older `9router-fantastico` role recommendation. A device must
-declare the `9router` provider in its own `~/.omp/agent/models.yml` (a local file,
-not a link), and authenticate native Antigravity separately. Adapt the URL and
-secret reference to that device; this example contains no usable credential:
+A device declares the `9router` provider in its own `~/.omp/agent/models.yml` (a
+local file, not a link). Adapt the URL and secret reference to that device; this
+example contains no usable credential:
 
 ```yaml
 providers:
   9router:
     baseUrl: <device-specific 9Router /v1 URL>
-    api: openai-completions
     apiKey: "!secrets-env get NINEROUTER_REMOTE_KEY"
     authHeader: true
     discovery:
       type: proxy
 ```
 
-Validate the selected reference without inference:
+This is the whole declaration, following OMP's documented
+[custom providers](https://omp.sh/docs/custom-models): `discovery: proxy` lists the
+gateway's models and derives each model's API from the endpoint types it
+advertises, and `authHeader: true` sends the bearer token the gateway expects.
+Check it with `omp models 9router`.
+
+Verified 2026-10-31 on OMP 18.13.3 and 9Router 0.5.112 with OMP's default
+settings and `retry.modelFallback: false`, so success cannot come from native
+Anthropic: a file-read tool roundtrip passed on Sonnet 5.5, Opus 5.5, Fable 5.1,
+Haiku 4.5 and Sol 6.1 Terra, and `:off`/`:minimal`/`:high` efforts all completed;
+six parallel Sonnet and Opus requests passed 6/6. The per-model `modelOverrides`,
+`api`, `disableStrictTools` and `supportsStrictMode` entries kept in
+[`9router-compat.yml`](9router-compat.yml) were not needed. That file stays as
+historical design evidence from an earlier debugging session and is not
+referenced by any live configuration. Revalidate after an OMP or 9Router upgrade:
 
 ```bash
-PI_CONFIG_FILES=~/dotfiles/config/omp/config.yml omp-runtime-report
+printf 'retry:\n  modelFallback: false\n' > /tmp/nofb.yml
+omp -p --model 9router/cc/claude-sonnet-5-5 --config /tmp/nofb.yml \
+  'Read marker.txt with your read tool and reply with only its exact line.'
 ```
 
-Provider compatibility remains device-local. With OMP 18.13.3 and 9Router
-0.5.112, the working Pi client was used as an inference control: Pi completed a
-Claude tool roundtrip while OMP's native `anthropic-messages` request failed with
-an upstream 429 wrapped as 503. Changing the URL or disabling context management
-alone did not fix it. OMP's supported `openai-completions` gateway route completed
-the same tool flow. This isolates a transport/request compatibility problem;
-it does not identify the exact upstream validation rule behind the 429.
-
-For Claude `cc/...` models, merge the non-secret `modelOverrides` from
-[`9router-compat.yml`](9router-compat.yml) into the device's own `models.yml`:
-
-- `api: openai-completions` uses the gateway's `/v1/chat/completions` surface.
-- `thinking.mode: effort` preserves the role's low/medium/high reasoning choice;
-  `compat.supportsReasoningEffort: true` sends `reasoning_effort`.
-- For verified disable-capable models (Opus 5, Sonnet 5/5.5 and Haiku 4.5), `requiresEffort: false` and a
-  lowest `minimal` tier mapped to wire value `none` preserve `:off`. On this
-  gateway, that `minimal` tier also means disabled; explicit `low` still sends
-  `low`. Opus 5.5 and Fable 5/5.1 require thinking; `off` clamps to their lowest
-  supported effort. Fable 5 returned HTTP 400 for disabled thinking despite the
-  catalog advertising that it could disable it; the compatibility reference
-  corrects that metadata using `requiresEffort: true`.
-- `compat.supportsStrictMode: false` keeps tool schemas compatible with this route.
-- Discovery continues to own context/output limits and input capabilities.
-
-Pi can retain its working `anthropic-messages` configuration. Native OMP
-`anthropic/*` and the independent Claude CLI keep their own protocols and logins.
-Do not copy Pi's auth store, credentials or client-identity headers into OMP.
-Codex `cx/...` continues using `compat.supportsReasoningEffort: true` on the
-OpenAI-compatible gateway route.
-
-The reference is never installed or auto-loaded. Revalidate it against the
-installed runtime and proxy after upgrades. The credential-free native-runtime
-regression exercises all seven advertised Claude IDs, high/low effort, explicit
-`off` on every verified disable-capable row, required-thinking clamping, actual
-file reads and full tool continuation:
-
-```bash
-~/dotfiles/bin/omp-9router-claude-test
-```
-
-This local fixture proves the wire contract, not upstream quota or entitlement.
-Real provider acceptance must also be checked with fallback disabled, so success
-cannot silently come from native Anthropic instead of 9Router.
+Native `anthropic/*`, `openai-codex/*` and Antigravity models keep their own
+logins. Do not copy Pi's auth store, credentials or client-identity headers into
+OMP. `omp-9router-claude-test` is a credential-free wire regression for the
+chat-compatible transport; it proves the request shape, not upstream quota.
 
 The remaining custom model catalog, agent definitions, routing prose, and
 overlays are retained as historical design evidence. Installers do not link

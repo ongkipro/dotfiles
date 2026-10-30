@@ -1,6 +1,6 @@
 ---
 name: omp-pi-9router-runbook
-description: What OMP and Pi each need to run Claude/Codex through a device-local 9Router without drops; verified retry ceilings, wire shape, account rotation, and the diagnostic that separates a client problem from a quota problem
+description: How OMP and Pi connect to a device-local 9Router; OMP needs only a five-line provider on upstream defaults, how 9Router reports rate limits, account rotation, and the check that separates a client problem from a quota problem
 metadata:
   node_type: memory
   type: project
@@ -26,50 +26,50 @@ not a client bug; it is the upstream rate limit surfacing through the gateway.
 `401 Invalid API key` is a different problem (gateway key or expired upstream
 token). No 403 appeared in the period reviewed.
 
-## OMP (verified 2026-10-30, OMP 18.13.3)
+## OMP (verified 2026-10-31, OMP 18.13.3): upstream defaults plus one provider
 
-`~/.omp/agent/config.yml` (device-local, never linked from dotfiles):
+Lesson: do not tune OMP. An earlier `~/.omp/agent/config.yml` carried 21 model
+roles, 19 fallback chains, `retry.maxDelayMs: 5000` and per-model transport
+overrides, each a guess added after a symptom. The drops that prompted them came
+from one of those guesses. Upstream defaults are `retry.maxRetries: 10` and
+`retry.maxDelayMs: 300000`, and `retry.rateLimitWalksChain: false`.
+
+`retry.maxDelayMs` is a **give-up ceiling**, not a sleep cap. OMP honours the
+gateway's `retry-after` and, when the requested wait exceeds the ceiling, fails the
+request at once. With the custom 5000 ms every 9Router lock longer than 5 s read
+as a dropped session, and 41% of locks were longer than 5 s (longest seen: 16 s).
+The default 300 000 ms covers all of them. A synthetic gateway mirroring 9Router's
+503/`retry-after` shape confirmed the rule: a 70 s lock failed in 2 s at 5 000 and
+60 000 ms and completed at 73 s with 120 000 ms. The device therefore has **no**
+`config.yml`; choose models with `/model` and let OMP save them.
+
+The whole provider declaration, in `~/.omp/agent/models.yml` (device-local, mode
+0600, never linked):
 
 ```yaml
-retry:
-  maxRetries: 6
-  maxDelayMs: 120000
-  rateLimitWalksChain: false
+providers:
+  9router:
+    baseUrl: <device 9Router /v1 URL>
+    apiKey: "!secrets-env get NINEROUTER_REMOTE_KEY"
+    authHeader: true
+    discovery:
+      type: proxy
 ```
 
-Why: OMP honours the gateway's `retry-after` and compares it with
-`retry.maxDelayMs`. The value is a **give-up ceiling**, not a sleep cap: when
-the gateway asks for a longer wait than the ceiling, OMP fails the request at
-once and walks the fallback chain. With the earlier 5000 ms the session looked
-"cut off" on every lock longer than 5 s. Measured with a synthetic gateway that
-mirrors 9Router's 503/`retry-after` shape, fallback disabled:
+This follows OMP's documented custom-provider shape: `discovery: proxy` lists the
+gateway's models and derives each one's API from its advertised endpoint types.
+Verified with default settings and `retry.modelFallback: false` (so success cannot
+come from native Anthropic): `omp models 9router` listed all 14 gateway models; a
+file-read tool roundtrip passed on Sonnet 5.5, Opus 5.5, Fable 5.1, Haiku 4.5, Sol
+6.1 and Terra 6.1; `:off`, `:minimal` and `:high` efforts all completed; six
+parallel Sonnet and Opus requests passed 6/6 in about 5 s. The earlier
+`modelOverrides`, `api: openai-completions` per model, `disableStrictTools` and
+`supportsStrictMode: false` were not needed (they survive as history in
+`config/omp/9router-compat.yml`). `omp-9router-claude-test` stays as a
+credential-free wire regression and skips with PARTIAL where `omp` or PyYAML is
+absent.
 
-| Gateway lock | 5 000 ms | 60 000 ms | 120 000 ms |
-|---|---|---|---|
-| 12 s | ok | ok | ok |
-| 30 s | ok | ok | ok |
-| 70 s | fails in 2 s | fails in 2 s | ok, completes at 73 s |
-
-`rateLimitWalksChain: false` keeps the turn on the rate-limited model while the
-wait is below the ceiling; `true` switches models immediately, which also reads
-as a drop mid-conversation. Upstream OMP defaults are 10 retries and a
-5-minute ceiling; 120 s is a deliberate middle: long enough for every lock seen,
-short enough that a real quota outage still falls through to the chain.
-
-Provider shape (`~/.omp/agent/models.yml`, device-local):
-
-- `api: openai-completions` against `<9router>/v1` with `authHeader: true`;
-  OMP's native `anthropic-messages` path through 9Router failed with 429→503 on
-  tool roundtrips while Pi's did not (see [[omp-9router-claude-wire]]).
-- `disableStrictTools: true` and per-model `modelOverrides` from
-  `config/omp/9router-compat.yml` (reasoning effort mapping, `:off` only on the
-  verified disable-capable models).
-- `discovery: { type: proxy }` so the model list comes from the gateway.
-
-Live proof with `retry.modelFallback: false` (so success cannot come from native
-Anthropic): Sonnet 5.5 tool roundtrip 1/1 and 5 parallel 5/5 with both accounts
-rotating; Opus 5.5 10 parallel 10/10 in 8–12 s, zero 429. Repeat this check
-after an OMP or 9Router upgrade:
+Repeat the live check after an OMP or 9Router upgrade:
 
 ```bash
 printf 'retry:\n  modelFallback: false\n' > /tmp/nofb.yml
@@ -77,8 +77,10 @@ omp -p --model 9router/cc/claude-sonnet-5-5 --config /tmp/nofb.yml \
   'Read marker.txt with your read tool and reply with only its exact line.'
 ```
 
-Wire regression without credentials: `omp-9router-claude-test` (skips with
-PARTIAL where `omp` or PyYAML is absent).
+Related hazard: `~/.omp` must live on the SSD. It was a symlink to `/data/ai/omp`
+and OMP failed to start (`mkdir ~/.omp/natives: ENOENT`) whenever the HDD was not
+mounted. Task isolation (`task.isolation.enabled`) copied whole projects into
+`~/.omp/wt`, about 1.3 GB each; it is off by default.
 
 ## Pi (verified 2026-10-30, Pi 1.4.0)
 
@@ -105,12 +107,12 @@ sessions; it simply waits them out. Catalog sync is device-local
 ## What a future device needs
 
 1. 9Router running and reachable; `curl …/v1/models` returns 200.
-2. OMP: declare the `9router` provider in its own `models.yml`, merge
-   `9router-compat.yml` overrides, set the three `retry.*` values above.
+2. OMP: leave settings at upstream defaults; add only the `9router` provider above
+   to its own `models.yml`; run `omp models 9router`.
 3. Pi: provider entry on `/v1` with `openai-completions`; defaults are fine.
 4. Two or more upstream accounts connected in 9Router.
-5. Run the live check above with fallback disabled, then
-   `omp-9router-claude-test` and `omp-runtime-report`.
+5. Run the live check above with fallback disabled, then `omp-9router-claude-test`
+   and `omp-runtime-report`.
 
 Related: [[omp-9router-claude-wire]], [[pi-9router-setup]],
 [[pi-9router-models-compaction]].

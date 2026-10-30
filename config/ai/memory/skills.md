@@ -36,8 +36,8 @@
 
 OMP owns session orchestration and model selection through its upstream-native
 runtime configuration. Dotfiles does not install OMP routing; its
-`config/omp/config.yml` is a secret-free recommended reference loaded only by an
-explicit user invocation. Skills own provider-neutral methodology, and models
+`config/omp/config.yml` is an empty reference (OMP runs on upstream defaults),
+loaded only by an explicit user invocation. Skills own provider-neutral methodology, and models
 remain replaceable workers.
 
 Three layers are separated by ownership:

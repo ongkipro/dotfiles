@@ -67,10 +67,10 @@ The current GitHub baseline establishes the following:
 - [`skills/local/`](../skills/local/) is the canonical owned skill source.
 - [`config/ai/memory/`](../config/ai/memory/) and [`config/ai/project-memory/`](../config/ai/project-memory/) provide shared durable reference context, with repository disk remaining authoritative for project truth.
 - [`bin/project-init`](../bin/project-init) initializes `AGENTS.md`, `PRD.md`, `TASKS.md`, `STATUS.md`, `BUILD-LOG.md`, and `docs/architecture.md` without overwriting existing files.
-- [`config/omp/ROUTING.md`](../config/omp/ROUTING.md) owns OMP routing policy.
-- [`config/omp/config.yml`](../config/omp/config.yml) owns executable model roles, fallback chains, concurrency, agent overrides, compaction, and tool settings.
-- [`config/omp/models.yml`](../config/omp/models.yml) declares the optional 9Router provider catalog; it is not proof that every declared model is currently healthy.
-- [`config/omp/STATUS.md`](../config/omp/STATUS.md) records twelve roles and eleven explicitly mapped agents, with every configured role reported as benchmarked on the audited device.
+- [`config/omp/ROUTING.md`](../config/omp/ROUTING.md) is historical routing design (superseded 2026-10-31; OMP runs on upstream defaults).
+- [`config/omp/config.yml`](../config/omp/config.yml) is an empty reference: OMP runs on upstream defaults, and model roles, fallbacks, concurrency, agent overrides, compaction and tool settings are read from `omp config list`.
+- [`config/omp/models.yml`](../config/omp/models.yml) is a retired historical catalog; the live 9Router provider is the five-line declaration in `config/omp/README.md`.
+- [`config/omp/STATUS.md`](../config/omp/STATUS.md) records ownership boundaries and the retired routing state; it no longer lists active roles.
 - Existing tracked specialist definitions include [`architect`](../config/omp/agents/architect.md), [`complex-developer`](../config/omp/agents/complex-developer.md), `debugger`, and `writer`; bundled agents supply the remaining mapped jobs.
 - Existing deterministic health tooling includes `ai-doctor`, `ai-memory-check`, `project-init-test`, `security-check`, routing tests, fallback checks, and related install or skill tests.
 

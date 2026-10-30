@@ -53,9 +53,12 @@ The leverage point is not raw output token pricing, but **cost per successfully 
 
 ## 3. Capacity Pools & Specialist Taxonomy
 
-OMP manages thirteen explicit model roles across three capacity pools. The
-authoritative list is `config/omp/config.yml`; verify against it before quoting
-this table.
+> **Historical (superseded 2026-10-31).** OMP now runs on its upstream defaults
+> and `config/omp/config.yml` is empty, so the role table below is design history,
+> not the live profile. Read the live one with `omp config list`.
+
+OMP managed thirteen explicit model roles across three capacity pools when this
+was written (2026-08-14).
 
 | Capacity Pool | Roles | Primary Responsibility | Primary Model Provider |
 |---|---|---|---|
@@ -70,7 +73,7 @@ this table.
 > keep in mind: `default`, `task`, `slow`, and `plan` are now the same model at the
 > same tier, so escalation within Codex buys nothing — escalate cross-vendor to the
 > advisor lane instead. Rationale and evidence: `config/omp/BUILD-LOG.md`. Read
-> `config/omp/config.yml` — never this table — for the live answer.
+> `omp config list` — never this table — for the live answer.
 
 `discovery` was split out of `research` because the two share a shape but not a
 failure profile: `librarian` returns verbatim excerpts a reader can check, while
