@@ -1,12 +1,7 @@
 ---
 name: mengantar-api
 description: >-
-  Integrate the Mengantar API (Indonesian logistics aggregator): courier
-  estimates, COD eligibility, wallet-paid orders, batching, and sandbox traps.
-  Not for AutoLaris (autolaris-h2h), storefront UX, or payment accounting.
-  Covers JNE, SiCepat, SAP, J&T, and similar couriers. Triggers: 'integrasi
-  mengantar', 'bikin fitur ekspedisi', 'logistik api', 'aggregator kurir
-  indonesia', 'cek ongkir', 'sistem cod'.
+  Integrate the Mengantar API (Indonesian multi-courier aggregator): estimates, COD eligibility, wallet-paid orders, batching, sandbox traps; JNE, SiCepat, SAP, J&T. Not AutoLaris (autolaris-h2h), storefront UX, or payment accounting.
 ---
 
 # Mengantar API: Logistics & Expedition Architecture

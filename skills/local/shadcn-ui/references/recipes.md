@@ -10,9 +10,9 @@ use `sonner`, which is the Radix/Aria choice; a Base UI project uses its
 
 ## Contact Form (Field + React Hook Form)
 
-On the current style (`radix-nova`, verified) `add form` is a no-op: the
-registry item returns no files, so `@/components/ui/form` never appears. Legacy
-styles still ship it, but `field` + RHF `Controller` is the documented path now.
+On current styles `add form` writes no files; `field` + RHF `Controller` is the
+documented path (https://ui.shadcn.com/docs/forms/react-hook-form). Legacy
+styles still ship `form.tsx`, so existing imports keep working.
 
 ```bash
 shadcn add field input textarea button
@@ -110,102 +110,104 @@ The only case needing `value={field.value ?? ''}` is a field whose value can be
 ## Data Table (Sortable + Filter + Pagination)
 
 ```bash
-shadcn add table                    # styled <table> wrapper, no npm deps
-<pkg-manager> add @tanstack/react-table   # NOT pulled by the CLI — install it yourself
+shadcn add table                          # styled <table> wrapper, no npm deps
+<pkg-manager> add @tanstack/react-table   # not pulled by the CLI; the docs guide uses v9
 ```
 
-**This snippet is the v8 dialect.** `@tanstack/react-table` 9.x is `latest`
-(9.2.4 on 2026-10-02) and changes construction: `useTable({ features, columns,
-data })`, features opted in via `tableFeatures({ rowSortingFeature,
-globalFilteringFeature, rowPaginationFeature, sortedRowModel:
-createSortedRowModel(), ... })`, no `getCoreRowModel`, and `flexRender` still
-works beside the preferred `<table.FlexRender />`. Check the lockfile and write
-the installed dialect. The v9 package ships version-matched agent skills in
-`node_modules/@tanstack/react-table/skills/` (`migrate-v8-to-v9`,
-`with-tanstack-query`, `table-state`, ...) and `@tanstack/table-core/skills/`;
-read those instead of translating this snippet from memory.
-`useLegacyTable` (`@tanstack/react-table/legacy`) is a deprecated bridge, not a
-target. Source: npm tarball `@tanstack/react-table@9.2.4`
-`skills/migrate-v8-to-v9/SKILL.md` (verified 2026-10-02).
+TanStack Table v9 is feature-based: register the features and row models the
+table uses with `tableFeatures()`; unregistered ones are tree-shaken, including
+filter/sort functions. The core row model is always included. Source:
+https://ui.shadcn.com/docs/components/base/data-table (v9 guide). If the
+lockfile pins v8 (`useReactTable`, `getCoreRowModel`), keep the v8 dialect
+and read `node_modules/@tanstack/react-table/skills/` before migrating.
 
 ```tsx
-import { useState } from 'react'
+// data-table-features.ts
 import {
-  useReactTable, getCoreRowModel, getSortedRowModel,
-  getFilteredRowModel, getPaginationRowModel,
-  flexRender, type ColumnDef, type SortingState,
+  columnFilteringFeature, rowPaginationFeature, rowSortingFeature,
+  createFilteredRowModel, createPaginatedRowModel, createSortedRowModel,
+  filterFn_includesString, sortFn_alphanumeric, sortFn_text, tableFeatures,
 } from '@tanstack/react-table'
-import { ArrowUpDown } from 'lucide-react'
+
+export const features = tableFeatures({
+  columnFilteringFeature, rowPaginationFeature, rowSortingFeature,
+  filteredRowModel: createFilteredRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  sortedRowModel: createSortedRowModel(),
+  filterFns: { includesString: filterFn_includesString },
+  sortFns: { alphanumeric: sortFn_alphanumeric, text: sortFn_text },
+})
+export type DataTableFeatures = typeof features
+```
+
+```tsx
+// data-table.tsx
+'use client'
+import * as React from 'react'
+import { useTable, type ColumnDef, type ColumnFiltersState, type RowData, type SortingState } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { features, type DataTableFeatures } from './data-table-features'
 
-export function DataTable<T>({ columns, data }: { columns: ColumnDef<T>[]; data: T[] }) {
-  const [sorting, setSorting] = useState<SortingState>([])
-  const [globalFilter, setGlobalFilter] = useState('')
-
-  const table = useReactTable({
-    data, columns,
-    state: { sorting, globalFilter },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
+export function DataTable<TData extends RowData>({ columns, data, filterColumn }: {
+  columns: ColumnDef<DataTableFeatures, TData>[]; data: TData[]; filterColumn: string
+}) {
+  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
+  const table = useTable({
+    features, data, columns,
+    onSortingChange: setSorting, onColumnFiltersChange: setColumnFilters,
+    state: { sorting, columnFilters },
   })
 
   return (
     <div className="flex flex-col gap-4">
-      <Input placeholder="Search..." value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} className="max-w-sm" />
-      <div className="rounded-md border">
+      <Input
+        placeholder="Filter…"
+        value={(table.getColumn(filterColumn)?.getFilterValue() as string) ?? ''}
+        onChange={(e) => table.getColumn(filterColumn)?.setFilterValue(e.target.value)}
+        className="max-w-sm"
+      />
+      <div className="overflow-hidden rounded-md border">
         <Table>
           <TableHeader>
-            {table.getHeaderGroups().map(hg => (
+            {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id}>
-                {hg.headers.map(h => (
-                  <TableHead key={h.id}>
-                    {h.isPlaceholder ? null : h.column.getCanSort() ? (
-                      <Button variant="ghost" size="sm" onClick={h.column.getToggleSortingHandler()} className="-ml-3">
-                        {flexRender(h.column.columnDef.header, h.getContext())}
-                        <ArrowUpDown data-icon="inline-end" />
-                      </Button>
-                    ) : (
-                      flexRender(h.column.columnDef.header, h.getContext())
-                    )}
-                  </TableHead>
+                {hg.headers.map((h) => (
+                  <TableHead key={h.id}>{h.isPlaceholder ? null : <table.FlexRender header={h} />}</TableHead>
                 ))}
               </TableRow>
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map(row => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map(cell => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow><TableCell colSpan={columns.length} className="text-center h-24 text-muted-foreground">No results.</TableCell></TableRow>
+            {table.getRowModel().rows.length ? table.getRowModel().rows.map((row) => (
+              <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}><table.FlexRender cell={cell} /></TableCell>
+                ))}
+              </TableRow>
+            )) : (
+              <TableRow><TableCell colSpan={columns.length} className="h-24 text-center">No results.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>{table.getFilteredRowModel().rows.length} result(s)</span>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>
-          <span className="flex items-center px-2">Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}</span>
-          <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button>
-        </div>
+      <div className="flex items-center justify-end gap-2">
+        <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>
+        <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button>
       </div>
     </div>
   )
 }
 ```
+
+Columns use `createColumnHelper<DataTableFeatures, T>()` with `accessor()` for
+data and `display()` for select/actions; a sortable header is a `ghost`
+`Button` calling `column.toggleSorting(column.getIsSorted() === 'asc')` with
+`<ArrowUpDown data-icon="inline-end" />`. Server-side pagination, sorting, and
+filtering (`manualPagination`, `rowCount`) and the URL-as-state pattern belong
+to `admin-dashboard`.
 
 ## Modal CRUD (Create + Edit)
 
@@ -403,7 +405,7 @@ export function SettingsPage() {
 
 ```tsx
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { cn } from '@/lib/utils'
+import { cn } from 'cn'
 import { Users, DollarSign, TrendingUp, ShoppingCart } from 'lucide-react'
 
 const stats = [
@@ -420,7 +422,7 @@ export function StatsCards() {
         <Card key={stat.title}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
-            <stat.icon className="size-4 text-muted-foreground" />
+            <stat.icon className="text-muted-foreground" aria-hidden />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tabular-nums">{stat.value}</div>
@@ -458,7 +460,7 @@ import { CalendarIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { cn } from '@/lib/utils'
+import { cn } from 'cn'
 
 export function DatePicker() {
   const [date, setDate] = useState<Date>()
@@ -480,13 +482,11 @@ export function DatePicker() {
 
 ## Combobox (Command + Popover)
 
-The registry now also ships a dedicated `combobox` item (verified 2026-10-02
-on `base-nova` and `radix-nova`: npm dep `@base-ui/react` even on the Radix
-style, registry deps `button` + `input-group`). Run `shadcn docs combobox` and
+The registry ships a dedicated `combobox` item. Run `shadcn docs combobox` and
 `shadcn add combobox --dry-run` before choosing; the composition below remains
 valid when the project already has `command` + `popover` and no reason to add
 Base UI. Whichever you ship, check it against the WAI-ARIA APG combobox
-keyboard contract (`ui-validation` §4).
+keyboard contract (`ui-validation` references/playwright-checks.md).
 
 ```tsx
 'use client'
@@ -495,7 +495,7 @@ import { Check, ChevronsUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { cn } from '@/lib/utils'
+import { cn } from 'cn'
 
 const options = [
   { value: 'react', label: 'React' },

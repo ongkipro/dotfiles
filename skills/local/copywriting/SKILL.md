@@ -1,16 +1,7 @@
 ---
 name: copywriting
 description: >-
-  Source of truth for copy rules and templates: char limits, no-CTA
-  discipline, brand voice, headline patterns, meta/SEO fields, ALT text,
-  per-platform social templates. NOT a content workflow orchestrator — use
-  content for the pipeline. Conversion-focused, SEO-friendly copy for product
-  listings, blog articles, meta/SEO fields, social posts, and landing pages.
-  Triggers: copy rules, headline, meta description, alt text, brand voice,
-  product title, listing copy, social caption, blog intro, copywriting rules,
-  cara nulis, bikin judul, tulis caption. Pairs with content (workflow),
-  volumx-writer (preservation + humanization), and seo-website-builder (SEO
-  QA).
+  Source of truth for copy rules and templates: char limits, no-CTA, brand voice, headlines, meta/SEO fields, ALT text, social templates for listings, articles, landing pages. Not the content pipeline (content). Triggers: bikin judul, meta description.
 ---
 
 # Copywriting — Rules + Templates
@@ -36,8 +27,8 @@ unless the user states otherwise.
 6. **No fluff** — every sentence must carry information or a benefit.
 
 For rewrites, humanization, localization, regulated copy, or any fact-dense
-source, also run `volumx-writer` so qualifiers, claims, citations, and conditions
-survive the edit. This skill owns house rules and templates; `volumx-writer`
+source, also run `writer` so qualifiers, claims, citations, and conditions
+survive the edit. This skill owns house rules and templates; `writer`
 owns preservation and claim integrity.
 
 ## Clarity rules (all copy)
@@ -53,7 +44,7 @@ owns preservation and claim integrity.
 (Condensed from Microsoft's top-10 style tips, Google's developer style
 highlights, and the U.S. plain-language principles; see Sources.) Indonesian
 copy additionally follows EYD V spelling through
-`volumx-writer/references/indonesian.md`; this skill does not restate
+`writer/references/indonesian.md`; this skill does not restate
 spelling rules.
 
 ## Char limits (cross-channel)
@@ -258,7 +249,7 @@ For 50+ items:
 ## Pair with
 
 - `content` — production workflow + batching + calendar
-- `volumx-writer` — preservation, anti-hallucination, humanization, and scoring
+- `writer` — preservation, anti-hallucination, humanization, and scoring
 - `seo-website-builder` — SEO QA, schema, sitemap
 - `prd-taskbreaker` — break a copy sprint into numbered tasks
 

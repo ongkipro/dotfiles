@@ -66,7 +66,7 @@ alone never prove the interaction or subjective design quality.
 This is a restrained internal test fixture built from semantic native form
 controls, not a new public product design. It makes no design-taste gate claim.
 Public UI work still follows reference research, design direction and its
-existing rendered-browser/design-gate contracts.
+existing rendered-browser contracts.
 
 ## Results and evidence
 

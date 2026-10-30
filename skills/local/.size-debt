@@ -1,0 +1,3 @@
+# Owned skills whose SKILL.md exceeds SKILL_MAX_BYTES (skill-check). Ceilings may
+# only shrink; remove a line once the skill fits the default budget.
+gsap-scrolltrigger 18664

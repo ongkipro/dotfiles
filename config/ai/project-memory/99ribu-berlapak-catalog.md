@@ -9,19 +9,20 @@ metadata:
 # 99ribu.com — Berlapak Product & Asset Data Vault
 
 ## 1. Canonical Locations
-- **Data Vault (Drive D / `/data`)**: `/data/99ribu-berlapak-data/` (symlinked at `/data/projects/99ribu`)
+- **Pure Berlapak Data Vault (`/data`)**: `/data/berlapak-data/` (symlinked at `/data/projects/berlapak` — 100% pure Berlapak catalog across all price ranges, 938 products, 89 sellers, 121 warehouses, 12 clean categories & 163 Google Product Taxonomy IDs, unmapped to 99ribu pricing)
+- **99ribu Curated Data Vault (`/data`)**: `/data/99ribu-data/` (symlinked at `/data/projects/99ribu` and `/data/99ribu-berlapak-data` — 482 curated products `<= Rp49.000`, 373 Ready Stock, 26 cross-SKU bundles, Rp99.000 scheme)
 - **Coming-Soon / Storefront Repo**: `/home/ongki/Projects/99ribu-comingsoon` (live at `https://99ribu.com/`)
 - **Design System Spec**: `/home/ongki/Documents/work/notes/99ribu-design-system.md` (Inter typography + Mengantar component geometry + 99ribu warm-orange/amber retail palette)
 
 ## 2. Dataset Summary (`/data/99ribu-berlapak-data/`)
-- **Total Berlapak Catalog Scanned**: **907 products** (`data-json/all-907-catalog-overview.json`)
-  - **`< Rp10.000` (Rp1.700 – Rp9.500)**: **47 products** (5.2% of catalog | **44 Ready Stock**)
-  - **`Rp10.000 – Rp49.000`**: **435 products** (48.0% of catalog | **329 Ready Stock**)
-  - **Combined Target (`<= Rp49.000` for 99ribu.com)**: **482 products** (53.1% of catalog | **373 Ready Stock**)
-  - `Rp50.000 – Rp99.000`: 242 products
-  - `> Rp99.000`: 183 products
+- **Full Master Berlapak Catalog (`v2.1.0`, Unmapped to 99ribu Pricing)**: **938 products** (`data-json/berlapak-all-products-full.json`, `data-json/berlapak-all-products-ready-stock.json`, `data-json/berlapak-all-products-catalog.tsv`, `data-json/berlapak-sellers-and-warehouses.json`, `catalog-md/MASTER-CATALOG-BERLAPAK-FULL.md`, `catalog-md/DIREKTORI-SELLER-DAN-GUDANG-BERLAPAK.md`)
+  - **741 Ready Stock** (`79.0%`) | **197 Out of Stock** (`21.0%`)
+  - **89 Active Sellers / Suppliers** | **121 Shipping Warehouses** (with `active_shipping_origin`: `"warehouse"` vs `"distributor_address"`, district, city, province, couriers, COD support, and per-warehouse variant stock)
+  - **HPP Range**: `Rp1.700 – Rp3.360.000` (`47` `< Rp10k`, `445` `Rp10k–Rp49k`, `255` `Rp50k–Rp99k`, `191` `> Rp99k`), with per-variant min/max HPP & `recommend_price` ranges (`is_uniform_variant_price`, `ready_variant_count`).
+  - **100% High-Precision Category & Google Taxonomy Mapping**: Reclassified **304 products (`32.4%`)** from Berlapak's raw `"Lainnya"` into **12 clean categories (`CAT-01`..`CAT-12`)** and **163 verified Official Google Product Taxonomy IDs** (`2021-09-21`), with 0 false-positive substring matches.
+- **Frozen 99ribu Subset (`<= Rp49.000` for `/home/ongki/Projects/99ribu` deterministic tests)**: **482 products** (`373 Ready Stock` in `data-json/products-up-to-49k-ready-stock.json`)
 - **Local Image Assets (`images/`)**:
-  - **2,882 `.webp` image files** (**223.97 MB** total — compressed from **2,260.29 MB / 2.26 GB**, saving **2.04 GB / 90.1%**, average **~77.7 KB** per image, max `1080x1080`, quality `82`, 0 failed) organized into 482 product folders (`images/001-<slug>/img-01.webp`, `var-01.webp`, etc.) and mapped in `data-json/image-manifest.json`.
+  - **2,888 `.webp` image files** organized into product folders (`images/<rank>-<slug>/img-01.webp`, `var-01.webp`, etc.) and mapped in `data-json/image-manifest.json`.
 
 ## 3. Folder Structure in `/data/99ribu-berlapak-data/`
 - `README.md` — Full documentation of the vault and field schema.

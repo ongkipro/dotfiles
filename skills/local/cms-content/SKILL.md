@@ -1,14 +1,7 @@
 ---
 name: cms-content
 description: >-
-  Choose and implement the content-editing layer when clients edit their own
-  site content: Astro content collections, git-based CMS (Keystatic, Decap,
-  TinaCMS), Payload on Postgres, or Shopify metaobjects. Not visual design
-  (design-taste), commerce flows (storefront-ux), schema engineering
-  (postgres-drizzle), or deploy (vps-deploy). Use for "client wants to edit
-  content", CMS selection, editor roles and approvals, previews, media storage,
-  content modeling, migrating content between CMSes, and handing a site over
-  to non-technical editors.
+  Choose and implement the client content-editing layer: Astro collections, git CMS (Keystatic, Decap, Tina), Payload, Shopify metaobjects; roles, previews, media, migration, handover. Not visual design, commerce flows, schema engineering, or deploy.
 ---
 
 # CMS: content the client edits

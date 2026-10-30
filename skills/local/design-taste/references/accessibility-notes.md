@@ -42,7 +42,7 @@ Kowalski's `skills` (MIT); filtered to what applies across stacks.
 **Not adopted here:** English typographic rules such as forcing Title Case on
 headings and buttons or converting straight quotes to curly quotes. Indonesian
 and Malay copy use sentence case conventions of their own; capitalization and
-punctuation belong to `copywriting` / `volumx-writer`, not this skill.
+punctuation belong to `copywriting` / `writer`, not this skill.
 
 ## Project accessibility record (optional template)
 

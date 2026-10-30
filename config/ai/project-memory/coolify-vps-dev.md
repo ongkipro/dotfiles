@@ -24,7 +24,9 @@ Current container names, user records, SMTP state, and provider/network details 
 
 ## Current instance pointer
 
-The earlier dev instance is retired (2026-10-28). The current instance is `vps-main`
-(Vultr account `dotfiles-vultr`); its host, firewall, hardening, and recovery facts are in
-`~/.config/ai-local/vps-main-access.md`. Drive it with `dotfiles-coolify <args>`; tokens and
-passwords live only in `secrets-env`.
+Since 2026-10-30 the current instance is `99ribu-prod` (Vultr account `dotfiles-a1`);
+its host, firewall, hardening, and recovery facts are in
+`~/.config/ai-local/99ribu-prod-access.md`. Drive it with `dotfiles-a1-coolify <args>` and
+`dotfiles-a1-vultr <args>`; tokens and passwords live only in `secrets-env`. The previous
+`vps-main` (account `dotfiles-vultr`, `~/.config/ai-local/vps-main-access.md`) was unreachable
+and its API token rejected on 2026-10-30; its CLI context was removed.

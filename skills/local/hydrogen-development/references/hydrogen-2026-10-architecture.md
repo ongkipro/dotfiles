@@ -165,3 +165,43 @@ Configure Hydrogen's structured logger once at server startup via `configureLogg
 | **Server route handlers** (`cartHandlers`, `predictiveSearchHandlers`, `customerAccountHandlers`) | Catch operational errors at the HTTP boundary, log with `scope` and `cause`, and return structured JSON error envelopes (`{ type: 'error', error: { code, message } }`). |
 | **Expected buyer-facing `userErrors`** (sold-out quantity, invalid discount code) | **Never log**. Propagate into reactive store state (`state.errors`) so the UI renders inline validation feedback. |
 | **Fire-and-forget side effects** (analytics beacons, non-critical background work) | Catch and log at `warn` or `debug`; never reject the buyer's primary request or navigation. |
+
+# Core engineering rules (moved from SKILL.md 2026-10-30)
+
+## 1. Request Context, Storefront Client & Privacy Headers
+
+1. **Single `ShopifyRequestContext` per request**: Call `createShopifyRequestContext({ request, i18n: { country, language }, buyerIp })` once per request and reuse that instance across `createStorefrontClient`, `createCustomerAccountClient`, `handleShopifyRoutes`, and `cartHandlers.get()`. Creating a second context causes `handleShopifyRoutes()` to throw.
+2. **Always forward `buyerIp` on `'private'` clients**: Extract `oxygen-buyer-ip`, `cf-connecting-ip`, or `x-forwarded-for` (fallback `'127.0.0.1'` in non-production) so Shopify rate-limits per buyer rather than throttling the server IP. Use `type: 'private_no_buyer_context'` only for module-scoped/build-time catalog reads with no buyer context, and `type: 'public'` (with no token) when testing against `mock.shop`.
+3. **Never skip `requestContext.applyResponseHeaders(response.headers)`**: Call it on every normal response after committing `sessionManager`. It marks any response that sets cookies or uses the Customer Account client as `Cache-Control: private, no-store` and strips CDN caching headers (`Oxygen-Cache-Control`, `CDN-Cache-Control`, `Cloudflare-CDN-Cache-Control`, `Surrogate-Control`, `s-maxage`).
+
+## 2. Pre-Router (`handleShopifyRoutes`) & Post-404 (`handleShopifyRedirects`) Gates
+
+1. **Run `handleShopifyRoutes` before framework routing**:
+   - It decides synchronously whether it owns the URL (`null` when unmatched; `Promise<Response>` when matched). Do not `await` before checking truthiness, and inside a `try/catch` use `if (shopifyRoute) return await shopifyRoute;`.
+   - Delete competing route files for paths Hydrogen owns (`/api/cart`, `/api/predictive-search`, `/checkout`, `/cart/c/*`, `/cart/{id}:{qty}`, `/buy/{id}:{qty}`, `/discount/{code}`, `/cart.js`, `/account/login`, `/account/authorize`, `/account/refresh`, `/account/logout`), but **keep a catch-all route (`app/routes/$.tsx`)** in React Router 7 so root middleware runs on unmatched URLs.
+   - Always pass `routeTemplates` (`createShopifyRouteTemplates`) so legacy Liquid `?variant=<numeric_id>` URLs on custom product routes `302`-redirect to canonical option query params.
+2. **Run `handleShopifyRedirects` only on `404` responses**:
+   - After `const response = await next()`, if `response.status === 404`, check `await handleShopifyRedirects({ request, storefrontClient, routeTemplates })`.
+
+## 3. Observable Stores, Cart, Variant Picker & Collection Browser
+
+1. **Stable store selectors**: `useCart`, `useProductForm`, `useCollection`, and `usePredictiveSearch` compare selector output by reference. Never allocate a new object/array inside a selector; select existing store slices (`state.data.lines.nodes`, `state.errors`, `state.pending.lines`) and derive view models in the component body.
+2. **Cart hydration & single-concern mutations**:
+   - Hydrate `<CartProvider initialData={initialCart}>` from `await cartHandlers.get({ storefrontClient, request, sessionManager, requestContext })` in the root loader (`{ cart, errors? }` envelope) and render all cart UI from `useCart((s) => s.data)`. Never pass a deferred root `cart` promise to `<Await>`.
+   - `/api/cart` rejects combined JSON payloads: send only one mutation kind per POST (`lines`, `discountCodes`, `attributes`, or `note`).
+   - Disable line item controls **only** when `line.id.startsWith('optimistic:')`, never for all `state.pending.lines`.
+   - Build the Cart Drawer with native `<dialog closedby="any">` + `.showModal()`, CSS `html:has(dialog[open]) { overflow: hidden }`, pre-hydration `<a href="/cart">` trigger, auto-open on `state.pending.lines.size > 0`, and `window.Shopify.actions.openCart.configure()`.
+   - Read cart metafields via `createCartServerHandlers({ fragment })`; write them through an app-owned `createShopifyRouteHandler('/api/cart/metafields', 'POST', ...)` route that checks `getCartId(request)` without creating a cart, runs `cartMetafieldsSet` / `cartMetafieldDelete`, and calls `await useCartActions().refresh()`.
+3. **Symmetric Variant Picker (`encodedVariantExistence` / `encodedVariantAvailability`)**:
+   - Hide the entire option picker when `product.options.every((o) => o.values.length <= 1)`.
+   - Render `exists: false` as `<button type="button" disabled>`, keep sold-out (`exists: true, available: false`) as an interactive `<a href>` link with `"Sold out"` styling, and never hide option values based on the current selection.
+   - Support **Combined Listings** (`value.handle !== product.handle`) with cross-product links preserving non-option search params via `buildProductSelectionSearchParams()`.
+4. **Collection & Search Browser**:
+   - Use Liquid-compatible URL params via `parseCollectionParams(request.url)` (`filter.v.*`, `sort_by`, `cursor`, `direction`), explicit `<form method="get" action={pathname}>`, and 350ms debounced price inputs prefixed with `formatMoney(..., { locale }).currencyNarrowSymbol`.
+
+## 4. Online Store 2.0 (Theme 2.0) Dynamic Sections in Hydrogen
+
+- Hydrogen replaces Liquid `templates/*.json` + `sections/*.liquid` with **Metaobject-driven Dynamic Content Sections** (`Route` metaobject -> `sections` reference list -> inline-fragment GraphQL query -> `<Sections>` React switch dispatcher + dev/preview `<EditRoute>` deep link to Shopify Admin).
+- Follow [`dynamic-pages-architecture.md`](dynamic-pages-architecture.md) for the complete `ROUTE_CONTENT_QUERY`, `SECTIONS_FRAGMENT`, Rich Text AST rendering, and caching patterns across both Hydrogen `2026.10+` and Classic Hydrogen.
+
+---

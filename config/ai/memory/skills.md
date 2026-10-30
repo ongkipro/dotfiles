@@ -138,7 +138,7 @@ in prose. Read the map for coverage; read this file for calibration.
   EVM bytecode, and firmware), synchronized via `bin/rea-skill-sync` and routing
   extracted `Evidence` into `openapi-spec`, `postgres-drizzle`, `design-taste`,
   `*-ads-signal-engine`, `application-security`, and `full-stack-development`.
-- `volumx-writer` owns meaning-preserving writing and concise terminal dialogue,
+- `writer` owns meaning-preserving writing and concise terminal dialogue,
   including Caveman-inspired replies without a fixed word quota.
 - `cross-cli` owns handing one lane (research, review, second opinion, bulk
   drafting) to another installed AI CLI through `ai-ask`, read-only by default;

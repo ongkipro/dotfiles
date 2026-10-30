@@ -47,3 +47,4 @@ recheck: 2026-10-02 — merged upstream 41e0d19 (docs links -> `<route>/index.md
   corrections still hold: route-emails page still says **Compute**; email-service index still lists Email
   Sending as Beta on Workers Paid; local-development/sending still documents simulate-without-remote; the
   Wrangler command reference still has no `email` entry. Local-only links also moved to index.md routes.
+description: 2026-10-30 skill-efficiency pass — frontmatter description rewritten to ≤250 chars (what + boundary front-loaded; Codex truncates at ~250). Body untouched by this pass. Re-apply after a byte-for-byte refresh; see docs/skill-efficiency-audit-2026-10-30.md.

@@ -1,0 +1,200 @@
+#!/usr/bin/env python3
+"""Session focus: expiring local claims; repository contracts remain authoritative."""
+import argparse
+import fcntl
+import hashlib
+import json
+import math
+import os
+import stat
+from pathlib import Path
+import runpy
+import subprocess
+import time
+import uuid
+
+HERE = Path(__file__).resolve().parent
+MAX_TTL = 86400
+LOCK_WAIT_SECONDS = 2.0
+
+
+def repo_root(path):
+    result = subprocess.run(['git', '-C', str(path), 'rev-parse', '--show-toplevel'],
+                            capture_output=True, text=True, check=True)
+    return str(Path(result.stdout.strip()).resolve())
+
+
+def session_id(explicit=None):
+    value = explicit if explicit is not None else os.environ.get('AI_FOCUS_SESSION') or os.environ.get('PI_SESSION_ID') or os.environ.get('CODEX_THREAD_ID')
+    if value is not None and (not isinstance(value,str) or not value.strip() or len(value)>160 or any(ord(c)<32 for c in value)):
+        raise ValueError('invalid focus session identity')
+    return value
+
+
+def validate_claim(entry):
+    if not isinstance(entry, dict): raise ValueError('invalid focus claim')
+    if not isinstance(entry.get('session'),str): raise ValueError('invalid persisted session')
+    session_id(entry['session'])
+    if not isinstance(entry.get('intent'),str) or not entry['intent'].strip() or len(entry['intent'])>2000:
+        raise ValueError('invalid focus intent')
+    expires = entry.get('expiresAt')
+    if type(expires) not in (int,float) or not math.isfinite(expires) or expires > time.time() + MAX_TTL:
+        raise ValueError('invalid focus expiry')
+    paths = entry.get('allowedPaths')
+    if not isinstance(paths,list) or not paths or not all(isinstance(p,str) for p in paths):
+        raise ValueError('invalid focus boundaries')
+    ledger = runpy.run_path(str(HERE/'delivery-ledger'))
+    for path in paths: ledger['child_boundary'](path)
+    for key in ('preserve','references'):
+        values=entry.get(key)
+        if not isinstance(values,list) or not all(isinstance(v,str) and v.strip() and len(v)<=2000 for v in values):
+            raise ValueError(f'invalid focus {key}')
+    if any(len(v)>100 or any(c not in 'abcdefghijklmnopqrstuvwxyz0123456789-._' for c in v) for v in entry['references']):
+        raise ValueError('invalid focus reference')
+    if entry.get('task') is not None and not isinstance(entry['task'],str):
+        raise ValueError('invalid focus task')
+
+
+def storage():
+    return Path(os.environ.get('AI_FOCUS_DIR', Path.home()/'.config/ai-local/focus')).expanduser().absolute()
+
+
+def registry(repo, change=None):
+    """One stable advisory lock per checkout, atomic JSON replacement under it."""
+    home = storage()
+    if change is None and not home.exists():
+        # Do not turn a dangling directory/ancestor symlink into an all-clear.
+        for ancestor in (home, *home.parents):
+            if ancestor.is_symlink() and not ancestor.exists():
+                raise ValueError('dangling focus directory symlink')
+        return []
+    io = runpy.run_path(str(HERE/'ai-memory-access'))
+    directory = io['telemetry_directory'](home)
+    name = hashlib.sha256(repo.encode()).hexdigest()
+    lock = None
+    try:
+        lock = os.open(name+'.lock', os.O_RDWR|os.O_CREAT|os.O_NOFOLLOW|os.O_NONBLOCK, 0o600, dir_fd=directory)
+        io['validate_telemetry_file'](lock)
+        if stat.S_IMODE(os.fstat(lock).st_mode) & 0o077: raise ValueError('focus lock must be private')
+        # Bounded wait: a holder that never releases must surface as an error,
+        # not hang resume-brief or delivery-ledger start.
+        mode = (fcntl.LOCK_EX if change else fcntl.LOCK_SH) | fcntl.LOCK_NB
+        deadline = time.monotonic() + LOCK_WAIT_SECONDS
+        while True:
+            try:
+                fcntl.flock(lock, mode); break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise ValueError('focus registry is locked by another process')
+                time.sleep(0.05)
+        try:
+            fd = os.open(name+'.json', os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK, dir_fd=directory)
+        except FileNotFoundError:
+            entries = []
+        else:
+            with os.fdopen(fd) as stream:
+                io['validate_telemetry_file'](stream.fileno())
+                if stat.S_IMODE(os.fstat(stream.fileno()).st_mode) & 0o077: raise ValueError('focus registry must be private')
+                data = json.load(stream)
+            if not isinstance(data, dict) or data.get('repo') != repo or data.get('schemaVersion') != 1:
+                raise ValueError('invalid focus registry identity')
+            entries = data.get('claims')
+            if not isinstance(entries, list):
+                raise ValueError('invalid focus claims')
+            for entry in entries: validate_claim(entry)
+            if len({e['session'] for e in entries}) != len(entries):
+                raise ValueError('duplicate focus session')
+        entries = [e for e in entries if e['expiresAt'] > time.time()]
+        if change:
+            entries = change(entries)
+            temp = name+'.'+uuid.uuid4().hex+'.tmp'
+            fd = os.open(temp, os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW, 0o600, dir_fd=directory)
+            try:
+                with os.fdopen(fd, 'w') as stream:
+                    json.dump({'schemaVersion':1,'repo':repo,'claims':entries}, stream)
+                    stream.flush(); os.fsync(stream.fileno())
+                os.replace(temp, name+'.json', src_dir_fd=directory, dst_dir_fd=directory)
+                os.fsync(directory)
+            finally:
+                try: os.unlink(temp, dir_fd=directory)
+                except FileNotFoundError: pass
+        return entries
+    finally:
+        if lock is not None: os.close(lock)
+        os.close(directory)
+
+
+def current(repo, session=None):
+    identity = session_id(session)
+    if not identity:
+        return None
+    try:
+        canonical = repo_root(repo)
+    except subprocess.CalledProcessError:
+        return None
+    return next((e for e in registry(canonical) if e['session']==identity), None)
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--repo', default='.')
+    p.add_argument('--session')
+    sub = p.add_subparsers(dest='cmd', required=True)
+    claim = sub.add_parser('claim')
+    claim.add_argument('--intent', required=True)
+    claim.add_argument('--allow', action='append', required=True)
+    claim.add_argument('--preserve', action='append', default=[])
+    claim.add_argument('--reference', action='append', default=[])
+    claim.add_argument('--task')
+    claim.add_argument('--ttl', type=int, default=7200)
+    sub.add_parser('status')
+    sub.add_parser('release')
+    check = sub.add_parser('check')
+    check.add_argument('paths', nargs='+')
+    a = p.parse_args()
+    try:
+        repo = repo_root(a.repo)
+        identity = session_id(a.session)
+        if a.cmd != 'status' and (not identity or len(identity)>160):
+            raise ValueError('set --session or AI_FOCUS_SESSION; focus is never shared implicitly')
+        ledger = runpy.run_path(str(HERE/'delivery-ledger'))
+        if a.cmd == 'claim':
+            if not 60 <= a.ttl <= MAX_TTL or not a.intent.strip() or len(a.intent)>2000:
+                raise ValueError('intent required (max 2000 chars); TTL must be 60..86400 seconds')
+            bounds = [ledger['child_boundary'](v) for v in a.allow]
+            if any(not v.strip() or len(v)>2000 for v in a.preserve):
+                raise ValueError('invalid preservation constraint')
+            if any(not v or len(v)>100 or any(c not in 'abcdefghijklmnopqrstuvwxyz0123456789-._' for c in v) for v in a.reference):
+                raise ValueError('references must be exact lowercase project keys')
+            entry = {'session':identity,'intent':a.intent.strip(),'allowedPaths':a.allow,
+                     'preserve':a.preserve,'references':sorted(set(a.reference)),
+                     'task':a.task,'expiresAt':int(time.time())+a.ttl}
+            validate_claim(entry)
+            def update(entries):
+                for other in entries:
+                    if other['session']==identity: continue
+                    if any(ledger['child_boundaries_overlap'](b,ledger['child_boundary'](prior))
+                           for b in bounds for prior in other['allowedPaths']):
+                        raise ValueError(f"focus conflict with session {other['session']}")
+                return [e for e in entries if e['session']!=identity]+[entry]
+            registry(repo, update)
+            print(json.dumps(entry, indent=2))
+        elif a.cmd == 'release':
+            registry(repo, lambda rows:[e for e in rows if e['session']!=identity])
+            print('focus: released current session only')
+        elif a.cmd == 'check':
+            entry = current(repo, identity)
+            if not entry: raise ValueError('no active focus for this session')
+            outside = [path for path in a.paths if not ledger['matches'](ledger['validate_pattern'](path), entry['allowedPaths'])]
+            print(json.dumps({'outside':outside,'session':identity}))
+            return 1 if outside else 0
+        else:
+            print(json.dumps({'repo':repo,'session':identity,'claims':registry(repo)}, indent=2))
+        return 0
+    except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as exc:
+        print(f'focus: ERROR: {exc}', file=__import__('sys').stderr)
+        return 1
+
+
+if __name__=='__main__':
+    raise SystemExit(main())

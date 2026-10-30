@@ -1,13 +1,7 @@
 ---
 name: product-intelligence
 description: >-
-  Decision-first orchestration turning an uncertain business or software idea
-  into evidence-backed market, product, UX, and specification direction before
-  implementation. Not for settled implementation, standalone PRDs, pack
-  audits, or coding. Use for end-to-end idea evaluation, market/demand/pricing
-  work tied to a product decision, domain and workflow definition, or an
-  evidence-backed implementation proposal. Isolated fact lookups and visual
-  polish are also out of scope.
+  Turn an uncertain business or software idea into evidence-backed market, product, UX, and spec direction before implementation. Not settled implementation, a standalone PRD (prd-taskbreaker), pack audits, coding, or isolated fact lookups.
 ---
 
 # Product Intelligence

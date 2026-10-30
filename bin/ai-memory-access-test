@@ -51,6 +51,33 @@ result = json.loads(Path(sys.argv[2]).read_text())
 assert result['needed'] is False and result['files'] == [], result
 assert result['budget']['usedBytes'] == 0, result
 PY
+python3 - "$ROOT/bin/ai-memory-access" "$DOT" "$TMP" <<'PY'
+import json,os,runpy,subprocess,sys
+from pathlib import Path
+script,dot,tmp=sys.argv[1:]
+m=runpy.run_path(script)
+saved=os.environ.copy()
+try:
+    for key in ('AI_MEMORY_RUNTIME','PI_SESSION_ID','CLAUDECODE','CODEX_THREAD_ID'):
+        os.environ.pop(key,None)
+    assert m['runtime_name']()=='unknown'
+    os.environ['PI_SESSION_ID']='synthetic'
+    assert m['runtime_name']()=='unknown'
+    os.environ['CLAUDECODE']='1'
+    assert m['runtime_name']()=='unknown'
+    assert m['runtime_name']('omp')=='omp'
+    os.environ['AI_MEMORY_RUNTIME']='agy'
+    assert m['runtime_name']()=='agy'
+finally:
+    os.environ.clear();os.environ.update(saved)
+tel=Path(tmp)/'attributed'
+subprocess.run([sys.executable,script,'synthetic-private-query','--dotfiles',dot,
+                '--telemetry-dir',str(tel),'--runtime','codex'],check=True,stdout=subprocess.DEVNULL)
+event=json.loads((tel/'events.jsonl').read_text())
+assert event['runtime']=='codex'
+assert 'synthetic-private-query' not in json.dumps(event)
+print('ai-memory-access-test: runtime attribution and privacy PASS')
+PY
 echo 'ai-memory-access-test: PASS'
 
 python3 - "$ROOT/bin/ai-memory-access" "$DOT" "$TMP" <<'PY'

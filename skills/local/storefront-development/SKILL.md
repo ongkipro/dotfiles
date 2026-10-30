@@ -1,16 +1,7 @@
 ---
 name: storefront-development
 description: >-
-  Build, refactor, or review ecommerce storefronts with a restrained
-  product-first, Dawn-style HTML-first progressive-enhancement baseline. Owns
-  implementation; journey and state belong to storefront-ux, visual direction
-  to design-taste. Use for home, collection/PLP, search, product/PDP,
-  variants, add-to-cart, cart drawer/page, checkout handoff, account,
-  localization, merchandising, responsive behavior, semantic HTML, performance
-  across Shopify Liquid, Astro, Next.js, Vite/React, Hydrogen, or another web
-  stack. Owns implementation architecture, UI composition, commerce state,
-  validation. Verify platform APIs first — hosted Shopify, headless, and
-  non-Shopify differ at the cart and checkout boundary.
+  Implement ecommerce storefronts with a restrained HTML-first progressive-enhancement baseline: home, PLP, search, PDP, variants, cart, checkout handoff, account, in Liquid, Astro, Next.js, Hydrogen. Journey → storefront-ux; visuals → design-taste.
 ---
 
 # Storefront Development
@@ -42,7 +33,9 @@ evaluate; choose a purchasable configuration; review the cart; enter checkout.
 Use restrained typography, efficient whitespace, quiet neutral surfaces,
 stable media geometry, consistent borders/radii, and one brand accent. Avoid
 card soup, decorative gradients, duplicated CTAs, auto-rotating content,
-generic trust-badge rows, and motion without task value.
+generic trust-badge rows, and motion without task value. Ship only the
+sections the purchase path needs; one header nav by collection, a cart entry,
+and search; no marketing copy between the product and its add-to-cart.
 
 Read [Dawn-inspired baseline](references/dawn-inspired-baseline.md) for durable
 HTML/progressive-enhancement patterns.

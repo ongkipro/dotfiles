@@ -1,0 +1,78 @@
+# CHANGES REQUIRED
+
+Review limited to the attached code. **No tests were executed.**
+
+### 1. Incomplete registry validation permits overlap bypass
+**`bin/focus` — `registry()` claim validation**
+
+Only `session` and `expiresAt` are checked. For example, changing an otherwise valid live claim’s `allowedPaths` to `[]` makes the registry accept it, but subsequent claims never conflict with it: the overlap loop has no prior boundaries to compare.
+
+Other malformed records behave inconsistently:
+- Missing `allowedPaths` succeeds under `status` but fails later during some operations.
+- A malformed record belonging to the current session is skipped by overlap validation and can be silently replaced.
+- Duplicate session records are accepted; `current()` arbitrarily returns the first.
+
+**Fix:** Validate the complete persisted schema before expiration filtering or invoking callbacks. Require a nonempty list of valid boundaries using the supplied `child_boundary()` validator, validate the other persisted fields against the producer’s contract, and reject duplicate session identities. Invalid records must fail even when expired or owned by the requesting session.
+
+### 2. Invalid expiration values are accepted
+**`bin/focus` — `registry()` numeric validation and expiration filtering**
+
+`isinstance(value, (int, float))` accepts booleans. Python’s JSON parser also accepts `NaN` and `Infinity` by default.
+
+Consequences:
+- `expiresAt: NaN` silently disappears during filtering.
+- `expiresAt: Infinity` creates a claim that never expires.
+- Boolean expiration values are silently treated as expired.
+
+These are malformed registry values, not legitimate expiration events.
+
+**Fix:** Reject booleans and nonfinite numbers before pruning. Optionally reject nonstandard JSON constants during decoding as well. Validate all rows first, then filter against one captured `now`.
+
+### 3. An explicit empty session silently selects another identity
+**`bin/focus` — `session_id()`**
+
+With `AI_FOCUS_SESSION=a`, this command releases session `a` rather than rejecting the explicitly empty identity:
+
+```sh
+focus --session '' release
+```
+
+The `explicit or ...` expression replaces the supplied empty value with an environment fallback. This is accidental identity misrouting, not an authorization-boundary issue.
+
+Also, `current()` does not apply the session-length validation used by the CLI, creating inconsistent identity acceptance between callers.
+
+**Fix:** Distinguish omitted identity (`None`) from explicitly supplied identity, and centralize identity validation for both `main()` and `current()`. Reject an explicitly empty identity before any registry mutation.
+
+### 4. The missing-directory shortcut bypasses symlink validation
+**`bin/focus` — beginning of `registry()`**
+
+```python
+if change is None and not home.exists():
+    return []
+```
+
+`Path.exists()` follows symlinks and returns false for a dangling symlink. Consequently, when `AI_FOCUS_DIR` is a dangling symlink, `status` and `current()` report an empty registry without calling the descriptor-based directory validator. Writes instead reach that validator and fail.
+
+A genuinely absent storage directory may mean no claims; a substituted symlink should not be classified as ordinary absence.
+
+**Fix:** Handle absence through no-follow directory traversal, distinguishing a genuinely missing component from a symlink or invalid component. Preserve ownership/mode validation rather than using `exists()` as the safety decision.
+
+The attached code otherwise delegates existing directory/file permission checks to the stated helpers; there is no basis here to claim those helpers are defective.
+
+### 5. Tests do not cover these failure modes
+**`bin/focus-test`**
+
+The current tests exercise useful happy paths, one overlap race, ordinary expiration, and a registry-file symlink. They do not establish malformed-registry rejection or the identity and storage-path cases above.
+
+**Required additions:**
+- Malformed live **and expired** rows: missing/empty/invalid `allowedPaths`, invalid field types, and duplicate sessions.
+- Boolean and nonfinite expiration values.
+- Empty explicit session with an environment fallback; verify `release` fails and preserves the existing claim.
+- Dangling storage-directory symlink; verify reads fail rather than return empty.
+- Unsafe directory, registry-file, and lock-file modes.
+- A genuinely missing registry returning no claims.
+- Overlap cases in both insertion orders: exact/exact, exact/subtree, nested subtrees, and disjoint siblings.
+
+For malformed-state mutation tests, verify both failure **and unchanged registry contents**. For symlink mutation tests, verify the target remains unchanged.
+
+The boundary helpers and locking approach need not be replaced based on this attachment. The principal defect is that malformed persisted claims can reach—or bypass—the otherwise appropriate overlap logic.

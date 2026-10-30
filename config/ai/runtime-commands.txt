@@ -35,6 +35,8 @@ delivery-learning
 delivery-learning-test
 delivery-ledger
 delivery-ledger-test
+focus
+focus-test
 delivery-skill-usage
 delivery-skill-usage-test
 dev-ready
@@ -56,6 +58,8 @@ installer-link-test
 memory-usage-hook-test
 dotads-meta
 dotads-meta-test
+dotfiles-a1-coolify
+dotfiles-a1-vultr
 dotfiles-coolify
 dotfiles-vultr
 migration-risk

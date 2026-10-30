@@ -346,7 +346,7 @@ Open UI terms.
 | --- | --- | --- |
 | Navigation | header, navigation, breadcrumbs, pagination, tabs, skip link, tree view, stepper, footer | site navigation is a disclosure pattern, never `role=menu`/`menubar`; tabs use roving tabindex and arrow keys (WAI-ARIA APG) |
 | Forms | text input, textarea, select, combobox, checkbox, radio, switch, slider, date input, file upload, search | combobox keeps DOM focus on the input with `aria-activedescendant`; error summary above the h1, linked to fields, "Error: " title prefix (APG; GOV.UK) |
-| Data display | table, list, card, badge, avatar, rating | native `table` before ARIA grid; cards only for comparable units (§4.3.1) |
+| Data display | table, list, card, badge, avatar, rating | native `table` before ARIA grid; cards only for comparable units (SKILL.md §3) |
 | Feedback | alert, toast, progress, spinner, skeleton, empty state, error summary | spinner only for short waits, >10 s show progress; empty state = status + learning cue + direct path (NN/g) |
 | Overlays | dialog, drawer, popover, tooltip, menu button | dialog traps Tab, Esc closes, focus returns to the trigger; destructive alert dialogs focus the least destructive action (APG) |
 | Layout | hero, accordion, disclosure, carousel, separator | carousel: rotation control first in tab order, stop on focus/hover, prefer no auto-advance (APG; NN/g) |

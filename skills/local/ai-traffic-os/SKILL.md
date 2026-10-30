@@ -1,16 +1,7 @@
 ---
 name: ai-traffic-os
 description: >-
-  AEO/GEO owner: AI traffic architecture for search and answer engines — crawl
-  controls, answer content, structured media, AI referral measurement. Not
-  classic technical SEO (`seo-website-builder`) or the pSEO pipeline
-  (`automated-traffic-pipeline`). Use when designing or auditing these; answer
-  content must be genuinely helpful. Requires live vendor-documentation checks
-  for crawler identities and keeps search/citation, user-triggered retrieval,
-  and model-training controls distinct. Triggers: "ai traffic", "geo
-  optimization", "answerbox", "google ai overviews", "chatgpt search",
-  "perplexity seo", "ai search optimization", "traffic architecture", "ai
-  traffic os".
+  AEO/GEO: AI traffic architecture for search and answer engines — crawler controls, answer content, structured media, AI referral measurement. Not classic SEO (seo-website-builder) or the pSEO pipeline. Triggers: ai traffic, geo, AI overviews.
 ---
 
 # AI Traffic OS

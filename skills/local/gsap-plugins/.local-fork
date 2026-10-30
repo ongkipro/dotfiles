@@ -26,3 +26,4 @@ recheck: 2026-10-08 — further local corrections, each checked against gsap.com
   MotionPathHelper.create(tween) or create(target, { path, ... }) per
   Plugins/MotionPathHelper (removed the undocumented helper.path/getProgress()).
   Upstream issues #19–#21 report overlapping defects; still open on 2026-10-08.
+description: 2026-10-30 skill-efficiency pass — frontmatter description rewritten to ≤250 chars (what + boundary front-loaded; Codex truncates at ~250). Body untouched by this pass. Re-apply after a byte-for-byte refresh; see docs/skill-efficiency-audit-2026-10-30.md.

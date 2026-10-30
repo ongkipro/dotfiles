@@ -131,6 +131,17 @@ def main():
 
     print(f"RESUME BRIEF — {repo.name}")
     print(f"HEAD: {git(repo, 'log', '--oneline', '-1') or '(no commits)'}")
+    focus_tool = pathlib.Path(__file__).resolve().with_name('focus')
+    if focus_tool.is_file():
+        try:
+            focus = runpy.run_path(str(focus_tool))
+            for claim in focus['registry'](str(repo)):
+                print(f"Focus [{claim['session']}]: {claim['intent']}")
+                print(f"  surface: {', '.join(claim['allowedPaths'])}")
+                print(f"  preserve: {'; '.join(claim['preserve']) or '(use repository contracts)'}")
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            print(f'Focus: UNVERIFIED — {exc}', file=sys.stderr)
+            return 2
     # Porcelain v1 is "XY<space>PATH", but a staged rename and an unmerged entry
     # both shift what follows; lstrip after the two status columns handles every
     # form. The ledger writes .delivery/ itself, so it is never the user's work.

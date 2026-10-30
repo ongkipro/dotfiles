@@ -184,20 +184,29 @@ PY
 
 echo "  ✓ multi-file project keys: list order, trigger lift, string form, missing entry"
 
-# Path triggers (TASK-107, G9): a changed file can route memory the prompt never named.
+# Path triggers remain candidates, but large path-only files cannot monopolize
+# the budget (TASK-156). Explicit topic requests still admit the same file.
 PT="$TMP/pathrepo"; mkdir -p "$PT/src"; git -C "$PT" init -q; printf 'a{}\n' > "$PT/src/x.css"
 python3 "$ROUTER" 'fix this please' --repo "$PT" --json > "$TMP/path.json"
 python3 - "$TMP/path.json" <<'PY'
 import json,sys
 p=json.load(open(sys.argv[1]))
-assert any(x['path'].endswith('development-lessons.md') for x in p['files']), p
+assert not any(x['path'].endswith('ui-lessons.md') for x in p['files']), p
+assert any('deferred ui-lessons.md' in r for r in p['reason']), p
+PY
+python3 "$ROUTER" 'fix headless ui portal' --repo "$PT" --json > "$TMP/explicit-ui.json"
+python3 - "$TMP/explicit-ui.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1]))
+assert any(x['path'].endswith('ui-lessons.md') for x in p['files']), p
 PY
 rm -f "$PT/src/x.css"; mkdir -p "$PT/components/ui"; printf 'x\n' > "$PT/components/ui/my button.tsx"
 python3 "$ROUTER" 'fix this please' --repo "$PT" --json > "$TMP/root.json"
 python3 - "$TMP/root.json" <<'PY'
 import json,sys
 p=json.load(open(sys.argv[1]))
-assert any(x['path'].endswith('development-lessons.md') for x in p['files']), p
+assert not any(x['path'].endswith('ui-lessons.md') for x in p['files']), p
+assert any('deferred ui-lessons.md' in r for r in p['reason']), p
 PY
 rm -rf "$PT/components"; printf 'x\n' > "$PT/notes.txt"
 python3 "$ROUTER" 'fix this please' --repo "$PT" --json > "$TMP/nopath.json"
@@ -207,7 +216,61 @@ p=json.load(open(sys.argv[1]))
 assert not any(x['path'].endswith('development-lessons.md') for x in p['files']), p
 PY
 echo "  ✓ path triggers route from changed files and stay quiet otherwise"
-echo 'ai-memory-route-test: PASS'
+# Deterministic precision cases: current-project triggers, no unrelated fallback,
+# scope filtering, foreign ownership, and path budget starvation.
+python3 - "$ROUTER" "$TMP" <<'PY'
+import runpy,sys
+from pathlib import Path
+m=runpy.run_path(sys.argv[1]); root=Path(sys.argv[2])/'precision'; root.mkdir()
+repo=root/'shop'; repo.mkdir()
+for name,size in [('slug.md',60),('other.md',50),('shared.md',200),('large.md',500),('small.md',200)]:
+    (root/name).write_text('x'*size)
+manifest={'projects':{'shop':[{'path':'slug.md','triggers':['slug']}],
+                      'other':[{'path':'other.md','triggers':['slug']}]},
+          'shared':[{'path':'shared.md','triggers':['slug'],'priority':90},
+                    {'path':'other.md','triggers':['slug'],'priority':99}], 'lessons':[]}
+def route(q,scope='auto',budget=1000,references=()):
+    return m['select'](root,manifest,q,scope,repo,None,3,budget,references)
+def names(r): return [Path(f['path']).name for f in r['files']]
+r=route('perbaiki slug produk',budget=100)
+assert names(r)==['slug.md'],r
+assert not route('hitung 2 tambah 2')['files']
+assert 'other.md' not in names(route('slug'))
+for q in ('slug reference other','jangan pakai other slug','without other slug','kelola slug produk','pi slug'):
+    assert 'other.md' not in names(route(q)),q
+assert 'other.md' in names(route('slug',references=['other']))
+# A project-owned note registered only as a lesson is still owned: prose cannot admit it.
+manifest['lessons']=[{'path':'other.md','triggers':['slug'],'priority':100}]
+assert 'other.md' not in names(route('slug'))
+assert 'other.md' in names(route('slug',references=['other']))
+manifest['lessons']=[]
+manifest['projects']['other'][0]['path']='./other.md'
+(root/'alias.md').symlink_to(root/'other.md')
+manifest['lessons']=[{'path':'alias.md','triggers':['slug'],'priority':100}]
+assert 'other.md' not in names(route('slug')) and 'alias.md' not in names(route('slug'))
+assert 'other.md' in names(route('slug',references=['other']))
+manifest['lessons']=[]
+try: route('slug',references=['missing'])
+except ValueError: pass
+else: raise AssertionError('unknown reference accepted')
+for scope in ('shared','lesson','execution'):
+    assert not any(f['scope']=='reference' for f in route('reference other',scope)['files'])
+(repo/'STATUS.md').write_text('State: READY\n')
+assert route('current slug')['files'][0]['scope']=='execution'
+# Replace path discovery only: exercise real selection and real file sizes.
+m['select'].__globals__['changed_paths']=lambda repo:['src/file.css']
+manifest={'projects':{},'lessons':[], 'shared':[
+    {'path':'large.md','paths':['**/*.css'],'priority':99},
+    {'path':'small.md','paths':['**/*.css'],'priority':98},
+    {'path':'shared.md','paths':['**/*.css'],'priority':97}]}
+assert names(route('fix this'))==['small.md']
+# A path-only candidate that does not fit the remaining budget cannot consume
+# the one-file allowance and suppress a later smaller candidate.
+manifest['shared'].insert(0,{'path':'large.md','triggers':['explicit'],'priority':100})
+(root/'small.md').write_text('x'*400); (root/'shared.md').write_text('x'*100)
+assert names(route('explicit',budget=800))==['large.md','shared.md']
+print('ai-memory-route-test: project isolation, scopes, path budget PASS')
+PY
 
 # Current repository truth retains priority when three durable topics match.
 python3 - "$ROUTER" "$TMP" <<'PY'
@@ -225,3 +288,4 @@ r=m['select'](root,manifest,'topic','auto',repo,None,3,12000)
 assert all(f['scope']=='shared' for f in r['files']) and len(r['files'])==3
 print('ai-memory-route-test: execution priority under competing triggers PASS')
 PY
+echo 'ai-memory-route-test: PASS'

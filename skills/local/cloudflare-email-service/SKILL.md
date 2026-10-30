@@ -1,6 +1,7 @@
 ---
 name: cloudflare-email-service
-description: Implement or troubleshoot Cloudflare Email Sending (public Beta, Workers Paid) and Email Routing - send_email binding, REST API, inbound email() handlers, wrangler email setup. Not for third-party mail providers or marketing/bulk email. Also covers Agents SDK email, SPF/DKIM/DMARC deliverability, and MCP email tools, including "add email to my Worker".
+description: >-
+  Cloudflare Email Sending (Beta) and Email Routing: send_email binding, REST API, inbound email() handlers, wrangler email setup, SPF/DKIM/DMARC, Agents SDK email. Not third-party mail providers or marketing/bulk email.
 ---
 
 # Cloudflare Email Service

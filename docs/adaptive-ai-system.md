@@ -4,6 +4,52 @@ Reviewed: 2026-10-10. Requirement: `REQ-ADAPTIVE-AI-SYSTEM`, TASK-118.
 This is the integration and operating guide; `TASKS.md` and `.delivery/` own
 execution state. [Research and evidence limits](research/adaptive-ai-sources.md).
 
+## Session focus and reference isolation (TASK-157)
+
+Product scope stays in the repository's accepted PRD/TASKS/design contracts.
+`focus` keeps a device-local, expiring session projection; it does not replace
+those documents or enforce a filesystem sandbox.
+
+```bash
+export AI_FOCUS_SESSION=commerce-checkout
+focus --repo ~/Projects/example claim --intent 'Repair checkout without reducing inventory workflows' \
+  --allow 'src/checkout/**' --allow 'tests/checkout/**' \
+  --preserve 'Accepted payment and inventory states remain intact' --task TASK-123
+focus --repo ~/Projects/example status
+resume-brief ~/Projects/example
+focus --repo ~/Projects/example check src/checkout/cart.ts
+focus --repo ~/Projects/example release
+```
+
+Exact paths and terminal subtrees are supported; two live sessions cannot claim
+an overlapping surface. Claims expire after two hours by default (60 seconds to
+24 hours configurable with `--ttl`). Use a stable explicit session ID for runtimes
+that do not expose one; Pi/Codex session environment is a convenience fallback,
+not an authentication boundary. No daemon, heartbeat, or background cleanup is
+installed. Read-only status filters expired claims without deleting history.
+
+A session can admit a foreign project with `claim --reference PROJECT_KEY` or a
+single retrieval with `ai-memory-access --reference PROJECT_KEY`. Merely naming a
+project in prose never grants reference access: negative mentions and ordinary
+words such as "kelola" must not open another project's memory. References inform
+implementation; they cannot replace the accepted product scope. Explicit flags
+must reflect the user's intent, not override a prohibition in the prompt.
+
+`ai-memory-route` loads the current session's focus when present and rejects a
+conflicting `--project` override. `resume-brief` reports all live claims in this
+checkout. `delivery-ledger start` captures the session focus in its immutable
+boundary: later release or expiry cannot remove that completion constraint.
+Out-of-focus changes require the existing requirement-linked `expand-scope`,
+passing checks, and independent review. Claims do not intercept writes; sessions
+that never call these tools are not mechanically constrained. Worktrees remain
+the safest isolation for feature development; claims are per canonical checkout.
+
+Telemetry uses `ai-memory-access --runtime RUNTIME` or `AI_MEMORY_RUNTIME`.
+Inherited CLI environment variables cannot reliably attribute nested callers,
+so unattributed events stay `unknown`. Routing selections are not read receipts
+or usefulness scores. Never delete a memory merely because it has no selections;
+new files also inherit a corpus-wide observation window in lifecycle reports.
+
 ## Purpose and boundaries
 
 Equip supported terminal AIs to understand the user's intent, finish full-stack
@@ -43,7 +89,7 @@ authoritative; the integration guide does not duplicate their methodology.
 
 | Concern | Existing owner | Added connection |
 |---|---|---|
-| Intent, correction, negation, language | CORE + volumx-writer terminal dialogue | Communication decision scenarios and independent reply review |
+| Intent, correction, negation, language | CORE + writer terminal dialogue | Communication decision scenarios and independent reply review |
 | Product/spec/experience routing | development-kit and relevant specialist | Adaptive execution reference for runtime limits and continuity |
 | Full-stack implementation | full-stack-development and activated specialists | Same acceptance criteria across CLI/model changes |
 | Onboarding/context/discovery | native adapters, ai-memory-link, skill-update, ai-hooks-install | Runtime-specific readiness without OMP lock-in |

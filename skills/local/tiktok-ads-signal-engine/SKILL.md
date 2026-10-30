@@ -1,13 +1,7 @@
 ---
 name: tiktok-ads-signal-engine
 description: >-
-  End-to-end TikTok Ads Conversion Signal Operating System (TikTok Pixel, Events API v2,
-  Deduplication event_id, Advanced Matching with SHA-256 email/phone, ttclid attribution preservation,
-  and VBO/Low-CPA Signal Engine).
-  Use when designing, building, auditing, or troubleshooting TikTok Ads conversion tracking, TikTok Pixel,
-  Events API v2 integration, event match quality, ttclid tracking, or server-side purchase signals.
-  Triggers: "tiktok ads", "tiktok pixel", "tiktok events api", "events api v2", "ttclid", "tiktok conversion tracking",
-  "tiktok signal engine", "tiktok cpa optimization".
+  TikTok Ads conversion signals: Pixel + Events API v2, event_id dedup, Advanced Matching (SHA-256 email/phone), ttclid preservation, VBO/low-CPA signals, server-side purchase. Not Meta or Google signals. Triggers: tiktok pixel, events api v2, ttclid.
 ---
 
 # TikTok Ads Signal Engine

@@ -80,13 +80,14 @@ class SuiteTests(unittest.TestCase):
             "Never load `assets/templates/*`",
             "use JSON only for automation",
             "Only for suite maintenance or release-status claims",
-            "NOT for a PRD/TASKS-only request",
             "For a single-artifact request, route directly to the specialist",
             "generic legal claims never establish applicability",
             "rather than create a competing source of truth",
         )
         for phrase in required:
-            self.assertIn(phrase, text)
+            with self.subTest(contract=phrase):
+                self.assertIn(phrase, text)
+        self.assertRegex(text, r"(?i)\bnot (?:for )?a PRD/TASKS-only request\b")
         self.assertLessEqual(len(text.split()), 1200)
         self.assertEqual(text.count("references/context-resolution.md"), 2)
         self.assertEqual(text.count("references/implementation-tasks.md"), 2)
@@ -99,10 +100,19 @@ class SuiteTests(unittest.TestCase):
         prd = (skills_root / "prd-taskbreaker" / "SKILL.md").read_text(encoding="utf-8")
         suite_skill = (skills_root / "development-spec-suite" / "SKILL.md").read_text(encoding="utf-8")
         document_map = (ROOT / "references" / "document-map.md").read_text(encoding="utf-8")
-        self.assertIn("Detect the pack by `CONTEXT-RECORD.md`", prd)
-        self.assertIn("never create a competing root `PRD.md`", prd)
-        self.assertIn("product requirements use `PR-*`, quality constraints use `NFR-*`", prd)
-        self.assertIn("exactly one `Primary requirement: PR-*` or `TD-*`", prd)
+        # These are instruction-presence checks, not proof of model behavior.
+        # Ignore Markdown wrapping while retaining each explicit ownership rule.
+        prd = " ".join(prd.split())
+        for phrase in (
+            "If `CONTEXT-RECORD.md` exists, a `development-spec-suite` pack is active",
+            "requirements are `PR-*`/`NFR-*`",
+            "task headings `T-*`",
+            "each task has one bold `- **Primary requirement:** PR-*` (or accepted `TD-*`/`DS-*`)",
+            "`check-traceability.py docs/spec --tasks TASKS.md` validates",
+            "Update `docs/spec/02-PRD.md`, never a competing root `PRD.md`",
+        ):
+            with self.subTest(contract=phrase):
+                self.assertIn(phrase, prd)
         self.assertIn("Never maintain both `PRD.md` and `02-PRD.md`", document_map)
         self.assertIn("jurisdiction/sector flags create review candidates, not legal conclusions", suite_skill)
         self.assertIn("selection, canonical ownership, cross-document consistency, and traceability", suite_skill)

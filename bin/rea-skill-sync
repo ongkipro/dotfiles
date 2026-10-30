@@ -36,9 +36,10 @@ DEFAULT_UPSTREAM_DIR = Path.home() / "Documents/work/research/rea-2026-10-20/rea
 
 BLACK_MAGIC_DESCRIPTION = (
     "Reverse engineer native, managed, Electron/JS, web, HAR/network, APK, "
-    "SQLite, WASM, and firmware targets with REA. Not for owned source repos "
-    "(codebase-navigation), exploit payloads, or DRM/auth bypass. Triggers: "
-    "black magic, rea, reverse engineer, bedah aplikasi, bedah web, decompile, har api."
+    "SQLite, WASM, and firmware targets with REA, and build AgentEnv bundles "
+    "from captures. Not for owned source repos (codebase-navigation), exploit "
+    "payloads, or DRM/auth bypass. Triggers: black magic, rea, reverse engineer, "
+    "bedah aplikasi, bedah web, decompile, har api, agent environment."
 )
 
 DOTFILES_SECTION = """

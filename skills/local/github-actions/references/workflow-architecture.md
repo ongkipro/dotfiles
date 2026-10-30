@@ -157,3 +157,66 @@ After centralizing duplicated automation:
 - documentation and dependency-update configuration point at the canonical files;
 - no compatibility alias or copied fallback remains;
 - at least one real caller proves the shared path on GitHub-hosted execution.
+
+# Workflow design method (seven steps)
+
+Moved from SKILL.md 2026-10-30; open the step the change touches.
+
+## 1. Minimize events and authority
+
+- Select only necessary events, activity types, branches/tags, and paths. Coordinate path filters with required-check configuration: a skipped required workflow can remain pending and block merge.
+- Do not treat `workflow_dispatch` inputs, actor names, labels, or branch naming alone as authorization.
+- Start with top-level `permissions: {}` or the narrowest repository-wide read grant. Add permissions at the consuming job only. When any permissions are specified, make every required scope explicit.
+- Keep `id-token: write`, package publishing, releases, attestations, and repository writes out of build/test jobs.
+- Set timeouts for jobs that can hang. Make shell failure behavior explicit where repository conventions do not already do so.
+
+## 2. Build an explicit job DAG
+
+- Give each job one evidence or trust-boundary responsibility. Use `needs` for actual dependencies, not visual ordering.
+- Remember that jobs do not share a filesystem. Pass small scalar data as job outputs and files as artifacts. A cache is not a job-output channel.
+- Downstream jobs are skipped when a required predecessor fails or is skipped unless their condition deliberately changes that behavior. Use `always()` narrowly; it can make cleanup/reporting run after failure but must not bypass a security or release gate.
+- Keep privileged jobs downstream of every required verification job. Conditions supplement `needs`; they do not replace the dependency edge.
+
+## 3. Control matrices and cost
+
+- Derive matrix axes from supported runtime/OS contracts, not “more coverage is better.” Use `include`/`exclude` for real exceptions.
+- Choose `fail-fast` intentionally: fast feedback for redundant variants, or `false` when every compatibility result is required evidence.
+- Use `max-parallel` when providers, self-hosted capacity, or budgets require it.
+- Give matrix artifacts and reports collision-free names. Do not let multiple variants overwrite a shared output.
+
+## 4. Reuse at the correct level
+
+- A reusable workflow (`workflow_call`) owns a multi-job CI capability, runner choices, permissions, outputs, and a typed caller contract.
+- A composite action owns repeated steps that must run inside the caller's existing job and filesystem.
+- Prefer a repository script when the logic must also run locally. Keep Actions YAML as orchestration, not an embedded application.
+- Make reusable workflow inputs, outputs, and secrets explicit. Avoid blanket secret inheritance unless the repository boundary and least-privilege review justify it.
+- Pin cross-repository reusable workflows to a verified full commit SHA. Same-repository reusable workflows should use the local workflow path supported by GitHub.
+- Migrate every caller and delete superseded copies in one cutover; do not leave aliases or parallel templates.
+
+See `workflow-architecture.md` for reuse, concurrency, and data-flow rules.
+
+## 5. Bound concurrency and cancellation
+
+- Derive concurrency groups from the resource being protected: PR/ref for redundant validation, or target environment/resource for serialized mutation.
+- Use `cancel-in-progress` only when replacing an older run is safe. Do not cancel a migration, release mutation, or non-idempotent deploy merely because a newer commit exists.
+- Avoid accidental group collisions across unrelated events or workflows. A concurrency group has at most one running and one pending member, and execution order is not guaranteed.
+- Concurrency prevents overlap; it is not an authorization or approval gate.
+
+## 6. Separate cache, artifact, and provenance boundaries
+
+- Cache only regenerable dependencies or tool state. Keys must bind to relevant OS, tool/runtime version, lockfile, and other compatibility inputs. Restore prefixes must not cross trust or ABI boundaries.
+- Never put secrets in caches or artifacts. Never let a privileged workflow restore a cache an untrusted workflow can influence.
+- Use artifacts for explicit handoff between jobs/runs. Set deliberate names and retention, validate expected contents, and treat artifacts from untrusted runs as untrusted input. `actions/download-artifact` v8+ fails on a digest mismatch by default; do not relax `digest-mismatch` to make a run pass.
+- Publish or deploy the exact verified artifact/digest rather than rebuilding different bytes after approval.
+- When provenance is required, use GitHub artifact attestations with job-scoped permissions and verify the attestation in the consumer/release process. Attestation does not make malicious source or a compromised build trustworthy.
+
+## 7. Pin and review action dependencies
+
+- Pin every external action and cross-repository reusable workflow to a verified full-length commit SHA. A tag or branch is human-readable but mutable; keep the reviewed release tag/version in a comment.
+- Verify repository ownership, source, release notes, maintenance state, and the tag-to-SHA mapping from upstream. Review dependency updates; use Dependabot/Renovate only as an update proposal mechanism, never automatic trust.
+- Recheck current official action documentation and repository releases before changing versions or inputs. Do not invent action inputs from memory.
+- Local actions are still code from the checked-out ref. Their safety matches that ref's trust level.
+- Where the plan allows, enforce this centrally: the repository/organization allowed-actions policy can require full-SHA pinning and block specific actions or versions with a `!` entry. Inspect the setting before claiming enforcement.
+- JavaScript actions now run on Node 24; GitHub removed Node 20 from hosted runners on 2026-09-23 with no opt-out. When a run fails on an old action, bump to a release whose `action.yml` declares `runs.using: node24` (verify upstream), and keep self-hosted runners at the minimum version that release states.
+
+Current majors observed 2026-10-02 (re-verify before pinning; see the ledger): `checkout` v7, `setup-node` v7, `cache` v6, `upload-artifact` v7, `download-artifact` v8. Major bumps changed behavior (fork-checkout refusal, digest enforcement, `setup-node` auto-caching limited to npm since v6), so read release notes across every skipped major.

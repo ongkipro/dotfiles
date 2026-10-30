@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""Isolated focus registry, routing and ledger integration checks."""
+import json
+import os
+from pathlib import Path
+import runpy
+import subprocess
+import tempfile
+from concurrent.futures import ThreadPoolExecutor
+
+ROOT = Path(__file__).resolve().parent.parent
+with tempfile.TemporaryDirectory(prefix='focus-test.') as tmp:
+    root = Path(tmp)
+    repo = root/'shop'; repo.mkdir()
+    subprocess.run(['git','init','-q',str(repo)],check=True)
+    env = dict(os.environ,AI_FOCUS_DIR=str(root/'state'),AI_FOCUS_SESSION='a')
+    def run(session,*args,ok=True):
+        r=subprocess.run([str(ROOT/'bin/focus'),'--repo',str(repo),'--session',session,*args],env=env,capture_output=True,text=True)
+        assert (r.returncode==0)==ok,(args,r.stdout,r.stderr)
+        return r
+    run('a','claim','--intent','Full commerce','--allow','src/**','--preserve','inventory remains complete','--reference','reference-shop')
+    run('b','claim','--intent','Overlap','--allow','src/cart.py',ok=False)
+    run('b','claim','--intent','Docs','--allow','docs/**')
+    run('a','check','src/cart.py')
+    run('a','check','docs/readme.md',ok=False)
+    run('b','release')
+    assert len(json.loads(run('a','status').stdout)['claims'])==1
+    run('b','claim','--intent','Traversal','--allow','../elsewhere',ok=False)
+    run('b','claim','--intent','Short','--allow','other/**','--ttl','0',ok=False)
+    # Losing a simultaneous claim must not clobber the winner.
+    def compete(session):
+        return subprocess.run([str(ROOT/'bin/focus'),'--repo',str(repo),'--session',session,'claim','--intent','race','--allow','docs/**'],env=env,capture_output=True).returncode
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        assert sorted(pool.map(compete,['c','d']))==[0,1]
+    # Expiry is filtered; other sessions cannot release this session's claim.
+    state=next((root/'state').glob('*.json'))
+    data=json.loads(state.read_text()); data['claims'][0]['expiresAt']=0; state.write_text(json.dumps(data))
+    assert not any(c['session']=='a' for c in json.loads(run('a','status').stdout)['claims'])
+    # Session routing uses an exact allowlist, never a foreign-name mention.
+    run('a','claim','--intent','Slug','--allow','src/**','--reference','tokophi')
+    routed=subprocess.run([str(ROOT/'bin/ai-memory-route'),'slug tokophi','--repo',str(repo),'--session','a','--max-bytes','30000','--json'],env=env,capture_output=True,text=True)
+    assert routed.returncode==0,routed.stderr
+    result=json.loads(routed.stdout)
+    assert result['focus']['session']=='a'
+    assert any(f['scope']=='reference' for f in result['files']),result
+    denied=subprocess.run([str(ROOT/'bin/ai-memory-route'),'slug','--repo',str(repo),'--session','a','--project','other','--json'],env=env,capture_output=True)
+    assert denied.returncode!=0
+    brief=subprocess.run([str(ROOT/'bin/resume-brief'),str(repo)],env=env,capture_output=True,text=True)
+    assert 'Focus [a]: Slug' in brief.stdout,brief.stdout
+    # A substituted file is rejected, not read or overwritten.
+    original=state.read_text(); state.unlink(); victim=root/'victim';victim.write_text('keep');state.symlink_to(victim)
+    run('a','status',ok=False);assert victim.read_text()=='keep'
+    state.unlink();state.write_text(original);state.chmod(0o600)
+    valid=json.loads(state.read_text())
+    for bad in ({'allowedPaths':[]},{'allowedPaths':['../oops']},{'expiresAt':float('inf')},
+                {'expiresAt':float('nan')},{'expiresAt':True},{'expiresAt':10**18},{'preserve':None},{'session':''},{'session':None}):
+        data=json.loads(json.dumps(valid));data['claims'][0].update(bad)
+        state.write_text(json.dumps(data)); before=state.read_text()
+        run('a','status',ok=False);run('a','release',ok=False)
+        assert state.read_text()==before
+    data=json.loads(json.dumps(valid));data['claims'].append(data['claims'][0]);state.write_text(json.dumps(data))
+    run('a','status',ok=False)
+    state.write_text(json.dumps(valid))
+    run('','release',ok=False)
+    assert json.loads(state.read_text())==valid
+    state.chmod(0o644);run('a','status',ok=False);state.chmod(0o600)
+    # A stuck lock holder surfaces as an error within the bounded wait.
+    import fcntl
+    lockfile=next((root/'state').glob('*.lock'))
+    with open(lockfile,'r+') as held:
+        fcntl.flock(held,fcntl.LOCK_EX)
+        r=run('a','status',ok=False); assert 'locked' in r.stderr,r.stderr
+    # Real ledger captures the session focus once; changing/releasing the
+    # registry later cannot erase the completion boundary.
+    run('a','claim','--intent','Source only','--allow','src/**')
+    (repo/'STATUS.md').write_text('State: READY\n')
+    subprocess.run(['git','-C',str(repo),'add','STATUS.md'],check=True)
+    subprocess.run(['git','-C',str(repo),'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','fixture'],check=True)
+    def ledger(*args):
+        return subprocess.run([str(ROOT/'bin/delivery-ledger'),'--repo',str(repo),*args],env=env,capture_output=True,text=True)
+    assert ledger('init').returncode==0
+    # Declared session without the focus tool beside the ledger must refuse to start.
+    import shutil
+    lonely=root/'lonely-bin'; lonely.mkdir(); shutil.copy(ROOT/'bin/delivery-ledger',lonely/'delivery-ledger')
+    for helper in ('diff-risk','_workflow-execution.py'):
+        if (ROOT/'bin'/helper).exists(): shutil.copy(ROOT/'bin'/helper,lonely/helper)
+    r=subprocess.run([str(lonely/'delivery-ledger'),'--repo',str(repo),'start','--task','T-0','--requirement','REQ-0','--risk','R1','--worker','fixture','--model','fixture','--provider','fixture','--reasoning-effort','unavailable: fixture','--allow','**'],env=env,capture_output=True,text=True)
+    assert r.returncode!=0 and 'bin/focus is missing' in r.stderr,(r.stdout,r.stderr)
+    r=ledger('start','--task','T-1','--requirement','REQ-1','--risk','R1','--worker','fixture','--model','fixture','--provider','fixture','--reasoning-effort','unavailable: fixture','--allow','**')
+    assert r.returncode==0,r.stderr
+    run('a','release')
+    (repo/'outside.txt').write_text('out of focus')
+    r=ledger('check-boundary','--json');assert r.returncode!=0,r.stdout
+    assert 'outside.txt' in r.stdout and 'out-of-scope' in r.stdout,r.stdout
+print('focus-test: PASS (claims, overlap, concurrency, expiry, traversal, symlink, immutable ledger boundary)')

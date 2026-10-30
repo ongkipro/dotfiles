@@ -34,6 +34,10 @@ def main():
     try:
         now=datetime.fromisoformat(a.today+'T00:00:00+00:00') if a.today else datetime.now(timezone.utc)
         started,events=load_usage(tele); counts=Counter(); last={}
+        # Selection is not a read receipt or proof of usefulness. Historical
+        # events lack attribution and must not be assigned to today's runtime.
+        runtime_events = dict(Counter(e.get('runtime') or 'unknown' for e in events))
+        runtime_uses = {}
         if a.routes:
             # An empty route is not proof of a miss ("ok", "lanjut" need no
             # memory), so this only flags projects that HAVE project memory yet
@@ -53,7 +57,8 @@ def main():
                 verdict='SEMANTIC_CANDIDATE' if (k in with_memory and n>=a.min_prompts and rate>=a.empty_threshold) else ('NO_PROJECT_MEMORY' if k not in with_memory and k!='(no project)' else 'KEYWORDS_ENOUGH')
                 rows.append({'project':k,'prompts':n,'empty':empty[k],'emptyRate':round(rate,3),'hasProjectMemory':k in with_memory,'verdict':verdict})
             out={'evidenceScope':'device-local-routed-access-only','events':len(events),'projects':rows,
-                 'semanticCandidates':[r['project'] for r in rows if r['verdict']=='SEMANTIC_CANDIDATE']}
+                 'semanticCandidates':[r['project'] for r in rows if r['verdict']=='SEMANTIC_CANDIDATE'],
+                 'runtimeEvents':runtime_events}
             if a.json: print(json.dumps(out,indent=2))
             else:
                 print(f"ai-memory-lifecycle --routes: {len(events)} routed prompt(s), device-local")
@@ -68,6 +73,7 @@ def main():
                 path=item.get('path');
                 if not path: continue
                 counts[path]+=1
+                runtime_uses.setdefault(path, Counter())[e.get('runtime') or 'unknown'] += 1
                 if path not in last or t>last[path]: last[path]=t
         observed_days=(now-started).days if started else 0
         rows=[]
@@ -79,7 +85,7 @@ def main():
                 elif age is not None and age>=a.cold_days: status='COLD'; recommendation='archive-review'
                 elif uses>=5 and (age is None or age<30): status='ACTIVE'; recommendation='retain'
                 else: status='LOW_USE'; recommendation='retain-review'
-            rows.append({'path':rel,'uses':uses,'lastUsed':lu.isoformat().replace('+00:00','Z') if lu else None,'ageDays':age,'status':status,'recommendation':recommendation,'evidenceScope':'device-local-routed-access-only'})
+            rows.append({'path':rel,'uses':uses,'runtimeUses':dict(runtime_uses.get(rel, {})),'lastUsed':lu.isoformat().replace('+00:00','Z') if lu else None,'ageDays':age,'status':status,'recommendation':recommendation,'evidenceScope':'device-local-routed-access-only'})
         # Duplicate-aware merge review. Only advisory; choose lower-use side when hygiene identifies a pair.
         hygiene=dot/'bin'/'ai-memory-hygiene'
         if hygiene.is_file():
@@ -97,10 +103,14 @@ def main():
                             if by[loser]['recommendation']!='archive-review': by[loser]['recommendation']='merge-review'
                             by[loser]['duplicateWith']=rr if loser==l else l
                 except json.JSONDecodeError: pass
-        payload={'observationStartedAt':started.isoformat().replace('+00:00','Z') if started else None,'observationDays':observed_days,'evidenceScope':'device-local-routed-access-only','files':rows,'counts':dict(Counter(x['status'] for x in rows))}
+        payload={'observationStartedAt':started.isoformat().replace('+00:00','Z') if started else None,'observationDays':observed_days,'evidenceScope':'device-local-routed-access-only','files':rows,'counts':dict(Counter(x['status'] for x in rows)), 'runtimeEvents':runtime_events,
+                 'limitations':['Selections are not proof of reads or usefulness.',
+                               'Observation age is corpus-wide, not the age of each file.',
+                               'Missing runtime attribution is reported as unknown.']}
         if a.json: print(json.dumps(payload,indent=2))
         else:
             print(f"ai-memory-lifecycle: observation={observed_days}d files={len(rows)}")
+            print(f"  runtime events: {runtime_events}; routed selections only, not read receipts")
             for x in rows:
                 if x['recommendation']!='retain': print(f"  {x['status']:24} {x['path']} uses={x['uses']} -> {x['recommendation']}")
         return 0

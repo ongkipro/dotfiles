@@ -107,3 +107,33 @@ When a project contract explicitly adopts a standard (for example an HTTP RFC,
 WCAG criterion, or schema specification), add the exact official stable URL and
 revision here before turning it into assertions. Do not test a remembered
 paraphrase of a standard.
+
+## Installed-runner specifics (moved from SKILL.md 2026-10-30)
+
+For an installed Vitest suite, check the major first. Vitest 5 (2026-09-03)
+changed defaults that alter results: `clearMocks` is on (mock calls reset before
+each test), unawaited async assertions and timed-out `expect.poll` now fail,
+config files are no longer found in parent directories, `-t` matches the
+`>`-joined full name, `sequential` options are gone, and json/junit/html/blob
+reports default to `.vitest/`. It needs Node >= 22.12 and Vite >= 6.4. When a
+suite breaks on upgrade, fix the test that relied on the old default rather than
+reverting the default; update CI artifact paths for the new report location.
+
+For an installed Playwright Test suite (check the version; see the ledger):
+
+- Run non-interactively with `PLAYWRIGHT_HTML_OPEN=never` so the HTML report
+  never opens and blocks the shell.
+- Read a failure's `trace.zip` from the CLI (added 1.59; subcommands and flags
+  have changed since, so confirm against the installed CLI's help):
+  `npx playwright trace open <trace.zip>`, then `trace actions --errors-only`,
+  `trace errors`, `trace requests --failed`, `trace console --errors-only`;
+  `trace close` after.
+- `npx playwright test --debug=cli` (1.59+) pauses a test for `playwright-cli`
+  to attach; run it in the background and stop it afterward. Interactive page
+  driving belongs to `ui-validation`.
+- Component tests: since 1.62 use the built-in `mount()` fixture with a story
+  gallery; `@playwright/experimental-ct-*` stopped receiving updates in 1.63
+  and current docs mark them removed. Migrate while pinned to 1.62; add none.
+- Never run `playwright-cli install --skills -g` or any other agent-skill
+  installer: `~/.claude/skills` is a symlink to the owned dotfiles skills
+  directory, so it writes vendor files into owned skills.

@@ -13,7 +13,7 @@ entry** — the `AUDIT-*` labels are internal handles for those statements, not
 citations of an external document. Do not go looking for a file that defines
 them; this file is self-contained by design.
 
-The prior audit `docs/DOTFILES_REPOSITORY_AUDIT_2026-08-15.md` is an immutable
+The prior audit `docs/archive/DOTFILES_REPOSITORY_AUDIT_2026-08-15.md` is an immutable
 historical snapshot. A finding is live only when represented in this file;
 dated audits and roadmaps do not own open or closed work.
 

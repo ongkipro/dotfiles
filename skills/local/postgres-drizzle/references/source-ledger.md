@@ -128,3 +128,13 @@ These are primary for their own products, not generic PostgreSQL mandates:
 For another managed provider, proxy, or serverless driver, add its current official
 connection, migration, limits, TLS, failover, backup, and restore documentation to the
 implementation evidence. Do not extrapolate Neon or PgBouncer behavior to it.
+
+## Drizzle release lines (moved from SKILL.md 2026-10-30)
+
+7. Identify the Drizzle release line before touching queries or migrations. As of
+   2026-10-02, npm `latest` is still 0.x (`drizzle-orm` 0.45.x, `drizzle-kit` 0.31.x);
+   1.0 is a pre-release (`@rc`/`@beta` tags). The lines differ: 1.0 ships Relational
+   Queries v2 (`defineRelations`, object `where`/`orderBy`) and a new migration folder
+   layout without `meta/_journal.json` (converted by `drizzle-kit up`; `drop` removed).
+   Do not mix 0.x examples into a 1.0 project or upgrade lines as a side effect; an
+   upgrade is its own reviewed change. See the [source ledger](source-ledger.md).

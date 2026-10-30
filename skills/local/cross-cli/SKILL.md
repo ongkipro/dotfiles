@@ -1,14 +1,7 @@
 ---
 name: cross-cli
 description: >-
-  Hand one lane of work (research, review, second opinion, bulk drafting) to
-  another installed AI CLI — claude, codex, agy, pi, omp — through `ai-ask`,
-  read-only by default. Not model routing or OMP configuration (OMP stays
-  upstream-native) and not a reason to stop working alone: every CLI already has
-  the same policy, memory, and skills. Use for cross-vendor review of R2+ work,
-  mandatory independent review of R3/R4 delivery runs, a second opinion on an
-  architecture or UI decision, large-context reading, or cheap bulk drafts; also
-  when a CLI is out of quota and a lane needs a fallback.
+  Hand one lane (research, review, second opinion, bulk draft) to another installed AI CLI — claude, codex, agy, pi, omp — via ai-ask, read-only by default. Not model routing or OMP config. Use for R2+ cross review, R3/R4 independent review.
 ---
 
 # Cross-CLI lanes

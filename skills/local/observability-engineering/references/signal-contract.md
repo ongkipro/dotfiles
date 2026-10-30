@@ -174,3 +174,15 @@ A hash is not automatic anonymization: low-entropy inputs can be reversed, stabl
 | Correlation | Trace/request/job identifiers | Durable audit identifier; optional safe diagnostic reference |
 
 Never solve both with one undifferentiated log stream.
+
+## Implementation at stable boundaries
+
+Moved from SKILL.md 2026-10-30.
+
+1. Reuse the existing telemetry bootstrap, logger, propagator, meter, and tracer. Configure resource identity once.
+2. Instrument the journey boundary and critical dependency/async boundaries; avoid a span or log for every function.
+3. Emit one terminal outcome per logical attempt at its handling boundary. Do not duplicate the same exception at every layer.
+4. Propagate W3C Trace Context through supported transports. Treat inbound trace context and baggage as untrusted metadata, never identity or authorization. Allowlist baggage; ignore invalid trace metadata and start a new local trace as required by the current standard and installed propagator. Never reject a business request solely because diagnostic context is malformed.
+5. For queues/jobs/webhooks distinguish receipt/acceptance, enqueue, processing attempt, retry, completion, dead-letter/terminal failure, and end-to-end age. Preserve idempotency outcome without recording raw payloads or secrets. Use span links where work has multiple or non-parent causal inputs.
+6. Redact before export. Diagnostic telemetry should not change the business outcome when an exporter is slow or unavailable; use the platform’s supported lifecycle/backpressure behavior. Audit-record failure policy remains a separate explicit business/security decision.
+7. Keep health checks cheap and truthful. Liveness must not fail because an optional dependency is down; readiness and dependency checks expose only the minimum safe state. If using the repository probe template, preserve its `Probe: <name>|<url>|<expected-status>|<contains-or-TBD>|<max-latency-ms>` syntax and use stable non-secret endpoints.

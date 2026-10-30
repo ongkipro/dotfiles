@@ -1,17 +1,7 @@
 ---
 name: cloudflare
 description: >-
-  Cloudflare entry point: choose products for apps, APIs, AI, storage, networking and security,
-  even unnamed ones. Not for sibling-owned work: workers-best-practices, wrangler,
-  durable-objects, agents-sdk, sandbox-*, cloudflare-one*, email.
-  Sibling map: workers-best-practices for Worker code, wrangler for CLI and wrangler.jsonc,
-  durable-objects for stateful coordination, agents-sdk for agents, MCP servers and Workflows,
-  sandbox-next or sandbox-stable for sandboxed execution (match the installed @cloudflare/sandbox
-  tag; sandbox-migrate-to-next for the stable-to-next upgrade), cloudflare-email-service for
-  sending email, cloudflare-one for Zero Trust and SASE, cloudflare-one-migrations for moving
-  from another VPN, SWG or SASE vendor. Covers the rest directly: Pages, KV, D1, R2, Workers AI,
-  Vectorize, AI Gateway, Queues, Flagship, Tunnel, Spectrum, WAF, DDoS and infrastructure-as-code
-  (Terraform, Pulumi).
+  Cloudflare entry point: choose and use products (Pages, KV, D1, R2, Workers AI, Vectorize, AI Gateway, Queues, Tunnel, WAF, Terraform). Not sibling-owned work: Worker code, wrangler, durable-objects, agents-sdk, sandbox-*, cloudflare-one*, email.
 ---
 
 # Discover and build with Cloudflare
@@ -147,12 +137,15 @@ Use the [Cloudflare product directory](https://developers.cloudflare.com/directo
 
 Prefer [Workers Cache](https://developers.cloudflare.com/workers/cache/index.md) for caching, including [advanced patterns](https://developers.cloudflare.com/workers/cache/examples/index.md) using cached inner entrypoints and programmatic invalidation. Choose [Cache API](https://developers.cloudflare.com/workers/runtime-apis/cache/index.md) or KV caching only when a concrete requirement cannot be met by Workers Cache; check its [patterns](https://developers.cloudflare.com/workers/cache/examples/index.md) and [limitations](https://developers.cloudflare.com/workers/cache/limitations/index.md) first.
 
+A Workers Cache hit returns the response without running the Worker, so per-request side effects in the Worker (setting attribution or session cookies, logging, counters) stop for cached responses. Before enabling it on an existing app, find that work and move it client-side or exclude those routes. Once caching is on, hits and static-asset requests are billed at the request rate.
+
 ## Working principles
 
 - Inspect the existing project and its pinned package versions before choosing an API or configuration shape.
 - Retrieve current Cloudflare documentation when details may have changed. Use installed types and `node_modules/wrangler/config-schema.json` when they represent the project's pinned version.
 - Preserve the project's architecture and make the smallest change that satisfies the request.
 - Check current Cloudflare docs before relying on limits, prices, compatibility flags, or security requirements; these can change.
+- On Workers Free, daily allowances are shared by every Worker on the account, and since 2026-09-01 D1 errors on every query once the account passes its daily row-read or row-write allowance, until 00:00 UTC ([D1 changelog](https://developers.cloudflare.com/changelog/product/d1/)). Count the D1 and KV writes a request path adds before shipping it to a Free account with several Workers.
 - Validate in proportion to the change: use the project's checks, then exercise the affected behavior when practical.
 
 Cloudflare documentation: <https://developers.cloudflare.com/llms.txt>

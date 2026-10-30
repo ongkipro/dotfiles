@@ -224,8 +224,6 @@ Minimum decision record:
 - Brand/content identity; patterns intentionally repeated:
 - Responsive transformation and density:
 - Rejected alternative, only when a real choice existed:
-- Portfolio comparison when relevant (`scripts/portfolio-scan.py`): recurring
-  choices retained or changed, and the evidence supporting that decision:
 
 ## Composition contract
 - Items C1… and "do not substitute" list from section 4.1:
@@ -238,13 +236,10 @@ Minimum decision record:
 
 ## Render critique
 Author: <runtime/model that built the page>
-<!-- Cite the narrow and wide screenshots you opened; design-gate.py checks
-     decoding and freshness of both. One line per page section. -->
-- <screenshot path>: section → generic or authored? which §4.3.1 look? fix:
+<!-- Cite the narrow and wide screenshots you opened. One line per page section. -->
+- <screenshot path>: section → generic or authored (SKILL.md §3)? fix:
 
 ## Acceptance evidence
-- Independent review (`design/review.md`): reviewer, verdict, round:
-- design-gate.py final line:
 - Browser routes, viewports, interactions, and result:
 - Reference comparison per contract item: match, or deviation → reason / revision → recheck:
 - Remaining limitation and its impact:

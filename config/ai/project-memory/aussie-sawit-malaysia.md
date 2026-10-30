@@ -33,4 +33,4 @@ Before changing orders, pricing, shipping, COD reconciliation, EasyParcel, track
 
 ## Historical record
 
-The former 2026-07 session log, including superseded architecture, dated build claims, deferred actions, and contradictory resume notes, is preserved verbatim in [AUSSIE_SAWIT_MALAYSIA_MEMORY_ARCHIVE_2026-07.md](../../../docs/AUSSIE_SAWIT_MALAYSIA_MEMORY_ARCHIVE_2026-07.md). It is intentionally **not selectable memory** and must not be used for current project status.
+The former 2026-07 session log, including superseded architecture, dated build claims, deferred actions, and contradictory resume notes, is preserved verbatim in [AUSSIE_SAWIT_MALAYSIA_MEMORY_ARCHIVE_2026-07.md](../../../docs/archive/AUSSIE_SAWIT_MALAYSIA_MEMORY_ARCHIVE_2026-07.md). It is intentionally **not selectable memory** and must not be used for current project status.

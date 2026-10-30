@@ -12,7 +12,7 @@ the conversation and current repository. Follow-up corrections steer the same
 objective unless the user cancels or replaces it. A status question reports facts;
 it does not activate a mode, authorize mutations, or cancel ongoing work. Preserve
 negation, exact identifiers, and the distinction between research and execution.
-Use `volumx-writer`'s terminal-dialogue reference for language/ambiguity cases.
+Use `writer`'s terminal-dialogue reference for language/ambiguity cases.
 
 For a new session, run `resume-brief <repo>` where available, inspect current
 status, task, diff and checks, then recover missing consequential decisions.

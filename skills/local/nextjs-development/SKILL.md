@@ -1,15 +1,7 @@
 ---
 name: nextjs-development
 description: >-
-  Retrieval-first Next.js App Router architecture and implementation: routes,
-  layouts, Server/Client Components, caching, Server Actions. Not for React
-  tutorials, visual design, SEO strategy, test strategy, cross-stack AppSec,
-  or Vercel infra. Use when creating, changing, debugging, or reviewing
-  Next.js App Router routes, layouts, Server/Client Components, data fetching
-  and caching, Route Handlers, Server Actions, forms, metadata, streaming,
-  runtime selection, instrumentation, or deployment output. Inspect the
-  installed Next.js/React versions and project configuration before using
-  APIs.
+  Next.js App Router architecture and implementation: routes, layouts, Server/Client Components, caching, Route Handlers, Server Actions, forms, metadata, streaming, runtime. Not React tutorials, visual design, SEO, tests, AppSec, or Vercel infra.
 ---
 
 # Next.js Development
@@ -20,53 +12,34 @@ semantics—especially caching, request APIs, Proxy/Middleware conventions, Serv
 Functions, runtimes, and adapters—are volatile; retrieve them before changing
 those surfaces.
 
-## Scope and triggers
+Read only this file up front; open a reference when a step names it.
 
-Use this skill for App Router architecture and implementation:
+**Pick the path first:**
+- Bug or small change in an existing route → "Inspect first" steps 1–2, 4,
+  6 → the one section below for the surface touched → "Verification".
+- New route/feature → "Inspect first" in full → sections in order →
+  "Verification".
+- Cache/revalidation question → "Inspect first" step 5 → "Data, memoization,
+  caching" → `references/app-router-contracts.md`.
 
-- `app/` routes, layouts, route groups, special files, and navigation;
-- Server and Client Component boundaries;
-- server data reads, streaming, cache policy, and revalidation wiring;
-- Route Handlers and Server Actions/Functions;
-- forms and route-level loading, expected-error, exception, not-found, and
-  redirect behavior;
-- metadata implementation, environment boundaries, runtime choice,
-  instrumentation hooks, output mode, and framework bundle work.
+## Scope
 
-Do not use it for Pages Router migration from memory. Inspect the existing
-router and retrieve the installed version's migration guide before a cutover.
-Do not turn a Next.js task into a generic React tutorial.
+App Router architecture and implementation: `app/` routes, layouts, special
+files, navigation; Server/Client boundaries; reads, streaming, cache and
+revalidation; Route Handlers and Server Actions; forms and loading/error/
+not-found/redirect behavior; metadata, env boundaries, runtime, instrumentation
+hooks, output mode. Not a Pages Router migration from memory and not a React
+tutorial.
 
 ## Ownership and handoffs
 
-This skill owns **Next.js implementation boundaries**, not every decision inside
-them:
-
-| Need | Owner |
-|---|---|
-| End-to-end stack routing and evidence gates | `full-stack-development` |
-| Product/operator workflow, roles, lifecycle, and screen contracts | `admin-product-ux` |
-| Admin information architecture and presentation | `admin-dashboard` |
-| Non-admin visual direction | `design-taste` |
-| Existing shadcn component APIs and registry work | `shadcn-ui` |
-| Storefront journey/state decisions and implementation | `storefront-ux`, then `storefront-development` |
-| Automated behavioral test strategy and contract coverage | `testing-engineering` |
-| Browser-visible evidence | `ui-validation` |
-| Cross-stack application security | `application-security` |
-| Better Auth configuration, hardening, and auth flow UX | `better-auth-security` (+ `references/auth-flows.md`) |
-| Logs, metrics, traces, and SLO design | `observability-engineering` |
-| Performance diagnosis and measurement | `web-perf` |
-| Plain PostgreSQL/Drizzle data engineering | `postgres-drizzle` |
-| Supabase Auth/RLS/Storage/Realtime | `supabase-stack` |
-| Public REST contract | `openapi-spec` |
-| SEO strategy, indexation, schema, sitemap/canonical policy | `seo-website-builder` |
-| Native feature/dependency decision | `native-first` |
-| CI workflow engineering | `github-actions` |
-| Cloudflare runtime implementation | `workers-best-practices` |
-| Vercel deployment, domains, project linking, and edge infrastructure | `vercel` |
-
-Next.js implements accepted metadata and UI contracts; it does not invent SEO,
-workflow, security, observability, component, or visual policy.
+This skill owns Next.js implementation boundaries; it implements accepted
+metadata, UI, security, telemetry, and component contracts and does not
+invent them. Owners by concern are in the skill map; the ones this skill hands
+to most: `postgres-drizzle` (data), `better-auth-security` (auth),
+`seo-website-builder` (metadata policy), `observability-engineering`
+(telemetry schema), `web-perf` (measurement), `ui-validation` (browser proof),
+`vercel`/`workers-best-practices` (platform), `native-first` (dependencies).
 
 ## Inspect first
 
@@ -184,59 +157,25 @@ magic-link, and session-expiry UX.
 
 ## Internationalization
 
-Verify the installed version's i18n guide before routing locales; the Pages
-Router `i18n` config does not apply to the App Router. Current docs (v16)
-describe: all routes under `app/[lang]/`, locale negotiation and redirect in
-Proxy, per-locale dictionaries loaded server-side (`server-only` or
-`next/root-params` where the version supports it — its getters do not run in
-Server Actions or Route Handlers, so pass the locale there), `hasLocale` narrowing with
-`notFound()` for unknown locales, and `generateStaticParams` for static
-locales. Set `<html lang>` in the `[lang]` root layout. Keep dictionaries out
-of Client Components except the keys a leaf needs. Dates, numbers, and currency
-use `Intl` (`native-first`). Hreflang, per-locale canonicals, and localized
-sitemaps belong to `seo-website-builder`. Source:
-https://nextjs.org/docs/app/guides/internationalization (verified 2026-10-02).
+App Router i18n is `app/[lang]/` + locale negotiation in Proxy + server-side
+dictionaries; the Pages Router `i18n` config does not apply. Details and the
+version-specific APIs: `references/app-router-contracts.md` § Internationalization.
+Hreflang and localized sitemaps belong to `seo-website-builder`.
 
-## Route and platform concerns
+## Route, platform, and bundle concerns
 
-- Use Route Handlers' Web `Request`/`Response` APIs unless an inspected Next
-  extension is necessary. Make method, content type, status, and cache headers
-  explicit where they are part of the contract.
-- Implement metadata with the App Router metadata object/function or metadata
-  files supported by the installed version. Keep it in Server Components and
-  deduplicate shared reads. `seo-website-builder` decides content/indexing policy.
-- Keep secrets server-only. `NEXT_PUBLIC_*` values are public and normally frozen
-  into client output at build time; they are not a runtime secret channel.
-  Distinguish build-time from request-time environment needs.
-- Default to the supported Node runtime. Select another runtime only after
-  checking package/API compatibility, cache/ISR constraints, streaming, and the
-  deployment adapter's current support.
-- Instrumentation hooks provide framework lifecycle integration; event names,
-  telemetry schema, sampling, redaction, and SLOs belong to
-  `observability-engineering`.
-- Node/Docker, static export, and adapters have different feature envelopes.
-  Verify Server Actions, Route Handlers, image optimization, cache persistence,
-  revalidation, streaming, and filesystem assumptions against the target.
-  Platform provisioning and Vercel infrastructure route to `vercel`.
-
-## Bundle and performance discipline
-
-Apply the production rules in `references/react-performance-rules.md` (waterfalls, bundles, server, re-render, rendering, and view-transition gotchas).
-Keep `'use client'` leaves narrow, import heavy browser libraries only where
-used, and run expensive non-interactive transforms on the server. Prefer native
-Next image/font/linking and code-splitting features already in the installed
-version. Analyze a bundle only with the project's existing tooling or a
-version-confirmed official method; do not add an analyzer speculatively.
-
-Motion: when to animate and with which tool is decided by `design-taste`
-`references/motion-craft.md` (§7, §7.1, §8.3). For the `motion` library import
-from `motion/react` (never alongside `framer-motion`) and look up its API via
-`mcp.motion.dev` or `motion.dev/llms-full.txt`; React `<ViewTransition>` rules
-stay in `references/react-performance-rules.md`.
-
-A build reports compilation/prerendering/output facts, not Core Web Vitals or UI
-correctness. Hand measured diagnosis to `web-perf` and browser behavior to
-`ui-validation`.
+Route Handlers use Web `Request`/`Response`; metadata lives in Server
+Components via the installed version's metadata API; secrets stay server-only
+(`NEXT_PUBLIC_*` is public and frozen at build); default Node runtime unless
+compatibility evidence says otherwise; Node/Docker, static export, and
+adapters have different feature envelopes — verify Server Actions, image
+optimization, cache persistence, streaming against the target. Keep
+`'use client'` leaves narrow and heavy browser libraries at their use site;
+analyze bundles only with existing tooling. Details:
+`references/app-router-contracts.md` § Route and platform concerns and
+`references/react-performance-rules.md` (waterfalls, re-renders, view
+transitions, `motion` import rules). A build reports output facts, not Core
+Web Vitals (`web-perf`) or UI correctness (`ui-validation`).
 
 ## Verification and delivery
 

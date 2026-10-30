@@ -1,16 +1,7 @@
 ---
 name: lean-code-review
 description: >-
-  Review a code diff or, when explicitly requested, a whole repository for
-  unnecessary complexity and safe deletions. Not correctness, security,
-  performance, or accessibility review (code-review, application-security,
-  web-perf, ui-validation). Use for an over-engineering review, lean review,
-  deletion pass, simplification audit, bloat audit, YAGNI review, or when
-  asked what code or dependencies can be removed: dead flexibility, duplicated
-  helpers, speculative abstractions, avoidable dependencies, hand-written
-  stdlib/platform features, wrappers that only delegate, and narrating
-  comments. Return evidence-backed findings only; do not apply fixes unless
-  asked.
+  Review a diff (or, when asked, a repository) for unnecessary complexity and safe deletions: dead flexibility, duplicate helpers, speculative abstractions, avoidable deps, wrappers. Not correctness, security, perf, or a11y review. Findings only.
 ---
 
 # Lean Code Review

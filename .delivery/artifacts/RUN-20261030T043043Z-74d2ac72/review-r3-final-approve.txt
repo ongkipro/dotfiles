@@ -1,0 +1,33 @@
+Warning: claude.ai MCP servers blocked by enterprise policy: claude.ai Zapier, claude.ai Descript, claude.ai KOL Kelola, claude.ai Hugging Face, claude.ai ClickUp, claude.ai Google Calendar
+Semua empat perbaikan terverifikasi di disk dan ketiga test suite lulus.
+
+**1. Registrasi router tokophi-infrastructure-2026-07.md**
+- Terdaftar di `config/ai/memory-router.json:459` di dalam blok `projects.tokophi` (blok dimulai baris 391). Entri lesson global tetap ada di baris 801, tapi `bin/ai-memory-route:292` membuang kandidat yang punya owner di luar `allowed_projects`.
+- Repro: temp git repo bernama `kelola`, prompt "tokophi coolify backup". Hasil: hanya `coolify-vps-dev.md` dan `ops-lessons.md` yang terpilih. JSON reason menyatakan "excluded tokophi-infrastructure-2026-07.md: owned by tokophi, not current or explicitly referenced". Dengan `--project tokophi` file itu muncul kembali. Isolasi bekerja.
+
+**2. Ledger start menolak saat AI_FOCUS_SESSION ada tapi bin/focus hilang**
+- `bin/delivery-ledger:555-557` raise "AI_FOCUS_SESSION is set but bin/focus is missing beside this ledger".
+- Dicover `bin/focus-test:83-88` dengan salinan ledger ke `lonely-bin` tanpa focus, assert "bin/focus is missing" di stderr.
+
+**3. flock LOCK_NB dengan retry 2 detik**
+- `bin/focus:17` `LOCK_WAIT_SECONDS = 2.0`, `bin/focus:81` mode `| fcntl.LOCK_NB`, loop deadline `bin/focus:82-89`, error "focus registry is locked by another process" di baris 88.
+- Dicover `bin/focus-test:68-72` dengan lock ditahan dari proses tes, assert "locked".
+
+**4. validate_claim menolak expiresAt > now+86400**
+- `bin/focus:16` `MAX_TTL = 86400`, `bin/focus:40-42` cek tipe, finite, dan `expires > time.time() + MAX_TTL`.
+- Dicover `bin/focus-test:55-56` dengan `{'expiresAt': 10**18}` plus inf/nan/bool.
+
+**delivery-ledger-test unset env sesi caller**
+- `bin/delivery-ledger-test:10` `unset AI_FOCUS_SESSION PI_SESSION_ID CODEX_THREAD_ID`, dengan komentar alasan TASK-096 di baris 7-9.
+
+**Hasil test (baris terakhir, semua exit 0):**
+```
+focus-test: PASS (claims, overlap, concurrency, expiry, traversal, symlink, immutable ledger boundary)
+ai-memory-route-test: PASS
+delivery-ledger-test: PASS
+```
+
+Catatan kecil, bukan blocker: entri global di baris 801 untuk file yang sama jadi redundan karena selalu dibuang kecuali proyek tokophi aktif atau direferensikan. Bisa dihapus nanti untuk mengurangi duplikasi trigger. Tidak ada edit, stage, atau commit dari sisi saya. Perubahan di `skills/local/**` dan `bin/dotfiles-a1-vultr` tidak ditinjau sesuai scope.
+
+APPROVE
+claude-fable-5-1

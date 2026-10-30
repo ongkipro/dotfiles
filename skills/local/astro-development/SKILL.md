@@ -1,15 +1,7 @@
 ---
 name: astro-development
 description: >-
-  Astro architecture and implementation for sites and light-to-medium web
-  apps: pages, content collections, islands, Actions, endpoints, adapters,
-  rendering mode. Not for native-feature questions (native-first), SEO
-  strategy, or visual direction. Use when creating or auditing an Astro
-  project, running Astro CLI commands, adding pages, content collections,
-  React/shadcn islands, Actions, sessions, endpoints, middleware, adapters,
-  Cloudflare Workers deployment, or choosing static versus on-demand
-  rendering. Also use for Astro-based admin dashboards, with admin-dashboard
-  leading UX decisions and shadcn-ui leading component APIs.
+  Astro architecture and implementation: pages, content collections, islands, Actions, endpoints, middleware, adapters, static vs on-demand, Cloudflare deploy, Astro CLI. Not native-feature questions (native-first), SEO strategy, or visual direction.
 ---
 
 # Astro Development
@@ -18,33 +10,24 @@ Inspect `package.json`, the lockfile, `astro.config.*`, `tsconfig.json`, and the
 route/component tree before proposing commands or architecture. Installed code
 wins over this skill; current official docs win over remembered APIs.
 
-## Use this skill for
+Read only this file up front; open a reference when a step names it.
 
-- New Astro projects
-- Existing Astro refactors
-- Blogs, docs, landing pages, business websites, content hubs
-- Hybrid Astro apps with a few dynamic routes
-- Content collections and MD/MDX workflows
-- React/Vue/Svelte islands inside Astro
-- SEO, sitemap, robots, schema, metadata
-- Tailwind-based UI systems
-- GSAP-powered motion, reveal effects, and scroll-driven animation in Astro islands or vanilla JS
-- Contact forms, APIs, and optional database-backed features
-- Deployment to Vercel, Netlify, Cloudflare, or Node
+**Pick the path first:**
+- Small change in an existing site → inspect installed major → the one
+  numbered section that matches → §7 validate.
+- New page/feature → §1 → §2 → the sections it touches → §7.
+- New project → §1 → CLI policy → §2 → §3 → §7.
 
-## Default mindset
+## Defaults
 
-- Prefer **Astro first**, minimal JS by default
-- Ship **static HTML** unless interactivity is required
-- Hydrate only the **smallest interactive island**
-- Start with static output and opt individual routes into on-demand rendering;
-  use `output: 'server'` only when most routes are dynamic
-- Build for **clarity, performance, and maintainability**
-- For websites, prioritize **real content + strong information architecture + SEO**
-- For new or materially redesigned public UI, let **`design-taste` choose the
-  composition before Astro/shadcn components are selected**. Astro is the
-  implementation layer, not the art director.
-- When animation is needed, follow the `design-taste` motion ladder (`references/motion-craft.md` §7.1): CSS-first (transitions, `@starting-style`, scroll-driven animations in `@supports`), then WAAPI `element.animate()` or vanilla JS + IntersectionObserver; reach for **GSAP** (via the installed GSAP skills) only for real pin/scrub/timeline work — never invent bespoke animation patterns
+Astro first, minimal JS: static HTML unless interactivity is required;
+hydrate only the smallest island; static output with per-route on-demand
+rendering, `output: 'server'` only when most routes are dynamic. For new or
+redesigned public UI `design-taste` picks the composition first; animation
+follows its motion ladder (CSS → WAAPI/vanilla → GSAP only for real
+pin/scrub/timeline work). Fits: content sites, business sites, blogs/docs,
+hybrid sites with a few dynamic routes. If Astro is a poor fit (app-like,
+realtime, auth dashboard as the whole product), say so early.
 
 ## Workflow
 
@@ -261,38 +244,10 @@ See [Delivery Checklist](references/delivery-checklist.md).
 
 ## Decision rules
 
-### When to use plain Astro
-Use plain Astro when the UI is mostly static or templated.
-
-### When to use React/Vue/Svelte islands
-Use islands only for:
-- forms with client validation
-- toggles, drawers, tabs, accordions if needed
-- search/filter widgets
-- charts or rich interactions
-
-### When to use server behavior
-Use server rendering or API routes only when you need:
-- request data
-- cookies/session
-- DB queries
-- private/admin flows
-- protected actions
-
-### When not to force Astro
-Consider another framework when:
-- nearly everything is app-like and client-driven
-- collaboration/realtime is core
-- heavy auth dashboard is the whole product
-
-## Output expectations
-
-When doing Astro work, aim to produce:
-- complete file changes, not vague ideas
-- architecture choices with a short reason
-- correct Astro conventions
-- maintainable folder structure
-- minimal overengineering
+Plain Astro for static/templated UI; islands only for client validation,
+disclosure widgets, search/filter, charts, rich interaction; server rendering
+or endpoints only for request data, cookies/session, DB, private/admin flows.
+Deliver complete file changes with a one-line reason per architecture choice.
 
 ## Skill routing
 

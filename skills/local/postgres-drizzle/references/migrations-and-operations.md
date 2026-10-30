@@ -154,3 +154,14 @@ Never place an unreviewed migration, schema push, destructive rollback, drop/tru
 restore, or “fix drift” command behind a generic CI/deploy step. Give `github-actions` a
 read-only generation/inspection contract or an isolated ephemeral database check; CI
 must not infer production authorization from a passing build.
+
+## Generated SQL review checklist (moved from SKILL.md 2026-10-30)
+
+Review the complete SQL in execution order. Account for every statement and inspect:
+
+- unexpected drops, renames inferred as drop/add, casts, truncation, or default changes;
+- null/duplicate/orphan failures and FK/check/unique semantics;
+- transaction boundaries and statements that cannot use the intended transaction;
+- table/index lock mode, scan/rewrite cost, index build strategy, and timeout policy;
+- extension, schema, role, ownership, search-path, and privilege assumptions;
+- deterministic backfills, retry/resume behavior, and old/new application compatibility.

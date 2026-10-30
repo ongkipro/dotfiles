@@ -1,13 +1,14 @@
-upstream: https://raw.githubusercontent.com/morluto/rea/main/.agents/skills/reverse-engineer-anything/SKILL.md
-verified: 2026-10-20
+upstream: https://raw.githubusercontent.com/morluto/rea/c0c3902207d6b1a33709e42b80c7e570da7db964/.agents/skills/reverse-engineer-anything/SKILL.md
+verified: 2026-10-30
 scope: directory
 sync_tool: bin/rea-skill-sync
-rea_version: 6.7.0
-skill_version: 43
-upstream_commit: ee12d517a25d34853d40e31fc039c7d1576c60e1
+rea_version: 6.8.0
+skill_version: 55
+upstream_commit: c0c3902207d6b1a33709e42b80c7e570da7db964
 reason: Preserves 100% of upstream reverse-engineer-anything SKILL.md body and all
   upstream references/*.md verbatim via bin/rea-skill-sync, while renaming the skill
   to black-magic, front-loading the <240-char Not-for sibling boundary for Codex
   truncation safety, and adding references/dotfiles-integration.md for CLI-first
   execution and dotfiles sibling skill handoffs.
 refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is present.
+description: 2026-10-30 skill-efficiency pass — frontmatter description rewritten to ≤250 chars (what + boundary front-loaded; Codex truncates at ~250). Body untouched by this pass. Re-apply after a byte-for-byte refresh; see docs/skill-efficiency-audit-2026-10-30.md.

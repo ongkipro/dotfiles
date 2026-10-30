@@ -1,0 +1,10 @@
+**APPROVE** — no remaining blockers to explicit project isolation found in the supplied diff.
+
+- Ownership keys and candidate paths both use `resolve()`, closing the `./` and symlink-alias ownership bypasses.
+- Every nonexecution candidate must remain beneath the canonical memory root.
+- The ownership filter applies across all candidate tiers, preventing shared/lesson routes from admitting unauthorized project-owned files.
+- Foreign-project admission uses explicit references or session references; natural-language mentions do not expand the allowed-project set.
+
+Minor nonblocking cleanup: the boundary comment and exclusion message still say “named in the prompt” / “named project,” although authorization now comes from explicit reference arguments or session entries.
+
+Static review only; no tests executed.

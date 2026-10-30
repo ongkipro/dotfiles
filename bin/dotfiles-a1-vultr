@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# vultr-cli for the "dotfiles-a1" account. The token comes from secrets-env
+# (VULTR_DOTFILES_A1_API_KEY) and lives only in this child's environment.
+# Usage: dotfiles-a1-vultr <vultr-cli args...>   e.g. dotfiles-a1-vultr account info
+set -euo pipefail
+
+key=$(secrets-env get VULTR_DOTFILES_A1_API_KEY 2>/dev/null || true)
+if [ -z "$key" ]; then
+  echo "dotfiles-a1-vultr: VULTR_DOTFILES_A1_API_KEY is empty in ~/.config/ai-local/secrets.env" >&2
+  exit 1
+fi
+VULTR_API_KEY="$key" exec vultr-cli "$@"

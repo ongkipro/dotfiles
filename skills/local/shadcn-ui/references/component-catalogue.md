@@ -46,11 +46,9 @@ Below: only the things the docs won't warn you about.
 
 ## Registry items that don't exist (or no longer do)
 
-- **`form` is emptied out on the current style.** Under `radix-nova` (verified),
-  `form.json` returns 200 with `files: []` and the CLI reports "No files" — so
-  `add form` is a silent no-op and `@/components/ui/form` never appears. Legacy
-  styles (`default`, `new-york-v4`) still ship `form.tsx`, so existing code that
-  imports it is not broken. **For new work use `field`** (`add field` →
+- **`form` writes no files on current styles.** `add form` reports "No files"
+  and `@/components/ui/form` never appears. Legacy styles (`new-york-v4`) still
+  ship `form.tsx`, so existing code that imports it is not broken. **For new work use `field`** (`add field` →
   `field.tsx`, `label.tsx`, `separator.tsx`) with React Hook Form's
   `Controller`; see the form recipe in `recipes.md`. Check `components.json`
   `style` before concluding either way.

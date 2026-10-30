@@ -1,6 +1,7 @@
 ---
 name: mermaid-diagram
-description: 'Generate a Mermaid diagram from a description, codebase, or schema as a Mermaid code block. Not for deciding architecture (adr-record), API contracts (openapi-spec), or polished data charts. Use for flowcharts, ERDs, sequence diagrams, C4 context, class, state, gantt, pie, mindmap, timeline, git graph, quadrant, architecture, block, packet, kanban, and xychart diagrams. Triggers: ''buat diagram'', ''create diagram'', ''flowchart'', ''ERD'', ''sequence diagram'', ''mermaid'', ''diagram alur'', ''flow diagram'', ''visualisasi'', ''visualization'', ''database diagram'', ''class diagram'', ''pie chart'', ''mindmap'', ''git graph'', ''quadrant chart'', ''C4''.'
+description: >-
+  Generate a Mermaid diagram (flowchart, ERD, sequence, C4, class, state, gantt, mindmap, timeline, git graph, architecture) from a description, codebase, or schema. Not architecture decisions (adr-record) or API contracts (openapi-spec).
 ---
 
 # Mermaid Diagram

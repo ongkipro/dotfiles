@@ -30,3 +30,10 @@ To drive a page, install `playwright-core` in a scratch directory and pass that
 binary as `executablePath`. `chrome-devtools-mcp` refuses to attach whenever
 another Chrome already holds `~/.cache/chrome-devtools-mcp/chrome-profile`, which
 is the normal state when a browser is open.
+
+**Verified 2026-10-29 (`99ribu`, mise node 24.22.1):** a global `playwright` CLI
+1.64.1 is on PATH (mise), the project pins `@playwright/test` 1.64.1, and the
+cache holds `chromium-1248`, `chromium_headless_shell-1248`, `webkit-2370`. Both
+the bundled Chromium 156 and `/snap/bin/chromium` 156 launched headless and
+rendered a page. Project browser suites take
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE=/snap/bin/chromium`.

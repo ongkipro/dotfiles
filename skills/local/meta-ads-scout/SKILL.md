@@ -1,9 +1,7 @@
 ---
 name: meta-ads-scout
 description: >-
-  Research competitor advertising in Meta Ad Library using the official API first and the public
-  UI for manual review when the API does not cover the requested market or ad category. Triggers:
-  riset ads, facebook ads, meta ads library, cari iklan kompetitor, bedah copywriting fb ads, spy ads.
+  Research competitor ads in the Meta Ad Library: official API first, public UI for manual review when the API lacks the market or category. Not campaign operations (meta-ads-cli) or tracking. Triggers: riset ads, cari iklan kompetitor, spy ads.
 ---
 
 # Meta Ads Scout

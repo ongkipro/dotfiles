@@ -17,7 +17,7 @@
         ],
         "owners_any": [
           "repository",
-          "volumx-writer"
+          "writer"
         ],
         "steps_all": [
           "report-actual-state"
@@ -77,7 +77,7 @@
         ],
         "owners_any": [
           "repository",
-          "volumx-writer"
+          "writer"
         ],
         "steps_all": [
           "ask-target"
@@ -103,7 +103,7 @@
           "implement"
         ],
         "owners_any": [
-          "volumx-writer"
+          "writer"
         ],
         "steps_all": [
           "preserve-language",

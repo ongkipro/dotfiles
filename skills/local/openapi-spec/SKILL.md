@@ -1,6 +1,7 @@
 ---
 name: openapi-spec
-description: 'Generate, review, and validate an OpenAPI 3.1/3.2 spec (YAML/JSON) from an endpoint description, a codebase, or existing routes. Not for API implementation code, auth design, or diagrams (mermaid-diagram). Output feeds Redoc, Swagger UI, or type generation. Use when documenting a REST API, creating an API contract before coding, or reviewing an existing API. Triggers: ''buat openapi'', ''build openapi'', ''api spec'', ''dokumentasi api'', ''api documentation'', ''swagger'', ''openapi'', ''api contract'', ''api docs'', ''generate spec''.'
+description: >-
+  Generate, review, and validate an OpenAPI 3.1/3.2 spec from an endpoint description, codebase, or routes; feeds Redoc, Swagger UI, codegen. Not API implementation, auth design, or diagrams (mermaid-diagram). Triggers: buat openapi, api spec, swagger.
 ---
 
 # OpenAPI Spec
@@ -14,6 +15,14 @@ Generate and validate an OpenAPI spec from a description or an existing codebase
 - **New spec:** default to `3.1.x`, the line most generators, mock servers, and validators support. Choose `3.2.0` only when it is needed and the project's toolchain (linter, docs renderer, code generator) is confirmed to support it.
 - 3.2 additions worth choosing it for: the `query` HTTP method and `additionalOperations` for other methods; `itemSchema` for streaming sequential media (SSE, JSON Lines); hierarchical tags (`summary`, `parent`, `kind`); a top-level `$self` base URI; a `querystring` parameter location; OAuth 2.0 device authorization flow plus `oauth2MetadataUrl` and `deprecated` on security schemes; and an optional `summary` on Response Objects. Using any of these makes the document 3.2-only.
 
+Read only this file up front; open a reference when a step names it.
+
+**Pick the path first:**
+- `review` an existing spec → Rules for Good Schemas → Validation.
+- `expand` → Endpoint Generation Guide → Validation.
+- `generate` / `from-code` → Version choice → Base template → Endpoint
+  Generation Guide → Rules → Validation → Stack Integration.
+
 ## Modes
 
 - **`generate`** — create a new spec from an endpoint description or from structured `api-surface` Evidence extracted from a `.har`/`.saz` capture or web bundle via `black-magic`
@@ -21,161 +30,11 @@ Generate and validate an OpenAPI spec from a description or an existing codebase
 - **`expand`** — add new endpoints to an existing spec
 - **`from-code`** — read route files and generate a spec from the code
 
-## Base Template (OpenAPI 3.1)
+## Base template
 
-```yaml
-openapi: 3.1.0
-info:
-  title: [Project Name] API
-  version: 1.0.0
-  description: |
-    API for [short description].
-
-servers:
-  - url: https://api.example.com/v1
-    description: Production
-  - url: http://localhost:3000/api
-    description: Local dev
-
-security:
-  - bearerAuth: []
-
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
-  schemas:
-    # RFC 9457 Problem Details, served as application/problem+json
-    Problem:
-      type: object
-      required: [type, title, status]
-      properties:
-        type:
-          type: string
-          format: uri-reference
-        title:
-          type: string
-        status:
-          type: integer
-        detail:
-          type: string
-        instance:
-          type: string
-          format: uri-reference
-
-    User:
-      type: object
-      required: [id, email]
-      properties:
-        id:
-          type: string
-          format: uuid
-        email:
-          type: string
-          format: email
-
-    CreateUserInput:
-      type: object
-      required: [email]
-      properties:
-        email:
-          type: string
-          format: email
-
-    # Cursor pagination: cursors are opaque; no total count on large sets
-    Pagination:
-      type: object
-      properties:
-        next_cursor:
-          type: [string, "null"]
-
-  responses:
-    Unauthorized:
-      description: Missing or invalid token
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/Problem'
-    BadRequest:
-      description: Validation error
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/Problem'
-    TooManyRequests:
-      description: Rate limit exceeded
-      headers:
-        Retry-After:
-          description: Seconds to wait before retrying
-          schema:
-            type: integer
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/Problem'
-
-paths:
-  /users:
-    get:
-      summary: List users
-      operationId: listUsers
-      tags: [Users]
-      parameters:
-        - name: cursor
-          in: query
-          description: Opaque cursor from a previous response; never built by clients
-          schema:
-            type: string
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-      responses:
-        '200':
-          description: List of users
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/User'
-                  pagination:
-                    $ref: '#/components/schemas/Pagination'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-
-    post:
-      summary: Create user
-      operationId: createUser
-      tags: [Users]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateUserInput'
-      responses:
-        '201':
-          description: User created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-
-```
+Start from `references/base-template.md` (info, servers, security scheme,
+shared `Error`/`BadRequest`, one paginated list and one create endpoint as
+shapes). Set `openapi:` to the patch you validated against.
 
 ## Endpoint Generation Guide
 

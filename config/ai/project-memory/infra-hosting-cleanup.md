@@ -21,7 +21,7 @@ Hasil audit + cleanup multi-host (2026-07-08). Angka = snapshot, bisa berubah.
 
 ## Belum beres (pending)
 - **2 Vercel "split-brain" yatim** (domain dilayani Cloudflare, deploy Vercel mubazir): project `jwco` (jasawebsite.co) & `petanisejahtera` (petanisejahtera.com). Aman dihapus → Vercel jadi 10, domain-map 0 konflik. User minta tahan dulu.
-- Portofolio front-door belum: profile README repo `ongkipro` (masih 1KB) + pin 6 repo (rencana di dotfiles `docs/github-account-cleanup-plan.md`).
+- Portofolio front-door belum: profile README repo `ongkipro` (masih 1KB) + pin 6 repo (rencana di dotfiles `docs/archive/github-account-cleanup-plan.md`).
 
 ## Catatan teknis
 - wrangler tak punya perintah list-all-workers → pakai CF API. Token OAuth di `~/.config/.wrangler/config/default.toml` sempat expired; di-refresh via OAuth client wrangler (`54d11594-...`) & ditulis balik 2026-07-08. Kalau expired lagi, refresh ulang / `wrangler login`.

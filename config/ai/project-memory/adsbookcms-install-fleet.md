@@ -53,3 +53,49 @@ sync, distance behind the product, last deploy and schema (A-51).
 Fleet state, findings and decisions are owned by
 `HANDOVER-2026-08-19-install-fleet-audit.md` on `install/zvarashop`, not by this
 file. See [[prefer-git-worktree]] and [[no-ai-commit-trailer]].
+
+
+---
+
+
+## Lesson: Syncing a no-shared-history install: product-whole tree, not hunk merges
+
+### Symptom
+Hunk-level three-way merge of permatamall onto product 1.5.0 produced duplicate functions/identifiers (28 failing tests); a commit-tree sync of zanobyshop failed CI's route-map drift test though local tests passed.
+
+### Root cause
+The store had upstreamed features the product later rewrote, so both sides added the same code at different positions and merged cleanly into duplicates. git write-tree reads the index, and the regenerated route map was written after the last git add.
+
+### Durable invariant
+For installs without shared history (zanobyshop, permatamall): product-owned files come from the product whole; keep only store-added files, register files, public/, wrangler.jsonc, README/RELEASE. Run regenerators before the final git add and assert git diff --quiet before write-tree.
+
+### Fix
+Rebuilt the permatamall tree from product/main plus store-only files; moved the landing pages' divergent toast to an install-owned component; regenerated and committed the route map for zanobyshop.
+
+### Regression check
+npm test / npm run check / npm run build in the final checkout with git status clean before pushing a branch that auto-deploys.
+
+> Promoted from a reviewed local candidate on 2026-10-29.
+
+
+---
+
+
+## Lesson: Install deploy from a checkout missing D1-applied store migrations serves 503
+
+### Symptom
+After a routine product merge and npm run deploy, zvara.shop answered 503 'Database toko belum siap' on every DB-backed route; fleet:status showed schema 74/69 (applied/expected) both before and after.
+
+### Root cause
+Store migrations 0069-0073 were applied to production D1 and deployed on 2026-10-14 from a working tree on another device, never committed or pushed. A build from the pushed branch bundles only 69 migrations; the runtime schema guard refuses an ahead history with a labelled 503. preflight:deploy checks the tree against its upstream, not the D1 ledger against the bundle.
+
+### Durable invariant
+Every migration recorded in an install's production d1_migrations must exist in the checkout being deployed; applied > expected in fleet:status means do not deploy from this tree.
+
+### Fix
+wrangler rollback to the previous version id restored service in under a minute; the missing migration files must come from the device that applied them before that install can take a new release.
+
+### Regression check
+npm run fleet:status -- <install>: schema column applied must equal expected before npm run deploy; after deploy curl / and /produk return 200.
+
+> Promoted from a reviewed local candidate on 2026-10-29.

@@ -1,468 +1,182 @@
 ---
 name: shadcn-ui
 description: >-
-  Use shadcn/ui as the default component source for React-capable admin
-  surfaces across Next.js, Vite, React Router, Astro, and other supported
-  runtimes. Not workflow (admin-product-ux), presentation or IA
-  (admin-dashboard), or browser proof (ui-validation). Also use for forms, data
-  tables, charts, sidebars, blocks, themes, preset switches, namespaced
-  registry items, semantic tokens, registry inspection, and component
-  installation. Read components.json first because style, Tailwind
-  configuration, aliases, base primitives, and prefixes change the generated
-  code. Preserve native semantics and minimal hydration; shadcn is not a
-  reason to render static markup through React.
+  Add, compose, and customize shadcn/ui components through the official CLI in React projects (Next.js, Vite, React Router, TanStack Start, Astro islands): components.json, registries, forms, data tables, charts. Not workflow, IA, or browser proof.
 ---
 
-# shadcn/ui Components
+# shadcn/ui
 
-Install and use only the shadcn/ui components required by the accepted screen.
-Read `components.json` (next section), `package.json`, and the existing
-`src/components/ui` before anything else, and reuse what is already there.
-Before emitting a CLI command or component API, verify it against the current
-registry — the CLI, the copied source, and even *which items exist* change over
-time and differ by style.
+Components are copied into the project as source. The CLI reads
+`components.json` and generates code for *this* project, so the same command
+yields different files elsewhere. Discover with the CLI; never recite
+component APIs, registry items, or flags from memory.
 
-Do not use a block, registry example, or default component composition to choose
-the product workflow or visual direction. Before component mapping, require an
-accepted screen contract and presentation direction: `admin-product-ux` then
-`admin-dashboard` for admin/CMS, `storefront-ux` plus the accepted storefront
-direction for commerce, or `design-taste` for public/marketing surfaces. When a
-suite is active, consume `UX-*` from
-`17-UX-FLOWS-SCREEN-CONTRACTS.md` and `UI-*` from
-`10-DESIGN-SYSTEM-WHITELABEL.md`.
+**Minimum path for any task:** `shadcn info --json` → check installed →
+`shadcn docs <component>` and read it → for anything missing, `add --dry-run`
+then `add` and review the files → compose per §5 → `ui-validation`. Read §3 only when touching tokens,
+§4 only when the project's `base` differs from the example you are adapting.
 
-For an accepted admin screen, shadcn/ui is the house default component source
-when the selected runtime supports React. It is not a universal render layer:
-native semantics remain underneath, and static Astro markup must not be
-hydrated merely for visual consistency. Read
-[Admin component system](references/admin-component-system.md) for the
-cross-framework component, runtime, responsive, and performance contract.
+For a new screen or dashboard, component mapping comes **after** an accepted
+screen and direction (`admin-product-ux` → `admin-dashboard` for admin,
+`storefront-ux` for commerce, `design-taste` for public pages). A single form
+or component inside an existing screen needs no new contract. A block never
+chooses the workflow or the look. File upload, storage, and submit handlers
+are the framework's and backend's; this skill maps the visible controls. Native semantics stay underneath; static Astro markup
+is not hydrated for visual consistency
+([admin-component-system.md](references/admin-component-system.md)). After a
+visible change, `ui-validation`.
 
-After a browser-visible component change, use `ui-validation` for the smallest
-viewport, keyboard, state, and accessibility evidence. Component compilation
-alone is not UI proof.
+## 1. Project context first
 
-For admin work, load `admin-product-ux` first when workflow, permissions, or
-screen states are not explicit; then load `admin-dashboard` for hierarchy,
-responsive behavior, and the admin visual contract (sizes and surfaces). Load the installed
-framework skill for server/client/island boundaries. This skill owns the final
-component mapping and copied component source.
-
-**Prerequisite:** Tailwind CSS and the project's token strategy must already be
-understood. For an accepted new shadcn setup, verify the current CLI help and
-official installation guide first; do not assume generated paths or
-configuration choices.
-
-**On running the CLI at all:** `ui-validation` bans `npx`/`dlx` for QA tooling,
-because a throwaway download must never sit between you and the evidence.
-Component scaffolding is the deliberate exception — `shadcn` is a code generator
-that copies source into the repo, not a runtime dependency. Prefer the
-project-local binary whenever `shadcn` is already in `package.json`, and never
-extend this exception to anything else.
-
-## Read `components.json` first — it changes the answers
-
-This is not a formality. The same `shadcn add` command produces different files
-in different projects, and every field below silently rewrites the guidance in
-the rest of this skill.
-
-| Field | Why it changes what you write |
-|---|---|
-| `style` | Picks the registry variant. **This decides whether an item even exists** — on `radix-nova`, `add form` writes nothing, while `default` and `new-york-v4` still ship `form.tsx`. Hardcoded classes differ too (`DialogContent` is `sm:max-w-sm` on radix-nova). **Immutable after init.** |
-| `tailwind.config` | Empty string = v4, CSS-first, no JS config. A path means a v3-era project and most of the next section does not apply. |
-| `tailwind.css` | Where the tokens actually live. Do not assume `globals.css` — an Astro project may use `src/styles/global.css`. |
-| `tailwind.cssVariables` | `false` means no semantic tokens; `bg-primary` won't exist and dark mode is not wired the way this skill assumes. **Immutable after init.** |
-| `tailwind.baseColor` | The palette already chosen. Never overwrite an existing `--chart-*` / neutral ramp with the docs' defaults. **Immutable after init** — a wrong value is a re-init decision, not an edit. |
-| `tailwind.prefix` | Non-empty ⇒ every utility in every snippet here needs it, and **on v4 the form is a colon variant** (`tw:flex`, `tw:hover:bg-primary`), not v3's `tw-flex`. v4's `prefix()` also renames theme variables (`--tw-color-*`), so the `--chart-*` guidance below shifts with it. |
-| `aliases.*` | The real import paths — `ui`, `components`, `utils`, `lib`, `hooks`. `@/components/ui` is a default, not a guarantee. |
-| `iconLibrary` | The project's one icon set. Keep one library across the surface; do not add a second set for a component or screen. |
-| `rsc` | Whether the CLI stamps `"use client"` onto generated client components. `false` ⇒ it does not. In a non-RSC project (Astro, Vite, React Router) that is correct; in a Next App Router repo it means **you** add the directive by hand, and `admin-dashboard`'s server/client rules still apply. |
-| `tsx` | `false` ⇒ `.jsx` output and no TS types; every typed snippet here needs stripping. |
-| `registries` | Extra or private registries. Non-empty ⇒ `add <item>` may resolve outside shadcn's own registry, and nothing in this skill describes that source. Confirm where an item came from before trusting any guidance here. |
-
-The real file can also carry keys the docs don't list (`rtl`, `menuColor`,
-`menuAccent` all appear in our projects). Read it before the first command, not
-after the first failure.
-
-## Project-aware workflow
-
-Apply this workflow when working on shadcn components, settings/forms,
-dashboards, presets, or registry items in a project with `components.json`.
-Its presence is a project-context signal, not a reason to initialize shadcn or
-change unrelated code. A skill is guidance; automatic loading still depends on
-the assistant's skill discovery rather than a hook installed by this file.
-
-1. On each shadcn-related interaction, run the installed project CLI's
-   `shadcn info --json` from the target application directory (for example,
-   `pnpm exec shadcn info --json` in a pnpm project). Inspect `components.json`,
-   the lockfile, and copied components alongside the result. If the command is
-   unavailable or fails, use those files and disclose the missing context;
-   do not install or upgrade a CLI just to perform inspection.
-2. Use the returned framework, Tailwind version, aliases, resolved paths,
-   installed components, icon library, and base library (`base`, `radix`, or
-   `aria`). Read the matching base-specific docs and local component source;
-   do not transfer composition APIs such as `asChild` between bases by memory.
-   An inferred preset with fallback values is not proof of the app's actual
-   font or rendered theme; inspect the CSS and layout before changing them.
-3. Discover before generating: use local CLI discovery (`shadcn docs`,
-   `shadcn search`, `shadcn view`) and inspect local `src/components/ui/`
-   files rather than guessing props or subcomponents from outdated model
-   pre-training. For a requested namespaced item such as `@tailark`, resolve
-   the actual registry item and its dependencies before installation; do not
-   invent registry URLs or item names.
-4. Compose with existing primitives: `FieldGroup`/`Field` for related form
-   fields, `ToggleGroup` for related toggle options, and semantic color tokens.
-   Keep native form behavior, labels, validation, and the control semantics
-   appropriate to the job; navigation is not a toggle group. Customize copied
-   components and variants rather than duplicating parallel implementations.
-5. For a requested preset switch, ask first: overwrite, partial, merge, or
-   skip. Inspect with `shadcn preset resolve --json` (current) and
-   `shadcn preset decode <code> --json` (incoming); never decode a preset code
-   by hand. Then:
-   - overwrite: `shadcn apply <code>` (rewrites detected components, fonts,
-     CSS variables; needs an existing `components.json`, keeps its base);
-   - partial: `shadcn apply <code> --only theme,font` (no component reinstall);
-   - merge / skip: `shadcn init --preset <code> --force --no-reinstall`, then
-     for merge update each installed component with `add --dry-run`/`--diff`.
-   Review the diff for local customizations and token changes, then apply
-   `ui-validation`. A successful CLI exit does not prove the appearance changed.
-
-## Official shadcn skill and references
-
-The [official Skills guide](https://ui.shadcn.com/docs/skills) describes project
-context, CLI commands, theme customization, and registry authoring.
-Verified against that guide on 2026-09-14. It documents project installation with:
+Run the CLI through the project's package runner, chosen from
+`packageManager`/lockfile: `npx shadcn@latest`, `pnpm dlx shadcn@latest`, or
+`bunx --bun shadcn@latest`. Use only documented flags (`--help`); there is no
+`--package-manager` flag. `ui-validation`'s ban on `npx`/`dlx` for QA tooling
+does not apply to this code generator; do not extend the exception.
 
 ```bash
-npx skills add shadcn/ui
+shadcn info --json      # framework, tailwindVersion, aliases, resolvedPaths, base, style, iconLibrary, isRSC, packageManager, installed components, preset
 ```
 
-This is an optional skill-installation workflow, separate from component
-scaffolding or QA tools. Do not run it merely because an existing project uses
-shadcn. On this setup, update the owned skill at
-`~/dotfiles/skills/local/shadcn-ui` rather than creating a competing local copy.
-If installing the upstream skill is explicitly requested, inspect the
-installer's current help and destination first: runtime skill directories may
-resolve into the tracked owned-skill tree. Do not overwrite that tree with
-unreviewed upstream files; deliberate vendoring uses the existing `.source`
-and `_refresh-vendored.sh` convention.
+Use its fields, not folder names: `aliases` for import prefixes; `isRSC`
+true ⇒ hooks/handlers/browser APIs need `"use client"`; `tailwindCssFile` is
+the only CSS file to edit for tokens; `base` (`base` | `radix` | `aria`)
+decides component APIs; `iconLibrary` decides icon imports (never assume
+`lucide-react`); `packageManager` for any non-shadcn install.
 
-Load the relevant official reference for the requested operation:
+`components.json` fields that silently change the answer: `style` (registry
+variant; which items exist; immutable), `tailwind.config` (`""` = v4),
+`tailwind.cssVariables` (`false` = no semantic tokens; immutable),
+`tailwind.baseColor` (change only via `migrate base-color`),
+`tailwind.prefix` (v4 form is `tw:flex`), `rsc`, `tsx`, `aliases`
+(`tsconfig` paths or `package.json#imports`), `registries`.
 
-- [CLI](https://ui.shadcn.com/docs/cli): `init`, `apply`, `add`, `search`,
-  `view`, `docs`, `info`, `preset`, `migrate`, and `build` (`diff` is
-  deprecated); verify installed help for flags, dry runs, templates, presets.
-- [Theming](https://ui.shadcn.com/docs/theming): CSS variables, OKLCH, custom
-  colors, radius, variants, and the appropriate Tailwind v3/v4 conventions.
-- [Registry](https://ui.shadcn.com/docs/registry): `registry.json`, item types,
-  file objects, dependencies, CSS variables, building, hosting, and user config.
-- [skills.sh](https://skills.sh): skill distribution and installation.
+## 2. Workflow
 
-Radix to Base UI migration has its own vendor skill,
-[`migrate-radix-to-base`](https://github.com/shadcn-ui/ui/tree/main/skills/migrate-radix-to-base);
-point to it when a base switch is requested, do not vendor it here.
+1. **Check installed components** in `info` / `resolvedPaths.ui` before
+   `add`; do not import what is not installed or re-add what is.
+2. **Find**: `shadcn search @shadcn -q <term>` (registry arg is `@name` or
+   `owner/repo`; `list` is an alias). **Registry must be explicit** — if the
+   user did not name one, ask; never default on their behalf.
+3. **Read docs before writing**: `shadcn docs <component...>` returns doc,
+   example, and API URLs — fetch them. `shadcn view <item>` for uninstalled
+   registry metadata; `shadcn add <item> --dry-run | --diff [file] | --view
+   [file]` for what would happen in this project.
+4. **Install**: `shadcn add <items>`. `add` installs the npm and registry
+   dependencies the item declares; `--dry-run` shows them (`table` declares
+   none — `@tanstack/react-table` is yours). `--all` only for a design-system
+   showcase app, never to "get everything".
+5. **Review every added file**: missing sub-components, wrong composition,
+   icons not from `iconLibrary`. Third-party registry items may hardcode
+   `@/components/ui/...`; rewrite to the project's `ui` alias.
+6. **Update** a customized component: `add <item> --dry-run`, then `--diff
+   <file>` per file, merge by hand where local changes exist. `--overwrite`
+   only with explicit user approval. Never fetch raw files from GitHub;
+   `shadcn diff` is deprecated.
+7. **Presets**: ask overwrite / partial / merge / skip first. Inspect with
+   `preset resolve [--json]` (current) and `preset decode <code>` (incoming);
+   never decode codes or build URLs by hand. Overwrite = `apply <code>`;
+   partial = `apply <code> --only theme,font`; merge/skip = `init --preset
+   <code> --force --no-reinstall` (merge then diffs each installed component).
+   Run inside the project; codes do not encode the base, so pass `--base`
+   in a scratch directory.
 
-Current official documentation and installed code own API/CLI details. This
-owned skill adds project package-manager conventions, native-first decisions,
-product/design routing, and browser verification. Preserve explicit user choices
-and local customizations when combining them.
+`init` (alias `create`): `--template next|vite|start|react-router|astro|laravel`,
+`--base base|radix|aria`, `--preset <name|code|url>`, `--name`, `--monorepo`,
+`--rtl`, `--pointer`, `--css-variables`, `--defaults` (= `--template=next
+--preset=nova`). It installs `cn`, writes a one-line `lib/utils.ts`
+(`export { cn } from "cn"`), and adds `@import "shadcn/tailwind.css"` to the
+global CSS; `eject` inlines that import (irreversible). Migrations: `migrate
+cn | icons | base-color | radix | rtl` (`migrate cn` needs Tailwind v4; v3
+keeps `tailwind-merge` v2).
 
-## Tailwind v4 baseline (verified 2026-08-09)
+## 3. Tailwind v4 theming
 
-The user's projects are on Tailwind v4. Assume v4 unless the repo proves
-otherwise, and check `components.json` + the main CSS file before writing code.
+- Tokens are raw `oklch()` on top-level `:root` and `.dark`, exposed through
+  `@theme inline` (`--color-primary: var(--primary)`); keep them outside
+  `@layer base`. New token = define in both, map in `@theme inline`, then use
+  `bg-warning`.
+- `--radius` seeds the whole radius scale (`--radius-sm … --radius-4xl`);
+  change the seed, not individual radii.
+- Dark mode: `@custom-variant dark (&:is(.dark *))` — one variant, not also
+  the media strategy. No manual `dark:` color overrides in components.
+- No `hsl(var(--token))` wrapper (v3 habit; produces an invalid color).
+  Arbitrary CSS-variable utilities use parentheses: `fill-(--color-desktop)`.
+- v3 projects (`tailwind.config` set) use `tailwind.config.js`; the rules
+  above do not apply unchanged.
 
-- **CSS-first config.** `tailwind.config.ts` is no longer auto-detected;
-  `components.json` carries `"tailwind": { "config": "" }`. A JS config only
-  loads via an explicit `@config` directive, and `corePlugins`, `safelist`, and
-  `separator` are unsupported. Colors defined in a v3 `theme.extend.colors`
-  simply do not register.
-- **Class-based dark needs a custom variant.** `dark:` defaults to the media
-  strategy; `init` writes `@custom-variant dark (&:is(.dark *));`. Tailwind's own
-  documented form is `&:where(.dark, .dark *)`, which also matches the element
-  carrying the class and adds no specificity. Either works — don't run both.
-- **Tokens are raw `oklch()`**, declared on top-level `:root` and `.dark`.
-  Keep them OUT of `@layer base` — inside a layer they lose to unlayered author
-  styles. (The official chart docs page still shows the `@layer base` form; the
-  v4 migration guide overrides it.)
-- **No `hsl()` wrapper.** v3's `hsl(var(--token))` double-wraps an oklch value
-  into an invalid color and renders unstyled.
-- **Arbitrary CSS-variable classes use parentheses, not brackets:**
-  `fill-(--color-desktop)`, not `fill-[--color-desktop]`. The bracket form
-  silently emits nothing. A `fill="var(--color-desktop)"` *prop* is a plain SVG
-  attribute and is unaffected — only the `className` form changed.
-- `tailwindcss-animate` was replaced by `tw-animate-css`. Components dropped
-  `forwardRef` for `React.ComponentProps<…>` plus a `data-slot` attribute, so
-  v3-era component bodies won't match current styling hooks.
-
-## Commands and package manager
-
-**Use the project's own package manager** — check the lockfile, don't assume.
-Our projects are mixed: most are npm, a few pnpm.
-
-Resolution order, and **check rather than assume** — global installs are
-per-device:
-
-1. The project's own binary when `shadcn` is in its `package.json`. Its pinned
-   version wins inside an established repo.
-2. A global install when `command -v shadcn` succeeds; verify its version before
-   relying on it.
-3. `npx shadcn@latest`, only to scaffold a project that has neither.
-
-```bash
-shadcn init                 # new setup (npx shadcn@latest init if not installed)
-shadcn add <item>           # inside the project
-```
-
-Discovery beats memory — these subcommands did not exist when most shadcn
-examples online were written:
-
-```bash
-shadcn search @shadcn -q <term>   # `list` is an alias
-shadcn docs <item>                # canonical docs + example URLs
-shadcn view <item>                # the ACTUAL current registry item, as JSON
-shadcn add <item> --dry-run       # what would be written, and which deps
-shadcn add <item> --diff [path]   # diff against installed files (implies --dry-run)
-shadcn add <item> --view [path]   # file contents that would be written
-```
-
-To update an installed, locally customized component, preview with
-`--dry-run` and `--diff` and merge by hand; never `--overwrite` blindly.
-`shadcn diff` is deprecated in CLI v4 (its help says: use `add [component]
---diff`).
-
-Two traps: the **`@namespace` is required** (a bare `shadcn search button`
-errors out), and these must be **run inside the project** — `docs` and `view`
-resolve against its `style`, so the same command returns the `radix` page in one
-project and the `base` page in another.
-
-For an installed project, prefer one machine-readable context command before
-planning components:
-
-```bash
-shadcn info --json
-```
-
-Do not infer framework, aliases, base library, or installed items from folder
-names when this command can resolve them.
-Since CLI 4.21.2 a UTF-8 byte order mark at the start of `components.json` or
-`package.json` is accepted; an older pinned CLI fails to parse such a file, so
-strip the BOM rather than debugging the config.
-
-`init` creates `components.json`, `src/lib/utils.ts`, and
-`src/components/ui/`, and writes the token block into your main CSS file. On v4
-it does NOT write `tailwind.config.ts` — the config is the CSS, and dark mode is
-a `@custom-variant dark (&:is(.dark *))` line rather than a `darkMode` key.
-
-Since September 2026 `cn` is an npm package (`cn`, published by shadcn):
-`utils.ts` is the one line `export { cn } from "cn"`, and current registry items
-(`button`, `chart`, `combobox`, ...) declare `cn` as an npm dependency. An older
-project keeps the `clsx` + `tailwind-merge` body; `shadcn migrate cn` converts
-it, which is a requested change, not a side quest. Expect `add` to install `cn`
-into a pre-migration project. Sources (verified 2026-10-02):
-https://ui.shadcn.com/docs/changelog, registry JSON
-`https://ui.shadcn.com/r/styles/base-nova/utils.json`.
-
-The old "Style: Default or New York" / "Base color" prompts are gone. `init`
-(alias `create`) in CLI 4.21.3 (`init --help`, 2026-10-07) takes `--template`
-(`next|start|vite|react-router|laravel|astro`), `--base` (`base` for Base UI,
-`radix`, `aria` for React Aria), `--preset` (name, code, or URL),
-`--css-variables`/`--no-css-variables` (default true), `--monorepo`, `--rtl`,
-`--pointer`, `--no-reinstall`, `--name`, `--force`, and `--defaults`, which
-means `--template=next --preset=base-nova`: a defaults init lands on Base UI,
-not Radix. Preset codes do not encode the base, so pass `--base` when you need
-one explicitly. Verify with `--help`; this list is a snapshot, not a contract.
-
-## Select components from the accepted screen
-
-Do not install a foundation pack or a category bundle. Map the accepted
-screen's regions to the smallest component set, reuse copied source first, then
-inspect each new registry item:
-
-```bash
-shadcn view button
-shadcn add button --dry-run
-shadcn add button
-```
-
-For admin work, use
-[Admin component system](references/admin-component-system.md) as the decision
-inventory. It covers foundation, navigation, forms, data operations, overlays,
-analytics, responsive transformations, and runtime cost without turning that
-inventory into an install command.
-
-Two registry items people still reach for won't give you what they expect:
-
-- **`form`** is emptied out on the current style. Verified on `radix-nova`:
-  `form.json` returns 200 with `files: []` and the CLI prints "No files", so
-  `add form` is a **silent no-op** and `@/components/ui/form` never appears.
-  Legacy styles (`default`, `new-york-v4`) still ship `form.tsx`, so existing
-  imports aren't broken. For new work use **`field`** with React Hook Form's
-  `Controller` — full recipe in `recipes.md`. Check `components.json` `style`
-  before concluding either way.
-- **`date-picker`** hard-errors. It is a Popover + Calendar composition.
-
-### External dependencies — check what the item declares
-
-`add <item>` installs the npm and registry deps that item declares, and a
-hand-written install often misses part of that (`add sonner` also brings
-`next-themes`; `add chart` pins `recharts@3.8.0`).
-
-But it is not universal: **`add table` declares no npm dependency** — it is a
-styled `<table>` wrapper, and `@tanstack/react-table` is yours to install.
-`add <item> --dry-run` answers this in one command; assume nothing in either
-direction.
-
-Do not hand-install `@radix-ui/react-slot` for Sidebar — Slot arrives via the
-unified `radix-ui` package, and Sidebar pulls `button`, `input`, `separator`,
-`sheet`, `skeleton`, `tooltip`, and `use-mobile` from the registry itself.
-
-Follow `native-first`: a component you don't render is a dependency you don't
-need. Never install a whole category as a bundle.
-
-## Base UI vs Radix — the `base` field decides the API
-
-Check `base` in `shadcn info --json` before writing any composition; the
-vendor's [base-vs-radix rules](https://github.com/shadcn-ui/ui/blob/main/skills/shadcn/rules/base-vs-radix.md)
-own the full list. The differences that break code most often:
+## 4. Base UI vs Radix — `base` decides the API
 
 | Concern | Radix | Base UI |
 |---|---|---|
-| Custom trigger / link | `<DialogTrigger asChild><Button/></DialogTrigger>` | `<DialogTrigger render={<Button />}>Open</DialogTrigger>` |
-| `Button` rendered as `<a>` | `<Button asChild><a href=…/></Button>` | `<Button render={<a href=… />} nativeButton={false}>` |
-| Select | inline items, `<SelectValue placeholder>` | `items` prop on root, placeholder = `{ value: null }` item |
-| ToggleGroup / Accordion | `type="single"` or `type="multiple"`, string value | `multiple` boolean, value always an array |
+| Custom trigger / close | `<DialogTrigger asChild><Button/></DialogTrigger>` | `<DialogTrigger render={<Button />}>` |
+| Non-button element | `<Button asChild><a/></Button>` | `<Button render={<a/>} nativeButton={false}>` |
+| Select | inline items, `<SelectValue placeholder>`, `position="popper"` | `items` prop, placeholder `{ value: null }`, `alignItemWithTrigger`; supports `multiple`, object values |
+| ToggleGroup / Accordion | `type="single|multiple"`, string value | `multiple` boolean, array value |
 | Slider (one thumb) | `defaultValue={[50]}` | `defaultValue={50}` |
-| Toast | `sonner` | `sonner`, or the Base UI `toast` item (`@base-ui/react`) |
+| Toast | `toast()` from `sonner` (also Aria) | `toast` component |
 
-The `asChild`/`render` rule covers every trigger and close part, plus
-`NavigationMenuLink`, `BreadcrumbLink`, `SidebarMenuButton`, `Badge`, `Item`.
-Examples in this skill's references are Base UI unless labelled Radix.
+Applies to every trigger/close part plus `NavigationMenuLink`,
+`BreadcrumbLink`, `SidebarMenuButton`, `Badge`, `Item`. Full pairs: vendor
+`skills/shadcn/rules/base-vs-radix.md`. References here are Base UI unless
+labelled.
 
-## Composition rules (from the vendor skill)
+## 5. Composition rules (vendor skill)
 
-- Spacing: `flex flex-col gap-*`, never `space-y-*`/`space-x-*`.
-- Icons inside `Button`: `data-icon="inline-start|inline-end"`, no sizing
-  classes; the component sizes them.
-- `Button` has no `isLoading`/`isPending`: compose `Spinner` +
-  `data-icon` + `disabled`.
-- `Dialog`, `Sheet`, `Drawer` always carry their Title (`sr-only` if hidden).
-- Forms: `FieldGroup` + `Field`; items inside their Group
-  (`SelectGroup`, `DropdownMenuGroup`, `CommandGroup`).
-- Styling: `className` sets layout, never component color or typography;
-  `size-*` when width equals height; `truncate` shorthand; `cn()` for
-  conditional classes; no manual `z-index` on overlays (they stack themselves).
-- Color: semantic tokens only. No raw palette classes (`text-emerald-600`) and
-  no manual `dark:` color overrides; status goes through `Badge` variants or a
-  semantic token the project defines (for example `--success`).
-- Existing components before custom markup: `Alert` for callouts, `Empty` for
-  empty states, `Skeleton` for loading, `Separator` instead of `<hr>`/border
-  divs, `Badge` instead of styled spans, `Avatar` always with
-  `AvatarFallback`.
+- Existing components and built-in variants before custom markup or styles:
+  `Alert`, `Empty`, `Skeleton`, `Separator`, `Badge`, `Spinner`, `Avatar`
+  (+ `AvatarFallback`), `variant=`/`size=`.
+- `className` sets layout only — never component color or typography.
+  Semantic tokens only (`bg-primary`, `text-muted-foreground`); no raw
+  palette classes; status via `Badge` variants or a project token.
+- `flex flex-col gap-*`, never `space-y-*`/`space-x-*`; `size-*` for equal
+  dimensions; `truncate`; `cn()` for conditionals; no manual `z-index` on
+  overlays.
+- Forms: `FieldGroup` + `Field` (+ `FieldLabel`, `FieldDescription`);
+  `FieldSet` + `FieldLegend` for grouped checks/radios; `InputGroup` +
+  `InputGroupInput`/`InputGroupAddon` for buttons inside inputs; 2–7 options
+  = `ToggleGroup`. Validation: `data-invalid` on `Field`, `aria-invalid` on
+  the control; `data-disabled` / `disabled` likewise. React Hook Form via
+  `Controller` ([recipes.md](references/recipes.md)); nullable values need
+  `value={field.value ?? ''}`.
+- Items inside their Group (`SelectGroup`, `DropdownMenuGroup`,
+  `CommandGroup`); `TabsTrigger` inside `TabsList`; full `Card` composition;
+  `Dialog`/`Sheet`/`Drawer` always carry a Title (`sr-only` if hidden);
+  `Button` has no `isLoading` — compose `Spinner` + `data-icon` + `disabled`.
+- Icons in `Button`: `data-icon="inline-start|inline-end"`, no size classes;
+  pass icons as objects, from `iconLibrary`.
+- Chat UI composes `MessageScroller`, `Message`, `Bubble`, `Attachment`,
+  `Marker`, `Trace` — no hand-rolled bubbles or scroll hooks.
+- Charts: `Chart` wraps Recharts; colors via bare `var(--chart-n)`; `min-h`
+  on `ChartContainer`. Chart *selection* is `admin-dashboard`'s. Sidebar in
+  Astro: `SidebarProvider` and consumers in one hydrated root. Theme toggle
+  only when the accepted system has dark mode (Light/Dark/System,
+  `color-scheme`, resolve before first paint).
 
-Source: the official `shadcn` skill (`shadcn-ui/ui` `skills/shadcn/`, MIT);
-re-check it when the CLI major version changes.
+Style and preset are chosen at init and rewrite component code; compare
+candidates with `preset decode` or the preset builder rather than adjectives.
+Never ship the untouched default preset as the product's look — pair it with
+the project's token set first.
 
-**Style choice is a density decision, made at init.** The style rewrites
-component code, not just colors (`shadcn create` changelog 2025-12, Rhea
-2026-05): Vega classic, Nova compact, Maia soft and generous, Lyra boxy and
-sharp, Mira compact for dense interfaces, Luma rounded with soft elevation,
-Sera editorial (serif headings, square corners, underlined controls), Rhea a
-more compact Luma for focused product UI. For operator-dense admin screens
-prefer Mira or Rhea; flat, sharp, editorial brands start from Lyra or Sera;
-never ship the untouched default style plus neutral base color as the
-product's look (the owner's portfolio already repeats the default `0.625rem`
-radius and Inter; run `design-taste`'s `scripts/portfolio-scan.py` before
-choosing). Pair the style with a brand token set (OKLCH scale or a
-`tweakcn` theme) before generating screens.
+## 6. Blocks
 
-## Charts, Sidebar, and Theme Toggle
-
-Full code examples for these components (bar/line/pie charts with CSS variable
-theming, sidebar provider + variants + Astro boundary, three-state theme
-toggle with `next-themes`) are in
-[component-examples.md](references/component-examples.md).
-
-Key points kept inline:
-
-- **Charts:** `shadcn add chart` pins Recharts v3. Use bare `var()` for colors,
-  NEVER `hsl(var(...))`. Set `min-h` on `ChartContainer`, not the chart itself.
-  Chart *selection* belongs to `admin-dashboard`.
-- **Sidebar:** `shadcn add sidebar` pulls its registry deps automatically.
-  In Astro, keep `SidebarProvider` and consumers in the same hydrated React
-  root — separate islands create separate contexts.
-- **Theme toggle:** add one only when the accepted visual system includes dark
-  mode. Use Light / Dark / System when all three modes are supported.
-  `next-themes` handles FOUC in Next; outside Next use the installed framework's
-  proven pre-paint strategy. Set `color-scheme` per theme in CSS and verify both
-  themes in a browser.
-
-## Blocks
-
-Pre-built sections (dashboards, auth screens, sidebars) installed like any other
-registry item: `shadcn add <block>`. Browse them at https://ui.shadcn.com/blocks
-or list them with `shadcn search`. Don't keep a category table here — it goes
-stale, and the CLI already answers the question.
-
-A block is implementation material, not a screen or a design direction. It
-arrives with placeholder data, generic copy, and a composition optimized for a
-demo. Map it only after the accepted contract, replace its information
-hierarchy and states, and preserve just the primitives that fit.
-
-## Known Gotchas
-
-For Radix Select's empty-string restriction, breakpoint-specific Dialog widths,
-and static Lucide imports, read the matching section in
-[Component gotchas](references/component-catalogue.md). Keep Select's clear
-state separate from item values, use the generated Dialog's breakpoint prefix,
-and prefer explicit icon imports.
-
-### React Hook Form — nullable values only
-
-Spreading `{...field}` is correct and is what the official example does. The
-narrow failure case is a value that can be `null`/`undefined`, which flips the
-input from controlled to uncontrolled mid-life. Override just that one prop:
-
-```tsx
-<Input {...field} value={field.value ?? ''} />
-```
-
-### Provider boundaries and chart height
-
-Keep `SidebarProvider` inside the smallest client boundary shared by its
-consumers; cookie persistence is optional. Set minimum height on
-`ChartContainer`, not the chart itself. See
-[Component examples](references/component-examples.md) for both compositions.
-
-## Customising Components
-
-```tsx
-// Add a variant in the component file (src/components/ui/button.tsx)
-const buttonVariants = cva("...", {
-  variants: {
-    variant: {
-      brand: "bg-brand text-brand-foreground hover:bg-brand/90",
-      // add here
-    },
-  },
-})
-
-// Always use semantic tokens, not raw colors
-<Button className="bg-primary">     // CORRECT
-<Button className="bg-blue-500">    // WRONG
-```
+`shadcn add <block>` after `search`. A block is implementation material with
+demo data and demo composition: map it only after the accepted contract,
+replace its hierarchy and states, keep the primitives that fit.
 
 ## References
 
-- [Admin component system](references/admin-component-system.md) — canonical
-  admin component selection, framework boundaries, responsive transformations,
-  performance prevention, and browser acceptance contract.
-- [Component examples](references/component-examples.md) — full code: charts
-  (bar, line, pie, CSS variables), sidebar (provider, variants, Astro boundary),
-  theme toggle (three-state, next-themes, color-scheme).
-- [Component gotchas](references/component-catalogue.md) — only what the docs
-  won't warn you about: dead registry items, breakpoint-prefixed Dialog widths,
-  Select's empty-string ban, caption order, removed props. For anything routine,
-  `shadcn docs <item>` and `shadcn view <item>` beat a checked-in copy.
-- [Recipes](references/recipes.md) — full patterns: Field + RHF form, data
-  table, modal CRUD, responsive nav, settings, date picker, combobox.
+- [admin-component-system.md](references/admin-component-system.md) — admin
+  component selection, framework boundaries, responsive transformations.
+- [component-examples.md](references/component-examples.md) — charts,
+  sidebar, theme toggle code.
+- [component-catalogue.md](references/component-catalogue.md) — gotchas the
+  docs do not warn about.
+- [recipes.md](references/recipes.md) — Field + RHF form, data table, modal
+  CRUD, responsive nav, settings, date picker, combobox.
+- Official: [CLI](https://ui.shadcn.com/docs/cli),
+  [components.json](https://ui.shadcn.com/docs/components-json),
+  [Theming](https://ui.shadcn.com/docs/theming),
+  [Changelog](https://ui.shadcn.com/docs/changelog), vendor skill
+  `shadcn-ui/ui` `skills/shadcn/` (MIT; `rules/*.md`, `cli.md`,
+  `design-system.md`). Checked 2026-10-29 (CLI docs show `shadcn@4.8.3`).

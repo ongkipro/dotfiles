@@ -49,7 +49,7 @@ DOMAINS: dict[str, tuple[str, ...]] = {
         "hydrogen-development", "hydrogen-headless-tracking",
     ),
     "Payments, logistics and anti-abuse": (
-        "autolaris-h2h", "doku-malaysia-integration", "mengantar-api",
+        "autolaris-h2h", "mengantar-api",
         "stripe-best-practices", "turnstile-spin",
     ),
     "Data, auth and API": (
@@ -62,7 +62,7 @@ DOMAINS: dict[str, tuple[str, ...]] = {
     ),
     "SEO, content and traffic": (
         "seo-website-builder", "ai-traffic-os", "automated-traffic-pipeline",
-        "content", "copywriting", "volumx-writer", "cms-content",
+        "content", "copywriting", "writer", "cms-content",
     ),
     "Planning and specification": (
         "prd-taskbreaker", "development-spec-suite", "development-kit",
@@ -76,7 +76,7 @@ DOMAINS: dict[str, tuple[str, ...]] = {
         "black-magic",
     ),
     "Infrastructure and runtime": (
-        "vercel", "vultr", "vps-deploy", "kelola-deploy",
+        "vercel", "vultr", "vps-deploy",
     ),
 }
 

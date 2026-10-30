@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 import re
 import sys
+import runpy
 
 OK, FAILED = 0, 1
 
@@ -122,6 +123,25 @@ def changed_paths(repo: Path | None) -> list[str]:
     return paths[:300]
 
 
+def project_owned_paths(root: Path, manifest: dict) -> dict[str, set[str]]:
+    """Relative path -> set of project keys that list it."""
+    owned: dict[str, set[str]] = {}
+    for key, rel in manifest.get("projects", {}).items():
+        entries = [rel] if isinstance(rel, str) else (rel or [])
+        for entry in entries:
+            path = entry if isinstance(entry, str) else entry.get("path")
+            if path:
+                owned.setdefault(str((root / path).resolve()), set()).add(key.lower())
+    return owned
+
+
+# A path-glob hit is weaker evidence than a word the user typed: a dirty
+# `*.css` file made development-lessons.md (10.6 KB) win the whole 12 KB
+# budget on "bikin halaman produk dan cart" (leak test, 2026-10-29). One
+# file, and never more than this share of the budget, on glob evidence alone.
+PATH_ONLY_BUDGET_SHARE = 0.4
+
+
 def path_score(item: dict, paths: list[str]) -> int:
     """One trigger's worth (1000) when any changed file matches the item's
     `paths` globs. Kept equal to a single keyword hit so it widens recall
@@ -135,7 +155,7 @@ def path_score(item: dict, paths: list[str]) -> int:
     return 1000 + int(item.get("priority", 0)) if hit else 0
 
 
-def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None, project: str | None, max_files: int, max_bytes: int) -> dict:
+def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None, project: str | None, max_files: int, max_bytes: int, references=()) -> dict:
     candidates: list[dict] = []
     reasons = []
     touched = changed_paths(repo) if scope in {"auto", "shared", "lesson"} else []
@@ -154,14 +174,26 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
             candidates.extend(execution_refs(repo))
             reasons.append("execution scope selected from repository-local truth")
 
-    selected_project = project or project_from_repo(repo, manifest)
+    selected_project = (project or project_from_repo(repo, manifest) or "").lower() or None
     project_query = norm(query)
-    project_needed = bool(
+    # Being inside the repository is enough to open the project tier (TASK-156).
+    # The old gate needed the prompt to name the project or use a stock phrase;
+    # "perbaiki slug produk" typed inside ~/Projects/99ribu then skipped
+    # 99ribu-url-slugs.md although it declares the trigger `slug`, and 65 of 82
+    # project files had never been routed in 74 days of telemetry. Naming the
+    # project is now a boost (the triggered band), not the door.
+    project_named = bool(
         project
         or scope == "project"
         or (selected_project and re.search(rf"(?<![a-z0-9_]){re.escape(selected_project)}(?![a-z0-9_])", project_query))
         or any(phrase in project_query for phrase in ("project memory", "project reference", "known issue", "prior lesson", "gotcha", "stable constraint"))
     )
+    project_needed = bool(selected_project and (project_named or repo))
+    owned = project_owned_paths(root, manifest)
+    unknown = set(references) - set(manifest.get('projects', {}))
+    if unknown:
+        raise ValueError(f"unknown reference projects: {', '.join(sorted(unknown))}")
+    allowed_projects = ({selected_project} if selected_project else set()) | set(references)
     if scope in {"auto", "project"} and selected_project and project_needed:
         # A project key used to name exactly one file, which meant six of the
         # seven tokophi notes and all four pixsgo notes were unreachable through
@@ -187,29 +219,81 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
             # compete with shared or lesson triggers either way: score() returns
             # hits*1000 + priority, so any of those starts above 1000.
             triggered = not isinstance(entry, str) and score(query, entry)
-            priority = max(94 - index, 91) if triggered else max(90 - index, 70)
+            if triggered:
+                priority = max(94 - index, 91)
+            elif project_named:
+                priority = max(90 - index, 70)
+            else:
+                # Repo identity opens matching notes, not every note. A short
+                # acknowledgment or arithmetic question needs no project history.
+                continue
             reason = f"project={selected_project}" + (" (trigger)" if triggered else "")
             candidates.append({"path": str(p), "scope": "project", "priority": priority, "reason": reason})
         if entries:
             reasons.append(f"project reference matched {selected_project}")
 
+    # Only explicit reference arguments/session entries admit foreign projects.
+    # Natural-language mentions can be negated or ordinary words (e.g. kelola).
+    for other in sorted(allowed_projects - ({selected_project} if selected_project else set())) if scope in {"auto", "project"} else []:
+        rel = manifest.get("projects", {}).get(other)
+        entries = [rel] if isinstance(rel, str) else (rel or [])
+        admitted = 0
+        for index, entry in enumerate(entries):
+            path = entry if isinstance(entry, str) else entry.get("path")
+            if not path:
+                continue
+            p = root / path
+            triggered = not isinstance(entry, str) and score(query, entry)
+            if not (triggered or index == 0):
+                continue
+            priority = 65 if triggered else 50
+            admitted += 1
+            candidates.append({"path": str(p), "scope": "reference", "priority": priority, "reason": f"explicit reference={other}" + (" (trigger)" if triggered else "")})
+        if admitted:
+            reasons.append(f"explicit foreign reference {other}: {admitted} note(s) admitted")
+
     if scope in {"auto", "shared"}:
         for item in manifest.get("shared", []):
-            s = score(query, item) or path_score(item, touched)
+            s = score(query, item)
+            path_only = False
+            if not s:
+                s = path_score(item, touched)
+                path_only = bool(s)
             if s:
                 p = root / item["path"]
                 if p.exists():
-                    candidates.append({"path": str(p), "scope": "shared", "priority": s, "reason": "trigger match"})
-                    reasons.append(f"shared memory trigger matched {Path(item['path']).name}")
+                    candidates.append({"path": str(p), "scope": "shared", "priority": s, "reason": "changed-path match" if path_only else "trigger match", "pathOnly": path_only})
+                    reasons.append(f"shared memory {'changed-path' if path_only else 'trigger'} matched {Path(item['path']).name}")
 
     if scope in {"auto", "lesson"}:
         for item in manifest.get("lessons", []):
-            s = score(query, item) or path_score(item, touched)
+            s = score(query, item)
+            path_only = False
+            if not s:
+                s = path_score(item, touched)
+                path_only = bool(s)
             if s:
                 p = root / item["path"]
                 if p.exists():
-                    candidates.append({"path": str(p), "scope": "lesson", "priority": s, "reason": "historical lesson trigger"})
-                    reasons.append(f"historical lesson trigger matched {Path(item['path']).name}")
+                    candidates.append({"path": str(p), "scope": "lesson", "priority": s, "reason": "historical lesson changed-path" if path_only else "historical lesson trigger", "pathOnly": path_only})
+                    reasons.append(f"historical lesson {'changed-path' if path_only else 'trigger'} matched {Path(item['path']).name}")
+
+    # Hard project boundary: a project-owned file reachable through any tier
+    # is dropped unless its project is current or explicitly referenced.
+    kept = []
+    for item in candidates:
+        canonical = Path(item['path']).resolve()
+        if item['scope'] != 'execution':
+            try: canonical.relative_to(root.resolve())
+            except ValueError:
+                reasons.append(f"excluded {canonical.name}: memory outside canonical root")
+                continue
+        owners = owned.get(str(canonical), set())
+        if owners and not (owners & allowed_projects):
+            reasons.append(f"excluded {Path(item['path']).name}: owned by {', '.join(sorted(owners))}, not current or explicitly referenced")
+            continue
+        kept.append(item)
+    candidates = kept
 
     # Exact duplicates removed, higher-priority form retained.
     by_path = {}
@@ -217,11 +301,16 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
         old = by_path.get(item["path"])
         if old is None or item["priority"] > old["priority"]:
             by_path[item["path"]] = item
-    ordered = sorted(by_path.values(), key=lambda x: (x["scope"] != "execution", -x["priority"], x["path"]))
+    ordered = sorted(by_path.values(), key=lambda x: (
+        x["scope"] != "execution",
+        not (x["scope"] == "project" and "(trigger)" in x["reason"]),
+        bool(x.get("pathOnly")), -x["priority"], x["path"]))
 
     selected = []
     dropped = []
     used = 0
+    path_only_cap = int(max_bytes * PATH_ONLY_BUDGET_SHARE)
+    path_only_taken = False
     for item in ordered:
         try:
             size = os.path.getsize(item["path"])
@@ -229,6 +318,10 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
             continue
         if len(selected) >= max_files:
             break
+        if item.get("pathOnly"):
+            if path_only_taken or size > path_only_cap:
+                reasons.append(f"deferred {Path(item['path']).name} ({size}B): changed-path evidence alone is capped at one file and {path_only_cap}B")
+                continue
         if used + size > max_bytes:
             # A file bigger than the whole budget can never be selected, in any
             # query, ever — and this used to happen in silence while `reason`
@@ -237,7 +330,10 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
             # the router reported a match and returned nothing. Name the drop.
             dropped.append((Path(item["path"]).name, size))
             continue
+        if item.get("pathOnly"):
+            path_only_taken = True
         item = dict(item)
+        item.pop("pathOnly", None)
         item["bytes"] = size
         selected.append(item)
         used += size
@@ -264,6 +360,8 @@ def main() -> int:
     p.add_argument("--scope", choices=["auto", "shared", "project", "execution", "lesson"], default="auto")
     p.add_argument("--repo")
     p.add_argument("--project")
+    p.add_argument("--reference", action="append", default=[])
+    p.add_argument("--session")
     p.add_argument("--max-files", type=int)
     p.add_argument("--max-bytes", type=int)
     p.add_argument("--json", action="store_true")
@@ -278,7 +376,18 @@ def main() -> int:
         repo = Path(a.repo).expanduser().resolve() if a.repo else None
         if repo and not repo.is_dir():
             raise ValueError(f"repo not found: {repo}")
-        result = select(root, manifest, a.query, a.scope, repo, a.project, mf, mb)
+        references = list(a.reference)
+        focus_tool = root/'bin/focus'
+        focus = None
+        if repo and focus_tool.is_file():
+            focus = runpy.run_path(str(focus_tool))['current'](repo, a.session)
+            if focus:
+                references.extend(focus['references'])
+        if focus and a.project and a.project.lower() != project_from_repo(repo, manifest):
+            raise ValueError('project override disagrees with focused repository')
+        result = select(root, manifest, a.query, a.scope, repo, a.project, mf, mb, references)
+        if focus:
+            result['focus'] = {k:focus[k] for k in ('session','intent','allowedPaths','preserve','references','expiresAt')}
         if a.json:
             print(json.dumps(result, indent=2))
         elif not result["needed"]:
@@ -295,7 +404,7 @@ def main() -> int:
                 if reason.startswith("UNROUTABLE "):
                     print(f"  WARNING {reason}")
         return OK
-    except (ValueError, OSError) as exc:
+    except (ValueError, OSError, subprocess.CalledProcessError) as exc:
         print(f"ai-memory-route: ERROR: {exc}", file=sys.stderr)
         return FAILED
 

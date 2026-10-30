@@ -1,0 +1,38 @@
+Warning: claude.ai MCP servers blocked by enterprise policy: claude.ai Zapier, claude.ai Descript, claude.ai KOL Kelola, claude.ai Hugging Face, claude.ai ClickUp, claude.ai Google Calendar
+**Hasil review R3 (read-only, tidak ada edit).** Empat suite dijalankan sendiri, semuanya lulus. Baris terakhir masing-masing:
+
+```
+focus-test: PASS (claims, overlap, concurrency, expiry, traversal, symlink, immutable ledger boundary)
+ai-memory-route-test: PASS
+delivery-ledger-test: PASS
+system-map-test: PASS
+```
+
+**(1) delivery-ledger: gate-nya intersection, bukan union.** Di `bin/delivery-ledger:990` sebuah path masuk `out_of_scope` kalau gagal `--allow` ATAU gagal focus allowedPaths, jadi keduanya harus lolos. Reproducer: claim focus `src/**`, start dengan `--allow src/cart/**`, sentuh `src/other.py` → `check-boundary` exit 1, path diklasifikasi `OUT_OF_SCOPE`. Arah sebaliknya (focus sempit, allow lebar) sudah dicover focus-test baris 69-81. Focus yang di-release setelah start tidak berpengaruh karena claim disalin ke event `run_started` (`bin/delivery-ledger:571-572`) dan evaluasi baca dari event, bukan registry. Registry rusak saat start → `ValueError` dari `json.load` → start gagal (fail-closed, exit 1).
+
+Dua celah yang bukan pelemahan boundary tapi perlu dicatat:
+- **Focus tool hilang = skip diam-diam.** `bin/delivery-ledger:548-550` hanya cek `focus_tool.is_file()`. Reproducer: copy ledger ke dir tanpa `bin/focus`, set `AI_FOCUS_SESSION=a`, start → sukses, event tidak punya field `focus`, tanpa warning. `--allow` tetap mengikat, jadi boundary tidak melemah, tapi niat "focused run" hilang tanpa jejak.
+- **Claim sesi lain tidak dicek saat start.** Ledger hanya memanggil `current(repo)` untuk sesi sendiri. Reproducer: sesi b claim `docs/**`, lalu `env -u AI_FOCUS_SESSION delivery-ledger start --allow docs/**` → STARTED. Konflik paralel hanya ditegakkan di `focus claim` (`bin/focus:161-166`), bukan di ledger. Konsisten dengan docstring "advisory", tapi artinya sesi yang tidak claim kebal terhadap claim orang lain.
+
+**(2) system-map tracked(): tidak ada misklasifikasi.** Fixture dengan semua kasus sekaligus menghasilkan tepat himpunan yang diharapkan: file ignored baru tidak masuk, tracked yang dihapus unstaged tidak masuk, `git rm` tidak masuk, `git rm --cached` masuk (masih di disk, tidak ignored), rename unstaged dan staged dua-duanya hanya nama baru, file tracked yang juga cocok `.gitignore` tetap masuk. Test `.git/info/exclude` valid: `--exclude-standard` memang membaca `info/exclude`, saya verifikasi `ls-files --others --exclude-standard` kosong sementara `--others` saja menampilkan `scratch.tmp`. Satu quirk kecil: nested git repo muncul sebagai entri `nested/` (dengan slash), bukan file; tidak relevan untuk dotfiles sekarang.
+
+**(3) bin/focus: tidak ada fail-open yang saya temukan.** Storage dir diganti symlink ke dir asli → error `Not a directory` (O_NOFOLLOW di `telemetry_directory`). JSON kosong/terpotong → `JSONDecodeError` exit 1. `claims: null`, mode 0644, duplikat sesi, claim rusak → semua exit 1 tanpa menulis ulang file (focus-test baris 55-66). Concurrency: 50 claim paralel dari sesi berbeda di path disjoint → 51 claim tersimpan, tidak ada yang hilang. Dua catatan non-blocking:
+- `fcntl.flock` di `bin/focus:77` tanpa `LOCK_NB`/timeout. Reproducer: proses lain pegang `LOCK_EX` di `.lock`, lalu `focus status` → blocked (timeout 2s exit 124). Berarti `delivery-ledger start` dan `resume-brief` ikut menggantung. Fail-stuck, bukan fail-open.
+- `validate_claim` (`bin/focus:38-40`) hanya cek finite; `expiresAt: 1e18` yang diedit manual diterima dan tidak pernah kadaluarsa. CLI membatasi TTL 60..86400, registry tidak.
+
+**(4) ai-memory-route: masih ada satu jalur prose.** Hard boundary di `bin/ai-memory-route:126-135` menurunkan ownership hanya dari `manifest.projects`. Catatan proyek yang didaftarkan cuma di `lessons` tidak punya owner. Reproducer dari repo asing:
+
+```
+ai-memory-route 'tokophi coolify backup' --repo /tmp/r3-q4/kelola --json
+→ lesson tokophi-infrastructure-2026-07.md, lesson coolify-vps-dev.md, shared ops-lessons.md
+```
+
+`tokophi-infrastructure-2026-07.md` ada di blok TokoΦ di `config/ai/project-memory/MEMORY.md:79` tapi di `memory-router.json` hanya terdaftar sebagai lesson, jadi kata `tokophi` di prompt cukup untuk mengadmit catatan proyek tokophi dari dalam kelola. Ini celah data manifest, bukan logika diff, tapi klaim "hard project boundary" bergantung pada manifest itu. Kasus lain aman: nama proyek sebagai kata biasa (`pixsgo pixel tokophi 99ribu slug` dari kelola) tidak mengadmit apa pun; `--project` override tanpa focus memang mengadmit, tapi itu flag CLI, dan hook hanya meneruskan `--repo` (`config/ai/hooks/memory-usage.sh:117`).
+
+**Perubahan yang diminta sebelum approve:**
+- Daftarkan `tokophi-infrastructure-2026-07.md` di `projects.tokophi` (atau turunkan owner dari MEMORY.md), lalu tambah assertion di route-test untuk lesson yang berowner.
+- `delivery-ledger start`: kalau `AI_FOCUS_SESSION` terset tapi `bin/focus` tidak ada, gagal atau catat `focus: null` dengan alasan, jangan skip diam-diam.
+
+Opsional: `LOCK_NB` plus retry singkat di `bin/focus:77`, dan batas atas `expiresAt` relatif ke `time.time()` di `validate_claim`.
+
+CHANGES REQUIRED — claude-fable-5-1

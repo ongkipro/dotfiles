@@ -1,11 +1,7 @@
 ---
 name: autolaris-h2h
 description: >-
-  Integrate AutoLaris H2H for Indonesian shipping, payment channels, Create
-  Order `/submit`, and Advice reconciliation. Not for Mengantar
-  (mengantar-api), storefront UX, or live calls without approval. Use when a task mentions
-  AutoLaris, `/api/h2h`, Create Resi, Cek Ongkir, QRIS/VA via AutoLaris,
-  `courir_id`, or Advice payment status.
+  Integrate AutoLaris H2H: Indonesian shipping, payment channels (QRIS/VA), Create Order /submit, Cek Ongkir, Advice reconciliation. Not Mengantar (mengantar-api), storefront UX, or live calls without approval. Triggers: AutoLaris, /api/h2h.
 ---
 
 # AutoLaris H2H Integration

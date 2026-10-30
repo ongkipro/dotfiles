@@ -110,25 +110,25 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 
 | Collection | Path | Tracked | Completeness enforced by |
 |---|---|---|---|
-| Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 21 | linked from this page |
+| Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 25 | linked from this page |
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 82 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
-| Owned skills | [`skills/local/`](../skills/local/) | 76 | linked from this page |
-| Commands | [`bin/`](../bin/) | 58 | linked from this page |
-| Command tests | [`bin/`](../bin/) | 73 | linked from this page |
+| Owned skills | [`skills/local/`](../skills/local/) | 74 | linked from this page |
+| Commands | [`bin/`](../bin/) | 61 | linked from this page |
+| Command tests | [`bin/`](../bin/) | 74 | linked from this page |
 | Device profiles | [`devices/`](../devices/) | 8 | linked from this page |
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
-| Top-level docs | [`docs/`](../docs/) | 23 | linked from this page |
+| Top-level docs | [`docs/`](../docs/) | 19 | linked from this page |
 | AI control files | [`config/ai/`](../config/ai/) | 30 | linked from this page |
 | Runtime references | [`config/omp/`](../config/omp/) | 28 | linked from this page |
 | Skill commands | [`skills/agents-bin/`](../skills/agents-bin/) | 7 | linked from this page |
-| Skill tooling | [`skills/local/`](../skills/local/) | 2 | linked from this page |
+| Skill tooling | [`skills/local/`](../skills/local/) | 3 | linked from this page |
 | Registry indexes | [`devices/`](../devices/) | 1 | linked from this page |
 | Command helpers | [`bin/`](../bin/) | 6 | linked from this page |
-| Research records | [`docs/research/`](../docs/research/) | 4 | linked from this page |
+| Research records | [`docs/research/`](../docs/research/) | 5 | linked from this page |
 | Environment and bootstrap | [`config/`](../config/) | 35 | linked from this page |
 | Device reports | [`docs/device-reports/`](../docs/device-reports/) | 21 | count only |
-| Archived task records | [`docs/archive/`](../docs/archive/) | 31 | count only |
+| Archived task records | [`docs/archive/`](../docs/archive/) | 36 | count only |
 
 <!-- system-map:inventory:end -->
 
@@ -228,7 +228,11 @@ Cross-project durable facts loaded selectively on demand by `ai-memory-access`.
 | [`goals.md`](../config/ai/memory/goals.md) | High-level engineering roadmap, business objectives, milestones. |
 | [`business.md`](../config/ai/memory/business.md) | Business landscape: client systems, dropshipping, affiliate platforms, e-commerce stores. |
 | [`development.md`](../config/ai/memory/development.md) | House stack (Postgres + Drizzle + Better Auth, Astro, Next.js, Cloudflare Workers), lazy developer guidelines. |
-| [`development-lessons.md`](../config/ai/memory/development-lessons.md) | Verified cross-project engineering lessons promoted via `ai-learn`. |
+| [`development-lessons.md`](../config/ai/memory/development-lessons.md) | Astro and Node test-harness lessons promoted via `ai-learn`. |
+| [`ui-lessons.md`](../config/ai/memory/ui-lessons.md) | CSS, component geometry and font lessons, selected within retrieval budgets. |
+| [`communication.md`](../config/ai/memory/communication.md) | Owner-confirmed two-way communication and localization preferences. |
+| [`cloudflare-lessons.md`](../config/ai/memory/cloudflare-lessons.md) | Workers, D1, KV and caching lessons split from `development-lessons.md`. |
+| [`ops-lessons.md`](../config/ai/memory/ops-lessons.md) | Coolify, Postgres, PostgREST, Better Auth and mise lessons promoted via `ai-learn`. |
 | [`workflow.md`](../config/ai/memory/workflow.md) | Pre-dev staging contract (`~/Documents/work/prd/<slug>/` -> `~/Projects/<slug>/`), delivery ledger lifecycle. |
 | [`decisions.md`](../config/ai/memory/decisions.md) | Advisory cross-project decisions, preferences, and working assumptions; each project's repository owns its technical decision records. |
 | [`skills.md`](../config/ai/memory/skills.md) | The user's skill profile (development, marketing, SEO, affiliate) for calibrating explanation depth, plus where the owned skill set is mapped. |
@@ -282,7 +286,7 @@ Comprehensive project memory for the production deployment of `kelolatim.com`:
 
 ## 6. Owned Skills Directory (`skills/local/`)
 
-Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rendered by `bin/skill-map`. Every runtime accesses these skills via symlinks.
+Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rendered by `bin/skill-map`. Every runtime accesses these skills via symlinks. [`.size-debt`](../skills/local/.size-debt): per-skill `SKILL.md` byte ceilings above the default, enforced by `skill-check`; entries may only shrink.
 
 ### 6.1 Cloudflare Platform
 - [`cloudflare`](../skills/local/cloudflare/SKILL.md): Platform entry point (Workers, KV, D1, R2, Vectorize, WAF).
@@ -301,7 +305,7 @@ Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rende
 - [`astro-development`](../skills/local/astro-development/SKILL.md): Content-focused Astro architecture and hybrid rendering.
 - [`nextjs-development`](../skills/local/nextjs-development/SKILL.md): App Router architecture, Server Actions, route handlers.
 - [`shadcn-ui`](../skills/local/shadcn-ui/SKILL.md): React component foundation and accessible primitives.
-- [`design-taste`](../skills/local/design-taste/SKILL.md): Public frontend visual direction, OKLCH/HSL color scales, multi-brand skinning, explanatory SVG craft, and niche patterns (`contrast.py`, `design-gate.py`).
+- [`design-taste`](../skills/local/design-taste/SKILL.md): Public frontend visual direction, OKLCH/HSL color scales, multi-brand skinning, explanatory SVG craft, and niche patterns (`contrast.py`, `ui-ref.mjs`).
 - [`admin-dashboard`](../skills/local/admin-dashboard/SKILL.md): Information architecture, responsive tables, chart selection, and `@media print` commercial document specs (`dataviz-and-print-specs.md`).
 - [`admin-product-ux`](../skills/local/admin-product-ux/SKILL.md): Operator workflows, state machines, progressive onboarding (`First-Use Empty` vs `Filtered-Zero Empty`), and AI/agentic HITL approval contracts.
 - [`ui-validation`](../skills/local/ui-validation/SKILL.md): Browser-based verification (Playwright, responsive, dark/light).
@@ -327,7 +331,6 @@ Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rende
 
 ### 6.5 Payments, Logistics & Anti-Abuse
 - [`autolaris-h2h`](../skills/local/autolaris-h2h/SKILL.md): Indonesian shipping, payment channels, `/submit` orders.
-- [`doku-malaysia-integration`](../skills/local/doku-malaysia-integration/SKILL.md): DOKU Global API for Malaysian checkout (FPX, TNG, GrabPay).
 - [`mengantar-api`](../skills/local/mengantar-api/SKILL.md): Indonesian 3PL courier aggregator (JNE, SiCepat, COD).
 - [`stripe-best-practices`](../skills/local/stripe-best-practices/SKILL.md): Stripe Checkout, Elements, Subscriptions, Webhooks.
 - [`turnstile-spin`](../skills/local/turnstile-spin/SKILL.md): Cloudflare Turnstile bot verification implementation.
@@ -352,7 +355,8 @@ Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rende
 - [`automated-traffic-pipeline`](../skills/local/automated-traffic-pipeline/SKILL.md): Programmatic SEO (pSEO), indexing automation, RSS syndication.
 - [`content`](../skills/local/content/SKILL.md): Multi-asset editorial workflows, batching calendars, quality gates.
 - [`copywriting`](../skills/local/copywriting/SKILL.md): Conversion copywriting templates, headline formulas, character limits.
-- [`volumx-writer`](../skills/local/volumx-writer/SKILL.md): Tone humanization, terminal dialogue improvements.
+- [`writer`](../skills/local/writer/SKILL.md): Meaning-preserving writing, two-way dialogue, and locale-native communication.
+- [`focus`](../bin/focus), [`focus-test`](../bin/focus-test): Session-scoped local claims, explicit references, and isolated boundary regression checks.
 - [`cms-content`](../skills/local/cms-content/SKILL.md): Client content-editing layer selection and implementation (Astro collections, Keystatic, Payload, Shopify metaobjects).
 
 ### 6.9 Planning & Specification
@@ -380,7 +384,6 @@ Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rende
 - [`vercel`](../skills/local/vercel/SKILL.md): Edge deployment, Vercel CLI, environment variable management.
 - [`vultr`](../skills/local/vultr/SKILL.md): VPS provisioning and Coolify deployment via `vultr-cli`.
 - [`vps-deploy`](../skills/local/vps-deploy/SKILL.md): Ubuntu VPS deployment and operations via Coolify v4 or Docker Compose.
-- [`kelola-deploy`](../skills/local/kelola-deploy/SKILL.md): Production server deployment and recovery for Kelola HRIS.
 
 ---
 
@@ -446,6 +449,8 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`tmux-battery`](../bin/tmux-battery) (+ [`test`](../bin/tmux-battery-test)): Battery segment for the tmux status bar; silent and exit 0 on machines without a battery.
 - [`vps-pgdump`](../bin/vps-pgdump) (+ [`test`](../bin/vps-pgdump-test)): Pulls a Postgres backup and the stack config off a VPS over SSH, because provider snapshots failed silently.
 - [`dotfiles-vultr`](../bin/dotfiles-vultr): `vultr-cli` for the `dotfiles-vultr` account; injects `VULTR_DOTFILES_API_KEY` from `secrets-env` into that one process, so no `~/.vultr-cli.yaml` is needed.
+- [`dotfiles-a1-vultr`](../bin/dotfiles-a1-vultr): `vultr-cli` for the `dotfiles-a1` account (99ribu-prod); injects `VULTR_DOTFILES_A1_API_KEY` from `secrets-env` into that one process.
+- [`dotfiles-a1-coolify`](../bin/dotfiles-a1-coolify): `coolify` CLI for the `99ribu-prod` instance (host recorded device-locally); the CLI context holds only the URL and the token comes from `secrets-env` (`COOLIFY_99RIBU_PROD_TOKEN`) per call.
 - [`dotfiles-coolify`](../bin/dotfiles-coolify): `coolify` CLI for the `vps-main` instance; the CLI context holds only the URL and the token comes from `secrets-env` (`COOLIFY_VPS_MAIN_TOKEN`) per call.
 - [`shopify-content-helper`](../bin/shopify-content-helper) (+ [`test`](../bin/shopify-content-helper-test)): Shopify SEO and content utilities: SEO audit and limits, sitemap entries, meta and brief templates, RSS and JSON-LD skeletons.
 - [`dotads-meta`](../bin/dotads-meta) (+ [`test`](../bin/dotads-meta-test)): Per-project Meta Ads campaign validator, dry-run planner, stateful deployer, and `secrets-env` bridge for Meta's official CLI; offline Indonesia market baseline and scoped economics observations. SDK account discovery, scoped inventory/Insights snapshots, immutable Markdown/CSV reports, selected media import and reference-only adoption.
@@ -514,10 +519,8 @@ Managed by `bin/device-register`, documenting exact hardware and OS specs:
 - [`chatgpt-inbox.md`](../docs/chatgpt-inbox.md): Phone capture from a ChatGPT "Dotfiles Inbox" into `ai-learn import`.
 - [`linux-install-step-by-step.md`](../docs/linux-install-step-by-step.md): Linux install from zero, step by step.
 - [`linux-maintenance-log.md`](../docs/linux-maintenance-log.md): Linux maintenance log.
-- [`github-account-cleanup-plan.md`](../docs/github-account-cleanup-plan.md), [`github-profile-readme-draft.md`](../docs/github-profile-readme-draft.md): GitHub account cleanup plan and profile README draft.
-- Dated audits (historical, superseded by current contracts): [`DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md`](../docs/DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md), [`DOTFILES_REPOSITORY_AUDIT_2026-08-15.md`](../docs/DOTFILES_REPOSITORY_AUDIT_2026-08-15.md), [`DOTFILES_REVIEW_2026-09-04.md`](../docs/DOTFILES_REVIEW_2026-09-04.md), [`DOTFILES-NATIVE-FIRST-AUDIT.md`](../docs/DOTFILES-NATIVE-FIRST-AUDIT.md), [`public-ui-skill-audit.md`](../docs/public-ui-skill-audit.md), [`skills-memory-audit.md`](../docs/skills-memory-audit.md).
-- [`AUSSIE_SAWIT_MALAYSIA_MEMORY_ARCHIVE_2026-07.md`](../docs/AUSSIE_SAWIT_MALAYSIA_MEMORY_ARCHIVE_2026-07.md): Archived AUSSIE Sawit Malaysia session history.
-- **Research records:** [`adaptive-ai-sources.md`](../docs/research/adaptive-ai-sources.md), [`development-kit-audit-2026-10-25.md`](../docs/research/development-kit-audit-2026-10-25.md), [`dotfiles-reliability-sources.md`](../docs/research/dotfiles-reliability-sources.md), [`system-map-references-2026-10-25.md`](../docs/research/system-map-references-2026-10-25.md): adaptive-AI adoption, development-kit audit, reliability sources, and the references behind this map.
+- Dated audits (historical, superseded by current contracts): [`DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md`](../docs/DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md) (stays here: its illustrative `TASK-014` sample would collide with the archive lint), [`DOTFILES-NATIVE-FIRST-AUDIT.md`](../docs/DOTFILES-NATIVE-FIRST-AUDIT.md), [`public-ui-skill-audit.md`](../docs/public-ui-skill-audit.md), [`skills-memory-audit.md`](../docs/skills-memory-audit.md), [`skill-efficiency-audit-2026-10-30.md`](../docs/skill-efficiency-audit-2026-10-30.md) (skill size/description budget pass). Older audits, the GitHub account cleanup plan and profile README draft, and the AUSSIE Sawit Malaysia session history moved to [`docs/archive/`](../docs/archive/) on 2026-10-29.
+- **Research records:** [`adaptive-ai-sources.md`](../docs/research/adaptive-ai-sources.md), [`development-kit-audit-2026-10-25.md`](../docs/research/development-kit-audit-2026-10-25.md), [`dotfiles-reliability-sources.md`](../docs/research/dotfiles-reliability-sources.md), [`system-map-references-2026-10-25.md`](../docs/research/system-map-references-2026-10-25.md), [`memory-focus-architecture-2026-10-29.md`](../docs/research/memory-focus-architecture-2026-10-29.md): adaptive-AI adoption, development-kit audit, reliability sources, the references behind this map, and the memory-precision / focus-system proposal.
 - Directories: [`docs/archive/`](../docs/archive/) (immutable task contracts), [`docs/research/`](../docs/research/) (source and trial evidence), [`docs/device-reports/`](../docs/device-reports/).
 
 ---

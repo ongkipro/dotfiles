@@ -213,3 +213,22 @@ Before acceptance confirm:
 - retention, access, redaction, exporter failure, and cost owners are named;
 - alerts have owners, actions, runbooks, dedupe, recovery, and executable evidence;
 - the bounded sink proof was observed and its gaps reported honestly.
+
+## Bounded smoke proof
+
+Use the project’s existing local/non-production runtime and configured safe sink. Do not install a new backend merely to prove telemetry.
+
+1. Choose one representative journey and generate a unique synthetic correlation marker.
+2. Execute one success and one controlled failure or expected rejection. If the change touches async work, also observe one accepted item through a processing attempt to its terminal state; exercise a retry/duplicate only when that behavior changed.
+3. Query or capture the actual configured sink/export endpoint. Prove the terminal event appears once, the trace and diagnostic event correlate, expected metric counters/distribution changed, outcome/severity is correct, and async stage/attempt fields are coherent.
+4. Send synthetic canary values shaped like sensitive input and an unallowlisted baggage field; prove they are absent or transformed as designed. Never use real secrets or customer data.
+5. If exporter buffering/failure behavior changed, make the safe local sink unavailable and prove the business result remains correct while the telemetry failure is bounded and visible through the supported fallback.
+6. If an alert changed, evaluate it with the project’s rule checker or a controlled fixture and prove both firing and non-firing conditions. A valid config file alone is insufficient.
+
+Report exact commands/scenarios, observed sink records or query results, the correlation marker, metric before/after values, and unmeasured gaps. A dashboard screenshot, source inspection, successful build, or SDK initialization alone is not telemetry-path proof.
+
+## Dashboards and runbooks
+
+A dashboard answers a bounded operator question: affected journey, scope/tenant where permitted, current SLI and budget burn, traffic, errors, latency/freshness, saturation/backlog, dependency health, and deploy/config annotations. Prefer a few linked views over card grids of unrelated counts.
+
+Every paging alert links to a maintained runbook with meaning, affected journey, ownership, safe queries, first triage steps, dependency checks, mitigation/rollback boundary, escalation path, and verification of recovery. This skill defines the operational content; it does not build an incident-response documentation system.

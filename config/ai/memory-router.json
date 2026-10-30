@@ -6,6 +6,11 @@
   },
   "shared": [
     {
+      "path": "config/ai/memory/communication.md",
+      "priority": 89,
+      "triggers": ["komunikasi dua arah", "saling memahami", "maksudku", "belum paham", "jangan asal translate", "locale-native", "communication preference", "two-way communication"]
+    },
+    {
       "path": "config/ai/memory/meta-ads.md",
       "priority": 88,
       "triggers": [
@@ -94,22 +99,84 @@
       "path": "config/ai/memory/development-lessons.md",
       "priority": 79,
       "triggers": [
+        "astro query",
+        "query param",
+        "prerender",
+        "static output",
+        "node --test",
+        "bundler import",
+        "unreachable import"
+      ],
+      "paths": [
+        "**/astro.config.*",
+        "**/*.test.mjs",
+        "**/*.test.ts"
+      ]
+    },
+    {
+      "path": "config/ai/memory/ui-lessons.md",
+      "priority": 79,
+      "triggers": [
         "css layer",
         "unlayered css",
         "tailwind v4",
         "headless ui",
         "portal",
-        "astro query",
-        "prerender",
-        "node --test",
         "border color",
-        "button geometry"
+        "button geometry",
+        "font weight",
+        "display flex",
+        "modal dialog"
       ],
       "paths": [
         "*.css",
         "**/*.css",
         "**/tailwind.config.*",
         "**/components/ui/**"
+      ]
+    },
+    {
+      "path": "config/ai/memory/cloudflare-lessons.md",
+      "priority": 79,
+      "triggers": [
+        "cloudflare",
+        "workers",
+        "d1",
+        "kv",
+        "wrangler",
+        "workers cache",
+        "rows_read",
+        "free plan",
+        "cron trigger"
+      ],
+      "paths": [
+        "**/wrangler.jsonc",
+        "**/wrangler.toml",
+        "**/wrangler.json"
+      ]
+    },
+    {
+      "path": "config/ai/memory/ops-lessons.md",
+      "priority": 79,
+      "triggers": [
+        "coolify",
+        "pre-deployment",
+        "pg_dump",
+        "pg_restore",
+        "postgrest",
+        "sqlstate",
+        "better auth",
+        "rate limiter",
+        "server action",
+        "mise install",
+        "docker build",
+        "prerender env"
+      ],
+      "paths": [
+        "**/Dockerfile",
+        "**/docker-compose*.y*ml",
+        "**/drizzle/**",
+        "**/migrations/**"
       ]
     },
     {
@@ -386,6 +453,16 @@
           "provider brand",
           "brand hidden",
           "white label"
+        ]
+      },
+      {
+        "path": "config/ai/project-memory/tokophi-infrastructure-2026-07.md",
+        "triggers": [
+          "vultr",
+          "volumdev",
+          "backup",
+          "snapshot",
+          "ssh recovery"
         ]
       }
     ],

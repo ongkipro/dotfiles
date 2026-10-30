@@ -1,6 +1,7 @@
 ---
 name: codebase-navigation
-description: Trace cross-file calls, dependencies, and change impact with repository search or optional Graphify code graphs. Not correctness review (testing-engineering), architecture decisions (adr-record), shipped binary/bundle/HAR reverse engineering (black-magic), or shared memory.
+description: >-
+  Trace cross-file calls, dependencies, and change impact with repository search or optional Graphify graphs. Not correctness review (testing-engineering), architecture decisions (adr-record), or shipped binary/bundle/HAR analysis (black-magic).
 ---
 
 # Codebase Navigation

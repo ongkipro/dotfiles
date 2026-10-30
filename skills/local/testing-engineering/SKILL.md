@@ -1,14 +1,7 @@
 ---
 name: testing-engineering
 description: >-
-  Design, implement, review, and stabilize automated behavioral tests for
-  Node.js/TypeScript full-stack systems. Not browser visual QA (ui-validation),
-  performance testing (web-perf), or CI workflow YAML (github-actions). Use when
-  a feature, bug fix, API, database change, authorization rule, integration,
-  retry, concurrency path, or CI failure needs durable regression evidence;
-  when deciding unit versus integration versus contract versus E2E coverage; or
-  when diagnosing flaky tests. Prefer project scripts and the installed runner;
-  framework-specific harness details stay with framework skills.
+  Design, implement, review, and stabilize automated behavioral tests for Node/TypeScript systems: unit vs integration vs contract vs E2E, fixtures, flaky tests, CI failures. Not browser visual QA (ui-validation), perf (web-perf), or Actions YAML.
 ---
 
 # Testing Engineering
@@ -17,27 +10,25 @@ Prove the smallest observable contract that could plausibly regress. A test earn
 its maintenance cost only when it fails for a real behavior defect and survives
 an implementation-preserving refactor.
 
+Read only this file up front; open a reference when a step names it.
+
+**Pick the path first:**
+- Bug fix or small change → §1 → §2 (is a new test warranted?) → §3 → §8.
+- New feature or contract → §1–§6 → §8; `references/test-selection.md` when
+  the layer is not obvious.
+- Flaky or failing CI test → §7 only, then §8.
+
 ## Scope and ownership
 
-`testing-engineering` owns automated behavioral test selection, design,
-implementation, isolation, reliability, and CI-safe execution across a full-stack
-change. It may coordinate several layers, but it does not replace specialists:
-
-- `ui-validation` owns real-browser visual, responsive, hydration, keyboard, and
-  interaction evidence. Hand changed controls and accessibility behavior there.
-- `web-perf` owns performance measurement, budgets, diagnosis, and load/runtime
-  performance evidence.
-- `nextjs-development`, `astro-development`, `workers-best-practices`, and
-  `durable-objects` own framework or platform harness details.
-- `postgres-drizzle` owns plain PostgreSQL/Drizzle schema, migration, and query
-  design; this skill owns the behavioral tests selected for those contracts.
-- `application-security` owns cross-stack threat analysis and security controls;
-  `better-auth-security` owns Better Auth hardening. This skill turns accepted
-  security and authorization contracts into regression cases.
-- `openapi-spec` owns REST contracts. `testing-engineering` verifies that provider
-  and consumer behavior conforms to the accepted contract.
-- Apply `native-first` before adding a runner, assertion library, DOM environment,
-  container harness, or mocking package. Installed stack and project scripts win.
+This skill owns behavioral test selection, design, isolation, reliability, and
+CI-safe execution across a change; specialists keep their domain —
+`ui-validation` (browser/visual/keyboard evidence), `web-perf` (performance),
+framework skills (harness details), `postgres-drizzle` (schema and query
+design; this skill writes the tests for those contracts),
+`application-security`/`better-auth-security` (controls; this skill turns
+accepted contracts into regression cases), `openapi-spec` (the contract itself).
+`native-first` before any new runner, assertion library, DOM environment, or
+mock package.
 
 The repository-level strategy lives in the `AGENTS.md` "Test strategy" table
 (layer, command, real versus substituted dependencies). Update it when a layer,
@@ -194,33 +185,12 @@ When a test flakes:
 5. use retries or quarantine only as a visible, owned, time-bounded containment
    policy—not as evidence of correctness.
 
-For an installed Vitest suite, check the major first. Vitest 5 (2026-09-03)
-changed defaults that alter results: `clearMocks` is on (mock calls reset before
-each test), unawaited async assertions and timed-out `expect.poll` now fail,
-config files are no longer found in parent directories, `-t` matches the
-`>`-joined full name, `sequential` options are gone, and json/junit/html/blob
-reports default to `.vitest/`. It needs Node >= 22.12 and Vite >= 6.4. When a
-suite breaks on upgrade, fix the test that relied on the old default rather than
-reverting the default; update CI artifact paths for the new report location.
-
-For an installed Playwright Test suite (check the version; see the ledger):
-
-- Run non-interactively with `PLAYWRIGHT_HTML_OPEN=never` so the HTML report
-  never opens and blocks the shell.
-- Read a failure's `trace.zip` from the CLI (added 1.59; subcommands and flags
-  have changed since, so confirm against the installed CLI's help):
-  `npx playwright trace open <trace.zip>`, then `trace actions --errors-only`,
-  `trace errors`, `trace requests --failed`, `trace console --errors-only`;
-  `trace close` after.
-- `npx playwright test --debug=cli` (1.59+) pauses a test for `playwright-cli`
-  to attach; run it in the background and stop it afterward. Interactive page
-  driving belongs to `ui-validation`.
-- Component tests: since 1.62 use the built-in `mount()` fixture with a story
-  gallery; `@playwright/experimental-ct-*` stopped receiving updates in 1.63
-  and current docs mark them removed. Migrate while pinned to 1.62; add none.
-- Never run `playwright-cli install --skills -g` or any other agent-skill
-  installer: `~/.claude/skills` is a symlink to the owned dotfiles skills
-  directory, so it writes vendor files into owned skills.
+Runner majors change defaults that alter results (Vitest 5 `clearMocks`,
+unawaited assertions, report paths; Playwright trace CLI, `--debug=cli`,
+component-test fixture). Check the installed major against
+`references/source-ledger.md` § Installed-runner specifics before blaming a
+test. Never run `playwright-cli install --skills -g` or any agent-skill
+installer: `~/.claude/skills` is a symlink into owned dotfiles skills.
 
 ## 8. Evidence gate and report
 
@@ -243,17 +213,10 @@ was not exercised.
 
 ## Anti-patterns
 
-- Test-per-function or coverage-percentage targets without a risk hypothesis.
-- Source-text, AST-shape, private-call-order, import, export-existence, or
-  mock-wiring assertions standing in for behavior.
-- Snapshotting large objects, markup, errors, or responses to avoid selecting
-  contractual fields.
-- Mocking every collaborator so the production composition is never exercised.
-- Using SQLite or an in-memory map to claim PostgreSQL constraint/transaction
-  behavior.
-- Sleeping, sharing accounts/rows/ports, depending on order, or swallowing
-  cleanup errors.
-- Hitting production, embedding secrets, refreshing snapshots blindly, or making
-  CI pass by retries, skips, larger timeouts, or weaker assertions.
-- Adding a new runner or abstraction when the installed harness can express the
-  test.
+Test-per-function or coverage targets without a risk hypothesis · assertions
+on source text, call order, imports, or mock wiring instead of behavior ·
+large snapshots in place of contractual fields · every collaborator mocked so
+production composition never runs · SQLite or in-memory maps standing in for
+PostgreSQL · sleeps, shared rows/ports, order dependence · production targets,
+embedded secrets, blind snapshot refresh, or CI made green by retries, skips,
+timeouts, or weaker assertions.

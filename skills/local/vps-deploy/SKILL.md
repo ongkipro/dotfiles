@@ -1,14 +1,7 @@
 ---
 name: vps-deploy
 description: >-
-  Deploy and operate Node/Next.js/Astro SSR apps with PostgreSQL on an Ubuntu
-  VPS via Coolify v4 or Docker Compose. Not provider console work (vultr),
-  Cloudflare products (cloudflare/wrangler), schema design (postgres-drizzle),
-  or deploying without approval — every live action is gated. Covers health
-  checks, rolling or blue-green deploys, workers and scheduled tasks, Postgres
-  backup/restore drills, rollback, hardening, logs. Use for "deploy ke VPS", Coolify setup or failures, zero
-  downtime, backup and restore, rollback, server hardening, disk full, SSL/Let's
-  Encrypt issues, and production readiness reviews.
+  Deploy and operate Node/Next.js/Astro SSR apps with PostgreSQL on an Ubuntu VPS via Coolify v4 or Docker Compose: health checks, zero-downtime deploys, workers/cron, backup/restore drills. Not provider console (vultr), Cloudflare, or schema.
 ---
 
 # VPS deploy: Coolify v4 or Docker Compose
@@ -18,8 +11,13 @@ and wait for explicit approval before touching a live server, DNS, or a
 database. Read-only inspection (status, logs, disk) is fine when access already
 exists. Live hosts, accounts, and credentials are device-local
 (`~/.config/ai-local/`), never in tracked files. Current Coolify instance:
-drive it with `dotfiles-coolify <args>` (token injected from `secrets-env`);
-host, firewall, and recovery facts are in `~/.config/ai-local/vps-main-access.md`.
+`99ribu-prod` (host recorded device-locally); drive it with `dotfiles-a1-coolify <args>`
+(token injected from `secrets-env`); host, firewall, Cloudflare, and recovery facts
+are in `~/.config/ai-local/99ribu-prod-access.md`.
+
+New server, Coolify install, dashboard domain, Cloudflare Origin CA, Access, and a
+Cloudflare-only origin: follow [references/coolify-behind-cloudflare.md](references/coolify-behind-cloudflare.md)
+(verified end to end 2026-10-30).
 
 Facts verified against official docs on **2026-10-02** (Coolify v4.3.x,
 Docker Compose, PostgreSQL 18 docs). Re-check version-specific behavior before

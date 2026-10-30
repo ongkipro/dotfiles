@@ -12,8 +12,10 @@ fails when a tracked member of a covered collection is unlinked, when a
 project memory is missing from its own index, or when a relative link in the
 sitemap resolves to nothing. Each collection has one index: project memory is
 listed by config/ai/project-memory/MEMORY.md, so the sitemap links that index
-rather than duplicating it. Only tracked files count, so uncommitted work never
-fails the gate.
+rather than duplicating it. Members are what is on disk and not ignored:
+tracked, modified, renamed, or new files all count, deleted tracked paths do
+not, so the gate reports the worktree a reader actually sees instead of
+rewarding `git add`.
 
 Entries keep the llms.txt shape, `- [name](path): note` or a table row with a
 link, so the map is also a dictionary: --find ranks entries against a query
@@ -57,9 +59,17 @@ STOP = {"a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "in", "i
 
 
 def tracked(root: Path) -> list[str]:
-    out = subprocess.run(["git", "-C", str(root), "ls-files", "-z"],
-                         capture_output=True, check=True).stdout
-    return sorted(p for p in out.decode().split("\0") if p)
+    """Worktree members: tracked files still on disk plus untracked, non-ignored
+    files. The old index-only view called an unstaged rename both "tracked but
+    not linked" (old name) and "not tracked" (new name) until someone staged
+    it, which pushed agents toward `git add` to turn a gate green. Deleted
+    tracked paths are dropped; ignored files never count."""
+    def run(*args: str) -> set[str]:
+        out = subprocess.run(["git", "-C", str(root), *args], capture_output=True, check=True).stdout
+        return {p for p in out.decode().split("\0") if p}
+    files = run("ls-files", "-z") - run("ls-files", "-z", "--deleted")
+    files |= run("ls-files", "-z", "--others", "--exclude-standard")
+    return sorted(files)
 
 
 def collections(files: list[str]) -> list[tuple[str, str, list[str], str]]:

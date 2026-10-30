@@ -1,0 +1,26 @@
+Warning: claude.ai MCP servers blocked by enterprise policy: claude.ai Zapier, claude.ai Descript, claude.ai KOL Kelola, claude.ai Hugging Face, claude.ai ClickUp, claude.ai Google Calendar
+**APPROVE**, Paduka Ongki. Tidak ada file atau ledger yang saya ubah; hanya test dijalankan read-only (temp dir).
+
+**Verifikasi yang dijalankan**
+
+```
+python3 -m py_compile scripts/test-suite.py   # OK
+python3 scripts/test-suite.py                 # Ran 29 tests, OK (Python 3.12.3)
+```
+
+**Temuan per perubahan**
+
+- **Empat assertion lama prd dihapus dengan alasan valid.** Keempat frasa lama punya 0 match di prd-taskbreaker SKILL.md saat ini. Diff SKILL.md menunjukkan isinya ditulis ulang jadi paragraf "Suite-pack mode", bukan dibuang.
+- **Enam assertion baru memang mencerminkan teks saat ini.** Deteksi pack via CONTEXT-RECORD.md, skema PR-*/NFR-*, heading T-*, satu bold Primary requirement dengan TD-*/DS-* yang diterima, pemanggilan check-traceability, dan larangan root PRD.md yang menyaingi 02-PRD.md semuanya cocok setelah whitespace collapse.
+- **Whitespace collapse aman.** Hanya menetralkan hard-wrap Markdown pada prd; tidak melonggarkan isi frasa.
+- **Regex pengganti "NOT for a PRD/TASKS-only request" tepat.** Deskripsi suite berubah jadi "Not a PRD/TASKS-only request (prd-taskbreaker)". Regex menerima kedua bentuk dan tetap memaksa batas skill itu ada.
+- **Safeguard lain utuh.** Assertion document-map "Never maintain both", frasa legal-conclusion, dan frasa ownership di suite SKILL.md tidak disentuh. Penambahan subTest per frasa memperjelas laporan kegagalan tanpa mengurangi cakupan.
+
+**Catatan non-blocking**
+
+- Ini tetap instruction-presence test, bukan bukti perilaku model.
+- Collapse hanya diterapkan ke prd. Frasa suite masih satu baris di sumber, jadi aman sekarang. Kalau suite SKILL.md nanti di-hard-wrap, collapse yang sama perlu dipakai di sana.
+
+**Model identifier:** claude-fable-5-1 (Claude Fable 5.1).
+
+Ringkasan review juga tersimpan di `/home/ongki/.claude/plans/read-only-bounded-review-review-glittery-riddle.md`.

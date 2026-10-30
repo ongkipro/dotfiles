@@ -270,3 +270,40 @@ telemetry implementation to the correct Next.js lifecycle and runtime.
 Streaming and Server Components can improve delivery, but only measurement proves
 performance. A smaller client boundary is an implementation invariant; a faster
 page is a measured result.
+
+## Internationalization (moved from SKILL.md 2026-10-30)
+
+Verify the installed version's i18n guide before routing locales; the Pages
+Router `i18n` config does not apply to the App Router. Current docs (v16)
+describe: all routes under `app/[lang]/`, locale negotiation and redirect in
+Proxy, per-locale dictionaries loaded server-side (`server-only` or
+`next/root-params` where the version supports it — its getters do not run in
+Server Actions or Route Handlers, so pass the locale there), `hasLocale` narrowing with
+`notFound()` for unknown locales, and `generateStaticParams` for static
+locales. Set `<html lang>` in the `[lang]` root layout. Keep dictionaries out
+of Client Components except the keys a leaf needs. Dates, numbers, and currency
+use `Intl` (`native-first`). Hreflang, per-locale canonicals, and localized
+sitemaps belong to `seo-website-builder`. Source:
+https://nextjs.org/docs/app/guides/internationalization (verified 2026-10-02).
+
+## Route and platform concerns (moved from SKILL.md 2026-10-30)
+
+- Use Route Handlers' Web `Request`/`Response` APIs unless an inspected Next
+  extension is necessary. Make method, content type, status, and cache headers
+  explicit where they are part of the contract.
+- Implement metadata with the App Router metadata object/function or metadata
+  files supported by the installed version. Keep it in Server Components and
+  deduplicate shared reads. `seo-website-builder` decides content/indexing policy.
+- Keep secrets server-only. `NEXT_PUBLIC_*` values are public and normally frozen
+  into client output at build time; they are not a runtime secret channel.
+  Distinguish build-time from request-time environment needs.
+- Default to the supported Node runtime. Select another runtime only after
+  checking package/API compatibility, cache/ISR constraints, streaming, and the
+  deployment adapter's current support.
+- Instrumentation hooks provide framework lifecycle integration; event names,
+  telemetry schema, sampling, redaction, and SLOs belong to
+  `observability-engineering`.
+- Node/Docker, static export, and adapters have different feature envelopes.
+  Verify Server Actions, Route Handlers, image optimization, cache persistence,
+  revalidation, streaming, and filesystem assumptions against the target.
+  Platform provisioning and Vercel infrastructure route to `vercel`.

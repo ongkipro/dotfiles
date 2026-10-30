@@ -1,14 +1,7 @@
 ---
 name: full-stack-development
 description: >-
-  Orchestrate production full-stack feature delivery or bug repair when work
-  spans multiple application layers or an accepted feature must be carried end
-  to end. Not for a single settled specialist task, product discovery alone, or
-  generic architecture. Covers product contracts, frontend, backend, data,
-  IAM, API, security, testing, observability, CI, and runtime evidence. Routes
-  only the smallest relevant specialist set, preserves planning and release
-  approval gates, and keeps UI, API, authorization, and persistence contracts
-  aligned.
+  Orchestrate end-to-end feature delivery or cross-layer bug repair: contracts, UI, backend, data, IAM, API, security, tests, telemetry, CI, runtime evidence. Not a single settled specialist task, discovery alone, or generic architecture.
 ---
 
 # Full-stack Development
@@ -18,15 +11,19 @@ truth and accepted behavior, route each concern to its canonical owner, keep
 cross-layer contracts synchronized, and stop only when the requested outcome has
 executable evidence or an explicit external blocker.
 
-When the selected runtime/model lacks a needed capability or the session resumes
-elsewhere, use [adaptive execution](../development-kit/references/adaptive-execution.md).
-Preserve acceptance criteria; disclose unverified gates and continue independent
-work. Runtime-specific checks apply only to the selected CLI.
+Read only this file up front. [end-to-end-workflow.md](references/end-to-end-workflow.md)
+holds the phase checklist, contract record, and evidence packet; open it when
+starting a multi-phase feature. [source-ledger.md](references/source-ledger.md)
+only for a current platform/standard claim; [adaptive execution](../development-kit/references/adaptive-execution.md)
+only when the runtime lacks a capability or the session resumes elsewhere.
 
-Read [End-to-end workflow](references/end-to-end-workflow.md) for the runnable
-phase checklist, contract record, stack combinations, and evidence packet. Read
-[source-ledger.md](references/source-ledger.md) only when a current platform or
-standard claim is needed.
+**Pick the path first:**
+- Cross-layer bug → "Inspect" → the repair paragraph in "Choose the delivery
+  lane" → "Evidence gates" 3–5.
+- Accepted feature, criteria settled → "Inspect" → "Execute in dependency
+  order" → "Evidence gates".
+- Unsettled behavior → "Choose the delivery lane" first; no code until the
+  handoff carries implementation authorization.
 
 ## Trigger and scope
 
@@ -90,54 +87,23 @@ When the installed framework has no dedicated skill, use its version-matched
 official docs and the activated domain owners. Keep the project's stack and test
 conventions; missing catalog coverage is not permission to migrate it.
 
-## Owner matrix
+## Owners
 
-| Work discovered | Exact owner skill |
+The skill map (`skills/local/README.md`) and each skill's description name
+the owner for single-domain concerns; load only owners the trace activates.
+Composite concerns with no single owner, from
+[owner-matrix.md](references/owner-matrix.md):
+
+| Work discovered | Owners |
 |---|---|
-| Automated behavioral test strategy, test levels, fixtures, and regression coverage | `testing-engineering` |
-| Plain PostgreSQL/Drizzle schema, constraints, queries, migrations, and data lifecycle | `postgres-drizzle` |
-| Cross-stack threat modeling, authorization boundaries, input/output safety, secrets, and AppSec review | `application-security` |
-| Next.js App Router architecture and implementation | `nextjs-development` |
-| Cross-stack logs, metrics, traces, SLI/SLOs, alerts, and telemetry safety | `observability-engineering` |
-| GitHub Actions workflow design, permissions, caching, matrices, artifacts, and CI evidence | `github-actions` |
-| Astro rendering, routes, islands, Actions, sessions, adapters, and endpoints | `astro-development` |
-| Cloudflare Worker code and bindings | `workers-best-practices` |
-| Cloudflare product choice; Wrangler CLI, config, and deploy | `cloudflare`; `wrangler` |
-| VPS deploy/operate (Coolify or Docker Compose), backups, rollback, workers, cron | `vps-deploy` (provider console/provisioning: `vultr`) |
-| Vercel projects, env, domains, preview/production deploys | `vercel` |
-| Client-edited content layer and CMS selection | `cms-content` |
-| Shopify headless architecture; Hydrogen implementation; Hydrogen tracking surfaces | `headless-shopify`; `hydrogen-development`; `hydrogen-headless-tracking` |
-| Technical SEO, metadata, schema, sitemap/canonical, hreflang | `seo-website-builder` |
-| Transactional email from a Worker (Cloudflare Email Sending/Routing) | `cloudflare-email-service` |
-| Transactional email outside Workers (SMTP or provider API from Node) | no dedicated owner: provider's official docs + `native-first` before an SDK; secrets/abuse via `application-security`; send from a job (row below), not the request path |
-| File uploads (validation, size/type limits, storage, signed URLs) | `application-security` for the trust boundary; storage owner by platform: `cloudflare` (R2), `supabase-stack` (Storage), `vps-deploy` (volumes/object store) |
-| Background jobs, queues, cron, outbox | `postgres-drizzle` (outbox, `SKIP LOCKED`, idempotency); runtime by platform: `vps-deploy` (worker container, scheduled tasks), `cloudflare` (Queues/Cron Triggers), `vercel` (crons) |
-| Bot protection on forms and endpoints (Turnstile) | `turnstile-spin` |
-| Supabase database, Auth, RLS, Storage, Realtime, and Edge Functions | `supabase-stack` |
-| Better Auth configuration and session/auth hardening | `better-auth-security` plus `application-security` for the cross-stack boundary |
-| Machine-readable REST contract | `openapi-spec` |
-| Stripe payments, Connect, and webhooks | `stripe-best-practices` |
-| DOKU or senangPay checkout for a Malaysia storefront | `doku-malaysia-integration` |
-| AutoLaris H2H payment channels, Create Resi, Cek Ongkir, and Advice reconciliation | `autolaris-h2h` |
-| Multi-courier Indonesian shipping rates, tracking, and COD settlement through an aggregator | `mengantar-api` |
-| Admin/CMS roles, objects, lifecycle, permissions, tasks, and screen contracts | `admin-product-ux` |
-| Admin/CMS information hierarchy, tables, charts, density, and responsive presentation | `admin-dashboard` |
-| React/Next.js shadcn component APIs and installed registry integration | `shadcn-ui` |
-| Storefront journey, commerce states, and backend-neutral acceptance behavior | `storefront-ux` |
-| Storefront implementation architecture and commerce UI composition | `storefront-development` |
-| Non-admin visual direction | `design-taste` |
-| Browser-visible executable evidence | `ui-validation` |
-| Performance measurement and diagnosis | `web-perf` |
-| Built-in capability and dependency decision | `native-first` |
-| Cross-file call tracing or change-impact navigation | `codebase-navigation` (search first; optional Graphify) |
-| Shipped-artifact, HAR/network, bundle, APK, SQLite, or binary reverse engineering and reconstruction coverage | `black-magic` |
-| Small PRD/PLAN/TASKS route | `prd-taskbreaker` |
-| Traceable multi-document specification pack | `development-spec-suite` |
+| Transactional email outside Workers | provider docs + `native-first` before an SDK; secrets/abuse `application-security`; send from a job |
+| File uploads | `application-security` for the boundary; storage by platform: `cloudflare` (R2), `supabase-stack`, `vps-deploy` |
+| Background jobs, queues, cron, outbox | `postgres-drizzle` (outbox, `SKIP LOCKED`, idempotency); runtime: `vps-deploy`, `cloudflare`, `vercel` |
+| Better Auth | `better-auth-security` + `application-security` for the cross-stack boundary |
 
-A specialist owns its domain even when another skill owns the host framework.
-For example, `postgres-drizzle` owns a Drizzle migration inside Next.js, while
-`nextjs-development` owns the route or Server Action consuming it. Do not load an
-owner whose concern is absent.
+A specialist owns its domain even inside another skill's host framework:
+`postgres-drizzle` owns the Drizzle migration, `nextjs-development` the
+Server Action consuming it.
 
 ## Keep one contract thread
 
@@ -185,26 +151,13 @@ layers.
    truth, remove scaffolding, and report remaining risk. Do not deploy unless the
    user separately authorizes it.
 
-## Clean-light admin/CMS route
+## Admin/CMS route
 
-For new admin or CMS work, the mandatory route is:
-
-`admin-product-ux` -> `admin-dashboard` -> installed framework owner and, when
-applicable, `shadcn-ui` -> `ui-validation`.
-
-Bounded maintenance of an accepted screen reuses its behavior, tokens, and
-references; activate the UX/visual owner again when the contract or direction
-changes. Browser evidence still applies to every browser-visible change.
-
-For a new surface or material redesign, the first two owners must inspect
-relevant references and record either a justified selection or meaningful
-alternatives before code. Diagram branching/lifecycle/cross-system interaction
-through `mermaid-diagram` only when it improves verification; diagrams do not
-replace screen contracts.
-
-Existing project tokens always win. If none exist, route the accepted screen
-contract through the [admin-dashboard clean-light CMS baseline](../admin-dashboard/references/clean-light-cms-baseline.md).
-This skill owns only the route and cross-layer contract.
+New admin or CMS work: `admin-product-ux` → `admin-dashboard` → the framework
+owner (+ `shadcn-ui` when React) → `ui-validation`. Bounded maintenance of an
+accepted screen reuses its contract and tokens; re-activate the UX/visual owner
+only when the contract or direction changes. Existing project tokens win; with
+none, `admin-dashboard` supplies the baseline.
 
 ## Evidence gates
 
@@ -236,13 +189,9 @@ run.
 
 ## Anti-patterns
 
-- Loading every full-stack skill before the trace activates it.
-- Rewriting specialist framework, database, security, testing, or CI guidance here.
-- Generating a generic architecture framework, repository template, or wrapper
-  layer instead of following the installed stack.
-- Letting UI, API, database, or authorization contracts drift independently.
-- Treating hidden UI controls as authorization or logs as observability.
-- Testing implementation plumbing while leaving failure/recovery behavior unproved.
-- Claiming release readiness from compilation alone or crossing an approval gate.
-- Keeping compatibility aliases, dead branches, placeholder evidence, or cleanup
-  tasks after a clean cutover is possible.
+Loading every skill before the trace activates it · restating specialist
+guidance here · a generic architecture or wrapper layer instead of the
+installed stack · UI, API, DB, and authz contracts drifting apart · hidden
+controls as authorization, logs as observability · plumbing tested while
+failure/recovery stays unproved · readiness claimed from compilation ·
+aliases, dead branches, or placeholder evidence left after a clean cutover.

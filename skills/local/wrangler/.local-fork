@@ -18,3 +18,4 @@ to_vendor: remove this ledger (and become byte-identical) if upstream adds an eq
 recheck: 2026-10-02 — merged upstream b90d284 (skip this skill and follow the Cloudflare CLI docs when the
   project has cloudflare.config.ts or the user asks for `cf`) and 41e0d19 (index.md doc routes).
   Description boundary unchanged.
+description: 2026-10-30 skill-efficiency pass — frontmatter description rewritten to ≤250 chars (what + boundary front-loaded; Codex truncates at ~250). Body untouched by this pass. Re-apply after a byte-for-byte refresh; see docs/skill-efficiency-audit-2026-10-30.md.

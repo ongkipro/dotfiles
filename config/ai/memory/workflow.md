@@ -15,7 +15,7 @@
 - Machine-specific snapshot files (`home/gitconfig`, `home/bashrc.snapshot`, `home/zshrc.snapshot`, `config/mise-config.toml`, `config/vscode-settings.json`) are marked `merge=ours` in `.gitattributes` → on sync always keep the local machine's version (needs `git config merge.ours.driver true`, set automatically by dotpush + install scripts).
 - VSCode optional, not mandatory — don't suggest it unless asked.
 - Shopify dev routing: use the active owned skills and current official documentation. Plugin installation is runtime/device-local; inspect it when relevant instead of trusting an old installed-plugin snapshot. Do not clone support repositories as duplicate skills.
-- Kelola development delivery has a repository-specific `dev` verification workflow. Read its current repository contract and `kelola-deploy` when relevant; this memory does not independently authorize commit, push, restart, or deployment. Follow any applicable explicit authorization, and never include unrelated changes.
+- Kelola development delivery has a repository-specific `dev` verification workflow. Read its current repository contract and the Kelola project memory (`project-memory-kelola/reference_deploy.md`) when relevant; this memory does not independently authorize commit, push, restart, or deployment. Follow any applicable explicit authorization, and never include unrelated changes.
 
 
 ## Long tasks, debugging, and security

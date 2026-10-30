@@ -1,31 +1,46 @@
 # Tasks — dotfiles
 
-Updated: 2026-10-28
+Updated: 2026-10-29
 
-The sole executable queue. Completed contracts live under `docs/archive/`;
-repository tests and runtime evidence outrank prose.
-
-## Task contract
-
-Fields and risk rules: `config/templates/TASKS.md`. R0 may infer one obvious file;
-R1 stays bounded; R2 names its surface; R3/R4 add protected surfaces and review.
-Only the dependency edge is human-authored; state is derived.
-
-## Done
-
-Completed contracts: `docs/archive/` (`git grep TASK-NNN docs/archive`).
-
-TASK-147: [Runtime activation and trustworthy verification](docs/archive/DOTFILES_TASKS_2026-10-26_RUNTIME.md).
-
-TASK-146, TASK-149, TASK-150: [Meta/SEO implementations and retired-skill integration](docs/archive/DOTFILES_TASKS_2026-10-27_META_SEO.md).
-
-TASK-152, TASK-153: [Indonesia baseline, trustworthy Meta diagnostics, and cross-device dotads-meta-report root](docs/archive/DOTFILES_TASKS_2026-10-27_META_INDONESIA.md); implementation evidence remains in their delivery runs.
-
-TASK-154: [Verified bootstrap and review provenance](docs/archive/DOTFILES_TASKS_2026-10-27_META_INDONESIA.md); evidence `RUN-20261027T160756Z-7c8deb3c`.
-
-TASK-155: [Scoped account reporting runtime](docs/archive/DOTFILES_TASKS_2026-10-27_META_INDONESIA.md); evidence `RUN-20261027T163122Z-9c4249c0`.
+Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
 
 ## Pending
+
+### TASK-156: Memory precision
+- **Requirement:** REQ-MEMORY-PRECISION.
+- **Risk Level:** R2.
+- **Allowed Paths:** run-bound router/access/lifecycle, tests, manifest, lesson/docs paths; [contract](docs/research/memory-focus-architecture-2026-10-29.md#accepted-delivery-contracts).
+- **Canonical Contract Owners:** memory.routing/access/lifecycle.
+- **Accepted Invariants:** execution first; explicit foreign references; path-only ≤1 file/40%; no inferred usage.
+- **Regression Checks:** route/access/lifecycle/hook tests; policy lint.
+- **Runtime Evidence:** slug/negative-reference probes.
+- **Reopen Conditions:** isolation regression.
+- **Non-Scope:** deletion, commit/push.
+- **Escalation Conditions:** schema/authority change.
+
+### TASK-157: Session focus
+- **Requirement:** REQ-FOCUS.
+- **Risk Level:** R2.
+- **Allowed Paths:** run-bound focus, resume/router/access/ledger and tests, manifest/CORE/context/docs; [contract](docs/research/memory-focus-architecture-2026-10-29.md#accepted-delivery-contracts).
+- **Canonical Contract Owners:** focus.state; ledger completion.
+- **Accepted Invariants:** isolated expiring claims; captured boundaries persist; explicit references; no rival task authority.
+- **Regression Checks:** focus/route/access/resume/ledger tests, context, policy lint.
+- **Runtime Evidence:** concurrent claims and boundary probes.
+- **Reopen Conditions:** leakage/overwrite/bypass.
+- **Non-Scope:** write interception, commit/push.
+- **Escalation Conditions:** budget/authority change.
+
+### TASK-158: Writer and two-way language
+- **Requirement:** REQ-TWO-WAY-LANGUAGE.
+- **Risk Level:** R2.
+- **Allowed Paths:** run-bound writer migration/references, communication memory/router, CORE/context/evals/maps/docs; [contract](docs/research/memory-focus-architecture-2026-10-29.md#accepted-delivery-contracts).
+- **Canonical Contract Owners:** writer; communication memory.
+- **Accepted Invariants:** preserve meaning/locale/history and parallel edits; no universal fluency claims.
+- **Regression Checks:** metadata/map/links/workflow/context/hygiene, routing, dialogue review.
+- **Runtime Evidence:** five-runtime discovery; semantic cases.
+- **Reopen Conditions:** intent/register regression.
+- **Non-Scope:** auto-promotion, commit/push.
+- **Escalation Conditions:** new CORE methodology.
 
 ### TASK-151: Upstream watch registry and deduplicated skill evidence
 
@@ -98,7 +113,7 @@ TASK-155: [Scoped account reporting runtime](docs/archive/DOTFILES_TASKS_2026-10
 
 ### TASK-096: TASK-080 tests depend on the caller's environment
 
-- **Requirement:** REQ-CI-DETERMINISM (Core runtime `5c6c1fb` red on both OSes: `dotpush-test` needs a global git identity CI lacks; `dotsync-test` compares an unresolved macOS `/var` temp path with `realpath` output under `/private/var`).
+- **Requirement:** REQ-CI-DETERMINISM (`5c6c1fb`: dotpush identity and macOS `/var`/`/private/var` fixture mismatch).
 - **Risk Level:** R1.
 - **Allowed Paths:** `bin/dotpush-test`, `bin/dotsync-test`, `TASKS.md`, `.delivery/**`.
 - **Canonical Contract Owners:** `runtime.readiness`.
@@ -123,15 +138,15 @@ TASK-155: [Scoped account reporting runtime](docs/archive/DOTFILES_TASKS_2026-10
 
 ### TASK-089: Control-plane integrity and adaptive routing
 
-- **Requirement:** REQ-DOTFILES-CONTROL-PLANE-HARDENING (2026-09-18 audit: align delivery authority, proportional UI routing, tracked-memory privacy, and current Better Auth multi-tenant security guidance).
+- **Requirement:** REQ-DOTFILES-CONTROL-PLANE-HARDENING (2026-09-18).
 - **Risk Level:** R3 — protected runtime, delivery, and security-methodology surfaces.
 - **Allowed Paths:** `STATUS.md`, `.delivery/current.json`, `TASKS.md`, `docs/archive/TASKS-077-087-completed.md`, `bin/delivery-ledger`, `bin/delivery-ledger-test`, `bin/dev-ready`, `bin/dev-ready-test`, `bin/project-init-test`, `bin/resume-brief-test`, `bin/ai-memory-hygiene`, `bin/ai-memory-hygiene-test`, `bin/ai-learn`, `bin/ai-learn-test`, `config/ai/README.md`, `config/ai/memory/identity.md`, `config/ai/memory-hygiene.json`, `config/ai/adapters/omp.md`, `config/ai/context/omp.md`, `config/omp/GOAL-ORCHESTRATION.md`, `config/omp/STATUS.md`, `skills/local/better-auth-security/SKILL.md`.
 - **Protected Paths:** `bin/delivery-ledger`, `config/ai/adapters/omp.md`, `skills/local/better-auth-security/SKILL.md`.
-- **Canonical Contract Owners:** delivery state → `STATUS.md` + `delivery-ledger`; OMP capability routing → OMP adapter/playbook; memory privacy → `ai-memory-hygiene` + `ai-learn`; auth methodology → `better-auth-security`.
+- **Canonical Contract Owners:** STATUS/ledger; OMP adapter; memory hygiene/learn; better-auth-security.
 - **Accepted Invariants:** no new agent/orchestrator; small accepted-system UI maintenance may stay local but browser-visible work remains validated; material/reference UI still uses designer/vision capability; ledger authority fails visibly when `STATUS.md` is absent/invalid; finished runs do not leak stale checkpoints into current projection; tracked memory must be safe under public visibility; Better Auth guidance fails closed on unknown hosts and treats cached sessions/proxy headers according to current documented behavior.
 - **Regression Checks:** `delivery-ledger-test`, `dev-ready-test`, `project-init-test`, `resume-brief-test`, `ai-memory-hygiene-test`, `ai-learn-test`, `omp-routing-test`, `omp-effective-routing-test`, `skill-check better-auth-security`, `ai-policy-lint`, `ai-doctor --self-test`, `git diff --check`.
 - **Runtime Evidence:** exact-head Core runtime CI remains required before this task may be archived.
-- **Reopen Conditions:** stale workflow state can pass ledger verification, bounded UI maintenance again requires unnecessary design orchestration, tracked memory accepts explicitly non-public facts, or current Better Auth multi-domain/session/proxy guidance regresses.
+- **Reopen Conditions:** stale state passes, UI routing over-orchestrates, private facts enter memory, or Better Auth multi-domain/session/proxy guidance regresses.
 - **Non-Scope:** model/provider selection, new agents/skills, repository visibility mutation, history rewrite, broad historical memory scrubbing, live deployment.
 - **Escalation Conditions:** a fix requires rewriting Git history, changing repository visibility, weakening independent review, or removing operational history beyond the targeted public-safety cleanup.
 

@@ -1,6 +1,7 @@
 ---
 name: turnstile-spin
-description: Set up, repair, or migrate to Cloudflare Turnstile end-to-end in a project whose existing backend can call Siteverify. Not for pure-static sites or deploying new Workers, proxies, or form backends. Scans the codebase, creates the widget via the Cloudflare API, embeds it where requests need bot verification (forms, SPA actions, API endpoints, downloads, comments, votes), wires canonical server-side Siteverify into the existing handler, validates, and persists the skill. Load when a user asks to add Turnstile, set up CAPTCHA, protect a form or endpoint from bots, or fix a Turnstile integration. Derived from developers.cloudflare.com/turnstile/spin.
+description: >-
+  Set up, repair, or migrate Cloudflare Turnstile end-to-end where an existing backend can call Siteverify: scan codebase, create widget via API, embed on forms/endpoints. Not pure-static sites or deploying new Workers/backends.
 ---
 
 # Turnstile Spin skill

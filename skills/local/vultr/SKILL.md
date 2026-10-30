@@ -1,6 +1,7 @@
 ---
 name: vultr
-description: Provision and manage Vultr VPS instances from the terminal via the official vultr-cli (create, plan/region choice, firewall groups) and bootstrap a fresh Coolify install on it. Not app deploys, Coolify operations, backups, rollback, or hardening after install (vps-deploy). Use when the user mentions Vultr, vultr-cli, spin up a new VPS or cloud instance, install Coolify on a new server, or Indonesian phrases like beli/bikin server, sewa VPS, setup server baru, pasang Coolify di server baru.
+description: >-
+  Provision and manage Vultr instances with vultr-cli (create, plan/region, firewall groups) and bootstrap a fresh Coolify install. Not app deploys, Coolify operations, backups, or hardening after install (vps-deploy). Triggers: bikin server, sewa VPS.
 ---
 
 # Vultr (CLI-first) + Coolify
@@ -21,11 +22,11 @@ Note: the asset keeps the `v` in the version (e.g. `vultr-cli_v3.10.0_linux_amd6
 
 One wrapper per Vultr account; the token lives in `secrets-env`, never in `~/.vultr-cli.yaml` (no plaintext config, and several accounts can coexist). `VULTR_API_KEY` in the environment overrides the config file.
 
-- Current account: **`dotfiles-vultr`** (`~/dotfiles/bin/dotfiles-vultr`, linked into `~/.local/bin`), token `VULTR_DOTFILES_API_KEY`. Run every command below as `dotfiles-vultr <args>` instead of `vultr-cli <args>`.
-- Set or rotate the token: create a Personal Access Token at https://my.vultr.com/settings/#settingsapi, add this machine's IP under **Access Control**, then the user pastes it into the `VULTR_DOTFILES_API_KEY=` line of `~/.config/ai-local/secrets.env` with their own editor (never via chat or a command line). Verify: `dotfiles-vultr account info` (negative balance = credit), then `secrets-env check`.
+- Current account: **`dotfiles-a1`** (`~/dotfiles/bin/dotfiles-a1-vultr`, linked into `~/.local/bin`), token `VULTR_DOTFILES_A1_API_KEY`. Run every command below as `dotfiles-a1-vultr <args>` instead of `vultr-cli <args>`. The older `dotfiles-vultr` account (`VULTR_DOTFILES_API_KEY`) answered 401 on 2026-10-30 and is pending retirement.
+- Set or rotate the token: create a Personal Access Token at https://my.vultr.com/settings/#settingsapi, add this machine's IP under **Access Control**, then the user pastes it into the `VULTR_DOTFILES_API_KEY=` line of `~/.config/ai-local/secrets.env` with their own editor (never via chat or a command line). Verify with a read-only call such as `<wrapper> ssh-key list`, then `secrets-env check`. A 401 usually means this machine's current public IP is missing from Access Control (home IPs change); Access Control accepts IP/CIDR only, not machine identity.
 - Another account: copy the wrapper to `bin/<name>-vultr`, change the variable it reads (`VULTR_<NAME>_API_KEY`), add an empty `# --- Vultr — <name> ---` group + variable to `~/.config/ai-local/secrets.env`, and symlink it into `~/.local/bin`.
 - Retired account: delete its secret line and wrapper; check no `~/.vultr-cli.yaml` is left behind.
-- Existing servers on this account (IDs, firewall group, SSH key): `~/.config/ai-local/vps-main-access.md`. Note `plans list` shows nominal regions, not stock — confirm with `regions availability <region>` before `instance create`.
+- Existing servers on this account (IDs, firewall group, reserved IP, SSH key): `~/.config/ai-local/99ribu-prod-access.md`. Note `plans list` shows nominal regions, not stock — confirm with `regions availability <region>` before `instance create`.
 
 ## Deploy an instance (end-to-end)
 
@@ -47,6 +48,14 @@ vultr-cli instance create --region sgp --plan <plan> --os 2284 \
 vultr-cli instance get <id> | awk '/^MAIN IP/{print $3}'
 ssh -i ~/.ssh/<name> root@<IP>
 ```
+CLI and API facts verified 2026-10-30 (vultr-cli 3.11):
+- `instance create` accepts `--firewall-group <id>` and `--reserved-ipv4 <reserved-ip-id>` (the reserved IP becomes the main IP; reserve it first with `reserved-ip create --region <r> --type v4 --label <l>`). The reserved IP was not routable until one `instance restart`; `reserved-ip attach <id> --instance-id <id>` then answered "restart your server".
+- `instance create` prints the generated root password; filter it from output and log in with the SSH key.
+- `ssh-key create` output does not start with `ID`; read the ID back with `ssh-key list`.
+- `firewall rule create <group-id>` always needs `--subnet` and `--size`, even with `--source cloudflare` (use `0.0.0.0`/`0`, `::`/`0`). Delete by rule number, highest first. Rule changes take about a minute to apply.
+- `firewall group get` reported 0 instances and 0 rules for an attached, enforcing group; prove enforcement with a port probe instead.
+- Bind a group after creation with `instance update-firewall-group <instance-id> --firewall-group-id <id>`.
+
 Plan naming: `vhp-*` = High Performance (AMD, NVMe), `vhf-*` = High Frequency (Intel 3GHz+, NVMe), `vc2-*` = Regular. Vultr has **no Jakarta** — Singapore (`sgp`) is closest to Indonesia (~20-30ms). Vertical resize is easy but **disk can't shrink**, so start small.
 
 ## Bootstrap Coolify (Docker deploys)

@@ -10,6 +10,10 @@ count=0
 description_chars=0
 
 DESCRIPTION_MAX=1024
+# SKILL.md bytes an owned skill may load up front. Skills over budget are
+# listed with their current ceiling in $SRC/.size-debt ("name bytes"); they may
+# shrink, never grow. Vendored skills (.source) are not judged.
+SKILL_MAX_BYTES="${SKILL_MAX_BYTES:-12288}"
 
 bad() { printf '  FAIL  %s\n' "$*"; fail=$((fail + 1)); }
 wrn() { printf '  WARN  %s\n' "$*"; warn=$((warn + 1)); }
@@ -176,8 +180,15 @@ for dir in "${skills[@]}"; do
   fi
 
   grep -Eq '\[TODO[^]]*\]|TODO:' "$file" && bad "$folder: unresolved TODO placeholder"
-  lines="$(wc -l < "$file" | tr -d ' ')"
-  [ "$lines" -le 500 ] || wrn "$folder: SKILL.md is $lines lines; split references near 500"
+  if [ ! -e "$dir/.source" ]; then
+    bytes="$(wc -c < "$file" | tr -d ' ')"
+    ceiling="$SKILL_MAX_BYTES"
+    if [ -f "$SRC/.size-debt" ]; then
+      debt="$(awk -v k="$folder" '$1 == k { print $2; exit }' "$SRC/.size-debt")"
+      [ -n "$debt" ] && ceiling="$debt"
+    fi
+    [ "$bytes" -le "$ceiling" ] || bad "$folder: SKILL.md is $bytes bytes; ceiling is $ceiling (default $SKILL_MAX_BYTES). Cut, move detail to references/, or do not grow a .size-debt entry"
+  fi
 
   while IFS= read -r target; do
     case "$target" in

@@ -1,494 +1,190 @@
 ---
 name: design-taste
 description: >-
-  Set and critique visual direction for public frontend UI/UX (company
-  profiles, landing and sales pages, advertorials, marketing, portals, docs,
-  portfolios, storefront visuals). Not admin UI
-  (admin-dashboard) or commerce behavior (storefront-ux). Use for UI/UX workflow, reference research,
-  Apple/Google/Material-inspired web design, redesign, design tokens,
-  composition contracts, or AI-templated UI, across frameworks. Start from
-  user tasks and existing brand evidence; use a restrained, lightweight
-  public-web foundation when no accepted system exists. Require inspected
-  references for new directions and rendered critique for visual claims.
-  Copywriting, SEO, and library installation belong elsewhere. Pair with the
-  installed framework skill and ui-validation. Triggers: company profile,
-  compro, bikin website, landing page, website jasa, redesign website, tampilan
-  web, UI/UX riset referensi.
+  Visual direction and critique for public web pages: company profiles, landing/sales pages, portals, docs, storefront visuals. Not admin UI (admin-dashboard), commerce behavior (storefront-ux), copy, or SEO. Triggers: bikin website, compro, redesign.
 ---
 
-# Design Taste — Public Frontend UI/UX
-
-Produce an experience that helps its audience understand, decide, and act.
-A fashionable palette or component library does not establish quality.
-Anti-slop means decisions justified by the user's task, real content, and
-observed evidence. It is not a font, punctuation, color, or layout blacklist.
-
-**Done contract (new page or redesign).** Not done, and not to be reported as
-done, until `python3 scripts/design-gate.py <project>` (this skill's
-`scripts/`) exits 0. That needs inspected reference evidence sufficient for
-the decisions made (§1 step 4); a `## Render critique` citing your fresh,
-decoded narrow and wide screenshots (step 7); and `design/review.md` with
-`Verdict: PASS` from `scripts/visual-review.py --reviewer <capable runtime>`
-([visual-review.md](references/visual-review.md)); never write it yourself. Quote the gate's final line
-in the report. If it cannot pass, report FAIL and the failing checks.
-
-## 0. Mode and ownership
-
-Identify the surface and its primary user job before choosing a visual style.
-Read the matching entry in [surface-catalog.md](references/surface-catalog.md)
-(compro, landing, sales page, advertorial, lead magnet, donation, government,
-portfolio, waitlist, storefront, marketplace, directory, booking, news,
-docs, customer portal, and the component and state baseline): it holds the
-surface's job, anatomy, evidence, and Indonesia/Malaysia compliance.
-
-| Surface | Priority | Pair when needed |
-| --- | --- | --- |
-| Brand / marketing | Understand the offer, evaluate evidence, choose a next step | copywriting, seo-website-builder |
-| Public product flow | Complete search, booking, onboarding, application, or another customer task | existing product/UX contract; full-stack-development for cross-layer changes |
-| Editorial / docs / portfolio | Find, read, compare, or inspect work | content, seo-website-builder |
-| Storefront / commerce | Find, compare, configure, and purchase products | storefront-ux, storefront-development |
-| DR / COD funnel | Evaluate a real offer and complete the order | copywriting, existing funnel/integration owner |
-
-Admin/operator work routes to `admin-product-ux` and `admin-dashboard`.
-A public documentation sidebar or comparison table does not make a page an
-admin dashboard. Hybrid pages assign priorities by region without competing
-primary actions. Storefront visuals also load
-[public-experience-patterns.md](references/public-experience-patterns.md).
-
-## 1. Design read and UX workflow
-
-State the audience, task, surface, accepted constraints, and intended direction
-briefly. Infer ordinary choices from the repository and user context; ask only
-when missing information materially changes the target or scope.
-
-For a new public experience or material redesign:
-
-1. **Understand:** inspect existing pages, content, assets, routes, analytics or
-   research actually supplied, and the problem to solve. Distinguish evidence
-   from assumptions. Do not invent personas or conversion findings.
-2. **Structure:** identify the primary task, information hierarchy, navigation,
-   decision sequence, and essential trust or explanatory content. Use a short
-   content outline or flow before arranging components.
-3. **Model behavior:** record entry → decision/action → outcome, including
-   relevant loading, empty, error, success, disabled, and recovery states.
-   Preserve input and provide a next step when an action fails.
-4. **Research:** inspect relevant references using
-   [design-discovery.md](references/design-discovery.md). A list of URLs is not
-   research evidence, and neither is a reference table written from memory:
-   capture relevant live references with
-   `node scripts/ui-ref.mjs capture URL --out design/refs/<name>` (this skill's
-   `scripts/`), open the captured screenshots (`<dir>/<width>.png`; reading
-   `ref.json` alone is not inspection), and cite those directories in the
-   design artifact. User-supplied images and accepted project reference
-   captures also qualify: cite their image paths under `## Reference evidence`,
-   source/role, observations, and transfer rationale. One close reference may
-   resolve the design; add others when important decisions remain open. Every
-   new direction still needs inspected visual evidence and research before
-   styling. A URL list, generated mockup, or unread screenshot is insufficient.
-5. **Choose:** select a coherent direction, responsive composition, and token
-   source. Compare alternatives only when the choice is material. A low-detail
-   wireframe is useful when hierarchy is unresolved, not mandatory ceremony.
-   Run the calibration check in §4.3.1 on the plan, then write the decision
-   record (design-discovery.md §5: references, direction, composition
-   contract, tokens, page anatomy) into the design artifact **before** the
-   first visual edit. Content the owner has not supplied goes to the owner as
-   a list; copy itself is drafted through `copywriting`.
-6. **Implement:** deliver the primary journey with realistic content in the
-   existing framework, following the recorded contract. Render and look at
-   each changed view (screenshot at narrow and wide widths) before moving on;
-   if no browser can start, report the limitation instead of claiming a look.
-7. **Polish, then validate:** open the narrow and wide screenshots (view the
-   image itself; an overflow number is not a look), write a `## Render
-   critique` section in the design artifact that cites them and judges each
-   page section against §4.3.1, fix its findings, and re-render. Then get an
-   independent review per
-   [visual-review.md](references/visual-review.md): `scripts/visual-review.py`
-   starts a separate image-capable reviewer to write `design/review.md`; fix REVISE findings and
-   re-review (the script stops at five rounds). Then use `ui-validation` to
-   exercise behavior, inspect
-   narrow/wide renders, compare against the accepted direction, fix concrete
-   discrepancies, and reopen the changed views.
-
-### Reference-to-composition contract
-
-When the user supplies a visual reference, inspect it and use
-[design-discovery.md](references/design-discovery.md) to record the composition
-contract before any code or component mapping: numbered, checkable items
-(`C1`, `C2`, …) for the per-breakpoint skeleton, grid/proportions, type
-hierarchy, density/spacing rhythm, signature elements, and a "do not
-substitute" list of kit defaults. Record it in the task's Visual Contract or
-the accepted design artifact; unrecorded, reference-driven code has no
-contract to honor. Style adjectives or a component list are not a substitute.
-Component libraries implement the accepted composition; they do not choose it.
-Explicit user or project evidence can amend an item; a familiar card grid or
-centered stack stays valid when the reference or content actually has it.
-Full `C` items apply to a *target composition* reference; for directional,
-interaction, or token/brand references record only the transferred principles
-as items and leave layout to the current task.
-
-When the owner supplies content and wants a strong reference matched precisely
-and then improved, follow [reference-fidelity.md](references/reference-fidelity.md):
-research a scored shortlist, capture the target with `scripts/ui-ref.mjs`
-(measured geometry, type scale, palette), rebuild, compare until no major drift,
-then record improvements as intended deviations.
-
-Small changes inside an accepted system skip new discovery and preserve that
-system. Scale documentation to the change; never turn a spacing fix into a PRD.
-
-## 1.5. Design context precedence
-
-Explicit user direction and accepted repository design contracts outrank this
-skill's defaults. Read the owner's "UI & Design" entries in
-`~/.config/ai/memory/preferences.md` before visual work: entries marked
-Invariant are explicit direction on every project; entries marked Default
-(and the shape-language rule) are starting points that the project's
-research may change, with the reason recorded. Inspect brand assets, existing tokens, components, content,
-and locale before inventing replacements. Preserve names, URLs, tracking,
-legal/consent text, and accessibility behavior unless their change is authorized.
-
-Tokens are the starting contract, not permission to ship an inaccessible pair.
-When a conflict is found, identify the failing use and make or propose the
-smallest authorized correction; do not silently recolor the entire brand.
-
-Extend the existing `DESIGN.md` or accepted design specification. In a suite,
-use its existing design and UX owners. Never create a competing token file or
-queue. See the minimum record in `design-discovery.md`.
-
-## 2. Variance, motion, and density
-
-Use these as descriptive decisions, not mandatory numerical scores:
-
-- **Variance:** stable repeated structures for comparable information;
-  distinctive composition where the content needs it. Symmetry, centered
-  headings, repeated cards, and plain lists are all legitimate.
-- **Motion:** restrained feedback by default. Add orientation or narrative
-  motion only when it explains something and survives reduced-motion needs.
-  An agency or portfolio does not automatically require animation.
-- **Density:** match reading, comparison, and task frequency. Whitespace groups
-  content and supports hierarchy; it is not a quota of empty screen space.
-
-Existing 1–10 dials are shorthand, not thresholds for forced masonry,
-animation, or section sizes; record the rationale. Numbered reference paths
-remain compatibility pointers.
-
-### 2.1. Distinct from the owner's other sites
-
-Cross-project context can reveal accidental sameness: a 2026-10-08 scan found
-Inter in 9 of 15 recent projects and Inter + Cinzel in 8. For new work, a new
-brand on a shared template, or a redesign without an established brand system:
-
-1. For a new brand or an open direction, use `python3 scripts/portfolio-scan.py`
-   when the owner's recent projects are available (from this skill's directory;
-   `scripts/test-portfolio-scan.py` is its check). Exit 2 = not checked; continue
-   with inspected references rather than inventing a portfolio comparison.
-2. Treat recurring type, color, radius, composition, imagery, and motion as
-   prompts for critique. Reuse is valid when it fits this audience, content,
-   reference, and brand. There is no forbidden-font list or quota of differences.
-3. On a shared template, preserve the engine and components while evaluating
-   structural axes (header topology, corner/border physics, hero slot, card
-   ratio, and tinted OKLCH surfaces) per
-   [color-scales-and-skinning.md](references/color-scales-and-skinning.md); do
-   not force a different hero or device when the reference and job favor reuse.
-4. Shape language (radius, surfaces, dividers) is a researched per-project
-   choice (owner decision 2026-10-08); fixed quality rules (no decorative
-   Sparkles, no invented meters, one contact CTA) never relax.
-5. Record any material comparison and the reason to retain or change a
-   recurring choice in the design artifact.
-
-## 3. Framework-neutral implementation
-
-The fallback foundation is
-[public-web-foundation.md](references/public-web-foundation.md): Apple-informed
-hierarchy and restraint, Google/Material-informed state clarity, translated to
-web conventions. It is an adaptable starting point, not a universal branded
-skin. Reference-specific claims require current source verification.
-
-Use semantic HTML, CSS custom properties, responsive CSS, and native controls
-first. Reuse the project's components and dependencies. Add client JavaScript
-only for behavior that needs it. Styling must not force a framework migration,
-full-page hydration, or a universal component package. `native-first` owns the
-dependency decision; the installed framework skill owns implementation.
-
-For a material reference-driven build or redesign, implement in two visual
-passes regardless of framework:
-
-1. **Macro pass:** establish real-content reading/DOM order, page frame, section
-   rhythm, hero/media geometry, major alignment, and responsive transformation.
-   Render narrow and wide before investing in decorative detail.
-2. **Refinement pass:** after the macro composition survives that render, map
-   framework-native interaction primitives, tokens, typography detail, states,
-   motion, and micro-polish. Then run the final
-   `ui-validation` critique/revision loop.
-
-Skip the extra pass for a tiny change inside an already accepted composition.
-Astro, Next.js, React, Vue/Nuxt, Svelte/SvelteKit, Liquid/Hydrogen,
-server-rendered templates, and plain HTML all follow the same visual contract;
-only their implementation boundaries differ.
-
-Prefer opacity/transform for simple motion, but choose the correct technique
-for the actual state change and measure expensive work. Do not hide essential
-content behind a reveal script. Reduced motion must keep content and controls
-available. Preserve native scroll, zoom, focus, and browser history behavior.
-
-## 4. Design directives
-
-### 4.1. Typography
-
-Use the brand's type first. A system stack suits utilitarian or
-performance-critical surfaces; for a new brand without type, choose the
-family from the subject, the §2.1 distinctness check, and the pairing matrix +
-zero-CLS fallback rules in [color-scales-and-skinning.md](references/color-scales-and-skinning.md).
-Choose for content, language coverage, reading, and loading cost. Verify font
-licensing and use project-native loading or self-hosted subsets where suitable.
-Do not copy proprietary brand font assets merely to resemble a reference.
-
-Define a clear type hierarchy and comfortable reading measure; roughly 60–75ch
-is a starting point for long prose, not a universal width. Let CSS balance
-wrapping (`text-wrap: balance` on short headings, `pretty` on prose) instead of
-hard `<br>` breaks that fail at other widths and in translation (Vercel Web
-Interface Guidelines). Use responsive `clamp()` sizes that retain a rem
-contribution and work with zoom. Test long titles and real translations. Avoid
-fixed-height text containers and clipped glyphs.
-
-### 4.2. Color, shape, elevation, and visual assets
-
-Use semantic tokens for canvas, text, action, border, state, and surfaces that
-actually exist. For deriving OKLCH perceptual scales and tinted neutrals from a
-brand seed color, follow [color-scales-and-skinning.md](references/color-scales-and-skinning.md).
-Use a small radius and elevation vocabulary with consistent purposes. Reserve
-strong shadow/blur for layers where separation matters. Repeated rounded boxes
-around every heading, paragraph, and section create noise.
-
-Icons and schematics: on static or non-React sites, inline SVG from Lucide
-(one stroke weight, `currentColor`, `aria-hidden` when a text label exists) is
-the default; in React `lucide-react` is fine when installed. For explanatory
-SVG diagrams, photographic focal-point cropping, honest AI asset generation, and
-`1200×630` OpenGraph cards, follow [visual-asset-and-svg-craft.md](references/visual-asset-and-svg-craft.md).
-
-### 4.2.1. Theme policy
-
-Light is the fallback for an unspecified public website. Accepted dark-first
-brands remain dark-first. A second theme is optional; if supplied, design its
-contrast, media, surfaces, and control states independently and verify both.
-Single-theme sites need no theme toggle or theme JavaScript.
-
-When adaptive light/dark is in scope: explicit stored choice → system
-preference → project fallback (light if unspecified). A stored system choice
-continues following the OS. Offer Light / Dark / System when users control it.
-Use one theme-switch mechanism and one owner of `color-scheme`; resolve before
-first paint, tolerate blocked storage, and preserve behavior after navigation.
-Do not add clock or location-based theming by default. Existing implementations
-are in [theme-implementation.md](references/theme-implementation.md).
-
-### 4.3. Layout and composition
-
-Arrange the content according to the decision sequence. Keep navigation and
-primary actions recognizable. Choose a hero's height, text measure, and image
-proportion from its content; a full-screen hero is not a requirement.
-
-Repeat structures for comparable items. Change composition where information
-or emphasis changes. Never require a fixed number of layout families, images,
-feature cards, asymmetric sections, or zigzags. A carousel must solve a real
-browsing need and keep keyboard/touch controls; do not use one to hide a list.
-
-Plan responsive transformations, not just scaled desktop columns. Navigation,
-comparison, media, forms, and sticky regions must retain their hierarchy on
-narrow screens and at zoom. Breakpoints follow content fit rather than one
-mandatory framework breakpoint. Keep DOM order meaningful for keyboard and
-screen-reader navigation.
-
-### 4.3.1. Anti-template composition gate
-
-During composition planning and again in rendered critique, inspect whether the
-page fell back to a generic assembly pattern rather than the accepted
-content/reference logic.
-Warning signals include:
-
-- badge -> centered headline -> paragraph -> two CTA buttons -> screenshot;
-- repeated equal 3- or 4-column card grids for unrelated kinds of information;
-- a rounded bordered container around nearly every section;
-- every section using the same centered max-width alignment and visual weight;
-- cards created only because the implementation already has a `Card` primitive;
-- distinctive reference relationships replaced by a standard bento/grid shell.
-
-These are diagnostic signals, not blanket bans. A pricing comparison may
-correctly use equal cards; a simple campaign hero may correctly be centered.
-Keep a familiar pattern when the content and accepted direction justify it.
-
-Generated UI also converges on whole looks. The following are critique signals
-(adapted from Anthropic `frontend-design`, Apache-2.0), not style bans. Judge
-whether each pattern serves the researched direction, hierarchy, and content:
-
-- warm cream canvas (near `#F4F1EA`) + high-contrast serif display + terracotta
-  or clay accent (near `#D97757`);
-- near-black canvas with a single acid-green or vermilion accent;
-- broadsheet layout: hairline rules, zero radius, dense newspaper columns;
-- SaaS-card kit: identical rounded cards, one radius for every level, the same
-  soft grey shadow, gradient washes as decoration;
-- template chrome: tracked ALL-CAPS eyebrow over every heading, `A · B · C`
-  meta strings, `WORD — fragment` labels, tinted near-black standing in for
-  black, monospace for small data labels, `→` appended to every link/button;
-- typographic tells: one accented word in a headline, numbered `01 / 02 / 03`
-  markers on content that is not a sequence, fade-and-slide-up on every
-  section;
-- tech-mono template (seen on a construction company and an ads report):
-  navy canvas with a dot grid, monospace on labels and figures, `A // B`
-  separators, `LAYANAN 01` / `03 / Section` labels, a fake terminal or
-  "blueprint" panel, rows of icon-in-tile cards, Tailwind default blue or
-   indigo as the accent. `scripts/design-gate.py` reports counts as warnings;
-   only rendered critique can establish whether the composition is generic.
-
-Calibration check before code: record semantic color roles, type hierarchy,
-and layout intent proportional to the page. Tie each major decision to an
-observed reference principle, user task, content need, or accepted brand rule.
-Ask whether swapping the business name would leave an unexplained generic
-page; revise the unsupported decisions, not every familiar pattern. The
-brief's explicit words and the owner's standing UI rules (§1.5)
-always win, including when they ask for one of these looks (for example a
-`01 / 02 / 03` index on a real sequence).
-
-When the pattern is merely an implementation fallback, revise the composition
-before adding more decoration. Prefer hierarchy through scale, whitespace,
-alignment, media placement, in-section dividers, sequencing, and contrast
-before another container (between sections the owner's default is
-whitespace or a background shift; a divider needs a recorded reason). A technically consistent component tree is not evidence of authored
-visual direction.
-
-### 4.4. States, forms, and accessibility
-
-Use real links for navigation and buttons for actions. Controls have visible
-labels or clear accessible names; placeholders never replace persistent form
-labels. Prefer labels above fields when that improves scanning. Error messages
-identify the field and recovery action; submission preserves entered data.
-
-Test keyboard order, visible focus, accessible names/states, dialog focus
-management, pending feedback, and recovery. Do not fake working controls or
-success. Do not rely on hover, color, dragging, or motion alone.
-
-For WCAG AA, normal text needs 4.5:1; large text can use 3:1 (at least 24 CSS px,
-or about 18.66 CSS px bold). Required non-text control/state indicators use the
-applicable 3:1 rule, not the body-text rule. Measure actual composited colors,
-including text over media. Aim for 44px touch controls as a house usability
-baseline; WCAG 2.2 AA target size is 24px with specified exceptions, not a
-blanket 44px requirement. Sources are in `public-web-foundation.md`.
-
-### 4.5. Content and assets
-
-Use real content early. Specific offers, examples, product details, and honest
-proof provide identity. If removing the brand name leaves a page equally
-suitable for unrelated businesses, inspect whether the content and hierarchy
-are too generic. A generic shared component is not itself a failure.
-
-Approved authentic brand/product assets come first. Generated imagery can be
-an illustration or clearly identified concept, never fabricated customer,
-product, testimonial, screenshot, or performance evidence. Drawing "project
-photos", diagrams, or portfolio images with PIL, canvas, or SVG to fill empty
-slots is fabricated evidence; use a labeled placeholder the owner replaces.
-Write for the actual reader: a homeowner page explains outcomes in plain
-words and keeps specification jargon to a details table. A text-led page
-can be complete without decorative images. Do not invent customers, metrics,
-scarcity, ratings, previews, or citations to fill a layout.
-
-`copywriting` and `volumx-writer` own wording. This skill owns space and
-readability, not a punctuation blacklist. Preserve accurate quoted/legal text,
-locale, and meaning. Keep action labels consistent for the same intent and
-make differing intents distinguishable. Specific content beats filler slogans.
-
-## 5–7. Surface rules, anti-slop critique, and redesign
-
-Read [surface-and-mode-rules.md](references/surface-and-mode-rules.md) for
-editorial, media, mobile, funnel, and redesign details. Apply its evidence-based
-critique instead of a mechanical style ban list. A missing or blocked reference
-must remain unverified; do not claim visual research from a search snippet.
-
-## 8. Delivery gate
-
-Separate proposed work from observed evidence. A brief, attractive screenshot
-description, or planned check is not an executed result. Without actual tool
-evidence, report inspection and verification as pending; never say references
-were recorded, regressions verified, or a visual verdict passed. A text-only
-evaluation can judge the proposed decisions, not an unseen interface.
-Use PASS, REVISE, or UNVERIFIED as distinct verdicts. In a text-only brief
-describing a polished screenshot that you have not seen, visual = UNVERIFIED;
-do not call it a pass or a provisional pass. Known keyboard failures still
-make functional/accessibility = REVISE and block delivery.
-
-Read-only reference access does not authorize live submissions. Test purchase,
-account, payment, and destructive flows with fixtures or an authorized sandbox;
-do not place real orders or mutate production to obtain design evidence.
-
-Before describing a new or materially changed UI as ready, run
-`python3 scripts/design-gate.py <project>` (this skill's `scripts/`) and quote
-its final line. It also requires an independent image review (`Verdict: PASS`
-from a fresh context; same model/provider is eligible). Exit 1 means not ready:
-fix the source or the evidence, never the gate, and never write the review
-yourself. Source-level style warnings prompt inspection, not automatic failure;
-record justified choices in the direction. `gate-allow` can explain a style
-signal, but cannot waive references, render evidence, review, or unsupported
-claims. If review cannot run, continue authorized work and report visual
-acceptance UNVERIFIED; do not invent PASS. Exit 2 means the gate
-did not run; report it as not checked. Then establish:
-
-- The primary user task, decision sequence, and content are clear.
-- The accepted tokens and brand were preserved or deliberately changed within scope.
-- New directions have inspected references and a recorded transfer rationale;
-  unavailable evidence and provisional choices are explicitly named.
-- The actual interface was viewed at relevant narrow/wide sizes, compared to
-  its direction, and revised where needed. Important flows and recovery work.
-  For new work this happened twice: once after the macro composition pass,
-  before decorative polish, and once at the end; both captures are listed in
-  the design artifact's acceptance evidence. One render after the full build
-  does not meet this item.
-- Readability, keyboard/focus, contrast, reflow, touch, and reduced motion were
-  checked where affected. A screenshot alone does not prove interaction.
-- No fabricated evidence, decorative filler, or unsupported product behavior
-  is presented as real. No accessibility or usability compromise is justified
-  merely by saying Apple, Google, modern, premium, or anti-slop.
-- Asset and JavaScript costs were checked using project tools where affected;
-  a quality adjective or Lighthouse score does not prove good visual design.
-
-Use [design-evaluation.md](references/design-evaluation.md) for review cases and
-separate behavioral/visual verdicts. Critical failures block completion; minor
-remaining design trade-offs are reported. Never guarantee universal absence of
-AI slop from a prompt, static scan, or one model-generated sample.
-
-## 9. Pairing and reference ownership
-
-| Need | Owner |
+# Design Taste — public frontend
+
+A page is good when its reader understands the offer, trusts it, and can act.
+Every visual decision traces to the reader's task, the real content, or an
+inspected reference. If none of those explains a choice, drop it.
+
+Paths below are relative to this skill's directory
+(`~/dotfiles/skills/local/design-taste/`). "Owner" = the client whose site it
+is. Read only this file up front; open a reference file when a step names it.
+
+**Pick the path first:**
+- Small change inside an accepted system (spacing, a component, copy slot):
+  preserve the system, do it, run §5. Nothing else.
+- New page or redesign: §1 → §2–§4 → §5.
+
+## 1. Before any visual edit (new page or redesign)
+
+1. **Read what exists**: pages, content, assets, brand tokens, routes, and the
+   `UI & Design` lines in `~/.config/ai/memory/preferences.md` (`rg -n 'UI & Design'`).
+   Explicit user direction and an accepted repository design contract outrank
+   this skill; preferences marked Invariant apply everywhere.
+2. **Name the surface and its job** in one line ("compro for B2B logistics
+   buyers: is this firm real and right for me?"). Open only the matching
+   entry in [surface-catalog.md](references/surface-catalog.md):
+   `rg -n '^### ' references/surface-catalog.md` lists them (Company profile,
+   Landing page, Sales page, Advertorial, Storefront, Marketplace, Directory,
+   Booking, Blog/docs, Portal, …); read that `###` block plus §0 (claims,
+   identity, consent rules for ID/MY). Admin and operator screens go to
+   `admin-product-ux` + `admin-dashboard`.
+3. **Outline before layout**: sections in reading order, each with the one
+   thing it must let the reader do; the states that matter. Missing content
+   becomes a list for the owner; copy is written through `copywriting`.
+4. **Inspect one or two references.** Find candidates with web search using
+   the queries at the end of the surface entry (or the niche file); pick
+   sites whose job matches. Capture: `node scripts/ui-ref.mjs capture <url>
+   --out design/refs/<name>`, then open the PNGs. A supplied image counts. A
+   URL list or a reference recalled from memory does not. Method only if
+   needed: [design-discovery.md](references/design-discovery.md).
+5. **Write the decision** into the project's `DESIGN.md` (create it at the
+   repo root if none exists; if an accepted spec already holds design
+   decisions, extend that instead of adding a second file), this short:
+
+   ```markdown
+   ## Direction — <page>
+   Surface/job: …
+   References: design/refs/<name> — what transfers: …
+   Sections (in order): …
+   Type / color / shape: …
+   Composition contract (reference-driven only): C1 … C2 …
+   ```
+
+## 2. Direction rules
+
+- **No brand yet.** Pick one primary color from the subject and references,
+  derive the scale and a type pairing with
+  [color-scales-and-skinning.md](references/color-scales-and-skinning.md),
+  and set the business name as a plain wordmark in the display face; record
+  all three as provisional in `DESIGN.md`. No logo mark is invented.
+- **Typography.** Brand type first; a system stack for utilitarian surfaces.
+  Clear hierarchy, 60–75ch prose measure as a starting point, `clamp()` sizes
+  that keep a rem part, `text-wrap: balance`/`pretty` instead of `<br>`. Test
+  long titles and translations.
+- **Color, shape, elevation.** Semantic tokens for canvas, text, action,
+  border, state. One small radius and shadow vocabulary with fixed purposes.
+  Hierarchy comes from scale, whitespace, alignment, and media placement
+  before another container; between sections the owner's default is
+  whitespace or a background shift, not a rule.
+- **Theme.** Light is the fallback; accepted dark-first brands stay dark-first.
+  A second theme is optional and must be designed, not inverted. Adaptive
+  resolution: stored choice → system → fallback, resolved before first paint
+  ([theme-implementation.md](references/theme-implementation.md)).
+- **Icons and assets.** Inline Lucide SVG on static sites, `lucide-react`
+  where React is installed; one stroke weight, `currentColor`, `aria-hidden`
+  beside a text label. Diagrams, crops, generated imagery, OG cards:
+  [visual-asset-and-svg-craft.md](references/visual-asset-and-svg-craft.md).
+- **Motion.** Restrained feedback by default; narrative motion only when it
+  explains something and degrades under reduced motion
+  ([motion-craft.md](references/motion-craft.md)).
+- **Layout.** Repeat structure for comparable items; change it where the
+  information changes. Hero size follows content. Plan the narrow
+  transformation, not a scaled desktop. Keep DOM order meaningful.
+- **Content.** Real content early. Approved brand assets first; generated
+  imagery only as labelled illustration. Never invent customers, metrics,
+  ratings, scarcity, "best seller" badges, timestamps, version strings, or
+  citations to fill a slot — use a labelled placeholder the owner replaces.
+  Markers that models add to look authentic:
+  [invented-info-tells.md](references/invented-info-tells.md).
+- **Distinct from the owner's other sites.** Reuse of a font, radius, or
+  composition is fine when it fits this audience; reuse by habit is not.
+  Shape language is a per-project research decision, not a house look.
+
+## 3. Restraint — what not to add
+
+Every element earns its place by helping the reader read, compare, trust, or
+act. If removing it changes nothing for the reader, remove it.
+
+- **Sections.** Only the sections the task needs. A compro needs offer,
+  proof, how it works, contact — not also stats, logos, FAQ, testimonials,
+  blog teaser, and newsletter because a template had slots for them.
+- **Components.** No card, badge, pill, chip, icon tile, eyebrow label,
+  divider, or shadow unless it groups or separates something the eye would
+  otherwise miss. One container level; no boxes inside boxes.
+- **Lines.** Between sections use whitespace or a background shift. A rule
+  (`border-t`, `<hr>`) needs a recorded reason; never a border around every
+  block, under every heading, and between every list item at once.
+- **Text.** One headline that states the offer; body in the reader's words;
+  no kicker above every heading, no summary paragraph repeating the heading,
+  no filler sentence explaining what the next section is about. Cut adjectives
+  that carry no information (premium, modern, seamless, powerful).
+- **Navigation.** One primary nav with ≤ 6 items named after what the reader
+  is looking for; the current page is visibly marked; one primary action per
+  page, placed where the decision happens; footer repeats contact and legal,
+  not the whole sitemap in four columns. No duplicate menus, no mega menu for
+  five pages, no sticky bars stacked on sticky bars.
+- **Decoration.** No gradients, blobs, glows, glass, abstract illustrations,
+  or animated reveals as filler. Imagery is the owner's real product, place,
+  or work; otherwise a labelled placeholder.
+
+**Generic-page test.** At planning and again on the render, swap the business
+name out in your head. If the page still reads as plausible for an unrelated
+business, its direction is unsupported. Usual causes: badge → centered
+headline → paragraph → two buttons → screenshot; the same 3-column card grid
+for unrelated information; a bordered box around every section; equal weight
+everywhere; cards because a `Card` primitive existed; a distinctive reference
+flattened into a standard grid. Any of these can be right when the content
+calls for it — a pricing comparison may be equal cards. Fix the unsupported
+decision, not every familiar pattern, and fix composition before adding
+decoration.
+
+## 4. Implementation
+
+Semantic HTML, CSS custom properties, responsive CSS, native controls, the
+project's existing framework and components. Client JavaScript only for
+behavior that needs it; no framework migration or universal component package
+for styling. `native-first` decides dependencies; the framework skill owns
+implementation. Default foundation when nothing is accepted:
+[public-web-foundation.md](references/public-web-foundation.md).
+
+For a reference-driven build, two passes: **macro** (reading order, page
+frame, section rhythm, hero geometry, responsive transformation — render
+narrow and wide before any detail), then **refinement** (tokens, type detail,
+states, motion, polish). Skip the split for a small change.
+
+Accessibility floor: real links for navigation, buttons for actions, visible
+labels, errors that name the field and keep the input, keyboard order and
+visible focus, no hover/color/drag-only meaning. WCAG AA text contrast 4.5:1
+(3:1 large), 3:1 for required non-text indicators, measured on composited
+colors with `python3 scripts/contrast.py "<fg> on <bg>"`. 44 px touch targets
+as the house baseline (WCAG 2.2 minimum is 24 px). Checklist:
+[accessibility-notes.md](references/accessibility-notes.md).
+
+## 5. Done means seen
+
+1. Render each changed view at ~390 px and ~1280 px (project dev server +
+   the browser tool available in this runtime, or the project's Playwright)
+   and open the images.
+   A build or an overflow number is not a look.
+2. Critique against §3 and the recorded direction; fix; re-render. Reference-
+   driven: check each `C` item.
+3. `ui-validation` for behavior, keyboard, states, both themes.
+4. Report behavior and visual acceptance separately: PASS / REVISE /
+   UNVERIFIED. Not rendered or not opened = UNVERIFIED, never "provisional".
+   Name what was not checked.
+
+Read-only reference access does not authorize live submissions; use fixtures
+or a sandbox for purchase, account, and destructive flows.
+
+## 6. Open only when the task needs it
+
+| When | Reference |
 | --- | --- |
-| Reference evidence, UX sequence, direction record | design-discovery.md |
-| Default public-web foundation, sources, framework translation | public-web-foundation.md |
-| Surface type: job, anatomy, evidence, compliance (incl. advertorial labeling); component taxonomy and states | surface-catalog.md |
-| Editorial/media/mobile/funnel specifics, redesign | surface-and-mode-rules.md |
-| Research → capture → rebuild → measured compare → improve (`scripts/ui-ref.mjs`) | reference-fidelity.md |
-| Motion timing, easing tokens, stagger, reduced-motion substitution | motion-craft.md |
-| Invented-info, filler, hollow-copy tells; allowed-patterns record; scan script | invented-info-tells.md |
-| Style-habit scan (`scripts/tells-scan.py --css`: micro-labels, 100vh, outline removal, fixed grids, loops, generated-look palette) | invented-info-tells.md |
-| Category starting points: job, local-market checks, content inventory, claim traps, research queries | niche-patterns/README.md |
-| OKLCH color scale derivation, fluid type/CLS fallbacks, font archetypes, shared-template skinning axes | color-scales-and-skinning.md |
-| Explanatory SVG diagrams, photographic focal cropping, honest AI asset generation, `1200×630` OpenGraph cards | visual-asset-and-svg-craft.md |
-| Measured WCAG contrast incl. `oklch()`, `hsl()`, alpha, and large-text thresholds (`scripts/contrast.py`) | accessibility-notes.md |
-| Cross-project repetition (`scripts/portfolio-scan.py`: fonts, radius, accent, direction per recent project) | SKILL.md §2.1 |
-| Delivery gate (`scripts/design-gate.py`: decoded references, fresh narrow/wide renders, independent review PASS; style counters advisory; exit 1 blocks "ready") | SKILL.md §8 |
-| Independent review prompt and output format | visual-review.md |
-| Existing theme code | theme-implementation.md |
-| Storefront visual decision hierarchy | public-experience-patterns.md |
-| Instruction evaluation and rendered critique | design-evaluation.md; ui-validation owns browser execution |
-| Audience/market uncertainty | product-intelligence |
-| Admin workflows and dense operator UI | admin-product-ux, admin-dashboard |
-| Commerce behavior and implementation | storefront-ux, storefront-development |
-| Astro / Next.js implementation | astro-development / nextjs-development |
-| React components where appropriate | shadcn-ui; not a universal public-site theme |
-| Copy, localization, content, search concerns | copywriting, volumx-writer, content, seo-website-builder |
-| Cross-layer implementation | full-stack-development |
-| Dependencies / runtime performance | native-first / web-perf |
+| Choosing between several references, or recording a composition contract | design-discovery.md |
+| Matching a strong reference's geometry exactly, then improving it | reference-fidelity.md |
+| Editorial / media / funnel page, or a redesign of a live site | surface-and-mode-rules.md |
+| Starting a brand in a listed niche (F&B, skincare, logistics, SaaS, …) | niche-patterns/README.md |
+| New brand: palette from one seed color, type pairing; skinning a shared template | color-scales-and-skinning.md |
+| Reviewing someone else's page, or changing this skill | design-evaluation.md |
+| Storefront or marketplace visuals | public-experience-patterns.md |
+| Claims, consent, and identity rules for ID/MY pages | surface-catalog.md §0 |
 
-Vue, Svelte, Angular, Liquid, server templates, and plain HTML keep their native
-stack and existing components; do not require a React or Astro adapter merely
-to follow this skill. Load specialist animation skills only when earned.
-
-The retained numbered references are compatibility pointers, not independent
-rules. Update canonical sources above, not those pointers. `rationale.md` is an optional
-project-record template; `accessibility-notes.md` holds the web interface
-checks table plus an optional record template; project
-facts belong in the project's accepted design artifact, never in this skill.
+Pair with: `copywriting`/`writer` (words), `seo-website-builder`,
+`storefront-ux`/`storefront-development` (commerce), `astro-development`/
+`nextjs-development` (framework), `shadcn-ui` (React components only where
+appropriate), `ui-validation` (browser evidence), `web-perf`.

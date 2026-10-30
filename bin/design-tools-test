@@ -1,40 +1,24 @@
 #!/usr/bin/env bash
-# Run the existing design-tool behavioral suites; surface optional coverage gaps.
+# Run the design-tool behavioral suites; surface optional coverage gaps.
 set -euo pipefail
 ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
 SCRIPTS="$ROOT/skills/local/design-taste/scripts"
 partial=0
-for test in test-contrast.py test-portfolio-scan.py test-tells-scan.py; do
-  python3 "$SCRIPTS/$test"
-done
-if python3 -c 'from PIL import Image' >/dev/null 2>&1; then
-  python3 "$SCRIPTS/test-design-gate.py"
-else
-  echo 'WARNING: design gate fixtures require Pillow; coverage is partial.'
-  partial=1
-fi
+python3 "$SCRIPTS/test-contrast.py"
 log="$(mktemp)"
 trap 'rm -f "$log"' EXIT
-if bash "$SCRIPTS/test-ui-ref.sh" >"$log" 2>&1; then
-  cat "$log"
-  if grep -q 'NOT CHECKED' "$log"; then
-    echo 'WARNING: browser comparison fixtures were not checked; coverage is partial.'
-    partial=1
+for suite in "$SCRIPTS/test-ui-ref.sh" "$ROOT/skills/local/admin-dashboard/scripts/test-admin-geometry.sh"; do
+  if bash "$suite" >"$log" 2>&1; then
+    cat "$log"
+    if grep -q 'NOT CHECKED' "$log"; then
+      echo "WARNING: browser fixtures in $(basename "$suite") were not checked; coverage is partial."
+      partial=1
+    fi
+  else
+    cat "$log" >&2
+    exit 1
   fi
-else
-  cat "$log" >&2
-  exit 1
-fi
-if bash "$ROOT/skills/local/admin-dashboard/scripts/test-admin-geometry.sh" >"$log" 2>&1; then
-  cat "$log"
-  if grep -q 'NOT CHECKED' "$log"; then
-    echo 'WARNING: admin geometry browser fixtures were not checked; coverage is partial.'
-    partial=1
-  fi
-else
-  cat "$log" >&2
-  exit 1
-fi
+done
 if [ "$partial" -ne 0 ] && [ "${DESIGN_TEST_REQUIRE_FULL:-0}" = 1 ]; then
   echo 'FAIL: full design-tool coverage required.' >&2
   exit 1

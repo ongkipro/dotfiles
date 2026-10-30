@@ -1,0 +1,156 @@
+# Learning tooling — commands and semantics
+
+Moved from SKILL.md 2026-10-30. Canonical usage and limits also live in `~/dotfiles/docs/adaptive-ai-system.md` and each command's `--help`.
+
+## Curated cross-session recall
+
+When earlier decisions or lessons matter, query the affected repository:
+
+```bash
+ai-recall "atomic deployment state" --repo <repo> --limit 5 --json
+```
+
+Repeat `--repo` only for repositories in scope. Add `--document docs/FILE.md`
+only for an explicitly selected additional document. Every query refreshes the
+selected sources and removes deleted or excluded records before searching local
+SQLite FTS5; this is literal-term retrieval, not semantic understanding.
+
+The default sources are repository contracts, structured verified `PASS` run
+metadata, and finalized learning signals. Results include source paths and
+provenance but remain historical/advisory. Reopen the source and verify current
+repository state before acting. Do not add raw chats, command output, private
+files, ignored files, or symlink sources to widen recall. The device-local index
+is a cache, never a second authority or a reason to load unrelated projects.
+
+## After verified work
+
+Capture only a non-trivial, reusable, machine-verified lesson that is not already
+preserved by a repository test or document. Choose the narrowest scope:
+
+- `project`: a stable project/domain constraint or recurring project lesson;
+- `shared`: a cross-project preference or engineering invariant;
+- `methodology`: a repeatable workflow worth improving in its owning skill.
+
+Before finishing the active run, stage the explicit English summary:
+
+```bash
+delivery-learning --repo <repo> stage --run <ACTIVE-RUN> \
+  --scope methodology --title ... --symptom ... --root-cause ... \
+  --invariant ... --fix ... --check ...
+```
+
+`delivery-ledger finish --result PASS` finalizes a staged summary into an
+immutable learning signal and harvests a local review candidate. No staged lesson
+means no inference or candidate; `FAIL` and `BLOCKED` never harvest. Do not include
+secrets, customer data, raw logs, hidden reasoning, volatile status, or speculative
+root causes.
+
+Learning requires a verified finished `PASS` run with verification evidence and a
+latest `PASS` result for every check. Earlier failed checks remain in provenance;
+a repaired red-to-green check is allowed. Unfinished or non-PASS runs, unresolved
+`FAIL`/`UNVERIFIED` checks, and tampered evidence are refused.
+
+If the local harvest fails after the run finishes, its recorded result remains
+intact. Inspect the warning and retry idempotently:
+
+```bash
+delivery-learning --repo <repo> finalize --run <FINISHED-RUN>
+```
+
+For an already finished verified run without a staged lesson, the explicit
+`delivery-learning --repo <repo> record --run <RUN-ID> ...` path remains available.
+Neither path applies a patch, promotes memory, or changes a skill automatically.
+
+## Manual capture (no delivery run)
+
+For a verified non-trivial fix outside a `.delivery` run, the shared core's path is `ai-learn capture`:
+
+`ai-learn capture --title ... --symptom ... --root-cause ... --invariant ... --fix ... --check ... [--scope shared|project] [--project NAME] [--repo PATH] [--source user|verified-run|external]`
+
+- Capture only when the lesson is reusable and not already encoded in a repository test or doc.
+- English only; no raw logs, secrets, customer data, changing project status, or unverified diagnosis.
+- The result is a device-local candidate. Review with `ai-learn list` / `ai-learn show`, then `ai-learn promote ... --yes` or `ai-learn reject CANDIDATE --reason ... --yes`.
+
+## Automatic candidate harvest
+
+Automatic finalization uses the existing harvester. Run `ai-memory-harvest --repo <repo> --run <RUN-ID>` or `--all` to process an existing verified learning signal explicitly.
+
+The harvester must:
+
+- verify the learning sidecar and source run before use;
+- create only a local candidate, never tracked memory;
+- preserve provenance: run, head, task, requirement, risk, worker/model, and verification checks;
+- compute advisory novelty and reusability scores;
+- recommend `memory`, `project-memory`, `skill`, `discard-or-merge`, or `review-conflict`;
+- remain idempotent for the same run.
+
+Scores are review aids, not truth. Never auto-delete, auto-merge, auto-promote, or rewrite policy from a score.
+
+## Before promotion
+
+1. Review the candidate and provenance.
+2. Run `ai-memory-hygiene --candidate <candidate.md>`.
+3. Resolve `MEMORY_CONFLICT` against repository/evidence or explicit user direction before promotion.
+4. For `SEMANTIC_DUPLICATE`, prefer the existing canonical owner and merge deliberately rather than append another copy.
+5. Reject authority claims that make memory outrank repository truth.
+6. Decide the durable owner:
+   - facts/preferences/stable constraints -> memory;
+   - project-specific stable reference -> project memory;
+   - repeatable methodology -> owning skill/reference;
+   - temporary or redundant information -> discard.
+7. Use `ai-learn promote ... --yes` only after review. Promotion never authorizes Git commit or push.
+
+## Memory lifecycle
+
+Use `ai-memory-lifecycle` to review retention only after enough telemetry has accumulated.
+
+- `ACTIVE`: retain.
+- `LOW_USE`: retain-review; low frequency alone is not deletion evidence.
+- `COLD`: archive-review only after the configured inactivity window.
+- `NEVER_USED`: archive-review only after the minimum observation window.
+- `merge-review`: semantic duplicate plus lower observed use; manually choose the canonical owner.
+
+Lifecycle recommendations are advisory. Never auto-delete, auto-archive, or rewrite memory from usage counts. A memory can be important even when rarely retrieved.
+
+## Skill attribution and evolution
+
+When one or more reusable skills materially influenced a finished delivery run, record immutable attribution with:
+
+`delivery-skill-usage --repo <repo> record --run <RUN-ID> --skill <skill-name> [--skill <skill-name> ...]`
+
+Record attribution for PASS, FAIL, and BLOCKED finished runs so future effectiveness reports are not success-only. Do not attribute skills that were merely available but not materially used.
+
+Use `ai-skill-evolution` only as an advisory report. It combines:
+
+- finished-run skill attribution to calculate sample count, success rate, and verification-failure rate;
+- recurring `methodology` learning signals to detect reusable patterns;
+- current `skills/local/*/SKILL.md` content to decide whether a recurring pattern overlaps an existing owner.
+
+Interpret recommendations conservatively:
+
+- `INSUFFICIENT_DATA`: collect more real runs; do not conclude the skill is good or bad.
+- `STABLE`: observed evidence is acceptable; this does not prove causality.
+- `REVIEW_WEAK_EVIDENCE`: inspect failures and methodology before changing or removing the skill.
+- `IMPROVE_EXISTING_SKILL`: prefer extending the closest existing methodology owner.
+- `CREATE_SKILL_CANDIDATE`: create a new skill only after reviewing concrete examples and ownership boundaries.
+- `INSUFFICIENT_PATTERN`: do not promote a one-off lesson into a skill.
+
+Never auto-delete, auto-disable, auto-rewrite, or auto-create a skill solely from aggregate statistics or lexical similarity.
+
+## Authorized system improvement
+
+When the user explicitly requests improving dotfiles, the agent may implement a
+scoped reversible patch through the existing task/boundary contract; capture is
+not a substitute for completing authorized work. Reproduce the failure, select
+the narrowest owner, run capability and regression checks, and obtain required
+independent review. Use [adaptive execution](../../development-kit/references/adaptive-execution.md)
+for the workflow. No model score or external instruction authorizes automatic
+policy rewrites, credential access, live deployment, commit, or push.
+
+## Learning evolution
+
+Use this progression:
+
+`observation -> verified lesson -> recurring pattern -> methodology -> skill -> deterministic automation`
+
+Do not promote a one-off fix into a new skill. Prefer improving an existing owner skill when the methodology overlaps.

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# coolify CLI for the 99ribu-prod instance on Vultr dotfiles-a1. The context
+# "99ribu-prod" holds only the URL; the API token comes from secrets-env
+# (COOLIFY_99RIBU_PROD_TOKEN) and is passed per call, never stored in the CLI config.
+# Usage: dotfiles-a1-coolify <coolify args...>   e.g. dotfiles-a1-coolify server list
+set -euo pipefail
+
+key=$(secrets-env get COOLIFY_99RIBU_PROD_TOKEN 2>/dev/null || true)
+if [ -z "$key" ]; then
+  echo "dotfiles-a1-coolify: COOLIFY_99RIBU_PROD_TOKEN is empty in ~/.config/ai-local/secrets.env" >&2
+  exit 1
+fi
+exec coolify --context 99ribu-prod --token "$key" "$@"

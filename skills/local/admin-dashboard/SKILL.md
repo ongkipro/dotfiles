@@ -1,368 +1,202 @@
 ---
 name: admin-dashboard
 description: >-
-  Design the concept, IA, responsive tables, charts, KPI hierarchy,
-  accessibility, and data loading for admin pages and dense dashboards.
-  Workflow modeling is admin-product-ux; not marketing pages, copywriting, or
-  component code (shadcn-ui). Use for admin panels, dashboard layouts,
-  analytics UX, chart selection, responsive tables, KPI cards, sidebars, and
-  Astro-vs-React admin decisions. Also covers how operator surfaces are
-  presented (rules come from admin-product-ux): order lifecycle IA, bulk
-  actions, multi-tenant scope and impersonation, permissions and audit logs,
-  and timezone/currency correctness. Delegate browser evidence to ui-validation, and performance diagnosis to web-perf; do
-  not install components.
+  Presentation of admin panels and dashboards: screen shape, IA, KPI hierarchy, charts, responsive tables, density. Not workflow (admin-product-ux), component code (shadcn-ui), data fetching, or browser proof (ui-validation).
 ---
 
-# Admin Dashboard — concept & IA
+# Admin Dashboard — presentation
 
-Load `admin-product-ux` first when roles, business objects, lifecycle,
-permissions, task flow, or screen contracts are not already explicit. This
-skill must not invent those product rules while arranging the presentation.
+Load `admin-product-ux` first when roles, objects, lifecycle, permissions, or
+screen contracts are not already explicit; this skill arranges, it does not
+invent product rules. Components come from `shadcn-ui`; data fetching,
+caching, and server/client boundaries from the framework skill.
 
-This skill is the decision layer: which screen shape, chart, layout, responsive
-transformation, and density. Components come from their implementation owner.
+**Pick the path first:**
+- Change inside an existing admin: read §1 (contract) and the sections the
+  screen touches (table → §4, chart/KPI → §3, orders/tenants/permissions →
+  §5), then §7. Questions the brief leaves open (which status axis, what a
+  KPI counts, data volume, timezone) go back to the owner; do not guess.
+- New dashboard family: §1 → §2 → the matching sections → §7.
+- References at the end are for specific needs, not pre-reading.
 
-Before a new dashboard family or material redesign, consume the accepted
-research and direction decision from `admin-product-ux`. If presentation still
-has meaningful alternatives, inspect relevant production operator surfaces and
-authoritative component guidance, compare two or three compositions, and select
-one against the job, information priority, volume, risk, accessibility, and
-responsive transformation. Do not browse for novelty or copy a competitor's
-brand. A settled screen inside an established design system reuses repository
-evidence and skips this discovery pass.
+An admin screen is quiet. Hierarchy comes from type, alignment, whitespace,
+tables, queues, and split panes — not from a card around every region, icon
+tiles, gradients, badges, or a KPI row nobody decides from. Build only the
+screens and controls the workflow contract names; one sidebar grouped by the
+operator's jobs, current location marked, no second nav; column and field
+labels are the business words, with no helper sentence under every field and
+no description paragraph under every page title.
 
-Use local professional comparables when language, workflow, trust, or market
-behavior is local, and mature global products for broader pattern evidence.
-Reject the generic AI admin shell: a card for every region, cards nested inside
-frames, uniformly large radii, ornamental badges, default bento grids, and KPI
-or chart rows without an operator decision. Prefer semantic grouping,
-typographic hierarchy, whitespace, dividers, tables, queues, timelines, and
-split panes according to the job.
+## 1. Size and surface contract
 
-For harvested GitHub production contracts (TanStack Table v9, Refine, Payload CMS, Medusa Admin, Strapi, kbar, Clerk impersonation), load `references/github-admin-patterns.md`.
-For the Next.js 16 + shadcn admin-starter implementation contracts (URL-as-state `useDataTable`, the nuqs server/client parser seam, feature-first `src/features/<feature>/{api,components,schemas,types}`, the multi-palette `data-theme` CSS-variable engine, and TanStack Form multi-step wizards), load `references/next-shadcn-starter-patterns.md`.
-For the fallback clean-light visual design system and standalone HTML/CSS fixture (when a project lacks an established theme), load `references/clean-light-cms-baseline.md`.
-**Before building or changing any admin screen, load `references/admin-visual-contract.md`.** It fixes the one size and surface contract per product (repository contract > `volum-admin` default > compact clean-light), maps every size role to Tailwind/shadcn classes, lists the anti-slop surface rules, and proves them with `scripts/admin-geometry.mjs` (computed geometry at 390/1366/1536 against `assets/size-contracts/*.json`). Numbers elsewhere in this skill (density ladder, Carbon/Fluent rows) are background evidence; the contract decides.
-For order/seller-center queues, inventory, finance/ledger, audit-log, and search presentation detail behind §8, load `references/operator-surfaces.md`.
-## Delegation — this skill does NOT write component code
+Before building or changing any admin screen read
+[admin-visual-contract.md](references/admin-visual-contract.md): one size and
+surface contract per product (repository contract > house default > compact),
+mapped to Tailwind/shadcn classes, measured by `scripts/admin-geometry.mjs`
+at 390/1366/1536 against `assets/size-contracts/*.json`. Exit 1 is REVISE;
+exit 3 or `NOT-CHECKED` is reported as not checked. Numbers elsewhere in this
+skill are background; the contract decides.
 
-| Need | Go to |
+## 2. Shell and screen shape
+
+Pick the dashboard type first: **operational** (events needing action now:
+exception tier, alerts, fast refresh), **analytical** (comparison, history,
+drill-down), **strategic** (health at a glance, periodic). An order queue,
+approval inbox, settings area, or list-detail flow follows its own job; do
+not force KPI cards or charts onto every admin home.
+
+Analytics shell: sidebar + header → KPI summary → trend charts → detail
+table ("overview first, zoom and filter, then details on demand"). Most
+important metric top-left. One shell, reused across pages.
+
+Density ladder for rows and controls: 32 px compact (mouse/keyboard back
+office), 40 default, 48 comfortable, ≥ 44 on touch. Offer a density toggle
+only on views scanned for long periods.
+
+States: loading = skeleton shaped like the final layout; empty distinguishes
+**first-run** (what will appear, how to create/import), **filtered-empty**
+(show active filters + clear), and **permission-denied** (say so, and who can
+grant) — never one "no data"; error names the cause and recovery and keeps
+entered data.
+
+## 3. Charts and KPIs
+
+Pick the chart from the relationship, not taste:
+
+| Goal | Use |
 |---|---|
-| Domain objects, lifecycle, roles, permissions, task flows, screen contracts | skill **`admin-product-ux`** |
-| Map/code Sidebar, Chart, Data Table, forms, overlays, blocks, themes, and semantic tokens | skill **`shadcn-ui`** |
-| Before adding a new dep/lib/wrapper | skill **`native-first`** |
-| IA / flow / ERD diagram from the dashboard structure | skill **`mermaid-diagram`** |
-| Dashboard slow / heavy chart bundle / render audit | skill **`web-perf`** |
-| Chart craft (mark specs, legends, tooltips, sequential/diverging ramps, COD waterfall, cohorts) & `@media print` (invoices, payslips, A6 thermal waybills) | [references/dataviz-and-print-specs.md](references/dataviz-and-print-specs.md) — keeping §6's colourblind-safe + non-colour-cue accessibility floor |
-| Viewport, keyboard, accessibility, state, and visual-regression evidence | skill **`ui-validation`** |
-| Astro specifics (islands, adapter) / CF Workers+D1 | skills **`astro-development`**, **`cloudflare`**, **`wrangler`** |
+| Trend over time | line (few periods → column) |
+| Compare categories | bar; horizontal for long labels |
+| Part of whole | stacked bar; pie/donut only ≤ 5 slices at ~25/50/75 shares |
+| Correlation | scatter (+ size = bubble) |
+| Distribution | histogram / boxplot |
+| Ranking | sorted bar |
+| Single number | stat card, sparkline for inline trend |
+| vs target | bullet graph, not a gauge |
+| Flow between states | sankey |
 
-The rule: **this skill decides WHAT, `shadcn-ui` executes HOW.** Don't duplicate component code here.
+Bars start at zero; lines may truncate but pick an honest range. No gauges, no
+3D. Stacked areas mislead when the reader compares one series — use grouped
+bars or lines. Title = the question or the finding, subtitle = unit and
+period.
 
-**Delivery sequence:** build or change the UI → critique it against this
-skill's IA, density, and accessibility rules (fix the findings) → `scripts/admin-geometry.mjs` exits 0 against the project's size contract on every changed route → `ui-validation` browser proof → only then call it done.
+KPI card: label, **value** (largest), delta vs previous period with arrow or
+sign (not color alone), the time basis. Color the delta by the desired
+direction (refunds up = red). Round (Rp 3,8 M, not Rp 3.848.305); show
+variance to target as a %. Label real-time vs batched so an incomplete period
+is not read as a drop.
 
-For React-capable admin surfaces, shadcn/ui is the default implementation
-system after this skill accepts the presentation. That does not make React a
-universal render layer: native semantics remain authoritative, and static Astro
-presentation stays unhydrated. The cross-framework mapping lives in
-`shadcn-ui`'s `references/admin-component-system.md`.
+Accessibility: never color alone between series (labels, markers, dashes);
+colorblind-safe palette checked against the surface — Okabe-Ito on white
+passes 3:1 only for `#0072B2 #D55E00 #009E73 #CC79A7`; the rest need outlines
+or a dark surface. Seed `--chart-*` tokens, re-check the dark ramp, never
+hardcode hex. Every chart gets `<figure>` + `<figcaption>` with the finding and
+a data table or download. No entry animation on every refresh.
 
-## 1. Analytics dashboard shell
+Library: Recharts (via `shadcn-ui`) by default; step up to ECharts only for
+thousands of points or exotic charts, visx only for bespoke viz. Do not add a
+dashboard framework (Refine) for a handful of screens. Version, SSR, and
+runtime details belong to the framework skill and the lockfile. Chart craft,
+sequential/diverging ramps, COD waterfalls, cohort heatmaps, and `@media
+print` documents: [dataviz-and-print-specs.md](references/dataviz-and-print-specs.md).
 
-For an analytics dashboard, the canonical shape is **sidebar + header → KPI
-summary → trend charts → detail data table** (top to bottom). Binding principle:
-Shneiderman's mantra — *\"Overview first, zoom and filter, then
-details-on-demand\"* (Shneiderman, IEEE VL 1996). An order queue, approval inbox,
-settings area, or list-detail workflow follows its primary job instead; do not
-force KPI cards or charts onto every admin home.
+## 4. Tables and responsive transformation
 
-- **KPI cards top-left** — users scan top-left first; put the most important metric there.
-- **F/Z-patterns are text-reading behavior, NOT a layout template** (NN/g F-pattern is from text eye-tracking, 2006). For a dashboard you deliberately **fight** the F-pattern with strong visual hierarchy (KPI size/color/position) so the eye lands on the priority metric instead of sweeping.
-- **12-column** grid. Density ladder: **32px compact** for mouse/keyboard back offices, **40px default**, **48px comfortable**, **≥44px on touch** (`@media (pointer: coarse)`). Carbon data-table rows are 24 / 32 / **40 default** / 48 / 64px, the 64px size only for two-line rows, header matching the row size (Carbon, 2026-09-30); Fluent v9 table rows 24 / 34 / 44 (source, 2026-10-08). Offer a compact/default toggle only on views operators scan for long periods.
-- **Pick the dashboard type first** (Few, *Dashboard Confusion*, 2004; NN/g 2017-06-18): **operational** — changing events that need action now: exception tier, alerts, fast refresh; **analytical** — comparison, history, drill-down; **strategic/executive** — health at a glance, low interactivity, periodic snapshot. A dashboard fits one screen and is real-time only when the decision needs it.
-- **Alert tiers** (Carbon status indicators, 2026-08-12): three attention levels; each indicator combines at least 3 of icon/shape/color/text with ≥3:1 contrast and survives grayscale; no more than 5–6 indicator kinds on one screen. An operational board without an exception tier is a report, not a dashboard.
-- **Required states**: loading = a **skeleton** that mimics the final layout (not a spinner, for content loads); empty = explain WHY it's empty + the next action; error = don't wipe already-entered data, name the cause + the recovery path.
+Breakpoints: `< md` drawer nav + cards/scroll; `md–lg` icon rail + priority
+columns; `≥ lg` full sidebar + multi-pane. The rail never hides the current
+location. If tablet portrait (600–767) matters, switch the rail at
+`min-[600px]`.
 
-## 2. Chart selection — cheatsheet (the often-missed part)
-
-Reference frame: **FT "Visual Vocabulary"** (`Financial-Times/chart-doctor/visual-vocabulary/`, dormant since 2024 — a good frame, not living guidance) — pick the chart from the **relationship you want to show**, not taste.
-
-| Goal | Use | Note |
-|---|---|---|
-| Time trend (many points) | **Line** | few discrete periods → Column |
-| Compare categories | **Bar** | long labels / many categories → horizontal bar |
-| Part-of-whole | **Stacked bar** | Pie/Donut only under the strict rule below |
-| Correlation of 2 vars | **Scatter** | + size = Bubble (3 vars) |
-| Distribution | **Histogram / Boxplot** | |
-| Ranking | **Sorted bar / Lollipop** | rank position > absolute value |
-| Single number / KPI | **Stat card** | inline trend → **Sparkline** |
-| +/− vs target or zero | **Diverging bar** | |
-| Geospatial | **Choropleth** (rates) / prop-symbol (counts) | only when location > the value |
-| Flow between states | **Sankey** | |
-
-**Anti-patterns (don't):**
-- **Bars/columns MUST start at zero** — bars encode via length; a non-zero baseline exaggerates small differences (Datawrapper). **Lines may be truncated** (they encode via slope) — but pick an honest range, don't zoom for drama.
-- **Pie/Donut**: avoid on dashboards (NN/g 2017: length and position read more accurately; also no gauges, no 3D). If one is kept: **max ~4–5 slices** (Datawrapper ~4; UK Analysis Function ≤5, 2022-05-19), and only when shares are ~25/50/75%. **DON'T** use for: comparing small differences, >4 slices, 2 values (redundant), comparing many "wholes", or multi-answer surveys (Datawrapper). In doubt → bar.
-- **Stacked area/bar misleads** when the user compares one series over time — only the bottom band has a flat baseline. To compare one segment across bars → use a **grouped bar** or line.
-
-**Titles and empty states.** A chart title states the question it answers or
-the finding ("Which channel brought most paid orders this month?", or "Shopee
-leads paid orders in March"), not the metric name alone ("Orders by channel");
-units and period go in the subtitle. An empty chart or table distinguishes
-three cases, each with its own message and next action: **first-run** (no data
-yet: what will appear here and how to create or import it), **filtered-empty**
-(data exists but the current filters/range match nothing: show the active
-filters and a clear-filters action), and **permission-denied** (data exists but
-this role cannot see it: say so and who can grant access; never render it as
-"no data").
-
-## 3. Chart library — when to step up from Recharts
-
-Recharts already ships via `shadcn-ui`. **Default is Recharts. Step up only when you hit the wall.**
-
-| Library | When | Runtime note |
-|---|---|---|
-| **Recharts** (default) | Standard charts (line/bar/area/pie/scatter), **hundreds–low-thousands of points** | SVG, **client-only**. SSR has never worked reliably and is still an open upstream design discussion; the package ships no `"use client"` of its own (verified), so charts are simply absent from server-rendered HTML. In App Router **you** must wrap every chart in a `"use client"` leaf. |
-| **ECharts** (raw) | **Thousands+ points / canvas perf**, exotic charts (heatmap, geo, sankey, candlestick, network), **edge-SSR charts** | `renderToSVGString()` is an **instance** method: `echarts.init(null, null, { renderer:'svg', ssr:true, width, height })`. On Workers `compatibility_flags = ["nodejs_compat"]` is **mandatory** — without it `init()` throws `global is not defined`. Tree-shake via `echarts/core` and register only the charts you use — the *full* bundle is ~1.1 MB minified, a tree-shaken one is a fraction of that. |
-| **visx** (`@visx/*`) | **Bespoke viz** needing d3-level control, lean bundle | SVG (same node ceiling as Recharts) — you buy control, **not** big-data perf. You assemble axis/legend yourself. Pin `^4.0.0`; the `next` dist-tag points at an *older* alpha. |
-
-- 🔴 **`echarts-for-react` — do not add.** Unofficial, single-maintainer, and hit by an npm supply-chain compromise on 2026-05-19: versions 3.0.7 / 3.1.7 / 3.2.7 were malicious publishes from a **compromised maintainer account** (the "Mini Shai-Hulud" campaign, which hit hundreds of packages). 3.1.7 and 3.2.7 were deleted, but **3.0.7 still resolves**, and its dependency `size-sensor@1.0.4` is compromised and installable. If a project already depends on it, pin **≤ 3.0.6** and check the lockfile. There is no official React wrapper — the imperative API wraps in ~30 lines of `useEffect` + `echarts.init`, which is the correct move.
-- **Avoid for React + edge-SSR**: **Chart.js** (canvas, won't SSR on plain Workers) & **Observable Plot** (needs `document`/DOM).
-- **Tremor or another dashboard kit**: treat it as presentation, not a chart-engine decision. Reuse a block only when it fits the installed stack; verify current maintenance and license before adding a package.
-- The "thousands of points" limit is **architectural (SVG node count), not an official number** — SVG = 1 DOM node per datum, so it janks as node count balloons.
-
-## 4. Responsive data-dense — concrete patterns (NOT "use a media query")
-
-**Admin breakpoints** (Tailwind defaults: sm640 / md768 / lg1024 / xl1280 / 2xl1536). These do **not** align with M3 window-size classes (600/840/1200/1600) at any boundary. Consequence for the table below: switching at `md` dumps the whole **600–767px tablet-portrait band** into a mobile drawer, where M3 would give it the icon rail. If tablet portrait matters for this admin, switch the rail at a custom `min-[600px]` instead:
-
-| Width | Mode | Nav | Table |
-|---|---|---|---|
-| `< md` (768) | Mobile | **Sheet drawer** | cards / scroll |
-| `md–lg` (768–1023) | Tablet | **icon rail** | priority columns |
-| `≥ lg` (1024) | Desktop | full sidebar | full multi-pane |
-
-**Data table on mobile — pick the pattern:**
-- Few columns → **horizontal scroll**, **pin the header + first column** (the label), and show a scroll affordance (peeking column/arrow).
-- Many columns, comparison task → **priority columns** (hide secondary ones) + **expandable row / accordion**. TanStack Table has the official API: `columnVisibility` state, `column.toggleVisibility()`, `enableHiding:false` to pin, render via `getVisibleLeafColumns()` (`getHeaderGroups()` is already visibility-aware and needs no variant). **v9 (Aug 2026) changed the shape:** `useReactTable` → `useTable`, and every feature is opt-in via `tableFeatures({...})` — register `columnVisibilityFeature` or those APIs do not exist on the table at all. Row models moved too (`getSortedRowModel()` → `sortedRowModel: createSortedRowModel()`). Check the lockfile before writing either dialect; `@tanstack/react-table/legacy` is a migration bridge, not a target. The v9 package ships version-matched agent skills under `node_modules/@tanstack/react-table/skills/` (`migrate-v8-to-v9`, `with-tanstack-query`, `with-tanstack-virtual`, `table-state`) — read the installed ones over memory (verified in the 9.2.4 tarball, 2026-10-02).
-- **Table or grid is a semantic decision, not a styling one** (WAI-ARIA APG Grid pattern, https://www.w3.org/WAI/ARIA/apg/patterns/grid/, verified 2026-10-02). A read-mostly list with sortable headers, row links, and a row-actions menu stays a native `<table>` (`aria-sort` on the sorted header; every control stays in the Tab order). Choose `role="grid"` only when operators edit or act cell-by-cell and need spreadsheet-style keyboarding: the grid is one Tab stop and arrows, Home/End, Ctrl+Home/End, and Page Up/Down move between cells. Promoting a plain table to a grid without that keyboard model makes it worse, not more accessible.
-- Transactional list (scan/tap: orders, users, tickets) → **card/stack transform** (each row becomes a label:value card).
-- Need a specific slice, not the whole grid → **filter-first** (narrow before you render).
-
-**Sidebar:** desktop full → tablet icon rail → mobile drawer. The rail must never hide the current-location indicator — a collapsed sidebar that loses "where am I" is a navigation regression, not a space saving. Prop names and hooks belong to `shadcn-ui`; don't restate them here (§ delegation rule above).
-
-**Charts on narrow screens:** move direct labels → a legend/key on top; reduce data points / the time range; numbered annotations drop below the chart; for in-table trends use a **sparkline**. ~≤5 widgets per mobile screen (practice, not a standard).
-
-**Dense toolbar/filters:** desktop = search + faceted-filter + column-visibility dropdown → on mobile **collapse into a single "Filters" button that opens a `Sheet`/drawer**.
-
-**Table and filter craft** (Pencil & Paper data-table analysis, updated
-2026-02-23, and filter analysis, updated 2026-03-16): text left-aligned,
-numbers right-aligned in fixed-width digits (`tabular-nums` or a monospace
-face) with consistent precision; each header aligns like its column; separate
-rows with a light line by default, because zebra stripes collide with hover,
-selected, and disabled states (zebra stays acceptable on wide, read-only
-numeric tables — NN/g Data Tables, 2022-04-03); on horizontal scroll keep the header and the
-leftmost identifier column sticky; offer row-height density (32 compact / 40
-default / 48 comfortable, per the §1 ladder) when operators scan long lists; pick the detail path (expand row,
-quick-view side panel, modal, full page) by how much detail there is.
-Filters mirror the fields the list shows. Live filtering for cheap, small
-choices; per-filter or one global **Apply** for heavy datasets or slow
-backends. Show applied filters redundantly: kept visible in their menu, a
-marker (weight, background, or count) on each filter that is active, and an
-applied-filters summary of removable chips below the filter bar and above the
-results. Let operators save a frequent query; keep filter state in the URL
-(Vercel Web Interface Guidelines).
-
-**Batch mode** (Carbon data table, 2026-09-30): while rows are selected a
-batch bar replaces the toolbar and row-level actions/overflow menus are
-disabled; at most 5 toolbar actions; the header checkbox has an indeterminate
-state. **Edit pattern:** inline edit for frequent single-field changes (Enter
-saves, Esc cancels, never inside a form — Atlassian inline edit); a
-non-modal side panel when the list must stay visible (NN/g Data Tables 2022);
-an object page with a draft for multi-field or multi-user edits
-(`admin-product-ux` owns the draft/lock contract).
-
-**Phone = a task subset, not a shrunken desktop** (NN/g Mobile Tables
-2017-09-17; Shopify mobile app changelog 2021-01-22): the home screen shows
-actionable counts that deep-link into filtered lists (to ship, to reply, to
-approve), not a KPI grid; tables keep a sticky header and locked first column
-with a cut-off/arrow scroll cue, filter first; no swipe-to-delete on money
+Table on narrow screens — pick one: horizontal scroll with sticky header and
+first column plus a scroll cue (few columns); priority columns + expandable
+row (many columns, comparison); card/stack per row (scan-and-tap lists);
+filter-first (specific slice). Phone is a task subset: actionable counts that
+deep-link into filtered lists, not a KPI grid; no swipe-to-delete on money
 records; no hover-only tooltips.
 
-**Build on, don't hand-roll:** for TanStack-based shadcn tables start from
-`sadmann7/tablecn` / Dice UI data-table (MIT; server-side pagination, sorting, and filtering; action
-bar) or `openstatusHQ/data-table-filters` (MIT; faceted filters, ⌘K filter,
-Drizzle server filters, installable through the shadcn CLI). Verify the
-current registry item and the project's TanStack major before installing.
+Table craft: text left, numbers right in `tabular-nums` with one precision
+per column; light row lines (zebra only on wide read-only numeric tables);
+sticky header and identifier column on horizontal scroll; detail path by
+amount of detail (expand row, side panel, modal, page). `<table>` with
+`aria-sort` for read-mostly lists; `role="grid"` only for cell-by-cell
+editing with the APG keyboard model.
 
-## 5. KPI cards & honest analytics
+Filters mirror visible fields; live for cheap choices, Apply for heavy
+backends; applied filters shown as removable chips above results; state in
+the URL; saved views only when the workflow contract names them. Toolbar collapses to one Filters button opening a sheet
+on narrow screens. Batch mode: selected rows swap the toolbar for a batch bar
+(≤ 5 actions), header checkbox indeterminate, select-on-page vs across-pages
+explicit, partial failure reported as `23 of 40 updated` with the 17.
 
-**KPI card anatomy:** metric label + **value (largest)** + **delta vs previous period** + trend direction (**arrow/±**) + optional sparkline + the time basis/comparison. Font hierarchy: value > label > context.
+Edit: inline for frequent single fields (Enter saves, Esc cancels); side panel
+when the list must stay visible; object page with draft for multi-field.
 
-- **Color the delta by the DESIRED direction, not the sign** — up ≠ always good (churn/refund/latency going up = red).
-- **Don't rely on color alone** (WCAG 1.4.1) — keep the **arrow/± sign** as a non-color cue.
-- Give context: period-over-period (MoM/QoQ/YoY) or vs target — a bare number can't be read as good/bad.
-- **Label real-time vs batched** so an incomplete current period isn't misread as a drop. Granularity (daily/weekly/monthly) follows the decision cadence.
-- **Round KPI values** (Rp 3,8 M, not Rp 3.848.305) and show **variance to target directly as a %**, not as two lines to compare; if everything is emphasized nothing stands out; one color per bar is noise (Few, *Common Pitfalls*, 2006). Restrained color is not just taste: color misuse slowed business-dashboard decisions (Bera, CACM 2016-03-23).
-- **KPI vs target → bullet graph** (Few spec, rev. 2013-10-10): one featured bar, one comparative tick, 3 (max 5) qualitative ranges as shades of one hue — not a gauge or donut.
+Server pagination for thousands of rows (`LIMIT/OFFSET` or keyset, `rowCount`
+from the server, reset page on filter change); client pagination for
+hundreds. Virtualization reduces render cost only — never "fetch all +
+virtualize". `COUNT(*)` on a filtered large table is the hidden cost; past a
+few hundred thousand rows offer an approximate count or `hasNextPage`.
+TanStack Table dialects differ by major; read the lockfile and the installed
+package's `skills/` before writing either. Start from an existing shadcn data
+table item rather than hand-rolling.
 
-## 6. A11y & dark-mode charts (brief)
+## 5. Operator surfaces
 
-- **Not color alone** to distinguish series (WCAG 1.4.1): add **direct labels / patterns / markers / dashes**.
-- Categorical palette **colorblind-safe** *and* **contrast-checked against the surface**: Okabe-Ito (`#E69F00 #56B4E9 #009E73 #F0E442 #0072B2 #D55E00 #CC79A7`) is colorblind-safe but on white only `#0072B2` (5.18:1), `#D55E00` (3.86:1), `#009E73` (3.42:1), and `#CC79A7` (3.06:1) reach the 3:1 that graphics needed for understanding require (WCAG 1.4.11); `#E69F00` (2.25), `#56B4E9` (2.30), and `#F0E442` (1.32) need an outline, direct labels, or a dark surface. Measure each series with `design-taste/scripts/contrast.py`. Seed the `--chart-*` tokens with these rather than hardcoding hex at the call site — that is how "don't hardcode hex" and "use an accessible ramp" coexist. Two gotchas: shadcn ships only **5** `--chart-*` slots, so >5 series means adding `--chart-6..8` and re-checking the dark ramp; and Okabe-Ito includes **black** among its eight, which is unusable as a series colour in dark mode — substitute it under `.dark`. shadcn's stock `--chart-*` values are brand colours, not an accessible ramp, so check the project CSS before overwriting. Alternatives: ColorBrewer, Tableau 10.
-- Axis/text contrast follows WCAG 1.4.3 (4.5:1 for normal text); chart text ≥12px (Chartability heuristic, EuroVis 2022).
-- **Text alternative for every chart** (W3C WAI Complex Images, 2026-04-08): short alt plus a long description delivered as `<figure>` + `<figcaption>` containing the finding *and a data table* (or a data download); `aria-describedby` only for plain text. Title = headline finding, subtitle = statistic, unit, and period (UK Analysis Function, 2022-05-19). Interactive charts never require a mouse.
-- **Motion** (`design-taste` `references/motion-craft.md` §8.3): corporate/utility timing 120-200ms for state changes; no animation on keyboard or high-frequency actions; no chart entry animation on every data refresh (animate only the first render, if at all); no View Transitions on table pagination; list add/remove via AnimatePresence or auto-animate; reduced motion removes movement but keeps state feedback.
-- **Dark mode**: map each series to a **`--chart-*`** token (light in `:root`, override in `.dark`) — **don't hardcode hex**. Token syntax: see the `shadcn-ui` skill.
+- **Timezone.** A "Today" KPI computed in UTC against a WIB operation is wrong
+  seven hours a day, silently. State the zone next to every period label and
+  compute boundaries in the operation's zone.
+- **Currency.** `Intl.NumberFormat('id-ID', { style: 'currency', currency:
+  'IDR', maximumFractionDigits: 0 })` for display only — it rounds; store and
+  sum integer rupiah or exact decimals. Negative ledger values need a sign or
+  parentheses, not color. Right-align money, one currency per column.
+- **Order status is several axes** (order, payment, fulfillment, return), not
+  one merged column; tabs follow the axis the operator works. A COD order is
+  not a payment: never imply money received because a row says "confirmed".
+- **Bulk actions.** Sticky action bar that never covers the focused row
+  (`scroll-padding`); destructive confirmation names the count.
+- **Multi-tenant.** Persistent "which store am I in"; per-store vs aggregate
+  KPIs labelled. Impersonation shows a persistent banner with one-click exit
+  and records both operator and impersonated user on every action.
+- **Permissions.** Hide what the role can never do; disable with a visible
+  reason (helper text or focusable popover, not a tooltip on a disabled
+  control) when object state forbids it; 403 is the server backstop. Audit
+  logs are append-only with actor and before/after.
+- **Destructive tiers.** High (irreversible/wide) → type the name, state the
+  restore window; medium → two-click friction; low → no confirm, offer Undo.
+  Buttons name the action; dirty forms get a navigation guard.
+- **Drag is never the only way** (move up/down, "Move to…").
+- **Refresh.** Poll only where a missed item costs money (order queue, chat),
+  30–60 s; elsewhere manual refresh plus a "new since you loaded" badge; never
+  reorder rows under the cursor.
+- **Export** the filtered set, not the page; say whether it was sync or queued.
 
-**Palette & encoding ownership:** this section is the local source of truth for categorical chart colour. For quantitative encoding rules, sequential/diverging OKLCH ramps, COD cashflow waterfalls, cohort retention heatmaps, and `@media print` document specs (B2B invoices, HRIS payslips, A6 thermal waybills), load [references/dataviz-and-print-specs.md](references/dataviz-and-print-specs.md) — keeping §6's colourblind-safe series and non-colour cue floor non-negotiable.
+Queue, inventory, ledger, audit-log, and search presentation detail:
+[operator-surfaces.md](references/operator-surfaces.md).
 
-## 7. Stack fit — Astro, Vite, Next, and server data
+## 6. Stack fit
 
-- **Route-oriented admin with bounded interactive regions** → Astro can hold it:
-  server-render the protected route, keep static markup static, and place each
-  coordinated React/shadcn region in one hydrated root. **Pervasive client
-  routing, realtime coordination, or one cross-page interaction graph** → an
-  existing React/Next app or dedicated React app is usually the clearer fit.
-  Astro islands are separate roots; React context does not cross between them,
-  although deliberately chosen external stores can coordinate them. Do not add
-  such a store merely to rescue a boundary that should be one React island.
-- **This is a greenfield decision, not a rewrite mandate.** If a project already ships a working Astro admin, apply the IA, table, chart, and state decisions in this skill *in place*. Propose the split only when cross-island shared state is the demonstrated, current blocker — never because the architecture table above prefers something else. Migrating a shipped admin is its own project with its own approval.
-- For implementation details, load `astro-development` and read its
-  `references/admin-dashboard-runtime.md`; `shadcn-ui` owns component APIs.
+Route-oriented admin with bounded interactive regions fits Astro with one
+hydrated React root per coordinated region (islands do not share context).
+Pervasive client routing or one cross-page interaction graph fits a React or
+Next app. App Router is the house default for a new integrated admin because
+existing admins share its auth and deployment path; Vite/React fits an
+API-backed client app. None of this is a rewrite mandate for a working admin.
+Implementation (server/client boundary, streaming, Server Actions,
+revalidation, lazy charts, adapters) belongs to `nextjs-development` /
+`astro-development`; check the project's Dockerfile and adapter before
+assuming a deploy target.
 
-### If the admin is Vite + React or React Router
+## 7. Delivery
 
-- Use it when an existing API owns authentication and protected data and an
-  all-client application is the simpler runtime, not merely for throwaway work.
-- Keep authorization in the API. Reuse installed route loaders/actions and data
-  primitives before adding a second client cache.
-- Split by route and lazy-load heavy charts, editors, and rare settings flows;
-  an all-client runtime is not permission to place the whole admin in one
-  initial bundle.
-- Define session expiry, network failure, mutation conflict, and background
-  refresh behavior explicitly. Keep shareable table state in the URL.
-- TanStack Query or another client cache is earned by client-owned polling,
-  optimistic coordination, or repeated server state—not installed by default.
-  When it is installed for a server-paginated table: Query owns fetching and
-  the table owns grid state; put the pagination/sort/filter state in the
-  `queryKey`, keep the previous page visible with `placeholderData:
-  keepPreviousData` (v5) instead of flashing an empty table, and pass the
-  server `rowCount` rather than copying query results into table state
-  (TanStack Table 9.2.4 `skills/with-tanstack-query`, verified 2026-10-02).
+Build or change → critique against the sections you used and fix →
+`admin-geometry.mjs` exits 0 on every changed route → `ui-validation`
+browser proof → done.
 
-### If the admin is Next.js App Router (patterns — code details → shadcn-ui)
-
-- **Server/Client boundary.** Pages/layouts are Server Components: fetch D1/API *on the server*, pass results as props. Add `"use client"` ONLY to interactive leaves — sortable/filterable table, hover/zoom chart, forms (need state, handlers, or `window`/`localStorage`). Keep `"use client"` on the smallest leaf (everything a client file imports ships to the browser).
-- **Stream slow sections.** `app/…/loading.tsx` = instant route-level skeleton (auto-wraps the page in `<Suspense>`). Per-section: `<Suspense fallback={<Skeleton/>}><SlowChart/></Suspense>` — KPI row, chart, table stream independently, none blocking the others.
-- **Mutations = Server Actions.** Re-check auth *inside* each action (it is reachable via direct POST). After a write the operator must see the new row, not a stale table: choose a read-your-writes refresh. The exact API (`updateTag`, `revalidateTag` profiles, `revalidatePath`, `refresh`) depends on the installed major and Cache Components mode — follow `nextjs-development`.
-- **Heavy chart lib → lazy.** `dynamic(() => import('./chart'), { ssr: false })` for a client-only chart touching `window`/DOM. `ssr:false` is NOT allowed in a Server Component — the `dynamic()` call must live in a `"use client"` file.
-- **Deploy: check the repo before assuming.** Admin apps here are containerised (Dockerfile / Coolify) or run a separate API app; Cloudflare is the Astro-site path, not automatically the admin path. Don't reach for an `@opennextjs/cloudflare`-shaped answer without reading the project's Dockerfile and adapter config first.
-- **App Router is the house default for an integrated full admin**, because the
-  existing admins can reuse its auth/session, Server Action conventions, and
-  deployment path. This preference does not override project evidence: an
-  API-backed client application can fit Vite/React, and a route-oriented admin
-  with bounded interactivity can fit Astro. Never rewrite a working admin just
-  to satisfy the default.
-- **Server-paginated tables** (Postgres via Drizzle/`pg`, or D1 behind the Astro sites):
-  - **Default is Server Component fetch + Server Action mutation + read-your-writes revalidation (API per `nextjs-development`).** Reach for TanStack Query only when a table needs client-owned polling or optimistic state that Server Actions cannot express — and note nothing in the current repos does yet, so "we already have it" is not an argument.
-  - Small (hundreds of rows, fits at once) → client-side pagination/sort/filter.
-  - **Thousands+ → server-side**: push `LIMIT/OFFSET` (or keyset) + `ORDER BY` + `WHERE` into SQL, `manualPagination:true` (+`manualSorting`/`manualFiltering`). Send **either `rowCount` or `pageCount`, not both** — prefer `rowCount` and let the table derive pages; cursor APIs use `pageCount: -1`. `autoResetPageIndex` is disabled automatically under `manualPagination`, so reset `pageIndex` yourself when filters change. **Don't ship thousands of rows to the browser.**
-  - **`COUNT(*)` on a filtered large table is the hidden cost** of showing a total. Past a few hundred thousand rows, offer an approximate count or just `hasNextPage` instead.
-- **Virtualization (TanStack Virtual):** for long un-paginated scrolls. Our house rule is ~≥50 meaningful rows, clearly worth it >100, overhead below ~30 — **no upstream basis, it is a local heuristic**; TanStack explicitly declines to give a row-count threshold. The durable point: **virtualization cuts render cost, not fetch/filter/sort cost**, so it is never a substitute for server pagination. Never "fetch-all 50k + virtualize".
-
-## 8. Operator surfaces — the screens these businesses actually run
-
-Orders, tenants, audit, impersonation. These are the bulk of a real admin and
-the most-skipped part of dashboard guidance.
-
-- **Timezone is the likeliest correctness bug.** A "Today" KPI computed in UTC
-  against a WIB (UTC+7) operation is wrong for seven hours of every day, and it
-  is wrong silently. State the timezone next to every period label, compute
-  period boundaries in the operation's timezone, and never let a date filter and
-  a KPI disagree about when "today" started.
-- **Currency:** `Intl.NumberFormat('id-ID', { style: 'currency', currency:
-  'IDR', maximumFractionDigits: 0 })` is for **display only** — it silently
-  rounds (`1234567.5` → `Rp 1.234.568`, Node 24, 2026-10-08); store and sum
-  integer rupiah or exact decimals. ISO 4217 lists 2 minor units for IDR while
-  CLDR shows 0, so set the digits explicitly. `currencySign: 'accounting'`
-  prints `-Rp 1.234.567` for id-ID (no parentheses; MYR gets `(RM 1,234.50)`),
-  so a negative in a ledger needs the minus sign or explicit parentheses, never
-  color alone; keep one decimal precision per ledger column. MYR keeps 2
-  decimals. Use `Intl` rather than hand-formatting. Right-align
-  money, never mix currencies in one column: put it in the header or split the
-  column. Numeric columns, KPI values, and live-updating counters use
-  `font-variant-numeric: tabular-nums` so digits align across rows and do not
-  jitter as they change (Vercel Web Interface Guidelines).
-- **Order status is several independent axes**, not one merged column:
-  order, payment, fulfillment, and return (Shopify order status model). Tabs
-  follow the axis the operator works (usually fulfillment); payment and return
-  stay separate columns; define which values are terminal. This matches
-  `admin-product-ux` `states-and-permissions.md` (business state vs payment or
-  fulfilment sub-state). Marketplace order queues add deadline semantics —
-  see [operator surfaces](references/operator-surfaces.md). **A COD order is not a payment** — the operator view must never
-  imply money received because a row says "confirmed" (`storefront-ux` owns the
-  buyer side of this; this is the operator side).
-- **Row selection and bulk actions:** sticky action bar — which, like a sticky
-  table header, must never entirely cover the focused row or control (WCAG
-  2.2 SC 2.4.11; reserve its height with `scroll-padding`); be explicit about
-  select-on-page vs select-across-pages (a real trap once server pagination is
-  on); destructive bulk confirmation names the count; report partial failure
-  honestly (`23 of 40 updated`, and which 17 failed).
-- **Multi-tenant scope:** persistent "which store am I in" indicator, not just a
-  switcher. Per-store vs aggregate KPIs must be labelled as such.
-  **Impersonation needs a visible, persistent banner with one-click exit** —
-  an operator who forgets they are impersonating will act as the customer.
-  Every action taken while impersonating records **both** the real operator
-  and the impersonated user.
-- **Permissions:** **hide** an action the role can never hold; **disable**
-  with a visible reason when the role could hold it but this object's state
-  forbids it — inline helper text or a focusable popover beside the control,
-  not a tooltip on the disabled control, which keyboard users usually cannot
-  reach (and `shadcn-ui` keeps critical information out of tooltips); **403** only as the server-side backstop. Never render an action as
-  enabled that will fail server-side. Audit logs are their own table archetype:
-  append-only, no edit, actor + before/after; required fields, exclusions, and
-  access rules are in [operator surfaces](references/operator-surfaces.md).
-- **Destructive and unsaved state — three tiers** (GitLab Pajamas destructive
-  actions, 2026-07-13; NN/g confirmation dialogs 2018, reviewed 2026-08-07):
-  *high* (irreversible or wide blast radius) → type the object's name and state
-  any restore window; *medium* (recoverable but painful) → two-click friction,
-  e.g. behind a dropdown; *low* (easily undone) → no confirmation, offer Undo.
-  Buttons name the action; no default answer. Dirty forms get a navigation
-  guard. §1's
-  no-data-loss rule applies to every operator form.
-- **Drag is never the only way.** Column reorder, kanban moves, widget layout,
-  and drag-to-rank each need a single-pointer alternative (move up/down,
-  "Move to…" menu) — WCAG 2.2 SC 2.5.7, AA.
-- **URL-addressable filters and saved views.** Admin tables need shareable state
-  more than storefronts do: "unpaid orders today" should be a link.
-- **New-order arrival:** poll only where a missed item costs money (order queue,
-  chat inbox) and keep it cheap — 30-60s is the default. Everything else gets a
-  manual refresh plus a "new since you loaded" badge. A background refresh never
-  reorders rows under the operator's cursor.
-- **Export:** export the *filtered* set, not the current page. Decide sync vs
-  queued job by size, and say which one happened.
-
-## 9. Solo-dev guardrail — don't over-engineer
-
-- **Don't install Refine** for a handful of custom screens — it's a headless CRUD framework (data-provider + resource) worth it only with **many uniform CRUD resources**. For a bespoke admin, Server Components plus Server Actions already cover it. Harvest the **concept** (a thin data-provider interface), skip the framework.
-- **Don't add a chart lib** beyond Recharts until you truly hit its ceiling (§3).
-- **Don't build custom viz (visx)** when a bar chart already answers the question.
-- **One dashboard shell, reused.** Don't invent a new layout per page.
-- Tailwind Plus/Catalyst = **harvest the concept** (paid); shadcn blocks (free, open) cover the same ground.
-- **Study AGPL products, never paste them.** Dub, Midday, OpenStatus app, Plane, Twenty, and coss ui are AGPL: copy patterns, not files, unless the specific package is permissively licensed.
-- **Stock admin templates are wiring, not direction — except `volum-admin`.** Generic `shadcn-admin`-style starters ship the default look; take their auth/layout plumbing, then apply the accepted style and tokens. `ongkipro/volum-admin` is the owner's accepted reference: its density and surfaces are the default contract (`references/admin-visual-contract.md`), so preserve them unless the project contract records a change.
-
-## Sources and freshness boundary
-
-FT Visual Vocabulary (github.com/Financial-Times/chart-doctor) · Datawrapper Academy (pie / zero-baseline / area / stacked) · Shneiderman 1996 "The Eyes Have It" · NN/g (mobile tables, F-pattern, skeleton screens) · TanStack Table/Query/Virtual docs · shadcn/ui (sidebar, data-table, chart, blocks) · Tailwind responsive docs · Material Design 3 window-size-classes · Carbon Design (density) · WCAG 1.4.1/1.4.3 and 2.2 SC 2.4.11/2.5.7 (w3.org/TR/WCAG22) · Vercel Web Interface Guidelines (github.com/vercel-labs/web-interface-guidelines, tabular numerals) · Okabe-Ito palette · Recharts/ECharts/visx GitHub · Astro islands docs · Saleor Dashboard (github.com/saleor/saleor-dashboard) for production admin behavior.
-
-Added 2026-10-08 (fetched): Few — *Dashboard Confusion* 2004, *Common Pitfalls* 2006, bullet graph spec rev. 2013-10-10 · NN/g dashboards (2017-06-18), data tables (2022-04-03), mobile tables (2017-09-17), confirmation dialogs (2018, rev. 2026-08-07), dark mode (2020-02-02) · Carbon data table (2026-09-30), status indicators (2026-08-12) · Fluent v9 source · W3C WAI Complex Images (2026-04-08) · UK Analysis Function charts (2022-05-19) · Chartability (EuroVis 2022) · GitLab Pajamas destructive actions/empty states · OWASP Logging Cheat Sheet · NIST 800-53 r5 AU-9 · Shopify order status, bulk fulfillment, inventory · TikTok Shop by Tokopedia seller university · Odoo 18 accounting/barcode · MDN `Intl.NumberFormat` (2026-08-21) plus a local Node 24 check. Snippet-only items are marked *(unverified)* where used.
-
-Library APIs, versions, maintenance state, and deployment adapters are volatile.
-Verify them against the project's lockfile and current official upstream before
-implementing. Keep this skill focused on durable UX decisions.
-
-Library APIs verified 2026-08-10 (Recharts SSR status, TanStack Table v9, Next 16 `updateTag`, ECharts-on-Workers, the `echarts-for-react` compromise); TanStack Table 9.2.4 shipped skills, Query composition, and the APG grid-vs-table rule re-verified 2026-10-02. These move fast — re-check before implementing.
-
-**Unverified / inference:** chart point-count thresholds (architectural, no official number); "≤5 widgets/mobile screen" and the virtualization row counts (**house rule, no upstream basis** — TanStack declines to give a threshold); "color the delta by desired direction" and granularity labeling (design judgment); §8's operator-surface rules (accumulated practice, not cited standards).
+| When | Reference |
+| --- | --- |
+| Queue, inventory, ledger, audit-log, or search screen detail | operator-surfaces.md |
+| Chart craft, ramps, waterfalls, cohorts, printable documents | dataviz-and-print-specs.md |
+| Project has no theme yet and needs a quiet starting point | clean-light-cms-baseline.md |
+| Building a URL-as-state table or feature-first Next admin from scratch | next-shadcn-starter-patterns.md |
+| Nav registry, RBAC, impersonation patterns from production admins | github-admin-patterns.md |
+| Checking where a number or rule came from | sources.md |

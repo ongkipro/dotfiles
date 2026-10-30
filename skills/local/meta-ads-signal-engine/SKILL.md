@@ -1,13 +1,7 @@
 ---
 name: meta-ads-signal-engine
 description: >-
-  End-to-end Meta Ads Conversion Signal Operating System (Pixel, Conversions API / CAPI,
-  Deduplication event_id, Advanced Matching, _fbp/_fbc attribution preservation, COD vs Prepaid Purchase
-  definitions, and CAPI Event Outbox pattern).
-  Use when designing, building, auditing, or troubleshooting Meta Ads conversion tracking, pixel setups, CAPI integrations,
-  event match quality (EMQ), deduplication bugs, or server-authoritative Purchase signals.
-  Triggers: "meta ads", "meta pixel", "capi", "conversions api", "facebook pixel", "event_id deduplication",
-  "event match quality", "emq", "meta signal engine", "pixel capi setup".
+  Meta Ads conversion signals: Pixel + Conversions API, event_id dedup, Advanced Matching, _fbp/_fbc preservation, COD vs prepaid Purchase, EMQ, CAPI event outbox. Not campaign operations (meta-ads-cli) or Google/TikTok signals.
 ---
 
 # Meta Ads Signal Engine
@@ -32,6 +26,16 @@ const endpoint = `https://graph.facebook.com/${META_GRAPH_API_VERSION}/${pixelId
 ```
 
 Reference snippets below are illustrative of *structure*, not of the current version string.
+
+Read only this file up front; open a reference from the manifest when the
+step names it.
+
+**Pick the path first:**
+- New Pixel + CAPI install → version check → 4 questions → identity contract
+  → `CAPI_SENDER.md` + `DEDUPLICATION_EVENT_ID.md` → evidence ladder.
+- "Events arrive but EMQ/match is bad" or "DPA retargets nobody" → Audit
+  first → `IDENTITY_NORMALIZATION.md` / catalog identity → evidence ladder.
+- COD store → `COD_VS_PREPAID_PURCHASE.md` before any Purchase event.
 
 ## Core Philosophy
 
@@ -93,7 +97,8 @@ server-derived IP and user agent
 | Customer identity matching, E.164 phone normalization, SHA-256 hashing, `_fbp`/`_fbc` rules | [Identity Normalization](references/IDENTITY_NORMALIZATION.md) |
 | Purchase event taxonomy for Prepaid vs Cash On Delivery (COD) funnels | [COD vs Prepaid Purchase Signals](references/COD_VS_PREPAID_PURCHASE.md) |
 | WeTracked.io / Elevar parity & deep attribution engineering | [WeTracked.io Attribution Parity](references/WETRACKED_ATTRIBUTION_PARITY.md) |
-| Multi-Platform Product Taxonomy, Custom Labels & 12-Point Audit Checklist | Load `skills/local/google-ads-signal-engine/references/ADVERTISING_TAXONOMY_AND_FEED_AUDIT.md` |
+| Catalog `id` rules (Google + Meta), feed grain, the audit of integrations that pass every test, sources | [Catalog identity and audit](references/CATALOG_IDENTITY_AND_AUDIT.md) |
+| Multi-platform product taxonomy, custom labels, 12-point feed audit | `../google-ads-signal-engine/references/ADVERTISING_TAXONOMY_AND_FEED_AUDIT.md` |
 
 ---
 
@@ -103,27 +108,22 @@ server-derived IP and user agent
 2. **Matching `event_id`**: Browser `fbq('track', 'Purchase', payload, { eventID: id })` and Server CAPI `{ "event_id": id }` MUST share identical string IDs.
 3. **Preserve browser and advertiser IDs**: Forward `_fbp` and `_fbc` raw. Hash a stable `external_id`; do not use an order ID, click ID, invented value, or permanent phone substitute.
 4. **Phone & email normalization**: Trim/lowercase a real email. Format phone numbers in E.164 digits (e.g. `08...` → `628...`) before SHA-256. Omit synthetic or unavailable identity fields.
-5. **Canonical `content_ids`**: the string the Pixel and CAPI send must be *byte-identical* to the catalog's `id`. Derive it from an identifier that cannot change — see "Catalog identity" below. Prefer SKU only where SKU is immutable and always present.
+5. **Canonical `content_ids`**: the string the Pixel and CAPI send must be *byte-identical* to the catalog's `id`. Derive it from an identifier that cannot change — derive it from the immutable primary key, prefixed (`p1-v12`), never SKU — `references/CATALOG_IDENTITY_AND_AUDIT.md`.
 6. **No Fake Micro-Events**: Do NOT map every scroll or CTA click to `Lead` or `Purchase`.
 7. **Transactional Outbox**: Store CAPI events in a database outbox (`capi_event_outbox`) and retry failed HTTP requests asynchronously.
 8. **Low Latency**: Dispatch CAPI events immediately upon backend state confirmation.
 9. **Separate Analytics from Signal Layer**: Keep GA4/PostHog UI events separate from Meta Ads optimization events.
 10. **Reconciliation**: Periodically reconcile backend database order totals against Meta reported conversions.
 
-## Auditing: the failure modes that pass every test
+## Audit first: failures that pass every test
 
-A CAPI integration can be completely dead while types check, tests pass, the endpoint returns 200, and Meta's dashboard shows events arriving. Check these first — each one has been found in production:
-
-1. **Contract drift between tracker and validator.** Diff the payload the browser actually sends against the keys the server actually reads. A server that reads `custom_data.value` while trackers post `value` flat will happily forward `undefined` for every commerce and matching field, and every layer reports success. **Write the test fixture from the wire payload, never from the API docs** — a docs-shaped fixture validates a contract nobody implements.
-2. **Identifier format assumptions.** Confirm a real ID from the live database passes the validator. A `^\d{5}$` catalog-ID rule against six-digit IDs rejects everything, and a test fixture with a made-up five-digit ID hides it forever. There is **no minimum length and no digits-only rule** in either platform's spec — any code enforcing one was invented, and the padding it applies is itself a source of mismatch.
-3. **The three-value catalog id.** Print, side by side, what the Pixel sends, what the feed publishes, and what the admin shows the operator. Found in production as `"1"`, `"10001"` and `"10001"` — three values for one product, every test green. Nothing errors when they disagree: Advantage+ and DPA simply retarget nobody while the merchant pays for the traffic. **Check the two halves against each other, never each against its own fixture** — separate fixtures are exactly how three values pass CI.
-4. **Signals collected then dropped.** Grep for `_fbp`/`_fbc` on both legs. Browsers frequently read the cookies correctly while the server type never had fields to carry them.
-5. **Phone normalization mismatch.** See `IDENTITY_NORMALIZATION.md` — `08…` vs `628…` is a guaranteed miss, and it is invisible because a hash always *looks* fine.
-6. **Silently dropped failures.** A bare `fetch` to Meta with no outbox loses conversions on every network blip, 429, or expired token, and nothing anywhere records that it happened.
-
-The reliable check is end-to-end: fire a real event, then confirm the value, `content_ids`, and match keys in Meta's Test Events tool. Do not infer health from HTTP 200.
-
----
+A CAPI integration can be dead while types check, tests pass, the endpoint
+returns 200, and Events Manager shows events. Before trusting any of that,
+check `references/CATALOG_IDENTITY_AND_AUDIT.md`: tracker/validator contract
+drift (write fixtures from the wire payload, never from docs), invented ID
+format rules, the three-value catalog id (Pixel vs feed vs admin), `_fbp`/
+`_fbc` read but never carried, `08…` vs `628…` phones, bare `fetch` with no
+outbox. The reliable check is a real event confirmed in Test Events.
 
 ## Verification evidence ladder
 
@@ -151,71 +151,10 @@ For a live Pixel, capture evidence in this order:
 Do not add individual claimed uplifts across identifiers. They overlap, change
 with traffic mix and baseline implementation, and are not a revenue forecast.
 
-## Catalog identity: the id that must match
+## Hand-offs
 
-Verified against the platform specs, 2026-08-17.
-
-| | Google Merchant Center | Meta Catalog |
-| --- | --- | --- |
-| `id` length | 1–50 characters | up to 100 |
-| `id` charset | alphanumeric, `_`, `-` (ASCII recommended) | not restricted explicitly |
-| Numeric required | no | no |
-| Minimum length | **none** | **none** |
-| Hard rule | stable forever, never changed, never reused — even for a deleted product | must exactly match the Pixel's content ID |
-
-**Derive from an immutable key, not from SKU.** Both platforms *recommend* SKU,
-and that advice is wrong wherever SKU is nullable or merchant-editable: Google's
-rule is that an id, once assigned, never changes, and an editable field is
-precisely the one that will. A database primary key never changes and is never
-handed out twice. Use it.
-
-**Prefix it.** No spec requires it, but a bare `1` is fragile exactly where feeds
-travel — spreadsheet and CSV coercion, dropped leading zeros, collisions when two
-sources merge. Three characters remove all of it and make the id self-describing:
-`p1-v12` says what it is, `12` does not. Padding to a fixed width buys none of
-this; it only invents a new value that matches nothing.
-
-**Decide the grain before anything else.** A variant-level feed publishes one item
-per variant, so:
-
-- item id = `p{product}-v{variant}`, unique per variant
-- `item_group_id` = `p{product}`, shared by every variant of the product
-- the group id is **never** published as an item id
-
-Both of the following have shipped and neither errors: publishing the first
-variant without its `item_group_id` (group of one, orphan id equal to the group
-id), and submitting a group with no variant-identifying attribute. Google requires
-grouped items to be distinguishable by `color`, `size`, `material` or `pattern`
-— a group without one is a common outright disapproval.
-
-**Which id does an event send?** The one naming what the visitor is looking at. No
-variant chosen yet (product page, landing page) → the first variant's id. Variant
-chosen (AddToCart, InitiateCheckout, Purchase) → that variant's id. No variants at
-all → **omit `content_ids`**. An id matching nothing is worse than none: Meta
-reports it as a match rate the merchant cannot act on.
-
-**Never change an id after a feed has been submitted.** Doing so orphans the
-catalog history. Get this right before the first install goes live; after that it
-is a catalog re-creation, not an edit.
-
-## Sources (accessed 2026-10-02)
-
-- Graph API changelog (version/expiry dates): https://developers.facebook.com/docs/graph-api/changelog
-- Deduplication (event_id+event_name, 48 h, first-received kept; fbp/external_id fallback only browser-first): https://developers.facebook.com/docs/marketing-api/conversions-api/deduplicate-pixel-and-server-events
-- Customer information parameters (ph: digits with country code, no symbols; external_id hashing recommended, not required; fbp/fbc never hashed): https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/customer-information-parameters
-- Official SDK release tracking the Graph version (`facebook-nodejs-business-sdk` v26.0.2, 2026-09-21): https://github.com/facebook/facebook-nodejs-business-sdk/releases
-- WebKit tracking prevention (cookie caps used in the parity reference): https://webkit.org/tracking-prevention/
-
-No official vendor agent skill for Meta CAPI was found on GitHub on that date; nothing borrowed.
-
-## Advertising Signal Domain Routing
-
-| Need | Owner |
-| --- | --- |
-| Meta Ads campaign, ad set, creative (image/video/DCO), and insights CLI operations | `meta-ads-cli` |
-| Competitor advertising research & copy analysis | `meta-ads-scout` |
-| Google Ads conversion tracking & enhanced conversions | `google-ads-signal-engine` |
-| TikTok Ads pixel & Events API v2 | `tiktok-ads-signal-engine` |
-| Landing page copy & compliance claims | `copywriting` |
-| Full-stack signal outbox & payment webhook verification | `full-stack-development` |
+Campaign operations → `meta-ads-cli`; competitor research → `meta-ads-scout`;
+Google/TikTok signals → their signal-engine skills; copy → `copywriting`;
+payment webhook verification and the outbox's place in the app →
+`full-stack-development`.
 

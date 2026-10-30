@@ -1,7 +1,7 @@
 # Theme implementation
 
 Mechanics only. The policy — accepted project theme scope, adaptive resolution,
-three-state toggle, clock-adaptive caveats — is `SKILL.md` §4.2.1 and wins over
+three-state toggle, clock-adaptive caveats — is `SKILL.md` §2 and wins over
 anything here. Read this when you are about to write the code.
 
 ## The one rule that breaks everything else

@@ -17,3 +17,4 @@ refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is
 to_vendor: keep the local fixes until the canonical upstream source fixes both
   findings. No external publication was performed by this task.
 recheck: 2026-10-02 — no upstream changes to merge (last upstream commit 2026-04-21); both findings remain in the canonical upstream URL above (dead examples/ paths, duplicate `type Plugins`).
+description: 2026-10-30 skill-efficiency pass — frontmatter description rewritten to ≤250 chars (what + boundary front-loaded; Codex truncates at ~250). Body untouched by this pass. Re-apply after a byte-for-byte refresh; see docs/skill-efficiency-audit-2026-10-30.md.

@@ -1,0 +1,50 @@
+Warning: claude.ai MCP servers blocked by enterprise policy: claude.ai Zapier, claude.ai Descript, claude.ai KOL Kelola, claude.ai Hugging Face, claude.ai ClickUp, claude.ai Google Calendar
+Paduka Ongki, ini hasil review TASK-158. Tidak ada file yang diubah. Semua sumber dibaca utuh; eval harness (`config/ai/evals/workflow-scenarios.json`) saya grep untuk cek apakah enam kasus baru ada di sana.
+
+## Enam kasus: respons sintetis dan penilaian
+
+**1. "rapihin, jangan jadi toko sederhana; gudang tetap lengkap"**
+Respons: "Saya rapikan tampilan dan alur UI-nya. Role, status order, pembayaran, reservasi stok, dan retur gudang tetap sesuai kontrak repo. Setelah edit, saya jalankan test checkout dan stok yang memang ada di repo, lalu lapor hasilnya."
+Penilaian: lolos. Scope operasional terjaga, verifikasi disebut sebagai rencana, bukan klaim selesai.
+
+**2. "jelaskan kenapa stok direservasi, aku belum paham"**
+Respons: "Reservasi stok itu kebijakan: begitu order dibuat, barang dipegang dulu supaya dua pembeli tidak sama-sama membayar barang terakhir. Contoh: stok 1, A checkout 10.00, B 10.01. Tanpa reservasi, keduanya bisa bayar dan satu harus dibatalkan setelah bayar. Dengan reservasi, B langsung melihat habis. Cara kodenya memegang stok itu implementasi, bisa diganti tanpa mengubah kebijakan. Bagian mana yang belum jelas: kenapa dipegang sebelum bayar, atau kenapa ada batas waktu?"
+Penilaian: lolos. Policy dan implementasi dipisah, satu contoh konkret, tidak mengklaim user sudah paham, satu check-back terfokus. Catatan: respons sengaja tidak menyebut nama kolom atau fungsi karena belum diverifikasi di repo. Guidance tidak secara eksplisit memperingatkan ini untuk kasus penjelasan (lihat temuan 3).
+
+**3. "email ini buat procurement Jerman, jangan asal translate; jelasin Indo"**
+Respons: artifact Jerman formal B2B. Sapaan "Sehr geehrte Damen und Herren", `Sie` konsisten, penutup "Mit freundlichen Grüßen", tanggal, harga EUR, dan syarat pengiriman dipertahankan apa adanya. Penjelasan Indo: "Saya pakai register formal karena ini korespondensi procurement dan belum ada sample surat dari mereka. Kalau mereka sudah pakai nama depan atau `du`, saya sesuaikan. Klaim dan angka tidak saya ubah. Belum direview penutur asli."
+Penilaian: lolos. Register dinyatakan sebagai asumsi berbasis channel, bukan "orang Jerman suka formal". Review native ditandai pending.
+
+**4. Target Jerman pakai `Sie`, sumber Indo pakai `kamu`**
+Respons: "Versi Jerman tetap `Sie`, karena itu register yang sudah dipakai di teks target. `kamu` di sumber tidak otomatis berarti `du`."
+Penilaian: lolos. Catatan: baris tabel ini tidak punya permintaan user, hanya konteks. Reviewer harus mengarang tugasnya (terjemahkan? update?). Minor, tapi membuat kasus tidak bisa dijalankan apa adanya.
+
+**5. Locale dan audiens tidak diketahui, terjemahan high-stakes**
+Respons: "Sebelum saya terjemahkan: ini untuk pembaca di Jerman, Austria, atau Swiss, dan siapa pembacanya, pelanggan umum atau tim legal mereka? Itu mengubah istilah dan format angka. Kalau mau lanjut sekarang, saya asumsikan Jerman dan pembaca bisnis formal, dan hasilnya saya tandai perlu review penutur asli dan domain sebelum dipublikasikan."
+Penilaian: lolos. Satu pertanyaan diskriminatif plus fallback asumsi terbatas, konsisten dengan two-way-localization baris 17 sampai 19.
+
+**6. "tadi maksudku penjelasan ke aku, bukan bikin chatbot"**
+Respons: "Saya salah tangkap. Yang diminta penjelasan yang gampang dimengerti, bukan sistem baru. Rencana chatbot dibatalkan, belum ada file yang dibuat. Lanjut: saya jelaskan ulang topiknya dengan contoh."
+Penilaian: lolos. Koreksi dinyatakan, tetap di writing task, tidak ada memory write atau profil kepribadian. Klaim "belum ada file" harus benar secara status, sesuai aturan status-vs-proposal.
+
+## Temuan pada guidance
+
+1. **Rubrik tidak menangkap stereotyping dan klaim fluency.** Rubrik di `dialogue-evaluation.md:56-59` menilai intent, preservation, naturalness, evidence, dengan hard-fail hanya untuk negasi hilang, verifikasi palsu, aksi tak sah, identifier berubah. Respons yang bilang "orang Jerman lebih suka formal" atau "saya native German" bisa tetap skor penuh. Failure condition kasus 3 dan 5 jadi tidak punya tempat di skor. Tambahkan keduanya ke daftar hard-fail atau petakan eksplisit ke dimensi evidence.
+
+2. **"Evidence of comprehension" tidak didefinisikan.** Kasus 2 gagal jika "claims comprehension without evidence", tapi tidak ada dokumen yang menyebut apa yang dihitung sebagai evidence. `two-way-localization.md:36-37` hanya bilang "okay" bukan bukti. Secara jujur, AI tidak bisa memverifikasi pemahaman dalam satu giliran. Saran wording: "does not assert the user now understands; offers one focused check-back or asks which part is unclear."
+
+3. **Contoh reply di `two-way-localization.md:46-47` ambigu aspek.** "Saya uji pembayaran, reservasi stok, dan pembatalan" dalam Indonesia kasual bisa terbaca sebagai sudah dilakukan. Ini bertabrakan dengan `terminal-dialogue.md:54` yang memisahkan proposal dari executed check. Kalimat follow-up "report their results after execution" menyelamatkannya, tapi contohnya sendiri harus memakai "akan saya uji" atau "setelah edit, saya uji".
+
+4. **Struktur `dialogue-evaluation.md:38-47`.** Heading "Evaluation procedure" langsung diikuti tabel "Additional concise-mode cases", baru prosedurnya. Tabel itu milik section Cases.
+
+5. **Enam kasus baru tidak ada di eval harness.** `workflow-scenarios.json` memuat 20 skenario, tidak satu pun two-way/locale. Ini bukan kontradiksi, karena `dialogue-evaluation.md:35-36` menyebut kasus ini review semantik, dan `terminal-dialogue.md:95-98` hanya mengklaim harness menyediakan kasus komunikasi secara umum. Tapi artinya enam kasus ini hanya bisa dijalankan manual. Layak dicatat di STATUS, bukan diperbaiki sekarang.
+
+6. **Klaim sumber Microsoft tidak saya verifikasi.** Baris 88 sampai 94 ditandai inspected 2026-10-29 dengan batasan yang jujur. Saya tidak membuka URL-nya dalam review ini, jadi klaim "provides German and Indonesian guides" berstatus tidak diverifikasi oleh saya, bukan salah.
+
+Tidak ada kontradiksi antara `communication.md` dan kedua reference. Pembagian peran (memory advisory, metodologi di writer) konsisten.
+
+## Verdict dan identitas
+
+**CHANGES REQUIRED**, kecil: temuan 1 dan 2 mempengaruhi apakah failure condition kasus baru bisa dinilai; temuan 3 dan 4 adalah perbaikan wording dan struktur. Enam kasus sendiri lolos di respons sintetis.
+
+Model: `claude-fable-5-1` (Claude Fable 5.1), satu sesi, satu run per kasus, tanpa blinding. Sesuai `dialogue-evaluation.md:65-66`, ini review konsistensi guidance oleh satu model, bukan bukti independen lintas model dan bukan sertifikasi bahasa Jerman.

@@ -1,14 +1,7 @@
 ---
 name: google-ads-signal-engine
 description: >-
-  Google Ads conversion signal system: Google Tag / gtag.js, GTM, server-side GTM / sGTM, Enhanced
-  Conversions for Web and API, Consent Mode v2, transaction_id deduplication, click IDs
-  (gclid/gbraid/wbraid), COD vs Prepaid taxonomy, offline conversion uploads via the Data Manager
-  API (legacy Google Ads API). Use when designing, building, auditing, or troubleshooting Google Ads conversion tracking,
-  sitewide tags, Smart Bidding signals for target CPA / target ROAS, or offline CRM uploads.
-  Triggers: "google ads", "google tag", "gtag", "enhanced conversions", "consent mode v2", "gclid",
-  "gbraid", "wbraid", "google conversion tracking", "offline conversion upload", "data manager api", "google signal
-  engine", "google conversion setup".
+  Google Ads conversion signals: gtag/GTM/sGTM, Enhanced Conversions, Consent Mode v2, transaction_id dedup, gclid/gbraid/wbraid, COD vs prepaid, offline uploads via Data Manager API. Not Meta or TikTok signals. Triggers: google tag, gclid.
 ---
 
 # Google Ads Signal Engine

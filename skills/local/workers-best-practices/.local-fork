@@ -6,6 +6,11 @@ reason: The current upstream entrypoint references the cf-cli sibling skill,
   upstream directory instead of creating a broken relative link or installing
   an unrelated skill. The rest of SKILL.md is byte-identical to the reviewed
   upstream entrypoint; existing reference files are preserved.
+  2026-10-29: references/runtime-patterns.md "Be aware of platform limits" now
+  states the current Free/Paid CPU limits; the retired Bundled/Standard/Unbound
+  plan names were wrong against
+  https://developers.cloudflare.com/workers/platform/limits/. Drop this local
+  change when upstream corrects the line.
 would_lose_if_wired: A byte-for-byte refresh would reintroduce a reference to an
   unavailable local sibling and remove its reachable official source.
 refresh_guard: _refresh-vendored.sh reports and preserves this managed fork.
@@ -13,3 +18,4 @@ refresh_guard: _refresh-vendored.sh reports and preserves this managed fork.
   while the sibling is not intentionally adopted.
 to_vendor: Restore the upstream sibling reference if cf-cli is deliberately
   installed as a canonical owned skill and its routing boundary is accepted.
+description: 2026-10-30 skill-efficiency pass — frontmatter description rewritten to ≤250 chars (what + boundary front-loaded; Codex truncates at ~250). Body untouched by this pass. Re-apply after a byte-for-byte refresh; see docs/skill-efficiency-audit-2026-10-30.md.

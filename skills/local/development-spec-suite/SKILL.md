@@ -1,13 +1,7 @@
 ---
 name: development-spec-suite
 description: >-
-  Select, initialize, and audit a traceable multi-document spec pack when
-  several domains (product, architecture, data, IAM, API) must stay
-  consistent. NOT for a PRD/TASKS-only request, a standalone contract,
-  implementation, or legal conclusions. Domains also include security,
-  operations, privacy, UI, localization, and jurisdiction concerns. Use when
-  an existing pack needs traceability/applicability audit. A standalone
-  diagram is also out of scope.
+  Select, initialize, and audit a traceable multi-document spec pack (product, architecture, data, IAM, API, security, privacy, ops, UI). Not a PRD/TASKS-only request (prd-taskbreaker), a single contract, implementation, or legal conclusions.
 ---
 
 # Adaptive Development Specification Suite
@@ -113,7 +107,7 @@ Use existing local skills when available:
 - `adr-record` owns full standalone ADRs; Technical Design retains only the `ADR-NNNN` index row and traceability link, never a competing register.
 - `mermaid-diagram` for architecture, ERD, data-flow, and sequence diagrams.
 - `openapi-spec` for the machine-readable API contract and compatibility checks.
-- The provider skill that matches the project for payment-specific behavior: `stripe-best-practices`, `doku-malaysia-integration`, or `autolaris-h2h`; `mengantar-api` for shipping, rates, and COD.
+- The provider skill that matches the project for payment-specific behavior: `stripe-best-practices` or `autolaris-h2h`; `mengantar-api` for shipping, rates, and COD.
 - UI route: `admin-product-ux`/`storefront-ux` for behavior,
   `design-taste`/`admin-dashboard` for presentation, `shadcn-ui` for React
   implementation, and `ui-validation` for evidence. New or materially

@@ -84,4 +84,4 @@ Before recommending a technical path, evaluate:
 
 ## Lessons
 
-Symptom / root cause / invariant lessons are in [development-lessons.md](development-lessons.md). Load it when debugging web UI, CSS layering, Tailwind, Headless UI, or Astro prerender behavior.
+Symptom / root cause / invariant lessons are in [development-lessons.md](development-lessons.md). Load it for Astro prerender and Node test-harness behavior; CSS layering, Tailwind, Headless UI and component geometry: [ui-lessons.md](ui-lessons.md). Workers, D1, KV and caching lessons: [cloudflare-lessons.md](cloudflare-lessons.md). Coolify, Postgres dumps/migrations, PostgREST, Better Auth and mise lessons: [ops-lessons.md](ops-lessons.md).

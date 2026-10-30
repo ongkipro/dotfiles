@@ -1,14 +1,7 @@
 ---
 name: content
 description: >-
-  Multi-asset content production pipeline for blog articles, listings, social
-  posts, and landing pages: templates, voice calibration, batching/calendar,
-  image+alt, cross-posting. NOT the copy-rules source (copywriting) and NOT
-  for a single asset. Quality gates: no CTA, no brand leak, char limits.
-  Triggers: bikin konten, tulis artikel, blog post, content calendar, social
-  post, landing page copy, batch content, kalender konten, artikel SEO. Pairs
-  with copywriting (rules), seo-website-builder (SEO QA), volumx-writer
-  (preservation + humanization); use available runtime tools for visuals and research.
+  Multi-asset content pipeline: articles, listings, social posts, landing copy — templates, voice, batching/calendar, image+alt, cross-posting. Not the copy-rules source (copywriting) or a single asset. Triggers: bikin konten, tulis artikel.
 ---
 
 # Content Production
@@ -47,7 +40,7 @@ scale. Pairs with `copywriting` (rules + templates) and
      meta title/description, suggested image(s) and ALT.
    - For products: title candidates, handle, meta, tags, category, body sections.
 4. **Protect** — for rewrites or constrained source material, use
-   `volumx-writer/references/preservation.md` to ledger claims, qualifiers,
+   `writer/references/preservation.md` to ledger claims, qualifiers,
    keywords, citations, offers, and required formatting before editing.
 5. **Draft** — write to a file (`~/Documents/work/content/<slug>.md`) so it can be reviewed
    in chunks. Apply hard rules from `copywriting` (no CTA, char limits, no
@@ -68,7 +61,7 @@ scale. Pairs with `copywriting` (rules + templates) and
      - H1/H2 hierarchy broken (more than one H1, or skipped heading levels).
    - **P2 Polish & Editorial Checks:**
      - Second-order AI slop (metronomic 3-clause rhythm, question-cadence H2s, hedge stacking `may/often/typically`).
-     - Duplicate trailing `## Sources` block when citations are already inline (`volumx-writer/references/synthesis-contract.md`).
+     - Duplicate trailing `## Sources` block when citations are already inline (`writer/references/synthesis-contract.md`).
      - JSON-LD schema `wordCount` matches actual body word count within ±5%.
 7. **Image pipeline** — for each visual:
    - Use a supplied asset or the runtime's available image-generation capability
@@ -97,7 +90,7 @@ scale. Pairs with `copywriting` (rules + templates) and
 - **One H1 per page**. No skipped heading levels.
 - **Language consistency** — pick one primary language per piece; do not mix
   unless the user asks for code-switching. Indonesian pieces follow EYD V
-  spelling via `volumx-writer/references/indonesian.md`.
+  spelling via `writer/references/indonesian.md`.
 
 ## Batching patterns
 
@@ -157,7 +150,7 @@ scale. Pairs with `copywriting` (rules + templates) and
 ## Pair with
 
 - `copywriting` — exact copy rules + headline/meta/body templates.
-- `volumx-writer` — preservation, anti-hallucination, humanization, and scoring.
+- `writer` — preservation, anti-hallucination, humanization, and scoring.
 - `seo-website-builder` — for technical SEO QA + sitemap/IndexNow.
 - Available runtime image-generation and web search/fetch tools — for visual
   assets and current source evidence; unavailable tools remain an explicit gap.

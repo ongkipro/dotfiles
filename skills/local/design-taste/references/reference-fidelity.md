@@ -113,8 +113,7 @@ drift. Do not "improve" by adding decoration (see invented-info-tells.md).
 
 ## 7. Validate
 
-Run `scripts/tells-scan.py` on the source,
-and `ui-validation` (keyboard, reduced motion, both breakpoints, real flows).
+Run `ui-validation` (keyboard, reduced motion, both breakpoints, real flows).
 Report fidelity with the latest `report.md`, the deviation list, and what
 remains UNVERIFIED.
 

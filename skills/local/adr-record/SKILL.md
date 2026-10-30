@@ -1,6 +1,7 @@
 ---
 name: adr-record
-description: 'Create, supersede, or deprecate a structured Architecture Decision Record (ADR) for costly-to-reverse technical, architecture, and stack decisions. Not for PRD/TASKS (prd-taskbreaker), small local choices, or rewording an ADR (volumx-writer). Triggers: ''buat ADR'', ''architecture decision record'', ''adr-record'', ''adr'', ''write adr'', ''record decision''.'
+description: >-
+  Create, supersede, or deprecate an Architecture Decision Record for costly-to-reverse technical decisions. Not PRD/TASKS (prd-taskbreaker), small local choices, or rewording (writer). Triggers: buat ADR, record decision, adr.
 ---
 
 # Architecture Decision Record (ADR)
@@ -13,7 +14,7 @@ Record an important architecture decision with its context, status, alternatives
 
 - Use `prd-taskbreaker` for PRD/PLAN/TASKS. Its ADR-lite block is enough for a small, local decision; hand a costly-to-reverse decision to this skill for a full ADR.
 - Root `DECISIONS.md` is the repository's only decision index; each ADR gets one row there linking its file. In a `development-spec-suite` pack, Technical Design also declares the same `ADR-NNNN` as the pack's traceability link, never a second register or number. Rule: `~/.config/ai/policies/planning-artifacts.md` (Decision records).
-- Use `volumx-writer` only to rewrite, translate, or humanize an existing ADR without changing its decision.
+- Use `writer` only to rewrite, translate, or humanize an existing ADR without changing its decision.
 
 ## When to write one
 

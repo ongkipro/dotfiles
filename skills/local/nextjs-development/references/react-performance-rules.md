@@ -378,3 +378,22 @@ Verified 2026-10-02:
   untyped browser back): https://nextjs.org/docs/app/guides/view-transitions;
   `transitionTypes` added in v16.2:
   https://nextjs.org/docs/app/api-reference/components/link
+
+## Bundle discipline and motion (moved from SKILL.md 2026-10-30)
+
+Apply the production rules in `react-performance-rules.md` (waterfalls, bundles, server, re-render, rendering, and view-transition gotchas).
+Keep `'use client'` leaves narrow, import heavy browser libraries only where
+used, and run expensive non-interactive transforms on the server. Prefer native
+Next image/font/linking and code-splitting features already in the installed
+version. Analyze a bundle only with the project's existing tooling or a
+version-confirmed official method; do not add an analyzer speculatively.
+
+Motion: when to animate and with which tool is decided by `design-taste`
+`motion-craft.md` (§7, §7.1, §8.3). For the `motion` library import
+from `motion/react` (never alongside `framer-motion`) and look up its API via
+`mcp.motion.dev` or `motion.dev/llms-full.txt`; React `<ViewTransition>` rules
+stay in `react-performance-rules.md`.
+
+A build reports compilation/prerendering/output facts, not Core Web Vitals or UI
+correctness. Hand measured diagnosis to `web-perf` and browser behavior to
+`ui-validation`.

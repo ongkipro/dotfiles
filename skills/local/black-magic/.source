@@ -1,7 +1,7 @@
-source: https://raw.githubusercontent.com/morluto/rea/main/.agents/skills/reverse-engineer-anything
-vendored: 2026-10-20
-rea_version: 6.7.0
-skill_version: 43
-upstream_commit: ee12d517a25d34853d40e31fc039c7d1576c60e1
-primary_cli_commands: 158
-mcp_only_session_tools: 65
+source: https://raw.githubusercontent.com/morluto/rea/c0c3902207d6b1a33709e42b80c7e570da7db964/.agents/skills/reverse-engineer-anything
+vendored: 2026-10-30
+rea_version: 6.8.0
+skill_version: 55
+upstream_commit: c0c3902207d6b1a33709e42b80c7e570da7db964
+primary_cli_commands: 180
+mcp_only_session_tools: 0

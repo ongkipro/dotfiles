@@ -4,8 +4,7 @@ Use this reference when deriving a new palette from a single brand color, buildi
 a fluid typography/spacing system without layout shift (CLS), or skinning a
 shared storefront/CMS template across multiple distinct brands without producing
 accidental clones. Explicit owner direction, established brand assets, and
-inspected target references always outrank these starting defaults (`SKILL.md`
-§1.5 and §2.1).
+inspected target references always outrank these starting defaults (`SKILL.md` §1).
 
 ---
 
@@ -66,8 +65,7 @@ browser zoom works) and tighten `line-height` as font size increases:
 
 ### Candidate Font Pairing Matrix (10 Starting Archetypes)
 
-Run `python3 scripts/portfolio-scan.py` when choosing typography for an open
-direction. There is no forbidden-font list (`SKILL.md` §2.1): reuse is valid when
+There is no forbidden-font list (`SKILL.md` §2): reuse is valid when
 it fits the brand and reference, while the matrix below offers Starting
 candidates when a project needs a distinct voice from recent sibling sites:
 
@@ -106,8 +104,7 @@ declare a calibrated local fallback so webfont swap does not shift hero height:
 
 Swapping `--primary` and `--font-display` on a shared starter while leaving
 `--radius`, sticky navbar chrome, card proportions, and badge shapes untouched
-often makes separate brands look like clones (`portfolio-scan.py` surfaces this
-for critique).
+often makes separate brands look like clones.
 
 When expressing a new brand on a shared template, evaluate these **5 structural
 axes** against the brand's researched references and product job (preserving the

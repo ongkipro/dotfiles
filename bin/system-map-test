@@ -98,7 +98,11 @@ expect_fail "unlinked command fails" "bin/newtool is tracked but not linked"
 expect_fail "stale inventory fails" "inventory block is stale"
 
 build; printf '#!/bin/sh\n' > "$FIX/bin/wip"
-out="$(run --check 2>&1)" && ok "untracked work does not fail the gate" || fail "untracked file failed: $out"
+expect_fail "an untracked command is a member too" "bin/wip is tracked but not linked"
+build; printf 'x\n' > "$FIX/scratch.tmp"; printf 'scratch.tmp\n' > "$FIX/.git/info/exclude"
+out="$(run --check 2>&1)" && ok "an ignored file is not a member" || fail "ignored file counted: $out"
+build; git -C "$FIX" mv bin/tool bin/tool2 >/dev/null; git -C "$FIX" reset -q; sed -i.bak 's#(../bin/tool)#(../bin/tool2)#g' "$FIX/docs/DOTFILES_SITEMAP.md"; rm -f "$FIX/docs/DOTFILES_SITEMAP.md.bak"; run >/dev/null
+out="$(run --check 2>&1)" && ok "an unstaged rename is judged by the worktree" || fail "unstaged rename failed: $out"
 
 build; printf '# t\n' > "$FIX/config/templates/TASKS.md"; track; run >/dev/null
 expect_fail "unlinked template fails" "config/templates/TASKS.md is tracked but not linked"
@@ -109,9 +113,8 @@ expect_fail "memory missing from MEMORY.md fails" "extra.md is not listed in con
 build; printf -- '- [gone](../docs/gone.md)\n' >> "$FIX/docs/DOTFILES_SITEMAP.md"; track
 expect_fail "broken relative link fails" "links docs/gone.md, which is not tracked"
 
-build; printf '# wip\n' > "$FIX/docs/wip.md"; printf -- '- [wip](../docs/wip.md)\n' >> "$FIX/docs/DOTFILES_SITEMAP.md"
-git -C "$FIX" add docs/DOTFILES_SITEMAP.md
-expect_fail "link to an untracked file fails" "links docs/wip.md, which is not tracked"
+build; printf -- '- [wip](../docs/wip.md)\n' >> "$FIX/docs/DOTFILES_SITEMAP.md"
+expect_fail "link to a file absent from the worktree fails" "links docs/wip.md, which is not tracked"
 
 build; sed -i.bak 's#(../skills/local/demo/SKILL.md)#(../skills/local/demo/)#' "$FIX/docs/DOTFILES_SITEMAP.md"; rm -f "$FIX/docs/DOTFILES_SITEMAP.md.bak"; track
 out="$(run --check 2>&1)" && ok "skill directory link counts as linked" || fail "skill directory link rejected: $out"
@@ -236,7 +239,7 @@ daily health timer	config/systemd/ai-health-daily.timer
 pi settings	config/pi/settings.json
 planning artifacts	config/ai/policies/planning-artifacts.md
 rendered context claude	config/ai/context/claude.md
-kelola deploy skill	skills/local/kelola-deploy/SKILL.md
+kelola project memory	config/ai/project-memory-kelola/MEMORY.md
 coolify vps	config/ai/project-memory/coolify-vps-dev.md
 stripe payments	skills/local/stripe-best-practices/SKILL.md
 cloudflare workers	skills/local/workers-best-practices/SKILL.md

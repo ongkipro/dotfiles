@@ -46,7 +46,7 @@ skimming evaluator and a detailed checker.
 | Plan comparison | Equal plan columns with aligned rows and a clear recommended plan only if the owner chooses one | single price |
 | Different readers | Short scannable summary, with depth in docs and security pages | — |
 | Proof | Named customer stories with permission; integrations list that links to docs | no customers yet: say what exists (beta, pilot) |
-| One intent, one label | A single primary label for trial/demo across the site (tells-scan CTA-intent check) | — |
+| One intent, one label | A single primary label for trial/demo across the site  | — |
 
 ## 6. Category default to escape
 

@@ -1,0 +1,39 @@
+{
+  "needed": true,
+  "scope": "auto",
+  "project": "99ribu",
+  "files": [
+    {
+      "path": "/home/ongki/dotfiles/config/ai/project-memory/99ribu-url-slugs.md",
+      "scope": "project",
+      "priority": 92,
+      "reason": "project=99ribu (trigger)",
+      "bytes": 1433
+    },
+    {
+      "path": "/home/ongki/dotfiles/config/ai/memory/projects-sites.md",
+      "scope": "shared",
+      "priority": 1067,
+      "reason": "trigger match",
+      "bytes": 6363
+    },
+    {
+      "path": "/home/ongki/dotfiles/config/ai/memory/development-lessons.md",
+      "scope": "shared",
+      "priority": 1079,
+      "reason": "changed-path match",
+      "bytes": 2647
+    }
+  ],
+  "budget": {
+    "maxFiles": 3,
+    "maxBytes": 12000,
+    "usedBytes": 10443
+  },
+  "reason": [
+    "project reference matched 99ribu",
+    "shared memory changed-path matched development-lessons.md",
+    "shared memory changed-path matched ui-lessons.md",
+    "shared memory trigger matched projects-sites.md"
+  ]
+}

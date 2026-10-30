@@ -4,6 +4,11 @@ ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
 DL="$ROOT/bin/delivery-ledger"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/delivery-ledger-test.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
+# A caller's declared session must not leak into fixtures (TASK-096 rule):
+# mutant copies of the ledger have no bin/focus beside them and would refuse
+# to start. Focus behaviour has its own test (focus-test).
+unset AI_FOCUS_SESSION PI_SESSION_ID CODEX_THREAD_ID
+export AI_FOCUS_DIR="$TMP/focus-state"
 fail(){ echo "FAIL: $*" >&2; exit 1; }
 
 REPO="$TMP/repo"

@@ -1,13 +1,7 @@
 ---
 name: seo-website-builder
 description: >-
-  Classic SEO for building and auditing websites: technical SEO, IA, metadata,
-  schema/JSON-LD, sitemap/robots, canonical/noindex, internal links, Search
-  Console. Owns pSEO templates and indexation; not AEO/GEO, the pSEO pipeline,
-  copy, or Astro code. Also covers Shopify SEO, Astro/static SEO, local
-  business SEO, ecommerce SEO, programmatic SEO, SEO QA, multi-engine
-  algorithm updates, and AI-search readiness. Triggers: "audit SEO situs ini",
-  "kenapa halaman ini tidak terindeks", "why did my traffic drop".
+  Classic SEO for building and auditing sites: technical SEO, IA, metadata, JSON-LD, sitemap/robots, canonical/noindex, internal links, Search Console, pSEO templates and indexation. Not AEO/GEO, pSEO pipeline, copy, or code.
 ---
 
 # SEO Website Builder

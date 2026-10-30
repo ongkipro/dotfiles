@@ -1,0 +1,24 @@
+## CHANGES REQUIRED
+
+### 1. Project ownership filtering uses path spellings, not file identity
+**Location:** `bin/ai-memory-route` — `project_owned_paths()` and the hard project-boundary filter in `select()`.
+
+Ownership keys retain the manifest’s raw path strings, but candidate paths are constructed with `Path` and then converted back to relative strings. These representations can differ for the same file.
+
+For example:
+
+- Foreign project entry: `./memory/foreign.md`
+- Shared entry: `memory/foreign.md`
+
+The ownership map contains `./memory/foreign.md`, while the candidate lookup uses `memory/foreign.md`. Consequently, `owners` is empty and a matching shared trigger admits the foreign project’s file **without an explicit reference**. Symlink aliases present the same underlying problem.
+
+This defeats the newly introduced cross-tier project boundary.
+
+**Required fix:** Use the same canonical file identity when indexing project ownership and checking candidates. Resolve aliases consistently, enforce the intended memory-root containment policy, and retain ownership filtering across shared and lesson entries.
+
+**Regression coverage to add:**
+- A foreign project path containing `./`, also indexed canonically in shared or lessons, is excluded without a reference.
+- A symlink alias cannot bypass ownership filtering.
+- An explicit reference admits the corresponding file.
+
+**Review basis:** Static inspection of the supplied diff only; no tools or tests executed. The focus-registry implementation was treated as independently reviewed.

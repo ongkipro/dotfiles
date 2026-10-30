@@ -1,0 +1,27 @@
+ai-policy-lint: FAILED (1 errors found)
+ai-policy-lint: Auditing dotfiles policy, routing, skills, and templates...
+────────────────────────────────────────────────────────────
+  OK  GitHub workflows: OK
+  OK  OMP routing: omp-routing-test: OK (native runtime; explicit reference + shared memory/skills)
+  owned skills: Checked 76 skill(s): 0 failure(s), 0 warning(s)
+  OK  owned skills: Discovery metadata: 35416 description characters; hosts may truncate the initial registry, so keep each key use case front-loaded.
+  OK  skill routing graph: 86 routing reference(s) resolve to installed skills
+  OK  command manifest: 132 command(s) in bin/, all listed
+  OK  task id uniqueness: 140 number(s), 2 accepted collision(s) in the baseline
+  OK  ledger task binding: 171 run(s) matched to a declared contract, 5 baselined id(s)
+  OK  task dependency graph: 0 edge(s) across 12 task record(s) resolve
+  OK  memory and Markdown links: ai-memory-check: OK (902 file(s), 2156 link(s) checked)
+  OK  memory hygiene regression: ai-memory-hygiene-test: PASS
+  OK  memory hygiene corpus: clean
+  OK  memory routing coverage: 82 project-memory file(s), 82 routed, 0 declared unrouted
+  OK  skill map: README.md matches a fresh render (76 skills)
+  OK  hidden-instruction scan: 837 skill and memory file(s) checked
+ERRORS:
+  ✗ system map is not current:
+  system-map: skills/local/volumx-writer/SKILL.md is tracked but not linked from docs/DOTFILES_SITEMAP.md (Owned skills)
+  system-map: docs/DOTFILES_SITEMAP.md links bin/focus, which is not tracked
+  system-map: docs/DOTFILES_SITEMAP.md links bin/focus-test, which is not tracked
+  system-map: docs/DOTFILES_SITEMAP.md links config/ai/memory/communication.md, which is not tracked
+  system-map: docs/DOTFILES_SITEMAP.md links config/ai/memory/ui-lessons.md, which is not tracked
+  system-map: docs/DOTFILES_SITEMAP.md links skills/local/writer/SKILL.md, which is not tracked
+────────────────────────────────────────────────────────────

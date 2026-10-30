@@ -137,7 +137,7 @@ class EvaluationTests(unittest.TestCase):
                        'skills/local/development-kit/SKILL.md',
                        'skills/local/development-kit/references/adaptive-execution.md',
                        'skills/local/development-kit/references/skill-evaluation.md',
-                       'skills/local/volumx-writer/references/terminal-dialogue.md',
+                       'skills/local/writer/references/terminal-dialogue.md',
                        'skills/local/testing-engineering/references/nested/checks.md']
             for relative in sources:
                 path = root / relative

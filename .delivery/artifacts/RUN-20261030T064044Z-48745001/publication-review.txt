@@ -1,0 +1,14 @@
+Warning: claude.ai MCP servers blocked by enterprise policy: claude.ai Zapier, claude.ai Descript, claude.ai KOL Kelola, claude.ai Hugging Face, claude.ai ClickUp, claude.ai Google Calendar
+**Verdict: APPROVE this corrective delta** (not general certification).
+
+Model: `claude-fable-5-1` (Claude Fable 5.1).
+
+**SKILL.md lines 8–18**: no publication blocker. The live host URL is gone. What remains is the instance label `99ribu-prod`, the wrapper name `dotfiles-a1-coolify`, and a pointer to the device-local access file. The `99ribu` slug is already tracked elsewhere in this repo (project-memory filenames), so it leaks nothing new. The text explicitly pushes host, firewall, Cloudflare, and recovery facts to `~/.config/ai-local/`, which matches CORE.md.
+
+**coolify-behind-cloudflare.md**: no blocker. Every live value is a placeholder: `<host>`, `<dashboard-host>`, `<email>`, `<PASSWORD_VAR>`, `<name>`, `<account>`. Secrets flow through `secrets-env` on stdin, never argv. No tokens, IPs, zone IDs, or owner email appear. The Cloudflare token table lists permissions only. Version pins and the "verified 2026-10-30" line are consistent between both files.
+
+Minor non-blocking notes:
+- `Docker 29.9` on line 8 is unusually specific; fine if that is what was observed.
+- `pkill -x` guidance (line 39) reads oddly but is a real lesson, not a publication issue.
+
+Nothing edited.

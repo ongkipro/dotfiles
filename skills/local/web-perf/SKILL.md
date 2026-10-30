@@ -1,6 +1,7 @@
 ---
 name: web-perf
-description: Audit, diagnose, or optimize web page load and interaction performance (Core Web Vitals, Lighthouse performance, traces, network, bundles). Not UI behavior QA (ui-validation) or visual design (design-taste). Prefers Chrome DevTools MCP; without it, still runs a codebase and static-asset audit via the project's own scripts and reports which metrics stayed unmeasured instead of stopping. Biases towards retrieval from current documentation over pre-trained knowledge.
+description: >-
+  Audit, diagnose, or optimize page load and interaction performance: Core Web Vitals, Lighthouse, traces, network, bundles; Chrome DevTools MCP preferred, static audit otherwise. Not UI behavior QA (ui-validation) or visual design (design-taste).
 ---
 
 # Web Performance Audit

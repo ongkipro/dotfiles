@@ -31,3 +31,4 @@ recheck: 2026-10-02 — all 7 indexed files re-fetched (index lists no new files
   (now plain text). Link rewrites re-applied: 11 in SKILL.md, 4 in tax.md; all still 404 upstream, as
   does the unpatched treasury vault link. github.com/stripe/ai skills/stripe-best-practices lags the
   hosted index (still 2026-08-26.dahlia), so the hosted index remains the source.
+description: 2026-10-30 skill-efficiency pass — frontmatter description rewritten to ≤250 chars (what + boundary front-loaded; Codex truncates at ~250). Body untouched by this pass. Re-apply after a byte-for-byte refresh; see docs/skill-efficiency-audit-2026-10-30.md.

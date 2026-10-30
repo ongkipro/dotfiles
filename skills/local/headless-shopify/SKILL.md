@@ -1,6 +1,7 @@
 ---
 name: headless-shopify
-description: Architect, build, migrate, or audit Shopify headless storefronts (Storefront API, Hydrogen, or a custom framework). Not for Liquid themes, generic storefront UX, Hydrogen app code (hydrogen-development), or arbitrary checkout DOM customization. Use for deciding whether headless is justified, API/version/token boundaries, cart and checkout handoff, Customer Account API, Markets, caching, privacy, analytics, operations, and migration.
+description: >-
+  Architect, migrate, or audit Shopify headless storefronts (Storefront API, Hydrogen, custom): is headless justified, API/token boundaries, cart and checkout handoff, Customer Account API, Markets, caching. Not Liquid themes or Hydrogen code.
 ---
 
 # Shopify Headless Storefront Architecture

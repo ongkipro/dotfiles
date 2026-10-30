@@ -236,7 +236,7 @@ fetch("https://api.example.com/webhook", { method: "POST", body: JSON.stringify(
 
 ### Be aware of platform limits
 
-Workers have a 10ms CPU time limit (Bundled) or 30s (Standard/Unbound). Heavy synchronous work — tight loops, large JSON parsing, compute-intensive crypto — can hit the CPU limit and terminate the request.
+Workers Free has a 10 ms CPU limit per request and per Cron Trigger run; Workers Paid defaults to 30 s and can be raised to 5 minutes (a Cron Trigger on an interval of an hour or more gets 15 minutes). See the current [Workers limits](https://developers.cloudflare.com/workers/platform/limits/). Heavy synchronous work — tight loops, large JSON parsing, compute-intensive crypto — can hit the CPU limit and terminate the request.
 
 **Check**: compute-heavy operations that run synchronously. Consider breaking work into smaller chunks, offloading to Queues/Workflows, or using WebAssembly for CPU-intensive tasks.
 

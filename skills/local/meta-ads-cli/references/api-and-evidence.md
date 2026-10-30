@@ -164,3 +164,45 @@ object probes. Provider: OpenAI; exact model/reasoning were unavailable. It
 excludes unrelated 9Router/shared-map baseline failures and unobserved live
 API, account, or business outcomes. Delivery evidence binds final checks and
 boundary approval; the global policy gate remains separately visible.
+
+## API compatibility and delivery architecture
+
+Reviewed **2026-10-27**. Meta operates the recommendation systems on its servers;
+there is no Andromeda/GEM/Lattice switch to install in this helper. Official
+sources describe retrieval, foundation-model knowledge transfer, cross-domain
+ranking, and newer semantic tokenization. They do not establish a fixed
+Andromeda → GEM → Lattice execution chain or a rule that similar ads receive the
+same Entity ID and are dropped. Creative diversity, consolidation, copy style,
+and budget experiments remain context-dependent operational hypotheses.
+
+The latest reviewed Marketing API changelog is v26.0. Installed `meta-ads 1.2.0`
+uses SDK 24.x; the inspected local SDK default is **v24.0**. Package freshness does
+not prove v26 request compatibility. No real account request/version header was
+observed. Preserve the upstream dependency constraints; do not patch SDK versions
+or invent a CLI version flag to claim synchronization.
+
+| Helper surface | Contract and limit |
+| --- | --- |
+| Standard objectives / audience | Reject retired legacy `smart_promotion_type`. `algorithmAlignment.advantageStateCandidate` is an unverified local candidate, not server eligibility. Raw targeting may override the shortcut audience flag. |
+| Multi-asset creative | Ad-level `AUTOMATIC_FORMAT` or classic DCO; a DCO ad set permits one ad. Retain media/state checks. |
+| Attribution | Choose incremental optimization **or** explicit windows. Incremental true conflicts with `attribution_spec`, including JSON-string / @file input; supported goal and effective bid strategy are checked. False permits explicit windows. |
+| Creative features | Preserve granular `degrees_of_freedom_spec`; feature names and eligibility must match current API/CLI docs. A bundle warning does not validate all nested features. |
+| v26 changes / raw JSON | Review poll retirement, Web and App `web_only` scope, and HEF targeting requirements against the source record. Offline checks cover the declared helper surface, not every raw API payload or account condition. |
+| Guidance / Value Rules | Account recommendations are evidence to assess. Value Rules are not a first-class helper manifest feature; verify the actual upstream operation and limits before use. |
+
+---
+
+## 4. The 10 Critical Meta Ads API & Conversion Traps
+
+1. **Minor Currency Units (Cents Trap):** Meta's `--daily-budget`, `--lifetime-budget`, `--spend-cap`, and `--bid-amount` are integers in **minor currency units** (`5000` = `$50.00` USD). Always verify the ad account's currency and minor-unit scale before applying budgets.
+2. **Development Mode App Failure (`Error 1885183`):** If the Meta App in `developers.facebook.com` is in `Development` mode, `campaign create` may succeed while `creative create` fails with `Ads creative post was created by an app that is in development mode`. Switch the App to **Live** mode.
+3. **CBO vs ABO Budget Collision (`Error 1885621`):** Never set a budget on both the campaign (CBO) and an ad set (ABO). Furthermore, on plain ABO campaigns, omit `--bid-strategy` and `--pacing-type` on the campaign and set them on the ad set instead.
+4. **Retired Legacy `smart_promotion_type`:** Never pass `smart_promotion_type=AUTOMATED_SHOPPING_ADS` or `SMART_APP_PROMOTION`. Use Unified Advantage+ (`OUTCOME_SALES` + CBO + `"advantage_audience": true`).
+5. **DCO Multi-Ad Collision vs Flexible Format:** An ad set with `"dynamic_creative": true` rejects a second ad. To test multiple multi-asset creatives in one consolidated ad set, set `"ad_format": "AUTOMATIC_FORMAT"` on each creative and keep `"dynamic_creative"` off on the ad set.
+6. **Deprecated `standard_enhancements` & `7d_view`/`28d_view`:** Use granular `creative_features_spec` keys inside `degrees_of_freedom_spec`, and choose windows supported by the current optimization goal. Do not combine explicit windows with incremental attribution.
+7. **Partial Build Orphans:** Meta has no multi-resource transaction across Campaign -> Creative -> Ad Set -> Ad. Always use `dotads-meta deploy --apply` so `.meta-state.json` records each step's ID immediately and prevents duplicate orphans on retry.
+8. **Sales & Conversion Completeness:** For `OUTCOME_SALES` / `OFFSITE_CONVERSIONS`, the ad set requires `--pixel-id` + `--custom-event-type` (e.g. `PURCHASE`), and the ad requires `--conversion-domain` (e.g. `example.com`).
+9. **Local Copy and Market Conventions (`ID` vs `MY`):** Review repetitive CTAs and destination mismatch; a WhatsApp campaign may intentionally use messaging copy. Keep natural market-specific wording and the existing ID/MY warnings. These checks do not prove a hidden ranking penalty or prohibit all CTA text.
+10. **Binary Flag Verification:** Never invent flags from third-party blog posts. Verify against the installed binary (`meta ads <resource> <action> --help`) before running custom commands.
+
+---

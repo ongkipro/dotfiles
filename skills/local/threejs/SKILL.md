@@ -1,6 +1,7 @@
 ---
 name: threejs
-description: Architect, build, and optimize 3D WebGL scenes with Three.js across vanilla JS, Vite, Astro, and React Three Fiber (R3F). Use for 3D graphics, shaders, GLTF models, cameras, lighting, materials, and canvas animations. NOT for CSS/2D UI animation (use gsap-*).
+description: >-
+  Architect, build, and optimize 3D WebGL scenes with Three.js in vanilla JS, Vite, Astro, or React Three Fiber: shaders, GLTF, cameras, lighting, materials, canvas animation. Not CSS/2D UI animation (gsap-*).
 ---
 
 # Three.js 3D WebGL Architecture

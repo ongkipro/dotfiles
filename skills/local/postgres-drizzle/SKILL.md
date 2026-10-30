@@ -1,12 +1,7 @@
 ---
 name: postgres-drizzle
 description: >-
-  Engineer plain PostgreSQL databases with Drizzle: schemas, migrations,
-  transactions, RLS, indexes, and query performance. Not Supabase services,
-  generic API design, or application authentication. Use for constraints,
-  expand-contract rollouts, isolation, locking, tenant boundaries, pagination,
-  data types, pooling, concurrency bugs, and generated SQL review. Retrieve
-  matching documentation for version-sensitive Drizzle APIs and commands.
+  Plain PostgreSQL with Drizzle: schemas, constraints, migrations (expand-contract), transactions, isolation, locking, RLS, tenant boundaries, indexes, pagination, pooling. Not Supabase services (supabase-stack), API design, or auth.
 ---
 
 # PostgreSQL + Drizzle Engineering
@@ -16,19 +11,23 @@ A TypeScript type is not a database guarantee; every writer must meet the same
 constraints. Treat generated SQL, migrations, connection configuration, and RLS
 policies as privileged code.
 
-## Trigger and scope
+Read only this file up front; open a reference when a step names it.
 
-Use this skill for plain PostgreSQL and Drizzle schema/query engineering, including:
+**Pick the path first:**
+- Add a column/table or change a constraint → Inspect → Invariant worksheet
+  → workflow 1–4 → Verification.
+- Query bug, slow query, or concurrency anomaly → Inspect → workflow 5
+  (+ `references/queries-and-concurrency.md`) → Verification steps 5–6.
+- Pool/serverless/RLS context problem → Inspect → workflow 6 and
+  `references/trust-boundaries.md` → Verification step 7.
 
-- tables, keys, constraints, relationships, data types, defaults, and generated values;
-- migration generation/review, expand-contract rollout, backfills, and drift diagnosis;
-- transaction boundaries, isolation anomalies, locks, retries, and concurrent writes;
-- tenant keys, plain PostgreSQL RLS, indexes, query plans, and pagination;
-- driver/pool/serverless connection behavior and database-level verification.
+## Scope
 
-Do not use it as the owner of Supabase Auth, Storage, Realtime, Edge Functions, its
-platform CLI lifecycle, or `auth.uid()` conventions; use `supabase-stack`. Do not
-redesign HTTP/GraphQL contracts or implement authentication here.
+Plain PostgreSQL + Drizzle: tables, constraints, types, defaults; migration
+generation/review, expand-contract, backfills, drift; transactions,
+isolation, locks, retries; tenant keys, plain RLS, indexes, plans, pagination;
+driver/pool/serverless behavior. Not Supabase Auth/Storage/Realtime/CLI
+(`supabase-stack`), HTTP/GraphQL contracts, or authentication.
 
 ## Inspect first
 
@@ -48,13 +47,10 @@ Before proposing or running a command:
 6. Retrieve current Drizzle documentation and installed CLI help before using a
    version-sensitive API or command. Never transpose a remembered example across
    drivers or Drizzle versions.
-7. Identify the Drizzle release line before touching queries or migrations. As of
-   2026-10-02, npm `latest` is still 0.x (`drizzle-orm` 0.45.x, `drizzle-kit` 0.31.x);
-   1.0 is a pre-release (`@rc`/`@beta` tags). The lines differ: 1.0 ships Relational
-   Queries v2 (`defineRelations`, object `where`/`orderBy`) and a new migration folder
-   layout without `meta/_journal.json` (converted by `drizzle-kit up`; `drop` removed).
-   Do not mix 0.x examples into a 1.0 project or upgrade lines as a side effect; an
-   upgrade is its own reviewed change. See the [source ledger](references/source-ledger.md).
+7. Identify the Drizzle release line: 0.x (`drizzle-orm` 0.45 / `drizzle-kit`
+   0.31) and 1.0 pre-release differ in relational queries and migration
+   layout. Never mix examples across lines; an upgrade is its own reviewed
+   change. Current facts: `references/source-ledger.md`.
 
 If the target database or environment cannot be proven, stop before execution. Never
 infer production safety from a familiar hostname, an environment variable name, or a
@@ -132,14 +128,11 @@ Use the repository's installed package manager and scripts. When no project comm
 exists, retrieve the exact command from the installed Drizzle version and current
 official docs. Generation is not approval.
 
-Review the complete SQL in execution order. Account for every statement and inspect:
-
-- unexpected drops, renames inferred as drop/add, casts, truncation, or default changes;
-- null/duplicate/orphan failures and FK/check/unique semantics;
-- transaction boundaries and statements that cannot use the intended transaction;
-- table/index lock mode, scan/rewrite cost, index build strategy, and timeout policy;
-- extension, schema, role, ownership, search-path, and privilege assumptions;
-- deterministic backfills, retry/resume behavior, and old/new application compatibility.
+Review the complete SQL in execution order: unexpected drops or rename-as-
+drop/add, casts, default changes; null/duplicate/orphan failures; transaction
+boundaries; lock mode and scan/rewrite cost; extension/role/search-path
+assumptions; backfill determinism and old/new compatibility (checklist in
+`references/migrations-and-operations.md`).
 
 If SQL differs from the plan, fix the schema or migration source and regenerate; do not
 wave through surprising SQL because it was generated.
@@ -200,47 +193,22 @@ queried. The existence of a dump file, snapshot, or provider badge is not restor
 Never run a restore, failover, drop, truncate, or destructive rollback without the
 repository's approval and runbook.
 
-## Ownership and handoffs
+## Handoffs
 
-- `postgres-drizzle`: plain PostgreSQL/Drizzle invariants, SQL, migrations, data access,
-  transactions, RLS mechanics, query plans, and connection semantics.
-- `full-stack-development`: end-to-end routing and evidence gates; this skill remains the
-  database specialist and does not duplicate framework, API, auth, or CI implementation.
-- `supabase-stack`: Supabase platform lifecycle, Auth/Storage/Realtime, service roles,
-  Supabase CLI migrations, and platform-specific policy helpers. This skill may advise
-  underlying SQL invariants but must not create a second migration authority.
-- `better-auth-security`: Better Auth schema/adapter lifecycle and auth controls. Do not
-  shadow or casually alter auth-owned tables; coordinate required DB changes there.
-- `application-security`: cross-stack threat model, credential/role hardening, injection,
-  data exposure, and security review. PostgreSQL RLS mechanics remain here.
-- `testing-engineering`: automated behavioral/regression test strategy. This skill owns
-  the smallest database evidence needed for the specific change.
-- `observability-engineering`: production database telemetry, alerting, SLOs, and rollout
-  signals. Provide query/migration events and failure semantics for instrumentation.
-- `github-actions`: CI workflow implementation; provide safe DB checks, never credentials.
-- `development-spec-suite`: durable data/IAM/operations specifications when multiple
-  domains need traceability. `prd-taskbreaker` owns feature requirements and tasking.
-- `openapi-spec`: API contracts. `native-first`: dependency/platform capability check.
-- Framework and platform owners (`nextjs-development`, `astro-development`,
-  `cloudflare`, `workers-best-practices`) own request/runtime integration,
-  including current Cloudflare Hyperdrive binding and connection guidance.
+`supabase-stack` owns Supabase platform lifecycle and CLI migrations (this
+skill advises SQL invariants, never a second migration authority);
+`better-auth-security` owns auth tables; `application-security` owns the
+threat model (RLS mechanics stay here); `testing-engineering` owns test
+strategy; `observability-engineering` owns DB telemetry; framework/platform
+owners own request/runtime integration and Hyperdrive bindings.
 
 ## Anti-patterns
 
-- Generate and immediately migrate; use push or introspection as production approval.
-- Encode uniqueness, tenant scope, or referential integrity only in TypeScript.
-- Select-then-insert/update without an atomic conflict or locking strategy.
-- Add `NOT NULL`, uniqueness, FK, type casts, or indexes to large tables without proving
-  existing data and lock/scan behavior.
-- Catch every database error as “not found” or retry every transaction error.
-- Hold transactions across network calls, queues, file work, or user interaction.
-- Add indexes by column folklore, use `SELECT *`, or paginate mutable data by offset by
-  default; ignore write amplification and plan evidence.
-- Store money in floating point, instants in timezone-less timestamps, or query-critical
-  relational fields in unvalidated JSON.
-- Treat an application tenant filter as RLS, assume table owners are restricted, or put
-  request tenant state in a pooled session without proving reset behavior.
-- Mix Drizzle migrations, provider push, and manual SQL without one declared authority.
-- Treat backup creation as recovery proof or production as the first migration test.
-
-Use [Primary-source ledger](references/source-ledger.md) to refresh volatile claims.
+Generate-and-migrate in one step, or push/introspection as production approval
+· uniqueness, tenant scope, or referential integrity only in TypeScript ·
+select-then-insert without atomic conflict handling · `NOT NULL`/unique/FK/
+index on a large table without proving data and lock behavior · every DB
+error caught as "not found" · transactions held across network calls or user
+interaction · indexes by folklore, `SELECT *`, offset pagination on mutable
+data · money in floats, instants without timezone, relational fields in
+unvalidated JSON.

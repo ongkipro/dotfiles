@@ -7,6 +7,21 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+RUNTIMES = ('claude', 'codex', 'pi', 'omp', 'agy', 'unknown')
+
+
+def runtime_name(explicit=None):
+    # A parent shell can carry another CLI's environment. Explicit attribution
+    # wins; ambiguous or absent identity remains unknown, never guessed.
+    if explicit:
+        return explicit
+    configured = os.environ.get('AI_MEMORY_RUNTIME')
+    if configured in RUNTIMES:
+        return configured
+    # Nested CLIs inherit session variables; those do not prove the caller.
+    return 'unknown'
+
+
 def now(): return datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00','Z')
 def telemetry_directory(path: Path):
     """Walk with directory descriptors so a replaced parent cannot redirect I/O."""
@@ -73,6 +88,9 @@ def main():
     p.add_argument('query',help='routing query passed to ai-memory-route but not retained in telemetry')
     p.add_argument('--repo')
     p.add_argument('--project')
+    p.add_argument('--reference', action='append', default=[])
+    p.add_argument('--session')
+    p.add_argument('--runtime', choices=RUNTIMES, help='calling runtime; unknown when identity cannot be established')
     p.add_argument('--scope',choices=['auto','shared','project','execution','lesson'],default='auto')
     p.add_argument('--max-files',type=int)
     p.add_argument('--max-bytes',type=int)
@@ -85,6 +103,8 @@ def main():
         cmd=['python3',str(router),a.query,'--scope',a.scope,'--json']
         if a.repo: cmd += ['--repo',a.repo]
         if a.project: cmd += ['--project',a.project]
+        if a.session: cmd += ['--session',a.session]
+        for reference in a.reference: cmd += ['--reference',reference]
         if a.max_files is not None: cmd += ['--max-files',str(a.max_files)]
         if a.max_bytes is not None: cmd += ['--max-bytes',str(a.max_bytes)]
         r=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,check=False)
@@ -92,7 +112,7 @@ def main():
         result=json.loads(r.stdout)
         selected=[]
         for item in result.get('files',[]):
-            if item.get('scope') not in {'shared','project','lesson'}: continue
+            if item.get('scope') not in {'shared','project','lesson','reference'}: continue
             path=Path(item['path']).resolve()
             try: rel=path.relative_to(dot).as_posix()
             except ValueError: continue
@@ -100,7 +120,7 @@ def main():
         directory = telemetry_directory(telemetry)
         try:
             telemetry_file(directory, 'meta.json', {'schemaVersion':1,'startedAt':now(),'privacy':'selected durable-memory paths only; query text, query hashes, and memory content are not stored'})
-            telemetry_file(directory, 'events.jsonl', {'schemaVersion':1,'time':now(),'project':result.get('project'),'selected':selected}, append=True)
+            telemetry_file(directory, 'events.jsonl', {'schemaVersion':1,'time':now(),'runtime':runtime_name(a.runtime),'project':result.get('project'),'selected':selected}, append=True)
         finally: os.close(directory)
         if a.json: print(json.dumps(result,indent=2))
         else:

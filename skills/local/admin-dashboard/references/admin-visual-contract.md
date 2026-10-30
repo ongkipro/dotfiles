@@ -10,10 +10,9 @@ surface, and `scripts/admin-geometry.mjs` measures the render against it.
 
 1. **The repository's own accepted contract** (`design/admin-contract.json` or
    the project's documented tokens). Repository disk wins.
-2. **`volum-admin`** (`ongkipro/volum-admin`, shadcn new-york-v4), contract
+2. **House default** — the owner's accepted admin (shadcn new-york-v4), contract
    [`assets/size-contracts/volum-default.json`](../assets/size-contracts/volum-default.json).
-   This is the default for every new Volum admin unless the owner chooses
-   otherwise. Measured on its production preview, 2026-10-25.
+   Default for every new admin unless the owner chooses otherwise.
 3. **Compact clean-light** ([`compact.json`](../assets/size-contracts/compact.json))
    only when the owner explicitly asks for a denser back office.
 
@@ -67,12 +66,12 @@ evidence; the review items are checked by eye in `ui-validation`.
 | Rainbow of tinted chips and coloured panels | ≤ 5 distinct accent colours per screen, each with a meaning; status = icon/shape + text + colour | `accent-surfaces` (scripted) |
 | Card around every region, cards inside cards | Sections separated by spacing and headings; one card only for a genuinely separate object | review |
 | Coloured left-border accent bars, glow rings, glassmorphism, `backdrop-blur` outside overlays | Nothing; use a heading or a divider | review |
-| Decorative blobs, illustrations, emoji, sparkles, "AI" badges | Real empty-state text plus the next action | review + `design-taste` `tells-scan.py` |
+| Decorative blobs, illustrations, emoji, sparkles, "AI" badges | Real empty-state text plus the next action | review |
 | Hover lift/scale/translate on rows and cards | Background tint on hover, visible focus ring | review |
 | KPI card with icon tile, sparkline, delta chip, and footnote all at once | Label, value, one comparison sentence; add a sparkline only when the trend is the decision | review |
-| Uppercase tracked micro-labels over every section | Sentence-case 14px/16px headings | `tells-scan.py --css` |
+| Uppercase tracked micro-labels over every section | Sentence-case 14px/16px headings | review |
 
-Stock `volum-admin` passes every scripted check; generated screens are what
+The stock house admin passes every scripted check; generated screens are what
 add the ornament.
 
 ## 4. Measure, do not eyeball

@@ -1,14 +1,7 @@
 ---
 name: development-kit
 description: >-
-  Route ideas, features, repositories, and AI skill-system changes through
-  canonical product, spec, UX, implementation, verification, and release
-  owners. Not specialist methodology or approval. Use for the development kit,
-  which skills or Markdown artifacts apply, auditing or improving dotfiles
-  skills and workflows, onboarding a new AI CLI, adopting upstream patterns,
-  research-only workflow questions, or handing planning to UI/UX and full-stack
-  delivery. Also routes safe extraction from a supplied worked example. It does
-  not implement.
+  Route ideas, features, repositories, and skill-system changes to the canonical product, spec, UX, implementation, verification, and release owners. Not specialist methodology or approval; does not implement. Use when unsure which skill applies.
 ---
 
 # Development Kit Control Plane

@@ -31,4 +31,14 @@ assert r['nomem']['verdict']=='NO_PROJECT_MEMORY', r['nomem']
 assert p['semanticCandidates']==['busy']
 PY
 python3 "$ROOT/bin/ai-memory-lifecycle" --dotfiles "$DOT" --telemetry-dir "$TEL" --routes --min-prompts 500 --json | python3 -c 'import json,sys; assert json.load(sys.stdin)["semanticCandidates"]==[]'
+printf '%s\n' '{"time":"2026-08-15T00:00:00Z","runtime":"pi","selected":[{"path":"config/ai/memory/active.md"}]}' >> "$TEL/events.jsonl"
+python3 "$ROOT/bin/ai-memory-lifecycle" --dotfiles "$DOT" --telemetry-dir "$TEL" --today 2026-08-16 --json > "$TMP/runtime.json"
+python3 - "$TMP/runtime.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1]))
+assert p['runtimeEvents']=={'unknown':240,'pi':1},p
+row=next(r for r in p['files'] if r['path'].endswith('/active.md'))
+assert row['runtimeUses']=={'unknown':30,'pi':1},row
+assert p['limitations']
+PY
 echo 'ai-memory-lifecycle-test: PASS'
