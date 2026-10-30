@@ -1,0 +1,12 @@
+Warning: claude.ai MCP servers blocked by enterprise policy: claude.ai Zapier, claude.ai Descript, claude.ai KOL Kelola, claude.ai Hugging Face, claude.ai ClickUp, claude.ai Google Calendar
+**CHANGES REQUIRED.** Tinggal satu yang belum beres, Paduka Ongki.
+
+1. Description: ✅ beres. Panjangnya 227 karakter dan batas "Not the content pipeline" sudah muncul sebelum Triggers (`SKILL.md:4`).
+2. Soft CTA di contoh: ✅ beres. Sekarang "Lihat detailnya kalau cocok buat dapurmu.", jadi tidak ada lagi asumsi ukuran (`meta-ads.md:92-93`).
+3. Klaim soal perilaku Meta: ✅ beres. Kalimat hedge sudah ada di `meta-ads.md:71` dan `:102-103`.
+4. Angle Doubt: ✅ beres. Objection-nya sekarang disebut langsung: "Takut makan tempat?" (`meta-ads.md:83`).
+5. Wrap: ❌ belum beres. Paragraf policy masih tidak rata: `meta-ads.md:142` cuma 37 karakter, `:143` 81, dan `:145` 90. Paragraf `:141-146` perlu di-reflow ke ≤80 karakter.
+
+Saya cuma membaca file, tidak ada yang saya edit.
+
+Model: `claude-opus-5-5`.

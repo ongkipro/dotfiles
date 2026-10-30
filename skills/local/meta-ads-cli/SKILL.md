@@ -53,5 +53,6 @@ Read only this file up front; open the reference the chosen path names.
 ## 2. Hand-offs
 
 Pixel/CAPI/EMQ → `meta-ads-signal-engine`; Ad Library research →
-`meta-ads-scout`; headline/body/CTA rules → `copywriting`; creative batching
-→ `content`.
+`meta-ads-scout`; headline/body/CTA rules → `copywriting`
+(`references/meta-ads.md`: market locale, soft CTA, no link/price, combination
+safety); creative batching → `content`. Copy is a draft until the §1 gates pass.

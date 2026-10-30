@@ -1,7 +1,7 @@
 ---
 name: copywriting
 description: >-
-  Source of truth for copy rules and templates: char limits, no-CTA, brand voice, headlines, meta/SEO fields, ALT text, social templates for listings, articles, landing pages. Not the content pipeline (content). Triggers: bikin judul, meta description.
+  Copy rules and templates: char limits, no-CTA (Meta ads: soft CTA), brand voice, headlines, meta/SEO, ALT, social and Meta ad text. Not the content pipeline (content). Triggers: bikin judul, meta description, copy iklan meta.
 ---
 
 # Copywriting — Rules + Templates
@@ -18,7 +18,10 @@ unless the user states otherwise.
 2. **No CTA** in body or meta unless explicitly a landing page or product
    buy-box. Forbidden words: `buy`, `shop`, `add to cart`, `order now`, `get yours`,
    `limited time`. CTA band belongs only on landing pages or product pages and
-   must be user-approved.
+   must be user-approved. **Exception:** Meta (FB/IG) ad text fields may carry
+   one soft CTA (type pre-approved by the owner; wording per
+   `references/meta-ads.md`); the exception never extends to Shopify or other
+   non-ad copy.
 3. **No country of origin**, "Brand Name: NONE", or logistics/shipping lines in
    body or meta.
 4. **Fix ALL typos** from the source title or draft.
@@ -196,6 +199,11 @@ House preference: keep external links out of the body and put the link in the fi
 [Take] — [supporting detail in one breath].
 ```
 
+### Meta Ads (Facebook/Instagram ad text)
+Primary text, headline, optional description, and Flexible Format/DCO sets:
+load `references/meta-ads.md` (soft CTA, no link/LP/price, ID vs MY locale,
+combination safety, policy risks).
+
 ### TikTok / Reels caption (≤150 chars)
 ```
 [Hook] + [curiosity line]
@@ -236,7 +244,7 @@ For 50+ items:
 ## QA gates (run before publish)
 
 - [ ] Char limits respected (every field)
-- [ ] No CTA in body/meta (unless landing)
+- [ ] No CTA in body/meta (unless landing; Meta (FB/IG) ad text follows `references/meta-ads.md`)
 - [ ] No third-party brand in title/meta/tags/ALT (unless user opted in)
 - [ ] No invented specs/prices/dates
 - [ ] Typos fixed

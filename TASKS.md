@@ -1,8 +1,10 @@
 # Tasks — dotfiles
 
-Updated: 2026-10-29
+Updated: 2026-10-30
 
 Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
+
+Done 2026-10-30: TASK-159 → [archive](docs/archive/DOTFILES_TASKS_2026-10-30_META_COPY.md).
 
 ## Pending
 
@@ -62,26 +64,8 @@ Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests w
 - **Allowed Paths:** `TASKS.md`, `docs/research/development-kit-audit-2026-10-25.md`.
 - **Verification:** select device/project targets and bind required checks before implementation; preserve deferred tasks.
 
-### TASK-140: Codex decision trial (not before 2026-10-31)
-
-- **Requirement:** REQ-EVAL-GUIDANCE-PROVENANCE (owner reminder; Codex usage limit resets 2026-10-31).
-- **Risk Level:** R0.
-- **Allowed Paths:** `docs/research/development-kit-audit-2026-10-25.md`, `TASKS.md`.
-- **Accepted Invariants:** read-only `codex exec`; record `guidanceRead` and the actual model.
-- **Regression Checks:** `ai-workflow-eval grade`.
-- **Non-Scope:** provider purchases, commit/push.
-
-### TASK-142: Skill consolidation (deferred)
-
-- **Requirement:** REQ-SKILL-BUDGET (owner 2026-10-25: merging skills is cancelled for now; reopen only on a budget breach).
-- **Risk Level:** R2 when reopened.
-- **Allowed Paths:** decided when reopened.
-- **Canonical Contract Owners:** skills.inventory -> `skill-map`.
-- **Accepted Invariants:** no skill is merged or deleted while the budget holds.
-- **Regression Checks:** `skill-map --check`, `ai-policy-lint`.
-- **Non-Scope:** any merge before a reopen condition fires; commit/push.
-- **Reopen Conditions:** the skill budget is exceeded again.
-- **Escalation Conditions:** a merge would change a skill's trigger surface or remove a canonical owner.
+### Deferred: TASK-140 (from 2026-10-31), TASK-142
+- Full records: [docs/archive/TASKS-140-142-deferred.md](docs/archive/TASKS-140-142-deferred.md). Both stay open; copy a record back into Pending before starting its run.
 
 ### TASK-143: `ai-memory-harvest-test` intermittent macOS failure
 

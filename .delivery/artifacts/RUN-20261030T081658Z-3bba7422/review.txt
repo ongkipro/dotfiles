@@ -1,0 +1,9 @@
+Warning: claude.ai MCP servers blocked by enterprise policy: claude.ai Zapier, claude.ai Descript, claude.ai KOL Kelola, claude.ai Hugging Face, claude.ai ClickUp, claude.ai Google Calendar
+**APPROVE**, Paduka Ongki.
+
+1. **Health & Wellness paragraph (`skills/local/copywriting/references/meta-ads.md:112-115`):** sesuai halaman Meta yang saya fetch hari ini. Halaman itu melarang klaim "statements of inferiority" soal penampilan dan klaim cure/heal/eliminate untuk penyakit yang tercantum. Before/after untuk produk atau prosedur kosmetik boleh, dengan target 18+. Satu catatan kecil, tidak blocking: Meta hanya melarang janji hasil dalam jangka waktu tertentu kalau tidak ada disclaimer atau qualifier. Iklan weight-loss untuk 18+ juga boleh menampilkan hasil asal waktunya jelas. Kata "clickbait" masih bisa diterima, tapi agak lebih luas dari aturan Meta.
+2. **Soft CTA:** baris 41, 68, 87-89, dan 131 konsisten satu sama lain. Juga cocok dengan pengecualian di `copywriting/SKILL.md:21-24`.
+3. **Klaim baru:** tidak ada yang disajikan sebagai aturan Meta. Batas panjang diberi label house target (baris 63-64), dan house rules diberi label owner-approved.
+4. **`TASKS.md:76-77`:** pointer-nya jelas, dan file archive yang dirujuk memang ada.
+
+Model: `claude-opus-5-5`.

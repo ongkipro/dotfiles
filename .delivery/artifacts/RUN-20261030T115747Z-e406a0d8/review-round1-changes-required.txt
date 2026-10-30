@@ -1,0 +1,10 @@
+Warning: claude.ai MCP servers blocked by enterprise policy: claude.ai Zapier, claude.ai Descript, claude.ai KOL Kelola, claude.ai Hugging Face, claude.ai ClickUp, claude.ai Google Calendar
+**CHANGES REQUIRED.** Model: `claude-opus-5-5`.
+
+1. **`SKILL.md:4`, wajib diperbaiki.** Description sekarang sekitar **309 chars**. Versi di HEAD sekitar 251. Boundary `Not the content pipeline` baru muncul di sekitar char 215. Saran: buang "social and", ringkas jadi "no-CTA (Meta ads: soft CTA)", lalu taruh boundary tepat setelah kalimat pertama.
+2. **`meta-ads.md:93`.** Kalimat "Pilih ukuran yang pas" mengandaikan ada beberapa ukuran. Itu fakta yang belum diverifikasi di contoh berlabel "verified facts only". Ganti ke ajakan yang tidak butuh fakta varian, atau tambahkan fakta ukuran itu ke brief.
+3. **`meta-ads.md:71` dan `:101`.** Klaim perilaku Meta ("wording is localized by Meta", "Meta may pair any primary text…") belum ada sitasinya. Ini bertentangan dengan janji di `:4`. Tambahkan link help Meta, atau tulis "per current Ads Manager preview; recheck".
+4. **`meta-ads.md:83`, minor.** Angle Doubt tidak menyebut keberatan yang dijawab. Contoh: `Takut makan tempat? Dilipat tipis…`.
+5. **`meta-ads.md:139-143`, nit.** Line-wrap tidak rata.
+
+Sisanya konsisten: soft CTA opsional, no link/LP/price, satu locale per set, dan QA gate sinkron dengan house rules. Semua cross-ref yang dirujuk ada di disk.

@@ -128,7 +128,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Research records | [`docs/research/`](../docs/research/) | 5 | linked from this page |
 | Environment and bootstrap | [`config/`](../config/) | 35 | linked from this page |
 | Device reports | [`docs/device-reports/`](../docs/device-reports/) | 21 | count only |
-| Archived task records | [`docs/archive/`](../docs/archive/) | 36 | count only |
+| Archived task records | [`docs/archive/`](../docs/archive/) | 38 | count only |
 
 <!-- system-map:inventory:end -->
 
@@ -355,6 +355,7 @@ Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rende
 - [`automated-traffic-pipeline`](../skills/local/automated-traffic-pipeline/SKILL.md): Programmatic SEO (pSEO), indexing automation, RSS syndication.
 - [`content`](../skills/local/content/SKILL.md): Multi-asset editorial workflows, batching calendars, quality gates.
 - [`copywriting`](../skills/local/copywriting/SKILL.md): Conversion copywriting templates, headline formulas, character limits.
+  - [`references/meta-ads.md`](../skills/local/copywriting/references/meta-ads.md): Meta ad text house rules — soft CTA, no link/LP/price, ID vs MY locale, Flexible Format/DCO combination safety.
 - [`writer`](../skills/local/writer/SKILL.md): Meaning-preserving writing, two-way dialogue, and locale-native communication.
 - [`focus`](../bin/focus), [`focus-test`](../bin/focus-test): Session-scoped local claims, explicit references, and isolated boundary regression checks.
 - [`cms-content`](../skills/local/cms-content/SKILL.md): Client content-editing layer selection and implementation (Astro collections, Keystatic, Payload, Shopify metaobjects).
