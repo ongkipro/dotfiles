@@ -57,6 +57,7 @@
 - [9router autostart incident](pi-9router-autostart-incident.md) — 2026-08 stale/LAN-exposed/tunneled 9router; real cause was XDG autostart; split from pi-9router-setup.md
 - [Pi compaction](pi-9router-models-compaction.md) — source-owned fallback behavior and reserved-headroom debugging lesson; live catalogs are not stored in memory.
 - [OMP Claude via 9router](omp-9router-claude-wire.md) — verified transport fix record (chat-compatible endpoint, 7/7 9router tests, run RUN-20261028T203549Z-2e1c5b55); rerun tests before reuse.
+- [OMP and Pi 9Router runbook](omp-pi-9router-runbook.md) — why OMP dropped on 9Router rate limits (retry.maxDelayMs is a give-up ceiling), verified retry values, Pi defaults, gateway account rotation, and the fallback-off live check.
 - [Playwright / browser setup](playwright-browser-setup.md) — agent-browser 0.30.1 + Playwright 1.61.1 global; prefer system Chrome via channel; install-deps optional (needs sudo)
 - [Pixs&Go layout width](pixsgo-layout-width.md) — content capped 1200px, body 1920px; Tailwind v4 needs bracket arbitrary values (max-w-[1200px] not max-w-1200px)
 - [Dev toolchain via mise](dev-toolchain-mise.md) — CLI tools (fzf/fd/bat/delta/lazygit/zoxide/eza/yq/direnv) via mise, no sudo; nvm lazy-loaded; git+delta configured

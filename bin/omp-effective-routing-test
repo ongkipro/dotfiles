@@ -75,9 +75,9 @@ else
 fi
 
 jq -e '
-  .["retry.maxRetries"].value == 4 and
-  .["retry.maxDelayMs"].value == 5000 and
-  .["retry.rateLimitWalksChain"].value == true and
+  .["retry.maxRetries"].value == 6 and
+  .["retry.maxDelayMs"].value == 120000 and
+  .["retry.rateLimitWalksChain"].value == false and
   (
   .modelRoles.value as $roles |
   .["retry.fallbackChains"].value as $fallbacks |

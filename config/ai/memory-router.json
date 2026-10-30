@@ -8,7 +8,16 @@
     {
       "path": "config/ai/memory/communication.md",
       "priority": 89,
-      "triggers": ["komunikasi dua arah", "saling memahami", "maksudku", "belum paham", "jangan asal translate", "locale-native", "communication preference", "two-way communication"]
+      "triggers": [
+        "komunikasi dua arah",
+        "saling memahami",
+        "maksudku",
+        "belum paham",
+        "jangan asal translate",
+        "locale-native",
+        "communication preference",
+        "two-way communication"
+      ]
     },
     {
       "path": "config/ai/memory/meta-ads.md",
@@ -537,6 +546,21 @@
           "chat-compatible",
           "transport",
           "reasoning effort"
+        ]
+      },
+      {
+        "path": "config/ai/project-memory/omp-pi-9router-runbook.md",
+        "triggers": [
+          "9router",
+          "omp",
+          "retry",
+          "maxDelayMs",
+          "rate limit",
+          "429",
+          "503",
+          "putus",
+          "drop",
+          "runbook"
         ]
       }
     ],

@@ -111,7 +111,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Collection | Path | Tracked | Completeness enforced by |
 |---|---|---|---|
 | Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 25 | linked from this page |
-| Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 82 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
+| Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 83 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
 | Owned skills | [`skills/local/`](../skills/local/) | 74 | linked from this page |
 | Commands | [`bin/`](../bin/) | 61 | linked from this page |
@@ -128,7 +128,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Research records | [`docs/research/`](../docs/research/) | 5 | linked from this page |
 | Environment and bootstrap | [`config/`](../config/) | 35 | linked from this page |
 | Device reports | [`docs/device-reports/`](../docs/device-reports/) | 21 | count only |
-| Archived task records | [`docs/archive/`](../docs/archive/) | 38 | count only |
+| Archived task records | [`docs/archive/`](../docs/archive/) | 39 | count only |
 
 <!-- system-map:inventory:end -->
 

@@ -33,11 +33,15 @@ in `config.yml`. Sonnet remains the general default; choosing Opus for developme
 does not make it the default for every task. Package multipliers across vendors
 are not interchangeable token budgets or evidence of model quality.
 
-The reference also records the accepted interactive retry policy: four retries,
-a 5000 ms retry-wait ceiling, and immediate fallback-chain eligibility on rate
-limits. The wait ceiling does not bound HTTP or stream duration. These values
-match the inspected native profile; explicit reference loading on another device
-must not silently revert to different upstream retry defaults.
+The reference also records the accepted interactive retry policy (owner
+decision 2026-10-30): six retries, a 120 000 ms ceiling on the gateway's
+`retry-after`, and no immediate chain walk on a rate limit. The ceiling is a
+give-up threshold, not a sleep cap: the earlier 5000 ms failed every 9Router
+lock longer than 5 s and read as a dropped session, while Pi's 60 s default
+waited them out. Measurements and the per-runtime checklist live in
+[`omp-pi-9router-runbook`](../ai/project-memory/omp-pi-9router-runbook.md).
+The ceiling does not bound HTTP or stream duration. Explicit reference loading
+on another device must not silently revert to different upstream retry defaults.
 
 This replaces the older `9router-fantastico` role recommendation. A device must
 declare the `9router` provider in its own `~/.omp/agent/models.yml` (a local file,

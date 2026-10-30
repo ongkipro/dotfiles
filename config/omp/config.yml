@@ -43,9 +43,12 @@ cycleOrder:
 - coding
 - slow
 retry:
-  maxRetries: 4
-  maxDelayMs: 5000
-  rateLimitWalksChain: true
+  # maxDelayMs is a give-up ceiling against the gateway's retry-after, not a
+  # sleep cap; 5000 made every 9Router lock over 5 s look like a dropped session.
+  # Verified 2026-10-30: see project-memory/omp-pi-9router-runbook.md.
+  maxRetries: 6
+  maxDelayMs: 120000
+  rateLimitWalksChain: false
   modelFallback: true
   fallbackOn: any
   usageAwareFallback: false

@@ -4,9 +4,21 @@ Updated: 2026-10-30
 
 Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
 
-Done 2026-10-30: TASK-159 → [archive](docs/archive/DOTFILES_TASKS_2026-10-30_META_COPY.md).
+Done 2026-10-30: TASK-159 → [archive](docs/archive/DOTFILES_TASKS_2026-10-30_META_COPY.md); TASK-091 superseded by TASK-160 → [record](docs/archive/TASKS-091-superseded.md).
 
 ## Pending
+
+### TASK-160: OMP/Pi 9Router retry runbook
+- **Requirement:** REQ-9ROUTER-RUNBOOK (OMP dropped on 9Router rate limits; record verified retry values).
+- **Risk Level:** R1.
+- **Allowed Paths:** `config/omp/config.yml`, `config/omp/README.md`, `config/ai/project-memory/omp-pi-9router-runbook.md`, `config/ai/project-memory/MEMORY.md`, `config/ai/memory-router.json`, `docs/DOTFILES_SITEMAP.md`, `TASKS.md`.
+- **Canonical Contract Owners:** OMP reference (`config/omp/`); project memory `pi`.
+- **Accepted Invariants:** reference values equal the live-verified device config; no credential, URL or account identity in tracked files; Pi unchanged.
+- **Regression Checks:** `ai-memory-check`, `ai-memory-route-test`, `ai-policy-lint`, `ai-doctor --self-test`.
+- **Runtime Evidence:** synthetic-gateway ceiling table and fallback-off live roundtrips (in the runbook).
+- **Reopen Conditions:** OMP drops again below the ceiling, or upgrade changes retry semantics.
+- **Non-Scope:** installing OMP config from dotfiles, gateway changes, commit/push.
+- **Escalation Conditions:** gateway or account changes beyond retry settings.
 
 ### TASK-156: Memory precision
 - **Requirement:** REQ-MEMORY-PRECISION.
@@ -107,18 +119,6 @@ Done 2026-10-30: TASK-159 → [archive](docs/archive/DOTFILES_TASKS_2026-10-30_M
 - **Reopen Conditions:** a caller's global git config or temp-dir symlink changes a verdict.
 - **Non-Scope:** `bin/dotpush`, `bin/dotsync`.
 - **Escalation Conditions:** isolation needs a subject change.
-
-### TASK-091: OMP sol roles via 9Router
-
-- **Requirement:** REQ-OMP-9ROUTER-SOL (owner decision 2026-09-24: device `rich` lacks `openai-codex/gpt-5.6-sol`; route sol roles through 9Router `cx/gpt-6-sol`).
-- **Risk Level:** R2.
-- **Allowed Paths:** `config/omp/config.yml`, `config/omp/README.md`, `config/ai/memory/environment-ai-runtimes.md`, `TASKS.md`, `docs/archive/DOTFILES_TASKS_2026-09-24_PLANNING.md`, `.delivery/**`.
-- **Canonical Contract Owners:** OMP reference → `config/omp/`; runtime topology → `environment-ai-runtimes.md`.
-- **Accepted Invariants:** no secret in any file; key read at runtime via `secrets-env get`; dotfiles still does not install or wrap OMP.
-- **Regression Checks:** `omp-effective-routing-test`, `omp-routing-test`, `ai-policy-lint`, a live `ninerouter/cx/gpt-6-sol` completion.
-- **Reopen Conditions:** a sol role resolves to an unusable selector on `rich`.
-- **Non-Scope:** non-sol roles, other devices' live config.
-- **Escalation Conditions:** OMP cannot reach the tunnel without a stored key.
 
 ### TASK-089: Control-plane integrity and adaptive routing
 
