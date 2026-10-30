@@ -585,8 +585,15 @@ want "so its foreign run is still discounted" "RUN-foreign records REQ-UNRELATED
 # Canonical integrity and optional CI dependencies are independent boundaries.
 python3 - "$R2D" <<'PYTAMPER'
 import json, pathlib, sys
-p = sorted((pathlib.Path(sys.argv[1]) / '.delivery/runs').glob('*.jsonl'))[-1]
-rows = [json.loads(x) for x in p.read_text().splitlines()]
+# Run IDs are second-resolution timestamps plus a random suffix, so runs started
+# within one second sort randomly by name (flaked on fast CI runners). Select the
+# TASK-23 run by content, not by filename order.
+for p in (pathlib.Path(sys.argv[1]) / '.delivery/runs').glob('*.jsonl'):
+    rows = [json.loads(x) for x in p.read_text().splitlines()]
+    if rows[0].get('task') == 'TASK-23':
+        break
+else:
+    raise SystemExit('TASK-23 fixture run not found')
 assert rows[-1]['result'] == 'BLOCKED'
 rows[-1]['result'] = 'PASS'
 p.write_text(''.join(json.dumps(x) + '\n' for x in rows))
