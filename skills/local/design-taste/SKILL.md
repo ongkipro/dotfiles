@@ -19,6 +19,9 @@ is. Read only this file up front; open a reference file when a step names it.
   preserve the system, do it, run §5. Nothing else.
 - New page or redesign: §1 → §2–§4 → §5.
 
+No `design/brief.md` + `DESIGN.md` yet: start with `dotuiux init`/`teardown`
+(skill `dotuiux`); run `dotuiux check <url>` before calling the UI done.
+
 ## 1. Before any visual edit (new page or redesign)
 
 1. **Read what exists**: pages, content, assets, brand tokens, routes, and the

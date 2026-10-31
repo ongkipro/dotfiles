@@ -17,6 +17,8 @@ caching, and server/client boundaries from the framework skill.
   §5), then §7. Questions the brief leaves open (which status axis, what a
   KPI counts, data volume, timezone) go back to the owner; do not guess.
 - New dashboard family: §1 → §2 → the matching sections → §7.
+- No `design/brief.md` + `DESIGN.md` yet: start with `dotuiux init`/`teardown`
+  (skill `dotuiux`); run `dotuiux check <url>` before calling the UI done.
 - References at the end are for specific needs, not pre-reading.
 
 An admin screen is quiet. Hierarchy comes from type, alignment, whitespace,

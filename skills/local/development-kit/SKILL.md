@@ -111,7 +111,8 @@ resolve the change.
    state, computed tokens, or API surface cannot be resolved by static
    screenshots alone, extract that evidence through `black-magic` first.
    Extract principles; never copy brand, product policy, or unsupported
-   interaction.
+   interaction. `dotuiux` runs this loop (brief, teardown, `DESIGN.md`,
+   rendered check); the owners below still decide.
 2. **Behavior:** admin/CMS uses `admin-product-ux`; commerce uses
    `storefront-ux`; client-edited content sites choose their editing layer
    through `cms-content`; other surfaces use the PRD plus the relevant product
@@ -130,7 +131,7 @@ resolve the change.
    only for React-capable component mapping. A component library does not
    supply product workflow or visual direction.
 6. **Evidence:** the visual owner (`design-taste` or `admin-dashboard`)
-   critiques the build and its findings are fixed first; then `ui-validation` opens the real page, exercises the
+   critiques the build; its findings and `dotuiux check <url>` fails are fixed first; then `ui-validation` opens the real page, exercises the
    critical path, and inspects narrow and wide layouts. A build or screenshot
    alone is insufficient.
 

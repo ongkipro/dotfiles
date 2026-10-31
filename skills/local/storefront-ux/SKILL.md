@@ -23,6 +23,9 @@ Own the behavior of the commerce journey, including failure and recovery paths. 
 
 Keep semantic structure, keyboard behavior, state recovery, performance budgets, and measurement requirements here because they affect journey correctness.
 
+No `design/brief.md` + `DESIGN.md` yet: start with `dotuiux init`/`teardown`
+(skill `dotuiux`); run `dotuiux check <url>` before calling the UI done.
+
 ## Workflow
 
 1. **Inspect reality.** Trace routes, navigation, state ownership, data
@@ -97,7 +100,9 @@ buyer journey and observable state requirements, not the runtime design.
   tracking screens to prevent Return-to-Sender (RTS): highlight exact cash to
   prepare (`Siapkan Uang Tunai Pas`), courier + arrival window, a "Kabari Orang
   Rumah" share summary, and Non-Delivery Report (`Kendala Pengiriman`) rescue actions.
-- Keep WhatsApp commerce handoffs to a single natural CTA per viewport with a
+- Keep WhatsApp commerce handoffs to a single CTA per page (owner preference;
+  on the checkout-handoff step it may sit in the main content, never in
+  header, sticky, or floating UI — `dotuiux check --checkout-handoff`) with a
   human-readable pre-filled summary (item, variant, qty, kecamatan, and compact
   attribution ref) plus a desktop copy/QR fallback.
 - Do not require account creation before purchase unless the business

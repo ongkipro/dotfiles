@@ -58,6 +58,8 @@ installer-link-test
 memory-usage-hook-test
 dotads-meta
 dotads-meta-test
+dotuiux
+dotuiux-test
 dotfiles-a1-coolify
 dotfiles-a1-vultr
 dotfiles-coolify

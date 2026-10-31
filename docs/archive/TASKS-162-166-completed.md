@@ -38,3 +38,16 @@ TASK-162 was committed in 43fdc01; its independent audit findings are fixed by T
 - **Reopen Conditions:** an owned or vendored skill again prescribes a motion rule that contradicts `motion-craft.md`.
 - **Non-Scope:** the `dotuiux check` gate runner (TASK-165), commit/push.
 - **Escalation Conditions:** an overlay would change vendored refresh semantics or skill frontmatter.
+
+### TASK-165: `dotuiux` command and skill (with shadcn MCP rules and CI)
+- **Requirement:** REQ-DOTUIUX (owner 2026-10-31: one UI/UX loop — brief, live-site teardown, `DESIGN.md` direction, rendered check, owner review — that UI tasks route through; research `~/Documents/work/research/dotuiux/03-dotuiux-brief.md`). Includes REQ-UI-DOC-DEFAULTS (shadcn MCP optional, CLI stays the source of truth) because `shadcn-ui/SKILL.md` carries both hunks.
+- **Risk Level:** R2.
+- **Allowed Paths:** `bin/dotuiux`, `bin/dotuiux-test`, `config/ai/runtime-commands.txt`, `skills/local/dotuiux/**`, `skills/local/{design-taste,admin-dashboard,storefront-ux,ui-validation,shadcn-ui,development-kit}/SKILL.md`, `bin/skill-map`, `skills/local/README.md`, `docs/DOTFILES_SITEMAP.md`, `.github/workflows/core-runtime.yml`, `docs/archive/TASKS-162-166-completed.md`, `TASKS.md`.
+- **Protected Paths:** `skills/local/design-taste/scripts/**`, `skills/local/admin-dashboard/scripts/**` (reused, not changed).
+- **Canonical Contract Owners:** ui.loop -> `dotuiux`; ui.direction -> `design-taste` / `admin-dashboard`; ui.capture -> `design-taste/scripts/ui-ref.mjs`; ui.proof -> `ui-validation`; storefront contact CTA -> `storefront-ux` (D9: one per page, checkout-handoff exception); components.shadcn -> `shadcn-ui`.
+- **Accepted Invariants:** zero dependencies; `init` never overwrites; `teardown` refuses gallery hosts; `check` reports fail / warn / allowed / not checked, never a pass for an unmeasured item; warns overridable by `allow: <id> — <reason>` in `DESIGN.md`; fail floor of 13 harm-only rules; output goes to the client repo; `config/ai/CORE.md` not edited; no SEO rule or gate; shadcn MCP project-scope, version-pinned, registries explicit, tokens via env only.
+- **Regression Checks:** `DESIGN_TEST_REQUIRE_FULL=1 dotuiux-test`, `design-tools-test`, `skill-check`, `skill-surface-check`, `skill-map --check`, `system-map --check`, `ai-policy-lint`, `actionlint`, `ai-doctor --self-test`.
+- **Runtime Evidence:** `dotuiux check` on a public and an admin fixture page and `teardown` on live sites (dotuiux-test fixtures + the session check); `skill-update` discovery per device stays an owner step.
+- **Reopen Conditions:** a check passes an unmeasured item; a warn cannot be overridden; a UI task skips the skill when no brief/`DESIGN.md` exists.
+- **Non-Scope:** npm dependencies (axe-core, `impeccable`, `@google/design.md`), MCP installs, D7 Motion AI Kit copy, D8 sandbox trial, D12 copy-slop list, any SEO change.
+- **Escalation Conditions:** the runner needs an npm dependency; skill routing proves insufficient in a runtime (then a CORE edit within its byte budget).

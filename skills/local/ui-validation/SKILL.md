@@ -10,6 +10,10 @@ Prove the user-visible claim, not that the code compiles. A build, type check,
 unit test, DOM snapshot, or source read does not prove a browser-visible
 change. A screenshot proves appearance, not interaction.
 
+For a new or redesigned screen, `dotuiux check <url>` (skill `dotuiux`) runs the
+rendered checks at 360/768/1440 first; this skill proves interaction, keyboard,
+states, and themes.
+
 ## 1. Find the project's harness
 
 1. Read `package.json` and the lockfile. Look for a browser layer in three

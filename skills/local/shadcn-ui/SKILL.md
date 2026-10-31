@@ -25,6 +25,8 @@ are the framework's and backend's; this skill maps the visible controls. Native 
 is not hydrated for visual consistency
 ([admin-component-system.md](references/admin-component-system.md)). After a
 visible change, `ui-validation`.
+New screen without `design/brief.md` + `DESIGN.md`: start with `dotuiux init`/
+`teardown`; before calling it done, `dotuiux check <url>` (skill `dotuiux`).
 
 ## 1. Project context first
 
@@ -164,6 +166,25 @@ the project's token set first.
 demo data and demo composition: map it only after the accepted contract,
 replace its hierarchy and states, keep the primitives that fit.
 
+## 7. MCP (optional)
+
+The shadcn MCP server is a discovery convenience inside the agent; the CLI flow
+in §2 (`search` → `view` / `add --dry-run` / `--diff` → `add`) stays the source
+of truth, and every added file is still reviewed.
+
+- **Project scope only**: `.mcp.json` in the React repo
+  (`shadcn mcp init --client claude` writes it), never global config; adding it
+  is a repo config change that needs approval. Other runtimes need their own
+  config, so the CLI path stays the cross-runtime default.
+- **Pin the version** in `.mcp.json` args (e.g. `shadcn@4.8.3`, the version
+  checked below) instead of the documented `shadcn@latest`, which runs new code
+  on every start.
+- **Registries explicit** in `components.json` `registries`; private-registry
+  tokens only as `${ENV}` references resolved from `.env.local` — never
+  committed, never printed.
+- The MCP does not change §5: identity lives in theme tokens, not per-component
+  `className`. Tool names are not documented; discover them in the session.
+
 ## References
 
 - [admin-component-system.md](references/admin-component-system.md) — admin
@@ -177,6 +198,7 @@ replace its hierarchy and states, keep the primitives that fit.
 - Official: [CLI](https://ui.shadcn.com/docs/cli),
   [components.json](https://ui.shadcn.com/docs/components-json),
   [Theming](https://ui.shadcn.com/docs/theming),
-  [Changelog](https://ui.shadcn.com/docs/changelog), vendor skill
+  [Changelog](https://ui.shadcn.com/docs/changelog),
+  [MCP](https://ui.shadcn.com/docs/mcp) (checked 2026-10-31), vendor skill
   `shadcn-ui/ui` `skills/shadcn/` (MIT; `rules/*.md`, `cli.md`,
   `design-system.md`). Checked 2026-10-29 (CLI docs show `shadcn@4.8.3`).

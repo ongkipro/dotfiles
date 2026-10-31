@@ -142,3 +142,7 @@ jobs:
         env:
           DESIGN_TEST_REQUIRE_FULL: "1"
         run: bin/design-tools-test
+      - name: Run dotuiux gate fixtures with required browser coverage
+        env:
+          DESIGN_TEST_REQUIRE_FULL: "1"
+        run: bin/dotuiux-test

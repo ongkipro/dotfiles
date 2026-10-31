@@ -1,0 +1,965 @@
+#!/usr/bin/env node
+/**
+ * dotuiux — non-slop UI/UX workflow: brief → references → DESIGN.md → check.
+ *
+ * Subcommands:
+ *   init [dir]
+ *     Scaffold design/brief.md, design/refs/, and a DESIGN.md skeleton. Never overwrites.
+ *   teardown <url...> [--out design/refs]
+ *     Screenshots at 360/768/1440 + facts.json per URL (research input, not judgement).
+ *   check <url|file> [--design DESIGN.md] [--json] [--checkout-handoff]
+ *     Render at 360/768/1440 and run the gates. FAIL = floor (exit 1); WARN = slop signal,
+ *     overridable in DESIGN.md with `allow: <id> — <reason>`.
+ *   validate [dir]
+ *     Check design/brief.md and DESIGN.md headings and allow: lines.
+ *
+ * Gate list and tiers: research/dotuiux/03-dotuiux-brief.md §3 (evidence: 02-round2-synthesis.md).
+ * Browser: reuses design-taste/scripts/ui-ref.mjs (DevTools over node: builtins + installed
+ * Chrome), resolved from ${DOTFILES:-$HOME/dotfiles}. Read-only: it only loads pages.
+ * Exit: 0 ok · 1 FAIL gate or invalid project · 2 usage/error · 3 no working browser.
+ */
+
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+import { pathToFileURL, fileURLToPath } from "node:url";
+import { createServer } from "node:http";
+
+// ---- thresholds (each points to its spec section) -------------------------------------
+// Viewports: §12 step 5 / §13 / brief §3. Heights are common device sizes.
+const VIEWPORTS = [
+  { width: 360, height: 800, mobile: true },
+  { width: 768, height: 1024, mobile: true },
+  { width: 1440, height: 900, mobile: false },
+];
+const DESKTOP_MIN_WIDTH = 1024; // "desktop" for h1 line count (§4 "H1 ≤3 lines desktop")
+const REDUCED_MOTION_WIDTH = 360; // one extra render under prefers-reduced-motion (§4, §11)
+const SETTLE_MS = 1200; // wait after load before measuring (as admin-geometry)
+const EVAL_TIMEOUT_MS = 60000; // a page script that never settles must not hang check
+
+// Floor (fail) — §17 tier 1, brief §3
+const CONTRAST_MIN = 4.5; // §4 text contrast
+const CONTRAST_LARGE_MIN = 3; // §4 large text (≥24px, or ≥18.66px bold)
+const TEXT_MIN_PX = 12; // §16 "nothing <12 px anywhere"
+const TARGET_MIN_PX = 24; // §4 "Targets ≥24 fail"
+const INPUT_MIN_PX = 16; // §4 "Mobile input ≥16 px" (iOS zoom), checked at 360
+const INPUT_ZOOM_MAX_WIDTH = 360;
+const CONTACT_MAX = 1; // §14 + preferences.md: one contact CTA per page (D9)
+const LOOP_MAX_MS = 5000; // §4 "Loops >5 s have pause" (WCAG 2.2.2)
+const MOTION_TINY_PX = 32; // loops/animations on elements smaller than this (spinners, dots) are exempt
+const GENERIC_ALT = /^(image|img|photo|picture|pic|hero|banner|placeholder|untitled|graphic|thumbnail|logo)\s*\d*$|\.(jpe?g|png|webp|gif|svg|avif)$/i; // §16
+const PLACEHOLDER_RE = /lorem ipsum|dolor sit amet|\bacme\b|\bjohn doe\b|\bjane doe\b/gi; // §4 "No placeholder brands / lorem"
+
+// Slop signals (warn) — §17 tier 2, brief §3
+const PRIMARY_PER_VIEWPORT_MAX = 1; // §14 "≤1 primary-styled button per viewport"
+const FIRST_VIEWPORT_BUTTONS_MAX = 3; // §14/§16 "≤3 button-styled elements in first viewport"
+const DUPLICATE_HREF_MAX = 2; // §14 "same href linked >2 times" (nav/header/footer excluded)
+const BODY_MIN_PX = 16; // §16 "public body ≥16 px"
+const FIRST_VIEWPORT_WORDS_MAX = 60; // §16 "first viewport ≤ ~60 words"
+const H1_WORDS_MAX = 10; // §16 "H1 ≤ ~10 words"
+const H1_LINES_MAX = 3; // §4/§16 "≤3 lines desktop"
+const NAV_LABEL_CHARS_MAX = 16; // §16 "≤ ~16 chars, one line"
+const SIDEBAR_GROUP_MAX = 7; // §16 "≤ ~7 items per sidebar group"
+const MARKERS_PER_VIEWPORT_MAX = 2; // §16 "≤2 badges/chips/stickers per viewport"
+const EMPHASIS_RUNS_MAX = 1; // §16 "≤1 bold/highlight run per paragraph"
+const EMPHASIS_ALL_BOLD_WORDS = 8; // §16 "no all-bold sentences": bold paragraph this long
+const ICON_RATIO_MAX = 0.5; // §16 ">50% of list items/headings carrying an icon"
+const ICON_MIN_CARRIERS = 4; // ratio needs a sample; fewer headings/items = not judged
+const HERO_VIEWPORT_RATIO = 0.85; // §16 "hero >~85% of viewport with no next-section peek"
+const STOCK_RE = /(images\.unsplash\.com|unsplash\.com\/photos|images\.pexels\.com|pexels\.com\/photo|freepik\.com|istockphoto\.com|shutterstock\.com|gettyimages\.)/i; // §16
+const IMAGE_REUSE_MIN_PX = 48; // icons/logos below this may repeat legitimately
+const BLUR_WARN_PX = 8; // D4 (accepted 2026-10-31): warn >8 px …
+const BLUR_FAIL_PX = 10; // … and fail >10 px; `allow: blur` covers only the warn band
+const WHATSAPP_RE = /^(https?:\/\/(wa\.me|api\.whatsapp\.com)\b|whatsapp:)/i; // D9 checkout-handoff exception
+const DURATION_SMALL_MS = 300; // §4 "Durations ≤300 small"
+const DURATION_LARGE_MS = 500; // §4 "≤500 large"
+const LARGE_AREA_RATIO = 0.25; // "large" element = ≥25% of the viewport area
+
+// Teardown: galleries are owner-picked mood, not measurement targets (brief §4, §19, D5).
+const GALLERY_HOST_RE = /(^|\.)(dribbble\.com|behance\.net|v0\.app|v0\.dev|awwwards\.com|regards\.design|pinterest\.[a-z.]+)$/i;
+
+// WCAG 2.x contrast on sRGB [r, g, b, a?] 0–255. Pure; also injected into the page by call().
+export const relLum = (c) => { const f = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+export const contrastRatio = (a, b) => { const x = relLum(a), y = relLum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+export const blendOver = (t, b) => [0, 1, 2].map((i) => t[i] * t[3] + b[i] * (1 - t[3])).concat(1);
+
+// ---- rules ---------------------------------------------------------------------------
+// judge(facts) → offenders [{el, v}] for one viewport, or null when it could not be measured.
+const has = (x) => Array.isArray(x);
+const off = (el, v) => ({ el, v });
+const maxPerBucket = (items) => {
+  const m = new Map();
+  for (const i of items) m.set(i.bucket, [...(m.get(i.bucket) || []), i]);
+  return [...m.values()];
+};
+
+// WCAG 2.5.8: a small target passes when a ${TARGET_MIN_PX}px circle on its centre touches no
+// other target and no other small target's circle. Targets: {x, y, w, h} in page coordinates.
+export function undersizedTargets(targets) {
+  const r = TARGET_MIN_PX / 2, small = targets.filter((t) => Math.min(t.w, t.h) < TARGET_MIN_PX);
+  const c = (t) => [t.x + t.w / 2, t.y + t.h / 2];
+  const distToRect = ([px, py], t) => Math.hypot(Math.max(t.x - px, 0, px - (t.x + t.w)), Math.max(t.y - py, 0, py - (t.y + t.h)));
+  return small.filter((t) => targets.some((o) => o !== t && (distToRect(c(t), o) < r
+    || (small.includes(o) && Math.hypot(c(t)[0] - c(o)[0], c(t)[1] - c(o)[1]) < TARGET_MIN_PX))));
+}
+
+export const RULES = [
+  // Floor: harm only (§17). Not overridable.
+  { id: "contrast", tier: "fail", spec: "§4", desc: `text contrast < ${CONTRAST_MIN}:1 (large < ${CONTRAST_LARGE_MIN}:1)`,
+    // Measured offenders always fail; with none, any unmeasured text (over an image, gradient, overlay,
+    // off-screen) leaves the rule NOT CHECKED rather than vouched for. Disabled text is exempt (WCAG 1.4.3).
+    judge: (f) => {
+      const t = has(f.texts) ? f.texts.filter((x) => !x.exempt) : [];
+      if (!t.length) return null;
+      const o = t.filter((x) => x.ratio != null && x.ratio < (x.large ? CONTRAST_LARGE_MIN : CONTRAST_MIN)).map((x) => off(x.el, `${Math.floor(x.ratio * 100) / 100}:1`));
+      return o.length || t.every((x) => x.ratio != null) ? o : null;
+    } },
+  { id: "tiny-text", tier: "fail", spec: "§16", desc: `visible text < ${TEXT_MIN_PX}px`,
+    judge: (f) => has(f.texts) ? f.texts.filter((t) => t.px < TEXT_MIN_PX).map((t) => off(t.el, `${t.px}px`)) : null },
+  { id: "overflow-x", tier: "fail", spec: "§4", desc: "horizontal scroll",
+    judge: (f) => f.scrollWidth == null || (f.overflowClipped && f.scrollWidth > f.width + 1) ? null : f.scrollWidth > f.width + 1
+      ? [off(`document ${f.scrollWidth}px wide`, `+${f.scrollWidth - f.width}px`), ...(f.overflowEls || []).map((el) => off(el, "past right edge"))] : [] },
+  { id: "target-size", tier: "fail", spec: "§4", desc: `interactive target < ${TARGET_MIN_PX}px (inline links and WCAG 2.5.8 spacing exempt)`,
+    judge: (f) => has(f.targets) ? undersizedTargets(f.targets).map((t) => off(t.el, `${t.w}x${t.h}`)) : null },
+  { id: "input-zoom", tier: "fail", spec: "§4", desc: `form control font < ${INPUT_MIN_PX}px at ${INPUT_ZOOM_MAX_WIDTH}`,
+    applies: (f) => f.width <= INPUT_ZOOM_MAX_WIDTH,
+    judge: (f) => !has(f.controls) ? null : f.controls.filter((c) => c.px < INPUT_MIN_PX).map((c) => off(c.el, `${c.px}px`)) },
+  { id: "img-alt", tier: "fail", spec: "§16", desc: "<img> without alt, or generic alt",
+    judge: (f) => has(f.images) ? f.images.filter((i) => i.alt == null || GENERIC_ALT.test(i.alt.trim())).map((i) => off(i.el, i.alt == null ? "no alt" : `alt="${i.alt}"`)) : null },
+  { id: "contact-count", tier: "fail", spec: "§14", desc: `> ${CONTACT_MAX} contact link (wa.me, whatsapp:, tel:, mailto:, m.me, t.me) per page`,
+    judge: (f) => has(f.contacts) ? (f.contacts.length > CONTACT_MAX ? f.contacts.map((c) => off(c.el, c.href)) : []) : null },
+  { id: "contact-placement", tier: "fail", spec: "§14", desc: "contact link in header/nav, hero, fixed/sticky, dialog, or repeated items",
+    // D9: with --checkout-handoff a WhatsApp link may sit in the hero; every other placement still fails.
+    judge: (f, o) => has(f.contacts) ? f.contacts
+      .map((c) => ({ c, p: o.checkoutHandoff && WHATSAPP_RE.test(c.href) ? c.placement.filter((x) => x !== "hero") : c.placement }))
+      .filter(({ p }) => p.length).map(({ c, p }) => off(c.el, p.join(", "))) : null },
+  { id: "floating-widget", tier: "fail", spec: "§14", desc: "fixed bottom-corner chat/WhatsApp bubble",
+    judge: (f) => has(f.floating) ? f.floating.map((el) => off(el, "fixed bottom corner")) : null },
+  { id: "placeholder-content", tier: "fail", spec: "§4", desc: "lorem ipsum / Acme / John Doe placeholders",
+    judge: (f) => has(f.placeholders) ? f.placeholders.map((p) => off("page text", `"${p}"`)) : null },
+  { id: "lcp-entrance", tier: "fail", spec: "§4, §11", desc: "LCP element (or an ancestor) runs an entrance animation",
+    judge: (f) => !f.lcp ? null : f.lcp.animated ? [off(f.lcp.el, f.lcp.how)] : [] },
+  { id: "reduced-motion", tier: "fail", spec: "§4, §11", desc: "transform/size animation still running under prefers-reduced-motion",
+    applies: (f) => f.width === REDUCED_MOTION_WIDTH,
+    judge: (f) => has(f.reducedMotion) ? f.reducedMotion.map((a) => off(a.el, a.props)) : null },
+  { id: "loop-pause", tier: "fail", spec: "§4", desc: `animation/video longer than ${LOOP_MAX_MS / 1000}s with no pause control`,
+    judge: (f) => !f.loops ? null : f.loops.pauseControl ? [] : f.loops.items.map((l) => off(l.el, l.v)) },
+
+  // Slop signals: warn, overridable with `allow: <id> — <reason>` (§17).
+  { id: "primary-actions", tier: "warn", spec: "§14", desc: `> ${PRIMARY_PER_VIEWPORT_MAX} primary per viewport, > ${FIRST_VIEWPORT_BUTTONS_MAX} button-like in first viewport`,
+    judge: (f) => {
+      if (!has(f.buttons)) return null;
+      const o = [];
+      for (const b of maxPerBucket(f.buttons.filter((b) => b.primary))) if (b.length > PRIMARY_PER_VIEWPORT_MAX) o.push(off(b.map((x) => x.el).join(" + "), `${b.length} primary in screen ${b[0].bucket + 1}`));
+      const first = f.buttons.filter((b) => b.bucket === 0);
+      if (first.length > FIRST_VIEWPORT_BUTTONS_MAX) o.push(off(first.map((x) => x.el).join(" + "), `${first.length} button-like in first viewport`));
+      return o;
+    } },
+  // Hygiene, not harm: browsers imply noopener on target=_blank (owner, 2026-10-31).
+  { id: "blank-noopener", tier: "warn", spec: "§14", desc: "target=_blank without noopener/noreferrer",
+    judge: (f) => has(f.blank) ? f.blank.map((b) => off(b.el, `rel="${b.rel}"`)) : null },
+  { id: "whatsapp-green", tier: "warn", spec: "§14", desc: "WhatsApp brand-green (#25D366 family) on the contact CTA",
+    judge: (f) => has(f.contacts) ? f.contacts.filter((c) => c.green).map((c) => off(c.el, "brand green")) : null },
+  { id: "duplicate-href", tier: "warn", spec: "§14", desc: `same href > ${DUPLICATE_HREF_MAX} times outside nav/header/footer`,
+    judge: (f) => {
+      if (!has(f.hrefs)) return null;
+      const n = new Map(); for (const h of f.hrefs) n.set(h, (n.get(h) || 0) + 1);
+      return [...n].filter(([, c]) => c > DUPLICATE_HREF_MAX).map(([h, c]) => off(h, `${c} times`));
+    } },
+  { id: "body-size", tier: "warn", spec: "§16", desc: `dominant paragraph text < ${BODY_MIN_PX}px`,
+    judge: (f) => {
+      if (!has(f.texts)) return null;
+      const prose = f.texts.filter((t) => t.prose); if (!prose.length) return null;
+      const w = new Map(); for (const t of prose) w.set(t.px, (w.get(t.px) || 0) + t.chars);
+      const [px] = [...w].sort((a, b) => b[1] - a[1])[0];
+      return px < BODY_MIN_PX ? [off("body copy", `${px}px`)] : [];
+    } },
+  { id: "first-viewport-words", tier: "warn", spec: "§16", desc: `> ${FIRST_VIEWPORT_WORDS_MAX} words in the first viewport`,
+    judge: (f) => f.firstViewportWords == null ? null : f.firstViewportWords > FIRST_VIEWPORT_WORDS_MAX ? [off("first viewport", `${f.firstViewportWords} words`)] : [] },
+  { id: "h1-length", tier: "warn", spec: "§4, §16", desc: `H1 > ${H1_WORDS_MAX} words, or > ${H1_LINES_MAX} lines on desktop`,
+    judge: (f) => has(f.h1s) ? f.h1s.filter((h) => h.words > H1_WORDS_MAX || (f.width >= DESKTOP_MIN_WIDTH && h.lines > H1_LINES_MAX))
+      .map((h) => off(h.el, `${h.words} words, ${h.lines} lines`)) : null },
+  { id: "nav-label", tier: "warn", spec: "§16", desc: `nav/tab label > ${NAV_LABEL_CHARS_MAX} chars or wraps`,
+    judge: (f) => has(f.navLabels) ? f.navLabels.filter((l) => l.chars > NAV_LABEL_CHARS_MAX || l.lines > 1).map((l) => off(l.el, `${l.chars} chars, ${l.lines} line(s)`)) : null },
+  { id: "sidebar-group", tier: "warn", spec: "§16", desc: `nav group > ${SIDEBAR_GROUP_MAX} items`,
+    judge: (f) => has(f.navGroups) ? f.navGroups.filter((g) => g.items > SIDEBAR_GROUP_MAX).map((g) => off(g.el, `${g.items} items`)) : null },
+  { id: "marker-count", tier: "warn", spec: "§16", desc: `> ${MARKERS_PER_VIEWPORT_MAX} badges/chips per viewport`,
+    judge: (f) => has(f.markers) ? maxPerBucket(f.markers).filter((b) => b.length > MARKERS_PER_VIEWPORT_MAX)
+      .map((b) => off(b.slice(0, 4).map((x) => x.el).join(" + "), `${b.length} in screen ${b[0].bucket + 1}`)) : null },
+  { id: "emphasis", tier: "warn", spec: "§16", desc: `> ${EMPHASIS_RUNS_MAX} bold/highlight run per paragraph, or all-bold paragraph`,
+    judge: (f) => has(f.emphasis) ? f.emphasis.filter((e) => e.runs > EMPHASIS_RUNS_MAX || (e.allBold && e.words >= EMPHASIS_ALL_BOLD_WORDS))
+      .map((e) => off(e.el, e.allBold ? "all bold" : `${e.runs} runs`)) : null },
+  { id: "icon-overload", tier: "warn", spec: "§16", desc: `> ${ICON_RATIO_MAX * 100}% of headings/list items carry icons; icon tiles`,
+    judge: (f) => {
+      if (!f.icons) return null;
+      const o = f.icons.tiles.map((el) => off(el, "icon tile"));
+      const { total, withIcon } = f.icons;
+      if (total >= ICON_MIN_CARRIERS && withIcon / total > ICON_RATIO_MAX) o.push(off("headings/list items", `${withIcon}/${total} carry an icon`));
+      return o;
+    } },
+  { id: "card-in-card", tier: "warn", spec: "§16", desc: "bordered/shadowed/filled box inside another (dialog, table exempt)",
+    judge: (f) => has(f.nestedCards) ? f.nestedCards.map((c) => off(c.el, `inside ${c.outer}`)) : null },
+  { id: "hero-height", tier: "warn", spec: "§16", desc: `hero > ${HERO_VIEWPORT_RATIO * 100}% of viewport with no next-section peek`,
+    judge: (f) => !f.hero ? null : f.hero.h > f.height * HERO_VIEWPORT_RATIO && f.hero.bottom >= f.height
+      ? [off(f.hero.el, `${f.hero.h}px of ${f.height}px viewport`)] : [] },
+  { id: "stock-image", tier: "warn", spec: "§16", desc: "image from a stock CDN (unsplash/pexels/freepik/istock…)",
+    judge: (f) => has(f.images) ? f.images.filter((i) => STOCK_RE.test(i.src || "")).map((i) => off(i.el, i.src.slice(0, 80))) : null },
+  { id: "image-reuse", tier: "warn", spec: "§16", desc: "same image used more than once",
+    judge: (f) => {
+      if (!has(f.images)) return null;
+      const n = new Map();
+      for (const i of f.images) if (i.src && i.w >= IMAGE_REUSE_MIN_PX && i.h >= IMAGE_REUSE_MIN_PX) n.set(i.src, (n.get(i.src) || 0) + 1);
+      return [...n].filter(([, c]) => c > 1).map(([s, c]) => off(s.slice(0, 80), `${c} times`));
+    } },
+  // One id, two bands: > BLUR_FAIL_PX offenders carry sev "fail", which no allow: line can cover.
+  { id: "blur", tier: "warn", spec: "D4", desc: `filter/backdrop blur > ${BLUR_WARN_PX}px warns, > ${BLUR_FAIL_PX}px fails`,
+    judge: (f) => has(f.blurs) ? f.blurs.filter((b) => b.px > BLUR_WARN_PX)
+      .map((b) => b.px > BLUR_FAIL_PX ? { ...off(b.el, `${b.px}px (> ${BLUR_FAIL_PX}px fail band)`), sev: "fail" } : off(b.el, `${b.px}px`)) : null },
+  { id: "transition-all", tier: "warn", spec: "§4", desc: "transition: all",
+    judge: (f) => has(f.transitionAll) ? f.transitionAll.map((el) => off(el, "transition-property: all")) : null },
+  { id: "ease-in", tier: "warn", spec: "§4, D1", desc: "ease-in timing on UI motion",
+    judge: (f) => has(f.easeIn) ? f.easeIn.map((e) => off(e.el, e.v)) : null },
+  { id: "duration", tier: "warn", spec: "§4", desc: `motion > ${DURATION_SMALL_MS}ms (small) / > ${DURATION_LARGE_MS}ms (large)`,
+    judge: (f) => has(f.durations) ? f.durations.filter((d) => d.ms > (d.large ? DURATION_LARGE_MS : DURATION_SMALL_MS))
+      .map((d) => off(d.el, `${d.ms}ms${d.large ? " (large)" : ""}`)) : null },
+];
+export const FLOOR_IDS = RULES.filter((r) => r.tier === "fail").map((r) => r.id);
+export const WARN_IDS = RULES.filter((r) => r.tier === "warn").map((r) => r.id);
+
+// ---- pure: allow lines, evaluation, validation -----------------------------------------
+// Blank out HTML comments and fenced code so documented examples never count,
+// keeping line numbers intact for error messages.
+const stripDocs = (text) => text
+  .replace(/<!--[\s\S]*?-->/g, (m) => m.replace(/[^\n]/g, " "))
+  .replace(/^```[\s\S]*?^```/gm, (m) => m.replace(/[^\n]/g, " "));
+
+const ALLOW_RE = /^\s*(?:[-*]\s+)?allow:\s*([a-z0-9-]+)\s+(?:—|–|--)\s+(\S.*?)\s*$/i;
+
+export function parseAllows(text) {
+  const allows = new Map(); const errors = [];
+  stripDocs(String(text)).split("\n").forEach((line, i) => {
+    if (!/^\s*(?:[-*]\s+)?allow:/i.test(line)) return;
+    const m = ALLOW_RE.exec(line);
+    const at = `line ${i + 1}`;
+    if (!m) return errors.push(`${at}: malformed, expected "allow: <rule-id> — <reason>": ${line.trim()}`);
+    const id = m[1].toLowerCase();
+    if (FLOOR_IDS.includes(id)) return errors.push(`${at}: "${id}" is a floor (fail) rule and cannot be overridden`);
+    if (!WARN_IDS.includes(id)) return errors.push(`${at}: unknown rule id "${id}" (warn ids: ${WARN_IDS.join(", ")})`);
+    allows.set(id, m[2]);
+  });
+  return { allows, errors };
+}
+
+// factsByWidth: [{width, height, ...facts}] → one result per rule, worst status across widths.
+// A pass needs every applicable width measured: one measured width never vouches for another.
+// opts.checkoutHandoff: D9 exception (see contact-placement).
+export function evaluate(factsByWidth, allows = new Map(), opts = {}) {
+  return RULES.map((rule) => {
+    const byKey = new Map(); let checked = 0; const unmeasuredAt = [];
+    for (const f of factsByWidth) {
+      if (rule.applies && !rule.applies(f)) continue;
+      const o = rule.judge(f, opts);
+      if (o == null) { unmeasuredAt.push(f.width); continue; }
+      checked++;
+      // Same element + value at several widths is one finding with several widths.
+      for (const x of o) { const k = `${x.el}\u0000${x.v}`; if (byKey.has(k)) byKey.get(k).widths.push(f.width); else byKey.set(k, { widths: [f.width], ...x }); }
+    }
+    const offenders = [...byKey.values()];
+    let status = offenders.length ? (rule.tier === "fail" || offenders.some((x) => x.sev === "fail") ? "fail" : "warn")
+      : !checked || unmeasuredAt.length ? "not-checked" : "pass";
+    if (status === "warn" && allows.has(rule.id)) status = "allowed";
+    return { id: rule.id, tier: rule.tier, spec: rule.spec, desc: rule.desc, status,
+      ...(status === "allowed" ? { reason: allows.get(rule.id) } : {}),
+      ...(checked && unmeasuredAt.length ? { unmeasuredAt } : {}), offenders };
+  });
+}
+
+export const BRIEF_HEADINGS = ["Niche", "Audience", "Primary job", "Primary action", "References wanted", "Non-goals"];
+export const DESIGN_HEADINGS = ["Tokens", "Allow"];
+
+// Section bodies keyed by "## Heading", comments removed.
+function sections(text) {
+  const out = new Map(); let cur = null;
+  for (const line of stripDocs(text).split("\n")) {
+    const h = /^##\s+(.+?)\s*$/.exec(line);
+    if (h) { cur = h[1].toLowerCase(); out.set(cur, ""); } else if (cur && !/^#\s/.test(line)) out.set(cur, out.get(cur) + line + "\n");
+  }
+  return out;
+}
+
+export function validateProject(dir) {
+  const errors = [], warnings = [];
+  const brief = path.join(dir, "design", "brief.md"), design = path.join(dir, "DESIGN.md");
+  for (const [file, heads, warnEmpty] of [[brief, BRIEF_HEADINGS, true], [design, DESIGN_HEADINGS, false]]) {
+    if (!fs.existsSync(file)) { errors.push(`missing ${path.relative(dir, file) || file} (run: dotuiux init)`); continue; }
+    const s = sections(fs.readFileSync(file, "utf8"));
+    for (const h of heads) {
+      if (!s.has(h.toLowerCase())) errors.push(`${path.basename(file)}: missing heading "## ${h}"`);
+      else if (warnEmpty && !s.get(h.toLowerCase()).trim()) warnings.push(`${path.basename(file)}: "## ${h}" is still empty`);
+    }
+  }
+  if (fs.existsSync(design)) for (const e of parseAllows(fs.readFileSync(design, "utf8")).errors) errors.push(`DESIGN.md ${e}`);
+  return { ok: !errors.length, errors, warnings };
+}
+
+// ---- templates -----------------------------------------------------------------------
+const BRIEF_TEMPLATE = `# UI brief
+
+<!-- Step 1 of the dotuiux workflow: answer each section in a line or two. Real
+content beats placeholders; this file feeds the references and DESIGN.md steps. -->
+
+## Niche
+<!-- What the business is and where it operates. -->
+
+## Audience
+<!-- Who the page is for, and what they must trust before acting. -->
+
+## Primary job
+<!-- The one job this page/screen does for that audience. -->
+
+## Primary action
+<!-- The single action we want (one per page). -->
+
+## References wanted
+<!-- 3–5 live URLs: one market leader, one best-in-class, one mood. Then: dotuiux teardown <urls> -->
+
+## Non-goals
+<!-- What this is not, and looks to avoid. -->
+`;
+
+const DESIGN_TEMPLATE = `# DESIGN.md
+
+<!-- Step 3: the chosen direction, written from design/brief.md + design/refs/.
+Taste lives here, not in a ban list. Build uses tokens only. -->
+
+## Direction
+<!-- Feel in 3 words, photo style, motion profile (none | subtle | expressive), 3 "won't do". -->
+
+## Tokens
+
+### Colour
+<!-- 1 accent + neutrals (values). -->
+
+### Type
+<!-- Max 2 families; type scale. -->
+
+### Radius
+
+### Spacing
+<!-- Base unit (4 or 8) and scale. -->
+
+### Motion
+<!-- Durations, easing, reduced-motion behaviour. -->
+
+## Allow
+<!-- Overrides for dotuiux check WARN rules only; floor (fail) rules cannot be overridden.
+One per line, outside this comment:
+
+    allow: <rule-id> — <reason>
+
+Example: allow: hero-height — showcase studio; the full-height hero is the portfolio.
+Warn ids: ${WARN_IDS.join(", ")} -->
+`;
+
+// ---- browser layer (reuses ui-ref.mjs) -------------------------------------------------
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const within = (p, ms) => Promise.race([p, sleep(ms).then(() => null)]); // ui-ref does not export this
+
+async function loadUiRef() {
+  const root = process.env.DOTFILES || path.join(os.homedir(), "dotfiles");
+  const file = path.join(root, "skills", "local", "design-taste", "scripts", "ui-ref.mjs");
+  if (!fs.existsSync(file)) throw new Error(`ui-ref.mjs not found at ${file} (set DOTFILES)`);
+  return import(pathToFileURL(file).href);
+}
+
+function toUrl(arg) {
+  if (fs.existsSync(arg) && fs.statSync(arg).isFile()) return pathToFileURL(path.resolve(arg)).href;
+  if (/^(https?|file):\/\//i.test(arg)) return arg;
+  throw new Error(`not a URL or existing file: ${arg}`);
+}
+
+// A file:// page is served from its folder over loopback HTTP: snap Chromium has a
+// private /tmp and cannot read most local paths, and HTTP matches how pages ship.
+const MIME = { ".html": "text/html", ".htm": "text/html", ".css": "text/css", ".js": "text/javascript", ".mjs": "text/javascript",
+  ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+  ".webp": "image/webp", ".avif": "image/avif", ".gif": "image/gif", ".woff2": "font/woff2", ".woff": "font/woff", ".ico": "image/x-icon" };
+async function serveFile(url) {
+  if (!url.startsWith("file:")) return { url, close: () => {} };
+  const file = fileURLToPath(url), root = path.dirname(file);
+  const server = createServer((req, res) => {
+    const miss = (code = 404) => { res.writeHead(code); res.end(); };
+    let rel; try { rel = decodeURIComponent(new URL(req.url, "http://x").pathname); } catch { return miss(400); }
+    const p = path.join(root, rel), type = MIME[path.extname(p).toLowerCase()];
+    // Page scripts can fetch anything served: never dotfiles (.env, .git/…) or types outside the web set.
+    if (!type || !p.startsWith(root + path.sep) || path.relative(root, p).split(path.sep).some((seg) => seg.startsWith("."))) return miss();
+    fs.readFile(p, (err, data) => { if (err) return miss(); res.writeHead(200, { "content-type": type }); res.end(data); });
+  }).listen(0, "127.0.0.1");
+  await new Promise((r) => server.once("listening", r));
+  return { url: `http://127.0.0.1:${server.address().port}/${encodeURIComponent(path.basename(file))}`, close: () => server.close() };
+}
+
+// Runs before any page script: records entrance animations and the LCP element.
+function pageRecorder() {
+  const rec = (window.__dotuiux = { anims: [], lcp: null });
+  // Record which properties each animation touches, so a background tint is not an entrance.
+  const keys = (anims) => [...new Set(anims.flatMap((a) => (a.effect && a.effect.getKeyframes ? a.effect.getKeyframes() : []).flatMap((k) => Object.keys(k))))];
+  document.addEventListener("animationstart", (e) => rec.anims.push({ t: e.target, name: e.animationName, ts: performance.now(),
+    props: keys(e.target.getAnimations ? e.target.getAnimations().filter((a) => a.animationName === e.animationName) : []) }), true);
+  document.addEventListener("transitionrun", (e) => rec.anims.push({ t: e.target, name: "transition", props: [e.propertyName], ts: performance.now() }), true);
+  const animate = Element.prototype.animate;
+  Element.prototype.animate = function (...a) { const anim = animate.apply(this, a);
+    rec.anims.push({ t: this, name: "element.animate()", props: keys([anim]), ts: performance.now() }); return anim; };
+  try { new PerformanceObserver((l) => { for (const e of l.getEntries()) rec.lcp = e; }).observe({ type: "largest-contentful-paint", buffered: true }); } catch {}
+}
+
+// Runs inside the page. Returns geometry, computed styles and short labels only —
+// no cookies, storage, or form values. Thresholds stay in Node; this only measures.
+async function pageCollect(o) {
+  // Intended viewport from Node: mobile emulation widens innerWidth to fit overflowing content.
+  const vw = o.width, vh = o.height;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const rec = window.__dotuiux || { anims: [], lcp: null };
+  const cs = (el) => getComputedStyle(el);
+  const visible = (el) => { const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return false;
+    const s = cs(el); return s.visibility !== "hidden" && s.display !== "none" && +s.opacity > 0; };
+  const label = (el) => { const t = (el.getAttribute("aria-label") || (el.tagName === "IMG" ? el.getAttribute("alt") || el.getAttribute("src") : el.textContent) || "")
+    .replace(/[\x00-\x1f\x7f]/g, " ").trim().replace(/\s+/g, " ").slice(0, 40); return el.tagName.toLowerCase() + (t ? ` "${t}"` : ""); };
+  const rgba = (c) => { const m = /^rgba?\(([^)]+)\)$/.exec(c || ""); if (!m) return null;
+    const p = m[1].split(/[\s,/]+/).filter(Boolean).map(parseFloat); return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1]; };
+  const ratio = contrastRatio, blend = blendOver; // injected by call()
+  const hsl = (c) => { const [r, g, b] = c.slice(0, 3).map((v) => v / 255); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+    const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+    const h = d === 0 ? 0 : mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+    return { h: (h + 360) % 360, s, l, d }; };
+  const colourful = (c) => { const x = rgba(c); if (!x || x[3] <= 0.1) return false; const { s, d } = hsl(x); return d * 255 > 12 && s > 0.5; };
+  // Background behind an element via ancestors only (for button/card fills).
+  const ancestorBg = (el) => { const layers = [];
+    for (let e = el; e; e = e.parentElement) { const c = rgba(cs(e).backgroundColor); if (c && c[3] > 0) { layers.push(c); if (c[3] >= 1) break; } }
+    let bg = [255, 255, 255, 1]; for (const l of layers.reverse()) bg = blend(l, bg); return bg; };
+  // Paint stack under a point; null when an image/gradient sits behind (unknown), undefined when covered.
+  const MEDIA = new Set(["IMG", "VIDEO", "CANVAS", "PICTURE", "IFRAME", "svg", "SVG"]);
+  // A positioned ::before/::after with paint is an overlay band elementsFromPoint cannot see.
+  const pseudoPaint = (e) => ["::before", "::after"].some((p) => { const s = getComputedStyle(e, p);
+    if (s.content === "none" || s.content === "normal" || !/absolute|fixed/.test(s.position)) return false;
+    const c = rgba(s.backgroundColor); return s.backgroundImage !== "none" || !c || c[3] > 0; });
+  // The meta tag sets the used scheme without changing html's computed color-scheme.
+  const darkCanvas = /dark/.test(`${cs(document.documentElement).colorScheme} ${document.querySelector("meta[name=color-scheme]")?.content || ""}`);
+  const backdrop = (el, x, y) => {
+    const stack = document.elementsFromPoint(x, y), i = stack.indexOf(el);
+    if (i < 0) return undefined;
+    const layers = [];
+    for (const e of stack.slice(i)) {
+      if (e !== el && MEDIA.has(e.tagName)) return null;
+      const s = cs(e); if (s.backgroundImage !== "none" || pseudoPaint(e)) return null;
+      const c = rgba(s.backgroundColor); if (!c) return null;
+      if (c[3] > 0) { layers.push(c); if (c[3] >= 1) break; }
+    }
+    // No opaque layer: the canvas shows. It is white only for a light colour scheme.
+    if (!(layers.length && layers[layers.length - 1][3] >= 1) && darkCanvas) return null;
+    let bg = [255, 255, 255, 1]; for (const l of layers.reverse()) bg = blend(l, bg); return bg;
+  };
+  const docTop = (el) => el.getBoundingClientRect().top + scrollY;
+  const bucket = (el) => Math.max(0, Math.floor(docTop(el) / vh));
+  // Page chrome = banner header / contentinfo footer, not a <header> inside a section or article.
+  const BANNER = "header:not(:is(article,aside,main,nav,section) header),[role=banner]";
+  const CONTENTINFO = "footer:not(:is(article,aside,main,nav,section) footer),[role=contentinfo]";
+  const inChrome = (el) => !!el.closest(`nav,[role=navigation],${BANNER},${CONTENTINFO}`);
+  const interactive = (el) => !!el.closest("a[href],button,input,select,textarea,label,summary,[role=button],[role=tab],[role=link]");
+  const CONTACT = /^(https?:\/\/(wa\.me|api\.whatsapp\.com|(www\.)?m\.me|t\.me)\b|whatsapp:|tel:|mailto:)/i;
+  const longAnim = (a) => { const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null; return t && (t.endTime === Infinity || t.endTime > o.loopMaxMs); };
+  const animTarget = (a) => a.effect && a.effect.target;
+  const tiny = (el) => { const r = el.getBoundingClientRect(); return r.width < o.tinyPx && r.height < o.tinyPx; };
+  const f = { width: vw, height: vh };
+
+  // 1. Motion, at scroll 0 before anything else moves the page.
+  const lcpEl = rec.lcp && rec.lcp.element;
+  if (lcpEl) {
+    const ENTRANCE = /^(opacity|transform|translate|scale|rotate|filter|clip-path|clipPath|top|left)$/;
+    const hit = rec.anims.find((a) => a.t && a.ts < 4000 && (a.t === lcpEl || (a.t.contains && a.t.contains(lcpEl))) && a.props.some((p) => ENTRANCE.test(p)));
+    f.lcp = { el: label(lcpEl), animated: !!hit, how: hit ? `${hit.name} (${hit.props.join(", ")}) on ${hit.t === lcpEl ? "LCP element" : label(hit.t)}` : "" };
+  }
+  const pauseControl = [...document.querySelectorAll("button,[role=button]")].some((b) =>
+    /\b(pause|stop|jeda|hentikan)\b/i.test(`${b.getAttribute("aria-label") || ""} ${b.title || ""} ${b.textContent || ""}`));
+  const loops = [];
+  for (const a of document.getAnimations()) { const t = animTarget(a);
+    if (a.playState === "running" && longAnim(a) && t && t.isConnected && visible(t) && !tiny(t)) loops.push({ el: label(t), v: a.animationName || a.transitionProperty || "animation" }); }
+  for (const v of document.querySelectorAll("video")) if (!v.paused && (v.loop || v.duration > o.loopMaxMs / 1000) && !v.controls && visible(v)) loops.push({ el: label(v), v: "autoplay video" });
+  f.loops = { items: loops.slice(0, 20), pauseControl };
+
+  // 2. Scroll pass: loads lazy content and measures text contrast as each line enters view.
+  const all = [...document.body.querySelectorAll("*")].slice(0, 8000);
+  const textEls = [];
+  for (const el of all) {
+    const node = [...el.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim().length > 1);
+    if (node && visible(el)) { const range = document.createRange(); range.selectNodeContents(node); textEls.push({ el, range }); }
+  }
+  const contrast = new Map();
+  const H = () => document.documentElement.scrollHeight;
+  for (let y = 0, i = 0; i < 40 && y < Math.min(H(), 20000); y += vh * 0.8, i++) {
+    scrollTo(0, y); await sleep(120);
+    for (const t of textEls) {
+      if (contrast.has(t.el)) continue;
+      const r = t.range.getClientRects()[0]; if (!r || r.top < 0 || r.bottom > vh || r.left < 0 || r.right > vw) continue;
+      const bg = backdrop(t.el, r.left + r.width / 2, r.top + r.height / 2);
+      if (bg === undefined) continue;
+      const s = cs(t.el); let fg = rgba(s.color);
+      if (bg === null || !fg || t.el.closest(":disabled,[aria-disabled=true]")) { contrast.set(t.el, null); continue; }
+      if (fg[3] < 1) fg = blend(fg, bg);
+      contrast.set(t.el, ratio(fg, bg)); // raw: 4.495 must fail 4.5
+    }
+  }
+  scrollTo(0, 0); await sleep(300);
+
+  // 3. Static facts.
+  const texts = [], fam = {}, size = {}, tcol = {}, bgc = {}, markers = [], cards = new Set(), blurs = [], transitionAll = [], easeIn = [], durations = [];
+  const tally = (m, k, w) => { m[k] = (m[k] || 0) + w; };
+  const top = (m, n) => Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, n).map(([v, c]) => ({ v, c: Math.round(c) }));
+  const split = (v) => v.split(/,(?![^(]*\))/).map((x) => x.trim());
+  const ms = (v) => (v.endsWith("ms") ? parseFloat(v) : parseFloat(v) * 1000) || 0;
+  const easeInFn = (fn) => fn === "ease-in" || (/^cubic-bezier/.test(fn) && (([x1, y1, x2, y2]) => x1 > 0.2 && y1 < 0.1 && x2 >= 0.9 && y2 >= 0.9)(fn.match(/-?[\d.]+/g).map(Number)));
+  for (const { el } of textEls) {
+    const s = cs(el), px = parseFloat(s.fontSize), w = parseInt(s.fontWeight, 10), chars = el.textContent.trim().length;
+    texts.push({ el: label(el), px, weight: w, ratio: contrast.has(el) ? contrast.get(el) : null, large: px >= 24 || (px >= 18.66 && w >= 700),
+      exempt: !!el.closest(":disabled,[aria-disabled=true]"),
+      prose: /^(P|LI|DD|BLOCKQUOTE|TD)$/.test(el.tagName) && !inChrome(el), chars });
+    tally(fam, s.fontFamily.split(",")[0].replace(/["']/g, "").trim(), chars); tally(size, s.fontSize, chars); tally(tcol, s.color, chars);
+    // Badge/chip: short non-interactive painted label.
+    const r = el.getBoundingClientRect(), bg = rgba(s.backgroundColor);
+    const painted = (bg && bg[3] > 0.1 && ratio(bg, ancestorBg(el.parentElement || el)) > 1.1) || parseFloat(s.borderTopWidth) >= 1;
+    if (chars <= 24 && r.height <= 32 && r.width <= 200 && painted && parseFloat(s.borderTopLeftRadius) >= 2 && !interactive(el) && !/^H[1-6]$/.test(el.tagName))
+      markers.push({ el: label(el), bucket: bucket(el) });
+  }
+  for (const el of all) {
+    if (!visible(el)) continue;
+    const s = cs(el), r = el.getBoundingClientRect();
+    const b = rgba(s.backgroundColor); if (b && b[3] > 0 && r.width * r.height > vw * vh * 0.01) tally(bgc, s.backgroundColor, r.width * r.height);
+    for (const p of [s.filter, s.backdropFilter]) { const m = /blur\(([\d.]+)px\)/.exec(p || ""); if (m) blurs.push({ el: label(el), px: +m[1] }); }
+    const tp = split(s.transitionProperty), td = split(s.transitionDuration).map(ms), tf = split(s.transitionTimingFunction);
+    const big = r.width * r.height >= vw * vh * o.largeArea;
+    let longest = 0;
+    tp.forEach((p, i) => { const d = td[i % td.length]; if (!d) return; longest = Math.max(longest, d);
+      if (p === "all" && transitionAll.length < 30) transitionAll.push(label(el));
+      if (easeInFn(tf[i % tf.length]) && easeIn.length < 30) easeIn.push({ el: label(el), v: `transition ${p} ${tf[i % tf.length]}` }); });
+    if (s.animationName !== "none") {
+      const ad = split(s.animationDuration).map(ms), ai = split(s.animationIterationCount), af = split(s.animationTimingFunction);
+      split(s.animationName).forEach((n, i) => { if (ai[i % ai.length] !== "infinite") longest = Math.max(longest, ad[i % ad.length]);
+        if (easeInFn(af[i % af.length]) && easeIn.length < 30) easeIn.push({ el: label(el), v: `animation ${n} ${af[i % af.length]}` }); });
+    }
+    if (longest && durations.length < 60) durations.push({ el: label(el), ms: Math.round(longest), large: big });
+    // Card: a box with border on all sides, a shadow, or a fill different from what is behind it.
+    if (r.width >= 80 && r.height >= 40 && r.width < vw - 2 && !interactive(el) && !MEDIA.has(el.tagName)
+      && !/^(TABLE|THEAD|TBODY|TFOOT|TR|TD|TH|PRE|CODE|DIALOG|HTML|BODY)$/.test(el.tagName) && !el.closest("table,dialog,[role=dialog]") && el.textContent.trim()) {
+      const border = ["Top", "Right", "Bottom", "Left"].every((k) => parseFloat(s[`border${k}Width`]) >= 1 && s[`border${k}Style`] !== "none");
+      const fill = b && b[3] >= 0.1 && el.parentElement && ratio(blend(b, ancestorBg(el.parentElement)), ancestorBg(el.parentElement)) > 1.05;
+      if (border || s.boxShadow !== "none" || fill) cards.add(el);
+    }
+  }
+  const nestedCards = [];
+  for (const c of cards) { for (let p = c.parentElement; p; p = p.parentElement) if (cards.has(p)) { nestedCards.push({ el: label(c), outer: label(p) }); break; }
+    if (nestedCards.length >= 20) break; }
+
+  const targets = [], controls = [];
+  const inlineLink = (a) => a.tagName === "A" && [...(a.parentElement ? a.parentElement.childNodes : [])].some((n) => n !== a && n.nodeType === 3 && n.textContent.trim());
+  for (const el of document.querySelectorAll("a[href],button,input:not([type=hidden]),select,textarea,summary,[role=button],[role=link],[role=tab],[role=checkbox],[role=menuitem]")) {
+    if (!visible(el) || inlineLink(el)) continue;
+    if (/^(checkbox|radio)$/.test(el.type) && (el.closest("label") || (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)))) continue;
+    const r = el.getBoundingClientRect();
+    targets.push({ el: label(el), x: Math.round(r.left), y: Math.round(r.top + scrollY), w: Math.round(r.width), h: Math.round(r.height) });
+    if (/^(SELECT|TEXTAREA)$/.test(el.tagName) || (el.tagName === "INPUT" && !/^(checkbox|radio|submit|button|reset|range|color|file|image)$/.test(el.type)))
+      controls.push({ el: label(el), px: parseFloat(cs(el).fontSize) });
+  }
+
+  const images = [...document.images].filter((i) => i.getBoundingClientRect().width > 1).map((i) => { const r = i.getBoundingClientRect();
+    return { el: label(i), src: i.currentSrc || i.src, alt: i.getAttribute("alt"), w: Math.round(r.width), h: Math.round(r.height) }; });
+
+  // Hero: the block around the first h1, up to (not including) a parent that holds another heading.
+  let hero = null, heroEl = null;
+  const h1 = document.querySelector("h1");
+  if (h1 && visible(h1)) {
+    heroEl = h1;
+    while (heroEl.parentElement && heroEl.parentElement !== document.body && heroEl.parentElement.tagName !== "MAIN"
+      && heroEl.parentElement.querySelectorAll("h1,h2,h3,h4,h5,h6").length <= 1 && heroEl.parentElement.getBoundingClientRect().height <= vh * 2) heroEl = heroEl.parentElement;
+    const r = heroEl.getBoundingClientRect();
+    hero = { el: label(heroEl).slice(0, 30), h: Math.round(r.height), bottom: Math.round(r.bottom + scrollY) };
+  }
+  const fixedAncestor = (el) => { for (let e = el; e && e !== document.body; e = e.parentElement) if (/fixed|sticky/.test(cs(e).position)) return true; return false; };
+  const contactLinks = [...document.querySelectorAll("a[href]")].filter((a) => CONTACT.test(a.getAttribute("href").trim()) && visible(a));
+  const repeated = (a) => { for (let e = a.parentElement, i = 0; e && e.parentElement && i < 6; e = e.parentElement, i++) {
+      const sib = [...e.parentElement.children].filter((s) => s.tagName === e.tagName && s.className === e.className);
+      if (sib.length >= 3 && sib.filter((s) => contactLinks.some((c) => s.contains(c))).length >= 2) return true; } return false; };
+  const greenIn = (a) => [a, ...a.querySelectorAll("*")].some((e) => { const c = rgba(cs(e).backgroundColor); if (!c || c[3] < 0.5) return false;
+    const { h, s, l } = hsl(c); return h >= 130 && h <= 155 && s >= 0.5 && l >= 0.3 && l <= 0.65; });
+  const contacts = contactLinks.map((a) => { const placement = [];
+    if (a.closest(`${BANNER},nav,[role=navigation]`)) placement.push("header/nav");
+    if (fixedAncestor(a)) placement.push("fixed/sticky");
+    if (a.closest("dialog,[role=dialog]")) placement.push("dialog");
+    if (heroEl && heroEl.contains(a) && docTop(a) < vh) placement.push("hero");
+    if (repeated(a)) placement.push("repeated items");
+    return { el: label(a), href: a.getAttribute("href").slice(0, 60), placement, green: /whatsapp|wa\.me/i.test(a.href) && greenIn(a) }; });
+
+  const floating = [];
+  for (const el of all) { if (cs(el).position !== "fixed" || !visible(el)) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width <= 160 && r.height <= 160 && vh - r.bottom <= 48 && (r.left <= 48 || vw - r.right <= 48)
+      && (el.tagName === "IFRAME" || el.querySelector("iframe") || contactLinks.some((c) => el === c || el.contains(c))
+        || /chat|whatsapp|messenger|intercom|tawk|crisp|livechat|zendesk/i.test(`${el.id} ${el.className}`))) floating.push(label(el)); }
+
+  const blank = [...document.querySelectorAll("a[target=_blank]")].filter((a) => !/\bno(opener|referrer)\b/i.test(a.rel))
+    .map((a) => ({ el: label(a), rel: a.rel })).slice(0, 30);
+  const placeholders = [...new Set((document.body.innerText.match(o.placeholderRe) || []).map((m) => m.toLowerCase()))].slice(0, 5);
+
+  // Cookie/consent banners are not the page's actions.
+  const consent = (el) => { for (let e = el; e && e !== document.body; e = e.parentElement)
+    if (/cookie|consent|gdpr/i.test(`${e.id} ${typeof e.className === "string" ? e.className : ""} ${e.getAttribute("aria-label") || ""}`)) return true; return false; };
+  const buttons = [];
+  for (const el of document.querySelectorAll("button,[role=button],input[type=submit],input[type=button],a[href]")) {
+    if (!visible(el) || inlineLink(el) || !(el.textContent || el.value || "").trim() || consent(el)) continue;
+    const s = cs(el), bg = rgba(s.backgroundColor);
+    const filled = (bg && bg[3] >= 0.5) || s.backgroundImage.includes("gradient");
+    if (el.tagName === "A" && !(filled || (parseFloat(s.borderTopWidth) >= 1 && parseFloat(s.paddingLeft) >= 8))) continue;
+    const primary = s.backgroundImage.includes("gradient") || (bg && bg[3] >= 0.5 && ratio(bg, ancestorBg(el.parentElement || el)) >= 2);
+    buttons.push({ el: label(el), bucket: bucket(el), primary: !!primary });
+  }
+
+  let firstViewportWords = 0;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const vis = new Map();
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const t = n.textContent.trim(); if (!t || !n.parentElement) continue;
+    const p = n.parentElement; if (!vis.has(p)) vis.set(p, visible(p)); if (!vis.get(p)) continue;
+    const range = document.createRange(); range.selectNodeContents(n); const r = range.getBoundingClientRect();
+    if (r.top < vh && r.bottom > 0) firstViewportWords += t.split(/\s+/).length;
+  }
+  // Rendered lines = distinct line-box tops of the element's visible text (icons and padding ignored).
+  const lines = (el) => { const tops = new Set(), w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) { if (!n.textContent.trim()) continue; const r = document.createRange(); r.selectNodeContents(n);
+      for (const q of r.getClientRects()) if (q.width > 1 && q.height > 1) tops.add(Math.round(q.top / 4)); }
+    return Math.max(1, tops.size); };
+  const words = (el) => el.textContent.trim().split(/\s+/).filter(Boolean).length;
+  const h1s = [...document.querySelectorAll("h1")].filter(visible).map((h) => ({ el: label(h), words: words(h), lines: lines(h) }));
+  const navScope = "nav,[role=navigation],[role=tablist],aside";
+  const navLabels = [...document.querySelectorAll(`:is(${navScope}) :is(a,button,[role=tab])`)]
+    .filter((e) => visible(e) && !e.closest("footer,[role=contentinfo]") && e.textContent.trim())
+    .map((e) => ({ el: label(e), chars: e.textContent.trim().replace(/\s+/g, " ").length, lines: lines(e) })).slice(0, 80);
+  const navGroups = [...document.querySelectorAll(`:is(${navScope}) :is(ul,ol)`)].filter((l) => visible(l) && !l.closest("footer,[role=contentinfo]"))
+    .map((l) => ({ el: label(l).slice(0, 30), items: [...l.children].filter((c) => c.tagName === "LI" && visible(c)).length }));
+  const emphasis = [...document.querySelectorAll("p,li")].filter((p) => visible(p) && !inChrome(p)).map((p) => {
+    const runs = p.querySelectorAll("strong,b,mark").length, w = words(p);
+    const boldText = [...p.querySelectorAll("strong,b")].map((b) => b.textContent.trim()).join(" ");
+    return { el: label(p), runs, words: w, allBold: parseInt(cs(p).fontWeight, 10) >= 600 || (runs === 1 && boldText === p.textContent.trim()) };
+  }).filter((e) => e.runs > 0 || e.allBold).slice(0, 200);
+  const carriers = [...document.querySelectorAll("h2,h3,h4,h5,h6,li")].filter((e) => visible(e) && !inChrome(e));
+  const withIcon = carriers.filter((e) => [...e.querySelectorAll("svg,img,i,[class*=icon]")].some((i) => { const r = i.getBoundingClientRect(); return r.width > 0 && r.width <= 48 && r.height <= 48; })).length;
+  const tiles = all.filter((el) => { if (!visible(el)) return false; const r = el.getBoundingClientRect(), s = cs(el);
+    return r.width >= 20 && r.width <= 64 && Math.abs(r.width - r.height) <= 4 && parseFloat(s.borderTopLeftRadius) > 0 && colourful(s.backgroundColor)
+      && el.querySelector("svg,img") && !el.textContent.trim() && !interactive(el); }).map(label).slice(0, 20);
+  const hrefs = [...document.querySelectorAll("a[href]")].filter((a) => visible(a) && !inChrome(a) && !/^(#|javascript:)/i.test(a.getAttribute("href").trim()))
+    .map((a) => a.href);
+  const outbound = [...document.querySelectorAll("a[href]")].filter((a) => /^https?:$/.test(a.protocol) && a.host !== location.host).length;
+
+  Object.assign(f, {
+    scrollWidth: Math.max(document.documentElement.scrollWidth, innerWidth),
+    overflowClipped: [document.documentElement, document.body].some((e) => /hidden|clip/.test(cs(e).overflowX)),
+    overflowEls: all.filter((el) => { const r = el.getBoundingClientRect(); return r.right > vw + 1 && r.width > 0 && visible(el); }).slice(0, 3).map(label),
+    texts: texts.slice(0, 2000), targets: targets.slice(0, 600), controls, images: images.slice(0, 300), contacts, floating, blank, placeholders,
+    buttons, firstViewportWords, h1s, navLabels, navGroups, markers: markers.slice(0, 200), emphasis, icons: { total: carriers.length, withIcon, tiles },
+    nestedCards, hero, hrefs: hrefs.slice(0, 1000), blurs: blurs.slice(0, 30), transitionAll, easeIn, durations,
+    ref: { height: H(), title: document.title.slice(0, 80), fonts: top(fam, 4), sizes: top(size, 8), palette: { text: top(tcol, 6), background: top(bgc, 6) },
+      navLabels: navLabels.map((l) => l.chars), buttons: buttons.length, primaryButtons: buttons.filter((b) => b.primary).length,
+      outboundLinks: outbound, images: images.length, h1: h1s[0] || null },
+  });
+  return f;
+}
+
+// Under emulated prefers-reduced-motion: animations that still move or resize things.
+function pageReducedMotion(o) {
+  const MOVE = /^(transform|translate|rotate|scale|width|height|top|left|right|bottom|margin.*|inset.*|offsetPath|offsetDistance)$/;
+  const out = [];
+  for (const a of document.getAnimations()) {
+    const t = a.effect && a.effect.target; if (a.playState !== "running" || !t || !t.isConnected) continue;
+    const r = t.getBoundingClientRect(); if (r.width < o.tinyPx && r.height < o.tinyPx) continue;
+    const props = [...new Set((a.effect.getKeyframes ? a.effect.getKeyframes() : []).flatMap((k) => Object.keys(k)).filter((k) => MOVE.test(k)))];
+    if (props.length) out.push({ el: t.tagName.toLowerCase() + (t.className && typeof t.className === "string" ? "." + t.className.split(/\s+/)[0] : ""), props: props.join(", ") });
+  }
+  return out.slice(0, 20);
+}
+
+const pageOpts = () => ({ loopMaxMs: LOOP_MAX_MS, tinyPx: MOTION_TINY_PX, largeArea: LARGE_AREA_RATIO, placeholderRe: PLACEHOLDER_RE });
+// Page functions run via Runtime.evaluate as source text (our own code, not page input).
+// RegExp cannot cross JSON, so it is rebuilt in the page.
+const call = (fn, arg) => {
+  const json = JSON.stringify(arg, (k, v) => (v instanceof RegExp ? { __re: v.source, flags: v.flags } : v));
+  const helpers = `const relLum = ${relLum}; const contrastRatio = ${contrastRatio}; const blendOver = ${blendOver};`;
+  return `(() => { ${helpers} return (${fn.toString()})(JSON.parse(${JSON.stringify(json)}, (k, v) => v && v.__re ? new RegExp(v.__re, v.flags) : v)); })()`;
+};
+
+async function navigate(b, url, vp, label, assertAllowed = () => {}) {
+  await b.send("Emulation.setDeviceMetricsOverride", { width: vp.width, height: vp.height, deviceScaleFactor: 1, mobile: vp.mobile });
+  await b.send("Emulation.setTouchEmulationEnabled", vp.width < 768 ? { enabled: true, maxTouchPoints: 5 } : { enabled: false });
+  const loaded = b.once("Page.loadEventFired", 30000);
+  const docs = [], stop = b.on((m) => { if (m.method === "Network.responseReceived" && m.params.type === "Document") docs.push(m.params); });
+  try {
+    const nav = await within(b.send("Page.navigate", { url }), 30000);
+    assertAllowed();
+    if (nav && nav.errorText) throw new Error(`could not load ${url}: ${nav.errorText}`);
+    if (!(await loaded)) process.stderr.write(`dotuiux: ${label} ${vp.width}px load event not seen in 30s; measuring what rendered\n`);
+    // An error page renders fine and would pass every gate.
+    const doc = docs.find((d) => nav && d.loaderId === nav.loaderId) || docs[0];
+    if (doc && doc.response.status >= 400) throw new Error(`HTTP ${doc.response.status} for ${url}`);
+  } finally { stop(); }
+  await sleep(SETTLE_MS);
+  assertAllowed(); // a script or meta refresh may navigate during the settle
+}
+
+async function evalIn(b, expression, what) {
+  const r = await within(b.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }), EVAL_TIMEOUT_MS);
+  if (!r) throw new Error(`${what} timed out after ${EVAL_TIMEOUT_MS / 1000}s`);
+  const { result, exceptionDetails } = r;
+  if (exceptionDetails) throw new Error(`${what} failed: ${exceptionDetails.exception?.description ?? exceptionDetails.text}`);
+  return result.value;
+}
+
+// Kills the browser if the process dies mid-render (ui-ref only cleans up on SIGINT/SIGTERM).
+let closeBrowser = null;
+
+const galleryHost = (host) => GALLERY_HOST_RE.test(host.replace(/\.$/, ""));
+const GALLERY_REFUSAL = "Galleries are owner-picked mood, not teardown targets; tear down live shipped sites instead.";
+
+// Render url at each viewport; onViewport(browser, facts, vp) may take screenshots.
+// refuseHost(hostname): main-frame documents on such hosts — redirect hops included — are
+// blocked before any request leaves the browser, and the render stops with an error.
+async function render(target, { reducedMotion = false, onViewport, refuseHost } = {}) {
+  const { withBrowser } = await loadUiRef();
+  const facts = [];
+  const served = await serveFile(target), url = served.url;
+  try { await withBrowser(async (b) => {
+    closeBrowser = b.close;
+    // alert()/confirm() would block every later DevTools call: accept them.
+    b.on((m) => { if (m.method === "Page.javascriptDialogOpening") b.send("Page.handleJavaScriptDialog", { accept: true }).catch(() => {}); });
+    await b.send("Network.enable");
+    let refused = null;
+    const assertAllowed = () => { if (refused) throw new Error(`refusing gallery URL ${refused} (reached from ${target}). ${GALLERY_REFUSAL}`); };
+    if (refuseHost) {
+      const main = (await b.send("Page.getFrameTree")).frameTree.frame.id;
+      b.on((m) => {
+        if (m.method !== "Fetch.requestPaused") return;
+        const { requestId, request, frameId } = m.params;
+        let host = ""; try { host = new URL(request.url).hostname; } catch {}
+        if (frameId === main && refuseHost(host)) { refused ||= request.url; b.send("Fetch.failRequest", { requestId, errorReason: "BlockedByClient" }).catch(() => {}); }
+        else b.send("Fetch.continueRequest", { requestId }).catch(() => {});
+      });
+      await b.send("Fetch.enable", { patterns: [{ resourceType: "Document", requestStage: "Request" }] });
+    }
+    await b.send("Page.addScriptToEvaluateOnNewDocument", { source: `(${pageRecorder.toString()})()` });
+    for (const vp of VIEWPORTS) {
+      await navigate(b, url, vp, "", assertAllowed);
+      const f = await evalIn(b, call(pageCollect, { ...pageOpts(), width: vp.width, height: vp.height }), `measurement at ${vp.width}px`);
+      assertAllowed();
+      if (onViewport) await onViewport(b, f, vp);
+      facts.push(f);
+    }
+    if (reducedMotion) {
+      const vp = VIEWPORTS.find((v) => v.width === REDUCED_MOTION_WIDTH);
+      await b.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
+      await navigate(b, url, vp, "reduced-motion", assertAllowed);
+      facts.find((f) => f.width === vp.width).reducedMotion = await evalIn(b, call(pageReducedMotion, pageOpts()), "reduced-motion probe");
+      await b.send("Emulation.setEmulatedMedia", { features: [] });
+    }
+  }, { throwOnUnavailable: true }); } finally { closeBrowser = null; served.close(); }
+  return facts;
+}
+
+// ---- commands ------------------------------------------------------------------------
+function usage(exitCode = 0) {
+  const text = `Usage: dotuiux <subcommand> [options]
+
+Non-slop UI/UX workflow: brief → references → DESIGN.md → build → check.
+
+Subcommands:
+  init [dir]
+      Scaffold design/brief.md, design/refs/, and DESIGN.md (tokens + allow: overrides).
+      Never overwrites existing files.
+
+  teardown <url...> [--out design/refs]
+      Screenshots at ${VIEWPORTS.map((v) => v.width).join("/")} and facts.json per URL (fonts, sizes, palette,
+      nav label lengths, buttons, outbound links, images) into <out>/<host>/. Research input, not judgement.
+      Gallery hosts (dribbble, behance, v0, awwwards, regards.design, pinterest) are refused, also when a
+      redirect or script lands there (e.g. pin.it share links): mood is owner-picked.
+
+  check <url|file> [--design DESIGN.md] [--json] [--checkout-handoff]
+      Render at ${VIEWPORTS.map((v) => v.width).join("/")} (+ reduced motion at ${REDUCED_MOTION_WIDTH}) and run the gates.
+      FAIL = floor, harm only (exit 1). WARN = slop signal; "allow: <id> — <reason>" in DESIGN.md
+      reports it as allowed. NOT CHECKED = could not be measured on this page.
+      --checkout-handoff: only for the step where WhatsApp IS the task's action (D9). One wa.me /
+      api.whatsapp.com / whatsapp: link may sit in the hero; header/nav, fixed/sticky, floating,
+      dialog and repeated placements still FAIL, and the page still allows one contact link.
+      Floor: ${FLOOR_IDS.join(", ")}
+      Warn:  ${WARN_IDS.join(", ")}
+      blur escalates: > ${BLUR_WARN_PX}px warns, > ${BLUR_FAIL_PX}px fails (allow: blur covers only the warn band).
+
+  validate [dir]
+      Check design/brief.md and DESIGN.md exist with required headings and well-formed allow: lines.
+
+  help
+      Show this help.
+
+Browser: ui-ref.mjs from \${DOTFILES:-$HOME/dotfiles}/skills/local/design-taste/scripts; Chrome via $CHROME_BIN or auto-detect.
+Exit: 0 ok, 1 FAIL gate / invalid project, 2 usage or error, 3 no working browser.
+`;
+  (exitCode === 0 ? process.stdout : process.stderr).write(text);
+  process.exit(exitCode);
+}
+
+class UsageError extends Error {}
+
+function parse(argv, flags) {
+  const pos = [], opts = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (!a.startsWith("--")) { pos.push(a); continue; }
+    if (!(a in flags)) throw new UsageError(`unknown option: ${a}`);
+    if (flags[a]) { const v = argv[++i]; if (v == null) throw new UsageError(`${a} requires a value`); opts[a] = v; } else opts[a] = true;
+  }
+  return { pos, opts };
+}
+
+function cmdInit(argv) {
+  const { pos } = parse(argv, {});
+  if (pos.length > 1) throw new UsageError("init takes at most one directory");
+  const root = path.resolve(pos[0] || ".");
+  fs.mkdirSync(path.join(root, "design", "refs"), { recursive: true });
+  for (const [rel, body] of [["design/brief.md", BRIEF_TEMPLATE], ["DESIGN.md", DESIGN_TEMPLATE]]) {
+    const file = path.join(root, rel);
+    try { fs.writeFileSync(file, body, { flag: "wx" }); console.log(`created ${file}`); }
+    catch (e) { if (e.code !== "EEXIST") throw e; console.log(`kept    ${file} (exists)`); }
+  }
+  console.log(`ready   ${path.join(root, "design", "refs")}/\nnext: fill design/brief.md, then dotuiux teardown <3-5 urls>`);
+}
+
+function cmdValidate(argv) {
+  const { pos } = parse(argv, {});
+  const dir = path.resolve(pos[0] || ".");
+  const r = validateProject(dir);
+  for (const e of r.errors) console.error(`  ✗ ${e}`);
+  for (const w of r.warnings) console.log(`  ⚠ ${w}`);
+  console.log(r.ok ? `validate PASSED for ${dir}` : `validate FAILED for ${dir}`);
+  process.exit(r.ok ? 0 : 1);
+}
+
+function refDir(out, url) {
+  const u = new URL(url);
+  const host = u.protocol === "file:" ? path.basename(u.pathname).replace(/\.[^.]+$/, "") : u.host.replace(/\.(?=:|$)/, "").replace(/:/g, "_");
+  const slug = u.protocol === "file:" ? "" : u.pathname.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9]+/gi, "-").slice(0, 40);
+  return path.join(out, slug ? `${host}-${slug}` : host);
+}
+
+async function cmdTeardown(argv) {
+  const { pos, opts } = parse(argv, { "--out": true });
+  if (!pos.length) throw new UsageError("teardown requires at least one URL");
+  const out = path.resolve(opts["--out"] || "design/refs");
+  const urls = pos.map(toUrl);
+  const galleries = urls.filter((u) => galleryHost(new URL(u).hostname));
+  if (galleries.length) throw new UsageError(`refusing gallery URL(s): ${galleries.join(", ")}. ${GALLERY_REFUSAL}`);
+  for (const url of urls) {
+    const dir = refDir(out, url);
+    const viewports = {};
+    // The directory is created on the first capture, so a refused redirect leaves nothing behind.
+    await render(url, { refuseHost: galleryHost, onViewport: async (b, f, vp) => {
+      fs.mkdirSync(dir, { recursive: true });
+      const shot = await b.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true,
+        clip: { x: 0, y: 0, width: vp.width, height: Math.min(f.ref.height, 16000), scale: 1 } });
+      fs.writeFileSync(path.join(dir, `${vp.width}.png`), Buffer.from(shot.data, "base64"));
+      viewports[vp.width] = f.ref;
+    } });
+    fs.writeFileSync(path.join(dir, "facts.json"), JSON.stringify({ url, capturedAt: new Date().toISOString(), viewports }, null, 2) + "\n");
+    const d = viewports[1440] || Object.values(viewports)[0];
+    console.log(`${url}\n  → ${dir}/ (facts.json, ${Object.keys(viewports).map((w) => `${w}.png`).join(", ")})`);
+    console.log(`  fonts ${d.fonts.map((x) => x.v).join(" / ")} · h1 ${d.h1 ? d.h1.words + " words" : "-"} · buttons ${d.buttons} (${d.primaryButtons} primary) · outbound ${d.outboundLinks} · images ${d.images}`);
+  }
+}
+
+function report(url, results, notes, handoff = false) {
+  const L = [`dotuiux check ${url}`, `viewports ${VIEWPORTS.map((v) => v.width).join("/")} · reduced motion at ${REDUCED_MOTION_WIDTH}`];
+  if (handoff) L.push("mode: --checkout-handoff (D9): one WhatsApp link may sit in the hero; other contact rules unchanged");
+  L.push("");
+  const order = { fail: 0, warn: 1, allowed: 2, "not-checked": 3, pass: 4 };
+  for (const r of [...results].sort((a, b) => order[a.status] - order[b.status])) {
+    if (r.status === "pass") continue;
+    const tag = r.status.toUpperCase().replace("-", " ");
+    L.push(`${tag.padEnd(11)} ${r.id.padEnd(20)} ${r.desc} (${r.spec})`);
+    if (r.status === "allowed") L.push(`            allowed: ${r.reason}`);
+    if (r.unmeasuredAt) L.push(`            not measured at ${r.unmeasuredAt.join("/")}px`);
+    if (r.status === "fail" || r.status === "warn") {
+      for (const o of r.offenders.slice(0, 5)) L.push(`            ${o.widths.join("/")}px ${o.el} — ${o.v}`);
+      if (r.offenders.length > 5) L.push(`            … ${r.offenders.length - 5} more`);
+    }
+  }
+  const pass = results.filter((r) => r.status === "pass").map((r) => r.id);
+  if (pass.length) L.push(`PASS        ${pass.join(", ")}`);
+  for (const n of notes) L.push(`note: ${n}`);
+  const c = (s) => results.filter((r) => r.status === s).length;
+  L.push("", `summary: ${c("fail")} fail · ${c("warn")} warn · ${c("allowed")} allowed · ${c("not-checked")} not checked · ${c("pass")} pass`);
+  L.push("Gates measure harm and slop signals, not taste: review the live render before sign-off.");
+  return L.join("\n") + "\n";
+}
+
+async function cmdCheck(argv) {
+  const { pos, opts } = parse(argv, { "--design": true, "--json": false, "--checkout-handoff": false });
+  const handoff = !!opts["--checkout-handoff"];
+  if (pos.length !== 1) throw new UsageError("check requires exactly one URL or file");
+  const url = toUrl(pos[0]);
+  const designPath = opts["--design"] || (fs.existsSync("DESIGN.md") ? "DESIGN.md" : null);
+  if (opts["--design"] && !fs.existsSync(designPath)) throw new Error(`--design file not found: ${designPath}`);
+  const notes = [];
+  let allows = new Map();
+  if (designPath) {
+    const p = parseAllows(fs.readFileSync(designPath, "utf8"));
+    allows = p.allows;
+    for (const e of p.errors) notes.push(`${designPath} ${e} — ignored`);
+  }
+  const facts = await render(url, { reducedMotion: true });
+  for (const f of facts) if (f.overflowClipped && f.scrollWidth > f.width + 1)
+    notes.push(`overflow-x not checked at ${f.width}px: html/body overflow-x hidden/clip hides ${f.scrollWidth - f.width}px of content (mobile browsers may still pan to it); check off-canvas elements by hand`);
+  for (const f of facts) {
+    const u = (f.texts || []).filter((t) => t.ratio == null && !t.exempt);
+    if (u.length) notes.push(`contrast not measured at ${f.width}px for ${u.length} text element(s) over an image, gradient, video, overlay, or off-screen: ${u.slice(0, 3).map((t) => t.el).join(", ")}${u.length > 3 ? ", …" : ""}; check them by hand`);
+  }
+  const results = evaluate(facts, allows, { checkoutHandoff: handoff });
+  if (opts["--json"]) {
+    const c = (s) => results.filter((r) => r.status === s).length;
+    console.log(JSON.stringify({ url, design: designPath, checkoutHandoff: handoff, viewports: VIEWPORTS.map((v) => v.width), results, notes,
+      summary: { fail: c("fail"), warn: c("warn"), allowed: c("allowed"), notChecked: c("not-checked"), pass: c("pass") } }, null, 2));
+  } else process.stdout.write(report(url, results, notes, handoff));
+  process.exit(results.some((r) => r.status === "fail") ? 1 : 0);
+}
+
+async function main() {
+  const [sub, ...rest] = process.argv.slice(2);
+  if (!sub || sub === "help" || sub === "-h" || sub === "--help") usage(0);
+  try {
+    switch (sub) {
+      case "init": cmdInit(rest); break;
+      case "teardown": await cmdTeardown(rest); break;
+      case "check": await cmdCheck(rest); break;
+      case "validate": cmdValidate(rest); break;
+      default: console.error(`Unknown subcommand: ${sub}`); usage(2);
+    }
+  } catch (err) {
+    if (err.code === "BROWSER_UNAVAILABLE") { console.error(`dotuiux: ${err.message}`); process.exit(3); }
+    console.error(`dotuiux error: ${err.message}`);
+    if (err instanceof UsageError) console.error("Run: dotuiux help");
+    process.exit(2);
+  }
+}
+
+// CLI only when run directly, so tests can import the pure parts.
+if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
+  // A crash is not a FAIL verdict: exit 2, and never leave Chrome running.
+  process.on("exit", () => { if (closeBrowser) closeBrowser(); }); // its first step (kill) is synchronous
+  for (const ev of ["uncaughtException", "unhandledRejection"]) process.on(ev, async (e) => {
+    console.error(`dotuiux error: ${e && e.stack ? e.stack : e}`);
+    if (closeBrowser) { const c = closeBrowser; closeBrowser = null; await c(); }
+    process.exit(2);
+  });
+  await main();
+}

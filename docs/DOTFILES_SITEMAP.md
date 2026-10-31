@@ -113,9 +113,9 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 25 | linked from this page |
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 83 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
-| Owned skills | [`skills/local/`](../skills/local/) | 74 | linked from this page |
-| Commands | [`bin/`](../bin/) | 61 | linked from this page |
-| Command tests | [`bin/`](../bin/) | 74 | linked from this page |
+| Owned skills | [`skills/local/`](../skills/local/) | 75 | linked from this page |
+| Commands | [`bin/`](../bin/) | 62 | linked from this page |
+| Command tests | [`bin/`](../bin/) | 75 | linked from this page |
 | Device profiles | [`devices/`](../devices/) | 8 | linked from this page |
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
 | Top-level docs | [`docs/`](../docs/) | 19 | linked from this page |
@@ -311,6 +311,7 @@ Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rende
 - [`ui-validation`](../skills/local/ui-validation/SKILL.md): Browser-based verification (Playwright, responsive, dark/light).
 - [`web-perf`](../skills/local/web-perf/SKILL.md): Core Web Vitals profiling, Lighthouse optimization.
 - [`threejs`](../skills/local/threejs/SKILL.md): 3D WebGL scenes across vanilla JS, Vite, Astro, and React Three Fiber (R3F).
+- [`dotuiux`](../skills/local/dotuiux/SKILL.md): One UI/UX loop for new screens and redesigns: brief, live-site teardown, `DESIGN.md` direction, rendered checks, owner review; routes the craft to the owner skills.
 
 ### 6.3 Animation (GSAP)
 - [`gsap-core`](../skills/local/gsap-core/SKILL.md): Core tweening, easing, matchMedia.
@@ -457,6 +458,7 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`dotads-meta`](../bin/dotads-meta) (+ [`test`](../bin/dotads-meta-test)): Per-project Meta Ads campaign validator, dry-run planner, stateful deployer, and `secrets-env` bridge for Meta's official CLI; offline Indonesia market baseline and scoped economics observations. SDK account discovery, scoped inventory/Insights snapshots, immutable Markdown/CSV reports, selected media import and reference-only adoption.
 - [`_dotads-meta-provider.py`](../bin/_dotads-meta-provider.py) (+ [`SDK tests`](../bin/_dotads-meta-provider-test.py)): Private read adapter for official-SDK account inventory and Insights; bounded paging, retries and isolated transport tests.
 - [`_dotads-workspace.mjs`](../bin/_dotads-workspace.mjs) (+ [`filesystem tests`](../bin/_dotads-workspace-test.mjs)): Private account registry, immutable snapshots/reports, media import and reference-only adoption; filesystem safety and recovery checks.
+- [`dotuiux`](../bin/dotuiux) (+ [`test`](../bin/dotuiux-test)): Zero-dependency UI/UX helper on `ui-ref.mjs`: `init` scaffolds `design/brief.md` and `DESIGN.md`, `teardown` captures live references at 360/768/1440, `check` runs floor (fail) and slop-signal (warn, `allow:`-able) gates on a rendered page, `validate` checks the project files.
 - [`rea-skill-sync`](../bin/rea-skill-sync) (+ [`test`](../bin/rea-skill-sync-test)): Deterministic upstream auto-sync and drift checker synchronizing `skills/local/black-magic/` with `morluto/rea`.
 - [`skill-upstream`](../bin/skill-upstream) (+ [`test`](../bin/skill-upstream-test)): Read-only drift report for skills that declare a watch-only `.upstream` or a vendored source; never edits a skill.
 - [`pi-9router-restore`](../bin/pi-9router-restore): Restores optional Pi settings and the device-local 9Router model integration.

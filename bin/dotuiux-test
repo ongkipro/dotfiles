@@ -1,0 +1,398 @@
+#!/usr/bin/env node
+// Behavioral regression suite for bin/dotuiux.
+// Parts 1-4 need no browser. Part 5 renders local fixtures in Chrome and says
+// SKIPPED (not passed) when no working Chrome/Chromium exists.
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import http from "node:http";
+import { spawn, spawnSync } from "node:child_process";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const HERE = path.dirname(fs.realpathSync(fileURLToPath(import.meta.url)));
+const CMD = path.join(HERE, "dotuiux");
+const TMP_ROOT = process.env.DOTUIUX_TEST_TMP || os.tmpdir();
+fs.mkdirSync(TMP_ROOT, { recursive: true });
+const TMP = fs.mkdtempSync(path.join(TMP_ROOT, "dotuiux-test-"));
+process.on("exit", () => fs.rmSync(TMP, { recursive: true, force: true }));
+
+let f = 0;
+const ok = (m) => console.log(`  ✓ ${m}`);
+// Once the browser has gone away mid-run (machine under load: ui-ref's launch
+// probe timed out), later browser cases are coverage gaps, not regressions —
+// the design-tools-test convention. DESIGN_TEST_REQUIRE_FULL=1 turns them back into failures.
+let browserDown = false, partial = 0;
+const bad = (m) => {
+  if (browserDown && process.env.DESIGN_TEST_REQUIRE_FULL !== "1") { console.log(`  PARTIAL ${m} (browser unavailable)`); partial++; return; }
+  console.error(`  FAIL ${m}`); f++;
+};
+const expect = (cond, m, detail = "") => (cond ? ok(m) : bad(detail ? `${m}: ${detail}` : m));
+const run = (args, opts = {}) => spawnSync(process.execPath, [CMD, ...args], { encoding: "utf8", ...opts });
+// Async variant: the integration fixture server lives in this process and must keep serving.
+// A hung check (e.g. a page dialog) fails the case instead of hanging the suite.
+const RUN_TIMEOUT_MS = 180000;
+const runOnce = (args, opts = {}) => new Promise((res) => {
+  const p = spawn(process.execPath, [CMD, ...args], opts); let stdout = "", stderr = "";
+  const timer = setTimeout(() => { stderr += `\n[test] killed after ${RUN_TIMEOUT_MS / 1000}s`; p.kill("SIGTERM"); }, RUN_TIMEOUT_MS);
+  p.stdout.on("data", (d) => (stdout += d)); p.stderr.on("data", (d) => (stderr += d));
+  p.on("close", (status) => { clearTimeout(timer); res({ status, stdout, stderr }); });
+});
+// Exit 3 = no working browser. Retry twice (a busy machine makes the launch probe
+// time out), then mark the browser as down for the rest of the run.
+const runAsync = async (args, opts = {}) => {
+  let r;
+  for (let i = 0; i < 3; i++) { r = await runOnce(args, opts); if (r.status !== 3) return r; await new Promise((ok) => setTimeout(ok, 3000)); }
+  browserDown = true;
+  return r;
+};
+
+const m = await import(pathToFileURL(CMD).href);
+
+// 1. Surface
+console.log("1. surface");
+const help = run(["--help"]);
+expect(help.status === 0 && /^Usage: dotuiux /m.test(help.stdout), "prints usage on --help");
+for (const sub of ["init", "teardown", "check", "validate", "help"]) expect(new RegExp(`^  ${sub}\\b`, "m").test(help.stdout), `--help describes ${sub}`);
+expect(run(["bogus"]).status === 2, "rejects an unknown subcommand with exit 2");
+expect(run(["check"]).status === 2, "check without a URL is a usage error");
+const unk = run(["check", "x", "--nope"]);
+expect(unk.status === 2 && /unknown option: --nope/.test(unk.stderr), "rejects unknown options by name", unk.stderr);
+expect(m.FLOOR_IDS.length <= 15, `floor stays ≤ ~15 rules (§17): ${m.FLOOR_IDS.length}`);
+expect(new Set([...m.FLOOR_IDS, ...m.WARN_IDS]).size === m.RULES.length, "rule ids are unique");
+
+// 2. allow: lines
+console.log("2. allow-line parsing");
+{
+  const { allows, errors } = m.parseAllows([
+    "## Allow",
+    "allow: hero-height — showcase studio; the hero is the portfolio",
+    "- allow: card-in-card -- pricing table needs a nested plan box",
+    "allow: nav-label – en dash works too",
+    "allow: contrast — brand says so",
+    "allow: no-such-rule — reason",
+    "allow: emphasis",
+    "<!-- allow: blur — documented example inside a comment -->",
+    "```", "allow: duration — inside a fence", "```",
+  ].join("\n"));
+  expect(allows.get("hero-height") === "showcase studio; the hero is the portfolio", "parses em-dash form with reason");
+  expect(allows.has("card-in-card") && allows.has("nav-label"), "accepts list bullet, -- and en dash");
+  expect(!allows.has("contrast") && errors.some((e) => /line 5: "contrast" is a floor/.test(e)), "floor rule cannot be allowed", errors.join("; "));
+  expect(errors.some((e) => /line 6: unknown rule id "no-such-rule"/.test(e)), "unknown id is an error with its line");
+  expect(errors.some((e) => /line 7: malformed/.test(e)), "missing reason is malformed");
+  expect(!allows.has("blur") && !allows.has("duration") && errors.length === 3, "comments and code fences are ignored");
+}
+
+// 3. gate evaluation on fixture facts (no browser)
+console.log("3. gate evaluation");
+{
+  const status = (results, id) => results.find((r) => r.id === id).status;
+  const base = { width: 360, height: 800 };
+  const r1 = m.evaluate([{ ...base,
+    texts: [{ el: "p", px: 11, ratio: 3.2, large: false, prose: true, chars: 200 }, { el: "h2", px: 30, ratio: 3.2, large: true, prose: false, chars: 20 }],
+    scrollWidth: 400, overflowEls: ["div.wide"],
+    contacts: [{ el: "a wa", href: "https://wa.me/1", placement: ["header/nav"], green: true }, { el: "a tel", href: "tel:1", placement: [], green: false }],
+    hero: { el: "section", h: 800, bottom: 800 },
+    navLabels: [{ el: "a", chars: 30, lines: 1 }, { el: "a", chars: 5, lines: 1 }],
+    controls: [{ el: "input", px: 14 }],
+  }]);
+  expect(status(r1, "contrast") === "fail", "contrast: 3.2:1 fails body text");
+  expect(r1.find((r) => r.id === "contrast").offenders.length === 1, "contrast: 3.2:1 passes large text");
+  expect(status(r1, "tiny-text") === "fail", "tiny-text: 11px fails");
+  expect(status(r1, "overflow-x") === "fail", "overflow-x: scrollWidth past viewport fails");
+  expect(status(r1, "contact-count") === "fail" && status(r1, "contact-placement") === "fail", "contact: 2 links and header placement fail");
+  expect(status(r1, "whatsapp-green") === "warn", "whatsapp-green warns");
+  expect(status(r1, "hero-height") === "warn", "hero-height: full viewport without peek warns");
+  expect(status(r1, "nav-label") === "warn", "nav-label: 30 chars warns");
+  expect(status(r1, "input-zoom") === "fail", "input-zoom: 14px control fails at 360");
+  expect(status(r1, "body-size") === "warn", "body-size: 11px dominant prose warns");
+  expect(status(r1, "lcp-entrance") === "not-checked", "unmeasured rule is NOT CHECKED, never pass");
+
+  const r2 = m.evaluate([{ ...base, width: 1440, controls: [{ el: "input", px: 14 }], hero: { el: "s", h: 700, bottom: 760 },
+    h1s: [{ el: "h1", words: 6, lines: 4 }] }], new Map([["h1-length", "editorial display type"]]));
+  expect(status(r2, "input-zoom") === "not-checked", "input-zoom only applies at 360");
+  expect(status(r2, "hero-height") === "pass", "hero-height: next section peeks → pass");
+  const h1 = r2.find((r) => r.id === "h1-length");
+  expect(h1.status === "allowed" && h1.reason === "editorial display type", "allowed warn rule reports its reason");
+
+  const r3 = m.evaluate([{ ...base, buttons: [{ el: "a", bucket: 0, primary: true }, { el: "b", bucket: 0, primary: true }, { el: "c", bucket: 1, primary: true }],
+    markers: [0, 0, 0].map((_, i) => ({ el: `s${i}`, bucket: 0 })), hrefs: ["/a", "/a", "/a", "/b"],
+    images: [{ el: "img", src: "https://images.unsplash.com/x.jpg", alt: "hero", w: 300, h: 200 }, { el: "img", src: "/p.jpg", alt: "Our shop", w: 300, h: 200 },
+      { el: "img", src: "/p.jpg", alt: "", w: 300, h: 200 }],
+    icons: { total: 6, withIcon: 4, tiles: [] }, nestedCards: [{ el: "div", outer: "div" }],
+    loops: { items: [{ el: "div", v: "marquee" }], pauseControl: true }, lcp: { el: "img", animated: true, how: "fadein" },
+    durations: [{ el: "a", ms: 400, large: false }, { el: "section", ms: 450, large: true }], emphasis: [{ el: "p", runs: 2, words: 20, allBold: false }] }]);
+  expect(status(r3, "primary-actions") === "warn", "primary-actions: 2 primary in one screen warns");
+  expect(status(r3, "marker-count") === "warn", "marker-count: 3 badges in one screen warns");
+  expect(status(r3, "duplicate-href") === "warn", "duplicate-href: 3x same href warns");
+  expect(status(r3, "img-alt") === "fail" && r3.find((r) => r.id === "img-alt").offenders.length === 1, "img-alt: generic alt fails, empty alt (decorative) passes");
+  expect(status(r3, "stock-image") === "warn" && status(r3, "image-reuse") === "warn", "stock CDN and reused image warn");
+  expect(status(r3, "icon-overload") === "warn", "icon-overload: 4/6 carriers warns");
+  expect(status(r3, "card-in-card") === "warn", "card-in-card warns (stylistic per §17, not fail)");
+  expect(status(r3, "loop-pause") === "pass", "loop-pause: a pause control satisfies it");
+  expect(status(r3, "lcp-entrance") === "fail", "lcp-entrance: animated LCP fails");
+  expect(r3.find((r) => r.id === "duration").offenders.length === 1, "duration: 400ms small warns, 450ms large passes");
+  expect(status(r3, "emphasis") === "warn", "emphasis: two bold runs warns");
+
+  // Review 2026-10-31: an unmeasured item never becomes a pass.
+  const T = (el, ratio, extra = {}) => ({ el, px: 16, ratio, large: false, prose: true, chars: 40, ...extra });
+  const cMix = m.evaluate([{ ...base, texts: [T("p", 12), T("h1 hero", null)] }]).find((r) => r.id === "contrast");
+  expect(cMix.status === "not-checked", "contrast: one measured paragraph does not vouch for unmeasured hero text", cMix.status);
+  expect(m.evaluate([{ ...base, texts: [T("p", 3.1), T("h1 hero", null)] }]).find((r) => r.id === "contrast").status === "fail", "contrast: a measured offender still fails beside unmeasured text");
+  expect(m.evaluate([{ ...base, texts: [T("p", 12), T("button", null, { exempt: true })] }]).find((r) => r.id === "contrast").status === "pass", "contrast: disabled text is exempt, not unmeasured");
+  const cWidths = m.evaluate([{ ...base, texts: [T("p", 12)] }, { ...base, width: 768, texts: [T("p", null)] }]).find((r) => r.id === "contrast");
+  expect(cWidths.status === "not-checked" && cWidths.unmeasuredAt?.join() === "768", "a rule measured at 360 only is NOT CHECKED and names 768", JSON.stringify(cWidths));
+  const rmAll = m.evaluate([{ ...base, reducedMotion: [] }, { ...base, width: 768 }, { ...base, width: 1440 }]);
+  expect(status(rmAll, "reduced-motion") === "pass" && status(rmAll, "input-zoom") === "not-checked", "width-scoped rules judge only their own width");
+
+  const t = m.undersizedTargets([{ el: "a", x: 0, y: 0, w: 20, h: 18 }, { el: "b", x: 22, y: 0, w: 20, h: 18 }, { el: "c", x: 0, y: 200, w: 40, h: 18 }]);
+  expect(t.length === 2 && !t.some((x) => x.el === "c"), "target-size: crowded small targets fail, isolated one passes (WCAG 2.5.8 spacing)");
+
+  const merged = m.evaluate([{ ...base, placeholders: ["lorem ipsum"] }, { ...base, width: 768, placeholders: ["lorem ipsum"] }]);
+  const ph = merged.find((r) => r.id === "placeholder-content");
+  expect(ph.offenders.length === 1 && ph.offenders[0].widths.join() === "360,768", "same finding at several widths is reported once");
+}
+
+// 3a. owner decisions 2026-10-31
+console.log("3a. owner decisions (blank-noopener warn, D4 blur, D9 checkout handoff)");
+{
+  const st = (r, id) => r.find((x) => x.id === id);
+  const base = { width: 360, height: 800 };
+  expect(m.WARN_IDS.includes("blank-noopener") && !m.FLOOR_IDS.includes("blank-noopener"), "blank-noopener is a WARN id");
+  const bn = m.parseAllows("allow: blank-noopener — legacy CMS adds rel later");
+  expect(bn.errors.length === 0 && bn.allows.has("blank-noopener"), "blank-noopener can be allowed in DESIGN.md");
+  const blank = [{ el: "a ext", rel: "" }];
+  expect(st(m.evaluate([{ ...base, blank }]), "blank-noopener").status === "warn", "blank-noopener: missing rel warns, does not fail");
+  expect(st(m.evaluate([{ ...base, blank }], bn.allows), "blank-noopener").status === "allowed", "blank-noopener: allow: line reports allowed");
+
+  const blurAllow = m.parseAllows("allow: blur — frosted brand glass").allows;
+  const b9 = [{ ...base, blurs: [{ el: "div.glass", px: 9 }] }], b12 = [{ ...base, blurs: [{ el: "div.glass", px: 9 }, { el: "div.fog", px: 12 }] }];
+  expect(st(m.evaluate([{ ...base, blurs: [{ el: "d", px: 8 }] }]), "blur").status === "pass", "D4 blur: 8px passes");
+  expect(st(m.evaluate(b9), "blur").status === "warn", "D4 blur: 9px warns");
+  expect(st(m.evaluate(b9, blurAllow), "blur").status === "allowed", "D4 blur: allow: blur covers the warn band");
+  const r12 = st(m.evaluate(b12, blurAllow), "blur");
+  expect(r12.status === "fail" && r12.offenders.some((o) => o.sev === "fail" && /12px/.test(o.v)), "D4 blur: 12px fails even with allow: blur");
+
+  const wa = (placement, href = "https://wa.me/62811") => ({ el: "a wa", href, placement, green: false });
+  const ev = (contacts, handoff) => m.evaluate([{ ...base, contacts }], new Map(), { checkoutHandoff: handoff });
+  expect(st(ev([wa(["hero"])], false), "contact-placement").status === "fail", "D9: WhatsApp in hero fails without --checkout-handoff");
+  expect(st(ev([wa(["hero"])], true), "contact-placement").status === "pass", "D9: WhatsApp in hero passes with --checkout-handoff");
+  expect(st(ev([wa(["hero"], "whatsapp://send?phone=1")], true), "contact-placement").status === "pass", "D9: whatsapp: scheme counts as the handoff link");
+  for (const p of ["header/nav", "fixed/sticky", "dialog", "repeated items"])
+    expect(st(ev([wa([p, "hero"])], true), "contact-placement").status === "fail", `D9: ${p} still fails with --checkout-handoff`);
+  expect(st(ev([wa(["hero"], "tel:+62811")], true), "contact-placement").status === "fail", "D9: a tel: link in the hero still fails (exception is WhatsApp only)");
+  expect(st(ev([wa(["hero"]), wa([], "https://wa.me/62812")], true), "contact-count").status === "fail", "D9: two WhatsApp links still fail contact-count");
+  const flag = run(["check", "x", "--checkout-handoff", "--nope"]);
+  expect(flag.status === 2 && /unknown option: --nope/.test(flag.stderr) && /--checkout-handoff/.test(run(["help"]).stdout), "--checkout-handoff is a known, documented flag");
+}
+
+// 3b. contrast math (shared with the page)
+console.log("3b. contrast math");
+{
+  const W = [255, 255, 255], K = [0, 0, 0];
+  expect(Math.abs(m.contrastRatio(K, W) - 21) < 1e-9 && m.contrastRatio(W, W) === 1, "black/white = 21:1, same colour = 1:1");
+  expect(Math.abs(m.contrastRatio([118, 118, 118], W) - 4.54) < 0.01, "#767676 on white ≈ 4.54:1 (known WCAG value)");
+  const teal = m.contrastRatio([0, 134, 118], W);
+  expect(teal > 4.49 && teal < 4.5, `rgb(0,134,118) on white is just under 4.5 (${teal.toFixed(4)})`);
+  const r = m.evaluate([{ width: 360, height: 800, texts: [{ el: "p teal", px: 16, ratio: teal, large: false, prose: true, chars: 40 }] }]);
+  const c = r.find((x) => x.id === "contrast");
+  expect(c.status === "fail" && c.offenders[0].v === "4.49:1", "4.495:1 fails (compared raw, shown rounded down)", JSON.stringify(c.offenders));
+  expect(m.blendOver([0, 0, 0, 0.5], W).map(Math.round).join() === "128,128,128,1", "50% black over white blends to mid grey");
+}
+
+// 4. init / validate (CLI, no browser)
+console.log("4. init + validate");
+{
+  const ws = path.join(TMP, "proj");
+  const i1 = run(["init", ws]);
+  expect(i1.status === 0 && fs.existsSync(path.join(ws, "design/brief.md")) && fs.existsSync(path.join(ws, "DESIGN.md")) && fs.statSync(path.join(ws, "design/refs")).isDirectory(),
+    "init scaffolds design/brief.md, design/refs/, DESIGN.md", i1.stderr);
+  fs.writeFileSync(path.join(ws, "DESIGN.md"), fs.readFileSync(path.join(ws, "DESIGN.md"), "utf8") + "\nallow: hero-height — showcase\n");
+  const before = fs.readFileSync(path.join(ws, "DESIGN.md"), "utf8");
+  run(["init", ws]);
+  expect(fs.readFileSync(path.join(ws, "DESIGN.md"), "utf8") === before, "init never overwrites existing files");
+  const v1 = run(["validate", ws]);
+  expect(v1.status === 0 && /still empty/.test(v1.stdout), "validate passes a fresh scaffold and warns about empty brief sections", v1.stdout + v1.stderr);
+  fs.appendFileSync(path.join(ws, "DESIGN.md"), "allow: contrast — no\nallow: blur\n");
+  const v2 = run(["validate", ws]);
+  expect(v2.status === 1 && /floor/.test(v2.stderr) && /malformed/.test(v2.stderr), "validate rejects floor overrides and malformed allow lines", v2.stderr);
+  fs.writeFileSync(path.join(ws, "design/brief.md"), "# brief\n## Niche\nbakery\n");
+  const v3 = run(["validate", ws]);
+  expect(v3.status === 1 && /missing heading "## Audience"/.test(v3.stderr), "validate reports missing brief headings");
+  expect(run(["validate", path.join(TMP, "empty")]).status === 1, "validate fails when files are missing");
+  const g = run(["teardown", "https://dribbble.com/shots/1", "https://www.pinterest.co.uk/pin/1"]);
+  expect(g.status === 2 && /owner-picked mood/.test(g.stderr), "teardown refuses gallery hosts before opening a browser");
+  for (const u of ["https://DRIBBBLE.COM/shots/1", "https://www.behance.net/x", "https://cdn.dribbble.com/a.png", "https://dribbble.com./shots/1", "https://www.awwwards.com./sites/x", "https://regards.design/x", "https://regards.design./x"]) {
+    const r = run(["teardown", u, "--out", path.join(TMP, "never")]);
+    expect(r.status === 2 && /owner-picked mood/.test(r.stderr) && !fs.existsSync(path.join(TMP, "never")), `gallery refusal holds for ${u}`, r.stderr);
+  }
+
+  // A crash is exit 2 (never 1 = FAIL verdict) and still closes the browser. Stub browser layer.
+  const stub = path.join(TMP, "stubdf", "skills", "local", "design-taste", "scripts");
+  fs.mkdirSync(stub, { recursive: true });
+  fs.writeFileSync(path.join(stub, "ui-ref.mjs"), `import fs from "node:fs";
+export async function withBrowser(fn) {
+  const b = { close: async () => fs.writeFileSync(process.env.STUB_MARK, "closed"), on: () => () => {}, once: async () => null,
+    send: (m) => { if (m === "Network.enable") setTimeout(() => { throw new Error("stub boom"); }, 0); return new Promise(() => {}); } };
+  return fn(b);
+}\n`);
+  fs.writeFileSync(path.join(TMP, "p.html"), "<title>p</title>");
+  const mark = path.join(TMP, "stub-mark");
+  const crash = run(["check", path.join(TMP, "p.html")], { env: { ...process.env, DOTFILES: path.join(TMP, "stubdf"), STUB_MARK: mark }, timeout: 30000 });
+  expect(crash.status === 2 && /stub boom/.test(crash.stderr) && fs.existsSync(mark), "uncaught error exits 2 and closes the browser", `status ${crash.status} ${crash.stderr.slice(0, 200)}`);
+}
+
+// 5. browser integration against local fixtures
+console.log("5. browser integration");
+const site = path.join(TMP, "site");
+fs.mkdirSync(site);
+fs.writeFileSync(path.join(site, "clean.html"), `<!doctype html><html lang=en><head><meta name=viewport content="width=device-width,initial-scale=1"><title>Bakery</title><style>
+body{margin:0;font:16px/1.5 system-ui;color:#1a1a1a;background:#fff}
+header,main,footer{padding:16px 20px;max-width:960px;margin:0 auto}
+nav a{display:inline-block;padding:12px 8px;color:#1a1a1a}
+.hero{padding:48px 0} h1{font-size:40px;line-height:1.1;margin:0 0 12px}
+.btn{display:inline-block;padding:12px 20px;background:#1a1a1a;color:#fff;border-radius:6px;text-decoration:none;transition:background-color .2s ease-out}
+section{padding:32px 0}
+</style></head><body>
+<header><nav><a href="/">Home</a> <a href="/menu">Menu</a> <a href="/visit">Visit</a></nav></header>
+<main><div class="hero"><h1>Fresh bread every morning</h1><p>Sourdough and pastries baked on Jalan Kemang since 2009.</p><a class="btn" href="/menu">See the menu</a></div>
+<section><h2>Today</h2><p>Country loaf, rye, and cardamom buns. Order at the counter or online for pickup.</p></section>
+<section><h2>Visit</h2><p>Open daily 7:00–15:00. Questions after your visit: <a href="https://wa.me/62811">message us on WhatsApp</a>.</p></section></main>
+<footer><p>Jalan Kemang 1, Jakarta · 0811 0000 000</p></footer></body></html>`);
+fs.writeFileSync(path.join(site, "sloppy.html"), `<!doctype html><html><head><meta name=viewport content="width=device-width"><title>Slop</title><style>
+body{margin:0;font:14px system-ui}
+.hero{height:100vh;padding:24px;box-sizing:border-box;background:#f3f3f3}
+.btn{display:inline-block;padding:12px;background:#4f46e5;color:#fff;transition:all .6s}
+.wa{background:#25D366;color:#fff;padding:12px}
+.tiny{font-size:10px} .wide{width:900px;height:8px;background:#eee}
+.float{position:fixed;right:16px;bottom:16px}
+</style></head><body><header><nav><a class="wa" href="https://wa.me/1">WhatsApp us now</a></nav></header>
+<section class="hero"><h1>Hello</h1><p class="tiny">Lorem ipsum dolor sit amet.</p><a class="btn" href="/a">Buy</a> <a class="btn" href="/b">Try</a></section>
+<div class="wide"></div><a class="float wa" href="https://wa.me/1">WA</a></body></html>`);
+fs.writeFileSync(path.join(site, "js-dribbble.html"), `<!doctype html><title>x</title><p>Moving on</p><script>setTimeout(() => location.href = "https://dribbble.com/shots/1", 200)</script>`);
+const server = http.createServer((req, res) => {
+  // Gallery requests are blocked inside the browser, so this never needs the network.
+  if (req.url === "/go-pinterest") { res.writeHead(302, { location: "https://www.pinterest.com/pin/1" }); return res.end(); }
+  const p = path.join(site, path.basename(new URL(req.url, "http://x").pathname));
+  // A styled 404 body renders like a real page; Chrome only rejects empty error bodies.
+  if (!fs.existsSync(p)) { res.writeHead(404, { "content-type": "text/html" }); return res.end("<!doctype html><title>Not found</title><h1>Page not found</h1>"); }
+  res.writeHead(200, { "content-type": "text/html" }); res.end(fs.readFileSync(p));
+}).listen(0, "127.0.0.1");
+await new Promise((r) => server.once("listening", r));
+const base = `http://127.0.0.1:${server.address().port}`;
+try {
+  const sloppy = await runAsync(["check", `${base}/sloppy.html`, "--json"], { cwd: TMP });
+  if (sloppy.status === 3) {
+    console.log(`  SKIPPED browser integration: no working Chrome/Chromium (${sloppy.stderr.trim()}). Set CHROME_BIN to cover it.`);
+    expect(process.env.DESIGN_TEST_REQUIRE_FULL !== "1", "browser integration ran (DESIGN_TEST_REQUIRE_FULL=1)", "skipped");
+  } else {
+    let j = null; try { j = JSON.parse(sloppy.stdout); } catch {}
+    const st = (id) => j && j.results.find((r) => r.id === id)?.status;
+    expect(sloppy.status === 1 && j, "check exits 1 on a sloppy page with JSON output", sloppy.stderr.slice(0, 300));
+    for (const id of ["tiny-text", "overflow-x", "contact-count", "contact-placement", "floating-widget", "placeholder-content"]) expect(st(id) === "fail", `sloppy: ${id} fails`, st(id));
+    for (const id of ["hero-height", "whatsapp-green", "primary-actions", "transition-all"]) expect(st(id) === "warn", `sloppy: ${id} warns`, st(id));
+
+    const design = path.join(TMP, "DESIGN-allow.md");
+    fs.writeFileSync(design, "## Tokens\n## Allow\nallow: hero-height — fixture showcase\n");
+    const clean = await runAsync(["check", `${base}/clean.html`, "--design", design]);
+    expect(clean.status === 0 && /0 fail/.test(clean.stdout), "clean page: no FAIL, exit 0", clean.stdout.split("\n").filter((l) => /^(FAIL|WARN)|^\s+\d/.test(l)).join(" | ") + clean.stderr);
+
+    const fileRun = await runAsync(["check", path.join(site, "sloppy.html"), "--design", design]);
+    expect(fileRun.status === 1 && /ALLOWED\s+hero-height/.test(fileRun.stdout) && /allowed: fixture showcase/.test(fileRun.stdout),
+      "local file path works and DESIGN.md allow: reports the warn as allowed", fileRun.stderr.slice(0, 300));
+
+    const out = path.join(TMP, "refs");
+    const td = await runAsync(["teardown", `${base}/clean.html`, "--out", out]);
+    const dir = path.join(out, `127.0.0.1_${server.address().port}-clean-html`);
+    let facts = null; try { facts = JSON.parse(fs.readFileSync(path.join(dir, "facts.json"), "utf8")); } catch {}
+    expect(td.status === 0 && facts && ["360", "768", "1440"].every((w) => fs.existsSync(path.join(dir, `${w}.png`)) && facts.viewports[w]),
+      "teardown writes 360/768/1440 PNGs and facts.json", td.stderr.slice(0, 300));
+    const v = facts?.viewports?.["1440"];
+    expect(v && v.fonts.length && v.palette.text.length && v.navLabels.length === 3 && v.buttons >= 1 && v.outboundLinks === 1 && typeof v.images === "number",
+      "teardown facts include fonts, palette, nav labels, buttons, outbound links, images", JSON.stringify(v)?.slice(0, 200));
+
+    // Review regressions (2026-10-31). Fixtures live in this suite's temp dir, checked as local files
+    // so dotuiux's own loopback server is exercised.
+    const rv = path.join(TMP, "review"); fs.mkdirSync(rv);
+    const page = (head, body) => `<!doctype html><html lang=en><head><meta name=viewport content="width=device-width,initial-scale=1"><title>T</title>`
+      + `<style>body{margin:0;font:16px/1.5 system-ui;color:#1a1a1a;background:#fff}main{padding:16px 20px;max-width:960px;margin:0 auto}h1{font-size:40px;margin:0 0 12px}</style>${head}</head><body>${body}</body></html>`;
+    // Should pass: section <header> contact link (1), pseudo-element band (3), background-tint animation on the
+    // LCP's ancestor (5), bad %-escape (7) and unreadable (8) image URLs, .env fetch (12), alert() (9).
+    fs.writeFileSync(path.join(rv, "ok.html"), page(
+      `<style>.band{position:relative;padding:40px 0;color:#fff;isolation:isolate}.band::before{content:"";position:absolute;inset:0;background:#111;z-index:-1}
+       @keyframes tint{from{background-color:#fff}to{background-color:#f6f1e8}} .hero{animation:tint .2s ease-out forwards;padding:24px}</style>`,
+      `<main><section class="hero"><h1>Fresh bread every morning, baked on Jalan Kemang since 2009</h1><p>Sourdough and pastries.</p>
+       <img src="/100%.png" alt="Loaf on the counter" width=200 height=100><img src="locked.png" alt="Rye loaf" width=200 height=100></section>
+       <section class="band"><h2>Open daily</h2><p>Seven to three, every day of the week.</p></section>
+       <section><header><h2>Contact</h2><p>Questions after your visit: <a href="mailto:hi@example.org">email the bakery</a>.</p></header></section></main>
+       <script>fetch('.env').then(r => r.ok ? r.text() : null).then(t => { if (!t) return; const p = document.createElement('p'); p.style.fontSize = '10px'; p.textContent = 'LEAKED ' + t; document.body.append(p); });
+       addEventListener('load', () => setTimeout(() => alert('Welcome!'), 100));</script>`));
+    fs.writeFileSync(path.join(rv, ".env"), "SECRET=fixture-value\n");
+    fs.writeFileSync(path.join(rv, "locked.png"), "x"); fs.chmodSync(path.join(rv, "locked.png"), 0o000);
+    // 2: no h2, contact link far from the h1 inside one wrapper.
+    fs.writeFileSync(path.join(rv, "no-h2.html"), page(`<style>.s{padding:24px 0}</style>`,
+      `<main><div class="wrap"><h1>Fresh bread every morning</h1><p>Sourdough and pastries.</p><div class=s><h3>Today</h3><p>Country loaf and rye.</p></div>
+       <div class=s><h3>Visit</h3><p>Questions after your visit: <a href="https://wa.me/62811">message us on WhatsApp</a>.</p></div></div></main>`));
+    // 6: off-canvas drawer behind html/body overflow-x hidden and clip.
+    for (const v of ["hidden", "clip"]) fs.writeFileSync(path.join(rv, `overflow-${v}.html`), page(
+      `<style>html,body{overflow-x:${v}}.drawer{position:absolute;top:0;right:0;width:280px;height:100vh;background:#fff;transform:translateX(100%)}</style>`,
+      `<main><h1>Fresh bread</h1><p>Sourdough and pastries.</p></main><div class="drawer"><nav><a href="/" style="display:block;padding:12px">Home</a></nav></div>`));
+    // 4: dark color-scheme canvas with no explicit colours.
+    fs.writeFileSync(path.join(rv, "dark.html"), `<!doctype html><html lang=en><head><meta name=viewport content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>T</title>
+      <style>body{margin:0;font:16px/1.5 system-ui}main{padding:16px 20px}</style></head><body><main><h1>Fresh bread</h1><p>Sourdough since 2009.</p></main></body></html>`);
+    // Should fail: 4.495:1 text (11), a link saying "stop" is not a pause control (14); control char in a label (15).
+    fs.writeFileSync(path.join(rv, "fail.html"), page(`<style>@keyframes slide{to{transform:translateX(40px)}}.marquee{width:200px;height:40px;background:#eee;animation:slide 8s linear infinite}</style>`,
+      `<header><nav><a href="/" style="display:inline-block;padding:12px">Our wonderful seasonal\u0007bakery range</a></nav></header>
+       <main><h1>Fresh bread</h1><p style="color:rgb(0,134,118)">Teal text that is almost but not quite AA.</p><div class="marquee"></div><p><a href="/quit" style="display:inline-block;padding:12px">Stop smoking</a></p></main>`));
+
+    // D9: WhatsApp checkout handoff in the hero; blur 12px band; blank target without rel.
+    fs.writeFileSync(path.join(rv, "handoff.html"), page(`<style>.glass{backdrop-filter:blur(12px);padding:16px}</style>`,
+      `<main><section><h1>Confirm your order</h1><p>Send the order summary to our team on WhatsApp to finish.</p>
+       <a href="https://wa.me/62811?text=order-1001" style="display:inline-block;padding:12px 20px;border:1px solid #1a1a1a;color:#1a1a1a">Send order on WhatsApp</a></section>
+       <section><h2>Shipping</h2><div class="glass"><p>Delivered in 2–3 days.</p></div><p><a href="https://example.org/terms" target="_blank">Terms</a></p></section></main>`));
+    const rs = (r, id) => r.j?.results.find((x) => x.id === id);
+    const J = async (file, extra = []) => { const r = await runAsync(["check", path.join(rv, file), "--json", ...extra]); let j = null; try { j = JSON.parse(r.stdout); } catch {} return { ...r, j }; };
+    // Sequential on purpose: parallel Chrome launches made the probe time out on a busy machine.
+    const okR = await J("ok.html"), noH2 = await J("no-h2.html"), ovH = await J("overflow-hidden.html"), ovC = await J("overflow-clip.html");
+    const dark = await J("dark.html"), failR = await J("fail.html"), http404 = await runAsync(["check", `${base}/missing.html`]);
+    const hoOff = await J("handoff.html"), hoOn = await runAsync(["check", path.join(rv, "handoff.html"), "--checkout-handoff"]);
+    // Review 2026-10-31 (independent reviewer): low-contrast hero text over a background image beside normal text.
+    fs.writeFileSync(path.join(rv, "photo-hero.html"), page(`<style>.hero{background:#fafafa url("data:image/gif;base64,R0lGODlhAQABAAAAACw=") repeat;padding:24px}.hero h1{color:#eee}</style>`,
+      `<main><section class="hero"><h1>Fresh bread</h1></section><p>Sourdough and pastries baked daily.</p></main>`));
+    const photo = await J("photo-hero.html");
+    expect(photo.status === 0 && rs(photo, "contrast")?.status === "not-checked" && photo.j.notes.some((n) => /contrast not measured/.test(n) && /Fresh bread/.test(n)),
+      "review: text over a hero image is NOT CHECKED and named, never a silent pass", JSON.stringify([rs(photo, "contrast"), photo.j?.notes]));
+    // Review 2026-10-31: a redirect (pin.it-style share link) or script hop must not reach a gallery.
+    const outG = path.join(TMP, "gallery-refs");
+    for (const [p, how] of [["/go-pinterest", "HTTP redirect"], ["/js-dribbble.html", "script navigation"]]) {
+      const r = await runAsync(["teardown", `${base}${p}`, "--out", outG]);
+      expect(r.status === 2 && /owner-picked mood/.test(r.stderr) && /refusing gallery URL/.test(r.stderr) && !fs.existsSync(outG),
+        `teardown refuses a gallery reached by ${how}, before any capture`, `status ${r.status} ${r.stderr.slice(0, 300)}`);
+    }
+    expect(okR.status === 0 && okR.j?.summary.fail === 0, "review ok-page: no FAIL and no hang (alert accepted, bad/unreadable image URLs served as errors)",
+      `status ${okR.status} ${okR.stderr.slice(0, 200)} ${JSON.stringify(okR.j?.results.filter((x) => x.status === "fail").map((x) => [x.id, x.offenders[0]]))}`);
+    expect(rs(okR, "contact-placement")?.status === "pass", "1: contact link in a section <header> is not page chrome");
+    expect(rs(okR, "contrast")?.status === "not-checked" && !rs(okR, "contrast").offenders.some((o) => /Open daily|Seven to three/.test(o.el))
+      && okR.j.notes.some((n) => /contrast not measured/.test(n) && /Open daily/.test(n)),
+      "3: text on a ::before band is not measured against white, and is named instead of passed", JSON.stringify([rs(okR, "contrast"), okR.j?.notes]));
+    expect(rs(okR, "lcp-entrance")?.status === "pass", "5: background-colour animation on the LCP's ancestor is not an entrance");
+    expect(rs(okR, "tiny-text")?.status === "pass" && !okR.stdout.includes("fixture-value"), "12: loopback server does not serve .env to page scripts");
+    expect(noH2.status === 0 && rs(noH2, "contact-placement")?.status === "pass", "2: without h2 the hero stays around the h1", JSON.stringify(rs(noH2, "contact-placement")?.offenders));
+    for (const [r, v] of [[ovH, "hidden"], [ovC, "clip"]])
+      expect(r.status === 0 && rs(r, "overflow-x")?.status === "not-checked" && r.j.notes.some((n) => /overflow-x not checked/.test(n)), `6: overflow-x:${v} on html/body is NOT CHECKED with a note`, r.stderr.slice(0, 200));
+    expect(dark.status === 0 && rs(dark, "contrast")?.status === "not-checked", "4: dark color-scheme canvas is not assumed white", JSON.stringify(rs(dark, "contrast")));
+    expect(rs(failR, "contrast")?.status === "fail" && rs(failR, "contrast").offenders.some((o) => o.v === "4.49:1"), "11: 4.495:1 text fails in the browser", JSON.stringify(rs(failR, "contrast")?.offenders));
+    expect(rs(failR, "loop-pause")?.status === "fail", "14: a 'Stop smoking' link is not a pause control");
+    expect(rs(failR, "nav-label")?.status === "warn" && !/\\u0007/.test(failR.stdout), "15: control characters are stripped from labels");
+    expect(http404.status === 2 && /HTTP 404/.test(http404.stderr), "10: an HTTP 404 page is an error (exit 2), not a pass", http404.stderr.slice(0, 200));
+    expect(rs(hoOff, "contact-placement")?.status === "fail" && hoOff.j.checkoutHandoff === false, "D9 browser: hero WhatsApp fails without the flag");
+    expect(rs(hoOff, "blank-noopener")?.status === "warn", "browser: target=_blank without rel is a WARN");
+    expect(rs(hoOff, "blur")?.status === "fail", "D4 browser: 12px backdrop blur fails");
+    expect(/mode: --checkout-handoff \(D9\)/.test(hoOn.stdout) && !/^FAIL\s+contact-placement/m.test(hoOn.stdout) && /^PASS.*contact-placement/m.test(hoOn.stdout),
+      "D9 browser: --checkout-handoff passes hero WhatsApp and names the mode in the header", hoOn.stdout.split("\n").filter((l) => /^(FAIL|mode)/.test(l)).join(" | "));
+  }
+} finally { server.close(); }
+
+if (f === 0 && partial) { console.log(`dotuiux-test: PASS — PARTIAL coverage: ${partial} browser case(s) not run (browser unavailable)`); process.exit(0); }
+if (f === 0) { console.log("dotuiux-test: PASS"); process.exit(0); }
+console.error(`dotuiux-test: ${f} case(s) failed`);
+process.exit(1);
