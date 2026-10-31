@@ -17,7 +17,8 @@ or vendor-specific markup:
 2. Record the retrieval date and the exact user-agent token.
 3. Separate documented behavior from local editorial or analytics heuristics.
 4. Never promise citation, ranking, traffic lift, or attribution recovery. Vendor eligibility is not a guarantee of selection.
-5. Treat `llms.txt`, custom `data-*` attributes, passage length, and answer-box styling as optional publishing conventions unless a target vendor's current official documentation says otherwise.
+5. Treat `llms.txt`, custom `data-*` attributes, passage length, and answer-box styling as optional publishing conventions unless a target vendor's current official documentation says otherwise. Google says `llms.txt`, "chunking" and inauthentic mentions are not needed and neither help nor hurt (guide 2026-05-15, note 2026-06-15); Semrush found no correlation with AI visibility and Ahrefs found 97% of files across 137 000 domains never requested (both industry studies, not vendor documentation).
+6. Third-party "AEO/GEO" tools have no access to Google's ranking data and cannot guarantee results (Google, 2026-06-05); cite their numbers as studies, never as Google facts.
 
 Primary starting points:
 
@@ -69,6 +70,7 @@ while claiming crawl eligibility. Check the current
 [participation-setting documentation](https://support.google.com/webmasters/answer/16908024)
 before advising; changing an account setting requires explicit live authorization.
 No mandatory llms.txt, special schema, or content-chunk size is required by Google.
+Google's preferred-sources badge (Top Stories, AI Mode, AI Overviews) works for domain or subdomain sites only and in AI features requires inclusion in the Search generative AI setting. Its 2026 guide names AI agents (agentic experiences) as an area to watch, with no markup requirement yet. Click-through studies (Ahrefs: 58% lower position-1 CTR with AI Overviews, December 2025; Seer: recovery to 2.4% by February 2026) are directional third-party samples.
 
 Dedicated Search/Discover generative-AI reports now provide documented
 impressions and dimensions, while data remains included in overall reporting.
@@ -79,3 +81,8 @@ can reflect insufficient impressions or participation state, not measured zero.
 These reports do not let a client-side google.* referrer identify an individual
 AI visit. No property access, activation, ranking, or conversion result is implied
 by reading the documentation. Other vendors retain their own evidence dates.
+
+## Pair with
+
+- `seo-website-builder` owns classic SEO, robots.txt, sitemap and the executable checks (`scripts/check-page.mjs`, `scripts/robots.mjs`); this skill only adds answer-engine crawler policy and measurement.
+- `automated-traffic-pipeline` for publish-time automation; `copywriting`/`writer` for page copy.

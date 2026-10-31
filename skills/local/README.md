@@ -96,10 +96,10 @@ resolves, so an entry here is a mention, not a gated reference.
 
 | Skill | | What it owns | Routes to |
 |---|---|---|---|
-| [`seo-website-builder`](seo-website-builder/SKILL.md) |  | Classic SEO for building and auditing sites: technical SEO, IA, metadata, JSON-LD, sitemap/robots, canonical/noindex, internal links, Search Console, pSEO templates and indexation. | `ai-traffic-os` |
-| [`ai-traffic-os`](ai-traffic-os/SKILL.md) |  | AEO/GEO: AI traffic architecture for search and answer engines — crawler controls, answer content, structured media, AI referral measurement. | — |
-| [`automated-traffic-pipeline`](automated-traffic-pipeline/SKILL.md) |  | Automated traffic pipeline: pSEO generation, auto-indexing, RSS/visual flywheels, freshness crons, closed-loop attribution. | — |
-| [`content`](content/SKILL.md) |  | Multi-asset content pipeline: articles, listings, social posts, landing copy — templates, voice, batching/calendar, image+alt, cross-posting. | `copywriting`, `prd-taskbreaker`, `seo-website-builder`, `writer` |
+| [`seo-website-builder`](seo-website-builder/SKILL.md) |  | Classic SEO for building and auditing sites: technical SEO, IA, metadata, JSON-LD, sitemap/robots, canonical/noindex, internal links, Search Console, pSEO templates and indexation. | `ai-traffic-os`, `automated-traffic-pipeline`, `copywriting`, `writer` |
+| [`ai-traffic-os`](ai-traffic-os/SKILL.md) |  | AEO/GEO: AI traffic architecture for search and answer engines — crawler controls, answer content, structured media, AI referral measurement. | `automated-traffic-pipeline`, `copywriting`, `seo-website-builder`, `writer` |
+| [`automated-traffic-pipeline`](automated-traffic-pipeline/SKILL.md) |  | Automated traffic pipeline: pSEO generation, auto-indexing, RSS/visual flywheels, freshness crons, closed-loop attribution. | `ai-traffic-os`, `copywriting`, `seo-website-builder`, `writer` |
+| [`content`](content/SKILL.md) |  | Multi-asset content pipeline: articles, listings, social posts, landing copy — templates, voice, batching/calendar, image+alt, cross-posting. | `ai-traffic-os`, `copywriting`, `prd-taskbreaker`, `seo-website-builder`, `writer` |
 | [`copywriting`](copywriting/SKILL.md) |  | Copy rules and templates: char limits, no-CTA (Meta ads: soft CTA), brand voice, headlines, meta/SEO, ALT, social and Meta ad text. | `content`, `prd-taskbreaker`, `seo-website-builder`, `writer` |
 | [`writer`](writer/SKILL.md) |  | Write, rewrite, localize, or clarify text and two-way dialogue while preserving meaning: informal Indonesian intent, locale-native register, English artifacts, humanization. | `content`, `copywriting`, `seo-website-builder` |
 | [`cms-content`](cms-content/SKILL.md) |  | Choose and implement the client content-editing layer: Astro collections, git CMS (Keystatic, Decap, Tina), Payload, Shopify metaobjects; roles, previews, media, migration, handover. | `seo-website-builder`, `vps-deploy` |
@@ -147,4 +147,4 @@ skills absent from every routing table `ai-policy-lint` resolves, is larger.
 A leaf specialist belongs here; a skill named in prose without a code span
 does not.
 
-`automated-traffic-pipeline`, `gsap-frameworks`, `gsap-performance`, `gsap-plugins`, `gsap-react`, `gsap-timeline`, `gsap-utils`
+`gsap-frameworks`, `gsap-performance`, `gsap-plugins`, `gsap-react`, `gsap-timeline`, `gsap-utils`

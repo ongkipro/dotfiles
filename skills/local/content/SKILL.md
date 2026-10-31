@@ -52,6 +52,11 @@ scale. Pairs with `copywriting` (rules + templates) and
      - Broken links (4xx/5xx responses) or broken local/CDN image references.
      - Unapproved CTA in body or meta (unless explicitly a landing page or buy-box).
      - Third-party brand names present without user opt-in.
+     - AI-assisted text not human-verified: every fact, number, title, meta description,
+       structured-data value and ALT that a model wrote or touched is checked against
+       a source before publish (Google: outputs "may contain inaccuracies"; the
+       review applies to metadata too). Scaled pages with no added value are
+       scaled-content abuse; do not batch-generate them.
    - **P1 Ship Blockers (Must fix before final publish):**
      - Intent invisible in first 5 seconds (missing Key Takeaways / TL;DR summary at the top).
      - H2 contract broken (subtopic promise not delivered in opening 100 words of the section).
@@ -69,7 +74,9 @@ scale. Pairs with `copywriting` (rules + templates) and
      image brief and state that no asset was generated; do not install a provider.
    - Filename: `<handle-or-slug>-N.<ext>`. Write ALT text with `copywriting`'s canonical pattern and current limit.
    - If image is AI-generated: keep the original, store the public URL (R2/Cloudinary)
-     before publishing.
+     before publishing. For ecommerce, Merchant Center requires IPTC
+     `DigitalSourceType` `TrainedAlgorithmicMedia` metadata on AI images, and AI-made
+     product titles/descriptions are declared separately as AI-generated.
 8. **Publish** — apply per channel:
    - **Blog**: write Markdown/Astro/MDX; run `seo-website-builder` reference
      `PAGE_COMPLETENESS_FORMULA.md` before deploy.
@@ -109,13 +116,9 @@ scale. Pairs with `copywriting` (rules + templates) and
 4. Schedule via the project's social tool (or note publish times).
 
 ### Product batch (large catalog)
-1. Fan out to subagents, ~15-20 products each.
-2. Each subagent loads the current rules directly from `copywriting`; never paste a second copy of its limits into the batch prompt or this skill.
-3. Validate before apply.
-
-> The `shopify-listing` skill that used to own this workflow (and its
-> purpose-built subagent prompt) was deactivated 2026-08-10. Restore with
-> `git revert` + `skill-update` before running a Shopify catalog batch.
+No owned skill runs a Shopify catalog batch today (the `shopify-listing` skill was
+deactivated 2026-08-10). Apply `copywriting`'s product rules per item, validate before
+any write, and treat a bulk Shopify mutation as pilot-first and owner-approved.
 
 ## Output shape (final hand-off)
 
@@ -151,7 +154,8 @@ scale. Pairs with `copywriting` (rules + templates) and
 
 - `copywriting` — exact copy rules + headline/meta/body templates.
 - `writer` — preservation, anti-hallucination, humanization, and scoring.
-- `seo-website-builder` — for technical SEO QA + sitemap/IndexNow.
+- `seo-website-builder` — technical SEO QA, sitemap, IndexNow, and `scripts/check-page.mjs` for the built page.
+- `ai-traffic-os` — only when the piece targets answer engines (crawler policy, AI referral measurement).
 - Available runtime image-generation and web search/fetch tools — for visual
   assets and current source evidence; unavailable tools remain an explicit gap.
 - `prd-taskbreaker` — to break a content sprint into numbered tasks.

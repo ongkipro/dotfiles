@@ -72,9 +72,9 @@ and treat the numbers below as the house QA gate.
 ## Title patterns
 
 ### Product (e-commerce)
-- `[Primary Keyword] – [Theme/Feature] [Audience]`
-- Example: `3D Wooden Landmark Puzzle – Tower Bridge, Big Ben & Eiffel Tower`
-- Example: `Adjustable Laptop Stand – Aluminum, Foldable for Travel`
+- `[Primary Keyword] - [Theme/Feature] [Audience]` (separator ` - ` or `:`, never `|` or an en/em dash, per the owner SEO invariant)
+- Example (64 chars): `3D Wooden Landmark Puzzle - Tower Bridge, Big Ben & Eiffel Tower`
+- Example (55 chars): `Adjustable Laptop Stand - Aluminum, Foldable for Travel`
 
 ### Blog article (SEO)
 - `[Primary Keyword]: [Specific Promise or Hook]`
@@ -90,13 +90,15 @@ and treat the numbers below as the house QA gate.
 ## Meta patterns
 
 ### Meta title
-`<Primary Keyword> – <Short Value Prop>` (no store suffix)
+`<Primary Keyword> <Short Value Prop> - <Brand>` = 55–70 chars including the brand suffix (the home page may omit it).
+
+Example (63 chars): `3D Wooden Landmark Puzzle for Adults, No-Glue Kit - Toko Contoh`
 
 ### Meta description
-`<1-line benefit hook>. <Supporting detail>. <Soft CTA-free close>` (≤155 chars)
+`<1-line benefit hook>. <Supporting detail>. <Soft CTA-free close>` (120–155 chars, ends with a full stop)
 
-Example:
-> `Build iconic landmarks from real wood — a relaxing no-glue 3D puzzle and a great gift for adults.`
+Example (136 chars):
+> `Build iconic landmarks from real wood with a relaxing no-glue 3D puzzle, a thoughtful gift for adults who enjoy slow, hands-on projects.`
 
 ## Body patterns
 

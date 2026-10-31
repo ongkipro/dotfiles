@@ -40,6 +40,60 @@ Validation:
 - ...
 ```
 
+## 2026-10-31 — Google Search 2026 ranking, spam-policy and documentation refresh
+
+Source type: Official (Google Search Central docs, blog and changelog, retrieved
+2026-10-31) plus clearly labelled industry timing sources for rollout dates.
+
+Sources:
+- https://developers.google.com/search/updates (documentation changelog)
+- https://developers.google.com/search/docs/appearance/core-updates
+- https://developers.google.com/search/blog/2026/04/back-button-hijacking
+- https://developers.google.com/search/blog/2026/08/update-site-reputation-policy
+- https://developers.google.com/search/docs/fundamentals/using-gen-ai-content
+- https://developers.google.com/search/docs/fundamentals/third-party-seo
+- https://developers.google.com/search/docs/appearance/structured-data/review-snippet
+- https://developers.google.com/search/docs/appearance/favicon-in-search
+
+Verified (official):
+- Smaller, unannounced core updates exist (documented 2025-12-09); improvements can
+  lift without waiting for a named core update.
+- Back-button hijacking is an explicit malicious-practices violation, announced
+  2026-04-13 and enforced from 2026-06-15; manual action or automated demotion; may
+  originate in libraries or advertising code.
+- FAQ rich results stopped appearing 2026-05-07; documentation removed 2026-06-15.
+- 2026-05-15 generative-AI guide: ignore llms.txt, chunking and inauthentic mentions;
+  spam policies apply to generative-AI responses. 2026-06-03: generative-AI
+  performance reports (impressions, pages, countries, devices, dates).
+- 2026-06-05: third-party SEO tools and advice have no access to Google's internal
+  ranking data and cannot guarantee results.
+- 2026-07-24: review snippets prohibit fake or undisclosed incentivized reviews;
+  self-controlled `LocalBusiness`/`Organization` reviews are ineligible for stars.
+- 2026-08-28: site-reputation manual actions apply differently inside and outside the
+  EEA from 2026-08-30.
+- 2026-10-01: AI-content guide revised (Quality Rater Guidelines 4.6.5 and 4.6.6);
+  AI-written title, description, structured data and alt must be fact-checked;
+  Merchant Center requires IPTC `TrainedAlgorithmicMedia` on AI images.
+- Favicon formats Google Search supports: BMP, GIF, ICO, PNG, JPEG, PPM, TIFF (page
+  updated 2026-10-27); SVG and WebP are not listed.
+
+Rollouts (dates from Google's Search Status Dashboard as reported by Search Engine
+Journal; durations are not Google statements): December 2025 core 18 days; February
+2026 Discover core 2026-02-05 to 02-27; March spam 2026-03-24 to 03-25; March core
+2026-03-27 to 04-08; May core 2026-05-21 to 06-02; June spam 2026-06-24 to 06-26;
+August spam 2026-08-18 to 08-21; September spam 2026-09-24 to 10-08. Google did not
+publish what the March or May core updates changed.
+
+Not verified: any impact on a given site. Third-party studies (Ahrefs 58% lower
+position-1 CTR with AI Overviews, Seer CTR recovery, SISTRIX sector changes) are
+directional samples with their own scope, not Google data. SEOmonitor reported that
+rank-tracker volatility late September was partly data-quality noise; prefer Search
+Console impressions and clicks.
+
+Action: `IMPLEMENTATION_SPEC.md` and `scripts/` added; `SKILL.md` gained the
+noindex/robots/canonical, back-button and review-snippet rules. No Search Console
+property, production site or account was inspected or changed.
+
 ## 2026-10-26 — Google reporting, eligibility, and diagnostic correction
 
 Source type: Official; pages retrieved 2026-10-26.

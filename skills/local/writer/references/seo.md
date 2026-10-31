@@ -21,3 +21,4 @@ Protect the primary query, search intent, entities, headings, internal-link targ
 - Do not add "EEAT language" without evidence.
 - Do not sacrifice readability to exact-match repetition.
 - Preserve canonical product names, locations, and commercial terms.
+- AI-written or AI-edited titles, descriptions, structured data and alt text are checked against a source before publish; Google says model output may contain inaccuracies and the review covers metadata. Scaled pages without added value are scaled-content abuse (`content`, `seo-website-builder`).

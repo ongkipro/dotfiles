@@ -1,6 +1,6 @@
 # Automated Indexing Pipeline (Instant Push Engine)
 
-Waiting for search engine crawlers to discover new or updated pages naturally can take weeks. An Automated Indexing Pipeline pushes new URLs to search engines **within seconds of publication**.
+The IndexNow protocol, participant list and sitemap rules are owned by `seo-website-builder` (`INDEXNOW_PLAYBOOK.md`, `SITEMAP_SUBMISSION.md`); this file only wires them to a publish event and must not restate them. Waiting for search engine crawlers to discover new or updated pages naturally can take weeks. An Automated Indexing Pipeline pushes new URLs to search engines **within seconds of publication**.
 
 ---
 
@@ -15,7 +15,7 @@ PAGE CREATED / UPDATED / DELETED
       ┌───────┴────────────────────────┐
       ▼                                ▼
 IndexNow API                  Update sitemap.xml
-(Bing, Yandex, Seznam, Naver,  (+ optional llms.txt)
+(Bing, Yandex, Seznam, Naver,  (real lastmod only)
  Yep, Internet Archive, Amazon)        │
                                        ▼
                              Google Search discovery via

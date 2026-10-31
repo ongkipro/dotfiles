@@ -8,7 +8,9 @@ description: >-
 
 Build, diagnose, and repair SEO using the site's actual purpose, implementation,
 and evidence. Keep classic SEO here; AEO/GEO belongs to `ai-traffic-os`, content
-copy and publishing automation retain their existing owners.
+copy and publishing automation retain their existing owners
+(`automated-traffic-pipeline`; `copywriting` and `writer`). This skill also owns
+IndexNow, sitemap and robots rules, and the executable checks in `scripts/`.
 
 ## Choose the smallest complete task
 
@@ -39,6 +41,7 @@ engine/stack reference.
 | --- | --- |
 | Cross-domain overview or unfamiliar SEO terms | [Compact References](references/COMPACT_SKILL_REFERENCES.md) |
 | Substantial audit, new site, business/intent/page map | [Playbook](references/PLAYBOOK.md) |
+| Markup and files: head, OG, JSON-LD, robots, sitemap, canonical, framework traps | [Implementation Spec](references/IMPLEMENTATION_SPEC.md), then run `node scripts/check-page.mjs <built.html> <canonical>` |
 | Astro/static implementation | [Astro](references/ASTRO_SEO_PLAYBOOK.md) |
 | Next.js implementation | [Next.js](references/NEXTJS_SEO_PLAYBOOK.md) |
 | Shopify products, collections, themes, feeds | [Shopify](references/SHOPIFY_SEO_PLAYBOOK.md) |
@@ -127,6 +130,9 @@ recheck task-relevant changing facts rather than treating this as an auto-update
 - Keep important content and links discoverable in the accepted stack. Google
   can render JavaScript; a framework label alone is not evidence of failure.
   Use the installed framework's version-matched documentation before API edits.
+- A `noindex` URL must stay crawlable, stay out of the sitemap, and not be
+  `Disallow`ed. Set `rel=canonical` in the initial HTML and never rewrite it by
+  script; never set a canonical in a shared layout.
 - Sitemap entries should match intended canonical/indexable URLs; do not invent
   lastmod changes. Use appropriate server-side 301 **or 308** for permanent
   moves; preserve the project's routing and redirect intent.
@@ -135,7 +141,12 @@ recheck task-relevant changing facts rather than treating this as an auto-update
   standalone gallery row does not prove retirement. Book Actions remains a
   restricted-provider feature; FAQ rich results are retired. Recheck before
   recommending either rather than relying on this dated summary.
-- For core-update diagnosis, confirm rollout completion and Google's documented
+- Back-button hijacking is an explicit spam-policy violation (enforced since
+  2026-06-15) and often comes from a library or ad script: audit third-party code.
+  A `LocalBusiness`/`Organization` that controls its own reviews is ineligible for
+  review stars; fake or undisclosed incentivized reviews are prohibited.
+- Google ships unannounced smaller core updates, so content improvements can lift
+  without waiting for a named one. For core-update diagnosis, confirm rollout completion and Google's documented
   assessment interval before comparing appropriate periods. Segment page/query
   families and alternative causes; small fluctuations do not justify rewriting
   an already-performing site.
@@ -167,3 +178,4 @@ authorized technical investigation or a bounded repair.
 sources, upstream revisions/licenses/adoption decisions, executed checks, and
 observed trials. Run the offline raw-artifact oracle only when validating this
 skill; it does not certify browser behavior, indexing, or ranking.
+`node scripts/seo.test.mjs` proves the bundled checkers can fail (zero dependencies).

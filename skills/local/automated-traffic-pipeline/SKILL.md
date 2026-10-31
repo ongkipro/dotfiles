@@ -35,13 +35,19 @@ An architecture for building self-sustaining, scalable, and automated traffic sy
 
 ---
 
+## Pair with
+
+- `seo-website-builder` owns IndexNow, sitemap and robots rules, `scripts/sitemap.mjs` and `scripts/check-page.mjs`; load its `IMPLEMENTATION_SPEC.md` before generating pages or sitemaps.
+- `ai-traffic-os` owns answer-engine crawler policy; `copywriting`/`writer` own page copy.
+- Google's spam policies (scaled content abuse, doorway abuse, SpamBrain updates in March, June, August and September 2026) are the limit on this pipeline; a pipeline that cannot show information gain per page should not run.
+
 ## Reference Manifest
 
 | Task | Read |
 | --- | --- |
 | Programmatic SEO (pSEO) data modeling, Astro/Next.js dynamic routes, and anti-thin-content rules | [Programmatic SEO Engine](references/PSEO_ENGINE.md) |
-| Automated Indexing Pipeline (IndexNow API + Google Search Console Webhook) | [Auto Indexing Pipeline](references/AUTO_INDEXING_PIPELINE.md) |
-| Cron-based content freshness maintenance & scheduled sitemap/llms.txt regeneration | [Freshness & Maintenance Engine](references/FRESHNESS_ENGINE.md) |
+| Automated Indexing Pipeline (publish-event hook, IndexNow API, accurate sitemap; protocol owned by `seo-website-builder`) | [Auto Indexing Pipeline](references/AUTO_INDEXING_PIPELINE.md) |
+| Cron-based content freshness maintenance & scheduled sitemap regeneration (`llms.txt` is optional and has no documented effect on Google) | [Freshness & Maintenance Engine](references/FRESHNESS_ENGINE.md) |
 | Automated Pin asset generation & RSS syndication flywheel | [Multi-Channel Distribution](references/MULTI_CHANNEL_DISTRIBUTION.md) |
 
 ---

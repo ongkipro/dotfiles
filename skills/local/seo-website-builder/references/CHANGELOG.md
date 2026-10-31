@@ -2,6 +2,23 @@
 
 This file records the retired `/home/fantastico/Documents/SEO` source pack and subsequent changes to the active skill.
 
+## 2026-10-31 — Google 2026 refresh and executable checks
+
+- Added `references/IMPLEMENTATION_SPEC.md` (page elements, Open Graph, structured
+  data, robots, sitemap, canonical, hreflang, JavaScript, framework traps) with every
+  limit tied to a Google page read 2026-10-31; owner conventions stay marked `[owner]`.
+- Added zero-dependency `scripts/{jsonld,sitemap,robots,check-page}.mjs` and
+  `scripts/seo.test.mjs`. The test proves each checker can fail (negative fixtures)
+  and reproduces Google's documented robots.txt matching examples.
+- Added 2026 entries to `ALGORITHM_UPDATE_LOG.md`; added noindex/robots/canonical,
+  back-button hijacking, review-snippet and unannounced-core-update rules to `SKILL.md`.
+- Framework traps found by building Astro 7.4.4 and Next.js 16.4.3: layout-level
+  canonical inheritance, shallow metadata merge, `title.template` scope, `.html`
+  canonical under `build.format: 'file'`, noindex URLs left in the sitemap.
+- Favicon: Google Search supports BMP, GIF, ICO, PNG, JPEG, PPM, TIFF, not SVG or WebP.
+- Made this skill the single owner of IndexNow, sitemap and robots; ignored
+  `__pycache__`. Evidence: `~/Documents/work/research/seo-audit-2026-10/`.
+
 ## 2026-10-26 — Evidence-led adaptive SEO
 
 - Replaced unconditional two-reference loading and full-audit hard stops with

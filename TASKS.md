@@ -8,17 +8,17 @@ Done 2026-10-30: TASK-159 → [archive](docs/archive/DOTFILES_TASKS_2026-10-30_M
 
 ## Pending
 
-### TASK-161: OMP back to upstream defaults
-- **Requirement:** REQ-OMP-DEFAULT-RESET (owner decision 2026-10-31: OMP runs on upstream defaults; only the 9Router provider is connected; models are picked with `/model`).
+### TASK-162: SEO skill family refresh (Google 2026, executable checks)
+- **Requirement:** REQ-SEO-SKILLS-2026 (owner request 2026-10-31; evidence in `~/Documents/work/research/seo-audit-2026-10/`).
 - **Risk Level:** R2.
-- **Allowed Paths:** `config/omp/config.yml`, `config/omp/README.md`, `config/omp/STATUS.md`, `bin/omp-effective-routing-test`, `config/ai/project-memory/omp-pi-9router-runbook.md`, `config/ai/project-memory/MEMORY.md`, `config/ai/memory/skills.md`, `docs/DOTFILES_AI_ENGINEERING_CONTROL_PLANE.md`, `docs/DOTFILES_SITEMAP.md`, `docs/archive/TASKS-160-161-completed.md`, `TASKS.md`.
-- **Canonical Contract Owners:** OMP reference (`config/omp/`); project memory `omp-pi-9router-runbook`.
-- **Accepted Invariants:** the tracked reference sets no key beyond upstream defaults; no credential, URL or account identity in tracked files; dotfiles still does not install or wrap OMP; Pi and 9Router unchanged.
-- **Regression Checks:** `omp-effective-routing-test`, `omp-routing-test`, `omp-runtime-report`, `ai-memory-check`, `ai-memory-route-test`, `ai-policy-lint`, `ai-doctor --self-test`.
-- **Runtime Evidence:** live `~/.omp/agent` has no `config.yml`; five-line `models.yml`; fallback-off roundtrips on Sonnet 5.5, Opus 5.5 and Sol 6.1 and 6/6 parallel (runbook).
-- **Reopen Conditions:** a 9Router model fails under the default profile that the retired overrides handled, or an upgrade changes upstream defaults.
-- **Non-Scope:** moving `~/.omp` off `/data`, deleting `~/.omp/wt`, gateway changes, commit/push.
-- **Escalation Conditions:** a default setting proves unsafe on a device.
+- **Allowed Paths:** `skills/local/{seo-website-builder,ai-traffic-os,automated-traffic-pipeline}/**`, `skills/local/content/SKILL.md`, `skills/local/copywriting/SKILL.md`, `skills/local/writer/references/seo.md`, `skills/local/README.md`, `docs/DOTFILES_SITEMAP.md`, `TASKS.md`.
+- **Canonical Contract Owners:** `seo-website-builder` owns classic SEO, IndexNow, sitemap, robots; owner conventions stay in `~/.config/ai/memory/preferences.md`.
+- **Accepted Invariants:** owner metadata rules unchanged and never presented as Google rules; each changed external fact cites a primary source read 2026-10-31; no new dependency; SKILL.md under 12 288 bytes; scripts zero-dependency with a test that can fail.
+- **Regression Checks:** `skill-check`, `skill-map-test`, `system-map-test`, `ai-policy-lint`, `ai-memory-check`, `ai-doctor --self-test`, `node skills/local/seo-website-builder/scripts/seo.test.mjs`.
+- **Runtime Evidence:** Astro 7.4.4 and Next.js 16.4.3 builds checked by `check-page.mjs` (audit report Part 6).
+- **Reopen Conditions:** a cited Google page changes the fact; a skill exceeds its ceiling.
+- **Non-Scope:** Shopify or live-site changes, Search Console actions, other skills, commit/push.
+- **Escalation Conditions:** a change would alter an owner convention or need a dependency.
 
 ### TASK-156: Memory precision
 - **Requirement:** REQ-MEMORY-PRECISION.
