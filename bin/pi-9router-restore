@@ -100,8 +100,12 @@ if [ "$OS" = "Linux" ] \
   # Prefer mise's major-version alias (node/24) so a patch upgrade keeps the unit valid.
   node_bin="$(command -v node)"
   node_version="$(node -p 'process.versions.node')"
-  node_alias="${node_bin/\/node\/$node_version\//\/node\/${node_version%%.*}\/}"
-  [ -x "$node_alias" ] && node_bin="$node_alias"
+  # dirname/basename, not ${var/pat/rep}: macOS bash 3.2 mishandles escaped slashes there.
+  node_version_dir="$(dirname "$(dirname "$node_bin")")"
+  if [ "$(basename "$node_version_dir")" = "$node_version" ]; then
+    node_alias="$(dirname "$node_version_dir")/${node_version%%.*}/bin/node"
+    [ -x "$node_alias" ] && node_bin="$node_alias"
+  fi
   # A boot-time run can reach the gateway before it listens ("fetch failed"), so
   # failures retry; the hourly timer picks up accounts enabled later in 9Router.
   # After= orders against a local gateway when one exists without starting it.
