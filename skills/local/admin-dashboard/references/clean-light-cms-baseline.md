@@ -117,7 +117,7 @@ non-text marks; do not use them for status.
 
 - **Theme scope:** this baseline is light-only. Light text polarity reads better for most people (Piepenbrock et al., *Ergonomics* 2013; NN/g 2020-02-02), but NN/g recommends offering a choice — record dark mode as a stated deferral, not a ban, and add it as a designed second theme when operators ask.
 
-- **Contrast:** Ensure all text passes WCAG AA (4.5:1). `#525252` on `#ffffff` passes (4.54:1).
+- **Contrast:** Ensure all text passes WCAG AA (4.5:1). `#525252` on `#ffffff` passes (7.81:1).
 - **Focus Rings:** All interactive elements must have a distinct, visible focus ring (`outline: 2px solid var(--accent)`). Never set `outline: none` without a fallback.
 - **Semantic HTML:** Use `<nav>`, `<main>`, `<header>`, `<table>`, `<th>`, `<button type="button">`.
 - **Keyboard Navigation:** Forms and data tables must be fully traversable via Tab/Shift+Tab and Enter/Space.

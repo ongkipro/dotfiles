@@ -63,7 +63,7 @@ Primitives (Input, SelectTrigger, InputGroup, Button default) own one control he
 Set the height once in the primitives, strip per-call overrides, introduce the shared toolbar components, remove page-level max-width wrappers, and add a guard test that scans JSX for banned classes on the primitives, hand-built searches, oversized buttons and centred page widths. The JSX scanner must track {} depth and quotes: a regex stops at the > of an arrow function in onChange and silently skips every attribute after it.
 
 ### Regression check
-Guard test fails on a planted violation; a browser pass measures every control height in toolbars, zero overlapping control boxes, and one content edge across all admin pages at 1280/1440/1920px.
+Guard test fails on a planted violation; a browser pass measures every control height in toolbars, zero overlapping control boxes, and one content edge across all admin pages at 390/1366/1536px (`admin-dashboard` admin-visual-contract.md).
 
 > Promoted from a reviewed local candidate on 2026-09-25.
 

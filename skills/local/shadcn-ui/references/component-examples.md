@@ -294,7 +294,7 @@ presentational cards, headings, or tables merely because their source is TSX.
 
 ## Theme Toggle
 
-Policy lives in `design-taste` §4.2.1: **light is the canonical theme**, dark
+Policy lives in `design-taste` §2 (Theme): **light is the canonical theme**, dark
 ships only when it is actually designed, and the control is **three-state —
 Light / Dark / System** — because a two-state switch cannot express "follow my
 OS" and strands anyone whose system already auto-schedules.

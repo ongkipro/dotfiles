@@ -239,8 +239,9 @@ scrolling tested.
 
 Prefer native CSS before a library (`native-first`). Support status and dates
 are in [motion-platform-support.md](motion-platform-support.md); re-verify
-quarterly. As of 2026-10, Firefox has no scroll-driven animations and no
-cross-document View Transitions, and `interpolate-size` is Chromium-only.
+quarterly. As of 2026-10, Firefox has scroll-driven animations only from 159
+(2026-10-27) and no cross-document View Transitions, and `interpolate-size` is
+Chromium-only.
 
 | Need | Native option | Guard |
 | --- | --- | --- |
@@ -291,8 +292,8 @@ rather than guessing; Motion+ (paid) components need the owner's consent.
 
 Critical (block delivery):
 - No essential content hidden until a script or animation runs; the page works
-  with JS off and in Firefox stable (no scroll-driven animations, no
-  cross-document View Transitions).
+  with JS off, in Firefox stable (no cross-document View Transitions), and in
+  Firefox before 159 (no scroll-driven animations).
 - Reduced-motion path checked with `prefers-reduced-motion: reduce` emulated:
   no translate, scale, or parallax remains and state feedback is still visible.
   Nothing flashes more than three times per second; anything moving over 5s

@@ -28,7 +28,7 @@ When working in a Hydrogen `2026.10+` repository, run `npx hydrogen skills check
    - `hydrogen-oxygen`: Oxygen worker entry (`server.ts`), `caches.open('hydrogen')`, `executionContext.waitUntil`, `react-router.config.ts` (`buildDirectory: 'dist'`, `future.v8_middleware: true`), `shopify hydrogen deploy`.
 2. **Cart & Checkout**:
    - `hydrogen-cart-ui`: `createCartServerHandlers`, `createCartComponents`, `CartProvider`, `useCart`, `useCartForm`, `/api/cart` single-concern POST contract, optimistic line handling (`optimistic:` prefix), variant swapping via `merchandiseId`.
-   - `hydrogen-cart-drawer`: Native `<dialog closedby="any">` + `.showModal()`, CSS `:has(dialog[open])` scroll lock, pre-hydration `<a href="/cart">` trigger, auto-open on `pending.lines.size > 0`, `window.Shopify.actions.openCart.configure()`.
+   - `hydrogen-cart-drawer`: Native `<dialog closedby="any">` + `.showModal()` (no Safari `closedby`: add the backdrop-click fallback in `hydrogen-2026-10-architecture.md`), CSS `:has(dialog[open])` scroll lock, pre-hydration `<a href="/cart">` trigger, auto-open on `pending.lines.size > 0`, `window.Shopify.actions.openCart.configure()`.
    - `hydrogen-cart-metafields`: Reading cart metafields via `createCartServerHandlers({ fragment })`, writing via an app-owned POST endpoint (`metafieldsSet` / `cartMetafieldDelete`) + `useCartActions().refresh()`.
    - `hydrogen-shop-pay`: `<ShopPayButton>` / `<hydrogen-shop-pay-button>` declarative shadow root custom element.
 3. **Catalog, Variants, Collections & Search**:

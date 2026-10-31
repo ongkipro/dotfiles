@@ -106,6 +106,7 @@ Store hooks (`useCart`, `useProductForm`, `useCollection`, `usePredictiveSearch`
 - **Optimistic lines & pending controls**: Only disable quantity/remove buttons when `line.id.startsWith('optimistic:')`. Disabling on `state.pending.lines.has(line.id)` locks controls on every click and breaks rapid quantity steppers.
 - **Cart Drawer (`<dialog>`)**:
   - Use native `<dialog closedby="any">` opened via `.showModal()` (never the `open` HTML attribute, which skips top-layer backdrop and `Escape` handling) and lock background scroll in CSS (`html:has(dialog[open]) { overflow: hidden; }`).
+  - `closedby` has no Safari support (`design-taste` motion-platform-support.md), so keep light dismiss working without it: `.showModal()` already closes on `Escape`; add a backdrop click handler on the `<dialog>` (`onClick={(e) => { if (e.target === e.currentTarget) e.currentTarget.close() }}`) with the drawer content in one inner wrapper that fills the dialog, so only backdrop clicks hit the `<dialog>` itself.
   - Render the header cart trigger as `<a href="/cart">` until hydration completes (`useHydrated()`), then swap to `<button type="button">`.
   - Auto-open the drawer when `useCart((s) => s.pending.lines.size > 0)` transitions from `false` to `true` (not when `totalQuantity` changes, and not from `useFetchers()`).
   - Register `window.Shopify.actions.openCart.configure({ handle: () => openDrawer() })` so third-party apps and agents can open the drawer.
@@ -190,7 +191,7 @@ Configure Hydrogen's structured logger once at server startup via `configureLogg
    - Hydrate `<CartProvider initialData={initialCart}>` from `await cartHandlers.get({ storefrontClient, request, sessionManager, requestContext })` in the root loader (`{ cart, errors? }` envelope) and render all cart UI from `useCart((s) => s.data)`. Never pass a deferred root `cart` promise to `<Await>`.
    - `/api/cart` rejects combined JSON payloads: send only one mutation kind per POST (`lines`, `discountCodes`, `attributes`, or `note`).
    - Disable line item controls **only** when `line.id.startsWith('optimistic:')`, never for all `state.pending.lines`.
-   - Build the Cart Drawer with native `<dialog closedby="any">` + `.showModal()`, CSS `html:has(dialog[open]) { overflow: hidden }`, pre-hydration `<a href="/cart">` trigger, auto-open on `state.pending.lines.size > 0`, and `window.Shopify.actions.openCart.configure()`.
+   - Build the Cart Drawer with native `<dialog closedby="any">` + `.showModal()` plus a backdrop-click close fallback (no Safari `closedby`), CSS `html:has(dialog[open]) { overflow: hidden }`, pre-hydration `<a href="/cart">` trigger, auto-open on `state.pending.lines.size > 0`, and `window.Shopify.actions.openCart.configure()`.
    - Read cart metafields via `createCartServerHandlers({ fragment })`; write them through an app-owned `createShopifyRouteHandler('/api/cart/metafields', 'POST', ...)` route that checks `getCartId(request)` without creating a cart, runs `cartMetafieldsSet` / `cartMetafieldDelete`, and calls `await useCartActions().refresh()`.
 3. **Symmetric Variant Picker (`encodedVariantExistence` / `encodedVariantAvailability`)**:
    - Hide the entire option picker when `product.options.every((o) => o.values.length <= 1)`.

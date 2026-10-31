@@ -1,7 +1,9 @@
 # Motion Platform Support (dated)
 
 Browser support for native motion features, checked 2026-10-08 against the
-webstatus.dev API (Baseline) and MDN browser-compat-data. Re-verify quarterly
+webstatus.dev API (Baseline) and MDN browser-compat-data; the scroll-driven
+animations row re-checked 2026-10-31 (MDN BCD `css/properties/animation-timeline`:
+Firefox 159, released 2026-10-27; webstatus.dev still reports Limited). Re-verify quarterly
 or before relying on a feature: Interop 2026 includes scroll-driven
 animations, cross-document View Transitions, anchor positioning, and
 dialog/popover work, so the Firefox and Safari gaps below are expected to
@@ -16,7 +18,7 @@ must work without them. Decisions and craft rules: [motion-craft.md](motion-craf
 | `view-transition-name: match-element` | 137 | 18.4 | 144 | not tracked | yes |
 | Cross-document `@view-transition { navigation: auto }` | 126 | 18.2 | — | Limited (Interop 2026) | yes; Firefox gets a normal navigation |
 | Element-scoped View Transitions | 147 | — | — | Limited, single engine | no for client work |
-| Scroll-driven animations (`animation-timeline: scroll()/view()`) | 115 | 26 | — (flag/preview) | Limited (Interop 2026) | only in `@supports`, content visible by default |
+| Scroll-driven animations (`animation-timeline: scroll()/view()`) | 115 | 26 | 159 | Limited (Interop 2026) | only in `@supports`, content visible by default |
 | Scroll-triggered animations (`animation-trigger`) | 146 | — | — | single engine | no |
 | `linear()` easing | 113 | 17.2 | 112 | Widely, 2026-06-11 | yes |
 | `@starting-style` | 117 | 17.5 | 129 | Newly, 2024-08-06 | yes |

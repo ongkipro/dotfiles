@@ -1,24 +1,13 @@
 # Tasks — dotfiles
 
-Updated: 2026-10-30
+Updated: 2026-10-31
 
 Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
 
 Done 2026-10-30: TASK-159 → [archive](docs/archive/DOTFILES_TASKS_2026-10-30_META_COPY.md); TASK-091 superseded by TASK-160 → [record](docs/archive/TASKS-091-superseded.md); TASK-160 and TASK-161 → [archive](docs/archive/TASKS-160-161-completed.md).
+Done 2026-10-31: TASK-162, TASK-163 → [archive](docs/archive/TASKS-162-166-completed.md).
 
 ## Pending
-
-### TASK-162: SEO skill family refresh (Google 2026, executable checks)
-- **Requirement:** REQ-SEO-SKILLS-2026 (owner request 2026-10-31; evidence in `~/Documents/work/research/seo-audit-2026-10/`).
-- **Risk Level:** R2.
-- **Allowed Paths:** `skills/local/{seo-website-builder,ai-traffic-os,automated-traffic-pipeline}/**`, `skills/local/content/SKILL.md`, `skills/local/copywriting/SKILL.md`, `skills/local/writer/references/seo.md`, `skills/local/README.md`, `docs/DOTFILES_SITEMAP.md`, `TASKS.md`.
-- **Canonical Contract Owners:** `seo-website-builder` owns classic SEO, IndexNow, sitemap, robots; owner conventions stay in `~/.config/ai/memory/preferences.md`.
-- **Accepted Invariants:** owner metadata rules unchanged and never presented as Google rules; each changed external fact cites a primary source read 2026-10-31; no new dependency; SKILL.md under 12 288 bytes; scripts zero-dependency with a test that can fail.
-- **Regression Checks:** `skill-check`, `skill-map-test`, `system-map-test`, `ai-policy-lint`, `ai-memory-check`, `ai-doctor --self-test`, `node skills/local/seo-website-builder/scripts/seo.test.mjs`.
-- **Runtime Evidence:** Astro 7.4.4 and Next.js 16.4.3 builds checked by `check-page.mjs` (audit report Part 6).
-- **Reopen Conditions:** a cited Google page changes the fact; a skill exceeds its ceiling.
-- **Non-Scope:** Shopify or live-site changes, Search Console actions, other skills, commit/push.
-- **Escalation Conditions:** a change would alter an owner convention or need a dependency.
 
 ### TASK-156: Memory precision
 - **Requirement:** REQ-MEMORY-PRECISION.
