@@ -26,3 +26,15 @@ TASK-162 was committed in 43fdc01; its independent audit findings are fixed by T
 - **Reopen Conditions:** a browser-support row or quoted ratio disagrees with its source again.
 - **Non-Scope:** new rules or gates, vendored `gsap-*` text, motion policy (TASK-164), commit/push.
 - **Escalation Conditions:** a fix would change a policy, not only a fact.
+
+### TASK-164: UI skills — one motion policy
+- **Requirement:** REQ-UI-SKILL-CONSISTENCY (one motion policy across owned and vendored UI skills; owner accepted D1–D4 on 2026-10-31; research `~/Documents/work/research/dotuiux/02-round2-synthesis.md` §3, §11).
+- **Risk Level:** R2.
+- **Allowed Paths:** `skills/local/design-taste/SKILL.md`, `skills/local/design-taste/references/{motion-craft,color-scales-and-skinning}.md`, `skills/local/admin-dashboard/references/admin-visual-contract.md`, `skills/local/native-first/references/browser.md`, `skills/local/shadcn-ui/references/component-examples.md`, `skills/local/gsap-{core,react,performance}/**` (incl. `.local-fork`), expanded to `skills/local/gsap-timeline/{SKILL.md,.local-fork}` after review (D1 easeReverse example), `skills/local/README.md`, `docs/DOTFILES_SITEMAP.md`, `docs/archive/TASKS-162-166-completed.md`, `TASKS.md`.
+- **Canonical Contract Owners:** ui.motion -> `design-taste` (`motion-craft.md`); ui.theme -> `design-taste` §2; skills.provenance -> `.local-fork`.
+- **Accepted Invariants:** D1 entries and exits ease-out, no ease-in on UI; D2 display tracking −0.02em max (admin page title `tracking-[-0.02em]`); D3 vendored `gsap-*` keep upstream sentences, local policy only as `> **Local (dotfiles):**` blockquotes recorded in `.local-fork` (gsap-scrolltrigger has no overlay: at its `.size-debt` cap); reduced motion by substitution; transient `will-change`; D4 animated blur warn >8 px, fail >10 px; theme toggle three-state only when both themes ship.
+- **Regression Checks:** `design-tools-test`, `skill-surface-check`, `skill-upstream-test`, `vendored-refresh-test`, `ai-policy-lint`, `skill-map --check`.
+- **Runtime Evidence:** None (documentation; dry-run port evidence in `~/Documents/work/research/dotuiux/patches/PORT.md`).
+- **Reopen Conditions:** an owned or vendored skill again prescribes a motion rule that contradicts `motion-craft.md`.
+- **Non-Scope:** the `dotuiux check` gate runner (TASK-165), commit/push.
+- **Escalation Conditions:** an overlay would change vendored refresh semantics or skill frontmatter.

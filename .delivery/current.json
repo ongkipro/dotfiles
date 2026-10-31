@@ -1,14 +1,23 @@
 {
-  "activeRun": null,
+  "activeRun": "RUN-20261031T035815Z-9eb0ab86",
+  "activeTask": "TASK-164",
+  "capability": "unattributed",
+  "job": "implementation",
   "lastRun": {
     "finishedAt": "2026-10-31T03:58:08Z",
     "result": "PASS",
     "runId": "RUN-20261031T035148Z-f5019fe5"
   },
-  "observedHead": "43fdc016e08060680a903d8546842a39666ed00f",
+  "model": "claude-opus-5-5",
+  "observedHead": "f3845ffb05710ab13cb0e8b1da0e0e866bdea9ee",
   "observedState": "READY",
   "project": "dotfiles",
+  "provider": "anthropic",
+  "reasoningEffort": "medium",
+  "requirement": "REQ-UI-SKILL-CONSISTENCY",
+  "risk": "R2",
   "schemaVersion": 1,
   "statusAuthority": "STATUS.md",
-  "updatedAt": "2026-10-31T03:58:08Z"
+  "updatedAt": "2026-10-31T04:04:33Z",
+  "worker": "claude-code-dotuiux"
 }

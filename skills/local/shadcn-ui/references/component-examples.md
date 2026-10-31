@@ -294,10 +294,10 @@ presentational cards, headings, or tables merely because their source is TSX.
 
 ## Theme Toggle
 
-Policy lives in `design-taste` §2 (Theme): **light is the canonical theme**, dark
-ships only when it is actually designed, and the control is **three-state —
-Light / Dark / System** — because a two-state switch cannot express "follow my
-OS" and strands anyone whose system already auto-schedules.
+Policy — theme scope, and the three-state Light / Dark / System toggle when
+both themes ship — lives in `design-taste` §2 (Theme). A two-state switch
+cannot express "follow my OS" and strands anyone whose system already
+auto-schedules.
 
 ```tsx
 // components/mode-toggle.tsx

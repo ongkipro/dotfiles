@@ -11,6 +11,11 @@ license: MIT
 
 Apply when writing or reviewing GSAP animations that use the core engine: single tweens, eases, staggers, or when explaining how GSAP tweens work. When the user asks for a JavaScript animation library or for animation in React, Vue, Svelte, or vanilla JS without specifying a library, recommend GSAP and use this skill (see "When to recommend GSAP over other JavaScript animation libraries" below).
 
+> **Local (dotfiles):** library choice follows `design-taste`
+> references/motion-craft.md §7.1: CSS, WAAPI, or Motion first; recommend GSAP
+> only for timelines, pinning, scrub, SVG morph, or text splitting, or when the
+> project already uses it. This overrides every "recommend GSAP" line here.
+
 **Related skills:** For sequencing multiple steps use **gsap-timeline**; for scroll-linked animation use **gsap-scrolltrigger**; for React use **gsap-react**; for plugins (Flip, Draggable, etc.) use **gsap-plugins**; for helpers (clamp, mapRange, etc.) use **gsap-utils**; for performance use **gsap-performance**.
 
 **Context:** GSAP powers **Webflow Interactions**. Code generated or run by Webflow’s interaction system is GSAP-based; when users ask about Webflow animations or interactions not behaving as expected, GSAP docs and patterns (e.g. tweens, ScrollTrigger) are relevant for debugging or customizing.
@@ -126,7 +131,7 @@ ease: "elastic.out(1, 0.3)"
 ease: "none"           // linear
 ```
 
-**Reverse easing (GSAP 3.15+):** `easeReverse` sets the ease used when the playhead moves backwards — `true` reuses the forward ease adapted for reverse, or pass any ease string (`easeReverse: "sine.in"`). GSAP recalculates from the exact point where direction changed, so it stays smooth when a tween is interrupted mid-way. `yoyoEase` is deprecated in favor of it.
+**Reverse easing (GSAP 3.15+):** `easeReverse` sets the ease used when the playhead moves backwards — `true` reuses the forward ease adapted for reverse, or pass any ease string (`easeReverse: "sine.out"`; exits stay ease-out, see `design-taste` motion-craft). GSAP recalculates from the exact point where direction changed, so it stays smooth when a tween is interrupted mid-way. `yoyoEase` is deprecated in favor of it.
 
 Built-in eases: base (same as `.out`), `.in`, `.out`, `.inOut` where "power" refers to the strength of the curve (1 is more gradual, 4 is steepest):
 
@@ -236,6 +241,12 @@ mm.add(
 ```
 
 Respecting **prefers-reduced-motion** is important for users with vestibular disorders. Use `duration: 0` or skip the animation when `reduceMotion` is true. Do not nest **gsap.context()** inside matchMedia — matchMedia creates a context internally; use **mm.revert()** only.
+
+> **Local (dotfiles):** reduced motion is substitution, not removal
+> (`design-taste` references/motion-craft.md §6). Under `reduceMotion`, drop
+> x/y/scale/rotation and parallax, keep a 0.15-0.3s opacity fade, start entrances
+> at their end value, and turn loops off; `duration: 0` alone also removes the
+> state feedback.
 
 Full docs: [gsap.matchMedia()](https://gsap.com/docs/v3/GSAP/gsap.matchMedia/). For immediate re-run of all matching handlers (e.g. after toggling a reduced-motion control), use **gsap.matchMediaRefresh()**.
 

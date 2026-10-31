@@ -59,7 +59,7 @@ browser zoom works) and tighten `line-height` as font size increases:
   --text-lg:   clamp(1.125rem, 1.05rem + 0.38vw, 1.25rem);   /* 18px -> 20px, lh 1.45 */
   --text-xl:   clamp(1.3125rem, 1.18rem + 0.65vw, 1.625rem); /* 21px -> 26px, lh 1.3 */
   --text-2xl:  clamp(1.625rem, 1.38rem + 1.2vw, 2.25rem);    /* 26px -> 36px, lh 1.18 */
-  --text-3xl:  clamp(2rem, 1.6rem + 2.0vw, 3.25rem);         /* 32px -> 52px, lh 1.08, tracking -0.025em */
+  --text-3xl:  clamp(2rem, 1.6rem + 2.0vw, 3.25rem);         /* 32px -> 52px, lh 1.08, tracking -0.02em max */
 }
 ```
 

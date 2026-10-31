@@ -29,6 +29,10 @@ Use **will-change** in CSS on elements that will animate. It hints the browser t
 will-change: transform;
 ```
 
+> **Local (dotfiles):** keep `will-change` transient: set it just before the
+> animation (or in `onStart`) and remove it on complete (`design-taste`
+> references/motion-craft.md §7.1); do not leave it in static CSS.
+
 ## Batch Reads and Writes
 
 GSAP batches updates internally. When mixing GSAP with direct DOM reads/writes or layout-dependent code, avoid interleaving reads and writes in a way that causes repeated layout thrashing. Prefer doing all reads first, then all writes (or let GSAP handle the writes in one go).

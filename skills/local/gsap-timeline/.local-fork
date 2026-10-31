@@ -6,6 +6,8 @@ note: Local edit 2026-10-08: `easeReverse` in timeline defaults (gsap.com/blog/3
   and the position-parameter wording: an unpositioned child is added at the end of
   the timeline (gsap.com docs GSAP/Timeline: "Adds ... to the end of the timeline");
   upstream called `">"` the default, reported in greensock/gsap-skills issue #21.
+note2: 2026-10-31 (owner decision D1, TASK-164): the easeReverse example uses an
+  `.out` ease instead of the blog's `expo.in`, because UI exits are ease-out.
 would_lose_if_wired: a byte-for-byte refresh would drop these corrections.
 refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is
   present, before any fetch or write.

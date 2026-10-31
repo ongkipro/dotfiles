@@ -64,8 +64,7 @@ Define once as custom properties and reuse; do not hand-tune per component.
 
 ```css
 :root {
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);   /* arrivals, reveals */
-  --ease-in: cubic-bezier(0.4, 0, 1, 1);       /* exits only */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);   /* arrivals, reveals, exits */
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1); /* on-screen repositioning */
   --dur-fast: 150ms;
   --dur-base: 250ms;
@@ -73,13 +72,10 @@ Define once as custom properties and reuse; do not hand-tune per component.
 }
 ```
 
-- Entries decelerate (ease-out); exits accelerate (ease-in); movement that
-  stays on screen uses ease-in-out. Never ease-in an entrance.
-- **Known disagreement:** some practitioners use ease-out for exits too,
-  arguing that an ease-in start delays the moment the user is watching. Both are
-  defensible. These tokens keep ease-in for exits because exits here are short
-  (§2) and quieter; a project may choose ease-out exits instead, but record the
-  choice and reason in its design artifact and apply it everywhere.
+- Entries and exits both decelerate (ease-out); dismissals use the strong
+  ease-out (`--ease-out` is already one); movement that stays on screen uses
+  ease-in-out. Never ease-in UI: an ease-in start delays the moment the user is
+  watching, so it reads as lag.
 - `linear` is for opacity fades, progress, and continuous loops only.
 - Never `scale(0)` for an entrance; start from ~0.95 with opacity.
 - Overshoot/bounce/elastic only when the brand personality is playful, capped
@@ -100,9 +96,8 @@ Define once as custom properties and reuse; do not hand-tune per component.
 - Material 3 durations for comparison: short 50-200ms, medium 250-400ms, long
   450-600ms; emphasized easing `cubic-bezier(0.2, 0, 0, 1)`. IBM Carbon:
   70/110/150/240/400/700ms with productive and expressive curves.
-- GSAP mapping: `power3.out` ≈ ease-out, `power2.in` ≈ ease-in,
-  `power2.inOut` ≈ ease-in-out; use `CustomEase` only for a token above that
-  no named ease matches (see `gsap-core`, `gsap-plugins`).
+- GSAP mapping: `power3.out` ≈ ease-out, `power2.inOut` ≈ ease-in-out; use
+  `CustomEase` only for a token above that no named ease matches (see `gsap-core`, `gsap-plugins`).
 
 ## 4. Personality archetypes (pick at most one)
 
@@ -163,8 +158,9 @@ delay price, variant, cart, or form feedback.
   real, consented, and unretouched (see invented-info-tells.md).
 - **Blur masks a crossfade seam:** when two overlapping states read as two
   objects despite tuned easing, add a small blur during the transition: about
-  8px or less, one-shot only, never continuous or on large surfaces, hard
-  ceiling 20px. Blur is expensive to paint, especially in Safari.
+  8px or less (warn above 8px), one-shot only, never continuous or on large
+  surfaces, hard ceiling 10px (fail above). Blur is expensive to paint,
+  especially in Safari.
 - **SVG transforms:** apply them to a `<g>` wrapper with
   `transform-box: fill-box` so the origin is the shape, not the viewport.
 - **Animate the element, not its parent's variable:** driving child
@@ -205,7 +201,8 @@ that carry state; replace the vestibular triggers.
 
 Default pattern: under reduce, remove movement (translate, scale, rotate,
 parallax, scroll-linked transforms) and keep opacity and color feedback, so
-state changes stay visible. This is how Motion's
+state changes stay visible: cross-fades of 150-300ms, entrances start at their
+end position (opacity only), loops and autoplay off. This is how Motion's
 `<MotionConfig reducedMotion="user">` and the Next.js View Transitions guide
 behave.
 
@@ -359,7 +356,7 @@ popover, the §6 reduced-motion pattern.
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
-| Feels sluggish | duration too long for its frequency, or ease-in on entry | shorten, ease-out |
+| Feels sluggish | duration too long for its frequency, or ease-in on entry or exit | shorten, ease-out |
 | Feels mechanical | linear/one easing everywhere | tokens per role, exit shorter |
 | Choppy | animating layout properties, big blur/filter, main-thread work | transform/opacity, isolate layer, measure |
 | Distracting | too many things moving, ambient loops | one lead element, cut ambient |

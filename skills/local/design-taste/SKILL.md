@@ -64,7 +64,8 @@ is. Read only this file up front; open a reference file when a step names it.
   all three as provisional in `DESIGN.md`. No logo mark is invented.
 - **Typography.** Brand type first; a system stack for utilitarian surfaces.
   Clear hierarchy, 60–75ch prose measure as a starting point, `clamp()` sizes
-  that keep a rem part, `text-wrap: balance`/`pretty` instead of `<br>`. Test
+  that keep a rem part, `text-wrap: balance`/`pretty` instead of `<br>`. Display
+  tracking (≥24 px) at most −0.02em unless `DESIGN.md` says tighter. Test
   long titles and translations.
 - **Color, shape, elevation.** Semantic tokens for canvas, text, action,
   border, state. One small radius and shadow vocabulary with fixed purposes.
@@ -74,7 +75,8 @@ is. Read only this file up front; open a reference file when a step names it.
 - **Theme.** Light is the fallback; accepted dark-first brands stay dark-first.
   A second theme is optional and must be designed, not inverted. Adaptive
   resolution: stored choice → system → fallback, resolved before first paint
-  ([theme-implementation.md](references/theme-implementation.md)).
+  ([theme-implementation.md](references/theme-implementation.md)). When both
+  themes ship, the toggle is three-state: Light / Dark / System.
 - **Icons and assets.** Inline Lucide SVG on static sites, `lucide-react`
   where React is installed; one stroke weight, `currentColor`, `aria-hidden`
   beside a text label. Diagrams, crops, generated imagery, OG cards:

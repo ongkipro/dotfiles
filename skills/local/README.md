@@ -44,14 +44,14 @@ resolves, so an entry here is a mention, not a gated reference.
 
 | Skill | | What it owns | Routes to |
 |---|---|---|---|
-| [`gsap-core`](gsap-core/SKILL.md) | F | Official GSAP core API: gsap.to/from/fromTo, easing, duration, stagger, defaults, gsap.matchMedia for responsive and reduced motion. | — |
-| [`gsap-timeline`](gsap-timeline/SKILL.md) | F | Official GSAP timelines: gsap.timeline(), position parameter, nesting, labels, playback control. | — |
+| [`gsap-core`](gsap-core/SKILL.md) | F | Official GSAP core API: gsap.to/from/fromTo, easing, duration, stagger, defaults, gsap.matchMedia for responsive and reduced motion. | `design-taste` |
+| [`gsap-timeline`](gsap-timeline/SKILL.md) | F | Official GSAP timelines: gsap.timeline(), position parameter, nesting, labels, playback control. | `design-taste` |
 | [`gsap-scrolltrigger`](gsap-scrolltrigger/SKILL.md) | F | Official GSAP ScrollTrigger: scroll-linked animation, pinning, scrub, triggers, parallax, pinned sections. | — |
 | [`gsap-plugins`](gsap-plugins/SKILL.md) | F | Official GSAP plugins: registration, ScrollTo, ScrollSmoother, Flip, Draggable, Inertia, Observer, SplitText, ScrambleText, SVG and physics plugins, CustomEase/Wiggle/Bounce, GSDevTools. | — |
-| [`gsap-react`](gsap-react/SKILL.md) | F | Official GSAP skill for React and Next.js: useGSAP hook, refs, gsap.context(), cleanup on unmount. | — |
+| [`gsap-react`](gsap-react/SKILL.md) | F | Official GSAP skill for React and Next.js: useGSAP hook, refs, gsap.context(), cleanup on unmount. | `design-taste` |
 | [`gsap-frameworks`](gsap-frameworks/SKILL.md) | F | Official GSAP skill for Vue, Nuxt, Svelte, SvelteKit, and other non-React frameworks: lifecycle hooks, scoped selectors, cleanup on unmount. | — |
 | [`gsap-utils`](gsap-utils/SKILL.md) | F | Official GSAP skill for gsap.utils — clamp, mapRange, normalize, interpolate, random, snap, toArray, wrap, pipe. | — |
-| [`gsap-performance`](gsap-performance/SKILL.md) | F | Official GSAP skill for performance — prefer transforms, avoid layout thrashing, will-change, batching. | — |
+| [`gsap-performance`](gsap-performance/SKILL.md) | F | Official GSAP skill for performance — prefer transforms, avoid layout thrashing, will-change, batching. | `design-taste` |
 
 ## Commerce and Shopify
 
@@ -147,4 +147,4 @@ skills absent from every routing table `ai-policy-lint` resolves, is larger.
 A leaf specialist belongs here; a skill named in prose without a code span
 does not.
 
-`gsap-frameworks`, `gsap-performance`, `gsap-plugins`, `gsap-react`, `gsap-timeline`, `gsap-utils`
+`gsap-frameworks`, `gsap-plugins`, `gsap-utils`

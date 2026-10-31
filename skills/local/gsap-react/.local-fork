@@ -1,7 +1,10 @@
 upstream: https://raw.githubusercontent.com/greensock/gsap-skills/main/skills/gsap-react
 verified: 2026-10-30
-scope: description-only
-reason: frontmatter description only; body byte-identical to upstream.
+scope: directory
+reason: frontmatter description plus a local policy overlay (see note); body otherwise byte-identical to upstream.
 description: 2026-10-30 skill-efficiency pass — frontmatter description rewritten to ≤250 chars (what + boundary front-loaded; Codex truncates at ~250). Body untouched by this pass. Re-apply after a byte-for-byte refresh; see docs/skill-efficiency-audit-2026-10-30.md.
-would_lose_if_wired: a byte-for-byte refresh would restore the long upstream description.
-refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is present; re-sync body manually, then re-apply the description.
+would_lose_if_wired: a byte-for-byte refresh would restore the long upstream description and drop the local overlay.
+refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is present; re-sync body manually, then re-apply the description and the overlay.
+note: Local overlay 2026-10-31 (owner decision D3, TASK-164): blockquotes marked
+  "Local (dotfiles)" defer library choice to design-taste
+  references/motion-craft.md. Upstream sentences are left untouched.

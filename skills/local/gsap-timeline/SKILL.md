@@ -51,7 +51,7 @@ const tl = gsap.timeline({ defaults: { duration: 0.5, ease: "power2.out" } });
 tl.to(".a", { x: 100 }).to(".b", { y: 50 }); // both use 0.5s and power2.out
 ```
 
-`easeReverse` (GSAP 3.15+) can live in `defaults` and cascades to child tweens, so a reversed timeline (e.g. a menu closing) gets its own easing: `gsap.timeline({ defaults: { ease: "back.out", easeReverse: "expo.in" } })`.
+`easeReverse` (GSAP 3.15+) can live in `defaults` and cascades to child tweens, so a reversed timeline (e.g. a menu closing) gets its own easing: `gsap.timeline({ defaults: { ease: "back.out", easeReverse: "power2.out" } })` (exits stay ease-out; see `design-taste` motion-craft).
 
 ## Timeline Options (constructor)
 

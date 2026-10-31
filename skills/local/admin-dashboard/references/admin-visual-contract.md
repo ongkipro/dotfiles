@@ -32,7 +32,7 @@ an intended deviation recorded in the project contract with its reason.
 | Body, table cell, form control text | 14px | 14px | `text-sm` (inputs `text-base md:text-sm`: 16px on phones stops iOS zoom) |
 | Meta, table header label, badge | 12px | 12px | `text-xs` |
 | Section / card title | 16px / 600 | 16px / 600 | `text-base font-semibold` |
-| Page title | 24px / 700 | 20px / 600 | `text-2xl font-bold tracking-tight` → `text-xl font-semibold` |
+| Page title | 24px / 700 | 20px / 600 | `text-2xl font-bold tracking-[-0.02em]` → `text-xl font-semibold` |
 | KPI value | 24px / 700 | 20px / 600 | same as page title; never larger than it |
 | Button: sm / default / lg | 32 / 36 / 40 | 28 / 32 / 36 | `h-8/h-9/h-10` → change `buttonVariants` sizes to `h-7/h-8/h-9` |
 | Icon button | 36 (toolbar 32) | 32 | `size-9` (`size="icon"`), toolbar `size-8` |

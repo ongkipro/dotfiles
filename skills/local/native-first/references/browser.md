@@ -39,7 +39,7 @@ work the same in Next, Astro, a Liquid theme, or a plain `.html`.
 | Sass just for nesting | native CSS nesting |
 | a padding-top percentage hack | `aspect-ratio: 16 / 9` |
 | a JS truncate-to-N-lines util | `-webkit-line-clamp` (with `display: -webkit-box`) |
-| shipping animation to everyone | wrap it in `@media (prefers-reduced-motion: no-preference)` — accessibility, not optional |
+| shipping the same animation to everyone | substitute under `@media (prefers-reduced-motion: reduce)`: drop translate/scale/parallax, keep 150-300ms opacity fades, loops off (`design-taste` motion-craft.md §6) — accessibility, not optional |
 | a carousel library, simple cases | `scroll-snap-type: x mandatory` + `scroll-snap-align` on the children |
 
 ## Still worth installing (don't be dogmatic)
