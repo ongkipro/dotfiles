@@ -5,7 +5,7 @@ Updated: 2026-10-31
 Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
 
 Done 2026-10-30: TASK-159 → [archive](docs/archive/DOTFILES_TASKS_2026-10-30_META_COPY.md); TASK-091 superseded by TASK-160 → [record](docs/archive/TASKS-091-superseded.md); TASK-160 and TASK-161 → [archive](docs/archive/TASKS-160-161-completed.md).
-Done 2026-10-31: TASK-162 to TASK-165 → [archive](docs/archive/TASKS-162-166-completed.md); TASK-167 → [archive](docs/archive/TASKS-167-completed.md).
+Done 2026-10-31: TASK-162 to TASK-165 → [archive](docs/archive/TASKS-162-166-completed.md); TASK-167 → [archive](docs/archive/TASKS-167-completed.md); TASK-168 → [archive](docs/archive/TASKS-168-completed.md).
 
 ## Pending
 

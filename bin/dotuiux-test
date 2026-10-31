@@ -172,6 +172,16 @@ console.log("3a. owner decisions (blank-noopener warn, D4 blur, D9 checkout hand
   const r12 = st(m.evaluate(b12, blurAllow), "blur");
   expect(r12.status === "fail" && r12.offenders.some((o) => o.sev === "fail" && /12px/.test(o.v)), "D4 blur: 12px fails even with allow: blur");
 
+  const tr = (em, px = 40) => [{ ...base, texts: [{ el: "h1", px, em, ratio: 10, chars: 10 }] }];
+  expect(m.WARN_IDS.includes("display-tracking"), "D2 display-tracking is a WARN id");
+  expect(st(m.evaluate(tr(-0.02)), "display-tracking").status === "pass", "D2: −0.02em on display text passes (the cap itself)");
+  expect(st(m.evaluate(tr(null)), "display-tracking").status === "pass", "D2: normal letter-spacing passes");
+  expect(st(m.evaluate(tr(-0.05, 18)), "display-tracking").status === "pass", "D2: tight tracking below 24px is not display text");
+  const t5 = st(m.evaluate(tr(-0.05)), "display-tracking");
+  expect(t5.status === "warn" && /-0.05em at 40px/.test(t5.offenders[0].v), "D2: −0.05em on 40px display text warns", JSON.stringify(t5.offenders));
+  expect(st(m.evaluate(tr(-0.05), m.parseAllows("allow: display-tracking — brand wordmark style").allows), "display-tracking").status === "allowed",
+    "D2: tighter tracking is allowed only through DESIGN.md");
+
   const wa = (placement, href = "https://wa.me/62811") => ({ el: "a wa", href, placement, green: false });
   const ev = (contacts, handoff) => m.evaluate([{ ...base, contacts }], new Map(), { checkoutHandoff: handoff });
   expect(st(ev([wa(["hero"])], false), "contact-placement").status === "fail", "D9: WhatsApp in hero fails without --checkout-handoff");
@@ -269,6 +279,8 @@ body{margin:0;font:14px system-ui}
 <section class="hero"><h1>Hello</h1><p class="tiny">Lorem ipsum dolor sit amet.</p><a class="btn" href="/a">Buy</a> <a class="btn" href="/b">Try</a></section>
 <div class="wide"></div><a class="float wa" href="https://wa.me/1">WA</a></body></html>`);
 fs.writeFileSync(path.join(site, "js-dribbble.html"), `<!doctype html><title>x</title><p>Moving on</p><script>setTimeout(() => location.href = "https://dribbble.com/shots/1", 200)</script>`);
+// Second load in the tab (the 768 px pass) hops to a gallery: the 360 px capture has already been written.
+fs.writeFileSync(path.join(site, "late-dribbble.html"), `<!doctype html><title>x</title><p>Moving on</p><script>if (sessionStorage.seen) location.href = "https://dribbble.com/shots/1"; sessionStorage.seen = 1;</script>`);
 const server = http.createServer((req, res) => {
   // Gallery requests are blocked inside the browser, so this never needs the network.
   if (req.url === "/go-pinterest") { res.writeHead(302, { location: "https://www.pinterest.com/pin/1" }); return res.end(); }
@@ -295,6 +307,9 @@ try {
     fs.writeFileSync(design, "## Tokens\n## Allow\nallow: hero-height — fixture showcase\n");
     const clean = await runAsync(["check", `${base}/clean.html`, "--design", design]);
     expect(clean.status === 0 && /0 fail/.test(clean.stdout), "clean page: no FAIL, exit 0", clean.stdout.split("\n").filter((l) => /^(FAIL|WARN)|^\s+\d/.test(l)).join(" | ") + clean.stderr);
+    // Closeout follow-up 2026-10-31: NOT CHECKED must not swallow the pass case on a fully measured page.
+    expect(/^PASS\s.*\bcontrast\b/m.test(clean.stdout) && !/contrast not measured/.test(clean.stdout),
+      "clean page: contrast PASSES when every text is measured", clean.stdout.split("\n").filter((l) => /contrast/.test(l)).join(" | "));
 
     const fileRun = await runAsync(["check", path.join(site, "sloppy.html"), "--design", design]);
     expect(fileRun.status === 1 && /ALLOWED\s+hero-height/.test(fileRun.stdout) && /allowed: fixture showcase/.test(fileRun.stdout),
@@ -342,7 +357,7 @@ try {
     // Should fail: 4.495:1 text (11), a link saying "stop" is not a pause control (14); control char in a label (15).
     fs.writeFileSync(path.join(rv, "fail.html"), page(`<style>@keyframes slide{to{transform:translateX(40px)}}.marquee{width:200px;height:40px;background:#eee;animation:slide 8s linear infinite}</style>`,
       `<header><nav><a href="/" style="display:inline-block;padding:12px">Our wonderful seasonal\u0007bakery range</a></nav></header>
-       <main><h1>Fresh bread</h1><p style="color:rgb(0,134,118)">Teal text that is almost but not quite AA.</p><div class="marquee"></div><p><a href="/quit" style="display:inline-block;padding:12px">Stop smoking</a></p></main>`));
+       <main><h1 style="letter-spacing:-0.05em">Fresh bread</h1><p style="color:rgb(0,134,118)">Teal text that is almost but not quite AA.</p><div class="marquee"></div><p><a href="/quit" style="display:inline-block;padding:12px">Stop smoking</a></p></main>`));
 
     // D9: WhatsApp checkout handoff in the hero; blur 12px band; blank target without rel.
     fs.writeFileSync(path.join(rv, "handoff.html"), page(`<style>.glass{backdrop-filter:blur(12px);padding:16px}</style>`,
@@ -368,6 +383,11 @@ try {
       expect(r.status === 2 && /owner-picked mood/.test(r.stderr) && /refusing gallery URL/.test(r.stderr) && !fs.existsSync(outG),
         `teardown refuses a gallery reached by ${how}, before any capture`, `status ${r.status} ${r.stderr.slice(0, 300)}`);
     }
+    // Closeout follow-up 2026-10-31: a hop that only fires after the 360 px capture must not leave a partial ref dir.
+    const late = await runAsync(["teardown", `${base}/late-dribbble.html`, "--out", outG]);
+    const lateDir = path.join(outG, `127.0.0.1_${server.address().port}-late-dribbble-html`);
+    expect(late.status === 2 && /refusing gallery URL/.test(late.stderr) && !fs.existsSync(lateDir),
+      "teardown removes its partial ref dir when a gallery is reached after the first capture", `status ${late.status} exists ${fs.existsSync(lateDir)} ${late.stderr.slice(0, 200)}`);
     expect(okR.status === 0 && okR.j?.summary.fail === 0, "review ok-page: no FAIL and no hang (alert accepted, bad/unreadable image URLs served as errors)",
       `status ${okR.status} ${okR.stderr.slice(0, 200)} ${JSON.stringify(okR.j?.results.filter((x) => x.status === "fail").map((x) => [x.id, x.offenders[0]]))}`);
     expect(rs(okR, "contact-placement")?.status === "pass", "1: contact link in a section <header> is not page chrome");
@@ -382,6 +402,9 @@ try {
     expect(dark.status === 0 && rs(dark, "contrast")?.status === "not-checked", "4: dark color-scheme canvas is not assumed white", JSON.stringify(rs(dark, "contrast")));
     expect(rs(failR, "contrast")?.status === "fail" && rs(failR, "contrast").offenders.some((o) => o.v === "4.49:1"), "11: 4.495:1 text fails in the browser", JSON.stringify(rs(failR, "contrast")?.offenders));
     expect(rs(failR, "loop-pause")?.status === "fail", "14: a 'Stop smoking' link is not a pause control");
+    expect(rs(failR, "display-tracking")?.status === "warn" && rs(failR, "display-tracking").offenders.some((o) => /-0.05em at 40px/.test(o.v)),
+      "D2 browser: −0.05em on a 40px h1 warns", JSON.stringify(rs(failR, "display-tracking")));
+    expect(rs(okR, "display-tracking")?.status === "pass", "D2 browser: default h1 tracking passes");
     expect(rs(failR, "nav-label")?.status === "warn" && !/\\u0007/.test(failR.stdout), "15: control characters are stripped from labels");
     expect(http404.status === 2 && /HTTP 404/.test(http404.stderr), "10: an HTTP 404 page is an error (exit 2), not a pass", http404.stderr.slice(0, 200));
     expect(rs(hoOff, "contact-placement")?.status === "fail" && hoOff.j.checkoutHandoff === false, "D9 browser: hero WhatsApp fails without the flag");

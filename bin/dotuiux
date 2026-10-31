@@ -72,6 +72,8 @@ const IMAGE_REUSE_MIN_PX = 48; // icons/logos below this may repeat legitimately
 const BLUR_WARN_PX = 8; // D4 (accepted 2026-10-31): warn >8 px …
 const BLUR_FAIL_PX = 10; // … and fail >10 px; `allow: blur` covers only the warn band
 const WHATSAPP_RE = /^(https?:\/\/(wa\.me|api\.whatsapp\.com)\b|whatsapp:)/i; // D9 checkout-handoff exception
+const DISPLAY_PX = 24; // D2 (accepted 2026-10-31): display text is ≥24 px …
+const DISPLAY_TRACKING_MIN_EM = -0.02; // … with letter-spacing no tighter than −0.02em; tighter only via DESIGN.md allow:
 const DURATION_SMALL_MS = 300; // §4 "Durations ≤300 small"
 const DURATION_LARGE_MS = 500; // §4 "≤500 large"
 const LARGE_AREA_RATIO = 0.25; // "large" element = ≥25% of the viewport area
@@ -216,6 +218,10 @@ export const RULES = [
   { id: "blur", tier: "warn", spec: "D4", desc: `filter/backdrop blur > ${BLUR_WARN_PX}px warns, > ${BLUR_FAIL_PX}px fails`,
     judge: (f) => has(f.blurs) ? f.blurs.filter((b) => b.px > BLUR_WARN_PX)
       .map((b) => b.px > BLUR_FAIL_PX ? { ...off(b.el, `${b.px}px (> ${BLUR_FAIL_PX}px fail band)`), sev: "fail" } : off(b.el, `${b.px}px`)) : null },
+  // D2: the brand may go tighter, but only as a recorded decision (allow: display-tracking — <reason>).
+  { id: "display-tracking", tier: "warn", spec: "D2", desc: `display text (≥ ${DISPLAY_PX}px) letter-spacing tighter than ${DISPLAY_TRACKING_MIN_EM}em`,
+    judge: (f) => has(f.texts) ? f.texts.filter((t) => t.px >= DISPLAY_PX && t.em != null && t.em < DISPLAY_TRACKING_MIN_EM - 1e-4)
+      .map((t) => off(t.el, `${Math.round(t.em * 1000) / 1000}em at ${t.px}px`)) : null },
   { id: "transition-all", tier: "warn", spec: "§4", desc: "transition: all",
     judge: (f) => has(f.transitionAll) ? f.transitionAll.map((el) => off(el, "transition-property: all")) : null },
   { id: "ease-in", tier: "warn", spec: "§4, D1", desc: "ease-in timing on UI motion",
@@ -524,7 +530,9 @@ async function pageCollect(o) {
   const easeInFn = (fn) => fn === "ease-in" || (/^cubic-bezier/.test(fn) && (([x1, y1, x2, y2]) => x1 > 0.2 && y1 < 0.1 && x2 >= 0.9 && y2 >= 0.9)(fn.match(/-?[\d.]+/g).map(Number)));
   for (const { el } of textEls) {
     const s = cs(el), px = parseFloat(s.fontSize), w = parseInt(s.fontWeight, 10), chars = el.textContent.trim().length;
-    texts.push({ el: label(el), px, weight: w, ratio: contrast.has(el) ? contrast.get(el) : null, large: px >= 24 || (px >= 18.66 && w >= 700),
+    // letter-spacing computes to "normal" or px; only display sizes carry it (D2).
+    const em = px >= o.displayPx && s.letterSpacing !== "normal" ? parseFloat(s.letterSpacing) / px : null;
+    texts.push({ el: label(el), px, weight: w, em, ratio: contrast.has(el) ? contrast.get(el) : null, large: px >= 24 || (px >= 18.66 && w >= 700),
       exempt: !!el.closest(":disabled,[aria-disabled=true]"),
       prose: /^(P|LI|DD|BLOCKQUOTE|TD)$/.test(el.tagName) && !inChrome(el), chars });
     tally(fam, s.fontFamily.split(",")[0].replace(/["']/g, "").trim(), chars); tally(size, s.fontSize, chars); tally(tcol, s.color, chars);
@@ -689,7 +697,7 @@ function pageReducedMotion(o) {
   return out.slice(0, 20);
 }
 
-const pageOpts = () => ({ loopMaxMs: LOOP_MAX_MS, tinyPx: MOTION_TINY_PX, largeArea: LARGE_AREA_RATIO, placeholderRe: PLACEHOLDER_RE });
+const pageOpts = () => ({ loopMaxMs: LOOP_MAX_MS, tinyPx: MOTION_TINY_PX, largeArea: LARGE_AREA_RATIO, placeholderRe: PLACEHOLDER_RE, displayPx: DISPLAY_PX });
 // Page functions run via Runtime.evaluate as source text (our own code, not page input).
 // RegExp cannot cross JSON, so it is rebuilt in the page.
 const call = (fn, arg) => {
@@ -868,14 +876,19 @@ async function cmdTeardown(argv) {
   for (const url of urls) {
     const dir = refDir(out, url);
     const viewports = {};
-    // The directory is created on the first capture, so a refused redirect leaves nothing behind.
-    await render(url, { refuseHost: galleryHost, onViewport: async (b, f, vp) => {
-      fs.mkdirSync(dir, { recursive: true });
-      const shot = await b.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true,
-        clip: { x: 0, y: 0, width: vp.width, height: Math.min(f.ref.height, 16000), scale: 1 } });
-      fs.writeFileSync(path.join(dir, `${vp.width}.png`), Buffer.from(shot.data, "base64"));
-      viewports[vp.width] = f.ref;
-    } });
+    // The directory is created on the first capture, so a refused redirect leaves nothing behind;
+    // a later failure (e.g. a timer that reaches a gallery after 360 px) removes a directory this run created.
+    // lazy: a pre-existing dir keeps whatever this run overwrote; upgrade = capture into a temp dir and rename.
+    const existed = fs.existsSync(dir);
+    try {
+      await render(url, { refuseHost: galleryHost, onViewport: async (b, f, vp) => {
+        fs.mkdirSync(dir, { recursive: true });
+        const shot = await b.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true,
+          clip: { x: 0, y: 0, width: vp.width, height: Math.min(f.ref.height, 16000), scale: 1 } });
+        fs.writeFileSync(path.join(dir, `${vp.width}.png`), Buffer.from(shot.data, "base64"));
+        viewports[vp.width] = f.ref;
+      } });
+    } catch (e) { if (!existed) fs.rmSync(dir, { recursive: true, force: true }); throw e; }
     fs.writeFileSync(path.join(dir, "facts.json"), JSON.stringify({ url, capturedAt: new Date().toISOString(), viewports }, null, 2) + "\n");
     const d = viewports[1440] || Object.values(viewports)[0];
     console.log(`${url}\n  → ${dir}/ (facts.json, ${Object.keys(viewports).map((w) => `${w}.png`).join(", ")})`);

@@ -19,6 +19,12 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
   lookup rows locked in `system-map-test`, a routed skills-memory pointer, this
   changelog entry, and the skill's brief and reference-count wording aligned
   with the scaffold and the research brief.
+- TASK-168 closes what the research left open: accepted decision D2 becomes the
+  warn rule `display-tracking` (display text ≥ 24 px tighter than −0.02em;
+  tighter only via `allow: display-tracking — <reason>`); `teardown` removes a
+  ref directory it created when a gallery is reached after the first capture;
+  a browser fixture now proves contrast still PASSES on a fully measured page.
+  Both new behaviours were mutation-checked (reverting each fails its test).
 
 ### Repository entry points and discovery
 

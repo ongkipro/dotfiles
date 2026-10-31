@@ -128,7 +128,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Research records | [`docs/research/`](../docs/research/) | 5 | linked from this page |
 | Environment and bootstrap | [`config/`](../config/) | 35 | linked from this page |
 | Device reports | [`docs/device-reports/`](../docs/device-reports/) | 21 | count only |
-| Archived task records | [`docs/archive/`](../docs/archive/) | 42 | count only |
+| Archived task records | [`docs/archive/`](../docs/archive/) | 43 | count only |
 
 <!-- system-map:inventory:end -->
 
