@@ -15,6 +15,9 @@
   integrated full admin, Vite + React for an API-backed client app, and Astro +
   React for route-oriented bounded interactivity; preserve semantic HTML and
   minimal hydration.
+- New screens and redesigns run through the local `dotuiux` skill and command
+  (brief → live-site teardown → `DESIGN.md` → rendered `check` → owner review);
+  its `--help` and tests own the gate list, not memory.
 - Infrastructure interests: Cloudflare Workers/R2/D1/Queues, VPS, PostgreSQL (Drizzle), Supabase, queue systems, scraping, API architecture, multi-domain publishing. (plain PostgreSQL is the usual baseline; Supabase applicability follows the project contract, with `supabase` CLI managed via `config/mise-config.toml`.)
 
 ## Marketing & conversion

@@ -6,6 +6,20 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-28
 
+### `dotuiux` UI/UX loop (TASK-165, TASK-167) — 2026-10-31
+
+- Add the `dotuiux` command and skill: `init` scaffolds `design/brief.md` and
+  `DESIGN.md` without overwriting, `teardown` captures live sites at
+  360/768/1440 and refuses gallery hosts, `check` reports fail / warn /
+  allowed / not checked (13 harm-only floor rules; warns overridable by
+  `allow: <id> — <reason>`), `validate` checks the project files. Zero
+  dependencies; reuses `design-taste/scripts/ui-ref.mjs`; output stays in the
+  client repository. `bin/dotuiux-test` runs in the full design-tool CI job.
+- TASK-167 brings it to the same integration level as `dotads-meta`: system-map
+  lookup rows locked in `system-map-test`, a routed skills-memory pointer, this
+  changelog entry, and the skill's brief and reference-count wording aligned
+  with the scaffold and the research brief.
+
 ### Repository entry points and discovery
 
 - Keep the root README short and neutral; setup, operating contracts and

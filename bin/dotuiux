@@ -13,7 +13,8 @@
  *   validate [dir]
  *     Check design/brief.md and DESIGN.md headings and allow: lines.
  *
- * Gate list and tiers: research/dotuiux/03-dotuiux-brief.md §3 (evidence: 02-round2-synthesis.md).
+ * Gate list and tiers: ~/Documents/work/research/dotuiux/03-dotuiux-brief.md §3 (evidence:
+ * 02-round2-synthesis.md there; § numbers below cite those files, kept outside this repo).
  * Browser: reuses design-taste/scripts/ui-ref.mjs (DevTools over node: builtins + installed
  * Chrome), resolved from $DOTFILES, this script's checkout, then ~/dotfiles. Read-only: it only loads pages.
  * Exit: 0 ok · 1 FAIL gate or invalid project · 2 usage/error · 3 no working browser.

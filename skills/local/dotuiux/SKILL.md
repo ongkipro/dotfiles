@@ -30,15 +30,17 @@ screenshots or reports into `~/dotfiles`.
 ## 1. Brief (owner, ~5 min)
 
 `dotuiux init` scaffolds `design/brief.md`, `design/refs/`, and a `DESIGN.md`
-skeleton when none exists. The brief is six lines: who it is for; the one
-action we want; what they must trust before acting; real content we have
-(photos, prices, testimonials); three words for the feel; what to avoid.
-Unanswered lines go back to the owner — do not invent an audience or content.
+skeleton when none exists. The brief answers the six headings `dotuiux validate`
+requires, a line or two each: Niche, Audience (and what they must trust before
+acting), Primary job (with the real content we have: photos, prices,
+testimonials), Primary action (one), References wanted, Non-goals. The feel
+words belong to `DESIGN.md` → Direction. Unanswered headings go back to the
+owner — do not invent an audience or content.
 
 ## 2. References (owner picks, agent measures)
 
-Three to eight URLs: a market leader, a best-in-class product, a niche operator,
-plus one or two mood references the owner chose.
+Three to five URLs: a market leader, a best-in-class product, a niche operator
+where one exists, plus one or two mood references the owner chose.
 
 - **Live shipped sites = patterns.** `dotuiux teardown <urls>` opens them in a
   real browser at 360, 768, and 1440 px and records screens plus measured facts
