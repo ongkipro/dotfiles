@@ -25,6 +25,18 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
   ref directory it created when a gallery is reached after the first capture;
   a browser fixture now proves contrast still PASSES on a fully measured page.
   Both new behaviours were mutation-checked (reverting each fails its test).
+- TASK-169 fixes what a run on four real built pages and a primary-source
+  check found. Contrast was NOT CHECKED on all four; it is now bounded over
+  gradients (fail only if the best case fails, pass only if the worst case
+  passes), the scan scrolls instantly (smooth scrolling hid a whole 84k px page)
+  over up to 120 screens within a time budget, thin pseudo-element lines (≤ 4 px
+  underline bars) and off-page skip links no longer distort results; every
+  other painted pseudo-element band on the page (background, border, shadow;
+  positioned or grid-placed) keeps text in its containing block NOT CHECKED. `lcp-entrance` fails only on a hidden start
+  (web.dev LCP), including a fading hero that hands LCP to a paragraph;
+  `target-size` gains the WCAG 2.5.8 user-agent exception; `ease-in` is
+  labelled owner decision D1; new warn `heading-skip`. Evidence and the D8
+  sandbox trial: `~/Documents/work/research/dotuiux/04-*.md`, `05-*.md`.
 
 ### Repository entry points and discovery
 

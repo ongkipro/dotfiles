@@ -36,12 +36,14 @@ const VIEWPORTS = [
 const DESKTOP_MIN_WIDTH = 1024; // "desktop" for h1 line count (§4 "H1 ≤3 lines desktop")
 const REDUCED_MOTION_WIDTH = 360; // one extra render under prefers-reduced-motion (§4, §11)
 const SETTLE_MS = 1200; // wait after load before measuring (as admin-geometry)
-const EVAL_TIMEOUT_MS = 60000; // a page script that never settles must not hang check
+const EVAL_TIMEOUT_MS = 90000; // a page script that never settles must not hang check
+const SCAN_MS = 45000; // contrast scan budget per viewport, well inside EVAL_TIMEOUT_MS
+const SCROLL_STEPS = 120; // contrast scan: screens per viewport (0.8 vh apart; ~77-86k px); a real 84k px brief page needed > 40
 
 // Floor (fail) — §17 tier 1, brief §3
 const CONTRAST_MIN = 4.5; // §4 text contrast
 const CONTRAST_LARGE_MIN = 3; // §4 large text (≥24px, or ≥18.66px bold)
-const TEXT_MIN_PX = 12; // §16 "nothing <12 px anywhere"
+const TEXT_MIN_PX = 12; // §16 "nothing <12 px anywhere" — owner convention; no standard sets a minimum size
 const TARGET_MIN_PX = 24; // §4 "Targets ≥24 fail"
 const INPUT_MIN_PX = 16; // §4 "Mobile input ≥16 px" (iOS zoom), checked at 360
 const INPUT_ZOOM_MAX_WIDTH = 360;
@@ -86,6 +88,14 @@ export const relLum = (c) => { const f = (v) => { v /= 255; return v <= 0.04045 
 export const contrastRatio = (a, b) => { const x = relLum(a), y = relLum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
 export const blendOver = (t, b) => [0, 1, 2].map((i) => t[i] * t[3] + b[i] * (1 - t[3])).concat(1);
 
+// One text fact → "fail" | "pass" | null (not measurable). Exact ratio, or a gradient [min, max] range.
+export function contrastVerdict(x) {
+  const lim = x.large ? CONTRAST_LARGE_MIN : CONTRAST_MIN;
+  if (x.ratio != null) return x.ratio < lim ? "fail" : "pass";
+  if (!x.range) return null;
+  return x.range[1] < lim ? "fail" : x.range[0] >= lim ? "pass" : null;
+}
+
 // ---- rules ---------------------------------------------------------------------------
 // judge(facts) → offenders [{el, v}] for one viewport, or null when it could not be measured.
 const has = (x) => Array.isArray(x);
@@ -111,11 +121,14 @@ export const RULES = [
   { id: "contrast", tier: "fail", spec: "§4", desc: `text contrast < ${CONTRAST_MIN}:1 (large < ${CONTRAST_LARGE_MIN}:1)`,
     // Measured offenders always fail; with none, any unmeasured text (over an image, gradient, overlay,
     // off-screen) leaves the rule NOT CHECKED rather than vouched for. Disabled text is exempt (WCAG 1.4.3).
+    // Over a gradient the ratio is a [min, max] range: it fails only when even the best case fails,
+    // passes only when even the worst case passes, and is unmeasured in between.
     judge: (f) => {
       const t = has(f.texts) ? f.texts.filter((x) => !x.exempt) : [];
       if (!t.length) return null;
-      const o = t.filter((x) => x.ratio != null && x.ratio < (x.large ? CONTRAST_LARGE_MIN : CONTRAST_MIN)).map((x) => off(x.el, `${Math.floor(x.ratio * 100) / 100}:1`));
-      return o.length || t.every((x) => x.ratio != null) ? o : null;
+      const r2 = (v) => Math.floor(v * 100) / 100;
+      const o = t.filter((x) => contrastVerdict(x) === "fail").map((x) => off(x.el, x.ratio != null ? `${r2(x.ratio)}:1` : `≤ ${r2(x.range[1])}:1 over a gradient`));
+      return o.length || t.every((x) => contrastVerdict(x) != null) ? o : null;
     } },
   { id: "tiny-text", tier: "fail", spec: "§16", desc: `visible text < ${TEXT_MIN_PX}px`,
     judge: (f) => has(f.texts) ? f.texts.filter((t) => t.px < TEXT_MIN_PX).map((t) => off(t.el, `${t.px}px`)) : null },
@@ -140,7 +153,7 @@ export const RULES = [
     judge: (f) => has(f.floating) ? f.floating.map((el) => off(el, "fixed bottom corner")) : null },
   { id: "placeholder-content", tier: "fail", spec: "§4", desc: "lorem ipsum / Acme / John Doe placeholders",
     judge: (f) => has(f.placeholders) ? f.placeholders.map((p) => off("page text", `"${p}"`)) : null },
-  { id: "lcp-entrance", tier: "fail", spec: "§4, §11", desc: "LCP element (or an ancestor) runs an entrance animation",
+  { id: "lcp-entrance", tier: "fail", spec: "§4, §11", desc: "LCP element (or an ancestor) starts hidden (opacity 0, clip, visibility) in an entrance animation",
     judge: (f) => !f.lcp ? null : f.lcp.animated ? [off(f.lcp.el, f.lcp.how)] : [] },
   { id: "reduced-motion", tier: "fail", spec: "§4, §11", desc: "transform/size animation still running under prefers-reduced-motion",
     applies: (f) => f.width === REDUCED_MOTION_WIDTH,
@@ -222,9 +235,13 @@ export const RULES = [
   { id: "display-tracking", tier: "warn", spec: "D2", desc: `display text (≥ ${DISPLAY_PX}px) letter-spacing tighter than ${DISPLAY_TRACKING_MIN_EM}em`,
     judge: (f) => has(f.texts) ? f.texts.filter((t) => t.px >= DISPLAY_PX && t.em != null && t.em < DISPLAY_TRACKING_MIN_EM - 1e-4)
       .map((t) => off(t.el, `${Math.round(t.em * 1000) / 1000}em at ${t.px}px`)) : null },
+  // Real case 2026-10-31 (dotads storefront: h1 → h3). WCAG 1.3.1 advises, does not require, sequential levels.
+  { id: "heading-skip", tier: "warn", spec: "WCAG 1.3.1 (advisory)", desc: "heading level skipped (e.g. h1 → h3)",
+    judge: (f) => has(f.headingSkips) ? f.headingSkips.map((h) => off(h.el, h.v)) : null },
   { id: "transition-all", tier: "warn", spec: "§4", desc: "transition: all",
     judge: (f) => has(f.transitionAll) ? f.transitionAll.map((el) => off(el, "transition-property: all")) : null },
-  { id: "ease-in", tier: "warn", spec: "§4, D1", desc: "ease-in timing on UI motion",
+  // Owner decision D1, not a standard: Material 3 uses accelerate curves for exits. Deliberate exits: allow: ease-in.
+  { id: "ease-in", tier: "warn", spec: "D1 (owner)", desc: "ease-in timing on UI motion (owner preference; exits may use it — allow: if deliberate)",
     judge: (f) => has(f.easeIn) ? f.easeIn.map((e) => off(e.el, e.v)) : null },
   { id: "duration", tier: "warn", spec: "§4", desc: `motion > ${DURATION_SMALL_MS}ms (small) / > ${DURATION_LARGE_MS}ms (large)`,
     judge: (f) => has(f.durations) ? f.durations.filter((d) => d.ms > (d.large ? DURATION_LARGE_MS : DURATION_SMALL_MS))
@@ -413,13 +430,19 @@ async function serveFile(url) {
 function pageRecorder() {
   const rec = (window.__dotuiux = { anims: [], lcp: null });
   // Record which properties each animation touches, so a background tint is not an entrance.
-  const keys = (anims) => [...new Set(anims.flatMap((a) => (a.effect && a.effect.getKeyframes ? a.effect.getKeyframes() : []).flatMap((k) => Object.keys(k))))];
+  const META = new Set(["offset", "computedOffset", "easing", "composite"]);
+  const keys = (anims) => [...new Set(anims.flatMap((a) => (a.effect && a.effect.getKeyframes ? a.effect.getKeyframes() : []).flatMap((k) => Object.keys(k)).filter((k) => !META.has(k))))];
+  // web.dev LCP: opacity-0 content is not a candidate, a moving/resizing one is. Record whether the first
+  // keyframe hides it; false = it starts visible (a transform-only or fade-from-visible entrance).
+  const startsHidden = (anims) => anims.some((a) => { const k = a.effect && a.effect.getKeyframes ? a.effect.getKeyframes()[0] : null;
+    return !k || (k.opacity != null && +k.opacity < 0.05) || k.clipPath != null || k.visibility === "hidden"; });
   document.addEventListener("animationstart", (e) => rec.anims.push({ t: e.target, name: e.animationName, ts: performance.now(),
-    props: keys(e.target.getAnimations ? e.target.getAnimations().filter((a) => a.animationName === e.animationName) : []) }), true);
-  document.addEventListener("transitionrun", (e) => rec.anims.push({ t: e.target, name: "transition", props: [e.propertyName], ts: performance.now() }), true);
+    ...((as) => ({ props: keys(as), hidden: startsHidden(as) }))(e.target.getAnimations ? e.target.getAnimations().filter((a) => a.animationName === e.animationName) : []) }), true);
+  // A transition's from-value is not exposed: an opacity/clip transition on load is treated as a reveal (lazy: may over-report a partial fade).
+  document.addEventListener("transitionrun", (e) => rec.anims.push({ t: e.target, name: "transition", props: [e.propertyName], hidden: true, ts: performance.now() }), true);
   const animate = Element.prototype.animate;
   Element.prototype.animate = function (...a) { const anim = animate.apply(this, a);
-    rec.anims.push({ t: this, name: "element.animate()", props: keys([anim]), ts: performance.now() }); return anim; };
+    rec.anims.push({ t: this, name: "element.animate()", props: keys([anim]), hidden: startsHidden([anim]), ts: performance.now() }); return anim; };
   try { new PerformanceObserver((l) => { for (const e of l.getEntries()) rec.lcp = e; }).observe({ type: "largest-contentful-paint", buffered: true }); } catch {}
 }
 
@@ -431,7 +454,10 @@ async function pageCollect(o) {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const rec = window.__dotuiux || { anims: [], lcp: null };
   const cs = (el) => getComputedStyle(el);
+  // Wholly above the document, or left of it on an LTR page (a skip link parked at top:-60px until focus), is not visible.
+  const ltr = getComputedStyle(document.documentElement).direction !== "rtl";
   const visible = (el) => { const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return false;
+    if (r.bottom + scrollY <= 0 || (ltr && r.right + scrollX <= 0)) return false;
     const s = cs(el); return s.visibility !== "hidden" && s.display !== "none" && +s.opacity > 0; };
   const label = (el) => { const t = (el.getAttribute("aria-label") || (el.tagName === "IMG" ? el.getAttribute("alt") || el.getAttribute("src") : el.textContent) || "")
     .replace(/[\x00-\x1f\x7f]/g, " ").trim().replace(/\s+/g, " ").slice(0, 40); return el.tagName.toLowerCase() + (t ? ` "${t}"` : ""); };
@@ -447,27 +473,88 @@ async function pageCollect(o) {
   const ancestorBg = (el) => { const layers = [];
     for (let e = el; e; e = e.parentElement) { const c = rgba(cs(e).backgroundColor); if (c && c[3] > 0) { layers.push(c); if (c[3] >= 1) break; } }
     let bg = [255, 255, 255, 1]; for (const l of layers.reverse()) bg = blend(l, bg); return bg; };
-  // Paint stack under a point; null when an image/gradient sits behind (unknown), undefined when covered.
+  // Paint stack under a point; null when an image sits behind (unknown), undefined when covered.
   const MEDIA = new Set(["IMG", "VIDEO", "CANVAS", "PICTURE", "IFRAME", "svg", "SVG"]);
-  // A positioned ::before/::after with paint is an overlay band elementsFromPoint cannot see.
-  const pseudoPaint = (e) => ["::before", "::after"].some((p) => { const s = getComputedStyle(e, p);
-    if (s.content === "none" || s.content === "normal" || !/absolute|fixed/.test(s.position)) return false;
-    const c = rgba(s.backgroundColor); return s.backgroundImage !== "none" || !c || c[3] > 0; });
+  // ::before/::after bands are invisible to elementsFromPoint. Every painted band on the page is collected once
+  // (bandRegions, after the element list): text whose point falls inside a band's containing block is unmeasured.
+  // Exempt: a plain line (≤ 4px, untransformed, no border/shadow/outline growing it) such as an underline bar.
+  // lazy: the region is the containing block, not the band's own box (transforms, margins and insets made box maths
+  // misjudge in review); over-marking means NOT CHECKED, never a wrong verdict.
+  const px = (v) => (/^-?[\d.]+px$/.test(v) ? parseFloat(v) : null);
+  const edged = (s) => ["Top", "Right", "Bottom", "Left"].some((k) => parseFloat(s[`border${k}Width`]) > 0 && s[`border${k}Style`] !== "none")
+    || s.boxShadow !== "none" || (parseFloat(s.outlineWidth) > 0 && s.outlineStyle !== "none");
+  const bandOf = (e, p) => { const s = getComputedStyle(e, p);
+    if (s.content === "none" || s.content === "normal" || s.display === "none") return null;
+    // In flow, a pseudo is an overlay only as a grid item (grid-area stacking); inline icons and bullets are not.
+    const placed = /absolute|fixed/.test(s.position) || /grid/.test(cs(e).display);
+    const c = rgba(s.backgroundColor);
+    if (!placed || !(s.backgroundImage !== "none" || !c || c[3] > 0 || edged(s))) return null;
+    const w = px(s.width), h = px(s.height), plain = [s.transform, s.translate, s.scale, s.rotate, s.filter].every((v) => !v || v === "none") && !edged(s);
+    if (plain && ((w != null && w <= 4) || (h != null && h <= 4))) return null;
+    let cb = e; // containing block: the host when it is in flow or positioned, else the nearest positioned/transformed ancestor
+    if (s.position === "absolute") while (cb.parentElement && cs(cb).position === "static" && cs(cb).transform === "none") cb = cb.parentElement;
+    if (s.position === "fixed") cb = document.documentElement;
+    return { cb, fixed: s.position === "fixed" }; };
+  let bands = [];
+  // Rect read live (viewport space): content loading above a band during the scan moves it.
+  const inBand = (x, y) => bands.some((b) => { if (b.fixed) return true; const r = b.cb.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; });
+  // Top-level comma split that respects nested parentheses (rgba() inside gradient()).
+  const layersOf = (v) => { const out = []; let d = 0, cur = "";
+    for (const ch of v) { if (ch === "(") d++; if (ch === ")") d--; if (ch === "," && !d) { out.push(cur.trim()); cur = ""; } else cur += ch; }
+    return [...out, cur.trim()]; };
+  // Colour stops of one gradient layer; null for url()/image-set, unparsable colours or an `in <space>` hint.
+  const gradientStops = (img) => { if (/url\(|image-set|element\(|cross-fade|paint\(|\bin\s+[a-z]/.test(img)) return null;
+    const cols = (img.match(/rgba?\([^)]*\)/g) || []).map(rgba);
+    const unknown = /\b(oklch|oklab|lab|lch|color|hsla?|hwb)\(/.test(img.replace(/rgba?\([^)]*\)/g, ""));
+    return !cols.length || unknown || cols.some((c) => !c) ? null : cols; };
   // The meta tag sets the used scheme without changing html's computed color-scheme.
   const darkCanvas = /dark/.test(`${cs(document.documentElement).colorScheme} ${document.querySelector("meta[name=color-scheme]")?.content || ""}`);
+  // Returns {lo, hi}: per-channel bounds of every colour that can sit behind the point. A solid stack
+  // gives lo = hi. A gradient layer adds its stops plus "not covered here" (size/repeat unknown).
+  // Interpolation and compositing are linear in premultiplied colour, so the bounds hold between stops.
   const backdrop = (el, x, y) => {
     const stack = document.elementsFromPoint(x, y), i = stack.indexOf(el);
     if (i < 0) return undefined;
-    const layers = [];
+    if (inBand(x, y)) return null;
+    const layers = []; let opaque = false; // top-down; each layer is a list of colours, null = layer absent
     for (const e of stack.slice(i)) {
       if (e !== el && MEDIA.has(e.tagName)) return null;
-      const s = cs(e); if (s.backgroundImage !== "none" || pseudoPaint(e)) return null;
+      // Live too, as before the page-wide list: a band a reveal class switches on mid-scan is in the stack.
+      if (bandOf(e, "::before") || bandOf(e, "::after")) return null;
+      const s = cs(e);
+      if (s.backgroundImage !== "none") {
+        // background-clip:text paints the glyphs, not a backdrop.
+        if (/text/.test(s.backgroundClip || s.webkitBackgroundClip || "")) return null;
+        // Each image layer is its own layer (first listed = top); size/repeat/position lists cycle per layer.
+        // A layer covers the box when it repeats both ways, or fills it from the origin; otherwise the layer below can show.
+        const imgs = layersOf(s.backgroundImage), sz = layersOf(s.backgroundSize), rp = layersOf(s.backgroundRepeat), ps = layersOf(s.backgroundPosition);
+        for (let k = 0; k < imgs.length; k++) {
+          const stops = gradientStops(imgs[k]); if (!stops) return null;
+          const z = sz[k % sz.length], rr = rp[k % rp.length], pos = ps[k % ps.length];
+          const covers = /^repeat( repeat)?$/.test(rr) || (/^(auto|auto auto|cover|100% 100%)$/.test(z) && /^0(%|px)? 0(%|px)?$/.test(pos));
+          layers.push(covers ? stops : [...stops, null]);
+          if (covers && stops.every((c) => c[3] >= 1)) { opaque = true; break; } // nothing below this layer shows
+        }
+        if (opaque) break;
+      }
       const c = rgba(s.backgroundColor); if (!c) return null;
-      if (c[3] > 0) { layers.push(c); if (c[3] >= 1) break; }
+      if (c[3] > 0) { layers.push([c]); if (c[3] >= 1) { opaque = true; break; } }
     }
     // No opaque layer: the canvas shows. It is white only for a light colour scheme.
-    if (!(layers.length && layers[layers.length - 1][3] >= 1) && darkCanvas) return null;
-    let bg = [255, 255, 255, 1]; for (const l of layers.reverse()) bg = blend(l, bg); return bg;
+    if (!opaque && darkCanvas) return null;
+    let lo = [255, 255, 255, 1], hi = [255, 255, 255, 1];
+    for (const layer of layers.reverse()) {
+      const outs = layer.flatMap((t) => (t ? [blend(t, lo), blend(t, hi)] : [lo, hi]));
+      lo = [0, 1, 2].map((k) => Math.min(...outs.map((o) => o[k]))).concat(1);
+      hi = [0, 1, 2].map((k) => Math.max(...outs.map((o) => o[k]))).concat(1);
+    }
+    return { lo, hi };
+  };
+  // Contrast bounds of an opaque foreground over a backdrop box (luminance is monotonic per channel).
+  const ratioRange = (fg, { lo, hi }) => {
+    const L = (c) => relLum(c), lf = L(fg), a = L(lo), b = L(hi), r = (l) => (Math.max(lf, l) + 0.05) / (Math.min(lf, l) + 0.05);
+    return [lf >= a && lf <= b ? 1 : Math.min(r(a), r(b)), Math.max(r(a), r(b))];
   };
   const docTop = (el) => el.getBoundingClientRect().top + scrollY;
   const bucket = (el) => Math.max(0, Math.floor(docTop(el) / vh));
@@ -485,9 +572,17 @@ async function pageCollect(o) {
   // 1. Motion, at scroll 0 before anything else moves the page.
   const lcpEl = rec.lcp && rec.lcp.element;
   if (lcpEl) {
-    const ENTRANCE = /^(opacity|transform|translate|scale|rotate|filter|clip-path|clipPath|top|left)$/;
-    const hit = rec.anims.find((a) => a.t && a.ts < 4000 && (a.t === lcpEl || (a.t.contains && a.t.contains(lcpEl))) && a.props.some((p) => ENTRANCE.test(p)));
-    f.lcp = { el: label(lcpEl), animated: !!hit, how: hit ? `${hit.name} (${hit.props.join(", ")}) on ${hit.t === lcpEl ? "LCP element" : label(hit.t)}` : "" };
+    const HIDES = /^(opacity|clip-path|clipPath|visibility)$/;
+    // Hidden content is no LCP candidate, so a hero that fades in from 0 hands LCP to smaller text: also count
+    // a hidden-start entrance on a first-viewport element at least as large as the reported LCP element.
+    const area = (e) => { const r = e.getBoundingClientRect(); return r.width * r.height; }, lcpArea = area(lcpEl);
+    // Only what can itself be an LCP candidate: an image/video/poster, a url() background, or a block with its own text.
+    // A fading header, nav or decorative glow is not (no false FAIL on a container).
+    const candidate = (e) => /^(IMG|VIDEO|image)$/.test(e.tagName) || /url\(/.test(cs(e).backgroundImage)
+      || ([...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && !e.closest("header,nav,[role=banner],[role=navigation]"));
+    const hit = rec.anims.find((a) => a.t && a.ts < 4000 && a.hidden && a.props.some((p) => HIDES.test(p))
+      && (a.t === lcpEl || (a.t.contains && a.t.contains(lcpEl)) || (a.t.isConnected && candidate(a.t) && visible(a.t) && docTop(a.t) < vh && area(a.t) >= lcpArea)));
+    f.lcp = { el: label(lcpEl), animated: !!hit, how: hit ? `${hit.name} (${hit.props.join(", ")}) on ${hit.t === lcpEl ? "LCP element" : hit.t.contains(lcpEl) ? label(hit.t) : `${label(hit.t)}, larger than the reported LCP`}` : "" };
   }
   const pauseControl = [...document.querySelectorAll("button,[role=button]")].some((b) =>
     /\b(pause|stop|jeda|hentikan)\b/i.test(`${b.getAttribute("aria-label") || ""} ${b.title || ""} ${b.textContent || ""}`));
@@ -499,27 +594,34 @@ async function pageCollect(o) {
 
   // 2. Scroll pass: loads lazy content and measures text contrast as each line enters view.
   const all = [...document.body.querySelectorAll("*")].slice(0, 8000);
+  // html and body pseudos too (a fixed body::before dark layer is a common landing-page backdrop).
+  bands = [document.documentElement, document.body, ...all].flatMap((e) => ["::before", "::after"].map((p) => bandOf(e, p)).filter(Boolean));
   const textEls = [];
   for (const el of all) {
     const node = [...el.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim().length > 1);
     if (node && visible(el)) { const range = document.createRange(); range.selectNodeContents(node); textEls.push({ el, range }); }
   }
+  // contrast: el → [min, max] ratio (equal for a solid backdrop) or null when it cannot be bounded.
   const contrast = new Map();
   const H = () => document.documentElement.scrollHeight;
-  for (let y = 0, i = 0; i < 40 && y < Math.min(H(), 20000); y += vh * 0.8, i++) {
-    scrollTo(0, y); await sleep(120);
+  let scanned = 0; const deadline = performance.now() + o.scanMs; // stop early and say so, rather than lose the whole check
+  for (let y = 0, i = 0; i < o.scrollSteps && y < H() && performance.now() < deadline; y += vh * 0.8, i++) {
+    // instant: html{scroll-behavior:smooth} would still be animating when the screen is measured (real 84k px page).
+    scrollTo({ top: y, left: 0, behavior: "instant" }); await sleep(i < 40 ? 120 : 40); scanned = Math.min(H(), y + vh);
     for (const t of textEls) {
       if (contrast.has(t.el)) continue;
       const r = t.range.getClientRects()[0]; if (!r || r.top < 0 || r.bottom > vh || r.left < 0 || r.right > vw) continue;
       const bg = backdrop(t.el, r.left + r.width / 2, r.top + r.height / 2);
       if (bg === undefined) continue;
       const s = cs(t.el); let fg = rgba(s.color);
-      if (bg === null || !fg || t.el.closest(":disabled,[aria-disabled=true]")) { contrast.set(t.el, null); continue; }
-      if (fg[3] < 1) fg = blend(fg, bg);
-      contrast.set(t.el, ratio(fg, bg)); // raw: 4.495 must fail 4.5
+      if (bg === null || !fg || fg[3] === 0 || t.el.closest(":disabled,[aria-disabled=true]")) { contrast.set(t.el, null); continue; }
+      const solid = bg.lo.every((v, k) => v === bg.hi[k]);
+      if (fg[3] < 1) { if (!solid) { contrast.set(t.el, null); continue; } fg = blend(fg, bg.lo); }
+      const x = solid ? ratio(fg, bg.lo) : null;
+      contrast.set(t.el, solid ? [x, x] : ratioRange(fg, bg)); // raw: 4.495 must fail 4.5
     }
   }
-  scrollTo(0, 0); await sleep(300);
+  scrollTo({ top: 0, left: 0, behavior: "instant" }); await sleep(300);
 
   // 3. Static facts.
   const texts = [], fam = {}, size = {}, tcol = {}, bgc = {}, markers = [], cards = new Set(), blurs = [], transitionAll = [], easeIn = [], durations = [];
@@ -532,7 +634,8 @@ async function pageCollect(o) {
     const s = cs(el), px = parseFloat(s.fontSize), w = parseInt(s.fontWeight, 10), chars = el.textContent.trim().length;
     // letter-spacing computes to "normal" or px; only display sizes carry it (D2).
     const em = px >= o.displayPx && s.letterSpacing !== "normal" ? parseFloat(s.letterSpacing) / px : null;
-    texts.push({ el: label(el), px, weight: w, em, ratio: contrast.has(el) ? contrast.get(el) : null, large: px >= 24 || (px >= 18.66 && w >= 700),
+    const cr = contrast.get(el) || null, exact = cr && cr[0] === cr[1];
+    texts.push({ el: label(el), px, weight: w, em, ratio: exact ? cr[0] : null, ...(cr && !exact ? { range: cr } : {}), large: px >= 24 || (px >= 18.66 && w >= 700),
       exempt: !!el.closest(":disabled,[aria-disabled=true]"),
       prose: /^(P|LI|DD|BLOCKQUOTE|TD)$/.test(el.tagName) && !inChrome(el), chars });
     tally(fam, s.fontFamily.split(",")[0].replace(/["']/g, "").trim(), chars); tally(size, s.fontSize, chars); tally(tcol, s.color, chars);
@@ -576,6 +679,10 @@ async function pageCollect(o) {
   for (const el of document.querySelectorAll("a[href],button,input:not([type=hidden]),select,textarea,summary,[role=button],[role=link],[role=tab],[role=checkbox],[role=menuitem]")) {
     if (!visible(el) || inlineLink(el)) continue;
     if (/^(checkbox|radio)$/.test(el.type) && (el.closest("label") || (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)))) continue;
+    // WCAG 2.5.8 user-agent exception: a native checkbox/radio still at the browser's own size (13px in Chromium).
+    // lazy: an author rule that sets exactly 13px is also exempt; upgrade = compare against a pristine control.
+    if (/^(checkbox|radio)$/.test(el.type) && cs(el).appearance !== "none") {
+      const r = el.getBoundingClientRect(); if (Math.abs(r.width - 13) < 0.5 && Math.abs(r.height - 13) < 0.5) continue; }
     const r = el.getBoundingClientRect();
     targets.push({ el: label(el), x: Math.round(r.left), y: Math.round(r.top + scrollY), w: Math.round(r.width), h: Math.round(r.height) });
     if (/^(SELECT|TEXTAREA)$/.test(el.tagName) || (el.tagName === "INPUT" && !/^(checkbox|radio|submit|button|reset|range|color|file|image)$/.test(el.type)))
@@ -650,6 +757,10 @@ async function pageCollect(o) {
     return Math.max(1, tops.size); };
   const words = (el) => el.textContent.trim().split(/\s+/).filter(Boolean).length;
   const h1s = [...document.querySelectorAll("h1")].filter(visible).map((h) => ({ el: label(h), words: words(h), lines: lines(h) }));
+  // Heading outline: a level jump of more than one (h1 → h3) in visible document order.
+  const headingSkips = []; let prevLevel = 0;
+  for (const h of document.querySelectorAll("h1,h2,h3,h4,h5,h6")) { if (!visible(h)) continue; const lv = +h.tagName[1];
+    if (prevLevel && lv > prevLevel + 1 && headingSkips.length < 20) headingSkips.push({ el: label(h), v: `h${prevLevel} → h${lv}` }); prevLevel = lv; }
   const navScope = "nav,[role=navigation],[role=tablist],aside";
   const navLabels = [...document.querySelectorAll(`:is(${navScope}) :is(a,button,[role=tab])`)]
     .filter((e) => visible(e) && !e.closest("footer,[role=contentinfo]") && e.textContent.trim())
@@ -676,7 +787,7 @@ async function pageCollect(o) {
     overflowEls: all.filter((el) => { const r = el.getBoundingClientRect(); return r.right > vw + 1 && r.width > 0 && visible(el); }).slice(0, 3).map(label),
     texts: texts.slice(0, 2000), targets: targets.slice(0, 600), controls, images: images.slice(0, 300), contacts, floating, blank, placeholders,
     buttons, firstViewportWords, h1s, navLabels, navGroups, markers: markers.slice(0, 200), emphasis, icons: { total: carriers.length, withIcon, tiles },
-    nestedCards, hero, hrefs: hrefs.slice(0, 1000), blurs: blurs.slice(0, 30), transitionAll, easeIn, durations,
+    nestedCards, hero, hrefs: hrefs.slice(0, 1000), blurs: blurs.slice(0, 30), transitionAll, easeIn, durations, scanned, headingSkips,
     ref: { height: H(), title: document.title.slice(0, 80), fonts: top(fam, 4), sizes: top(size, 8), palette: { text: top(tcol, 6), background: top(bgc, 6) },
       navLabels: navLabels.map((l) => l.chars), buttons: buttons.length, primaryButtons: buttons.filter((b) => b.primary).length,
       outboundLinks: outbound, images: images.length, h1: h1s[0] || null },
@@ -697,7 +808,7 @@ function pageReducedMotion(o) {
   return out.slice(0, 20);
 }
 
-const pageOpts = () => ({ loopMaxMs: LOOP_MAX_MS, tinyPx: MOTION_TINY_PX, largeArea: LARGE_AREA_RATIO, placeholderRe: PLACEHOLDER_RE, displayPx: DISPLAY_PX });
+const pageOpts = () => ({ loopMaxMs: LOOP_MAX_MS, tinyPx: MOTION_TINY_PX, largeArea: LARGE_AREA_RATIO, placeholderRe: PLACEHOLDER_RE, displayPx: DISPLAY_PX, scrollSteps: SCROLL_STEPS, scanMs: SCAN_MS });
 // Page functions run via Runtime.evaluate as source text (our own code, not page input).
 // RegExp cannot cross JSON, so it is rebuilt in the page.
 const call = (fn, arg) => {
@@ -939,7 +1050,8 @@ async function cmdCheck(argv) {
   for (const f of facts) if (f.overflowClipped && f.scrollWidth > f.width + 1)
     notes.push(`overflow-x not checked at ${f.width}px: html/body overflow-x hidden/clip hides ${f.scrollWidth - f.width}px of content (mobile browsers may still pan to it); check off-canvas elements by hand`);
   for (const f of facts) {
-    const u = (f.texts || []).filter((t) => t.ratio == null && !t.exempt);
+    if (f.scanned && f.ref && f.scanned < f.ref.height) notes.push(`contrast scan stopped at ${f.scanned}px of a ${f.ref.height}px page at ${f.width}px (limit ${SCROLL_STEPS} screens / ${SCAN_MS / 1000}s); text below it is not measured`);
+    const u = (f.texts || []).filter((t) => contrastVerdict(t) == null && !t.exempt);
     if (u.length) notes.push(`contrast not measured at ${f.width}px for ${u.length} text element(s) over an image, gradient, video, overlay, or off-screen: ${u.slice(0, 3).map((t) => t.el).join(", ")}${u.length > 3 ? ", …" : ""}; check them by hand`);
   }
   const results = evaluate(facts, allows, { checkoutHandoff: handoff });

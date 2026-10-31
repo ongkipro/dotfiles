@@ -172,6 +172,15 @@ console.log("3a. owner decisions (blank-noopener warn, D4 blur, D9 checkout hand
   const r12 = st(m.evaluate(b12, blurAllow), "blur");
   expect(r12.status === "fail" && r12.offenders.some((o) => o.sev === "fail" && /12px/.test(o.v)), "D4 blur: 12px fails even with allow: blur");
 
+  // TASK-169: gradient backdrops give a [min, max] contrast range.
+  const cv = m.contrastVerdict;
+  expect(cv({ range: [5, 9] }) === "pass" && cv({ range: [1.2, 4.4] }) === "fail" && cv({ range: [3, 6] }) === null && cv({ range: [3.2, 4], large: true }) === "pass",
+    "contrast range: worst case passes → pass, best case fails → fail, straddling → not measured");
+  const g = st(m.evaluate([{ ...base, texts: [{ el: "h2 on gradient", px: 16, ratio: null, range: [1.5, 2.1], chars: 9 }] }]), "contrast");
+  expect(g.status === "fail" && /≤ 2.1:1 over a gradient/.test(g.offenders[0].v), "contrast range: a gradient that fails at every stop is a FAIL with its best case shown", JSON.stringify(g.offenders));
+  expect(st(m.evaluate([{ ...base, headingSkips: [{ el: "h3", v: "h1 → h3" }] }]), "heading-skip").status === "warn" && m.WARN_IDS.includes("heading-skip"),
+    "heading-skip is a WARN, not a floor rule");
+
   const tr = (em, px = 40) => [{ ...base, texts: [{ el: "h1", px, em, ratio: 10, chars: 10 }] }];
   expect(m.WARN_IDS.includes("display-tracking"), "D2 display-tracking is a WARN id");
   expect(st(m.evaluate(tr(-0.02)), "display-tracking").status === "pass", "D2: −0.02em on display text passes (the cap itself)");
@@ -374,6 +383,90 @@ try {
     fs.writeFileSync(path.join(rv, "photo-hero.html"), page(`<style>.hero{background:#fafafa url("data:image/gif;base64,R0lGODlhAQABAAAAACw=") repeat;padding:24px}.hero h1{color:#eee}</style>`,
       `<main><section class="hero"><h1>Fresh bread</h1></section><p>Sourdough and pastries baked daily.</p></main>`));
     const photo = await J("photo-hero.html");
+    // TASK-169 real-page cases (2026-10-31): gradient hero/body, a 2px ::after underline, an off-page skip link,
+    // a long page, LCP entrances, a native checkbox and a skipped heading level.
+    fs.writeFileSync(path.join(rv, "real-cases.html"), page(
+      `<style>html{scroll-behavior:smooth}.skip{position:absolute;left:8px;top:-60px;background:#0f3d5c;color:#fff;padding:10px 14px}.skip:focus{top:8px}
+       .hero{background:linear-gradient(135deg,rgb(30,41,59),rgb(15,23,42));color:#fff;padding:32px}
+       .more{position:relative;color:#1a1a1a}.more::after{content:"";position:absolute;left:0;bottom:2px;width:2rem;height:2px;background:#1a1a1a}
+       @keyframes rise{from{transform:translateY(12px)}to{transform:none}} .hero h1{animation:rise .3s ease-out}
+       .tall{height:26000px}</style>`,
+      `<a class="skip" href="#main">Lewati ke isi</a><main id="main"><section class="hero"><h1>Promo hari ini</h1><p>Diskon untuk pesanan pertama.</p></section>
+       <section><h3>Produk</h3><p><a class="more" href="/produk" style="display:inline-block;padding:12px 0">Lihat semua produk</a></p>
+       <p><input type="checkbox" aria-label="Simpan pilihan"></p></section><div class="tall"></div><p>Alamat toko di bagian paling bawah.</p></main>`));
+    fs.writeFileSync(path.join(rv, "fade-lcp.html"), page(`<style>@keyframes fade{from{opacity:0}to{opacity:1}} h1{animation:fade .4s ease-out both}</style>`,
+      `<main><h1>Fresh bread every morning</h1><p>Sourdough.</p></main>`));
+    fs.writeFileSync(path.join(rv, "grad-fail.html"), page(`<style>.band{background:linear-gradient(90deg,#f4f4f4,#e6e6e6);padding:24px}.band p{color:#b0b0b0}</style>`,
+      `<main><h1>Fresh bread</h1><div class="band"><p>Pale grey text on a pale gradient.</p></div></main>`));
+    // Review 2026-10-31 (TASK-169): stacked layers, straddling range, clip:text, a highlighter pseudo, a fading glow.
+    fs.writeFileSync(path.join(rv, "grad-review.html"), page(
+      `<style>.scrim{background:linear-gradient(rgba(0,0,0,.5),rgba(0,0,0,.5)),linear-gradient(#777,#777);padding:24px}.scrim p{color:#fff}
+       .glow{position:absolute;top:0;left:0;width:100vw;height:600px;background:radial-gradient(rgba(120,80,255,.15),rgba(120,80,255,0));animation:fade .4s ease-out both;z-index:-1}
+       @keyframes fade{from{opacity:0}to{opacity:1}}</style>`,
+      `<div class="glow"></div><main><h1>Fresh bread every morning</h1><div class="scrim"><p>White text on a half-black scrim over grey.</p></div></main>`));
+    fs.writeFileSync(path.join(rv, "grad-straddle.html"), page(`<style>.band{background:linear-gradient(90deg,#fff,#222);padding:24px}.band p{color:#000}</style>`,
+      `<main><h1>Fresh bread</h1><div class="band"><p>Black text over a white-to-dark gradient.</p></div></main>`));
+    fs.writeFileSync(path.join(rv, "clip-text.html"), page(`<style>.g{background:linear-gradient(90deg,#8b5cf6,#ec4899);-webkit-background-clip:text;background-clip:text;color:transparent}</style>`,
+      `<main><h1 class="g">Fresh bread</h1><p>Sourdough.</p></main>`));
+    fs.writeFileSync(path.join(rv, "highlight.html"), page(`<style>.hl{position:relative;color:#1a1a1a}.hl::before{content:"";position:absolute;left:0;right:0;top:35%;height:30%;background:#222;z-index:-1}.hl{z-index:0;display:inline-block;padding:0 4px}</style>`,
+      `<main><h1>Fresh bread</h1><p><span class="hl">Dark band behind the top of this text</span> and more words after it.</p></main>`));
+    // Re-review 2026-10-31: a band on a scaled host, and a decorative inline <svg> fading in (not an LCP candidate).
+    fs.writeFileSync(path.join(rv, "scaled-band.html"), page(`<style>.box{position:relative;transform:scale(.5);transform-origin:0 0;color:#fff;width:600px;height:800px;z-index:0}.box::before{content:"";position:absolute;left:0;top:300px;width:600px;height:200px;background:#111;z-index:-1}.box p{position:absolute;top:320px;left:0;margin:0;font-size:32px}</style>`,
+      `<main><h1>Fresh bread</h1><div class=box><p>White on band</p></div></main>`));
+    fs.writeFileSync(path.join(rv, "svg-glow.html"), page(`<style>@keyframes fade{from{opacity:0}to{opacity:1}} svg.deco{position:absolute;top:0;right:0;width:90vw;height:500px;z-index:-1;animation:fade .5s both}</style>`,
+      `<svg class=deco aria-hidden=true viewBox="0 0 10 10"><circle cx=5 cy=5 r=5 fill="#eef"/></svg><main><h1>Fresh bread</h1><p>Sourdough.</p></main>`));
+    // Third review: a rotated host and a margin-offset band (box maths would misplace both).
+    fs.writeFileSync(path.join(rv, "rot-band.html"), page(`<style>.box{position:relative;transform:rotate(180deg);color:#fff;width:300px;height:400px;z-index:0}.box::before{content:"";position:absolute;left:0;top:0;width:300px;height:200px;background:#111;z-index:-1}.box p{position:absolute;top:20px;left:0;margin:0;font-size:16px;transform:rotate(180deg)}</style>`,
+      `<main><h1>Fresh bread</h1><div class=box><p>White on band</p></div></main>`));
+    fs.writeFileSync(path.join(rv, "margin-band.html"), page(`<style>.box{position:relative;color:#fff;width:300px;height:400px;z-index:0}.box::before{content:"";position:absolute;left:0;top:0;margin-top:200px;width:300px;height:200px;background:#111;z-index:-1}.box p{position:absolute;top:260px;left:0;margin:0;font-size:16px}</style>`,
+      `<main><h1>Fresh bread</h1><div class=box><p>White on band</p></div></main>`));
+    const scaled = await J("scaled-band.html"), svgG = await J("svg-glow.html"), rot = await J("rot-band.html"), marg = await J("margin-band.html");
+    // Fourth review: bands painted by a box-shadow spread, a scaled 4px bar, or a border.
+    const band = (name, css) => fs.writeFileSync(path.join(rv, `${name}.html`), page(`<style>.hero{position:relative;min-height:300px;overflow:hidden}.hero::before{content:"";position:absolute;${css}}.hero p{color:#fff;margin:40px;position:relative}</style>`,
+      `<main><h1>Title</h1><section class=hero><p>White text over a pseudo-element band.</p></section></main>`));
+    band("shadow-band", "left:0;top:0;width:2px;height:2px;box-shadow:0 0 0 2000px rgba(0,0,0,.8)");
+    band("scaled-bar", "left:0;top:0;width:100%;height:4px;transform-origin:top;transform:scaleY(100);background:#000");
+    band("border-band", "inset:0;border-top:300px solid #000");
+    // Fifth review: a grid-placed overlay pseudo, and an overlay pseudo owned by a sibling outside the hit stack.
+    fs.writeFileSync(path.join(rv, "grid-band.html"), page(`<style>.hero{display:grid;min-height:300px}.hero::before{content:"";grid-area:1/1;background:rgba(0,0,0,.75)}.hero>p{grid-area:1/1;color:#fff;margin:40px;position:relative}</style>`,
+      `<main><h1>Title</h1><section class=hero><p>White text over a pseudo-element band.</p></section></main>`));
+    fs.writeFileSync(path.join(rv, "sibling-band.html"), page(`<style>.wrap{position:relative;min-height:300px}.bg::before{content:"";position:absolute;inset:0;background:#000;pointer-events:none}.wrap p{color:#fff;margin:40px;position:relative}</style>`,
+      `<main><h1>Title</h1><div class=wrap><div class=bg></div><p>White text over a pseudo-element band.</p></div></main>`));
+    // Sixth review: a fixed body::before dark layer, and a band that moves down when lazy content loads above it.
+    fs.writeFileSync(path.join(rv, "body-band.html"), `<!doctype html><html lang=en><head><meta name=viewport content="width=device-width,initial-scale=1"><title>T</title><style>body{margin:0;background:#fff;color:#eee;font:18px/1.5 sans-serif}body::before{content:"";position:fixed;inset:0;background:#000;z-index:-1}main{padding:40px}</style></head>
+      <body><main><h1>Dark page via body overlay</h1><p>White text over a pseudo-element band.</p></main></body></html>`);
+    fs.writeFileSync(path.join(rv, "shift-band.html"), `<!doctype html><html lang=en><head><meta name=viewport content="width=device-width,initial-scale=1"><title>T</title><style>body{margin:0;background:#fff;color:#111;font:18px/1.5 sans-serif}.gap{height:1500px}#slot{height:0}
+      .card{position:relative;background:#fff;color:#eee;padding:40px;margin:20px}.card::before{content:"";position:absolute;inset:0;background:#000}.card p{position:relative}</style></head>
+      <body><h1>Top</h1><div class="gap"></div><div id="sentinel">x marker</div><div id="slot"></div><div class="card"><p>White text over a pseudo-element band.</p></div><div style="height:2000px"></div>
+      <script>new IntersectionObserver((e,o)=>{if(e[0].isIntersecting){document.getElementById('slot').style.height='900px';o.disconnect();}}).observe(document.getElementById('sentinel'));</script></body></html>`);
+    fs.writeFileSync(path.join(rv, "late-band.html"), `<!doctype html><html lang=en><head><meta name=viewport content="width=device-width,initial-scale=1"><title>T</title><style>body{margin:0;background:#fff;color:#111;font:18px/1.5 sans-serif}.gap{height:1500px}
+      .card{position:relative;background:#fff;color:#eee;padding:40px;margin:20px}.card.on::before{content:"";position:absolute;inset:0;background:#000}.card p{position:relative}</style></head>
+      <body><h1>Top</h1><div class="gap"></div><div id="sentinel">x marker</div><div class="card" id="c"><p>White text over a pseudo-element band.</p></div><div style="height:2000px"></div>
+      <script>new IntersectionObserver((e,o)=>{if(e[0].isIntersecting){document.getElementById('c').classList.add('on');o.disconnect();}}).observe(document.getElementById('sentinel'));</script></body></html>`);
+    for (const name of ["shadow-band", "scaled-bar", "border-band", "grid-band", "sibling-band", "body-band", "shift-band", "late-band"]) { const r = await J(`${name}.html`);
+      expect(rs(r, "contrast")?.status === "not-checked", `fourth review: white text over a ${name} pseudo is NOT CHECKED, never a FAIL`, JSON.stringify(rs(r, "contrast"))); }
+    for (const [r, n] of [[rot, "rotated host"], [marg, "margin-offset band"]])
+      expect(rs(r, "contrast")?.status === "not-checked", `third review: white text on a ::before band (${n}) is NOT CHECKED, never a FAIL`, JSON.stringify(rs(r, "contrast")));
+    expect(rs(scaled, "contrast")?.status !== "fail", "re-review: a ::before band on a transformed host is not mis-placed into a FAIL", JSON.stringify(rs(scaled, "contrast")));
+    expect(rs(svgG, "lcp-entrance")?.status === "pass", "re-review: a decorative inline <svg> fading in is not an LCP candidate (no FAIL)", JSON.stringify(rs(svgG, "lcp-entrance")));
+    const gRev = await J("grad-review.html"), gStr = await J("grad-straddle.html"), clipT = await J("clip-text.html"), hl = await J("highlight.html");
+    expect(rs(gRev, "contrast")?.status === "pass", "review: a semi-transparent scrim layer is composited over the gradient below (white text PASSES, ~11:1)", JSON.stringify([rs(gRev, "contrast"), gRev.j?.notes]));
+    expect(rs(gRev, "lcp-entrance")?.status === "pass", "review: a large decorative glow fading in is not an LCP candidate (no FAIL)", JSON.stringify(rs(gRev, "lcp-entrance")));
+    expect(rs(gStr, "contrast")?.status === "not-checked" && gStr.j.notes.some((n) => /contrast not measured/.test(n)), "review: text whose gradient range straddles the limit is NOT CHECKED", JSON.stringify(rs(gStr, "contrast")));
+    expect(rs(clipT, "contrast")?.status === "not-checked" && rs(clipT, "contrast").offenders.length === 0, "review: background-clip:text gradient text is NOT CHECKED, not a FAIL", JSON.stringify(rs(clipT, "contrast")));
+    expect(rs(hl, "contrast")?.status === "not-checked" && hl.j.notes.some((n) => /Dark band/.test(n)), "review: a ::before band under the text point is not ignored (NOT CHECKED, not judged on white)", JSON.stringify([rs(hl, "contrast"), hl.j?.notes]));
+    const realC = await J("real-cases.html"), fade = await J("fade-lcp.html"), gradFail = await J("grad-fail.html");
+    expect(rs(realC, "contrast")?.status === "pass" && !realC.j?.notes.some((n) => /contrast (not measured|scan stopped)/.test(n)),
+      "real: white text on a dark gradient, text with a 2px ::after underline and text 26,000px down a smooth-scrolling page are all measured (contrast PASS)",
+      JSON.stringify([rs(realC, "contrast"), realC.j?.notes]));
+    expect(rs(realC, "primary-actions")?.status === "pass" && !JSON.stringify(rs(realC, "primary-actions")).includes("Lewati"),
+      "real: a skip link parked above the page is not a first-viewport button", JSON.stringify(rs(realC, "primary-actions")));
+    expect(rs(realC, "lcp-entrance")?.status === "pass", "real: a transform-only entrance on a visible LCP is not a FAIL (web.dev: position changes are not new candidates)");
+    expect(rs(fade, "lcp-entrance")?.status === "fail", "real: an LCP that fades in from opacity 0 still FAILS", JSON.stringify(rs(fade, "lcp-entrance")));
+    expect(rs(realC, "target-size")?.status === "pass", "real: a native checkbox at browser size is exempt (WCAG 2.5.8 user-agent exception)", JSON.stringify(rs(realC, "target-size")?.offenders));
+    expect(rs(realC, "heading-skip")?.status === "warn" && rs(realC, "heading-skip").offenders.some((o) => o.v === "h1 → h3"), "real: h1 → h3 warns as heading-skip");
+    expect(rs(gradFail, "contrast")?.status === "fail" && rs(gradFail, "contrast").offenders.some((o) => /over a gradient/.test(o.v)),
+      "real: pale text that fails against every gradient stop FAILS instead of hiding as not checked", JSON.stringify(rs(gradFail, "contrast")));
     expect(photo.status === 0 && rs(photo, "contrast")?.status === "not-checked" && photo.j.notes.some((n) => /contrast not measured/.test(n) && /Fresh bread/.test(n)),
       "review: text over a hero image is NOT CHECKED and named, never a silent pass", JSON.stringify([rs(photo, "contrast"), photo.j?.notes]));
     // Review 2026-10-31: a redirect (pin.it-style share link) or script hop must not reach a gallery.
