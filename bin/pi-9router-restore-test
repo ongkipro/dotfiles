@@ -49,24 +49,32 @@ run_restore
 [ "$source_before" = "$(cksum "$FAKE_DOT/config/pi/settings.json")" ]
 
 # Linux: the sync runs from a timer whose unit survives a node patch upgrade.
+linux_fail() { echo "pi-9router-restore-test: FAIL (linux timer): $1" >&2; [ -f "${unit:-}" ] && cat "$unit" >&2; exit 1; }
 LINUX_HOME="$TMP/linux-home"; LINUX_BIN="$TMP/linux-bin"; mkdir -p "$LINUX_HOME" "$LINUX_BIN"
 printf '%s\n' '#!/usr/bin/env bash' 'printf "Linux\n"' > "$LINUX_BIN/uname"
 printf '%s\n' '#!/usr/bin/env bash' 'printf "%s\n" "$*" >> "$SYSTEMCTL_LOG"' > "$LINUX_BIN/systemctl"
 chmod +x "$LINUX_BIN/uname" "$LINUX_BIN/systemctl"
-real_node="$(command -v node)"; node_version="$(node -p 'process.versions.node')"
-mkdir -p "$TMP/mise/node/$node_version/bin" "$TMP/mise/node/${node_version%%.*}/bin"
-for d in "$node_version" "${node_version%%.*}"; do ln -s "$real_node" "$TMP/mise/node/$d/bin/node"; done
-mkdir -p "$FAKE_DOT/bin"; cp "$ROOT/bin/pi-9router-sync.js" "$FAKE_DOT/bin/"
+real_node="$(command -v node)"; node_version="$(node -p 'process.versions.node')"; node_major="${node_version%%.*}"
+mkdir -p "$TMP/mise/node/$node_version/bin" "$TMP/mise/node/$node_major/bin"
+ln -s "$real_node" "$TMP/mise/node/$node_version/bin/node"
+ln -s "$real_node" "$TMP/mise/node/$node_major/bin/node"
+cp "$ROOT/bin/pi-9router-sync.js" "$FAKE_DOT/bin/"
 HOME="$LINUX_HOME" DOTFILES_DIR="$FAKE_DOT" SYSTEMCTL_LOG="$TMP/systemctl.log" \
-  PATH="$LINUX_BIN:$TMP/mise/node/$node_version/bin:$PATH" bash "$RESTORE" >/dev/null 2>&1
+  PATH="$LINUX_BIN:$TMP/mise/node/$node_version/bin:$PATH" bash "$RESTORE" > "$TMP/linux.out" 2>&1 \
+  || { cat "$TMP/linux.out" >&2; linux_fail "restore exited non-zero"; }
 unit="$LINUX_HOME/.config/systemd/user/pi-9router-sync.service"
-grep -q "^ExecStart=\"$TMP/mise/node/${node_version%%.*}/bin/node\" " "$unit"
-grep -q '^Restart=on-failure' "$unit" && ! grep -q '^RemainAfterExit' "$unit"
-grep -q '^OnUnitActiveSec=1h' "$LINUX_HOME/.config/systemd/user/pi-9router-sync.timer"
-grep -q 'enable --now pi-9router-sync.timer' "$TMP/systemctl.log"
-# No user bus: the restore still completes with a warning.
+timer="$LINUX_HOME/.config/systemd/user/pi-9router-sync.timer"
+[ -f "$unit" ] && [ -f "$timer" ] || linux_fail "service or timer file not written"
+grep -q "^ExecStart=\"$TMP/mise/node/$node_major/bin/node\" " "$unit" || linux_fail "ExecStart does not use the node major alias"
+grep -q '^Restart=on-failure' "$unit" || linux_fail "missing Restart=on-failure"
+if grep -q '^RemainAfterExit' "$unit"; then linux_fail "RemainAfterExit would stop the timer re-running"; fi
+grep -q '^OnUnitActiveSec=1h' "$timer" || linux_fail "timer is not hourly"
+grep -q 'enable --now pi-9router-sync.timer' "$TMP/systemctl.log" || linux_fail "timer was not enabled"
+# No user bus: the restore still completes, with a warning instead of an abort.
 printf '%s\n' '#!/usr/bin/env bash' 'exit 1' > "$LINUX_BIN/systemctl"; chmod +x "$LINUX_BIN/systemctl"
-HOME="$LINUX_HOME" DOTFILES_DIR="$FAKE_DOT" PATH="$LINUX_BIN:$PATH" bash "$RESTORE" 2>&1 | grep -q 'could enable it'
+HOME="$LINUX_HOME" DOTFILES_DIR="$FAKE_DOT" PATH="$LINUX_BIN:$PATH" bash "$RESTORE" > "$TMP/nobus.out" 2>&1 \
+  || { cat "$TMP/nobus.out" >&2; linux_fail "restore aborted without a user bus"; }
+grep -q 'could enable it' "$TMP/nobus.out" || linux_fail "no warning without a user bus"
 
 echo "pi-9router-restore-test: OK"
 

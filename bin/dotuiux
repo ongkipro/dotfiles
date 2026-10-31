@@ -15,7 +15,7 @@
  *
  * Gate list and tiers: research/dotuiux/03-dotuiux-brief.md §3 (evidence: 02-round2-synthesis.md).
  * Browser: reuses design-taste/scripts/ui-ref.mjs (DevTools over node: builtins + installed
- * Chrome), resolved from ${DOTFILES:-$HOME/dotfiles}. Read-only: it only loads pages.
+ * Chrome), resolved from $DOTFILES, this script's checkout, then ~/dotfiles. Read-only: it only loads pages.
  * Exit: 0 ok · 1 FAIL gate or invalid project · 2 usage/error · 3 no working browser.
  */
 
@@ -366,9 +366,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const within = (p, ms) => Promise.race([p, sleep(ms).then(() => null)]); // ui-ref does not export this
 
 async function loadUiRef() {
-  const root = process.env.DOTFILES || path.join(os.homedir(), "dotfiles");
-  const file = path.join(root, "skills", "local", "design-taste", "scripts", "ui-ref.mjs");
-  if (!fs.existsSync(file)) throw new Error(`ui-ref.mjs not found at ${file} (set DOTFILES)`);
+  // $DOTFILES first, then the checkout this script lives in (CI checks out outside
+  // ~/dotfiles; realpath follows a ~/.local/bin link), then ~/dotfiles.
+  const own = path.resolve(path.dirname(fs.realpathSync(fileURLToPath(import.meta.url))), "..");
+  const roots = [process.env.DOTFILES, own, path.join(os.homedir(), "dotfiles")].filter(Boolean);
+  const rel = path.join("skills", "local", "design-taste", "scripts", "ui-ref.mjs");
+  const file = roots.map((r) => path.join(r, rel)).find((f) => fs.existsSync(f));
+  if (!file) throw new Error(`ui-ref.mjs not found under ${roots.join(", ")} (set DOTFILES)`);
   return import(pathToFileURL(file).href);
 }
 
@@ -803,7 +807,7 @@ Subcommands:
   help
       Show this help.
 
-Browser: ui-ref.mjs from \${DOTFILES:-$HOME/dotfiles}/skills/local/design-taste/scripts; Chrome via $CHROME_BIN or auto-detect.
+Browser: ui-ref.mjs from $DOTFILES, this checkout, or ~/dotfiles (skills/local/design-taste/scripts); Chrome via $CHROME_BIN or auto-detect.
 Exit: 0 ok, 1 FAIL gate / invalid project, 2 usage or error, 3 no working browser.
 `;
   (exitCode === 0 ? process.stdout : process.stderr).write(text);

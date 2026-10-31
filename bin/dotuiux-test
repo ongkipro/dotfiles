@@ -326,7 +326,7 @@ try {
        <section><header><h2>Contact</h2><p>Questions after your visit: <a href="mailto:hi@example.org">email the bakery</a>.</p></header></section></main>
        <script>fetch('.env').then(r => r.ok ? r.text() : null).then(t => { if (!t) return; const p = document.createElement('p'); p.style.fontSize = '10px'; p.textContent = 'LEAKED ' + t; document.body.append(p); });
        addEventListener('load', () => setTimeout(() => alert('Welcome!'), 100));</script>`));
-    fs.writeFileSync(path.join(rv, ".env"), "SECRET=fixture-value\n");
+    fs.writeFileSync(path.join(rv, ".env"), "SECRET=fake-fixture-value\n");
     fs.writeFileSync(path.join(rv, "locked.png"), "x"); fs.chmodSync(path.join(rv, "locked.png"), 0o000);
     // 2: no h2, contact link far from the h1 inside one wrapper.
     fs.writeFileSync(path.join(rv, "no-h2.html"), page(`<style>.s{padding:24px 0}</style>`,
@@ -375,7 +375,7 @@ try {
       && okR.j.notes.some((n) => /contrast not measured/.test(n) && /Open daily/.test(n)),
       "3: text on a ::before band is not measured against white, and is named instead of passed", JSON.stringify([rs(okR, "contrast"), okR.j?.notes]));
     expect(rs(okR, "lcp-entrance")?.status === "pass", "5: background-colour animation on the LCP's ancestor is not an entrance");
-    expect(rs(okR, "tiny-text")?.status === "pass" && !okR.stdout.includes("fixture-value"), "12: loopback server does not serve .env to page scripts");
+    expect(rs(okR, "tiny-text")?.status === "pass" && !okR.stdout.includes("fake-fixture-value"), "12: loopback server does not serve .env to page scripts");
     expect(noH2.status === 0 && rs(noH2, "contact-placement")?.status === "pass", "2: without h2 the hero stays around the h1", JSON.stringify(rs(noH2, "contact-placement")?.offenders));
     for (const [r, v] of [[ovH, "hidden"], [ovC, "clip"]])
       expect(r.status === 0 && rs(r, "overflow-x")?.status === "not-checked" && r.j.notes.some((n) => /overflow-x not checked/.test(n)), `6: overflow-x:${v} on html/body is NOT CHECKED with a note`, r.stderr.slice(0, 200));
