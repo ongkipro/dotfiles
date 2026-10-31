@@ -93,7 +93,8 @@ pi() {
       shift
       if [ -x "$safe_update" ]; then "$safe_update" "$@"; else command pi update "$@"; fi
       ;;
-    install|uninstall|remove|list) command pi "$@" ;;
+    # Subcommands must be argv[1]; a prepended --append-system-prompt turns them into a prompt.
+    install|uninstall|remove|list|auth|mcp|config) command pi "$@" ;;
     *)
       # Build --append-system-prompt args: rendered pi context + device-local memory
       local -a args=()

@@ -106,6 +106,16 @@ make_omp "$TMP/bin-absent" "$TMP/absent.json" "$TMP/models.json"
 set +e; PATH="$TMP/bin-absent:$PATH" "$REPORT" > "$TMP/absent.out" 2>&1; rc=$?; set -e
 [ "$rc" -eq 1 ] || fail "a selector missing from the registry must exit 1"
 
+# Ordered comma-separated selectors are native OMP grammar: each one is checked.
+sed 's|"designer":"p/seer:high"|"designer":"p/seer:high, p/seer:low"|' "$TMP/ok.json" > "$TMP/chain.json"
+make_omp "$TMP/bin-chain" "$TMP/chain.json" "$TMP/models.json"
+PATH="$TMP/bin-chain:$PATH" "$REPORT" > "$TMP/chain.out" 2>&1 \
+  || fail "an ordered selector list of reachable models must pass"
+sed 's|"vision":"p/seer:high"|"vision":"p/seer:high, p/absent"|' "$TMP/ok.json" > "$TMP/chain-bad.json"
+make_omp "$TMP/bin-chain-bad" "$TMP/chain-bad.json" "$TMP/models.json"
+set +e; PATH="$TMP/bin-chain-bad:$PATH" "$REPORT" > "$TMP/chain-bad.out" 2>&1; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "an unreachable member of a selector list must exit 1"
+
 # No authenticated provider: CI. Selector validation cannot run, so it must be
 # announced and must not be reported as health.
 echo '{"models":[]}' > "$TMP/empty.json"

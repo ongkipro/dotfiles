@@ -97,23 +97,46 @@ if [ "$OS" = "Linux" ] \
   systemd_user_dir="$HOME/.config/systemd/user"
   sync_service_path="$systemd_user_dir/pi-9router-sync.service"
   mkdir -p "$systemd_user_dir"
+  # Prefer mise's major-version alias (node/24) so a patch upgrade keeps the unit valid.
+  node_bin="$(command -v node)"
+  node_version="$(node -p 'process.versions.node')"
+  node_alias="${node_bin/\/node\/$node_version\//\/node\/${node_version%%.*}\/}"
+  [ -x "$node_alias" ] && node_bin="$node_alias"
+  # A boot-time run can reach the gateway before it listens ("fetch failed"), so
+  # failures retry; the hourly timer picks up accounts enabled later in 9Router.
+  # After= orders against a local gateway when one exists without starting it.
   cat > "$sync_service_path" <<SYNCEOF
 [Unit]
 Description=Sync device-local 9Router models into optional Pi models.json
 Wants=network-online.target
-After=network-online.target
+After=network-online.target 9router.service
+StartLimitIntervalSec=600
+StartLimitBurst=5
 
 [Service]
 Type=oneshot
-RemainAfterExit=yes
-ExecStart=$(command -v node) $HOME/.local/bin/pi-9router-sync.js
+ExecStart="$node_bin" "$HOME/.local/bin/pi-9router-sync.js"
+Restart=on-failure
+RestartSec=30
+SYNCEOF
+  cat > "$systemd_user_dir/pi-9router-sync.timer" <<TIMEREOF
+[Unit]
+Description=Refresh Pi's 9Router model list
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1h
 
 [Install]
-WantedBy=default.target
-SYNCEOF
-  systemctl --user daemon-reload
-  systemctl --user enable pi-9router-sync.service >/dev/null
-  say "Restored the optional Pi model-sync service at $sync_service_path"
+WantedBy=timers.target
+TIMEREOF
+  systemctl --user daemon-reload >/dev/null 2>&1 || true
+  systemctl --user disable pi-9router-sync.service >/dev/null 2>&1 || true
+  if systemctl --user enable --now pi-9router-sync.timer >/dev/null 2>&1; then
+    say "Restored the optional Pi model-sync timer at $systemd_user_dir/pi-9router-sync.timer"
+  else
+    warn "Wrote the Pi model-sync timer, but no systemd user session could enable it; run: systemctl --user enable --now pi-9router-sync.timer"
+  fi
 fi
 
 say "Pi adapter restore complete; device-local 9Router credentials and Pi state remain machine-local"

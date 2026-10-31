@@ -14,7 +14,8 @@
   provides shared context, skills and an explicitly loaded non-secret reference;
   it does not install a model-provider file or wrap the command.
 - Pi is an optional independent runtime. `pi-9router-restore` seeds missing local
-  settings and the compaction extension without overwriting existing settings.
+  settings and copies the optional compaction extension (not loaded by default;
+  Pi's own compaction is used) without overwriting existing settings.
   `pi-9router-sync.js` reads the public catalog from each existing Pi 9Router
   provider's configured endpoint; it does not read or migrate credentials.
 - The gateway may be local on its designated host or reached remotely by other

@@ -48,6 +48,26 @@ run_restore
 [ -f "$FAKE_HOME/.pi/agent/settings.json" ] && [ ! -L "$FAKE_HOME/.pi/agent/settings.json" ]
 [ "$source_before" = "$(cksum "$FAKE_DOT/config/pi/settings.json")" ]
 
+# Linux: the sync runs from a timer whose unit survives a node patch upgrade.
+LINUX_HOME="$TMP/linux-home"; LINUX_BIN="$TMP/linux-bin"; mkdir -p "$LINUX_HOME" "$LINUX_BIN"
+printf '%s\n' '#!/usr/bin/env bash' 'printf "Linux\n"' > "$LINUX_BIN/uname"
+printf '%s\n' '#!/usr/bin/env bash' 'printf "%s\n" "$*" >> "$SYSTEMCTL_LOG"' > "$LINUX_BIN/systemctl"
+chmod +x "$LINUX_BIN/uname" "$LINUX_BIN/systemctl"
+real_node="$(command -v node)"; node_version="$(node -p 'process.versions.node')"
+mkdir -p "$TMP/mise/node/$node_version/bin" "$TMP/mise/node/${node_version%%.*}/bin"
+for d in "$node_version" "${node_version%%.*}"; do ln -s "$real_node" "$TMP/mise/node/$d/bin/node"; done
+mkdir -p "$FAKE_DOT/bin"; cp "$ROOT/bin/pi-9router-sync.js" "$FAKE_DOT/bin/"
+HOME="$LINUX_HOME" DOTFILES_DIR="$FAKE_DOT" SYSTEMCTL_LOG="$TMP/systemctl.log" \
+  PATH="$LINUX_BIN:$TMP/mise/node/$node_version/bin:$PATH" bash "$RESTORE" >/dev/null 2>&1
+unit="$LINUX_HOME/.config/systemd/user/pi-9router-sync.service"
+grep -q "^ExecStart=\"$TMP/mise/node/${node_version%%.*}/bin/node\" " "$unit"
+grep -q '^Restart=on-failure' "$unit" && ! grep -q '^RemainAfterExit' "$unit"
+grep -q '^OnUnitActiveSec=1h' "$LINUX_HOME/.config/systemd/user/pi-9router-sync.timer"
+grep -q 'enable --now pi-9router-sync.timer' "$TMP/systemctl.log"
+# No user bus: the restore still completes with a warning.
+printf '%s\n' '#!/usr/bin/env bash' 'exit 1' > "$LINUX_BIN/systemctl"; chmod +x "$LINUX_BIN/systemctl"
+HOME="$LINUX_HOME" DOTFILES_DIR="$FAKE_DOT" PATH="$LINUX_BIN:$PATH" bash "$RESTORE" 2>&1 | grep -q 'could enable it'
+
 echo "pi-9router-restore-test: OK"
 
 node --input-type=module - "$ROOT" <<'JS'
@@ -61,16 +81,22 @@ import { promisify } from 'node:util';
 const exec = promisify(execFile);
 const root = process.argv[2];
 const fixture = await mkdtemp(join(tmpdir(), 'pi-catalog-sync-'));
-let mode = 'ok', calls = 0, sentCredential = false;
+let mode = 'ok', catalogCalls = 0, sentCredential = false;
 const server = createServer((req, res) => {
-  calls++;
   sentCredential ||= Boolean(req.headers.authorization || req.headers['x-api-key']);
   res.setHeader('content-type', 'application/json');
+  if (req.url.startsWith('/v1/models/info')) {
+    const id = new URL(req.url, 'http://x').searchParams.get('id');
+    res.end(JSON.stringify({id, kind: id === 'oc/jev-1.13-free' ? 'systemone' : 'llm'})); return;
+  }
+  catalogCalls++;
   if (mode === 'http-error') { res.writeHead(503); res.end('{}'); return; }
   if (mode === 'redirect') { res.writeHead(302, {location:'/other'}); res.end(); return; }
   const rows = [
     {id:'cx/gpt-6.1-sol', context_length:272000,max_completion_tokens:128000,capabilities:{reasoning:true,vision:true}},
     {id:'cc/claude-opus-5-5',context_length:1000000,max_completion_tokens:128000,capabilities:{reasoning:true,vision:true,thinkingFormat:'claude-adaptive'}},
+    {id:'cc/claude-unlisted',context_length:200000,max_completion_tokens:64000,capabilities:{reasoning:true,vision:true,thinkingFormat:'claude-adaptive'}},
+    {id:'oc/jev-1.13-free',context_length:200000,max_completion_tokens:64000,capabilities:{reasoning:false,vision:false}},
   ];
   if (mode === 'duplicate') rows.push(rows[0]);
   if (mode === 'invalid') rows[0].context_length = -1;
@@ -78,28 +104,50 @@ const server = createServer((req, res) => {
 });
 await new Promise(resolve => server.listen(0,'127.0.0.1',resolve));
 try {
+  // Stand-in for Pi's built-in catalogs, shaped like pi-ai's generated modules.
+  const official=join(fixture,'official'); await mkdir(official);
+  await writeFile(join(official,'anthropic.models.js'),`export const ANTHROPIC_MODELS={'claude-opus-5-5':{id:'claude-opus-5-5',thinkingLevelMap:{low:'low',max:'max'},promptCache:{short:300,long:3600},compat:{forceAdaptiveThinking:true,supportsStrictTools:true,supportsTemperature:false,supportsMidConvoEffort:true,supportsMidConvoSystemMessages:true,supportsMidConvoToolChanges:true,allowedFallbackModels:[]}}};`);
+  await writeFile(join(official,'openai-codex.models.js'),`export const OPENAI_CODEX_MODELS={'gpt-6.1-sol':{id:'gpt-6.1-sol',thinkingLevelMap:{xhigh:'xhigh',max:'max'},compat:{supportsToolSearch:true}}};`);
   const dir=join(fixture,'.pi/agent'); await mkdir(dir,{recursive:true});
   const file=join(dir,'models.json');
   const baseUrl=`http://127.0.0.1:${server.address().port}/v1`;
-  const original={providers:{'9router-fantastico':{baseUrl,apiKey:'fixture-only-key',custom:'keep',models:[{id:'cx/gpt-6.1-sol',headers:{'x-fixture':'keep'}},{id:'retired'}]},other:{baseUrl:'https://example.invalid',models:[]}}};
+  const original={providers:{'9router-fantastico':{baseUrl,apiKey:'fixture-only-key',custom:'keep',models:[{id:'cx/gpt-6.1-sol',headers:{'x-fixture':'keep'},compat:{supportsReasoningEffort:true},api:'openai-completions'},{id:'retired'}]},other:{baseUrl:'https://example.invalid',models:[]}}};
   await writeFile(file,JSON.stringify(original));
-  const run=()=>exec(process.execPath,[join(root,'bin/pi-9router-sync.js')],{env:{...process.env,HOME:fixture},timeout:15000});
+  const run=(officialDir=official)=>exec(process.execPath,[join(root,'bin/pi-9router-sync.js')],{env:{...process.env,HOME:fixture,PI_9ROUTER_OFFICIAL_DIR:officialDir},timeout:15000});
   await run();const synced=JSON.parse(await readFile(file,'utf8'));
   const provider=synced.providers['9router-fantastico'];
   assert.equal(provider.baseUrl,baseUrl);assert.equal(provider.apiKey,'fixture-only-key');
   assert.equal(provider.custom,'keep');assert.equal(provider.authHeader,true);
   assert.deepEqual(synced.providers.other,original.providers.other);
-  assert.equal(provider.models.length,2);assert.equal(provider.models[0].contextWindow,272000);
-  assert.equal(provider.models[0].maxTokens,128000);assert.equal(provider.models[0].compat.supportsReasoningEffort,true);
-  assert.equal(provider.models[0].headers['x-fixture'],'keep');
-  assert.equal(provider.models[1].api,'anthropic-messages');assert.equal(provider.models[1].compat.forceAdaptiveThinking,true);
-  assert.equal(provider.models[1].compat.supportsStrictTools,false);
+  const byId=Object.fromEntries(provider.models.map(m=>[m.id,m]));
+  assert.deepEqual(Object.keys(byId),['cx/gpt-6.1-sol','cc/claude-opus-5-5','cc/claude-unlisted']); // classifier and retired rows dropped
+  const sol=byId['cx/gpt-6.1-sol'];
+  assert.equal(sol.contextWindow,272000);assert.equal(sol.maxTokens,128000);assert.equal(sol.headers['x-fixture'],'keep');
+  assert.equal(sol.api,'openai-responses');assert.deepEqual(sol.compat,{supportsToolSearch:true}); // stale compat replaced
+  assert.deepEqual(sol.thinkingLevelMap,{xhigh:'xhigh',max:'max'});
+  const opus=byId['cc/claude-opus-5-5'];
+  assert.equal(opus.api,'anthropic-messages');assert.equal(opus.baseUrl,baseUrl.replace(/\/v1$/,''));
+  assert.deepEqual(opus.compat,{forceAdaptiveThinking:true,supportsStrictTools:true,supportsTemperature:false});
+  assert.deepEqual(opus.thinkingLevelMap,{low:'low',max:'max'});assert.deepEqual(opus.promptCache,{short:300,long:3600});
+  assert.deepEqual(byId['cc/claude-unlisted'].compat,{supportsStrictTools:false,forceAdaptiveThinking:true});
+  assert.equal(byId['cc/claude-unlisted'].thinkingLevelMap,undefined);
+  // A run that cannot see Pi's catalog keeps fields an earlier run derived.
+  const before=await readFile(file,'utf8');
+  await run(join(fixture,'missing'));
+  assert.equal(await readFile(file,'utf8'),before);
+  // On a fresh file the gateway metadata alone stays conservative.
+  await writeFile(file,JSON.stringify(original));
+  await run(join(fixture,'missing'));
+  const bare=JSON.parse(await readFile(file,'utf8')).providers['9router-fantastico'].models;
+  assert.deepEqual(bare.find(m=>m.id==='cc/claude-opus-5-5').compat,{supportsStrictTools:false,forceAdaptiveThinking:true});
+  assert.deepEqual(bare.find(m=>m.id==='cx/gpt-6.1-sol').compat,{supportsReasoningEffort:true}); // existing fields kept, not guessed
+  await run();
   const good=await readFile(file,'utf8');
   for (mode of ['http-error','empty','duplicate','invalid','redirect']) {
-    await assert.rejects(run);assert.equal(await readFile(file,'utf8'),good);
+    await assert.rejects(run());assert.equal(await readFile(file,'utf8'),good);
   }
-  assert.equal(sentCredential,false);assert.equal(calls,6);
-  console.log('pi-catalog-sync: PASS (metadata, auth isolation, preservation, and five fail-closed cases)');
+  assert.equal(sentCredential,false);assert.equal(catalogCalls,9);
+  console.log('pi-catalog-sync: PASS (official metadata, fallback, classifier filter, auth isolation, preservation, five fail-closed cases)');
 } finally {
   await new Promise(resolve=>server.close(resolve));
   await rm(fixture,{recursive:true,force:true});

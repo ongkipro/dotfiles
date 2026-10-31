@@ -69,7 +69,10 @@ case "$runtime" in
   claude) cmd=(claude -p --permission-mode "$([ "$write" -eq 1 ] && echo acceptEdits || echo plan)" "$prompt") ;;
   codex)  cmd=(codex exec -s "$([ "$write" -eq 1 ] && echo workspace-write || echo read-only)" -C "$cwd" "$prompt") ;;
   agy)    cmd=(agy --sandbox --mode plan --print-timeout "${timeout_s}s" "-p=$prompt") ;;
-  pi)     cmd=(pi -p --no-tools "$prompt") ;;
+  # Pi has no global context file of its own; the interactive pi() wrapper appends it, scripts must too.
+  pi)     cmd=(pi -p --no-tools)
+          [ -f "$HOME/.config/ai/context/pi.md" ] && cmd+=(--append-system-prompt "$HOME/.config/ai/context/pi.md")
+          cmd+=("$prompt") ;;
   omp)    cmd=(omp -p --no-tools "$prompt") ;;
   *) die "unknown runtime: $runtime (claude|codex|agy|pi|omp)" ;;
 esac

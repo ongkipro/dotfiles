@@ -1,16 +1,8 @@
 {
+  "$schema": "https://pi.dev/schemas/settings.schema.json",
   "defaultProvider": "9router-fantastico",
   "defaultModel": "cx/gpt-6.1-sol",
-  "defaultThinkingLevel": "high",
-  "theme": "dark",
-  "quietStartup": true,
-  "compaction": {
-    "enabled": true,
-    "reserveTokens": 22000,
-    "keepRecentTokens": 6000
-  },
   "packages": [
-    "../extensions/compact-free",
     "npm:pi-web-access",
     "npm:pi-agent-browser-native"
   ]

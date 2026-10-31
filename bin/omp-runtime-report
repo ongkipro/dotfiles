@@ -102,7 +102,9 @@ def main() -> int:
     width = max((len(r) for r in roles), default=8)
     for role, selector in roles.items():
         visual = role in VISUAL_ROLES
-        status = describe(f"role.{role}", selector, visual)
+        # OMP accepts ordered comma-separated selectors (first available wins); check each.
+        marks = [describe(f"role.{role}", s.strip(), visual) for s in selector.split(",")]
+        status = ",".join(dict.fromkeys(marks))
         agent = next((a for a, target in overrides.items() if target == f"@{role}"), None)
         via = f"  ← agen {agent}" if agent else ""
         print(f"  {role:<{width}}  {selector:<52} {status}{via}")

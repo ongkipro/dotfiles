@@ -1,23 +1,22 @@
 {
-  "_comment": "Device-local Pi 9Router seed. Set baseUrl for this device, authenticate in Pi, then run pi-9router-sync.js. OMP manages its own provider independently.",
+  "_comment": "Device-local Pi 9Router seed. Set baseUrl for this device, authenticate in Pi, then run pi-9router-sync.js, which generates every model row from the gateway catalog plus Pi's built-in catalog. OMP manages its own provider independently.",
   "providers": {
     "9router-fantastico": {
       "baseUrl": "http://127.0.0.1:20128/v1",
       "api": "openai-completions",
       "name": "9Router (device-local)",
+      "authHeader": true,
       "models": [
         {
           "id": "cx/gpt-6.1-sol",
+          "api": "openai-responses",
           "reasoning": true,
           "input": [
             "text",
             "image"
           ],
           "contextWindow": 272000,
-          "maxTokens": 128000,
-          "compat": {
-            "supportsReasoningEffort": true
-          }
+          "maxTokens": 128000
         }
       ]
     }
