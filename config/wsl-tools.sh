@@ -35,9 +35,24 @@ export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_DATA_HOME="$HOME/.local/share"
 export XDG_CACHE_HOME="$HOME/.cache"
 
-# Forward Windows OpenSSH agent to WSL (common pattern)
-if [ -z "${SSH_AUTH_SOCK:-}" ] && [ -S "/mnt/c/Users/${USER}/.ssh/agent.sock" ]; then
-  export SSH_AUTH_SOCK="/mnt/c/Users/${USER}/.ssh/agent.sock"
+# Wire SSH agent in WSL2: prefer systemd user openssh_agent socket, fallback to Windows agent.sock
+if [ -z "${SSH_AUTH_SOCK:-}" ]; then
+  for _sock in \
+    "${XDG_RUNTIME_DIR:-/run/user/${UID:-1000}}/openssh_agent" \
+    "${XDG_RUNTIME_DIR:-/run/user/${UID:-1000}}/ssh-agent.socket" \
+    "/mnt/c/Users/${USER}/.ssh/agent.sock"
+  do
+    if [ -S "$_sock" ]; then
+      export SSH_AUTH_SOCK="$_sock"
+      break
+    fi
+  done
+  unset _sock
+fi
+
+# Tailscale CLI bridge (use Windows tailscale.exe when Linux tailscaled is absent)
+if ! command -v tailscale >/dev/null && [ -x "/mnt/c/Program Files/Tailscale/tailscale.exe" ]; then
+  alias tailscale='"/mnt/c/Program Files/Tailscale/tailscale.exe"'
 fi
 
 # Distro name (helpful when running multiple distros)
