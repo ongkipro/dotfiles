@@ -534,7 +534,6 @@
           "compaction",
           "compact",
           "reservetokens",
-          "compact-free",
           "model list",
           "working models"
         ]

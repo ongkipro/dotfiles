@@ -1,6 +1,6 @@
 ---
 name: pi-9router-models-compaction
-description: Pi compaction headroom semantics and source-owned optional compact-free fallback behavior; no live model catalog
+description: Pi compaction headroom semantics (reserveTokens); Pi's built-in compaction is used; no live model catalog
 metadata:
   node_type: memory
   type: project
@@ -12,14 +12,10 @@ Do not retain a live model catalog, account pool, quota, default model, or fallb
 chain in memory. They drift independently of this file. See [[pi-9router-setup]]
 and the [optional Pi contract](../../pi/README.md) for ownership.
 
-Since 2026-10-31 the tracked Pi settings do not load compact-free; Pi's built-in
-compaction runs on the active 9Router model. When the extension is opted in, the
-tracked [compact-free implementation](../../pi/extensions/compact-free/index.mjs)
-handles `session_before_compact`, tries the actual `COMPACT_MODELS` array in
-order, and falls back to normal compaction when its candidates cannot succeed.
-Read the implementation rather than treating its introductory comment or an
-old successful run as today's provider availability. Its breadcrumb log is
-device-local evidence; avoid copying conversation content into shared memory.
+Pi's built-in compaction runs on the active 9Router model (verified 2026-10-31:
+a 69K-token session compacted to ~40K with the conversation facts kept). The
+custom compact-free summarizer extension was never loaded by default and was
+removed from dotfiles on 2026-11-02; `pi-9router-restore` deletes old copies.
 
 ## Durable debugging lesson
 

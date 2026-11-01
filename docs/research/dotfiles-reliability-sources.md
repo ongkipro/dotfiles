@@ -37,7 +37,7 @@ belongs to the ledger, not this table.
 | F9 | Failed downloads preserve the previous skill set/date; transport failure differs from upstream absence. | `vendored-refresh-test` |
 | W1–W5 | Backup names are collision-free; installed tmux paths resolve; sysfs links count; optional completion cannot hang startup; LSP mappings match file types. | `vps-pgdump-test`, `tmux-setup-test`, `tmux-battery-test`, `shell-wrapper-test` |
 | W6–W9 | MCP fields/modes and parse failures are respected; promoted memory fits retrieval budgets; telemetry cannot follow foreign links; status requests retain repository references. | `ai-mcp-sync-test`, `ai-learn-test`, `ai-memory-access-test`, `ai-memory-route-test` |
-| W10/W11 | Failed compaction cannot replace context; skill statistics count distinct verified evidence. | `pi-compact-test`, `ai-skill-evolution-test` |
+| W10/W11 | Failed compaction cannot replace context; skill statistics count distinct verified evidence. | `ai-skill-evolution-test` (Pi compaction check retired 2026-11-02 with the extension) |
 | W12–W16 | Release probes use validated destinations and active declarations; UI requirements apply across stacks; resume claims require canonical evidence; missing GitHub CLI does not prevent local recovery. | `release-check-test`, `project-check-test`, `resume-brief-test` |
 | CI coverage | Five existing design-tool suites are discoverable; missing dependencies are visible; dedicated CI requires complete coverage. Maintained Markdown triggers core checks. | `design-tools-test`, Core runtime workflow |
 

@@ -14,8 +14,8 @@
   provides shared context, skills and an explicitly loaded non-secret reference;
   it does not install a model-provider file or wrap the command.
 - Pi is an optional independent runtime. `pi-9router-restore` seeds missing local
-  settings and copies the optional compaction extension (not loaded by default;
-  Pi's own compaction is used) without overwriting existing settings.
+  settings and `pi-fff.json` without overwriting existing files; Pi's built-in
+  compaction is used.
   `pi-9router-sync.js` reads the public catalog from each existing Pi 9Router
   provider's configured endpoint; it does not read or migrate credentials.
 - The gateway may be local on its designated host or reached remotely by other
@@ -24,8 +24,7 @@
 - Provider labels may differ between Pi and OMP. Verify the selected label has
   credentials in that runtime before making it the default; matching model IDs
   and base URLs do not establish matching authentication.
-- `9router-credential-migrate` is a legacy explicit migration helper, not part
-  of ordinary sync. Never run it merely to make the runtimes use the same account.
+- The 9Router key is read through `secrets-env` (`NINEROUTER_REMOTE_KEY`).
 - Image generation uses the active runtime's available capability or supplied
   assets; it does not require a Pi image package.
 **Claude Code profile:** one native profile at `~/.claude`; run the installed `claude` binary directly. Do not add personal/work launchers or alternate config-directory profiles.

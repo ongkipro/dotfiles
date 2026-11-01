@@ -56,7 +56,7 @@
 - [Pix&Go categories and collections](pixsgo-categories-from-producttype.md) — historical collection mapping and taxonomy lesson; verify live counts, content paths, and access scopes in the project before use.
 - [Optional Pi and 9Router](pi-9router-setup.md) — adapter ownership and credential-safe troubleshooting; dotfiles never starts a gateway or memorizes a default model.
 - [9router autostart incident](pi-9router-autostart-incident.md) — 2026-08 stale/LAN-exposed/tunneled 9router; real cause was XDG autostart; split from pi-9router-setup.md
-- [Pi compaction](pi-9router-models-compaction.md) — source-owned fallback behavior and reserved-headroom debugging lesson; live catalogs are not stored in memory.
+- [Pi compaction](pi-9router-models-compaction.md) — built-in compaction and the reserved-headroom debugging lesson; live catalogs are not stored in memory.
 - [OMP Claude via 9router](omp-9router-claude-wire.md) — verified transport fix record (chat-compatible endpoint, 7/7 9router tests, run RUN-20261028T203549Z-2e1c5b55); rerun tests before reuse.
 - [OMP and Pi 9Router runbook](omp-pi-9router-runbook.md) — OMP runs on upstream defaults plus a five-line 9Router provider (retry.maxDelayMs is a give-up ceiling; do not tune it), how 9Router reports rate limits, Pi defaults, account rotation, and the fallback-off live check.
 - [Playwright / browser setup](playwright-browser-setup.md) — agent-browser 0.30.1 + Playwright 1.61.1 global; prefer system Chrome via channel; install-deps optional (needs sudo)

@@ -7,22 +7,23 @@ copy credentials or make Pi an OMP prerequisite.
 ## Tracked reference and local state
 
 - `settings.json` runs Pi on its documented defaults (`docs/settings.md` in the installed package):
-  it sets only the startup provider/model (`9router-fantastico/cx/gpt-6.1-sol`)
+  it sets only the startup provider/model (`9router-fantastico/cc/claude-opus-5-5`)
   and two packages (`pi-web-access`, `pi-agent-browser-native`). Thinking level,
-  theme, startup output and compaction stay at Pi's defaults. The provider label
+  theme, startup output and compaction stay at Pi's defaults; Pi's built-in
+  compaction runs on the active 9Router model. The provider label
   preserves existing Pi authentication. Authenticate that provider through Pi
   before using it; a second label does not inherit its key.
 - `models.template.json` is a non-secret starter. Set its copied `baseUrl` for
   the actual device: localhost only on the gateway host, otherwise the owner's
   configured remote endpoint. The helper contains no fixed tunnel address.
-- `extensions/compact-free/` is an optional summarizer that tries cataloged
-  gateway models, then Pi's active model. It is **not loaded by default**: Pi's
-  own compaction runs on the active 9Router model (verified 2026-10-31: a
-  69K-token session compacted to ~40K with the conversation facts kept). Add
-  `"../extensions/compact-free"` to `packages` only to spend summaries on a
-  cheaper model. Only a complete nonempty summary may replace history.
+- `pi-fff.json` configures the `@ff-labs/pi-fff` search package (when a device
+  installs it): `enableHomeDirScanning: false` stops it indexing all of `$HOME`
+  when Pi starts from `~`. FFF search is then off for that session; start Pi
+  from a project directory. Use `"warnOnHomeDirScan": false` instead to keep
+  indexing `$HOME` and silence only the warning.
 
-Use `pi-9router-restore` to seed missing settings/models and copy the extension.
+Use `pi-9router-restore` to seed missing settings, models and `pi-fff.json`; it
+also removes the retired `~/.pi/extensions/compact-free` copy.
 It preserves existing real settings files and does not install or start 9Router.
 On Linux it installs `pi-9router-sync.timer` (one minute after boot, then
 hourly; failed runs retry every 30 s, because a boot-time run can reach the
@@ -74,10 +75,9 @@ than copying accounts or demanding identical provider labels.
 
 ```bash
 pi-update-safe --self
-pi auth check --provider 9router-fantastico --model cx/gpt-6.1-sol --json
+pi auth check --provider 9router-fantastico --model cc/claude-opus-5-5 --json
 pi --list-models
 ~/dotfiles/bin/pi-9router-restore-test
-~/dotfiles/bin/pi-compact-test
 systemctl --user list-timers pi-9router-sync.timer
 ```
 

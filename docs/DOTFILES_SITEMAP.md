@@ -115,13 +115,13 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 84 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
 | Owned skills | [`skills/local/`](../skills/local/) | 75 | linked from this page |
-| Commands | [`bin/`](../bin/) | 63 | linked from this page |
-| Command tests | [`bin/`](../bin/) | 76 | linked from this page |
+| Commands | [`bin/`](../bin/) | 62 | linked from this page |
+| Command tests | [`bin/`](../bin/) | 74 | linked from this page |
 | Device profiles | [`devices/`](../devices/) | 8 | linked from this page |
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
 | Top-level docs | [`docs/`](../docs/) | 19 | linked from this page |
 | AI control files | [`config/ai/`](../config/ai/) | 31 | linked from this page |
-| Runtime references | [`config/omp/`](../config/omp/) | 28 | linked from this page |
+| Runtime references | [`config/omp/`](../config/omp/) | 27 | linked from this page |
 | Skill commands | [`skills/agents-bin/`](../skills/agents-bin/) | 7 | linked from this page |
 | Skill tooling | [`skills/local/`](../skills/local/) | 3 | linked from this page |
 | Registry indexes | [`devices/`](../devices/) | 1 | linked from this page |
@@ -218,7 +218,7 @@ OMP runs upstream-native; installers link none of these files.
 - **OMP reference agents (not installed):** [`architect`](../config/omp/agents/architect.md), [`complex-developer`](../config/omp/agents/complex-developer.md), [`debugger`](../config/omp/agents/debugger.md), [`designer`](../config/omp/agents/designer.md), [`librarian`](../config/omp/agents/librarian.md), [`reviewer`](../config/omp/agents/reviewer.md), [`scout`](../config/omp/agents/scout.md), [`security-reviewer`](../config/omp/agents/security-reviewer.md), [`writer`](../config/omp/agents/writer.md): role definitions kept as design evidence.
 - **OMP retired overlays:** [`9router-hosted`](../config/omp/overlays/9router-hosted.yml), [`antigravity-hosted`](../config/omp/overlays/antigravity-hosted.yml), [`antigravity-only`](../config/omp/overlays/antigravity-only.yml), [`codex-only`](../config/omp/overlays/codex-only.yml), [`minimax-hosted`](../config/omp/overlays/minimax-hosted.yml): single-provider session overlays; revalidate before selecting one.
 - [`config/pi/README.md`](../config/pi/README.md): Optional Pi setup; Pi is a standalone fallback CLI, not an OMP prerequisite.
-- **Pi files:** [`settings.json`](../config/pi/settings.json), [`models.template.json`](../config/pi/models.template.json), [`compact-free/index.mjs`](../config/pi/extensions/compact-free/index.mjs), [`compact-free/package.json`](../config/pi/extensions/compact-free/package.json): non-secret defaults copied by `pi-9router-restore`, the machine-local model template, and the custom compaction extension.
+- **Pi files:** [`settings.json`](../config/pi/settings.json), [`models.template.json`](../config/pi/models.template.json), [`pi-fff.json`](../config/pi/pi-fff.json): non-secret defaults seeded by `pi-9router-restore`, the machine-local model template, and the FFF opt-out of `$HOME` indexing.
 
 ## 4. Durable Memory Dictionary (`config/ai/memory/`)
 
@@ -448,7 +448,6 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`skill-map`](../bin/skill-map) (+ [`test`](../bin/skill-map-test)): Compiles the domain map in `skills/local/README.md`.
 - [`skill-surface-check`](../bin/skill-surface-check) (+ [`test`](../bin/skill-surface-check-test)): Reports stale dotfiles command references in owned `SKILL.md` files; advisory.
 - [`omp-runtime-report`](../bin/omp-runtime-report) (+ [`test`](../bin/omp-runtime-report-test)): Reports native OMP routes and validates their declared registry capabilities.
-- [`9router-credential-migrate`](../bin/9router-credential-migrate) (+ [`test`](../bin/9router-credential-migrate-test)): Migrates 9Router API keys securely.
 - [`pi-update-safe`](../bin/pi-update-safe) (+ [`test`](../bin/pi-update-safe-test)): Wraps `pi update` with a backup of Pi's runtime skill directories under `~/.pi/agent/skill-backups`.
 - [`tmux-setup`](../bin/tmux-setup) (+ [`test`](../bin/tmux-setup-test)): Installs and configures tmux from zero: binary, clipboard tool, `tmux.conf` link, TPM, plugins; idempotent.
 - [`tmux-clip`](../bin/tmux-clip) (+ [`test`](../bin/tmux-clip-test)): The clipboard seam every tmux copy path goes through (pbcopy, wl-copy, xclip or xsel, or WSL clip.exe).
@@ -616,7 +615,6 @@ TASK-135 and the delivery ledger own implementation and verification status.
 | Shell/editor | Installed tmux path resolution, symlinked sysfs batteries, bounded OMP completion, dedicated JSON/HTML/CSS language servers. |
 | Backup | Per-container dump paths and explicit incomplete counts; archive checks remain distinct from restore drills. |
 | Memory/MCP | Managed-value reconciliation, private writes, merged retrieval budgets, protected telemetry descriptors, repository status priority. |
-| Pi compaction | Complete responses only; provider errors preserve fallback. [`pi-compact-test`](../bin/pi-compact-test) exercises the extension. |
 | Evidence/release | Canonical verification before summaries/statistics; cross-stack UI requirement; address-pinned HTTP/TLS probes; fenced templates inactive. |
 | Meta operations | Account/parent-bound state, effective-default drift, unique keys and a local single-writer lock with explicit crash recovery. |
 | Skill maintenance | Complete download staging, visible transport failures, managed fork preservation. |

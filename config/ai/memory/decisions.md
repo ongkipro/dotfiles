@@ -72,13 +72,10 @@
 - The 9Router credential is machine-local and owned per runtime. Dotfiles must not
   inject it into OMP, globally export it, print it, log it, or infer it from Pi
   state during normal setup.
-- `9router-credential-migrate` is an explicit, non-destructive bridge from a
-  legacy Pi auth entry. It must not overwrite the neutral destination or delete
-  the source.
 
 ### Dotfiles-coupled vs machine-coupled config
 - Dotfiles-coupled (safe to sync across machines): non-secret Pi settings,
-  extensions, provider templates, and `helix/languages.toml`.
+  `pi-fff.json`, provider templates, and `helix/languages.toml`.
 - Machine-coupled (never copy raw into dotfiles): the neutral 9Router
   credential and `~/.pi/agent/{models.json,auth.json,sessions/}`.
 - Pi provider choice is machine-local. Inspect Pi state only when operating the

@@ -91,7 +91,7 @@ Done 2026-11-01: TASK-170 → [archive](docs/archive/TASKS-170-completed.md); TA
 - **Canonical Contract Owners:** `runtime.readiness`.
 - **Accepted Invariants:** as TASK-080. Accepted open gap: `bin/vps-pgdump:45` guard-off survives on Linux because bash >= 4.4 expands an empty array under nounset; it is killed only under bash < 4.4 (macOS `/bin/bash`) and is NOT an equivalent mutant.
 - **Regression Checks:** `mutation-sweep --subject <name>`, touched `bin/*-test`.
-- **Runtime Evidence:** open: `vps-pgdump:45` (confirm the kill with a macOS sweep); `secrets-env:174` was closed by TASK-095 (2026-10-01); `dotsync` 3 and `mutation-sweep` 18 statements beyond the cap; `9router-credential-migrate` and `pi-9router-restore` deferred by the owner.
+- **Runtime Evidence:** open: `vps-pgdump:45` (confirm the kill with a macOS sweep); `secrets-env:174` was closed by TASK-095 (2026-10-01); `dotsync` 3 and `mutation-sweep` 18 statements beyond the cap; `pi-9router-restore` deferred by the owner (`9router-credential-migrate` removed 2026-11-02).
 - **Reopen Conditions:** a subject claimed fully covered regresses.
 - **Non-Scope:** raising the cap; changing subjects.
 - **Verification:** each claimed subject reports zero survivors and no CAPPED row.

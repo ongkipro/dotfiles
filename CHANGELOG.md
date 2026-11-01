@@ -6,6 +6,16 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-28
 
+### Pi defaults and retired Pi helpers — 2026-11-02
+
+- Pi's tracked startup model is `9router-fantastico/cc/claude-opus-5-5`.
+- New `config/pi/pi-fff.json` (`enableHomeDirScanning: false`), seeded by
+  `pi-9router-restore`, stops `@ff-labs/pi-fff` indexing all of `$HOME`.
+- Removed the never-loaded `compact-free` extension with `pi-compact-test`, and
+  the one-off `9router-credential-migrate` (+ test); the key lives in
+  `secrets-env`. The restore deletes old `~/.pi/extensions/compact-free` copies
+  and `ai-memory-link` prunes the dangling command links.
+
 ### Private repository CI (TASK-173) — 2026-11-01
 
 - The repository is private. Pushes and PRs run the Ubuntu self-test and design

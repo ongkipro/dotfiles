@@ -19,9 +19,8 @@ start a local gateway. Pi is optional; OMP uses its own native configuration.
 - Provider catalogs, quotas, tunnel URLs, account connections, and authentication
   are device-local. Discover them through the current supported helper/runtime
   and official documentation, not a historical list of working model IDs.
-- Read the [Pi adapter contract](../../pi/README.md) and its
-  [credential section](../../pi/README.md#credentials) for the optional adapter's
-  ownership and migration. Use current official gateway documentation for a
+- Read the [Pi adapter contract](../../pi/README.md) for the optional adapter's
+  ownership and verification. Use current official gateway documentation for a
   direct gateway task; the removed 9Router skill is not an instruction source.
   Do not open auth/session files or print provider configuration that may
   contain secrets.

@@ -5,7 +5,6 @@ set -euo pipefail
 
 DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
 PI_AGENT_DIR="$HOME/.pi/agent"
-PI_EXT_DIR="$HOME/.pi/extensions/compact-free"
 OS="$(uname -s)"
 
 say()  { printf '\033[1;32m→\033[0m %s\n' "$*"; }
@@ -15,7 +14,7 @@ if ! command -v pi >/dev/null 2>&1; then
   warn "Pi is not installed; preparing its optional config without making it an OMP prerequisite"
 fi
 
-mkdir -p "$PI_AGENT_DIR" "$PI_EXT_DIR"
+mkdir -p "$PI_AGENT_DIR"
 
 settings_source="$DOTFILES_DIR/config/pi/settings.json"
 if [ -f "$settings_source" ]; then
@@ -65,21 +64,21 @@ if [ -f "$models_source" ]; then
   fi
 fi
 
-extension_source="$DOTFILES_DIR/config/pi/extensions/compact-free"
-if [ -d "$extension_source" ]; then
-  # Same reasoning as settings.json above: `-ef` is true for a symlink pointing
-  # at the source, so the old guard skipped the copy and kept the link — while
-  # still reporting "Restored", a claim about work that never happened. Pi writes
-  # into its extension directory (installs, caches, updates), and through a link
-  # those writes land in the tracked repository.
-  if [ -L "$PI_EXT_DIR" ]; then
-    rm -f "$PI_EXT_DIR"
-  fi
-  mkdir -p "$PI_EXT_DIR"
-  cp -R "$extension_source/." "$PI_EXT_DIR/"
-  say "Restored the optional Pi compact-free extension"
-else
-  warn "Missing config/pi/extensions/compact-free"
+# pi-fff indexes the launch directory; from $HOME that walks every toolchain and
+# cache. Seed the opt-out once; an existing local file always wins.
+fff_source="$DOTFILES_DIR/config/pi/pi-fff.json"
+if [ -f "$fff_source" ] && [ ! -e "$PI_AGENT_DIR/pi-fff.json" ]; then
+  cp "$fff_source" "$PI_AGENT_DIR/pi-fff.json"
+  say "Seeded pi-fff.json (no \$HOME indexing)"
+fi
+
+# Earlier restores copied the retired compact-free extension here; Pi never
+# loaded it by default. Remove only that exact dotfiles-owned copy.
+old_ext="$HOME/.pi/extensions/compact-free"
+if [ -f "$old_ext/package.json" ] && grep -q '"name": "compact-free"' "$old_ext/package.json"; then
+  rm -f "$old_ext/package.json" "$old_ext/index.mjs"
+  rmdir "$old_ext" 2>/dev/null || true
+  say "Removed the retired compact-free extension copy"
 fi
 
 sync_source="$DOTFILES_DIR/bin/pi-9router-sync.js"

@@ -1,7 +1,7 @@
 {
   "$schema": "https://pi.dev/schemas/settings.schema.json",
   "defaultProvider": "9router-fantastico",
-  "defaultModel": "cx/gpt-6.1-sol",
+  "defaultModel": "cc/claude-opus-5-5",
   "packages": [
     "npm:pi-web-access",
     "npm:pi-agent-browser-native"

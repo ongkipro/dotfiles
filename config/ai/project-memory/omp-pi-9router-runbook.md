@@ -88,10 +88,10 @@ Pi needed no change. Its provider in `~/.pi/agent/models.json` uses the same
 `openai-completions` surface on `<9router>/v1`; its default
 `retry.provider.maxRetryDelayMs` is 60 000 and `retry.maxAgentDelayMs` 60 000,
 so every observed lock fits. Pi still records the same 429/503 events in its
-sessions; it simply waits them out. Catalog sync is device-local
-(`~/.config/ai-local/bin/pi-9router-local-sync.js`); the tracked seeds are
-`config/pi/settings.json` and `models.template.json`, restored by the optional
-`pi-9router-restore`.
+sessions; it simply waits them out. Catalog sync is the tracked
+`bin/pi-9router-sync.js` (hourly `pi-9router-sync.timer`); the tracked seeds are
+`config/pi/settings.json`, `models.template.json` and `pi-fff.json`, restored by
+the optional `pi-9router-restore`.
 
 ## Gateway side
 
