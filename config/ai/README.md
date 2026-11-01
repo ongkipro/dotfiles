@@ -130,20 +130,34 @@ Sources: [Claude authentication](https://code.claude.com/docs/en/authentication)
 ## Owner-locked rules
 
 `config/ai/locked-rules.json` lists rules the owner fixed for every device and
-every AI that uses these dotfiles (TASK-170): the form of address **Paduka
-Ongki**, and the meanings of `dotads` (the ads CLI family) and `dotuiux` (the
-UI/UX CLI). `ai-memory-link` restores them before it renders, so a local rename
-such as "Paduka Olan" or "Olan" is replaced on the next link or `dotsync
-autopull`; `ai-memory-link --check` and CI report drift. The rule set carries an
-HMAC signature keyed by the owner's password (scrypt); CI verifies it with the
-`AI_RULE_LOCK_KEY` secret, so a rule changed without the password turns CI red
-(detection, not prevention: devices apply whatever the tracked file says). To
-change a rule: edit the JSON, run `ai-rule-lock sign` (it prompts for a password
-of at least 12 characters), re-run `ai-memory-link`, and commit. Sign before the
-first push, or CI fails on the unsigned file. The password is never stored. A
-rename in a file that upstream also changed waits until `dotsync autopull` can
-fast-forward; lower-case names ("paduka olan") and a bare name outside the
-declared slots are not detected.
+every AI that uses these dotfiles (TASK-170, TASK-171): the form of address
+**Paduka Ongki**, and the meanings of `dotads` (the `dotads-<platform>` ads CLI
+family) and `dotuiux` (the UI/UX CLI). `ai-memory-link` (and so `dotsync
+autopull`) restores them before it renders, so a local rename such as "Paduka
+Olan" or "Olan" is replaced on the next link; `--check` and CI report drift.
+
+The rule set is signed with Ed25519; the private key is derived from the owner's
+password (scrypt) and never stored. Each device pins the owner's public key in
+`~/.config/ai-local/locked-rules.pinned.json` on first contact and afterwards
+enforces only a rule set signed by that key, with no password needed to verify.
+An edited, unsigned, or foreign-signed rule set that arrives by pull is
+rejected: the device keeps the last signed rules, restores the tracked file to
+them, and `ai-memory-link` exits non-zero. CI additionally derives the key from
+the `AI_RULE_LOCK_KEY` secret and checks it is the signed one.
+
+To change a rule: edit the JSON, run `ai-rule-lock sign` (password, at least 12
+characters), re-run `ai-memory-link`, and commit. To change the password, run
+`ai-rule-lock sign` with the new one; it also asks for the previous password,
+which endorses the new key so devices accept it (endorsements chain, so a
+device that skipped a release still follows). Every signature carries a serial,
+so an older signed set cannot be replayed, and a deleted lock file is restored
+from the pin. A lost password means every device must delete its pin by hand.
+Limits: the verifier lives in this repository, so a push that edits
+`bin/ai-rule-lock` or `bin/ai-memory-link` defeats the device check (CI's verify
+step, and review of such diffs, is the backstop); a person with full control of
+a device can edit the tool or the pin; first contact trusts the key it sees;
+lower-case names ("paduka olan") and bare names outside the declared slots are
+not detected; a rotation does not revoke an old key on devices still pinned to it.
 
 ## Rules for working on dotfiles itself
 

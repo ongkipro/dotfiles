@@ -9,17 +9,25 @@ config/ai/locked-rules.json declares each rule and where its text lives:
   forbid   a regex that must never match in the listed files; every match is
            replaced (e.g. "Paduka Olan" -> "Paduka Ongki")
 
-The rule set is signed: HMAC-SHA256 over the canonical rules, keyed by
-scrypt(password, salt). Only the signature and the salt are tracked; the password
-is never stored. CI holds the password as the AI_RULE_LOCK_KEY secret and
-rejects a rule set whose signature does not match. Changing a locked rule
-without the password therefore turns CI red; restoring drifted files needs
-nothing. Devices apply whatever the tracked file says, so the guarantee is
-detection in CI, not prevention of a push.
+The rule set is signed with Ed25519. The private key is derived from the
+owner's password (scrypt) and never stored; the public key and the signature
+are tracked. A device verifies without any password: on first contact it pins
+the owner's public key (and the signed rule set) in
+~/.config/ai-local/locked-rules.pinned.json, and from then on it enforces only a
+rule set signed by that key. A rule set changed without the password, an
+unsigned one, or one signed by another key is rejected: the device keeps the
+last signed rules, restores the tracked file to them, and fails loudly. CI also
+derives the key from the AI_RULE_LOCK_KEY secret and checks it is the same one.
+A new password is accepted only when the old password endorses the new key
+(the endorsements form a chain, so a device that skipped a release still
+follows), and every signature carries a serial, so an older signed set cannot
+be replayed. Limit: the verifier itself lives in this repository, so a push
+that edits bin/ai-rule-lock defeats the device check; CI's verify step is the
+backstop for that.
 
-  ai-rule-lock check   [--root DIR]  report drift; exit 1 when a file differs
-  ai-rule-lock repair  [--root DIR]  restore every declared slot/block/forbid
-  ai-rule-lock sign    [--root DIR]  prompt for the password; write the signature
+  ai-rule-lock check   [--root DIR]  report drift or a rejected rule set; exit 1
+  ai-rule-lock repair  [--root DIR]  enforce the signed rules on every target
+  ai-rule-lock sign    [--root DIR]  prompt for the password; sign (and rotate)
   ai-rule-lock verify  [--root DIR]  needs AI_RULE_LOCK_KEY; exit 1 on mismatch,
                                      2 when the key or the signature is missing
 """
@@ -27,33 +35,237 @@ import argparse
 import getpass
 import glob
 import hashlib
-import hmac
 import json
 import os
 import re
-import secrets
 import sys
 import tempfile
 from pathlib import Path
 
 LOCK_FILE = "config/ai/locked-rules.json"
+ROTATE_TAG = b"ai-rule-lock rotate:"
+
+# ── Ed25519 (RFC 8032 §6 reference arithmetic; stdlib only) ──────────────────
+_P = 2**255 - 19
+_D = -121665 * pow(121666, _P - 2, _P) % _P
+_Q = 2**252 + 27742317777372353535851937790883648493
+_SQRT_M1 = pow(2, (_P - 1) // 4, _P)
 
 
+def _h(b):
+    return int.from_bytes(hashlib.sha512(b).digest(), "little")
+
+
+def _add(a, b):
+    x = (a[1] - a[0]) * (b[1] - b[0]) % _P
+    y = (a[1] + a[0]) * (b[1] + b[0]) % _P
+    c, d = 2 * a[3] * b[3] * _D % _P, 2 * a[2] * b[2] % _P
+    e, f, g, h = y - x, d - c, d + c, y + x
+    return (e * f, g * h, f * g, e * h)
+
+
+def _mul(s, pt):
+    acc = (0, 1, 1, 0)
+    while s > 0:
+        if s & 1:
+            acc = _add(acc, pt)
+        pt = _add(pt, pt)
+        s >>= 1
+    return acc
+
+
+def _eq(a, b):
+    return (a[0] * b[2] - b[0] * a[2]) % _P == 0 and (a[1] * b[2] - b[1] * a[2]) % _P == 0
+
+
+def _recover_x(y, sign):
+    if y >= _P:
+        return None
+    x2 = (y * y - 1) * pow(_D * y * y + 1, _P - 2, _P)
+    if x2 % _P == 0:
+        return None if sign else 0
+    x = pow(x2, (_P + 3) // 8, _P)
+    if (x * x - x2) % _P:
+        x = x * _SQRT_M1 % _P
+    if (x * x - x2) % _P:
+        return None
+    return _P - x if (x & 1) != sign else x
+
+
+_GY = 4 * pow(5, _P - 2, _P) % _P
+_GX = _recover_x(_GY, 0)
+_G = (_GX, _GY, 1, _GX * _GY % _P)
+
+
+def _compress(pt):
+    zi = pow(pt[2], _P - 2, _P)
+    x, y = pt[0] * zi % _P, pt[1] * zi % _P
+    return (y | ((x & 1) << 255)).to_bytes(32, "little")
+
+
+def _decompress(b):
+    if len(b) != 32:
+        return None
+    y = int.from_bytes(b, "little")
+    sign, y = y >> 255, y & ((1 << 255) - 1)
+    x = _recover_x(y, sign)
+    return None if x is None else (x, y, 1, x * y % _P)
+
+
+def _expand(seed):
+    h = hashlib.sha512(seed).digest()
+    a = int.from_bytes(h[:32], "little")
+    a = (a & ((1 << 254) - 8)) | (1 << 254)
+    return a, h[32:]
+
+
+def ed_public(seed):
+    return _compress(_mul(_expand(seed)[0], _G))
+
+
+def ed_sign(seed, msg):
+    a, prefix = _expand(seed)
+    pub = _compress(_mul(a, _G))
+    r = _h(prefix + msg) % _Q
+    rs = _compress(_mul(r, _G))
+    s = (r + (_h(rs + pub + msg) % _Q) * a) % _Q
+    return rs + s.to_bytes(32, "little")
+
+
+_ID = (0, 1, 1, 0)
+
+
+def _small(pt):  # identity or another low-order point: verifies too much, so refuse it
+    return _eq(_mul(8, pt), _ID)
+
+
+def ed_verify(pub, msg, sig):
+    if len(pub) != 32 or len(sig) != 64:
+        return False
+    a, r = _decompress(pub), _decompress(sig[:32])
+    if a is None or r is None or _small(a) or _small(r):
+        return False
+    s = int.from_bytes(sig[32:], "little")
+    if s >= _Q:
+        return False
+    k = _h(sig[:32] + pub + msg) % _Q
+    return _eq(_mul(s, _G), _add(r, _mul(k, a)))
+
+
+# ── rule set and trust ───────────────────────────────────────────────────────
 def load(root):
+    """A missing or malformed lock file must not switch enforcement off on a pinned device."""
     path = root / LOCK_FILE
+    problem, data = None, None
     if not path.is_file():
-        sys.exit(f"ai-rule-lock: {LOCK_FILE} not found under {root}")
-    return path, json.loads(path.read_text(encoding="utf-8"))
+        problem = "is missing"
+    else:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            problem = "is not valid JSON"
+        if problem is None and (not isinstance(data, dict) or not isinstance(data.get("rules"), list)
+                                or not isinstance(data.get("kdf"), dict)):
+            problem = "is not a rule set"
+    if problem is None:
+        return path, data
+    if pin_path().is_file():
+        return path, {"rules": [], "kdf": {}, "_problem": problem}
+    sys.exit(f"ai-rule-lock: {LOCK_FILE} {problem} under {root}")
 
 
 def payload(data):
-    body = {"rules": data["rules"], "kdf": {k: v for k, v in data["kdf"].items()}}
+    body = {"rules": data["rules"], "kdf": data["kdf"], "publicKey": data.get("publicKey", ""),
+            "serial": data.get("serial", 0)}
     return json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
 
 
-def derive(password, kdf):
+def seed_of(password, kdf):
     return hashlib.scrypt(password.encode(), salt=bytes.fromhex(kdf["salt"]),
                           n=kdf["n"], r=kdf["r"], p=kdf["p"], dklen=32, maxmem=512 * 1024 * 1024)
+
+
+def serial_of(data):
+    v = data.get("serial", 0)
+    return v if isinstance(v, int) and not isinstance(v, bool) and v >= 0 else None
+
+
+def self_signed(data):
+    try:
+        return ed_verify(bytes.fromhex(data["publicKey"]), payload(data), bytes.fromhex(data["signature"]))
+    except (KeyError, ValueError, TypeError):
+        return False
+
+
+def endorsed(data, old_pub_hex):
+    """Walk the signed key chain from the pinned key to the current one (any number of hops)."""
+    cur = old_pub_hex
+    try:
+        for e in data.get("keyChain") or []:
+            if e["from"] == cur and ed_verify(bytes.fromhex(cur), ROTATE_TAG + bytes.fromhex(e["to"]),
+                                              bytes.fromhex(e["signature"])):
+                cur = e["to"]
+        return cur == data["publicKey"]
+    except (KeyError, ValueError, TypeError):
+        return False
+
+
+def pin_path():
+    return Path(os.environ.get("AI_RULE_LOCK_PIN") or Path.home() / ".config/ai-local/locked-rules.pinned.json")
+
+
+def dump(data):
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+
+
+def trusted(data, write):
+    """Decide which rule set to enforce. Returns (rules_data, notes, rejected)."""
+    pin = pin_path()
+    pinned = None
+    if pin.is_file():
+        try:
+            pinned = json.loads(pin.read_text(encoding="utf-8"))
+        except ValueError:
+            return None, [f"pin {pin} is unreadable; fix or delete it by hand. Nothing enforced"], True
+        if not self_signed(pinned):
+            return None, [f"pin {pin} is not a signed rule set; delete it by hand to re-pin. Nothing enforced"], True
+    signed = self_signed(data)
+    if pinned is None:
+        if not data.get("signature") or not data.get("publicKey"):  # also the pre-Ed25519 HMAC format
+            return data, ["the rule set is not signed with an owner key yet; run: ai-rule-lock sign"], False
+        if not signed:
+            return None, ["the rule set's signature is invalid and no owner key is pinned on this device. Nothing enforced"], True
+        if write:
+            _write(pin, dump(data), 0o600)
+        return data, [f"pinned the owner's key on this device ({pin})"], False
+    same_key = data.get("publicKey") == pinned.get("publicKey")
+    mine, theirs = serial_of(data), serial_of(pinned) or 0
+    rollback = mine is None or mine < theirs
+    if signed and not rollback and (same_key or endorsed(data, pinned.get("publicKey", ""))):
+        if write and data != pinned:
+            _write(pin, dump(data), 0o600)
+        return data, [] if same_key else ["accepted a new owner key endorsed by the pinned one"], False
+    why = ("is unsigned" if not data.get("signature") else "has an invalid signature" if not signed
+           else "is an older signed version (rollback)" if rollback else "is signed by a key the owner did not endorse")
+    return pinned, [f"REJECTED {LOCK_FILE}: it {why}; enforcing the last rules signed with the owner's password"], True
+
+
+# ── enforcement ──────────────────────────────────────────────────────────────
+def _write(path, text, mode=None):
+    real = path.resolve()  # write through a symlink, never replace it
+    real.parent.mkdir(parents=True, exist_ok=True)
+    if mode is None:
+        mode = real.stat().st_mode & 0o777 if real.exists() else 0o644
+    fd, tmp = tempfile.mkstemp(dir=real.parent, prefix=f".{real.name}.")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
+            fh.write(text)
+        os.chmod(tmp, mode)
+        os.replace(tmp, real)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
 
 
 def files_of(root, rule):
@@ -107,22 +319,10 @@ def scan(root, data, write):
             if err:
                 errors.append(f"{rule['id']}: {rel}: {err}")
                 continue
-            if new == text:
-                continue
-            drift.append(f"{rule['id']}: {rel}")
-            if write:
-                real = path.resolve()  # write through a symlink, never replace it
-                mode = real.stat().st_mode & 0o777
-                fd, tmp = tempfile.mkstemp(dir=real.parent, prefix=f".{real.name}.")
-                try:
-                    with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
-                        fh.write(new)
-                    os.chmod(tmp, mode)
-                    os.replace(tmp, real)
-                except BaseException:
-                    if os.path.exists(tmp):
-                        os.unlink(tmp)
-                    raise
+            if new != text:
+                drift.append(f"{rule['id']}: {rel}")
+                if write:
+                    _write(path, new)
     return drift, errors
 
 
@@ -136,15 +336,22 @@ def main():
     path, data = load(root)
 
     if args.command in ("check", "repair"):
-        drift, errors = scan(root, data, write=args.command == "repair")
-        verb = "restored" if args.command == "repair" else "drift"
+        write = args.command == "repair"
+        rules, notes, rejected = trusted(data, write)
+        if data.get("_problem"):
+            notes.insert(0, f"{LOCK_FILE} {data['_problem']}")
+        if rejected and write and rules is not None and rules is not data:
+            _write(path, dump(rules))
+            notes.append(f"restored {LOCK_FILE} to the last signed version")
+        drift, errors = scan(root, rules, write) if rules is not None else ([], [])
+        verb = "restored" if write else "drift"
         for d in drift:
             print(f"locked rule {verb}: {d}")
+        for n in notes:
+            print(f"locked rule {'ERROR' if rejected else 'note'}: {n}", file=sys.stderr)
         for e in errors:
             print(f"locked rule ERROR: {e}", file=sys.stderr)
-        if not data.get("signature"):
-            print("locked rule note: the rule set is unsigned; run: ai-rule-lock sign", file=sys.stderr)
-        if errors or (drift and args.command == "check"):
+        if rejected or errors or (drift and not write):
             return 1
         if not drift:
             print("ok: locked rules intact")
@@ -152,31 +359,49 @@ def main():
 
     if args.command == "sign":
         password = os.environ.get("AI_RULE_LOCK_KEY")
-        if not password:
+        interactive = not password
+        if interactive:
             password = getpass.getpass("Locked-rules password: ")
             if password != getpass.getpass("Repeat password: "):
                 print("ai-rule-lock: passwords differ; nothing written", file=sys.stderr)
                 return 1
         if len(password) < 12:
-            print("ai-rule-lock: use at least 12 characters (the signature is public, so a short password can be guessed offline)", file=sys.stderr)
+            print("ai-rule-lock: use at least 12 characters (the public key is public, so a short password can be guessed offline)", file=sys.stderr)
             return 1
+        old_pub = data.get("publicKey") if self_signed(data) else None
+        old_kdf = dict(data["kdf"])
         if not data["kdf"].get("salt"):
-            data["kdf"]["salt"] = secrets.token_hex(16)
-        data["signature"] = hmac.new(derive(password, data["kdf"]), payload(data), hashlib.sha256).hexdigest()
-        path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        print(f"signed: {LOCK_FILE} (commit it; set the same password as the AI_RULE_LOCK_KEY Actions secret)")
+            data["kdf"]["salt"] = os.urandom(16).hex()
+        new_pub = ed_public(seed_of(password, data["kdf"])).hex()
+        data.pop("keyEndorsement", None)
+        data["serial"] = (serial_of(data) or 0) + 1  # monotonic: devices refuse an older signed set
+        if old_pub and old_pub != new_pub:
+            # A new password: the old one must endorse the new key, or devices reject it.
+            old_pw = os.environ.get("AI_RULE_LOCK_OLD_KEY") or (
+                getpass.getpass("Previous password (endorses the new one): ") if interactive else "")
+            old_seed = seed_of(old_pw, old_kdf) if old_pw else b""
+            if not old_pw or ed_public(old_seed).hex() != old_pub:
+                print("ai-rule-lock: this password does not match the signed key, and the previous password did not "
+                      "endorse a new one; nothing written. (Lost it? Each device must then delete its pin by hand.)",
+                      file=sys.stderr)
+                return 1
+            data.setdefault("keyChain", []).append({"from": old_pub, "to": new_pub,
+                                                    "signature": ed_sign(old_seed, ROTATE_TAG + bytes.fromhex(new_pub)).hex()})
+        data["publicKey"] = new_pub
+        data["signature"] = ed_sign(seed_of(password, data["kdf"]), payload(data)).hex()
+        _write(path, dump(data))
+        print(f"signed: {LOCK_FILE} (commit it; AI_RULE_LOCK_KEY must hold this same password)")
         return 0
 
-    # verify
+    # verify (CI): the signature is valid AND the key comes from the secret password
     password = os.environ.get("AI_RULE_LOCK_KEY")
     if not password:
         print("ai-rule-lock: AI_RULE_LOCK_KEY is not set; cannot verify", file=sys.stderr)
         return 2
-    if not data.get("signature") or not data["kdf"].get("salt"):
+    if not data.get("signature") or not data["kdf"].get("salt") or not data.get("publicKey"):
         print("ai-rule-lock: the rule set is unsigned", file=sys.stderr)
         return 2
-    want = hmac.new(derive(password, data["kdf"]), payload(data), hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(want, data["signature"]):
+    if ed_public(seed_of(password, data["kdf"])).hex() != data["publicKey"] or not self_signed(data):
         print("ai-rule-lock: SIGNATURE MISMATCH: a locked rule changed without the owner's password", file=sys.stderr)
         return 1
     print("ok: locked rules carry the owner's signature")

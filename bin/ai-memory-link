@@ -57,15 +57,17 @@ done
 stale=0
 # Owner-locked rules (TASK-170) come first so the render below carries them: a
 # local rename ("Paduka Olan") is restored here on every link, while --check only
-# reports it. A checkout without the lock file (old fixtures) skips this.
+# reports it. A checkout with neither the lock file nor a device pin (old
+# fixtures) skips this; a deleted lock file on a pinned device is restored.
 ROOT="$(cd -P "$AI/../.." && pwd)"
+PIN="${AI_RULE_LOCK_PIN:-$HOME/.config/ai-local/locked-rules.pinned.json}"
 # ~/.config/ai must be the dotfiles checkout's config/ai; a hand-built real
 # directory cannot be held to the locked rules, so say so instead of skipping.
-if [ ! -f "$ROOT/config/ai/locked-rules.json" ] && [ -z "${AI_DIR:-}" ]; then
+if [ ! -x "$ROOT/bin/ai-rule-lock" ] && [ -z "${AI_DIR:-}" ]; then
   echo "WARNING: $AI is not linked into a dotfiles checkout; owner-locked rules are not enforced here. Re-run the dotfiles installer."
 fi
 lock_failed=0
-if [ -f "$ROOT/config/ai/locked-rules.json" ] && [ -x "$ROOT/bin/ai-rule-lock" ]; then
+if [ -x "$ROOT/bin/ai-rule-lock" ] && { [ -f "$ROOT/config/ai/locked-rules.json" ] || { [ -z "${AI_DIR:-}" ] && [ -f "$PIN" ]; }; }; then
   if [ "${1:-}" = "--check" ]; then
     lock_out="$("$ROOT/bin/ai-rule-lock" check --root "$ROOT" 2>&1)" \
       || { printf '%s\n' "$lock_out" | grep -v -e '^ok:' -e 'note:' || true; echo "stale: locked rules drifted — run: ai-memory-link"; stale=1; }
@@ -77,6 +79,8 @@ if [ -f "$ROOT/config/ai/locked-rules.json" ] && [ -x "$ROOT/bin/ai-rule-lock" ]
 fi
 for rt in "${RUNTIMES[@]}"; do
   out="$AI/context/$rt.md"
+  # Never spread an unrestorable locked-rule violation into the runtimes.
+  if [ "$lock_failed" -ne 0 ]; then echo "skipped render of context/$rt.md: locked rules unresolved"; continue; fi
   render "$rt" | cmp -s - "$out" 2>/dev/null && continue
   if [ "${1:-}" = "--check" ]; then
     echo "stale: config/ai/context/$rt.md does not match CORE.md + adapters/$rt.md — run: ai-memory-link"

@@ -6,6 +6,14 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-28
 
+### Device-side lock enforcement (TASK-171) — 2026-11-01
+
+- `ai-rule-lock` now signs with Ed25519 (stdlib, RFC 8032 vectors checked)
+  keyed from the owner's password. Devices pin the owner key on first contact
+  and reject an edited, unsigned or foreign-signed rule set after a pull,
+  restoring the last signed rules without needing the password. A new password
+  must be endorsed by the old one. The previous HMAC signature is replaced.
+
 ### Owner-locked rules (TASK-170) — 2026-11-01
 
 - Add `bin/ai-rule-lock` and `config/ai/locked-rules.json`: the address

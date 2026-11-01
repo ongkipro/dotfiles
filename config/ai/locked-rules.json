@@ -54,5 +54,7 @@
     "p": 1,
     "salt": "390a4440e85aa7d16a7fa56bd20ac463"
   },
-  "signature": "37d229d55f7eea56a6a832e9eb6838a04c51ed4ac28d832d48e3e493dab5fa4e"
+  "signature": "af94aa085b2c804adac6710f73c42047b39faed162577e3e4374f48ebd7ca878f37db6fedce32475e6e8e3a33583b0d49a7f4c487c6ad26b667a429ccfe88e0a",
+  "publicKey": "49aca7830044fa498123b55c83b4bdf488a6be4a8935e858effdb67567e16efb",
+  "serial": 1
 }
