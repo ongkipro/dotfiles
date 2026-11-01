@@ -288,4 +288,15 @@ r=m['select'](root,manifest,'topic','auto',repo,None,3,12000)
 assert all(f['scope']=='shared' for f in r['files']) and len(r['files'])==3
 print('ai-memory-route-test: execution priority under competing triggers PASS')
 PY
+# Device-local profile override (profile.md ranks above shared identity/preferences when present).
+LOCAL_DIR="$TMP/ai-local"; mkdir -p "$LOCAL_DIR"
+printf '# Ucup profile\n' > "$LOCAL_DIR/profile.md"
+AI_LOCAL_DIR="$LOCAL_DIR" python3 "$ROUTER" 'who am i and what is my profile preference' --json > "$TMP/local-prof.json"
+python3 - "$TMP/local-prof.json" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1]))
+assert p['files'][0]['path'].endswith('/profile.md'), p['files']
+assert p['files'][0]['scope'] == 'local', p['files']
+PY
+echo "  ✓ device-local profile.md outranks shared identity/preferences when present"
 echo 'ai-memory-route-test: PASS'

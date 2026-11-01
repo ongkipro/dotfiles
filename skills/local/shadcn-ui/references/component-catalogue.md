@@ -224,3 +224,11 @@ import { Home, Users, Settings, type LucideIcon } from 'lucide-react'
 const ICON_MAP: Record<string, LucideIcon> = { Home, Users, Settings }
 const Icon = ICON_MAP[name]  // correct
 ```
+
+## `radix-nova` overflow and truncation defaults
+
+Three generated `radix-nova` primitives carry base classes that silently clip or overlap dense admin layouts unless adjusted in the primitive:
+
+- **`TabsList` (`tabs.tsx`):** ships with `group-data-horizontal/tabs:h-8`, which has higher specificity than a plain `h-auto` passed at the call site. When horizontal tabs wrap onto multiple rows, replace `group-data-horizontal/tabs:h-8` with `group-data-horizontal/tabs:min-h-9 group-data-horizontal/tabs:h-auto` so wrapped rows expand cleanly instead of spilling over cards below.
+- **`SidebarMenuButton` (`sidebar.tsx`):** ships with `[&>span:last-child]:truncate` and `data-active:bg-sidebar-accent` in its CVA base. If a sidebar intentionally wraps multi-line menu titles, remove `[&>span:last-child]:truncate` in the primitive (passing `whitespace-normal` on a child span alone is overridden by the parent selector) and pair active states with `data-active:bg-primary data-active:text-primary-foreground` when stronger contrast is required.
+- **`TableCell` (`table.tsx`):** sets `whitespace-nowrap` on every cell by default. In multi-column tables inside constrained cards (e.g., 8-column grid panels), remove default `whitespace-nowrap` from `TableCell` so text columns wrap naturally while numeric, date, and currency cells explicitly keep `whitespace-nowrap tabular-nums`.

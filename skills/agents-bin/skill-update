@@ -75,11 +75,25 @@ for target in "${DIRECTORY_TARGETS[@]}"; do
   link_directory_target "$target"
 done
 
-# Codex discovers skills natively under ~/.codex/skills. Keep .system untouched
-# and reconcile only symlinks owned by this script.
+# Codex discovers skills natively under ~/.codex/skills. Keep .system untouched,
+# archive any leaked *.backup.* directories, remove legacy shared-skills links,
+# and reconcile symlinks owned by this script.
 CODEX_ROOT="$HOME/.codex/skills"
+SHARED_SKILLS_ROOT="$HOME/.agents/repos/shared-skills"
 if [ -d "$HOME/.codex" ]; then
   mkdir -p "$CODEX_ROOT"
+
+  archive_dir=""
+  while IFS= read -r backup_path; do
+    [ -e "$backup_path" ] || continue
+    if [ -z "$archive_dir" ]; then
+      archive_dir="${PI_ARCHIVE_ROOT:-$HOME/.pi/agent/skill-backups}/$(date +%Y-%m-%d_%H%M%S)/.codex-skills"
+      mkdir -p "$archive_dir"
+    fi
+    mv "$backup_path" "$archive_dir/"
+    printf '  moved  %-28s -> %s (archived backup)\n' "${backup_path/#$HOME/\~}" "${archive_dir/#$HOME/\~}"
+    linked=$((linked + 1))
+  done < <(find "$CODEX_ROOT" -mindepth 1 -maxdepth 1 -name '*.backup.*' | sort)
 
   while IFS= read -r link; do
     raw="$(readlink "$link" 2>/dev/null || true)"
@@ -88,10 +102,16 @@ if [ -d "$HOME/.codex" ]; then
         [ -e "$link" ] || {
           unlink "$link"
           printf '  unlink %-28s (owned skill removed)\n' "${link/#$HOME/\~}"
+          linked=$((linked + 1))
         }
         ;;
+      "$SHARED_SKILLS_ROOT"/*)
+        unlink "$link"
+        printf '  unlink %-28s (legacy shared-skills removed)\n' "${link/#$HOME/\~}"
+        linked=$((linked + 1))
+        ;;
     esac
-  done < <(find "$CODEX_ROOT" -mindepth 1 -maxdepth 1 -type l)
+  done < <(find "$CODEX_ROOT" -mindepth 1 -maxdepth 1 -type l | sort)
 
   while IFS= read -r skill_file; do
     skill_dir="$(dirname "$skill_file")"
@@ -118,11 +138,42 @@ else
   skipped=$((skipped + 1))
 fi
 
-# Remove only obsolete compatibility links that still point exactly at SRC.
-for legacy in "$HOME/.gemini/skills" "$HOME/.antigravity/skills"; do
+# Remove obsolete compatibility links and clean legacy per-skill directories
+# (~/.gemini/skills, ~/.antigravity/skills, ~/.agents/skills) so duplicate links
+# and *.backup.* folders do not crowd agy's skill context budget.
+for legacy in "$HOME/.gemini/skills" "$HOME/.antigravity/skills" "$HOME/.agents/skills"; do
   if [ -L "$legacy" ] && [ "$(resolve_path "$legacy" 2>/dev/null || true)" = "$SRC" ]; then
     unlink "$legacy"
     printf '  unlink %-28s (obsolete discovery path)\n' "${legacy/#$HOME/\~}"
+    linked=$((linked + 1))
+  elif [ -d "$legacy" ] && [ ! -L "$legacy" ]; then
+    legacy_label="$(basename "$(dirname "$legacy")")-skills"
+    legacy_archive=""
+    while IFS= read -r backup_path; do
+      [ -e "$backup_path" ] || continue
+      if [ -z "$legacy_archive" ]; then
+        legacy_archive="${PI_ARCHIVE_ROOT:-$HOME/.pi/agent/skill-backups}/$(date +%Y-%m-%d_%H%M%S)/${legacy_label}"
+        mkdir -p "$legacy_archive"
+      fi
+      mv "$backup_path" "$legacy_archive/"
+      printf '  moved  %-28s -> %s (archived backup)\n' "${backup_path/#$HOME/\~}" "${legacy_archive/#$HOME/\~}"
+      linked=$((linked + 1))
+    done < <(find "$legacy" -mindepth 1 -maxdepth 1 -name '*.backup.*' | sort)
+
+    while IFS= read -r link; do
+      raw="$(readlink "$link" 2>/dev/null || true)"
+      case "$raw" in
+        "$SRC"/*|"$SHARED_SKILLS_ROOT"/*)
+          unlink "$link"
+          printf '  unlink %-28s (legacy skill link removed)\n' "${link/#$HOME/\~}"
+          linked=$((linked + 1))
+          ;;
+      esac
+    done < <(find "$legacy" -mindepth 1 -maxdepth 1 -type l | sort)
+
+    if [ "$legacy" != "$HOME/.agents/skills" ] && rmdir "$legacy" 2>/dev/null; then
+      printf '  rmdir  %-28s (empty legacy skill dir removed)\n' "${legacy/#$HOME/\~}"
+    fi
   fi
 done
 

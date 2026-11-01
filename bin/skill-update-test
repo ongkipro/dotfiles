@@ -88,6 +88,28 @@ fi
 mv "$SRC/removed-skill" "$SRC/demo-skill"
 run_it >/dev/null
 
+echo "4b. Codex *.backup.* directories and legacy shared-skills links must be cleaned"
+mkdir -p "$FAKE_HOME/.codex/skills/demo-skill.backup.12345" \
+  "$FAKE_HOME/.gemini/skills/demo-skill.backup.67890" \
+  "$FAKE_HOME/.agents/repos/shared-skills/plugins/demo/skills/legacy-skill"
+ln -sfn "$FAKE_HOME/.agents/repos/shared-skills/plugins/demo/skills/legacy-skill" \
+  "$FAKE_HOME/.codex/skills/legacy-skill"
+ln -sfn "$SRC/demo-skill" "$FAKE_HOME/.gemini/skills/demo-skill"
+ln -sfn "$FAKE_HOME/.agents/repos/shared-skills/plugins/demo/skills/legacy-skill" \
+  "$FAKE_HOME/.gemini/skills/legacy-skill"
+out="$(run_it || true)"
+if [ ! -e "$FAKE_HOME/.codex/skills/demo-skill.backup.12345" ] \
+   && [ ! -L "$FAKE_HOME/.codex/skills/legacy-skill" ] \
+   && [ ! -e "$FAKE_HOME/.gemini/skills" ] \
+   && [ -d "$FAKE_HOME/.codex/skills/.system" ] \
+   && [ -L "$FAKE_HOME/.codex/skills/demo-skill" ]; then
+  echo "   ✓ Codex & ~/.gemini/skills backups archived and legacy links cleaned"
+else
+  echo "   ✗ FAIL: Codex or ~/.gemini/skills backup/legacy link persisted"
+  printf '%s\n' "$out" | sed 's/^/     /'
+  fail=1
+fi
+
 echo "5. target resolving INSIDE the source must be REFUSED"
 # This is the shape that ate the skills directory: the target points at a path
 # *within* SRC, so the "move it aside" branch would mv a real skill out of the

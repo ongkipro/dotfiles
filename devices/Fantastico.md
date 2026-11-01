@@ -1,7 +1,7 @@
 # Device: `Fantastico`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-10-01**
+> Terakhir diperbarui: **2026-11-01**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -11,7 +11,7 @@
 | Hostname | `Fantastico` |
 | Device | **LENOVO ThinkPad X280 (`20KES2SP07`) · laptop** |
 | OS | Ubuntu 26.04.1 LTS |
-| Kernel | 7.0.0-34-generic · x86_64 |
+| Kernel | 7.0.0-38-generic · x86_64 |
 | Service manager | systemd --user |
 | Package manager | apt |
 
@@ -22,15 +22,15 @@
 | CPU | Intel(R) Core(TM) i7-8650U CPU @ 1.90GHz (8 thread) |
 | RAM | 15.5 GB |
 | GPU | Intel Corporation Kaby Lake-R GT2 [UHD Graphics 620] (rev 07) |
-| Disk (/) | 233G total, 155G free (31% used) |
+| Disk (/) | 233G total, 162G free (27% used) |
 
 ## AI CLI
 
 | CLI | Status | Path |
 |---|---|---|
-| `claude` | terpasang | ~/.nvm/versions/node/v24.16.0/bin/claude |
-| `codex` | terpasang | ~/.nvm/versions/node/v24.16.0/bin/codex |
-| `pi` | terpasang | ~/.nvm/versions/node/v24.16.0/bin/pi |
+| `claude` | terpasang | ~/.local/share/mise/installs/node/24.22.1/bin/claude |
+| `codex` | terpasang | ~/.local/share/mise/installs/node/24.22.1/bin/codex |
+| `pi` | terpasang | ~/.local/share/mise/installs/node/24.22.1/bin/pi |
 | `agy` | terpasang | ~/.local/bin/agy |
 | `omp` | terpasang | ~/.local/bin/omp |
 
@@ -38,11 +38,11 @@
 
 | Tool | Versi |
 |---|---|
-| node | v24.18.0 |
-| pnpm | 11.24.0 |
-| bun | 1.4.2 |
+| node | v24.22.1 |
+| pnpm | 12.15.0 |
+| bun | 1.4.4 |
 | python3 | Python 3.14.4 |
-| mise | 2026.6.14 linux-x64 (2026-06-25) |
+| mise | 2026.10.15 linux-x64 (2026-10-19) |
 | git | git version 2.53.0 |
 
 ## Profil Claude Code

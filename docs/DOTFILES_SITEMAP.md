@@ -114,7 +114,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 25 | linked from this page |
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 84 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
-| Owned skills | [`skills/local/`](../skills/local/) | 75 | linked from this page |
+| Owned skills | [`skills/local/`](../skills/local/) | 76 | linked from this page |
 | Commands | [`bin/`](../bin/) | 62 | linked from this page |
 | Command tests | [`bin/`](../bin/) | 74 | linked from this page |
 | Device profiles | [`devices/`](../devices/) | 8 | linked from this page |
@@ -315,6 +315,7 @@ Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rende
 - [`web-perf`](../skills/local/web-perf/SKILL.md): Core Web Vitals profiling, Lighthouse optimization.
 - [`threejs`](../skills/local/threejs/SKILL.md): 3D WebGL scenes across vanilla JS, Vite, Astro, and React Three Fiber (R3F).
 - [`dotuiux`](../skills/local/dotuiux/SKILL.md): One UI/UX loop for new screens and redesigns: brief, live-site teardown, `DESIGN.md` direction, rendered checks, owner review; routes the craft to the owner skills.
+- [`stitch`](../skills/local/stitch/SKILL.md): Google Stitch CLI, Canvas, and Loop agent workflows with DESIGN.md support.
 
 ### 6.3 Animation (GSAP)
 - [`gsap-core`](../skills/local/gsap-core/SKILL.md): Core tweening, easing, matchMedia.

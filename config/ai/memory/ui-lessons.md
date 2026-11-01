@@ -135,3 +135,26 @@ Import the missing weight on the surface that uses it (admin-only 500), codemod 
 Tally computed fontSize/fontWeight per UI role in a headless browser at desktop and phone widths; compare the weights used against the @font-face list.
 
 > Promoted from a reviewed local candidate on 2026-10-01.
+
+
+---
+
+
+## Lesson: shadcn/ui radix-nova TabsList, SidebarMenuButton, and TableCell overflow gotchas
+
+### Symptom
+Wrapped horizontal TabsList items spill over cards below; multi-line SidebarMenuButton labels still truncate with '...'; multi-column Table inside an 8-col Card clips right-edge currency columns.
+
+### Root cause
+In shadcn/ui radix-nova: (1) TabsList sets 'group-data-horizontal/tabs:h-8', outranking plain 'h-auto'; (2) SidebarMenuButton sets '[&>span:last-child]:truncate' and 'data-active:bg-sidebar-accent' in its CVA base; (3) TableCell sets 'whitespace-nowrap' on all cells.
+
+### Durable invariant
+Wrapped TabsList must expand in height, multi-line sidebar navigation must not truncate menu titles, and TableCell text columns must wrap while numeric/currency cells stay whitespace-nowrap tabular-nums.
+
+### Fix
+Use 'group-data-horizontal/tabs:min-h-9 group-data-horizontal/tabs:h-auto' in tabs.tsx, remove '[&>span:last-child]:truncate' in sidebar.tsx (with 'data-active:bg-primary data-active:text-primary-foreground'), and drop default 'whitespace-nowrap' from TableCell in table.tsx.
+
+### Regression check
+Capture 1440x900 desktop and 390x844 mobile headless Chrome screenshots and verify zero overlapping tabs, zero '...' sidebar truncation, and zero right-edge table clipping.
+
+> Promoted from a reviewed local candidate on 2026-10-24.

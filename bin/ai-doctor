@@ -518,9 +518,34 @@ if [ -d "$SK" ]; then
     [ "$codex_bad" -eq 0 ] \
       && ok "codex: $codex_owned owned skills visible beside .system" \
       || bad "codex: $codex_bad owned skills missing/stale. Perbaiki: skill-update"
+    codex_backups=$(find "$CODEX_ROOT" -mindepth 1 -maxdepth 1 -name '*.backup.*' 2>/dev/null | wc -l | tr -d ' ')
+    codex_shared=0
+    while IFS= read -r l; do
+      case "$(readlink "$l" 2>/dev/null || true)" in
+        "$SHARED"/*) codex_shared=$((codex_shared + 1)) ;;
+      esac
+    done < <(find "$CODEX_ROOT" -mindepth 1 -maxdepth 1 -type l 2>/dev/null)
+    if [ "$codex_backups" -eq 0 ] && [ "$codex_shared" -eq 0 ]; then
+      ok "codex: ~/.codex/skills bersih dari *.backup.* & legacy shared-skills"
+    else
+      wrn "codex: ada $codex_backups folder *.backup.* dan $codex_shared symlink shared-skills di ~/.codex/skills. Perbaiki: skill-update"
+    fi
   else
     wrn "codex: belum terpasang (lewati)"
   fi
+
+  legacy_dirty=0
+  for legacy_dir in "$HOME/.gemini/skills" "$HOME/.antigravity/skills" "$HOME/.agents/skills"; do
+    if [ -d "$legacy_dir" ] && [ ! -L "$legacy_dir" ]; then
+      l_links=$(find "$legacy_dir" -mindepth 1 -maxdepth 1 -type l 2>/dev/null | wc -l | tr -d ' ')
+      l_backups=$(find "$legacy_dir" -mindepth 1 -maxdepth 1 -name '*.backup.*' 2>/dev/null | wc -l | tr -d ' ')
+      if [ "$l_links" -gt 0 ] || [ "$l_backups" -gt 0 ]; then
+        wrn "legacy skill dir ${legacy_dir/#$HOME/\~}: ada $l_links symlink legacy dan $l_backups *.backup.* (memotong kuota skill agy). Perbaiki: skill-update"
+        legacy_dirty=1
+      fi
+    fi
+  done
+  [ "$legacy_dirty" -eq 0 ] && ok "legacy skill dirs (~/.gemini/skills, ~/.agents/skills): bersih dari symlink duplikat & *.backup.*"
 
   UPDATE_EXPECTED="$DOT/skills/agents-bin/skill-update"
   UPDATE_ACTUAL="$(command -v skill-update 2>/dev/null || true)"

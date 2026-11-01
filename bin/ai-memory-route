@@ -253,6 +253,27 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
             reasons.append(f"explicit foreign reference {other}: {admitted} note(s) admitted")
 
     if scope in {"auto", "shared"}:
+        local_dir = os.environ.get("AI_LOCAL_DIR")
+        if local_dir:
+            local_profile = Path(local_dir).expanduser() / "profile.md"
+        elif root == (Path.home() / "dotfiles").resolve():
+            local_profile = Path.home() / ".config" / "ai-local" / "profile.md"
+        else:
+            local_profile = None
+        if local_profile and local_profile.is_file():
+            local_item = {
+                "priority": 105,
+                "triggers": [
+                    "ucup", "asep", "fantastico", "identity", "who am i",
+                    "role", "profile", "profiling", "preference", "prefer",
+                    "style", "tone", "how i like", "cara kerja", "alur kerja",
+                ],
+            }
+            s_local = score(query, local_item)
+            if s_local:
+                candidates.append({"path": str(local_profile), "scope": "local", "priority": s_local, "reason": "device-local profile override"})
+                reasons.append("device-local profile matched profile.md")
+
         for item in manifest.get("shared", []):
             s = score(query, item)
             path_only = False
@@ -283,7 +304,7 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
     kept = []
     for item in candidates:
         canonical = Path(item['path']).resolve()
-        if item['scope'] != 'execution':
+        if item['scope'] not in {'execution', 'local'}:
             try: canonical.relative_to(root.resolve())
             except ValueError:
                 reasons.append(f"excluded {canonical.name}: memory outside canonical root")
