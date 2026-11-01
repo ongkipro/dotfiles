@@ -6,6 +6,11 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-28
 
+### Private repository CI (TASK-173) — 2026-11-01
+
+- The repository is private. Pushes and PRs run the Ubuntu self-test and design
+  fixtures; the macOS self-test runs weekly and on demand (10x minute billing).
+
 ### Device-side lock enforcement (TASK-171) — 2026-11-01
 
 - `ai-rule-lock` now signs with Ed25519 (stdlib, RFC 8032 vectors checked)

@@ -29,7 +29,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # Private repository: macOS (10x minutes) only on schedule and manual runs.
+        os: ${{ fromJSON((github.event_name == 'push' || github.event_name == 'pull_request') && '["ubuntu-latest"]' || '["ubuntu-latest","macos-latest"]') }}
         python-version: ["3.9", "3.12"]
         # ubuntu-latest moved to 26.04, which ships no Python 3.9 build;
         # keep the 3.9 floor tested on the last image that provides it.

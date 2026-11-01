@@ -46,6 +46,10 @@ on:
       - "install.sh"
       - "install-macos.sh"
   workflow_dispatch:
+  # The repository is private (2026-11-01): macOS minutes bill at 10x, so macOS
+  # runs weekly and on demand; every push and pull request still runs Ubuntu.
+  schedule:
+    - cron: "17 2 * * 1"
 
 permissions:
   contents: read
@@ -58,9 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
+        os: ${{ fromJSON((github.event_name == 'push' || github.event_name == 'pull_request') && '["ubuntu-latest"]' || '["ubuntu-latest","macos-latest"]') }}
 
     steps:
       - name: Check out repository
@@ -111,7 +113,7 @@ jobs:
           bin/ai-rule-lock check
           if [ -n "$AI_RULE_LOCK_KEY" ]; then
             bin/ai-rule-lock verify
-          elif [ "$GITHUB_REPOSITORY" = "ongkipro/dotfiles" ] && [ "$GITHUB_EVENT_NAME" = "push" ]; then
+          elif [ "$GITHUB_REPOSITORY" = "ongkipro/dotfiles" ] && [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
             echo "::error::AI_RULE_LOCK_KEY secret is missing; the locked-rule signature cannot be verified"
             exit 1
           else
