@@ -50,7 +50,7 @@ $$\text{Meta Ad Click (_fbp, _fbc)} \longrightarrow \text{Browser Pixel (event_i
 1. **What happened?** — Correct semantic event (`ViewContent`, `AddToCart`, `InitiateCheckout`, `Lead`, `Purchase`).
 2. **What did it happen to?** — Canonical product identity (`content_ids`, `contents`, `value`, `currency`).
 3. **Who likely performed it?** — Privacy-compliant matching (`_fbp`, `_fbc`, SHA-256 hashed email/phone/external_id, client_ip_address, client_user_agent).
-4. **Did Meta receive exactly ONE event?** — Canonical `event_id` + identical `event_name` on both legs, deduplicated only when the second copy arrives within 48 hours of the first (Meta generally keeps the first received), and a transactional outbox.
+4. **Did Meta receive exactly ONE event?** — Canonical `event_id` + identical `event_name` on both legs, deduplicated only when the second copy arrives within 48 hours of the first (Meta generally keeps the first received, but prefers the browser copy when both arrive within ~5 minutes), and a transactional outbox.
 
 ## Identity contract before code
 
@@ -96,7 +96,7 @@ server-derived IP and user agent
 | Browser + Server Deduplication & `event_id` rules | [Deduplication & Event ID](references/DEDUPLICATION_EVENT_ID.md) |
 | Customer identity matching, E.164 phone normalization, SHA-256 hashing, `_fbp`/`_fbc` rules | [Identity Normalization](references/IDENTITY_NORMALIZATION.md) |
 | Purchase event taxonomy for Prepaid vs Cash On Delivery (COD) funnels | [COD vs Prepaid Purchase Signals](references/COD_VS_PREPAID_PURCHASE.md) |
-| WeTracked.io / Elevar parity & deep attribution engineering | [WeTracked.io Attribution Parity](references/WETRACKED_ATTRIBUTION_PARITY.md) |
+| How managed tracking SaaS (wetracked.io, Elevar, peers) really works vs an owned engine | [Managed SaaS vs owned engine](references/WETRACKED_ATTRIBUTION_PARITY.md) |
 | Catalog `id` rules (Google + Meta), feed grain, the audit of integrations that pass every test, sources | [Catalog identity and audit](references/CATALOG_IDENTITY_AND_AUDIT.md) |
 | Multi-platform product taxonomy, custom labels, 12-point feed audit | `../google-ads-signal-engine/references/ADVERTISING_TAXONOMY_AND_FEED_AUDIT.md` |
 

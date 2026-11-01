@@ -1,62 +1,73 @@
-# WeTracked.io Parity & Deep Attribution Engineering Spec
+# Managed Tracking SaaS vs Owned Signal Engine (wetracked.io, Elevar and peers)
 
-> Architectural deep-dive and validation specification comparing commercial tracking platforms (WeTracked.io, Elevar, TripleWhale) against native dotfiles signal engines.
+> How commercial server-side tracking products actually work, observed in their
+> shipped code, and the owned-engine standard that replaces each mechanism.
+> Evidence date: 2026-11-02. Full research, artifacts and per-tool cards:
+> `~/Documents/work/research/wetracked-2026/README.md` (device-local; vendor
+> behaviour drifts, so re-verify before quoting a vendor in client work).
 
 ---
 
-## 1. Deep Technical Comparison: How Tracking Solutions Work
+## 1. What the vendors really do (evidence-based)
 
-| Engineering Vector | WeTracked.io / Elevar (hosted SaaS; check current pricing) | Dotfiles AI Signal Engine (native code, no tracking SaaS) | Implementation Standard in Dotfiles |
+Labels: **[RUN]** executed offline against the shipped script · **[SRC]** read in
+shipped code · **[DOC]** vendor docs · **[LST]** public blocklist.
+
+| Mechanism | wetracked.io | Elevar | Owned engine standard |
 | :--- | :--- | :--- | :--- |
-| **Safari ITP Cookie Lifetime** | Often a CNAME subdomain (`track.domain.com`) writing `Set-Cookie`; WebKit caps cookies from third-party CNAME/IP-cloaked responses to 7 days. | `Set-Cookie` from the site's own origin server or Worker route (same site, not a cloaked third party). | `Set-Cookie: _fbp=...; Max-Age=<deliberate lifetime>; Path=/; SameSite=Lax; Secure` from the first-party origin. |
-| **Event Match Quality (EMQ)** | Automated client/server hashing engine. | Built-in SHA-256 phone & email normalizer contract, per platform. | `IDENTITY_NORMALIZATION.md` (Meta `ph`: country-code digits without `+`; Google and TikTok document `+E.164` — see their skills). |
-| **Payment Gateway Redirects** | Session stitching via Shopify app DB. | Order DB Session Preservation Pattern. | Persist `_fbp`, `_fbc`, `ttclid`, `gclid` into Order record at `InitiateCheckout`. |
-| **Event Deduplication** | Automated `event_id` payload injection. | Shared `event_id` contract (`order_id` or UUIDv4). | Client `fbq`/`ttq`/`gtag` + Server CAPI payload share identical `event_id`. |
-| **Handling Network Failures** | SaaS retry queue. | Transactional Outbox Pattern (`capi_outbox`). | Async background worker with exponential backoff retries for 5xx/429 status codes. |
-| **Data Privacy & Ownership** | Data passes through 3rd-party SaaS servers. | 100% Direct First-Party Server-to-API transmission. | Zero 3rd party dependency; direct Graph API, TikTok Events API, Google Data Manager API (Google Ads API only for integrations already grandfathered). |
+| **Browser collector host** | Shared third-party host `pixel.wetracked.io`; listed in EasyPrivacy, AdGuard Tracking and HaGeZi [LST] | Shopify app proxy `/a/elevar/` + `hits.getelevar.com`; both, including the proxy path, listed in EasyPrivacy [LST] | Endpoint on the merchant's own origin (Worker/route), non-signature path |
+| **Visitor identity** | `_wtp` = Shopify cart token via `/cart/update.js` (90 d) or random UUID (365 d); **JS-set** cookies [RUN] | 1-year `_elevar_*` cookie + cart attributes [SRC/DOC] | `Set-Cookie` from the merchant origin; store click IDs on the order at checkout |
+| **Click-ID survival across hops** | Link decoration of every absolute link; cart-permalink `attributes[]` copy IDs onto the order [RUN] | Cart attributes via `/cart/update.js` [SRC] | Persist `fbc/fbp/ttclid/gclid` server-side on first request and on the order row |
+| **Meta delivery** | **Server-only** from order webhooks; browser pixel must be removed, so no dedup needed [SRC/DOC] | Pixel + server with a shared id [DOC] | Redundant Pixel + CAPI with a shared `event_id` (Meta's recommendation) |
+| **Browser `eventID`** | `wt:page:eid` is never assigned, so `eventID` is `undefined` [RUN] | Shared id on both legs [SRC] | Deterministic id: `order_id` for Purchase, random shared id otherwise |
+| **Network failures** | WooCommerce plugin: fire-and-forget (`blocking:false`, 10 ms timeout), **no outbox, no retry** [SRC] | GCP Pub/Sub with ack and retries, webhook replay, accuracy alerts [DOC] | Transactional outbox with backoff, stop auto-retry inside the 48 h dedup window |
+| **COD** | Shopify external checkout → Purchase on `orders/create`; Woo COD gateway sets `processing`, so **every Woo COD order is a Purchase at placement** [SRC] | Purchase on order creation; delivered only via a custom server-to-server event [DOC] | Placement → `InitiateCheckout`; courier `delivered` → server `Purchase` (see COD reference) |
+| **PII normalisation** | Woo plugin lowercases email but does not trim; names keep punctuation [RUN] | Client-side normalisers + SHA-256 [SRC] | `IDENTITY_NORMALIZATION.md`; never trust a library to add `62` (see §2.3) |
+
+Takeaways:
+- "Adblock-proof" in this category means **order events come from webhooks**. The browser collector of most hosted tools is blocklisted (11 of 14 checked).
+- No reviewed tool fires `Purchase` from courier delivery status automatically. PixelFly's COD hold-and-release accepts a `delivered` webhook, but it also releases on `processing`/`shipped`.
+- Proof belongs in the engine: per-event payload + response log and order-level reconciliation (the model Savrena sells).
 
 ---
 
-## 2. The 4 Critical Edge-Cases Solved by Our Signal Engine
+## 2. The edge cases an owned engine must solve
 
-### 2.1 Edge Case 1: Safari ITP 7-Day Cookie Decay
-- **Problem**: WebKit ITP deletes cookies created in JavaScript (and other script-writable storage) after 7 days without user interaction with the site, and caps JavaScript cookies set on a landing page reached through link decoration from a classified tracking domain to 24 hours. A conversion after that window loses the browser-side ID.
-- **Dotfiles Solution**: Set first-party IDs via **HTTP response headers** (`Set-Cookie`) from the site's own origin or Worker route. These caps target script-writable storage; WebKit separately caps cookies in responses from third-party CNAME-cloaked or IP-cloaked servers to 7 days, so a tracking subdomain pointed at a vendor does not escape them. Browsers still impose their own maximum cookie lifetimes — choose a deliberate `Max-Age` and verify actual expiry in Safari rather than assuming a year.
-- **Source**: [WebKit Tracking Prevention](https://webkit.org/tracking-prevention/), accessed 2026-10-02.
+### 2.1 WebKit cookie caps
+- **Problem**: WebKit ITP deletes script-set cookies after 7 days without interaction, and caps JS cookies set on a landing page reached through link decoration from a classified tracking domain to **24 hours**. Cookies from third-party CNAME- or IP-cloaked responses are capped at 7 days.
+- **Solution**: set first-party IDs with an HTTP `Set-Cookie` from the site's own origin or Worker route (not a CNAME to a vendor), read `fbclid` server-side on the first request, and persist it on the order. Choose a deliberate `Max-Age`; verify actual expiry in Safari.
+- **Source**: [WebKit Tracking Prevention](https://webkit.org/tracking-prevention/), accessed 2026-11-02.
 
-### 2.2 Edge Case 2: Payment Gateway Disconnection (Midtrans/Stripe/Xendit)
-- **Problem**: Customer clicks ad → lands on store → goes to Midtrans/Stripe payment page → returns to thank-you page. `document.referrer` is now `payment.midtrans.com`, losing ad source context.
-- **Dotfiles Solution**: At `InitiateCheckout`, save `_fbp`, `_fbc`, `ttclid`, `gclid`, and client `user_agent` directly into the database `orders` table row. When payment webhook confirms purchase, server reads attribution IDs from the order row and fires CAPI.
+### 2.2 Payment-gateway and domain hops (Midtrans/Xendit/Stripe, order-form domains)
+- **Problem**: the shopper returns from the payment page with `document.referrer` set to the gateway; cross-domain order forms lose the landing cookies.
+- **Solution**: at `InitiateCheckout`, save `fbc`, `fbp`, `ttclid`, `gclid`, IP and user agent on the order row; the payment/courier webhook reads them back. For order-form domains, forward IDs in the link without altering their case or characters.
 
-### 2.3 Edge Case 3: E.164 Phone Normalization Failure
-- **Problem**: In Indonesia & Asia, users enter phone numbers as `0812-3456-7890` or `+62 812 3456 7890`. Hashed as typed, the digest matches no platform profile, and nothing errors because a hash always looks valid.
-- **Dotfiles Solution**: Normalize to country code + national number before hashing, then apply each platform's documented form:
-  1. Strip all non-digit characters (`+`, `-`, spaces).
-  2. If starting with the national trunk `0`, replace it with the country code (e.g. `0812...` → `62812...`).
-  3. Meta `ph`: hash the digits (`62812...`). Google Ads enhanced conversions and TikTok: hash `+62812...` (`+E.164`). Verify each platform's current docs; one shared digest for all three is wrong.
+### 2.3 Phone normalisation (no official library does it for Indonesia)
+- **Problem**: `0812-3456-7890` hashed as typed matches nobody, and nothing errors.
+- **Observed (2026-11-02)**: Meta Business SDK and `capi-param-builder` produce `81234567890`; Google Data Manager's formatter produces `+081234567890`; reference sGTM templates and the TikTok Woo plugin do not add `62`; Meta Pixel automatic matching prefixes a code guessed from the **browser language** (`en-US` → `1…`).
+- **Solution**: normalise once to `+62…` (libphonenumber, region `ID`), then serialise per destination — Meta and Pinterest: digits `62…`; Google and TikTok: `+62…`. Send the pre-normalised value on the Pixel too so both legs hash the same input.
 
-### 2.4 Edge Case 4: Asynchronous Payment & COD Webhook Firing
-- **Problem**: Cash On Delivery (COD) orders or bank transfers are placed at Time T, but paid/delivered at Time T+3 Days. Firing `Purchase` on checkout placement creates fake attribution for uncollected COD orders.
-- **Dotfiles Solution**: Split events into two distinct signals:
-  - Placement: Fire `PlaceAnOrder` / `InitiateCheckout`.
-  - Cash Collection: Fire server CAPI `Purchase` / `CompletePayment` ONLY when payment status becomes `PAID` / `DELIVERED_AND_COLLECTED`.
+### 2.4 COD and delayed payment
+- **Problem**: COD orders are paid days later; `Purchase` at placement trains the algorithm on uncollected orders.
+- **Solution**: placement → `InitiateCheckout` (standard event; TikTok cannot optimise custom events and is sunsetting `PlaceAnOrder`); delivered and collected → server `Purchase` with `event_time` = delivery time, sent immediately. Meta's 7-day `event_time` rule is measured against **send time**, so this is always accepted; the real limit is the 7-day-click attribution window. Never relabel late web orders as `physical_store`. Disable app-level Purchase for COD orders (native apps and plugins fire at placement) to avoid double counting.
 
 ---
 
-## 3. High-Conversion & Low-CPA Attribution Architecture
+## 3. Owned architecture
 
 ```
-[Ad Click (Meta/TikTok/Google)]
-       │
-       ▼ (URL params: ?fbclid=... & ?ttclid=... & ?gclid=...)
-[Server HTTP Response Header] ──► Sets first-party HTTP cookies with a deliberate lifetime (_fbp, _fbc, _ttp, ttclid)
+[Ad click (Meta/TikTok/Google)]
+       │ ?fbclid / ?ttclid / ?gclid (case-sensitive, read server-side)
+       ▼
+[Merchant-origin response] ──► Set-Cookie _fbp/_fbc (deliberate lifetime) + click map stored server-side
        │
        ▼
-[InitiateCheckout] ────────────► Persists (_fbp, _fbc, ttclid, gclid, SHA256 Email/Phone) into Order Record
+[InitiateCheckout / order placed] ──► persist click IDs, IP, UA, phone_e164 on the order row
        │
        ▼
-[Payment Webhook / Confirm] ──► Writes payload to `capi_outbox` Table
+[Payment or courier "delivered" webhook] ──► write payload to `capi_outbox` (unique destination+order+event)
        │
        ▼
-[Async Worker Queue] ──────────► Sends CAPI / TikTok Events API / Google (Data Manager API) (exact event_id match)
+[Async worker] ──► Meta CAPI / TikTok Events API / Google Data Manager API
+                   per-destination serialisers, shared event_id, response log, reconciliation
 ```

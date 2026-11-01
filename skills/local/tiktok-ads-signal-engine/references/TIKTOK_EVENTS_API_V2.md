@@ -38,7 +38,7 @@ Use `TIKTOK_EVENTS_TRACK_URL` everywhere rather than repeating the versioned URL
         "ttclid": "E.C.P.1234567890abcdef",
         "ttp": "12345678-abcd-ef01-2345-6789abcdef01",
         "email": "2492d2341d380733d980486c9900c43075c3f05d5395669b32938360662d0012",
-        "phone_number": "542a22f2545d164177d4c204961502f696667954157a9058b8d4f40f09b55219",
+        "phone": "542a22f2545d164177d4c204961502f696667954157a9058b8d4f40f09b55219",
         "ip": "202.152.0.1",
         "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15"
       },
@@ -105,4 +105,4 @@ Use `TIKTOK_EVENTS_TRACK_URL` everywhere rather than repeating the versioned URL
 2. **`ttclid` preservation**: Capture `ttclid` from URL query parameter on landing, store in `httpOnly` cookie (`_ttclid`), and pass in `user.ttclid` on server events.
 3. **SHA-256 Hashing**:
    - `email`: trim whitespace, convert to lowercase, compute SHA-256 hash.
-   - `phone_number`: format to `+E.164` — `+`, country code, number, no spaces or dashes (e.g. `+628123456789`) — then SHA-256. TikTok's docs note an exception for country code 86 (omit it). An earlier version of this file said "without `+`"; that matches Meta, not TikTok. Re-confirm on the JavaScript-rendered [Events API 2.0 page](https://business-api.tiktok.com/portal/docs/events-api-2.0/v1.3) before shipping.
+   - `phone` (Events API 2.0 `user` field; string or string[]): format to `+E.164` — `+`, country code, number, no spaces or dashes (e.g. `+628123456789`) — then SHA-256. TikTok's docs note an exception for country code 86 (omit it). An earlier version of this file said "without `+`"; that matches Meta, not TikTok. Field name: the server payload key is **`phone`**; `phone_number` is the browser Pixel `ttq.identify({ email, phone_number })` key and the legacy 1.0 key (TikTok docs; Stape's TikTok sGTM tag maps any input to `user.phone`, verified in code 2026-11-02). No official library adds the country code: the TikTok WooCommerce plugin hashes `strtolower(trim(phone))` and the official GTM template does not normalise — convert `08…` to `+62…` yourself. Re-confirm on the JavaScript-rendered [Events API 2.0 page](https://business-api.tiktok.com/portal/docs/events-api-2.0/v1.3) before shipping.

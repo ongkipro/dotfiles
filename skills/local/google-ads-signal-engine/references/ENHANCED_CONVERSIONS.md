@@ -136,3 +136,13 @@ export function buildGoogleAdsApiPayload(input: OfflineConversionInput) {
   };
 }
 ```
+
+---
+
+## Data Manager facts that change COD design (2026-11-02)
+
+- Auth is OAuth scope `https://www.googleapis.com/auth/datamanager` via a service account added as a user on the Ads account; no developer token. Limit 2,000 events per request (Google's own samples use 10,000 — follow the limits page), 300 requests/min per project; `validateOnly: true` for staging.
+- **No retraction.** A repeated event restates the value (e.g. to 0) but the conversion count stays. Legacy `UploadConversionAdjustments` RETRACTION is ≤54 days, unavailable for wbraid, and only affects bidding within 7 days. So for COD, make placement a **secondary** tag action and upload **delivered** as the **primary** `UPLOAD_CLICKS` action (`eventTimestamp = delivered_at` with `+07:00/+08:00/+09:00`); upload ≤90 days after the click, set the click window ≥30 days.
+- Google's `datamanager_util` formatter turns `0812-3456-7890` into `+081234567890` (it only prepends `+`). Normalise to `+62…` yourself before calling it.
+- Web enhanced conversions reject phone-only user data (need email, or first+last name+postal+country). Phone-only Indonesian order forms depend mainly on the stored gclid; never invent a last name or a placeholder email.
+- Shopify's Google & YouTube app sends "Checkout completed" purchases server-to-server to Google Ads via Data Manager, deduplicated with the tag; for COD that is placement time — disable it for COD or the delivered upload double-counts.

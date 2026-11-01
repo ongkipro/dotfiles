@@ -49,3 +49,16 @@ Courier Collects Cash & Delivers   Order Status = DELIVERED      Purchase (CAPI 
 | **Cash Delivered** | Highest (collected revenue only) | Lower | Courier-dependent, usually days | High volume COD scale |
 
 Latency matters: Meta only deduplicates within 48 hours, so a delivery-time server `Purchase` will not pair with a browser event and must not have one. Meta also rejects the **entire request** when any `event_time` in `data` is more than 7 days in the past ([server event parameters](https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/server-event), accessed 2026-10-02): stamp the COD `Purchase` with the delivery/collection time, send it promptly, and never batch a stale event with fresh ones. Measure your real confirmation and delivery lag from order timestamps; the labels above are qualitative, not benchmarks.
+
+---
+
+## Delivered-Purchase implementation rules (verified 2026-11-02)
+
+- **Window, not acceptance.** A delivered `Purchase` sent at delivery with `event_time = delivered_at` is always accepted (the 7-day rule is against send time). What drops is attribution: a delivery more than 7 days after the click falls outside the default 7-day-click window. Log click→delivered lag and watch the Dataset Quality API `event_delay` metric.
+- **Do not relabel late orders.** `action_source: physical_store` means an in-person store sale and you attest its accuracy; offline events also never dedup with web events.
+- **Placement event.** Prefer the standard `InitiateCheckout` for placement if you may ever optimise on it; custom events (`Lead`/`OrderPlaced`) are fine for audiences. Keep the same choice across platforms (TikTok cannot optimise custom events).
+- **Kill app-level Purchase for COD.** Shopify's Meta/Google/TikTok channels, WooCommerce plugins (COD orders are `processing` at checkout) and most tracking SaaS fire `Purchase` at placement. A delivered server `Purchase` beside them double-counts: the fallback dedup is browser-first only.
+- **Value.** Send the collected amount as `value` (IDR number); put margin in `net_revenue` on the same event. There is no documented way to correct a sent value later; `AppendValue` is predicted-LTV only.
+- **RTO/refused.** Never `Purchase`; an optional custom event is for **exclusion** audiences only.
+- **Click-to-WhatsApp closings.** Use `action_source: business_messaging`, `messaging_channel: whatsapp`, unhashed `ctwa_clid` (only in the first inbound message `referral`; absent for WhatsApp Status ads). Meta does not dedup business-messaging events, and Automatic Events can double-count if you also send `Purchase`.
+- **Hypothesis, not law.** No public A/B evidence shows delivered-only optimisation beats placement for cost per delivered order; volume drops. Treat the optimisation event as a per-account experiment judged on courier data, not Meta ROAS.

@@ -10,7 +10,7 @@ An engineering operating system for reliable Google Ads conversion measurement, 
 
 ## Verify the API version before writing code
 
-**Never hardcode a Google Ads API version from memory or from these notes.** Google ships a major version roughly quarterly and sunsets older ones on a published schedule; a version written down here rots fast. (These notes once said `v18+` while the shipping version was `v25`; `v25` was still the latest on 2026-10-02.)
+**Never hardcode a Google Ads API version from memory or from these notes.** Google ships a major version roughly quarterly and sunsets older ones on a published schedule; a version written down here rots fast. (These notes once said `v18+` while the shipping version was `v25`; on 2026-11-02 the latest was `v26` (released 2026-10-14, v26.1 on 2026-10-28), with v23 sunsetting Feb 2027.) **Developer tokens were sunset on 2026-09-09**: API access levels now belong to the Google Cloud project used for OAuth; the `developer-token` header is optional and ignored.
 
 | Check | Where |
 | --- | --- |
@@ -23,6 +23,8 @@ Pin it once in config, never inline across call sites.
 ### Offline uploads moved to the Data Manager API (verified 2026-10-02)
 
 Google's upload-clicks guide states: "Starting **June 15, 2026**, UploadClickConversion requests will fail if the developer token hasn't previously sent requests to upload offline conversions or enhanced conversions for leads. Use the Data Manager API instead." New integrations therefore target the Data Manager API (`POST https://datamanager.googleapis.com/v1/events:ingest`); an existing Google Ads API uploader is a migration item, not a template. Google Ads Help also states that from June 2026 enhanced conversions for web and for leads became one on/off setting, and that from April 2026 Ads accepts user-provided data from tags, Data Manager, and API connections simultaneously. Re-read both pages before building; field names differ between the two APIs.
+
+Data Manager limits, the missing retraction, the COD primary/secondary pattern, the formatter's `+081…` trap and the Shopify app behaviour (verified 2026-11-02) are in [Enhanced Conversions → Data Manager facts](references/ENHANCED_CONVERSIONS.md#data-manager-facts-that-change-cod-design-2026-11-02).
 
 ## Core Philosophy
 
@@ -128,9 +130,12 @@ Derivation, grain, and the verification method are shared with Meta and are
 documented once, in `meta-ads-signal-engine` → "Catalog identity: the id that
 must match". Do not restate them here.
 
-## Sources (accessed 2026-10-02)
+## Sources (accessed 2026-10-02; versions/Data Manager re-checked 2026-11-02)
 
-- Google Ads API versions (v25 latest): https://developers.google.com/google-ads/api/docs/sunset-dates
+- Google Ads API versions (v26 latest on 2026-11-02): https://developers.google.com/google-ads/api/docs/sunset-dates
+- Developer token sunset (2026-09-09): https://developers.google.com/google-ads/api/docs/api-policy/developer-token
+- Data Manager limits and conversion adjustments: https://developers.google.com/data-manager/api/devguides/limits
+- Shopify integration via Data Manager: https://support.google.com/google-ads-data-manager/answer/15496063
 - Upload click conversions (Data Manager banner, `yyyy-mm-dd HH:mm:ss+|-HH:mm`, `consent` field, gclid+gbraid guidance): https://developers.google.com/google-ads/api/docs/conversions/upload-clicks
 - Data Manager API REST surface (`events:ingest`): https://developers.google.com/data-manager/api/reference/rest
 - Enhanced conversions settings changes (April/June 2026): https://support.google.com/google-ads/answer/16884284
