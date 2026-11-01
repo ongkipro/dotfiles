@@ -235,7 +235,7 @@ export const RULES = [
   { id: "display-tracking", tier: "warn", spec: "D2", desc: `display text (≥ ${DISPLAY_PX}px) letter-spacing tighter than ${DISPLAY_TRACKING_MIN_EM}em`,
     judge: (f) => has(f.texts) ? f.texts.filter((t) => t.px >= DISPLAY_PX && t.em != null && t.em < DISPLAY_TRACKING_MIN_EM - 1e-4)
       .map((t) => off(t.el, `${Math.round(t.em * 1000) / 1000}em at ${t.px}px`)) : null },
-  // Real case 2026-10-31 (dotads storefront: h1 → h3). WCAG 1.3.1 advises, does not require, sequential levels.
+  // Real case 2026-10-31 (platform-iklan-commerce storefront, since retired: h1 → h3). WCAG 1.3.1 advises, does not require, sequential levels.
   { id: "heading-skip", tier: "warn", spec: "WCAG 1.3.1 (advisory)", desc: "heading level skipped (e.g. h1 → h3)",
     judge: (f) => has(f.headingSkips) ? f.headingSkips.map((h) => off(h.el, h.v)) : null },
   { id: "transition-all", tier: "warn", spec: "§4", desc: "transition: all",

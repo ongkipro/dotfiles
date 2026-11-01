@@ -1,5 +1,13 @@
 # Meta Ads — shared knowledge and reviewed learning
 
+Naming (owner, 2026-11-01): "dotads" always means the dotfiles ads CLI tool
+family (`bin/dotads-*`, one tool per ad platform). `dotads-meta` is the one being
+built now; TikTok, Google Ads, Pinterest and other platforms come later under the
+same prefix. There is no "dotads" app repo. The old commerce-engine repo of that
+name was deleted on 2026-11-01; its backup is
+`/data/backups/platform-iklan-commerce-2026-11-01/`, under the project name
+`platform-iklan-commerce`.
+
 Dotfiles owns the reusable Meta Ads operating knowledge. Start with
 [meta-ads-cli](../../../skills/local/meta-ads-cli/SKILL.md), then load only the
 reference needed for the task:
