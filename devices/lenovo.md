@@ -22,7 +22,7 @@
 | CPU | 13th Gen Intel(R) Core(TM) i7-1355U (8 thread) |
 | RAM | 9.7 GB |
 | GPU | - |
-| Disk (/) | 1007G total, 948G free (1% used) |
+| Disk (/) | 1007G total, 949G free (1% used) |
 
 ## AI CLI
 

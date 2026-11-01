@@ -163,9 +163,11 @@ fi
 
 
 # --- ImageMagick v7: use 'magick' (the actual command name now) ---
-command -v magick >/dev/null && alias convert='magick'
-command -v magick >/dev/null && alias mogrify='magick mogrify'
-command -v magick >/dev/null && alias identify='magick identify'
+if command -v magick >/dev/null; then
+  alias convert='magick'
+  alias mogrify='magick mogrify'
+  alias identify='magick identify'
+fi
 
 # --- Shopify content/SEO shortcuts ---
 # SEO audit (run inside a project)

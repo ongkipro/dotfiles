@@ -53,15 +53,20 @@ alias proj='cd ~/Projects 2>/dev/null || cd ~/projects 2>/dev/null || echo "~/Pr
 # Shopify CLI shortcut (because it's used a lot)
 command -v shopify >/dev/null && alias shopi='shopify'
 
-# Cleanup WSL temp files (frees /tmp space)
+# Cleanup WSL temp files (frees /tmp space and stale headless Chrome profiles)
 wsl-cleanup() {
   find /tmp -maxdepth 1 -type f -atime +1 -delete 2>/dev/null
   find /tmp -maxdepth 1 -type d -empty -mtime +1 -delete 2>/dev/null
-  echo "✓ /tmp cleaned"
+  if [ -d "$HOME/.cache/google-chrome-for-testing-headless" ]; then
+    find "$HOME/.cache/google-chrome-for-testing-headless" -maxdepth 1 -type d -name 'scoped_dir*' -mtime +1 -exec rm -rf {} + 2>/dev/null
+  fi
+  echo "✓ /tmp & headless browser cache cleaned"
 }
 
 # Windows Terminal touchscreen -> VT mouse bridge (for tmux pane focus, drag-copy & scroll)
 _wt_touch_bridge_start() {
+  local stamp="${XDG_RUNTIME_DIR:-/tmp}/wt-touch-bridge-${UID:-1000}.started"
+  [ -f "$stamp" ] && return 0
   local csc="/mnt/c/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe"
   [ -x "$csc" ] || return 0
   local win_temp="/mnt/c/Users/${USER}/AppData/Local/Temp"
@@ -73,7 +78,7 @@ _wt_touch_bridge_start() {
   local cs="$bdir/WtTouchBridge.cs"
   local exe="$bdir/WtTouchBridge.exe"
   mkdir -p "$bdir" 2>/dev/null || return 0
-  if [ ! -f "$exe" ] || [ "${BASH_SOURCE[0]}" -nt "$exe" ]; then
+  if [ ! -f "$exe" ]; then
     cat > "$cs" << 'EOF'
 using System;
 using System.Collections.Generic;
@@ -346,9 +351,12 @@ EOF
     local win_cs win_exe
     win_cs="$(wslpath -w "$cs")"
     win_exe="$(wslpath -w "$exe")"
-    "$csc" /nologo /target:winexe /optimize+ /out:"$win_exe" "$win_cs" >/dev/null 2>&1 || return 0
+    "$csc" /nologo /target:winexe /optimize+ /out:"$win_exe" "$win_cs" </dev/null >/dev/null 2>&1 || true
   fi
-  [ -f "$exe" ] && ( "$exe" </dev/null >/dev/null 2>&1 & )
+  if [ -f "$exe" ]; then
+    : > "$stamp" 2>/dev/null || true
+    ( "$exe" </dev/null >/dev/null 2>&1 & )
+  fi
 }
 _wt_touch_bridge_start
 unset -f _wt_touch_bridge_start
