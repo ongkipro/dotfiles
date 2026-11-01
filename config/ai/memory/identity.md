@@ -22,20 +22,26 @@
 - Do not agree automatically. Test assumptions, risks, execution cost, and simpler alternatives.
 
 ## Professional profile
-- Full-stack website development and full-stack digital marketing.
-- Main focus: international dropshipping, Shopify, ecommerce, Meta Ads, Google Ads, SEO, affiliate marketing, AI agent, automation, product research, UI/UX, landing page, and web platform.
+- Core foundation: logic, algorithms, and systems thinking applied across software engineering and performance growth.
+- Current role & focus: AI Engineer, Digital Marketing Systems Developer, and Full-Stack Web & Platform Architect — building AI engines, AI workflow automation, full-stack commerce/SaaS platforms, and growth infrastructure that streamline and scale operations.
+- Main domains: international dropshipping, Shopify (themes, headless, Hydrogen), ecommerce platforms, Meta/Facebook Ads, Google Ads, TikTok Ads, Pinterest Ads, Native Ads, SEO/programmatic SEO, affiliate marketing (ClickBank, Amazon, European/German networks), Etsy, UI/UX, high-converting landing pages, and AI agent orchestration.
 - Working pattern: system builder, framework thinker, reusable asset builder, SOP-oriented, automation-first, terminal-first.
 - Frequently builds systems to be operated by a team, interns, admins, clients, or AI agents.
-- Main differentiating combination: technical build + growth execution + workflow automation + SEO/conversion thinking in one person.
+- Main differentiating combination: algorithmic/engineering build + multi-channel paid/organic growth execution + AI automation in one person.
+- Privacy boundary for CV/public profiles: never include private personal data (home address, personal phone number, civil/family biodata); use only public brand identity (`Ongki`, `ongki.pro`, `github.com/ongkipro`, `get@ongki.pro`).
+
+## Career history & background highlights
+- **2024–Present — AI Engineer, Full-Stack Systems Architect & Digital Marketing Developer**: Architecting AI engines, multi-CLI agent ecosystems (`dotfiles` + 70+ domain skills), multi-tenant/single-tenant commerce platforms (`TokoΦ`, `AdsBookCMS` fleet, `VolumeCMS`), headless Shopify storefronts (`Beautyinu`, `Pixs&Go`, `Petcue`, `TradeCar`), server-side ad signal engines (Meta CAPI, Google Enhanced Conversions, TikTok Events API v2), and international affiliate/content engines (`KIHeute` DE, regional COD funnels in ID/MY).
+- **2019–2024 — CMO & CTO (Multi-Brand D2C & E-Commerce Ventures)**: Led both technology architecture and growth/marketing operations across multiple brands (dual C-level leadership across marketing acquisition, funnel/system engineering, and brand scaling).
+- **Cross-Border Commerce & Global Affiliate Operations**: Extensive hands-on execution in international dropshipping, Etsy stores, ClickBank affiliate marketing, and Amazon Associates across global markets.
+- **2015–2018 — Startup Incubator (Jakarta) & Global Agency Programs**: Managed multiple startups inside a Jakarta incubator across Data/Financial Analysis, Systems Architecture, and Digital Marketing; connected with Facebook's global SME agency ecosystem (SMEA) and Google's agency partner program with deep operational roots across Google Ads, Facebook/Meta Ads, TikTok Ads, Pinterest Ads, and Native Ads networks.
 
 ## Strong skills & domains
-- Development: Linux/Ubuntu, terminal workflow, Astro, Shopify/headless Shopify, Next.js, PostgreSQL + Drizzle + better-auth, Cloudflare, VPS (Coolify), Git, tmux, Helix, CLI workflow.
-- Ecommerce: Shopify store, Shopify theme, headless storefront, tracking, checkout flow, dropshipping, marketplace-style store.
-- Marketing: Meta Ads, Google Ads, landing page, funnel, conversion rate optimization, tracking/attribution, copywriting.
-- SEO & content: Shopify SEO, Astro/static SEO, Medium SEO, Pinterest SEO, German affiliate SEO, indexing strategy.
-- AI workflow: OMP as the primary control plane, with Claude Code, Codex,
-  Antigravity (`agy`), and Pi available only as optional standalone tools; local
-  skills provide the shared capability layer.
+- Core & AI engineering: Logic & algorithm design, AI engine & workflow automation, multi-agent CLI orchestration (OMP, Claude Code, Codex, Antigravity `agy`, Pi), custom Agent Skills architecture.
+- Full-stack development: Linux/Ubuntu, terminal workflow, Astro, Shopify/headless Shopify (Storefront API, Hydrogen/Oxygen), Next.js, TypeScript, Tailwind CSS, PostgreSQL + Drizzle + RLS/RBAC + better-auth, Cloudflare (Workers, Pages, D1, R2, KV), VPS (Coolify/Docker), Git, tmux, Helix.
+- Ecommerce & cross-border: Shopify stores & themes, headless storefronts, multi-store CMS fleets, H2H courier & payment gateway integration (KiriminAja, Mengantar, AutoLaris, senangPay), international dropshipping, Etsy, COD funnel systems.
+- Paid acquisition & attribution: Meta/Facebook Ads, Google Ads, TikTok Ads, Pinterest Ads, Native Ads, server-side tracking (CAPI, sGTM, Enhanced Conversions, event deduplication, EMQ), CRO, landing page & funnel engineering.
+- SEO & affiliate systems: Shopify SEO, Astro/static & programmatic SEO, Medium SEO, Pinterest SEO, ClickBank, Amazon Associates, German affiliate networks (Digistore24, Impact, CJ, Awin, PartnerStack), indexing strategy.
 
 ## Strategic focus
 - Indonesia Commerce / Commerce Portal OS: platform style super admin, client admin, frontend/store/blog; direction resembles Shopify + tracking/form infrastructure for Indonesia.

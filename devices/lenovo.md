@@ -1,7 +1,7 @@
 # Device: `lenovo`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-10-24**
+> Terakhir diperbarui: **2026-11-01**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -19,18 +19,18 @@
 
 | | |
 |---|---|
-| CPU | 13th Gen Intel(R) Core(TM) i7-1355U (12 thread) |
-| RAM | 7.6 GB |
+| CPU | 13th Gen Intel(R) Core(TM) i7-1355U (8 thread) |
+| RAM | 9.7 GB |
 | GPU | - |
-| Disk (/) | 1007G total, 945G free (2% used) |
+| Disk (/) | 1007G total, 948G free (1% used) |
 
 ## AI CLI
 
 | CLI | Status | Path |
 |---|---|---|
-| `claude` | terpasang | ~/.local/share/mise/shims/claude |
-| `codex` | terpasang | ~/.local/share/mise/shims/codex |
-| `pi` | terpasang | ~/.local/share/mise/shims/pi |
+| `claude` | terpasang | ~/.local/share/mise/installs/node/24.22.1/bin/claude |
+| `codex` | — | — |
+| `pi` | — | — |
 | `agy` | terpasang | ~/.local/bin/agy |
 | `omp` | — | — |
 
@@ -39,10 +39,10 @@
 | Tool | Versi |
 |---|---|
 | node | v24.22.1 |
-| pnpm | 12.15.0 |
-| bun | 1.4.3 |
+| pnpm | 12.16.1 |
+| bun | 1.4.4 |
 | python3 | Python 3.14.4 |
-| mise | 2026.10.17 linux-x64 (2026-10-21) |
+| mise | 2026.10.25 linux-x64 (2026-10-31) |
 | git | git version 2.53.0 |
 
 ## Profil Claude Code
