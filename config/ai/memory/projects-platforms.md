@@ -35,13 +35,12 @@
   `google-ads-signal-engine`.
 - Live installs (each its own repo/Worker/D1/KV/R2 under `~/Projects/`;
   full list and count in project memory `adsbookcms-install-fleet`): merge-type on `install/<name>` (`git merge product/main`) —
-  carukesi, skincarebpom, taniniaga, zvarashop, and beranda-tani
-  (`beranda.click`, stood up 2026-09-05); revenleather merges on `main`
+  skincarebpom, taniniaga, zvarashop, and beranda-tani
+  (main domain `petanisejahtera.com`, also petanisawit.com and beranda.click; stood up 2026-09-05); revenleather merges on `main`
   (`page.revenleather.com`, stood up 2026-09-29); copy-type on `main` (apply the
-  product diff as a patch, never `wrangler.jsonc`/`RELEASE.md`) — permatamall,
-  zanobyshop. Pushing `main` in permatamall and zanobyshop deploys
-  through `.github/workflows/deploy.yml` — the push is the deploy; a manual
-  `npm run deploy` after it only deploys twice. This file listed zvarashop as copy-type until 2026-09-05; it sits
+  product diff as a patch, never `wrangler.jsonc`/`RELEASE.md`) — permatamall
+  (now merge-based on `main`, deployed by hand). zanobyshop was decommissioned
+  and deleted 2026-11-01. This file listed zvarashop as copy-type until 2026-09-05; it sits
   on `install/zvarashop` and merges. Count installs by **unique Worker name**,
   not by directory: `permatamall-*` and `zvarashop-*` are worktrees of the same
   Worker, and by directory the number looks like 16.
@@ -50,7 +49,7 @@
   so.** Other sessions and devices push to these repos. `git status -sb` reports
   a branch as in sync until you `git fetch`, so read the state only after
   fetching. Deploying a stale tree on 2026-09-05 removed a live landing page
-  from carukesi, and rolling the Worker back did not fix it: once a store's
+  from an install (since decommissioned), and rolling the Worker back did not fix it: once a store's
   `d1_migrations` ledger has advanced, an older bundle fails closed with
   `SCHEMA_UPGRADE_DATABASE_AHEAD`. The only way out of a bad install deploy is
   forward.
@@ -67,8 +66,7 @@
   again authored store migrations on product numbers (0055-0057, data only);
   they left the chain and their ledger rows were deleted right after deploy
   (ADR-024 pattern, rehearsed on a local import of the prod export first — the
-  unrepaired ledger gives 503 everywhere). zanobyshop (275 commits ahead as of
-  2026-09-07) still runs its own fork and needs the same release session.
+  unrepaired ledger gives 503 everywhere). (zanobyshop, which ran its own fork, was decommissioned 2026-11-01.)
 - Importing a `wrangler d1 export` dump locally fails on foreign keys (children
   are inserted before parents); reorder to all CREATE TABLE first, then rows,
   then indexes/triggers, and prefix `PRAGMA defer_foreign_keys = true;`.

@@ -112,7 +112,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Collection | Path | Tracked | Completeness enforced by |
 |---|---|---|---|
 | Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 25 | linked from this page |
-| Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 83 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
+| Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 84 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
 | Owned skills | [`skills/local/`](../skills/local/) | 75 | linked from this page |
 | Commands | [`bin/`](../bin/) | 63 | linked from this page |

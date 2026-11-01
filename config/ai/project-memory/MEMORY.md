@@ -29,6 +29,7 @@
 - [JASAWEBSITE.co brand](jasawebsite-co-brand.md) — web agency by VOLUM, 7 services, ID+MY market, spec in PRD v4.0.
 - [SF-Theme Shopify store](sf-theme-shopify-store.md) — store `yn80fb-mb`, theme `olivia-16-6-0a` (#186432061760, unpublished); permanent handle for all CLIs.
 - [PetCue Dawn rebuild](petcue-dawn-rebuild.md) — legal Dawn-based theme (a licensed Olivia alternative) for store `2mpt3p-xv`, paused mid-build.
+- [Beauty clinic SaaS](beauty-clinic-saas.md) — discovery pointer for the beauty clinic admin/CRM/RME SaaS; decisions in the research folder's `DECISION-REGISTER.md`.
 - [Beautyinu Skincare](beautyinu.md) — `beautyinu.co` Gen-Z & Millennial bodycare brand; Shopify Hydrogen storefront (React Router/Oxygen/Tailwind v4) backed by store p1d3wg-6i. Done.
 - [Hydrogen theme](hydrogen-theme-project.md) — modular Shopify Hydrogen theme (React Router + Vite on Oxygen); repository `ongkipro/hydrogen-theme`.
 - [Beautyinu catalog](beautyinu-catalog.md) — 15 active SKUs, bundles/routine sets, collections and taxonomy; split from beautyinu.md
@@ -85,10 +86,10 @@
 - [TokoΦ repo PRIVATE ruling](tokophi-repo-private-ruling.md) — 2026-08-24 owner membatalkan perintah go-public di hari yang sama; JANGAN flip visibility tanpa perintah eksplisit baru
 - [TokoΦ hide provider brand (white-label)](tokophi-provider-brand-hidden.md) — JANGAN tampilkan brand provider (KiriminAja shipping, AutoLaris payment) di client (merchant admin+storefront); label generik saja; hanya super-admin lihat brand (ADR 0004 platform-managed)
 - [AdsBookCMS install fleet](adsbookcms-install-fleet.md) — satu produk, beberapa toko live; peta direktori lokal + kenapa `product` remote di-DISABLED.
-- [Sync adsbookcms ↔ zanobyshop](adsbookcms-zanobyshop-sync.md) — update produk turun lewat `sync-from-product.sh`; temuan dari toko live naik sebagai issue, bukan tambalan lokal.
 - [Reven Leather Shopify HK Payments](revenleather-shopify-hk-payments.md) — Shopify Payments HK setup, USD base currency decision, and product naming/SEO invariant.
 - [Reven Leather Catalog & Price Data](revenleather-catalog-data.md) — locations of raw, harmonized, live-scraped (reven.id), and backup product price files in ~/Projects/revenleather.com.
 - [99ribu Berlapak catalog & asset vault](99ribu-berlapak-catalog.md) — `/data/99ribu-berlapak-data/`: Berlapak product data, bundling economics, warehouse hubs, local images, and the `berlapak-sync` CLI.
 - [99ribu `shop.com` UI/UX reference](99ribu-shop-com-ui-ux-pattern.md) — pointer to the research pack and the repo docs that own 99ribu design decisions.
 - [99ribu URL slugs and admin ids](99ribu-url-slugs.md) — owner rule: clean title slugs on the public storefront (no UUID/hash/long codes), numeric ids in admin URLs; the repository owns the scheme.
 - [Customer messaging decision (pending)](customer-messaging-pending.md) — email ESP + WhatsApp WABA for 99ribu/bukalaris/geraiexpress is UNDECIDED; discussion note in `~/Documents/work/notes/`; outcome belongs in each repo's `DECISIONS.md`
+- [Bukalaris docs phase](bukalaris-docs-phase.md) — documents only, development not started; Etalashop/TokoΦ studied as lessons, not templates; resume point in repo `STATUS.md`

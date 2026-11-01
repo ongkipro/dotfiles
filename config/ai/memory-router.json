@@ -629,14 +629,7 @@
       }
     ],
     "adsbookcms": [
-      "config/ai/project-memory/adsbookcms-install-fleet.md",
-      {
-        "path": "config/ai/project-memory/adsbookcms-zanobyshop-sync.md",
-        "triggers": [
-          "zanobyshop",
-          "sync"
-        ]
-      }
+      "config/ai/project-memory/adsbookcms-install-fleet.md"
     ],
     "kiriminaja": [
       "config/ai/project-memory/kiriminaja-integration.md",
@@ -708,6 +701,9 @@
           "csv"
         ]
       }
+    ],
+    "bukalaris": [
+      "config/ai/project-memory/bukalaris-docs-phase.md"
     ]
   },
   "lessons": [
@@ -957,6 +953,17 @@
         "playwright",
         "browser setup",
         "chromium"
+      ]
+    },
+    {
+      "path": "config/ai/project-memory/beauty-clinic-saas.md",
+      "priority": 50,
+      "triggers": [
+        "beauty clinic",
+        "klinik kecantikan",
+        "clinic saas",
+        "clinic crm",
+        "rme klinik"
       ]
     }
   ],
