@@ -237,7 +237,8 @@ def trusted(data, write):
             return None, ["the rule set's signature is invalid and no owner key is pinned on this device. Nothing enforced"], True
         if write:
             _write(pin, dump(data), 0o600)
-        return data, [f"pinned the owner's key on this device ({pin})"], False
+            return data, [f"pinned the owner's key on this device ({pin})"], False
+        return data, [f"no owner key pinned yet; the next ai-memory-link pins it ({pin})"], False
     same_key = data.get("publicKey") == pinned.get("publicKey")
     mine, theirs = serial_of(data), serial_of(pinned) or 0
     rollback = mine is None or mine < theirs
@@ -305,17 +306,30 @@ def fix_text(text, rule):
 def scan(root, data, write):
     drift, errors = [], []
     for rule in data["rules"]:
-        targets = files_of(root, rule)
+        if not isinstance(rule, dict) or "kind" not in rule or "id" not in rule:
+            errors.append(f"malformed rule entry: {str(rule)[:60]}")
+            continue
+        try:
+            targets = files_of(root, rule)
+        except (KeyError, TypeError) as exc:
+            errors.append(f"{rule['id']}: malformed rule entry ({exc})")
+            continue
         if not targets:
             errors.append(f"{rule['id']}: no file matches")
         for path in targets:
-            rel = path.relative_to(root)
+            rel = os.path.relpath(os.path.normpath(path), root)
+            if os.path.isabs(rel) or rel == ".." or rel.startswith(".." + os.sep):
+                errors.append(f"{rule['id']}: {rule.get('file', '')} is outside the repository; refused")
+                continue
             if not path.is_file():
                 errors.append(f"{rule['id']}: {rel} is missing")
                 continue
             with open(path, encoding="utf-8", newline="") as fh:
                 text = fh.read()
-            new, err = fix_text(text, rule)
+            try:
+                new, err = fix_text(text, rule)
+            except (KeyError, TypeError, re.error) as exc:  # a malformed rule entry, not a crash
+                new, err = text, f"malformed rule entry ({exc.__class__.__name__}: {exc})"
             if err:
                 errors.append(f"{rule['id']}: {rel}: {err}")
                 continue

@@ -31,3 +31,4 @@ Moved from `TASKS.md` when it finished (2026-11-01).
 - **Reopen Conditions:** a device accepts a rule set not signed by the pinned or endorsed key; the password reaches any file.
 - **Escalation Conditions:** a dependency on non-stdlib crypto; reading other device-local files.
 - **Non-Scope:** preventing a person with full device control from editing the tool or the pin.
+- **Follow-up TASK-172 (R1, 2026-11-01):** after the final review (PASS), `check` on first contact no longer claims it pinned the key, and a malformed rule entry (a missing `kind`, a wrong type, or a bad regex) is reported as an error instead of a traceback, and a rule target that is absolute or outside the repository (`../`) is refused. Known residual: a catastrophic regex in an unsigned rule set on a device that has not pinned a key yet can hang; a pinned device enforces only owner-signed rules.

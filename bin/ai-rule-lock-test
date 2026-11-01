@@ -171,6 +171,19 @@ printf '%s' "$out" | grep -q 'skipped render of context/claude.md' || fail "an u
 [ "$rc" -ne 0 ] && printf '%s' "$out" | grep -q 'locked owner rules need attention' || fail "ai-memory-link hid a failed repair (rc=$rc): $out"
 ok "ai-memory-link exits non-zero and warns when a locked rule cannot be restored"
 
+# 10b. a malformed rule entry is reported, never a traceback
+cp "$T/config/ai/locked-rules.json" "$T/lock.before-malformed"
+python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); d["rules"]+= [{"id":"x"}, {"id":"y","kind":"slot"}, "z", {"id":"abs","kind":"slot","file":"/etc/hostname","pattern":"x","canonical":"y"}, {"id":"up","kind":"slot","file":"../"+sys.argv[2],"pattern":"x","canonical":"y"}]; open(p,"w").write(json.dumps(d))' "$T/config/ai/locked-rules.json" "$(basename "$T")-outside.md"
+OUT="$T/../$(basename "$T")-outside.md"; printf 'x\n' > "$OUT"
+set +e; out="$("$L" repair --root "$T" 2>&1)"; rc=$?; set -e
+printf '%s' "$out" | grep -q Traceback && fail "malformed rule entry crashed: $out"
+[ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q 'malformed rule entry' || fail "malformed rule entry not reported (rc=$rc): $out"
+[ "$(printf '%s' "$out" | grep -c 'outside the repository')" -eq 2 ] || fail "absolute or ../ target not refused: $out"
+[ "$(cat "$OUT")" = x ] || { rm -f "$OUT"; fail "repair wrote outside the repository"; }
+rm -f "$OUT"
+cp "$T/lock.before-malformed" "$T/config/ai/locked-rules.json"
+ok "malformed rule entries are reported without a traceback"
+
 # 11. signature (CI): only the password re-signs a changed rule
 J="$T/config/ai/locked-rules.json"
 edit_rule() { python3 - "$J" "$1" <<'PY'
@@ -191,6 +204,9 @@ grep -q 'correct horse' "$J" && fail "password written to the lock file"
 ok "CI verify: right password passes; wrong/missing password and an unsigned edit are rejected; password never stored"
 
 # 12. device enforcement without any password (Ed25519 + pinned owner key)
+out="$("$L" check --root "$T" 2>&1)" || fail "first-contact check failed: $out"
+[ -f "$AI_RULE_LOCK_PIN" ] && fail "check wrote a pin"
+printf '%s' "$out" | grep -q 'the next ai-memory-link pins it' || fail "first-contact check message wrong: $out"
 "$L" repair --root "$T" >/dev/null 2>&1 || fail "first repair with a signed set failed"
 [ -f "$AI_RULE_LOCK_PIN" ] || fail "first contact did not pin the owner key"
 [ "$(stat -c %a "$AI_RULE_LOCK_PIN" 2>/dev/null || stat -f %Lp "$AI_RULE_LOCK_PIN")" = 600 ] || fail "pin is not 0600"

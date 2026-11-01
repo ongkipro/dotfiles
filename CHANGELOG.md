@@ -13,6 +13,8 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
   and reject an edited, unsigned or foreign-signed rule set after a pull,
   restoring the last signed rules without needing the password. A new password
   must be endorsed by the old one. The previous HMAC signature is replaced.
+- TASK-172: first-contact `check` reports that the next link pins the key
+  (it never writes); malformed rule entries are errors, not tracebacks.
 
 ### Owner-locked rules (TASK-170) — 2026-11-01
 
