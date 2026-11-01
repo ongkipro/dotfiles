@@ -37,3 +37,8 @@ cache holds `chromium-1248`, `chromium_headless_shell-1248`, `webkit-2370`. Both
 the bundled Chromium 156 and `/snap/bin/chromium` 156 launched headless and
 rendered a page. Project browser suites take
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/snap/bin/chromium`.
+
+**Verified 2026-11-02:** Playwright MCP is registered once in
+`config/ai/mcp-servers.json` (`@playwright/mcp@0.0.84 --browser chrome --headless`,
+25 tools) and `ai-mcp-sync` writes it to Claude, Codex, agy, OMP and pi. pi has
+built-in MCP (`pi mcp list`), so `pi-mcp-adapter` is not needed.
