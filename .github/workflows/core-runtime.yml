@@ -100,6 +100,25 @@ jobs:
           actionlint
           bash -n config/wsl-tools.sh
 
+      - name: Verify owner-locked rules (TASK-170)
+        # The rule text must match config/ai/locked-rules.json, and that file must
+        # carry the owner's password signature. The password lives only in the
+        # AI_RULE_LOCK_KEY secret. Pushes and same-repository pull requests get the
+        # secret and must verify; a fork has none, so there only the drift check runs.
+        env:
+          AI_RULE_LOCK_KEY: ${{ secrets.AI_RULE_LOCK_KEY }}
+        run: |
+          bin/ai-rule-lock check
+          if [ -n "$AI_RULE_LOCK_KEY" ]; then
+            bin/ai-rule-lock verify
+          elif [ "$GITHUB_REPOSITORY" = "ongkipro/dotfiles" ] && [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            echo "::error::AI_RULE_LOCK_KEY secret is missing; the locked-rule signature cannot be verified"
+            exit 1
+          else
+            echo "::notice::locked-rule signature not verified here (no secret in a fork)"
+          fi
+        shell: bash
+
       - name: Run authoritative core suite
         # The suite uses local fixtures and synthetic credentials only. Turnstile
         # network calls are replaced by its fixture; no provider login is needed.

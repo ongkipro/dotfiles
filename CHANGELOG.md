@@ -6,6 +6,17 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-28
 
+### Owner-locked rules (TASK-170) — 2026-11-01
+
+- Add `bin/ai-rule-lock` and `config/ai/locked-rules.json`: the address
+  "Paduka Ongki" (CORE, identity, preferences, and any other "Paduka <name>")
+  and the `dotads` / `dotuiux` naming blocks are restored by `ai-memory-link` on
+  every device, reported by `--check`, and signed with an HMAC keyed by the
+  owner's password; CI verifies the signature with the `AI_RULE_LOCK_KEY`
+  secret. `bin/ai-rule-lock-test` covers rename, bare name, deleted slot,
+  deleted block and unsigned rule change. Memory routing now also triggers
+  `meta-ads.md` on "dotads".
+
 ### `dotuiux` UI/UX loop (TASK-165, TASK-167) — 2026-10-31
 
 - Add the `dotuiux` command and skill: `init` scaffolds `design/brief.md` and

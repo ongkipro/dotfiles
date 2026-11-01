@@ -127,6 +127,24 @@ that contain credentials private (`0600`).
 Sources: [Claude authentication](https://code.claude.com/docs/en/authentication),
 [reported missing-thread recovery](https://github.com/anthropics/claude-code/issues/102850).
 
+## Owner-locked rules
+
+`config/ai/locked-rules.json` lists rules the owner fixed for every device and
+every AI that uses these dotfiles (TASK-170): the form of address **Paduka
+Ongki**, and the meanings of `dotads` (the ads CLI family) and `dotuiux` (the
+UI/UX CLI). `ai-memory-link` restores them before it renders, so a local rename
+such as "Paduka Olan" or "Olan" is replaced on the next link or `dotsync
+autopull`; `ai-memory-link --check` and CI report drift. The rule set carries an
+HMAC signature keyed by the owner's password (scrypt); CI verifies it with the
+`AI_RULE_LOCK_KEY` secret, so a rule changed without the password turns CI red
+(detection, not prevention: devices apply whatever the tracked file says). To
+change a rule: edit the JSON, run `ai-rule-lock sign` (it prompts for a password
+of at least 12 characters), re-run `ai-memory-link`, and commit. Sign before the
+first push, or CI fails on the unsigned file. The password is never stored. A
+rename in a file that upstream also changed waits until `dotsync autopull` can
+fast-forward; lower-case names ("paduka olan") and a bare name outside the
+declared slots are not detected.
+
 ## Rules for working on dotfiles itself
 
 Moved here from the former always-loaded `AGENTS.md`; they only matter when the

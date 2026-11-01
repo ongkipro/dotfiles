@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+# Regression checks for bin/ai-rule-lock (TASK-170): drift is detected, a rename
+# is restored, a deleted slot fails, and only the password re-signs a rule change.
+set -euo pipefail
+DOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
+fail() { echo "FAIL: $*"; exit 1; }
+ok() { echo "  ✓ $*"; }
+
+mkdir -p "$T/bin"
+cp -R "$DOT/config" "$T/config"
+cp "$DOT/bin/ai-rule-lock" "$DOT/bin/ai-memory-link" "$T/bin/"
+L="$T/bin/ai-rule-lock"
+CORE="$T/config/ai/CORE.md"
+
+"$L" check --root "$T" >/dev/null 2>&1 || fail "clean copy reports drift"
+ok "clean tree: no drift"
+
+# 1. bold rename in CORE
+sed -i.bak 's/Address the user as \*\*Paduka Ongki\*\*\./Address the user as **Paduka Olan**./' "$CORE"
+grep -q 'Paduka Olan' "$CORE" || fail "fixture rename did not apply"
+if "$L" check --root "$T" >/dev/null 2>&1; then fail "rename to Paduka Olan not detected"; fi
+"$L" repair --root "$T" >/dev/null 2>&1 || fail "repair failed"
+grep -q 'Address the user as \*\*Paduka Ongki\*\*\.' "$CORE" || fail "CORE not restored"
+grep -q 'Paduka Olan' "$CORE" && fail "Paduka Olan survived repair"
+ok "Paduka Olan in CORE is detected and restored"
+
+# 2. bare name, no period, end of line
+python3 - "$CORE" <<'PY'
+import re, sys; p = sys.argv[1]; s = open(p).read()
+open(p, "w").write(s.replace("Address the user as **Paduka Ongki**.", "Address the user as Olan\n", 1))
+PY
+"$L" repair --root "$T" >/dev/null 2>&1 || fail "repair of bare name failed"
+grep -q 'Address the user as \*\*Paduka Ongki\*\*\.' "$CORE" || fail "bare 'Olan' not restored"
+ok "bare 'Olan' is restored"
+
+# 3. memory slot and the Paduka guard
+ID="$T/config/ai/memory/identity.md"
+sed -i.bak 's/^- Preferred name \/ form of address:.*$/- Preferred name \/ form of address: Olan/' "$ID"
+printf '\nNote: Paduka Olan prefers short replies. Paduka adalah sapaan.\n' >> "$T/config/ai/memory/workflow.md"
+"$L" repair --root "$T" >/dev/null 2>&1 || fail "repair of memory failed"
+grep -q '^- Preferred name / form of address: Paduka Ongki\.$' "$ID" || fail "identity slot not restored"
+grep -q 'Note: Paduka Ongki prefers short replies\. Paduka adalah sapaan\.' "$T/config/ai/memory/workflow.md" \
+  || fail "forbid guard wrong (must fix 'Paduka Olan', keep lowercase 'Paduka adalah')"
+ok "memory slot and 'Paduka <other name>' guard repaired; plain 'Paduka adalah' untouched"
+
+# 4. locked blocks: edited, then markers deleted
+MA="$T/config/ai/memory/meta-ads.md"
+sed -i.bak 's/There is no "dotads" app repository\./dotads is the commerce app./' "$MA"
+"$L" repair --root "$T" >/dev/null 2>&1 || fail "block repair failed"
+grep -q 'There is no "dotads" app repository\.' "$MA" || fail "dotads block not restored"
+python3 - "$T/config/ai/memory/skills.md" <<'PY'
+import re, sys; p = sys.argv[1]; s = open(p).read()
+open(p, "w").write(re.sub(r"<!-- locked:dotuiux-name -->.*?<!-- /locked:dotuiux-name -->\n", "", s, flags=re.S))
+PY
+grep -q 'locked:dotuiux-name' "$T/config/ai/memory/skills.md" && fail "fixture did not delete block"
+"$L" repair --root "$T" >/dev/null 2>&1 || fail "re-adding a deleted block failed"
+grep -q '"dotuiux" always means the dotfiles UI/UX CLI' "$T/config/ai/memory/skills.md" || fail "dotuiux block not re-added"
+"$L" check --root "$T" >/dev/null 2>&1 || fail "drift remains after repairs"
+ok "dotads block restored; deleted dotuiux block re-added"
+
+# 5. deleted slot cannot be guessed: it must fail loudly
+python3 - "$CORE" <<'PY'
+import sys; p = sys.argv[1]; s = open(p).read()
+open(p, "w").write(s.replace("Address the user as **Paduka Ongki**.", "", 1))
+PY
+if "$L" repair --root "$T" >/dev/null 2>&1; then fail "deleted CORE slot passed repair"; fi
+if AI_DIR="$T/config/ai" "$T/bin/ai-memory-link" --check >/dev/null 2>&1; then fail "ai-memory-link --check passed a deleted slot"; fi
+cp "$DOT/config/ai/CORE.md" "$CORE"
+ok "deleted slot fails repair and ai-memory-link --check"
+
+# 6. ai-memory-link --check reports drift; plain link mode would restore it
+sed -i.bak 's/Paduka Ongki\./Paduka Olan./' "$T/config/ai/memory/preferences.md"
+out="$(AI_DIR="$T/config/ai" "$T/bin/ai-memory-link" --check 2>&1 || true)"
+printf '%s' "$out" | grep -q 'locked rules drifted' || fail "ai-memory-link --check did not report locked drift: $out"
+"$L" repair --root "$T" >/dev/null 2>&1
+ok "ai-memory-link --check reports locked drift"
+
+# 7. review 2026-11-01: markdown/case/hyphen renames, no false positives, idempotence
+WF="$T/config/ai/memory/workflow.md"; cp "$DOT/config/ai/memory/workflow.md" "$WF"
+printf '\nA: Paduka **Olan** · B: PADUKA Olan · C: Paduka-Olan · D: Paduka Óscar\non behalf of Paduka\n\nAddress Rules stay. Paduka adalah sapaan.\n' >> "$WF"
+"$L" repair --root "$T" >/dev/null 2>&1 || fail "repair of rename variants failed"
+grep -q 'A: Paduka \*\*Ongki\*\* · B: Paduka Ongki · C: Paduka Ongki · D: Paduka Ongki$' "$WF" || fail "rename variants not all restored: $(tail -4 "$WF")"
+grep -q '^on behalf of Paduka$' "$WF" && grep -q '^Address Rules stay\. Paduka adalah sapaan\.$' "$WF" || fail "guard crossed a paragraph or rewrote ordinary text"
+before="$(cat "$T"/config/ai/memory/*.md "$CORE" | cksum)"
+"$L" repair --root "$T" >/dev/null 2>&1; [ "$(cat "$T"/config/ai/memory/*.md "$CORE" | cksum)" = "$before" ] || fail "second repair changed files"
+ok "markdown, upper-case, hyphen and accented renames restored; paragraphs and 'Paduka adalah' untouched; repair is idempotent"
+
+# 7b. review round 2: CRLF files keep CRLF; a rename that drops the period fails loudly
+#     instead of swallowing the next sentence; an apostrophe survives
+python3 - "$ID" "$T/config/ai/memory/skills.md" <<'PY'
+import re, sys
+for p in sys.argv[1:]:
+    s = open(p, newline="").read().replace("\r\n", "\n")
+    if p.endswith("identity.md"):
+        s = re.sub(r"(?m)^- Preferred name / form of address:.*$", "- Preferred name / form of address: Olan", s)
+    else:
+        s = re.sub(r"<!-- locked:dotuiux-name -->.*?<!-- /locked:dotuiux-name -->\n", "", s, flags=re.S)
+    open(p, "w", newline="").write(s.replace("\n", "\r\n"))
+PY
+"$L" repair --root "$T" >/dev/null 2>&1 || fail "CRLF repair failed"
+python3 - "$ID" "$T/config/ai/memory/skills.md" <<'PY' || fail "a repaired CRLF file now mixes line endings"
+import sys
+for p in sys.argv[1:]:
+    b = open(p, "rb").read()
+    assert b.count(b"\n") == b.count(b"\r\n"), p
+    assert b"Paduka Ongki." in b or b"locked:dotuiux-name" in b, p
+PY
+cp "$DOT/config/ai/memory/identity.md" "$ID"; cp "$DOT/config/ai/memory/skills.md" "$T/config/ai/memory/skills.md"
+python3 - "$CORE" <<'PY'
+import sys; p = sys.argv[1]; s = open(p).read()
+open(p, "w").write(s.replace("Address the user as **Paduka Ongki**.", "Address the user as Olan", 1))
+PY
+snap="$(cksum < "$CORE")"
+if "$L" repair --root "$T" >/dev/null 2>&1; then fail "a period-less rename mid-line passed repair"; fi
+[ "$(cksum < "$CORE")" = "$snap" ] || fail "repair rewrote CORE around a period-less rename"
+cp "$DOT/config/ai/CORE.md" "$CORE"
+for short in "Address the user as Olan Natural phrasing, no ritual." "Address the user as Olan, natural."; do
+  SHORT="$short" python3 - "$CORE" <<'PY'
+import os, sys; p = sys.argv[1]; s = open(p).read()
+open(p, "w").write(s.replace("Address the user as **Paduka Ongki**.", os.environ["SHORT"], 1))
+PY
+  snap="$(cksum < "$CORE")"
+  if "$L" repair --root "$T" >/dev/null 2>&1; then fail "short trailing text swallowed: $short"; fi
+  [ "$(cksum < "$CORE")" = "$snap" ] || fail "repair rewrote CORE for: $short"
+  cp "$DOT/config/ai/CORE.md" "$CORE"
+done
+printf "\nPaduka Olan's notes.\n" >> "$WF"
+"$L" repair --root "$T" >/dev/null 2>&1 && grep -q "^Paduka Ongki's notes\.$" "$WF" || fail "apostrophe lost in forbid repair"
+ok "CRLF kept; period-less mid-line rename fails without eating text; apostrophe kept"
+
+# 8. damaged markers: refuse and change nothing (a dangling opener once ate the file)
+sed -i.bak '/<!-- \/locked:dotads-name -->/d' "$MA"
+lines="$(wc -l < "$MA")"
+set +e; out="$("$L" repair --root "$T" 2>&1)"; rc=$?; set -e
+[ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q 'locked markers are damaged' || fail "damaged markers not refused cleanly (rc=$rc): $out"
+[ "$(wc -l < "$MA")" -eq "$lines" ] || fail "repair changed a file with damaged markers"
+cp "$DOT/config/ai/memory/meta-ads.md" "$MA"
+ok "a dangling locked marker fails repair and leaves the file untouched"
+
+# 9. a symlinked target is fixed through the link, and the link survives
+mv "$T/config/ai/memory/preferences.md" "$T/prefs-real.md"; ln -s ../../../prefs-real.md "$T/config/ai/memory/preferences.md"
+sed -i.bak 's/Paduka Ongki\./Olan./' "$T/prefs-real.md"
+"$L" repair --root "$T" >/dev/null 2>&1 || fail "repair through symlink failed"
+[ -L "$T/config/ai/memory/preferences.md" ] || fail "repair replaced the symlink with a file"
+grep -q '^- Preferred form of address: Paduka Ongki\.$' "$T/prefs-real.md" || fail "symlink target not restored"
+ok "symlinked target restored through the link"
+
+# 10. ai-memory-link link mode reports a failed repair with a non-zero exit
+H="$T/home"; mkdir -p "$H/.config"; ln -s "$T/config/ai" "$H/.config/ai"
+# Stub every other runtime command so only the lock decides the exit code.
+grep -v '^#' "$T/config/ai/runtime-commands.txt" | while read -r c; do
+  if [ -n "$c" ] && [ ! -e "$T/bin/$c" ]; then printf '#!/bin/sh\n' > "$T/bin/$c"; chmod +x "$T/bin/$c"; fi
+done
+HOME="$H" "$T/bin/ai-memory-link" >/dev/null 2>&1 || fail "clean ai-memory-link run in a temp home failed"
+python3 - "$CORE" <<'PY'
+import sys; p = sys.argv[1]; s = open(p).read()
+open(p, "w").write(s.replace("Address the user as **Paduka Ongki**.", "", 1))
+PY
+set +e; out="$(HOME="$H" "$T/bin/ai-memory-link" 2>&1)"; rc=$?; set -e
+cp "$DOT/config/ai/CORE.md" "$CORE"
+[ "$rc" -ne 0 ] && printf '%s' "$out" | grep -q 'locked owner rules need attention' || fail "ai-memory-link hid a failed repair (rc=$rc): $out"
+ok "ai-memory-link exits non-zero and warns when a locked rule cannot be restored"
+
+# 11. signature: only the password re-signs a changed rule
+AI_RULE_LOCK_KEY='correct horse 1' "$L" sign --root "$T" >/dev/null || fail "sign failed"
+AI_RULE_LOCK_KEY='correct horse 1' "$L" verify --root "$T" >/dev/null 2>&1 || fail "fresh signature does not verify"
+set +e
+AI_RULE_LOCK_KEY='wrong password' "$L" verify --root "$T" >/dev/null 2>&1; [ $? -eq 1 ] || fail "wrong password verified"
+env -u AI_RULE_LOCK_KEY "$L" verify --root "$T" >/dev/null 2>&1; [ $? -eq 2 ] || fail "missing key must exit 2"
+python3 - "$T/config/ai/locked-rules.json" <<'PY'
+import json, sys; p = sys.argv[1]; d = json.load(open(p))
+d["rules"][0]["canonical"] = "Address the user as **Paduka Olan**."
+open(p, "w").write(json.dumps(d, indent=2))
+PY
+AI_RULE_LOCK_KEY='correct horse 1' "$L" verify --root "$T" >/dev/null 2>&1; [ $? -eq 1 ] || fail "unsigned rule change verified"
+set -e
+grep -q 'correct horse' "$T/config/ai/locked-rules.json" && fail "password written to the lock file"
+ok "signature verifies; wrong password, missing key and unsigned rule change are rejected; password never stored"
+
+echo "ai-rule-lock-test: PASS"

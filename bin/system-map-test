@@ -270,6 +270,7 @@ language servers editor	config/helix/languages.toml
 meta ads deploy campaign	bin/dotads-meta
 ui ux slop check	bin/dotuiux
 design brief teardown	skills/local/dotuiux/SKILL.md
+locked owner rule password	bin/ai-rule-lock
 9router api key migrate	bin/9router-credential-migrate
 skill description budget	skills/agents-bin/skill-check
 memory retention pruning	bin/ai-memory-lifecycle

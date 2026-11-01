@@ -45,6 +45,7 @@ Each line answers one question with the page that owns it.
 - [Know the current state](../STATUS.md): status authority; memory never overrides it.
 - [Start, scope, or finish a task run](../docs/task-change-boundary.md): ledger boundary contract enforced by [`delivery-ledger`](../bin/delivery-ledger).
 - [Rate the risk of a diff](../bin/diff-risk): R0 to R4 tiers that decide review depth.
+- [Keep the owner's locked rules on every device](../bin/ai-rule-lock): restore, check, or re-sign with the password.
 - [Run every policy check before a commit](../bin/ai-policy-lint): policy, routing, skills, memory, templates, and this map.
 - [Install dotfiles on a new machine](../install.sh): idempotent installer for Ubuntu and macOS; [`install-macos.sh`](../install-macos.sh) is the light macOS bootstrap.
 - [Check this device's AI setup](../bin/ai-doctor): links, tools, hooks, and environment health.
@@ -114,12 +115,12 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 83 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
 | Owned skills | [`skills/local/`](../skills/local/) | 75 | linked from this page |
-| Commands | [`bin/`](../bin/) | 62 | linked from this page |
-| Command tests | [`bin/`](../bin/) | 75 | linked from this page |
+| Commands | [`bin/`](../bin/) | 63 | linked from this page |
+| Command tests | [`bin/`](../bin/) | 76 | linked from this page |
 | Device profiles | [`devices/`](../devices/) | 8 | linked from this page |
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
 | Top-level docs | [`docs/`](../docs/) | 19 | linked from this page |
-| AI control files | [`config/ai/`](../config/ai/) | 30 | linked from this page |
+| AI control files | [`config/ai/`](../config/ai/) | 31 | linked from this page |
 | Runtime references | [`config/omp/`](../config/omp/) | 28 | linked from this page |
 | Skill commands | [`skills/agents-bin/`](../skills/agents-bin/) | 7 | linked from this page |
 | Skill tooling | [`skills/local/`](../skills/local/) | 3 | linked from this page |
@@ -128,7 +129,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Research records | [`docs/research/`](../docs/research/) | 5 | linked from this page |
 | Environment and bootstrap | [`config/`](../config/) | 35 | linked from this page |
 | Device reports | [`docs/device-reports/`](../docs/device-reports/) | 21 | count only |
-| Archived task records | [`docs/archive/`](../docs/archive/) | 44 | count only |
+| Archived task records | [`docs/archive/`](../docs/archive/) | 45 | count only |
 
 <!-- system-map:inventory:end -->
 
@@ -167,6 +168,8 @@ Central repository for AI behavior, context distribution, and safety guards.
   **Features:** Operating profile (Paduka Ongki), language rules (Indonesian conversation, English code/docs), approval gates (secrets, destructive actions, production deploys), lazy senior dev ladder, delivery ledger constraints.
 - [`config/ai/README.md`](../config/ai/README.md):
   **Function:** Overview of the shared AI context architecture and memory link paths.
+- [`config/ai/locked-rules.json`](../config/ai/locked-rules.json):
+  **Function:** Owner-locked rules (address "Paduka Ongki", `dotads` and `dotuiux` names) with their password signature; restored by `ai-memory-link`.
 - [`config/ai/memory-router.json`](../config/ai/memory-router.json):
   **Function:** Prompt/path-trigger mapping with file and byte budgets (`maxFiles: 3`, `maxBytes: 12000`).
 - [`config/ai/memory-hygiene.json`](../config/ai/memory-hygiene.json):
@@ -396,6 +399,7 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 ### 7.1 AI, Policy & Memory Management
 - [`ai-doctor`](../bin/ai-doctor) (+ [`test`](../bin/ai-doctor-test)): Read-only health report for AI runtime wiring: links, tools, hooks, environment; never repairs or installs.
 - [`ai-policy-lint`](../bin/ai-policy-lint) (+ [`test`](../bin/ai-policy-lint-test)): Structural lint of the tracked AI control plane: workflows, routing, agent frontmatter, skills, memory, templates, and this map.
+- [`ai-rule-lock`](../bin/ai-rule-lock) (+ [`test`](../bin/ai-rule-lock-test)): Checks, restores, signs and verifies the owner-locked rules in `config/ai/locked-rules.json`; a rule change needs the owner's password.
 - [`ai-learn`](../bin/ai-learn) (+ [`test`](../bin/ai-learn-test)): Captures, lists, and promotes reviewed lesson candidates; never ingests session logs.
 - [`delivery-learning`](../bin/delivery-learning) (+ [`test`](../bin/delivery-learning-test)): Stages explicit reusable lessons, finalizes verified PASS signals, and supports idempotent candidate retry.
 - [`ai-memory-harvest`](../bin/ai-memory-harvest) (+ [`test`](../bin/ai-memory-harvest-test)): Publishes verified lesson signals as private review candidates in the lesson inbox; never applies canonical changes.

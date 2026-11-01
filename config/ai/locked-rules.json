@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "about": "Owner-locked rules (TASK-170). Every device restores these on ai-memory-link; changing one needs the owner's password: edit, then run ai-rule-lock sign. See bin/ai-rule-lock.",
+  "rules": [
+    {
+      "id": "address-core",
+      "kind": "slot",
+      "file": "config/ai/CORE.md",
+      "pattern": "Address the user as (?:\\*\\*[^*\\r\\n]{1,40}\\*\\*\\.?|[^\\s.,*]+(?:[ \\t][^\\s.,*]+)?(?:\\.|(?=\\r?\\n)|$))",
+      "canonical": "Address the user as **Paduka Ongki**."
+    },
+    {
+      "id": "address-identity",
+      "kind": "slot",
+      "file": "config/ai/memory/identity.md",
+      "pattern": "^- Preferred name / form of address:[^\\r\\n]*",
+      "canonical": "- Preferred name / form of address: Paduka Ongki."
+    },
+    {
+      "id": "address-preferences",
+      "kind": "slot",
+      "file": "config/ai/memory/preferences.md",
+      "pattern": "^- Preferred form of address:[^\\r\\n]*",
+      "canonical": "- Preferred form of address: Paduka Ongki."
+    },
+    {
+      "id": "address-no-other-paduka",
+      "kind": "forbid",
+      "files": [
+        "config/ai/CORE.md",
+        "config/ai/adapters/*.md",
+        "config/ai/memory/*.md"
+      ],
+      "pattern": "(?i:\\bpaduka)[ \\t-]+(\\*\\*)?(?!(?i:ongki)\\b)([A-ZÀ-ÖØ-Þ][\\w-]*)(\\*\\*)?",
+      "replacement": "Paduka \\1Ongki\\3"
+    },
+    {
+      "id": "dotads-name",
+      "kind": "block",
+      "file": "config/ai/memory/meta-ads.md",
+      "canonical": "Naming (owner rule, locked): \"dotads\" always means the dotfiles ads CLI tool family, one command per ad platform named `dotads-<platform>`: `dotads-meta` is the one built now; `dotads-google`, `dotads-tiktok`, `dotads-pinterest` and others come later. There is no \"dotads\" app repository."
+    },
+    {
+      "id": "dotuiux-name",
+      "kind": "block",
+      "file": "config/ai/memory/skills.md",
+      "canonical": "- Naming (owner rule, locked): \"dotuiux\" always means the dotfiles UI/UX CLI (`bin/dotuiux`) and its skill `skills/local/dotuiux`; it is part of dotfiles, not a separate repository."
+    }
+  ],
+  "kdf": {
+    "name": "scrypt",
+    "n": 131072,
+    "r": 8,
+    "p": 1,
+    "salt": "390a4440e85aa7d16a7fa56bd20ac463"
+  },
+  "signature": "37d229d55f7eea56a6a832e9eb6838a04c51ed4ac28d832d48e3e493dab5fa4e"
+}

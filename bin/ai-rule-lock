@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""Owner-locked rules for every device and AI runtime that uses these dotfiles.
+
+config/ai/locked-rules.json declares each rule and where its text lives:
+
+  slot     a regex slot in a file; any variant ("Address the user as Olan.") is
+           replaced by the canonical text
+  block    text between <!-- locked:<id> --> and <!-- /locked:<id> --> markers
+  forbid   a regex that must never match in the listed files; every match is
+           replaced (e.g. "Paduka Olan" -> "Paduka Ongki")
+
+The rule set is signed: HMAC-SHA256 over the canonical rules, keyed by
+scrypt(password, salt). Only the signature and the salt are tracked; the password
+is never stored. CI holds the password as the AI_RULE_LOCK_KEY secret and
+rejects a rule set whose signature does not match. Changing a locked rule
+without the password therefore turns CI red; restoring drifted files needs
+nothing. Devices apply whatever the tracked file says, so the guarantee is
+detection in CI, not prevention of a push.
+
+  ai-rule-lock check   [--root DIR]  report drift; exit 1 when a file differs
+  ai-rule-lock repair  [--root DIR]  restore every declared slot/block/forbid
+  ai-rule-lock sign    [--root DIR]  prompt for the password; write the signature
+  ai-rule-lock verify  [--root DIR]  needs AI_RULE_LOCK_KEY; exit 1 on mismatch,
+                                     2 when the key or the signature is missing
+"""
+import argparse
+import getpass
+import glob
+import hashlib
+import hmac
+import json
+import os
+import re
+import secrets
+import sys
+import tempfile
+from pathlib import Path
+
+LOCK_FILE = "config/ai/locked-rules.json"
+
+
+def load(root):
+    path = root / LOCK_FILE
+    if not path.is_file():
+        sys.exit(f"ai-rule-lock: {LOCK_FILE} not found under {root}")
+    return path, json.loads(path.read_text(encoding="utf-8"))
+
+
+def payload(data):
+    body = {"rules": data["rules"], "kdf": {k: v for k, v in data["kdf"].items()}}
+    return json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+
+
+def derive(password, kdf):
+    return hashlib.scrypt(password.encode(), salt=bytes.fromhex(kdf["salt"]),
+                          n=kdf["n"], r=kdf["r"], p=kdf["p"], dklen=32, maxmem=512 * 1024 * 1024)
+
+
+def files_of(root, rule):
+    if rule["kind"] == "forbid":
+        out = []
+        for pattern in rule["files"]:
+            out += sorted(Path(p) for p in glob.glob(str(root / pattern)))
+        return out
+    return [root / rule["file"]]
+
+
+def fix_text(text, rule):
+    """Return (new_text, error) with the rule applied to one file's text."""
+    kind, canon = rule["kind"], rule.get("canonical", "")
+    if kind == "slot":
+        rx = re.compile(rule["pattern"], re.M)
+        if not rx.search(text):
+            return text, "slot not found (the rule text was deleted or rephrased)"
+        return rx.sub(lambda _m: canon, text), None
+    if kind == "block":
+        start, end = f"<!-- locked:{rule['id']} -->", f"<!-- /locked:{rule['id']} -->"
+        nl = "\r\n" if "\r\n" in text else "\n"  # keep the file's own line endings
+        block = f"{start}{nl}{canon}{nl}{end}"
+        ns, ne = text.count(start), text.count(end)
+        if ns == 0 and ne == 0:
+            sep = "" if text.endswith("\n") or not text else nl
+            return f"{text}{sep}{nl}{block}{nl}", None
+        if ns != 1 or ne != 1 or text.index(start) > text.index(end):
+            return text, "locked markers are damaged (need exactly one opening before one closing); fix by hand, nothing changed"
+        i, j = text.index(start), text.index(end) + len(end)
+        return text[:i] + block + text[j:], None
+    if kind == "forbid":
+        return re.sub(rule["pattern"], rule["replacement"], text), None
+    return text, f"unknown rule kind {kind!r}"
+
+
+def scan(root, data, write):
+    drift, errors = [], []
+    for rule in data["rules"]:
+        targets = files_of(root, rule)
+        if not targets:
+            errors.append(f"{rule['id']}: no file matches")
+        for path in targets:
+            rel = path.relative_to(root)
+            if not path.is_file():
+                errors.append(f"{rule['id']}: {rel} is missing")
+                continue
+            with open(path, encoding="utf-8", newline="") as fh:
+                text = fh.read()
+            new, err = fix_text(text, rule)
+            if err:
+                errors.append(f"{rule['id']}: {rel}: {err}")
+                continue
+            if new == text:
+                continue
+            drift.append(f"{rule['id']}: {rel}")
+            if write:
+                real = path.resolve()  # write through a symlink, never replace it
+                mode = real.stat().st_mode & 0o777
+                fd, tmp = tempfile.mkstemp(dir=real.parent, prefix=f".{real.name}.")
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
+                        fh.write(new)
+                    os.chmod(tmp, mode)
+                    os.replace(tmp, real)
+                except BaseException:
+                    if os.path.exists(tmp):
+                        os.unlink(tmp)
+                    raise
+    return drift, errors
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="ai-rule-lock", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("command", choices=["check", "repair", "sign", "verify"])
+    ap.add_argument("--root", default=str(Path(os.path.realpath(__file__)).parent.parent))
+    args = ap.parse_args()
+    root = Path(args.root).resolve()
+    path, data = load(root)
+
+    if args.command in ("check", "repair"):
+        drift, errors = scan(root, data, write=args.command == "repair")
+        verb = "restored" if args.command == "repair" else "drift"
+        for d in drift:
+            print(f"locked rule {verb}: {d}")
+        for e in errors:
+            print(f"locked rule ERROR: {e}", file=sys.stderr)
+        if not data.get("signature"):
+            print("locked rule note: the rule set is unsigned; run: ai-rule-lock sign", file=sys.stderr)
+        if errors or (drift and args.command == "check"):
+            return 1
+        if not drift:
+            print("ok: locked rules intact")
+        return 0
+
+    if args.command == "sign":
+        password = os.environ.get("AI_RULE_LOCK_KEY")
+        if not password:
+            password = getpass.getpass("Locked-rules password: ")
+            if password != getpass.getpass("Repeat password: "):
+                print("ai-rule-lock: passwords differ; nothing written", file=sys.stderr)
+                return 1
+        if len(password) < 12:
+            print("ai-rule-lock: use at least 12 characters (the signature is public, so a short password can be guessed offline)", file=sys.stderr)
+            return 1
+        if not data["kdf"].get("salt"):
+            data["kdf"]["salt"] = secrets.token_hex(16)
+        data["signature"] = hmac.new(derive(password, data["kdf"]), payload(data), hashlib.sha256).hexdigest()
+        path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(f"signed: {LOCK_FILE} (commit it; set the same password as the AI_RULE_LOCK_KEY Actions secret)")
+        return 0
+
+    # verify
+    password = os.environ.get("AI_RULE_LOCK_KEY")
+    if not password:
+        print("ai-rule-lock: AI_RULE_LOCK_KEY is not set; cannot verify", file=sys.stderr)
+        return 2
+    if not data.get("signature") or not data["kdf"].get("salt"):
+        print("ai-rule-lock: the rule set is unsigned", file=sys.stderr)
+        return 2
+    want = hmac.new(derive(password, data["kdf"]), payload(data), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(want, data["signature"]):
+        print("ai-rule-lock: SIGNATURE MISMATCH: a locked rule changed without the owner's password", file=sys.stderr)
+        return 1
+    print("ok: locked rules carry the owner's signature")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -15,6 +15,9 @@
   integrated full admin, Vite + React for an API-backed client app, and Astro +
   React for route-oriented bounded interactivity; preserve semantic HTML and
   minimal hydration.
+<!-- locked:dotuiux-name -->
+- Naming (owner rule, locked): "dotuiux" always means the dotfiles UI/UX CLI (`bin/dotuiux`) and its skill `skills/local/dotuiux`; it is part of dotfiles, not a separate repository.
+<!-- /locked:dotuiux-name -->
 - New screens and redesigns run through the local `dotuiux` skill and command
   (brief → live-site teardown → `DESIGN.md` → rendered `check` → owner review);
   its `--help` and tests own the gate list, not memory.

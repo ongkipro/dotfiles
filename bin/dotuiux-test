@@ -487,7 +487,8 @@ try {
     expect(rs(okR, "contrast")?.status === "not-checked" && !rs(okR, "contrast").offenders.some((o) => /Open daily|Seven to three/.test(o.el))
       && okR.j.notes.some((n) => /contrast not measured/.test(n) && /Open daily/.test(n)),
       "3: text on a ::before band is not measured against white, and is named instead of passed", JSON.stringify([rs(okR, "contrast"), okR.j?.notes]));
-    expect(rs(okR, "lcp-entrance")?.status === "pass", "5: background-colour animation on the LCP's ancestor is not an entrance");
+    expect(rs(okR, "lcp-entrance")?.status === "pass", "5: background-colour animation on the LCP's ancestor is not an entrance",
+      JSON.stringify(rs(okR, "lcp-entrance"))); // flaked once on a macOS runner (run 41298256078): keep the detail
     expect(rs(okR, "tiny-text")?.status === "pass" && !okR.stdout.includes("fake-fixture-value"), "12: loopback server does not serve .env to page scripts");
     expect(noH2.status === 0 && rs(noH2, "contact-placement")?.status === "pass", "2: without h2 the hero stays around the h1", JSON.stringify(rs(noH2, "contact-placement")?.offenders));
     for (const [r, v] of [[ovH, "hidden"], [ovC, "clip"]])
