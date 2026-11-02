@@ -39,7 +39,7 @@ resolves, so an entry here is a mention, not a gated reference.
 | [`ui-validation`](ui-validation/SKILL.md) |  | Prove a browser-visible change with the smallest real-browser evidence before calling UI done: Playwright or browser tool, narrow and wide viewports, keyboard, states, hydration, themes. | `admin-dashboard`, `design-taste`, `dotuiux`, `web-perf` |
 | [`web-perf`](web-perf/SKILL.md) | F | Audit, diagnose, or optimize page load and interaction performance: Core Web Vitals, Lighthouse, traces, network, bundles; Chrome DevTools MCP preferred, static audit otherwise. | `admin-dashboard`, `content`, `design-taste`, `storefront-ux`, `ui-validation` |
 | [`threejs`](threejs/SKILL.md) |  | Architect, build, and optimize 3D WebGL scenes with Three.js in vanilla JS, Vite, Astro, or React Three Fiber: shaders, GLTF, cameras, lighting, materials, canvas animation. | `gsap-core`, `gsap-scrolltrigger` |
-| [`dotuiux`](dotuiux/SKILL.md) |  | Start any UI/UX build or redesign: brief, live-site teardown, DESIGN.md, rendered checks via dotuiux. | `admin-dashboard`, `admin-product-ux`, `copywriting`, `design-taste`, `seo-website-builder`, `shadcn-ui`, `storefront-ux`, `ui-validation`, `web-perf`, `writer` |
+| [`dotuiux`](dotuiux/SKILL.md) |  | Start any UI/UX build or redesign: brief, live-site teardown, DESIGN.md, rendered checks via dotuiux. | `admin-dashboard`, `admin-product-ux`, `copywriting`, `cross-cli`, `design-taste`, `seo-website-builder`, `shadcn-ui`, `storefront-ux`, `ui-validation`, `web-perf`, `writer` |
 
 ## Animation (GSAP)
 

@@ -7,8 +7,20 @@ Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests w
 Done 2026-10-30: TASK-159 → [archive](docs/archive/DOTFILES_TASKS_2026-10-30_META_COPY.md); TASK-091 superseded by TASK-160 → [record](docs/archive/TASKS-091-superseded.md); TASK-160 and TASK-161 → [archive](docs/archive/TASKS-160-161-completed.md).
 Done 2026-10-31: TASK-162 to TASK-165 → [archive](docs/archive/TASKS-162-166-completed.md); TASK-167 → [archive](docs/archive/TASKS-167-completed.md); TASK-168 → [archive](docs/archive/TASKS-168-completed.md); TASK-169 → [archive](docs/archive/TASKS-169-completed.md).
 Done 2026-11-01: TASK-170 → [archive](docs/archive/TASKS-170-completed.md); TASK-171 and TASK-172 → [archive](docs/archive/TASKS-171-completed.md); TASK-173 → [archive](docs/archive/TASKS-173-completed.md).
+Done 2026-11-02: TASK-174 → [archive](docs/archive/TASKS-174-completed.md).
 
 ## Pending
+
+### TASK-175: Cloudflare Asia-Pacific placement default
+- **Requirement:** REQ-CLOUDFLARE-APAC (owner 2026-11-02: web projects for Indonesia/Asia use Cloudflare SEA/Asia/Singapore; understand the breakdown and improve the skill).
+- **Risk Level:** R1.
+- **Allowed Paths:** `skills/local/cloudflare/SKILL.md`, `skills/local/cloudflare/.local-fork`, `skills/local/cloudflare/references/apac-placement.md`, `config/ai/memory/preferences.md`, `CHANGELOG.md`, `TASKS.md`, `docs/DOTFILES_SITEMAP.md`.
+- **Canonical Contract Owners:** `cloudflare` skill (product guidance); `memory/preferences.md` (owner default).
+- **Accepted Invariants:** facts from current Cloudflare docs only; hints never presented as residency; no remote resource changed.
+- **Regression Checks:** `skill-check`; `bin/system-map --check`; `ai-policy-lint`.
+- **Reopen Conditions:** Cloudflare adds a finer Asian hint or an Asian jurisdiction; a project created with `--location apac` is found outside APAC.
+- **Non-Scope:** migrating existing D1/R2 resources; deploys; commit/push.
+- **Escalation Conditions:** any change to a live D1/R2/DO resource or deploy.
 
 ### TASK-156: Memory precision
 - **Requirement:** REQ-MEMORY-PRECISION.

@@ -52,7 +52,7 @@ const m = await import(pathToFileURL(CMD).href);
 console.log("1. surface");
 const help = run(["--help"]);
 expect(help.status === 0 && /^Usage: dotuiux /m.test(help.stdout), "prints usage on --help");
-for (const sub of ["init", "teardown", "check", "validate", "help"]) expect(new RegExp(`^  ${sub}\\b`, "m").test(help.stdout), `--help describes ${sub}`);
+for (const sub of ["init", "teardown", "check", "compare", "validate", "help"]) expect(new RegExp(`^  ${sub}\\b`, "m").test(help.stdout), `--help describes ${sub}`);
 expect(run(["bogus"]).status === 2, "rejects an unknown subcommand with exit 2");
 expect(run(["check"]).status === 2, "check without a URL is a usage error");
 const unk = run(["check", "x", "--nope"]);
@@ -238,6 +238,47 @@ console.log("4. init + validate");
   const v3 = run(["validate", ws]);
   expect(v3.status === 1 && /missing heading "## Audience"/.test(v3.stderr), "validate reports missing brief headings");
   expect(run(["validate", path.join(TMP, "empty")]).status === 1, "validate fails when files are missing");
+
+  // TASK-174: budgets and owner pick are warnings, never a new failure for accepted projects.
+  const ws2 = path.join(TMP, "proj2"); run(["init", ws2]);
+  fs.writeFileSync(path.join(ws2, "design/brief.md"), m.BRIEF_HEADINGS.map((h) => `## ${h}\nfilled\n`).join(""));
+  const dsg = (dir) => `# DESIGN.md\n## Direction\n${dir}\n## Tokens\n## Allow\n`;
+  fs.writeFileSync(path.join(ws2, "DESIGN.md"), dsg("Surface: compro\nC1: split hero") + "x\n".repeat(m.DESIGN_LINES_MAX));
+  const v4 = run(["validate", ws2]);
+  expect(v4.status === 0 && /Picked-by: owner/.test(v4.stdout) && /lines \(budget/.test(v4.stdout) && !/composition contract/.test(v4.stdout),
+    "validate warns (exit 0) on a missing owner pick and an over-budget DESIGN.md", v4.stdout + v4.stderr);
+  fs.writeFileSync(path.join(ws2, "DESIGN.md"), "# DESIGN.md\n## Direction \u2014 Home\nSurface: compro\n## Tokens\n## Allow\n");
+  const v6 = run(["validate", ws2]);
+  fs.writeFileSync(path.join(ws2, "DESIGN.md"), "# DESIGN.md\n## Direction \u2014 Home\nPicked-by: owner 2026-11-02\nC1: hero\n## Direction \u2014 About\nSurface: about\n## Tokens\n## Allow\n");
+  const v7 = run(["validate", ws2]);
+  expect(v7.status === 0 && /Direction \u2014 about" has no "Picked-by/.test(v7.stdout) && !/Direction \u2014 home" has no/.test(v7.stdout),
+    "review: each Direction section needs its own owner pick", v7.stdout);
+  const idx = ["01", "02.", "03 \u2014 Step", "04 / Process", "02 Marketing", "01 Desain", "05 Services"], notIdx = ["07:00", "07 : 00", "09.30", "01/12", "01. 12. 2026", "08 \u2013 17", "09 - 17 WIB", "05 Nov", "02 Mei", "01 Jan 2026", "03 Desember"];
+  expect(idx.every((t) => !m.NOT_INDEX_RE.test(t)) && notIdx.every((t) => m.NOT_INDEX_RE.test(t)), "review: index labels vs times, dates, ranges and month names",
+    JSON.stringify({ wronglyExcluded: idx.filter((t) => m.NOT_INDEX_RE.test(t)), wronglyCounted: notIdx.filter((t) => !m.NOT_INDEX_RE.test(t)) }));
+  expect(v6.status === 0 && /Picked-by: owner/.test(v6.stdout) && /composition contract/.test(v6.stdout), "review: validate reads the design-taste form \"## Direction \u2014 <page>\"", v6.stdout);
+  fs.writeFileSync(path.join(ws2, "DESIGN.md"), dsg("- **Picked-by:** owner 2026-11-02 (B of 3)\nSurface: compro"));
+  const v5 = run(["validate", ws2]);
+  expect(v5.status === 0 && !/Picked-by/.test(v5.stdout) && /composition contract/.test(v5.stdout), "validate accepts a recorded owner pick and asks for C-items", v5.stdout);
+  expect(JSON.stringify(m.contractItems("- **`C1`**: split hero\n- `C2`: hairline grid\nC3 \u2014 rhythm\n<!-- C9: example -->\nC1: duplicate")) ===
+    JSON.stringify([{ id: "C1", text: "split hero" }, { id: "C2", text: "hairline grid" }, { id: "C3", text: "rhythm" }]), "contractItems reads C-items in the forms DESIGN.md uses, skips comments and duplicates");
+  const or = m.outlineReport({ height: 2000, viewportHeight: 800, fonts: [{ v: "Inter" }], outline: [{ kind: "header" }, { kind: "section", heading: "A | <b>", tag: "section", cols: 2, h: 600, media: 1 }] },
+    { height: 800, viewportHeight: 800, fonts: [], outline: [{ kind: "section", heading: null, tag: "div", cols: 1, h: 700, media: 0 }, { kind: "section", heading: "B", tag: "section", cols: 3, h: 100, media: 0 }] }, 360).join("\n");
+  expect(/reference 1 sections \/ 2000px \u00b7 build 2 sections \/ 800px/.test(or) && /\| 1 \| A\s+b\s+\u00b7 2 col/.test(or) && /\| 2 \| \u2014 \| B/.test(or) && /build is one screen tall/.test(or),
+    "outlineReport aligns sections, escapes table syntax, and flags a one-screen capture", or);
+  expect(/re-run dotuiux teardown/.test(m.outlineReport({ height: 1 }, {}, 360)[0]), "outlineReport names an old teardown without an outline");
+  expect(run(["compare", "x"]).status === 2 && run(["compare", "x", "--ref", path.join(TMP, "none")]).status === 2, "compare without --ref or facts.json is an error, not a verdict");
+
+  // TASK-174 template signals on facts.
+  const tpl = (x) => m.evaluate([{ width: 1440, height: 900, ...x }]);
+  const st2 = (r, id) => r.find((x) => x.id === id).status;
+  const t1 = tpl({ outline: Array.from({ length: 9 }, () => ({ kind: "section" })), eyebrows: { headings: 6, with: 4, els: ["div"] }, numbered: { sections: 2, els: ["s"] }, mono: { chars: 150, total: 1000, els: ["span"] } });
+  expect(["section-count", "eyebrow-overuse", "numbered-labels", "mono-overuse"].every((id) => st2(t1, id) === "warn"), "template signals warn above their budgets");
+  const t2 = tpl({ outline: Array.from({ length: 8 }, () => ({ kind: "section" })).concat([{ kind: "header" }, { kind: "footer" }]), eyebrows: { headings: 2, with: 2, els: [] },
+    numbered: { sections: 1, els: [] }, mono: { chars: 300, total: 350, els: [] } });
+  expect(st2(t2, "section-count") === "pass" && st2(t2, "numbered-labels") === "pass", "header/footer do not count; one numbered section passes");
+  expect(st2(t2, "eyebrow-overuse") === "not-checked" && st2(t2, "mono-overuse") === "not-checked", "review: a sample below the minimum is NOT CHECKED, never a pass");
+  expect(["section-count", "eyebrow-overuse", "numbered-labels", "mono-overuse"].every((id) => st2(tpl({}), id) === "not-checked"), "template signals are NOT CHECKED without facts");
   const g = run(["teardown", "https://dribbble.com/shots/1", "https://www.pinterest.co.uk/pin/1"]);
   expect(g.status === 2 && /owner-picked mood/.test(g.stderr), "teardown refuses gallery hosts before opening a browser");
   for (const u of ["https://DRIBBBLE.COM/shots/1", "https://www.behance.net/x", "https://cdn.dribbble.com/a.png", "https://dribbble.com./shots/1", "https://www.awwwards.com./sites/x", "https://regards.design/x", "https://regards.design./x"]) {
@@ -333,6 +374,47 @@ try {
     const v = facts?.viewports?.["1440"];
     expect(v && v.fonts.length && v.palette.text.length && v.navLabels.length === 3 && v.buttons >= 1 && v.outboundLinks === 1 && typeof v.images === "number",
       "teardown facts include fonts, palette, nav labels, buttons, outbound links, images", JSON.stringify(v)?.slice(0, 200));
+    expect(v && v.outline.filter((s) => s.kind === "section").length === 3 && v.outline.some((s) => s.kind === "header") && v.outline.some((s) => s.heading === "Today"),
+      "teardown facts record the section outline (hero + 2 sections inside <main>, header apart)", JSON.stringify(v?.outline)?.slice(0, 300));
+
+    // TASK-174: template page warns; compare writes sheets, report and prompt.
+    fs.writeFileSync(path.join(site, "template.html"), `<!doctype html><html lang=en><head><meta name=viewport content="width=device-width,initial-scale=1"><title>T</title><style>
+body{margin:0;font:16px/1.5 system-ui} section{padding:40px 20px;min-height:60px} .k{font:12px/1 monospace;text-transform:uppercase;letter-spacing:.1em}
+.n{font:14px monospace}</style></head><body><main>
+<section><h1>Fulfillment for brands</h1><p>We pack and ship.</p></section>
+${Array.from({ length: 9 }, (_, i) => `<section><div class=k>/ Label ${i}</div><h2>Section ${i}</h2><p>Plain copy for section ${i} of the page.</p>
+${i < 3 ? `<span class=n>0${i + 1}</span>` : ""}</section>`).join("\n")}</main></body></html>`);
+    const tp = await runAsync(["check", `${base}/template.html`, "--json"], { cwd: TMP });
+    let tj = null; try { tj = JSON.parse(tp.stdout); } catch {}
+    const ts = (id) => tj && tj.results.find((r) => r.id === id)?.status;
+    expect(tp.status === 0 && ["section-count", "eyebrow-overuse", "numbered-labels"].every((id) => ts(id) === "warn"), "browser: template page warns on section count, eyebrows, index labels",
+      JSON.stringify(["section-count", "eyebrow-overuse", "numbered-labels", "mono-overuse"].map(ts)) + tp.stderr.slice(0, 200));
+    fs.writeFileSync(path.join(site, "times.html"), `<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>T</title></head><body><main>
+${[1, 2, 3].map((i) => `<section><h2>Branch ${i}</h2><p>Opening hours</p><span>07:00</span> <span>09.30</span> <span>01/12</span> <span>05 Nov</span> <span>08 \u2013 17</span> <span>01. 12. 2026</span></section>`).join("\n")}</main></body></html>`);
+    const tm = await runAsync(["check", `${base}/times.html`, "--json"], { cwd: TMP });
+    let tmj = null; try { tmj = JSON.parse(tm.stdout); } catch {}
+    expect(tmj && tmj.results.find((r) => r.id === "numbered-labels")?.status === "pass", "review: times, dates and decimals are not index labels", JSON.stringify(tmj?.results.find((r) => r.id === "numbered-labels")));
+    const cleanT = await runAsync(["check", `${base}/clean.html`, "--json"], { cwd: TMP });
+    let cj = null; try { cj = JSON.parse(cleanT.stdout); } catch {}
+    expect(cj && ["section-count", "eyebrow-overuse", "numbered-labels", "mono-overuse"].every((id) => ["pass", "not-checked"].includes(cj.results.find((r) => r.id === id)?.status))
+      && cj.results.find((r) => r.id === "eyebrow-overuse")?.status === "not-checked",
+      "browser: clean page raises no template signal; 2 headings are too few to judge eyebrows", JSON.stringify(cj?.results.filter((r) => /section-count|eyebrow|numbered|mono/.test(r.id)).map((r) => r.status)));
+    fs.writeFileSync(path.join(TMP, "DESIGN-c.md"), "## Direction\n- `C1`: open hero, no cards\n## Tokens\n## Allow\n");
+    const cmpOut = path.join(TMP, "cmp");
+    const cmp = await runAsync(["compare", `${base}/template.html`, "--ref", dir, "--out", cmpOut, "--design", path.join(TMP, "DESIGN-c.md")], { cwd: TMP });
+    const rep = fs.existsSync(path.join(cmpOut, "report.md")) ? fs.readFileSync(path.join(cmpOut, "report.md"), "utf8") : "";
+    const prm = fs.existsSync(path.join(cmpOut, "review-prompt.md")) ? fs.readFileSync(path.join(cmpOut, "review-prompt.md"), "utf8") : "";
+    expect(cmp.status === 0 && ["360", "768", "1440"].every((w) => fs.existsSync(path.join(cmpOut, `sheet-${w}-1.png`)) && fs.existsSync(path.join(cmpOut, `build-${w}.png`))),
+      "compare writes a side-by-side sheet and the build capture per width", cmp.stderr.slice(0, 300));
+    expect(/reference 3 sections/.test(rep) && /build 10 sections/.test(rep) && /\*\*C1\*\* open hero, no cards/.test(rep), "compare report aligns outlines and lists C-items", rep.slice(0, 400));
+    expect(/Blind read of the build/.test(prm) && /C1: open hero, no cards/.test(prm) && /sheet-360-1\.png/.test(prm), "compare writes an independent-review prompt with the sheets and C-items");
+    const png = fs.existsSync(path.join(cmpOut, "sheet-1440-1.png")) ? fs.readFileSync(path.join(cmpOut, "sheet-1440-1.png")) : null;
+    expect(png && png.readUInt32BE(16) <= 1400, "compare scales a 1440 sheet to a readable width", png ? String(png.readUInt32BE(16)) : "missing");
+    // Review: the sheet must cover the whole (short) page, not stop at a zoom-shrunk height.
+    const parts = fs.readdirSync(cmpOut).filter((n) => /^sheet-1440-\d+\.png$/.test(n));
+    const sheetH = parts.reduce((a, n) => a + fs.readFileSync(path.join(cmpOut, n)).readUInt32BE(20), 0);
+    const buildH = fs.readFileSync(path.join(cmpOut, "build-1440.png")).readUInt32BE(20);
+    expect(sheetH >= buildH * (1400 / (1440 * 2 + 56)) * 0.98, "review: the 1440 sheet covers the whole build at sheet scale", `sheet ${sheetH}px, build ${buildH}px`);
 
     // Review regressions (2026-10-31). Fixtures live in this suite's temp dir, checked as local files
     // so dotuiux's own loopback server is exercised.

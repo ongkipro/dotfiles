@@ -6,6 +6,31 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-28
 
+### Cloudflare Asia-Pacific placement default (TASK-175) — 2026-11-02
+
+- New `skills/local/cloudflare/references/apac-placement.md`: what each layer
+  lets you choose (D1/R2 `--location apac` at creation, Durable Objects
+  `locationHint` `apac-se`, Worker `placement`), what it does not (visitor PoP,
+  Asian jurisdiction), CI creation trap, migration of existing resources.
+- `cloudflare` skill routes ID/SEA projects to it (row + working principle);
+  owner default recorded in `memory/preferences.md`.
+
+### `dotuiux compare`, template signals, owner pick (TASK-174) — 2026-11-02
+
+- New `dotuiux compare <url> --ref design/refs/<host>`: side-by-side sheets
+  (reference left, build right) per width, scaled to ≤ 1400 px and cut into
+  parts; `report.md` with both section outlines and the DESIGN.md C-items;
+  `review-prompt.md` for an independent reviewer (blind read first).
+- `teardown` and `check` record a section outline; new warn rules
+  `section-count`, `eyebrow-overuse`, `numbered-labels`, `mono-overuse`.
+  Floor set unchanged.
+- `validate` warns when DESIGN.md exceeds 150 lines, lacks
+  `Picked-by: owner <date>`, or has no C-items (warnings only).
+- Skills: `dotuiux` adds compare and an independent visual verdict;
+  new `references/reference-reading.md`; `design-taste` uses one capture
+  path (`dotuiux teardown`) and records the owner pick; `ui-validation`
+  points the visual verdict at `compare`.
+
 ### Pi defaults and retired Pi helpers — 2026-11-02
 
 - Pi's tracked startup model is `9router-fantastico/cc/claude-opus-5-5`.

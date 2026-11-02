@@ -10,8 +10,10 @@
  *   check <url|file> [--design DESIGN.md] [--json] [--checkout-handoff]
  *     Render at 360/768/1440 and run the gates. FAIL = floor (exit 1); WARN = slop signal,
  *     overridable in DESIGN.md with `allow: <id> — <reason>`.
+ *   compare <url|file> --ref design/refs/<host>
+ *     Side-by-side reference vs build sheets, outline report, and an independent-review prompt.
  *   validate [dir]
- *     Check design/brief.md and DESIGN.md headings and allow: lines.
+ *     Check design/brief.md and DESIGN.md headings and allow: lines; budget/owner-pick warnings.
  *
  * Gate list and tiers: ~/Documents/work/research/dotuiux/03-dotuiux-brief.md §3 (evidence:
  * 02-round2-synthesis.md there; § numbers below cite those files, kept outside this repo).
@@ -79,6 +81,19 @@ const DISPLAY_TRACKING_MIN_EM = -0.02; // … with letter-spacing no tighter tha
 const DURATION_SMALL_MS = 300; // §4 "Durations ≤300 small"
 const DURATION_LARGE_MS = 500; // §4 "≤500 large"
 const LARGE_AREA_RATIO = 0.25; // "large" element = ≥25% of the viewport area
+// Template-composition signals (TASK-174, from real builds that passed every gate yet read as a template).
+const SECTIONS_MAX = 8; // content sections between header and footer; more needs a recorded reason
+const EYEBROW_RATIO_MAX = 0.5; // share of section headings carrying a small uppercase/tracked kicker
+const EYEBROW_MIN_HEADINGS = 3; // fewer headings = not judged
+const NUMBERED_SECTIONS_MAX = 1; // sections using 01/02/03 index labels
+const MONO_RATIO_MAX = 0.12; // share of visible text set in a monospace face outside code/tables
+const MONO_MIN_CHARS = 400; // fewer characters = not judged
+// Budgets the skill and `validate` share (TASK-174).
+export const DESIGN_LINES_MAX = 150; // DESIGN.md longer than this is not read consistently by a model
+const COMPARE_SOURCE_MAX_PX = 12000; // side-by-side sheet: source height kept per side
+const SHEET_WIDTH_MAX = 1400; // sheets are scaled to this width so a vision model reads them without downscaling them to mush
+const SHEET_PART_PX = 1800; // \u2026 and cut into parts this tall
+const SHEET_PARTS_MAX = 8;
 
 // Teardown: galleries are owner-picked mood, not measurement targets (brief §4, §19, D5).
 const GALLERY_HOST_RE = /(^|\.)(dribbble\.com|behance\.net|v0\.app|v0\.dev|awwwards\.com|regards\.design|pinterest\.[a-z.]+)$/i;
@@ -238,6 +253,18 @@ export const RULES = [
   // Real case 2026-10-31 (platform-iklan-commerce storefront, since retired: h1 → h3). WCAG 1.3.1 advises, does not require, sequential levels.
   { id: "heading-skip", tier: "warn", spec: "WCAG 1.3.1 (advisory)", desc: "heading level skipped (e.g. h1 → h3)",
     judge: (f) => has(f.headingSkips) ? f.headingSkips.map((h) => off(h.el, h.v)) : null },
+  // TASK-174: composition habits that pass every floor rule and still read as a template.
+  { id: "section-count", tier: "warn", spec: "TASK-174", desc: `> ${SECTIONS_MAX} content sections between header and footer`,
+    judge: (f) => !f.outline ? null : ((n) => n > SECTIONS_MAX ? [off("page", `${n} sections`)] : [])(f.outline.filter((s) => s.kind === "section").length) },
+  { id: "eyebrow-overuse", tier: "warn", spec: "TASK-174", desc: `small uppercase/tracked kicker above > ${EYEBROW_RATIO_MAX * 100}% of section headings`,
+    // Below the sample size the rule has not judged anything: NOT CHECKED, never a pass.
+    judge: (f) => !f.eyebrows || f.eyebrows.headings < EYEBROW_MIN_HEADINGS ? null
+      : f.eyebrows.with / f.eyebrows.headings > EYEBROW_RATIO_MAX ? [off(f.eyebrows.els.slice(0, 3).join(" + "), `${f.eyebrows.with}/${f.eyebrows.headings} headings`)] : [] },
+  { id: "numbered-labels", tier: "warn", spec: "TASK-174", desc: `01/02/03 index labels in > ${NUMBERED_SECTIONS_MAX} section`,
+    judge: (f) => !f.numbered ? null : f.numbered.sections > NUMBERED_SECTIONS_MAX ? [off(f.numbered.els.slice(0, 3).join(" + "), `${f.numbered.sections} sections`)] : [] },
+  { id: "mono-overuse", tier: "warn", spec: "TASK-174", desc: `> ${MONO_RATIO_MAX * 100}% of visible text in a monospace face outside code/tables`,
+    judge: (f) => !f.mono || f.mono.total < MONO_MIN_CHARS ? null
+      : f.mono.chars / f.mono.total > MONO_RATIO_MAX ? [off(f.mono.els.slice(0, 3).join(" + "), `${Math.round((f.mono.chars / f.mono.total) * 100)}% of text`)] : [] },
   { id: "transition-all", tier: "warn", spec: "§4", desc: "transition: all",
     judge: (f) => has(f.transitionAll) ? f.transitionAll.map((el) => off(el, "transition-property: all")) : null },
   // Owner decision D1, not a standard: Material 3 uses accelerate curves for exits. Deliberate exits: allow: ease-in.
@@ -300,6 +327,10 @@ export function evaluate(factsByWidth, allows = new Map(), opts = {}) {
 
 export const BRIEF_HEADINGS = ["Niche", "Audience", "Primary job", "Primary action", "References wanted", "Non-goals"];
 export const DESIGN_HEADINGS = ["Tokens", "Allow"];
+// Times, dates, ranges and decimals that start like an index label: "07:00", "07 : 00", "01/12", "01. 12. 2026",
+// "08 \u2013 17", "09.30", "05 Nov", "02 Mei". Exported for the test; passed into the page by pageOpts.
+export const NOT_INDEX_RE = /^0\d\s*[.:/,\u2013\u2014-]?\s*\d|^0\d\.?\s+(jan(uari|uary)?|feb(ruari|ruary)?|mar(et|ch)?|apr(il)?|mei|may|jun[ei]?|jul[iy]?|agu(stus)?|aug(ust)?|sep(t(ember)?)?|o[ck]t(ober)?|no[vp](ember)?|de[cs](ember)?)\b/i;
+export const PICKED_RE = /^\s*(?:[-*]\s+)?\**Picked-by\**:?\**\s*owner\b.*\b\d{4}-\d{2}-\d{2}\b/im;
 
 // Section bodies keyed by "## Heading", comments removed.
 function sections(text) {
@@ -322,7 +353,19 @@ export function validateProject(dir) {
       else if (warnEmpty && !s.get(h.toLowerCase()).trim()) warnings.push(`${path.basename(file)}: "## ${h}" is still empty`);
     }
   }
-  if (fs.existsSync(design)) for (const e of parseAllows(fs.readFileSync(design, "utf8")).errors) errors.push(`DESIGN.md ${e}`);
+  if (fs.existsSync(design)) {
+    const text = fs.readFileSync(design, "utf8");
+    for (const e of parseAllows(text).errors) errors.push(`DESIGN.md ${e}`);
+    // TASK-174 budgets: warnings, so accepted projects keep validating.
+    const n = text.split("\n").length;
+    if (n > DESIGN_LINES_MAX) warnings.push(`DESIGN.md is ${n} lines (budget ${DESIGN_LINES_MAX}): move history and rationale to docs/, keep direction, tokens, C-items, allow:`);
+    // "## Direction" or the design-taste form "## Direction \u2014 <page>". Each direction is picked on its own:
+    // one page's pick never vouches for another.
+    const dirs = [...sections(text)].filter(([h, body]) => /^direction\b/.test(h) && body.trim());
+    for (const [h] of dirs.filter(([, body]) => !PICKED_RE.test(body)))
+      warnings.push(`DESIGN.md: "## ${h.replace(/^direction/, "Direction")}" has no "Picked-by: owner <YYYY-MM-DD>" line: the direction is the agent's proposal until the owner picks it`);
+    if (dirs.length && !contractItems(text).length) warnings.push("DESIGN.md: no composition contract (C1, C2, \u2026): dotuiux compare has nothing to judge fidelity against");
+  }
   return { ok: !errors.length, errors, warnings };
 }
 
@@ -357,7 +400,17 @@ const DESIGN_TEMPLATE = `# DESIGN.md
 Taste lives here, not in a ban list. Build uses tokens only. -->
 
 ## Direction
-<!-- Feel in 3 words, photo style, motion profile (none | subtle | expressive), 3 "won't do". -->
+<!-- Keep this file under ${DESIGN_LINES_MAX} lines. The owner picks one of 2\u20133 proposed directions; record it:
+Picked-by: owner YYYY-MM-DD (direction B of 3)
+Surface/job: who reads this and what they decide.
+References: design/refs/<host> \u2014 what transfers (composition, not pixels).
+Sections (in order, each with its one job): \u2026 \u2014 every section beyond the surface's budget needs a reason.
+Feel in 3 words, photo style, motion profile (none | subtle | expressive), 3 "won't do". -->
+
+### Composition contract
+<!-- What must survive from the references, checked on dotuiux compare sheets:
+C1: hero geometry (e.g. text left 7/12, product photo right bleeding off the edge; stacks photo-first at 360)
+C2: \u2026 -->
 
 ## Tokens
 
@@ -781,6 +834,58 @@ async function pageCollect(o) {
     .map((a) => a.href);
   const outbound = [...document.querySelectorAll("a[href]")].filter((a) => /^https?:$/.test(a.protocol) && a.host !== location.host).length;
 
+  // Outline: page blocks in reading order (TASK-174). Descend through lone wrappers; <main>'s children are the sections.
+  // A block is split while it wraps two or more tall children that each hold an h1/h2: wrappers (framework roots,
+  // <main>, page-builder divs) dissolve, a section with one heading and h3 cards stays whole.
+  const tall = (e) => visible(e) && e.getBoundingClientRect().height >= 40;
+  // Page chrome and navigation stay whole: a <header> holding only a <nav> is still the header.
+  const chromeBlock = (el) => el.matches(`${BANNER},${CONTENTINFO},nav,[role=navigation]`);
+  const splitBlock = (el, d) => { const kids = [...el.children].filter(tall);
+    if (chromeBlock(el)) return [el];
+    if (d < 8 && (kids.length === 1 || kids.filter((k) => k.querySelector("h1,h2")).length >= 2)) return kids.flatMap((k) => splitBlock(k, d + 1));
+    return [el]; };
+  const blocks = [...document.body.children].filter(tall).flatMap((e) => splitBlock(e, 0));
+  const colsOf = (el, r) => { let cols = 1;
+    for (const c of [el, ...el.children].slice(0, 6)) {
+      const boxes = [...c.children].filter((k) => { const kr = k.getBoundingClientRect(); return visible(k) && kr.width > r.width * 0.12 && kr.width < r.width * 0.95; }).map((k) => k.getBoundingClientRect());
+      for (const b of boxes) { const y = b.top + b.height / 2; cols = Math.max(cols, Math.min(6, boxes.filter((q) => q.top <= y && q.bottom >= y).length)); } }
+    return cols; };
+  const outlineEls = blocks.slice(0, 40);
+  const outline = outlineEls.map((el) => { const r = el.getBoundingClientRect(), hd = el.querySelector("h1,h2,h3");
+    return { kind: el.matches(CONTENTINFO) ? "footer" : el.matches(`${BANNER},nav,[role=navigation]`) ? "header" : "section", tag: el.tagName.toLowerCase(),
+      y: Math.round(r.top + scrollY), h: Math.round(r.height), cols: colsOf(el, r), bg: cs(el).backgroundColor,
+      media: el.querySelectorAll("img,picture,video,svg:not(a svg):not(button svg)").length,
+      heading: hd ? hd.textContent.trim().replace(/\s+/g, " ").slice(0, 60) : null }; });
+
+  // Eyebrows: a short small uppercase/tracked/mono label directly above a section heading.
+  const MONO_RE = /mono|code|courier|consol|menlo|monaco|ui-monospace|^monospace$/i;
+  const firstFamily = (s) => s.fontFamily.split(",")[0].replace(/["']/g, "").trim();
+  const kicker = (h) => { const hs = parseFloat(cs(h).fontSize);
+    const cands = [h.previousElementSibling, !h.previousElementSibling && h.parentElement ? h.parentElement.previousElementSibling : null].filter(Boolean);
+    return cands.find((k) => { const t = k.textContent.trim(); if (!t || t.length > 40 || !visible(k) || interactive(k)) return false;
+      const s = cs(k), kpx = parseFloat(s.fontSize), ls = s.letterSpacing === "normal" ? 0 : parseFloat(s.letterSpacing) / kpx;
+      return kpx <= Math.min(15, hs * 0.6) && (s.textTransform === "uppercase" || ls >= 0.05 || MONO_RE.test(firstFamily(s)) || (t === t.toUpperCase() && /[A-Z]/.test(t))); }); };
+  const secHeads = [...document.querySelectorAll("h2")].filter((h) => visible(h) && !inChrome(h));
+  const kicked = secHeads.map((h) => [h, kicker(h)]).filter(([, k]) => k);
+  const eyebrows = { headings: secHeads.length, with: kicked.length, els: kicked.map(([, k]) => label(k)) };
+
+  // Index labels: a short own-text "01", "02.", "03 \u2014 Step" counted per outline section.
+  const numberedBy = new Map();
+  for (const { el } of textEls) { const t = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim();
+    // "01", "02.", "03 \u2014 Step"; not a time, date or decimal ("07:00", "01/12", "05.5").
+    if (!/^0\d(?:$|[\s./:\u2013\u2014-])/.test(t) || o.notIndexRe.test(t) || t.length > 24 || inChrome(el)) continue;
+    const i = outlineEls.findIndex((s) => s.contains(el)); if (i < 0) continue;
+    if (!numberedBy.has(i)) numberedBy.set(i, new Set()); numberedBy.get(i).add(t.slice(0, 2)); }
+  // One label per section counts too: "01 / Services", "02 / Process" across sections is the habit.
+  const numSecs = [...numberedBy];
+  const numbered = { sections: numSecs.length, els: numSecs.map(([i]) => label(outlineEls[i]).slice(0, 40)) };
+
+  // Monospace share of visible text outside code, tables and form values.
+  let monoChars = 0, allChars = 0; const monoEls = [];
+  for (const { el } of textEls) { if (inChrome(el)) continue; const n = el.textContent.trim().length; allChars += n;
+    if (MONO_RE.test(firstFamily(cs(el))) && !el.closest("pre,code,kbd,samp,table")) { monoChars += n; if (monoEls.length < 5) monoEls.push(label(el)); } }
+  const mono = { chars: monoChars, total: allChars, els: monoEls };
+
   Object.assign(f, {
     scrollWidth: Math.max(document.documentElement.scrollWidth, innerWidth),
     overflowClipped: [document.documentElement, document.body].some((e) => /hidden|clip/.test(cs(e).overflowX)),
@@ -788,7 +893,8 @@ async function pageCollect(o) {
     texts: texts.slice(0, 2000), targets: targets.slice(0, 600), controls, images: images.slice(0, 300), contacts, floating, blank, placeholders,
     buttons, firstViewportWords, h1s, navLabels, navGroups, markers: markers.slice(0, 200), emphasis, icons: { total: carriers.length, withIcon, tiles },
     nestedCards, hero, hrefs: hrefs.slice(0, 1000), blurs: blurs.slice(0, 30), transitionAll, easeIn, durations, scanned, headingSkips,
-    ref: { height: H(), title: document.title.slice(0, 80), fonts: top(fam, 4), sizes: top(size, 8), palette: { text: top(tcol, 6), background: top(bgc, 6) },
+    outline, eyebrows, numbered, mono,
+    ref: { height: H(), viewportHeight: vh, outline, title: document.title.slice(0, 80), fonts: top(fam, 4), sizes: top(size, 8), palette: { text: top(tcol, 6), background: top(bgc, 6) },
       navLabels: navLabels.map((l) => l.chars), buttons: buttons.length, primaryButtons: buttons.filter((b) => b.primary).length,
       outboundLinks: outbound, images: images.length, h1: h1s[0] || null },
   });
@@ -808,7 +914,7 @@ function pageReducedMotion(o) {
   return out.slice(0, 20);
 }
 
-const pageOpts = () => ({ loopMaxMs: LOOP_MAX_MS, tinyPx: MOTION_TINY_PX, largeArea: LARGE_AREA_RATIO, placeholderRe: PLACEHOLDER_RE, displayPx: DISPLAY_PX, scrollSteps: SCROLL_STEPS, scanMs: SCAN_MS });
+const pageOpts = () => ({ notIndexRe: NOT_INDEX_RE, loopMaxMs: LOOP_MAX_MS, tinyPx: MOTION_TINY_PX, largeArea: LARGE_AREA_RATIO, placeholderRe: PLACEHOLDER_RE, displayPx: DISPLAY_PX, scrollSteps: SCROLL_STEPS, scanMs: SCAN_MS });
 // Page functions run via Runtime.evaluate as source text (our own code, not page input).
 // RegExp cannot cross JSON, so it is rebuilt in the page.
 const call = (fn, arg) => {
@@ -921,8 +1027,15 @@ Subcommands:
       Warn:  ${WARN_IDS.join(", ")}
       blur escalates: > ${BLUR_WARN_PX}px warns, > ${BLUR_FAIL_PX}px fails (allow: blur covers only the warn band).
 
+  compare <url|file> --ref design/refs/<host> [--out DIR] [--design DESIGN.md]
+      Render the build at ${VIEWPORTS.map((v) => v.width).join("/")} and write, per width, a side-by-side sheet
+      (reference left, build right), report.md (section outlines side by side + C-item checklist from
+      DESIGN.md) and review-prompt.md for an independent reviewer. Default out: design/compare/<host>-<date>.
+      No verdict: the sheets are judged by the owner or a reviewer that did not build the page.
+
   validate [dir]
       Check design/brief.md and DESIGN.md exist with required headings and well-formed allow: lines.
+      Warns when DESIGN.md exceeds ${DESIGN_LINES_MAX} lines, Direction lacks "Picked-by: owner <date>", or no C-items exist.
 
   help
       Show this help.
@@ -1007,6 +1120,143 @@ async function cmdTeardown(argv) {
   }
 }
 
+// ---- compare: reference vs build, side by side (TASK-174) -----------------------------
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+// Composition contract items (C1, C2, \u2026) recorded in DESIGN.md: "C1: \u2026", "- `C1`: \u2026", "**C1** \u2026".
+export function contractItems(text) {
+  const out = [];
+  for (const line of stripDocs(String(text)).split("\n")) {
+    const m = /^\s*(?:[-*]\s+)?[`*]*(C\d{1,2})[`*]*\s*[:.\u2014\u2013-]\s*(\S.*)$/.exec(line);
+    if (m && !out.some((x) => x.id === m[1])) out.push({ id: m[1], text: m[2].replace(/\s+/g, " ").slice(0, 240) });
+  }
+  return out;
+}
+
+// Outline rows side by side + whole-page numbers. Pure, so the test can pin the wording.
+export function outlineReport(ref, got, width) {
+  const L = [], secs = (o) => (o || []).filter((s) => s.kind === "section");
+  if (!ref || !ref.outline) return [`${width}px: reference outline not recorded (teardown older than TASK-174): re-run dotuiux teardown for it.`];
+  const a = secs(ref.outline), b = secs(got.outline);
+  L.push(`${width}px: reference ${a.length} sections / ${ref.height}px \u00b7 build ${b.length} sections / ${got.height}px (x${(got.height / ref.height).toFixed(2)} length)`);
+  L.push("", "| # | reference: heading \u00b7 cols \u00b7 height | build: heading \u00b7 cols \u00b7 height |", "|---|---|---|");
+  const cell = (s) => (s ? `${(s.heading || `(${s.tag}, no heading)`).replace(/[|<>]/g, " ")} \u00b7 ${s.cols} col \u00b7 ${s.h}px${s.media ? ` \u00b7 ${s.media} media` : ""}` : "\u2014");
+  for (let i = 0; i < Math.max(a.length, b.length); i++) L.push(`| ${i + 1} | ${cell(a[i])} | ${cell(b[i])} |`);
+  const fonts = (x) => (x.fonts || []).map((f) => f.v).filter(Boolean).join(" / ");
+  L.push("", `fonts: reference ${fonts(ref) || "-"} \u00b7 build ${fonts(got) || "-"}`);
+  for (const [who, x] of [["reference", ref], ["build", got]]) if (x.viewportHeight && x.height <= x.viewportHeight * 1.05)
+    L.push(`note: the ${who} is one screen tall at ${width}px: it likely scrolls inside a nested container, so its capture and outline cover the first screen only; judge it in a browser.`);
+  return L;
+}
+
+const sheetWidth = (w) => w * 2 + 56;
+const sheetScale = (w) => Math.min(1, SHEET_WIDTH_MAX / sheetWidth(w));
+
+function sheetHtml(w, refName, refImg, buildImg) {
+  const col = (title, src) => `<figure><figcaption>${esc(title)}</figcaption>${src ? `<div class=f><img src="${esc(src)}"></div>` : "<p>missing</p>"}</figure>`;
+  return `<!doctype html><meta charset=utf-8><style>
+html{zoom:${sheetScale(w)}}
+body{margin:0;background:#d9d9d9;font:600 20px/1.3 system-ui;color:#111;display:flex;gap:24px;padding:16px;width:max-content}
+figure{margin:0;width:${w}px} figcaption{padding:0 0 10px}
+.f{max-height:${COMPARE_SOURCE_MAX_PX}px;overflow:hidden;background:#fff;outline:1px solid #888} img{display:block;width:${w}px}
+</style>${col(`Reference \u00b7 ${refName} \u00b7 ${w}px`, refImg)}${col(`Build \u00b7 ${w}px`, buildImg)}`;
+}
+
+function reviewPrompt({ url, refName, out, sheets, items, brief, notes = [] }) {
+  return `# Independent visual review \u2014 ${url}
+
+You are reviewing a rendered web page, not code. Open these images in order (left = reference, right = build;
+parts run top to bottom, so the two sides drift apart further down):
+${sheets.map((s) => `- ${path.join(out, s)}`).join("\n")}
+${notes.length ? `\nCoverage limits (content past these points is not on the sheets: say UNVERIFIED, not missing):\n${notes.map((n) => `- ${n}`).join("\n")}\n` : ""}
+Answer in order and do not read DESIGN.md or the source before step 2:
+
+1. **Blind read of the build (right side only).** In two sentences: what business is this, who is it for,
+   and what is the one action it wants? Then list everything that would look the same on an unrelated
+   business's site (template composition, decoration, labels, card grids, kickers, fake dashboards).
+2. **Against the brief.** ${brief ? `Brief: ${brief}` : "Read design/brief.md."} Does the build serve that reader faster than
+   the reference serves its own? Name the first section where a reader would stall.
+3. **Composition contract.** For each item, PASS or REVISE with the visible evidence at a named width:
+${items.length ? items.map((c) => `   - ${c.id}: ${c.text}`).join("\n") : "   - (DESIGN.md records no C-items: say which reference geometry the build kept and which it flattened)"}
+4. **Verdict:** PASS / REVISE, and the three highest-value fixes in order. Do not propose decoration as a fix.
+
+Reference: ${refName}. Report only what the images show; say UNVERIFIED for anything you cannot see.
+`;
+}
+
+async function cmdCompare(argv) {
+  const { pos, opts } = parse(argv, { "--ref": true, "--out": true, "--design": true });
+  if (pos.length !== 1 || !opts["--ref"]) throw new UsageError("compare requires <url|file> and --ref <design/refs/host>");
+  const refDir = path.resolve(opts["--ref"]);
+  const factsFile = path.join(refDir, "facts.json");
+  if (!fs.existsSync(factsFile)) throw new Error(`no facts.json in ${refDir} (run: dotuiux teardown <url>)`);
+  const refFacts = JSON.parse(fs.readFileSync(factsFile, "utf8"));
+  const url = toUrl(pos[0]), refName = path.basename(refDir);
+  const out = path.resolve(opts["--out"] || path.join("design", "compare", `${refName}-${new Date().toISOString().slice(0, 10)}`));
+  const designPath = opts["--design"] || (fs.existsSync("DESIGN.md") ? "DESIGN.md" : null);
+  const items = designPath && fs.existsSync(designPath) ? contractItems(fs.readFileSync(designPath, "utf8")) : [];
+  const briefFile = path.join(path.dirname(path.resolve(designPath || "DESIGN.md")), "design", "brief.md");
+  const brief = fs.existsSync(briefFile) ? (sections(fs.readFileSync(briefFile, "utf8")).get("primary job") || "").trim().replace(/\s+/g, " ").slice(0, 400) : "";
+  fs.mkdirSync(out, { recursive: true });
+
+  const got = {};
+  await render(url, { onViewport: async (b, f, vp) => {
+    const shot = await b.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true,
+      clip: { x: 0, y: 0, width: vp.width, height: Math.min(f.ref.height, 16000), scale: 1 } });
+    fs.writeFileSync(path.join(out, `build-${vp.width}.png`), Buffer.from(shot.data, "base64"));
+    got[vp.width] = f.ref;
+  } });
+
+  const widths = VIEWPORTS.map((v) => v.width), md = [`# dotuiux compare`, "", `Build: ${url}`, `Reference: ${refFacts.url} (\`${path.relative(process.cwd(), refDir) || refDir}\`, captured ${refFacts.capturedAt || "?"})`, ""];
+  const { withBrowser } = await loadUiRef();
+  const sheetParts = {}, sheetNotes = [];
+  for (const w of widths) {
+    const refPng = path.join(refDir, `${w}.png`);
+    if (fs.existsSync(refPng)) fs.copyFileSync(refPng, path.join(out, `ref-${w}.png`));
+    fs.writeFileSync(path.join(out, `sheet-${w}.html`), sheetHtml(w, refName, fs.existsSync(refPng) ? `ref-${w}.png` : null, `build-${w}.png`));
+  }
+  // One browser for all sheets; each sheet is served from the output folder.
+  await withBrowser(async (b) => {
+    closeBrowser = b.close;
+    for (const w of widths) {
+      const served = await serveFile(pathToFileURL(path.join(out, `sheet-${w}.html`)).href);
+      try {
+        const sheetW = Math.ceil(sheetWidth(w) * sheetScale(w));
+        await b.send("Emulation.setDeviceMetricsOverride", { width: sheetW, height: 900, deviceScaleFactor: 1, mobile: false });
+        const loaded = b.once("Page.loadEventFired", 30000);
+        await within(b.send("Page.navigate", { url: served.url }), 30000); await loaded; await sleep(300);
+        // scrollHeight is already in zoomed (screen) pixels; multiplying by zoom again cut the sheet short.
+        const h = await evalIn(b, "document.documentElement.scrollHeight", "sheet height");
+        const n = Math.min(SHEET_PARTS_MAX, Math.max(1, Math.ceil(h / SHEET_PART_PX)));
+        for (let i = 0; i < n; i++) {
+          const y = i * SHEET_PART_PX, ph = Math.min(SHEET_PART_PX, Math.ceil(h) - y);
+          const shot = await b.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y, width: sheetW, height: ph, scale: 1 } });
+          fs.writeFileSync(path.join(out, `sheet-${w}-${i + 1}.png`), Buffer.from(shot.data, "base64"));
+        }
+        sheetParts[w] = n;
+        if (h > SHEET_PART_PX * SHEET_PARTS_MAX) sheetNotes.push(`${w}px: sheet cut after ${SHEET_PARTS_MAX} parts; the rest of both pages is in ref-${w}.png / build-${w}.png`);
+      } finally { served.close(); }
+    }
+  }, { throwOnUnavailable: true });
+  closeBrowser = null;
+  const sheetList = (w) => Array.from({ length: sheetParts[w] || 0 }, (_, i) => `sheet-${w}-${i + 1}.png`);
+  for (const w of widths) for (const [who, x] of [["reference", refFacts.viewports?.[w]], ["build", got[w]]])
+    if (x && x.height > COMPARE_SOURCE_MAX_PX) sheetNotes.push(`${w}px: the ${who} is ${x.height}px tall; its sheet side stops at ${COMPARE_SOURCE_MAX_PX}px, so anything below is not on the sheets (judge it in ${who === "build" ? `build-${w}.png` : `ref-${w}.png`} or a browser)`);
+  for (const w of widths) md.push(`## ${w}px \u2014 ${sheetList(w).map((s) => `\`${s}\``).join(", ")}`, "", ...outlineReport(refFacts.viewports?.[w], got[w], w), "");
+  for (const n of sheetNotes) md.push(`note: ${n}`);
+
+  md.push("## Composition contract", "", ...(items.length ? items.map((c) => `- [ ] **${c.id}** ${c.text} \u2014 PASS / REVISE, evidence at a named width:`)
+    : ["DESIGN.md records no C-items. Record what transfers from this reference as C1, C2, \u2026 before judging fidelity."]), "");
+  md.push("Numbers describe structure, not taste. The verdict comes from looking at the sheets: by the owner, or by an",
+    "independent reviewer that did not build the page (`review-prompt.md`; skill `dotuiux` \u00a75).");
+  fs.writeFileSync(path.join(out, "report.md"), md.join("\n") + "\n");
+  fs.writeFileSync(path.join(out, "review-prompt.md"), reviewPrompt({ url, refName, out, sheets: widths.flatMap(sheetList), items, brief, notes: sheetNotes }));
+  console.log(md.slice(0, 4).join("\n"));
+  console.log(`\nwrote ${out}/\n  ${widths.map((w) => `sheet-${w}-1..${sheetParts[w]}.png`).join("  ")}  report.md  review-prompt.md`);
+  const sq = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`; // printed for copy-paste: quote for the shell
+  console.log(`next: open the sheets; independent review e.g.\n  ai-ask claude --cwd ${sq(process.cwd())} -- "$(cat ${sq(path.join(out, "review-prompt.md"))})"`);
+}
+
 function report(url, results, notes, handoff = false) {
   const L = [`dotuiux check ${url}`, `viewports ${VIEWPORTS.map((v) => v.width).join("/")} · reduced motion at ${REDUCED_MOTION_WIDTH}`];
   if (handoff) L.push("mode: --checkout-handoff (D9): one WhatsApp link may sit in the hero; other contact rules unchanged");
@@ -1071,6 +1321,7 @@ async function main() {
       case "init": cmdInit(rest); break;
       case "teardown": await cmdTeardown(rest); break;
       case "check": await cmdCheck(rest); break;
+      case "compare": await cmdCompare(rest); break;
       case "validate": cmdValidate(rest); break;
       default: console.error(`Unknown subcommand: ${sub}`); usage(2);
     }

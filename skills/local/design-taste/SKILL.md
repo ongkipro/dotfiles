@@ -39,23 +39,27 @@ No `design/brief.md` + `DESIGN.md` yet: start with `dotuiux init`/`teardown`
 3. **Outline before layout**: sections in reading order, each with the one
    thing it must let the reader do; the states that matter. Missing content
    becomes a list for the owner; copy is written through `copywriting`.
-4. **Inspect one or two references.** Find candidates with web search using
-   the queries at the end of the surface entry (or the niche file); pick
-   sites whose job matches. Capture: `node scripts/ui-ref.mjs capture <url>
-   --out design/refs/<name>`, then open the PNGs. A supplied image counts. A
-   URL list or a reference recalled from memory does not. Method only if
-   needed: [design-discovery.md](references/design-discovery.md).
-5. **Write the decision** into the project's `DESIGN.md` (create it at the
-   repo root if none exists; if an accepted spec already holds design
-   decisions, extend that instead of adding a second file), this short:
+4. **Inspect references.** Find candidates with web search using the queries
+   at the end of the surface entry (or the niche file); pick sites whose job
+   matches. Capture with `dotuiux teardown <urls>` and read them with the
+   `dotuiux` skill's `references/reference-reading.md`. A supplied image
+   counts. A URL list or a reference recalled from memory does not. Method
+   only if needed: [design-discovery.md](references/design-discovery.md).
+5. **Propose, the owner picks.** Two or three directions; the owner picks one.
+   Write it into the project's `DESIGN.md` (create it at the repo root if none
+   exists; if an accepted spec already holds design decisions, extend that
+   instead of adding a second file), under 150 lines:
 
    ```markdown
    ## Direction — <page>
+   Picked-by: owner YYYY-MM-DD (direction B of 3)
    Surface/job: …
    References: design/refs/<name> — what transfers: …
-   Sections (in order): …
+   Sections (in order, each with its one job): …
    Type / color / shape: …
-   Composition contract (reference-driven only): C1 … C2 …
+   ### Composition contract
+   C1: … (one item per line)
+   C2: …
    ```
 
 ## 2. Direction rules
@@ -166,12 +170,16 @@ as the house baseline (WCAG 2.2 minimum is 24 px). Checklist:
    the browser tool available in this runtime, or the project's Playwright)
    and open the images.
    A build or an overflow number is not a look.
-2. Critique against §3 and the recorded direction; fix; re-render. Reference-
-   driven: check each `C` item.
-3. `ui-validation` for behavior, keyboard, states, both themes.
-4. Report behavior and visual acceptance separately: PASS / REVISE /
-   UNVERIFIED. Not rendered or not opened = UNVERIFIED, never "provisional".
-   Name what was not checked.
+2. Critique against §3 and the recorded direction; fix; re-render.
+3. `dotuiux check` (floor + template signals), then `dotuiux compare <url>
+   --ref design/refs/<host>` and an independent verdict on the sheets (owner
+   or a model that did not build the page; skill `dotuiux` §5). Your own
+   critique is step 2, never the verdict.
+4. `ui-validation` for behavior, keyboard, states, both themes.
+5. Report behavior and visual acceptance separately: PASS / REVISE /
+   UNVERIFIED, naming who gave the visual verdict. Not rendered, not opened,
+   or no independent verdict = UNVERIFIED, never "provisional". Name what
+   was not checked.
 
 Read-only reference access does not authorize live submissions; use fixtures
 or a sandbox for purchase, account, and destructive flows.

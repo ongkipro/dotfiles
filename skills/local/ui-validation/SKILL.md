@@ -75,9 +75,10 @@ checks, axe scoping, aria and pixel snapshots, raw timings for `web-perf`):
 For a new surface or material visual change, after behavior passes: open the
 narrow and wide captures and judge hierarchy, composition, density,
 alignment, typography, states, and responsive transformation against the
-accepted direction. For reference-driven work compare each recorded contract
-item (`C1…`) at the reference's viewport; a deviation without a recorded
-reason is REVISE. For admin surfaces attach the `admin-dashboard`
+accepted direction. For reference-driven work run `dotuiux compare` and judge
+each recorded contract item (`C1…`) on its side-by-side sheets; a deviation
+without a recorded reason is REVISE. The visual verdict comes from the owner
+or a reviewer that did not build the page; the builder's own look is not it. For admin surfaces attach the `admin-dashboard`
 `scripts/admin-geometry.mjs` report per changed route (exit 1 = REVISE; exit
 3 / `NOT-CHECKED` = not checked). A generic template replacing a distinctive
 direction is REVISE even when the flow passes.
