@@ -117,7 +117,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Owned skills | [`skills/local/`](../skills/local/) | 75 | linked from this page |
 | Commands | [`bin/`](../bin/) | 62 | linked from this page |
 | Command tests | [`bin/`](../bin/) | 74 | linked from this page |
-| Device profiles | [`devices/`](../devices/) | 8 | linked from this page |
+| Device profiles | [`devices/`](../devices/) | 9 | linked from this page |
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
 | Top-level docs | [`docs/`](../docs/) | 19 | linked from this page |
 | AI control files | [`config/ai/`](../config/ai/) | 31 | linked from this page |
@@ -508,6 +508,7 @@ Managed by `bin/device-register`, documenting exact hardware and OS specs:
 | [`feris-MacBook-Air.md`](../devices/feris-MacBook-Air.md) | Apple MacBook Air (M1, 8GB RAM) | macOS 26.5 | Secondary macOS workstation |
 | [`Olans-MacBook-Pro.md`](../devices/Olans-MacBook-Pro.md) | Apple MacBook Pro (M2, 8GB RAM) | macOS 26.5 | Secondary macOS workstation |
 | [`lenovo.md`](../devices/lenovo.md) | Intel i7-1355U, 7.6 GB RAM | Ubuntu 26.04.1 LTS on WSL2 | Windows-hosted Linux dev environment |
+| [`dot.md`](../devices/dot.md) | Lenovo Yoga Book 9 13IRU8 (i7-1355U, 14.8 GB RAM) | Ubuntu 26.04.1 LTS | Dual-screen OLED convertible Linux laptop |
 
 ---
 
