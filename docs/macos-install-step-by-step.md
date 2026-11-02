@@ -119,8 +119,9 @@ node -v && npm -v
    dilacak, dan buat folder kerja.
 
 > **Optional Pi/remote-9Router adapter:** set `DOTFILES_SETUP_PI=1` only when
-> Pi support is wanted. The adapter targets the authenticated tunnel and does
-> not install or start a local 9Router gateway.
+> Pi support is wanted. Point the copied `models.json` at the device's 9Router
+> endpoint (localhost on the gateway host, otherwise the tailnet address); no
+> public tunnel. The adapter does not install or start a local 9Router gateway.
 
 > ### ⚠️ Mac ini sudah punya config sendiri?
 > `install-macos.sh` mengganti config lama dengan symlink. File aslinya **di-backup** ke

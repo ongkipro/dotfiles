@@ -1,11 +1,11 @@
-# Antigravity primary + 9Router Fantastico Tunnel reserve overlay.
+# Antigravity primary + device-local 9Router Fantastico reserve overlay.
 #
 #   omp --config ~/dotfiles/config/omp/overlays/antigravity-hosted.yml
 #
 # Primary capacity runs entirely on Google Antigravity (Gemini 3.8 Flash and Claude Opus 4.6),
 # avoiding consumption of limited MiniMax / OpenCode Go quotas.
 #
-# 9Router Fantastico Tunnel (cx/gpt-5.6-sol) serves as the cross-host availability
+# 9Router Fantastico (cx/gpt-5.6-sol, device-local or tailnet) serves as the cross-host availability
 # fallback and reasoning escalation bridge.
 
 __test_providers__: google-antigravity,9router-fantastico
