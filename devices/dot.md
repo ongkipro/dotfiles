@@ -1,7 +1,7 @@
 # Device: `dot`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-11-02**
+> Terakhir diperbarui: **2026-11-03**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -22,7 +22,7 @@
 | CPU | 13th Gen Intel(R) Core(TM) i7-1355U (12 thread) |
 | RAM | 14.8 GB |
 | GPU | Intel Corporation Raptor Lake-P [Iris Xe Graphics] (rev 04) |
-| Disk (/) | 937G total, 873G free (2% used) |
+| Disk (/) | 937G total, 861G free (4% used) |
 
 ## AI CLI
 

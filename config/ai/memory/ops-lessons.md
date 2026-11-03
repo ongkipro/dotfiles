@@ -162,3 +162,26 @@ Separate migrate image and Coolify app run before the web deploy (Bukalaris docs
 Re-read coollabsio/coolify-docs applications/builds/dockerfile before relying on it.
 
 > Promoted from a reviewed local candidate on 2026-10-29.
+
+
+---
+
+
+## Lesson: Lenovo Yoga Book 9i (13IRU8 / 17ef:6161) dual touchscreen & stylus mapping on Ubuntu GNOME Wayland
+
+### Symptom
+Both Touchscreen Top and Touchscreen Bottom map to eDP-1 in GNOME Wayland, and Touchscreen Top coordinates are inverted 180 degrees when eDP-1 is rotated upside_down.
+
+### Root cause
+eDP-1 OLED panel is physically mounted upside down (180 deg) while the Ingenic 17ef:6161 digitizer reports normal (0,0) top-left coordinates; additionally, stock Mutter MetaInputMapper keys GSettings peripheral mappings only by vendor:product (17ef:6161), merging Top and Bottom.
+
+### Durable invariant
+Dual touchscreens/styluses sharing one USB VID:PID in stock Mutter require distinct product IDs (17ef:6161 for Top, uinput 17ef:6162 for Bottom) plus LIBINPUT_CALIBRATION_MATRIX='-1 0 1 0 -1 1 0 0 1' on Top to cancel eDP-1's 180-deg panel rotation.
+
+### Fix
+Set udev calibration matrix on 17ef:6161 Top, LIBINPUT_IGNORE_DEVICE=1 on raw 17ef:6161 Bottom, run a libevdev uinput bridge (yogabook-touch-bridge.service) exposing Bottom as 17ef:6162, and bind 17ef:6161->eDP-1 and 17ef:6162->eDP-2 in GSettings.
+
+### Regression check
+gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Mutter/InputMapping --method org.gnome.Mutter.InputMapping.GetDeviceMapping /dev/input/eventX returns ((0, 0, 1440, 900),) for Top and ((1440, 0, 1440, 900),) for Bottom.
+
+> Promoted from a reviewed local candidate on 2026-11-02.

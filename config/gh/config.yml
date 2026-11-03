@@ -1,13 +1,3 @@
-# gh CLI config — DI-SYMLINK dari dotfiles ke ~/.config/gh/config.yml.
-# Token OAuth TIDAK di sini: ada di ~/.config/gh/hosts.yml (mode 600, sengaja TIDAK di-sync).
-#
-# ⚠️ Schema harus LENGKAP sesuai versi gh terpasang. Kalau ada key yang hilang, gh menulis
-# ulang file ini — dan karena ini symlink, tulisannya mendarat langsung di repo dotfiles
-# sebagai diff liar. Sesudah upgrade gh: bandingkan dengan `gh config list`, lalu samakan.
-#
-# ⚠️ git_protocol di sini KALAH dari git_protocol per-host di hosts.yml.
-# Efektifnya https — GitHub diakses lewat token, bukan kunci SSH (tak ada kunci GitHub di ~/.ssh).
-
 # The current version of the config schema
 version: 1
 # What protocol to use when performing git operations. Supported values: ssh, https
