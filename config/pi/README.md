@@ -16,6 +16,21 @@ copy credentials or make Pi an OMP prerequisite.
   compaction runs on the active 9Router model. The provider label
   preserves existing Pi authentication. Authenticate that provider through Pi
   before using it; a second label does not inherit its key.
+- `packages[]` is the device-independent baseline of Pi packages (`pi-web-access`,
+  `pi-agent-browser-native`, `pi-subagents`, `@narumitw/pi-lsp`, `cc-safety-net`,
+  `pi-background-tasks`, `@ff-labs/pi-fff`, `@narumitw/pi-plan-mode`,
+  `@juicesharp/rpiv-todo`, `pi-rewind-hook`). Pi installs a missing package at
+  startup, `pi update --extensions` reconciles versions, and `pi list` shows
+  what a device actually resolved. The baseline is additive: a device may keep
+  local packages the tracked list does not carry, and `pi-9router-restore`
+  never removes them.
+- A device that installs `pi-mcp-adapter` instead of Pi's built-in MCP
+  extension must record `"extensions": ["-builtin:mcp"]` and
+  `"defaultTools": ["+codemode"]` in its own `settings.json`: both register
+  `/mcp`, and only the built-in extension turns codemode on by itself. Servers
+  still come from `~/.pi/agent/mcp.json`, written by `ai-mcp-sync`.
+- `cc-safety-net` is the Pi-side guard for destructive commands and secret-file
+  reads. It does not replace the approval gates in `config/ai/CORE.md`.
 - `models.template.json` is a non-secret starter. Set its copied `baseUrl` for
   the actual device: localhost only on the gateway host, otherwise the owner's
   configured remote endpoint. The helper contains no fixed tunnel address.
@@ -26,7 +41,10 @@ copy credentials or make Pi an OMP prerequisite.
   indexing `$HOME` and silence only the warning.
 - `pi-lsp.json` routes `@narumitw/pi-lsp` to `typescript-language-server`,
   `pyright-langserver` and `bash-language-server` (install them with mise/npm;
-  a missing server is skipped).
+  a missing server is skipped). The TypeScript route also needs the
+  `typescript` package itself, because the language server starts that
+  package's `tsserver.js`: TypeScript 7.x is the native port and ships no
+  `tsserver.js`, so the route needs `typescript` 6.x or lower.
 
 ## Package set
 

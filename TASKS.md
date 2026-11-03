@@ -1,13 +1,12 @@
 # Tasks — dotfiles
 
-Updated: 2026-11-01
+Updated: 2026-11-03
 
 Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
 
-Done 2026-10-30: TASK-159 → [archive](docs/archive/DOTFILES_TASKS_2026-10-30_META_COPY.md); TASK-091 superseded by TASK-160 → [record](docs/archive/TASKS-091-superseded.md); TASK-160 and TASK-161 → [archive](docs/archive/TASKS-160-161-completed.md).
-Done 2026-10-31: TASK-162 to TASK-165 → [archive](docs/archive/TASKS-162-166-completed.md); TASK-167 → [archive](docs/archive/TASKS-167-completed.md); TASK-168 → [archive](docs/archive/TASKS-168-completed.md); TASK-169 → [archive](docs/archive/TASKS-169-completed.md).
-Done 2026-11-01: TASK-170 → [archive](docs/archive/TASKS-170-completed.md); TASK-171 and TASK-172 → [archive](docs/archive/TASKS-171-completed.md); TASK-173 → [archive](docs/archive/TASKS-173-completed.md).
-Done 2026-11-02: TASK-174 → [archive](docs/archive/TASKS-174-completed.md).
+Done 2026-10-30: TASK-159 → [META_COPY](docs/archive/DOTFILES_TASKS_2026-10-30_META_COPY.md); TASK-091 superseded by TASK-160 → [record](docs/archive/TASKS-091-superseded.md); TASK-160/161 → [160-161](docs/archive/TASKS-160-161-completed.md).
+Done 2026-10-31: TASK-162-165 → [162-166](docs/archive/TASKS-162-166-completed.md); TASK-167 → [167](docs/archive/TASKS-167-completed.md); TASK-168 → [168](docs/archive/TASKS-168-completed.md); TASK-169 → [169](docs/archive/TASKS-169-completed.md).
+Done 2026-11-01 to 2026-11-03: TASK-170 → [170](docs/archive/TASKS-170-completed.md); TASK-171/172 → [171](docs/archive/TASKS-171-completed.md); TASK-173 → [173](docs/archive/TASKS-173-completed.md); TASK-174 → [174](docs/archive/TASKS-174-completed.md); TASK-176 → [176](docs/archive/TASKS-176-completed.md).
 
 ## Pending
 

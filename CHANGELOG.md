@@ -34,6 +34,20 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
   project-local `.pi`) instead of `--no-tools`.
 - Tests: `pi-9router-restore-test`, `shell-wrapper-test`, `ai-ask-test`.
 
+### Pi: device-local package additions and the MCP adapter rule (TASK-176) — 2026-11-03
+
+- The tracked `config/pi/settings.json` keeps the pulled baseline. `dot` keeps
+  local packages the baseline does not carry; `pi-9router-restore` only adds
+  tracked packages, so they survive a pull, and the device records them in
+  `~/.config/ai-local/device.md`.
+- `config/pi/README.md` now states the rule a device follows when it installs
+  `pi-mcp-adapter` instead of Pi's built-in MCP extension: `-builtin:mcp` in
+  `extensions` and `+codemode` in `defaultTools`, because both register `/mcp`
+  and only the built-in extension turns codemode on by itself.
+- `config/ai/adapters/pi.md` records the one-MCP-owner rule in the shared Pi
+  context; each device records its chosen MCP implementation and its local
+  packages in `~/.config/ai-local/device.md`.
+
 ### Cloudflare Asia-Pacific placement default (TASK-175) — 2026-11-02
 
 - New `skills/local/cloudflare/references/apac-placement.md`: what each layer
