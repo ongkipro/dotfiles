@@ -28,6 +28,10 @@ copy credentials or make Pi an OMP prerequisite.
   what a device actually resolved. The baseline is additive: a device may keep
   local packages the tracked list does not carry, and `pi-9router-restore`
   never removes them.
+- `pi list` is the honest signal: a package listed without an install path is
+  not in the device's package manifest. `pi update --extensions` skipped a
+  scoped, version-pinned source (`npm:@scope/name@version`) on one device, so
+  run `pi install npm:@scope/name@version` once to register it.
 - A device that installs `pi-mcp-adapter` instead of Pi's built-in MCP
   extension must record `"extensions": ["-builtin:mcp"]` and
   `"defaultTools": ["+codemode"]` in its own `settings.json`: both register
