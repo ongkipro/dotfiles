@@ -45,8 +45,8 @@ python3 -c "import json; d=json.load(open('$TMP/.omp/agent/mcp.json')); assert '
   || fail "OMP MCP invalid or still injected shadcn"
 
 # 7. Check Pi
-python3 -c "import json; p=json.load(open('$TMP/.pi/agent/mcp.json'))['mcpServers']['playwright']; assert '--isolated' in p['args'] and p.get('description') and p.get('toolExposure',{}).get('browser_run_code_unsafe')=='hidden'" \
-  || fail "Pi MCP invalid or missing Playwright isolation/description/toolExposure"
+python3 -c "import json; p=json.load(open('$TMP/.pi/agent/mcp.json'))['mcpServers']['playwright']; assert '--prefix' in p['args'] and '--isolated' in p['args'] and p.get('description') and p.get('toolExposure',{}).get('browser_run_code_unsafe')=='hidden'" \
+  || fail "Pi MCP invalid or missing Playwright prefix/isolation/description/toolExposure"
 
 # 8. Check --check reports in-sync
 run_sync --check >/dev/null || fail "ai-mcp-sync --check should return 0 when in sync"

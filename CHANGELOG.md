@@ -19,11 +19,14 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
   repeated `packages` (preferring version-pinned entries) and `enabledModels`,
   and adds `-builtin:mcp` / `+codemode` if a device still carries
   `pi-mcp-adapter`.
-- `config/ai/mcp-servers.json` and `bin/ai-mcp-sync` add `--isolated` and
-  `--output-dir /tmp/playwright-mcp` to `@playwright/mcp@0.0.84` (preventing
-  concurrent profile-lock collisions and keeping `.playwright-mcp/traces` out
-  of repository working trees), and sync Pi's `description` and `toolExposure`
-  (`browser_run_code_unsafe: hidden`) into `~/.pi/agent/mcp.json`.
+- `config/ai/mcp-servers.json` and `bin/ai-mcp-sync` add `--prefix /tmp`,
+  `--isolated`, and `--output-dir /tmp/playwright-mcp` to
+  `@playwright/mcp@0.0.84` (preventing project `package.json`
+  `devEngines.runtime` checks from aborting `npx` with `EBADDEVENGINES`,
+  avoiding concurrent profile-lock collisions, and keeping
+  `.playwright-mcp/traces` out of repository working trees), and sync Pi's
+  `description` and `toolExposure` (`browser_run_code_unsafe: hidden`) into
+  `~/.pi/agent/mcp.json`.
 - Added `@narumitw/pi-worktree` (`/worktree`: create, inspect, switch, and prune
   Git worktrees while transferring the active Pi conversation to the new
   worktree directory) and `@narumitw/pi-btw` (`/btw`: side-question overlay

@@ -3,6 +3,8 @@
     "playwright": {
       "command": "npx",
       "args": [
+        "--prefix",
+        "/tmp",
         "-y",
         "@playwright/mcp@0.0.84",
         "--browser",
