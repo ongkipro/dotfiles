@@ -7,9 +7,13 @@ copy credentials or make Pi an OMP prerequisite.
 ## Tracked reference and local state
 
 - `settings.json` runs Pi on its documented defaults (`docs/settings.md` in the installed package):
-  it sets only the startup provider/model (`9router-fantastico/cc/claude-opus-5-5`),
+  it sets only the startup provider/model (`9router-fantastico/cc/claude-sonnet-5-5`)
+  and thinking level (`medium`; switch per task with `Shift+Tab` or `/thinking`,
+  and to Opus with `Ctrl+P` when the work needs it),
   the `enabledModels` cycling list (Ctrl+P; patterns for providers a device has
-  not authenticated simply do not match), `quietStartup`, the package set below
+  not authenticated simply do not match), `quietStartup`, `hideThinkingBlock`
+  (thinking shows as a `Thinking...` label, `Ctrl+T` reveals it; answers stay
+  in full and tool output is already collapsed by default, `Ctrl+O`), the package set below
   (`pi-subagents` and `pi-lsp` stay pinned to their verified versions), and a
   bounded `rewind.retention`. Thinking level,
   theme, startup output and compaction stay at Pi's defaults; Pi's built-in
@@ -110,7 +114,7 @@ than copying accounts or demanding identical provider labels.
 
 ```bash
 pi-update-safe --self
-pi auth check --provider 9router-fantastico --model cc/claude-opus-5-5 --json
+pi auth check --provider 9router-fantastico --model cc/claude-sonnet-5-5 --json
 pi --list-models
 ~/dotfiles/bin/pi-9router-restore-test
 systemctl --user list-timers pi-9router-sync.timer
