@@ -23,7 +23,8 @@ copy credentials or make Pi an OMP prerequisite.
 - `packages[]` is the device-independent baseline of Pi packages (`pi-web-access`,
   `pi-agent-browser-native`, `pi-subagents`, `@narumitw/pi-lsp`, `cc-safety-net`,
   `pi-background-tasks`, `@ff-labs/pi-fff`, `@narumitw/pi-plan-mode`,
-  `@juicesharp/rpiv-todo`, `pi-rewind-hook`). Pi installs a missing package at
+  `@juicesharp/rpiv-todo`, `pi-rewind-hook`, `@narumitw/pi-worktree`,
+  `@narumitw/pi-btw`). Pi installs a missing package at
   startup, `pi update --extensions` reconciles versions, and `pi list` shows
   what a device actually resolved. The baseline is additive: a device may keep
   local packages the tracked list does not carry, and `pi-9router-restore`
@@ -64,6 +65,8 @@ run with Pi's permissions, so add one only after reading its source.
 |---|---|---|
 | Guardrail | `cc-safety-net` | Blocks destructive commands and secret-file reads before the tool runs. Pi has no dotfiles hooks; this is its enforcement layer. Not a sandbox. |
 | Plan mode | `@narumitw/pi-plan-mode` | `/plan`: read-only exploration and an approved plan before edits. |
+| Worktree | `@narumitw/pi-worktree` | `/worktree`: create, inspect, switch, and prune Git worktrees in TUI while moving the active session into the new worktree directory. Registers no model tools. |
+| Side thread | `@narumitw/pi-btw` | `/btw <question>`: ask side questions in an overlay thread without polluting the main conversation history or prompt cache. Registers no model tools. |
 | Task list | `@juicesharp/rpiv-todo` | Model-maintained todo overlay that survives compaction. |
 | Rewind | `pi-rewind-hook` | `/tree` or `/fork` restores files with the conversation. Stores snapshots under `refs/pi-rewind/store` in the project's own `.git` with a temporary index (never the working index); retention keeps it bounded. Needs a Git repository. |
 | Diagnostics | `@narumitw/pi-lsp` | `lsp_diagnostics`, `lsp_fix`; see `pi-lsp.json`. |
@@ -90,9 +93,12 @@ ai-mcp-sync
 `pi-9router-restore` seeds missing `settings.json`, `models.json`, `pi-fff.json` and
 `pi-lsp.json`, and removes the retired `~/.pi/extensions/compact-free` copy.
 An existing `settings.json` gains tracked packages it lacks (matched by
-package name, so a local pin wins), missing `enabledModels` entries, and
-`rewind`, `hideThinkingBlock`, `quietStartup`, and `defaultThinkingLevel` when
-absent; Pi installs added packages on its next start. `dotsync autopull` does
+package name, so a local pin wins), deduplicates repeated `packages` (keeping
+any version-pinned entry) and `enabledModels` entries, guards `pi-mcp-adapter`
+against colliding with `builtin:mcp` when present, and seeds missing
+`enabledModels`, `rewind`, `hideThinkingBlock`, `quietStartup`, and
+`defaultThinkingLevel` when absent; Pi installs added packages on its next
+start. `dotsync autopull` does
 not run it automatically, so third-party extension code is never installed
 silently. `ai-mcp-sync` updates `~/.pi/agent/mcp.json` with the shared
 Playwright MCP definition (`--isolated`, `--output-dir /tmp/playwright-mcp`,
@@ -105,6 +111,8 @@ Pi `description`, and `toolExposure`).
 | `Shift+Tab` or `/thinking` | Switch thinking level for the current task (`defaultThinkingLevel: "medium"`). |
 | `Ctrl+P` | Cycle across `enabledModels` (Sonnet 5.5, Opus 5.5, GPT-6.1, etc.). |
 | `/plan <prompt>` | Enter read-only Plan mode (`@narumitw/pi-plan-mode`), clarify via structured questions, and review before edits. |
+| `/worktree` | Create, inspect, switch, or prune Git worktrees (`@narumitw/pi-worktree`) and transfer the active Pi session into the selected worktree. |
+| `/btw <question>` | Open a side-question overlay (`@narumitw/pi-btw`) without changing the main conversation history or prompt cache. |
 | `/tree` or `/fork` | Navigate or branch conversation history while `pi-rewind-hook` restores tracked files to that point. |
 | `/mcp` or `pi mcp list` | Inspect the connected Playwright MCP server and its `codemode` tool exposure. |
 

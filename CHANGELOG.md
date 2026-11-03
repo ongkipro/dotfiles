@@ -15,12 +15,20 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
   default (`Ctrl+O`). Display only; it does not change token use.
 - `pi-9router-restore` now also seeds missing `hideThinkingBlock`,
   `quietStartup`, `defaultThinkingLevel`, and `enabledModels` entries into an
-  existing `settings.json` without overwriting local choices.
+  existing `settings.json` without overwriting local choices, deduplicates
+  repeated `packages` (preferring version-pinned entries) and `enabledModels`,
+  and adds `-builtin:mcp` / `+codemode` if a device still carries
+  `pi-mcp-adapter`.
 - `config/ai/mcp-servers.json` and `bin/ai-mcp-sync` add `--isolated` and
   `--output-dir /tmp/playwright-mcp` to `@playwright/mcp@0.0.84` (preventing
   concurrent profile-lock collisions and keeping `.playwright-mcp/traces` out
   of repository working trees), and sync Pi's `description` and `toolExposure`
   (`browser_run_code_unsafe: hidden`) into `~/.pi/agent/mcp.json`.
+- Added `@narumitw/pi-worktree` (`/worktree`: create, inspect, switch, and prune
+  Git worktrees while transferring the active Pi conversation to the new
+  worktree directory) and `@narumitw/pi-btw` (`/btw`: side-question overlay
+  thread that preserves the main conversation history and prompt cache); both
+  register only TUI slash commands with zero extra model tools.
 
 ### Pi: propagate the package set to existing devices — 2026-11-03
 

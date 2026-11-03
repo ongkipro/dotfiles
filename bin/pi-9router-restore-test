@@ -72,7 +72,7 @@ grep -q '"defaultProvider":"local"' "$FAKE_HOME/.pi/agent/settings.json"
 # packages, other keys and the file mode are kept, and a re-run adds nothing.
 seed_backup="$(cat "$FAKE_DOT/config/pi/settings.json")"
 printf '%s\n' '{"defaultProvider":"fixture","hideThinkingBlock":true,"defaultThinkingLevel":"medium","enabledModels":["model-a","model-b"],"packages":["npm:pi-subagents","npm:@scope/tool@2.0.0","npm:new-pkg"],"rewind":{"retention":{"maxSnapshots":5}}}' > "$FAKE_DOT/config/pi/settings.json"
-printf '%s\n' '{"defaultProvider":"local","quietStartup":true,"enabledModels":["model-a"],"packages":["npm:pi-subagents@0.84.0","npm:@scope/tool","npm:local-only"]}' > "$FAKE_HOME/.pi/agent/settings.json"
+printf '%s\n' '{"defaultProvider":"local","quietStartup":true,"enabledModels":["model-a","model-a"],"packages":["npm:pi-subagents","npm:pi-subagents@0.84.0","npm:@scope/tool","npm:local-only","npm:local-only"]}' > "$FAKE_HOME/.pi/agent/settings.json"
 chmod 600 "$FAKE_HOME/.pi/agent/settings.json"
 run_restore
 python3 - "$FAKE_HOME/.pi/agent/settings.json" <<'PY'

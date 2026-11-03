@@ -64,20 +64,51 @@ def package_name(source):
     return spec if at == -1 else spec[:at]
 
 
-packages = settings.get("packages") or []
-present = {package_name(p) for p in packages}
+def has_version_pin(source):
+    if not isinstance(source, str) or not source.startswith("npm:"):
+        return False
+    return source[4:].find("@", 1) != -1
+
+
+raw_packages = settings.get("packages") or []
+packages = []
+index_by_name = {}
+removed_dups = 0
+for p in raw_packages:
+    name = package_name(p)
+    if name in index_by_name:
+        removed_dups += 1
+        idx = index_by_name[name]
+        if has_version_pin(p) and not has_version_pin(packages[idx]):
+            packages[idx] = p
+    else:
+        index_by_name[name] = len(packages)
+        packages.append(p)
+present = set(index_by_name)
 added = [p for p in seed.get("packages", []) if package_name(p) not in present]
-changed = bool(added)
-if added:
+changed = bool(added or removed_dups)
+if added or removed_dups:
     settings["packages"] = packages + added
+if "pi-mcp-adapter" in {package_name(p) for p in settings.get("packages") or []}:
+    exts = list(settings.get("extensions") or [])
+    if "-builtin:mcp" not in exts:
+        exts.append("-builtin:mcp")
+        settings["extensions"] = exts
+        changed = True
+    tools = list(settings.get("defaultTools") or [])
+    if "+codemode" not in tools:
+        tools.append("+codemode")
+        settings["defaultTools"] = tools
+        changed = True
 for key in ("rewind", "hideThinkingBlock", "quietStartup", "defaultThinkingLevel"):
     if key not in settings and key in seed:
         settings[key] = seed[key]
         changed = True
-if "enabledModels" in seed:
-    models = settings.get("enabledModels") or []
-    missing_models = [m for m in seed["enabledModels"] if m not in models]
-    if missing_models:
+if "enabledModels" in seed or "enabledModels" in settings:
+    raw_models = settings.get("enabledModels") or []
+    models = list(dict.fromkeys(raw_models))
+    missing_models = [m for m in seed.get("enabledModels", []) if m not in models]
+    if len(models) != len(raw_models) or missing_models:
         settings["enabledModels"] = models + missing_models
         changed = True
 if changed:
