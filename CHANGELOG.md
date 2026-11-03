@@ -6,6 +6,16 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-28
 
+### Pi: propagate the package set to existing devices — 2026-11-03
+
+- `pi-9router-restore` adds tracked packages missing from an existing
+  `settings.json` (by package name; local pins, extra packages, other keys and
+  file mode kept) and `rewind.retention` when absent. Re-runs are no-ops.
+  Explicit by design: `dotsync autopull` never installs extension code.
+- Verified end to end on `rich`: a real Pi session wrote a file and
+  `pi-rewind-hook` recorded `refs/pi-rewind/store` without staging anything;
+  `ai-ask pi` read the file and had no write tool.
+
 ### Pi: full tracked configuration and Claude Code–level capabilities — 2026-11-03
 
 - `config/pi/settings.json` now mirrors the live portable settings: startup

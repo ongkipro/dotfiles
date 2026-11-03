@@ -68,6 +68,26 @@ printf '%s\n' '{"defaultProvider":"local","defaultModel":"preserve"}' > "$FAKE_H
 run_restore
 grep -q '"defaultProvider":"local"' "$FAKE_HOME/.pi/agent/settings.json"
 
+# An existing file gains missing tracked packages by name; local pins, extra
+# packages, other keys and the file mode are kept, and a re-run adds nothing.
+seed_backup="$(cat "$FAKE_DOT/config/pi/settings.json")"
+printf '%s\n' '{"defaultProvider":"fixture","packages":["npm:pi-subagents","npm:@scope/tool@2.0.0","npm:new-pkg"],"rewind":{"retention":{"maxSnapshots":5}}}' > "$FAKE_DOT/config/pi/settings.json"
+printf '%s\n' '{"defaultProvider":"local","quietStartup":true,"packages":["npm:pi-subagents@0.84.0","npm:@scope/tool","npm:local-only"]}' > "$FAKE_HOME/.pi/agent/settings.json"
+chmod 600 "$FAKE_HOME/.pi/agent/settings.json"
+run_restore
+python3 - "$FAKE_HOME/.pi/agent/settings.json" <<'PY'
+import json, sys
+s = json.load(open(sys.argv[1]))
+assert s["packages"] == ["npm:pi-subagents@0.84.0", "npm:@scope/tool", "npm:local-only", "npm:new-pkg"], s["packages"]
+assert s["defaultProvider"] == "local" and s["quietStartup"] is True, s
+assert s["rewind"]["retention"]["maxSnapshots"] == 5, s
+PY
+[ "$(stat -c %a "$FAKE_HOME/.pi/agent/settings.json" 2>/dev/null || stat -f %Lp "$FAKE_HOME/.pi/agent/settings.json")" = 600 ]
+before_rerun="$(cksum < "$FAKE_HOME/.pi/agent/settings.json")"
+run_restore
+[ "$before_rerun" = "$(cksum < "$FAKE_HOME/.pi/agent/settings.json")" ]
+printf '%s\n' "$seed_backup" > "$FAKE_DOT/config/pi/settings.json"
+
 rm -f "$FAKE_HOME/.pi/agent/settings.json"
 ln -s "$FAKE_DOT/config/pi/settings.json" "$FAKE_HOME/.pi/agent/settings.json"
 source_before="$(cksum "$FAKE_DOT/config/pi/settings.json")"

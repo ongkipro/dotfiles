@@ -38,12 +38,55 @@ if [ -f "$settings_source" ]; then
   # Report what is actually in place, not what the seed says. A machine-local
   # file that was kept will differ from the tracked seed, and printing the seed
   # would claim a state that is not there.
-  SETTINGS_LIVE="$PI_AGENT_DIR/settings.json" python3 - <<'PY'
+  #
+  # An existing file also receives tracked packages it lacks (compared by package
+  # name, so a local pin or version wins) and the rewind retention bound when it
+  # has none. Nothing else is changed; Pi installs added packages on next start.
+  SETTINGS_LIVE="$PI_AGENT_DIR/settings.json" SETTINGS_SEED="$settings_source" python3 - <<'PY'
 import json
 import os
+import tempfile
 
-with open(os.environ["SETTINGS_LIVE"]) as live:
+live_path, seed_path = os.environ["SETTINGS_LIVE"], os.environ["SETTINGS_SEED"]
+with open(live_path) as live:
     settings = json.load(live)
+with open(seed_path) as seed_file:
+    seed = json.load(seed_file)
+
+
+def package_name(source):
+    if not isinstance(source, str):
+        source = source.get("source", "") if isinstance(source, dict) else ""
+    if not source.startswith("npm:"):
+        return source
+    spec = source[4:]
+    at = spec.find("@", 1)
+    return spec if at == -1 else spec[:at]
+
+
+packages = settings.get("packages") or []
+present = {package_name(p) for p in packages}
+added = [p for p in seed.get("packages", []) if package_name(p) not in present]
+changed = bool(added)
+if added:
+    settings["packages"] = packages + added
+if "rewind" not in settings and "rewind" in seed:
+    settings["rewind"] = seed["rewind"]
+    changed = True
+if changed:
+    mode = os.stat(live_path).st_mode & 0o777
+    fd, tmp = tempfile.mkstemp(prefix=".settings.", dir=os.path.dirname(live_path))
+    try:
+        with os.fdopen(fd, "w") as out:
+            os.fchmod(out.fileno(), mode)
+            json.dump(settings, out, indent=2)
+            out.write("\n")
+        os.replace(tmp, live_path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+for source in added:
+    print(f"Added tracked Pi package {source} (installs on next Pi start)")
 print(
     "Pi settings in place "
     f"(provider={settings.get('defaultProvider', '?')}, "

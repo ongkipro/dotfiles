@@ -54,6 +54,11 @@ and bundles that also install sandboxes, model routing or memory (they overlap
 
 Use `pi-9router-restore` to seed missing settings, models, `pi-fff.json` and
 `pi-lsp.json`; it also removes the retired `~/.pi/extensions/compact-free` copy.
+An existing `settings.json` gains only tracked packages it lacks (matched by
+package name, so a local pin wins) and `rewind.retention` when absent; Pi
+installs added packages on its next start. Run it on each device after pulling
+a package change: `dotsync autopull` does not run it, so third-party extension
+code is never installed silently.
 It preserves existing real settings files and does not install or start 9Router.
 On Linux it installs `pi-9router-sync.timer` (one minute after boot, then
 hourly; failed runs retry every 30 s, because a boot-time run can reach the
