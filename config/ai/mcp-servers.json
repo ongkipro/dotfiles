@@ -2,7 +2,20 @@
   "mcpServers": {
     "playwright": {
       "command": "npx",
-      "args": ["-y", "@playwright/mcp@0.0.84", "--browser", "chrome", "--headless"]
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.84",
+        "--browser",
+        "chrome",
+        "--headless",
+        "--isolated",
+        "--output-dir",
+        "/tmp/playwright-mcp"
+      ],
+      "description": "Headless Chrome browser automation (navigate, snapshot, click, fill, screenshot, console, network)",
+      "toolExposure": {
+        "browser_run_code_unsafe": "hidden"
+      }
     }
   }
 }

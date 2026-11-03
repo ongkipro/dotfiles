@@ -69,7 +69,7 @@ run with Pi's permissions, so add one only after reading its source.
 | Diagnostics | `@narumitw/pi-lsp` | `lsp_diagnostics`, `lsp_fix`; see `pi-lsp.json`. |
 | Search | `@ff-labs/pi-fff` | Fast fuzzy file/content search; see `pi-fff.json`. |
 | Web and docs | `pi-web-access` | Search, fetch, PDF, repository and video reading. |
-| Browser | `pi-agent-browser-native` + Playwright MCP | Rendered UI evidence. MCP tools stay behind Pi's built-in `codemode`. |
+| Browser | `pi-agent-browser-native` + Playwright MCP | Rendered UI evidence. Playwright MCP runs headless Chrome with `--isolated` and `--output-dir /tmp/playwright-mcp`, carries a system-prompt `description`, and hides `browser_run_code_unsafe` while keeping the remaining 24 tools behind Pi's built-in `codemode`. |
 | Subagents | `pi-subagents` | `scout`, `reviewer`, `oracle`, parallel or background children. Children drop the global context unless an agent sets `inheritGlobalContext`. |
 | Background shell | `pi-background-tasks` | The `pi()` wrapper sets `PI_BG_FEATURES=process`: background shell tasks only. Its `attribution` default reads Claude Code account IDs from `~/.claude.json`, `delegate` duplicates `pi-subagents`, and `fusion` accepts only subscription OAuth, not a base-URL gateway. |
 
@@ -78,14 +78,37 @@ plus plan mode already gate the risky cases without prompting on every edit)
 and bundles that also install sandboxes, model routing or memory (they overlap
 `focus`, `ai-memory-route`, `ai-recall` and 9Router).
 
-Use `pi-9router-restore` to seed missing settings, models, `pi-fff.json` and
-`pi-lsp.json`; it also removes the retired `~/.pi/extensions/compact-free` copy.
-An existing `settings.json` gains only tracked packages it lacks (matched by
-package name, so a local pin wins) and `rewind.retention` when absent; Pi
-installs added packages on its next start. Run it on each device after pulling
-a package change: `dotsync autopull` does not run it, so third-party extension
-code is never installed silently.
-It preserves existing real settings files and does not install or start 9Router.
+## Multi-device setup and daily controls
+
+On a new or existing device after `git pull`:
+
+```bash
+pi-9router-restore
+ai-mcp-sync
+```
+
+`pi-9router-restore` seeds missing `settings.json`, `models.json`, `pi-fff.json` and
+`pi-lsp.json`, and removes the retired `~/.pi/extensions/compact-free` copy.
+An existing `settings.json` gains tracked packages it lacks (matched by
+package name, so a local pin wins), missing `enabledModels` entries, and
+`rewind`, `hideThinkingBlock`, `quietStartup`, and `defaultThinkingLevel` when
+absent; Pi installs added packages on its next start. `dotsync autopull` does
+not run it automatically, so third-party extension code is never installed
+silently. `ai-mcp-sync` updates `~/.pi/agent/mcp.json` with the shared
+Playwright MCP definition (`--isolated`, `--output-dir /tmp/playwright-mcp`,
+Pi `description`, and `toolExposure`).
+
+| Control / Command | Behavior |
+|---|---|
+| `Ctrl+T` | Toggle the collapsed `Thinking...` block (`hideThinkingBlock: true` keeps reasoning collapsed by default). |
+| `Ctrl+O` | Toggle collapsed tool output (file reads, grep, bash). |
+| `Shift+Tab` or `/thinking` | Switch thinking level for the current task (`defaultThinkingLevel: "medium"`). |
+| `Ctrl+P` | Cycle across `enabledModels` (Sonnet 5.5, Opus 5.5, GPT-6.1, etc.). |
+| `/plan <prompt>` | Enter read-only Plan mode (`@narumitw/pi-plan-mode`), clarify via structured questions, and review before edits. |
+| `/tree` or `/fork` | Navigate or branch conversation history while `pi-rewind-hook` restores tracked files to that point. |
+| `/mcp` or `pi mcp list` | Inspect the connected Playwright MCP server and its `codemode` tool exposure. |
+
+`pi-9router-restore` preserves existing real settings files and does not install or start 9Router.
 On Linux it installs `pi-9router-sync.timer` (one minute after boot, then
 hourly; failed runs retry every 30 s, because a boot-time run can reach the
 gateway before it listens). Inspect the device's endpoint before enabling it.

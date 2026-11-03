@@ -70,19 +70,22 @@ def atomic_write(target: Path, content: str) -> None:
         if os.path.exists(tmp): os.unlink(tmp)
 
 
-def managed_spec(spec: dict, claude=False) -> dict:
+def managed_spec(spec: dict, claude=False, pi=False) -> dict:
     result = {"command": spec["command"], "args": spec.get("args", []), "env": spec.get("env", {})}
     if claude: result["type"] = "stdio"
+    if pi:
+        for key in ("description", "exposure", "toolExposure"):
+            if key in spec: result[key] = spec[key]
     return result
 
 
-def sync_json(target: Path, manifest: dict, check_only: bool, claude=False) -> tuple[bool, str]:
+def sync_json(target: Path, manifest: dict, check_only: bool, claude=False, pi=False) -> tuple[bool, str]:
     data = json.loads(target.read_text(encoding="utf-8")) if target.exists() else {}
     servers = data.setdefault("mcpServers", {})
     changed = not target.exists()
     for name, spec in manifest.items():
         current = servers.get(name, {})
-        needed = managed_spec(spec, claude)
+        needed = managed_spec(spec, claude=claude, pi=pi)
         if name not in servers or any(current.get(k, {} if k == "env" else None) != v for k, v in needed.items()):
             servers[name] = {**current, **needed}
             changed = True
@@ -161,10 +164,10 @@ def sync_codex(home: Path, manifest: dict, check_only: bool) -> tuple[bool, str]
     return True, "updated"
 
 
-def sync_json_mcp(target_dir: Path, runtime_name: str, manifest: dict, check_only: bool) -> tuple[bool, str]:
+def sync_json_mcp(target_dir: Path, runtime_name: str, manifest: dict, check_only: bool, pi=False) -> tuple[bool, str]:
     if not target_dir.parent.exists():
         return True, f"skipped ({runtime_name} not configured on this device)"
-    return sync_json(target_dir / "mcp.json", manifest, check_only)
+    return sync_json(target_dir / "mcp.json", manifest, check_only, pi=pi)
 
 
 def main() -> int:
@@ -187,7 +190,7 @@ def main() -> int:
         ("Antigravity", lambda: sync_antigravity(home, manifest, args.check)),
         ("Codex CLI", lambda: sync_codex(home, manifest, args.check)),
         ("OMP", lambda: sync_json_mcp(home / ".omp" / "agent", "OMP", manifest, args.check)),
-        ("Pi", lambda: sync_json_mcp(home / ".pi" / "agent", "Pi", manifest, args.check)),
+        ("Pi", lambda: sync_json_mcp(home / ".pi" / "agent", "Pi", manifest, args.check, pi=True)),
     ]
 
     all_ok = True

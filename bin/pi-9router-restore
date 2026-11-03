@@ -70,9 +70,16 @@ added = [p for p in seed.get("packages", []) if package_name(p) not in present]
 changed = bool(added)
 if added:
     settings["packages"] = packages + added
-if "rewind" not in settings and "rewind" in seed:
-    settings["rewind"] = seed["rewind"]
-    changed = True
+for key in ("rewind", "hideThinkingBlock", "quietStartup", "defaultThinkingLevel"):
+    if key not in settings and key in seed:
+        settings[key] = seed[key]
+        changed = True
+if "enabledModels" in seed:
+    models = settings.get("enabledModels") or []
+    missing_models = [m for m in seed["enabledModels"] if m not in models]
+    if missing_models:
+        settings["enabledModels"] = models + missing_models
+        changed = True
 if changed:
     mode = os.stat(live_path).st_mode & 0o777
     fd, tmp = tempfile.mkstemp(prefix=".settings.", dir=os.path.dirname(live_path))
