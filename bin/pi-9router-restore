@@ -72,6 +72,14 @@ if [ -f "$fff_source" ] && [ ! -e "$PI_AGENT_DIR/pi-fff.json" ]; then
   say "Seeded pi-fff.json (no \$HOME indexing)"
 fi
 
+# @narumitw/pi-lsp routes files to language servers by extension; servers that
+# are not installed are skipped by the package. Seed once; local edits win.
+lsp_source="$DOTFILES_DIR/config/pi/pi-lsp.json"
+if [ -f "$lsp_source" ] && [ ! -e "$PI_AGENT_DIR/pi-lsp.json" ]; then
+  cp "$lsp_source" "$PI_AGENT_DIR/pi-lsp.json"
+  say "Seeded pi-lsp.json (TypeScript, Pyright, Bash language servers)"
+fi
+
 # Earlier restores copied the retired compact-free extension here; Pi never
 # loaded it by default. Remove only that exact dotfiles-owned copy.
 old_ext="$HOME/.pi/extensions/compact-free"

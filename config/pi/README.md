@@ -7,8 +7,11 @@ copy credentials or make Pi an OMP prerequisite.
 ## Tracked reference and local state
 
 - `settings.json` runs Pi on its documented defaults (`docs/settings.md` in the installed package):
-  it sets only the startup provider/model (`9router-fantastico/cc/claude-opus-5-5`)
-  and two packages (`pi-web-access`, `pi-agent-browser-native`). Thinking level,
+  it sets only the startup provider/model (`9router-fantastico/cc/claude-opus-5-5`),
+  the `enabledModels` cycling list (Ctrl+P; patterns for providers a device has
+  not authenticated simply do not match), `quietStartup`, the package set below
+  (`pi-subagents` and `pi-lsp` stay pinned to their verified versions), and a
+  bounded `rewind.retention`. Thinking level,
   theme, startup output and compaction stay at Pi's defaults; Pi's built-in
   compaction runs on the active 9Router model. The provider label
   preserves existing Pi authentication. Authenticate that provider through Pi
@@ -21,9 +24,36 @@ copy credentials or make Pi an OMP prerequisite.
   when Pi starts from `~`. FFF search is then off for that session; start Pi
   from a project directory. Use `"warnOnHomeDirScan": false` instead to keep
   indexing `$HOME` and silence only the warning.
+- `pi-lsp.json` routes `@narumitw/pi-lsp` to `typescript-language-server`,
+  `pyright-langserver` and `bash-language-server` (install them with mise/npm;
+  a missing server is skipped).
 
-Use `pi-9router-restore` to seed missing settings, models and `pi-fff.json`; it
-also removes the retired `~/.pi/extensions/compact-free` copy.
+## Package set
+
+Pi ships four tools; these packages close the gap to a full terminal coding
+agent. Each was chosen because no dotfiles helper already covers it. Packages
+run with Pi's permissions, so add one only after reading its source.
+
+| Capability | Package | Notes |
+|---|---|---|
+| Guardrail | `cc-safety-net` | Blocks destructive commands and secret-file reads before the tool runs. Pi has no dotfiles hooks; this is its enforcement layer. Not a sandbox. |
+| Plan mode | `@narumitw/pi-plan-mode` | `/plan`: read-only exploration and an approved plan before edits. |
+| Task list | `@juicesharp/rpiv-todo` | Model-maintained todo overlay that survives compaction. |
+| Rewind | `pi-rewind-hook` | `/tree` or `/fork` restores files with the conversation. Stores snapshots under `refs/pi-rewind/store` in the project's own `.git` with a temporary index (never the working index); retention keeps it bounded. Needs a Git repository. |
+| Diagnostics | `@narumitw/pi-lsp` | `lsp_diagnostics`, `lsp_fix`; see `pi-lsp.json`. |
+| Search | `@ff-labs/pi-fff` | Fast fuzzy file/content search; see `pi-fff.json`. |
+| Web and docs | `pi-web-access` | Search, fetch, PDF, repository and video reading. |
+| Browser | `pi-agent-browser-native` + Playwright MCP | Rendered UI evidence. MCP tools stay behind Pi's built-in `codemode`. |
+| Subagents | `pi-subagents` | `scout`, `reviewer`, `oracle`, parallel or background children. Children drop the global context unless an agent sets `inheritGlobalContext`. |
+| Background shell | `pi-background-tasks` | The `pi()` wrapper sets `PI_BG_FEATURES=process`: background shell tasks only. Its `attribution` default reads Claude Code account IDs from `~/.claude.json`, `delegate` duplicates `pi-subagents`, and `fusion` accepts only subscription OAuth, not a base-URL gateway. |
+
+Considered and not installed: a per-call permission dialog (`cc-safety-net`
+plus plan mode already gate the risky cases without prompting on every edit)
+and bundles that also install sandboxes, model routing or memory (they overlap
+`focus`, `ai-memory-route`, `ai-recall` and 9Router).
+
+Use `pi-9router-restore` to seed missing settings, models, `pi-fff.json` and
+`pi-lsp.json`; it also removes the retired `~/.pi/extensions/compact-free` copy.
 It preserves existing real settings files and does not install or start 9Router.
 On Linux it installs `pi-9router-sync.timer` (one minute after boot, then
 hourly; failed runs retry every 30 s, because a boot-time run can reach the
@@ -84,7 +114,9 @@ systemctl --user list-timers pi-9router-sync.timer
 The `pi()` shell wrapper appends the shared context to sessions only; `auth`,
 `mcp`, `config`, `install`, `remove`, `list` and `update` reach Pi unchanged.
 `ai-ask pi` appends the shared `context/pi.md` itself (not the device-local
-`device.md`), since scripts bypass the wrapper.
+`device.md`), since scripts bypass the wrapper. It runs with the read-only
+built-ins `read,grep,find,ls` and without extensions, MCP or project-local
+`.pi` files, so a Pi reviewer can inspect the repository without editing it.
 
 Do not add `--credentials` to an auth check or print token commands. Registry
 checks do not prove inference: use a small real tool roundtrip when changing

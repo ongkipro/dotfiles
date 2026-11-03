@@ -100,10 +100,15 @@ pi() {
       local -a args=()
       [ -f "$mem" ]       && args+=(--append-system-prompt "$mem")
       [ -f "$local_mem" ] && args+=(--append-system-prompt "$local_mem")
+      # pi-background-tasks: keep its background shell tasks only. Its default
+      # "attribution" reads Claude Code account IDs from ~/.claude.json for
+      # Anthropic requests, "delegate" duplicates pi-subagents, and "fusion"
+      # accepts only subscription OAuth routes, not a base-URL gateway.
+      # An explicit PI_BG_FEATURES still wins.
       if [ ${#args[@]} -gt 0 ]; then
-        command pi "${args[@]}" "$@"
+        PI_BG_FEATURES="${PI_BG_FEATURES:-process}" command pi "${args[@]}" "$@"
       else
-        command pi "$@"
+        PI_BG_FEATURES="${PI_BG_FEATURES:-process}" command pi "$@"
       fi
       ;;
   esac

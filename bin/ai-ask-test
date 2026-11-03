@@ -32,7 +32,14 @@ argv codex | grep -qx "$R" && ok "codex gets -C <cwd>" || bad "codex cwd missing
 ask claude --cwd "$R" -- hi >/dev/null; argv claude | grep -qx plan && ok "claude runs in plan mode" || bad "claude not in plan mode"
 ask agy --cwd "$R" -- hi >/dev/null
 argv agy | grep -qx -- '--sandbox' && argv agy | grep -qx plan && ok "agy runs sandboxed in plan mode" || bad "agy not sandboxed/plan"
-ask pi -- hi >/dev/null; argv pi | grep -qx -- '--no-tools' && ok "pi runs without tools" || bad "pi has tools"
+ask pi -- hi >/dev/null
+if argv pi | grep -qx 'read,grep,find,ls' && argv pi | grep -qx -- '--no-extensions' \
+   && argv pi | grep -qx -- '--no-mcp' && argv pi | grep -qx -- '--no-approve' \
+   && ! argv pi | grep -qE '(^|,)(bash|edit|write)(,|$)'; then
+  ok "pi runs with read-only built-in tools only"
+else
+  bad "pi is not limited to read-only tools"
+fi
 ask omp -- hi >/dev/null; argv omp | grep -qx -- '--no-tools' && ok "omp runs without tools" || bad "omp has tools"
 [ "$(cat "$TMP/claude.cwd")" = "$R" ] && ok "runs inside --cwd" || bad "wrong cwd"
 

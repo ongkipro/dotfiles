@@ -121,7 +121,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
 | Top-level docs | [`docs/`](../docs/) | 19 | linked from this page |
 | AI control files | [`config/ai/`](../config/ai/) | 31 | linked from this page |
-| Runtime references | [`config/omp/`](../config/omp/) | 27 | linked from this page |
+| Runtime references | [`config/omp/`](../config/omp/) | 28 | linked from this page |
 | Skill commands | [`skills/agents-bin/`](../skills/agents-bin/) | 7 | linked from this page |
 | Skill tooling | [`skills/local/`](../skills/local/) | 3 | linked from this page |
 | Registry indexes | [`devices/`](../devices/) | 1 | linked from this page |
@@ -218,7 +218,7 @@ OMP runs upstream-native; installers link none of these files.
 - **OMP reference agents (not installed):** [`architect`](../config/omp/agents/architect.md), [`complex-developer`](../config/omp/agents/complex-developer.md), [`debugger`](../config/omp/agents/debugger.md), [`designer`](../config/omp/agents/designer.md), [`librarian`](../config/omp/agents/librarian.md), [`reviewer`](../config/omp/agents/reviewer.md), [`scout`](../config/omp/agents/scout.md), [`security-reviewer`](../config/omp/agents/security-reviewer.md), [`writer`](../config/omp/agents/writer.md): role definitions kept as design evidence.
 - **OMP retired overlays:** [`9router-hosted`](../config/omp/overlays/9router-hosted.yml), [`antigravity-hosted`](../config/omp/overlays/antigravity-hosted.yml), [`antigravity-only`](../config/omp/overlays/antigravity-only.yml), [`codex-only`](../config/omp/overlays/codex-only.yml), [`minimax-hosted`](../config/omp/overlays/minimax-hosted.yml): single-provider session overlays; revalidate before selecting one.
 - [`config/pi/README.md`](../config/pi/README.md): Optional Pi setup; Pi is a standalone fallback CLI, not an OMP prerequisite.
-- **Pi files:** [`settings.json`](../config/pi/settings.json), [`models.template.json`](../config/pi/models.template.json), [`pi-fff.json`](../config/pi/pi-fff.json): non-secret defaults seeded by `pi-9router-restore`, the machine-local model template, and the FFF opt-out of `$HOME` indexing.
+- **Pi files:** [`settings.json`](../config/pi/settings.json), [`models.template.json`](../config/pi/models.template.json), [`pi-fff.json`](../config/pi/pi-fff.json), [`pi-lsp.json`](../config/pi/pi-lsp.json): non-secret defaults (model, cycling list, package set, rewind retention) seeded by `pi-9router-restore`, the machine-local model template, the FFF opt-out of `$HOME` indexing, and the `pi-lsp` language-server routes.
 
 ## 4. Durable Memory Dictionary (`config/ai/memory/`)
 

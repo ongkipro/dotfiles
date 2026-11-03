@@ -6,6 +6,24 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-28
 
+### Pi: full tracked configuration and Claude Code–level capabilities — 2026-11-03
+
+- `config/pi/settings.json` now mirrors the live portable settings: startup
+  model, `enabledModels`, `quietStartup`, ten packages (`cc-safety-net`,
+  `pi-lsp`, `pi-fff`, `pi-subagents`, `pi-background-tasks` added beside the
+  web/browser pair) and a bounded `rewind.retention`. Auth, models, trust and
+  sessions stay device-local.
+- New packages, source-read before install: `@narumitw/pi-plan-mode` (`/plan`),
+  `@juicesharp/rpiv-todo` (task list), `pi-rewind-hook` (file restore via
+  `/tree`/`/fork`, snapshots under `refs/pi-rewind/store` with a temporary index).
+- New `config/pi/pi-lsp.json`, seeded by `pi-9router-restore` (local file wins).
+- `pi()` defaults `PI_BG_FEATURES=process`: `pi-background-tasks` keeps
+  background shell tasks only; its `attribution` default reads Claude Code
+  account IDs from `~/.claude.json`.
+- `ai-ask pi` runs with read-only `read,grep,find,ls` (no extensions, MCP or
+  project-local `.pi`) instead of `--no-tools`.
+- Tests: `pi-9router-restore-test`, `shell-wrapper-test`, `ai-ask-test`.
+
 ### Cloudflare Asia-Pacific placement default (TASK-175) — 2026-11-02
 
 - New `skills/local/cloudflare/references/apac-placement.md`: what each layer
