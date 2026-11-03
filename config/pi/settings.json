@@ -1,7 +1,8 @@
 {
   "$schema": "https://pi.dev/schemas/settings.schema.json",
   "defaultProvider": "9router-fantastico",
-  "defaultModel": "cc/claude-opus-5-5",
+  "defaultModel": "cc/claude-sonnet-5-5",
+  "defaultThinkingLevel": "medium",
   "enabledModels": [
     "9router-fantastico/cx/gpt-6.1-sol",
     "9router-fantastico/cx/gpt-6.1-terra",
@@ -24,6 +25,7 @@
     "openai-codex/gpt-6-luna"
   ],
   "quietStartup": true,
+  "hideThinkingBlock": true,
   "packages": [
     "npm:pi-web-access",
     "npm:pi-agent-browser-native",

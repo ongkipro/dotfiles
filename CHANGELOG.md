@@ -6,6 +6,14 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-28
 
+### Pi: Sonnet 5.5 default, quieter transcript — 2026-11-03
+
+- Startup model `cc/claude-sonnet-5-5` with `defaultThinkingLevel: medium`;
+  Opus stays one `Ctrl+P` away for hard work, `Shift+Tab` changes the level.
+- `hideThinkingBlock: true`: thinking shows as `Thinking...` (`Ctrl+T`
+  reveals it); answers stay in full and tool output was already collapsed by
+  default (`Ctrl+O`). Display only; it does not change token use.
+
 ### Pi: propagate the package set to existing devices — 2026-11-03
 
 - `pi-9router-restore` adds tracked packages missing from an existing
