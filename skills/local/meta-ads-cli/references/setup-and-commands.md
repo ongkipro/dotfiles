@@ -2,6 +2,63 @@
 
 Read the section the current step needs. Flags were verified against `meta-ads 1.2.0`; confirm with `meta ads <resource> <action> --help` before running a command not shown here.
 
+## 0. AI-managed env preparation: the operator fills one token line
+
+When asked to set up a device, the AI owns reversible local preparation instead
+of handing the operator a configuration checklist. This is an **AI operating
+procedure**, not a new CLI subcommand: neither `setup --workspace-only` nor
+post-pull reconciliation creates/edits credentials automatically.
+
+1. **Inspect once.** Verify the installed `dotads-meta` path and configured
+   secret source (`SECRETS_ENV_FILE`, otherwise `~/.config/ai-local/secrets.env`).
+   Existing-file checks use `secrets-env`; never dump the file, print token
+   values, source it in a shell, or retry a guard-blocked inspection by another
+   route. Reuse an existing profile, exact label and saved `token_env` first.
+2. **Resolve identity once.** Reuse the matching, explicitly authorized local
+   BM metadata (`bm.json`/selected brand) only when its key, BM ID and token
+   reference agree. If the BM ID is unknown or sources conflict, ask one bounded
+   question before writing; never derive an ID from a token/name/ad-account ID.
+   Device-local identities and tokens are not transported by a dotfiles pull.
+3. **Prepare the env after authorization.** Create a missing credential file
+   exclusively at mode 0600 in a private location outside repositories; do not
+   truncate/replace an existing file. For an existing file, append only keys
+   verified absent through the approved loader, preserving all existing bytes,
+   credentials and bindings. Refuse duplicates or format migration; do not
+   rewrite permissions/ACLs or move files silently. Prefill the confirmed BM ID
+   and optional display name. Use the existing token naming convention; for a
+   new profile, `META_ACCESS_TOKEN_<KEY>` with `META_BM_<KEY>_ID` is supported.
+   Leave a genuinely new token value **empty**, not an active example token.
+   If an existing token is available, skip token entry entirely.
+4. **Give one edit instruction.** Show the local file path and only the token
+   key to fill, with a clearly illustrative placeholder; never ask for the
+   value in chat. `nano ~/.config/ai-local/secrets.env` is an editor, not a
+   request to reconstruct the entire configuration. No leading indentation,
+   `export`, shell quoting, or commented-out active keys. The AI prepares the
+   metadata; the operator pastes the token locally.
+5. **Finish, don't repeat instructions.** After the operator says it is filled,
+   run `dotads-meta setup --workspace-only --bm <matching-label>` and verify
+   the reported directory and its `assets/` really exist. Do not ask for the
+   same token/ID again unless evidence identifies a specific missing field.
+   Report actual folder success separately from authenticated Meta access.
+
+Illustration for an existing AUTOLARIS profile (not a fixed device default):
+
+```dotenv
+META_ACCESS_TOKEN_AUTOLARIS=<paste-token-locally>
+```
+
+That is the only line the operator fills; the AI has already supplied the
+confirmed `META_BM_AUTOLARIS_ID` and optional `_NAME`. Never write the example
+placeholder into a runnable configuration or use it as proof of a valid token.
+`--bm autolaris` matches that suffix; it is not an alias for `autokirim`.
+
+If setup fails, classify the actual evidence once: unknown label, unavailable
+named token, missing/invalid BM ID, conflicting references, loader refusal or
+filesystem failure. Do not infer token invalidity from profile detection or
+reinterpret a Git-location audit warning as a token failure. Audit findings
+remain separate and require explicit approval for corrective secret/Git work.
+Never create an empty reporting folder just to claim setup succeeded.
+
 ## 1. Business Manager & System User Setup (One-Time per Business)
 
 For headless CLI automation across devices, use a **Business Manager System User** token rather than a short-lived personal browser token:
@@ -15,11 +72,31 @@ For headless CLI automation across devices, use a **Business Manager System User
    - **Catalogs** (optional, for DPA) -> enable *Manage catalog*.
 3. **Generate Token:** Click **Generate New Token**, select the App, choose **Never** (or 60 days), and grant:
    - `ads_management`, `ads_read`, `business_management`, `pages_read_engagement`, `pages_manage_ads` (plus `catalog_management` if using catalogs).
-4. **Store Token in `secrets-env`:** Add `META_ACCESS_TOKEN=<token>` (or per-BM `META_ACCESS_TOKEN_<BRAND>`) to `~/.config/ai-local/secrets.env` (`chmod 600`) and verify with:
+4. **AI prepares one named profile per BM; the operator fills only the token:**
+   Follow §0 before asking for manual edits. In the device-local
+   `~/.config/ai-local/secrets.env` (0600), the AI prepares
+   `meta_ads_token_autolaris` and required `meta_ads_bm_id_autolaris`.
+   Optional `meta_ads_bm_name_autolaris` sets the display name; otherwise the
+   suffix is the local label. Use your own lowercase label instead of
+   `autolaris`; it is an example, never a fixed business or device default.
+   Each device configures its own labels, BM IDs and tokens locally; dotfiles
+   pulls synchronize the generic naming convention, not these private values.
+   Keep token values out of chat and Git. Existing `META_ACCESS_TOKEN_<KEY>`
+   names are supported with explicit `META_BM_<KEY>_ID` and optional
+   `META_BM_<KEY>_NAME` (defaults to the key); saved `token_env` stays unchanged.
+   `META_ACCESS_TOKEN_AUTOLARIS` selects `--bm autolaris`, not `autokirim`.
+   A token alone is not enough to infer BM identity. Legacy `META_BM_*` profiles
+   stay supported, but do not define multiple token formats for the same BM.
+   Existing saved token references require explicit migration. See the
+   [BM auto-setup contract](account-workspace-runtime.md#business-manager-auto-setup).
    ```bash
    secrets-env check
-   dotads-meta doctor
+   dotads-meta setup --workspace-only
+   # Authorized account/auth read only when requested:
+   dotads-meta doctor --bm autolaris
    ```
+   Legacy `META_ACCESS_TOKEN`/custom token references remain supported when no
+   named BM profile is selected; they are never assigned to a BM by guesswork.
 
 ## 2. Per-Project Workflow (`dotads-meta`)
 
@@ -30,6 +107,9 @@ For headless CLI automation across devices, use a **Business Manager System User
 
 ### Step 0: Device Bootstrap (Once per Laptop)
 ```bash
+# Offline local structure; also reconciled after dotfiles pull:
+dotads-meta setup --workspace-only
+# Install/check the upstream CLI only when installation is authorized:
 dotads-meta setup
 ```
 Checks `meta` and can install it through `pipx` if missing. Use this bootstrap only when installation is authorized; it is unnecessary for offline validation or a read-only audit.
@@ -38,6 +118,23 @@ repair/retry when shared pip is missing, and stops if either repair step fails.
 Installation success also requires the requested CLI version to be runnable.
 
 ### Step 1: Scaffold an Account / Brand Workspace
+
+For named BM profiles, use the canonical account folder:
+
+```bash
+dotads-meta init --bm autolaris --account act_1234567890 --account-name 'Example Account'
+# After sync/init registration, omit --account-name to reuse it.
+```
+
+New folders are `<BM name>--bm_<id>/Example Account (act_1234567890)/`.
+Sync creates the same canonical account workspace automatically. Campaigns,
+notes and Markdown reports stay inside it. Reusable images/videos default to
+BM-level `assets/`; `import-media --temporary` makes optional scratch copies
+without automatic deletion. Internal JSON remains for state/provenance.
+
+The following examples describe the compatible legacy unscoped workflow. For
+BM commands use `--bm KEY` and the actual canonical account path instead:
+
 ```bash
 dotads-meta init act_1234567890--brand-alpha
 # or explicit path: dotads-meta init ~/Documents/dotads-meta-report/act_1234567890--brand-alpha

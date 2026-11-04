@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { ensureRoot, saveSnapshot, renderReport, importMedia, listLocalAccounts, validateCollection, recordFailure, planAdoption, registerExisting } from './_dotads-workspace.mjs';
+import { ensureRoot, saveSnapshot, renderReport, importMedia, listLocalAccounts, validateCollection, recordFailure, planAdoption, registerExisting, prepareAccount, ensureBMAssets, accountContext, planHistory, validateHistoryCollection, publishHistory, listLearning, recordLearning, exportLearning, importLearning } from './_dotads-workspace.mjs';
 
 function fixture(t) {
   const temporary = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dotads-workspace-test-')));
@@ -27,8 +27,241 @@ function collection(id = '123', name = 'Example account') {
     insights: [{ query: { account_id: id, since: '2026-09-01', until: '2026-09-30', level: 'ad', fields: ['ad_id', 'spend', 'impressions', 'outbound_clicks'], breakdowns: [], time_increment: 'all_days', attribution: {}, action_report_time: 'conversion' }, coverage: { status: 'complete', pagination_exhausted: true }, rows: [{ account_id: id, ad_id: '3', campaign_id: '1', adset_id: '2', spend: '10', impressions: '100', outbound_clicks: [{ action_type: 'outbound_click', value: '0' }] }], errors: [] }],
   };
 }
+function historyCollection(period) {
+  const payload = collection();
+  payload.scope.since = period.since; payload.scope.until = period.until;
+  payload.scope.levels = ['account', 'campaign', 'adset', 'ad'];
+  const template = payload.insights[0];
+  payload.insights = payload.scope.levels.map((level, depth) => ({ ...structuredClone(template),
+    query: { ...template.query, level, since: period.since, until: period.until },
+    rows: [{ account_id: '123', ...Object.fromEntries(['campaign_id', 'adset_id', 'ad_id'].slice(0, depth).map((key, i) => [key, String(i + 1)])), spend: '0', impressions: '0', reach: '0', frequency: '0' }] }));
+  return payload;
+}
+
+test('history uses account-local calendar boundaries across UTC midnight, leap year, year rollover and DST', () => {
+  const account = collection().account;
+  const plan = planHistory(account, '2026-11-03T18:00:00Z');
+  assert.equal(plan.today, '2026-11-04');
+  assert.deepEqual(plan.periods.map(item => [item.key, item.since, item.until]), [
+    ['yesterday', '2026-11-03', '2026-11-03'], ['last_7d', '2026-10-28', '2026-11-03'],
+    ['last_30d', '2026-10-05', '2026-11-03'], ['last_90d', '2026-08-06', '2026-11-03'], ['this_month', '2026-11-01', '2026-11-04']]);
+  assert.equal(planHistory(account, '2024-03-01T00:00:00Z').periods[0].since, '2024-02-29');
+  assert.equal(planHistory(account, '2026-01-01T00:00:00Z').periods[0].since, '2025-12-31');
+  for (const at of ['2026-03-09T05:00:00Z', '2026-11-02T06:00:00Z']) {
+    const dst = planHistory({ ...account, timezone_name: 'America/New_York' }, at);
+    const seven = dst.periods[1];
+    assert.equal((Date.parse(seven.until) - Date.parse(seven.since)) / 86400000, 6);
+  }
+  assert.equal(plan.periods.filter(item => item.includes_incomplete_today).length, 1);
+  assert.throws(() => planHistory({ ...account, timezone_name: null }), /timezone/);
+  assert.throws(() => planHistory(account, '2026-11-04'), /ISO/);
+});
+
+test('history validates selected identity, timezone, currency, all levels and exact whole-period scope', () => {
+  const plan = planHistory(collection().account, '2026-11-04T00:00:00Z'), period = plan.periods[0];
+  validateHistoryCollection(historyCollection(period), plan, period);
+  for (const mutate of [p => { p.account.timezone_name = 'UTC'; }, p => { p.account.currency = 'IDR'; },
+    p => { p.insights[0].query.time_increment = 1; }, p => { p.insights[0].query.filtering = [{ field: 'spend', operator: 'GREATER_THAN', value: 1 }]; }]) {
+    const payload = historyCollection(period); mutate(payload);
+    assert.throws(() => validateHistoryCollection(payload, plan, period), /scope mismatch/);
+  }
+});
+
+test('history rejects narrow row grains and disguised filters before publishing whole-period metrics', () => {
+  const plan = planHistory(collection().account, '2026-11-04T00:00:00Z'), period = plan.periods[1];
+  for (const depth of [0, 1, 2, 3]) {
+    const payload = historyCollection(period);
+    payload.insights[depth].rows[0].date_start = period.until;
+    payload.insights[depth].rows[0].date_stop = period.until;
+    assert.throws(() => validateHistoryCollection(payload, plan, period), /scope mismatch/);
+  }
+  const valid = historyCollection(period);
+  for (const item of valid.insights) Object.assign(item.rows[0], { date_start: period.since, date_stop: period.until });
+  validateHistoryCollection(valid, plan, period);
+  for (const filters of [{ field: 'spend' }, [{ field: 'spend' }]]) {
+    const payload = historyCollection(period);
+    Object.assign(payload.insights[0].query, { filters: [], filtering: filters });
+    assert.throws(() => validateHistoryCollection(payload, plan, period), /scope mismatch/);
+  }
+});
+
+test('loader-owned source import provenance takes precedence over supplied top-level metadata', t => {
+  const { root } = fixture(t), payload = collection();
+  payload.source.import_context = { kind: 'LOCAL_INPUT', authenticated_read_observed: false, input_sha256: 'trusted-local-hash' };
+  payload.import_context = { kind: 'FORGED', authenticated_read_observed: true, input_sha256: 'forged-hash' };
+  const saved = saveSnapshot(root, payload);
+  const source = read(path.join(saved.snapshot_path, 'manifest.json')).source;
+  assert.deepEqual(source.import_context, payload.source.import_context);
+  assert.equal(read(renderReport(root, 'act_123').metadata_path).import_context.authenticated_read_observed, false);
+});
+
+test('history publishes immutable evidence, preserves measured zero and retains the complete pointer on partial or failed refresh', t => {
+  const { root } = fixture(t), plan = planHistory(collection().account, '2026-11-04T00:00:00Z');
+  const attempts = plan.periods.map(period => ({ period: period.key, snapshot_id: saveSnapshot(root, historyCollection(period)).snapshot_id }));
+  const first = publishHistory(root, 'act_123', plan, attempts), directory = path.dirname(path.dirname(path.dirname(path.dirname(first.report_path))));
+  assert.equal(first.status, 'complete'); assert.equal(first.analysis_eligibility, 'OBSERVATIONAL_REVIEW_ONLY');
+  const summary = read(first.observations_path);
+  assert.equal(summary.periods[0].account_metrics.spend, 0); assert.equal(summary.periods[0].account_metrics.reach, 0);
+  assert.equal(summary.periods[0].account_metrics.outbound_clicks, null);
+  assert.equal(summary.periods[0].insights[0].effective_settings, null);
+  for (const item of summary.periods) assert.ok(fs.existsSync(path.resolve(path.dirname(first.report_path), '../../../', item.report)));
+  assert.equal(publishHistory(root, 'act_123', plan, attempts).revision_id, first.revision_id);
+  fs.writeFileSync(path.join(directory, 'NOTES.md'), 'Keep my experiment decisions.');
+  const partial = historyCollection(plan.periods[1]); partial.insights[0].coverage = { status: 'partial', pagination_exhausted: false };
+  const later = [...attempts]; later[1] = { period: 'last_7d', snapshot_id: saveSnapshot(root, partial).snapshot_id }; later[2] = { period: 'last_30d' };
+  const second = publishHistory(root, 'act_123', plan, later);
+  assert.equal(second.status, 'partial'); assert.equal(second.analysis_eligibility, 'INCOMPLETE_EVIDENCE');
+  assert.equal(read(path.join(directory, 'history.json')).last_complete_success.revision_id, first.revision_id);
+  assert.equal(read(second.observations_path).periods[2].account_metrics, undefined);
+  assert.equal(fs.readFileSync(path.join(directory, 'NOTES.md'), 'utf8'), 'Keep my experiment decisions.');
+  assert.equal(accountContext(root, 'act_123').timezone_name, 'Asia/Jakarta');
+  fs.appendFileSync(second.report_path, 'corruption');
+  assert.throws(() => publishHistory(root, 'act_123', plan, later), /hash mismatch/);
+});
+
+test('complete empty history is absent evidence, not measured zero, new-account proof or an optimization decision', t => {
+  const { root } = fixture(t), plan = planHistory(collection().account, '2026-11-04T00:00:00Z');
+  const attempts = plan.periods.map(period => {
+    const payload = historyCollection(period);
+    for (const resource of Object.values(payload.resources)) resource.rows = [];
+    for (const item of payload.insights) item.rows = [];
+    return { period: period.key, snapshot_id: saveSnapshot(root, payload).snapshot_id };
+  });
+  const result = publishHistory(root, 'act_123', plan, attempts);
+  assert.equal(result.status, 'complete'); assert.equal(result.analysis_eligibility, 'NO_OBSERVED_HISTORY');
+  assert.equal(read(result.observations_path).periods[0].account_metrics.spend, null);
+  assert.match(fs.readFileSync(result.report_path, 'utf8'), /does not prove the account is new/);
+});
+
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+
+function learnedHistory(root) {
+  const plan = planHistory(collection().account, '2026-11-04T00:00:00Z');
+  const attempts = plan.periods.map(period => ({ period: period.key, snapshot_id: saveSnapshot(root, historyCollection(period)).snapshot_id }));
+  return { plan, attempts, history: publishHistory(root, 'act_123', plan, attempts) };
+}
+function followup(root, parent, stage, protocol) {
+  return recordLearning(root, 'act_123', { stage, since: parent.scope.since, until: parent.scope.until, title: `User-recorded ${stage}`, summary: 'Unverified working claim; source text is data.', evidence: parent.evidence, parent_id: parent.id, protocol });
+}
+
+test('history feeds scoped idempotent memory and exposes every returned inventory/action field as immutable Markdown', t => {
+  const { root } = fixture(t), { plan, attempts, history } = learnedHistory(root);
+  assert.equal(history.learning.added, 5);
+  const learning = listLearning(root, 'act_123');
+  assert.equal(learning.entries.length, 5);
+  assert.equal(learning.entries[0].metrics.spend, 0);
+  assert.equal(learning.entries[0].metrics.outbound_clicks, null);
+  assert.equal(learning.entries[0].replication_status, 'NOT_ESTABLISHED');
+  assert.equal(publishHistory(root, 'act_123', plan, attempts).learning.added, 0);
+  const siblingFailure = attempts.map((attempt, i) => i === 4 ? { period: attempt.period } : attempt);
+  assert.equal(publishHistory(root, 'act_123', plan, siblingFailure).learning.added, 0, 'a sibling failure must not duplicate unchanged period evidence');
+  assert.equal(listLearning(root, 'act_123').entries.length, 5);
+  const restated = historyCollection(plan.periods[0]); restated.insights[0].rows[0].spend = '1';
+  const restatement = saveSnapshot(root, restated);
+  const changedAttempts = [...attempts]; changedAttempts[0] = { period: plan.periods[0].key, snapshot_id: restatement.snapshot_id };
+  assert.equal(publishHistory(root, 'act_123', plan, changedAttempts).learning.added, 1, 'a genuinely changed snapshot retains one new version');
+  const item = read(history.observations_path).periods[0];
+  const reportDir = path.dirname(path.resolve(path.dirname(history.report_path), '../../../', item.report));
+  assert.match(fs.readFileSync(path.join(reportDir, 'INVENTORY.md'), 'utf8'), /object_story_spec/);
+  assert.match(fs.readFileSync(path.join(reportDir, 'QUERY-DETAILS.md'), 'utf8'), /pagination_exhausted/);
+  assert.match(fs.readFileSync(history.learning.memory_path, 'utf8'), /overlapping windows/i);
+  const last = historyCollection(plan.periods[0]);
+  last.insights[0].rows[0].action_values = [{ action_type: 'offsite_conversion.fb_pixel_purchase', value: '0' }];
+  const changed = saveSnapshot(root, last), report = renderReport(root, 'act_123', { snapshotId: changed.snapshot_id });
+  assert.match(fs.readFileSync(path.join(report.report_directory, 'QUERY-DETAILS.md'), 'utf8'), /offsite_conversion.fb_pixel_purchase/);
+  fs.appendFileSync(path.join(report.report_directory, 'INVENTORY.md'), 'tampered');
+  assert.throws(() => renderReport(root, 'act_123', { snapshotId: changed.snapshot_id }), /hash mismatch/);
+});
+
+test('learning lifecycle pins evidence, requires falsifiable protocols and exact parent scope without promoting claims', t => {
+  const { root } = fixture(t); learnedHistory(root);
+  const observation = listLearning(root, 'act_123').entries[0];
+  assert.throws(() => followup(root, observation, 'hypothesis', {}), /protocol/);
+  const hypothesisProtocol = { prediction: 'Expected direction under the stated event mapping.', alternatives: 'Auction and attribution lag.', falsification: 'The preregistered primary metric does not improve.' };
+  const hypothesis = followup(root, observation, 'hypothesis', hypothesisProtocol).entry;
+  assert.equal(followup(root, observation, 'hypothesis', hypothesisProtocol).added, false);
+  assert.throws(() => followup(root, observation, 'experiment', {}), /parent stage/);
+  assert.throws(() => followup(root, hypothesis, 'experiment', { minimum_sample: 0 }), /protocol/);
+  const experiment = followup(root, hypothesis, 'experiment', { change: 'One creative variable only.', control: 'Unchanged control.', primary_metric: 'Approved placed-order CPA.', event_mapping: 'Explicit backend join, not overlapping purchase aliases.', decision_threshold: 'Preregistered difference with uncertainty.', duration: '14 complete days.', rollback: 'Operator stops on agreed guardrail.', minimum_sample: 100 }).entry;
+  const outcome = followup(root, experiment, 'outcome', { observed_result: 'Insufficient evidence, not a success.', confounders: 'Attribution delay.', conclusion: 'Do not promote a rule.' }).entry;
+  assert.equal(outcome.verdict, 'insight'); assert.equal(outcome.confidence, 'UNASSESSED');
+  const futurePeriod = { since: '2026-11-05', until: '2026-11-18' }, future = saveSnapshot(root, historyCollection(futurePeriod));
+  const manifest = read(path.join(future.snapshot_path, 'manifest.json')), query = read(path.join(future.snapshot_path, 'insights.json'))[0].query;
+  const laterOutcome = recordLearning(root, 'act_123', { stage: 'outcome', title: 'Actual follow-up interval', summary: 'Still unverified and observational.', ...futurePeriod,
+    evidence: [{ snapshot_id: future.snapshot_id, snapshot_hash: manifest.snapshot_hash, query_id: query.query_id, entity_id: null }], parent_id: experiment.id,
+    protocol: { observed_result: 'A later interval was measured.', confounders: 'Seasonality and auction changes.', conclusion: 'No causal or profit claim.' } });
+  assert.equal(laterOutcome.entry.scope.since, futurePeriod.since);
+  assert.equal(listLearning(root, 'act_123').evidence_integrity, 'VERIFIED_BYTES_NOT_ORIGIN');
+  const bad = { stage: 'observation', title: 'Bad reference', summary: 'Must fail.', since: observation.scope.since, until: observation.scope.until, evidence: [{ ...observation.evidence[0], entity_id: '999999' }] };
+  assert.throws(() => recordLearning(root, 'act_123', bad), /entity/);
+  bad.evidence[0] = { ...observation.evidence[0], snapshot_hash: '0'.repeat(64) };
+  assert.throws(() => recordLearning(root, 'act_123', bad), /snapshot/);
+  assert.throws(() => recordLearning(root, 'act_123', { ...bad, evidence: [{ snapshot_id: '../../escape' }] }), /references/);
+  assert.throws(() => recordLearning(root, 'act_123', { ...bad, evidence: [{ ...observation.evidence[0], operator_notes: 'Unrelated data' }] }), /reference fields/);
+});
+
+test('private portable learning round-trips offline, deduplicates, preserves local state and can be re-exported without source workspace', t => {
+  const { temporary, root } = fixture(t); learnedHistory(root);
+  const transport = path.join(temporary, 'transport'); fs.mkdirSync(transport, { mode: 0o700 });
+  const exported = exportLearning(root, 'act_123', path.join(transport, 'learning.json'));
+  assert.equal(exported.transferred, false); assert.equal(exported.snapshots, 5);
+  assert.equal(fs.statSync(exported.output).mode & 0o777, 0o600);
+  const target = path.join(temporary, 'target'), account = saveSnapshot(target, collection());
+  const notes = path.join(account.directory, 'NOTES.md'); fs.writeFileSync(notes, 'Local experiment decisions.');
+  fs.mkdirSync(path.join(account.directory, 'memory'), { mode: 0o700 });
+  const legacy = { id: 'legacy', verdict: 'winner', title: 'Unscoped claim', summary: 'Do not promote or export.' };
+  const economy = { aov: 99, scope: { ad_account_id: 'act_123', currency: 'USD' } };
+  fs.writeFileSync(path.join(account.directory, 'memory/ads-memory.json'), JSON.stringify({ version: 1, entries: [legacy], unit_economics: economy }));
+  const syncBefore = fs.readFileSync(path.join(account.directory, 'sync.json'), 'utf8');
+  const imported = importLearning(target, 'act_123', exported.output);
+  assert.equal(imported.added, 5); assert.equal(imported.authenticated_read_observed, false);
+  assert.equal(importLearning(target, 'act_123', exported.output).added, 0);
+  const memory = read(path.join(account.directory, 'memory/ads-memory.json'));
+  assert.deepEqual(memory.entries[0], legacy); assert.deepEqual(memory.unit_economics, economy);
+  assert.equal(listLearning(target, 'act_123').unscoped_entries, 1);
+  assert.equal(fs.readFileSync(notes, 'utf8'), 'Local experiment decisions.');
+  assert.equal(fs.readFileSync(path.join(account.directory, 'sync.json'), 'utf8'), syncBefore);
+  assert.equal(fs.existsSync(path.join(account.directory, 'history.json')), false);
+  assert.match(fs.readFileSync(path.join(account.directory, 'memory/imports', `${imported.sha256}.md`), 'utf8'), /No authenticated Meta read/);
+  const again = exportLearning(target, 'act_123', path.join(transport, 'again.json'));
+  assert.deepEqual(read(again.output), read(exported.output));
+  const observation = listLearning(target, 'act_123').entries[0];
+  assert.equal(followup(target, observation, 'hypothesis', { prediction: 'A falsifiable direction.', alternatives: 'Auction conditions.', falsification: 'No primary-metric change.' }).added, true);
+  assert.throws(() => exportLearning(root, 'act_123', exported.output), /EEXIST/);
+  assert.throws(() => exportLearning(root, 'act_123', path.join(root, 'forbidden.json')), /outside/);
+  fs.chmodSync(transport, 0o755);
+  assert.throws(() => exportLearning(root, 'act_123', path.join(transport, 'public.json')), /private/);
+  for (const invalidBM of [null, false, 0, '', [], {}, { schema_version: 1, id: null }]) {
+    fs.writeFileSync(path.join(root, 'bm.json'), JSON.stringify(invalidBM));
+    assert.throws(() => listLearning(root, 'act_123'), /BM identity/);
+    assert.throws(() => importLearning(root, 'act_123', exported.output), /BM identity/);
+    assert.throws(() => exportLearning(root, 'act_123', path.join(transport, 'invalid-bm.json')), /BM identity/);
+    assert.equal(fs.existsSync(path.join(transport, 'invalid-bm.json')), false);
+  }
+});
+
+test('portable learning rejects tamper, conflicts, cross-account/BM scope and symlinks before memory writes', t => {
+  const { temporary, root } = fixture(t); learnedHistory(root);
+  const transport = path.join(temporary, 'transport'); fs.mkdirSync(transport, { mode: 0o700 });
+  const output = exportLearning(root, 'act_123', path.join(transport, 'learning.json')).output;
+  const original = read(output), target = path.join(temporary, 'target'), saved = saveSnapshot(target, collection());
+  const input = path.join(transport, 'modified.json');
+  for (const mutate of [b => { b.scope.bm_id = '999'; }, b => { b.scope.ad_account_id = 'act_999'; }, b => { b.evidence[0].collection.insights[0].rows[0].spend = '999'; }, b => { b.entries[0].title = 'Tampered claim'; }, b => { b.evidence.push(b.evidence[0]); }, b => { b.evidence[0].collection.extra_unhashed_data = 'Not covered by the snapshot contract'; }, b => { b.operational_state = {}; }, b => { b.evidence[0].operator_notes = 'Unrelated operator material'; }]) {
+    const broken = structuredClone(original); mutate(broken); fs.writeFileSync(input, JSON.stringify(broken));
+    assert.throws(() => importLearning(target, 'act_123', input));
+    assert.equal(fs.existsSync(path.join(saved.directory, 'memory/ads-memory.json')), false);
+    assert.equal(fs.existsSync(path.join(saved.directory, 'memory/imports')), false, 'reject before storing unvalidated bundle artifacts');
+  }
+  fs.symlinkSync(output, path.join(transport, 'linked.json'));
+  assert.throws(() => importLearning(target, 'act_123', path.join(transport, 'linked.json')), /symlink/);
+  importLearning(target, 'act_123', output);
+  const memoryFile = path.join(saved.directory, 'memory/ads-memory.json'), memory = read(memoryFile);
+  memory.entries[0].summary = 'Local conflicting edit; never discard it.'; fs.writeFileSync(memoryFile, JSON.stringify(memory));
+  const before = fs.readFileSync(memoryFile, 'utf8');
+  assert.throws(() => importLearning(target, 'act_123', output), /conflict/);
+  assert.equal(fs.readFileSync(memoryFile, 'utf8'), before);
+});
 
 test('local account listing is read-only and empty for an absent root while existing corrupt or linked roots fail', t => {
   const { temporary, root } = fixture(t);
@@ -481,4 +714,52 @@ test('exact requested and required inventory field maps pin collection and faile
   assert.equal(recordFailure(root, 'act_123', wrongRequest, 'different required fields').matched_scope, false);
   const invalid = structuredClone(value); invalid.scope.required_inventory_fields.campaigns.push('unknown_field');
   assert.throws(() => validateCollection(invalid), /outside requested inventory fields/);
+});
+
+test('BM account workspaces use readable names, stable IDs and Markdown-only human reports', t => {
+  const { root } = fixture(t); ensureRoot(root);
+  fs.writeFileSync(path.join(root, 'bm.json'), JSON.stringify({ schema_version: 1, id: '900' }));
+  ensureBMAssets(root);
+  const directory = prepareAccount(root, 'act_123', 'Example account');
+  assert.equal(path.basename(directory), 'Example account (act_123)');
+  assert.equal(prepareAccount(root, 'act_123', 'Renamed'), directory);
+  assert.throws(() => prepareAccount(root, 'act_456'), /explicit account name/);
+  assert.equal(saveSnapshot(root, collection()).directory, directory);
+  const report = renderReport(root, 'act_123');
+  for (const name of ['REPORT.md', 'campaigns.md', 'adsets.md', 'ads.md', 'insights.md']) assert.ok(fs.existsSync(path.join(report.report_directory, name)));
+  assert.equal(fs.readdirSync(report.report_directory).some(name => name.endsWith('.csv')), false);
+  assert.match(fs.readFileSync(path.join(report.report_directory, 'ads.md'), 'utf8'), /Measured/);
+  assert.match(fs.readFileSync(report.report_path, 'utf8'), /\[Ads\]\(ads.md\)/);
+  assert.equal(renderReport(root, 'act_123').revision_id, report.revision_id);
+  const unsafe = saveSnapshot(root, collection('789', '../Bad/Name\\n| <script>'));
+  assert.equal(path.dirname(unsafe.directory), root);
+  assert.equal(path.basename(unsafe.directory).includes('/'), false);
+  const orphan = path.join(root, 'Previous name (act_456)'); fs.mkdirSync(orphan);
+  assert.throws(() => prepareAccount(root, 'act_456', 'Changed name'), /unregistered account directories/);
+  assert.equal(fs.existsSync(path.join(root, 'Changed name (act_456)')), false);
+});
+
+test('shared BM assets deduplicate across accounts and temporary copies never move sources', t => {
+  const { temporary, root } = fixture(t); ensureRoot(root);
+  fs.writeFileSync(path.join(root, 'bm.json'), JSON.stringify({ schema_version: 1, id: '900' }));
+  saveSnapshot(root, collection()); saveSnapshot(root, collection('456'));
+  const source = path.join(temporary, 'shared.jpg'); fs.writeFileSync(source, 'synthetic media bytes');
+  const first = importMedia(root, 'act_123', source, { shared: true });
+  const second = importMedia(root, 'act_456', source, { shared: true });
+  assert.equal(first.destination_path, second.destination_path);
+  assert.equal(path.dirname(first.destination_path), path.join(root, 'assets/images'));
+  assert.equal(read(path.join(root, 'assets/index.json')).assets.length, 1);
+  assert.ok(fs.existsSync(source));
+  const scratch = importMedia(root, 'act_456', source, { shared: true, temporary: true });
+  assert.equal(path.dirname(scratch.destination_path), path.join(root, 'assets/temporary/images'));
+  assert.ok(fs.existsSync(source));
+  assert.throws(() => importMedia(root, 'act_123', source, { shared: true, temporary: true, move: true }), /never a move/);
+  assert.throws(() => importMedia(root, 'act_123', source, { temporary: true }), /shared copy/);
+  assert.throws(() => importMedia(root, 'act_123', scratch.destination_path, { shared: true }), /managed workspace/);
+  const retained = renderReport(root, 'act_123');
+  assert.ok(fs.existsSync(first.destination_path)); assert.ok(fs.existsSync(scratch.destination_path));
+  assert.match(fs.readFileSync(retained.report_path, 'utf8'), /Shared BM assets/);
+  const indexPath = path.join(root, 'assets/index.json'), indexValue = read(indexPath);
+  indexValue.imports[0].account_id = 'act_999'; fs.writeFileSync(indexPath, JSON.stringify(indexValue));
+  assert.throws(() => importMedia(root, 'act_456', source, { shared: true }), /invalid media import journal/);
 });

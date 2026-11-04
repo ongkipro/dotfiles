@@ -11,8 +11,12 @@ dotads_test_node_dir="$(node -p 'require("node:path").dirname(process.execPath)'
 export PATH="$dotads_test_node_dir:$PATH"
 trap 'rm -rf "$TMP"' EXIT
 
-# A caller's workspace override must never redirect fixture writes to real data.
-unset DOTADS_WORKSPACE_ROOT
+# Never load the operator's local credentials/profiles during offline tests.
+# Resolve Node above before replacing HOME (mise shims depend on device config).
+export HOME="$TMP/home"
+mkdir -p "$HOME"
+unset DOTADS_WORKSPACE_ROOT SECRETS_ENV_FILE SECRETS_ENV_BIN ACCESS_TOKEN META_ACCESS_TOKEN
+while IFS= read -r profile_var; do unset "$profile_var"; done < <(compgen -A variable META_BM_ || true; compgen -A variable META_ACCESS_TOKEN_ || true; compgen -A variable meta_ads_ || true)
 
 f=0
 ok()  { printf '  ✓ %s\n' "$1"; }
@@ -304,7 +308,7 @@ for i, recipe in enumerate(recipes, 1):
         for ref in filter(None, refs):
             asset = workspace / ref
             asset.parent.mkdir(parents=True, exist_ok=True)
-            asset.write_bytes(b'synthetic-media-for-offline-plan')
+            asset.write_bytes(b'test-synthetic-media-for-offline-plan')
     check('documented-recipe-' + str(i), lambda manifest: manifest.update(recipe), True)
 PY
 then
@@ -985,7 +989,7 @@ time.sleep(float(os.environ.get('FIXTURE_DELAY','0')))
 print(json.dumps({'id':str(os.getpid())}))
 '''); mock.chmod(0o755)
     secret = root/'secrets-env'
-    secret.write_text('#!/bin/sh\nprintf "synthetic-fixture-value\\n"\n'); secret.chmod(0o755)
+    secret.write_text('#!/bin/sh\nprintf "test-synthetic-fixture-value\\n"\n'); secret.chmod(0o755)
     env = dict(os.environ, META_ADS_BIN=str(mock), SECRETS_ENV_BIN=str(secret), FIXTURE_ROOT=str(root))
     manifest = ws/'campaigns/sample-campaign.json'; brandpath = ws/'brand.json'; statepath = ws/'.meta-state.json'
     original = json.loads(manifest.read_text()); brand = json.loads(brandpath.read_text())
@@ -1132,7 +1136,7 @@ PYBASELINE
 then ok "public Indonesia baseline contract"; else bad "public Indonesia baseline regression"; fi
 
 if python3 - "$CMD" "$TMP" <<'PYREPORTING'
-import copy, importlib.util, json, os, pathlib, subprocess, sys
+import copy, hashlib, importlib.util, json, os, pathlib, subprocess, sys
 cmd, tmp = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]) / 'reporting-cli'
 tmp.mkdir()
 root, home = tmp / 'reports', tmp / 'home'
@@ -1141,13 +1145,13 @@ env = dict(os.environ, HOME=str(home), DOTADS_WORKSPACE_ROOT=str(root), PYTHONDO
 for key in ('ACCESS_TOKEN', 'META_ACCESS_TOKEN', 'DOTADS_META_PYTHON', 'NODE_OPTIONS'):
     env.pop(key, None)
 secret = tmp / 'secret-service'
-secret.write_text('#!/bin/sh\nprintf called >> "' + str(tmp / 'secret-calls') + '"\nprintf synthetic-fixture-token\n')
+secret.write_text('#!/bin/sh\nprintf called >> "' + str(tmp / 'secret-calls') + '"\nprintf test-synthetic-fixture-token\n')
 secret.chmod(0o755)
 env['SECRETS_ENV_BIN'] = str(secret)
 def call(*args, ok=True):
     result = subprocess.run([str(cmd), *args], env=env, text=True, capture_output=True, timeout=30)
     assert (result.returncode == 0) == ok, (args, result.stdout, result.stderr)
-    assert 'synthetic-fixture-token' not in result.stdout + result.stderr
+    assert 'test-synthetic-fixture-token' not in result.stdout + result.stderr
     return json.loads(result.stdout) if ok else result
 assert call('accounts', '--local', '--json')['accounts'] == [] and not root.exists()
 payload = {
@@ -1171,6 +1175,59 @@ assert pathlib.Path(report['report_path']).is_file()
 assert 'Imported collection' in pathlib.Path(report['report_path']).read_text()
 assert not (tmp / 'secret-calls').exists()
 assert len(call('accounts','--local','--json')['accounts']) == 1
+# Five-window history stays entirely offline for plans and explicit imports.
+anchor = '2026-11-04T00:00:00Z'
+plan = call('history','--account','act_123','--as-of',anchor,'--plan')
+assert plan['timezone'] == 'Asia/Jakarta' and len(plan['periods']) == 5
+assert plan['periods'][1]['since'] == '2026-10-28'
+history_dir = tmp / 'history-inputs'; history_dir.mkdir()
+for period in plan['periods']:
+    item = copy.deepcopy(payload)
+    item['import_context'] = {'kind':'FORGED','authenticated_read_observed':True,'input_sha256':'forged'}
+    item['source']['import_context'] = {'kind':'FORGED_SOURCE','authenticated_read_observed':True}
+    item['scope'].update(since=period['since'],until=period['until'],levels=['account','campaign','adset','ad'])
+    base = item['insights'][0]; item['insights'] = []
+    for depth,level in enumerate(item['scope']['levels']):
+        query = copy.deepcopy(base)
+        query['query'].update(since=period['since'],until=period['until'],level=level)
+        query['rows'] = [dict(account_id='123',spend='0',impressions='0',**dict(zip(['campaign_id','adset_id','ad_id'][:depth],['1','2','3'][:depth])))]
+        item['insights'].append(query)
+    (history_dir / (period['key']+'.json')).write_text(json.dumps(item))
+history_args = ('history','--account','act_123','--as-of',anchor,'--input-dir',str(history_dir),'--json')
+history = call(*history_args)
+assert history['status'] == 'complete' and history['analysis_eligibility'] == 'OBSERVATIONAL_REVIEW_ONLY'
+observations = json.loads(pathlib.Path(history['observations_path']).read_text())
+assert len(observations['periods']) == 5
+assert all(p['source']['import_context']['authenticated_read_observed'] is False for p in observations['periods'])
+for period in observations['periods']:
+    context = period['source']['import_context']
+    assert context['kind'] == 'LOCAL_INPUT' and context['input_sha256'] == hashlib.sha256((history_dir/(period['key']+'.json')).read_bytes()).hexdigest()
+assert observations['periods'][0]['account_metrics']['spend'] == 0
+history_pointer = pathlib.Path(history['report_path']).parents[3] / 'history.json'
+learning = call('learn','list','--account','act_123','--json')
+assert len(learning['entries']) == 5 and learning['entries'][0]['stage'] == 'observation'
+observed = learning['entries'][0]
+record_args = ('learn','record','--account','act_123','--stage','observation','--since',observed['scope']['since'],'--until',observed['scope']['until'],'--title','User observation','--summary','Observed evidence only.','--evidence',json.dumps(observed['evidence']),'--json')
+assert call(*record_args)['added'] is True
+assert call(*record_args)['added'] is False
+call('learn','record','--account','act_123','--stage','experiment','--since',observed['scope']['since'],'--until',observed['scope']['until'],'--title','Invalid','--summary','No parent/protocol','--evidence',json.dumps(observed['evidence']),ok=False)
+transport = tmp / 'private-transport'; transport.mkdir(mode=0o700)
+bundle = transport / 'learning.json'
+portable = call('learn','export','--account','act_123','--output',str(bundle),'--json')
+assert portable['entries'] == 6 and portable['transferred'] is False
+assert call('learn','import','--account','act_123','--input',str(bundle),'--json')['added'] == 0
+call('learn','export','--account','act_123','--output',str(bundle),ok=False)
+call('learn','import','--account','act_999','--input',str(bundle),ok=False)
+assert not (tmp / 'secret-calls').exists(), 'local learning accessed credentials/provider'
+(history_dir / 'last_7d.json').unlink()
+partial_result = call(*history_args,ok=False)
+assert partial_result.returncode == 2
+partial_history = json.loads(partial_result.stdout)
+assert partial_history['status'] == 'partial'
+assert json.loads(history_pointer.read_text())['last_complete_success']['revision_id'] == history['revision_id']
+assert not (tmp / 'secret-calls').exists(), 'offline history accessed credentials/provider'
+call('history','--account','act_123','--as-of','2026-02-30T00:00:00Z','--plan',ok=False)
+call('history','--account','act_999','--as-of',anchor,'--input-dir',str(history_dir),'--plan',ok=False)
 bad = copy.deepcopy(payload); bad['scope']['attribution']={'action_attribution_windows':['7d_click']}
 export.write_text(json.dumps(bad))
 call('sync',*scope,'--input',str(export),ok=False)
@@ -1221,7 +1278,7 @@ spec=importlib.util.spec_from_file_location('provider',sys.argv[1]);provider=imp
 request=provider.validate(json.load(sys.stdin));scope=provider.planned_scope(request)
 if '--plan' in sys.argv: print(json.dumps({'request':request,'scope':scope}));sys.exit(0)
 base=pathlib.Path(__file__).parent
-if (base/'provider-failed').exists(): print('synthetic-fixture-token',file=sys.stderr);sys.exit(8)
+if (base/'provider-failed').exists(): print('test-synthetic-fixture-token',file=sys.stderr);sys.exit(8)
 value=json.loads((base/'export.json').read_text());value['scope']=scope
 print(json.dumps(value))
 ''')
@@ -1237,6 +1294,275 @@ assert 'failed' in pathlib.Path(retained['report_path']).read_text().lower()
 print('  PASS reporting CLI: offline source proof, scoped sync/report, copy/move/adoption and canonical failed-refresh fallback')
 PYREPORTING
 then ok "account reporting CLI integration"; else bad "account reporting CLI regression"; fi
+
+# Named BM profiles: synthetic credentials only; no network or real HOME access.
+if python3 - "$CMD" "$TMP" <<'PYBM'
+import json, os, pathlib, shutil, subprocess, sys
+cmd = pathlib.Path(sys.argv[1]).resolve()
+base = pathlib.Path(sys.argv[2]) / 'bm-contracts'
+base.mkdir()
+home = base / 'home'
+home.mkdir()
+secret = home / '.config/ai-local/secrets.env'
+secret.parent.mkdir(parents=True)
+env = {k:v for k,v in os.environ.items() if not k.startswith(('META_BM_', 'META_ACCESS_TOKEN_', 'meta_ads_'))}
+env.update(HOME=str(home), SECRETS_ENV_FILE=str(secret), SECRETS_ENV_BIN=str(cmd.parent/'secrets-env'),
+           DOTADS_WORKSPACE_ROOT=str(home/'Documents/dotads-meta-report'))
+root = pathlib.Path(env['DOTADS_WORKSPACE_ROOT'])
+TOKEN_KEY = 'ACCESS' + '_TOKEN'  # Avoid scanner-shaped literal fixtures.
+def credentials(extra='', alpha_name='Alpha Business', alpha_token='test-synthetic-alpha-credential'):
+    secret.write_text(f'META_BM_ALPHA_NAME={alpha_name}\nMETA_BM_ALPHA_ID=100\nMETA_BM_ALPHA_{TOKEN_KEY}={alpha_token}\n'
+                      'META_BM_BETA_NAME=Beta Business\nMETA_BM_BETA_ID=200\nMETA_BM_BETA_ACCESS_TOKEN=test-synthetic-beta-credential\n'+extra)
+    secret.chmod(0o600)
+def call(*args, ok=True, custom=None):
+    result = subprocess.run([str(cmd), *args], env=custom or env, text=True, capture_output=True)
+    assert all(token not in result.stdout+result.stderr for token in
+               ('test-synthetic-alpha-credential', 'test-synthetic-beta-credential', 'test-synthetic-lower-credential', 'test-synthetic-another-credential', 'test-synthetic-prefix-credential', 'test-synthetic-prefix-other')), result
+    assert (result.returncode == 0) == ok, (args, result.stdout, result.stderr)
+    return result
+# No-op reconciliation must not pretend that an absent reporting folder is ready.
+no_profiles = call('setup', '--workspace-only')
+assert 'setup skipped' in no_profiles.stdout and 'ready:' not in no_profiles.stdout and not root.exists()
+unknown = call('setup', '--workspace-only', '--bm', 'autokirim', ok=False)
+assert 'No named BM profile matching --bm autokirim' in unknown.stderr
+assert 'not a token-validity check' in unknown.stderr and 'do not replace an existing token' in unknown.stderr
+assert 'meta_ads_token_autokirim' in unknown.stderr and 'meta_ads_bm_id_autokirim' in unknown.stderr
+assert not root.exists()
+# An explicitly selected profile without a nonblank token must fail, not report ready: 0.
+for text,key in [
+    ('meta_ads_bm_id_autokirim=100\nmeta_ads_bm_name_autokirim=Autokirim\nmeta_ads_token_autokirim=   \n','autokirim'),
+    (f'META_BM_ALPHA_NAME=Alpha Business\nMETA_BM_ALPHA_ID=100\nMETA_BM_ALPHA_{TOKEN_KEY}=\n','ALPHA'),
+]:
+    secret.write_text(text); secret.chmod(0o600)
+    assert 'setup skipped' in call('setup','--workspace-only').stdout and not root.exists()
+    selected = call('setup','--workspace-only','--bm',key,ok=False)
+    assert 'was detected' in selected.stderr and 'unavailable or blank' in selected.stderr and not root.exists()
+credentials(alpha_token='')
+call('setup','--workspace-only','--bm','ALPHA',ok=False)
+assert not root.exists(), 'failed explicit setup created the other active BM workspace'
+credentials()
+setup_result = call('setup', '--workspace-only')
+a = root/'alpha-business--bm_100'
+b = root/'beta-business--bm_200'
+assert a.is_dir() and b.is_dir()
+assert str(a) in setup_result.stdout and str(b) in setup_result.stdout
+selected_setup = call('setup','--workspace-only','--bm','ALPHA')
+assert str(a) in selected_setup.stdout and str(b) not in selected_setup.stdout
+for folder in (a,b):
+    assert folder.stat().st_mode & 0o777 == 0o700
+    assert (folder/'bm.json').stat().st_mode & 0o777 == 0o600
+    assert json.loads((folder/'accounts.json').read_text())['accounts'] == {}
+    assert json.loads((folder/'bm.json').read_text())['identity_source'] == 'LOCAL_ENV_UNVERIFIED'
+(a/'NOTES.md').write_text('operator-owned notes')
+before = {str(p):p.read_bytes() for p in root.rglob('*') if p.is_file()}
+call('setup', '--workspace-only')
+assert before == {str(p):p.read_bytes() for p in root.rglob('*') if p.is_file()}
+assert 'Multiple Business Managers' in call('accounts','--local','--json',ok=False).stderr
+call('accounts','--local','--json','--bm','ALPHA')
+call('accounts','--local','--json','--bm','BETA')
+call('accounts','--local','--bm','UNKNOWN',ok=False)
+call('init','draft','--bm','ALPHA')
+brand = json.loads((a/'draft/brand.json').read_text())
+assert brand['business_id'] == '100' and brand['token_env'] == 'META_BM_ALPHA_ACCESS_TOKEN'
+call('init','--account','act_321','--account-name','Named Account','--bm','ALPHA')
+account_dir = a/'Named Account (act_321)'
+assert (account_dir/'campaigns/sample-campaign.json').is_file()
+assert json.loads((account_dir/'brand.json').read_text())['ad_account_id'] == 'act_321'
+call('init','--account','act_321','--bm','ALPHA')
+image = base/'shared.jpg'
+image.write_bytes(b'test-synthetic-shared-image')
+imported = json.loads(call('import-media','--account','act_321',str(image),'--bm','ALPHA','--json').stdout)
+assert pathlib.Path(imported['destination_path']).parent == a/'assets/images'
+call('import-media','--account','act_321',str(image),'--bm','ALPHA','--temporary','--json')
+call('import-media','--account','act_321',str(image),'--bm','ALPHA','--temporary','--move',ok=False)
+assert image.exists()
+# Offline collection creates a readable account folder under the selected BM.
+export = pathlib.Path(sys.argv[2])/'reporting-cli/export.json'
+if export.exists():
+    call('sync','--account','act_123','--since','2026-09-01','--until','2026-09-30','--levels','ad','--input',str(export),'--bm','BETA','--json')
+    entries = json.loads((b/'accounts.json').read_text())['accounts']
+    assert entries['act_123']['directory'].endswith(' (act_123)')
+    report = json.loads(call('report','--account','act_123','--bm','BETA','--json').stdout)
+    assert (pathlib.Path(report['report_directory'])/'ads.md').is_file()
+    assert not (pathlib.Path(report['report_directory'])/'ads.csv').exists()
+# Names may change, but saved BM ID bindings keep stable directories and notes.
+credentials(alpha_name='Renamed Alpha', alpha_token='test-synthetic-rotated-credential')
+renamed_setup = call('setup','--workspace-only')
+assert str(a) in renamed_setup.stdout and str(root/'renamed-alpha--bm_100') not in renamed_setup.stdout
+assert not (root/'renamed-alpha--bm_100').exists()
+assert (a/'NOTES.md').read_text() == 'operator-owned notes'
+credentials('META_BM_ALIAS_NAME=Alias\nMETA_BM_ALIAS_ID=100\nMETA_BM_ALIAS_ACCESS_TOKEN=test-synthetic-alias\n')
+assert 'same BM ID' in call('setup','--workspace-only',ok=False).stderr
+credentials('META_BM_GAMMA_NAME=Gamma\nMETA_BM_GAMMA_ID=300\nMETA_BM_GAMMA_ACCESS_TOKEN=test-synthetic-alpha-credential\n')
+call('setup','--workspace-only',ok=False)
+credentials()
+# An explicit wrong token reference must never fall back to another BM or ambient token.
+call('accounts','--bm','ALPHA','--token-env','META_BM_BETA_ACCESS_TOKEN',ok=False)
+fake = base/'meta'
+fake.write_text('#!/bin/sh\nprintf "meta 1.2.0\\n"\n')
+fake.chmod(0o755)
+credentials(alpha_token='')
+missing_env = dict(env, ACCESS_TOKEN='test-synthetic-ambient', META_ACCESS_TOKEN='test-synthetic-legacy', META_ADS_BIN=str(fake))
+assert 'Unable to load' in call('run','--bm','ALPHA','--','auth','status',ok=False,custom=missing_env).stderr
+credentials(f'META_BM_GAMMA_NAME=Gamma\nMETA_BM_GAMMA_ID=300\nMETA_BM_GAMMA_{TOKEN_KEY}=\n')
+call('setup','--workspace-only')
+assert not (root/'gamma--bm_300').exists()
+# Existing candidate and legacy trees are never adopted or moved implicitly.
+legacy = root/'act_999--legacy'
+legacy.mkdir()
+(legacy/'NOTES.md').write_text('legacy')
+credentials('META_BM_GAMMA_NAME=Gamma\nMETA_BM_GAMMA_ID=300\nMETA_BM_GAMMA_ACCESS_TOKEN=test-synthetic-gamma\n')
+collision = root/'gamma--bm_300'
+collision.mkdir()
+(collision/'NOTES.md').write_text('untouched')
+call('setup','--workspace-only',ok=False)
+assert (collision/'NOTES.md').read_text() == 'untouched' and not (collision/'bm.json').exists()
+assert (legacy/'NOTES.md').read_text() == 'legacy'
+# Reject symlinks before touching the destination.
+linked = base/'linked'
+linked.symlink_to(root, target_is_directory=True)
+call('setup','--workspace-only',ok=False,custom=dict(env,DOTADS_WORKSPACE_ROOT=str(linked)))
+# Environment-only profiles work without a secrets file (e.g. secrets-env run).
+empty_home = base/'ambient-home'
+empty_home.mkdir()
+ambient = dict(env, HOME=str(empty_home), SECRETS_ENV_FILE=str(empty_home/'missing.env'),
+               DOTADS_WORKSPACE_ROOT=str(empty_home/'reports'), META_BM_SOLO_NAME='Solo BM',
+               META_BM_SOLO_ID='400', META_BM_SOLO_ACCESS_TOKEN='test-synthetic-solo')
+call('setup','--workspace-only',custom=ambient)
+call('accounts','--local','--json',custom=ambient)
+# Saved key or token reference cannot silently acquire another BM ID.
+ambient_root = pathlib.Path(ambient['DOTADS_WORKSPACE_ROOT'])
+saved_binding = ambient_root/'solo-bm--bm_400/bm.json'
+original_binding = saved_binding.read_bytes()
+changed_id = dict(ambient, META_BM_SOLO_ID='401')
+assert 'Saved BM ID conflicts' in call('setup','--workspace-only',custom=changed_id,ok=False).stderr
+assert not (ambient_root/'solo-bm--bm_401').exists() and saved_binding.read_bytes() == original_binding
+# Exercise token-reference protection even when the saved key no longer matches.
+metadata = json.loads(original_binding); metadata['key'] = 'SAVED_OTHER_KEY'
+saved_binding.write_text(json.dumps(metadata))
+assert 'Saved BM ID conflicts' in call('setup','--workspace-only',custom=changed_id,ok=False).stderr
+assert not (ambient_root/'solo-bm--bm_401').exists()
+saved_binding.write_bytes(original_binding)
+# First-upgrade and repeated pull reconciliation use the existing ai-memory-link entry point.
+repo = base/'device-dotfiles'
+(repo/'bin').mkdir(parents=True)
+ai = repo/'config/ai'
+(ai/'adapters').mkdir(parents=True)
+(ai/'CORE.md').write_text('Synthetic fixture core\n')
+for runtime in ('claude','codex','antigravity','pi','omp'):
+    (ai/'adapters'/f'{runtime}.md').write_text('Synthetic adapter\n')
+for name in ('ai-memory-link','dotads-meta','_dotads-workspace.mjs','secrets-env'):
+    shutil.copy2(cmd.parent/name, repo/'bin'/name)
+link_home = base/'device-home'
+(link_home/'.config').mkdir(parents=True)
+(link_home/'.config/ai').symlink_to(ai, target_is_directory=True)
+link_env = dict(ambient, HOME=str(link_home), SECRETS_ENV_BIN=str(repo/'bin/secrets-env'),
+                DOTADS_WORKSPACE_ROOT=str(link_home/'Documents/dotads-meta-report'))
+for _ in range(2):
+    result = subprocess.run([str(repo/'bin/ai-memory-link')],env=link_env,text=True,capture_output=True)
+    assert result.returncode == 0, result.stdout+result.stderr
+assert (link_home/'Documents/dotads-meta-report/solo-bm--bm_400/bm.json').is_file()
+# Preferred lowercase naming: suffix is a local label, BM ID is never guessed.
+secret.write_text('meta_ads_token_autolaris=test-synthetic-lower-credential\nmeta_ads_bm_id_autolaris=500\n'
+                  'meta_ads_token_another=test-synthetic-another-credential\nmeta_ads_bm_id_another=600\nmeta_ads_bm_name_another=Another Business\n')
+secret.chmod(0o600)
+call('setup','--workspace-only')
+lower = root/'autolaris--bm_500'
+assert (lower/'bm.json').is_file() and (root/'another-business--bm_600/bm.json').is_file()
+assert json.loads((lower/'bm.json').read_text())['token_env'] == 'meta_ads_token_autolaris'
+call('accounts','--local','--bm','autolaris','--json')
+call('accounts','--local','--bm','AUTOLARIS','--json')
+call('accounts','--local','--json',ok=False)
+call('init','--bm','autolaris','--account','act_321','--account-name','Lower Account')
+lower_brand = lower/'Lower Account (act_321)/brand.json'
+assert json.loads(lower_brand.read_text())['token_env'] == 'meta_ads_token_autolaris'
+fake.write_text('#!/usr/bin/python3\nimport os\nassert os.environ.get("ACCESS_TOKEN") == "test-synthetic-lower-credential"\nassert os.environ.get("BUSINESS_ID") == "500"\nassert os.environ.get("AD_ACCOUNT_ID") == "act_321"\nprint("selected-profile-ok")\n')
+assert 'selected-profile-ok' in call('run','--bm','autolaris','--brand',str(lower_brand),'--','ads','campaign','list',custom=dict(env,META_ADS_BIN=str(fake))).stdout
+fake.write_text('#!/usr/bin/python3\nimport os\nassert os.environ.get("ACCESS_TOKEN") == "test-synthetic-lower-credential"\nassert os.environ.get("BUSINESS_ID") == "500"\nassert "AD_ACCOUNT_ID" not in os.environ\nprint("brandless-selected-profile-ok")\n')
+assert 'brandless-selected-profile-ok' in call('run','--bm','autolaris','--','auth','status',custom=dict(env,META_ADS_BIN=str(fake),BUSINESS_ID='600',AD_ACCOUNT_ID='act_999')).stdout
+call('run','--bm','autolaris','--brand',str(a/'draft/brand.json'),'--','auth','status',ok=False)
+call('accounts','--bm','autolaris','--token-env','meta_ads_token_another',ok=False)
+lower_config = secret.read_text()
+# Distinct legacy/lowercase profiles coexist; duplicate aliases and identities do not.
+secret.write_text(lower_config+'META_BM_LEGACY_NAME=Legacy\nMETA_BM_LEGACY_ID=700\nMETA_BM_LEGACY_ACCESS_TOKEN=test-synthetic-legacy-distinct\n')
+call('setup','--workspace-only')
+call('accounts','--local','--bm','legacy','--json')
+secret.write_text(lower_config+'META_BM_AUTOLARIS_NAME=Legacy Alias\nMETA_BM_AUTOLARIS_ID=500\nMETA_BM_AUTOLARIS_ACCESS_TOKEN=test-synthetic-alias\n')
+call('setup','--workspace-only',ok=False)
+secret.write_text(lower_config+'META_BM_DUPLICATE_NAME=Duplicate\nMETA_BM_DUPLICATE_ID=500\nMETA_BM_DUPLICATE_ACCESS_TOKEN=test-synthetic-duplicate\n')
+call('setup','--workspace-only',ok=False)
+secret.write_text('meta_ads_token_autolaris=test-synthetic-lower-credential\n')
+assert 'numeric BM ID' in call('setup','--workspace-only',ok=False).stderr
+secret.write_text('meta_ads_token_Upper=test-synthetic-invalid\nmeta_ads_bm_id_Upper=900\n')
+call('setup','--workspace-only',ok=False)
+secret.write_text('meta_ads_token_=test-synthetic-invalid\n')
+call('setup','--workspace-only',ok=False)
+secret.write_text(lower_config.replace('meta_ads_token_another=test-synthetic-another-credential','meta_ads_token_another=test-synthetic-lower-credential'))
+call('setup','--workspace-only',ok=False)
+secret.write_text(lower_config.replace('meta_ads_token_autolaris=test-synthetic-lower-credential','meta_ads_token_autolaris='))
+call('run','--bm','autolaris','--brand',str(lower_brand),'--','auth','status',ok=False,custom=dict(env,ACCESS_TOKEN='test-synthetic-ambient',META_ACCESS_TOKEN='test-synthetic-generic'))
+# Lowercase injected env works without the secrets file too.
+for key in ('META_BM_SOLO_NAME','META_BM_SOLO_ID','META_BM_SOLO_ACCESS_TOKEN'):
+    ambient.pop(key, None)
+ambient.update(meta_ads_token_solo='test-synthetic-lower-solo',meta_ads_bm_id_solo='800')
+# Reusing SOLO with a new ID/format is reconciliation, not a new-profile setup.
+call('setup','--workspace-only',custom=ambient,ok=False)
+ambient['DOTADS_WORKSPACE_ROOT'] = str(empty_home/'lowercase-clean-reports')
+call('setup','--workspace-only',custom=ambient)
+call('accounts','--local','--bm','solo','--json',custom=ambient)
+# Existing named-token references remain intact; IDs are explicit, not inferred from tokens.
+compat_root = base/'named-token-reports'
+compat_env = dict(env, DOTADS_WORKSPACE_ROOT=str(compat_root))
+compat_config = ('META_ACCESS_TOKEN_AUTOLARIS=test-synthetic-prefix-credential\nMETA_BM_AUTOLARIS_ID=900\n'
+                 'META_ACCESS_TOKEN_OTHER=test-synthetic-prefix-other\nMETA_BM_OTHER_ID=901\nMETA_BM_OTHER_NAME=Other Business\n')
+secret.write_text(compat_config)
+call('setup','--workspace-only','--bm','autolaris',custom=compat_env)
+compat_bm = compat_root/'autolaris--bm_900'
+assert json.loads((compat_bm/'bm.json').read_text())['token_env'] == 'META_ACCESS_TOKEN_AUTOLARIS'
+assert not (compat_root/'other-business--bm_901').exists()
+call('accounts','--local','--bm','AUTOLARIS','--json',custom=compat_env)
+call('setup','--workspace-only','--bm','autokirim',custom=compat_env,ok=False)
+call('init','--account','act_421','--account-name','Existing Token Account','--bm','autolaris',custom=compat_env)
+compat_brand = compat_bm/'Existing Token Account (act_421)/brand.json'
+assert json.loads(compat_brand.read_text())['token_env'] == 'META_ACCESS_TOKEN_AUTOLARIS'
+fake.write_text('#!/usr/bin/python3\nimport os\nassert os.environ.get("ACCESS_TOKEN") == "test-synthetic-prefix-credential"\nassert os.environ.get("BUSINESS_ID") == "900"\nassert os.environ.get("AD_ACCOUNT_ID") == "act_421"\nprint("existing-token-reference-ok")\n')
+assert 'existing-token-reference-ok' in call('run','--bm','autolaris','--brand',str(compat_brand),'--','ads','campaign','list',custom=dict(compat_env,META_ADS_BIN=str(fake))).stdout
+call('accounts','--bm','autolaris','--token-env','META_ACCESS_TOKEN_OTHER',custom=compat_env,ok=False)
+call('setup','--workspace-only',custom=compat_env)
+assert (compat_root/'other-business--bm_901/bm.json').is_file()
+before_compat = {str(p):p.read_bytes() for p in compat_root.rglob('*') if p.is_file()}
+for conflict in [
+    compat_config+f'META_BM_AUTOLARIS_{TOKEN_KEY}=\n',
+    compat_config+'meta_ads_token_autolaris=test-synthetic-other-format\nmeta_ads_bm_id_autolaris=900\n',
+    compat_config.replace('META_BM_OTHER_ID=901','META_BM_OTHER_ID=900'),
+    compat_config.replace('test-synthetic-prefix-other','test-synthetic-prefix-credential'),
+]:
+    secret.write_text(conflict)
+    call('setup','--workspace-only',custom=compat_env,ok=False)
+    assert before_compat == {str(p):p.read_bytes() for p in compat_root.rglob('*') if p.is_file()}
+secret.write_text(compat_config.replace('test-synthetic-prefix-credential',''))
+call('setup','--workspace-only','--bm','autolaris',custom=compat_env,ok=False)
+missing_prefix = call('run','--bm','autolaris','--brand',str(compat_brand),'--','auth','status',ok=False,
+                      custom=dict(compat_env,META_ADS_BIN=str(fake),ACCESS_TOKEN='test-synthetic-ambient',META_ACCESS_TOKEN='test-synthetic-generic'))
+assert 'Unable to load' in missing_prefix.stderr and 'existing-token-reference-ok' not in missing_prefix.stdout
+secret.write_text('META_ACCESS_TOKEN_AUTOLARIS=test-synthetic-prefix-credential\n')
+no_id_root = base/'named-token-without-id'
+assert 'numeric BM ID' in call('setup','--workspace-only',custom=dict(compat_env,DOTADS_WORKSPACE_ROOT=str(no_id_root)),ok=False).stderr
+assert not no_id_root.exists()
+# A saved prefix-token reference is never silently switched to the other legacy convention.
+secret.write_text(compat_config.replace('META_ACCESS_TOKEN_AUTOLARIS=',f'META_BM_AUTOLARIS_{TOKEN_KEY}=')+'META_BM_AUTOLARIS_NAME=AUTOLARIS\n')
+assert 'explicit reconciliation' in call('setup','--workspace-only','--bm','autolaris',custom=compat_env,ok=False).stderr
+secret.write_text(compat_config+'META_BM_AUTOLARIS_NAME=Renamed Business\n')
+renamed_prefix = call('setup','--workspace-only','--bm','autolaris',custom=compat_env)
+assert str(compat_bm) in renamed_prefix.stdout and not (compat_root/'renamed-business--bm_900').exists()
+assert json.loads((compat_bm/'bm.json').read_text())['token_env'] == 'META_ACCESS_TOKEN_AUTOLARIS'
+# Same parser also handles already-injected legacy named tokens without a secret file.
+injected_prefix = {k:v for k,v in ambient.items() if not k.startswith(('meta_ads_', 'META_BM_', 'META_ACCESS_TOKEN_'))}
+injected_prefix.update(DOTADS_WORKSPACE_ROOT=str(base/'injected-named-token'), META_ACCESS_TOKEN_AUTOLARIS='test-synthetic-prefix-credential', META_BM_AUTOLARIS_ID='900')
+call('setup','--workspace-only','--bm','autolaris',custom=injected_prefix)
+print('  PASS BM profiles: existing prefix/legacy/lowercase env, exact token references, explicit IDs, conflicts, case-insensitive selection and device relink')
+PYBM
+then ok "BM auto-setup and device-pull reconciliation"; else bad "BM auto-setup regression"; fi
 
 [ "$f" -eq 0 ] && { echo "dotads-meta-test: PASS"; exit 0; }
 echo "dotads-meta-test: $f case(s) failed" >&2

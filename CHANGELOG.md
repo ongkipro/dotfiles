@@ -6,6 +6,71 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-28
 
+### DotAds Meta: bounded creative payload recovery — 2026-11-04
+
+- A later full-field creative page can exceed Meta's response-size limit even at
+  25 rows. Its explicit reduce-data rejection now reduces the same cursor to
+  10, then 1 if needed; records safe adjustment metadata and keeps every field.
+- Reductions are bounded and never skip records, relax account identity, follow
+  next URLs or bypass the page budget. Unrecoverable pages remain partial;
+  previous immutable reports and learning versions are preserved.
+- `run --bm KEY` without a brand now passes the selected BM as `BUSINESS_ID`
+  and drops an inherited `AD_ACCOUNT_ID` that may belong to another BM.
+
+### DotAds Meta: live read-test inventory transport — 2026-11-04
+
+- Default campaign/ad-set/ad inventory scope explicitly excludes `DELETED`, which
+  v26.0 rejected in bounded live GET tests; keeps ARCHIVED and other supported
+  states, records exclusions, and preserves old failed-scope evidence unchanged.
+- Full-field creative requests use 25-row pages after live 100-row requests
+  failed as oversized. Field coverage is unchanged; cursor exhaustion, page
+  limits, partial results and account isolation retain their existing guards.
+- Operator-designated dummy/test intent is account-local metadata, not proof of
+  a sandbox or authorization for live ad/budget/account mutations.
+
+### DotAds Meta: scoped learning and private portable evidence — 2026-11-04
+
+- History appends account/date/snapshot-scoped observations to the existing memory
+  owner without promoting winners, rules, causal claims or spend decisions.
+- Immutable `INVENTORY.md` and `QUERY-DETAILS.md` expose all sanitized returned
+  resource/query fields, coverage and raw actions; new renderer revisions preserve
+  existing reports.
+- `learn record/list --account` adds an evidence-pinned observation → hypothesis →
+  experiment → outcome lifecycle with explicit protocols and parent scope.
+- Offline `learn export/import --account` carries scoped entries and referenced
+  evidence only; verifies hashes/identity/conflicts, deduplicates imports and
+  preserves local economics, notes and history/sync pointers. No network transfer,
+  credential sharing, automatic cloud sync, or model training is implied.
+
+### DotAds Meta: five-window history evidence — 2026-11-04
+
+- `history --account act_ID --plan` resolves account-timezone yesterday,
+  last 7/30/90 completed days and this month including incomplete today.
+  Collection is a separate authorized read; selected period exports work offline.
+- Immutable account-local history links snapshot/query provenance, keeps measured
+  zero separate from missing/empty/error evidence, and preserves the last complete
+  history after partial refresh. Windows are never summed.
+- Observation → hypothesis → controlled experiment → outcome remains a reviewed,
+  operator-owned workflow, not automatic winners, profit claims or model training.
+  No live account validation or production/spend mutation is implied.
+
+### DotAds Meta: BM auto-setup and account-local Markdown — 2026-11-04
+
+- Named device-local `META_BM_<KEY>_NAME` / `_ID` / `_ACCESS_TOKEN` profiles
+  prepare isolated BM roots through offline `setup --workspace-only` and the
+  existing post-pull `ai-memory-link` reconciliation. Nonempty local token
+  configuration is not proof of API access; no API calls or installs run on pull.
+- Multiple BMs require explicit selection; missing/conflicting token references
+  never fall back across BMs. Existing flat workspaces stay untouched.
+- Sync or `init --account` allocates/reuses `Account Name (act_ID)` folders.
+  Campaign work and Markdown human reports stay there; internal JSON preserves
+  state and evidence. Legacy renderer/revisions remain compatible.
+- Selected media defaults to shared BM `assets/`; optional temporary copies
+  prohibit moves and never trigger automatic cleanup.
+- Other devices: pull through `dotsync` (or run `ai-memory-link` after plain Git
+  pull), configure local named profiles, then use `--bm KEY`. Private tokens,
+  reports and assets are not transferred by dotfiles. No commit/push is implied.
+
 ### Pi: Sonnet 5.5 default, quieter transcript, and isolated Playwright MCP — 2026-11-04
 
 - Startup model `cc/claude-sonnet-5-5` with `defaultThinkingLevel: medium`;

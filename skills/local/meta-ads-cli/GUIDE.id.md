@@ -9,7 +9,8 @@ AI mengerjakan pemeriksaan, pengolahan data, penyusunan rencana, serta eksekusi
 yang sudah diizinkan melalui terminal. Hasilnya harus disertai bukti.
 
 Untuk AI, baca [kontrak kerja terminal dalam English](references/terminal-control.md).
-Spesifikasi workspace tersedia di [panduan teknis](references/account-workspace-guide.md).
+Kontrak workspace yang berlaku ada di [runtime guide](references/account-workspace-runtime.md).
+Panduan desain lama bukan bukti kemampuan yang sudah berjalan.
 
 ## Mulai dari sini
 
@@ -114,35 +115,73 @@ angka pengukuran kota yang belum tersedia. Data BPS Indonesia digunakan hanya
 untuk market ID yang dipilih; bahasa percakapan atau tagihan IDR tidak menentukan
 market. Materi pelanggan Indonesia memakai Bahasa Indonesia sesuai konteksnya.
 
-### B. Menyiapkan akses dan workspace
+### B. Menyiapkan env: Anda cukup isi token
+
+Minta AI menyiapkan device seperti ini:
 
 ```text
-Periksa kesiapan dotads-meta pada device ini dan workspace yang saya pilih.
-Tunjukkan komponen yang sudah ada dan yang masih diperlukan. Saya akan
-memasukkan token sendiri melalui sarana lokal tepercaya; jangan minta atau
-tampilkan nilai token di chat. Verifikasi akun yang saya pilih sebelum dipakai.
+Siapkan env dan workspace DotAds Meta. Buat file/key yang belum ada, pertahankan
+konfigurasi serta token lama. Isi metadata BM dari sumber lokal yang sudah
+cocok; jika BM ID belum diketahui, tanyakan sekali. Saya cukup memasukkan token
+secara lokal. Setelah saya bilang sudah, jalankan setup dan pastikan foldernya ada.
+Jangan tampilkan token atau mengakses Meta tanpa izin yang sesuai.
 ```
 
-Operator mungkin perlu memberikan izin aset melalui antarmuka Meta. AI menjelaskan
-langkah sesuai dokumentasi resmi yang berlaku saat pengaturan dilakukan.
-Token disimpan melalui mekanisme secret lokal; konfigurasi kerja menyebut nama
-referensinya, misalnya `META_ACCESS_TOKEN`, bukan nilainya. Berikan izin akses
-yang diperlukan sebelum AI memakai secret atau membaca akun.
+**AI yang menyiapkan env; Anda tidak perlu mengetik ulang seluruh konfigurasi.**
+Setelah izin diberikan, AI membuat file yang belum ada dengan mode 0600 atau
+menambahkan hanya key yang terbukti belum ada. File default:
 
-`doctor` membantu pemeriksaan CLI/authentication; akses ke akun dan resource
-laporan tetap diperiksa terpisah. Jika terdapat beberapa akun, pilih akun tujuan
-dengan ID yang terverifikasi.
+```text
+~/.config/ai-local/secrets.env
+```
 
-Root workspace adalah `~/Documents/dotads-meta-report/`. Installer dan `setup`
-menyiapkan root tersebut; `init <nama-akun>` menyiapkan root beserta kerangkanya.
-Nama tanpa pemisah path selalu masuk ke root itu, termasuk bila folder senama
-ada di direktori terminal. Gunakan `./folder` atau path absolut untuk memilih
-lokasi lain. Symlink atau izin privat yang gagal diverifikasi menghentikan
-bootstrap. Perubahan folder serentak oleh proses lain belum dilindungi kontrak
-bootstrap ini. ID dari nama folder belum membuktikan akses Meta; nilai template
-tetap harus diperiksa. Registry dan snapshot dibuat lewat `sync`; laporan dibuat
-ketika `report` dijalankan. Penjadwalan otomatis belum tersedia. Panduan teknis
-terbaru ada di [kontrak runtime](references/account-workspace-runtime.md).
+Jika token belum tersedia, Anda hanya mengisi satu baris, misalnya:
+
+```dotenv
+META_ACCESS_TOKEN_AUTOLARIS=<masukanTOKEN>
+```
+
+Ganti `<masukanTOKEN>` dengan token di editor lokal; jangan menyalin contoh itu
+sebagai token sungguhan, mengirim nilainya ke chat, atau menaruh spasi di awal
+baris. AI sudah menyiapkan `META_BM_AUTOLARIS_ID` dan nama BM jika diketahui.
+BM ID harus benar; pada device baru tanpa metadata BM, AI menanyakannya sekali,
+bukan menebak. Jika token sudah ada, Anda tidak perlu mengisinya lagi.
+
+`AUTOLARIS` hanya contoh label. Pakai label dan `token_env` yang memang ada:
+`META_ACCESS_TOKEN_AUTOLARIS` memakai `--bm autolaris`, bukan `autokirim`.
+Format lowercase/legacy yang sudah bekerja dipertahankan, tidak diganti tanpa
+migrasi yang disetujui. Pull dotfiles tidak menyalin token atau identitas BM.
+
+Setelah Anda bilang **sudah**, AI menjalankan dan memeriksa hasilnya:
+
+```bash
+dotads-meta setup --workspace-only --bm autolaris
+```
+
+AI memastikan direktori yang dilaporkan dan subfolder `assets/` benar-benar ada
+di `~/Documents/dotads-meta-report/<nama>--bm_<ID>/`. Jangan mengaku selesai
+hanya karena tes lulus, bantuan CLI tampil, atau folder kosong dibuat manual.
+Tanpa profil aktif, setup offline berstatus **skipped**, bukan sukses membuat
+folder. Error deteksi profil bukan bukti token salah. Peringatan lokasi Git pada
+audit secret juga bukan bukti token invalid dan tidak mengizinkan penghapusan
+metadata Git atau pemindahan credential tanpa persetujuan. Jika guard memblokir,
+AI berhenti, bukan membaca data yang sama lewat jalur lain.
+
+Penyiapan env ini dikerjakan AI sesuai izin; `setup --workspace-only` dan proses
+pull sendiri tidak membuat/mengubah file credential atau mengambil data Meta.
+Untuk prosedur AI yang lengkap, gunakan [setup §0](references/setup-and-commands.md#0-ai-managed-env-preparation-the-operator-fills-one-token-line).
+
+Operator tetap mengurus izin aset melalui antarmuka Meta bila diperlukan.
+`doctor` memeriksa CLI/authentication hanya jika pembacaan itu diizinkan;
+folder lokal belum membuktikan akses akun. Pilih akun tujuan dengan ID yang
+terverifikasi sebelum mengambil data.
+
+`init --account` menyiapkan folder akun kanonis untuk campaign; `sync` menyimpan
+snapshot, `report` merender laporan, dan `history` merangkum lima periode dengan
+scope terpisah. `init <nama>` tetap tersedia untuk draft legacy di root terpilih;
+`./folder` atau path absolut memilih lokasi lain. Kerangka lokal bukan data akun
+atau bukti akses Meta. Penjadwalan otomatis belum tersedia. Kontrak teknis terbaru
+ada di [runtime guide](references/account-workspace-runtime.md).
 
 Untuk alur pelaporan, minta AI memilih akun terverifikasi dan periode secara
 eksplisit, menjalankan `sync`, memeriksa kelengkapan setiap resource/query, lalu
@@ -213,6 +252,34 @@ menambahkan referensi tanpa memindahkan media/state atau mengubah proyek sumber.
 Perubahan sumber memerlukan rencana baru. Migrasi operasional penuh tetap
 memerlukan rencana dan verifikasi tersendiri.
 
+### F. Lima periode dan learning berbasis bukti
+
+```text
+Gunakan BM dan ad account yang saya pilih. Tampilkan rencana periode dahulu.
+Saya izinkan pembacaan data akun tersebut untuk kemarin, 7/30/90 hari lengkap
+terakhir, dan bulan ini termasuk hari berjalan. Gunakan konfigurasi token yang
+sudah tersedia; jangan minta token di chat atau menebak ID akun.
+
+Tarik data yang bisa diakses, simpan bukti lengkap yang dikembalikan API sebagai
+Markdown, dan tandai scope, kekurangan data, attribution serta periode parsial.
+Baca memory akun yang cocok. Pisahkan observasi, hipotesis yang bisa dibantah,
+rancangan eksperimen dan hasil yang benar-benar diamati. Jangan menganggap
+jendela waktu tumpang tindih sebagai sampel independen atau menjumlahkannya.
+Tidak ada perubahan iklan/anggaran, klaim profit, atau training model otomatis.
+```
+
+`history` membuat `HISTORY.md` dan laporan per periode. `INVENTORY.md` menampilkan
+field inventory/creative yang benar-benar dikembalikan; `QUERY-DETAILS.md`
+menampilkan query, coverage, error, metrik/action mentah. “Lengkap” berarti
+lengkap terhadap hasil dan scope yang diakses, bukan semua data Meta tanpa batas.
+
+Observasi otomatis masuk ke `memory/ads-memory.json` dan `memory/MEMORY.md`, tetap
+terpisah berdasarkan BM/akun, mata uang, timezone, tanggal dan sumber bukti.
+Pengulangan bukti identik tidak menggandakan learning. `learn record` mencatat
+hipotesis → eksperimen → outcome beserta parent, referensi bukti dan protokol;
+keberadaan catatan bukan bukti kesimpulannya benar. AI harus menyatakan data yang
+belum cukup dan meminta persetujuan tersendiri sebelum tindakan live.
+
 ## Mengenali file dan lokasinya
 
 | Lokasi/file | Fungsi |
@@ -246,9 +313,30 @@ workspace dan hasil pemeriksaan pada device tujuan.
 5. Minta AI memeriksa keadaan aktual sebelum melanjutkan. Catatan serah-terima
    menjadi referensi, bukan izin otomatis untuk spend atau penghapusan baru.
 
-Minta AI membuat ringkasan serah-terima di jawabannya. Jika perlu disimpan sebagai
-file, tentukan lokasi dan izinkan penulisannya; pertahankan teks catatan manusia.
-Laporan lama yang masih tersimpan tidak boleh disebut hasil sync terbaru.
+Untuk memori learning, AI dapat membuat paket privat melalui
+`learn export --bm <KEY> --account act_ID --output /folder-privat/learning.json`.
+Folder tujuan harus sudah tersedia dengan mode 0700, di luar checkout kode dan
+workspace aktif; file baru berizin 0600. Paket hanya membawa catatan learning
+berscope dan bukti koleksi yang dirujuk, bukan token/env, economics lokal,
+media, deployment state atau catatan operator. Periksa hasil dan SHA-256-nya.
+
+**Export bukan transfer.** Pilih channel dan lokasi tujuan sebelum AI menyalin
+paket. Jangan memasukkannya ke Git, memory AI bersama, chat atau folder publik.
+Pada device penerima, siapkan/pilih BM dan akun lokal yang sudah terdaftar dengan
+mata uang/timezone yang sama, lalu gunakan
+`learn import --bm <KEY> --account act_ID --input /folder-privat/learning.json`.
+Impor memeriksa bukti, deduplikasi, serta konflik; tidak menimpa history sukses,
+state sync, economics, klaim lama atau NOTES.md. Konflik perlu rekonsiliasi
+secara eksplisit. Lihat [kontrak learning privat](references/account-workspace-runtime.md#account-learning-and-private-cross-device-handoff).
+
+Bukti impor juga tersedia dalam Markdown dan ditandai sebagai sumber impor,
+bukan bukti akses autentikasi pada device baru. Hash bukan bukti identitas
+pengirim; cocokkan melalui channel yang disetujui. Paket tidak terenkripsi
+secara otomatis. Tinjau data privat sebelum membagikannya.
+
+Minta AI membuat ringkasan serah-terima di jawabannya. Laporan lama yang masih
+tersimpan tidak boleh disebut hasil sync terbaru; memory tidak memberi izin
+otomatis untuk spend atau transfer berikutnya.
 
 ## Jika ada masalah
 

@@ -42,9 +42,10 @@ RESOURCE_REQUIRED_FIELDS = {
     "creatives": ("id", "account_id"),
 }
 RESOURCE_STATUSES = {
-    "campaigns": ("ACTIVE", "ARCHIVED", "DELETED", "IN_PROCESS", "PAUSED", "WITH_ISSUES"),
-    "adsets": ("ACTIVE", "ARCHIVED", "CAMPAIGN_PAUSED", "DELETED", "IN_PROCESS", "PAUSED", "WITH_ISSUES"),
-    "ads": ("ACTIVE", "ADSET_PAUSED", "ARCHIVED", "CAMPAIGN_PAUSED", "DELETED", "DISAPPROVED", "IN_PROCESS",
+    # Live v26 rejects DELETED (100/1815001), even alone. Keep it outside the declared scope.
+    "campaigns": ("ACTIVE", "ARCHIVED", "IN_PROCESS", "PAUSED", "WITH_ISSUES"),
+    "adsets": ("ACTIVE", "ARCHIVED", "CAMPAIGN_PAUSED", "IN_PROCESS", "PAUSED", "WITH_ISSUES"),
+    "ads": ("ACTIVE", "ADSET_PAUSED", "ARCHIVED", "CAMPAIGN_PAUSED", "DISAPPROVED", "IN_PROCESS",
             "PAUSED", "PENDING_BILLING_INFO", "PENDING_REVIEW", "PREAPPROVED", "WITH_ISSUES"),
 }
 INSIGHT_FIELDS = ("account_id", "account_name", "account_currency", "date_start", "date_stop",
@@ -188,9 +189,14 @@ def safe_error(error):
     from requests.exceptions import ConnectionError, Timeout
     if isinstance(error, FacebookRequestError):
         code, subcode, status = error.api_error_code(), error.api_error_subcode(), error.http_status()
+        message = error.api_error_message()
+        reduce_payload = (code == 1 and status == 500 and isinstance(message, str) and
+                          "reduce the amount of data" in message.lower())
         retryable = (error.api_transient_error() is True or
                      status in (429, 500, 502, 503, 504) or code in (1, 2, 4, 17, 32, 613, 80004))
         result = {"code": "API_ERROR", "message": "Meta rejected the reporting request.", "retryable": retryable}
+        if reduce_payload:
+            result["reduce_payload"] = True
         for key, value in (("api_code", code), ("api_subcode", subcode), ("http_status", status)):
             if type(value) is int:
                 result[key] = value
@@ -216,6 +222,8 @@ def api_get(api, path, params, sleep):
             return body
         except Exception as error:
             detail = safe_error(error)
+            if detail.get("reduce_payload") and path[-1] == "adcreatives":
+                detail["retryable"] = False
             if detail.get("retryable") and attempt < ATTEMPTS - 1:
                 sleep(2 ** attempt)
                 continue
@@ -273,10 +281,22 @@ def row_identity(row, resource, account_id, query=None, currency=None):
 
 def paginate(api, path, params, max_pages, resource, account_id=None, query=None, currency=None, sleep=time.sleep):
     rows, errors, seen_cursors, seen_rows = [], [], set(), set()
+    reductions = []
     exhausted = False
     for page_number in range(max_pages):
         try:
-            body = api_get(api, path, params, sleep)
+            while True:
+                try:
+                    body = api_get(api, path, params, sleep)
+                    break
+                except ProviderError as error:
+                    limit = params.get("limit")
+                    if resource != "creatives" or not error.detail.get("reduce_payload") or type(limit) is not int or limit <= 1:
+                        raise
+                    smaller = 10 if limit > 10 else 1
+                    reductions.append({"page": page_number + 1, "from": limit, "to": smaller,
+                                       "reason": "META_REDUCE_PAYLOAD"})
+                    params = {**params, "limit": smaller}
             if not isinstance(body.get("data"), list):
                 raise ProviderError("MALFORMED_RESPONSE", "Meta edge response is missing its data array.")
             for row in body["data"]:
@@ -314,7 +334,8 @@ def paginate(api, path, params, max_pages, resource, account_id=None, query=None
             errors.append(error.detail)
             break
     return {"status": "partial" if rows and errors else "unavailable" if errors else "complete",
-            "pagination_exhausted": exhausted, "rows": rows, "errors": errors}
+            "pagination_exhausted": exhausted, "rows": rows, "errors": errors,
+            **({"page_size_reductions": reductions} if reductions else {})}
 
 
 def redact(value, token=""):
@@ -355,7 +376,8 @@ def run(request, api=None, sdk_version=None, sleep=time.sleep):
         if request["operation"] == "collect":
             for resource, fields in RESOURCE_FIELDS.items():
                 edge = "adcreatives" if resource == "creatives" else resource
-                params = {"fields": list(fields), "limit": PAGE_SIZE}
+                # Full creative payloads at 100 rows fail with "reduce the amount of data".
+                params = {"fields": list(fields), "limit": 25 if resource == "creatives" else PAGE_SIZE}
                 if resource in RESOURCE_STATUSES:
                     params["effective_status"] = list(RESOURCE_STATUSES[resource])
                 result = paginate(api, (account_id, edge), params, request["max_pages"], resource,
@@ -371,6 +393,8 @@ def run(request, api=None, sdk_version=None, sleep=time.sleep):
                     core["status"] = "partial" if core["rows"] else "unavailable"
                     result = core
                 result["query"] = {"account_id": account_id, "edge": edge, **params, "fetched_fields": fetched_fields}
+                if resource in RESOURCE_STATUSES:
+                    result["query"]["excluded_statuses"] = ["DELETED"]
                 result["observed_fields"] = sorted({key for row in result["rows"] for key in row})
                 response["resources"][resource] = result
         for level in request["levels"]:

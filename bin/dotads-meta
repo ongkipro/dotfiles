@@ -32,6 +32,144 @@ import { parseArgs, isDeepStrictEqual } from "node:util";
 import * as workspace from "./_dotads-workspace.mjs";
 
 const DEFAULT_META_ADS_VERSION = "1.2.0";
+let selectedBM = null;
+
+// This function runs inside secrets-env's child; only metadata leaves it.
+function bmProfilesFromEnvironment() {
+  const names = Object.keys(process.env);
+  const namedTokens = new Set(names.map(name => /^META_ACCESS_TOKEN_([A-Z][A-Z0-9_]*)$/.exec(name)?.[1]).filter(Boolean));
+  const legacy = new Set([...namedTokens, ...names.map(name => /^META_BM_([A-Z][A-Z0-9_]*)_(?:NAME|ID|ACCESS_TOKEN)$/.exec(name)?.[1]).filter(Boolean)]);
+  const labels = new Set();
+  for (const name of names) {
+    const match = /^meta_ads_(?:token|bm_id|bm_name)_(.*)$/.exec(name);
+    if (!match) continue;
+    if (!/^[a-z][a-z0-9_]*$/.test(match[1])) throw new Error("Meta profile labels must use lowercase letters, digits and underscores, starting with a letter.");
+    labels.add(match[1]);
+  }
+  const profiles = [...legacy].map(key => {
+    if (namedTokens.has(key) && Object.hasOwn(process.env, `META_BM_${key}_ACCESS_TOKEN`)) throw new Error("Multiple named token references claim the same BM key; keep one naming format per BM.");
+    return { key, name: process.env[`META_BM_${key}_NAME`] || (namedTokens.has(key) ? key : ""),
+      id: process.env[`META_BM_${key}_ID`] || "", token_env: namedTokens.has(key) ? `META_ACCESS_TOKEN_${key}` : `META_BM_${key}_ACCESS_TOKEN` };
+  });
+  for (const label of labels) {
+    const key = label.toUpperCase();
+    if (legacy.has(key)) throw new Error("Two env naming formats claim the same BM key; configure exactly one format per BM.");
+    profiles.push({ key, name: process.env[`meta_ads_bm_name_${label}`] || label,
+      id: process.env[`meta_ads_bm_id_${label}`] || "", token_env: `meta_ads_token_${label}` });
+  }
+  const tokens = new Set();
+  return profiles.sort((a, b) => a.key.localeCompare(b.key)).map(profile => {
+    const token = process.env[profile.token_env]?.trim();
+    if (token && tokens.has(token)) throw new Error("A token cannot be assigned to multiple BM profiles.");
+    if (token) tokens.add(token);
+    return { ...profile, available: !!token };
+  });
+}
+
+function readBMProfiles() {
+  let profiles;
+  const secretFile = process.env.SECRETS_ENV_FILE || path.join(os.homedir(), ".config", "ai-local", "secrets.env");
+  if (fs.existsSync(secretFile)) {
+    const result = spawnSync(resolveSecretsEnvBin(), ["run", "--", process.execPath, "-e",
+      `process.stdout.write(JSON.stringify((${bmProfilesFromEnvironment.toString()})()))`],
+    { encoding: "utf8", timeout: 15_000, maxBuffer: 1024 * 1024 });
+    if (result.status !== 0) throw new Error("Cannot load BM profiles through secrets-env; check local secret-file permissions and configuration.");
+    try { profiles = JSON.parse(result.stdout); }
+    catch { throw new Error("BM profile loader returned invalid metadata."); }
+  } else {
+    profiles = bmProfilesFromEnvironment();
+  }
+  const ids = new Set();
+  for (const profile of profiles) {
+    if (!profile.name.trim() || /[\x00-\x1f\x7f]/.test(profile.name) || profile.name.length > 160 || !/^[0-9]+$/.test(profile.id)) {
+      throw new Error(`BM profile ${profile.key} requires a valid display name and numeric BM ID: use meta_ads_bm_id_<label> (or legacy META_BM_<KEY>_ID). Token values are never folder names.`);
+    }
+    if (ids.has(profile.id)) throw new Error("Multiple token profiles claim the same BM ID; keep one profile per BM.");
+    ids.add(profile.id);
+  }
+  return profiles;
+}
+
+function reportingBaseRoot() {
+  return process.env.DOTADS_WORKSPACE_ROOT?.trim() ? path.resolve(process.env.DOTADS_WORKSPACE_ROOT.trim()) :
+    path.join(os.homedir(), "Documents", "dotads-meta-report");
+}
+
+function bmDirectory(profile, create = false) {
+  const base = reportingBaseRoot();
+  let ancestor = path.parse(base).root;
+  for (const part of base.slice(ancestor.length).split(path.sep).filter(Boolean)) {
+    ancestor = path.join(ancestor, part);
+    try {
+      if (fs.lstatSync(ancestor).isSymbolicLink()) throw new Error("Reporting ancestors must not be symlinks.");
+    } catch (error) { if (error.code === "ENOENT") break; throw error; }
+  }
+  const slug = profile.name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 70) || "business";
+  let root = path.join(base, `${slug}--bm_${profile.id}`);
+  if (fs.existsSync(base)) {
+    if (!fs.lstatSync(base).isDirectory() || fs.lstatSync(base).isSymbolicLink()) throw new Error("Reporting base must be a real directory.");
+    const matches = [];
+    for (const entry of fs.readdirSync(base, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const file = path.join(base, entry.name, "bm.json");
+      if (!fs.existsSync(file)) continue;
+      if (fs.lstatSync(file).isSymbolicLink() || !fs.lstatSync(file).isFile()) throw new Error("BM metadata must be a regular file.");
+      const saved = readJsonFile(file, "BM metadata");
+      if (saved.id !== profile.id && ((typeof saved.key === "string" && saved.key.toUpperCase() === profile.key) || saved.token_env === profile.token_env)) {
+        throw new Error("Saved BM ID conflicts with this profile/token reference; explicit reconciliation required.");
+      }
+      if (saved.id === profile.id) {
+        if (saved.schema_version !== 1 || saved.key !== profile.key || saved.token_env !== profile.token_env) throw new Error("BM identity/token-reference conflict; explicit reconciliation required.");
+        matches.push(path.dirname(file));
+      }
+    }
+    if (matches.length > 1) throw new Error("Duplicate BM directories; select and reconcile them explicitly.");
+    if (matches.length) root = matches[0];
+    else if (fs.existsSync(path.join(root, "bm.json"))) throw new Error("BM directory name collision; existing identity left untouched.");
+  }
+  if (create) {
+    ensureWorkspaceRoot(base);
+    // Never claim an unowned legacy folder, even if its name happens to match.
+    if (fs.existsSync(root) && !fs.existsSync(path.join(root, "bm.json"))) throw new Error("Existing unregistered BM folder left untouched; explicit adoption required.");
+    workspace.ensureRoot(root);
+    const file = path.join(root, "bm.json");
+    if (!fs.existsSync(file)) fs.writeFileSync(file, JSON.stringify({ schema_version: 1, id: profile.id, key: profile.key,
+      name: profile.name, token_env: profile.token_env, identity_source: "LOCAL_ENV_UNVERIFIED" }, null, 2) + "\n", { flag: "wx", mode: 0o600 });
+    workspace.ensureBMAssets(root);
+  }
+  return root;
+}
+
+function configureBM(sub, rest) {
+  if (!["setup", "init", "accounts", "sync", "history", "report", "import-media", "adopt", "doctor", "run", "deploy", "analyze", "learn", "status", "validate"].includes(sub)) return rest;
+  const separator = rest.indexOf("--");
+  const limit = separator < 0 ? rest.length : separator;
+  const indices = rest.flatMap((arg, index) => arg === "--bm" && index < limit ? [index] : []);
+  if (indices.length > 1) throw new Error("Pass --bm once.");
+  let key;
+  if (indices.length) {
+    const index = indices[0];
+    key = rest[index + 1];
+    if (!key || !/^[A-Za-z][A-Za-z0-9_]*$/.test(key)) throw new Error("--bm requires a configured BM label/key.");
+    key = key.toUpperCase();
+    rest.splice(index, 2);
+  }
+  const profiles = readBMProfiles();
+  const requested = key ? profiles.find(profile => profile.key === key) : null;
+  if (key && !requested) {
+    const label = key.toLowerCase();
+    throw new Error(`No named BM profile matching --bm ${label} was detected by the configured loader. This is not a token-validity check; do not replace an existing token based on this error. Check the selected configuration source and active literal NAME=VALUE keys: meta_ads_token_${label}, meta_ads_bm_id_${label} (optional meta_ads_bm_name_${label}); existing META_ACCESS_TOKEN_<KEY> with META_BM_<KEY>_ID and legacy META_BM_* profiles remain supported.`);
+  }
+  if (sub === "setup") {
+    if (requested && !requested.available) throw new Error(`BM profile ${key} was detected, but its named token is unavailable or blank. Setup stopped before creating directories; no Meta token-validity check was performed.`);
+    return { rest, profiles: requested ? [requested] : profiles };
+  }
+  if (!key && profiles.length > 1) throw new Error("Multiple Business Managers configured; select --bm <KEY> explicitly.");
+  selectedBM = requested || profiles[0] || null;
+  if (selectedBM) bmDirectory(selectedBM, selectedBM.available);
+  return { rest, profiles };
+}
 
 const VALID_OBJECTIVES = new Set([
   "OUTCOME_APP_PROMOTION",
@@ -210,13 +348,21 @@ Subcommands:
       Read the public Indonesia shopping baseline offline. Other markets never inherit ID data.
       Province/city evidence retains source periods, populations, and coverage limits.
 
-  setup [--version <ver>]
-      Ensure Meta's official meta-ads CLI (default ${DEFAULT_META_ADS_VERSION}) is installed via pipx
-      and prepare ~/Documents/dotads-meta-report/ (0700).
+  setup [--version <ver>] [--workspace-only] [--bm <KEY>]
+      Prepare BM workspaces from meta_ads_token_<label> + meta_ads_bm_id_<label>.
+      Optional meta_ads_bm_name_<label> sets the display name. Legacy META_BM_* is supported.
+      Existing META_ACCESS_TOKEN_<KEY> uses explicit META_BM_<KEY>_ID and optional _NAME;
+      its token_env is preserved. Select --bm <KEY>; distinct labels are never aliased.
+      --workspace-only is offline: no API calls or dependency installs.
+      Otherwise ensure Meta's official meta-ads CLI (default ${DEFAULT_META_ADS_VERSION}) via pipx.
+      Reports live in ~/Documents/dotads-meta-report/<name>--bm_<id>/ (0700).
+      Select --bm <KEY> on account/report/campaign commands when multiple BMs exist.
 
   init [dir-or-account-slug] [--force]
-      Scaffold brand.json, campaigns/sample-campaign.json, media/, memory/, and .gitignore
-      (bare account/brand names scaffold under ~/Documents/dotads-meta-report/).
+  init --bm <KEY> --account act_<id> [--account-name <name>] [--force]
+      Reuse/create the canonical account folder for campaign work; new IDs need a name.
+      Scaffold brand.json, campaigns/sample-campaign.json, media/, memory/, and .gitignore.
+      Bare names remain supported for legacy campaign drafts.
 
   accounts [--local] [--token-env <KEY>] [--json]
       Discover accessible accounts read-only, or list local account workspaces offline.
@@ -228,11 +374,26 @@ Subcommands:
        [--token-env <KEY>] [--max-pages <n>] [--json]
       Save scoped inventory/Insights snapshots. --input imports an authorized export offline.
 
-  report --account <act_id> [--snapshot <id>] [--scope-key <key>] [--json]
-      Render immutable Markdown/CSV reports offline from saved snapshots.
+  history --account <act_id> [--as-of <ISO-UTC>] [--plan]
+          [--input-dir <authorized-exports>] [--token-env <KEY>] [--max-pages <n>] [--json]
+      Plan offline or collect five account-timezone windows read-only; imports use period-key.json files.
+      Adds account-scoped observational learning. Partial history exits 2 and retains prior complete evidence.
 
-  import-media --account <act_id> <file> [--move] [--json]
-      Copy a selected image/video into its account workspace; --move explicitly requests cleanup.
+  learn record --account <act_id> --stage observation|hypothesis|experiment|outcome
+       --since <date> --until <date> --title <text> --summary <text> --evidence <json-array>
+       [--parent <learning_id>] [--protocol <json>] [--json]
+  learn list --account <act_id> [--json]
+  learn export --account <act_id> --output <new-private-file.json>
+  learn import --account <act_id> --input <selected-learning.json>
+      Offline scoped learning; preserve legacy memory, local economics and history pointers.
+      Export/import never copies tokens, operational state or media and never performs network transfer.
+
+  report --account <act_id> [--snapshot <id>] [--scope-key <key>] [--json]
+      Render immutable Markdown reports (legacy roots retain CSV exports) from saved snapshots.
+
+  import-media --account <act_id> <file> [--move] [--temporary|--account-local] [--json]
+      BM profiles default to shared assets; --temporary makes scratch copies without deletion.
+      --account-local keeps legacy account-only storage. --move explicitly requests source cleanup.
 
   adopt --account <act_id> <selected-project-directory> [--apply] [--json]
       Plan a hash-bound operational reference; apply preserves source files and deployment ownership.
@@ -310,6 +471,10 @@ function resolveSecretsEnvBin() {
 }
 
 function readSecretToken(tokenEnvName = "META_ACCESS_TOKEN") {
+  if (selectedBM) {
+    if (tokenEnvName !== "META_ACCESS_TOKEN" && tokenEnvName !== selectedBM.token_env) throw new Error("Selected BM conflicts with the requested token reference.");
+    tokenEnvName = selectedBM.token_env;
+  }
   const bin = resolveSecretsEnvBin();
   const res = spawnSync(bin, ["get", tokenEnvName], {
     encoding: "utf8",
@@ -321,7 +486,7 @@ function readSecretToken(tokenEnvName = "META_ACCESS_TOKEN") {
   if (process.env[tokenEnvName] && process.env[tokenEnvName].trim()) {
     return process.env[tokenEnvName].trim();
   }
-  if (process.env.ACCESS_TOKEN && process.env.ACCESS_TOKEN.trim()) {
+  if (!selectedBM && tokenEnvName === "META_ACCESS_TOKEN" && process.env.ACCESS_TOKEN && process.env.ACCESS_TOKEN.trim()) {
     return process.env.ACCESS_TOKEN.trim();
   }
   throw new Error("Unable to load the configured secret reference via secrets-env; inspect its local configuration without printing credentials.");
@@ -339,6 +504,10 @@ function providerPython() {
 }
 
 function collectProvider(request, tokenKey = "META_ACCESS_TOKEN") {
+  if (selectedBM) {
+    if (tokenKey !== "META_ACCESS_TOKEN" && tokenKey !== selectedBM.token_env) throw new Error("Selected BM conflicts with the requested token reference.");
+    tokenKey = selectedBM.token_env;
+  }
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(tokenKey)) throw new Error("--token-env requires a secret key name, never its value.");
   const python = providerPython();
   const provider = fileURLToPath(new URL("./_dotads-meta-provider.py", import.meta.url));
@@ -438,14 +607,7 @@ function cmdSync(argv) {
     levels, breakdowns, attribution, action_report_time: actionReportTime, max_pages: maxPages };
   let payload;
   if (values.input) {
-    let inputBytes;
-    try { inputBytes = fs.readFileSync(path.resolve(values.input)); payload = JSON.parse(inputBytes.toString("utf8")); }
-    catch { throw new Error("Cannot read a valid authorized collection JSON input."); }
-    if (payload && typeof payload === "object") payload.source = {
-      ...payload.source,
-      import_context: { kind: "LOCAL_INPUT", input_sha256: crypto.createHash("sha256").update(inputBytes).digest("hex"),
-        imported_at: new Date().toISOString(), declared_source: payload.source?.kind || "unknown", authenticated_read_observed: false },
-    };
+    payload = loadCollectionInput(values.input);
   } else {
     try { payload = collectProvider(request, values["token-env"]); }
     catch (error) {
@@ -469,7 +631,58 @@ function cmdSync(argv) {
     if (!values.input) workspace.recordFailure(defaultWorkspaceRoot(), account, payload.scope, "Local snapshot publication failed; inspect recovery before retrying.");
     throw error;
   }
-  console.log(values.json ? JSON.stringify(result, null, 2) : `Snapshot ${result.snapshot_id} | ${result.status} | scope ${result.scope_key}`);
+  result.history_next_step = { command: ['dotads-meta', 'history', ...(selectedBM ? ['--bm', selectedBM.key] : []), '--account', account, '--plan'],
+    note: 'Plan five account-timezone windows offline before an authorized history collection. No additional API request was started.' };
+  console.log(values.json ? JSON.stringify(result, null, 2) : `Snapshot ${result.snapshot_id} | ${result.status} | scope ${result.scope_key}\nNext: inspect history --account ${account} --plan before an authorized collection.`);
+}
+
+function loadCollectionInput(filename) {
+  let bytes, payload;
+  try { bytes = fs.readFileSync(path.resolve(filename)); payload = JSON.parse(bytes.toString("utf8")); }
+  catch { throw new Error("Cannot read a valid authorized collection JSON input."); }
+  if (payload && typeof payload === "object") payload.source = { ...payload.source,
+    import_context: { kind: "LOCAL_INPUT", input_sha256: crypto.createHash("sha256").update(bytes).digest("hex"),
+      imported_at: new Date().toISOString(), declared_source: payload.source?.kind || "unknown", authenticated_read_observed: false } };
+  return payload;
+}
+
+function cmdHistory(argv) {
+  const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: {
+    account: { type: "string" }, "as-of": { type: "string" }, plan: { type: "boolean" },
+    "input-dir": { type: "string" }, "token-env": { type: "string" }, "max-pages": { type: "string" }, json: { type: "boolean" },
+  }});
+  if (positionals.length) throw new Error("history accepts options only.");
+  const account = accountId(values.account), root = defaultWorkspaceRoot();
+  const maxPages = Number(values["max-pages"] || 100);
+  if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 1000) throw new Error("--max-pages must be an integer from 1 to 1000.");
+  let initial;
+  if (values["input-dir"]) {
+    initial = loadCollectionInput(path.join(values["input-dir"], "yesterday.json"));
+    workspace.validateCollection(initial);
+    if (initial.account.id !== account) throw new Error("History input account does not match the selected account.");
+  }
+  const plan = workspace.planHistory(initial?.account ?? workspace.accountContext(root, account), values["as-of"]);
+  if (values.plan) { console.log(JSON.stringify(plan, null, 2)); return; }
+  const attempts = [];
+  // lazy: five bounded synchronous collections; large accounts need resumable async Insights before increasing this ceiling.
+  for (const period of plan.periods) {
+    const request = { operation: "collect", account_id: account, since: period.since, until: period.until,
+      levels: ["account", "campaign", "adset", "ad"], breakdowns: [], attribution: {}, action_report_time: "conversion", max_pages: maxPages };
+    try {
+      const payload = initial && period.key === "yesterday" ? initial : values["input-dir"]
+        ? loadCollectionInput(path.join(values["input-dir"], `${period.key}.json`)) : collectProvider(request, values["token-env"]);
+      workspace.validateHistoryCollection(payload, plan, period);
+      const saved = workspace.saveSnapshot(root, payload);
+      attempts.push({ period: period.key, snapshot_id: saved.snapshot_id });
+    } catch (error) {
+      if (!values["input-dir"] && error.collectionScope) workspace.recordFailure(root, account, error.collectionScope, "History period collection failed; no complete replacement was published.");
+      attempts.push({ period: period.key });
+      console.error(`History ${period.key}: collection or publication failed; evidence remains incomplete.`);
+    }
+  }
+  const result = workspace.publishHistory(root, account, plan, attempts);
+  console.log(JSON.stringify(result, null, 2));
+  if (result.status !== "complete") process.exitCode = 2;
 }
 
 function cmdReport(argv) {
@@ -485,10 +698,16 @@ function cmdReport(argv) {
 
 function cmdImportMedia(argv) {
   const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: {
-    account: { type: "string" }, move: { type: "boolean" }, json: { type: "boolean" },
+    account: { type: "string" }, move: { type: "boolean" }, "account-local": { type: "boolean" }, temporary: { type: "boolean" }, json: { type: "boolean" },
   }});
   if (positionals.length !== 1) throw new Error("import-media requires exactly one selected file.");
-  const result = workspace.importMedia(defaultWorkspaceRoot(), accountId(values.account), path.resolve(positionals[0]), { move: !!values.move });
+  const result = workspace.importMedia(defaultWorkspaceRoot(), accountId(values.account), path.resolve(positionals[0]), {
+    move: !!values.move, shared: !!selectedBM && !values["account-local"], temporary: !!values.temporary,
+  });
+  if (selectedBM && !values["account-local"]) Object.assign(result, {
+    business_id: selectedBM.id, origin_account_id: result.account_id, account_id: values.account,
+    storage_scope: values.temporary ? "BM_TEMPORARY_COPY" : "BM_SHARED",
+  });
   console.log(JSON.stringify(result, null, 2));
 }
 
@@ -509,7 +728,13 @@ function readJsonFile(filePath, label) {
     throw new Error(`Cannot read ${label} at ${filePath}: ${err.message}`);
   }
   try {
-    return JSON.parse(raw);
+    const value = JSON.parse(raw);
+    if (selectedBM && label === "brand.json" &&
+        ((value.business_id && String(value.business_id) !== selectedBM.id) ||
+         (value.token_env && value.token_env !== selectedBM.token_env))) {
+      throw new Error("Brand BM identity/token reference conflicts with selected --bm.");
+    }
+    return value;
   } catch (err) {
     throw new Error(`Invalid JSON in ${label} at ${filePath}: ${err.message}`);
   }
@@ -1637,14 +1862,16 @@ function parseMetaJsonOutput(stdout) {
 }
 
 function defaultWorkspaceRoot() {
-  if (process.env.DOTADS_WORKSPACE_ROOT && process.env.DOTADS_WORKSPACE_ROOT.trim()) {
-    return path.resolve(process.env.DOTADS_WORKSPACE_ROOT.trim());
-  }
-  return path.join(os.homedir(), "Documents", "dotads-meta-report");
+  return selectedBM ? bmDirectory(selectedBM) : reportingBaseRoot();
 }
 
-function ensureWorkspaceRoot() {
-  const wsRoot = defaultWorkspaceRoot();
+function ensureWorkspaceRoot(wsRoot = defaultWorkspaceRoot()) {
+  // Reject ancestor links before mkdir/chmod, not just a linked final component.
+  let current = path.parse(wsRoot).root;
+  for (const part of wsRoot.slice(current.length).split(path.sep).filter(Boolean)) {
+    current = path.join(current, part);
+    if (fs.existsSync(current) && fs.lstatSync(current).isSymbolicLink()) throw new Error("Workspace ancestors must not be symlinks.");
+  }
   if (fs.existsSync(wsRoot)) {
     const st = fs.lstatSync(wsRoot);
     if (st.isSymbolicLink() || !st.isDirectory()) {
@@ -1668,11 +1895,14 @@ function ensureWorkspaceRoot() {
   return wsRoot;
 }
 
-function cmdSetup(argv) {
+function cmdSetup(argv, profiles = []) {
+  let workspaceOnly = false;
   let version = DEFAULT_META_ADS_VERSION;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === "--version") {
+    if (arg === "--workspace-only") {
+      workspaceOnly = true;
+    } else if (arg === "--version") {
       version = argv[++i];
       if (!version) throw new Error("--version requires a version string.");
     } else {
@@ -1680,6 +1910,17 @@ function cmdSetup(argv) {
     }
   }
 
+  const active = profiles.filter(profile => profile.available);
+  const directories = active.map(profile => bmDirectory(profile, true));
+  if (workspaceOnly) {
+    if (!directories.length) {
+      console.log("No active named BM profiles; workspace setup skipped. No reporting directories created, API calls or installs performed.");
+    } else {
+      console.log(`✓ local BM workspaces ready: ${directories.length}; no API calls or installs.`);
+      for (const directory of directories) console.log(`  Workspace: ${directory}`);
+    }
+    return;
+  }
   const wsRoot = ensureWorkspaceRoot();
   const metaBin = resolveMetaBin();
   const verRes = spawnSync(metaBin, ["--version"], { encoding: "utf8" });
@@ -1734,10 +1975,17 @@ function cmdSetup(argv) {
 function cmdInit(argv) {
   let targetDir = ".";
   let force = false;
+  let selectedAccountId;
+  let selectedAccountName;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--force") {
       force = true;
+    } else if (arg === "--account") {
+      selectedAccountId = accountId(argv[++i]);
+    } else if (arg === "--account-name") {
+      selectedAccountName = argv[++i];
+      if (!selectedAccountName || selectedAccountName.startsWith("--")) throw new Error("--account-name requires a display name.");
     } else if (!arg.startsWith("-")) {
       targetDir = arg;
     } else {
@@ -1745,6 +1993,12 @@ function cmdInit(argv) {
     }
   }
 
+  if (selectedAccountName && !selectedAccountId) throw new Error("--account-name requires --account.");
+  if (selectedAccountId) {
+    if (!selectedBM) throw new Error("Account campaign setup requires a configured --bm profile.");
+    if (targetDir !== ".") throw new Error("Use --account without a positional directory to reuse its canonical folder.");
+    targetDir = workspace.prepareAccount(defaultWorkspaceRoot(), selectedAccountId, selectedAccountName);
+  }
   const isBareSlug =
     targetDir !== "." &&
     targetDir !== ".." &&
@@ -1791,19 +2045,19 @@ function cmdInit(argv) {
   const baseName = path.basename(root);
   const actMatch = baseName.match(/^(act_\d+)(?:--(.+))?$/);
   const inferredBrand = actMatch && actMatch[2] ? actMatch[2] : baseName;
-  const inferredAccountId = actMatch ? actMatch[1] : "act_1234567890";
+  const inferredAccountId = selectedAccountId || (actMatch ? actMatch[1] : "act_1234567890");
 
   if (!fs.existsSync(brandPath) || force) {
     const brandTemplate = {
       brand: inferredBrand,
       ad_account_id: inferredAccountId,
-      business_id: "9876543210",
+      business_id: selectedBM?.id || "9876543210",
       page_id: "1122334455",
       instagram_user_id: "",
       pixel_id: "5566778899",
       conversion_domain: "example.com",
       currency: "USD",
-      token_env: "META_ACCESS_TOKEN",
+      token_env: selectedBM?.token_env || "META_ACCESS_TOKEN",
     };
     fs.writeFileSync(brandPath, JSON.stringify(brandTemplate, null, 2) + "\n");
     created.push(brandPath);
@@ -2388,7 +2642,7 @@ function cmdStatus(argv) {
 
 function cmdDoctor(argv) {
   let brandPath = null;
-  let tokenEnv = "META_ACCESS_TOKEN";
+  let tokenEnv = selectedBM?.token_env || "META_ACCESS_TOKEN";
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--brand") {
@@ -2479,12 +2733,15 @@ function cmdRun(argv) {
   };
   if (brand?.ad_account_id) {
     env.AD_ACCOUNT_ID = String(brand.ad_account_id);
+  } else if (selectedBM) {
+    delete env.AD_ACCOUNT_ID; // An ambient account may belong to another selected BM.
   }
   if (brand?.business_id) {
     env.BUSINESS_ID = String(brand.business_id);
   } else if (brand) {
     delete env.BUSINESS_ID;
   }
+  if (selectedBM) env.BUSINESS_ID = selectedBM.id; // Brand conflicts are rejected before this point.
 
   const metaBin = resolveMetaBin();
   const res = spawnSync(metaBin, passthrough, {
@@ -2673,7 +2930,7 @@ function saveAdsMemory(workspaceDir, memory) {
   try {
     fs.writeFileSync(tmpJson, JSON.stringify(memory, null, 2) + "\n", { mode: 0o600, flag: "wx" });
     fs.renameSync(tmpJson, memFile);
-    fs.writeFileSync(tmpMd, renderAdsMemoryMarkdown(memory), { mode: 0o600, flag: "wx" });
+    fs.writeFileSync(tmpMd, memory.learning_scope ? workspace.learningMarkdown(memory) : renderAdsMemoryMarkdown(memory), { mode: 0o600, flag: "wx" });
     fs.renameSync(tmpMd, mdFile);
   } finally {
     fs.rmSync(tmpJson, { force: true });
@@ -2687,13 +2944,39 @@ function cmdLearn(argv) {
     console.log(`Usage:
   dotads-meta learn unit-economics --aov <num> --cogs <num> [--shipping-fee <num>] [--cod-rts-rate <0..1>] [--rts-penalty <num>] [--target-margin <0..1>] [--brand <brand.json>] [--json]
   dotads-meta learn add --source <data|reference|competitor|outsource|experiment|audit> --category <hook|angle|format|offer|audience|bidding|landing-page|unit-economics> --verdict <winner|loser|insight|rule> --title <text> --summary <text> [--action <text>] [--metrics <json>] [--brand <brand.json>] [--json]
-  dotads-meta learn list [--source <s>] [--category <c>] [--verdict <v>] [--brand <brand.json>] [--json]`);
+  dotads-meta learn list [--source <s>] [--category <c>] [--verdict <v>] [--brand <brand.json>] [--json]
+  dotads-meta learn record --account <act_id> --stage <observation|hypothesis|experiment|outcome> --since <date> --until <date> --title <text> --summary <text> --evidence <json-array> [--parent <id>] [--protocol <json>] [--json]
+  dotads-meta learn list --account <act_id> [--json]
+  dotads-meta learn export --account <act_id> --output <new-private-file.json> [--json]
+  dotads-meta learn import --account <act_id> --input <selected-learning.json> [--json]
+
+Account learning pins exact saved snapshot/query/entity references. Export/import is offline only; select the same BM/account on both devices. See the runtime guide for stage protocols.`);
     return;
   }
 
   const rest = argv.slice(1);
   let brandPath = null;
   let jsonOut = false;
+
+  if (["record", "export", "import"].includes(sub) || (sub === "list" && rest.includes("--account"))) {
+    const allowed = { account: { type: "string" }, json: { type: "boolean" } };
+    for (const key of sub === "record" ? ["stage", "since", "until", "title", "summary", "evidence", "parent", "protocol"] : sub === "export" ? ["output"] : sub === "import" ? ["input"] : []) allowed[key] = { type: "string" };
+    const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: allowed });
+    if (positionals.length) throw new Error(`learn ${sub} accepts options only.`);
+    const id = accountId(values.account), root = defaultWorkspaceRoot();
+    let result;
+    if (sub === "record") result = workspace.recordLearning(root, id, { stage: values.stage, since: values.since, until: values.until, title: values.title, summary: values.summary, evidence: JSON.parse(values.evidence || "null"), parent_id: values.parent, protocol: values.protocol ? JSON.parse(values.protocol) : null });
+    else if (sub === "list") result = workspace.listLearning(root, id);
+    else if (sub === "export") {
+      if (!values.output) throw new Error("learn export requires --output in an existing private directory.");
+      result = workspace.exportLearning(root, id, values.output);
+    } else {
+      if (!values.input) throw new Error("learn import requires an explicitly selected --input bundle.");
+      result = workspace.importLearning(root, id, values.input);
+    }
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
 
   if (sub === "unit-economics") {
     const opts = {};
@@ -3229,15 +3512,17 @@ function main() {
   }
 
   const sub = argv[0];
-  const rest = argv.slice(1);
+  let rest = argv.slice(1);
 
   try {
+    const configured = configureBM(sub, rest);
+    if (configured?.rest) rest = configured.rest;
     switch (sub) {
       case "baseline":
         cmdBaseline(rest);
         break;
       case "setup":
-        cmdSetup(rest);
+        cmdSetup(rest, configured?.profiles);
         break;
       case "init":
         cmdInit(rest);
@@ -3247,6 +3532,9 @@ function main() {
         break;
       case "sync":
         cmdSync(rest);
+        break;
+      case "history":
+        cmdHistory(rest);
         break;
       case "report":
         cmdReport(rest);

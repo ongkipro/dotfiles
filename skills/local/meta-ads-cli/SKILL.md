@@ -11,9 +11,25 @@ Marketing API calls, chunked media upload, DCO/Flexible format, insights,
 guidance) and the dotfiles helper `dotads-meta` (injects `META_ACCESS_TOKEN`
 from `secrets-env` into the child process, validates a declarative manifest
 offline, dry-runs by default, deploys L3→L1 idempotently with SHA-256 media
-caching in `.meta-state.json`). Per-account workspaces live outside dotfiles
-in `~/Documents/dotads-meta-report/act_<id>--<slug>/` (`brand.json`,
-`campaigns/*.json`, `media/`, `memory/`, git-ignored `.meta-state.json`).
+caching in `.meta-state.json`). Named env profiles automatically prepare BM roots outside dotfiles:
+`~/Documents/dotads-meta-report/<bm-name>--bm_<id>/<Account Name> (act_<id>)/`.
+Campaigns, notes and Markdown reports stay account-local; reusable assets live
+under the BM's `assets/` (optional temporary copies, never auto-deleted).
+Internal JSON retains state/provenance. Legacy flat roots remain unchanged.
+For onboarding, **the AI prepares the env; the operator fills one token line**.
+Follow `references/setup-and-commands.md` §0: preserve existing credentials,
+resolve BM metadata once, then run setup and verify the actual directory. Do
+not ask the operator to rebuild configuration or treat a detection error as an
+invalid token. Env preparation needs authorization; setup/pull do not edit secrets.
+Use `setup --workspace-only` offline, and `--bm KEY` when multiple BMs exist.
+Preferred env names are `meta_ads_token_<label>` + required
+`meta_ads_bm_id_<label>`, with optional `meta_ads_bm_name_<label>`.
+Use `--bm autolaris` for `meta_ads_token_autolaris`; selection is case-insensitive.
+Existing `META_ACCESS_TOKEN_<KEY>` works with explicit `META_BM_<KEY>_ID`
+and optional `_NAME`; preserve its exact `token_env` and select `--bm <KEY>`.
+Legacy `META_BM_<KEY>_NAME`, `_ID`, `_ACCESS_TOKEN` stays supported; never define
+multiple token formats for one BM or silently rewrite existing token bindings.
+Local token presence is not proof of live access.
 Never commit client media or campaign state into `~/dotfiles`.
 
 Read only this file up front; open the reference the chosen path names.
@@ -22,11 +38,13 @@ Read only this file up front; open the reference the chosen path names.
 
 | Task | Do | Reference |
 |---|---|---|
-| First-time business/app/System User token, device bootstrap, workspace scaffold | §1 then the reference | `references/setup-and-commands.md` §1–2 |
+| Device/env onboarding, then business/app/System User access | Setup reference §0 first: AI prepares missing env, human fills only token, verify actual folder; provisioning only as needed | `references/setup-and-commands.md` §0–2 |
 | Plan or build a campaign from a manifest | §1 → `validate` → `deploy` (dry-run) → show plan → approval → `--apply` | `references/rules-and-tutorial.md`; commands in `setup-and-commands.md` §2–3 |
 | Read-only diagnostics, insights, raw `meta` command | `dotads-meta run --brand ./brand.json -- …`; check `--help` first | `setup-and-commands.md` §3 |
 | Analyze performance / ROAS | separate observation, threshold, hypothesis | `references/roas-cpr-profit-intelligence.md` |
 | Indonesia market baseline (explicit `ID` market only) | `dotads-meta baseline --market ID` | `references/indonesia-market.md` |
+| Five-window account history / observational learning | `history --account act_ID --plan`, then authorized read or selected imports; full returned Markdown evidence feeds scoped account memory, never automatic winners/spend | `references/account-workspace-runtime.md` §Five-window account history |
+| Account learning lifecycle / private cross-device handoff | `learn list/record/export/import --account act_ID`; exact evidence and stage protocols, same BM/account; offline bundles only, no automatic transfer | `references/account-workspace-runtime.md` §Account learning and private cross-device handoff |
 | Account reporting workspace | runtime guide; the revision-3 design doc is historical | `references/account-workspace-runtime.md` |
 | Operator onboarding / AI-terminal handoff | English contract; Bahasa guide for humans | `references/terminal-control.md`, `GUIDE.id.md` |
 | A claim about API version, algorithm, or a mysterious error | source record + the 10 traps, then current official page and installed `--help` | `references/api-and-evidence.md` |
