@@ -4,6 +4,13 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-06 — Parallel AI terminals (TASK-195)
+
+- `heavy-run`: jobs run in a systemd user scope in `ai-heavy.slice` (CPUWeight 20, MemoryHigh 40%); leftovers in the job's process group are stopped on every exit path before locks free; nested calls refuse locks the outer job does not hold; duplicate lock names no longer self-deadlock.
+- `ai-testdb` (new): shared RAM-backed Postgres per major version (fsync off, loopback, trust auth) with per-run template clones dropped on every exit, signals included.
+- `dev-freeze` (new): read-only snapshot of every project (all-ref bundles, patches, untracked files, dirty worktrees, RESUME.md, INDEX.md); INCOMPLETE and exit 1 when any artifact fails.
+- Rules in `memory/development.md` and one CORE.md line; independent review APPROVE after four rounds.
+
 ## Unreleased — 2026-10-28
 
 ### DotAds Meta: commerce insight, CPAS cpas_v1, history supersede, learn refresh — 2026-11-05

@@ -37,6 +37,12 @@ delivery-ledger
 delivery-ledger-test
 focus
 focus-test
+heavy-run
+heavy-run-test
+ai-testdb
+ai-testdb-test
+dev-freeze
+dev-freeze-test
 delivery-skill-usage
 delivery-skill-usage-test
 dev-ready

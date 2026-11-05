@@ -115,8 +115,8 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 84 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
 | Owned skills | [`skills/local/`](../skills/local/) | 75 | linked from this page |
-| Commands | [`bin/`](../bin/) | 62 | linked from this page |
-| Command tests | [`bin/`](../bin/) | 74 | linked from this page |
+| Commands | [`bin/`](../bin/) | 65 | linked from this page |
+| Command tests | [`bin/`](../bin/) | 77 | linked from this page |
 | Device profiles | [`devices/`](../devices/) | 9 | linked from this page |
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
 | Top-level docs | [`docs/`](../docs/) | 19 | linked from this page |
@@ -125,11 +125,11 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Skill commands | [`skills/agents-bin/`](../skills/agents-bin/) | 7 | linked from this page |
 | Skill tooling | [`skills/local/`](../skills/local/) | 3 | linked from this page |
 | Registry indexes | [`devices/`](../devices/) | 1 | linked from this page |
-| Command helpers | [`bin/`](../bin/) | 6 | linked from this page |
+| Command helpers | [`bin/`](../bin/) | 7 | linked from this page |
 | Research records | [`docs/research/`](../docs/research/) | 5 | linked from this page |
 | Environment and bootstrap | [`config/`](../config/) | 35 | linked from this page |
 | Device reports | [`docs/device-reports/`](../docs/device-reports/) | 21 | count only |
-| Archived task records | [`docs/archive/`](../docs/archive/) | 54 | count only |
+| Archived task records | [`docs/archive/`](../docs/archive/) | 55 | count only |
 
 <!-- system-map:inventory:end -->
 
@@ -362,6 +362,9 @@ Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rende
   - [`references/meta-ads.md`](../skills/local/copywriting/references/meta-ads.md): Meta ad text house rules — soft CTA, no link/LP/price, ID vs MY locale, Flexible Format/DCO combination safety.
 - [`writer`](../skills/local/writer/SKILL.md): Meaning-preserving writing, two-way dialogue, and locale-native communication.
 - [`focus`](../bin/focus), [`focus-test`](../bin/focus-test): Session-scoped local claims, explicit references, and isolated boundary regression checks.
+- [`ai-testdb`](../bin/ai-testdb), [`ai-testdb-test`](../bin/ai-testdb-test) (+ [`lifecycle test`](../bin/_ai-testdb-lifecycle-test.py)): Shared RAM-backed throwaway Postgres for test suites: template clones per run, durability off, dropped afterwards.
+- [`dev-freeze`](../bin/dev-freeze), [`dev-freeze-test`](../bin/dev-freeze-test): Read-only snapshot of every project (all-ref bundles, uncommitted patches, untracked files, worktrees, RESUME.md) before maintenance or a pause.
+- [`heavy-run`](../bin/heavy-run), [`heavy-run-test`](../bin/heavy-run-test): Machine-wide queue for heavy work across AI terminals: pool slots plus named exclusive locks (kernel flock, no stale locks), `--status`, timeouts, and isolated regression checks.
 - [`cms-content`](../skills/local/cms-content/SKILL.md): Client content-editing layer selection and implementation (Astro collections, Keystatic, Payload, Shopify metaobjects).
 
 ### 6.9 Planning & Specification

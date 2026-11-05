@@ -1,27 +1,27 @@
 # Tasks — dotfiles
 
-Updated: 2026-11-05
+Updated: 2026-11-06
 
 Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
 
 Done 2026-10-30: TASK-159 → [META_COPY](docs/archive/DOTFILES_TASKS_2026-10-30_META_COPY.md); TASK-091 superseded by TASK-160 → [record](docs/archive/TASKS-091-superseded.md); TASK-160/161 → [160-161](docs/archive/TASKS-160-161-completed.md).
 Done 2026-10-31: TASK-162-165 → [162-166](docs/archive/TASKS-162-166-completed.md); TASK-167 → [167](docs/archive/TASKS-167-completed.md); TASK-168 → [168](docs/archive/TASKS-168-completed.md); TASK-169 → [169](docs/archive/TASKS-169-completed.md).
 Done 2026-11-01 to 2026-11-03: TASK-170 → [170](docs/archive/TASKS-170-completed.md); TASK-171/172 → [171](docs/archive/TASKS-171-completed.md); TASK-173 → [173](docs/archive/TASKS-173-completed.md); TASK-174 → [174](docs/archive/TASKS-174-completed.md); TASK-176 → [176](docs/archive/TASKS-176-completed.md).
-Done 2026-11-04 to 2026-11-05: TASK-177-189 (dotads-meta, Meta/Pixel docs, device update notice) and finished TASK-151/157 → [177-189](docs/archive/TASKS-177-190-completed.md); TASK-190 → [190](docs/archive/TASKS-190-completed.md); TASK-191 → [191](docs/archive/TASKS-191-completed.md); TASK-192 → [192](docs/archive/TASKS-192-completed.md); TASK-193 → [193](docs/archive/TASKS-193-completed.md).
+Done 2026-11-04 to 2026-11-05: TASK-177-189 (dotads-meta, Meta/Pixel docs, device update notice) and finished TASK-151/157 → [177-189](docs/archive/TASKS-177-190-completed.md); TASK-190 → [190](docs/archive/TASKS-190-completed.md); TASK-191 → [191](docs/archive/TASKS-191-completed.md); TASK-192 → [192](docs/archive/TASKS-192-completed.md); TASK-193 → [193](docs/archive/TASKS-193-completed.md); TASK-194 → [194](docs/archive/TASKS-194-completed.md).
 
 ## In progress
 
-### TASK-194: Commerce insight, CPAS cpas_v1, history supersede and offline learning refresh
-- **Requirement:** REQ-META-LEARNING-REFRESH (owner 2026-11-05: improve dotads-meta learning and insight for e-commerce/web conversion and CPAS phase 1; supersede partial history; offline refresh for real accounts later; dummy accounts removed; no CTWA).
+### TASK-195: Parallel AI terminals on one machine (heavy-run scope, ai-testdb, dev-freeze)
+- **Requirement:** REQ-PARALLEL-TERMINALS (owner 2026-11-05/06: AI terminals across projects stacked and slowed each other; make the machine fast for many terminals and projects, keep development safe to resume after a force close).
 - **Risk Level:** R2.
-- **Allowed Paths:** `bin/_dotads-workspace.mjs`, `bin/_dotads-workspace-test.mjs`, `bin/dotads-meta`, `bin/dotads-meta-test`, `bin/_dotads-meta-provider.py`, `bin/_dotads-meta-provider-test.py`, `skills/local/meta-ads-cli/**`, `TASKS.md`, `CHANGELOG.md`.
-- **Protected Paths:** `config/ai/project-memory/tokophi-repo-private-ruling.md`.
-- **Canonical Contract Owners:** `_dotads-workspace.mjs` (commerce insight, learning memory); `_dotads-meta-provider.py` (metric profiles); runtime reference.
-- **Accepted Invariants:** snapshots and snapshot hashes never change; legacy requests/scopes byte-identical; learning IDs content-addressed; superseded entries kept for audit and never resurrected by import; parents never superseded; no live calls in refresh; no profit or causal claims.
-- **Regression Checks:** `_dotads-workspace-test.mjs`, `_dotads-meta-provider-test.py`, `dotads-meta-test`, syntax, `skill-check`, `ai-policy-lint`, `system-map --check`, `security-check`.
-- **Reopen Conditions:** a refresh changes snapshot bytes, a superseded entry reappears, or aliases are summed.
-- **Non-Scope:** WhatsApp/CTWA features; CPAS catalog-observation file and product query; live account reads; commit/push before owner review.
-- **Escalation Conditions:** a change needs live Meta access or rewriting existing snapshots.
+- **Allowed Paths:** `bin/heavy-run`, `bin/heavy-run-test`, `bin/ai-testdb`, `bin/ai-testdb-test`, `bin/_ai-testdb-lifecycle-test.py`, `bin/dev-freeze`, `bin/dev-freeze-test`, `config/ai/CORE.md`, `config/ai/context/*.md`, `config/ai/memory/development.md`, `config/ai/runtime-commands.txt`, `docs/DOTFILES_SITEMAP.md`, `TASKS.md`, `CHANGELOG.md`, `docs/archive/TASKS-194-completed.md`.
+- **Protected Paths:** `bin/delivery-ledger`, `docs/task-change-boundary.md` (other session), `config/ai/project-memory/**`, `skills/local/development-kit/**`.
+- **Canonical Contract Owners:** `heavy-run` (machine queue, locks, cgroup scope); `ai-testdb` (throwaway test databases); `dev-freeze` (pre-maintenance snapshot); `memory/development.md` (rules).
+- **Accepted Invariants:** locks free only after every process of the job group ended; nested calls never run without a requested lock; a test clone is dropped on every exit path; dev-freeze never modifies a repository and never reports success when an artifact failed; trust-auth test Postgres is loopback-only and holds no real data.
+- **Regression Checks:** `heavy-run-test`, `ai-testdb-test`, `dev-freeze-test`, `ai-policy-lint`, `ai-memory-link --check`, `system-map --check`, `security-check`.
+- **Reopen Conditions:** a lock survives its job, a clone survives a cancelled run, or a failed snapshot exits 0.
+- **Non-Scope:** per-project adoption (repo changes), sudo tuning (zram, bfq), CI runners.
+- **Escalation Conditions:** a change needs sudo, a project repo, or production data.
 
 ## Pending
 

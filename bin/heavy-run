@@ -1,0 +1,307 @@
+#!/usr/bin/env python3
+"""Run heavy work (builds, test suites, browsers) without stacking on other AI terminals.
+
+Two kernel flock() levels, released automatically when the holder dies (no stale locks):
+  pool slots     at most N heavy jobs at once on this machine (default max(2, cores/4));
+  named locks    --lock NAME is exclusive across every terminal and project, e.g. one test database.
+Light work (editing, git, typecheck of one file) never needs this; it exists so a second full suite or build
+waits its turn instead of halving everyone's speed and corrupting a shared test database.
+
+Lifecycle: the job owns its process group. When the job ends (or times out), every process still in that group
+(a server or watcher started with `&`) is stopped too, so nothing keeps the locks afterwards. A descendant that
+deliberately detaches (setsid/daemonize) leaves the group and is outside this contract: do not daemonize under it.
+Nested calls inside a job run directly only when the outer job already holds every requested lock.
+"""
+import argparse
+import fcntl
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+EX_TEMPFAIL = 75
+NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$')
+
+
+def state_dir():
+    root = Path(os.environ.get('AI_HEAVY_DIR') or Path.home() / '.local/state/ai-heavy')
+    for sub in ('locks', 'slots', 'wait'):
+        (root / sub).mkdir(parents=True, exist_ok=True, mode=0o700)
+    return root
+
+
+def default_slots():
+    value = os.environ.get('AI_HEAVY_SLOTS')
+    if value:
+        if not value.isdigit() or not 1 <= int(value) <= 64:
+            raise SystemExit('AI_HEAVY_SLOTS must be 1-64')
+        return int(value)
+    return max(2, (os.cpu_count() or 4) // 4)
+
+
+def alive(pid):
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+
+
+def try_lock(path):
+    fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return fd
+    except BlockingIOError:
+        os.close(fd)
+        return None
+
+
+def held(path):
+    fd = try_lock(path)
+    if fd is None:
+        return True
+    os.close(fd)
+    return False
+
+
+def read_meta(path):
+    try:
+        return json.loads(Path(path).read_text())
+    except (OSError, ValueError):
+        return None
+
+
+def who(meta):
+    if not meta:
+        return 'unknown holder'
+    age = int(time.time() - meta.get('started', time.time()))
+    return f"{meta.get('label') or meta.get('cmd', '?')} (pid {meta.get('pid')}, {meta.get('cwd', '?')}, {age}s)"
+
+
+def status(root, slots):
+    out = {'slots': [], 'locks': [], 'waiting': [], 'pool_size': slots}
+    for i in range(slots):
+        path = root / 'slots' / f'{i}.lock'
+        out['slots'].append({'slot': i, 'busy': held(path), 'holder': read_meta(root / 'slots' / f'{i}.json') if held(path) else None})
+    for path in sorted((root / 'locks').glob('*.lock')):
+        busy = held(path)
+        out['locks'].append({'lock': path.stem, 'busy': busy, 'holder': read_meta(path.with_suffix('.json')) if busy else None})
+    for path in sorted((root / 'wait').glob('*.json')):
+        meta = read_meta(path)
+        if meta and alive(int(meta.get('pid', 0))):
+            out['waiting'].append(meta)
+        else:
+            path.unlink(missing_ok=True)
+    return out
+
+
+def print_status(root, slots, as_json):
+    data = status(root, slots)
+    if as_json:
+        print(json.dumps(data, indent=2))
+        return
+    busy = sum(1 for s in data['slots'] if s['busy'])
+    print(f"pool: {busy}/{data['pool_size']} slots busy (load {os.getloadavg()[0]:.1f} on {os.cpu_count()} cores)")
+    for s in data['slots']:
+        print(f"  slot {s['slot']}: " + (who(s['holder']) if s['busy'] else 'free'))
+    for lk in data['locks']:
+        if lk['busy']:
+            print(f"  lock {lk['lock']}: {who(lk['holder'])}")
+    for w in data['waiting']:
+        print(f"  waiting: {who(w)} for {', '.join(w.get('wants', []))}")
+
+
+def acquire(root, slots, names, wait_max, label):
+    meta = {'pid': os.getpid(), 'label': label, 'cwd': os.getcwd(), 'started': time.time(), 'wants': [f'lock:{n}' for n in names] + ['slot']}
+    wait_file = root / 'wait' / f'{os.getpid()}.json'
+    deadline = None if wait_max is None else time.time() + wait_max
+    fds, files, announced = [], [], 0.0
+    try:
+        # Fixed order (sorted named locks, then a pool slot) so two waiters can never deadlock each other.
+        for name in sorted(names):
+            path = root / 'locks' / f'{name}.lock'
+            while True:
+                fd = try_lock(path)
+                if fd is not None:
+                    fds.append(fd)
+                    files.append(path.with_suffix('.json'))
+                    break
+                announced = wait_notice(wait_file, meta, announced, f'lock {name}', read_meta(path.with_suffix('.json')))
+                if deadline and time.time() > deadline:
+                    raise TimeoutError(f'lock {name} busy')
+                time.sleep(0.5)
+        while True:
+            for i in range(slots):
+                fd = try_lock(root / 'slots' / f'{i}.lock')
+                if fd is not None:
+                    fds.append(fd)
+                    files.append(root / 'slots' / f'{i}.json')
+                    return fds, files, i
+            announced = wait_notice(wait_file, meta, announced, 'a pool slot', None)
+            if deadline and time.time() > deadline:
+                raise TimeoutError('pool full')
+            time.sleep(0.5)
+    except BaseException:
+        for fd in fds:
+            os.close(fd)
+        raise
+    finally:
+        wait_file.unlink(missing_ok=True)
+
+
+def wait_notice(wait_file, meta, announced, what, holder):
+    if not wait_file.exists():
+        wait_file.write_text(json.dumps(meta))
+    now = time.time()
+    if now - announced > 30:
+        held_by = f' held by {who(holder)}' if holder else ''
+        print(f'heavy-run: waiting for {what}{held_by}', file=sys.stderr, flush=True)
+        return now
+    return announced
+
+
+def scoped(command):
+    # Run the job in its own systemd user scope: low CPU weight (full speed when the machine is idle, yields to
+    # agents and editors under contention) and a soft memory ceiling that throttles one job instead of pushing
+    # the whole machine into swap. systemd-run --scope execs the command in place, so the lock fds and the
+    # process group survive. Absent systemd (CI, containers) or AI_HEAVY_NO_SCOPE=1, the command runs as is.
+    if os.environ.get('AI_HEAVY_NO_SCOPE') or not shutil.which('systemd-run'):
+        return command
+    if subprocess.run(['systemctl', '--user', 'is-system-running'], capture_output=True).returncode not in (0, 1):
+        return command
+    weight = os.environ.get('AI_HEAVY_CPU_WEIGHT', '20')
+    memory_high = os.environ.get('AI_HEAVY_MEMORY_HIGH', '40%')
+    return ['systemd-run', '--user', '--scope', '--quiet', '--collect', '--slice=ai-heavy.slice',
+            '-p', f'CPUWeight={weight}', '-p', f'MemoryHigh={memory_high}', '--', *command]
+
+
+def leader_exited(pid):
+    # WNOWAIT: observe the exit without reaping, so the group id stays pinned (no PID/PGID reuse) while the
+    # rest of the group is cleaned up; the leader is reaped only afterwards.
+    return os.waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is not None
+
+
+def wait_leader(pid, seconds):
+    deadline = None if seconds is None else time.monotonic() + seconds
+    while not leader_exited(pid):
+        if deadline is not None and time.monotonic() >= deadline:
+            return False
+        time.sleep(0.1)
+    return True
+
+
+def reap_group(pgid):
+    # Stop everything left in the job's group (TERM, then KILL after 5 s). The unreaped leader keeps pgid ours.
+    try:
+        os.killpg(pgid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    for _ in range(50):
+        time.sleep(0.1)
+        if not group_has_live_members(pgid):
+            return
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+
+
+def group_has_live_members(pgid):
+    # killpg(pgid, 0) also succeeds for the zombie leader; look for members that are not zombies.
+    for entry in os.scandir('/proc'):
+        if not entry.name.isdigit():
+            continue
+        try:
+            fields = Path(f'/proc/{entry.name}/stat').read_text().rsplit(')', 1)[1].split()
+        except (OSError, IndexError):
+            continue
+        if int(fields[2]) == pgid and fields[0] != 'Z':
+            return True
+    return False
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('--lock', action='append', default=[], metavar='NAME', help='exclusive named lock (repeatable), e.g. 99ribu-test-db')
+    parser.add_argument('--label', help='what this job is, shown to other terminals')
+    parser.add_argument('--nice', type=int, default=10, help='CPU niceness for the job (default 10, keeps interactive work responsive)')
+    parser.add_argument('--timeout', type=int, help='kill the job after N seconds')
+    parser.add_argument('--wait-max', type=int, help='give up (exit 75) if not started within N seconds')
+    parser.add_argument('--status', action='store_true', help='show pool, locks and waiters, then exit')
+    parser.add_argument('--json', action='store_true')
+    parser.add_argument('command', nargs=argparse.REMAINDER)
+    args = parser.parse_args()
+    root, slots = state_dir(), default_slots()
+    if args.status:
+        print_status(root, slots, args.json)
+        return 0
+    command = args.command[1:] if args.command[:1] == ['--'] else args.command
+    if not command:
+        parser.error('a command is required after --')
+    for name in args.lock:
+        if not NAME.match(name):
+            parser.error(f'invalid lock name {name!r}')
+    names = sorted(set(args.lock))
+    if os.environ.get('AI_HEAVY_HELD'):
+        # Inside a heavy job: run directly only if the outer job already holds every requested lock. Taking a new
+        # lock here could deadlock against the fixed acquisition order, so a missing lock is an error.
+        held = set(filter(None, os.environ.get('AI_HEAVY_LOCKS', '').split(',')))
+        missing = [name for name in names if name not in held]
+        if missing:
+            print(f"heavy-run: nested call needs lock(s) {', '.join(missing)} that the outer job does not hold; "
+                  f"add --lock {' --lock '.join(missing)} to the outer heavy-run", file=sys.stderr)
+            return 2
+        os.execvp(command[0], command)
+    try:
+        fds, files, slot = acquire(root, slots, names, args.wait_max, args.label)
+    except TimeoutError as error:
+        print(f'heavy-run: not started, {error}', file=sys.stderr)
+        return EX_TEMPFAIL
+    meta = {'pid': os.getpid(), 'label': args.label, 'cmd': ' '.join(command)[:160], 'cwd': os.getcwd(), 'started': time.time()}
+    for path in files:
+        path.write_text(json.dumps(meta))
+    env = dict(os.environ, AI_HEAVY_HELD='1', AI_HEAVY_SLOT=str(slot), AI_HEAVY_LOCKS=','.join(names))
+    command = scoped(command)
+    # pass_fds: the job keeps the locks even if this wrapper is killed with SIGKILL; they free when the job exits.
+    child = subprocess.Popen(command, env=env, pass_fds=fds, start_new_session=True,
+                             preexec_fn=lambda: os.setpriority(os.PRIO_PROCESS, 0, max(0, args.nice)))
+    def forward(signum, _frame):
+        try:
+            os.killpg(child.pid, signum)
+        except ProcessLookupError:
+            pass
+    for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+        signal.signal(sig, forward)
+    timed_out = False
+    try:
+        if not wait_leader(child.pid, args.timeout):
+            timed_out = True
+            print(f'heavy-run: timeout after {args.timeout}s, stopping the job', file=sys.stderr)
+            forward(signal.SIGTERM, None)
+            if not wait_leader(child.pid, 20):
+                forward(signal.SIGKILL, None)
+                wait_leader(child.pid, None)
+        # Leftovers in the job's group inherited the lock fds and would keep every other terminal waiting:
+        # stop them before the locks are released, on every exit path (normal end, timeout, signal).
+        reap_group(child.pid)
+        code = child.wait()
+        if timed_out:
+            code = 124
+    finally:
+        for path in files:
+            path.unlink(missing_ok=True)
+        for fd in fds:
+            os.close(fd)
+    return code if code >= 0 else 128 - code
+
+
+if __name__ == '__main__':
+    sys.exit(main())
