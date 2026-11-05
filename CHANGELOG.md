@@ -6,6 +6,19 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-28
 
+### DotAds Meta: delivery, learning and Pixel 2026 guidance — 2026-11-05
+
+- New `meta-ads-cli/references/algorithm-and-learning.md`: 2026 Andromeda,
+  GenRecs and GEM facts with their limits, learning phase and significant
+  edits, measurement changes (view windows removed 2026-01-12, link-click-only
+  click attribution 2026-03, on-device conversions from 2026-11-12), checks for
+  turning evidence into hypotheses, and an ad-improvement order.
+- New `meta-ads-signal-engine/references/PIXEL_2026_CHANGES.md`: how Pixel,
+  CAPI and datasets work, Meta-enabled CAPI, Pixel AI feature, on-device
+  conversions, and a requirements checklist.
+- Version facts refreshed: CLI 1.3.1 / SDK 26.0.2 / API v26.0 verified;
+  v24.0 Marketing API support ends 2026-11-10.
+
 ### DotAds Meta: history request budget — 2026-11-05
 
 - Live `history` reads inventory once and requests only Insights for the other

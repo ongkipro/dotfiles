@@ -280,6 +280,14 @@ hipotesis → eksperimen → outcome beserta parent, referensi bukti dan protoko
 keberadaan catatan bukan bukti kesimpulannya benar. AI harus menyatakan data yang
 belum cukup dan meminta persetujuan tersendiri sebelum tindakan live.
 
+Sebelum menaikkan observasi menjadi hipotesis atau memberi saran optimasi, AI
+membaca [algoritma dan learning](references/algorithm-and-learning.md): cara kerja
+Andromeda/GenRecs/GEM 2026, learning phase (~50 event optimasi per minggu per ad
+set, edit signifikan me-reset), serta perubahan pengukuran yang mengubah angka
+tanpa mengubah penjualan: view 7d/28d dihapus (12 Jan 2026), klik hanya link
+click (Maret 2026), dan konversi di perangkat pelanggan (mulai 12 Nov 2026).
+Pixel dan CAPI: skill `meta-ads-signal-engine`, file `PIXEL_2026_CHANGES.md`.
+
 ## Mengenali file dan lokasinya
 
 | Lokasi/file | Fungsi |

@@ -125,6 +125,8 @@ hypotheses, not a Meta-certified optimum or a guaranteed ROAS recipe.
    require their applicable approval. Record account learning privately and
    review reusable methods before updating the shared skill.
 
+The [algorithm and learning reference](algorithm-and-learning.md) has the
+2026 Andromeda/GenRecs/GEM updates, learning phase and measurement changes.
 The [source record](api-and-evidence.md) explains retrieval, ranking and model
 transfer; these systems predict relevance and actions rather than expose a
 hidden advertiser-side "winning" switch. Use
@@ -137,7 +139,7 @@ hidden advertiser-side "winning" switch. Use
 | **Advantage+ Sales / App / Leads** | `smart_promotion_type: "AUTOMATED_SHOPPING_ADS"` or `"SMART_APP_PROMOTION"` (create, duplicate, and update retired in v25; all versions since 2026-05-19) | Standard `objective` (`OUTCOME_SALES`, `OUTCOME_LEADS`, `OUTCOME_APP_PROMOTION`) + CBO budget + `"advantage_audience": true` on ad set -> local automation candidate; actual server `advantage_state` and placement eligibility require account evidence |
 | **Multi-Asset Creative Testing** | Ad-set `"dynamic_creative": true` only (limits ad set to 1 ad) | Creative `"ad_format": "AUTOMATIC_FORMAT"` (ad-level Flexible Format `asset_feed_spec`; supports multiple multi-asset ads in one ad set) |
 | **Advantage+ Creative Enhancements** | Bundled `creative_features_spec.standard_enhancements` (deprecated in v22.0+) | Granular `degrees_of_freedom_spec.creative_features_spec` keys (`image_touchups`, `image_templates`, `video_auto_crop`, `text_optimizations`, `inline_comment`, `background_generation`, `image_expansion`, `text_generation`) |
-| **Attribution Windows** | `7d_view` and `28d_view` (removed from Insights & ad set attribution specs) | `1d_view` (`VIEW_THROUGH`, `window_days: 1`), `1d_ev` (`ENGAGED_VIDEO_VIEW`, `window_days: 1`), `7d_click` / `1d_click` (`CLICK_THROUGH`) |
+| **Attribution Windows** | `7d_view` and `28d_view` (no longer returned by Insights since 2026-01-12) | `1d_view` (`VIEW_THROUGH`, `window_days: 1`), `1d_ev` (`ENGAGED_VIDEO_VIEW`, `window_days: 1`), `7d_click` / `1d_click` (`CLICK_THROUGH`). Since 2026-03, click-through counts link clicks only; other clicks are engage-through and engaged video view is 5 s — see [algorithm and learning](algorithm-and-learning.md) |
 | **Causal Lift Optimization** | Correlational post-view/click optimization only | Ad set `"incremental_attribution": true` (`--incremental-attribution`), only for eligible goals/bids and without `attribution_spec`; this is an optimization setting, not measured causal lift |
 | **ABO Testing Budget Liquidity** | Rigid isolated ABO budgets | Campaign `"adset_budget_sharing": true` (`--adset-budget-sharing`) to share up to 20% budget across ad sets |
 | **Multi-Advertiser Placement** | Implicit auto-enrollment | Creative `"contextual_multi_ads": false` (`--no-contextual-multi-ads`) to opt out when offer isolation is required |
@@ -150,7 +152,7 @@ with incremental attribution omitted or false. Validate the actual goal/window
 combination; the offline validator is not a complete API eligibility oracle.
 
 The source record covers the 2026-10-27 poll, Web and App, and HEF changes.
-Installed CLI 1.2.0 uses SDK 24.x; a v26 checklist does not upgrade its requests.
+Historical: CLI 1.2.0 used SDK 24.x. Verified 2026-11-04: CLI 1.3.1, SDK 26.0.2, API v26.0.
 
 ### 3. Granular `degrees_of_freedom_spec` JSON Reference (v22.0–v26.0)
 

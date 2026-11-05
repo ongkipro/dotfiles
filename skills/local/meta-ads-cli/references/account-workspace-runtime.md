@@ -351,16 +351,16 @@ they are not automatically promoted into scoped portable evidence.
 
 ## Transport and scope
 
-The installed official CLI 1.2.0 does not expose the needed Insights level and
+The official CLI (1.2.0 when designed; 1.3.1 verified 2026-11-04) does not expose the needed Insights level and
 attribution controls. The read adapter uses its already-installed official
 `facebook-business` SDK through a separate Python process. Native CLI writes and
 the existing dry-run/PAUSED deployment path retain their own approval gates.
 
 The helper resolves Python beside the real `meta` binary; an explicit
 `DOTADS_META_PYTHON` path can select an existing compatible environment. It does
-not install dependencies during reads or offline report rendering. The observed
-SDK is 24.0.1, default requested API v24.0; this is not a claim of v26 eligibility
-or current server behavior. Check the [API source record](api-and-evidence.md)
+not install dependencies during reads or offline report rendering. Observed on
+2026-11-04: SDK 26.0.2, requested API v26.0, used by real read-only collections.
+v24.0 Marketing API support ends 2026-11-10; upgrade devices still on SDK 24.x. Check the [API source record](api-and-evidence.md)
 and current official support dates before real use or upgrades.
 
 An internal `--plan` validates and normalizes the request before credential

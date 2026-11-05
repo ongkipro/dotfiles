@@ -8,7 +8,7 @@ dates do not prove a live account's eligibility or successful request.
 
 | Source | Verified fact / application |
 | --- | --- |
-| [Marketing API changelog](https://developers.facebook.com/documentation/ads-commerce/marketing-api/marketing-api-changelog/) | Latest reviewed version: v26.0. At review, v24.0 remained listed through 2026-11-10. Recheck before use. |
+| [Marketing API changelog](https://developers.facebook.com/documentation/ads-commerce/marketing-api/marketing-api-changelog/) | Rechecked 2026-11-05: page header names **v27.0** as latest Graph API version, while its Marketing API table lists v26.0 (2026-07-29, TBD), v25.0 (until 2027-02-23) and v24.0 (until **2026-11-10**). No v27 changelog page was retrievable. 2026-05-04: access tiers renamed Limited/Full; auto-approval at 500 calls in 15 days. Recheck before use. |
 | [v25 changes](https://developers.facebook.com/documentation/ads-commerce/marketing-api/marketing-api-changelog/version25.0/) | Legacy ASC/AAC creation, duplication, and updates retired in v25; all versions since 2026-05-19. The earlier claim that updates were first blocked in v26 was wrong. |
 | [v26 changes](https://developers.facebook.com/documentation/ads-commerce/marketing-api/marketing-api-changelog/version26.0/) | Poll retirement, Web and App web_only deprecation, and explicit HEF audience choice apply in v26 and across versions from 2026-10-27. Scope is detailed below. |
 | [Official CLI command reference](https://developers.facebook.com/documentation/ads-commerce/ads-ai-connectors/ads-cli/command-reference.md) | Incremental attribution and explicit attribution windows are mutually exclusive. Verify actual flag support with installed help. |
@@ -40,6 +40,12 @@ response behavior and defensive failures, not real permissions or server-side
 eligibility. Effective API/attribution values remain unknown unless observed.
 
 ## Installed CLI versus effective API version
+
+**Update 2026-11-04 (device `rich`):** installed `meta-ads` **1.3.1** with
+`facebook-business` **26.0.2**; `FacebookAdsApi.API_VERSION` is **v26.0**, and
+real read-only collections used v26.0 successfully. The 1.2.0/24.x notes below
+are historical. v24.0 leaves Marketing API support on 2026-11-10; any device
+still on SDK 24.x must upgrade before then.
 
 The inspected local package was meta-ads **1.2.0**, with facebook-business
 **24.0.1**. Package metadata requires facebook-business >=24.0,<25.0; the
@@ -175,8 +181,10 @@ Andromeda → GEM → Lattice execution chain or a rule that similar ads receive
 same Entity ID and are dropped. Creative diversity, consolidation, copy style,
 and budget experiments remain context-dependent operational hypotheses.
 
-The latest reviewed Marketing API changelog is v26.0. Installed `meta-ads 1.2.0`
-uses SDK 24.x; the inspected local SDK default is **v24.0**. Package freshness does
+Historical (2026-10-27): the latest reviewed Marketing API changelog was v26.0;
+installed `meta-ads 1.2.0` used SDK 24.x with default **v24.0**. See the
+2026-11-04 update above for the current device. Delivery-system and learning
+guidance now lives in [algorithm and learning](algorithm-and-learning.md). Package freshness does
 not prove v26 request compatibility. No real account request/version header was
 observed. Preserve the upstream dependency constraints; do not patch SDK versions
 or invent a CLI version flag to claim synchronization.

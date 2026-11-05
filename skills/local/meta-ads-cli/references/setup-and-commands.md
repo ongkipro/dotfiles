@@ -1,6 +1,6 @@
 # Setup, per-project workflow, raw `meta` CLI commands
 
-Read the section the current step needs. Flags were verified against `meta-ads 1.2.0`; confirm with `meta ads <resource> <action> --help` before running a command not shown here.
+Read the section the current step needs. Flags were verified against `meta-ads 1.2.0` (device later upgraded to 1.3.1 / SDK 26.0.2 / API v26.0 on 2026-11-04); confirm with `meta ads <resource> <action> --help` before running a command not shown here.
 
 ## 0. AI-managed env preparation: the operator fills one token line
 

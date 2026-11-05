@@ -6,7 +6,7 @@ description: >-
 
 # Meta Ads CLI
 
-Two layers: the official `meta` CLI (`pipx install meta-ads==1.2.0`; Graph/
+Two layers: the official `meta` CLI (`pipx install meta-ads`; verified 1.3.1 with SDK 26.0.2 on 2026-11-04; Graph/
 Marketing API calls, chunked media upload, DCO/Flexible format, insights,
 guidance) and the dotfiles helper `dotads-meta` (injects `META_ACCESS_TOKEN`
 from `secrets-env` into the child process, validates a declarative manifest
@@ -42,6 +42,7 @@ Read only this file up front; open the reference the chosen path names.
 | Plan or build a campaign from a manifest | §1 → `validate` → `deploy` (dry-run) → show plan → approval → `--apply` | `references/rules-and-tutorial.md`; commands in `setup-and-commands.md` §2–3 |
 | Read-only diagnostics, insights, raw `meta` command | `dotads-meta run --brand ./brand.json -- …`; check `--help` first | `setup-and-commands.md` §3 |
 | Analyze performance / ROAS | separate observation, threshold, hypothesis | `references/roas-cpr-profit-intelligence.md` |
+| How Meta delivery/learning works now, learning phase, 2026 measurement changes, turning evidence into hypotheses, improving ads | Read before `learn record` beyond observation or any optimization advice | `references/algorithm-and-learning.md` |
 | Indonesia market baseline (explicit `ID` market only) | `dotads-meta baseline --market ID` | `references/indonesia-market.md` |
 | Five-window account history / observational learning | `history --account act_ID --plan`, then authorized read or selected imports; full returned Markdown evidence feeds scoped account memory, never automatic winners/spend | `references/account-workspace-runtime.md` §Five-window account history |
 | Account learning lifecycle / private cross-device handoff | `learn list/record/export/import --account act_ID`; exact evidence and stage protocols, same BM/account; offline bundles only, no automatic transfer | `references/account-workspace-runtime.md` §Account learning and private cross-device handoff |
@@ -70,7 +71,7 @@ Read only this file up front; open the reference the chosen path names.
 
 ## 2. Hand-offs
 
-Pixel/CAPI/EMQ → `meta-ads-signal-engine`; Ad Library research →
+Pixel/CAPI/EMQ and 2026 Pixel changes → `meta-ads-signal-engine`; Ad Library research →
 `meta-ads-scout`; headline/body/CTA rules → `copywriting`
 (`references/meta-ads.md`: market locale, soft CTA, no link/price, combination
 safety); creative batching → `content`. Copy is a draft until the §1 gates pass.
