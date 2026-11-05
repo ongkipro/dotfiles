@@ -134,6 +134,10 @@ the event it should move; do not skip the hypothesis stage.
 
 Every live change still follows the dry-run → approval → PAUSED gate.
 
+Marketplace campaigns (Shopee CPAS) follow the same delivery system but a
+different signal owner, results fields and economics: see
+[CPAS Collaborative Ads](cpas-collaborative-ads.md).
+
 ## Sources (retrieved 2026-11-05)
 
 - [Andromeda 2026](https://engineering.fb.com/2026/10/28/ml-applications/meta-andromeda-next-gen-ads-retrieval-gpu-co-design/) · [GEM 2026](https://engineering.fb.com/2026/10/13/ml-applications/metas-generative-ads-model-gem-scaling-the-central-model-and-compute-engine-for-frontier-ads-ai/) · [GenRecs tokenization](https://engineering.fb.com/2026/10/19/ml-applications/genrecs-tokenization-transforming-ads-recommendation-at-meta-with-stable-model-vocabulary/)

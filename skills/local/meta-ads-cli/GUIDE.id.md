@@ -288,6 +288,14 @@ tanpa mengubah penjualan: view 7d/28d dihapus (12 Jan 2026), klik hanya link
 click (Maret 2026), dan konversi di perangkat pelanggan (mulai 12 Nov 2026).
 Pixel dan CAPI: skill `meta-ads-signal-engine`, file `PIXEL_2026_CHANGES.md`.
 
+CPAS Shopee (Collaborative Ads) berbeda dari iklan biasa: katalog dan pixel milik
+Shopee, hasil penjualan CPAS harus diminta dan dibaca dari field `catalog_segment_*`
+(tanpa menganggap field purchase biasa selalu kosong atau nol),
+dan profit dihitung dari settlement Shopee setelah biaya admin, program ongkir,
+voucher dan komisi affiliate. Baca
+[CPAS Collaborative Ads](references/cpas-collaborative-ads.md) sebelum merencanakan
+atau menilai kampanye yang mengarah ke Shopee.
+
 ## Mengenali file dan lokasinya
 
 | Lokasi/file | Fungsi |

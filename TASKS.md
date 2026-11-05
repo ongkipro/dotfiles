@@ -7,15 +7,21 @@ Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests w
 Done 2026-10-30: TASK-159 → [META_COPY](docs/archive/DOTFILES_TASKS_2026-10-30_META_COPY.md); TASK-091 superseded by TASK-160 → [record](docs/archive/TASKS-091-superseded.md); TASK-160/161 → [160-161](docs/archive/TASKS-160-161-completed.md).
 Done 2026-10-31: TASK-162-165 → [162-166](docs/archive/TASKS-162-166-completed.md); TASK-167 → [167](docs/archive/TASKS-167-completed.md); TASK-168 → [168](docs/archive/TASKS-168-completed.md); TASK-169 → [169](docs/archive/TASKS-169-completed.md).
 Done 2026-11-01 to 2026-11-03: TASK-170 → [170](docs/archive/TASKS-170-completed.md); TASK-171/172 → [171](docs/archive/TASKS-171-completed.md); TASK-173 → [173](docs/archive/TASKS-173-completed.md); TASK-174 → [174](docs/archive/TASKS-174-completed.md); TASK-176 → [176](docs/archive/TASKS-176-completed.md).
-Done 2026-11-04 to 2026-11-05: TASK-177-189 (dotads-meta, Meta/Pixel docs, device update notice) and finished TASK-151/157 → [177-189](docs/archive/TASKS-177-190-completed.md); TASK-190 → [190](docs/archive/TASKS-190-completed.md); TASK-191 → [191](docs/archive/TASKS-191-completed.md).
+Done 2026-11-04 to 2026-11-05: TASK-177-189 (dotads-meta, Meta/Pixel docs, device update notice) and finished TASK-151/157 → [177-189](docs/archive/TASKS-177-190-completed.md); TASK-190 → [190](docs/archive/TASKS-190-completed.md); TASK-191 → [191](docs/archive/TASKS-191-completed.md); TASK-192 → [192](docs/archive/TASKS-192-completed.md).
 
 ## In progress
 
-### TASK-192: Archive TASK-190 and TASK-191 after PASS
-- **Requirement:** REQ-POLICY-LINT-GREEN (follow-up: archive each finished record separately; existing archives stay immutable).
-- **Risk Level:** R0 mechanical.
-- **Allowed Paths:** `TASKS.md`, `docs/archive/TASKS-190-completed.md`, `docs/archive/TASKS-191-completed.md`, `docs/DOTFILES_SITEMAP.md`.
-- **Verification:** `ai-policy-lint`, `system-map --check`, `security-check`.
+### TASK-193: CPAS (Shopee Collaborative Ads) knowledge for dotads-meta
+- **Requirement:** REQ-META-CPAS-KNOWLEDGE (owner 2026-11-05: dig into Shopee to Meta via CPAS for skill, memory, system and working method; CPAS differs from ordinary ads).
+- **Risk Level:** R1.
+- **Allowed Paths:** `skills/local/meta-ads-cli/**`, `config/ai/memory/meta-ads.md`, `TASKS.md`, `CHANGELOG.md`, `docs/archive/TASKS-192-completed.md`, `docs/DOTFILES_SITEMAP.md`.
+- **Protected Paths:** `config/ai/project-memory/tokophi-repo-private-ruling.md`.
+- **Canonical Contract Owners:** `meta-ads-cli/references/cpas-collaborative-ads.md`; private research report `~/Documents/work/research/Shopee CPAS Meta ads system/`.
+- **Accepted Invariants:** claims labeled Meta/Shopee/third-party/local with sources; no invented fees or guaranteed results; provider/code unchanged (design only).
+- **Regression Checks:** `skill-check meta-ads-cli`, link check, `ai-policy-lint`, `system-map --check`, `security-check`.
+- **Reopen Conditions:** Meta changes the Collaborative Ads fields or Shopee changes fee rules.
+- **Non-Scope:** provider/CLI implementation; live accounts; commit/push.
+- **Escalation Conditions:** a claim needs a live account read or a credential.
 
 ## Pending
 

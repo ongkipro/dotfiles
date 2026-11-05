@@ -6,6 +6,18 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-28
 
+### DotAds Meta: CPAS (Shopee Collaborative Ads) reference — 2026-11-05
+
+- New `meta-ads-cli/references/cpas-collaborative-ads.md`, built from a
+  five-lane parallel study (report kept privately under
+  `~/Documents/work/research/`): CPAS identified by catalog lineage
+  (`is_catalog_segment`), segment fields as action-stat arrays, product
+  reporting as a separate capability with a documented SDK enum gap, three
+  non-additive ledgers (Meta claim, Shopee channel claims, settlement), dated
+  Shopee Indonesia fee scenarios (Nov 2026 vs Dec 2026/Jan 2027), graded
+  operating playbook, CPAS learning rules and a phased dotads-meta plan.
+  Design only; no provider change yet.
+
 ### dotsync: update notice on other devices; meta-ads 1.3.1 default — 2026-11-05
 
 - After a background pull, the next interactive shell shows once what was
