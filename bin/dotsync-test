@@ -171,7 +171,7 @@ printf 'local edit\n' >> "$P/file.txt"
 (cd "$OTHER" && "$P/bin/dotsync" --yes pull >/dev/null 2>&1); rc=$?
 check "pull refuses a dirty working tree" "$(head_p)" "$h"
 check "and the refusal is a failure" "$rc" "1"
-git -C "$P" checkout -q -- file.txt
+printf 'tracked\n' > "$P/file.txt"  # fixture repo only: restore committed content
 
 printf '#!/usr/bin/env bash\necho "ok: unchanged link"\necho "backup: kept old file"\n' > "$P/bin/ai-memory-link"
 chmod +x "$P/bin/ai-memory-link"
@@ -197,7 +197,7 @@ check "--yes sync pushes the commit to origin" "$(git -C "$R" rev-parse main)" "
 export XDG_STATE_HOME="$TMP/state"
 ap() { (cd "$OTHER" && DOTSYNC_AUTOPULL_INTERVAL="${1:-0}" "$P/bin/dotsync" autopull >/dev/null 2>&1 </dev/null); }
 last() { cat "$XDG_STATE_HOME/dotsync/last-result" 2>/dev/null; }
-upstream() { { git -C "$W" fetch -q origin && git -C "$W" reset -q --hard origin/main; } || echo "fixture: W sync failed" >&2
+upstream() { { git -C "$W" fetch -q origin && git -C "$W" checkout -q -B main origin/main; } || echo "fixture: W sync failed" >&2  # throwaway fixture clone, always clean
   printf '%s\n' "$1" > "$W/upstream.txt"; git -C "$W" add upstream.txt; git -C "$W" commit -qm "$1"
   git -C "$W" push -q origin HEAD:main >/dev/null 2>&1 || echo "fixture: W push failed" >&2; }
 ap; rc=$?
@@ -269,7 +269,7 @@ printf 'dirty\n' >> "$P/file.txt"
 ap
 check "autopull leaves a dirty tree alone" "$(head_p)" "$h"
 has_last "and records why it skipped" "skip: local changes"
-git -C "$P" checkout -q -- file.txt
+printf 'tracked\n' > "$P/file.txt"  # fixture repo only: restore committed content
 git -C "$P" checkout -q -b side
 ap
 check "autopull does nothing off main" "$(head_p)" "$h"
@@ -283,7 +283,7 @@ check "autopull refuses a diverged history" "$(head_p)" "$h"
 check "and reports failure" "$rc" "1"
 check "and never pushes" "$(git -C "$R" rev-parse main)" "$o"
 has_last "and records the divergence" "cannot fast-forward"
-git -C "$P" reset -q --hard origin/main
+git -C "$P" reset -q --keep origin/main  # fixture repo: drop the diverged commit; refuses if dirty
 git -C "$P" remote set-url origin "$TMP/missing.git"
 ap; rc=$?
 check "a failed fetch is reported as failure" "$rc" "1"
@@ -294,6 +294,46 @@ printf 'garbage\n' > "$XDG_STATE_HOME/dotsync/fail-count"; ap
 check "a garbage failure count restarts at one" "$(cat "$XDG_STATE_HOME/dotsync/fail-count")" "1"
 git -C "$P" remote set-url origin "$R"; ap
 check "a success clears the failure count" "$([ -f "$XDG_STATE_HOME/dotsync/fail-count" ] && echo kept || echo cleared)" "cleared"
+
+# 14b. One-shot notice for the next shell: pulled subjects and NOTICE: actions.
+NOTICE_FILE="$XDG_STATE_HOME/dotsync/notice"; rm -f "$NOTICE_FILE"
+ap
+check "an up-to-date run with nothing pending writes no notice" "$([ -f "$NOTICE_FILE" ] && echo written || echo none)" "none"
+upstream "feat: visible change subject"; ap
+has_notice() { if grep -qF "$2" "$NOTICE_FILE" 2>/dev/null; then say ok "$1"; else say FAIL "$1"; printf '       notice: %s\n' "$(cat "$NOTICE_FILE" 2>/dev/null)"; fails=$((fails + 1)); fi; }
+has_notice "a pull writes a notice naming the pulled commits" "feat: visible change subject"
+has_notice "and the pulled range" "dotfiles updated"
+rm -f "$NOTICE_FILE"
+printf '#!/usr/bin/env bash\necho "ok: linked"\necho "NOTICE: upgrade dependency X"\n' > "$P/bin/ai-memory-link"; chmod +x "$P/bin/ai-memory-link"
+upstream "chore: with action"; ap
+has_notice "a NOTICE: line from reconciliation becomes an action" "action: upgrade dependency X"
+rm -f "$NOTICE_FILE"; ap
+has_notice "a pending action is repeated while up to date" "action: upgrade dependency X"
+check "and an up-to-date notice lists no pulled range" "$(grep -c 'dotfiles updated' "$NOTICE_FILE")" "0"
+for i in 1 2 3 4 5 6 7 8 9 10; do upstream "bulk $i" >/dev/null; done; rm -f "$NOTICE_FILE"; ap
+check "a large pull lists at most 8 subjects" "$(grep -c '^  - bulk' "$NOTICE_FILE")" "8"
+has_notice "and summarizes the rest" "and 2 more"
+rm -f "$P/bin/ai-memory-link" "$NOTICE_FILE"
+# Commit subjects and actions are untrusted: terminal control bytes never reach the notice.
+upstream "$(printf 'evil \033]52;c;Zm9v\007 osc \033[2J clear \r cr \177 del ok')"
+printf '#!/usr/bin/env bash\nprintf "NOTICE: bad \\033[31maction\\007\\n"\n' > "$P/bin/ai-memory-link"; chmod +x "$P/bin/ai-memory-link"
+rm -f "$NOTICE_FILE"; ap
+check "the notice contains no terminal control bytes" "$(LC_ALL=C tr -d '\n\t' < "$NOTICE_FILE" | LC_ALL=C grep -c '[[:cntrl:]]')" "0"
+has_notice "and keeps the readable subject text" "evil ]52;c;Zm9v osc [2J clear  cr  del ok"
+has_notice "and sanitizes reconciliation actions too" "action: bad [31maction"
+rm -f "$P/bin/ai-memory-link" "$NOTICE_FILE"
+# The shell hook shows the notice once, even with concurrent shells (tmux panes).
+eval "$(sed -n '/^_dotsync_show_notice() {/,/^}/p' "$ROOT/config/shell-tools.sh")"
+check "the shell hook function is defined" "$(type -t _dotsync_show_notice)" "function"
+STATE_DIR="$XDG_STATE_HOME/dotsync"
+printf 'dotfiles updated a..b:\n  - concurrent\n' > "$NOTICE_FILE"
+for i in 1 2 3 4 5 6; do ( _dotsync_show_notice "$STATE_DIR" 2> "$TMP/par.$i" ) & done; wait
+check "six concurrent shells print the notice exactly once" "$(cat "$TMP"/par.* | grep -c 'dotsync:   - concurrent')" "1"
+check "and consume it" "$([ -f "$NOTICE_FILE" ] && echo kept || echo consumed)" "consumed"
+check "and leave no claimed copy behind" "$(ls "$STATE_DIR" | grep -c 'notice.shown')" "0"
+_dotsync_show_notice "$STATE_DIR" 2> "$TMP/par.none"; rc=$?
+check "with no notice the hook is silent and succeeds" "$rc:$(wc -c < "$TMP/par.none" | tr -d ' ')" "0:0"
+check "shell-tools.sh calls the hook" "$(grep -c '_dotsync_show_notice \"\${_dotsync_last%/\*}\"' "$ROOT/config/shell-tools.sh")" "1"
 
 # 15. Upgrade a second device through a local remote. The running dotsync only
 # needs the pre-existing relink entry point; the pulled linker owns migration.

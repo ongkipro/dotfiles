@@ -140,6 +140,27 @@ reconciliation itself does not install packages or call advertising APIs; its
 separate offline BM setup step uses the approved local secrets loader as
 specified above.
 
+### Update notification on other devices
+
+After a background `dotsync autopull` fast-forward, the next interactive shell
+prints once, then consumes:
+
+```text
+dotsync: dotfiles updated <old>..<new>:
+dotsync:   - <up to 8 commit subjects>
+dotsync: action: <NOTICE line from post-pull reconciliation>
+```
+
+The notice lives in `$XDG_STATE_HOME/dotsync/notice` (default
+`~/.local/state/dotsync/notice`). A shell claims it by rename, so several tmux
+panes show it only once. Post-pull reconciliation may emit `NOTICE:` lines for
+actions the device must take itself; while such an action is pending, each
+up-to-date autopull (at most every 6 hours) repeats it. Current source:
+`dotads-meta setup --workspace-only` reads the installed `facebook-business`
+version offline and emits a notice below major 26 (Marketing API v24.0 support
+ends 2026-11-10). Background pulls never install packages; the operator runs
+`dotads-meta setup` to upgrade. `dotads-meta doctor` reports the same check.
+
 Release-specific cleanup lives in `CHANGELOG.md` under "Other devices". For
 v2026.10.08 (impeccable removed), on each device:
 

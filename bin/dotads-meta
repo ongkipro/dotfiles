@@ -6,7 +6,7 @@
  *   baseline --market ID [--province <name|BPS code>] [--city <name>] [--json]
  *     Query the dated public Indonesia baseline offline, without a brand or credentials.
  *   setup [--version <ver>]
- *     Ensure Meta's official `meta-ads` CLI (default 1.2.0) is installed via pipx on this device.
+ *     Ensure Meta's official `meta-ads` CLI (default 1.3.1) is installed via pipx on this device.
  *   init [dir] [--force]
  *     Scaffold a per-project Meta Ads workspace (brand.json, campaigns/sample-campaign.json, media/, .gitignore).
  *   validate <campaign.json> [--brand <brand.json>] [--json]
@@ -31,7 +31,9 @@ import { fileURLToPath } from "node:url";
 import { parseArgs, isDeepStrictEqual } from "node:util";
 import * as workspace from "./_dotads-workspace.mjs";
 
-const DEFAULT_META_ADS_VERSION = "1.2.0";
+const DEFAULT_META_ADS_VERSION = "1.3.1";
+// Marketing API v24.0 support ends 2026-11-10; meta-ads 1.3.1 pins facebook-business 26.x (API v26.0).
+const MIN_SDK_MAJOR = 26;
 let selectedBM = null;
 
 // This function runs inside secrets-env's child; only metadata leaves it.
@@ -354,7 +356,7 @@ Subcommands:
       Existing META_ACCESS_TOKEN_<KEY> uses explicit META_BM_<KEY>_ID and optional _NAME;
       its token_env is preserved. Select --bm <KEY>; distinct labels are never aliased.
       --workspace-only is offline: no API calls or dependency installs.
-      Otherwise ensure Meta's official meta-ads CLI (default ${DEFAULT_META_ADS_VERSION}) via pipx.
+      Otherwise ensure Meta's official meta-ads CLI (default ${DEFAULT_META_ADS_VERSION}) via pipx. setup --workspace-only and doctor flag facebook-business below 26 offline.
       Reports live in ~/Documents/dotads-meta-report/<name>--bm_<id>/ (0700).
       Select --bm <KEY> on account/report/campaign commands when multiple BMs exist.
 
@@ -1934,6 +1936,26 @@ function ensureWorkspaceRoot(wsRoot = defaultWorkspaceRoot()) {
   return wsRoot;
 }
 
+// Offline: reads installed package metadata only. Never installs, upgrades or calls Meta.
+function installedSdk() {
+  let python;
+  try { python = providerPython(); } catch { return { status: "missing" }; }
+  const res = spawnSync(python, ["-c", "import importlib.metadata as m;print(m.version('meta-ads'));print(m.version('facebook-business'))"],
+    { encoding: "utf8", timeout: 15_000 });
+  const [cli, sdk] = (res.stdout || "").trim().split(/\r?\n/);
+  if (res.status !== 0 || !cli || !sdk) return { status: "unknown" };
+  const major = Number.parseInt(sdk, 10);
+  return { status: Number.isInteger(major) && major >= MIN_SDK_MAJOR ? "ok" : "outdated", cli, sdk };
+}
+
+function sdkNotice() {
+  const sdk = installedSdk();
+  if (sdk.status === "outdated") {
+    return `dotads-meta: meta-ads ${sdk.cli} uses facebook-business ${sdk.sdk}; Marketing API v24.0 support ends 2026-11-10. Upgrade: dotads-meta setup (installs meta-ads ${DEFAULT_META_ADS_VERSION}).`;
+  }
+  return null;
+}
+
 function cmdSetup(argv, profiles = []) {
   let workspaceOnly = false;
   let version = DEFAULT_META_ADS_VERSION;
@@ -1958,6 +1980,10 @@ function cmdSetup(argv, profiles = []) {
       console.log(`✓ local BM workspaces ready: ${directories.length}; no API calls or installs.`);
       for (const directory of directories) console.log(`  Workspace: ${directory}`);
     }
+    // Notify only; a background pull must never install packages.
+    const notice = sdkNotice();
+    // dotsync autopull surfaces NOTICE: lines at the next shell start on every device.
+    if (notice) console.log(`NOTICE: ${notice}`);
     return;
   }
   const wsRoot = ensureWorkspaceRoot();
@@ -2712,6 +2738,10 @@ function cmdDoctor(argv) {
     process.exit(1);
   }
   console.log(`✓ meta CLI: ${(verRes.stdout || verRes.stderr).trim()} (${metaBin})`);
+  const sdk = installedSdk();
+  if (sdk.status === "ok") console.log(`✓ facebook-business SDK ${sdk.sdk} (minimum major ${MIN_SDK_MAJOR})`);
+  else if (sdk.status === "outdated") { console.error(`✗ ${sdkNotice()}`); process.exitCode = 1; }
+  else console.error(`! facebook-business SDK version ${sdk.status}; check the meta-ads environment.`);
 
   let token = null;
   try {

@@ -126,6 +126,7 @@ relink_runtimes() {
   # Only the no-op "ok:" lines are hidden; backups, skipped targets, and
   # dangling-link warnings must stay visible after a pull.
   if link_out="$("$DOTFILES_ROOT/bin/ai-memory-link" 2>&1)"; then
+    LINK_NOTICES="$(printf '%s\n' "$link_out" | grep '^NOTICE: ' | sed 's/^NOTICE: //' || true)"
     printf '%s\n' "$link_out" | grep -v '^ok: ' || true
     say "✓ AI runtime context di-link ulang"
   else
@@ -145,6 +146,26 @@ relink_runtimes() {
   fi
 }
 file_mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0; }
+LINK_NOTICES=""
+# One-shot message for the next interactive shell: what was pulled and any
+# NOTICE: line from post-pull reconciliation (e.g. an outdated dependency).
+# Bounded and shown once; never contains file contents or secrets.
+write_notice() {
+  local state="$1" range="${2:-}" body=""
+  if [ -n "$range" ]; then
+    body="$(printf 'dotfiles updated %s:\n' "$range"; git log --format='  - %s' --no-merges -n 8 "$range" 2>/dev/null)"
+    local total; total="$(git rev-list --count --no-merges "$range" 2>/dev/null || echo 0)"
+    [ "$total" -gt 8 ] 2>/dev/null && body="$body"$'\n'"  - ... and $((total - 8)) more (git log $range)"
+  fi
+  if [ -n "$LINK_NOTICES" ]; then
+    body="${body:+$body$'\n'}$(printf '%s\n' "$LINK_NOTICES" | head -n 5 | sed 's/^/action: /')"
+  fi
+  [ -n "$body" ] || return 0
+  # Commit subjects are untrusted terminal output: drop C0 controls (ESC, BEL,
+  # CR...) and DEL so OSC/CSI sequences cannot reach the next shell. Keeps \n,
+  # \t and UTF-8 text. Done here, in the background, not at shell start.
+  printf '%s\n' "$body" | LC_ALL=C tr -d '\000-\010\013-\037\177' > "$state/notice.tmp" && mv "$state/notice.tmp" "$state/notice"
+}
 autopull_state() { printf '%s\n' "${XDG_STATE_HOME:-$HOME/.local/state}/dotsync"; }
 # Devices drift when pulls are manual (TASK-099). autopull runs from shell start
 # in the background: fast-forward only, never on a dirty tree or another branch,
@@ -197,6 +218,8 @@ cmd_autopull() {
       record "warn: up to date but runtime reconciliation failed; run ai-memory-link && skill-update"
       return 1
     fi
+    # A still-pending action (e.g. an outdated dependency) is repeated each run until fixed.
+    write_notice "$state"
     record "ok: up to date"; return 0
   fi
   before="$(git rev-parse --short HEAD)"
@@ -204,8 +227,10 @@ cmd_autopull() {
     record "warn: cannot fast-forward (diverged, or local files in the way); run dotsync pull"; return 1
   fi
   if relink_runtimes >/dev/null 2>&1; then
+    write_notice "$state" "$before..$(git rev-parse --short HEAD)"
     record "ok: pulled $before..$(git rev-parse --short HEAD)"
   else
+    write_notice "$state" "$before..$(git rev-parse --short HEAD)"
     record "warn: pulled $before..$(git rev-parse --short HEAD) but runtime reconciliation failed; run ai-memory-link && skill-update"
     return 1
   fi

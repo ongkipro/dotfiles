@@ -6,6 +6,22 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-28
 
+### dotsync: update notice on other devices; meta-ads 1.3.1 default — 2026-11-05
+
+- After a background pull, the next interactive shell shows once what was
+  pulled (up to 8 commit subjects) and any `action:` reported by post-pull
+  reconciliation. Pending actions repeat on later up-to-date autopulls.
+- `dotads-meta` default CLI is `meta-ads` 1.3.1 (facebook-business 26.x,
+  API v26.0). Post-pull `setup --workspace-only` and `doctor` check the
+  installed SDK offline and flag versions below 26; nothing installs in the
+  background.
+
+#### Other devices
+
+- Next shell after the pull shows the notice. If it says to upgrade, run
+  `dotads-meta setup` once (Marketing API v24.0 support ends 2026-11-10), then
+  `dotads-meta doctor --bm <KEY>`.
+
 ### DotAds Meta: delivery, learning and Pixel 2026 guidance — 2026-11-05
 
 - New `meta-ads-cli/references/algorithm-and-learning.md`: 2026 Andromeda,
