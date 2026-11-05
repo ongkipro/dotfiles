@@ -457,6 +457,9 @@ function index(directory, name) {
 }
 function references(directory, value, snapshotId) {
   const media = index(directory, 'media'), web = index(directory, 'web');
+  // Indexes grow with every snapshot; a linear canonical() scan per reference made publication quadratic.
+  const seen = list => { const keys = new Set(list.map(canonical)); return record => { const key = canonical(record); if (keys.has(key)) return; keys.add(key); list.push(record); }; };
+  const addMedia = seen(media.remote_references), addWeb = seen(web.destinations);
   const creativeAds = new Map();
   for (const ad of value.resources.ads.rows) {
     const creative = ad.creative?.id ?? ad.creative_id;
@@ -469,23 +472,19 @@ function references(directory, value, snapshotId) {
     const field = route.split('.').at(-1);
     const association = { snapshot_id: snapshotId, creative_id: creativeId, ad_ids: adIds, field: route };
     if (['image_hash', 'video_id', 'object_story_id', 'effective_object_story_id', 'source_instagram_media_id'].includes(field) || (field === 'hash' && /image/i.test(route))) {
-      const record = { ...association, reference_type: field === 'hash' ? 'image_hash' : field, reference: node, availability: 'remote_reference', downloaded: false };
-      if (!media.remote_references.some(item => canonical(item) === canonical(record))) media.remote_references.push(record);
+      addMedia({ ...association, reference_type: field === 'hash' ? 'image_hash' : field, reference: node, availability: 'remote_reference', downloaded: false });
       return;
     }
     if (['lead_gen_form_id', 'application_id', 'destination_type'].includes(field) || (field === 'app_link' && !/^https?:\/\//i.test(node))) {
-      const record = { ...association, destination_type: field === 'app_link' ? 'deep_link' : field === 'destination_type' ? 'declared_type' : 'native', native_kind: field, native_reference: node, capture: null };
-      if (!web.destinations.some(item => canonical(item) === canonical(record))) web.destinations.push(record);
+      addWeb({ ...association, destination_type: field === 'app_link' ? 'deep_link' : field === 'destination_type' ? 'declared_type' : 'native', native_kind: field, native_reference: node, capture: null });
       return;
     }
     if (!/^https?:\/\//i.test(node)) return;
     if (/(?:image|video|thumbnail|picture|source)/i.test(route) && /(?:url|source|picture)$/.test(field)) {
-      const record = { ...association, url: node, availability: 'remote_reference', downloaded: false };
-      if (!media.remote_references.some(item => canonical(item) === canonical(record))) media.remote_references.push(record);
+      addMedia({ ...association, url: node, availability: 'remote_reference', downloaded: false });
     } else if (/^(?:link|url|link_url|website_url|object_url|destination_url|app_link)$/.test(field)) {
       const url = new URL(node); const normalized = new URL(node); normalized.hash = ''; normalized.searchParams.sort();
-      const record = { ...association, original_tagged_url: node, page_identity: normalized.href, domain: url.hostname, destination_type: /(?:^|\.)(?:wa\.me|whatsapp\.com)$/i.test(url.hostname) ? 'messaging' : 'website', capture: null };
-      if (!web.destinations.some(item => canonical(item) === canonical(record))) web.destinations.push(record);
+      addWeb({ ...association, original_tagged_url: node, page_identity: normalized.href, domain: url.hostname, destination_type: /(?:^|\.)(?:wa\.me|whatsapp\.com)$/i.test(url.hostname) ? 'messaging' : 'website', capture: null });
     }
   }
   for (const creative of value.resources.creatives.rows) walk(creative, 'creative', creative.id, creativeAds.get(creative.id) ?? []);

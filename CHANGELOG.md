@@ -6,6 +6,18 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-28
 
+### DotAds Meta: history request budget — 2026-11-05
+
+- Live `history` reads inventory once and requests only Insights for the other
+  four windows (about five times fewer inventory requests); reusing snapshots
+  record `source.inventory_source`.
+- Meta throttling (API 4/17/32/613/80004, HTTP 429) is no longer retried after
+  1–2 seconds. The run stops further requests, marks skipped work
+  `RATE_LIMITED_SKIPPED`, and `history` skips later windows for a later retry.
+- Snapshot publication no longer rescans growing media/destination indexes per
+  reference (quadratic). An AUTOSTOCK-sized snapshot drops from ~7 minutes to
+  ~1 second with byte-identical index output.
+
 ### DotAds Meta: bounded creative payload recovery — 2026-11-04
 
 - A later full-field creative page can exceed Meta's response-size limit even at

@@ -503,12 +503,16 @@ function providerPython() {
   }
 }
 
-function collectProvider(request, tokenKey = "META_ACCESS_TOKEN") {
+function providerTokenKey(tokenKey = "META_ACCESS_TOKEN") {
   if (selectedBM) {
     if (tokenKey !== "META_ACCESS_TOKEN" && tokenKey !== selectedBM.token_env) throw new Error("Selected BM conflicts with the requested token reference.");
     tokenKey = selectedBM.token_env;
   }
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(tokenKey)) throw new Error("--token-env requires a secret key name, never its value.");
+  return tokenKey;
+}
+
+function providerPlan(request, tokenKey) {
   const python = providerPython();
   const provider = fileURLToPath(new URL("./_dotads-meta-provider.py", import.meta.url));
   const planningEnv = { ...process.env };
@@ -518,8 +522,14 @@ function collectProvider(request, tokenKey = "META_ACCESS_TOKEN") {
     input: JSON.stringify(request), env: planningEnv, encoding: "utf8", timeout: 15_000, maxBuffer: 1024 * 1024,
   });
   if (planned.status !== 0) throw new Error("Provider request validation failed before credential access; check the selected scope and installed adapter.");
-  let plan;
-  try { plan = JSON.parse(planned.stdout); } catch { throw new Error("Provider planning returned an invalid JSON envelope."); }
+  try { return JSON.parse(planned.stdout); } catch { throw new Error("Provider planning returned an invalid JSON envelope."); }
+}
+
+function collectProvider(request, tokenKey) {
+  tokenKey = providerTokenKey(tokenKey);
+  const python = providerPython();
+  const provider = fileURLToPath(new URL("./_dotads-meta-provider.py", import.meta.url));
+  const plan = providerPlan(request, tokenKey);
   try {
     const token = readSecretToken(tokenKey);
     const result = spawnSync(python, [provider], {
@@ -527,7 +537,11 @@ function collectProvider(request, tokenKey = "META_ACCESS_TOKEN") {
       encoding: "utf8", stdio: ["pipe", "pipe", "pipe"], timeout: 180_000,
       maxBuffer: 128 * 1024 * 1024,
     });
-    if (result.status !== 0) throw new Error("Meta SDK collection failed or exceeded its execution budget; inspect sanitized provider diagnostics and account access before retrying.");
+    if (result.status !== 0) {
+      const failure = new Error("Meta SDK collection failed or exceeded its execution budget; inspect sanitized provider diagnostics and account access before retrying.");
+      try { failure.rateLimited = JSON.parse(result.stdout).error?.rate_limited === true; } catch { /* unparsable stays unknown */ }
+      throw failure;
+    }
     if ((result.stdout || "").includes(token)) throw new Error("Provider output contained credential material and was rejected before persistence.");
     let data;
     try { data = JSON.parse(result.stdout); }
@@ -664,18 +678,43 @@ function cmdHistory(argv) {
   const plan = workspace.planHistory(initial?.account ?? workspace.accountContext(root, account), values["as-of"]);
   if (values.plan) { console.log(JSON.stringify(plan, null, 2)); return; }
   const attempts = [];
+  const offline = Boolean(values["input-dir"]);
+  const tokenKey = offline ? null : providerTokenKey(values["token-env"]);
+  // Inventory is current state, identical for every window: read it once, then only Insights per window.
+  let inventory = null, throttled = false;
   // lazy: five bounded synchronous collections; large accounts need resumable async Insights before increasing this ceiling.
   for (const period of plan.periods) {
     const request = { operation: "collect", account_id: account, since: period.since, until: period.until,
       levels: ["account", "campaign", "adset", "ad"], breakdowns: [], attribution: {}, action_report_time: "conversion", max_pages: maxPages };
+    if (throttled) {
+      attempts.push({ period: period.key });
+      console.error(`History ${period.key}: not requested after a Meta rate limit; retry later.`);
+      continue;
+    }
+    let collectScope = null;
     try {
-      const payload = initial && period.key === "yesterday" ? initial : values["input-dir"]
-        ? loadCollectionInput(path.join(values["input-dir"], `${period.key}.json`)) : collectProvider(request, values["token-env"]);
+      let payload;
+      if (initial && period.key === "yesterday") payload = initial;
+      else if (offline) payload = loadCollectionInput(path.join(values["input-dir"], `${period.key}.json`));
+      else if (!inventory) payload = collectProvider(request, tokenKey);
+      else {
+        collectScope = providerPlan(request, tokenKey).scope;
+        const insights = collectProvider({ ...request, operation: "insights" }, tokenKey);
+        payload = { ...insights, scope: collectScope, resources: structuredClone(inventory.resources),
+          source: { ...insights.source, inventory_source: inventory.source } };
+      }
+      if (!offline) {
+        throttled = payload.source?.rate_limited === true;
+        inventory ??= { resources: payload.resources, source: { period: period.key,
+          started_at: payload.source.started_at, finished_at: payload.source.finished_at } };
+      }
       workspace.validateHistoryCollection(payload, plan, period);
       const saved = workspace.saveSnapshot(root, payload);
       attempts.push({ period: period.key, snapshot_id: saved.snapshot_id });
     } catch (error) {
-      if (!values["input-dir"] && error.collectionScope) workspace.recordFailure(root, account, error.collectionScope, "History period collection failed; no complete replacement was published.");
+      const scope = collectScope ?? error.collectionScope;
+      if (!offline && scope) workspace.recordFailure(root, account, scope, "History period collection failed; no complete replacement was published.");
+      throttled ||= error.rateLimited === true;
       attempts.push({ period: period.key });
       console.error(`History ${period.key}: collection or publication failed; evidence remains incomplete.`);
     }

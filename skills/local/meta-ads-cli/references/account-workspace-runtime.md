@@ -402,6 +402,15 @@ size 1 failure stays partial/unavailable and ordinary errors retain bounded
 retries. All requested fields remain unchanged; no rows are skipped. A page-limit
 stop stays partial (100 creative pages cover at most 2,500 rows, fewer after a
 reduction). Successful recovery is complete only after actual exhaustion.
+A live `history` run reads inventory (campaigns, ad sets, ads, creatives) once,
+with the first window, then requests only Insights for the other windows and
+reuses that same inventory; each reusing snapshot records
+`source.inventory_source`. Inventory is current state, not per-window history.
+Meta throttling (API 4/17/32/613/80004 or HTTP 429) is not retried within
+seconds: the provider stops further requests in that run, marks remaining
+resources/queries `RATE_LIMITED_SKIPPED` and sets `source.rate_limited`, and
+`history` skips the remaining windows. Retry later; a skipped window is missing
+evidence, never empty history or zero spend.
 CLI collection is bounded to 180 seconds and 128 MiB stdout. Hitting a
 limit is not a complete empty result. Large asynchronous backfill and resumable
 network checkpoints are not implemented; rerun a deliberate bounded scope.

@@ -459,15 +459,39 @@ class ProviderTests(unittest.TestCase):
 
     def test_rate_error_and_timeout_are_bounded_with_partial_preservation(self):
         rate = HTTPResponse({"error": {"code": 80004, "message": TOKEN}}, 400)
-        result = self.insights([rate, rate, rate])["insights"][0]
-        self.assertEqual(result["errors"][0]["attempts"], 3)
-        self.assertEqual(self.delays, [1, 2])
+        result = self.insights([rate])["insights"][0]
+        self.assertEqual(result["errors"][0]["attempts"], 1)
+        self.assertTrue(result["errors"][0]["rate_limited"])
+        self.assertEqual(self.delays, [])
         page = {"data": [insight()], "paging": {"next": "ignored", "cursors": {"after": "next"}}}
         result = self.insights([page, Timeout(TOKEN), Timeout(TOKEN), Timeout(TOKEN)])["insights"][0]
         self.assertEqual(result["coverage"], {"status": "partial", "pagination_exhausted": False})
         self.assertEqual(result["errors"][0]["code"], "TRANSPORT_ERROR")
         self.assertEqual(len(result["rows"]), 1)
         self.assertNotIn(TOKEN, json.dumps(result))
+
+    def test_rate_limit_stops_remaining_requests_and_marks_source(self):
+        for code, status in ((17, 400), (4, 400), (613, 400), (80004, 400), (1, 429)):
+            with self.subTest(code=code, status=status):
+                routes = base_routes()
+                routes["act_123/adsets"] = [HTTPResponse({"error": {"code": code, "message": TOKEN}}, status)]
+                result = self.collect(routes)
+                paths = [urlsplit(call["url"]).path.split("/", 2)[-1] for call in self.transport.calls]
+                self.assertEqual(paths, ["act_123", "act_123/campaigns", "act_123/adsets"])
+                self.assertEqual(self.delays, [])
+                self.assertTrue(result["source"]["rate_limited"])
+                self.assertEqual(result["resources"]["campaigns"]["status"], "complete")
+                self.assertTrue(result["resources"]["adsets"]["errors"][0]["rate_limited"])
+                for resource in ("ads", "creatives"):
+                    self.assertEqual(result["resources"][resource]["status"], "unavailable")
+                    self.assertEqual(result["resources"][resource]["errors"][0]["code"], "RATE_LIMITED_SKIPPED")
+                self.assertEqual(len(result["insights"]), len(provider.LEVELS))
+                self.assertTrue(all(item["coverage"]["status"] == "unavailable" and not item["rows"]
+                                    for item in result["insights"]))
+                self.assertNotIn(TOKEN, json.dumps(result))
+
+    def test_unthrottled_collection_has_no_rate_limit_marker(self):
+        self.assertNotIn("rate_limited", self.collect()["source"])
 
     def test_nonstandard_http_failure_with_data_body_is_not_success(self):
         result = self.insights([HTTPResponse({"data": []}, 500)] * 3)["insights"][0]

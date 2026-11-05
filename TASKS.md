@@ -10,6 +10,15 @@ Done 2026-11-01 to 2026-11-03: TASK-170 → [170](docs/archive/TASKS-170-complet
 
 ## Pending
 
+### TASK-187: History request budget and rate-limit stop
+- **Requirement:** REQ-META-HISTORY-REQUEST-BUDGET (owner: "rekomendasimu? kerjakan" — complete AUTOSTOCK history blocked by Meta request limits).
+- **Risk / Surface:** R2; provider/CLI and their tests, runtime reference, TASKS and changelog.
+- **Observed failure:** live history re-read identical inventory for all five windows (~690 creatives each), then hit API 17/80004; throttle errors were retried after 1–2 s, spending more quota.
+- **Contract:** read inventory once per live history run and reuse it with recorded provenance; later windows request Insights only, keeping each window's full collect scope identity. Throttle codes are not retried in-run: stop further requests, mark skipped work, and skip later windows. Offline `--input-dir` behavior unchanged. No Meta mutations, credentials or private data in Git.
+- **Done When:** SDK and CLI regressions prove one inventory read, Insights-only later windows, shared inventory, distinct scopes, and rate-limit stop; full gates and independent review pass; AUTOSTOCK recollected read-only and verified.
+- **Scope expansion:** the first live run timed out after three windows. CPU profile: `references()` scanned growing media/web indexes with `canonical()` per candidate (quadratic), ~415–440 s per AUTOSTOCK snapshot. Set-based dedup produces byte-identical media/web/sync/manifest output on the same private copy and input in 1.2 s. Workspace regression covers in-snapshot/cross-snapshot dedup and byte-stable republication.
+- **Evidence:** SDK 33/33, full CLI, workspace 45/45, syntax, skill/docs and security-check PASS; independent review APPROVE (request budget) and APPROVE (publication fix). Live read-only recollection of the affected account: all five windows complete (one inventory read reused by four Insights-only windows), 45 report hashes verified, complete-history pointer set. Closure authority: `.delivery/runs/` TASK-187 run.
+
 ### TASK-186: Recover bounded oversized creative pages without losing evidence
 - **Requirement:** REQ-META-CREATIVE-PAYLOAD (owner: continue the remaining read-only test, then commit/push only once completed and safe).
 - **Risk / Surface:** R2; Python provider/tests, owning runtime reference, TASKS and changelog. Preserve all accepted dirty and private data.

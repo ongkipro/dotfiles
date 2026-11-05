@@ -64,6 +64,8 @@ ATTRIBUTION_WINDOWS = frozenset(("1d_click", "7d_click", "28d_click", "1d_view",
                                 "skan_click_third_postback", "skan_view_third_postback"))
 PAGE_SIZE = 100
 ATTEMPTS = 3
+# Account/app/user throttles recover in minutes; second-scale retries only spend more quota.
+RATE_LIMIT_CODES = (4, 17, 32, 613, 80004)
 TIMEOUT = (10, 60)
 
 
@@ -192,9 +194,12 @@ def safe_error(error):
         message = error.api_error_message()
         reduce_payload = (code == 1 and status == 500 and isinstance(message, str) and
                           "reduce the amount of data" in message.lower())
-        retryable = (error.api_transient_error() is True or
-                     status in (429, 500, 502, 503, 504) or code in (1, 2, 4, 17, 32, 613, 80004))
+        rate_limited = code in RATE_LIMIT_CODES or status == 429
+        retryable = not rate_limited and (error.api_transient_error() is True or
+                                          status in (500, 502, 503, 504) or code in (1, 2))
         result = {"code": "API_ERROR", "message": "Meta rejected the reporting request.", "retryable": retryable}
+        if rate_limited:
+            result["rate_limited"] = True
         if reduce_payload:
             result["reduce_payload"] = True
         for key, value in (("api_code", code), ("api_subcode", subcode), ("http_status", status)):
@@ -215,7 +220,8 @@ def api_get(api, path, params, sleep):
                 raise ProviderError("MALFORMED_RESPONSE", "Meta response omitted its HTTP status.")
             if not 200 <= status < 300:
                 raise ProviderError("HTTP_ERROR", "Meta returned an unsuccessful HTTP status.",
-                                    http_status=status, retryable=status in (429, 500, 502, 503, 504))
+                                    http_status=status, retryable=status in (500, 502, 503, 504),
+                                    **({"rate_limited": True} if status == 429 else {}))
             body = response.json()
             if not isinstance(body, dict) or "error" in body:
                 raise ProviderError("MALFORMED_RESPONSE", "Meta returned an invalid response object.")
@@ -373,6 +379,15 @@ def run(request, api=None, sdk_version=None, sleep=time.sleep):
             account["name"] = account_id
         scope = planned_scope(request)
         response = {"schema_version": 1, "source": source, "account": account, "scope": scope, "resources": {}, "insights": []}
+        throttled = False
+
+        def skipped():
+            return {"status": "unavailable", "pagination_exhausted": False, "rows": [], "errors": [
+                {"code": "RATE_LIMITED_SKIPPED", "retryable": True,
+                 "message": "Not requested after a Meta rate limit in this run; retry later."}]}
+
+        def limited(result):
+            return any(error.get("rate_limited") for error in result["errors"])
         if request["operation"] == "collect":
             for resource, fields in RESOURCE_FIELDS.items():
                 edge = "adcreatives" if resource == "creatives" else resource
@@ -380,18 +395,20 @@ def run(request, api=None, sdk_version=None, sleep=time.sleep):
                 params = {"fields": list(fields), "limit": 25 if resource == "creatives" else PAGE_SIZE}
                 if resource in RESOURCE_STATUSES:
                     params["effective_status"] = list(RESOURCE_STATUSES[resource])
-                result = paginate(api, (account_id, edge), params, request["max_pages"], resource,
-                                  account_id=account_id, sleep=sleep)
+                result = skipped() if throttled else paginate(api, (account_id, edge), params, request["max_pages"],
+                                                              resource, account_id=account_id, sleep=sleep)
+                throttled = throttled or limited(result)
                 fetched_fields = list(fields)
                 # A denied optional field must not discard an accessible core inventory.
                 # This bounded fallback stays partial; it cannot satisfy the full field request.
-                if not result["rows"] and any(error.get("api_code") in (100, 200) for error in result["errors"]):
+                if not throttled and not result["rows"] and any(error.get("api_code") in (100, 200) for error in result["errors"]):
                     fetched_fields = list(RESOURCE_REQUIRED_FIELDS[resource])
                     core = paginate(api, (account_id, edge), {**params, "fields": fetched_fields},
                                     request["max_pages"], resource, account_id=account_id, sleep=sleep)
                     core["errors"] = result["errors"] + core["errors"]
                     core["status"] = "partial" if core["rows"] else "unavailable"
                     result = core
+                    throttled = limited(result)
                 result["query"] = {"account_id": account_id, "edge": edge, **params, "fetched_fields": fetched_fields}
                 if resource in RESOURCE_STATUSES:
                     result["query"]["excluded_statuses"] = ["DELETED"]
@@ -410,10 +427,14 @@ def run(request, api=None, sdk_version=None, sleep=time.sleep):
                 query["date_preset"] = params["date_preset"] = request["date_preset"]
             else:
                 params["time_range"] = {"since": request["since"], "until": request["until"]}
-            result = paginate(api, (account_id, "insights"), params, request["max_pages"], "insights",
-                              account_id=account_id, query=query, currency=account["currency"], sleep=sleep)
+            result = skipped() if throttled else paginate(
+                api, (account_id, "insights"), params, request["max_pages"], "insights",
+                account_id=account_id, query=query, currency=account["currency"], sleep=sleep)
+            throttled = throttled or limited(result)
             response["insights"].append({"query": query, "coverage": {key: result[key] for key in ("status", "pagination_exhausted")},
                                          "rows": result["rows"], "errors": result["errors"]})
+        if throttled:
+            source["rate_limited"] = True
     source["finished_at"] = utc_now()
     return redact(response, os.environ.get("ACCESS_TOKEN", ""))
 

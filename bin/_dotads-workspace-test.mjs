@@ -382,6 +382,23 @@ test('destination and media metadata retain native references without fabricatin
   assert.ok(media.remote_references.some(item => item.reference_type === 'video_id' && item.reference === '555' && item.downloaded === false));
 });
 
+test('reference indexes deduplicate within and across snapshots and stay byte-stable on republication', t => {
+  const { root } = fixture(t); const value = collection();
+  const creative = value.resources.creatives.rows[0];
+  creative.image_hash = 'fixture-hash';
+  creative.asset_feed_spec = { images: [{ hash: 'fixture-hash' }, { hash: 'fixture-hash' }] };
+  creative.object_story_spec.link_data = { link: 'https://example.test/p', child_attachments: [{ link: 'https://example.test/p' }] };
+  const saved = saveSnapshot(root, value);
+  const mediaPath = path.join(saved.directory, 'media/index.json'), webPath = path.join(saved.directory, 'web/index.json');
+  const media = read(mediaPath).remote_references, web = read(webPath).destinations;
+  const keys = list => list.map(item => JSON.stringify(item));
+  assert.equal(new Set(keys(media)).size, media.length); assert.equal(new Set(keys(web)).size, web.length);
+  assert.equal(media.filter(item => item.reference === 'fixture-hash' && item.field === 'creative.image_hash').length, 1);
+  const before = [fs.readFileSync(mediaPath), fs.readFileSync(webPath)];
+  saveSnapshot(root, value);
+  assert.deepEqual([fs.readFileSync(mediaPath), fs.readFileSync(webPath)], before);
+});
+
 test('spreadsheet-formula names are exported as text while measured zero stays numeric', t => {
   const { root } = fixture(t); const value = collection();
   const dangerous = ['=1+1', ' +CMD()', '\t@SUM(A1:A2)', '\r\n-1+2'];

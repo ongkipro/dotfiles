@@ -1291,7 +1291,64 @@ call('sync',*scope,ok=False)
 retained = call('report','--account','act_123','--json')
 assert retained['snapshot_id'] == live['snapshot_id']
 assert 'failed' in pathlib.Path(retained['report_path']).read_text().lower()
-print('  PASS reporting CLI: offline source proof, scoped sync/report, copy/move/adoption and canonical failed-refresh fallback')
+(tmp / 'provider-failed').unlink()
+
+# Live history: inventory once, then Insights-only per window; a rate limit stops later windows.
+hist_root = tmp / 'history-live-reports'
+hist_env = dict(env, DOTADS_WORKSPACE_ROOT=str(hist_root))
+fake.write_text('#!' + sys.executable + '\n' + '''
+import importlib.util,json,pathlib,sys
+spec=importlib.util.spec_from_file_location('provider',sys.argv[1]);provider=importlib.util.module_from_spec(spec);spec.loader.exec_module(provider)
+request=provider.validate(json.load(sys.stdin));scope=provider.planned_scope(request)
+if '--plan' in sys.argv: print(json.dumps({'request':request,'scope':scope}));sys.exit(0)
+base=pathlib.Path(__file__).parent
+with open(base/'provider-calls','a') as log: log.write(request['operation']+' '+request['since']+'\\n')
+limit=base/'provider-rate-limit'
+if limit.exists() and request['since']==limit.read_text().strip():
+    print(json.dumps({'error':{'code':'API_ERROR','message':'Meta rejected the reporting request.','api_code':17,'rate_limited':True}}));sys.exit(1)
+value=json.loads((base/'export.json').read_text())
+value['scope']=scope
+value['account'].update(name='Fixture account')
+value['insights']=[]
+for depth,level in enumerate(provider.LEVELS):
+    value['insights'].append({'query':{'account_id':'123','since':request['since'],'until':request['until'],'level':level,'fields':['account_id','spend'],'breakdowns':[],'time_increment':'all_days','attribution':{},'action_report_time':'conversion'},
+        'coverage':{'status':'complete','pagination_exhausted':True},'rows':[],'errors':[]})
+if request['operation']=='insights': value['resources']={}
+print(json.dumps(value))
+''')
+calls_log = tmp / 'provider-calls'
+provider_levels = ['account', 'adset', 'ad', 'campaign']
+def hist(ok=True):
+    result = subprocess.run([str(cmd),'history','--account','act_123','--as-of',anchor,'--json'],env=hist_env,text=True,capture_output=True,timeout=60)
+    assert (result.returncode == 0) == ok, (result.stdout, result.stderr)
+    assert 'test-synthetic-fixture-token' not in result.stdout + result.stderr
+    return json.loads(result.stdout), result
+subprocess.run([str(cmd),'sync',*scope,'--input',str(export)],env=hist_env,text=True,capture_output=True,check=True)  # offline account context
+calls_log.unlink(missing_ok=True)
+full, _ = hist()
+assert full['status'] == 'complete', full
+lines = calls_log.read_text().splitlines()
+assert [line.split()[0] for line in lines] == ['collect','insights','insights','insights','insights'], lines
+hist_dir = pathlib.Path(full['report_path']).parents[3]
+snapshots = [json.loads((p/'manifest.json').read_text()) for p in (hist_dir/'data/snapshots').iterdir()]
+snapshots = [m for m in snapshots if sorted(m['scope']['levels']) == sorted(provider_levels)]
+assert len(snapshots) == 5 and all(m['status'] == 'complete' for m in snapshots), [(m['scope']['levels'], m['status']) for m in snapshots]
+reused = [m for m in snapshots if m['source'].get('inventory_source')]
+assert len(reused) == 4 and all(m['source']['inventory_source']['period'] == 'yesterday' for m in reused)
+campaigns = {(hist_dir/'data/snapshots'/m['snapshot_id']/'campaigns.json').read_text() for m in snapshots}
+assert len(campaigns) == 1, 'all windows must share the single inventory read'
+scopes = {m['scope_key'] for m in snapshots}
+assert len(scopes) == 5
+calls_log.unlink()
+(tmp / 'provider-rate-limit').write_text(plan['periods'][2]['since'])
+limited, limited_run = hist(ok=False)
+assert limited['status'] == 'partial'
+lines = calls_log.read_text().splitlines()
+assert [line.split()[0] for line in lines] == ['collect','insights','insights'], lines
+assert 'not requested after a Meta rate limit' in limited_run.stderr
+assert limited_run.stderr.count('not requested after a Meta rate limit') == 2
+(tmp / 'provider-rate-limit').unlink()
+print('  PASS reporting CLI: offline source proof, scoped sync/report, copy/move/adoption, canonical failed-refresh fallback, single-inventory history and rate-limit stop')
 PYREPORTING
 then ok "account reporting CLI integration"; else bad "account reporting CLI regression"; fi
 
