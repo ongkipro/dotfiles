@@ -1,0 +1,383 @@
+#!/usr/bin/env python3
+"""Size AI terminal work to this device: terminals, projects, subagents and heavy jobs, from its own RAM and CPU.
+
+  ai-capacity [plan] [--json]   recommended limits for this device (nothing changes)
+  ai-capacity measure [--reset] record what terminals and subagents really cost here (Linux, PSS; device-local)
+  ai-capacity apply [--force]   measure, write the device-local limits below, load them, report what is enforced
+  ai-capacity status            live load against the plan (exit 1 above plan, 2 if it cannot be observed)
+
+What is enforced and what is only a target:
+  ENFORCED  heavy jobs: `heavy-run` slots (~/.config/ai-local/capacity.env) and one shared memory cap for all of
+            them (~/.config/systemd/user/ai-heavy.slice, Linux with systemd). A runaway build or suite is
+            throttled at MemoryHigh and killed at MemoryMax inside that slice. This lowers, but cannot remove, the
+            chance that systemd-oomd kills a whole terminal under pressure (it did on 2026-11-01: 140 processes).
+  ENFORCED  per terminal, by pi-subagents (~/.pi/agent/extensions/subagent/config.json): at most C children run
+            at once inside one run (parallel.concurrency, globalConcurrencyLimit) and at most A background runs per
+            session (maxActiveAsyncRunsPerSession), so up to A x C background children per terminal. Foreground
+            runs and explicit per-call or per-workflow overrides are not capped by these defaults.
+  TARGET    terminals and the machine-wide subagent total: no tool admits work across terminals, so stay inside
+            them yourself; `status` shows where you are.
+
+Costs come from `measure` on this device when recorded (~/.config/ai-local/capacity-costs.json; `apply` re-measures
+while terminals run and keeps the larger of old and new), otherwise from defaults measured on `rich`.
+Trade-off (intended): each heavy slot reserves memory, so adding RAM or threads can unlock one more heavy slot and
+lower the terminal count by one at that threshold. Terminals never drop when heavy slots stay the same.
+"""
+import argparse
+import json
+import math
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+# Defaults from `rich` (2026-11-06, PSS): a pi terminal 0.2-0.7 GB; a Claude Code terminal with its TypeScript
+# language server on a big repo 2.1-2.6 GB; one subagent ~0.4 GB; a heavy job (build, suite, browser) 2-4 GB.
+DEFAULT_COSTS = {'terminal_gb': 1.6, 'subagent_gb': 0.4, 'heavy_job_gb': 4.0, 'source': 'defaults'}
+HEADROOM = 0.8            # plan to 80% of the interactive budget
+TYPICAL_TERMINALS = 3     # per-terminal child limits are sized for this many busy terminals
+MAX_SLOTS = 64            # heavy-run accepts 1-64
+OWNED = '# Written by ai-capacity'
+AGENTS = {'pi', 'claude', 'codex', 'omp'}
+SUBAGENT_MARK = 'pi-subagents/'
+
+
+# ---------------------------------------------------------------- hardware and costs
+
+def hardware():
+    ram = float(os.environ.get('AI_CAPACITY_RAM_GB') or 0)
+    if not ram:
+        try:
+            ram = int(re.search(r'MemTotal:\s+(\d+)', Path('/proc/meminfo').read_text()).group(1)) / 1048576
+        except OSError:
+            out = subprocess.run(['sysctl', '-n', 'hw.memsize'], capture_output=True, text=True).stdout.strip()
+            ram = int(out or 0) / 1024 ** 3
+    threads = max(1, int(os.environ.get('AI_CAPACITY_THREADS') or os.cpu_count() or 1))
+    return round(ram, 1), threads
+
+
+def costs_path(home):
+    return home / '.config/ai-local/capacity-costs.json'
+
+
+def valid_cost(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and 0 < value < 1024
+
+
+def load_costs(home):
+    try:
+        data = json.loads(costs_path(home).read_text())
+    except (OSError, ValueError):
+        return dict(DEFAULT_COSTS)
+    if not isinstance(data, dict) or not all(valid_cost(data.get(k)) for k in ('terminal_gb', 'subagent_gb', 'heavy_job_gb')):
+        return dict(DEFAULT_COSTS)
+    samples = data.get('terminal_samples_gb')
+    return {'terminal_gb': float(data['terminal_gb']), 'subagent_gb': float(data['subagent_gb']),
+            'heavy_job_gb': float(data['heavy_job_gb']), 'source': 'measured' if data.get('source') == 'measured' else 'defaults',
+            **({'terminal_samples_gb': samples} if isinstance(samples, list) and all(valid_cost(x) for x in samples) else {})}
+
+
+def classify(argv):
+    """'subagent', 'agent' or None for one process argv (list of str)."""
+    if not argv or not argv[0]:
+        return None
+    if any(SUBAGENT_MARK in arg for arg in argv):
+        return 'subagent'
+    exe = os.path.basename(argv[0])
+    if exe in ('node', 'bun', 'deno') and len(argv) > 1:
+        exe = os.path.basename(next((a for a in argv[1:] if not a.startswith('-')), ''))
+    return 'agent' if exe in AGENTS else None
+
+
+def proc_table():
+    """[(pid, argv, cgroup)] from /proc, or None where /proc is not available."""
+    if not Path('/proc/self/cgroup').exists():
+        return None
+    rows = []
+    for entry in Path('/proc').iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            argv = [a.decode(errors='replace') for a in (entry / 'cmdline').read_bytes().split(b'\0') if a]
+            cgroup = (entry / 'cgroup').read_text().strip().split(':', 2)[2]
+        except (OSError, IndexError):
+            continue
+        rows.append((entry.name, argv, cgroup))
+    return rows
+
+
+def pss_kb(pid):
+    # None when unreadable: a failed read is missing evidence, not zero usage.
+    try:
+        for line in Path(f'/proc/{pid}/smaps_rollup').read_text().splitlines():
+            if line.startswith('Pss:'):
+                return int(line.split()[1])
+    except (OSError, ValueError, IndexError):
+        pass
+    return None
+
+
+def measure_costs():
+    """Measured costs from live processes, or None (nothing written here)."""
+    # One terminal = the cgroup of an interactive agent (tmux or session scope): agent, MCP servers, language
+    # servers, shells. PSS splits shared pages fairly, so the sum is real memory. Subagent processes apart.
+    rows = proc_table()
+    if rows is None or not Path('/proc/self/smaps_rollup').exists():
+        return None
+    groups, subagents = {}, []
+    for pid, argv, cgroup in rows:
+        kind = classify(argv)
+        kb = pss_kb(pid)
+        if kind == 'subagent':
+            if kb:
+                subagents.append(kb)
+            continue
+        group = groups.setdefault(cgroup, {'agent': False, 'kb': 0, 'agent_read': False})
+        group['kb'] += kb or 0
+        if kind == 'agent':
+            group['agent'] = True
+            group['agent_read'] = group['agent_read'] or bool(kb)
+    # A terminal counts only if its agent's memory was actually readable.
+    terminals = sorted(g['kb'] / 1048576 for g in groups.values() if g['agent'] and g['agent_read'])
+    if not terminals:
+        return None
+    # Plan for the heavier terminals (75th percentile), not the average: a big-repo terminal must still fit.
+    p75 = terminals[min(len(terminals) - 1, int(round(0.75 * (len(terminals) - 1))))]
+    # Never plan below the defaults: a quiet moment or a small repo must not size the device for less.
+    result = {'terminal_gb': round(max(DEFAULT_COSTS['terminal_gb'], p75), 2), 'terminal_samples_gb': [round(t, 2) for t in terminals],
+              # An idle subagent undercounts a working one; never plan below the default.
+              'subagent_gb': round(max(DEFAULT_COSTS['subagent_gb'], max(subagents) / 1048576), 2) if subagents else DEFAULT_COSTS['subagent_gb'],
+              'heavy_job_gb': DEFAULT_COSTS['heavy_job_gb'], 'source': 'measured',
+              'measured_at': time.strftime('%Y-%m-%dT%H:%M:%S%z')}
+    return result
+
+
+def merge_costs(home, fresh):
+    previous = load_costs(home)
+    if fresh is None:
+        return previous
+    if previous.get('source') == 'measured':
+        # Keep learned peaks: one quiet moment must not shrink them (`measure --reset` starts over).
+        fresh = dict(fresh, terminal_gb=max(fresh['terminal_gb'], previous['terminal_gb']),
+                     subagent_gb=max(fresh['subagent_gb'], previous['subagent_gb']))
+    return fresh
+
+
+def save_costs(home, costs):
+    if costs.get('source') == 'measured':
+        write_atomic(costs_path(home), json.dumps(costs, indent=2) + '\n')
+
+
+# ---------------------------------------------------------------- plan
+
+def plan(ram, threads, costs=None):
+    costs = costs or dict(DEFAULT_COSTS)
+    terminal_gb, subagent_gb, heavy_job_gb = costs['terminal_gb'], costs['subagent_gb'], costs['heavy_job_gb']
+    reserve = round(2.5 + 0.08 * ram, 1)                                  # OS, desktop, gateway, dev databases
+    slots = max(1, min(MAX_SLOTS, threads // 4 or 1, int(ram * 0.30 // heavy_job_gb) or 1))
+    heavy_max = round(max(3.0, min(ram * 0.30, slots * heavy_job_gb)), 1)
+    interactive = round(max(0.0, ram - reserve - heavy_max) * HEADROOM, 1)
+    degraded = interactive < terminal_gb + subagent_gb
+    fits_one = interactive >= terminal_gb
+    if degraded:
+        # No concurrent plan fits. Recommend serial work only; the table lists nothing as feasible.
+        max_terminals, total, table = 1, 0, []
+    else:
+        max_terminals = max(1, min(threads, int(interactive // (terminal_gb + 2 * subagent_gb))))
+        total = max(1, min(threads, int((interactive - min(TYPICAL_TERMINALS, max_terminals) * terminal_gb) // subagent_gb)))
+        table = []
+        for n in range(1, max_terminals + 1):
+            row_total = max(0, min(threads, int((interactive - n * terminal_gb) // subagent_gb)))
+            table.append({'terminals': n, 'subagents_total': row_total, 'subagents_per_terminal': row_total // n})
+    children = 1 if degraded else max(1, math.ceil(total / min(TYPICAL_TERMINALS, max_terminals)))
+    async_runs = 1 if children <= 2 else 2
+    return {
+        'device': {'ram_gb': ram, 'threads': threads},
+        'costs': costs,
+        'degraded': degraded,
+        'one_terminal_fits': fits_one,
+        'reserve_gb': reserve,
+        'interactive_budget_gb': interactive,
+        'heavy': {'slots': slots, 'memory_high_gb': round(heavy_max * 0.85, 1), 'memory_max_gb': heavy_max},
+        'terminals': {'comfortable': max(1, round(max_terminals * 0.8)), 'max': max_terminals},
+        'subagents': {'total_target': total, 'per_terminal_target': 0 if degraded else children},
+        'pi_subagents': {'parallel.concurrency': children, 'globalConcurrencyLimit': children,
+                         'maxActiveAsyncRunsPerSession': async_runs, 'worst_case_per_terminal': children * async_runs},
+        'browsers_e2e': 1 if slots < 3 else 2,
+        'by_terminals': table,
+    }
+
+
+def show(p, enforcement=None):
+    # enforcement: None = plan only (nothing applied); else {'slots': bool, 'slice': bool, 'subagents': bool}.
+    d, h, t, s, c, ps = p['device'], p['heavy'], p['terminals'], p['subagents'], p['costs'], p['pi_subagents']
+    def label(key, what):
+        if enforcement is None:
+            return f'proposed, {what} once applied'
+        return what if enforcement.get(key) else 'NOT enforced on this device'
+    print(f"Device: {d['ram_gb']} GB RAM, {d['threads']} threads. Reserved for system: {p['reserve_gb']} GB; "
+          f"heavy jobs share {h['memory_max_gb']} GB; terminals and subagents: {p['interactive_budget_gb']} GB.")
+    print(f"Costs ({c['source']}): terminal {c['terminal_gb']} GB, subagent {c['subagent_gb']} GB, heavy job {c['heavy_job_gb']} GB"
+          + (f"; terminals seen: {', '.join(str(x) for x in c['terminal_samples_gb'])} GB" if c.get('terminal_samples_gb') else ''))
+    if p['degraded']:
+        fit = 'one terminal fits' if p['one_terminal_fits'] else 'not even one terminal fits the model budget'
+        print(f'DEGRADED: no concurrent plan fits ({fit}); work serially: one terminal, foreground subagents one at a time, heavy jobs alone.')
+    print(f"- AI terminals (one project each) [target]: comfortable {t['comfortable']}, max {t['max']}")
+    print(f"- Subagents [target]: {s['total_target']} at once across all terminals; {s['per_terminal_target']} per terminal")
+    print(f"- Per terminal [{label('subagents', 'enforced by pi-subagents')}]: {ps['parallel.concurrency']} children per run, "
+          f"{ps['maxActiveAsyncRunsPerSession']} background run(s) at once => up to {ps['worst_case_per_terminal']} "
+          'background children; foreground runs and explicit overrides are not capped')
+    print(f"- Heavy jobs: {h['slots']} at once [{label('slots', 'enforced by heavy-run')}], {h['memory_max_gb']} GB together "
+          f"[{label('slice', 'enforced by ai-heavy.slice')}]; "
+          f"browser e2e at once [target]: {p['browsers_e2e']}")
+    if not p['by_terminals']:
+        return
+    print('\n| Busy terminals | Subagents total | Per terminal |\n|---|---|---|')
+    for row in p['by_terminals']:
+        print(f"| {row['terminals']} | {row['subagents_total']} | {row['subagents_per_terminal']} |")
+
+
+# ---------------------------------------------------------------- apply
+
+def write_atomic(path, text):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f'.{path.name}.')
+    with os.fdopen(fd, 'w') as handle:
+        handle.write(text)
+    os.replace(tmp, path)
+
+
+def targets_for(home):
+    linux = sys.platform.startswith('linux')
+    capacity_env = home / '.config/ai-local/capacity.env'
+    slice_unit = home / '.config/systemd/user/ai-heavy.slice'
+    subagent_config = home / '.pi/agent/extensions/subagent/config.json'
+    return linux, capacity_env, slice_unit, subagent_config, [capacity_env] + ([slice_unit] if linux else [])
+
+
+def preflight(home, force):
+    """Validate every target before anything is written (measurement included); returns the current config."""
+    linux, capacity_env, slice_unit, subagent_config, targets = targets_for(home)
+    for path in targets:
+        if path.exists() and not path.read_text().startswith(OWNED) and not force:
+            raise SystemExit(f'ai-capacity: {path} exists and was not written by ai-capacity; review it, then rerun with --force (a backup is kept)')
+    current = {}
+    if subagent_config.exists():
+        try:
+            current = json.loads(subagent_config.read_text())
+        except (OSError, ValueError) as error:
+            raise SystemExit(f'ai-capacity: {subagent_config} is not valid JSON ({error}); fix it first, nothing was written')
+        if not isinstance(current, dict) or not isinstance(current.get('parallel', {}), dict):
+            raise SystemExit(f'ai-capacity: {subagent_config} must be a JSON object with an object "parallel"; nothing was written')
+    return current
+
+
+def apply(p, home, current):
+    linux, capacity_env, slice_unit, subagent_config, targets = targets_for(home)
+    existing = [path for path in targets + [subagent_config] if path.exists()]
+    backups = None
+    if existing:
+        root = home / '.config/ai-local/backups'
+        root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        backups = Path(tempfile.mkdtemp(dir=root, prefix=f"ai-capacity-{time.strftime('%Y%m%dT%H%M%S')}-"))
+        for path in existing:
+            shutil.copy2(path, backups / path.name)
+    write_atomic(capacity_env, f'{OWNED} apply; device-local. Re-run after a RAM/CPU change.\n'
+                 f"AI_HEAVY_SLOTS={p['heavy']['slots']}\n"
+                 f"AI_CAPACITY_TERMINALS_MAX={p['terminals']['max']}\n"
+                 f"AI_CAPACITY_SUBAGENTS_TARGET={p['subagents']['total_target']}\n")
+    report = [f'wrote {capacity_env} (heavy-run slots: enforced)']
+    state = {'slots': True, 'subagents': True, 'slice': False}
+    if linux:
+        high, cap = int(p['heavy']['memory_high_gb'] * 1024), int(p['heavy']['memory_max_gb'] * 1024)
+        write_atomic(slice_unit, f'{OWNED} apply; device-local. All heavy-run jobs share this memory budget:\n'
+                     '# throttled above MemoryHigh, killed above MemoryMax, inside this slice.\n'
+                     '[Unit]\nDescription=AI heavy jobs (builds, suites, browsers)\n\n[Slice]\n'
+                     f'MemoryHigh={high}M\nMemoryMax={cap}M\nCPUWeight=20\nIOWeight=20\n')
+        loaded = False
+        if not os.environ.get('AI_CAPACITY_NO_SYSTEMD') and shutil.which('systemctl'):
+            if subprocess.run(['systemctl', '--user', 'daemon-reload'], capture_output=True).returncode == 0:
+                shown = subprocess.run(['systemctl', '--user', 'show', 'ai-heavy.slice', '-p', 'MemoryMax', '--value'],
+                                       capture_output=True, text=True).stdout.strip()
+                loaded = shown == str(cap * 1048576)
+        state['slice'] = loaded
+        report.append(f"wrote {slice_unit} (memory cap: {'enforced' if loaded else 'NOT loaded; check systemctl --user'})")
+    else:
+        report.append('memory cap for heavy jobs: not enforced on this OS (no systemd); keep heavy jobs to the slot count')
+    merged = dict(current)
+    merged['parallel'] = dict(current.get('parallel', {}), concurrency=p['pi_subagents']['parallel.concurrency'])
+    merged['globalConcurrencyLimit'] = p['pi_subagents']['globalConcurrencyLimit']
+    merged['maxActiveAsyncRunsPerSession'] = p['pi_subagents']['maxActiveAsyncRunsPerSession']
+    write_atomic(subagent_config, json.dumps(merged, indent=2) + '\n')
+    report.append(f'wrote {subagent_config} (per-terminal child limits: enforced by pi-subagents for new sessions)')
+    if backups:
+        report.append(f'previous files backed up to {backups}')
+    return report, state
+
+
+# ---------------------------------------------------------------- status
+
+def status(p):
+    rows = proc_table()
+    if rows is None:
+        result = subprocess.run(['ps', '-axo', 'args='], capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f'ai-capacity: cannot list processes ({result.stderr.strip()}); load unknown', file=sys.stderr)
+            return 2
+        rows = [(None, line.split(), '') for line in result.stdout.splitlines()]
+    agents = sum(1 for _, argv, _ in rows if classify(argv) == 'agent')
+    subagents = sum(1 for _, argv, _ in rows if classify(argv) == 'subagent')
+    available = None
+    if Path('/proc/meminfo').exists():
+        available = int(re.search(r'MemAvailable:\s+(\d+)', Path('/proc/meminfo').read_text()).group(1)) / 1048576
+    print(f"Agent processes: {agents} (target: comfortable {p['terminals']['comfortable']}, max {p['terminals']['max']})")
+    print(f"Subagent processes: {subagents} (target {p['subagents']['total_target']}; one run can host several)")
+    if available is not None:
+        print(f"Memory available: {available:.1f} GB of {p['device']['ram_gb']} GB (reserve {p['reserve_gb']} GB)")
+    over = agents > p['terminals']['max'] or subagents > max(1, p['subagents']['total_target']) or (available is not None and available < p['reserve_gb'])
+    if over:
+        print('ABOVE PLAN: close idle terminals (their language servers and MCP stay in memory) before starting more work.')
+    return 1 if over else 0
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('action', nargs='?', default='plan', choices=['plan', 'measure', 'apply', 'status'])
+    parser.add_argument('--json', action='store_true')
+    parser.add_argument('--reset', action='store_true', help='measure: forget earlier peaks first')
+    parser.add_argument('--force', action='store_true', help='apply: replace files not written by ai-capacity (backed up)')
+    args = parser.parse_args()
+    home = Path(os.environ.get('AI_CAPACITY_HOME') or Path.home())
+    current = preflight(home, args.force) if args.action == 'apply' else None   # before any write
+    if args.action == 'measure' and args.reset:
+        costs_path(home).unlink(missing_ok=True)
+    fresh = None
+    if args.action in ('measure', 'apply') and not os.environ.get('AI_CAPACITY_NO_MEASURE'):
+        fresh = measure_costs()
+        if fresh is None and args.action == 'measure':
+            print('ai-capacity: no readable agent terminal to measure (or not Linux); keeping previous costs', file=sys.stderr)
+    costs = merge_costs(home, fresh)
+    p = plan(*hardware(), costs)
+    if args.action == 'apply' and p['degraded'] and not args.force:
+        show(p)   # refused: nothing written, measurements included
+        print('ai-capacity: degraded device; nothing applied. Rerun with --force to apply the serial-work limits.', file=sys.stderr)
+        return 4
+    if fresh is not None:
+        save_costs(home, costs)
+    if args.action == 'status':
+        return status(p)
+    if args.action != 'apply':
+        print(json.dumps(p, indent=2)) if args.json else show(p)
+        return 0
+    report, state = apply(p, home, current)
+    print('\n'.join(report))
+    print(json.dumps(dict(p, enforcement=state), indent=2)) if args.json else show(p, state)
+    return 0 if all(state.values()) else 3
+
+
+if __name__ == '__main__':
+    sys.exit(main())

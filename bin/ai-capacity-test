@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# ai-capacity: sizing, scopes, degraded devices, safe apply, process classification and status, in throwaway HOMEs.
+set -euo pipefail
+cd "$(dirname "$0")/.."; t=$(mktemp -d); trap 'rm -rf "$t"' EXIT
+export AI_CAPACITY_HOME="$t/empty" AI_CAPACITY_NO_MEASURE=1 AI_CAPACITY_NO_SYSTEMD=1
+j() { AI_CAPACITY_RAM_GB=$1 AI_CAPACITY_THREADS=$2 bin/ai-capacity --json; }
+v() { python3 -c "import json,sys; d=json.load(sys.stdin); r=$1; print(*r) if isinstance(r, tuple) else print(r)"; }
+
+# Reference sizing for this host's hardware with default costs.
+mid=$(j 31.2 8)
+[ "$(echo "$mid" | v "d['terminals']['comfortable'], d['terminals']['max'], d['subagents']['total_target'], d['heavy']['slots'], d['degraded']")" = "5 6 8 2 False" ]
+# Enforced per-terminal limits are named by their real scope: children per run x background runs.
+[ "$(echo "$mid" | v "d['pi_subagents']['parallel.concurrency'], d['pi_subagents']['maxActiveAsyncRunsPerSession'], d['pi_subagents']['worst_case_per_terminal']")" = "3 2 6" ]
+AI_CAPACITY_RAM_GB=31.2 AI_CAPACITY_THREADS=8 bin/ai-capacity | grep -q 'foreground runs and explicit overrides are not capped'
+
+# Fine RAM sweep at 8 threads: terminals never drop while heavy slots stay the same (a new slot may cost one,
+# the documented trade-off); never more subagents than threads; every advertised row fits the budget.
+python3 bin/_ai-capacity-sweep-test.py
+# The documented threshold: 26.5 -> 26.8 GB unlocks a second heavy slot.
+[ "$(j 26.5 8 | v "d['heavy']['slots']")" = 1 ] && [ "$(j 26.8 8 | v "d['heavy']['slots']")" = 2 ]
+
+# A low-memory device is DEGRADED, never promised more than its budget; tables stay within budget.
+for ram in 2 4 8; do
+  small=$(j $ram 4)
+  [ "$(echo "$small" | v "d['degraded'], len(d['by_terminals']), d['subagents']['total_target'], d['pi_subagents']['parallel.concurrency']")" = "True 0 0 1" ]
+  out=$(AI_CAPACITY_RAM_GB=$ram AI_CAPACITY_THREADS=4 bin/ai-capacity)
+  echo "$out" | grep -q '^DEGRADED: no concurrent plan fits'; ! echo "$out" | grep -q 'this device fits one terminal'
+done
+# A degraded device is not applied without --force (nothing written).
+set +e; env -u AI_CAPACITY_NO_MEASURE AI_CAPACITY_HOME="$t/deg" AI_CAPACITY_RAM_GB=8 AI_CAPACITY_THREADS=4 bin/ai-capacity apply >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" = 4 ] && [ ! -e "$t/deg/.config/ai-local/capacity.env" ] && [ ! -e "$t/deg/.config/ai-local/capacity-costs.json" ]   # measurement enabled, still nothing written
+echo "$mid" | v "all(r['terminals'] * d['costs']['terminal_gb'] + r['subagents_total'] * d['costs']['subagent_gb'] <= d['interactive_budget_gb'] + 1e-9 for r in d['by_terminals'])" | grep -qx True
+
+# Huge hosts never write more heavy-run slots than it accepts; heavy-run reads the written value.
+[ "$(j 4096 512 | v "d['heavy']['slots']")" -le 64 ]
+
+# Measured costs replace defaults; a corrupt costs file falls back to defaults.
+mkdir -p "$t/m/.config/ai-local"; echo '{"terminal_gb": 3.0, "subagent_gb": 0.5, "heavy_job_gb": 4.0, "source": "measured"}' > "$t/m/.config/ai-local/capacity-costs.json"
+[ "$(AI_CAPACITY_HOME="$t/m" AI_CAPACITY_RAM_GB=31.2 AI_CAPACITY_THREADS=8 bin/ai-capacity --json | v "d['costs']['source'], d['terminals']['max'] < 5")" = "measured True" ]
+for bad in 'not json' '[]' 'null' '{"terminal_gb": 1e999, "subagent_gb": 0.4, "heavy_job_gb": 4, "source": "measured"}' '{"terminal_gb": true, "subagent_gb": 0.4, "heavy_job_gb": 4, "source": "measured"}'; do
+  printf '%s' "$bad" > "$t/m/.config/ai-local/capacity-costs.json"
+  [ "$(AI_CAPACITY_HOME="$t/m" AI_CAPACITY_RAM_GB=31.2 AI_CAPACITY_THREADS=8 bin/ai-capacity --json | v "d['costs']['source'], d['costs']['terminal_gb']")" = "defaults 1.6" ] || { echo "bad costs not handled: $bad"; exit 1; }
+  AI_CAPACITY_HOME="$t/m" AI_CAPACITY_RAM_GB=31.2 AI_CAPACITY_THREADS=8 bin/ai-capacity >/dev/null
+done
+# Valid costs without "source" are used but never labelled measured.
+printf '%s' '{"terminal_gb": 2, "subagent_gb": 0.4, "heavy_job_gb": 4}' > "$t/m/.config/ai-local/capacity-costs.json"
+[ "$(AI_CAPACITY_HOME="$t/m" AI_CAPACITY_RAM_GB=31.2 AI_CAPACITY_THREADS=8 bin/ai-capacity --json | v "d['costs']['source'], d['costs']['terminal_gb']")" = "defaults 2.0" ]
+
+# apply: merges a valid config, keeps unknown keys, backs up, writes only device-local files.
+h="$t/h"; mkdir -p "$h/.pi/agent/extensions/subagent"; echo '{"keep": 1, "parallel": {"maxTasks": 9}}' > "$h/.pi/agent/extensions/subagent/config.json"
+AI_CAPACITY_HOME="$h" AI_CAPACITY_RAM_GB=31.2 AI_CAPACITY_THREADS=8 bin/ai-capacity apply > "$t/apply.out" || [ $? = 3 ]   # 3: slice not loaded (no systemd here)
+grep -qx 'AI_HEAVY_SLOTS=2' "$h/.config/ai-local/capacity.env"
+python3 - "$h/.pi/agent/extensions/subagent/config.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+assert d['keep'] == 1 and d['parallel'] == {'maxTasks': 9, 'concurrency': 3}, d
+assert d['maxActiveAsyncRunsPerSession'] == 2 and d['globalConcurrencyLimit'] == 3, d
+PY
+ls "$h"/.config/ai-local/backups/ai-capacity-*/config.json >/dev/null
+# Full output: a slice that is not loaded is never called enforced; plan output says "proposed".
+if [ "$(uname)" = Linux ]; then ! grep -q 'enforced by ai-heavy.slice\]' "$t/apply.out"; grep -q 'NOT enforced on this device' "$t/apply.out"; fi
+AI_CAPACITY_RAM_GB=31.2 AI_CAPACITY_THREADS=8 bin/ai-capacity | grep -q 'proposed, enforced by ai-heavy.slice once applied'
+# Repeated applies (same second) keep separate backup sets; the original stays recoverable.
+AI_CAPACITY_HOME="$h" AI_CAPACITY_RAM_GB=31.2 AI_CAPACITY_THREADS=8 bin/ai-capacity apply >/dev/null || true
+AI_CAPACITY_HOME="$h" AI_CAPACITY_RAM_GB=31.2 AI_CAPACITY_THREADS=8 bin/ai-capacity apply >/dev/null || true
+[ "$(ls -d "$h"/.config/ai-local/backups/ai-capacity-* | wc -l)" -ge 3 ]
+grep -l '"maxTasks": 9' "$h"/.config/ai-local/backups/ai-capacity-*/config.json | xargs grep -L concurrency | grep -q .
+if [ "$(uname)" = Linux ]; then grep -q '^MemoryMax=8192M' "$h/.config/systemd/user/ai-heavy.slice"; grep -q 'NOT loaded' "$t/apply.out"; fi
+HOME="$h" AI_HEAVY_DIR="$t/state" bin/heavy-run --status --json | python3 -c "import json,sys; assert json.load(sys.stdin)['pool_size'] == 2"
+HOME="$h" AI_HEAVY_DIR="$t/state" AI_HEAVY_SLOTS=3 bin/heavy-run --status --json | python3 -c "import json,sys; assert json.load(sys.stdin)['pool_size'] == 3"
+
+# apply refuses, without writing anything, an invalid JSON config or a hand-written capacity file.
+h2="$t/h2"; mkdir -p "$h2/.pi/agent/extensions/subagent" "$h2/.config/ai-local"; printf '{ broken' > "$h2/.pi/agent/extensions/subagent/config.json"
+echo '{"terminal_gb": 1.7, "subagent_gb": 0.4, "heavy_job_gb": 4.0, "source": "measured"}' > "$h2/.config/ai-local/capacity-costs.json"; cp "$h2/.config/ai-local/capacity-costs.json" "$t/costs.before"
+# Measurement enabled: a refused apply must not have written the costs file either.
+! env -u AI_CAPACITY_NO_MEASURE AI_CAPACITY_HOME="$h2" bin/ai-capacity apply >/dev/null 2>&1
+[ "$(cat "$h2/.pi/agent/extensions/subagent/config.json")" = '{ broken' ] && [ ! -e "$h2/.config/ai-local/capacity.env" ]
+cmp -s "$t/costs.before" "$h2/.config/ai-local/capacity-costs.json"
+h3="$t/h3"; mkdir -p "$h3/.config/ai-local"; echo 'AI_HEAVY_SLOTS=5 # mine' > "$h3/.config/ai-local/capacity.env"
+! AI_CAPACITY_HOME="$h3" bin/ai-capacity apply >/dev/null 2>&1
+grep -q '# mine' "$h3/.config/ai-local/capacity.env"
+AI_CAPACITY_HOME="$h3" bin/ai-capacity apply --force >/dev/null || [ $? = 3 ]
+grep -q '^# Written by ai-capacity' "$h3/.config/ai-local/capacity.env" && ls "$h3"/.config/ai-local/backups/ai-capacity-*/capacity.env >/dev/null
+
+# Process classification: installed runner path, absolute and node-launched agents, empty argv.
+python3 - <<'PY'
+import importlib.machinery, importlib.util
+loader = importlib.machinery.SourceFileLoader('cap', 'bin/ai-capacity')
+spec = importlib.util.spec_from_loader('cap', loader); m = importlib.util.module_from_spec(spec); loader.exec_module(m)
+c = m.classify
+assert c(['node', '/x/node_modules/pi-subagents/src/runs/background/subagent-runner-bootstrap.js']) == 'subagent'
+assert c(['/usr/local/bin/pi']) == 'agent' and c(['pi']) == 'agent' and c(['/home/u/.local/bin/claude', '--resume', 'x']) == 'agent'
+assert c(['node', '--enable-source-maps', '/opt/bin/codex']) == 'agent' and c(['omp']) == 'agent'
+assert c([]) is None and c(['']) is None and c(['node', '/x/next-server']) is None and c(['pipewire']) is None
+# Measurement: unreadable PSS is missing evidence; quiet terminals never lower the default terminal cost.
+if m.Path('/proc/self/smaps_rollup').exists():
+    m.proc_table = lambda: [('1', ['pi'], '/a'), ('2', ['node', 'x'], '/a'), ('3', ['claude'], '/b')]
+    m.pss_kb = lambda pid: None
+    assert m.measure_costs() is None
+    m.pss_kb = lambda pid: 100 * 1024
+    r = m.measure_costs()
+    assert r and r['terminal_gb'] == m.DEFAULT_COSTS['terminal_gb'], r
+PY
+
+# status: an unobservable process list is "unknown" (exit 2), never healthy.
+if [ ! -e /proc/self/cgroup ]; then mkdir -p "$t/bin"; printf '#!/bin/sh\nexit 1\n' > "$t/bin/ps"; chmod +x "$t/bin/ps"; set +e; PATH="$t/bin:$PATH" bin/ai-capacity status >/dev/null 2>&1; rc=$?; set -e; [ "$rc" = 2 ]; fi
+set +e; bin/ai-capacity status >/dev/null; rc=$?; set -e; [ "$rc" = 0 ] || [ "$rc" = 1 ]
+
+# measure keeps a learned peak and records this device's terminals (Linux only).
+if [ -e /proc/self/smaps_rollup ]; then
+  mkdir -p "$t/live/.config/ai-local"; echo '{"terminal_gb": 9.0, "subagent_gb": 0.4, "heavy_job_gb": 4.0, "source": "measured"}' > "$t/live/.config/ai-local/capacity-costs.json"
+  env -u AI_CAPACITY_NO_MEASURE AI_CAPACITY_HOME="$t/live" bin/ai-capacity measure >/dev/null 2>&1 || true
+  python3 -c "import json; d=json.load(open('$t/live/.config/ai-local/capacity-costs.json')); assert d['terminal_gb'] >= 9.0, d"
+fi
+echo "ai-capacity-test: ok"

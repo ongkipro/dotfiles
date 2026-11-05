@@ -16,7 +16,7 @@
 Repository disk and executable checks > repository contracts (`AGENTS.md`, `PRD.md`, `TASKS.md`, `STATUS.md`, `.delivery/`) > personal project memory (`~/.config/ai/project-memory/`) > shared memory (`~/.config/ai/memory/`) > historical notes. Memory is reference only: it never owns current status, technical decisions, requirements, architecture, or build truth — those belong to the repository (`STATUS.md`, `DECISIONS.md`, `ARCHITECTURE.md`, `BUILD-LOG.md`, `RELEASE.md`, `OBSERVABILITY.md`). When memory and disk disagree, disk wins — then fix the memory.
 
 - Keep session focus on the repo contract; use `focus` for parallel claims and explicit cross-project references. Check `resume-brief` before resuming.
-- Builds, suites, browsers: `heavy-run --lock <repo>-env -- <cmd>`; test DBs via `ai-testdb` clones; `dev-freeze` before pauses.
+- Builds, suites, browsers: `heavy-run --lock <repo>-env -- <cmd>`; test DBs via `ai-testdb` clones; `dev-freeze` before pauses; size work with `ai-capacity`.
 - Load the smallest relevant context. Shared facts: `~/.config/ai/memory/*.md` on demand; device-only facts: `~/.config/ai-local/`. Chain health: `ai-doctor`.
 - Planning artifacts (PRD, PLAN, TASKS, ADR, spec suite) follow `~/.config/ai/policies/planning-artifacts.md`; never create a rival document beside an existing one.
 - Repositories with `.delivery/`: follow the task-boundary contract in `~/dotfiles/docs/task-change-boundary.md` before recording any result.

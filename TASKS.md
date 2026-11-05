@@ -7,21 +7,21 @@ Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests w
 Done 2026-10-30: TASK-159 → [META_COPY](docs/archive/DOTFILES_TASKS_2026-10-30_META_COPY.md); TASK-091 superseded by TASK-160 → [record](docs/archive/TASKS-091-superseded.md); TASK-160/161 → [160-161](docs/archive/TASKS-160-161-completed.md).
 Done 2026-10-31: TASK-162-165 → [162-166](docs/archive/TASKS-162-166-completed.md); TASK-167 → [167](docs/archive/TASKS-167-completed.md); TASK-168 → [168](docs/archive/TASKS-168-completed.md); TASK-169 → [169](docs/archive/TASKS-169-completed.md).
 Done 2026-11-01 to 2026-11-03: TASK-170 → [170](docs/archive/TASKS-170-completed.md); TASK-171/172 → [171](docs/archive/TASKS-171-completed.md); TASK-173 → [173](docs/archive/TASKS-173-completed.md); TASK-174 → [174](docs/archive/TASKS-174-completed.md); TASK-176 → [176](docs/archive/TASKS-176-completed.md).
-Done 2026-11-04 to 2026-11-05: TASK-177-189 (dotads-meta, Meta/Pixel docs, device update notice) and finished TASK-151/157 → [177-189](docs/archive/TASKS-177-190-completed.md); TASK-190 → [190](docs/archive/TASKS-190-completed.md); TASK-191 → [191](docs/archive/TASKS-191-completed.md); TASK-192 → [192](docs/archive/TASKS-192-completed.md); TASK-193 → [193](docs/archive/TASKS-193-completed.md); TASK-194 → [194](docs/archive/TASKS-194-completed.md).
+Done 2026-11-04 to 2026-11-05: TASK-177-189 (dotads-meta, Meta/Pixel docs, device update notice) and finished TASK-151/157 → [177-189](docs/archive/TASKS-177-190-completed.md); TASK-190 → [190](docs/archive/TASKS-190-completed.md); TASK-191 → [191](docs/archive/TASKS-191-completed.md); TASK-192 → [192](docs/archive/TASKS-192-completed.md); TASK-193 → [193](docs/archive/TASKS-193-completed.md); TASK-194 → [194](docs/archive/TASKS-194-completed.md); TASK-195 → [195](docs/archive/TASKS-195-completed.md).
 
 ## In progress
 
-### TASK-195: Parallel AI terminals on one machine (heavy-run scope, ai-testdb, dev-freeze)
-- **Requirement:** REQ-PARALLEL-TERMINALS (owner 2026-11-05/06: AI terminals across projects stacked and slowed each other; make the machine fast for many terminals and projects, keep development safe to resume after a force close).
+### TASK-196: Per-device AI capacity (terminals, subagents, heavy jobs)
+- **Requirement:** REQ-AI-CAPACITY (owner 2026-11-06: no force close mid-work while AI terminals stay fast; precise for `rich`, other devices size themselves; state the maximum terminals, projects and subagents).
 - **Risk Level:** R2.
-- **Allowed Paths:** `bin/heavy-run`, `bin/heavy-run-test`, `bin/ai-testdb`, `bin/ai-testdb-test`, `bin/_ai-testdb-lifecycle-test.py`, `bin/dev-freeze`, `bin/dev-freeze-test`, `config/ai/CORE.md`, `config/ai/context/*.md`, `config/ai/memory/development.md`, `config/ai/runtime-commands.txt`, `docs/DOTFILES_SITEMAP.md`, `TASKS.md`, `CHANGELOG.md`, `docs/archive/TASKS-194-completed.md`.
+- **Allowed Paths:** `bin/ai-capacity`, `bin/ai-capacity-test`, `bin/_ai-capacity-sweep-test.py`, `bin/heavy-run`, `config/ai/CORE.md`, `config/ai/context/*.md`, `config/ai/memory/development.md`, `config/ai/runtime-commands.txt`, `docs/DOTFILES_SITEMAP.md`, `TASKS.md`, `CHANGELOG.md`, `docs/archive/TASKS-195-completed.md`.
 - **Protected Paths:** `bin/delivery-ledger`, `docs/task-change-boundary.md` (other session), `config/ai/project-memory/**`, `skills/local/development-kit/**`.
-- **Canonical Contract Owners:** `heavy-run` (machine queue, locks, cgroup scope); `ai-testdb` (throwaway test databases); `dev-freeze` (pre-maintenance snapshot); `memory/development.md` (rules).
-- **Accepted Invariants:** locks free only after every process of the job group ended; nested calls never run without a requested lock; a test clone is dropped on every exit path; dev-freeze never modifies a repository and never reports success when an artifact failed; trust-auth test Postgres is loopback-only and holds no real data.
-- **Regression Checks:** `heavy-run-test`, `ai-testdb-test`, `dev-freeze-test`, `ai-policy-lint`, `ai-memory-link --check`, `system-map --check`, `security-check`.
-- **Reopen Conditions:** a lock survives its job, a clone survives a cancelled run, or a failed snapshot exits 0.
-- **Non-Scope:** per-project adoption (repo changes), sudo tuning (zram, bfq), CI runners.
-- **Escalation Conditions:** a change needs sudo, a project repo, or production data.
+- **Canonical Contract Owners:** `ai-capacity` (sizing, device-local limits); `heavy-run` (slots from `capacity.env`); `memory/development.md` (rules and `rich` numbers).
+- **Accepted Invariants:** writes only device-local files, after validation, atomically, with backups; never labels an unloaded limit enforced; degraded devices get no feasible concurrent plan; measured costs never below defaults; targets and enforced limits named by their real scope.
+- **Regression Checks:** `ai-capacity-test` (incl. RAM sweep), `heavy-run-test`, `ai-policy-lint`, `ai-memory-link --check`, `system-map --check`, `security-check`.
+- **Reopen Conditions:** a refused apply writes a file, an unloaded slice is reported enforced, or a plan row exceeds its budget.
+- **Non-Scope:** machine-wide subagent admission across terminals; per-project adoption; sudo tuning.
+- **Escalation Conditions:** a change needs sudo or a system unit.
 
 ## Pending
 

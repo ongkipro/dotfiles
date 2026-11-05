@@ -4,6 +4,12 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-06 — Per-device AI capacity (TASK-196)
+
+- `ai-capacity` (new): sizes AI terminals, subagents and heavy jobs from each device's RAM, CPU and its own measured costs (PSS per terminal cgroup, learned peaks, never below defaults). `apply` writes only device-local limits after validation, atomically, with backups, and reports which are enforced: heavy-run slots, one shared memory cap for heavy jobs (`ai-heavy.slice`), pi-subagents per-run and per-session limits; terminals and the machine-wide subagent total stay targets. Degraded devices get serial-work advice only.
+- `heavy-run` reads its slot count from `~/.config/ai-local/capacity.env`.
+- `rich` (31 GB, 8 threads, measured): 4 terminals comfortable, 5 max; ~8 subagents across terminals, 3 per terminal; 2 heavy jobs (8 GB together); 1 browser e2e.
+
 ## 2026-11-06 — Parallel AI terminals (TASK-195)
 
 - `heavy-run`: jobs run in a systemd user scope in `ai-heavy.slice` (CPUWeight 20, MemoryHigh 40%); leftovers in the job's process group are stopped on every exit path before locks free; nested calls refuse locks the outer job does not hold; duplicate lock names no longer self-deadlock.

@@ -43,6 +43,8 @@ ai-testdb
 ai-testdb-test
 dev-freeze
 dev-freeze-test
+ai-capacity
+ai-capacity-test
 delivery-skill-usage
 delivery-skill-usage-test
 dev-ready
