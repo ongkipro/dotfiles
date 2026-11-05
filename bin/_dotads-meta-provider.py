@@ -52,6 +52,13 @@ INSIGHT_FIELDS = ("account_id", "account_name", "account_currency", "date_start"
                   "spend", "impressions", "reach", "frequency", "clicks", "inline_link_clicks",
                   "outbound_clicks", "actions", "action_values", "purchase_roas", "website_purchase_roas",
                   "video_thruplay_watched_actions")
+# Opt-in Shopee CPAS (Collaborative Ads) segment metrics: list<AdsActionStats>, estimated,
+# retailer-reported. Product-level converted_product_* needs a separate breakdown and is not
+# requested here (SDK enum gap). Absent profile keeps the legacy request byte-identical.
+METRIC_PROFILES = {"legacy": (), "cpas_v1": ("catalog_segment_actions", "catalog_segment_value",
+                                             "catalog_segment_value_omni_purchase_roas",
+                                             "catalog_segment_value_website_purchase_roas",
+                                             "catalog_segment_value_mobile_purchase_roas")}
 # Deliberately bounded surface; unsupported combinations fail visibly at Meta.
 BREAKDOWNS = frozenset(("age", "gender", "country", "region", "dma", "device_platform",
                         "impression_device", "publisher_platform", "platform_position", "conversion_destination"))
@@ -89,7 +96,7 @@ def date_value(value):
 def validate(request):
     require(isinstance(request, dict), "Request must be a JSON object.")
     require(not set(request) - {"operation", "account_id", "since", "until", "date_preset", "levels",
-                               "breakdowns", "attribution", "action_report_time", "max_pages"},
+                               "breakdowns", "attribution", "action_report_time", "max_pages", "metric_profile"},
             "Request contains unsupported parameters.")
     operation = request.get("operation")
     require(operation in ("accounts", "collect", "insights"), "Unsupported operation.")
@@ -137,6 +144,10 @@ def validate(request):
                 len(set(windows)) == len(windows), "Attribution windows contain unsupported or repeated values.")
         require(not (attribution.get("use_account_attribution_setting") or attribution.get("use_unified_attribution_setting")),
                 "Explicit attribution windows cannot be combined with an attribution setting source.")
+    profile = result.get("metric_profile", "legacy")
+    require(isinstance(profile, str) and profile in METRIC_PROFILES, "metric_profile must be legacy or cpas_v1.")
+    if profile == "legacy":
+        result.pop("metric_profile", None)
     report_time = result.setdefault("action_report_time", "conversion")
     require(report_time in ("conversion", "impression", "mixed", "lifetime"), "Unsupported action_report_time.")
     return result
@@ -162,6 +173,8 @@ def planned_scope(request):
                                           if request["operation"] == "collect" else {})
     if request.get("date_preset"):
         scope["date_preset"] = request["date_preset"]
+    if request.get("metric_profile"):
+        scope["metric_profile"] = request["metric_profile"]
     return scope
 
 
@@ -415,7 +428,7 @@ def run(request, api=None, sdk_version=None, sleep=time.sleep):
                 result["observed_fields"] = sorted({key for row in result["rows"] for key in row})
                 response["resources"][resource] = result
         for level in request["levels"]:
-            fields = list(INSIGHT_FIELDS)
+            fields = list(INSIGHT_FIELDS) + list(METRIC_PROFILES[request.get("metric_profile", "legacy")])
             for entity in LEVELS[1:LEVELS.index(level) + 1]:
                 fields.extend((entity + "_id", entity + "_name"))
             query = {"account_id": account_id, "since": request["since"], "until": request["until"],

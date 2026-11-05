@@ -349,6 +349,48 @@ success claim. Retry after inspecting the retained evidence, never delete locks
 blindly. Existing `learn add/list --brand` and economics workflows remain supported;
 they are not automatically promoted into scoped portable evidence.
 
+### Commerce insight, superseded history and offline refresh
+
+History observations, `observations.json`, `HISTORY.md` and `REPORT.md` carry a
+deterministic `commerce` block (`commerce-insight/1`) derived only from the
+saved snapshot: account-level funnel (landing-page views, view content,
+add-to-cart, initiate checkout, purchases, purchase value; one preferred alias
+per step — omni, then pixel, then standard — never summed), ROAS, cost per
+purchase/add-to-cart/landing-page view, step rates and AOV; per-level outbound
+clicks as `outbound_clicks_exact_sum` (null when any row omits the field) plus
+`observed_outbound_clicks_sum` and `rows_with_outbound_clicks`; top-5 spend
+concentration per campaign/ad set/ad joined to status, objective, optimization
+goal and promoted-object kind; a frequency watch (ad sets at frequency ≥4, an
+observation, not a fatigue diagnosis); inventory distribution; and CPAS status,
+catalog lineage and `catalog_segment_*` values kept separate from ordinary
+purchases. Values are platform-attributed; nothing here is profit, settlement
+or incrementality.
+
+When a `complete` observation exists for a history window (period, since,
+until), older `partial`/`INCOMPLETE_EVIDENCE` observations and older complete
+snapshots of that exact window move from `entries` to `superseded_entries`
+(with `superseded_by` and reason), unless a lifecycle record uses them as
+`parent_id`. Superseded IDs are excluded from listing and export and are
+skipped on import, so an old bundle cannot resurrect them.
+
+```bash
+dotads-meta learn refresh --bm <KEY> --account act_ID --json          # dry run
+dotads-meta learn refresh --bm <KEY> --account act_ID --apply --json  # backs up memory first
+```
+
+`learn refresh` rebuilds history observations from the saved history revisions
+(`history.json` complete and latest) and re-verified snapshots, offline. It
+never calls Meta and never modifies `data/snapshots/s_*` or snapshot hashes.
+`--apply` writes `memory/backups/ads-memory.<time>.<hash>.json` before saving.
+It does not re-render immutable report revisions; a new `history` run or
+`report` renders them with the current renderer.
+
+Opt-in `--metric-profile cpas_v1` on `sync`/`history` adds the five
+`catalog_segment_*` Insights fields (see
+[CPAS Collaborative Ads](cpas-collaborative-ads.md)). Without it the request,
+scope and scope hashes are byte-identical to before. Product-level
+`converted_product_*` reporting is not requested.
+
 ## Transport and scope
 
 The official CLI (1.2.0 when designed; 1.3.1 verified 2026-11-04) does not expose the needed Insights level and

@@ -591,8 +591,10 @@ function cmdSync(argv) {
     levels: { type: "string" }, breakdowns: { type: "string" }, attribution: { type: "string" },
     "action-report-time": { type: "string" }, "token-env": { type: "string" },
     "max-pages": { type: "string" }, input: { type: "string" }, "existing-directory": { type: "string" }, json: { type: "boolean" },
+    "metric-profile": { type: "string" },
   }});
   if (positionals.length) throw new Error("sync accepts options only.");
+  const metricProfile = parseMetricProfile(values["metric-profile"]);
   const account = accountId(values.account);
   dateRange(values.since, values.until);
   const levels = [...new Set((values.levels || "account,campaign,adset,ad").split(","))].sort();
@@ -620,7 +622,7 @@ function cmdSync(argv) {
   const maxPages = Number(values["max-pages"] || 100);
   if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 1000) throw new Error("--max-pages must be an integer from 1 to 1000.");
   const request = { operation: "collect", account_id: account, since: values.since, until: values.until,
-    levels, breakdowns, attribution, action_report_time: actionReportTime, max_pages: maxPages };
+    levels, breakdowns, attribution, action_report_time: actionReportTime, max_pages: maxPages, ...metricProfile };
   let payload;
   if (values.input) {
     payload = loadCollectionInput(values.input);
@@ -634,7 +636,8 @@ function cmdSync(argv) {
   if (payload?.account?.id !== account || payload?.scope?.since !== values.since || payload?.scope?.until !== values.until ||
       JSON.stringify([...(payload?.scope?.levels || [])].sort()) !== JSON.stringify(levels) ||
       JSON.stringify([...(payload?.scope?.breakdowns || [])].sort()) !== JSON.stringify(breakdowns) ||
-      !isDeepStrictEqual(payload?.scope?.attribution || {}, attribution) || payload?.scope?.action_report_time !== actionReportTime) {
+      !isDeepStrictEqual(payload?.scope?.attribution || {}, attribution) || payload?.scope?.action_report_time !== actionReportTime ||
+      (payload?.scope?.metric_profile ?? null) !== (metricProfile.metric_profile ?? null)) {
     throw new Error("Collection identity or measurement scope does not match the request.");
   }
   let result;
@@ -662,12 +665,21 @@ function loadCollectionInput(filename) {
   return payload;
 }
 
+// Opt-in Shopee CPAS segment metrics; absent keeps the legacy request and scope hashes identical.
+function parseMetricProfile(value) {
+  if (value == null || value === "legacy") return {};
+  if (value !== "cpas_v1") throw new Error("--metric-profile must be legacy or cpas_v1.");
+  return { metric_profile: "cpas_v1" };
+}
+
 function cmdHistory(argv) {
   const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: {
     account: { type: "string" }, "as-of": { type: "string" }, plan: { type: "boolean" },
     "input-dir": { type: "string" }, "token-env": { type: "string" }, "max-pages": { type: "string" }, json: { type: "boolean" },
+    "metric-profile": { type: "string" },
   }});
   if (positionals.length) throw new Error("history accepts options only.");
+  const metricProfile = parseMetricProfile(values["metric-profile"]);
   const account = accountId(values.account), root = defaultWorkspaceRoot();
   const maxPages = Number(values["max-pages"] || 100);
   if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 1000) throw new Error("--max-pages must be an integer from 1 to 1000.");
@@ -687,7 +699,7 @@ function cmdHistory(argv) {
   // lazy: five bounded synchronous collections; large accounts need resumable async Insights before increasing this ceiling.
   for (const period of plan.periods) {
     const request = { operation: "collect", account_id: account, since: period.since, until: period.until,
-      levels: ["account", "campaign", "adset", "ad"], breakdowns: [], attribution: {}, action_report_time: "conversion", max_pages: maxPages };
+      levels: ["account", "campaign", "adset", "ad"], breakdowns: [], attribution: {}, action_report_time: "conversion", max_pages: maxPages, ...metricProfile };
     if (throttled) {
       attempts.push({ period: period.key });
       console.error(`History ${period.key}: not requested after a Meta rate limit; retry later.`);
@@ -710,10 +722,16 @@ function cmdHistory(argv) {
         inventory ??= { resources: payload.resources, source: { period: period.key,
           started_at: payload.source.started_at, finished_at: payload.source.finished_at } };
       }
+      if ((payload?.scope?.metric_profile ?? null) !== (metricProfile.metric_profile ?? null)) {
+        const mismatch = new Error(`History ${period.key}: collection metric profile does not match the requested --metric-profile; nothing published.`);
+        mismatch.fatal = true;
+        throw mismatch;
+      }
       workspace.validateHistoryCollection(payload, plan, period);
       const saved = workspace.saveSnapshot(root, payload);
       attempts.push({ period: period.key, snapshot_id: saved.snapshot_id });
     } catch (error) {
+      if (error.fatal) throw error;
       const scope = collectScope ?? error.collectionScope;
       if (!offline && scope) workspace.recordFailure(root, account, scope, "History period collection failed; no complete replacement was published.");
       throttled ||= error.rateLimited === true;
@@ -3018,8 +3036,10 @@ function cmdLearn(argv) {
   dotads-meta learn list --account <act_id> [--json]
   dotads-meta learn export --account <act_id> --output <new-private-file.json> [--json]
   dotads-meta learn import --account <act_id> --input <selected-learning.json> [--json]
+  dotads-meta learn refresh --account <act_id> [--root <dir>] [--apply] [--json]
 
-Account learning pins exact saved snapshot/query/entity references. Export/import is offline only; select the same BM/account on both devices. See the runtime guide for stage protocols.`);
+Account learning pins exact saved snapshot/query/entity references. Export/import is offline only; select the same BM/account on both devices. See the runtime guide for stage protocols.
+refresh rebuilds history observations (commerce insight, supersede) from saved history revisions and verified snapshots, offline; dry-run unless --apply, which backs up memory first.`);
     return;
   }
 
@@ -3027,6 +3047,13 @@ Account learning pins exact saved snapshot/query/entity references. Export/impor
   let brandPath = null;
   let jsonOut = false;
 
+  if (sub === "refresh") {
+    const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: { account: { type: "string" }, root: { type: "string" }, apply: { type: "boolean" }, json: { type: "boolean" } } });
+    if (positionals.length) throw new Error("learn refresh accepts options only.");
+    const root = values.root ? path.resolve(values.root) : defaultWorkspaceRoot();
+    console.log(JSON.stringify(workspace.refreshLearning(root, accountId(values.account), { apply: Boolean(values.apply) }), null, 2));
+    return;
+  }
   if (["record", "export", "import"].includes(sub) || (sub === "list" && rest.includes("--account"))) {
     const allowed = { account: { type: "string" }, json: { type: "boolean" } };
     for (const key of sub === "record" ? ["stage", "since", "until", "title", "summary", "evidence", "parent", "protocol"] : sub === "export" ? ["output"] : sub === "import" ? ["input"] : []) allowed[key] = { type: "string" };

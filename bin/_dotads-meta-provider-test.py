@@ -245,6 +245,27 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(result["rows"][0]["outbound_clicks"][0]["value"], "3")
         self.assertEqual(result["rows"][0]["video_thruplay_watched_actions"][0]["value"], "7")
 
+    def test_cpas_v1_profile_adds_segment_fields_only_when_opted_in(self):
+        legacy = provider.plan(REQUEST)
+        self.assertNotIn("metric_profile", legacy["request"])
+        self.assertNotIn("metric_profile", legacy["scope"])
+        self.assertEqual(provider.plan({**REQUEST, "metric_profile": "legacy"}), legacy, "explicit legacy is byte-identical")
+        cpas = provider.plan({**REQUEST, "metric_profile": "cpas_v1"})
+        self.assertEqual(cpas["scope"]["metric_profile"], "cpas_v1")
+        self.assertNotEqual(cpas["scope"], legacy["scope"])
+        with self.assertRaises(provider.ProviderError):
+            provider.plan({**REQUEST, "metric_profile": "cpas_v2"})
+        segment = [{"action_type": "purchase", "value": "3"}]
+        result = self.insights([{"data": [insight(catalog_segment_actions=segment, catalog_segment_value=[{"action_type": "purchase", "value": "450"}])]}],
+                               metric_profile="cpas_v1")
+        fields = result["insights"][0]["query"]["fields"]
+        for name in provider.METRIC_PROFILES["cpas_v1"]:
+            self.assertIn(name, fields)
+        self.assertFalse(any(name.startswith("converted_product") for name in fields), "product reporting stays a separate capability")
+        self.assertEqual(result["insights"][0]["rows"][0]["catalog_segment_actions"], segment)
+        plain = self.insights([{"data": [insight()]}])["insights"][0]["query"]["fields"]
+        self.assertFalse(any(name.startswith("catalog_segment") for name in plain))
+
     def test_bad_rows_do_not_discard_valid_partial_rows_or_other_resources(self):
         routes = base_routes()
         routes["act_123/campaigns"] = [{"data": [{"id": "10", "account_id": "123"}, {"id": "11", "account_id": "456"}]}]

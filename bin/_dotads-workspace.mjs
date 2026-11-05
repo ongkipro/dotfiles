@@ -5,7 +5,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const VERSION = 1;
-const RENDERER = 'dotads-markdown-csv/2';
+const RENDERER = 'dotads-markdown-csv/3';
 const DEFINITIONS = 'platform-base-metrics/1';
 const RESOURCES = ['campaigns', 'adsets', 'ads', 'creatives'];
 const LEVELS = ['account', 'campaign', 'adset', 'ad'];
@@ -405,6 +405,8 @@ function prepared(input) {
     required_fields: semantic(value.scope.required_fields ?? {}),
     inventory_fields: fieldMap(value.scope.inventory_fields ?? {}, 'inventory fields'),
     required_inventory_fields: fieldMap(value.scope.required_inventory_fields ?? {}, 'required inventory fields'),
+    // Legacy scopes omit the key entirely so their scope hashes stay identical.
+    ...(value.scope.metric_profile != null ? { metric_profile: metricProfile(value.scope.metric_profile) } : {}),
   };
   const required = semantics.required_resources.map(name => value.resources[name]);
   const queries = value.insights.map(item => item.coverage);
@@ -417,7 +419,11 @@ function requestScope(scope) {
   date(scope.since, 'request since'); date(scope.until, 'request until');
   if (scope.since > scope.until) fail('request date range is reversed');
   if (!object(scope.attribution ?? {}) || typeof scope.action_report_time !== 'string' || !scope.action_report_time) fail('invalid requested attribution or action report time');
-  return { collection_contract_version: scope.collection_contract_version ?? VERSION, since: scope.since, until: scope.until, levels: strings(scope.levels, 'request levels', LEVELS), breakdowns: strings(scope.breakdowns ?? [], 'request breakdowns'), attribution: semantic(scope.attribution ?? {}), action_report_time: scope.action_report_time, inventory_filters: semantic(scope.inventory_filters ?? {}), required_resources: strings(scope.required_resources ?? RESOURCES, 'required resources', RESOURCES), required_fields: semantic(scope.required_fields ?? {}), inventory_fields: fieldMap(scope.inventory_fields ?? {}, 'inventory fields'), required_inventory_fields: fieldMap(scope.required_inventory_fields ?? {}, 'required inventory fields') };
+  return { collection_contract_version: scope.collection_contract_version ?? VERSION, since: scope.since, until: scope.until, levels: strings(scope.levels, 'request levels', LEVELS), breakdowns: strings(scope.breakdowns ?? [], 'request breakdowns'), attribution: semantic(scope.attribution ?? {}), action_report_time: scope.action_report_time, inventory_filters: semantic(scope.inventory_filters ?? {}), required_resources: strings(scope.required_resources ?? RESOURCES, 'required resources', RESOURCES), required_fields: semantic(scope.required_fields ?? {}), inventory_fields: fieldMap(scope.inventory_fields ?? {}, 'inventory fields'), required_inventory_fields: fieldMap(scope.required_inventory_fields ?? {}, 'required inventory fields'), ...(scope.metric_profile != null ? { metric_profile: metricProfile(scope.metric_profile) } : {}) };
+}
+function metricProfile(value) {
+  if (value !== 'cpas_v1') fail('unsupported metric profile');
+  return value;
 }
 function state(directory) {
   const target = path.join(directory, 'sync.json');
@@ -619,6 +625,148 @@ function queryTotals(envelope, account) {
   const spend = sum('spend'), impressions = sum('impressions'), clicks = sum('outbound_clicks');
   return { available: true, spend, impressions, outbound_clicks: clicks, outbound_ctr_fraction: ratio(clicks, impressions), outbound_cpc: ratio(spend, clicks), cpm: ratio(spend, impressions, 1000), reach: null, frequency: null };
 }
+// --- Commerce insight (TASK-194): deterministic, offline, derived only from a saved snapshot. ---
+// Alias groups are ordered by preference and never summed: Meta reports the same purchase
+// under omni, pixel and standard names at once.
+const FUNNEL_ALIASES = {
+  landing_page_views: ['omni_landing_page_view', 'landing_page_view'],
+  view_content: ['omni_view_content', 'offsite_conversion.fb_pixel_view_content', 'view_content'],
+  add_to_cart: ['omni_add_to_cart', 'offsite_conversion.fb_pixel_add_to_cart', 'add_to_cart'],
+  initiate_checkout: ['omni_initiated_checkout', 'offsite_conversion.fb_pixel_initiate_checkout', 'initiate_checkout'],
+  purchases: ['omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'purchase'],
+  link_clicks: ['link_click'],
+};
+const PURCHASE_VALUE_ALIASES = ['omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'purchase'];
+const FREQUENCY_WATCH = 4;
+// Same five fields the provider's cpas_v1 profile requests; detection and extraction share this list.
+const CPAS_SEGMENT_FIELDS = ['catalog_segment_actions', 'catalog_segment_value', 'catalog_segment_value_omni_purchase_roas', 'catalog_segment_value_website_purchase_roas', 'catalog_segment_value_mobile_purchase_roas'];
+function pickAction(list, aliases) {
+  if (!Array.isArray(list)) return { value: null, source: null };
+  for (const name of aliases) {
+    const hits = list.filter(item => item?.action_type === name);
+    if (hits.length === 1) { const value = number(hits[0].value); if (value != null) return { value, source: name }; }
+  }
+  return { value: null, source: null };
+}
+function rowFunnel(row) {
+  const out = Object.fromEntries(Object.entries(FUNNEL_ALIASES).map(([key, aliases]) => [key, pickAction(row.actions, aliases)]));
+  out.purchase_value = pickAction(row.action_values, PURCHASE_VALUE_ALIASES);
+  return out;
+}
+function promotedKind(promoted) {
+  if (!object(promoted)) return 'none';
+  if (promoted.product_catalog_id || promoted.product_set_id) return 'catalog';
+  if (promoted.pixel_id) return 'pixel_conversion';
+  if (promoted.application_id) return 'app';
+  if (promoted.page_id) return 'page';
+  return 'other';
+}
+function countBy(rows, pick) {
+  const counts = {};
+  for (const row of rows) { const key = String(pick(row) ?? 'unknown'); counts[key] = (counts[key] ?? 0) + 1; }
+  return Object.fromEntries(Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)));
+}
+function segmentValue(list, types) {
+  if (!Array.isArray(list)) return null;
+  for (const type of types) { const hit = list.filter(item => item?.action_type === type); if (hit.length === 1) return number(hit[0].value); }
+  return null;
+}
+export function commerceInsight(value) {
+  const inventory = { campaign: value.resources.campaigns.rows, adset: value.resources.adsets.rows, ad: value.resources.ads.rows };
+  const byId = Object.fromEntries(Object.entries(inventory).map(([level, rows]) => [level, new Map(rows.map(row => [row.id, row]))]));
+  // Period-level diagnostics need one row per entity covering the whole query period.
+  const unavailable = {};
+  const envelope = level => {
+    const item = value.insights.find(entry => entry.query.level === level && !(entry.query.breakdowns ?? []).length);
+    if (!item) { unavailable[level] = 'No breakdown-free query at this level.'; return null; }
+    if (item.coverage.status !== 'complete') { unavailable[level] = 'Query coverage is incomplete.'; return null; }
+    const entities = item.rows.map(row => entityFor(level, row, value.account.id));
+    const whole = (item.query.time_increment ?? 'all_days') === 'all_days' && new Set(entities).size === entities.length &&
+      item.rows.every(row => (row.date_start ?? item.query.since) === item.query.since && (row.date_stop ?? item.query.until) === item.query.until);
+    if (!whole) { unavailable[level] = 'Rows are not one whole-period bucket per entity; diagnostics withheld.'; return null; }
+    return item;
+  };
+  const account = envelope('account'), accountRow = account?.rows.length === 1 ? account.rows[0] : null;
+  const funnel = accountRow ? rowFunnel(accountRow) : Object.fromEntries([...Object.keys(FUNNEL_ALIASES), 'purchase_value'].map(key => [key, { value: null, source: null }]));
+  const spend = accountRow ? number(accountRow.spend) : null, impressions = accountRow ? number(accountRow.impressions) : null;
+  const v = key => funnel[key].value;
+  const ratios = { roas: ratio(v('purchase_value'), spend), cost_per_purchase: ratio(spend, v('purchases')), cost_per_add_to_cart: ratio(spend, v('add_to_cart')),
+    cost_per_landing_page_view: ratio(spend, v('landing_page_views')), add_to_cart_per_landing_page_view: ratio(v('add_to_cart'), v('landing_page_views')),
+    initiate_checkout_per_add_to_cart: ratio(v('initiate_checkout'), v('add_to_cart')), purchase_per_add_to_cart: ratio(v('purchases'), v('add_to_cart')),
+    purchase_per_initiate_checkout: ratio(v('purchases'), v('initiate_checkout')), average_order_value: ratio(v('purchase_value'), v('purchases')),
+    account_frequency: accountRow ? number(accountRow.frequency) : null };
+  const clicks = {}, concentration = {}, watch = [];
+  let watchStatus = 'UNAVAILABLE';
+  for (const level of ['campaign', 'adset', 'ad']) {
+    const item = envelope(level);
+    if (!item) { clicks[level] = null; concentration[level] = []; continue; }
+    const observed = item.rows.map(outbound), present = observed.filter(count => count != null);
+    clicks[level] = { outbound_clicks_exact_sum: item.rows.length && present.length === item.rows.length ? present.reduce((a, b) => a + b, 0) : null,
+      observed_outbound_clicks_sum: present.length ? present.reduce((a, b) => a + b, 0) : null, rows_with_outbound_clicks: `${present.length}/${item.rows.length}` };
+    const total = item.rows.reduce((sum, row) => sum + (number(row.spend) ?? 0), 0);
+    concentration[level] = item.rows.map(row => {
+      const id = entityFor(level, row, value.account.id), current = byId[level].get(id), m = measured(row), f = rowFunnel(row);
+      const parentAdset = level === 'ad' ? byId.adset.get(row.adset_id ?? current?.adset_id) : level === 'adset' ? current : null;
+      const parentCampaign = byId.campaign.get(level === 'campaign' ? id : row.campaign_id ?? current?.campaign_id);
+      return { entity_id: id, name: current?.name ?? row[`${level}_name`] ?? null, spend: m.spend, spend_share_fraction: m.spend != null && total > 0 ? m.spend / total : null,
+        impressions: m.impressions, cpm: m.cpm, frequency: m.frequency, outbound_clicks: m.outbound_clicks, purchases: f.purchases.value, purchase_value: f.purchase_value.value,
+        roas: ratio(f.purchase_value.value, m.spend), cost_per_purchase: ratio(m.spend, f.purchases.value), add_to_cart: f.add_to_cart.value, landing_page_views: f.landing_page_views.value,
+        effective_status: current?.effective_status ?? null, objective: parentCampaign?.objective ?? null, optimization_goal: parentAdset?.optimization_goal ?? null,
+        promoted_object_kind: parentAdset ? promotedKind(parentAdset.promoted_object) : null, daily_budget: current?.daily_budget ?? null, inventory_resolution: current ? 'resolved' : 'unresolved_historical' };
+    }).sort((a, b) => (b.spend ?? -1) - (a.spend ?? -1) || a.entity_id.localeCompare(b.entity_id)).slice(0, 5);
+    if (level === 'adset') {
+      const observedFrequency = item.rows.filter(row => number(row.frequency) != null);
+      if (item.rows.length && observedFrequency.length === item.rows.length) watchStatus = 'OBSERVED';
+      for (const row of observedFrequency) { const f = number(row.frequency); if (f >= FREQUENCY_WATCH) watch.push({ level, entity_id: entityFor(level, row, value.account.id), frequency: f }); }
+    }
+  }
+  const promotedRows = inventory.adset.map(row => row.promoted_object).filter(object);
+  const catalogIds = [...new Set(promotedRows.map(row => row.product_catalog_id).filter(Boolean).map(String))].sort();
+  const productSetIds = [...new Set([...promotedRows.map(row => row.product_set_id), ...value.resources.creatives.rows.map(row => row.product_set_id)].filter(Boolean).map(String))].sort();
+  const segmentRow = accountRow && CPAS_SEGMENT_FIELDS.some(key => Object.hasOwn(accountRow, key)) ? accountRow : null;
+  const requested = (value.scope.metric_profile ?? 'legacy') === 'cpas_v1';
+  const cpas = { status: segmentRow ? 'OBSERVED' : requested ? 'REQUESTED_NOT_RETURNED' : 'NOT_REQUESTED',
+    catalog_lineage: { catalog_ids: catalogIds, product_set_ids: productSetIds, classification: catalogIds.length || productSetIds.length ? 'UNVERIFIED_SEGMENT' : 'NO_CATALOG_LINEAGE' },
+    segment_purchases: segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['purchase', 'omni_purchase']) : null,
+    segment_add_to_cart: segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['add_to_cart', 'omni_add_to_cart']) : null,
+    segment_purchase_value: segmentRow ? segmentValue(segmentRow.catalog_segment_value, ['purchase', 'omni_purchase']) : null,
+    segment_omni_purchase_roas: segmentRow ? segmentValue(segmentRow.catalog_segment_value_omni_purchase_roas, ['omni_purchase', 'purchase']) : null,
+    segment_website_purchase_roas: segmentRow ? segmentValue(segmentRow.catalog_segment_value_website_purchase_roas, ['offsite_conversion.fb_pixel_purchase', 'purchase', 'omni_purchase']) : null,
+    segment_mobile_purchase_roas: segmentRow ? segmentValue(segmentRow.catalog_segment_value_mobile_purchase_roas, ['app_custom_event.fb_mobile_purchase', 'purchase', 'omni_purchase']) : null };
+  const summarize = (rows, extra = {}) => ({ total: rows.length, by_effective_status: countBy(rows, row => row.effective_status), ...Object.fromEntries(Object.entries(extra).map(([key, pick]) => [key, countBy(rows, pick)])) });
+  return { definition_version: 'commerce-insight/1', currency: value.account.currency ?? null, spend, impressions,
+    funnel, ratios, clicks, spend_concentration: concentration, unavailable, frequency_watch_status: watchStatus, frequency_watch: watch.sort((a, b) => b.frequency - a.frequency || a.entity_id.localeCompare(b.entity_id)), cpas,
+    inventory: { campaigns: summarize(inventory.campaign, { by_objective: row => row.objective }), adsets: summarize(inventory.adset, { by_optimization_goal: row => row.optimization_goal, by_promoted_object_kind: row => promotedKind(row.promoted_object) }),
+      ads: summarize(inventory.ad), creatives: { total: value.resources.creatives.rows.length } },
+    limits: ['Platform-attributed values; not profit, settlement or incrementality.', 'Purchase aliases are chosen in a fixed preference order, never summed.',
+      `Frequency at or above ${FREQUENCY_WATCH} is an observation to investigate, not a fatigue diagnosis.`, 'CPAS segment values are estimated, retailer-reported and kept separate from ordinary purchases; catalog lineage is unverified until is_catalog_segment is observed.'] };
+}
+function fmt(value, digits = 2) { return value == null ? 'unavailable' : Number.isInteger(value) ? String(value) : value.toFixed(digits); }
+function commerceMarkdown(insight) {
+  const f = insight.funnel, r = insight.ratios, lines = ['## Commerce funnel and diagnostics', '', `Definition ${insight.definition_version}. Currency ${md(insight.currency ?? 'unknown')}. Account-level, complete coverage only; unavailable means not measured or not returned.`, '',
+    '| Metric | Value | Source action |', '| --- | --- | --- |',
+    ...['landing_page_views', 'view_content', 'add_to_cart', 'initiate_checkout', 'purchases', 'purchase_value', 'link_clicks'].map(key => `| ${key} | ${fmt(f[key].value)} | ${md(f[key].source ?? '—')} |`), '',
+    `ROAS (platform): ${fmt(r.roas)} · Cost per purchase: ${fmt(r.cost_per_purchase)} · Cost per add-to-cart: ${fmt(r.cost_per_add_to_cart)} · Cost per landing-page view: ${fmt(r.cost_per_landing_page_view)} · AOV: ${fmt(r.average_order_value)}.`,
+    `Step rates: ATC/LPV ${fmt(r.add_to_cart_per_landing_page_view, 3)} · IC/ATC ${fmt(r.initiate_checkout_per_add_to_cart, 3)} · Purchase/ATC ${fmt(r.purchase_per_add_to_cart, 3)} · Purchase/IC ${fmt(r.purchase_per_initiate_checkout, 3)} · Account frequency ${fmt(r.account_frequency)}.`, ''];
+  for (const level of ['campaign', 'adset', 'ad']) {
+    const c = insight.clicks[level];
+    if (c) lines.push(`Outbound clicks (${level} level): exact sum ${fmt(c.outbound_clicks_exact_sum)}; observed sum ${fmt(c.observed_outbound_clicks_sum)}; rows with outbound clicks: ${c.rows_with_outbound_clicks}.`);
+    else if (insight.unavailable?.[level]) lines.push(`Outbound clicks and spend concentration (${level} level): unavailable \u2014 ${md(insight.unavailable[level])}`);
+  }
+  lines.push('', '### Spend concentration (top 5 by spend)', '');
+  for (const level of ['campaign', 'adset', 'ad']) {
+    const rows = insight.spend_concentration[level];
+    if (!rows.length) continue;
+    lines.push(`**${level}**`, '', '| ID | Name | Spend | Share | CPM | Freq | Purchases | ROAS | CPR | Status | Objective / goal |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+      ...rows.map(row => `| ${md(row.entity_id)} | ${md(row.name ?? '—')} | ${fmt(row.spend)} | ${fmt(row.spend_share_fraction, 3)} | ${fmt(row.cpm)} | ${fmt(row.frequency)} | ${fmt(row.purchases)} | ${fmt(row.roas)} | ${fmt(row.cost_per_purchase)} | ${md(row.effective_status ?? '—')} | ${md(row.objective ?? '—')} / ${md(row.optimization_goal ?? '—')} |`), '');
+  }
+  lines.push('### Frequency watch', '', insight.frequency_watch_status !== 'OBSERVED' ? '- Frequency watch unavailable: no complete whole-period ad-set frequency for every row.' : insight.frequency_watch.length ? insight.frequency_watch.map(item => `- ${item.level} ${md(item.entity_id)}: frequency ${fmt(item.frequency)} (observation, not diagnosis)`).join('\n') : '- No ad set at or above the watch threshold.', '',
+    '### Inventory structure', '', '```json', json(insight.inventory).trimEnd(), '```', '',
+    '### CPAS / catalog', '', `Status ${insight.cpas.status}; lineage ${insight.cpas.catalog_lineage.classification}; catalogs ${md(insight.cpas.catalog_lineage.catalog_ids.join(', ') || 'none')}; product sets ${md(insight.cpas.catalog_lineage.product_set_ids.join(', ') || 'none')}.`,
+    `Segment purchases ${fmt(insight.cpas.segment_purchases)} · segment value ${fmt(insight.cpas.segment_purchase_value)} · segment omni ROAS ${fmt(insight.cpas.segment_omni_purchase_roas)} (estimated, retailer-reported, separate from ordinary purchases).`, '',
+    ...insight.limits.map(text => `- ${text}`), '');
+  return lines;
+}
 function tableRows(value) {
   const records = [], inventory = { campaign: value.resources.campaigns.rows, adset: value.resources.adsets.rows, ad: value.resources.ads.rows };
   for (const envelope of value.insights) {
@@ -664,7 +812,7 @@ export function renderReport(root, id, { snapshotId, scopeKey } = {}) {
     const media = index(directory, 'media'), web = index(directory, 'web');
     for (const asset of media.assets) verifyAsset(directory, asset.path, asset.sha256);
     const mediaBytes = json(media), webBytes = json(web);
-    const inputs = { snapshot_id: selected, snapshot_hash: manifest.snapshot_hash, scope_key: selectedScope, query_ids: value.insights.map(item => item.query.query_id), renderer_version: markdownOnly ? 'dotads-markdown/3' : RENDERER, metric_definition_version: DEFINITIONS, media_index_hash: hash(mediaBytes), web_index_hash: hash(webBytes), economics: null, import_context: value.source.import_context ?? null, selection: { latest_attempt: scopeState.latest_attempt, last_complete_success: scopeState.last_complete_success ?? null, unmatched_latest_attempt: sync.unmatched_latest_attempt ?? null, explicit_snapshot: Boolean(snapshotId) } };
+    const inputs = { snapshot_id: selected, snapshot_hash: manifest.snapshot_hash, scope_key: selectedScope, query_ids: value.insights.map(item => item.query.query_id), renderer_version: markdownOnly ? 'dotads-markdown/4' : RENDERER, metric_definition_version: DEFINITIONS, media_index_hash: hash(mediaBytes), web_index_hash: hash(webBytes), economics: null, import_context: value.source.import_context ?? null, selection: { latest_attempt: scopeState.latest_attempt, last_complete_success: scopeState.last_complete_success ?? null, unmatched_latest_attempt: sync.unmatched_latest_attempt ?? null, explicit_snapshot: Boolean(snapshotId) } };
     const revision = `r_${hash(canonical(inputs))}`;
     const relative = `reports/${value.scope.since}_${value.scope.until}_${selectedScope}/${revision}`;
     const target = contained(directory, relative);
@@ -678,7 +826,8 @@ export function renderReport(root, id, { snapshotId, scopeKey } = {}) {
       lines.push(`### ${query.level} · ${query.query_id}`, '', `Rows: ${envelope.rows.length}; coverage: ${envelope.coverage.status}; time increment: ${md(query.time_increment)}; breakdowns: ${md((query.breakdowns ?? []).join(', ') || 'none')}.`, `Attribution requested: ${md(canonical(query.attribution ?? {}))}. Action report time: ${md(query.action_report_time)}. Effective response settings: ${envelope.effective_settings == null ? 'unknown' : md(canonical(envelope.effective_settings))}.`, '', totals.available ? `Spend: ${show(totals.spend)}; impressions: ${show(totals.impressions)}; outbound clicks: ${show(totals.outbound_clicks)}; outbound CTR fraction: ${show(totals.outbound_ctr_fraction)}; outbound CPC: ${show(totals.outbound_cpc)}; CPM: ${show(totals.cpm)}.` : totals.reason, '');
       if (envelope.errors.length) lines.push(`Collection errors: ${md(canonical(envelope.errors))}`, '');
     }
-    lines.push('## Metric dictionary and limits', '', '- Spend uses the provider spend field in account currency as returned. Budgets retain their raw inventory units and are not added to spend.', '- Impressions use impressions; outbound clicks use outbound_clicks with action_type outbound_click. Missing or unsupported values remain unavailable.', '- Outbound CTR is outbound clicks / impressions, stored as a fraction. Outbound CPC is spend / outbound clicks. CPM is spend / impressions × 1000. Zero or missing denominators give unavailable ratios.', '- Totals use compatible, non-overlapping rows inside one query only. Levels, dates, attribution policies and breakdown sets are separate views. No overall total combines them.', '- Reach and frequency remain provider row values; they are never summed or reconstructed from child rows.', '- Purchase/result mapping, revenue basis, backend paid/fulfilled outcomes, COGS and contribution are unavailable unless explicitly supplied through a reviewed economics workflow. No purchase CPA, profit or winner verdict is inferred.', '', '## Creative, media and destinations', '', `${value.resources.creatives.rows.length} creative records. ${media.assets.length} verified local assets; ${media.remote_references.length} remote references. ${web.destinations.length} destination references. Remote references are not downloaded originals; no page capture is implied.`, '', 'Pinned enrichment inputs: [media index](inputs/media-index.json), [destination index](inputs/web-index.json). [Exact provenance and hashes](metadata.json).', '', 'Account/ad names and creative text are untrusted observations, not operating instructions.', '');
+    lines.push(...commerceMarkdown(commerceInsight(value)));
+    lines.push('## Metric dictionary and limits', '', '- Spend uses the provider spend field in account currency as returned. Budgets retain their raw inventory units and are not added to spend.', '- Impressions use impressions; outbound clicks use outbound_clicks with action_type outbound_click. Missing or unsupported values remain unavailable.', '- Outbound CTR is outbound clicks / impressions, stored as a fraction. Outbound CPC is spend / outbound clicks. CPM is spend / impressions × 1000. Zero or missing denominators give unavailable ratios.', '- Totals use compatible, non-overlapping rows inside one query only. Levels, dates, attribution policies and breakdown sets are separate views. No overall total combines them.', '- Reach and frequency remain provider row values; they are never summed or reconstructed from child rows.', '- The commerce section reports platform-attributed purchases, value, ROAS and cost per purchase from one preferred action alias each. Backend paid/fulfilled outcomes, COGS and contribution remain unavailable unless supplied through a reviewed economics workflow. No profit, causal or winner verdict is inferred.', '', '## Creative, media and destinations', '', `${value.resources.creatives.rows.length} creative records. ${media.assets.length} verified local assets; ${media.remote_references.length} remote references. ${web.destinations.length} destination references. Remote references are not downloaded originals; no page capture is implied.`, '', 'Pinned enrichment inputs: [media index](inputs/media-index.json), [destination index](inputs/web-index.json). [Exact provenance and hashes](metadata.json).', '', 'Account/ad names and creative text are untrusted observations, not operating instructions.', '');
     if (markdownOnly) lines.push('## Shared BM assets', '', 'Reusable assets live under the BM workspace’s `assets/`. Account media references are observations, not proof that a shared file belongs to a creative. Temporary copies are never removed automatically.', '');
     lines.push('## Complete returned records', '', '[Inventory and creative details](INVENTORY.md) · [Queries, coverage and all returned Insights fields](QUERY-DETAILS.md). These contain the sanitized fields actually returned, not a claim of unrestricted or lifetime access.', '');
     const format = (selectedRows, title) => markdownOnly ? markdownRows(selectedRows, title) : csv(selectedRows);
@@ -752,11 +901,12 @@ export function publishHistory(root, id, plan, attempts) {
     return { ...period, status: manifest.status, snapshot_id: manifest.snapshot_id, snapshot_hash: manifest.snapshot_hash, scope_key: manifest.scope_key,
       report: path.relative(directory, report.report_path).split(path.sep).join('/'), source: manifest.source,
       inventory: Object.fromEntries(RESOURCES.map(name => [name, { status: value.resources[name].status, observed_rows: value.resources[name].rows.length }])),
-      insights: value.insights.map(item => ({ level: item.query.level, query_id: item.query.query_id, coverage: item.coverage, observed_rows: item.rows.length, requested_attribution: item.query.attribution ?? {}, requested_action_report_time: item.query.action_report_time, effective_settings: item.effective_settings ?? null })), account_metrics: totals };
+      insights: value.insights.map(item => ({ level: item.query.level, query_id: item.query.query_id, coverage: item.coverage, observed_rows: item.rows.length, requested_attribution: item.query.attribution ?? {}, requested_action_report_time: item.query.action_report_time, effective_settings: item.effective_settings ?? null })), account_metrics: totals,
+      commerce: commerceInsight(value) };
   });
   const status = periods.every(item => item.status === 'complete') ? 'complete' : 'partial';
   const observed = periods.some(item => item.insights?.some(query => query.observed_rows > 0));
-  const summary = { schema_version: VERSION, renderer: 'dotads-history/2', plan, status,
+  const summary = { schema_version: VERSION, renderer: 'dotads-history/3', plan, status,
     analysis_eligibility: status !== 'complete' ? 'INCOMPLETE_EVIDENCE' : observed ? 'OBSERVATIONAL_REVIEW_ONLY' : 'NO_OBSERVED_HISTORY', periods };
   const revision = `h_${hash(canonical(summary)).slice(0, 32)}`, relative = `reports/history/${revision}`, target = contained(directory, relative);
   const lines = ['# Account history evidence', '', `Account: ${id} · Timezone: ${md(plan.timezone)} · Currency: ${md(plan.currency ?? 'unknown')}`,
@@ -764,6 +914,9 @@ export function publishHistory(root, id, plan, attempts) {
     'Each window is an independent whole-period query. Windows overlap: never sum them, and never sum daily reach or average frequency. This month includes incomplete today. Reporting delays and later attribution restatements can change all windows.', '',
     '| Period | Since | Until | Coverage | Account spend | Account impressions | Evidence |', '| --- | --- | --- | --- | --- | --- | --- |'];
   for (const item of periods) lines.push(`| ${item.key}${item.includes_incomplete_today ? ' (incomplete today)' : ''} | ${item.since} | ${item.until} | ${item.status} | ${item.account_metrics?.spend ?? 'unknown'} | ${item.account_metrics?.impressions ?? 'unknown'} | ${item.report ? `[Snapshot report](../../../${item.report})` : 'No snapshot'} |`);
+  lines.push('', '## Commerce signals per window', '', 'Platform-attributed, account level, complete coverage only. Windows overlap; never sum rows.', '',
+    '| Period | Purchases | Purchase value | ROAS | Cost per purchase | ATC | IC | LPV | Frequency | CPAS status |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+  for (const item of periods) { const c = item.commerce; lines.push(c ? `| ${item.key} | ${fmt(c.funnel.purchases.value)} | ${fmt(c.funnel.purchase_value.value)} | ${fmt(c.ratios.roas)} | ${fmt(c.ratios.cost_per_purchase)} | ${fmt(c.funnel.add_to_cart.value)} | ${fmt(c.funnel.initiate_checkout.value)} | ${fmt(c.funnel.landing_page_views.value)} | ${fmt(c.ratios.account_frequency)} | ${c.cpas.status} |` : `| ${item.key} | no snapshot | | | | | | | | |`); }
   lines.push('', '## Evidence and limitations', '',
     'See [observations.json](observations.json) for snapshot hashes, query IDs, requested versus unknown/observed effective settings, per-resource coverage, row counts, versions and collection times. Snapshot reports retain available creatives, destinations, targeting, objectives, budgets and raw action/value observations.', '',
     'An exhausted, successful query with no rows is not a permission error, missing metric, or measured zero. Empty accessible inventory/history does not prove the account is new or recover lifetime history. Inventory describes collection time, not historical settings. Imported observations do not prove authenticated access. Missing metrics remain unknown.', '',
@@ -805,6 +958,7 @@ function accountMemory(directory, scope) {
   const file = contained(directory, 'memory/ads-memory.json');
   const value = fs.existsSync(file) ? readJson(file) : { version: 1, brand: scope.ad_account_id, unit_economics: null, entries: [] };
   if (value.version !== 1 || !Array.isArray(value.entries) || (value.learning_scope && canonical(value.learning_scope) !== canonical(scope))) fail('learning memory identity or schema conflict');
+  if (value.superseded_entries != null && (!Array.isArray(value.superseded_entries) || value.superseded_entries.some(item => !object(item) || !/^learning_[a-f0-9]{64}$/.test(item.id ?? '') || !/^learning_[a-f0-9]{64}$/.test(item.superseded_by ?? '') || !object(item.entry) || item.entry.id !== item.id))) fail('invalid superseded learning record');
   return value;
 }
 export function learningMarkdown(memory) {
@@ -816,6 +970,8 @@ export function learningMarkdown(memory) {
       `Stage: ${md(entry.stage ?? 'legacy/unscoped')} · Source: ${md(entry.source ?? 'unknown')} · ID: ${md(entry.id ?? 'unknown')}`, '',
       md(entry.summary ?? ''), '', '```json', json(entry).trimEnd(), '```', '');
   }
+  const retired = memory.superseded_entries ?? [];
+  if (retired.length) lines.push('## Superseded history observations', '', `Superseded history observations: ${retired.length}. Partial or older snapshots of a window replaced by a complete observation; kept in ads-memory.json superseded_entries for audit, excluded from listing, export and import.`, '', ...retired.map(item => `- ${md(item.entry.title ?? item.id)} \u2192 ${md(item.reason)} (${md(item.superseded_by)})`), '');
   for (const receipt of Object.values(memory.learning_imports ?? {})) lines.push(`[Imported evidence — unverified origin](${receipt.path.replace(/\.json$/, '.md')})`, '');
   return lines.join('\n');
 }
@@ -825,23 +981,88 @@ function saveAccountMemory(directory, scope, memory) {
   atomic(contained(directory, 'memory/ads-memory.json'), memory);
   atomic(contained(directory, 'memory/MEMORY.md'), learningMarkdown(memory));
 }
+function historyEntry(scope, period) {
+  const eligibility = period.status !== 'complete' ? 'INCOMPLETE_EVIDENCE' : period.insights.some(query => query.observed_rows > 0) ? 'OBSERVATIONAL_REVIEW_ONLY' : 'NO_OBSERVED_HISTORY';
+  const metrics = period.commerce ? { ...period.account_metrics, commerce: period.commerce } : period.account_metrics;
+  const entry = { learning_version: 1, source: 'data', category: 'history', verdict: 'insight', stage: 'observation',
+    title: `${period.key}: ${period.since} through ${period.until}`, summary: `${period.status} collection; ${eligibility}. Current inventory and whole-period Insights are separate observations.`,
+    scope: { ...scope, since: period.since, until: period.until },
+    evidence: period.insights.map(query => ({ snapshot_id: period.snapshot_id, snapshot_hash: period.snapshot_hash, query_id: query.query_id, entity_id: null })),
+    metrics, history_context: { period: period.key, period_status: period.status, analysis_eligibility: eligibility, includes_incomplete_today: period.includes_incomplete_today },
+    confidence: 'UNASSESSED', replication_status: 'NOT_ESTABLISHED' };
+  entry.id = `learning_${hash(canonical(entry))}`;
+  return { ...entry, created_at: period.source.finished_at };
+}
+// A complete window makes older history observations for the exact same window obsolete.
+// They move to superseded_entries (audit trail), unless a lifecycle record names them as parent.
+function supersedeHistory(memory, scope) {
+  const history = memory.entries.filter(entry => scopedEntry(entry, scope) && entry.category === 'history' && entry.stage === 'observation' && entry.history_context);
+  const parents = new Set(memory.entries.map(entry => entry.parent_id).filter(Boolean));
+  const windowKey = entry => canonical([entry.history_context.period, entry.scope.since, entry.scope.until]);
+  // Order by collection instant (numeric), then by current enriched representation, then by ID.
+  const instant = entry => { const t = Date.parse(entry.created_at ?? ''); return Number.isFinite(t) ? t : -Infinity; };
+  const enriched = entry => (object(entry.metrics) && object(entry.metrics.commerce) ? 1 : 0);
+  const newer = (a, b) => instant(a) !== instant(b) ? instant(a) > instant(b) : enriched(a) !== enriched(b) ? enriched(a) > enriched(b) : a.id > b.id;
+  const latestComplete = new Map();
+  for (const entry of history) if (entry.history_context.period_status === 'complete') {
+    const key = windowKey(entry), current = latestComplete.get(key);
+    if (!current || newer(entry, current)) latestComplete.set(key, entry);
+  }
+  const moved = [];
+  for (const entry of history) {
+    const winner = latestComplete.get(windowKey(entry));
+    if (!winner || winner.id === entry.id || parents.has(entry.id)) continue;
+    moved.push({ entry, superseded_by: winner.id, reason: entry.history_context.period_status === 'complete' ? 'NEWER_COMPLETE_SNAPSHOT' : 'COMPLETE_WINDOW_AVAILABLE' });
+  }
+  if (!moved.length) return 0;
+  const ids = new Set(moved.map(item => item.entry.id));
+  memory.entries = memory.entries.filter(entry => !ids.has(entry.id));
+  const stamp = moved.reduce((latest, item) => { const winner = latestComplete.get(windowKey(item.entry)); return winner && instant(winner) > (latest ? Date.parse(latest) : -Infinity) ? winner.created_at : latest; }, '');
+  memory.superseded_entries = [...(memory.superseded_entries ?? []), ...moved.map(item => ({ id: item.entry.id, superseded_by: item.superseded_by, reason: item.reason, superseded_at: stamp || null, entry: item.entry }))];
+  return moved.length;
+}
 function historyLearning(root, id, directory, summary) {
   const scope = learningScope(root, id), memory = accountMemory(directory, scope);
+  const retired = new Set((memory.superseded_entries ?? []).map(item => item.id));
   let added = 0;
   for (const period of summary.periods.filter(item => item.snapshot_id)) {
-    const eligibility = period.status !== 'complete' ? 'INCOMPLETE_EVIDENCE' : period.insights.some(query => query.observed_rows > 0) ? 'OBSERVATIONAL_REVIEW_ONLY' : 'NO_OBSERVED_HISTORY';
-    const entry = { learning_version: 1, source: 'data', category: 'history', verdict: 'insight', stage: 'observation',
-      title: `${period.key}: ${period.since} through ${period.until}`, summary: `${period.status} collection; ${eligibility}. Current inventory and whole-period Insights are separate observations.`,
-      scope: { ...scope, since: period.since, until: period.until },
-      evidence: period.insights.map(query => ({ snapshot_id: period.snapshot_id, snapshot_hash: period.snapshot_hash, query_id: query.query_id, entity_id: null })),
-      metrics: period.account_metrics, history_context: { period: period.key, period_status: period.status, analysis_eligibility: eligibility, includes_incomplete_today: period.includes_incomplete_today },
-      confidence: 'UNASSESSED', replication_status: 'NOT_ESTABLISHED' };
-    entry.id = `learning_${hash(canonical(entry))}`;
-    if (!memory.entries.some(item => item.id === entry.id)) { memory.entries.push({ ...entry, created_at: period.source.finished_at }); added++; }
+    const entry = historyEntry(scope, period);
+    if (!memory.entries.some(item => item.id === entry.id) && !retired.has(entry.id)) { memory.entries.push(entry); added++; }
   }
+  const superseded = supersedeHistory(memory, scope);
   // Regenerate the derived Markdown on retry after a partial filesystem failure.
   saveAccountMemory(directory, scope, memory);
-  return { added, entries: memory.entries.filter(entry => scopedEntry(entry, scope)).length, memory_path: path.join(directory, 'memory/MEMORY.md') };
+  return { added, superseded, entries: memory.entries.filter(entry => scopedEntry(entry, scope)).length, memory_path: path.join(directory, 'memory/MEMORY.md') };
+}
+// Offline refresh: rebuild history observations from saved history revisions and verified
+// snapshots. No provider calls; snapshot directories are only read and re-verified.
+export function refreshLearning(root, id, { apply = false } = {}) {
+  const { directory } = resolveAccount(root, id), scope = learningScope(root, id);
+  const pointer = contained(directory, 'history.json');
+  if (!fs.existsSync(pointer)) fail('no complete or latest history revision to refresh from');
+  const saved = readJson(pointer), revisions = [saved.last_complete_success, saved.latest_attempt].filter(Boolean).map(item => item.path).filter((item, i, all) => all.indexOf(item) === i);
+  if (!revisions.length) fail('no complete or latest history revision to refresh from');
+  return withLock(directory, '.account.lock', () => {
+    const memory = accountMemory(directory, scope), before = json(memory), retired = new Set((memory.superseded_entries ?? []).map(item => item.id));
+    let added = 0;
+    for (const relative of revisions) {
+      const summary = readJson(contained(directory, relative.replace(/HISTORY\.md$/, 'observations.json')));
+      for (const period of summary.periods.filter(item => item.snapshot_id)) {
+        const { manifest, value } = readSnapshot(directory, period.snapshot_id);
+        if (manifest.snapshot_hash !== period.snapshot_hash) fail('history revision snapshot hash mismatch');
+        const entry = historyEntry(scope, { ...period, commerce: commerceInsight(value) });
+        if (!memory.entries.some(item => item.id === entry.id) && !retired.has(entry.id)) { memory.entries.push(entry); added++; }
+      }
+    }
+    const superseded = supersedeHistory(memory, scope);
+    const result = { account_id: id, revisions, applied: apply, superseded, entries: memory.entries.filter(entry => scopedEntry(entry, scope)).length };
+    if (!apply) return { ...result, would_add: added, would_supersede: superseded, added: 0 };
+    mkdir(contained(directory, 'memory/backups'));
+    const backup = contained(directory, `memory/backups/ads-memory.${new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 17)}.${hash(before).slice(0, 12)}.json`);
+    if (!fs.existsSync(backup)) writeNew(backup, before);
+    saveAccountMemory(directory, scope, memory);
+    return { ...result, added, backup, memory_path: path.join(directory, 'memory/MEMORY.md') };
+  });
 }
 function validateEvidenceRecord(record, scope) {
   if (!object(record) || Object.keys(record).some(key => !['snapshot_id', 'snapshot_hash', 'collection'].includes(key)) || !/^s_[0-9]+_[a-f0-9]{20}$/.test(record.snapshot_id ?? '') || !/^[a-f0-9]{64}$/.test(record.snapshot_hash ?? '') || !object(record.collection)) fail('invalid portable snapshot evidence');
@@ -959,6 +1180,11 @@ export function importLearning(root, id, input) {
     for (const entry of bundle.entries) if (byId.has(entry.id) && canonical(byId.get(entry.id)) !== canonical(entry)) fail('learning ID conflict; explicit reconciliation required, nothing overwritten');
     const records = evidenceFor(directory, memory, memory.entries.filter(entry => scopedEntry(entry, scope)));
     for (const record of bundle.evidence) if (records.has(record.snapshot_id) && canonical(records.get(record.snapshot_id)) !== canonical(record)) fail('learning snapshot conflict; explicit reconciliation required');
+    // Validate lifecycle on the resulting active set before writing anything.
+    const retiredIds = new Set((memory.superseded_entries ?? []).map(item => item.id));
+    const resulting = [...memory.entries.filter(entry => scopedEntry(entry, scope)), ...bundle.entries.filter(entry => !retiredIds.has(entry.id) && !byId.has(entry.id))];
+    for (const entry of bundle.entries) if (!retiredIds.has(entry.id) && entry.parent_id && retiredIds.has(entry.parent_id)) fail('learning import references a parent retired as superseded on this device; explicit reconciliation required');
+    for (const entry of resulting) validateLifecycle(entry, resulting);
     const digest = hash(raw), relative = `imports/${digest}.json`, saved = contained(directory, `memory/${relative}`);
     mkdir(contained(directory, 'memory/imports'));
     if (fs.existsSync(saved)) { if (hash(fs.readFileSync(saved)) !== digest) fail('immutable imported bundle hash mismatch'); }
@@ -967,11 +1193,12 @@ export function importLearning(root, id, input) {
     const mdFile = contained(directory, `memory/imports/${digest}.md`);
     if (fs.existsSync(mdFile)) { if (fs.readFileSync(mdFile, 'utf8') !== markdown) fail('immutable imported Markdown conflict'); }
     else writeNew(mdFile, markdown);
-    let added = 0;
-    for (const entry of bundle.entries) if (!byId.has(entry.id)) { memory.entries.push(entry); added++; }
+    const retired = new Set((memory.superseded_entries ?? []).map(item => item.id));
+    let added = 0, skipped = 0;
+    for (const entry of bundle.entries) if (retired.has(entry.id)) skipped++; else if (!byId.has(entry.id)) { memory.entries.push(entry); added++; }
     memory.learning_imports = { ...memory.learning_imports, [digest]: { path: relative, authenticated_read_observed: false } };
     saveAccountMemory(directory, scope, memory);
-    return { account_id: id, added, total_entries: memory.entries.filter(entry => scopedEntry(entry, scope)).length, sha256: digest, authenticated_read_observed: false, memory_path: path.join(directory, 'memory/MEMORY.md') };
+    return { account_id: id, added, skipped_superseded: skipped, total_entries: memory.entries.filter(entry => scopedEntry(entry, scope)).length, sha256: digest, authenticated_read_observed: false, memory_path: path.join(directory, 'memory/MEMORY.md') };
   });
 }
 

@@ -256,11 +256,15 @@ benchmark exists in the evidence.
   general facts. Fee rows and waivers carry effective dates and expire.
 - Restatements and overlapping windows are revisions, not replications.
 
-## 8. dotads-meta plan (not implemented)
+## 8. dotads-meta plan
 
 [proposal] Evidence quality before automation breadth:
 
-1. **Phase 1 — read safely.** Opt-in `metric_profile` (`legacy` default,
+1. **Phase 1 — read safely.** *Partly implemented (TASK-194):* opt-in
+   `--metric-profile cpas_v1` adds the five segment arrays; legacy requests and
+   hashes are unchanged; reports show CPAS status, unverified catalog lineage
+   and segment values separately. Still open: catalog-observation file with
+   `is_catalog_segment`, and the product query. Opt-in `metric_profile` (`legacy` default,
    byte-identical hashes; `cpas_v1` adds the five segment arrays). Product
    query is a separate, capability-tested option. Classification is a
    separate immutable catalog-observation file, not a new v1 resource.

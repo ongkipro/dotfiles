@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { ensureRoot, saveSnapshot, renderReport, importMedia, listLocalAccounts, validateCollection, recordFailure, planAdoption, registerExisting, prepareAccount, ensureBMAssets, accountContext, planHistory, validateHistoryCollection, publishHistory, listLearning, recordLearning, exportLearning, importLearning } from './_dotads-workspace.mjs';
+import { ensureRoot, saveSnapshot, renderReport, importMedia, listLocalAccounts, validateCollection, recordFailure, planAdoption, registerExisting, prepareAccount, ensureBMAssets, accountContext, planHistory, validateHistoryCollection, publishHistory, listLearning, recordLearning, exportLearning, importLearning, commerceInsight, refreshLearning } from './_dotads-workspace.mjs';
 
 function fixture(t) {
   const temporary = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dotads-workspace-test-')));
@@ -134,6 +134,11 @@ test('complete empty history is absent evidence, not measured zero, new-account 
 });
 
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value !== null && typeof value === 'object') return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
+  return JSON.stringify(value);
+}
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 
 function learnedHistory(root) {
@@ -429,7 +434,7 @@ test('separate query views include zero-row inventory and unresolved history wit
   const markdown = fs.readFileSync(report.report_path, 'utf8'), ads = fs.readFileSync(path.join(report.report_directory, 'ads.csv'), 'utf8');
   assert.match(ads, /No spend row/); assert.match(ads, /no_insights_row/); assert.match(ads, /unresolved_historical/);
   assert.match(markdown, /outbound CPC: unavailable/); assert.match(markdown, /outbound clicks: unavailable/);
-  assert.doesNotMatch(markdown, /Spend: 20/); assert.match(markdown, /Purchase\/result mapping/);
+  assert.doesNotMatch(markdown, /Spend: 20/); assert.match(markdown, /No profit, causal or winner verdict is inferred/);
   assert.equal(read(path.join(saved.snapshot_path, 'insights.json')).length, 2);
 });
 
@@ -779,4 +784,211 @@ test('shared BM assets deduplicate across accounts and temporary copies never mo
   const indexPath = path.join(root, 'assets/index.json'), indexValue = read(indexPath);
   indexValue.imports[0].account_id = 'act_999'; fs.writeFileSync(indexPath, JSON.stringify(indexValue));
   assert.throws(() => importMedia(root, 'act_456', source, { shared: true }), /invalid media import journal/);
+});
+
+// --- TASK-194: e-commerce insight, CPAS cpas_v1, history supersede, offline refresh ---
+function commerceCollection(period = { since: '2026-09-01', until: '2026-09-30' }, { cpas = false, purchases = '4' } = {}) {
+  const payload = historyCollection(period);
+  payload.resources.campaigns.rows = [
+    { id: '1', account_id: '123', name: 'Sales prospecting', objective: 'OUTCOME_SALES', effective_status: 'ACTIVE', daily_budget: '50000' },
+    { id: '7', account_id: '123', name: 'Awareness', objective: 'OUTCOME_AWARENESS', effective_status: 'PAUSED' }];
+  payload.resources.adsets.rows = [
+    { id: '2', account_id: '123', campaign_id: '1', name: 'Broad', effective_status: 'ACTIVE', optimization_goal: 'OFFSITE_CONVERSIONS', promoted_object: { pixel_id: '55', custom_event_type: 'PURCHASE' } },
+    { id: '8', account_id: '123', campaign_id: '7', name: 'Reach', effective_status: 'PAUSED', optimization_goal: 'REACH' },
+    ...(cpas ? [{ id: '9', account_id: '123', campaign_id: '1', name: 'Catalog', effective_status: 'ACTIVE', optimization_goal: 'OFFSITE_CONVERSIONS', promoted_object: { product_catalog_id: '777', product_set_id: '888' } }] : [])];
+  payload.resources.ads.rows = [
+    { id: '3', account_id: '123', campaign_id: '1', adset_id: '2', name: 'Hook A', effective_status: 'ACTIVE', creative: { id: '4' } },
+    { id: '10', account_id: '123', campaign_id: '7', adset_id: '8', name: 'Brand video', effective_status: 'PAUSED' }];
+  payload.resources.creatives.rows = [{ id: '4', account_id: '123', product_set_id: cpas ? '888' : undefined }].map(row => Object.fromEntries(Object.entries(row).filter(([, v]) => v !== undefined)));
+  const actions = [{ action_type: 'landing_page_view', value: '40' }, { action_type: 'omni_landing_page_view', value: '42' },
+    { action_type: 'add_to_cart', value: '12' }, { action_type: 'offsite_conversion.fb_pixel_add_to_cart', value: '12' },
+    { action_type: 'initiate_checkout', value: '6' }, { action_type: 'omni_purchase', value: purchases }, { action_type: 'purchase', value: purchases },
+    { action_type: 'offsite_conversion.fb_pixel_purchase', value: purchases }, { action_type: 'link_click', value: '90' }];
+  const values = [{ action_type: 'omni_purchase', value: '800000' }, { action_type: 'purchase', value: '800000' }];
+  const row = (extra, metrics) => ({ account_id: '123', ...extra, ...metrics });
+  const segment = cpas ? { catalog_segment_actions: [{ action_type: 'purchase', value: '3' }, { action_type: 'add_to_cart', value: '9' }], catalog_segment_value: [{ action_type: 'purchase', value: '450000' }], catalog_segment_value_omni_purchase_roas: [{ action_type: 'omni_purchase', value: '2.25' }] } : {};
+  payload.insights = [
+    { level: 'account', rows: [row({}, { spend: '200000', impressions: '20000', reach: '8000', frequency: '2.5', outbound_clicks: [{ action_type: 'outbound_click', value: '80' }], actions, action_values: values, ...segment })] },
+    { level: 'campaign', rows: [
+      row({ campaign_id: '1' }, { spend: '180000', impressions: '15000', reach: '6000', frequency: '2.5', outbound_clicks: [{ action_type: 'outbound_click', value: '80' }], actions, action_values: values, ...segment }),
+      row({ campaign_id: '7' }, { spend: '20000', impressions: '5000', reach: '2000', frequency: '2.5' })] },
+    { level: 'adset', rows: [
+      row({ campaign_id: '1', adset_id: '2' }, { spend: '180000', impressions: '15000', reach: '3000', frequency: '5.0', outbound_clicks: [{ action_type: 'outbound_click', value: '80' }], actions, action_values: values }),
+      row({ campaign_id: '7', adset_id: '8' }, { spend: '20000', impressions: '5000', reach: '2000', frequency: '2.5' })] },
+    { level: 'ad', rows: [
+      row({ campaign_id: '1', adset_id: '2', ad_id: '3' }, { spend: '180000', impressions: '15000', reach: '3000', frequency: '5.0', outbound_clicks: [{ action_type: 'outbound_click', value: '80' }], actions, action_values: values }),
+      row({ campaign_id: '7', adset_id: '8', ad_id: '10' }, { spend: '20000', impressions: '5000', reach: '2000', frequency: '2.5' })] },
+  ].map(({ level, rows }) => ({ query: { account_id: '123', since: period.since, until: period.until, level, fields: ['spend', 'impressions', 'actions'], breakdowns: [], time_increment: 'all_days', attribution: {}, action_report_time: 'conversion' }, coverage: { status: 'complete', pagination_exhausted: true }, rows, errors: [] }));
+  payload.account.currency = 'IDR';
+  return payload;
+}
+
+test('commerce insight is deterministic, never sums purchase aliases and keeps partial click coverage honest', () => {
+  const insight = commerceInsight(commerceCollection());
+  assert.deepEqual(commerceInsight(commerceCollection()), insight, 'pure and deterministic');
+  const funnel = insight.funnel;
+  assert.equal(funnel.purchases.value, 4); assert.equal(funnel.purchases.source, 'omni_purchase');
+  assert.equal(funnel.purchase_value.value, 800000);
+  assert.equal(funnel.landing_page_views.value, 42); assert.equal(funnel.landing_page_views.source, 'omni_landing_page_view');
+  assert.equal(funnel.add_to_cart.value, 12); assert.equal(funnel.initiate_checkout.value, 6);
+  assert.equal(insight.ratios.roas, 4); assert.equal(insight.ratios.cost_per_purchase, 50000);
+  assert.equal(insight.ratios.add_to_cart_per_landing_page_view, 12 / 42);
+  assert.equal(insight.ratios.purchase_per_add_to_cart, 4 / 12);
+  const campaigns = insight.clicks.campaign;
+  assert.equal(campaigns.outbound_clicks_exact_sum, null, 'one row omitted outbound_clicks');
+  assert.equal(campaigns.observed_outbound_clicks_sum, 80); assert.equal(campaigns.rows_with_outbound_clicks, '1/2');
+  const top = insight.spend_concentration.campaign;
+  assert.equal(top[0].entity_id, '1'); assert.equal(top[0].spend_share_fraction, 0.9);
+  assert.equal(top[0].objective, 'OUTCOME_SALES'); assert.equal(top[0].purchases, 4);
+  assert.equal(insight.spend_concentration.adset[0].optimization_goal, 'OFFSITE_CONVERSIONS');
+  assert.equal(insight.spend_concentration.adset[0].promoted_object_kind, 'pixel_conversion');
+  assert.deepEqual(insight.frequency_watch.map(item => item.entity_id), ['2'], 'adset at frequency 5 is flagged as an observation');
+  assert.equal(insight.inventory.campaigns.by_effective_status.ACTIVE, 1);
+  assert.equal(insight.inventory.adsets.by_promoted_object_kind.pixel_conversion, 1);
+  assert.equal(insight.cpas.catalog_lineage.catalog_ids.length, 0);
+  assert.equal(insight.cpas.status, 'NOT_REQUESTED');
+  assert.match(insight.limits.join(' '), /not profit/i);
+});
+
+test('CPAS cpas_v1 metrics stay separate from ordinary purchases and lineage never changes snapshot hashes', t => {
+  const insight = commerceInsight(commerceCollection(undefined, { cpas: true }));
+  assert.deepEqual(insight.cpas.catalog_lineage.catalog_ids, ['777']);
+  assert.deepEqual(insight.cpas.catalog_lineage.product_set_ids, ['888']);
+  assert.equal(insight.cpas.catalog_lineage.classification, 'UNVERIFIED_SEGMENT', 'is_catalog_segment was not observed');
+  assert.equal(insight.cpas.segment_purchases, 3); assert.equal(insight.cpas.segment_purchase_value, 450000);
+  assert.equal(insight.cpas.segment_omni_purchase_roas, 2.25);
+  assert.equal(insight.funnel.purchases.value, 4, 'ordinary purchases are not replaced by segment values');
+  const { root } = fixture(t), payload = commerceCollection();
+  const saved = saveSnapshot(root, payload), before = read(path.join(saved.snapshot_path, 'manifest.json')).snapshot_hash;
+  commerceInsight(read(path.join(saved.snapshot_path, 'insights.json')) && commerceCollection());
+  assert.equal(read(path.join(saved.snapshot_path, 'manifest.json')).snapshot_hash, before);
+});
+
+test('history learning carries commerce insight, supersedes partial windows, keeps parents and blocks resurrection on import', t => {
+  const { temporary, root } = fixture(t), plan = planHistory(commerceCollection().account, '2026-11-04T00:00:00Z');
+  const partialAttempts = plan.periods.map(period => {
+    const payload = commerceCollection(period); payload.insights[1].coverage = { status: 'partial', pagination_exhausted: false };
+    return { period: period.key, snapshot_id: saveSnapshot(root, payload).snapshot_id };
+  });
+  publishHistory(root, 'act_123', plan, partialAttempts);
+  const partialEntries = listLearning(root, 'act_123').entries;
+  assert.equal(partialEntries.length, 5);
+  assert.ok(partialEntries.every(entry => entry.history_context.analysis_eligibility === 'INCOMPLETE_EVIDENCE'));
+  const protectedParent = partialEntries.find(entry => entry.history_context.period === 'last_7d');
+  followup(root, protectedParent, 'hypothesis', { prediction: 'Direction.', alternatives: 'Auction.', falsification: 'No change.' });
+  const transport = path.join(temporary, 'transport'); fs.mkdirSync(transport, { mode: 0o700 });
+  const oldBundle = exportLearning(root, 'act_123', path.join(transport, 'old.json')).output;
+  const completeAttempts = plan.periods.map(period => ({ period: period.key, snapshot_id: saveSnapshot(root, commerceCollection(period, { purchases: '5' })).snapshot_id }));
+  const complete = publishHistory(root, 'act_123', plan, completeAttempts);
+  assert.equal(complete.learning.added, 5); assert.equal(complete.learning.superseded, 4, 'the last_7d parent is protected');
+  const listed = listLearning(root, 'act_123');
+  assert.equal(listed.evidence_integrity, 'VERIFIED_BYTES_NOT_ORIGIN');
+  const history = listed.entries.filter(entry => entry.category === 'history' && entry.stage === 'observation');
+  assert.equal(history.length, 6);
+  assert.equal(history.filter(entry => entry.history_context.analysis_eligibility === 'INCOMPLETE_EVIDENCE').length, 1);
+  assert.equal(history.find(entry => entry.history_context.period === 'last_30d' && entry.history_context.period_status === 'complete').metrics.commerce.funnel.purchases.value, 5);
+  const memory = read(path.join(path.dirname(complete.report_path), '../../../memory/ads-memory.json'));
+  assert.equal(memory.superseded_entries.length, 4);
+  assert.ok(memory.superseded_entries.every(item => item.superseded_by && item.reason === 'COMPLETE_WINDOW_AVAILABLE'));
+  assert.equal(publishHistory(root, 'act_123', plan, completeAttempts).learning.superseded, 0, 'idempotent');
+  const imported = importLearning(root, 'act_123', oldBundle);
+  assert.equal(imported.added, 0); assert.equal(imported.skipped_superseded, 4);
+  assert.equal(listLearning(root, 'act_123').entries.length, listed.entries.length);
+  const fresh = exportLearning(root, 'act_123', path.join(transport, 'fresh.json'));
+  assert.equal(read(fresh.output).entries.length, listed.entries.length);
+  const markdown = fs.readFileSync(path.join(path.dirname(complete.report_path), '../../../memory/MEMORY.md'), 'utf8');
+  assert.match(markdown, /Superseded history observations: 4/);
+  const historyMd = fs.readFileSync(complete.report_path, 'utf8');
+  assert.match(historyMd, /Purchases/); assert.match(historyMd, /ROAS/);
+  const report = renderReport(root, 'act_123', { snapshotId: completeAttempts[2].snapshot_id });
+  const reportMd = fs.readFileSync(report.report_path, 'utf8');
+  assert.match(reportMd, /Commerce funnel and diagnostics/); assert.match(reportMd, /Spend concentration/);
+  assert.match(reportMd, /rows with outbound clicks: 1\/2/);
+  assert.equal(read(report.metadata_path).renderer_version, 'dotads-markdown-csv/3');
+});
+
+test('offline learning refresh rebuilds observations from verified snapshots, dry-runs by default and never touches snapshots', t => {
+  const { root } = fixture(t), plan = planHistory(commerceCollection().account, '2026-11-04T00:00:00Z');
+  const attempts = plan.periods.map(period => ({ period: period.key, snapshot_id: saveSnapshot(root, commerceCollection(period)).snapshot_id }));
+  const history = publishHistory(root, 'act_123', plan, attempts), directory = path.resolve(path.dirname(history.report_path), '../../..');
+  const snapshotBytes = Object.fromEntries(fs.readdirSync(path.join(directory, 'data/snapshots')).flatMap(id => fs.readdirSync(path.join(directory, 'data/snapshots', id)).map(name => [`${id}/${name}`, sha(fs.readFileSync(path.join(directory, 'data/snapshots', id, name)))])));
+  const memoryFile = path.join(directory, 'memory/ads-memory.json'), memory = read(memoryFile);
+  memory.entries = memory.entries.filter(entry => entry.history_context?.period !== 'last_30d');
+  fs.writeFileSync(memoryFile, JSON.stringify(memory));
+  const dry = refreshLearning(root, 'act_123');
+  assert.equal(dry.applied, false); assert.equal(dry.would_add, 1);
+  assert.equal(read(memoryFile).entries.length, 4, 'dry run writes nothing');
+  const applied = refreshLearning(root, 'act_123', { apply: true });
+  assert.equal(applied.applied, true); assert.equal(applied.added, 1); assert.ok(fs.existsSync(applied.backup));
+  assert.equal(read(applied.backup).entries.length, 4);
+  assert.equal(listLearning(root, 'act_123').entries.length, 5);
+  assert.equal(refreshLearning(root, 'act_123', { apply: true }).added, 0, 'idempotent');
+  for (const [file, digest] of Object.entries(snapshotBytes)) assert.equal(sha(fs.readFileSync(path.join(directory, 'data/snapshots', file))), digest, `snapshot ${file} unchanged`);
+  const empty = fixture(t); saveSnapshot(empty.root, commerceCollection());
+  assert.throws(() => refreshLearning(empty.root, 'act_123'), /no complete or latest history/);
+});
+
+// --- TASK-194 review regressions ---
+test('commerce diagnostics require a whole-period grain and keep unavailable evidence explicit', t => {
+  const daily = commerceCollection(); const adEnvelope = daily.insights.find(item => item.query.level === 'ad');
+  adEnvelope.query.time_increment = 1;
+  adEnvelope.rows = [{ ...adEnvelope.rows[0], date_start: '2026-09-01', date_stop: '2026-09-15' }, { ...adEnvelope.rows[0], date_start: '2026-09-16', date_stop: '2026-09-30' }];
+  const insight = commerceInsight(daily);
+  assert.equal(insight.clicks.ad, null); assert.deepEqual(insight.spend_concentration.ad, []);
+  assert.match(insight.unavailable.ad, /whole-period/);
+  const withoutAdset = commerceCollection(); withoutAdset.insights = withoutAdset.insights.filter(item => item.query.level !== 'adset');
+  const missing = commerceInsight(withoutAdset);
+  assert.equal(missing.frequency_watch_status, 'UNAVAILABLE');
+  const noFrequency = commerceCollection(); for (const row of noFrequency.insights.find(item => item.query.level === 'adset').rows) delete row.frequency;
+  assert.equal(commerceInsight(noFrequency).frequency_watch_status, 'UNAVAILABLE');
+  assert.equal(commerceInsight(commerceCollection()).frequency_watch_status, 'OBSERVED');
+  const { root } = fixture(t); const value = collection(); value.insights[0].query.time_increment = 1;
+  value.insights[0].rows[0].date_start = '2026-09-01'; value.insights[0].rows[0].date_stop = '2026-09-02';
+  value.insights[0].rows[0].outbound_clicks = [{ action_type: 'outbound_click', value: '5' }];
+  value.insights[0].rows.push({ ...value.insights[0].rows[0], date_start: '2026-09-02', date_stop: '2026-09-03' });
+  saveSnapshot(root, value); const report = fs.readFileSync(renderReport(root, 'act_123').report_path, 'utf8');
+  assert.doesNotMatch(report, /exact sum 10/); assert.match(report, /Frequency watch unavailable/);
+});
+
+test('CPAS observation is detected from any of the five segment fields', () => {
+  for (const [field, key, type] of [['catalog_segment_value_website_purchase_roas', 'segment_website_purchase_roas', 'offsite_conversion.fb_pixel_purchase'], ['catalog_segment_value_mobile_purchase_roas', 'segment_mobile_purchase_roas', 'app_custom_event.fb_mobile_purchase']]) {
+    const payload = commerceCollection(); payload.insights[0].rows[0][field] = [{ action_type: type, value: '1.5' }];
+    const insight = commerceInsight(payload);
+    assert.equal(insight.cpas.status, 'OBSERVED', field); assert.equal(insight.cpas[key], 1.5);
+  }
+});
+
+test('supersede picks the latest collection instant and prefers the enriched representation of the same snapshot', t => {
+  const { root } = fixture(t), plan = planHistory(commerceCollection().account, '2026-11-04T00:00:00Z');
+  const first = plan.periods.map(period => { const p = commerceCollection(period); p.source.finished_at = '2026-10-01T00:00:10Z'; return { period: period.key, snapshot_id: saveSnapshot(root, p).snapshot_id }; });
+  publishHistory(root, 'act_123', plan, first);
+  const second = plan.periods.map(period => { const p = commerceCollection(period, { purchases: '6' }); p.source.finished_at = '2026-10-01T00:00:10.500Z'; return { period: period.key, snapshot_id: saveSnapshot(root, p).snapshot_id }; });
+  const result = publishHistory(root, 'act_123', plan, second);
+  assert.equal(result.learning.superseded, 5);
+  const active = listLearning(root, 'act_123').entries;
+  assert.ok(active.every(entry => entry.metrics.commerce.funnel.purchases.value === 6), 'the later instant wins despite string ordering');
+  const memoryFile = path.join(path.resolve(path.dirname(result.report_path), '../../..'), 'memory/ads-memory.json'), memory = read(memoryFile);
+  // Simulate a pre-TASK-194 memory: same snapshot, legacy representation without metrics.commerce.
+  memory.entries = memory.entries.map(entry => { const legacy = { ...entry, metrics: { ...entry.metrics } }; delete legacy.metrics.commerce; delete legacy.id; delete legacy.created_at; return { ...legacy, id: `learning_${sha(canonicalJson(legacy))}`, created_at: entry.created_at }; });
+  memory.superseded_entries = [];
+  fs.writeFileSync(memoryFile, JSON.stringify(memory));
+  const refreshed = refreshLearning(root, 'act_123', { apply: true });
+  assert.equal(refreshed.added, 5); assert.equal(refreshed.superseded, 5);
+  assert.ok(listLearning(root, 'act_123').entries.every(entry => entry.metrics.commerce), 'enriched representation kept');
+});
+
+test('import rejects a lifecycle child whose parent is retired locally, before any write', t => {
+  const { temporary, root } = fixture(t), plan = planHistory(commerceCollection().account, '2026-11-04T00:00:00Z');
+  const partial = plan.periods.map(period => { const p = commerceCollection(period); p.insights[1].coverage = { status: 'partial', pagination_exhausted: false }; return { period: period.key, snapshot_id: saveSnapshot(root, p).snapshot_id }; });
+  publishHistory(root, 'act_123', plan, partial);
+  const transport = path.join(temporary, 'transport'); fs.mkdirSync(transport, { mode: 0o700 });
+  const other = path.join(temporary, 'other'); fs.cpSync(root, other, { recursive: true });
+  const parent = listLearning(other, 'act_123').entries.find(entry => entry.history_context.period === 'last_30d');
+  recordLearning(other, 'act_123', { stage: 'hypothesis', since: parent.scope.since, until: parent.scope.until, title: 'Remote hypothesis', summary: 'Recorded on the other device.', evidence: parent.evidence, parent_id: parent.id, protocol: { prediction: 'Direction.', alternatives: 'Auction.', falsification: 'No change.' } });
+  const bundle = exportLearning(other, 'act_123', path.join(transport, 'remote.json')).output;
+  publishHistory(root, 'act_123', plan, plan.periods.map(period => ({ period: period.key, snapshot_id: saveSnapshot(root, commerceCollection(period)).snapshot_id })));
+  const memoryFile = path.join(path.resolve(path.dirname(listLearning(root, 'act_123').memory_path)), 'ads-memory.json'), before = fs.readFileSync(memoryFile, 'utf8');
+  assert.throws(() => importLearning(root, 'act_123', bundle), /retired|superseded/);
+  assert.equal(fs.readFileSync(memoryFile, 'utf8'), before);
+  assert.equal(listLearning(root, 'act_123').evidence_integrity, 'VERIFIED_BYTES_NOT_ORIGIN');
 });

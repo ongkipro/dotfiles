@@ -1216,6 +1216,39 @@ bundle = transport / 'learning.json'
 portable = call('learn','export','--account','act_123','--output',str(bundle),'--json')
 assert portable['entries'] == 6 and portable['transferred'] is False
 assert call('learn','import','--account','act_123','--input',str(bundle),'--json')['added'] == 0
+# TASK-194: commerce insight in observations/history, offline refresh (dry-run then apply), CLI options.
+assert observations['renderer'] == 'dotads-history/3'
+assert observations['periods'][0]['commerce']['definition_version'] == 'commerce-insight/1'
+assert 'Commerce signals per window' in pathlib.Path(history['report_path']).read_text()
+assert learning['entries'][0]['metrics']['commerce']['cpas']['status'] == 'NOT_REQUESTED'
+refresh_dry = call('learn','refresh','--account','act_123','--json')
+assert refresh_dry['applied'] is False and refresh_dry['would_add'] == 0 and refresh_dry['added'] == 0
+mem_file = history_pointer.parent / 'memory' / 'ads-memory.json'
+mem = json.loads(mem_file.read_text()); before_entries = len(mem['entries'])
+mem['entries'] = [e for e in mem['entries'] if (e.get('history_context') or {}).get('period') != 'last_90d']
+mem_file.write_text(json.dumps(mem))
+assert call('learn','refresh','--account','act_123','--json')['would_add'] == 1
+assert len(json.loads(mem_file.read_text())['entries']) == before_entries - 1, 'dry run writes nothing'
+refresh_apply = call('learn','refresh','--account','act_123','--apply','--json')
+assert refresh_apply['applied'] is True and refresh_apply['added'] == 1 and pathlib.Path(refresh_apply['backup']).is_file()
+assert len(json.loads(mem_file.read_text())['entries']) == before_entries
+assert call('learn','refresh','--account','act_123','--root',str(root),'--json')['would_add'] == 0
+call('learn','refresh','--account','act_999','--json',ok=False)
+call('learn','refresh','--account','act_123','extra',ok=False)
+call('sync',*scope,'--input',str(export),'--metric-profile','cpas_v2',ok=False)
+call('history','--account','act_123','--as-of',anchor,'--input-dir',str(history_dir),'--metric-profile','bogus',ok=False)
+cpas_dir = tmp / 'history-cpas'; cpas_dir.mkdir()
+for period in plan['periods']:
+    item = json.loads((history_dir/(period['key']+'.json')).read_text()) if (history_dir/(period['key']+'.json')).exists() else None
+    if item is None: continue
+    item['scope']['metric_profile'] = 'cpas_v1'
+    (cpas_dir/(period['key']+'.json')).write_text(json.dumps(item))
+mismatch = call('history','--account','act_123','--as-of',anchor,'--input-dir',str(cpas_dir),'--json',ok=False)
+assert 'metric profile does not match' in mismatch.stderr
+legacy_as_cpas = call('history','--account','act_123','--as-of',anchor,'--input-dir',str(history_dir),'--metric-profile','cpas_v1','--json',ok=False)
+assert 'metric profile does not match' in legacy_as_cpas.stderr
+assert call('learn','list','--account','act_123','--json')['evidence_integrity'] == 'VERIFIED_BYTES_NOT_ORIGIN'
+assert not (tmp / 'secret-calls').exists(), 'offline refresh accessed credentials/provider'
 call('learn','export','--account','act_123','--output',str(bundle),ok=False)
 call('learn','import','--account','act_999','--input',str(bundle),ok=False)
 assert not (tmp / 'secret-calls').exists(), 'local learning accessed credentials/provider'

@@ -6,6 +6,22 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 
 ## Unreleased — 2026-10-28
 
+### DotAds Meta: commerce insight, CPAS cpas_v1, history supersede, learn refresh — 2026-11-05
+
+- Reports, history and learning observations gain a deterministic commerce
+  block from saved snapshots: funnel (LPV, view content, ATC, IC, purchases,
+  purchase value; aliases never summed), ROAS, CPR, step rates, AOV, honest
+  partial outbound-click coverage, top-5 spend concentration with inventory
+  joins, frequency watch, inventory structure and CPAS status/lineage.
+  Renderers bump to `dotads-markdown/4`, `dotads-markdown-csv/3` and
+  `dotads-history/3`; earlier revisions stay immutable.
+- Complete history windows supersede older partial/duplicate observations
+  into `superseded_entries` (parents protected); imports skip them.
+- `dotads-meta learn refresh --account act_ID [--apply]` rebuilds history
+  observations offline from saved revisions and verified snapshots.
+- Opt-in `--metric-profile cpas_v1` adds Shopee CPAS `catalog_segment_*`
+  fields; legacy requests and scope hashes are unchanged.
+
 ### DotAds Meta: CPAS (Shopee Collaborative Ads) reference — 2026-11-05
 
 - New `meta-ads-cli/references/cpas-collaborative-ads.md`, built from a
