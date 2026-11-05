@@ -174,3 +174,77 @@ Docker images, volumes, build cache, system journals, and `libfwupd2` remain unt
 - `systemctl --failed` and `systemctl --user --failed` on both `dot` and `rich`: `0 failed units`.
 - Multiplexed `ssh rich` roundtrip latency on `dot`: `19ms`; bidirectional `dot` ↔ `rich` SSH verified.
 - `ai-policy-lint` and `system-map --check`: **PASSED**.
+
+## 2026-11-03 — `rich` — Headless dev server conversion
+
+### Scope
+
+- Turn `rich` from an unused GNOME desktop into a headless dev/AI-terminal server reached over SSH and Tailscale.
+- Keep one browser for MCP and Playwright; remove unused daemons, snaps and caches without touching project data.
+
+### Initial state
+
+- Boot target `graphical.target`; gdm showed a login screen nobody used. All sessions arrived over SSH/Tailscale into tmux.
+- Google Chrome was missing, so `chrome-devtools` MCP (`/usr/bin/google-chrome`) and Playwright MCP (`--browser chrome`) were broken.
+- Root filesystem 59 GB free (72%); about 2.9 GB RAM free. One stale `tsserver` held 3.9 GB.
+
+### Actions
+
+1. Installed Google Chrome `.deb` (156) as the single system browser.
+2. Marked network, SSH, Tailscale, Docker, fonts and other essentials manual, simulated every purge, then purged GNOME/gdm/xorg/cups/avahi/fwupd, snapd with all snaps, pipewire/wireplumber, xdg portals, gvfs, udisks2, upower, accountsservice, rtkit, packagekit and mosh. Kept `gnome-keyring`, `poppler-utils`, `ghostscript`, `p11-kit`.
+3. Set `multi-user.target`; masked sleep/suspend/hibernate, `wpa_supplicant` (no Wi-Fi hardware) and `motd-news`.
+4. Pruned the Docker build cache, npm cache and pnpm store; removed `~/snap` and residual configs of old kernels. Kept `chromium-1228` (seven projects pin Playwright 1.61.1), tagged Docker images and all volumes.
+5. Rebound kliniknuma Postgres to `127.0.0.1:55435` (it was open to the LAN). Its port comes from `POSTGRES_PORT` in the shell, not `.env`: run `POSTGRES_PORT=55435 docker compose up -d`.
+6. Pointed live 99ribu docs (README, OBSERVABILITY, TASKS) at `/usr/bin/google-chrome`.
+7. Added `xterm-ghostty:RGB` to tmux terminal features.
+
+### Verification
+
+- `playwright screenshot --channel chrome` rendered CJK and emoji; 99ribu `npm run test:prototype` passed 36/36 with Google Chrome.
+- After the purge: `ssh`, `tailscaled`, `docker`, `NetworkManager`, `unattended-upgrades` enabled and active; zero failed units; only port 22 listens on all interfaces.
+- Result: 81 GB free (62%), about 8 GB RAM free.
+- `tailscale netcheck`: UPnP mapping works, but the router WAN address is private (ISP CGNAT), so off-LAN peers still relay via DERP Singapore.
+
+### Deferred
+
+- Router IPv6 or an ISP public IP for direct off-LAN Tailscale paths.
+- Client-side `~/.ssh/config` and Ghostty `ssh-terminfo` on each controlling device (see `config/ai/project-memory/linux-rich-maintenance.md`).
+
+## 2026-11-05 — `rich` — Multi-AI isolation, Postgres vault and SSH client alignment
+
+### Scope
+
+- Stop parallel AI sessions (claude, pi, codex, omp, agy) from colliding on one checkout, one database, one Chrome profile or one host port.
+- Back up every running project Postgres to the 1 TB HDD with verification.
+- Correct the documented `Host rich` client snippet.
+
+### Initial state
+
+- Six tmux sessions ran AI CLIs at once, one per project checkout.
+- Postgres containers: tokophi on `0.0.0.0:5433` (LAN/Tailnet, default dev credentials); clinic-dashboard on `127.0.0.1:5432` (+5433 backup profile); geraicuan's default `55433` blocked by geraiexpress PostgREST; bukalaris ~1.6 GiB RAM with 122 leftover test databases; no project had a `mem_limit`. Only 99ribu used a per-worktree Unix socket.
+- geraiexpress isolated tests created a Docker bridge per run, so `tailscaled` logged `LinkChange: major, rebinding`; killed runs left `gxdb-audit-<pid>-*` orphans.
+- The documented `Host rich` snippet used `RequestTTY yes` + `RemoteCommand tmux new -A -s main`, which breaks `scp`, `sshfs`, `rsync` and non-interactive `ssh rich <cmd>`.
+
+### Actions
+
+1. Created the vault `/data/backups/{postgres,worktrees,registry}` (0700) and the port registry `/data/backups/registry/project-ports.tsv` (Unix-socket tier, `127.0.0.1` 10-port blocks in `55100-55999`, `5432`/`5433` reserved vacant).
+2. Installed device-local `~/.local/bin/rich-db` (status, verified backup, port registry, socket compose template, worktree archive, orphan reaper) with user timers `rich-db-backup.timer` (03:15/15:15 WIB, Persistent) and `rich-db-reap.timer` (15 min).
+3. Installed `~/.local/bin/rich-session` (agent radar, free terminal, `rich work <slug> [task]` worktrees under `~/Projects/.worktrees/<slug>/<task>`) and `~/.config/ai-local/rich-shell-guard.sh` (per-session `AI_FOCUS_SESSION`, prompt before a second AI in one checkout).
+4. `chrome-devtools` MCP for Claude now runs `--isolated --no-usage-statistics`.
+5. Review fixes applied the same day (originals kept in `/data/backups/registry/tool-backups-20261105T153829/`):
+   - `rich-db`: the reaper treated any process whose cmdline contained `node` as the live owner, so a reused PID kept orphans and an unrelated runner could be mistaken; owner must now be `test-backend-isolated`. Networks need the same minimum age as containers before removal, read from `docker network inspect` JSON; an unknown or unparsable creation time keeps the network. Worktree containers (`.worktrees/<slug>/<task>`, `<slug>-wt/<task>`) now back up under their project instead of a folder named after the task, each in its own `<worktree>~<hash>/` subfolder so equal DB names cannot overwrite each other; the primary checkout keeps the project folder. A failed roles snapshot or database listing is counted as a failure instead of being skipped or crashing the whole run. Dump names keep a hash suffix when sanitizing changes a DB name, so two databases cannot share a retention group. `ports --allocate` is locked, idempotent and bounded to `55990`. SHA-256 is streamed.
+   - `rich-session`: a symlinked `.worktrees/<slug>/<task>` can no longer place a worktree outside the root; conflicts count AI panes in subfolders and in detached sessions; long session names get a hash suffix instead of colliding on truncation.
+   - `rich-shell-guard.sh`: other windows of the same tmux session now count as a conflict (compares pane IDs, not session names).
+6. Corrected `Host rich` in `config/ai/project-memory/linux-rich-maintenance.md`: `TCPKeepAlive no`, `ServerAliveInterval 15`, `ServerAliveCountMax 20`, `ControlMaster auto`; no `RemoteCommand`/`RequestTTY`. Bulk/tunnel connections need `-S none`; `ControlMaster=no` alone reuses an existing master.
+
+### Verification
+
+- After the fixes: `rich-db self-test` 35 assertions (worktree subfolders, PID reuse, Docker timestamps incl. offsets, recent/old network creation and fail-closed inspect failure, invalid JSON, unparsable, zero and null creation times, bounded locked allocation) and `rich-session self-test` 13 assertions pass; guard prompt shown and declined in a pty against a fake tmux pane list; `rich-db status` and a reaper dry run on the live fleet; all five running containers still map to their existing project folder.
+- Before the fixes (timer run 15:19 WIB): 39 verified dumps, 0 failures, roles snapshots present, 78 `.sha256` files. That run predates the worktree subfolder change; no worktree container was running.
+- `rich-session resolve-work` reports the live conflict on an occupied checkout and rejects `../x` and `bad/task`.
+- `ai-mcp-sync --check`, `ai-policy-lint`, `system-map --check`: see the delivery run for TASK-190.
+
+### Deferred
+
+- Per-repo compose migrations (tokophi `0.0.0.0:5433` → `127.0.0.1:55131`, clinic-dashboard `5432/5433` → `55141/55143`, geraicuan `55433` → `55151`, kliniknuma, bukalaris `mem_limit` and test-DB cleanup, geraiexpress shared-netns tests) wait until each project's agent is idle; queue in the blueprint.
+- tokophi remains reachable on `0.0.0.0:5433` until that migration.
