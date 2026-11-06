@@ -706,11 +706,17 @@ export function commerceInsight(value) {
     const total = item.rows.reduce((sum, row) => sum + (number(row.spend) ?? 0), 0);
     concentration[level] = item.rows.map(row => {
       const id = entityFor(level, row, value.account.id), current = byId[level].get(id), m = measured(row), f = rowFunnel(row);
+      const hasSegment = CPAS_SEGMENT_FIELDS.some(key => Object.hasOwn(row, key));
+      const segPurchases = hasSegment ? segmentValue(row.catalog_segment_actions, ['omni_purchase', 'purchase']) : null;
+      const segPurchaseValue = hasSegment ? segmentValue(row.catalog_segment_value, ['omni_purchase', 'purchase']) : null;
+      const segRoas = hasSegment ? (segmentValue(row.catalog_segment_value_omni_purchase_roas, ['omni_purchase', 'purchase']) ?? ratio(segPurchaseValue, m.spend)) : null;
+      const segAddToCart = hasSegment ? segmentValue(row.catalog_segment_actions, ['omni_add_to_cart', 'add_to_cart']) : null;
       const parentAdset = level === 'ad' ? byId.adset.get(row.adset_id ?? current?.adset_id) : level === 'adset' ? current : null;
       const parentCampaign = byId.campaign.get(level === 'campaign' ? id : row.campaign_id ?? current?.campaign_id);
       return { entity_id: id, name: current?.name ?? row[`${level}_name`] ?? null, spend: m.spend, spend_share_fraction: m.spend != null && total > 0 ? m.spend / total : null,
         impressions: m.impressions, cpm: m.cpm, frequency: m.frequency, outbound_clicks: m.outbound_clicks, purchases: f.purchases.value, purchase_value: f.purchase_value.value,
         roas: ratio(f.purchase_value.value, m.spend), cost_per_purchase: ratio(m.spend, f.purchases.value), add_to_cart: f.add_to_cart.value, landing_page_views: f.landing_page_views.value,
+        segment_purchases: segPurchases, segment_purchase_value: segPurchaseValue, segment_roas: segRoas, segment_cost_per_purchase: ratio(m.spend, segPurchases), segment_add_to_cart: segAddToCart,
         effective_status: current?.effective_status ?? null, objective: parentCampaign?.objective ?? null, optimization_goal: parentAdset?.optimization_goal ?? null,
         promoted_object_kind: parentAdset ? promotedKind(parentAdset.promoted_object) : null, daily_budget: current?.daily_budget ?? null, inventory_resolution: current ? 'resolved' : 'unresolved_historical' };
     }).sort((a, b) => (b.spend ?? -1) - (a.spend ?? -1) || a.entity_id.localeCompare(b.entity_id)).slice(0, 5);
@@ -720,19 +726,65 @@ export function commerceInsight(value) {
       for (const row of observedFrequency) { const f = number(row.frequency); if (f >= FREQUENCY_WATCH) watch.push({ level, entity_id: entityFor(level, row, value.account.id), frequency: f }); }
     }
   }
-  const promotedRows = inventory.adset.map(row => row.promoted_object).filter(object);
+  const promotedRows = [...inventory.campaign.map(row => row.promoted_object), ...inventory.adset.map(row => row.promoted_object)].filter(object);
   const catalogIds = [...new Set(promotedRows.map(row => row.product_catalog_id).filter(Boolean).map(String))].sort();
   const productSetIds = [...new Set([...promotedRows.map(row => row.product_set_id), ...value.resources.creatives.rows.map(row => row.product_set_id)].filter(Boolean).map(String))].sort();
   const segmentRow = accountRow && CPAS_SEGMENT_FIELDS.some(key => Object.hasOwn(accountRow, key)) ? accountRow : null;
   const requested = (value.scope.metric_profile ?? 'legacy') === 'cpas_v1';
+  const inAppContentViews = accountRow ? pickAction(accountRow.actions, ['app_custom_event.fb_mobile_content_view']).value : null;
+  const inAppAddsToCart = accountRow ? pickAction(accountRow.actions, ['app_custom_event.fb_mobile_add_to_cart']).value : null;
+  const inAppPurchases = accountRow ? pickAction(accountRow.actions, ['app_custom_event.fb_mobile_purchase']).value : null;
+  const inAppPurchaseValue = accountRow ? pickAction(accountRow.action_values, ['app_custom_event.fb_mobile_purchase']).value : null;
+  const websiteContentViews = accountRow ? pickAction(accountRow.actions, ['offsite_conversion.fb_pixel_view_content']).value : null;
+  const websiteAddsToCart = accountRow ? pickAction(accountRow.actions, ['offsite_conversion.fb_pixel_add_to_cart']).value : null;
+  const websitePurchases = accountRow ? pickAction(accountRow.actions, ['offsite_conversion.fb_pixel_purchase']).value : null;
+  const websitePurchaseValue = accountRow ? pickAction(accountRow.action_values, ['offsite_conversion.fb_pixel_purchase']).value : null;
+  const appSiteVisits = accountRow ? pickAction(accountRow.actions, ['app_site_visit']).value : null;
+  const segmentViewContent = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['omni_view_content', 'view_content']) : null;
+  const segmentAddToCart = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['omni_add_to_cart', 'add_to_cart']) : null;
+  const segmentPurchases = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['omni_purchase', 'purchase']) : null;
+  const segmentPurchaseValue = segmentRow ? segmentValue(segmentRow.catalog_segment_value, ['omni_purchase', 'purchase']) : null;
+  const segmentOmniRoas = segmentRow ? (segmentValue(segmentRow.catalog_segment_value_omni_purchase_roas, ['omni_purchase', 'purchase']) ?? ratio(segmentPurchaseValue, spend)) : null;
+  const segmentInAppContentViews = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['app_custom_event.fb_mobile_content_view', 'onsite_app_view_content']) : null;
+  const segmentInAppAddsToCart = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['app_custom_event.fb_mobile_add_to_cart', 'onsite_app_add_to_cart']) : null;
+  const segmentInAppPurchases = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['app_custom_event.fb_mobile_purchase', 'onsite_app_purchase']) : null;
+  const segmentInAppPurchaseValue = segmentRow ? segmentValue(segmentRow.catalog_segment_value, ['app_custom_event.fb_mobile_purchase', 'onsite_app_purchase']) : null;
+  const segmentWebsiteContentViews = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['offsite_conversion.fb_pixel_view_content']) : null;
+  const segmentWebsiteAddsToCart = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['offsite_conversion.fb_pixel_add_to_cart']) : null;
+  const segmentWebsitePurchases = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['offsite_conversion.fb_pixel_purchase']) : null;
+  const segmentWebsitePurchaseValue = segmentRow ? segmentValue(segmentRow.catalog_segment_value, ['offsite_conversion.fb_pixel_purchase']) : null;
   const cpas = { status: segmentRow ? 'OBSERVED' : requested ? 'REQUESTED_NOT_RETURNED' : 'NOT_REQUESTED',
     catalog_lineage: { catalog_ids: catalogIds, product_set_ids: productSetIds, classification: catalogIds.length || productSetIds.length ? 'UNVERIFIED_SEGMENT' : 'NO_CATALOG_LINEAGE' },
-    segment_purchases: segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['purchase', 'omni_purchase']) : null,
-    segment_add_to_cart: segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['add_to_cart', 'omni_add_to_cart']) : null,
-    segment_purchase_value: segmentRow ? segmentValue(segmentRow.catalog_segment_value, ['purchase', 'omni_purchase']) : null,
-    segment_omni_purchase_roas: segmentRow ? segmentValue(segmentRow.catalog_segment_value_omni_purchase_roas, ['omni_purchase', 'purchase']) : null,
+    segment_view_content: segmentViewContent,
+    segment_purchases: segmentPurchases,
+    segment_add_to_cart: segmentAddToCart,
+    segment_purchase_value: segmentPurchaseValue,
+    segment_cost_per_purchase: ratio(spend, segmentPurchases),
+    segment_cost_per_add_to_cart: ratio(spend, segmentAddToCart),
+    segment_average_order_value: ratio(segmentPurchaseValue, segmentPurchases),
+    segment_purchase_per_add_to_cart: ratio(segmentPurchases, segmentAddToCart),
+    segment_omni_purchase_roas: segmentOmniRoas,
     segment_website_purchase_roas: segmentRow ? segmentValue(segmentRow.catalog_segment_value_website_purchase_roas, ['offsite_conversion.fb_pixel_purchase', 'purchase', 'omni_purchase']) : null,
-    segment_mobile_purchase_roas: segmentRow ? segmentValue(segmentRow.catalog_segment_value_mobile_purchase_roas, ['app_custom_event.fb_mobile_purchase', 'purchase', 'omni_purchase']) : null };
+    segment_mobile_purchase_roas: segmentRow ? segmentValue(segmentRow.catalog_segment_value_mobile_purchase_roas, ['app_custom_event.fb_mobile_purchase', 'purchase', 'omni_purchase']) : null,
+    segment_in_app_content_views: segmentInAppContentViews,
+    segment_in_app_adds_to_cart: segmentInAppAddsToCart,
+    segment_in_app_purchases: segmentInAppPurchases,
+    segment_in_app_purchase_value: segmentInAppPurchaseValue,
+    segment_website_content_views: segmentWebsiteContentViews,
+    segment_website_adds_to_cart: segmentWebsiteAddsToCart,
+    segment_website_purchases: segmentWebsitePurchases,
+    segment_website_purchase_value: segmentWebsitePurchaseValue,
+    segment_in_app_arrival_per_link_click: ratio(segmentInAppContentViews, v('link_clicks')),
+    in_app_content_views: inAppContentViews,
+    in_app_adds_to_cart: inAppAddsToCart,
+    in_app_purchases: inAppPurchases,
+    in_app_purchase_value: inAppPurchaseValue,
+    website_content_views: websiteContentViews,
+    website_adds_to_cart: websiteAddsToCart,
+    website_purchases: websitePurchases,
+    website_purchase_value: websitePurchaseValue,
+    app_site_visits: appSiteVisits,
+    in_app_arrival_per_link_click: ratio(inAppContentViews, v('link_clicks')) };
   const summarize = (rows, extra = {}) => ({ total: rows.length, by_effective_status: countBy(rows, row => row.effective_status), ...Object.fromEntries(Object.entries(extra).map(([key, pick]) => [key, countBy(rows, pick)])) });
   return { definition_version: 'commerce-insight/1', currency: value.account.currency ?? null, spend, impressions,
     funnel, ratios, clicks, spend_concentration: concentration, unavailable, frequency_watch_status: watchStatus, frequency_watch: watch.sort((a, b) => b.frequency - a.frequency || a.entity_id.localeCompare(b.entity_id)), cpas,
@@ -763,7 +815,9 @@ function commerceMarkdown(insight) {
   lines.push('### Frequency watch', '', insight.frequency_watch_status !== 'OBSERVED' ? '- Frequency watch unavailable: no complete whole-period ad-set frequency for every row.' : insight.frequency_watch.length ? insight.frequency_watch.map(item => `- ${item.level} ${md(item.entity_id)}: frequency ${fmt(item.frequency)} (observation, not diagnosis)`).join('\n') : '- No ad set at or above the watch threshold.', '',
     '### Inventory structure', '', '```json', json(insight.inventory).trimEnd(), '```', '',
     '### CPAS / catalog', '', `Status ${insight.cpas.status}; lineage ${insight.cpas.catalog_lineage.classification}; catalogs ${md(insight.cpas.catalog_lineage.catalog_ids.join(', ') || 'none')}; product sets ${md(insight.cpas.catalog_lineage.product_set_ids.join(', ') || 'none')}.`,
-    `Segment purchases ${fmt(insight.cpas.segment_purchases)} · segment value ${fmt(insight.cpas.segment_purchase_value)} · segment omni ROAS ${fmt(insight.cpas.segment_omni_purchase_roas)} (estimated, retailer-reported, separate from ordinary purchases).`, '',
+    `Segment funnel: VC ${fmt(insight.cpas.segment_view_content)} · ATC ${fmt(insight.cpas.segment_add_to_cart)} · purchases ${fmt(insight.cpas.segment_purchases)} · segment value ${fmt(insight.cpas.segment_purchase_value)} · segment omni ROAS ${fmt(insight.cpas.segment_omni_purchase_roas)} · segment CPP ${fmt(insight.cpas.segment_cost_per_purchase)} · segment AOV ${fmt(insight.cpas.segment_average_order_value)} (estimated, retailer-reported, separate from ordinary purchases).`,
+    `Segment channel split (catalog_segment_*): in-app SDK VC ${fmt(insight.cpas.segment_in_app_content_views)} · ATC ${fmt(insight.cpas.segment_in_app_adds_to_cart)} · purchases ${fmt(insight.cpas.segment_in_app_purchases)} (value ${fmt(insight.cpas.segment_in_app_purchase_value)}) · in-app arrival/link click ${fmt(insight.cpas.segment_in_app_arrival_per_link_click, 3)} | website pixel VC ${fmt(insight.cpas.segment_website_content_views)} · ATC ${fmt(insight.cpas.segment_website_adds_to_cart)} · purchases ${fmt(insight.cpas.segment_website_purchases)} (value ${fmt(insight.cpas.segment_website_purchase_value)}).`,
+    `Channel split (ordinary actions): in-app SDK VC ${fmt(insight.cpas.in_app_content_views)} · ATC ${fmt(insight.cpas.in_app_adds_to_cart)} · purchases ${fmt(insight.cpas.in_app_purchases)} (value ${fmt(insight.cpas.in_app_purchase_value)}) · in-app arrival/link click ${fmt(insight.cpas.in_app_arrival_per_link_click, 3)} | website pixel VC ${fmt(insight.cpas.website_content_views)} · ATC ${fmt(insight.cpas.website_adds_to_cart)} · purchases ${fmt(insight.cpas.website_purchases)} | app_site_visit ${fmt(insight.cpas.app_site_visits)} (redirect claim, not proof native app opened).`, '',
     ...insight.limits.map(text => `- ${text}`), '');
   return lines;
 }

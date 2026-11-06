@@ -301,7 +301,7 @@ check('raw-story-object', lambda m: m['creatives'][0].update(object_story_spec={
 tutorial = pathlib.Path(cmd).parent.parent / 'skills/local/meta-ads-cli/references/rules-and-tutorial.md'
 recipes = [json.loads(block) for block in re.findall(r'```json\n(.*?)\n```', tutorial.read_text(), re.S)]
 recipes = [recipe for recipe in recipes if 'campaign' in recipe]
-assert len(recipes) == 4
+assert len(recipes) == 5
 for i, recipe in enumerate(recipes, 1):
     for creative in recipe['creatives']:
         refs = [creative.get('image'), creative.get('video')] + creative.get('images', []) + creative.get('videos', [])
@@ -309,7 +309,66 @@ for i, recipe in enumerate(recipes, 1):
             asset = workspace / ref
             asset.parent.mkdir(parents=True, exist_ok=True)
             asset.write_bytes(b'test-synthetic-media-for-offline-plan')
-    check('documented-recipe-' + str(i), lambda manifest: manifest.update(recipe), True)
+    res = check('documented-recipe-' + str(i), lambda manifest: manifest.update(recipe), True)
+    if i == 5:
+        assert res['warnings'] == [], ('CPAS Golden Standard recipe 5 must have zero warnings', res['warnings'])
+
+# Verify CPAS 1-1-1 guardrails: GUIDED_CREATION, promoted_object/template_url_spec validation, and leakage warnings.
+cpas_recipe = copy.deepcopy(recipes[4])
+check('cpas-guided-creation-flag', lambda m: m.update(copy.deepcopy(cpas_recipe)), True,
+      flags=((True, '--smart-promotion-type'), (True, 'GUIDED_CREATION'), (False, '--conversion-domain')))
+check('cpas-bad-campaign-promoted', lambda m: (m.update(copy.deepcopy(cpas_recipe)), m['campaign'].update(promoted_object={'product_catalog_id':'abc'})), False, 'numeric digits')
+check('cpas-bad-template-app-id', lambda m: (m.update(copy.deepcopy(cpas_recipe)), m['creatives'][0].update(template_url_spec={'config':{'app_id':'not-digits'}})), False, 'numeric digits')
+
+def patch_cpas_leakage(m):
+    m.update(copy.deepcopy(cpas_recipe))
+    m['creatives'][0]['applink_treatment'] = 'automatic'
+    m['creatives'][0].pop('url_tags', None)
+    m['creatives'][0]['object_story_spec']['template_data']['description'] = '{{product.price}}'
+    m['creatives'][0]['object_story_spec']['template_data']['message'] = '𝙄𝙣𝙞 promo spesial hari ini.'
+    m['creatives'].append({
+        'key': 'cr_cpas_col_video',
+        'name': 'Cr_CPAS_CollectionVideo',
+        'product_set_id': '234567890123456',
+        'applink_treatment': 'deeplink_with_web_fallback',
+        'url_tags': 'utm_source=facebook-ca&utm_medium=seller',
+        'object_story_spec': {
+            'page_id': '1122334455',
+            'template_data': {
+                'call_to_action': {'type': 'SHOP_NOW'},
+                'description': '{{product.current_price strip_zeros}}',
+                'format_option': 'collection_video',
+                'link': 'http://shopee.co.id/',
+                'message': 'Koleksi perawatan harian.'
+            }
+        }
+    })
+    m['adsets'][0]['targeting']['device_platforms'] = ['mobile', 'desktop']
+    m['adsets'][0]['targeting']['publisher_platforms'] = ['facebook', 'instagram', 'audience_network']
+    m['adsets'][0]['targeting']['facebook_positions'] = ['feed', 'story', 'instream_video']
+    m['ads'].append({
+        'key': 'ad_cpas_col_video',
+        'name': 'Ad_CPAS_CollectionVideo',
+        'adset': 'adset_cpas_pros_mobile_fb_threads',
+        'creative': 'cr_cpas_col_video',
+        'status': 'PAUSED'
+    })
+
+leak_res = check('cpas-leakage-warnings', patch_cpas_leakage, True)
+w_joined = ' | '.join(leak_res['warnings'])
+for expected_warn in (
+    'device_platforms should be ["mobile"] only',
+    "includes 'audience_network' or 'messenger'",
+    "includes 'instagram'",
+    'low-intent positions (story, instream_video)',
+    'mixing CAROUSEL_DPA (carousel_images_multi_items) and COLLECTION_VIDEO',
+    "applink_treatment should be 'deeplink_with_web_fallback'",
+    "'template_url_spec.config.app_id'",
+    "missing 'url_tags'",
+    "prefer '{{product.current_price strip_zeros}}'",
+    'Unicode mathematical alphanumeric characters',
+):
+    assert expected_warn in w_joined, (expected_warn, leak_res['warnings'])
 PY
 then
   ok "attribution, current payload boundaries, and documented recipes validate and dry-run offline"

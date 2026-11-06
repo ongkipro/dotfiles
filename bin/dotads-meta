@@ -297,7 +297,7 @@ const SPAMMY_TEXT_CTA_PATTERNS = [
   { pattern: /\b(?:beli|order|checkout)\s+sekarang\s+juga\b/i, label: "beli/order sekarang juga" },
 ];
 
-function extractAdsetCountries(as) {
+function extractAdsetCountries(as, parsedTargeting = null) {
   const out = new Set();
   if (typeof as?.targeting_countries === "string") {
     for (const c of as.targeting_countries.split(",")) {
@@ -310,7 +310,8 @@ function extractAdsetCountries(as) {
       if (code) out.add(code);
     }
   }
-  const geoCountries = as?.targeting?.geo_locations?.countries;
+  const targetingObj = parsedTargeting || (as?.targeting && typeof as.targeting === "object" ? as.targeting : null);
+  const geoCountries = targetingObj?.geo_locations?.countries;
   if (Array.isArray(geoCountries)) {
     for (const c of geoCountries) {
       const code = String(c || "").trim().toUpperCase();
@@ -320,7 +321,7 @@ function extractAdsetCountries(as) {
   return out;
 }
 
-function collectCreativeTexts(cr) {
+function collectCreativeTexts(cr, objectStorySpec = null) {
   const texts = [];
   for (const field of ["title", "body", "description"]) {
     if (typeof cr?.[field] === "string" && cr[field].trim()) {
@@ -334,6 +335,15 @@ function collectCreativeTexts(cr) {
           texts.push({ field: `${field}[${idx}]`, text: val.trim() });
         }
       });
+    }
+  }
+  const story = objectStorySpec || (cr?.object_story_spec && typeof cr.object_story_spec === "object" ? cr.object_story_spec : null);
+  if (story && typeof story === "object" && !Array.isArray(story)) {
+    for (const section of ["template_data", "link_data", "video_data"]) {
+      const msg = story[section]?.message;
+      if (typeof msg === "string" && msg.trim()) {
+        texts.push({ field: `object_story_spec.${section}.message`, text: msg.trim() });
+      }
     }
   }
   return texts;
@@ -913,7 +923,7 @@ function validateManifests(campaignPath, explicitBrandPath) {
       } else seen.add(key);
     }
   }
-  if (errors.length) return { ok: false, errors, warnings, campaignPath: resolvedCampaignPath };
+  if (errors.length) return { ok: false, errors, warnings, mediaFiles, budgets: [], brandPath, campaignPath: resolvedCampaignPath };
 
   if (creatives.length === 0) errors.push("campaign manifest: 'creatives' must be a non-empty array.");
   if (adsets.length === 0) errors.push("campaign manifest: 'adsets' must be a non-empty array.");
@@ -984,11 +994,41 @@ function validateManifests(campaignPath, explicitBrandPath) {
     if (campaign.bid_strategy && !VALID_BID_STRATEGIES.has(campaign.bid_strategy)) {
       errors.push(`campaign: invalid 'bid_strategy' '${campaign.bid_strategy}'.`);
     }
-    if (campaign.smart_promotion_type !== undefined && campaign.smart_promotion_type !== null && campaign.smart_promotion_type !== "") {
+    if (
+      campaign.smart_promotion_type !== undefined &&
+      campaign.smart_promotion_type !== null &&
+      campaign.smart_promotion_type !== "" &&
+      campaign.smart_promotion_type !== "GUIDED_CREATION"
+    ) {
       errors.push(
         `campaign: 'smart_promotion_type' ('${campaign.smart_promotion_type}') is retired for legacy ASC/AAC creation, duplication, and updates in v25.0 and across versions since 2026-05-19. Use a standard supported objective and verify current Advantage+ eligibility.`
       );
     }
+    if (campaign.promoted_object !== undefined && campaign.promoted_object !== null) {
+      try {
+        const campPromoted = readJsonArgument(campaign.promoted_object, workspaceDir, campaignDir, "campaign.promoted_object");
+        if (!campPromoted || typeof campPromoted !== "object" || Array.isArray(campPromoted)) {
+          errors.push("campaign.promoted_object: expected a JSON object, not an array, primitive, or null.");
+        } else {
+          if (campPromoted.product_catalog_id !== undefined && !/^[0-9]+$/.test(String(campPromoted.product_catalog_id))) {
+            errors.push(`campaign.promoted_object.product_catalog_id: must be numeric digits (got '${campPromoted.product_catalog_id}').`);
+          }
+          if (campPromoted.smart_pse_enabled !== undefined && typeof campPromoted.smart_pse_enabled !== "boolean") {
+            errors.push("campaign.promoted_object.smart_pse_enabled: must be a boolean.");
+          }
+        }
+      } catch {
+        errors.push("campaign.promoted_object: expected valid JSON or a readable JSON file.");
+      }
+    }
+  }
+
+  let parsedCampaignPromoted = null;
+  if (campaign?.promoted_object !== undefined && campaign?.promoted_object !== null) {
+    try {
+      const p = readJsonArgument(campaign.promoted_object, workspaceDir, campaignDir, "campaign.promoted_object");
+      if (p && typeof p === "object" && !Array.isArray(p)) parsedCampaignPromoted = p;
+    } catch { /* reported above */ }
   }
 
   // Validate creatives
@@ -1023,7 +1063,10 @@ function validateManifests(campaignPath, explicitBrandPath) {
         errors.push(`${label}: '${field}' is not forwarded by this helper. Poll creatives are retired across API versions since 2026-10-27.`);
       }
     }
-    for (const field of ["object_story_spec", "asset_feed_spec"]) {
+    let parsedObjectStorySpec = null;
+    let parsedAssetFeedSpec = null;
+    let parsedTemplateUrlSpec = null;
+    for (const field of ["object_story_spec", "asset_feed_spec", "template_url_spec"]) {
       if (cr[field] === undefined || cr[field] === null) continue;
       try {
         const rawSpec = readJsonArgument(cr[field], workspaceDir, campaignDir, `${label}.${field}`);
@@ -1031,6 +1074,15 @@ function validateManifests(campaignPath, explicitBrandPath) {
           errors.push(`${label}.${field}: expected a JSON object, not an array, primitive, or null.`);
         } else if (containsRetiredPoll(rawSpec)) {
           errors.push(`${label}.${field}: poll_spec / interactive_components_spec type 'poll' is retired across API versions since 2026-10-27.`);
+        } else {
+          if (field === "object_story_spec") parsedObjectStorySpec = rawSpec;
+          if (field === "asset_feed_spec") parsedAssetFeedSpec = rawSpec;
+          if (field === "template_url_spec") {
+            parsedTemplateUrlSpec = rawSpec;
+            if (rawSpec.config?.app_id !== undefined && !/^[0-9]+$/.test(String(rawSpec.config.app_id))) {
+              errors.push(`${label}.template_url_spec.config.app_id: must be numeric digits (got '${rawSpec.config.app_id}').`);
+            }
+          }
         }
       } catch {
         errors.push(`${label}.${field}: expected valid JSON or a readable JSON file.`);
@@ -1135,7 +1187,14 @@ function validateManifests(campaignPath, explicitBrandPath) {
       }
     }
 
-    creativeMap.set(key, { ...cr, _key: key, _isDco: isDco });
+    creativeMap.set(key, {
+      ...cr,
+      _key: key,
+      _isDco: isDco,
+      _objectStorySpec: parsedObjectStorySpec,
+      _assetFeedSpec: parsedAssetFeedSpec,
+      _templateUrlSpec: parsedTemplateUrlSpec,
+    });
   }
 
   // Validate adsets
@@ -1225,6 +1284,86 @@ function validateManifests(campaignPath, explicitBrandPath) {
     ) {
       errors.push(`${label}: 'bid_amount' (in minor units) is required for ${as.bid_strategy}.`);
     }
+    if (
+      isCbo &&
+      !as.bid_strategy &&
+      (campaign?.bid_strategy === "COST_CAP" || campaign?.bid_strategy === "LOWEST_COST_WITH_BID_CAP") &&
+      (!Number.isInteger(as.bid_amount) || as.bid_amount <= 0)
+    ) {
+      warnings.push(
+        `${label}: campaign uses '${campaign.bid_strategy}' without 'bid_amount' on ad set; Meta requires a positive integer 'bid_amount' (minor units) on each ad set.`
+      );
+    }
+    if (as.bid_amount !== undefined && as.bid_amount !== null && (!Number.isInteger(as.bid_amount) || as.bid_amount <= 0)) {
+      errors.push(`${label}: 'bid_amount' must be a positive integer in minor currency units.`);
+    }
+
+    const effectiveBidStrategy = (isCbo ? campaign?.bid_strategy : as.bid_strategy) || "LOWEST_COST_WITHOUT_CAP";
+    const roasFloor =
+      as.roas_average_floor !== undefined && as.roas_average_floor !== null
+        ? as.roas_average_floor
+        : as.bid_constraints?.roas_average_floor;
+    if (roasFloor !== undefined && roasFloor !== null) {
+      if (!Number.isInteger(roasFloor) || roasFloor <= 0) {
+        errors.push(
+          `${label}: 'roas_average_floor' must be a positive integer in Meta 10,000-scaled units (e.g. 20000 = 2.0x ROAS).`
+        );
+      } else if (roasFloor < 100) {
+        warnings.push(
+          `${label}: 'roas_average_floor' is ${roasFloor} (${(roasFloor / 10000).toFixed(4)}x). Meta scales ROAS floors by 10,000 (10000 = 1.0x, 25000 = 2.5x).`
+        );
+      }
+    }
+    if (effectiveBidStrategy === "LOWEST_COST_WITH_MIN_ROAS") {
+      if (as.optimization_goal !== "VALUE") {
+        errors.push(
+          `${label}: 'LOWEST_COST_WITH_MIN_ROAS' requires optimization_goal 'VALUE' (got '${as.optimization_goal || ""}').`
+        );
+      }
+      if (roasFloor === undefined || roasFloor === null) {
+        errors.push(
+          `${label}: 'LOWEST_COST_WITH_MIN_ROAS' requires 'roas_average_floor' (or 'bid_constraints.roas_average_floor') on the ad set (e.g. 20000 = 2.0x).`
+        );
+      }
+    }
+
+    // Cross-validate Bid Cap and ROAS Floor against workspace unit_economics when configured
+    try {
+      const memFile = path.join(workspaceDir, "memory", "ads-memory.json");
+      if (fs.existsSync(memFile)) {
+        const memData = JSON.parse(fs.readFileSync(memFile, "utf8"));
+        const ue = memData?.unit_economics;
+        if (
+          ue &&
+          ue.qualification === "CONFIGURED_COST_ASSUMPTIONS" &&
+          ue.scope?.ad_account_id === brand?.ad_account_id &&
+          ue.scope?.currency === brand?.currency
+        ) {
+          if (Number.isInteger(as.bid_amount) && as.bid_amount > 0) {
+            if (typeof ue.target_cpr === "number" && ue.target_cpr > 0 && as.bid_amount < ue.target_cpr * 0.7) {
+              warnings.push(
+                `${label}: 'bid_amount' (${as.bid_amount}) is >30% below configured unit_economics target_cpr (${ue.target_cpr}); overly tight Bid Cap may starve auction delivery.`
+              );
+            }
+            if (typeof ue.max_cpr_breakeven === "number" && ue.max_cpr_breakeven > 0 && as.bid_amount > ue.max_cpr_breakeven * 1.35) {
+              warnings.push(
+                `${label}: 'bid_amount' (${as.bid_amount}) exceeds configured unit_economics max_cpr_breakeven (${ue.max_cpr_breakeven}) by >35%.`
+              );
+            }
+          }
+          if (Number.isInteger(roasFloor) && roasFloor >= 100 && typeof ue.target_roas === "number" && ue.target_roas > 0) {
+            const floorRoas = roasFloor / 10000;
+            if (floorRoas > ue.target_roas * 1.5) {
+              warnings.push(
+                `${label}: 'roas_average_floor' (${floorRoas.toFixed(2)}x / ${roasFloor}) exceeds configured unit_economics target_roas (${ue.target_roas}x) by >50%; overly high ROAS floor may choke Day 2+ delivery.`
+              );
+            }
+          }
+        }
+      }
+    } catch {
+      /* ignore optional memory read failure during offline validation */
+    }
 
     const hasCountries =
       (typeof as.targeting_countries === "string" && as.targeting_countries.trim().length > 0) ||
@@ -1238,12 +1377,14 @@ function validateManifests(campaignPath, explicitBrandPath) {
         `${label}: specify either 'targeting_countries' or 'targeting', not both ('targeting' replaces 'targeting_countries').`
       );
     }
+    let parsedTargeting = null;
     if (as.targeting) {
       try {
         const targeting = readJsonArgument(as.targeting, workspaceDir, campaignDir, `${label}.targeting`);
         if (!targeting || typeof targeting !== "object" || Array.isArray(targeting)) {
           errors.push(`${label}: 'targeting' must be a JSON object, not an array, primitive, or null.`);
         } else {
+          parsedTargeting = targeting;
           const automation = targeting.targeting_automation;
           if (automation !== undefined && (!automation || typeof automation !== "object" || Array.isArray(automation))) {
             errors.push(`${label}: targeting_automation must be a JSON object.`);
@@ -1253,6 +1394,20 @@ function validateManifests(campaignPath, explicitBrandPath) {
         }
       } catch {
         errors.push(`${label}: 'targeting' must contain valid JSON or reference a readable JSON file.`);
+      }
+    }
+
+    let parsedPromotedObject = null;
+    if (as.promoted_object !== undefined && as.promoted_object !== null) {
+      try {
+        const prom = readJsonArgument(as.promoted_object, workspaceDir, campaignDir, `${label}.promoted_object`);
+        if (!prom || typeof prom !== "object" || Array.isArray(prom)) {
+          errors.push(`${label}: 'promoted_object' must be a JSON object, not an array, primitive, or null.`);
+        } else {
+          parsedPromotedObject = prom;
+        }
+      } catch {
+        errors.push(`${label}: 'promoted_object' must contain valid JSON or reference a readable JSON file.`);
       }
     }
 
@@ -1325,11 +1480,17 @@ function validateManifests(campaignPath, explicitBrandPath) {
       }
     }
 
-    adsetMap.set(key, { ...as, _key: key });
+    adsetMap.set(key, {
+      ...as,
+      _key: key,
+      _targeting: parsedTargeting,
+      _promotedObject: parsedPromotedObject,
+    });
   }
 
   // Validate ads
   const dcoAdsetUsageCount = new Map();
+  const cpasAdsetCreativeFormats = new Map();
   const creativeCountriesMap = new Map();
   for (let i = 0; i < ads.length; i++) {
     const ad = ads[i];
@@ -1357,8 +1518,19 @@ function validateManifests(campaignPath, explicitBrandPath) {
         creativeCountriesMap.set(creativeRef, new Set());
       }
       const countrySet = creativeCountriesMap.get(creativeRef);
-      for (const c of extractAdsetCountries(resolvedAdset)) {
+      for (const c of extractAdsetCountries(resolvedAdset, resolvedAdset._targeting)) {
         countrySet.add(c);
+      }
+      const fmtOption = resolvedCreative._objectStorySpec?.template_data?.format_option;
+      const isCollectionVideo =
+        fmtOption === "collection_video" ||
+        Boolean(resolvedCreative._assetFeedSpec && resolvedCreative.product_set_id);
+      const isCarouselDpa = fmtOption === "carousel_images_multi_items";
+      if (isCollectionVideo || isCarouselDpa) {
+        if (!cpasAdsetCreativeFormats.has(adsetRef)) {
+          cpasAdsetCreativeFormats.set(adsetRef, new Set());
+        }
+        cpasAdsetCreativeFormats.get(adsetRef).add(isCarouselDpa ? "CAROUSEL_DPA" : "COLLECTION_VIDEO");
       }
     }
 
@@ -1379,7 +1551,14 @@ function validateManifests(campaignPath, explicitBrandPath) {
       campaign?.objective === "OUTCOME_SALES" ||
       resolvedAdset?.optimization_goal === "OFFSITE_CONVERSIONS" ||
       resolvedAdset?.optimization_goal === "VALUE";
-    if (isSalesOrConversion && !conversionDomain) {
+    const isCatalogOrCpas = Boolean(
+      parsedCampaignPromoted?.product_catalog_id ||
+      resolvedAdset?._promotedObject?.product_set_id ||
+      resolvedAdset?._promotedObject?.product_catalog_id ||
+      resolvedAdset?._promotedObject?.omnichannel_object ||
+      resolvedCreative?.product_set_id
+    );
+    if (isSalesOrConversion && !conversionDomain && !isCatalogOrCpas) {
       errors.push(
         `${label}: requires 'conversion_domain' (in ad or brand.json) for OUTCOME_SALES / OFFSITE_CONVERSIONS.`
       );
@@ -1394,19 +1573,95 @@ function validateManifests(campaignPath, explicitBrandPath) {
     }
   }
 
+  const isCpasManifest = Boolean(
+    parsedCampaignPromoted?.product_catalog_id ||
+    Array.from(adsetMap.values()).some((as) => as._promotedObject?.product_set_id || as._promotedObject?.product_catalog_id) ||
+    Array.from(creativeMap.values()).some((cr) => cr.product_set_id || cr._objectStorySpec?.template_data)
+  );
+  if (isCpasManifest) {
+    for (let i = 0; i < adsets.length; i++) {
+      const as = adsets[i];
+      const key = as.key || as.name;
+      const asLabel = `adsets[${i}] (${key || "unnamed"})`;
+      const resolvedAs = adsetMap.get(key);
+      const t = resolvedAs?._targeting;
+      if (!t || !Array.isArray(t.device_platforms) || t.device_platforms.includes("desktop") || !t.device_platforms.includes("mobile")) {
+        warnings.push(
+          `${asLabel}: CPAS guardrail: targeting.device_platforms should be ["mobile"] only; audited Shopee CPAS spend had 100% purchases via fb_mobile_purchase and 0% via desktop/web pixel.`
+        );
+      }
+      if (!t || !Array.isArray(t.publisher_platforms)) {
+        warnings.push(
+          `${asLabel}: CPAS guardrail: targeting.publisher_platforms is unset (Advantage+ Placements open); restrict publisher_platforms to ["facebook", "threads"] to prevent Audience Network (99.99% bounce) and Instagram IAB leakage.`
+        );
+      } else {
+        if (t.publisher_platforms.includes("audience_network") || t.publisher_platforms.includes("messenger")) {
+          warnings.push(
+            `${asLabel}: CPAS guardrail: targeting.publisher_platforms includes 'audience_network' or 'messenger'; Audience Network showed 0.012% InApp_VC (99.99% accidental-click drop-off) and 7d_click attribution hijacking. Restrict to ["facebook", "threads"].`
+          );
+        }
+        if (t.publisher_platforms.includes("instagram")) {
+          warnings.push(
+            `${asLabel}: CPAS guardrail: targeting.publisher_platforms includes 'instagram'; Instagram WebView intercepts Shopee universal links into the In-App Browser (false-positive app_site_visit, 0.83% InApp_VC on IG Feed Carousel, 99.48% bounce on IG Stories). Exclude 'instagram' for 100% Direct-to-App delivery.`
+          );
+        }
+        if (Array.isArray(t.facebook_positions)) {
+          const nonDirectPositions = t.facebook_positions.filter((p) => !["feed", "facebook_reels"].includes(p));
+          if (nonDirectPositions.length > 0) {
+            warnings.push(
+              `${asLabel}: CPAS guardrail: targeting.facebook_positions includes low-intent positions (${nonDirectPositions.join(", ")}); restrict facebook_positions to ["feed", "facebook_reels"].`
+            );
+          }
+        }
+      }
+    }
+    for (const [adsetKey, formatSet] of cpasAdsetCreativeFormats.entries()) {
+      if (formatSet.has("CAROUSEL_DPA") && formatSet.has("COLLECTION_VIDEO")) {
+        warnings.push(
+          `adset '${adsetKey}': CPAS guardrail: mixing CAROUSEL_DPA (carousel_images_multi_items) and COLLECTION_VIDEO (collection_video) in the same ad set causes CTR cannibalization (~78% impressions taken by Collection Video while losing ~86% of clickers at the Instant Experience intermediary screen). Isolate into 1-1-1 CAROUSEL_DPA ad sets.`
+        );
+      }
+    }
+  }
+
   // Local copy, placement-length, attribution, and market-language heuristics.
   const fallbackCampaignCountries = new Set();
   for (const as of adsets) {
-    for (const c of extractAdsetCountries(as)) fallbackCampaignCountries.add(c);
+    const resolvedAs = adsetMap.get(as.key || as.name);
+    for (const c of extractAdsetCountries(as, resolvedAs?._targeting)) fallbackCampaignCountries.add(c);
   }
   for (let i = 0; i < creatives.length; i++) {
     const cr = creatives[i];
     const key = cr.key || cr.name;
     const label = `creatives[${i}] (${key || "unnamed"})`;
+    const resolvedCr = creativeMap.get(key);
     const targetCountries = creativeCountriesMap.get(key) || fallbackCampaignCountries;
     const targetsIndonesiaOnly = targetCountries.has("ID") && !targetCountries.has("MY");
     const targetsMalaysiaOnly = targetCountries.has("MY") && !targetCountries.has("ID");
-    const textEntries = collectCreativeTexts(cr);
+    const textEntries = collectCreativeTexts(cr, resolvedCr?._objectStorySpec);
+
+    if (isCpasManifest && (cr.product_set_id || resolvedCr?._objectStorySpec?.template_data)) {
+      if (cr.applink_treatment !== "deeplink_with_web_fallback") {
+        warnings.push(
+          `${label}: CPAS guardrail: applink_treatment should be 'deeplink_with_web_fallback' (got '${cr.applink_treatment || "unset"}'); 'automatic' or unset caused 65-72% In-App Browser leakage on Facebook Feed.`
+        );
+      }
+      if (cr.applink_treatment === "deeplink_with_web_fallback" && !resolvedCr?._templateUrlSpec?.config?.app_id) {
+        warnings.push(
+          `${label}: CPAS guardrail: 'template_url_spec.config.app_id' (e.g. '957549474255294' for Shopee ID) should be set with applink_treatment='deeplink_with_web_fallback' to bind native app deep links.`
+        );
+      }
+      if (!cr.url_tags) {
+        warnings.push(
+          `${label}: CPAS guardrail: missing 'url_tags' (e.g. "utm_source=facebook-ca&utm_medium=seller") for Shopee Collaborative Ads attribution.`
+        );
+      }
+      if (resolvedCr?._objectStorySpec?.template_data?.description === "{{product.price}}") {
+        warnings.push(
+          `${label}: CPAS guardrail: template_data.description uses '{{product.price}}'; prefer '{{product.current_price strip_zeros}}' so discounted Shopee prices render without '.00' decimals.`
+        );
+      }
+    }
 
     if (
       campaign?.objective === "OUTCOME_SALES" &&
@@ -1420,6 +1675,11 @@ function validateManifests(campaignPath, explicitBrandPath) {
     }
 
     for (const { field, text } of textEntries) {
+      if (/[\u{1D400}-\u{1D7FF}]/u.test(text)) {
+        warnings.push(
+          `${label}.${field}: contains stylized Unicode mathematical alphanumeric characters. Use plain Latin text so Meta NLP parsing and screen-reader accessibility are not degraded.`
+        );
+      }
       if (field.startsWith("title") && text.length > 40) {
         warnings.push(
           `${label}.${field}: headline length (${text.length} chars) exceeds the local 40-char mobile Feed preview guideline; actual truncation varies by placement.`
@@ -1538,6 +1798,9 @@ function buildCampaignArgs(validation, activate) {
   if (c.bid_strategy) args.push("--bid-strategy", c.bid_strategy);
   if (c.buying_type) args.push("--buying-type", c.buying_type);
   if (c.pacing_type) args.push("--pacing-type", c.pacing_type);
+  if (c.smart_promotion_type === "GUIDED_CREATION") {
+    args.push("--smart-promotion-type", "GUIDED_CREATION");
+  }
   if (c.adset_budget_sharing === true) args.push("--adset-budget-sharing");
   if (c.adset_budget_sharing === false) args.push("--no-adset-budget-sharing");
   if (c.skadnetwork_attribution === true) args.push("--skadnetwork-attribution");
@@ -1791,11 +2054,29 @@ function buildAdArgs(validation, ad, adsetId, creativeId, activate) {
     status
   );
 
+  const resolvedAdset = manifest.adsets?.find((as) => (as.key || as.name) === (ad.adset || ad.adset_key));
+  const resolvedCreative = manifest.creatives?.find((cr) => (cr.key || cr.name) === (ad.creative || ad.creative_key));
+  let adsetPromoted = resolvedAdset?.promoted_object;
+  if (typeof adsetPromoted === "string") {
+    try { adsetPromoted = readJsonArgument(adsetPromoted, workspaceDir, campaignDir, "adset.promoted_object"); } catch { adsetPromoted = null; }
+  }
+  let campPromoted = manifest.campaign?.promoted_object;
+  if (typeof campPromoted === "string") {
+    try { campPromoted = readJsonArgument(campPromoted, workspaceDir, campaignDir, "campaign.promoted_object"); } catch { campPromoted = null; }
+  }
+  const isCatalogOrCpas = Boolean(
+    campPromoted?.product_catalog_id ||
+    adsetPromoted?.product_set_id ||
+    adsetPromoted?.product_catalog_id ||
+    adsetPromoted?.omnichannel_object ||
+    resolvedCreative?.product_set_id
+  );
+
   const conversionDomain = ad.conversion_domain || brand.conversion_domain;
-  if (conversionDomain) {
+  if (conversionDomain && !isCatalogOrCpas) {
     args.push("--conversion-domain", String(conversionDomain));
   }
-  const pixelId = ad.pixel_id || (manifest.campaign?.objective === "OUTCOME_SALES" ? brand.pixel_id : undefined);
+  const pixelId = ad.pixel_id || (!isCatalogOrCpas && manifest.campaign?.objective === "OUTCOME_SALES" ? brand.pixel_id : undefined);
   if (ad.tracking_specs) {
     args.push("--tracking-specs", serializeJsonOrFileArg(ad.tracking_specs, workspaceDir, campaignDir));
   } else if (pixelId) {
@@ -2598,7 +2879,80 @@ function cmdDeploy(argv) {
     const asHash = entityHash("adset", as, brand);
     if (!adsetId) {
       const asArgs = buildAdsetArgs(validation, as, campaignId, activate);
-      const rec = runMetaStep(asArgs, `adset:${asKey}`);
+      const roasFloor =
+        as.roas_average_floor !== undefined && as.roas_average_floor !== null
+          ? as.roas_average_floor
+          : as.bid_constraints?.roas_average_floor;
+      let rec;
+      if (roasFloor !== undefined && roasFloor !== null && !process.env.META_BIN) {
+        // Upstream meta CLI 1.3.1 omits --bid-constraints on adset create; use installed SDK when roas_average_floor is required.
+        uncertainRemote = true;
+        const status = activate ? as.status || "PAUSED" : "PAUSED";
+        const pixelId = as.pixel_id || brand.pixel_id;
+        const sdkPayload = {
+          account_id: brand.ad_account_id,
+          params: {
+            campaign_id: String(campaignId),
+            name: as.name,
+            optimization_goal: as.optimization_goal,
+            billing_event: as.billing_event,
+            status,
+            bid_constraints: as.bid_constraints || { roas_average_floor: Number(roasFloor) },
+            ...(as.daily_budget != null ? { daily_budget: as.daily_budget } : {}),
+            ...(as.lifetime_budget != null ? { lifetime_budget: as.lifetime_budget } : {}),
+            ...(as.bid_strategy ? { bid_strategy: as.bid_strategy } : {}),
+            ...(as.bid_amount != null ? { bid_amount: as.bid_amount } : {}),
+            ...(as.destination_type ? { destination_type: as.destination_type } : {}),
+            ...(as.start_time ? { start_time: as.start_time } : {}),
+            ...(as.end_time ? { end_time: as.end_time } : {}),
+            ...(as.promoted_object
+              ? { promoted_object: readJsonArgument(as.promoted_object, validation.workspaceDir, validation.campaignDir, "promoted_object") }
+              : pixelId
+                ? { promoted_object: { pixel_id: String(pixelId), ...(as.custom_event_type ? { custom_event_type: String(as.custom_event_type) } : {}) } }
+                : {}),
+            ...(as.targeting
+              ? { targeting: readJsonArgument(as.targeting, validation.workspaceDir, validation.campaignDir, "targeting") }
+              : as.targeting_countries
+                ? {
+                    targeting: {
+                      geo_locations: {
+                        countries: Array.isArray(as.targeting_countries)
+                          ? as.targeting_countries
+                          : String(as.targeting_countries).split(",").map((c) => c.trim()).filter(Boolean),
+                      },
+                      ...(as.advantage_audience !== undefined
+                        ? { targeting_automation: { advantage_audience: as.advantage_audience ? 1 : 0 } }
+                        : {}),
+                    },
+                  }
+                : {}),
+            ...(as.attribution_spec
+              ? { attribution_spec: readJsonArgument(as.attribution_spec, validation.workspaceDir, validation.campaignDir, "attribution_spec") }
+              : {}),
+            ...(as.is_dynamic_creative !== undefined || as.dynamic_creative !== undefined
+              ? { is_dynamic_creative: Boolean(as.dynamic_creative ?? as.is_dynamic_creative) }
+              : {}),
+          },
+        };
+        const pyRes = spawnSync(
+          providerPython(),
+          [
+            "-c",
+            "import json, os, sys; from facebook_business.api import FacebookAdsApi; from facebook_business.adobjects.adaccount import AdAccount; " +
+              "req = json.load(sys.stdin); FacebookAdsApi.init(access_token=os.environ['ACCESS_TOKEN']); " +
+              "res = AdAccount(req['account_id']).create_ad_set(fields=['id'], params=req['params']); " +
+              "print(json.dumps({'id': res['id']}))",
+          ],
+          { env: childEnv, input: JSON.stringify(sdkPayload), encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }
+        );
+        if (pyRes.status !== 0) {
+          const errText = (pyRes.stderr || pyRes.stdout || "").trim() || `exit code ${pyRes.status}`;
+          throw new Error(`Failed at adset:${asKey}: ${errText}. Deployment lock retained; reconcile remote IDs before retrying.`);
+        }
+        rec = parseMetaJsonOutput(pyRes.stdout);
+      } else {
+        rec = runMetaStep(asArgs, `adset:${asKey}`);
+      }
       adsetId = String(rec.id);
       state.adsets[asKey] = {
         id: adsetId,

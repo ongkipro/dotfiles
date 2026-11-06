@@ -22,17 +22,20 @@ LEVELS = ("account", "campaign", "adset", "ad")
 ACCOUNT_FIELDS = ("id", "account_id", "name", "account_status", "currency", "timezone_name")
 RESOURCE_FIELDS = {
     "campaigns": ("id", "account_id", "name", "objective", "status", "configured_status",
-                  "effective_status", "daily_budget", "lifetime_budget", "created_time", "updated_time"),
+                  "effective_status", "bid_strategy", "smart_promotion_type", "promoted_object",
+                  "daily_budget", "lifetime_budget", "spend_cap", "created_time", "updated_time"),
     "adsets": ("id", "account_id", "campaign_id", "name", "status", "configured_status",
                "effective_status", "daily_budget", "lifetime_budget", "optimization_goal", "billing_event",
+               "bid_strategy", "bid_amount", "bid_constraints", "destination_type",
                "promoted_object", "targeting", "start_time", "end_time", "attribution_spec",
-               "is_dynamic_creative", "created_time", "updated_time"),
+               "is_dynamic_creative", "learning_stage_info", "issues_info", "created_time", "updated_time"),
     "ads": ("id", "account_id", "campaign_id", "adset_id", "name", "status", "configured_status",
             "effective_status", "creative{id}", "conversion_domain", "tracking_specs", "created_time", "updated_time"),
     "creatives": ("id", "account_id", "name", "status", "title", "body", "object_type",
                   "object_story_id", "effective_object_story_id", "object_story_spec", "asset_feed_spec",
                   "image_hash", "image_url", "thumbnail_url", "video_id", "link_url", "object_url",
-                  "object_store_url", "template_url", "url_tags", "call_to_action_type", "product_set_id",
+                  "object_store_url", "template_url", "template_url_spec", "applink_treatment",
+                  "url_tags", "call_to_action_type", "product_set_id",
                   "instagram_permalink_url", "effective_instagram_media_id", "degrees_of_freedom_spec"),
 }
 RESOURCE_REQUIRED_FIELDS = {

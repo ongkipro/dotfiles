@@ -502,6 +502,93 @@ Uses ABO with `"adset_budget_sharing": true` so each creative concept gets a ded
 }
 ```
 
+### Recipe 5: Shopee Collaborative Ads (CPAS) `1-1-1` Direct-to-App (`CAROUSEL_DPA` — Dynamic Across All Niches)
+
+Implements the universal Indonesia Shopee CPAS `1-1-1` architecture (`1 Campaign` CBO → `1 Ad Set` → `1 Dynamic Carousel Ad` `carousel_images_multi_items`) with `device_platforms: ["mobile"]`, `publisher_platforms: ["facebook", "threads"]` (`feed`, `facebook_reels`, `threads_stream`), 100% exclusion of Instagram and Audience Network, and `deeplink_with_web_fallback` bound to the Shopee ID app (`957549474255294`). Replace `product_catalog_id`, `product_set_id`, `page_id`, `daily_budget` (`max(25000, 1.5x–2.5x Target_CPA)`), demographic bounds, and `template_data.message` dynamically to match the specific brand, niche, and unit economics (see `references/cpas-collaborative-ads.md` §7):
+
+```json
+{
+  "campaign": {
+    "key": "camp_cpas_111_pros_hero",
+    "name": "ID_CPAS_PROS_HeroSet_111_CBO",
+    "objective": "OUTCOME_SALES",
+    "smart_promotion_type": "GUIDED_CREATION",
+    "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+    "daily_budget": 30000,
+    "promoted_object": {
+      "product_catalog_id": "123456789012345",
+      "smart_pse_enabled": false
+    },
+    "status": "PAUSED"
+  },
+  "creatives": [
+    {
+      "key": "cr_cpas_carousel_hero_v1",
+      "name": "Cr_CPAS_Carousel_Hero_V1",
+      "product_set_id": "234567890123456",
+      "applink_treatment": "deeplink_with_web_fallback",
+      "template_url_spec": {
+        "android": { "app_name": "Shopee ID", "package": "com.shopee.id" },
+        "config": { "app_id": "957549474255294" },
+        "ios": { "app_name": "Shopee ID", "app_store_id": "959841449" }
+      },
+      "url_tags": "utm_source=facebook-ca&utm_medium=seller",
+      "object_story_spec": {
+        "page_id": "1122334455",
+        "template_data": {
+          "call_to_action": { "type": "SHOP_NOW" },
+          "description": "{{product.current_price strip_zeros}}",
+          "format_option": "carousel_images_multi_items",
+          "link": "http://shopee.co.id/",
+          "message": "Cari produk pilihan terbaik dengan jaminan kualitas resmi dan ulasan bintang 4.9+ dari ribuan pembeli?\n\nAmbil voucher diskon toko, harga promo katalog, dan gratis ongkir hari ini di Shopee Official Store kami.",
+          "multi_share_end_card": false,
+          "name": "{{product.name}}"
+        }
+      }
+    }
+  ],
+  "adsets": [
+    {
+      "key": "adset_cpas_pros_mobile_fb_threads",
+      "name": "AdSet_CPAS_PROS_Mobile_FB_Threads",
+      "optimization_goal": "OFFSITE_CONVERSIONS",
+      "billing_event": "IMPRESSIONS",
+      "promoted_object": {
+        "custom_event_type": "PURCHASE",
+        "product_set_id": "234567890123456"
+      },
+      "attribution_spec": [
+        { "event_type": "CLICK_THROUGH", "window_days": 7 },
+        { "event_type": "VIEW_THROUGH", "window_days": 1 }
+      ],
+      "targeting": {
+        "age_min": 18,
+        "age_max": 65,
+        "geo_locations": {
+          "countries": ["ID"],
+          "location_types": ["home", "recent"]
+        },
+        "device_platforms": ["mobile"],
+        "publisher_platforms": ["facebook", "threads"],
+        "facebook_positions": ["feed", "facebook_reels"],
+        "threads_positions": ["threads_stream"],
+        "targeting_automation": { "advantage_audience": 1 }
+      },
+      "status": "PAUSED"
+    }
+  ],
+  "ads": [
+    {
+      "key": "ad_cpas_carousel_hero_v1",
+      "name": "Ad_CPAS_Carousel_Hero_V1",
+      "adset": "adset_cpas_pros_mobile_fb_threads",
+      "creative": "cr_cpas_carousel_hero_v1",
+      "status": "PAUSED"
+    }
+  ]
+}
+```
+
 ---
 
 ## Part 5: Day-2 Operations (Insights, Guidance, Status & Budget Updates)

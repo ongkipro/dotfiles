@@ -806,7 +806,23 @@ function commerceCollection(period = { since: '2026-09-01', until: '2026-09-30' 
     { action_type: 'offsite_conversion.fb_pixel_purchase', value: purchases }, { action_type: 'link_click', value: '90' }];
   const values = [{ action_type: 'omni_purchase', value: '800000' }, { action_type: 'purchase', value: '800000' }];
   const row = (extra, metrics) => ({ account_id: '123', ...extra, ...metrics });
-  const segment = cpas ? { catalog_segment_actions: [{ action_type: 'purchase', value: '3' }, { action_type: 'add_to_cart', value: '9' }], catalog_segment_value: [{ action_type: 'purchase', value: '450000' }], catalog_segment_value_omni_purchase_roas: [{ action_type: 'omni_purchase', value: '2.25' }] } : {};
+  const segment = cpas ? {
+    catalog_segment_actions: [
+      { action_type: 'omni_view_content', value: '50' },
+      { action_type: 'app_custom_event.fb_mobile_content_view', value: '48' },
+      { action_type: 'offsite_conversion.fb_pixel_view_content', value: '2' },
+      { action_type: 'purchase', value: '3' },
+      { action_type: 'app_custom_event.fb_mobile_purchase', value: '3' },
+      { action_type: 'add_to_cart', value: '9' },
+      { action_type: 'app_custom_event.fb_mobile_add_to_cart', value: '8' },
+      { action_type: 'offsite_conversion.fb_pixel_add_to_cart', value: '1' }
+    ],
+    catalog_segment_value: [
+      { action_type: 'purchase', value: '450000' },
+      { action_type: 'app_custom_event.fb_mobile_purchase', value: '450000' }
+    ],
+    catalog_segment_value_omni_purchase_roas: [{ action_type: 'omni_purchase', value: '2.25' }]
+  } : {};
   payload.insights = [
     { level: 'account', rows: [row({}, { spend: '200000', impressions: '20000', reach: '8000', frequency: '2.5', outbound_clicks: [{ action_type: 'outbound_click', value: '80' }], actions, action_values: values, ...segment })] },
     { level: 'campaign', rows: [
@@ -851,12 +867,47 @@ test('commerce insight is deterministic, never sums purchase aliases and keeps p
 });
 
 test('CPAS cpas_v1 metrics stay separate from ordinary purchases and lineage never changes snapshot hashes', t => {
-  const insight = commerceInsight(commerceCollection(undefined, { cpas: true }));
+  const cpasPayload = commerceCollection(undefined, { cpas: true });
+  cpasPayload.resources.campaigns.rows[0].promoted_object = { product_catalog_id: '777', smart_pse_enabled: false };
+  cpasPayload.insights[0].rows[0].actions.push(
+    { action_type: 'app_custom_event.fb_mobile_content_view', value: '45' },
+    { action_type: 'app_custom_event.fb_mobile_add_to_cart', value: '15' },
+    { action_type: 'app_custom_event.fb_mobile_purchase', value: '4' },
+    { action_type: 'app_site_visit', value: '88' }
+  );
+  cpasPayload.insights[0].rows[0].action_values.push(
+    { action_type: 'app_custom_event.fb_mobile_purchase', value: '800000' }
+  );
+  const insight = commerceInsight(cpasPayload);
   assert.deepEqual(insight.cpas.catalog_lineage.catalog_ids, ['777']);
   assert.deepEqual(insight.cpas.catalog_lineage.product_set_ids, ['888']);
   assert.equal(insight.cpas.catalog_lineage.classification, 'UNVERIFIED_SEGMENT', 'is_catalog_segment was not observed');
+  assert.equal(insight.cpas.segment_view_content, 50);
+  assert.equal(insight.cpas.segment_add_to_cart, 9);
   assert.equal(insight.cpas.segment_purchases, 3); assert.equal(insight.cpas.segment_purchase_value, 450000);
+  assert.equal(insight.cpas.segment_cost_per_purchase, 200000 / 3);
+  assert.equal(insight.cpas.segment_average_order_value, 150000);
+  assert.equal(insight.cpas.segment_purchase_per_add_to_cart, 3 / 9);
   assert.equal(insight.cpas.segment_omni_purchase_roas, 2.25);
+  assert.equal(insight.cpas.segment_in_app_content_views, 48);
+  assert.equal(insight.cpas.segment_in_app_adds_to_cart, 8);
+  assert.equal(insight.cpas.segment_in_app_purchases, 3);
+  assert.equal(insight.cpas.segment_in_app_purchase_value, 450000);
+  assert.equal(insight.cpas.segment_website_content_views, 2);
+  assert.equal(insight.cpas.segment_website_adds_to_cart, 1);
+  assert.equal(insight.cpas.segment_in_app_arrival_per_link_click, 48 / 90);
+  assert.equal(insight.spend_concentration.campaign[0].segment_purchases, 3);
+  assert.equal(insight.spend_concentration.campaign[0].segment_purchase_value, 450000);
+  assert.equal(insight.spend_concentration.campaign[0].segment_roas, 2.25);
+  assert.equal(insight.spend_concentration.campaign[0].segment_cost_per_purchase, 180000 / 3);
+  assert.equal(insight.cpas.in_app_content_views, 45);
+  assert.equal(insight.cpas.in_app_adds_to_cart, 15);
+  assert.equal(insight.cpas.in_app_purchases, 4);
+  assert.equal(insight.cpas.in_app_purchase_value, 800000);
+  assert.equal(insight.cpas.website_adds_to_cart, 12);
+  assert.equal(insight.cpas.website_purchases, 4);
+  assert.equal(insight.cpas.app_site_visits, 88);
+  assert.equal(insight.cpas.in_app_arrival_per_link_click, 45 / 90);
   assert.equal(insight.funnel.purchases.value, 4, 'ordinary purchases are not replaced by segment values');
   const { root } = fixture(t), payload = commerceCollection();
   const saved = saveSnapshot(root, payload), before = read(path.join(saved.snapshot_path, 'manifest.json')).snapshot_hash;
