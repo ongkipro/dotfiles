@@ -817,8 +817,16 @@ function commerceMarkdown(insight) {
     '### CPAS / catalog', '', `Status ${insight.cpas.status}; lineage ${insight.cpas.catalog_lineage.classification}; catalogs ${md(insight.cpas.catalog_lineage.catalog_ids.join(', ') || 'none')}; product sets ${md(insight.cpas.catalog_lineage.product_set_ids.join(', ') || 'none')}.`,
     `Segment funnel: VC ${fmt(insight.cpas.segment_view_content)} · ATC ${fmt(insight.cpas.segment_add_to_cart)} · purchases ${fmt(insight.cpas.segment_purchases)} · segment value ${fmt(insight.cpas.segment_purchase_value)} · segment omni ROAS ${fmt(insight.cpas.segment_omni_purchase_roas)} · segment CPP ${fmt(insight.cpas.segment_cost_per_purchase)} · segment AOV ${fmt(insight.cpas.segment_average_order_value)} (estimated, retailer-reported, separate from ordinary purchases).`,
     `Segment channel split (catalog_segment_*): in-app SDK VC ${fmt(insight.cpas.segment_in_app_content_views)} · ATC ${fmt(insight.cpas.segment_in_app_adds_to_cart)} · purchases ${fmt(insight.cpas.segment_in_app_purchases)} (value ${fmt(insight.cpas.segment_in_app_purchase_value)}) · in-app arrival/link click ${fmt(insight.cpas.segment_in_app_arrival_per_link_click, 3)} | website pixel VC ${fmt(insight.cpas.segment_website_content_views)} · ATC ${fmt(insight.cpas.segment_website_adds_to_cart)} · purchases ${fmt(insight.cpas.segment_website_purchases)} (value ${fmt(insight.cpas.segment_website_purchase_value)}).`,
-    `Channel split (ordinary actions): in-app SDK VC ${fmt(insight.cpas.in_app_content_views)} · ATC ${fmt(insight.cpas.in_app_adds_to_cart)} · purchases ${fmt(insight.cpas.in_app_purchases)} (value ${fmt(insight.cpas.in_app_purchase_value)}) · in-app arrival/link click ${fmt(insight.cpas.in_app_arrival_per_link_click, 3)} | website pixel VC ${fmt(insight.cpas.website_content_views)} · ATC ${fmt(insight.cpas.website_adds_to_cart)} · purchases ${fmt(insight.cpas.website_purchases)} | app_site_visit ${fmt(insight.cpas.app_site_visits)} (redirect claim, not proof native app opened).`, '',
-    ...insight.limits.map(text => `- ${text}`), '');
+    `Channel split (ordinary actions): in-app SDK VC ${fmt(insight.cpas.in_app_content_views)} · ATC ${fmt(insight.cpas.in_app_adds_to_cart)} · purchases ${fmt(insight.cpas.in_app_purchases)} (value ${fmt(insight.cpas.in_app_purchase_value)}) · in-app arrival/link click ${fmt(insight.cpas.in_app_arrival_per_link_click, 3)} | website pixel VC ${fmt(insight.cpas.website_content_views)} · ATC ${fmt(insight.cpas.website_adds_to_cart)} · purchases ${fmt(insight.cpas.website_purchases)} | app_site_visit ${fmt(insight.cpas.app_site_visits)} (redirect claim, not proof native app opened).`, '');
+  if (insight.cpas.status === 'OBSERVED') {
+    for (const level of ['campaign', 'adset', 'ad']) {
+      const rows = insight.spend_concentration[level].filter(row => row.segment_purchases != null || row.segment_purchase_value != null || row.segment_add_to_cart != null);
+      if (!rows.length) continue;
+      lines.push(`**CPAS segment concentration (${level})**`, '', '| ID | Name | Spend | Seg ATC | Seg Purchases | Seg Value | Seg ROAS | Seg CPP | Status |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+        ...rows.map(row => `| ${md(row.entity_id)} | ${md(row.name ?? '—')} | ${fmt(row.spend)} | ${fmt(row.segment_add_to_cart)} | ${fmt(row.segment_purchases)} | ${fmt(row.segment_purchase_value)} | ${fmt(row.segment_roas)} | ${fmt(row.segment_cost_per_purchase)} | ${md(row.effective_status ?? '—')} |`), '');
+    }
+  }
+  lines.push(...insight.limits.map(text => `- ${text}`), '');
   return lines;
 }
 function tableRows(value) {

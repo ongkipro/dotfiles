@@ -913,6 +913,10 @@ test('CPAS cpas_v1 metrics stay separate from ordinary purchases and lineage nev
   const saved = saveSnapshot(root, payload), before = read(path.join(saved.snapshot_path, 'manifest.json')).snapshot_hash;
   commerceInsight(read(path.join(saved.snapshot_path, 'insights.json')) && commerceCollection());
   assert.equal(read(path.join(saved.snapshot_path, 'manifest.json')).snapshot_hash, before);
+  const cpasSaved = saveSnapshot(root, cpasPayload);
+  const cpasReportMd = fs.readFileSync(renderReport(root, 'act_123', { snapshotId: cpasSaved.snapshot_id }).report_path, 'utf8');
+  assert.match(cpasReportMd, /Segment channel split \(catalog_segment_\*\)/);
+  assert.match(cpasReportMd, /CPAS segment concentration \(campaign\)/);
 });
 
 test('history learning carries commerce insight, supersedes partial windows, keeps parents and blocks resurrection on import', t => {

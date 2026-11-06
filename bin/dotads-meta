@@ -3610,12 +3610,14 @@ function cmdAnalyze(argv) {
   let purchaseBasis = null;
   let recordMemory = false;
   let jsonOut = false;
+  let metricProfileArg = null;
 
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--brand") brandPath = argv[++i];
     else if (a === "--pull") pullLive = true;
     else if (a === "--date-preset") datePreset = argv[++i] || "last_7d";
+    else if (a === "--metric-profile") metricProfileArg = argv[++i];
     else if (a === "--delivery-rate") {
       deliveryRate = analysisNumber(argv[++i]);
       if (deliveryRate === null) throw new Error("--delivery-rate requires a finite number between 0 and 1.");
@@ -3629,6 +3631,7 @@ function cmdAnalyze(argv) {
     else if (!a.startsWith("-") && !insightsPath) insightsPath = a;
     else throw new Error(`Unknown or unexpected option for analyze: ${a}`);
   }
+  const metricProfile = parseMetricProfile(metricProfileArg);
   if (!insightsPath && !pullLive) {
     throw new Error("analyze requires <insights.json> or --pull.");
   }
@@ -3645,7 +3648,7 @@ function cmdAnalyze(argv) {
   if (pullLive) {
     const selectedAccount = accountId(brand.ad_account_id);
     const collected = collectProvider({ operation: "insights", account_id: selectedAccount,
-      date_preset: datePreset, levels: ["ad"], breakdowns: [], attribution: {}, action_report_time: "conversion", max_pages: 100 }, brand.token_env);
+      date_preset: datePreset, levels: ["ad"], breakdowns: [], attribution: {}, action_report_time: "conversion", max_pages: 100, ...metricProfile }, brand.token_env);
     const query = collected?.insights?.[0];
     if (collected?.account?.id !== selectedAccount || collected?.insights?.length !== 1 || query?.query?.level !== "ad" ||
         query?.coverage?.status !== "complete" || query?.coverage?.pagination_exhausted !== true || !Array.isArray(query?.rows)) {
@@ -3712,6 +3715,13 @@ function cmdAnalyze(argv) {
     const spend = metric("spend"), impressions = metric("impressions"), frequency = metric("frequency");
     const metaPurchases = has("purchases") ? metric("purchases") : extractActionMetric(row.actions, purchaseTypes, issues, "purchases");
     const metaRevenue = has("revenue") ? metric("revenue") : has("purchase_value") ? metric("purchase_value") : extractActionMetric(row.action_values, purchaseTypes, issues, "revenue");
+    const cpasSegmentPurchases = extractActionMetric(row.catalog_segment_actions, ["omni_purchase", "purchase"], issues, "catalog_segment_actions");
+    const cpasSegmentRevenue = extractActionMetric(row.catalog_segment_value, ["omni_purchase", "purchase"], issues, "catalog_segment_value");
+    const cpasSegmentRoas = extractActionMetric(row.catalog_segment_value_omni_purchase_roas, ["omni_purchase", "purchase"], issues, "catalog_segment_value_omni_purchase_roas") ?? ratio(cpasSegmentRevenue, spend);
+    const cpasSegmentCpr = ratio(spend, cpasSegmentPurchases);
+    const cpasSegmentAddToCart = extractActionMetric(row.catalog_segment_actions, ["omni_add_to_cart", "add_to_cart"], issues, "catalog_segment_add_to_cart");
+    const cpasInAppPurchases = extractActionMetric(row.catalog_segment_actions ?? row.actions, ["app_custom_event.fb_mobile_purchase", "onsite_app_purchase"], issues, "cpas_in_app_purchases");
+    const cpasInAppContentViews = extractActionMetric(row.catalog_segment_actions ?? row.actions, ["app_custom_event.fb_mobile_content_view", "onsite_app_view_content"], issues, "cpas_in_app_content_views");
     const real = has("real_purchases") || has("real_revenue");
     const backend = has("backend_purchases") || has("backend_revenue");
     let source = real && backend ? "mixed_backend" : real ? "backend_real" : backend ? "backend" : "meta";
@@ -3799,7 +3809,10 @@ function cmdAnalyze(argv) {
     }
     return {
       id, name, spend, impressions, frequency, purchases, revenue, meta_purchases: metaPurchases, meta_revenue: metaRevenue,
-      meta_roas: ratio(metaRevenue, spend), reconciled: false, reconciliation_status: applyRate ? "DELIVERY_RATE_ESTIMATE" : real || backend ? "BACKEND_SUPPLIED_UNVERIFIED" : "NONE",
+      meta_roas: ratio(metaRevenue, spend), cpas_segment_purchases: cpasSegmentPurchases, cpas_segment_revenue: cpasSegmentRevenue,
+      cpas_segment_roas: cpasSegmentRoas, cpas_segment_cpr: cpasSegmentCpr, cpas_segment_add_to_cart: cpasSegmentAddToCart,
+      cpas_in_app_purchases: cpasInAppPurchases, cpas_in_app_content_views: cpasInAppContentViews,
+      reconciled: false, reconciliation_status: applyRate ? "DELIVERY_RATE_ESTIMATE" : real || backend ? "BACKEND_SUPPLIED_UNVERIFIED" : "NONE",
       roas, cpr, cpm, ctr, cpc, hook_rate: hookRate, hold_rate: holdRate, cvr,
       revenue_after_ad_spend: revenue !== null && spend !== null ? round(revenue - spend) : null,
       estimated_contribution_after_ads: contribution, estimated_net_profit: null,
@@ -3849,7 +3862,8 @@ function cmdAnalyze(argv) {
   console.log(`=== META ADS OBSERVATIONS (${memory.brand}) ===`);
   console.log("Local hypotheses only; no mutation commands or automatic winner/loser promotion. Unknown costs and unsupported order bases remain unavailable.");
   for (const r of evaluated) {
-    console.log(`  [${r.classification}] ${r.name}: ROAS=${r.roas ?? "n/a"}, CPR=${r.cpr ?? "n/a"}, contribution after ads=${r.estimated_contribution_after_ads ?? "unknown"}`);
+    const cpasSuffix = r.cpas_segment_purchases !== null ? ` | CPAS segment: purchases=${r.cpas_segment_purchases}, value=${r.cpas_segment_revenue ?? "n/a"}, ROAS=${r.cpas_segment_roas ?? "n/a"}, CPR=${r.cpas_segment_cpr ?? "n/a"}, ATC=${r.cpas_segment_add_to_cart ?? "n/a"}` : "";
+    console.log(`  [${r.classification}] ${r.name}: ROAS=${r.roas ?? "n/a"}, CPR=${r.cpr ?? "n/a"}, contribution after ads=${r.estimated_contribution_after_ads ?? "unknown"}${cpasSuffix}`);
     console.log(`    ${r.diagnosis}`);
     for (const issue of [...r.data_quality.issues, ...r.context_issues]) console.log(`    Review: ${issue}`);
   }
