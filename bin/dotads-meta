@@ -1116,6 +1116,12 @@ function validateManifests(campaignPath, explicitBrandPath) {
     const isCatalog = Boolean(cr.product_set_id);
     const hasSingleMedia = Boolean(cr.image || cr.video || cr.image_hash || cr.video_id);
 
+    if (parsedObjectStorySpec?.template_data && !cr.product_set_id) {
+      errors.push(
+        `${label}: 'object_story_spec.template_data' requires top-level 'product_set_id' on the creative (Meta API error 100: 'Attempted to create a dynamic creative with no product set ID').`
+      );
+    }
+
     const pageId = cr.page_id || brand?.page_id;
     if (!isExistingPost && !cr.object_story_spec && !pageId) {
       errors.push(`${label}: requires 'page_id' (in creative or brand.json) unless boosting an existing post or passing object_story_spec.`);
@@ -1391,6 +1397,14 @@ function validateManifests(campaignPath, explicitBrandPath) {
           } else if (automation?.advantage_audience !== undefined && automation.advantage_audience !== 0 && automation.advantage_audience !== 1) {
             errors.push(`${label}: targeting_automation.advantage_audience must be 0 or 1. The raw nested value overrides the shortcut flag.`);
           }
+          const advEnabled =
+            automation?.advantage_audience === 1 ||
+            (automation?.advantage_audience === undefined && as.advantage_audience === true);
+          if (advEnabled && typeof targeting.age_max === "number" && targeting.age_max < 65) {
+            errors.push(
+              `${label}: targeting.age_max (${targeting.age_max}) < 65 with Advantage+ Audience enabled is rejected by Meta API ('You can add a lower maximum age as a suggestion instead'). Set "age_max": 65 and pass the suggestion via "age_range": [${targeting.age_min || 18}, ${targeting.age_max}].`
+            );
+          }
         }
       } catch {
         errors.push(`${label}: 'targeting' must contain valid JSON or reference a readable JSON file.`);
@@ -1584,6 +1598,16 @@ function validateManifests(campaignPath, explicitBrandPath) {
       const key = as.key || as.name;
       const asLabel = `adsets[${i}] (${key || "unnamed"})`;
       const resolvedAs = adsetMap.get(key);
+      const prom = resolvedAs?._promotedObject;
+      if (prom?.omnichannel_object && !parsedCampaignPromoted?.product_catalog_id) {
+        errors.push(
+          `${asLabel}: ad set uses 'promoted_object.omnichannel_object' for Collaborative Ads (CPAS), which requires 'campaign.promoted_object.product_catalog_id' on the campaign so dotads-meta can bind the catalog segment before creating the omnichannel ad set.`
+        );
+      } else if (prom?.product_set_id && !prom?.omnichannel_object) {
+        warnings.push(
+          `${asLabel}: CPAS guardrail: ad set promoted_object has 'product_set_id' without 'omnichannel_object'; in Ads Manager this leaves Conversion Location without the marketplace App selected ('Website and app' -> Shopee ID App + Shopee ID Website's Pixel). Include 'omnichannel_object' (app + pixel) for full omnichannel App+Web attribution.`
+        );
+      }
       const t = resolvedAs?._targeting;
       if (!t || !Array.isArray(t.device_platforms) || t.device_platforms.includes("desktop") || !t.device_platforms.includes("mobile")) {
         warnings.push(
@@ -1757,6 +1781,7 @@ function validateManifests(campaignPath, explicitBrandPath) {
     budgets,
     mediaFiles,
     algorithmAlignment,
+    campaignPromoted: parsedCampaignPromoted,
   };
 }
 
@@ -2806,8 +2831,52 @@ function cmdDeploy(argv) {
   // 1. Campaign
   let campaignId = state.campaigns[campKey]?.id;
   if (!campaignId) {
-    const rec = runMetaStep(campArgs, `campaign:${campKey}`);
-    campaignId = String(rec.id);
+    if ((validation.campaignPromoted || manifest.campaign.is_pca_unified !== undefined) && !process.env.META_BIN) {
+      // Upstream meta CLI 1.3.1 omits --promoted-object and --is-pca-unified on campaign create.
+      // Because Meta locks is_pca_unified at Campaign creation time (Error 100 / Subcode 3858845),
+      // Collaborative Ads (CPAS) campaigns must be created directly with is_pca_unified=true and promoted_object.
+      uncertainRemote = true;
+      const camp = manifest.campaign;
+      const status = activate ? camp.status || "PAUSED" : "PAUSED";
+      const sdkCampPayload = {
+        account_id: brand.ad_account_id,
+        params: {
+          name: camp.name,
+          objective: camp.objective,
+          status,
+          buying_type: camp.buying_type || "AUCTION",
+          special_ad_categories: Array.isArray(camp.special_ad_categories) ? camp.special_ad_categories : [],
+          is_pca_unified: camp.is_pca_unified !== undefined ? Boolean(camp.is_pca_unified) : true,
+          ...(camp.smart_promotion_type ? { smart_promotion_type: camp.smart_promotion_type } : {}),
+          ...(camp.bid_strategy ? { bid_strategy: camp.bid_strategy } : {}),
+          ...(camp.daily_budget != null ? { daily_budget: camp.daily_budget } : {}),
+          ...(camp.lifetime_budget != null ? { lifetime_budget: camp.lifetime_budget } : {}),
+          ...(camp.spend_cap != null ? { spend_cap: camp.spend_cap } : {}),
+          ...(camp.adset_budget_sharing !== undefined ? { is_adset_budget_sharing_enabled: Boolean(camp.adset_budget_sharing) } : {}),
+          ...(validation.campaignPromoted ? { promoted_object: validation.campaignPromoted } : {}),
+        },
+      };
+      const pyCampRes = spawnSync(
+        providerPython(),
+        [
+          "-c",
+          "import json, os, sys; from facebook_business.api import FacebookAdsApi; from facebook_business.adobjects.adaccount import AdAccount; " +
+            "req = json.load(sys.stdin); FacebookAdsApi.init(access_token=os.environ['ACCESS_TOKEN']); " +
+            "res = AdAccount(req['account_id']).create_campaign(fields=['id'], params=req['params']); " +
+            "print(json.dumps({'id': res['id']}))",
+        ],
+        { env: childEnv, input: JSON.stringify(sdkCampPayload), encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }
+      );
+      if (pyCampRes.status !== 0) {
+        const errText = (pyCampRes.stderr || pyCampRes.stdout || "").trim() || `exit code ${pyCampRes.status}`;
+        throw new Error(`Failed at campaign:${campKey}: ${errText}. Deployment lock retained; reconcile remote IDs before retrying.`);
+      }
+      const rec = parseMetaJsonOutput(pyCampRes.stdout);
+      campaignId = String(rec.id);
+    } else {
+      const rec = runMetaStep(campArgs, `campaign:${campKey}`);
+      campaignId = String(rec.id);
+    }
     state.campaigns[campKey] = {
       id: campaignId,
       name: manifest.campaign.name,
@@ -2884,8 +2953,13 @@ function cmdDeploy(argv) {
           ? as.roas_average_floor
           : as.bid_constraints?.roas_average_floor;
       let rec;
-      if (roasFloor !== undefined && roasFloor !== null && !process.env.META_BIN) {
-        // Upstream meta CLI 1.3.1 omits --bid-constraints on adset create; use installed SDK when roas_average_floor is required.
+      const needsSdkAdset =
+        (roasFloor !== undefined && roasFloor !== null) ||
+        as.ad_set_goal !== undefined ||
+        (validation.campaignPromoted && as.promoted_object?.omnichannel_object);
+      if (needsSdkAdset && !process.env.META_BIN) {
+        // Upstream meta CLI 1.3.1 omits --bid-constraints and --ad-set-goal on adset create;
+        // use installed SDK when roas_average_floor or CPAS PCA Unified (ad_set_goal: {type: 0}) is required.
         uncertainRemote = true;
         const status = activate ? as.status || "PAUSED" : "PAUSED";
         const pixelId = as.pixel_id || brand.pixel_id;
@@ -2897,7 +2971,16 @@ function cmdDeploy(argv) {
             optimization_goal: as.optimization_goal,
             billing_event: as.billing_event,
             status,
-            bid_constraints: as.bid_constraints || { roas_average_floor: Number(roasFloor) },
+            ...(roasFloor !== undefined && roasFloor !== null
+              ? { bid_constraints: as.bid_constraints || { roas_average_floor: Number(roasFloor) } }
+              : as.bid_constraints
+                ? { bid_constraints: as.bid_constraints }
+                : {}),
+            ...(as.ad_set_goal !== undefined
+              ? { ad_set_goal: as.ad_set_goal }
+              : validation.campaignPromoted && as.promoted_object?.omnichannel_object
+                ? { ad_set_goal: { type: 0 } }
+                : {}),
             ...(as.daily_budget != null ? { daily_budget: as.daily_budget } : {}),
             ...(as.lifetime_budget != null ? { lifetime_budget: as.lifetime_budget } : {}),
             ...(as.bid_strategy ? { bid_strategy: as.bid_strategy } : {}),

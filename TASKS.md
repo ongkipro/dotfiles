@@ -8,17 +8,29 @@ Done through 2026-11-07: see the index [TASKS-index-2026-11-07](docs/archive/TAS
 
 ## In progress
 
+### TASK-198: CPAS PCA Unified campaign + omnichannel ad set contract
+- **Requirement:** REQ-CPAS-PCA-UNIFIED (2026-11-07: `Website and app` in Ads Manager UI, `7d_click+1d_view+1d_ev`, `dotads:` naming, 5 CPAS API traps).
+- **Risk Level:** R2.
+- **Allowed Paths:** `bin/dotads-meta`, `bin/dotads-meta-test`, `skills/local/meta-ads-cli/**`, `config/ai/memory/meta-ads.md`, `TASKS.md`, `CHANGELOG.md`.
+- **Protected Paths:** `bin/delivery-ledger`, `docs/task-change-boundary.md`, `config/ai/README.md`.
+- **Canonical Contract Owners:** `dotads-meta`; `cpas-collaborative-ads.md`; `rules-and-tutorial.md`.
+- **Accepted Invariants:** SDK creates CPAS campaign (`is_pca_unified: true`, `promoted_object`, `PAUSED`) and ad set (`ad_set_goal: {"type": 0}`, `omnichannel_object`); `validate` blocks missing `product_set_id`, `age_max < 65` with Advantage+, and missing catalog; public files stay de-identified.
+- **Regression Checks:** `workspace`, `provider`, `meta-cli`, `skill`, `policy`, `memory-link`, `system-map`, `security`.
+- **Reopen Conditions:** Ads Manager hides `Website and app`, or SDK leaks token / activates without `--activate`.
+- **Non-Scope:** live account calls in tests; history rewrite.
+- **Escalation Conditions:** unapproved live account mutation.
+
 ### TASK-197: Review and harden the MacBook CPAS 1-1-1 commit (08480c6)
-- **Requirement:** REQ-CPAS-REVIEW (owner 2026-11-07: pull the MacBook commit, analyse and perfect the new skill and memory; dotfiles stays public for now).
+- **Requirement:** REQ-CPAS-REVIEW (2026-11-07: review `08480c6`; dotfiles stays public).
 - **Risk Level:** R3.
 - **Allowed Paths:** `bin/_dotads-meta-provider.py`, `bin/_dotads-meta-provider-test.py`, `bin/_dotads-workspace.mjs`, `bin/_dotads-workspace-test.mjs`, `bin/dotads-meta`, `bin/dotads-meta-test`, `skills/local/meta-ads-cli/**`, `config/ai/memory/meta-ads.md`, `config/ai/memory/preferences.md`, `CHANGELOG.md`, `TASKS.md`, `docs/archive/TASKS-196-completed.md`.
-- **Protected Paths:** `bin/delivery-ledger`, `docs/task-change-boundary.md`, `config/ai/README.md`, `config/ai/project-memory/**`, `skills/local/development-kit/**` (other sessions).
-- **Canonical Contract Owners:** `_dotads-meta-provider.py` (request and scope contract); `cpas-collaborative-ads.md` (CPAS rules and their scope); `meta-ads-cli/SKILL.md` §1 (live-mutation rule).
-- **Accepted Invariants:** default inventory request, scope hash and query IDs stay those of `6e38288`; CPAS inventory fields only with `cpas_v1`; deploy stays dry-run, `PAUSED` unless `--activate`, lock retained on failure, token never printed; live account changes need owner approval per action (or the owner's own dated standing approval); public files carry no absolute spend/value/order figures or content names.
-- **Regression Checks:** workspace, provider and `dotads-meta-test` (incl. offline SDK ad set cases), `skill-check meta-ads-cli`, `ai-policy-lint`, `ai-memory-link --check`, `system-map --check`, `security-check`, link check.
-- **Reopen Conditions:** the default Insights/inventory request changes without a profile; an SDK ad set is created active without `--activate`; a memory or skill line instructs an unapproved live change; an absolute client figure reappears in a public file.
-- **Non-Scope:** making the repo private (owner: later); rewriting git history; live Meta reads.
-- **Escalation Conditions:** a change needs a live account call or history rewrite.
+- **Protected Paths:** `bin/delivery-ledger`, `docs/task-change-boundary.md`, `config/ai/README.md`, `config/ai/project-memory/**`, `skills/local/development-kit/**`.
+- **Canonical Contract Owners:** `_dotads-meta-provider.py`; `cpas-collaborative-ads.md`; `meta-ads-cli/SKILL.md` §1.
+- **Accepted Invariants:** default inventory request/hashes match `6e38288`; CPAS fields only with `cpas_v1`; deploy dry-run/`PAUSED`/lock retained/no token printed; live mutations require owner approval; no client figures in public files.
+- **Regression Checks:** `workspace`, `provider`, `dotads-meta-test`, `skill-check meta-ads-cli`, `ai-policy-lint`, `ai-memory-link --check`, `system-map --check`, `security-check`.
+- **Reopen Conditions:** default request changes without profile, SDK activates without `--activate`, or client figures enter public files.
+- **Non-Scope:** making repo private; history rewrite; live Meta reads.
+- **Escalation Conditions:** live account call or history rewrite.
 
 ## Pending
 

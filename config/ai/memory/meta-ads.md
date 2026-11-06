@@ -63,3 +63,26 @@ Query Shopee CPAS with `--metric-profile cpas_v1` and read `catalog_segment_acti
 dotads-meta-test && node --test bin/_dotads-workspace-test.mjs && ai-policy-lint
 
 > Promoted from a reviewed local candidate on 2026-11-06; scope and wording reviewed 2026-11-07 (TASK-197). Audit date: 2026-11-07.
+
+
+---
+
+
+## Lesson: Meta Collaborative Ads (Shopee CPAS) requires is_pca_unified=true and promoted_object at POST /campaigns creation time
+
+### Symptom
+Ads Manager UI hides Conversion location: Website and app (Shopee ID Website Pixel + Shopee ID App) inside the Ad Set, or Ad creation fails with Error 100 'You have to associate your advertiser account with this app first for tracking'
+
+### Root cause
+meta-ads CLI creates the Campaign without is_pca_unified=true and promoted_object at POST /act_<id>/campaigns creation time. Meta locks is_pca_unified=false permanently once published (Error 100 / Subcode 3858845), forcing Legacy Catalog UI.
+
+### Durable invariant
+Every Collaborative Ads (CPAS) campaign must be created at POST /act_<id>/campaigns time with is_pca_unified=true, smart_promotion_type='GUIDED_CREATION', and promoted_object={'product_catalog_id': '<catalog_id>', 'smart_pse_enabled': False}, followed by AdSet with ad_set_goal={'type': 0}, promoted_object.omnichannel_object (app + pixel), and attribution_spec 7d_click + 1d_view + 1d_engaged_video_view.
+
+### Fix
+Updated dotads-meta deploy to create CPAS campaigns directly via facebook-business SDK with is_pca_unified=true and promoted_object at creation time, and create AdSets with ad_set_goal={'type': 0}.
+
+### Regression check
+dotads-meta-test && Campaign(id).api_get(fields=['is_pca_unified','promoted_object']) returns is_pca_unified=true
+
+> Promoted from a reviewed local candidate on 2026-11-06.

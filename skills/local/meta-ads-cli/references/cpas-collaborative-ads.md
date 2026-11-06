@@ -344,11 +344,18 @@ size, AOV and unit economics.
   ~50 events per week planning heuristic of §6, so consolidate winners (§6 B) once a format is proven and
   treat duplicating units as a test expense, not a growth default.
 - **Golden unit (`1-1-1`)**: `1 Campaign` (`OUTCOME_SALES`,
-  `smart_promotion_type: "GUIDED_CREATION"`, CBO `daily_budget` sized
-  dynamically per §7.5, `LOWEST_COST_WITHOUT_CAP`) → `1 Ad Set`
-  (`OFFSITE_CONVERSIONS`, `IMPRESSIONS`, `custom_event_type: "PURCHASE"`,
-  attribution `1d_view` + `7d_click`) → `1 Ad` (never mix different creative
-  formats inside the same ad set).
+  `smart_promotion_type: "GUIDED_CREATION"`, `is_pca_unified: true`,
+  `promoted_object: {"product_catalog_id": "<catalog_id>", "smart_pse_enabled": false}`,
+  CBO `daily_budget` sized dynamically per §7.5, `LOWEST_COST_WITHOUT_CAP`) →
+  `1 Ad Set` (`OFFSITE_CONVERSIONS`, `IMPRESSIONS`, `ad_set_goal: {"type": 0}`,
+  `promoted_object.omnichannel_object` binding **Website and app** — Shopee ID
+  App `957549474255294` + Shopee ID Website's Pixel `466924370133774` +
+  `custom_event_type: "PURCHASE"`, attribution `7d_click` + `1d_view` +
+  `1d_engaged_video_view`) → `1 Ad` (never mix different creative formats inside
+  the same ad set).
+- **Mandatory Naming Convention (`dotads:` Prefix + Format Tag)**:
+  - **Campaign name**: always prefix with `dotads: ` (e.g., `dotads: <Brand> || CPAS 1-1-1 || <Product Set> || <Angle>`).
+  - **Ad name**: always prefix with `dotads: Carousel | ...` for `CAROUSEL_DPA`, `dotads: Collection | ...` for `COLLECTION_VIDEO` / `COLLECTION_IMAGE`, or `dotads: Single | ...` for `SINGLE_IMAGE_DPA`.
 - **Never mix `COLLECTION_VIDEO` (`collection_video`) with `CAROUSEL_DPA` in the
   same ad set**:
   - In the audit's mixed ad sets, `COLLECTION_VIDEO` took about 78% of impressions
@@ -379,8 +386,55 @@ size, AOV and unit economics.
       an Instant Experience click step without the persuasion lift of video [inference].
       Prefer `CAROUSEL_DPA` or `SINGLE_IMAGE_DPA` over static `COLLECTION_IMAGE`.
 
-### 7.4 Creative deep-link & dynamic template contract
+### 7.4 Omnichannel Ad Set (`Website and app`), Creative deep-link, & Meta Graph API Traps
 
+- **Omnichannel Ad Set (`Conversion location: Website and app`)**:
+  - In Ads Manager UI, an official Shopee CPAS ad set selects:
+    - **Conversion location**: `Website and app` (`ad_set_goal: {"type": 0}`)
+    - **Performance goal**: `Maximize number of conversions` (`OFFSITE_CONVERSIONS`)
+    - **Dataset / Pixel**: `Shopee ID Website's Pixel` (`466924370133774`)
+    - **App**: `Shopee ID` (`957549474255294`, Google Play `com.shopee.id` + Apple App Store `959841443`)
+    - **Conversion event**: `Purchase` (`custom_event_type: "PURCHASE"`)
+    - **Attribution setting**: `7d_click` + `1d_view` + `1d_engaged_video_view` (`[{"event_type": "CLICK_THROUGH", "window_days": 7}, {"event_type": "VIEW_THROUGH", "window_days": 1}, {"event_type": "ENGAGED_VIDEO_VIEW", "window_days": 1}]`)
+  - In Graph API (`promoted_object` on the Ad Set), this is represented by `omnichannel_object`:
+    ```json
+    {
+      "custom_event_type": "PURCHASE",
+      "product_set_id": "<PRODUCT_SET_ID>",
+      "smart_pse_enabled": false,
+      "omnichannel_object": {
+        "app": [
+          {
+            "application_id": "957549474255294",
+            "custom_event_type": "PURCHASE",
+            "object_store_urls": [
+              "http://play.google.com/store/apps/details?id=com.shopee.id",
+              "http://itunes.apple.com/app/id959841443"
+            ]
+          }
+        ],
+        "pixel": [
+          {
+            "custom_event_type": "PURCHASE",
+            "pixel_id": "466924370133774"
+          }
+        ]
+      }
+    }
+    ```
+- **5 Fatal Meta Graph API Traps When Deploying CPAS (Never Repeat)**:
+  1. **Trap 1 — Immutable `is_pca_unified: false` at Campaign Creation (`Error 100 / Subcode 3858845`)**:
+     - If a campaign is created via `POST /act_<id>/campaigns` **without** `is_pca_unified: true` and `promoted_object: {"product_catalog_id": "<catalog_id>", "smart_pse_enabled": false}` in the initial creation request, Meta permanently sets `is_pca_unified: false` on the Campaign.
+     - Attempting to update `is_pca_unified: true` afterward fails with `Error 100 / Subcode 3858845`: `"is_pca_unified can't be changed because campaign was already published. To use a different setup, create a new campaign."`
+     - Even if the Ad Set has `omnichannel_object` in the API, Ads Manager UI **hides** the `Conversion location: Website and app` (`Shopee ID Website's Pixel` + `Shopee ID` App) panel whenever `Campaign.is_pca_unified` is `false`! Always create the Campaign with `is_pca_unified: true` and `promoted_object` from step 1 (`dotads-meta deploy` now enforces this automatically via the Python SDK).
+  2. **Trap 2 — Missing `ad_set_goal: {"type": 0}` on the Ad Set**:
+     - Official PCA Unified (`is_pca_unified: true`) CPAS ad sets require `ad_set_goal: {"type": 0}` on the Ad Set so Ads Manager renders the unified Omnichannel (`Website and app`) conversion location selector cleanly (`dotads-meta deploy` injects `ad_set_goal: {"type": 0}` automatically when `omnichannel_object` is present).
+  3. **Trap 3 — Creating `omnichannel_object` Ad Set Before Campaign `promoted_object` (`Error 100`)**:
+     - Creating an Ad Set with `promoted_object.omnichannel_object` under a Campaign that lacks `promoted_object.product_catalog_id` fails at Ad creation with `Invalid parameter (100): "You have to associate your advertiser account with this app (957549474255294) first for tracking"`. Binding `promoted_object.product_catalog_id` at Campaign creation time resolves this.
+  4. **Trap 4 — Omitting Top-Level `product_set_id` on `template_data` Creative (`Error 100`)**:
+     - Calling `POST /act_<id>/adcreatives` with `object_story_spec.template_data` without top-level `product_set_id` on the creative fails with `Error 100: "Attempted to create a dynamic creative with no product set ID"`. Always pass `product_set_id` at the top level of the creative (`dotads-meta validate` enforces this).
+  5. **Trap 5 — Setting `targeting.age_max < 65` with Advantage+ Audience (`advantage_audience: 1`)**:
+     - Meta rejects `targeting.age_max < 65` when `targeting_automation.advantage_audience = 1` (`"Invalid hard maximum age... You can add a lower maximum age as a suggestion instead"`). Always set hard `"age_max": 65` and pass the demographic bound via `"age_range": [25, 54]` with `"individual_setting": {"age": 1, "gender": 1}` (`dotads-meta validate` enforces this).
 - `applink_treatment`: `"deeplink_with_web_fallback"` (never `"automatic"`,
   which leaked `65%–72%` of Facebook Feed clicks to the mobile web browser).
 - `template_url_spec` (for Shopee Indonesia; substitute the corresponding

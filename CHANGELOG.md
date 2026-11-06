@@ -4,6 +4,12 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-07 — CPAS PCA Unified campaign & omnichannel ad set contract (TASK-198)
+
+- `dotads-meta deploy`: creates Collaborative Ads (CPAS) campaigns (`campaign.promoted_object` or `is_pca_unified`) via the installed `facebook-business` SDK with `is_pca_unified: true` and `promoted_object` at initial `POST /act_<id>/campaigns` creation time (preventing Meta's immutable `is_pca_unified: false` lock, Error 100 / Subcode 3858845, which hid the `Conversion location: Website and app` selector in Ads Manager UI), and creates omnichannel CPAS ad sets with `ad_set_goal: {"type": 0}` and `promoted_object.omnichannel_object`.
+- `dotads-meta validate`: adds hard errors for `object_story_spec.template_data` missing top-level `product_set_id`, `targeting.age_max < 65` when Advantage+ Audience is enabled (requiring `age_max: 65` + `age_range`), and `promoted_object.omnichannel_object` without `campaign.promoted_object.product_catalog_id`, plus a CPAS guardrail warning when `promoted_object.product_set_id` omits `omnichannel_object`.
+- `meta-ads-cli` (`cpas-collaborative-ads.md` §7.3–§7.4, `rules-and-tutorial.md` Recipe 5) and `config/ai/memory/meta-ads.md`: documents the PCA Unified (`is_pca_unified: true`, `ad_set_goal: {"type": 0}`, `omnichannel_object`, `7d_click + 1d_view + 1d_engaged_video_view` attribution, `dotads:` campaign prefix, and `dotads: Carousel | ...` / `dotads: Collection | ...` ad naming) contract and the 5 CPAS Graph API traps, with offline SDK test coverage in `dotads-meta-test`.
+
 ## 2026-11-07 — CPAS 1-1-1 diagnostics reviewed and hardened (TASK-197)
 
 - Review of the MacBook commit `08480c6` (CPAS `1-1-1` architecture, `catalog_segment_*` channel split, bid-cap/ROAS-floor validation, SDK ad set path): the default inventory request and scope hashes are restored to the shipped contract; the new inventory fields (bid strategy and constraints, `template_url_spec`, `applink_treatment`, learning state) are added only with `--metric-profile cpas_v1`.

@@ -319,6 +319,9 @@ check('cpas-guided-creation-flag', lambda m: m.update(copy.deepcopy(cpas_recipe)
       flags=((True, '--smart-promotion-type'), (True, 'GUIDED_CREATION'), (False, '--conversion-domain')))
 check('cpas-bad-campaign-promoted', lambda m: (m.update(copy.deepcopy(cpas_recipe)), m['campaign'].update(promoted_object={'product_catalog_id':'abc'})), False, 'numeric digits')
 check('cpas-bad-template-app-id', lambda m: (m.update(copy.deepcopy(cpas_recipe)), m['creatives'][0].update(template_url_spec={'config':{'app_id':'not-digits'}})), False, 'numeric digits')
+check('cpas-missing-top-level-product-set', lambda m: (m.update(copy.deepcopy(cpas_recipe)), m['creatives'][0].pop('product_set_id', None)), False, "requires top-level 'product_set_id'")
+check('cpas-adv-audience-age-max-under-65', lambda m: (m.update(copy.deepcopy(cpas_recipe)), m['adsets'][0]['targeting'].update(age_max=54)), False, 'age_max (54) < 65 with Advantage+ Audience')
+check('cpas-omnichannel-without-campaign-catalog', lambda m: (m.update(copy.deepcopy(cpas_recipe)), m['campaign'].pop('promoted_object', None)), False, "requires 'campaign.promoted_object.product_catalog_id'")
 
 def patch_cpas_leakage(m):
     m.update(copy.deepcopy(cpas_recipe))
@@ -700,6 +703,19 @@ if [ "$?" -ne 0 ] && printf '%s' "$fail_out" | grep -q "Deployment lock retained
   ok "a failing SDK ad set call stops with the deployment lock retained and no token in output"
 else
   bad "failing SDK ad set call was not handled safely: $fail_out"
+fi
+# 5d3. CPAS PCA Unified campaign + omnichannel ad set go through the installed SDK with is_pca_unified=true,
+# promoted_object on the campaign, and ad_set_goal={type:0} + omnichannel_object on the ad set (both PAUSED).
+rm -rf "$SDKWS/.meta-state.json" "$SDKWS/.dotads-meta.lock" "$SDK_LOG"
+jq '.campaign.is_pca_unified = true | .campaign.smart_promotion_type = "GUIDED_CREATION" | .campaign.promoted_object = {"product_catalog_id": "123456789012345", "smart_pse_enabled": false} | .campaign.status = "ACTIVE" | .adsets[0].ad_set_goal = {"type": 0} | .adsets[0].promoted_object = {"custom_event_type": "PURCHASE", "product_set_id": "234567890123456", "smart_pse_enabled": false, "omnichannel_object": {"app": [{"application_id": "957549474255294", "custom_event_type": "PURCHASE", "object_store_urls": ["http://play.google.com/store/apps/details?id=com.shopee.id", "http://itunes.apple.com/app/id959841443"]}], "pixel": [{"custom_event_type": "PURCHASE", "pixel_id": "466924370133774"}]}} | .adsets[0].status = "ACTIVE"' "$WS/campaigns/sample-campaign.json" > "$SDKWS/campaigns/cpas-sdk-manifest.json"
+cpas_sdk_out="$(cd "$SDKWS" && SDK_LOG="$SDK_LOG" DOTADS_META_PYTHON="$MOCK_BIN/fake-sdk-python" "$CMD" deploy "$SDKWS/campaigns/cpas-sdk-manifest.json" --apply 2>&1)"
+cpas_sdk_rc=$?
+if [ "$cpas_sdk_rc" -eq 0 ] && [ -s "$SDK_LOG" ] \
+  && jq -s -e 'length == 2 and .[0].req.params.status == "PAUSED" and .[0].req.params.is_pca_unified == true and .[0].req.params.promoted_object.product_catalog_id == "123456789012345" and .[1].req.params.status == "PAUSED" and .[1].req.params.ad_set_goal.type == 0 and .[1].req.params.promoted_object.omnichannel_object.app[0].application_id == "957549474255294" and .[0].token_present == true and .[1].token_present == true' "$SDK_LOG" >/dev/null \
+  && ! printf '%s' "$cpas_sdk_out" | grep -q 'MOCK_SYSTEM_USER_TOKEN_SECRET_999'; then
+  ok "CPAS PCA Unified campaign and omnichannel ad set are created through the SDK as PAUSED with is_pca_unified=true, promoted_object, and ad_set_goal={type:0}"
+else
+  bad "CPAS SDK campaign/adset path unsafe or wrong (rc=$cpas_sdk_rc): $cpas_sdk_out; payload: $(cat "$SDK_LOG" 2>/dev/null)"
 fi
 rm -rf "$SDKWS"; META_LOG="$META_LOG_SHARED"; export META_LOG
 
