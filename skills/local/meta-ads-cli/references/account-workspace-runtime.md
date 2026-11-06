@@ -352,7 +352,7 @@ they are not automatically promoted into scoped portable evidence.
 ### Commerce insight, superseded history and offline refresh
 
 History observations, `observations.json`, `HISTORY.md` and `REPORT.md` carry a
-deterministic `commerce` block (`commerce-insight/1`) derived only from the
+deterministic `commerce` block (`commerce-insight/2`) derived only from the
 saved snapshot: account-level funnel (landing-page views, view content,
 add-to-cart, initiate checkout, purchases, purchase value; one preferred alias
 per step — omni, then pixel, then standard — never summed), ROAS, cost per
@@ -386,10 +386,24 @@ It does not re-render immutable report revisions; a new `history` run or
 `report` renders them with the current renderer.
 
 Opt-in `--metric-profile cpas_v1` on `sync`/`history` adds the five
-`catalog_segment_*` Insights fields (see
-[CPAS Collaborative Ads](cpas-collaborative-ads.md)). Without it the request,
-scope and scope hashes are byte-identical to before. Product-level
-`converted_product_*` reporting is not requested.
+`catalog_segment_*` Insights fields and the CPAS inventory fields (campaign and
+ad set `bid_strategy`, `bid_amount`, `bid_constraints`, `destination_type`,
+`promoted_object`, `spend_cap`, `smart_promotion_type`, `learning_stage_info`,
+`issues_info`; creative `template_url_spec`, `applink_treatment`); see
+[CPAS Collaborative Ads](cpas-collaborative-ads.md). Without it the request,
+scope and scope hashes are byte-identical to before (pinned by a provider test).
+Product-level `converted_product_*` reporting is not requested. With the profile,
+`commerce-insight/2` adds the channel split: `catalog_segment_*` in-app SDK vs
+website funnel, in-app arrival per link click and `app_site_visit` next to the
+ordinary actions, so a platform-claimed site visit is never read as app arrival.
+Renderers are `dotads-markdown-csv/4` and `dotads-history/4`; earlier revisions
+stay immutable.
+
+`dotads-meta deploy` creates an ad set that needs `roas_average_floor` through
+the installed SDK (the official CLI cannot send `bid_constraints`). It keeps
+every rule of `deploy`: dry run without `--apply`, `PAUSED` unless `--activate`,
+the deployment lock retained after a failed call, and the token never printed;
+this path is covered by offline tests with a recording stand-in interpreter.
 
 ## Transport and scope
 

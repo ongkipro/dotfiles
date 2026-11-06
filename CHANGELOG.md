@@ -4,6 +4,13 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-07 — CPAS 1-1-1 diagnostics reviewed and hardened (TASK-197)
+
+- Review of the MacBook commit `08480c6` (CPAS `1-1-1` architecture, `catalog_segment_*` channel split, bid-cap/ROAS-floor validation, SDK ad set path): the default inventory request and scope hashes are restored to the shipped contract; the new inventory fields (bid strategy and constraints, `template_url_spec`, `applink_treatment`, learning state) are added only with `--metric-profile cpas_v1`.
+- Renderers `dotads-markdown-csv/4`, `dotads-history/4`, `commerce-insight/2` (report text and observations changed).
+- The SDK ad set path now has offline tests: `PAUSED` without `--activate`, scaled `bid_constraints`, no token in output, lock retained on a failed call.
+- Memory: the CPAS block moved out of `preferences.md` (18 KB to 13 KB) into a pointer to the skill reference, which already holds the full rules; the "Autonomous Execution" line became a leak-response rule that keeps live account changes behind owner approval (CORE.md and the `meta-ads-cli` skill); `SKILL.md` §1 now defines the only exception, an owner-written, dated, spend-reducing standing approval in the account's `NOTES.md`. CPAS §7 is labelled as one dated observation with proposals, absolute spend/value/order figures and content names are removed from the public files, and the Recipe 5 manifest is Facebook-only (Threads untested).
+
 ## 2026-11-06 — Per-device AI capacity (TASK-196)
 
 - `ai-capacity` (new): sizes AI terminals, subagents and heavy jobs from each device's RAM, CPU and its own measured costs (PSS per terminal cgroup, learned peaks, never below defaults). `apply` writes only device-local limits after validation, atomically, with backups, and reports which are enforced: heavy-run slots, one shared memory cap for heavy jobs (`ai-heavy.slice`), pi-subagents per-run and per-session limits; terminals and the machine-wide subagent total stay targets. Degraded devices get serial-work advice only.

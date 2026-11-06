@@ -2,8 +2,9 @@
 
 Reviewed **2026-11-07** from a five-lane parallel study (Meta API/SDK, Shopee
 Indonesia, attribution/reconciliation, operating practice, dotads-meta design)
-plus a **Rp 314.57M empirical Indonesia Shopee CPAS audit** across two accounts
-(`2,571` purchases). Full evidence, quotes and conflicts live privately in
+plus one dated observational audit of two Indonesia Shopee CPAS accounts under one
+owner (scope, limits and shares in §7; absolute spend, value and order counts are
+kept out of this public file). Full evidence, quotes and conflicts live privately in
 `~/Documents/work/research/Shopee CPAS Meta ads system/` (report and
 `research_notes/`). Read this before planning, reading or judging any campaign
 that sends traffic to a Shopee catalog.
@@ -91,7 +92,7 @@ Rules [proposal]:
   website/app/offline, overlapping windows, or entity levels; recompute period
   ROAS from value and spend, never average daily ROAS.
 - **Critical CPAS Purchase Conversion column rule (`catalog_segment_*` vs ordinary `actions`)**:
-  - On Collaborative Ads (CPAS) accounts, **99.9%+ of real marketplace purchase conversions are NOT reported in ordinary `actions` or `action_values`**. Ordinary `actions` (`omni_purchase`, `purchase`) only capture events fired on an ad-account-owned pixel/dataset (often `0` in 7d/30d windows on pure Shopee CPAS accounts), creating a false "0 Purchase" diagnosis if inspected alone.
+  - On the audited Collaborative Ads (CPAS) accounts, **99.9%+ of purchase conversions were NOT reported in ordinary `actions` or `action_values`** (an observation, not a proven rule for every account). Ordinary `actions` (`omni_purchase`, `purchase`) only capture events fired on an ad-account-owned pixel/dataset (often `0` in 7d/30d windows on pure Shopee CPAS accounts), creating a false "0 Purchase" diagnosis if inspected alone.
   - Real CPAS Purchase Conversions live in the **Partner Catalog Segment fields**:
     - **`catalog_segment_actions`**:
       - Total CPAS Purchase Conversions: `action_type: "omni_purchase"` (or `"purchase"`)
@@ -100,16 +101,16 @@ Rules [proposal]:
       - CPAS Add to Cart: `action_type: "omni_add_to_cart"`, `"app_custom_event.fb_mobile_add_to_cart"`, `"offsite_conversion.fb_pixel_add_to_cart"`
       - CPAS Content Views: `action_type: "omni_view_content"`, `"app_custom_event.fb_mobile_content_view"`, `"offsite_conversion.fb_pixel_view_content"`
     - **`catalog_segment_value`**:
-      - Total CPAS Purchase GMV: `action_type: "omni_purchase"` (or `"purchase"`)
-      - In-App Purchase GMV: `action_type: "app_custom_event.fb_mobile_purchase"`
-      - Website Purchase GMV: `action_type: "offsite_conversion.fb_pixel_purchase"`
+      - Total CPAS purchase value (Meta-attributed `catalog_segment_value`, not GMV or settlement): `action_type: "omni_purchase"` (or `"purchase"`)
+      - In-app purchase value (Meta-attributed): `action_type: "app_custom_event.fb_mobile_purchase"`
+      - Website purchase value (Meta-attributed): `action_type: "offsite_conversion.fb_pixel_purchase"`
     - **ROAS & Result Indicators**:
       - `catalog_segment_value_omni_purchase_roas`, `catalog_segment_value_mobile_purchase_roas`, `catalog_segment_value_website_purchase_roas`
       - At Campaign/AdSet/Ad level, Meta Insights sets `results` indicator to `"catalog_segment_actions:omni_purchase"` and `result_values_performance_indicator` to `"catalog_segment_value:omni_purchase"` (whereas Account-level `results` defaults to `actions:omni_purchase` and misses CPAS purchases).
       - `converted_product_quantity` (`purchase` / `omni_purchase`) reports total units sold (which exceeds `catalog_segment_actions:omni_purchase` order count when buyers purchase multiple units per order).
 - **Mandatory Attribution Window Split (`7d_click` vs `1d_view`) on `catalog_segment_actions`**:
   - Always request `action_attribution_windows=['1d_click','7d_click','1d_view','default']` when auditing CPAS purchase conversions.
-  - In Retargeting (`RMK`) CPAS campaigns, **80%–86% of `catalog_segment_actions:omni_purchase` are `1d_view`** (impression-only view-through credit on warm marketplace shoppers who already had items in their Shopee cart/history), whereas in Cold Prospecting (`NV`), `7d_click` share is 2x higher (`~28%+`) and `CPA_7d_click` can be **cheaper than `RMK` `CPA_7d_click`**.
+  - In the audited Retargeting (`RMK`) CPAS campaigns, **about 80%–86% of `catalog_segment_actions:omni_purchase` were `1d_view`** (impression-only view-through credit on warm marketplace shoppers who already had items in their Shopee cart/history), whereas in Cold Prospecting (`NV`), `7d_click` share is 2x higher (`~28%+`) and `CPA_7d_click` can be **cheaper than `RMK` `CPA_7d_click`**.
   - Never judge placement or creative traffic quality by `1d_view`-inflated total ROAS alone; always evaluate **Click-Through Purchase Conversion (`catalog_segment_actions:omni_purchase` `7d_click`, `CPA_7d_click`, and `ROAS_7d_click`)** alongside Total Segment Purchases.
 - [inference] Value composition is **not established**: current Meta pixel
   specs do not say "whole basket incl. shipping and tax"; one vendor describes
@@ -253,92 +254,95 @@ benchmark exists in the evidence.
   marginal economics. High Meta ROAS with flat shop sales is an alignment
   question before a verdict.
 
-## 7. Empirical Indonesia Shopee CPAS Architecture (`1-1-1` Direct-to-App Standard — Dynamic Across All Niches & Products)
+## 7. Observed Indonesia Shopee CPAS architecture (`1-1-1` Direct-to-App; dynamic across niches)
 
-Audited **2026-11-07** across **Rp 327,129,231** of Indonesia Shopee CPAS spend
-(**`87,830` `catalog_segment_actions:omni_purchase` orders** — `14,501`
-`7d_click` + `73,329` `1d_view` — generating **Rp 5,287,444,081** in attributed
-GMV across multiple accounts). The **technical, column-measurement, and placement
-invariants (§7.1–§7.4)** apply universally to every Shopee CPAS campaign
-regardless of brand or category; the **commercial, audience, catalog, and budget
-parameters (§7.5)** adapt dynamically to each brand's niche, catalog size, AOV,
-and unit economics (never locked to a single brand or vertical).
+**Evidence label: [observation, 2026-11-07] one dated audit of two Indonesia Shopee
+CPAS accounts under one owner; Account A supplied about 98% of the orders and about
+81% of the spend. Every figure is a Meta claim (`catalog_segment_*`, estimated and
+retailer-reported) under `7d_click` + `1d_view`, not settlement and not net seller
+revenue (§3, §4). The rules below are [proposal]: defaults for every Shopee CPAS
+campaign until an account's own read contradicts them; they are not platform law and
+not causal findings (§8).** Absolute spend, value and order counts are deliberately
+not copied here; the private report holds them, and this file keeps shares, ratios
+and rounded bands.
 
-### 7.1 Forensic Purchase Conversion columns (`catalog_segment_*`), `7d_click` vs `1d_view`, & deep-link law
+The **technical, column-measurement and placement rules (§7.1–§7.4)** are the default
+for every Shopee CPAS campaign regardless of brand or category; the **commercial,
+audience, catalog and budget parameters (§7.5)** adapt to each brand's niche, catalog
+size, AOV and unit economics.
 
-- **99.94% of CPAS purchases live only in `catalog_segment_actions` & `catalog_segment_value`**:
-  - Across audited accounts, ordinary `actions:omni_purchase` recorded only `57`
-    purchases (`0` in 7d/30d windows), whereas
-    `catalog_segment_actions:omni_purchase` recorded **`87,830` purchases**
-    (`86,209` in Account A worth Rp 5.10B at `ROAS 19.16x`; `1,621` in Account B
-    worth Rp 185.03M at `ROAS 3.04x`). Always query `--metric-profile cpas_v1`
+### 7.1 Forensic Purchase Conversion columns (`catalog_segment_*`), `7d_click` vs `1d_view`, & deep-link rule
+
+- **In the audit, 99.9%+ of CPAS purchases were in `catalog_segment_actions` and `catalog_segment_value`**:
+  - On the two audited accounts, ordinary `actions:omni_purchase` held a negligible
+    share (well under 0.1% of purchases) while `catalog_segment_actions:omni_purchase`
+    held the rest (Account A about 98%; Meta-claimed `catalog_segment_value` ROAS
+    about 19x in Account A and about 3x in Account B, both inflated by view-through,
+    see below). This is not proof that ordinary fields are zero everywhere: still
+    request and read both, and note that an account running its own pixel next to
+    CPAS can show more. Always query `--metric-profile cpas_v1`
     (`catalog_segment_actions`, `catalog_segment_value`,
     `catalog_segment_value_*_purchase_roas`).
-- **99.999% Mobile App SDK Purchase Conversion**:
-  - Inside `catalog_segment_actions`, `app_custom_event.fb_mobile_purchase`
-    accounted for **`87,829 / 87,830` purchases (`99.999%`)** and
-    `offsite_conversion.fb_pixel_purchase` accounted for **`1` purchase
-    (`0.001%`)**.
+- **In the audit, the mobile app SDK carried essentially all purchases**:
+  - Inside `catalog_segment_actions`, `app_custom_event.fb_mobile_purchase` held all
+    but one purchase and `offsite_conversion.fb_pixel_purchase` held one: for
+    Shopee, count purchases from the app SDK event, not the website pixel.
 - **Separate `7d_click` (Click-Through Purchase) vs `1d_view` (View-Through Purchase)**:
-  - In Retargeting (`RMK`), **85.6%** of `catalog_segment_actions:omni_purchase`
-    came from `1d_view` (`64,948` `1d_view` vs `10,953` `7d_click`;
-    `CPA_Total = Rp 2,930` vs `CPA_7d_click = Rp 20,303`; `ROAS_Total = 20.14x`
-    vs `ROAS_7d_click = 3.05x`).
-  - In Cold Prospecting (`NV`), `7d_click` achieved a **25% cheaper Click-Through
-    Purchase CPA** (`CPA_7d_click = Rp 15,269`, `ROAS_7d_click = 3.90x`) than
-    Retargeting (`CPA_7d_click = Rp 20,303`, `ROAS_7d_click = 3.05x`)! Relying
-    only on blended `1d_view` + `7d_click` causes operators to over-allocate
-    budget to `RMK` and under-fund `NV` prospecting.
+  - In Retargeting (`RMK`), about 86% of `catalog_segment_actions:omni_purchase`
+    came from `1d_view`; the blended Meta-claimed CPA was roughly one seventh of the
+    `7d_click` CPA and the blended Meta-claimed ROAS about 6x the `7d_click` ROAS.
+  - In Cold Prospecting (`NV`), the `7d_click` CPA was about 25% lower than in
+    Retargeting. Reading only the blended `1d_view` + `7d_click` number can lead to
+    over-allocating to `RMK` and under-funding `NV`.
 - **`app_site_visit` is NOT proof the native Shopee App opened**: when Instagram
   WebView intercepts a Shopee universal link
   (`https://shopee.co.id/universal-link/product/...`) into the Instagram In-App
   Browser (IAB), Meta logs `app_site_visit` on the universal-link hit while
   actual Shopee App SDK arrival (`app_custom_event.fb_mobile_content_view`,
-  `InApp_VC`) collapses (`0.83%` on IG Feed Carousel; `0.52%` on IG Stories).
+  `InApp_VC`) collapses (about 1% or less on IG Feed Carousel and IG Stories in the audit).
 - **Mandatory deep-link health check**: always verify true native Shopee App
   arrival via `catalog_segment_actions` / `actions`
-  `app_custom_event.fb_mobile_content_view / link_click` (healthy target
-  `35%–60%+` on Facebook Feed/Reels), `app_custom_event.fb_mobile_add_to_cart`,
+  `app_custom_event.fb_mobile_content_view / link_click` (alarm floor 25%;
+  observed healthy band 35%–60%+ on Facebook Feed/Reels in Account A),
+  `app_custom_event.fb_mobile_add_to_cart`,
   and `catalog_segment_actions:omni_purchase` (`7d_click` + `1d_view`), never
   `app_site_visit` alone.
 
-### 7.2 Placement & device architecture by `7d_click` Purchase Conversion (`Mobile Only`, `FB Feed + FB Reels + Threads Stream`)
+### 7.2 Placement & device architecture by `7d_click` Purchase Conversion (`Mobile Only`, `FB Feed + FB Reels`; Threads untested)
 
 - **Device**: `device_platforms: ["mobile"]` (`0%` desktop).
-- **Allowed placements (proven #1 & #2 on `7d_click` Purchase Conversion)**:
-  - `publisher_platforms: ["facebook", "threads"]`
-  - `facebook_positions: ["feed", "facebook_reels"]`
-  - `threads_positions: ["threads_stream"]`
-  - In Cold Prospecting (`NV`), **`facebook_reels`** delivered the **#1 cheapest
-    Click-Through Purchase CPA (`CPA_7d_click = Rp 8,727`, `CVR_7d_click = 6.95%`,
-    `ROAS_7d_click = 6.59x`, `ROAS_Total = 15.44x`)** and **`facebook | feed`**
-    delivered the **#1 Click-Through Purchase volume (`1,097` `7d_click`
-    purchases, `CPA_7d_click = Rp 14,677`, `ROAS_7d_click = 4.32x`,
-    `ROAS_Total = 13.64x`)**.
-- **100% exclusion of Instagram (`0%` budget)**:
-  - Even when a creative is configured with
-    `applink_treatment: "deeplink_with_web_fallback"` and `template_url_spec`
-    (`app_id: "957549474255294"`), Instagram's WebView intercepts Dynamic
-    Product Carousel (`CAROUSEL_DPA`) clicks inside the Instagram In-App
-    Browser (`0.83%` `InApp_VC`, `99.17%` drop-off).
-  - Measured by true **`7d_click` Purchase Conversion** in Cold Prospecting
-    (`NV`), Instagram placements were **2.2x to 5.3x more expensive per
-    click-through purchase** than Facebook Reels/Feed:
-    - `instagram | feed`: `CPA_7d_click = Rp 46,579`, `ROAS_7d_click = 1.21x`
-    - `instagram | instagram_stories`: `CPA_7d_click = Rp 44,375`, `CVR_7d_click = 1.12%`, `ROAS_7d_click = 1.27x` (and Rp 195,976 / `0.58x` ROAS in Account B)
-    - `instagram | instagram_reels`: `CPA_7d_click = Rp 19,070`, `ROAS_7d_click = 2.91x` (and Rp 140,831 / `0.81x` ROAS in Account B)
-- **100% exclusion of Audience Network & Messenger (`0%` budget)**:
-  - Audience Network third-party banner/rewarded-video clicks produced
-    **0.012% `InApp_VC`** (`4` native app views out of `32,506` link clicks;
-    `99.99%` bounce) and in Cold Prospecting (`NV`) yielded only `2` `7d_click`
-    purchases from `890` clicks (`CVR_7d_click = 0.22%`, `CPA_7d_click = Rp 63,264`,
-    `ROAS_7d_click = 0.63x` loss) while claiming `379` `1d_view` remarketing
-    purchases (`96.9%` view-through).
+- **Placements observed best on `7d_click` purchases in Account A (not a winner claim)**:
+  - `publisher_platforms: ["facebook"]`; `facebook_positions: ["feed", "facebook_reels"]`.
+  - Threads (`threads_stream`) has no row in the audit: [proposal] test it on its own
+    `7d_click` read before giving it budget.
+  - In Cold Prospecting (`NV`), `facebook_reels` had the lowest `7d_click` CPA (about
+    Rp 9K, `CVR_7d_click` about 7%) and `facebook | feed` the largest `7d_click`
+    volume (about Rp 15K CPA).
+- **Default: exclude Instagram (`0%` budget) until an account's own read says otherwise**:
+  - In the audit, even with `applink_treatment: "deeplink_with_web_fallback"` and
+    `template_url_spec` (Shopee Indonesia's published Meta app id, see §7.4),
+    Instagram's WebView intercepted Dynamic Product Carousel (`CAROUSEL_DPA`) clicks
+    into the Instagram In-App Browser: `InApp_VC` was about 1% or less.
+  - On Cold Prospecting `7d_click` purchases, Instagram placements cost about 1.3x
+    (Instagram Reels against Facebook Feed) to about 5x (Instagram Feed against
+    Facebook Reels) more per click-through purchase. Instagram Reels was positive
+    (Meta-claimed `7d_click` ROAS above 2x in Account A) and was weak in Account B,
+    so the exclusion rests mainly on the in-app-browser mechanism, not on cost alone.
+- **Default: exclude Audience Network and Messenger (`0%` budget)**:
+  - In the audit, Audience Network third-party banner and rewarded-video clicks
+    produced `InApp_VC` near zero (a handful of native app views from tens of
+    thousands of link clicks) and, in Cold Prospecting, a `7d_click` CPA several
+    times the Facebook placements with Meta-claimed `7d_click` ROAS below 1x, while
+    about 97% of the purchases credited there were `1d_view`.
 - **Excluded Facebook positions**: `story`, `instream_video`, `marketplace`,
   `profile_feed`, `right_hand_column`, `search`.
 
 ### 7.3 `1-1-1` Structure & Format Rules by Funnel Stage (`CAROUSEL_DPA` vs `COLLECTION_VIDEO` vs `SINGLE_IMAGE_DPA`)
 
+- **Structure note [proposal]**: `1-1-1` is a testing and isolation structure (one format, one read per campaign).
+  It splits learning events across campaigns; at about 2 purchases a day per unit it sits far below the
+  ~50 events per week planning heuristic of §6, so consolidate winners (§6 B) once a format is proven and
+  treat duplicating units as a test expense, not a growth default.
 - **Golden unit (`1-1-1`)**: `1 Campaign` (`OUTCOME_SALES`,
   `smart_promotion_type: "GUIDED_CREATION"`, CBO `daily_budget` sized
   dynamically per §7.5, `LOWEST_COST_WITHOUT_CAP`) → `1 Ad Set`
@@ -347,36 +351,33 @@ and unit economics (never locked to a single brand or vertical).
   formats inside the same ad set).
 - **Never mix `COLLECTION_VIDEO` (`collection_video`) with `CAROUSEL_DPA` in the
   same ad set**:
-  - In mixed ad sets, `COLLECTION_VIDEO` captures ~78% of impressions due to
-    higher video CTR, starving `CAROUSEL_DPA` of delivery. Always isolate each
-    format in its own dedicated `1-1-1` campaign.
-- **Empirical format performance by `catalog_segment_actions:omni_purchase`**:
+  - In the audit's mixed ad sets, `COLLECTION_VIDEO` took about 78% of impressions
+    (higher video CTR) and starved `CAROUSEL_DPA` of delivery. Isolate each
+    format in its own `1-1-1` campaign.
+- **Observed format performance by `catalog_segment_actions:omni_purchase` (Account A unless stated; Meta claims, not winners):**
   - **Catalog Carousel (`CAROUSEL_DPA` / `CAROUSEL_MIXED`)**:
     - Direct-to-Shopee-PDP per card (no Instant Experience intermediary screen).
-    - In Retargeting (`RMK`), `CAROUSEL` delivered the **highest volume and
-      highest total ROAS (`31,384` segment purchases, `CPA_Total = Rp 2,604`,
-      `CPA_7d_click = Rp 18,800`, `ROAS_Total = 22.57x`, `ROAS_7d_click = 3.32x`)**.
+    - In Retargeting (`RMK`), `CAROUSEL` had the highest volume and highest blended
+      Meta-claimed ROAS, but its `7d_click` ROAS (about 3x) was a small fraction of the
+      blended one: judge it on `7d_click`.
   - **Dynamic Single Image (`SINGLE_IMAGE_DPA`, `show_multiple_images: false`)**:
-    - In Retargeting (`RMK`), achieved the **cheapest Click-Through Purchase CPA
-      (`20,981` segment purchases, `3,324` `7d_click`, `CPA_7d_click = Rp 17,404`,
-      `CPA_Total = Rp 2,757`, `ROAS_7d_click = 3.51x`, `ROAS_Total = 21.18x`)**.
+    - In Retargeting (`RMK`), had the lowest `7d_click` CPA of the three formats
+      (about Rp 17K, Meta-claimed `7d_click` ROAS about 3.5x).
   - **Collection Video (`COLLECTION_VIDEO` — Hero Demonstration Video + Catalog
     Grid)**:
     - When run in its **own isolated `1-1-1` campaign** on `FB Feed + FB Reels`
       with a strong KOL/founder product-demo video, `COLLECTION_VIDEO` is highly
-      effective for **Cold Prospecting (`NV`)** (`7,076` segment purchases,
-      `2,496` `7d_click`, `CVR_7d_click = 4.91%`, `CPA_7d_click = Rp 11,811`,
-      `ROAS_7d_click = 5.04x`, `ROAS_Total = 14.68x` in Account A; `1,380`
-      segment purchases, `ROAS_Total = 3.35x`, `ROAS_7d_click = 1.34x` in
-      Account B). However, weak/generic cover videos suffer heavy drop-off at the
-      Instant Experience screen (`86%` drop-off when paired with `"automatic"`
-      applink treatment).
+      effective for **Cold Prospecting (`NV`)** in Account A (`7d_click` CPA about
+      Rp 12K, `CVR_7d_click` about 5%, Meta-claimed `7d_click` ROAS about 5x), but
+      only marginal in Account B (`7d_click` ROAS about 1.3x). Mixed ad sets that also used
+      `"automatic"` applink treatment showed about 86% drop-off between click and
+      content view: confounded (cover video, applink treatment and the Instant
+      Experience screen changed together), so it is not a clean cause.
   - **Collection Static Image (`COLLECTION_IMAGE`)**:
-    - Underperformed across both accounts (`CPA_7d_click = Rp 40,330` in `NV` and
-      `Rp 31,335` in `RMK` in Account A; `CPA_7d_click = Rp 92,502`, `ROAS_Total = 2.02x`
-      in Account B) because a static cover image adds an extra Instant Experience
-      click step without the persuasion lift of video. Prefer `CAROUSEL_DPA` or
-      `SINGLE_IMAGE_DPA` over static `COLLECTION_IMAGE`.
+    - Underperformed on both accounts (`7d_click` CPA about Rp 31K to Rp 40K in
+      Account A, about Rp 90K in Account B), plausibly because a static cover adds
+      an Instant Experience click step without the persuasion lift of video [inference].
+      Prefer `CAROUSEL_DPA` or `SINGLE_IMAGE_DPA` over static `COLLECTION_IMAGE`.
 
 ### 7.4 Creative deep-link & dynamic template contract
 
@@ -408,13 +409,15 @@ and unit economics (never locked to a single brand or vertical).
 
 ### 7.5 Dynamic adaptation across niches, catalogs, and AOV/margin tiers
 
-Never hardcode a single brand's SKU count, demographic, or IDR threshold when
-the new product's unit economics differ. Adapt these four levers dynamically:
+[proposal] Never hardcode a single brand's SKU count, demographic, or IDR threshold when
+the new product's unit economics differ. The splits and thresholds below are starting
+points in the same sense as §6 ("fixed budget splits are illustrative only"), not
+measured optima. Adapt these four levers dynamically:
 
 1. **Dynamic 3-Pillar Product Set Matrix (for any catalog size & vertical)**:
-   - **Pillar A — Hero / Best-Seller Set (`~50%` budget)**: `2–5` proven top
-     SKUs with strong marketplace social proof (`4.8+` rating and established
-     review volume) so Meta cannot waste catalog impressions on cold SKUs.
+   - **Pillar A — Hero / Best-Seller Set (`~50%` budget, illustrative)**: `2–5` established top
+     SKUs with strong marketplace social proof (a high rating and established
+     review volume; `4.8+` is an example) so Meta cannot waste catalog impressions on cold SKUs.
    - **Pillar B — Full / Category Discovery Set (`~30%` budget)**: `≥ 5` active
      in-stock SKUs (or category-specific product sets for multi-category stores)
      for algorithmic cross-selling.
@@ -443,11 +446,16 @@ the new product's unit economics differ. Adapt these four levers dynamically:
    - **Horizontal scaling**: scale spend by duplicating winning `1-1-1` CBO
      campaign units rather than inflating a single Lowest Cost CBO 3x–10x
      overnight.
-4. **Dynamic Stop-Loss / Kill Gates (scaled by `Max_CPA` headroom)**:
-   - **Early ATC Kill Gate**: pause at
+4. **Dynamic Stop-Loss / Kill Gates for Shopee CPAS (scaled by `Max_CPA` headroom)**:
+   These gates apply to Shopee CPAS campaigns only; the flat Rp 50.000 per content rule in
+   `preferences.md` is for non-CPAS lead/COD campaigns. Count events from
+   `catalog_segment_actions` (`7d_click` + `1d_view` total), and read `7d_click` beside it.
+   A gate is a decision threshold: it makes the agent recommend a pause; applying the pause
+   is a live mutation under the owner-approval rule of `SKILL.md` §1.
+   - **Early ATC Kill Gate**: recommend a pause at
      `Spend >= max(Rp 45,000, 1.5x Max_CPA)`
      with `0` `app_custom_event.fb_mobile_add_to_cart`.
-   - **Hard Purchase Kill Gate**: pause at
+   - **Hard Purchase Kill Gate**: recommend a pause at
      `Spend >= max(Rp 75,000, 2.5x Max_CPA)`
      with `0` `app_custom_event.fb_mobile_purchase`.
    - **Deep-Link Health Gate**: inspect `applink_treatment` and

@@ -15,7 +15,7 @@ reference needed for the task:
 - [Algorithm and source record](../../../skills/local/meta-ads-cli/references/api-and-evidence.md): documented delivery components, dated sources and API limits; recheck changing claims against Meta.
 - [Campaign decisions and recipes](../../../skills/local/meta-ads-cli/references/rules-and-tutorial.md): objective, structure, audience, budget, creative and controlled experiments.
 - [Conversion and ROAS interpretation](../../../skills/local/meta-ads-cli/references/roas-cpr-profit-intelligence.md): measurement scope, order basis, contribution economics and uncertainty.
-- [CPAS / Shopee Collaborative Ads](../../../skills/local/meta-ads-cli/references/cpas-collaborative-ads.md): marketplace catalog segment, retailer-owned signal, `catalog_segment_actions` & `catalog_segment_value` purchase conversion columns (and `7d_click` vs `1d_view` attribution separation), forensic In-App SDK (`app_custom_event.fb_mobile_*`) vs Web Pixel (`offsite_conversion.fb_pixel_*`) vs `app_site_visit` verification, empirical Indonesia Shopee `1-1-1` Direct-to-App architecture (Mobile Only, `FB Feed + FB Reels + Threads Stream`, 100% exclusion of Instagram IAB trap and Audience Network), three non-additive ledgers and dated Shopee Indonesia economics; read before any campaign that sends traffic to Shopee.
+- [CPAS / Shopee Collaborative Ads](../../../skills/local/meta-ads-cli/references/cpas-collaborative-ads.md): marketplace catalog segment, `catalog_segment_*` purchase columns with `7d_click` beside `1d_view`, three non-additive ledgers, and the observed `1-1-1` direct-to-app defaults (labelled as one dated audit); read before any campaign that sends traffic to Shopee.
 - [Delivery, learning and 2026 measurement changes](../../../skills/local/meta-ads-cli/references/algorithm-and-learning.md): Andromeda/GenRecs/GEM facts, learning phase, evidence-to-hypothesis checks.
 - [Indonesia baseline](../../../skills/local/meta-ads-cli/references/indonesia-market.md): general province/city context for an explicitly selected ID market, not product demand or a spending prescription. Indonesian customer copy applies to that market only.
 - [Terminal contract](../../../skills/local/meta-ads-cli/references/terminal-control.md) and [runtime guide](../../../skills/local/meta-ads-cli/references/account-workspace-runtime.md): operator boundaries, private account records and executable capabilities. The [human guide](../../../skills/local/meta-ads-cli/GUIDE.id.md) is Indonesian.
@@ -45,21 +45,21 @@ an on-demand navigation reference, not account state or an automatic learner.
 ---
 
 
-## Lesson: Shopee CPAS Purchase Conversion Columns (`catalog_segment_*`), `7d_click` vs `1d_view`, and `1-1-1` Direct-to-App Architecture
+## Lesson: Shopee CPAS purchase columns, `7d_click` vs `1d_view`, and the `1-1-1` direct-to-app default
 
 ### Symptom
-Shopee Collaborative Ads (CPAS) accounts appeared to have zero or near-zero purchases in ordinary `actions`/`action_values` columns, while high platform-claimed `app_site_visit` on Instagram Carousel and high CTR on mixed Collection Video masked 86% to 99.99% drop-off before opening the native Shopee App SDK.
+On Shopee Collaborative Ads (CPAS) accounts the ordinary `actions` columns looked empty while a platform-claimed `app_site_visit` looked healthy; blended purchase numbers were dominated by `1d_view` credit.
 
 ### Root cause
-1) On Shopee CPAS accounts, 99.94%+ of real marketplace purchase conversions are reported in `catalog_segment_actions` (`omni_purchase`, `app_custom_event.fb_mobile_purchase`) and `catalog_segment_value` (`omni_purchase`), not in ordinary `actions`, and 80%-86% of Retargeting (`RMK`) segment purchases are `1d_view` impression credit rather than `7d_click` click-through purchases. 2) Instagram WebView intercepts Shopee universal links into the Instagram In-App Browser (IAB), logging a false-positive `app_site_visit` while true Shopee App SDK arrival (`app_custom_event.fb_mobile_content_view`) collapses to 0.83% on IG Feed Carousel and 0.52% on IG Stories, making Cold Prospecting (`NV`) `CPA_7d_click` 2.2x-5.3x more expensive than Facebook Reels/Feed. 3) Audience Network accidental clicks produced 0.012% `InApp_VC` (99.99% bounce) and 96.9% `1d_view` attribution pollution.
+Observation, 2026-11-07, two Indonesia Shopee CPAS accounts under one owner (one account supplied nearly all orders): almost all purchases were reported in `catalog_segment_actions` / `catalog_segment_value`, most of the retargeting purchases were `1d_view`, and Instagram in-app-browser clicks logged `app_site_visit` without native app arrival. These are Meta claims, not settlement and not causal findings.
 
-### Durable invariant
-Always query Shopee CPAS with `--metric-profile cpas_v1` and `action_attribution_windows=['1d_click','7d_click','1d_view','default']`, evaluating `catalog_segment_actions:omni_purchase` (`7d_click` CPA/ROAS alongside Total) and `app_custom_event.fb_mobile_content_view / link_click` (never ordinary `actions` or `app_site_visit` alone). Enforce dynamic `1-1-1` format-isolated campaigns (`CAROUSEL_DPA` / `SINGLE_IMAGE_DPA` or isolated `COLLECTION_VIDEO`, never static `COLLECTION_IMAGE`) on `device_platforms=['mobile']`, `publisher_platforms=['facebook','threads']`, `facebook_positions=['feed','facebook_reels']`, `threads_positions=['threads_stream']` with 0% Instagram and 0% Audience Network, `applink_treatment='deeplink_with_web_fallback'`, and `template_url_spec.config.app_id='957549474255294'`.
+### Rule (scope and numbers: [cpas-collaborative-ads.md](../../../skills/local/meta-ads-cli/references/cpas-collaborative-ads.md) §7)
+Query Shopee CPAS with `--metric-profile cpas_v1` and read `catalog_segment_actions:omni_purchase` with `7d_click` beside the total; verify native app arrival with `app_custom_event.fb_mobile_content_view / link_click`, never `app_site_visit` alone; treat the `1-1-1` structure, placement exclusions and gates in §7 as defaults to test, not laws.
 
 ### Fix
-Added CPAS `1-1-1` Direct-to-App guardrails to `dotads-meta validate`, enriched `_dotads-workspace.mjs` `commerceInsight` to extract `catalog_segment_actions` and `catalog_segment_value` funnel and channel splits, and documented dynamic multi-niche CPAS rules in `meta-ads-cli` (`cpas-collaborative-ads.md` and `rules-and-tutorial.md`).
+`dotads-meta validate` warns on CPAS `1-1-1` deviations; the commerce insight (`commerce-insight/2`) splits the `catalog_segment_*` funnel by channel; the `cpas_v1` profile adds the CPAS inventory fields; the skill documents the rules and their limits.
 
 ### Regression check
 dotads-meta-test && node --test bin/_dotads-workspace-test.mjs && ai-policy-lint
 
-> Promoted from a reviewed local candidate on 2026-11-06.
+> Promoted from a reviewed local candidate on 2026-11-06; scope and wording reviewed 2026-11-07 (TASK-197). Audit date: 2026-11-07.

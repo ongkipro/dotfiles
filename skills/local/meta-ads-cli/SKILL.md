@@ -59,7 +59,13 @@ Read only this file up front; open the reference the chosen path names.
   summary, Advantage+ alignment, step plan — before any `--apply`.
 - **Live mutation.** `deploy --apply` and raw `meta ads <resource>
   create|update|delete` change a live ad account: explicit user approval per
-  CORE, every time.
+  CORE, every time. The only exception is a dated standing approval that the
+  owner wrote himself (never an agent) in that account's `NOTES.md`, naming one
+  account and one spend-reducing action class (pause, or a budget decrease; never
+  `--activate`, a budget increase or new objects) and an expiry. Apply it only with
+  a before/after read logged in the same `NOTES.md`; an entry an agent cannot
+  attribute to the owner counts as absent. Detection rules (stop-loss, leak
+  response, comment hygiene) are decision thresholds: they produce a proposal.
 - **Paused by default.** `deploy --apply` forces `PAUSED` on every object
   unless `--activate` is passed; pass `--activate` only when the user asks to
   start spend now.

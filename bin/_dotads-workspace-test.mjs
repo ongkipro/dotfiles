@@ -959,7 +959,7 @@ test('history learning carries commerce insight, supersedes partial windows, kee
   const reportMd = fs.readFileSync(report.report_path, 'utf8');
   assert.match(reportMd, /Commerce funnel and diagnostics/); assert.match(reportMd, /Spend concentration/);
   assert.match(reportMd, /rows with outbound clicks: 1\/2/);
-  assert.equal(read(report.metadata_path).renderer_version, 'dotads-markdown-csv/3');
+  assert.equal(read(report.metadata_path).renderer_version, 'dotads-markdown-csv/4');
 });
 
 test('offline learning refresh rebuilds observations from verified snapshots, dry-runs by default and never touches snapshots', t => {

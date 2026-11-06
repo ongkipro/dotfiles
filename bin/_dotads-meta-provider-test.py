@@ -266,6 +266,36 @@ class ProviderTests(unittest.TestCase):
         plain = self.insights([{"data": [insight()]}])["insights"][0]["query"]["fields"]
         self.assertFalse(any(name.startswith("catalog_segment") for name in plain))
 
+    def test_cpas_inventory_fields_are_opt_in_and_legacy_stays_exact(self):
+        # The default inventory request (and therefore its scope hash and query IDs) must stay the one shipped
+        # in 6e38288; the CPAS-only inventory fields are added only with metric_profile cpas_v1.
+        legacy_fields = {
+            "campaigns": ("id", "account_id", "name", "objective", "status", "configured_status", "effective_status",
+                          "daily_budget", "lifetime_budget", "created_time", "updated_time"),
+            "adsets": ("id", "account_id", "campaign_id", "name", "status", "configured_status", "effective_status",
+                       "daily_budget", "lifetime_budget", "optimization_goal", "billing_event", "promoted_object",
+                       "targeting", "start_time", "end_time", "attribution_spec", "is_dynamic_creative",
+                       "created_time", "updated_time"),
+            "creatives": ("id", "account_id", "name", "status", "title", "body", "object_type", "object_story_id",
+                          "effective_object_story_id", "object_story_spec", "asset_feed_spec", "image_hash", "image_url",
+                          "thumbnail_url", "video_id", "link_url", "object_url", "object_store_url", "template_url",
+                          "url_tags", "call_to_action_type", "product_set_id", "instagram_permalink_url",
+                          "effective_instagram_media_id", "degrees_of_freedom_spec"),
+        }
+        plan = provider.plan(REQUEST)
+        for resource, names in legacy_fields.items():
+            self.assertEqual(tuple(plan["scope"]["inventory_fields"][resource]), names, resource)
+        cpas = provider.plan({**REQUEST, "metric_profile": "cpas_v1"})
+        added = {"campaigns": {"bid_strategy", "smart_promotion_type", "promoted_object", "spend_cap"},
+                 "adsets": {"bid_strategy", "bid_amount", "bid_constraints", "destination_type", "learning_stage_info", "issues_info"},
+                 "creatives": {"template_url_spec", "applink_treatment"}}
+        for resource, names in added.items():
+            fields = set(cpas["scope"]["inventory_fields"][resource])
+            self.assertTrue(names <= fields, resource)
+            self.assertTrue(fields >= set(legacy_fields[resource]), resource)
+            self.assertFalse(names & set(plan["scope"]["inventory_fields"][resource]), resource)
+        self.assertEqual(provider.plan({**REQUEST, "metric_profile": "legacy"}), plan)
+
     def test_bad_rows_do_not_discard_valid_partial_rows_or_other_resources(self):
         routes = base_routes()
         routes["act_123/campaigns"] = [{"data": [{"id": "10", "account_id": "123"}, {"id": "11", "account_id": "456"}]}]

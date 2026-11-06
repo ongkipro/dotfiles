@@ -22,22 +22,39 @@ LEVELS = ("account", "campaign", "adset", "ad")
 ACCOUNT_FIELDS = ("id", "account_id", "name", "account_status", "currency", "timezone_name")
 RESOURCE_FIELDS = {
     "campaigns": ("id", "account_id", "name", "objective", "status", "configured_status",
-                  "effective_status", "bid_strategy", "smart_promotion_type", "promoted_object",
-                  "daily_budget", "lifetime_budget", "spend_cap", "created_time", "updated_time"),
+                  "effective_status", "daily_budget", "lifetime_budget", "created_time", "updated_time"),
     "adsets": ("id", "account_id", "campaign_id", "name", "status", "configured_status",
                "effective_status", "daily_budget", "lifetime_budget", "optimization_goal", "billing_event",
-               "bid_strategy", "bid_amount", "bid_constraints", "destination_type",
                "promoted_object", "targeting", "start_time", "end_time", "attribution_spec",
-               "is_dynamic_creative", "learning_stage_info", "issues_info", "created_time", "updated_time"),
+               "is_dynamic_creative", "created_time", "updated_time"),
     "ads": ("id", "account_id", "campaign_id", "adset_id", "name", "status", "configured_status",
             "effective_status", "creative{id}", "conversion_domain", "tracking_specs", "created_time", "updated_time"),
     "creatives": ("id", "account_id", "name", "status", "title", "body", "object_type",
                   "object_story_id", "effective_object_story_id", "object_story_spec", "asset_feed_spec",
                   "image_hash", "image_url", "thumbnail_url", "video_id", "link_url", "object_url",
-                  "object_store_url", "template_url", "template_url_spec", "applink_treatment",
+                  "object_store_url", "template_url",
                   "url_tags", "call_to_action_type", "product_set_id",
                   "instagram_permalink_url", "effective_instagram_media_id", "degrees_of_freedom_spec"),
 }
+# Extra inventory fields for the Shopee CPAS 1-1-1 audit (bid strategy and constraints, deep-link contract, learning
+# state). Added only with metric_profile cpas_v1, so the default inventory request, its scope hash and its query IDs
+# stay exactly what they were; appended after the legacy list to keep that prefix stable.
+CPAS_INVENTORY_FIELDS = {
+    "campaigns": ("bid_strategy", "smart_promotion_type", "promoted_object", "spend_cap"),
+    "adsets": ("bid_strategy", "bid_amount", "bid_constraints", "destination_type", "learning_stage_info", "issues_info"),
+    "ads": (),
+    "creatives": ("template_url_spec", "applink_treatment"),
+}
+
+
+def inventory_fields(profile="legacy"):
+    """Inventory fields per resource for a metric profile; legacy returns RESOURCE_FIELDS unchanged."""
+    if profile == "cpas_v1":
+        return {resource: tuple(fields) + tuple(name for name in CPAS_INVENTORY_FIELDS[resource] if name not in fields)
+                for resource, fields in RESOURCE_FIELDS.items()}
+    return RESOURCE_FIELDS
+
+
 RESOURCE_REQUIRED_FIELDS = {
     "campaigns": ("id", "account_id"),
     "adsets": ("id", "account_id", "campaign_id"),
@@ -170,7 +187,8 @@ def planned_scope(request):
     scope["inventory_filters"] = ({resource: {"effective_status": list(RESOURCE_STATUSES[resource])}
                                    if resource in RESOURCE_STATUSES else {} for resource in RESOURCE_FIELDS}
                                   if request["operation"] == "collect" else {})
-    scope["inventory_fields"] = ({resource: list(fields) for resource, fields in RESOURCE_FIELDS.items()}
+    scope["inventory_fields"] = ({resource: list(fields)
+                                  for resource, fields in inventory_fields(request.get("metric_profile", "legacy")).items()}
                                  if request["operation"] == "collect" else {})
     scope["required_inventory_fields"] = ({resource: list(fields) for resource, fields in RESOURCE_REQUIRED_FIELDS.items()}
                                           if request["operation"] == "collect" else {})
@@ -301,7 +319,8 @@ def row_identity(row, resource, account_id, query=None, currency=None):
     return json.dumps(identity, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
 
-def paginate(api, path, params, max_pages, resource, account_id=None, query=None, currency=None, sleep=time.sleep):
+def paginate(api, path, params, max_pages, resource, account_id=None, query=None, currency=None, sleep=time.sleep,
+             wanted_fields=None):
     rows, errors, seen_cursors, seen_rows = [], [], set(), set()
     reductions = []
     exhausted = False
@@ -327,7 +346,8 @@ def paginate(api, path, params, max_pages, resource, account_id=None, query=None
                     if identity in seen_rows:
                         raise ProviderError("DUPLICATE_ROW", "Meta repeated a reporting row in the same query.")
                     seen_rows.add(identity)
-                    fields = query["fields"] + query["breakdowns"] if query else ACCOUNT_FIELDS if resource == "accounts" else RESOURCE_FIELDS[resource]
+                    fields = (query["fields"] + query["breakdowns"] if query else
+                              ACCOUNT_FIELDS if resource == "accounts" else wanted_fields or params["fields"])
                     wanted = {field.split("{", 1)[0] for field in fields}
                     rows.append({key: value for key, value in row.items() if key in wanted})
                 except ProviderError as error:
@@ -405,14 +425,15 @@ def run(request, api=None, sdk_version=None, sleep=time.sleep):
         def limited(result):
             return any(error.get("rate_limited") for error in result["errors"])
         if request["operation"] == "collect":
-            for resource, fields in RESOURCE_FIELDS.items():
+            for resource, fields in inventory_fields(request.get("metric_profile", "legacy")).items():
                 edge = "adcreatives" if resource == "creatives" else resource
                 # Full creative payloads at 100 rows fail with "reduce the amount of data".
                 params = {"fields": list(fields), "limit": 25 if resource == "creatives" else PAGE_SIZE}
                 if resource in RESOURCE_STATUSES:
                     params["effective_status"] = list(RESOURCE_STATUSES[resource])
                 result = skipped() if throttled else paginate(api, (account_id, edge), params, request["max_pages"],
-                                                              resource, account_id=account_id, sleep=sleep)
+                                                              resource, account_id=account_id, sleep=sleep,
+                                                              wanted_fields=list(fields))
                 throttled = throttled or limited(result)
                 fetched_fields = list(fields)
                 # A denied optional field must not discard an accessible core inventory.
@@ -420,7 +441,8 @@ def run(request, api=None, sdk_version=None, sleep=time.sleep):
                 if not throttled and not result["rows"] and any(error.get("api_code") in (100, 200) for error in result["errors"]):
                     fetched_fields = list(RESOURCE_REQUIRED_FIELDS[resource])
                     core = paginate(api, (account_id, edge), {**params, "fields": fetched_fields},
-                                    request["max_pages"], resource, account_id=account_id, sleep=sleep)
+                                    request["max_pages"], resource, account_id=account_id, sleep=sleep,
+                                    wanted_fields=list(fields))
                     core["errors"] = result["errors"] + core["errors"]
                     core["status"] = "partial" if core["rows"] else "unavailable"
                     result = core

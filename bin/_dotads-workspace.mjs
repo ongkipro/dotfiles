@@ -5,7 +5,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const VERSION = 1;
-const RENDERER = 'dotads-markdown-csv/3';
+const RENDERER = 'dotads-markdown-csv/4';
 const DEFINITIONS = 'platform-base-metrics/1';
 const RESOURCES = ['campaigns', 'adsets', 'ads', 'creatives'];
 const LEVELS = ['account', 'campaign', 'adset', 'ad'];
@@ -786,7 +786,7 @@ export function commerceInsight(value) {
     app_site_visits: appSiteVisits,
     in_app_arrival_per_link_click: ratio(inAppContentViews, v('link_clicks')) };
   const summarize = (rows, extra = {}) => ({ total: rows.length, by_effective_status: countBy(rows, row => row.effective_status), ...Object.fromEntries(Object.entries(extra).map(([key, pick]) => [key, countBy(rows, pick)])) });
-  return { definition_version: 'commerce-insight/1', currency: value.account.currency ?? null, spend, impressions,
+  return { definition_version: 'commerce-insight/2', currency: value.account.currency ?? null, spend, impressions,
     funnel, ratios, clicks, spend_concentration: concentration, unavailable, frequency_watch_status: watchStatus, frequency_watch: watch.sort((a, b) => b.frequency - a.frequency || a.entity_id.localeCompare(b.entity_id)), cpas,
     inventory: { campaigns: summarize(inventory.campaign, { by_objective: row => row.objective }), adsets: summarize(inventory.adset, { by_optimization_goal: row => row.optimization_goal, by_promoted_object_kind: row => promotedKind(row.promoted_object) }),
       ads: summarize(inventory.ad), creatives: { total: value.resources.creatives.rows.length } },
@@ -968,7 +968,7 @@ export function publishHistory(root, id, plan, attempts) {
   });
   const status = periods.every(item => item.status === 'complete') ? 'complete' : 'partial';
   const observed = periods.some(item => item.insights?.some(query => query.observed_rows > 0));
-  const summary = { schema_version: VERSION, renderer: 'dotads-history/3', plan, status,
+  const summary = { schema_version: VERSION, renderer: 'dotads-history/4', plan, status,
     analysis_eligibility: status !== 'complete' ? 'INCOMPLETE_EVIDENCE' : observed ? 'OBSERVATIONAL_REVIEW_ONLY' : 'NO_OBSERVED_HISTORY', periods };
   const revision = `h_${hash(canonical(summary)).slice(0, 32)}`, relative = `reports/history/${revision}`, target = contained(directory, relative);
   const lines = ['# Account history evidence', '', `Account: ${id} · Timezone: ${md(plan.timezone)} · Currency: ${md(plan.currency ?? 'unknown')}`,

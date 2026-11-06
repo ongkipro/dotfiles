@@ -504,7 +504,7 @@ Uses ABO with `"adset_budget_sharing": true` so each creative concept gets a ded
 
 ### Recipe 5: Shopee Collaborative Ads (CPAS) `1-1-1` Direct-to-App (`CAROUSEL_DPA` — Dynamic Across All Niches)
 
-Implements the universal Indonesia Shopee CPAS `1-1-1` architecture (`1 Campaign` CBO → `1 Ad Set` → `1 Dynamic Carousel Ad` `carousel_images_multi_items`) with `device_platforms: ["mobile"]`, `publisher_platforms: ["facebook", "threads"]` (`feed`, `facebook_reels`, `threads_stream`), 100% exclusion of Instagram and Audience Network, and `deeplink_with_web_fallback` bound to the Shopee ID app (`957549474255294`). Replace `product_catalog_id`, `product_set_id`, `page_id`, `daily_budget` (`max(25000, 1.5x–2.5x Target_CPA)`), demographic bounds, and `template_data.message` dynamically to match the specific brand, niche, and unit economics (see `references/cpas-collaborative-ads.md` §7):
+Implements the observed default for Indonesia Shopee CPAS (`1 Campaign` CBO → `1 Ad Set` → `1 Dynamic Carousel Ad` `carousel_images_multi_items`; scope and limits in [CPAS §7](cpas-collaborative-ads.md)) with `device_platforms: ["mobile"]`, `publisher_platforms: ["facebook"]` (`feed`, `facebook_reels`; Threads is untested, add it only as its own test), Instagram and Audience Network excluded by default, and `deeplink_with_web_fallback` bound to Shopee Indonesia's published Meta app id (`957549474255294`). Every object stays `PAUSED`; the numbers in the manifest are placeholders, not recommendations. Replace `product_catalog_id`, `product_set_id`, `page_id`, `daily_budget` (`max(25000, 1.5x–2.5x Target_CPA)`), demographic bounds, and `template_data.message` dynamically to match the specific brand, niche, and unit economics (see `references/cpas-collaborative-ads.md` §7):
 
 ```json
 {
@@ -549,8 +549,8 @@ Implements the universal Indonesia Shopee CPAS `1-1-1` architecture (`1 Campaign
   ],
   "adsets": [
     {
-      "key": "adset_cpas_pros_mobile_fb_threads",
-      "name": "AdSet_CPAS_PROS_Mobile_FB_Threads",
+      "key": "adset_cpas_pros_mobile_fb",
+      "name": "AdSet_CPAS_PROS_Mobile_FB",
       "optimization_goal": "OFFSITE_CONVERSIONS",
       "billing_event": "IMPRESSIONS",
       "promoted_object": {
@@ -569,9 +569,8 @@ Implements the universal Indonesia Shopee CPAS `1-1-1` architecture (`1 Campaign
           "location_types": ["home", "recent"]
         },
         "device_platforms": ["mobile"],
-        "publisher_platforms": ["facebook", "threads"],
+        "publisher_platforms": ["facebook"],
         "facebook_positions": ["feed", "facebook_reels"],
-        "threads_positions": ["threads_stream"],
         "targeting_automation": { "advantage_audience": 1 }
       },
       "status": "PAUSED"
@@ -581,7 +580,7 @@ Implements the universal Indonesia Shopee CPAS `1-1-1` architecture (`1 Campaign
     {
       "key": "ad_cpas_carousel_hero_v1",
       "name": "Ad_CPAS_Carousel_Hero_V1",
-      "adset": "adset_cpas_pros_mobile_fb_threads",
+      "adset": "adset_cpas_pros_mobile_fb",
       "creative": "cr_cpas_carousel_hero_v1",
       "status": "PAUSED"
     }

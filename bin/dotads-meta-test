@@ -349,7 +349,7 @@ def patch_cpas_leakage(m):
     m['ads'].append({
         'key': 'ad_cpas_col_video',
         'name': 'Ad_CPAS_CollectionVideo',
-        'adset': 'adset_cpas_pros_mobile_fb_threads',
+        'adset': 'adset_cpas_pros_mobile_fb',
         'creative': 'cr_cpas_col_video',
         'status': 'PAUSED'
     })
@@ -660,6 +660,48 @@ if [ "$(wc -l < "$META_LOG" | tr -d ' ')" -eq 4 ]; then
 else
   bad "re-running deploy --apply called meta CLI again ($(wc -l < "$META_LOG") lines)"
 fi
+
+# 5d2. Ad set with a ROAS floor goes through the installed SDK (the meta CLI cannot send bid_constraints): the
+# payload must stay PAUSED without --activate, carry the 10,000-scaled floor, never print the token, and never
+# reach the network (a recording stand-in replaces the SDK interpreter). Runs in a private copy of the workspace
+# so the shared deploy state used by the surrounding cases is untouched.
+SDKWS="$TMP/sdk-workspace"; rm -rf "$SDKWS"; cp -R "$WS" "$SDKWS"; rm -f "$SDKWS/.meta-state.json" "$SDKWS/.dotads-meta.lock"
+SDK_LOG="$TMP/sdk-payloads.jsonl"
+cat > "$MOCK_BIN/fake-sdk-python" <<'EOF'
+#!/usr/bin/env python3
+import json, os, sys
+req = json.load(sys.stdin)
+with open(os.environ['SDK_LOG'], 'a') as handle:
+    handle.write(json.dumps({'token_present': bool(os.environ.get('ACCESS_TOKEN')), 'req': req}) + '\n')
+print(json.dumps({'id': 'adset_sdk_9001'}))
+EOF
+cat > "$MOCK_BIN/failing-sdk-python" <<'EOF'
+#!/usr/bin/env python3
+import sys
+sys.stderr.write('Meta error: rate limit')
+sys.exit(3)
+EOF
+chmod +x "$MOCK_BIN/fake-sdk-python" "$MOCK_BIN/failing-sdk-python"
+jq '.campaign.bid_strategy = "LOWEST_COST_WITH_MIN_ROAS" | .adsets[0].optimization_goal = "VALUE" | .adsets[0].roas_average_floor = 25000 | .adsets[0].status = "ACTIVE"' "$WS/campaigns/sample-campaign.json" > "$SDKWS/campaigns/roas-manifest.json"
+rm -f "$SDK_LOG"
+META_LOG_SHARED="$META_LOG"; META_LOG="$TMP/meta-invocations-sdk.log"; export META_LOG
+sdk_out="$(cd "$SDKWS" && SDK_LOG="$SDK_LOG" DOTADS_META_PYTHON="$MOCK_BIN/fake-sdk-python" "$CMD" deploy "$SDKWS/campaigns/roas-manifest.json" --apply 2>&1)"
+sdk_rc=$?
+if [ "$sdk_rc" -eq 0 ] && [ -s "$SDK_LOG" ] \
+  && jq -s -e 'length == 1 and .[0].req.params.status == "PAUSED" and .[0].req.params.bid_constraints.roas_average_floor == 25000 and .[0].token_present == true and (.[0].req.params | has("access_token") | not)' "$SDK_LOG" >/dev/null \
+  && ! printf '%s' "$sdk_out" | grep -q 'MOCK_SYSTEM_USER_TOKEN_SECRET_999'; then
+  ok "ROAS-floor ad set is created through the SDK as PAUSED with the scaled bid_constraints and no token in output"
+else
+  bad "SDK ad set path unsafe or wrong (rc=$sdk_rc): $sdk_out; payload: $(cat "$SDK_LOG" 2>/dev/null)"
+fi
+rm -f "$SDKWS/.meta-state.json" "$SDKWS/.dotads-meta.lock"
+fail_out="$(cd "$SDKWS" && DOTADS_META_PYTHON="$MOCK_BIN/failing-sdk-python" "$CMD" deploy "$SDKWS/campaigns/roas-manifest.json" --apply 2>&1)"
+if [ "$?" -ne 0 ] && printf '%s' "$fail_out" | grep -q "Deployment lock retained" && ! printf '%s' "$fail_out" | grep -q 'MOCK_SYSTEM_USER_TOKEN_SECRET_999'; then
+  ok "a failing SDK ad set call stops with the deployment lock retained and no token in output"
+else
+  bad "failing SDK ad set call was not handled safely: $fail_out"
+fi
+rm -rf "$SDKWS"; META_LOG="$META_LOG_SHARED"; export META_LOG
 
 # 5e. Drift detection warns when a deployed entity's spec changes under the same key
 jq '.creatives[0].title = "Edited Headline Without Bumping Key"' "$WS/campaigns/active-manifest.json" > "$WS/campaigns/drifted-manifest.json"
@@ -1276,8 +1318,8 @@ portable = call('learn','export','--account','act_123','--output',str(bundle),'-
 assert portable['entries'] == 6 and portable['transferred'] is False
 assert call('learn','import','--account','act_123','--input',str(bundle),'--json')['added'] == 0
 # TASK-194: commerce insight in observations/history, offline refresh (dry-run then apply), CLI options.
-assert observations['renderer'] == 'dotads-history/3'
-assert observations['periods'][0]['commerce']['definition_version'] == 'commerce-insight/1'
+assert observations['renderer'] == 'dotads-history/4'
+assert observations['periods'][0]['commerce']['definition_version'] == 'commerce-insight/2'
 assert 'Commerce signals per window' in pathlib.Path(history['report_path']).read_text()
 assert learning['entries'][0]['metrics']['commerce']['cpas']['status'] == 'NOT_REQUESTED'
 refresh_dry = call('learn','refresh','--account','act_123','--json')

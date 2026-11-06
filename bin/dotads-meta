@@ -1587,22 +1587,22 @@ function validateManifests(campaignPath, explicitBrandPath) {
       const t = resolvedAs?._targeting;
       if (!t || !Array.isArray(t.device_platforms) || t.device_platforms.includes("desktop") || !t.device_platforms.includes("mobile")) {
         warnings.push(
-          `${asLabel}: CPAS guardrail: targeting.device_platforms should be ["mobile"] only; audited Shopee CPAS spend had 100% purchases via fb_mobile_purchase and 0% via desktop/web pixel.`
+          `${asLabel}: CPAS guardrail: targeting.device_platforms should be ["mobile"] only; in the audited Shopee CPAS accounts essentially all purchases came from the mobile app SDK (fb_mobile_purchase), not desktop or the web pixel (observation, see cpas-collaborative-ads.md §7).`
         );
       }
       if (!t || !Array.isArray(t.publisher_platforms)) {
         warnings.push(
-          `${asLabel}: CPAS guardrail: targeting.publisher_platforms is unset (Advantage+ Placements open); restrict publisher_platforms to ["facebook", "threads"] to prevent Audience Network (99.99% bounce) and Instagram IAB leakage.`
+          `${asLabel}: CPAS guardrail: targeting.publisher_platforms is unset (Advantage+ Placements open); restrict publisher_platforms to ["facebook"] (Threads is untested for CPAS) to keep Audience Network and Instagram in-app-browser leakage out by default.`
         );
       } else {
         if (t.publisher_platforms.includes("audience_network") || t.publisher_platforms.includes("messenger")) {
           warnings.push(
-            `${asLabel}: CPAS guardrail: targeting.publisher_platforms includes 'audience_network' or 'messenger'; Audience Network showed 0.012% InApp_VC (99.99% accidental-click drop-off) and 7d_click attribution hijacking. Restrict to ["facebook", "threads"].`
+            `${asLabel}: CPAS guardrail: targeting.publisher_platforms includes 'audience_network' or 'messenger'; Audience Network showed near-zero InApp_VC and mostly 1d_view credit in the audit. Default: restrict to ["facebook"].`
           );
         }
         if (t.publisher_platforms.includes("instagram")) {
           warnings.push(
-            `${asLabel}: CPAS guardrail: targeting.publisher_platforms includes 'instagram'; Instagram WebView intercepts Shopee universal links into the In-App Browser (false-positive app_site_visit, 0.83% InApp_VC on IG Feed Carousel, 99.48% bounce on IG Stories). Exclude 'instagram' for 100% Direct-to-App delivery.`
+            `${asLabel}: CPAS guardrail: targeting.publisher_platforms includes 'instagram'; Instagram WebView intercepts Shopee universal links into the In-App Browser (app_site_visit without native app arrival; InApp_VC about 1% or less on IG Feed Carousel and IG Stories in the audit). Default: exclude 'instagram' until the account's own 7d_click and InApp_VC read says otherwise.`
           );
         }
         if (Array.isArray(t.facebook_positions)) {
@@ -1618,7 +1618,7 @@ function validateManifests(campaignPath, explicitBrandPath) {
     for (const [adsetKey, formatSet] of cpasAdsetCreativeFormats.entries()) {
       if (formatSet.has("CAROUSEL_DPA") && formatSet.has("COLLECTION_VIDEO")) {
         warnings.push(
-          `adset '${adsetKey}': CPAS guardrail: mixing CAROUSEL_DPA (carousel_images_multi_items) and COLLECTION_VIDEO (collection_video) in the same ad set causes CTR cannibalization (~78% impressions taken by Collection Video while losing ~86% of clickers at the Instant Experience intermediary screen). Isolate into 1-1-1 CAROUSEL_DPA ad sets.`
+          `adset '${adsetKey}': CPAS guardrail: mixing CAROUSEL_DPA (carousel_images_multi_items) and COLLECTION_VIDEO (collection_video) in the same ad set took about 78% of impressions for Collection Video in the audit (CTR cannibalization); the ~86% click-to-view drop-off seen there is confounded with the applink treatment. Isolate into 1-1-1 CAROUSEL_DPA ad sets.`
         );
       }
     }
@@ -1643,7 +1643,7 @@ function validateManifests(campaignPath, explicitBrandPath) {
     if (isCpasManifest && (cr.product_set_id || resolvedCr?._objectStorySpec?.template_data)) {
       if (cr.applink_treatment !== "deeplink_with_web_fallback") {
         warnings.push(
-          `${label}: CPAS guardrail: applink_treatment should be 'deeplink_with_web_fallback' (got '${cr.applink_treatment || "unset"}'); 'automatic' or unset caused 65-72% In-App Browser leakage on Facebook Feed.`
+          `${label}: CPAS guardrail: applink_treatment should be 'deeplink_with_web_fallback' (got '${cr.applink_treatment || "unset"}'); 'automatic' showed 65-72% In-App Browser leakage on Facebook Feed in the audit; unset is treated the same until measured.`
         );
       }
       if (cr.applink_treatment === "deeplink_with_web_fallback" && !resolvedCr?._templateUrlSpec?.config?.app_id) {
