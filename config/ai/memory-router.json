@@ -115,7 +115,11 @@
         "static output",
         "node --test",
         "bundler import",
-        "unreachable import"
+        "unreachable import",
+        "testtimeout",
+        "vitest",
+        "create database",
+        "drop database"
       ],
       "paths": [
         "**/astro.config.*",
@@ -180,7 +184,11 @@
         "server action",
         "mise install",
         "docker build",
-        "prerender env"
+        "prerender env",
+        "heavy-run",
+        "load gate",
+        "scratch",
+        "tidy-up"
       ],
       "paths": [
         "**/Dockerfile",

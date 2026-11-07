@@ -4,6 +4,14 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-07 — Fixes from a second reviewer on TASK-200 and TASK-201 (TASK-202)
+
+- `ai-capacity status` advice no longer crashes on a zero or negative process age, a zero clock tick, or an empty, malformed, negative or non-finite `AI_CAPACITY_HOG_MIN_*` override; it falls back to the defaults and never changes the exit code. Tests cover each case, and removing the guard or restoring the old parsing makes them fail.
+- Four lessons promoted earlier could not be reached by the memory router (their files are too large for path-only selection and had no triggers). Eight triggers added; a regression queries four realistic phrases through `ai-memory-route`.
+- `device-register-test` now checks the capacity section with a stub of fixed JSON and with the checkout's own `ai-capacity` under explicit hardware values, so the positive path no longer depends on what the CI runner has on its PATH. The generated section states that the numbers are a plan, enforced only after `ai-capacity apply` and only on Linux with systemd.
+- `linux-rich-maintenance.md` and the maintenance log keep tokophi in the migration queue: it is bound to loopback but port `5433` is still occupied.
+- No independent review was run on this fix, by owner instruction; tests and mutations stand in for it.
+
 ## 2026-11-07 — Maintenance log for the rich machine work (TASK-201)
 
 - `docs/linux-maintenance-log.md`: dated entry for 2026-11-06 to 2026-11-07 covering the tidy, the parallel limits, a stray `npm prune` process that ran for 1 day 9 hours (observed; its likely origin is marked as inferred), the tokophi loopback bind, a local-view port audit and the data routing rule, with the open items listed as Deferred. Documentation only.

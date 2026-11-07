@@ -94,14 +94,31 @@ BOUT="$(HOME="$FH" CLAUDE_CONFIG_DIR="$CC" PATH="$STUBS:$PATH" DOTFILES_DIR="$DR
 printf '%s\n' "$BOUT" | grep -q 'tertinggal' \
   && bad "an up-to-date checkout was warned about" || ok "an up-to-date checkout is not warned about"
 
-# The parallel-capacity section is read from ai-capacity: present with real numbers when the tool exists, absent when it does not.
-if command -v ai-capacity >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
-  printf '%s' "$OUT" | grep -qF '## Kapasitas AI paralel' && ok "capacity section present when ai-capacity exists" || bad "capacity section missing"
-  printf '%s' "$OUT" | sed -n '/## Kapasitas AI paralel/,/## Symlink/p' | grep -qE '^\| Terminal AI \(nyaman / maksimum\) \| [0-9]+ / [0-9]+ \|' \
-    && ok "capacity section carries numeric terminals" || bad "capacity terminals row malformed"
-fi
-# Absence is proven only when the generator otherwise succeeds: same PATH of symlinks, with python3 present and ai-capacity not.
 mkpath() { local d="$1"; shift; mkdir -p "$d"; for c in bash git tar mktemp mkdir date hostname sed awk grep cut tr head tail sort uname cat ls readlink dirname basename id wc rm ln cp mv env python3 "$@"; do p="$(command -v "$c" 2>/dev/null)" && ln -sf "$p" "$d/$c"; done; }
+# The positive path must not depend on what the CI runner happens to have on PATH: feed the generator a stub ai-capacity with
+# fixed JSON and check every row, for both values of the two switches that change wording.
+stubcap() {  # $1 dir, $2 source (measured|defaults), $3 degraded (true|false)
+  mkpath "$1"
+  printf '#!/bin/sh\ncat <<JSON\n{"terminals":{"comfortable":4,"max":5},"heavy":{"slots":2,"memory_max_gb":8.0},"subagents":{"total_target":8},"costs":{"source":"%s"},"degraded":%s}\nJSON\n' "$2" "$3" > "$1/ai-capacity"; chmod +x "$1/ai-capacity"
+}
+stubcap "$TMP/cap1" measured false
+OUTP="$(PATH="$TMP/cap1" DOTFILES_DIR="$SCRATCH" bash "$CMD" --dry-run 2>&1)"; rcp=$?
+[ "$rcp" -eq 0 ] && ok "generator succeeds with a stub ai-capacity" || bad "generator exited $rcp with a stub ai-capacity"
+CAPSEC="$(printf '%s' "$OUTP" | sed -n '/## Kapasitas AI paralel/,/## Symlink/p')"
+row() { printf '%s\n' "$CAPSEC" | grep -qF "$1"; }
+row '| Terminal AI (nyaman / maksimum) | 4 / 5 |' && ok "terminals row" || bad "terminals row wrong"
+row '| Slot job berat (`heavy-run`) | 2 (irisan memori 8.0 GB) |' && ok "heavy slots row" || bad "heavy slots row wrong"
+row '| Subagen total (target) | 8 |' && ok "subagents row" || bad "subagents row wrong"
+row '| Sumber biaya | diukur di mesin ini |' && ok "measured source row" || bad "measured source row wrong"
+row '| Mesin terdegradasi | tidak |' && ok "not degraded row" || bad "degraded row wrong"
+stubcap "$TMP/cap2" defaults true
+OUTQ="$(PATH="$TMP/cap2" DOTFILES_DIR="$SCRATCH" bash "$CMD" --dry-run 2>&1)"
+printf '%s' "$OUTQ" | grep -qF '| Sumber biaya | bawaan, belum diukur |' && printf '%s' "$OUTQ" | grep -qF '| Mesin terdegradasi | ya |' && ok "defaults and degraded wording" || bad "defaults/degraded wording wrong"
+# And the real ai-capacity from this checkout, so a change to its JSON keys cannot slip through unnoticed.
+mkpath "$TMP/realcap"; ln -sf "$ROOT/bin/ai-capacity" "$TMP/realcap/ai-capacity"
+OUTR="$(AI_CAPACITY_RAM_GB=31.2 AI_CAPACITY_THREADS=8 PATH="$TMP/realcap" DOTFILES_DIR="$SCRATCH" bash "$CMD" --dry-run 2>&1)"   # explicit hardware: no /proc/meminfo or sysctl needed, so the check holds on macOS too
+printf '%s' "$OUTR" | sed -n '/## Kapasitas AI paralel/,/## Symlink/p' | grep -qE '^\| Terminal AI \(nyaman / maksimum\) \| [0-9]+ / [0-9]+ \|' && ok "real ai-capacity from this checkout feeds the section" || bad "real ai-capacity did not produce the section"
+# Absence is proven only when the generator otherwise succeeds: same PATH of symlinks, with python3 present and ai-capacity not.
 mkpath "$TMP/nocap"
 [ -x "$TMP/nocap/python3" ] && [ ! -e "$TMP/nocap/ai-capacity" ] && ok "fixture has python3 and no ai-capacity" || bad "fixture PATH is not what the test claims"
 OUT2="$(PATH="$TMP/nocap" DOTFILES_DIR="$SCRATCH" bash "$CMD" --dry-run 2>&1)"; rc2=$?

@@ -112,6 +112,11 @@ if [ -e /proc/self/smaps_rollup ]; then
   env -u AI_CAPACITY_NO_MEASURE AI_CAPACITY_HOME="$t/live" bin/ai-capacity measure >/dev/null 2>&1 || true
   python3 -c "import json; d=json.load(open('$t/live/.config/ai-local/capacity-costs.json')); assert d['terminal_gb'] >= 9.0, d"
 fi
+# status() itself survives a malformed override (a real process, not a stub): exit code stays 0 or 1, never a traceback.
+for bad in abc "" -1; do
+  set +e; AI_CAPACITY_HOG_MIN_AGE="$bad" AI_CAPACITY_HOG_MIN_AVG="$bad" bin/ai-capacity status >"$t/st.out" 2>"$t/st.err"; rc=$?; set -e
+  if { [ "$rc" != 0 ] && [ "$rc" != 1 ]; } || grep -q Traceback "$t/st.err"; then echo "status broke on override '$bad' (rc=$rc)"; cat "$t/st.err"; exit 1; fi
+done
 # hogs(): deterministic predicate checks from injected stat/uptime/cgroup (no live CPU load, no timing).
 python3 - <<'PY2'
 import importlib.machinery, importlib.util, os, sys
@@ -145,6 +150,19 @@ low = [r[0] for r in m.hogs(rows, read_stat=rd, uptime=3600.0, tick=TICK, min_ag
 assert '11' in low and '11' not in [r[0] for r in got], (low, got)   # lowering the average admits 11; 0.8 excludes it
 assert '13' not in low and '12' not in low, low                 # heavy slice stays exempt, young process stays out
 os.environ['AI_CAPACITY_HOG_MIN_AGE'] = '99999'; assert m.hogs(rows, read_stat=rd, uptime=3600.0, tick=TICK) == [], 'env override read'
+# Robustness (found by the second reviewer): advice must never crash status.
+os.environ.pop('AI_CAPACITY_HOG_MIN_AGE', None)
+zero_age = [('20', ['z'], '0::/user.slice/x')]
+zs = lambda pid: stat(20, 100, 0, 360000)                           # starttime == uptime * tick: age is exactly 0
+assert m.hogs(zero_age, read_stat=zs, uptime=3600.0, tick=TICK, min_age=0, min_avg=0.0) == [], 'age 0 must not divide by zero'
+neg = lambda pid: stat(20, 100, 0, 400000)                          # started "after" uptime (clock skew): negative age
+assert m.hogs(zero_age, read_stat=neg, uptime=3600.0, tick=TICK, min_age=0, min_avg=0.0) == [], 'negative age skipped'
+assert m.hogs(rows, read_stat=rd, uptime=3600.0, tick=0) == [], 'tick 0 must not crash'
+for bad in ('', 'abc', '-5', 'nan', 'inf'):
+    os.environ['AI_CAPACITY_HOG_MIN_AGE'] = bad; os.environ['AI_CAPACITY_HOG_MIN_AVG'] = bad
+    got_bad = m.hogs(rows, read_stat=rd, uptime=3600.0, tick=TICK)        # falls back to 3600 s / 0.8 cores
+    assert [r[0] for r in got_bad] == ['14', '10'], (bad, got_bad)
+os.environ.pop('AI_CAPACITY_HOG_MIN_AGE', None); os.environ.pop('AI_CAPACITY_HOG_MIN_AVG', None)
 print('hogs: predicate ok')
 PY2
 # status prints the hog line as ADVICE and the exit code does not depend on it (stubbed list, status run in-process).

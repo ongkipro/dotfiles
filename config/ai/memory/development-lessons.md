@@ -48,9 +48,6 @@ npm test must actually import each lib module; a bare relative specifier fails i
 ---
 
 
----
-
-
 ## Lesson: 5 s vitest body limit fails integration suites under shared-machine load
 
 ### Symptom

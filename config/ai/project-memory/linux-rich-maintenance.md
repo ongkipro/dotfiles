@@ -4,7 +4,7 @@ description: "Headless rich Ubuntu dev server (Dell OptiPlex 7050): host facts t
 metadata:
   node_type: memory
   type: reference
-  modified: 2026-11-05
+  modified: 2026-11-07
 ---
 
 # Linux `rich` Maintenance
@@ -111,11 +111,13 @@ and the device-local `device.md`.
   runner.
 - **Chrome DevTools MCP** runs with `--isolated --no-usage-statistics` so
   concurrent sessions never fight over Chrome's `SingletonLock`.
-- Per-repo compose migrations (clinic-dashboard `5432/5433`, geraicuan
-  `55433`, kliniknuma, bukalaris RAM) wait until their agents are idle; the
-  queue lives in the blueprint. tokophi was bound to `127.0.0.1:5433` on
-  2026-11-07 (dump taken first; the compose change is left for that project's
-  own PR).
+- Per-repo compose migrations (tokophi, clinic-dashboard `5432/5433`,
+  geraicuan `55433`, kliniknuma, bukalaris RAM) wait until their agents are
+  idle; the queue lives in the blueprint. tokophi is only partly done: on
+  2026-11-07 it was re-bound from `0.0.0.0:5433` to `127.0.0.1:5433` (dump
+  taken first; the compose change is uncommitted in that project, for its own
+  PR). Port `5433` is therefore still occupied, and the move to its
+  registry block is still open.
 
 
 ---

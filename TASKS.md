@@ -4,9 +4,21 @@ Updated: 2026-11-07
 
 Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
 
-Done through 2026-11-07: see [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194 to TASK-200 included).
+Done through 2026-11-07: see [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194 to TASK-197 and TASK-199 to TASK-201; TASK-198 is still in progress below).
 
 ## In progress
+
+### TASK-202: Fix the eight findings of the second reviewer on TASK-200 and TASK-201
+- **Requirement:** REQ-PARALLEL-FOLLOWUP (owner 2026-11-07). Full contract: [TASKS-202-contract-full](docs/archive/TASKS-202-contract-full.md).
+- **Risk Level:** R2.
+- **Allowed Paths:** `bin/{ai-capacity,device-register}{,-test}`, `bin/ai-memory-route-test`, `config/ai/memory-router.json`, `config/ai/memory/development-lessons.md`, `config/ai/project-memory/linux-rich-maintenance.md`, `devices/rich.md`, `docs/linux-maintenance-log.md`, `docs/archive/`, `docs/DOTFILES_SITEMAP.md`, `CHANGELOG.md`, `TASKS.md`.
+- **Protected Paths:** `bin/delivery-ledger*`, `docs/task-change-boundary.md`, `config/ai/README.md`, other `project-memory/*`, `skills/local/development-kit/**`, TASK-198.
+- **Canonical Contract Owners:** `ai-capacity`, `device-register`, `ai-memory-route` and its manifest.
+- **Accepted Invariants:** advice never raises or changes the exit code; the device record never claims enforcement from a plan; a promoted lesson is reachable by trigger; each new assertion was shown to fail on its defect; no independent review was run (owner instruction).
+- **Regression Checks:** `ai-capacity-test`, `device-register-test`, `ai-memory-route-test`, `ai-doctor --self-test`, `ai-policy-lint`, `system-map --check`, `security-check`.
+- **Reopen Conditions:** a promoted lesson is unreachable; the advice raises; the device record claims enforcement without `apply` or on macOS.
+- **Non-Scope:** a head-to-head review; TASK-198; cosmetic naming; pushing.
+- **Escalation Conditions:** sudo, a live account, another session's files.
 
 ### TASK-198: CPAS PCA Unified campaign + omnichannel ad set contract
 - **Requirement:** REQ-CPAS-PCA-UNIFIED (2026-11-07: `Website and app` in Ads Manager UI, `7d_click+1d_view+1d_ev`, `dotads:` naming, 5 CPAS API traps).
@@ -19,18 +31,6 @@ Done through 2026-11-07: see [TASKS-index-2026-11-07](docs/archive/TASKS-index-2
 - **Reopen Conditions:** Ads Manager hides `Website and app`, or SDK leaks token / activates without `--activate`.
 - **Non-Scope:** live account calls in tests; history rewrite.
 - **Escalation Conditions:** unapproved live account mutation.
-
-### TASK-201: Maintenance log entry for the 2026-11-06 to 2026-11-07 work on rich
-- **Requirement:** REQ-PARALLEL-FOLLOWUP (owner 2026-11-07: update history and log).
-- **Risk Level:** R1.
-- **Allowed Paths:** `docs/linux-maintenance-log.md`, `CHANGELOG.md`, `TASKS.md`, `docs/DOTFILES_SITEMAP.md`, `docs/archive/`.
-- **Protected Paths:** `bin/delivery-ledger*`, `docs/task-change-boundary.md`, `config/ai/README.md`, other `project-memory/*`, `skills/local/development-kit/**`.
-- **Canonical Contract Owners:** `docs/linux-maintenance-log.md` (dated evidence); `docs/parallel-ai-dev-machine.md` (the rules).
-- **Accepted Invariants:** every number is measured or read live and says what it measures (lifetime average, sample, local view); any inference is labelled as inferred and kept apart from observations; no secrets, private or interface addresses, account figures or customer data (wildcard and loopback bind notation is allowed); open items stay listed as Deferred.
-- **Regression Checks:** `ai-policy-lint`, `system-map --check`, link check.
-- **Reopen Conditions:** a claim in the entry is shown false by a live read.
-- **Non-Scope:** any tool or config change; the version tag.
-- **Escalation Conditions:** a claim cannot be backed by a live read.
 
 ### TASK-175: Cloudflare Asia-Pacific placement default
 - **Requirement:** REQ-CLOUDFLARE-APAC (owner 2026-11-02: web projects for Indonesia/Asia use Cloudflare SEA/Asia/Singapore; understand the breakdown and improve the skill).

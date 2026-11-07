@@ -9,5 +9,4 @@ Done 2026-11-04 to 2026-11-05: TASK-177-189 (dotads-meta, Meta/Pixel docs, devic
 
 Done 2026-11-06 to 2026-11-07: TASK-194 → [194](TASKS-194-completed.md); TASK-195 → [195](TASKS-195-completed.md); TASK-196 → [196](TASKS-196-completed.md); TASK-197 → [197](TASKS-197-completed.md).
 
-Done 2026-11-07: TASK-199 → [199](TASKS-199-completed.md).
-TASK-200 → [200](TASKS-200-completed.md).
+Done 2026-11-07: TASK-199 → [199](TASKS-199-completed.md); TASK-200 → [200](TASKS-200-completed.md); TASK-201 → [201](TASKS-201-completed.md).

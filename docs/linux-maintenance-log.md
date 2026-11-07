@@ -286,4 +286,5 @@ Docker images, volumes, build cache, system journals, and `libfwupd2` remain unt
 - Backups are written to `/data` on the same machine only. An off-machine destination is not chosen.
 - The dangling Docker volumes hold development PostgreSQL data and were not deleted; their count went from 42 to 47 between 2026-11-06 and 2026-11-07 and the cause was not investigated.
 - `rich-archive --apply` and the Gemini transcripts (3.7 GB older than 14 days, report only) await the owner.
+- tokophi is only partly migrated: its database is now bound to loopback, but the compose change is uncommitted in that project (its own agent has to take it into a PR), and the move from port `5433` to its registry block is still open, so the rule that `5433` stays vacant is not met yet.
 - Not measured: four heavy terminals working at once after these changes.

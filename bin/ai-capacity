@@ -320,17 +320,29 @@ def apply(p, home, current):
     return report, state
 
 
+def _env_float(name, default):
+    """A positive float from the environment, else the default (empty, malformed, negative or non-finite values)."""
+    try:
+        value = float(os.environ.get(name) or default)
+    except ValueError:
+        return default
+    return value if math.isfinite(value) and value >= 0 else default
+
+
 def hogs(rows, read_stat=None, uptime=None, tick=None, min_age=None, min_avg=None):
     """Advice only: processes older than min_age s whose lifetime CPU average is at least min_avg cores and that run
     outside ai-heavy.slice (heavy-run neither queues nor caps them). Linux only; [] elsewhere.
     It cannot tell an orphan from a legitimate long job (a native build or a Docker build worker can qualify), so it
     never changes status' exit code and never stops anything: inspect, then decide. This is what hid an orphaned
     `npm prune` from a dead Docker build for 33 hours. Inputs are injectable so tests need no live process."""
-    min_age = float(os.environ.get('AI_CAPACITY_HOG_MIN_AGE', '3600')) if min_age is None else min_age
-    min_avg = float(os.environ.get('AI_CAPACITY_HOG_MIN_AVG', '0.8')) if min_avg is None else min_avg
     try:
+        # Advice must never break status: bad or empty overrides fall back to the defaults, a zero or negative clock is skipped.
+        min_age = _env_float('AI_CAPACITY_HOG_MIN_AGE', 3600.0) if min_age is None else min_age
+        min_avg = _env_float('AI_CAPACITY_HOG_MIN_AVG', 0.8) if min_avg is None else min_avg
         tick = os.sysconf('SC_CLK_TCK') if tick is None else tick
         uptime = float(Path('/proc/uptime').read_text().split()[0]) if uptime is None else uptime
+        if tick <= 0:
+            return []
     except (OSError, ValueError):
         return []
     read_stat = read_stat or (lambda pid: Path(f'/proc/{pid}/stat').read_text())
@@ -344,7 +356,7 @@ def hogs(rows, read_stat=None, uptime=None, tick=None, min_age=None, min_avg=Non
         except (OSError, IndexError, ValueError):
             continue
         age = uptime - start
-        if age >= min_age and cpu / age >= min_avg:
+        if age > 0 and age >= min_age and cpu / age >= min_avg:
             found.append((pid, age, cpu / age, ppid, os.path.basename(argv[0]) if argv else '?'))
     return sorted(found, key=lambda r: -r[2])
 
