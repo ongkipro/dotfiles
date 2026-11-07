@@ -422,7 +422,7 @@ size, AOV and unit economics.
       }
     }
     ```
-- **5 Fatal Meta Graph API Traps When Deploying CPAS (Never Repeat)**:
+- **6 Fatal Meta Graph API Traps When Deploying CPAS (Never Repeat)**:
   1. **Trap 1 — Immutable `is_pca_unified: false` at Campaign Creation (`Error 100 / Subcode 3858845`)**:
      - If a campaign is created via `POST /act_<id>/campaigns` **without** `is_pca_unified: true` and `promoted_object: {"product_catalog_id": "<catalog_id>", "smart_pse_enabled": false}` in the initial creation request, Meta permanently sets `is_pca_unified: false` on the Campaign.
      - Attempting to update `is_pca_unified: true` afterward fails with `Error 100 / Subcode 3858845`: `"is_pca_unified can't be changed because campaign was already published. To use a different setup, create a new campaign."`
@@ -435,6 +435,13 @@ size, AOV and unit economics.
      - Calling `POST /act_<id>/adcreatives` with `object_story_spec.template_data` without top-level `product_set_id` on the creative fails with `Error 100: "Attempted to create a dynamic creative with no product set ID"`. Always pass `product_set_id` at the top level of the creative (`dotads-meta validate` enforces this).
   5. **Trap 5 — Setting `targeting.age_max < 65` with Advantage+ Audience (`advantage_audience: 1`)**:
      - Meta rejects `targeting.age_max < 65` when `targeting_automation.advantage_audience = 1` (`"Invalid hard maximum age... You can add a lower maximum age as a suggestion instead"`). Always set hard `"age_max": 65` and pass the demographic bound via `"age_range": [25, 54]` with `"individual_setting": {"age": 1, "gender": 1}` (`dotads-meta validate` enforces this).
+  6. **Trap 6 — Upstream `meta` CLI Dropping `template_url_spec` & Defaulting to `da_collection` (`FORMAT_AUTOMATION`)**:
+     - The upstream `meta` CLI binary (`meta ads creative create`) lacks `--template-url-spec` and `--format-transformation-spec`. If a CPAS `carousel_images_multi_items` creative is created via the raw CLI binary without `format_transformation_spec`, `template_url_spec` is dropped (`null`) and Meta defaults `format_transformation_spec` to `[{"data_source": [], "format": "da_collection"}]` (`FORMAT_AUTOMATION` `['CAROUSEL', 'COLLECTION']`).
+     - On `facebook_reels`, `COLLECTION` without a dedicated 9:16 video cover renders a static catalog cover that intercepts clicks into a Meta Instant Experience grid instead of deep-linking directly to the Shopee App PDP (observed on `Numa CPAS 2`: `facebook_reels` had `0` `onsite_app_add_to_cart` from `9` link clicks, whereas `facebook / feed` Carousel had `30` `onsite_app_view_content` and `6` `onsite_app_add_to_cart`).
+     - **DO / DON'T Rule for Carousel vs Collection**:
+       - **DO**: Use Pure Carousel (`format_transformation_spec: [{"data_source": ["catalog"], "format": "CAROUSEL"}, {"data_source": ["catalog"], "format": "CATALOG_SINGLE_MEDIA"}]` + `template_url_spec: {"config": {"app_id": "957549474255294"}}` + `contextual_multi_ads: {"enroll_status": "OPT_IN"}`) so every card tap jumps 1-click into the Shopee App PDP (`dotads-meta deploy` now routes catalog/deep-link creatives through `AdAccount.create_ad_creative` in the Python SDK automatically).
+       - **DO**: If running Collection (`COLLECTION_VIDEO`), isolate it in its own `1-1-1` campaign with a dedicated 9:16 hero demo video (`video_data`).
+       - **DON'T**: Let a Carousel DPA creative rely on `da_collection` (`FORMAT_AUTOMATION`) without a dedicated video cover, and never recreate the Campaign/Ad Set just to fix a creative defect — hot-swap `Ad(ad_id).api_update(params={"creative": {"creative_id": new_cr_id}})` in-place so Ad Set learning is preserved.
 - `applink_treatment`: `"deeplink_with_web_fallback"` (never `"automatic"`,
   which leaked `65%–72%` of Facebook Feed clicks to the mobile web browser).
 - `template_url_spec` (for Shopee Indonesia; substitute the corresponding

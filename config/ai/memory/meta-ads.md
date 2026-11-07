@@ -86,3 +86,27 @@ Updated dotads-meta deploy to create CPAS campaigns directly via facebook-busine
 dotads-meta-test && Campaign(id).api_get(fields=['is_pca_unified','promoted_object']) returns is_pca_unified=true
 
 > Promoted from a reviewed local candidate on 2026-11-06.
+
+
+---
+
+
+## Lesson: CPAS Carousel DPA (`carousel_images_multi_items`) requires SDK creative creation to preserve `template_url_spec` and `format_transformation_spec`
+
+### Symptom
+On a Shopee CPAS `1-1-1` Carousel campaign (`carousel_images_multi_items`), Ads Manager showed Collection (`FORMAT_AUTOMATION`: `['CAROUSEL', 'COLLECTION']`) active with `format_transformation_spec: [{"data_source": [], "format": "da_collection"}]` and `template_url_spec: null`; `facebook_reels` clicks opened a Meta Instant Experience grid instead of deep-linking directly into the Shopee App PDP (`0` `onsite_app_add_to_cart` on Reels vs `6` on Feed).
+
+### Root cause
+Upstream `meta` CLI 1.3.1 (`meta ads creative create`) lacks `--template-url-spec` and `--format-transformation-spec`, dropping `template_url_spec` and leaving `format_transformation_spec` at `da_collection` only. In addition, if `.meta-state.json` retains old `creatives` entries when a campaign is recreated under the same creative key, `dotads-meta deploy` skips creative creation and reuses the stale creative ID.
+
+### Durable invariant
+1. CPAS / catalog creatives with `template_url_spec`, `format_transformation_spec`, or `product_set_id` + `object_story_spec` must be created through the Python `facebook_business` SDK (`AdAccount.create_ad_creative`) with `template_url_spec: {"config": {"app_id": "957549474255294"}}`, `format_transformation_spec: [{"data_source": ["catalog"], "format": "CAROUSEL"}, {"data_source": ["catalog"], "format": "CATALOG_SINGLE_MEDIA"}]`, and `contextual_multi_ads: {"enroll_status": "OPT_IN"}`.
+2. **DO / DON'T**: Use Pure Carousel (`CAROUSEL` + `CATALOG_SINGLE_MEDIA`) for 1-click direct-to-Shopee-PDP catalog cards; only use Collection (`COLLECTION_VIDEO`) in its own isolated `1-1-1` campaign when paired with a dedicated 9:16 hero demo video (`video_data`). Never recreate the Campaign/Ad Set just to fix a creative defect — hot-swap `Ad(ad_id).api_update(params={"creative": {"creative_id": new_cr_id}})` in-place.
+
+### Fix
+Updated `dotads-meta validate` to validate `format_transformation_spec` and `contextual_multi_ads` and warn when a `carousel_images_multi_items` CPAS creative only specifies `da_collection` / `FORMAT_AUTOMATION`, and updated `dotads-meta deploy` to route catalog/deep-link creative creation through `AdAccount.create_ad_creative` in the Python SDK.
+
+### Regression check
+dotads-meta-test && node --test bin/_dotads-workspace-test.mjs && ai-policy-lint
+
+> Promoted from a reviewed local candidate on 2026-11-07.

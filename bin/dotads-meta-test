@@ -326,7 +326,9 @@ check('cpas-omnichannel-without-campaign-catalog', lambda m: (m.update(copy.deep
 def patch_cpas_leakage(m):
     m.update(copy.deepcopy(cpas_recipe))
     m['creatives'][0]['applink_treatment'] = 'automatic'
+    m['creatives'][0].pop('template_url_spec', None)
     m['creatives'][0].pop('url_tags', None)
+    m['creatives'][0]['format_transformation_spec'] = [{'data_source': [], 'format': 'da_collection'}]
     m['creatives'][0]['object_story_spec']['template_data']['description'] = '{{product.price}}'
     m['creatives'][0]['object_story_spec']['template_data']['message'] = '𝙄𝙣𝙞 promo spesial hari ini.'
     m['creatives'].append({
@@ -369,6 +371,7 @@ for expected_warn in (
     "'template_url_spec.config.app_id'",
     "missing 'url_tags'",
     "prefer '{{product.current_price strip_zeros}}'",
+    'includes Collection FORMAT_AUTOMATION',
     'Unicode mathematical alphanumeric characters',
 ):
     assert expected_warn in w_joined, (expected_warn, leak_res['warnings'])
@@ -704,18 +707,19 @@ if [ "$?" -ne 0 ] && printf '%s' "$fail_out" | grep -q "Deployment lock retained
 else
   bad "failing SDK ad set call was not handled safely: $fail_out"
 fi
-# 5d3. CPAS PCA Unified campaign + omnichannel ad set go through the installed SDK with is_pca_unified=true,
-# promoted_object on the campaign, and ad_set_goal={type:0} + omnichannel_object on the ad set (both PAUSED).
+# 5d3. CPAS PCA Unified campaign + catalog/deep-link creative + omnichannel ad set go through the installed SDK
+# with is_pca_unified=true, promoted_object on the campaign, template_url_spec + format_transformation_spec on the
+# creative, and ad_set_goal={type:0} + omnichannel_object on the ad set (PAUSED).
 rm -rf "$SDKWS/.meta-state.json" "$SDKWS/.dotads-meta.lock" "$SDK_LOG"
-jq '.campaign.is_pca_unified = true | .campaign.smart_promotion_type = "GUIDED_CREATION" | .campaign.promoted_object = {"product_catalog_id": "123456789012345", "smart_pse_enabled": false} | .campaign.status = "ACTIVE" | .adsets[0].ad_set_goal = {"type": 0} | .adsets[0].promoted_object = {"custom_event_type": "PURCHASE", "product_set_id": "234567890123456", "smart_pse_enabled": false, "omnichannel_object": {"app": [{"application_id": "957549474255294", "custom_event_type": "PURCHASE", "object_store_urls": ["http://play.google.com/store/apps/details?id=com.shopee.id", "http://itunes.apple.com/app/id959841443"]}], "pixel": [{"custom_event_type": "PURCHASE", "pixel_id": "466924370133774"}]}} | .adsets[0].status = "ACTIVE"' "$WS/campaigns/sample-campaign.json" > "$SDKWS/campaigns/cpas-sdk-manifest.json"
+jq '.campaign.is_pca_unified = true | .campaign.smart_promotion_type = "GUIDED_CREATION" | .campaign.promoted_object = {"product_catalog_id": "123456789012345", "smart_pse_enabled": false} | .campaign.status = "ACTIVE" | .creatives[0].product_set_id = "234567890123456" | .creatives[0].applink_treatment = "deeplink_with_web_fallback" | .creatives[0].template_url_spec = {"config": {"app_id": "957549474255294"}} | .creatives[0].contextual_multi_ads = {"enroll_status": "OPT_IN"} | .creatives[0].format_transformation_spec = [{"data_source": ["catalog"], "format": "CAROUSEL"}, {"data_source": ["catalog"], "format": "CATALOG_SINGLE_MEDIA"}] | .creatives[0].object_story_spec = {"page_id": "1122334455", "template_data": {"call_to_action": {"type": "SHOP_NOW"}, "description": "{{product.current_price strip_zeros}}", "format_option": "carousel_images_multi_items", "link": "http://shopee.co.id/", "message": "Promo resmi Shopee Official Store.", "multi_share_end_card": false, "name": "{{product.name}}"}} | .adsets[0].ad_set_goal = {"type": 0} | .adsets[0].promoted_object = {"custom_event_type": "PURCHASE", "product_set_id": "234567890123456", "smart_pse_enabled": false, "omnichannel_object": {"app": [{"application_id": "957549474255294", "custom_event_type": "PURCHASE", "object_store_urls": ["http://play.google.com/store/apps/details?id=com.shopee.id", "http://itunes.apple.com/app/id959841443"]}], "pixel": [{"custom_event_type": "PURCHASE", "pixel_id": "466924370133774"}]}} | .adsets[0].status = "ACTIVE"' "$WS/campaigns/sample-campaign.json" > "$SDKWS/campaigns/cpas-sdk-manifest.json"
 cpas_sdk_out="$(cd "$SDKWS" && SDK_LOG="$SDK_LOG" DOTADS_META_PYTHON="$MOCK_BIN/fake-sdk-python" "$CMD" deploy "$SDKWS/campaigns/cpas-sdk-manifest.json" --apply 2>&1)"
 cpas_sdk_rc=$?
 if [ "$cpas_sdk_rc" -eq 0 ] && [ -s "$SDK_LOG" ] \
-  && jq -s -e 'length == 2 and .[0].req.params.status == "PAUSED" and .[0].req.params.is_pca_unified == true and .[0].req.params.promoted_object.product_catalog_id == "123456789012345" and .[1].req.params.status == "PAUSED" and .[1].req.params.ad_set_goal.type == 0 and .[1].req.params.promoted_object.omnichannel_object.app[0].application_id == "957549474255294" and .[0].token_present == true and .[1].token_present == true' "$SDK_LOG" >/dev/null \
+  && jq -s -e 'length == 3 and .[0].req.params.status == "PAUSED" and .[0].req.params.is_pca_unified == true and .[0].req.params.promoted_object.product_catalog_id == "123456789012345" and .[1].req.params.product_set_id == "234567890123456" and .[1].req.params.template_url_spec.config.app_id == "957549474255294" and (.[1].req.params.format_transformation_spec | length == 2) and .[1].req.params.contextual_multi_ads.enroll_status == "OPT_IN" and .[2].req.params.status == "PAUSED" and .[2].req.params.ad_set_goal.type == 0 and .[2].req.params.promoted_object.omnichannel_object.app[0].application_id == "957549474255294" and .[0].token_present == true and .[1].token_present == true and .[2].token_present == true' "$SDK_LOG" >/dev/null \
   && ! printf '%s' "$cpas_sdk_out" | grep -q 'MOCK_SYSTEM_USER_TOKEN_SECRET_999'; then
-  ok "CPAS PCA Unified campaign and omnichannel ad set are created through the SDK as PAUSED with is_pca_unified=true, promoted_object, and ad_set_goal={type:0}"
+  ok "CPAS PCA Unified campaign, catalog/deep-link creative, and omnichannel ad set are created through the SDK with is_pca_unified=true, template_url_spec, format_transformation_spec, and ad_set_goal={type:0}"
 else
-  bad "CPAS SDK campaign/adset path unsafe or wrong (rc=$cpas_sdk_rc): $cpas_sdk_out; payload: $(cat "$SDK_LOG" 2>/dev/null)"
+  bad "CPAS SDK campaign/creative/adset path unsafe or wrong (rc=$cpas_sdk_rc): $cpas_sdk_out; payload: $(cat "$SDK_LOG" 2>/dev/null)"
 fi
 rm -rf "$SDKWS"; META_LOG="$META_LOG_SHARED"; export META_LOG
 
