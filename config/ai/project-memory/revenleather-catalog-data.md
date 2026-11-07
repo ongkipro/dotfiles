@@ -9,12 +9,9 @@
   (catalog, variant IDs, discount tiers, feeds) and `approve-grafir.md` (approved engraving mapping).
   Re-count products and LPs from those files; do not trust a remembered number.
 - Feed invariant: the 5-digit `products.id` is the feed `<g:id>` and the Pixel/CAPI `content_ids`.
-- **Storefront Headless Repository**: `~/Projects/revenleather.com` (`github.com/ongkipro/revenleather.com`).
+- **Storefront Headless Repository**: `~/Documents/Shopify/Reven Leather` (`github.com/ongkipro/revenleather.com`, deployed on Shopify Oxygen as `ongki.pro ENGINE`, `gid://shopify/HydrogenStorefront/1000180487`). Read `STATUS.md` in that repo for operational truth.
 - **Old Website / Origin**: `https://reven.id` (Berdu platform) is the historical source for domestic Indonesian retail pricing (IDR).
 
-## 2. Historical Data File Locations (`~/Projects/revenleather.com/data/`)
-1. **`data/reven_id_live_prices.json` (Live Scrape - 2026-10-13)** — 83 products with `price`, `salePrice`, variations, and SKUs.
-2. **`data/products.json` & `data/shopify_products.csv` (Harmonized Catalog - 80 Products)** — Normalized products/variants formatted for Shopify import.
-3. **`content/products/*.md` & `content/CATALOG.md`** — Individual markdown dossiers per product.
-4. **`backup_shopify_live/data/products.json` (Pre-USD Live Store Backup - 2026-10-08)** — Backup of `euzdfv-ur.myshopify.com` before USD conversion.
-5. **`data/transformed_catalog_preview.json` & `scripts/transform_catalog_english_usd.py`** — USD catalog transformation (`(IDR_price / 15,800) + category shipping buffer ($12 - $35)`).
+## 2. Live Storefront API vs Historical Migration Files
+- **Current Source of Truth (since commit `791632e`, 2026-11-05)**: All products (82 active SKUs), collections (13 collections), navigation menus (`main-menu`), institutional pages (10 pages), store policies (4 policies), blog articles (`jurnal`), and localized SEO fields (`EN`, `ID`, `AR`) are queried live from Shopify Storefront API (`euzdfv-ur.myshopify.com`) via `@inContext(country, language)`.
+- **Removed Local Migration Dumps**: The ~260 MB (`2,120+` files) of one-time migration dumps (`data/`, `content/`, `images/`, `scripts/`, `docs/`) were deleted from the repository in commit `791632e` after full Storefront API synchronization (still recoverable from Git history prior to `791632e` if historical JSON/CSV snapshots are ever needed).

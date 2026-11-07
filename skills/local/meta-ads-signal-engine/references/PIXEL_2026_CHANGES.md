@@ -29,6 +29,21 @@ pages; detailed rules and sources live in the linked owner references.
    within the ad set's attribution setting and becomes an optimization event
    for delivery. Missing or wrong events teach delivery the wrong objective.
 
+## How Pixel, CAPI, EMQ & Deduplication Directly Impact the 2026 AI Stack (Andromeda, GenRecs, GEM & VCG Auction)
+
+Reviewed **2026-11-07**. Signal engineering directly determines how Meta's
+retrieval (**Andromeda** / **GenRecs**), foundation ranking (**GEM** /
+**Lattice**), and VCG auction pricing behave:
+
+| Mechanism | Weak / Browser-Only Signal (Low EMQ `<5`, missing `_fbc`, un-deduplicated, or unvalidated COD clicks) | Server-Authoritative Signal (Pixel + CAPI, EMQ `>= 8.0`, raw `_fbc`/`_fbp`, SHA-256 `628...` phone, 48h `event_id` dedup) |
+| --- | --- | --- |
+| **1. Identity Resolution Rate** | Browser ITP, ad blockers, and In-App WebView session loss drop 15–35% of real purchases; Meta cannot connect the buyer back to the ad impression. | Raw `_fbc` + server SHA-256 `628...` phone + shipping address (`fn`, `ln`, `ct`, `st`, `zp`, `country`) + IP/UA deterministically link purchases back to the exact ad impression. |
+| **2. Learning Phase Exit Velocity (`~50 events / 7d`)** | Unmatched conversions reduce counted optimization events per week, trapping ad sets in `Learning Limited` with higher CPA volatility. | Every real conversion is matched and credited within `attribution_spec` (`7d_click + 1d_view`), accelerating learning exit by 30–40%. |
+| **3. `eCVR` Calibration & VCG Clearing Price** | Missing conversion callbacks cause the ranking model to underestimate `Estimated Action Rate (eCVR)`, lowering `Total Value = Bid × eCVR + Ad Quality` and forcing higher monetary bids to win impressions. | High-confidence `eCVR` raises `Total Value`, allowing the ad set to win auctions at a lower clearing price (Meta reports an average 17.8% lower Cost Per Result for Web + CAPI vs. Web-only; internal average, not a guarantee). |
+| **4. Andromeda & GenRecs Creative Token Reinforcement** | Unmatched sales starve winning creative angles of positive conversion feedback, causing retrieval to under-serve winning video/image hooks. | Every matched `Purchase` reinforces the winning creative's multimodal semantic tokens (Entity ID), accelerating lookalike retrieval inside Broad `advantage_audience: 1`. |
+| **5. Backend Signal Hygiene (Prepaid, COD, Lead/CRM)** | Firing optimization events on unvalidated clicks, bot submissions, or failed/unverified orders trains GEM to bid on low-quality traffic. | Firing `Purchase` / `QualifiedLead` only after backend validation (confirmed payment, validated phone/address, or CRM qualification) keeps dataset training aligned with real unit economics. |
+| **6. Post-Click Funnel Velocity (`LPV -> ATC -> IC -> Conversion`)** | High checkout friction or broken intermediate events (`80%+` drop-off between `AddToCart` and `InitiateCheckout`) starve bottom-of-funnel `PURCHASE` optimization of weekly learning events. | Matching checkout flow to the buying model (e.g., 1-step embedded checkout for impulse/single-SKU offers, streamlined express checkout for multi-SKU storefronts) preserves conversion velocity into the Dataset. |
+
 ## 2026 changes
 
 | When | Change | Action |

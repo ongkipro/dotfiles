@@ -1,9 +1,9 @@
-# TASK-200 — completed 2026-11-07
+# TASK-203 — completed 2026-11-07
 
 Shipped in `d39634b`; GPT-6.1 Sol review round 3 APPROVE; ledger `RUN-20261107T075441Z-11d2b4fb` PASS; Post-push CI result pending at the time of writing.
 
-## TASK-200: Orphan-hog monitor, rich device record, rich tooling note, lessons
-- **Requirement:** REQ-PARALLEL-FOLLOWUP (owner 2026-11-07). Full contract: [TASKS-200-contract-full](TASKS-200-contract-full.md).
+## TASK-203: Orphan-hog monitor, rich device record, rich tooling note, lessons
+- **Requirement:** REQ-PARALLEL-FOLLOWUP (owner 2026-11-07). Full contract: [TASKS-203-contract-full](TASKS-203-contract-full.md).
 - **Risk Level:** R2.
 - **Allowed Paths:** `bin/{ai-capacity,device-register}{,-test}`, `devices/{rich,README}.md`, `config/ai/project-memory/linux-rich-maintenance.md`, `config/ai/memory/{ops,development}-lessons.md`, `docs/DOTFILES_SITEMAP.md`, `CHANGELOG.md`, `TASKS.md`, `docs/archive/`.
 - **Protected Paths:** `bin/delivery-ledger*`, `docs/task-change-boundary.md`, `config/ai/README.md`, other `project-memory/*`, `skills/local/development-kit/**`.
@@ -14,3 +14,4 @@ Shipped in `d39634b`; GPT-6.1 Sol review round 3 APPROVE; ledger `RUN-20261107T0
 - **Non-Scope:** tracking `rich-*` tools (device-local on purpose), auto-stopping hogs, off-machine backup, the other five candidates.
 - **Escalation Conditions:** sudo, a live account, or another session's files.
 
+> Renumbered from TASK-200 to TASK-203 on 2026-11-07 because another device used TASK-200 for a different task (adaptive Meta Ads guardrails). Ledger run `RUN-20261107T075441Z-11d2b4fb` still carries the label TASK-200; commit `d39634b` says TASK-200 as written at the time.

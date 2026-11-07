@@ -4,7 +4,13 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
-## 2026-11-07 — Fixes from a second reviewer on TASK-200 and TASK-201 (TASK-202)
+## 2026-11-07 — Adaptive Meta Ads conversion framework, BM markdown renderer v5 & memory hygiene (TASK-200)
+
+- `_dotads-workspace.mjs`: bumps the BM workspace (`markdownOnly`) report renderer from `dotads-markdown/4` to `dotads-markdown/5` so re-rendering saved BM snapshots with `commerce-insight/2` writes a new immutable report revision (`r_<hash>`) instead of colliding with earlier `dotads-markdown/4` revisions.
+- `dotads-meta` (`validate`, `deploy`, `run`, `init`): enforces the `dotads: <campaign_name>` campaign label (`validate` warns if omitted; `deploy` CLI/SDK paths and `run -- ads campaign create` auto-prefix `dotads: `) and adds 5 advisory `Website Sales guardrail:` checks for non-CPAS `OUTCOME_SALES` campaigns (`advantage_audience=0` liquidity constriction, Facebook-only placement lock without Instagram, `attribution_spec` omitting `VIEW_THROUGH` (`1d_view`), `optimization_goal: "VALUE"` with `LOWEST_COST_WITHOUT_CAP`, and `>6` ads per ad set creative overcrowding), with offline regression coverage in `dotads-meta-test`.
+- `meta-ads-cli` (`algorithm-and-learning.md` §6–§7, `rules-and-tutorial.md`), `meta-ads-signal-engine` (`PIXEL_2026_CHANGES.md`), and `config/ai/memory/meta-ads.md`: codifies the generalizable, business-model-agnostic framework for Broad vs. `Audience Controls` liquidity, the 4-stage multi-horizon diagnostic timing protocol (`0–6h`, `>=24h`, `48–72h`, `3–7d`), vertical/horizontal scaling mechanics, and Pixel+CAPI signal-to-auction coupling; keeps `meta-ads.md` under the 12,000-byte router limit and resolves all 11 stale dated claims across memory cards (`ai-memory-hygiene` 0 issues).
+
+## 2026-11-07 — Fixes from a second reviewer on TASK-203 and TASK-204 (TASK-205)
 
 - `ai-capacity status` advice no longer crashes on a zero or negative process age, a zero clock tick, or an empty, malformed, negative or non-finite `AI_CAPACITY_HOG_MIN_*` override; it falls back to the defaults and never changes the exit code. Tests cover each case, and removing the guard or restoring the old parsing makes them fail.
 - Four lessons promoted earlier could not be reached by the memory router (their files are too large for path-only selection and had no triggers). Eight triggers added; a regression queries four realistic phrases through `ai-memory-route`.
@@ -12,11 +18,11 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 - `linux-rich-maintenance.md` and the maintenance log keep tokophi in the migration queue: it is bound to loopback but port `5433` is still occupied.
 - No independent review was run on this fix, by owner instruction; tests and mutations stand in for it.
 
-## 2026-11-07 — Maintenance log for the rich machine work (TASK-201)
+## 2026-11-07 — Maintenance log for the rich machine work (TASK-204)
 
 - `docs/linux-maintenance-log.md`: dated entry for 2026-11-06 to 2026-11-07 covering the tidy, the parallel limits, a stray `npm prune` process that ran for 1 day 9 hours (observed; its likely origin is marked as inferred), the tokophi loopback bind, a local-view port audit and the data routing rule, with the open items listed as Deferred. Documentation only.
 
-## 2026-11-07 — Orphan-hog monitor, device record, lessons (TASK-200)
+## 2026-11-07 — Orphan-hog monitor, device record, lessons (TASK-203)
 
 - `ai-capacity status` now reports processes older than one hour that average at least 0.8 cores outside `ai-heavy.slice`, the case that hid an orphaned `npm prune` from a dead Docker build for 33 hours. It is advice only: it cannot tell an orphan from a legitimate long build, so it never changes the exit code and never stops anything. Predicate and exit-code behaviour are tested deterministically from injected process data.
 - `device-register` writes a "Kapasitas AI paralel" section read from `ai-capacity --json` (absent where the tool is absent or fails); `devices/rich.md` regenerated.
@@ -31,11 +37,11 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 - CI fix: `ai-memory-route-test` failed because `preferences.md` exceeded the 12,000-byte router budget. The Meta Ads rules moved verbatim to `config/ai/memory/meta-ads.md` ("Operating rules"); they now load on Meta Ads triggers instead of every preference request.
 - `TASKS.md`: TASK-197 archived, per-task done links moved into the archive index to stay inside the hot-context limit.
 
-## 2026-11-07 — CPAS PCA Unified campaign & omnichannel ad set contract (TASK-198)
+## 2026-11-07 — CPAS PCA Unified campaign, catalog/deep-link creative & omnichannel ad set contract (TASK-198)
 
-- `dotads-meta deploy`: creates Collaborative Ads (CPAS) campaigns (`campaign.promoted_object` or `is_pca_unified`) via the installed `facebook-business` SDK with `is_pca_unified: true` and `promoted_object` at initial `POST /act_<id>/campaigns` creation time (preventing Meta's immutable `is_pca_unified: false` lock, Error 100 / Subcode 3858845, which hid the `Conversion location: Website and app` selector in Ads Manager UI), and creates omnichannel CPAS ad sets with `ad_set_goal: {"type": 0}` and `promoted_object.omnichannel_object`.
-- `dotads-meta validate`: adds hard errors for `object_story_spec.template_data` missing top-level `product_set_id`, `targeting.age_max < 65` when Advantage+ Audience is enabled (requiring `age_max: 65` + `age_range`), and `promoted_object.omnichannel_object` without `campaign.promoted_object.product_catalog_id`, plus a CPAS guardrail warning when `promoted_object.product_set_id` omits `omnichannel_object`.
-- `meta-ads-cli` (`cpas-collaborative-ads.md` §7.3–§7.4, `rules-and-tutorial.md` Recipe 5) and `config/ai/memory/meta-ads.md`: documents the PCA Unified (`is_pca_unified: true`, `ad_set_goal: {"type": 0}`, `omnichannel_object`, `7d_click + 1d_view + 1d_engaged_video_view` attribution, `dotads:` campaign prefix, and `dotads: Carousel | ...` / `dotads: Collection | ...` ad naming) contract and the 5 CPAS Graph API traps, with offline SDK test coverage in `dotads-meta-test`.
+- `dotads-meta deploy`: creates Collaborative Ads (CPAS) campaigns (`campaign.promoted_object` or `is_pca_unified`) via the installed `facebook-business` SDK with `is_pca_unified: true` and `promoted_object` at initial `POST /act_<id>/campaigns` creation time (preventing Meta's immutable `is_pca_unified: false` lock, Error 100 / Subcode 3858845, which hid the `Conversion location: Website and app` selector in Ads Manager UI), creates catalog/deep-link creatives via `AdAccount.create_ad_creative` (`template_url_spec`, `format_transformation_spec`, `contextual_multi_ads`), and creates omnichannel CPAS ad sets with `ad_set_goal: {"type": 0}` and `promoted_object.omnichannel_object`.
+- `dotads-meta validate`: adds hard errors for `object_story_spec.template_data` missing top-level `product_set_id`, `targeting.age_max < 65` when Advantage+ Audience is enabled (requiring `age_max: 65` + `age_range`), and `promoted_object.omnichannel_object` without `campaign.promoted_object.product_catalog_id`, plus CPAS guardrail warnings when `promoted_object.product_set_id` omits `omnichannel_object`, when `template_url_spec.config.app_id` is missing, or when a `carousel_images_multi_items` DPA creative only specifies `da_collection` (`FORMAT_AUTOMATION` `COLLECTION` interception on Reels/Feed).
+- `meta-ads-cli` (`cpas-collaborative-ads.md` §7.3–§7.4, `rules-and-tutorial.md` Recipe 5) and `config/ai/memory/meta-ads.md`: documents the PCA Unified (`is_pca_unified: true`, `ad_set_goal: {"type": 0}`, `omnichannel_object`, `7d_click + 1d_view + 1d_engaged_video_view` attribution, Pure Carousel `format_transformation_spec`, `dotads:` campaign prefix, and `dotads: Carousel | ...` / `dotads: Collection | ...` ad naming) contract and the 6 CPAS Graph API traps, with offline SDK test coverage in `dotads-meta-test`.
 
 ## 2026-11-07 — CPAS 1-1-1 diagnostics reviewed and hardened (TASK-197)
 

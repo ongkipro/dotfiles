@@ -1,6 +1,6 @@
-# TASK-202 full contract (verbatim)
+# TASK-205 full contract (verbatim)
 
-## TASK-202: Fix the eight findings of the second reviewer on TASK-200 and TASK-201
+## TASK-205: Fix the eight findings of the second reviewer on TASK-203 and TASK-204
 - **Requirement:** REQ-PARALLEL-FOLLOWUP (owner 2026-11-07: perfect it on the agent's recommendation; independent reviews only when ordered).
 - **Risk Level:** R2.
 - **Allowed Paths:** `bin/ai-capacity{,-test}`, `bin/device-register{,-test}`, `bin/ai-memory-route-test`, `config/ai/memory-router.json`, `config/ai/memory/development-lessons.md`, `config/ai/project-memory/linux-rich-maintenance.md`, `devices/rich.md`, `docs/linux-maintenance-log.md`, `docs/archive/`, `docs/DOTFILES_SITEMAP.md`, `CHANGELOG.md`, `TASKS.md`.

@@ -87,7 +87,7 @@
 - [TokoΦ hide provider brand (white-label)](tokophi-provider-brand-hidden.md) — JANGAN tampilkan brand provider (KiriminAja shipping, AutoLaris payment) di client (merchant admin+storefront); label generik saja; hanya super-admin lihat brand (ADR 0004 platform-managed)
 - [AdsBookCMS install fleet](adsbookcms-install-fleet.md) — satu produk, beberapa toko live; peta direktori lokal + kenapa `product` remote di-DISABLED.
 - [Reven Leather Shopify HK Payments](revenleather-shopify-hk-payments.md) — Shopify Payments HK setup, USD base currency decision, and product naming/SEO invariant.
-- [Reven Leather Catalog & Price Data](revenleather-catalog-data.md) — locations of raw, harmonized, live-scraped (reven.id), and backup product price files in ~/Projects/revenleather.com.
+- [Reven Leather Catalog & Price Data](revenleather-catalog-data.md) — Hydrogen storefront in `~/Documents/Shopify/Reven Leather` (`ongkipro/revenleather.com`, live on Shopify Oxygen across `EN`/`ID`/`AR` + native Shopify `<Analytics.Provider>`), Ads/COD LP funnel in `~/Projects/revenleather`, and live Storefront API source of truth (`euzdfv-ur.myshopify.com`).
 - [99ribu Berlapak catalog & asset vault](99ribu-berlapak-catalog.md) — `/data/99ribu-berlapak-data/`: Berlapak product data, bundling economics, warehouse hubs, local images, and the `berlapak-sync` CLI.
 - [99ribu `shop.com` UI/UX reference](99ribu-shop-com-ui-ux-pattern.md) — pointer to the research pack and the repo docs that own 99ribu design decisions.
 - [99ribu URL slugs and admin ids](99ribu-url-slugs.md) — owner rule: clean title slugs on the public storefront (no UUID/hash/long codes), numeric ids in admin URLs; the repository owns the scheme.

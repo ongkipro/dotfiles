@@ -606,6 +606,10 @@ LEDGER_BINDING_BASELINE = {
     # RUN-20261030T151653Z-69e30f31 was started under TASK-096 by mistake and
     # finished BLOCKED; the work is TASK-160. The ledger is append-only.
     "TASK-096": {"REQ-9ROUTER-RUNBOOK"},
+    # RUN-20261107T075441Z-11d2b4fb ran the rich-machine work under TASK-200 while
+    # another device took the same number for the Meta Ads guardrails. The work is
+    # TASK-203 (archived); the ledger is append-only, so the run keeps its label.
+    "TASK-200": {"REQ-PARALLEL-FOLLOWUP"},
 }
 
 

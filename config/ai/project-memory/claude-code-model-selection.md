@@ -10,7 +10,7 @@ metadata:
 
 Claude Code's `/model` picker is **server-curated per account**, not a capability list. Entitlement to call a model and inclusion in the picker are separate systems — a model absent from the picker can still be fully callable.
 
-Verified 2026-08-05 on the Mac: `claude-opus-4-8` and `claude-opus-4-8[1m]` both return successfully via `claude -p --model <id> "say OK"` even though neither appears in `/model`. The binary even carries the `Opus 4.8` display label, so the omission is a server-side curation decision, not a missing client feature.
+For example, `claude-opus-4-8` and `claude-opus-4-8[1m]` both return successfully via `claude -p --model <id> "say OK"` on an entitled account even when neither appears in `/model`. The binary carries the `Opus 4.8` display label, so the omission is a server-side curation decision, not a missing client feature.
 
 Absence from the picker is a de-emphasis signal worth heeding: Opus 5 costs the same as Opus 4.8 ($5/$25 per MTok), has the same 1M context and 128K output, and is more capable — so pinning an older Opus buys nothing. Pin an unlisted model only for a specific reason, and pair it with `fallbackModel` so a future retirement doesn't fail silently.
 

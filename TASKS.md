@@ -4,12 +4,24 @@ Updated: 2026-11-07
 
 Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
 
-Done through 2026-11-07: see [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194 to TASK-197 and TASK-199 to TASK-201; TASK-198 is still in progress below).
+Done through 2026-11-07: see [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194 to TASK-199 and TASK-203 to TASK-204, see the index; TASK-200 and TASK-205 are open below).
 
 ## In progress
 
-### TASK-202: Fix the eight findings of the second reviewer on TASK-200 and TASK-201
-- **Requirement:** REQ-PARALLEL-FOLLOWUP (owner 2026-11-07). Full contract: [TASKS-202-contract-full](docs/archive/TASKS-202-contract-full.md).
+### TASK-200: Adaptive Meta Ads conversion guardrails, BM markdown renderer v5 & memory hygiene
+- **Requirement:** REQ-META-ADAPTIVE-FRAMEWORK (owner 2026-11-07).
+- **Risk Level:** R3.
+- **Allowed Paths:** `bin/_dotads-workspace.mjs`, `bin/_dotads-workspace-test.mjs`, `bin/dotads-meta`, `bin/dotads-meta-test`, `skills/local/meta-ads-cli/**`, `skills/local/meta-ads-signal-engine/**`, `config/ai/memory/**`, `config/ai/project-memory/**`, `docs/DOTFILES_SITEMAP.md`, `docs/archive/**`, `TASKS.md`, `CHANGELOG.md`.
+- **Protected Paths:** `bin/delivery-ledger`, `docs/task-change-boundary.md`, `config/ai/README.md`.
+- **Canonical Contract Owners:** `dotads-meta`; `_dotads-workspace.mjs`; `algorithm-and-learning.md`; `PIXEL_2026_CHANGES.md`; `meta-ads.md`.
+- **Accepted Invariants:** shared skills/memory stay generalizable (no case lock); `meta-ads.md` <= 12,000B; `dotads-markdown/5` preserves prior revisions; `ai-memory-hygiene` 0 issues.
+- **Regression Checks:** `workspace`, `meta-cli`, `hygiene`, `route`, `system-map`, `policy`, `security`.
+- **Reopen Conditions:** `meta-ads.md` > 12,000B; case figures in skills; BM report revision collision.
+- **Non-Scope:** live Meta mutations; private `dotads-meta-report` data.
+- **Escalation Conditions:** unapproved live account mutation.
+
+### TASK-205: Fix the eight findings of the second reviewer on TASK-203 and TASK-204
+- **Requirement:** REQ-PARALLEL-FOLLOWUP (owner 2026-11-07). Full contract: [TASKS-205-contract-full](docs/archive/TASKS-205-contract-full.md).
 - **Risk Level:** R2.
 - **Allowed Paths:** `bin/{ai-capacity,device-register}{,-test}`, `bin/ai-memory-route-test`, `config/ai/memory-router.json`, `config/ai/memory/development-lessons.md`, `config/ai/project-memory/linux-rich-maintenance.md`, `devices/rich.md`, `docs/linux-maintenance-log.md`, `docs/archive/`, `docs/DOTFILES_SITEMAP.md`, `CHANGELOG.md`, `TASKS.md`.
 - **Protected Paths:** `bin/delivery-ledger*`, `docs/task-change-boundary.md`, `config/ai/README.md`, other `project-memory/*`, `skills/local/development-kit/**`, TASK-198.
@@ -19,18 +31,6 @@ Done through 2026-11-07: see [TASKS-index-2026-11-07](docs/archive/TASKS-index-2
 - **Reopen Conditions:** a promoted lesson is unreachable; the advice raises; the device record claims enforcement without `apply` or on macOS.
 - **Non-Scope:** a head-to-head review; TASK-198; cosmetic naming; pushing.
 - **Escalation Conditions:** sudo, a live account, another session's files.
-
-### TASK-198: CPAS PCA Unified campaign + omnichannel ad set contract
-- **Requirement:** REQ-CPAS-PCA-UNIFIED (2026-11-07: `Website and app` in Ads Manager UI, `7d_click+1d_view+1d_ev`, `dotads:` naming, 5 CPAS API traps).
-- **Risk Level:** R2.
-- **Allowed Paths:** `bin/dotads-meta`, `bin/dotads-meta-test`, `skills/local/meta-ads-cli/**`, `config/ai/memory/meta-ads.md`, `TASKS.md`, `CHANGELOG.md`.
-- **Protected Paths:** `bin/delivery-ledger`, `docs/task-change-boundary.md`, `config/ai/README.md`.
-- **Canonical Contract Owners:** `dotads-meta`; `cpas-collaborative-ads.md`; `rules-and-tutorial.md`.
-- **Accepted Invariants:** SDK creates CPAS campaign (`is_pca_unified: true`, `promoted_object`, `PAUSED`) and ad set (`ad_set_goal: {"type": 0}`, `omnichannel_object`); `validate` blocks missing `product_set_id`, `age_max < 65` with Advantage+, and missing catalog; public files stay de-identified.
-- **Regression Checks:** `workspace`, `provider`, `meta-cli`, `skill`, `policy`, `memory-link`, `system-map`, `security`.
-- **Reopen Conditions:** Ads Manager hides `Website and app`, or SDK leaks token / activates without `--activate`.
-- **Non-Scope:** live account calls in tests; history rewrite.
-- **Escalation Conditions:** unapproved live account mutation.
 
 ### TASK-175: Cloudflare Asia-Pacific placement default
 - **Requirement:** REQ-CLOUDFLARE-APAC (owner 2026-11-02: web projects for Indonesia/Asia use Cloudflare SEA/Asia/Singapore; understand the breakdown and improve the skill).
