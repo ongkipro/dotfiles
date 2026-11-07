@@ -647,6 +647,10 @@ Implements the observed default for Indonesia Shopee CPAS (`1 Campaign` CBO with
 }
 ```
 
+#### In-Place Creative Hot-Swap (Fixing `da_collection` or `template_url_spec` Without Resetting Ad Set Learning)
+
+Never delete or recreate a live Campaign or Ad Set when only the `AdCreative` needs remediation (for example, stripping auto-injected `da_collection` or adding `template_url_spec`). Because `AdCreative` fields are immutable after creation, create a new `AdCreative` via `AdAccount("act_<ID>").create_ad_creative(params=creative_params)` with `asset_feed_spec: {"ad_formats": ["CAROUSEL"], "optimization_type": "FORMAT_AUTOMATION"}` and `format_transformation_spec: [{"data_source": ["catalog"], "format": "carousel"}, {"data_source": ["catalog"], "format": "catalog_single_media"}]`, then point the existing `Ad` to the new `creative_id` in-place via `Ad("<AD_ID>").api_update(params={"creative": {"creative_id": new_cr["id"]}})`. Finally, update `creatives[0].meta_id` in the campaign manifest and `.meta-state.json` (`state.creatives[key].id` and `state.ads[ad_key].creative_id`).
+
 ---
 
 ## Part 5: Day-2 Operations (Insights, Guidance, Status & Budget Updates)
