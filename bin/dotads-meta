@@ -1688,6 +1688,16 @@ function validateManifests(campaignPath, explicitBrandPath) {
         );
       }
     }
+    for (let i = 0; i < ads.length; i++) {
+      const ad = ads[i];
+      const adKey = ad?.key || ad?.name;
+      const adLabel = `ads[${i}] (${adKey || "unnamed"})`;
+      if (ad?.name && typeof ad.name === "string" && !/^dotads:\s*(?:carousel|collection)\s*\|/i.test(ad.name.trim())) {
+        warnings.push(
+          `${adLabel}: CPAS guardrail: ad name ('${ad.name}') should use 'dotads: Carousel | <Product/Angle>' or 'dotads: Collection | <Product/Angle>' per the CPAS Carousel vs Collection contract.`
+        );
+      }
+    }
   } else if (campaign?.objective === "OUTCOME_SALES") {
     for (let i = 0; i < adsets.length; i++) {
       const as = adsets[i];
@@ -2274,7 +2284,7 @@ function entityHash(kind, spec, brand, extra = {}) {
   return stableHashObject({ spec, defaults, ...extra });
 }
 
-function checkStateScope(state, manifest, brand) {
+function checkStateScope(state, manifest, brand, { hotSwapCreative = false } = {}) {
   const populated = ["campaigns", "creatives", "adsets", "ads", "media_cache"].some((k) => Object.keys(state[k]).length);
   if (populated && !state.ad_account_id) {
     throw new Error("Legacy deployment state has no account binding. Verify every saved ID and media entry belongs to this account, back up the state, then explicitly add its ad_account_id before retrying. Do not delete state to bypass this check.");
@@ -2293,8 +2303,15 @@ function checkStateScope(state, manifest, brand) {
     const saved = state.ads[spec.key || spec.name];
     const adsetId = state.adsets[spec.adset || spec.adset_key]?.id;
     const creativeId = state.creatives[spec.creative || spec.creative_key]?.id;
-    if (saved && (!adsetId || !creativeId || saved.adset_id !== adsetId || saved.creative_id !== creativeId)) {
-      throw new Error("Ad parent conflict: use a new ad key when changing ad set or creative identity.");
+    if (saved) {
+      if (!adsetId || saved.adset_id !== adsetId) {
+        throw new Error("Ad parent conflict: use a new ad key when changing ad set or creative identity.");
+      }
+      if (!creativeId || saved.creative_id !== creativeId) {
+        if (!hotSwapCreative && !spec.hot_swap_creative) {
+          throw new Error("Ad parent conflict: use a new ad key when changing ad set or creative identity (or pass --hot-swap-creative to update creative_id in-place).");
+        }
+      }
     }
   }
   state.ad_account_id = brand.ad_account_id;
@@ -2761,6 +2778,7 @@ function cmdDeploy(argv) {
   let brandPath = null;
   let apply = false;
   let activate = false;
+  let hotSwapCreative = false;
   let jsonOut = false;
 
   for (let i = 0; i < argv.length; i++) {
@@ -2772,6 +2790,8 @@ function cmdDeploy(argv) {
       apply = true;
     } else if (arg === "--activate") {
       activate = true;
+    } else if (arg === "--hot-swap-creative") {
+      hotSwapCreative = true;
     } else if (arg === "--json") {
       jsonOut = true;
     } else if (!arg.startsWith("-") && !campaignPath) {
@@ -2801,7 +2821,7 @@ function cmdDeploy(argv) {
   try {
   const state = loadState(stateFile);
   const { manifest, brand } = validation;
-  checkStateScope(state, manifest, brand);
+  checkStateScope(state, manifest, brand, { hotSwapCreative });
   const metaBin = resolveMetaBin();
 
   const campKey = manifest.campaign.key || manifest.campaign.name;
@@ -2881,6 +2901,26 @@ function cmdDeploy(argv) {
     const adArgs = buildAdArgs(validation, ad, placeholderAdsetId, placeholderCreativeId, activate);
     const adHash = entityHash("ad", ad, brand, { objective: manifest.campaign.objective });
     const existingAd = state.ads[adKey];
+    const isHotSwap = Boolean(
+      existingAd?.id &&
+      (hotSwapCreative || ad.hot_swap_creative) &&
+      (!state.creatives[creativeRef]?.id || existingAd.creative_id !== state.creatives[creativeRef]?.id)
+    );
+    const hotSwapArgs = [
+      "--output",
+      "json",
+      "--no-input",
+      "ads",
+      "--ad-account-id",
+      brand.ad_account_id,
+      ...(brand.business_id ? ["--business-id", String(brand.business_id)] : []),
+      "ad",
+      "update",
+      "--ad-id",
+      String(existingAd?.id || ""),
+      "--creative",
+      JSON.stringify({ creative_id: placeholderCreativeId }),
+    ];
     steps.push({
       step: steps.length + 1,
       kind: "ad",
@@ -2892,8 +2932,8 @@ function cmdDeploy(argv) {
       creativeRef,
       cachedId: existingAd?.id || null,
       drift: Boolean(existingAd?.id && existingAd?.hash && existingAd.hash !== adHash),
-      action: existingAd?.id ? "SKIP" : "CREATE",
-      args: adArgs,
+      action: existingAd?.id ? (isHotSwap ? "HOT_SWAP_CREATIVE" : "SKIP") : "CREATE",
+      args: isHotSwap ? hotSwapArgs : adArgs,
     });
   }
 
@@ -3298,12 +3338,18 @@ function cmdDeploy(argv) {
   for (const ad of manifest.ads) {
     const adKey = ad.key || ad.name;
     let adId = state.ads[adKey]?.id;
+    const adsetRef = ad.adset || ad.adset_key;
+    const creativeRef = ad.creative || ad.creative_key;
+    const adsetId = state.adsets[adsetRef]?.id;
+    const creativeId = state.creatives[creativeRef]?.id;
     const adHash = entityHash("ad", ad, brand, { objective: manifest.campaign.objective });
+    const plannedAdStep = steps.find((s) => s.kind === "ad" && s.key === adKey);
+    const shouldHotSwap = Boolean(
+      adId &&
+      (plannedAdStep?.action === "HOT_SWAP_CREATIVE" ||
+        ((hotSwapCreative || ad.hot_swap_creative) && state.ads[adKey]?.creative_id !== creativeId))
+    );
     if (!adId) {
-      const adsetRef = ad.adset || ad.adset_key;
-      const creativeRef = ad.creative || ad.creative_key;
-      const adsetId = state.adsets[adsetRef]?.id;
-      const creativeId = state.creatives[creativeRef]?.id;
       const adArgs = buildAdArgs(validation, ad, adsetId, creativeId, activate);
       const rec = runMetaStep(adArgs, `ad:${adKey}`);
       adId = String(rec.id);
@@ -3316,8 +3362,61 @@ function cmdDeploy(argv) {
         created_at: new Date().toISOString(),
       };
       saveState(stateFile, state);
-    uncertainRemote = false;
+      uncertainRemote = false;
       results.push({ kind: "ad", key: adKey, action: "CREATED", id: adId, drift: false });
+    } else if (shouldHotSwap) {
+      if (!process.env.META_BIN) {
+        uncertainRemote = true;
+        const pySwapRes = spawnSync(
+          providerPython(),
+          [
+            "-c",
+            "import json, os, sys; from facebook_business.api import FacebookAdsApi; from facebook_business.adobjects.ad import Ad; " +
+              "req = json.load(sys.stdin); FacebookAdsApi.init(access_token=os.environ['ACCESS_TOKEN']); " +
+              "Ad(req['ad_id']).api_update(fields=[], params={'creative': {'creative_id': req['creative_id']}}); " +
+              "print(json.dumps({'id': req['ad_id']}))",
+          ],
+          {
+            env: childEnv,
+            input: JSON.stringify({ ad_id: String(adId), creative_id: String(creativeId) }),
+            encoding: "utf8",
+            stdio: ["pipe", "pipe", "pipe"],
+          }
+        );
+        if (pySwapRes.status !== 0) {
+          const errText = (pySwapRes.stderr || pySwapRes.stdout || "").trim() || `exit code ${pySwapRes.status}`;
+          throw new Error(`Failed at ad:${adKey} (hot-swap creative): ${errText}. Deployment lock retained; reconcile remote IDs before retrying.`);
+        }
+      } else {
+        const swapArgs = [
+          "--output",
+          "json",
+          "--no-input",
+          "ads",
+          "--ad-account-id",
+          brand.ad_account_id,
+          ...(brand.business_id ? ["--business-id", String(brand.business_id)] : []),
+          "ad",
+          "update",
+          "--ad-id",
+          String(adId),
+          "--creative",
+          JSON.stringify({ creative_id: String(creativeId) }),
+        ];
+        runMetaStep(swapArgs, `ad:${adKey}`);
+      }
+      state.ads[adKey] = {
+        ...state.ads[adKey],
+        id: adId,
+        adset_id: adsetId,
+        creative_id: creativeId,
+        name: ad.name,
+        hash: adHash,
+        updated_at: new Date().toISOString(),
+      };
+      saveState(stateFile, state);
+      uncertainRemote = false;
+      results.push({ kind: "ad", key: adKey, action: "HOT_SWAPPED_CREATIVE", id: adId, creative_id: creativeId, drift: false });
     } else {
       const drift = Boolean(state.ads[adKey]?.hash && state.ads[adKey].hash !== adHash);
       results.push({ kind: "ad", key: adKey, action: "SKIPPED", id: adId, drift });

@@ -257,7 +257,7 @@ Illustrates a standard sales CBO candidate with explicit audience opt-in and inc
 {
   "campaign": {
     "key": "camp_adv_plus_sales",
-    "name": "ID_AdvPlus_Sales_CBO",
+    "name": "dotads: ID_AdvPlus_Sales_CBO",
     "objective": "OUTCOME_SALES",
     "status": "PAUSED",
     "daily_budget": 10000
@@ -336,7 +336,7 @@ Uses `"ad_format": "AUTOMATIC_FORMAT"` on each creative to supply multiple asset
 {
   "campaign": {
     "key": "camp_flex_format_sales",
-    "name": "ID_Sales_CBO_FlexibleFormat",
+    "name": "dotads: ID_Sales_CBO_FlexibleFormat",
     "objective": "OUTCOME_SALES",
     "status": "PAUSED",
     "daily_budget": 12000
@@ -412,7 +412,7 @@ When using ad-set-level `"dynamic_creative": true`, keep exactly 1 ad in that DC
 {
   "campaign": {
     "key": "camp_dco_sales",
-    "name": "ID_Sales_CBO_DCO",
+    "name": "dotads: ID_Sales_CBO_DCO",
     "objective": "OUTCOME_SALES",
     "status": "PAUSED",
     "daily_budget": 8000
@@ -460,7 +460,7 @@ Uses ABO with `"adset_budget_sharing": true` so each creative concept gets a ded
 {
   "campaign": {
     "key": "camp_flex_creative_test",
-    "name": "ID_Sales_FlexBudget_ConceptTest",
+    "name": "dotads: ID_Sales_FlexBudget_ConceptTest",
     "objective": "OUTCOME_SALES",
     "adset_budget_sharing": true,
     "status": "PAUSED"
@@ -649,7 +649,9 @@ Implements the observed default for Indonesia Shopee CPAS (`1 Campaign` CBO with
 
 #### In-Place Creative Hot-Swap (Fixing `da_collection` or `template_url_spec` Without Resetting Ad Set Learning)
 
-Never delete or recreate a live Campaign or Ad Set when only the `AdCreative` needs remediation (for example, stripping auto-injected `da_collection` or adding `template_url_spec`). Because `AdCreative` fields are immutable after creation, create a new `AdCreative` via `AdAccount("act_<ID>").create_ad_creative(params=creative_params)` with `asset_feed_spec: {"ad_formats": ["CAROUSEL"], "optimization_type": "FORMAT_AUTOMATION"}` and `format_transformation_spec: [{"data_source": ["catalog"], "format": "carousel"}, {"data_source": ["catalog"], "format": "catalog_single_media"}]`, then point the existing `Ad` to the new `creative_id` in-place via `Ad("<AD_ID>").api_update(params={"creative": {"creative_id": new_cr["id"]}})`. Finally, update `creatives[0].meta_id` in the campaign manifest and `.meta-state.json` (`state.creatives[key].id` and `state.ads[ad_key].creative_id`).
+Never delete or recreate a live Campaign or Ad Set when only the `AdCreative` needs remediation (for example, stripping auto-injected `da_collection` or adding `template_url_spec`). Because `AdCreative` fields are immutable after creation, bump the creative `key` in the manifest (e.g. `cr_cpas_carousel_hero_v2`), point the existing `ads[0].creative` reference to the new creative key while keeping the Campaign, Ad Set, and Ad keys unchanged, and run:
+1. `dotads-meta deploy <campaign.json> --hot-swap-creative` (dry-run: shows `SKIP` on Campaign & Ad Set, `CREATE` on the new Creative, and `HOT_SWAP_CREATIVE` on the existing Ad).
+2. After owner approval: `dotads-meta deploy <campaign.json> --hot-swap-creative --apply` (creates the new `AdCreative` via `AdAccount.create_ad_creative`, updates the existing `Ad` in-place via `Ad(ad_id).api_update(params={"creative": {"creative_id": new_cr_id}})`, and updates `.meta-state.json` automatically).
 
 ---
 
