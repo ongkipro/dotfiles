@@ -590,3 +590,32 @@ unchanged plan and writes a reference/result in the reporting workspace. It neve
 copies deployment state, moves project media or changes the source project.
 Full operational cutover, cross-device transfer and source cleanup remain separate
 explicitly planned operations.
+
+## Interactive HTML reporting and live telemetry (adaptive pattern)
+
+When the operator asks for a visual/HTML reporting dashboard or live telemetry view over a `dotads-meta` BM or account workspace (`~/Documents/dotads-meta-report/<bm-name>--bm_<id>/`), build it as an **adaptive, data-driven UI** backed by the workspace's saved snapshots (`data/snapshots/s_*/`) plus an optional local read-only server (`server.mjs`), paired with `dotuiux` and `admin-dashboard`.
+
+### 1. Architecture & data contract (extensible, never hardcoded to one client)
+- **Hybrid Offline + Live Sync:**
+  - **Offline base:** Aggregate existing `data/snapshots/s_*/` (`account_insights.json`, `campaign_insights.json`, `adset_insights.json`, `ad_insights.json`, `campaigns.json`, `adsets.json`, plus any breakdown snapshots like `age,gender`) into a workspace `dashboard-data.json` and embed it in `dashboard.html` so `file://` opening works offline across devices.
+  - **Optional live read-only server (`server.mjs`):** Serve `dashboard.html` on `127.0.0.1:<port>` and expose `GET /api/live` (and/or `POST /api/sync` invoking `dotads-meta sync`). Load the BM token strictly in-memory inside the Node process via `~/.config/ai-local/secrets.env` (using `bm.json`'s `token_env`); never expose tokens in HTML, JS bundles, or URLs, and never mutate live objects from a reporting endpoint.
+- **Adaptive Scope & Metric Profiles (Not Rigid Columns):**
+  - Dynamically populate Account switches (`All` or per `act_<id>`), Period switches (`today`, `yesterday`, `last_7d`, `last_30d`, `last_90d`, `this_month`, or custom ranges), and Breakdown tabs (`Campaigns`, `Ad Sets`, `Ads`, `Age × Gender`, `Placement`, etc.) from what exists in the payload or operator request.
+  - Adapt KPI strip items, chart modes, target floors (`targetRoas`, `maxCpr`, etc.), and table columns to the active campaign/account profile:
+    - **Ecommerce / Direct-Response default:** `Name`, `Acc`, `Status`, `Spend`, `Sales`, `ROAS`, `CPR`, `Revenue`, `Impr`, `CPM`, `Clicks`, `CTR`, `CPC`, `LP View`, `LP %`, `ATC`, `IC`, `CVR %`.
+    - **Shopee CPAS (`cpas_v1`):** Surface `catalog_segment_*` (`InApp_SDK` vs website funnel, `app_site_visit` vs link clicks, collaborative ROAS/CPR) without conflating site visits with app arrivals.
+    - **Lead-Gen / Messaging / Custom:** Swap or append domain columns (e.g., `Leads`, `CPL`, `Conversations`, `Video Hook/Hold %`, `Frequency`) as the workflow evolves.
+
+### 2. Clean-Light visual & `dotuiux` verification baseline
+- **Zero-prose vertical flow:** Avoid multi-sentence diagnostic banners or card-in-card clutter. Default to a composable flow:
+  1. **Compact top bar (`48px`):** Scope selectors + `Sync Live` button + timestamp. Hide brand title text on `<640px` (`hidden sm:block`) so `360px` mobile viewports never overflow horizontally.
+  2. **Unboxed divided metric strip:** Single `#ffffff` container (`divide-x divide-[#e5e5e5]`) for 5–6 headline numbers.
+  3. **Responsive SVG trend/comparison chart:** Compute SVG `viewBox` width dynamically from `container.clientWidth` on render and `resize` with `font-size="12"` so axis labels never scale below `12px` on `360px` viewports (`dotuiux check` `tiny-text` gate).
+  4. **Horizontally scrollable data grid (`.overflow-x-auto`):**
+     - Give wide multi-metric tables a proportional `min-width` (e.g. `1400px–1720px`) and `padding: 8px 14px` so columns never crowd.
+     - Pin the first identifier column (`th:first-child, td:first-child { position: sticky; left: 0; z-index: 10; border-right: 1px solid #d4d4d4; }`).
+     - Apply alternating column shading (`nth-child(odd)` `#ffffff` white | `nth-child(even)` `#f6f7f9` soft gray; header `#fafafa` | `#f1f3f5`) with `1px solid #eaeaea` cell borders and row hover (`#edf2f7`).
+     - Keep secondary text on `#f6f7f9` columns at `#525252` or `#595959` (`>= 6.5:1` contrast; `#737373` on `#f6f7f9` drops to `4.42:1` and fails `dotuiux check` `contrast`).
+     - Render status with an `8px` colored dot + plain text (`● Active` / `● Paused`) rather than background pill chips on every row (keeps `dotuiux check` `marker-count` at `0 warn`).
+     - Include a `<tfoot>` totals/summary row (`border-top: 2px solid #d4d4d4`) and CSV export for the active view.
+- **Verification before completion:** Run `dotuiux validate` and `dotuiux check <url>` (`0 fail · 0 warn`) across narrow (`360px`/`390px`) and wide (`1366px`/`1440px`) viewports.
