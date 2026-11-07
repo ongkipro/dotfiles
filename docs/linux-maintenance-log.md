@@ -248,3 +248,42 @@ Docker images, volumes, build cache, system journals, and `libfwupd2` remain unt
 
 - Per-repo compose migrations (tokophi `0.0.0.0:5433` → `127.0.0.1:55131`, clinic-dashboard `5432/5433` → `55141/55143`, geraicuan `55433` → `55151`, kliniknuma, bukalaris `mem_limit` and test-DB cleanup, geraiexpress shared-netns tests) wait until each project's agent is idle; queue in the blueprint.
 - tokophi remains reachable on `0.0.0.0:5433` until that migration.
+
+## 2026-11-06 to 2026-11-07 — `rich` — Machine tidy, parallel AI limits, an orphaned build, data routing
+
+### Scope
+
+- Make `rich` (4 cores, 31 GB, SATA SSD without DRAM) comfortable for several AI terminals and projects at once, and safe to resume after a forced close.
+- Record what was measured, what was changed, and what is still open. Ownership of the rules is in `docs/parallel-ai-dev-machine.md` and the device-local `device.md`; this entry is the dated evidence.
+
+### Initial state
+
+- SSD at 83% used; load 5 to 7 with no heavy job queued; test and build jobs from several terminals overlapped.
+- 51 stale per-test PostgreSQL databases, 26 per-task Docker images and a large Docker build cache on the SSD.
+- Observed: a process `npm prune --omit=dev` (its parent was a `sh -c 'npm run build && npm prune --omit=dev && rm -rf .next/cache'` shell whose own parent PID was 1) had been running for 1 day 9 hours. `ps` reported 421% CPU, which is cumulative CPU time divided by elapsed time (a lifetime average of about 4.2 cores); a 3-second sample taken later read about 1.5 cores. Its cgroup was a Docker container scope, not `ai-heavy.slice`, and `heavy-run --status` showed both slots free, so `heavy-run` was not accounting for it.
+- Inferred, not observed: the parent command line, the start time (2026-11-06 03:04) and a `dockerd` restart at 03:12 in the journal fit a Docker image build whose client died with the daemon. No build log was kept, so this cause is a reconstruction.
+- `tokophi-db` was published on `0.0.0.0:5433` (all interfaces).
+
+### Actions
+
+1. Froze the working state before changes (`dev-freeze`: 66 repositories, 4 GB, plus restart notes) and dumped the 51 test databases before dropping them. SSD went from 83% to 61-63%.
+2. Added the queue and caps (`heavy-run`: pool slots, named locks, `ai-heavy.slice`), throwaway databases (`ai-testdb`, tmpfs), the freeze tool (`dev-freeze`) and per-device sizing (`ai-capacity`: 4 terminals comfortable, 5 maximum, 2 heavy slots, 3 children per run on this device). Commits `7957e73` and `6e38288`.
+3. Owner-run, with sudo: zram swap and the `bfq` scheduler for the SATA SSD (`/etc/udev/rules.d/60-io-scheduler.rules`); apt upgrades (Docker, Tailscale, Chrome).
+4. The orphaned `npm prune` and its parent were stopped by the owner with sudo, by exact PID; the process was gone at the next check. The 1-minute load average, 7.3 at the last check with the process present (5-minute value 6.8), read 4.9 at the first check after it was stopped (the 1-minute figure lags) and between 0.6 and 2.5 at later separate checks.
+5. Took a full `pg_dumpall` of `tokophi-db` first, then bound it to `127.0.0.1:5433` through its compose file. Afterwards a live check found the container healthy on the same volume with 18 non-template databases and 85 tables in `public`; no matching count was taken before the change (the dump holds 1,499 `CREATE TABLE` statements across all schemas, which is not a comparable figure). The compose change is left uncommitted in that project for its own agent.
+6. Port audit (read only, local view: `ss`, `tailscale serve status`, `sshd -T`; no external scan was run, so reachability from outside was not tested). Non-loopback listeners were SSH on all interfaces (port 22) and services bound to the Tailscale address; Tailscale Serve entries are marked "tailnet only" and no Funnel is configured. `sshd -T` reported `passwordauthentication no`, `permitrootlogin no`, `pubkeyauthentication yes`. `ufw` and `fail2ban` are inactive. Loopback listeners (for example the PostgreSQL containers) were not part of the non-loopback list.
+7. Added `ai-capacity status` advice for long-running CPU users outside `heavy-run` (advice only; it cannot tell an orphan from a legitimate long build). Device-local `rich-archive` (dry run by default; copy, size check, then delete) moves cold session transcripts to `/data`. Data routing rule recorded in the device-local `device.md`: hot work on the SSD, cold copies on `/data`, one direction.
+
+### Verification
+
+- Load before and after step 4, `heavy-run --status` (both slots free) and `ai-capacity status` were read live (1-minute load average 7.3 before, with the 5-minute value 6.8 from the same reading; 4.9 right after the process was stopped, and 1.5, 2.0, 0.6 and 2.5 at separate later checks, listed without a time order). `dotuiux-test` timed out once while the process was running and passed inside the full self-test after it was gone. That is consistent with load-related timing pressure; the cause of the timeout was not isolated.
+- CI: `6e2cf00` green on both jobs; the two commits before it were red on `ai-memory-route-test` (a memory file over the 12,000-byte router budget).
+- `rich-archive --days 14` dry run: 747 files, 9.90 GB movable; not applied.
+
+### Deferred
+
+- `/etc/systemd/zram-generator.conf` has `compression-algorithm =` with `zstd` on the next line, so the active algorithm is `lzo-rle`, not `zstd`. Optional fix, needs sudo.
+- Backups are written to `/data` on the same machine only. An off-machine destination is not chosen.
+- The dangling Docker volumes hold development PostgreSQL data and were not deleted; their count went from 42 to 47 between 2026-11-06 and 2026-11-07 and the cause was not investigated.
+- `rich-archive --apply` and the Gemini transcripts (3.7 GB older than 14 days, report only) await the owner.
+- Not measured: four heavy terminals working at once after these changes.

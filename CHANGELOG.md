@@ -4,6 +4,10 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-07 — Maintenance log for the rich machine work (TASK-201)
+
+- `docs/linux-maintenance-log.md`: dated entry for 2026-11-06 to 2026-11-07 covering the tidy, the parallel limits, a stray `npm prune` process that ran for 1 day 9 hours (observed; its likely origin is marked as inferred), the tokophi loopback bind, a local-view port audit and the data routing rule, with the open items listed as Deferred. Documentation only.
+
 ## 2026-11-07 — Orphan-hog monitor, device record, lessons (TASK-200)
 
 - `ai-capacity status` now reports processes older than one hour that average at least 0.8 cores outside `ai-heavy.slice`, the case that hid an orphaned `npm prune` from a dead Docker build for 33 hours. It is advice only: it cannot tell an orphan from a legitimate long build, so it never changes the exit code and never stops anything. Predicate and exit-code behaviour are tested deterministically from injected process data.

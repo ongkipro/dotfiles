@@ -4,7 +4,7 @@ Updated: 2026-11-07
 
 Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
 
-Done through 2026-11-07: see [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194 to TASK-199 included).
+Done through 2026-11-07: see [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194 to TASK-200 included).
 
 ## In progress
 
@@ -20,17 +20,17 @@ Done through 2026-11-07: see [TASKS-index-2026-11-07](docs/archive/TASKS-index-2
 - **Non-Scope:** live account calls in tests; history rewrite.
 - **Escalation Conditions:** unapproved live account mutation.
 
-### TASK-200: Orphan-hog monitor, rich device record, rich tooling note, lessons
-- **Requirement:** REQ-PARALLEL-FOLLOWUP (owner 2026-11-07). Full contract: [TASKS-200-contract-full](docs/archive/TASKS-200-contract-full.md).
-- **Risk Level:** R2.
-- **Allowed Paths:** `bin/{ai-capacity,device-register}{,-test}`, `devices/{rich,README}.md`, `config/ai/project-memory/linux-rich-maintenance.md`, `config/ai/memory/{ops,development}-lessons.md`, `docs/DOTFILES_SITEMAP.md`, `CHANGELOG.md`, `TASKS.md`, `docs/archive/`.
+### TASK-201: Maintenance log entry for the 2026-11-06 to 2026-11-07 work on rich
+- **Requirement:** REQ-PARALLEL-FOLLOWUP (owner 2026-11-07: update history and log).
+- **Risk Level:** R1.
+- **Allowed Paths:** `docs/linux-maintenance-log.md`, `CHANGELOG.md`, `TASKS.md`, `docs/DOTFILES_SITEMAP.md`, `docs/archive/`.
 - **Protected Paths:** `bin/delivery-ledger*`, `docs/task-change-boundary.md`, `config/ai/README.md`, other `project-memory/*`, `skills/local/development-kit/**`.
-- **Canonical Contract Owners:** `ai-capacity` (limits, hog report); `device-register` (generated record); `ai-learn` (promotion).
-- **Accepted Invariants:** hog check is advice only (never changes the exit code, never stops a process) and exempts `ai-heavy.slice`; `devices/rich.md` regenerated not hand-edited; capacity section absent without `ai-capacity`; only verified shared lessons promoted; no device-local path or secret in shared memory (device-specific paths are allowed only in `linux-rich-maintenance.md`).
-- **Regression Checks:** `ai-capacity-test` (inside and outside heavy-run), `device-register-test`, `ai-doctor --self-test`, `ai-policy-lint`, `ai-memory-route-test`, `system-map --check`, `security-check`.
-- **Reopen Conditions:** an advice line that cannot be told apart from a normal long job is reported as noise; `device-register` output changes on a device without `ai-capacity`.
-- **Non-Scope:** tracking `rich-*` tools (device-local on purpose), auto-stopping hogs, off-machine backup, the other five candidates.
-- **Escalation Conditions:** sudo, a live account, or another session's files.
+- **Canonical Contract Owners:** `docs/linux-maintenance-log.md` (dated evidence); `docs/parallel-ai-dev-machine.md` (the rules).
+- **Accepted Invariants:** every number is measured or read live and says what it measures (lifetime average, sample, local view); any inference is labelled as inferred and kept apart from observations; no secrets, private or interface addresses, account figures or customer data (wildcard and loopback bind notation is allowed); open items stay listed as Deferred.
+- **Regression Checks:** `ai-policy-lint`, `system-map --check`, link check.
+- **Reopen Conditions:** a claim in the entry is shown false by a live read.
+- **Non-Scope:** any tool or config change; the version tag.
+- **Escalation Conditions:** a claim cannot be backed by a live read.
 
 ### TASK-175: Cloudflare Asia-Pacific placement default
 - **Requirement:** REQ-CLOUDFLARE-APAC (owner 2026-11-02: web projects for Indonesia/Asia use Cloudflare SEA/Asia/Singapore; understand the breakdown and improve the skill).
