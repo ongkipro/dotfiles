@@ -1730,8 +1730,8 @@ function validateManifests(campaignPath, explicitBrandPath) {
         ? resolvedCr._assetFeedSpec.ad_formats.map((f) => String(f).toUpperCase())
         : [];
       const hasFormatAutomationCollection =
-        resolvedCr?._assetFeedSpec?.optimization_type === "FORMAT_AUTOMATION" ||
-        (afsFormats.includes("CAROUSEL") && afsFormats.includes("COLLECTION"));
+        afsFormats.includes("COLLECTION") ||
+        (resolvedCr?._assetFeedSpec?.optimization_type === "FORMAT_AUTOMATION" && afsFormats.length === 0);
       if (
         resolvedCr?._objectStorySpec?.template_data?.format_option === "carousel_images_multi_items" &&
         (hasDaCollectionOnly || hasFormatAutomationCollection)
@@ -2975,20 +2975,30 @@ function cmdDeploy(argv) {
         const parsedTus = cr.template_url_spec
           ? readJsonArgument(cr.template_url_spec, validation.workspaceDir, validation.campaignDir, "template_url_spec")
           : null;
-        const parsedFts = cr.format_transformation_spec
+        const rawFts = cr.format_transformation_spec
           ? readJsonArgument(cr.format_transformation_spec, validation.workspaceDir, validation.campaignDir, "format_transformation_spec")
           : parsedOss?.template_data?.format_option === "carousel_images_multi_items"
             ? [
-                { data_source: ["catalog"], format: "CAROUSEL" },
-                { data_source: ["catalog"], format: "CATALOG_SINGLE_MEDIA" },
+                { data_source: ["catalog"], format: "carousel" },
+                { data_source: ["catalog"], format: "catalog_single_media" },
               ]
             : null;
+        const parsedFts = Array.isArray(rawFts)
+          ? rawFts.map((item) =>
+              item && typeof item === "object" && typeof item.format === "string"
+                ? { ...item, format: item.format.toLowerCase() }
+                : item
+            )
+          : rawFts;
         const parsedDof = cr.degrees_of_freedom_spec
           ? readJsonArgument(cr.degrees_of_freedom_spec, validation.workspaceDir, validation.campaignDir, "degrees_of_freedom_spec")
           : null;
+        const hasDaCollection = Array.isArray(parsedFts) && parsedFts.some((item) => item?.format === "da_collection");
         const parsedAfs = cr.asset_feed_spec
           ? readJsonArgument(cr.asset_feed_spec, validation.workspaceDir, validation.campaignDir, "asset_feed_spec")
-          : null;
+          : parsedOss?.template_data?.format_option === "carousel_images_multi_items" && !hasDaCollection
+            ? { ad_formats: ["CAROUSEL"], optimization_type: "FORMAT_AUTOMATION" }
+            : null;
         const sdkCrPayload = {
           account_id: brand.ad_account_id,
           params: {

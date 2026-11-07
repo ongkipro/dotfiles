@@ -534,9 +534,13 @@ Implements the observed default for Indonesia Shopee CPAS (`1 Campaign` CBO with
         "ios": { "app_name": "Shopee ID", "app_store_id": "959841449" }
       },
       "contextual_multi_ads": { "enroll_status": "OPT_IN" },
+      "asset_feed_spec": {
+        "ad_formats": ["CAROUSEL"],
+        "optimization_type": "FORMAT_AUTOMATION"
+      },
       "format_transformation_spec": [
-        { "data_source": ["catalog"], "format": "CAROUSEL" },
-        { "data_source": ["catalog"], "format": "CATALOG_SINGLE_MEDIA" }
+        { "data_source": ["catalog"], "format": "carousel" },
+        { "data_source": ["catalog"], "format": "catalog_single_media" }
       ],
       "url_tags": "utm_source=facebook-ca&utm_medium=seller",
       "object_story_spec": {
