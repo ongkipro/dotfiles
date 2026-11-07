@@ -4,6 +4,12 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-07 — Adaptive Meta Ads conversion framework, BM markdown renderer v5 & memory hygiene (TASK-200)
+
+- `_dotads-workspace.mjs`: bumps the BM workspace (`markdownOnly`) report renderer from `dotads-markdown/4` to `dotads-markdown/5` so re-rendering saved BM snapshots with `commerce-insight/2` writes a new immutable report revision (`r_<hash>`) instead of colliding with earlier `dotads-markdown/4` revisions.
+- `dotads-meta` (`validate`, `deploy`, `run`, `init`): enforces the `dotads: <campaign_name>` campaign label (`validate` warns if omitted; `deploy` CLI/SDK paths and `run -- ads campaign create` auto-prefix `dotads: `) and adds 5 advisory `Website Sales guardrail:` checks for non-CPAS `OUTCOME_SALES` campaigns (`advantage_audience=0` liquidity constriction, Facebook-only placement lock without Instagram, `attribution_spec` omitting `VIEW_THROUGH` (`1d_view`), `optimization_goal: "VALUE"` with `LOWEST_COST_WITHOUT_CAP`, and `>6` ads per ad set creative overcrowding), with offline regression coverage in `dotads-meta-test`.
+- `meta-ads-cli` (`algorithm-and-learning.md` §6–§7, `rules-and-tutorial.md`), `meta-ads-signal-engine` (`PIXEL_2026_CHANGES.md`), and `config/ai/memory/meta-ads.md`: codifies the generalizable, business-model-agnostic framework for Broad vs. `Audience Controls` liquidity, the 4-stage multi-horizon diagnostic timing protocol (`0–6h`, `>=24h`, `48–72h`, `3–7d`), vertical/horizontal scaling mechanics, and Pixel+CAPI signal-to-auction coupling; keeps `meta-ads.md` under the 12,000-byte router limit and resolves all 11 stale dated claims across memory cards (`ai-memory-hygiene` 0 issues).
+
 ## 2026-11-07 — Parallel AI development machine guide, research memory, CI fix (TASK-199)
 
 - New `docs/parallel-ai-dev-machine.md`: how to reproduce the parallel-terminals setup on another Linux device, with every claim labelled measured, sourced or assumption. macOS is stated as not supported as shipped (`heavy-run` and `dev-freeze` depend on Linux behaviour). Public research excerpt in `docs/research/parallel-ai-dev-machine-2026-11-07.md`.

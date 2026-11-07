@@ -62,68 +62,19 @@ an on-demand navigation reference, not account state or an automatic learner.
 
 ---
 
-## Lesson: Shopee CPAS purchase columns, `7d_click` vs `1d_view`, and the `1-1-1` direct-to-app default
+## Lesson: Shopee CPAS purchase columns, `7d_click` vs `1d_view`, and `1-1-1` direct-to-app SDK creation
 
-### Symptom
-On Shopee Collaborative Ads (CPAS) accounts the ordinary `actions` columns looked empty while a platform-claimed `app_site_visit` looked healthy; blended purchase numbers were dominated by `1d_view` credit.
-
-### Root cause
-Observation, 2026-11-07, two Indonesia Shopee CPAS accounts under one owner (one account supplied nearly all orders): almost all purchases were reported in `catalog_segment_actions` / `catalog_segment_value`, most of the retargeting purchases were `1d_view`, and Instagram in-app-browser clicks logged `app_site_visit` without native app arrival. These are Meta claims, not settlement and not causal findings.
-
-### Rule (scope and numbers: [cpas-collaborative-ads.md](../../../skills/local/meta-ads-cli/references/cpas-collaborative-ads.md) §7)
-Query Shopee CPAS with `--metric-profile cpas_v1` and read `catalog_segment_actions:omni_purchase` with `7d_click` beside the total; verify native app arrival with `app_custom_event.fb_mobile_content_view / link_click`, never `app_site_visit` alone; treat the `1-1-1` structure, placement exclusions and gates in §7 as defaults to test, not laws.
-
-### Fix
-`dotads-meta validate` warns on CPAS `1-1-1` deviations; the commerce insight (`commerce-insight/2`) splits the `catalog_segment_*` funnel by channel; the `cpas_v1` profile adds the CPAS inventory fields; the skill documents the rules and their limits.
-
-### Regression check
-dotads-meta-test && node --test bin/_dotads-workspace-test.mjs && ai-policy-lint
-
-> Promoted from a reviewed local candidate on 2026-11-06; scope and wording reviewed 2026-11-07 (TASK-197). Audit date: 2026-11-07.
-
+- **Symptom & root cause:** On Shopee CPAS accounts, ordinary `actions` looked empty while orders lived in `catalog_segment_actions` / `catalog_segment_value` (`1d_view` heavy), Instagram WebView logged `app_site_visit` without native app arrival, Ads Manager hid `Website and app` (Error 100 / Subcode 3858845) without `is_pca_unified=true` + `promoted_object`, and `facebook_reels` opened `da_collection` grids when `template_url_spec` or `asset_feed_spec` was missing ([cpas-collaborative-ads.md](../../../skills/local/meta-ads-cli/references/cpas-collaborative-ads.md) §7).
+- **Rule & fix:** Query CPAS with `--metric-profile cpas_v1`, read `catalog_segment_actions:omni_purchase` (`7d_click` beside total), and verify native app arrival via `app_custom_event.fb_mobile_content_view / link_click`. `dotads-meta deploy` creates CPAS campaigns via the Python SDK with `is_pca_unified=true`, `smart_promotion_type='GUIDED_CREATION'`, and `promoted_object`, AdSets with `ad_set_goal={'type': 0}` + `omnichannel_object`, and catalog creatives via `AdAccount.create_ad_creative` with `template_url_spec.config.app_id`, `asset_feed_spec: {"ad_formats": ["CAROUSEL"], "optimization_type": "FORMAT_AUTOMATION"}`, `format_transformation_spec` (`carousel` + `catalog_single_media` without `da_collection`), and `contextual_multi_ads: {"enroll_status": "OPT_IN"}`.
+- **Check:** `dotads-meta-test && node --test bin/_dotads-workspace-test.mjs && ai-policy-lint`
 
 ---
 
+## Lesson: Adaptive Website Conversion (`OUTCOME_SALES`) Liquidity, Multi-Horizon Timing (`>= 24h`), Scaling & Signal Coupling
 
-## Lesson: Meta Collaborative Ads (Shopee CPAS) requires is_pca_unified=true and promoted_object at POST /campaigns creation time
-
-### Symptom
-Ads Manager UI hides Conversion location: Website and app (Shopee ID Website Pixel + Shopee ID App) inside the Ad Set, or Ad creation fails with Error 100 'You have to associate your advertiser account with this app first for tracking'
-
-### Root cause
-meta-ads CLI creates the Campaign without is_pca_unified=true and promoted_object at POST /act_<id>/campaigns creation time. Meta locks is_pca_unified=false permanently once published (Error 100 / Subcode 3858845), forcing Legacy Catalog UI.
-
-### Durable invariant
-Every Collaborative Ads (CPAS) campaign must be created at POST /act_<id>/campaigns time with is_pca_unified=true, smart_promotion_type='GUIDED_CREATION', and promoted_object={'product_catalog_id': '<catalog_id>', 'smart_pse_enabled': False}, followed by AdSet with ad_set_goal={'type': 0}, promoted_object.omnichannel_object (app + pixel), and attribution_spec 7d_click + 1d_view + 1d_engaged_video_view.
-
-### Fix
-Updated dotads-meta deploy to create CPAS campaigns directly via facebook-business SDK with is_pca_unified=true and promoted_object at creation time, and create AdSets with ad_set_goal={'type': 0}.
-
-### Regression check
-dotads-meta-test && Campaign(id).api_get(fields=['is_pca_unified','promoted_object']) returns is_pca_unified=true
-
-> Promoted from a reviewed local candidate on 2026-11-06.
-
-
----
-
-
-## Lesson: CPAS Carousel DPA (`carousel_images_multi_items`) requires SDK creative creation to preserve `template_url_spec` and `format_transformation_spec`
-
-### Symptom
-On a Shopee CPAS `1-1-1` Carousel campaign (`carousel_images_multi_items`), Ads Manager showed Collection (`FORMAT_AUTOMATION`: `['CAROUSEL', 'COLLECTION']`) active with `format_transformation_spec: [{"data_source": [], "format": "da_collection"}]` and `template_url_spec: null`; `facebook_reels` clicks opened a Meta Instant Experience grid instead of deep-linking directly into the Shopee App PDP (`0` `onsite_app_add_to_cart` on Reels vs `6` on Feed).
-
-### Root cause
-Upstream `meta` CLI 1.3.1 (`meta ads creative create`) lacks `--template-url-spec` and `--format-transformation-spec`, dropping `template_url_spec` and leaving `format_transformation_spec` at `da_collection` only. In addition, if `.meta-state.json` retains old `creatives` entries when a campaign is recreated under the same creative key, `dotads-meta deploy` skips creative creation and reuses the stale creative ID.
-
-### Durable invariant
-1. CPAS / catalog creatives with `template_url_spec`, `format_transformation_spec`, or `product_set_id` + `object_story_spec` must be created through the Python `facebook_business` SDK (`AdAccount.create_ad_creative`) with `template_url_spec: {"config": {"app_id": "957549474255294"}}`, `asset_feed_spec: {"ad_formats": ["CAROUSEL"], "optimization_type": "FORMAT_AUTOMATION"}`, `format_transformation_spec: [{"data_source": ["catalog"], "format": "carousel"}, {"data_source": ["catalog"], "format": "catalog_single_media"}]` (which eliminates `da_collection` from `format_transformation_spec` completely), and `contextual_multi_ads: {"enroll_status": "OPT_IN"}`.
-2. **DO / DON'T**: Use Pure Carousel (`carousel` + `catalog_single_media` without `da_collection`) for 1-click direct-to-Shopee-PDP catalog cards; only use Collection (`COLLECTION_VIDEO`) in its own isolated `1-1-1` campaign when paired with a dedicated 9:16 hero demo video (`video_data`). Never recreate the Campaign/Ad Set just to fix a creative defect — hot-swap `Ad(ad_id).api_update(params={"creative": {"creative_id": new_cr_id}})` in-place.
-
-### Fix
-Updated `dotads-meta validate` to validate `format_transformation_spec` and `contextual_multi_ads` and warn when a `carousel_images_multi_items` CPAS creative only specifies `da_collection` / `FORMAT_AUTOMATION`, and updated `dotads-meta deploy` to route catalog/deep-link creative creation through `AdAccount.create_ad_creative` in the Python SDK.
-
-### Regression check
-dotads-meta-test && node --test bin/_dotads-workspace-test.mjs && ai-policy-lint
-
-> Promoted from a reviewed local candidate on 2026-11-07.
+- **Principle (priors to calibrate per business model and unit economics, never a rigid lock):**
+  1. **CLI Campaign Prefix (`dotads: `):** Every campaign created via `dotads-meta` (`deploy` or `run -- ads campaign create`) carries the `dotads: <campaign_name>` label (`validate` warns if omitted; `deploy`/`run` auto-prefixes `dotads: `).
+  2. **Auction Liquidity vs. Hard Controls:** Over-filtering (`advantage_audience: 0`, narrow age/gender locks, unnecessary placement exclusions, or click-only attribution) shrinks Andromeda retrieval pools and raises clearing CPM/CPC. Use **0 interests + `advantage_audience: 1` + Broad + Advantage+ Placements + `OFFSITE_CONVERSIONS` + `7d_click + 1d_view (+ 1d_ev)`** as the starting baseline; apply hard `Audience Controls` only for verified legal/age floors, geographic serviceability/margin boundaries, >15% measured demographic leakage, or technical app-routing constraints.
+  3. **Multi-Horizon Audit Timing (`>= 24h` Diurnal Floor):** Intraday pacing exploration and conversion lag make `<24h` performance pauses unreliable. Use `0–6h` for technical sanity checks only; require `>= 24h` (`>= 1` full diurnal cycle) + declared test spend (`>= 1.0x Target_CPA` or owner stop-loss floor) before proposing a zero-intent stop-loss (`0 Conversions` and `ATC <= 1`); hold ad sets with active mid-funnel intent (`ATC` / `IC`) to `48–72h`; and judge scaling or retirement on `3–7d` (`last_7d`) cohorts.
+  4. **Coupled Scaling & Funnel Velocity:** Scale Up vertically in `+15%–25%` steps every `48–72h` (transitioning from `LOWEST_COST_WITHOUT_CAP` to `COST_CAP` / `BID_CAP` / `MIN_ROAS` at higher budgets), and Scale Out horizontally via orthogonal creative angles (`3–5` concepts per ad set; avoid crowding `>6` ads on micro-budgets) and low-friction checkout flows (`LPV -> ATC -> IC -> Purchase`) paired with high-EMQ Pixel + CAPI (`event_id` 48h dedup). See [algorithm-and-learning.md](../../../skills/local/meta-ads-cli/references/algorithm-and-learning.md) §6–§7 and [PIXEL_2026_CHANGES.md](../../../skills/local/meta-ads-signal-engine/references/PIXEL_2026_CHANGES.md).
+- **Check:** `dotads-meta-test && node --test bin/_dotads-workspace-test.mjs && ai-policy-lint`

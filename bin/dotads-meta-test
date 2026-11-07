@@ -375,6 +375,43 @@ for expected_warn in (
     'Unicode mathematical alphanumeric characters',
 ):
     assert expected_warn in w_joined, (expected_warn, leak_res['warnings'])
+
+def patch_web_sales_guardrails(m):
+    m['campaign']['name'] = 'Sales_CBO_Unprefixed'
+    as0 = m['adsets'][0]
+    as0['optimization_goal'] = 'VALUE'
+    as0['advantage_audience'] = False
+    as0.pop('targeting_countries', None)
+    as0['targeting'] = {
+        'geo_locations': {'countries': ['ID']},
+        'age_min': 22,
+        'age_max': 54,
+        'publisher_platforms': ['facebook'],
+        'device_platforms': ['mobile'],
+        'targeting_automation': {'advantage_audience': 0},
+    }
+    as0['attribution_spec'] = [{'event_type': 'CLICK_THROUGH', 'window_days': 7}]
+    base_ad = copy.deepcopy(m['ads'][0])
+    for idx in range(2, 8):
+        extra = copy.deepcopy(base_ad)
+        extra['key'] = f'ad_extra_{idx}'
+        extra['name'] = f'Ad Extra {idx}'
+        m['ads'].append(extra)
+
+web_guard_res = check('web-sales-guardrails', patch_web_sales_guardrails, True)
+wg_joined = ' | '.join(web_guard_res['warnings'])
+for expected_wg in (
+    "does not start with 'dotads: '; dotads-meta deploy will automatically prefix it as 'dotads: Sales_CBO_Unprefixed'",
+    'Website Sales guardrail: Advantage+ Audience is explicitly disabled',
+    'Website Sales guardrail: targeting.publisher_platforms restricts delivery to Facebook without Instagram',
+    'Website Sales guardrail: attribution_spec omits VIEW_THROUGH (1d_view)',
+    "Website Sales guardrail: optimization_goal 'VALUE' with 'LOWEST_COST_WITHOUT_CAP'",
+    'Website Sales guardrail: 7 ads are assigned to a single ad set',
+):
+    assert expected_wg in wg_joined, (expected_wg, web_guard_res['warnings'])
+wg_deploy = json.loads(subprocess.run([cmd, 'deploy', str(workspace / 'campaigns/web-sales-guardrails.json'), '--json'], capture_output=True, text=True, check=True).stdout)
+camp_cmd = wg_deploy['steps'][0]['command']
+assert camp_cmd[camp_cmd.index('--name') + 1] == 'dotads: Sales_CBO_Unprefixed', camp_cmd
 PY
 then
   ok "attribution, current payload boundaries, and documented recipes validate and dry-run offline"

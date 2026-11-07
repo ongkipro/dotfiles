@@ -4,20 +4,20 @@ Updated: 2026-11-07
 
 Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
 
-Done through 2026-11-07: see [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194 to TASK-197 included).
+Done through 2026-11-07: see [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194 to TASK-198 included).
 
 ## In progress
 
-### TASK-198: CPAS PCA Unified campaign, creative & omnichannel ad set contract
-- **Requirement:** REQ-CPAS-PCA-UNIFIED (2026-11-07: `Website and app` UI, `7d_click+1d_view+1d_ev`, `dotads:` naming, SDK catalog creative + 6 CPAS traps).
-- **Risk Level:** R2.
-- **Allowed Paths:** `bin/dotads-meta`, `bin/dotads-meta-test`, `skills/local/meta-ads-cli/**`, `config/ai/memory/meta-ads.md`, `TASKS.md`, `CHANGELOG.md`.
+### TASK-200: Adaptive Meta Ads conversion guardrails, BM markdown renderer v5 & memory hygiene
+- **Requirement:** REQ-META-ADAPTIVE-FRAMEWORK (owner 2026-11-07).
+- **Risk Level:** R3.
+- **Allowed Paths:** `bin/_dotads-workspace.mjs`, `bin/_dotads-workspace-test.mjs`, `bin/dotads-meta`, `bin/dotads-meta-test`, `skills/local/meta-ads-cli/**`, `skills/local/meta-ads-signal-engine/**`, `config/ai/memory/**`, `config/ai/project-memory/**`, `docs/DOTFILES_SITEMAP.md`, `docs/archive/**`, `TASKS.md`, `CHANGELOG.md`.
 - **Protected Paths:** `bin/delivery-ledger`, `docs/task-change-boundary.md`, `config/ai/README.md`.
-- **Canonical Contract Owners:** `dotads-meta`; `cpas-collaborative-ads.md`; `rules-and-tutorial.md`.
-- **Accepted Invariants:** SDK creates CPAS campaign (`is_pca_unified`, `promoted_object`), catalog creative (`template_url_spec`, `format_transformation_spec`), and ad set (`ad_set_goal`, `omnichannel_object`); `validate` guards `product_set_id`, `age_max<65`, catalog, and `da_collection`; public files stay de-identified.
-- **Regression Checks:** `workspace`, `provider`, `meta-cli`, `skill`, `policy`, `memory-link`, `system-map`, `security`.
-- **Reopen Conditions:** Ads Manager hides `Website and app` or SDK leaks token / activates without `--activate`.
-- **Non-Scope:** live account calls in tests; history rewrite.
+- **Canonical Contract Owners:** `dotads-meta`; `_dotads-workspace.mjs`; `algorithm-and-learning.md`; `PIXEL_2026_CHANGES.md`; `meta-ads.md`.
+- **Accepted Invariants:** shared skills/memory stay generalizable (no case lock); `meta-ads.md` <= 12,000B; `dotads-markdown/5` preserves prior revisions; `ai-memory-hygiene` 0 issues.
+- **Regression Checks:** `workspace`, `meta-cli`, `hygiene`, `route`, `system-map`, `policy`, `security`.
+- **Reopen Conditions:** `meta-ads.md` > 12,000B; case figures in skills; BM report revision collision.
+- **Non-Scope:** live Meta mutations; private `dotads-meta-report` data.
 - **Escalation Conditions:** unapproved live account mutation.
 
 ### TASK-199: Parallel AI development machine guide, research memory and CI fix

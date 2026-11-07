@@ -73,6 +73,7 @@ Read only this file up front; open the reference the chosen path names.
   put `ACCESS_TOKEN` in a command argument.
 - **Budgets are minor currency units** (`5000` = `$50.00`); verify the
   account currency before applying. CBO and ABO budgets never coexist.
+- **Campaign label (`dotads: ` prefix).** Every campaign created through `dotads-meta` (`deploy` or `run -- ads campaign create`) must carry the `dotads: <campaign_name>` prefix (`dotads-meta` warns during `validate` and auto-prefixes `dotads: ` at creation time).
 - **Flags come from the installed binary**, not blog posts: `meta ads
   <resource> <action> --help`.
 

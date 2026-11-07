@@ -960,6 +960,10 @@ test('history learning carries commerce insight, supersedes partial windows, kee
   assert.match(reportMd, /Commerce funnel and diagnostics/); assert.match(reportMd, /Spend concentration/);
   assert.match(reportMd, /rows with outbound clicks: 1\/2/);
   assert.equal(read(report.metadata_path).renderer_version, 'dotads-markdown-csv/4');
+  fs.writeFileSync(path.join(root, 'bm.json'), JSON.stringify({ schema_version: 1, key: 'test', id: '999', name: 'Test BM', slug: 'test-bm', token_env: 'META_ACCESS_TOKEN' }));
+  const bmReport = renderReport(root, 'act_123', { snapshotId: completeAttempts[2].snapshot_id });
+  assert.equal(read(bmReport.metadata_path).renderer_version, 'dotads-markdown/5');
+  assert.notEqual(bmReport.revision_id, report.revision_id);
 });
 
 test('offline learning refresh rebuilds observations from verified snapshots, dry-runs by default and never touches snapshots', t => {

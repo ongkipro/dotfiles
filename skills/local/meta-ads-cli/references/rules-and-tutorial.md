@@ -29,8 +29,9 @@ test candidates, not a universal Meta requirement or verified performance optimu
    - Store all System User tokens in `~/.config/ai-local/secrets.env` (`chmod 600`) and let `dotads-meta` inject `ACCESS_TOKEN` in-memory via `secrets-env get`.
 3. **Mandatory 4-Step Pre-Flight Sequence:**
    - Always run: (1) `dotads-meta validate <campaign.json>` -> (2) `dotads-meta deploy <campaign.json>` (dry-run) -> (3) obtain explicit user approval -> (4) `dotads-meta deploy <campaign.json> --apply`.
-4. **Paused-by-Default Safety Gate:**
+4. **Paused-by-Default Safety Gate & `dotads: ` Campaign Label:**
    - `dotads-meta deploy --apply` forces `--status PAUSED` on all created entities unless `--activate` is explicitly passed.
+   - Every campaign created by `dotads-meta` (`deploy` or `run -- ads campaign create`) must be prefixed with `dotads: <campaign_name>` (`dotads-meta validate` warns if omitted and `deploy`/`run` auto-prefixes `dotads: `).
 5. **Budget Exclusivity & Minor Currency Units:**
    - Choose exactly one budget mode per campaign: **CBO** (budget on `campaign`, none on `adsets`), **ABO** (no budget/bid_strategy/pacing_type on `campaign`, budget on each `adset`), or **Flex** (`"adset_budget_sharing": true` on `campaign`, `daily_budget` on each `adset`).
    - Budgets and bid amounts are integers in **minor currency units** (`5000` = `$50.00` USD).
@@ -104,26 +105,49 @@ hypotheses, not a Meta-certified optimum or a guaranteed ROAS recipe.
    CBO suits flexible allocation; ABO can reserve test budgets. Unequal delivery
    does not prove a fair creative comparison; use a supported randomized test
    when that comparison is the decision.
-5. **Choose audience and placement controls deliberately:** broad eligible reach
-   and suitable automation are candidates, subject to policy, serviceability,
-   brand and measurement constraints. Neither 21–65+ nor all genders is a
-   universal Indonesia default. Do not split every province/city from public
-   shopping statistics; those data are priors, not account conversion evidence.
-6. **Test meaningful creative differences:** vary the relevant customer problem,
-   benefit, demonstration, proof or format, retaining truthful offer facts.
-   Cosmetic variants alone do not test distinct propositions. Match customer
-   language to the explicit market and inspect actual placement previews.
-7. **Predeclare the decision window:** use expected CPA and affordable spend to
-   judge whether each planned cell can produce useful evidence. Document the
-   time horizon, conversion lag, uncertainty and stop-loss; do not invent a
-   universal 24-hour cutoff, purchase count or ROAS threshold. Diagnose signal,
-   funnel and economics before attributing failure to targeting or an engine.
-8. **Validate, iterate and scale deliberately:** compare consistent scopes and
-   backend outcomes, preserve a baseline and log material changes. A plausible
-   winner is provisional until further evidence supports it. Propose controlled
-   budget/creative changes within the approved risk; live writes and new spend
-   require their applicable approval. Record account learning privately and
-   review reusable methods before updating the shared skill.
+5. **Choose audience and placement controls deliberately (adaptive Broad + Advantage+ Audience baseline, hard controls for verified constraints):**
+   every hard filter shrinks auction liquidity and raises clearing CPM/CPC.
+   Start with **0 interests** (empty detailed targeting) + **Advantage+ Audience
+   (`advantage_audience: 1`)** + **Broad Age/Gender** + **Advantage+ Placements**
+   when the pixel/dataset has clean bottom-of-funnel feedback, allowing
+   Andromeda/GenRecs/GEM and creative hooks to qualify buyers. Apply hard
+   `Audience Controls` only for verified legal/purchasing-power floors
+   (`age_min`), physical serviceability or unit-economics exclusions
+   (`excluded_geo_locations`), empirically proven demographic leakage (`>15%`
+   non-converting spend in multi-week breakdowns), or technical routing
+   requirements (such as mobile-only app deep links); see
+   [algorithm and learning §6.1](algorithm-and-learning.md#6-adaptive-targeting-liquidity-broad-vs-audience-controls--multi-horizon-diagnostic-timing).
+   Do not split every province/city from public shopping statistics; those data
+   are priors, not account conversion evidence.
+6. **Test meaningful creative differences & match destination friction to the offer:**
+   vary the relevant customer problem, benefit, demonstration, proof or format
+   (keep ad count proportional to budget, typically 3–5 distinct angles per ad
+   set; avoid crowding >6 ads into a micro-budget ad set), retaining truthful
+   offer facts. Match the destination architecture to the buying journey (e.g.,
+   low-friction embedded checkout for single-SKU direct response vs. high-trust
+   storefront/bundle pages for multi-SKU brands) and monitor step-to-step
+   (`LPV -> ATC -> IC -> Purchase`) conversion velocity.
+7. **Predeclare the decision window (Multi-Horizon Diagnostic Protocol — never pause on `<24h` exploration noise):**
+   use expected CPA, diurnal auction cycles, and conversion lag to judge
+   performance (see [algorithm and learning §6.2](algorithm-and-learning.md#62-multi-horizon-diagnostic--audit-timing-protocol-cycle---economics-aware)):
+   `0–6h` for technical sanity checks only; `>= 24h` (`>= 1` full diurnal cycle)
+   + declared test spend (`>= 1.0x Target_CPA` or owner stop-loss floor) for
+   zero-intent (`0 Conversions` and `ATC <= 1`) stop-loss; `48–72h` (`>=
+   1.5x–2.0x Target_CPA`) when mid-funnel (`ATC` / `IC`) intent is active; and
+   `3–7d` (`last_7d`) before scaling or retiring mature campaigns. Diagnose
+   signal, funnel (`ATC -> IC` drop-off) and economics before attributing
+   failure to targeting or an engine.
+8. **Validate, iterate and scale deliberately (`Scale Up` vs. `Scale Out`):**
+   compare consistent scopes and backend outcomes, preserve a baseline and log
+   material changes (see [algorithm and learning §7.1–§7.3](algorithm-and-learning.md#7-adaptive-scaling-mechanics-coupled-configuration-hierarchy--continuous-evolution)).
+   For vertical **Scale Up**, step budgets gradually (`+15% to +25%` every
+   `48–72h` while marginal CPA holds) and transition to protective bid/value
+   controls (`COST_CAP`, `LOWEST_COST_WITH_BID_CAP`,
+   `LOWEST_COST_WITH_MIN_ROAS`) when uncapped pacing hits diminishing returns.
+   For horizontal **Scale Out**, launch orthogonal creative concepts, new offer
+   bundles, or complementary channels rather than cloning identical ad sets.
+   Live writes and new spend require their applicable approval; promote only
+   generalizable, de-identified mechanisms to shared skills.
 
 The [algorithm and learning reference](algorithm-and-learning.md) has the
 2026 Andromeda/GenRecs/GEM updates, learning phase and measurement changes.

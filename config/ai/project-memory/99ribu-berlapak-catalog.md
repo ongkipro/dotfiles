@@ -19,7 +19,7 @@ metadata:
   - **741 Ready Stock** (`79.0%`) | **197 Out of Stock** (`21.0%`)
   - **89 Active Sellers / Suppliers** | **121 Shipping Warehouses** (with `active_shipping_origin`: `"warehouse"` vs `"distributor_address"`, district, city, province, couriers, COD support, and per-warehouse variant stock)
   - **HPP Range**: `Rp1.700 – Rp3.360.000` (`47` `< Rp10k`, `445` `Rp10k–Rp49k`, `255` `Rp50k–Rp99k`, `191` `> Rp99k`), with per-variant min/max HPP & `recommend_price` ranges (`is_uniform_variant_price`, `ready_variant_count`).
-  - **100% High-Precision Category & Google Taxonomy Mapping**: Reclassified **304 products (`32.4%`)** from Berlapak's raw `"Lainnya"` into **12 clean categories (`CAT-01`..`CAT-12`)** and **163 verified Official Google Product Taxonomy IDs** (`2021-09-21`), with 0 false-positive substring matches.
+  - **100% High-Precision Category & Google Taxonomy Mapping**: Reclassified **304 products (`32.4%`)** from Berlapak's raw `"Lainnya"` into **12 clean categories (`CAT-01`..`CAT-12`)** and **163 verified Official Google Product Taxonomy IDs** (v2021-09), with 0 false-positive substring matches.
 - **Frozen 99ribu Subset (`<= Rp49.000` for `/home/ongki/Projects/99ribu` deterministic tests)**: **482 products** (`373 Ready Stock` in `data-json/products-up-to-49k-ready-stock.json`)
 - **Local Image Assets (`images/`)**:
   - **2,888 `.webp` image files** organized into product folders (`images/<rank>-<slug>/img-01.webp`, `var-01.webp`, etc.) and mapped in `data-json/image-manifest.json`.

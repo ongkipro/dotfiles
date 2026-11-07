@@ -68,7 +68,7 @@
 ## Fixes & new tools on `cuan` (2026-07-13)
 - `pi-9router-sync.service` is an optional Pi catalog adapter. Its endpoint comes
   from Pi's existing provider config; it does not start or configure the gateway.
-- **PostgreSQL client status changed (disk check 2026-08-07):** `psql` resolves to a mise shim but no PostgreSQL version is configured, so `psql`/`pg_dump`/`pg_restore` are currently unavailable until an explicit mise version is selected. The older claim that client 18.4 was available via apt is stale. Other tools in this section must be rechecked individually before use.
+- **PostgreSQL client via mise:** `psql` resolves to a mise shim and requires an active PostgreSQL version configured in mise before `psql`/`pg_dump`/`pg_restore` can run; verify with `psql --version` rather than `which psql`. Other tools in this section must be rechecked individually before use.
 - **Hardware `cuan`**: full specs in the "Device registry" section — don't duplicate. What matters for AI decisions: 4GB swap unused (no OOM), and **the MX150 2GB GPU is too small for a local LLM** → the AI load stays in the cloud.
 
 ## 9Router credential and restore boundary

@@ -8,10 +8,10 @@ metadata:
   modified: 2026-07-30T17:34:58.829Z
 ---
 
-A stale, zone-scoped `CF_API_TOKEN` previously overrode Wrangler's OAuth session and
-caused false 403 responses for account-level Pages and Workers APIs. The variable is
-not currently exported on the Mac as of 2026-08-05, and `wrangler whoami` succeeds
-with OAuth in an interactive terminal.
+When an inherited `CF_API_TOKEN` is restricted to a single DNS zone, Wrangler
+prefers that token over the interactive OAuth login and returns HTTP 403 on
+account-wide Pages and Workers endpoints. With the variable absent from the
+shell environment, `wrangler whoami` authenticates normally through OAuth.
 
 Wrangler treats an explicitly empty token as an authentication choice, so assigning
 `CLOUDFLARE_API_TOKEN=` or `CF_API_TOKEN=` is **not** a safe workaround: it can turn a

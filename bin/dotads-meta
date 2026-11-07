@@ -937,6 +937,10 @@ function validateManifests(campaignPath, explicitBrandPath) {
   if (campaign && typeof campaign === "object") {
     if (!campaign.name || typeof campaign.name !== "string") {
       errors.push("campaign: 'name' is required.");
+    } else if (!/^dotads:\s*\S/i.test(campaign.name.trim())) {
+      warnings.push(
+        `campaign: campaign.name ('${campaign.name}') does not start with 'dotads: '; dotads-meta deploy will automatically prefix it as '${formatDotadsCampaignName(campaign.name)}'.`
+      );
     }
     if (!campaign.objective || !VALID_OBJECTIVES.has(campaign.objective)) {
       errors.push(
@@ -1533,11 +1537,13 @@ function validateManifests(campaignPath, explicitBrandPath) {
       _key: key,
       _targeting: parsedTargeting,
       _promotedObject: parsedPromotedObject,
+      _attributionSpec: Array.isArray(attributionSpec) ? attributionSpec : null,
     });
   }
 
   // Validate ads
   const dcoAdsetUsageCount = new Map();
+  const adsetTotalAdsCount = new Map();
   const cpasAdsetCreativeFormats = new Map();
   const creativeCountriesMap = new Map();
   for (let i = 0; i < ads.length; i++) {
@@ -1554,6 +1560,8 @@ function validateManifests(campaignPath, explicitBrandPath) {
     const creativeRef = ad.creative || ad.creative_key;
     if (!adsetRef || !adsetMap.has(adsetRef)) {
       errors.push(`${label}: references unknown ad set '${adsetRef || ""}'.`);
+    } else {
+      adsetTotalAdsCount.set(adsetRef, (adsetTotalAdsCount.get(adsetRef) || 0) + 1);
     }
     if (!creativeRef || !creativeMap.has(creativeRef)) {
       errors.push(`${label}: references unknown creative '${creativeRef || ""}'.`);
@@ -1677,6 +1685,55 @@ function validateManifests(campaignPath, explicitBrandPath) {
       if (formatSet.has("CAROUSEL_DPA") && formatSet.has("COLLECTION_VIDEO")) {
         warnings.push(
           `adset '${adsetKey}': CPAS guardrail: mixing CAROUSEL_DPA (carousel_images_multi_items) and COLLECTION_VIDEO (collection_video) in the same ad set took about 78% of impressions for Collection Video in the audit (CTR cannibalization); the ~86% click-to-view drop-off seen there is confounded with the applink treatment. Isolate into 1-1-1 CAROUSEL_DPA ad sets.`
+        );
+      }
+    }
+  } else if (campaign?.objective === "OUTCOME_SALES") {
+    for (let i = 0; i < adsets.length; i++) {
+      const as = adsets[i];
+      const key = as.key || as.name;
+      const asLabel = `adsets[${i}] (${key || "unnamed"})`;
+      const resolvedAs = adsetMap.get(key);
+      const t = resolvedAs?._targeting;
+      const attrList = resolvedAs?._attributionSpec;
+      const effectiveBidStrat =
+        (isCbo ? campaign?.bid_strategy : as.bid_strategy) || "LOWEST_COST_WITHOUT_CAP";
+      if (
+        t?.targeting_automation?.advantage_audience === 0 ||
+        (t?.targeting_automation?.advantage_audience === undefined && as.advantage_audience === false)
+      ) {
+        warnings.push(
+          `${asLabel}: Website Sales guardrail: Advantage+ Audience is explicitly disabled (advantage_audience=0 / false); disabling Advantage+ Audience restricts auction liquidity and raises CPM/CPC (see algorithm-and-learning.md §6.1).`
+        );
+      }
+      if (
+        Array.isArray(t?.publisher_platforms) &&
+        t.publisher_platforms.includes("facebook") &&
+        !t.publisher_platforms.includes("instagram")
+      ) {
+        warnings.push(
+          `${asLabel}: Website Sales guardrail: targeting.publisher_platforms restricts delivery to Facebook without Instagram on a non-CPAS website campaign; excluding Instagram Reels/Feed on direct web landing pages shrinks auction liquidity and raises CPM/CPA.`
+        );
+      }
+      if (
+        (as.optimization_goal === "OFFSITE_CONVERSIONS" || as.optimization_goal === "VALUE") &&
+        Array.isArray(attrList) &&
+        attrList.length > 0 &&
+        !attrList.some((s) => String(s?.event_type || "").toUpperCase() === "VIEW_THROUGH")
+      ) {
+        warnings.push(
+          `${asLabel}: Website Sales guardrail: attribution_spec omits VIEW_THROUGH (1d_view) on '${as.optimization_goal}'; click-only attribution withholds view-through conversion signals from GEM and increases CPM during learning (see algorithm-and-learning.md §7.2).`
+        );
+      }
+      if (as.optimization_goal === "VALUE" && effectiveBidStrat === "LOWEST_COST_WITHOUT_CAP") {
+        warnings.push(
+          `${asLabel}: Website Sales guardrail: optimization_goal 'VALUE' with 'LOWEST_COST_WITHOUT_CAP' forces high-AOV auction bidding and 2x-3x higher CPM without a ROAS floor; prefer 'OFFSITE_CONVERSIONS' for lowest CPA or pair 'VALUE' with 'LOWEST_COST_WITH_MIN_ROAS' and 'roas_average_floor'.`
+        );
+      }
+      const totalAdsInSet = adsetTotalAdsCount.get(key) || 0;
+      if (totalAdsInSet > 6) {
+        warnings.push(
+          `adset '${key}': Website Sales guardrail: ${totalAdsInSet} ads are assigned to a single ad set; crowding >6 ads into one ad set fragments impression budget and slows exit from the Learning Phase (recommend 3-5 distinct creative angles per ad set).`
         );
       }
     }
@@ -1852,10 +1909,48 @@ function serializeJsonOrFileArg(val, workspaceDir, campaignDir) {
   return JSON.stringify(val);
 }
 
+const DOTADS_CAMPAIGN_PREFIX = "dotads: ";
+
+function formatDotadsCampaignName(rawName) {
+  if (typeof rawName !== "string") return rawName;
+  const trimmed = rawName.trim();
+  if (!trimmed) return rawName;
+  if (/^dotads:\s*/i.test(trimmed)) {
+    const rest = trimmed.replace(/^dotads:\s*/i, "").trim();
+    return rest ? `${DOTADS_CAMPAIGN_PREFIX}${rest}` : DOTADS_CAMPAIGN_PREFIX.trim();
+  }
+  return `${DOTADS_CAMPAIGN_PREFIX}${trimmed}`;
+}
+
+function normalizeCampaignCreateArgs(args) {
+  if (!Array.isArray(args)) return args;
+  let sawCampaign = false;
+  let isCampaignCreate = false;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "campaign") sawCampaign = true;
+    else if (sawCampaign && args[i] === "create") {
+      isCampaignCreate = true;
+      break;
+    }
+  }
+  if (!isCampaignCreate) return args;
+  const out = [...args];
+  for (let i = 0; i < out.length; i++) {
+    if (out[i] === "--name" && i + 1 < out.length) {
+      out[i + 1] = formatDotadsCampaignName(out[i + 1]);
+      i++;
+    } else if (typeof out[i] === "string" && out[i].startsWith("--name=")) {
+      out[i] = `--name=${formatDotadsCampaignName(out[i].slice("--name=".length))}`;
+    }
+  }
+  return out;
+}
+
 function buildCampaignArgs(validation, activate) {
   const { brand, manifest } = validation;
   const c = manifest.campaign;
   const status = activate ? c.status || "PAUSED" : "PAUSED";
+  const campaignName = formatDotadsCampaignName(c.name);
   const args = [
     "--output",
     "json",
@@ -1867,7 +1962,7 @@ function buildCampaignArgs(validation, activate) {
   if (brand.business_id) {
     args.push("--business-id", String(brand.business_id));
   }
-  args.push("campaign", "create", "--name", c.name, "--objective", c.objective, "--status", status);
+  args.push("campaign", "create", "--name", campaignName, "--objective", c.objective, "--status", status);
 
   if (c.daily_budget !== undefined && c.daily_budget !== null) {
     args.push("--daily-budget", String(c.daily_budget));
@@ -2513,7 +2608,7 @@ function cmdInit(argv) {
     const sampleCampaign = {
       campaign: {
         key: "camp_sales_cbo",
-        name: "Sales_CBO_Launch",
+        name: "dotads: Sales_CBO_Launch",
         objective: "OUTCOME_SALES",
         status: "PAUSED",
         daily_budget: 5000,
@@ -2710,6 +2805,7 @@ function cmdDeploy(argv) {
   const metaBin = resolveMetaBin();
 
   const campKey = manifest.campaign.key || manifest.campaign.name;
+  const campDisplayName = formatDotadsCampaignName(manifest.campaign.name);
   const campArgs = buildCampaignArgs(validation, activate);
   const campHash = entityHash("campaign", manifest.campaign, brand);
   const existingCamp = state.campaigns[campKey];
@@ -2720,7 +2816,7 @@ function cmdDeploy(argv) {
     step: 1,
     kind: "campaign",
     key: campKey,
-    name: manifest.campaign.name,
+    name: campDisplayName,
     hash: campHash,
     cachedId: existingCamp?.id || null,
     drift: Boolean(existingCamp?.id && existingCamp?.hash && existingCamp.hash !== campHash),
@@ -2896,7 +2992,7 @@ function cmdDeploy(argv) {
       const sdkCampPayload = {
         account_id: brand.ad_account_id,
         params: {
-          name: camp.name,
+          name: campDisplayName,
           objective: camp.objective,
           status,
           buying_type: camp.buying_type || "AUCTION",
@@ -2934,7 +3030,7 @@ function cmdDeploy(argv) {
     }
     state.campaigns[campKey] = {
       id: campaignId,
-      name: manifest.campaign.name,
+      name: campDisplayName,
       hash: campHash,
       created_at: new Date().toISOString(),
     };
@@ -3413,7 +3509,8 @@ function cmdRun(argv) {
   if (selectedBM) env.BUSINESS_ID = selectedBM.id; // Brand conflicts are rejected before this point.
 
   const metaBin = resolveMetaBin();
-  const res = spawnSync(metaBin, passthrough, {
+  const normalizedPassthrough = normalizeCampaignCreateArgs(passthrough);
+  const res = spawnSync(metaBin, normalizedPassthrough, {
     env,
     stdio: "inherit",
   });

@@ -396,11 +396,13 @@ Product-level `converted_product_*` reporting is not requested. With the profile
 `commerce-insight/2` adds the channel split: `catalog_segment_*` in-app SDK vs
 website funnel, in-app arrival per link click and `app_site_visit` next to the
 ordinary actions, so a platform-claimed site visit is never read as app arrival.
-Renderers are `dotads-markdown-csv/4` and `dotads-history/4`; earlier revisions
-stay immutable.
+Renderers are `dotads-markdown-csv/4`, `dotads-markdown/5` (BM workspaces), and
+`dotads-history/4`; earlier revisions stay immutable.
 
-`dotads-meta deploy` creates an ad set that needs `roas_average_floor` through
-the installed SDK (the official CLI cannot send `bid_constraints`). It keeps
+`dotads-meta deploy` creates CPAS campaigns (`is_pca_unified`, `promoted_object`),
+creatives with `template_url_spec` (native app deep-link `app_id` binding), and
+ad sets that need `roas_average_floor` or `ad_set_goal` (`{"type": 0}`) through
+the installed SDK (the official CLI cannot send those Graph API fields). It keeps
 every rule of `deploy`: dry run without `--apply`, `PAUSED` unless `--activate`,
 the deployment lock retained after a failed call, and the token never printed;
 this path is covered by offline tests with a recording stand-in interpreter.
