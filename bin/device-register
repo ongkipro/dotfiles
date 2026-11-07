@@ -180,6 +180,42 @@ check_link "$HOME/.config/gh/config.yml"     "gh cli"
 check_link "$HOME/.tmux.conf"                "tmux"
 check_link "$HOME/.gitignore_global"         "gitignore global"
 
+# ── Kapasitas AI paralel (angka dibaca dari ai-capacity --json, bukan ditulis tangan) ──
+CAP_ROWS=""
+if have ai-capacity && have python3; then
+  # Take the JSON only from a successful ai-capacity run: a nonzero exit with partial output leaves the section out.
+  if CAP_JSON="$(ai-capacity --json 2>/dev/null)"; then
+    CAP_ROWS="$(printf '%s' "$CAP_JSON" | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    t, h, s, c = d["terminals"], d["heavy"], d["subagents"], d["costs"]
+    rows = [
+        ("Terminal AI (nyaman / maksimum)", str(t["comfortable"]) + " / " + str(t["max"])),
+        ("Slot job berat (`heavy-run`)", str(h["slots"]) + " (irisan memori " + str(h["memory_max_gb"]) + " GB)"),
+        ("Subagen total (target)", str(s["total_target"])),
+        ("Sumber biaya", "diukur di mesin ini" if c["source"] == "measured" else "bawaan, belum diukur"),
+        ("Mesin terdegradasi", "ya" if d["degraded"] else "tidak"),
+    ]
+    print("\n".join("| " + a + " | " + b + " |" for a, b in rows))
+except Exception:
+    pass
+' 2>/dev/null)" || CAP_ROWS=""
+  fi
+fi
+CAP_SECTION=""
+if [ -n "$CAP_ROWS" ]; then
+  CAP_SECTION="## Kapasitas AI paralel
+
+> Dibaca dari \`ai-capacity --json\`. Terminal dan total subagen adalah target; yang ditegakkan hanya slot job berat, irisan memori, dan batas per-run pi-subagents. Panduan: [\`docs/parallel-ai-dev-machine.md\`](../docs/parallel-ai-dev-machine.md).
+
+| Apa | Nilai |
+|---|---|
+$CAP_ROWS
+
+"
+fi
+
 # ── Render ───────────────────────────────────────────────────────────────────
 read -r -d '' DOC <<EOF || true
 # Device: \`$HOST\`
@@ -229,7 +265,7 @@ $AI_ROWS
 | Apa | Status |
 |---|---|
 $CLAUDE_ROWS
-## Symlink dotfiles
+${CAP_SECTION}## Symlink dotfiles
 
 | Apa | Path | Status |
 |---|---|---|

@@ -4,7 +4,8 @@
   ai-capacity [plan] [--json]   recommended limits for this device (nothing changes)
   ai-capacity measure [--reset] record what terminals and subagents really cost here (Linux, PSS; device-local)
   ai-capacity apply [--force]   measure, write the device-local limits below, load them, report what is enforced
-  ai-capacity status            live load against the plan (exit 1 above plan, 2 if it cannot be observed)
+  ai-capacity status            live load against the plan (exit 1 above plan, 2 if it cannot be observed);
+                                also lists long-running CPU hogs outside heavy-run as ADVICE (never changes the exit code)
 
 What is enforced and what is only a target:
   ENFORCED  heavy jobs: `heavy-run` slots (~/.config/ai-local/capacity.env) and one shared memory cap for all of
@@ -319,7 +320,44 @@ def apply(p, home, current):
     return report, state
 
 
+def hogs(rows, read_stat=None, uptime=None, tick=None, min_age=None, min_avg=None):
+    """Advice only: processes older than min_age s whose lifetime CPU average is at least min_avg cores and that run
+    outside ai-heavy.slice (heavy-run neither queues nor caps them). Linux only; [] elsewhere.
+    It cannot tell an orphan from a legitimate long job (a native build or a Docker build worker can qualify), so it
+    never changes status' exit code and never stops anything: inspect, then decide. This is what hid an orphaned
+    `npm prune` from a dead Docker build for 33 hours. Inputs are injectable so tests need no live process."""
+    min_age = float(os.environ.get('AI_CAPACITY_HOG_MIN_AGE', '3600')) if min_age is None else min_age
+    min_avg = float(os.environ.get('AI_CAPACITY_HOG_MIN_AVG', '0.8')) if min_avg is None else min_avg
+    try:
+        tick = os.sysconf('SC_CLK_TCK') if tick is None else tick
+        uptime = float(Path('/proc/uptime').read_text().split()[0]) if uptime is None else uptime
+    except (OSError, ValueError):
+        return []
+    read_stat = read_stat or (lambda pid: Path(f'/proc/{pid}/stat').read_text())
+    found = []
+    for pid, argv, cgroup in rows:
+        if pid is None or 'ai-heavy.slice' in cgroup:
+            continue
+        try:
+            fields = read_stat(pid).rsplit(')', 1)[1].split()
+            ppid, cpu, start = int(fields[1]), (int(fields[11]) + int(fields[12])) / tick, int(fields[19]) / tick
+        except (OSError, IndexError, ValueError):
+            continue
+        age = uptime - start
+        if age >= min_age and cpu / age >= min_avg:
+            found.append((pid, age, cpu / age, ppid, os.path.basename(argv[0]) if argv else '?'))
+    return sorted(found, key=lambda r: -r[2])
+
+
 # ---------------------------------------------------------------- status
+
+def available_gb():
+    """MemAvailable in GB, or None where /proc/meminfo does not exist (injectable for tests)."""
+    meminfo = Path('/proc/meminfo')
+    if not meminfo.exists():
+        return None
+    return int(re.search(r'MemAvailable:\s+(\d+)', meminfo.read_text()).group(1)) / 1048576
+
 
 def status(p):
     rows = proc_table()
@@ -331,14 +369,15 @@ def status(p):
         rows = [(None, line.split(), '') for line in result.stdout.splitlines()]
     agents = sum(1 for _, argv, _ in rows if classify(argv) == 'agent')
     subagents = sum(1 for _, argv, _ in rows if classify(argv) == 'subagent')
-    available = None
-    if Path('/proc/meminfo').exists():
-        available = int(re.search(r'MemAvailable:\s+(\d+)', Path('/proc/meminfo').read_text()).group(1)) / 1048576
+    available = available_gb()
     print(f"Agent processes: {agents} (target: comfortable {p['terminals']['comfortable']}, max {p['terminals']['max']})")
     print(f"Subagent processes: {subagents} (target {p['subagents']['total_target']}; one run can host several)")
     if available is not None:
         print(f"Memory available: {available:.1f} GB of {p['device']['ram_gb']} GB (reserve {p['reserve_gb']} GB)")
     over = agents > p['terminals']['max'] or subagents > max(1, p['subagents']['total_target']) or (available is not None and available < p['reserve_gb'])
+    for pid, age, avg, ppid, name in hogs(rows):
+        print(f"ADVICE long-running CPU user outside heavy-run: pid {pid} {name} (parent {ppid}) up {age / 3600:.1f} h, averaging {avg:.1f} cores. "
+              "Expected for a long build? If not (an orphan of a dead build or test), stop it by exact PID. Not stopped automatically.")
     if over:
         print('ABOVE PLAN: close idle terminals (their language servers and MCP stay in memory) before starting more work.')
     return 1 if over else 0

@@ -4,6 +4,13 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-07 — Orphan-hog monitor, device record, lessons (TASK-200)
+
+- `ai-capacity status` now reports processes older than one hour that average at least 0.8 cores outside `ai-heavy.slice`, the case that hid an orphaned `npm prune` from a dead Docker build for 33 hours. It is advice only: it cannot tell an orphan from a legitimate long build, so it never changes the exit code and never stops anything. Predicate and exit-code behaviour are tested deterministically from injected process data.
+- `device-register` writes a "Kapasitas AI paralel" section read from `ai-capacity --json` (absent where the tool is absent or fails); `devices/rich.md` regenerated.
+- `linux-rich-maintenance.md` records the device-local `rich-archive` and the tokophi loopback bind.
+- Four verified shared lessons promoted: no machine-wide load waits inside `heavy-run`, scratch cleanup must grep open task scripts, integration test limits catch hangs rather than measure speed, no parallel CREATE/DROP DATABASE beside other database DDL.
+
 ## 2026-11-07 — Parallel AI development machine guide, research memory, CI fix (TASK-199)
 
 - New `docs/parallel-ai-dev-machine.md`: how to reproduce the parallel-terminals setup on another Linux device, with every claim labelled measured, sourced or assumption. macOS is stated as not supported as shipped (`heavy-run` and `dev-freeze` depend on Linux behaviour). Public research excerpt in `docs/research/parallel-ai-dev-machine-2026-11-07.md`.

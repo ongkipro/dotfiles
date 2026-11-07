@@ -1,7 +1,7 @@
 # Device: `rich`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-11-03**
+> Terakhir diperbarui: **2026-11-07**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -22,7 +22,7 @@
 | CPU | Intel(R) Core(TM) i7-7700T CPU @ 2.90GHz (8 thread) |
 | RAM | 31.2 GB |
 | GPU | Intel Corporation HD Graphics 630 (rev 04) |
-| Disk (/) | 218G total, 80G free (62% used) |
+| Disk (/) | 218G total, 77G free (63% used) |
 
 ## AI CLI
 
@@ -53,6 +53,18 @@
 | deny baca `.env` | ✅ ada |
 | hook canonical (git-guard, memory-usage) | ✅ terpasang |
 | residu switcher multi-akun | ✅ bersih |
+
+## Kapasitas AI paralel
+
+> Dibaca dari `ai-capacity --json`. Terminal dan total subagen adalah target; yang ditegakkan hanya slot job berat, irisan memori, dan batas per-run pi-subagents. Panduan: [`docs/parallel-ai-dev-machine.md`](../docs/parallel-ai-dev-machine.md).
+
+| Apa | Nilai |
+|---|---|
+| Terminal AI (nyaman / maksimum) | 4 / 5 |
+| Slot job berat (`heavy-run`) | 2 (irisan memori 8.0 GB) |
+| Subagen total (target) | 8 |
+| Sumber biaya | diukur di mesin ini |
+| Mesin terdegradasi | tidak |
 
 ## Symlink dotfiles
 

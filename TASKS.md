@@ -4,7 +4,7 @@ Updated: 2026-11-07
 
 Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
 
-Done through 2026-11-07: see [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194 to TASK-197 included).
+Done through 2026-11-07: see [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194 to TASK-199 included).
 
 ## In progress
 
@@ -20,17 +20,17 @@ Done through 2026-11-07: see [TASKS-index-2026-11-07](docs/archive/TASKS-index-2
 - **Non-Scope:** live account calls in tests; history rewrite.
 - **Escalation Conditions:** unapproved live account mutation.
 
-### TASK-199: Parallel AI development machine guide, research memory and CI fix
-- **Requirement:** REQ-PARALLEL-GUIDE (owner 2026-11-07). Full contract: [TASKS-199-contract-full](docs/archive/TASKS-199-contract-full.md).
+### TASK-200: Orphan-hog monitor, rich device record, rich tooling note, lessons
+- **Requirement:** REQ-PARALLEL-FOLLOWUP (owner 2026-11-07). Full contract: [TASKS-200-contract-full](docs/archive/TASKS-200-contract-full.md).
 - **Risk Level:** R2.
-- **Allowed Paths:** `docs/parallel-ai-dev-machine.md`, `docs/research/parallel-ai-dev-machine-2026-11-07.md`, `config/ai/memory/{parallel-research,preferences,meta-ads}.md`, `config/ai/memory-router.json`, `config/mise-config.toml`, `docs/linux-dev-setup.md`, `docs/DOTFILES_SITEMAP.md`, `CHANGELOG.md`, `TASKS.md`, `docs/archive/`.
-- **Protected Paths:** `bin/delivery-ledger*`, `docs/task-change-boundary.md`, `config/ai/README.md`, `config/ai/project-memory/**`, `skills/local/development-kit/**`.
-- **Accepted Invariants:** `preferences.md` inside the router budget; moved Meta Ads rules keep every sentence and authorise no unapproved live change; no private figures or identifiers in public files; no macOS support claim; scraping defaults stay a labelled proposal.
-- **Regression Checks:** `ai-doctor --self-test`, `ai-memory-route-test`, `ai-policy-lint`, `system-map --check`, `ai-memory-link --check`, `security-check`.
-- **Reopen Conditions:** CI memory-budget failure; a moved rule stops loading under its trigger; a guide claim shown false elsewhere.
-- **Canonical Contract Owners:** the guide (profile, rules, reproduction); `parallel-research.md` (research/scraping defaults); `meta-ads.md` (owner Meta Ads rules).
-- **Non-Scope:** `AGENTS.md`/`llms.txt` (owner decision), macOS ports, off-machine backups, any `bin/` change.
-- **Escalation Conditions:** a change needs sudo, a live account, or another session's files.
+- **Allowed Paths:** `bin/{ai-capacity,device-register}{,-test}`, `devices/{rich,README}.md`, `config/ai/project-memory/linux-rich-maintenance.md`, `config/ai/memory/{ops,development}-lessons.md`, `docs/DOTFILES_SITEMAP.md`, `CHANGELOG.md`, `TASKS.md`, `docs/archive/`.
+- **Protected Paths:** `bin/delivery-ledger*`, `docs/task-change-boundary.md`, `config/ai/README.md`, other `project-memory/*`, `skills/local/development-kit/**`.
+- **Canonical Contract Owners:** `ai-capacity` (limits, hog report); `device-register` (generated record); `ai-learn` (promotion).
+- **Accepted Invariants:** hog check is advice only (never changes the exit code, never stops a process) and exempts `ai-heavy.slice`; `devices/rich.md` regenerated not hand-edited; capacity section absent without `ai-capacity`; only verified shared lessons promoted; no device-local path or secret in shared memory (device-specific paths are allowed only in `linux-rich-maintenance.md`).
+- **Regression Checks:** `ai-capacity-test` (inside and outside heavy-run), `device-register-test`, `ai-doctor --self-test`, `ai-policy-lint`, `ai-memory-route-test`, `system-map --check`, `security-check`.
+- **Reopen Conditions:** an advice line that cannot be told apart from a normal long job is reported as noise; `device-register` output changes on a device without `ai-capacity`.
+- **Non-Scope:** tracking `rich-*` tools (device-local on purpose), auto-stopping hogs, off-machine backup, the other five candidates.
+- **Escalation Conditions:** sudo, a live account, or another session's files.
 
 ### TASK-175: Cloudflare Asia-Pacific placement default
 - **Requirement:** REQ-CLOUDFLARE-APAC (owner 2026-11-02: web projects for Indonesia/Asia use Cloudflare SEA/Asia/Singapore; understand the breakdown and improve the skill).

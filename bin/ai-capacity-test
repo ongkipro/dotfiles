@@ -112,4 +112,64 @@ if [ -e /proc/self/smaps_rollup ]; then
   env -u AI_CAPACITY_NO_MEASURE AI_CAPACITY_HOME="$t/live" bin/ai-capacity measure >/dev/null 2>&1 || true
   python3 -c "import json; d=json.load(open('$t/live/.config/ai-local/capacity-costs.json')); assert d['terminal_gb'] >= 9.0, d"
 fi
+# hogs(): deterministic predicate checks from injected stat/uptime/cgroup (no live CPU load, no timing).
+python3 - <<'PY2'
+import importlib.machinery, importlib.util, os, sys
+sys.dont_write_bytecode = True
+loader = importlib.machinery.SourceFileLoader('aicap', 'bin/ai-capacity')
+spec = importlib.util.spec_from_loader('aicap', loader); m = importlib.util.module_from_spec(spec); loader.exec_module(m)
+TICK = 100
+def stat(pid, utime, stime, start, ppid=1):  # proc(5): fields after the last ')' -> state=0 ppid=1 ... utime=11 stime=12 ... starttime=19
+    f = ['S', str(ppid)] + ['0'] * 9 + [str(utime), str(stime)] + ['0'] * 6 + [str(start)] + ['0'] * 3
+    return f'{pid} (my (odd) name) ' + ' '.join(f)
+S = {
+    '10': stat(10, 300000, 0, 0),        # 3000 s CPU over 3600 s -> 0.83 cores: qualifies
+    '11': stat(11, 100000, 0, 0),        # 0.28 cores: below the average
+    '12': stat(12, 300000, 0, 358000),   # 3000 s CPU but only 20 s old: below the age
+    '13': stat(13, 300000, 0, 0),        # qualifies on CPU and age but runs inside ai-heavy.slice: exempt
+    '14': stat(14, 250000, 100000, 0),   # utime + stime = 3500 s over 3600 s -> 0.97 cores (sum counted, highest)
+}
+rows = [('10', ['/usr/bin/tool'], '0::/user.slice/x'), ('11', ['a'], '0::/user.slice/x'), ('12', ['b'], '0::/user.slice/x'),
+        ('13', ['c'], '0::/user.slice/user@1000.service/ai-heavy.slice/run.scope'), ('14', ['d'], '0::/user.slice/x'),
+        (None, ['e'], ''), ('15', ['gone'], '0::/user.slice/x')]
+def rd(pid):
+    if pid not in S: raise OSError('gone')
+    return S[pid]
+got = m.hogs(rows, read_stat=rd, uptime=3600.0, tick=TICK, min_age=3600, min_avg=0.8)
+assert [r[0] for r in got] == ['14', '10'], got                 # 14 comes later in the input but averages higher: descending output
+avg = dict((r[0], r[2]) for r in got)
+assert abs(avg['10'] - 3000 / 3600) < 1e-9 and abs(avg['14'] - 3500 / 3600) < 1e-9, avg   # utime + stime / lifetime, exactly
+assert all(r[3] == 1 for r in got), got                         # ppid read from the right field
+assert m.hogs(rows, read_stat=rd, uptime=3600.0, tick=TICK, min_age=7200, min_avg=0.8) == [], 'age gate'
+low = [r[0] for r in m.hogs(rows, read_stat=rd, uptime=3600.0, tick=TICK, min_age=3600, min_avg=0.1)]
+assert '11' in low and '11' not in [r[0] for r in got], (low, got)   # lowering the average admits 11; 0.8 excludes it
+assert '13' not in low and '12' not in low, low                 # heavy slice stays exempt, young process stays out
+os.environ['AI_CAPACITY_HOG_MIN_AGE'] = '99999'; assert m.hogs(rows, read_stat=rd, uptime=3600.0, tick=TICK) == [], 'env override read'
+print('hogs: predicate ok')
+PY2
+# status prints the hog line as ADVICE and the exit code does not depend on it (stubbed list, status run in-process).
+python3 - <<'PY3'
+import importlib.machinery, importlib.util, io, contextlib, sys
+sys.dont_write_bytecode = True
+loader = importlib.machinery.SourceFileLoader('aicap', 'bin/ai-capacity')
+spec = importlib.util.spec_from_loader('aicap', loader); m = importlib.util.module_from_spec(spec); loader.exec_module(m)
+plan = m.plan(31.2, 8, dict(m.DEFAULT_COSTS))
+AGENT = ('1', ['pi'], '')
+def state(agents, mem, h):
+    m.proc_table = lambda: [AGENT] * agents
+    m.available_gb = lambda: mem
+    m.hogs = lambda rows, **k: h
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf): rc = m.status(plan)
+    return rc, buf.getvalue()
+hog = [(4242, 7200.0, 1.5, 1, 'npm')]
+below = (plan['terminals']['comfortable'], plan['reserve_gb'] + 5.0)      # within plan, plenty of memory
+above = (plan['terminals']['max'] + 1, plan['reserve_gb'] + 5.0)          # one agent over the maximum
+rc, out = state(*below, []);  assert rc == 0 and 'ADVICE' not in out, (rc, out)
+rc, out = state(*below, hog); assert rc == 0 and 'ADVICE long-running CPU user outside heavy-run: pid 4242 npm' in out, (rc, out)   # advice never raises the code
+rc, out = state(*above, []);  assert rc == 1 and 'ABOVE PLAN' in out, (rc, out)
+rc, out = state(*above, hog); assert rc == 1 and 'ABOVE PLAN' in out and 'ADVICE' in out, (rc, out)
+rc, out = state(plan['terminals']['comfortable'], plan['reserve_gb'] - 1.0, []); assert rc == 1, rc   # low memory is still above plan
+print('status: advice only, exit code unchanged')
+PY3
 echo "ai-capacity-test: ok"

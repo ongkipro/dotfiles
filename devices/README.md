@@ -13,4 +13,4 @@ Jalankan `device-register` di tiap device (juga setelah upgrade hardware/OS).
 | [`lenovo`](lenovo.md) | **- -** | Ubuntu 26.04.1 LTS | 13th Gen Intel(R) Core(TM) i7-1355U (8 thread) | 9.7 GB | 2026-11-01 |
 | [`Olans-MacBook-Pro`](Olans-MacBook-Pro.md) | **Apple Mac14,7 · laptop** | macOS 26.5.1 | Apple M2 (8 thread) | 8.0 GB | 2026-08-05 |
 | [`ongkis-MacBook-Air`](ongkis-MacBook-Air.md) | **Apple MacBookAir10,1 · laptop** | macOS 26.5.2 | Apple M1 (8 thread) | 8.0 GB | 2026-10-20 |
-| [`rich`](rich.md) | **Dell Inc. OptiPlex 7050 · desktop** | Ubuntu 24.04.5 LTS | Intel(R) Core(TM) i7-7700T CPU @ 2.90GHz (8 thread) | 31.2 GB | 2026-11-03 |
+| [`rich`](rich.md) | **Dell Inc. OptiPlex 7050 · desktop** | Ubuntu 24.04.5 LTS | Intel(R) Core(TM) i7-7700T CPU @ 2.90GHz (8 thread) | 31.2 GB | 2026-11-07 |

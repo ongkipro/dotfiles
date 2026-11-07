@@ -8,3 +8,5 @@ Done 2026-11-01 to 2026-11-03: TASK-170 → [170](TASKS-170-completed.md); TASK-
 Done 2026-11-04 to 2026-11-05: TASK-177-189 (dotads-meta, Meta/Pixel docs, device update notice) and finished TASK-151/157 → [177-189](TASKS-177-190-completed.md); TASK-190 → [190](TASKS-190-completed.md); TASK-191 → [191](TASKS-191-completed.md); TASK-192 → [192](TASKS-192-completed.md); TASK-193 → [193](TASKS-193-completed.md); TASK-194 → [194](TASKS-194-completed.md); TASK-195 → [195](TASKS-195-completed.md); TASK-196 → [196](TASKS-196-completed.md).
 
 Done 2026-11-06 to 2026-11-07: TASK-194 → [194](TASKS-194-completed.md); TASK-195 → [195](TASKS-195-completed.md); TASK-196 → [196](TASKS-196-completed.md); TASK-197 → [197](TASKS-197-completed.md).
+
+Done 2026-11-07: TASK-199 → [199](TASKS-199-completed.md).

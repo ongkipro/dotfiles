@@ -94,5 +94,30 @@ BOUT="$(HOME="$FH" CLAUDE_CONFIG_DIR="$CC" PATH="$STUBS:$PATH" DOTFILES_DIR="$DR
 printf '%s\n' "$BOUT" | grep -q 'tertinggal' \
   && bad "an up-to-date checkout was warned about" || ok "an up-to-date checkout is not warned about"
 
+# The parallel-capacity section is read from ai-capacity: present with real numbers when the tool exists, absent when it does not.
+if command -v ai-capacity >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
+  printf '%s' "$OUT" | grep -qF '## Kapasitas AI paralel' && ok "capacity section present when ai-capacity exists" || bad "capacity section missing"
+  printf '%s' "$OUT" | sed -n '/## Kapasitas AI paralel/,/## Symlink/p' | grep -qE '^\| Terminal AI \(nyaman / maksimum\) \| [0-9]+ / [0-9]+ \|' \
+    && ok "capacity section carries numeric terminals" || bad "capacity terminals row malformed"
+fi
+# Absence is proven only when the generator otherwise succeeds: same PATH of symlinks, with python3 present and ai-capacity not.
+mkpath() { local d="$1"; shift; mkdir -p "$d"; for c in bash git tar mktemp mkdir date hostname sed awk grep cut tr head tail sort uname cat ls readlink dirname basename id wc rm ln cp mv env python3 "$@"; do p="$(command -v "$c" 2>/dev/null)" && ln -sf "$p" "$d/$c"; done; }
+mkpath "$TMP/nocap"
+[ -x "$TMP/nocap/python3" ] && [ ! -e "$TMP/nocap/ai-capacity" ] && ok "fixture has python3 and no ai-capacity" || bad "fixture PATH is not what the test claims"
+OUT2="$(PATH="$TMP/nocap" DOTFILES_DIR="$SCRATCH" bash "$CMD" --dry-run 2>&1)"; rc2=$?
+[ "$rc2" -eq 0 ] && ok "generator succeeds without ai-capacity" || bad "generator exited $rc2 without ai-capacity"
+printf '%s' "$OUT2" | grep -qF '## Hardware' && printf '%s' "$OUT2" | grep -qF '## Symlink dotfiles' && ok "record is complete without ai-capacity" || bad "record incomplete without ai-capacity"
+printf '%s' "$OUT2" | grep -qF '## Kapasitas AI paralel' && bad "capacity section appeared without ai-capacity" || ok "capacity section absent without ai-capacity"
+
+# A failing ai-capacity must not leave a section behind, even when it printed valid JSON first.
+mkpath "$TMP/failcap"
+printf '#!/bin/sh\necho %s\nexit 3\n' "'{\"terminals\":{\"comfortable\":9,\"max\":9},\"heavy\":{\"slots\":9,\"memory_max_gb\":9},\"subagents\":{\"total_target\":9},\"costs\":{\"source\":\"measured\"},\"degraded\":false}'" > "$TMP/failcap/ai-capacity"; chmod +x "$TMP/failcap/ai-capacity"
+OUT3="$(PATH="$TMP/failcap" DOTFILES_DIR="$SCRATCH" bash "$CMD" --dry-run 2>&1)"; rc3=$?
+[ "$rc3" -eq 0 ] && ok "generator survives a failing ai-capacity" || bad "generator exited $rc3 on a failing ai-capacity"
+printf '%s' "$OUT3" | grep -qF '## Kapasitas AI paralel' && bad "failing ai-capacity left its section" || ok "failing ai-capacity leaves no section"
+mkpath "$TMP/badjson"; printf '#!/bin/sh\necho not-json\n' > "$TMP/badjson/ai-capacity"; chmod +x "$TMP/badjson/ai-capacity"
+OUT4="$(PATH="$TMP/badjson" DOTFILES_DIR="$SCRATCH" bash "$CMD" --dry-run 2>&1)"; rc4=$?
+[ "$rc4" -eq 0 ] && ! printf '%s' "$OUT4" | grep -qF '## Kapasitas AI paralel' && ok "malformed ai-capacity output leaves no section" || bad "malformed output handled wrongly (rc=$rc4)"
+
 [ "$f" -eq 0 ] && { echo "device-register-test: PASS"; exit 0; }
 echo "device-register-test: $f case(s) failed" >&2; exit 1

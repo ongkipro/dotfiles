@@ -79,7 +79,11 @@ Several AI CLIs run at once on `rich`, one tmux session each. Device-local
 tools enforce isolation; their source and the full blueprint stay outside
 dotfiles (`~/.local/bin/rich-db`, `~/.local/bin/rich-session`,
 `~/.config/ai-local/rich-shell-guard.sh`, blueprint
-`~/Documents/work/notes/rich-ai-db-isolation-blueprint.md`).
+`~/Documents/work/notes/rich-ai-db-isolation-blueprint.md`). Device-local on purpose, not in dotfiles:
+`rich-db`, `rich-session`, and `rich-archive` (moves session transcripts older than N days from the SSD to
+`/data/backups/ai-sessions-archive-<date>/`; dry run by default, copy then verified delete). The machine-wide
+rules (parallel limits, SSD for hot data and `/data` for cold copies) are in `docs/parallel-ai-dev-machine.md`
+and the device-local `device.md`.
 
 - **One AI per checkout.** A second task gets its own worktree at
   `~/Projects/.worktrees/<slug>/<task>` (branch `work/<task>`, tmux session
@@ -107,9 +111,11 @@ dotfiles (`~/.local/bin/rich-db`, `~/.local/bin/rich-session`,
   runner.
 - **Chrome DevTools MCP** runs with `--isolated --no-usage-statistics` so
   concurrent sessions never fight over Chrome's `SingletonLock`.
-- Per-repo compose migrations (tokophi `0.0.0.0:5433`, clinic-dashboard
-  `5432/5433`, geraicuan `55433`, kliniknuma, bukalaris RAM) wait until their
-  agents are idle; the queue lives in the blueprint.
+- Per-repo compose migrations (clinic-dashboard `5432/5433`, geraicuan
+  `55433`, kliniknuma, bukalaris RAM) wait until their agents are idle; the
+  queue lives in the blueprint. tokophi was bound to `127.0.0.1:5433` on
+  2026-11-07 (dump taken first; the compose change is left for that project's
+  own PR).
 
 
 ---
