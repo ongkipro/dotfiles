@@ -108,20 +108,24 @@ dotads-meta-test && Campaign(id).api_get(fields=['is_pca_unified','promoted_obje
 ---
 
 
-## Lesson: CPAS Carousel DPA (`carousel_images_multi_items`) requires SDK creative creation to preserve `template_url_spec` and `format_transformation_spec`
+## Lesson: CPAS Carousel vs Collection (`da_collection`) — eliminate `da_collection` via `asset_feed_spec` + `format_transformation_spec` and hot-swap creatives in-place
 
 ### Symptom
 On a Shopee CPAS `1-1-1` Carousel campaign (`carousel_images_multi_items`), Ads Manager showed Collection (`FORMAT_AUTOMATION`: `['CAROUSEL', 'COLLECTION']`) active with `format_transformation_spec: [{"data_source": [], "format": "da_collection"}]` and `template_url_spec: null`; `facebook_reels` clicks opened a Meta Instant Experience grid instead of deep-linking directly into the Shopee App PDP (`0` `onsite_app_add_to_cart` on Reels vs `6` on Feed).
 
 ### Root cause
-Upstream `meta` CLI 1.3.1 (`meta ads creative create`) lacks `--template-url-spec` and `--format-transformation-spec`, dropping `template_url_spec` and leaving `format_transformation_spec` at `da_collection` only. In addition, if `.meta-state.json` retains old `creatives` entries when a campaign is recreated under the same creative key, `dotads-meta deploy` skips creative creation and reuses the stale creative ID.
+1. Upstream `meta` CLI 1.3.1 (`meta ads creative create`) lacks `--template-url-spec` and `--format-transformation-spec`, dropping `template_url_spec` and leaving `format_transformation_spec` at `da_collection` only.
+2. Even when calling `POST /act_<id>/adcreatives` via the SDK with `format_transformation_spec`, omitting `asset_feed_spec` causes Meta Graph API v25.0/v26.0 to automatically append `{"data_source": [], "format": "da_collection"}` into `format_transformation_spec`.
 
 ### Durable invariant
-1. CPAS / catalog creatives with `template_url_spec`, `format_transformation_spec`, or `product_set_id` + `object_story_spec` must be created through the Python `facebook_business` SDK (`AdAccount.create_ad_creative`) with `template_url_spec: {"config": {"app_id": "957549474255294"}}`, `asset_feed_spec: {"ad_formats": ["CAROUSEL"], "optimization_type": "FORMAT_AUTOMATION"}`, `format_transformation_spec: [{"data_source": ["catalog"], "format": "carousel"}, {"data_source": ["catalog"], "format": "catalog_single_media"}]` (which eliminates `da_collection` from `format_transformation_spec` completely), and `contextual_multi_ads: {"enroll_status": "OPT_IN"}`.
-2. **DO / DON'T**: Use Pure Carousel (`carousel` + `catalog_single_media` without `da_collection`) for 1-click direct-to-Shopee-PDP catalog cards; only use Collection (`COLLECTION_VIDEO`) in its own isolated `1-1-1` campaign when paired with a dedicated 9:16 hero demo video (`video_data`). Never recreate the Campaign/Ad Set just to fix a creative defect — hot-swap `Ad(ad_id).api_update(params={"creative": {"creative_id": new_cr_id}})` in-place.
+1. **Pure Carousel SDK Contract**: Create CPAS / catalog creatives through the Python `facebook_business` SDK (`AdAccount.create_ad_creative`) with **both** `asset_feed_spec: {"ad_formats": ["CAROUSEL"], "optimization_type": "FORMAT_AUTOMATION"}` and lowercase `format_transformation_spec: [{"data_source": ["catalog"], "format": "carousel"}, {"data_source": ["catalog"], "format": "catalog_single_media"}]`, plus `template_url_spec: {"config": {"app_id": "957549474255294"}}`, `contextual_multi_ads: {"enroll_status": "OPT_IN"}`, and all 65 `degrees_of_freedom_spec` auto-format keys set to `OPT_OUT`. This eliminates `da_collection` from `format_transformation_spec` 100%.
+2. **DO / DON'T (Carousel vs Collection)**:
+   - **DO**: Use Pure Carousel (`dotads: Carousel | ...`, `carousel` + `catalog_single_media` without `da_collection`) for 1-click direct-to-Shopee-PDP catalog cards (`InApp_VC`).
+   - **DO**: Only use Collection (`dotads: Collection | ...`, `COLLECTION_VIDEO`) in its own isolated `1-1-1` campaign when paired with a dedicated 9:16 hero demo video (`video_data`) + Instant Experience Canvas + 4+ SKU product set.
+   - **DON'T**: Mix Carousel + auto-generated `da_collection` without a hero video, and **never recreate the Campaign/Ad Set just to fix a creative defect** — hot-swap `Ad(ad_id).api_update(params={"creative": {"creative_id": new_cr_id}})` in-place so Ad Set learning is preserved.
 
 ### Fix
-Updated `dotads-meta validate` to validate `format_transformation_spec` and `contextual_multi_ads` and warn when a `carousel_images_multi_items` CPAS creative only specifies `da_collection` / `FORMAT_AUTOMATION`, and updated `dotads-meta deploy` to route catalog/deep-link creative creation through `AdAccount.create_ad_creative` in the Python SDK.
+Updated `dotads-meta deploy` to automatically inject `asset_feed_spec: {"ad_formats": ["CAROUSEL"], "optimization_type": "FORMAT_AUTOMATION"}` and lowercase `format_transformation_spec: ["carousel", "catalog_single_media"]` when creating CPAS Carousel creatives via the Python SDK, and updated `dotads-meta validate` to warn on `da_collection` / `COLLECTION` format automation.
 
 ### Regression check
 dotads-meta-test && node --test bin/_dotads-workspace-test.mjs && ai-policy-lint
