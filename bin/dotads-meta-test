@@ -372,6 +372,7 @@ for expected_warn in (
     "missing 'url_tags'",
     "prefer '{{product.current_price strip_zeros}}'",
     'includes Collection FORMAT_AUTOMATION',
+    "should use 'dotads: Carousel | <Product/Angle>' or 'dotads: Collection | <Product/Angle>'",
     'Unicode mathematical alphanumeric characters',
 ):
     assert expected_warn in w_joined, (expected_warn, leak_res['warnings'])
@@ -757,6 +758,19 @@ if [ "$cpas_sdk_rc" -eq 0 ] && [ -s "$SDK_LOG" ] \
   ok "CPAS PCA Unified campaign, catalog/deep-link creative, and omnichannel ad set are created through the SDK with is_pca_unified=true, template_url_spec, format_transformation_spec, and ad_set_goal={type:0}"
 else
   bad "CPAS SDK campaign/creative/adset path unsafe or wrong (rc=$cpas_sdk_rc): $cpas_sdk_out; payload: $(cat "$SDK_LOG" 2>/dev/null)"
+fi
+# 5d4. In-place creative hot-swap (--hot-swap-creative) creates the new creative and updates Ad(ad_id) without recreating Campaign or Ad Set
+rm -f "$SDK_LOG"
+jq '.creatives[0].key = "cr_hero_v2_hotswap" | .creatives[0].name = "Creative_Hero_V2_HotSwap" | .ads[0].creative = "cr_hero_v2_hotswap"' "$SDKWS/campaigns/cpas-sdk-manifest.json" > "$SDKWS/campaigns/cpas-hotswap-manifest.json"
+hotswap_plan="$(cd "$SDKWS" && "$CMD" deploy "$SDKWS/campaigns/cpas-hotswap-manifest.json" --hot-swap-creative --json 2>&1)"
+hotswap_out="$(cd "$SDKWS" && SDK_LOG="$SDK_LOG" DOTADS_META_PYTHON="$MOCK_BIN/fake-sdk-python" "$CMD" deploy "$SDKWS/campaigns/cpas-hotswap-manifest.json" --hot-swap-creative --apply 2>&1)"
+if printf '%s' "$hotswap_plan" | jq -e '.steps[0].action == "SKIP" and .steps[1].action == "CREATE" and .steps[2].action == "SKIP" and .steps[3].action == "HOT_SWAP_CREATIVE"' >/dev/null \
+  && [ -s "$SDK_LOG" ] \
+  && jq -s -e 'length == 2 and .[0].req.params.name == "Creative_Hero_V2_HotSwap" and .[1].req.ad_id == "ad_4001" and .[1].req.creative_id == "adset_sdk_9001"' "$SDK_LOG" >/dev/null \
+  && jq -e '.ads.ad_hero_v1.creative_id == "adset_sdk_9001" and .creatives.cr_hero_v2_hotswap.id == "adset_sdk_9001"' "$SDKWS/.meta-state.json" >/dev/null; then
+  ok "deploy --hot-swap-creative creates the replacement creative and updates Ad.creative_id in-place without recreating Campaign or Ad Set"
+else
+  bad "deploy --hot-swap-creative failed: plan=$hotswap_plan; out=$hotswap_out; sdk=$(cat "$SDK_LOG" 2>/dev/null)"
 fi
 rm -rf "$SDKWS"; META_LOG="$META_LOG_SHARED"; export META_LOG
 
