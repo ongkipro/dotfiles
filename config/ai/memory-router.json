@@ -367,6 +367,23 @@
         "ongkipro email",
         "cuan specs"
       ]
+    },
+    {
+      "path": "config/ai/memory/parallel-research.md",
+      "priority": 78,
+      "triggers": [
+        "parallel research",
+        "riset paralel",
+        "scraping",
+        "scrape",
+        "crawl",
+        "crawler",
+        "robots.txt",
+        "web research",
+        "riset publik",
+        "parallel agents research",
+        "browser concurrency"
+      ]
     }
   ],
   "projects": {

@@ -23,3 +23,12 @@ bun = "latest"
 ripgrep = "latest"
 supabase = "latest"
 "npm:shadcn" = "latest"
+
+# Parallel AI development tooling (docs/parallel-ai-dev-machine.md). Pinned: a shell or search tool that changes under an
+# agent changes what it can see. Chosen from public practice, not from this machine's gaps; ncdu and scc are not in the mise registry.
+shellcheck = "0.11.0"  # catches destructive shell mistakes before an agent runs a script it wrote
+shfmt = "3.14.1"
+just = "1.59.0"        # self-documenting task entry points (`just --list`)
+uv = "0.13.7"          # Python tooling; pipx stays for the Meta CLI
+ast-grep = "0.51.1"    # structural search and codemods; opinions differ on general-purpose value, keep for migrations
+hyperfine = "2.0.0"    # measure before optimising (queue wait, test time)

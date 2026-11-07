@@ -4,7 +4,7 @@ Updated: 2026-11-07
 
 Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
 
-Done through 2026-11-07: see the index [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md); latest contracts: TASK-194 → [194](docs/archive/TASKS-194-completed.md); TASK-195 → [195](docs/archive/TASKS-195-completed.md); TASK-196 → [196](docs/archive/TASKS-196-completed.md).
+Done through 2026-11-07: see [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194 to TASK-197 included).
 
 ## In progress
 
@@ -20,19 +20,17 @@ Done through 2026-11-07: see the index [TASKS-index-2026-11-07](docs/archive/TAS
 - **Non-Scope:** live account calls in tests; history rewrite.
 - **Escalation Conditions:** unapproved live account mutation.
 
-### TASK-197: Review and harden the MacBook CPAS 1-1-1 commit (08480c6)
-- **Requirement:** REQ-CPAS-REVIEW (2026-11-07: review `08480c6`; dotfiles stays public).
-- **Risk Level:** R3.
-- **Allowed Paths:** `bin/_dotads-meta-provider.py`, `bin/_dotads-meta-provider-test.py`, `bin/_dotads-workspace.mjs`, `bin/_dotads-workspace-test.mjs`, `bin/dotads-meta`, `bin/dotads-meta-test`, `skills/local/meta-ads-cli/**`, `config/ai/memory/meta-ads.md`, `config/ai/memory/preferences.md`, `CHANGELOG.md`, `TASKS.md`, `docs/archive/TASKS-196-completed.md`.
-- **Protected Paths:** `bin/delivery-ledger`, `docs/task-change-boundary.md`, `config/ai/README.md`, `config/ai/project-memory/**`, `skills/local/development-kit/**`.
-- **Canonical Contract Owners:** `_dotads-meta-provider.py`; `cpas-collaborative-ads.md`; `meta-ads-cli/SKILL.md` §1.
-- **Accepted Invariants:** default inventory request/hashes match `6e38288`; CPAS fields only with `cpas_v1`; deploy dry-run/`PAUSED`/lock retained/no token printed; live mutations require owner approval; no client figures in public files.
-- **Regression Checks:** `workspace`, `provider`, `dotads-meta-test`, `skill-check meta-ads-cli`, `ai-policy-lint`, `ai-memory-link --check`, `system-map --check`, `security-check`.
-- **Reopen Conditions:** default request changes without profile, SDK activates without `--activate`, or client figures enter public files.
-- **Non-Scope:** making repo private; history rewrite; live Meta reads.
-- **Escalation Conditions:** live account call or history rewrite.
-
-## Pending
+### TASK-199: Parallel AI development machine guide, research memory and CI fix
+- **Requirement:** REQ-PARALLEL-GUIDE (owner 2026-11-07). Full contract: [TASKS-199-contract-full](docs/archive/TASKS-199-contract-full.md).
+- **Risk Level:** R2.
+- **Allowed Paths:** `docs/parallel-ai-dev-machine.md`, `docs/research/parallel-ai-dev-machine-2026-11-07.md`, `config/ai/memory/{parallel-research,preferences,meta-ads}.md`, `config/ai/memory-router.json`, `config/mise-config.toml`, `docs/linux-dev-setup.md`, `docs/DOTFILES_SITEMAP.md`, `CHANGELOG.md`, `TASKS.md`, `docs/archive/`.
+- **Protected Paths:** `bin/delivery-ledger*`, `docs/task-change-boundary.md`, `config/ai/README.md`, `config/ai/project-memory/**`, `skills/local/development-kit/**`.
+- **Accepted Invariants:** `preferences.md` inside the router budget; moved Meta Ads rules keep every sentence and authorise no unapproved live change; no private figures or identifiers in public files; no macOS support claim; scraping defaults stay a labelled proposal.
+- **Regression Checks:** `ai-doctor --self-test`, `ai-memory-route-test`, `ai-policy-lint`, `system-map --check`, `ai-memory-link --check`, `security-check`.
+- **Reopen Conditions:** CI memory-budget failure; a moved rule stops loading under its trigger; a guide claim shown false elsewhere.
+- **Canonical Contract Owners:** the guide (profile, rules, reproduction); `parallel-research.md` (research/scraping defaults); `meta-ads.md` (owner Meta Ads rules).
+- **Non-Scope:** `AGENTS.md`/`llms.txt` (owner decision), macOS ports, off-machine backups, any `bin/` change.
+- **Escalation Conditions:** a change needs sudo, a live account, or another session's files.
 
 ### TASK-175: Cloudflare Asia-Pacific placement default
 - **Requirement:** REQ-CLOUDFLARE-APAC (owner 2026-11-02: web projects for Indonesia/Asia use Cloudflare SEA/Asia/Singapore; understand the breakdown and improve the skill).

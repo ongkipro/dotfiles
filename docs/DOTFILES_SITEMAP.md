@@ -111,7 +111,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 
 | Collection | Path | Tracked | Completeness enforced by |
 |---|---|---|---|
-| Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 25 | linked from this page |
+| Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 26 | linked from this page |
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 84 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
 | Owned skills | [`skills/local/`](../skills/local/) | 75 | linked from this page |
@@ -119,17 +119,17 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Command tests | [`bin/`](../bin/) | 78 | linked from this page |
 | Device profiles | [`devices/`](../devices/) | 9 | linked from this page |
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
-| Top-level docs | [`docs/`](../docs/) | 19 | linked from this page |
+| Top-level docs | [`docs/`](../docs/) | 20 | linked from this page |
 | AI control files | [`config/ai/`](../config/ai/) | 31 | linked from this page |
 | Runtime references | [`config/omp/`](../config/omp/) | 28 | linked from this page |
 | Skill commands | [`skills/agents-bin/`](../skills/agents-bin/) | 7 | linked from this page |
 | Skill tooling | [`skills/local/`](../skills/local/) | 3 | linked from this page |
 | Registry indexes | [`devices/`](../devices/) | 1 | linked from this page |
 | Command helpers | [`bin/`](../bin/) | 8 | linked from this page |
-| Research records | [`docs/research/`](../docs/research/) | 5 | linked from this page |
+| Research records | [`docs/research/`](../docs/research/) | 6 | linked from this page |
 | Environment and bootstrap | [`config/`](../config/) | 35 | linked from this page |
 | Device reports | [`docs/device-reports/`](../docs/device-reports/) | 21 | count only |
-| Archived task records | [`docs/archive/`](../docs/archive/) | 58 | count only |
+| Archived task records | [`docs/archive/`](../docs/archive/) | 60 | count only |
 
 <!-- system-map:inventory:end -->
 
@@ -244,6 +244,7 @@ Cross-project durable facts loaded selectively on demand by `ai-memory-access`.
 | [`environment.md`](../config/ai/memory/environment.md) | Hardware & software toolchains, installed packages, mise plugins, cross-platform parity. |
 | [`environment-ai-runtimes.md`](../config/ai/memory/environment-ai-runtimes.md) | OMP, optional Pi, 9Router, and Antigravity: availability, credential boundary, and the official install method. |
 | [`environment-devices-git.md`](../config/ai/memory/environment-devices-git.md) | User machines, the generated device registry, and the one Git identity shared by all devices. |
+| [`parallel-research.md`](../config/ai/memory/parallel-research.md) | Parallel research agents, source order, polite scraping defaults (proposal) and browser concurrency. |
 | [`projects.md`](../config/ai/memory/projects.md) | Master directory index of active repositories under `~/Projects/`. |
 | [`projects-platforms.md`](../config/ai/memory/projects-platforms.md) | Advisory map of product platforms and admin applications (volumecms, adsbookcms); load only for the named platform. |
 | [`projects-sites.md`](../config/ai/memory/projects-sites.md) | Historical reference for sites and commerce projects (Astro, Shopify Storefront), SEO knowledge, and repository history. |
@@ -526,12 +527,13 @@ Managed by `bin/device-register`, documenting exact hardware and OS specs:
 - [`repo-visibility.md`](../docs/repo-visibility.md): Public vs private repository security protocol.
 - [`shopify-ai-development-repos.md`](../docs/shopify-ai-development-repos.md): Mapping of Shopify open-source repositories and theme tools.
 - [`linux-dev-setup.md`](../docs/linux-dev-setup.md) & [`macos-install-step-by-step.md`](../docs/macos-install-step-by-step.md): Clean-install guides for new workstations.
+- [`parallel-ai-dev-machine.md`](../docs/parallel-ai-dev-machine.md): Running several AI terminals across projects on one machine, per-device sizing, and how to reproduce it on Linux and macOS.
 - [`ai-execution-evaluation.md`](../docs/ai-execution-evaluation.md): Local execution evaluation procedure and its evidence limits.
 - [`chatgpt-inbox.md`](../docs/chatgpt-inbox.md): Phone capture from a ChatGPT "Dotfiles Inbox" into `ai-learn import`.
 - [`linux-install-step-by-step.md`](../docs/linux-install-step-by-step.md): Linux install from zero, step by step.
 - [`linux-maintenance-log.md`](../docs/linux-maintenance-log.md): Linux maintenance log.
 - Dated audits (historical, superseded by current contracts): [`DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md`](../docs/DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md) (stays here: its illustrative `TASK-014` sample would collide with the archive lint), [`DOTFILES-NATIVE-FIRST-AUDIT.md`](../docs/DOTFILES-NATIVE-FIRST-AUDIT.md), [`public-ui-skill-audit.md`](../docs/public-ui-skill-audit.md), [`skills-memory-audit.md`](../docs/skills-memory-audit.md), [`skill-efficiency-audit-2026-10-30.md`](../docs/skill-efficiency-audit-2026-10-30.md) (skill size/description budget pass). Older audits, the GitHub account cleanup plan and profile README draft, and the AUSSIE Sawit Malaysia session history moved to [`docs/archive/`](../docs/archive/) on 2026-10-29.
-- **Research records:** [`adaptive-ai-sources.md`](../docs/research/adaptive-ai-sources.md), [`development-kit-audit-2026-10-25.md`](../docs/research/development-kit-audit-2026-10-25.md), [`dotfiles-reliability-sources.md`](../docs/research/dotfiles-reliability-sources.md), [`system-map-references-2026-10-25.md`](../docs/research/system-map-references-2026-10-25.md), [`memory-focus-architecture-2026-10-29.md`](../docs/research/memory-focus-architecture-2026-10-29.md): adaptive-AI adoption, development-kit audit, reliability sources, the references behind this map, and the memory-precision / focus-system proposal.
+- **Research records:** [`parallel-ai-dev-machine-2026-11-07.md`](../docs/research/parallel-ai-dev-machine-2026-11-07.md), [`adaptive-ai-sources.md`](../docs/research/adaptive-ai-sources.md), [`development-kit-audit-2026-10-25.md`](../docs/research/development-kit-audit-2026-10-25.md), [`dotfiles-reliability-sources.md`](../docs/research/dotfiles-reliability-sources.md), [`system-map-references-2026-10-25.md`](../docs/research/system-map-references-2026-10-25.md), [`memory-focus-architecture-2026-10-29.md`](../docs/research/memory-focus-architecture-2026-10-29.md): adaptive-AI adoption, development-kit audit, reliability sources, the references behind this map, and the memory-precision / focus-system proposal.
 - Directories: [`docs/archive/`](../docs/archive/) (immutable task contracts), [`docs/research/`](../docs/research/) (source and trial evidence), [`docs/device-reports/`](../docs/device-reports/).
 
 ---
