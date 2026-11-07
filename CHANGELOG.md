@@ -4,6 +4,14 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-07 — Parallel AI development machine guide, research memory, CI fix (TASK-199)
+
+- New `docs/parallel-ai-dev-machine.md`: how to reproduce the parallel-terminals setup on another Linux device, with every claim labelled measured, sourced or assumption. macOS is stated as not supported as shipped (`heavy-run` and `dev-freeze` depend on Linux behaviour). Public research excerpt in `docs/research/parallel-ai-dev-machine-2026-11-07.md`.
+- New `config/ai/memory/parallel-research.md`, routed from `memory-router.json`: research and scraping defaults, labelled a proposal until the owner confirms.
+- `config/mise-config.toml`: shellcheck, shfmt, just, uv, ast-grep and hyperfine pinned (installed through mise, no sudo).
+- CI fix: `ai-memory-route-test` failed because `preferences.md` exceeded the 12,000-byte router budget. The Meta Ads rules moved verbatim to `config/ai/memory/meta-ads.md` ("Operating rules"); they now load on Meta Ads triggers instead of every preference request.
+- `TASKS.md`: TASK-197 archived, per-task done links moved into the archive index to stay inside the hot-context limit.
+
 ## 2026-11-07 — CPAS PCA Unified campaign, catalog/deep-link creative & omnichannel ad set contract (TASK-198)
 
 - `dotads-meta deploy`: creates Collaborative Ads (CPAS) campaigns (`campaign.promoted_object` or `is_pca_unified`) via the installed `facebook-business` SDK with `is_pca_unified: true` and `promoted_object` at initial `POST /act_<id>/campaigns` creation time (preventing Meta's immutable `is_pca_unified: false` lock, Error 100 / Subcode 3858845, which hid the `Conversion location: Website and app` selector in Ads Manager UI), creates catalog/deep-link creatives via `AdAccount.create_ad_creative` (`template_url_spec`, `format_transformation_spec`, `contextual_multi_ads`), and creates omnichannel CPAS ad sets with `ad_set_goal: {"type": 0}` and `promoted_object.omnichannel_object`.
