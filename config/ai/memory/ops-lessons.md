@@ -162,3 +162,72 @@ Separate migrate image and Coolify app run before the web deploy (Bukalaris docs
 Re-read coollabsio/coolify-docs applications/builds/dockerfile before relying on it.
 
 > Promoted from a reviewed local candidate on 2026-10-29.
+
+
+---
+
+
+## Lesson: Lenovo Yoga Book 9i (13IRU8 / 17ef:6161) dual touchscreen & stylus mapping on Ubuntu GNOME Wayland
+
+### Symptom
+Both Touchscreen Top and Touchscreen Bottom map to eDP-1 in GNOME Wayland, and Touchscreen Top coordinates are inverted 180 degrees when eDP-1 is rotated upside_down.
+
+### Root cause
+eDP-1 OLED panel is physically mounted upside down (180 deg) while the Ingenic 17ef:6161 digitizer reports normal (0,0) top-left coordinates; additionally, stock Mutter MetaInputMapper keys GSettings peripheral mappings only by vendor:product (17ef:6161), merging Top and Bottom.
+
+### Durable invariant
+Dual touchscreens/styluses sharing one USB VID:PID in stock Mutter require distinct product IDs (17ef:6161 for Top, uinput 17ef:6162 for Bottom) plus LIBINPUT_CALIBRATION_MATRIX='-1 0 1 0 -1 1 0 0 1' on Top to cancel eDP-1's 180-deg panel rotation.
+
+### Fix
+Set udev calibration matrix on 17ef:6161 Top, LIBINPUT_IGNORE_DEVICE=1 on raw 17ef:6161 Bottom, run a libevdev uinput bridge (yogabook-touch-bridge.service) exposing Bottom as 17ef:6162, and bind 17ef:6161->eDP-1 and 17ef:6162->eDP-2 in GSettings.
+
+### Regression check
+gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Mutter/InputMapping --method org.gnome.Mutter.InputMapping.GetDeviceMapping /dev/input/eventX returns ((0, 0, 1440, 900),) for Top and ((1440, 0, 1440, 900),) for Bottom.
+
+> Promoted from a reviewed local candidate on 2026-11-02.
+
+
+---
+
+
+## Lesson: Pre-heavy-run load gates deadlock on a shared machine
+
+### Symptom
+A gate held a heavy-run slot and the repo lock for 12+ min in a wait loop (load <= 4, no other suite) while other terminals queued behind it.
+
+### Root cause
+A script written before heavy-run waited for machine-wide quiet; with 4 agents the load stays 6-14, so the condition never holds, and the wait runs inside the heavy slot.
+
+### Durable invariant
+Inside heavy-run (AI_HEAVY_HELD=1) never wait for machine-wide load; heavy-run's pool slot and <repo>-env lock are the exclusion. Wait for quiet, if at all, outside heavy-run and bounded.
+
+### Fix
+Gate script exits 0 at once when AI_HEAVY_HELD is set; heavy scripts refuse to run outside heavy-run.
+
+### Regression check
+AI_HEAVY_HELD=1 <gate> returns immediately; heavy-run --status shows no slot held by a job in a wait loop.
+
+> Promoted from a reviewed local candidate on 2026-11-07.
+
+
+---
+
+
+## Lesson: Never clean scratch by doc citations alone
+
+### Symptom
+A queued gate failed in under a second: stress and full suite reported 'gate failed' with empty logs after a scratch-directory tidy-up.
+
+### Root cause
+Tidy-up kept only files cited by repo docs/ledger; the running task's gate scripts called a helper script under the scratch root that no doc cited, so it was archived and deleted.
+
+### Durable invariant
+Before deleting scratch, a file stays if any script of an open or queued task references it, directly or through a parent directory (grep the task scripts, not only docs).
+
+### Fix
+Restore from the archive; select deletion candidates by grepping docs, ledger AND every script under `<scratch-root>/<task>/` of open/queued tasks.
+
+### Regression check
+Extract the full referenced paths, nested components included (`grep -rhoE '<scratch-root>/[A-Za-z0-9._/-]+' <task scripts> | sort -u`), then treat a candidate as referenced when it equals a reference, sits below a referenced directory, or contains one. The set of referenced candidates must be empty before rm. Example: a script that calls `<scratch-root>/task/gate.sh` protects both that file and `<scratch-root>/task/`; matching only the first path component would miss the file.
+
+> Promoted from a reviewed local candidate on 2026-11-07.

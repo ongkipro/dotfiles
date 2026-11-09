@@ -4,7 +4,301 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-07 — Adaptive Meta Ads conversion framework, BM markdown renderer v5 & memory hygiene (TASK-200)
+
+- `_dotads-workspace.mjs`: bumps the BM workspace (`markdownOnly`) report renderer from `dotads-markdown/4` to `dotads-markdown/5` so re-rendering saved BM snapshots with `commerce-insight/2` writes a new immutable report revision (`r_<hash>`) instead of colliding with earlier `dotads-markdown/4` revisions.
+- `dotads-meta` (`validate`, `deploy`, `run`, `init`): enforces the `dotads: <campaign_name>` campaign label (`validate` warns if omitted; `deploy` CLI/SDK paths and `run -- ads campaign create` auto-prefix `dotads: `), adds `dotads-meta deploy <manifest.json> --hot-swap-creative [--apply]` for in-place `AdCreative` hot-swapping (`Ad(ad_id).api_update`) without recreating the Campaign or Ad Set, warns when CPAS ad names omit `dotads: Carousel | ...` / `dotads: Collection | ...`, and adds 5 advisory `Website Sales guardrail:` checks for non-CPAS `OUTCOME_SALES` campaigns (`advantage_audience=0` liquidity constriction, Facebook-only placement lock without Instagram, `attribution_spec` omitting `VIEW_THROUGH` (`1d_view`), `optimization_goal: "VALUE"` with `LOWEST_COST_WITHOUT_CAP`, and `>6` ads per ad set creative overcrowding), with offline regression coverage in `dotads-meta-test`.
+- `meta-ads-cli` (`algorithm-and-learning.md` §6–§7, `rules-and-tutorial.md`), `meta-ads-signal-engine` (`PIXEL_2026_CHANGES.md`), and `config/ai/memory/meta-ads.md`: codifies the generalizable, business-model-agnostic framework for Broad vs. `Audience Controls` liquidity, the 4-stage multi-horizon diagnostic timing protocol (`0–6h`, `>=24h`, `48–72h`, `3–7d`), vertical/horizontal scaling mechanics, and Pixel+CAPI signal-to-auction coupling; keeps `meta-ads.md` under the 12,000-byte router limit and resolves all 11 stale dated claims across memory cards (`ai-memory-hygiene` 0 issues).
+
+## 2026-11-07 — Review of the pushed TASK-205 fixes and the merge (TASK-206)
+
+- `ai-policy-lint`: the historical TASK-200 run label is now exempted by exact run file (`LEDGER_BINDING_EXACT_RUNS`), not by the (task, requirement) pair, so a new run with the same wrong pair is still rejected; regression in `ai-policy-lint-test`.
+- Memory router: the bare trigger `scratch` also matched "from scratch" and pulled the operations lessons into unrelated prompts; replaced by `scratch dir`, `scratch directory`, `scratch files`, `tmp cleanup`, with a negative regression.
+- `device-register` wording: slot enforcement and `heavy-run` process cleanup are untested on macOS, the memory slice is Linux with systemd only.
+- Independent review (GPT-6.1 Sol, owner-ordered) of the pushed fixes and the hand-resolved merge: three findings, all reproduced and fixed here.
+
+## 2026-11-07 — Fixes from a second reviewer on TASK-203 and TASK-204 (TASK-205)
+
+- `ai-capacity status` advice no longer crashes on a zero or negative process age, a zero clock tick, or an empty, malformed, negative or non-finite `AI_CAPACITY_HOG_MIN_*` override; it falls back to the defaults and never changes the exit code. Tests cover each case, and removing the guard or restoring the old parsing makes them fail.
+- Four lessons promoted earlier could not be reached by the memory router (their files are too large for path-only selection and had no triggers). Eight triggers added; a regression queries four realistic phrases through `ai-memory-route`.
+- `device-register-test` now checks the capacity section with a stub of fixed JSON and with the checkout's own `ai-capacity` under explicit hardware values, so the positive path no longer depends on what the CI runner has on its PATH. The generated section states that the numbers are a plan, enforced only after `ai-capacity apply`; the memory slice exists only on Linux with systemd, and slot enforcement and process cleanup of `heavy-run` are untested on macOS.
+- `linux-rich-maintenance.md` and the maintenance log keep tokophi in the migration queue: it is bound to loopback but port `5433` is still occupied.
+- No independent review was run on this fix, by owner instruction; tests and mutations stand in for it.
+
+## 2026-11-07 — Maintenance log for the rich machine work (TASK-204)
+
+- `docs/linux-maintenance-log.md`: dated entry for 2026-11-06 to 2026-11-07 covering the tidy, the parallel limits, a stray `npm prune` process that ran for 1 day 9 hours (observed; its likely origin is marked as inferred), the tokophi loopback bind, a local-view port audit and the data routing rule, with the open items listed as Deferred. Documentation only.
+
+## 2026-11-07 — Orphan-hog monitor, device record, lessons (TASK-203)
+
+- `ai-capacity status` now reports processes older than one hour that average at least 0.8 cores outside `ai-heavy.slice`, the case that hid an orphaned `npm prune` from a dead Docker build for 33 hours. It is advice only: it cannot tell an orphan from a legitimate long build, so it never changes the exit code and never stops anything. Predicate and exit-code behaviour are tested deterministically from injected process data.
+- `device-register` writes a "Kapasitas AI paralel" section read from `ai-capacity --json` (absent where the tool is absent or fails); `devices/rich.md` regenerated.
+- `linux-rich-maintenance.md` records the device-local `rich-archive` and the tokophi loopback bind.
+- Four verified shared lessons promoted: no machine-wide load waits inside `heavy-run`, scratch cleanup must grep open task scripts, integration test limits catch hangs rather than measure speed, no parallel CREATE/DROP DATABASE beside other database DDL.
+
+## 2026-11-07 — Parallel AI development machine guide, research memory, CI fix (TASK-199)
+
+- New `docs/parallel-ai-dev-machine.md`: how to reproduce the parallel-terminals setup on another Linux device, with every claim labelled measured, sourced or assumption. macOS is stated as not supported as shipped (`heavy-run` and `dev-freeze` depend on Linux behaviour). Public research excerpt in `docs/research/parallel-ai-dev-machine-2026-11-07.md`.
+- New `config/ai/memory/parallel-research.md`, routed from `memory-router.json`: research and scraping defaults, labelled a proposal until the owner confirms.
+- `config/mise-config.toml`: shellcheck, shfmt, just, uv, ast-grep and hyperfine pinned (installed through mise, no sudo).
+- CI fix: `ai-memory-route-test` failed because `preferences.md` exceeded the 12,000-byte router budget. The Meta Ads rules moved verbatim to `config/ai/memory/meta-ads.md` ("Operating rules"); they now load on Meta Ads triggers instead of every preference request.
+- `TASKS.md`: TASK-197 archived, per-task done links moved into the archive index to stay inside the hot-context limit.
+
+## 2026-11-07 — CPAS PCA Unified campaign, catalog/deep-link creative & omnichannel ad set contract (TASK-198)
+
+- `dotads-meta deploy`: creates Collaborative Ads (CPAS) campaigns (`campaign.promoted_object` or `is_pca_unified`) via the installed `facebook-business` SDK with `is_pca_unified: true` and `promoted_object` at initial `POST /act_<id>/campaigns` creation time (preventing Meta's immutable `is_pca_unified: false` lock, Error 100 / Subcode 3858845, which hid the `Conversion location: Website and app` selector in Ads Manager UI), creates catalog/deep-link creatives via `AdAccount.create_ad_creative` (`template_url_spec`, `format_transformation_spec`, `contextual_multi_ads`), and creates omnichannel CPAS ad sets with `ad_set_goal: {"type": 0}` and `promoted_object.omnichannel_object`.
+- `dotads-meta validate`: adds hard errors for `object_story_spec.template_data` missing top-level `product_set_id`, `targeting.age_max < 65` when Advantage+ Audience is enabled (requiring `age_max: 65` + `age_range`), and `promoted_object.omnichannel_object` without `campaign.promoted_object.product_catalog_id`, plus CPAS guardrail warnings when `promoted_object.product_set_id` omits `omnichannel_object`, when `template_url_spec.config.app_id` is missing, or when a `carousel_images_multi_items` DPA creative only specifies `da_collection` (`FORMAT_AUTOMATION` `COLLECTION` interception on Reels/Feed).
+- `meta-ads-cli` (`cpas-collaborative-ads.md` §7.3–§7.4, `rules-and-tutorial.md` Recipe 5) and `config/ai/memory/meta-ads.md`: documents the PCA Unified (`is_pca_unified: true`, `ad_set_goal: {"type": 0}`, `omnichannel_object`, `7d_click + 1d_view + 1d_engaged_video_view` attribution, Pure Carousel `format_transformation_spec`, `dotads:` campaign prefix, and `dotads: Carousel | ...` / `dotads: Collection | ...` ad naming) contract and the 6 CPAS Graph API traps, with offline SDK test coverage in `dotads-meta-test`.
+
+## 2026-11-07 — CPAS 1-1-1 diagnostics reviewed and hardened (TASK-197)
+
+- Review of the MacBook commit `08480c6` (CPAS `1-1-1` architecture, `catalog_segment_*` channel split, bid-cap/ROAS-floor validation, SDK ad set path): the default inventory request and scope hashes are restored to the shipped contract; the new inventory fields (bid strategy and constraints, `template_url_spec`, `applink_treatment`, learning state) are added only with `--metric-profile cpas_v1`.
+- Renderers `dotads-markdown-csv/4`, `dotads-history/4`, `commerce-insight/2` (report text and observations changed).
+- The SDK ad set path now has offline tests: `PAUSED` without `--activate`, scaled `bid_constraints`, no token in output, lock retained on a failed call.
+- Memory: the CPAS block moved out of `preferences.md` (18 KB to 13 KB) into a pointer to the skill reference, which already holds the full rules; the "Autonomous Execution" line became a leak-response rule that keeps live account changes behind owner approval (CORE.md and the `meta-ads-cli` skill); `SKILL.md` §1 now defines the only exception, an owner-written, dated, spend-reducing standing approval in the account's `NOTES.md`. CPAS §7 is labelled as one dated observation with proposals, absolute spend/value/order figures and content names are removed from the public files, and the Recipe 5 manifest is Facebook-only (Threads untested).
+
+## 2026-11-06 — Per-device AI capacity (TASK-196)
+
+- `ai-capacity` (new): sizes AI terminals, subagents and heavy jobs from each device's RAM, CPU and its own measured costs (PSS per terminal cgroup, learned peaks, never below defaults). `apply` writes only device-local limits after validation, atomically, with backups, and reports which are enforced: heavy-run slots, one shared memory cap for heavy jobs (`ai-heavy.slice`), pi-subagents per-run and per-session limits; terminals and the machine-wide subagent total stay targets. Degraded devices get serial-work advice only.
+- `heavy-run` reads its slot count from `~/.config/ai-local/capacity.env`.
+- `rich` (31 GB, 8 threads, measured): 4 terminals comfortable, 5 max; ~8 subagents across terminals, 3 per terminal; 2 heavy jobs (8 GB together); 1 browser e2e.
+
+## 2026-11-06 — Parallel AI terminals (TASK-195)
+
+- `heavy-run`: jobs run in a systemd user scope in `ai-heavy.slice` (CPUWeight 20, MemoryHigh 40%); leftovers in the job's process group are stopped on every exit path before locks free; nested calls refuse locks the outer job does not hold; duplicate lock names no longer self-deadlock.
+- `ai-testdb` (new): shared RAM-backed Postgres per major version (fsync off, loopback, trust auth) with per-run template clones dropped on every exit, signals included.
+- `dev-freeze` (new): read-only snapshot of every project (all-ref bundles, patches, untracked files, dirty worktrees, RESUME.md, INDEX.md); INCOMPLETE and exit 1 when any artifact fails.
+- Rules in `memory/development.md` and one CORE.md line; independent review APPROVE after four rounds.
+
 ## Unreleased — 2026-10-28
+
+### DotAds Meta: commerce insight, CPAS cpas_v1, history supersede, learn refresh — 2026-11-05
+
+- Reports, history and learning observations gain a deterministic commerce
+  block from saved snapshots: funnel (LPV, view content, ATC, IC, purchases,
+  purchase value; aliases never summed), ROAS, CPR, step rates, AOV, honest
+  partial outbound-click coverage, top-5 spend concentration with inventory
+  joins, frequency watch, inventory structure and CPAS status/lineage.
+  Renderers bump to `dotads-markdown/4`, `dotads-markdown-csv/3` and
+  `dotads-history/3`; earlier revisions stay immutable.
+- Complete history windows supersede older partial/duplicate observations
+  into `superseded_entries` (parents protected); imports skip them.
+- `dotads-meta learn refresh --account act_ID [--apply]` rebuilds history
+  observations offline from saved revisions and verified snapshots.
+- Opt-in `--metric-profile cpas_v1` adds Shopee CPAS `catalog_segment_*`
+  fields; legacy requests and scope hashes are unchanged.
+
+### DotAds Meta: CPAS (Shopee Collaborative Ads) reference — 2026-11-05
+
+- New `meta-ads-cli/references/cpas-collaborative-ads.md`, built from a
+  five-lane parallel study (report kept privately under
+  `~/Documents/work/research/`): CPAS identified by catalog lineage
+  (`is_catalog_segment`), segment fields as action-stat arrays, product
+  reporting as a separate capability with a documented SDK enum gap, three
+  non-additive ledgers (Meta claim, Shopee channel claims, settlement), dated
+  Shopee Indonesia fee scenarios (Nov 2026 vs Dec 2026/Jan 2027), graded
+  operating playbook, CPAS learning rules and a phased dotads-meta plan.
+  Design only; no provider change yet.
+
+### dotsync: update notice on other devices; meta-ads 1.3.1 default — 2026-11-05
+
+- After a background pull, the next interactive shell shows once what was
+  pulled (up to 8 commit subjects) and any `action:` reported by post-pull
+  reconciliation. Pending actions repeat on later up-to-date autopulls.
+- `dotads-meta` default CLI is `meta-ads` 1.3.1 (facebook-business 26.x,
+  API v26.0). Post-pull `setup --workspace-only` and `doctor` check the
+  installed SDK offline and flag versions below 26; nothing installs in the
+  background.
+
+#### Other devices
+
+- Next shell after the pull shows the notice. If it says to upgrade, run
+  `dotads-meta setup` once (Marketing API v24.0 support ends 2026-11-10), then
+  `dotads-meta doctor --bm <KEY>`.
+
+### DotAds Meta: delivery, learning and Pixel 2026 guidance — 2026-11-05
+
+- New `meta-ads-cli/references/algorithm-and-learning.md`: 2026 Andromeda,
+  GenRecs and GEM facts with their limits, learning phase and significant
+  edits, measurement changes (view windows removed 2026-01-12, link-click-only
+  click attribution 2026-03, on-device conversions from 2026-11-12), checks for
+  turning evidence into hypotheses, and an ad-improvement order.
+- New `meta-ads-signal-engine/references/PIXEL_2026_CHANGES.md`: how Pixel,
+  CAPI and datasets work, Meta-enabled CAPI, Pixel AI feature, on-device
+  conversions, and a requirements checklist.
+- Version facts refreshed: CLI 1.3.1 / SDK 26.0.2 / API v26.0 verified;
+  v24.0 Marketing API support ends 2026-11-10.
+
+### DotAds Meta: history request budget — 2026-11-05
+
+- Live `history` reads inventory once and requests only Insights for the other
+  four windows (about five times fewer inventory requests); reusing snapshots
+  record `source.inventory_source`.
+- Meta throttling (API 4/17/32/613/80004, HTTP 429) is no longer retried after
+  1–2 seconds. The run stops further requests, marks skipped work
+  `RATE_LIMITED_SKIPPED`, and `history` skips later windows for a later retry.
+- Snapshot publication no longer rescans growing media/destination indexes per
+  reference (quadratic). An AUTOSTOCK-sized snapshot drops from ~7 minutes to
+  ~1 second with byte-identical index output.
+
+### DotAds Meta: bounded creative payload recovery — 2026-11-04
+
+- A later full-field creative page can exceed Meta's response-size limit even at
+  25 rows. Its explicit reduce-data rejection now reduces the same cursor to
+  10, then 1 if needed; records safe adjustment metadata and keeps every field.
+- Reductions are bounded and never skip records, relax account identity, follow
+  next URLs or bypass the page budget. Unrecoverable pages remain partial;
+  previous immutable reports and learning versions are preserved.
+- `run --bm KEY` without a brand now passes the selected BM as `BUSINESS_ID`
+  and drops an inherited `AD_ACCOUNT_ID` that may belong to another BM.
+
+### DotAds Meta: live read-test inventory transport — 2026-11-04
+
+- Default campaign/ad-set/ad inventory scope explicitly excludes `DELETED`, which
+  v26.0 rejected in bounded live GET tests; keeps ARCHIVED and other supported
+  states, records exclusions, and preserves old failed-scope evidence unchanged.
+- Full-field creative requests use 25-row pages after live 100-row requests
+  failed as oversized. Field coverage is unchanged; cursor exhaustion, page
+  limits, partial results and account isolation retain their existing guards.
+- Operator-designated dummy/test intent is account-local metadata, not proof of
+  a sandbox or authorization for live ad/budget/account mutations.
+
+### DotAds Meta: scoped learning and private portable evidence — 2026-11-04
+
+- History appends account/date/snapshot-scoped observations to the existing memory
+  owner without promoting winners, rules, causal claims or spend decisions.
+- Immutable `INVENTORY.md` and `QUERY-DETAILS.md` expose all sanitized returned
+  resource/query fields, coverage and raw actions; new renderer revisions preserve
+  existing reports.
+- `learn record/list --account` adds an evidence-pinned observation → hypothesis →
+  experiment → outcome lifecycle with explicit protocols and parent scope.
+- Offline `learn export/import --account` carries scoped entries and referenced
+  evidence only; verifies hashes/identity/conflicts, deduplicates imports and
+  preserves local economics, notes and history/sync pointers. No network transfer,
+  credential sharing, automatic cloud sync, or model training is implied.
+
+### DotAds Meta: five-window history evidence — 2026-11-04
+
+- `history --account act_ID --plan` resolves account-timezone yesterday,
+  last 7/30/90 completed days and this month including incomplete today.
+  Collection is a separate authorized read; selected period exports work offline.
+- Immutable account-local history links snapshot/query provenance, keeps measured
+  zero separate from missing/empty/error evidence, and preserves the last complete
+  history after partial refresh. Windows are never summed.
+- Observation → hypothesis → controlled experiment → outcome remains a reviewed,
+  operator-owned workflow, not automatic winners, profit claims or model training.
+  No live account validation or production/spend mutation is implied.
+
+### DotAds Meta: BM auto-setup and account-local Markdown — 2026-11-04
+
+- Named device-local `META_BM_<KEY>_NAME` / `_ID` / `_ACCESS_TOKEN` profiles
+  prepare isolated BM roots through offline `setup --workspace-only` and the
+  existing post-pull `ai-memory-link` reconciliation. Nonempty local token
+  configuration is not proof of API access; no API calls or installs run on pull.
+- Multiple BMs require explicit selection; missing/conflicting token references
+  never fall back across BMs. Existing flat workspaces stay untouched.
+- Sync or `init --account` allocates/reuses `Account Name (act_ID)` folders.
+  Campaign work and Markdown human reports stay there; internal JSON preserves
+  state and evidence. Legacy renderer/revisions remain compatible.
+- Selected media defaults to shared BM `assets/`; optional temporary copies
+  prohibit moves and never trigger automatic cleanup.
+- Other devices: pull through `dotsync` (or run `ai-memory-link` after plain Git
+  pull), configure local named profiles, then use `--bm KEY`. Private tokens,
+  reports and assets are not transferred by dotfiles. No commit/push is implied.
+
+### Pi: Sonnet 5.5 default, quieter transcript, and isolated Playwright MCP — 2026-11-04
+
+- Startup model `cc/claude-sonnet-5-5` with `defaultThinkingLevel: medium`;
+  Opus stays one `Ctrl+P` away for hard work, `Shift+Tab` changes the level.
+- `hideThinkingBlock: true`: thinking shows as `Thinking...` (`Ctrl+T`
+  reveals it); answers stay in full and tool output was already collapsed by
+  default (`Ctrl+O`). Display only; it does not change token use.
+- `pi-9router-restore` now also seeds missing `hideThinkingBlock`,
+  `quietStartup`, `defaultThinkingLevel`, and `enabledModels` entries into an
+  existing `settings.json` without overwriting local choices, deduplicates
+  repeated `packages` (preferring version-pinned entries) and `enabledModels`,
+  and adds `-builtin:mcp` / `+codemode` if a device still carries
+  `pi-mcp-adapter`.
+- `config/ai/mcp-servers.json` and `bin/ai-mcp-sync` add `--prefix /tmp`,
+  `--isolated`, and `--output-dir /tmp/playwright-mcp` to
+  `@playwright/mcp@0.0.84` (preventing project `package.json`
+  `devEngines.runtime` checks from aborting `npx` with `EBADDEVENGINES`,
+  avoiding concurrent profile-lock collisions, and keeping
+  `.playwright-mcp/traces` out of repository working trees), and sync Pi's
+  `description` and `toolExposure` (`browser_run_code_unsafe: hidden`) into
+  `~/.pi/agent/mcp.json`.
+- Added `@narumitw/pi-worktree` (`/worktree`: create, inspect, switch, and prune
+  Git worktrees while transferring the active Pi conversation to the new
+  worktree directory) and `@narumitw/pi-btw` (`/btw`: side-question overlay
+  thread that preserves the main conversation history and prompt cache); both
+  register only TUI slash commands with zero extra model tools.
+
+### Pi: propagate the package set to existing devices — 2026-11-03
+
+- `pi-9router-restore` adds tracked packages missing from an existing
+  `settings.json` (by package name; local pins, extra packages, other keys and
+  file mode kept) and `rewind.retention` when absent. Re-runs are no-ops.
+  Explicit by design: `dotsync autopull` never installs extension code.
+- Verified end to end on `rich`: a real Pi session wrote a file and
+  `pi-rewind-hook` recorded `refs/pi-rewind/store` without staging anything;
+  `ai-ask pi` read the file and had no write tool.
+
+### Pi: full tracked configuration and Claude Code–level capabilities — 2026-11-03
+
+- `config/pi/settings.json` now mirrors the live portable settings: startup
+  model, `enabledModels`, `quietStartup`, ten packages (`cc-safety-net`,
+  `pi-lsp`, `pi-fff`, `pi-subagents`, `pi-background-tasks` added beside the
+  web/browser pair) and a bounded `rewind.retention`. Auth, models, trust and
+  sessions stay device-local.
+- New packages, source-read before install: `@narumitw/pi-plan-mode` (`/plan`),
+  `@juicesharp/rpiv-todo` (task list), `pi-rewind-hook` (file restore via
+  `/tree`/`/fork`, snapshots under `refs/pi-rewind/store` with a temporary index).
+- New `config/pi/pi-lsp.json`, seeded by `pi-9router-restore` (local file wins).
+- `pi()` defaults `PI_BG_FEATURES=process`: `pi-background-tasks` keeps
+  background shell tasks only; its `attribution` default reads Claude Code
+  account IDs from `~/.claude.json`.
+- `ai-ask pi` runs with read-only `read,grep,find,ls` (no extensions, MCP or
+  project-local `.pi`) instead of `--no-tools`.
+- Tests: `pi-9router-restore-test`, `shell-wrapper-test`, `ai-ask-test`.
+
+### Pi: device-local package additions and the MCP adapter rule (TASK-176) — 2026-11-03
+
+- The tracked `config/pi/settings.json` keeps the pulled baseline. `dot` keeps
+  local packages the baseline does not carry; `pi-9router-restore` only adds
+  tracked packages, so they survive a pull, and the device records them in
+  `~/.config/ai-local/device.md`.
+- `config/pi/README.md` now states the rule a device follows when it installs
+  `pi-mcp-adapter` instead of Pi's built-in MCP extension: `-builtin:mcp` in
+  `extensions` and `+codemode` in `defaultTools`, because both register `/mcp`
+  and only the built-in extension turns codemode on by itself.
+- `config/ai/adapters/pi.md` records the one-MCP-owner rule in the shared Pi
+  context; each device records its chosen MCP implementation and its local
+  packages in `~/.config/ai-local/device.md`.
+
+### Cloudflare Asia-Pacific placement default (TASK-175) — 2026-11-02
+
+- New `skills/local/cloudflare/references/apac-placement.md`: what each layer
+  lets you choose (D1/R2 `--location apac` at creation, Durable Objects
+  `locationHint` `apac-se`, Worker `placement`), what it does not (visitor PoP,
+  Asian jurisdiction), CI creation trap, migration of existing resources.
+- `cloudflare` skill routes ID/SEA projects to it (row + working principle);
+  owner default recorded in `memory/preferences.md`.
+
+### `dotuiux compare`, template signals, owner pick (TASK-174) — 2026-11-02
+
+- New `dotuiux compare <url> --ref design/refs/<host>`: side-by-side sheets
+  (reference left, build right) per width, scaled to ≤ 1400 px and cut into
+  parts; `report.md` with both section outlines and the DESIGN.md C-items;
+  `review-prompt.md` for an independent reviewer (blind read first).
+- `teardown` and `check` record a section outline; new warn rules
+  `section-count`, `eyebrow-overuse`, `numbered-labels`, `mono-overuse`.
+  Floor set unchanged.
+- `validate` warns when DESIGN.md exceeds 150 lines, lacks
+  `Picked-by: owner <date>`, or has no C-items (warnings only).
+- Skills: `dotuiux` adds compare and an independent visual verdict;
+  new `references/reference-reading.md`; `design-taste` uses one capture
+  path (`dotuiux teardown`) and records the owner pick; `ui-validation`
+  points the visual verdict at `compare`.
 
 ### Pi defaults and retired Pi helpers — 2026-11-02
 

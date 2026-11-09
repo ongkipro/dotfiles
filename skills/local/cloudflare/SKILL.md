@@ -96,6 +96,7 @@ Find the row closest to the user's task. Products can appear in multiple rows, a
 | Store a Worker's API keys and credentials | Workers secrets | Bind secrets to a Worker without committing values to source | `wrangler` skill; [secrets docs](https://developers.cloudflare.com/workers/configuration/secrets/index.md) |
 | Share managed secrets across services | Secrets Store | Manage reusable account-level secrets | [Secrets Store](references/secrets-store/README.md) |
 | Control where data is processed and stored | Data Localization Suite | Evaluate regional processing and storage controls against the actual requirements | [Data Localization docs](https://developers.cloudflare.com/data-localization/index.md) |
+| Keep an Indonesian or Southeast Asian app's data and backend calls in Asia-Pacific | D1/R2 location hints, Durable Objects `locationHint`, Worker placement | Owner default for ID/SEA web projects: create D1 and R2 with `--location apac`, DOs with `apac-se`; hints are latency, not residency | [APAC placement](references/apac-placement.md) |
 | Prove a claim without identifying or tracking the user | Privacy Pass | Use privacy-preserving tokens in a supported integration | [Privacy Pass docs](https://developers.cloudflare.com/privacy-pass/index.md) |
 | Store, resize, transform, and deliver images | Cloudflare Images | Use managed image processing and delivery | [Images](references/images/README.md) |
 | Encode, store, and deliver live or on-demand video | Stream | Use managed video infrastructure | [Stream](references/stream/README.md) |
@@ -146,6 +147,7 @@ A Workers Cache hit returns the response without running the Worker, so per-requ
 - Preserve the project's architecture and make the smallest change that satisfies the request.
 - Check current Cloudflare docs before relying on limits, prices, compatibility flags, or security requirements; these can change.
 - On Workers Free, daily allowances are shared by every Worker on the account, and since 2026-09-01 D1 errors on every query once the account passes its daily row-read or row-write allowance, until 00:00 UTC ([D1 changelog](https://developers.cloudflare.com/changelog/product/d1/)). Count the D1 and KV writes a request path adds before shipping it to a Free account with several Workers.
+- Indonesian or Southeast Asian audience: before creating any D1 database, R2 bucket, or Durable Object, or setting Worker `placement`, read [APAC placement](references/apac-placement.md). Location is fixed at creation and defaults to wherever the command or CI runner runs.
 - Validate in proportion to the change: use the project's checks, then exercise the affected behavior when practical.
 
 Cloudflare documentation: <https://developers.cloudflare.com/llms.txt>

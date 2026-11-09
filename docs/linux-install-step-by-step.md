@@ -42,12 +42,13 @@ sudo apt install -y \
 ### 1.3 Paket pendukung harian
 
 ```bash
-sudo apt install -y gh tmux btop jq duf 7zip chromium-browser
+sudo apt install -y gh tmux btop jq duf 7zip
+curl -fsSLo /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && sudo apt install -y /tmp/chrome.deb
 ```
 
 - `gh` — GitHub CLI (dipakai buat login git, lihat Tahap 5)
 - `tmux` — multiplexer (config-nya nanti dari dotfiles)
-- `chromium-browser` — preview web + dipakai MCP `chrome-devtools` (audit performa)
+- Google Chrome `.deb` (`/usr/bin/google-chrome`) — browser headless untuk MCP `chrome-devtools` dan Playwright `--browser chrome`. Jangan pakai `chromium-browser`: di Ubuntu paket itu memasang snap, path-nya beda dari config MCP.
 
 ### 1.4 Sesuai kebutuhan kerja
 
@@ -278,7 +279,8 @@ mise ls                         # seluruh toolchain terpasang
 # 1 — Dasar
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y build-essential curl git unzip ca-certificates gnupg apt-transport-https
-sudo apt install -y gh tmux btop jq duf 7zip chromium-browser postgresql-client
+sudo apt install -y gh tmux btop jq duf 7zip postgresql-client
+curl -fsSLo /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && sudo apt install -y /tmp/chrome.deb
 
 # 2 — Runtime bootstrap
 curl -fsSL https://mise.run | sh

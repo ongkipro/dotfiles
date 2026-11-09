@@ -14,7 +14,7 @@ Browser automation for pi.dev + general CLI use, set up 2026-06-25. See [[pi-9ro
 - `playwright` + `@playwright/test` **1.61.1** (global). NOTE: global install means the `playwright` CLI works everywhere, but scripts doing `require('playwright')` need `NODE_PATH=$(npm root -g)` (node won't auto-resolve global modules for import/require).
 - Playwright browsers in `~/.cache/ms-playwright/`: `chromium-1228`, `chromium_headless_shell-1228`, `ffmpeg-1011`. Both bundled headless launch AND system-Chrome channel verified working (open example.com).
 
-**System browsers (pre-existing):** Google Chrome 149 (`/usr/bin/google-chrome`), Chromium 149 (snap). 
+**System browsers:** superseded — see 2026-11-03 entry below. 
 
 **How to launch (two options):**
 - System Chrome (PREFERRED — real Chrome 149, all fonts/codecs present, no extra install): `chromium.launch({ channel: 'chrome' })`.
@@ -37,6 +37,15 @@ cache holds `chromium-1248`, `chromium_headless_shell-1248`, `webkit-2370`. Both
 the bundled Chromium 156 and `/snap/bin/chromium` 156 launched headless and
 rendered a page. Project browser suites take
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/snap/bin/chromium`.
+
+**Verified 2026-11-03 (`rich` went headless):** GNOME/gdm/xorg and snapd (with
+snap Chromium) were purged; boot target is `multi-user.target`. The single system
+browser is Google Chrome `.deb` 156 at `/usr/bin/google-chrome` (Google apt repo),
+which both MCP configs already expect. `playwright screenshot --channel chrome`
+rendered CJK + emoji. `/snap/bin/chromium` no longer exists: suites that set
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE=/snap/bin/chromium` must use
+`/usr/bin/google-chrome`. Playwright cache keeps `chromium-1228` (7 projects pin
+1.61.1) and `chromium-1248` (1.64.1).
 
 **Verified 2026-11-02:** Playwright MCP is registered once in
 `config/ai/mcp-servers.json` (`@playwright/mcp@0.0.84 --browser chrome --headless`,

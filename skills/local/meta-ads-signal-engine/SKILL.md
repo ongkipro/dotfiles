@@ -36,6 +36,8 @@ step names it.
 - "Events arrive but EMQ/match is bad" or "DPA retargets nobody" → Audit
   first → `IDENTITY_NORMALIZATION.md` / catalog identity → evidence ladder.
 - COD store → `COD_VS_PREPAID_PURCHASE.md` before any Purchase event.
+- "Reported conversions jumped/dropped without a sales change" → first
+  `PIXEL_2026_CHANGES.md` (attribution and on-device measurement dates).
 
 ## Core Philosophy
 
@@ -92,6 +94,7 @@ server-derived IP and user agent
 
 | Task | Read |
 | --- | --- |
+| How Pixel/CAPI/datasets work; 2026 changes (Meta-enabled CAPI, Pixel AI, on-device conversions from 2026-11-12, attribution) and requirements | [Pixel 2026 changes](references/PIXEL_2026_CHANGES.md) |
 | CAPI server sender, payload structure & transactional outbox | [CAPI Sender Pattern](references/CAPI_SENDER.md) |
 | Browser + Server Deduplication & `event_id` rules | [Deduplication & Event ID](references/DEDUPLICATION_EVENT_ID.md) |
 | Customer identity matching, E.164 phone normalization, SHA-256 hashing, `_fbp`/`_fbc` rules | [Identity Normalization](references/IDENTITY_NORMALIZATION.md) |

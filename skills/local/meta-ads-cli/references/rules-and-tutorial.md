@@ -29,8 +29,9 @@ test candidates, not a universal Meta requirement or verified performance optimu
    - Store all System User tokens in `~/.config/ai-local/secrets.env` (`chmod 600`) and let `dotads-meta` inject `ACCESS_TOKEN` in-memory via `secrets-env get`.
 3. **Mandatory 4-Step Pre-Flight Sequence:**
    - Always run: (1) `dotads-meta validate <campaign.json>` -> (2) `dotads-meta deploy <campaign.json>` (dry-run) -> (3) obtain explicit user approval -> (4) `dotads-meta deploy <campaign.json> --apply`.
-4. **Paused-by-Default Safety Gate:**
+4. **Paused-by-Default Safety Gate & `dotads: ` Campaign Label:**
    - `dotads-meta deploy --apply` forces `--status PAUSED` on all created entities unless `--activate` is explicitly passed.
+   - Every campaign created by `dotads-meta` (`deploy` or `run -- ads campaign create`) must be prefixed with `dotads: <campaign_name>` (`dotads-meta validate` warns if omitted and `deploy`/`run` auto-prefixes `dotads: `).
 5. **Budget Exclusivity & Minor Currency Units:**
    - Choose exactly one budget mode per campaign: **CBO** (budget on `campaign`, none on `adsets`), **ABO** (no budget/bid_strategy/pacing_type on `campaign`, budget on each `adset`), or **Flex** (`"adset_budget_sharing": true` on `campaign`, `daily_budget` on each `adset`).
    - Budgets and bid amounts are integers in **minor currency units** (`5000` = `$50.00` USD).
@@ -104,27 +105,52 @@ hypotheses, not a Meta-certified optimum or a guaranteed ROAS recipe.
    CBO suits flexible allocation; ABO can reserve test budgets. Unequal delivery
    does not prove a fair creative comparison; use a supported randomized test
    when that comparison is the decision.
-5. **Choose audience and placement controls deliberately:** broad eligible reach
-   and suitable automation are candidates, subject to policy, serviceability,
-   brand and measurement constraints. Neither 21–65+ nor all genders is a
-   universal Indonesia default. Do not split every province/city from public
-   shopping statistics; those data are priors, not account conversion evidence.
-6. **Test meaningful creative differences:** vary the relevant customer problem,
-   benefit, demonstration, proof or format, retaining truthful offer facts.
-   Cosmetic variants alone do not test distinct propositions. Match customer
-   language to the explicit market and inspect actual placement previews.
-7. **Predeclare the decision window:** use expected CPA and affordable spend to
-   judge whether each planned cell can produce useful evidence. Document the
-   time horizon, conversion lag, uncertainty and stop-loss; do not invent a
-   universal 24-hour cutoff, purchase count or ROAS threshold. Diagnose signal,
-   funnel and economics before attributing failure to targeting or an engine.
-8. **Validate, iterate and scale deliberately:** compare consistent scopes and
-   backend outcomes, preserve a baseline and log material changes. A plausible
-   winner is provisional until further evidence supports it. Propose controlled
-   budget/creative changes within the approved risk; live writes and new spend
-   require their applicable approval. Record account learning privately and
-   review reusable methods before updating the shared skill.
+5. **Choose audience and placement controls deliberately (adaptive Broad + Advantage+ Audience baseline, hard controls for verified constraints):**
+   every hard filter shrinks auction liquidity and raises clearing CPM/CPC.
+   Start with **0 interests** (empty detailed targeting) + **Advantage+ Audience
+   (`advantage_audience: 1`)** + **Broad Age/Gender** + **Advantage+ Placements**
+   when the pixel/dataset has clean bottom-of-funnel feedback, allowing
+   Andromeda/GenRecs/GEM and creative hooks to qualify buyers. Apply hard
+   `Audience Controls` only for verified legal/purchasing-power floors
+   (`age_min`), physical serviceability or unit-economics exclusions
+   (`excluded_geo_locations`), empirically proven demographic leakage (`>15%`
+   non-converting spend in multi-week breakdowns), or technical routing
+   requirements (such as mobile-only app deep links); see
+   [algorithm and learning §6.1](algorithm-and-learning.md#6-adaptive-targeting-liquidity-broad-vs-audience-controls--multi-horizon-diagnostic-timing).
+   Do not split every province/city from public shopping statistics; those data
+   are priors, not account conversion evidence.
+6. **Test meaningful creative differences & match destination friction to the offer:**
+   vary the relevant customer problem, benefit, demonstration, proof or format
+   (keep ad count proportional to budget, typically 3–5 distinct angles per ad
+   set; avoid crowding >6 ads into a micro-budget ad set), retaining truthful
+   offer facts. Match the destination architecture to the buying journey (e.g.,
+   low-friction embedded checkout for single-SKU direct response vs. high-trust
+   storefront/bundle pages for multi-SKU brands) and monitor step-to-step
+   (`LPV -> ATC -> IC -> Purchase`) conversion velocity.
+7. **Predeclare the decision window (Multi-Horizon Diagnostic Protocol — never pause on `<24h` exploration noise):**
+   use expected CPA, diurnal auction cycles, and conversion lag to judge
+   performance (see [algorithm and learning §6.2](algorithm-and-learning.md#62-multi-horizon-diagnostic--audit-timing-protocol-cycle---economics-aware)):
+   `0–6h` for technical sanity checks only; `>= 24h` (`>= 1` full diurnal cycle)
+   + declared test spend (`>= 1.0x Target_CPA` or owner stop-loss floor) for
+   zero-intent (`0 Conversions` and `ATC <= 1`) stop-loss; `48–72h` (`>=
+   1.5x–2.0x Target_CPA`) when mid-funnel (`ATC` / `IC`) intent is active; and
+   `3–7d` (`last_7d`) before scaling or retiring mature campaigns. Diagnose
+   signal, funnel (`ATC -> IC` drop-off) and economics before attributing
+   failure to targeting or an engine.
+8. **Validate, iterate and scale deliberately (`Scale Up` vs. `Scale Out`):**
+   compare consistent scopes and backend outcomes, preserve a baseline and log
+   material changes (see [algorithm and learning §7.1–§7.3](algorithm-and-learning.md#7-adaptive-scaling-mechanics-coupled-configuration-hierarchy--continuous-evolution)).
+   For vertical **Scale Up**, step budgets gradually (`+15% to +25%` every
+   `48–72h` while marginal CPA holds) and transition to protective bid/value
+   controls (`COST_CAP`, `LOWEST_COST_WITH_BID_CAP`,
+   `LOWEST_COST_WITH_MIN_ROAS`) when uncapped pacing hits diminishing returns.
+   For horizontal **Scale Out**, launch orthogonal creative concepts, new offer
+   bundles, or complementary channels rather than cloning identical ad sets.
+   Live writes and new spend require their applicable approval; promote only
+   generalizable, de-identified mechanisms to shared skills.
 
+The [algorithm and learning reference](algorithm-and-learning.md) has the
+2026 Andromeda/GenRecs/GEM updates, learning phase and measurement changes.
 The [source record](api-and-evidence.md) explains retrieval, ranking and model
 transfer; these systems predict relevance and actions rather than expose a
 hidden advertiser-side "winning" switch. Use
@@ -137,7 +163,7 @@ hidden advertiser-side "winning" switch. Use
 | **Advantage+ Sales / App / Leads** | `smart_promotion_type: "AUTOMATED_SHOPPING_ADS"` or `"SMART_APP_PROMOTION"` (create, duplicate, and update retired in v25; all versions since 2026-05-19) | Standard `objective` (`OUTCOME_SALES`, `OUTCOME_LEADS`, `OUTCOME_APP_PROMOTION`) + CBO budget + `"advantage_audience": true` on ad set -> local automation candidate; actual server `advantage_state` and placement eligibility require account evidence |
 | **Multi-Asset Creative Testing** | Ad-set `"dynamic_creative": true` only (limits ad set to 1 ad) | Creative `"ad_format": "AUTOMATIC_FORMAT"` (ad-level Flexible Format `asset_feed_spec`; supports multiple multi-asset ads in one ad set) |
 | **Advantage+ Creative Enhancements** | Bundled `creative_features_spec.standard_enhancements` (deprecated in v22.0+) | Granular `degrees_of_freedom_spec.creative_features_spec` keys (`image_touchups`, `image_templates`, `video_auto_crop`, `text_optimizations`, `inline_comment`, `background_generation`, `image_expansion`, `text_generation`) |
-| **Attribution Windows** | `7d_view` and `28d_view` (removed from Insights & ad set attribution specs) | `1d_view` (`VIEW_THROUGH`, `window_days: 1`), `1d_ev` (`ENGAGED_VIDEO_VIEW`, `window_days: 1`), `7d_click` / `1d_click` (`CLICK_THROUGH`) |
+| **Attribution Windows** | `7d_view` and `28d_view` (no longer returned by Insights since 2026-01-12) | `1d_view` (`VIEW_THROUGH`, `window_days: 1`), `1d_ev` (`ENGAGED_VIDEO_VIEW`, `window_days: 1`), `7d_click` / `1d_click` (`CLICK_THROUGH`). Since 2026-03, click-through counts link clicks only; other clicks are engage-through and engaged video view is 5 s — see [algorithm and learning](algorithm-and-learning.md) |
 | **Causal Lift Optimization** | Correlational post-view/click optimization only | Ad set `"incremental_attribution": true` (`--incremental-attribution`), only for eligible goals/bids and without `attribution_spec`; this is an optimization setting, not measured causal lift |
 | **ABO Testing Budget Liquidity** | Rigid isolated ABO budgets | Campaign `"adset_budget_sharing": true` (`--adset-budget-sharing`) to share up to 20% budget across ad sets |
 | **Multi-Advertiser Placement** | Implicit auto-enrollment | Creative `"contextual_multi_ads": false` (`--no-contextual-multi-ads`) to opt out when offer isolation is required |
@@ -150,7 +176,7 @@ with incremental attribution omitted or false. Validate the actual goal/window
 combination; the offline validator is not a complete API eligibility oracle.
 
 The source record covers the 2026-10-27 poll, Web and App, and HEF changes.
-Installed CLI 1.2.0 uses SDK 24.x; a v26 checklist does not upgrade its requests.
+Historical: CLI 1.2.0 used SDK 24.x. Verified 2026-11-04: CLI 1.3.1, SDK 26.0.2, API v26.0.
 
 ### 3. Granular `degrees_of_freedom_spec` JSON Reference (v22.0–v26.0)
 
@@ -231,7 +257,7 @@ Illustrates a standard sales CBO candidate with explicit audience opt-in and inc
 {
   "campaign": {
     "key": "camp_adv_plus_sales",
-    "name": "ID_AdvPlus_Sales_CBO",
+    "name": "dotads: ID_AdvPlus_Sales_CBO",
     "objective": "OUTCOME_SALES",
     "status": "PAUSED",
     "daily_budget": 10000
@@ -310,7 +336,7 @@ Uses `"ad_format": "AUTOMATIC_FORMAT"` on each creative to supply multiple asset
 {
   "campaign": {
     "key": "camp_flex_format_sales",
-    "name": "ID_Sales_CBO_FlexibleFormat",
+    "name": "dotads: ID_Sales_CBO_FlexibleFormat",
     "objective": "OUTCOME_SALES",
     "status": "PAUSED",
     "daily_budget": 12000
@@ -386,7 +412,7 @@ When using ad-set-level `"dynamic_creative": true`, keep exactly 1 ad in that DC
 {
   "campaign": {
     "key": "camp_dco_sales",
-    "name": "ID_Sales_CBO_DCO",
+    "name": "dotads: ID_Sales_CBO_DCO",
     "objective": "OUTCOME_SALES",
     "status": "PAUSED",
     "daily_budget": 8000
@@ -434,7 +460,7 @@ Uses ABO with `"adset_budget_sharing": true` so each creative concept gets a ded
 {
   "campaign": {
     "key": "camp_flex_creative_test",
-    "name": "ID_Sales_FlexBudget_ConceptTest",
+    "name": "dotads: ID_Sales_FlexBudget_ConceptTest",
     "objective": "OUTCOME_SALES",
     "adset_budget_sharing": true,
     "status": "PAUSED"
@@ -499,6 +525,133 @@ Uses ABO with `"adset_budget_sharing": true` so each creative concept gets a ded
   ]
 }
 ```
+
+### Recipe 5: Shopee Collaborative Ads (CPAS) `1-1-1` Direct-to-App (`CAROUSEL_DPA` — Dynamic Across All Niches)
+
+Implements the observed default for Indonesia Shopee CPAS (`1 Campaign` CBO with `is_pca_unified: true` → `1 Omnichannel Ad Set` (`Website and app`: Shopee ID App `957549474255294` + Shopee ID Website's Pixel `466924370133774`) → `1 Dynamic Carousel Ad` `carousel_images_multi_items`; scope and limits in [CPAS §7](cpas-collaborative-ads.md)) with `dotads:` campaign prefix, `dotads: Carousel | ...` ad naming, `device_platforms: ["mobile"]`, `publisher_platforms: ["facebook"]` (`feed`, `facebook_reels`; Threads is untested, add it only as its own test), Instagram and Audience Network excluded by default, and `deeplink_with_web_fallback` bound to Shopee Indonesia's published Meta app id (`957549474255294`). Every object stays `PAUSED`; the numbers in the manifest are placeholders, not recommendations. Replace `product_catalog_id`, `product_set_id`, `page_id`, `daily_budget` (`max(25000, 1.5x–2.5x Target_CPA)`), demographic bounds, and `template_data.message` dynamically to match the specific brand, niche, and unit economics (see `references/cpas-collaborative-ads.md` §7):
+
+```json
+{
+  "campaign": {
+    "key": "camp_cpas_111_pros_hero",
+    "name": "dotads: Brand || CPAS 1-1-1 || Hero Set || Angle V1",
+    "objective": "OUTCOME_SALES",
+    "smart_promotion_type": "GUIDED_CREATION",
+    "is_pca_unified": true,
+    "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+    "daily_budget": 30000,
+    "promoted_object": {
+      "product_catalog_id": "123456789012345",
+      "smart_pse_enabled": false
+    },
+    "status": "PAUSED"
+  },
+  "creatives": [
+    {
+      "key": "cr_cpas_carousel_hero_v1",
+      "name": "Cr_CPAS_Carousel_Hero_V1",
+      "product_set_id": "234567890123456",
+      "applink_treatment": "deeplink_with_web_fallback",
+      "template_url_spec": {
+        "android": { "app_name": "Shopee ID", "package": "com.shopee.id" },
+        "config": { "app_id": "957549474255294" },
+        "ios": { "app_name": "Shopee ID", "app_store_id": "959841449" }
+      },
+      "contextual_multi_ads": { "enroll_status": "OPT_IN" },
+      "asset_feed_spec": {
+        "ad_formats": ["CAROUSEL"],
+        "optimization_type": "FORMAT_AUTOMATION"
+      },
+      "format_transformation_spec": [
+        { "data_source": ["catalog"], "format": "carousel" },
+        { "data_source": ["catalog"], "format": "catalog_single_media" }
+      ],
+      "url_tags": "utm_source=facebook-ca&utm_medium=seller",
+      "object_story_spec": {
+        "page_id": "1122334455",
+        "template_data": {
+          "call_to_action": { "type": "SHOP_NOW" },
+          "description": "{{product.current_price strip_zeros}}",
+          "format_option": "carousel_images_multi_items",
+          "link": "http://shopee.co.id/",
+          "message": "Cari produk pilihan terbaik dengan jaminan kualitas resmi dan ulasan bintang 4.9+ dari ribuan pembeli?\n\nAmbil voucher diskon toko, harga promo katalog, dan gratis ongkir hari ini di Shopee Official Store kami.",
+          "multi_share_end_card": false,
+          "name": "{{product.name}}"
+        }
+      }
+    }
+  ],
+  "adsets": [
+    {
+      "key": "adset_cpas_pros_mobile_fb",
+      "name": "AdSet_CPAS_PROS_Mobile_FB",
+      "optimization_goal": "OFFSITE_CONVERSIONS",
+      "billing_event": "IMPRESSIONS",
+      "ad_set_goal": { "type": 0 },
+      "promoted_object": {
+        "custom_event_type": "PURCHASE",
+        "product_set_id": "234567890123456",
+        "smart_pse_enabled": false,
+        "omnichannel_object": {
+          "app": [
+            {
+              "application_id": "957549474255294",
+              "custom_event_type": "PURCHASE",
+              "object_store_urls": [
+                "http://play.google.com/store/apps/details?id=com.shopee.id",
+                "http://itunes.apple.com/app/id959841443"
+              ]
+            }
+          ],
+          "pixel": [
+            {
+              "custom_event_type": "PURCHASE",
+              "pixel_id": "466924370133774"
+            }
+          ]
+        }
+      },
+      "attribution_spec": [
+        { "event_type": "CLICK_THROUGH", "window_days": 7 },
+        { "event_type": "VIEW_THROUGH", "window_days": 1 },
+        { "event_type": "ENGAGED_VIDEO_VIEW", "window_days": 1 }
+      ],
+      "targeting": {
+        "age_min": 18,
+        "age_max": 65,
+        "age_range": [25, 54],
+        "geo_locations": {
+          "countries": ["ID"],
+          "location_types": ["home", "recent"]
+        },
+        "device_platforms": ["mobile"],
+        "publisher_platforms": ["facebook"],
+        "facebook_positions": ["feed", "facebook_reels"],
+        "targeting_automation": {
+          "advantage_audience": 1,
+          "individual_setting": { "age": 1, "gender": 1 }
+        }
+      },
+      "status": "PAUSED"
+    }
+  ],
+  "ads": [
+    {
+      "key": "ad_cpas_carousel_hero_v1",
+      "name": "dotads: Carousel | Hero Set Angle V1",
+      "adset": "adset_cpas_pros_mobile_fb",
+      "creative": "cr_cpas_carousel_hero_v1",
+      "status": "PAUSED"
+    }
+  ]
+}
+```
+
+#### In-Place Creative Hot-Swap (Fixing `da_collection` or `template_url_spec` Without Resetting Ad Set Learning)
+
+Never delete or recreate a live Campaign or Ad Set when only the `AdCreative` needs remediation (for example, stripping auto-injected `da_collection` or adding `template_url_spec`). Because `AdCreative` fields are immutable after creation, bump the creative `key` in the manifest (e.g. `cr_cpas_carousel_hero_v2`), point the existing `ads[0].creative` reference to the new creative key while keeping the Campaign, Ad Set, and Ad keys unchanged, and run:
+1. `dotads-meta deploy <campaign.json> --hot-swap-creative` (dry-run: shows `SKIP` on Campaign & Ad Set, `CREATE` on the new Creative, and `HOT_SWAP_CREATIVE` on the existing Ad).
+2. After owner approval: `dotads-meta deploy <campaign.json> --hot-swap-creative --apply` (creates the new `AdCreative` via `AdAccount.create_ad_creative`, updates the existing `Ad` in-place via `Ad(ad_id).api_update(params={"creative": {"creative_id": new_cr_id}})`, and updates `.meta-state.json` automatically).
 
 ---
 

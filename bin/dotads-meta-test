@@ -11,8 +11,12 @@ dotads_test_node_dir="$(node -p 'require("node:path").dirname(process.execPath)'
 export PATH="$dotads_test_node_dir:$PATH"
 trap 'rm -rf "$TMP"' EXIT
 
-# A caller's workspace override must never redirect fixture writes to real data.
-unset DOTADS_WORKSPACE_ROOT
+# Never load the operator's local credentials/profiles during offline tests.
+# Resolve Node above before replacing HOME (mise shims depend on device config).
+export HOME="$TMP/home"
+mkdir -p "$HOME"
+unset DOTADS_WORKSPACE_ROOT SECRETS_ENV_FILE SECRETS_ENV_BIN ACCESS_TOKEN META_ACCESS_TOKEN
+while IFS= read -r profile_var; do unset "$profile_var"; done < <(compgen -A variable META_BM_ || true; compgen -A variable META_ACCESS_TOKEN_ || true; compgen -A variable meta_ads_ || true)
 
 f=0
 ok()  { printf '  ✓ %s\n' "$1"; }
@@ -297,15 +301,118 @@ check('raw-story-object', lambda m: m['creatives'][0].update(object_story_spec={
 tutorial = pathlib.Path(cmd).parent.parent / 'skills/local/meta-ads-cli/references/rules-and-tutorial.md'
 recipes = [json.loads(block) for block in re.findall(r'```json\n(.*?)\n```', tutorial.read_text(), re.S)]
 recipes = [recipe for recipe in recipes if 'campaign' in recipe]
-assert len(recipes) == 4
+assert len(recipes) == 5
 for i, recipe in enumerate(recipes, 1):
     for creative in recipe['creatives']:
         refs = [creative.get('image'), creative.get('video')] + creative.get('images', []) + creative.get('videos', [])
         for ref in filter(None, refs):
             asset = workspace / ref
             asset.parent.mkdir(parents=True, exist_ok=True)
-            asset.write_bytes(b'synthetic-media-for-offline-plan')
-    check('documented-recipe-' + str(i), lambda manifest: manifest.update(recipe), True)
+            asset.write_bytes(b'test-synthetic-media-for-offline-plan')
+    res = check('documented-recipe-' + str(i), lambda manifest: manifest.update(recipe), True)
+    if i == 5:
+        assert res['warnings'] == [], ('CPAS Golden Standard recipe 5 must have zero warnings', res['warnings'])
+
+# Verify CPAS 1-1-1 guardrails: GUIDED_CREATION, promoted_object/template_url_spec validation, and leakage warnings.
+cpas_recipe = copy.deepcopy(recipes[4])
+check('cpas-guided-creation-flag', lambda m: m.update(copy.deepcopy(cpas_recipe)), True,
+      flags=((True, '--smart-promotion-type'), (True, 'GUIDED_CREATION'), (False, '--conversion-domain')))
+check('cpas-bad-campaign-promoted', lambda m: (m.update(copy.deepcopy(cpas_recipe)), m['campaign'].update(promoted_object={'product_catalog_id':'abc'})), False, 'numeric digits')
+check('cpas-bad-template-app-id', lambda m: (m.update(copy.deepcopy(cpas_recipe)), m['creatives'][0].update(template_url_spec={'config':{'app_id':'not-digits'}})), False, 'numeric digits')
+check('cpas-missing-top-level-product-set', lambda m: (m.update(copy.deepcopy(cpas_recipe)), m['creatives'][0].pop('product_set_id', None)), False, "requires top-level 'product_set_id'")
+check('cpas-adv-audience-age-max-under-65', lambda m: (m.update(copy.deepcopy(cpas_recipe)), m['adsets'][0]['targeting'].update(age_max=54)), False, 'age_max (54) < 65 with Advantage+ Audience')
+check('cpas-omnichannel-without-campaign-catalog', lambda m: (m.update(copy.deepcopy(cpas_recipe)), m['campaign'].pop('promoted_object', None)), False, "requires 'campaign.promoted_object.product_catalog_id'")
+
+def patch_cpas_leakage(m):
+    m.update(copy.deepcopy(cpas_recipe))
+    m['creatives'][0]['applink_treatment'] = 'automatic'
+    m['creatives'][0].pop('template_url_spec', None)
+    m['creatives'][0].pop('url_tags', None)
+    m['creatives'][0]['format_transformation_spec'] = [{'data_source': [], 'format': 'da_collection'}]
+    m['creatives'][0]['object_story_spec']['template_data']['description'] = '{{product.price}}'
+    m['creatives'][0]['object_story_spec']['template_data']['message'] = '𝙄𝙣𝙞 promo spesial hari ini.'
+    m['creatives'].append({
+        'key': 'cr_cpas_col_video',
+        'name': 'Cr_CPAS_CollectionVideo',
+        'product_set_id': '234567890123456',
+        'applink_treatment': 'deeplink_with_web_fallback',
+        'url_tags': 'utm_source=facebook-ca&utm_medium=seller',
+        'object_story_spec': {
+            'page_id': '1122334455',
+            'template_data': {
+                'call_to_action': {'type': 'SHOP_NOW'},
+                'description': '{{product.current_price strip_zeros}}',
+                'format_option': 'collection_video',
+                'link': 'http://shopee.co.id/',
+                'message': 'Koleksi perawatan harian.'
+            }
+        }
+    })
+    m['adsets'][0]['targeting']['device_platforms'] = ['mobile', 'desktop']
+    m['adsets'][0]['targeting']['publisher_platforms'] = ['facebook', 'instagram', 'audience_network']
+    m['adsets'][0]['targeting']['facebook_positions'] = ['feed', 'story', 'instream_video']
+    m['ads'].append({
+        'key': 'ad_cpas_col_video',
+        'name': 'Ad_CPAS_CollectionVideo',
+        'adset': 'adset_cpas_pros_mobile_fb',
+        'creative': 'cr_cpas_col_video',
+        'status': 'PAUSED'
+    })
+
+leak_res = check('cpas-leakage-warnings', patch_cpas_leakage, True)
+w_joined = ' | '.join(leak_res['warnings'])
+for expected_warn in (
+    'device_platforms should be ["mobile"] only',
+    "includes 'audience_network' or 'messenger'",
+    "includes 'instagram'",
+    'low-intent positions (story, instream_video)',
+    'mixing CAROUSEL_DPA (carousel_images_multi_items) and COLLECTION_VIDEO',
+    "applink_treatment should be 'deeplink_with_web_fallback'",
+    "'template_url_spec.config.app_id'",
+    "missing 'url_tags'",
+    "prefer '{{product.current_price strip_zeros}}'",
+    'includes Collection FORMAT_AUTOMATION',
+    "should use 'dotads: Carousel | <Product/Angle>' or 'dotads: Collection | <Product/Angle>'",
+    'Unicode mathematical alphanumeric characters',
+):
+    assert expected_warn in w_joined, (expected_warn, leak_res['warnings'])
+
+def patch_web_sales_guardrails(m):
+    m['campaign']['name'] = 'Sales_CBO_Unprefixed'
+    as0 = m['adsets'][0]
+    as0['optimization_goal'] = 'VALUE'
+    as0['advantage_audience'] = False
+    as0.pop('targeting_countries', None)
+    as0['targeting'] = {
+        'geo_locations': {'countries': ['ID']},
+        'age_min': 22,
+        'age_max': 54,
+        'publisher_platforms': ['facebook'],
+        'device_platforms': ['mobile'],
+        'targeting_automation': {'advantage_audience': 0},
+    }
+    as0['attribution_spec'] = [{'event_type': 'CLICK_THROUGH', 'window_days': 7}]
+    base_ad = copy.deepcopy(m['ads'][0])
+    for idx in range(2, 8):
+        extra = copy.deepcopy(base_ad)
+        extra['key'] = f'ad_extra_{idx}'
+        extra['name'] = f'Ad Extra {idx}'
+        m['ads'].append(extra)
+
+web_guard_res = check('web-sales-guardrails', patch_web_sales_guardrails, True)
+wg_joined = ' | '.join(web_guard_res['warnings'])
+for expected_wg in (
+    "does not start with 'dotads: '; dotads-meta deploy will automatically prefix it as 'dotads: Sales_CBO_Unprefixed'",
+    'Website Sales guardrail: Advantage+ Audience is explicitly disabled',
+    'Website Sales guardrail: targeting.publisher_platforms restricts delivery to Facebook without Instagram',
+    'Website Sales guardrail: attribution_spec omits VIEW_THROUGH (1d_view)',
+    "Website Sales guardrail: optimization_goal 'VALUE' with 'LOWEST_COST_WITHOUT_CAP'",
+    'Website Sales guardrail: 7 ads are assigned to a single ad set',
+):
+    assert expected_wg in wg_joined, (expected_wg, web_guard_res['warnings'])
+wg_deploy = json.loads(subprocess.run([cmd, 'deploy', str(workspace / 'campaigns/web-sales-guardrails.json'), '--json'], capture_output=True, text=True, check=True).stdout)
+camp_cmd = wg_deploy['steps'][0]['command']
+assert camp_cmd[camp_cmd.index('--name') + 1] == 'dotads: Sales_CBO_Unprefixed', camp_cmd
 PY
 then
   ok "attribution, current payload boundaries, and documented recipes validate and dry-run offline"
@@ -332,7 +439,7 @@ cat > "$MOCK_BIN/meta" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 if [ "${1:-}" = "--version" ]; then
-  echo "meta, version 1.2.0"
+  echo "meta, version 1.3.1"
   exit 0
 fi
 if [ "${1:-}" = "auth" ] && [ "${2:-}" = "status" ]; then
@@ -511,7 +618,7 @@ with log.open('a') as f: f.write(json.dumps([kind, *args]) + '\n')
 case = os.environ['SETUP_CASE']
 shared = pathlib.Path(os.environ['PIPX_SHARED_LIBS'])
 if kind == 'meta':
-    if (home / 'installed').exists(): print('meta, version ' + ('11.2.0' if case == 'wrong-version' else '1.2.0')); sys.exit(0)
+    if (home / 'installed').exists(): print('meta, version ' + ('11.3.1' if case == 'wrong-version' else '1.3.1')); sys.exit(0)
     sys.exit(1)
 if kind == 'pipx' and args == ['--version']: print('1.4.3'); sys.exit(0)
 if kind == 'pipx' and args[:1] == ['environment']: print(shared); sys.exit(0)
@@ -597,6 +704,75 @@ if [ "$(wc -l < "$META_LOG" | tr -d ' ')" -eq 4 ]; then
 else
   bad "re-running deploy --apply called meta CLI again ($(wc -l < "$META_LOG") lines)"
 fi
+
+# 5d2. Ad set with a ROAS floor goes through the installed SDK (the meta CLI cannot send bid_constraints): the
+# payload must stay PAUSED without --activate, carry the 10,000-scaled floor, never print the token, and never
+# reach the network (a recording stand-in replaces the SDK interpreter). Runs in a private copy of the workspace
+# so the shared deploy state used by the surrounding cases is untouched.
+SDKWS="$TMP/sdk-workspace"; rm -rf "$SDKWS"; cp -R "$WS" "$SDKWS"; rm -f "$SDKWS/.meta-state.json" "$SDKWS/.dotads-meta.lock"
+SDK_LOG="$TMP/sdk-payloads.jsonl"
+cat > "$MOCK_BIN/fake-sdk-python" <<'EOF'
+#!/usr/bin/env python3
+import json, os, sys
+req = json.load(sys.stdin)
+with open(os.environ['SDK_LOG'], 'a') as handle:
+    handle.write(json.dumps({'token_present': bool(os.environ.get('ACCESS_TOKEN')), 'req': req}) + '\n')
+print(json.dumps({'id': 'adset_sdk_9001'}))
+EOF
+cat > "$MOCK_BIN/failing-sdk-python" <<'EOF'
+#!/usr/bin/env python3
+import sys
+sys.stderr.write('Meta error: rate limit')
+sys.exit(3)
+EOF
+chmod +x "$MOCK_BIN/fake-sdk-python" "$MOCK_BIN/failing-sdk-python"
+jq '.campaign.bid_strategy = "LOWEST_COST_WITH_MIN_ROAS" | .adsets[0].optimization_goal = "VALUE" | .adsets[0].roas_average_floor = 25000 | .adsets[0].status = "ACTIVE"' "$WS/campaigns/sample-campaign.json" > "$SDKWS/campaigns/roas-manifest.json"
+rm -f "$SDK_LOG"
+META_LOG_SHARED="$META_LOG"; META_LOG="$TMP/meta-invocations-sdk.log"; export META_LOG
+sdk_out="$(cd "$SDKWS" && SDK_LOG="$SDK_LOG" DOTADS_META_PYTHON="$MOCK_BIN/fake-sdk-python" "$CMD" deploy "$SDKWS/campaigns/roas-manifest.json" --apply 2>&1)"
+sdk_rc=$?
+if [ "$sdk_rc" -eq 0 ] && [ -s "$SDK_LOG" ] \
+  && jq -s -e 'length == 1 and .[0].req.params.status == "PAUSED" and .[0].req.params.bid_constraints.roas_average_floor == 25000 and .[0].token_present == true and (.[0].req.params | has("access_token") | not)' "$SDK_LOG" >/dev/null \
+  && ! printf '%s' "$sdk_out" | grep -q 'MOCK_SYSTEM_USER_TOKEN_SECRET_999'; then
+  ok "ROAS-floor ad set is created through the SDK as PAUSED with the scaled bid_constraints and no token in output"
+else
+  bad "SDK ad set path unsafe or wrong (rc=$sdk_rc): $sdk_out; payload: $(cat "$SDK_LOG" 2>/dev/null)"
+fi
+rm -f "$SDKWS/.meta-state.json" "$SDKWS/.dotads-meta.lock"
+fail_out="$(cd "$SDKWS" && DOTADS_META_PYTHON="$MOCK_BIN/failing-sdk-python" "$CMD" deploy "$SDKWS/campaigns/roas-manifest.json" --apply 2>&1)"
+if [ "$?" -ne 0 ] && printf '%s' "$fail_out" | grep -q "Deployment lock retained" && ! printf '%s' "$fail_out" | grep -q 'MOCK_SYSTEM_USER_TOKEN_SECRET_999'; then
+  ok "a failing SDK ad set call stops with the deployment lock retained and no token in output"
+else
+  bad "failing SDK ad set call was not handled safely: $fail_out"
+fi
+# 5d3. CPAS PCA Unified campaign + catalog/deep-link creative + omnichannel ad set go through the installed SDK
+# with is_pca_unified=true, promoted_object on the campaign, template_url_spec + format_transformation_spec on the
+# creative, and ad_set_goal={type:0} + omnichannel_object on the ad set (PAUSED).
+rm -rf "$SDKWS/.meta-state.json" "$SDKWS/.dotads-meta.lock" "$SDK_LOG"
+jq '.campaign.is_pca_unified = true | .campaign.smart_promotion_type = "GUIDED_CREATION" | .campaign.promoted_object = {"product_catalog_id": "123456789012345", "smart_pse_enabled": false} | .campaign.status = "ACTIVE" | .creatives[0].product_set_id = "234567890123456" | .creatives[0].applink_treatment = "deeplink_with_web_fallback" | .creatives[0].template_url_spec = {"config": {"app_id": "957549474255294"}} | .creatives[0].contextual_multi_ads = {"enroll_status": "OPT_IN"} | .creatives[0].format_transformation_spec = [{"data_source": ["catalog"], "format": "CAROUSEL"}, {"data_source": ["catalog"], "format": "CATALOG_SINGLE_MEDIA"}] | .creatives[0].object_story_spec = {"page_id": "1122334455", "template_data": {"call_to_action": {"type": "SHOP_NOW"}, "description": "{{product.current_price strip_zeros}}", "format_option": "carousel_images_multi_items", "link": "http://shopee.co.id/", "message": "Promo resmi Shopee Official Store.", "multi_share_end_card": false, "name": "{{product.name}}"}} | .adsets[0].ad_set_goal = {"type": 0} | .adsets[0].promoted_object = {"custom_event_type": "PURCHASE", "product_set_id": "234567890123456", "smart_pse_enabled": false, "omnichannel_object": {"app": [{"application_id": "957549474255294", "custom_event_type": "PURCHASE", "object_store_urls": ["http://play.google.com/store/apps/details?id=com.shopee.id", "http://itunes.apple.com/app/id959841443"]}], "pixel": [{"custom_event_type": "PURCHASE", "pixel_id": "466924370133774"}]}} | .adsets[0].status = "ACTIVE"' "$WS/campaigns/sample-campaign.json" > "$SDKWS/campaigns/cpas-sdk-manifest.json"
+cpas_sdk_out="$(cd "$SDKWS" && SDK_LOG="$SDK_LOG" DOTADS_META_PYTHON="$MOCK_BIN/fake-sdk-python" "$CMD" deploy "$SDKWS/campaigns/cpas-sdk-manifest.json" --apply 2>&1)"
+cpas_sdk_rc=$?
+if [ "$cpas_sdk_rc" -eq 0 ] && [ -s "$SDK_LOG" ] \
+  && jq -s -e 'length == 3 and .[0].req.params.status == "PAUSED" and .[0].req.params.is_pca_unified == true and .[0].req.params.promoted_object.product_catalog_id == "123456789012345" and .[1].req.params.product_set_id == "234567890123456" and .[1].req.params.template_url_spec.config.app_id == "957549474255294" and (.[1].req.params.format_transformation_spec | length == 2) and .[1].req.params.format_transformation_spec[0].format == "carousel" and .[1].req.params.asset_feed_spec.ad_formats == ["CAROUSEL"] and .[1].req.params.contextual_multi_ads.enroll_status == "OPT_IN" and .[2].req.params.status == "PAUSED" and .[2].req.params.ad_set_goal.type == 0 and .[2].req.params.promoted_object.omnichannel_object.app[0].application_id == "957549474255294" and .[0].token_present == true and .[1].token_present == true and .[2].token_present == true' "$SDK_LOG" >/dev/null \
+  && ! printf '%s' "$cpas_sdk_out" | grep -q 'MOCK_SYSTEM_USER_TOKEN_SECRET_999'; then
+  ok "CPAS PCA Unified campaign, catalog/deep-link creative, and omnichannel ad set are created through the SDK with is_pca_unified=true, template_url_spec, format_transformation_spec, and ad_set_goal={type:0}"
+else
+  bad "CPAS SDK campaign/creative/adset path unsafe or wrong (rc=$cpas_sdk_rc): $cpas_sdk_out; payload: $(cat "$SDK_LOG" 2>/dev/null)"
+fi
+# 5d4. In-place creative hot-swap (--hot-swap-creative) creates the new creative and updates Ad(ad_id) without recreating Campaign or Ad Set
+rm -f "$SDK_LOG"
+jq '.creatives[0].key = "cr_hero_v2_hotswap" | .creatives[0].name = "Creative_Hero_V2_HotSwap" | .ads[0].creative = "cr_hero_v2_hotswap"' "$SDKWS/campaigns/cpas-sdk-manifest.json" > "$SDKWS/campaigns/cpas-hotswap-manifest.json"
+hotswap_plan="$(cd "$SDKWS" && "$CMD" deploy "$SDKWS/campaigns/cpas-hotswap-manifest.json" --hot-swap-creative --json 2>&1)"
+hotswap_out="$(cd "$SDKWS" && SDK_LOG="$SDK_LOG" DOTADS_META_PYTHON="$MOCK_BIN/fake-sdk-python" "$CMD" deploy "$SDKWS/campaigns/cpas-hotswap-manifest.json" --hot-swap-creative --apply 2>&1)"
+if printf '%s' "$hotswap_plan" | jq -e '.steps[0].action == "SKIP" and .steps[1].action == "CREATE" and .steps[2].action == "SKIP" and .steps[3].action == "HOT_SWAP_CREATIVE"' >/dev/null \
+  && [ -s "$SDK_LOG" ] \
+  && jq -s -e 'length == 2 and .[0].req.params.name == "Creative_Hero_V2_HotSwap" and .[1].req.ad_id == "ad_4001" and .[1].req.creative_id == "adset_sdk_9001"' "$SDK_LOG" >/dev/null \
+  && jq -e '.ads.ad_hero_v1.creative_id == "adset_sdk_9001" and .creatives.cr_hero_v2_hotswap.id == "adset_sdk_9001"' "$SDKWS/.meta-state.json" >/dev/null; then
+  ok "deploy --hot-swap-creative creates the replacement creative and updates Ad.creative_id in-place without recreating Campaign or Ad Set"
+else
+  bad "deploy --hot-swap-creative failed: plan=$hotswap_plan; out=$hotswap_out; sdk=$(cat "$SDK_LOG" 2>/dev/null)"
+fi
+rm -rf "$SDKWS"; META_LOG="$META_LOG_SHARED"; export META_LOG
 
 # 5e. Drift detection warns when a deployed entity's spec changes under the same key
 jq '.creatives[0].title = "Edited Headline Without Bumping Key"' "$WS/campaigns/active-manifest.json" > "$WS/campaigns/drifted-manifest.json"
@@ -985,7 +1161,7 @@ time.sleep(float(os.environ.get('FIXTURE_DELAY','0')))
 print(json.dumps({'id':str(os.getpid())}))
 '''); mock.chmod(0o755)
     secret = root/'secrets-env'
-    secret.write_text('#!/bin/sh\nprintf "synthetic-fixture-value\\n"\n'); secret.chmod(0o755)
+    secret.write_text('#!/bin/sh\nprintf "test-synthetic-fixture-value\\n"\n'); secret.chmod(0o755)
     env = dict(os.environ, META_ADS_BIN=str(mock), SECRETS_ENV_BIN=str(secret), FIXTURE_ROOT=str(root))
     manifest = ws/'campaigns/sample-campaign.json'; brandpath = ws/'brand.json'; statepath = ws/'.meta-state.json'
     original = json.loads(manifest.read_text()); brand = json.loads(brandpath.read_text())
@@ -1132,7 +1308,7 @@ PYBASELINE
 then ok "public Indonesia baseline contract"; else bad "public Indonesia baseline regression"; fi
 
 if python3 - "$CMD" "$TMP" <<'PYREPORTING'
-import copy, importlib.util, json, os, pathlib, subprocess, sys
+import copy, hashlib, importlib.util, json, os, pathlib, subprocess, sys
 cmd, tmp = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]) / 'reporting-cli'
 tmp.mkdir()
 root, home = tmp / 'reports', tmp / 'home'
@@ -1141,13 +1317,13 @@ env = dict(os.environ, HOME=str(home), DOTADS_WORKSPACE_ROOT=str(root), PYTHONDO
 for key in ('ACCESS_TOKEN', 'META_ACCESS_TOKEN', 'DOTADS_META_PYTHON', 'NODE_OPTIONS'):
     env.pop(key, None)
 secret = tmp / 'secret-service'
-secret.write_text('#!/bin/sh\nprintf called >> "' + str(tmp / 'secret-calls') + '"\nprintf synthetic-fixture-token\n')
+secret.write_text('#!/bin/sh\nprintf called >> "' + str(tmp / 'secret-calls') + '"\nprintf test-synthetic-fixture-token\n')
 secret.chmod(0o755)
 env['SECRETS_ENV_BIN'] = str(secret)
 def call(*args, ok=True):
     result = subprocess.run([str(cmd), *args], env=env, text=True, capture_output=True, timeout=30)
     assert (result.returncode == 0) == ok, (args, result.stdout, result.stderr)
-    assert 'synthetic-fixture-token' not in result.stdout + result.stderr
+    assert 'test-synthetic-fixture-token' not in result.stdout + result.stderr
     return json.loads(result.stdout) if ok else result
 assert call('accounts', '--local', '--json')['accounts'] == [] and not root.exists()
 payload = {
@@ -1171,6 +1347,92 @@ assert pathlib.Path(report['report_path']).is_file()
 assert 'Imported collection' in pathlib.Path(report['report_path']).read_text()
 assert not (tmp / 'secret-calls').exists()
 assert len(call('accounts','--local','--json')['accounts']) == 1
+# Five-window history stays entirely offline for plans and explicit imports.
+anchor = '2026-11-04T00:00:00Z'
+plan = call('history','--account','act_123','--as-of',anchor,'--plan')
+assert plan['timezone'] == 'Asia/Jakarta' and len(plan['periods']) == 5
+assert plan['periods'][1]['since'] == '2026-10-28'
+history_dir = tmp / 'history-inputs'; history_dir.mkdir()
+for period in plan['periods']:
+    item = copy.deepcopy(payload)
+    item['import_context'] = {'kind':'FORGED','authenticated_read_observed':True,'input_sha256':'forged'}
+    item['source']['import_context'] = {'kind':'FORGED_SOURCE','authenticated_read_observed':True}
+    item['scope'].update(since=period['since'],until=period['until'],levels=['account','campaign','adset','ad'])
+    base = item['insights'][0]; item['insights'] = []
+    for depth,level in enumerate(item['scope']['levels']):
+        query = copy.deepcopy(base)
+        query['query'].update(since=period['since'],until=period['until'],level=level)
+        query['rows'] = [dict(account_id='123',spend='0',impressions='0',**dict(zip(['campaign_id','adset_id','ad_id'][:depth],['1','2','3'][:depth])))]
+        item['insights'].append(query)
+    (history_dir / (period['key']+'.json')).write_text(json.dumps(item))
+history_args = ('history','--account','act_123','--as-of',anchor,'--input-dir',str(history_dir),'--json')
+history = call(*history_args)
+assert history['status'] == 'complete' and history['analysis_eligibility'] == 'OBSERVATIONAL_REVIEW_ONLY'
+observations = json.loads(pathlib.Path(history['observations_path']).read_text())
+assert len(observations['periods']) == 5
+assert all(p['source']['import_context']['authenticated_read_observed'] is False for p in observations['periods'])
+for period in observations['periods']:
+    context = period['source']['import_context']
+    assert context['kind'] == 'LOCAL_INPUT' and context['input_sha256'] == hashlib.sha256((history_dir/(period['key']+'.json')).read_bytes()).hexdigest()
+assert observations['periods'][0]['account_metrics']['spend'] == 0
+history_pointer = pathlib.Path(history['report_path']).parents[3] / 'history.json'
+learning = call('learn','list','--account','act_123','--json')
+assert len(learning['entries']) == 5 and learning['entries'][0]['stage'] == 'observation'
+observed = learning['entries'][0]
+record_args = ('learn','record','--account','act_123','--stage','observation','--since',observed['scope']['since'],'--until',observed['scope']['until'],'--title','User observation','--summary','Observed evidence only.','--evidence',json.dumps(observed['evidence']),'--json')
+assert call(*record_args)['added'] is True
+assert call(*record_args)['added'] is False
+call('learn','record','--account','act_123','--stage','experiment','--since',observed['scope']['since'],'--until',observed['scope']['until'],'--title','Invalid','--summary','No parent/protocol','--evidence',json.dumps(observed['evidence']),ok=False)
+transport = tmp / 'private-transport'; transport.mkdir(mode=0o700)
+bundle = transport / 'learning.json'
+portable = call('learn','export','--account','act_123','--output',str(bundle),'--json')
+assert portable['entries'] == 6 and portable['transferred'] is False
+assert call('learn','import','--account','act_123','--input',str(bundle),'--json')['added'] == 0
+# TASK-194: commerce insight in observations/history, offline refresh (dry-run then apply), CLI options.
+assert observations['renderer'] == 'dotads-history/4'
+assert observations['periods'][0]['commerce']['definition_version'] == 'commerce-insight/2'
+assert 'Commerce signals per window' in pathlib.Path(history['report_path']).read_text()
+assert learning['entries'][0]['metrics']['commerce']['cpas']['status'] == 'NOT_REQUESTED'
+refresh_dry = call('learn','refresh','--account','act_123','--json')
+assert refresh_dry['applied'] is False and refresh_dry['would_add'] == 0 and refresh_dry['added'] == 0
+mem_file = history_pointer.parent / 'memory' / 'ads-memory.json'
+mem = json.loads(mem_file.read_text()); before_entries = len(mem['entries'])
+mem['entries'] = [e for e in mem['entries'] if (e.get('history_context') or {}).get('period') != 'last_90d']
+mem_file.write_text(json.dumps(mem))
+assert call('learn','refresh','--account','act_123','--json')['would_add'] == 1
+assert len(json.loads(mem_file.read_text())['entries']) == before_entries - 1, 'dry run writes nothing'
+refresh_apply = call('learn','refresh','--account','act_123','--apply','--json')
+assert refresh_apply['applied'] is True and refresh_apply['added'] == 1 and pathlib.Path(refresh_apply['backup']).is_file()
+assert len(json.loads(mem_file.read_text())['entries']) == before_entries
+assert call('learn','refresh','--account','act_123','--root',str(root),'--json')['would_add'] == 0
+call('learn','refresh','--account','act_999','--json',ok=False)
+call('learn','refresh','--account','act_123','extra',ok=False)
+call('sync',*scope,'--input',str(export),'--metric-profile','cpas_v2',ok=False)
+call('history','--account','act_123','--as-of',anchor,'--input-dir',str(history_dir),'--metric-profile','bogus',ok=False)
+cpas_dir = tmp / 'history-cpas'; cpas_dir.mkdir()
+for period in plan['periods']:
+    item = json.loads((history_dir/(period['key']+'.json')).read_text()) if (history_dir/(period['key']+'.json')).exists() else None
+    if item is None: continue
+    item['scope']['metric_profile'] = 'cpas_v1'
+    (cpas_dir/(period['key']+'.json')).write_text(json.dumps(item))
+mismatch = call('history','--account','act_123','--as-of',anchor,'--input-dir',str(cpas_dir),'--json',ok=False)
+assert 'metric profile does not match' in mismatch.stderr
+legacy_as_cpas = call('history','--account','act_123','--as-of',anchor,'--input-dir',str(history_dir),'--metric-profile','cpas_v1','--json',ok=False)
+assert 'metric profile does not match' in legacy_as_cpas.stderr
+assert call('learn','list','--account','act_123','--json')['evidence_integrity'] == 'VERIFIED_BYTES_NOT_ORIGIN'
+assert not (tmp / 'secret-calls').exists(), 'offline refresh accessed credentials/provider'
+call('learn','export','--account','act_123','--output',str(bundle),ok=False)
+call('learn','import','--account','act_999','--input',str(bundle),ok=False)
+assert not (tmp / 'secret-calls').exists(), 'local learning accessed credentials/provider'
+(history_dir / 'last_7d.json').unlink()
+partial_result = call(*history_args,ok=False)
+assert partial_result.returncode == 2
+partial_history = json.loads(partial_result.stdout)
+assert partial_history['status'] == 'partial'
+assert json.loads(history_pointer.read_text())['last_complete_success']['revision_id'] == history['revision_id']
+assert not (tmp / 'secret-calls').exists(), 'offline history accessed credentials/provider'
+call('history','--account','act_123','--as-of','2026-02-30T00:00:00Z','--plan',ok=False)
+call('history','--account','act_999','--as-of',anchor,'--input-dir',str(history_dir),'--plan',ok=False)
 bad = copy.deepcopy(payload); bad['scope']['attribution']={'action_attribution_windows':['7d_click']}
 export.write_text(json.dumps(bad))
 call('sync',*scope,'--input',str(export),ok=False)
@@ -1221,7 +1483,7 @@ spec=importlib.util.spec_from_file_location('provider',sys.argv[1]);provider=imp
 request=provider.validate(json.load(sys.stdin));scope=provider.planned_scope(request)
 if '--plan' in sys.argv: print(json.dumps({'request':request,'scope':scope}));sys.exit(0)
 base=pathlib.Path(__file__).parent
-if (base/'provider-failed').exists(): print('synthetic-fixture-token',file=sys.stderr);sys.exit(8)
+if (base/'provider-failed').exists(): print('test-synthetic-fixture-token',file=sys.stderr);sys.exit(8)
 value=json.loads((base/'export.json').read_text());value['scope']=scope
 print(json.dumps(value))
 ''')
@@ -1234,9 +1496,350 @@ call('sync',*scope,ok=False)
 retained = call('report','--account','act_123','--json')
 assert retained['snapshot_id'] == live['snapshot_id']
 assert 'failed' in pathlib.Path(retained['report_path']).read_text().lower()
-print('  PASS reporting CLI: offline source proof, scoped sync/report, copy/move/adoption and canonical failed-refresh fallback')
+(tmp / 'provider-failed').unlink()
+
+# Live history: inventory once, then Insights-only per window; a rate limit stops later windows.
+hist_root = tmp / 'history-live-reports'
+hist_env = dict(env, DOTADS_WORKSPACE_ROOT=str(hist_root))
+fake.write_text('#!' + sys.executable + '\n' + '''
+import importlib.util,json,pathlib,sys
+spec=importlib.util.spec_from_file_location('provider',sys.argv[1]);provider=importlib.util.module_from_spec(spec);spec.loader.exec_module(provider)
+request=provider.validate(json.load(sys.stdin));scope=provider.planned_scope(request)
+if '--plan' in sys.argv: print(json.dumps({'request':request,'scope':scope}));sys.exit(0)
+base=pathlib.Path(__file__).parent
+with open(base/'provider-calls','a') as log: log.write(request['operation']+' '+request['since']+'\\n')
+limit=base/'provider-rate-limit'
+if limit.exists() and request['since']==limit.read_text().strip():
+    print(json.dumps({'error':{'code':'API_ERROR','message':'Meta rejected the reporting request.','api_code':17,'rate_limited':True}}));sys.exit(1)
+value=json.loads((base/'export.json').read_text())
+value['scope']=scope
+value['account'].update(name='Fixture account')
+value['insights']=[]
+for depth,level in enumerate(provider.LEVELS):
+    value['insights'].append({'query':{'account_id':'123','since':request['since'],'until':request['until'],'level':level,'fields':['account_id','spend'],'breakdowns':[],'time_increment':'all_days','attribution':{},'action_report_time':'conversion'},
+        'coverage':{'status':'complete','pagination_exhausted':True},'rows':[],'errors':[]})
+if request['operation']=='insights': value['resources']={}
+print(json.dumps(value))
+''')
+calls_log = tmp / 'provider-calls'
+provider_levels = ['account', 'adset', 'ad', 'campaign']
+def hist(ok=True):
+    result = subprocess.run([str(cmd),'history','--account','act_123','--as-of',anchor,'--json'],env=hist_env,text=True,capture_output=True,timeout=60)
+    assert (result.returncode == 0) == ok, (result.stdout, result.stderr)
+    assert 'test-synthetic-fixture-token' not in result.stdout + result.stderr
+    return json.loads(result.stdout), result
+subprocess.run([str(cmd),'sync',*scope,'--input',str(export)],env=hist_env,text=True,capture_output=True,check=True)  # offline account context
+calls_log.unlink(missing_ok=True)
+full, _ = hist()
+assert full['status'] == 'complete', full
+lines = calls_log.read_text().splitlines()
+assert [line.split()[0] for line in lines] == ['collect','insights','insights','insights','insights'], lines
+hist_dir = pathlib.Path(full['report_path']).parents[3]
+snapshots = [json.loads((p/'manifest.json').read_text()) for p in (hist_dir/'data/snapshots').iterdir()]
+snapshots = [m for m in snapshots if sorted(m['scope']['levels']) == sorted(provider_levels)]
+assert len(snapshots) == 5 and all(m['status'] == 'complete' for m in snapshots), [(m['scope']['levels'], m['status']) for m in snapshots]
+reused = [m for m in snapshots if m['source'].get('inventory_source')]
+assert len(reused) == 4 and all(m['source']['inventory_source']['period'] == 'yesterday' for m in reused)
+campaigns = {(hist_dir/'data/snapshots'/m['snapshot_id']/'campaigns.json').read_text() for m in snapshots}
+assert len(campaigns) == 1, 'all windows must share the single inventory read'
+scopes = {m['scope_key'] for m in snapshots}
+assert len(scopes) == 5
+calls_log.unlink()
+(tmp / 'provider-rate-limit').write_text(plan['periods'][2]['since'])
+limited, limited_run = hist(ok=False)
+assert limited['status'] == 'partial'
+lines = calls_log.read_text().splitlines()
+assert [line.split()[0] for line in lines] == ['collect','insights','insights'], lines
+assert 'not requested after a Meta rate limit' in limited_run.stderr
+assert limited_run.stderr.count('not requested after a Meta rate limit') == 2
+(tmp / 'provider-rate-limit').unlink()
+print('  PASS reporting CLI: offline source proof, scoped sync/report, copy/move/adoption, canonical failed-refresh fallback, single-inventory history and rate-limit stop')
 PYREPORTING
 then ok "account reporting CLI integration"; else bad "account reporting CLI regression"; fi
+
+# Named BM profiles: synthetic credentials only; no network or real HOME access.
+if python3 - "$CMD" "$TMP" <<'PYBM'
+import json, os, pathlib, shutil, subprocess, sys
+cmd = pathlib.Path(sys.argv[1]).resolve()
+base = pathlib.Path(sys.argv[2]) / 'bm-contracts'
+base.mkdir()
+home = base / 'home'
+home.mkdir()
+secret = home / '.config/ai-local/secrets.env'
+secret.parent.mkdir(parents=True)
+env = {k:v for k,v in os.environ.items() if not k.startswith(('META_BM_', 'META_ACCESS_TOKEN_', 'meta_ads_'))}
+env.update(HOME=str(home), SECRETS_ENV_FILE=str(secret), SECRETS_ENV_BIN=str(cmd.parent/'secrets-env'),
+           DOTADS_WORKSPACE_ROOT=str(home/'Documents/dotads-meta-report'))
+root = pathlib.Path(env['DOTADS_WORKSPACE_ROOT'])
+TOKEN_KEY = 'ACCESS' + '_TOKEN'  # Avoid scanner-shaped literal fixtures.
+def credentials(extra='', alpha_name='Alpha Business', alpha_token='test-synthetic-alpha-credential'):
+    secret.write_text(f'META_BM_ALPHA_NAME={alpha_name}\nMETA_BM_ALPHA_ID=100\nMETA_BM_ALPHA_{TOKEN_KEY}={alpha_token}\n'
+                      'META_BM_BETA_NAME=Beta Business\nMETA_BM_BETA_ID=200\nMETA_BM_BETA_ACCESS_TOKEN=test-synthetic-beta-credential\n'+extra)
+    secret.chmod(0o600)
+def call(*args, ok=True, custom=None):
+    result = subprocess.run([str(cmd), *args], env=custom or env, text=True, capture_output=True)
+    assert all(token not in result.stdout+result.stderr for token in
+               ('test-synthetic-alpha-credential', 'test-synthetic-beta-credential', 'test-synthetic-lower-credential', 'test-synthetic-another-credential', 'test-synthetic-prefix-credential', 'test-synthetic-prefix-other')), result
+    assert (result.returncode == 0) == ok, (args, result.stdout, result.stderr)
+    return result
+# No-op reconciliation must not pretend that an absent reporting folder is ready.
+no_profiles = call('setup', '--workspace-only')
+assert 'setup skipped' in no_profiles.stdout and 'ready:' not in no_profiles.stdout and not root.exists()
+unknown = call('setup', '--workspace-only', '--bm', 'autokirim', ok=False)
+assert 'No named BM profile matching --bm autokirim' in unknown.stderr
+assert 'not a token-validity check' in unknown.stderr and 'do not replace an existing token' in unknown.stderr
+assert 'meta_ads_token_autokirim' in unknown.stderr and 'meta_ads_bm_id_autokirim' in unknown.stderr
+assert not root.exists()
+# An explicitly selected profile without a nonblank token must fail, not report ready: 0.
+for text,key in [
+    ('meta_ads_bm_id_autokirim=100\nmeta_ads_bm_name_autokirim=Autokirim\nmeta_ads_token_autokirim=   \n','autokirim'),
+    (f'META_BM_ALPHA_NAME=Alpha Business\nMETA_BM_ALPHA_ID=100\nMETA_BM_ALPHA_{TOKEN_KEY}=\n','ALPHA'),
+]:
+    secret.write_text(text); secret.chmod(0o600)
+    assert 'setup skipped' in call('setup','--workspace-only').stdout and not root.exists()
+    selected = call('setup','--workspace-only','--bm',key,ok=False)
+    assert 'was detected' in selected.stderr and 'unavailable or blank' in selected.stderr and not root.exists()
+credentials(alpha_token='')
+call('setup','--workspace-only','--bm','ALPHA',ok=False)
+assert not root.exists(), 'failed explicit setup created the other active BM workspace'
+credentials()
+setup_result = call('setup', '--workspace-only')
+a = root/'alpha-business--bm_100'
+b = root/'beta-business--bm_200'
+assert a.is_dir() and b.is_dir()
+assert str(a) in setup_result.stdout and str(b) in setup_result.stdout
+selected_setup = call('setup','--workspace-only','--bm','ALPHA')
+assert str(a) in selected_setup.stdout and str(b) not in selected_setup.stdout
+for folder in (a,b):
+    assert folder.stat().st_mode & 0o777 == 0o700
+    assert (folder/'bm.json').stat().st_mode & 0o777 == 0o600
+    assert json.loads((folder/'accounts.json').read_text())['accounts'] == {}
+    assert json.loads((folder/'bm.json').read_text())['identity_source'] == 'LOCAL_ENV_UNVERIFIED'
+(a/'NOTES.md').write_text('operator-owned notes')
+before = {str(p):p.read_bytes() for p in root.rglob('*') if p.is_file()}
+call('setup', '--workspace-only')
+assert before == {str(p):p.read_bytes() for p in root.rglob('*') if p.is_file()}
+assert 'Multiple Business Managers' in call('accounts','--local','--json',ok=False).stderr
+call('accounts','--local','--json','--bm','ALPHA')
+call('accounts','--local','--json','--bm','BETA')
+call('accounts','--local','--bm','UNKNOWN',ok=False)
+call('init','draft','--bm','ALPHA')
+brand = json.loads((a/'draft/brand.json').read_text())
+assert brand['business_id'] == '100' and brand['token_env'] == 'META_BM_ALPHA_ACCESS_TOKEN'
+call('init','--account','act_321','--account-name','Named Account','--bm','ALPHA')
+account_dir = a/'Named Account (act_321)'
+assert (account_dir/'campaigns/sample-campaign.json').is_file()
+assert json.loads((account_dir/'brand.json').read_text())['ad_account_id'] == 'act_321'
+call('init','--account','act_321','--bm','ALPHA')
+image = base/'shared.jpg'
+image.write_bytes(b'test-synthetic-shared-image')
+imported = json.loads(call('import-media','--account','act_321',str(image),'--bm','ALPHA','--json').stdout)
+assert pathlib.Path(imported['destination_path']).parent == a/'assets/images'
+call('import-media','--account','act_321',str(image),'--bm','ALPHA','--temporary','--json')
+call('import-media','--account','act_321',str(image),'--bm','ALPHA','--temporary','--move',ok=False)
+assert image.exists()
+# Offline collection creates a readable account folder under the selected BM.
+export = pathlib.Path(sys.argv[2])/'reporting-cli/export.json'
+if export.exists():
+    call('sync','--account','act_123','--since','2026-09-01','--until','2026-09-30','--levels','ad','--input',str(export),'--bm','BETA','--json')
+    entries = json.loads((b/'accounts.json').read_text())['accounts']
+    assert entries['act_123']['directory'].endswith(' (act_123)')
+    report = json.loads(call('report','--account','act_123','--bm','BETA','--json').stdout)
+    assert (pathlib.Path(report['report_directory'])/'ads.md').is_file()
+    assert not (pathlib.Path(report['report_directory'])/'ads.csv').exists()
+# Names may change, but saved BM ID bindings keep stable directories and notes.
+credentials(alpha_name='Renamed Alpha', alpha_token='test-synthetic-rotated-credential')
+renamed_setup = call('setup','--workspace-only')
+assert str(a) in renamed_setup.stdout and str(root/'renamed-alpha--bm_100') not in renamed_setup.stdout
+assert not (root/'renamed-alpha--bm_100').exists()
+assert (a/'NOTES.md').read_text() == 'operator-owned notes'
+credentials('META_BM_ALIAS_NAME=Alias\nMETA_BM_ALIAS_ID=100\nMETA_BM_ALIAS_ACCESS_TOKEN=test-synthetic-alias\n')
+assert 'same BM ID' in call('setup','--workspace-only',ok=False).stderr
+credentials('META_BM_GAMMA_NAME=Gamma\nMETA_BM_GAMMA_ID=300\nMETA_BM_GAMMA_ACCESS_TOKEN=test-synthetic-alpha-credential\n')
+call('setup','--workspace-only',ok=False)
+credentials()
+# An explicit wrong token reference must never fall back to another BM or ambient token.
+call('accounts','--bm','ALPHA','--token-env','META_BM_BETA_ACCESS_TOKEN',ok=False)
+fake = base/'meta'
+fake.write_text('#!/bin/sh\nprintf "meta 1.2.0\\n"\n')
+fake.chmod(0o755)
+credentials(alpha_token='')
+missing_env = dict(env, ACCESS_TOKEN='test-synthetic-ambient', META_ACCESS_TOKEN='test-synthetic-legacy', META_ADS_BIN=str(fake))
+assert 'Unable to load' in call('run','--bm','ALPHA','--','auth','status',ok=False,custom=missing_env).stderr
+credentials(f'META_BM_GAMMA_NAME=Gamma\nMETA_BM_GAMMA_ID=300\nMETA_BM_GAMMA_{TOKEN_KEY}=\n')
+call('setup','--workspace-only')
+assert not (root/'gamma--bm_300').exists()
+# Existing candidate and legacy trees are never adopted or moved implicitly.
+legacy = root/'act_999--legacy'
+legacy.mkdir()
+(legacy/'NOTES.md').write_text('legacy')
+credentials('META_BM_GAMMA_NAME=Gamma\nMETA_BM_GAMMA_ID=300\nMETA_BM_GAMMA_ACCESS_TOKEN=test-synthetic-gamma\n')
+collision = root/'gamma--bm_300'
+collision.mkdir()
+(collision/'NOTES.md').write_text('untouched')
+call('setup','--workspace-only',ok=False)
+assert (collision/'NOTES.md').read_text() == 'untouched' and not (collision/'bm.json').exists()
+assert (legacy/'NOTES.md').read_text() == 'legacy'
+# Reject symlinks before touching the destination.
+linked = base/'linked'
+linked.symlink_to(root, target_is_directory=True)
+call('setup','--workspace-only',ok=False,custom=dict(env,DOTADS_WORKSPACE_ROOT=str(linked)))
+# Environment-only profiles work without a secrets file (e.g. secrets-env run).
+empty_home = base/'ambient-home'
+empty_home.mkdir()
+ambient = dict(env, HOME=str(empty_home), SECRETS_ENV_FILE=str(empty_home/'missing.env'),
+               DOTADS_WORKSPACE_ROOT=str(empty_home/'reports'), META_BM_SOLO_NAME='Solo BM',
+               META_BM_SOLO_ID='400', META_BM_SOLO_ACCESS_TOKEN='test-synthetic-solo')
+call('setup','--workspace-only',custom=ambient)
+call('accounts','--local','--json',custom=ambient)
+# Saved key or token reference cannot silently acquire another BM ID.
+ambient_root = pathlib.Path(ambient['DOTADS_WORKSPACE_ROOT'])
+saved_binding = ambient_root/'solo-bm--bm_400/bm.json'
+original_binding = saved_binding.read_bytes()
+changed_id = dict(ambient, META_BM_SOLO_ID='401')
+assert 'Saved BM ID conflicts' in call('setup','--workspace-only',custom=changed_id,ok=False).stderr
+assert not (ambient_root/'solo-bm--bm_401').exists() and saved_binding.read_bytes() == original_binding
+# Exercise token-reference protection even when the saved key no longer matches.
+metadata = json.loads(original_binding); metadata['key'] = 'SAVED_OTHER_KEY'
+saved_binding.write_text(json.dumps(metadata))
+assert 'Saved BM ID conflicts' in call('setup','--workspace-only',custom=changed_id,ok=False).stderr
+assert not (ambient_root/'solo-bm--bm_401').exists()
+saved_binding.write_bytes(original_binding)
+# First-upgrade and repeated pull reconciliation use the existing ai-memory-link entry point.
+repo = base/'device-dotfiles'
+(repo/'bin').mkdir(parents=True)
+ai = repo/'config/ai'
+(ai/'adapters').mkdir(parents=True)
+(ai/'CORE.md').write_text('Synthetic fixture core\n')
+for runtime in ('claude','codex','antigravity','pi','omp'):
+    (ai/'adapters'/f'{runtime}.md').write_text('Synthetic adapter\n')
+for name in ('ai-memory-link','dotads-meta','_dotads-workspace.mjs','secrets-env'):
+    shutil.copy2(cmd.parent/name, repo/'bin'/name)
+link_home = base/'device-home'
+(link_home/'.config').mkdir(parents=True)
+(link_home/'.config/ai').symlink_to(ai, target_is_directory=True)
+link_env = dict(ambient, HOME=str(link_home), SECRETS_ENV_BIN=str(repo/'bin/secrets-env'),
+                DOTADS_WORKSPACE_ROOT=str(link_home/'Documents/dotads-meta-report'))
+for _ in range(2):
+    result = subprocess.run([str(repo/'bin/ai-memory-link')],env=link_env,text=True,capture_output=True)
+    assert result.returncode == 0, result.stdout+result.stderr
+assert (link_home/'Documents/dotads-meta-report/solo-bm--bm_400/bm.json').is_file()
+# Preferred lowercase naming: suffix is a local label, BM ID is never guessed.
+secret.write_text('meta_ads_token_autolaris=test-synthetic-lower-credential\nmeta_ads_bm_id_autolaris=500\n'
+                  'meta_ads_token_another=test-synthetic-another-credential\nmeta_ads_bm_id_another=600\nmeta_ads_bm_name_another=Another Business\n')
+secret.chmod(0o600)
+call('setup','--workspace-only')
+lower = root/'autolaris--bm_500'
+assert (lower/'bm.json').is_file() and (root/'another-business--bm_600/bm.json').is_file()
+assert json.loads((lower/'bm.json').read_text())['token_env'] == 'meta_ads_token_autolaris'
+call('accounts','--local','--bm','autolaris','--json')
+call('accounts','--local','--bm','AUTOLARIS','--json')
+call('accounts','--local','--json',ok=False)
+call('init','--bm','autolaris','--account','act_321','--account-name','Lower Account')
+lower_brand = lower/'Lower Account (act_321)/brand.json'
+assert json.loads(lower_brand.read_text())['token_env'] == 'meta_ads_token_autolaris'
+fake.write_text('#!/usr/bin/python3\nimport os\nassert os.environ.get("ACCESS_TOKEN") == "test-synthetic-lower-credential"\nassert os.environ.get("BUSINESS_ID") == "500"\nassert os.environ.get("AD_ACCOUNT_ID") == "act_321"\nprint("selected-profile-ok")\n')
+assert 'selected-profile-ok' in call('run','--bm','autolaris','--brand',str(lower_brand),'--','ads','campaign','list',custom=dict(env,META_ADS_BIN=str(fake))).stdout
+fake.write_text('#!/usr/bin/python3\nimport os\nassert os.environ.get("ACCESS_TOKEN") == "test-synthetic-lower-credential"\nassert os.environ.get("BUSINESS_ID") == "500"\nassert "AD_ACCOUNT_ID" not in os.environ\nprint("brandless-selected-profile-ok")\n')
+assert 'brandless-selected-profile-ok' in call('run','--bm','autolaris','--','auth','status',custom=dict(env,META_ADS_BIN=str(fake),BUSINESS_ID='600',AD_ACCOUNT_ID='act_999')).stdout
+call('run','--bm','autolaris','--brand',str(a/'draft/brand.json'),'--','auth','status',ok=False)
+call('accounts','--bm','autolaris','--token-env','meta_ads_token_another',ok=False)
+lower_config = secret.read_text()
+# Distinct legacy/lowercase profiles coexist; duplicate aliases and identities do not.
+secret.write_text(lower_config+'META_BM_LEGACY_NAME=Legacy\nMETA_BM_LEGACY_ID=700\nMETA_BM_LEGACY_ACCESS_TOKEN=test-synthetic-legacy-distinct\n')
+call('setup','--workspace-only')
+call('accounts','--local','--bm','legacy','--json')
+secret.write_text(lower_config+'META_BM_AUTOLARIS_NAME=Legacy Alias\nMETA_BM_AUTOLARIS_ID=500\nMETA_BM_AUTOLARIS_ACCESS_TOKEN=test-synthetic-alias\n')
+call('setup','--workspace-only',ok=False)
+secret.write_text(lower_config+'META_BM_DUPLICATE_NAME=Duplicate\nMETA_BM_DUPLICATE_ID=500\nMETA_BM_DUPLICATE_ACCESS_TOKEN=test-synthetic-duplicate\n')
+call('setup','--workspace-only',ok=False)
+secret.write_text('meta_ads_token_autolaris=test-synthetic-lower-credential\n')
+assert 'numeric BM ID' in call('setup','--workspace-only',ok=False).stderr
+secret.write_text('meta_ads_token_Upper=test-synthetic-invalid\nmeta_ads_bm_id_Upper=900\n')
+call('setup','--workspace-only',ok=False)
+secret.write_text('meta_ads_token_=test-synthetic-invalid\n')
+call('setup','--workspace-only',ok=False)
+secret.write_text(lower_config.replace('meta_ads_token_another=test-synthetic-another-credential','meta_ads_token_another=test-synthetic-lower-credential'))
+call('setup','--workspace-only',ok=False)
+secret.write_text(lower_config.replace('meta_ads_token_autolaris=test-synthetic-lower-credential','meta_ads_token_autolaris='))
+call('run','--bm','autolaris','--brand',str(lower_brand),'--','auth','status',ok=False,custom=dict(env,ACCESS_TOKEN='test-synthetic-ambient',META_ACCESS_TOKEN='test-synthetic-generic'))
+# Lowercase injected env works without the secrets file too.
+for key in ('META_BM_SOLO_NAME','META_BM_SOLO_ID','META_BM_SOLO_ACCESS_TOKEN'):
+    ambient.pop(key, None)
+ambient.update(meta_ads_token_solo='test-synthetic-lower-solo',meta_ads_bm_id_solo='800')
+# Reusing SOLO with a new ID/format is reconciliation, not a new-profile setup.
+call('setup','--workspace-only',custom=ambient,ok=False)
+ambient['DOTADS_WORKSPACE_ROOT'] = str(empty_home/'lowercase-clean-reports')
+call('setup','--workspace-only',custom=ambient)
+call('accounts','--local','--bm','solo','--json',custom=ambient)
+# Existing named-token references remain intact; IDs are explicit, not inferred from tokens.
+compat_root = base/'named-token-reports'
+compat_env = dict(env, DOTADS_WORKSPACE_ROOT=str(compat_root))
+compat_config = ('META_ACCESS_TOKEN_AUTOLARIS=test-synthetic-prefix-credential\nMETA_BM_AUTOLARIS_ID=900\n'
+                 'META_ACCESS_TOKEN_OTHER=test-synthetic-prefix-other\nMETA_BM_OTHER_ID=901\nMETA_BM_OTHER_NAME=Other Business\n')
+secret.write_text(compat_config)
+call('setup','--workspace-only','--bm','autolaris',custom=compat_env)
+compat_bm = compat_root/'autolaris--bm_900'
+assert json.loads((compat_bm/'bm.json').read_text())['token_env'] == 'META_ACCESS_TOKEN_AUTOLARIS'
+assert not (compat_root/'other-business--bm_901').exists()
+call('accounts','--local','--bm','AUTOLARIS','--json',custom=compat_env)
+call('setup','--workspace-only','--bm','autokirim',custom=compat_env,ok=False)
+call('init','--account','act_421','--account-name','Existing Token Account','--bm','autolaris',custom=compat_env)
+compat_brand = compat_bm/'Existing Token Account (act_421)/brand.json'
+assert json.loads(compat_brand.read_text())['token_env'] == 'META_ACCESS_TOKEN_AUTOLARIS'
+fake.write_text('#!/usr/bin/python3\nimport os\nassert os.environ.get("ACCESS_TOKEN") == "test-synthetic-prefix-credential"\nassert os.environ.get("BUSINESS_ID") == "900"\nassert os.environ.get("AD_ACCOUNT_ID") == "act_421"\nprint("existing-token-reference-ok")\n')
+assert 'existing-token-reference-ok' in call('run','--bm','autolaris','--brand',str(compat_brand),'--','ads','campaign','list',custom=dict(compat_env,META_ADS_BIN=str(fake))).stdout
+call('accounts','--bm','autolaris','--token-env','META_ACCESS_TOKEN_OTHER',custom=compat_env,ok=False)
+call('setup','--workspace-only',custom=compat_env)
+assert (compat_root/'other-business--bm_901/bm.json').is_file()
+before_compat = {str(p):p.read_bytes() for p in compat_root.rglob('*') if p.is_file()}
+for conflict in [
+    compat_config+f'META_BM_AUTOLARIS_{TOKEN_KEY}=\n',
+    compat_config+'meta_ads_token_autolaris=test-synthetic-other-format\nmeta_ads_bm_id_autolaris=900\n',
+    compat_config.replace('META_BM_OTHER_ID=901','META_BM_OTHER_ID=900'),
+    compat_config.replace('test-synthetic-prefix-other','test-synthetic-prefix-credential'),
+]:
+    secret.write_text(conflict)
+    call('setup','--workspace-only',custom=compat_env,ok=False)
+    assert before_compat == {str(p):p.read_bytes() for p in compat_root.rglob('*') if p.is_file()}
+secret.write_text(compat_config.replace('test-synthetic-prefix-credential',''))
+call('setup','--workspace-only','--bm','autolaris',custom=compat_env,ok=False)
+missing_prefix = call('run','--bm','autolaris','--brand',str(compat_brand),'--','auth','status',ok=False,
+                      custom=dict(compat_env,META_ADS_BIN=str(fake),ACCESS_TOKEN='test-synthetic-ambient',META_ACCESS_TOKEN='test-synthetic-generic'))
+assert 'Unable to load' in missing_prefix.stderr and 'existing-token-reference-ok' not in missing_prefix.stdout
+secret.write_text('META_ACCESS_TOKEN_AUTOLARIS=test-synthetic-prefix-credential\n')
+no_id_root = base/'named-token-without-id'
+assert 'numeric BM ID' in call('setup','--workspace-only',custom=dict(compat_env,DOTADS_WORKSPACE_ROOT=str(no_id_root)),ok=False).stderr
+assert not no_id_root.exists()
+# A saved prefix-token reference is never silently switched to the other legacy convention.
+secret.write_text(compat_config.replace('META_ACCESS_TOKEN_AUTOLARIS=',f'META_BM_AUTOLARIS_{TOKEN_KEY}=')+'META_BM_AUTOLARIS_NAME=AUTOLARIS\n')
+assert 'explicit reconciliation' in call('setup','--workspace-only','--bm','autolaris',custom=compat_env,ok=False).stderr
+secret.write_text(compat_config+'META_BM_AUTOLARIS_NAME=Renamed Business\n')
+renamed_prefix = call('setup','--workspace-only','--bm','autolaris',custom=compat_env)
+assert str(compat_bm) in renamed_prefix.stdout and not (compat_root/'renamed-business--bm_900').exists()
+assert json.loads((compat_bm/'bm.json').read_text())['token_env'] == 'META_ACCESS_TOKEN_AUTOLARIS'
+# Same parser also handles already-injected legacy named tokens without a secret file.
+injected_prefix = {k:v for k,v in ambient.items() if not k.startswith(('meta_ads_', 'META_BM_', 'META_ACCESS_TOKEN_'))}
+injected_prefix.update(DOTADS_WORKSPACE_ROOT=str(base/'injected-named-token'), META_ACCESS_TOKEN_AUTOLARIS='test-synthetic-prefix-credential', META_BM_AUTOLARIS_ID='900')
+call('setup','--workspace-only','--bm','autolaris',custom=injected_prefix)
+# Offline SDK version notice: post-pull setup only reads installed metadata, never installs.
+sdk_py = base/'sdk-python'
+def sdk_env(version):
+    sdk_py.write_text('#!/bin/sh\necho "$0 $*" >> "' + str(base/'sdk-calls') + '"\nprintf "1.x\\n' + version + '\\n"\n')
+    sdk_py.chmod(0o755)
+    return dict(injected_prefix, DOTADS_META_PYTHON=str(sdk_py))
+old = call('setup','--workspace-only','--bm','autolaris',custom=sdk_env('24.0.1'))
+assert 'NOTICE: dotads-meta: meta-ads 1.x uses facebook-business 24.0.1' in old.stdout, old.stdout
+assert 'Upgrade: dotads-meta setup' in old.stdout and '2026-11-10' in old.stdout
+current = call('setup','--workspace-only','--bm','autolaris',custom=sdk_env('26.0.2'))
+assert 'NOTICE:' not in current.stdout
+broken = dict(injected_prefix, DOTADS_META_PYTHON=str(base/'missing-python'))
+assert 'NOTICE:' not in call('setup','--workspace-only','--bm','autolaris',custom=broken).stdout
+calls = (base/'sdk-calls').read_text()
+assert 'pip' not in calls and 'install' not in calls, 'workspace setup must not install'
+print('  PASS BM profiles: existing prefix/legacy/lowercase env, exact token references, explicit IDs, conflicts, case-insensitive selection and device relink')
+PYBM
+then ok "BM auto-setup and device-pull reconciliation"; else bad "BM auto-setup regression"; fi
 
 [ "$f" -eq 0 ] && { echo "dotads-meta-test: PASS"; exit 0; }
 echo "dotads-meta-test: $f case(s) failed" >&2

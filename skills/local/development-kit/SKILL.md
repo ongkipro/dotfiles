@@ -13,7 +13,9 @@ truth.
 
 Read [Reference map](references/reference-map.md) only when the requested path
 or artifact owner is unclear. Read [Market engineering](references/market-engineering.md)
-only for activated Indonesia/Malaysia market concerns. For cross-CLI skill
+only for activated Indonesia/Malaysia market concerns. To review an existing
+built product against its market and complete its PRD, read
+[Product gap review](references/product-gap-review.md). For cross-CLI skill
 upgrades or comparisons with Claude, OpenAI, Kimi, or shadcn, read
 [External ecosystem adoption](references/ecosystem-adoption.md). When changing
 the shared skill system itself, also read

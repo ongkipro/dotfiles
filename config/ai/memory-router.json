@@ -115,7 +115,11 @@
         "static output",
         "node --test",
         "bundler import",
-        "unreachable import"
+        "unreachable import",
+        "testtimeout",
+        "vitest",
+        "create database",
+        "drop database"
       ],
       "paths": [
         "**/astro.config.*",
@@ -180,7 +184,14 @@
         "server action",
         "mise install",
         "docker build",
-        "prerender env"
+        "prerender env",
+        "heavy-run",
+        "load gate",
+        "tidy-up",
+        "scratch dir",
+        "scratch directory",
+        "scratch files",
+        "tmp cleanup"
       ],
       "paths": [
         "**/Dockerfile",
@@ -366,6 +377,23 @@
         "credential helper",
         "ongkipro email",
         "cuan specs"
+      ]
+    },
+    {
+      "path": "config/ai/memory/parallel-research.md",
+      "priority": 78,
+      "triggers": [
+        "parallel research",
+        "riset paralel",
+        "scraping",
+        "scrape",
+        "crawl",
+        "crawler",
+        "robots.txt",
+        "web research",
+        "riset publik",
+        "parallel agents research",
+        "browser concurrency"
       ]
     }
   ],

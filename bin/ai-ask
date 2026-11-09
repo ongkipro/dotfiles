@@ -13,7 +13,8 @@
 # Options:
 #   --cwd DIR        working directory (default: current)
 #   --attach FILE    append FILE's text to the prompt (repeatable, 60 KB total);
-#                    use it for runtimes that cannot run tools headless (agy, pi, omp)
+#                    use it for runtimes that cannot read the repository headless
+#                    (agy, omp); pi gets read-only read/grep/find/ls
 #   --timeout SEC    hard limit (default 600)
 #   --write          allow edits — only claude/codex, and only inside a linked
 #                    git worktree (never the main checkout)
@@ -23,7 +24,7 @@ set -euo pipefail
 
 die() { printf 'ai-ask: %s\n' "$*" >&2; exit 2; }
 [ "$#" -ge 1 ] || die "usage: ai-ask RUNTIME [options] -- PROMPT (see header)"
-case "$1" in -h|--help) sed -n '2,23p' "$0"; exit 0 ;; esac
+case "$1" in -h|--help) sed -n '2,22p' "$0"; exit 0 ;; esac
 runtime="$1"; shift
 cwd="$PWD" timeout_s=600 write=0 dry=0 prompt="" attach=()
 while [ "$#" -gt 0 ]; do
@@ -70,7 +71,9 @@ case "$runtime" in
   codex)  cmd=(codex exec -s "$([ "$write" -eq 1 ] && echo workspace-write || echo read-only)" -C "$cwd" "$prompt") ;;
   agy)    cmd=(agy --sandbox --mode plan --print-timeout "${timeout_s}s" "-p=$prompt") ;;
   # Pi has no global context file of its own; the interactive pi() wrapper appends it, scripts must too.
-  pi)     cmd=(pi -p --no-tools)
+  # Read-only built-ins let a Pi reviewer inspect the repository; no bash/edit/write,
+  # no extensions, no MCP, and no project-local .pi configuration for this run.
+  pi)     cmd=(pi -p --tools read,grep,find,ls --no-extensions --no-mcp --no-approve)
           [ -f "$HOME/.config/ai/context/pi.md" ] && cmd+=(--append-system-prompt "$HOME/.config/ai/context/pi.md")
           cmd+=("$prompt") ;;
   omp)    cmd=(omp -p --no-tools "$prompt") ;;

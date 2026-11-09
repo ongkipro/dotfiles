@@ -9,8 +9,8 @@ and instructions English; the [operator guide](../GUIDE.id.md) is intentionally 
 ## Read the minimum relevant context
 
 Start with `SKILL.md` and the current task. Load the operator guide when teaching
-or onboarding; load the [workspace design](account-workspace-guide.md) for reporting
-or existing-device adoption. API, market and economics references are conditional,
+or onboarding; use the [implemented runtime](account-workspace-runtime.md) for
+reporting or existing-device adoption, not the historical workspace design. API, market and economics references are conditional,
 not startup context. Inspect actual repository/workspace state before relying on
 memory or a handoff.
 
@@ -27,12 +27,35 @@ carry documentation/configuration; private reports, assets and credentials requi
 their own authorized device transfer. This CLI reference does not establish
 authorization inside the separate multi-tenant DotAds application.
 
-`init name` selects the Documents root; `init ./name` or an absolute path selects
-an explicit location. Read the [runtime guide](account-workspace-runtime.md) for
+Named BM profiles prepare local structure with `setup --workspace-only`; the
+same offline step runs through post-pull `ai-memory-link`. Select `--bm KEY`
+when multiple profiles exist. `init --account act_ID --account-name 'Name'`
+inside that BM creates/reuses its canonical account folder; sync registers the
+same identity. BM assets are shared; temporary copies are opt-in and never
+auto-deleted. Human reports are Markdown; internal state/provenance stays JSON.
+Legacy `init name` selects the Documents root (or the selected BM root);
+`init ./name` or an absolute path selects an explicit location. Read the [runtime guide](account-workspace-runtime.md) for
 account discovery, registry/snapshots, report rendering, local asset import and
 selected-project adoption. Preserve existing state and treat scaffold IDs as
 unverified until independently matched to the account. Existing unregistered
 root folders need explicit selection; never guess which folder to adopt.
+
+## Onboarding without repeated configuration requests
+
+Follow [setup §0](setup-and-commands.md#0-ai-managed-env-preparation-the-operator-fills-one-token-line)
+as the canonical checklist. The AI prepares the authorized missing env/key and
+confirmed BM metadata; the operator only pastes a missing token locally. Preserve
+existing tokens and exact `token_env` references. Ask once for an unknown BM ID,
+not for credentials already supplied. A guard block is a stop, not a fallback
+reader. This is AI-managed preparation, not automatic secret writes by CLI/pull.
+
+When the operator says the field is filled, run the selected offline setup and
+verify its reported directory and `assets/` exist. Do not repeat the edit request,
+stop at `--help`, create a cosmetic empty folder, or claim real setup from a
+synthetic test. Report the one observed failure if blocked. Profile detection,
+secret-location audit, local scaffolding and authenticated account access are
+separate evidence. Do not change a working device merely because another device
+has a local configuration mismatch.
 
 ## Resolve the task before choosing commands
 
@@ -42,6 +65,7 @@ root folders need explicit selection; never guess which folder to adopt.
 | Offline analysis | Use the selected authorized files and validate account/currency, measurement scope, order basis and relevant costs. Mixed-brand account costs are not universal. |
 | Local campaign preparation | Reuse existing workspace ownership/state. Validate and dry-run; show concrete target entities, budget units and expected effects. |
 | Account reads or live writes | Resolve the intended account and access scope; apply the existing SKILL/session gates. Available credentials are not blanket authorization. |
+| Five-window account history | Plan `history --account act_ID --plan` offline, then separately authorize reads or import selected period files. Account-timezone windows overlap; no automatic calls on pull, causal winners, learned-rule overwrite or spend changes. Partial/error/empty/zero evidence stays distinct. |
 | Reporting or managed import | Use scoped `sync`/`report`/`import-media`; inspect coverage and exact input provenance. A completed local scaffold/export import is not proof of authenticated API access. Scheduling, network resume and full operational cutover remain separate work. |
 
 The current read adapter uses the installed official SDK; it bypasses CLI

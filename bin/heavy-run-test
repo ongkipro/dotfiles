@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+"""Isolated heavy-run checks: pool, named locks, release on death, nesting, timeout, status."""
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import tempfile
+import time
+
+ROOT = Path(__file__).resolve().parent.parent
+HEAVY = str(ROOT / 'bin/heavy-run')
+with tempfile.TemporaryDirectory(prefix='heavy-run-test.') as tmp:
+    env = dict(os.environ, AI_HEAVY_DIR=str(Path(tmp) / 'state'), AI_HEAVY_SLOTS='1', AI_HEAVY_NO_SCOPE='1')
+    env.pop('AI_HEAVY_HELD', None)
+
+    def run(*args, **kw):
+        return subprocess.run([HEAVY, *args], env=env, capture_output=True, text=True, timeout=30, **kw)
+
+    def start(*args):
+        return subprocess.Popen([HEAVY, *args], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    def wait_busy(kind, name=None, tries=100):
+        # Poll the real state instead of sleeping a fixed time: a loaded host starts jobs slowly.
+        for _ in range(tries):
+            data = json.loads(run('--status', '--json').stdout)
+            rows = data['slots'] if kind == 'slot' else [x for x in data['locks'] if x['lock'] == name]
+            if any(x['busy'] for x in rows):
+                return
+            time.sleep(0.2)
+        raise AssertionError(f'{kind} {name} never became busy')
+
+    # Exit code and output pass through; the job sees the slot and the held marker.
+    r = run('--', 'sh', '-c', 'echo $AI_HEAVY_HELD $AI_HEAVY_SLOT; exit 7')
+    assert r.returncode == 7 and r.stdout.split() == ['1', '0'], (r.returncode, r.stdout, r.stderr)
+
+    # A one-slot pool serialises jobs: the second gives up with 75 while the first runs.
+    first = start('--label', 'first', '--', 'sleep', '5')
+    wait_busy('slot')
+    r = run('--wait-max', '1', '--', 'true')
+    assert r.returncode == 75, (r.returncode, r.stderr)
+    status = json.loads(run('--status', '--json').stdout)
+    assert status['slots'][0]['busy'] and status['slots'][0]['holder']['label'] == 'first', status
+    first.terminate(); first.wait(timeout=10)
+    assert run('--wait-max', '5', '--', 'true').returncode == 0  # released once the holder is gone
+
+    # Named locks are exclusive per name; different names and no-lock jobs are independent of each other's lock.
+    env['AI_HEAVY_SLOTS'] = '4'
+    holder = start('--lock', 'db-a', '--', 'sleep', '8')
+    wait_busy('lock', 'db-a')
+    assert run('--lock', 'db-a', '--wait-max', '1', '--', 'true').returncode == 75
+    assert run('--lock', 'db-b', '--wait-max', '3', '--', 'true').returncode == 0
+    assert run('--wait-max', '3', '--', 'true').returncode == 0
+    holder.terminate(); holder.wait(timeout=10)
+
+    # SIGKILL of the wrapper must not free the lock while the job still runs, and killing the job frees it.
+    # The job records its own pid so the test kills only its process group, never unrelated processes.
+    pid_file = Path(tmp) / 'job.pid'
+    holder = start('--lock', 'db-k', '--', 'sh', '-c', f'echo $$ > {pid_file}; exec sleep 30')
+    wait_busy('lock', 'db-k')
+    os.kill(holder.pid, signal.SIGKILL); holder.wait(timeout=10)
+    assert run('--lock', 'db-k', '--wait-max', '1', '--', 'true').returncode == 75
+    os.killpg(int(pid_file.read_text()), signal.SIGKILL)
+    time.sleep(0.5)
+    assert run('--lock', 'db-k', '--wait-max', '5', '--', 'true').returncode == 0
+
+    # Nested heavy-run inside a heavy job runs directly instead of deadlocking on its own lock.
+    r = run('--lock', 'db-n', '--', HEAVY, '--lock', 'db-n', '--', 'echo', 'inner')
+    assert r.returncode == 0 and r.stdout.strip() == 'inner', (r.stdout, r.stderr)
+
+    # A background leftover of a finished job is stopped with it, so the lock frees when the job ends.
+    r = run('--lock', 'db-o', '--', 'sh', '-c', 'sleep 30 >/dev/null 2>&1 & echo started')
+    assert r.returncode == 0 and r.stdout.strip() == 'started', (r.returncode, r.stdout, r.stderr)
+    assert run('--lock', 'db-o', '--wait-max', '3', '--', 'true').returncode == 0
+
+    # Where a systemd user manager runs, the job lives in ai-heavy.slice with a low CPU weight.
+    scope_env = dict(env); scope_env.pop('AI_HEAVY_NO_SCOPE', None)
+    probe = subprocess.run(['systemctl', '--user', 'is-system-running'], capture_output=True)
+    if probe.returncode in (0, 1) and subprocess.run(['which', 'systemd-run'], capture_output=True).returncode == 0:
+        r = subprocess.run([HEAVY, '--', 'sh', '-c', 'cat /proc/self/cgroup; cat /sys/fs/cgroup$(cut -d: -f3 /proc/self/cgroup)/cpu.weight'],
+                           env=scope_env, capture_output=True, text=True, timeout=30)
+        assert r.returncode == 0 and 'ai-heavy.slice' in r.stdout and r.stdout.split()[-1] == '20', (r.stdout, r.stderr)
+    r = subprocess.run([HEAVY, '--', 'cat', '/proc/self/cgroup'], env=dict(env, AI_HEAVY_NO_SCOPE='1'), capture_output=True, text=True, timeout=30)
+    assert r.returncode == 0 and 'ai-heavy.slice' not in r.stdout, r.stdout
+
+    # Timeout also stops a group member that ignores TERM, before the lock is released.
+    ready = Path(tmp) / 'ready'
+    r = run('--lock', 'db-t', '--timeout', '1', '--', 'sh', '-c', f'(trap "" TERM; touch {ready}; exec sleep 60) & while [ ! -e {ready} ]; do sleep 0.05; done; sleep 60')
+    assert r.returncode == 124, (r.returncode, r.stderr)
+    assert run('--lock', 'db-t', '--wait-max', '2', '--', 'true').returncode == 0, 'TERM-ignoring child kept the lock'
+
+    # Nested calls: allowed only for locks the outer job holds; a missing lock is refused, never run unprotected.
+    r = run('--lock', 'a1', '--', HEAVY, '--lock', 'a1', '--', 'echo', 'ok')
+    assert r.returncode == 0 and r.stdout.strip() == 'ok', (r.stdout, r.stderr)
+    r = run('--lock', 'a1', '--', HEAVY, '--lock', 'b1', '--', 'echo', 'UNPROTECTED')
+    assert r.returncode == 2 and 'UNPROTECTED' not in r.stdout and 'b1' in r.stderr, (r.returncode, r.stdout, r.stderr)
+    r = run('--', HEAVY, '--lock', 'b1', '--', 'echo', 'UNPROTECTED')
+    assert r.returncode == 2 and 'UNPROTECTED' not in r.stdout, (r.returncode, r.stdout)
+
+    # Repeating a lock name does not deadlock on itself.
+    r = run('--lock', 'dup', '--lock', 'dup', '--wait-max', '3', '--', 'true')
+    assert r.returncode == 0, (r.returncode, r.stderr)
+
+    # Timeout stops the job with 124.
+    r = run('--timeout', '1', '--', 'sleep', '20')
+    assert r.returncode == 124, r.returncode
+
+    # Invalid lock names and a missing command are refused.
+    assert run('--lock', '../x', '--', 'true').returncode == 2
+    assert run().returncode == 2
+print('heavy-run-test: ok')

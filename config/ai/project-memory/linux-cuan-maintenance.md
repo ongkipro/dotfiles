@@ -26,7 +26,7 @@ Use the platform's own maintenance paths; do not hand-delete broad directories:
 
 ## Case: `mise prune` can remove useful runtimes
 
-`mise prune -y` removed unreferenced Python 3.14.6 and PostgreSQL 16.14 on 2026-08-07. This was internally consistent with mise's tracked configs but removes tools that may still be useful for one-off work.
+`mise prune -y` removes unreferenced runtimes (such as Python or PostgreSQL versions not pinned in tracked mise configs) that may still be useful for one-off work.
 
 Future default:
 

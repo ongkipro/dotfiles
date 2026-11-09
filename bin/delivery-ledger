@@ -1014,7 +1014,9 @@ def evaluate_boundary(repo: Path, events: list[dict]) -> dict:
         effective_risk = risk_max(effective_risk, expansion["risk"])
         for check in expansion["verification"]:
             statuses = checks_by_name.get(check, [])
-            if not statuses or any(status != "PASS" for status in statuses):
+            # Resolved, not unblemished (docs/task-change-boundary.md): the LATEST record decides.
+            # An earlier FAIL that was fixed and re-run PASS no longer blocks the expansion.
+            if not statuses or statuses[-1] != "PASS":
                 missing_verification.append({"path": path, "check": check})
 
     head_moved = current_head != boundary.get("baseHead")
@@ -1042,6 +1044,11 @@ def evaluate_boundary(repo: Path, events: list[dict]) -> dict:
         failures.append("unexplained out-of-scope changes")
     if missing_verification:
         failures.append("scope expansion lacks required passing verification")
+    # A check whose latest record is FAIL can never yield a PASS or reviewable boundary: the
+    # boundary must not report success while recorded evidence says the surface is broken.
+    latest_failed = sorted(name for name, statuses in checks_by_name.items() if statuses and statuses[-1] == "FAIL")
+    if latest_failed:
+        failures.append("latest verification FAIL: " + ", ".join(latest_failed))
     result = "FAIL" if failures else "REVIEW_REQUIRED" if review_reasons else "PASS"
     surface = {
         "head": current_head,

@@ -32,9 +32,29 @@ RESOURCE_FIELDS = {
     "creatives": ("id", "account_id", "name", "status", "title", "body", "object_type",
                   "object_story_id", "effective_object_story_id", "object_story_spec", "asset_feed_spec",
                   "image_hash", "image_url", "thumbnail_url", "video_id", "link_url", "object_url",
-                  "object_store_url", "template_url", "url_tags", "call_to_action_type", "product_set_id",
+                  "object_store_url", "template_url",
+                  "url_tags", "call_to_action_type", "product_set_id",
                   "instagram_permalink_url", "effective_instagram_media_id", "degrees_of_freedom_spec"),
 }
+# Extra inventory fields for the Shopee CPAS 1-1-1 audit (bid strategy and constraints, deep-link contract, learning
+# state). Added only with metric_profile cpas_v1, so the default inventory request, its scope hash and its query IDs
+# stay exactly what they were; appended after the legacy list to keep that prefix stable.
+CPAS_INVENTORY_FIELDS = {
+    "campaigns": ("bid_strategy", "smart_promotion_type", "promoted_object", "spend_cap"),
+    "adsets": ("bid_strategy", "bid_amount", "bid_constraints", "destination_type", "learning_stage_info", "issues_info"),
+    "ads": (),
+    "creatives": ("template_url_spec", "applink_treatment"),
+}
+
+
+def inventory_fields(profile="legacy"):
+    """Inventory fields per resource for a metric profile; legacy returns RESOURCE_FIELDS unchanged."""
+    if profile == "cpas_v1":
+        return {resource: tuple(fields) + tuple(name for name in CPAS_INVENTORY_FIELDS[resource] if name not in fields)
+                for resource, fields in RESOURCE_FIELDS.items()}
+    return RESOURCE_FIELDS
+
+
 RESOURCE_REQUIRED_FIELDS = {
     "campaigns": ("id", "account_id"),
     "adsets": ("id", "account_id", "campaign_id"),
@@ -42,15 +62,23 @@ RESOURCE_REQUIRED_FIELDS = {
     "creatives": ("id", "account_id"),
 }
 RESOURCE_STATUSES = {
-    "campaigns": ("ACTIVE", "ARCHIVED", "DELETED", "IN_PROCESS", "PAUSED", "WITH_ISSUES"),
-    "adsets": ("ACTIVE", "ARCHIVED", "CAMPAIGN_PAUSED", "DELETED", "IN_PROCESS", "PAUSED", "WITH_ISSUES"),
-    "ads": ("ACTIVE", "ADSET_PAUSED", "ARCHIVED", "CAMPAIGN_PAUSED", "DELETED", "DISAPPROVED", "IN_PROCESS",
+    # Live v26 rejects DELETED (100/1815001), even alone. Keep it outside the declared scope.
+    "campaigns": ("ACTIVE", "ARCHIVED", "IN_PROCESS", "PAUSED", "WITH_ISSUES"),
+    "adsets": ("ACTIVE", "ARCHIVED", "CAMPAIGN_PAUSED", "IN_PROCESS", "PAUSED", "WITH_ISSUES"),
+    "ads": ("ACTIVE", "ADSET_PAUSED", "ARCHIVED", "CAMPAIGN_PAUSED", "DISAPPROVED", "IN_PROCESS",
             "PAUSED", "PENDING_BILLING_INFO", "PENDING_REVIEW", "PREAPPROVED", "WITH_ISSUES"),
 }
 INSIGHT_FIELDS = ("account_id", "account_name", "account_currency", "date_start", "date_stop",
                   "spend", "impressions", "reach", "frequency", "clicks", "inline_link_clicks",
                   "outbound_clicks", "actions", "action_values", "purchase_roas", "website_purchase_roas",
                   "video_thruplay_watched_actions")
+# Opt-in Shopee CPAS (Collaborative Ads) segment metrics: list<AdsActionStats>, estimated,
+# retailer-reported. Product-level converted_product_* needs a separate breakdown and is not
+# requested here (SDK enum gap). Absent profile keeps the legacy request byte-identical.
+METRIC_PROFILES = {"legacy": (), "cpas_v1": ("catalog_segment_actions", "catalog_segment_value",
+                                             "catalog_segment_value_omni_purchase_roas",
+                                             "catalog_segment_value_website_purchase_roas",
+                                             "catalog_segment_value_mobile_purchase_roas")}
 # Deliberately bounded surface; unsupported combinations fail visibly at Meta.
 BREAKDOWNS = frozenset(("age", "gender", "country", "region", "dma", "device_platform",
                         "impression_device", "publisher_platform", "platform_position", "conversion_destination"))
@@ -63,6 +91,8 @@ ATTRIBUTION_WINDOWS = frozenset(("1d_click", "7d_click", "28d_click", "1d_view",
                                 "skan_click_third_postback", "skan_view_third_postback"))
 PAGE_SIZE = 100
 ATTEMPTS = 3
+# Account/app/user throttles recover in minutes; second-scale retries only spend more quota.
+RATE_LIMIT_CODES = (4, 17, 32, 613, 80004)
 TIMEOUT = (10, 60)
 
 
@@ -86,7 +116,7 @@ def date_value(value):
 def validate(request):
     require(isinstance(request, dict), "Request must be a JSON object.")
     require(not set(request) - {"operation", "account_id", "since", "until", "date_preset", "levels",
-                               "breakdowns", "attribution", "action_report_time", "max_pages"},
+                               "breakdowns", "attribution", "action_report_time", "max_pages", "metric_profile"},
             "Request contains unsupported parameters.")
     operation = request.get("operation")
     require(operation in ("accounts", "collect", "insights"), "Unsupported operation.")
@@ -134,6 +164,10 @@ def validate(request):
                 len(set(windows)) == len(windows), "Attribution windows contain unsupported or repeated values.")
         require(not (attribution.get("use_account_attribution_setting") or attribution.get("use_unified_attribution_setting")),
                 "Explicit attribution windows cannot be combined with an attribution setting source.")
+    profile = result.get("metric_profile", "legacy")
+    require(isinstance(profile, str) and profile in METRIC_PROFILES, "metric_profile must be legacy or cpas_v1.")
+    if profile == "legacy":
+        result.pop("metric_profile", None)
     report_time = result.setdefault("action_report_time", "conversion")
     require(report_time in ("conversion", "impression", "mixed", "lifetime"), "Unsupported action_report_time.")
     return result
@@ -153,12 +187,15 @@ def planned_scope(request):
     scope["inventory_filters"] = ({resource: {"effective_status": list(RESOURCE_STATUSES[resource])}
                                    if resource in RESOURCE_STATUSES else {} for resource in RESOURCE_FIELDS}
                                   if request["operation"] == "collect" else {})
-    scope["inventory_fields"] = ({resource: list(fields) for resource, fields in RESOURCE_FIELDS.items()}
+    scope["inventory_fields"] = ({resource: list(fields)
+                                  for resource, fields in inventory_fields(request.get("metric_profile", "legacy")).items()}
                                  if request["operation"] == "collect" else {})
     scope["required_inventory_fields"] = ({resource: list(fields) for resource, fields in RESOURCE_REQUIRED_FIELDS.items()}
                                           if request["operation"] == "collect" else {})
     if request.get("date_preset"):
         scope["date_preset"] = request["date_preset"]
+    if request.get("metric_profile"):
+        scope["metric_profile"] = request["metric_profile"]
     return scope
 
 
@@ -188,9 +225,17 @@ def safe_error(error):
     from requests.exceptions import ConnectionError, Timeout
     if isinstance(error, FacebookRequestError):
         code, subcode, status = error.api_error_code(), error.api_error_subcode(), error.http_status()
-        retryable = (error.api_transient_error() is True or
-                     status in (429, 500, 502, 503, 504) or code in (1, 2, 4, 17, 32, 613, 80004))
+        message = error.api_error_message()
+        reduce_payload = (code == 1 and status == 500 and isinstance(message, str) and
+                          "reduce the amount of data" in message.lower())
+        rate_limited = code in RATE_LIMIT_CODES or status == 429
+        retryable = not rate_limited and (error.api_transient_error() is True or
+                                          status in (500, 502, 503, 504) or code in (1, 2))
         result = {"code": "API_ERROR", "message": "Meta rejected the reporting request.", "retryable": retryable}
+        if rate_limited:
+            result["rate_limited"] = True
+        if reduce_payload:
+            result["reduce_payload"] = True
         for key, value in (("api_code", code), ("api_subcode", subcode), ("http_status", status)):
             if type(value) is int:
                 result[key] = value
@@ -209,13 +254,16 @@ def api_get(api, path, params, sleep):
                 raise ProviderError("MALFORMED_RESPONSE", "Meta response omitted its HTTP status.")
             if not 200 <= status < 300:
                 raise ProviderError("HTTP_ERROR", "Meta returned an unsuccessful HTTP status.",
-                                    http_status=status, retryable=status in (429, 500, 502, 503, 504))
+                                    http_status=status, retryable=status in (500, 502, 503, 504),
+                                    **({"rate_limited": True} if status == 429 else {}))
             body = response.json()
             if not isinstance(body, dict) or "error" in body:
                 raise ProviderError("MALFORMED_RESPONSE", "Meta returned an invalid response object.")
             return body
         except Exception as error:
             detail = safe_error(error)
+            if detail.get("reduce_payload") and path[-1] == "adcreatives":
+                detail["retryable"] = False
             if detail.get("retryable") and attempt < ATTEMPTS - 1:
                 sleep(2 ** attempt)
                 continue
@@ -271,12 +319,25 @@ def row_identity(row, resource, account_id, query=None, currency=None):
     return json.dumps(identity, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
 
-def paginate(api, path, params, max_pages, resource, account_id=None, query=None, currency=None, sleep=time.sleep):
+def paginate(api, path, params, max_pages, resource, account_id=None, query=None, currency=None, sleep=time.sleep,
+             wanted_fields=None):
     rows, errors, seen_cursors, seen_rows = [], [], set(), set()
+    reductions = []
     exhausted = False
     for page_number in range(max_pages):
         try:
-            body = api_get(api, path, params, sleep)
+            while True:
+                try:
+                    body = api_get(api, path, params, sleep)
+                    break
+                except ProviderError as error:
+                    limit = params.get("limit")
+                    if resource != "creatives" or not error.detail.get("reduce_payload") or type(limit) is not int or limit <= 1:
+                        raise
+                    smaller = 10 if limit > 10 else 1
+                    reductions.append({"page": page_number + 1, "from": limit, "to": smaller,
+                                       "reason": "META_REDUCE_PAYLOAD"})
+                    params = {**params, "limit": smaller}
             if not isinstance(body.get("data"), list):
                 raise ProviderError("MALFORMED_RESPONSE", "Meta edge response is missing its data array.")
             for row in body["data"]:
@@ -285,7 +346,8 @@ def paginate(api, path, params, max_pages, resource, account_id=None, query=None
                     if identity in seen_rows:
                         raise ProviderError("DUPLICATE_ROW", "Meta repeated a reporting row in the same query.")
                     seen_rows.add(identity)
-                    fields = query["fields"] + query["breakdowns"] if query else ACCOUNT_FIELDS if resource == "accounts" else RESOURCE_FIELDS[resource]
+                    fields = (query["fields"] + query["breakdowns"] if query else
+                              ACCOUNT_FIELDS if resource == "accounts" else wanted_fields or params["fields"])
                     wanted = {field.split("{", 1)[0] for field in fields}
                     rows.append({key: value for key, value in row.items() if key in wanted})
                 except ProviderError as error:
@@ -314,7 +376,8 @@ def paginate(api, path, params, max_pages, resource, account_id=None, query=None
             errors.append(error.detail)
             break
     return {"status": "partial" if rows and errors else "unavailable" if errors else "complete",
-            "pagination_exhausted": exhausted, "rows": rows, "errors": errors}
+            "pagination_exhausted": exhausted, "rows": rows, "errors": errors,
+            **({"page_size_reductions": reductions} if reductions else {})}
 
 
 def redact(value, token=""):
@@ -352,29 +415,45 @@ def run(request, api=None, sdk_version=None, sleep=time.sleep):
             account["name"] = account_id
         scope = planned_scope(request)
         response = {"schema_version": 1, "source": source, "account": account, "scope": scope, "resources": {}, "insights": []}
+        throttled = False
+
+        def skipped():
+            return {"status": "unavailable", "pagination_exhausted": False, "rows": [], "errors": [
+                {"code": "RATE_LIMITED_SKIPPED", "retryable": True,
+                 "message": "Not requested after a Meta rate limit in this run; retry later."}]}
+
+        def limited(result):
+            return any(error.get("rate_limited") for error in result["errors"])
         if request["operation"] == "collect":
-            for resource, fields in RESOURCE_FIELDS.items():
+            for resource, fields in inventory_fields(request.get("metric_profile", "legacy")).items():
                 edge = "adcreatives" if resource == "creatives" else resource
-                params = {"fields": list(fields), "limit": PAGE_SIZE}
+                # Full creative payloads at 100 rows fail with "reduce the amount of data".
+                params = {"fields": list(fields), "limit": 25 if resource == "creatives" else PAGE_SIZE}
                 if resource in RESOURCE_STATUSES:
                     params["effective_status"] = list(RESOURCE_STATUSES[resource])
-                result = paginate(api, (account_id, edge), params, request["max_pages"], resource,
-                                  account_id=account_id, sleep=sleep)
+                result = skipped() if throttled else paginate(api, (account_id, edge), params, request["max_pages"],
+                                                              resource, account_id=account_id, sleep=sleep,
+                                                              wanted_fields=list(fields))
+                throttled = throttled or limited(result)
                 fetched_fields = list(fields)
                 # A denied optional field must not discard an accessible core inventory.
                 # This bounded fallback stays partial; it cannot satisfy the full field request.
-                if not result["rows"] and any(error.get("api_code") in (100, 200) for error in result["errors"]):
+                if not throttled and not result["rows"] and any(error.get("api_code") in (100, 200) for error in result["errors"]):
                     fetched_fields = list(RESOURCE_REQUIRED_FIELDS[resource])
                     core = paginate(api, (account_id, edge), {**params, "fields": fetched_fields},
-                                    request["max_pages"], resource, account_id=account_id, sleep=sleep)
+                                    request["max_pages"], resource, account_id=account_id, sleep=sleep,
+                                    wanted_fields=list(fields))
                     core["errors"] = result["errors"] + core["errors"]
                     core["status"] = "partial" if core["rows"] else "unavailable"
                     result = core
+                    throttled = limited(result)
                 result["query"] = {"account_id": account_id, "edge": edge, **params, "fetched_fields": fetched_fields}
+                if resource in RESOURCE_STATUSES:
+                    result["query"]["excluded_statuses"] = ["DELETED"]
                 result["observed_fields"] = sorted({key for row in result["rows"] for key in row})
                 response["resources"][resource] = result
         for level in request["levels"]:
-            fields = list(INSIGHT_FIELDS)
+            fields = list(INSIGHT_FIELDS) + list(METRIC_PROFILES[request.get("metric_profile", "legacy")])
             for entity in LEVELS[1:LEVELS.index(level) + 1]:
                 fields.extend((entity + "_id", entity + "_name"))
             query = {"account_id": account_id, "since": request["since"], "until": request["until"],
@@ -386,10 +465,14 @@ def run(request, api=None, sdk_version=None, sleep=time.sleep):
                 query["date_preset"] = params["date_preset"] = request["date_preset"]
             else:
                 params["time_range"] = {"since": request["since"], "until": request["until"]}
-            result = paginate(api, (account_id, "insights"), params, request["max_pages"], "insights",
-                              account_id=account_id, query=query, currency=account["currency"], sleep=sleep)
+            result = skipped() if throttled else paginate(
+                api, (account_id, "insights"), params, request["max_pages"], "insights",
+                account_id=account_id, query=query, currency=account["currency"], sleep=sleep)
+            throttled = throttled or limited(result)
             response["insights"].append({"query": query, "coverage": {key: result[key] for key in ("status", "pagination_exhausted")},
                                          "rows": result["rows"], "errors": result["errors"]})
+        if throttled:
+            source["rate_limited"] = True
     source["finished_at"] = utc_now()
     return redact(response, os.environ.get("ACCESS_TOKEN", ""))
 

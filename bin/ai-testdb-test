@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# ai-testdb against an isolated probe container: RAM storage, durability off, fast clone, per-run isolation, cleanup.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+PYTHONDONTWRITEBYTECODE=1 python3 bin/_ai-testdb-lifecycle-test.py >/dev/null
+command -v docker >/dev/null && docker info >/dev/null 2>&1 || { echo "ai-testdb-test: lifecycle ok, docker part SKIP"; exit 0; }
+export AI_TESTDB_PREFIX="ai-testdb-test-$$" AI_TESTDB_PORT=$((55900 + $$ % 90))
+c="$AI_TESTDB_PREFIX-pg17"
+trap 'bin/ai-testdb down >/dev/null 2>&1 || true' EXIT
+q() { docker exec "$c" psql -U postgres -d "$1" -tAc "$2"; }
+bin/ai-testdb up >/dev/null
+[ "$(q postgres 'show fsync')" = off ] && [ "$(q postgres 'show synchronous_commit')" = off ]
+docker exec "$c" sh -c 'grep -q " /var/lib/postgresql/data tmpfs " /proc/mounts'
+bin/ai-testdb create tpl >/dev/null; q tpl "create table t(id int); insert into t values (1),(2)" >/dev/null
+# Two runs clone the same template, write independently, and are dropped afterwards.
+out=$(bin/ai-testdb run proj --from tpl -- sh -c 'docker exec '"$c"' psql -U postgres -d "$AI_TESTDB_NAME" -tAc "insert into t values (3); select count(*) from t"; echo "url=$DATABASE_URL"')
+echo "$out" | grep -qx 3; echo "$out" | grep -q "url=postgresql://postgres@127.0.0.1:$AI_TESTDB_PORT/t_proj_"
+[ "$(q tpl 'select count(*) from t')" = 2 ]                      # template untouched
+[ -z "$(q postgres "select datname from pg_database where datname like 't_proj_%'")" ]   # dropped
+# Exit code passes through and the database is still dropped on failure; custom env names work.
+set +e; bin/ai-testdb run proj --env TEST_DB -- sh -c '[ -n "$TEST_DB" ] && exit 9'; rc=$?; set -e
+[ "$rc" = 9 ] && [ -z "$(q postgres "select datname from pg_database where datname like 't_proj_%'")" ]
+# A template with an idle session can still be cloned (sessions are ended first).
+docker exec -d "$c" psql -U postgres -d tpl -c "select pg_sleep(30)"; sleep 1
+bin/ai-testdb create clone_ok --from tpl >/dev/null
+! bin/ai-testdb create 'Bad-Name' >/dev/null 2>&1
+# Digit-leading repo names (explicit and from the working directory) produce valid clone names.
+bin/ai-testdb run 99ribu -- sh -c 'case "$AI_TESTDB_NAME" in t_99ribu_*) ;; *) exit 3;; esac'
+mkdir -p "/tmp/$AI_TESTDB_PREFIX/9-app"; (cd "/tmp/$AI_TESTDB_PREFIX/9-app" && "$OLDPWD/bin/ai-testdb" run -- sh -c 'case "$AI_TESTDB_NAME" in t_9_app_*) ;; *) exit 3;; esac'); rm -rf "/tmp/$AI_TESTDB_PREFIX"
+# Wrapper-only SIGTERM and SIGHUP: the command is stopped and the clone dropped.
+for sig in TERM HUP; do
+  bin/ai-testdb run sig -- sh -c 'echo "$AI_TESTDB_NAME" > /tmp/'"$AI_TESTDB_PREFIX"'.name; exec sleep 60' & w=$!
+  for _ in $(seq 100); do [ -s "/tmp/$AI_TESTDB_PREFIX.name" ] && break; sleep 0.1; done
+  kill -$sig $w; set +e; wait $w; rc=$?; set -e
+  [ "$rc" -ge 128 ] && ! pgrep -f "sleep 60" -P $w >/dev/null
+  [ -z "$(q postgres "select datname from pg_database where datname like 't_sig_%'")" ] || { echo "clone left after SIG$sig"; exit 1; }
+  rm -f "/tmp/$AI_TESTDB_PREFIX.name"
+done
+# --keep keeps the clone and says so.
+bin/ai-testdb run keepme --keep -- true 2>&1 | grep -q "kept postgresql://"
+[ -n "$(q postgres "select datname from pg_database where datname like 't_keepme_%'")" ]
+# Two concurrent cold starts end with one ready server, neither removing the other.
+bin/ai-testdb down; (bin/ai-testdb up >/dev/null & bin/ai-testdb up >/dev/null & wait)
+[ "$(docker ps --filter "name=^$c\$" -q | wc -l)" = 1 ] && [ "$(q postgres 'select 1')" = 1 ]
+echo "ai-testdb-test: ok"

@@ -72,6 +72,11 @@ config/omp/last-changelog-version
 # so it cannot return unnoticed.
 config/omp/*.lock
 
+# === Pi project-local runtime state — never tracked ===
+# pi-background-tasks writes per-session task receipts and logs here; they hold
+# command output from live sessions and change on every run.
+.pi/
+
 # === Runtime artifacts under the linked skills dir — never tracked ===
 # Claude Code syncs account-scoped plugin skills here through the ~/.claude/skills
 # link; the directory name carries a sync ID and every delivery run fingerprinted it.

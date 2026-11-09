@@ -7,12 +7,39 @@ copy credentials or make Pi an OMP prerequisite.
 ## Tracked reference and local state
 
 - `settings.json` runs Pi on its documented defaults (`docs/settings.md` in the installed package):
-  it sets only the startup provider/model (`9router-fantastico/cc/claude-opus-5-5`)
-  and two packages (`pi-web-access`, `pi-agent-browser-native`). Thinking level,
+  it sets only the startup provider/model (`9router-fantastico/cc/claude-sonnet-5-5`)
+  and thinking level (`medium`; switch per task with `Shift+Tab` or `/thinking`,
+  and to Opus with `Ctrl+P` when the work needs it),
+  the `enabledModels` cycling list (Ctrl+P; patterns for providers a device has
+  not authenticated simply do not match), `quietStartup`, `hideThinkingBlock`
+  (thinking shows as a `Thinking...` label, `Ctrl+T` reveals it; answers stay
+  in full and tool output is already collapsed by default, `Ctrl+O`), the package set below
+  (`pi-subagents` and `pi-lsp` stay pinned to their verified versions), and a
+  bounded `rewind.retention`. Thinking level,
   theme, startup output and compaction stay at Pi's defaults; Pi's built-in
   compaction runs on the active 9Router model. The provider label
   preserves existing Pi authentication. Authenticate that provider through Pi
   before using it; a second label does not inherit its key.
+- `packages[]` is the device-independent baseline of Pi packages (`pi-web-access`,
+  `pi-agent-browser-native`, `pi-subagents`, `@narumitw/pi-lsp`, `cc-safety-net`,
+  `pi-background-tasks`, `@ff-labs/pi-fff`, `@narumitw/pi-plan-mode`,
+  `@juicesharp/rpiv-todo`, `pi-rewind-hook`, `@narumitw/pi-worktree`,
+  `@narumitw/pi-btw`). Pi installs a missing package at
+  startup, `pi update --extensions` reconciles versions, and `pi list` shows
+  what a device actually resolved. The baseline is additive: a device may keep
+  local packages the tracked list does not carry, and `pi-9router-restore`
+  never removes them.
+- `pi list` is the honest signal: a package listed without an install path is
+  not in the device's package manifest. `pi update --extensions` skipped a
+  scoped, version-pinned source (`npm:@scope/name@version`) on one device, so
+  run `pi install npm:@scope/name@version` once to register it.
+- A device that installs `pi-mcp-adapter` instead of Pi's built-in MCP
+  extension must record `"extensions": ["-builtin:mcp"]` and
+  `"defaultTools": ["+codemode"]` in its own `settings.json`: both register
+  `/mcp`, and only the built-in extension turns codemode on by itself. Servers
+  still come from `~/.pi/agent/mcp.json`, written by `ai-mcp-sync`.
+- `cc-safety-net` is the Pi-side guard for destructive commands and secret-file
+  reads. It does not replace the approval gates in `config/ai/CORE.md`.
 - `models.template.json` is a non-secret starter. Set its copied `baseUrl` for
   the actual device: localhost only on the gateway host, otherwise the owner's
   configured remote endpoint. The helper contains no fixed tunnel address.
@@ -21,10 +48,75 @@ copy credentials or make Pi an OMP prerequisite.
   when Pi starts from `~`. FFF search is then off for that session; start Pi
   from a project directory. Use `"warnOnHomeDirScan": false` instead to keep
   indexing `$HOME` and silence only the warning.
+- `pi-lsp.json` routes `@narumitw/pi-lsp` to `typescript-language-server`,
+  `pyright-langserver` and `bash-language-server` (install them with mise/npm;
+  a missing server is skipped). The TypeScript route also needs the
+  `typescript` package itself, because the language server starts that
+  package's `tsserver.js`: TypeScript 7.x is the native port and ships no
+  `tsserver.js`, so the route needs `typescript` 6.x or lower.
 
-Use `pi-9router-restore` to seed missing settings, models and `pi-fff.json`; it
-also removes the retired `~/.pi/extensions/compact-free` copy.
-It preserves existing real settings files and does not install or start 9Router.
+## Package set
+
+Pi ships four tools; these packages close the gap to a full terminal coding
+agent. Each was chosen because no dotfiles helper already covers it. Packages
+run with Pi's permissions, so add one only after reading its source.
+
+| Capability | Package | Notes |
+|---|---|---|
+| Guardrail | `cc-safety-net` | Blocks destructive commands and secret-file reads before the tool runs. Pi has no dotfiles hooks; this is its enforcement layer. Not a sandbox. |
+| Plan mode | `@narumitw/pi-plan-mode` | `/plan`: read-only exploration and an approved plan before edits. |
+| Worktree | `@narumitw/pi-worktree` | `/worktree`: create, inspect, switch, and prune Git worktrees in TUI while moving the active session into the new worktree directory. Registers no model tools. |
+| Side thread | `@narumitw/pi-btw` | `/btw <question>`: ask side questions in an overlay thread without polluting the main conversation history or prompt cache. Registers no model tools. |
+| Task list | `@juicesharp/rpiv-todo` | Model-maintained todo overlay that survives compaction. |
+| Rewind | `pi-rewind-hook` | `/tree` or `/fork` restores files with the conversation. Stores snapshots under `refs/pi-rewind/store` in the project's own `.git` with a temporary index (never the working index); retention keeps it bounded. Needs a Git repository. |
+| Diagnostics | `@narumitw/pi-lsp` | `lsp_diagnostics`, `lsp_fix`; see `pi-lsp.json`. |
+| Search | `@ff-labs/pi-fff` | Fast fuzzy file/content search; see `pi-fff.json`. |
+| Web and docs | `pi-web-access` | Search, fetch, PDF, repository and video reading. |
+| Browser | `pi-agent-browser-native` + Playwright MCP | Rendered UI evidence. Playwright MCP runs headless Chrome with `--isolated` and `--output-dir /tmp/playwright-mcp`, carries a system-prompt `description`, and hides `browser_run_code_unsafe` while keeping the remaining 24 tools behind Pi's built-in `codemode`. |
+| Subagents | `pi-subagents` | `scout`, `reviewer`, `oracle`, parallel or background children. Children drop the global context unless an agent sets `inheritGlobalContext`. |
+| Background shell | `pi-background-tasks` | The `pi()` wrapper sets `PI_BG_FEATURES=process`: background shell tasks only. Its `attribution` default reads Claude Code account IDs from `~/.claude.json`, `delegate` duplicates `pi-subagents`, and `fusion` accepts only subscription OAuth, not a base-URL gateway. |
+
+Considered and not installed: a per-call permission dialog (`cc-safety-net`
+plus plan mode already gate the risky cases without prompting on every edit)
+and bundles that also install sandboxes, model routing or memory (they overlap
+`focus`, `ai-memory-route`, `ai-recall` and 9Router).
+
+## Multi-device setup and daily controls
+
+On a new or existing device after `git pull`:
+
+```bash
+pi-9router-restore
+ai-mcp-sync
+```
+
+`pi-9router-restore` seeds missing `settings.json`, `models.json`, `pi-fff.json` and
+`pi-lsp.json`, and removes the retired `~/.pi/extensions/compact-free` copy.
+An existing `settings.json` gains tracked packages it lacks (matched by
+package name, so a local pin wins), deduplicates repeated `packages` (keeping
+any version-pinned entry) and `enabledModels` entries, guards `pi-mcp-adapter`
+against colliding with `builtin:mcp` when present, and seeds missing
+`enabledModels`, `rewind`, `hideThinkingBlock`, `quietStartup`, and
+`defaultThinkingLevel` when absent; Pi installs added packages on its next
+start. `dotsync autopull` does
+not run it automatically, so third-party extension code is never installed
+silently. `ai-mcp-sync` updates `~/.pi/agent/mcp.json` with the shared
+Playwright MCP definition (`--isolated`, `--output-dir /tmp/playwright-mcp`,
+Pi `description`, and `toolExposure`).
+
+| Control / Command | Behavior |
+|---|---|
+| `Ctrl+T` | Toggle the collapsed `Thinking...` block (`hideThinkingBlock: true` keeps reasoning collapsed by default). |
+| `Ctrl+O` | Toggle collapsed tool output (file reads, grep, bash). |
+| `Shift+Tab` or `/thinking` | Switch thinking level for the current task (`defaultThinkingLevel: "medium"`). |
+| `Ctrl+P` | Cycle across `enabledModels` (Sonnet 5.5, Opus 5.5, GPT-6.1, etc.). |
+| `/plan <prompt>` | Enter read-only Plan mode (`@narumitw/pi-plan-mode`), clarify via structured questions, and review before edits. |
+| `/worktree` | Create, inspect, switch, or prune Git worktrees (`@narumitw/pi-worktree`) and transfer the active Pi session into the selected worktree. |
+| `/btw <question>` | Open a side-question overlay (`@narumitw/pi-btw`) without changing the main conversation history or prompt cache. |
+| `/tree` or `/fork` | Navigate or branch conversation history while `pi-rewind-hook` restores tracked files to that point. |
+| `/mcp` or `pi mcp list` | Inspect the connected Playwright MCP server and its `codemode` tool exposure. |
+
+`pi-9router-restore` preserves existing real settings files and does not install or start 9Router.
 On Linux it installs `pi-9router-sync.timer` (one minute after boot, then
 hourly; failed runs retry every 30 s, because a boot-time run can reach the
 gateway before it listens). Inspect the device's endpoint before enabling it.
@@ -75,7 +167,7 @@ than copying accounts or demanding identical provider labels.
 
 ```bash
 pi-update-safe --self
-pi auth check --provider 9router-fantastico --model cc/claude-opus-5-5 --json
+pi auth check --provider 9router-fantastico --model cc/claude-sonnet-5-5 --json
 pi --list-models
 ~/dotfiles/bin/pi-9router-restore-test
 systemctl --user list-timers pi-9router-sync.timer
@@ -84,7 +176,9 @@ systemctl --user list-timers pi-9router-sync.timer
 The `pi()` shell wrapper appends the shared context to sessions only; `auth`,
 `mcp`, `config`, `install`, `remove`, `list` and `update` reach Pi unchanged.
 `ai-ask pi` appends the shared `context/pi.md` itself (not the device-local
-`device.md`), since scripts bypass the wrapper.
+`device.md`), since scripts bypass the wrapper. It runs with the read-only
+built-ins `read,grep,find,ls` and without extensions, MCP or project-local
+`.pi` files, so a Pi reviewer can inspect the repository without editing it.
 
 Do not add `--credentials` to an auth check or print token commands. Registry
 checks do not prove inference: use a small real tool roundtrip when changing

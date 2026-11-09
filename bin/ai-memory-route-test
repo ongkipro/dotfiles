@@ -299,4 +299,27 @@ assert p['files'][0]['path'].endswith('/profile.md'), p['files']
 assert p['files'][0]['scope'] == 'local', p['files']
 PY
 echo "  ✓ device-local profile.md outranks shared identity/preferences when present"
+# Real manifest: lessons that exist only in a large file must be reachable by a trigger (large files cannot be selected by path
+# alone). Each query is a phrase a person would use for the lesson; the expected file must come back, or the lesson is dead memory.
+python3 - "$ROOT" <<'PY2'
+import json, subprocess, sys
+root = sys.argv[1]
+cases = [
+    ("heavy-run load gate deadlock inside a slot", "ops-lessons.md"),
+    ("scratch directory cleanup tidy up deleted a helper", "ops-lessons.md"),
+    ("tmp cleanup deleted a queued gate script", "ops-lessons.md"),
+    ("vitest testTimeout integration suite timed out", "development-lessons.md"),
+    ("create database drop database parallel test harness", "development-lessons.md"),
+]
+for query, expected in cases:
+    out = subprocess.run([f"{root}/bin/ai-memory-route", "--scope", "shared", "--json", query], capture_output=True, text=True, cwd=root, check=True).stdout
+    names = [f["path"].rsplit("/", 1)[-1] for f in json.loads(out)["files"]]
+    assert expected in names, (query, names)
+# Everyday uses of the same words must NOT pull these lessons in (a bare "scratch" once did: "from scratch").
+for query in ("Write a poem from scratch", "build the landing page from scratch", "rewrite the intro from scratch"):
+    out = subprocess.run([f"{root}/bin/ai-memory-route", "--scope", "shared", "--json", query], capture_output=True, text=True, cwd=root, check=True).stdout
+    names = [f["path"].rsplit("/", 1)[-1] for f in json.loads(out)["files"]]
+    assert "ops-lessons.md" not in names, (query, names)
+print("ai-memory-route-test: promoted lessons are reachable by trigger, and not by everyday phrases PASS")
+PY2
 echo 'ai-memory-route-test: PASS'

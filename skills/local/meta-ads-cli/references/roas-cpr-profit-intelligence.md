@@ -34,6 +34,11 @@ thresholds are local review heuristics, not Meta penalties or causal tests.
 
 ## Economics and COD order basis
 
+Marketplace (Shopee CPAS) economics are different: dated SKU-level Shopee fee
+lines, seller-funded vs Shopee-funded discounts, settlement maturity and three
+non-additive ledgers. Do not reuse this COD/AOV model for them; see
+[CPAS Collaborative Ads](cpas-collaborative-ads.md) §4–5.
+
 Unknown costs produce an unknown contribution estimate. Revenue minus ad spend
 alone is not net profit. Configure assumptions only from an established business
 source; explicit zero costs are permitted, silent zero defaults are not.

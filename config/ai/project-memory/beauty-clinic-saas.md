@@ -1,15 +1,17 @@
 ---
 name: beauty-clinic-saas
-description: Pointer to the beauty clinic SaaS discovery (admin dashboard, CRM, RME, WABA, accounting) research folder; decisions live in the folder's DECISION-REGISTER.md.
+description: Pointer to the Clinic Dashboard (beauty clinic SaaS: admin, CRM, RME, WABA, accounting) repository; status, decisions and research live in the repo.
 metadata:
   node_type: memory
   type: project
 ---
 
-# Beauty Clinic SaaS — discovery pointer
+# Beauty Clinic SaaS — Clinic Dashboard pointer
 
-Also called: beauty clinic dashboard / admin / CRM / "klinik kecantikan" system. Separate from `~/Projects/kliniknuma` (different project; do not reuse).
+Also called: beauty clinic dashboard / admin / CRM / "klinik kecantikan" system. It is a separate project from `~/Projects/kliniknuma`, which is a read-only reference only; never reuse its code.
 
-- Folder: `~/Documents/work/research/beauty-clinic-dashboard/`
-- Read first: `DECISION-REGISTER.md` (authoritative decisions), then `SESSION-HANDOFF-2026-10-30.md` §0.
-- Phase is research/discovery only; the register states what is decided, adopted, conditional, or open. This pointer never holds status — check the folder.
+- Repository: `~/Projects/clinic-dashboard`. Read `STATUS.md`, then `AGENTS.md`.
+- Spec pack: `docs/spec/`. Decisions: `docs/spec/DECISION-REGISTER.md` plus `DECISIONS.md`.
+- Research and reviews: `docs/research/` (evidence only).
+- The old folders `~/Documents/work/research/beauty-clinic-dashboard/` and `~/Documents/work/prd/clinic-dashboard/` are retired; the archive is in `/data/backups/clinic-dashboard-kit/`.
+- This pointer never holds status. Check the repository.

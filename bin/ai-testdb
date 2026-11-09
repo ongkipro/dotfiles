@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+"""Throwaway test databases in RAM, shared by every project and AI terminal on this machine.
+
+One Postgres container per major version keeps its data on tmpfs with durability off (fsync, synchronous
+commit and full-page writes), so test I/O never touches the SSD. Databases are cheap: migrate once into a
+template, then give every run its own clone, so parallel runs never share state and nothing piles up.
+
+  ai-testdb up [--pg 17]                         start the server (idempotent); prints its base URL
+  ai-testdb create NAME [--from TEMPLATE]        create a database (optionally cloned); prints its URL
+  ai-testdb drop NAME                            drop a database
+  ai-testdb run [--from T] [--env VAR] -- CMD    fresh clone for one command, dropped afterwards
+  ai-testdb list | status | down
+
+Data is lost on `down`, reboot or container restart, by design: templates are rebuilt from migrations.
+Published on 127.0.0.1 only, with trust auth: any local process (or container that can reach it) has full
+access, so this is not a security boundary. Never point production, dev or customer data at it.
+"""
+import argparse
+import fcntl
+import os
+import signal
+import re
+import subprocess
+import sys
+import time
+import uuid
+
+PREFIX = os.environ.get('AI_TESTDB_PREFIX', 'ai-testdb')
+IMAGES = {'16': 'postgres:16', '17': 'postgres:17', '18': 'postgres:18.6-bookworm'}
+NAME = re.compile(r'^[a-z_][a-z0-9_]{0,62}$')
+SETTINGS = ['fsync=off', 'synchronous_commit=off', 'full_page_writes=off', 'max_connections=400',
+            'shared_buffers=256MB', 'max_wal_size=2GB', 'checkpoint_timeout=30min', 'autovacuum=off']
+
+
+def container(pg):
+    return f'{PREFIX}-pg{pg}'
+
+
+def port(pg):
+    return int(os.environ.get('AI_TESTDB_PORT') or 55400 + int(pg))
+
+
+def url(pg, db):
+    return f'postgresql://postgres@127.0.0.1:{port(pg)}/{db}'
+
+
+def docker(*args, check=True):
+    result = subprocess.run(['docker', *args], capture_output=True, text=True)
+    if check and result.returncode:
+        raise SystemExit(f'ai-testdb: docker {args[0]} failed: {result.stderr.strip()}')
+    return result
+
+
+def running(pg):
+    return docker('inspect', '-f', '{{.State.Running}}', container(pg), check=False).stdout.strip() == 'true'
+
+
+def psql(pg, sql, db='postgres'):
+    result = docker('exec', container(pg), 'psql', '-U', 'postgres', '-d', db, '-v', 'ON_ERROR_STOP=1', '-tAc', sql, check=False)
+    if result.returncode:
+        raise SystemExit(f'ai-testdb: {result.stderr.strip()}')
+    return result.stdout.strip()
+
+
+def lifecycle_lock(pg):
+    # Serialise start/stop across terminals so two cold starts cannot remove each other's fresh server.
+    directory = os.path.join(os.environ.get('XDG_RUNTIME_DIR') or '/tmp', 'ai-testdb')
+    os.makedirs(directory, mode=0o700, exist_ok=True)
+    fd = os.open(os.path.join(directory, f'{container(pg)}.lock'), os.O_RDWR | os.O_CREAT, 0o600)
+    fcntl.flock(fd, fcntl.LOCK_EX)
+    return fd
+
+
+def ready(pg):
+    return docker('exec', container(pg), 'psql', '-U', 'postgres', '-h', '127.0.0.1', '-tAc', 'select 1', check=False).returncode == 0
+
+
+def up(pg):
+    fd = lifecycle_lock(pg)
+    try:
+        if not running(pg):
+            start(pg)
+        # Existing or new: wait until a real query works (init restarts the server once; a restart may be in flight).
+        for _ in range(120):
+            if ready(pg):
+                return
+            time.sleep(0.5)
+        raise SystemExit('ai-testdb: server did not become ready')
+    finally:
+        os.close(fd)
+
+
+def start(pg):
+    docker('rm', '-f', container(pg), check=False)
+    image = os.environ.get('AI_TESTDB_IMAGE') or IMAGES.get(pg) or f'postgres:{pg}'
+    size = os.environ.get('AI_TESTDB_TMPFS', '6g')
+    args = ['run', '-d', '--name', container(pg), '--restart', 'unless-stopped',
+            '--label', 'ai-testdb=1', '--shm-size', '512m',
+            '--tmpfs', f'/var/lib/postgresql/data:rw,size={size}',
+            '-e', 'POSTGRES_HOST_AUTH_METHOD=trust', '-e', 'PGDATA=/var/lib/postgresql/data/pgdata',
+            '-p', f'127.0.0.1:{port(pg)}:5432', image]
+    for setting in SETTINGS:
+        args += ['-c', setting]
+    docker(*args)
+
+
+def checked(name):
+    if not NAME.match(name):
+        raise SystemExit(f'ai-testdb: invalid database name {name!r} (lowercase letters, digits, underscore)')
+    return name
+
+
+def create(pg, name, template=None):
+    up(pg)
+    sql = f'create database "{checked(name)}"'
+    if template:
+        # A template must have no other sessions; end idle ones left by a migration run.
+        psql(pg, f"select pg_terminate_backend(pid) from pg_stat_activity where datname = '{checked(template)}' and pid <> pg_backend_pid()")
+        sql += f' template "{template}"'
+    psql(pg, sql)
+    return url(pg, name)
+
+
+def drop(pg, name):
+    if running(pg):
+        psql(pg, f'drop database if exists "{checked(name)}" with (force)')
+
+
+def run_name(label):
+    # Always starts with a letter ('t_'), so repo names such as 99ribu are valid database names.
+    base = re.sub(r'_+', '_', re.sub(r'[^a-z0-9_]', '_', label.lower())).strip('_')[:30] or 'run'
+    return checked(f't_{base}_{uuid.uuid4().hex[:10]}')
+
+
+def run_with_clone(pg, name, template, variables, command, keep):
+    # One cancellation-managed lifecycle: SIGINT/SIGTERM/SIGHUP are caught from before the clone exists until
+    # after it is dropped. A signal before the command starts means it never starts; one during startup is
+    # delivered as soon as the child exists; one during cleanup cannot interrupt the drop.
+    pending, child, code, created = [], None, 1, False
+
+    def cancel(signum, _frame):
+        pending.append(signum)
+        if child is not None and child.poll() is None:
+            child.send_signal(signum)
+
+    previous = {sig: signal.signal(sig, cancel) for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
+    try:
+        database_url = create(pg, name, template)
+        created = True
+        env = dict(os.environ, AI_TESTDB_NAME=name)
+        for variable in variables:
+            env[variable] = database_url
+        if not pending:
+            child = subprocess.Popen(command, env=env)
+            if pending and child.poll() is None:
+                child.send_signal(pending[0])
+            code = child.wait()
+    finally:
+        if child is not None and child.poll() is None:
+            child.kill()
+            child.wait()
+        if created and not keep:
+            drop(pg, name)
+        elif created:
+            print(f'ai-testdb: kept {url(pg, name)}', file=sys.stderr)
+        for sig, handler in previous.items():
+            signal.signal(sig, handler)
+    if pending:
+        return 128 + pending[0]
+    return code if code >= 0 else 128 - code
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('action', choices=['up', 'create', 'drop', 'run', 'list', 'status', 'down'])
+    parser.add_argument('name', nargs='?')
+    parser.add_argument('--pg', default=os.environ.get('AI_TESTDB_PG', '17'), help='Postgres major version (default 17)')
+    parser.add_argument('--from', dest='template', help='clone from this template database')
+    parser.add_argument('--env', action='append', default=[], help='variable to receive the URL in `run` (default DATABASE_URL)')
+    parser.add_argument('--keep', action='store_true', help='`run`: keep the database afterwards (debugging)')
+    argv = sys.argv[1:]
+    command = []
+    if '--' in argv:  # everything after the first -- belongs to the wrapped command
+        index = argv.index('--')
+        argv, command = argv[:index], argv[index + 1:]
+    args = parser.parse_args(argv)
+    pg = args.pg
+    if args.action == 'up':
+        up(pg)
+        print(url(pg, 'postgres'))
+    elif args.action == 'create':
+        print(create(pg, args.name or parser.error('create needs NAME'), args.template))
+    elif args.action == 'drop':
+        drop(pg, args.name or parser.error('drop needs NAME'))
+    elif args.action == 'list':
+        if running(pg):
+            print(psql(pg, "select datname || '  ' || pg_size_pretty(pg_database_size(datname)) from pg_database where not datistemplate or datname not in ('template0','template1') order by 1"))
+    elif args.action == 'status':
+        rows = docker('ps', '-a', '--filter', 'label=ai-testdb=1', '--format', '{{.Names}}\t{{.Status}}\t{{.Ports}}').stdout.strip()
+        print(rows or 'no ai-testdb servers')
+    elif args.action == 'down':
+        fd = lifecycle_lock(pg)
+        try:
+            docker('rm', '-f', container(pg), check=False)
+        finally:
+            os.close(fd)
+    elif args.action == 'run':
+        if not command:
+            parser.error('run needs -- COMMAND')
+        name = run_name(args.name or os.path.basename(os.getcwd()))
+        if args.template:
+            checked(args.template)
+        return run_with_clone(pg, name, args.template, args.env or ['DATABASE_URL'], command, args.keep)
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

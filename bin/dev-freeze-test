@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# dev-freeze on throwaway repos: restorable bundles/patches/untracked files, no-commit tarballs, untouched sources
+# (index bytes included), relative and spaced paths, duplicate basenames, and failures reported as INCOMPLETE.
+set -euo pipefail
+bin="$(cd "$(dirname "$0")" && pwd)"; t=$(mktemp -d); trap 'chmod -R u+rwx "$t" 2>/dev/null; rm -rf "$t"' EXIT
+export DEV_FREEZE_NICE=1
+g() { git -C "$1" -c user.name=t -c user.email=t@example.invalid "${@:2}"; }
+mkdir -p "$t/p/a" "$t/p/empty" "$t/p/sp ace" "$t/q/a"
+g "$t/p/a" init -q -b main; echo one > "$t/p/a/f"; g "$t/p/a" add f; g "$t/p/a" commit -qm one
+g "$t/p/a" checkout -qb work; echo two >> "$t/p/a/f"; g "$t/p/a" commit -qam two; echo dirty >> "$t/p/a/f"; echo new > "$t/p/a/u.txt"
+touch -d '2001-01-01' "$t/p/a/f"   # stale stat info: a plain `git status` would rewrite the index
+g "$t/p/empty" init -q; echo draft > "$t/p/empty/d.txt"
+g "$t/p/sp ace" init -q -b main; echo s > "$t/p/sp ace/s"; g "$t/p/sp ace" add s; g "$t/p/sp ace" commit -qm s
+g "$t/q/a" init -q -b main; echo other > "$t/q/a/o"; g "$t/q/a" add o; g "$t/q/a" commit -qm other
+before=$(cd "$t/p/a" && git rev-parse HEAD; sha256sum .git/index; stat -c %Y .git/index)
+
+# Relative output and repo paths with trailing slashes, a spaced path, and two repos named "a".
+(cd "$t" && "$bin/dev-freeze" out p/a/ "p/sp ace" p/empty/ q/a >/dev/null)
+[ "$before" = "$(cd "$t/p/a" && git rev-parse HEAD; sha256sum .git/index; stat -c %Y .git/index)" ] || { echo "repo or index modified"; exit 1; }
+[ -f "$t/out/a/all-refs.bundle" ] && [ ! -e "$t/p/a/out" ]                # output relative to the caller, not the repo
+[ -f "$t/out/a/main-tree/uncommitted.patch" ]                              # trailing-slash repo recognised as main tree
+other=$(ls -d "$t"/out/a-* | head -1); [ -f "$other/all-refs.bundle" ]    # duplicate basename gets its own folder
+for d in "$t"/out/*/; do (cd "$d" && sha256sum -c --quiet SHA256SUMS); done
+! grep -q INCOMPLETE "$t/out/INDEX.md"; [ "$(stat -c %a "$t/out")" = 700 ]
+
+# Restore by executing the generated instructions (quoted paths), for bundle, spaced and no-commit repos.
+(cd "$t" && mkdir r1 && cd r1 && sed -n '/^```bash$/,/^```$/p' "$t/out/a/RESUME.md" | sed '1d;$d' | bash >/dev/null 2>&1)
+grep -qx two <(sed -n 2p "$t/r1/a-restored/f"); grep -qx dirty <(sed -n 3p "$t/r1/a-restored/f"); [ -f "$t/r1/a-restored/u.txt" ]
+(cd "$t" && mkdir r2 && cd r2 && sed -n '/^```bash$/,/^```$/p' "$t/out/sp ace/RESUME.md" | sed '1d;$d' | bash >/dev/null 2>&1) && [ -f "$t/r2/sp ace-restored/s" ]
+(cd "$t" && mkdir r3 && cd r3 && sed -n '/^```bash$/,/^```$/p' "$t/out/empty/RESUME.md" | sed '1d;$d' | bash >/dev/null 2>&1) && [ -f "$t/r3/restored/empty/d.txt" ]
+
+# An existing output directory is refused (no overwrite).
+set +e; "$bin/dev-freeze" "$t/out" "$t/p/a" >/dev/null 2>&1; rc=$?; set -e; [ "$rc" = 2 ]
+
+# A failing artifact (unreadable untracked file) makes the run exit 1 and marks the repo INCOMPLETE.
+echo secret > "$t/p/a/locked.txt"; chmod 000 "$t/p/a/locked.txt"
+set +e; "$bin/dev-freeze" "$t/out2" "$t/p/a" >/dev/null 2>&1; rc=$?; set -e; chmod 600 "$t/p/a/locked.txt"
+if [ "$(id -u)" != 0 ]; then [ "$rc" = 1 ] && grep -q INCOMPLETE "$t/out2/INDEX.md" && [ ! -e "$t/out2/a/main-tree/untracked.tar.gz" ]; fi
+# Injected failures in bundle publication, untracked inventory and worktree listing => exit 1 and INCOMPLETE.
+mkdir -p "$t/stub"; real_git=$(command -v git); real_mv=$(command -v mv)
+cat > "$t/stub/mv" <<STUB
+#!/bin/sh
+case "\$1" in *all-refs.bundle.part) [ -n "\${FAIL_BUNDLE_MV:-}" ] && exit 1;; esac
+exec $real_mv "\$@"
+STUB
+cat > "$t/stub/git" <<STUB
+#!/bin/sh
+for a in "\$@"; do
+  [ "\$a" = --others ] && [ -n "\${FAIL_LS_FILES:-}" ] && exit 1
+  [ "\$a" = worktree ] && [ -n "\${FAIL_WORKTREE:-}" ] && exit 1
+  [ "\$a" = status ] && [ -n "\${FAIL_STATUS:-}" ] && case "\$*" in *wt-dirty*) exit 1;; esac
+done
+exec $real_git "\$@"
+STUB
+chmod +x "$t/stub/mv" "$t/stub/git"
+g "$t/p/a" worktree add -q "$t/wt-dirty" -b side; echo w > "$t/wt-dirty/new.txt"
+for fail in FAIL_BUNDLE_MV FAIL_LS_FILES FAIL_WORKTREE FAIL_STATUS; do
+  set +e; env PATH="$t/stub:$PATH" "$fail=1" "$bin/dev-freeze" "$t/o-$fail" "$t/p/a" >/dev/null 2>&1; rc=$?; set -e
+  [ "$rc" = 1 ] && grep -q INCOMPLETE "$t/o-$fail/INDEX.md" || { echo "$fail not reported (rc=$rc)"; exit 1; }
+done
+grep -q "status $t/wt-dirty" "$t/o-FAIL_STATUS/INDEX.md" && [ -n "$(ls "$t/o-FAIL_STATUS/a/worktrees/")" ]   # failed status => still snapshotted
+[ ! -e "$t/o-FAIL_BUNDLE_MV/a/all-refs.bundle" ] && [ ! -e "$t/o-FAIL_BUNDLE_MV/a/all-refs.bundle.part" ]
+echo "dev-freeze-test: ok"

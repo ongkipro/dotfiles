@@ -111,25 +111,25 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 
 | Collection | Path | Tracked | Completeness enforced by |
 |---|---|---|---|
-| Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 25 | linked from this page |
+| Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 26 | linked from this page |
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 84 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
 | Owned skills | [`skills/local/`](../skills/local/) | 76 | linked from this page |
-| Commands | [`bin/`](../bin/) | 62 | linked from this page |
-| Command tests | [`bin/`](../bin/) | 74 | linked from this page |
-| Device profiles | [`devices/`](../devices/) | 8 | linked from this page |
+| Commands | [`bin/`](../bin/) | 66 | linked from this page |
+| Command tests | [`bin/`](../bin/) | 78 | linked from this page |
+| Device profiles | [`devices/`](../devices/) | 9 | linked from this page |
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
-| Top-level docs | [`docs/`](../docs/) | 19 | linked from this page |
+| Top-level docs | [`docs/`](../docs/) | 20 | linked from this page |
 | AI control files | [`config/ai/`](../config/ai/) | 31 | linked from this page |
-| Runtime references | [`config/omp/`](../config/omp/) | 27 | linked from this page |
+| Runtime references | [`config/omp/`](../config/omp/) | 28 | linked from this page |
 | Skill commands | [`skills/agents-bin/`](../skills/agents-bin/) | 7 | linked from this page |
 | Skill tooling | [`skills/local/`](../skills/local/) | 3 | linked from this page |
 | Registry indexes | [`devices/`](../devices/) | 1 | linked from this page |
-| Command helpers | [`bin/`](../bin/) | 6 | linked from this page |
-| Research records | [`docs/research/`](../docs/research/) | 5 | linked from this page |
+| Command helpers | [`bin/`](../bin/) | 8 | linked from this page |
+| Research records | [`docs/research/`](../docs/research/) | 6 | linked from this page |
 | Environment and bootstrap | [`config/`](../config/) | 35 | linked from this page |
 | Device reports | [`docs/device-reports/`](../docs/device-reports/) | 21 | count only |
-| Archived task records | [`docs/archive/`](../docs/archive/) | 47 | count only |
+| Archived task records | [`docs/archive/`](../docs/archive/) | 68 | count only |
 
 <!-- system-map:inventory:end -->
 
@@ -218,7 +218,7 @@ OMP runs upstream-native; installers link none of these files.
 - **OMP reference agents (not installed):** [`architect`](../config/omp/agents/architect.md), [`complex-developer`](../config/omp/agents/complex-developer.md), [`debugger`](../config/omp/agents/debugger.md), [`designer`](../config/omp/agents/designer.md), [`librarian`](../config/omp/agents/librarian.md), [`reviewer`](../config/omp/agents/reviewer.md), [`scout`](../config/omp/agents/scout.md), [`security-reviewer`](../config/omp/agents/security-reviewer.md), [`writer`](../config/omp/agents/writer.md): role definitions kept as design evidence.
 - **OMP retired overlays:** [`9router-hosted`](../config/omp/overlays/9router-hosted.yml), [`antigravity-hosted`](../config/omp/overlays/antigravity-hosted.yml), [`antigravity-only`](../config/omp/overlays/antigravity-only.yml), [`codex-only`](../config/omp/overlays/codex-only.yml), [`minimax-hosted`](../config/omp/overlays/minimax-hosted.yml): single-provider session overlays; revalidate before selecting one.
 - [`config/pi/README.md`](../config/pi/README.md): Optional Pi setup; Pi is a standalone fallback CLI, not an OMP prerequisite.
-- **Pi files:** [`settings.json`](../config/pi/settings.json), [`models.template.json`](../config/pi/models.template.json), [`pi-fff.json`](../config/pi/pi-fff.json): non-secret defaults seeded by `pi-9router-restore`, the machine-local model template, and the FFF opt-out of `$HOME` indexing.
+- **Pi files:** [`settings.json`](../config/pi/settings.json), [`models.template.json`](../config/pi/models.template.json), [`pi-fff.json`](../config/pi/pi-fff.json), [`pi-lsp.json`](../config/pi/pi-lsp.json): non-secret defaults (model, cycling list, package set, rewind retention) seeded by `pi-9router-restore`, the machine-local model template, the FFF opt-out of `$HOME` indexing, and the `pi-lsp` language-server routes.
 
 ## 4. Durable Memory Dictionary (`config/ai/memory/`)
 
@@ -244,6 +244,7 @@ Cross-project durable facts loaded selectively on demand by `ai-memory-access`.
 | [`environment.md`](../config/ai/memory/environment.md) | Hardware & software toolchains, installed packages, mise plugins, cross-platform parity. |
 | [`environment-ai-runtimes.md`](../config/ai/memory/environment-ai-runtimes.md) | OMP, optional Pi, 9Router, and Antigravity: availability, credential boundary, and the official install method. |
 | [`environment-devices-git.md`](../config/ai/memory/environment-devices-git.md) | User machines, the generated device registry, and the one Git identity shared by all devices. |
+| [`parallel-research.md`](../config/ai/memory/parallel-research.md) | Parallel research agents, source order, polite scraping defaults (proposal) and browser concurrency. |
 | [`projects.md`](../config/ai/memory/projects.md) | Master directory index of active repositories under `~/Projects/`. |
 | [`projects-platforms.md`](../config/ai/memory/projects-platforms.md) | Advisory map of product platforms and admin applications (volumecms, adsbookcms); load only for the named platform. |
 | [`projects-sites.md`](../config/ai/memory/projects-sites.md) | Historical reference for sites and commerce projects (Astro, Shopify Storefront), SEO knowledge, and repository history. |
@@ -314,8 +315,7 @@ Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rende
 - [`ui-validation`](../skills/local/ui-validation/SKILL.md): Browser-based verification (Playwright, responsive, dark/light).
 - [`web-perf`](../skills/local/web-perf/SKILL.md): Core Web Vitals profiling, Lighthouse optimization.
 - [`threejs`](../skills/local/threejs/SKILL.md): 3D WebGL scenes across vanilla JS, Vite, Astro, and React Three Fiber (R3F).
-- [`dotuiux`](../skills/local/dotuiux/SKILL.md): One UI/UX loop for new screens and redesigns: brief, live-site teardown, `DESIGN.md` direction, rendered checks, owner review; routes the craft to the owner skills.
-- [`stitch`](../skills/local/stitch/SKILL.md): Google Stitch CLI, Canvas, and Loop agent workflows with DESIGN.md support.
+- [`dotuiux`](../skills/local/dotuiux/SKILL.md): One UI/UX loop for new screens and redesigns: brief, live-site teardown, `DESIGN.md` direction, rendered checks, side-by-side compare with an independent verdict, owner review; routes the craft to the owner skills.
 
 ### 6.3 Animation (GSAP)
 - [`gsap-core`](../skills/local/gsap-core/SKILL.md): Core tweening, easing, matchMedia.
@@ -363,6 +363,10 @@ Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rende
   - [`references/meta-ads.md`](../skills/local/copywriting/references/meta-ads.md): Meta ad text house rules — soft CTA, no link/LP/price, ID vs MY locale, Flexible Format/DCO combination safety.
 - [`writer`](../skills/local/writer/SKILL.md): Meaning-preserving writing, two-way dialogue, and locale-native communication.
 - [`focus`](../bin/focus), [`focus-test`](../bin/focus-test): Session-scoped local claims, explicit references, and isolated boundary regression checks.
+- [`ai-testdb`](../bin/ai-testdb), [`ai-testdb-test`](../bin/ai-testdb-test) (+ [`lifecycle test`](../bin/_ai-testdb-lifecycle-test.py)): Shared RAM-backed throwaway Postgres for test suites: template clones per run, durability off, dropped afterwards.
+- [`ai-capacity`](../bin/ai-capacity), [`ai-capacity-test`](../bin/ai-capacity-test) (+ [`RAM sweep`](../bin/_ai-capacity-sweep-test.py)): Per-device plan for AI terminals, subagents and heavy jobs from RAM/CPU; `apply` writes device-local limits (heavy slots, heavy-slice memory cap, pi-subagents concurrency).
+- [`dev-freeze`](../bin/dev-freeze), [`dev-freeze-test`](../bin/dev-freeze-test): Read-only snapshot of every project (all-ref bundles, uncommitted patches, untracked files, worktrees, RESUME.md) before maintenance or a pause.
+- [`heavy-run`](../bin/heavy-run), [`heavy-run-test`](../bin/heavy-run-test): Machine-wide queue for heavy work across AI terminals: pool slots plus named exclusive locks (kernel flock, no stale locks), `--status`, timeouts, and isolated regression checks.
 - [`cms-content`](../skills/local/cms-content/SKILL.md): Client content-editing layer selection and implementation (Astro collections, Keystatic, Payload, Shopify metaobjects).
 
 ### 6.9 Planning & Specification
@@ -459,10 +463,10 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`dotfiles-a1-coolify`](../bin/dotfiles-a1-coolify): `coolify` CLI for the `99ribu-prod` instance (host recorded device-locally); the CLI context holds only the URL and the token comes from `secrets-env` (`COOLIFY_99RIBU_PROD_TOKEN`) per call.
 - [`dotfiles-coolify`](../bin/dotfiles-coolify): `coolify` CLI for the `vps-main` instance; the CLI context holds only the URL and the token comes from `secrets-env` (`COOLIFY_VPS_MAIN_TOKEN`) per call.
 - [`shopify-content-helper`](../bin/shopify-content-helper) (+ [`test`](../bin/shopify-content-helper-test)): Shopify SEO and content utilities: SEO audit and limits, sitemap entries, meta and brief templates, RSS and JSON-LD skeletons.
-- [`dotads-meta`](../bin/dotads-meta) (+ [`test`](../bin/dotads-meta-test)): Per-project Meta Ads campaign validator, dry-run planner, stateful deployer, and `secrets-env` bridge for Meta's official CLI; offline Indonesia market baseline and scoped economics observations. SDK account discovery, scoped inventory/Insights snapshots, immutable Markdown/CSV reports, selected media import and reference-only adoption.
+- [`dotads-meta`](../bin/dotads-meta) (+ [`test`](../bin/dotads-meta-test)): Per-project Meta Ads campaign validator, dry-run planner, stateful deployer, and `secrets-env` bridge for Meta's official CLI; offline Indonesia market baseline and scoped economics observations. Named BM env auto-setup (also post-pull), explicit multi-BM selection, readable account folders, shared BM assets/optional temporary copies, SDK account discovery, scoped snapshots, immutable Markdown reports (legacy CSV retained), selected media import and reference-only adoption.
 - [`_dotads-meta-provider.py`](../bin/_dotads-meta-provider.py) (+ [`SDK tests`](../bin/_dotads-meta-provider-test.py)): Private read adapter for official-SDK account inventory and Insights; bounded paging, retries and isolated transport tests.
 - [`_dotads-workspace.mjs`](../bin/_dotads-workspace.mjs) (+ [`filesystem tests`](../bin/_dotads-workspace-test.mjs)): Private account registry, immutable snapshots/reports, media import and reference-only adoption; filesystem safety and recovery checks.
-- [`dotuiux`](../bin/dotuiux) (+ [`test`](../bin/dotuiux-test)): Zero-dependency UI/UX helper on `ui-ref.mjs`: `init` scaffolds `design/brief.md` and `DESIGN.md`, `teardown` captures live references at 360/768/1440, `check` runs floor (fail) and slop-signal (warn, `allow:`-able) gates on a rendered page, `validate` checks the project files.
+- [`dotuiux`](../bin/dotuiux) (+ [`test`](../bin/dotuiux-test)): Zero-dependency UI/UX helper on `ui-ref.mjs`: `init` scaffolds `design/brief.md` and `DESIGN.md`, `teardown` captures live references at 360/768/1440, `check` runs floor (fail) and slop-signal (warn, `allow:`-able) gates on a rendered page, `compare` writes reference-vs-build sheets, outline report and an independent-review prompt, `validate` checks the project files.
 - [`rea-skill-sync`](../bin/rea-skill-sync) (+ [`test`](../bin/rea-skill-sync-test)): Deterministic upstream auto-sync and drift checker synchronizing `skills/local/black-magic/` with `morluto/rea`.
 - [`skill-upstream`](../bin/skill-upstream) (+ [`test`](../bin/skill-upstream-test)): Read-only drift report for skills that declare a watch-only `.upstream` or a vendored source; never edits a skill.
 - [`pi-9router-restore`](../bin/pi-9router-restore): Restores optional Pi settings and the device-local 9Router model integration.
@@ -509,6 +513,7 @@ Managed by `bin/device-register`, documenting exact hardware and OS specs:
 | [`feris-MacBook-Air.md`](../devices/feris-MacBook-Air.md) | Apple MacBook Air (M1, 8GB RAM) | macOS 26.5 | Secondary macOS workstation |
 | [`Olans-MacBook-Pro.md`](../devices/Olans-MacBook-Pro.md) | Apple MacBook Pro (M2, 8GB RAM) | macOS 26.5 | Secondary macOS workstation |
 | [`lenovo.md`](../devices/lenovo.md) | Intel i7-1355U, 7.6 GB RAM | Ubuntu 26.04.1 LTS on WSL2 | Windows-hosted Linux dev environment |
+| [`dot.md`](../devices/dot.md) | Lenovo Yoga Book 9 13IRU8 (i7-1355U, 14.8 GB RAM) | Ubuntu 26.04.1 LTS | Dual-screen OLED convertible Linux laptop |
 
 ---
 
@@ -522,12 +527,13 @@ Managed by `bin/device-register`, documenting exact hardware and OS specs:
 - [`repo-visibility.md`](../docs/repo-visibility.md): Public vs private repository security protocol.
 - [`shopify-ai-development-repos.md`](../docs/shopify-ai-development-repos.md): Mapping of Shopify open-source repositories and theme tools.
 - [`linux-dev-setup.md`](../docs/linux-dev-setup.md) & [`macos-install-step-by-step.md`](../docs/macos-install-step-by-step.md): Clean-install guides for new workstations.
+- [`parallel-ai-dev-machine.md`](../docs/parallel-ai-dev-machine.md): Running several AI terminals across projects on one machine, per-device sizing, and how to reproduce it on Linux and macOS.
 - [`ai-execution-evaluation.md`](../docs/ai-execution-evaluation.md): Local execution evaluation procedure and its evidence limits.
 - [`chatgpt-inbox.md`](../docs/chatgpt-inbox.md): Phone capture from a ChatGPT "Dotfiles Inbox" into `ai-learn import`.
 - [`linux-install-step-by-step.md`](../docs/linux-install-step-by-step.md): Linux install from zero, step by step.
 - [`linux-maintenance-log.md`](../docs/linux-maintenance-log.md): Linux maintenance log.
 - Dated audits (historical, superseded by current contracts): [`DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md`](../docs/DOTFILES_AI_ENGINEERING_AUDIT_2026-08-14.md) (stays here: its illustrative `TASK-014` sample would collide with the archive lint), [`DOTFILES-NATIVE-FIRST-AUDIT.md`](../docs/DOTFILES-NATIVE-FIRST-AUDIT.md), [`public-ui-skill-audit.md`](../docs/public-ui-skill-audit.md), [`skills-memory-audit.md`](../docs/skills-memory-audit.md), [`skill-efficiency-audit-2026-10-30.md`](../docs/skill-efficiency-audit-2026-10-30.md) (skill size/description budget pass). Older audits, the GitHub account cleanup plan and profile README draft, and the AUSSIE Sawit Malaysia session history moved to [`docs/archive/`](../docs/archive/) on 2026-10-29.
-- **Research records:** [`adaptive-ai-sources.md`](../docs/research/adaptive-ai-sources.md), [`development-kit-audit-2026-10-25.md`](../docs/research/development-kit-audit-2026-10-25.md), [`dotfiles-reliability-sources.md`](../docs/research/dotfiles-reliability-sources.md), [`system-map-references-2026-10-25.md`](../docs/research/system-map-references-2026-10-25.md), [`memory-focus-architecture-2026-10-29.md`](../docs/research/memory-focus-architecture-2026-10-29.md): adaptive-AI adoption, development-kit audit, reliability sources, the references behind this map, and the memory-precision / focus-system proposal.
+- **Research records:** [`parallel-ai-dev-machine-2026-11-07.md`](../docs/research/parallel-ai-dev-machine-2026-11-07.md), [`adaptive-ai-sources.md`](../docs/research/adaptive-ai-sources.md), [`development-kit-audit-2026-10-25.md`](../docs/research/development-kit-audit-2026-10-25.md), [`dotfiles-reliability-sources.md`](../docs/research/dotfiles-reliability-sources.md), [`system-map-references-2026-10-25.md`](../docs/research/system-map-references-2026-10-25.md), [`memory-focus-architecture-2026-10-29.md`](../docs/research/memory-focus-architecture-2026-10-29.md): adaptive-AI adoption, development-kit audit, reliability sources, the references behind this map, and the memory-precision / focus-system proposal.
 - Directories: [`docs/archive/`](../docs/archive/) (immutable task contracts), [`docs/research/`](../docs/research/) (source and trial evidence), [`docs/device-reports/`](../docs/device-reports/).
 
 ---

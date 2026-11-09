@@ -245,6 +245,57 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(result["rows"][0]["outbound_clicks"][0]["value"], "3")
         self.assertEqual(result["rows"][0]["video_thruplay_watched_actions"][0]["value"], "7")
 
+    def test_cpas_v1_profile_adds_segment_fields_only_when_opted_in(self):
+        legacy = provider.plan(REQUEST)
+        self.assertNotIn("metric_profile", legacy["request"])
+        self.assertNotIn("metric_profile", legacy["scope"])
+        self.assertEqual(provider.plan({**REQUEST, "metric_profile": "legacy"}), legacy, "explicit legacy is byte-identical")
+        cpas = provider.plan({**REQUEST, "metric_profile": "cpas_v1"})
+        self.assertEqual(cpas["scope"]["metric_profile"], "cpas_v1")
+        self.assertNotEqual(cpas["scope"], legacy["scope"])
+        with self.assertRaises(provider.ProviderError):
+            provider.plan({**REQUEST, "metric_profile": "cpas_v2"})
+        segment = [{"action_type": "purchase", "value": "3"}]
+        result = self.insights([{"data": [insight(catalog_segment_actions=segment, catalog_segment_value=[{"action_type": "purchase", "value": "450"}])]}],
+                               metric_profile="cpas_v1")
+        fields = result["insights"][0]["query"]["fields"]
+        for name in provider.METRIC_PROFILES["cpas_v1"]:
+            self.assertIn(name, fields)
+        self.assertFalse(any(name.startswith("converted_product") for name in fields), "product reporting stays a separate capability")
+        self.assertEqual(result["insights"][0]["rows"][0]["catalog_segment_actions"], segment)
+        plain = self.insights([{"data": [insight()]}])["insights"][0]["query"]["fields"]
+        self.assertFalse(any(name.startswith("catalog_segment") for name in plain))
+
+    def test_cpas_inventory_fields_are_opt_in_and_legacy_stays_exact(self):
+        # The default inventory request (and therefore its scope hash and query IDs) must stay the one shipped
+        # in 6e38288; the CPAS-only inventory fields are added only with metric_profile cpas_v1.
+        legacy_fields = {
+            "campaigns": ("id", "account_id", "name", "objective", "status", "configured_status", "effective_status",
+                          "daily_budget", "lifetime_budget", "created_time", "updated_time"),
+            "adsets": ("id", "account_id", "campaign_id", "name", "status", "configured_status", "effective_status",
+                       "daily_budget", "lifetime_budget", "optimization_goal", "billing_event", "promoted_object",
+                       "targeting", "start_time", "end_time", "attribution_spec", "is_dynamic_creative",
+                       "created_time", "updated_time"),
+            "creatives": ("id", "account_id", "name", "status", "title", "body", "object_type", "object_story_id",
+                          "effective_object_story_id", "object_story_spec", "asset_feed_spec", "image_hash", "image_url",
+                          "thumbnail_url", "video_id", "link_url", "object_url", "object_store_url", "template_url",
+                          "url_tags", "call_to_action_type", "product_set_id", "instagram_permalink_url",
+                          "effective_instagram_media_id", "degrees_of_freedom_spec"),
+        }
+        plan = provider.plan(REQUEST)
+        for resource, names in legacy_fields.items():
+            self.assertEqual(tuple(plan["scope"]["inventory_fields"][resource]), names, resource)
+        cpas = provider.plan({**REQUEST, "metric_profile": "cpas_v1"})
+        added = {"campaigns": {"bid_strategy", "smart_promotion_type", "promoted_object", "spend_cap"},
+                 "adsets": {"bid_strategy", "bid_amount", "bid_constraints", "destination_type", "learning_stage_info", "issues_info"},
+                 "creatives": {"template_url_spec", "applink_treatment"}}
+        for resource, names in added.items():
+            fields = set(cpas["scope"]["inventory_fields"][resource])
+            self.assertTrue(names <= fields, resource)
+            self.assertTrue(fields >= set(legacy_fields[resource]), resource)
+            self.assertFalse(names & set(plan["scope"]["inventory_fields"][resource]), resource)
+        self.assertEqual(provider.plan({**REQUEST, "metric_profile": "legacy"}), plan)
+
     def test_bad_rows_do_not_discard_valid_partial_rows_or_other_resources(self):
         routes = base_routes()
         routes["act_123/campaigns"] = [{"data": [{"id": "10", "account_id": "123"}, {"id": "11", "account_id": "456"}]}]
@@ -266,7 +317,8 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(result["scope"]["collection_contract_version"], 1)
         for resource in ("campaigns", "adsets", "ads"):
             self.assertIn("ARCHIVED", result["resources"][resource]["query"]["effective_status"])
-            self.assertIn("DELETED", result["resources"][resource]["query"]["effective_status"])
+            self.assertNotIn("DELETED", result["resources"][resource]["query"]["effective_status"])
+            self.assertEqual(result["resources"][resource]["query"]["excluded_statuses"], ["DELETED"])
             self.assertEqual(result["scope"]["inventory_filters"][resource]["effective_status"],
                              result["resources"][resource]["query"]["effective_status"])
         adsets = result["resources"]["adsets"]
@@ -279,6 +331,98 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(adsets["query"]["fetched_fields"], ["id", "account_id", "campaign_id"])
         self.assertEqual(adsets["observed_fields"], ["account_id", "campaign_id", "id"])
         self.assertTrue(adsets["pagination_exhausted"])
+
+    def test_full_creative_fields_use_bounded_smaller_pages_without_discarding_rows(self):
+        routes = base_routes()
+        routes["act_123/adcreatives"] = [
+            {"data": [{"id": "40", "account_id": "123", "body": "First creative"}],
+             "paging": {"next": "https://graph.facebook.com/ignored", "cursors": {"after": "creative-next"}}},
+            {"data": [{"id": "41", "account_id": "123", "body": "Second creative"}]}]
+        result = self.collect(routes)
+        creative = result["resources"]["creatives"]
+        calls = [call for call in self.transport.calls if urlsplit(call["url"]).path.endswith("/adcreatives")]
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(all(call["params"]["limit"] == 25 for call in calls))
+        self.assertEqual(calls[1]["params"]["after"], "creative-next")
+        self.assertEqual(creative["query"]["limit"], 25)
+        self.assertEqual(creative["query"]["fields"], list(provider.RESOURCE_FIELDS["creatives"]))
+        self.assertEqual(creative["status"], "complete")
+        self.assertTrue(creative["pagination_exhausted"])
+        self.assertEqual([row["id"] for row in creative["rows"]], ["40", "41"])
+        limited = self.collect(routes, {**REQUEST, "max_pages": 1})["resources"]["creatives"]
+        self.assertEqual(limited["status"], "partial")
+        self.assertFalse(limited["pagination_exhausted"])
+        self.assertEqual(limited["errors"][0]["code"], "PAGE_LIMIT")
+
+    def test_oversized_creatives_reduce_same_cursor_without_dropping_fields_or_rows(self):
+        routes = base_routes()
+        too_large = HTTPResponse({"error": {"code": 1, "message": f"Please reduce the amount of data {TOKEN}"}}, 500)
+        routes["act_123/adcreatives"] = [
+            {"data": [{"id": "40", "account_id": "123"}],
+             "paging": {"next": "https://not-followed.invalid/", "cursors": {"after": "next-creative"}}},
+            too_large, too_large,
+            {"data": [{"id": "41", "account_id": "123"}],
+             "paging": {"next": "https://not-followed.invalid/", "cursors": {"after": "last-creative"}}},
+            {"data": [{"id": "42", "account_id": "123"}]}]
+        result = self.collect(routes)
+        creative = result["resources"]["creatives"]
+        calls = [call["params"] for call in self.transport.calls if urlsplit(call["url"]).path.endswith("/adcreatives")]
+        self.assertEqual([call["limit"] for call in calls], [25, 25, 10, 1, 1])
+        self.assertEqual([call.get("after") for call in calls], [None, "next-creative", "next-creative", "next-creative", "last-creative"])
+        self.assertTrue(all(json.loads(call["fields"]) == list(provider.RESOURCE_FIELDS["creatives"]) for call in calls))
+        self.assertEqual(creative["status"], "complete")
+        self.assertEqual([row["id"] for row in creative["rows"]], ["40", "41", "42"])
+        self.assertEqual(creative["errors"], [])
+        self.assertEqual(creative["page_size_reductions"], [
+            {"page": 2, "from": 25, "to": 10, "reason": "META_REDUCE_PAYLOAD"},
+            {"page": 2, "from": 10, "to": 1, "reason": "META_REDUCE_PAYLOAD"}])
+        self.assertEqual(self.delays, [])
+        self.assertNotIn(TOKEN, json.dumps(result))
+        limited = self.collect(routes, {**REQUEST, "max_pages": 2})["resources"]["creatives"]
+        self.assertEqual(limited["status"], "partial")
+        self.assertEqual([row["id"] for row in limited["rows"]], ["40", "41"])
+        self.assertEqual(limited["errors"][-1]["code"], "PAGE_LIMIT")
+
+    def test_oversized_creatives_stop_at_size_one_and_keep_prior_rows(self):
+        routes = base_routes()
+        too_large = HTTPResponse({"error": {"code": 1, "message": "Please reduce the amount of data"}}, 500)
+        routes["act_123/adcreatives"] = [
+            {"data": [{"id": "40", "account_id": "123"}],
+             "paging": {"next": "https://not-followed.invalid/", "cursors": {"after": "next"}}},
+            too_large, too_large, too_large]
+        creative = self.collect(routes)["resources"]["creatives"]
+        self.assertEqual(creative["status"], "partial")
+        self.assertFalse(creative["pagination_exhausted"])
+        self.assertEqual([row["id"] for row in creative["rows"]], ["40"])
+        self.assertEqual(creative["errors"][-1]["api_code"], 1)
+        self.assertEqual(creative["errors"][-1]["attempts"], 1)
+        self.assertTrue(creative["errors"][-1]["reduce_payload"])
+        self.assertEqual(len(creative["page_size_reductions"]), 2)
+
+    def test_other_creative_failures_do_not_trigger_payload_reduction(self):
+        for code, status, message in [(1, 500, "Temporary error"), (100, 400, "Please reduce the amount of data")]:
+            with self.subTest(code=code, status=status):
+                routes = base_routes()
+                failure = HTTPResponse({"error": {"code": code, "message": message}}, status)
+                routes["act_123/adcreatives"] = [failure] * provider.ATTEMPTS
+                creative = self.collect(routes)["resources"]["creatives"]
+                self.assertEqual(creative["status"], "unavailable")
+                self.assertNotIn("page_size_reductions", creative)
+                calls = [call for call in self.transport.calls if urlsplit(call["url"]).path.endswith("/adcreatives")]
+                self.assertTrue(all(call["params"]["limit"] == 25 for call in calls))
+                self.assertEqual(len(calls), provider.ATTEMPTS if status == 500 else 2)  # Existing optional-field fallback.
+
+    def test_payload_hint_on_other_resources_preserves_existing_retries(self):
+        routes = base_routes()
+        failure = HTTPResponse({"error": {"code": 1, "message": "Please reduce the amount of data"}}, 500)
+        routes["act_123/campaigns"] = [failure] * provider.ATTEMPTS
+        campaign = self.collect(routes)["resources"]["campaigns"]
+        self.assertEqual(campaign["status"], "unavailable")
+        self.assertEqual(campaign["errors"][-1]["attempts"], provider.ATTEMPTS)
+        self.assertNotIn("page_size_reductions", campaign)
+        calls = [call for call in self.transport.calls if urlsplit(call["url"]).path.endswith("/campaigns")]
+        self.assertEqual(len(calls), provider.ATTEMPTS)
+        self.assertTrue(all(call["params"]["limit"] == provider.PAGE_SIZE for call in calls))
 
     def test_canonical_scope_contains_full_and_required_inventory_field_contracts(self):
         planned = provider.plan(REQUEST)
@@ -366,15 +510,39 @@ class ProviderTests(unittest.TestCase):
 
     def test_rate_error_and_timeout_are_bounded_with_partial_preservation(self):
         rate = HTTPResponse({"error": {"code": 80004, "message": TOKEN}}, 400)
-        result = self.insights([rate, rate, rate])["insights"][0]
-        self.assertEqual(result["errors"][0]["attempts"], 3)
-        self.assertEqual(self.delays, [1, 2])
+        result = self.insights([rate])["insights"][0]
+        self.assertEqual(result["errors"][0]["attempts"], 1)
+        self.assertTrue(result["errors"][0]["rate_limited"])
+        self.assertEqual(self.delays, [])
         page = {"data": [insight()], "paging": {"next": "ignored", "cursors": {"after": "next"}}}
         result = self.insights([page, Timeout(TOKEN), Timeout(TOKEN), Timeout(TOKEN)])["insights"][0]
         self.assertEqual(result["coverage"], {"status": "partial", "pagination_exhausted": False})
         self.assertEqual(result["errors"][0]["code"], "TRANSPORT_ERROR")
         self.assertEqual(len(result["rows"]), 1)
         self.assertNotIn(TOKEN, json.dumps(result))
+
+    def test_rate_limit_stops_remaining_requests_and_marks_source(self):
+        for code, status in ((17, 400), (4, 400), (613, 400), (80004, 400), (1, 429)):
+            with self.subTest(code=code, status=status):
+                routes = base_routes()
+                routes["act_123/adsets"] = [HTTPResponse({"error": {"code": code, "message": TOKEN}}, status)]
+                result = self.collect(routes)
+                paths = [urlsplit(call["url"]).path.split("/", 2)[-1] for call in self.transport.calls]
+                self.assertEqual(paths, ["act_123", "act_123/campaigns", "act_123/adsets"])
+                self.assertEqual(self.delays, [])
+                self.assertTrue(result["source"]["rate_limited"])
+                self.assertEqual(result["resources"]["campaigns"]["status"], "complete")
+                self.assertTrue(result["resources"]["adsets"]["errors"][0]["rate_limited"])
+                for resource in ("ads", "creatives"):
+                    self.assertEqual(result["resources"][resource]["status"], "unavailable")
+                    self.assertEqual(result["resources"][resource]["errors"][0]["code"], "RATE_LIMITED_SKIPPED")
+                self.assertEqual(len(result["insights"]), len(provider.LEVELS))
+                self.assertTrue(all(item["coverage"]["status"] == "unavailable" and not item["rows"]
+                                    for item in result["insights"]))
+                self.assertNotIn(TOKEN, json.dumps(result))
+
+    def test_unthrottled_collection_has_no_rate_limit_marker(self):
+        self.assertNotIn("rate_limited", self.collect()["source"])
 
     def test_nonstandard_http_failure_with_data_body_is_not_success(self):
         result = self.insights([HTTPResponse({"data": []}, 500)] * 3)["insights"][0]
@@ -451,7 +619,7 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(planned["request"], provider.validate(REQUEST))
         self.assertEqual(planned["scope"], self.collect()["scope"])
         self.assertEqual(planned["scope"]["collection_contract_version"], 1)
-        self.assertIn("DELETED", planned["scope"]["inventory_filters"]["ads"]["effective_status"])
+        self.assertNotIn("DELETED", planned["scope"]["inventory_filters"]["ads"]["effective_status"])
 
     def test_plan_preserves_insights_preset_scope_and_rejects_invalid_scope(self):
         request = {"operation": "insights", "account_id": "act_123", "levels": ["ad"], "date_preset": "last_7d"}

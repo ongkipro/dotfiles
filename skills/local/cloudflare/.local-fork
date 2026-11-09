@@ -1,7 +1,7 @@
 upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/cloudflare
 verified: 2026-10-02
 scope: directory
-reason: Four deliberate local changes; everything else is byte-identical to upstream (last path commit 41e0d19).
+reason: Five deliberate local changes; everything else is byte-identical to upstream (last path commit 41e0d19).
   (3) and (4), added 2026-10-29 from a verified AdsBookCMS review: (3) a paragraph under
   "Caching" stating that a Workers Cache hit does not run the Worker, so per-request side
   effects (cookies, logging, counters) stop, and that hits and static assets are billed at the
@@ -9,6 +9,10 @@ reason: Four deliberate local changes; everything else is byte-identical to upst
   bullet: Free-plan allowances are account-wide and D1 hard-fails every query over its daily
   row allowance since 2026-09-01 (https://developers.cloudflare.com/changelog/product/d1/).
   Drop either when upstream states it; re-apply both after a re-sync otherwise.
+  (5) added 2026-11-02 (owner rule, TASK-175): one need-to-product row and one "Working principles"
+  bullet pointing ID/SEA projects to the local references/apac-placement.md (D1/R2 --location apac,
+  DO locationHint apac-se, Worker placement, no Asian jurisdiction). The reference file is local-only;
+  re-apply the row and bullet after a re-sync.
   (1) Frontmatter description. Upstream's reads "Discover and choose Cloudflare products ..." with no
   boundary. Codex keeps only ~240 characters of each description once many skills are installed
   (see skill-check CODEX_DESCRIPTION_CUT), so the what AND the sibling boundary must be front-loaded:

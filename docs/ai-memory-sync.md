@@ -116,15 +116,50 @@ migration. Existing campaign workspaces and deployment state are unchanged.
 Pulling transfers the `dotads-meta` helper, skill and guides; it does not export
 an ad account or transfer private reports, media or credentials. The separate
 DotAds application requires its own repository update. Installers and authorized
-`dotads-meta setup`/`init` prepare the local Documents report root; a pull alone
-does not install Meta's CLI or create populated account reports.
+`dotads-meta setup`/`init` prepare the local Documents report root. After a
+`dotsync` pull/relink, `ai-memory-link` also runs `dotads-meta setup
+--workspace-only` when Node is available. Named `META_BM_<KEY>_NAME`, `_ID`,
+`_ACCESS_TOKEN` profiles are loaded through local `secrets-env`; only metadata
+and token availability leave its short-lived child. Nonempty-token profiles
+get private BM folders and shared `assets/`, without API calls or dependency
+installs. Local presence does not prove token validity. Multiple BMs require
+explicit `--bm KEY` for account operations. New account folders use
+`Account Name (act_ID)` and human-facing reports are Markdown. Old flat reports
+and operator files are never moved or adopted automatically. Missing Node skips
+BM reconciliation until normal bootstrap/setup; malformed profiles fail visibly.
+A plain Git pull still needs the manual relink above. No pull creates populated
+account reports, transfers tokens or proves live permissions. See the
+[BM runtime contract](../skills/local/meta-ads-cli/references/account-workspace-runtime.md).
 
 The complete manifest is validated before command links change. User files,
 directories, and foreign command symlinks are preserved; a name collision reports
 failure and leaves a warning in the autopull result. Inspect the collision,
 then rerun `ai-memory-link && skill-update`. `ai-memory-link --check` remains
-read-only and does not install or prune commands. This only reconciles links;
-it does not install packages, read credentials, or call advertising APIs.
+read-only and does not install or prune commands or load BM profiles. Link
+reconciliation itself does not install packages or call advertising APIs; its
+separate offline BM setup step uses the approved local secrets loader as
+specified above.
+
+### Update notification on other devices
+
+After a background `dotsync autopull` fast-forward, the next interactive shell
+prints once, then consumes:
+
+```text
+dotsync: dotfiles updated <old>..<new>:
+dotsync:   - <up to 8 commit subjects>
+dotsync: action: <NOTICE line from post-pull reconciliation>
+```
+
+The notice lives in `$XDG_STATE_HOME/dotsync/notice` (default
+`~/.local/state/dotsync/notice`). A shell claims it by rename, so several tmux
+panes show it only once. Post-pull reconciliation may emit `NOTICE:` lines for
+actions the device must take itself; while such an action is pending, each
+up-to-date autopull (at most every 6 hours) repeats it. Current source:
+`dotads-meta setup --workspace-only` reads the installed `facebook-business`
+version offline and emits a notice below major 26 (Marketing API v24.0 support
+ends 2026-11-10). Background pulls never install packages; the operator runs
+`dotads-meta setup` to upgrade. `dotads-meta doctor` reports the same check.
 
 Release-specific cleanup lives in `CHANGELOG.md` under "Other devices". For
 v2026.10.08 (impeccable removed), on each device:

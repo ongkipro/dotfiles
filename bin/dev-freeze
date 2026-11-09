@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+# dev-freeze [OUT_DIR] [REPO...]: read-only snapshot of every git project before machine maintenance,
+# a force close or a long pause. Per repo: a bundle of all refs (unpushed commits included), uncommitted
+# and staged patches, untracked files, dirty worktrees, and a RESUME.md with restore commands; INDEX.md
+# lists them all. Never modifies a repository. Exit 1 if any repository is INCOMPLETE (listed in INDEX.md).
+#
+# Secrets: untracked non-ignored files (and, for repos without commits, the whole tree except
+# node_modules/.next/dist) are copied as they are, so a snapshot can contain .env files and keys.
+# Output is 0700/0600 on this machine; never sync, upload or share it. Delete old snapshots when done.
+set -u
+if [ "${1:-}" = -h ] || [ "${1:-}" = --help ]; then sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 0; fi
+[ -z "${DEV_FREEZE_NICE:-}" ] && command -v ionice >/dev/null && exec env DEV_FREEZE_NICE=1 ionice -c3 nice -n 15 "$0" "$@"
+export GIT_OPTIONAL_LOCKS=0   # read-only: never refresh or rewrite a repository's index
+umask 077
+
+OUT="${1:-${DEV_FREEZE_ROOT:-/data/backups}/dev-freeze-$(date +%Y%m%dT%H%M%S)-$$}"; [ $# -gt 0 ] && shift
+mkdir -p "$(dirname "$OUT")" && mkdir "$OUT" 2>/dev/null || { echo "dev-freeze: $OUT exists or cannot be created; choose a new directory" >&2; exit 2; }
+OUT=$(cd "$OUT" && pwd -P)
+if [ $# -eq 0 ]; then
+  set --
+  for d in "${DEV_FREEZE_PROJECTS:-$HOME/Projects}"/*/; do [ -e "$d.git" ] && set -- "$@" "$d"; done
+fi
+
+q() { printf '%q' "$1"; }   # shell-quote for generated restore commands
+INDEX="$OUT/INDEX.md"
+{
+  echo "# Development freeze $(date -Iseconds)"
+  echo
+  echo "Host: $(hostname). Restore any project: see its RESUME.md. Verify: \`sha256sum -c SHA256SUMS\` per folder."
+  echo "Contains untracked files as they are (possibly secrets): keep private, never sync or share."
+  echo
+  echo "| Project | Branch | Uncommitted | Unpushed | Worktrees | Result |"
+  echo "|---|---|---|---|---|---|"
+} > "$INDEX"
+
+failed_total=0
+snap_tree() { # $1=worktree path, $2=dest dir; sets errors
+  local wt="$1" dest="$2"
+  mkdir -p "$dest"
+  git -C "$wt" status --porcelain=v1 > "$dest/status.txt" || errors+=("status $wt")
+  if git -C "$wt" rev-parse -q --verify HEAD >/dev/null; then
+    git -C "$wt" diff --binary HEAD > "$dest/uncommitted.patch" || errors+=("diff $wt")
+    git -C "$wt" rev-parse HEAD > "$dest/HEAD"
+  fi
+  git -C "$wt" diff --binary --cached > "$dest/staged.patch" || errors+=("staged diff $wt")
+  git -C "$wt" branch --show-current > "$dest/BRANCH"
+  # Inventory first (its failure is an error, not "no files"), then archive from the saved list.
+  if git -C "$wt" ls-files --others --exclude-standard -z > "$dest/.untracked.list"; then
+    if [ -s "$dest/.untracked.list" ]; then
+      tar -C "$wt" --null -T "$dest/.untracked.list" -czf "$dest/untracked.tar.gz.part" \
+        && mv "$dest/untracked.tar.gz.part" "$dest/untracked.tar.gz" || errors+=("untracked files $wt")
+    fi
+  else errors+=("untracked inventory $wt"); fi
+  rm -f "$dest/.untracked.list" "$dest/untracked.tar.gz.part"
+  for f in uncommitted.patch staged.patch; do [ -s "$dest/$f" ] || rm -f "$dest/$f"; done
+}
+
+declare -A seen=()
+for arg in "$@"; do
+  repo=$(cd "$arg" 2>/dev/null && pwd -P) || { echo "dev-freeze: not a directory: $arg" >&2; failed_total=$((failed_total + 1)); continue; }
+  [ -e "$repo/.git" ] || continue
+  name=$(basename "$repo"); key="$name"
+  [ -n "${seen[$key]:-}" ] && key="$name-$(printf '%s' "$repo" | sha256sum | cut -c1-8)"
+  seen[$key]=1
+  dest="$OUT/$key"; mkdir -p "$dest"
+  errors=()
+  branch=$(git -C "$repo" branch --show-current)
+  if git -C "$repo" rev-parse -q --verify HEAD >/dev/null; then
+    kind=bundle
+    if git -C "$repo" bundle create "$dest/all-refs.bundle.part" --all >/dev/null 2>"$dest/bundle.err" \
+       && git -C "$repo" bundle verify "$dest/all-refs.bundle.part" >/dev/null 2>>"$dest/bundle.err" \
+       && mv "$dest/all-refs.bundle.part" "$dest/all-refs.bundle"; then
+      rm -f "$dest/bundle.err"
+    else errors+=("bundle (see bundle.err)"); rm -f "$dest/all-refs.bundle.part"; fi
+  else  # no commit yet: keep the whole working tree instead
+    kind=tarball
+    tar -C "$(dirname "$repo")" --exclude=node_modules --exclude=.next --exclude=dist -czf "$dest/working-tree.tar.gz.part" "$name" \
+      && mv "$dest/working-tree.tar.gz.part" "$dest/working-tree.tar.gz" || errors+=("working-tree tarball")
+  fi
+  git -C "$repo" remote -v > "$dest/remotes.txt"
+  git -C "$repo" for-each-ref --format='%(refname:short) %(objectname:short) %(upstream:short) %(upstream:track)' refs/heads > "$dest/branches.txt"
+  git -C "$repo" stash list > "$dest/stash-list.txt" 2>/dev/null
+  dirty_total=0; wt_count=0; wt_dirty=""; worktrees=()
+  # Enumerate explicitly (a failure is an error, not "no worktrees"); canonicalize each path.
+  if git -C "$repo" worktree list --porcelain > "$dest/worktrees.txt"; then
+    while IFS= read -r p; do worktrees+=("$( (cd "$p" 2>/dev/null && pwd -P) || printf '%s' "$p")"); done < <(sed -n 's/^worktree //p' "$dest/worktrees.txt")
+  else errors+=("worktree list"); worktrees=("$repo"); fi
+  while IFS= read -r wt; do
+    wt_count=$((wt_count + 1))
+    # A failed status is an error, never "clean": the worktree is then snapshotted anyway.
+    if st=$(git -C "$wt" status --porcelain); then d=$(printf '%s' "$st" | grep -c '^' || true)
+    else errors+=("status $wt"); d=1; fi
+    dirty_total=$((dirty_total + d))
+    if [ "$wt" = "$repo" ]; then snap_tree "$wt" "$dest/main-tree"
+    elif [ "$d" -gt 0 ]; then
+      wkey=$(printf '%s' "$wt" | sha256sum | cut -c1-12)
+      snap_tree "$wt" "$dest/worktrees/$wkey"; printf '%s\n' "$wt" > "$dest/worktrees/$wkey/PATH"
+      wt_dirty="$wt_dirty\n- \`$wt\` ($(git -C "$wt" branch --show-current)): $d changed → \`worktrees/$wkey/\`"
+    fi
+  done < <(printf '%s\n' "${worktrees[@]}")
+  unpushed=$(git -C "$repo" rev-list --count '@{u}..HEAD' 2>/dev/null || echo "no upstream")
+  {
+    echo "# $name — resume"
+    echo
+    echo "- Repository: \`$repo\`"
+    echo "- Branch: \`$branch\` at \`$(git -C "$repo" rev-parse -q --short HEAD 2>/dev/null || echo none)\`; unpushed: $unpushed"
+    echo "- Uncommitted entries (all worktrees): $dirty_total; worktrees: $wt_count"
+    [ ${#errors[@]} -gt 0 ] && echo "- **INCOMPLETE:** ${errors[*]}"
+    echo
+    echo "## Last commits"; echo; echo '```'; git -C "$repo" log --oneline -8 2>/dev/null; echo '```'
+    echo
+    echo "## Worktrees with uncommitted work"; printf '%b\n' "${wt_dirty:-\n- none}"
+    echo
+    if [ -f "$repo/STATUS.md" ]; then echo "## STATUS.md (head)"; echo; sed -n '1,40p' "$repo/STATUS.md"; echo; fi
+    echo "## Restore"
+    echo
+    echo '```bash'
+    if [ "$kind" = bundle ]; then
+      echo "git clone $(q "$dest/all-refs.bundle") $(q "$name-restored")   # every branch and unpushed commit"
+      echo "cd $(q "$name-restored") && git checkout $(q "$branch")"
+      [ -f "$dest/main-tree/uncommitted.patch" ] && echo "git apply $(q "$dest/main-tree/uncommitted.patch")"
+      [ -f "$dest/main-tree/untracked.tar.gz" ] && echo "tar -xzf $(q "$dest/main-tree/untracked.tar.gz")"
+    else
+      echo "mkdir -p restored && tar -C restored -xzf $(q "$dest/working-tree.tar.gz")   # no commits yet: whole tree"
+    fi
+    echo '```'
+  } > "$dest/RESUME.md"
+  # Required artifacts must exist before the snapshot can be called complete.
+  if [ "$kind" = bundle ]; then [ -s "$dest/all-refs.bundle" ] && [ -f "$dest/main-tree/status.txt" ] || errors+=("missing bundle or main-tree")
+  else [ -s "$dest/working-tree.tar.gz" ] || errors+=("missing working-tree tarball"); fi
+  (cd "$dest" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 -r sha256sum > SHA256SUMS) || errors+=("checksums")
+  if [ ${#errors[@]} -gt 0 ]; then result="**INCOMPLETE**: ${errors[*]}"; failed_total=$((failed_total + 1)); else result="ok ($kind)"; fi
+  echo "| [$key]($key/RESUME.md) | \`$branch\` | $dirty_total | $unpushed | $wt_count | $result |" >> "$INDEX"
+  echo "done $key: $result"
+done
+chmod -R go-rwx "$OUT" || failed_total=$((failed_total + 1))
+echo "INDEX: $INDEX"
+if [ "$failed_total" -gt 0 ]; then
+  echo "dev-freeze: $failed_total repository snapshot(s) INCOMPLETE; see INDEX.md" >&2
+  exit 1
+fi

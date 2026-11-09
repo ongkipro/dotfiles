@@ -66,9 +66,9 @@ case "$(uname -s)" in
     [ -n "$MODEL" ] || MODEL="$(cat $DMI/product_name 2>/dev/null || true)"
     MTM="$(cat $DMI/product_name 2>/dev/null || true)"
     [ "$MTM" = "$MODEL" ] && MTM=""
-    # chassis_type: 8/9/10/11/14 = portable/laptop/notebook/sub-notebook
+    # chassis_type: 8/9/10/11/14 = portable/laptop/notebook/sub-notebook; 30/31/32 = tablet/convertible/detachable
     case "$(cat $DMI/chassis_type 2>/dev/null || true)" in
-      8|9|10|11|14) FORM="laptop" ;;
+      8|9|10|11|14|30|31|32) FORM="laptop" ;;
       3|4|5|6|7|13|15|16) FORM="desktop" ;;
       *) FORM="" ;;
     esac
@@ -180,6 +180,42 @@ check_link "$HOME/.config/gh/config.yml"     "gh cli"
 check_link "$HOME/.tmux.conf"                "tmux"
 check_link "$HOME/.gitignore_global"         "gitignore global"
 
+# ── Kapasitas AI paralel (angka dibaca dari ai-capacity --json, bukan ditulis tangan) ──
+CAP_ROWS=""
+if have ai-capacity && have python3; then
+  # Take the JSON only from a successful ai-capacity run: a nonzero exit with partial output leaves the section out.
+  if CAP_JSON="$(ai-capacity --json 2>/dev/null)"; then
+    CAP_ROWS="$(printf '%s' "$CAP_JSON" | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    t, h, s, c = d["terminals"], d["heavy"], d["subagents"], d["costs"]
+    rows = [
+        ("Terminal AI (nyaman / maksimum)", str(t["comfortable"]) + " / " + str(t["max"])),
+        ("Slot job berat (`heavy-run`)", str(h["slots"]) + " (irisan memori " + str(h["memory_max_gb"]) + " GB)"),
+        ("Subagen total (target)", str(s["total_target"])),
+        ("Sumber biaya", "diukur di mesin ini" if c["source"] == "measured" else "bawaan, belum diukur"),
+        ("Mesin terdegradasi", "ya" if d["degraded"] else "tidak"),
+    ]
+    print("\n".join("| " + a + " | " + b + " |" for a, b in rows))
+except Exception:
+    pass
+' 2>/dev/null)" || CAP_ROWS=""
+  fi
+fi
+CAP_SECTION=""
+if [ -n "$CAP_ROWS" ]; then
+  CAP_SECTION="## Kapasitas AI paralel
+
+> Rencana dari \`ai-capacity --json\`: angka yang direkomendasikan untuk mesin ini, bukan bukti bahwa batasnya sudah terpasang. Terminal dan total subagen hanya target; slot job berat, irisan memori, dan batas per-run pi-subagents baru ditegakkan setelah \`ai-capacity apply\`. Irisan memori hanya ada di Linux dengan systemd; penegakan slot dan pembersihan proses \`heavy-run\` belum teruji di macOS (lihat panduan). Panduan: [\`docs/parallel-ai-dev-machine.md\`](../docs/parallel-ai-dev-machine.md).
+
+| Apa | Nilai |
+|---|---|
+$CAP_ROWS
+
+"
+fi
+
 # ── Render ───────────────────────────────────────────────────────────────────
 read -r -d '' DOC <<EOF || true
 # Device: \`$HOST\`
@@ -229,7 +265,7 @@ $AI_ROWS
 | Apa | Status |
 |---|---|
 $CLAUDE_ROWS
-## Symlink dotfiles
+${CAP_SECTION}## Symlink dotfiles
 
 | Apa | Path | Status |
 |---|---|---|

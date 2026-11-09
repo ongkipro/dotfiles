@@ -379,4 +379,12 @@ link_runtime_commands
 
 [ "$link_failures" -eq 0 ] || { echo "ERROR: runtime reconciliation incomplete; preserved conflicting paths."; exit 1; }
 [ "$lock_failed" -eq 0 ] || { echo "ERROR: locked owner rules need attention (see WARNING above)."; exit 1; }
+# Existing dotsync versions call this after pull (and on an up-to-date retry).
+# Local BM structure only: never install dependencies, call Meta, or move data.
+if [ -x "$ROOT/bin/dotads-meta" ] && command -v node >/dev/null 2>&1; then
+  if ! "$ROOT/bin/dotads-meta" setup --workspace-only; then
+    echo "ERROR: local BM workspace reconciliation failed; fix profiles and retry dotads-meta setup --workspace-only."
+    exit 1
+  fi
+fi
 echo "Done. Edit ~/.config/ai/CORE.md, adapters/<runtime>.md, or memory/*.md; re-run ai-memory-link after editing CORE or an adapter."

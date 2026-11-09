@@ -13,7 +13,7 @@
 - [TravelOS](travelos.md) — AI-native travel discovery, planning, and affiliate platform; repository `ongkipro/travelos`. Repository specifications and task records are authoritative.
 - [Formalin](formalin.md) — VolumX engine monorepo; canonical repository `irwansyah10/formalin`. Repository documents own implementation truth.
 - [TokoΦ](tokophi.md) — Indonesian commerce SaaS; repository `ongkipro/tokophi`. The older `indostore` repository is not the active product.
-- [Linux `rich` maintenance](linux-rich-maintenance.md) — boot and service failure cases for the OptiPlex desktop, plus the host facts that decide whether a fix is safe there. `cuan` is a different machine with its own file.
+- [Linux `rich` maintenance](linux-rich-maintenance.md) — headless OptiPlex dev server: host facts that decide whether a fix is safe, boot failure cases, and remote access (Tailscale CGNAT, `ssh rich` + tmux client config). `cuan` is a different machine with its own file.
 - [Linux `cuan` maintenance](linux-cuan-maintenance.md) — safe maintenance rules for the `cuan` Ubuntu workstation: policy-based tmp cleanup, selective CLI updates, service verification, explicit destructive gates.
 - [pi-src](pi-src.md) — upstream CLI source repository; keep no permanent local checkout and clone it again when needed.
 - [Kamus (almanak)](kamus-almanak.md) — `kamus.ongki.pro`, repo `ongkipro/kamus`. Ongki's second memory; markdown → Astro dashboard. Has an `AGENTS.md` contract.
@@ -87,7 +87,7 @@
 - [TokoΦ hide provider brand (white-label)](tokophi-provider-brand-hidden.md) — JANGAN tampilkan brand provider (KiriminAja shipping, AutoLaris payment) di client (merchant admin+storefront); label generik saja; hanya super-admin lihat brand (ADR 0004 platform-managed)
 - [AdsBookCMS install fleet](adsbookcms-install-fleet.md) — satu produk, beberapa toko live; peta direktori lokal + kenapa `product` remote di-DISABLED.
 - [Reven Leather Shopify HK Payments](revenleather-shopify-hk-payments.md) — Shopify Payments HK setup, USD base currency decision, and product naming/SEO invariant.
-- [Reven Leather Catalog & Price Data](revenleather-catalog-data.md) — locations of raw, harmonized, live-scraped (reven.id), and backup product price files in ~/Projects/revenleather.com.
+- [Reven Leather Catalog & Price Data](revenleather-catalog-data.md) — Hydrogen storefront in `~/Documents/Shopify/Reven Leather` (`ongkipro/revenleather.com`, live on Shopify Oxygen across `EN`/`ID`/`AR` + native Shopify `<Analytics.Provider>`), Ads/COD LP funnel in `~/Projects/revenleather`, and live Storefront API source of truth (`euzdfv-ur.myshopify.com`).
 - [99ribu Berlapak catalog & asset vault](99ribu-berlapak-catalog.md) — `/data/99ribu-berlapak-data/`: Berlapak product data, bundling economics, warehouse hubs, local images, and the `berlapak-sync` CLI.
 - [99ribu `shop.com` UI/UX reference](99ribu-shop-com-ui-ux-pattern.md) — pointer to the research pack and the repo docs that own 99ribu design decisions.
 - [99ribu URL slugs and admin ids](99ribu-url-slugs.md) — owner rule: clean title slugs on the public storefront (no UUID/hash/long codes), numeric ids in admin URLs; the repository owns the scheme.

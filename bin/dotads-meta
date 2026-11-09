@@ -6,7 +6,7 @@
  *   baseline --market ID [--province <name|BPS code>] [--city <name>] [--json]
  *     Query the dated public Indonesia baseline offline, without a brand or credentials.
  *   setup [--version <ver>]
- *     Ensure Meta's official `meta-ads` CLI (default 1.2.0) is installed via pipx on this device.
+ *     Ensure Meta's official `meta-ads` CLI (default 1.3.1) is installed via pipx on this device.
  *   init [dir] [--force]
  *     Scaffold a per-project Meta Ads workspace (brand.json, campaigns/sample-campaign.json, media/, .gitignore).
  *   validate <campaign.json> [--brand <brand.json>] [--json]
@@ -31,7 +31,147 @@ import { fileURLToPath } from "node:url";
 import { parseArgs, isDeepStrictEqual } from "node:util";
 import * as workspace from "./_dotads-workspace.mjs";
 
-const DEFAULT_META_ADS_VERSION = "1.2.0";
+const DEFAULT_META_ADS_VERSION = "1.3.1";
+// Marketing API v24.0 support ends 2026-11-10; meta-ads 1.3.1 pins facebook-business 26.x (API v26.0).
+const MIN_SDK_MAJOR = 26;
+let selectedBM = null;
+
+// This function runs inside secrets-env's child; only metadata leaves it.
+function bmProfilesFromEnvironment() {
+  const names = Object.keys(process.env);
+  const namedTokens = new Set(names.map(name => /^META_ACCESS_TOKEN_([A-Z][A-Z0-9_]*)$/.exec(name)?.[1]).filter(Boolean));
+  const legacy = new Set([...namedTokens, ...names.map(name => /^META_BM_([A-Z][A-Z0-9_]*)_(?:NAME|ID|ACCESS_TOKEN)$/.exec(name)?.[1]).filter(Boolean)]);
+  const labels = new Set();
+  for (const name of names) {
+    const match = /^meta_ads_(?:token|bm_id|bm_name)_(.*)$/.exec(name);
+    if (!match) continue;
+    if (!/^[a-z][a-z0-9_]*$/.test(match[1])) throw new Error("Meta profile labels must use lowercase letters, digits and underscores, starting with a letter.");
+    labels.add(match[1]);
+  }
+  const profiles = [...legacy].map(key => {
+    if (namedTokens.has(key) && Object.hasOwn(process.env, `META_BM_${key}_ACCESS_TOKEN`)) throw new Error("Multiple named token references claim the same BM key; keep one naming format per BM.");
+    return { key, name: process.env[`META_BM_${key}_NAME`] || (namedTokens.has(key) ? key : ""),
+      id: process.env[`META_BM_${key}_ID`] || "", token_env: namedTokens.has(key) ? `META_ACCESS_TOKEN_${key}` : `META_BM_${key}_ACCESS_TOKEN` };
+  });
+  for (const label of labels) {
+    const key = label.toUpperCase();
+    if (legacy.has(key)) throw new Error("Two env naming formats claim the same BM key; configure exactly one format per BM.");
+    profiles.push({ key, name: process.env[`meta_ads_bm_name_${label}`] || label,
+      id: process.env[`meta_ads_bm_id_${label}`] || "", token_env: `meta_ads_token_${label}` });
+  }
+  const tokens = new Set();
+  return profiles.sort((a, b) => a.key.localeCompare(b.key)).map(profile => {
+    const token = process.env[profile.token_env]?.trim();
+    if (token && tokens.has(token)) throw new Error("A token cannot be assigned to multiple BM profiles.");
+    if (token) tokens.add(token);
+    return { ...profile, available: !!token };
+  });
+}
+
+function readBMProfiles() {
+  let profiles;
+  const secretFile = process.env.SECRETS_ENV_FILE || path.join(os.homedir(), ".config", "ai-local", "secrets.env");
+  if (fs.existsSync(secretFile)) {
+    const result = spawnSync(resolveSecretsEnvBin(), ["run", "--", process.execPath, "-e",
+      `process.stdout.write(JSON.stringify((${bmProfilesFromEnvironment.toString()})()))`],
+    { encoding: "utf8", timeout: 15_000, maxBuffer: 1024 * 1024 });
+    if (result.status !== 0) throw new Error("Cannot load BM profiles through secrets-env; check local secret-file permissions and configuration.");
+    try { profiles = JSON.parse(result.stdout); }
+    catch { throw new Error("BM profile loader returned invalid metadata."); }
+  } else {
+    profiles = bmProfilesFromEnvironment();
+  }
+  const ids = new Set();
+  for (const profile of profiles) {
+    if (!profile.name.trim() || /[\x00-\x1f\x7f]/.test(profile.name) || profile.name.length > 160 || !/^[0-9]+$/.test(profile.id)) {
+      throw new Error(`BM profile ${profile.key} requires a valid display name and numeric BM ID: use meta_ads_bm_id_<label> (or legacy META_BM_<KEY>_ID). Token values are never folder names.`);
+    }
+    if (ids.has(profile.id)) throw new Error("Multiple token profiles claim the same BM ID; keep one profile per BM.");
+    ids.add(profile.id);
+  }
+  return profiles;
+}
+
+function reportingBaseRoot() {
+  return process.env.DOTADS_WORKSPACE_ROOT?.trim() ? path.resolve(process.env.DOTADS_WORKSPACE_ROOT.trim()) :
+    path.join(os.homedir(), "Documents", "dotads-meta-report");
+}
+
+function bmDirectory(profile, create = false) {
+  const base = reportingBaseRoot();
+  let ancestor = path.parse(base).root;
+  for (const part of base.slice(ancestor.length).split(path.sep).filter(Boolean)) {
+    ancestor = path.join(ancestor, part);
+    try {
+      if (fs.lstatSync(ancestor).isSymbolicLink()) throw new Error("Reporting ancestors must not be symlinks.");
+    } catch (error) { if (error.code === "ENOENT") break; throw error; }
+  }
+  const slug = profile.name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 70) || "business";
+  let root = path.join(base, `${slug}--bm_${profile.id}`);
+  if (fs.existsSync(base)) {
+    if (!fs.lstatSync(base).isDirectory() || fs.lstatSync(base).isSymbolicLink()) throw new Error("Reporting base must be a real directory.");
+    const matches = [];
+    for (const entry of fs.readdirSync(base, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const file = path.join(base, entry.name, "bm.json");
+      if (!fs.existsSync(file)) continue;
+      if (fs.lstatSync(file).isSymbolicLink() || !fs.lstatSync(file).isFile()) throw new Error("BM metadata must be a regular file.");
+      const saved = readJsonFile(file, "BM metadata");
+      if (saved.id !== profile.id && ((typeof saved.key === "string" && saved.key.toUpperCase() === profile.key) || saved.token_env === profile.token_env)) {
+        throw new Error("Saved BM ID conflicts with this profile/token reference; explicit reconciliation required.");
+      }
+      if (saved.id === profile.id) {
+        if (saved.schema_version !== 1 || saved.key !== profile.key || saved.token_env !== profile.token_env) throw new Error("BM identity/token-reference conflict; explicit reconciliation required.");
+        matches.push(path.dirname(file));
+      }
+    }
+    if (matches.length > 1) throw new Error("Duplicate BM directories; select and reconcile them explicitly.");
+    if (matches.length) root = matches[0];
+    else if (fs.existsSync(path.join(root, "bm.json"))) throw new Error("BM directory name collision; existing identity left untouched.");
+  }
+  if (create) {
+    ensureWorkspaceRoot(base);
+    // Never claim an unowned legacy folder, even if its name happens to match.
+    if (fs.existsSync(root) && !fs.existsSync(path.join(root, "bm.json"))) throw new Error("Existing unregistered BM folder left untouched; explicit adoption required.");
+    workspace.ensureRoot(root);
+    const file = path.join(root, "bm.json");
+    if (!fs.existsSync(file)) fs.writeFileSync(file, JSON.stringify({ schema_version: 1, id: profile.id, key: profile.key,
+      name: profile.name, token_env: profile.token_env, identity_source: "LOCAL_ENV_UNVERIFIED" }, null, 2) + "\n", { flag: "wx", mode: 0o600 });
+    workspace.ensureBMAssets(root);
+  }
+  return root;
+}
+
+function configureBM(sub, rest) {
+  if (!["setup", "init", "accounts", "sync", "history", "report", "import-media", "adopt", "doctor", "run", "deploy", "analyze", "learn", "status", "validate"].includes(sub)) return rest;
+  const separator = rest.indexOf("--");
+  const limit = separator < 0 ? rest.length : separator;
+  const indices = rest.flatMap((arg, index) => arg === "--bm" && index < limit ? [index] : []);
+  if (indices.length > 1) throw new Error("Pass --bm once.");
+  let key;
+  if (indices.length) {
+    const index = indices[0];
+    key = rest[index + 1];
+    if (!key || !/^[A-Za-z][A-Za-z0-9_]*$/.test(key)) throw new Error("--bm requires a configured BM label/key.");
+    key = key.toUpperCase();
+    rest.splice(index, 2);
+  }
+  const profiles = readBMProfiles();
+  const requested = key ? profiles.find(profile => profile.key === key) : null;
+  if (key && !requested) {
+    const label = key.toLowerCase();
+    throw new Error(`No named BM profile matching --bm ${label} was detected by the configured loader. This is not a token-validity check; do not replace an existing token based on this error. Check the selected configuration source and active literal NAME=VALUE keys: meta_ads_token_${label}, meta_ads_bm_id_${label} (optional meta_ads_bm_name_${label}); existing META_ACCESS_TOKEN_<KEY> with META_BM_<KEY>_ID and legacy META_BM_* profiles remain supported.`);
+  }
+  if (sub === "setup") {
+    if (requested && !requested.available) throw new Error(`BM profile ${key} was detected, but its named token is unavailable or blank. Setup stopped before creating directories; no Meta token-validity check was performed.`);
+    return { rest, profiles: requested ? [requested] : profiles };
+  }
+  if (!key && profiles.length > 1) throw new Error("Multiple Business Managers configured; select --bm <KEY> explicitly.");
+  selectedBM = requested || profiles[0] || null;
+  if (selectedBM) bmDirectory(selectedBM, selectedBM.available);
+  return { rest, profiles };
+}
 
 const VALID_OBJECTIVES = new Set([
   "OUTCOME_APP_PROMOTION",
@@ -157,7 +297,7 @@ const SPAMMY_TEXT_CTA_PATTERNS = [
   { pattern: /\b(?:beli|order|checkout)\s+sekarang\s+juga\b/i, label: "beli/order sekarang juga" },
 ];
 
-function extractAdsetCountries(as) {
+function extractAdsetCountries(as, parsedTargeting = null) {
   const out = new Set();
   if (typeof as?.targeting_countries === "string") {
     for (const c of as.targeting_countries.split(",")) {
@@ -170,7 +310,8 @@ function extractAdsetCountries(as) {
       if (code) out.add(code);
     }
   }
-  const geoCountries = as?.targeting?.geo_locations?.countries;
+  const targetingObj = parsedTargeting || (as?.targeting && typeof as.targeting === "object" ? as.targeting : null);
+  const geoCountries = targetingObj?.geo_locations?.countries;
   if (Array.isArray(geoCountries)) {
     for (const c of geoCountries) {
       const code = String(c || "").trim().toUpperCase();
@@ -180,7 +321,7 @@ function extractAdsetCountries(as) {
   return out;
 }
 
-function collectCreativeTexts(cr) {
+function collectCreativeTexts(cr, objectStorySpec = null) {
   const texts = [];
   for (const field of ["title", "body", "description"]) {
     if (typeof cr?.[field] === "string" && cr[field].trim()) {
@@ -194,6 +335,15 @@ function collectCreativeTexts(cr) {
           texts.push({ field: `${field}[${idx}]`, text: val.trim() });
         }
       });
+    }
+  }
+  const story = objectStorySpec || (cr?.object_story_spec && typeof cr.object_story_spec === "object" ? cr.object_story_spec : null);
+  if (story && typeof story === "object" && !Array.isArray(story)) {
+    for (const section of ["template_data", "link_data", "video_data"]) {
+      const msg = story[section]?.message;
+      if (typeof msg === "string" && msg.trim()) {
+        texts.push({ field: `object_story_spec.${section}.message`, text: msg.trim() });
+      }
     }
   }
   return texts;
@@ -210,13 +360,21 @@ Subcommands:
       Read the public Indonesia shopping baseline offline. Other markets never inherit ID data.
       Province/city evidence retains source periods, populations, and coverage limits.
 
-  setup [--version <ver>]
-      Ensure Meta's official meta-ads CLI (default ${DEFAULT_META_ADS_VERSION}) is installed via pipx
-      and prepare ~/Documents/dotads-meta-report/ (0700).
+  setup [--version <ver>] [--workspace-only] [--bm <KEY>]
+      Prepare BM workspaces from meta_ads_token_<label> + meta_ads_bm_id_<label>.
+      Optional meta_ads_bm_name_<label> sets the display name. Legacy META_BM_* is supported.
+      Existing META_ACCESS_TOKEN_<KEY> uses explicit META_BM_<KEY>_ID and optional _NAME;
+      its token_env is preserved. Select --bm <KEY>; distinct labels are never aliased.
+      --workspace-only is offline: no API calls or dependency installs.
+      Otherwise ensure Meta's official meta-ads CLI (default ${DEFAULT_META_ADS_VERSION}) via pipx. setup --workspace-only and doctor flag facebook-business below 26 offline.
+      Reports live in ~/Documents/dotads-meta-report/<name>--bm_<id>/ (0700).
+      Select --bm <KEY> on account/report/campaign commands when multiple BMs exist.
 
   init [dir-or-account-slug] [--force]
-      Scaffold brand.json, campaigns/sample-campaign.json, media/, memory/, and .gitignore
-      (bare account/brand names scaffold under ~/Documents/dotads-meta-report/).
+  init --bm <KEY> --account act_<id> [--account-name <name>] [--force]
+      Reuse/create the canonical account folder for campaign work; new IDs need a name.
+      Scaffold brand.json, campaigns/sample-campaign.json, media/, memory/, and .gitignore.
+      Bare names remain supported for legacy campaign drafts.
 
   accounts [--local] [--token-env <KEY>] [--json]
       Discover accessible accounts read-only, or list local account workspaces offline.
@@ -228,11 +386,26 @@ Subcommands:
        [--token-env <KEY>] [--max-pages <n>] [--json]
       Save scoped inventory/Insights snapshots. --input imports an authorized export offline.
 
-  report --account <act_id> [--snapshot <id>] [--scope-key <key>] [--json]
-      Render immutable Markdown/CSV reports offline from saved snapshots.
+  history --account <act_id> [--as-of <ISO-UTC>] [--plan]
+          [--input-dir <authorized-exports>] [--token-env <KEY>] [--max-pages <n>] [--json]
+      Plan offline or collect five account-timezone windows read-only; imports use period-key.json files.
+      Adds account-scoped observational learning. Partial history exits 2 and retains prior complete evidence.
 
-  import-media --account <act_id> <file> [--move] [--json]
-      Copy a selected image/video into its account workspace; --move explicitly requests cleanup.
+  learn record --account <act_id> --stage observation|hypothesis|experiment|outcome
+       --since <date> --until <date> --title <text> --summary <text> --evidence <json-array>
+       [--parent <learning_id>] [--protocol <json>] [--json]
+  learn list --account <act_id> [--json]
+  learn export --account <act_id> --output <new-private-file.json>
+  learn import --account <act_id> --input <selected-learning.json>
+      Offline scoped learning; preserve legacy memory, local economics and history pointers.
+      Export/import never copies tokens, operational state or media and never performs network transfer.
+
+  report --account <act_id> [--snapshot <id>] [--scope-key <key>] [--json]
+      Render immutable Markdown reports (legacy roots retain CSV exports) from saved snapshots.
+
+  import-media --account <act_id> <file> [--move] [--temporary|--account-local] [--json]
+      BM profiles default to shared assets; --temporary makes scratch copies without deletion.
+      --account-local keeps legacy account-only storage. --move explicitly requests source cleanup.
 
   adopt --account <act_id> <selected-project-directory> [--apply] [--json]
       Plan a hash-bound operational reference; apply preserves source files and deployment ownership.
@@ -310,6 +483,10 @@ function resolveSecretsEnvBin() {
 }
 
 function readSecretToken(tokenEnvName = "META_ACCESS_TOKEN") {
+  if (selectedBM) {
+    if (tokenEnvName !== "META_ACCESS_TOKEN" && tokenEnvName !== selectedBM.token_env) throw new Error("Selected BM conflicts with the requested token reference.");
+    tokenEnvName = selectedBM.token_env;
+  }
   const bin = resolveSecretsEnvBin();
   const res = spawnSync(bin, ["get", tokenEnvName], {
     encoding: "utf8",
@@ -321,7 +498,7 @@ function readSecretToken(tokenEnvName = "META_ACCESS_TOKEN") {
   if (process.env[tokenEnvName] && process.env[tokenEnvName].trim()) {
     return process.env[tokenEnvName].trim();
   }
-  if (process.env.ACCESS_TOKEN && process.env.ACCESS_TOKEN.trim()) {
+  if (!selectedBM && tokenEnvName === "META_ACCESS_TOKEN" && process.env.ACCESS_TOKEN && process.env.ACCESS_TOKEN.trim()) {
     return process.env.ACCESS_TOKEN.trim();
   }
   throw new Error("Unable to load the configured secret reference via secrets-env; inspect its local configuration without printing credentials.");
@@ -338,8 +515,16 @@ function providerPython() {
   }
 }
 
-function collectProvider(request, tokenKey = "META_ACCESS_TOKEN") {
+function providerTokenKey(tokenKey = "META_ACCESS_TOKEN") {
+  if (selectedBM) {
+    if (tokenKey !== "META_ACCESS_TOKEN" && tokenKey !== selectedBM.token_env) throw new Error("Selected BM conflicts with the requested token reference.");
+    tokenKey = selectedBM.token_env;
+  }
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(tokenKey)) throw new Error("--token-env requires a secret key name, never its value.");
+  return tokenKey;
+}
+
+function providerPlan(request, tokenKey) {
   const python = providerPython();
   const provider = fileURLToPath(new URL("./_dotads-meta-provider.py", import.meta.url));
   const planningEnv = { ...process.env };
@@ -349,8 +534,14 @@ function collectProvider(request, tokenKey = "META_ACCESS_TOKEN") {
     input: JSON.stringify(request), env: planningEnv, encoding: "utf8", timeout: 15_000, maxBuffer: 1024 * 1024,
   });
   if (planned.status !== 0) throw new Error("Provider request validation failed before credential access; check the selected scope and installed adapter.");
-  let plan;
-  try { plan = JSON.parse(planned.stdout); } catch { throw new Error("Provider planning returned an invalid JSON envelope."); }
+  try { return JSON.parse(planned.stdout); } catch { throw new Error("Provider planning returned an invalid JSON envelope."); }
+}
+
+function collectProvider(request, tokenKey) {
+  tokenKey = providerTokenKey(tokenKey);
+  const python = providerPython();
+  const provider = fileURLToPath(new URL("./_dotads-meta-provider.py", import.meta.url));
+  const plan = providerPlan(request, tokenKey);
   try {
     const token = readSecretToken(tokenKey);
     const result = spawnSync(python, [provider], {
@@ -358,7 +549,11 @@ function collectProvider(request, tokenKey = "META_ACCESS_TOKEN") {
       encoding: "utf8", stdio: ["pipe", "pipe", "pipe"], timeout: 180_000,
       maxBuffer: 128 * 1024 * 1024,
     });
-    if (result.status !== 0) throw new Error("Meta SDK collection failed or exceeded its execution budget; inspect sanitized provider diagnostics and account access before retrying.");
+    if (result.status !== 0) {
+      const failure = new Error("Meta SDK collection failed or exceeded its execution budget; inspect sanitized provider diagnostics and account access before retrying.");
+      try { failure.rateLimited = JSON.parse(result.stdout).error?.rate_limited === true; } catch { /* unparsable stays unknown */ }
+      throw failure;
+    }
     if ((result.stdout || "").includes(token)) throw new Error("Provider output contained credential material and was rejected before persistence.");
     let data;
     try { data = JSON.parse(result.stdout); }
@@ -406,8 +601,10 @@ function cmdSync(argv) {
     levels: { type: "string" }, breakdowns: { type: "string" }, attribution: { type: "string" },
     "action-report-time": { type: "string" }, "token-env": { type: "string" },
     "max-pages": { type: "string" }, input: { type: "string" }, "existing-directory": { type: "string" }, json: { type: "boolean" },
+    "metric-profile": { type: "string" },
   }});
   if (positionals.length) throw new Error("sync accepts options only.");
+  const metricProfile = parseMetricProfile(values["metric-profile"]);
   const account = accountId(values.account);
   dateRange(values.since, values.until);
   const levels = [...new Set((values.levels || "account,campaign,adset,ad").split(","))].sort();
@@ -435,17 +632,10 @@ function cmdSync(argv) {
   const maxPages = Number(values["max-pages"] || 100);
   if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 1000) throw new Error("--max-pages must be an integer from 1 to 1000.");
   const request = { operation: "collect", account_id: account, since: values.since, until: values.until,
-    levels, breakdowns, attribution, action_report_time: actionReportTime, max_pages: maxPages };
+    levels, breakdowns, attribution, action_report_time: actionReportTime, max_pages: maxPages, ...metricProfile };
   let payload;
   if (values.input) {
-    let inputBytes;
-    try { inputBytes = fs.readFileSync(path.resolve(values.input)); payload = JSON.parse(inputBytes.toString("utf8")); }
-    catch { throw new Error("Cannot read a valid authorized collection JSON input."); }
-    if (payload && typeof payload === "object") payload.source = {
-      ...payload.source,
-      import_context: { kind: "LOCAL_INPUT", input_sha256: crypto.createHash("sha256").update(inputBytes).digest("hex"),
-        imported_at: new Date().toISOString(), declared_source: payload.source?.kind || "unknown", authenticated_read_observed: false },
-    };
+    payload = loadCollectionInput(values.input);
   } else {
     try { payload = collectProvider(request, values["token-env"]); }
     catch (error) {
@@ -456,7 +646,8 @@ function cmdSync(argv) {
   if (payload?.account?.id !== account || payload?.scope?.since !== values.since || payload?.scope?.until !== values.until ||
       JSON.stringify([...(payload?.scope?.levels || [])].sort()) !== JSON.stringify(levels) ||
       JSON.stringify([...(payload?.scope?.breakdowns || [])].sort()) !== JSON.stringify(breakdowns) ||
-      !isDeepStrictEqual(payload?.scope?.attribution || {}, attribution) || payload?.scope?.action_report_time !== actionReportTime) {
+      !isDeepStrictEqual(payload?.scope?.attribution || {}, attribution) || payload?.scope?.action_report_time !== actionReportTime ||
+      (payload?.scope?.metric_profile ?? null) !== (metricProfile.metric_profile ?? null)) {
     throw new Error("Collection identity or measurement scope does not match the request.");
   }
   let result;
@@ -469,7 +660,98 @@ function cmdSync(argv) {
     if (!values.input) workspace.recordFailure(defaultWorkspaceRoot(), account, payload.scope, "Local snapshot publication failed; inspect recovery before retrying.");
     throw error;
   }
-  console.log(values.json ? JSON.stringify(result, null, 2) : `Snapshot ${result.snapshot_id} | ${result.status} | scope ${result.scope_key}`);
+  result.history_next_step = { command: ['dotads-meta', 'history', ...(selectedBM ? ['--bm', selectedBM.key] : []), '--account', account, '--plan'],
+    note: 'Plan five account-timezone windows offline before an authorized history collection. No additional API request was started.' };
+  console.log(values.json ? JSON.stringify(result, null, 2) : `Snapshot ${result.snapshot_id} | ${result.status} | scope ${result.scope_key}\nNext: inspect history --account ${account} --plan before an authorized collection.`);
+}
+
+function loadCollectionInput(filename) {
+  let bytes, payload;
+  try { bytes = fs.readFileSync(path.resolve(filename)); payload = JSON.parse(bytes.toString("utf8")); }
+  catch { throw new Error("Cannot read a valid authorized collection JSON input."); }
+  if (payload && typeof payload === "object") payload.source = { ...payload.source,
+    import_context: { kind: "LOCAL_INPUT", input_sha256: crypto.createHash("sha256").update(bytes).digest("hex"),
+      imported_at: new Date().toISOString(), declared_source: payload.source?.kind || "unknown", authenticated_read_observed: false } };
+  return payload;
+}
+
+// Opt-in Shopee CPAS segment metrics; absent keeps the legacy request and scope hashes identical.
+function parseMetricProfile(value) {
+  if (value == null || value === "legacy") return {};
+  if (value !== "cpas_v1") throw new Error("--metric-profile must be legacy or cpas_v1.");
+  return { metric_profile: "cpas_v1" };
+}
+
+function cmdHistory(argv) {
+  const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: {
+    account: { type: "string" }, "as-of": { type: "string" }, plan: { type: "boolean" },
+    "input-dir": { type: "string" }, "token-env": { type: "string" }, "max-pages": { type: "string" }, json: { type: "boolean" },
+    "metric-profile": { type: "string" },
+  }});
+  if (positionals.length) throw new Error("history accepts options only.");
+  const metricProfile = parseMetricProfile(values["metric-profile"]);
+  const account = accountId(values.account), root = defaultWorkspaceRoot();
+  const maxPages = Number(values["max-pages"] || 100);
+  if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 1000) throw new Error("--max-pages must be an integer from 1 to 1000.");
+  let initial;
+  if (values["input-dir"]) {
+    initial = loadCollectionInput(path.join(values["input-dir"], "yesterday.json"));
+    workspace.validateCollection(initial);
+    if (initial.account.id !== account) throw new Error("History input account does not match the selected account.");
+  }
+  const plan = workspace.planHistory(initial?.account ?? workspace.accountContext(root, account), values["as-of"]);
+  if (values.plan) { console.log(JSON.stringify(plan, null, 2)); return; }
+  const attempts = [];
+  const offline = Boolean(values["input-dir"]);
+  const tokenKey = offline ? null : providerTokenKey(values["token-env"]);
+  // Inventory is current state, identical for every window: read it once, then only Insights per window.
+  let inventory = null, throttled = false;
+  // lazy: five bounded synchronous collections; large accounts need resumable async Insights before increasing this ceiling.
+  for (const period of plan.periods) {
+    const request = { operation: "collect", account_id: account, since: period.since, until: period.until,
+      levels: ["account", "campaign", "adset", "ad"], breakdowns: [], attribution: {}, action_report_time: "conversion", max_pages: maxPages, ...metricProfile };
+    if (throttled) {
+      attempts.push({ period: period.key });
+      console.error(`History ${period.key}: not requested after a Meta rate limit; retry later.`);
+      continue;
+    }
+    let collectScope = null;
+    try {
+      let payload;
+      if (initial && period.key === "yesterday") payload = initial;
+      else if (offline) payload = loadCollectionInput(path.join(values["input-dir"], `${period.key}.json`));
+      else if (!inventory) payload = collectProvider(request, tokenKey);
+      else {
+        collectScope = providerPlan(request, tokenKey).scope;
+        const insights = collectProvider({ ...request, operation: "insights" }, tokenKey);
+        payload = { ...insights, scope: collectScope, resources: structuredClone(inventory.resources),
+          source: { ...insights.source, inventory_source: inventory.source } };
+      }
+      if (!offline) {
+        throttled = payload.source?.rate_limited === true;
+        inventory ??= { resources: payload.resources, source: { period: period.key,
+          started_at: payload.source.started_at, finished_at: payload.source.finished_at } };
+      }
+      if ((payload?.scope?.metric_profile ?? null) !== (metricProfile.metric_profile ?? null)) {
+        const mismatch = new Error(`History ${period.key}: collection metric profile does not match the requested --metric-profile; nothing published.`);
+        mismatch.fatal = true;
+        throw mismatch;
+      }
+      workspace.validateHistoryCollection(payload, plan, period);
+      const saved = workspace.saveSnapshot(root, payload);
+      attempts.push({ period: period.key, snapshot_id: saved.snapshot_id });
+    } catch (error) {
+      if (error.fatal) throw error;
+      const scope = collectScope ?? error.collectionScope;
+      if (!offline && scope) workspace.recordFailure(root, account, scope, "History period collection failed; no complete replacement was published.");
+      throttled ||= error.rateLimited === true;
+      attempts.push({ period: period.key });
+      console.error(`History ${period.key}: collection or publication failed; evidence remains incomplete.`);
+    }
+  }
+  const result = workspace.publishHistory(root, account, plan, attempts);
+  console.log(JSON.stringify(result, null, 2));
+  if (result.status !== "complete") process.exitCode = 2;
 }
 
 function cmdReport(argv) {
@@ -485,10 +767,16 @@ function cmdReport(argv) {
 
 function cmdImportMedia(argv) {
   const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: {
-    account: { type: "string" }, move: { type: "boolean" }, json: { type: "boolean" },
+    account: { type: "string" }, move: { type: "boolean" }, "account-local": { type: "boolean" }, temporary: { type: "boolean" }, json: { type: "boolean" },
   }});
   if (positionals.length !== 1) throw new Error("import-media requires exactly one selected file.");
-  const result = workspace.importMedia(defaultWorkspaceRoot(), accountId(values.account), path.resolve(positionals[0]), { move: !!values.move });
+  const result = workspace.importMedia(defaultWorkspaceRoot(), accountId(values.account), path.resolve(positionals[0]), {
+    move: !!values.move, shared: !!selectedBM && !values["account-local"], temporary: !!values.temporary,
+  });
+  if (selectedBM && !values["account-local"]) Object.assign(result, {
+    business_id: selectedBM.id, origin_account_id: result.account_id, account_id: values.account,
+    storage_scope: values.temporary ? "BM_TEMPORARY_COPY" : "BM_SHARED",
+  });
   console.log(JSON.stringify(result, null, 2));
 }
 
@@ -509,7 +797,13 @@ function readJsonFile(filePath, label) {
     throw new Error(`Cannot read ${label} at ${filePath}: ${err.message}`);
   }
   try {
-    return JSON.parse(raw);
+    const value = JSON.parse(raw);
+    if (selectedBM && label === "brand.json" &&
+        ((value.business_id && String(value.business_id) !== selectedBM.id) ||
+         (value.token_env && value.token_env !== selectedBM.token_env))) {
+      throw new Error("Brand BM identity/token reference conflicts with selected --bm.");
+    }
+    return value;
   } catch (err) {
     throw new Error(`Invalid JSON in ${label} at ${filePath}: ${err.message}`);
   }
@@ -629,7 +923,7 @@ function validateManifests(campaignPath, explicitBrandPath) {
       } else seen.add(key);
     }
   }
-  if (errors.length) return { ok: false, errors, warnings, campaignPath: resolvedCampaignPath };
+  if (errors.length) return { ok: false, errors, warnings, mediaFiles, budgets: [], brandPath, campaignPath: resolvedCampaignPath };
 
   if (creatives.length === 0) errors.push("campaign manifest: 'creatives' must be a non-empty array.");
   if (adsets.length === 0) errors.push("campaign manifest: 'adsets' must be a non-empty array.");
@@ -643,6 +937,10 @@ function validateManifests(campaignPath, explicitBrandPath) {
   if (campaign && typeof campaign === "object") {
     if (!campaign.name || typeof campaign.name !== "string") {
       errors.push("campaign: 'name' is required.");
+    } else if (!/^dotads:\s*\S/i.test(campaign.name.trim())) {
+      warnings.push(
+        `campaign: campaign.name ('${campaign.name}') does not start with 'dotads: '; dotads-meta deploy will automatically prefix it as '${formatDotadsCampaignName(campaign.name)}'.`
+      );
     }
     if (!campaign.objective || !VALID_OBJECTIVES.has(campaign.objective)) {
       errors.push(
@@ -700,11 +998,41 @@ function validateManifests(campaignPath, explicitBrandPath) {
     if (campaign.bid_strategy && !VALID_BID_STRATEGIES.has(campaign.bid_strategy)) {
       errors.push(`campaign: invalid 'bid_strategy' '${campaign.bid_strategy}'.`);
     }
-    if (campaign.smart_promotion_type !== undefined && campaign.smart_promotion_type !== null && campaign.smart_promotion_type !== "") {
+    if (
+      campaign.smart_promotion_type !== undefined &&
+      campaign.smart_promotion_type !== null &&
+      campaign.smart_promotion_type !== "" &&
+      campaign.smart_promotion_type !== "GUIDED_CREATION"
+    ) {
       errors.push(
         `campaign: 'smart_promotion_type' ('${campaign.smart_promotion_type}') is retired for legacy ASC/AAC creation, duplication, and updates in v25.0 and across versions since 2026-05-19. Use a standard supported objective and verify current Advantage+ eligibility.`
       );
     }
+    if (campaign.promoted_object !== undefined && campaign.promoted_object !== null) {
+      try {
+        const campPromoted = readJsonArgument(campaign.promoted_object, workspaceDir, campaignDir, "campaign.promoted_object");
+        if (!campPromoted || typeof campPromoted !== "object" || Array.isArray(campPromoted)) {
+          errors.push("campaign.promoted_object: expected a JSON object, not an array, primitive, or null.");
+        } else {
+          if (campPromoted.product_catalog_id !== undefined && !/^[0-9]+$/.test(String(campPromoted.product_catalog_id))) {
+            errors.push(`campaign.promoted_object.product_catalog_id: must be numeric digits (got '${campPromoted.product_catalog_id}').`);
+          }
+          if (campPromoted.smart_pse_enabled !== undefined && typeof campPromoted.smart_pse_enabled !== "boolean") {
+            errors.push("campaign.promoted_object.smart_pse_enabled: must be a boolean.");
+          }
+        }
+      } catch {
+        errors.push("campaign.promoted_object: expected valid JSON or a readable JSON file.");
+      }
+    }
+  }
+
+  let parsedCampaignPromoted = null;
+  if (campaign?.promoted_object !== undefined && campaign?.promoted_object !== null) {
+    try {
+      const p = readJsonArgument(campaign.promoted_object, workspaceDir, campaignDir, "campaign.promoted_object");
+      if (p && typeof p === "object" && !Array.isArray(p)) parsedCampaignPromoted = p;
+    } catch { /* reported above */ }
   }
 
   // Validate creatives
@@ -739,7 +1067,11 @@ function validateManifests(campaignPath, explicitBrandPath) {
         errors.push(`${label}: '${field}' is not forwarded by this helper. Poll creatives are retired across API versions since 2026-10-27.`);
       }
     }
-    for (const field of ["object_story_spec", "asset_feed_spec"]) {
+    let parsedObjectStorySpec = null;
+    let parsedAssetFeedSpec = null;
+    let parsedTemplateUrlSpec = null;
+    let parsedFormatTransformationSpec = null;
+    for (const field of ["object_story_spec", "asset_feed_spec", "template_url_spec"]) {
       if (cr[field] === undefined || cr[field] === null) continue;
       try {
         const rawSpec = readJsonArgument(cr[field], workspaceDir, campaignDir, `${label}.${field}`);
@@ -747,9 +1079,50 @@ function validateManifests(campaignPath, explicitBrandPath) {
           errors.push(`${label}.${field}: expected a JSON object, not an array, primitive, or null.`);
         } else if (containsRetiredPoll(rawSpec)) {
           errors.push(`${label}.${field}: poll_spec / interactive_components_spec type 'poll' is retired across API versions since 2026-10-27.`);
+        } else {
+          if (field === "object_story_spec") parsedObjectStorySpec = rawSpec;
+          if (field === "asset_feed_spec") parsedAssetFeedSpec = rawSpec;
+          if (field === "template_url_spec") {
+            parsedTemplateUrlSpec = rawSpec;
+            if (rawSpec.config?.app_id !== undefined && !/^[0-9]+$/.test(String(rawSpec.config.app_id))) {
+              errors.push(`${label}.template_url_spec.config.app_id: must be numeric digits (got '${rawSpec.config.app_id}').`);
+            }
+          }
         }
       } catch {
         errors.push(`${label}.${field}: expected valid JSON or a readable JSON file.`);
+      }
+    }
+    if (cr.format_transformation_spec !== undefined && cr.format_transformation_spec !== null) {
+      try {
+        const rawFts = readJsonArgument(
+          cr.format_transformation_spec,
+          workspaceDir,
+          campaignDir,
+          `${label}.format_transformation_spec`
+        );
+        if (!Array.isArray(rawFts)) {
+          errors.push(`${label}.format_transformation_spec: expected a JSON array of format transformation objects.`);
+        } else {
+          parsedFormatTransformationSpec = rawFts;
+        }
+      } catch {
+        errors.push(`${label}.format_transformation_spec: expected valid JSON or a readable JSON file.`);
+      }
+    }
+    if (
+      cr.contextual_multi_ads !== undefined &&
+      cr.contextual_multi_ads !== null &&
+      typeof cr.contextual_multi_ads !== "boolean"
+    ) {
+      if (
+        typeof cr.contextual_multi_ads !== "object" ||
+        Array.isArray(cr.contextual_multi_ads) ||
+        !["OPT_IN", "OPT_OUT"].includes(cr.contextual_multi_ads.enroll_status)
+      ) {
+        errors.push(
+          `${label}.contextual_multi_ads: must be a boolean or {"enroll_status": "OPT_IN" | "OPT_OUT"}.`
+        );
       }
     }
     if (cr.applink_treatment === "web_only") {
@@ -779,6 +1152,12 @@ function validateManifests(campaignPath, explicitBrandPath) {
     const isRawSpec = Boolean(cr.object_story_spec || cr.asset_feed_spec);
     const isCatalog = Boolean(cr.product_set_id);
     const hasSingleMedia = Boolean(cr.image || cr.video || cr.image_hash || cr.video_id);
+
+    if (parsedObjectStorySpec?.template_data && !cr.product_set_id) {
+      errors.push(
+        `${label}: 'object_story_spec.template_data' requires top-level 'product_set_id' on the creative (Meta API error 100: 'Attempted to create a dynamic creative with no product set ID').`
+      );
+    }
 
     const pageId = cr.page_id || brand?.page_id;
     if (!isExistingPost && !cr.object_story_spec && !pageId) {
@@ -851,7 +1230,15 @@ function validateManifests(campaignPath, explicitBrandPath) {
       }
     }
 
-    creativeMap.set(key, { ...cr, _key: key, _isDco: isDco });
+    creativeMap.set(key, {
+      ...cr,
+      _key: key,
+      _isDco: isDco,
+      _objectStorySpec: parsedObjectStorySpec,
+      _assetFeedSpec: parsedAssetFeedSpec,
+      _templateUrlSpec: parsedTemplateUrlSpec,
+      _formatTransformationSpec: parsedFormatTransformationSpec,
+    });
   }
 
   // Validate adsets
@@ -941,6 +1328,86 @@ function validateManifests(campaignPath, explicitBrandPath) {
     ) {
       errors.push(`${label}: 'bid_amount' (in minor units) is required for ${as.bid_strategy}.`);
     }
+    if (
+      isCbo &&
+      !as.bid_strategy &&
+      (campaign?.bid_strategy === "COST_CAP" || campaign?.bid_strategy === "LOWEST_COST_WITH_BID_CAP") &&
+      (!Number.isInteger(as.bid_amount) || as.bid_amount <= 0)
+    ) {
+      warnings.push(
+        `${label}: campaign uses '${campaign.bid_strategy}' without 'bid_amount' on ad set; Meta requires a positive integer 'bid_amount' (minor units) on each ad set.`
+      );
+    }
+    if (as.bid_amount !== undefined && as.bid_amount !== null && (!Number.isInteger(as.bid_amount) || as.bid_amount <= 0)) {
+      errors.push(`${label}: 'bid_amount' must be a positive integer in minor currency units.`);
+    }
+
+    const effectiveBidStrategy = (isCbo ? campaign?.bid_strategy : as.bid_strategy) || "LOWEST_COST_WITHOUT_CAP";
+    const roasFloor =
+      as.roas_average_floor !== undefined && as.roas_average_floor !== null
+        ? as.roas_average_floor
+        : as.bid_constraints?.roas_average_floor;
+    if (roasFloor !== undefined && roasFloor !== null) {
+      if (!Number.isInteger(roasFloor) || roasFloor <= 0) {
+        errors.push(
+          `${label}: 'roas_average_floor' must be a positive integer in Meta 10,000-scaled units (e.g. 20000 = 2.0x ROAS).`
+        );
+      } else if (roasFloor < 100) {
+        warnings.push(
+          `${label}: 'roas_average_floor' is ${roasFloor} (${(roasFloor / 10000).toFixed(4)}x). Meta scales ROAS floors by 10,000 (10000 = 1.0x, 25000 = 2.5x).`
+        );
+      }
+    }
+    if (effectiveBidStrategy === "LOWEST_COST_WITH_MIN_ROAS") {
+      if (as.optimization_goal !== "VALUE") {
+        errors.push(
+          `${label}: 'LOWEST_COST_WITH_MIN_ROAS' requires optimization_goal 'VALUE' (got '${as.optimization_goal || ""}').`
+        );
+      }
+      if (roasFloor === undefined || roasFloor === null) {
+        errors.push(
+          `${label}: 'LOWEST_COST_WITH_MIN_ROAS' requires 'roas_average_floor' (or 'bid_constraints.roas_average_floor') on the ad set (e.g. 20000 = 2.0x).`
+        );
+      }
+    }
+
+    // Cross-validate Bid Cap and ROAS Floor against workspace unit_economics when configured
+    try {
+      const memFile = path.join(workspaceDir, "memory", "ads-memory.json");
+      if (fs.existsSync(memFile)) {
+        const memData = JSON.parse(fs.readFileSync(memFile, "utf8"));
+        const ue = memData?.unit_economics;
+        if (
+          ue &&
+          ue.qualification === "CONFIGURED_COST_ASSUMPTIONS" &&
+          ue.scope?.ad_account_id === brand?.ad_account_id &&
+          ue.scope?.currency === brand?.currency
+        ) {
+          if (Number.isInteger(as.bid_amount) && as.bid_amount > 0) {
+            if (typeof ue.target_cpr === "number" && ue.target_cpr > 0 && as.bid_amount < ue.target_cpr * 0.7) {
+              warnings.push(
+                `${label}: 'bid_amount' (${as.bid_amount}) is >30% below configured unit_economics target_cpr (${ue.target_cpr}); overly tight Bid Cap may starve auction delivery.`
+              );
+            }
+            if (typeof ue.max_cpr_breakeven === "number" && ue.max_cpr_breakeven > 0 && as.bid_amount > ue.max_cpr_breakeven * 1.35) {
+              warnings.push(
+                `${label}: 'bid_amount' (${as.bid_amount}) exceeds configured unit_economics max_cpr_breakeven (${ue.max_cpr_breakeven}) by >35%.`
+              );
+            }
+          }
+          if (Number.isInteger(roasFloor) && roasFloor >= 100 && typeof ue.target_roas === "number" && ue.target_roas > 0) {
+            const floorRoas = roasFloor / 10000;
+            if (floorRoas > ue.target_roas * 1.5) {
+              warnings.push(
+                `${label}: 'roas_average_floor' (${floorRoas.toFixed(2)}x / ${roasFloor}) exceeds configured unit_economics target_roas (${ue.target_roas}x) by >50%; overly high ROAS floor may choke Day 2+ delivery.`
+              );
+            }
+          }
+        }
+      }
+    } catch {
+      /* ignore optional memory read failure during offline validation */
+    }
 
     const hasCountries =
       (typeof as.targeting_countries === "string" && as.targeting_countries.trim().length > 0) ||
@@ -954,21 +1421,45 @@ function validateManifests(campaignPath, explicitBrandPath) {
         `${label}: specify either 'targeting_countries' or 'targeting', not both ('targeting' replaces 'targeting_countries').`
       );
     }
+    let parsedTargeting = null;
     if (as.targeting) {
       try {
         const targeting = readJsonArgument(as.targeting, workspaceDir, campaignDir, `${label}.targeting`);
         if (!targeting || typeof targeting !== "object" || Array.isArray(targeting)) {
           errors.push(`${label}: 'targeting' must be a JSON object, not an array, primitive, or null.`);
         } else {
+          parsedTargeting = targeting;
           const automation = targeting.targeting_automation;
           if (automation !== undefined && (!automation || typeof automation !== "object" || Array.isArray(automation))) {
             errors.push(`${label}: targeting_automation must be a JSON object.`);
           } else if (automation?.advantage_audience !== undefined && automation.advantage_audience !== 0 && automation.advantage_audience !== 1) {
             errors.push(`${label}: targeting_automation.advantage_audience must be 0 or 1. The raw nested value overrides the shortcut flag.`);
           }
+          const advEnabled =
+            automation?.advantage_audience === 1 ||
+            (automation?.advantage_audience === undefined && as.advantage_audience === true);
+          if (advEnabled && typeof targeting.age_max === "number" && targeting.age_max < 65) {
+            errors.push(
+              `${label}: targeting.age_max (${targeting.age_max}) < 65 with Advantage+ Audience enabled is rejected by Meta API ('You can add a lower maximum age as a suggestion instead'). Set "age_max": 65 and pass the suggestion via "age_range": [${targeting.age_min || 18}, ${targeting.age_max}].`
+            );
+          }
         }
       } catch {
         errors.push(`${label}: 'targeting' must contain valid JSON or reference a readable JSON file.`);
+      }
+    }
+
+    let parsedPromotedObject = null;
+    if (as.promoted_object !== undefined && as.promoted_object !== null) {
+      try {
+        const prom = readJsonArgument(as.promoted_object, workspaceDir, campaignDir, `${label}.promoted_object`);
+        if (!prom || typeof prom !== "object" || Array.isArray(prom)) {
+          errors.push(`${label}: 'promoted_object' must be a JSON object, not an array, primitive, or null.`);
+        } else {
+          parsedPromotedObject = prom;
+        }
+      } catch {
+        errors.push(`${label}: 'promoted_object' must contain valid JSON or reference a readable JSON file.`);
       }
     }
 
@@ -1041,11 +1532,19 @@ function validateManifests(campaignPath, explicitBrandPath) {
       }
     }
 
-    adsetMap.set(key, { ...as, _key: key });
+    adsetMap.set(key, {
+      ...as,
+      _key: key,
+      _targeting: parsedTargeting,
+      _promotedObject: parsedPromotedObject,
+      _attributionSpec: Array.isArray(attributionSpec) ? attributionSpec : null,
+    });
   }
 
   // Validate ads
   const dcoAdsetUsageCount = new Map();
+  const adsetTotalAdsCount = new Map();
+  const cpasAdsetCreativeFormats = new Map();
   const creativeCountriesMap = new Map();
   for (let i = 0; i < ads.length; i++) {
     const ad = ads[i];
@@ -1061,6 +1560,8 @@ function validateManifests(campaignPath, explicitBrandPath) {
     const creativeRef = ad.creative || ad.creative_key;
     if (!adsetRef || !adsetMap.has(adsetRef)) {
       errors.push(`${label}: references unknown ad set '${adsetRef || ""}'.`);
+    } else {
+      adsetTotalAdsCount.set(adsetRef, (adsetTotalAdsCount.get(adsetRef) || 0) + 1);
     }
     if (!creativeRef || !creativeMap.has(creativeRef)) {
       errors.push(`${label}: references unknown creative '${creativeRef || ""}'.`);
@@ -1073,8 +1574,19 @@ function validateManifests(campaignPath, explicitBrandPath) {
         creativeCountriesMap.set(creativeRef, new Set());
       }
       const countrySet = creativeCountriesMap.get(creativeRef);
-      for (const c of extractAdsetCountries(resolvedAdset)) {
+      for (const c of extractAdsetCountries(resolvedAdset, resolvedAdset._targeting)) {
         countrySet.add(c);
+      }
+      const fmtOption = resolvedCreative._objectStorySpec?.template_data?.format_option;
+      const isCollectionVideo =
+        fmtOption === "collection_video" ||
+        Boolean(resolvedCreative._assetFeedSpec && resolvedCreative.product_set_id);
+      const isCarouselDpa = fmtOption === "carousel_images_multi_items";
+      if (isCollectionVideo || isCarouselDpa) {
+        if (!cpasAdsetCreativeFormats.has(adsetRef)) {
+          cpasAdsetCreativeFormats.set(adsetRef, new Set());
+        }
+        cpasAdsetCreativeFormats.get(adsetRef).add(isCarouselDpa ? "CAROUSEL_DPA" : "COLLECTION_VIDEO");
       }
     }
 
@@ -1095,7 +1607,14 @@ function validateManifests(campaignPath, explicitBrandPath) {
       campaign?.objective === "OUTCOME_SALES" ||
       resolvedAdset?.optimization_goal === "OFFSITE_CONVERSIONS" ||
       resolvedAdset?.optimization_goal === "VALUE";
-    if (isSalesOrConversion && !conversionDomain) {
+    const isCatalogOrCpas = Boolean(
+      parsedCampaignPromoted?.product_catalog_id ||
+      resolvedAdset?._promotedObject?.product_set_id ||
+      resolvedAdset?._promotedObject?.product_catalog_id ||
+      resolvedAdset?._promotedObject?.omnichannel_object ||
+      resolvedCreative?.product_set_id
+    );
+    if (isSalesOrConversion && !conversionDomain && !isCatalogOrCpas) {
       errors.push(
         `${label}: requires 'conversion_domain' (in ad or brand.json) for OUTCOME_SALES / OFFSITE_CONVERSIONS.`
       );
@@ -1110,19 +1629,185 @@ function validateManifests(campaignPath, explicitBrandPath) {
     }
   }
 
+  const isCpasManifest = Boolean(
+    parsedCampaignPromoted?.product_catalog_id ||
+    Array.from(adsetMap.values()).some((as) => as._promotedObject?.product_set_id || as._promotedObject?.product_catalog_id) ||
+    Array.from(creativeMap.values()).some((cr) => cr.product_set_id || cr._objectStorySpec?.template_data)
+  );
+  if (isCpasManifest) {
+    for (let i = 0; i < adsets.length; i++) {
+      const as = adsets[i];
+      const key = as.key || as.name;
+      const asLabel = `adsets[${i}] (${key || "unnamed"})`;
+      const resolvedAs = adsetMap.get(key);
+      const prom = resolvedAs?._promotedObject;
+      if (prom?.omnichannel_object && !parsedCampaignPromoted?.product_catalog_id) {
+        errors.push(
+          `${asLabel}: ad set uses 'promoted_object.omnichannel_object' for Collaborative Ads (CPAS), which requires 'campaign.promoted_object.product_catalog_id' on the campaign so dotads-meta can bind the catalog segment before creating the omnichannel ad set.`
+        );
+      } else if (prom?.product_set_id && !prom?.omnichannel_object) {
+        warnings.push(
+          `${asLabel}: CPAS guardrail: ad set promoted_object has 'product_set_id' without 'omnichannel_object'; in Ads Manager this leaves Conversion Location without the marketplace App selected ('Website and app' -> Shopee ID App + Shopee ID Website's Pixel). Include 'omnichannel_object' (app + pixel) for full omnichannel App+Web attribution.`
+        );
+      }
+      const t = resolvedAs?._targeting;
+      if (!t || !Array.isArray(t.device_platforms) || t.device_platforms.includes("desktop") || !t.device_platforms.includes("mobile")) {
+        warnings.push(
+          `${asLabel}: CPAS guardrail: targeting.device_platforms should be ["mobile"] only; in the audited Shopee CPAS accounts essentially all purchases came from the mobile app SDK (fb_mobile_purchase), not desktop or the web pixel (observation, see cpas-collaborative-ads.md §7).`
+        );
+      }
+      if (!t || !Array.isArray(t.publisher_platforms)) {
+        warnings.push(
+          `${asLabel}: CPAS guardrail: targeting.publisher_platforms is unset (Advantage+ Placements open); restrict publisher_platforms to ["facebook"] (Threads is untested for CPAS) to keep Audience Network and Instagram in-app-browser leakage out by default.`
+        );
+      } else {
+        if (t.publisher_platforms.includes("audience_network") || t.publisher_platforms.includes("messenger")) {
+          warnings.push(
+            `${asLabel}: CPAS guardrail: targeting.publisher_platforms includes 'audience_network' or 'messenger'; Audience Network showed near-zero InApp_VC and mostly 1d_view credit in the audit. Default: restrict to ["facebook"].`
+          );
+        }
+        if (t.publisher_platforms.includes("instagram")) {
+          warnings.push(
+            `${asLabel}: CPAS guardrail: targeting.publisher_platforms includes 'instagram'; Instagram WebView intercepts Shopee universal links into the In-App Browser (app_site_visit without native app arrival; InApp_VC about 1% or less on IG Feed Carousel and IG Stories in the audit). Default: exclude 'instagram' until the account's own 7d_click and InApp_VC read says otherwise.`
+          );
+        }
+        if (Array.isArray(t.facebook_positions)) {
+          const nonDirectPositions = t.facebook_positions.filter((p) => !["feed", "facebook_reels"].includes(p));
+          if (nonDirectPositions.length > 0) {
+            warnings.push(
+              `${asLabel}: CPAS guardrail: targeting.facebook_positions includes low-intent positions (${nonDirectPositions.join(", ")}); restrict facebook_positions to ["feed", "facebook_reels"].`
+            );
+          }
+        }
+      }
+    }
+    for (const [adsetKey, formatSet] of cpasAdsetCreativeFormats.entries()) {
+      if (formatSet.has("CAROUSEL_DPA") && formatSet.has("COLLECTION_VIDEO")) {
+        warnings.push(
+          `adset '${adsetKey}': CPAS guardrail: mixing CAROUSEL_DPA (carousel_images_multi_items) and COLLECTION_VIDEO (collection_video) in the same ad set took about 78% of impressions for Collection Video in the audit (CTR cannibalization); the ~86% click-to-view drop-off seen there is confounded with the applink treatment. Isolate into 1-1-1 CAROUSEL_DPA ad sets.`
+        );
+      }
+    }
+    for (let i = 0; i < ads.length; i++) {
+      const ad = ads[i];
+      const adKey = ad?.key || ad?.name;
+      const adLabel = `ads[${i}] (${adKey || "unnamed"})`;
+      if (ad?.name && typeof ad.name === "string" && !/^dotads:\s*(?:carousel|collection)\s*\|/i.test(ad.name.trim())) {
+        warnings.push(
+          `${adLabel}: CPAS guardrail: ad name ('${ad.name}') should use 'dotads: Carousel | <Product/Angle>' or 'dotads: Collection | <Product/Angle>' per the CPAS Carousel vs Collection contract.`
+        );
+      }
+    }
+  } else if (campaign?.objective === "OUTCOME_SALES") {
+    for (let i = 0; i < adsets.length; i++) {
+      const as = adsets[i];
+      const key = as.key || as.name;
+      const asLabel = `adsets[${i}] (${key || "unnamed"})`;
+      const resolvedAs = adsetMap.get(key);
+      const t = resolvedAs?._targeting;
+      const attrList = resolvedAs?._attributionSpec;
+      const effectiveBidStrat =
+        (isCbo ? campaign?.bid_strategy : as.bid_strategy) || "LOWEST_COST_WITHOUT_CAP";
+      if (
+        t?.targeting_automation?.advantage_audience === 0 ||
+        (t?.targeting_automation?.advantage_audience === undefined && as.advantage_audience === false)
+      ) {
+        warnings.push(
+          `${asLabel}: Website Sales guardrail: Advantage+ Audience is explicitly disabled (advantage_audience=0 / false); disabling Advantage+ Audience restricts auction liquidity and raises CPM/CPC (see algorithm-and-learning.md §6.1).`
+        );
+      }
+      if (
+        Array.isArray(t?.publisher_platforms) &&
+        t.publisher_platforms.includes("facebook") &&
+        !t.publisher_platforms.includes("instagram")
+      ) {
+        warnings.push(
+          `${asLabel}: Website Sales guardrail: targeting.publisher_platforms restricts delivery to Facebook without Instagram on a non-CPAS website campaign; excluding Instagram Reels/Feed on direct web landing pages shrinks auction liquidity and raises CPM/CPA.`
+        );
+      }
+      if (
+        (as.optimization_goal === "OFFSITE_CONVERSIONS" || as.optimization_goal === "VALUE") &&
+        Array.isArray(attrList) &&
+        attrList.length > 0 &&
+        !attrList.some((s) => String(s?.event_type || "").toUpperCase() === "VIEW_THROUGH")
+      ) {
+        warnings.push(
+          `${asLabel}: Website Sales guardrail: attribution_spec omits VIEW_THROUGH (1d_view) on '${as.optimization_goal}'; click-only attribution withholds view-through conversion signals from GEM and increases CPM during learning (see algorithm-and-learning.md §7.2).`
+        );
+      }
+      if (as.optimization_goal === "VALUE" && effectiveBidStrat === "LOWEST_COST_WITHOUT_CAP") {
+        warnings.push(
+          `${asLabel}: Website Sales guardrail: optimization_goal 'VALUE' with 'LOWEST_COST_WITHOUT_CAP' forces high-AOV auction bidding and 2x-3x higher CPM without a ROAS floor; prefer 'OFFSITE_CONVERSIONS' for lowest CPA or pair 'VALUE' with 'LOWEST_COST_WITH_MIN_ROAS' and 'roas_average_floor'.`
+        );
+      }
+      const totalAdsInSet = adsetTotalAdsCount.get(key) || 0;
+      if (totalAdsInSet > 6) {
+        warnings.push(
+          `adset '${key}': Website Sales guardrail: ${totalAdsInSet} ads are assigned to a single ad set; crowding >6 ads into one ad set fragments impression budget and slows exit from the Learning Phase (recommend 3-5 distinct creative angles per ad set).`
+        );
+      }
+    }
+  }
+
   // Local copy, placement-length, attribution, and market-language heuristics.
   const fallbackCampaignCountries = new Set();
   for (const as of adsets) {
-    for (const c of extractAdsetCountries(as)) fallbackCampaignCountries.add(c);
+    const resolvedAs = adsetMap.get(as.key || as.name);
+    for (const c of extractAdsetCountries(as, resolvedAs?._targeting)) fallbackCampaignCountries.add(c);
   }
   for (let i = 0; i < creatives.length; i++) {
     const cr = creatives[i];
     const key = cr.key || cr.name;
     const label = `creatives[${i}] (${key || "unnamed"})`;
+    const resolvedCr = creativeMap.get(key);
     const targetCountries = creativeCountriesMap.get(key) || fallbackCampaignCountries;
     const targetsIndonesiaOnly = targetCountries.has("ID") && !targetCountries.has("MY");
     const targetsMalaysiaOnly = targetCountries.has("MY") && !targetCountries.has("ID");
-    const textEntries = collectCreativeTexts(cr);
+    const textEntries = collectCreativeTexts(cr, resolvedCr?._objectStorySpec);
+
+    if (isCpasManifest && (cr.product_set_id || resolvedCr?._objectStorySpec?.template_data)) {
+      if (cr.applink_treatment !== "deeplink_with_web_fallback") {
+        warnings.push(
+          `${label}: CPAS guardrail: applink_treatment should be 'deeplink_with_web_fallback' (got '${cr.applink_treatment || "unset"}'); 'automatic' showed 65-72% In-App Browser leakage on Facebook Feed in the audit; unset is treated the same until measured.`
+        );
+      }
+      if (!resolvedCr?._templateUrlSpec?.config?.app_id) {
+        warnings.push(
+          `${label}: CPAS guardrail: 'template_url_spec.config.app_id' (e.g. '957549474255294' for Shopee ID) should be set with applink_treatment='deeplink_with_web_fallback' to bind native app deep links.`
+        );
+      }
+      if (!cr.url_tags) {
+        warnings.push(
+          `${label}: CPAS guardrail: missing 'url_tags' (e.g. "utm_source=facebook-ca&utm_medium=seller") for Shopee Collaborative Ads attribution.`
+        );
+      }
+      if (resolvedCr?._objectStorySpec?.template_data?.description === "{{product.price}}") {
+        warnings.push(
+          `${label}: CPAS guardrail: template_data.description uses '{{product.price}}'; prefer '{{product.current_price strip_zeros}}' so discounted Shopee prices render without '.00' decimals.`
+        );
+      }
+      const ftsList = Array.isArray(resolvedCr?._formatTransformationSpec)
+        ? resolvedCr._formatTransformationSpec
+        : [];
+      const hasDaCollectionOnly =
+        ftsList.length > 0 &&
+        ftsList.some((x) => String(x?.format || "").toLowerCase() === "da_collection") &&
+        !ftsList.some((x) => ["carousel", "catalog_single_media"].includes(String(x?.format || "").toLowerCase()));
+      const afsFormats = Array.isArray(resolvedCr?._assetFeedSpec?.ad_formats)
+        ? resolvedCr._assetFeedSpec.ad_formats.map((f) => String(f).toUpperCase())
+        : [];
+      const hasFormatAutomationCollection =
+        afsFormats.includes("COLLECTION") ||
+        (resolvedCr?._assetFeedSpec?.optimization_type === "FORMAT_AUTOMATION" && afsFormats.length === 0);
+      if (
+        resolvedCr?._objectStorySpec?.template_data?.format_option === "carousel_images_multi_items" &&
+        (hasDaCollectionOnly || hasFormatAutomationCollection)
+      ) {
+        warnings.push(
+          `${label}: CPAS guardrail: Carousel DPA ('carousel_images_multi_items') includes Collection FORMAT_AUTOMATION ('da_collection' / ['CAROUSEL','COLLECTION']), which intercepts Facebook Reels & Feed clicks into a Meta Instant Experience grid instead of deep-linking directly to the Shopee App PDP. Set format_transformation_spec to CAROUSEL + CATALOG_SINGLE_MEDIA and opt out of Advantage+ catalog format automation.`
+        );
+      }
+    }
 
     if (
       campaign?.objective === "OUTCOME_SALES" &&
@@ -1136,6 +1821,11 @@ function validateManifests(campaignPath, explicitBrandPath) {
     }
 
     for (const { field, text } of textEntries) {
+      if (/[\u{1D400}-\u{1D7FF}]/u.test(text)) {
+        warnings.push(
+          `${label}.${field}: contains stylized Unicode mathematical alphanumeric characters. Use plain Latin text so Meta NLP parsing and screen-reader accessibility are not degraded.`
+        );
+      }
       if (field.startsWith("title") && text.length > 40) {
         warnings.push(
           `${label}.${field}: headline length (${text.length} chars) exceeds the local 40-char mobile Feed preview guideline; actual truncation varies by placement.`
@@ -1213,6 +1903,7 @@ function validateManifests(campaignPath, explicitBrandPath) {
     budgets,
     mediaFiles,
     algorithmAlignment,
+    campaignPromoted: parsedCampaignPromoted,
   };
 }
 
@@ -1228,10 +1919,48 @@ function serializeJsonOrFileArg(val, workspaceDir, campaignDir) {
   return JSON.stringify(val);
 }
 
+const DOTADS_CAMPAIGN_PREFIX = "dotads: ";
+
+function formatDotadsCampaignName(rawName) {
+  if (typeof rawName !== "string") return rawName;
+  const trimmed = rawName.trim();
+  if (!trimmed) return rawName;
+  if (/^dotads:\s*/i.test(trimmed)) {
+    const rest = trimmed.replace(/^dotads:\s*/i, "").trim();
+    return rest ? `${DOTADS_CAMPAIGN_PREFIX}${rest}` : DOTADS_CAMPAIGN_PREFIX.trim();
+  }
+  return `${DOTADS_CAMPAIGN_PREFIX}${trimmed}`;
+}
+
+function normalizeCampaignCreateArgs(args) {
+  if (!Array.isArray(args)) return args;
+  let sawCampaign = false;
+  let isCampaignCreate = false;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "campaign") sawCampaign = true;
+    else if (sawCampaign && args[i] === "create") {
+      isCampaignCreate = true;
+      break;
+    }
+  }
+  if (!isCampaignCreate) return args;
+  const out = [...args];
+  for (let i = 0; i < out.length; i++) {
+    if (out[i] === "--name" && i + 1 < out.length) {
+      out[i + 1] = formatDotadsCampaignName(out[i + 1]);
+      i++;
+    } else if (typeof out[i] === "string" && out[i].startsWith("--name=")) {
+      out[i] = `--name=${formatDotadsCampaignName(out[i].slice("--name=".length))}`;
+    }
+  }
+  return out;
+}
+
 function buildCampaignArgs(validation, activate) {
   const { brand, manifest } = validation;
   const c = manifest.campaign;
   const status = activate ? c.status || "PAUSED" : "PAUSED";
+  const campaignName = formatDotadsCampaignName(c.name);
   const args = [
     "--output",
     "json",
@@ -1243,7 +1972,7 @@ function buildCampaignArgs(validation, activate) {
   if (brand.business_id) {
     args.push("--business-id", String(brand.business_id));
   }
-  args.push("campaign", "create", "--name", c.name, "--objective", c.objective, "--status", status);
+  args.push("campaign", "create", "--name", campaignName, "--objective", c.objective, "--status", status);
 
   if (c.daily_budget !== undefined && c.daily_budget !== null) {
     args.push("--daily-budget", String(c.daily_budget));
@@ -1254,6 +1983,9 @@ function buildCampaignArgs(validation, activate) {
   if (c.bid_strategy) args.push("--bid-strategy", c.bid_strategy);
   if (c.buying_type) args.push("--buying-type", c.buying_type);
   if (c.pacing_type) args.push("--pacing-type", c.pacing_type);
+  if (c.smart_promotion_type === "GUIDED_CREATION") {
+    args.push("--smart-promotion-type", "GUIDED_CREATION");
+  }
   if (c.adset_budget_sharing === true) args.push("--adset-budget-sharing");
   if (c.adset_budget_sharing === false) args.push("--no-adset-budget-sharing");
   if (c.skadnetwork_attribution === true) args.push("--skadnetwork-attribution");
@@ -1507,11 +2239,29 @@ function buildAdArgs(validation, ad, adsetId, creativeId, activate) {
     status
   );
 
+  const resolvedAdset = manifest.adsets?.find((as) => (as.key || as.name) === (ad.adset || ad.adset_key));
+  const resolvedCreative = manifest.creatives?.find((cr) => (cr.key || cr.name) === (ad.creative || ad.creative_key));
+  let adsetPromoted = resolvedAdset?.promoted_object;
+  if (typeof adsetPromoted === "string") {
+    try { adsetPromoted = readJsonArgument(adsetPromoted, workspaceDir, campaignDir, "adset.promoted_object"); } catch { adsetPromoted = null; }
+  }
+  let campPromoted = manifest.campaign?.promoted_object;
+  if (typeof campPromoted === "string") {
+    try { campPromoted = readJsonArgument(campPromoted, workspaceDir, campaignDir, "campaign.promoted_object"); } catch { campPromoted = null; }
+  }
+  const isCatalogOrCpas = Boolean(
+    campPromoted?.product_catalog_id ||
+    adsetPromoted?.product_set_id ||
+    adsetPromoted?.product_catalog_id ||
+    adsetPromoted?.omnichannel_object ||
+    resolvedCreative?.product_set_id
+  );
+
   const conversionDomain = ad.conversion_domain || brand.conversion_domain;
-  if (conversionDomain) {
+  if (conversionDomain && !isCatalogOrCpas) {
     args.push("--conversion-domain", String(conversionDomain));
   }
-  const pixelId = ad.pixel_id || (manifest.campaign?.objective === "OUTCOME_SALES" ? brand.pixel_id : undefined);
+  const pixelId = ad.pixel_id || (!isCatalogOrCpas && manifest.campaign?.objective === "OUTCOME_SALES" ? brand.pixel_id : undefined);
   if (ad.tracking_specs) {
     args.push("--tracking-specs", serializeJsonOrFileArg(ad.tracking_specs, workspaceDir, campaignDir));
   } else if (pixelId) {
@@ -1534,7 +2284,7 @@ function entityHash(kind, spec, brand, extra = {}) {
   return stableHashObject({ spec, defaults, ...extra });
 }
 
-function checkStateScope(state, manifest, brand) {
+function checkStateScope(state, manifest, brand, { hotSwapCreative = false } = {}) {
   const populated = ["campaigns", "creatives", "adsets", "ads", "media_cache"].some((k) => Object.keys(state[k]).length);
   if (populated && !state.ad_account_id) {
     throw new Error("Legacy deployment state has no account binding. Verify every saved ID and media entry belongs to this account, back up the state, then explicitly add its ad_account_id before retrying. Do not delete state to bypass this check.");
@@ -1553,8 +2303,15 @@ function checkStateScope(state, manifest, brand) {
     const saved = state.ads[spec.key || spec.name];
     const adsetId = state.adsets[spec.adset || spec.adset_key]?.id;
     const creativeId = state.creatives[spec.creative || spec.creative_key]?.id;
-    if (saved && (!adsetId || !creativeId || saved.adset_id !== adsetId || saved.creative_id !== creativeId)) {
-      throw new Error("Ad parent conflict: use a new ad key when changing ad set or creative identity.");
+    if (saved) {
+      if (!adsetId || saved.adset_id !== adsetId) {
+        throw new Error("Ad parent conflict: use a new ad key when changing ad set or creative identity.");
+      }
+      if (!creativeId || saved.creative_id !== creativeId) {
+        if (!hotSwapCreative && !spec.hot_swap_creative) {
+          throw new Error("Ad parent conflict: use a new ad key when changing ad set or creative identity (or pass --hot-swap-creative to update creative_id in-place).");
+        }
+      }
     }
   }
   state.ad_account_id = brand.ad_account_id;
@@ -1637,14 +2394,16 @@ function parseMetaJsonOutput(stdout) {
 }
 
 function defaultWorkspaceRoot() {
-  if (process.env.DOTADS_WORKSPACE_ROOT && process.env.DOTADS_WORKSPACE_ROOT.trim()) {
-    return path.resolve(process.env.DOTADS_WORKSPACE_ROOT.trim());
-  }
-  return path.join(os.homedir(), "Documents", "dotads-meta-report");
+  return selectedBM ? bmDirectory(selectedBM) : reportingBaseRoot();
 }
 
-function ensureWorkspaceRoot() {
-  const wsRoot = defaultWorkspaceRoot();
+function ensureWorkspaceRoot(wsRoot = defaultWorkspaceRoot()) {
+  // Reject ancestor links before mkdir/chmod, not just a linked final component.
+  let current = path.parse(wsRoot).root;
+  for (const part of wsRoot.slice(current.length).split(path.sep).filter(Boolean)) {
+    current = path.join(current, part);
+    if (fs.existsSync(current) && fs.lstatSync(current).isSymbolicLink()) throw new Error("Workspace ancestors must not be symlinks.");
+  }
   if (fs.existsSync(wsRoot)) {
     const st = fs.lstatSync(wsRoot);
     if (st.isSymbolicLink() || !st.isDirectory()) {
@@ -1668,11 +2427,34 @@ function ensureWorkspaceRoot() {
   return wsRoot;
 }
 
-function cmdSetup(argv) {
+// Offline: reads installed package metadata only. Never installs, upgrades or calls Meta.
+function installedSdk() {
+  let python;
+  try { python = providerPython(); } catch { return { status: "missing" }; }
+  const res = spawnSync(python, ["-c", "import importlib.metadata as m;print(m.version('meta-ads'));print(m.version('facebook-business'))"],
+    { encoding: "utf8", timeout: 15_000 });
+  const [cli, sdk] = (res.stdout || "").trim().split(/\r?\n/);
+  if (res.status !== 0 || !cli || !sdk) return { status: "unknown" };
+  const major = Number.parseInt(sdk, 10);
+  return { status: Number.isInteger(major) && major >= MIN_SDK_MAJOR ? "ok" : "outdated", cli, sdk };
+}
+
+function sdkNotice() {
+  const sdk = installedSdk();
+  if (sdk.status === "outdated") {
+    return `dotads-meta: meta-ads ${sdk.cli} uses facebook-business ${sdk.sdk}; Marketing API v24.0 support ends 2026-11-10. Upgrade: dotads-meta setup (installs meta-ads ${DEFAULT_META_ADS_VERSION}).`;
+  }
+  return null;
+}
+
+function cmdSetup(argv, profiles = []) {
+  let workspaceOnly = false;
   let version = DEFAULT_META_ADS_VERSION;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === "--version") {
+    if (arg === "--workspace-only") {
+      workspaceOnly = true;
+    } else if (arg === "--version") {
       version = argv[++i];
       if (!version) throw new Error("--version requires a version string.");
     } else {
@@ -1680,6 +2462,21 @@ function cmdSetup(argv) {
     }
   }
 
+  const active = profiles.filter(profile => profile.available);
+  const directories = active.map(profile => bmDirectory(profile, true));
+  if (workspaceOnly) {
+    if (!directories.length) {
+      console.log("No active named BM profiles; workspace setup skipped. No reporting directories created, API calls or installs performed.");
+    } else {
+      console.log(`✓ local BM workspaces ready: ${directories.length}; no API calls or installs.`);
+      for (const directory of directories) console.log(`  Workspace: ${directory}`);
+    }
+    // Notify only; a background pull must never install packages.
+    const notice = sdkNotice();
+    // dotsync autopull surfaces NOTICE: lines at the next shell start on every device.
+    if (notice) console.log(`NOTICE: ${notice}`);
+    return;
+  }
   const wsRoot = ensureWorkspaceRoot();
   const metaBin = resolveMetaBin();
   const verRes = spawnSync(metaBin, ["--version"], { encoding: "utf8" });
@@ -1734,10 +2531,17 @@ function cmdSetup(argv) {
 function cmdInit(argv) {
   let targetDir = ".";
   let force = false;
+  let selectedAccountId;
+  let selectedAccountName;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--force") {
       force = true;
+    } else if (arg === "--account") {
+      selectedAccountId = accountId(argv[++i]);
+    } else if (arg === "--account-name") {
+      selectedAccountName = argv[++i];
+      if (!selectedAccountName || selectedAccountName.startsWith("--")) throw new Error("--account-name requires a display name.");
     } else if (!arg.startsWith("-")) {
       targetDir = arg;
     } else {
@@ -1745,6 +2549,12 @@ function cmdInit(argv) {
     }
   }
 
+  if (selectedAccountName && !selectedAccountId) throw new Error("--account-name requires --account.");
+  if (selectedAccountId) {
+    if (!selectedBM) throw new Error("Account campaign setup requires a configured --bm profile.");
+    if (targetDir !== ".") throw new Error("Use --account without a positional directory to reuse its canonical folder.");
+    targetDir = workspace.prepareAccount(defaultWorkspaceRoot(), selectedAccountId, selectedAccountName);
+  }
   const isBareSlug =
     targetDir !== "." &&
     targetDir !== ".." &&
@@ -1791,19 +2601,19 @@ function cmdInit(argv) {
   const baseName = path.basename(root);
   const actMatch = baseName.match(/^(act_\d+)(?:--(.+))?$/);
   const inferredBrand = actMatch && actMatch[2] ? actMatch[2] : baseName;
-  const inferredAccountId = actMatch ? actMatch[1] : "act_1234567890";
+  const inferredAccountId = selectedAccountId || (actMatch ? actMatch[1] : "act_1234567890");
 
   if (!fs.existsSync(brandPath) || force) {
     const brandTemplate = {
       brand: inferredBrand,
       ad_account_id: inferredAccountId,
-      business_id: "9876543210",
+      business_id: selectedBM?.id || "9876543210",
       page_id: "1122334455",
       instagram_user_id: "",
       pixel_id: "5566778899",
       conversion_domain: "example.com",
       currency: "USD",
-      token_env: "META_ACCESS_TOKEN",
+      token_env: selectedBM?.token_env || "META_ACCESS_TOKEN",
     };
     fs.writeFileSync(brandPath, JSON.stringify(brandTemplate, null, 2) + "\n");
     created.push(brandPath);
@@ -1815,7 +2625,7 @@ function cmdInit(argv) {
     const sampleCampaign = {
       campaign: {
         key: "camp_sales_cbo",
-        name: "Sales_CBO_Launch",
+        name: "dotads: Sales_CBO_Launch",
         objective: "OUTCOME_SALES",
         status: "PAUSED",
         daily_budget: 5000,
@@ -1968,6 +2778,7 @@ function cmdDeploy(argv) {
   let brandPath = null;
   let apply = false;
   let activate = false;
+  let hotSwapCreative = false;
   let jsonOut = false;
 
   for (let i = 0; i < argv.length; i++) {
@@ -1979,6 +2790,8 @@ function cmdDeploy(argv) {
       apply = true;
     } else if (arg === "--activate") {
       activate = true;
+    } else if (arg === "--hot-swap-creative") {
+      hotSwapCreative = true;
     } else if (arg === "--json") {
       jsonOut = true;
     } else if (!arg.startsWith("-") && !campaignPath) {
@@ -2008,10 +2821,11 @@ function cmdDeploy(argv) {
   try {
   const state = loadState(stateFile);
   const { manifest, brand } = validation;
-  checkStateScope(state, manifest, brand);
+  checkStateScope(state, manifest, brand, { hotSwapCreative });
   const metaBin = resolveMetaBin();
 
   const campKey = manifest.campaign.key || manifest.campaign.name;
+  const campDisplayName = formatDotadsCampaignName(manifest.campaign.name);
   const campArgs = buildCampaignArgs(validation, activate);
   const campHash = entityHash("campaign", manifest.campaign, brand);
   const existingCamp = state.campaigns[campKey];
@@ -2022,7 +2836,7 @@ function cmdDeploy(argv) {
     step: 1,
     kind: "campaign",
     key: campKey,
-    name: manifest.campaign.name,
+    name: campDisplayName,
     hash: campHash,
     cachedId: existingCamp?.id || null,
     drift: Boolean(existingCamp?.id && existingCamp?.hash && existingCamp.hash !== campHash),
@@ -2087,6 +2901,26 @@ function cmdDeploy(argv) {
     const adArgs = buildAdArgs(validation, ad, placeholderAdsetId, placeholderCreativeId, activate);
     const adHash = entityHash("ad", ad, brand, { objective: manifest.campaign.objective });
     const existingAd = state.ads[adKey];
+    const isHotSwap = Boolean(
+      existingAd?.id &&
+      (hotSwapCreative || ad.hot_swap_creative) &&
+      (!state.creatives[creativeRef]?.id || existingAd.creative_id !== state.creatives[creativeRef]?.id)
+    );
+    const hotSwapArgs = [
+      "--output",
+      "json",
+      "--no-input",
+      "ads",
+      "--ad-account-id",
+      brand.ad_account_id,
+      ...(brand.business_id ? ["--business-id", String(brand.business_id)] : []),
+      "ad",
+      "update",
+      "--ad-id",
+      String(existingAd?.id || ""),
+      "--creative",
+      JSON.stringify({ creative_id: placeholderCreativeId }),
+    ];
     steps.push({
       step: steps.length + 1,
       kind: "ad",
@@ -2098,8 +2932,8 @@ function cmdDeploy(argv) {
       creativeRef,
       cachedId: existingAd?.id || null,
       drift: Boolean(existingAd?.id && existingAd?.hash && existingAd.hash !== adHash),
-      action: existingAd?.id ? "SKIP" : "CREATE",
-      args: adArgs,
+      action: existingAd?.id ? (isHotSwap ? "HOT_SWAP_CREATIVE" : "SKIP") : "CREATE",
+      args: isHotSwap ? hotSwapArgs : adArgs,
     });
   }
 
@@ -2188,11 +3022,55 @@ function cmdDeploy(argv) {
   // 1. Campaign
   let campaignId = state.campaigns[campKey]?.id;
   if (!campaignId) {
-    const rec = runMetaStep(campArgs, `campaign:${campKey}`);
-    campaignId = String(rec.id);
+    if ((validation.campaignPromoted || manifest.campaign.is_pca_unified !== undefined) && !process.env.META_BIN) {
+      // Upstream meta CLI 1.3.1 omits --promoted-object and --is-pca-unified on campaign create.
+      // Because Meta locks is_pca_unified at Campaign creation time (Error 100 / Subcode 3858845),
+      // Collaborative Ads (CPAS) campaigns must be created directly with is_pca_unified=true and promoted_object.
+      uncertainRemote = true;
+      const camp = manifest.campaign;
+      const status = activate ? camp.status || "PAUSED" : "PAUSED";
+      const sdkCampPayload = {
+        account_id: brand.ad_account_id,
+        params: {
+          name: campDisplayName,
+          objective: camp.objective,
+          status,
+          buying_type: camp.buying_type || "AUCTION",
+          special_ad_categories: Array.isArray(camp.special_ad_categories) ? camp.special_ad_categories : [],
+          is_pca_unified: camp.is_pca_unified !== undefined ? Boolean(camp.is_pca_unified) : true,
+          ...(camp.smart_promotion_type ? { smart_promotion_type: camp.smart_promotion_type } : {}),
+          ...(camp.bid_strategy ? { bid_strategy: camp.bid_strategy } : {}),
+          ...(camp.daily_budget != null ? { daily_budget: camp.daily_budget } : {}),
+          ...(camp.lifetime_budget != null ? { lifetime_budget: camp.lifetime_budget } : {}),
+          ...(camp.spend_cap != null ? { spend_cap: camp.spend_cap } : {}),
+          ...(camp.adset_budget_sharing !== undefined ? { is_adset_budget_sharing_enabled: Boolean(camp.adset_budget_sharing) } : {}),
+          ...(validation.campaignPromoted ? { promoted_object: validation.campaignPromoted } : {}),
+        },
+      };
+      const pyCampRes = spawnSync(
+        providerPython(),
+        [
+          "-c",
+          "import json, os, sys; from facebook_business.api import FacebookAdsApi; from facebook_business.adobjects.adaccount import AdAccount; " +
+            "req = json.load(sys.stdin); FacebookAdsApi.init(access_token=os.environ['ACCESS_TOKEN']); " +
+            "res = AdAccount(req['account_id']).create_campaign(fields=['id'], params=req['params']); " +
+            "print(json.dumps({'id': res['id']}))",
+        ],
+        { env: childEnv, input: JSON.stringify(sdkCampPayload), encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }
+      );
+      if (pyCampRes.status !== 0) {
+        const errText = (pyCampRes.stderr || pyCampRes.stdout || "").trim() || `exit code ${pyCampRes.status}`;
+        throw new Error(`Failed at campaign:${campKey}: ${errText}. Deployment lock retained; reconcile remote IDs before retrying.`);
+      }
+      const rec = parseMetaJsonOutput(pyCampRes.stdout);
+      campaignId = String(rec.id);
+    } else {
+      const rec = runMetaStep(campArgs, `campaign:${campKey}`);
+      campaignId = String(rec.id);
+    }
     state.campaigns[campKey] = {
       id: campaignId,
-      name: manifest.campaign.name,
+      name: campDisplayName,
       hash: campHash,
       created_at: new Date().toISOString(),
     };
@@ -2216,7 +3094,97 @@ function cmdDeploy(argv) {
     );
     const crHash = entityHash("creative", cr, brand, { primaryMediaSha, multiMediaSha });
     if (!creativeId) {
-      const rec = runMetaStep(crArgs, `creative:${crKey}`);
+      let rec;
+      const needsSdkCreative = Boolean(
+        cr.template_url_spec ||
+        cr.format_transformation_spec ||
+        (cr.product_set_id && cr.object_story_spec)
+      );
+      if (needsSdkCreative && !process.env.META_BIN) {
+        // Upstream meta CLI 1.3.1 omits --template-url-spec and --format-transformation-spec on creative create;
+        // use installed SDK when catalog/CPAS deep-link or format-transformation specs are present.
+        uncertainRemote = true;
+        const igUserId = cr.instagram_user_id || brand.instagram_user_id;
+        const parsedOss = cr.object_story_spec
+          ? readJsonArgument(cr.object_story_spec, validation.workspaceDir, validation.campaignDir, "object_story_spec")
+          : null;
+        const parsedTus = cr.template_url_spec
+          ? readJsonArgument(cr.template_url_spec, validation.workspaceDir, validation.campaignDir, "template_url_spec")
+          : null;
+        const rawFts = cr.format_transformation_spec
+          ? readJsonArgument(cr.format_transformation_spec, validation.workspaceDir, validation.campaignDir, "format_transformation_spec")
+          : parsedOss?.template_data?.format_option === "carousel_images_multi_items"
+            ? [
+                { data_source: ["catalog"], format: "carousel" },
+                { data_source: ["catalog"], format: "catalog_single_media" },
+              ]
+            : null;
+        const parsedFts = Array.isArray(rawFts)
+          ? rawFts.map((item) =>
+              item && typeof item === "object" && typeof item.format === "string"
+                ? { ...item, format: item.format.toLowerCase() }
+                : item
+            )
+          : rawFts;
+        const parsedDof = cr.degrees_of_freedom_spec
+          ? readJsonArgument(cr.degrees_of_freedom_spec, validation.workspaceDir, validation.campaignDir, "degrees_of_freedom_spec")
+          : null;
+        const hasDaCollection = Array.isArray(parsedFts) && parsedFts.some((item) => item?.format === "da_collection");
+        const parsedAfs = cr.asset_feed_spec
+          ? readJsonArgument(cr.asset_feed_spec, validation.workspaceDir, validation.campaignDir, "asset_feed_spec")
+          : parsedOss?.template_data?.format_option === "carousel_images_multi_items" && !hasDaCollection
+            ? { ad_formats: ["CAROUSEL"], optimization_type: "FORMAT_AUTOMATION" }
+            : null;
+        const sdkCrPayload = {
+          account_id: brand.ad_account_id,
+          params: {
+            name: cr.name,
+            ...(cr.product_set_id ? { product_set_id: String(cr.product_set_id) } : {}),
+            ...(cr.applink_treatment ? { applink_treatment: String(cr.applink_treatment) } : {}),
+            ...(cr.url_tags ? { url_tags: String(cr.url_tags) } : {}),
+            ...(igUserId ? { instagram_user_id: String(igUserId) } : {}),
+            ...(parsedTus
+              ? {
+                  template_url_spec: parsedTus.config?.app_id
+                    ? { config: { app_id: String(parsedTus.config.app_id) } }
+                    : parsedTus,
+                }
+              : {}),
+            ...(parsedFts ? { format_transformation_spec: parsedFts } : {}),
+            ...(cr.contextual_multi_ads !== undefined && cr.contextual_multi_ads !== null
+              ? {
+                  contextual_multi_ads:
+                    typeof cr.contextual_multi_ads === "boolean"
+                      ? { enroll_status: cr.contextual_multi_ads ? "OPT_IN" : "OPT_OUT" }
+                      : cr.contextual_multi_ads,
+                }
+              : parsedOss?.template_data
+                ? { contextual_multi_ads: { enroll_status: "OPT_IN" } }
+                : {}),
+            ...(parsedOss ? { object_story_spec: parsedOss } : {}),
+            ...(parsedAfs ? { asset_feed_spec: parsedAfs } : {}),
+            ...(parsedDof ? { degrees_of_freedom_spec: parsedDof } : {}),
+          },
+        };
+        const pyCrRes = spawnSync(
+          providerPython(),
+          [
+            "-c",
+            "import json, os, sys; from facebook_business.api import FacebookAdsApi; from facebook_business.adobjects.adaccount import AdAccount; " +
+              "req = json.load(sys.stdin); FacebookAdsApi.init(access_token=os.environ['ACCESS_TOKEN']); " +
+              "res = AdAccount(req['account_id']).create_ad_creative(fields=['id'], params=req['params']); " +
+              "print(json.dumps({'id': res['id']}))",
+          ],
+          { env: childEnv, input: JSON.stringify(sdkCrPayload), encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }
+        );
+        if (pyCrRes.status !== 0) {
+          const errText = (pyCrRes.stderr || pyCrRes.stdout || "").trim() || `exit code ${pyCrRes.status}`;
+          throw new Error(`Failed at creative:${crKey}: ${errText}. Deployment lock retained; reconcile remote IDs before retrying.`);
+        }
+        rec = parseMetaJsonOutput(pyCrRes.stdout);
+      } else {
+        rec = runMetaStep(crArgs, `creative:${crKey}`);
+      }
       creativeId = String(rec.id);
       const imageHash =
         rec.image_hash ||
@@ -2261,7 +3229,94 @@ function cmdDeploy(argv) {
     const asHash = entityHash("adset", as, brand);
     if (!adsetId) {
       const asArgs = buildAdsetArgs(validation, as, campaignId, activate);
-      const rec = runMetaStep(asArgs, `adset:${asKey}`);
+      const roasFloor =
+        as.roas_average_floor !== undefined && as.roas_average_floor !== null
+          ? as.roas_average_floor
+          : as.bid_constraints?.roas_average_floor;
+      let rec;
+      const needsSdkAdset =
+        (roasFloor !== undefined && roasFloor !== null) ||
+        as.ad_set_goal !== undefined ||
+        (validation.campaignPromoted && as.promoted_object?.omnichannel_object);
+      if (needsSdkAdset && !process.env.META_BIN) {
+        // Upstream meta CLI 1.3.1 omits --bid-constraints and --ad-set-goal on adset create;
+        // use installed SDK when roas_average_floor or CPAS PCA Unified (ad_set_goal: {type: 0}) is required.
+        uncertainRemote = true;
+        const status = activate ? as.status || "PAUSED" : "PAUSED";
+        const pixelId = as.pixel_id || brand.pixel_id;
+        const sdkPayload = {
+          account_id: brand.ad_account_id,
+          params: {
+            campaign_id: String(campaignId),
+            name: as.name,
+            optimization_goal: as.optimization_goal,
+            billing_event: as.billing_event,
+            status,
+            ...(roasFloor !== undefined && roasFloor !== null
+              ? { bid_constraints: as.bid_constraints || { roas_average_floor: Number(roasFloor) } }
+              : as.bid_constraints
+                ? { bid_constraints: as.bid_constraints }
+                : {}),
+            ...(as.ad_set_goal !== undefined
+              ? { ad_set_goal: as.ad_set_goal }
+              : validation.campaignPromoted && as.promoted_object?.omnichannel_object
+                ? { ad_set_goal: { type: 0 } }
+                : {}),
+            ...(as.daily_budget != null ? { daily_budget: as.daily_budget } : {}),
+            ...(as.lifetime_budget != null ? { lifetime_budget: as.lifetime_budget } : {}),
+            ...(as.bid_strategy ? { bid_strategy: as.bid_strategy } : {}),
+            ...(as.bid_amount != null ? { bid_amount: as.bid_amount } : {}),
+            ...(as.destination_type ? { destination_type: as.destination_type } : {}),
+            ...(as.start_time ? { start_time: as.start_time } : {}),
+            ...(as.end_time ? { end_time: as.end_time } : {}),
+            ...(as.promoted_object
+              ? { promoted_object: readJsonArgument(as.promoted_object, validation.workspaceDir, validation.campaignDir, "promoted_object") }
+              : pixelId
+                ? { promoted_object: { pixel_id: String(pixelId), ...(as.custom_event_type ? { custom_event_type: String(as.custom_event_type) } : {}) } }
+                : {}),
+            ...(as.targeting
+              ? { targeting: readJsonArgument(as.targeting, validation.workspaceDir, validation.campaignDir, "targeting") }
+              : as.targeting_countries
+                ? {
+                    targeting: {
+                      geo_locations: {
+                        countries: Array.isArray(as.targeting_countries)
+                          ? as.targeting_countries
+                          : String(as.targeting_countries).split(",").map((c) => c.trim()).filter(Boolean),
+                      },
+                      ...(as.advantage_audience !== undefined
+                        ? { targeting_automation: { advantage_audience: as.advantage_audience ? 1 : 0 } }
+                        : {}),
+                    },
+                  }
+                : {}),
+            ...(as.attribution_spec
+              ? { attribution_spec: readJsonArgument(as.attribution_spec, validation.workspaceDir, validation.campaignDir, "attribution_spec") }
+              : {}),
+            ...(as.is_dynamic_creative !== undefined || as.dynamic_creative !== undefined
+              ? { is_dynamic_creative: Boolean(as.dynamic_creative ?? as.is_dynamic_creative) }
+              : {}),
+          },
+        };
+        const pyRes = spawnSync(
+          providerPython(),
+          [
+            "-c",
+            "import json, os, sys; from facebook_business.api import FacebookAdsApi; from facebook_business.adobjects.adaccount import AdAccount; " +
+              "req = json.load(sys.stdin); FacebookAdsApi.init(access_token=os.environ['ACCESS_TOKEN']); " +
+              "res = AdAccount(req['account_id']).create_ad_set(fields=['id'], params=req['params']); " +
+              "print(json.dumps({'id': res['id']}))",
+          ],
+          { env: childEnv, input: JSON.stringify(sdkPayload), encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }
+        );
+        if (pyRes.status !== 0) {
+          const errText = (pyRes.stderr || pyRes.stdout || "").trim() || `exit code ${pyRes.status}`;
+          throw new Error(`Failed at adset:${asKey}: ${errText}. Deployment lock retained; reconcile remote IDs before retrying.`);
+        }
+        rec = parseMetaJsonOutput(pyRes.stdout);
+      } else {
+        rec = runMetaStep(asArgs, `adset:${asKey}`);
+      }
       adsetId = String(rec.id);
       state.adsets[asKey] = {
         id: adsetId,
@@ -2283,12 +3338,18 @@ function cmdDeploy(argv) {
   for (const ad of manifest.ads) {
     const adKey = ad.key || ad.name;
     let adId = state.ads[adKey]?.id;
+    const adsetRef = ad.adset || ad.adset_key;
+    const creativeRef = ad.creative || ad.creative_key;
+    const adsetId = state.adsets[adsetRef]?.id;
+    const creativeId = state.creatives[creativeRef]?.id;
     const adHash = entityHash("ad", ad, brand, { objective: manifest.campaign.objective });
+    const plannedAdStep = steps.find((s) => s.kind === "ad" && s.key === adKey);
+    const shouldHotSwap = Boolean(
+      adId &&
+      (plannedAdStep?.action === "HOT_SWAP_CREATIVE" ||
+        ((hotSwapCreative || ad.hot_swap_creative) && state.ads[adKey]?.creative_id !== creativeId))
+    );
     if (!adId) {
-      const adsetRef = ad.adset || ad.adset_key;
-      const creativeRef = ad.creative || ad.creative_key;
-      const adsetId = state.adsets[adsetRef]?.id;
-      const creativeId = state.creatives[creativeRef]?.id;
       const adArgs = buildAdArgs(validation, ad, adsetId, creativeId, activate);
       const rec = runMetaStep(adArgs, `ad:${adKey}`);
       adId = String(rec.id);
@@ -2301,8 +3362,61 @@ function cmdDeploy(argv) {
         created_at: new Date().toISOString(),
       };
       saveState(stateFile, state);
-    uncertainRemote = false;
+      uncertainRemote = false;
       results.push({ kind: "ad", key: adKey, action: "CREATED", id: adId, drift: false });
+    } else if (shouldHotSwap) {
+      if (!process.env.META_BIN) {
+        uncertainRemote = true;
+        const pySwapRes = spawnSync(
+          providerPython(),
+          [
+            "-c",
+            "import json, os, sys; from facebook_business.api import FacebookAdsApi; from facebook_business.adobjects.ad import Ad; " +
+              "req = json.load(sys.stdin); FacebookAdsApi.init(access_token=os.environ['ACCESS_TOKEN']); " +
+              "Ad(req['ad_id']).api_update(fields=[], params={'creative': {'creative_id': req['creative_id']}}); " +
+              "print(json.dumps({'id': req['ad_id']}))",
+          ],
+          {
+            env: childEnv,
+            input: JSON.stringify({ ad_id: String(adId), creative_id: String(creativeId) }),
+            encoding: "utf8",
+            stdio: ["pipe", "pipe", "pipe"],
+          }
+        );
+        if (pySwapRes.status !== 0) {
+          const errText = (pySwapRes.stderr || pySwapRes.stdout || "").trim() || `exit code ${pySwapRes.status}`;
+          throw new Error(`Failed at ad:${adKey} (hot-swap creative): ${errText}. Deployment lock retained; reconcile remote IDs before retrying.`);
+        }
+      } else {
+        const swapArgs = [
+          "--output",
+          "json",
+          "--no-input",
+          "ads",
+          "--ad-account-id",
+          brand.ad_account_id,
+          ...(brand.business_id ? ["--business-id", String(brand.business_id)] : []),
+          "ad",
+          "update",
+          "--ad-id",
+          String(adId),
+          "--creative",
+          JSON.stringify({ creative_id: String(creativeId) }),
+        ];
+        runMetaStep(swapArgs, `ad:${adKey}`);
+      }
+      state.ads[adKey] = {
+        ...state.ads[adKey],
+        id: adId,
+        adset_id: adsetId,
+        creative_id: creativeId,
+        name: ad.name,
+        hash: adHash,
+        updated_at: new Date().toISOString(),
+      };
+      saveState(stateFile, state);
+      uncertainRemote = false;
+      results.push({ kind: "ad", key: adKey, action: "HOT_SWAPPED_CREATIVE", id: adId, creative_id: creativeId, drift: false });
     } else {
       const drift = Boolean(state.ads[adKey]?.hash && state.ads[adKey].hash !== adHash);
       results.push({ kind: "ad", key: adKey, action: "SKIPPED", id: adId, drift });
@@ -2388,7 +3502,7 @@ function cmdStatus(argv) {
 
 function cmdDoctor(argv) {
   let brandPath = null;
-  let tokenEnv = "META_ACCESS_TOKEN";
+  let tokenEnv = selectedBM?.token_env || "META_ACCESS_TOKEN";
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--brand") {
@@ -2419,6 +3533,10 @@ function cmdDoctor(argv) {
     process.exit(1);
   }
   console.log(`✓ meta CLI: ${(verRes.stdout || verRes.stderr).trim()} (${metaBin})`);
+  const sdk = installedSdk();
+  if (sdk.status === "ok") console.log(`✓ facebook-business SDK ${sdk.sdk} (minimum major ${MIN_SDK_MAJOR})`);
+  else if (sdk.status === "outdated") { console.error(`✗ ${sdkNotice()}`); process.exitCode = 1; }
+  else console.error(`! facebook-business SDK version ${sdk.status}; check the meta-ads environment.`);
 
   let token = null;
   try {
@@ -2479,15 +3597,19 @@ function cmdRun(argv) {
   };
   if (brand?.ad_account_id) {
     env.AD_ACCOUNT_ID = String(brand.ad_account_id);
+  } else if (selectedBM) {
+    delete env.AD_ACCOUNT_ID; // An ambient account may belong to another selected BM.
   }
   if (brand?.business_id) {
     env.BUSINESS_ID = String(brand.business_id);
   } else if (brand) {
     delete env.BUSINESS_ID;
   }
+  if (selectedBM) env.BUSINESS_ID = selectedBM.id; // Brand conflicts are rejected before this point.
 
   const metaBin = resolveMetaBin();
-  const res = spawnSync(metaBin, passthrough, {
+  const normalizedPassthrough = normalizeCampaignCreateArgs(passthrough);
+  const res = spawnSync(metaBin, normalizedPassthrough, {
     env,
     stdio: "inherit",
   });
@@ -2673,7 +3795,7 @@ function saveAdsMemory(workspaceDir, memory) {
   try {
     fs.writeFileSync(tmpJson, JSON.stringify(memory, null, 2) + "\n", { mode: 0o600, flag: "wx" });
     fs.renameSync(tmpJson, memFile);
-    fs.writeFileSync(tmpMd, renderAdsMemoryMarkdown(memory), { mode: 0o600, flag: "wx" });
+    fs.writeFileSync(tmpMd, memory.learning_scope ? workspace.learningMarkdown(memory) : renderAdsMemoryMarkdown(memory), { mode: 0o600, flag: "wx" });
     fs.renameSync(tmpMd, mdFile);
   } finally {
     fs.rmSync(tmpJson, { force: true });
@@ -2687,13 +3809,48 @@ function cmdLearn(argv) {
     console.log(`Usage:
   dotads-meta learn unit-economics --aov <num> --cogs <num> [--shipping-fee <num>] [--cod-rts-rate <0..1>] [--rts-penalty <num>] [--target-margin <0..1>] [--brand <brand.json>] [--json]
   dotads-meta learn add --source <data|reference|competitor|outsource|experiment|audit> --category <hook|angle|format|offer|audience|bidding|landing-page|unit-economics> --verdict <winner|loser|insight|rule> --title <text> --summary <text> [--action <text>] [--metrics <json>] [--brand <brand.json>] [--json]
-  dotads-meta learn list [--source <s>] [--category <c>] [--verdict <v>] [--brand <brand.json>] [--json]`);
+  dotads-meta learn list [--source <s>] [--category <c>] [--verdict <v>] [--brand <brand.json>] [--json]
+  dotads-meta learn record --account <act_id> --stage <observation|hypothesis|experiment|outcome> --since <date> --until <date> --title <text> --summary <text> --evidence <json-array> [--parent <id>] [--protocol <json>] [--json]
+  dotads-meta learn list --account <act_id> [--json]
+  dotads-meta learn export --account <act_id> --output <new-private-file.json> [--json]
+  dotads-meta learn import --account <act_id> --input <selected-learning.json> [--json]
+  dotads-meta learn refresh --account <act_id> [--root <dir>] [--apply] [--json]
+
+Account learning pins exact saved snapshot/query/entity references. Export/import is offline only; select the same BM/account on both devices. See the runtime guide for stage protocols.
+refresh rebuilds history observations (commerce insight, supersede) from saved history revisions and verified snapshots, offline; dry-run unless --apply, which backs up memory first.`);
     return;
   }
 
   const rest = argv.slice(1);
   let brandPath = null;
   let jsonOut = false;
+
+  if (sub === "refresh") {
+    const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: { account: { type: "string" }, root: { type: "string" }, apply: { type: "boolean" }, json: { type: "boolean" } } });
+    if (positionals.length) throw new Error("learn refresh accepts options only.");
+    const root = values.root ? path.resolve(values.root) : defaultWorkspaceRoot();
+    console.log(JSON.stringify(workspace.refreshLearning(root, accountId(values.account), { apply: Boolean(values.apply) }), null, 2));
+    return;
+  }
+  if (["record", "export", "import"].includes(sub) || (sub === "list" && rest.includes("--account"))) {
+    const allowed = { account: { type: "string" }, json: { type: "boolean" } };
+    for (const key of sub === "record" ? ["stage", "since", "until", "title", "summary", "evidence", "parent", "protocol"] : sub === "export" ? ["output"] : sub === "import" ? ["input"] : []) allowed[key] = { type: "string" };
+    const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: allowed });
+    if (positionals.length) throw new Error(`learn ${sub} accepts options only.`);
+    const id = accountId(values.account), root = defaultWorkspaceRoot();
+    let result;
+    if (sub === "record") result = workspace.recordLearning(root, id, { stage: values.stage, since: values.since, until: values.until, title: values.title, summary: values.summary, evidence: JSON.parse(values.evidence || "null"), parent_id: values.parent, protocol: values.protocol ? JSON.parse(values.protocol) : null });
+    else if (sub === "list") result = workspace.listLearning(root, id);
+    else if (sub === "export") {
+      if (!values.output) throw new Error("learn export requires --output in an existing private directory.");
+      result = workspace.exportLearning(root, id, values.output);
+    } else {
+      if (!values.input) throw new Error("learn import requires an explicitly selected --input bundle.");
+      result = workspace.importLearning(root, id, values.input);
+    }
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
 
   if (sub === "unit-economics") {
     const opts = {};
@@ -2877,12 +4034,14 @@ function cmdAnalyze(argv) {
   let purchaseBasis = null;
   let recordMemory = false;
   let jsonOut = false;
+  let metricProfileArg = null;
 
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--brand") brandPath = argv[++i];
     else if (a === "--pull") pullLive = true;
     else if (a === "--date-preset") datePreset = argv[++i] || "last_7d";
+    else if (a === "--metric-profile") metricProfileArg = argv[++i];
     else if (a === "--delivery-rate") {
       deliveryRate = analysisNumber(argv[++i]);
       if (deliveryRate === null) throw new Error("--delivery-rate requires a finite number between 0 and 1.");
@@ -2896,6 +4055,7 @@ function cmdAnalyze(argv) {
     else if (!a.startsWith("-") && !insightsPath) insightsPath = a;
     else throw new Error(`Unknown or unexpected option for analyze: ${a}`);
   }
+  const metricProfile = parseMetricProfile(metricProfileArg);
   if (!insightsPath && !pullLive) {
     throw new Error("analyze requires <insights.json> or --pull.");
   }
@@ -2912,7 +4072,7 @@ function cmdAnalyze(argv) {
   if (pullLive) {
     const selectedAccount = accountId(brand.ad_account_id);
     const collected = collectProvider({ operation: "insights", account_id: selectedAccount,
-      date_preset: datePreset, levels: ["ad"], breakdowns: [], attribution: {}, action_report_time: "conversion", max_pages: 100 }, brand.token_env);
+      date_preset: datePreset, levels: ["ad"], breakdowns: [], attribution: {}, action_report_time: "conversion", max_pages: 100, ...metricProfile }, brand.token_env);
     const query = collected?.insights?.[0];
     if (collected?.account?.id !== selectedAccount || collected?.insights?.length !== 1 || query?.query?.level !== "ad" ||
         query?.coverage?.status !== "complete" || query?.coverage?.pagination_exhausted !== true || !Array.isArray(query?.rows)) {
@@ -2979,6 +4139,13 @@ function cmdAnalyze(argv) {
     const spend = metric("spend"), impressions = metric("impressions"), frequency = metric("frequency");
     const metaPurchases = has("purchases") ? metric("purchases") : extractActionMetric(row.actions, purchaseTypes, issues, "purchases");
     const metaRevenue = has("revenue") ? metric("revenue") : has("purchase_value") ? metric("purchase_value") : extractActionMetric(row.action_values, purchaseTypes, issues, "revenue");
+    const cpasSegmentPurchases = extractActionMetric(row.catalog_segment_actions, ["omni_purchase", "purchase"], issues, "catalog_segment_actions");
+    const cpasSegmentRevenue = extractActionMetric(row.catalog_segment_value, ["omni_purchase", "purchase"], issues, "catalog_segment_value");
+    const cpasSegmentRoas = extractActionMetric(row.catalog_segment_value_omni_purchase_roas, ["omni_purchase", "purchase"], issues, "catalog_segment_value_omni_purchase_roas") ?? ratio(cpasSegmentRevenue, spend);
+    const cpasSegmentCpr = ratio(spend, cpasSegmentPurchases);
+    const cpasSegmentAddToCart = extractActionMetric(row.catalog_segment_actions, ["omni_add_to_cart", "add_to_cart"], issues, "catalog_segment_add_to_cart");
+    const cpasInAppPurchases = extractActionMetric(row.catalog_segment_actions ?? row.actions, ["app_custom_event.fb_mobile_purchase", "onsite_app_purchase"], issues, "cpas_in_app_purchases");
+    const cpasInAppContentViews = extractActionMetric(row.catalog_segment_actions ?? row.actions, ["app_custom_event.fb_mobile_content_view", "onsite_app_view_content"], issues, "cpas_in_app_content_views");
     const real = has("real_purchases") || has("real_revenue");
     const backend = has("backend_purchases") || has("backend_revenue");
     let source = real && backend ? "mixed_backend" : real ? "backend_real" : backend ? "backend" : "meta";
@@ -3066,7 +4233,10 @@ function cmdAnalyze(argv) {
     }
     return {
       id, name, spend, impressions, frequency, purchases, revenue, meta_purchases: metaPurchases, meta_revenue: metaRevenue,
-      meta_roas: ratio(metaRevenue, spend), reconciled: false, reconciliation_status: applyRate ? "DELIVERY_RATE_ESTIMATE" : real || backend ? "BACKEND_SUPPLIED_UNVERIFIED" : "NONE",
+      meta_roas: ratio(metaRevenue, spend), cpas_segment_purchases: cpasSegmentPurchases, cpas_segment_revenue: cpasSegmentRevenue,
+      cpas_segment_roas: cpasSegmentRoas, cpas_segment_cpr: cpasSegmentCpr, cpas_segment_add_to_cart: cpasSegmentAddToCart,
+      cpas_in_app_purchases: cpasInAppPurchases, cpas_in_app_content_views: cpasInAppContentViews,
+      reconciled: false, reconciliation_status: applyRate ? "DELIVERY_RATE_ESTIMATE" : real || backend ? "BACKEND_SUPPLIED_UNVERIFIED" : "NONE",
       roas, cpr, cpm, ctr, cpc, hook_rate: hookRate, hold_rate: holdRate, cvr,
       revenue_after_ad_spend: revenue !== null && spend !== null ? round(revenue - spend) : null,
       estimated_contribution_after_ads: contribution, estimated_net_profit: null,
@@ -3116,7 +4286,8 @@ function cmdAnalyze(argv) {
   console.log(`=== META ADS OBSERVATIONS (${memory.brand}) ===`);
   console.log("Local hypotheses only; no mutation commands or automatic winner/loser promotion. Unknown costs and unsupported order bases remain unavailable.");
   for (const r of evaluated) {
-    console.log(`  [${r.classification}] ${r.name}: ROAS=${r.roas ?? "n/a"}, CPR=${r.cpr ?? "n/a"}, contribution after ads=${r.estimated_contribution_after_ads ?? "unknown"}`);
+    const cpasSuffix = r.cpas_segment_purchases !== null ? ` | CPAS segment: purchases=${r.cpas_segment_purchases}, value=${r.cpas_segment_revenue ?? "n/a"}, ROAS=${r.cpas_segment_roas ?? "n/a"}, CPR=${r.cpas_segment_cpr ?? "n/a"}, ATC=${r.cpas_segment_add_to_cart ?? "n/a"}` : "";
+    console.log(`  [${r.classification}] ${r.name}: ROAS=${r.roas ?? "n/a"}, CPR=${r.cpr ?? "n/a"}, contribution after ads=${r.estimated_contribution_after_ads ?? "unknown"}${cpasSuffix}`);
     console.log(`    ${r.diagnosis}`);
     for (const issue of [...r.data_quality.issues, ...r.context_issues]) console.log(`    Review: ${issue}`);
   }
@@ -3229,15 +4400,17 @@ function main() {
   }
 
   const sub = argv[0];
-  const rest = argv.slice(1);
+  let rest = argv.slice(1);
 
   try {
+    const configured = configureBM(sub, rest);
+    if (configured?.rest) rest = configured.rest;
     switch (sub) {
       case "baseline":
         cmdBaseline(rest);
         break;
       case "setup":
-        cmdSetup(rest);
+        cmdSetup(rest, configured?.profiles);
         break;
       case "init":
         cmdInit(rest);
@@ -3247,6 +4420,9 @@ function main() {
         break;
       case "sync":
         cmdSync(rest);
+        break;
+      case "history":
+        cmdHistory(rest);
         break;
       case "report":
         cmdReport(rest);

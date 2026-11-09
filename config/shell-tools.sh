@@ -100,10 +100,15 @@ pi() {
       local -a args=()
       [ -f "$mem" ]       && args+=(--append-system-prompt "$mem")
       [ -f "$local_mem" ] && args+=(--append-system-prompt "$local_mem")
+      # pi-background-tasks: keep its background shell tasks only. Its default
+      # "attribution" reads Claude Code account IDs from ~/.claude.json for
+      # Anthropic requests, "delegate" duplicates pi-subagents, and "fusion"
+      # accepts only subscription OAuth routes, not a base-URL gateway.
+      # An explicit PI_BG_FEATURES still wins.
       if [ ${#args[@]} -gt 0 ]; then
-        command pi "${args[@]}" "$@"
+        PI_BG_FEATURES="${PI_BG_FEATURES:-process}" command pi "${args[@]}" "$@"
       else
-        command pi "$@"
+        PI_BG_FEATURES="${PI_BG_FEATURES:-process}" command pi "$@"
       fi
       ;;
   esac
@@ -229,6 +234,14 @@ shopify-full-audit() {
 if [ -f /mnt/c/Users/Asus/win-debloat.ps1 ]; then
   alias win-debloat='powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\\Users\\Asus\\win-debloat.ps1'
 fi
+# One-shot: what the last background pull brought and any required action.
+# Claimed by rename so concurrent shells (tmux panes) show it only once.
+# Content is sanitized by dotsync when written.
+_dotsync_show_notice() {
+  [ -f "$1/notice" ] && mv "$1/notice" "$1/notice.shown.$$" 2>/dev/null || return 0
+  sed 's/^/dotsync: /' "$1/notice.shown.$$" >&2
+  rm -f "$1/notice.shown.$$"
+}
 # --- dotfiles: background fast-forward pull (TASK-099) ---
 # Keeps every device on the same rules, memory and skills. Interactive shells
 # only, never blocks the prompt, never commits or pushes; `dotsync autopull`
@@ -240,6 +253,7 @@ if [[ $- == *i* ]] && [ "${DOTSYNC_AUTOPULL:-1}" != 0 ] && [ -x "$HOME/dotfiles/
        [ "$(cat "${_dotsync_last%/*}/fail-count" 2>/dev/null || echo 0)" -ge 3 ] 2>/dev/null; }; then
     printf 'dotsync: %s\n' "$(cut -d' ' -f3- "$_dotsync_last")" >&2
   fi
+  _dotsync_show_notice "${_dotsync_last%/*}"
   ( "$HOME/dotfiles/bin/dotsync" autopull </dev/null >/dev/null 2>&1 & )
   unset _dotsync_last
 fi

@@ -118,6 +118,13 @@ bash -lic 'for c in claude codex pi agy omp skill-update ai-doctor; do command -
 
 `ai-doctor` is read-only unless `--self-test` is explicitly supplied. It reports drift; it does not silently repair runtime state.
 
+## Parallel AI terminals
+
+For running several AI terminals across several projects on one machine (queueing heavy jobs, per-device sizing,
+throwaway test databases, memory-pressure limits, and how to reproduce it on another device), see
+[`parallel-ai-dev-machine.md`](parallel-ai-dev-machine.md). Sizing is device-local: run `ai-capacity measure` and
+`ai-capacity apply` on each machine instead of copying another machine's numbers.
+
 ## Recovery
 
 Do not delete runtime configuration or installer backups without inspecting them. For a bad tracked change, use Git history to identify the exact file and restore only that file. For a bad runtime link, inspect its target, preserve any regular-file content, then rerun the relevant installer or link command.

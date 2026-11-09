@@ -39,7 +39,7 @@ resolves, so an entry here is a mention, not a gated reference.
 | [`ui-validation`](ui-validation/SKILL.md) |  | Prove a browser-visible change with the smallest real-browser evidence before calling UI done: Playwright or browser tool, narrow and wide viewports, keyboard, states, hydration, themes. | `admin-dashboard`, `design-taste`, `dotuiux`, `web-perf` |
 | [`web-perf`](web-perf/SKILL.md) | F | Audit, diagnose, or optimize page load and interaction performance: Core Web Vitals, Lighthouse, traces, network, bundles; Chrome DevTools MCP preferred, static audit otherwise. | `admin-dashboard`, `content`, `design-taste`, `storefront-ux`, `ui-validation` |
 | [`threejs`](threejs/SKILL.md) |  | Architect, build, and optimize 3D WebGL scenes with Three.js in vanilla JS, Vite, Astro, or React Three Fiber: shaders, GLTF, cameras, lighting, materials, canvas animation. | `gsap-core`, `gsap-scrolltrigger` |
-| [`dotuiux`](dotuiux/SKILL.md) |  | Start any UI/UX build or redesign: brief, live-site teardown, DESIGN.md, rendered checks via dotuiux. | `admin-dashboard`, `admin-product-ux`, `copywriting`, `design-taste`, `seo-website-builder`, `shadcn-ui`, `storefront-ux`, `ui-validation`, `web-perf`, `writer` |
+| [`dotuiux`](dotuiux/SKILL.md) |  | Start any UI/UX build or redesign: brief, live-site teardown, DESIGN.md, rendered checks via dotuiux. | `admin-dashboard`, `admin-product-ux`, `copywriting`, `cross-cli`, `design-taste`, `seo-website-builder`, `shadcn-ui`, `storefront-ux`, `ui-validation`, `web-perf`, `writer` |
 | [`stitch`](stitch/SKILL.md) |  | Use when the user invokes /stitch, onboards a repo to Stitch Loop, turns an existing app into Stitch designs, captures or uploads screens, generates or edits screens, extracts or reviews DESIGN.md,... | — |
 
 ## Animation (GSAP)
@@ -88,7 +88,7 @@ resolves, so an entry here is a mention, not a gated reference.
 
 | Skill | | What it owns | Routes to |
 |---|---|---|---|
-| [`meta-ads-cli`](meta-ads-cli/SKILL.md) |  | Automate Meta Ads campaigns, ad sets, creatives (image/video/DCO), insights, and catalogs from the terminal via the official meta-ads CLI and dotads-meta. | `content`, `copywriting`, `meta-ads-scout`, `meta-ads-signal-engine` |
+| [`meta-ads-cli`](meta-ads-cli/SKILL.md) |  | Automate Meta Ads campaigns, ad sets, creatives (image/video/DCO), insights, and catalogs from the terminal via the official meta-ads CLI and dotads-meta. | `content`, `copywriting`, `dotuiux`, `meta-ads-scout`, `meta-ads-signal-engine` |
 | [`meta-ads-signal-engine`](meta-ads-signal-engine/SKILL.md) |  | Meta Ads conversion signals: Pixel + Conversions API, event_id dedup, Advanced Matching, _fbp/_fbc preservation, COD vs prepaid Purchase, EMQ, CAPI event outbox. | `copywriting`, `full-stack-development`, `meta-ads-cli`, `meta-ads-scout` |
 | [`meta-ads-scout`](meta-ads-scout/SKILL.md) |  | Research competitor ads in the Meta Ad Library: official API first, public UI for manual review when the API lacks the market or category. | — |
 | [`google-ads-signal-engine`](google-ads-signal-engine/SKILL.md) |  | Google Ads conversion signals: gtag/GTM/sGTM, Enhanced Conversions, Consent Mode v2, transaction_id dedup, gclid/gbraid/wbraid, COD vs prepaid, offline uploads via Data Manager API. | `meta-ads-signal-engine` |

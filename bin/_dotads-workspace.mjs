@@ -2,9 +2,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 
 const VERSION = 1;
-const RENDERER = 'dotads-markdown-csv/1';
+const RENDERER = 'dotads-markdown-csv/4';
 const DEFINITIONS = 'platform-base-metrics/1';
 const RESOURCES = ['campaigns', 'adsets', 'ads', 'creatives'];
 const LEVELS = ['account', 'campaign', 'adset', 'ad'];
@@ -193,11 +194,13 @@ function allocate(root, account) {
     const saved = registry(root);
     let entry = saved.accounts[account.id];
     if (!entry) {
-      const candidates = fs.readdirSync(root).filter(name => name === account.id || name.startsWith(`${account.id}--`));
+      const candidates = fs.readdirSync(root).filter(name => name === account.id || name.startsWith(`${account.id}--`) || name.endsWith(` (${account.id})`));
       for (const name of candidates) noLinks(path.join(root, name));
       if (candidates.length) fail(`unregistered account directories require an explicitly selected existing directory: ${candidates.join(', ')}`);
       const slug = String(account.name || '').normalize('NFKD').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 60);
-      const relative = `${account.id}${slug ? `--${slug}` : ''}`;
+      const display = String(account.name || 'Ad Account').normalize('NFKC')
+        .replace(/[<>:"/\\|?*\x00-\x1f\x7f]/g, '-').replace(/^[. ]+|[. ]+$/g, '').slice(0, 100) || 'Ad Account';
+      const relative = fs.existsSync(path.join(root, 'bm.json')) ? `${display} (${account.id})` : `${account.id}${slug ? `--${slug}` : ''}`;
       const directory = contained(root, relative);
       if (fs.existsSync(directory)) fail(`unregistered existing directory requires explicit adoption: ${directory}`);
       mkdir(directory);
@@ -210,6 +213,27 @@ function allocate(root, account) {
     return { root, entry, directory: contained(root, entry.directory) };
   });
 }
+export function prepareAccount(root, id, name) {
+  id = accountId(id);
+  root = ensureRoot(root);
+  const existing = registry(root).accounts[id];
+  if (existing) return resolveAccount(root, id).directory;
+  if (typeof name !== 'string' || !name.trim()) fail('a new account workspace requires an explicit account name');
+  const account = { id, account_id: id.slice(4), name: name.trim(), identity_source: 'LOCAL_INPUT_UNVERIFIED' };
+  const result = allocate(root, account);
+  accountView(result.directory, account, { scopes: {} });
+  return result.directory;
+}
+
+export function ensureBMAssets(root) {
+  noLinks(root);
+  const bm = readJson(path.join(root, 'bm.json'));
+  if (bm.schema_version !== VERSION || !DIGITS.test(bm.id)) fail('shared assets require a BM workspace');
+  for (const relative of ['assets', 'assets/images', 'assets/videos', 'assets/temporary', 'assets/temporary/images', 'assets/temporary/videos']) mkdir(contained(root, relative));
+  const guide = contained(root, 'assets/ASSETS.md');
+  if (!fs.existsSync(guide)) writeNew(guide, '# Shared BM assets\n\nImages and videos are content-addressed copies, reusable by all accounts in this BM. Importing does not upload to Meta or prove a creative association.\n\n`temporary/` is opt-in scratch storage. Nothing is automatically deleted. Preserve campaign source files; do not point durable manifests at temporary copies. Move operations into temporary storage are prohibited.\n');
+}
+
 export function listLocalAccounts(root) {
   if (typeof root !== 'string' || !root.trim()) fail('workspace root is required');
   root = noLinks(root, true);
@@ -368,7 +392,8 @@ export function validateCollection(input) {
 
 function prepared(input) {
   validateCollection(input);
-  const source = { ...input.source, ...(input.import_context != null ? { import_context: input.import_context } : {}) };
+  // Source-level provenance is loader-owned on imports; legacy top-level metadata cannot override it.
+  const source = { ...(input.import_context != null ? { import_context: input.import_context } : {}), ...input.source };
   const value = sanitize(structuredClone({ schema_version: input.schema_version, source, account: input.account, scope: input.scope, resources: input.resources, insights: input.insights }));
   value.insights = value.insights.map(envelope => ({ ...envelope, query: { ...envelope.query, query_id: normalizeQuery(envelope.query, value.account).query_id }, effective_settings: envelope.effective_settings ?? null }));
   const semantics = {
@@ -380,6 +405,8 @@ function prepared(input) {
     required_fields: semantic(value.scope.required_fields ?? {}),
     inventory_fields: fieldMap(value.scope.inventory_fields ?? {}, 'inventory fields'),
     required_inventory_fields: fieldMap(value.scope.required_inventory_fields ?? {}, 'required inventory fields'),
+    // Legacy scopes omit the key entirely so their scope hashes stay identical.
+    ...(value.scope.metric_profile != null ? { metric_profile: metricProfile(value.scope.metric_profile) } : {}),
   };
   const required = semantics.required_resources.map(name => value.resources[name]);
   const queries = value.insights.map(item => item.coverage);
@@ -392,7 +419,11 @@ function requestScope(scope) {
   date(scope.since, 'request since'); date(scope.until, 'request until');
   if (scope.since > scope.until) fail('request date range is reversed');
   if (!object(scope.attribution ?? {}) || typeof scope.action_report_time !== 'string' || !scope.action_report_time) fail('invalid requested attribution or action report time');
-  return { collection_contract_version: scope.collection_contract_version ?? VERSION, since: scope.since, until: scope.until, levels: strings(scope.levels, 'request levels', LEVELS), breakdowns: strings(scope.breakdowns ?? [], 'request breakdowns'), attribution: semantic(scope.attribution ?? {}), action_report_time: scope.action_report_time, inventory_filters: semantic(scope.inventory_filters ?? {}), required_resources: strings(scope.required_resources ?? RESOURCES, 'required resources', RESOURCES), required_fields: semantic(scope.required_fields ?? {}), inventory_fields: fieldMap(scope.inventory_fields ?? {}, 'inventory fields'), required_inventory_fields: fieldMap(scope.required_inventory_fields ?? {}, 'required inventory fields') };
+  return { collection_contract_version: scope.collection_contract_version ?? VERSION, since: scope.since, until: scope.until, levels: strings(scope.levels, 'request levels', LEVELS), breakdowns: strings(scope.breakdowns ?? [], 'request breakdowns'), attribution: semantic(scope.attribution ?? {}), action_report_time: scope.action_report_time, inventory_filters: semantic(scope.inventory_filters ?? {}), required_resources: strings(scope.required_resources ?? RESOURCES, 'required resources', RESOURCES), required_fields: semantic(scope.required_fields ?? {}), inventory_fields: fieldMap(scope.inventory_fields ?? {}, 'inventory fields'), required_inventory_fields: fieldMap(scope.required_inventory_fields ?? {}, 'required inventory fields'), ...(scope.metric_profile != null ? { metric_profile: metricProfile(scope.metric_profile) } : {}) };
+}
+function metricProfile(value) {
+  if (value !== 'cpas_v1') fail('unsupported metric profile');
+  return value;
 }
 function state(directory) {
   const target = path.join(directory, 'sync.json');
@@ -406,22 +437,24 @@ function emptyMedia() { return { schema_version: VERSION, assets: [], imports: [
 function index(directory, name) {
   const target = path.join(directory, name, 'index.json');
   noLinks(target, true);
-  if (!fs.existsSync(target)) return name === 'media' ? emptyMedia() : { schema_version: VERSION, destinations: [] };
+  const isMedia = ['media', 'assets', 'assets/temporary'].includes(name);
+  if (!fs.existsSync(target)) return isMedia ? emptyMedia() : { schema_version: VERSION, destinations: [] };
   const value = readJson(target);
-  if (value.schema_version !== VERSION || (name === 'media' ? !Array.isArray(value.assets) || !Array.isArray(value.imports) || !Array.isArray(value.remote_references) : !Array.isArray(value.destinations))) fail(`invalid ${name} index`);
-  if (name === 'media') {
-    const account = readJson(path.join(directory, 'account.json'));
+  if (value.schema_version !== VERSION || (isMedia ? !Array.isArray(value.assets) || !Array.isArray(value.imports) || !Array.isArray(value.remote_references) : !Array.isArray(value.destinations))) fail(`invalid ${name} index`);
+  if (isMedia) {
+    const owners = name === 'media' ? [readJson(path.join(directory, 'account.json')).id] : Object.keys(registry(directory).accounts);
+    const validPath = value => typeof value === 'string' && value.startsWith(`${name}/`) && /^(images|videos)\/[^/]+$/.test(value.slice(name.length + 1));
     const ids = new Set();
     for (const asset of value.assets) {
-      if (!object(asset) || !/^[a-f0-9]{64}$/.test(asset.sha256) || ids.has(asset.sha256) || !/^media\/(images|videos)\/[^/]+$/.test(asset.path) || !MEDIA.has(path.extname(asset.path)) || path.basename(asset.path).slice(0, 64) !== asset.sha256 || !Number.isSafeInteger(asset.size) || asset.size < 0) fail('invalid or duplicate media asset');
+      if (!object(asset) || !/^[a-f0-9]{64}$/.test(asset.sha256) || ids.has(asset.sha256) || !validPath(asset.path) || !MEDIA.has(path.extname(asset.path)) || path.basename(asset.path).slice(0, 64) !== asset.sha256 || !Number.isSafeInteger(asset.size) || asset.size < 0) fail('invalid or duplicate media asset');
       contained(directory, asset.path); ids.add(asset.sha256);
     }
     const operations = new Set();
     for (const operation of value.imports) {
-      if (!object(operation) || !/^i_[a-f0-9]{64}$/.test(operation.operation_id) || operations.has(operation.operation_id) || operation.account_id !== account.id || !['copy', 'move'].includes(operation.mode) || typeof operation.source !== 'string' || path.resolve(operation.source) !== operation.source || !/^[a-f0-9]{64}$/.test(operation.sha256) || !object(operation.identity) || !['planned', 'source_claimed', 'destination_verified', 'indexed', 'source_cleanup_pending', 'complete', 'conflict'].includes(operation.state)) fail('invalid media import journal');
+      if (!object(operation) || !/^i_[a-f0-9]{64}$/.test(operation.operation_id) || operations.has(operation.operation_id) || !owners.includes(operation.account_id) || !['copy', 'move'].includes(operation.mode) || typeof operation.source !== 'string' || path.resolve(operation.source) !== operation.source || !/^[a-f0-9]{64}$/.test(operation.sha256) || !object(operation.identity) || !['planned', 'source_claimed', 'destination_verified', 'indexed', 'source_cleanup_pending', 'complete', 'conflict'].includes(operation.state)) fail('invalid media import journal');
       if (operation.operation_id !== importId(operation.account_id, operation.source, operation.mode, operation)) fail('media import journal identity conflict');
       operations.add(operation.operation_id);
-      if (!/^media\/(images|videos)\/[^/]+$/.test(operation.destination ?? '') || path.basename(operation.destination).slice(0, 64) !== operation.sha256) fail('invalid import destination');
+      if (!validPath(operation.destination) || path.basename(operation.destination).slice(0, 64) !== operation.sha256) fail('invalid import destination');
       contained(directory, operation.destination);
       if (operation.mode === 'move' ? operation.claim !== path.join(path.dirname(operation.source), `.dotads-claim-${operation.operation_id}`, 'source') : operation.claim !== null) fail('invalid source claim path');
     }
@@ -430,6 +463,9 @@ function index(directory, name) {
 }
 function references(directory, value, snapshotId) {
   const media = index(directory, 'media'), web = index(directory, 'web');
+  // Indexes grow with every snapshot; a linear canonical() scan per reference made publication quadratic.
+  const seen = list => { const keys = new Set(list.map(canonical)); return record => { const key = canonical(record); if (keys.has(key)) return; keys.add(key); list.push(record); }; };
+  const addMedia = seen(media.remote_references), addWeb = seen(web.destinations);
   const creativeAds = new Map();
   for (const ad of value.resources.ads.rows) {
     const creative = ad.creative?.id ?? ad.creative_id;
@@ -442,23 +478,19 @@ function references(directory, value, snapshotId) {
     const field = route.split('.').at(-1);
     const association = { snapshot_id: snapshotId, creative_id: creativeId, ad_ids: adIds, field: route };
     if (['image_hash', 'video_id', 'object_story_id', 'effective_object_story_id', 'source_instagram_media_id'].includes(field) || (field === 'hash' && /image/i.test(route))) {
-      const record = { ...association, reference_type: field === 'hash' ? 'image_hash' : field, reference: node, availability: 'remote_reference', downloaded: false };
-      if (!media.remote_references.some(item => canonical(item) === canonical(record))) media.remote_references.push(record);
+      addMedia({ ...association, reference_type: field === 'hash' ? 'image_hash' : field, reference: node, availability: 'remote_reference', downloaded: false });
       return;
     }
     if (['lead_gen_form_id', 'application_id', 'destination_type'].includes(field) || (field === 'app_link' && !/^https?:\/\//i.test(node))) {
-      const record = { ...association, destination_type: field === 'app_link' ? 'deep_link' : field === 'destination_type' ? 'declared_type' : 'native', native_kind: field, native_reference: node, capture: null };
-      if (!web.destinations.some(item => canonical(item) === canonical(record))) web.destinations.push(record);
+      addWeb({ ...association, destination_type: field === 'app_link' ? 'deep_link' : field === 'destination_type' ? 'declared_type' : 'native', native_kind: field, native_reference: node, capture: null });
       return;
     }
     if (!/^https?:\/\//i.test(node)) return;
     if (/(?:image|video|thumbnail|picture|source)/i.test(route) && /(?:url|source|picture)$/.test(field)) {
-      const record = { ...association, url: node, availability: 'remote_reference', downloaded: false };
-      if (!media.remote_references.some(item => canonical(item) === canonical(record))) media.remote_references.push(record);
+      addMedia({ ...association, url: node, availability: 'remote_reference', downloaded: false });
     } else if (/^(?:link|url|link_url|website_url|object_url|destination_url|app_link)$/.test(field)) {
       const url = new URL(node); const normalized = new URL(node); normalized.hash = ''; normalized.searchParams.sort();
-      const record = { ...association, original_tagged_url: node, page_identity: normalized.href, domain: url.hostname, destination_type: /(?:^|\.)(?:wa\.me|whatsapp\.com)$/i.test(url.hostname) ? 'messaging' : 'website', capture: null };
-      if (!web.destinations.some(item => canonical(item) === canonical(record))) web.destinations.push(record);
+      addWeb({ ...association, original_tagged_url: node, page_identity: normalized.href, domain: url.hostname, destination_type: /(?:^|\.)(?:wa\.me|whatsapp\.com)$/i.test(url.hostname) ? 'messaging' : 'website', capture: null });
     }
   }
   for (const creative of value.resources.creatives.rows) walk(creative, 'creative', creative.id, creativeAds.get(creative.id) ?? []);
@@ -473,6 +505,12 @@ function accountView(directory, account, sync) {
     lines.push(`Scope \`${key}\``, '', `Latest attempt: ${scope.latest_attempt?.status ?? 'unknown'} (${scope.latest_attempt?.snapshot_id ?? 'none'}).`, `Last complete success: ${scope.last_complete_success?.snapshot_id ?? 'none'}.`, '');
     if (scope.current_report) lines.push(`[Current complete report](${scope.current_report.path}/REPORT.md)`, '');
   }
+  if (fs.existsSync(contained(directory, 'history.json'))) {
+    const history = readJson(contained(directory, 'history.json'));
+    lines.push(`[Latest history attempt](${history.latest_attempt.path}) (${history.latest_attempt.status}; ${md(history.latest_attempt.as_of)}).`, '');
+    if (history.last_complete_success) lines.push(`[Last complete history](${history.last_complete_success.path}) (${md(history.last_complete_success.as_of)}; not proof the latest refresh succeeded).`, '');
+  }
+  if (fs.existsSync(contained(directory, 'memory/MEMORY.md'))) lines.push('[Account-scoped learning and retained claims](memory/MEMORY.md). Evidence memory is not spend authorization.', '');
   if (sync.unmatched_latest_attempt) lines.push('A newer request failed with a different or unmatched scope. Default report selection is blocked; choose an explicit historical scope or complete the requested collection.', '');
   if (fs.existsSync(path.join(directory, 'operational-references.json'))) lines.push('[Selected operational project references](operational-references.json). Deployment state remains authoritative at its original project.', '');
   atomic(path.join(directory, 'ACCOUNT.md'), lines.join('\n'));
@@ -587,6 +625,210 @@ function queryTotals(envelope, account) {
   const spend = sum('spend'), impressions = sum('impressions'), clicks = sum('outbound_clicks');
   return { available: true, spend, impressions, outbound_clicks: clicks, outbound_ctr_fraction: ratio(clicks, impressions), outbound_cpc: ratio(spend, clicks), cpm: ratio(spend, impressions, 1000), reach: null, frequency: null };
 }
+// --- Commerce insight (TASK-194): deterministic, offline, derived only from a saved snapshot. ---
+// Alias groups are ordered by preference and never summed: Meta reports the same purchase
+// under omni, pixel and standard names at once.
+const FUNNEL_ALIASES = {
+  landing_page_views: ['omni_landing_page_view', 'landing_page_view'],
+  view_content: ['omni_view_content', 'offsite_conversion.fb_pixel_view_content', 'view_content'],
+  add_to_cart: ['omni_add_to_cart', 'offsite_conversion.fb_pixel_add_to_cart', 'add_to_cart'],
+  initiate_checkout: ['omni_initiated_checkout', 'offsite_conversion.fb_pixel_initiate_checkout', 'initiate_checkout'],
+  purchases: ['omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'purchase'],
+  link_clicks: ['link_click'],
+};
+const PURCHASE_VALUE_ALIASES = ['omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'purchase'];
+const FREQUENCY_WATCH = 4;
+// Same five fields the provider's cpas_v1 profile requests; detection and extraction share this list.
+const CPAS_SEGMENT_FIELDS = ['catalog_segment_actions', 'catalog_segment_value', 'catalog_segment_value_omni_purchase_roas', 'catalog_segment_value_website_purchase_roas', 'catalog_segment_value_mobile_purchase_roas'];
+function pickAction(list, aliases) {
+  if (!Array.isArray(list)) return { value: null, source: null };
+  for (const name of aliases) {
+    const hits = list.filter(item => item?.action_type === name);
+    if (hits.length === 1) { const value = number(hits[0].value); if (value != null) return { value, source: name }; }
+  }
+  return { value: null, source: null };
+}
+function rowFunnel(row) {
+  const out = Object.fromEntries(Object.entries(FUNNEL_ALIASES).map(([key, aliases]) => [key, pickAction(row.actions, aliases)]));
+  out.purchase_value = pickAction(row.action_values, PURCHASE_VALUE_ALIASES);
+  return out;
+}
+function promotedKind(promoted) {
+  if (!object(promoted)) return 'none';
+  if (promoted.product_catalog_id || promoted.product_set_id) return 'catalog';
+  if (promoted.pixel_id) return 'pixel_conversion';
+  if (promoted.application_id) return 'app';
+  if (promoted.page_id) return 'page';
+  return 'other';
+}
+function countBy(rows, pick) {
+  const counts = {};
+  for (const row of rows) { const key = String(pick(row) ?? 'unknown'); counts[key] = (counts[key] ?? 0) + 1; }
+  return Object.fromEntries(Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)));
+}
+function segmentValue(list, types) {
+  if (!Array.isArray(list)) return null;
+  for (const type of types) { const hit = list.filter(item => item?.action_type === type); if (hit.length === 1) return number(hit[0].value); }
+  return null;
+}
+export function commerceInsight(value) {
+  const inventory = { campaign: value.resources.campaigns.rows, adset: value.resources.adsets.rows, ad: value.resources.ads.rows };
+  const byId = Object.fromEntries(Object.entries(inventory).map(([level, rows]) => [level, new Map(rows.map(row => [row.id, row]))]));
+  // Period-level diagnostics need one row per entity covering the whole query period.
+  const unavailable = {};
+  const envelope = level => {
+    const item = value.insights.find(entry => entry.query.level === level && !(entry.query.breakdowns ?? []).length);
+    if (!item) { unavailable[level] = 'No breakdown-free query at this level.'; return null; }
+    if (item.coverage.status !== 'complete') { unavailable[level] = 'Query coverage is incomplete.'; return null; }
+    const entities = item.rows.map(row => entityFor(level, row, value.account.id));
+    const whole = (item.query.time_increment ?? 'all_days') === 'all_days' && new Set(entities).size === entities.length &&
+      item.rows.every(row => (row.date_start ?? item.query.since) === item.query.since && (row.date_stop ?? item.query.until) === item.query.until);
+    if (!whole) { unavailable[level] = 'Rows are not one whole-period bucket per entity; diagnostics withheld.'; return null; }
+    return item;
+  };
+  const account = envelope('account'), accountRow = account?.rows.length === 1 ? account.rows[0] : null;
+  const funnel = accountRow ? rowFunnel(accountRow) : Object.fromEntries([...Object.keys(FUNNEL_ALIASES), 'purchase_value'].map(key => [key, { value: null, source: null }]));
+  const spend = accountRow ? number(accountRow.spend) : null, impressions = accountRow ? number(accountRow.impressions) : null;
+  const v = key => funnel[key].value;
+  const ratios = { roas: ratio(v('purchase_value'), spend), cost_per_purchase: ratio(spend, v('purchases')), cost_per_add_to_cart: ratio(spend, v('add_to_cart')),
+    cost_per_landing_page_view: ratio(spend, v('landing_page_views')), add_to_cart_per_landing_page_view: ratio(v('add_to_cart'), v('landing_page_views')),
+    initiate_checkout_per_add_to_cart: ratio(v('initiate_checkout'), v('add_to_cart')), purchase_per_add_to_cart: ratio(v('purchases'), v('add_to_cart')),
+    purchase_per_initiate_checkout: ratio(v('purchases'), v('initiate_checkout')), average_order_value: ratio(v('purchase_value'), v('purchases')),
+    account_frequency: accountRow ? number(accountRow.frequency) : null };
+  const clicks = {}, concentration = {}, watch = [];
+  let watchStatus = 'UNAVAILABLE';
+  for (const level of ['campaign', 'adset', 'ad']) {
+    const item = envelope(level);
+    if (!item) { clicks[level] = null; concentration[level] = []; continue; }
+    const observed = item.rows.map(outbound), present = observed.filter(count => count != null);
+    clicks[level] = { outbound_clicks_exact_sum: item.rows.length && present.length === item.rows.length ? present.reduce((a, b) => a + b, 0) : null,
+      observed_outbound_clicks_sum: present.length ? present.reduce((a, b) => a + b, 0) : null, rows_with_outbound_clicks: `${present.length}/${item.rows.length}` };
+    const total = item.rows.reduce((sum, row) => sum + (number(row.spend) ?? 0), 0);
+    concentration[level] = item.rows.map(row => {
+      const id = entityFor(level, row, value.account.id), current = byId[level].get(id), m = measured(row), f = rowFunnel(row);
+      const hasSegment = CPAS_SEGMENT_FIELDS.some(key => Object.hasOwn(row, key));
+      const segPurchases = hasSegment ? segmentValue(row.catalog_segment_actions, ['omni_purchase', 'purchase']) : null;
+      const segPurchaseValue = hasSegment ? segmentValue(row.catalog_segment_value, ['omni_purchase', 'purchase']) : null;
+      const segRoas = hasSegment ? (segmentValue(row.catalog_segment_value_omni_purchase_roas, ['omni_purchase', 'purchase']) ?? ratio(segPurchaseValue, m.spend)) : null;
+      const segAddToCart = hasSegment ? segmentValue(row.catalog_segment_actions, ['omni_add_to_cart', 'add_to_cart']) : null;
+      const parentAdset = level === 'ad' ? byId.adset.get(row.adset_id ?? current?.adset_id) : level === 'adset' ? current : null;
+      const parentCampaign = byId.campaign.get(level === 'campaign' ? id : row.campaign_id ?? current?.campaign_id);
+      return { entity_id: id, name: current?.name ?? row[`${level}_name`] ?? null, spend: m.spend, spend_share_fraction: m.spend != null && total > 0 ? m.spend / total : null,
+        impressions: m.impressions, cpm: m.cpm, frequency: m.frequency, outbound_clicks: m.outbound_clicks, purchases: f.purchases.value, purchase_value: f.purchase_value.value,
+        roas: ratio(f.purchase_value.value, m.spend), cost_per_purchase: ratio(m.spend, f.purchases.value), add_to_cart: f.add_to_cart.value, landing_page_views: f.landing_page_views.value,
+        segment_purchases: segPurchases, segment_purchase_value: segPurchaseValue, segment_roas: segRoas, segment_cost_per_purchase: ratio(m.spend, segPurchases), segment_add_to_cart: segAddToCart,
+        effective_status: current?.effective_status ?? null, objective: parentCampaign?.objective ?? null, optimization_goal: parentAdset?.optimization_goal ?? null,
+        promoted_object_kind: parentAdset ? promotedKind(parentAdset.promoted_object) : null, daily_budget: current?.daily_budget ?? null, inventory_resolution: current ? 'resolved' : 'unresolved_historical' };
+    }).sort((a, b) => (b.spend ?? -1) - (a.spend ?? -1) || a.entity_id.localeCompare(b.entity_id)).slice(0, 5);
+    if (level === 'adset') {
+      const observedFrequency = item.rows.filter(row => number(row.frequency) != null);
+      if (item.rows.length && observedFrequency.length === item.rows.length) watchStatus = 'OBSERVED';
+      for (const row of observedFrequency) { const f = number(row.frequency); if (f >= FREQUENCY_WATCH) watch.push({ level, entity_id: entityFor(level, row, value.account.id), frequency: f }); }
+    }
+  }
+  const promotedRows = [...inventory.campaign.map(row => row.promoted_object), ...inventory.adset.map(row => row.promoted_object)].filter(object);
+  const catalogIds = [...new Set(promotedRows.map(row => row.product_catalog_id).filter(Boolean).map(String))].sort();
+  const productSetIds = [...new Set([...promotedRows.map(row => row.product_set_id), ...value.resources.creatives.rows.map(row => row.product_set_id)].filter(Boolean).map(String))].sort();
+  const segmentRow = accountRow && CPAS_SEGMENT_FIELDS.some(key => Object.hasOwn(accountRow, key)) ? accountRow : null;
+  const requested = (value.scope.metric_profile ?? 'legacy') === 'cpas_v1';
+  const inAppContentViews = accountRow ? pickAction(accountRow.actions, ['app_custom_event.fb_mobile_content_view']).value : null;
+  const inAppAddsToCart = accountRow ? pickAction(accountRow.actions, ['app_custom_event.fb_mobile_add_to_cart']).value : null;
+  const inAppPurchases = accountRow ? pickAction(accountRow.actions, ['app_custom_event.fb_mobile_purchase']).value : null;
+  const inAppPurchaseValue = accountRow ? pickAction(accountRow.action_values, ['app_custom_event.fb_mobile_purchase']).value : null;
+  const websiteContentViews = accountRow ? pickAction(accountRow.actions, ['offsite_conversion.fb_pixel_view_content']).value : null;
+  const websiteAddsToCart = accountRow ? pickAction(accountRow.actions, ['offsite_conversion.fb_pixel_add_to_cart']).value : null;
+  const websitePurchases = accountRow ? pickAction(accountRow.actions, ['offsite_conversion.fb_pixel_purchase']).value : null;
+  const websitePurchaseValue = accountRow ? pickAction(accountRow.action_values, ['offsite_conversion.fb_pixel_purchase']).value : null;
+  const appSiteVisits = accountRow ? pickAction(accountRow.actions, ['app_site_visit']).value : null;
+  const segmentViewContent = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['omni_view_content', 'view_content']) : null;
+  const segmentAddToCart = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['omni_add_to_cart', 'add_to_cart']) : null;
+  const segmentPurchases = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['omni_purchase', 'purchase']) : null;
+  const segmentPurchaseValue = segmentRow ? segmentValue(segmentRow.catalog_segment_value, ['omni_purchase', 'purchase']) : null;
+  const segmentOmniRoas = segmentRow ? (segmentValue(segmentRow.catalog_segment_value_omni_purchase_roas, ['omni_purchase', 'purchase']) ?? ratio(segmentPurchaseValue, spend)) : null;
+  const segmentInAppContentViews = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['app_custom_event.fb_mobile_content_view', 'onsite_app_view_content']) : null;
+  const segmentInAppAddsToCart = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['app_custom_event.fb_mobile_add_to_cart', 'onsite_app_add_to_cart']) : null;
+  const segmentInAppPurchases = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['app_custom_event.fb_mobile_purchase', 'onsite_app_purchase']) : null;
+  const segmentInAppPurchaseValue = segmentRow ? segmentValue(segmentRow.catalog_segment_value, ['app_custom_event.fb_mobile_purchase', 'onsite_app_purchase']) : null;
+  const segmentWebsiteContentViews = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['offsite_conversion.fb_pixel_view_content']) : null;
+  const segmentWebsiteAddsToCart = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['offsite_conversion.fb_pixel_add_to_cart']) : null;
+  const segmentWebsitePurchases = segmentRow ? segmentValue(segmentRow.catalog_segment_actions, ['offsite_conversion.fb_pixel_purchase']) : null;
+  const segmentWebsitePurchaseValue = segmentRow ? segmentValue(segmentRow.catalog_segment_value, ['offsite_conversion.fb_pixel_purchase']) : null;
+  const cpas = { status: segmentRow ? 'OBSERVED' : requested ? 'REQUESTED_NOT_RETURNED' : 'NOT_REQUESTED',
+    catalog_lineage: { catalog_ids: catalogIds, product_set_ids: productSetIds, classification: catalogIds.length || productSetIds.length ? 'UNVERIFIED_SEGMENT' : 'NO_CATALOG_LINEAGE' },
+    segment_view_content: segmentViewContent,
+    segment_purchases: segmentPurchases,
+    segment_add_to_cart: segmentAddToCart,
+    segment_purchase_value: segmentPurchaseValue,
+    segment_cost_per_purchase: ratio(spend, segmentPurchases),
+    segment_cost_per_add_to_cart: ratio(spend, segmentAddToCart),
+    segment_average_order_value: ratio(segmentPurchaseValue, segmentPurchases),
+    segment_purchase_per_add_to_cart: ratio(segmentPurchases, segmentAddToCart),
+    segment_omni_purchase_roas: segmentOmniRoas,
+    segment_website_purchase_roas: segmentRow ? segmentValue(segmentRow.catalog_segment_value_website_purchase_roas, ['offsite_conversion.fb_pixel_purchase', 'purchase', 'omni_purchase']) : null,
+    segment_mobile_purchase_roas: segmentRow ? segmentValue(segmentRow.catalog_segment_value_mobile_purchase_roas, ['app_custom_event.fb_mobile_purchase', 'purchase', 'omni_purchase']) : null,
+    segment_in_app_content_views: segmentInAppContentViews,
+    segment_in_app_adds_to_cart: segmentInAppAddsToCart,
+    segment_in_app_purchases: segmentInAppPurchases,
+    segment_in_app_purchase_value: segmentInAppPurchaseValue,
+    segment_website_content_views: segmentWebsiteContentViews,
+    segment_website_adds_to_cart: segmentWebsiteAddsToCart,
+    segment_website_purchases: segmentWebsitePurchases,
+    segment_website_purchase_value: segmentWebsitePurchaseValue,
+    segment_in_app_arrival_per_link_click: ratio(segmentInAppContentViews, v('link_clicks')),
+    in_app_content_views: inAppContentViews,
+    in_app_adds_to_cart: inAppAddsToCart,
+    in_app_purchases: inAppPurchases,
+    in_app_purchase_value: inAppPurchaseValue,
+    website_content_views: websiteContentViews,
+    website_adds_to_cart: websiteAddsToCart,
+    website_purchases: websitePurchases,
+    website_purchase_value: websitePurchaseValue,
+    app_site_visits: appSiteVisits,
+    in_app_arrival_per_link_click: ratio(inAppContentViews, v('link_clicks')) };
+  const summarize = (rows, extra = {}) => ({ total: rows.length, by_effective_status: countBy(rows, row => row.effective_status), ...Object.fromEntries(Object.entries(extra).map(([key, pick]) => [key, countBy(rows, pick)])) });
+  return { definition_version: 'commerce-insight/2', currency: value.account.currency ?? null, spend, impressions,
+    funnel, ratios, clicks, spend_concentration: concentration, unavailable, frequency_watch_status: watchStatus, frequency_watch: watch.sort((a, b) => b.frequency - a.frequency || a.entity_id.localeCompare(b.entity_id)), cpas,
+    inventory: { campaigns: summarize(inventory.campaign, { by_objective: row => row.objective }), adsets: summarize(inventory.adset, { by_optimization_goal: row => row.optimization_goal, by_promoted_object_kind: row => promotedKind(row.promoted_object) }),
+      ads: summarize(inventory.ad), creatives: { total: value.resources.creatives.rows.length } },
+    limits: ['Platform-attributed values; not profit, settlement or incrementality.', 'Purchase aliases are chosen in a fixed preference order, never summed.',
+      `Frequency at or above ${FREQUENCY_WATCH} is an observation to investigate, not a fatigue diagnosis.`, 'CPAS segment values are estimated, retailer-reported and kept separate from ordinary purchases; catalog lineage is unverified until is_catalog_segment is observed.'] };
+}
+function fmt(value, digits = 2) { return value == null ? 'unavailable' : Number.isInteger(value) ? String(value) : value.toFixed(digits); }
+function commerceMarkdown(insight) {
+  const f = insight.funnel, r = insight.ratios, lines = ['## Commerce funnel and diagnostics', '', `Definition ${insight.definition_version}. Currency ${md(insight.currency ?? 'unknown')}. Account-level, complete coverage only; unavailable means not measured or not returned.`, '',
+    '| Metric | Value | Source action |', '| --- | --- | --- |',
+    ...['landing_page_views', 'view_content', 'add_to_cart', 'initiate_checkout', 'purchases', 'purchase_value', 'link_clicks'].map(key => `| ${key} | ${fmt(f[key].value)} | ${md(f[key].source ?? '—')} |`), '',
+    `ROAS (platform): ${fmt(r.roas)} · Cost per purchase: ${fmt(r.cost_per_purchase)} · Cost per add-to-cart: ${fmt(r.cost_per_add_to_cart)} · Cost per landing-page view: ${fmt(r.cost_per_landing_page_view)} · AOV: ${fmt(r.average_order_value)}.`,
+    `Step rates: ATC/LPV ${fmt(r.add_to_cart_per_landing_page_view, 3)} · IC/ATC ${fmt(r.initiate_checkout_per_add_to_cart, 3)} · Purchase/ATC ${fmt(r.purchase_per_add_to_cart, 3)} · Purchase/IC ${fmt(r.purchase_per_initiate_checkout, 3)} · Account frequency ${fmt(r.account_frequency)}.`, ''];
+  for (const level of ['campaign', 'adset', 'ad']) {
+    const c = insight.clicks[level];
+    if (c) lines.push(`Outbound clicks (${level} level): exact sum ${fmt(c.outbound_clicks_exact_sum)}; observed sum ${fmt(c.observed_outbound_clicks_sum)}; rows with outbound clicks: ${c.rows_with_outbound_clicks}.`);
+    else if (insight.unavailable?.[level]) lines.push(`Outbound clicks and spend concentration (${level} level): unavailable \u2014 ${md(insight.unavailable[level])}`);
+  }
+  lines.push('', '### Spend concentration (top 5 by spend)', '');
+  for (const level of ['campaign', 'adset', 'ad']) {
+    const rows = insight.spend_concentration[level];
+    if (!rows.length) continue;
+    lines.push(`**${level}**`, '', '| ID | Name | Spend | Share | CPM | Freq | Purchases | ROAS | CPR | Status | Objective / goal |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+      ...rows.map(row => `| ${md(row.entity_id)} | ${md(row.name ?? '—')} | ${fmt(row.spend)} | ${fmt(row.spend_share_fraction, 3)} | ${fmt(row.cpm)} | ${fmt(row.frequency)} | ${fmt(row.purchases)} | ${fmt(row.roas)} | ${fmt(row.cost_per_purchase)} | ${md(row.effective_status ?? '—')} | ${md(row.objective ?? '—')} / ${md(row.optimization_goal ?? '—')} |`), '');
+  }
+  lines.push('### Frequency watch', '', insight.frequency_watch_status !== 'OBSERVED' ? '- Frequency watch unavailable: no complete whole-period ad-set frequency for every row.' : insight.frequency_watch.length ? insight.frequency_watch.map(item => `- ${item.level} ${md(item.entity_id)}: frequency ${fmt(item.frequency)} (observation, not diagnosis)`).join('\n') : '- No ad set at or above the watch threshold.', '',
+    '### Inventory structure', '', '```json', json(insight.inventory).trimEnd(), '```', '',
+    '### CPAS / catalog', '', `Status ${insight.cpas.status}; lineage ${insight.cpas.catalog_lineage.classification}; catalogs ${md(insight.cpas.catalog_lineage.catalog_ids.join(', ') || 'none')}; product sets ${md(insight.cpas.catalog_lineage.product_set_ids.join(', ') || 'none')}.`,
+    `Segment funnel: VC ${fmt(insight.cpas.segment_view_content)} · ATC ${fmt(insight.cpas.segment_add_to_cart)} · purchases ${fmt(insight.cpas.segment_purchases)} · segment value ${fmt(insight.cpas.segment_purchase_value)} · segment omni ROAS ${fmt(insight.cpas.segment_omni_purchase_roas)} · segment CPP ${fmt(insight.cpas.segment_cost_per_purchase)} · segment AOV ${fmt(insight.cpas.segment_average_order_value)} (estimated, retailer-reported, separate from ordinary purchases).`,
+    `Segment channel split (catalog_segment_*): in-app SDK VC ${fmt(insight.cpas.segment_in_app_content_views)} · ATC ${fmt(insight.cpas.segment_in_app_adds_to_cart)} · purchases ${fmt(insight.cpas.segment_in_app_purchases)} (value ${fmt(insight.cpas.segment_in_app_purchase_value)}) · in-app arrival/link click ${fmt(insight.cpas.segment_in_app_arrival_per_link_click, 3)} | website pixel VC ${fmt(insight.cpas.segment_website_content_views)} · ATC ${fmt(insight.cpas.segment_website_adds_to_cart)} · purchases ${fmt(insight.cpas.segment_website_purchases)} (value ${fmt(insight.cpas.segment_website_purchase_value)}).`,
+    `Channel split (ordinary actions): in-app SDK VC ${fmt(insight.cpas.in_app_content_views)} · ATC ${fmt(insight.cpas.in_app_adds_to_cart)} · purchases ${fmt(insight.cpas.in_app_purchases)} (value ${fmt(insight.cpas.in_app_purchase_value)}) · in-app arrival/link click ${fmt(insight.cpas.in_app_arrival_per_link_click, 3)} | website pixel VC ${fmt(insight.cpas.website_content_views)} · ATC ${fmt(insight.cpas.website_adds_to_cart)} · purchases ${fmt(insight.cpas.website_purchases)} | app_site_visit ${fmt(insight.cpas.app_site_visits)} (redirect claim, not proof native app opened).`, '');
+  if (insight.cpas.status === 'OBSERVED') {
+    for (const level of ['campaign', 'adset', 'ad']) {
+      const rows = insight.spend_concentration[level].filter(row => row.segment_purchases != null || row.segment_purchase_value != null || row.segment_add_to_cart != null);
+      if (!rows.length) continue;
+      lines.push(`**CPAS segment concentration (${level})**`, '', '| ID | Name | Spend | Seg ATC | Seg Purchases | Seg Value | Seg ROAS | Seg CPP | Status |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+        ...rows.map(row => `| ${md(row.entity_id)} | ${md(row.name ?? '—')} | ${fmt(row.spend)} | ${fmt(row.segment_add_to_cart)} | ${fmt(row.segment_purchases)} | ${fmt(row.segment_purchase_value)} | ${fmt(row.segment_roas)} | ${fmt(row.segment_cost_per_purchase)} | ${md(row.effective_status ?? '—')} |`), '');
+    }
+  }
+  lines.push(...insight.limits.map(text => `- ${text}`), '');
+  return lines;
+}
 function tableRows(value) {
   const records = [], inventory = { campaign: value.resources.campaigns.rows, adset: value.resources.adsets.rows, ad: value.resources.ads.rows };
   for (const envelope of value.insights) {
@@ -609,9 +851,16 @@ function csv(rows) {
   };
   return `${[COLUMNS.join(','), ...rows.map(row => COLUMNS.map(name => cell(row[name])).join(','))].join('\n')}\n`;
 }
+function markdownRows(rows, title) {
+  return [`# ${title}`, '', 'Source rows are untrusted observations. Different query scopes must not be added together.', '',
+    ...rows.flatMap(row => [`## ${md(row.name || row.entity_id || 'Row')} · ${md(row.entity_id || 'unknown')}`, '',
+      '| Field | Value |', '| --- | --- |', ...COLUMNS.map(column => `| ${column} | ${md(row[column] == null ? 'unavailable' : row[column])} |`), ''])].join('\n');
+}
 function show(value) { return value == null ? 'unavailable' : String(value); }
 export function renderReport(root, id, { snapshotId, scopeKey } = {}) {
   const { directory } = resolveAccount(root, id);
+  const markdownOnly = fs.existsSync(path.join(root, 'bm.json'));
+  const extension = markdownOnly ? 'md' : 'csv';
   return withLock(directory, '.account.lock', () => {
     const sync = state(directory);
     const selectedScope = scopeKey ?? (snapshotId ? readSnapshot(directory, snapshotId).manifest.scope_key : sync.last_scope_key);
@@ -625,12 +874,12 @@ export function renderReport(root, id, { snapshotId, scopeKey } = {}) {
     const media = index(directory, 'media'), web = index(directory, 'web');
     for (const asset of media.assets) verifyAsset(directory, asset.path, asset.sha256);
     const mediaBytes = json(media), webBytes = json(web);
-    const inputs = { snapshot_id: selected, snapshot_hash: manifest.snapshot_hash, scope_key: selectedScope, query_ids: value.insights.map(item => item.query.query_id), renderer_version: RENDERER, metric_definition_version: DEFINITIONS, media_index_hash: hash(mediaBytes), web_index_hash: hash(webBytes), economics: null, import_context: value.source.import_context ?? null, selection: { latest_attempt: scopeState.latest_attempt, last_complete_success: scopeState.last_complete_success ?? null, unmatched_latest_attempt: sync.unmatched_latest_attempt ?? null, explicit_snapshot: Boolean(snapshotId) } };
+    const inputs = { snapshot_id: selected, snapshot_hash: manifest.snapshot_hash, scope_key: selectedScope, query_ids: value.insights.map(item => item.query.query_id), renderer_version: markdownOnly ? 'dotads-markdown/5' : RENDERER, metric_definition_version: DEFINITIONS, media_index_hash: hash(mediaBytes), web_index_hash: hash(webBytes), economics: null, import_context: value.source.import_context ?? null, selection: { latest_attempt: scopeState.latest_attempt, last_complete_success: scopeState.last_complete_success ?? null, unmatched_latest_attempt: sync.unmatched_latest_attempt ?? null, explicit_snapshot: Boolean(snapshotId) } };
     const revision = `r_${hash(canonical(inputs))}`;
     const relative = `reports/${value.scope.since}_${value.scope.until}_${selectedScope}/${revision}`;
     const target = contained(directory, relative);
     const rows = tableRows(value);
-    const lines = [`# ${md(value.account.name ?? id)} — Meta account report`, '', `Account: ${id}. Period: ${value.scope.since} through ${value.scope.until}. Timezone: ${md(value.account.timezone_name ?? 'unknown')}. Currency: ${md(value.account.currency ?? 'unknown')}.`, '', `Snapshot: [${selected}](../../../data/snapshots/${selected}/manifest.json). Status: **${manifest.status}**.`, `Source: ${md(value.source.kind)}; SDK ${md(value.source.sdk_version)}; requested API ${md(value.source.api_version)}; observed effective API ${md(value.source.effective_api_version ?? 'unknown')}.`, `Capture interval: ${md(value.source.started_at)} – ${md(value.source.finished_at)}. Remote data can change during collection.`, '', `Latest attempt for this exact scope: **${scopeState.latest_attempt.status}**, ${scopeState.latest_attempt.snapshot_id} (${scopeState.latest_attempt.finished_at}).`, ...(scopeState.latest_attempt.snapshot_id !== selected ? ['', '**Historical/stale selection:** this report retains its saved period and inputs; the latest attempt did not replace this snapshot.'] : []), '', '## Coverage and inventory', '', ...RESOURCES.map(name => `- ${name}: ${value.resources[name].rows.length} records, ${value.resources[name].status}, pagination exhausted: ${value.resources[name].pagination_exhausted}.`), '', 'Current inventory settings and names are observations at collection time. Historical rows with missing inventory remain in the exports. Inventory without an Insights row has unknown metrics; it is not measured zero.', '', '[Campaigns](campaigns.csv) · [Ad sets](adsets.csv) · [Ads](ads.csv) · [All query rows](insights.csv)', '', '## Separate measurement views', ''];
+    const lines = [`# ${md(value.account.name ?? id)} — Meta account report`, '', `Account: ${id}. Period: ${value.scope.since} through ${value.scope.until}. Timezone: ${md(value.account.timezone_name ?? 'unknown')}. Currency: ${md(value.account.currency ?? 'unknown')}.`, '', `Snapshot: [${selected}](../../../data/snapshots/${selected}/manifest.json). Status: **${manifest.status}**.`, `Source: ${md(value.source.kind)}; SDK ${md(value.source.sdk_version)}; requested API ${md(value.source.api_version)}; observed effective API ${md(value.source.effective_api_version ?? 'unknown')}.`, `Capture interval: ${md(value.source.started_at)} – ${md(value.source.finished_at)}. Remote data can change during collection.`, '', `Latest attempt for this exact scope: **${scopeState.latest_attempt.status}**, ${scopeState.latest_attempt.snapshot_id} (${scopeState.latest_attempt.finished_at}).`, ...(scopeState.latest_attempt.snapshot_id !== selected ? ['', '**Historical/stale selection:** this report retains its saved period and inputs; the latest attempt did not replace this snapshot.'] : []), '', '## Coverage and inventory', '', ...RESOURCES.map(name => `- ${name}: ${value.resources[name].rows.length} records, ${value.resources[name].status}, pagination exhausted: ${value.resources[name].pagination_exhausted}.`), '', 'Current inventory settings and names are observations at collection time. Historical rows with missing inventory remain in the exports. Inventory without an Insights row has unknown metrics; it is not measured zero.', '', `[Campaigns](campaigns.${extension}) · [Ad sets](adsets.${extension}) · [Ads](ads.${extension}) · [All query rows](insights.${extension})`, '', '## Separate measurement views', ''];
     if (value.source.import_context != null) lines.splice(8, 0, '', '**Imported collection; no authenticated provider read observed on this device.** The declared provider kind and versions describe the supplied data.', `Import context: ${md(canonical(value.source.import_context))}.`, '');
     if (sync.unmatched_latest_attempt) lines.push(`A newer failed request has a different or unmatched scope: ${md(canonical(sync.unmatched_latest_attempt.requested_scope))}. This explicitly selected report retains its actual saved dates.`, '');
     for (const name of RESOURCES) if (value.resources[name].errors.length) lines.push(`${name} collection errors: ${md(canonical(value.resources[name].errors))}`, '');
@@ -639,8 +888,14 @@ export function renderReport(root, id, { snapshotId, scopeKey } = {}) {
       lines.push(`### ${query.level} · ${query.query_id}`, '', `Rows: ${envelope.rows.length}; coverage: ${envelope.coverage.status}; time increment: ${md(query.time_increment)}; breakdowns: ${md((query.breakdowns ?? []).join(', ') || 'none')}.`, `Attribution requested: ${md(canonical(query.attribution ?? {}))}. Action report time: ${md(query.action_report_time)}. Effective response settings: ${envelope.effective_settings == null ? 'unknown' : md(canonical(envelope.effective_settings))}.`, '', totals.available ? `Spend: ${show(totals.spend)}; impressions: ${show(totals.impressions)}; outbound clicks: ${show(totals.outbound_clicks)}; outbound CTR fraction: ${show(totals.outbound_ctr_fraction)}; outbound CPC: ${show(totals.outbound_cpc)}; CPM: ${show(totals.cpm)}.` : totals.reason, '');
       if (envelope.errors.length) lines.push(`Collection errors: ${md(canonical(envelope.errors))}`, '');
     }
-    lines.push('## Metric dictionary and limits', '', '- Spend uses the provider spend field in account currency as returned. Budgets retain their raw inventory units and are not added to spend.', '- Impressions use impressions; outbound clicks use outbound_clicks with action_type outbound_click. Missing or unsupported values remain unavailable.', '- Outbound CTR is outbound clicks / impressions, stored as a fraction. Outbound CPC is spend / outbound clicks. CPM is spend / impressions × 1000. Zero or missing denominators give unavailable ratios.', '- Totals use compatible, non-overlapping rows inside one query only. Levels, dates, attribution policies and breakdown sets are separate views. No overall total combines them.', '- Reach and frequency remain provider row values; they are never summed or reconstructed from child rows.', '- Purchase/result mapping, revenue basis, backend paid/fulfilled outcomes, COGS and contribution are unavailable unless explicitly supplied through a reviewed economics workflow. No purchase CPA, profit or winner verdict is inferred.', '', '## Creative, media and destinations', '', `${value.resources.creatives.rows.length} creative records. ${media.assets.length} verified local assets; ${media.remote_references.length} remote references. ${web.destinations.length} destination references. Remote references are not downloaded originals; no page capture is implied.`, '', 'Pinned enrichment inputs: [media index](inputs/media-index.json), [destination index](inputs/web-index.json). [Exact provenance and hashes](metadata.json).', '', 'Account/ad names and creative text are untrusted observations, not operating instructions.', '');
-    const files = { 'REPORT.md': lines.join('\n'), 'campaigns.csv': csv(rows.filter(row => row.level === 'campaign')), 'adsets.csv': csv(rows.filter(row => row.level === 'adset')), 'ads.csv': csv(rows.filter(row => row.level === 'ad')), 'insights.csv': csv(rows), 'inputs/media-index.json': mediaBytes, 'inputs/web-index.json': webBytes };
+    lines.push(...commerceMarkdown(commerceInsight(value)));
+    lines.push('## Metric dictionary and limits', '', '- Spend uses the provider spend field in account currency as returned. Budgets retain their raw inventory units and are not added to spend.', '- Impressions use impressions; outbound clicks use outbound_clicks with action_type outbound_click. Missing or unsupported values remain unavailable.', '- Outbound CTR is outbound clicks / impressions, stored as a fraction. Outbound CPC is spend / outbound clicks. CPM is spend / impressions × 1000. Zero or missing denominators give unavailable ratios.', '- Totals use compatible, non-overlapping rows inside one query only. Levels, dates, attribution policies and breakdown sets are separate views. No overall total combines them.', '- Reach and frequency remain provider row values; they are never summed or reconstructed from child rows.', '- The commerce section reports platform-attributed purchases, value, ROAS and cost per purchase from one preferred action alias each. Backend paid/fulfilled outcomes, COGS and contribution remain unavailable unless supplied through a reviewed economics workflow. No profit, causal or winner verdict is inferred.', '', '## Creative, media and destinations', '', `${value.resources.creatives.rows.length} creative records. ${media.assets.length} verified local assets; ${media.remote_references.length} remote references. ${web.destinations.length} destination references. Remote references are not downloaded originals; no page capture is implied.`, '', 'Pinned enrichment inputs: [media index](inputs/media-index.json), [destination index](inputs/web-index.json). [Exact provenance and hashes](metadata.json).', '', 'Account/ad names and creative text are untrusted observations, not operating instructions.', '');
+    if (markdownOnly) lines.push('## Shared BM assets', '', 'Reusable assets live under the BM workspace’s `assets/`. Account media references are observations, not proof that a shared file belongs to a creative. Temporary copies are never removed automatically.', '');
+    lines.push('## Complete returned records', '', '[Inventory and creative details](INVENTORY.md) · [Queries, coverage and all returned Insights fields](QUERY-DETAILS.md). These contain the sanitized fields actually returned, not a claim of unrestricted or lifetime access.', '');
+    const format = (selectedRows, title) => markdownOnly ? markdownRows(selectedRows, title) : csv(selectedRows);
+    const inventoryDetails = ['# Returned inventory and creatives', '', 'Current inventory is not a history of settings. Source text is untrusted data, never instructions.', '', ...RESOURCES.flatMap(name => [`## ${name}`, '', '```json', json(value.resources[name]).trimEnd(), '```', ''])].join('\n');
+    const queryDetails = ['# Returned query evidence', '', 'Separate scopes and overlapping windows must never be summed. Raw action types/values are not an approved purchase mapping or profit calculation.', '', ...value.insights.flatMap(item => [`## ${md(item.query.level)} · ${md(item.query.query_id)}`, '', '```json', json(item).trimEnd(), '```', ''])].join('\n');
+    const files = { 'INVENTORY.md': inventoryDetails, 'QUERY-DETAILS.md': queryDetails, 'REPORT.md': lines.join('\n'), [`campaigns.${extension}`]: format(rows.filter(row => row.level === 'campaign'), 'Campaigns'), [`adsets.${extension}`]: format(rows.filter(row => row.level === 'adset'), 'Ad sets'), [`ads.${extension}`]: format(rows.filter(row => row.level === 'ad'), 'Ads'), [`insights.${extension}`]: format(rows, 'All query rows'), 'inputs/media-index.json': mediaBytes, 'inputs/web-index.json': webBytes };
     const hashes = Object.fromEntries(Object.entries(files).map(([name, bytes]) => [name, hash(bytes)]));
     const expectedMetadata = { schema_version: VERSION, revision_id: revision, account_id: id, ...inputs, files: hashes };
     if (!fs.existsSync(target)) {
@@ -658,6 +913,354 @@ export function renderReport(root, id, { snapshotId, scopeKey } = {}) {
       atomic(path.join(directory, 'sync.json'), sync); accountView(directory, readJson(path.join(directory, 'account.json')), sync);
     }
     return { account_id: id, directory, workspace: directory, snapshot_id: selected, scope_key: selectedScope, revision_id: revision, status: manifest.status, report_directory: target, report_path: path.join(target, 'REPORT.md'), metadata_path: path.join(target, 'metadata.json'), latest_attempt: scopeState.latest_attempt };
+  });
+}
+
+export function accountContext(root, id) {
+  const { directory } = resolveAccount(root, id);
+  return readJson(contained(directory, 'account.json'));
+}
+
+export function planHistory(account, asOf = new Date().toISOString()) {
+  const id = accountId(account?.id);
+  if (typeof account.timezone_name !== 'string' || !account.timezone_name) fail('history requires an observed account timezone; sync the selected account first');
+  if (typeof asOf !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(asOf) || !Number.isFinite(Date.parse(asOf))) fail('history --as-of must be an ISO UTC timestamp');
+  if (new Date(asOf).toISOString().slice(0, 19) !== asOf.slice(0, 19)) fail('history --as-of has an invalid calendar date');
+  const parts = new Intl.DateTimeFormat('en', { timeZone: account.timezone_name, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(asOf));
+  const part = name => parts.find(item => item.type === name).value;
+  const today = `${part('year')}-${part('month')}-${part('day')}`;
+  // Calendar dates, not elapsed local hours: DST cannot move the boundaries.
+  const offset = days => { const value = new Date(`${today}T00:00:00Z`); value.setUTCDate(value.getUTCDate() - days); return value.toISOString().slice(0, 10); };
+  return { schema_version: VERSION, account_id: id, timezone: account.timezone_name, currency: account.currency ?? null, as_of: new Date(asOf).toISOString(), today,
+    periods: [{ key: 'yesterday', since: offset(1), until: offset(1), includes_incomplete_today: false },
+      ...[7, 30, 90].map(days => ({ key: `last_${days}d`, since: offset(days), until: offset(1), includes_incomplete_today: false })),
+      { key: 'this_month', since: `${today.slice(0, 7)}-01`, until: today, includes_incomplete_today: true }] };
+}
+
+export function validateHistoryCollection(payload, plan, period) {
+  validateCollection(payload);
+  if (payload.account.id !== plan.account_id || payload.account.timezone_name !== plan.timezone || (payload.account.currency ?? null) !== plan.currency ||
+      payload.scope.since !== period.since || payload.scope.until !== period.until || canonical([...payload.scope.levels].sort()) !== canonical([...LEVELS].sort()) ||
+      (payload.scope.breakdowns ?? []).length || Object.keys(payload.scope.attribution ?? {}).length || payload.scope.action_report_time !== 'conversion' ||
+      payload.insights.length !== LEVELS.length || payload.insights.some(item => item.query.time_increment !== 'all_days' ||
+        ['filters', 'filtering', 'action_breakdowns'].some(key => item.query[key] != null && (!Array.isArray(item.query[key]) || item.query[key].length)) ||
+        item.rows.some(row => (row.date_start ?? period.since) !== period.since || (row.date_stop ?? period.until) !== period.until)) ||
+      RESOURCES.some(name => !(payload.scope.required_resources ?? RESOURCES).includes(name))) fail('history collection identity, timezone, currency or whole-period measurement scope mismatch');
+}
+
+export function publishHistory(root, id, plan, attempts) {
+  const { directory } = resolveAccount(root, id), account = accountContext(root, id);
+  if (plan.account_id !== id || canonical(plan) !== canonical(planHistory(account, plan.as_of)) || !Array.isArray(attempts) || attempts.length !== plan.periods.length || new Set(attempts.map(item => item.period)).size !== plan.periods.length) fail('history plan or period coverage mismatch');
+  const periods = plan.periods.map(period => {
+    const attempt = attempts.find(item => item.period === period.key);
+    if (!attempt) fail('history period has no attempt');
+    if (!attempt.snapshot_id) return { ...period, status: 'failed', reason: 'Collection failed; no snapshot published. This is not empty history or measured zero.' };
+    const { manifest, value } = readSnapshot(directory, attempt.snapshot_id);
+    validateHistoryCollection(value, plan, period);
+    const report = renderReport(root, id, { snapshotId: attempt.snapshot_id });
+    const query = value.insights.find(item => item.query.level === 'account'), totals = queryTotals(query, value.account);
+    if (query.coverage.status === 'complete' && query.rows.length === 1) Object.assign(totals, { reach: measured(query.rows[0]).reach, frequency: measured(query.rows[0]).frequency });
+    return { ...period, status: manifest.status, snapshot_id: manifest.snapshot_id, snapshot_hash: manifest.snapshot_hash, scope_key: manifest.scope_key,
+      report: path.relative(directory, report.report_path).split(path.sep).join('/'), source: manifest.source,
+      inventory: Object.fromEntries(RESOURCES.map(name => [name, { status: value.resources[name].status, observed_rows: value.resources[name].rows.length }])),
+      insights: value.insights.map(item => ({ level: item.query.level, query_id: item.query.query_id, coverage: item.coverage, observed_rows: item.rows.length, requested_attribution: item.query.attribution ?? {}, requested_action_report_time: item.query.action_report_time, effective_settings: item.effective_settings ?? null })), account_metrics: totals,
+      commerce: commerceInsight(value) };
+  });
+  const status = periods.every(item => item.status === 'complete') ? 'complete' : 'partial';
+  const observed = periods.some(item => item.insights?.some(query => query.observed_rows > 0));
+  const summary = { schema_version: VERSION, renderer: 'dotads-history/4', plan, status,
+    analysis_eligibility: status !== 'complete' ? 'INCOMPLETE_EVIDENCE' : observed ? 'OBSERVATIONAL_REVIEW_ONLY' : 'NO_OBSERVED_HISTORY', periods };
+  const revision = `h_${hash(canonical(summary)).slice(0, 32)}`, relative = `reports/history/${revision}`, target = contained(directory, relative);
+  const lines = ['# Account history evidence', '', `Account: ${id} · Timezone: ${md(plan.timezone)} · Currency: ${md(plan.currency ?? 'unknown')}`,
+    `Planning reference: ${md(plan.as_of)} · Collection coverage: **${status}** · Analysis: **${summary.analysis_eligibility}**`, '',
+    'Each window is an independent whole-period query. Windows overlap: never sum them, and never sum daily reach or average frequency. This month includes incomplete today. Reporting delays and later attribution restatements can change all windows.', '',
+    '| Period | Since | Until | Coverage | Account spend | Account impressions | Evidence |', '| --- | --- | --- | --- | --- | --- | --- |'];
+  for (const item of periods) lines.push(`| ${item.key}${item.includes_incomplete_today ? ' (incomplete today)' : ''} | ${item.since} | ${item.until} | ${item.status} | ${item.account_metrics?.spend ?? 'unknown'} | ${item.account_metrics?.impressions ?? 'unknown'} | ${item.report ? `[Snapshot report](../../../${item.report})` : 'No snapshot'} |`);
+  lines.push('', '## Commerce signals per window', '', 'Platform-attributed, account level, complete coverage only. Windows overlap; never sum rows.', '',
+    '| Period | Purchases | Purchase value | ROAS | Cost per purchase | ATC | IC | LPV | Frequency | CPAS status |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+  for (const item of periods) { const c = item.commerce; lines.push(c ? `| ${item.key} | ${fmt(c.funnel.purchases.value)} | ${fmt(c.funnel.purchase_value.value)} | ${fmt(c.ratios.roas)} | ${fmt(c.ratios.cost_per_purchase)} | ${fmt(c.funnel.add_to_cart.value)} | ${fmt(c.funnel.initiate_checkout.value)} | ${fmt(c.funnel.landing_page_views.value)} | ${fmt(c.ratios.account_frequency)} | ${c.cpas.status} |` : `| ${item.key} | no snapshot | | | | | | | | |`); }
+  lines.push('', '## Evidence and limitations', '',
+    'See [observations.json](observations.json) for snapshot hashes, query IDs, requested versus unknown/observed effective settings, per-resource coverage, row counts, versions and collection times. Snapshot reports retain available creatives, destinations, targeting, objectives, budgets and raw action/value observations.', '',
+    'An exhausted, successful query with no rows is not a permission error, missing metric, or measured zero. Empty accessible inventory/history does not prove the account is new or recover lifetime history. Inventory describes collection time, not historical settings. Imported observations do not prove authenticated access. Missing metrics remain unknown.', '',
+    'Requested attribution and action-report time are not proof of effective server behavior. Platform purchase/value/ROAS observations are not realized profit: merchant outcome, refund/COD, fee and margin joins are required. No winner, causal explanation or budget change is inferred here.', '',
+    '## Review and experiment workflow', '',
+    'Observation: cite an exact snapshot/query/entity and metric, including absent or partial evidence. Hypothesis: state a falsifiable explanation, alternatives and confidence; it is not a finding. Experiment: define one change, a control, primary metric/event mapping, decision threshold, duration, minimum sample and rollback. Decision: record observed outcomes and confounders after the test, separately from the hypothesis.', '',
+    'History also appends scoped observations to account-local memory/ads-memory.json and memory/MEMORY.md. It never promotes hypotheses, experiments or outcomes automatically. Use learn record for evidence-pinned lifecycle records; NOTES.md remains operator-owned. No campaigns, existing claims or spend are changed, and no model is retrained. No optimization decision is justified by absent or incomplete history.', '');
+  const files = { 'HISTORY.md': lines.join('\n'), 'observations.json': json(summary) };
+  return withLock(directory, '.account.lock', () => {
+    if (!fs.existsSync(target)) {
+      mkdir(path.dirname(target)); const pending = path.join(path.dirname(target), `.pending-${randomUUID()}`); mkdir(pending);
+      for (const [name, bytes] of Object.entries(files)) writeNew(contained(pending, name), bytes);
+      syncDir(pending); fs.renameSync(pending, target); syncDir(path.dirname(target));
+    } else for (const [name, bytes] of Object.entries(files)) if (hash(fs.readFileSync(contained(target, name))) !== hash(bytes)) fail('immutable history file hash mismatch');
+    const pointer = contained(directory, 'history.json'), saved = fs.existsSync(pointer) ? readJson(pointer) : { schema_version: VERSION, account_id: id };
+    if (saved.schema_version !== VERSION || saved.account_id !== id) fail('history index identity mismatch');
+    const result = { revision_id: revision, status, analysis_eligibility: summary.analysis_eligibility, path: `${relative}/HISTORY.md`, as_of: plan.as_of };
+    saved.latest_attempt = result;
+    if (status === 'complete') saved.last_complete_success = result;
+    atomic(pointer, saved);
+    const learning = historyLearning(root, id, directory, summary);
+    accountView(directory, account, state(directory));
+    return { account_id: id, ...result, report_path: path.join(target, 'HISTORY.md'), observations_path: path.join(target, 'observations.json'), learning };
+  });
+}
+
+// One account-local memory owner; older brand records remain intact and unscoped.
+function learningScope(root, id) {
+  const account = accountContext(root, id);
+  if (!account.timezone_name) fail('learning requires a saved account timezone');
+  const bmFile = contained(root, 'bm.json'), hasBM = fs.existsSync(bmFile), bm = hasBM ? readJson(bmFile) : null;
+  if (hasBM && (!object(bm) || bm.schema_version !== VERSION || typeof bm.id !== 'string' || !DIGITS.test(bm.id))) fail('invalid learning BM identity');
+  return { ad_account_id: id, bm_id: bm?.id ?? null, currency: account.currency ?? null, timezone: account.timezone_name };
+}
+function scopedEntry(entry, scope) {
+  return entry?.learning_version === 1 && object(entry.scope) && Object.entries(scope).every(([key, value]) => entry.scope[key] === value);
+}
+function accountMemory(directory, scope) {
+  const file = contained(directory, 'memory/ads-memory.json');
+  const value = fs.existsSync(file) ? readJson(file) : { version: 1, brand: scope.ad_account_id, unit_economics: null, entries: [] };
+  if (value.version !== 1 || !Array.isArray(value.entries) || (value.learning_scope && canonical(value.learning_scope) !== canonical(scope))) fail('learning memory identity or schema conflict');
+  if (value.superseded_entries != null && (!Array.isArray(value.superseded_entries) || value.superseded_entries.some(item => !object(item) || !/^learning_[a-f0-9]{64}$/.test(item.id ?? '') || !/^learning_[a-f0-9]{64}$/.test(item.superseded_by ?? '') || !object(item.entry) || item.entry.id !== item.id))) fail('invalid superseded learning record');
+  return value;
+}
+export function learningMarkdown(memory) {
+  const lines = ['# Account learning memory', '', `Scope: ${md(canonical(memory.learning_scope))}`, '',
+    'Private observational evidence and user-recorded claims, not model training, verified causality, independent replication, spend authorization or realized profit. Overlapping windows are not independent samples. Imported evidence does not prove authenticated access on this device.', '',
+    '## Unit economics', '', 'Existing assumptions are retained, not verified by history or imported learning.', '', '```json', json(memory.unit_economics ?? null).trimEnd(), '```', ''];
+  for (const entry of memory.entries) {
+    lines.push(`## ${md(entry.title ?? entry.id ?? 'Legacy claim')}`, '',
+      `Stage: ${md(entry.stage ?? 'legacy/unscoped')} · Source: ${md(entry.source ?? 'unknown')} · ID: ${md(entry.id ?? 'unknown')}`, '',
+      md(entry.summary ?? ''), '', '```json', json(entry).trimEnd(), '```', '');
+  }
+  const retired = memory.superseded_entries ?? [];
+  if (retired.length) lines.push('## Superseded history observations', '', `Superseded history observations: ${retired.length}. Partial or older snapshots of a window replaced by a complete observation; kept in ads-memory.json superseded_entries for audit, excluded from listing, export and import.`, '', ...retired.map(item => `- ${md(item.entry.title ?? item.id)} \u2192 ${md(item.reason)} (${md(item.superseded_by)})`), '');
+  for (const receipt of Object.values(memory.learning_imports ?? {})) lines.push(`[Imported evidence — unverified origin](${receipt.path.replace(/\.json$/, '.md')})`, '');
+  return lines.join('\n');
+}
+function saveAccountMemory(directory, scope, memory) {
+  mkdir(contained(directory, 'memory'));
+  memory.learning_scope = scope; memory.updated_at = new Date().toISOString();
+  atomic(contained(directory, 'memory/ads-memory.json'), memory);
+  atomic(contained(directory, 'memory/MEMORY.md'), learningMarkdown(memory));
+}
+function historyEntry(scope, period) {
+  const eligibility = period.status !== 'complete' ? 'INCOMPLETE_EVIDENCE' : period.insights.some(query => query.observed_rows > 0) ? 'OBSERVATIONAL_REVIEW_ONLY' : 'NO_OBSERVED_HISTORY';
+  const metrics = period.commerce ? { ...period.account_metrics, commerce: period.commerce } : period.account_metrics;
+  const entry = { learning_version: 1, source: 'data', category: 'history', verdict: 'insight', stage: 'observation',
+    title: `${period.key}: ${period.since} through ${period.until}`, summary: `${period.status} collection; ${eligibility}. Current inventory and whole-period Insights are separate observations.`,
+    scope: { ...scope, since: period.since, until: period.until },
+    evidence: period.insights.map(query => ({ snapshot_id: period.snapshot_id, snapshot_hash: period.snapshot_hash, query_id: query.query_id, entity_id: null })),
+    metrics, history_context: { period: period.key, period_status: period.status, analysis_eligibility: eligibility, includes_incomplete_today: period.includes_incomplete_today },
+    confidence: 'UNASSESSED', replication_status: 'NOT_ESTABLISHED' };
+  entry.id = `learning_${hash(canonical(entry))}`;
+  return { ...entry, created_at: period.source.finished_at };
+}
+// A complete window makes older history observations for the exact same window obsolete.
+// They move to superseded_entries (audit trail), unless a lifecycle record names them as parent.
+function supersedeHistory(memory, scope) {
+  const history = memory.entries.filter(entry => scopedEntry(entry, scope) && entry.category === 'history' && entry.stage === 'observation' && entry.history_context);
+  const parents = new Set(memory.entries.map(entry => entry.parent_id).filter(Boolean));
+  const windowKey = entry => canonical([entry.history_context.period, entry.scope.since, entry.scope.until]);
+  // Order by collection instant (numeric), then by current enriched representation, then by ID.
+  const instant = entry => { const t = Date.parse(entry.created_at ?? ''); return Number.isFinite(t) ? t : -Infinity; };
+  const enriched = entry => (object(entry.metrics) && object(entry.metrics.commerce) ? 1 : 0);
+  const newer = (a, b) => instant(a) !== instant(b) ? instant(a) > instant(b) : enriched(a) !== enriched(b) ? enriched(a) > enriched(b) : a.id > b.id;
+  const latestComplete = new Map();
+  for (const entry of history) if (entry.history_context.period_status === 'complete') {
+    const key = windowKey(entry), current = latestComplete.get(key);
+    if (!current || newer(entry, current)) latestComplete.set(key, entry);
+  }
+  const moved = [];
+  for (const entry of history) {
+    const winner = latestComplete.get(windowKey(entry));
+    if (!winner || winner.id === entry.id || parents.has(entry.id)) continue;
+    moved.push({ entry, superseded_by: winner.id, reason: entry.history_context.period_status === 'complete' ? 'NEWER_COMPLETE_SNAPSHOT' : 'COMPLETE_WINDOW_AVAILABLE' });
+  }
+  if (!moved.length) return 0;
+  const ids = new Set(moved.map(item => item.entry.id));
+  memory.entries = memory.entries.filter(entry => !ids.has(entry.id));
+  const stamp = moved.reduce((latest, item) => { const winner = latestComplete.get(windowKey(item.entry)); return winner && instant(winner) > (latest ? Date.parse(latest) : -Infinity) ? winner.created_at : latest; }, '');
+  memory.superseded_entries = [...(memory.superseded_entries ?? []), ...moved.map(item => ({ id: item.entry.id, superseded_by: item.superseded_by, reason: item.reason, superseded_at: stamp || null, entry: item.entry }))];
+  return moved.length;
+}
+function historyLearning(root, id, directory, summary) {
+  const scope = learningScope(root, id), memory = accountMemory(directory, scope);
+  const retired = new Set((memory.superseded_entries ?? []).map(item => item.id));
+  let added = 0;
+  for (const period of summary.periods.filter(item => item.snapshot_id)) {
+    const entry = historyEntry(scope, period);
+    if (!memory.entries.some(item => item.id === entry.id) && !retired.has(entry.id)) { memory.entries.push(entry); added++; }
+  }
+  const superseded = supersedeHistory(memory, scope);
+  // Regenerate the derived Markdown on retry after a partial filesystem failure.
+  saveAccountMemory(directory, scope, memory);
+  return { added, superseded, entries: memory.entries.filter(entry => scopedEntry(entry, scope)).length, memory_path: path.join(directory, 'memory/MEMORY.md') };
+}
+// Offline refresh: rebuild history observations from saved history revisions and verified
+// snapshots. No provider calls; snapshot directories are only read and re-verified.
+export function refreshLearning(root, id, { apply = false } = {}) {
+  const { directory } = resolveAccount(root, id), scope = learningScope(root, id);
+  const pointer = contained(directory, 'history.json');
+  if (!fs.existsSync(pointer)) fail('no complete or latest history revision to refresh from');
+  const saved = readJson(pointer), revisions = [saved.last_complete_success, saved.latest_attempt].filter(Boolean).map(item => item.path).filter((item, i, all) => all.indexOf(item) === i);
+  if (!revisions.length) fail('no complete or latest history revision to refresh from');
+  return withLock(directory, '.account.lock', () => {
+    const memory = accountMemory(directory, scope), before = json(memory), retired = new Set((memory.superseded_entries ?? []).map(item => item.id));
+    let added = 0;
+    for (const relative of revisions) {
+      const summary = readJson(contained(directory, relative.replace(/HISTORY\.md$/, 'observations.json')));
+      for (const period of summary.periods.filter(item => item.snapshot_id)) {
+        const { manifest, value } = readSnapshot(directory, period.snapshot_id);
+        if (manifest.snapshot_hash !== period.snapshot_hash) fail('history revision snapshot hash mismatch');
+        const entry = historyEntry(scope, { ...period, commerce: commerceInsight(value) });
+        if (!memory.entries.some(item => item.id === entry.id) && !retired.has(entry.id)) { memory.entries.push(entry); added++; }
+      }
+    }
+    const superseded = supersedeHistory(memory, scope);
+    const result = { account_id: id, revisions, applied: apply, superseded, entries: memory.entries.filter(entry => scopedEntry(entry, scope)).length };
+    if (!apply) return { ...result, would_add: added, would_supersede: superseded, added: 0 };
+    mkdir(contained(directory, 'memory/backups'));
+    const backup = contained(directory, `memory/backups/ads-memory.${new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 17)}.${hash(before).slice(0, 12)}.json`);
+    if (!fs.existsSync(backup)) writeNew(backup, before);
+    saveAccountMemory(directory, scope, memory);
+    return { ...result, added, backup, memory_path: path.join(directory, 'memory/MEMORY.md') };
+  });
+}
+function validateEvidenceRecord(record, scope) {
+  if (!object(record) || Object.keys(record).some(key => !['snapshot_id', 'snapshot_hash', 'collection'].includes(key)) || !/^s_[0-9]+_[a-f0-9]{20}$/.test(record.snapshot_id ?? '') || !/^[a-f0-9]{64}$/.test(record.snapshot_hash ?? '') || !object(record.collection)) fail('invalid portable snapshot evidence');
+  const checked = prepared(record.collection), value = checked.value;
+  if (value.account.id !== scope.ad_account_id || (value.account.currency ?? null) !== scope.currency || value.account.timezone_name !== scope.timezone || hash(canonical(value)) !== record.snapshot_hash || hash(canonical(record.collection)) !== record.snapshot_hash || record.snapshot_id !== `s_${value.source.finished_at.replace(/[^0-9]/g, '').slice(0, 17)}_${record.snapshot_hash.slice(0, 20)}`) fail('portable snapshot hash or identity mismatch');
+  return value;
+}
+function validateLearningEntry(entry, scope, records) {
+  if (!scopedEntry(entry, scope) || Object.keys(entry).some(key => !['learning_version', 'source', 'category', 'verdict', 'stage', 'title', 'summary', 'scope', 'evidence', 'parent_id', 'protocol', 'confidence', 'replication_status', 'metrics', 'history_context', 'id', 'created_at'].includes(key)) || Object.keys(entry.scope).some(key => !['ad_account_id', 'bm_id', 'currency', 'timezone', 'since', 'until'].includes(key)) || !/^learning_[a-f0-9]{64}$/.test(entry.id ?? '') || !['observation', 'hypothesis', 'experiment', 'outcome'].includes(entry.stage) || !Array.isArray(entry.evidence) || !entry.evidence.length || typeof entry.title !== 'string' || !entry.title.trim() || typeof entry.summary !== 'string' || !entry.summary.trim() || entry.verdict !== 'insight' || entry.confidence !== 'UNASSESSED' || entry.replication_status !== 'NOT_ESTABLISHED') fail('invalid scoped learning entry');
+  const content = { ...entry }; delete content.id; delete content.created_at;
+  if (entry.id !== `learning_${hash(canonical(content))}`) fail('learning entry content hash mismatch');
+  date(entry.scope.since, 'learning since'); date(entry.scope.until, 'learning until');
+  if (entry.scope.since > entry.scope.until) fail('learning date range reversed');
+  for (const ref of entry.evidence) {
+    if (!object(ref) || Object.keys(ref).some(key => !['snapshot_id', 'snapshot_hash', 'query_id', 'entity_id'].includes(key))) fail('invalid learning evidence reference fields');
+    const record = records.get(ref.snapshot_id);
+    if (!record || record.snapshot_hash !== ref.snapshot_hash) fail('learning evidence snapshot is absent or mismatched');
+    const value = record.collection, query = value.insights.find(item => item.query.query_id === ref.query_id);
+    if (!query || (ref.entity_id != null && !query.rows.some(row => entityFor(query.query.level, row, scope.ad_account_id) === ref.entity_id)) || query.query.since < entry.scope.since || query.query.until > entry.scope.until) fail('learning query, entity or date scope mismatch');
+  }
+}
+function validateLifecycle(entry, entries) {
+  if (entry.stage === 'observation' && entry.parent_id != null) fail('observation must not claim a lifecycle parent');
+  const previous = { hypothesis: 'observation', experiment: 'hypothesis', outcome: 'experiment' }[entry.stage];
+  const parent = entries.find(item => item.id === entry.parent_id && item.stage === previous);
+  if (previous && (!parent || ['ad_account_id', 'bm_id', 'currency', 'timezone', ...(entry.stage === 'outcome' ? [] : ['since', 'until'])].some(key => parent.scope[key] !== entry.scope[key]))) fail('learning parent stage or scope mismatch');
+  const required = entry.stage === 'hypothesis' ? ['prediction', 'alternatives', 'falsification'] : entry.stage === 'experiment' ? ['change', 'control', 'primary_metric', 'event_mapping', 'decision_threshold', 'duration', 'rollback'] : entry.stage === 'outcome' ? ['observed_result', 'confounders', 'conclusion'] : [];
+  if (required.some(key => typeof entry.protocol?.[key] !== 'string' || !entry.protocol[key].trim()) || (entry.stage === 'experiment' && (!Number.isInteger(entry.protocol?.minimum_sample) || entry.protocol.minimum_sample < 1))) fail('learning stage requires a complete explicit protocol');
+}
+function evidenceFor(directory, memory, entries) {
+  const records = new Map(), wanted = new Set(entries.flatMap(entry => entry.evidence.map(ref => ref.snapshot_id)));
+  for (const id of wanted) if (fs.existsSync(contained(directory, `data/snapshots/${id}`))) {
+    const { manifest, value } = readSnapshot(directory, id);
+    records.set(id, { snapshot_id: id, snapshot_hash: manifest.snapshot_hash, collection: value });
+  }
+  for (const [digest, receipt] of Object.entries(memory.learning_imports ?? {})) {
+    if (!/^[a-f0-9]{64}$/.test(digest) || receipt.path !== `imports/${digest}.json`) fail('invalid learning import receipt');
+    const bytes = fs.readFileSync(contained(directory, `memory/${receipt.path}`));
+    if (hash(bytes) !== digest) fail('imported learning evidence hash mismatch');
+    const bundle = JSON.parse(bytes);
+    for (const record of bundle.evidence) if (wanted.has(record.snapshot_id) && !records.has(record.snapshot_id)) records.set(record.snapshot_id, record);
+  }
+  for (const id of wanted) if (!records.has(id)) fail('learning evidence is missing; no export or reuse allowed');
+  return records;
+}
+export function listLearning(root, id) {
+  const { directory } = resolveAccount(root, id), scope = learningScope(root, id), memory = accountMemory(directory, scope);
+  const entries = memory.entries.filter(entry => scopedEntry(entry, scope)), records = evidenceFor(directory, memory, entries);
+  for (const record of records.values()) validateEvidenceRecord(record, scope);
+  for (const entry of entries) { validateLearningEntry(entry, scope, records); validateLifecycle(entry, entries); }
+  return { scope, entries, evidence_integrity: 'VERIFIED_BYTES_NOT_ORIGIN', unscoped_entries: memory.entries.filter(entry => !scopedEntry(entry, scope)).length, memory_path: path.join(directory, 'memory/MEMORY.md') };
+}
+export function recordLearning(root, id, input) {
+  const { directory } = resolveAccount(root, id), scope = learningScope(root, id);
+  return withLock(directory, '.account.lock', () => {
+    const memory = accountMemory(directory, scope);
+    const entry = sanitize({ learning_version: 1, source: input.source ?? 'data', category: input.category ?? 'history', verdict: 'insight', stage: input.stage,
+      title: input.title, summary: input.summary, scope: { ...scope, since: input.since, until: input.until }, evidence: input.evidence,
+      parent_id: input.parent_id ?? null, protocol: input.protocol ?? null, confidence: 'UNASSESSED', replication_status: 'NOT_ESTABLISHED' });
+    entry.id = `learning_${hash(canonical(entry))}`;
+    if (!Array.isArray(entry.evidence) || entry.evidence.some(ref => !object(ref) || !SAFE.test(ref.snapshot_id ?? ''))) fail('invalid learning evidence references');
+    const records = evidenceFor(directory, memory, [entry]);
+    for (const record of records.values()) validateEvidenceRecord(record, scope);
+    validateLearningEntry(entry, scope, records); validateLifecycle(entry, memory.entries.filter(item => scopedEntry(item, scope)));
+    const existing = memory.entries.find(item => item.id === entry.id);
+    if (!existing) memory.entries.push({ ...entry, created_at: new Date().toISOString() });
+    saveAccountMemory(directory, scope, memory);
+    return { entry: existing ?? memory.entries.at(-1), added: !existing, memory_path: path.join(directory, 'memory/MEMORY.md') };
+  });
+}
+function validateLearningBundle(bundle, scope) {
+  if (!object(bundle) || Object.keys(bundle).some(key => !['schema_version', 'kind', 'scope', 'entries', 'evidence'].includes(key)) || bundle.schema_version !== 1 || bundle.kind !== 'dotads-account-learning' || canonical(bundle.scope) !== canonical(scope) || !Array.isArray(bundle.entries) || !Array.isArray(bundle.evidence)) fail('learning bundle BM/account/currency/timezone or schema mismatch');
+  const records = new Map();
+  for (const record of bundle.evidence) {
+    validateEvidenceRecord(record, scope);
+    if (records.has(record.snapshot_id)) fail('duplicate portable snapshot');
+    records.set(record.snapshot_id, record);
+  }
+  const ids = new Set();
+  for (const entry of bundle.entries) {
+    validateLearningEntry(entry, scope, records); validateLifecycle(entry, bundle.entries);
+    if (ids.has(entry.id)) fail('duplicate portable learning ID');
+    ids.add(entry.id);
+  }
+  const referenced = new Set(bundle.entries.flatMap(entry => entry.evidence.map(ref => ref.snapshot_id)));
+  if (records.size !== referenced.size) fail('portable bundle contains unrelated evidence');
+  return bundle;
+}
+export function exportLearning(root, id, output) {
+  const { directory } = resolveAccount(root, id), scope = learningScope(root, id);
+  return withLock(directory, '.account.lock', () => {
+    const memory = accountMemory(directory, scope), entries = memory.entries.filter(entry => scopedEntry(entry, scope));
+    const records = evidenceFor(directory, memory, entries);
+    const bundle = validateLearningBundle({ schema_version: 1, kind: 'dotads-account-learning', scope, entries, evidence: [...records.values()] }, scope);
+    if (canonical(sanitize(bundle)) !== canonical(bundle)) fail('portable output contains credential-bearing fields or URLs');
+    const bytes = json(bundle);
+    if (Buffer.byteLength(bytes) > 128 * 1024 * 1024) fail('learning bundle exceeds the 128 MiB offline ceiling');
+    const target = noLinks(output, true), repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+    if (target === repo || target.startsWith(`${repo}${path.sep}`) || target === root || target.startsWith(`${path.resolve(root)}${path.sep}`)) fail('export must be outside the code checkout and live workspace');
+    // Existing destination directories only: never provision a sync/network destination implicitly.
+    noLinks(path.dirname(target));
+    if ((fs.statSync(path.dirname(target)).mode & 0o077) !== 0) fail('export parent directory must be private (0700)');
+    writeNew(target, bytes); syncDir(path.dirname(target));
+    return { account_id: id, entries: entries.length, snapshots: records.size, output: target, sha256: hash(bytes), transferred: false };
+  });
+}
+export function importLearning(root, id, input) {
+  const { directory } = resolveAccount(root, id), scope = learningScope(root, id), file = noLinks(input);
+  if (!fs.lstatSync(file).isFile() || fs.statSync(file).size > 128 * 1024 * 1024) fail('learning bundle must be a regular file up to 128 MiB');
+  const raw = fs.readFileSync(file, 'utf8'), bundle = validateLearningBundle(JSON.parse(raw), scope);
+  // Refuse credentials rather than silently changing hashed/imported evidence.
+  if (canonical(sanitize(bundle)) !== canonical(bundle)) fail('portable input contains credential-bearing fields or URLs');
+  return withLock(directory, '.account.lock', () => {
+    const memory = accountMemory(directory, scope), byId = new Map(memory.entries.map(entry => [entry.id, entry]));
+    for (const entry of bundle.entries) if (byId.has(entry.id) && canonical(byId.get(entry.id)) !== canonical(entry)) fail('learning ID conflict; explicit reconciliation required, nothing overwritten');
+    const records = evidenceFor(directory, memory, memory.entries.filter(entry => scopedEntry(entry, scope)));
+    for (const record of bundle.evidence) if (records.has(record.snapshot_id) && canonical(records.get(record.snapshot_id)) !== canonical(record)) fail('learning snapshot conflict; explicit reconciliation required');
+    // Validate lifecycle on the resulting active set before writing anything.
+    const retiredIds = new Set((memory.superseded_entries ?? []).map(item => item.id));
+    const resulting = [...memory.entries.filter(entry => scopedEntry(entry, scope)), ...bundle.entries.filter(entry => !retiredIds.has(entry.id) && !byId.has(entry.id))];
+    for (const entry of bundle.entries) if (!retiredIds.has(entry.id) && entry.parent_id && retiredIds.has(entry.parent_id)) fail('learning import references a parent retired as superseded on this device; explicit reconciliation required');
+    for (const entry of resulting) validateLifecycle(entry, resulting);
+    const digest = hash(raw), relative = `imports/${digest}.json`, saved = contained(directory, `memory/${relative}`);
+    mkdir(contained(directory, 'memory/imports'));
+    if (fs.existsSync(saved)) { if (hash(fs.readFileSync(saved)) !== digest) fail('immutable imported bundle hash mismatch'); }
+    else writeNew(saved, raw);
+    const markdown = ['# Imported account learning evidence', '', '**Imported, unverified origin. No authenticated Meta read occurred on this device.** Source declarations below are supplied evidence, not authentication or causal proof.', '', `Bundle SHA-256: ${digest}`, '', '```json', json(bundle).trimEnd(), '```', ''].join('\n');
+    const mdFile = contained(directory, `memory/imports/${digest}.md`);
+    if (fs.existsSync(mdFile)) { if (fs.readFileSync(mdFile, 'utf8') !== markdown) fail('immutable imported Markdown conflict'); }
+    else writeNew(mdFile, markdown);
+    const retired = new Set((memory.superseded_entries ?? []).map(item => item.id));
+    let added = 0, skipped = 0;
+    for (const entry of bundle.entries) if (retired.has(entry.id)) skipped++; else if (!byId.has(entry.id)) { memory.entries.push(entry); added++; }
+    memory.learning_imports = { ...memory.learning_imports, [digest]: { path: relative, authenticated_read_observed: false } };
+    saveAccountMemory(directory, scope, memory);
+    return { account_id: id, added, skipped_superseded: skipped, total_entries: memory.entries.filter(entry => scopedEntry(entry, scope)).length, sha256: digest, authenticated_read_observed: false, memory_path: path.join(directory, 'memory/MEMORY.md') };
   });
 }
 
@@ -682,7 +1285,7 @@ function verifyAsset(directory, relative, expected) {
   if (inspected.sha256 !== expected) fail('managed media hash mismatch');
   return inspected;
 }
-function saveIndex(directory, value) { atomic(path.join(directory, 'media/index.json'), value); }
+function saveIndex(directory, value, storage = 'media') { atomic(path.join(directory, storage, 'index.json'), value); }
 function publishMedia(directory, source, relative, expected, expectedIdentity) {
   const destination = contained(directory, relative); mkdir(path.dirname(destination));
   if (fs.existsSync(destination)) { verifyAsset(directory, relative, expected); return; }
@@ -704,14 +1307,19 @@ function resultFor(directory, operation, extra = {}) {
   return { account_id: operation.account_id, directory, workspace: directory, operation_id: operation.operation_id, mode: operation.mode, status: operation.state, sha256: operation.sha256, destination: operation.destination, destination_path: contained(directory, operation.destination), source: operation.source, claim: operation.claim ?? null, ...extra };
 }
 function importId(id, source, mode, selected) { return `i_${hash(canonical({ account_id: id, source, mode, identity: selected.identity, sha256: selected.sha256, size: selected.size }))}`; }
-export function importMedia(root, id, source, { move = false } = {}) {
-  if (typeof move !== 'boolean') fail('move must be a boolean');
+export function importMedia(root, id, source, { move = false, shared = false, temporary = false } = {}) {
+  if ([move, shared, temporary].some(value => typeof value !== 'boolean')) fail('media options must be boolean');
+  if (temporary && (!shared || move)) fail('temporary assets require shared copy mode, never a move');
   if (typeof source !== 'string' || !source.trim()) fail('media source is required');
-  const { directory } = resolveAccount(root, id);
+  const account = resolveAccount(root, id);
+  if (shared) ensureBMAssets(root);
+  const directory = shared ? root : account.directory;
+  const storage = shared ? (temporary ? 'assets/temporary' : 'assets') : 'media';
+  const persist = saved => saveIndex(directory, saved, storage);
   source = path.resolve(source);
-  return withLock(directory, '.account.lock', () => {
-    mkdir(path.join(directory, 'media'));
-    const saved = index(directory, 'media');
+  return withLock(directory, shared ? '.assets.lock' : '.account.lock', () => {
+    mkdir(path.join(directory, storage));
+    const saved = index(directory, storage);
     const pending = saved.imports.find(item => item.source === source && item.mode === (move ? 'move' : 'copy') && item.state !== 'complete');
     let operation = pending;
     if (!operation && !fs.existsSync(source)) {
@@ -732,15 +1340,15 @@ export function importMedia(root, id, source, { move = false } = {}) {
       const previous = saved.imports.find(item => item.operation_id === operationId);
       if (previous) { verifyAsset(directory, previous.destination, previous.sha256); return resultFor(directory, previous, { already_imported: true, source_retained: true }); }
       const existing = saved.assets.find(item => item.sha256 === inspected.sha256);
-      const destination = existing?.path ?? `media/${VIDEO.has(extension) ? 'videos' : 'images'}/${inspected.sha256}${extension}`;
+      const destination = existing?.path ?? `${storage}/${VIDEO.has(extension) ? 'videos' : 'images'}/${inspected.sha256}${extension}`;
       operation = { operation_id: operationId, account_id: id, mode: move ? 'move' : 'copy', source, original_name: path.basename(source), identity: inspected.identity, sha256: inspected.sha256, size: inspected.size, destination, imported_at: new Date().toISOString(), source_type: 'selected_local_file', relationships: [], state: 'planned', claim: move ? path.join(path.dirname(source), `.dotads-claim-${operationId}`, 'source') : null };
-      saved.imports.push(operation); saveIndex(directory, saved);
+      saved.imports.push(operation); persist(saved);
     }
     let selectedSource = operation.mode === 'move' ? operation.claim : operation.source;
     if (operation.mode === 'move' && !fs.existsSync(operation.claim)) {
       if (['indexed', 'source_cleanup_pending', 'complete'].includes(operation.state)) {
         verifyAsset(directory, operation.destination, operation.sha256);
-        operation.state = 'complete'; saveIndex(directory, saved);
+        operation.state = 'complete'; persist(saved);
         return resultFor(directory, operation, { already_imported: true, source_retained: fs.existsSync(operation.source) });
       }
       const current = inspectFile(operation.source);
@@ -753,33 +1361,33 @@ export function importMedia(root, id, source, { move = false } = {}) {
       fs.renameSync(operation.source, operation.claim); syncDir(path.dirname(operation.source)); syncDir(claimDir);
       const claimed = inspectFile(operation.claim);
       if (!sameIdentity(claimed.identity, operation.identity) || claimed.sha256 !== operation.sha256) {
-        operation.state = 'conflict'; operation.reason = 'Claim identity mismatch; source bytes retained.'; saveIndex(directory, saved);
+        operation.state = 'conflict'; operation.reason = 'Claim identity mismatch; source bytes retained.'; persist(saved);
         try {
           fs.linkSync(operation.claim, operation.source); // Atomic no-clobber restoration.
           syncDir(path.dirname(operation.source)); fs.unlinkSync(operation.claim); syncDir(claimDir);
         } catch (error) { if (error.code !== 'EEXIST') throw error; }
         fail(`source claim mismatch; reconcile ${operation.source} and ${operation.claim}`);
       }
-      operation.state = 'source_claimed'; saveIndex(directory, saved);
+      operation.state = 'source_claimed'; persist(saved);
     }
     const selected = inspectFile(selectedSource);
     if (!sameIdentity(selected.identity, operation.identity) || selected.sha256 !== operation.sha256) fail(`claimed/source file changed; preserve ${selectedSource}`);
     publishMedia(directory, selectedSource, operation.destination, operation.sha256, operation.identity);
-    operation.state = 'destination_verified'; saveIndex(directory, saved);
+    operation.state = 'destination_verified'; persist(saved);
     if (!saved.assets.some(item => item.sha256 === operation.sha256)) saved.assets.push({ sha256: operation.sha256, size: operation.size, path: operation.destination, media_type: operation.destination.includes('/videos/') ? 'video' : 'image', first_imported_at: operation.imported_at });
-    operation.state = 'indexed'; saveIndex(directory, saved);
+    operation.state = 'indexed'; persist(saved);
     verifyAsset(directory, operation.destination, operation.sha256);
     // Reread the durable index before deleting a selected source claim.
-    const persisted = index(directory, 'media').imports.find(item => item.operation_id === operation.operation_id);
+    const persisted = index(directory, storage).imports.find(item => item.operation_id === operation.operation_id);
     if (!persisted || persisted.sha256 !== operation.sha256 || persisted.state !== 'indexed' || persisted.destination !== operation.destination) fail('media index verification failed; preserve source');
     if (operation.mode === 'move') {
-      operation.state = 'source_cleanup_pending'; saveIndex(directory, saved);
+      operation.state = 'source_cleanup_pending'; persist(saved);
       const current = inspectFile(operation.claim);
       if (!sameIdentity(current.identity, operation.identity) || current.sha256 !== operation.sha256 || current.nlink !== 1) return resultFor(directory, operation, { source_retained: true, reason: 'Claim identity/content or hardlink stability is uncertain; reconcile before cleanup.' });
       try { fs.unlinkSync(operation.claim); syncDir(path.dirname(operation.claim)); fs.rmdirSync(path.dirname(operation.claim)); syncDir(path.dirname(operation.source)); }
       catch (error) { return resultFor(directory, operation, { source_retained: fs.existsSync(operation.claim), reason: `Source cleanup unfinished: ${error.code ?? 'filesystem error'}` }); }
     }
-    operation.state = 'complete'; saveIndex(directory, saved);
+    operation.state = 'complete'; persist(saved);
     return resultFor(directory, operation, { source_retained: operation.mode === 'copy' || fs.existsSync(operation.source) });
   });
 }

@@ -1,14 +1,47 @@
 # Tasks — dotfiles
 
-Updated: 2026-11-01
+Updated: 2026-11-07
 
 Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
 
-Done 2026-10-30: TASK-159 → [archive](docs/archive/DOTFILES_TASKS_2026-10-30_META_COPY.md); TASK-091 superseded by TASK-160 → [record](docs/archive/TASKS-091-superseded.md); TASK-160 and TASK-161 → [archive](docs/archive/TASKS-160-161-completed.md).
-Done 2026-10-31: TASK-162 to TASK-165 → [archive](docs/archive/TASKS-162-166-completed.md); TASK-167 → [archive](docs/archive/TASKS-167-completed.md); TASK-168 → [archive](docs/archive/TASKS-168-completed.md); TASK-169 → [archive](docs/archive/TASKS-169-completed.md).
-Done 2026-11-01: TASK-170 → [archive](docs/archive/TASKS-170-completed.md); TASK-171 and TASK-172 → [archive](docs/archive/TASKS-171-completed.md); TASK-173 → [archive](docs/archive/TASKS-173-completed.md).
+Done through 2026-11-07: see [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194 to TASK-199 and TASK-203 to TASK-205, see the index; TASK-200 and TASK-206 are open below).
 
-## Pending
+## In progress
+
+### TASK-206: Fix the three findings of an owner-ordered review of the pushed TASK-205 and the merge
+- **Requirement:** REQ-PARALLEL-FOLLOWUP (owner 2026-11-07). Full contract: [TASKS-206-contract-full](docs/archive/TASKS-206-contract-full.md).
+- **Risk Level:** R2.
+- **Allowed Paths:** `bin/ai-policy-lint{,-test}`, `bin/ai-memory-route-test`, `bin/device-register`, `config/ai/memory-router.json`, `devices/rich.md`, `docs/DOTFILES_SITEMAP.md`, `CHANGELOG.md`, `TASKS.md`, `docs/archive/`.
+- **Protected Paths:** `bin/delivery-ledger*`, `docs/task-change-boundary.md`, `config/ai/README.md`, other `project-memory/*`, `skills/local/development-kit/**`, the other device's TASK-200.
+- **Canonical Contract Owners:** `ai-policy-lint` (ledger binding), `ai-memory-route` and its manifest, `device-register`.
+- **Accepted Invariants:** a historical exemption names the exact run file and cannot cover a new run; everyday phrases never pull the operations lessons; the device record does not overstate macOS.
+- **Regression Checks:** `ai-policy-lint-test`, `ai-memory-route-test`, `device-register-test`, `ai-doctor --self-test`, `ai-policy-lint`, `system-map --check`, `security-check`.
+- **Reopen Conditions:** a new wrong-pair run is accepted; an everyday phrase pulls the lessons; macOS overstated.
+- **Non-Scope:** the other device's CI failures; pushing.
+- **Escalation Conditions:** sudo, a live account, another session's files.
+
+### TASK-200: Adaptive Meta Ads conversion guardrails, BM markdown renderer v5 & memory hygiene
+- **Requirement:** REQ-META-ADAPTIVE-FRAMEWORK (owner 2026-11-07).
+- **Risk Level:** R3.
+- **Allowed Paths:** `bin/_dotads-workspace.mjs`, `bin/_dotads-workspace-test.mjs`, `bin/dotads-meta`, `bin/dotads-meta-test`, `skills/local/meta-ads-cli/**`, `skills/local/meta-ads-signal-engine/**`, `config/ai/memory/**`, `config/ai/project-memory/**`, `docs/DOTFILES_SITEMAP.md`, `docs/archive/**`, `TASKS.md`, `CHANGELOG.md`.
+- **Protected Paths:** `bin/delivery-ledger`, `docs/task-change-boundary.md`, `config/ai/README.md`.
+- **Canonical Contract Owners:** `dotads-meta`; `_dotads-workspace.mjs`; `algorithm-and-learning.md`; `PIXEL_2026_CHANGES.md`; `meta-ads.md`.
+- **Accepted Invariants:** shared skills/memory stay generalizable (no case lock); `meta-ads.md` <= 12,000B; `dotads-markdown/5` preserves prior revisions; `ai-memory-hygiene` 0 issues.
+- **Regression Checks:** `workspace`, `meta-cli`, `hygiene`, `route`, `system-map`, `policy`, `security`.
+- **Reopen Conditions:** `meta-ads.md` > 12,000B; case figures in skills; BM report revision collision.
+- **Non-Scope:** live Meta mutations; private `dotads-meta-report` data.
+- **Escalation Conditions:** unapproved live account mutation.
+
+### TASK-175: Cloudflare Asia-Pacific placement default
+- **Requirement:** REQ-CLOUDFLARE-APAC (owner 2026-11-02: web projects for Indonesia/Asia use Cloudflare SEA/Asia/Singapore; understand the breakdown and improve the skill).
+- **Risk Level:** R1.
+- **Allowed Paths:** `skills/local/cloudflare/SKILL.md`, `skills/local/cloudflare/.local-fork`, `skills/local/cloudflare/references/apac-placement.md`, `config/ai/memory/preferences.md`, `CHANGELOG.md`, `TASKS.md`, `docs/DOTFILES_SITEMAP.md`.
+- **Canonical Contract Owners:** `cloudflare` skill (product guidance); `memory/preferences.md` (owner default).
+- **Accepted Invariants:** facts from current Cloudflare docs only; hints never presented as residency; no remote resource changed.
+- **Regression Checks:** `skill-check`; `bin/system-map --check`; `ai-policy-lint`.
+- **Reopen Conditions:** Cloudflare adds a finer Asian hint or an Asian jurisdiction; a project created with `--location apac` is found outside APAC.
+- **Non-Scope:** migrating existing D1/R2 resources; deploys; commit/push.
+- **Escalation Conditions:** any change to a live D1/R2/DO resource or deploy.
 
 ### TASK-156: Memory precision
 - **Requirement:** REQ-MEMORY-PRECISION.
@@ -22,18 +55,6 @@ Done 2026-11-01: TASK-170 → [archive](docs/archive/TASKS-170-completed.md); TA
 - **Non-Scope:** deletion, commit/push.
 - **Escalation Conditions:** schema/authority change.
 
-### TASK-157: Session focus
-- **Requirement:** REQ-FOCUS.
-- **Risk Level:** R2.
-- **Allowed Paths:** run-bound focus, resume/router/access/ledger and tests, manifest/CORE/context/docs; [contract](docs/research/memory-focus-architecture-2026-10-29.md#accepted-delivery-contracts).
-- **Canonical Contract Owners:** focus.state; ledger completion.
-- **Accepted Invariants:** isolated expiring claims; captured boundaries persist; explicit references; no rival task authority.
-- **Regression Checks:** focus/route/access/resume/ledger tests, context, policy lint.
-- **Runtime Evidence:** concurrent claims and boundary probes.
-- **Reopen Conditions:** leakage/overwrite/bypass.
-- **Non-Scope:** write interception, commit/push.
-- **Escalation Conditions:** budget/authority change.
-
 ### TASK-158: Writer and two-way language
 - **Requirement:** REQ-TWO-WAY-LANGUAGE.
 - **Risk Level:** R2.
@@ -45,19 +66,6 @@ Done 2026-11-01: TASK-170 → [archive](docs/archive/TASKS-170-completed.md); TA
 - **Reopen Conditions:** intent/register regression.
 - **Non-Scope:** auto-promotion, commit/push.
 - **Escalation Conditions:** new CORE methodology.
-
-### TASK-151: Upstream watch registry and deduplicated skill evidence
-
-- **Requirement:** REQ-SKILL-UPSTREAM-WATCH (owner: build a skill/upstream reference so upstream changes can refine skills, and repair usage evidence, 2026-10-27).
-- **Risk Level:** R2.
-- **Allowed Paths:** `TASKS.md`, `bin/skill-upstream`, `bin/skill-upstream-test`, `bin/ai-skill-evolution`, `bin/ai-skill-evolution-test`, `config/ai/runtime-commands.txt`, `docs/DOTFILES_SITEMAP.md`, `skills/local/*/.upstream`, `skills/local/development-kit/references/ecosystem-adoption.md`.
-- **Canonical Contract Owners:** skills.provenance -> `.source`/`.local-fork` (vendored) and `.upstream` (watch-only); skills.evidence -> `ai-skill-evolution`; adoption -> `development-kit`.
-- **Accepted Invariants:** `.upstream` never triggers a fetch or write; vendored refresh semantics unchanged; the report is read-only and never edits skills; one delivery run counts once however many checkouts carry it.
-- **Regression Checks:** bind skills, maps, links, policy, security, diff, evolution-regression, upstream-regression at run start.
-- **Runtime Evidence:** live `skill-upstream` report over all registered watches; `ai-skill-evolution --repos-root ~/Projects` sample counts equal unique runs.
-- **Non-Scope:** refreshing or reconciling vendored skills, adopting new upstream skills, scheduling, commit/push.
-- **Reopen Conditions:** a watch resolves to a missing repository, or duplicated checkouts inflate evidence again.
-- **Escalation Conditions:** a change to vendored refresh semantics or skill frontmatter is required.
 
 ### TASK-148: Scope remaining owner priorities
 
