@@ -29,6 +29,9 @@ Prefer current official legislation portals and official vendor documentation fo
 - [UU No. 7 Tahun 2021 — Harmonisasi Peraturan Perpajakan](https://peraturan.bpk.go.id/Details/185162/uu-no-7-tahun-2021): statutory tax framework. Tax computation must be effective-dated and policy-owned rather than a permanent `0.11` constant.
 - Current implementing tax regulations and official DJP guidance for the actual taxable supply, invoice, buyer, and effective date. For example, [DJP discussion of PMK 131/2024](https://www.pajak.go.id/id/artikel/pmk-1312024-tarif-ppn-sebelas-dua-belas) explains the 12% statutory rate and `11/12` other-value mechanism for covered non-luxury supplies; the tax owner must confirm applicability.
 
+- [Permenkomdigi No. 8 Tahun 2025 — Layanan Pos Komersial](https://peraturan.bpk.go.id/Details/319703/permenkomdigi-no-8-tahun-2025), when a product books, resells or fronts courier parcels: duties sit on the licensed postal operator, but products in the chain should surface them truthfully. Read at least Art 10 (keagenan), Art 12 (scales, tracking, online complaints), Art 20 (return cost on the sender), Art 22 (prohibited items), Art 27 (insurance must be offered, may be declined), Art 45 (below-cost discounts limited to 3 days per month), Art 47(2)(i) and Art 73 (compensation ceiling of 10 times the shipping fee unless insured; settlement windows of 7 working days for loss and damage, 3 for delay) and Art 51 (shipping data kept at least 4 months as a QR code, with backup). Verified against the full text on 2026-11-09; the machine-extracted copy at regulasidigital.com is not the official text, so cite the JDIH BPK document. Whether a counter or reseller is itself an agent is a counsel question.
+- PPN on package delivery uses a "besaran tertentu" mechanism (PMK 71/PMK.03/2022, later amended); applicability to a reseller or platform fee is a tax-owner question, never a hardcoded rate.
+
 Recheck current PSE registration, sector, financial-services, health, telecommunications, consumer-protection, electronic-signature, records, and licensing obligations only when trigger facts activate them. For Malaysia, retrieve the current official instruments and regulator or vendor material for the exact activated concern; this reference intentionally carries no copied Indonesia conclusion or unverified Malaysia rule.
 
 ## Engineering contracts
@@ -60,6 +63,7 @@ Recheck current PSE registration, sector, financial-services, health, telecommun
 - Separate rate quote, booking, pickup, manifest, tracking, delivery, COD remittance, return-to-origin, cancellation, and dispute states.
 - Treat courier service codes, coverage, volumetric-weight divisors, cutoffs, COD fees, insurance, address rules, and tracking transitions as vendor-owned effective-dated data.
 - Preserve idempotency across order creation and booking; reconcile COD remittance independently from shipment delivery.
+- For a shipping counter or agent product, also model the counter's own jobs: content declaration, insurance choice, payment taken at the desk and its receipt, shift/day close, handover proof, customer resi notification, returns and claims. These are separate from the provider's states.
 - Use `mengantar-api` when that aggregator is selected; do not generalize its sandbox, concurrency, balance, header, or courier constraints to other providers.
 
 ### Privacy and operations

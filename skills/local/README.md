@@ -87,7 +87,7 @@ resolves, so an entry here is a mention, not a gated reference.
 
 | Skill | | What it owns | Routes to |
 |---|---|---|---|
-| [`meta-ads-cli`](meta-ads-cli/SKILL.md) |  | Automate Meta Ads campaigns, ad sets, creatives (image/video/DCO), insights, and catalogs from the terminal via the official meta-ads CLI and dotads-meta. | `content`, `copywriting`, `meta-ads-scout`, `meta-ads-signal-engine` |
+| [`meta-ads-cli`](meta-ads-cli/SKILL.md) |  | Automate Meta Ads campaigns, ad sets, creatives (image/video/DCO), insights, and catalogs from the terminal via the official meta-ads CLI and dotads-meta. | `content`, `copywriting`, `dotuiux`, `meta-ads-scout`, `meta-ads-signal-engine` |
 | [`meta-ads-signal-engine`](meta-ads-signal-engine/SKILL.md) |  | Meta Ads conversion signals: Pixel + Conversions API, event_id dedup, Advanced Matching, _fbp/_fbc preservation, COD vs prepaid Purchase, EMQ, CAPI event outbox. | `copywriting`, `full-stack-development`, `meta-ads-cli`, `meta-ads-scout` |
 | [`meta-ads-scout`](meta-ads-scout/SKILL.md) |  | Research competitor ads in the Meta Ad Library: official API first, public UI for manual review when the API lacks the market or category. | — |
 | [`google-ads-signal-engine`](google-ads-signal-engine/SKILL.md) |  | Google Ads conversion signals: gtag/GTM/sGTM, Enhanced Conversions, Consent Mode v2, transaction_id dedup, gclid/gbraid/wbraid, COD vs prepaid, offline uploads via Data Manager API. | `meta-ads-signal-engine` |
