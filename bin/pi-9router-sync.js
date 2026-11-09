@@ -145,7 +145,10 @@ async function main() {
     }
     provider.authHeader = true;
     const existing = new Map((provider.models || []).map(model => [model.id, model]));
-    provider.models = catalogs.get(root).map(row => modelMeta(row, existing.get(row.id), official, root));
+    const disabled = new Set(Array.isArray(provider.disabledModels) ? provider.disabledModels : []);
+    const activeRows = catalogs.get(root).filter(row => !disabled.has(row.id));
+    if (!activeRows.length) throw new Error('Catalog has no enabled chat models');
+    provider.models = activeRows.map(row => modelMeta(row, existing.get(row.id), official, root));
   }
   if (fs.readFileSync(modelsPath, 'utf8') !== original) throw new Error('Pi models changed during discovery; retry explicitly');
   const temporary = `${modelsPath}.${process.pid}.tmp`;

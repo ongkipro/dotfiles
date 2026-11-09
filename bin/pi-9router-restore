@@ -169,6 +169,7 @@ if [ -f "$old_ext/package.json" ] && grep -q '"name": "compact-free"' "$old_ext/
   rmdir "$old_ext" 2>/dev/null || true
   say "Removed the retired compact-free extension copy"
 fi
+rmdir "$HOME/.pi/extensions" 2>/dev/null || true
 
 sync_source="$DOTFILES_DIR/bin/pi-9router-sync.js"
 if [ -f "$sync_source" ]; then

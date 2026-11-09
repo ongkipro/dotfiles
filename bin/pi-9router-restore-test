@@ -42,6 +42,7 @@ run_restore
 grep -q 'http://127.0.0.1:20128/v1' "$FAKE_HOME/.pi/agent/models.json"
 grep -q '"enableHomeDirScanning":false' "$FAKE_HOME/.pi/agent/pi-fff.json"
 [ ! -e "$FAKE_HOME/.pi/extensions/compact-free" ]
+[ ! -e "$FAKE_HOME/.pi/extensions" ]
 printf '%s\n' '{"warnOnHomeDirScan":false}' > "$FAKE_HOME/.pi/agent/pi-fff.json"
 run_restore
 grep -q '"warnOnHomeDirScan":false' "$FAKE_HOME/.pi/agent/pi-fff.json"
@@ -153,6 +154,7 @@ const server = createServer((req, res) => {
     {id:'cx/gpt-6.1-sol', context_length:272000,max_completion_tokens:128000,capabilities:{reasoning:true,vision:true}},
     {id:'cc/claude-opus-5-5',context_length:1000000,max_completion_tokens:128000,capabilities:{reasoning:true,vision:true,thinkingFormat:'claude-adaptive'}},
     {id:'cc/claude-unlisted',context_length:200000,max_completion_tokens:64000,capabilities:{reasoning:true,vision:true,thinkingFormat:'claude-adaptive'}},
+    {id:'mmf/mimo-auto',context_length:262144,max_completion_tokens:131072,capabilities:{reasoning:true,vision:true}},
     {id:'oc/jev-1.13-free',context_length:200000,max_completion_tokens:64000,capabilities:{reasoning:false,vision:false}},
   ];
   if (mode === 'duplicate') rows.push(rows[0]);
@@ -168,7 +170,7 @@ try {
   const dir=join(fixture,'.pi/agent'); await mkdir(dir,{recursive:true});
   const file=join(dir,'models.json');
   const baseUrl=`http://127.0.0.1:${server.address().port}/v1`;
-  const original={providers:{'9router-fantastico':{baseUrl,apiKey:'fixture-only-key',custom:'keep',models:[{id:'cx/gpt-6.1-sol',headers:{'x-fixture':'keep'},compat:{supportsReasoningEffort:true},api:'openai-completions'},{id:'retired'}]},other:{baseUrl:'https://example.invalid',models:[]}}};
+  const original={providers:{'9router-fantastico':{baseUrl,apiKey:'fixture-only-key',custom:'keep',disabledModels:['mmf/mimo-auto'],models:[{id:'cx/gpt-6.1-sol',headers:{'x-fixture':'keep'},compat:{supportsReasoningEffort:true},api:'openai-completions'},{id:'retired'}]},other:{baseUrl:'https://example.invalid',models:[]}}};
   await writeFile(file,JSON.stringify(original));
   const run=(officialDir=official)=>exec(process.execPath,[join(root,'bin/pi-9router-sync.js')],{env:{...process.env,HOME:fixture,PI_9ROUTER_OFFICIAL_DIR:officialDir},timeout:15000});
   await run();const synced=JSON.parse(await readFile(file,'utf8'));
