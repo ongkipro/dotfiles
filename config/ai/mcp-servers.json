@@ -18,6 +18,13 @@
       "toolExposure": {
         "browser_run_code_unsafe": "hidden"
       }
+    },
+    "figcraft": {
+      "command": "figcraft-cli",
+      "args": [
+        "mcp"
+      ],
+      "description": "FigCraft interface design tool (inspect document, create/edit layers, layout, styles, variables, export, screenshot, commands)"
     }
   }
 }
