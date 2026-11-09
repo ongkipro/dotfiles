@@ -137,8 +137,8 @@ resolves, so an entry here is a mention, not a gated reference.
 | Skill | | What it owns | Routes to |
 |---|---|---|---|
 | [`vercel`](vercel/SKILL.md) |  | Deploy, configure, inspect, and manage Vercel projects via the CLI and git integration: linking, preview/production deploys, env vars, domains, logs, edge config, crons. | `cloudflare`, `github-actions`, `native-first`, `nextjs-development`, `ui-validation`, `vps-deploy` |
-| [`vultr`](vultr/SKILL.md) |  | Provision and manage Vultr instances with vultr-cli (create, plan/region, firewall groups) and bootstrap a fresh Coolify install. | `cloudflare` |
-| [`vps-deploy`](vps-deploy/SKILL.md) |  | Deploy and operate Node/Next.js/Astro SSR apps with PostgreSQL on an Ubuntu VPS via Coolify v4 or Docker Compose: health checks, zero-downtime deploys, workers/cron, backup/restore drills. | `cloudflare`, `postgres-drizzle`, `wrangler` |
+| [`vultr`](vultr/SKILL.md) |  | Provision and manage Vultr instances with vultr-cli (create, plan/region, firewall groups, reserved IPs). | `vps-deploy` |
+| [`vps-deploy`](vps-deploy/SKILL.md) |  | Deploy and operate Node/Next.js/Astro SSR apps with PostgreSQL on an Ubuntu VPS via Coolify v4 or Docker Compose: health checks, zero-downtime deploys, workers/cron, backup/restore drills. | `cloudflare`, `postgres-drizzle`, `vultr`, `wrangler` |
 
 ## Skills nothing mentions, and that mention nothing
 

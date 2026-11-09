@@ -455,6 +455,34 @@ if [ -d "$SK" ]; then
     if [ ! -d "$parent" ]; then wrn "$cli: belum terpasang (lewati)"; continue; fi
     if [ ! -d "$path" ]; then bad "$cli: ${path/#$HOME/\~} tidak ada. Perbaiki: skill-update"; continue; fi
 
+    # Claude owns its root (claude.ai-synced skills land there): it must be a
+    # real directory with one live link per owned skill (TASK-207).
+    if [ "$cli" = "claude" ]; then
+      if [ -L "$path" ]; then
+        bad "$cli: ${path/#$HOME/\~} masih legacy directory link (bocorkan synced/ ke runtime lain). Perbaiki: skill-update"
+        continue
+      fi
+      c_ok=0; c_bad=0; c_dangling=0
+      while IFS= read -r skill_file; do
+        skill_dir="$(dirname "$skill_file")"
+        t="$path/$(basename "$skill_dir")"
+        if [ -L "$t" ] && [ -e "$t" ] && [ "$(resolve_path "$t" 2>/dev/null)" = "$skill_dir" ]; then
+          c_ok=$((c_ok + 1))
+        else
+          c_bad=$((c_bad + 1))
+        fi
+      done < <(find "$SK" -mindepth 2 -maxdepth 2 -name SKILL.md)
+      while IFS= read -r l; do
+        [ -e "$l" ] || c_dangling=$((c_dangling + 1))
+      done < <(find "$path" -mindepth 1 -maxdepth 1 -type l)
+      if [ "$c_bad" -eq 0 ] && [ "$c_dangling" -eq 0 ]; then
+        ok "$cli: ${path/#$HOME/\~} per-skill links ($c_ok → skills/local; runtime-owned entries kept)"
+      else
+        bad "$cli: ${path/#$HOME/\~} $c_bad owned skill(s) missing/stale, $c_dangling dangling link(s). Perbaiki: skill-update"
+      fi
+      continue
+    fi
+
     # Model baru: path itu sendiri adalah symlink root ke skills/local
     if [ -L "$path" ]; then
       root_tgt=$(resolve_path "$path" 2>/dev/null || true)

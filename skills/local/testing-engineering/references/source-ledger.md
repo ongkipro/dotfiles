@@ -135,5 +135,5 @@ For an installed Playwright Test suite (check the version; see the ledger):
   gallery; `@playwright/experimental-ct-*` stopped receiving updates in 1.63
   and current docs mark them removed. Migrate while pinned to 1.62; add none.
 - Never run `playwright-cli install --skills -g` or any other agent-skill
-  installer: `~/.claude/skills` is a symlink to the owned dotfiles skills
-  directory, so it writes vendor files into owned skills.
+  installer: runtime skill directories link into the owned dotfiles skills
+  (`~/.pi/agent/skills`, `~/.claude/skills/<name>`), so it writes vendor files into owned skills.

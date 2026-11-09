@@ -7,19 +7,19 @@ Skill commands
   skill-check [name]       Validasi satu/semua skill + reference links
   skill-new <name> <desc>  Bikin skill baru dengan trigger description
   skill-remove <name>      Hapus skill (langsung hilang di semua CLI)
-  skill-update             Pasang/perbaiki symlink — cukup SEKALI per mesin
+  skill-update             Pasang/perbaiki symlink; jalan otomatis dari skill-new/-remove, jalankan setelah git pull yang menambah/menghapus skill
 
-Model: satu sumber, symlink satu-direktori.
+Model: satu sumber; symlink satu-direktori untuk runtime yang tidak menulis ke root skill-nya.
 
-  ~/.claude/skills       ─┐
-  ~/.pi/agent/skills     ─┼─→ ~/dotfiles/skills/local/
+  ~/.pi/agent/skills     ─┬─→ ~/dotfiles/skills/local/
   ~/.agents/local-skills ─┤
   ~/.gemini/config/skills ─┤
   ~/.omp/agent/skills    ──┘
 
-  Codex keeps ~/.codex/skills/.system and receives one managed link per owned
-  skill beside it.
+  Claude (~/.claude/skills) and Codex (~/.codex/skills) own their roots
+  (Claude syncs claude.ai skills into synced/, Codex keeps .system) and receive
+  one managed link per owned skill beside that content.
 
-Sinkron antar-device = `git pull` saja. Tidak ada langkah tambahan:
-skill baru muncul sendiri, skill yang dihapus hilang sendiri.
+Sinkron antar-device = `git pull`; runtime directory-link langsung ikut,
+Claude dan Codex ikut setelah `skill-update` (dotsync menjalankannya).
 TXT

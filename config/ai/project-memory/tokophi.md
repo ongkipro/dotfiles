@@ -1,6 +1,6 @@
 ---
 name: tokophi
-description: "TokoΦ commerce SaaS — repo di ~/Projects/tokophi, dokumentasi .md di-symlink ke ~/Documents/work/tokophi"
+description: "TokoΦ commerce SaaS — aktif di ~/Projects/tokophi-dev (~/Projects/tokophi = checkout lama), dokumentasi .md di-symlink ke ~/Documents/work/tokophi"
 metadata: 
   node_type: memory
   type: project
@@ -20,7 +20,7 @@ The repository may not exist on every device. Inspect local disk and Git before 
 - **`npm run audit:responsive -w @tokophi/storefront`** = the responsive gate (10 routes × 11 widths 320→1920). Run it before claiming "responsive".
 - **Multiple agents in one worktree = lost work** (lost twice already). Read the repo `AGENTS.md` before coding: don't `pkill astro/next` (it kills another agent's server), don't `git add -A` (use an explicit pathspec), commit as often as possible.
 - **Storefront tenant preview in a real browser without hosts edits**: `http://<slug>.127.0.0.1.sslip.io:<port>` (public DNS resolves to localhost; the first label is the store slug). Dev server port is `4327` (`astro dev --port 4327` in package.json), not Astro's default. A store whose primary host is set (e.g. the batik demo → `toko-demo.test`) 301s away from the sslip URL — drive it with Chrome's `--host-resolver-rules`, or use a store without a primary domain.
-- **PULL DULU, SELALU — GitHub `main` = kebenaran, lokal hanya cermin** (aturan owner 2026-09-25). Owner mengembangkan dari beberapa device; GitHub `main` sudah presisi dengan production Coolify (push ke `main` = auto-deploy). Awal setiap sesi tokophi, sebelum menyentuh apa pun:
+- **PULL DULU, SELALU — GitHub `main` = kebenaran, lokal hanya cermin** (aturan owner 2026-09-25). Owner mengembangkan dari beberapa device; GitHub `main` adalah sumber deploy, tapi **merge ke `main` tidak lagi auto-deploy** sejak pindah ke host khusus 2026-11-01 (Cloudflare Access memblok webhook): deploy dipicu manual, lihat [[tokophi-deploy-workflow]]. Checkout aktif: `~/Projects/tokophi-dev`. Awal setiap sesi tokophi, sebelum menyentuh apa pun:
   1. `git fetch origin && git status` → `git pull --ff-only origin main`. Kalau file lokal yang di-track bentrok dan bukan kerjaan sesi ini: owner memilih **GitHub menang** — simpan patch-nya dulu ke `~/Documents/work/notes/tokophi-local-backup-<tanggal>/`, lalu samakan ke HEAD. **Jangan pernah `git stash`** (global, milik agent lain). File untracked lokal → **pindahkan** ke folder backup itu, jangan dihapus.
   2. DB lokal ikut dipresisikan: `docker compose up -d db` → `npm run migrate -w @tokophi/db` (jumlah baris `drizzle.__drizzle_migrations` + stempel max harus sama dengan production) → data demo pakai `npm run seed:recent -w @tokophi/db` (hanya toko demo `batiknusantara`, idempoten). **Fokus akun toko = akun demo saja; jangan `SEED_FORCE`.**
   3. Paritas production dicek read-only: tag image keempat container Coolify = sha commit (`specs/docs/DEPLOY.md` → "artefact check"), dan count migration prod = lokal.
@@ -36,4 +36,4 @@ Current implementation, deployment, infrastructure, and migration status belong 
 
 Operational findings measured on 2026-08-05, including Coolify access behavior, environment parity,
 Compose validation constraints, and local mirror details, are device-specific. Read
-`~/.config/ai-local/tokophi-access.md` and `~/.config/ai-local/coolify-local.md` on the relevant machine.
+`~/.config/ai-local/tokophi-access.md` (and `fleet-inventory.md` for the host) on the relevant machine.

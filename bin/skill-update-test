@@ -33,18 +33,20 @@ trap cleanup EXIT
 FAKE_HOME="$TMP/home"
 SRC="$TMP/skills/local"
 mkdir -p "$TMP/skills/agents-bin" "$SRC/demo-skill" \
-  "$FAKE_HOME/.claude" "$FAKE_HOME/.codex/skills/.system"
+  "$FAKE_HOME/.claude" "$FAKE_HOME/.pi/agent" "$FAKE_HOME/.codex/skills/.system"
 cp "$REAL" "$TMP/skills/agents-bin/skill-update"
 chmod +x "$TMP/skills/agents-bin/skill-update"
 echo '# demo' > "$SRC/demo-skill/SKILL.md"
 
 run_it() { HOME="$FAKE_HOME" bash "$TMP/skills/agents-bin/skill-update" 2>&1; }
 
-echo "1. healthy target must be linked (baseline: the script still works)"
+echo "1. healthy targets must be linked (baseline: the script still works)"
 out="$(run_it || true)"
-if [ -L "$FAKE_HOME/.claude/skills" ] \
-   && [ "$(readlink "$FAKE_HOME/.claude/skills")" = "$SRC" ]; then
-  echo "   ✓ linked"
+if [ -L "$FAKE_HOME/.pi/agent/skills" ] \
+   && [ "$(readlink "$FAKE_HOME/.pi/agent/skills")" = "$SRC" ] \
+   && [ -d "$FAKE_HOME/.claude/skills" ] && [ ! -L "$FAKE_HOME/.claude/skills" ] \
+   && [ "$(readlink "$FAKE_HOME/.claude/skills/demo-skill")" = "$SRC/demo-skill" ]; then
+  echo "   ✓ linked (Pi directory link, Claude per-skill links)"
 else
   echo "   ✗ FAIL: skill-update tidak membuat symlink yang benar"
   printf '%s\n' "$out" | sed 's/^/     /'
@@ -52,14 +54,57 @@ else
 fi
 
 echo "2. re-run must be a silent no-op (idempotent, and NOT a guard trip)"
-# A whole-dir symlink to SRC itself resolves to SRC, not INSIDE it. The guard
-# must let this through — otherwise the normal second run would start failing.
 out="$(run_it || true)"
 if printf '%s\n' "$out" | grep -q '^  ok  ' \
-   && [ "$(readlink "$FAKE_HOME/.claude/skills")" = "$SRC" ]; then
+   && [ "$(readlink "$FAKE_HOME/.pi/agent/skills")" = "$SRC" ] \
+   && ! printf '%s\n' "$out" | grep -q 'migrate'; then
   echo "   ✓ no-op"
 else
   echo "   ✗ FAIL: run kedua bukan no-op — guard salah menangkap kasus normal"
+  printf '%s\n' "$out" | sed 's/^/     /'
+  fail=1
+fi
+
+echo "2b. old Claude directory link migrates; Claude-synced content leaves the source"
+rm -rf "$FAKE_HOME/.claude/skills"
+ln -sfn "$SRC" "$FAKE_HOME/.claude/skills"
+mkdir -p "$SRC/synced/bucket/cloud-skill"
+echo '# cloud' > "$SRC/synced/bucket/cloud-skill/SKILL.md"
+out="$(run_it || true)"
+if [ ! -L "$FAKE_HOME/.claude/skills" ] \
+   && [ -f "$FAKE_HOME/.claude/skills/synced/bucket/cloud-skill/SKILL.md" ] \
+   && [ ! -e "$SRC/synced" ] \
+   && [ "$(readlink "$FAKE_HOME/.claude/skills/demo-skill")" = "$SRC/demo-skill" ] \
+   && [ -z "$(find -L "$FAKE_HOME/.pi/agent/skills" -path '*synced*' -name SKILL.md)" ]; then
+  echo "   ✓ migrated; synced/ is Claude-only"
+else
+  echo "   ✗ FAIL: Claude migration wrong"
+  printf '%s\n' "$out" | sed 's/^/     /'
+  find "$FAKE_HOME/.claude" "$SRC" -maxdepth 3 | sed 's/^/     /'
+  fail=1
+fi
+
+echo "2c. Claude writing a new runtime entry stays out of the source"
+mkdir -p "$FAKE_HOME/.claude/skills/claude-own"
+echo '# own' > "$FAKE_HOME/.claude/skills/claude-own/SKILL.md"
+out="$(run_it || true)"
+if [ ! -e "$SRC/claude-own" ] && [ -f "$FAKE_HOME/.claude/skills/claude-own/SKILL.md" ]; then
+  echo "   ✓ runtime-owned entry preserved, source untouched"
+else
+  echo "   ✗ FAIL: runtime entry leaked or was removed"
+  fail=1
+fi
+rm -rf "$FAKE_HOME/.claude/skills/claude-own"
+
+echo "2d. interrupted migration: Claude root already real, synced/ still in source, name clash"
+mkdir -p "$SRC/synced/b2/again" && echo '# again' > "$SRC/synced/b2/again/SKILL.md"
+out="$(run_it || true)"
+if [ ! -e "$SRC/synced" ] \
+   && [ -f "$FAKE_HOME/.claude/skills/synced/bucket/cloud-skill/SKILL.md" ] \
+   && ls -d "$FAKE_HOME/.claude/skills"/synced.migrated.* >/dev/null 2>&1; then
+  echo "   ✓ evacuated without overwriting Claude's copy"
+else
+  echo "   ✗ FAIL: synced/ left in source or Claude copy overwritten"
   printf '%s\n' "$out" | sed 's/^/     /'
   fail=1
 fi
@@ -92,7 +137,7 @@ echo "5. target resolving INSIDE the source must be REFUSED"
 # This is the shape that ate the skills directory: the target points at a path
 # *within* SRC, so the "move it aside" branch would mv a real skill out of the
 # source tree. Guard must abort before reaching that branch.
-rm -f "$FAKE_HOME/.claude/skills"
+rm -rf "$FAKE_HOME/.claude/skills"
 ln -sfn "$SRC/demo-skill" "$FAKE_HOME/.claude/skills"
 
 set +e

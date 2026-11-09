@@ -23,28 +23,17 @@ House setup (TokoΦ): Coolify on a VPS, Docker Compose build pack, Postgres in a
 - `next start` does **not** serve files written to `public/uploads` after the build. Serve them through a route (`/api/uploads/[name]`) — or better, put them in object storage.
 - **Persist what matters**: named volumes for pgdata / uploads / backups. A redeploy without them is data loss.
 - **Seeds must be idempotent** — they re-run on every redeploy.
-- Firewall (UFW) is the real gate: only 22/80/443 + what you truly need. Coolify's dashboard port should not be open to the world long-term.
+- UFW is **not** the gate for containers: Docker-published ports bypass it. The provider firewall (80/443 from Cloudflare only) plus a `DOCKER-USER` guard are the gate; full procedure in `vps-deploy` → `references/coolify-behind-cloudflare.md`.
 
 ## Cost discipline — the thing that actually bites
 
-A VPS bills whether or not you use it. **Record the credit expiry and the monthly rate in memory when you create a server**, not later.
-
-> **Live example, re-measured 2026-08-05** (the previous version of this note was stale on all four
-> counts, and it is worth knowing how): TokoΦ runs **one** Vultr instance — `<coolify-vps>` (address in `~/.config/ai-local/project-credentials.md`)
-> (`volumdev`), plan **`vhp-4c-8gb-amd`**, Singapore, created 2026-07-10, **$48.00/mo**.
-> Credit remaining **$262.54**, pending charges **$8.08** → runway **~5,5 months, i.e. ~mid-January
-> 2027**. `vultr-cli` is installed and `~/.vultr-cli.yaml` is present; `vultr-cli instance list` works.
->
-> ⚠️ What this note used to say, and why each part was wrong — the stale-alarm failure mode:
-> `45.76.146.40` (that box was **deleted**; `DEPLOY.md` says so) · `vhp-8c-16gb-amd` **~$96/mo**
-> (double the real plan) · credit ends **± 2026-08-09** (off by ~5 months) · "`~/.vultr-cli.yaml` is
-> missing → CLI destroy won't work" (it is there and it works). Acting on it in August 2026 would have
-> raised a three-day emergency and argued for a Hetzner migration that nothing required.
->
-> 🔴 **So: read this note, then VERIFY it before acting.** `AGENTS.md` — when memory and disk
-> disagree, disk wins, then fix the memory. A cost note is memory; the account is disk:
-> `vultr-cli instance list` and `vultr-cli account info` (Vultr shows credit as a **negative**
-> BALANCE). Re-stamp this paragraph with the date you measured it.
+A VPS bills whether or not you use it. **Record the monthly rate and the account's
+credit runway in `~/.config/ai-local/fleet-inventory.md` when you create a server**,
+not later. Treat that note as memory and re-measure before acting on it: credit and
+plans come from the account (`<account>-vultr account info` shows credit as a
+negative balance; `<account>-vultr instance list`). A stale cost note once claimed
+the wrong plan, double the price and credit ending five months early; acting on it
+would have forced a migration nothing required.
 
 Plan of record: dev = Vultr SG (on credit) → prod = Hetzner SG. Migration is cheap (Coolify + git + `pg_dump` + repoint the Cloudflare origin IP).
 

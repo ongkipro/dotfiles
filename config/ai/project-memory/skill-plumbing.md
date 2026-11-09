@@ -13,7 +13,7 @@ metadata:
 Owned skills live only in `~/dotfiles/skills/local/`. Runtime directories contain
 managed links, never copied owned content:
 
-- Claude: `~/.claude/skills` directory link.
+- Claude: real `~/.claude/skills` directory with per-skill links (claude.ai-synced skills stay in its own `synced/`).
 - Pi: `~/.pi/agent/skills` directory link.
 - OMP: `~/.omp/agent/skills` directory link.
 - Antigravity: `~/.gemini/config/skills` directory link.
@@ -21,7 +21,7 @@ managed links, never copied owned content:
   one managed link per owned skill beside them.
 
 `~/.agents/bin/skill-update` resolves to the tracked implementation at
-`~/dotfiles/skills/agents-bin/skill-update`. It is idempotent, preserves Codex
+`~/dotfiles/skills/agents-bin/skill-update`. It is idempotent, preserves Claude `synced/` and Codex
 `.system`, removes stale managed links, and never fetches external skill sources.
 Run it after adding or removing an owned skill or installing a supported runtime.
 A normal source edit is visible immediately through the existing links.

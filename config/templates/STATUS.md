@@ -9,6 +9,20 @@ Primary-Worker: UNSET
 Independent-Reviewer: UNSET
 Independent-Review-Head: UNSET
 
+## Now
+
+(one paragraph: what is true today)
+
+## Next
+
+(the next verified action)
+
+## Blockers
+
+None.
+
+<!-- Keep Now/Next/Blockers within the first 80 lines and this file under 12 KB; history goes to BUILD-LOG.md or docs/archive/. -->
+
 ## Delivery state machine
 
 Allowed forward path:

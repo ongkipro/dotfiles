@@ -15,4 +15,4 @@ WhatsApp setup for 99ribu, bukalaris, and geraiexpress. Do not treat any provide
   only): `~/Documents/work/notes/2026-10-28-email-whatsapp-delivery.md`.
 - Once decided, the outcome is recorded in each repository's `DECISIONS.md`; repositories own
   the decision, this file only points to the open question. Delete this file after that.
-- Coolify email alerts on `vps-main` wait for the same decision (see [[coolify-vps-dev]]).
+- Coolify email alerts on the active hosts (see `~/.config/ai-local/fleet-inventory.md`) wait for the same decision (see [[coolify-vps-dev]]).

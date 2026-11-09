@@ -65,7 +65,7 @@ runs isolated regression tests that create temporary sandbox files.
 
 Runtime adapters:
 
-- Claude: `~/.claude/skills` is a directory symlink to the canonical source.
+- Claude: `~/.claude/skills` is a real directory with one link per owned skill; Claude Code syncs claude.ai skills into its `synced/` there, which must never enter the canonical source (TASK-207).
 - Pi: `~/.pi/agent/skills` is a directory symlink to the canonical source.
 - OMP: `~/.omp/agent/skills` is a directory symlink to the canonical source.
 - Antigravity: `~/.gemini/config/skills` is a directory symlink to the canonical source.
@@ -73,7 +73,7 @@ Runtime adapters:
   runtime-owned; each owned capability is linked beside it.
 
 Adding or removing an owned capability is immediately visible through directory
-links. Run `skill-update` after source additions/removals to reconcile Codex and
+links. Run `skill-update` after source additions/removals to reconcile Claude and Codex and
 after installing a new runtime. The updater does not fetch external repositories
 or copy capability content.
 

@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Reconcile owned skills from dotfiles/skills/local into each runtime's native
-# discovery path. Directory links are preferred; Codex is the exception because
-# ~/.codex/skills must retain its runtime-owned .system directory.
+# discovery path. Directory links are preferred. Codex and Claude are the
+# exceptions: each runtime writes its own content into its skills root (Codex
+# keeps .system; Claude Code syncs claude.ai skills into synced/). A directory
+# link would put that runtime content inside skills/local, where every other
+# runtime discovers it recursively (TASK-207: 24 claude.ai skills leaked into
+# Pi, OMP and Antigravity that way). Those two get one link per owned skill.
 set -euo pipefail
 
 resolve_path() {
@@ -27,7 +31,6 @@ SRC="$(cd "$SCRIPT_DIR/../local" && pwd -P)"
 [ -d "$SRC" ] || { echo "ERROR: skill source not found: $SRC" >&2; exit 1; }
 
 DIRECTORY_TARGETS=(
-  "$HOME/.claude/skills"
   "$HOME/.pi/agent/skills"
   "$HOME/.agents/local-skills"
   "$HOME/.gemini/config/skills"
@@ -75,32 +78,33 @@ for target in "${DIRECTORY_TARGETS[@]}"; do
   link_directory_target "$target"
 done
 
-# Codex discovers skills natively under ~/.codex/skills. Keep .system untouched
-# and reconcile only symlinks owned by this script.
-CODEX_ROOT="$HOME/.codex/skills"
-if [ -d "$HOME/.codex" ]; then
-  mkdir -p "$CODEX_ROOT"
+# Per-skill roots: the runtime owns the directory, this script owns only the
+# symlinks that point into SRC.
+reconcile_per_skill_root() {
+  local root="$1" label="$2" link raw skill_file skill_dir name target resolved
+  mkdir -p "$root"
 
   while IFS= read -r link; do
     raw="$(readlink "$link" 2>/dev/null || true)"
     case "$raw" in
       "$SRC"/*)
-        [ -e "$link" ] || {
+        [ -f "$link/SKILL.md" ] || {
           unlink "$link"
           printf '  unlink %-28s (owned skill removed)\n' "${link/#$HOME/\~}"
+          linked=$((linked + 1))
         }
         ;;
     esac
-  done < <(find "$CODEX_ROOT" -mindepth 1 -maxdepth 1 -type l)
+  done < <(find "$root" -mindepth 1 -maxdepth 1 -type l)
 
   while IFS= read -r skill_file; do
     skill_dir="$(dirname "$skill_file")"
     name="$(basename "$skill_dir")"
-    target="$CODEX_ROOT/$name"
+    target="$root/$name"
     resolved="$(resolve_path "$target" 2>/dev/null || true)"
 
     if [ -e "$target" ] && [ ! -L "$target" ]; then
-      echo "ERROR: Codex target $target is a real path; refusing to replace it." >&2
+      echo "ERROR: $label target $target is a real path; refusing to replace it." >&2
       exit 1
     fi
 
@@ -111,7 +115,53 @@ if [ -d "$HOME/.codex" ]; then
     ln -sfn "$skill_dir" "$target"
     linked=$((linked + 1))
   done < <(find "$SRC" -mindepth 2 -maxdepth 2 -name SKILL.md | sort)
+}
 
+# Claude: migrate the old whole-directory link. Claude-synced content that was
+# written through it into SRC (untracked, ignored) moves back under Claude's
+# own root; nothing is deleted.
+CLAUDE_ROOT="$HOME/.claude/skills"
+if [ -d "$HOME/.claude" ]; then
+  claude_resolved="$(resolve_path "$CLAUDE_ROOT" 2>/dev/null || true)"
+  case "$claude_resolved" in
+    "$SRC"/*)
+      echo "ERROR: $CLAUDE_ROOT resolves INSIDE the source ($claude_resolved). Refusing to touch it." >&2
+      exit 1
+      ;;
+  esac
+  if [ -L "$CLAUDE_ROOT" ]; then
+    if [ "$claude_resolved" = "$SRC" ]; then
+      unlink "$CLAUDE_ROOT"
+      printf '  migrate %-27s (directory link -> per-skill links)\n' "~/.claude/skills"
+      linked=$((linked + 1))
+    else
+      echo "ERROR: $CLAUDE_ROOT is a symlink to $claude_resolved, not the skill source; refusing to replace it." >&2
+      exit 1
+    fi
+  fi
+  mkdir -p "$CLAUDE_ROOT"
+  # Claude-synced content written through the old link lives in SRC. Evacuate
+  # it on every run (an interrupted migration must not leave it behind); never
+  # overwrite: a clash is parked beside Claude's copy with a timestamp.
+  for runtime_dir in synced; do
+    [ -d "$SRC/$runtime_dir" ] || continue
+    dest="$CLAUDE_ROOT/$runtime_dir"
+    [ -e "$dest" ] && dest="$CLAUDE_ROOT/$runtime_dir.migrated.$(date +%Y%m%d-%H%M%S)"
+    mv "$SRC/$runtime_dir" "$dest"
+    printf '  moved  %s -> %s (Claude-owned)\n' "skills/local/$runtime_dir" "${dest/#$HOME/\~}"
+    linked=$((linked + 1))
+  done
+  reconcile_per_skill_root "$CLAUDE_ROOT" "Claude"
+  printf '  ok     %-28s (runtime-owned entries preserved)\n' "~/.claude/skills"
+else
+  printf '  skip   %-28s (runtime belum terpasang)\n' "~/.claude/skills"
+  skipped=$((skipped + 1))
+fi
+
+# Codex discovers skills natively under ~/.codex/skills. Keep .system untouched.
+CODEX_ROOT="$HOME/.codex/skills"
+if [ -d "$HOME/.codex" ]; then
+  reconcile_per_skill_root "$CODEX_ROOT" "Codex"
   printf '  ok     %-28s (%s preserved)\n' "~/.codex/skills" ".system"
 else
   printf '  skip   %-28s (runtime belum terpasang)\n' "~/.codex/skills"

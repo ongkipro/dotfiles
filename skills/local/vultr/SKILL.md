@@ -1,12 +1,12 @@
 ---
 name: vultr
 description: >-
-  Provision and manage Vultr instances with vultr-cli (create, plan/region, firewall groups) and bootstrap a fresh Coolify install. Not app deploys, Coolify operations, backups, or hardening after install (vps-deploy). Triggers: bikin server, sewa VPS.
+  Provision and manage Vultr instances with vultr-cli (create, plan/region, firewall groups, reserved IPs). Not Coolify install, hardening, app deploys, or backups (vps-deploy runbook). Triggers: bikin server, sewa VPS.
 ---
 
-# Vultr (CLI-first) + Coolify
+# Vultr (CLI-first)
 
-Provision Vultr servers and bootstrap Coolify **from the terminal** instead of the web console. Auto-activate for Vultr / vultr-cli / "deploy server" / "pasang Coolify" tasks. Pairs with the `cloudflare` (Tunnel, DNS, WAF) + Coolify self-host workflow.
+Provision Vultr servers **from the terminal** instead of the web console. Coolify and hardening continue in the `vps-deploy` runbook.
 
 ## Install vultr-cli (no sudo)
 
@@ -22,11 +22,11 @@ Note: the asset keeps the `v` in the version (e.g. `vultr-cli_v3.10.0_linux_amd6
 
 One wrapper per Vultr account; the token lives in `secrets-env`, never in `~/.vultr-cli.yaml` (no plaintext config, and several accounts can coexist). `VULTR_API_KEY` in the environment overrides the config file.
 
-- Current account: **`dotfiles-a1`** (`~/dotfiles/bin/dotfiles-a1-vultr`, linked into `~/.local/bin`), token `VULTR_DOTFILES_A1_API_KEY`. Run every command below as `dotfiles-a1-vultr <args>` instead of `vultr-cli <args>`. The older `dotfiles-vultr` account answered 401 from 2026-10-30 and was retired on 2026-11-09: its secret line and the `~/.local/bin/dotfiles-vultr` symlink are removed (see `config/ai/project-memory/coolify-vps-dev.md`).
-- Set or rotate the token: create a Personal Access Token at https://my.vultr.com/settings/#settingsapi, add this machine's IP under **Access Control**, then the user pastes it into the `VULTR_DOTFILES_API_KEY=` line of `~/.config/ai-local/secrets.env` with their own editor (never via chat or a command line). Verify with a read-only call such as `<wrapper> ssh-key list`, then `secrets-env check`. A 401 usually means this machine's current public IP is missing from Access Control (home IPs change); Access Control accepts IP/CIDR only, not machine identity.
+- Current account: **`dotfiles-a1`** (`~/dotfiles/bin/dotfiles-a1-vultr`, linked into `~/.local/bin`), token `VULTR_DOTFILES_A1_API_KEY`. Run every command below as `dotfiles-a1-vultr <args>` instead of `vultr-cli <args>`. An older account (retired 2026-11-09) has no wrapper anymore; never recreate it.
+- Set or rotate the token: create a Personal Access Token at https://my.vultr.com/settings/#settingsapi, add this machine's IP under **Access Control**, then the user pastes it into the `VULTR_DOTFILES_A1_API_KEY=` line of `~/.config/ai-local/secrets.env` with their own editor (never via chat or a command line). Verify with a read-only call such as `<wrapper> ssh-key list`, then `secrets-env check`. A 401 usually means this machine's current public IP is missing from Access Control (home IPs change); Access Control accepts IP/CIDR only, not machine identity.
 - Another account: copy the wrapper to `bin/<name>-vultr`, change the variable it reads (`VULTR_<NAME>_API_KEY`), add an empty `# --- Vultr — <name> ---` group + variable to `~/.config/ai-local/secrets.env`, and symlink it into `~/.local/bin`.
 - Retired account: delete its secret line and wrapper; check no `~/.vultr-cli.yaml` is left behind.
-- Existing servers on this account (IDs, firewall group, reserved IP, SSH key): `~/.config/ai-local/99ribu-prod-access.md`. Note `plans list` shows nominal regions, not stock — confirm with `regions availability <region>` before `instance create`.
+- Existing servers on this account: `~/.config/ai-local/fleet-inventory.md` (one row per host, pointing to its `*-access.md`). Note `plans list` shows nominal regions, not stock — confirm with `regions availability <region>` before `instance create`.
 
 ## Deploy an instance (end-to-end)
 
@@ -58,35 +58,24 @@ CLI and API facts verified 2026-10-30 (vultr-cli 3.11):
 
 Plan naming: `vhp-*` = High Performance (AMD, NVMe), `vhf-*` = High Frequency (Intel 3GHz+, NVMe), `vc2-*` = Regular. Vultr has **no Jakarta** — Singapore (`sgp`) is closest to Indonesia (~20-30ms). Vertical resize is easy but **disk can't shrink**, so start small.
 
-## Bootstrap Coolify (Docker deploys)
+## After provisioning: Coolify and hardening
 
-```bash
-ssh root@<IP> 'export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a; \
-  apt-get update -y && apt-get upgrade -y -o Dpkg::Options::="--force-confold"; \
-  curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash'
-# Host-service allowlist only; Docker-published ports can bypass UFW (see below).
-ssh root@<IP> 'for p in 22 80 443 8000 6001 6002; do ufw allow $p/tcp; done; ufw --force enable'
-```
+This skill stops at a reachable, key-only machine. Everything after that (host
+baseline, provider firewall before Docker, headless Coolify root user, Origin CA,
+Cloudflare Access, Cloudflare-only origin) has one canonical procedure:
+`vps-deploy` → [references/coolify-behind-cloudflare.md](../vps-deploy/references/coolify-behind-cloudflare.md).
+Do not open 8000/6001/6002 publicly or register the first admin in a browser.
 
-**Network boundary (official guidance):** Docker diverts published-container
-traffic before it reaches UFW's `INPUT`/`OUTPUT` chains, so UFW alone is not an
-effective container-port boundary. Attach a Vultr Firewall group and allow TCP
-22, 80, and 443, plus 8000 (dashboard), 6001 (real-time), and 6002 (terminal)
-only while accessing Coolify directly by IP. After a custom domain works
-through Coolify's integrated Traefik/Caddy proxy, close 8000, 6001, and 6002 at
-the Vultr Firewall and use 80/443. Keep UFW as defense in depth for host
-services. If a provider firewall is unavailable, Coolify documents
-`ufw-docker` as the advanced self-hosted fallback; do not disable Docker's
-firewall-rule generation, which Docker says is likely to break container
-networking.
-
-Official sources: [Docker and UFW](https://docs.docker.com/engine/network/packet-filtering-firewalls/#docker-and-ufw),
-[Coolify firewall ports and closure strategy](https://coolify.io/docs/knowledge-base/server/firewall),
-and [Vultr Firewall rules](https://docs.vultr.com/products/network/firewall-groups/management/rules).
-- Coolify installer **also installs Docker** (steps 1-8) — do NOT install Docker separately.
-- Dashboard: `http://<IP>:8000` → **register the first admin immediately** (first registrant = owner).
-- Server type on onboarding = **"This Machine" / Localhost** for a single-server setup.
-- Monorepo apps: use the **Docker Compose** build pack (base directory `/`) with per-service `build.context: .` (repo root) + `dockerfile: apps/<app>/Dockerfile` — Nixpacks base-directory FAILS on npm workspaces.
+Vultr-specific facts that runbook relies on:
+- Attach the firewall group at `instance create` (`--firewall-group <id>`) so the
+  machine is never public without it; Docker-published ports bypass UFW
+  ([Docker and UFW](https://docs.docker.com/engine/network/packet-filtering-firewalls/#docker-and-ufw),
+  [Coolify firewall](https://coolify.io/docs/knowledge-base/server/firewall)).
+- Monorepo apps on Coolify: Docker Compose build pack (base directory `/`) with
+  per-service `build.context: .` and `dockerfile: apps/<app>/Dockerfile`; Nixpacks
+  base-directory fails on npm workspaces.
+- After creating a server, add it to `~/.config/ai-local/fleet-inventory.md` and
+  record its monthly rate and the account's credit runway.
 
 ## Cheaper alternative for prod
 

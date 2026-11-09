@@ -6,7 +6,9 @@ skill; live hosts, IDs and credentials live in `~/.config/ai-local/<host>-access
 and `secrets-env`, never here.
 
 Verified end to end on 2026-10-30: Ubuntu 24.04, vultr-cli 3.11, Coolify 4.5.3,
-Traefik 3.7, Docker 29.9. To update: re-verify the step, change it in place, and
+Traefik 3.7, Docker 29.9. Re-applied 2026-11-10 on a second host (Coolify 4.7.2,
+Traefik 3.7.17): installer `ROOT_USER_*` bootstrap, `DOCKER-USER` guard, and the
+SSL-mode ordering below. To update: re-verify the step, change it in place, and
 bump the verified line for that step. Do not append a second procedure beside this
 one.
 
@@ -14,16 +16,23 @@ one.
 
 | Layer | State |
 |---|---|
-| Provider firewall | 22 public (key-only SSH); 80/443 from Cloudflare only (v4+v6); nothing else |
-| Host | sshd key-only drop-in, UFW deny-incoming, fail2ban, unattended-upgrades, no snapd/ModemManager |
+| Provider firewall | 22 public (key-only SSH) or owner `/32` only; 80/443 from Cloudflare only (v4+v6); nothing else |
+| Host | sshd key-only drop-in, UFW deny-incoming, fail2ban, unattended-upgrades, `DOCKER-USER` guard, no snapd/ModemManager |
 | Coolify | root user created headless, registration off, API on, instance URL on its own domain |
 | TLS at origin | Cloudflare Origin CA certs (key generated on the server) loaded by Traefik file config |
-| Cloudflare | proxied records, SSL Full (strict), Access in front of the dashboard, `/api` + `/webhooks` bypassed |
+| Cloudflare | proxied records, SSL Full (strict) **only after** the Origin CA cert is loaded, Access in front of the dashboard, `/api` + `/webhooks` bypassed |
+
+Per-host deviations from this target (SSH source, tunnel-only API, pending cert)
+are recorded in `~/.config/ai-local/fleet-inventory.md`, not here.
 
 ## 1. Host baseline (before Coolify)
 
 1. Update, then install only `unattended-upgrades fail2ban ufw`. Purge `snapd` and
-   `modemmanager`; disable `multipathd` on a single-disk VM.
+   `modemmanager`; disable `multipathd` on a single-disk VM. fail2ban: an `sshd`
+   jail in `/etc/fail2ban/jail.d/sshd.local` (4–5 tries / 10 min, 1 h ban) with
+   `ignoreip = 127.0.0.1/8 ::1 10.0.0.0/8 172.16.0.0/12` so Coolify's own SSH to
+   localhost from its containers is never banned. Unattended-upgrades without an
+   automatic reboot; reboots are watched.
 2. sshd: write `/etc/ssh/sshd_config.d/10-hardening.conf` (`PasswordAuthentication no`,
    `KbdInteractiveAuthentication no`, `PermitRootLogin prohibit-password`,
    `MaxAuthTries 3`, `X11Forwarding no`) **and delete cloud-init's
@@ -38,15 +47,30 @@ one.
    Do not trust the provider's group counters (Vultr's API reported 0 instances and
    0 rules for an enforced group). Use `pkill -x`/a PID, not `pkill -f <pattern>`,
    inside the same SSH command, or it kills its own shell.
+5. After Docker exists (step 2), add a `DOCKER-USER` guard as defence in depth
+   behind the provider firewall: a small script plus a systemd unit ordered
+   `After=docker.service` (`PartOf=docker.service` so it re-applies on restart)
+   that drops TCP 8000/6001/6002/8080 arriving on the public interface, matched on
+   the conntrack original port (`-m conntrack --ctorigdstport`). Loopback stays
+   open, so the SSH tunnel keeps working. Prove it with an outside probe.
 
 ## 2. Install Coolify and the root user without a browser race
 
-1. Restrict 8000/6001/6002 to the operator's IP at the provider firewall, then run
-   the official installer. It installs Docker and writes `daemon.json` with json-file
-   log rotation (10m x 3); verify rather than re-adding it.
+1. Keep 8000/6001/6002 closed at the provider firewall (use an SSH tunnel), review
+   the official installer script, then run it. It installs Docker and writes
+   `daemon.json` with json-file log rotation (10m x 3); verify rather than
+   re-adding it. Disable automatic updates (Settings → Updates → Disabled, or
+   `AUTOUPDATE=false` in `/data/coolify/source/.env`, which then overrides the
+   dashboard) so upgrades are manual and watched.
 2. The first registrant becomes owner, and the installer shows a 10-minute window
-   (`docker restart coolify` reopens it). Create the root user headless with the
-   official seeder, feeding the password on stdin so it never reaches argv or `.env`:
+   (`docker restart coolify` reopens it). Never open `/register` in a browser.
+   Preferred (documented in Coolify's installation page, "Advanced installations
+   → Root user"): pass `ROOT_USERNAME`, `ROOT_USER_EMAIL` and `ROOT_USER_PASSWORD`
+   to the installer environment so the root user exists before the page is
+   reachable. Read the password from stdin in the remote shell (for example
+   `read -r ROOT_USER_PASSWORD; export ROOT_USER_PASSWORD`), never from a
+   command-line argument or the docs' inline example. Fallback on an existing install: the official
+   seeder, again with the password on stdin so it never reaches argv or `.env`:
 
    ```bash
    secrets-env get <PASSWORD_VAR> | ssh root@<host> \
@@ -78,8 +102,10 @@ one.
    per-instance wrapper (`<account>-coolify`) that passes the token per call.
    A sudden API 401 can mean the row vanished from `personal_access_tokens`; check
    that table before debugging the network.
-4. Close 8000/6001/6002 at the provider firewall (takes about a minute to apply) and
-   in UFW. Emergency access: `ssh -L 8000:localhost:8000 root@<host>`.
+4. Verify 8000/6001/6002 are still closed from outside (provider firewall,
+   `DOCKER-USER` guard; UFW denies them too). If a rule was opened for a
+   one-off, remove it now (rule changes take about a minute to apply).
+   Emergency access: `ssh -L 8000:localhost:8000 root@<host>`.
 
 ## 4. Sites through Cloudflare (Origin CA)
 
@@ -118,7 +144,11 @@ one.
 
 ## 5. Cloudflare zone settings
 
-- SSL Full (strict). If the zone must stay Flexible for other hosts, add a
+- SSL Full (strict) — **only after** §4's Origin CA cert is installed and Traefik
+  serves it. Switching first makes every proxied request that reaches the origin
+  answer 526, while the Access login page still loads, so the break shows only
+  after login. Order: Full → install cert → verify `/api` through Cloudflare →
+  strict, and roll back to Full if that check fails. If the zone must stay Flexible for other hosts, add a
   Configuration Rule (`http_config_settings`, `http.host eq "<host>"`, `ssl: strict`)
   instead of changing the zone. Without it a proxied Coolify host loops on Traefik's
   HTTP→HTTPS redirect. Error 10003 from a phase entrypoint GET means "no ruleset yet",

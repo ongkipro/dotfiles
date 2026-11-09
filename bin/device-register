@@ -165,7 +165,24 @@ check_link "$HOME/.codex/AGENTS.md"          "memori → codex"
 check_link "$HOME/.gemini/GEMINI.md"         "memori → agy"
 check_link "$HOME/.omp/agent/AGENTS.md"       "memori → omp"
 check_link "$HOME/.agents/local-skills"      "skills → shared runtime"
-check_link "$HOME/.claude/skills"            "skills → claude"
+# Claude owns its skills root (claude.ai-synced skills land there), so it holds
+# per-skill links instead of one directory link (TASK-207).
+if [ -L "$HOME/.claude/skills" ]; then
+  LINK_ROWS+="| skills → claude | \`~/.claude/skills\` | ⚠️ legacy directory link — run \`skill-update\` |"$'\n'
+elif [ -d "$HOME/.claude/skills" ]; then
+  n_claude=0; n_dangling=0
+  for _l in "$HOME/.claude/skills"/*; do
+    [ -L "$_l" ] || continue
+    if [ -e "$_l" ]; then n_claude=$((n_claude + 1)); else n_dangling=$((n_dangling + 1)); fi
+  done
+  if [ "$n_claude" -gt 0 ] && [ "$n_dangling" -eq 0 ]; then
+    LINK_ROWS+="| skills → claude | \`~/.claude/skills\` | ✅ ok ($n_claude per-skill links) |"$'\n'
+  else
+    LINK_ROWS+="| skills → claude | \`~/.claude/skills\` | ❌ $n_claude live, $n_dangling dangling — run \`skill-update\` |"$'\n'
+  fi
+else
+  LINK_ROWS+="| skills → claude | \`~/.claude/skills\` | — belum ada |"$'\n'
+fi
 check_link "$HOME/.pi/agent/skills"          "skills → pi"
 check_link "$HOME/.gemini/config/skills"     "skills → agy"
 check_link "$HOME/.omp/agent/skills"         "skills → omp"

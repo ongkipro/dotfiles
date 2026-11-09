@@ -272,6 +272,36 @@ assert names(route('explicit',budget=800))==['large.md','shared.md']
 print('ai-memory-route-test: project isolation, scopes, path budget PASS')
 PY
 
+# TASK-207: a prompt that names one project, typed outside any known project,
+# opens that project's notes; negation, a second project, or being inside
+# another project keeps the boundary closed.
+python3 - "$ROUTER" "$TMP" <<'PY'
+import runpy,sys
+from pathlib import Path
+m=runpy.run_path(sys.argv[1]);root=Path(sys.argv[2])/'named';root.mkdir()
+home=root/'home';home.mkdir();inside=root/'alpha';inside.mkdir()
+for n in ('alpha.md','beta.md','shared.md'):(root/n).write_text('x'*50)
+manifest={'projects':{'alpha':['alpha.md'],'alpha.com':['alpha.md'],'betaproj':['beta.md']},'shared':[],'lessons':[]}
+m['select'].__globals__['changed_paths']=lambda repo:[]
+m['select'].__globals__['project_from_repo']=lambda repo,man: repo.name if repo else None
+def names(q,repo=home,refs=()): return [Path(f['path']).name for f in m['select'](root,manifest,q,'auto',repo,None,3,12000,refs)['files']]
+assert names('deploy alpha')==['alpha.md'],names('deploy alpha')
+assert names('deploy alpha.com')==['alpha.md']
+assert names('deploy alpha', repo=None)==['alpha.md']
+assert names('jangan sentuh alpha, cek server')==[]
+for q in ('do not touch alpha','without alpha please','tidak usah ubah alpha','jangan pernah mengubah konfigurasi alpha'):
+    assert names(q)==[],q
+# Everyday-word keys need "proyek/project <key>".
+manifest['projects']['kelola']=['beta.md']; manifest['ambiguousProjectKeys']=['kelola']
+assert names('kelola server vps baru')==[]
+assert names('cek proyek kelola')==['beta.md']
+del manifest['projects']['kelola']; del manifest['ambiguousProjectKeys']
+assert names('compare alpha and betaproj')==[]
+assert 'alpha.md' not in names('samakan dengan alpha', repo=root/'betaproj')
+assert names('alphabet soup')==[]
+print('ai-memory-route-test: project named in the prompt (outside a project) PASS')
+PY
+
 # Current repository truth retains priority when three durable topics match.
 python3 - "$ROUTER" "$TMP" <<'PY'
 import runpy,sys
@@ -299,9 +329,22 @@ cases = [
     ("tmp cleanup deleted a queued gate script", "ops-lessons.md"),
     ("vitest testTimeout integration suite timed out", "development-lessons.md"),
     ("create database drop database parallel test harness", "development-lessons.md"),
+    ("setup vps baru vultr hardening", "coolify-vps-dev.md"),
+    ("cloudflare access origin ca dotserver", "coolify-vps-dev.md"),
+    ("heavy-run ai-testdb full suite", "parallel-terminals.md"),
 ]
+# Projects registered by TASK-207 route their notes from inside their repo.
+import tempfile, os
+for proj, query, expected in (("geraiexpress", "setup email dan whatsapp", "customer-messaging-pending.md"),
+                              ("bavenshop", "deploy worker ini", "adsbookcms-install-fleet.md")):
+    with tempfile.TemporaryDirectory() as td:
+        repo = os.path.join(td, proj); os.mkdir(repo)
+        out = subprocess.run([f"{root}/bin/ai-memory-route", "--json", "--repo", repo, query], capture_output=True, text=True, cwd=root, check=True).stdout
+        names = [f["path"].rsplit("/", 1)[-1] for f in json.loads(out)["files"]]
+        assert expected in names, (proj, query, names)
 for query, expected in cases:
-    out = subprocess.run([f"{root}/bin/ai-memory-route", "--scope", "shared", "--json", query], capture_output=True, text=True, cwd=root, check=True).stdout
+    scope = "lesson" if expected == "coolify-vps-dev.md" else "shared"
+    out = subprocess.run([f"{root}/bin/ai-memory-route", "--scope", scope, "--json", query], capture_output=True, text=True, cwd=root, check=True).stdout
     names = [f["path"].rsplit("/", 1)[-1] for f in json.loads(out)["files"]]
     assert expected in names, (query, names)
 # Everyday uses of the same words must NOT pull these lessons in (a bare "scratch" once did: "from scratch").

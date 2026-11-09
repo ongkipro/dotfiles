@@ -111,11 +111,11 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 
 | Collection | Path | Tracked | Completeness enforced by |
 |---|---|---|---|
-| Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 26 | linked from this page |
+| Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 27 | linked from this page |
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 84 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
 | Owned skills | [`skills/local/`](../skills/local/) | 75 | linked from this page |
-| Commands | [`bin/`](../bin/) | 66 | linked from this page |
+| Commands | [`bin/`](../bin/) | 64 | linked from this page |
 | Command tests | [`bin/`](../bin/) | 78 | linked from this page |
 | Device profiles | [`devices/`](../devices/) | 9 | linked from this page |
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
@@ -129,7 +129,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Research records | [`docs/research/`](../docs/research/) | 6 | linked from this page |
 | Environment and bootstrap | [`config/`](../config/) | 35 | linked from this page |
 | Device reports | [`docs/device-reports/`](../docs/device-reports/) | 21 | count only |
-| Archived task records | [`docs/archive/`](../docs/archive/) | 68 | count only |
+| Archived task records | [`docs/archive/`](../docs/archive/) | 69 | count only |
 
 <!-- system-map:inventory:end -->
 
@@ -231,6 +231,7 @@ Cross-project durable facts loaded selectively on demand by `ai-memory-access`.
 | [`goals.md`](../config/ai/memory/goals.md) | High-level engineering roadmap, business objectives, milestones. |
 | [`business.md`](../config/ai/memory/business.md) | Business landscape: client systems, dropshipping, affiliate platforms, e-commerce stores. |
 | [`development.md`](../config/ai/memory/development.md) | House stack (Postgres + Drizzle + Better Auth, Astro, Next.js, Cloudflare Workers), lazy developer guidelines. |
+| [`parallel-terminals.md`](../config/ai/memory/parallel-terminals.md) | Shared-machine heavy jobs: `heavy-run`, `ai-testdb`, `dev-freeze`, `ai-capacity` (split from `development.md`, TASK-207). |
 | [`development-lessons.md`](../config/ai/memory/development-lessons.md) | Astro and Node test-harness lessons promoted via `ai-learn`. |
 | [`ui-lessons.md`](../config/ai/memory/ui-lessons.md) | CSS, component geometry and font lessons, selected within retrieval budgets. |
 | [`communication.md`](../config/ai/memory/communication.md) | Owner-confirmed two-way communication and localization preferences. |
@@ -458,10 +459,8 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`tmux-clip`](../bin/tmux-clip) (+ [`test`](../bin/tmux-clip-test)): The clipboard seam every tmux copy path goes through (pbcopy, wl-copy, xclip or xsel, or WSL clip.exe).
 - [`tmux-battery`](../bin/tmux-battery) (+ [`test`](../bin/tmux-battery-test)): Battery segment for the tmux status bar; silent and exit 0 on machines without a battery.
 - [`vps-pgdump`](../bin/vps-pgdump) (+ [`test`](../bin/vps-pgdump-test)): Pulls a Postgres backup and the stack config off a VPS over SSH, because provider snapshots failed silently.
-- [`dotfiles-vultr`](../bin/dotfiles-vultr): `vultr-cli` for the `dotfiles-vultr` account; injects `VULTR_DOTFILES_API_KEY` from `secrets-env` into that one process, so no `~/.vultr-cli.yaml` is needed.
 - [`dotfiles-a1-vultr`](../bin/dotfiles-a1-vultr): `vultr-cli` for the `dotfiles-a1` account (99ribu-prod); injects `VULTR_DOTFILES_A1_API_KEY` from `secrets-env` into that one process.
 - [`dotfiles-a1-coolify`](../bin/dotfiles-a1-coolify): `coolify` CLI for the `99ribu-prod` instance (host recorded device-locally); the CLI context holds only the URL and the token comes from `secrets-env` (`COOLIFY_99RIBU_PROD_TOKEN`) per call.
-- [`dotfiles-coolify`](../bin/dotfiles-coolify): `coolify` CLI for the `vps-main` instance; the CLI context holds only the URL and the token comes from `secrets-env` (`COOLIFY_VPS_MAIN_TOKEN`) per call.
 - [`shopify-content-helper`](../bin/shopify-content-helper) (+ [`test`](../bin/shopify-content-helper-test)): Shopify SEO and content utilities: SEO audit and limits, sitemap entries, meta and brief templates, RSS and JSON-LD skeletons.
 - [`dotads-meta`](../bin/dotads-meta) (+ [`test`](../bin/dotads-meta-test)): Per-project Meta Ads campaign validator, dry-run planner, stateful deployer, and `secrets-env` bridge for Meta's official CLI; offline Indonesia market baseline and scoped economics observations. Named BM env auto-setup (also post-pull), explicit multi-BM selection, readable account folders, shared BM assets/optional temporary copies, SDK account discovery, scoped snapshots, immutable Markdown reports (legacy CSV retained), selected media import and reference-only adoption.
 - [`_dotads-meta-provider.py`](../bin/_dotads-meta-provider.py) (+ [`SDK tests`](../bin/_dotads-meta-provider-test.py)): Private read adapter for official-SDK account inventory and Insights; bounded paging, retries and isolated transport tests.

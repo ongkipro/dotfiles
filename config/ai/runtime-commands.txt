@@ -70,8 +70,6 @@ dotuiux
 dotuiux-test
 dotfiles-a1-coolify
 dotfiles-a1-vultr
-dotfiles-coolify
-dotfiles-vultr
 migration-risk
 migration-risk-test
 mutation-sweep

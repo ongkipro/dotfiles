@@ -4,6 +4,16 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-10 — Context precision: server memory, routing, skill leak, hot-path cost (TASK-207)
+
+- Servers: one canonical runbook (`vps-deploy/references/coolify-behind-cloudflare.md`) now carries the installer `ROOT_USER*` bootstrap, a `DOCKER-USER` guard, fail2ban `ignoreip`, manual Coolify updates and the "strict only after Origin CA" order. `vps-deploy` no longer tells agents to write `50-hardening.conf` (sorts after `50-cloud-init.conf`, so password login stayed on) or `pg_dumpall --globals-only` (copies superuser hashes). The `vultr` skill only provisions; its public 8000/6001/6002 and browser-registration steps are gone. `native-first/selfhost.md` no longer calls UFW the container gate.
+- Retired `bin/dotfiles-vultr` and `bin/dotfiles-coolify` (they were re-linked into `~/.local/bin` by the command manifest). `coolify-vps-dev.md` became a pointer to the device-local `fleet-inventory.md` with no live IPs; stale `volumdev`/`vps-main` facts were removed from tokophi memory and the router.
+- Memory router: infra words (`vps`, `vultr`, `hardening`, `origin ca`, …) reach `coolify-vps-dev.md`; geraiexpress and nine AdsBookCMS installs are registered; a prompt naming exactly one project outside any project opens its notes (negation and a second project keep it closed; inside a project the TASK-156 boundary is unchanged). `development.md` split so `parallel-terminals.md` no longer crowds the 12 KB budget. The prompt hook ignores the accidental `~/.git`.
+- Skills: `~/.claude/skills` is now a real directory with per-skill links. The old directory link let Claude Code write 24 claude.ai skills into `skills/local/synced/`, which Pi, OMP and Antigravity then loaded. `skill-update` migrates the link and moves that content back under Claude; `skill-check` fails on any nested `SKILL.md`.
+- Hot path: read-only `focus` calls create no lock files (2,028 stale ones removed); `resume-brief` reads only the first and last events of each verified run; `session-restore` gives the brief 8 s, because on 99ribu the ledger check alone takes ~3.4 s and the 4 s cap silently dropped it.
+- Planning policy and templates: `STATUS.md`/`TASKS.md` keep the newest truth on top and stay under 50 KB (STATUS target 12 KB).
+- Independent review: Gemini 4 Argon high (owner-ordered) produced the findings this task fixes.
+
 ## 2026-11-07 — Adaptive Meta Ads conversion framework, BM markdown renderer v5 & memory hygiene (TASK-200)
 
 - `_dotads-workspace.mjs`: bumps the BM workspace (`markdownOnly`) report renderer from `dotads-markdown/4` to `dotads-markdown/5` so re-rendering saved BM snapshots with `commerce-insight/2` writes a new immutable report revision (`r_<hash>`) instead of colliding with earlier `dotads-markdown/4` revisions.

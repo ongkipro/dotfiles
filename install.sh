@@ -226,7 +226,7 @@ if [ -L "$HOME/.codex/instructions.md" ] && [ "$(readlink "$HOME/.codex/instruct
   echo "   removed legacy ~/.codex/instructions.md symlink"
 fi
 ~/.local/bin/ai-memory-link              # CORE + per-runtime adapter → context/<runtime>.md, linked to each native path
-"$DOT/skills/agents-bin/skill-update"    # directory links + Codex per-skill adapter preserving .system
+"$DOT/skills/agents-bin/skill-update"    # directory links + Claude/Codex per-skill adapters (keep synced/ and .system)
 
 echo "==> Synchronize global MCP servers..."
 "$HOME/.local/bin/ai-mcp-sync"

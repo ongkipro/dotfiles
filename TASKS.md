@@ -1,36 +1,12 @@
 # Tasks — dotfiles
 
-Updated: 2026-11-07
+Updated: 2026-11-10
 
 Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
 
-Done through 2026-11-07: see [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194 to TASK-199 and TASK-203 to TASK-205, see the index; TASK-200 and TASK-206 are open below).
+Done: [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194–199, 203–205) and [TASKS-index-2026-11-10](docs/archive/TASKS-index-2026-11-10.md) (TASK-200, TASK-206, TASK-207).
 
 ## In progress
-
-### TASK-206: Fix the three findings of an owner-ordered review of the pushed TASK-205 and the merge
-- **Requirement:** REQ-PARALLEL-FOLLOWUP (owner 2026-11-07). Full contract: [TASKS-206-contract-full](docs/archive/TASKS-206-contract-full.md).
-- **Risk Level:** R2.
-- **Allowed Paths:** `bin/ai-policy-lint{,-test}`, `bin/ai-memory-route-test`, `bin/device-register`, `config/ai/memory-router.json`, `devices/rich.md`, `docs/DOTFILES_SITEMAP.md`, `CHANGELOG.md`, `TASKS.md`, `docs/archive/`.
-- **Protected Paths:** `bin/delivery-ledger*`, `docs/task-change-boundary.md`, `config/ai/README.md`, other `project-memory/*`, `skills/local/development-kit/**`, the other device's TASK-200.
-- **Canonical Contract Owners:** `ai-policy-lint` (ledger binding), `ai-memory-route` and its manifest, `device-register`.
-- **Accepted Invariants:** a historical exemption names the exact run file and cannot cover a new run; everyday phrases never pull the operations lessons; the device record does not overstate macOS.
-- **Regression Checks:** `ai-policy-lint-test`, `ai-memory-route-test`, `device-register-test`, `ai-doctor --self-test`, `ai-policy-lint`, `system-map --check`, `security-check`.
-- **Reopen Conditions:** a new wrong-pair run is accepted; an everyday phrase pulls the lessons; macOS overstated.
-- **Non-Scope:** the other device's CI failures; pushing.
-- **Escalation Conditions:** sudo, a live account, another session's files.
-
-### TASK-200: Adaptive Meta Ads conversion guardrails, BM markdown renderer v5 & memory hygiene
-- **Requirement:** REQ-META-ADAPTIVE-FRAMEWORK (owner 2026-11-07).
-- **Risk Level:** R3.
-- **Allowed Paths:** `bin/_dotads-workspace.mjs`, `bin/_dotads-workspace-test.mjs`, `bin/dotads-meta`, `bin/dotads-meta-test`, `skills/local/meta-ads-cli/**`, `skills/local/meta-ads-signal-engine/**`, `config/ai/memory/**`, `config/ai/project-memory/**`, `docs/DOTFILES_SITEMAP.md`, `docs/archive/**`, `TASKS.md`, `CHANGELOG.md`.
-- **Protected Paths:** `bin/delivery-ledger`, `docs/task-change-boundary.md`, `config/ai/README.md`.
-- **Canonical Contract Owners:** `dotads-meta`; `_dotads-workspace.mjs`; `algorithm-and-learning.md`; `PIXEL_2026_CHANGES.md`; `meta-ads.md`.
-- **Accepted Invariants:** shared skills/memory stay generalizable (no case lock); `meta-ads.md` <= 12,000B; `dotads-markdown/5` preserves prior revisions; `ai-memory-hygiene` 0 issues.
-- **Regression Checks:** `workspace`, `meta-cli`, `hygiene`, `route`, `system-map`, `policy`, `security`.
-- **Reopen Conditions:** `meta-ads.md` > 12,000B; case figures in skills; BM report revision collision.
-- **Non-Scope:** live Meta mutations; private `dotads-meta-report` data.
-- **Escalation Conditions:** unapproved live account mutation.
 
 ### TASK-175: Cloudflare Asia-Pacific placement default
 - **Requirement:** REQ-CLOUDFLARE-APAC (owner 2026-11-02: web projects for Indonesia/Asia use Cloudflare SEA/Asia/Singapore; understand the breakdown and improve the skill).

@@ -236,8 +236,8 @@ mkdir -p "$HOME/.agents/bin"
 for s in skill-help skill-list skill-new skill-open skill-check skill-remove skill-update; do
   [ -e "$DOT/skills/agents-bin/$s" ] && link "$DOT/skills/agents-bin/$s" "$HOME/.agents/bin/$s"
 done
-# Runtime-native adapters: directory links for Claude/Pi/OMP/Antigravity and
-# per-skill Codex links that preserve ~/.codex/skills/.system.
+# Runtime-native adapters: directory links for Pi/OMP/Antigravity and per-skill
+# Claude/Codex links that preserve ~/.claude/skills/synced and ~/.codex/skills/.system.
 "$DOT/skills/agents-bin/skill-update"
 
 say "==> Render + link context AI (CORE + adapter) ke CLI yang ada..."
@@ -381,7 +381,7 @@ Langkah berikutnya:
 Catatan:
 - Skills are linked from one owned source. Directory-link runtimes reflect
   source changes immediately; run `skill-update` after adding/removing a skill
-  to reconcile Codex, or after installing a new runtime.
+  to reconcile Claude and Codex, or after installing a new runtime.
 - Bootstrap ini fokus ke shared memory + sync + local skills.
 - install.sh utama tetap Linux-first.
 EOF

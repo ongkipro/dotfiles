@@ -32,4 +32,9 @@ mkdir -p "$TRASH"
 mv "$DIR" "$DEST"
 echo "Dipindah: ${DIR/#$HOME/\~} -> ${DEST/#$HOME/\~}"
 echo "Pulihkan dengan memindahkan folder itu kembali sebelum commit."
-echo "Sudah hilang di semua CLI (symlink satu-direktori). Jangan lupa commit dotfiles."
+# Claude and Codex hold one link per owned skill, so they need a reconcile;
+# directory-linked runtimes see the change already. Only for the real source.
+if [ -z "${SKILL_SOURCE:-}" ] && [ -x "$(dirname "$0")/skill-update" ]; then
+  "$(dirname "$0")/skill-update" >/dev/null || echo "WARN: skill-update failed; run it before using Claude or Codex" >&2
+fi
+echo "Sudah hilang di semua CLI (Claude/Codex lewat skill-update). Jangan lupa commit dotfiles."

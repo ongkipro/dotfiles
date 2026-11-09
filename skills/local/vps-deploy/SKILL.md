@@ -10,14 +10,18 @@ Production is an **approval gate** (`CORE.md`): plan, show the exact commands,
 and wait for explicit approval before touching a live server, DNS, or a
 database. Read-only inspection (status, logs, disk) is fine when access already
 exists. Live hosts, accounts, and credentials are device-local
-(`~/.config/ai-local/`), never in tracked files. Current Coolify instance:
-`99ribu-prod` (host recorded device-locally); drive it with `dotfiles-a1-coolify <args>`
-(token injected from `secrets-env`); host, firewall, Cloudflare, and recovery facts
-are in `~/.config/ai-local/99ribu-prod-access.md`.
+(`~/.config/ai-local/`), never in tracked files.
 
-New server, Coolify install, dashboard domain, Cloudflare Origin CA, Access, and a
-Cloudflare-only origin: follow [references/coolify-behind-cloudflare.md](references/coolify-behind-cloudflare.md)
-(verified end to end 2026-10-30).
+**Which servers exist:** read `~/.config/ai-local/fleet-inventory.md` first (one
+table of every active Coolify host, its CLI wrapper, and how it deviates from the
+baseline); per-host detail is in the `*-access.md` file it names. Re-verify the
+host before acting; the inventory is memory, the server is disk.
+
+**New server or re-hardening:** the only canonical procedure is
+[references/coolify-behind-cloudflare.md](references/coolify-behind-cloudflare.md)
+(host baseline, headless Coolify, Origin CA, Access, Cloudflare-only origin).
+The `vultr` skill only provisions the machine. Do not improvise a second
+procedure from this file's summary below.
 
 Facts verified against official docs on **2026-10-02** (Coolify v4.3.x,
 Docker Compose, PostgreSQL 18 docs). Re-check version-specific behavior before
@@ -49,20 +53,21 @@ versions running side by side.
   metadata). Never commit `.env`.
 - **Ports**: Docker-published ports **bypass ufw**. Publish only the proxy
   (80/443); bind anything else to `127.0.0.1:PORT:PORT` or keep it on the
-  internal network. Coolify needs 22/80/443 and 8000/6001/6002 until the
-  dashboard is behind its own domain — then close 8000/6001/6002 with the
-  **provider firewall** (or `DOCKER-USER` rules), because ufw cannot block
-  Docker-published ports.
-- **Coolify install hygiene**: create the admin account immediately after
-  install (first visitor becomes admin); back up `/data/coolify/source/.env`;
+  internal network. Coolify's 8000/6001/6002 stay closed at the **provider
+  firewall** from the first boot (reach the dashboard through an SSH tunnel
+  until its own domain works), with a `DOCKER-USER` guard behind it, because
+  ufw cannot block Docker-published ports.
+- **Coolify install hygiene**: create the root user headless during or right
+  after install (never leave `/register` reachable; see the runbook §2); back up
+  `/data/coolify/source/.env`;
   stay on the latest v4.x — 2026 advisories include a critical cross-team IDOR
   and an authenticated RCE; set webhook secrets and rotate API tokens.
-- **Hardening**: SSH keys only (`PasswordAuthentication no` in a drop-in such
-  as `/etc/ssh/sshd_config.d/50-hardening.conf` — the `.conf` suffix is
-  required by the default `Include`; confirm with `sshd -T | grep -i
-  passwordauthentication`), then `sshd -t` **before** restarting ssh — a bad
-  config locks you out), `ufw limit OpenSSH`, unattended security upgrades on,
-  fail2ban optional (reduces noise, does not replace key auth).
+- **Hardening**: follow the runbook §1. Key points: the drop-in is
+  `/etc/ssh/sshd_config.d/10-hardening.conf` **and** cloud-init's
+  `50-cloud-init.conf` is deleted — sshd keeps the first value it reads, so a
+  `50-hardening.conf` sorts after `50-cloud-init.conf` and password login stays
+  on. Prove it with `sshd -T | grep -i passwordauthentication` and a refused
+  password login from outside; `sshd -t` **before** restarting ssh.
 - **Logs and disk**: Docker json-file logs are unrotated by default; set
   `"log-opts": {"max-size": "10m", "max-file": "3"}` in `/etc/docker/daemon.json`
   (applies to newly created containers). Enable Coolify's disk threshold
@@ -78,7 +83,8 @@ versions running side by side.
 - **Backups leave the machine.** A dump on the same disk is not a backup.
   Coolify scheduled backups can upload to S3; otherwise `bin/vps-pgdump` pulls
   dumps off the VPS. Use `pg_dump -Fc` (or `-Fd` for parallel dumps) **plus**
-  `pg_dumpall --globals-only` for roles.
+  `pg_dumpall --roles-only --no-role-passwords` for roles. Never
+  `--globals-only`: it copies superuser password hashes into the backup.
 - **A backup is only proven by a restore** (Coolify's own docs: a successful
   backup only proves a file was created).
 - **PITR** (base backup + WAL archive via pgBackRest or WAL-G) when the
@@ -86,9 +92,9 @@ versions running side by side.
 
 ### Restore drill (monthly, on a throwaway container — never production)
 
-1. Fetch the latest off-host dump and globals.
+1. Fetch the latest off-host dump and roles file.
 2. Start a disposable Postgres of the same major version.
-3. `psql -f globals.sql`, then
+3. `psql -f roles.sql` (then set role passwords from `secrets-env`), then
    `pg_restore --create --exit-on-error -j4 -d postgres <dump>`.
 4. `ANALYZE`, compare row counts of key tables, run the app's smoke test
    against it.
@@ -157,6 +163,9 @@ https://coolify.io/docs/knowledge-base/cron-syntax.
 | Rolling update did a hard restart | One of the rolling-update blockers in §1 |
 | Disk full | `docker system df`, log rotation, old images, backup directory |
 | Service reachable on an unexpected port | Published port bypassing ufw — bind to 127.0.0.1 |
+| Cloudflare 526 right after Access login | SSL set to Full (strict) before the Origin CA cert was loaded; runbook §4–5 |
+| Every Coolify API call 401 | Token row gone from `personal_access_tokens` (deleted in the dashboard); check before the network |
+| Compose service gets a secret you blanked, or secret baked into the image | Coolify registers every compose `${VAR}` as build-time and injects app vars into every service; set via API `PATCH /api/v1/applications/<uuid>/envs` with `is_buildtime:false,is_runtime:true` (the CLI flag is rejected, 422) and make every service accept the shared vars |
 
 ## 8. Evidence to leave behind
 

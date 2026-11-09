@@ -201,6 +201,16 @@ for dir in "${skills[@]}"; do
   [ "$fail" -eq "$fail_before" ] && ok "$folder"
 done
 
+# Pi, OMP and Antigravity discover SKILL.md recursively through their directory
+# links, so a nested one becomes a live skill this check never validated. That
+# is how 24 claude.ai-synced skills reached every runtime (TASK-207). Skill
+# folders carry references/, never a second SKILL.md.
+if [ -z "$requested" ]; then
+  while IFS= read -r nested; do
+    bad "nested SKILL.md ${nested#"$SRC"/} is discovered by recursive runtimes but not owned here; move it out of skills/local"
+  done < <(find "$SRC" -mindepth 3 -name SKILL.md -not -path '*/.trash/*' -print | LC_ALL=C sort)
+fi
+
 printf '\nChecked %d skill(s): %d failure(s), %d warning(s)\n' "$count" "$fail" "$warn"
 if [ -z "$requested" ]; then
   if [ "$yaml_available" -eq 1 ]; then approx=''

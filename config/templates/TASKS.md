@@ -2,6 +2,8 @@
 
 Updated: {{DATE}}
 
+Keep this file under 50 KB: open and in-progress tasks only, newest first; finished contracts move to `docs/archive/` (see `~/.config/ai/policies/planning-artifacts.md` → Hot files).
+
 Every implementation task must trace to one accepted requirement, declare its risk class, define explicit boundaries, and include a runnable completion check (`project-check` or specific test).
 
 ## Task Execution Contract Template
