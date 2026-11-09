@@ -13,7 +13,7 @@
 - [TravelOS](travelos.md) — AI-native travel discovery, planning, and affiliate platform; repository `ongkipro/travelos`. Repository specifications and task records are authoritative.
 - [Formalin](formalin.md) — VolumX engine monorepo; canonical repository `irwansyah10/formalin`. Repository documents own implementation truth.
 - [TokoΦ](tokophi.md) — Indonesian commerce SaaS; repository `ongkipro/tokophi`. The older `indostore` repository is not the active product.
-- [Linux `rich` maintenance](linux-rich-maintenance.md) — boot and service failure cases for the OptiPlex desktop, plus the host facts that decide whether a fix is safe there. `cuan` is a different machine with its own file.
+- [Linux `rich` maintenance](linux-rich-maintenance.md) — headless OptiPlex dev server: host facts that decide whether a fix is safe, boot failure cases, and remote access (Tailscale CGNAT, `ssh rich` + tmux client config). `cuan` is a different machine with its own file.
 - [Linux `cuan` maintenance](linux-cuan-maintenance.md) — safe maintenance rules for the `cuan` Ubuntu workstation: policy-based tmp cleanup, selective CLI updates, service verification, explicit destructive gates.
 - [pi-src](pi-src.md) — upstream CLI source repository; keep no permanent local checkout and clone it again when needed.
 - [Kamus (almanak)](kamus-almanak.md) — `kamus.ongki.pro`, repo `ongkipro/kamus`. Ongki's second memory; markdown → Astro dashboard. Has an `AGENTS.md` contract.

@@ -96,13 +96,19 @@ does not inject `PI_CONFIG_FILES`. See `config/omp/README.md`.
 
 ### Keep CLI authentication independent
 
-9Router is used by **Pi and OMP only**. Each runtime owns its provider definitions,
+9Router is used by **Pi, OMP and Codex**. Each runtime owns its provider definitions,
 model selection and credentials; sharing a gateway does not mean copying auth
 stores. Pi's `9router-fantastico` compatibility name and OMP's `9router` name may
 point to the same device-local endpoint. See [Pi](../pi/README.md) and
 [OMP](../omp/README.md) for their separate configuration boundaries.
 
-Claude Code, Codex and Antigravity use their own native logins. Synchronizing
+Codex is configured by 9Router's own CLI Tools page, which writes the device-local
+`~/.codex/config.toml` (`model_provider = "9router"`, `cx/...` models, key in a
+provider header) and `~/.codex/cx.config.toml` (`codex -p cx`). These files hold
+the gateway key: never track, render or overwrite them from dotfiles. Dotfiles
+owns only Codex's `AGENTS.md`, skills and hook wiring.
+
+Claude Code and Antigravity use their own native logins. Synchronizing
 rules, skills and supported hook/MCP wiring must not redirect them through
 9Router or reuse another CLI's account. Keep credentials and account identities
 out of tracked references.
