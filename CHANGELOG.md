@@ -4,6 +4,11 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-10 — Spec-suite legal sources re-verified (TASK-208)
+
+- `development-spec-suite/assets/sources.json`: 13 of 15 source records re-verified on 2026-11-10 (7 overdue since 2026-11-04 plus 6 due by 2026-11-30); next review 2027-02-10. Material changes recorded, no legal conclusion drawn: Indonesia UU PDP Pasal 53(1)(b) conditional ruling (Putusan MK 151/PUU-XXII/2024); Japan APPI amending act promulgated 17 July 2026 (enforcement pending); Brazil Lei 15.352/2026 amending the LGPD; Australia statutory privacy tort in force 10 June 2025; Canada PIPEDA amendments through 2025-03-04; EU Digital Omnibus still a proposal; Singapore PDPC URL updated to its redirect target. ICO refused automated access, so the record cites a Wayback snapshot, as before.
+- `test-suite.py`: the stale-record test used a fixed 2027-01-01 date, which a routine refresh made pass; it now uses 2099-01-01.
+
 ## 2026-11-10 — Context precision: server memory, routing, skill leak, hot-path cost (TASK-207)
 
 - Servers: one canonical runbook (`vps-deploy/references/coolify-behind-cloudflare.md`) now carries the installer `ROOT_USER*` bootstrap, a `DOCKER-USER` guard, fail2ban `ignoreip`, manual Coolify updates and the "strict only after Origin CA" order. `vps-deploy` no longer tells agents to write `50-hardening.conf` (sorts after `50-cloud-init.conf`, so password login stayed on) or `pg_dumpall --globals-only` (copies superuser hashes). The `vultr` skill only provisions; its public 8000/6001/6002 and browser-registration steps are gone. `native-first/selfhost.md` no longer calls UFW the container gate.

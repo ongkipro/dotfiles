@@ -4,7 +4,7 @@ Updated: 2026-11-10
 
 Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
 
-Done: [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194–199, 203–205) and [TASKS-index-2026-11-10](docs/archive/TASKS-index-2026-11-10.md) (TASK-200, TASK-206, TASK-207).
+Done: [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194–199, 203–205) and [TASKS-index-2026-11-10](docs/archive/TASKS-index-2026-11-10.md) (TASK-200, TASK-206, TASK-207, TASK-208).
 
 ## In progress
 

@@ -1017,7 +1017,8 @@ Reference PR-404 and PR-3.
     def test_source_audit_is_offline_and_flags_stale_records(self) -> None:
         clean = run(PYTHON, AUDIT, "--as-of", "2026-08-04", "--format", "json")
         self.assertTrue(json.loads(clean.stdout)["ok"])
-        stale = run(PYTHON, AUDIT, "--as-of", "2027-01-01", "--format", "json", expected=1)
+        # Far enough ahead that a routine source refresh can never make it pass.
+        stale = run(PYTHON, AUDIT, "--as-of", "2099-01-01", "--format", "json", expected=1)
         codes = {item["code"] for item in json.loads(stale.stdout)["findings"]}
         self.assertIn("SRC008", codes)
 

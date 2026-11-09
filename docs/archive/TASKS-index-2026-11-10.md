@@ -38,3 +38,16 @@ Moved verbatim from `TASKS.md` by TASK-207 to keep the hot file under its budget
 - **Reopen Conditions:** a `SKILL.md` appears below `skills/local/*/`; "setup vps vultr" routes nothing; `focus` leaves a `.lock` on read; a runbook again contradicts `coolify-behind-cloudflare.md`.
 - **Non-Scope:** live servers, DNS, deploys; project repositories (separate owner-approved follow-up); commit/push.
 - **Escalation Conditions:** sudo, a live account, another session's files.
+
+## TASK-208: Re-verify the spec-suite sources past or near review (SRC008)
+- **Requirement:** REQ-SPEC-SOURCES-FRESH (owner 2026-11-10: "kerjakan dan sempurnakan yang belum"; scheduled Development Specification Suite CI fails SRC008 since 2026-11-04).
+- **Risk Level:** R1.
+- **Allowed Paths:** `skills/local/development-spec-suite/assets/sources.json`, `CHANGELOG.md`, `TASKS.md`, `docs/archive/`.
+- **Protected Paths:** `skills/local/development-spec-suite/scripts/**`.
+- **Canonical Contract Owners:** `development-spec-suite` source ledger.
+- **Accepted Invariants:** each refreshed record states what was verified live and how; material changes (amendments, court rulings, reforms) are recorded, not hidden; no legal conclusion is drawn.
+- **Regression Checks:** `audit-sources` (as of today), spec-suite `test-suite.py`, `ai-policy-lint`.
+- **Reopen Conditions:** a record's revision claims a check that was not performed.
+- **Non-Scope:** script behaviour. Outcome: 13 of 15 records refreshed (7 overdue + 6 due by 2026-11-30); scope expanded to `scripts/test-suite.py` (fixture date) and `references/jurisdiction-overlays.md` (PDPC link) under the ledger.
+- **Escalation Conditions:** a source no longer resolves to an official authority.
+
