@@ -259,7 +259,7 @@ mod = importlib.util.module_from_spec(spec)
 loader.exec_module(mod)
 
 
-def run(tasks_md, runs, baseline=None):
+def run(tasks_md, runs, baseline=None, exact=None):
     """Return the errors check_ledger_task_binding reports for a fixture."""
     with tempfile.TemporaryDirectory() as raw:
         root = pathlib.Path(raw)
@@ -274,13 +274,15 @@ def run(tasks_md, runs, baseline=None):
                 (rd / name).write_text("\n".join(json.dumps(e) for e in events) + "\n")
         mod.ROOT = root
         mod.errors, mod.warnings = [], []
-        saved = mod.LEDGER_BINDING_BASELINE
+        saved, saved_exact = mod.LEDGER_BINDING_BASELINE, mod.LEDGER_BINDING_EXACT_RUNS
         if baseline is not None:
             mod.LEDGER_BINDING_BASELINE = baseline
+        if exact is not None:
+            mod.LEDGER_BINDING_EXACT_RUNS = exact
         try:
             mod.check_ledger_task_binding()
         finally:
-            mod.LEDGER_BINDING_BASELINE = saved
+            mod.LEDGER_BINDING_BASELINE, mod.LEDGER_BINDING_EXACT_RUNS = saved, saved_exact
         return mod.errors
 
 
@@ -294,6 +296,17 @@ blob = "\n".join(errs)
 assert "RUN-foreign.jsonl" in blob, f"the failure does not name the run: {blob}"
 assert "TASK-100" in blob and "REQ-THEIRS" in blob and "REQ-MINE" in blob, \
     f"the failure does not name both sides: {blob}"
+
+# An exact-run exemption covers that run file only: a differently named run with the same wrong pair is still rejected.
+EXACT = {"RUN-historic.jsonl": ("TASK-100", "REQ-THEIRS")}
+assert not run(CONTRACT, {"RUN-historic.jsonl": [started("TASK-100", "REQ-THEIRS")]}, exact=EXACT), \
+    "the exempted historical run was reported"
+errs = run(CONTRACT, {"RUN-historic.jsonl": [started("TASK-100", "REQ-THEIRS")],
+                      "RUN-new.jsonl": [started("TASK-100", "REQ-THEIRS")]}, exact=EXACT)
+assert errs and "RUN-new.jsonl" in "\n".join(errs) and "RUN-historic.jsonl" not in "\n".join(errs), \
+    f"a new run with the same wrong pair was not rejected, or the historical one was: {errs}"
+assert run(CONTRACT, {"RUN-historic.jsonl": [started("TASK-100", "REQ-OTHER")]}, exact=EXACT), \
+    "the exemption also covered a different requirement on the same run file"
 
 # Matching evidence is left alone.
 assert not run(CONTRACT, {"RUN-ok.jsonl": [started("TASK-100", "REQ-MINE")]}), \

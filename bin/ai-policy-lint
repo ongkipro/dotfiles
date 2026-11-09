@@ -606,10 +606,18 @@ LEDGER_BINDING_BASELINE = {
     # RUN-20261030T151653Z-69e30f31 was started under TASK-096 by mistake and
     # finished BLOCKED; the work is TASK-160. The ledger is append-only.
     "TASK-096": {"REQ-9ROUTER-RUNBOOK"},
-    # RUN-20261107T075441Z-11d2b4fb ran the rich-machine work under TASK-200 while
-    # another device took the same number for the Meta Ads guardrails. The work is
-    # TASK-203 (archived); the ledger is append-only, so the run keeps its label.
-    "TASK-200": {"REQ-PARALLEL-FOLLOWUP"},
+}
+
+# Runs that carry a label the ledger cannot change (it is append-only), keyed by the exact run file so that a NEW run
+# with the same wrong pair is still rejected. Unlike the baseline above, the task number here is in live use by other
+# work, which is why a (task, requirement) pair alone would be too wide.
+LEDGER_BINDING_EXACT_RUNS = {
+    # Rich-machine work run under TASK-200 while another device took the same number for the Meta Ads guardrails.
+    # The work is TASK-203 (archived).
+    "RUN-20261107T075441Z-11d2b4fb.jsonl": ("TASK-200", "REQ-PARALLEL-FOLLOWUP"),
+    # The Meta Ads HTML-reporting documentation of TASK-200 was recorded with the requirement label REQ-200 instead of
+    # REQ-META-ADAPTIVE-FRAMEWORK (commit fb3d64c9). The work is TASK-200's; only the label is wrong.
+    "RUN-20261107T105314Z-1567e199.jsonl": ("TASK-200", "REQ-200"),
 }
 
 
@@ -673,7 +681,7 @@ def check_ledger_task_binding():
                 f"to the contract that declares {', '.join(sorted(known))}")
             continue
         checked += 1
-        if req in known or req in LEDGER_BINDING_BASELINE.get(task, set()):
+        if req in known or req in LEDGER_BINDING_BASELINE.get(task, set()) or LEDGER_BINDING_EXACT_RUNS.get(f.name) == (task, req):
             continue
         problems.append(
             f"{f.name} records {task} as {req}, but the contract for {task} declares "
@@ -684,7 +692,7 @@ def check_ledger_task_binding():
         err("ledger runs are bound to the wrong task:\n  " + "\n  ".join(problems))
     else:
         print(f"  OK  ledger task binding: {checked} run(s) matched to a declared "
-              f"contract, {len(LEDGER_BINDING_BASELINE)} baselined id(s)")
+              f"contract, {len(LEDGER_BINDING_BASELINE)} baselined id(s), {len(LEDGER_BINDING_EXACT_RUNS)} exact run(s)")
 
 
 def check_task_dependencies():

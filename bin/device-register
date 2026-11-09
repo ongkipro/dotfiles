@@ -207,7 +207,7 @@ CAP_SECTION=""
 if [ -n "$CAP_ROWS" ]; then
   CAP_SECTION="## Kapasitas AI paralel
 
-> Rencana dari \`ai-capacity --json\`: angka yang direkomendasikan untuk mesin ini, bukan bukti bahwa batasnya sudah terpasang. Terminal dan total subagen hanya target; slot job berat, irisan memori, dan batas per-run pi-subagents baru ditegakkan setelah \`ai-capacity apply\`, dan slot serta irisan memori itu hanya ada di Linux dengan systemd (macOS belum didukung). Panduan: [\`docs/parallel-ai-dev-machine.md\`](../docs/parallel-ai-dev-machine.md).
+> Rencana dari \`ai-capacity --json\`: angka yang direkomendasikan untuk mesin ini, bukan bukti bahwa batasnya sudah terpasang. Terminal dan total subagen hanya target; slot job berat, irisan memori, dan batas per-run pi-subagents baru ditegakkan setelah \`ai-capacity apply\`. Irisan memori hanya ada di Linux dengan systemd; penegakan slot dan pembersihan proses \`heavy-run\` belum teruji di macOS (lihat panduan). Panduan: [\`docs/parallel-ai-dev-machine.md\`](../docs/parallel-ai-dev-machine.md).
 
 | Apa | Nilai |
 |---|---|

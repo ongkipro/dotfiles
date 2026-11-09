@@ -187,8 +187,11 @@
         "prerender env",
         "heavy-run",
         "load gate",
-        "scratch",
-        "tidy-up"
+        "tidy-up",
+        "scratch dir",
+        "scratch directory",
+        "scratch files",
+        "tmp cleanup"
       ],
       "paths": [
         "**/Dockerfile",
