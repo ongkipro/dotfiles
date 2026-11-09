@@ -1,7 +1,7 @@
 # Device: `Fantastico`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-11-02**
+> Terakhir diperbarui: **2026-11-10**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -11,7 +11,7 @@
 | Hostname | `Fantastico` |
 | Device | **LENOVO ThinkPad X280 (`20KES2SP07`) · laptop** |
 | OS | Ubuntu 26.04.1 LTS |
-| Kernel | 7.0.0-38-generic · x86_64 |
+| Kernel | 7.0.0-42-generic · x86_64 |
 | Service manager | systemd --user |
 | Package manager | apt |
 
@@ -53,6 +53,18 @@
 | deny baca `.env` | ✅ ada |
 | hook canonical (git-guard, memory-usage) | ✅ terpasang |
 | residu switcher multi-akun | ✅ bersih |
+
+## Kapasitas AI paralel
+
+> Rencana dari `ai-capacity --json`: angka yang direkomendasikan untuk mesin ini, bukan bukti bahwa batasnya sudah terpasang. Terminal dan total subagen hanya target; slot job berat, irisan memori, dan batas per-run pi-subagents baru ditegakkan setelah `ai-capacity apply`. Irisan memori hanya ada di Linux dengan systemd; penegakan slot dan pembersihan proses `heavy-run` belum teruji di macOS (lihat panduan). Panduan: [`docs/parallel-ai-dev-machine.md`](../docs/parallel-ai-dev-machine.md).
+
+| Apa | Nilai |
+|---|---|
+| Terminal AI (nyaman / maksimum) | 2 / 2 |
+| Slot job berat (`heavy-run`) | 1 (irisan memori 4.0 GB) |
+| Subagen total (target) | 7 |
+| Sumber biaya | bawaan, belum diukur |
+| Mesin terdegradasi | tidak |
 
 ## Symlink dotfiles
 

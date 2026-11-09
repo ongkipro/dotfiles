@@ -316,6 +316,7 @@ Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rende
 - [`web-perf`](../skills/local/web-perf/SKILL.md): Core Web Vitals profiling, Lighthouse optimization.
 - [`threejs`](../skills/local/threejs/SKILL.md): 3D WebGL scenes across vanilla JS, Vite, Astro, and React Three Fiber (R3F).
 - [`dotuiux`](../skills/local/dotuiux/SKILL.md): One UI/UX loop for new screens and redesigns: brief, live-site teardown, `DESIGN.md` direction, rendered checks, side-by-side compare with an independent verdict, owner review; routes the craft to the owner skills.
+- [`stitch`](../skills/local/stitch/SKILL.md): Google Stitch CLI, Canvas, and Loop agent workflows with DESIGN.md support.
 
 ### 6.3 Animation (GSAP)
 - [`gsap-core`](../skills/local/gsap-core/SKILL.md): Core tweening, easing, matchMedia.
