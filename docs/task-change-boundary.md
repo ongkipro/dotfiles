@@ -185,6 +185,12 @@ that punishes recording a failure teaches the thing running under it not to
 record failures, which is the opposite of what an append-only evidence log is
 for.
 
+The same rule applies to scope expansions (fixed 2026-11-05): an expansion is satisfied when the
+**latest** record of each named verification is `PASS`. Before, any historical `FAIL` of that check left
+the expansion unverified forever, which forced closing finished, reviewed work as `BLOCKED` and opening a
+fresh run carrying the same surface. Conversely, `check-boundary` now reports `FAIL` whenever any check's
+latest record is `FAIL`; it used to answer `PASS` in that state and only `finish` refused.
+
 What still denies `PASS`, unchanged:
 
 - a check whose **latest** record is `FAIL`, including one that failed and was

@@ -528,6 +528,37 @@ set +e; python3 "$DL" --repo "$B7" check-boundary --json > "$TMP/b7.json"; rc=$?
 python3 "$DL" --repo "$B7" review-boundary --reviewer integration-reviewer --reviewer-model review-model --reviewer-provider review-provider --reviewer-reasoning high >/dev/null
 python3 "$DL" --repo "$B7" finish --result PASS >/dev/null
 
+# Resolved, not unblemished, also for expansions: an expansion's verification that FAILED, was
+# fixed and re-run PASS satisfies the expansion (the latest record decides).
+B7R="$(make_boundary_repo boundary-expansion-resolved)"
+python3 "$DL" --repo "$B7R" start --task TASK-B7R --requirement REQ-B7R --risk R1 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'src/**' >/dev/null
+printf 'shared dependency\n' >> "$B7R/auth/session.txt"
+python3 "$DL" --repo "$B7R" expand-scope --path 'auth/session.txt' --reason 'REQ-B7R criterion 2 calls the shared session boundary' --required-by 'REQ-B7R criterion 2' --risk R3 --verification auth-regression >/dev/null
+python3 "$DL" --repo "$B7R" record --check auth-regression --status FAIL >/dev/null
+set +e; python3 "$DL" --repo "$B7R" check-boundary >/dev/null; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "an expansion whose verification last FAILED must fail"
+python3 "$DL" --repo "$B7R" record --check auth-regression --status PASS >/dev/null
+set +e; python3 "$DL" --repo "$B7R" check-boundary --json > "$TMP/b7r.json"; rc=$?; set -e
+[ "$rc" -eq 2 ] || fail "a fixed-then-passing expansion verification must reach review, not FAIL"
+grep -q 'scope expansion lacks' "$TMP/b7r.json" && fail "resolved expansion verification still reported missing"
+python3 "$DL" --repo "$B7R" review-boundary --reviewer integration-reviewer --reviewer-model review-model --reviewer-provider review-provider --reviewer-reasoning high >/dev/null
+python3 "$DL" --repo "$B7R" finish --result PASS >/dev/null
+
+# A check whose latest record is FAIL makes the boundary FAIL, never PASS, even when it is not a
+# required check and no expansion names it.
+BLF="$(make_boundary_repo boundary-latest-fail)"
+python3 "$DL" --repo "$BLF" start --task TASK-BLF --requirement REQ-BLF --risk R1 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'src/**' >/dev/null
+printf 'change\n' >> "$BLF/src/feature.txt"
+python3 "$DL" --repo "$BLF" record --check unit --status PASS >/dev/null
+python3 "$DL" --repo "$BLF" record --check typecheck --status FAIL >/dev/null
+set +e; python3 "$DL" --repo "$BLF" check-boundary --json > "$TMP/blf.json"; rc=$?; set -e
+[ "$rc" -eq 1 ] || fail "a latest FAIL must fail the boundary (was PASS before 2026-11-05)"
+grep -q 'latest verification FAIL: typecheck' "$TMP/blf.json" || fail "latest-FAIL reason missing"
+python3 "$DL" --repo "$BLF" record --check typecheck --status PASS >/dev/null
+set +e; python3 "$DL" --repo "$BLF" check-boundary >/dev/null; rc=$?; set -e
+[ "$rc" -eq 0 ] || fail "after the failing check passes again the boundary must PASS"
+python3 "$DL" --repo "$BLF" finish --result PASS >/dev/null
+
 # Unexpected HEAD movement invalidates the captured baseline.
 B12="$(make_boundary_repo boundary-head-move)"
 python3 "$DL" --repo "$B12" start --task TASK-B12 --requirement REQ-B12 --risk R1 --worker developer --model test --provider test-provider --reasoning-effort high --allow 'src/**' >/dev/null
