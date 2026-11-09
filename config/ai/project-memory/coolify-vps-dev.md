@@ -47,11 +47,23 @@ Cleaned so that no tool can pick them up by accident. Backups of the removed lin
 - Verified after the cleanup: Vultr `dotfiles-a1` account answers; `tokophi-coolify` reports Coolify 4.6.0 over its SSH
   tunnel; `secrets-env check` leaves only the known empty-`.git`-in-`$HOME` finding.
 
-### Current Coolify instances (all Coolify 4.6.0, Cloudflare Access one-time PIN in front, `/api` bypass by token)
+### Current Coolify instances (Cloudflare Access one-time PIN in front of each dashboard, `/api` bypass by token)
 
 | Instance | Dashboard | Vultr account | Access from the CLI |
 |---|---|---|---|
 | `99ribu-prod` | `dotserver.ongki.pro` | `dotfiles-a1` | `dotfiles-a1-coolify` |
 | tokophi dedicated | `devserv.tokophi.com` | `dotfiles-a1` (`207.148.76.131`) | `tokophi-coolify` (SSH tunnel) |
+| `geraiexpress` (Coolify 4.7.2, 2026-11-10) | `dotserver.geraiexpress.com` | `dotfiles-a1` (`139.180.142.31`) | `COOLIFY_GERAIEXPRESS_URL` + `_TOKEN` over Cloudflare |
 
 The Coolify admin email and password of the tokophi server are deliberately not in `secrets-env`.
+
+Lessons from the geraiexpress setup (2026-11-10), each verified at the time:
+- Setting Cloudflare SSL to **strict** before the origin has an Origin CA certificate makes every proxied request that
+  reaches the origin answer **526**; the Access login page still loads, so the dashboard looks fine until after login.
+- A Coolify API token can disappear from the dashboard (Security > API tokens) and then every CLI call is 401; name the
+  CLI token so it is obviously in use, and check `personal_access_tokens` before suspecting the network.
+- Docker publishes Coolify's 8000/6001/6002 and Traefik's 8080 on 0.0.0.0 and bypasses UFW. On geraiexpress a
+  `DOCKER-USER` guard unit drops them on the public interface, so the Vultr firewall group is not the only gate.
+- The installer's `ROOT_USER_EMAIL` / `ROOT_USER_PASSWORD` variables create the admin during install, so the open
+  registration page is never reachable; pass them on stdin, never on a command line.
+Host and account facts for this instance: `~/.config/ai-local/geraiexpress-prod-access.md` (device-local).
