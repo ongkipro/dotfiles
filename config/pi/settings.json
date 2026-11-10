@@ -49,5 +49,14 @@
       "maxAgeDays": 30,
       "pinLabeledEntries": true
     }
+  },
+  "subagents": {
+    "agentOverrides": {
+      "reviewer": {
+        "model": "9router-fantastico/cx/gpt-6.1-sol",
+        "thinking": "high",
+        "description": "Independent read-only review. Default GPT-6.1 Sol; the parent passes another model when the implementer is GPT (see config/pi/README.md, Review pairing)"
+      }
+    }
   }
 }

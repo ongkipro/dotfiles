@@ -67,6 +67,19 @@ PY
 printf '%s\n' '{"defaultProvider":"local","defaultModel":"preserve"}' > "$FAKE_HOME/.pi/agent/settings.json"
 run_restore
 grep -q '"defaultProvider":"local"' "$FAKE_HOME/.pi/agent/settings.json"
+# The review-pairing default reaches a device that has none, and a device's own
+# reviewer override is never replaced. The tracked seed carries the default.
+python3 -c 'import json,sys; r=json.load(open(sys.argv[1]))["subagents"]["agentOverrides"]["reviewer"]; assert r["model"]=="9router-fantastico/cx/gpt-6.1-sol", r' "$ROOT/config/pi/settings.json"
+seed_plain="$(cat "$FAKE_DOT/config/pi/settings.json")"
+printf '%s\n' '{"defaultProvider":"fixture","subagents":{"agentOverrides":{"reviewer":{"model":"seed/sol"}}}}' > "$FAKE_DOT/config/pi/settings.json"
+run_restore
+grep -q '"seed/sol"' "$FAKE_HOME/.pi/agent/settings.json"
+printf '%s\n' '{"subagents":{"agentOverrides":{"reviewer":{"model":"local/own"}}}}' > "$FAKE_HOME/.pi/agent/settings.json"
+run_restore
+grep -q '"local/own"' "$FAKE_HOME/.pi/agent/settings.json"
+! grep -q '"seed/sol"' "$FAKE_HOME/.pi/agent/settings.json"
+printf '%s\n' "$seed_plain" > "$FAKE_DOT/config/pi/settings.json"
+printf '%s\n' '{"defaultProvider":"local","defaultModel":"preserve"}' > "$FAKE_HOME/.pi/agent/settings.json"
 
 # An existing file gains missing tracked packages by name; local pins, extra
 # packages, other keys and the file mode are kept, and a re-run adds nothing.

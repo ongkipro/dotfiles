@@ -40,6 +40,35 @@ Rules:
 - `ai-doctor` reports the install kind, warns while a mise shim shadows the
   managed `pi`, and warns while the npm copy is still installed.
 
+## Review pairing
+
+A Pi session that implements with one model has its work reviewed by a
+different one. The four review models, all through `9router-fantastico`:
+
+| Implementer (model in use) | Reviewer, first choice | Reviewer, second choice |
+|---|---|---|
+| Opus 5.5 (`cc/claude-opus-5-5`, `ag/claude-opus-5-5*`) | `ag/gemini-4-argon-high` | `cx/gpt-6.1-sol` |
+| Sonnet 5.5 (`cc/claude-sonnet-5-5`, `ag/claude-sonnet-5-5*`) | `ag/gemini-4-argon-high` | `cx/gpt-6.1-sol` |
+| Gemini 4 Argon (`ag/gemini-4-argon-*`) | `cc/claude-opus-5-5` | `cx/gpt-6.1-sol` |
+| GPT-6.1 Sol (`cx/gpt-6.1-sol`) | `cc/claude-opus-5-5` | `ag/gemini-4-argon-high` |
+
+- Opus and Sonnet are one family (Anthropic), so neither reviews the other's
+  work. Sonnet 5.5 (`cc/claude-sonnet-5-5`) is the lighter reviewer for Argon or
+  Sol work when a full Opus pass is not needed.
+- Choose by the substance: Argon for a broad second read of plans and
+  architecture, Sol for correctness, edge cases and code-level findings, Opus
+  for judgment-heavy or security-sensitive review of non-Anthropic work.
+- The `reviewer` subagent defaults to `cx/gpt-6.1-sol` at high thinking
+  (`subagents.agentOverrides` in `settings.json`, seeded by
+  `pi-9router-restore` when absent). The parent passes `model` explicitly for
+  any other pairing, for example
+  `{agent: "reviewer", model: "9router-fantastico/ag/gemini-4-argon-high", task: ...}`.
+- If the first choice fails (quota, 401, gateway down), use the second and say
+  so. If both fail, report it; never replace the review with self-review.
+- Record the reviewer's real model in `delivery-ledger review-boundary
+  --reviewer-model ... --reviewer-provider 9router-fantastico`.
+- Verified 2026-11-10 on `dot`: all four answer through 9Router.
+
 ## Tracked reference and local state
 
 - `settings.json` runs Pi on its documented defaults (`docs/settings.md` in the installed package):

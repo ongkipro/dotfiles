@@ -100,7 +100,7 @@ if "pi-mcp-adapter" in {package_name(p) for p in settings.get("packages") or []}
         tools.append("+codemode")
         settings["defaultTools"] = tools
         changed = True
-for key in ("rewind", "hideThinkingBlock", "quietStartup", "defaultThinkingLevel"):
+for key in ("rewind", "hideThinkingBlock", "quietStartup", "defaultThinkingLevel", "subagents"):
     if key not in settings and key in seed:
         settings[key] = seed[key]
         changed = True
