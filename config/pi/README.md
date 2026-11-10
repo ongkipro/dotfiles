@@ -44,32 +44,41 @@ Rules:
 
 A Pi session that implements with one model has its work reviewed by a
 different one. The four review models, all through `9router-fantastico`:
+Opus 5.5, Gemini 4 Carbon, Sonnet 5.5, GPT-6.1 Sol. Carbon replaced Argon as
+the Gemini reviewer on 2026-11-10 (owner decision); Argon stays usable for
+implementation and is reviewed like any Gemini row.
 
 | Implementer (model in use) | Reviewer, first choice | Reviewer, second choice |
 |---|---|---|
-| Opus 5.5 (`cc/claude-opus-5-5`, `ag/claude-opus-5-5*`) | `ag/gemini-4-argon-high` | `cx/gpt-6.1-sol` |
-| Sonnet 5.5 (`cc/claude-sonnet-5-5`, `ag/claude-sonnet-5-5*`) | `ag/gemini-4-argon-high` | `cx/gpt-6.1-sol` |
-| Gemini 4 Argon (`ag/gemini-4-argon-*`) | `cc/claude-opus-5-5` | `cx/gpt-6.1-sol` |
-| GPT-6.1 Sol (`cx/gpt-6.1-sol`) | `cc/claude-opus-5-5` | `ag/gemini-4-argon-high` |
+| Opus 5.5 (`cc/claude-opus-5-5`, `ag/claude-opus-5-5*`) | `ag/gemini-4-carbon-high` | `cx/gpt-6.1-sol` |
+| Sonnet 5.5 (`cc/claude-sonnet-5-5`, `ag/claude-sonnet-5-5*`) | `ag/gemini-4-carbon-high` | `cx/gpt-6.1-sol` |
+| Gemini (`ag/gemini-4-carbon-*`, `ag/gemini-4-argon-*`) | `cc/claude-opus-5-5` | `cx/gpt-6.1-sol` |
+| GPT-6.1 Sol (`cx/gpt-6.1-sol`) | `cc/claude-opus-5-5` | `ag/gemini-4-carbon-high` |
 
 - Opus and Sonnet are one family (Anthropic), so neither reviews the other's
-  work. Sonnet 5.5 (`cc/claude-sonnet-5-5`) is the lighter reviewer for Argon or
-  Sol work when a full Opus pass is not needed.
-- Choose by the substance: Argon for a broad second read of plans and
+  work; Carbon and Argon are one family (Gemini) likewise. Sonnet 5.5
+  (`cc/claude-sonnet-5-5`) is the lighter reviewer for Gemini or Sol work when
+  a full Opus pass is not needed.
+- Choose by the substance: Carbon for a broad second read of plans and
   architecture, Sol for correctness, edge cases and code-level findings, Opus
   for judgment-heavy or security-sensitive review of non-Anthropic work.
 - The `reviewer` subagent defaults to `cx/gpt-6.1-sol` at high thinking
   (`subagents.agentOverrides` in `settings.json`, seeded by
   `pi-9router-restore` when absent). The parent passes `model` explicitly for
   any other pairing, for example
-  `{agent: "reviewer", model: "9router-fantastico/ag/gemini-4-argon-high", task: ...}`.
+  `{agent: "reviewer", model: "9router-fantastico/ag/gemini-4-carbon-high", task: ...}`.
+- 9Router serves `ag/gemini-4-carbon-{low,medium,high}` but does not list them
+  in `/v1/models`; `pi-9router-sync.js` adds them from their Argon siblings
+  until the gateway lists them itself (then the gateway's row wins). Without
+  that, a subagent call fails with "Unknown subagent model".
 - If the first choice fails (quota, 401, gateway down), use the second and say
   so. If both fail, report it; never replace the review with self-review.
 - Record the reviewer's real model in `delivery-ledger review-boundary
   --reviewer-model ... --reviewer-provider 9router-fantastico`.
 - The `ag/claude-*` rows are the same Anthropic family as `cc/`: an `ag/` Opus or
-  Sonnet implementer is reviewed by Argon or Sol, never by another Claude row.
-- Verified 2026-11-10 on `dot`: all four answer through 9Router.
+  Sonnet implementer is reviewed by Carbon or Sol, never by another Claude row.
+- Verified 2026-11-10 on `dot`: all four answer through 9Router; Carbon also
+  passed a tool call with high thinking.
 
 ## Tracked reference and local state
 

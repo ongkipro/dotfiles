@@ -4,6 +4,12 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-10 — Gemini 4 Carbon is the Pi Gemini reviewer (TASK-210)
+
+- Review pairing in Pi now uses Gemini 4 Carbon where it used Argon: Opus/Sonnet work → `ag/gemini-4-carbon-high` or `cx/gpt-6.1-sol`; Gemini work (Carbon or Argon, one family) → Opus or Sol; Sol work → Opus or Carbon. Updated in `config/pi/README.md` § Review pairing and the Pi adapter; `ag/gemini-4-carbon-{high,medium,low}` added to the tracked `enabledModels`.
+- 9Router serves Carbon but omits it from `/v1/models`, so Pi's registry did not know it and a `reviewer` subagent on Carbon failed with "Unknown subagent model". `pi-9router-sync.js` now adds the three Carbon rows from their Argon siblings while the gateway lists Argon and not Carbon; once the gateway lists Carbon its own row wins. Regression cases (added, not duplicated, absent without Argon) in `pi-9router-restore-test`; both mutations fail it.
+- Verified on `dot`: Carbon answers through 9Router at low, medium and high, and passed a tool call with high thinking.
+
 ## 2026-11-10 — Pi on the pi.dev managed install (TASK-209)
 
 - Done on both devices: `rich` (7 sessions) and `dot` (6 sessions) were moved to the managed Pi on their own session files, then `pi-managed-migrate --cleanup` removed the npm copy; `ai-doctor` is clean on both. Both then took Pi 1.5.2 and `@narumitw/pi-btw` 0.63.6 through `pi update` / `pi update --extensions` on the managed path, with the 1.5.1 release kept for sessions still running from it; the 9Router sync stayed on `official: pi catalog`.

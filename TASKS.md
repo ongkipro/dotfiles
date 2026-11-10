@@ -8,6 +8,20 @@ Done: [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194
 
 ## In progress
 
+### TASK-210: Gemini 4 Carbon replaces Argon as the Pi Gemini reviewer
+- **Requirement:** REQ-PI-REVIEW-CARBON (owner 2026-11-10: review that used Argon uses Carbon in Pi on `rich` and `dot`; record in dotfiles and push).
+- **Risk Level:** R2.
+- **Allowed Paths:** `bin/pi-9router-sync.js`, `bin/pi-9router-restore-test`, `config/pi/README.md`, `config/pi/settings.json`, `config/ai/adapters/pi.md`, `config/ai/context/pi.md`, `CHANGELOG.md`, `TASKS.md`, `docs/archive/**`.
+- **Protected Paths:** `config/ai/CORE.md`.
+- **Canonical Contract Owners:** `pi.review-pairing` (`config/pi/README.md`), `pi.9router.catalog` (`pi-9router-sync.js`).
+- **Accepted Invariants:** the reviewer never shares the implementer's family (Carbon and Argon are one Gemini family); 9Router's unlisted `ag/gemini-4-carbon-*` rows are added only while their Argon sibling is listed and are replaced by the gateway's own row once it lists them; no other model row changes.
+- **Regression Checks:** `pi-9router-restore-test`, `ai-policy-lint`.
+- **Runtime Evidence:** on `dot` and `rich`: `pi --list-models` shows `ag/gemini-4-carbon-*`; a `reviewer` subagent on `ag/gemini-4-carbon-high` returns a review.
+- **Reopen Conditions:** 9Router stops serving Carbon, or lists it with different limits that the sync fails to adopt.
+- **Non-Scope:** OMP routing, other CLIs, 9Router itself.
+- **Escalation Conditions:** a change to `models.json` providers or auth.
+- **Outcome (2026-11-10):** see CHANGELOG 2026-11-10 (TASK-210).
+
 ### TASK-175: Cloudflare Asia-Pacific placement default
 - **Requirement:** REQ-CLOUDFLARE-APAC (owner 2026-11-02: web projects for Indonesia/Asia use Cloudflare SEA/Asia/Singapore; understand the breakdown and improve the skill).
 - **Risk Level:** R1.

@@ -131,6 +131,26 @@ async function isChatModel(base, id) {
   }
 }
 
+// Rows the gateway serves but does not list yet. Each borrows the limits and
+// capabilities of a listed sibling and is added only while that sibling is
+// listed and the row itself is not, so the gateway's own row wins once it
+// appears. Verified 2026-11-10: 9Router serves ag/gemini-4-carbon-{low,medium,high}
+// (Antigravity lists Gemini 4 Carbon) with tools and thinking, but omits them
+// from /v1/models.
+const UNLISTED = [
+  ['ag/gemini-4-carbon-high', 'ag/gemini-4-argon-high'],
+  ['ag/gemini-4-carbon-medium', 'ag/gemini-4-argon-medium'],
+  ['ag/gemini-4-carbon-low', 'ag/gemini-4-argon-low'],
+];
+
+function withUnlisted(rows) {
+  const ids = new Set(rows.map(row => row.id));
+  const added = UNLISTED
+    .filter(([id, sibling]) => !ids.has(id) && ids.has(sibling))
+    .map(([id, sibling]) => ({ ...clone(rows.find(row => row.id === sibling)), id }));
+  return rows.concat(added);
+}
+
 async function main() {
   const original = fs.readFileSync(modelsPath, 'utf8');
   const config = JSON.parse(original);
@@ -154,7 +174,7 @@ async function main() {
       const kinds = await Promise.all(payload.data.map(row => isChatModel(root, row.id)));
       const chat = payload.data.filter((_, i) => kinds[i]);
       if (!chat.length) throw new Error('Catalog has no chat models');
-      catalogs.set(root, chat);
+      catalogs.set(root, withUnlisted(chat));
     }
     provider.authHeader = true;
     const existing = new Map((provider.models || []).map(model => [model.id, model]));

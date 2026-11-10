@@ -168,6 +168,8 @@ const server = createServer((req, res) => {
     {id:'cc/claude-unlisted',context_length:200000,max_completion_tokens:64000,capabilities:{reasoning:true,vision:true,thinkingFormat:'claude-adaptive'}},
     {id:'oc/jev-1.13-free',context_length:200000,max_completion_tokens:64000,capabilities:{reasoning:false,vision:false}},
   ];
+  if (mode === 'argon' || mode === 'argon-listed-carbon') rows.push({id:'ag/gemini-4-argon-high',context_length:1048576,max_completion_tokens:65536,capabilities:{reasoning:true,vision:true}});
+  if (mode === 'argon-listed-carbon') rows.push({id:'ag/gemini-4-carbon-high',context_length:2000000,max_completion_tokens:65536,capabilities:{reasoning:true,vision:true}});
   if (mode === 'duplicate') rows.push(rows[0]);
   if (mode === 'invalid') rows[0].context_length = -1;
   res.end(JSON.stringify({data:mode === 'empty' ? [] : rows}));
@@ -227,11 +229,25 @@ try {
   assert.deepEqual(viaManaged.find(m=>m.id==='cc/claude-opus-5-5').thinkingLevelMap,{low:'low',max:'max'});
   await run();
   const good=await readFile(file,'utf8');
+  // Gemini 4 Carbon: served but unlisted by the gateway. It is added from its
+  // Argon sibling, never duplicated once the gateway lists it, and absent when
+  // Argon is absent (the default fixture above).
+  assert.equal(byId['ag/gemini-4-carbon-high'],undefined);
+  const carbonRun=async m=>{mode=m;await writeFile(file,JSON.stringify(original));await run();mode='ok';return JSON.parse(await readFile(file,'utf8')).providers['9router-fantastico'].models;};
+  let ms=await carbonRun('argon');
+  const carbon=ms.find(m=>m.id==='ag/gemini-4-carbon-high');
+  assert.ok(carbon,'carbon added from its argon sibling');
+  assert.equal(carbon.contextWindow,1048576);assert.equal(carbon.reasoning,true);
+  assert.equal(ms.filter(m=>m.id.startsWith('ag/gemini-4-carbon')).length,1); // only siblings that exist
+  ms=await carbonRun('argon-listed-carbon');
+  assert.equal(ms.filter(m=>m.id==='ag/gemini-4-carbon-high').length,1);
+  assert.equal(ms.find(m=>m.id==='ag/gemini-4-carbon-high').contextWindow,2000000); // gateway row wins
+  await writeFile(file,good);
   for (mode of ['http-error','empty','duplicate','invalid','redirect']) {
     await assert.rejects(run());assert.equal(await readFile(file,'utf8'),good);
   }
-  assert.equal(sentCredential,false);assert.equal(catalogCalls,10);
-  console.log('pi-catalog-sync: PASS (official metadata, managed install, fallback, classifier filter, auth isolation, preservation, five fail-closed cases)');
+  assert.equal(sentCredential,false);assert.equal(catalogCalls,12);
+  console.log('pi-catalog-sync: PASS (official metadata, managed install, unlisted Carbon, fallback, classifier filter, auth isolation, preservation, five fail-closed cases)');
 } finally {
   await new Promise(resolve=>server.close(resolve));
   await rm(fixture,{recursive:true,force:true});
