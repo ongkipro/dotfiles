@@ -1,23 +1,14 @@
 {
-  "activeRun": "RUN-20261110T124214Z-7f17b785",
-  "activeTask": "TASK-209",
-  "capability": "unattributed",
-  "job": "implementation",
+  "activeRun": null,
   "lastRun": {
-    "finishedAt": "2026-11-10T11:26:13Z",
-    "result": "PASS",
-    "runId": "RUN-20261110T112347Z-b1671f94"
+    "finishedAt": "2026-11-10T12:45:40Z",
+    "result": "FAIL",
+    "runId": "RUN-20261110T124214Z-7f17b785"
   },
-  "model": "cc/claude-opus-5-5",
-  "observedHead": "f1c550ade2d1447bdedc946916c2e78b23018732",
+  "observedHead": "fddd1761df44982618f1ded8e13b96a1323cd7c0",
   "observedState": "READY",
   "project": "dotfiles",
-  "provider": "9router-fantastico",
-  "reasoningEffort": "medium",
-  "requirement": "REQ-PI-MANAGED-INSTALL",
-  "risk": "R1",
   "schemaVersion": 1,
   "statusAuthority": "STATUS.md",
-  "updatedAt": "2026-11-10T12:44:56Z",
-  "worker": "pi-main"
+  "updatedAt": "2026-11-10T12:45:40Z"
 }
