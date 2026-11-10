@@ -4,6 +4,13 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-10 — Pi on the pi.dev managed install (TASK-209)
+
+- `rich` and `dot` now run Pi 1.5.1 from the pi.dev managed install (`~/.pi/agent/install`, pinned lockfile, `~/.local/bin/pi` → `~/.pi/agent/bin/pi`), independent of mise's Node version. Installed side by side: the npm global copy stays until the Pi sessions still using it close (7 on `rich`), then `npm uninstall -g @earendil-works/pi-coding-agent`. `settings.json`, `mcp.json`, auth and `pi list` were unchanged.
+- `pi-update-safe`: finds Pi's package in the managed layout first, then npm global; resolves `yaml` from that package (the managed install hoists it), and announces a skipped lint instead of skipping silently.
+- `pi-9router-sync.js`: reads Pi's built-in catalog from `~/.pi/agent/install/current-version`; the managed `pi` is a launcher script, so the PATH walk never reached it and the sync would have fallen back to gateway metadata only. Verified with a Node that cannot see any npm copy: `official: pi catalog`. Pi 1.5.1's catalog adds `supportsTemperature: false` to `cc/claude-sonnet-5`; nothing else in `models.json` changed.
+- `ai-doctor` reports the install kind and warns when a managed install is shadowed by a mise shim; the Linux/macOS install guides and `config/pi/README.md` describe the managed install and the side-by-side migration.
+
 ## 2026-11-10 — Spec-suite legal sources re-verified (TASK-208)
 
 - `development-spec-suite/assets/sources.json`: 13 of 15 source records re-verified on 2026-11-10 (7 overdue since 2026-11-04 plus 6 due by 2026-11-30); next review 2027-02-10. Material changes recorded, no legal conclusion drawn: Indonesia UU PDP Pasal 53(1)(b) conditional ruling (Putusan MK 151/PUU-XXII/2024); Japan APPI amending act promulgated 17 July 2026 (enforcement pending); Brazil Lei 15.352/2026 amending the LGPD; Australia statutory privacy tort in force 10 June 2025; Canada PIPEDA amendments through 2025-03-04; EU Digital Omnibus still a proposal; Singapore PDPC URL updated to its redirect target. ICO refused automated access, so the record cites a Wayback snapshot, as before.

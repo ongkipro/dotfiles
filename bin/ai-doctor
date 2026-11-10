@@ -687,7 +687,19 @@ for c in claude codex pi agy omp; do
         else
           wrn "claude: launcher ada tetapi native binary gagal; doctor tidak memperbaiki otomatis. Perbaiki: node \"\$(npm root -g)/@anthropic-ai/claude-code/install.cjs\""
         fi ;;
-      pi)    ok "pi: terpasang (capability opsional, bukan control plane OMP)" ;;
+      pi)
+        # The pi.dev managed install pins dependencies and survives node upgrades;
+        # a mise shim left in front of it would keep running a removed npm copy.
+        pi_path="$(command -v pi)"
+        if [ -f "$HOME/.pi/agent/install/managed-install.json" ]; then
+          case "$pi_path" in
+            */mise/shims/*|*/mise/installs/*)
+              wrn "pi: managed install ada, tapi PATH masih ke $pi_path. Perbaiki: npm uninstall -g @earendil-works/pi-coding-agent && mise reshim" ;;
+            *) ok "pi: terpasang (managed install pi.dev, $(cat "$HOME/.pi/agent/install/current-version" 2>/dev/null))" ;;
+          esac
+        else
+          ok "pi: terpasang via npm global (managed install belum: curl -fsSL https://pi.dev/install.sh | sh)"
+        fi ;;
       *)     ok "$c: terpasang" ;;
     esac
   else

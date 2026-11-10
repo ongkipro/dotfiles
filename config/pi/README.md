@@ -4,6 +4,22 @@ Pi and OMP may use 9Router. Claude Code, Codex and Antigravity keep their own
 native logins. Each runtime owns its authentication; sharing a gateway does not
 copy credentials or make Pi an OMP prerequisite.
 
+## Installation
+
+Pi runs from the pi.dev managed install (`curl -fsSL https://pi.dev/install.sh | sh`):
+releases live in `~/.pi/agent/install/releases/<version>` with a pinned lockfile,
+`current-version` selects one, and `~/.local/bin/pi` is a link to the launcher
+`~/.pi/agent/bin/pi`. It does not depend on mise's Node version.
+`pi-update-safe` and `pi-9router-sync.js` look in the managed layout first and
+fall back to npm global.
+
+Migrating a device whose Pi sessions still run from the npm copy: the installer
+would `npm uninstall` it underneath them, so run it with a `PATH` that hides the
+old `pi` (it then installs instead of migrating), remove only npm's `bin/pi` link,
+and `mise reshim` — a stale mise shim sits before `~/.local/bin` in `PATH`. Run
+`npm uninstall -g @earendil-works/pi-coding-agent` once those sessions close;
+`ai-doctor` warns while `pi` still resolves through mise.
+
 ## Tracked reference and local state
 
 - `settings.json` runs Pi on its documented defaults (`docs/settings.md` in the installed package):

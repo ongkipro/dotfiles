@@ -148,12 +148,14 @@ node -v && npm -v
 > bawah. Kalau menjalankan manual di luar urutan itu, jalankan baris pertama dulu:
 > ```bash
 > npm config set allow-scripts=@anthropic-ai/claude-code --location=user
-> npm i -g @anthropic-ai/claude-code @openai/codex @earendil-works/pi-coding-agent
+> npm i -g @anthropic-ai/claude-code @openai/codex
 > node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs"   # perbaiki kalau sudah kadung rusak
 > ```
 
 ```bash
-npm i -g @anthropic-ai/claude-code @openai/codex @earendil-works/pi-coding-agent
+npm i -g @anthropic-ai/claude-code @openai/codex
+curl -fsSL https://pi.dev/install.sh | sh   # Pi: managed install, dependency di-pin
+mise reshim
 ```
 
 **Antigravity (`agy`)** — bukan paket npm, punya installer sendiri. Perintahnya **sama
@@ -273,7 +275,8 @@ cd ~/dotfiles && bash install-macos.sh && source ~/.zshrc
 mise which node
 
 # 4 — AI CLI
-npm i -g @anthropic-ai/claude-code @openai/codex @earendil-works/pi-coding-agent
+npm i -g @anthropic-ai/claude-code @openai/codex
+curl -fsSL https://pi.dev/install.sh | sh && mise reshim
 
 # 5 — Login & daftar
 gh auth login && gh auth setup-git

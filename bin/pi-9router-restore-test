@@ -198,13 +198,27 @@ try {
   const bare=JSON.parse(await readFile(file,'utf8')).providers['9router-fantastico'].models;
   assert.deepEqual(bare.find(m=>m.id==='cc/claude-opus-5-5').compat,{supportsStrictTools:false,forceAdaptiveThinking:true});
   assert.deepEqual(bare.find(m=>m.id==='cx/gpt-6.1-sol').compat,{supportsReasoningEffort:true}); // existing fields kept, not guessed
+  // A pi.dev managed install is found with no override: its `pi` is a launcher
+  // script, so only ~/.pi/agent/install/current-version leads to the catalog.
+  const managed=join(fixture,'.pi/agent/install');
+  const providersDir=join(managed,'releases/9.9.9/node_modules/@earendil-works/pi-ai/dist/providers');
+  await mkdir(providersDir,{recursive:true});
+  for (const name of ['anthropic.models.js','openai-codex.models.js']) await writeFile(join(providersDir,name),await readFile(join(official,name)));
+  await writeFile(join(managed,'current-version'),'9.9.9\n');
+  await writeFile(file,JSON.stringify(original));
+  const env={...process.env,HOME:fixture};
+  for (const key of ['PI_9ROUTER_OFFICIAL_DIR','PI_MANAGED_INSTALL_ROOT','PI_CODING_AGENT_DIR']) delete env[key];
+  const {stdout}=await exec(process.execPath,[join(root,'bin/pi-9router-sync.js')],{env,timeout:15000});
+  assert.equal(JSON.parse(stdout).official,'pi catalog');
+  const viaManaged=JSON.parse(await readFile(file,'utf8')).providers['9router-fantastico'].models;
+  assert.deepEqual(viaManaged.find(m=>m.id==='cc/claude-opus-5-5').thinkingLevelMap,{low:'low',max:'max'});
   await run();
   const good=await readFile(file,'utf8');
   for (mode of ['http-error','empty','duplicate','invalid','redirect']) {
     await assert.rejects(run());assert.equal(await readFile(file,'utf8'),good);
   }
-  assert.equal(sentCredential,false);assert.equal(catalogCalls,9);
-  console.log('pi-catalog-sync: PASS (official metadata, fallback, classifier filter, auth isolation, preservation, five fail-closed cases)');
+  assert.equal(sentCredential,false);assert.equal(catalogCalls,10);
+  console.log('pi-catalog-sync: PASS (official metadata, managed install, fallback, classifier filter, auth isolation, preservation, five fail-closed cases)');
 } finally {
   await new Promise(resolve=>server.close(resolve));
   await rm(fixture,{recursive:true,force:true});
