@@ -109,7 +109,10 @@ console.log("3. gate evaluation");
 
   const r2 = m.evaluate([{ ...base, width: 1440, controls: [{ el: "input", px: 14 }], hero: { el: "s", h: 700, bottom: 760 },
     h1s: [{ el: "h1", words: 6, lines: 4 }] }], new Map([["h1-length", "editorial display type"]]));
-  expect(status(r2, "input-zoom") === "not-checked", "input-zoom only applies at 360");
+  expect(status(r2, "input-zoom") === "not-checked", "input-zoom only applies on phones (≤ 430)");
+  expect(status(m.evaluate([{ width: 390, height: 844, controls: [{ el: "input", px: 14 }] }]), "input-zoom") === "fail"
+    && status(m.evaluate([{ width: 768, height: 1024, controls: [{ el: "input", px: 14 }] }]), "input-zoom") === "not-checked",
+    "input-zoom: 14px control fails at 390 phone width and is not checked at 768");
   expect(status(r2, "hero-height") === "pass", "hero-height: next section peeks → pass");
   const h1 = r2.find((r) => r.id === "h1-length");
   expect(h1.status === "allowed" && h1.reason === "editorial display type", "allowed warn rule reports its reason");
@@ -202,6 +205,40 @@ console.log("3a. owner decisions (blank-noopener warn, D4 blur, D9 checkout hand
   expect(st(ev([wa(["hero"]), wa([], "https://wa.me/62812")], true), "contact-count").status === "fail", "D9: two WhatsApp links still fail contact-count");
   const flag = run(["check", "x", "--checkout-handoff", "--nope"]);
   expect(flag.status === 2 && /unknown option: --nope/.test(flag.stderr) && /--checkout-handoff/.test(run(["help"]).stdout), "--checkout-handoff is a known, documented flag");
+
+  // Admin surface & viewport contract (admin-visual-contract.md alignment + compare vision gate).
+  const admFacts = [
+    { width: 390, height: 844, texts: [{ el: "td", px: 14, ratio: 10, large: false, prose: true, chars: 300 }], firstViewportWords: 180, hero: { el: "div", h: 844, bottom: 900 }, reducedMotion: [] },
+    { width: 1366, height: 900, texts: [{ el: "td", px: 14, ratio: 10, large: false, prose: true, chars: 300 }], firstViewportWords: 220, hero: { el: "div", h: 900, bottom: 950 } },
+    { width: 1536, height: 900, texts: [{ el: "td", px: 14, ratio: 10, large: false, prose: true, chars: 300 }] },
+  ];
+  const admRes = m.evaluate(admFacts, new Map(), { surface: "admin" });
+  expect(st(admRes, "body-size").status === "pass", "admin surface: 14px table/body text passes body-size");
+  expect(st(m.evaluate([{ width: 1366, height: 900, texts: [{ el: "td", px: 13, ratio: 10, large: false, prose: true, chars: 100 }] }], new Map(), { surface: "admin" }), "body-size").status === "warn",
+    "admin surface: dominant text below 14px still warns body-size");
+  expect(st(admRes, "first-viewport-words").status === "not-checked" && st(admRes, "hero-height").status === "not-checked",
+    "admin surface: landing-page first-viewport-words and hero-height are skipped (not-checked)");
+  expect(st(admRes, "reduced-motion").status === "pass", "admin surface: reduced-motion probed at 390 passes across 390/1366/1536");
+  expect(m.parseViewports(null, "public").map((v) => v.width).join() === "360,768,1440"
+    && m.parseViewports(null, "admin").map((v) => v.width).join() === "390,1366,1536"
+    && m.parseViewports("390,1280,390").map((v) => v.width).join() === "390,1280",
+    "parseViewports resolves public (360/768/1440), admin (390/1366/1536), and custom deduplicated widths");
+  const sDir = path.join(TMP, "surf"); fs.mkdirSync(path.join(sDir, "design"), { recursive: true });
+  const sDesign = path.join(sDir, "DESIGN.md");
+  fs.writeFileSync(sDesign, "## Direction\n<!-- Surface: admin -->\nSurface: compro for admin software\n## Tokens\n## Allow\n");
+  expect(m.detectSurface(sDesign, sDir) === "public", "detectSurface: ignores comments and 'compro for admin software'");
+  fs.writeFileSync(sDesign, "## Direction\n- **Surface/job:** admin — order queue\n## Tokens\n## Allow\n");
+  expect(m.detectSurface(sDesign, sDir) === "admin", "detectSurface: detects Surface: admin in DESIGN.md");
+  fs.unlinkSync(sDesign);
+  fs.writeFileSync(path.join(sDir, "design", "admin-contract.json"), "{}\n");
+  expect(m.detectSurface(null, sDir) === "admin", "detectSurface: detects design/admin-contract.json");
+  const badSurf = run(["check", "http://127.0.0.1:1/", "--surface", "bogus"]);
+  const badVp = run(["check", "http://127.0.0.1:1/", "--viewports", "abc"]);
+  expect(badSurf.status === 2 && /invalid --surface/.test(badSurf.stderr) && badVp.status === 2 && /invalid --viewports/.test(badVp.stderr),
+    "CLI rejects invalid --surface and --viewports values with exit 2", `${badSurf.stderr} | ${badVp.stderr}`);
+  const vpPrompt = m.reviewPrompt({ url: "http://x", refName: "ref", out: "/tmp/o", sheets: ["sheet-360-1.png"], items: [] });
+  expect(/Vision gate/.test(vpPrompt) && /UNVERIFIED: vision unavailable/.test(vpPrompt),
+    "reviewPrompt enforces vision gate and UNVERIFIED: vision unavailable fallback");
 }
 
 // 3b. contrast math (shared with the page)
@@ -366,7 +403,9 @@ try {
       "local file path works and DESIGN.md allow: reports the warn as allowed", fileRun.stderr.slice(0, 300));
 
     const out = path.join(TMP, "refs");
+    const tdT0 = Date.now();
     const td = await runAsync(["teardown", `${base}/clean.html`, "--out", out]);
+    expect(Date.now() - tdT0 < 60000, "teardown exits promptly without waiting on un-cleared eval timers", `${Date.now() - tdT0}ms`);
     const dir = path.join(out, `127.0.0.1_${server.address().port}-clean-html`);
     let facts = null; try { facts = JSON.parse(fs.readFileSync(path.join(dir, "facts.json"), "utf8")); } catch {}
     expect(td.status === 0 && facts && ["360", "768", "1440"].every((w) => fs.existsSync(path.join(dir, `${w}.png`)) && facts.viewports[w]),
@@ -384,21 +423,8 @@ body{margin:0;font:16px/1.5 system-ui} section{padding:40px 20px;min-height:60px
 <section><h1>Fulfillment for brands</h1><p>We pack and ship.</p></section>
 ${Array.from({ length: 9 }, (_, i) => `<section><div class=k>/ Label ${i}</div><h2>Section ${i}</h2><p>Plain copy for section ${i} of the page.</p>
 ${i < 3 ? `<span class=n>0${i + 1}</span>` : ""}</section>`).join("\n")}</main></body></html>`);
-    const tp = await runAsync(["check", `${base}/template.html`, "--json"], { cwd: TMP });
-    let tj = null; try { tj = JSON.parse(tp.stdout); } catch {}
-    const ts = (id) => tj && tj.results.find((r) => r.id === id)?.status;
-    expect(tp.status === 0 && ["section-count", "eyebrow-overuse", "numbered-labels"].every((id) => ts(id) === "warn"), "browser: template page warns on section count, eyebrows, index labels",
-      JSON.stringify(["section-count", "eyebrow-overuse", "numbered-labels", "mono-overuse"].map(ts)) + tp.stderr.slice(0, 200));
     fs.writeFileSync(path.join(site, "times.html"), `<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>T</title></head><body><main>
 ${[1, 2, 3].map((i) => `<section><h2>Branch ${i}</h2><p>Opening hours</p><span>07:00</span> <span>09.30</span> <span>01/12</span> <span>05 Nov</span> <span>08 \u2013 17</span> <span>01. 12. 2026</span></section>`).join("\n")}</main></body></html>`);
-    const tm = await runAsync(["check", `${base}/times.html`, "--json"], { cwd: TMP });
-    let tmj = null; try { tmj = JSON.parse(tm.stdout); } catch {}
-    expect(tmj && tmj.results.find((r) => r.id === "numbered-labels")?.status === "pass", "review: times, dates and decimals are not index labels", JSON.stringify(tmj?.results.find((r) => r.id === "numbered-labels")));
-    const cleanT = await runAsync(["check", `${base}/clean.html`, "--json"], { cwd: TMP });
-    let cj = null; try { cj = JSON.parse(cleanT.stdout); } catch {}
-    expect(cj && ["section-count", "eyebrow-overuse", "numbered-labels", "mono-overuse"].every((id) => ["pass", "not-checked"].includes(cj.results.find((r) => r.id === id)?.status))
-      && cj.results.find((r) => r.id === "eyebrow-overuse")?.status === "not-checked",
-      "browser: clean page raises no template signal; 2 headings are too few to judge eyebrows", JSON.stringify(cj?.results.filter((r) => /section-count|eyebrow|numbered|mono/.test(r.id)).map((r) => r.status)));
     fs.writeFileSync(path.join(TMP, "DESIGN-c.md"), "## Direction\n- `C1`: open hero, no cards\n## Tokens\n## Allow\n");
     const cmpOut = path.join(TMP, "cmp");
     const cmp = await runAsync(["compare", `${base}/template.html`, "--ref", dir, "--out", cmpOut, "--design", path.join(TMP, "DESIGN-c.md")], { cwd: TMP });
@@ -407,7 +433,8 @@ ${[1, 2, 3].map((i) => `<section><h2>Branch ${i}</h2><p>Opening hours</p><span>0
     expect(cmp.status === 0 && ["360", "768", "1440"].every((w) => fs.existsSync(path.join(cmpOut, `sheet-${w}-1.png`)) && fs.existsSync(path.join(cmpOut, `build-${w}.png`))),
       "compare writes a side-by-side sheet and the build capture per width", cmp.stderr.slice(0, 300));
     expect(/reference 3 sections/.test(rep) && /build 10 sections/.test(rep) && /\*\*C1\*\* open hero, no cards/.test(rep), "compare report aligns outlines and lists C-items", rep.slice(0, 400));
-    expect(/Blind read of the build/.test(prm) && /C1: open hero, no cards/.test(prm) && /sheet-360-1\.png/.test(prm), "compare writes an independent-review prompt with the sheets and C-items");
+    expect(/Blind read of the build/.test(prm) && /UNVERIFIED: vision unavailable/.test(prm) && /C1: open hero, no cards/.test(prm) && /sheet-360-1\.png/.test(prm),
+      "compare writes an independent-review prompt with vision gate, sheets and C-items");
     const png = fs.existsSync(path.join(cmpOut, "sheet-1440-1.png")) ? fs.readFileSync(path.join(cmpOut, "sheet-1440-1.png")) : null;
     expect(png && png.readUInt32BE(16) <= 1400, "compare scales a 1440 sheet to a readable width", png ? String(png.readUInt32BE(16)) : "missing");
     // Review: the sheet must cover the whole (short) page, not stop at a zoom-shrunk height.
@@ -415,6 +442,25 @@ ${[1, 2, 3].map((i) => `<section><h2>Branch ${i}</h2><p>Opening hours</p><span>0
     const sheetH = parts.reduce((a, n) => a + fs.readFileSync(path.join(cmpOut, n)).readUInt32BE(20), 0);
     const buildH = fs.readFileSync(path.join(cmpOut, "build-1440.png")).readUInt32BE(20);
     expect(sheetH >= buildH * (1400 / (1440 * 2 + 56)) * 0.98, "review: the 1440 sheet covers the whole build at sheet scale", `sheet ${sheetH}px, build ${buildH}px`);
+
+    // Admin surface CLI check: auto-detects design/admin-contract.json -> 390/1366/1536, 14px body floor, 16px input at <=430px.
+    const adminDir = path.join(TMP, "admin-ws");
+    fs.mkdirSync(path.join(adminDir, "design"), { recursive: true });
+    fs.writeFileSync(path.join(adminDir, "design", "admin-contract.json"), "{\"screen_type\":\"list\"}\n");
+    fs.writeFileSync(path.join(site, "admin.html"), `<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Orders</title>
+      <style>body{margin:0;font:14px/1.45 system-ui;color:#111;background:#fff}main{padding:16px 20px}h1{font:600 22px/1.25 system-ui;margin:0 0 12px}
+      input{font:16px/1.4 system-ui;min-height:36px;padding:6px 10px;border:1px solid #888}@media(min-width:768px){input{font-size:14px}}
+      table{width:100%;border-collapse:collapse}td,th{padding:8px;text-align:left;border-bottom:1px solid #e5e5e5}</style></head>
+      <body><main><h1>Orders</h1><p><label>Search <input type=search placeholder="Order #"></label></p>
+      <table><thead><tr><th>Order</th><th>Status</th></tr></thead><tbody>${Array.from({ length: 12 }, (_, i) => `<tr><td>ORD-${100 + i}</td><td>Paid regular order item row with details for fulfillment</td></tr>`).join("")}</tbody></table></main></body></html>`);
+    const admCli = await runAsync(["check", `${base}/admin.html`, "--json"], { cwd: adminDir });
+    let admJ = null; try { admJ = JSON.parse(admCli.stdout); } catch {}
+    expect(admCli.status === 0 && admJ?.surface === "admin" && admJ?.viewports?.join(",") === "390,1366,1536" && admJ?.summary.fail === 0 && admJ?.summary.warn === 0,
+      "CLI auto-detects design/admin-contract.json -> admin surface (390/1366/1536, 14px body floor, no hero-height/word-cap warns)",
+      JSON.stringify([admCli.status, admJ?.surface, admJ?.viewports, admJ?.summary, admJ?.results.filter((r) => r.status !== "pass" && r.status !== "not-checked")]));
+    const admExp = await runAsync(["check", `${base}/admin.html`, "--surface", "admin", "--viewports", "1366,390"], { cwd: TMP });
+    expect(admExp.status === 0 && /mode: --surface admin/.test(admExp.stdout) && /viewports 1366\/390 · reduced motion at 390/.test(admExp.stdout),
+      "CLI explicit --surface admin --viewports 1366,390 probes reduced motion at narrowest width (390)", admExp.stdout.split("\n").slice(0, 4).join(" | "));
 
     // Review regressions (2026-10-31). Fixtures live in this suite's temp dir, checked as local files
     // so dotuiux's own loopback server is exercised.
@@ -455,16 +501,9 @@ ${[1, 2, 3].map((i) => `<section><h2>Branch ${i}</h2><p>Opening hours</p><span>0
       `<main><section><h1>Confirm your order</h1><p>Send the order summary to our team on WhatsApp to finish.</p>
        <a href="https://wa.me/62811?text=order-1001" style="display:inline-block;padding:12px 20px;border:1px solid #1a1a1a;color:#1a1a1a">Send order on WhatsApp</a></section>
        <section><h2>Shipping</h2><div class="glass"><p>Delivered in 2–3 days.</p></div><p><a href="https://example.org/terms" target="_blank">Terms</a></p></section></main>`));
-    const rs = (r, id) => r.j?.results.find((x) => x.id === id);
-    const J = async (file, extra = []) => { const r = await runAsync(["check", path.join(rv, file), "--json", ...extra]); let j = null; try { j = JSON.parse(r.stdout); } catch {} return { ...r, j }; };
-    // Sequential on purpose: parallel Chrome launches made the probe time out on a busy machine.
-    const okR = await J("ok.html"), noH2 = await J("no-h2.html"), ovH = await J("overflow-hidden.html"), ovC = await J("overflow-clip.html");
-    const dark = await J("dark.html"), failR = await J("fail.html"), http404 = await runAsync(["check", `${base}/missing.html`]);
-    const hoOff = await J("handoff.html"), hoOn = await runAsync(["check", path.join(rv, "handoff.html"), "--checkout-handoff"]);
     // Review 2026-10-31 (independent reviewer): low-contrast hero text over a background image beside normal text.
     fs.writeFileSync(path.join(rv, "photo-hero.html"), page(`<style>.hero{background:#fafafa url("data:image/gif;base64,R0lGODlhAQABAAAAACw=") repeat;padding:24px}.hero h1{color:#eee}</style>`,
       `<main><section class="hero"><h1>Fresh bread</h1></section><p>Sourdough and pastries baked daily.</p></main>`));
-    const photo = await J("photo-hero.html");
     // TASK-169 real-page cases (2026-10-31): gradient hero/body, a 2px ::after underline, an off-page skip link,
     // a long page, LCP entrances, a native checkbox and a skipped heading level.
     fs.writeFileSync(path.join(rv, "real-cases.html"), page(
@@ -502,7 +541,6 @@ ${[1, 2, 3].map((i) => `<section><h2>Branch ${i}</h2><p>Opening hours</p><span>0
       `<main><h1>Fresh bread</h1><div class=box><p>White on band</p></div></main>`));
     fs.writeFileSync(path.join(rv, "margin-band.html"), page(`<style>.box{position:relative;color:#fff;width:300px;height:400px;z-index:0}.box::before{content:"";position:absolute;left:0;top:0;margin-top:200px;width:300px;height:200px;background:#111;z-index:-1}.box p{position:absolute;top:260px;left:0;margin:0;font-size:16px}</style>`,
       `<main><h1>Fresh bread</h1><div class=box><p>White on band</p></div></main>`));
-    const scaled = await J("scaled-band.html"), svgG = await J("svg-glow.html"), rot = await J("rot-band.html"), marg = await J("margin-band.html");
     // Fourth review: bands painted by a box-shadow spread, a scaled 4px bar, or a border.
     const band = (name, css) => fs.writeFileSync(path.join(rv, `${name}.html`), page(`<style>.hero{position:relative;min-height:300px;overflow:hidden}.hero::before{content:"";position:absolute;${css}}.hero p{color:#fff;margin:40px;position:relative}</style>`,
       `<main><h1>Title</h1><section class=hero><p>White text over a pseudo-element band.</p></section></main>`));
@@ -525,32 +563,89 @@ ${[1, 2, 3].map((i) => `<section><h2>Branch ${i}</h2><p>Opening hours</p><span>0
       .card{position:relative;background:#fff;color:#eee;padding:40px;margin:20px}.card.on::before{content:"";position:absolute;inset:0;background:#000}.card p{position:relative}</style></head>
       <body><h1>Top</h1><div class="gap"></div><div id="sentinel">x marker</div><div class="card" id="c"><p>White text over a pseudo-element band.</p></div><div style="height:2000px"></div>
       <script>new IntersectionObserver((e,o)=>{if(e[0].isIntersecting){document.getElementById('c').classList.add('on');o.disconnect();}}).observe(document.getElementById('sentinel'));</script></body></html>`);
-    for (const name of ["shadow-band", "scaled-bar", "border-band", "grid-band", "sibling-band", "body-band", "shift-band", "late-band"]) { const r = await J(`${name}.html`);
-      expect(rs(r, "contrast")?.status === "not-checked", `fourth review: white text over a ${name} pseudo is NOT CHECKED, never a FAIL`, JSON.stringify(rs(r, "contrast"))); }
-    for (const [r, n] of [[rot, "rotated host"], [marg, "margin-offset band"]])
-      expect(rs(r, "contrast")?.status === "not-checked", `third review: white text on a ::before band (${n}) is NOT CHECKED, never a FAIL`, JSON.stringify(rs(r, "contrast")));
-    expect(rs(scaled, "contrast")?.status !== "fail", "re-review: a ::before band on a transformed host is not mis-placed into a FAIL", JSON.stringify(rs(scaled, "contrast")));
-    expect(rs(svgG, "lcp-entrance")?.status === "pass", "re-review: a decorative inline <svg> fading in is not an LCP candidate (no FAIL)", JSON.stringify(rs(svgG, "lcp-entrance")));
-    const gRev = await J("grad-review.html"), gStr = await J("grad-straddle.html"), clipT = await J("clip-text.html"), hl = await J("highlight.html");
-    expect(rs(gRev, "contrast")?.status === "pass", "review: a semi-transparent scrim layer is composited over the gradient below (white text PASSES, ~11:1)", JSON.stringify([rs(gRev, "contrast"), gRev.j?.notes]));
-    expect(rs(gRev, "lcp-entrance")?.status === "pass", "review: a large decorative glow fading in is not an LCP candidate (no FAIL)", JSON.stringify(rs(gRev, "lcp-entrance")));
-    expect(rs(gStr, "contrast")?.status === "not-checked" && gStr.j.notes.some((n) => /contrast not measured/.test(n)), "review: text whose gradient range straddles the limit is NOT CHECKED", JSON.stringify(rs(gStr, "contrast")));
-    expect(rs(clipT, "contrast")?.status === "not-checked" && rs(clipT, "contrast").offenders.length === 0, "review: background-clip:text gradient text is NOT CHECKED, not a FAIL", JSON.stringify(rs(clipT, "contrast")));
-    expect(rs(hl, "contrast")?.status === "not-checked" && hl.j.notes.some((n) => /Dark band/.test(n)), "review: a ::before band under the text point is not ignored (NOT CHECKED, not judged on white)", JSON.stringify([rs(hl, "contrast"), hl.j?.notes]));
-    const realC = await J("real-cases.html"), fade = await J("fade-lcp.html"), gradFail = await J("grad-fail.html");
-    expect(rs(realC, "contrast")?.status === "pass" && !realC.j?.notes.some((n) => /contrast (not measured|scan stopped)/.test(n)),
-      "real: white text on a dark gradient, text with a 2px ::after underline and text 26,000px down a smooth-scrolling page are all measured (contrast PASS)",
-      JSON.stringify([rs(realC, "contrast"), realC.j?.notes]));
-    expect(rs(realC, "primary-actions")?.status === "pass" && !JSON.stringify(rs(realC, "primary-actions")).includes("Lewati"),
-      "real: a skip link parked above the page is not a first-viewport button", JSON.stringify(rs(realC, "primary-actions")));
-    expect(rs(realC, "lcp-entrance")?.status === "pass", "real: a transform-only entrance on a visible LCP is not a FAIL (web.dev: position changes are not new candidates)");
-    expect(rs(fade, "lcp-entrance")?.status === "fail", "real: an LCP that fades in from opacity 0 still FAILS", JSON.stringify(rs(fade, "lcp-entrance")));
-    expect(rs(realC, "target-size")?.status === "pass", "real: a native checkbox at browser size is exempt (WCAG 2.5.8 user-agent exception)", JSON.stringify(rs(realC, "target-size")?.offenders));
-    expect(rs(realC, "heading-skip")?.status === "warn" && rs(realC, "heading-skip").offenders.some((o) => o.v === "h1 → h3"), "real: h1 → h3 warns as heading-skip");
-    expect(rs(gradFail, "contrast")?.status === "fail" && rs(gradFail, "contrast").offenders.some((o) => /over a gradient/.test(o.v)),
-      "real: pale text that fails against every gradient stop FAILS instead of hiding as not checked", JSON.stringify(rs(gradFail, "contrast")));
-    expect(photo.status === 0 && rs(photo, "contrast")?.status === "not-checked" && photo.j.notes.some((n) => /contrast not measured/.test(n) && /Fresh bread/.test(n)),
-      "review: text over a hero image is NOT CHECKED and named, never a silent pass", JSON.stringify([rs(photo, "contrast"), photo.j?.notes]));
+
+    // CLI boundary checks: HTTP 404 exit code and --checkout-handoff text output.
+    const http404 = await runAsync(["check", `${base}/missing.html`]);
+    const hoOn = await runAsync(["check", path.join(rv, "handoff.html"), "--checkout-handoff"]);
+
+    // Reuse one real Chromium instance across all static HTML regression fixtures so we keep 100% real
+    // CDP + loopback HTTP assertions without paying ~30 separate Chrome process launches.
+    const rs = (r, id) => r.j?.results.find((x) => x.id === id);
+    await m.withCheckerBrowser(async (browser) => {
+      const prodOpts = { browser, cwd: TMP };
+      const fastOpts = { browser, cwd: TMP, settleMs: 180, scrollWaitMs: 35, resetWaitMs: 60 };
+      const prodTiming = new Set(["ok.html", "shift-band.html", "late-band.html", "real-cases.html"]);
+      const checkUrl = async (url, baseOpts = fastOpts, extra = {}) => {
+        const j = await m.checkTarget(url, { ...baseOpts, ...extra });
+        return { status: j.summary.fail ? 1 : 0, stdout: JSON.stringify(j), stderr: "", j };
+      };
+      const J = (file, extra = {}) => checkUrl(path.join(rv, file), prodTiming.has(file) ? prodOpts : fastOpts, extra);
+
+      const tj = await m.checkTarget(`${base}/template.html`, fastOpts);
+      const ts = (id) => tj.results.find((r) => r.id === id)?.status;
+      expect(tj.summary.fail === 0 && ["section-count", "eyebrow-overuse", "numbered-labels"].every((id) => ts(id) === "warn"),
+        "browser: template page warns on section count, eyebrows, index labels",
+        JSON.stringify(["section-count", "eyebrow-overuse", "numbered-labels", "mono-overuse"].map(ts)));
+      const tmj = await m.checkTarget(`${base}/times.html`, fastOpts);
+      expect(tmj.results.find((r) => r.id === "numbered-labels")?.status === "pass", "review: times, dates and decimals are not index labels", JSON.stringify(tmj.results.find((r) => r.id === "numbered-labels")));
+      const cj = await m.checkTarget(`${base}/clean.html`, fastOpts);
+      expect(["section-count", "eyebrow-overuse", "numbered-labels", "mono-overuse"].every((id) => ["pass", "not-checked"].includes(cj.results.find((r) => r.id === id)?.status))
+        && cj.results.find((r) => r.id === "eyebrow-overuse")?.status === "not-checked",
+        "browser: clean page raises no template signal; 2 headings are too few to judge eyebrows", JSON.stringify(cj.results.filter((r) => /section-count|eyebrow|numbered|mono/.test(r.id)).map((r) => r.status)));
+
+      const okR = await J("ok.html"), noH2 = await J("no-h2.html"), ovH = await J("overflow-hidden.html"), ovC = await J("overflow-clip.html");
+      const dark = await J("dark.html"), failR = await J("fail.html"), hoOff = await J("handoff.html"), photo = await J("photo-hero.html");
+      const scaled = await J("scaled-band.html"), svgG = await J("svg-glow.html"), rot = await J("rot-band.html"), marg = await J("margin-band.html");
+      for (const name of ["shadow-band", "scaled-bar", "border-band", "grid-band", "sibling-band", "body-band", "shift-band", "late-band"]) { const r = await J(`${name}.html`);
+        expect(rs(r, "contrast")?.status === "not-checked", `fourth review: white text over a ${name} pseudo is NOT CHECKED, never a FAIL`, JSON.stringify(rs(r, "contrast"))); }
+      for (const [r, n] of [[rot, "rotated host"], [marg, "margin-offset band"]])
+        expect(rs(r, "contrast")?.status === "not-checked", `third review: white text on a ::before band (${n}) is NOT CHECKED, never a FAIL`, JSON.stringify(rs(r, "contrast")));
+      expect(rs(scaled, "contrast")?.status !== "fail", "re-review: a ::before band on a transformed host is not mis-placed into a FAIL", JSON.stringify(rs(scaled, "contrast")));
+      expect(rs(svgG, "lcp-entrance")?.status === "pass", "re-review: a decorative inline <svg> fading in is not an LCP candidate (no FAIL)", JSON.stringify(rs(svgG, "lcp-entrance")));
+      const gRev = await J("grad-review.html"), gStr = await J("grad-straddle.html"), clipT = await J("clip-text.html"), hl = await J("highlight.html");
+      expect(rs(gRev, "contrast")?.status === "pass", "review: a semi-transparent scrim layer is composited over the gradient below (white text PASSES, ~11:1)", JSON.stringify([rs(gRev, "contrast"), gRev.j?.notes]));
+      expect(rs(gRev, "lcp-entrance")?.status === "pass", "review: a large decorative glow fading in is not an LCP candidate (no FAIL)", JSON.stringify(rs(gRev, "lcp-entrance")));
+      expect(rs(gStr, "contrast")?.status === "not-checked" && gStr.j.notes.some((n) => /contrast not measured/.test(n)), "review: text whose gradient range straddles the limit is NOT CHECKED", JSON.stringify(rs(gStr, "contrast")));
+      expect(rs(clipT, "contrast")?.status === "not-checked" && rs(clipT, "contrast").offenders.length === 0, "review: background-clip:text gradient text is NOT CHECKED, not a FAIL", JSON.stringify(rs(clipT, "contrast")));
+      expect(rs(hl, "contrast")?.status === "not-checked" && hl.j.notes.some((n) => /Dark band/.test(n)), "review: a ::before band under the text point is not ignored (NOT CHECKED, not judged on white)", JSON.stringify([rs(hl, "contrast"), hl.j?.notes]));
+      const realC = await J("real-cases.html"), fade = await J("fade-lcp.html"), gradFail = await J("grad-fail.html");
+      expect(rs(realC, "contrast")?.status === "pass" && !realC.j?.notes.some((n) => /contrast (not measured|scan stopped)/.test(n)),
+        "real: white text on a dark gradient, text with a 2px ::after underline and text 26,000px down a smooth-scrolling page are all measured (contrast PASS)",
+        JSON.stringify([rs(realC, "contrast"), realC.j?.notes]));
+      expect(rs(realC, "primary-actions")?.status === "pass" && !JSON.stringify(rs(realC, "primary-actions")).includes("Lewati"),
+        "real: a skip link parked above the page is not a first-viewport button", JSON.stringify(rs(realC, "primary-actions")));
+      expect(rs(realC, "lcp-entrance")?.status === "pass", "real: a transform-only entrance on a visible LCP is not a FAIL (web.dev: position changes are not new candidates)");
+      expect(rs(fade, "lcp-entrance")?.status === "fail", "real: an LCP that fades in from opacity 0 still FAILS", JSON.stringify(rs(fade, "lcp-entrance")));
+      expect(rs(realC, "target-size")?.status === "pass", "real: a native checkbox at browser size is exempt (WCAG 2.5.8 user-agent exception)", JSON.stringify(rs(realC, "target-size")?.offenders));
+      expect(rs(realC, "heading-skip")?.status === "warn" && rs(realC, "heading-skip").offenders.some((o) => o.v === "h1 → h3"), "real: h1 → h3 warns as heading-skip");
+      expect(rs(gradFail, "contrast")?.status === "fail" && rs(gradFail, "contrast").offenders.some((o) => /over a gradient/.test(o.v)),
+        "real: pale text that fails against every gradient stop FAILS instead of hiding as not checked", JSON.stringify(rs(gradFail, "contrast")));
+      expect(photo.status === 0 && rs(photo, "contrast")?.status === "not-checked" && photo.j.notes.some((n) => /contrast not measured/.test(n) && /Fresh bread/.test(n)),
+        "review: text over a hero image is NOT CHECKED and named, never a silent pass", JSON.stringify([rs(photo, "contrast"), photo.j?.notes]));
+      expect(okR.status === 0 && okR.j?.summary.fail === 0, "review ok-page: no FAIL and no hang (alert accepted, bad/unreadable image URLs served as errors)",
+        `status ${okR.status} ${okR.stderr.slice(0, 200)} ${JSON.stringify(okR.j?.results.filter((x) => x.status === "fail").map((x) => [x.id, x.offenders[0]]))}`);
+      expect(rs(okR, "contact-placement")?.status === "pass", "1: contact link in a section <header> is not page chrome");
+      expect(rs(okR, "contrast")?.status === "not-checked" && !rs(okR, "contrast").offenders.some((o) => /Open daily|Seven to three/.test(o.el))
+        && okR.j.notes.some((n) => /contrast not measured/.test(n) && /Open daily/.test(n)),
+        "3: text on a ::before band is not measured against white, and is named instead of passed", JSON.stringify([rs(okR, "contrast"), okR.j?.notes]));
+      expect(rs(okR, "lcp-entrance")?.status === "pass", "5: background-colour animation on the LCP's ancestor is not an entrance",
+        JSON.stringify(rs(okR, "lcp-entrance"))); // flaked once on a macOS runner (run 41298256078): keep the detail
+      expect(rs(okR, "tiny-text")?.status === "pass" && !okR.stdout.includes("fake-fixture-value"), "12: loopback server does not serve .env to page scripts");
+      expect(noH2.status === 0 && rs(noH2, "contact-placement")?.status === "pass", "2: without h2 the hero stays around the h1", JSON.stringify(rs(noH2, "contact-placement")?.offenders));
+      for (const [r, v] of [[ovH, "hidden"], [ovC, "clip"]])
+        expect(r.status === 0 && rs(r, "overflow-x")?.status === "not-checked" && r.j.notes.some((n) => /overflow-x not checked/.test(n)), `6: overflow-x:${v} on html/body is NOT CHECKED with a note`, r.stderr.slice(0, 200));
+      expect(dark.status === 0 && rs(dark, "contrast")?.status === "not-checked", "4: dark color-scheme canvas is not assumed white", JSON.stringify(rs(dark, "contrast")));
+      expect(rs(failR, "contrast")?.status === "fail" && rs(failR, "contrast").offenders.some((o) => o.v === "4.49:1"), "11: 4.495:1 text fails in the browser", JSON.stringify(rs(failR, "contrast")?.offenders));
+      expect(rs(failR, "loop-pause")?.status === "fail", "14: a 'Stop smoking' link is not a pause control");
+      expect(rs(failR, "display-tracking")?.status === "warn" && rs(failR, "display-tracking").offenders.some((o) => /-0.05em at 40px/.test(o.v)),
+        "D2 browser: −0.05em on a 40px h1 warns", JSON.stringify(rs(failR, "display-tracking")));
+      expect(rs(okR, "display-tracking")?.status === "pass", "D2 browser: default h1 tracking passes");
+      expect(rs(failR, "nav-label")?.status === "warn" && !/\\u0007/.test(failR.stdout), "15: control characters are stripped from labels");
+      expect(rs(hoOff, "contact-placement")?.status === "fail" && hoOff.j.checkoutHandoff === false, "D9 browser: hero WhatsApp fails without the flag");
+      expect(rs(hoOff, "blank-noopener")?.status === "warn", "browser: target=_blank without rel is a WARN");
+      expect(rs(hoOff, "blur")?.status === "fail", "D4 browser: 12px backdrop blur fails");
+    });
+
     // Review 2026-10-31: a redirect (pin.it-style share link) or script hop must not reach a gallery.
     const outG = path.join(TMP, "gallery-refs");
     for (const [p, how] of [["/go-pinterest", "HTTP redirect"], ["/js-dribbble.html", "script navigation"]]) {
@@ -563,29 +658,7 @@ ${[1, 2, 3].map((i) => `<section><h2>Branch ${i}</h2><p>Opening hours</p><span>0
     const lateDir = path.join(outG, `127.0.0.1_${server.address().port}-late-dribbble-html`);
     expect(late.status === 2 && /refusing gallery URL/.test(late.stderr) && !fs.existsSync(lateDir),
       "teardown removes its partial ref dir when a gallery is reached after the first capture", `status ${late.status} exists ${fs.existsSync(lateDir)} ${late.stderr.slice(0, 200)}`);
-    expect(okR.status === 0 && okR.j?.summary.fail === 0, "review ok-page: no FAIL and no hang (alert accepted, bad/unreadable image URLs served as errors)",
-      `status ${okR.status} ${okR.stderr.slice(0, 200)} ${JSON.stringify(okR.j?.results.filter((x) => x.status === "fail").map((x) => [x.id, x.offenders[0]]))}`);
-    expect(rs(okR, "contact-placement")?.status === "pass", "1: contact link in a section <header> is not page chrome");
-    expect(rs(okR, "contrast")?.status === "not-checked" && !rs(okR, "contrast").offenders.some((o) => /Open daily|Seven to three/.test(o.el))
-      && okR.j.notes.some((n) => /contrast not measured/.test(n) && /Open daily/.test(n)),
-      "3: text on a ::before band is not measured against white, and is named instead of passed", JSON.stringify([rs(okR, "contrast"), okR.j?.notes]));
-    expect(rs(okR, "lcp-entrance")?.status === "pass", "5: background-colour animation on the LCP's ancestor is not an entrance",
-      JSON.stringify(rs(okR, "lcp-entrance"))); // flaked once on a macOS runner (run 41298256078): keep the detail
-    expect(rs(okR, "tiny-text")?.status === "pass" && !okR.stdout.includes("fake-fixture-value"), "12: loopback server does not serve .env to page scripts");
-    expect(noH2.status === 0 && rs(noH2, "contact-placement")?.status === "pass", "2: without h2 the hero stays around the h1", JSON.stringify(rs(noH2, "contact-placement")?.offenders));
-    for (const [r, v] of [[ovH, "hidden"], [ovC, "clip"]])
-      expect(r.status === 0 && rs(r, "overflow-x")?.status === "not-checked" && r.j.notes.some((n) => /overflow-x not checked/.test(n)), `6: overflow-x:${v} on html/body is NOT CHECKED with a note`, r.stderr.slice(0, 200));
-    expect(dark.status === 0 && rs(dark, "contrast")?.status === "not-checked", "4: dark color-scheme canvas is not assumed white", JSON.stringify(rs(dark, "contrast")));
-    expect(rs(failR, "contrast")?.status === "fail" && rs(failR, "contrast").offenders.some((o) => o.v === "4.49:1"), "11: 4.495:1 text fails in the browser", JSON.stringify(rs(failR, "contrast")?.offenders));
-    expect(rs(failR, "loop-pause")?.status === "fail", "14: a 'Stop smoking' link is not a pause control");
-    expect(rs(failR, "display-tracking")?.status === "warn" && rs(failR, "display-tracking").offenders.some((o) => /-0.05em at 40px/.test(o.v)),
-      "D2 browser: −0.05em on a 40px h1 warns", JSON.stringify(rs(failR, "display-tracking")));
-    expect(rs(okR, "display-tracking")?.status === "pass", "D2 browser: default h1 tracking passes");
-    expect(rs(failR, "nav-label")?.status === "warn" && !/\\u0007/.test(failR.stdout), "15: control characters are stripped from labels");
     expect(http404.status === 2 && /HTTP 404/.test(http404.stderr), "10: an HTTP 404 page is an error (exit 2), not a pass", http404.stderr.slice(0, 200));
-    expect(rs(hoOff, "contact-placement")?.status === "fail" && hoOff.j.checkoutHandoff === false, "D9 browser: hero WhatsApp fails without the flag");
-    expect(rs(hoOff, "blank-noopener")?.status === "warn", "browser: target=_blank without rel is a WARN");
-    expect(rs(hoOff, "blur")?.status === "fail", "D4 browser: 12px backdrop blur fails");
     expect(/mode: --checkout-handoff \(D9\)/.test(hoOn.stdout) && !/^FAIL\s+contact-placement/m.test(hoOn.stdout) && /^PASS.*contact-placement/m.test(hoOn.stdout),
       "D9 browser: --checkout-handoff passes hero WhatsApp and names the mode in the header", hoOn.stdout.split("\n").filter((l) => /^(FAIL|mode)/.test(l)).join(" | "));
   }

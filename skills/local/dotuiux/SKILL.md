@@ -98,11 +98,16 @@ Styles come from `DESIGN.md` tokens; real content or a labelled placeholder.
 
 ## 5. Check
 
-`dotuiux check <url>` renders at 360, 768, and 1440 px and reports **fail**,
-**warn**, **allowed**, or **not checked** per item. Fails are broken or harmful
-things (contrast, overflow, unreadable text, fake data, contact spam, motion
-that ignores reduced motion); loading/empty/error states are not measured — they
-stay with `ui-validation`;
+`dotuiux check <url>` renders at 360, 768, and 1440 px on public surfaces and
+390, 1366, and 1536 px on admin surfaces (`--surface admin`, auto-detected when
+`design/admin-contract.json` exists or `DESIGN.md` declares `Surface: admin`;
+`--viewports W,W,...` overrides widths). Admin mode uses the 14 px body floor
+from `admin-dashboard` and skips landing-only hero-height and first-viewport
+word-cap warnings; phone `input-zoom` (`< 16 px` form controls) applies up to
+430 px on both surfaces. Every rule reports **fail**, **warn**, **allowed**, or
+**not checked**. Fails are broken or harmful things (contrast, overflow,
+unreadable text, fake data, contact spam, motion that ignores reduced motion);
+loading/empty/error states are not measured — they stay with `ui-validation`;
 fix every fail. A warn asks "is this deliberate?" — fix it or record the
 `allow:` in `DESIGN.md`. Not checked is not a pass; name it in the report.
 Interaction, keyboard, and themes stay with `ui-validation`.
@@ -125,9 +130,11 @@ It writes, per width, side-by-side sheets (reference left, build right),
 someone who did not build the page**: the owner, or another model given only
 the sheets and the prompt (skill `cross-cli`, e.g.
 `ai-ask claude -- "$(cat <out>/review-prompt.md)"`; image-capable runtimes
-only). The reviewer reads the build blind first ("what business is this?");
-a generic answer is REVISE. The builder's own critique never counts as this
-verdict. Keep `design/compare/` out of Git unless the repository wants the
+only — `review-prompt.md` starts with a vision gate requiring a text-only
+runtime to output `UNVERIFIED: vision unavailable` instead of guessing from
+`report.md`). The reviewer reads the build blind first ("what business is
+this?"); a generic answer is REVISE. The builder's own critique never counts as
+this verdict. Keep `design/compare/` out of Git unless the repository wants the
 evidence.
 
 ## 6. Owner review

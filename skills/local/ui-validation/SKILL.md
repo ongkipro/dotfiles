@@ -11,8 +11,8 @@ unit test, DOM snapshot, or source read does not prove a browser-visible
 change. A screenshot proves appearance, not interaction.
 
 For a new or redesigned screen, `dotuiux check <url>` (skill `dotuiux`) runs the
-rendered checks at 360/768/1440 first; this skill proves interaction, keyboard,
-states, and themes.
+rendered checks first (360/768/1440 on public pages; 390/1366/1536 on
+`--surface admin`); this skill proves interaction, keyboard, states, and themes.
 
 ## 1. Find the project's harness
 
@@ -37,7 +37,7 @@ states, and themes.
 | Change | Minimum |
 |---|---|
 | Copy, color, spacing | Open the route at the relevant viewport; look |
-| Responsive layout | One narrow (~390) and one wide (~1280; admin: 390/1366/1536) viewport; clipping, overlap, horizontal overflow |
+| Responsive layout | One narrow (360–390) and one wide (1280–1440; admin: 390/1366/1536) viewport; clipping, overlap, horizontal overflow |
 | Interaction or form | Perform the action; assert the visible result and persistence/navigation |
 | Astro island / hydrated component | Interact with it — a missing `client:*` directive still renders correct HTML that does nothing; no hydration error in console |
 | Theme change | Both themes; resolved theme survives reload without a flash |

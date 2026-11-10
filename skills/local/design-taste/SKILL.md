@@ -166,9 +166,10 @@ as the house baseline (WCAG 2.2 minimum is 24 px). Checklist:
 
 ## 5. Done means seen
 
-1. Render each changed view at ~390 px and ~1280 px (project dev server +
-   the browser tool available in this runtime, or the project's Playwright)
-   and open the images.
+1. Render each changed view at 360–390 px (narrow) and 1280–1440 px (wide) via
+   the project dev server + available browser tool or Playwright (or open
+   `dotuiux compare`'s `build-360.png` and `build-1440.png` captures) and
+   inspect the images.
    A build or an overflow number is not a look.
 2. Critique against §3 and the recorded direction; fix; re-render.
 3. `dotuiux check` (floor + template signals), then `dotuiux compare <url>

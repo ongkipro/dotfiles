@@ -18,7 +18,9 @@ caching, and server/client boundaries from the framework skill.
   KPI counts, data volume, timezone) go back to the owner; do not guess.
 - New dashboard family: §1 → §2 → the matching sections → §7.
 - No `design/brief.md` + `DESIGN.md` yet: start with `dotuiux init`/`teardown`
-  (skill `dotuiux`); run `dotuiux check <url>` before calling the UI done.
+  (skill `dotuiux`); run `dotuiux check <url> --surface admin` (auto-detected
+  when `design/admin-contract.json` or `Surface: admin` in `DESIGN.md` exists)
+  before calling the UI done.
 - References at the end are for specific needs, not pre-reading.
 
 An admin screen is quiet. Hierarchy comes from type, alignment, whitespace,
@@ -191,7 +193,8 @@ assuming a deploy target.
 ## 7. Delivery
 
 Build or change → critique against the sections you used and fix →
-`admin-geometry.mjs` exits 0 on every changed route → `ui-validation`
+`dotuiux check <url> --surface admin` (390/1366/1536 floor + slop) and
+`admin-geometry.mjs` exit 0 on every changed route → `ui-validation`
 browser proof → done.
 
 | When | Reference |

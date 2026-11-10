@@ -26,7 +26,8 @@ is not hydrated for visual consistency
 ([admin-component-system.md](references/admin-component-system.md)). After a
 visible change, `ui-validation`.
 New screen without `design/brief.md` + `DESIGN.md`: start with `dotuiux init`/
-`teardown`; before calling it done, `dotuiux check <url>` (skill `dotuiux`).
+`teardown`; before calling it done, `dotuiux check <url>` (`--surface admin` on
+admin routes, or auto-detected; skill `dotuiux`).
 
 ## 1. Project context first
 

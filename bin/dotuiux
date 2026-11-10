@@ -7,8 +7,8 @@
  *     Scaffold design/brief.md, design/refs/, and a DESIGN.md skeleton. Never overwrites.
  *   teardown <url...> [--out design/refs]
  *     Screenshots at 360/768/1440 + facts.json per URL (research input, not judgement).
- *   check <url|file> [--design DESIGN.md] [--json] [--checkout-handoff]
- *     Render at 360/768/1440 and run the gates. FAIL = floor (exit 1); WARN = slop signal,
+ *   check <url|file> [--design DESIGN.md] [--surface public|admin] [--viewports W,W,...] [--json] [--checkout-handoff]
+ *     Render at 360/768/1440 (admin: 390/1366/1536) and run the gates. FAIL = floor (exit 1); WARN = slop signal,
  *     overridable in DESIGN.md with `allow: <id> — <reason>`.
  *   compare <url|file> --ref design/refs/<host>
  *     Side-by-side reference vs build sheets, outline report, and an independent-review prompt.
@@ -29,14 +29,19 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import { createServer } from "node:http";
 
 // ---- thresholds (each points to its spec section) -------------------------------------
-// Viewports: §12 step 5 / §13 / brief §3. Heights are common device sizes.
-const VIEWPORTS = [
+// Viewports: §12 step 5 / §13 / brief §3 (public) and admin-visual-contract.md §4 (admin).
+export const VIEWPORTS = [
   { width: 360, height: 800, mobile: true },
   { width: 768, height: 1024, mobile: true },
   { width: 1440, height: 900, mobile: false },
 ];
+export const ADMIN_VIEWPORTS = [
+  { width: 390, height: 844, mobile: true },
+  { width: 1366, height: 900, mobile: false },
+  { width: 1536, height: 900, mobile: false },
+];
 const DESKTOP_MIN_WIDTH = 1024; // "desktop" for h1 line count (§4 "H1 ≤3 lines desktop")
-const REDUCED_MOTION_WIDTH = 360; // one extra render under prefers-reduced-motion (§4, §11)
+const REDUCED_MOTION_WIDTH = 360; // preferred narrow render under prefers-reduced-motion (§4, §11); falls back to viewports[0]
 const SETTLE_MS = 1200; // wait after load before measuring (as admin-geometry)
 const EVAL_TIMEOUT_MS = 90000; // a page script that never settles must not hang check
 const SCAN_MS = 45000; // contrast scan budget per viewport, well inside EVAL_TIMEOUT_MS
@@ -47,8 +52,8 @@ const CONTRAST_MIN = 4.5; // §4 text contrast
 const CONTRAST_LARGE_MIN = 3; // §4 large text (≥24px, or ≥18.66px bold)
 const TEXT_MIN_PX = 12; // §16 "nothing <12 px anywhere" — owner convention; no standard sets a minimum size
 const TARGET_MIN_PX = 24; // §4 "Targets ≥24 fail"
-const INPUT_MIN_PX = 16; // §4 "Mobile input ≥16 px" (iOS zoom), checked at 360
-const INPUT_ZOOM_MAX_WIDTH = 360;
+const INPUT_MIN_PX = 16; // §4 "Mobile input ≥16 px" (iOS zoom), checked on phones (≤ 430px: covers 360/390/430)
+export const INPUT_ZOOM_MAX_WIDTH = 430;
 const CONTACT_MAX = 1; // §14 + preferences.md: one contact CTA per page (D9)
 const LOOP_MAX_MS = 5000; // §4 "Loops >5 s have pause" (WCAG 2.2.2)
 const MOTION_TINY_PX = 32; // loops/animations on elements smaller than this (spinners, dots) are exempt
@@ -60,6 +65,7 @@ const PRIMARY_PER_VIEWPORT_MAX = 1; // §14 "≤1 primary-styled button per view
 const FIRST_VIEWPORT_BUTTONS_MAX = 3; // §14/§16 "≤3 button-styled elements in first viewport"
 const DUPLICATE_HREF_MAX = 2; // §14 "same href linked >2 times" (nav/header/footer excluded)
 const BODY_MIN_PX = 16; // §16 "public body ≥16 px"
+const ADMIN_BODY_MIN_PX = 14; // admin-visual-contract.md §2 "Body, table cell, form control text: 14px"
 const FIRST_VIEWPORT_WORDS_MAX = 60; // §16 "first viewport ≤ ~60 words"
 const H1_WORDS_MAX = 10; // §16 "H1 ≤ ~10 words"
 const H1_LINES_MAX = 3; // §4/§16 "≤3 lines desktop"
@@ -152,7 +158,7 @@ export const RULES = [
       ? [off(`document ${f.scrollWidth}px wide`, `+${f.scrollWidth - f.width}px`), ...(f.overflowEls || []).map((el) => off(el, "past right edge"))] : [] },
   { id: "target-size", tier: "fail", spec: "§4", desc: `interactive target < ${TARGET_MIN_PX}px (inline links and WCAG 2.5.8 spacing exempt)`,
     judge: (f) => has(f.targets) ? undersizedTargets(f.targets).map((t) => off(t.el, `${t.w}x${t.h}`)) : null },
-  { id: "input-zoom", tier: "fail", spec: "§4", desc: `form control font < ${INPUT_MIN_PX}px at ${INPUT_ZOOM_MAX_WIDTH}`,
+  { id: "input-zoom", tier: "fail", spec: "§4", desc: `form control font < ${INPUT_MIN_PX}px on phone (≤ ${INPUT_ZOOM_MAX_WIDTH}px)`,
     applies: (f) => f.width <= INPUT_ZOOM_MAX_WIDTH,
     judge: (f) => !has(f.controls) ? null : f.controls.filter((c) => c.px < INPUT_MIN_PX).map((c) => off(c.el, `${c.px}px`)) },
   { id: "img-alt", tier: "fail", spec: "§16", desc: "<img> without alt, or generic alt",
@@ -171,7 +177,7 @@ export const RULES = [
   { id: "lcp-entrance", tier: "fail", spec: "§4, §11", desc: "LCP element (or an ancestor) starts hidden (opacity 0, clip, visibility) in an entrance animation",
     judge: (f) => !f.lcp ? null : f.lcp.animated ? [off(f.lcp.el, f.lcp.how)] : [] },
   { id: "reduced-motion", tier: "fail", spec: "§4, §11", desc: "transform/size animation still running under prefers-reduced-motion",
-    applies: (f) => f.width === REDUCED_MOTION_WIDTH,
+    applies: (f, o) => f.width === o.reducedMotionWidth,
     judge: (f) => has(f.reducedMotion) ? f.reducedMotion.map((a) => off(a.el, a.props)) : null },
   { id: "loop-pause", tier: "fail", spec: "§4", desc: `animation/video longer than ${LOOP_MAX_MS / 1000}s with no pause control`,
     judge: (f) => !f.loops ? null : f.loops.pauseControl ? [] : f.loops.items.map((l) => off(l.el, l.v)) },
@@ -197,15 +203,17 @@ export const RULES = [
       const n = new Map(); for (const h of f.hrefs) n.set(h, (n.get(h) || 0) + 1);
       return [...n].filter(([, c]) => c > DUPLICATE_HREF_MAX).map(([h, c]) => off(h, `${c} times`));
     } },
-  { id: "body-size", tier: "warn", spec: "§16", desc: `dominant paragraph text < ${BODY_MIN_PX}px`,
-    judge: (f) => {
+  { id: "body-size", tier: "warn", spec: "§16", desc: `dominant paragraph text < ${BODY_MIN_PX}px (admin: < ${ADMIN_BODY_MIN_PX}px)`,
+    judge: (f, o) => {
       if (!has(f.texts)) return null;
       const prose = f.texts.filter((t) => t.prose); if (!prose.length) return null;
       const w = new Map(); for (const t of prose) w.set(t.px, (w.get(t.px) || 0) + t.chars);
       const [px] = [...w].sort((a, b) => b[1] - a[1])[0];
-      return px < BODY_MIN_PX ? [off("body copy", `${px}px`)] : [];
+      const minPx = o.surface === "admin" ? ADMIN_BODY_MIN_PX : BODY_MIN_PX;
+      return px < minPx ? [off("body copy", `${px}px`)] : [];
     } },
-  { id: "first-viewport-words", tier: "warn", spec: "§16", desc: `> ${FIRST_VIEWPORT_WORDS_MAX} words in the first viewport`,
+  { id: "first-viewport-words", tier: "warn", spec: "§16", desc: `> ${FIRST_VIEWPORT_WORDS_MAX} words in the first viewport (public surface)`,
+    applies: (_f, o) => o.surface !== "admin",
     judge: (f) => f.firstViewportWords == null ? null : f.firstViewportWords > FIRST_VIEWPORT_WORDS_MAX ? [off("first viewport", `${f.firstViewportWords} words`)] : [] },
   { id: "h1-length", tier: "warn", spec: "§4, §16", desc: `H1 > ${H1_WORDS_MAX} words, or > ${H1_LINES_MAX} lines on desktop`,
     judge: (f) => has(f.h1s) ? f.h1s.filter((h) => h.words > H1_WORDS_MAX || (f.width >= DESKTOP_MIN_WIDTH && h.lines > H1_LINES_MAX))
@@ -230,7 +238,8 @@ export const RULES = [
     } },
   { id: "card-in-card", tier: "warn", spec: "§16", desc: "bordered/shadowed/filled box inside another (dialog, table exempt)",
     judge: (f) => has(f.nestedCards) ? f.nestedCards.map((c) => off(c.el, `inside ${c.outer}`)) : null },
-  { id: "hero-height", tier: "warn", spec: "§16", desc: `hero > ${HERO_VIEWPORT_RATIO * 100}% of viewport with no next-section peek`,
+  { id: "hero-height", tier: "warn", spec: "§16", desc: `hero > ${HERO_VIEWPORT_RATIO * 100}% of viewport with no next-section peek (public surface)`,
+    applies: (_f, o) => o.surface !== "admin",
     judge: (f) => !f.hero ? null : f.hero.h > f.height * HERO_VIEWPORT_RATIO && f.hero.bottom >= f.height
       ? [off(f.hero.el, `${f.hero.h}px of ${f.height}px viewport`)] : [] },
   { id: "stock-image", tier: "warn", spec: "§16", desc: "image from a stock CDN (unsplash/pexels/freepik/istock…)",
@@ -285,6 +294,29 @@ const stripDocs = (text) => text
   .replace(/^```[\s\S]*?^```/gm, (m) => m.replace(/[^\n]/g, " "));
 
 const ALLOW_RE = /^\s*(?:[-*]\s+)?allow:\s*([a-z0-9-]+)\s+(?:—|–|--)\s+(\S.*?)\s*$/i;
+const ADMIN_SURFACE_RE = /^\s*(?:[-*]\s+)?\**surface(?:\s*\/\s*job)?(?::\**|\**\s*:)\s*admin\b/im;
+
+export function detectSurface(designPath, cwd = process.cwd()) {
+  const root = designPath ? path.dirname(path.resolve(designPath)) : path.resolve(cwd);
+  if (fs.existsSync(path.join(root, "design", "admin-contract.json"))) return "admin";
+  if (designPath && fs.existsSync(designPath) && ADMIN_SURFACE_RE.test(stripDocs(fs.readFileSync(designPath, "utf8")))) return "admin";
+  return "public";
+}
+
+export function parseViewports(spec, surface = "public") {
+  if (!spec) return surface === "admin" ? ADMIN_VIEWPORTS : VIEWPORTS;
+  if (Array.isArray(spec)) return spec;
+  const seen = new Set(), out = [];
+  for (const part of String(spec).split(",")) {
+    const t = part.trim(), w = Number(t);
+    if (!/^\d+$/.test(t) || w < 240 || w > 7680) throw new UsageError(`invalid --viewports width "${part}" (expected integer 240..7680)`);
+    if (seen.has(w)) continue;
+    seen.add(w);
+    out.push({ width: w, height: w === 360 ? 800 : w === 768 ? 1024 : w < 768 ? 844 : 900, mobile: w <= 768 });
+  }
+  if (!out.length) throw new UsageError("--viewports requires at least one width");
+  return out;
+}
 
 export function parseAllows(text) {
   const allows = new Map(); const errors = [];
@@ -303,13 +335,17 @@ export function parseAllows(text) {
 
 // factsByWidth: [{width, height, ...facts}] → one result per rule, worst status across widths.
 // A pass needs every applicable width measured: one measured width never vouches for another.
-// opts.checkoutHandoff: D9 exception (see contact-placement).
+// opts.checkoutHandoff: D9 exception (see contact-placement); opts.surface: "public" | "admin".
 export function evaluate(factsByWidth, allows = new Map(), opts = {}) {
+  const reducedMotionWidth = opts.reducedMotionWidth
+    ?? factsByWidth.find((x) => has(x.reducedMotion))?.width
+    ?? (factsByWidth.length ? Math.min(...factsByWidth.map((x) => x.width)) : REDUCED_MOTION_WIDTH);
+  const runOpts = { surface: "public", ...opts, reducedMotionWidth };
   return RULES.map((rule) => {
     const byKey = new Map(); let checked = 0; const unmeasuredAt = [];
     for (const f of factsByWidth) {
-      if (rule.applies && !rule.applies(f)) continue;
-      const o = rule.judge(f, opts);
+      if (rule.applies && !rule.applies(f, runOpts)) continue;
+      const o = rule.judge(f, runOpts);
       if (o == null) { unmeasuredAt.push(f.width); continue; }
       checked++;
       // Same element + value at several widths is one finding with several widths.
@@ -440,7 +476,7 @@ Warn ids: ${WARN_IDS.join(", ")} -->
 
 // ---- browser layer (reuses ui-ref.mjs) -------------------------------------------------
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const within = (p, ms) => Promise.race([p, sleep(ms).then(() => null)]); // ui-ref does not export this
+const within = async (p, ms) => { let t; try { return await Promise.race([p, new Promise((r) => { t = setTimeout(() => r(null), ms); t.unref?.(); })]); } finally { clearTimeout(t); } };
 
 async function loadUiRef() {
   // $DOTFILES first, then the checkout this script lives in (CI checks out outside
@@ -476,7 +512,7 @@ async function serveFile(url) {
     fs.readFile(p, (err, data) => { if (err) return miss(); res.writeHead(200, { "content-type": type }); res.end(data); });
   }).listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
-  return { url: `http://127.0.0.1:${server.address().port}/${encodeURIComponent(path.basename(file))}`, close: () => server.close() };
+  return { url: `http://127.0.0.1:${server.address().port}/${encodeURIComponent(path.basename(file))}`, close: () => { server.closeAllConnections?.(); server.close(); } };
 }
 
 // Runs before any page script: records entrance animations and the LCP element.
@@ -660,7 +696,7 @@ async function pageCollect(o) {
   let scanned = 0; const deadline = performance.now() + o.scanMs; // stop early and say so, rather than lose the whole check
   for (let y = 0, i = 0; i < o.scrollSteps && y < H() && performance.now() < deadline; y += vh * 0.8, i++) {
     // instant: html{scroll-behavior:smooth} would still be animating when the screen is measured (real 84k px page).
-    scrollTo({ top: y, left: 0, behavior: "instant" }); await sleep(i < 40 ? 120 : 40); scanned = Math.min(H(), y + vh);
+    scrollTo({ top: y, left: 0, behavior: "instant" }); await sleep(o.scrollWaitMs ?? (i < 40 ? 120 : 40)); scanned = Math.min(H(), y + vh);
     for (const t of textEls) {
       if (contrast.has(t.el)) continue;
       const r = t.range.getClientRects()[0]; if (!r || r.top < 0 || r.bottom > vh || r.left < 0 || r.right > vw) continue;
@@ -674,7 +710,7 @@ async function pageCollect(o) {
       contrast.set(t.el, solid ? [x, x] : ratioRange(fg, bg)); // raw: 4.495 must fail 4.5
     }
   }
-  scrollTo({ top: 0, left: 0, behavior: "instant" }); await sleep(300);
+  scrollTo({ top: 0, left: 0, behavior: "instant" }); await sleep(o.resetWaitMs ?? 300);
 
   // 3. Static facts.
   const texts = [], fam = {}, size = {}, tcol = {}, bgc = {}, markers = [], cards = new Set(), blurs = [], transitionAll = [], easeIn = [], durations = [];
@@ -914,7 +950,7 @@ function pageReducedMotion(o) {
   return out.slice(0, 20);
 }
 
-const pageOpts = () => ({ notIndexRe: NOT_INDEX_RE, loopMaxMs: LOOP_MAX_MS, tinyPx: MOTION_TINY_PX, largeArea: LARGE_AREA_RATIO, placeholderRe: PLACEHOLDER_RE, displayPx: DISPLAY_PX, scrollSteps: SCROLL_STEPS, scanMs: SCAN_MS });
+const pageOpts = (extra = {}) => ({ notIndexRe: NOT_INDEX_RE, loopMaxMs: LOOP_MAX_MS, tinyPx: MOTION_TINY_PX, largeArea: LARGE_AREA_RATIO, placeholderRe: PLACEHOLDER_RE, displayPx: DISPLAY_PX, scrollSteps: SCROLL_STEPS, scanMs: SCAN_MS, ...extra });
 // Page functions run via Runtime.evaluate as source text (our own code, not page input).
 // RegExp cannot cross JSON, so it is rebuilt in the page.
 const call = (fn, arg) => {
@@ -923,7 +959,7 @@ const call = (fn, arg) => {
   return `(() => { ${helpers} return (${fn.toString()})(JSON.parse(${JSON.stringify(json)}, (k, v) => v && v.__re ? new RegExp(v.__re, v.flags) : v)); })()`;
 };
 
-async function navigate(b, url, vp, label, assertAllowed = () => {}) {
+async function navigate(b, url, vp, label, assertAllowed = () => {}, settleMs = SETTLE_MS) {
   await b.send("Emulation.setDeviceMetricsOverride", { width: vp.width, height: vp.height, deviceScaleFactor: 1, mobile: vp.mobile });
   await b.send("Emulation.setTouchEmulationEnabled", vp.width < 768 ? { enabled: true, maxTouchPoints: 5 } : { enabled: false });
   const loaded = b.once("Page.loadEventFired", 30000);
@@ -937,7 +973,7 @@ async function navigate(b, url, vp, label, assertAllowed = () => {}) {
     const doc = docs.find((d) => nav && d.loaderId === nav.loaderId) || docs[0];
     if (doc && doc.response.status >= 400) throw new Error(`HTTP ${doc.response.status} for ${url}`);
   } finally { stop(); }
-  await sleep(SETTLE_MS);
+  await sleep(settleMs);
   assertAllowed(); // a script or meta refresh may navigate during the settle
 }
 
@@ -952,26 +988,28 @@ async function evalIn(b, expression, what) {
 // Kills the browser if the process dies mid-render (ui-ref only cleans up on SIGINT/SIGTERM).
 let closeBrowser = null;
 
+export async function withCheckerBrowser(fn) {
+  const { withBrowser } = await loadUiRef();
+  try { return await withBrowser(async (b) => { closeBrowser = b.close; return fn(b); }, { throwOnUnavailable: true }); }
+  finally { closeBrowser = null; }
+}
+
 const galleryHost = (host) => GALLERY_HOST_RE.test(host.replace(/\.$/, ""));
 const GALLERY_REFUSAL = "Galleries are owner-picked mood, not teardown targets; tear down live shipped sites instead.";
 
-// Render url at each viewport; onViewport(browser, facts, vp) may take screenshots.
-// refuseHost(hostname): main-frame documents on such hosts — redirect hops included — are
-// blocked before any request leaves the browser, and the render stops with an error.
-async function render(target, { reducedMotion = false, onViewport, refuseHost } = {}) {
-  const { withBrowser } = await loadUiRef();
+async function renderInBrowser(b, target, { viewports = VIEWPORTS, reducedMotion = false, settleMs = SETTLE_MS, scrollWaitMs, resetWaitMs, onViewport, refuseHost } = {}) {
   const facts = [];
-  const served = await serveFile(target), url = served.url;
-  try { await withBrowser(async (b) => {
-    closeBrowser = b.close;
-    // alert()/confirm() would block every later DevTools call: accept them.
-    b.on((m) => { if (m.method === "Page.javascriptDialogOpening") b.send("Page.handleJavaScriptDialog", { accept: true }).catch(() => {}); });
+  const served = await serveFile(toUrl(target)), url = served.url;
+  // alert()/confirm() would block every later DevTools call: accept them.
+  const stopDialog = b.on((m) => { if (m.method === "Page.javascriptDialogOpening") b.send("Page.handleJavaScriptDialog", { accept: true }).catch(() => {}); });
+  let stopFetch = null, scriptId = null;
+  try {
     await b.send("Network.enable");
     let refused = null;
     const assertAllowed = () => { if (refused) throw new Error(`refusing gallery URL ${refused} (reached from ${target}). ${GALLERY_REFUSAL}`); };
     if (refuseHost) {
       const main = (await b.send("Page.getFrameTree")).frameTree.frame.id;
-      b.on((m) => {
+      stopFetch = b.on((m) => {
         if (m.method !== "Fetch.requestPaused") return;
         const { requestId, request, frameId } = m.params;
         let host = ""; try { host = new URL(request.url).hostname; } catch {}
@@ -980,23 +1018,42 @@ async function render(target, { reducedMotion = false, onViewport, refuseHost } 
       });
       await b.send("Fetch.enable", { patterns: [{ resourceType: "Document", requestStage: "Request" }] });
     }
-    await b.send("Page.addScriptToEvaluateOnNewDocument", { source: `(${pageRecorder.toString()})()` });
-    for (const vp of VIEWPORTS) {
-      await navigate(b, url, vp, "", assertAllowed);
-      const f = await evalIn(b, call(pageCollect, { ...pageOpts(), width: vp.width, height: vp.height }), `measurement at ${vp.width}px`);
+    const added = await b.send("Page.addScriptToEvaluateOnNewDocument", { source: `(${pageRecorder.toString()})()` });
+    scriptId = added && added.identifier;
+    const extra = { ...(scrollWaitMs != null ? { scrollWaitMs } : {}), ...(resetWaitMs != null ? { resetWaitMs } : {}) };
+    for (const vp of viewports) {
+      await navigate(b, url, vp, "", assertAllowed, settleMs);
+      const f = await evalIn(b, call(pageCollect, { ...pageOpts(extra), width: vp.width, height: vp.height }), `measurement at ${vp.width}px`);
       assertAllowed();
       if (onViewport) await onViewport(b, f, vp);
       facts.push(f);
     }
-    if (reducedMotion) {
-      const vp = VIEWPORTS.find((v) => v.width === REDUCED_MOTION_WIDTH);
-      await b.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
-      await navigate(b, url, vp, "reduced-motion", assertAllowed);
-      facts.find((f) => f.width === vp.width).reducedMotion = await evalIn(b, call(pageReducedMotion, pageOpts()), "reduced-motion probe");
-      await b.send("Emulation.setEmulatedMedia", { features: [] });
+    if (reducedMotion && viewports.length) {
+      const vp = viewports.find((v) => v.width === REDUCED_MOTION_WIDTH) || [...viewports].sort((a, b) => a.width - b.width)[0];
+      try {
+        await b.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
+        await navigate(b, url, vp, "reduced-motion", assertAllowed, settleMs);
+        facts.find((f) => f.width === vp.width).reducedMotion = await evalIn(b, call(pageReducedMotion, pageOpts()), "reduced-motion probe");
+      } finally {
+        await b.send("Emulation.setEmulatedMedia", { features: [] }).catch(() => {});
+      }
     }
-  }, { throwOnUnavailable: true }); } finally { closeBrowser = null; served.close(); }
+  } finally {
+    if (scriptId) await b.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: scriptId }).catch(() => {});
+    if (stopFetch) { stopFetch(); await b.send("Fetch.disable").catch(() => {}); }
+    await b.send("Emulation.setTouchEmulationEnabled", { enabled: false }).catch(() => {});
+    await b.send("Emulation.clearDeviceMetricsOverride").catch(() => {});
+    stopDialog();
+    served.close();
+  }
   return facts;
+}
+
+// Render url at each viewport; onViewport(browser, facts, vp) may take screenshots.
+// refuseHost(hostname): main-frame documents on such hosts — redirect hops included — are
+// blocked before any request leaves the browser, and the render stops with an error.
+export async function render(target, opts = {}) {
+  return opts.browser ? renderInBrowser(opts.browser, target, opts) : withCheckerBrowser((b) => renderInBrowser(b, target, opts));
 }
 
 // ---- commands ------------------------------------------------------------------------
@@ -1016,10 +1073,13 @@ Subcommands:
       Gallery hosts (dribbble, behance, v0, awwwards, regards.design, pinterest) are refused, also when a
       redirect or script lands there (e.g. pin.it share links): mood is owner-picked.
 
-  check <url|file> [--design DESIGN.md] [--json] [--checkout-handoff]
-      Render at ${VIEWPORTS.map((v) => v.width).join("/")} (+ reduced motion at ${REDUCED_MOTION_WIDTH}) and run the gates.
+  check <url|file> [--design DESIGN.md] [--surface public|admin] [--viewports W,W,...] [--json] [--checkout-handoff]
+      Render at ${VIEWPORTS.map((v) => v.width).join("/")} (admin: ${ADMIN_VIEWPORTS.map((v) => v.width).join("/")}) + reduced motion on the narrowest width and run the gates.
       FAIL = floor, harm only (exit 1). WARN = slop signal; "allow: <id> — <reason>" in DESIGN.md
-      reports it as allowed. NOT CHECKED = could not be measured on this page.
+      reports it as allowed. NOT CHECKED = could not be measured on this page (or not applicable on surface).
+      --surface public|admin: auto-detected as admin when design/admin-contract.json exists or DESIGN.md
+      declares "Surface: admin". Admin sets body-size floor to ${ADMIN_BODY_MIN_PX}px and skips public landing rules
+      (hero-height, first-viewport-words). --viewports overrides the width list.
       --checkout-handoff: only for the step where WhatsApp IS the task's action (D9). One wa.me /
       api.whatsapp.com / whatsapp: link may sit in the hero; header/nav, fixed/sticky, floating,
       dialog and repeated placements still FAIL, and the page still allows one contact link.
@@ -1162,12 +1222,14 @@ figure{margin:0;width:${w}px} figcaption{padding:0 0 10px}
 </style>${col(`Reference \u00b7 ${refName} \u00b7 ${w}px`, refImg)}${col(`Build \u00b7 ${w}px`, buildImg)}`;
 }
 
-function reviewPrompt({ url, refName, out, sheets, items, brief, notes = [] }) {
+export function reviewPrompt({ url, refName, out, sheets, items, brief, notes = [] }) {
   return `# Independent visual review \u2014 ${url}
 
 You are reviewing a rendered web page, not code. Open these images in order (left = reference, right = build;
 parts run top to bottom, so the two sides drift apart further down):
 ${sheets.map((s) => `- ${path.join(out, s)}`).join("\n")}
+
+**Vision gate (mandatory before step 1):** Open and visually inspect every image file listed above. If your runtime or model cannot view image files directly (no vision capability, or file-read access to the PNGs is unavailable/denied), STOP immediately and output the single line \`UNVERIFIED: vision unavailable\` — never infer a visual verdict from filenames, \`report.md\`, \`DESIGN.md\`, or source code.
 ${notes.length ? `\nCoverage limits (content past these points is not on the sheets: say UNVERIFIED, not missing):\n${notes.map((n) => `- ${n}`).join("\n")}\n` : ""}
 Answer in order and do not read DESIGN.md or the source before step 2:
 
@@ -1199,25 +1261,22 @@ async function cmdCompare(argv) {
   const brief = fs.existsSync(briefFile) ? (sections(fs.readFileSync(briefFile, "utf8")).get("primary job") || "").trim().replace(/\s+/g, " ").slice(0, 400) : "";
   fs.mkdirSync(out, { recursive: true });
 
-  const got = {};
-  await render(url, { onViewport: async (b, f, vp) => {
-    const shot = await b.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true,
-      clip: { x: 0, y: 0, width: vp.width, height: Math.min(f.ref.height, 16000), scale: 1 } });
-    fs.writeFileSync(path.join(out, `build-${vp.width}.png`), Buffer.from(shot.data, "base64"));
-    got[vp.width] = f.ref;
-  } });
-
-  const widths = VIEWPORTS.map((v) => v.width), md = [`# dotuiux compare`, "", `Build: ${url}`, `Reference: ${refFacts.url} (\`${path.relative(process.cwd(), refDir) || refDir}\`, captured ${refFacts.capturedAt || "?"})`, ""];
-  const { withBrowser } = await loadUiRef();
+  const got = {}, widths = VIEWPORTS.map((v) => v.width);
+  const md = [`# dotuiux compare`, "", `Build: ${url}`, `Reference: ${refFacts.url} (\`${path.relative(process.cwd(), refDir) || refDir}\`, captured ${refFacts.capturedAt || "?"})`, ""];
   const sheetParts = {}, sheetNotes = [];
-  for (const w of widths) {
-    const refPng = path.join(refDir, `${w}.png`);
-    if (fs.existsSync(refPng)) fs.copyFileSync(refPng, path.join(out, `ref-${w}.png`));
-    fs.writeFileSync(path.join(out, `sheet-${w}.html`), sheetHtml(w, refName, fs.existsSync(refPng) ? `ref-${w}.png` : null, `build-${w}.png`));
-  }
-  // One browser for all sheets; each sheet is served from the output folder.
-  await withBrowser(async (b) => {
-    closeBrowser = b.close;
+  // Reuse one browser for both the build capture and the side-by-side sheets.
+  await withCheckerBrowser(async (b) => {
+    await render(url, { browser: b, onViewport: async (_b, f, vp) => {
+      const shot = await b.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true,
+        clip: { x: 0, y: 0, width: vp.width, height: Math.min(f.ref.height, 16000), scale: 1 } });
+      fs.writeFileSync(path.join(out, `build-${vp.width}.png`), Buffer.from(shot.data, "base64"));
+      got[vp.width] = f.ref;
+    } });
+    for (const w of widths) {
+      const refPng = path.join(refDir, `${w}.png`);
+      if (fs.existsSync(refPng)) fs.copyFileSync(refPng, path.join(out, `ref-${w}.png`));
+      fs.writeFileSync(path.join(out, `sheet-${w}.html`), sheetHtml(w, refName, fs.existsSync(refPng) ? `ref-${w}.png` : null, `build-${w}.png`));
+    }
     for (const w of widths) {
       const served = await serveFile(pathToFileURL(path.join(out, `sheet-${w}.html`)).href);
       try {
@@ -1237,8 +1296,7 @@ async function cmdCompare(argv) {
         if (h > SHEET_PART_PX * SHEET_PARTS_MAX) sheetNotes.push(`${w}px: sheet cut after ${SHEET_PARTS_MAX} parts; the rest of both pages is in ref-${w}.png / build-${w}.png`);
       } finally { served.close(); }
     }
-  }, { throwOnUnavailable: true });
-  closeBrowser = null;
+  });
   const sheetList = (w) => Array.from({ length: sheetParts[w] || 0 }, (_, i) => `sheet-${w}-${i + 1}.png`);
   for (const w of widths) for (const [who, x] of [["reference", refFacts.viewports?.[w]], ["build", got[w]]])
     if (x && x.height > COMPARE_SOURCE_MAX_PX) sheetNotes.push(`${w}px: the ${who} is ${x.height}px tall; its sheet side stops at ${COMPARE_SOURCE_MAX_PX}px, so anything below is not on the sheets (judge it in ${who === "build" ? `build-${w}.png` : `ref-${w}.png`} or a browser)`);
@@ -1254,11 +1312,12 @@ async function cmdCompare(argv) {
   console.log(md.slice(0, 4).join("\n"));
   console.log(`\nwrote ${out}/\n  ${widths.map((w) => `sheet-${w}-1..${sheetParts[w]}.png`).join("  ")}  report.md  review-prompt.md`);
   const sq = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`; // printed for copy-paste: quote for the shell
-  console.log(`next: open the sheets; independent review e.g.\n  ai-ask claude --cwd ${sq(process.cwd())} -- "$(cat ${sq(path.join(out, "review-prompt.md"))})"`);
+  console.log(`next: open the sheets; independent vision review e.g.\n  ai-ask claude --cwd ${sq(process.cwd())} -- "$(cat ${sq(path.join(out, "review-prompt.md"))})"`);
 }
 
-function report(url, results, notes, handoff = false) {
-  const L = [`dotuiux check ${url}`, `viewports ${VIEWPORTS.map((v) => v.width).join("/")} · reduced motion at ${REDUCED_MOTION_WIDTH}`];
+function report(url, results, notes, { handoff = false, surface = "public", viewports = VIEWPORTS, reducedMotionWidth = REDUCED_MOTION_WIDTH } = {}) {
+  const L = [`dotuiux check ${url}`, `viewports ${viewports.map((v) => v.width).join("/")} · reduced motion at ${reducedMotionWidth}`];
+  if (surface === "admin") L.push(`mode: --surface admin (body ≥ ${ADMIN_BODY_MIN_PX}px; public hero-height and first-viewport-words skipped)`);
   if (handoff) L.push("mode: --checkout-handoff (D9): one WhatsApp link may sit in the hero; other contact rules unchanged");
   L.push("");
   const order = { fail: 0, warn: 1, allowed: 2, "not-checked": 3, pass: 4 };
@@ -1282,13 +1341,16 @@ function report(url, results, notes, handoff = false) {
   return L.join("\n") + "\n";
 }
 
-async function cmdCheck(argv) {
-  const { pos, opts } = parse(argv, { "--design": true, "--json": false, "--checkout-handoff": false });
-  const handoff = !!opts["--checkout-handoff"];
-  if (pos.length !== 1) throw new UsageError("check requires exactly one URL or file");
-  const url = toUrl(pos[0]);
-  const designPath = opts["--design"] || (fs.existsSync("DESIGN.md") ? "DESIGN.md" : null);
-  if (opts["--design"] && !fs.existsSync(designPath)) throw new Error(`--design file not found: ${designPath}`);
+export async function checkTarget(target, { browser, design, cwd = process.cwd(), checkoutHandoff = false, surface, viewports, settleMs = SETTLE_MS, scrollWaitMs, resetWaitMs } = {}) {
+  if (surface != null && surface !== "public" && surface !== "admin")
+    throw new UsageError(`invalid --surface "${surface}" (expected "public" or "admin")`);
+  const url = toUrl(target);
+  const defaultDesign = path.join(cwd, "DESIGN.md");
+  const designPath = design || (fs.existsSync(defaultDesign) ? (cwd === process.cwd() ? "DESIGN.md" : defaultDesign) : null);
+  if (design && !fs.existsSync(designPath)) throw new Error(`--design file not found: ${designPath}`);
+  const resolvedSurface = surface || detectSurface(designPath, cwd);
+  const vps = parseViewports(viewports, resolvedSurface);
+  const rmWidth = (vps.find((v) => v.width === REDUCED_MOTION_WIDTH) || [...vps].sort((a, b) => a.width - b.width)[0]).width;
   const notes = [];
   let allows = new Map();
   if (designPath) {
@@ -1296,7 +1358,7 @@ async function cmdCheck(argv) {
     allows = p.allows;
     for (const e of p.errors) notes.push(`${designPath} ${e} — ignored`);
   }
-  const facts = await render(url, { reducedMotion: true });
+  const facts = await render(url, { browser, viewports: vps, reducedMotion: true, settleMs, scrollWaitMs, resetWaitMs });
   for (const f of facts) if (f.overflowClipped && f.scrollWidth > f.width + 1)
     notes.push(`overflow-x not checked at ${f.width}px: html/body overflow-x hidden/clip hides ${f.scrollWidth - f.width}px of content (mobile browsers may still pan to it); check off-canvas elements by hand`);
   for (const f of facts) {
@@ -1304,13 +1366,22 @@ async function cmdCheck(argv) {
     const u = (f.texts || []).filter((t) => contrastVerdict(t) == null && !t.exempt);
     if (u.length) notes.push(`contrast not measured at ${f.width}px for ${u.length} text element(s) over an image, gradient, video, overlay, or off-screen: ${u.slice(0, 3).map((t) => t.el).join(", ")}${u.length > 3 ? ", …" : ""}; check them by hand`);
   }
-  const results = evaluate(facts, allows, { checkoutHandoff: handoff });
+  const results = evaluate(facts, allows, { checkoutHandoff, surface: resolvedSurface, reducedMotionWidth: rmWidth });
+  const c = (s) => results.filter((r) => r.status === s).length;
+  const summary = { fail: c("fail"), warn: c("warn"), allowed: c("allowed"), notChecked: c("not-checked"), pass: c("pass") };
+  const text = report(url, results, notes, { handoff: checkoutHandoff, surface: resolvedSurface, viewports: vps, reducedMotionWidth: rmWidth });
+  return { url, design: designPath, surface: resolvedSurface, checkoutHandoff, viewports: vps.map((v) => v.width), results, notes, summary, text, exitCode: summary.fail > 0 ? 1 : 0 };
+}
+
+async function cmdCheck(argv) {
+  const { pos, opts } = parse(argv, { "--design": true, "--json": false, "--checkout-handoff": false, "--surface": true, "--viewports": true });
+  if (pos.length !== 1) throw new UsageError("check requires exactly one URL or file");
+  const r = await checkTarget(pos[0], { design: opts["--design"], checkoutHandoff: !!opts["--checkout-handoff"], surface: opts["--surface"], viewports: opts["--viewports"] });
   if (opts["--json"]) {
-    const c = (s) => results.filter((r) => r.status === s).length;
-    console.log(JSON.stringify({ url, design: designPath, checkoutHandoff: handoff, viewports: VIEWPORTS.map((v) => v.width), results, notes,
-      summary: { fail: c("fail"), warn: c("warn"), allowed: c("allowed"), notChecked: c("not-checked"), pass: c("pass") } }, null, 2));
-  } else process.stdout.write(report(url, results, notes, handoff));
-  process.exit(results.some((r) => r.status === "fail") ? 1 : 0);
+    const { text: _t, exitCode: _e, ...json } = r;
+    console.log(JSON.stringify(json, null, 2));
+  } else process.stdout.write(r.text);
+  process.exit(r.exitCode);
 }
 
 async function main() {
