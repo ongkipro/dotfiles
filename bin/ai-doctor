@@ -697,6 +697,10 @@ for c in claude codex pi agy omp; do
               wrn "pi: managed install ada, tapi PATH masih ke $pi_path. Perbaiki: npm uninstall -g @earendil-works/pi-coding-agent && mise reshim" ;;
             *) ok "pi: terpasang (managed install pi.dev, $(cat "$HOME/.pi/agent/install/current-version" 2>/dev/null))" ;;
           esac
+          # The npm copy is kept only while older sessions still load from it.
+          pi_npm_root="$(npm root -g 2>/dev/null || true)"
+          [ -n "$pi_npm_root" ] && [ -d "$pi_npm_root/@earendil-works/pi-coding-agent" ] \
+            && wrn "pi: salinan npm lama masih ada di $pi_npm_root. Setelah sesi pi lama ditutup: npm uninstall -g @earendil-works/pi-coding-agent && mise reshim"
         else
           ok "pi: terpasang via npm global (managed install belum: curl -fsSL https://pi.dev/install.sh | sh)"
         fi ;;

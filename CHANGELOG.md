@@ -9,7 +9,7 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 - `rich` and `dot` now run Pi 1.5.1 from the pi.dev managed install (`~/.pi/agent/install`, pinned lockfile, `~/.local/bin/pi` → `~/.pi/agent/bin/pi`), independent of mise's Node version. Installed side by side: the npm global copy stays until the Pi sessions still using it close (7 on `rich`), then `npm uninstall -g @earendil-works/pi-coding-agent`. `settings.json`, `mcp.json`, auth and `pi list` were unchanged.
 - `pi-update-safe`: finds Pi's package in the managed layout first, then npm global; resolves `yaml` from that package (the managed install hoists it), and announces a skipped lint instead of skipping silently.
 - `pi-9router-sync.js`: reads Pi's built-in catalog from `~/.pi/agent/install/current-version`; the managed `pi` is a launcher script, so the PATH walk never reached it and the sync would have fallen back to gateway metadata only. Verified with a Node that cannot see any npm copy: `official: pi catalog`. Pi 1.5.1's catalog adds `supportsTemperature: false` to `cc/claude-sonnet-5`; nothing else in `models.json` changed.
-- `ai-doctor` reports the install kind and warns when a managed install is shadowed by a mise shim; the Linux/macOS install guides and `config/pi/README.md` describe the managed install and the side-by-side migration.
+- `ai-doctor` reports the install kind, warns when a managed install is shadowed by a mise shim, and warns while the old npm copy is still installed; the Linux/macOS install guides and `config/pi/README.md` describe the managed install and the side-by-side migration.
 
 ## 2026-11-10 — Spec-suite legal sources re-verified (TASK-208)
 
