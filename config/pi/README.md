@@ -47,7 +47,9 @@ Rules:
   and thinking level (`medium`; switch per task with `Shift+Tab` or `/thinking`,
   and to Opus with `Ctrl+P` when the work needs it),
   the `enabledModels` cycling list (Ctrl+P; patterns for providers a device has
-  not authenticated simply do not match), `quietStartup`, `hideThinkingBlock`
+  not authenticated simply do not match; it includes Opus 5.5 through 9Router's
+  Antigravity route, `ag/claude-opus-5-5` and its `-high`/`-medium` variants,
+  which the sync serves over `openai-completions` with tools and thinking), `quietStartup`, `hideThinkingBlock`
   (thinking shows as a `Thinking...` label, `Ctrl+T` reveals it; answers stay
   in full and tool output is already collapsed by default, `Ctrl+O`), the package set below
   (`pi-subagents` and `pi-lsp` stay pinned to their verified versions), and a
