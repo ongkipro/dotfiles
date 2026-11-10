@@ -4,22 +4,9 @@ Updated: 2026-11-10
 
 Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
 
-Done: [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194–199, 203–205) and [TASKS-index-2026-11-10](docs/archive/TASKS-index-2026-11-10.md) (TASK-200, TASK-206, TASK-207, TASK-208).
+Done: [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194–199, 203–205) and [TASKS-index-2026-11-10](docs/archive/TASKS-index-2026-11-10.md) (TASK-200, TASK-206, TASK-207, TASK-208, TASK-209).
 
 ## In progress
-
-### TASK-209: Pi managed install (pi.dev installer) on every device
-- **Requirement:** REQ-PI-MANAGED-INSTALL (owner 2026-11-10: move Pi from npm global to the pi.dev managed install, starting with `rich`; dotfiles config and the 9Router sync must stay safe).
-- **Risk Level:** R2.
-- **Allowed Paths:** `bin/pi-update-safe`, `bin/pi-update-safe-test`, `bin/pi-9router-sync.js`, `bin/pi-9router-restore-test`, `bin/ai-doctor`, `docs/linux-install-step-by-step.md`, `docs/macos-install-step-by-step.md`, `config/pi/README.md`, `CHANGELOG.md`, `TASKS.md`, `docs/archive/**`.
-- **Protected Paths:** `bin/delivery-ledger*`, `config/ai/CORE.md`.
-- **Canonical Contract Owners:** `pi.update` (`pi-update-safe`), `pi.9router.catalog` (`pi-9router-sync.js`), `doctor.runtime`.
-- **Accepted Invariants:** helpers find Pi's package in the managed layout (`~/.pi/agent/install/releases/<current-version>`) first and fall back to npm global; the skill lint never skips silently because of layout; the 9Router sync keeps `official: pi catalog`; `models.json`, `settings.json`, packages and auth are untouched by the migration.
-- **Regression Checks:** `pi-update-safe-test`, `pi-9router-restore-test`, `ai-doctor-test`.
-- **Runtime Evidence:** on `rich` and `dot`: `type -a pi` resolves the managed launcher, `pi --version`, `pi list`, `pi-9router-sync` reports `pi catalog`, `ai-doctor` pi line.
-- **Reopen Conditions:** a helper reports `unavailable` or skips the lint on a managed device; `pi` resolves a stale npm/mise shim.
-- **Non-Scope:** killing running Pi sessions; removing the npm copy while sessions still use it; other CLIs; commit/push.
-- **Escalation Conditions:** sudo, a change to `models.json`/auth, or a session that must be killed.
 
 ### TASK-175: Cloudflare Asia-Pacific placement default
 - **Requirement:** REQ-CLOUDFLARE-APAC (owner 2026-11-02: web projects for Indonesia/Asia use Cloudflare SEA/Asia/Singapore; understand the breakdown and improve the skill).

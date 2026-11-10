@@ -51,3 +51,16 @@ Moved verbatim from `TASKS.md` by TASK-207 to keep the hot file under its budget
 - **Non-Scope:** script behaviour. Outcome: 13 of 15 records refreshed (7 overdue + 6 due by 2026-11-30); scope expanded to `scripts/test-suite.py` (fixture date) and `references/jurisdiction-overlays.md` (PDPC link) under the ledger.
 - **Escalation Conditions:** a source no longer resolves to an official authority.
 
+## TASK-209: Pi managed install (pi.dev installer) on every device
+- **Requirement:** REQ-PI-MANAGED-INSTALL (owner 2026-11-10: move Pi from npm global to the pi.dev managed install, starting with `rich`; dotfiles config and the 9Router sync must stay safe).
+- **Risk Level:** R2.
+- **Allowed Paths:** `bin/pi-update-safe`, `bin/pi-update-safe-test`, `bin/pi-9router-sync.js`, `bin/pi-9router-restore-test`, `bin/ai-doctor`, `docs/linux-install-step-by-step.md`, `docs/macos-install-step-by-step.md`, `config/pi/README.md`, `CHANGELOG.md`, `TASKS.md`, `docs/archive/**`.
+- **Protected Paths:** `bin/delivery-ledger*`, `config/ai/CORE.md`.
+- **Canonical Contract Owners:** `pi.update` (`pi-update-safe`), `pi.9router.catalog` (`pi-9router-sync.js`), `doctor.runtime`.
+- **Accepted Invariants:** helpers find Pi's package in the managed layout (`~/.pi/agent/install/releases/<current-version>`) first and fall back to npm global; the skill lint never skips silently because of layout; the 9Router sync keeps `official: pi catalog`; `models.json`, `settings.json`, packages and auth are untouched by the migration.
+- **Regression Checks:** `pi-update-safe-test`, `pi-9router-restore-test`, `ai-doctor-test`.
+- **Runtime Evidence:** on `rich` and `dot`: `type -a pi` resolves the managed launcher, `pi --version`, `pi list`, `pi-9router-sync` reports `pi catalog`, `ai-doctor` pi line.
+- **Reopen Conditions:** a helper reports `unavailable` or skips the lint on a managed device; `pi` resolves a stale npm/mise shim.
+- **Non-Scope:** killing running Pi sessions; removing the npm copy while sessions still use it; other CLIs; commit/push.
+- **Escalation Conditions:** sudo, a change to `models.json`/auth, or a session that must be killed.
+- **Outcome (2026-11-10):** Done. Commits `ca9c419`, `d148db1`, `bb7dca9` (`pi-managed-migrate`), `dca75ab` and this one (`ag/` Opus and Sonnet in `/model`), `f1c550a` (review pairing, Argon APPROVE). `rich` 7/7 and `dot` 6/6 sessions moved on their own session files; npm copy removed on both; both on Pi 1.5.2 via `pi update`; `ai-doctor` clean; 9Router sync `official: pi catalog` (27 models). Other devices migrate with `pi-managed-migrate` when `ai-doctor` warns.
