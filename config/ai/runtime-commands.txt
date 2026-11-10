@@ -82,6 +82,8 @@ omp-runtime-report-test
 omp-workspace-test
 pi-9router-restore
 pi-9router-restore-test
+pi-managed-migrate
+pi-managed-migrate-test
 pi-update-safe
 pi-update-safe-test
 production-gate

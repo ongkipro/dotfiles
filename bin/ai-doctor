@@ -694,15 +694,15 @@ for c in claude codex pi agy omp; do
         if [ -f "$HOME/.pi/agent/install/managed-install.json" ]; then
           case "$pi_path" in
             */mise/shims/*|*/mise/installs/*)
-              wrn "pi: managed install ada, tapi PATH masih ke $pi_path. Perbaiki: npm uninstall -g @earendil-works/pi-coding-agent && mise reshim" ;;
+              wrn "pi: managed install ada, tapi PATH masih ke $pi_path. Perbaiki: pi-managed-migrate --cleanup" ;;
             *) ok "pi: terpasang (managed install pi.dev, $(cat "$HOME/.pi/agent/install/current-version" 2>/dev/null))" ;;
           esac
           # The npm copy is kept only while older sessions still load from it.
           pi_npm_root="$(npm root -g 2>/dev/null || true)"
           [ -n "$pi_npm_root" ] && [ -d "$pi_npm_root/@earendil-works/pi-coding-agent" ] \
-            && wrn "pi: salinan npm lama masih ada di $pi_npm_root. Setelah sesi pi lama ditutup: npm uninstall -g @earendil-works/pi-coding-agent && mise reshim"
+            && wrn "pi: salinan npm lama masih ada di $pi_npm_root. Setelah sesi pi lama ditutup: pi-managed-migrate --cleanup"
         else
-          ok "pi: terpasang via npm global (managed install belum: curl -fsSL https://pi.dev/install.sh | sh)"
+          wrn "pi: masih npm global. Pindahkan ke managed install pi.dev (aturan: config/pi/README.md): pi-managed-migrate"
         fi ;;
       *)     ok "$c: terpasang" ;;
     esac

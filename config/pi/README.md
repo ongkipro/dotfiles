@@ -4,21 +4,41 @@ Pi and OMP may use 9Router. Claude Code, Codex and Antigravity keep their own
 native logins. Each runtime owns its authentication; sharing a gateway does not
 copy credentials or make Pi an OMP prerequisite.
 
-## Installation
+## Installation (all devices)
 
-Pi runs from the pi.dev managed install (`curl -fsSL https://pi.dev/install.sh | sh`):
-releases live in `~/.pi/agent/install/releases/<version>` with a pinned lockfile,
-`current-version` selects one, and `~/.local/bin/pi` is a link to the launcher
-`~/.pi/agent/bin/pi`. It does not depend on mise's Node version.
-`pi-update-safe` and `pi-9router-sync.js` look in the managed layout first and
-fall back to npm global.
+Pi runs from the pi.dev managed install on every device: releases live in
+`~/.pi/agent/install/releases/<version>` with a pinned lockfile,
+`current-version` selects one, and `~/.local/bin/pi` links to the launcher
+`~/.pi/agent/bin/pi`. It does not depend on mise's Node version, so a Node
+upgrade cannot strand it.
 
-Migrating a device whose Pi sessions still run from the npm copy: the installer
-would `npm uninstall` it underneath them, so run it with a `PATH` that hides the
-old `pi` (it then installs instead of migrating), remove only npm's `bin/pi` link,
-and `mise reshim` — a stale mise shim sits before `~/.local/bin` in `PATH`. Run
-`npm uninstall -g @earendil-works/pi-coding-agent` once those sessions close;
-`ai-doctor` warns while `pi` still resolves through mise.
+| Situation | Command |
+|---|---|
+| New device | `curl -fsSL https://pi.dev/install.sh \| sh && mise reshim` |
+| Device still on npm global | `pi-managed-migrate` |
+| Old sessions closed afterwards | `pi-managed-migrate --cleanup` |
+| Check a device | `pi-managed-migrate --status` or `ai-doctor` |
+| Update Pi / packages | `pi update` / `pi update --extensions` |
+
+Rules:
+
+- Never `npm i -g @earendil-works/pi-coding-agent`; that recreates the second
+  copy and, through the mise shim, can take `pi` back to an old version.
+- Do not run the bare installer on a device whose Pi sessions run from npm: it
+  migrates by `npm uninstall` underneath them. `pi-managed-migrate` runs the
+  same official installer with npm's `pi` hidden from `PATH`, removes only
+  npm's `pi` link, runs `mise reshim`, and uninstalls the npm package only when
+  no Pi process still runs from it (exit 10 until then).
+- Move a running session to the managed Pi without losing it: let it reach a
+  stopping point, `/quit`, then `pi --session <same session file>`. History,
+  todos and the working directory come back; background tasks and subagents of
+  the old process do not, so finish or checkpoint them first.
+- `settings.json`, `models.json`, `mcp.json`, auth, sessions and extensions live
+  in `~/.pi/agent` and are untouched by install, migration and updates.
+- `pi-update-safe` and `pi-9router-sync.js` look in the managed layout first and
+  fall back to npm global, so the 9Router sync keeps `official: pi catalog`.
+- `ai-doctor` reports the install kind, warns while a mise shim shadows the
+  managed `pi`, and warns while the npm copy is still installed.
 
 ## Tracked reference and local state
 

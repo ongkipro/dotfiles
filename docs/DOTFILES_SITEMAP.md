@@ -115,8 +115,8 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 84 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
 | Owned skills | [`skills/local/`](../skills/local/) | 75 | linked from this page |
-| Commands | [`bin/`](../bin/) | 64 | linked from this page |
-| Command tests | [`bin/`](../bin/) | 78 | linked from this page |
+| Commands | [`bin/`](../bin/) | 65 | linked from this page |
+| Command tests | [`bin/`](../bin/) | 79 | linked from this page |
 | Device profiles | [`devices/`](../devices/) | 9 | linked from this page |
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
 | Top-level docs | [`docs/`](../docs/) | 20 | linked from this page |
@@ -454,6 +454,7 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`skill-map`](../bin/skill-map) (+ [`test`](../bin/skill-map-test)): Compiles the domain map in `skills/local/README.md`.
 - [`skill-surface-check`](../bin/skill-surface-check) (+ [`test`](../bin/skill-surface-check-test)): Reports stale dotfiles command references in owned `SKILL.md` files; advisory.
 - [`omp-runtime-report`](../bin/omp-runtime-report) (+ [`test`](../bin/omp-runtime-report-test)): Reports native OMP routes and validates their declared registry capabilities.
+- [`pi-managed-migrate`](../bin/pi-managed-migrate) (+ [`test`](../bin/pi-managed-migrate-test)): Moves a device from npm global Pi to the pi.dev managed install side by side; removes the npm copy only when no Pi session still runs from it.
 - [`pi-update-safe`](../bin/pi-update-safe) (+ [`test`](../bin/pi-update-safe-test)): Wraps `pi update` with a backup of Pi's runtime skill directories under `~/.pi/agent/skill-backups`.
 - [`tmux-setup`](../bin/tmux-setup) (+ [`test`](../bin/tmux-setup-test)): Installs and configures tmux from zero: binary, clipboard tool, `tmux.conf` link, TPM, plugins; idempotent.
 - [`tmux-clip`](../bin/tmux-clip) (+ [`test`](../bin/tmux-clip-test)): The clipboard seam every tmux copy path goes through (pbcopy, wl-copy, xclip or xsel, or WSL clip.exe).

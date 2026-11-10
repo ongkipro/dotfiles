@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+# pi-managed-migrate — move this device's Pi to the pi.dev managed install
+# without breaking Pi sessions that still run from the npm global copy.
+#
+# The official `curl -fsSL https://pi.dev/install.sh | sh` migrates by running
+# `npm uninstall -g` first, underneath any running session. This wrapper runs
+# the same official installer with the npm `pi` hidden from PATH (so it installs
+# side by side), removes only npm's `pi` link, reshims mise, and uninstalls the
+# npm package only when no Pi process still runs from it.
+#
+# Usage:
+#   pi-managed-migrate            install side by side, clean up if safe
+#   pi-managed-migrate --status   report only; changes nothing
+#   pi-managed-migrate --cleanup  only the npm cleanup step (after sessions close)
+#
+# Settings, auth, sessions, extensions and models.json live in ~/.pi/agent and
+# are never touched. Exit: 0 done, 10 managed but npm copy kept (sessions), 1 error.
+set -uo pipefail
+
+PKG="@earendil-works/pi-coding-agent"
+AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
+ROOT="$AGENT_DIR/install"
+INSTALLER_URL="${PI_INSTALLER_URL:-https://pi.dev/install.sh}"
+say() { printf '[pi-managed-migrate] %s\n' "$*"; }
+
+managed_version() { [ -f "$ROOT/managed-install.json" ] && cat "$ROOT/current-version" 2>/dev/null; }
+npm_root() { npm root -g 2>/dev/null; }
+npm_copy() { local r; r="$(npm_root)" && [ -d "$r/$PKG" ] && printf '%s\n' "$r/$PKG"; }
+
+# Pi processes not started by the managed launcher (it exports PI_MANAGED_INSTALL_ROOT).
+# Linux reads /proc; elsewhere (macOS) `ps eww` shows the environment of own processes.
+legacy_pids() {
+  local p
+  # PI_MIGRATE_PIDS_CMD exists for tests, which must not see the device's sessions.
+  for p in $(${PI_MIGRATE_PIDS_CMD:-pgrep -x pi} 2>/dev/null); do
+    if [ -r "/proc/$p/environ" ]; then
+      grep -qa PI_MANAGED_INSTALL_ROOT "/proc/$p/environ" || echo "$p"
+    else
+      ps eww -o command= -p "$p" 2>/dev/null | grep -q PI_MANAGED_INSTALL_ROOT || echo "$p"
+    fi
+  done
+}
+
+status() {
+  local v c l
+  v="$(managed_version)"; c="$(npm_copy)"; l="$(legacy_pids | tr '\n' ' ')"
+  say "pi on PATH: $(command -v pi || echo none)"
+  say "managed install: ${v:-no}"
+  say "npm copy: ${c:-none}"
+  say "Pi processes on the npm copy: ${l:-none}"
+}
+
+cleanup() {
+  local c l
+  c="$(npm_copy)" || { say "npm copy already removed"; return 0; }
+  l="$(legacy_pids | tr '\n' ' ')"
+  if [ -n "$l" ]; then
+    say "keeping the npm copy: Pi sessions still run from it (pids: $l)."
+    say "close or restart them on their session file (/quit, then pi --session <file>), then: pi-managed-migrate --cleanup"
+    return 10
+  fi
+  say "removing the npm copy ($c)"
+  npm uninstall -g "$PKG" >/dev/null || { say "npm uninstall failed"; return 1; }
+  command -v mise >/dev/null 2>&1 && mise reshim
+  hash -r
+  return 0
+}
+
+install_managed() {
+  local tmp nbin rc
+  command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1 || { say "node and npm are required"; return 1; }
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/pi-managed-migrate.XXXXXX")" || return 1
+  # Expose node/npm/npx through a private prefix: npm's own wrapper resolves
+  # ../lib relative to itself, so the whole prefix shape is mirrored.
+  nbin="$(dirname "$(command -v node)")"
+  mkdir -p "$tmp/prefix/bin"
+  ln -s "$(cd "$nbin/.." && pwd -P)/lib" "$tmp/prefix/lib"
+  ln -s "$(command -v node)" "$tmp/prefix/bin/node"
+  cp -P "$nbin/npm" "$nbin/npx" "$tmp/prefix/bin/" 2>/dev/null
+  curl -fsSL "$INSTALLER_URL" -o "$tmp/install.sh" || { say "download failed: $INSTALLER_URL"; rm -rf "$tmp"; return 1; }
+  # No `pi` on this PATH, so the installer installs instead of migrating. Its
+  # output goes through cat so it cannot offer to exec pi at the end.
+  PATH="$tmp/prefix/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin" \
+    sh -c 'command -v pi >/dev/null && exit 97; exec sh "$1"' _ "$tmp/install.sh" </dev/null | cat
+  rc=${PIPESTATUS[0]}
+  rm -rf "$tmp"
+  [ "$rc" -eq 97 ] && { say "an unexpected pi is on the installer PATH ($HOME/.local/bin/pi?)"; return 1; }
+  [ "$rc" -eq 0 ] || { say "installer failed (exit $rc)"; return 1; }
+  return 0
+}
+
+unlink_npm_bin() {
+  # npm's `pi` link sits in the node prefix bin and, via mise shims, before ~/.local/bin.
+  local r link
+  r="$(npm_root)" || return 0
+  link="$(dirname "$(dirname "$r")")/bin/pi"
+  if [ -L "$link" ] && readlink "$link" | grep -q "$PKG"; then
+    rm -f "$link" && say "removed npm's pi link ($link)"
+  fi
+  command -v mise >/dev/null 2>&1 && mise reshim
+  hash -r
+}
+
+verify() {
+  local p
+  p="$(command -v pi)" || { say "pi is not on PATH"; return 1; }
+  case "$p" in
+    */mise/shims/*|*/mise/installs/*) say "pi still resolves to $p; open a new shell or fix PATH"; return 1 ;;
+  esac
+  say "pi: $p ($(pi --version 2>/dev/null))"
+}
+
+case "${1:-}" in
+  --status) status; exit 0 ;;
+  --cleanup) cleanup; rc=$?; unlink_npm_bin; verify || exit 1; exit "$rc" ;;
+  -h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  "") ;;
+  *) say "unknown option: $1"; exit 1 ;;
+esac
+
+if [ -n "$(managed_version)" ]; then
+  say "managed install already present ($(managed_version)); updates go through: pi update"
+else
+  install_managed || exit 1
+  say "managed install: $(managed_version)"
+fi
+unlink_npm_bin
+verify || exit 1
+cleanup; rc=$?
+if [ -x "$HOME/.local/bin/pi-9router-sync.js" ] && grep -q '"9router' "$AGENT_DIR/models.json" 2>/dev/null; then
+  if command -v systemctl >/dev/null 2>&1 && systemctl --user cat pi-9router-sync.service >/dev/null 2>&1; then
+    systemctl --user start pi-9router-sync.service \
+      && say "9Router sync: $(journalctl --user -u pi-9router-sync -n 3 -o cat --no-pager 2>/dev/null | grep -o '"official":"[^"]*"' | tail -1)"
+  else
+    say "9Router sync: $(node "$HOME/.local/bin/pi-9router-sync.js" 2>&1 | grep -o '"official":"[^"]*"')"
+  fi
+fi
+exit "$rc"
