@@ -19,5 +19,33 @@
         "browser_run_code_unsafe": "hidden"
       }
     }
+  },
+  "retiredMcpServers": {
+    "figcraft": {
+      "reason": "FigCraft removed from every device (owner 2026-11-11); entries were device-local, never in this manifest.",
+      "paths": [
+        ".local/bin/figcraft",
+        ".local/bin/figcraft-cli",
+        ".local/bin/figcraft-mcp",
+        ".local/opt/figcraft",
+        ".local/opt/figcraft-bak-0.15.0",
+        ".local/share/figcraft",
+        ".config/FigCraft",
+        ".cache/figcraft",
+        ".gemini/antigravity-cli/mcp/figcraft",
+        ".local/share/applications/ai.storyteller.figcraft.desktop",
+        ".local/share/metainfo/ai.storyteller.figcraft.metainfo.xml",
+        ".local/share/mime/packages/ai.storyteller.figcraft.xml",
+        ".local/share/mime/application/x-figcraft.xml",
+        ".local/share/icons/hicolor/16x16/apps/ai.storyteller.figcraft.png",
+        ".local/share/icons/hicolor/32x32/apps/ai.storyteller.figcraft.png",
+        ".local/share/icons/hicolor/48x48/apps/ai.storyteller.figcraft.png",
+        ".local/share/icons/hicolor/64x64/apps/ai.storyteller.figcraft.png",
+        ".local/share/icons/hicolor/128x128/apps/ai.storyteller.figcraft.png",
+        ".local/share/icons/hicolor/256x256/apps/ai.storyteller.figcraft.png",
+        ".local/share/icons/hicolor/512x512/apps/ai.storyteller.figcraft.png",
+        ".local/share/icons/hicolor/scalable/apps/ai.storyteller.figcraft.svg"
+      ]
+    }
   }
 }

@@ -6,7 +6,7 @@ description: >-
 
 # Shopify Hydrogen & Oxygen Development
 
-Use this skill when discovering, linking, implementing, debugging, migrating, auditing, or deploying a **Shopify Hydrogen storefront on Oxygen** across both **Hydrogen `2026.10+` (`@shopify/hydrogen@2026.10.1`, current `latest`)** and **Classic Hydrogen (`<= 2026.4.7`, React Router 7 / Remix framework mode)**.
+Use this skill when discovering, linking, implementing, debugging, migrating, auditing, or deploying a **Shopify Hydrogen storefront on Oxygen** across both **Hydrogen `2026.10+` (npm `latest` `2026.10.3` on 2026-11-11)** and **Classic Hydrogen (`<= 2026.4.7`, React Router 7 / Remix framework mode)**.
 
 ## Role & Specialist Boundaries
 
@@ -20,7 +20,7 @@ Use this skill when discovering, linking, implementing, debugging, migrating, au
 
 ---
 
-Read only this file up front; open the reference named by the routing table.
+Read this file first; open only the reference the routing table names.
 
 ## Step 0: Storefront Discovery, Linking & Generation Check
 
@@ -29,14 +29,12 @@ Read only this file up front; open the reference named by the routing table.
 When asked to pull, sync, or connect a Hydrogen storefront for `<shop>.myshopify.com`:
 
 1. **Never run `shopify theme pull`** — that pulls the Online Store Liquid theme (often dormant Dawn or `hydrogen-redirect-theme`), not the Hydrogen app!
-2. Always run `npx shopify hydrogen list --json` to inspect `HydrogenStorefront` GIDs (`gid://shopify/HydrogenStorefront/<id>`), production URLs, and deployment commit metadata, locate/clone the linked GitHub repository, then run:
-   - `npx shopify hydrogen link --shop <shop>.myshopify.com --storefront "<Name>"`
-   - `npx shopify hydrogen env list --json`
-   - `npx shopify hydrogen env pull -f` (never read/print `.env*` secret values; keep `.env*`, `.shopify/`, `dist/`, and `.react-router/` in `.gitignore`).
+2. **Two CLIs:** inside a repo, `npx shopify` runs the project-pinned `@shopify/cli` (often `3.x`: no `--json` on `hydrogen list`/`env list`, no `--shop` on `link`); bare `shopify` is the global `5.x`. Check both `version`s; use global `shopify` for discovery/link JSON, `npx shopify` for `build`/`codegen`/`debug cpu`.
+3. `hydrogen list` only runs inside a Hydrogen project (or `--path`). Find the repo first (`.github/workflows/oxygen-deployment-<storefrontId>.yml`, `gh repo list`), clone, then `shopify hydrogen link --shop <shop>.myshopify.com --storefront "<Name>"` -> `shopify hydrogen list --json` (GIDs, production URL, deployed commit) -> `env list --json` -> `env pull -f` (never read/print `.env*`; ignore `.env*`, `.shopify/`, `dist/`, `.react-router/`).
 
 ### 2. Detect the Hydrogen Generation (`package.json`)
 
-| Signal | Hydrogen `2026.10+` (`latest`: `2026.10.1`) | Classic Hydrogen (`<= 2026.4.7`) |
+| Signal | Hydrogen `2026.10+` (`latest`: `2026.10.3`) | Classic Hydrogen (`<= 2026.4.7`) |
 | --- | --- | --- |
 | Architecture | **Framework-agnostic storefront toolkit & server-handler library** added to React Router 7 (`future.v8_middleware: true`), Next.js, Astro, Nuxt, or SvelteKit. | **React Router 7 / Remix framework** where Hydrogen owns `createHydrogenContext()` in `server.ts` and the `hydrogen()` Vite plugin. |
 | Server & GraphQL | `createShopifyRequestContext` + `createStorefrontClient` + `handleShopifyRoutes` + `handleShopifyRedirects` + `applyResponseHeaders`; `storefrontClient.graphql(gql(...))`, `@shopify/hydrogen/ts-plugin`, `hydrogen gql check --fail-on-warn`, `Cache.short()`/`Cache.long()`. | `createHydrogenContext()` (`context.storefront`, `context.cart`, `context.customerAccount`); `context.storefront.query(#graphql...)`, `@shopify/hydrogen-codegen` (`.graphqlrc.ts` -> `storefrontapi.generated.d.ts`), `CacheShort()`/`CacheLong()`. |
@@ -51,12 +49,10 @@ When asked to pull, sync, or connect a Hydrogen storefront for `<shop>.myshopify
 
 ### 1. Anti-Mock / Live Storefront API Sync Gate
 
-- **BAN static mock JSON imports (`data/*.json`, `mockProducts`, hardcoded fallback catalogs/pages/policies)** in production route loaders:
-  1. Static JSON bloats the Oxygen SSR worker bundle by **300 KB+** and degrades V8 isolate cold-start CPU.
-  2. Hardcoded prices, currencies, availability flags, or stale `ProductVariant` GIDs desynchronize PDP/PLP UI from Shopify Checkout.
+- **BAN static mock JSON (`data/*.json`, `mockProducts`, hardcoded catalogs/pages/policies)** in production loaders: it bloats the Oxygen worker (300 KB+, slower cold start), and hardcoded prices, availability, or stale `ProductVariant` GIDs desync PDP/PLP from Checkout.
 - Query live Storefront API at runtime (`context.storefront.query` / `storefrontClient.graphql`) with `@inContext(country: $country, language: $language)`. Return HTTP `404` when a handle resolves to `null`.
 - Allow at most a **`< 5 KB` handle-keyed UI enrichment map** for non-commerce presentation hints not yet in Metaobjects, never overriding `id`, `title`, `price`, `compareAtPrice`, `availableForSale`, `variants`, or `seo`.
-- Run automated live Storefront API (`/api/2026-04/graphql.json` or `/api/2026-10/graphql.json`) diff checks against rendered routes before release.
+- Before release, diff rendered routes against the live Storefront API (`/api/<pinned-version>/graphql.json`).
 
 ### 2. Real Cart, Checkout (`checkout.<brand>`), Customer Account & Analytics Gates
 
@@ -73,17 +69,17 @@ When asked to pull, sync, or connect a Hydrogen storefront for `<shop>.myshopify
 ### 3. Oxygen Runtime, Full-Page Cache, Codegen & Vite 8
 
 - **Prevent `oxygen-full-page-cache: uncacheable` on public GETs**:
-  - Pair `storefront.CacheShort()`/`CacheLong()` (`Cache.short()`/`Cache.long()`) with route `Cache-Control` headers.
-  - **Never emit unconditional `Set-Cookie` on anonymous GET requests**: in Classic `server.ts`, commit session cookies **only** inside `if (context.session.isPending)` (`Set-Cookie` forces Oxygen to mark any response `uncacheable`; in `2026.10+`, commit only when mutated and run `requestContext.applyResponseHeaders(response.headers)`).
+  - Oxygen caches a page only with `Oxygen-Cache-Control: public, max-age>0`, a non-`*` `Vary`, and **no** `Set-Cookie` (incl. `_shopify_*` consent cookies); plain `Cache-Control` is not enough. Pair with `CacheShort()`/`CacheLong()`.
+  - Commit the session only when changed: Classic `if (context.session.isPending)`; `2026.10+` only when mutated, then `requestContext.applyResponseHeaders(response.headers)`.
   - Resolve 404s, redirects, auth checks, and cookie mutations **before** `renderToReadableStream` flushes headers, and `await body.allReady` for `isbot`.
 - **Bundle, CPU & Vite 8 Hygiene**:
-  - Set `envDir: false` and `build.assetsInlineLimit: 0` in `vite.config.ts` so Vite 8 never leaks `.env` secrets into client bundles or bloats worker assets.
-  - Inspect `dist/server/server-bundle-analyzer.html` and `npx shopify hydrogen debug cpu` (`startup.cpuprofile`) when cold-start CPU or worker size grows.
+  - Keep `build.assetsInlineLimit: 0` (official template; strict CSP, no base64 in the worker). Set `envDir: false` when the CLI warns `envFile option is deprecated` (Classic + Vite 8); client exposure is still only `VITE_`-prefixed vars, so keep secrets unprefixed.
+  - When cold start or worker size grows: `dist/server/server-bundle-analyzer.html`, `npx shopify hydrogen debug cpu` (`startup.cpuprofile`).
   - Run GraphQL codegen (`@shopify/hydrogen-codegen` + `@graphql-codegen/cli` + `.graphqlrc.ts` -> `shopify hydrogen codegen && react-router typegen`) or `hydrogen gql check --fail-on-warn` (`2026.10+`).
 
 ### 4. GitHub & Oxygen CI/CD Recommendations
 
-- Follow [`references/oxygen-runtime-and-cicd.md`](references/oxygen-runtime-and-cicd.md) §5 for `.github/workflows/oxygen-deployment-*.yml`: SHA-pinned actions, `permissions: { contents: read, deployments: write }`, concurrency group (`cancel-in-progress` on PRs only, never `main`), pre-deploy `verify` gates (`shopify hydrogen check routes`, `codegen`, `react-router typegen`, `tsc --noEmit`, `shopify hydrogen build`, anti-mock & secret-leak checks), Preview vs Production `--env-branch` (never `--env` in CI or archived `oxygenctl-action`), and `SHOPIFY_HYDROGEN_DEPLOYMENT_TOKEN` secret protection.
+- Follow [`references/oxygen-runtime-and-cicd.md`](references/oxygen-runtime-and-cicd.md) §5 for `.github/workflows/oxygen-deployment-*.yml` (the generated one deploys every push with no gate): SHA-pinned actions, `permissions: { contents: read, deployments: write }`, concurrency (`cancel-in-progress` on PRs only), a `verify` job (routes, codegen, typegen, `tsc`, build, anti-mock & secret-leak checks), CI `--env-branch` (shopify.dev: CI rejects `--env`; CLI 5's local `--env-branch is deprecated` warning does not apply to CI), never archived `oxygenctl-action`, and `SHOPIFY_HYDROGEN_DEPLOYMENT_TOKEN` secret protection. Pushing workflow files over HTTPS needs a token with `workflow` scope (`gh auth refresh -s workflow`); never drop the workflow change to get a push through.
 
 ---
 

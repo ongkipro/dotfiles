@@ -122,28 +122,46 @@ ensure_clean_for_pull() {
 # A pull can change CORE.md, an adapter, or the runtime wiring itself; relink
 # so no runtime keeps a dangling or outdated global context.
 relink_runtimes() {
-  [ -x "$DOTFILES_ROOT/bin/ai-memory-link" ] || return 0
-  # Only the no-op "ok:" lines are hidden; backups, skipped targets, and
-  # dangling-link warnings must stay visible after a pull.
-  if link_out="$("$DOTFILES_ROOT/bin/ai-memory-link" 2>&1)"; then
-    LINK_NOTICES="$(printf '%s\n' "$link_out" | grep '^NOTICE: ' | sed 's/^NOTICE: //' || true)"
-    printf '%s\n' "$link_out" | grep -v '^ok: ' || true
-    say "✓ AI runtime context di-link ulang"
-  else
-    printf '%s\n' "$link_out"
-    err "ai-memory-link gagal — jalankan manual: ai-memory-link"
-    return 1
+  # Each step runs even when an earlier one is missing or fails, so a broken
+  # linker never keeps retired MCP servers on a device; any failure still
+  # fails the whole reconciliation.
+  local failed=0
+  if [ -x "$DOTFILES_ROOT/bin/ai-memory-link" ]; then
+    # Only the no-op "ok:" lines are hidden; backups, skipped targets, and
+    # dangling-link warnings must stay visible after a pull.
+    if link_out="$("$DOTFILES_ROOT/bin/ai-memory-link" 2>&1)"; then
+      LINK_NOTICES="$(printf '%s\n' "$link_out" | grep '^NOTICE: ' | sed 's/^NOTICE: //' || true)"
+      printf '%s\n' "$link_out" | grep -v '^ok: ' || true
+      say "✓ AI runtime context di-link ulang"
+    else
+      printf '%s\n' "$link_out"
+      err "ai-memory-link gagal — jalankan manual: ai-memory-link"
+      failed=1
+    fi
   fi
   # A pulled skill add/remove must reach every runtime's discovery path too;
   # Codex keeps per-skill links that dangle until skill-update reconciles them.
   local skill_update="$DOTFILES_ROOT/skills/agents-bin/skill-update"
-  [ -x "$skill_update" ] || return 0
-  if "$skill_update" >/dev/null 2>&1; then
-    say "✓ Skill runtime di-sinkron ulang"
-  else
-    err "skill-update gagal — jalankan manual: skill-update"
-    return 1
+  if [ -x "$skill_update" ]; then
+    if "$skill_update" >/dev/null 2>&1; then
+      say "✓ Skill runtime di-sinkron ulang"
+    else
+      err "skill-update gagal — jalankan manual: skill-update"
+      failed=1
+    fi
   fi
+  # MCP servers follow config/ai/mcp-servers.json on every device: new ones are
+  # installed, retired ones (and their device-local files) are removed.
+  local mcp_sync="$DOTFILES_ROOT/bin/ai-mcp-sync"
+  if [ -x "$mcp_sync" ]; then
+    if "$mcp_sync" >/dev/null 2>&1; then
+      say "✓ MCP server di-sinkron ulang"
+    else
+      err "ai-mcp-sync gagal — jalankan manual: ai-mcp-sync"
+      failed=1
+    fi
+  fi
+  return "$failed"
 }
 file_mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0; }
 LINK_NOTICES=""
@@ -215,7 +233,7 @@ cmd_autopull() {
   fi
   if git merge-base --is-ancestor origin/main HEAD; then
     if ! relink_runtimes >/dev/null 2>&1; then
-      record "warn: up to date but runtime reconciliation failed; run ai-memory-link && skill-update"
+      record "warn: up to date but runtime reconciliation failed; run ai-memory-link && skill-update && ai-mcp-sync"
       return 1
     fi
     # A still-pending action (e.g. an outdated dependency) is repeated each run until fixed.
@@ -231,7 +249,7 @@ cmd_autopull() {
     record "ok: pulled $before..$(git rev-parse --short HEAD)"
   else
     write_notice "$state" "$before..$(git rev-parse --short HEAD)"
-    record "warn: pulled $before..$(git rev-parse --short HEAD) but runtime reconciliation failed; run ai-memory-link && skill-update"
+    record "warn: pulled $before..$(git rev-parse --short HEAD) but runtime reconciliation failed; run ai-memory-link && skill-update && ai-mcp-sync"
     return 1
   fi
 }

@@ -8,6 +8,19 @@ Done: [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194
 
 ## In progress
 
+### TASK-211: Retired MCP servers leave every device (FigCraft)
+- **Requirement:** REQ-RETIRE-FIGCRAFT (owner 2026-11-11: FigCraft cleanup reaches every device); review of the Shopify session's skill work (`c10cdc2`).
+- **Risk Level:** R2.
+- **Allowed Paths:** `bin/{ai-mcp-sync,dotsync}{,-test}`, `config/ai/mcp-servers.json`, `CHANGELOG.md`, `TASKS.md`, `skills/local/{shopify-development,hydrogen-development,github-actions}/**`.
+- **Canonical Contract Owners:** `config/ai/mcp-servers.json` (`retiredMcpServers`), `ai-mcp-sync`.
+- **Accepted Invariants:** only listed server names and listed `$HOME`-relative paths are removed; links are unlinked, never followed; a name cannot be both active and retired; unrelated servers, settings and files are preserved; user documents are never listed.
+- **Regression Checks:** `ai-mcp-sync-test`, `dotsync-test`.
+- **Runtime Evidence:** on each device after its next pull: `ai-mcp-sync --check` shows `Retired files: none present` and no `figcraft` key in any runtime config.
+- **Reopen Conditions:** a device keeps a FigCraft entry or file after a successful autopull.
+- **Non-Scope:** FigCraft documents (`*.figcraft`), session logs and transcripts.
+- **Escalation Conditions:** a retired path outside `$HOME`, or a request to delete user documents.
+- **Outcome (2026-11-11):** see CHANGELOG 2026-11-11 (TASK-211).
+
 ### TASK-210: Gemini 4 Carbon replaces Argon as the Pi Gemini reviewer
 - **Requirement:** REQ-PI-REVIEW-CARBON (owner 2026-11-10: review that used Argon uses Carbon in Pi on `rich` and `dot`; record in dotfiles and push).
 - **Risk Level:** R2.

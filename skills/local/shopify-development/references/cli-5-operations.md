@@ -21,8 +21,11 @@ shopify store info --store <shop>.myshopify.com --json
 
 # 4. Disambiguate storefront surface: Liquid themes vs Hydrogen storefronts
 shopify theme list --store <shop>.myshopify.com
-shopify hydrogen list --path . --json
+shopify hydrogen list --path <hydrogen-repo> --json   # only inside/pointing at a Hydrogen project
+curl -sSI https://<primary-domain>/ | grep -iE '^(server|powered-by|oxygen-)'
 ```
+
+Inside a project, `npx shopify` runs the CLI pinned in `package.json` (Hydrogen repos often pin `3.x`, which lacks `--json` on `hydrogen list`); bare `shopify` is the global `5.x`. Check `shopify version` and `npx shopify version`.
 
 ### Surface Disambiguation Matrix (Never Mix `theme` and `hydrogen`)
 
@@ -149,10 +152,10 @@ Never guess Admin or Storefront GraphQL field names from memory:
 
 ```bash
 # Vector search across shopify.dev (returns relevant chunks as JSON)
-shopify doc search "productSet mutation publications 2026-04"
+shopify doc search --query "productSet mutation publications" --api-name admin --api-version 2026-04
 
 # Fetch an entire shopify.dev page verbatim as Markdown
-shopify doc fetch https://shopify.dev/docs/api/admin-graphql/latest/mutations/productSet
+shopify doc fetch --url https://shopify.dev/docs/api/admin-graphql/latest/mutations/productSet
 ```
 
 When the `@shopify/dev-mcp` server is available in the runtime, pair `learn_shopify_api(api: "admin")` + `introspect_graphql_schema` + `validate_graphql_codeblocks` before running `shopify store execute`.

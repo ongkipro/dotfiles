@@ -8,8 +8,12 @@ Declared in config/ai/mcp-servers.json and synchronized idempotently to:
   - OMP:         ~/.omp/agent/mcp.json ("mcpServers")
   - Pi:          ~/.pi/agent/mcp.json ("mcpServers")
 
+Servers listed under "retiredMcpServers" are removed from every runtime config,
+and their device-local "paths" (relative to $HOME) are deleted, so a cleanup done
+on one device reaches every device on its next sync.
+
 Usage:
-  ai-mcp-sync             install or repair missing MCP servers
+  ai-mcp-sync             install or repair missing MCP servers; remove retired ones
   ai-mcp-sync --check     report status, write nothing, non-zero if drift
   ai-mcp-sync --dotfiles P specify dotfiles repository root
 """
@@ -47,6 +51,61 @@ def load_manifest(dotfiles: Path) -> dict:
     return data.get("mcpServers", {})
 
 
+def load_retired(dotfiles: Path) -> dict:
+    with (dotfiles / "config" / "ai" / "mcp-servers.json").open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    retired = data.get("retiredMcpServers", {})
+    if not isinstance(retired, dict):
+        raise ValueError("retiredMcpServers must be an object")
+    clash = set(retired) & set(data.get("mcpServers", {}))
+    if clash:
+        raise ValueError(f"server is both active and retired: {', '.join(sorted(clash))}")
+    for name, spec in retired.items():
+        for rel in spec.get("paths", []):
+            parts = Path(rel).parts
+            if not rel or rel.startswith(("/", "~")) or ".." in parts or not parts:
+                raise ValueError(f"retired path for {name} must stay inside $HOME: {rel!r}")
+    return retired
+
+
+def linked_ancestor(home: Path, rel: str) -> Path | None:
+    """First symlinked directory between $HOME and the target, if any."""
+    current = home
+    for part in Path(rel).parts[:-1]:
+        current = current / part
+        if current.is_symlink():
+            return current
+    return None
+
+
+def retired_paths(home: Path, retired: dict) -> tuple[list[Path], list[Path]]:
+    found, refused = [], []
+    for spec in retired.values():
+        for rel in spec.get("paths", []):
+            target = home / rel
+            if not (target.is_symlink() or target.exists()):
+                continue
+            # A linked parent would make the path resolve outside $HOME.
+            (refused if linked_ancestor(home, rel) else found).append(target)
+    return found, refused
+
+
+def remove_retired_paths(home: Path, retired: dict, check_only: bool) -> tuple[bool, str]:
+    import shutil
+    found, refused = retired_paths(home, retired)
+    note = f"; refused {len(refused)} behind a symlinked parent: " + ", ".join(map(str, refused)) if refused else ""
+    if not found and not refused: return True, "none present"
+    if check_only or not found:
+        return False, f"{len(found)} retired path(s) present{note}"
+    for target in found:
+        # Never follow a link: a link is removed, not what it points to.
+        if target.is_symlink() or not target.is_dir():
+            target.unlink()
+        else:
+            shutil.rmtree(target)
+    return not refused, f"removed {len(found)} retired path(s){note}"
+
+
 def get_home(override: str | None = None) -> Path:
     if override:
         return Path(override).expanduser().resolve()
@@ -79,10 +138,20 @@ def managed_spec(spec: dict, claude=False, pi=False) -> dict:
     return result
 
 
-def sync_json(target: Path, manifest: dict, check_only: bool, claude=False, pi=False) -> tuple[bool, str]:
+def sync_json(target: Path, manifest: dict, check_only: bool, claude=False, pi=False, retired=()) -> tuple[bool, str]:
     data = json.loads(target.read_text(encoding="utf-8")) if target.exists() else {}
     servers = data.setdefault("mcpServers", {})
     changed = not target.exists()
+    # Retired servers leave the user scope and, for Claude, every project scope.
+    scopes = [servers]
+    if claude and isinstance(data.get("projects"), dict):
+        scopes += [p["mcpServers"] for p in data["projects"].values()
+                   if isinstance(p, dict) and isinstance(p.get("mcpServers"), dict)]
+    for scope in scopes:
+        for name in retired:
+            if name in scope:
+                del scope[name]
+                changed = True
     for name, spec in manifest.items():
         current = servers.get(name, {})
         needed = managed_spec(spec, claude=claude, pi=pi)
@@ -95,16 +164,16 @@ def sync_json(target: Path, manifest: dict, check_only: bool, claude=False, pi=F
     return True, "updated"
 
 
-def sync_claude(home: Path, manifest: dict, check_only: bool) -> tuple[bool, str]:
+def sync_claude(home: Path, manifest: dict, check_only: bool, retired=()) -> tuple[bool, str]:
     if not (home / ".claude.json").exists() and not (home / ".claude").exists():
         return True, "skipped (Claude Code not configured on this device)"
-    return sync_json(home / ".claude.json", manifest, check_only, claude=True)
+    return sync_json(home / ".claude.json", manifest, check_only, claude=True, retired=retired)
 
 
-def sync_antigravity(home: Path, manifest: dict, check_only: bool) -> tuple[bool, str]:
+def sync_antigravity(home: Path, manifest: dict, check_only: bool, retired=()) -> tuple[bool, str]:
     if not (home / ".gemini").exists():
         return True, "skipped (Antigravity not configured on this device)"
-    return sync_json(home / ".gemini/config/mcp_config.json", manifest, check_only)
+    return sync_json(home / ".gemini/config/mcp_config.json", manifest, check_only, retired=retired)
 
 
 def toml_value(value):
@@ -119,7 +188,7 @@ def toml_value(value):
     raise ValueError("unsupported TOML value")
 
 
-def sync_codex(home: Path, manifest: dict, check_only: bool) -> tuple[bool, str]:
+def sync_codex(home: Path, manifest: dict, check_only: bool, retired=()) -> tuple[bool, str]:
     import copy
     import tomllib
     if not (home / ".codex").exists():
@@ -136,7 +205,9 @@ def sync_codex(home: Path, manifest: dict, check_only: bool) -> tuple[bool, str]
         if name not in servers or any(current.get(k, {} if k == "env" else None) != v for k, v in needed.items()):
             servers[name] = {**current, **needed}
             changed.append(name)
-    if not changed: return True, "in sync"
+    dropped = [name for name in retired if name in servers]
+    for name in dropped: del servers[name]
+    if not changed and not dropped: return True, "in sync"
     if check_only: return False, "drift detected"
 
     # Rewrite only complete managed tables (including their child tables).
@@ -149,7 +220,7 @@ def sync_codex(home: Path, manifest: dict, check_only: bool) -> tuple[bool, str]
         try:
             section = tomllib.loads(match.group() + "\n")
             managed = section.get("mcp_servers", {})
-            owned = any(name in managed for name in changed)
+            owned = any(name in managed for name in changed + dropped)
         except (ValueError, AttributeError):
             owned = False
         if owned: ranges.append((match.start(), matches[index + 1].start() if index + 1 < len(matches) else len(content)))
@@ -158,16 +229,18 @@ def sync_codex(home: Path, manifest: dict, check_only: bool) -> tuple[bool, str]
         content = content.rstrip() + "\n\n[mcp_servers." + (name if re.fullmatch(r"[A-Za-z0-9_-]+", name) else json.dumps(name)) + "]\n"
         for key, value in servers[name].items():
             content += json.dumps(key) + " = " + toml_value(value) + "\n"
-    if tomllib.loads(content) != expected:
+    def bare(d):  # an emptied [mcp_servers] table and an absent one are equivalent
+        return {k: v for k, v in d.items() if not (k == "mcp_servers" and v == {})}
+    if bare(tomllib.loads(content)) != bare(expected):
         raise ValueError("unsupported managed TOML layout; configuration was preserved")
     atomic_write(target, content)
     return True, "updated"
 
 
-def sync_json_mcp(target_dir: Path, runtime_name: str, manifest: dict, check_only: bool, pi=False) -> tuple[bool, str]:
+def sync_json_mcp(target_dir: Path, runtime_name: str, manifest: dict, check_only: bool, pi=False, retired=()) -> tuple[bool, str]:
     if not target_dir.parent.exists():
         return True, f"skipped ({runtime_name} not configured on this device)"
-    return sync_json(target_dir / "mcp.json", manifest, check_only, pi=pi)
+    return sync_json(target_dir / "mcp.json", manifest, check_only, pi=pi, retired=retired)
 
 
 def main() -> int:
@@ -180,17 +253,19 @@ def main() -> int:
     try:
         dotfiles = find_dotfiles(args.dotfiles)
         manifest = load_manifest(dotfiles)
+        retired = load_retired(dotfiles)
         home = get_home(args.home)
     except Exception as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 2
 
     runtimes = [
-        ("Claude Code", lambda: sync_claude(home, manifest, args.check)),
-        ("Antigravity", lambda: sync_antigravity(home, manifest, args.check)),
-        ("Codex CLI", lambda: sync_codex(home, manifest, args.check)),
-        ("OMP", lambda: sync_json_mcp(home / ".omp" / "agent", "OMP", manifest, args.check)),
-        ("Pi", lambda: sync_json_mcp(home / ".pi" / "agent", "Pi", manifest, args.check, pi=True)),
+        ("Claude Code", lambda: sync_claude(home, manifest, args.check, retired)),
+        ("Antigravity", lambda: sync_antigravity(home, manifest, args.check, retired)),
+        ("Codex CLI", lambda: sync_codex(home, manifest, args.check, retired)),
+        ("OMP", lambda: sync_json_mcp(home / ".omp" / "agent", "OMP", manifest, args.check, retired=retired)),
+        ("Pi", lambda: sync_json_mcp(home / ".pi" / "agent", "Pi", manifest, args.check, pi=True, retired=retired)),
+        ("Retired files", lambda: remove_retired_paths(home, retired, args.check)),
     ]
 
     all_ok = True

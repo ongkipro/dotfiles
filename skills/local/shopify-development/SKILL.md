@@ -39,14 +39,16 @@ Before pulling files or mutating anything on `<shop>.myshopify.com`, inspect in 
 ```bash
 shopify store info --store <shop>.myshopify.com --json
 shopify theme list --store <shop>.myshopify.com
-shopify hydrogen list --json
+curl -sSI https://<primary-domain>/ | grep -iE '^(server|powered-by|oxygen-|x-shopid)'
 ```
 
+`shopify hydrogen list` only runs inside a Hydrogen project, so it cannot discover a storefront from an empty folder: `oxygen-*` response headers on the primary domain, a `checkout.<brand>` primary domain in `store info`, or an `oxygen-deployment-*.yml` repo mean Hydrogen.
+
 1. **Distinguish Liquid Theme vs Hydrogen Storefront immediately**:
-   - If `shopify hydrogen list` returns a `HydrogenStorefront` (`gid://shopify/HydrogenStorefront/<id>`) or the live domain runs on Oxygen, **do NOT run `shopify theme pull`** (that downloads the dormant or redirect Liquid theme, not the Hydrogen app). Hand off to `hydrogen-development` (`shopify hydrogen list` -> GitHub repo -> `shopify hydrogen link` -> `shopify hydrogen env pull`).
+   - If the live domain runs on Oxygen (or `shopify hydrogen list` inside the repo returns a `gid://shopify/HydrogenStorefront/<id>`), **do NOT run `shopify theme pull`** (that downloads the dormant or redirect Liquid theme, not the Hydrogen app). Hand off to `hydrogen-development` (`shopify hydrogen list` -> GitHub repo -> `shopify hydrogen link` -> `shopify hydrogen env pull`).
    - If the active storefront is an Online Store 2.0 Liquid theme (`horizon`, `dawn`, `skeleton-theme`), use `shopify theme list/pull/dev/check/push` (§4).
 2. **Never read `.env` files**: Inspect variable metadata with `shopify hydrogen env list` or `shopify store info --json`, never by opening `.env*` secrets.
-3. **Verify official docs via CLI 5.x or MCP**: Use `shopify doc search "<query>"` and `shopify doc fetch <url>` (or `@shopify/dev-mcp` when exposed by the runtime) instead of guessing GraphQL fields from memory.
+3. **Verify official docs via CLI 5.x or MCP**: Use `shopify doc search --query "<query>" [--api-name admin|storefront|hydrogen]` and `shopify doc fetch --url <shopify.dev URL>` (or `@shopify/dev-mcp` when exposed by the runtime) instead of guessing GraphQL fields from memory.
 
 ---
 

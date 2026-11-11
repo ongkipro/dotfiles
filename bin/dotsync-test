@@ -252,6 +252,20 @@ ap; rc=$?
 check "up-to-date autopull succeeds after the reconciliation is repaired" "$rc" "0"
 check "and actually reruns skill reconciliation" "$(cat "$TMP/skills-synced")" "repaired"
 rm -rf "$P/skills/agents-bin"
+printf '#!/usr/bin/env bash\necho ran > "%s/mcp-synced"\n' "$TMP" > "$P/bin/ai-mcp-sync"; chmod +x "$P/bin/ai-mcp-sync"
+upstream "auto mcp sync"; ap
+check "after a fast-forward, autopull reconciles MCP servers (retired ones leave every device)" "$(cat "$TMP/mcp-synced" 2>/dev/null)" "ran"
+printf '#!/usr/bin/env bash\nexit 5\n' > "$P/bin/ai-mcp-sync"
+upstream "mcp sync fails"; ap; rc=$?
+check "a failing ai-mcp-sync fails the autopull" "$rc" "1"
+has_last "and names ai-mcp-sync in the warning" "ai-mcp-sync"
+rm -f "$TMP/mcp-synced"
+printf '#!/usr/bin/env bash\necho ran > "%s/mcp-synced"\n' "$TMP" > "$P/bin/ai-mcp-sync"; chmod +x "$P/bin/ai-mcp-sync"
+printf '#!/usr/bin/env bash\nexit 3\n' > "$P/bin/ai-memory-link"; chmod +x "$P/bin/ai-memory-link"
+upstream "linker broken"; ap; rc=$?
+check "a failing ai-memory-link does not stop ai-mcp-sync" "$(cat "$TMP/mcp-synced" 2>/dev/null)" "ran"
+check "but the autopull still fails" "$rc" "1"
+rm -f "$P/bin/ai-mcp-sync"
 rm -f "$P/bin/ai-memory-link"
 check "the lock is released after a run" "$([ -d "$XDG_STATE_HOME/dotsync/lock" ] && echo held || echo free)" "free"
 upstream "auto blocked"; h="$(head_p)"

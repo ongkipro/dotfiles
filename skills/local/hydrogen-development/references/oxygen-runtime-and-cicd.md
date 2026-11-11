@@ -10,20 +10,26 @@ When asked to pull, sync, audit, or set up local development for an existing Hyd
 
 1. **Never run `shopify theme pull`**:
    - `shopify theme pull` downloads the Online Store Liquid theme (often a dormant Dawn copy or `Shopify/hydrogen-redirect-theme`), **never** the Hydrogen React Router codebase!
-2. **Run the canonical Hydrogen discovery & linking sequence**:
+2. **Know which CLI runs** (verified 2026-11-11):
+   - Bare `shopify` is the global CLI (`5.0.1`). Inside a repo, `npx shopify` runs the **project-pinned** `@shopify/cli` from `package.json` — often `3.x`.
+   - `3.x` has **no** `--json` on `hydrogen list` / `hydrogen env list` / `hydrogen check` and **no** `--shop` on `hydrogen link`; it errors `Nonexistent flag: --json`. Run `shopify version` and `npx shopify version` first.
+   - Use global `shopify` for JSON discovery and linking; use the project's `npx shopify` for `build`, `codegen`, `debug cpu`, and `deploy` so the build matches what CI runs.
+3. **Find the repository before linking**: `hydrogen list` aborts outside a Hydrogen project (`Looks like you're trying to run a Hydrogen command outside of a Hydrogen project`), so it cannot discover a storefront from an empty directory. Locate the repo first: Oxygen-generated repos carry `.github/workflows/oxygen-deployment-<storefrontId>.yml`; search `gh repo list <owner> --limit 200` for the brand; check sibling workspaces' `.shopify/project.json`.
+4. **Canonical sequence (global CLI 5.x, inside the cloned repo)**:
    ```bash
-   # 1. Discover remote HydrogenStorefront GIDs, names, production URLs & latest commit metadata
-   npx shopify hydrogen list --json
+   # Link the local directory (.shopify/project.json) to the storefront
+   shopify hydrogen link --shop <shop>.myshopify.com --storefront "<Storefront Name>" --json --no-input
 
-   # 2. Clone or cd into the linked GitHub repository, then link local directory (.shopify/project.json)
-   npx shopify hydrogen link --shop <shop>.myshopify.com --storefront "<Storefront Name>"
+   # Storefront GIDs, production URL, and the currently deployed commit message
+   shopify hydrogen list --json --no-input
 
-   # 3. Inspect Oxygen environments (PRODUCTION, PREVIEW, CUSTOM) and branch mappings
-   npx shopify hydrogen env list --json
+   # Oxygen environments (handle, branch, URL)
+   shopify hydrogen env list --json --no-input
 
-   # 4. Pull environment variables into local .env (NEVER read or print .env contents in logs/prompts!)
-   npx shopify hydrogen env pull -f
+   # Pull variables into .env (NEVER read or print .env contents in logs/prompts)
+   shopify hydrogen env pull -f --no-input
    ```
+   Compare `currentProductionDeployment.commitMessage` with `git log -1` to prove the checkout matches production before editing.
 3. **Mandatory `.gitignore` Contract**:
    Ensure the repository `.gitignore` always excludes local Oxygen state, secrets, build artifacts, and profiling dumps:
    ```gitignore
@@ -106,14 +112,26 @@ When asked to pull, sync, audit, or set up local development for an existing Hyd
 Inspect live response headers on anonymous public GET routes (`/`, `/collections/<handle>`, `/products/<handle>`):
 
 ```bash
-curl -sSI https://<production-or-preview-url>/collections/<handle> | grep -iE 'cache-control|oxygen|set-cookie|age'
+curl -sS -D - -o /dev/null https://<production-or-preview-url>/collections/<handle> | grep -iE 'cache-control|oxygen|vary|set-cookie|age'
 ```
+
+**Oxygen's cacheability contract** (shopify.dev "Oxygen Full-page cache", fetched 2026-11-11 via `shopify doc fetch`). A response is `Uncacheable` unless **all** hold:
+- `GET`, status `2XX`/`3XX`;
+- an **`Oxygen-Cache-Control`** header with `public` and a non-zero `max-age` or `s-maxage` — a plain `Cache-Control: public, max-age=...` is **not** enough;
+- a **`Vary`** header that is not `*` (workers send none by default; `Accept-Encoding, Accept-Language` is Shopify's suggested default);
+- **no `Set-Cookie`** at all — including `_shopify_essential` / `_shopify_analytics` / `_shopify_marketing` set by Customer Privacy / analytics on first visit, not only the Hydrogen session.
+
+The cache cannot be purged; a new deployment starts empty.
 
 | Symptom in Headers | Root Cause | Exact Fix |
 | --- | --- | --- |
-| `oxygen-full-page-cache: uncacheable` **AND** `set-cookie: session=...` present on an anonymous `GET` | **`server.ts` commits the session unconditionally on every request!** Oxygen refuses to full-page-cache any response carrying `Set-Cookie` to prevent cross-buyer session leakage. | In Classic `server.ts`, guard cookie emission strictly behind `isPending`:<br>`if (appLoadContext.session.isPending) { response.headers.append('Set-Cookie', await appLoadContext.session.commit()); }`<br>In `2026.10+`, only emit `Set-Cookie` when `sessionManager` was mutated, then call `requestContext.applyResponseHeaders(response.headers)`. |
-| `oxygen-full-page-cache: uncacheable` with **no** `Set-Cookie`, `cache-control: no-store` or `private` | A loader called `CacheNone()` / `Cache.none()`, read `customerAccount` in a way that triggered token refresh/private marking, or omitted public `Cache-Control` headers. | Use `storefront.CacheShort()` / `CacheLong()` (Classic) or `Cache.short()` / `Cache.long()` (`2026.10+`) on public catalog queries; keep personalized cart/account fetches on `/api/cart` or client/session boundaries that do not poison anonymous catalog HTML when full-page cache is targeted. |
-| Headers (`Cache-Control`, `Set-Cookie`, `X-Robots-Tag`, `404` status) silently ignored or dropped | **Post-stream mutation pitfall**: With `renderToReadableStream`, HTTP status and headers flush with the initial shell before `<Suspense><Await>` promises resolve! | Resolve `404` checks, redirects, auth checks, and any `session.set()` mutations **before** returning from `loader`. Never mutate `session` or response headers inside deferred promises. Always `await body.allReady` when `isbot(request.headers.get('user-agent'))` is `true`. |
+| `uncacheable`, `cache-control: public, max-age=...` present, **no** `oxygen-cache-control`, **no** `vary` | The route only sets browser `Cache-Control`. Seen on production 2026-11-11 with the session already gated behind `isPending`. | Return `Oxygen-Cache-Control: public, max-age=<n>, stale-while-revalidate=<m>` **and** `Vary: Accept-Encoding, Accept-Language` from public route `headers` (or once in `server.ts` for anonymous GETs). Personalized output must never be cached. |
+| `uncacheable` **and** `set-cookie: session=...` on an anonymous `GET` | `server.ts` commits the session unconditionally. | Classic: `if (hydrogenContext.session.isPending) response.headers.set('Set-Cookie', await hydrogenContext.session.commit())`. `2026.10+`: emit only when `sessionManager` was mutated, then `requestContext.applyResponseHeaders(response.headers)`. |
+| `uncacheable` with `set-cookie: _shopify_essential/_shopify_analytics/_shopify_marketing` | Consent/analytics cookies issued on the HTML response. | Decide with `hydrogen-headless-tracking` whether those cookies may move off the HTML response (e.g. set client-side after consent). Until then, full-page cache cannot apply to that route; rely on sub-request `CacheShort()`/`CacheLong()`. |
+| `uncacheable`, `cache-control: no-store` or `private` | A loader used `CacheNone()` / `Cache.none()` or read Customer Account data. | Keep public catalog queries on `CacheShort()`/`CacheLong()` (`Cache.short()`/`Cache.long()`); keep cart/account on `/api/cart` or private routes. |
+| Headers (`Cache-Control`, `Set-Cookie`, `X-Robots-Tag`, `404` status) silently dropped | Status and headers flush with the stream shell before `<Suspense><Await>` resolves. | Resolve `404`s, redirects, auth, and `session.set()` **before** returning from `loader`; `await body.allReady` for `isbot(...)`. |
+
+Verify with GET (`-I` sends `HEAD`, which Oxygen never caches): `curl -sS -D - -o /dev/null <url> | grep -iE 'oxygen-full-page-cache|oxygen-cache-control|^vary|set-cookie'` twice; the second response must be `HIT`.
 
 ### Worker Cold-Start Profiling & Bundle Size Analysis
 
@@ -128,6 +146,7 @@ Oxygen runs on global V8 isolates with strict startup CPU and worker memory/size
    ```bash
    npx shopify hydrogen debug cpu --output startup.cpuprofile
    ```
+   Run it with the project's `npx shopify`: the global CLI `5.0.1` against a Classic `2026.4.x` project failed with `[plugin hydrogen:cli:server] TypeError: r is not a constructor` (2026-11-11).
    Inspect `startup.cpuprofile` in Chrome DevTools Performance panel to remove heavy module-scope initialization, regex compilation, or synchronous crypto/parsing at worker boot.
 
 ### GraphQL Codegen (`@shopify/hydrogen-codegen`) & React Router Typegen
@@ -170,7 +189,10 @@ Oxygen runs on global V8 isolates with strict startup CPU and worker memory/size
 
 ### Vite 8 & MiniOxygen Environment Isolation (`envDir: false`)
 
-In Vite 8 + `@shopify/mini-oxygen` projects, Vite's automatic `.env` loading can collide with MiniOxygen's worker `env` injection or expose host `.env` values to Vite plugins unexpectedly. Set `envDir: false` in `vite.config.ts` when MiniOxygen / `shopify hydrogen dev` manages worker bindings so `PRIVATE_STOREFRONT_API_TOKEN` and `SESSION_SECRET` remain strictly inside the server worker's `env` object and never leak into `dist/client`:
+What each setting actually does (checked against Vite `8.3.1` types and the official `Shopify/hydrogen` `templates/react-router/vite.config.ts` on 2026-11-11):
+- `build.assetsInlineLimit: 0` is in the official template ("Allow a strict Content-Security-Policy without inlining assets as base64"). Keep it.
+- `envDir: false` (Vite 8 type `string | false`) stops Vite reading `.env*` files. The official template does **not** set it. Classic Hydrogen on Vite 8 prints `The \`envFile\` option is deprecated, please use \`envDir: false\` instead.` during `shopify hydrogen build`/`debug cpu`; set it then, because MiniOxygen supplies worker bindings itself.
+- Neither setting is the secret boundary. Vite only exposes `VITE_`-prefixed (`envPrefix`) variables to client code, so `PRIVATE_STOREFRONT_API_TOKEN` and `SESSION_SECRET` must stay unprefixed and server-only; the `dist/client` grep in the CI template is the proof.
 
 ```ts
 // vite.config.ts
@@ -197,7 +219,10 @@ Follow `github-actions` security invariants:
 - **Pin every third-party action to a verified 40-character commit SHA** with the release tag in a comment (re-verify current SHAs upstream when creating/updating workflows).
 - **Least-privilege `permissions`**: top-level `permissions: {}` and job-level `permissions: { contents: read, deployments: write }` only on the deploy job.
 - **Do NOT use archived `Shopify/oxygenctl-action` or `Shopify/github-deployment-action`**. Invoke `npx shopify hydrogen deploy` directly.
-- **CI `--env` Rejection Trap**: When authenticating with `SHOPIFY_HYDROGEN_DEPLOYMENT_TOKEN`, `shopify hydrogen deploy` **rejects `--env <handle>`** in CI. Always pass `--env-branch <branch>` (or `SHOPIFY_HYDROGEN_ENVIRONMENT_BRANCH`).
+- **CI `--env` Rejection Trap**: shopify.dev `hydrogen deploy` (fetched 2026-11-11): "In CI, requires an Oxygen deployment token set with `--token` or `SHOPIFY_HYDROGEN_DEPLOYMENT_TOKEN`, and rejects `--env`. Use `--env-branch` instead." Always pass `--env-branch <branch>` (or `SHOPIFY_HYDROGEN_ENVIRONMENT_BRANCH`) in CI.
+  - CLI `5.0.1` prints `Warning: --env-branch is deprecated. Use --env instead.` on a **local** deploy. That warning is for linked local deploys only; locally, prefer `--env <handle>` from `hydrogen env list`. Do not "fix" CI workflows to `--env`.
+- **Workflow-file push scope**: GitHub rejects a push that adds or changes `.github/workflows/*` from an OAuth token without `workflow` scope (`refusing to allow an OAuth App to create or update workflow ... without workflow scope`). Run `gh auth refresh -h github.com -s workflow`, then push. Never revert or drop the workflow change, and never `git commit --amend` a shared commit, just to get the push through.
+- **The generated workflow deploys on every push to any branch** (`on: [push]`, single job, no verify gate). Replace it with the template below so preview and production are separate and gated.
 - **Fork PR secret safety**: Never pass `SHOPIFY_HYDROGEN_DEPLOYMENT_TOKEN` to untrusted public fork `pull_request` runs (`if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository`).
 
 ### Canonical `.github/workflows/oxygen-deployment.yml` Template
@@ -229,10 +254,10 @@ jobs:
     steps:
       # Replace <40-char-sha> with the verified commit SHA for the current action release
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (re-verify latest SHA)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (verified 2026-11-11; re-verify)
 
       - name: Setup Node.js 24
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0 (re-verify latest SHA)
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 (verified 2026-11-11; re-verify)
         with:
           node-version: '24'
           cache: 'npm'
@@ -286,10 +311,10 @@ jobs:
       SHOPIFY_HYDROGEN_DEPLOYMENT_TOKEN: ${{ secrets.SHOPIFY_HYDROGEN_DEPLOYMENT_TOKEN }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Node.js 24
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
           cache: 'npm'
@@ -323,10 +348,10 @@ jobs:
       SHOPIFY_HYDROGEN_DEPLOYMENT_TOKEN: ${{ secrets.SHOPIFY_HYDROGEN_DEPLOYMENT_TOKEN }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Node.js 24
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
           cache: 'npm'
@@ -352,5 +377,5 @@ jobs:
 3. **Post-Deploy Live Smoke Probes**:
    - Read deployment URL from `h2_deploy_log.json` (or `--json` output).
    - Verify HTTP `200` on `/`, `/collections/<handle>`, `/products/<handle>`, `/pages/<handle>`, `/policies/privacy-policy`, and `/sitemap.xml`.
-   - Verify `oxygen-full-page-cache` is **not** `uncacheable` on anonymous public catalog GETs (warm twice and confirm `HIT`).
+   - Verify `oxygen-full-page-cache` is **not** `uncacheable` on anonymous public catalog GETs (warm twice and confirm `HIT`; needs `Oxygen-Cache-Control: public, max-age>0`, `Vary`, and no `Set-Cookie`).
    - Verify `/cart` and `/account*` return `Cache-Control: private, no-store` and `cart.checkoutUrl` resolves to `https://checkout.<brand>/...`.

@@ -98,3 +98,59 @@ p=home/'.codex/config.toml';p.write_text('mcp_servers = { demo = {command="old",
 assert run().returncode==1 and p.read_bytes()==original
 print('ai-mcp-sync-test: drift, privacy, idempotence, parse/layout failure regressions PASS')
 PY
+
+# Retired servers (retiredMcpServers): removed from every runtime and every
+# Claude project scope; their $HOME paths go, links are unlinked not followed;
+# unrelated servers, settings and files survive; unsafe paths are refused.
+python3 - "$SYNC" "$TMP" <<'PY'
+import json,subprocess,sys,tomllib
+from pathlib import Path
+sync=Path(sys.argv[1]); root=Path(sys.argv[2])/'retired'; dot=root/'dot'; (dot/'config/ai').mkdir(parents=True)
+manifest=dot/'config/ai/mcp-servers.json'
+def write_manifest(retired):
+    manifest.write_text(json.dumps({'mcpServers':{'keep':{'command':'k'}},'retiredMcpServers':retired}))
+write_manifest({'old':{'paths':['.local/bin/old-mcp','.local/opt/old','.local/bin/old-link']}})
+home=root/'home'; home.mkdir()
+paths=['.gemini/config/mcp_config.json','.omp/agent/mcp.json','.pi/agent/mcp.json']
+for rel in paths:
+    p=home/rel;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(json.dumps({'x':1,'mcpServers':{'old':{'command':'o'},'other':{'command':'z'}}}))
+(home/'.claude').mkdir()
+(home/'.claude.json').write_text(json.dumps({'mcpServers':{'old':{'command':'o'}},'projects':{'/p':{'mcpServers':{'old':{'command':'o'},'mine':{'command':'m'}}}}}))
+(home/'.codex').mkdir()
+(home/'.codex/config.toml').write_text('model = "keep"\n[mcp_servers.old]\ncommand = "o"\n[mcp_servers.old.env]\nA = "1"\n[mcp_servers.other]\ncommand = "z"\n')
+(home/'.local/bin').mkdir(parents=True); (home/'.local/bin/old-mcp').write_text('x'); (home/'.local/bin/unrelated').write_text('u')
+(home/'.local/opt/old/sub').mkdir(parents=True); (home/'.local/opt/old/sub/f').write_text('x')
+outside=root/'outside'; outside.mkdir(); (outside/'precious').write_text('p')
+(home/'.local/bin/old-link').symlink_to(outside)
+cmd=[str(sync),'--dotfiles',str(dot),'--home',str(home)]
+run=lambda *a: subprocess.run(cmd+list(a),capture_output=True,text=True)
+assert run('--check').returncode==1, 'retired entries must be reported as drift'
+r=run(); assert r.returncode==0, r.stdout+r.stderr
+assert run('--check').returncode==0
+for rel in paths:
+    d=json.loads((home/rel).read_text()); assert 'old' not in d['mcpServers'] and d['mcpServers']['other']=={'command':'z'} and d['x']==1
+c=json.loads((home/'.claude.json').read_text()); assert 'old' not in c['mcpServers'] and c['projects']['/p']['mcpServers']=={'mine':{'command':'m'}}
+t=tomllib.loads((home/'.codex/config.toml').read_text()); assert t['model']=='keep' and t['mcp_servers']['other']=={'command':'z'} and 'old' not in t['mcp_servers'], t
+assert not (home/'.local/bin/old-mcp').exists() and not (home/'.local/opt/old').exists() and not (home/'.local/bin/old-link').is_symlink()
+assert (outside/'precious').read_text()=='p', 'a retired symlink must never be followed'
+assert (home/'.local/bin/unrelated').exists()
+# A symlinked PARENT must not be traversed: nothing outside $HOME is deleted,
+# the run reports failure, and --check keeps reporting it.
+home2=root/'home2'; (home2/'.local').mkdir(parents=True); shared=root/'shared'; (shared/'old').mkdir(parents=True); (shared/'old/keep').write_text('k')
+(home2/'.local/opt').symlink_to(shared)
+write_manifest({'old':{'paths':['.local/opt/old']}})
+cmd2=[str(sync),'--dotfiles',str(dot),'--home',str(home2)]
+r=subprocess.run(cmd2,capture_output=True,text=True); assert r.returncode==1 and 'symlinked parent' in r.stdout, r.stdout
+assert (shared/'old/keep').read_text()=='k', 'deleted through a symlinked parent'
+assert subprocess.run(cmd2+['--check'],capture_output=True,text=True).returncode==1
+write_manifest({'old':{'paths':['.local/bin/old-mcp','.local/opt/old','.local/bin/old-link']}})
+before=(home/'.codex/config.toml').read_bytes(); assert run().returncode==0 and (home/'.codex/config.toml').read_bytes()==before
+for bad in ['/etc/passwd','~/.x','../escape','.local/../../escape','']:
+    write_manifest({'old':{'paths':[bad]}}); r=run(); assert r.returncode==2, (bad, r.stdout, r.stderr)
+manifest.write_text(json.dumps({'mcpServers':{'old':{'command':'o'}},'retiredMcpServers':{'old':{}}})); assert run().returncode==2
+print('ai-mcp-sync-test: retired servers, retired paths, symlink safety, path guard PASS')
+PY
+
+# The shipped manifest retires FigCraft and keeps its paths inside $HOME.
+python3 -c "import json; r=json.load(open('$DOT/config/ai/mcp-servers.json'))['retiredMcpServers']; assert '.local/bin/figcraft-mcp' in r['figcraft']['paths']" \
+  || fail "manifest no longer retires figcraft"

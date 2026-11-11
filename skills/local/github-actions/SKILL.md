@@ -35,6 +35,10 @@ Read only this file up front; open a reference when a step names it.
   `deployments: write`, Preview vs Production `--env-branch`, never archived
   `Shopify/oxygenctl-action` or `--env` in CI) → pair §1–§2 here with
   `hydrogen-development` (`references/oxygen-runtime-and-cicd.md`).
+- A push that adds or edits `.github/workflows/*` fails without the token's
+  `workflow` scope (`refusing to allow an OAuth App to create or update
+  workflow`). Run `gh auth refresh -h github.com -s workflow`; never strip the
+  workflow change from the commit to get the push through.
 
 ## 1. Inspect first
 

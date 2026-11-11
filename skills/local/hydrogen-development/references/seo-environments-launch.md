@@ -32,7 +32,7 @@
     npx shopify hydrogen deploy --assets-dir dist/client --worker-dir dist/server
     ```
   - **Key `shopify hydrogen deploy` Flags & CI Rules**:
-    - **CI `--env` Rejection Trap**: In CI, `shopify hydrogen deploy` requires `--token` (or `SHOPIFY_HYDROGEN_DEPLOYMENT_TOKEN`) and **rejects `--env`**. Always pass `--env-branch <branch>` (`SHOPIFY_HYDROGEN_ENVIRONMENT_BRANCH`) in CI workflows instead!
+    - **CI `--env` Rejection Trap**: In CI, `shopify hydrogen deploy` requires `--token` (or `SHOPIFY_HYDROGEN_DEPLOYMENT_TOKEN`) and **rejects `--env`**. Always pass `--env-branch <branch>` (`SHOPIFY_HYDROGEN_ENVIRONMENT_BRANCH`) in CI workflows instead. CLI `5.0.1` warns `--env-branch is deprecated` on local deploys only; there use `--env <handle>` (see [`oxygen-runtime-and-cicd.md`](oxygen-runtime-and-cicd.md) §5).
     - **E2E Auth Bypass Token**: Pass `--auth-bypass-token` (`AUTH_BYPASS_TOKEN`) and `--auth-bypass-token-duration <hours>` (1–12 hours, default `2`) to generate a token for automated E2E tests against private Oxygen deployments.
     - **Build & Entry Overrides**: `--build-command` defaults to `node --run build` when custom output dirs are configured; `--entry` defaults to `./server`; `--lockfile-check` verifies a single lockfile; client sourcemaps are disabled by default to prevent leaking server code unless `--force-client-sourcemap` is passed.
     - **Deprecated GitHub Actions**: Do **not** use the archived `Shopify/oxygenctl-action` or `Shopify/github-deployment-action`; invoke `npx shopify hydrogen deploy` directly. For the complete SHA-pinned `.github/workflows/oxygen-deployment.yml` blueprint (Preview vs Production environments, `verify` gates, `.gitignore`), read [`oxygen-runtime-and-cicd.md`](oxygen-runtime-and-cicd.md) §5.
