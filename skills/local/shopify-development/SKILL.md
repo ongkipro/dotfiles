@@ -76,7 +76,9 @@ Use `shopify store auth` + `shopify store execute` (single queries/mutations) or
    - Verify whether a real `all` collection (`handle: "all"`) exists before linking `/collections/all` in headless navigation.
 3. **Single source of truth for CMS, menus & legal policies**:
    - Store institutional `pages`, editorial `blogs`/`articles`, navigation `menus` (`main-menu`, `footer`), `urlRedirects`, and `shopPolicies` (`PRIVACY_POLICY`, `REFUND_POLICY`, `SHIPPING_POLICY`, `TERMS_OF_SERVICE`, `CONTACT_INFORMATION`) in Shopify Admin so Storefront API and Shopify Checkout never drift.
-4. **Metaobject & Metafield Storefront visibility invariants**:
+4. **Unified Markets Shipping (`2026-10`) & CCS Plan Gate**:
+   - On Unified Markets stores, legacy `deliveryProfileUpdate` is ignored by Checkout; configure province/region rates via `marketCreate`/`marketUpdate` (`--version 2026-10`, `Market.delivery.shipping` + mandatory `originLocationsToAdd`) and verify via Storefront `cartDeliveryAddressesAdd`. Nationwide postal-code `CarrierService` (CCS) is unavailable on Basic (even Annual); it requires Grow (Annual = $0, Monthly = +$20/mo), Advanced, or Plus.
+5. **Metaobject & Metafield Storefront visibility invariants**:
    - Set `access: { storefront: PUBLIC_READ }` on every storefront-consumed Metaobject/Metafield definition (defaults to `NONE`, causing silent `null` reads in Storefront API).
    - When `capabilities.publishable` is enabled on a Metaobject definition, set entry status to `ACTIVE` (defaults to `DRAFT`, also returning `null` in Storefront API).
    - Use `$app:` reserved definitions in `shopify.app.toml` for custom apps/Checkout UI Extensions (`useAppMetafields()`), and `custom.*` / merchant-owned Metaobjects for Admin-authored storefront sections.

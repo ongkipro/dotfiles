@@ -319,3 +319,24 @@ When aHydrogen or Storefront API query (`metaobject(handle: ...)` or `metaobject
 
 - **`metafieldsSet`**: Writes up to **25 metafields atomically** across one or more `ownerId` resources (`Product`, `ProductVariant`, `Collection`, `Page`, `Shop`) with no prior metafield ID lookup required.
 - **`metaobjectUpsert`**: Upserts a Metaobject by unique `handle: { type, handle }` idempotently — safe for repeatable content seeding scripts.
+
+
+---
+
+## 8. Shipping Configuration: Unified Markets (`2026-10`) vs Legacy `DeliveryProfile`
+
+New and migrated Shopify stores use **Unified Markets Shipping** (`Market.delivery.shipping` in Admin GraphQL `2026-10+`). On these stores, mutating legacy `DeliveryProfile` (`deliveryProfileUpdate` in `2026-04`) **does NOT change the shipping rates shown at Checkout** because Checkout evaluates `Market.delivery.shipping.optionDefinitions`.
+
+### Mandatory Diagnosis & Write Rules
+1. **Always inspect `markets { delivery { shipping { ... } } }` (`--version 2026-10`) first:**
+   - Require scopes `read_markets,write_markets,read_shipping,write_shipping,read_locations`.
+   - If `market.delivery.shipping` is populated on the country market (e.g. `Indonesia`), configure province/state shipping by creating or updating child regional sub-markets via `marketCreate` / `marketUpdate` with `conditions: { regionsCondition: { regions: [{ countryCode: "ID", subdivision: "<ISO_PROVINCE>" }] } }`.
+2. **Always bind `originLocationsToAdd` on every `rateGroup`:**
+   - Every `DeliveryFlatRateGroupCreateInput` MUST pass `conditions: { originLocationsToAdd: ["gid://shopify/Location/<activeLocationId>"] }`. Omitting `originLocationsToAdd` leaves `originLocations: []`, causing Checkout to return zero shipping methods (`deliveryGroups: []`).
+   - Do **not** pass `conditions` inside `MarketUpdateInput` when updating an existing sub-market's rates (`MarketConditionsUpdateInput` does not accept `regionsCondition`).
+3. **Verify live Checkout rates programmatically:**
+   - Never trust Admin readback alone. Create a Storefront API test cart (`cartCreate`) and run `cartDeliveryAddressesAdd` with real province/postal addresses (`< freeDeliveryMinimumValue` and `>= freeDeliveryMinimumValue`) to confirm `deliveryGroups.nodes[0].deliveryOptions` returns the exact rate and `0.0` free-shipping tier.
+4. **Postal-Code Shipping & Carrier-Calculated Shipping (CCS) Plan Gate:**
+   - Native Shopify static shipping zones/sub-markets stop at `subdivision` (Province/State).
+   - **Local Delivery** supports postal-code lists/wildcards (e.g. `651*`) on **all plans including Basic ($0)**.
+   - **Third-Party Carrier-Calculated Shipping (`CarrierService` API)** for nationwide postal-code rates (Mengantar, AutoLaris, JNE/J&T live) is **permanently unavailable on Basic** (neither monthly nor annual Basic unlocks CCS). It requires **Grow Plan (free with Annual billing, or +$20/mo via Support)**, **Advanced**, or **Shopify Plus**.
