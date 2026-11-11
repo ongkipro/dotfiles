@@ -618,6 +618,9 @@ LEDGER_BINDING_EXACT_RUNS = {
     # The Meta Ads HTML-reporting documentation of TASK-200 was recorded with the requirement label REQ-200 instead of
     # REQ-META-ADAPTIVE-FRAMEWORK (commit fb3d64c9). The work is TASK-200's; only the label is wrong.
     "RUN-20261107T105314Z-1567e199.jsonl": ("TASK-200", "REQ-200"),
+    # The Mengantar skill rebuild started as TASK-209 on rich while another device had taken TASK-209 for the Pi managed
+    # install, and TASK-211 then went to FigCraft on dot. The work is TASK-212 (archived); the ledger is append-only, so the run keeps its first label.
+    "RUN-20261111T100402Z-964dfe7e.jsonl": ("TASK-209", "REQ-MENGANTAR-OFFICIAL"),
 }
 
 

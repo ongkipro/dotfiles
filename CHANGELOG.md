@@ -4,6 +4,13 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-11 — Mengantar skill rebuilt from the official docs (TASK-212)
+
+- `mengantar-api`: the skill claimed "no public Mengantar API reference"; Mengantar now publishes it (`api-public.mengantar.com/docs/`, same on `app.` and `sandbox.`; sandbox notes are visible only on the sandbox host). Rewritten from those docs (read 2026-11-11): `idempotencyKey` and its 400/409/422/503 codes plus the replayed-5xx rule, JT Premium + SiCepat one-batch-per-account (Ninja discontinued 2026-09-01), async labels, verified webhooks, Pos COD eligibility, SPX limits, Dangerous Goods (only SiCepat and iDexpress are consistent across the docs), sandbox-only errors, top-up and `/order/simulation`, per-merchant keys and team users. Endpoint notes in `references/public-api.md`.
+- Partner seller onboarding: its documentation is shared privately with partners, so the public repo keeps only safe-integration rules (`references/partner-api.md`) and no endpoint, header or URL detail; the contract is a device-local snapshot.
+- `project-memory/mengantar-documentation.md`: docs review date and the serialization/idempotency line updated.
+- Independent review: Gemini 4 Carbon high (owner-ordered).
+
 ## 2026-11-11 — Review of the Shopify skill suite (`c10cdc2`)
 
 The parallel Shopify session added `shopify-development` and hardened `hydrogen-development`, `headless-shopify` and `github-actions` while working on `numaskin`. Its claims were checked against the installed CLIs (global `@shopify/cli` 5.0.1, project-pinned 3.93.2), `shopify doc fetch`, the official `Shopify/hydrogen` template, Vite 8.3.1 types, and production headers. Corrections:
@@ -21,6 +28,7 @@ The parallel Shopify session added `shopify-development` and hardened `hydrogen-
 - `dotsync` now runs `ai-mcp-sync` after every pull and on each up-to-date autopull, after `ai-memory-link` and `skill-update`. Each step now runs even when an earlier one is missing or fails (before, a failing `ai-memory-link` skipped `skill-update`); any failure still fails the run and is recorded as a warning. Before this, a cleanup done on one device never reached the others: FigCraft was installed device-locally on `dot` (binaries, `~/.local/opt/figcraft`, MCP entries in five runtimes) and removed there by hand on 2026-11-10, with nothing in the repository to carry it.
 - FigCraft is the first retired entry: its MCP registration, `~/.local/{bin,opt,share}` install, config, cache, desktop entry, icons and MIME files go on each device's next sync. User `.figcraft` documents are not touched.
 - Regression cases in `ai-mcp-sync-test` (removal per runtime and project scope, unrelated servers/settings/files kept, symlink not followed, path guard, active/retired clash) and `dotsync-test` (autopull runs it; failure becomes a warning); eight mutations of the removal and independence logic all fail the tests. Reviewed by GPT-6.1 Sol: two P1 findings (symlinked parent, step independence) and one P2 (cache check used `HEAD`) fixed.
+||||||| Stash base
 
 ## 2026-11-10 — Gemini 4 Carbon is the Pi Gemini reviewer (TASK-210)
 

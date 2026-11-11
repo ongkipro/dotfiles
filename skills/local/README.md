@@ -70,7 +70,7 @@ resolves, so an entry here is a mention, not a gated reference.
 | Skill | | What it owns | Routes to |
 |---|---|---|---|
 | [`autolaris-h2h`](autolaris-h2h/SKILL.md) |  | Integrate AutoLaris H2H: Indonesian shipping, payment channels (QRIS/VA), Create Order /submit, Cek Ongkir, Advice reconciliation. | — |
-| [`mengantar-api`](mengantar-api/SKILL.md) |  | Integrate the Mengantar API (Indonesian multi-courier aggregator): estimates, COD eligibility, wallet-paid orders, batching, sandbox traps; JNE, SiCepat, SAP, J&T. | — |
+| [`mengantar-api`](mengantar-api/SKILL.md) |  | Integrate the Mengantar API (Indonesian courier aggregator): estimates, COD, idempotent orders, batching, labels, webhooks, sandbox, per-seller keys. | — |
 | [`stripe-best-practices`](stripe-best-practices/SKILL.md) | F | Stripe integration decisions: sandboxes vs test mode, Checkout Sessions vs PaymentIntents, Connect (Accounts v2), Billing, Stripe Tax, Treasury, Payment Element, deprecated-API migration, key/webho... | — |
 | [`turnstile-spin`](turnstile-spin/SKILL.md) | F | Set up, repair, or migrate Cloudflare Turnstile end-to-end where an existing backend can call Siteverify: scan codebase, create widget via API, embed on forms/endpoints. | — |
 
