@@ -952,6 +952,22 @@ def check_hidden_instructions():
     print(f"  OK  hidden-instruction scan: {scanned} skill and memory file(s) checked")
 
 
+def check_conflict_markers():
+    """A merge or `git stash pop` conflict resolved by hand can leave a marker
+    line behind; CHANGELOG.md shipped one in 12ce19d. Git's own detector runs
+    over the whole tracked worktree (index vs the empty tree), so no marker
+    syntax is re-implemented here."""
+    empty_tree = subprocess.run(["git", "-C", str(ROOT), "hash-object", "-t", "tree", "/dev/null"],
+                                capture_output=True, text=True).stdout.strip()
+    out = subprocess.run(["git", "-C", str(ROOT), "diff", "--check", empty_tree],
+                         capture_output=True, text=True).stdout
+    hits = [line for line in out.splitlines() if line.endswith("leftover conflict marker")]
+    for hit in hits:
+        err(f"{hit.rsplit(':', 1)[0]}: leftover merge conflict marker; resolve the conflict")
+    if not hits:
+        print("  OK  no leftover merge conflict markers in tracked files")
+
+
 def main():
     print("ai-policy-lint: Auditing dotfiles policy, routing, skills, and templates...")
     print("─" * 60)
@@ -974,6 +990,7 @@ def main():
     check_skill_map()
     check_system_map()
     check_hidden_instructions()
+    check_conflict_markers()
     check_hot_context()
 
     if warnings:

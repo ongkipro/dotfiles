@@ -28,7 +28,7 @@ The parallel Shopify session added `shopify-development` and hardened `hydrogen-
 - `dotsync` now runs `ai-mcp-sync` after every pull and on each up-to-date autopull, after `ai-memory-link` and `skill-update`. Each step now runs even when an earlier one is missing or fails (before, a failing `ai-memory-link` skipped `skill-update`); any failure still fails the run and is recorded as a warning. Before this, a cleanup done on one device never reached the others: FigCraft was installed device-locally on `dot` (binaries, `~/.local/opt/figcraft`, MCP entries in five runtimes) and removed there by hand on 2026-11-10, with nothing in the repository to carry it.
 - FigCraft is the first retired entry: its MCP registration, `~/.local/{bin,opt,share}` install, config, cache, desktop entry, icons and MIME files go on each device's next sync. User `.figcraft` documents are not touched.
 - Regression cases in `ai-mcp-sync-test` (removal per runtime and project scope, unrelated servers/settings/files kept, symlink not followed, path guard, active/retired clash) and `dotsync-test` (autopull runs it; failure becomes a warning); eight mutations of the removal and independence logic all fail the tests. Reviewed by GPT-6.1 Sol: two P1 findings (symlinked parent, step independence) and one P2 (cache check used `HEAD`) fixed.
-||||||| Stash base
+- Follow-up: `12ce19d` shipped a `||||||| Stash base` marker in this file from a hand-resolved `git stash pop`. Removed, and `ai-policy-lint` now fails on any leftover conflict marker in tracked files (git's own `diff --check` against the empty tree); fixture in `ai-policy-lint-test`.
 
 ## 2026-11-10 — Gemini 4 Carbon is the Pi Gemini reviewer (TASK-210)
 
