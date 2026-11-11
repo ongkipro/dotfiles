@@ -45,8 +45,8 @@ DOMAINS: dict[str, tuple[str, ...]] = {
         "gsap-react", "gsap-frameworks", "gsap-utils", "gsap-performance",
     ),
     "Commerce and Shopify": (
-        "storefront-development", "storefront-ux", "headless-shopify",
-        "hydrogen-development", "hydrogen-headless-tracking",
+        "storefront-development", "storefront-ux", "shopify-development",
+        "headless-shopify", "hydrogen-development", "hydrogen-headless-tracking",
     ),
     "Payments, logistics and anti-abuse": (
         "autolaris-h2h", "mengantar-api",

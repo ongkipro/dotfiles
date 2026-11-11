@@ -14,9 +14,11 @@ official docs (`references/source-ledger.md`) beat memory.
 
 Hand-offs: test commands and strategy → `testing-engineering`; cross-stack
 AppSec → `application-security`; app telemetry → `observability-engineering`;
-build/validation commands → the platform skill; release policy and the deploy
-itself → the deployment owner. This skill owns the workflow graph, its trust
-boundaries, and run evidence.
+build/validation and deploy commands → the platform owner (`hydrogen-development`
+for Shopify Hydrogen/Oxygen `shopify hydrogen deploy --env-branch`,
+`shopify-development` for Shopify Liquid `theme check`/CLI, `wrangler` for
+Cloudflare Workers, `vercel` for Vercel, `vps-deploy` for VPS). This skill owns
+the workflow graph, its trust boundaries, and run evidence.
 
 Read only this file up front; open a reference when a step names it.
 
@@ -29,6 +31,10 @@ Read only this file up front; open a reference when a step names it.
 - Anything touching fork PRs, `pull_request_target`, `workflow_run`,
   self-hosted runners, OIDC, or environments → also
   `references/security-boundaries.md`.
+- Shopify Oxygen deployment workflows (`SHOPIFY_HYDROGEN_DEPLOYMENT_TOKEN`,
+  `deployments: write`, Preview vs Production `--env-branch`, never archived
+  `Shopify/oxygenctl-action` or `--env` in CI) → pair §1–§2 here with
+  `hydrogen-development` (`references/oxygen-runtime-and-cicd.md`).
 
 ## 1. Inspect first
 

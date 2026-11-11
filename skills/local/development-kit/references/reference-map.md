@@ -13,7 +13,8 @@ generate every file. Open only the smallest activated artifact.
 | Relational model and lifecycle | `05-DATA-MODEL.md` | `postgres-drizzle` when PostgreSQL/Drizzle is selected |
 | Tenant isolation | `06-TENANT-ISOLATION.md` | `application-security` plus data owner |
 | Identity and authorization | `07-IAM-RBAC-ABAC.md` | `application-security`; `better-auth-security` only in a Better Auth project |
-| Hostname and custom-domain routing | `08-DOMAIN-ROUTING.md` | selected platform/framework owner plus `application-security` |
+| Hostname and custom-domain routing | `08-DOMAIN-ROUTING.md` | selected platform/framework owner (`headless-shopify` for `<brand>` vs `checkout.<brand>` Shopify split) plus `application-security` |
+| Shopify store operations, Admin GraphQL sync, and Liquid theme CLI | repository operations / `03-TECHNICAL-DESIGN.md` | `shopify-development` (platform/CLI 5.x/Admin API); `hydrogen-development` for Hydrogen/Oxygen code & CI/CD |
 | REST contract | `09-API-SPECIFICATION.md` | `openapi-spec` |
 | Design tokens, components, accessibility, brand, and white-label primitives | `10-DESIGN-SYSTEM-WHITELABEL.md` | `design-taste` or `admin-dashboard` for direction; `shadcn-ui` for React implementation |
 | Billing and payments | `11-BILLING-PAYMENTS.md` | the exact provider owner: `stripe-best-practices` for Stripe, `autolaris-h2h` for AutoLaris channels; any other provider (including DOKU/senangPay) keeps its own owner |

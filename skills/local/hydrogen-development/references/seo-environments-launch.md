@@ -16,8 +16,8 @@
 - **Sub-request GraphQL caching (`Cache.*` in `2026.10+`)**:
   - Use `Cache.long()` for stable catalog/navigation/sitemap queries, `Cache.short()` for dynamic merchandising or frequent price/inventory updates, `Cache.none()` for personalized or uncached queries, and `Cache.custom({ maxAge, staleWhileRevalidate, staleIfError, mode })` when fine-tuning Oxygen/CDN behavior.
   - Note: Classic Hydrogen's `CacheLong()`, `CacheShort()`, `CacheNone()`, and `CacheCustom()` functions are replaced by `Cache.long()`, `Cache.short()`, `Cache.none()`, and `Cache.custom()` in `2026.10+`.
-- **Full-page & response-header privacy (`requestContext.applyResponseHeaders`)**:
-  - Always call `requestContext.applyResponseHeaders(response.headers)` before returning a framework response.
+- **Full-page & response-header privacy (`requestContext.applyResponseHeaders` & `session.isPending`)**:
+  - In `2026.10+`, always call `requestContext.applyResponseHeaders(response.headers)` before returning a framework response. In Classic Hydrogen (`<= 2026.4.x`), only append `Set-Cookie: await session.commit()` when `session.isPending` is `true` — unconditional `Set-Cookie` on anonymous GETs forces `oxygen-full-page-cache: uncacheable`! See [`oxygen-runtime-and-cicd.md`](oxygen-runtime-and-cicd.md) §4 for the full cache diagnostic matrix, post-stream header pitfalls, and worker bundle profiling.
   - Never cache responses that set cookies (`Set-Cookie`) or read Customer Account data: `applyResponseHeaders` automatically enforces `Cache-Control: private, no-store` and strips `Oxygen-Cache-Control`, `CDN-Cache-Control`, `Cloudflare-CDN-Cache-Control`, `Surrogate-Control`, and `s-maxage`.
 
 ## 3. Oxygen Deployment, CI & Online Store Redirect Theme (`hydrogen-oxygen`, `Shopify/hydrogen-redirect-theme`)
@@ -35,7 +35,7 @@
     - **CI `--env` Rejection Trap**: In CI, `shopify hydrogen deploy` requires `--token` (or `SHOPIFY_HYDROGEN_DEPLOYMENT_TOKEN`) and **rejects `--env`**. Always pass `--env-branch <branch>` (`SHOPIFY_HYDROGEN_ENVIRONMENT_BRANCH`) in CI workflows instead!
     - **E2E Auth Bypass Token**: Pass `--auth-bypass-token` (`AUTH_BYPASS_TOKEN`) and `--auth-bypass-token-duration <hours>` (1–12 hours, default `2`) to generate a token for automated E2E tests against private Oxygen deployments.
     - **Build & Entry Overrides**: `--build-command` defaults to `node --run build` when custom output dirs are configured; `--entry` defaults to `./server`; `--lockfile-check` verifies a single lockfile; client sourcemaps are disabled by default to prevent leaking server code unless `--force-client-sourcemap` is passed.
-    - **Deprecated GitHub Actions**: Do **not** use the archived `Shopify/oxygenctl-action` or `Shopify/github-deployment-action`; invoke `npx shopify hydrogen deploy` directly.
+    - **Deprecated GitHub Actions**: Do **not** use the archived `Shopify/oxygenctl-action` or `Shopify/github-deployment-action`; invoke `npx shopify hydrogen deploy` directly. For the complete SHA-pinned `.github/workflows/oxygen-deployment.yml` blueprint (Preview vs Production environments, `verify` gates, `.gitignore`), read [`oxygen-runtime-and-cicd.md`](oxygen-runtime-and-cicd.md) §5.
 - **Online Store Redirect Theme (`Shopify/hydrogen-redirect-theme`)**:
   - When a Hydrogen storefront runs on a separate domain or subdomain from the Online Store channel, install `Shopify/hydrogen-redirect-theme` as the active Liquid theme and configure `settings.storefront_hostname`.
   - It redirects Liquid storefront URLs (`window.location.replace`) to Hydrogen while **preserving three Online Store-owned surfaces**:

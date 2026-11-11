@@ -31,7 +31,89 @@ When headless storefronts pair with custom Checkout or Customer Account UI Exten
 - Before calling `shopify.applyAttributeChange()`, `applyNoteChange()`, `applyDiscountCodeChange()`, or `applyCartLinesChange()`, always check `shopify.instructions.value.attributes.canUpdateAttributes` (or the corresponding instruction flag), which can be `false` on accelerated wallets (Shop Pay, Apple Pay) or B2B checkouts.
 - Declare `network_access = true` under `[extensions.capabilities]` in `shopify.extension.toml` before making external `fetch()` calls, and prefer `useAppMetafields()` (`$app:` reserved metafields in `shopify.app.toml`) to read data in checkout with zero network latency.
 
-## 4. Verification & Release Evidence
+## 4. Live Storefront API CMS, Navigation & Legal Policy Parity Audit
+
+Before launching or signing off a headless storefront, execute this live Storefront API parity query against `/api/2026-04/graphql.json` or `/api/2026-10/graphql.json` to prove that catalog publications, menus, CMS pages, blogs, and legal policies actually exist in Shopify Admin rather than being faked in frontend JSX/JSON:
+
+```graphql
+query HeadlessStorefrontParityAudit($country: CountryCode, $language: LanguageCode)
+  @inContext(country: $country, language: $language) {
+  shop {
+    name
+    primaryDomain {
+      host
+      url
+    }
+    privacyPolicy {
+      handle
+      title
+      body
+    }
+    refundPolicy {
+      handle
+      title
+      body
+    }
+    shippingPolicy {
+      handle
+      title
+      body
+    }
+    termsOfService {
+      handle
+      title
+      body
+    }
+  }
+  mainMenu: menu(handle: "main-menu") {
+    id
+    items {
+      title
+      url
+    }
+  }
+  footerMenu: menu(handle: "footer") {
+    id
+    items {
+      title
+      url
+    }
+  }
+  products(first: 10) {
+    nodes {
+      id
+      handle
+      title
+      availableForSale
+    }
+  }
+  collections(first: 20) {
+    nodes {
+      id
+      handle
+      title
+    }
+  }
+  pages(first: 50) {
+    nodes {
+      id
+      handle
+      title
+    }
+  }
+  blogs(first: 10) {
+    nodes {
+      id
+      handle
+      title
+    }
+  }
+}
+```
+
+- **Hard Gate**: If any required legal policy (`privacyPolicy`, `refundPolicy`, `shippingPolicy`, `termsOfService`), `mainMenu`, or institutional `pages` node returns `null` while the frontend renders hardcoded placeholder text, **fail the audit** and route to `shopify-development` (`shopify store execute`) to populate and publish the authoritative records in Shopify Admin.
+
+## 5. Verification & Release Evidence
 
 1. **Schema & Type Verification**: `npx hydrogen gql check --fail-on-warn`, `tsc`, and `@shopify/dev-mcp` `validate_graphql_codeblocks` pass with zero errors.
 2. **Response Privacy Proof**: Inspect response headers on `/api/cart`, `/account/*`, and any route setting cookies to confirm `Cache-Control: private, no-store` is present and CDN cache headers are stripped.

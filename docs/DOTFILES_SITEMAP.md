@@ -114,7 +114,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 27 | linked from this page |
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 84 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
-| Owned skills | [`skills/local/`](../skills/local/) | 75 | linked from this page |
+| Owned skills | [`skills/local/`](../skills/local/) | 76 | linked from this page |
 | Commands | [`bin/`](../bin/) | 65 | linked from this page |
 | Command tests | [`bin/`](../bin/) | 79 | linked from this page |
 | Device profiles | [`devices/`](../devices/) | 9 | linked from this page |
@@ -331,9 +331,10 @@ Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rende
 ### 6.4 Commerce & Shopify
 - [`storefront-development`](../skills/local/storefront-development/SKILL.md): Dawn-aligned progressive enhancement storefronts.
 - [`storefront-ux`](../skills/local/storefront-ux/SKILL.md): Commerce journeys, variant selection, direct COD funnels, post-purchase RTS-reduction, WhatsApp conversational handoff, and AI shopping advisor states.
-- [`headless-shopify`](../skills/local/headless-shopify/SKILL.md): Storefront API architecture and Customer Account API.
-- [`hydrogen-development`](../skills/local/hydrogen-development/SKILL.md): Shopify Hydrogen framework and Oxygen runtime.
+- [`headless-shopify`](../skills/local/headless-shopify/SKILL.md): Storefront API architecture, domain topology, CMS/policy parity, and Customer Account API.
+- [`hydrogen-development`](../skills/local/hydrogen-development/SKILL.md): Shopify Hydrogen framework, Oxygen runtime/caching, live Storefront API sync, and GitHub CI/CD.
 - [`hydrogen-headless-tracking`](../skills/local/hydrogen-headless-tracking/SKILL.md): Consent-aware analytics and Web Pixels.
+- [`shopify-development`](../skills/local/shopify-development/SKILL.md): Shopify platform and CLI 5.x operations — store diagnostics, HTTP 402 triage, Admin GraphQL/bulk sync, catalog/CMS/policies, metaobjects, and Liquid theme workflows.
 
 ### 6.5 Payments, Logistics & Anti-Abuse
 - [`autolaris-h2h`](../skills/local/autolaris-h2h/SKILL.md): Indonesian shipping, payment channels, `/submit` orders.

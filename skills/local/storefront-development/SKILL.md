@@ -132,8 +132,9 @@ repository planning-document convention; source code belongs in the project.
 
 - `storefront-ux`: buyer journey, state requirements, and conversion correctness
 - `storefront-development`: implementation, composition, and commerce-state wiring
+- `shopify-development`: Shopify store diagnostics, CLI 5.x (`store info/list/auth/execute/bulk`), HTTP 402 triage, Admin GraphQL catalog/CMS sync, and `shopify theme` CLI lifecycle
 - `headless-shopify`: Shopify headless architecture, runtime/data boundary, and delivery contract
-- `hydrogen-development`: Hydrogen app code once Hydrogen is the accepted stack
+- `hydrogen-development`: Hydrogen app code, Oxygen runtime/caching, and Oxygen CI/CD once Hydrogen is the accepted stack
 - `hydrogen-headless-tracking`: Hydrogen analytics, consent, and event bus
 - `design-taste`: Storefront/Commerce hierarchy, art direction, and visual judgment
 - `native-first`: platform capability before dependencies
