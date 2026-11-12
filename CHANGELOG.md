@@ -4,6 +4,10 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-12 — `$HOME` stray `.git` wording (TASK-214)
+
+- The stray `~/.git` on `rich` was only a pi-rewind checkpoint store (no branch, no remote). It was archived to `/data` and removed by the owner, so `~` is no longer a git work tree there. CORE now says some devices **may** carry one; the rule (never `git add -A` from `~`, check `git rev-parse --show-toplevel`) and every `$HOME` guard stay, since other devices are not verified. Comments in `memory-usage.sh`, `memory-usage-hook-test` and `dotsync-test` follow.
+
 ## 2026-11-12 — shadcn-ui: one primitive library per project; maps brought in line
 
 - `shadcn-ui`: new rule and reference `references/single-primitive-library.md`. A project imports only the headless library its `base` names (`@base-ui/react`, `radix-ui`, or `react-aria-components`); detection with `shadcn info --json` and `rg`, new projects on `base`, mixed-project convergence by regenerating each component from the registry (shadcn CLI 4.23.0 `migrate --list` has `cn`, `icons`, `base-color`, `radix`, `rtl`: no library-to-library migration), Radix → Base UI consumer moves, and a guard test. Checked 2026-11-12: `init --defaults` uses `base-nova`; the registry serves `toast` for `base-nova` and not for `radix-nova`; the moved props and CSS variables exist in `@base-ui/react` 1.9.0. The guard test was run with Node 24: a clean Base UI project passes, a Radix import and four other-library packages fail it. Its package regex was simplified (one alternation instead of a pattern plus a duplicate `startsWith`).
