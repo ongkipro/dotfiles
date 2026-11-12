@@ -51,6 +51,56 @@ grep -q 'typescript-language-server' "$FAKE_HOME/.pi/agent/pi-lsp.json"
 printf '%s\n' '{"local":{"command":["keep"]}}' > "$FAKE_HOME/.pi/agent/pi-lsp.json"
 run_restore
 grep -q '"local"' "$FAKE_HOME/.pi/agent/pi-lsp.json"
+
+# Astro route (TASK-215): astro-ls needs typescript.tsdk. The managed route is
+# filled or repaired from this device's global TypeScript (mise node/<major>
+# alias preferred), added to an existing file in either JSON shape without
+# touching other servers or the file mode, never replaces a device's own astro
+# entry, is dropped when no global TypeScript exists, and a failing npm never
+# aborts the restore.
+python3 -c 'import json,sys; a=json.load(open(sys.argv[1]))["astro"]; assert a["command"][0]=="astro-ls" and a["initialization"]["typescript"]["tsdk"]=="@GLOBAL_TYPESCRIPT_LIB@"' "$ROOT/config/pi/pi-lsp.json"
+cp "$ROOT/config/pi/pi-lsp.json" "$FAKE_DOT/config/pi/pi-lsp.json"
+LSP="$FAKE_HOME/.pi/agent/pi-lsp.json"
+MISE="$TMP/mise/installs/node"
+mkdir -p "$MISE/24.22.1/lib/node_modules/typescript/lib" "$MISE/24/lib/node_modules/typescript/lib"
+: > "$MISE/24.22.1/lib/node_modules/typescript/lib/typescript.js"
+: > "$MISE/24/lib/node_modules/typescript/lib/typescript.js"
+fake_npm() {  # $1 = npm root -g output, or "fail"
+  if [ "$1" = fail ]; then printf '#!/bin/sh\nexit 1\n' > "$FAKE_BIN/npm"
+  else printf '#!/bin/sh\n[ "$1 $2" = "root -g" ] && echo "%s" && exit 0\nexit 1\n' "$1" > "$FAKE_BIN/npm"; fi
+  chmod +x "$FAKE_BIN/npm"
+}
+tsdk() { python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); s=d.get("servers",d); print(s.get("astro",{}).get("initialization",{}).get("typescript",{}).get("tsdk","ABSENT"))' "$LSP"; }
+
+# (a) fresh seed: placeholder filled with the node/<major> alias
+fake_npm "$MISE/24.22.1/lib/node_modules"
+rm -f "$LSP"; run_restore
+[ "$(tsdk)" = "$MISE/24/lib/node_modules/typescript/lib" ] || { echo "astro tsdk not filled with the major alias: $(tsdk)"; exit 1; }
+# (b) existing wrapper-shaped file, mode 644 (not mkstemp's 600): astro added, other servers and mode kept
+printf '%s\n' '{"servers":{"local":{"command":["keep"]}}}' > "$LSP"; chmod 644 "$LSP"
+run_restore
+python3 -c 'import json,sys; d=json.load(open(sys.argv[1]))["servers"]; assert "local" in d and "astro" in d, d' "$LSP"
+[ "$(stat -c %a "$LSP" 2>/dev/null || stat -f %Lp "$LSP")" = 644 ] || { echo "pi-lsp.json mode changed"; exit 1; }
+# (c) a device's own astro entry is never replaced
+printf '%s\n' '{"astro":{"command":["my-astro-ls"]}}' > "$LSP"; run_restore
+python3 -c 'import json,sys; a=json.load(open(sys.argv[1]))["astro"]; assert a=={"command":["my-astro-ls"]}, a' "$LSP" \
+  || { echo "a device's own astro entry was modified"; exit 1; }
+# (d) stale tsdk (TypeScript gone after a Node major change) is repaired
+printf '%s\n' '{"astro":{"command":["astro-ls","--stdio"],"extensions":[".astro"],"initialization":{"typescript":{"tsdk":"/gone/typescript/lib"}}}}' > "$LSP"
+run_restore
+[ "$(tsdk)" = "$MISE/24/lib/node_modules/typescript/lib" ] || { echo "stale tsdk not repaired: $(tsdk)"; exit 1; }
+# (e) no global TypeScript: the managed route is dropped, also from a fresh seed
+rm -f "$MISE/24.22.1/lib/node_modules/typescript/lib/typescript.js" "$MISE/24/lib/node_modules/typescript/lib/typescript.js"
+run_restore
+[ "$(tsdk)" = ABSENT ] || { echo "route kept without TypeScript"; exit 1; }
+rm -f "$LSP"; run_restore
+[ "$(tsdk)" = ABSENT ] && ! grep -q '@GLOBAL_TYPESCRIPT_LIB@' "$LSP" || { echo "placeholder left in a fresh seed"; exit 1; }
+# (f) a failing npm does not abort the restore (set -e) and leaves no placeholder
+fake_npm fail
+rm -f "$LSP"
+HOME="$FAKE_HOME" DOTFILES_DIR="$FAKE_DOT" PATH="$FAKE_BIN:$PATH" bash "$RESTORE" >/dev/null 2>&1 || { echo "restore aborted when npm root -g failed"; exit 1; }
+! grep -q '@GLOBAL_TYPESCRIPT_LIB@' "$LSP" || { echo "placeholder left after npm failure"; exit 1; }
+rm -f "$FAKE_BIN/npm"
 # The tracked seed must stay valid JSON and declare every package it documents.
 python3 - "$ROOT/config/pi/settings.json" "$ROOT/config/pi/pi-lsp.json" <<'PY'
 import json, sys

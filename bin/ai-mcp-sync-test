@@ -48,6 +48,26 @@ python3 -c "import json; d=json.load(open('$TMP/.omp/agent/mcp.json')); assert '
 python3 -c "import json; p=json.load(open('$TMP/.pi/agent/mcp.json'))['mcpServers']['playwright']; assert '--prefix' in p['args'] and '--isolated' in p['args'] and p.get('description') and p.get('toolExposure',{}).get('browser_run_code_unsafe')=='hidden'" \
   || fail "Pi MCP invalid or missing Playwright prefix/isolation/description/toolExposure"
 
+# 7b. Astro docs MCP: pinned stdio bridge in every runtime, npx isolated from project
+# engines, auth/state kept out of $HOME, and no credential anywhere (TASK-215).
+python3 - "$TMP" <<'PY' || fail "astro-docs MCP missing, unpinned, or leaking state into \$HOME"
+import json, sys, tomllib
+home = sys.argv[1]
+def check(spec, where):
+    a = spec["args"]
+    assert spec["command"] == "npx", where
+    assert a[:2] == ["--prefix", "/tmp"], where
+    assert any(x.startswith("mcp-remote@") and x.split("@", 1)[1][:1].isdigit() for x in a), (where, "unpinned")
+    assert "https://mcp.docs.astro.build/mcp" in a, where
+    assert spec.get("env", {}).get("MCP_REMOTE_CONFIG_DIR", "").startswith("/tmp/"), where
+    assert not any(k for k in spec.get("env", {}) if "TOKEN" in k or "KEY" in k), where
+check(json.load(open(f"{home}/.claude.json"))["mcpServers"]["astro-docs"], "claude")
+check(json.load(open(f"{home}/.gemini/config/mcp_config.json"))["mcpServers"]["astro-docs"], "antigravity")
+check(json.load(open(f"{home}/.omp/agent/mcp.json"))["mcpServers"]["astro-docs"], "omp")
+check(json.load(open(f"{home}/.pi/agent/mcp.json"))["mcpServers"]["astro-docs"], "pi")
+check(tomllib.load(open(f"{home}/.codex/config.toml", "rb"))["mcp_servers"]["astro-docs"], "codex")
+PY
+
 # 8. Check --check reports in-sync
 run_sync --check >/dev/null || fail "ai-mcp-sync --check should return 0 when in sync"
 

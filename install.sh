@@ -349,7 +349,8 @@ cat <<EOF
 
   4) Language server (autocomplete Helix):
        npm i -g typescript-language-server vscode-langservers-extracted \\
-                @tailwindcss/language-server yaml-language-server bash-language-server pyright
+                @tailwindcss/language-server yaml-language-server bash-language-server pyright \\
+                @astrojs/language-server typescript@6
        pipx install python-lsp-server
 
   5) Git identity: ikuti "Login & Verifikasi" di:

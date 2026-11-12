@@ -45,7 +45,7 @@ For an existing repository, do not re-scaffold. Run its own scripts and inspect
 its installed Astro major before using current syntax. Read
 [Platform versions](references/platform-versions.md) whenever the installed
 major is 6 or 7, or before using live collections, sessions, CSP, the Fonts
-API, route caching, or the Cloudflare adapter: Astro 6/7 removed or changed
+API, route caching, image services, or the Cloudflare adapter: Astro 6/7 removed or changed
 APIs that older examples still show (`Astro.glob`, `Astro.locals.runtime`,
 Zod 3 validators, lenient HTML).
 
@@ -72,14 +72,12 @@ npx astro sync
 npx astro check
 ```
 
-`astro check` (verified in Astro 7.3.7 source, 2026-10-08) needs
-`@astrojs/check` and `typescript` in the project. When they are missing it
-opens an interactive install prompt that hangs a non-interactive agent:
-install them deliberately as pinned dev dependencies first, or pass `--yes`
-only when that install is intended. With TypeScript 7.x installed it stops
-with an error (TypeScript 7 unsupported, `astro check` slated for
-deprecation); type-check `.astro` files through `@astrojs/ts-content-mapper`
-per its README, or report type-checking as not run.
+Under an AI agent (Pi sets `AI_AGENT`), Astro 7 runs `astro dev`/`preview`
+as a **background** process with a lock file: never start a second server,
+check `astro dev status`, read `/_astro/status`, and `astro dev stop` before
+the task ends. `astro check` needs `@astrojs/check` + TypeScript 6 (it exits 1
+on TypeScript 7, verified on 7.0.2). Details, flags and the docs MCP:
+[Agent CLI](references/agent-cli.md).
 
 Replace `npm`/`npx` with the lockfile's package manager. Before an unfamiliar
 flag, run the project-pinned `astro --help` or relevant subcommand help. Adding

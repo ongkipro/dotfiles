@@ -153,6 +153,15 @@ implementation and is reviewed like any Gemini row.
   `typescript` package itself, because the language server starts that
   package's `tsserver.js`: TypeScript 7.x is the native port and ships no
   `tsserver.js`, so the route needs `typescript` 6.x or lower.
+  The `astro` route runs `astro-ls --stdio` (`npm i -g @astrojs/language-server`)
+  for `.astro` files. `astro-ls` refuses to start without
+  `initialization.typescript.tsdk`, a device path, so the tracked seed carries
+  the placeholder `@GLOBAL_TYPESCRIPT_LIB@`; `pi-9router-restore` fills it from
+  the global TypeScript (mise's `node/<major>` alias when present), adds the
+  route to an existing `pi-lsp.json` without touching other servers, keeps a
+  device's own `astro` entry, and drops the route when no global TypeScript 6
+  exists. Verified 2026-11-12: `lsp_diagnostics` on a `.astro` file reports
+  `ts 2322` through `astro-ls` 2.17.3.
 
 ## Package set
 
@@ -219,8 +228,10 @@ commit. (Until 2026-11-12 autopull deliberately did not run it, and devices
 kept their own pins and reviewer overrides; the owner chose shared-follows-
 dotfiles instead.) A device that must keep a different reviewer or pin sets it
 in the tracked file's terms or opts out of Pi sync by not using `dotsync`. `ai-mcp-sync` updates `~/.pi/agent/mcp.json` with the shared
-Playwright MCP definition (`--isolated`, `--output-dir /tmp/playwright-mcp`,
-Pi `description`, and `toolExposure`).
+MCP servers from `config/ai/mcp-servers.json`: Playwright (`--isolated`,
+`--output-dir /tmp/playwright-mcp`, Pi `description`, and `toolExposure`) and
+the official Astro Docs search (`astro-docs`, pinned `mcp-remote` bridge,
+state in `/tmp/mcp-remote-auth`).
 
 | Control / Command | Behavior |
 |---|---|
@@ -234,7 +245,7 @@ Pi `description`, and `toolExposure`).
 | `/goal --tokens 200k <objective>` | Run one objective to verified completion (`@narumitw/pi-goal`); `/goal` opens the manager (status, pause, resume, edit, clear). Use for objectives with a checkable end state; approval gates still apply. |
 | `/btw <question>` | Open a side-question overlay (`@narumitw/pi-btw`) without changing the main conversation history or prompt cache. |
 | `/tree` or `/fork` | Navigate or branch conversation history while `pi-rewind-hook` restores tracked files to that point. |
-| `/mcp` or `pi mcp list` | Inspect the connected Playwright MCP server and its `codemode` tool exposure. |
+| `/mcp` or `pi mcp list` | Inspect the connected MCP servers (Playwright, Astro Docs) and their `codemode` tool exposure. |
 
 `pi-9router-restore` preserves existing real settings files and does not install or start 9Router.
 On Linux it installs `pi-9router-sync.timer` (one minute after boot, then

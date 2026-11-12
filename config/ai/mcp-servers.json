@@ -18,6 +18,22 @@
       "toolExposure": {
         "browser_run_code_unsafe": "hidden"
       }
+    },
+    "astro-docs": {
+      "command": "npx",
+      "args": [
+        "--prefix",
+        "/tmp",
+        "-y",
+        "mcp-remote@0.16.6",
+        "https://mcp.docs.astro.build/mcp",
+        "--transport",
+        "http-only"
+      ],
+      "env": {
+        "MCP_REMOTE_CONFIG_DIR": "/tmp/mcp-remote-auth"
+      },
+      "description": "Official Astro docs search (search_astro_docs), remote server via a pinned stdio bridge; no credentials"
     }
   },
   "retiredMcpServers": {
