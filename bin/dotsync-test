@@ -8,8 +8,8 @@
 #
 # Two of its properties are load-bearing and easy to break by accident:
 #   - it operates on the repository the SCRIPT lives in, never the caller's cwd,
-#     which is what keeps `git add -A` away from the $HOME/.git that exists on
-#     this machine by accident;
+#     which is what keeps `git add -A` away from a stray $HOME/.git that some
+#     devices carry by accident;
 #   - without a TTY and without --yes it refuses to mutate anything.
 set -uo pipefail
 ROOT="${DOTFILES_DIR:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"

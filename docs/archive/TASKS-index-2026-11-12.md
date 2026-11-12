@@ -13,3 +13,15 @@ Moved verbatim from `TASKS.md` to keep the hot file under its budget; earlier ar
 - **Non-Scope:** project repositories.
 - **Escalation Conditions:** none expected (documentation and memory only).
 - **Outcome (2026-11-12):** see CHANGELOG 2026-11-12 (TASK-213). Run `RUN-20261112T112930Z-7af6ebf4`; independent review Gemini 4 Carbon high (round 1 FAIL: MVCC snapshot gap, lesson promotion path, archive placement, missing router tests; round 2 FAIL: `FOR KEY SHARE` does not conflict with a non-key update, sitemap scope; all fixed).
+
+## TASK-214: `$HOME` stray `.git` wording after its removal on rich
+- **Requirement:** REQ-HOME-GIT-WORDING (owner 2026-11-12: "sempurnakan … cek update dotfiles terbaru, config ke local, baru commit push").
+- **Risk Level:** R0.
+- **Allowed Paths:** `config/ai/CORE.md`, `config/ai/context/*.md`, `config/ai/hooks/memory-usage.sh`, `bin/memory-usage-hook-test`, `bin/dotsync-test`, `CHANGELOG.md`, `TASKS.md`, `docs/archive/**`.
+- **Canonical Contract Owners:** CORE (shared policy).
+- **Accepted Invariants:** the rule ("never `git add -A` from `~`; check `git rev-parse --show-toplevel`") and the `$HOME` guards stay; only the claim that every device has the stray `.git` changes; CORE stays within its byte budget.
+- **Regression Checks:** `ai-policy-lint`, `ai-memory-link --check`, `memory-usage-hook-test`, `dotsync-test`.
+- **Reopen Conditions:** a guard that depends on `$HOME/.git` existing is found.
+- **Non-Scope:** device-local files (done outside the repository).
+- **Escalation Conditions:** none.
+- **Outcome (2026-11-12):** see CHANGELOG 2026-11-12 (TASK-214).
