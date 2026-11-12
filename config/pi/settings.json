@@ -47,7 +47,8 @@
     "npm:@juicesharp/rpiv-todo",
     "npm:pi-rewind-hook",
     "npm:@narumitw/pi-worktree",
-    "npm:@narumitw/pi-btw"
+    "npm:@narumitw/pi-btw",
+    "npm:@narumitw/pi-goal"
   ],
   "rewind": {
     "retention": {
@@ -62,6 +63,11 @@
         "model": "9router-fantastico/cx/gpt-6.1-sol",
         "thinking": "high",
         "description": "Independent read-only review. Default GPT-6.1 Sol; the parent passes another model when the implementer is GPT (see config/pi/README.md, Review pairing)"
+      },
+      "oracle": {
+        "model": "9router-fantastico/ag/gemini-4-carbon-high",
+        "thinking": "high",
+        "description": "Read-only advisor (alias: advisor) for plan, architecture and decision-drift checks. Default Gemini 4 Carbon, outside the Claude implementer family; the parent passes another model when the implementer is Gemini (see config/pi/README.md, Review pairing)"
       }
     }
   }

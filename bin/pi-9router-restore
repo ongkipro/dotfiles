@@ -104,6 +104,14 @@ for key in ("rewind", "hideThinkingBlock", "quietStartup", "defaultThinkingLevel
     if key not in settings and key in seed:
         settings[key] = seed[key]
         changed = True
+# Tracked per-agent overrides (reviewer, oracle) reach a device that lacks that
+# agent's entry; an agent the device already overrides is never replaced.
+seed_overrides = seed.get("subagents", {}).get("agentOverrides", {})
+live_overrides = settings.setdefault("subagents", {}).setdefault("agentOverrides", {}) if seed_overrides else {}
+for agent, override in seed_overrides.items():
+    if agent not in live_overrides:
+        live_overrides[agent] = override
+        changed = True
 if "enabledModels" in seed or "enabledModels" in settings:
     raw_models = settings.get("enabledModels") or []
     models = list(dict.fromkeys(raw_models))

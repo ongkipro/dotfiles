@@ -78,6 +78,12 @@ printf '%s\n' '{"subagents":{"agentOverrides":{"reviewer":{"model":"local/own"}}
 run_restore
 grep -q '"local/own"' "$FAKE_HOME/.pi/agent/settings.json"
 ! grep -q '"seed/sol"' "$FAKE_HOME/.pi/agent/settings.json"
+# A tracked agent override the device lacks (oracle) is added beside the
+# device's own reviewer, which stays untouched.
+python3 -c 'import json,sys; o=json.load(open(sys.argv[1]))["subagents"]["agentOverrides"]["oracle"]; assert o["model"]=="9router-fantastico/ag/gemini-4-carbon-high", o' "$ROOT/config/pi/settings.json"
+printf '%s\n' '{"subagents":{"agentOverrides":{"reviewer":{"model":"seed/sol"},"oracle":{"model":"seed/carbon"}}}}' > "$FAKE_DOT/config/pi/settings.json"
+run_restore
+python3 -c 'import json,sys; o=json.load(open(sys.argv[1]))["subagents"]["agentOverrides"]; assert o["reviewer"]["model"]=="local/own" and o["oracle"]["model"]=="seed/carbon", o' "$FAKE_HOME/.pi/agent/settings.json"
 printf '%s\n' "$seed_plain" > "$FAKE_DOT/config/pi/settings.json"
 printf '%s\n' '{"defaultProvider":"local","defaultModel":"preserve"}' > "$FAKE_HOME/.pi/agent/settings.json"
 

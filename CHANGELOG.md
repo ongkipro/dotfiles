@@ -4,6 +4,12 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-12 — Pi: Carbon advisor and `/goal`
+
+- `subagents.agentOverrides.oracle` (alias `advisor`) pins `ag/gemini-4-carbon-high` at high thinking. The built-in agent had no model and inherited the session model, so its advice came from the implementer's own family. Verified: an `advisor` call without a `model` answered as Gemini 4 Carbon.
+- `pi-9router-restore` now seeds `agentOverrides` per agent. Before, `subagents` was copied only when the whole key was absent, so a device that already had the `reviewer` override never received a new one. A device's own override for an agent is never replaced; `pi-9router-restore-test` covers both.
+- `@narumitw/pi-goal` (0.55.1) joins the package baseline: `/goal [--tokens <budget>] <objective>` continues until `goal_complete` with evidence, a blocker, a wait, or a limit. Defaults kept (25 automatic responses, 3 no-progress turns, RPC and usage-limit retry off). Verified in an interactive TUI run; `pi -p` exits at the idle boundary where Goal would continue, so it is TUI-only.
+
 ## 2026-11-11 — Mengantar skill rebuilt from the official docs (TASK-212)
 
 - `mengantar-api`: the skill claimed "no public Mengantar API reference"; Mengantar now publishes it (`api-public.mengantar.com/docs/`, same on `app.` and `sandbox.`; sandbox notes are visible only on the sandbox host). Rewritten from those docs (read 2026-11-11): `idempotencyKey` and its 400/409/422/503 codes plus the replayed-5xx rule, JT Premium + SiCepat one-batch-per-account (Ninja discontinued 2026-09-01), async labels, verified webhooks, Pos COD eligibility, SPX limits, Dangerous Goods (only SiCepat and iDexpress are consistent across the docs), sandbox-only errors, top-up and `/order/simulation`, per-merchant keys and team users. Endpoint notes in `references/public-api.md`.

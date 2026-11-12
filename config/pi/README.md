@@ -67,6 +67,16 @@ implementation and is reviewed like any Gemini row.
   `pi-9router-restore` when absent). The parent passes `model` explicitly for
   any other pairing, for example
   `{agent: "reviewer", model: "9router-fantastico/ag/gemini-4-carbon-high", task: ...}`.
+- The `oracle` subagent (alias `advisor`: read-only plan, architecture and
+  decision-drift checks) defaults to `ag/gemini-4-carbon-high` at high
+  thinking, seeded per agent the same way. Without an override it would
+  inherit the session model and advise from the implementer's own blind
+  spots. Carbon leads on long context (GraphWalks) and is outside the Claude
+  family; Opus 5.5 stays the implementer for agentic coding, where it leads the
+  independent coding-agent index. When the implementer is Gemini, pass
+  `model: "9router-fantastico/cc/claude-opus-5-5"`.
+- `pi-9router-restore` adds each tracked `agentOverrides` entry the device
+  lacks and never replaces an agent the device already overrides.
 - 9Router serves `ag/gemini-4-carbon-{low,medium,high}` but does not list them
   in `/v1/models`; `pi-9router-sync.js` adds them from their Argon siblings
   until the gateway lists them itself (then the gateway's row wins). Without
@@ -104,7 +114,7 @@ implementation and is reviewed like any Gemini row.
   `pi-agent-browser-native`, `pi-subagents`, `@narumitw/pi-lsp`, `cc-safety-net`,
   `pi-background-tasks`, `@ff-labs/pi-fff`, `@narumitw/pi-plan-mode`,
   `@juicesharp/rpiv-todo`, `pi-rewind-hook`, `@narumitw/pi-worktree`,
-  `@narumitw/pi-btw`). Pi installs a missing package at
+  `@narumitw/pi-btw`, `@narumitw/pi-goal`). Pi installs a missing package at
   startup, `pi update --extensions` reconciles versions, and `pi list` shows
   what a device actually resolved. The baseline is additive: a device may keep
   local packages the tracked list does not carry, and `pi-9router-restore`
@@ -147,6 +157,7 @@ run with Pi's permissions, so add one only after reading its source.
 | Plan mode | `@narumitw/pi-plan-mode` | `/plan`: read-only exploration and an approved plan before edits. |
 | Worktree | `@narumitw/pi-worktree` | `/worktree`: create, inspect, switch, and prune Git worktrees in TUI while moving the active session into the new worktree directory. Registers no model tools. |
 | Side thread | `@narumitw/pi-btw` | `/btw <question>`: ask side questions in an overlay thread without polluting the main conversation history or prompt cache. Registers no model tools. |
+| Goal mode | `@narumitw/pi-goal` | `/goal [--tokens <budget>] <objective>`: keeps working after Pi goes idle until the model proves completion (`goal_complete`), hits a true blocker (`goal_blocked`), waits (`goal_wait`), or reaches a limit. Defaults are kept (no `pi-goal.json`): 25 automatic responses, pause after 3 no-progress turns, RPC off, usage-limit retry off. These are not dollar caps, so pass `--tokens`. Shares the `workflow:mutex:v1` lock with Plan mode (needs plan-mode >= 0.52). Interactive TUI only: `pi -p` exits at the idle boundary where Goal would continue. |
 | Task list | `@juicesharp/rpiv-todo` | Model-maintained todo overlay that survives compaction. |
 | Rewind | `pi-rewind-hook` | `/tree` or `/fork` restores files with the conversation. Stores snapshots under `refs/pi-rewind/store` in the project's own `.git` with a temporary index (never the working index); retention keeps it bounded. Needs a Git repository. |
 | Diagnostics | `@narumitw/pi-lsp` | `lsp_diagnostics`, `lsp_fix`; see `pi-lsp.json`. |
@@ -192,6 +203,7 @@ Pi `description`, and `toolExposure`).
 | `Ctrl+P` | Cycle across `enabledModels` (Sonnet 5.5, Opus 5.5, GPT-6.1, etc.). |
 | `/plan <prompt>` | Enter read-only Plan mode (`@narumitw/pi-plan-mode`), clarify via structured questions, and review before edits. |
 | `/worktree` | Create, inspect, switch, or prune Git worktrees (`@narumitw/pi-worktree`) and transfer the active Pi session into the selected worktree. |
+| `/goal --tokens 200k <objective>` | Run one objective to verified completion (`@narumitw/pi-goal`); `/goal` opens the manager (status, pause, resume, edit, clear). Use for objectives with a checkable end state; approval gates still apply. |
 | `/btw <question>` | Open a side-question overlay (`@narumitw/pi-btw`) without changing the main conversation history or prompt cache. |
 | `/tree` or `/fork` | Navigate or branch conversation history while `pi-rewind-hook` restores tracked files to that point. |
 | `/mcp` or `pi mcp list` | Inspect the connected Playwright MCP server and its `codemode` tool exposure. |
