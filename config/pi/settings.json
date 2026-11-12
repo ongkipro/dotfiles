@@ -4,34 +4,15 @@
   "defaultModel": "cc/claude-sonnet-5-5",
   "defaultThinkingLevel": "medium",
   "enabledModels": [
+    "9router-fantastico/cc/claude-opus-5-5",
+    "9router-fantastico/cc/claude-sonnet-5-5",
     "9router-fantastico/cx/gpt-6.1-sol",
-    "9router-fantastico/cx/gpt-6.1-terra",
-    "9router-fantastico/cx/gpt-6-astra",
     "9router-fantastico/ag/gemini-4-carbon-high",
     "9router-fantastico/ag/gemini-4-carbon-medium",
-    "9router-fantastico/ag/gemini-4-carbon-low",
-    "9router-fantastico/cc/claude-opus-5-5",
-    "9router-fantastico/cc/claude-opus-5",
+    "9router-fantastico/cc/claude-fable-5-2",
     "9router-fantastico/ag/claude-opus-5-5",
-    "9router-fantastico/ag/claude-opus-5-5-high",
-    "9router-fantastico/ag/claude-opus-5-5-medium",
-    "9router-fantastico/cc/claude-fable-5-1",
-    "9router-fantastico/cc/claude-fable-5",
-    "9router-fantastico/cc/claude-sonnet-5-5",
-    "9router-fantastico/cc/claude-sonnet-5",
-    "9router-fantastico/ag/claude-sonnet-5-5",
-    "9router-fantastico/ag/claude-sonnet-5-5-high",
-    "9router-fantastico/ag/claude-sonnet-5-5-medium",
-    "9router-fantastico/cc/claude-haiku-4-5-20251001",
-    "9router-fantastico/oc/mimo-v2.6-flash-free",
-    "9router-fantastico/oc/deepseek-v4.1-flash-free",
-    "9router-fantastico/oc/glm-5.3-flash-free",
-    "minimax/MiniMax-M2.7",
-    "minimax/MiniMax-M2.7-highspeed",
-    "minimax/MiniMax-M3",
-    "minimax/MiniMax-M3.1-Flash",
-    "openai-codex/gpt-5.6-terra",
-    "openai-codex/gpt-6-luna"
+    "9router-fantastico/cc/claude-haiku-5-5",
+    "9router-fantastico/ag/gemini-3.8-flash"
   ],
   "quietStartup": true,
   "hideThinkingBlock": true,
@@ -50,7 +31,9 @@
     "npm:@narumitw/pi-btw",
     "npm:@narumitw/pi-goal"
   ],
-  "prompts": ["~/dotfiles/config/pi/prompts"],
+  "prompts": [
+    "~/dotfiles/config/pi/prompts"
+  ],
   "rewind": {
     "retention": {
       "maxSnapshots": 2000,
@@ -68,7 +51,22 @@
       "oracle": {
         "model": "9router-fantastico/ag/gemini-4-carbon-high",
         "thinking": "high",
-        "description": "Read-only advisor (alias: advisor) for plan, architecture and decision-drift checks. Default Gemini 4 Carbon, outside the Claude implementer family; the parent passes another model when the implementer is Gemini (see config/pi/README.md, Review pairing)"
+        "description": "Read-only advisor (alias: advisor) for plan, architecture and decision-drift checks. Default Gemini 4 Carbon, outside the Claude implementer family; when the implementer is Gemini or GPT the parent passes cc/claude-fable-5-2 (see config/pi/README.md, Review pairing)"
+      },
+      "scout": {
+        "model": "9router-fantastico/cc/claude-haiku-5-5",
+        "thinking": "low",
+        "description": "Fast codebase recon that returns compressed context for handoff. Pinned to Haiku 5.5 (low): recon needs speed, not the parent's heavy model"
+      },
+      "researcher": {
+        "model": "9router-fantastico/ag/gemini-4-carbon-medium",
+        "thinking": "medium",
+        "description": "Autonomous web researcher. Pinned to Gemini 4 Carbon medium (1M context) for source synthesis; evidence-auditor checks it from another family"
+      },
+      "evidence-auditor": {
+        "model": "9router-fantastico/cx/gpt-6.1-sol",
+        "thinking": "high",
+        "description": "Independent evidence reviewer. Pinned to GPT-6.1 Sol, outside the researcher's Gemini family, so claim checks stay independent"
       }
     }
   }

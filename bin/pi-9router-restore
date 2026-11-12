@@ -151,7 +151,25 @@ def provider_ready(model):
     return ready[provider]
 if "enabledModels" in seed or "enabledModels" in settings:
     raw_models = settings.get("enabledModels") or []
-    models = list(dict.fromkeys(raw_models))
+    # Rows the tracked file once shared and dropped on 2026-11-13 (Ctrl+P keeps
+    # only daily models). Restore only appends, so without this they would stay
+    # on every device forever; rows a device added itself are not listed here.
+    retired = {
+        "9router-fantastico/" + m for m in (
+            "cx/gpt-6.1-terra", "cx/gpt-6-astra", "ag/gemini-4-carbon-low",
+            "ag/gemini-4-carbon", "cc/claude-opus-5", "ag/claude-opus-5-5-high",
+            "ag/claude-opus-5-5-medium", "cc/claude-fable-5-1", "cc/claude-fable-5",
+            "cc/claude-sonnet-5", "ag/claude-sonnet-5-5", "ag/claude-sonnet-5-5-high",
+            "ag/claude-sonnet-5-5-medium", "cc/claude-haiku-4-5-20251001",
+            "oc/mimo-v2.6-flash-free", "oc/deepseek-v4.1-flash-free", "oc/glm-5.3-flash-free",
+        )
+    } | {
+        "minimax/MiniMax-M2.7", "minimax/MiniMax-M2.7-highspeed",
+        "minimax/MiniMax-M3", "minimax/MiniMax-M3.1-Flash",
+        "openai-codex/gpt-5.6-terra", "openai-codex/gpt-6-luna",
+    }
+    retired -= set(seed.get("enabledModels", []))
+    models = [m for m in dict.fromkeys(raw_models) if m not in retired]
     missing_models = [m for m in seed.get("enabledModels", []) if m not in models and provider_ready(m)]
     if len(models) != len(raw_models) or missing_models:
         settings["enabledModels"] = models + missing_models

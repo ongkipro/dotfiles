@@ -73,14 +73,25 @@ implementation and is reviewed like any Gemini row.
   inherit the session model and advise from the implementer's own blind
   spots. Carbon leads on long context (GraphWalks) and is outside the Claude
   family; Opus 5.5 stays the implementer for agentic coding, where it leads the
-  independent coding-agent index. When the implementer is Gemini, pass
-  `model: "9router-fantastico/cc/claude-opus-5-5"`.
+  independent coding-agent index. When the implementer is Gemini or GPT-6.1
+  Sol, pass `model: "9router-fantastico/cc/claude-fable-5-2"` (the newest
+  Claude, outside both families; Opus 5.5 is the fallback).
+- Recon and research agents are pinned too (2026-11-13): `scout` runs
+  `cc/claude-haiku-5-5` at low thinking (speed over the parent's heavy model),
+  `researcher` runs `ag/gemini-4-carbon-medium` (1M context), and
+  `evidence-auditor` runs `cx/gpt-6.1-sol` at high thinking so it audits the
+  researcher from another family. `worker` and `delegate` inherit the session
+  model, because the implementer's family decides the review pairing.
+- `enabledModels` (Ctrl+P cycling) holds only the models in daily use; every
+  9Router row stays selectable in `/model`.
 - `pi-9router-restore` sets every tracked `agentOverrides` entry on each device
   (see the ownership rule below); agents only a device overrides stay.
-- 9Router serves `ag/gemini-4-carbon-{low,medium,high}` but does not list them
-  in `/v1/models`; `pi-9router-sync.js` adds them from their Argon siblings
-  until the gateway lists them itself (then the gateway's row wins). Without
-  that, a subagent call fails with "Unknown subagent model".
+- 9Router serves `ag/gemini-4-carbon-{low,medium,high}` and
+  `cc/claude-fable-5-1` (upstream `claude-fable-5-1`) but omits them from
+  `/v1/models`; `pi-9router-sync.js` adds Carbon from its Argon siblings and
+  Fable 5.1 from `cc/claude-fable-5-2` until the gateway lists them itself
+  (then the gateway's row wins). Without that, a subagent call fails with
+  "Unknown subagent model".
 - If the first choice fails (quota, 401, gateway down), use the second and say
   so. If both fail, report it; never replace the review with self-review.
 - Record the reviewer's real model in `delivery-ledger review-boundary
@@ -96,12 +107,10 @@ implementation and is reviewed like any Gemini row.
   it sets only the startup provider/model (`9router-fantastico/cc/claude-sonnet-5-5`)
   and thinking level (`medium`; switch per task with `Shift+Tab` or `/thinking`,
   and to Opus with `Ctrl+P` when the work needs it),
-  the `enabledModels` cycling list (Ctrl+P; patterns for providers a device has
-  not authenticated simply do not match; it includes Opus 5.5 and Sonnet 5.5
-  through 9Router's Antigravity route, `ag/claude-opus-5-5`,
-  `ag/claude-sonnet-5-5` and their `-high`/`-medium` variants, which the sync
-  serves over `openai-completions` with tools and thinking; `cc/` stays the
-  first choice because it carries prompt cache and Anthropic compat), `quietStartup`, `hideThinkingBlock`
+  the `enabledModels` cycling list (Ctrl+P; curated 9-model `9router-fantastico`
+  daily set — includes `ag/claude-opus-5-5` as the Antigravity quota fallback
+  while keeping `cc/` first for prompt cache and Anthropic compat; remaining
+  `ag/claude-*` and other 9Router rows stay selectable in `/model`), `quietStartup`, `hideThinkingBlock`
   (thinking shows as a `Thinking...` label, `Ctrl+T` reveals it; answers stay
   in full and tool output is already collapsed by default, `Ctrl+O`), the package set below
   (`pi-subagents` and `pi-lsp` stay pinned to their verified versions), and a
@@ -191,9 +200,9 @@ device owns its own choices. On an existing `settings.json`:
 |---|---|
 | Package set: missing tracked packages are added by name | Extra packages the tracked file does not list |
 | A tracked version pin replaces the device's (an unpinned tracked entry keeps the device's pin) | Its default provider, model and thinking level once set |
-| Every `subagents.agentOverrides` entry the tracked file defines (`reviewer`, `oracle`) | Overrides for agents the tracked file does not define |
+| Every `subagents.agentOverrides` entry the tracked file defines (`reviewer`, `oracle`, `scout`, `researcher`, `evidence-auditor`) | Overrides for agents the tracked file does not define |
 | Its `prompts` directories (appended once) | Its own prompt directories |
-| `enabledModels` rows whose provider passes `pi auth check` here | Its own rows; rows for an unauthenticated provider are skipped so Pi does not warn at every start |
+| `enabledModels` rows whose provider passes `pi auth check` here (retired tracked rows are removed) | Its own device-local rows; rows for an unauthenticated provider are skipped so Pi does not warn at every start |
 
 The tool also deduplicates `packages` (keeping a pinned entry) and
 `enabledModels`, guards `pi-mcp-adapter` against colliding with `builtin:mcp`,
