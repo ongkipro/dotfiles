@@ -104,6 +104,12 @@ for key in ("rewind", "hideThinkingBlock", "quietStartup", "defaultThinkingLevel
     if key not in settings and key in seed:
         settings[key] = seed[key]
         changed = True
+# Tracked prompt-template directories (/review) are added beside any local ones.
+live_prompts = list(settings.get("prompts") or [])
+missing_prompts = [p for p in seed.get("prompts", []) if p not in live_prompts]
+if missing_prompts:
+    settings["prompts"] = live_prompts + missing_prompts
+    changed = True
 # Tracked per-agent overrides (reviewer, oracle) reach a device that lacks that
 # agent's entry; an agent the device already overrides is never replaced.
 seed_overrides = seed.get("subagents", {}).get("agentOverrides", {})

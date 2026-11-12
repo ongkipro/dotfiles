@@ -50,6 +50,7 @@
     "npm:@narumitw/pi-btw",
     "npm:@narumitw/pi-goal"
   ],
+  "prompts": ["~/dotfiles/config/pi/prompts"],
   "rewind": {
     "retention": {
       "maxSnapshots": 2000,

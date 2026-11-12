@@ -84,6 +84,14 @@ python3 -c 'import json,sys; o=json.load(open(sys.argv[1]))["subagents"]["agentO
 printf '%s\n' '{"subagents":{"agentOverrides":{"reviewer":{"model":"seed/sol"},"oracle":{"model":"seed/carbon"}}}}' > "$FAKE_DOT/config/pi/settings.json"
 run_restore
 python3 -c 'import json,sys; o=json.load(open(sys.argv[1]))["subagents"]["agentOverrides"]; assert o["reviewer"]["model"]=="local/own" and o["oracle"]["model"]=="seed/carbon", o' "$FAKE_HOME/.pi/agent/settings.json"
+# Tracked prompt directories (/review) are appended to a device's own list once.
+python3 -c 'import json,sys; assert "~/dotfiles/config/pi/prompts" in json.load(open(sys.argv[1]))["prompts"]' "$ROOT/config/pi/settings.json"
+[ -f "$ROOT/config/pi/prompts/review.md" ]
+printf '%s\n' '{"prompts":["seed/prompts"]}' > "$FAKE_DOT/config/pi/settings.json"
+printf '%s\n' '{"prompts":["local/prompts"]}' > "$FAKE_HOME/.pi/agent/settings.json"
+run_restore
+run_restore
+python3 -c 'import json,sys; p=json.load(open(sys.argv[1]))["prompts"]; assert p==["local/prompts","seed/prompts"], p' "$FAKE_HOME/.pi/agent/settings.json"
 printf '%s\n' "$seed_plain" > "$FAKE_DOT/config/pi/settings.json"
 printf '%s\n' '{"defaultProvider":"local","defaultModel":"preserve"}' > "$FAKE_HOME/.pi/agent/settings.json"
 

@@ -203,6 +203,7 @@ Pi `description`, and `toolExposure`).
 | `Ctrl+P` | Cycle across `enabledModels` (Sonnet 5.5, Opus 5.5, GPT-6.1, etc.). |
 | `/plan <prompt>` | Enter read-only Plan mode (`@narumitw/pi-plan-mode`), clarify via structured questions, and review before edits. |
 | `/worktree` | Create, inspect, switch, or prune Git worktrees (`@narumitw/pi-worktree`) and transfer the active Pi session into the selected worktree. |
+| `/review [target] [focus]` | Tracked prompt template (`config/pi/prompts/review.md`, loaded through `prompts` in `settings.json`): resolves the target (default `git diff HEAD`; `staged`, a ref, a path or `plan`), picks a cross-family reviewer from the Review pairing, runs the `reviewer` subagent with fresh context, then checks each P0/P1 itself and reports without editing. `pi-subagents` also ships `/review-loop` (review and fix until clean) and `/parallel-review`. |
 | `/goal --tokens 200k <objective>` | Run one objective to verified completion (`@narumitw/pi-goal`); `/goal` opens the manager (status, pause, resume, edit, clear). Use for objectives with a checkable end state; approval gates still apply. |
 | `/btw <question>` | Open a side-question overlay (`@narumitw/pi-btw`) without changing the main conversation history or prompt cache. |
 | `/tree` or `/fork` | Navigate or branch conversation history while `pi-rewind-hook` restores tracked files to that point. |
