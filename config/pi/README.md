@@ -63,8 +63,8 @@ implementation and is reviewed like any Gemini row.
   architecture, Sol for correctness, edge cases and code-level findings, Opus
   for judgment-heavy or security-sensitive review of non-Anthropic work.
 - The `reviewer` subagent defaults to `cx/gpt-6.1-sol` at high thinking
-  (`subagents.agentOverrides` in `settings.json`, seeded by
-  `pi-9router-restore` when absent). The parent passes `model` explicitly for
+  (`subagents.agentOverrides` in `settings.json`, kept in step by
+  `pi-9router-restore`). The parent passes `model` explicitly for
   any other pairing, for example
   `{agent: "reviewer", model: "9router-fantastico/ag/gemini-4-carbon-high", task: ...}`.
 - The `oracle` subagent (alias `advisor`: read-only plan, architecture and
@@ -75,8 +75,8 @@ implementation and is reviewed like any Gemini row.
   family; Opus 5.5 stays the implementer for agentic coding, where it leads the
   independent coding-agent index. When the implementer is Gemini, pass
   `model: "9router-fantastico/cc/claude-opus-5-5"`.
-- `pi-9router-restore` adds each tracked `agentOverrides` entry the device
-  lacks and never replaces an agent the device already overrides.
+- `pi-9router-restore` sets every tracked `agentOverrides` entry on each device
+  (see the ownership rule below); agents only a device overrides stay.
 - 9Router serves `ag/gemini-4-carbon-{low,medium,high}` but does not list them
   in `/v1/models`; `pi-9router-sync.js` adds them from their Argon siblings
   until the gateway lists them itself (then the gateway's row wins). Without
@@ -183,15 +183,33 @@ ai-mcp-sync
 
 `pi-9router-restore` seeds missing `settings.json`, `models.json`, `pi-fff.json` and
 `pi-lsp.json`, and removes the retired `~/.pi/extensions/compact-free` copy.
-An existing `settings.json` gains tracked packages it lacks (matched by
-package name, so a local pin wins), deduplicates repeated `packages` (keeping
-any version-pinned entry) and `enabledModels` entries, guards `pi-mcp-adapter`
-against colliding with `builtin:mcp` when present, and seeds missing
-`enabledModels`, `rewind`, `hideThinkingBlock`, `quietStartup`, and
-`defaultThinkingLevel` when absent; Pi installs added packages on its next
-start. `dotsync autopull` does
-not run it automatically, so third-party extension code is never installed
-silently. `ai-mcp-sync` updates `~/.pi/agent/mcp.json` with the shared
+
+**Ownership rule.** `config/pi/settings.json` owns the shared Pi stack; each
+device owns its own choices. On an existing `settings.json`:
+
+| Tracked file wins | Device keeps |
+|---|---|
+| Package set: missing tracked packages are added by name | Extra packages the tracked file does not list |
+| A tracked version pin replaces the device's (an unpinned tracked entry keeps the device's pin) | Its default provider, model and thinking level once set |
+| Every `subagents.agentOverrides` entry the tracked file defines (`reviewer`, `oracle`) | Overrides for agents the tracked file does not define |
+| Its `prompts` directories (appended once) | Its own prompt directories |
+| `enabledModels` rows whose provider passes `pi auth check` here | Its own rows; rows for an unauthenticated provider are skipped so Pi does not warn at every start |
+
+The tool also deduplicates `packages` (keeping a pinned entry) and
+`enabledModels`, guards `pi-mcp-adapter` against colliding with `builtin:mcp`,
+and seeds `rewind`, `hideThinkingBlock`, `quietStartup` and
+`defaultThinkingLevel` when absent. Pi installs a new or re-pinned package on
+its next start.
+
+`dotsync` runs it after every pull and on each up-to-date autopull, on a device
+that already has `~/.pi/agent/settings.json`, so a change committed here
+reaches every Pi device without a manual step. The review point for
+third-party extension code is therefore the commit that adds or re-pins a
+package in `config/pi/settings.json`: read the package source before that
+commit. (Until 2026-11-12 autopull deliberately did not run it, and devices
+kept their own pins and reviewer overrides; the owner chose shared-follows-
+dotfiles instead.) A device that must keep a different reviewer or pin sets it
+in the tracked file's terms or opts out of Pi sync by not using `dotsync`. `ai-mcp-sync` updates `~/.pi/agent/mcp.json` with the shared
 Playwright MCP definition (`--isolated`, `--output-dir /tmp/playwright-mcp`,
 Pi `description`, and `toolExposure`).
 

@@ -267,6 +267,18 @@ check "a failing ai-memory-link does not stop ai-mcp-sync" "$(cat "$TMP/mcp-sync
 check "but the autopull still fails" "$rc" "1"
 rm -f "$P/bin/ai-mcp-sync"
 rm -f "$P/bin/ai-memory-link"
+# Pi's shared config follows every pull, but only on a device where Pi is set up.
+printf '#!/usr/bin/env bash\necho ran > "%s/pi-synced"\n' "$TMP" > "$P/bin/pi-9router-restore"; chmod +x "$P/bin/pi-9router-restore"
+upstream "auto pi sync, no pi"; ap
+check "without ~/.pi/agent/settings.json autopull leaves Pi alone" "$([ -e "$TMP/pi-synced" ] && echo ran || echo skipped)" "skipped"
+mkdir -p "$HOME/.pi/agent"; printf '{}\n' > "$HOME/.pi/agent/settings.json"
+upstream "auto pi sync"; ap
+check "after a fast-forward, autopull reconciles Pi config" "$(cat "$TMP/pi-synced" 2>/dev/null)" "ran"
+printf '#!/usr/bin/env bash\nexit 6\n' > "$P/bin/pi-9router-restore"
+upstream "pi sync fails"; ap; rc=$?
+check "a failing pi-9router-restore fails the autopull" "$rc" "1"
+has_last "and names pi-9router-restore in the warning" "pi-9router-restore"
+rm -f "$P/bin/pi-9router-restore"; rm -rf "$HOME/.pi"
 check "the lock is released after a run" "$([ -d "$XDG_STATE_HOME/dotsync/lock" ] && echo held || echo free)" "free"
 upstream "auto blocked"; h="$(head_p)"
 printf 'local untracked\n' > "$P/upstream.txt.tmp"; mv "$P/upstream.txt.tmp" "$P/blocker.txt"

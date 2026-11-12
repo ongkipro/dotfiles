@@ -31,7 +31,9 @@ printf '%s\n' '{"typescript":{"command":["typescript-language-server","--stdio"]
 mkdir -p "$FAKE_HOME/.pi/extensions/compact-free"
 printf '%s\n' '{"name": "compact-free"}' > "$FAKE_HOME/.pi/extensions/compact-free/package.json"
 printf '%s\n' '#!/usr/bin/env bash' 'printf "Darwin\n"' > "$FAKE_BIN/uname"
-chmod +x "$FAKE_BIN/uname"
+# Stub pi: `pi auth check --provider X` is ready unless X is listed in PI_NOT_READY.
+printf '%s\n' '#!/usr/bin/env bash' '[ "$1 $2" = "auth check" ] || exit 0' 'case " ${PI_NOT_READY:-} " in *" $4 "*) exit 1;; esac' 'exit 0' > "$FAKE_BIN/pi"
+chmod +x "$FAKE_BIN/uname" "$FAKE_BIN/pi"
 
 run_restore() {
   HOME="$FAKE_HOME" DOTFILES_DIR="$FAKE_DOT" PATH="$FAKE_BIN:$PATH" bash "$RESTORE" >/dev/null 2>&1
@@ -76,14 +78,17 @@ run_restore
 grep -q '"seed/sol"' "$FAKE_HOME/.pi/agent/settings.json"
 printf '%s\n' '{"subagents":{"agentOverrides":{"reviewer":{"model":"local/own"}}}}' > "$FAKE_HOME/.pi/agent/settings.json"
 run_restore
-grep -q '"local/own"' "$FAKE_HOME/.pi/agent/settings.json"
-! grep -q '"seed/sol"' "$FAKE_HOME/.pi/agent/settings.json"
-# A tracked agent override the device lacks (oracle) is added beside the
-# device's own reviewer, which stays untouched.
+# The tracked file owns the shared review pairing: a device's own entry for a
+# tracked agent follows the tracked file.
+grep -q '"seed/sol"' "$FAKE_HOME/.pi/agent/settings.json"
+! grep -q '"local/own"' "$FAKE_HOME/.pi/agent/settings.json"
+# A tracked agent override the device lacks (oracle) is added, and an agent only
+# this device overrides stays.
 python3 -c 'import json,sys; o=json.load(open(sys.argv[1]))["subagents"]["agentOverrides"]["oracle"]; assert o["model"]=="9router-fantastico/ag/gemini-4-carbon-high", o' "$ROOT/config/pi/settings.json"
 printf '%s\n' '{"subagents":{"agentOverrides":{"reviewer":{"model":"seed/sol"},"oracle":{"model":"seed/carbon"}}}}' > "$FAKE_DOT/config/pi/settings.json"
+printf '%s\n' '{"subagents":{"agentOverrides":{"reviewer":{"model":"local/own"},"scout":{"model":"local/scout"}}}}' > "$FAKE_HOME/.pi/agent/settings.json"
 run_restore
-python3 -c 'import json,sys; o=json.load(open(sys.argv[1]))["subagents"]["agentOverrides"]; assert o["reviewer"]["model"]=="local/own" and o["oracle"]["model"]=="seed/carbon", o' "$FAKE_HOME/.pi/agent/settings.json"
+python3 -c 'import json,sys; o=json.load(open(sys.argv[1]))["subagents"]["agentOverrides"]; assert o=={"reviewer":{"model":"seed/sol"},"oracle":{"model":"seed/carbon"},"scout":{"model":"local/scout"}}, o' "$FAKE_HOME/.pi/agent/settings.json"
 # Tracked prompt directories (/review) are appended to a device's own list once.
 python3 -c 'import json,sys; assert "~/dotfiles/config/pi/prompts" in json.load(open(sys.argv[1]))["prompts"]' "$ROOT/config/pi/settings.json"
 [ -f "$ROOT/config/pi/prompts/review.md" ]
@@ -95,8 +100,9 @@ python3 -c 'import json,sys; p=json.load(open(sys.argv[1]))["prompts"]; assert p
 printf '%s\n' "$seed_plain" > "$FAKE_DOT/config/pi/settings.json"
 printf '%s\n' '{"defaultProvider":"local","defaultModel":"preserve"}' > "$FAKE_HOME/.pi/agent/settings.json"
 
-# An existing file gains missing tracked packages by name; local pins, extra
-# packages, other keys and the file mode are kept, and a re-run adds nothing.
+# An existing file gains missing tracked packages by name; a tracked version pin
+# replaces the device's (an unpinned tracked entry keeps the device's pin);
+# extra packages, other keys and the file mode are kept, and a re-run adds nothing.
 seed_backup="$(cat "$FAKE_DOT/config/pi/settings.json")"
 printf '%s\n' '{"defaultProvider":"fixture","hideThinkingBlock":true,"defaultThinkingLevel":"medium","enabledModels":["model-a","model-b"],"packages":["npm:pi-subagents","npm:@scope/tool@2.0.0","npm:new-pkg"],"rewind":{"retention":{"maxSnapshots":5}}}' > "$FAKE_DOT/config/pi/settings.json"
 printf '%s\n' '{"defaultProvider":"local","quietStartup":true,"enabledModels":["model-a","model-a"],"packages":["npm:pi-subagents","npm:pi-subagents@0.84.0","npm:@scope/tool","npm:local-only","npm:local-only"]}' > "$FAKE_HOME/.pi/agent/settings.json"
@@ -105,7 +111,7 @@ run_restore
 python3 - "$FAKE_HOME/.pi/agent/settings.json" <<'PY'
 import json, sys
 s = json.load(open(sys.argv[1]))
-assert s["packages"] == ["npm:pi-subagents@0.84.0", "npm:@scope/tool", "npm:local-only", "npm:new-pkg"], s["packages"]
+assert s["packages"] == ["npm:pi-subagents@0.84.0", "npm:@scope/tool@2.0.0", "npm:local-only", "npm:new-pkg"], s["packages"]
 assert s["defaultProvider"] == "local" and s["quietStartup"] is True, s
 assert s["hideThinkingBlock"] is True and s["defaultThinkingLevel"] == "medium", s
 assert s["enabledModels"] == ["model-a", "model-b"], s["enabledModels"]
@@ -115,6 +121,17 @@ PY
 before_rerun="$(cksum < "$FAKE_HOME/.pi/agent/settings.json")"
 run_restore
 [ "$before_rerun" = "$(cksum < "$FAKE_HOME/.pi/agent/settings.json")" ]
+# A newer tracked pin moves a device's older pin forward.
+printf '%s\n' '{"packages":["npm:pi-subagents@0.88.0"]}' > "$FAKE_DOT/config/pi/settings.json"
+printf '%s\n' '{"packages":["npm:pi-subagents@0.84.0","npm:local-only"]}' > "$FAKE_HOME/.pi/agent/settings.json"
+run_restore
+python3 -c 'import json,sys; p=json.load(open(sys.argv[1]))["packages"]; assert p==["npm:pi-subagents@0.88.0","npm:local-only"], p' "$FAKE_HOME/.pi/agent/settings.json"
+# Tracked model rows are added only for providers authenticated on this device,
+# so Pi does not warn about unresolvable rows at every start.
+printf '%s\n' '{"enabledModels":["ok-prov/a","down-prov/b","ok-prov/c"]}' > "$FAKE_DOT/config/pi/settings.json"
+printf '%s\n' '{"enabledModels":["local/x"]}' > "$FAKE_HOME/.pi/agent/settings.json"
+PI_NOT_READY="down-prov" run_restore
+python3 -c 'import json,sys; m=json.load(open(sys.argv[1]))["enabledModels"]; assert m==["local/x","ok-prov/a","ok-prov/c"], m' "$FAKE_HOME/.pi/agent/settings.json"
 printf '%s\n' "$seed_backup" > "$FAKE_DOT/config/pi/settings.json"
 
 rm -f "$FAKE_HOME/.pi/agent/settings.json"

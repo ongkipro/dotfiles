@@ -161,6 +161,17 @@ relink_runtimes() {
       failed=1
     fi
   fi
+  # Pi's shared stack (packages and pins, subagent overrides, /review) follows
+  # config/pi/settings.json; device choices stay. Only where Pi is configured.
+  local pi_restore="$DOTFILES_ROOT/bin/pi-9router-restore"
+  if [ -x "$pi_restore" ] && [ -f "$HOME/.pi/agent/settings.json" ]; then
+    if "$pi_restore" >/dev/null 2>&1; then
+      say "✓ Pi config di-sinkron ulang"
+    else
+      err "pi-9router-restore gagal — jalankan manual: pi-9router-restore"
+      failed=1
+    fi
+  fi
   return "$failed"
 }
 file_mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0; }
@@ -233,7 +244,7 @@ cmd_autopull() {
   fi
   if git merge-base --is-ancestor origin/main HEAD; then
     if ! relink_runtimes >/dev/null 2>&1; then
-      record "warn: up to date but runtime reconciliation failed; run ai-memory-link && skill-update && ai-mcp-sync"
+      record "warn: up to date but runtime reconciliation failed; run ai-memory-link && skill-update && ai-mcp-sync && pi-9router-restore"
       return 1
     fi
     # A still-pending action (e.g. an outdated dependency) is repeated each run until fixed.
@@ -249,7 +260,7 @@ cmd_autopull() {
     record "ok: pulled $before..$(git rev-parse --short HEAD)"
   else
     write_notice "$state" "$before..$(git rev-parse --short HEAD)"
-    record "warn: pulled $before..$(git rev-parse --short HEAD) but runtime reconciliation failed; run ai-memory-link && skill-update && ai-mcp-sync"
+    record "warn: pulled $before..$(git rev-parse --short HEAD) but runtime reconciliation failed; run ai-memory-link && skill-update && ai-mcp-sync && pi-9router-restore"
     return 1
   fi
 }

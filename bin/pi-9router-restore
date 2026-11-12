@@ -39,12 +39,18 @@ if [ -f "$settings_source" ]; then
   # file that was kept will differ from the tracked seed, and printing the seed
   # would claim a state that is not there.
   #
-  # An existing file also receives tracked packages it lacks (compared by package
-  # name, so a local pin or version wins) and the rewind retention bound when it
-  # has none. Nothing else is changed; Pi installs added packages on next start.
+  # The tracked file owns the shared Pi stack; a device owns its own choices.
+  # Tracked wins: a package's version pin (an unpinned tracked entry keeps the
+  # device's pin), every agentOverrides entry it defines, its prompt
+  # directories, and enabledModels rows whose provider is authenticated here.
+  # The device keeps: its extra packages, agents and models, the default
+  # provider/model, and every key the tracked file does not set. Pi installs a
+  # new or re-pinned package on its next start.
   SETTINGS_LIVE="$PI_AGENT_DIR/settings.json" SETTINGS_SEED="$settings_source" python3 - <<'PY'
 import json
 import os
+import shutil
+import subprocess
 import tempfile
 
 live_path, seed_path = os.environ["SETTINGS_LIVE"], os.environ["SETTINGS_SEED"]
@@ -86,8 +92,14 @@ for p in raw_packages:
         packages.append(p)
 present = set(index_by_name)
 added = [p for p in seed.get("packages", []) if package_name(p) not in present]
-changed = bool(added or removed_dups)
-if added or removed_dups:
+repinned = []
+for p in seed.get("packages", []):
+    idx = index_by_name.get(package_name(p))
+    if idx is not None and has_version_pin(p) and packages[idx] != p:
+        repinned.append((packages[idx], p))
+        packages[idx] = p
+changed = bool(added or removed_dups or repinned)
+if changed:
     settings["packages"] = packages + added
 if "pi-mcp-adapter" in {package_name(p) for p in settings.get("packages") or []}:
     exts = list(settings.get("extensions") or [])
@@ -110,18 +122,37 @@ missing_prompts = [p for p in seed.get("prompts", []) if p not in live_prompts]
 if missing_prompts:
     settings["prompts"] = live_prompts + missing_prompts
     changed = True
-# Tracked per-agent overrides (reviewer, oracle) reach a device that lacks that
-# agent's entry; an agent the device already overrides is never replaced.
+# Tracked per-agent overrides (reviewer, oracle) are the shared review pairing:
+# a tracked agent's entry follows the tracked file; agents only this device
+# overrides stay.
 seed_overrides = seed.get("subagents", {}).get("agentOverrides", {})
 live_overrides = settings.setdefault("subagents", {}).setdefault("agentOverrides", {}) if seed_overrides else {}
 for agent, override in seed_overrides.items():
-    if agent not in live_overrides:
+    if live_overrides.get(agent) != override:
         live_overrides[agent] = override
         changed = True
+# A model row for a provider this device cannot authenticate makes Pi warn at
+# every start, so only rows whose provider `pi auth check` reports ready are
+# added. Without pi on PATH nothing is filtered (fresh install, tests).
+ready = {}
+def provider_ready(model):
+    provider = model.split("/", 1)[0]
+    if provider not in ready:
+        if not shutil.which("pi"):
+            ready[provider] = True
+        else:
+            try:
+                ready[provider] = subprocess.run(
+                    ["pi", "auth", "check", "--provider", provider],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30,
+                ).returncode == 0
+            except (OSError, subprocess.TimeoutExpired):
+                ready[provider] = False
+    return ready[provider]
 if "enabledModels" in seed or "enabledModels" in settings:
     raw_models = settings.get("enabledModels") or []
     models = list(dict.fromkeys(raw_models))
-    missing_models = [m for m in seed.get("enabledModels", []) if m not in models]
+    missing_models = [m for m in seed.get("enabledModels", []) if m not in models and provider_ready(m)]
     if len(models) != len(raw_models) or missing_models:
         settings["enabledModels"] = models + missing_models
         changed = True
@@ -139,6 +170,11 @@ if changed:
             os.unlink(tmp)
 for source in added:
     print(f"Added tracked Pi package {source} (installs on next Pi start)")
+for old, new in repinned:
+    print(f"Re-pinned Pi package {old} -> {new} (installs on next Pi start)")
+for provider, ok in sorted(ready.items()):
+    if not ok:
+        print(f"Skipped tracked models for {provider}: not authenticated here (pi auth check)")
 print(
     "Pi settings in place "
     f"(provider={settings.get('defaultProvider', '?')}, "
