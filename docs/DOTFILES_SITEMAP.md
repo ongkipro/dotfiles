@@ -218,7 +218,7 @@ OMP runs upstream-native; installers link none of these files.
 - **OMP reference agents (not installed):** [`architect`](../config/omp/agents/architect.md), [`complex-developer`](../config/omp/agents/complex-developer.md), [`debugger`](../config/omp/agents/debugger.md), [`designer`](../config/omp/agents/designer.md), [`librarian`](../config/omp/agents/librarian.md), [`reviewer`](../config/omp/agents/reviewer.md), [`scout`](../config/omp/agents/scout.md), [`security-reviewer`](../config/omp/agents/security-reviewer.md), [`writer`](../config/omp/agents/writer.md): role definitions kept as design evidence.
 - **OMP retired overlays:** [`9router-hosted`](../config/omp/overlays/9router-hosted.yml), [`antigravity-hosted`](../config/omp/overlays/antigravity-hosted.yml), [`antigravity-only`](../config/omp/overlays/antigravity-only.yml), [`codex-only`](../config/omp/overlays/codex-only.yml), [`minimax-hosted`](../config/omp/overlays/minimax-hosted.yml): single-provider session overlays; revalidate before selecting one.
 - [`config/pi/README.md`](../config/pi/README.md): Optional Pi setup; Pi is a standalone fallback CLI, not an OMP prerequisite.
-- **Pi files:** [`settings.json`](../config/pi/settings.json), [`models.template.json`](../config/pi/models.template.json), [`pi-fff.json`](../config/pi/pi-fff.json), [`pi-lsp.json`](../config/pi/pi-lsp.json): non-secret defaults (model, cycling list, package set, rewind retention) seeded by `pi-9router-restore`, the machine-local model template, the FFF opt-out of `$HOME` indexing, and the `pi-lsp` language-server routes.
+- **Pi files:** [`settings.json`](../config/pi/settings.json), [`models.template.json`](../config/pi/models.template.json), [`pi-fff.json`](../config/pi/pi-fff.json), [`pi-lsp.json`](../config/pi/pi-lsp.json): the shared Pi stack (package set and version pins, `reviewer`/`oracle` subagent overrides, prompt directory, model cycling list, rewind retention) that `pi-9router-restore` applies on every device after each `dotsync` pull, the machine-local model template, the FFF opt-out of `$HOME` indexing, and the `pi-lsp` language-server routes.
 - **Pi prompt templates:** [`prompts/review.md`](../config/pi/prompts/review.md): `/review`, a cross-family `reviewer` subagent run loaded through `prompts` in `settings.json`.
 
 ## 4. Durable Memory Dictionary (`config/ai/memory/`)
@@ -444,7 +444,7 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`system-map`](../bin/system-map) (+ [`test`](../bin/system-map-test)): Renders this page's inventory and fails lint on unlinked collection members, unindexed project memory, or broken links.
 
 ### 7.3 Multi-Device Sync & Credentials
-- [`dotsync`](../bin/dotsync) (+ [`test`](../bin/dotsync-test)): Pulls, merges, and reconciles dotfiles cross-device.
+- [`dotsync`](../bin/dotsync) (+ [`test`](../bin/dotsync-test)): Pulls, merges, and reconciles dotfiles cross-device; after each pull it relinks runtime context, skills, MCP servers and (where Pi is set up) Pi config.
 - [`dotpush`](../bin/dotpush) (+ [`test`](../bin/dotpush-test)): Commits and pushes dotfiles in one step: syncs with the remote first and scans for secrets before committing.
 - [`device-register`](../bin/device-register) (+ [`test`](../bin/device-register-test)): Registers current machine specs into `devices/`.
 - [`device-verify`](../bin/device-verify) (+ [`test`](../bin/device-verify-test)): Runs every repository gate on this device and writes a report other devices can read.
@@ -471,7 +471,7 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`dotuiux`](../bin/dotuiux) (+ [`test`](../bin/dotuiux-test)): Zero-dependency UI/UX helper on `ui-ref.mjs`: `init` scaffolds `design/brief.md` and `DESIGN.md`, `teardown` captures live references at 360/768/1440, `check` runs floor (fail) and slop-signal (warn, `allow:`-able) gates on a rendered page, `compare` writes reference-vs-build sheets, outline report and an independent-review prompt, `validate` checks the project files.
 - [`rea-skill-sync`](../bin/rea-skill-sync) (+ [`test`](../bin/rea-skill-sync-test)): Deterministic upstream auto-sync and drift checker synchronizing `skills/local/black-magic/` with `morluto/rea`.
 - [`skill-upstream`](../bin/skill-upstream) (+ [`test`](../bin/skill-upstream-test)): Read-only drift report for skills that declare a watch-only `.upstream` or a vendored source; never edits a skill.
-- [`pi-9router-restore`](../bin/pi-9router-restore): Restores optional Pi settings and the device-local 9Router model integration.
+- [`pi-9router-restore`](../bin/pi-9router-restore): Applies the tracked Pi stack to the device-local `settings.json` (tracked pins and agent overrides win; device model and extras stay; model rows only for authenticated providers) and restores the 9Router model integration.
 - [`pi-9router-sync.js`](../bin/pi-9router-sync.js): Refreshes Pi's existing 9Router providers from their public catalogs in the machine-local `models.json`.
 
 ### 7.5 Skill Commands (`skills/agents-bin/`)
@@ -491,7 +491,7 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`installer-link-test`](../bin/installer-link-test): Backup-before-link helpers used by the installers.
 - [`shell-wrapper-test`](../bin/shell-wrapper-test): Cross-shell setup fixtures and transparent OMP execution.
 - **OMP boundary tests:** [`omp-routing-test`](../bin/omp-routing-test), [`omp-effective-routing-test`](../bin/omp-effective-routing-test), [`omp-9router-claude-test`](../bin/omp-9router-claude-test), [`omp-workspace-test`](../bin/omp-workspace-test): dotfiles may add context and skills but never installs routing or alters OMP arguments.
-- [`pi-9router-restore-test`](../bin/pi-9router-restore-test): Machine-local Pi seeding and the remote-only 9Router boundary.
+- [`pi-9router-restore-test`](../bin/pi-9router-restore-test): Machine-local Pi seeding, the tracked-versus-device ownership rule, and the 9Router boundary.
 - [`memory-usage-hook-test`](../bin/memory-usage-hook-test): Regression check for the `UserPromptSubmit` memory-usage hook.
 - [`turnstile-secret-test`](../bin/turnstile-secret-test): Secret handling in the `turnstile-spin` skill scripts.
 - [`development-spec-suite-test`](../bin/development-spec-suite-test): Runs the `development-spec-suite` skill's own test script.

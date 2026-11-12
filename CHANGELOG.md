@@ -4,6 +4,12 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-12 — shadcn-ui: one primitive library per project; maps brought in line
+
+- `shadcn-ui`: new rule and reference `references/single-primitive-library.md`. A project imports only the headless library its `base` names (`@base-ui/react`, `radix-ui`, or `react-aria-components`); detection with `shadcn info --json` and `rg`, new projects on `base`, mixed-project convergence by regenerating each component from the registry (shadcn CLI 4.23.0 `migrate --list` has `cn`, `icons`, `base-color`, `radix`, `rtl`: no library-to-library migration), Radix → Base UI consumer moves, and a guard test. Checked 2026-11-12: `init --defaults` uses `base-nova`; the registry serves `toast` for `base-nova` and not for `radix-nova`; the moved props and CSS variables exist in `@base-ui/react` 1.9.0. The guard test was run with Node 24: a clean Base UI project passes, a Radix import and four other-library packages fail it. Its package regex was simplified (one alternation instead of a pattern plus a duplicate `startsWith`).
+- `config/ai/adapters/pi.md` (rendered into Pi context): the package line still listed the 10-package 2026-11-04 baseline and called it additive; it now states the shared-follows-dotfiles rule, the Sol/Carbon subagent overrides, `/review`, and that `/goal` is TUI-only.
+- `docs/DOTFILES_SITEMAP.md`: the Pi settings, `dotsync`, `pi-9router-restore` and its test entries described the old seed-once behaviour; they now describe the ownership rule and the post-pull Pi reconciliation. `bin/skill-map` docstring no longer claims 66 skills with exactly three frontmatter keys (76; `license`/`metadata` appear on a few).
+
 ## 2026-11-12 — Inbox triage and two lessons (TASK-213)
 
 - `postgres-drizzle` (Locking): `now()`/`current_timestamp` are the transaction start, `clock_timestamp()` is the real time (PostgreSQL docs, Date/Time Functions and Operators). An authority check must both see the revocation (lock the authority row with `FOR SHARE` or stronger, never `FOR KEY SHARE`, which a non-key revocation update does not conflict with; or under an advisory lock run Read Committed with the validity `SELECT` as a separate statement after the lock: a lock wait does not refresh a snapshot already taken) and compare with `clock_timestamp()`; two-session proof at the code's isolation level.

@@ -9,9 +9,9 @@ referenced no sibling and none referenced them, and the payment row in
 development-kit named only Stripe while the providers actually in use appeared
 in no table at all.
 
-Domains live in DOMAINS below rather than in frontmatter. The 66 skills use
-exactly three keys — name, description, license — and adding a fourth would mean
-editing every vendored SKILL.md, which the refresh contract forbids for a
+Domains live in DOMAINS below rather than in frontmatter. Skills carry only
+name and description (a few add license or metadata), and a domain key would
+mean editing every vendored SKILL.md, which the refresh contract forbids for a
 managed fork. A skill missing from DOMAINS is rendered under "Unclassified"
 rather than dropped, so it is visible instead of silently absent.
 

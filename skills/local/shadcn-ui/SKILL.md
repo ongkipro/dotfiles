@@ -47,6 +47,13 @@ the only CSS file to edit for tokens; `base` (`base` | `radix` | `aria`)
 decides component APIs; `iconLibrary` decides icon imports (never assume
 `lucide-react`); `packageManager` for any non-shadcn install.
 
+**One primitive library per project.** `base` is the only headless library
+the UI may import (`base` ⇒ `@base-ui/react`, `radix` ⇒ `radix-ui`, `aria` ⇒
+`react-aria-components`). Never hand-install or paste a component from the
+other library; new projects start on `base`. Detection, mixed-project
+convergence (no CLI migration exists) and the guard test:
+[single-primitive-library.md](references/single-primitive-library.md).
+
 `components.json` fields that silently change the answer: `style` (registry
 variant; which items exist; immutable), `tailwind.config` (`""` = v4),
 `tailwind.cssVariables` (`false` = no semantic tokens; immutable),
@@ -188,6 +195,7 @@ of truth, and every added file is still reviewed.
 
 ## References
 
+- [single-primitive-library.md](references/single-primitive-library.md)
 - [admin-component-system.md](references/admin-component-system.md) — admin
   component selection, framework boundaries, responsive transformations.
 - [component-examples.md](references/component-examples.md) — charts,
