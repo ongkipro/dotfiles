@@ -1,6 +1,6 @@
 # Memory: Web development lessons
 
-> Split from [development.md](development.md) so each file fits the router budget. Astro rendering and Node test-harness lessons; CSS, Tailwind, Headless UI and component-geometry lessons moved to [ui-lessons.md](ui-lessons.md) (2026-10-29). Each lesson states symptom, root cause, durable invariant, fix, and regression check; the repository stays authoritative.
+> Split from [development.md](development.md) so each file fits the router budget. Astro rendering, Node test-harness, and git conflict-resolution lessons; CSS, Tailwind, Headless UI and component-geometry lessons moved to [ui-lessons.md](ui-lessons.md) (2026-10-29). Each lesson states symptom, root cause, durable invariant, fix, and regression check; the repository stays authoritative.
 
 ## Lesson: Runtime query parameters in statically built Astro pages
 
@@ -89,3 +89,26 @@ Advisory lock around database DDL: CREATE exclusive, DROP shared (drops still sh
 Stress: N parallel harness create/close cycles with a 250 ms new-connection probe; zero samples with a CREATE beside other database DDL; checkpoints not above the control
 
 > Promoted from a reviewed local candidate on 2026-11-07.
+
+
+---
+
+
+## Lesson: Hand-resolved conflicts under zdiff3 have four markers, not three
+
+### Symptom
+A commit after git stash pop shipped a '||||||| Stash base' line in CHANGELOG.md (dotfiles 12ce19d); the resolver removed only <<<<<<<, ======= and >>>>>>>.
+
+### Root cause
+merge.conflictStyle=zdiff3 adds a base section opened by |||||||; a hand resolution that searches for the classic three markers leaves it behind, and no gate caught it then.
+
+### Durable invariant
+After any hand resolution, check with git itself, not a marker list: git diff --check (and git diff --cached --check before commit) must be clean.
+
+### Fix
+Removed the line (4db202e); ai-policy-lint now fails on any leftover conflict marker in tracked files.
+
+### Regression check
+ai-policy-lint-test conflict-marker fixture; git diff --cached --check is empty before every commit that followed a conflict.
+
+> Promoted from a reviewed local candidate on 2026-11-12.

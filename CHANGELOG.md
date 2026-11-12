@@ -4,6 +4,13 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-12 — Inbox triage and two lessons (TASK-213)
+
+- `postgres-drizzle` (Locking): `now()`/`current_timestamp` are the transaction start, `clock_timestamp()` is the real time (PostgreSQL docs, Date/Time Functions and Operators). An authority check must both see the revocation (lock the authority row with `FOR SHARE` or stronger, never `FOR KEY SHARE`, which a non-key revocation update does not conflict with; or under an advisory lock run Read Committed with the validity `SELECT` as a separate statement after the lock: a lock wait does not refresh a snapshot already taken) and compare with `clock_timestamp()`; two-session proof at the code's isolation level.
+- `memory/development-lessons.md` (promoted through `ai-learn`): hand-resolved conflicts under `merge.conflictStyle=zdiff3` have a fourth marker (`|||||||`); check with `git diff --check`, not a marker list (the `12ce19d` slip, fixed in `4db202e`). Router triggers plus a positive and an everyday-phrase negative case in `ai-memory-route-test`.
+- Memory inbox emptied: three candidates were already encoded (black-magic pinned recipes, MCP `--prefix /tmp`, geraiexpress reset guard) and were closed with that reason; the fourth is the PostgreSQL entry above.
+- Independent review: Gemini 4 Carbon high (owner-ordered); round 1 found the MVCC snapshot gap, the hand-written lesson, the archive placement and missing router tests; round 2 found `FOR KEY SHARE` in the fix and the sitemap scope; all fixed.
+
 ## 2026-11-12 — Pi: Carbon advisor and `/goal`
 
 - **Shared Pi config now follows dotfiles on every device** (owner decision). `pi-9router-restore`: a tracked version pin replaces a device's pin, every tracked `agentOverrides` entry is enforced, and tracked `enabledModels` rows are added only for providers that pass `pi auth check` (so `openai-codex` rows no longer re-appear on a device without that login). The device keeps its extra packages, agents and models and its default model. `dotsync` runs `pi-9router-restore` after every pull and up-to-date autopull where `~/.pi/agent/settings.json` exists. This reverses the 2026-11-04 rule that autopull never ran it; the review point for extension code is now the commit to `config/pi/settings.json`. Tests: `pi-9router-restore-test` (re-pin, tracked override wins, device-only agent kept, auth filter) and `dotsync-test` (runs after pull, skipped without Pi, failure fails the autopull); each new rule was mutated and the tests failed.

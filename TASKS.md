@@ -1,10 +1,10 @@
 # Tasks — dotfiles
 
-Updated: 2026-11-10
+Updated: 2026-11-12
 
 Queue rules: `config/templates/TASKS.md`; history: `docs/archive/`. Disk/tests win.
 
-Done: [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194–199, 203–205) and [TASKS-index-2026-11-10](docs/archive/TASKS-index-2026-11-10.md) (TASK-200, TASK-206, TASK-207, TASK-208, TASK-209, TASK-212).
+Done: [TASKS-index-2026-11-07](docs/archive/TASKS-index-2026-11-07.md) (TASK-194–199, 203–205) and [TASKS-index-2026-11-10](docs/archive/TASKS-index-2026-11-10.md) (TASK-200, TASK-206, TASK-207, TASK-208, TASK-209, TASK-212) and [TASKS-index-2026-11-12](docs/archive/TASKS-index-2026-11-12.md) (TASK-213).
 
 ## In progress
 

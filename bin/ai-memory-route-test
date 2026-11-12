@@ -332,6 +332,7 @@ cases = [
     ("setup vps baru vultr hardening", "coolify-vps-dev.md"),
     ("cloudflare access origin ca dotserver", "coolify-vps-dev.md"),
     ("heavy-run ai-testdb full suite", "parallel-terminals.md"),
+    ("git stash pop zdiff3 conflict marker", "development-lessons.md"),
 ]
 # Projects registered by TASK-207 route their notes from inside their repo.
 import tempfile, os
@@ -348,10 +349,12 @@ for query, expected in cases:
     names = [f["path"].rsplit("/", 1)[-1] for f in json.loads(out)["files"]]
     assert expected in names, (query, names)
 # Everyday uses of the same words must NOT pull these lessons in (a bare "scratch" once did: "from scratch").
-for query in ("Write a poem from scratch", "build the landing page from scratch", "rewrite the intro from scratch"):
+for query in ("Write a poem from scratch", "build the landing page from scratch", "rewrite the intro from scratch",
+              "resolve the schedule conflict and merge the two meetings"):
     out = subprocess.run([f"{root}/bin/ai-memory-route", "--scope", "shared", "--json", query], capture_output=True, text=True, cwd=root, check=True).stdout
     names = [f["path"].rsplit("/", 1)[-1] for f in json.loads(out)["files"]]
     assert "ops-lessons.md" not in names, (query, names)
+    assert "development-lessons.md" not in names or "from scratch" in query, (query, names)
 print("ai-memory-route-test: promoted lessons are reachable by trigger, and not by everyday phrases PASS")
 PY2
 echo 'ai-memory-route-test: PASS'
