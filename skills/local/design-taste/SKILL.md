@@ -74,6 +74,8 @@ No `design/brief.md` + `DESIGN.md` yet: start with `dotuiux init`/`teardown`
   that keep a rem part, `text-wrap: balance`/`pretty` instead of `<br>`. Display
   tracking (≥24 px) at most −0.02em unless `DESIGN.md` says tighter. Test
   long titles and translations.
+  Size floor: body ≥ 16px (17–19px for 45+ readers), nothing below 12px,
+  phone inputs 16px, zoom never locked ([accessibility-notes.md](references/accessibility-notes.md)).
 - **Color, shape, elevation.** Semantic tokens for canvas, text, action,
   border, state. One small radius and shadow vocabulary with fixed purposes.
   Hierarchy comes from scale, whitespace, alignment, and media placement

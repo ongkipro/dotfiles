@@ -27,6 +27,7 @@ screenshots or reports into `~/dotfiles`.
 | `DESIGN.md` edited by hand | `dotuiux validate` |
 | Choosing where to look for references | [reference-sources.md](references/reference-sources.md) |
 | Reading a reference for what transfers | [reference-reading.md](references/reference-reading.md) |
+| Admin size contract (default / compact / comfort for 40+ or counter use) | `admin-dashboard` → `references/admin-visual-contract.md` |
 
 ## 1. Brief (owner, ~5 min)
 
@@ -101,7 +102,8 @@ Styles come from `DESIGN.md` tokens; real content or a labelled placeholder.
 `dotuiux check <url>` renders at 360, 768, and 1440 px on public surfaces and
 390, 1366, and 1536 px on admin surfaces (`--surface admin`, auto-detected when
 `design/admin-contract.json` exists or `DESIGN.md` declares `Surface: admin`;
-`--viewports W,W,...` overrides widths). Admin mode uses the 14 px body floor
+`--viewports W,W,...` overrides widths). Every surface fails `tiny-text` (< 12px) and `zoom-lock` (viewport meta with
+`maximum-scale` < 2 or `user-scalable=no`). Admin mode uses the 14 px body floor
 from `admin-dashboard` and skips landing-only hero-height and first-viewport
 word-cap warnings; phone `input-zoom` (`< 16 px` form controls) applies up to
 430 px on both surfaces. Every rule reports **fail**, **warn**, **allowed**, or

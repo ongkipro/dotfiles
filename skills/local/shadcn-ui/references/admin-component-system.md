@@ -315,6 +315,16 @@ Use these when building a project component on top of shadcn primitives:
   height); never sprinkle per-call `h-7`/`h-11`/`text-[13px]` overrides through
   features. Stock new-york-v4 primitives already match the `volum-admin`
   default, so a Volum admin keeps them untouched.
+- Stock primitives are a 14px-body system (measured on shadcn 4.23:
+  `Button`/`Input`/`Select`/`Tabs`/`Table`/`Sidebar` use `text-sm`, `Badge`
+  and sidebar group labels `text-xs`, `Input` is `text-base md:text-sm`).
+  For the `comfort` contract (operators 40+, counter/touch), edit those owned
+  files once to `text-base` (badges/labels `text-sm`) and the contract heights;
+  never ship the untouched block (`dashboard-01` drops buttons to 28px and
+  puts 22% of its text at 12px) as a finished admin.
+- Viewport meta stays `width=device-width, initial-scale=1`; never add
+  `maximum-scale=1` or `user-scalable=no` to stop iOS input zoom — fix the
+  input to 16px instead (`dotuiux check` fails `zoom-lock`).
 - For a new operator surface without a visual system, use
   `admin-dashboard`'s clean-light baseline (the compact contract).
 - Dark mode is not speculative scope. Implement it only when accepted, then

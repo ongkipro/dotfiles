@@ -30,6 +30,7 @@ export const applies = (scope = "all", w) =>
 
 // Pure: judge the measured values of one check.
 //   allowed     exact set (± tol): sizes, radii          — no elements = not checked
+//   min         lower bound: smallest text               — no elements = not checked
 //   max         upper bound: shadow blur                 — no elements = pass
 //   forbid      any match is a defect: gradients, tiles  — no elements = pass
 //   distinctMax how many different values may appear: accent surfaces
@@ -37,6 +38,10 @@ export const applies = (scope = "all", w) =>
 export function judge(check, values) {
   const tol = check.tol ?? 1;
   if (check.forbid) return { status: values.length ? "fail" : "pass", offenders: values };
+  if (check.min != null) {
+    const offenders = values.filter((v) => v.v < check.min - (check.tol ?? 0)); // text sizes are exact: 11.5 < 12 fails
+    return { status: offenders.length ? "fail" : values.length ? "pass" : "not-checked", offenders };
+  }
   if (check.max != null) {
     const offenders = values.filter((v) => v.v > check.max + tol);
     return { status: offenders.length ? "fail" : "pass", offenders };
@@ -86,6 +91,8 @@ const measure = (checks) => String.raw`(() => {
     height: (el, r) => r.height, width: (el, r) => r.width,
     minSide: (el, r) => Math.min(r.width, r.height),
     fontSize: (el, r, s) => parseFloat(s.fontSize),
+    // Text the reader sees: only elements with their own non-empty text node (not inherited wrappers).
+    textSize: (el, r, s) => [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) ? parseFloat(s.fontSize) : null,
     // Full radius is allowed for avatars, dots, switches, and status badges, but a
     // wide pill-shaped button is an ornament and is measured like any other radius.
     borderRadius: (el, r, s, c) => { const v = parseFloat(s.borderTopLeftRadius); if (!v || !painted(s)) return null;
@@ -137,7 +144,7 @@ export async function run(url, contract, widths) {
   return results;
 }
 
-const rule = (c) => c.allowed ? `allowed ${c.allowed.join("/")}` : c.max != null ? `max ${c.max}` : c.forbid ? "forbidden"
+const rule = (c) => c.allowed ? `allowed ${c.allowed.join("/")}` : c.min != null ? `min ${c.min}` : c.max != null ? `max ${c.max}` : c.forbid ? "forbidden"
   : c.distinctMax != null ? `≤ ${c.distinctMax} distinct` : `advisory ≥ ${c.warnBelow}`;
 
 export function report(url, contract, results) {

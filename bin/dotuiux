@@ -137,6 +137,14 @@ export function undersizedTargets(targets) {
     || (small.includes(o) && Math.hypot(c(t)[0] - c(o)[0], c(t)[1] - c(o)[1]) < TARGET_MIN_PX))));
 }
 
+// Pure: true when a viewport meta content string blocks user zoom (ACT rule b4f0c3).
+export function zoomLock(content) {
+  if (!content) return false;
+  const kv = Object.fromEntries(content.toLowerCase().split(/[,;]/).map((p) => p.split("=").map((x) => x.trim())).filter(([k]) => k));
+  const us = kv["user-scalable"], max = parseFloat(kv["maximum-scale"]);
+  return us === "no" || us === "0" || (Number.isFinite(max) && max < 2);
+}
+
 export const RULES = [
   // Floor: harm only (§17). Not overridable.
   { id: "contrast", tier: "fail", spec: "§4", desc: `text contrast < ${CONTRAST_MIN}:1 (large < ${CONTRAST_LARGE_MIN}:1)`,
@@ -161,6 +169,9 @@ export const RULES = [
   { id: "input-zoom", tier: "fail", spec: "§4", desc: `form control font < ${INPUT_MIN_PX}px on phone (≤ ${INPUT_ZOOM_MAX_WIDTH}px)`,
     applies: (f) => f.width <= INPUT_ZOOM_MAX_WIDTH,
     judge: (f) => !has(f.controls) ? null : f.controls.filter((c) => c.px < INPUT_MIN_PX).map((c) => off(c.el, `${c.px}px`)) },
+  // WCAG 1.4.4 / ACT b4f0c3: a viewport meta must not block pinch zoom (user-scalable=no|0, maximum-scale < 2).
+  { id: "zoom-lock", tier: "fail", spec: "WCAG 1.4.4", desc: "meta viewport blocks zoom (user-scalable=no or maximum-scale < 2)",
+    judge: (f) => f.viewportMeta === undefined ? null : zoomLock(f.viewportMeta) ? [off("meta viewport", f.viewportMeta)] : [] },
   { id: "img-alt", tier: "fail", spec: "§16", desc: "<img> without alt, or generic alt",
     judge: (f) => has(f.images) ? f.images.filter((i) => i.alt == null || GENERIC_ALT.test(i.alt.trim())).map((i) => off(i.el, i.alt == null ? "no alt" : `alt="${i.alt}"`)) : null },
   { id: "contact-count", tier: "fail", spec: "§14", desc: `> ${CONTACT_MAX} contact link (wa.me, whatsapp:, tel:, mailto:, m.me, t.me) per page`,
@@ -656,7 +667,7 @@ async function pageCollect(o) {
   const longAnim = (a) => { const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null; return t && (t.endTime === Infinity || t.endTime > o.loopMaxMs); };
   const animTarget = (a) => a.effect && a.effect.target;
   const tiny = (el) => { const r = el.getBoundingClientRect(); return r.width < o.tinyPx && r.height < o.tinyPx; };
-  const f = { width: vw, height: vh };
+  const f = { width: vw, height: vh, viewportMeta: (document.querySelector('meta[name=viewport]') || {}).content ?? null };
 
   // 1. Motion, at scroll 0 before anything else moves the page.
   const lcpEl = rec.lcp && rec.lcp.element;

@@ -106,6 +106,12 @@ console.log("3. gate evaluation");
   expect(status(r1, "input-zoom") === "fail", "input-zoom: 14px control fails at 360");
   expect(status(r1, "body-size") === "warn", "body-size: 11px dominant prose warns");
   expect(status(r1, "lcp-entrance") === "not-checked", "unmeasured rule is NOT CHECKED, never pass");
+  expect(m.zoomLock("width=device-width, initial-scale=1, maximum-scale=1") && m.zoomLock("width=device-width,user-scalable=no")
+    && m.zoomLock("user-scalable=0") && !m.zoomLock("width=device-width, initial-scale=1") && !m.zoomLock("maximum-scale=5") && !m.zoomLock(null),
+    "zoomLock: maximum-scale<2 / user-scalable=no|0 lock zoom; plain device-width does not");
+  expect(status(m.evaluate([{ ...base, viewportMeta: "width=device-width, maximum-scale=1" }]), "zoom-lock") === "fail"
+    && status(m.evaluate([{ ...base, viewportMeta: "width=device-width, initial-scale=1" }]), "zoom-lock") === "pass"
+    && status(m.evaluate([{ ...base }]), "zoom-lock") === "not-checked", "zoom-lock: fails on locked meta, passes on open meta, unmeasured is NOT CHECKED");
 
   const r2 = m.evaluate([{ ...base, width: 1440, controls: [{ el: "input", px: 14 }], hero: { el: "s", h: 700, bottom: 760 },
     h1s: [{ el: "h1", words: 6, lines: 4 }] }], new Map([["h1-length", "editorial display type"]]));
