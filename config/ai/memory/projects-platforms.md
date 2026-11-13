@@ -17,7 +17,7 @@
 ## adsbookcms
 
 - Repository: `ongkipro/adsbookcms`; expected checkout:
-  `~/Projects/adsbook.id/development` (`~/Projects/adsbookcms` is a symlink).
+  `~/Projects/adsbook.id/app` (`~/Projects/adsbookcms` is a symlink).
   Product docs live outside the repo in `~/Projects/adsbook.id/docs/`
   (product, architecture, contracts, design, operations, history, audits).
 - Product boundary: installable, single-tenant Cloudflare CMS. One install
