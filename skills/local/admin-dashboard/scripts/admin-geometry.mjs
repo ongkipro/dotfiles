@@ -69,10 +69,12 @@ const measure = (checks) => String.raw`(() => {
   const checks = ${JSON.stringify(checks)};
   // Visually hidden (sr-only: 1px box, clip rect(0 0 0 0) or clip-path inset(50%)) and opacity-0 ancestors are not seen.
   const hiddenClip = (s) => /rect\(0(px)?,? 0(px)?,? 0(px)?,? 0(px)?\)/.test(s.clip) || s.clipPath === 'inset(50%)';
+  const faded = new Map(); // DOM is static during measure(): memoize the opacity-0 ancestor walk
+  const fadedUp = (a) => { if (!a || a.nodeType !== 1) return false; if (faded.has(a)) return faded.get(a);
+    const v = +getComputedStyle(a).opacity === 0 || fadedUp(a.parentElement); faded.set(a, v); return v; };
   const visible = (el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
     if (!(r.width >= 2 && r.height >= 2) || s.visibility === 'hidden' || s.display === 'none' || hiddenClip(s)) return false;
-    for (let a = el; a && a.nodeType === 1; a = a.parentElement) if (+getComputedStyle(a).opacity === 0) return false;
-    return true; };
+    return !fadedUp(el); };
   const label = (el) => (el.tagName.toLowerCase() + (el.dataset.slot ? '[' + el.dataset.slot + ']' : '') + ' "' +
     ((el.getAttribute('aria-label') || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 30)) + '"');
   // Saturated colour test across rgb()/oklch()/oklab() computed forms; transparent is never colourful.
@@ -99,10 +101,12 @@ const measure = (checks) => String.raw`(() => {
     // Text-bearing inputs count by value or placeholder; SVG text is scaled to rendered px. Pseudo-element text is not measured.
     textSize: (el, r, s) => {
       const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())
-        || (el.matches('input:not([type=checkbox]):not([type=radio]):not([type=hidden]), textarea') && (el.value || el.placeholder));
+        || (el.matches('input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=range]):not([type=color]), textarea') && (el.value || el.placeholder));
       if (!own) return null;
-      const px = parseFloat(s.fontSize), k = el instanceof SVGElement && el.getScreenCTM ? Math.abs(el.getScreenCTM()?.d || 1) : 1;
-      return { exact: Math.floor(px * k * 100) / 100 }; },
+      // Glyph height scale = norm of the transformed vertical basis (rotation-safe); 1e-4 absorbs float32 CTM noise.
+      const m = el instanceof SVGElement && el.getScreenCTM ? el.getScreenCTM() : null;
+      const px = parseFloat(s.fontSize), k = m ? Math.hypot(m.c, m.d) || 1 : 1;
+      return { exact: Math.floor(px * k * 100 + 1e-4) / 100 }; },
     // Full radius is allowed for avatars, dots, switches, and status badges, but a
     // wide pill-shaped button is an ornament and is measured like any other radius.
     borderRadius: (el, r, s, c) => { const v = parseFloat(s.borderTopLeftRadius); if (!v || !painted(s)) return null;
@@ -122,13 +126,18 @@ const measure = (checks) => String.raw`(() => {
   for (const c of checks) {
     const ignore = c.ignore ? [...document.querySelectorAll(c.ignore)] : [];
     const vals = [];
-    // Scan every element; keep at most 400 values but never drop an offender of a min check.
+    // Scan every element; keep at most 400 passing values but never drop an offender or a new distinct value.
     for (const el of document.querySelectorAll(c.selector)) {
       if (!visible(el) || ignore.some((i) => i === el || i.contains(el))) continue;
       const r = el.getBoundingClientRect(); const raw = probes[c.prop](el, r, getComputedStyle(el), c);
       if (raw == null) continue;
       const v = raw && raw.exact != null ? raw.exact : typeof raw === 'number' ? Math.round(raw * 2) / 2 : raw;
-      if (vals.length < 400 || (c.min != null && v < c.min)) vals.push({ v, el: label(el) });
+      const tol = c.tol ?? 1;
+      const bad = (c.min != null && v < c.min - (c.tol ?? 0)) || (c.max != null && v > c.max + tol)
+        || (c.allowed && typeof v === 'number' && !c.allowed.some((a) => Math.abs(v - a) <= tol))
+        || (c.warnBelow != null && v < c.warnBelow - tol) || (c.distinctMax != null && !vals.some((x) => x.v === v))
+        || c.forbid;
+      if (vals.length < 400 || bad) vals.push({ v, el: label(el) });
     }
     out[c.id] = vals;
   }

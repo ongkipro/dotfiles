@@ -51,8 +51,7 @@ table{border-collapse:collapse;width:100%} th{height:32px;padding:0 8px;box-sizi
 </style></head><body><aside data-shell=sidebar></aside><div><header><input placeholder=Search><button>Export</button></header>
 <main style="padding:16px"><table><tr><th>Order</th><th>Status</th></tr><tr><td>#1001</td><td><span class=ok>Paid</span></td></tr></table></main></div></body></html>
 HTML
-FILLER="$(for i in $(seq 1 500); do printf '<p>row %s</p>' "$i"; done)"
-cat > "$TMP/site/sloppy.html" <<HTML
+cat > "$TMP/site/sloppy.html" <<'HTML'
 <!doctype html><html><head><meta name=viewport content="width=device-width"><style>
 body{margin:0;font:14px system-ui;display:grid;grid-template-columns:240px 1fr}
 aside{height:100vh;background:linear-gradient(#4f46e5,#9333ea)} header{height:72px;display:flex;align-items:center;gap:8px;padding:0 16px}
@@ -60,7 +59,18 @@ button{height:44px;font-size:14px;border:0;border-radius:24px 24px 24px 24px;bac
 .card{border:1px solid #eee;border-radius:24px;box-shadow:0 10px 30px rgba(0,0,0,.15);padding:24px;margin:16px}
 .tile{width:40px;height:40px;border-radius:12px;background:#ede9fe;display:grid;place-items:center}
 </style></head><body><aside data-shell=sidebar></aside><div><header><button>Export</button></header>
-<main><span class=sr style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);font-size:10px">Toggle sidebar</span><div style="opacity:0"><span style="font-size:9px">hidden</span></div>${FILLER}<small style="font-size:11.84px">Updated 2m ago</small><div class=card><div class=tile><svg width=16 height=16><circle cx=8 cy=8 r=6 fill="#7c3aed"/></svg></div>Revenue</div></main></div></body></html>
+<main><span class=sr style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);font-size:10px">Toggle sidebar</span><div style="opacity:0"><span style="font-size:9px">hidden</span></div>__FILLER__<small style="font-size:11.84px">Updated 2m ago</small><div class=card><div class=tile><svg width=16 height=16><circle cx=8 cy=8 r=6 fill="#7c3aed"/></svg></div>Revenue</div></main></div></body></html>
+HTML
+FILLER="$(for i in $(seq 1 500); do printf '<p>row %s</p>' "$i"; done)"
+python3 - "$TMP/site/sloppy.html" "$FILLER" <<'PY'
+import sys; p, f = sys.argv[1], sys.argv[2]; s = open(p).read(); open(p, "w").write(s.replace("__FILLER__", f))
+PY
+cat > "$TMP/site/svg.html" <<'HTML'
+<!doctype html><html><head><meta name=viewport content="width=device-width"></head><body style="margin:0;font:16px system-ui">
+<svg width=400 height=200 viewBox="0 0 400 200"><text x=100 y=100 font-size=16 transform="rotate(-45 100 100)">tick 45</text>
+<text x=200 y=150 font-size=16 transform="rotate(-90 200 150)">axis title</text></svg>
+<svg width=200 height=100 viewBox="0 0 400 200"><text x=10 y=50 font-size=16>shrunk</text></svg>
+</body></html>
 HTML
 PORT=$((20000 + RANDOM % 20000))
 python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$TMP/site" >/dev/null 2>&1 & SRV=$!
@@ -78,6 +88,12 @@ else
   done
   grep -A3 "^- FAIL 1366px text-floor" "$TMP/sloppy.md" | grep -q '11.84 small' && ok "text-floor: 11.84px after 500 rows fails (no cap, no rounding)" || bad "text-floor: 11.84px offender missing ($(grep -A3 text-floor "$TMP/sloppy.md"))"
   grep -A6 "^- FAIL 1366px text-floor" "$TMP/sloppy.md" | grep -qE 'Toggle sidebar|"hidden"' && bad "text-floor: sr-only or opacity-0 text counted" || ok "text-floor: sr-only and opacity-0 text ignored"
+  node "$HERE/admin-geometry.mjs" "http://127.0.0.1:$PORT/svg.html" --contract "$C" --viewports 1366 >"$TMP/svg.md" 2>&1
+  printf '<!doctype html><html><head><meta name=viewport content="width=device-width"></head><body>%s<button data-slot=button style="height:50px">late</button></body></html>' "$(for i in $(seq 1 450); do printf '<button data-slot=button style="height:36px">b%s</button>' "$i"; done)" > "$TMP/site/cap.html"
+  node "$HERE/admin-geometry.mjs" "http://127.0.0.1:$PORT/cap.html" --contract "$HERE/../assets/size-contracts/volum-default.json" --viewports 1366 >"$TMP/cap.md" 2>&1
+  grep -A2 "^- FAIL 1366px button-height" "$TMP/cap.md" | grep -q '"late"' && ok "allowed check keeps an offender past 400 matches" || bad "cap: late offender dropped ($(grep button-height "$TMP/cap.md"))"
+  f="$(grep -A4 "text-floor" "$TMP/svg.md")"
+  grep -q '"shrunk"' <<<"$f" && ! grep -qE 'tick 45|axis title' <<<"$f" && ok "text-floor: rotated SVG ticks keep 16px; viewBox-shrunk 8px text fails" || bad "text-floor svg: $f"
   grep -q "^- FAIL 1366px button-height" "$TMP/sloppy.md" && ok "sloppy: detects oversized button" || bad "sloppy: missed button-height"
 fi
 

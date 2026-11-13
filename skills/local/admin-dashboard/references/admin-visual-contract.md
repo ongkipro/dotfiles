@@ -54,7 +54,7 @@ an intended deviation recorded in the project contract with its reason.
 | Input, select trigger: form / toolbar | 36 / 32 | 32 | 44 / 40 | `h-9`/`h-8` → `h-8` / `h-11`/`h-10` |
 | Header | 64px | 48px | 64px | `h-16` → `h-12` / `h-16` |
 | Sidebar expanded / icon rail | 256 / 48 | 240 / 48 | 256 / 56 | `SIDEBAR_WIDTH 16rem`/`3rem` → `15rem`/`3rem` / `16rem`/`3.5rem` |
-| Sidebar link | 32px / 14px | 32px / 14px | 40px / 16px | `SidebarMenuButton` `h-8 text-sm` → comfort `h-10 text-base`; collapsed rail `group-data-[collapsible=icon]:size-8!` → `size-10!` |
+| Sidebar link | 32px / 14px | 32px / 14px | 40px / 16px | `SidebarMenuButton` `h-8 text-sm` → comfort `h-10 text-base`; collapsed rail `group-data-[collapsible=icon]:size-8!` → `size-10!`; header/footer `size="lg"` stays 48px |
 | Table header row | 40px | 32px | 44px | `TableHead h-10` → `h-8` / `h-11` |
 | Table cell padding (vertical × horizontal) | 8 × 8px | 6 × 8px | 8 × 12px | `TableCell p-2` → `px-2 py-1.5` / `px-3 py-2` |
 | Page padding | 16px × 24px | 16px | 16px × 24px | `Main` `px-4 py-6` → `p-4` |
@@ -119,7 +119,7 @@ node ~/dotfiles/skills/local/admin-dashboard/scripts/admin-geometry.mjs \
 - Measure every route you changed, in a state that shows its real content
   (seeded data, filters open where relevant). Overlays are only measured when
   opened; open them in a Playwright test when they are part of the change.
-- `touch-target` is advisory: it lists controls under 44px on a phone so you
+- `touch-target` is advisory: it lists controls under 44px (48px in comfort) on a phone so you
   decide where a larger hit area is needed.
 - To adopt a deliberate change (e.g. a 72px header for a two-row shell), edit the
   project contract and record the reason beside it. Never widen `allowed` just to
