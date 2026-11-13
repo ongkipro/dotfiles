@@ -309,7 +309,8 @@ Use these when building a project component on top of shadcn primitives:
 - Existing project tokens win.
 - Sizes and surfaces come from one contract, chosen once per product:
   `admin-dashboard`'s `references/admin-visual-contract.md` (repository
-  contract > `volum-admin` default > compact clean-light). Apply a density by
+  contract > `volum-admin` default; compact when the owner asks for density;
+  comfort when the brief names operators 40+ or counter/touch use). Apply a density by
   editing the owned primitives once (`buttonVariants` sizes, `Input`/
   `SelectTrigger` height, `TableHead`/`TableCell`, `SIDEBAR_WIDTH`, header
   height); never sprinkle per-call `h-7`/`h-11`/`text-[13px]` overrides through
@@ -319,14 +320,14 @@ Use these when building a project component on top of shadcn primitives:
   `Button`/`Input`/`Select`/`Tabs`/`Table`/`Sidebar` use `text-sm`, `Badge`
   and sidebar group labels `text-xs`, `Input` is `text-base md:text-sm`).
   For the `comfort` contract (operators 40+, counter/touch), edit those owned
-  files once to `text-base` (badges/labels `text-sm`) and the contract heights;
+  files once to `text-base` (badges/labels `text-sm`) and the contract heights,
+  including `textarea.tsx`, `SidebarMenuButton` (`h-10 text-base`) and its
+  collapsed-rail `group-data-[collapsible=icon]:size-8!` → `size-10!`;
   never ship the untouched block (`dashboard-01` drops buttons to 28px and
   puts 22% of its text at 12px) as a finished admin.
 - Viewport meta stays `width=device-width, initial-scale=1`; never add
   `maximum-scale=1` or `user-scalable=no` to stop iOS input zoom — fix the
   input to 16px instead (`dotuiux check` fails `zoom-lock`).
-- For a new operator surface without a visual system, use
-  `admin-dashboard`'s clean-light baseline (the compact contract).
 - Dark mode is not speculative scope. Implement it only when accepted, then
   define every semantic and chart token in both themes and verify both.
 - Use one restrained accent for focus, active selection, and primary action.

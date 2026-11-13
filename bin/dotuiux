@@ -138,11 +138,13 @@ export function undersizedTargets(targets) {
 }
 
 // Pure: true when a viewport meta content string blocks user zoom (ACT rule b4f0c3).
+// Delimiters are comma, semicolon and whitespace (CSS Device Adaptation); numeric user-scalable
+// in (-1, 1) disables zoom; a negative maximum-scale is ignored by browsers.
 export function zoomLock(content) {
   if (!content) return false;
-  const kv = Object.fromEntries(content.toLowerCase().split(/[,;]/).map((p) => p.split("=").map((x) => x.trim())).filter(([k]) => k));
-  const us = kv["user-scalable"], max = parseFloat(kv["maximum-scale"]);
-  return us === "no" || us === "0" || (Number.isFinite(max) && max < 2);
+  const kv = Object.fromEntries(content.toLowerCase().replace(/\s*=\s*/g, "=").trim().split(/[\s,;]+/).map((p) => p.split("=")).filter(([k]) => k));
+  const us = kv["user-scalable"], usNum = parseFloat(us), max = parseFloat(kv["maximum-scale"]);
+  return us === "no" || (Number.isFinite(usNum) && Math.abs(usNum) < 1) || (Number.isFinite(max) && max >= 0 && max < 2);
 }
 
 export const RULES = [
@@ -171,7 +173,8 @@ export const RULES = [
     judge: (f) => !has(f.controls) ? null : f.controls.filter((c) => c.px < INPUT_MIN_PX).map((c) => off(c.el, `${c.px}px`)) },
   // WCAG 1.4.4 / ACT b4f0c3: a viewport meta must not block pinch zoom (user-scalable=no|0, maximum-scale < 2).
   { id: "zoom-lock", tier: "fail", spec: "WCAG 1.4.4", desc: "meta viewport blocks zoom (user-scalable=no or maximum-scale < 2)",
-    judge: (f) => f.viewportMeta === undefined ? null : zoomLock(f.viewportMeta) ? [off("meta viewport", f.viewportMeta)] : [] },
+    // viewportMeta: undefined = not measured; null = no viewport meta (pass); string or list = every tag is judged.
+    judge: (f) => f.viewportMeta === undefined ? null : [].concat(f.viewportMeta ?? []).filter((c) => zoomLock(c)).map((c) => off("meta viewport", c)) },
   { id: "img-alt", tier: "fail", spec: "§16", desc: "<img> without alt, or generic alt",
     judge: (f) => has(f.images) ? f.images.filter((i) => i.alt == null || GENERIC_ALT.test(i.alt.trim())).map((i) => off(i.el, i.alt == null ? "no alt" : `alt="${i.alt}"`)) : null },
   { id: "contact-count", tier: "fail", spec: "§14", desc: `> ${CONTACT_MAX} contact link (wa.me, whatsapp:, tel:, mailto:, m.me, t.me) per page`,
@@ -667,7 +670,7 @@ async function pageCollect(o) {
   const longAnim = (a) => { const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null; return t && (t.endTime === Infinity || t.endTime > o.loopMaxMs); };
   const animTarget = (a) => a.effect && a.effect.target;
   const tiny = (el) => { const r = el.getBoundingClientRect(); return r.width < o.tinyPx && r.height < o.tinyPx; };
-  const f = { width: vw, height: vh, viewportMeta: (document.querySelector('meta[name=viewport]') || {}).content ?? null };
+  const f = { width: vw, height: vh, viewportMeta: ((m) => m.length ? m : null)([...document.querySelectorAll('meta[name="viewport" i]')].map((e) => e.content).filter(Boolean)) };
 
   // 1. Motion, at scroll 0 before anything else moves the page.
   const lcpEl = rec.lcp && rec.lcp.element;

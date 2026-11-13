@@ -35,7 +35,8 @@ no description paragraph under every page title.
 
 Before building or changing any admin screen read
 [admin-visual-contract.md](references/admin-visual-contract.md): one size and
-surface contract per product (repository contract > house default > compact),
+surface contract per product (repository contract > house default; compact or
+comfort only when the owner or brief names them),
 mapped to Tailwind/shadcn classes, measured by `scripts/admin-geometry.mjs`
 at 390/1366/1536 against `assets/size-contracts/*.json`. Exit 1 is REVISE;
 exit 3 or `NOT-CHECKED` is reported as not checked. Numbers elsewhere in this

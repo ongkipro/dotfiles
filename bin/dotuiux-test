@@ -109,6 +109,14 @@ console.log("3. gate evaluation");
   expect(m.zoomLock("width=device-width, initial-scale=1, maximum-scale=1") && m.zoomLock("width=device-width,user-scalable=no")
     && m.zoomLock("user-scalable=0") && !m.zoomLock("width=device-width, initial-scale=1") && !m.zoomLock("maximum-scale=5") && !m.zoomLock(null),
     "zoomLock: maximum-scale<2 / user-scalable=no|0 lock zoom; plain device-width does not");
+  expect(m.zoomLock("width=device-width initial-scale=1 user-scalable=no") && m.zoomLock("width=device-width; maximum-scale = 1.0")
+    && m.zoomLock("user-scalable=No") && m.zoomLock("user-scalable=0.0") && m.zoomLock("maximum-scale=1.9")
+    && !m.zoomLock("maximum-scale=2.0") && !m.zoomLock("user-scalable=yes") && !m.zoomLock("maximum-scale=-1"),
+    "zoomLock: whitespace/semicolon delimiters, case, numeric user-scalable, the 2.0 boundary, and negative maximum-scale");
+  expect(status(m.evaluate([{ ...base, viewportMeta: null }]), "zoom-lock") === "pass"
+    && status(m.evaluate([{ ...base, viewportMeta: ["width=device-width, initial-scale=1", "user-scalable=no"] }]), "zoom-lock") === "fail",
+    "zoom-lock: a page without a viewport meta passes; a later locking tag fails even after an open one");
+  expect(m.parseAllows("allow: zoom-lock — reason").errors.some((e) => /floor/.test(e)), "zoom-lock is a floor rule and cannot be allowed");
   expect(status(m.evaluate([{ ...base, viewportMeta: "width=device-width, maximum-scale=1" }]), "zoom-lock") === "fail"
     && status(m.evaluate([{ ...base, viewportMeta: "width=device-width, initial-scale=1" }]), "zoom-lock") === "pass"
     && status(m.evaluate([{ ...base }]), "zoom-lock") === "not-checked", "zoom-lock: fails on locked meta, passes on open meta, unmeasured is NOT CHECKED");
@@ -361,7 +369,7 @@ section{padding:32px 0}
 <section><h2>Today</h2><p>Country loaf, rye, and cardamom buns. Order at the counter or online for pickup.</p></section>
 <section><h2>Visit</h2><p>Open daily 7:00–15:00. Questions after your visit: <a href="https://wa.me/62811">message us on WhatsApp</a>.</p></section></main>
 <footer><p>Jalan Kemang 1, Jakarta · 0811 0000 000</p></footer></body></html>`);
-fs.writeFileSync(path.join(site, "sloppy.html"), `<!doctype html><html><head><meta name=viewport content="width=device-width"><title>Slop</title><style>
+fs.writeFileSync(path.join(site, "sloppy.html"), `<!doctype html><html><head><meta name=viewport content="width=device-width"><meta name="Viewport" content="width=device-width user-scalable=no"><title>Slop</title><style>
 body{margin:0;font:14px system-ui}
 .hero{height:100vh;padding:24px;box-sizing:border-box;background:#f3f3f3}
 .btn{display:inline-block;padding:12px;background:#4f46e5;color:#fff;transition:all .6s}
@@ -393,12 +401,13 @@ try {
     let j = null; try { j = JSON.parse(sloppy.stdout); } catch {}
     const st = (id) => j && j.results.find((r) => r.id === id)?.status;
     expect(sloppy.status === 1 && j, "check exits 1 on a sloppy page with JSON output", sloppy.stderr.slice(0, 300));
-    for (const id of ["tiny-text", "overflow-x", "contact-count", "contact-placement", "floating-widget", "placeholder-content"]) expect(st(id) === "fail", `sloppy: ${id} fails`, st(id));
+    for (const id of ["tiny-text", "overflow-x", "contact-count", "contact-placement", "floating-widget", "placeholder-content", "zoom-lock"]) expect(st(id) === "fail", `sloppy: ${id} fails`, st(id));
     for (const id of ["hero-height", "whatsapp-green", "primary-actions", "transition-all"]) expect(st(id) === "warn", `sloppy: ${id} warns`, st(id));
 
     const design = path.join(TMP, "DESIGN-allow.md");
     fs.writeFileSync(design, "## Tokens\n## Allow\nallow: hero-height — fixture showcase\n");
     const clean = await runAsync(["check", `${base}/clean.html`, "--design", design]);
+    expect(/^PASS\s.*\bzoom-lock\b/m.test(clean.stdout), "clean page: zoom-lock PASSES on an open viewport meta", clean.stdout.split("\n").filter((l) => /zoom-lock/.test(l)).join(" | "));
     expect(clean.status === 0 && /0 fail/.test(clean.stdout), "clean page: no FAIL, exit 0", clean.stdout.split("\n").filter((l) => /^(FAIL|WARN)|^\s+\d/.test(l)).join(" | ") + clean.stderr);
     // Closeout follow-up 2026-10-31: NOT CHECKED must not swallow the pass case on a fully measured page.
     expect(/^PASS\s.*\bcontrast\b/m.test(clean.stdout) && !/contrast not measured/.test(clean.stdout),

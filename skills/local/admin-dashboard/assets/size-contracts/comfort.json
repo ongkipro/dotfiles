@@ -7,9 +7,11 @@
     { "id": "text-floor", "selector": "body *", "prop": "textSize", "min": 14, "viewports": "all" },
     { "id": "button-height", "selector": "[data-slot=button]", "prop": "height", "allowed": [36, 40, 44], "viewports": "desktop" },
     { "id": "input-height", "selector": "[data-slot=input], [data-slot=select-trigger]", "prop": "height", "allowed": [40, 44], "viewports": "desktop" },
-    { "id": "input-font-desktop", "selector": "[data-slot=input], textarea", "prop": "fontSize", "allowed": [16], "viewports": "desktop" },
-    { "id": "input-font-mobile", "selector": "[data-slot=input], textarea, select", "prop": "fontSize", "allowed": [16], "viewports": "mobile" },
+    { "id": "input-font-desktop", "selector": "[data-slot=input], input[data-slot=form-control], [data-slot=select-trigger], textarea", "prop": "fontSize", "allowed": [16], "viewports": "desktop" },
+    { "id": "input-font-mobile", "selector": "[data-slot=input], [data-slot=select-trigger], textarea, select", "prop": "fontSize", "allowed": [16], "viewports": "mobile" },
     { "id": "sidebar-width", "selector": "[data-slot=sidebar-container]", "prop": "width", "allowed": [256, 56], "viewports": "desktop" },
+    { "id": "sidebar-link-height", "selector": "[data-slot=sidebar-menu-button]", "prop": "height", "allowed": [40], "viewports": "desktop" },
+    { "id": "sidebar-link-font", "selector": "[data-slot=sidebar-menu-button]", "prop": "fontSize", "allowed": [16], "viewports": "all" },
     { "id": "header-height", "selector": "header", "prop": "height", "allowed": [64], "viewports": "all" },
     { "id": "table-head-height", "selector": "[data-slot=table-head]", "prop": "height", "allowed": [44], "viewports": "desktop" },
     { "id": "table-cell-font", "selector": "[data-slot=table-cell]", "prop": "fontSize", "allowed": [16], "viewports": "all" },
@@ -18,6 +20,6 @@
     { "id": "gradient", "selector": "body *", "prop": "gradient", "forbid": true, "viewports": "all" },
     { "id": "icon-tile", "selector": "body *", "prop": "iconTile", "forbid": true, "viewports": "all" },
     { "id": "accent-surfaces", "selector": "body *", "prop": "accentSurface", "distinctMax": 5, "viewports": "desktop" },
-    { "id": "touch-target", "selector": "[data-slot=button], [data-slot=input], [data-slot=select-trigger], [role=checkbox], [role=switch]", "prop": "minSide", "warnBelow": 44, "viewports": "mobile" }
+    { "id": "touch-target", "selector": "[data-slot=button], [data-slot=input], [data-slot=select-trigger], [role=checkbox], [role=switch]", "prop": "minSide", "warnBelow": 48, "viewports": "mobile" }
   ]
 }

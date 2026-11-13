@@ -49,18 +49,18 @@ an intended deviation recorded in the project contract with its reason.
 | Section / card title | 16px / 600 | 16px / 600 | 18px / 600 | `text-base font-semibold` → comfort `text-lg` |
 | Page title | 24px / 700 | 20px / 600 | 28px / 700 | `text-2xl font-bold tracking-[-0.02em]` → `text-xl` / `text-[28px]` |
 | KPI value | 24px / 700 | 20px / 600 | 28px / 700 | same as page title; never larger than it |
-| Button: sm / default / lg | 32 / 36 / 40 | 28 / 32 / 36 | 36 / 40 / 44 | `h-8/h-9/h-10` → `h-7/h-8/h-9` / `h-9/h-10/h-11` |
-| Icon button | 36 (toolbar 32) | 32 | 40 | `size-9` → `size-8` / `size-10` |
+| Button: sm / default / lg | 32 / 36 / 40 | 28 / 32 / 36 | 36 / 40 / 44 | `h-8/h-9/h-10` → `h-7/h-8/h-9` / `h-9/h-10/h-11`; comfort forms pair `lg` (44) with 44px inputs, toolbars pair `default` (40) with 40px controls |
+| Icon button | 36 (toolbar 32) | 32 | 44 (toolbar 40) | `size-9` → `size-8` / `size-11` (toolbar `size-10`) |
 | Input, select trigger: form / toolbar | 36 / 32 | 32 | 44 / 40 | `h-9`/`h-8` → `h-8` / `h-11`/`h-10` |
 | Header | 64px | 48px | 64px | `h-16` → `h-12` / `h-16` |
 | Sidebar expanded / icon rail | 256 / 48 | 240 / 48 | 256 / 56 | `SIDEBAR_WIDTH 16rem`/`3rem` → `15rem`/`3rem` / `16rem`/`3.5rem` |
-| Sidebar link | 32px / 14px | 32px / 14px | 40px / 16px | `SidebarMenuButton` `h-8 text-sm` → comfort `h-10 text-base` |
+| Sidebar link | 32px / 14px | 32px / 14px | 40px / 16px | `SidebarMenuButton` `h-8 text-sm` → comfort `h-10 text-base`; collapsed rail `group-data-[collapsible=icon]:size-8!` → `size-10!` |
 | Table header row | 40px | 32px | 44px | `TableHead h-10` → `h-8` / `h-11` |
-| Table cell padding | 8px | 6px × 8px | 12px × 8px | `TableCell p-2` → `px-2 py-1.5` / `px-3 py-2` |
+| Table cell padding (vertical × horizontal) | 8 × 8px | 6 × 8px | 8 × 12px | `TableCell p-2` → `px-2 py-1.5` / `px-3 py-2` |
 | Page padding | 16px × 24px | 16px | 16px × 24px | `Main` `px-4 py-6` → `p-4` |
 | Gap: related / section | 8 / 16 or 24 | 8 / 16 | 8 / 24 | `gap-2` / `gap-4`, `space-y-6` between page sections |
 | Icon in text | 16px | 16px | 20px | `size-4` → comfort `size-5`, `text-muted-foreground` |
-| Touch (`pointer: coarse`) | ≥ 44px hit area | ≥ 44px | ≥ 48px | raise height or hit area; WCAG 2.5.8 floor is 24px |
+| Touch (`pointer: coarse`) | ≥ 44px hit area | ≥ 44px | ≥ 48px (advisory `touch-target` warns below 48) | raise height or hit area; WCAG 2.5.8 floor is 24px |
 
 Typeface: keep the project's face; with none, the system UI stack (or Geist /
 Inter where shadcn's preset already ships it). Use `tabular-nums` for money,
@@ -68,7 +68,10 @@ weights and counts. Never pick a face with a small x-height to "look premium";
 at 14px it reads like 12px. One family plus a mono for IDs only.
 
 Compact and comfort require editing the owned primitives once (`button.tsx`, `input.tsx`,
-`select.tsx`, `table.tsx`, `sidebar.tsx`, `badge.tsx`), not overriding classes per call site.
+`textarea.tsx`, `select.tsx`, `table.tsx`, `sidebar.tsx`, `badge.tsx`), not overriding classes per call site.
+`text-floor` measures own text nodes and text-bearing inputs (value or
+placeholder), skips visually hidden `sr-only` text, and scales SVG `<text>` to
+rendered px; CSS `::before`/`::after` text is not measured — review it by eye.
 Per-call `className="h-7"` sprinkled through features is exactly the drift this
 contract prevents.
 

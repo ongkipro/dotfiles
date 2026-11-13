@@ -51,7 +51,8 @@ table{border-collapse:collapse;width:100%} th{height:32px;padding:0 8px;box-sizi
 </style></head><body><aside data-shell=sidebar></aside><div><header><input placeholder=Search><button>Export</button></header>
 <main style="padding:16px"><table><tr><th>Order</th><th>Status</th></tr><tr><td>#1001</td><td><span class=ok>Paid</span></td></tr></table></main></div></body></html>
 HTML
-cat > "$TMP/site/sloppy.html" <<'HTML'
+FILLER="$(for i in $(seq 1 500); do printf '<p>row %s</p>' "$i"; done)"
+cat > "$TMP/site/sloppy.html" <<HTML
 <!doctype html><html><head><meta name=viewport content="width=device-width"><style>
 body{margin:0;font:14px system-ui;display:grid;grid-template-columns:240px 1fr}
 aside{height:100vh;background:linear-gradient(#4f46e5,#9333ea)} header{height:72px;display:flex;align-items:center;gap:8px;padding:0 16px}
@@ -59,7 +60,7 @@ button{height:44px;font-size:14px;border:0;border-radius:24px 24px 24px 24px;bac
 .card{border:1px solid #eee;border-radius:24px;box-shadow:0 10px 30px rgba(0,0,0,.15);padding:24px;margin:16px}
 .tile{width:40px;height:40px;border-radius:12px;background:#ede9fe;display:grid;place-items:center}
 </style></head><body><aside data-shell=sidebar></aside><div><header><button>Export</button></header>
-<main><small style="font-size:11px">Updated 2m ago</small><div class=card><div class=tile><svg width=16 height=16><circle cx=8 cy=8 r=6 fill="#7c3aed"/></svg></div>Revenue</div></main></div></body></html>
+<main><span class=sr style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);font-size:10px">Toggle sidebar</span><div style="opacity:0"><span style="font-size:9px">hidden</span></div>${FILLER}<small style="font-size:11.84px">Updated 2m ago</small><div class=card><div class=tile><svg width=16 height=16><circle cx=8 cy=8 r=6 fill="#7c3aed"/></svg></div>Revenue</div></main></div></body></html>
 HTML
 PORT=$((20000 + RANDOM % 20000))
 python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$TMP/site" >/dev/null 2>&1 & SRV=$!
@@ -75,6 +76,8 @@ else
   for id in header-height radius shadow gradient icon-tile text-floor; do
     grep -q "^- FAIL 1366px $id " "$TMP/sloppy.md" && ok "sloppy: detects $id" || bad "sloppy: missed $id ($(grep " $id " "$TMP/sloppy.md"))"
   done
+  grep -A3 "^- FAIL 1366px text-floor" "$TMP/sloppy.md" | grep -q '11.84 small' && ok "text-floor: 11.84px after 500 rows fails (no cap, no rounding)" || bad "text-floor: 11.84px offender missing ($(grep -A3 text-floor "$TMP/sloppy.md"))"
+  grep -A6 "^- FAIL 1366px text-floor" "$TMP/sloppy.md" | grep -qE 'Toggle sidebar|"hidden"' && bad "text-floor: sr-only or opacity-0 text counted" || ok "text-floor: sr-only and opacity-0 text ignored"
   grep -q "^- FAIL 1366px button-height" "$TMP/sloppy.md" && ok "sloppy: detects oversized button" || bad "sloppy: missed button-height"
 fi
 
