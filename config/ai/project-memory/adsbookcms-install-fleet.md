@@ -11,7 +11,7 @@ the deploy path (`INSTALLATION.md` §10).
 
 Local directories, all clones of the product, none obvious from its name:
 
-- `~/Projects/adsbook.id/app` (symlink `~/Projects/adsbookcms`) — the product itself; its docs are in `~/Projects/adsbook.id/docs/`
+- `~/Projects/adsbookcms` — the product itself (left as is since 2026-11-13; the new project adsbook.id lives in `~/Projects/adsbook.id` + `~/Projects/adsbook.id-docs` and never writes here)
 - `~/Projects/zvarashop` — install `zvara.shop`, repo `ongkipro/zvarashop`
 - `~/Projects/taniniaga` — install `taniniaga.shop`, repo `ongkipro/taniniaga`
 - `~/Projects/permatamall` (+ `-perf`) — install `permatamall.shop`, repo `ongkipro/permatamall`. Since `5499583` it has no `deploy.yml`: pushing `main` deploys nothing, deploy is `npm run deploy` by hand. Its stale static `public/robots.txt` was removed in 1.8.2. Its footer adds a `Meta Ads & Privasi` → `/meta-ads` link (Meta App Basic Settings needs it): keep it when a product merge rewrites `SiteFooter.astro`. zanobyshop still carries a `deploy.yml`
