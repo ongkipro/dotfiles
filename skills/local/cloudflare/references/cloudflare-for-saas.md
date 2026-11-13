@@ -124,6 +124,18 @@ the customer's zone first, then yours (`cf-connecting-o2o: 1` header). Effects:
 | **Sharded D1** (N bindings, tenant → shard) | Yes, within the bound shards | Shared-D1 rules per shard; more capacity; shard map in a control table. |
 | **SQLite Durable Object per tenant** (`idFromName(tenantId)`) | **Yes** — unlimited objects, created on first use | Physical isolation per tenant, 10 GB each, 30-day PITR, `locationHint` (`apac-se`). Code runs inside the DO (RPC); queries are synchronous SQLite in the object. Billed on DO requests, duration and storage. Docs list "per-user or per-customer SQL state" as a DO use case. |
 
+If you put a `D1Database`-shaped adapter over a SQLite Durable Object (to keep D1 call sites),
+these semantics were verified 2026-11-13 (D1 emulator source + local workerd probe; re-check in
+production): D1 `meta.changes` = delta of `SELECT total_changes()` around the statement (it
+**includes trigger writes**) — not cursor `rowsWritten` (adds index writes) and not `changes()`
+(excludes triggers); `last_row_id` = `last_insert_rowid()`; a D1 `batch()` maps to one
+`ctx.storage.transactionSync` (rolls back on throw); SQL `BEGIN`/`SAVEPOINT` are refused;
+`PRAGMA user_version` → `SQLITE_AUTH`; `PRAGMA foreign_keys` toggles are no-ops inside a
+transaction; trigger bodies, `RETURNING`, `?1` reuse, `AUTOINCREMENT` work. Never migrate in the
+DO constructor (`blockConcurrencyWhile` has a 30 s limit and a throw resets the object; a PITR
+restore would re-run the migration): migrate through an explicit RPC after persisting a bookmark.
+Host→tenant ownership must not be decided by KV (eventually consistent, 60 s+).
+
 Other per-tenant resources: **R2** one bucket with `t/<tenantId>/` key prefixes (bucket per tenant
 only if needed; 100k default); **KV** key prefix `t:<tenantId>:`; **Cache API** — the cache key
 includes the full URL so different hosts never collide, but never cache a response that varies by
