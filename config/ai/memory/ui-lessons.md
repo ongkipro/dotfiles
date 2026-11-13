@@ -135,3 +135,26 @@ Import the missing weight on the surface that uses it (admin-only 500), codemod 
 Tally computed fontSize/fontWeight per UI role in a headless browser at desktop and phone widths; compare the weights used against the @font-face list.
 
 > Promoted from a reviewed local candidate on 2026-10-01.
+
+
+---
+
+
+## Lesson: Generated admin UIs inherit shadcn's 14px desk scale and read too small
+
+### Symptom
+Owner repeatedly reported 'font kecil-kecil' and AI-slop on generated admin and public pages; gates passed.
+
+### Root cause
+Skills defaulted every admin to the stock shadcn new-york-v4 contract (14px body, 12px meta ~22% of text, 28px buttons in dashboard-01); dotuiux only failed text under 12px; admin-geometry had no text floor, rounded sizes 0.5px and stopped after 400 elements; zoom-locked viewport metas were never checked.
+
+### Durable invariant
+Pick the admin size contract from the brief audience (comfort: 16px body, 14px floor, 44px inputs for operators 40+ or counter/touch); nothing visible below the contract text floor; viewport meta never blocks zoom.
+
+### Fix
+comfort.json contract, text-floor check (exact, no cap, sr-only skipped, SVG scaled), dotuiux zoom-lock floor rule, docs in admin-visual-contract/shadcn-ui/design-taste (dotfiles 224d8f4d..72a8dc35, Carbon review APPROVE round 3).
+
+### Regression check
+node bin/dotuiux-test; bash skills/local/admin-dashboard/scripts/test-admin-geometry.sh; node admin-geometry.mjs <url> --contract design/admin-contract.json --viewports 390,1366,1536
+
+> Promoted from a reviewed local candidate on 2026-11-13.
