@@ -20,7 +20,7 @@
   The old product and its twelve store installs are left as they are (2026-11-13).
 - **adsbook.id** (new project, 2026-11-13, ADR-038): a **multi-tenant SaaS** on
   Cloudflare (one Worker, one SQLite Durable Object per tenant in APAC/Singapore,
-  Cloudflare for SaaS hostnames; PRD A49, ADR-039 Option D proposed). Code `ongkipro/adsbook.id` → `~/Projects/adsbook.id`, docs
+  Cloudflare for SaaS hostnames; PRD A49, ADR-039 Option D accepted 2026-11-13). Code `ongkipro/adsbook.id` → `~/Projects/adsbook.id`, docs
   `ongkipro/adsbook.id-docs` → `~/Projects/adsbook.id-docs`, both private; started
   from the AdsBookCMS tree.
   Never commit, push or add a remote toward `ongkipro/adsbookcms` from it, and
