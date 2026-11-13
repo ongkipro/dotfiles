@@ -17,7 +17,9 @@
 ## adsbookcms
 
 - Repository: `ongkipro/adsbookcms`; expected checkout:
-  `~/Projects/adsbookcms`.
+  `~/Projects/adsbook.id/development` (`~/Projects/adsbookcms` is a symlink).
+  Product docs live outside the repo in `~/Projects/adsbook.id/docs/`
+  (product, architecture, contracts, design, operations, history, audits).
 - Product boundary: installable, single-tenant Cloudflare CMS. One install
   maps to one Worker; do not introduce an in-application tenant abstraction.
 - `permatamall` is a separate reference-install repository derived from this product. It may contain merchant-specific data, styling, deployment policy, and historical claims that must be re-verified before reuse.
